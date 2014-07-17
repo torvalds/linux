@@ -394,12 +394,12 @@ static int check_channel_list(struct comedi_device *dev,
 
 	/* correct channel and range number check itself comedi/range.c */
 	if (n_chan < 1) {
-		comedi_error(dev, "range/channel list is empty!");
+		dev_err(dev->class_dev, "range/channel list is empty!\n");
 		return 0;
 	}
 	if ((frontadd + n_chan + backadd) > s->len_chanlist) {
-		comedi_error(dev,
-			    "range/channel list is too long for actual configuration!\n");
+		dev_err(dev->class_dev,
+			"range/channel list is too long for actual configuration!\n");
 		return 0;
 	}
 
@@ -411,22 +411,20 @@ static int check_channel_list(struct comedi_device *dev,
 		for (i = 1; i < n_chan; i++) {	/* check S.E/diff */
 			if ((CR_AREF(chanlist[i]) == AREF_DIFF) !=
 			    (differencial)) {
-				comedi_error(dev,
-					     "Differential and single ended inputs can't be mixed!");
+				dev_err(dev->class_dev,
+					"Differential and single ended inputs can't be mixed!\n");
 				return 0;
 			}
 			if ((CR_RANGE(chanlist[i]) < PCI9118_BIPOLAR_RANGES) !=
 			    (bipolar)) {
-				comedi_error(dev,
-					     "Bipolar and unipolar ranges "
-							"can't be mixtured!");
+				dev_err(dev->class_dev,
+					"Bipolar and unipolar ranges can't be mixed!\n");
 				return 0;
 			}
 			if (!devpriv->usemux && differencial &&
 			    (CR_CHAN(chanlist[i]) >= this_board->n_aichand)) {
-				comedi_error(dev,
-					     "If AREF_DIFF is used then is "
-					"available only first 8 channels!");
+				dev_err(dev->class_dev,
+					"AREF_DIFF is only available for the first 8 channels!\n");
 				return 0;
 			}
 		}
@@ -863,20 +861,21 @@ static char pci9118_decode_error_status(struct comedi_device *dev,
 	struct pci9118_private *devpriv = dev->private;
 
 	if (m & 0x100) {
-		comedi_error(dev, "A/D FIFO Full status (Fatal Error!)");
+		dev_err(dev->class_dev,
+			"A/D FIFO Full status (Fatal Error!)\n");
 		devpriv->ai_maskerr &= ~0x100L;
 	}
 	if (m & 0x008) {
-		comedi_error(dev,
-			     "A/D Burst Mode Overrun Status (Fatal Error!)");
+		dev_err(dev->class_dev,
+			"A/D Burst Mode Overrun Status (Fatal Error!)\n");
 		devpriv->ai_maskerr &= ~0x008L;
 	}
 	if (m & 0x004) {
-		comedi_error(dev, "A/D Over Speed Status (Warning!)");
+		dev_err(dev->class_dev, "A/D Over Speed Status (Warning!)\n");
 		devpriv->ai_maskerr &= ~0x004L;
 	}
 	if (m & 0x002) {
-		comedi_error(dev, "A/D Overrun Status (Fatal Error!)");
+		dev_err(dev->class_dev, "A/D Overrun Status (Fatal Error!)\n");
 		devpriv->ai_maskerr &= ~0x002L;
 	}
 	if (m & devpriv->ai_maskharderr) {
@@ -965,14 +964,14 @@ static void interrupt_pci9118_ai_dma(struct comedi_device *dev,
 	unsigned int next_dma_buf, samplesinbuf, sampls, m;
 
 	if (int_amcc & MASTER_ABORT_INT) {
-		comedi_error(dev, "AMCC IRQ - MASTER DMA ABORT!");
+		dev_err(dev->class_dev, "AMCC IRQ - MASTER DMA ABORT!\n");
 		s->async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
 		cfc_handle_events(dev, s);
 		return;
 	}
 
 	if (int_amcc & TARGET_ABORT_INT) {
-		comedi_error(dev, "AMCC IRQ - TARGET DMA ABORT!");
+		dev_err(dev->class_dev, "AMCC IRQ - TARGET DMA ABORT!\n");
 		s->async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
 		cfc_handle_events(dev, s);
 		return;
@@ -1426,17 +1425,16 @@ static int pci9118_ai_docmd_sampl(struct comedi_device *dev,
 		devpriv->AdControlReg |= AdControl_TmrTr;
 		break;
 	case 2:
-		comedi_error(dev, "pci9118_ai_docmd_sampl() mode 2 bug!\n");
+		dev_err(dev->class_dev, "%s mode 2 bug!\n", __func__);
 		return -EIO;
 	case 3:
 		devpriv->AdControlReg |= AdControl_ExtM;
 		break;
 	case 4:
-		comedi_error(dev, "pci9118_ai_docmd_sampl() mode 4 bug!\n");
+		dev_err(dev->class_dev, "%s mode 4 bug!\n", __func__);
 		return -EIO;
 	default:
-		comedi_error(dev,
-			     "pci9118_ai_docmd_sampl() mode number bug!\n");
+		dev_err(dev->class_dev, "%s mode number bug!\n", __func__);
 		return -EIO;
 	}
 
@@ -1508,7 +1506,7 @@ static int pci9118_ai_docmd_dma(struct comedi_device *dev,
 		devpriv->AdFunctionReg |= AdFunction_Start;
 		break;
 	default:
-		comedi_error(dev, "pci9118_ai_docmd_dma() mode number bug!\n");
+		dev_err(dev->class_dev, "%s mode number bug!\n", __func__);
 		return -EIO;
 	}
 
@@ -1676,9 +1674,8 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		(cmd->convert_src == TRIG_NOW))) {
 						/* double timed action */
 		if (!devpriv->usedma) {
-			comedi_error(dev,
-				     "cmd->scan_begin_src=TRIG_TIMER works "
-						"only with bus mastering!");
+			dev_err(dev->class_dev,
+				"cmd->scan_begin_src=TRIG_TIMER works only with bus mastering!\n");
 			return -EIO;
 		}
 
