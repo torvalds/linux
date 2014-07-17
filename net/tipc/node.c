@@ -474,8 +474,6 @@ int tipc_node_get_linkname(u32 bearer_id, u32 addr, char *linkname, size_t len)
 void tipc_node_unlock(struct tipc_node *node)
 {
 	LIST_HEAD(nsub_list);
-	struct tipc_link *link;
-	int pkt_sz = 0;
 	u32 addr = 0;
 
 	if (likely(!node->action_flags)) {
@@ -488,18 +486,13 @@ void tipc_node_unlock(struct tipc_node *node)
 		node->action_flags &= ~TIPC_NOTIFY_NODE_DOWN;
 	}
 	if (node->action_flags & TIPC_NOTIFY_NODE_UP) {
-		link = node->active_links[0];
 		node->action_flags &= ~TIPC_NOTIFY_NODE_UP;
-		if (link) {
-			pkt_sz = ((link->max_pkt - INT_H_SIZE) / ITEM_SIZE) *
-				  ITEM_SIZE;
-			addr = node->addr;
-		}
+		addr = node->addr;
 	}
 	spin_unlock_bh(&node->lock);
 
 	if (!list_empty(&nsub_list))
 		tipc_nodesub_notify(&nsub_list);
-	if (pkt_sz)
-		tipc_named_node_up(pkt_sz, addr);
+	if (addr)
+		tipc_named_node_up(addr);
 }
