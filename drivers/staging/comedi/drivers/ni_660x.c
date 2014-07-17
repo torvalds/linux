@@ -710,8 +710,8 @@ static int ni_660x_request_mite_channel(struct comedi_device *dev,
 					 mite_ring(devpriv, counter));
 	if (mite_chan == NULL) {
 		spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
-		comedi_error(dev,
-			     "failed to reserve mite dma channel for counter.");
+		dev_err(dev->class_dev,
+			"failed to reserve mite dma channel for counter\n");
 		return -EBUSY;
 	}
 	mite_chan->dir = direction;
@@ -745,8 +745,8 @@ static int ni_660x_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	retval = ni_660x_request_mite_channel(dev, counter, COMEDI_INPUT);
 	if (retval) {
-		comedi_error(dev,
-			     "no dma channel available for use by counter");
+		dev_err(dev->class_dev,
+			"no dma channel available for use by counter\n");
 		return retval;
 	}
 	ni_tio_acknowledge_and_confirm(counter, NULL, NULL, NULL, NULL);
