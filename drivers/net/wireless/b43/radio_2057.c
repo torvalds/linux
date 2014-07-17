@@ -163,12 +163,12 @@ static u16 r2057_rev9_init[][2] = {
 	.radio_vcobuf_tune			= r09,	\
 	.radio_logen_mx2g_tune			= r10,	\
 	.radio_logen_indbuf2g_tune		= r11,	\
-	.radio_lna2g_tune_core0			= r12,	\
-	.radio_txmix2g_tune_boost_pu_core0	= r13,	\
-	.radio_pad2g_tune_pus_core0		= r14,	\
-	.radio_lna2g_tune_core1			= r15,	\
-	.radio_txmix2g_tune_boost_pu_core1	= r16,	\
-	.radio_pad2g_tune_pus_core1		= r17
+	.radio_txmix2g_tune_boost_pu_core0	= r12,	\
+	.radio_pad2g_tune_pus_core0		= r13,	\
+	.radio_lna2g_tune_core0			= r14,	\
+	.radio_txmix2g_tune_boost_pu_core1	= r15,	\
+	.radio_pad2g_tune_pus_core1		= r16,	\
+	.radio_lna2g_tune_core1			= r17
 
 #define PHYREGS(r0, r1, r2, r3, r4, r5)	\
 	.phy_regs.phy_bw1a	= r0,	\
