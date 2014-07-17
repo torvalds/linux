@@ -282,6 +282,8 @@ static struct key *nfs_idmap_request_key(const char *name, size_t namelen,
 						desc, "", 0, idmap);
 		mutex_unlock(&idmap->idmap_mutex);
 	}
+	if (!IS_ERR(rkey))
+		set_bit(KEY_FLAG_ROOT_CAN_INVAL, &rkey->flags);
 
 	kfree(desc);
 	return rkey;
