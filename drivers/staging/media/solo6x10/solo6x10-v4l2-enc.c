@@ -16,10 +16,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
 #include <linux/kernel.h>
@@ -704,6 +700,7 @@ static int solo_ring_thread(void *data)
 
 	for (;;) {
 		long timeout = schedule_timeout_interruptible(HZ);
+
 		if (timeout == -ERESTARTSYS || kthread_should_stop())
 			break;
 		solo_irq_off(solo_dev, SOLO_IRQ_ENCODER);
@@ -750,6 +747,7 @@ static int solo_ring_start(struct solo_dev *solo_dev)
 					    SOLO6X10_NAME "_ring");
 	if (IS_ERR(solo_dev->ring_thread)) {
 		int err = PTR_ERR(solo_dev->ring_thread);
+
 		solo_dev->ring_thread = NULL;
 		return err;
 	}
@@ -1402,6 +1400,7 @@ int solo_enc_v4l2_init(struct solo_dev *solo_dev, unsigned nr)
 
 	if (i != solo_dev->nr_chans) {
 		int ret = PTR_ERR(solo_dev->v4l2_enc[i]);
+
 		while (i--)
 			solo_enc_free(solo_dev->v4l2_enc[i]);
 		pci_free_consistent(solo_dev->pdev, solo_dev->vh_size,

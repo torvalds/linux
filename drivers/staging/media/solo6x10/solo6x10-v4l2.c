@@ -16,10 +16,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
 #include <linux/kernel.h>
@@ -98,6 +94,7 @@ static int solo_v4l2_ch_ext_4up(struct solo_dev *solo_dev, u8 idx, int on)
 
 	if (!on) {
 		u8 i;
+
 		for (i = ch; i < ch + 4; i++)
 			solo_win_setup(solo_dev, i, solo_dev->video_hsize,
 				       solo_vlines(solo_dev),
@@ -206,6 +203,7 @@ static void solo_fillbuf(struct solo_dev *solo_dev,
 	if (erase_off(solo_dev)) {
 		void *p = vb2_plane_vaddr(vb, 0);
 		int image_size = solo_image_size(solo_dev);
+
 		for (i = 0; i < image_size; i += 2) {
 			((u8 *)p)[i] = 0x80;
 			((u8 *)p)[i + 1] = 0x00;
@@ -275,6 +273,7 @@ static int solo_thread(void *data)
 
 	for (;;) {
 		long timeout = schedule_timeout_interruptible(HZ);
+
 		if (timeout == -ERESTARTSYS || kthread_should_stop())
 			break;
 		solo_thread_try(solo_dev);
@@ -414,6 +413,7 @@ static int solo_enum_input(struct file *file, void *priv,
 
 	if (input->index >= solo_dev->nr_chans) {
 		int ret = solo_enum_ext_input(solo_dev, input);
+
 		if (ret < 0)
 			return ret;
 	} else {

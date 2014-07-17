@@ -16,10 +16,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
 #include <linux/kernel.h>
@@ -214,6 +210,7 @@ static void tw_write_and_verify(struct solo_dev *solo_dev, u8 addr, u8 off,
 
 	for (i = 0; i < 5; i++) {
 		u8 rval = solo_i2c_readbyte(solo_dev, SOLO_I2C_TW, addr, off);
+
 		if (rval == val)
 			return;
 
