@@ -1824,6 +1824,7 @@ int ieee80211_add_srates_ie(struct ieee80211_sub_if_data *sdata,
 int ieee80211_add_ext_srates_ie(struct ieee80211_sub_if_data *sdata,
 				struct sk_buff *skb, bool need_basic,
 				enum ieee80211_band band);
+u8 *ieee80211_add_wmm_info_ie(u8 *buf, u8 qosinfo);
 
 /* channel management */
 void ieee80211_ht_oper_to_chandef(struct ieee80211_channel *control_chan,

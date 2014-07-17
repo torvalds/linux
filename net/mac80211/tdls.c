@@ -100,6 +100,7 @@ ieee80211_tdls_add_setup_start_ies(struct ieee80211_sub_if_data *sdata,
 				   const u8 *extra_ies, size_t extra_ies_len)
 {
 	enum ieee80211_band band = ieee80211_get_sdata_band(sdata);
+	struct ieee80211_local *local = sdata->local;
 	size_t offset = 0, noffset;
 	u8 *pos;
 
@@ -125,6 +126,11 @@ ieee80211_tdls_add_setup_start_ies(struct ieee80211_sub_if_data *sdata,
 	}
 
 	ieee80211_tdls_add_ext_capab(skb);
+
+	/* add the QoS element if we support it */
+	if (local->hw.queues >= IEEE80211_NUM_ACS &&
+	    action_code != WLAN_PUB_ACTION_TDLS_DISCOVER_RES)
+		ieee80211_add_wmm_info_ie(skb_put(skb, 9), 0); /* no U-APSD */
 
 	/* add any custom IEs that go before HT capabilities */
 	if (extra_ies_len) {
@@ -310,6 +316,7 @@ ieee80211_tdls_prep_mgmt_packet(struct wiphy *wiphy, struct net_device *dev,
 				sizeof(struct ieee80211_tdls_data)) +
 			    50 + /* supported rates */
 			    7 + /* ext capab */
+			    26 + /* max(WMM-info, WMM-param) */
 			    extra_ies_len +
 			    sizeof(struct ieee80211_tdls_lnkie));
 	if (!skb)
