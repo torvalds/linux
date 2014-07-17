@@ -684,10 +684,9 @@ struct radeon_flip_work {
 	struct work_struct		unpin_work;
 	struct radeon_device		*rdev;
 	int				crtc_id;
-	struct drm_framebuffer		*fb;
+	uint64_t			base;
 	struct drm_pending_vblank_event *event;
 	struct radeon_bo		*old_rbo;
-	struct radeon_bo		*new_rbo;
 	struct radeon_fence		*fence;
 };
 
