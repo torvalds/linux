@@ -142,9 +142,6 @@ static int msm_pinmux_enable(struct pinctrl_dev *pctldev,
 
 	g = &pctrl->soc->groups[group];
 
-	if (WARN_ON(g->mux_bit < 0))
-		return -EINVAL;
-
 	for (i = 0; i < g->nfuncs; i++) {
 		if (g->funcs[i] == function)
 			break;
