@@ -473,10 +473,6 @@ static void _InitRetryFunction(struct rtw_adapter *Adapter)
 	rtl8723au_write8(Adapter, REG_ACKTO, 0x40);
 }
 
-static void _InitOperationMode(struct rtw_adapter *Adapter)
-{
-}
-
 static void _InitRFType(struct rtw_adapter *Adapter)
 {
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(Adapter);
@@ -699,7 +695,6 @@ static int rtl8723au_hal_init(struct rtw_adapter *Adapter)
 	_InitEDCA(Adapter);
 	_InitRateFallback(Adapter);
 	_InitRetryFunction(Adapter);
-	_InitOperationMode(Adapter);/* todo */
 	rtl8723a_InitBeaconParameters(Adapter);
 
 	_InitHWLed(Adapter);
