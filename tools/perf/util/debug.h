@@ -39,4 +39,6 @@ void pr_stat(const char *fmt, ...);
 
 int eprintf(int level, int var, const char *fmt, ...) __attribute__((format(printf, 3, 4)));
 
+int perf_debug_option(const char *str);
+
 #endif	/* __PERF_DEBUG_H */
