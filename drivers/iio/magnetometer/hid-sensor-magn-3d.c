@@ -35,6 +35,10 @@ enum magn_3d_channel {
 	CHANNEL_SCAN_INDEX_X,
 	CHANNEL_SCAN_INDEX_Y,
 	CHANNEL_SCAN_INDEX_Z,
+	CHANNEL_SCAN_INDEX_NORTH_MAGN_TILT_COMP,
+	CHANNEL_SCAN_INDEX_NORTH_TRUE_TILT_COMP,
+	CHANNEL_SCAN_INDEX_NORTH_MAGN,
+	CHANNEL_SCAN_INDEX_NORTH_TRUE,
 	MAGN_3D_CHANNEL_MAX,
 };
 
@@ -57,7 +61,11 @@ struct magn_3d_state {
 static const u32 magn_3d_addresses[MAGN_3D_CHANNEL_MAX] = {
 	HID_USAGE_SENSOR_ORIENT_MAGN_FLUX_X_AXIS,
 	HID_USAGE_SENSOR_ORIENT_MAGN_FLUX_Y_AXIS,
-	HID_USAGE_SENSOR_ORIENT_MAGN_FLUX_Z_AXIS
+	HID_USAGE_SENSOR_ORIENT_MAGN_FLUX_Z_AXIS,
+	HID_USAGE_SENSOR_ORIENT_COMP_MAGN_NORTH,
+	HID_USAGE_SENSOR_ORIENT_COMP_TRUE_NORTH,
+	HID_USAGE_SENSOR_ORIENT_MAGN_NORTH,
+	HID_USAGE_SENSOR_ORIENT_TRUE_NORTH,
 };
 
 /* Channel definitions */
@@ -84,6 +92,42 @@ static const struct iio_chan_spec magn_3d_channels[] = {
 		.type = IIO_MAGN,
 		.modified = 1,
 		.channel2 = IIO_MOD_Z,
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
+		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_OFFSET) |
+		BIT(IIO_CHAN_INFO_SCALE) |
+		BIT(IIO_CHAN_INFO_SAMP_FREQ) |
+		BIT(IIO_CHAN_INFO_HYSTERESIS),
+	}, {
+		.type = IIO_ROT,
+		.modified = 1,
+		.channel2 = IIO_MOD_NORTH_MAGN_TILT_COMP,
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
+		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_OFFSET) |
+		BIT(IIO_CHAN_INFO_SCALE) |
+		BIT(IIO_CHAN_INFO_SAMP_FREQ) |
+		BIT(IIO_CHAN_INFO_HYSTERESIS),
+	}, {
+		.type = IIO_ROT,
+		.modified = 1,
+		.channel2 = IIO_MOD_NORTH_TRUE_TILT_COMP,
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
+		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_OFFSET) |
+		BIT(IIO_CHAN_INFO_SCALE) |
+		BIT(IIO_CHAN_INFO_SAMP_FREQ) |
+		BIT(IIO_CHAN_INFO_HYSTERESIS),
+	}, {
+		.type = IIO_ROT,
+		.modified = 1,
+		.channel2 = IIO_MOD_NORTH_MAGN,
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
+		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_OFFSET) |
+		BIT(IIO_CHAN_INFO_SCALE) |
+		BIT(IIO_CHAN_INFO_SAMP_FREQ) |
+		BIT(IIO_CHAN_INFO_HYSTERESIS),
+	}, {
+		.type = IIO_ROT,
+		.modified = 1,
+		.channel2 = IIO_MOD_NORTH_TRUE,
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
 		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_OFFSET) |
 		BIT(IIO_CHAN_INFO_SCALE) |
@@ -247,6 +291,13 @@ static int magn_3d_capture_sample(struct hid_sensor_hub_device *hsdev,
 	case HID_USAGE_SENSOR_ORIENT_MAGN_FLUX_Z_AXIS:
 		offset = (usage_id - HID_USAGE_SENSOR_ORIENT_MAGN_FLUX_X_AXIS)
 				+ CHANNEL_SCAN_INDEX_X;
+	break;
+	case HID_USAGE_SENSOR_ORIENT_COMP_MAGN_NORTH:
+	case HID_USAGE_SENSOR_ORIENT_COMP_TRUE_NORTH:
+	case HID_USAGE_SENSOR_ORIENT_MAGN_NORTH:
+	case HID_USAGE_SENSOR_ORIENT_TRUE_NORTH:
+		offset = (usage_id - HID_USAGE_SENSOR_ORIENT_COMP_MAGN_NORTH)
+				+ CHANNEL_SCAN_INDEX_NORTH_MAGN_TILT_COMP;
 	break;
 	default:
 		return -EINVAL;
