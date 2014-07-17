@@ -640,8 +640,10 @@ static int si2168_probe(struct i2c_client *client,
 	/* create mux i2c adapter for tuner */
 	s->adapter = i2c_add_mux_adapter(client->adapter, &client->dev, s,
 			0, 0, 0, si2168_select, si2168_deselect);
-	if (s->adapter == NULL)
+	if (s->adapter == NULL) {
+		ret = -ENODEV;
 		goto err;
+	}
 
 	/* create dvb_frontend */
 	memcpy(&s->fe.ops, &si2168_ops, sizeof(struct dvb_frontend_ops));
