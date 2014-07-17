@@ -511,3 +511,11 @@ int exynos_drm_crtc_get_pipe_from_type(struct drm_device *drm_dev,
 
 	return -EPERM;
 }
+
+void exynos_drm_crtc_te_handler(struct drm_crtc *crtc)
+{
+	struct exynos_drm_manager *manager = to_exynos_crtc(crtc)->manager;
+
+	if (manager->ops->te_handler)
+		manager->ops->te_handler(manager);
+}
