@@ -654,7 +654,7 @@ static void das1800_ai_handler(struct comedi_device *dev)
 	if (status & OVF) {
 		/*  clear OVF interrupt bit */
 		outb(CLEAR_INTR_MASK & ~OVF, dev->iobase + DAS1800_STATUS);
-		comedi_error(dev, "DAS1800 FIFO overflow");
+		dev_err(dev->class_dev, "FIFO overflow\n");
 		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
 		cfc_handle_events(dev, s);
 		return;
@@ -696,7 +696,7 @@ static irqreturn_t das1800_interrupt(int irq, void *d)
 	unsigned int status;
 
 	if (!dev->attached) {
-		comedi_error(dev, "premature interrupt");
+		dev_err(dev->class_dev, "premature interrupt\n");
 		return IRQ_HANDLED;
 	}
 
@@ -1179,7 +1179,7 @@ static int das1800_ai_rinsn(struct comedi_device *dev,
 				break;
 		}
 		if (i == timeout) {
-			comedi_error(dev, "timeout");
+			dev_err(dev->class_dev, "timeout\n");
 			n = -ETIME;
 			goto exit;
 		}
