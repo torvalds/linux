@@ -2,9 +2,9 @@ MODULE: i2c-stub
 
 DESCRIPTION:
 
-This module is a very simple fake I2C/SMBus driver.  It implements five
+This module is a very simple fake I2C/SMBus driver.  It implements six
 types of SMBus commands: write quick, (r/w) byte, (r/w) byte data, (r/w)
-word data, and (r/w) I2C block data.
+word data, (r/w) I2C block data, and (r/w) SMBus block data.
 
 You need to provide chip addresses as a module parameter when loading this
 driver, which will then only react to SMBus commands to these addresses.
@@ -18,6 +18,14 @@ handles.
 A pointer register with auto-increment is implemented for all byte
 operations.  This allows for continuous byte reads like those supported by
 EEPROMs, among others.
+
+SMBus block command support is disabled by default, and must be enabled
+explicitly by setting the respective bits (0x03000000) in the functionality
+module parameter.
+
+SMBus block commands must be written to configure an SMBus command for
+SMBus block operations. Writes can be partial. Block read commands always
+return the number of bytes selected with the largest write so far.
 
 The typical use-case is like this:
 	1. load this module

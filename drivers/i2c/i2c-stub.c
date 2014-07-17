@@ -27,28 +27,69 @@
 #include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/i2c.h>
+#include <linux/list.h>
 
 #define MAX_CHIPS 10
-#define STUB_FUNC (I2C_FUNC_SMBUS_QUICK | I2C_FUNC_SMBUS_BYTE | \
-		   I2C_FUNC_SMBUS_BYTE_DATA | I2C_FUNC_SMBUS_WORD_DATA | \
-		   I2C_FUNC_SMBUS_I2C_BLOCK)
+
+/*
+ * Support for I2C_FUNC_SMBUS_BLOCK_DATA is disabled by default and must
+ * be enabled explicitly by setting the I2C_FUNC_SMBUS_BLOCK_DATA bits
+ * in the 'functionality' module parameter.
+ */
+#define STUB_FUNC_DEFAULT \
+		(I2C_FUNC_SMBUS_QUICK | I2C_FUNC_SMBUS_BYTE | \
+		 I2C_FUNC_SMBUS_BYTE_DATA | I2C_FUNC_SMBUS_WORD_DATA | \
+		 I2C_FUNC_SMBUS_I2C_BLOCK)
+
+#define STUB_FUNC_ALL \
+		(STUB_FUNC_DEFAULT | I2C_FUNC_SMBUS_BLOCK_DATA)
 
 static unsigned short chip_addr[MAX_CHIPS];
 module_param_array(chip_addr, ushort, NULL, S_IRUGO);
 MODULE_PARM_DESC(chip_addr,
 		 "Chip addresses (up to 10, between 0x03 and 0x77)");
 
-static unsigned long functionality = STUB_FUNC;
+static unsigned long functionality = STUB_FUNC_DEFAULT;
 module_param(functionality, ulong, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(functionality, "Override functionality bitfield");
+
+struct smbus_block_data {
+	struct list_head node;
+	u8 command;
+	u8 len;
+	u8 block[I2C_SMBUS_BLOCK_MAX];
+};
 
 struct stub_chip {
 	u8 pointer;
 	u16 words[256];		/* Byte operations use the LSB as per SMBus
 				   specification */
+	struct list_head smbus_blocks;
 };
 
 static struct stub_chip *stub_chips;
+
+static struct smbus_block_data *stub_find_block(struct device *dev,
+						struct stub_chip *chip,
+						u8 command, bool create)
+{
+	struct smbus_block_data *b, *rb = NULL;
+
+	list_for_each_entry(b, &chip->smbus_blocks, node) {
+		if (b->command == command) {
+			rb = b;
+			break;
+		}
+	}
+	if (rb == NULL && create) {
+		rb = devm_kzalloc(dev, sizeof(*rb), GFP_KERNEL);
+		if (rb == NULL)
+			return rb;
+		rb->command = command;
+		list_add(&rb->node, &chip->smbus_blocks);
+	}
+	return rb;
+}
 
 /* Return negative errno on error. */
 static s32 stub_xfer(struct i2c_adapter *adap, u16 addr, unsigned short flags,
@@ -57,6 +98,7 @@ static s32 stub_xfer(struct i2c_adapter *adap, u16 addr, unsigned short flags,
 	s32 ret;
 	int i, len;
 	struct stub_chip *chip = NULL;
+	struct smbus_block_data *b;
 
 	/* Search for the right chip */
 	for (i = 0; i < MAX_CHIPS && chip_addr[i]; i++) {
@@ -148,6 +190,51 @@ static s32 stub_xfer(struct i2c_adapter *adap, u16 addr, unsigned short flags,
 		ret = 0;
 		break;
 
+	case I2C_SMBUS_BLOCK_DATA:
+		b = stub_find_block(&adap->dev, chip, command, false);
+		if (read_write == I2C_SMBUS_WRITE) {
+			len = data->block[0];
+			if (len == 0 || len > I2C_SMBUS_BLOCK_MAX) {
+				ret = -EINVAL;
+				break;
+			}
+			if (b == NULL) {
+				b = stub_find_block(&adap->dev, chip, command,
+						    true);
+				if (b == NULL) {
+					ret = -ENOMEM;
+					break;
+				}
+			}
+			/* Largest write sets read block length */
+			if (len > b->len)
+				b->len = len;
+			for (i = 0; i < len; i++)
+				b->block[i] = data->block[i + 1];
+			/* update for byte and word commands */
+			chip->words[command] = (b->block[0] << 8) | b->len;
+			dev_dbg(&adap->dev,
+				"smbus block data - addr 0x%02x, wrote %d bytes at 0x%02x.\n",
+				addr, len, command);
+		} else {
+			if (b == NULL) {
+				dev_dbg(&adap->dev,
+					"SMBus block read command without prior block write not supported\n");
+				ret = -EOPNOTSUPP;
+				break;
+			}
+			len = b->len;
+			data->block[0] = len;
+			for (i = 0; i < len; i++)
+				data->block[i + 1] = b->block[i];
+			dev_dbg(&adap->dev,
+				"smbus block data - addr 0x%02x, read  %d bytes at 0x%02x.\n",
+				addr, len, command);
+		}
+
+		ret = 0;
+		break;
+
 	default:
 		dev_dbg(&adap->dev, "Unsupported I2C/SMBus command\n");
 		ret = -EOPNOTSUPP;
@@ -159,7 +246,7 @@ static s32 stub_xfer(struct i2c_adapter *adap, u16 addr, unsigned short flags,
 
 static u32 stub_func(struct i2c_adapter *adapter)
 {
-	return STUB_FUNC & functionality;
+	return STUB_FUNC_ALL & functionality;
 }
 
 static const struct i2c_algorithm smbus_algorithm = {
@@ -199,6 +286,8 @@ static int __init i2c_stub_init(void)
 		pr_err("i2c-stub: Out of memory\n");
 		return -ENOMEM;
 	}
+	for (i--; i >= 0; i--)
+		INIT_LIST_HEAD(&stub_chips[i].smbus_blocks);
 
 	ret = i2c_add_adapter(&stub_adapter);
 	if (ret)
