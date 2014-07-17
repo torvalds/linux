@@ -2145,7 +2145,7 @@ static void bond_arp_send(struct net_device *slave_dev, int arp_op,
 			  struct bond_vlan_tag *tags)
 {
 	struct sk_buff *skb;
-	int i;
+	struct bond_vlan_tag *outer_tag = tags;
 
 	netdev_dbg(slave_dev, "arp %d on slave %s: dst %pI4 src %pI4\n",
 		   arp_op, slave_dev->name, &dest_ip, &src_ip);
@@ -2158,30 +2158,42 @@ static void bond_arp_send(struct net_device *slave_dev, int arp_op,
 		return;
 	}
 
+	if (!tags || tags->vlan_proto == VLAN_N_VID)
+		goto xmit;
+
+	tags++;
+
 	/* Go through all the tags backwards and add them to the packet */
-	for (i = BOND_MAX_VLAN_ENCAP - 1; i > 0; i--) {
-		if (!tags[i].vlan_id)
+	while (tags->vlan_proto != VLAN_N_VID) {
+		if (!tags->vlan_id) {
+			tags++;
 			continue;
+		}
 
 		netdev_dbg(slave_dev, "inner tag: proto %X vid %X\n",
-			   ntohs(tags[i].vlan_proto), tags[i].vlan_id);
-		skb = __vlan_put_tag(skb, tags[i].vlan_proto,
-				     tags[i].vlan_id);
+			   ntohs(outer_tag->vlan_proto), tags->vlan_id);
+		skb = __vlan_put_tag(skb, tags->vlan_proto,
+				     tags->vlan_id);
 		if (!skb) {
 			net_err_ratelimited("failed to insert inner VLAN tag\n");
 			return;
 		}
+
+		tags++;
 	}
 	/* Set the outer tag */
-	if (tags[0].vlan_id) {
+	if (outer_tag->vlan_id) {
 		netdev_dbg(slave_dev, "outer tag: proto %X vid %X\n",
-			   ntohs(tags[0].vlan_proto), tags[0].vlan_id);
-		skb = vlan_put_tag(skb, tags[0].vlan_proto, tags[0].vlan_id);
+			   ntohs(outer_tag->vlan_proto), outer_tag->vlan_id);
+		skb = vlan_put_tag(skb, outer_tag->vlan_proto,
+				   outer_tag->vlan_id);
 		if (!skb) {
 			net_err_ratelimited("failed to insert outer VLAN tag\n");
 			return;
 		}
 	}
+
+xmit:
 	arp_xmit(skb);
 }
 
@@ -2191,46 +2203,50 @@ static void bond_arp_send(struct net_device *slave_dev, int arp_op,
  * When the path is validated, collect any vlan information in the
  * path.
  */
-bool bond_verify_device_path(struct net_device *start_dev,
-			     struct net_device *end_dev,
-			     struct bond_vlan_tag *tags)
+struct bond_vlan_tag *bond_verify_device_path(struct net_device *start_dev,
+					      struct net_device *end_dev,
+					      int level)
 {
+	struct bond_vlan_tag *tags;
 	struct net_device *upper;
 	struct list_head  *iter;
-	int  idx;
 
-	if (start_dev == end_dev)
-		return true;
-
-	netdev_for_each_upper_dev_rcu(start_dev, upper, iter) {
-		if (bond_verify_device_path(upper, end_dev, tags)) {
-			if (is_vlan_dev(upper)) {
-				idx = vlan_get_encap_level(upper);
-				if (idx >= BOND_MAX_VLAN_ENCAP)
-					return false;
-
-				tags[idx].vlan_proto =
-						    vlan_dev_vlan_proto(upper);
-				tags[idx].vlan_id = vlan_dev_vlan_id(upper);
-			}
-			return true;
-		}
+	if (start_dev == end_dev) {
+		tags = kzalloc(sizeof(*tags) * (level + 1), GFP_ATOMIC);
+		if (!tags)
+			return ERR_PTR(-ENOMEM);
+		tags[level].vlan_proto = VLAN_N_VID;
+		return tags;
 	}
 
-	return false;
+	netdev_for_each_upper_dev_rcu(start_dev, upper, iter) {
+		tags = bond_verify_device_path(upper, end_dev, level + 1);
+		if (IS_ERR_OR_NULL(tags)) {
+			if (IS_ERR(tags))
+				return tags;
+			continue;
+		}
+		if (is_vlan_dev(upper)) {
+			tags[level].vlan_proto = vlan_dev_vlan_proto(upper);
+			tags[level].vlan_id = vlan_dev_vlan_id(upper);
+		}
+
+		return tags;
+	}
+
+	return NULL;
 }
 
 static void bond_arp_send_all(struct bonding *bond, struct slave *slave)
 {
 	struct rtable *rt;
-	struct bond_vlan_tag tags[BOND_MAX_VLAN_ENCAP];
+	struct bond_vlan_tag *tags;
 	__be32 *targets = bond->params.arp_targets, addr;
 	int i;
-	bool ret;
 
 	for (i = 0; i < BOND_MAX_ARP_TARGETS && targets[i]; i++) {
 		netdev_dbg(bond->dev, "basa: target %pI4\n", &targets[i]);
-		memset(tags, 0, sizeof(tags));
+		tags = NULL;
 
 		/* Find out through which dev should the packet go */
 		rt = ip_route_output(dev_net(bond->dev), targets[i], 0,
@@ -2253,10 +2269,10 @@ static void bond_arp_send_all(struct bonding *bond, struct slave *slave)
 			goto found;
 
 		rcu_read_lock();
-		ret = bond_verify_device_path(bond->dev, rt->dst.dev, tags);
+		tags = bond_verify_device_path(bond->dev, rt->dst.dev, 0);
 		rcu_read_unlock();
 
-		if (ret)
+		if (!IS_ERR_OR_NULL(tags))
 			goto found;
 
 		/* Not our device - skip */
@@ -2271,6 +2287,8 @@ found:
 		ip_rt_put(rt);
 		bond_arp_send(slave->dev, ARPOP_REQUEST, targets[i],
 			      addr, tags);
+		if (!tags)
+			kfree(tags);
 	}
 }
 

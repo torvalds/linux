@@ -1042,7 +1042,7 @@ static void alb_send_learning_packets(struct slave *slave, u8 mac_addr[],
 	struct bonding *bond = bond_get_bond_by_slave(slave);
 	struct net_device *upper;
 	struct list_head *iter;
-	struct bond_vlan_tag tags[BOND_MAX_VLAN_ENCAP];
+	struct bond_vlan_tag *tags;
 
 	/* send untagged */
 	alb_send_lp_vid(slave, mac_addr, 0, 0);
@@ -1070,10 +1070,12 @@ static void alb_send_learning_packets(struct slave *slave, u8 mac_addr[],
 		 * when strict_match is turned off.
 		 */
 		if (netif_is_macvlan(upper) && !strict_match) {
-			memset(tags, 0, sizeof(tags));
-			bond_verify_device_path(bond->dev, upper, tags);
+			tags = bond_verify_device_path(bond->dev, upper, 0);
+			if (IS_ERR_OR_NULL(tags))
+				BUG();
 			alb_send_lp_vid(slave, upper->dev_addr,
 					tags[0].vlan_proto, tags[0].vlan_id);
+			kfree(tags);
 		}
 	}
 	rcu_read_unlock();
