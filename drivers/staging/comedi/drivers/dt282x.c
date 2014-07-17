@@ -438,7 +438,8 @@ static void dt282x_munge(struct comedi_device *dev,
 	int i;
 
 	if (nbytes % 2)
-		comedi_error(dev, "bug! odd number of bytes from dma xfer");
+		dev_err(dev->class_dev,
+			"bug! odd number of bytes from dma xfer\n");
 
 	for (i = 0; i < nbytes / 2; i++) {
 		val = buf[i];
@@ -528,7 +529,7 @@ static irqreturn_t dt282x_interrupt(int irq, void *d)
 	int handled = 0;
 
 	if (!dev->attached) {
-		comedi_error(dev, "spurious interrupt");
+		dev_err(dev->class_dev, "spurious interrupt\n");
 		return IRQ_HANDLED;
 	}
 
@@ -544,13 +545,13 @@ static irqreturn_t dt282x_interrupt(int irq, void *d)
 	}
 	if (adcsr & DT2821_ADCSR_ADERR) {
 		if (devpriv->nread != 0) {
-			comedi_error(dev, "A/D error");
+			dev_err(dev->class_dev, "A/D error\n");
 			s->async->events |= COMEDI_CB_ERROR;
 		}
 		handled = 1;
 	}
 	if (dacsr & DT2821_DACSR_DAERR) {
-		comedi_error(dev, "D/A error");
+		dev_err(dev->class_dev, "D/A error\n");
 		s_ao->async->events |= COMEDI_CB_ERROR;
 		handled = 1;
 	}
