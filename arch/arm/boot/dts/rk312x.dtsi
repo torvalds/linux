@@ -1,0 +1,102 @@
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/suspend/rockchip-pm.h>
+#include <dt-bindings/sensor-dev.h>
+
+#include "skeleton.dtsi"
+
+/ {
+	compatible = "rockchip,rk312x";
+	rockchip,sram = <&sram>;
+	interrupt-parent = <&gic>;
+
+	aliases {
+	/*	serial0 = &uart_bt;
+		serial1 = &uart_bb;*/
+		serial2 = &uart2;/*
+		serial3 = &uart_gps;
+		serial4 = &uart_exp;
+		i2c0 = &i2c0;
+		i2c1 = &i2c1;
+		i2c2 = &i2c2;
+		i2c3 = &i2c3;
+		i2c4 = &i2c4;
+		i2c5 = &i2c5;
+		lcdc0 = &lcdc0;
+		lcdc1 = &lcdc1;
+		spi0 = &spi0;
+		spi1 = &spi1;
+		spi2 = &spi2;*/
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a7";
+			reg = <0xf00>;
+		};
+		cpu@1 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a7";
+			reg = <0xf01>;
+		};
+		cpu@2 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a7";
+			reg = <0xf02>;
+		};
+		cpu@3 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a7";
+			reg = <0xf03>;
+		};
+	};
+
+	gic: interrupt-controller@10139000 {
+		compatible = "arm,cortex-a15-gic";
+		interrupt-controller;
+		#interrupt-cells = <3>;
+		#address-cells = <0>;
+		reg = <0x10139000 0x1000>,
+		      <0x1013a000 0x1000>;
+	};
+
+	sram: sram@10080000 {
+		compatible = "mmio-sram";
+		reg = <0x10080000 0x2000>;
+		map-exec;
+	};
+
+	timer {
+		compatible = "arm,armv7-timer";
+		interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>,
+			     <GIC_PPI 14 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
+		clock-frequency = <24000000>;
+	};
+
+	uart2: serial@20068000 {
+		compatible = "rockchip,serial";
+		reg = <0x20068000 0x100>;
+		interrupts = <GIC_SPI 22 IRQ_TYPE_LEVEL_HIGH>;
+		clock-frequency = <24000000>;
+		//clocks = <&clk_uart2>, <&clk_gates11 9>;
+		//clock-names = "sclk_uart", "pclk_uart";
+		reg-shift = <2>;
+		reg-io-width = <4>;
+	//	dmas = <&pdma0 4>, <&pdma0 5>;
+		#dma-cells = <2>;
+	//	pinctrl-names = "default";
+	//	pinctrl-0 = <&uart2_xfer>;
+		status = "disabled";
+	};
+
+	fiq-debugger {
+		compatible = "rockchip,fiq-debugger";
+		rockchip,serial-id = <2>;
+		rockchip,signal-irq = <106>;
+		rockchip,wake-irq = <0>;
+		status = "disabled";
+	};
+};
