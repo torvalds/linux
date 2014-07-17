@@ -512,6 +512,10 @@ enum {
 	D0I3_PENDING_WAKEUP,
 };
 
+#define IWL_MVM_DEBUG_SET_TEMPERATURE_DISABLE 0xff
+#define IWL_MVM_DEBUG_SET_TEMPERATURE_MIN -100
+#define IWL_MVM_DEBUG_SET_TEMPERATURE_MAX 200
+
 struct iwl_mvm {
 	/* for logger access */
 	struct device *dev;
@@ -694,6 +698,12 @@ struct iwl_mvm {
 	/* Thermal Throttling and CTkill */
 	struct iwl_mvm_tt_mgmt thermal_throttle;
 	s32 temperature;	/* Celsius */
+	/*
+	 * Debug option to set the NIC temperature. This option makes the
+	 * driver think this is the actual NIC temperature, and ignore the
+	 * real temperature that is received from the fw
+	 */
+	bool temperature_test;  /* Debug test temperature is enabled */
 
 #ifdef CONFIG_NL80211_TESTMODE
 	u32 noa_duration;
