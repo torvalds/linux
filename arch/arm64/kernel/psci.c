@@ -235,7 +235,7 @@ static void psci_sys_poweroff(void)
  * PSCI Function IDs for v0.2+ are well defined so use
  * standard values.
  */
-static int psci_0_2_init(struct device_node *np)
+static int __init psci_0_2_init(struct device_node *np)
 {
 	int err, ver;
 
@@ -296,7 +296,7 @@ out_put_node:
 /*
  * PSCI < v0.2 get PSCI Function IDs via DT.
  */
-static int psci_0_1_init(struct device_node *np)
+static int __init psci_0_1_init(struct device_node *np)
 {
 	u32 id;
 	int err;
