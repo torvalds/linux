@@ -621,7 +621,7 @@ static int caldac_8800_write(struct comedi_device *dev, unsigned int address,
 	static const int caldac_8800_udelay = 1;
 
 	if (address >= num_caldac_channels) {
-		comedi_error(dev, "illegal caldac channel");
+		dev_err(dev->class_dev, "illegal caldac channel\n");
 		return -1;
 	}
 
@@ -773,7 +773,7 @@ static int cb_pcidas_trimpot_write(struct comedi_device *dev,
 		trimpot_8402_write(dev, channel, value);
 		break;
 	default:
-		comedi_error(dev, "driver bug?");
+		dev_err(dev->class_dev, "driver bug?\n");
 		return -1;
 	}
 
@@ -1249,7 +1249,7 @@ static int cb_pcidas_ao_cmd(struct comedi_device *dev,
 		break;
 	default:
 		spin_unlock_irqrestore(&dev->spinlock, flags);
-		comedi_error(dev, "error setting dac pacer source");
+		dev_err(dev->class_dev, "error setting dac pacer source\n");
 		return -1;
 	}
 	spin_unlock_irqrestore(&dev->spinlock, flags);
@@ -1300,7 +1300,7 @@ static void handle_ao_interrupt(struct comedi_device *dev, unsigned int status)
 			if (cmd->stop_src == TRIG_NONE ||
 			    (cmd->stop_src == TRIG_COUNT
 			     && devpriv->ao_count)) {
-				comedi_error(dev, "dac fifo underflow");
+				dev_err(dev->class_dev, "dac fifo underflow\n");
 				async->events |= COMEDI_CB_ERROR;
 			}
 			async->events |= COMEDI_CB_EOA;
@@ -1411,8 +1411,8 @@ static irqreturn_t cb_pcidas_interrupt(int irq, void *d)
 		     devpriv->control_status + INT_ADCFIFO);
 		spin_unlock_irqrestore(&dev->spinlock, flags);
 	} else if (status & EOAI) {
-		comedi_error(dev,
-			     "bug! encountered end of acquisition interrupt?");
+		dev_err(dev->class_dev,
+			"bug! encountered end of acquisition interrupt?\n");
 		/*  clear EOA interrupt latch */
 		spin_lock_irqsave(&dev->spinlock, flags);
 		outw(devpriv->adc_fifo_bits | EOAI,
@@ -1421,7 +1421,7 @@ static irqreturn_t cb_pcidas_interrupt(int irq, void *d)
 	}
 	/* check for fifo overflow */
 	if (status & LADFUL) {
-		comedi_error(dev, "fifo overflow");
+		dev_err(dev->class_dev, "fifo overflow\n");
 		/*  clear overflow interrupt latch */
 		spin_lock_irqsave(&dev->spinlock, flags);
 		outw(devpriv->adc_fifo_bits | LADFUL,
