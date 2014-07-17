@@ -496,7 +496,7 @@ void tipc_bclink_rcv(struct sk_buff *buf)
 	struct tipc_node *node;
 	u32 next_in;
 	u32 seqno;
-	int deferred;
+	int deferred = 0;
 
 	/* Screen out unwanted broadcast messages */
 
@@ -547,7 +547,7 @@ receive:
 			tipc_bclink_unlock();
 			tipc_node_unlock(node);
 			if (likely(msg_mcast(msg)))
-				tipc_port_mcast_rcv(buf, NULL);
+				tipc_sk_mcast_rcv(buf);
 			else
 				kfree_skb(buf);
 		} else if (msg_user(msg) == MSG_BUNDLER) {
@@ -626,8 +626,7 @@ receive:
 		node->bclink.deferred_size += deferred;
 		bclink_update_last_sent(node, seqno);
 		buf = NULL;
-	} else
-		deferred = 0;
+	}
 
 	tipc_bclink_lock();
 
