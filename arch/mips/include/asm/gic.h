@@ -43,18 +43,17 @@
 #ifdef GICISBYTELITTLEENDIAN
 #define GICREAD(reg, data)	((data) = (reg), (data) = le32_to_cpu(data))
 #define GICWRITE(reg, data)	((reg) = cpu_to_le32(data))
-#define GICBIS(reg, bits)			\
-	({unsigned int data;			\
-		GICREAD(reg, data);		\
-		data |= bits;			\
-		GICWRITE(reg, data);		\
-	})
-
 #else
 #define GICREAD(reg, data)	((data) = (reg))
 #define GICWRITE(reg, data)	((reg) = (data))
-#define GICBIS(reg, bits)	((reg) |= (bits))
 #endif
+#define GICBIS(reg, mask, bits)			\
+	do { u32 data;				\
+		GICREAD((reg), data);		\
+		data &= ~(mask);		\
+		data |= ((bits) & (mask));	\
+		GICWRITE((reg), data);		\
+	} while (0)
 
 
 /* GIC Address Space */
@@ -170,13 +169,15 @@
 #define GIC_SH_SET_POLARITY_OFS		0x0100
 #define GIC_SET_POLARITY(intr, pol) \
 	GICBIS(GIC_REG_ADDR(SHARED, GIC_SH_SET_POLARITY_OFS + \
-		GIC_INTR_OFS(intr)), (pol) << GIC_INTR_BIT(intr))
+		GIC_INTR_OFS(intr)), (1 << GIC_INTR_BIT(intr)), \
+		(pol) << GIC_INTR_BIT(intr))
 
 /* Triggering : Reset Value is always 0 */
 #define GIC_SH_SET_TRIGGER_OFS		0x0180
 #define GIC_SET_TRIGGER(intr, trig) \
 	GICBIS(GIC_REG_ADDR(SHARED, GIC_SH_SET_TRIGGER_OFS + \
-		GIC_INTR_OFS(intr)), (trig) << GIC_INTR_BIT(intr))
+		GIC_INTR_OFS(intr)), (1 << GIC_INTR_BIT(intr)), \
+		(trig) << GIC_INTR_BIT(intr))
 
 /* Mask manipulation */
 #define GIC_SH_SMASK_OFS		0x0380
