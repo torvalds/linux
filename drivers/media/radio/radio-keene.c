@@ -265,7 +265,7 @@ static int keene_s_ctrl(struct v4l2_ctrl *ctrl)
 		return keene_cmd_set(radio);
 
 	case V4L2_CID_AUDIO_COMPRESSION_GAIN:
-		radio->tx = db2tx[(ctrl->val - ctrl->minimum) / ctrl->step];
+		radio->tx = db2tx[(ctrl->val - (s32)ctrl->minimum) / (s32)ctrl->step];
 		return keene_cmd_set(radio);
 	}
 	return -EINVAL;

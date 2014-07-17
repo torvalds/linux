@@ -1303,7 +1303,7 @@ static void std_log(const struct v4l2_ctrl *ctrl)
 	val = clamp_t(typeof(val), val,				\
 		      (ctrl)->minimum, (ctrl)->maximum);	\
 	offset = (val) - (ctrl)->minimum;			\
-	offset = (ctrl)->step * (offset / (ctrl)->step);	\
+	offset = (ctrl)->step * (offset / (s32)(ctrl)->step);	\
 	val = (ctrl)->minimum + offset;				\
 	0;							\
 })
@@ -1313,12 +1313,24 @@ static int std_validate(const struct v4l2_ctrl *ctrl, u32 idx,
 			union v4l2_ctrl_ptr ptr)
 {
 	size_t len;
+	u64 offset;
+	s64 val;
 
 	switch (ctrl->type) {
 	case V4L2_CTRL_TYPE_INTEGER:
 		return ROUND_TO_RANGE(ptr.p_s32[idx], u32, ctrl);
 	case V4L2_CTRL_TYPE_INTEGER64:
-		return ROUND_TO_RANGE(ptr.p_s64[idx], u64, ctrl);
+		/*
+		 * We can't use the ROUND_TO_RANGE define here due to
+		 * the u64 divide that needs special care.
+		 */
+		val = ptr.p_s64[idx];
+		val += ctrl->step / 2;
+		val = clamp_t(s64, val, ctrl->minimum, ctrl->maximum);
+		offset = val - ctrl->minimum;
+		do_div(offset, ctrl->step);
+		ptr.p_s64[idx] = ctrl->minimum + offset * ctrl->step;
+		return 0;
 	case V4L2_CTRL_TYPE_U8:
 		return ROUND_TO_RANGE(ptr.p_u8[idx], u8, ctrl);
 	case V4L2_CTRL_TYPE_U16:
@@ -1353,7 +1365,7 @@ static int std_validate(const struct v4l2_ctrl *ctrl, u32 idx,
 		len = strlen(ptr.p_char + idx);
 		if (len < ctrl->minimum)
 			return -ERANGE;
-		if ((len - ctrl->minimum) % ctrl->step)
+		if ((len - (u32)ctrl->minimum) % (u32)ctrl->step)
 			return -ERANGE;
 		return 0;
 
