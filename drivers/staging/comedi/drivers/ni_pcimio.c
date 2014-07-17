@@ -1183,7 +1183,7 @@ static int pcimio_auto_attach(struct comedi_device *dev,
 
 	ret = mite_setup(devpriv->mite);
 	if (ret < 0) {
-		pr_warn("error setting up mite\n");
+		dev_warn(dev->class_dev, "error setting up mite\n");
 		return ret;
 	}
 
