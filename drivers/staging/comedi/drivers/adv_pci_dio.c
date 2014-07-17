@@ -592,7 +592,7 @@ static int pci1760_unchecked_mbxrequest(struct comedi_device *dev,
 			return 0;
 	}
 
-	comedi_error(dev, "PCI-1760 mailbox request timeout!");
+	dev_err(dev->class_dev, "PCI-1760 mailbox request timeout!\n");
 	return -ETIME;
 }
 
@@ -610,8 +610,8 @@ static int pci1760_mbxrequest(struct comedi_device *dev,
 			      unsigned char *omb, unsigned char *imb)
 {
 	if (omb[2] == CMD_ClearIMB2) {
-		comedi_error(dev,
-			     "bug! this function should not be used for CMD_ClearIMB2 command");
+		dev_err(dev->class_dev,
+			"bug! this function should not be used for CMD_ClearIMB2 command\n");
 		return -EINVAL;
 	}
 	if (inb(dev->iobase + IMB2) == omb[2]) {
