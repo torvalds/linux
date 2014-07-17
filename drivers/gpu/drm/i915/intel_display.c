@@ -4930,10 +4930,6 @@ static void intel_crtc_disable(struct drm_crtc *crtc)
 	intel_crtc_update_sarea(crtc, false);
 	dev_priv->display.off(crtc);
 
-	assert_plane_disabled(dev->dev_private, to_intel_crtc(crtc)->plane);
-	assert_cursor_disabled(dev_priv, pipe);
-	assert_pipe_disabled(dev->dev_private, pipe);
-
 	if (crtc->primary->fb) {
 		mutex_lock(&dev->struct_mutex);
 		intel_unpin_fb_obj(old_obj);
