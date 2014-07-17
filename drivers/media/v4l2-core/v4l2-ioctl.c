@@ -1145,6 +1145,30 @@ static int v4l_g_fmt(const struct v4l2_ioctl_ops *ops,
 
 	p->fmt.pix.priv = V4L2_PIX_FMT_PRIV_MAGIC;
 
+	/*
+	 * fmt can't be cleared for these overlay types due to the 'clips'
+	 * 'clipcount' and 'bitmap' pointers in struct v4l2_window.
+	 * Those are provided by the user. So handle these two overlay types
+	 * first, and then just do a simple memset for the other types.
+	 */
+	switch (p->type) {
+	case V4L2_BUF_TYPE_VIDEO_OVERLAY:
+	case V4L2_BUF_TYPE_VIDEO_OUTPUT_OVERLAY: {
+		struct v4l2_clip *clips = p->fmt.win.clips;
+		u32 clipcount = p->fmt.win.clipcount;
+		void *bitmap = p->fmt.win.bitmap;
+
+		memset(&p->fmt, 0, sizeof(p->fmt));
+		p->fmt.win.clips = clips;
+		p->fmt.win.clipcount = clipcount;
+		p->fmt.win.bitmap = bitmap;
+		break;
+	}
+	default:
+		memset(&p->fmt, 0, sizeof(p->fmt));
+		break;
+	}
+
 	switch (p->type) {
 	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
 		if (unlikely(!is_rx || !is_vid || !ops->vidioc_g_fmt_vid_cap))
@@ -2140,7 +2164,7 @@ struct v4l2_ioctl_info {
 static struct v4l2_ioctl_info v4l2_ioctls[] = {
 	IOCTL_INFO_FNC(VIDIOC_QUERYCAP, v4l_querycap, v4l_print_querycap, 0),
 	IOCTL_INFO_FNC(VIDIOC_ENUM_FMT, v4l_enum_fmt, v4l_print_fmtdesc, INFO_FL_CLEAR(v4l2_fmtdesc, type)),
-	IOCTL_INFO_FNC(VIDIOC_G_FMT, v4l_g_fmt, v4l_print_format, INFO_FL_CLEAR(v4l2_format, type)),
+	IOCTL_INFO_FNC(VIDIOC_G_FMT, v4l_g_fmt, v4l_print_format, 0),
 	IOCTL_INFO_FNC(VIDIOC_S_FMT, v4l_s_fmt, v4l_print_format, INFO_FL_PRIO),
 	IOCTL_INFO_FNC(VIDIOC_REQBUFS, v4l_reqbufs, v4l_print_requestbuffers, INFO_FL_PRIO | INFO_FL_QUEUE),
 	IOCTL_INFO_FNC(VIDIOC_QUERYBUF, v4l_querybuf, v4l_print_buffer, INFO_FL_QUEUE | INFO_FL_CLEAR(v4l2_buffer, length)),
