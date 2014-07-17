@@ -1372,7 +1372,7 @@ static int be_set_vf_tx_rate(struct net_device *netdev, int vf,
 
 	if (!link_status) {
 		dev_err(dev, "TX-rate setting not allowed when link is down\n");
-		status = -EPERM;
+		status = -ENETDOWN;
 		goto err;
 	}
 
@@ -4221,7 +4221,7 @@ int be_load_fw(struct be_adapter *adapter, u8 *fw_file)
 	if (!netif_running(adapter->netdev)) {
 		dev_err(&adapter->pdev->dev,
 			"Firmware load not allowed (interface is down)\n");
-		return -1;
+		return -ENETDOWN;
 	}
 
 	status = request_firmware(&fw, fw_file, &adapter->pdev->dev);
