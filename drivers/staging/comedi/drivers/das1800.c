@@ -1329,77 +1329,60 @@ static int das1800_init_dma(struct comedi_device *dev, unsigned int dma0,
 
 static int das1800_probe(struct comedi_device *dev)
 {
+	const struct das1800_board *board = comedi_board(dev);
+	int index;
 	int id;
-	int board;
 
-	id = (inb(dev->iobase + DAS1800_DIGITAL) >> 4) & 0xf;	/* get id bits */
-	board = ((struct das1800_board *)dev->board_ptr) - das1800_boards;
+	/* calc the offset to the boardinfo that was found by the core */
+	index = board - das1800_boards;
 
+	/* verify that the board id matches the boardinfo */
+	id = (inb(dev->iobase + DAS1800_DIGITAL) >> 4) & 0xf;
 	switch (id) {
 	case 0x3:
-		if (board == das1801st_da || board == das1802st_da ||
-		    board == das1701st_da || board == das1702st_da) {
-			dev_dbg(dev->class_dev, "Board model: %s\n",
-				das1800_boards[board].name);
-			return board;
-		}
-		printk
-		    (" Board model (probed, not recommended): das-1800st-da series\n");
-		return das1801st;
+		if (index == das1801st_da || index == das1802st_da ||
+		    index == das1701st_da || index == das1702st_da)
+			return index;
+		index = das1801st;
+		break;
 	case 0x4:
-		if (board == das1802hr_da || board == das1702hr_da) {
-			dev_dbg(dev->class_dev, "Board model: %s\n",
-				das1800_boards[board].name);
-			return board;
-		}
-		printk
-		    (" Board model (probed, not recommended): das-1802hr-da\n");
-		return das1802hr;
+		if (index == das1802hr_da || index == das1702hr_da)
+			return index;
+		index = das1802hr;
+		break;
 	case 0x5:
-		if (board == das1801ao || board == das1802ao ||
-		    board == das1701ao || board == das1702ao) {
-			dev_dbg(dev->class_dev, "Board model: %s\n",
-				das1800_boards[board].name);
-			return board;
-		}
-		printk
-		    (" Board model (probed, not recommended): das-1800ao series\n");
-		return das1801ao;
+		if (index == das1801ao || index == das1802ao ||
+		    index == das1701ao || index == das1702ao)
+			return index;
+		index = das1801ao;
+		break;
 	case 0x6:
-		if (board == das1802hr || board == das1702hr) {
-			dev_dbg(dev->class_dev, "Board model: %s\n",
-				das1800_boards[board].name);
-			return board;
-		}
-		printk
-		    (" Board model (probed, not recommended): das-1802hr\n");
-		return das1802hr;
+		if (index == das1802hr || index == das1702hr)
+			return index;
+		index = das1802hr;
+		break;
 	case 0x7:
-		if (board == das1801st || board == das1802st ||
-		    board == das1701st || board == das1702st) {
-			dev_dbg(dev->class_dev, "Board model: %s\n",
-				das1800_boards[board].name);
-			return board;
-		}
-		printk
-		    (" Board model (probed, not recommended): das-1800st series\n");
-		return das1801st;
+		if (index == das1801st || index == das1802st ||
+		    index == das1701st || index == das1702st)
+			return index;
+		index = das1801st;
+		break;
 	case 0x8:
-		if (board == das1801hc || board == das1802hc) {
-			dev_dbg(dev->class_dev, "Board model: %s\n",
-				das1800_boards[board].name);
-			return board;
-		}
-		printk
-		    (" Board model (probed, not recommended): das-1800hc series\n");
-		return das1801hc;
+		if (index == das1801hc || index == das1802hc)
+			return index;
+		index = das1801hc;
+		break;
 	default:
-		printk
-		    (" Board model: probe returned 0x%x (unknown, please report)\n",
-		     id);
-		return board;
+		dev_err(dev->class_dev,
+			"Board model: probe returned 0x%x (unknown, please report)\n",
+			id);
+		break;
 	}
-	return -1;
+	dev_err(dev->class_dev,
+		"Board model (probed, not recommended): %s series\n",
+		das1800_boards[index].name);
+
+	return index;
 }
 
 static int das1800_attach(struct comedi_device *dev,
