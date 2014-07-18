@@ -143,16 +143,12 @@ config OMAP_IOMMU
 	depends on ARCH_OMAP2PLUS
 	select IOMMU_API
 
-config OMAP_IOVMM
-	tristate "OMAP IO Virtual Memory Manager Support"
-	depends on OMAP_IOMMU
-
 config OMAP_IOMMU_DEBUG
-       tristate "Export OMAP IOMMU/IOVMM internals in DebugFS"
-       depends on OMAP_IOVMM && DEBUG_FS
+       tristate "Export OMAP IOMMU internals in DebugFS"
+       depends on OMAP_IOMMU && DEBUG_FS
        help
          Select this to see extensive information about
-         the internal state of OMAP IOMMU/IOVMM in debugfs.
+         the internal state of OMAP IOMMU in debugfs.
 
          Say N unless you know you need this.
 

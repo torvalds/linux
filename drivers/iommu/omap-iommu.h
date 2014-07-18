@@ -46,12 +46,7 @@ struct omap_iommu {
 
 	int		nr_tlb_entries;
 
-	struct list_head	mmap;
-	struct mutex		mmap_lock; /* protect mmap */
-
 	void *ctx; /* iommu context: registres saved area */
-	u32 da_start;
-	u32 da_end;
 
 	int has_bus_err_back;
 };
@@ -154,9 +149,12 @@ static inline struct omap_iommu *dev_to_omap_iommu(struct device *dev)
 #define MMU_RAM_PADDR_MASK \
 	((~0UL >> MMU_RAM_PADDR_SHIFT) << MMU_RAM_PADDR_SHIFT)
 
+#define MMU_RAM_ENDIAN_SHIFT	9
 #define MMU_RAM_ENDIAN_MASK	(1 << MMU_RAM_ENDIAN_SHIFT)
+#define MMU_RAM_ENDIAN_LITTLE	(0 << MMU_RAM_ENDIAN_SHIFT)
 #define MMU_RAM_ENDIAN_BIG	(1 << MMU_RAM_ENDIAN_SHIFT)
 
+#define MMU_RAM_ELSZ_SHIFT	7
 #define MMU_RAM_ELSZ_MASK	(3 << MMU_RAM_ELSZ_SHIFT)
 #define MMU_RAM_ELSZ_8		(0 << MMU_RAM_ELSZ_SHIFT)
 #define MMU_RAM_ELSZ_16		(1 << MMU_RAM_ELSZ_SHIFT)
