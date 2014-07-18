@@ -2222,10 +2222,8 @@ static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 		n = nbytes;
 
 		m = comedi_buf_read_n_available(s);
-		/* printk("%d available\n",m); */
 		if (async->buf_read_ptr + m > async->prealloc_bufsz)
 			m = async->prealloc_bufsz - async->buf_read_ptr;
-		/* printk("%d contiguous\n",m); */
 		if (m < n)
 			n = m;
 
