@@ -301,6 +301,48 @@ static void zynq_gpio_irq_unmask(struct irq_data *irq_data)
 }
 
 /**
+ * zynq_gpio_irq_ack - Acknowledge the interrupt of a gpio pin
+ * @irq_data:	irq data containing irq number of gpio pin for the interrupt
+ *		to ack
+ *
+ * This function calculates gpio pin number from irq number and sets the bit
+ * in the Interrupt Status Register of the corresponding bank, to ACK the irq.
+ */
+static void zynq_gpio_irq_ack(struct irq_data *irq_data)
+{
+	unsigned int device_pin_num, bank_num, bank_pin_num;
+	struct zynq_gpio *gpio = irq_data_get_irq_chip_data(irq_data);
+
+	device_pin_num = irq_data->hwirq;
+	zynq_gpio_get_bank_pin(device_pin_num, &bank_num, &bank_pin_num);
+	writel_relaxed(BIT(bank_pin_num),
+		       gpio->base_addr + ZYNQ_GPIO_INTSTS_OFFSET(bank_num));
+}
+
+/**
+ * zynq_gpio_irq_enable - Enable the interrupts for a gpio pin
+ * @irq_data:	irq data containing irq number of gpio pin for the interrupt
+ *		to enable
+ *
+ * Clears the INTSTS bit and unmasks the given interrrupt.
+ */
+static void zynq_gpio_irq_enable(struct irq_data *irq_data)
+{
+	/*
+	 * The Zynq GPIO controller does not disable interrupt detection when
+	 * the interrupt is masked and only disables the propagation of the
+	 * interrupt. This means when the controller detects an interrupt
+	 * condition while the interrupt is logically disabled it will propagate
+	 * that interrupt event once the interrupt is enabled. This will cause
+	 * the interrupt consumer to see spurious interrupts to prevent this
+	 * first make sure that the interrupt is not asserted and then enable
+	 * it.
+	 */
+	zynq_gpio_irq_ack(irq_data);
+	zynq_gpio_irq_unmask(irq_data);
+}
+
+/**
  * zynq_gpio_set_irq_type - Set the irq type for a gpio pin
  * @irq_data:	irq data containing irq number of gpio pin
  * @type:	interrupt type that is to be set for the gpio pin
@@ -384,6 +426,7 @@ static int zynq_gpio_set_wake(struct irq_data *data, unsigned int on)
 /* irq chip descriptor */
 static struct irq_chip zynq_gpio_irqchip = {
 	.name		= DRIVER_NAME,
+	.irq_enable	= zynq_gpio_irq_enable,
 	.irq_mask	= zynq_gpio_irq_mask,
 	.irq_unmask	= zynq_gpio_irq_unmask,
 	.irq_set_type	= zynq_gpio_set_irq_type,
