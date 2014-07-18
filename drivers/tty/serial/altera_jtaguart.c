@@ -304,9 +304,8 @@ static struct altera_jtaguart altera_jtaguart_ports[ALTERA_JTAGUART_MAXPORTS];
 #if defined(CONFIG_SERIAL_ALTERA_JTAGUART_CONSOLE)
 
 #if defined(CONFIG_SERIAL_ALTERA_JTAGUART_CONSOLE_BYPASS)
-static void altera_jtaguart_console_putc(struct console *co, int c)
+static void altera_jtaguart_console_putc(struct uart_port *port, int c)
 {
-	struct uart_port *port = &(altera_jtaguart_ports + co->index)->port;
 	unsigned long status;
 	unsigned long flags;
 
@@ -325,9 +324,8 @@ static void altera_jtaguart_console_putc(struct console *co, int c)
 	spin_unlock_irqrestore(&port->lock, flags);
 }
 #else
-static void altera_jtaguart_console_putc(struct console *co, int c)
+static void altera_jtaguart_console_putc(struct uart_port *port, int c)
 {
-	struct uart_port *port = &(altera_jtaguart_ports + co->index)->port;
 	unsigned long flags;
 
 	spin_lock_irqsave(&port->lock, flags);
