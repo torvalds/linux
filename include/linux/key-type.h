@@ -41,7 +41,7 @@ struct key_construction {
 struct key_preparsed_payload {
 	char		*description;	/* Proposed key description (or NULL) */
 	void		*type_data[2];	/* Private key-type data */
-	void		*payload;	/* Proposed payload */
+	void		*payload[2];	/* Proposed payload */
 	const void	*data;		/* Raw data */
 	size_t		datalen;	/* Raw datalen */
 	size_t		quotalen;	/* Quota length for proposed payload */
