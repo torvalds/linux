@@ -1783,10 +1783,12 @@ struct v4l2_pix_format_mplane {
 /**
  * struct v4l2_sdr_format - SDR format definition
  * @pixelformat:	little endian four character code (fourcc)
+ * @buffersize:		maximum size in bytes required for data
  */
 struct v4l2_sdr_format {
 	__u32				pixelformat;
-	__u8				reserved[28];
+	__u32				buffersize;
+	__u8				reserved[24];
 } __attribute__ ((packed));
 
 /**
