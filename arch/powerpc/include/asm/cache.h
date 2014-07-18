@@ -3,6 +3,7 @@
 
 #ifdef __KERNEL__
 
+#include <asm/reg.h>
 
 /* bytes per L1 cache line */
 #if defined(CONFIG_8xx) || defined(CONFIG_403GCX)
@@ -39,6 +40,12 @@ struct ppc64_caches {
 };
 
 extern struct ppc64_caches ppc64_caches;
+
+static inline void logmpp(u64 x)
+{
+	asm volatile(PPC_LOGMPP(R1) : : "r" (x));
+}
+
 #endif /* __powerpc64__ && ! __ASSEMBLY__ */
 
 #if defined(__ASSEMBLY__)

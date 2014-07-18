@@ -307,6 +307,8 @@ struct kvmppc_vcore {
 	u32 arch_compat;
 	ulong pcr;
 	ulong dpdes;		/* doorbell state (POWER8) */
+	void *mpp_buffer; /* Micro Partition Prefetch buffer */
+	bool mpp_buffer_is_valid;
 };
 
 #define VCORE_ENTRY_COUNT(vc)	((vc)->entry_exit_count & 0xff)
