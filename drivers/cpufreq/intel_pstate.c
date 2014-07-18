@@ -147,7 +147,7 @@ static struct perf_limits limits = {
 };
 
 static inline void pid_reset(struct _pid *pid, int setpoint, int busy,
-			int deadband, int integral) {
+			     int deadband, int integral) {
 	pid->setpoint = setpoint;
 	pid->deadband  = deadband;
 	pid->integral  = int_tofp(integral);
@@ -258,8 +258,8 @@ static void __init intel_pstate_debug_expose_params(void)
 		return;
 	while (pid_files[i].name) {
 		debugfs_create_file(pid_files[i].name, 0660,
-				debugfs_parent, pid_files[i].value,
-				&fops_pid_param);
+				    debugfs_parent, pid_files[i].value,
+				    &fops_pid_param);
 		i++;
 	}
 }
@@ -275,7 +275,7 @@ static void __init intel_pstate_debug_expose_params(void)
 	}
 
 static ssize_t store_no_turbo(struct kobject *a, struct attribute *b,
-				const char *buf, size_t count)
+			      const char *buf, size_t count)
 {
 	unsigned int input;
 	int ret;
@@ -292,7 +292,7 @@ static ssize_t store_no_turbo(struct kobject *a, struct attribute *b,
 }
 
 static ssize_t store_max_perf_pct(struct kobject *a, struct attribute *b,
-				const char *buf, size_t count)
+				  const char *buf, size_t count)
 {
 	unsigned int input;
 	int ret;
@@ -309,7 +309,7 @@ static ssize_t store_max_perf_pct(struct kobject *a, struct attribute *b,
 }
 
 static ssize_t store_min_perf_pct(struct kobject *a, struct attribute *b,
-				const char *buf, size_t count)
+				  const char *buf, size_t count)
 {
 	unsigned int input;
 	int ret;
@@ -618,10 +618,10 @@ static inline int32_t intel_pstate_get_scaled_busy(struct cpudata *cpu)
 
 	sample_time = pid_params.sample_rate_ms  * USEC_PER_MSEC;
 	duration_us = (u32) ktime_us_delta(cpu->sample.time,
-					cpu->last_sample_time);
+					   cpu->last_sample_time);
 	if (duration_us > sample_time * 3) {
 		sample_ratio = div_fp(int_tofp(sample_time),
-				int_tofp(duration_us));
+				      int_tofp(duration_us));
 		core_busy = mul_fp(core_busy, sample_ratio);
 	}
 
@@ -763,7 +763,7 @@ static int intel_pstate_verify_policy(struct cpufreq_policy *policy)
 	cpufreq_verify_within_cpu_limits(policy);
 
 	if (policy->policy != CPUFREQ_POLICY_POWERSAVE &&
-		policy->policy != CPUFREQ_POLICY_PERFORMANCE)
+	    policy->policy != CPUFREQ_POLICY_PERFORMANCE)
 		return -EINVAL;
 
 	return 0;
@@ -796,7 +796,7 @@ static int intel_pstate_cpu_init(struct cpufreq_policy *policy)
 
 	rdmsrl(MSR_IA32_MISC_ENABLE, misc_en);
 	if (misc_en & MSR_IA32_MISC_ENABLE_TURBO_DISABLE ||
-		cpu->pstate.max_pstate == cpu->pstate.turbo_pstate) {
+	    cpu->pstate.max_pstate == cpu->pstate.turbo_pstate) {
 		limits.turbo_disabled = 1;
 		limits.no_turbo = 1;
 	}
@@ -838,8 +838,8 @@ static int intel_pstate_msrs_not_valid(void)
 	rdmsrl(MSR_IA32_MPERF, mperf);
 
 	if (!pstate_funcs.get_max() ||
-		!pstate_funcs.get_min() ||
-		!pstate_funcs.get_turbo())
+	    !pstate_funcs.get_min() ||
+	    !pstate_funcs.get_turbo())
 		return -ENODEV;
 
 	rdmsrl(MSR_IA32_APERF, tmp);
@@ -921,14 +921,14 @@ static bool intel_pstate_platform_pwr_mgmt_exists(void)
 	struct acpi_table_header hdr;
 	struct hw_vendor_info *v_info;
 
-	if (acpi_disabled
-	    || ACPI_FAILURE(acpi_get_table_header(ACPI_SIG_FADT, 0, &hdr)))
+	if (acpi_disabled ||
+	    ACPI_FAILURE(acpi_get_table_header(ACPI_SIG_FADT, 0, &hdr)))
 		return false;
 
 	for (v_info = vendor_info; v_info->valid; v_info++) {
-		if (!strncmp(hdr.oem_id, v_info->oem_id, ACPI_OEM_ID_SIZE)
-		    && !strncmp(hdr.oem_table_id, v_info->oem_table_id, ACPI_OEM_TABLE_ID_SIZE)
-		    && intel_pstate_no_acpi_pss())
+		if (!strncmp(hdr.oem_id, v_info->oem_id, ACPI_OEM_ID_SIZE) &&
+		    !strncmp(hdr.oem_table_id, v_info->oem_table_id, ACPI_OEM_TABLE_ID_SIZE) &&
+		    intel_pstate_no_acpi_pss())
 			return true;
 	}
 
