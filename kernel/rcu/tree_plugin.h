@@ -2578,7 +2578,7 @@ static void __init rcu_organize_nocb_kthreads(struct rcu_state *rsp)
 	struct rcu_data *rdp_leader = NULL;  /* Suppress misguided gcc warn. */
 	struct rcu_data *rdp_prev = NULL;
 
-	if (rcu_nocb_mask == NULL)
+	if (!have_rcu_nocb_mask)
 		return;
 	if (ls == -1) {
 		ls = int_sqrt(nr_cpu_ids);
@@ -2608,9 +2608,9 @@ static void __init rcu_organize_nocb_kthreads(struct rcu_state *rsp)
 /* Prevent __call_rcu() from enqueuing callbacks on no-CBs CPUs */
 static bool init_nocb_callback_list(struct rcu_data *rdp)
 {
-	if (rcu_nocb_mask == NULL ||
-	    !cpumask_test_cpu(rdp->cpu, rcu_nocb_mask))
+	if (!rcu_is_nocb_cpu(rdp->cpu))
 		return false;
+
 	rdp->nxttail[RCU_NEXT_TAIL] = NULL;
 	return true;
 }
