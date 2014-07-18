@@ -105,14 +105,7 @@ static struct drm_encoder*
 udl_best_single_encoder(struct drm_connector *connector)
 {
 	int enc_id = connector->encoder_ids[0];
-	struct drm_mode_object *obj;
-	struct drm_encoder *encoder;
-
-	obj = drm_mode_object_find(connector->dev, enc_id, DRM_MODE_OBJECT_ENCODER);
-	if (!obj)
-		return NULL;
-	encoder = obj_to_encoder(obj);
-	return encoder;
+	return drm_encoder_find(connector->dev, enc_id);
 }
 
 static int udl_connector_set_property(struct drm_connector *connector,
