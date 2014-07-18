@@ -278,7 +278,7 @@ static void send_sdu(struct sdio_func *func, struct tx_cxt *tx)
 
 	spin_unlock_irqrestore(&tx->lock, flags);
 
-	dev_dbg(func->dev, "sdio_send: %*ph\n", aggr_len - TYPE_A_HEADER_SIZE,
+	dev_dbg(&func->dev, "sdio_send: %*ph\n", aggr_len - TYPE_A_HEADER_SIZE,
 		tx->sdu_buf + TYPE_A_HEADER_SIZE);
 
 	for (pos = TYPE_A_HEADER_SIZE; pos < aggr_len; pos += TX_CHUNK_SIZE) {
@@ -314,7 +314,7 @@ static void send_hci(struct sdio_func *func, struct tx_cxt *tx,
 {
 	unsigned long flags;
 
-	dev_dbg(func->dev, "sdio_send: %*ph\n", t->len - TYPE_A_HEADER_SIZE,
+	dev_dbg(&func->dev, "sdio_send: %*ph\n", t->len - TYPE_A_HEADER_SIZE,
 		t->buf + TYPE_A_HEADER_SIZE);
 
 	send_sdio_pkt(func, t->buf, t->len);
@@ -548,7 +548,7 @@ static void gdm_sdio_irq(struct sdio_func *func)
 	}
 
 end_io:
-	dev_dbg(func->dev, "sdio_receive: %*ph\n", len, rx->rx_buf);
+	dev_dbg(&func->dev, "sdio_receive: %*ph\n", len, rx->rx_buf);
 
 	len = control_sdu_tx_flow(sdev, rx->rx_buf, len);
 
