@@ -1401,7 +1401,6 @@ int r100_cs_parse_packet0(struct radeon_cs_parser *p,
  */
 int r100_cs_packet_parse_vline(struct radeon_cs_parser *p)
 {
-	struct drm_mode_object *obj;
 	struct drm_crtc *crtc;
 	struct radeon_crtc *radeon_crtc;
 	struct radeon_cs_packet p3reloc, waitreloc;
@@ -1441,12 +1440,11 @@ int r100_cs_packet_parse_vline(struct radeon_cs_parser *p)
 	header = radeon_get_ib_value(p, h_idx);
 	crtc_id = radeon_get_ib_value(p, h_idx + 5);
 	reg = R100_CP_PACKET0_GET_REG(header);
-	obj = drm_mode_object_find(p->rdev->ddev, crtc_id, DRM_MODE_OBJECT_CRTC);
-	if (!obj) {
+	crtc = drm_crtc_find(p->rdev->ddev, crtc_id);
+	if (!crtc) {
 		DRM_ERROR("cannot find crtc %d\n", crtc_id);
 		return -ENOENT;
 	}
-	crtc = obj_to_crtc(obj);
 	radeon_crtc = to_radeon_crtc(crtc);
 	crtc_id = radeon_crtc->crtc_id;
 
