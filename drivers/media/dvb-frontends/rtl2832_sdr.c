@@ -84,15 +84,18 @@ static const struct v4l2_frequency_band bands_fm[] = {
 struct rtl2832_sdr_format {
 	char	*name;
 	u32	pixelformat;
+	u32	buffersize;
 };
 
 static struct rtl2832_sdr_format formats[] = {
 	{
 		.name		= "Complex U8",
-		.pixelformat	=  V4L2_SDR_FMT_CU8,
+		.pixelformat	= V4L2_SDR_FMT_CU8,
+		.buffersize	= BULK_BUFFER_SIZE,
 	}, {
 		.name		= "Complex U16LE (emulated)",
 		.pixelformat	= V4L2_SDR_FMT_CU16LE,
+		.buffersize	= BULK_BUFFER_SIZE * 2,
 	},
 };
 
@@ -143,6 +146,7 @@ struct rtl2832_sdr_state {
 
 	unsigned int f_adc, f_tuner;
 	u32 pixelformat;
+	u32 buffersize;
 	unsigned int num_formats;
 
 	/* Controls */
@@ -633,8 +637,7 @@ static int rtl2832_sdr_queue_setup(struct vb2_queue *vq,
 	if (vq->num_buffers + *nbuffers < 8)
 		*nbuffers = 8 - vq->num_buffers;
 	*nplanes = 1;
-	/* 2 = max 16-bit sample returned */
-	sizes[0] = PAGE_ALIGN(BULK_BUFFER_SIZE * 2);
+	sizes[0] = PAGE_ALIGN(s->buffersize);
 	dev_dbg(&s->udev->dev, "%s: nbuffers=%d sizes[0]=%d\n",
 			__func__, *nbuffers, sizes[0]);
 	return 0;
@@ -1233,6 +1236,8 @@ static int rtl2832_sdr_g_fmt_sdr_cap(struct file *file, void *priv,
 	dev_dbg(&s->udev->dev, "%s:\n", __func__);
 
 	f->fmt.sdr.pixelformat = s->pixelformat;
+	f->fmt.sdr.buffersize = s->buffersize;
+
 	memset(f->fmt.sdr.reserved, 0, sizeof(f->fmt.sdr.reserved));
 
 	return 0;
@@ -1254,13 +1259,17 @@ static int rtl2832_sdr_s_fmt_sdr_cap(struct file *file, void *priv,
 	memset(f->fmt.sdr.reserved, 0, sizeof(f->fmt.sdr.reserved));
 	for (i = 0; i < s->num_formats; i++) {
 		if (formats[i].pixelformat == f->fmt.sdr.pixelformat) {
-			s->pixelformat = f->fmt.sdr.pixelformat;
+			s->pixelformat = formats[i].pixelformat;
+			s->buffersize = formats[i].buffersize;
+			f->fmt.sdr.buffersize = formats[i].buffersize;
 			return 0;
 		}
 	}
 
-	f->fmt.sdr.pixelformat = formats[0].pixelformat;
 	s->pixelformat = formats[0].pixelformat;
+	s->buffersize = formats[0].buffersize;
+	f->fmt.sdr.pixelformat = formats[0].pixelformat;
+	f->fmt.sdr.buffersize = formats[0].buffersize;
 
 	return 0;
 }
@@ -1276,11 +1285,14 @@ static int rtl2832_sdr_try_fmt_sdr_cap(struct file *file, void *priv,
 
 	memset(f->fmt.sdr.reserved, 0, sizeof(f->fmt.sdr.reserved));
 	for (i = 0; i < s->num_formats; i++) {
-		if (formats[i].pixelformat == f->fmt.sdr.pixelformat)
+		if (formats[i].pixelformat == f->fmt.sdr.pixelformat) {
+			f->fmt.sdr.buffersize = formats[i].buffersize;
 			return 0;
+		}
 	}
 
 	f->fmt.sdr.pixelformat = formats[0].pixelformat;
+	f->fmt.sdr.buffersize = formats[0].buffersize;
 
 	return 0;
 }
@@ -1418,7 +1430,8 @@ struct dvb_frontend *rtl2832_sdr_attach(struct dvb_frontend *fe,
 	s->cfg = cfg;
 	s->f_adc = bands_adc[0].rangelow;
 	s->f_tuner = bands_fm[0].rangelow;
-	s->pixelformat =  V4L2_SDR_FMT_CU8;
+	s->pixelformat = formats[0].pixelformat;
+	s->buffersize = formats[0].buffersize;
 	s->num_formats = NUM_FORMATS;
 	if (rtl2832_sdr_emulated_fmt == false)
 		s->num_formats -= 1;
