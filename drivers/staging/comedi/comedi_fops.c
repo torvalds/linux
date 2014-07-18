@@ -1227,10 +1227,9 @@ static int parse_insn(struct comedi_device *dev, struct comedi_insn *insn,
 				/* Most drivers ignore the base channel in
 				 * insn->chanspec.  Fix this here if
 				 * the subdevice has <= 32 channels.  */
-				unsigned int shift;
-				unsigned int orig_mask;
+				unsigned int orig_mask = data[0];
+				unsigned int shift = 0;
 
-				orig_mask = data[0];
 				if (s->n_chan <= 32) {
 					shift = CR_CHAN(insn->chanspec);
 					if (shift > 0) {
@@ -1238,8 +1237,7 @@ static int parse_insn(struct comedi_device *dev, struct comedi_insn *insn,
 						data[0] <<= shift;
 						data[1] <<= shift;
 					}
-				} else
-					shift = 0;
+				}
 				ret = s->insn_bits(dev, s, insn, data);
 				data[0] = orig_mask;
 				if (shift > 0)
@@ -2178,7 +2176,7 @@ out:
 }
 
 static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
-				loff_t *offset)
+			   loff_t *offset)
 {
 	struct comedi_subdevice *s;
 	struct comedi_async *async;
@@ -2443,7 +2441,7 @@ struct comedi_device *comedi_alloc_board_minor(struct device *hardware_device)
 	struct device *csdev;
 	unsigned i;
 
-	dev = kzalloc(sizeof(struct comedi_device), GFP_KERNEL);
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (dev == NULL)
 		return ERR_PTR(-ENOMEM);
 	comedi_device_init(dev);
