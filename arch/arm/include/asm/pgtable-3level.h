@@ -207,17 +207,21 @@ static inline pmd_t *pmd_offset(pud_t *pud, unsigned long addr)
 #define pte_huge(pte)		(pte_val(pte) && !(pte_val(pte) & PTE_TABLE_BIT))
 #define pte_mkhuge(pte)		(__pte(pte_val(pte) & ~PTE_TABLE_BIT))
 
-#define pmd_young(pmd)		(pmd_val(pmd) & PMD_SECT_AF)
+#define pmd_isset(pmd, val)	((u32)(val) == (val) ? pmd_val(pmd) & (val) \
+						: !!(pmd_val(pmd) & (val)))
+#define pmd_isclear(pmd, val)	(!(pmd_val(pmd) & (val)))
+
+#define pmd_young(pmd)		(pmd_isset((pmd), PMD_SECT_AF))
 
 #define __HAVE_ARCH_PMD_WRITE
-#define pmd_write(pmd)		(!(pmd_val(pmd) & PMD_SECT_RDONLY))
+#define pmd_write(pmd)		(pmd_isclear((pmd), PMD_SECT_RDONLY))
 
 #define pmd_hugewillfault(pmd)	(!pmd_young(pmd) || !pmd_write(pmd))
 #define pmd_thp_or_huge(pmd)	(pmd_huge(pmd) || pmd_trans_huge(pmd))
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
-#define pmd_trans_huge(pmd)	(pmd_val(pmd) && !(pmd_val(pmd) & PMD_TABLE_BIT))
-#define pmd_trans_splitting(pmd) (pmd_val(pmd) & PMD_SECT_SPLITTING)
+#define pmd_trans_huge(pmd)	(pmd_val(pmd) && !pmd_table(pmd))
+#define pmd_trans_splitting(pmd) (pmd_isset((pmd), PMD_SECT_SPLITTING))
 #endif
 
 #define PMD_BIT_FUNC(fn,op) \
