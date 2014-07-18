@@ -2307,16 +2307,26 @@ retry:
 
 	rc = 0;
 	list_for_each_entry_safe(cqr, n, ccw_queue, blocklist) {
-		if (__dasd_sleep_on_erp(cqr)) {
-			if (!cqr->status == DASD_CQR_TERMINATED &&
-			    !cqr->status == DASD_CQR_NEED_ERP)
-				break;
-			rc = 1;
+		/*
+		 * for alias devices simplify error recovery and
+		 * return to upper layer
+		 */
+		if (cqr->startdev != cqr->basedev &&
+		    (cqr->status == DASD_CQR_TERMINATED ||
+		     cqr->status == DASD_CQR_NEED_ERP))
+			return -EAGAIN;
+		else {
+			/* normal recovery for basedev IO */
+			if (__dasd_sleep_on_erp(cqr)) {
+				if (!cqr->status == DASD_CQR_TERMINATED &&
+				    !cqr->status == DASD_CQR_NEED_ERP)
+					break;
+				rc = 1;
+			}
 		}
 	}
 	if (rc)
 		goto retry;
-
 
 	return 0;
 }
