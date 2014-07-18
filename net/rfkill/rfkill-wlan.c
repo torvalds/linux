@@ -35,6 +35,7 @@
 #include <linux/rockchip/iomap.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <linux/skbuff.h>
+#include <linux/rockchip/cpu.h>
 #ifdef CONFIG_OF
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -251,7 +252,7 @@ int rockchip_wifi_ref_voltage(int on)
         int ret = -1;
         char *ldostr;
         int level = mrfkill->pdata->ioregulator.enable;
-        int voltage = 1000 * mrfkill->pdata->sdio_vol;
+		int voltage = 1000 * mrfkill->pdata->sdio_vol;
 
         ldostr = mrfkill->pdata->ioregulator.pmu_regulator;
         if (ldostr == NULL) {
@@ -264,10 +265,18 @@ int rockchip_wifi_ref_voltage(int on)
             return -1;
         } else {
             if (on == level) {
-                regulator_set_voltage(ldo, voltage, voltage);
-                LOG("%s: %s enabled, level = %d\n", __func__, ldostr, voltage);
-                ret = regulator_enable(ldo);
-                LOG("wifi turn on io reference voltage.\n");
+            	if(cpu_is_rk3036())
+            	{
+					/*regulator_set_voltage(ldo, voltage, voltage);
+					LOG("%s: %s enabled, level = %d\n", __func__, ldostr, voltage);
+					ret = regulator_enable(ldo);
+					LOG("wifi turn on io reference voltage.\n");*/
+            	}else{
+					regulator_set_voltage(ldo, voltage, voltage);
+					LOG("%s: %s enabled, level = %d\n", __func__, ldostr, voltage);
+					ret = regulator_enable(ldo);
+					LOG("wifi turn on io reference voltage.\n");
+            	}
             } else {
                 LOG("%s: %s disabled\n", __func__, ldostr);
                 while (regulator_is_enabled(ldo) > 0) {
@@ -591,12 +600,21 @@ static int wlan_platdata_parse_dt(struct device *dev,
 
     memset(data, 0, sizeof(*data));
 
-    ret = of_property_read_u32(node, "sdio_vref", &value);
-    if (ret < 0) {
-        LOG("%s: Can't get sdio vref.", __func__);
-        return -1;
-    }
-    data->sdio_vol = value;
+	if(cpu_is_rk3036()){
+		/* ret = of_property_read_u32(node, "sdio_vref", &value);
+		if (ret < 0) {
+			LOG("%s: Can't get sdio vref.", __func__);
+			return -1;
+		}
+		data->sdio_vol = value;*/
+	}else{
+		ret = of_property_read_u32(node, "sdio_vref", &value);
+		if (ret < 0) {
+			LOG("%s: Can't get sdio vref.", __func__);
+			return -1;
+		}
+		data->sdio_vol = value;
+	}
 
     if (of_find_property(node, "vref_ctrl_enable", NULL)) {
         LOG("%s: enable wifi io reference voltage control.\n", __func__);
