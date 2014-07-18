@@ -56,6 +56,24 @@
 		status = "okay";
     };
 
+    wireless-bluetooth {
+        compatible = "bluetooth-platdata";
+
+        //wifi-bt-power-toggle;
+
+     	uart_rts_gpios = <&gpio0 GPIO_C2 GPIO_ACTIVE_LOW>;
+        pinctrl-names = "default","rts_gpio";
+        pinctrl-0 = <&uart0_rts>;
+        pinctrl-1 = <&uart0_rts_gpio>;
+
+        //BT,power_gpio = <&gpio4 GPIO_D3 GPIO_ACTIVE_HIGH>;
+        BT,reset_gpio = <&gpio2 GPIO_D5 GPIO_ACTIVE_HIGH>;
+        BT,wake_gpio = <&gpio2 GPIO_C5 GPIO_ACTIVE_HIGH>;
+        BT,wake_host_irq = <&gpio0 GPIO_A0 GPIO_ACTIVE_LOW>;
+
+        status = "okay";
+    };
+    
 	usb_control {
 		compatible = "rockchip,rk3036-usb-control";
 		host_drv_gpio = <&gpio2 GPIO_C7 GPIO_ACTIVE_LOW>;
@@ -68,6 +86,12 @@
 	key {
 		compatible = "rockchip,key";
 	};
+};
+
+&uart0{
+	status = "okay";
+	dma-names = "!tx", "!rx";
+	pinctrl-0 = <&uart0_xfer &uart0_cts>;
 };
 
 &nandc {
