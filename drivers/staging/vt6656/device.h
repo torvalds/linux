@@ -326,7 +326,6 @@ struct vnt_private {
 	u8 byRxAntennaMode;
 	u8 byTxAntennaMode;
 	u8 byRadioCtl;
-	u8 bHWRadioOff;
 
 	/* IFS & Cw */
 	u32 uSIFS;  /* Current SIFS */

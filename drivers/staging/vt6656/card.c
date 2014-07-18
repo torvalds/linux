@@ -750,6 +750,8 @@ int vnt_radio_power_off(struct vnt_private *priv)
 
 	vnt_set_deep_sleep(priv);
 
+	vnt_mac_reg_bits_on(priv, MAC_REG_GPIOCTL1, GPIO3_INTMD);
+
 	return ret;
 }
 
@@ -769,9 +771,6 @@ int vnt_radio_power_on(struct vnt_private *priv)
 {
 	int ret = true;
 
-	if (priv->bHWRadioOff == true)
-		return false;
-
 	vnt_exit_deep_sleep(priv);
 
 	vnt_mac_reg_bits_on(priv, MAC_REG_HOSTCR, HOSTCR_RXON);
@@ -787,6 +786,8 @@ int vnt_radio_power_on(struct vnt_private *priv)
 			(SOFTPWRCTL_SWPE2 | SOFTPWRCTL_SWPE3));
 		break;
 	}
+
+	vnt_mac_reg_bits_off(priv, MAC_REG_GPIOCTL1, GPIO3_INTMD);
 
 	return ret;
 }

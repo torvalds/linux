@@ -354,7 +354,6 @@ static int device_init_registers(struct vnt_private *priv)
 	vnt_set_short_slot_time(priv);
 
 	priv->byRadioCtl = priv->abyEEPROM[EEP_OFS_RADIOCTL];
-	priv->bHWRadioOff = false;
 
 	if ((priv->byRadioCtl & EEP_RADIOCTL_ENABLE) != 0) {
 		status = vnt_control_in(priv, MESSAGE_TYPE_READ,
@@ -363,16 +362,12 @@ static int device_init_registers(struct vnt_private *priv)
 		if (status != STATUS_SUCCESS)
 			return false;
 
-		if ((tmp & GPIO3_DATA) == 0) {
-			priv->bHWRadioOff = true;
+		if ((tmp & GPIO3_DATA) == 0)
 			vnt_mac_reg_bits_on(priv, MAC_REG_GPIOCTL1,
 								GPIO3_INTMD);
-		} else {
+		else
 			vnt_mac_reg_bits_off(priv, MAC_REG_GPIOCTL1,
 								GPIO3_INTMD);
-			priv->bHWRadioOff = false;
-		}
-
 	}
 
 	vnt_mac_set_led(priv, LEDSTS_TMLEN, 0x38);
@@ -381,11 +376,7 @@ static int device_init_registers(struct vnt_private *priv)
 
 	vnt_mac_reg_bits_on(priv, MAC_REG_GPIOCTL0, 0x01);
 
-	if (priv->bHWRadioOff == true) {
-		vnt_radio_power_off(priv);
-	} else {
-		vnt_radio_power_on(priv);
-	}
+	vnt_radio_power_on(priv);
 
 	dev_dbg(&priv->usb->dev, "<----INIbInitAdapter Exit\n");
 
