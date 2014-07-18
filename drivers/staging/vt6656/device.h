@@ -219,8 +219,6 @@ enum {
 
 /* RCB (Receive Control Block) */
 struct vnt_rcb {
-	void *Next;
-	signed long Ref;
 	void *pDevice;
 	struct urb *pUrb;
 	struct sk_buff *skb;

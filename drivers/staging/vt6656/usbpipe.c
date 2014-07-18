@@ -207,7 +207,6 @@ int vnt_submit_rx_urb(struct vnt_private *priv, struct vnt_rcb *rcb)
 		return STATUS_FAILURE ;
 	}
 
-	rcb->Ref = 1;
 	rcb->bBoolInUse = true;
 
 	return status;
