@@ -54,6 +54,7 @@ endif
 
 if MEDIA_SDR_SUPPORT
 	comment "Software defined radio USB devices"
+source "drivers/media/usb/airspy/Kconfig"
 endif
 
 endif #MEDIA_USB_SUPPORT
