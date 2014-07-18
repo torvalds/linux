@@ -921,6 +921,11 @@ static void add_to_done_list(struct ohci_hcd *ohci, struct td *td)
 	 * that td is on the done list.
 	 */
 	ohci->dl_end = td->next_dl_td = td;
+
+	/* Did we just add the latest pending TD? */
+	td2 = ed->pending_td;
+	if (td2 && td2->next_dl_td)
+		ed->pending_td = NULL;
 }
 
 /* Get the entries on the hardware done queue and put them on our list */
@@ -1082,6 +1087,7 @@ rescan_this:
 		if (list_empty(&ed->td_list)) {
 			*last = ed->ed_next;
 			ed->ed_next = NULL;
+			list_del(&ed->in_use_list);
 		} else if (ohci->rh_state == OHCI_RH_RUNNING) {
 			*last = ed->ed_next;
 			ed->ed_next = NULL;

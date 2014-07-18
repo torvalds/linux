@@ -72,12 +72,14 @@
 static const char	hcd_name [] = "ohci_hcd";
 
 #define	STATECHANGE_DELAY	msecs_to_jiffies(300)
+#define IO_WATCHDOG_DELAY	msecs_to_jiffies(250)
 
 #include "ohci.h"
 #include "pci-quirks.h"
 
 static void ohci_dump(struct ohci_hcd *ohci);
 static void ohci_stop(struct usb_hcd *hcd);
+static void io_watchdog_func(unsigned long _ohci);
 
 #include "ohci-hub.c"
 #include "ohci-dbg.c"
@@ -225,6 +227,14 @@ static int ohci_urb_enqueue (
 			usb_hcd_unlink_urb_from_ep(hcd, urb);
 			goto fail;
 		}
+
+		/* Start up the I/O watchdog timer, if it's not running */
+		if (!timer_pending(&ohci->io_watchdog) &&
+				list_empty(&ohci->eds_in_use))
+			mod_timer(&ohci->io_watchdog,
+					jiffies + IO_WATCHDOG_DELAY);
+		list_add(&ed->in_use_list, &ohci->eds_in_use);
+
 		if (ed->type == PIPE_ISOCHRONOUS) {
 			u16	frame = ohci_frame_no(ohci);
 
@@ -416,6 +426,7 @@ ohci_shutdown (struct usb_hcd *hcd)
 	udelay(10);
 
 	ohci_writel(ohci, ohci->fminterval, &ohci->regs->fminterval);
+	ohci->rh_state = OHCI_RH_HALTED;
 }
 
 /*-------------------------------------------------------------------------*
@@ -483,6 +494,10 @@ static int ohci_init (struct ohci_hcd *ohci)
 
 	if (ohci->hcca)
 		return 0;
+
+	setup_timer(&ohci->io_watchdog, io_watchdog_func,
+			(unsigned long) ohci);
+	set_timer_slack(&ohci->io_watchdog, msecs_to_jiffies(20));
 
 	ohci->hcca = dma_alloc_coherent (hcd->self.controller,
 			sizeof(*ohci->hcca), &ohci->hcca_dma, GFP_KERNEL);
@@ -694,6 +709,112 @@ static int ohci_start(struct usb_hcd *hcd)
 
 /*-------------------------------------------------------------------------*/
 
+/*
+ * Some OHCI controllers are known to lose track of completed TDs.  They
+ * don't add the TDs to the hardware done queue, which means we never see
+ * them as being completed.
+ *
+ * This watchdog routine checks for such problems.  Without some way to
+ * tell when those TDs have completed, we would never take their EDs off
+ * the unlink list.  As a result, URBs could never be dequeued and
+ * endpoints could never be released.
+ */
+static void io_watchdog_func(unsigned long _ohci)
+{
+	struct ohci_hcd	*ohci = (struct ohci_hcd *) _ohci;
+	bool		takeback_all_pending = false;
+	u32		status;
+	u32		head;
+	struct ed	*ed;
+	struct td	*td, *td_start, *td_next;
+	unsigned long	flags;
+
+	spin_lock_irqsave(&ohci->lock, flags);
+
+	/*
+	 * One way to lose track of completed TDs is if the controller
+	 * never writes back the done queue head.  If it hasn't been
+	 * written back since the last time this function ran and if it
+	 * was non-empty at that time, something is badly wrong with the
+	 * hardware.
+	 */
+	status = ohci_readl(ohci, &ohci->regs->intrstatus);
+	if (!(status & OHCI_INTR_WDH) && ohci->wdh_cnt == ohci->prev_wdh_cnt) {
+		if (ohci->prev_donehead) {
+			ohci_err(ohci, "HcDoneHead not written back; disabled\n");
+			usb_hc_died(ohci_to_hcd(ohci));
+			ohci_dump(ohci);
+			ohci_shutdown(ohci_to_hcd(ohci));
+			goto done;
+		} else {
+			/* No write back because the done queue was empty */
+			takeback_all_pending = true;
+		}
+	}
+
+	/* Check every ED which might have pending TDs */
+	list_for_each_entry(ed, &ohci->eds_in_use, in_use_list) {
+		if (ed->pending_td) {
+			if (takeback_all_pending ||
+					OKAY_TO_TAKEBACK(ohci, ed)) {
+				unsigned tmp = hc32_to_cpu(ohci, ed->hwINFO);
+
+				ohci_dbg(ohci, "takeback pending TD for dev %d ep 0x%x\n",
+						0x007f & tmp,
+						(0x000f & (tmp >> 7)) +
+							((tmp & ED_IN) >> 5));
+				add_to_done_list(ohci, ed->pending_td);
+			}
+		}
+
+		/* Starting from the latest pending TD, */
+		td = ed->pending_td;
+
+		/* or the last TD on the done list, */
+		if (!td) {
+			list_for_each_entry(td_next, &ed->td_list, td_list) {
+				if (!td_next->next_dl_td)
+					break;
+				td = td_next;
+			}
+		}
+
+		/* find the last TD processed by the controller. */
+		head = hc32_to_cpu(ohci, ACCESS_ONCE(ed->hwHeadP)) & TD_MASK;
+		td_start = td;
+		td_next = list_prepare_entry(td, &ed->td_list, td_list);
+		list_for_each_entry_continue(td_next, &ed->td_list, td_list) {
+			if (head == (u32) td_next->td_dma)
+				break;
+			td = td_next;	/* head pointer has passed this TD */
+		}
+		if (td != td_start) {
+			/*
+			 * In case a WDH cycle is in progress, we will wait
+			 * for the next two cycles to complete before assuming
+			 * this TD will never get on the done queue.
+			 */
+			ed->takeback_wdh_cnt = ohci->wdh_cnt + 2;
+			ed->pending_td = td;
+		}
+	}
+
+	ohci_work(ohci);
+
+	if (ohci->rh_state == OHCI_RH_RUNNING) {
+		if (!list_empty(&ohci->eds_in_use)) {
+			ohci->prev_wdh_cnt = ohci->wdh_cnt;
+			ohci->prev_donehead = ohci_readl(ohci,
+					&ohci->regs->donehead);
+			mod_timer(&ohci->io_watchdog,
+					jiffies + IO_WATCHDOG_DELAY);
+		}
+	}
+
+ done:
+	spin_unlock_irqrestore(&ohci->lock, flags);
+}
+
 /* an interrupt happens */
 
 static irqreturn_t ohci_irq (struct usb_hcd *hcd)
@@ -796,6 +917,9 @@ static irqreturn_t ohci_irq (struct usb_hcd *hcd)
 
 	if (ohci->rh_state == OHCI_RH_RUNNING) {
 		ohci_writel (ohci, ints, &regs->intrstatus);
+		if (ints & OHCI_INTR_WDH)
+			++ohci->wdh_cnt;
+
 		ohci_writel (ohci, OHCI_INTR_MIE, &regs->intrenable);
 		// flush those writes
 		(void) ohci_readl (ohci, &ohci->regs->control);
@@ -815,6 +939,7 @@ static void ohci_stop (struct usb_hcd *hcd)
 
 	if (quirk_nec(ohci))
 		flush_work(&ohci->nec_work);
+	del_timer_sync(&ohci->io_watchdog);
 
 	ohci_writel (ohci, OHCI_INTR_MIE, &ohci->regs->intrdisable);
 	ohci_usb_reset(ohci);

@@ -47,6 +47,7 @@ struct ed {
 	struct ed		*ed_next;	/* on schedule or rm_list */
 	struct ed		*ed_prev;	/* for non-interrupt EDs */
 	struct list_head	td_list;	/* "shadow list" of our TDs */
+	struct list_head	in_use_list;
 
 	/* create --> IDLE --> OPER --> ... --> IDLE --> destroy
 	 * usually:  OPER --> UNLINK --> (IDLE | OPER) --> ...
@@ -66,6 +67,13 @@ struct ed {
 
 	/* HC may see EDs on rm_list until next frame (frame_no == tick) */
 	u16			tick;
+
+	/* Detect TDs not added to the done queue */
+	unsigned		takeback_wdh_cnt;
+	struct td		*pending_td;
+#define	OKAY_TO_TAKEBACK(ohci, ed)			\
+		((int) (ohci->wdh_cnt - ed->takeback_wdh_cnt) >= 0)
+
 } __attribute__ ((aligned(16)));
 
 #define ED_MASK	((u32)~0x0f)		/* strip hw status in low addr bits */
@@ -382,6 +390,7 @@ struct ohci_hcd {
 	struct td		*td_hash [TD_HASH_SIZE];
 	struct td		*dl_start, *dl_end;	/* the done list */
 	struct list_head	pending;
+	struct list_head	eds_in_use;	/* all EDs with at least 1 TD */
 
 	/*
 	 * driver state
@@ -411,6 +420,10 @@ struct ohci_hcd {
 #define	OHCI_QUIRK_GLOBAL_SUSPEND	0x800		/* must suspend ports */
 
 	// there are also chip quirks/bugs in init logic
+
+	unsigned		wdh_cnt, prev_wdh_cnt;
+	u32			prev_donehead;
+	struct timer_list	io_watchdog;
 
 	struct work_struct	nec_work;	/* Worker for NEC quirk */
 
