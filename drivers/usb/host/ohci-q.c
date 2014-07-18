@@ -892,13 +892,41 @@ static void ed_halted(struct ohci_hcd *ohci, struct td *td, int cc)
 	}
 }
 
-/* replies to the request have to be on a FIFO basis so
- * we unreverse the hc-reversed done-list
- */
-static struct td *dl_reverse_done_list (struct ohci_hcd *ohci)
+/* Add a TD to the done list */
+static void add_to_done_list(struct ohci_hcd *ohci, struct td *td)
+{
+	struct td	*td2, *td_prev;
+	struct ed	*ed;
+
+	if (td->next_dl_td)
+		return;		/* Already on the list */
+
+	/* Add all the TDs going back until we reach one that's on the list */
+	ed = td->ed;
+	td2 = td_prev = td;
+	list_for_each_entry_continue_reverse(td2, &ed->td_list, td_list) {
+		if (td2->next_dl_td)
+			break;
+		td2->next_dl_td = td_prev;
+		td_prev = td2;
+	}
+
+	if (ohci->dl_end)
+		ohci->dl_end->next_dl_td = td_prev;
+	else
+		ohci->dl_start = td_prev;
+
+	/*
+	 * Make td->next_dl_td point to td itself, to mark the fact
+	 * that td is on the done list.
+	 */
+	ohci->dl_end = td->next_dl_td = td;
+}
+
+/* Get the entries on the hardware done queue and put them on our list */
+static void update_done_list(struct ohci_hcd *ohci)
 {
 	u32		td_dma;
-	struct td	*td_rev = NULL;
 	struct td	*td = NULL;
 
 	td_dma = hc32_to_cpup (ohci, &ohci->hcca->done_head);
@@ -906,7 +934,7 @@ static struct td *dl_reverse_done_list (struct ohci_hcd *ohci)
 	wmb();
 
 	/* get TD from hc's singly linked list, and
-	 * prepend to ours.  ed->td_list changes later.
+	 * add to ours.  ed->td_list changes later.
 	 */
 	while (td_dma) {
 		int		cc;
@@ -928,11 +956,9 @@ static struct td *dl_reverse_done_list (struct ohci_hcd *ohci)
 				&& (td->ed->hwHeadP & cpu_to_hc32 (ohci, ED_H)))
 			ed_halted(ohci, td, cc);
 
-		td->next_dl_td = td_rev;
-		td_rev = td;
 		td_dma = hc32_to_cpup (ohci, &td->hwNextTD);
+		add_to_done_list(ohci, td);
 	}
-	return td_rev;
 }
 
 /*-------------------------------------------------------------------------*/
@@ -956,26 +982,27 @@ rescan_all:
 		/* only take off EDs that the HC isn't using, accounting for
 		 * frame counter wraps and EDs with partially retired TDs
 		 */
-		if (likely(ohci->rh_state == OHCI_RH_RUNNING)) {
-			if (tick_before (tick, ed->tick)) {
+		if (likely(ohci->rh_state == OHCI_RH_RUNNING) &&
+				tick_before(tick, ed->tick)) {
 skip_ed:
-				last = &ed->ed_next;
-				continue;
-			}
+			last = &ed->ed_next;
+			continue;
+		}
+		if (!list_empty(&ed->td_list)) {
+			struct td	*td;
+			u32		head;
 
-			if (!list_empty (&ed->td_list)) {
-				struct td	*td;
-				u32		head;
+			td = list_first_entry(&ed->td_list, struct td, td_list);
 
-				td = list_entry (ed->td_list.next, struct td,
-							td_list);
-				head = hc32_to_cpu (ohci, ed->hwHeadP) &
-								TD_MASK;
+			/* INTR_WDH may need to clean up first */
+			head = hc32_to_cpu(ohci, ed->hwHeadP) & TD_MASK;
+			if (td->td_dma != head &&
+					ohci->rh_state == OHCI_RH_RUNNING)
+				goto skip_ed;
 
-				/* INTR_WDH may need to clean up first */
-				if (td->td_dma != head)
-					goto skip_ed;
-			}
+			/* Don't mess up anything already on the done list */
+			if (td->next_dl_td)
+				goto skip_ed;
 		}
 
 		/* ED's now officially unlinked, hc doesn't see */
@@ -1161,33 +1188,17 @@ static void takeback_td(struct ohci_hcd *ohci, struct td *td)
  * normal path is finish_unlinks(), which unlinks URBs using ed_rm_list,
  * instead of scanning the (re-reversed) donelist as this does.
  */
-static void
-dl_done_list (struct ohci_hcd *ohci)
+static void process_done_list(struct ohci_hcd *ohci)
 {
-	struct td	*td = dl_reverse_done_list (ohci);
+	struct td	*td;
 
-	while (td) {
-		struct td	*td_next = td->next_dl_td;
-		struct ed	*ed = td->ed;
-
-		/*
-		 * Some OHCI controllers (NVIDIA for sure, maybe others)
-		 * occasionally forget to add TDs to the done queue.  Since
-		 * TDs for a given endpoint are always processed in order,
-		 * if we find a TD on the donelist then all of its
-		 * predecessors must be finished as well.
-		 */
-		for (;;) {
-			struct td	*td2;
-
-			td2 = list_first_entry(&ed->td_list, struct td,
-					td_list);
-			if (td2 == td)
-				break;
-			takeback_td(ohci, td2);
-		}
+	while (ohci->dl_start) {
+		td = ohci->dl_start;
+		if (td == ohci->dl_end)
+			ohci->dl_start = ohci->dl_end = NULL;
+		else
+			ohci->dl_start = td->next_dl_td;
 
 		takeback_td(ohci, td);
-		td = td_next;
 	}
 }

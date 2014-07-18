@@ -780,24 +780,21 @@ static irqreturn_t ohci_irq (struct usb_hcd *hcd)
 			usb_hcd_resume_root_hub(hcd);
 	}
 
-	if (ints & OHCI_INTR_WDH) {
-		spin_lock (&ohci->lock);
-		dl_done_list (ohci);
-		spin_unlock (&ohci->lock);
-	}
+	spin_lock(&ohci->lock);
+	if (ints & OHCI_INTR_WDH)
+		update_done_list(ohci);
 
 	/* could track INTR_SO to reduce available PCI/... bandwidth */
 
 	/* handle any pending URB/ED unlinks, leaving INTR_SF enabled
 	 * when there's still unlinking to be done (next frame).
 	 */
-	spin_lock (&ohci->lock);
+	process_done_list(ohci);
 	if (ohci->ed_rm_list)
 		finish_unlinks (ohci, ohci_frame_no(ohci));
 	if ((ints & OHCI_INTR_SF) != 0 && !ohci->ed_rm_list
 			&& ohci->rh_state == OHCI_RH_RUNNING)
 		ohci_writel (ohci, OHCI_INTR_SF, &regs->intrdisable);
-	spin_unlock (&ohci->lock);
 
 	if (ohci->rh_state == OHCI_RH_RUNNING) {
 		ohci_writel (ohci, ints, &regs->intrstatus);
@@ -805,6 +802,7 @@ static irqreturn_t ohci_irq (struct usb_hcd *hcd)
 		// flush those writes
 		(void) ohci_readl (ohci, &ohci->regs->control);
 	}
+	spin_unlock(&ohci->lock);
 
 	return IRQ_HANDLED;
 }

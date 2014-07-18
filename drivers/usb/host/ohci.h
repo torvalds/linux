@@ -380,6 +380,7 @@ struct ohci_hcd {
 	struct dma_pool		*td_cache;
 	struct dma_pool		*ed_cache;
 	struct td		*td_hash [TD_HASH_SIZE];
+	struct td		*dl_start, *dl_end;	/* the done list */
 	struct list_head	pending;
 
 	/*

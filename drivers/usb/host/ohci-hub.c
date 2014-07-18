@@ -39,7 +39,8 @@
 #define OHCI_SCHED_ENABLES \
 	(OHCI_CTRL_CLE|OHCI_CTRL_BLE|OHCI_CTRL_PLE|OHCI_CTRL_IE)
 
-static void dl_done_list (struct ohci_hcd *);
+static void update_done_list(struct ohci_hcd *);
+static void process_done_list(struct ohci_hcd *);
 static void finish_unlinks (struct ohci_hcd *, u16);
 
 #ifdef	CONFIG_PM
@@ -87,7 +88,8 @@ __acquires(ohci->lock)
 		msleep (8);
 		spin_lock_irq (&ohci->lock);
 	}
-	dl_done_list (ohci);
+	update_done_list(ohci);
+	process_done_list(ohci);
 	finish_unlinks (ohci, ohci_frame_no(ohci));
 
 	/*
