@@ -346,7 +346,7 @@ struct pci9118_private {
 						 * on external start
 						 */
 	unsigned short ao_data[2];		/* data output buffer */
-	char dma_doublebuf;			/* we can use double buffering */
+	char dma_doublebuf;			/* use double buffering */
 	unsigned int dma_actbuf;		/* which buffer is used now */
 	unsigned short *dmabuf_virt[2];		/*
 						 * pointers to begin of
