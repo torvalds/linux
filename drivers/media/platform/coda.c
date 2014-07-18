@@ -683,7 +683,7 @@ static int coda_try_fmt_vid_cap(struct file *file, void *priv,
 				struct v4l2_format *f)
 {
 	struct coda_ctx *ctx = fh_to_ctx(priv);
-	struct coda_codec *codec;
+	struct coda_codec *codec = NULL;
 	struct vb2_queue *src_vq;
 	int ret;
 
@@ -736,6 +736,12 @@ static int coda_try_fmt_vid_out(struct file *file, void *priv,
 	/* Determine codec by encoded format, returns NULL if raw or invalid */
 	codec = coda_find_codec(ctx->dev, f->fmt.pix.pixelformat,
 				V4L2_PIX_FMT_YUV420);
+	if (!codec && ctx->inst_type == CODA_INST_DECODER) {
+		codec = coda_find_codec(ctx->dev, V4L2_PIX_FMT_H264,
+					V4L2_PIX_FMT_YUV420);
+		if (!codec)
+			return -EINVAL;
+	}
 
 	if (!f->fmt.pix.colorspace)
 		f->fmt.pix.colorspace = V4L2_COLORSPACE_REC709;
