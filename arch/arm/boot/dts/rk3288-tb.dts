@@ -1368,4 +1368,7 @@
 &sdmmc0_vdd_domain{
 	regulator-name = "vcc_sd";			
 	};
-	
+
+&ion_cma {
+       reg = <0x40000000 0x28000000>; /* 640MB */
+};
