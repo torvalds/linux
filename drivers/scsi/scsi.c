@@ -122,6 +122,8 @@ static const char *const scsi_device_types[] = {
 	"Bridge controller",
 	"Object storage   ",
 	"Automation/Drive ",
+	"Security Manager ",
+	"Direct-Access-ZBC",
 };
 
 /**
