@@ -253,9 +253,9 @@ static struct pid_param pid_files[] = {
 	{NULL, NULL}
 };
 
-static struct dentry *debugfs_parent;
-static void intel_pstate_debug_expose_params(void)
+static void __init intel_pstate_debug_expose_params(void)
 {
+	struct dentry *debugfs_parent;
 	int i = 0;
 
 	debugfs_parent = debugfs_create_dir("pstate_snb", NULL);
@@ -342,10 +342,10 @@ static struct attribute *intel_pstate_attributes[] = {
 static struct attribute_group intel_pstate_attr_group = {
 	.attrs = intel_pstate_attributes,
 };
-static struct kobject *intel_pstate_kobject;
 
-static void intel_pstate_sysfs_expose_params(void)
+static void __init intel_pstate_sysfs_expose_params(void)
 {
+	struct kobject *intel_pstate_kobject;
 	int rc;
 
 	intel_pstate_kobject = kobject_create_and_add("intel_pstate",
