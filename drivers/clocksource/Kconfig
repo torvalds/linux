@@ -151,6 +151,11 @@ config VF_PIT_TIMER
 config SYS_SUPPORTS_SH_CMT
         bool
 
+config MTK_TIMER
+	select CLKSRC_OF
+	select CLKSRC_MMIO
+	bool
+
 config SYS_SUPPORTS_SH_MTU2
         bool
 
