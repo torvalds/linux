@@ -443,7 +443,7 @@ static int core_get_turbo_pstate(void)
 
 	rdmsrl(MSR_NHM_TURBO_RATIO_LIMIT, value);
 	nont = core_get_max_pstate();
-	ret = ((value) & 255);
+	ret = (value) & 255;
 	if (ret <= nont)
 		ret = nont;
 	return ret;
@@ -617,7 +617,7 @@ static inline int32_t intel_pstate_get_scaled_busy(struct cpudata *cpu)
 	current_pstate = int_tofp(cpu->pstate.current_pstate);
 	core_busy = mul_fp(core_busy, div_fp(max_pstate, current_pstate));
 
-	sample_time = (pid_params.sample_rate_ms  * USEC_PER_MSEC);
+	sample_time = pid_params.sample_rate_ms  * USEC_PER_MSEC;
 	duration_us = (u32) ktime_us_delta(cpu->sample.time,
 					cpu->last_sample_time);
 	if (duration_us > sample_time * 3) {
@@ -751,7 +751,7 @@ static int intel_pstate_set_policy(struct cpufreq_policy *policy)
 	limits.min_perf_pct = clamp_t(int, limits.min_perf_pct, 0 , 100);
 	limits.min_perf = div_fp(int_tofp(limits.min_perf_pct), int_tofp(100));
 
-	limits.max_policy_pct = policy->max * 100 / policy->cpuinfo.max_freq;
+	limits.max_policy_pct = (policy->max * 100) / policy->cpuinfo.max_freq;
 	limits.max_policy_pct = clamp_t(int, limits.max_policy_pct, 0 , 100);
 	limits.max_perf_pct = min(limits.max_policy_pct, limits.max_sysfs_pct);
 	limits.max_perf = div_fp(int_tofp(limits.max_perf_pct), int_tofp(100));
@@ -763,8 +763,8 @@ static int intel_pstate_verify_policy(struct cpufreq_policy *policy)
 {
 	cpufreq_verify_within_cpu_limits(policy);
 
-	if ((policy->policy != CPUFREQ_POLICY_POWERSAVE) &&
-		(policy->policy != CPUFREQ_POLICY_PERFORMANCE))
+	if (policy->policy != CPUFREQ_POLICY_POWERSAVE &&
+		policy->policy != CPUFREQ_POLICY_PERFORMANCE)
 		return -EINVAL;
 
 	return 0;
