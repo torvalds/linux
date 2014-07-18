@@ -771,7 +771,7 @@ int vnt_radio_power_on(struct vnt_private *priv)
 {
 	int ret = true;
 
-	if (priv->bHWRadioOff == true || priv->bRadioControlOff == true)
+	if (priv->bHWRadioOff == true)
 		return false;
 
 	priv->bRadioOff = false;

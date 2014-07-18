@@ -381,8 +381,7 @@ static int device_init_registers(struct vnt_private *priv)
 
 	vnt_mac_reg_bits_on(priv, MAC_REG_GPIOCTL0, 0x01);
 
-	if ((priv->bHWRadioOff == true) ||
-				(priv->bRadioControlOff == true)) {
+	if (priv->bHWRadioOff == true) {
 		vnt_radio_power_off(priv);
 	} else {
 		vnt_radio_power_on(priv);
