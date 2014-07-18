@@ -4,6 +4,7 @@
 
 obj-y += clk-sunxi.o clk-factors.o
 obj-y += clk-a10-hosc.o
+obj-y += clk-a10-pll2.o
 obj-y += clk-a20-gmac.o
 obj-y += clk-mod0.o
 obj-y += clk-simple-gates.o
