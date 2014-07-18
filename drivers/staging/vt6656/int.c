@@ -78,7 +78,7 @@ static int vnt_int_report_rate(struct vnt_private *priv, u8 pkt_no, u8 tsr)
 	if (pkt_no >= priv->cbTD)
 		return -EINVAL;
 
-	context = priv->apTD[pkt_no];
+	context = priv->tx_context[pkt_no];
 
 	if (!context->skb)
 		return -EINVAL;

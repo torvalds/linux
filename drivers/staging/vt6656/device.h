@@ -292,7 +292,7 @@ struct vnt_private {
 	u32 cbRD;
 
 	/* Variables to track resources for the BULK Out Pipe */
-	struct vnt_usb_send_context *apTD[CB_MAX_TX_DESC];
+	struct vnt_usb_send_context *tx_context[CB_MAX_TX_DESC];
 	u32 cbTD;
 
 	/* Variables to track resources for the Interrupt In Pipe */

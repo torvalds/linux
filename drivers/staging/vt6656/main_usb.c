@@ -399,7 +399,7 @@ static void device_free_tx_bufs(struct vnt_private *priv)
 	int ii;
 
 	for (ii = 0; ii < priv->cbTD; ii++) {
-		tx_context = priv->apTD[ii];
+		tx_context = priv->tx_context[ii];
 		/* deallocate URBs */
 		if (tx_context->urb) {
 			usb_kill_urb(tx_context->urb);
@@ -471,7 +471,7 @@ static bool device_alloc_bufs(struct vnt_private *priv)
 			goto free_tx;
 		}
 
-		priv->apTD[ii] = tx_context;
+		priv->tx_context[ii] = tx_context;
 		tx_context->priv = priv;
 		tx_context->pkt_no = ii;
 

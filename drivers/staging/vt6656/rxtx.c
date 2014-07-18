@@ -82,10 +82,10 @@ static struct vnt_usb_send_context
 	dev_dbg(&priv->usb->dev, "%s\n", __func__);
 
 	for (ii = 0; ii < priv->cbTD; ii++) {
-		if (!priv->apTD[ii])
+		if (!priv->tx_context[ii])
 			return NULL;
 
-		context = priv->apTD[ii];
+		context = priv->tx_context[ii];
 		if (context->in_use == false) {
 			context->in_use = true;
 			memset(context->data, 0,
