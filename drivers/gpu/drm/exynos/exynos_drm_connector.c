@@ -117,20 +117,7 @@ static struct drm_encoder *exynos_drm_best_encoder(
 	struct drm_device *dev = connector->dev;
 	struct exynos_drm_connector *exynos_connector =
 					to_exynos_connector(connector);
-	struct drm_mode_object *obj;
-	struct drm_encoder *encoder;
-
-	obj = drm_mode_object_find(dev, exynos_connector->encoder_id,
-				   DRM_MODE_OBJECT_ENCODER);
-	if (!obj) {
-		DRM_DEBUG_KMS("Unknown ENCODER ID %d\n",
-				exynos_connector->encoder_id);
-		return NULL;
-	}
-
-	encoder = obj_to_encoder(obj);
-
-	return encoder;
+	return drm_encoder_find(dev, exynos_connector->encoder_id);
 }
 
 static struct drm_connector_helper_funcs exynos_connector_helper_funcs = {
