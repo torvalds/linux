@@ -205,11 +205,7 @@ static inline void intel_pstate_busy_pid_reset(struct cpudata *cpu)
 	pid_d_gain_set(&cpu->pid, pid_params.d_gain_pct);
 	pid_i_gain_set(&cpu->pid, pid_params.i_gain_pct);
 
-	pid_reset(&cpu->pid,
-		pid_params.setpoint,
-		100,
-		pid_params.deadband,
-		0);
+	pid_reset(&cpu->pid, pid_params.setpoint, 100, pid_params.deadband, 0);
 }
 
 static inline void intel_pstate_reset_all_pid(void)
@@ -235,8 +231,7 @@ static int pid_param_get(void *data, u64 *val)
 	*val = *(u32 *)data;
 	return 0;
 }
-DEFINE_SIMPLE_ATTRIBUTE(fops_pid_param, pid_param_get,
-			pid_param_set, "%llu\n");
+DEFINE_SIMPLE_ATTRIBUTE(fops_pid_param, pid_param_get, pid_param_set, "%llu\n");
 
 struct pid_param {
 	char *name;
@@ -355,8 +350,7 @@ static void __init intel_pstate_sysfs_expose_params(void)
 	intel_pstate_kobject = kobject_create_and_add("intel_pstate",
 						&cpu_subsys.dev_root->kobj);
 	BUG_ON(!intel_pstate_kobject);
-	rc = sysfs_create_group(intel_pstate_kobject,
-				&intel_pstate_attr_group);
+	rc = sysfs_create_group(intel_pstate_kobject, &intel_pstate_attr_group);
 	BUG_ON(rc);
 }
 
@@ -515,8 +509,7 @@ static void intel_pstate_get_min_max(struct cpudata *cpu, int *min, int *max)
 			cpu->pstate.min_pstate, cpu->pstate.turbo_pstate);
 
 	min_perf = fp_toint(mul_fp(int_tofp(max_perf), limits.min_perf));
-	*min = clamp_t(int, min_perf,
-			cpu->pstate.min_pstate, max_perf);
+	*min = clamp_t(int, min_perf, cpu->pstate.min_pstate, max_perf);
 }
 
 static void intel_pstate_set_pstate(struct cpudata *cpu, int pstate)
@@ -713,8 +706,7 @@ static int intel_pstate_init_cpu(unsigned int cpunum)
 
 	init_timer_deferrable(&cpu->timer);
 	cpu->timer.function = intel_pstate_timer_func;
-	cpu->timer.data =
-		(unsigned long)cpu;
+	cpu->timer.data = (unsigned long)cpu;
 	cpu->timer.expires = jiffies + HZ/100;
 	intel_pstate_busy_pid_reset(cpu);
 	intel_pstate_sample(cpu);
