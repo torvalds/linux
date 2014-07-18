@@ -355,8 +355,6 @@ rescan:
 	if (ohci->rh_state != OHCI_RH_RUNNING) {
 sanitize:
 		ed->state = ED_IDLE;
-		if (quirk_zfmicro(ohci) && ed->type == PIPE_INTERRUPT)
-			ohci->eds_scheduled--;
 		finish_unlinks (ohci, 0);
 	}
 
@@ -365,11 +363,6 @@ sanitize:
 		/* major IRQ delivery trouble loses INTR_SF too... */
 		if (limit-- == 0) {
 			ohci_warn(ohci, "ED unlink timeout\n");
-			if (quirk_zfmicro(ohci)) {
-				ohci_warn(ohci, "Attempting ZF TD recovery\n");
-				ohci->ed_to_check = ed;
-				ohci->zf_delay = 2;
-			}
 			goto sanitize;
 		}
 		spin_unlock_irqrestore (&ohci->lock, flags);
@@ -429,93 +422,6 @@ ohci_shutdown (struct usb_hcd *hcd)
 	udelay(10);
 
 	ohci_writel(ohci, ohci->fminterval, &ohci->regs->fminterval);
-}
-
-static int check_ed(struct ohci_hcd *ohci, struct ed *ed)
-{
-	return (hc32_to_cpu(ohci, ed->hwINFO) & ED_IN) != 0
-		&& (hc32_to_cpu(ohci, ed->hwHeadP) & TD_MASK)
-			== (hc32_to_cpu(ohci, ed->hwTailP) & TD_MASK)
-		&& !list_empty(&ed->td_list);
-}
-
-/* ZF Micro watchdog timer callback. The ZF Micro chipset sometimes completes
- * an interrupt TD but neglects to add it to the donelist.  On systems with
- * this chipset, we need to periodically check the state of the queues to look
- * for such "lost" TDs.
- */
-static void unlink_watchdog_func(unsigned long _ohci)
-{
-	unsigned long	flags;
-	unsigned	max;
-	unsigned	seen_count = 0;
-	unsigned	i;
-	struct ed	**seen = NULL;
-	struct ohci_hcd	*ohci = (struct ohci_hcd *) _ohci;
-
-	spin_lock_irqsave(&ohci->lock, flags);
-	max = ohci->eds_scheduled;
-	if (!max)
-		goto done;
-
-	if (ohci->ed_to_check)
-		goto out;
-
-	seen = kcalloc(max, sizeof *seen, GFP_ATOMIC);
-	if (!seen)
-		goto out;
-
-	for (i = 0; i < NUM_INTS; i++) {
-		struct ed	*ed = ohci->periodic[i];
-
-		while (ed) {
-			unsigned	temp;
-
-			/* scan this branch of the periodic schedule tree */
-			for (temp = 0; temp < seen_count; temp++) {
-				if (seen[temp] == ed) {
-					/* we've checked it and what's after */
-					ed = NULL;
-					break;
-				}
-			}
-			if (!ed)
-				break;
-			seen[seen_count++] = ed;
-			if (!check_ed(ohci, ed)) {
-				ed = ed->ed_next;
-				continue;
-			}
-
-			/* HC's TD list is empty, but HCD sees at least one
-			 * TD that's not been sent through the donelist.
-			 */
-			ohci->ed_to_check = ed;
-			ohci->zf_delay = 2;
-
-			/* The HC may wait until the next frame to report the
-			 * TD as done through the donelist and INTR_WDH.  (We
-			 * just *assume* it's not a multi-TD interrupt URB;
-			 * those could defer the IRQ more than one frame, using
-			 * DI...)  Check again after the next INTR_SF.
-			 */
-			ohci_writel(ohci, OHCI_INTR_SF,
-					&ohci->regs->intrstatus);
-			ohci_writel(ohci, OHCI_INTR_SF,
-					&ohci->regs->intrenable);
-
-			/* flush those writes */
-			(void) ohci_readl(ohci, &ohci->regs->control);
-
-			goto out;
-		}
-	}
-out:
-	kfree(seen);
-	if (ohci->eds_scheduled)
-		mod_timer(&ohci->unlink_watchdog, round_jiffies(jiffies + HZ));
-done:
-	spin_unlock_irqrestore(&ohci->lock, flags);
 }
 
 /*-------------------------------------------------------------------------*
@@ -761,15 +667,6 @@ retry:
 	// POTPGT delay is bits 24-31, in 2 ms units.
 	mdelay ((val >> 23) & 0x1fe);
 
-	if (quirk_zfmicro(ohci)) {
-		/* Create timer to watch for bad queue state on ZF Micro */
-		setup_timer(&ohci->unlink_watchdog, unlink_watchdog_func,
-				(unsigned long) ohci);
-
-		ohci->eds_scheduled = 0;
-		ohci->ed_to_check = NULL;
-	}
-
 	ohci_dump(ohci);
 
 	return 0;
@@ -895,31 +792,6 @@ static irqreturn_t ohci_irq (struct usb_hcd *hcd)
 		spin_unlock (&ohci->lock);
 	}
 
-	if (quirk_zfmicro(ohci) && (ints & OHCI_INTR_SF)) {
-		spin_lock(&ohci->lock);
-		if (ohci->ed_to_check) {
-			struct ed *ed = ohci->ed_to_check;
-
-			if (check_ed(ohci, ed)) {
-				/* HC thinks the TD list is empty; HCD knows
-				 * at least one TD is outstanding
-				 */
-				if (--ohci->zf_delay == 0) {
-					struct td *td = list_entry(
-						ed->td_list.next,
-						struct td, td_list);
-					ohci_warn(ohci,
-						  "Reclaiming orphan TD %p\n",
-						  td);
-					takeback_td(ohci, td);
-					ohci->ed_to_check = NULL;
-				}
-			} else
-				ohci->ed_to_check = NULL;
-		}
-		spin_unlock(&ohci->lock);
-	}
-
 	/* could track INTR_SO to reduce available PCI/... bandwidth */
 
 	/* handle any pending URB/ED unlinks, leaving INTR_SF enabled
@@ -928,9 +800,7 @@ static irqreturn_t ohci_irq (struct usb_hcd *hcd)
 	spin_lock (&ohci->lock);
 	if (ohci->ed_rm_list)
 		finish_unlinks (ohci, ohci_frame_no(ohci));
-	if ((ints & OHCI_INTR_SF) != 0
-			&& !ohci->ed_rm_list
-			&& !ohci->ed_to_check
+	if ((ints & OHCI_INTR_SF) != 0 && !ohci->ed_rm_list
 			&& ohci->rh_state == OHCI_RH_RUNNING)
 		ohci_writel (ohci, OHCI_INTR_SF, &regs->intrdisable);
 	spin_unlock (&ohci->lock);
@@ -961,8 +831,6 @@ static void ohci_stop (struct usb_hcd *hcd)
 	free_irq(hcd->irq, hcd);
 	hcd->irq = 0;
 
-	if (quirk_zfmicro(ohci))
-		del_timer(&ohci->unlink_watchdog);
 	if (quirk_amdiso(ohci))
 		usb_amd_dev_put();
 

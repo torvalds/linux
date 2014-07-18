@@ -411,12 +411,6 @@ struct ohci_hcd {
 
 	struct work_struct	nec_work;	/* Worker for NEC quirk */
 
-	/* Needed for ZF Micro quirk */
-	struct timer_list	unlink_watchdog;
-	unsigned		eds_scheduled;
-	struct ed		*ed_to_check;
-	unsigned		zf_delay;
-
 	struct dentry		*debug_dir;
 	struct dentry		*debug_async;
 	struct dentry		*debug_periodic;

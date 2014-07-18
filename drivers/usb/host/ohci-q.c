@@ -187,10 +187,6 @@ static int ed_schedule (struct ohci_hcd *ohci, struct ed *ed)
 	ed->ed_prev = NULL;
 	ed->ed_next = NULL;
 	ed->hwNextED = 0;
-	if (quirk_zfmicro(ohci)
-			&& (ed->type == PIPE_INTERRUPT)
-			&& !(ohci->eds_scheduled++))
-		mod_timer(&ohci->unlink_watchdog, round_jiffies(jiffies + HZ));
 	wmb ();
 
 	/* we care about rm_list when setting CLE/BLE in case the HC was at
@@ -977,19 +973,13 @@ skip_ed:
 								TD_MASK;
 
 				/* INTR_WDH may need to clean up first */
-				if (td->td_dma != head) {
-					if (ed == ohci->ed_to_check)
-						ohci->ed_to_check = NULL;
-					else
-						goto skip_ed;
-				}
+				if (td->td_dma != head)
+					goto skip_ed;
 			}
 		}
 
 		/* ED's now officially unlinked, hc doesn't see */
 		ed->state = ED_IDLE;
-		if (quirk_zfmicro(ohci) && ed->type == PIPE_INTERRUPT)
-			ohci->eds_scheduled--;
 		ed->hwHeadP &= ~cpu_to_hc32(ohci, ED_H);
 		ed->hwNextED = 0;
 		wmb();
@@ -1122,12 +1112,7 @@ rescan_this:
 
 /*-------------------------------------------------------------------------*/
 
-/*
- * Used to take back a TD from the host controller. This would normally be
- * called from within dl_done_list, however it may be called directly if the
- * HC no longer sees the TD and it has not appeared on the donelist (after
- * two frames).  This bug has been observed on ZF Micro systems.
- */
+/* Take back a TD from the host controller */
 static void takeback_td(struct ohci_hcd *ohci, struct td *td)
 {
 	struct urb	*urb = td->urb;
@@ -1174,9 +1159,7 @@ static void takeback_td(struct ohci_hcd *ohci, struct td *td)
  *
  * This is the main path for handing urbs back to drivers.  The only other
  * normal path is finish_unlinks(), which unlinks URBs using ed_rm_list,
- * instead of scanning the (re-reversed) donelist as this does.  There's
- * an abnormal path too, handling a quirk in some Compaq silicon:  URBs
- * with TDs that appear to be orphaned are directly reclaimed.
+ * instead of scanning the (re-reversed) donelist as this does.
  */
 static void
 dl_done_list (struct ohci_hcd *ohci)
