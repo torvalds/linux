@@ -404,8 +404,6 @@ nfs_destroy_unlinked_subrequests(struct nfs_page *destroy_list,
 		subreq->wb_head = subreq;
 		subreq->wb_this_page = subreq;
 
-		nfs_clear_request_commit(subreq);
-
 		/* subreq is now totally disconnected from page group or any
 		 * write / commit lists. last chance to wake any waiters */
 		nfs_unlock_request(subreq);
@@ -515,7 +513,7 @@ try_again:
 	 * Commit list removal accounting is done after locks are dropped */
 	subreq = head;
 	do {
-		nfs_list_remove_request(subreq);
+		nfs_clear_request_commit(subreq);
 		subreq = subreq->wb_this_page;
 	} while (subreq != head);
 
@@ -545,14 +543,10 @@ try_again:
 
 	nfs_page_group_unlock(head);
 
-	/* drop lock to clear_request_commit the head req and clean up
-	 * requests on destroy list */
+	/* drop lock to clean uprequests on destroy list */
 	spin_unlock(&inode->i_lock);
 
 	nfs_destroy_unlinked_subrequests(destroy_list, head);
-
-	/* clean up commit list state */
-	nfs_clear_request_commit(head);
 
 	/* still holds ref on head from nfs_page_find_head_request_locked
 	 * and still has lock on head from lock loop */
@@ -837,6 +831,7 @@ nfs_clear_page_commit(struct page *page)
 	dec_bdi_stat(page_file_mapping(page)->backing_dev_info, BDI_RECLAIMABLE);
 }
 
+/* Called holding inode (/cinfo) lock */
 static void
 nfs_clear_request_commit(struct nfs_page *req)
 {
@@ -846,9 +841,7 @@ nfs_clear_request_commit(struct nfs_page *req)
 
 		nfs_init_cinfo_from_inode(&cinfo, inode);
 		if (!pnfs_clear_request_commit(req, &cinfo)) {
-			spin_lock(cinfo.lock);
 			nfs_request_remove_commit_list(req, &cinfo);
-			spin_unlock(cinfo.lock);
 		}
 		nfs_clear_page_commit(req->wb_page);
 	}
@@ -1061,9 +1054,9 @@ static struct nfs_page *nfs_try_to_update_request(struct inode *inode,
 	else
 		req->wb_bytes = rqend - req->wb_offset;
 out_unlock:
-	spin_unlock(&inode->i_lock);
 	if (req)
 		nfs_clear_request_commit(req);
+	spin_unlock(&inode->i_lock);
 	return req;
 out_flushme:
 	spin_unlock(&inode->i_lock);
