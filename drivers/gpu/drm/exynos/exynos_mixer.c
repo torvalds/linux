@@ -1240,6 +1240,7 @@ static struct of_device_id mixer_match_types[] = {
 		/* end node */
 	}
 };
+MODULE_DEVICE_TABLE(of, mixer_match_types);
 
 static int mixer_bind(struct device *dev, struct device *manager, void *data)
 {
