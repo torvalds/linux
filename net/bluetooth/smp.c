@@ -1189,7 +1189,7 @@ int smp_sig_channel(struct l2cap_conn *conn, struct sk_buff *skb)
 	}
 
 	if (!test_bit(HCI_LE_ENABLED, &hcon->hdev->dev_flags)) {
-		err = -ENOTSUPP;
+		err = -EOPNOTSUPP;
 		reason = SMP_PAIRING_NOTSUPP;
 		goto done;
 	}
@@ -1207,7 +1207,7 @@ int smp_sig_channel(struct l2cap_conn *conn, struct sk_buff *skb)
 	    !conn->smp_chan) {
 		BT_ERR("Unexpected SMP command 0x%02x. Disconnecting.", code);
 		kfree_skb(skb);
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 	}
 
 	switch (code) {
