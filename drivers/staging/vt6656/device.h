@@ -240,12 +240,6 @@ struct vnt_usb_send_context {
 	unsigned char data[MAX_TOTAL_SIZE_WITH_ALL_HEADERS];
 };
 
-/* tx packet info for rxtx */
-struct vnt_tx_pkt_info {
-	u16 fifo_ctl;
-	u8 dest_addr[ETH_ALEN];
-};
-
 /*
  * Structure to keep track of USB interrupt packets
  */
@@ -300,7 +294,6 @@ struct vnt_private {
 	/* Variables to track resources for the BULK Out Pipe */
 	struct vnt_usb_send_context *apTD[CB_MAX_TX_DESC];
 	u32 cbTD;
-	struct vnt_tx_pkt_info pkt_info[16];
 
 	/* Variables to track resources for the Interrupt In Pipe */
 	struct vnt_interrupt_buffer int_buf;
