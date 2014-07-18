@@ -42,6 +42,7 @@
 #define CLK_PLL_3188PLUS_AUTO	BIT(5)
 #define CLK_PLL_3036_APLL	BIT(6)
 #define CLK_PLL_3036PLUS_AUTO	BIT(7)
+#define CLK_PLL_312XPLUS	BIT(8)
 
 
 /* rate_ops index */

@@ -228,6 +228,13 @@ static const struct pll_clk_set rk3036plus_pll_com_table[] = {
 
 };
 
+static const struct pll_clk_set rk312xplus_pll_com_table[] = {
+	_RK3036_PLL_SET_CLKS(798000, 4, 133, 1, 1, 1, 0),
+	_RK3036_PLL_SET_CLKS(594000, 2, 99, 2, 1, 1, 0),
+	_RK3036_PLL_SET_CLKS(1064000, 3, 133, 1, 1, 1, 0),
+
+};
+
 static void pll_wait_lock(struct clk_hw *hw)
 {
 	struct clk_pll *pll = to_clk_pll(hw);
@@ -1712,6 +1719,45 @@ static const struct clk_ops clk_pll_ops_3036plus_auto = {
 	.set_rate = clk_pll_set_rate_3036plus_auto,
 };
 
+static int clk_cpll_set_rate_312xplus(struct clk_hw *hw, unsigned long rate,
+		unsigned long parent_rate)
+{
+	struct pll_clk_set *clk_set = (struct pll_clk_set *)(rk312xplus_pll_com_table);
+	u32 refdiv, fbdiv, postdiv1, postdiv2, frac;
+
+	while (clk_set->rate) {
+		if (clk_set->rate == rate) {
+			break;
+		}
+		clk_set++;
+	}
+
+	if (clk_set->rate == rate) {
+		clk_debug("cpll get a rate\n");
+		rk3036_pll_clk_set_rate(clk_set, hw);
+
+	} else {
+		clk_debug("cpll get auto calc a rate\n");
+		if (rk3036_pll_clk_get_set(parent_rate, rate, &refdiv, &fbdiv, &postdiv1, &postdiv2, &frac) != 0) {
+			pr_err("cpll auto set rate error\n");
+			return -ENOENT;
+		}
+		clk_debug("%s get rate=%lu, refdiv=%u, fbdiv=%u, postdiv1=%u, postdiv2=%u",
+				__func__, rate, refdiv, fbdiv, postdiv1, postdiv2);
+		rk3036_pll_set_con(hw, refdiv, fbdiv, postdiv1, postdiv2, frac);
+
+	}
+
+	clk_debug("setting OK\n");
+	return 0;
+}
+
+static const struct clk_ops clk_pll_ops_312xplus = {
+	.recalc_rate = clk_pll_recalc_rate_3036_apll,
+	.round_rate = clk_pll_round_rate_3036plus_auto,
+	.set_rate = clk_cpll_set_rate_312xplus,
+};
+
 const struct clk_ops *rk_get_pll_ops(u32 pll_flags)
 {
 	switch (pll_flags) {
@@ -1738,6 +1784,9 @@ const struct clk_ops *rk_get_pll_ops(u32 pll_flags)
 
 		case CLK_PLL_3036PLUS_AUTO:
 			return &clk_pll_ops_3036plus_auto;
+
+		case CLK_PLL_312XPLUS:
+			return &clk_pll_ops_312xplus;
 
 		default:
 			clk_err("%s: unknown pll_flags!\n", __func__);

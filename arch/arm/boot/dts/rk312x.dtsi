@@ -3,6 +3,7 @@
 #include <dt-bindings/sensor-dev.h>
 
 #include "skeleton.dtsi"
+#include "rk312x-clocks.dtsi"
 
 / {
 	compatible = "rockchip,rk312x";
