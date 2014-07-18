@@ -284,7 +284,7 @@ struct vnt_private {
 	unsigned long Flags;
 
 	/* USB */
-	struct urb *pInterruptURB;
+	struct urb *interrupt_urb;
 	u32 int_interval;
 
 	/* Variables to track resources for the BULK In Pipe */

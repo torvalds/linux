@@ -517,8 +517,8 @@ static bool device_alloc_bufs(struct vnt_private *priv)
 			goto free_rx_tx;
 	}
 
-	priv->pInterruptURB = usb_alloc_urb(0, GFP_ATOMIC);
-	if (priv->pInterruptURB == NULL) {
+	priv->interrupt_urb = usb_alloc_urb(0, GFP_ATOMIC);
+	if (priv->interrupt_urb == NULL) {
 		dev_err(&priv->usb->dev, "Failed to alloc int urb\n");
 		goto free_rx_tx;
 	}
@@ -526,7 +526,7 @@ static bool device_alloc_bufs(struct vnt_private *priv)
 	priv->int_buf.data_buf = kmalloc(MAX_INTERRUPT_SIZE, GFP_KERNEL);
 	if (priv->int_buf.data_buf == NULL) {
 		dev_err(&priv->usb->dev, "Failed to alloc int buf\n");
-		usb_free_urb(priv->pInterruptURB);
+		usb_free_urb(priv->interrupt_urb);
 		goto free_rx_tx;
 	}
 
@@ -590,8 +590,8 @@ free_all:
 	device_free_tx_bufs(priv);
 	device_free_int_bufs(priv);
 
-	usb_kill_urb(priv->pInterruptURB);
-	usb_free_urb(priv->pInterruptURB);
+	usb_kill_urb(priv->interrupt_urb);
+	usb_free_urb(priv->interrupt_urb);
 
 	return -ENOMEM;
 }
@@ -629,8 +629,8 @@ static void vnt_stop(struct ieee80211_hw *hw)
 	device_free_rx_bufs(priv);
 	device_free_int_bufs(priv);
 
-	usb_kill_urb(priv->pInterruptURB);
-	usb_free_urb(priv->pInterruptURB);
+	usb_kill_urb(priv->interrupt_urb);
+	usb_free_urb(priv->interrupt_urb);
 
 	return;
 }

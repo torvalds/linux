@@ -126,7 +126,7 @@ int vnt_start_interrupt_urb(struct vnt_private *priv)
 
 	priv->int_buf.in_use = true;
 
-	usb_fill_int_urb(priv->pInterruptURB,
+	usb_fill_int_urb(priv->interrupt_urb,
 		priv->usb,
 		usb_rcvintpipe(priv->usb, 1),
 		priv->int_buf.data_buf,
@@ -135,7 +135,7 @@ int vnt_start_interrupt_urb(struct vnt_private *priv)
 		priv,
 		priv->int_interval);
 
-	status = usb_submit_urb(priv->pInterruptURB, GFP_ATOMIC);
+	status = usb_submit_urb(priv->interrupt_urb, GFP_ATOMIC);
 	if (status) {
 		dev_dbg(&priv->usb->dev, "Submit int URB failed %d\n", status);
 		priv->int_buf.in_use = false;
@@ -172,7 +172,7 @@ static void vnt_start_interrupt_urb_complete(struct urb *urb)
 		vnt_int_process_data(priv);
 	}
 
-	status = usb_submit_urb(priv->pInterruptURB, GFP_ATOMIC);
+	status = usb_submit_urb(priv->interrupt_urb, GFP_ATOMIC);
 	if (status) {
 		dev_dbg(&priv->usb->dev, "Submit int URB failed %d\n", status);
 	} else {
