@@ -79,7 +79,7 @@ MODULE_PARM_DESC(rx_buffers, "Number of receive usb rx buffers");
 
 #define TX_DESC_DEF0 64
 static int vnt_tx_buffers = TX_DESC_DEF0;
-module_param_named(tx_buffers, vnt_rx_buffers, int, 0644);
+module_param_named(tx_buffers, vnt_tx_buffers, int, 0644);
 MODULE_PARM_DESC(tx_buffers, "Number of receive usb tx buffers");
 
 #define RTS_THRESH_DEF     2347
