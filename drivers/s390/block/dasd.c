@@ -1675,8 +1675,11 @@ void dasd_int_handler(struct ccw_device *cdev, unsigned long intparm,
 	if (cqr->status == DASD_CQR_CLEAR_PENDING &&
 	    scsw_fctl(&irb->scsw) & SCSW_FCTL_CLEAR_FUNC) {
 		cqr->status = DASD_CQR_CLEARED;
+		if (cqr->callback_data == DASD_SLEEPON_START_TAG)
+			cqr->callback_data = DASD_SLEEPON_END_TAG;
 		dasd_device_clear_timer(device);
 		wake_up(&dasd_flush_wq);
+		wake_up(&generic_waitq);
 		dasd_schedule_device_bh(device);
 		return;
 	}
@@ -2439,6 +2442,8 @@ int dasd_cancel_req(struct dasd_ccw_req *cqr)
 	case DASD_CQR_QUEUED:
 		/* request was not started - just set to cleared */
 		cqr->status = DASD_CQR_CLEARED;
+		if (cqr->callback_data == DASD_SLEEPON_START_TAG)
+			cqr->callback_data = DASD_SLEEPON_END_TAG;
 		break;
 	case DASD_CQR_IN_IO:
 		/* request in IO - terminate IO and release again */
@@ -3512,6 +3517,10 @@ int dasd_generic_path_operational(struct dasd_device *device)
 	dasd_schedule_device_bh(device);
 	if (device->block)
 		dasd_schedule_block_bh(device->block);
+
+	if (!device->stopped)
+		wake_up(&generic_waitq);
+
 	return 1;
 }
 EXPORT_SYMBOL_GPL(dasd_generic_path_operational);
