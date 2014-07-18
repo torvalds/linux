@@ -288,6 +288,7 @@ enum comedi_minor_bits {
 	COMEDI_DEVICE_MINOR_MASK = 0xf,
 	COMEDI_SUBDEVICE_MINOR_MASK = 0xf0
 };
+
 static const unsigned COMEDI_SUBDEVICE_MINOR_SHIFT = 4;
 static const unsigned COMEDI_SUBDEVICE_MINOR_OFFSET = 1;
 
@@ -568,9 +569,9 @@ int comedi_pcmcia_auto_config(struct pcmcia_device *, struct comedi_driver *);
 void comedi_pcmcia_auto_unconfig(struct pcmcia_device *);
 
 int comedi_pcmcia_driver_register(struct comedi_driver *,
-					struct pcmcia_driver *);
+				  struct pcmcia_driver *);
 void comedi_pcmcia_driver_unregister(struct comedi_driver *,
-					struct pcmcia_driver *);
+				     struct pcmcia_driver *);
 
 /**
  * module_comedi_pcmcia_driver() - Helper macro for registering a comedi PCMCIA driver
