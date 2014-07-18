@@ -38,7 +38,7 @@
 
 static const char mic_driver_name[] = "mic";
 
-static DEFINE_PCI_DEVICE_TABLE(mic_pci_tbl) = {
+static const struct pci_device_id mic_pci_tbl[] = {
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MIC_X100_PCI_DEVICE_2250)},
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MIC_X100_PCI_DEVICE_2251)},
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MIC_X100_PCI_DEVICE_2252)},

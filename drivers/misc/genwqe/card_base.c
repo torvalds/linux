@@ -57,7 +57,7 @@ static struct dentry *debugfs_genwqe;
 static struct genwqe_dev *genwqe_devices[GENWQE_CARD_NO_MAX];
 
 /* PCI structure for identifying device by PCI vendor and device ID */
-static DEFINE_PCI_DEVICE_TABLE(genwqe_device_table) = {
+static const struct pci_device_id genwqe_device_table[] = {
 	{ .vendor      = PCI_VENDOR_ID_IBM,
 	  .device      = PCI_DEVICE_GENWQE,
 	  .subvendor   = PCI_SUBVENDOR_ID_IBM,
