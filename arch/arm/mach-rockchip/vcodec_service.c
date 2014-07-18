@@ -1830,7 +1830,7 @@ static void get_hw_info(struct vpu_service_info *pservice)
 			dec->refBufSupport |= 8; /* enable HW support for offset */
 	
 		/// invalidate fuse register value in rk319x vpu and following.
-		if (!soc_is_rk3190() && !soc_is_rk3288()) {
+		if (!soc_is_rk3190() && !soc_is_rk3288() && !soc_is_rk3036()) {
 			VPUHwFuseStatus_t hwFuseSts;
 			/* Decoder fuse configuration */
 			u32 fuseReg = pservice->dec_dev.hwregs[VPU_DEC_HW_FUSE_CFG];
