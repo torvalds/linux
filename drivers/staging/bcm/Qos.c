@@ -322,8 +322,8 @@ static VOID PruneQueue(struct bcm_mini_adapter *Adapter, INT iIndex)
 	spin_lock_bh(&Adapter->PackInfo[iIndex].SFQueueLock);
 
 	while (1) {
-//	while((UINT)Adapter->PackInfo[iIndex].uiCurrentPacketsOnHost >
-//		SF_MAX_ALLOWED_PACKETS_TO_BACKUP) {
+	/* while((UINT)Adapter->PackInfo[iIndex].uiCurrentPacketsOnHost > */
+	/* 	SF_MAX_ALLOWED_PACKETS_TO_BACKUP) { */
 
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, PRUNE_QUEUE, DBG_LVL_ALL, "uiCurrentBytesOnHost:%x uiMaxBucketSize :%x",
 		Adapter->PackInfo[iIndex].uiCurrentBytesOnHost,
@@ -379,7 +379,7 @@ VOID flush_all_queues(struct bcm_mini_adapter *Adapter)
 
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_INFO, DBG_LVL_ALL, "=====>");
 
-//	down(&Adapter->data_packet_queue_lock);
+	/* down(&Adapter->data_packet_queue_lock); */
 	for (iQIndex = LowPriority; iQIndex < HiPriority; iQIndex++) {
 		struct net_device_stats *netstats = &Adapter->dev->stats;
 
@@ -413,7 +413,7 @@ VOID flush_all_queues(struct bcm_mini_adapter *Adapter)
 		}
 		spin_unlock_bh(&Adapter->PackInfo[iQIndex].SFQueueLock);
 	}
-//	up(&Adapter->data_packet_queue_lock);
+	/* up(&Adapter->data_packet_queue_lock); */
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_INFO, DBG_LVL_ALL, "<=====");
 }
 
@@ -765,7 +765,7 @@ static void EThCSGetPktInfo(struct bcm_mini_adapter *Adapter, PVOID pvEthPayload
 			/* 802.1Q VLAN Header */
 			pstEthCsPktInfo->eNwpktEthFrameType = eEth802QVLANFrame;
 			u16Etype = ((struct bcm_eth_q_frame *)pvEthPayload)->EthType;
-			//((ETH_CS_802_Q_FRAME*)pvEthPayload)->UserPriority
+			/* ((ETH_CS_802_Q_FRAME*)pvEthPayload)->UserPriority */
 		} else {
 			pstEthCsPktInfo->eNwpktEthFrameType = eEthOtherFrame;
 			u16Etype = ntohs(u16Etype);
