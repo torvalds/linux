@@ -361,6 +361,23 @@ pnfs_put_lseg(struct pnfs_layout_segment *lseg)
 }
 EXPORT_SYMBOL_GPL(pnfs_put_lseg);
 
+static void pnfs_put_lseg_async_work(struct work_struct *work)
+{
+	struct pnfs_layout_segment *lseg;
+
+	lseg = container_of(work, struct pnfs_layout_segment, pls_work);
+
+	pnfs_put_lseg(lseg);
+}
+
+void
+pnfs_put_lseg_async(struct pnfs_layout_segment *lseg)
+{
+	INIT_WORK(&lseg->pls_work, pnfs_put_lseg_async_work);
+	schedule_work(&lseg->pls_work);
+}
+EXPORT_SYMBOL_GPL(pnfs_put_lseg_async);
+
 static u64
 end_offset(u64 start, u64 len)
 {
