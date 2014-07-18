@@ -1289,8 +1289,14 @@ static int init_act_open(struct cxgbi_sock *csk)
 
 	if (csk->csk_family == AF_INET)
 		daddr = &csk->daddr.sin_addr.s_addr;
-	else
+#if IS_ENABLED(CONFIG_IPV6)
+	else if (csk->csk_family == AF_INET6)
 		daddr = &csk->daddr6.sin6_addr;
+#endif
+	else {
+		pr_err("address family 0x%x not supported\n", csk->csk_family);
+		goto rel_resource;
+	}
 
 	n = dst_neigh_lookup(csk->dst, daddr);
 
@@ -1631,6 +1637,7 @@ static int cxgb4i_ddp_init(struct cxgbi_device *cdev)
 	return 0;
 }
 
+#if IS_ENABLED(CONFIG_IPV6)
 static int cxgbi_inet6addr_handler(struct notifier_block *this,
 				   unsigned long event, void *data)
 {
@@ -1755,6 +1762,7 @@ static void cxgbi_update_clip(struct cxgbi_device *cdev)
 	}
 	rcu_read_unlock();
 }
+#endif /* IS_ENABLED(CONFIG_IPV6) */
 
 static void *t4_uld_add(const struct cxgb4_lld_info *lldi)
 {
@@ -1874,7 +1882,9 @@ static int t4_uld_state_change(void *handle, enum cxgb4_state state)
 	switch (state) {
 	case CXGB4_STATE_UP:
 		pr_info("cdev 0x%p, UP.\n", cdev);
+#if IS_ENABLED(CONFIG_IPV6)
 		cxgbi_update_clip(cdev);
+#endif
 		/* re-initialize */
 		break;
 	case CXGB4_STATE_START_RECOVERY:
@@ -1906,15 +1916,17 @@ static int __init cxgb4i_init_module(void)
 		return rc;
 	cxgb4_register_uld(CXGB4_ULD_ISCSI, &cxgb4i_uld_info);
 
+#if IS_ENABLED(CONFIG_IPV6)
 	register_inet6addr_notifier(&cxgbi_inet6addr_notifier);
-
+#endif
 	return 0;
 }
 
 static void __exit cxgb4i_exit_module(void)
 {
+#if IS_ENABLED(CONFIG_IPV6)
 	unregister_inet6addr_notifier(&cxgbi_inet6addr_notifier);
-
+#endif
 	cxgb4_unregister_uld(CXGB4_ULD_ISCSI);
 	cxgbi_device_unregister_all(CXGBI_FLAG_DEV_T4);
 	cxgbi_iscsi_cleanup(&cxgb4i_iscsi_transport, &cxgb4i_stt);

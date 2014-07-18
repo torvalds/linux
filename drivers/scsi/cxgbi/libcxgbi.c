@@ -602,6 +602,7 @@ err_out:
 	return ERR_PTR(err);
 }
 
+#if IS_ENABLED(CONFIG_IPV6)
 static struct rt6_info *find_route_ipv6(const struct in6_addr *saddr,
 					const struct in6_addr *daddr)
 {
@@ -716,6 +717,7 @@ rel_rt:
 err_out:
 	return ERR_PTR(err);
 }
+#endif /* IS_ENABLED(CONFIG_IPV6) */
 
 void cxgbi_sock_established(struct cxgbi_sock *csk, unsigned int snd_isn,
 			unsigned int opt)
@@ -2638,8 +2640,10 @@ struct iscsi_endpoint *cxgbi_ep_connect(struct Scsi_Host *shost,
 
 	if (dst_addr->sa_family == AF_INET) {
 		csk = cxgbi_check_route(dst_addr);
+#if IS_ENABLED(CONFIG_IPV6)
 	} else if (dst_addr->sa_family == AF_INET6) {
 		csk = cxgbi_check_route6(dst_addr);
+#endif
 	} else {
 		pr_info("address family 0x%x NOT supported.\n",
 			dst_addr->sa_family);
