@@ -50,7 +50,7 @@ static inline int32_t mul_fp(int32_t x, int32_t y)
 
 static inline int32_t div_fp(int32_t x, int32_t y)
 {
-	return div_s64((int64_t)x << FRAC_BITS, (int64_t)y);
+	return div_s64((int64_t)x << FRAC_BITS, y);
 }
 
 struct sample {
