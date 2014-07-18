@@ -1039,6 +1039,8 @@ static int xenvif_tx_check_gop(struct xenvif_queue *queue,
 	 */
 	struct skb_shared_info *first_shinfo = NULL;
 	int nr_frags = shinfo->nr_frags;
+	const bool sharedslot = nr_frags &&
+				frag_get_pending_idx(&shinfo->frags[0]) == pending_idx;
 	int i, err;
 
 	/* Check status of header. */
@@ -1051,7 +1053,10 @@ static int xenvif_tx_check_gop(struct xenvif_queue *queue,
 				   (*gopp_copy)->status,
 				   pending_idx,
 				   (*gopp_copy)->source.u.ref);
-		xenvif_idx_release(queue, pending_idx, XEN_NETIF_RSP_ERROR);
+		/* The first frag might still have this slot mapped */
+		if (!sharedslot)
+			xenvif_idx_release(queue, pending_idx,
+					   XEN_NETIF_RSP_ERROR);
 	}
 
 check_frags:
@@ -1068,8 +1073,19 @@ check_frags:
 						pending_idx,
 						gop_map->handle);
 			/* Had a previous error? Invalidate this fragment. */
-			if (unlikely(err))
+			if (unlikely(err)) {
 				xenvif_idx_unmap(queue, pending_idx);
+				/* If the mapping of the first frag was OK, but
+				 * the header's copy failed, and they are
+				 * sharing a slot, send an error
+				 */
+				if (i == 0 && sharedslot)
+					xenvif_idx_release(queue, pending_idx,
+							   XEN_NETIF_RSP_ERROR);
+				else
+					xenvif_idx_release(queue, pending_idx,
+							   XEN_NETIF_RSP_OKAY);
+			}
 			continue;
 		}
 
@@ -1081,15 +1097,27 @@ check_frags:
 				   gop_map->status,
 				   pending_idx,
 				   gop_map->ref);
+
 		xenvif_idx_release(queue, pending_idx, XEN_NETIF_RSP_ERROR);
 
 		/* Not the first error? Preceding frags already invalidated. */
 		if (err)
 			continue;
-		/* First error: invalidate preceding fragments. */
+
+		/* First error: if the header haven't shared a slot with the
+		 * first frag, release it as well.
+		 */
+		if (!sharedslot)
+			xenvif_idx_release(queue,
+					   XENVIF_TX_CB(skb)->pending_idx,
+					   XEN_NETIF_RSP_OKAY);
+
+		/* Invalidate preceding fragments of this skb. */
 		for (j = 0; j < i; j++) {
 			pending_idx = frag_get_pending_idx(&shinfo->frags[j]);
 			xenvif_idx_unmap(queue, pending_idx);
+			xenvif_idx_release(queue, pending_idx,
+					   XEN_NETIF_RSP_OKAY);
 		}
 
 		/* And if we found the error while checking the frag_list, unmap
@@ -1099,6 +1127,8 @@ check_frags:
 			for (j = 0; j < first_shinfo->nr_frags; j++) {
 				pending_idx = frag_get_pending_idx(&first_shinfo->frags[j]);
 				xenvif_idx_unmap(queue, pending_idx);
+				xenvif_idx_release(queue, pending_idx,
+						   XEN_NETIF_RSP_OKAY);
 			}
 		}
 
@@ -1834,8 +1864,6 @@ void xenvif_idx_unmap(struct xenvif_queue *queue, u16 pending_idx)
 			   tx_unmap_op.status);
 		BUG();
 	}
-
-	xenvif_idx_release(queue, pending_idx, XEN_NETIF_RSP_OKAY);
 }
 
 static inline int rx_work_todo(struct xenvif_queue *queue)
