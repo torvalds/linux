@@ -435,7 +435,7 @@ static int sr_init_command(struct scsi_cmnd *SCpnt)
 	}
 
 	if (rq_data_dir(rq) == WRITE) {
-		if (!cd->device->writeable)
+		if (!cd->writeable)
 			goto out;
 		SCpnt->cmnd[0] = WRITE_10;
 		cd->cdi.media_written = 1;
@@ -927,7 +927,7 @@ static void get_capabilities(struct scsi_cd *cd)
 	 */
 	if ((cd->cdi.mask & (CDC_DVD_RAM | CDC_MRW_W | CDC_RAM | CDC_CD_RW)) !=
 			(CDC_DVD_RAM | CDC_MRW_W | CDC_RAM | CDC_CD_RW)) {
-		cd->device->writeable = 1;
+		cd->writeable = 1;
 	}
 
 	kfree(buffer);

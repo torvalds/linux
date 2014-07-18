@@ -807,30 +807,6 @@ static int scsi_add_lun(struct scsi_device *sdev, unsigned char *inq_result,
 		sdev->removable = (inq_result[1] & 0x80) >> 7;
 	}
 
-	switch (sdev->type) {
-	case TYPE_RBC:
-	case TYPE_TAPE:
-	case TYPE_DISK:
-	case TYPE_PRINTER:
-	case TYPE_MOD:
-	case TYPE_PROCESSOR:
-	case TYPE_SCANNER:
-	case TYPE_MEDIUM_CHANGER:
-	case TYPE_ENCLOSURE:
-	case TYPE_COMM:
-	case TYPE_RAID:
-	case TYPE_OSD:
-		sdev->writeable = 1;
-		break;
-	case TYPE_ROM:
-	case TYPE_WORM:
-		sdev->writeable = 0;
-		break;
-	default:
-		sdev_printk(KERN_INFO, sdev, "unknown device type %d\n",
-			    sdev->type);
-	}
-
 	if (sdev->type == TYPE_RBC || sdev->type == TYPE_ROM) {
 		/* RBC and MMC devices can return SCSI-3 compliance and yet
 		 * still not support REPORT LUNS, so make them act as

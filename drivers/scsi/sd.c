@@ -992,9 +992,6 @@ static int sd_setup_read_write_cmnd(struct scsi_cmnd *SCpnt)
 		}
 	}
 	if (rq_data_dir(rq) == WRITE) {
-		if (!sdp->writeable) {
-			goto out;
-		}
 		SCpnt->cmnd[0] = WRITE_6;
 
 		if (blk_integrity_rq(rq))
