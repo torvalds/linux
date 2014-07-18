@@ -421,6 +421,7 @@ struct ohci_hcd {
 
 	// there are also chip quirks/bugs in init logic
 
+	unsigned		prev_frame_no;
 	unsigned		wdh_cnt, prev_wdh_cnt;
 	u32			prev_donehead;
 	struct timer_list	io_watchdog;

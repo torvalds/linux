@@ -72,7 +72,7 @@
 static const char	hcd_name [] = "ohci_hcd";
 
 #define	STATECHANGE_DELAY	msecs_to_jiffies(300)
-#define IO_WATCHDOG_DELAY	msecs_to_jiffies(250)
+#define	IO_WATCHDOG_DELAY	msecs_to_jiffies(250)
 
 #include "ohci.h"
 #include "pci-quirks.h"
@@ -230,9 +230,11 @@ static int ohci_urb_enqueue (
 
 		/* Start up the I/O watchdog timer, if it's not running */
 		if (!timer_pending(&ohci->io_watchdog) &&
-				list_empty(&ohci->eds_in_use))
+				list_empty(&ohci->eds_in_use)) {
+			ohci->prev_frame_no = ohci_frame_no(ohci);
 			mod_timer(&ohci->io_watchdog,
 					jiffies + IO_WATCHDOG_DELAY);
+		}
 		list_add(&ed->in_use_list, &ohci->eds_in_use);
 
 		if (ed->type == PIPE_ISOCHRONOUS) {
@@ -727,6 +729,7 @@ static void io_watchdog_func(unsigned long _ohci)
 	u32		head;
 	struct ed	*ed;
 	struct td	*td, *td_start, *td_next;
+	unsigned	frame_no;
 	unsigned long	flags;
 
 	spin_lock_irqsave(&ohci->lock, flags);
@@ -742,6 +745,7 @@ static void io_watchdog_func(unsigned long _ohci)
 	if (!(status & OHCI_INTR_WDH) && ohci->wdh_cnt == ohci->prev_wdh_cnt) {
 		if (ohci->prev_donehead) {
 			ohci_err(ohci, "HcDoneHead not written back; disabled\n");
+ died:
 			usb_hc_died(ohci_to_hcd(ohci));
 			ohci_dump(ohci);
 			ohci_shutdown(ohci_to_hcd(ohci));
@@ -802,7 +806,35 @@ static void io_watchdog_func(unsigned long _ohci)
 	ohci_work(ohci);
 
 	if (ohci->rh_state == OHCI_RH_RUNNING) {
+
+		/*
+		 * Sometimes a controller just stops working.  We can tell
+		 * by checking that the frame counter has advanced since
+		 * the last time we ran.
+		 *
+		 * But be careful: Some controllers violate the spec by
+		 * stopping their frame counter when no ports are active.
+		 */
+		frame_no = ohci_frame_no(ohci);
+		if (frame_no == ohci->prev_frame_no) {
+			int		active_cnt = 0;
+			int		i;
+			unsigned	tmp;
+
+			for (i = 0; i < ohci->num_ports; ++i) {
+				tmp = roothub_portstatus(ohci, i);
+				/* Enabled and not suspended? */
+				if ((tmp & RH_PS_PES) && !(tmp & RH_PS_PSS))
+					++active_cnt;
+			}
+
+			if (active_cnt > 0) {
+				ohci_err(ohci, "frame counter not updating; disabled\n");
+				goto died;
+			}
+		}
 		if (!list_empty(&ohci->eds_in_use)) {
+			ohci->prev_frame_no = frame_no;
 			ohci->prev_wdh_cnt = ohci->wdh_cnt;
 			ohci->prev_donehead = ohci_readl(ohci,
 					&ohci->regs->donehead);
