@@ -329,7 +329,7 @@ struct radeon_bo_va *radeon_vm_bo_add(struct radeon_device *rdev,
 	bo_va->soffset = 0;
 	bo_va->eoffset = 0;
 	bo_va->flags = 0;
-	bo_va->valid = false;
+	bo_va->addr = 0;
 	bo_va->ref_count = 1;
 	INIT_LIST_HEAD(&bo_va->bo_list);
 	INIT_LIST_HEAD(&bo_va->vm_list);
@@ -486,7 +486,7 @@ int radeon_vm_bo_set_addr(struct radeon_device *rdev,
 	bo_va->soffset = soffset;
 	bo_va->eoffset = eoffset;
 	bo_va->flags = flags;
-	bo_va->valid = false;
+	bo_va->addr = 0;
 	list_move(&bo_va->vm_list, head);
 
 	soffset = (soffset / RADEON_GPU_PAGE_SIZE) >> radeon_vm_block_size;
@@ -847,15 +847,13 @@ int radeon_vm_bo_update(struct radeon_device *rdev,
 	uint64_t addr;
 	int r;
 
-
 	if (!bo_va->soffset) {
 		dev_err(rdev->dev, "bo %p don't has a mapping in vm %p\n",
 			bo_va->bo, vm);
 		return -EINVAL;
 	}
 
-	if ((bo_va->valid && mem) || (!bo_va->valid && mem == NULL))
-		return 0;
+	list_del_init(&bo_va->vm_status);
 
 	bo_va->flags &= ~RADEON_VM_PAGE_VALID;
 	bo_va->flags &= ~RADEON_VM_PAGE_SYSTEM;
@@ -864,7 +862,6 @@ int radeon_vm_bo_update(struct radeon_device *rdev,
 		addr = mem->start << PAGE_SHIFT;
 		if (mem->mem_type != TTM_PL_SYSTEM) {
 			bo_va->flags |= RADEON_VM_PAGE_VALID;
-			bo_va->valid = true;
 		}
 		if (mem->mem_type == TTM_PL_TT) {
 			bo_va->flags |= RADEON_VM_PAGE_SYSTEM;
@@ -876,8 +873,11 @@ int radeon_vm_bo_update(struct radeon_device *rdev,
 		}
 	} else {
 		addr = 0;
-		bo_va->valid = false;
 	}
+
+	if (addr == bo_va->addr)
+		return 0;
+	bo_va->addr = addr;
 
 	trace_radeon_vm_bo_update(bo_va);
 
@@ -941,7 +941,6 @@ int radeon_vm_clear_freed(struct radeon_device *rdev,
 	int r;
 
 	list_for_each_entry_safe(bo_va, tmp, &vm->freed, vm_status) {
-		list_del(&bo_va->vm_status);
 		r = radeon_vm_bo_update(rdev, bo_va, NULL);
 		kfree(bo_va);
 		if (r)
@@ -949,6 +948,31 @@ int radeon_vm_clear_freed(struct radeon_device *rdev,
 	}
 	return 0;
 
+}
+
+/**
+ * radeon_vm_clear_invalids - clear invalidated BOs in the PT
+ *
+ * @rdev: radeon_device pointer
+ * @vm: requested vm
+ *
+ * Make sure all invalidated BOs are cleared in the PT.
+ * Returns 0 for success.
+ *
+ * PTs have to be reserved and mutex must be locked!
+ */
+int radeon_vm_clear_invalids(struct radeon_device *rdev,
+			     struct radeon_vm *vm)
+{
+	struct radeon_bo_va *bo_va, *tmp;
+	int r;
+
+	list_for_each_entry_safe(bo_va, tmp, &vm->invalidated, vm_status) {
+		r = radeon_vm_bo_update(rdev, bo_va, NULL);
+		if (r)
+			return r;
+	}
+	return 0;
 }
 
 /**
@@ -970,8 +994,9 @@ void radeon_vm_bo_rmv(struct radeon_device *rdev,
 
 	mutex_lock(&vm->mutex);
 	list_del(&bo_va->vm_list);
+	list_del(&bo_va->vm_status);
 
-	if (bo_va->soffset) {
+	if (bo_va->addr) {
 		bo_va->bo = NULL;
 		list_add(&bo_va->vm_status, &vm->freed);
 	} else {
@@ -996,7 +1021,12 @@ void radeon_vm_bo_invalidate(struct radeon_device *rdev,
 	struct radeon_bo_va *bo_va;
 
 	list_for_each_entry(bo_va, &bo->va, bo_list) {
-		bo_va->valid = false;
+		if (bo_va->addr) {
+			mutex_lock(&bo_va->vm->mutex);
+			list_del(&bo_va->vm_status);
+			list_add(&bo_va->vm_status, &bo_va->vm->invalidated);
+			mutex_unlock(&bo_va->vm->mutex);
+		}
 	}
 }
 
@@ -1022,6 +1052,7 @@ int radeon_vm_init(struct radeon_device *rdev, struct radeon_vm *vm)
 	vm->last_id_use = NULL;
 	mutex_init(&vm->mutex);
 	INIT_LIST_HEAD(&vm->va);
+	INIT_LIST_HEAD(&vm->invalidated);
 	INIT_LIST_HEAD(&vm->freed);
 
 	pd_size = radeon_vm_directory_size(rdev);

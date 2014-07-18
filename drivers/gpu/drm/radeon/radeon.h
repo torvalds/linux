@@ -450,7 +450,7 @@ struct radeon_bo_va {
 	uint64_t			soffset;
 	uint64_t			eoffset;
 	uint32_t			flags;
-	bool				valid;
+	uint64_t			addr;
 	unsigned			ref_count;
 
 	/* protected by vm mutex */
@@ -879,6 +879,9 @@ struct radeon_vm_pt {
 struct radeon_vm {
 	struct list_head		va;
 	unsigned			id;
+
+	/* BOs moved, but not yet updated in the PT */
+	struct list_head		invalidated;
 
 	/* BOs freed, but not yet updated in the PT */
 	struct list_head		freed;
@@ -2887,6 +2890,8 @@ int radeon_vm_update_page_directory(struct radeon_device *rdev,
 				    struct radeon_vm *vm);
 int radeon_vm_clear_freed(struct radeon_device *rdev,
 			  struct radeon_vm *vm);
+int radeon_vm_clear_invalids(struct radeon_device *rdev,
+			     struct radeon_vm *vm);
 int radeon_vm_bo_update(struct radeon_device *rdev,
 			struct radeon_bo_va *bo_va,
 			struct ttm_mem_reg *mem);

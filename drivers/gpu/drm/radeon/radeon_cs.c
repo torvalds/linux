@@ -500,7 +500,8 @@ static int radeon_bo_vm_update_pte(struct radeon_cs_parser *p,
 		if (r)
 			return r;
 	}
-	return 0;
+
+	return radeon_vm_clear_invalids(rdev, vm);
 }
 
 static int radeon_cs_ib_vm_chunk(struct radeon_device *rdev,
