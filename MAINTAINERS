@@ -148,6 +148,13 @@ L:	linux-scsi@vger.kernel.org
 S:	Maintained
 F:	drivers/scsi/53c700*
 
+6LOWPAN GENERIC (BTLE/IEEE 802.15.4)
+M:	Alexander Aring <alex.aring@gmail.com>
+L:	linux-zigbee-devel@lists.sourceforge.net (moderated for non-subscribers)
+L:	linux-bluetooth@vger.kernel.org
+S:	Maintained
+F:	net/6lowpan/
+
 6PACK NETWORK DRIVER FOR AX.25
 M:	Andreas Koensgen <ajk@comnets.uni-bremen.de>
 L:	linux-hams@vger.kernel.org
