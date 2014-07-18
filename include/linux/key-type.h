@@ -159,5 +159,7 @@ static inline int key_negate_and_link(struct key *key,
 	return key_reject_and_link(key, timeout, ENOKEY, keyring, instkey);
 }
 
+extern int generic_key_instantiate(struct key *key, struct key_preparsed_payload *prep);
+
 #endif /* CONFIG_KEYS */
 #endif /* _LINUX_KEY_TYPE_H */

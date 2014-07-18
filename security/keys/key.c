@@ -1024,6 +1024,36 @@ void key_invalidate(struct key *key)
 EXPORT_SYMBOL(key_invalidate);
 
 /**
+ * generic_key_instantiate - Simple instantiation of a key from preparsed data
+ * @key: The key to be instantiated
+ * @prep: The preparsed data to load.
+ *
+ * Instantiate a key from preparsed data.  We assume we can just copy the data
+ * in directly and clear the old pointers.
+ *
+ * This can be pointed to directly by the key type instantiate op pointer.
+ */
+int generic_key_instantiate(struct key *key, struct key_preparsed_payload *prep)
+{
+	int ret;
+
+	pr_devel("==>%s()\n", __func__);
+
+	ret = key_payload_reserve(key, prep->quotalen);
+	if (ret == 0) {
+		key->type_data.p[0] = prep->type_data[0];
+		key->type_data.p[1] = prep->type_data[1];
+		rcu_assign_keypointer(key, prep->payload);
+		prep->type_data[0] = NULL;
+		prep->type_data[1] = NULL;
+		prep->payload = NULL;
+	}
+	pr_devel("<==%s() = %d\n", __func__, ret);
+	return ret;
+}
+EXPORT_SYMBOL(generic_key_instantiate);
+
+/**
  * register_key_type - Register a type of key.
  * @ktype: The new key type.
  *
