@@ -785,8 +785,8 @@ static int a2150_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		udelay(1000);
 	}
 	if (i == timeout) {
-		printk
-		    (" timed out waiting for offset calibration to complete\n");
+		dev_err(dev->class_dev,
+			"timed out waiting for offset calibration to complete\n");
 		return -ETIME;
 	}
 	devpriv->config_bits |= ENABLE0_BIT | ENABLE1_BIT;
