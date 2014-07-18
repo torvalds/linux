@@ -239,11 +239,11 @@ static int tas2552_runtime_suspend(struct device *dev)
 
 	tas2552_sw_shutdown(tas2552, 0);
 
-	if (tas2552->enable_gpio)
-		gpiod_set_value(tas2552->enable_gpio, 0);
-
 	regcache_cache_only(tas2552->regmap, true);
 	regcache_mark_dirty(tas2552->regmap);
+
+	if (tas2552->enable_gpio)
+		gpiod_set_value(tas2552->enable_gpio, 0);
 
 	return 0;
 }
@@ -381,6 +381,8 @@ probe_fail:
 static int tas2552_codec_remove(struct snd_soc_codec *codec)
 {
 	struct tas2552_data *tas2552 = snd_soc_codec_get_drvdata(codec);
+
+	pm_runtime_put(codec->dev);
 
 	if (tas2552->enable_gpio)
 		gpiod_set_value(tas2552->enable_gpio, 0);
