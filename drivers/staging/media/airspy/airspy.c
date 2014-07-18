@@ -62,7 +62,7 @@ static const struct v4l2_frequency_band bands[] = {
 		.index = 0,
 		.capability = V4L2_TUNER_CAP_1HZ | V4L2_TUNER_CAP_FREQ_BANDS,
 		.rangelow   = 20000000,
-		.rangehigh  = 20000001, /* FIXME: make v4l2-compliance happy */
+		.rangehigh  = 20000000,
 	},
 };
 
