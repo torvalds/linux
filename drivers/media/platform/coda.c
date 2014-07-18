@@ -719,6 +719,9 @@ static int coda_try_fmt_vid_cap(struct file *file, void *priv,
 					f->fmt.pix.pixelformat);
 		if (!codec)
 			return -EINVAL;
+
+		f->fmt.pix.width = q_data_src->width;
+		f->fmt.pix.height = q_data_src->height;
 	} else {
 		/* Otherwise determine codec by encoded format, if possible */
 		codec = coda_find_codec(ctx->dev, V4L2_PIX_FMT_YUV420,
