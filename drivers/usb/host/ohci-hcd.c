@@ -300,30 +300,24 @@ static int ohci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 	struct ohci_hcd		*ohci = hcd_to_ohci (hcd);
 	unsigned long		flags;
 	int			rc;
+	urb_priv_t		*urb_priv;
 
 	spin_lock_irqsave (&ohci->lock, flags);
 	rc = usb_hcd_check_unlink_urb(hcd, urb, status);
-	if (rc) {
-		;	/* Do nothing */
-	} else if (ohci->rh_state == OHCI_RH_RUNNING) {
-		urb_priv_t  *urb_priv;
+	if (rc == 0) {
 
 		/* Unless an IRQ completed the unlink while it was being
 		 * handed to us, flag it for unlink and giveback, and force
 		 * some upcoming INTR_SF to call finish_unlinks()
 		 */
 		urb_priv = urb->hcpriv;
-		if (urb_priv) {
-			if (urb_priv->ed->state == ED_OPER)
-				start_ed_unlink (ohci, urb_priv->ed);
+		if (urb_priv->ed->state == ED_OPER)
+			start_ed_unlink(ohci, urb_priv->ed);
+
+		if (ohci->rh_state != OHCI_RH_RUNNING) {
+			/* With HC dead, we can clean up right away */
+			finish_unlinks(ohci, 0);
 		}
-	} else {
-		/*
-		 * with HC dead, we won't respect hc queue pointers
-		 * any more ... just clean up every urb's memory.
-		 */
-		if (urb->hcpriv)
-			finish_urb(ohci, urb, status);
 	}
 	spin_unlock_irqrestore (&ohci->lock, flags);
 	return rc;
