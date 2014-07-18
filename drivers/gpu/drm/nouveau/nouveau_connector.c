@@ -63,7 +63,7 @@ find_encoder(struct drm_connector *connector, int type)
 {
 	struct drm_device *dev = connector->dev;
 	struct nouveau_encoder *nv_encoder;
-	struct drm_mode_object *obj;
+	struct drm_encoder *enc;
 	int i, id;
 
 	for (i = 0; i < DRM_CONNECTOR_MAX_ENCODER; i++) {
@@ -71,10 +71,10 @@ find_encoder(struct drm_connector *connector, int type)
 		if (!id)
 			break;
 
-		obj = drm_mode_object_find(dev, id, DRM_MODE_OBJECT_ENCODER);
-		if (!obj)
+		enc = drm_encoder_find(dev, id);
+		if (!enc)
 			continue;
-		nv_encoder = nouveau_encoder(obj_to_encoder(obj));
+		nv_encoder = nouveau_encoder(enc);
 
 		if (type == DCB_OUTPUT_ANY ||
 		    (nv_encoder->dcb && nv_encoder->dcb->type == type))
@@ -119,7 +119,7 @@ nouveau_connector_ddc_detect(struct drm_connector *connector)
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_gpio *gpio = nouveau_gpio(drm->device);
 	struct nouveau_encoder *nv_encoder;
-	struct drm_mode_object *obj;
+	struct drm_encoder *encoder;
 	int i, panel = -ENODEV;
 
 	/* eDP panels need powering on by us (if the VBIOS doesn't default it
@@ -139,10 +139,10 @@ nouveau_connector_ddc_detect(struct drm_connector *connector)
 		if (id == 0)
 			break;
 
-		obj = drm_mode_object_find(dev, id, DRM_MODE_OBJECT_ENCODER);
-		if (!obj)
+		encoder = drm_encoder_find(dev, id);
+		if (!encoder)
 			continue;
-		nv_encoder = nouveau_encoder(obj_to_encoder(obj));
+		nv_encoder = nouveau_encoder(encoder);
 
 		if (nv_encoder->dcb->type == DCB_OUTPUT_DP) {
 			int ret = nouveau_dp_detect(nv_encoder);
