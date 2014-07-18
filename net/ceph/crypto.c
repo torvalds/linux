@@ -8,6 +8,7 @@
 #include <linux/key-type.h>
 
 #include <keys/ceph-type.h>
+#include <keys/user-type.h>
 #include <linux/ceph/decode.h>
 #include "crypto.h"
 
@@ -462,11 +463,6 @@ static void ceph_key_free_preparse(struct key_preparsed_payload *prep)
 	kfree(ckey);
 }
 
-static int ceph_key_match(const struct key *key, const void *description)
-{
-	return strcmp(key->description, description) == 0;
-}
-
 static void ceph_key_destroy(struct key *key)
 {
 	struct ceph_crypto_key *ckey = key->payload.data;
@@ -480,7 +476,7 @@ struct key_type key_type_ceph = {
 	.preparse	= ceph_key_preparse,
 	.free_preparse	= ceph_key_free_preparse,
 	.instantiate	= generic_key_instantiate,
-	.match		= ceph_key_match,
+	.match		= user_match,
 	.destroy	= ceph_key_destroy,
 };
 
