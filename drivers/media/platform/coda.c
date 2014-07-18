@@ -1680,7 +1680,8 @@ static void coda_buf_queue(struct vb2_buffer *vb)
 		}
 		mutex_lock(&ctx->bitstream_mutex);
 		v4l2_m2m_buf_queue(ctx->fh.m2m_ctx, vb);
-		coda_fill_bitstream(ctx);
+		if (vb2_is_streaming(vb->vb2_queue))
+			coda_fill_bitstream(ctx);
 		mutex_unlock(&ctx->bitstream_mutex);
 	} else {
 		v4l2_m2m_buf_queue(ctx->fh.m2m_ctx, vb);
@@ -2270,6 +2271,11 @@ static int coda_start_streaming(struct vb2_queue *q, unsigned int count)
 	q_data_src = get_q_data(ctx, V4L2_BUF_TYPE_VIDEO_OUTPUT);
 	if (q->type == V4L2_BUF_TYPE_VIDEO_OUTPUT) {
 		if (q_data_src->fourcc == V4L2_PIX_FMT_H264) {
+			/* copy the buffers that where queued before streamon */
+			mutex_lock(&ctx->bitstream_mutex);
+			coda_fill_bitstream(ctx);
+			mutex_unlock(&ctx->bitstream_mutex);
+
 			if (coda_get_bitstream_payload(ctx) < 512)
 				return -EINVAL;
 		} else {
