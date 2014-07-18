@@ -3903,7 +3903,7 @@ static int coda_runtime_resume(struct device *dev)
 	struct coda_dev *cdev = dev_get_drvdata(dev);
 	int ret = 0;
 
-	if (dev->pm_domain) {
+	if (dev->pm_domain && cdev->codebuf.vaddr) {
 		ret = coda_hw_init(cdev);
 		if (ret)
 			v4l2_err(&cdev->v4l2_dev, "HW initialization failed\n");
