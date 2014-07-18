@@ -119,10 +119,26 @@
 #define GATE_SCLK_CPU		0x14800
 #define GATE_IP_CPU		0x14900
 #define CLKOUT_CMU_CPU		0x14a00
+#define PWR_CTRL1		0x15020
+#define E4X12_PWR_CTRL2		0x15024
 #define E4X12_DIV_ISP0		0x18300
 #define E4X12_DIV_ISP1		0x18304
 #define E4X12_GATE_ISP0		0x18800
 #define E4X12_GATE_ISP1		0x18804
+
+/* Below definitions are used for PWR_CTRL settings */
+#define PWR_CTRL1_CORE2_DOWN_RATIO(x)		(((x) & 0x7) << 28)
+#define PWR_CTRL1_CORE1_DOWN_RATIO(x)		(((x) & 0x7) << 16)
+#define PWR_CTRL1_DIV2_DOWN_EN			(1 << 9)
+#define PWR_CTRL1_DIV1_DOWN_EN			(1 << 8)
+#define PWR_CTRL1_USE_CORE3_WFE			(1 << 7)
+#define PWR_CTRL1_USE_CORE2_WFE			(1 << 6)
+#define PWR_CTRL1_USE_CORE1_WFE			(1 << 5)
+#define PWR_CTRL1_USE_CORE0_WFE			(1 << 4)
+#define PWR_CTRL1_USE_CORE3_WFI			(1 << 3)
+#define PWR_CTRL1_USE_CORE2_WFI			(1 << 2)
+#define PWR_CTRL1_USE_CORE1_WFI			(1 << 1)
+#define PWR_CTRL1_USE_CORE0_WFI			(1 << 0)
 
 /* the exynos4 soc type */
 enum exynos4_soc {
@@ -160,6 +176,7 @@ static unsigned long exynos4210_clk_save[] __initdata = {
 	E4210_GATE_IP_LCD1,
 	E4210_GATE_IP_PERIR,
 	E4210_MPLL_CON0,
+	PWR_CTRL1,
 };
 
 static unsigned long exynos4x12_clk_save[] __initdata = {
@@ -169,6 +186,8 @@ static unsigned long exynos4x12_clk_save[] __initdata = {
 	E4X12_DIV_ISP,
 	E4X12_DIV_CAM1,
 	E4X12_MPLL_CON0,
+	PWR_CTRL1,
+	E4X12_PWR_CTRL2,
 };
 
 static unsigned long exynos4_clk_pll_regs[] __initdata = {
@@ -1337,6 +1356,32 @@ static struct samsung_pll_clock exynos4x12_plls[nr_plls] __initdata = {
 			VPLL_LOCK, VPLL_CON0, NULL),
 };
 
+static void __init exynos4_core_down_clock(enum exynos4_soc soc)
+{
+	unsigned int tmp;
+
+	/*
+	 * Enable arm clock down (in idle) and set arm divider
+	 * ratios in WFI/WFE state.
+	 */
+	tmp = (PWR_CTRL1_CORE2_DOWN_RATIO(7) | PWR_CTRL1_CORE1_DOWN_RATIO(7) |
+		PWR_CTRL1_DIV2_DOWN_EN | PWR_CTRL1_DIV1_DOWN_EN |
+		PWR_CTRL1_USE_CORE1_WFE | PWR_CTRL1_USE_CORE0_WFE |
+		PWR_CTRL1_USE_CORE1_WFI | PWR_CTRL1_USE_CORE0_WFI);
+	/* On Exynos4412 enable it also on core 2 and 3 */
+	if (num_possible_cpus() == 4)
+		tmp |= PWR_CTRL1_USE_CORE3_WFE | PWR_CTRL1_USE_CORE2_WFE |
+		       PWR_CTRL1_USE_CORE3_WFI | PWR_CTRL1_USE_CORE2_WFI;
+	__raw_writel(tmp, reg_base + PWR_CTRL1);
+
+	/*
+	 * Disable the clock up feature on Exynos4x12, in case it was
+	 * enabled by bootloader.
+	 */
+	if (exynos4_soc == EXYNOS4X12)
+		__raw_writel(0x0, reg_base + E4X12_PWR_CTRL2);
+}
+
 /* register exynos4 clocks */
 static void __init exynos4_clk_init(struct device_node *np,
 				    enum exynos4_soc soc)
@@ -1431,6 +1476,7 @@ static void __init exynos4_clk_init(struct device_node *np,
 	samsung_clk_register_alias(ctx, exynos4_aliases,
 			ARRAY_SIZE(exynos4_aliases));
 
+	exynos4_core_down_clock(soc);
 	exynos4_clk_sleep_init();
 
 	samsung_clk_of_add_provider(np, ctx);
