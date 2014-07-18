@@ -175,7 +175,7 @@ config SH_TIMER_MTU2
 	default SYS_SUPPORTS_SH_MTU2
 	help
 	  This enables build of a clockevent driver for the Multi-Function
-	  Timer Pulse Unit 2 (TMU2) hardware available on SoCs from Renesas.
+	  Timer Pulse Unit 2 (MTU2) hardware available on SoCs from Renesas.
 	  This hardware comes with 16 bit-timer registers.
 
 config SH_TIMER_TMU
