@@ -288,11 +288,13 @@ static int ni_getboardtype(struct comedi_device *dev)
 
 	}
 	if (device_id == 255)
-		printk(" can't find board\n");
+		dev_err(dev->class_dev, "can't find board\n");
 	 else if (device_id == 0)
-		printk(" EEPROM read error (?) or device not found\n");
+		dev_err(dev->class_dev,
+			"EEPROM read error (?) or device not found\n");
 	 else
-		printk(" unknown device ID %d -- contact author\n", device_id);
+		dev_err(dev->class_dev,
+			"unknown device ID %d -- contact author\n", device_id);
 
 	return -1;
 }
