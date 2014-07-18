@@ -1362,8 +1362,6 @@ static int ath10k_pci_hif_exchange_bmi_msg(struct ath10k *ar,
 		ath10k_ce_recv_buf_enqueue(ce_rx, &xfer, resp_paddr);
 	}
 
-	init_completion(&xfer.done);
-
 	ret = ath10k_ce_send(ce_tx, &xfer, req_paddr, req_len, -1, 0);
 	if (ret)
 		goto err_resp;
@@ -1414,10 +1412,7 @@ static void ath10k_pci_bmi_send_done(struct ath10k_ce_pipe *ce_state)
 					  &nbytes, &transfer_id))
 		return;
 
-	if (xfer->wait_for_resp)
-		return;
-
-	complete(&xfer->done);
+	xfer->tx_done = true;
 }
 
 static void ath10k_pci_bmi_recv_data(struct ath10k_ce_pipe *ce_state)
@@ -1438,7 +1433,7 @@ static void ath10k_pci_bmi_recv_data(struct ath10k_ce_pipe *ce_state)
 	}
 
 	xfer->resp_len = nbytes;
-	complete(&xfer->done);
+	xfer->rx_done = true;
 }
 
 static int ath10k_pci_bmi_wait(struct ath10k_ce_pipe *tx_pipe,
@@ -1451,7 +1446,7 @@ static int ath10k_pci_bmi_wait(struct ath10k_ce_pipe *tx_pipe,
 		ath10k_pci_bmi_send_done(tx_pipe);
 		ath10k_pci_bmi_recv_data(rx_pipe);
 
-		if (completion_done(&xfer->done))
+		if (xfer->tx_done && (xfer->rx_done == xfer->wait_for_resp))
 			return 0;
 
 		schedule();
