@@ -204,6 +204,8 @@ struct acpi_video_device {
 	struct acpi_video_device_flags flags;
 	struct acpi_video_device_cap cap;
 	struct list_head entry;
+	struct delayed_work switch_brightness_work;
+	int switch_brightness_event;
 	struct acpi_video_bus *video;
 	struct acpi_device *dev;
 	struct acpi_video_device_brightness *brightness;
@@ -230,8 +232,7 @@ static int acpi_video_device_lcd_get_level_current(
 			unsigned long long *level, bool raw);
 static int acpi_video_get_next_level(struct acpi_video_device *device,
 				     u32 level_current, u32 event);
-static int acpi_video_switch_brightness(struct acpi_video_device *device,
-					 int event);
+static void acpi_video_switch_brightness(struct work_struct *work);
 
 static bool acpi_video_use_native_backlight(void)
 {
@@ -275,6 +276,7 @@ static int acpi_video_set_brightness(struct backlight_device *bd)
 	int request_level = bd->props.brightness + 2;
 	struct acpi_video_device *vd = bl_get_data(bd);
 
+	cancel_delayed_work(&vd->switch_brightness_work);
 	return acpi_video_device_lcd_set_level(vd,
 				vd->brightness->levels[request_level]);
 }
@@ -1188,6 +1190,8 @@ acpi_video_bus_get_one_device(struct acpi_device *device,
 	data->device_id = device_id;
 	data->video = video;
 	data->dev = device;
+	INIT_DELAYED_WORK(&data->switch_brightness_work,
+			  acpi_video_switch_brightness);
 
 	attribute = acpi_video_get_device_attr(video, device_id);
 
@@ -1410,15 +1414,18 @@ acpi_video_get_next_level(struct acpi_video_device *device,
 	}
 }
 
-static int
-acpi_video_switch_brightness(struct acpi_video_device *device, int event)
+static void
+acpi_video_switch_brightness(struct work_struct *work)
 {
+	struct acpi_video_device *device = container_of(to_delayed_work(work),
+			     struct acpi_video_device, switch_brightness_work);
 	unsigned long long level_current, level_next;
+	int event = device->switch_brightness_event;
 	int result = -EINVAL;
 
 	/* no warning message if acpi_backlight=vendor or a quirk is used */
 	if (!acpi_video_verify_backlight_support())
-		return 0;
+		return;
 
 	if (!device->brightness)
 		goto out;
@@ -1440,8 +1447,6 @@ acpi_video_switch_brightness(struct acpi_video_device *device, int event)
 out:
 	if (result)
 		printk(KERN_ERR PREFIX "Failed to switch the brightness\n");
-
-	return result;
 }
 
 int acpi_video_get_edid(struct acpi_device *device, int type, int device_id,
@@ -1609,6 +1614,16 @@ static void acpi_video_bus_notify(struct acpi_device *device, u32 event)
 	return;
 }
 
+static void brightness_switch_event(struct acpi_video_device *video_device,
+				    u32 event)
+{
+	if (!brightness_switch_enabled)
+		return;
+
+	video_device->switch_brightness_event = event;
+	schedule_delayed_work(&video_device->switch_brightness_work, HZ / 10);
+}
+
 static void acpi_video_device_notify(acpi_handle handle, u32 event, void *data)
 {
 	struct acpi_video_device *video_device = data;
@@ -1626,28 +1641,23 @@ static void acpi_video_device_notify(acpi_handle handle, u32 event, void *data)
 
 	switch (event) {
 	case ACPI_VIDEO_NOTIFY_CYCLE_BRIGHTNESS:	/* Cycle brightness */
-		if (brightness_switch_enabled)
-			acpi_video_switch_brightness(video_device, event);
+		brightness_switch_event(video_device, event);
 		keycode = KEY_BRIGHTNESS_CYCLE;
 		break;
 	case ACPI_VIDEO_NOTIFY_INC_BRIGHTNESS:	/* Increase brightness */
-		if (brightness_switch_enabled)
-			acpi_video_switch_brightness(video_device, event);
+		brightness_switch_event(video_device, event);
 		keycode = KEY_BRIGHTNESSUP;
 		break;
 	case ACPI_VIDEO_NOTIFY_DEC_BRIGHTNESS:	/* Decrease brightness */
-		if (brightness_switch_enabled)
-			acpi_video_switch_brightness(video_device, event);
+		brightness_switch_event(video_device, event);
 		keycode = KEY_BRIGHTNESSDOWN;
 		break;
 	case ACPI_VIDEO_NOTIFY_ZERO_BRIGHTNESS:	/* zero brightness */
-		if (brightness_switch_enabled)
-			acpi_video_switch_brightness(video_device, event);
+		brightness_switch_event(video_device, event);
 		keycode = KEY_BRIGHTNESS_ZERO;
 		break;
 	case ACPI_VIDEO_NOTIFY_DISPLAY_OFF:	/* display device off */
-		if (brightness_switch_enabled)
-			acpi_video_switch_brightness(video_device, event);
+		brightness_switch_event(video_device, event);
 		keycode = KEY_DISPLAY_OFF;
 		break;
 	default:
