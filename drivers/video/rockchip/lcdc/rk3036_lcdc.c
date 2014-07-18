@@ -172,6 +172,40 @@ static void rk_lcdc_read_reg_defalut_cfg(struct lcdc_device
 
 static int rk3036_lcdc_alpha_cfg(struct lcdc_device *lcdc_dev)
 {
+	int win0_top = 0;
+	u32 mask, val;
+	enum data_format win0_format = lcdc_dev->driver.win[0]->format;
+	enum data_format win1_format = lcdc_dev->driver.win[1]->format;
+
+	int win0_alpha_en = ((win0_format == ARGB888)
+			     || (win0_format == ABGR888)) ? 1 : 0;
+	int win1_alpha_en = ((win1_format == ARGB888)
+			     || (win1_format == ABGR888)) ? 1 : 0;
+	u32 *_pv = (u32 *) lcdc_dev->regsbak;
+	_pv += (DSP_CTRL0 >> 2);
+	win0_top = ((*_pv) & (m_WIN0_TOP)) >> 8;
+	if (win0_top && (lcdc_dev->atv_layer_cnt >= 2) && (win0_alpha_en)) {
+		mask =  m_WIN0_ALPHA_EN | m_WIN1_ALPHA_EN | m_WIN1_PREMUL_SCALE;
+		val = v_WIN0_ALPHA_EN(1) | v_WIN1_ALPHA_EN(0) | v_WIN1_PREMUL_SCALE(0);
+		lcdc_msk_reg(lcdc_dev, ALPHA_CTRL, mask, val);
+		
+		mask = m_WIN0_ALPHA_MODE | m_PREMUL_ALPHA_ENABLE | m_ALPHA_MODE_SEL1;
+		val = v_WIN0_ALPHA_MODE(1) | v_PREMUL_ALPHA_ENABLE(1) | v_ALPHA_MODE_SEL1(0);
+		lcdc_msk_reg(lcdc_dev, DSP_CTRL0, mask, val);
+	} else if ((!win0_top) && (lcdc_dev->atv_layer_cnt >= 2)
+		   && (win1_alpha_en)) {
+		mask =  m_WIN0_ALPHA_EN | m_WIN1_ALPHA_EN | m_WIN1_PREMUL_SCALE;
+		val = v_WIN0_ALPHA_EN(0) | v_WIN1_ALPHA_EN(1) | v_WIN1_PREMUL_SCALE(0);
+		lcdc_msk_reg(lcdc_dev, ALPHA_CTRL, mask, val);
+
+		mask = m_WIN1_ALPHA_MODE | m_PREMUL_ALPHA_ENABLE | m_ALPHA_MODE_SEL1;
+		val = v_WIN1_ALPHA_MODE(1) | v_PREMUL_ALPHA_ENABLE(1) | v_ALPHA_MODE_SEL1(0);
+		lcdc_msk_reg(lcdc_dev, DSP_CTRL0, mask, val);
+	} else {
+		mask = m_WIN0_ALPHA_EN | m_WIN1_ALPHA_EN;
+		val = v_WIN0_ALPHA_EN(0) | v_WIN1_ALPHA_EN(0);
+		lcdc_msk_reg(lcdc_dev, ALPHA_CTRL, mask, val);
+	}
 	return 0;
 }
 
@@ -236,6 +270,7 @@ static void lcdc_layer_update_regs(struct lcdc_device *lcdc_dev, struct rk_lcdc_
 		else if(win->id == 2)
 			lcdc_msk_reg(lcdc_dev, SYS_CTRL, m_HWC_EN, v_HWC_EN(0)); 
 	}
+	rk3036_lcdc_alpha_cfg(lcdc_dev);
 }
 
 static void lcdc_layer_enable(struct lcdc_device *lcdc_dev, unsigned int win_id, bool open)
@@ -771,7 +806,7 @@ static int rk3036_lcdc_get_win_id(struct rk_lcdc_driver *dev_drv,
 
 static int rk3036_lcdc_get_win_state(struct rk_lcdc_driver *dev_drv, int win_id)
 {
-	return 0;
+	return dev_drv->win[win_id]->state;
 }
 
 static int rk3036_lcdc_ovl_mgr(struct rk_lcdc_driver *dev_drv, int swap,

@@ -113,6 +113,11 @@ static ssize_t set_fb_state(struct device *dev, struct device_attribute *attr,
 		return ret;
 	}
 	dev_drv->ops->open(dev_drv, win_id, state);
+	if(state) {
+		dev_drv->ops->set_par(dev_drv, win_id);
+		dev_drv->ops->pan_display(dev_drv, win_id);
+		dev_drv->ops->cfg_done(dev_drv);
+	}
 	return count;
 }
 
