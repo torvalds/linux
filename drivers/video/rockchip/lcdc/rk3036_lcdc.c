@@ -191,9 +191,8 @@ static void lcdc_layer_update_regs(struct lcdc_device *lcdc_dev, struct rk_lcdc_
 			lcdc_writel(lcdc_dev, WIN0_SCL_FACTOR_CBR,
 			    v_X_SCL_FACTOR(win->scale_cbcr_x) |
 			    v_Y_SCL_FACTOR(win->scale_cbcr_y));
-			    
 			lcdc_msk_reg(lcdc_dev, WIN0_VIR, m_YRGB_VIR | m_CBBR_VIR,
-			     v_YRGB_VIR(win->area[0].y_vir_stride) | v_YRGB_VIR(win->area[0].uv_vir_stride));
+			     v_YRGB_VIR(win->area[0].y_vir_stride) | v_CBBR_VIR(win->area[0].uv_vir_stride));
 			lcdc_writel(lcdc_dev, WIN0_ACT_INFO, v_ACT_WIDTH(win->area[0].xact) |
 				v_ACT_HEIGHT(win->area[0].yact));
 			lcdc_writel(lcdc_dev, WIN0_DSP_ST, v_DSP_STX(win->area[0].dsp_stx) |
@@ -406,6 +405,9 @@ static int rk3036_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 			if(screen->pixelrepeat) {
 				mask |= m_CORE_CLK_DIV_EN;
 				val |= v_CORE_CLK_DIV_EN(1);
+			} else {
+				mask |= m_CORE_CLK_DIV_EN;
+				val |= v_CORE_CLK_DIV_EN(0);
 			}
 			lcdc_msk_reg(lcdc_dev, AXI_BUS_CTRL, mask, val);
 			break;
@@ -415,6 +417,9 @@ static int rk3036_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 			if(screen->pixelrepeat) {
 				mask |= m_CORE_CLK_DIV_EN;
 				val |= v_CORE_CLK_DIV_EN(1);
+			} else {
+				mask |= m_CORE_CLK_DIV_EN;
+				val |= v_CORE_CLK_DIV_EN(0);
 			}
 			lcdc_msk_reg(lcdc_dev, AXI_BUS_CTRL, mask, val);
 			if(x_res == 720 && y_res == 576)
