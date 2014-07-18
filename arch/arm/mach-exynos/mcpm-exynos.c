@@ -55,7 +55,7 @@
 	"dsb\n\t" \
 	"ldmfd	sp!, {fp, ip}" \
 	: \
-	: "Ir" (S5P_INFORM0) \
+	: "Ir" (pmu_base_addr + S5P_INFORM0) \
 	: "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", \
 	  "r9", "r10", "lr", "memory")
 
@@ -337,7 +337,7 @@ static int __init exynos_mcpm_init(void)
 	 * To increase the stability of KFC reset we need to program
 	 * the PMU SPARE3 register
 	 */
-	__raw_writel(EXYNOS5420_SWRESET_KFC_SEL, S5P_PMU_SPARE3);
+	pmu_raw_writel(EXYNOS5420_SWRESET_KFC_SEL, S5P_PMU_SPARE3);
 
 	exynos_mcpm_usage_count_init();
 
@@ -366,11 +366,11 @@ static int __init exynos_mcpm_init(void)
 	 * turned on before the first man is powered up.
 	 */
 	for (i = 0; i < EXYNOS5420_NR_CLUSTERS; i++) {
-		value = __raw_readl(EXYNOS_COMMON_OPTION(i));
+		value = pmu_raw_readl(EXYNOS_COMMON_OPTION(i));
 		value |= EXYNOS5420_ENABLE_AUTOMATIC_CORE_DOWN |
 			 EXYNOS5420_USE_ARM_CORE_DOWN_STATE    |
 			 EXYNOS5420_USE_L2_COMMON_UP_STATE;
-		__raw_writel(value, EXYNOS_COMMON_OPTION(i));
+		pmu_raw_writel(value, EXYNOS_COMMON_OPTION(i));
 	}
 
 	/*

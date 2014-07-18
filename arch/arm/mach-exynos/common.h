@@ -134,7 +134,7 @@ extern void exynos_cpu_die(unsigned int cpu);
 
 /* PMU(Power Management Unit) support */
 
-#define PMU_TABLE_END	NULL
+#define PMU_TABLE_END	(-1U)
 
 enum sys_powerdown {
 	SYS_AFTR,
@@ -144,7 +144,7 @@ enum sys_powerdown {
 };
 
 struct exynos_pmu_conf {
-	void __iomem *reg;
+	unsigned int offset;
 	unsigned int val[NUM_SYS_POWERDOWN];
 };
 
@@ -159,5 +159,15 @@ extern void exynos_enter_aftr(void);
 
 extern void s5p_init_cpu(void __iomem *cpuid_addr);
 extern unsigned int samsung_rev(void);
+
+static inline void pmu_raw_writel(u32 val, u32 offset)
+{
+	__raw_writel(val, pmu_base_addr + offset);
+}
+
+static inline u32 pmu_raw_readl(u32 offset)
+{
+	return __raw_readl(pmu_base_addr + offset);
+}
 
 #endif /* __ARCH_ARM_MACH_EXYNOS_COMMON_H */
