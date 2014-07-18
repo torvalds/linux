@@ -2781,8 +2781,8 @@ static void nvme_remove_disks(struct work_struct *ws)
 {
 	struct nvme_dev *dev = container_of(ws, struct nvme_dev, reset_work);
 
-	nvme_dev_remove(dev);
 	nvme_free_queues(dev, 1);
+	nvme_dev_remove(dev);
 }
 
 static int nvme_dev_resume(struct nvme_dev *dev)
@@ -2931,9 +2931,9 @@ static void nvme_remove(struct pci_dev *pdev)
 	flush_work(&dev->reset_work);
 	flush_work(&dev->cpu_work);
 	misc_deregister(&dev->miscdev);
-	nvme_dev_remove(dev);
 	nvme_dev_shutdown(dev);
 	nvme_free_queues(dev, 0);
+	nvme_dev_remove(dev);
 	nvme_release_instance(dev);
 	nvme_release_prp_pools(dev);
 	kref_put(&dev->kref, nvme_free_dev);
