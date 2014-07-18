@@ -47,8 +47,6 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
   +----------+-----------+------------------------------------------------+
 */
 
-/* #define PRINT_INFO */
-
 /* Card Specific information */
 /* #define APCI3200_ADDRESS_RANGE	264 */
 
@@ -455,12 +453,6 @@ static void v_GetAPCI3200EepromCalibrationValue(unsigned int dw_PCIBoardEepromAd
 			BoardInformations->s_Module[w_ModulCounter].
 				w_GainValue[w_GainIndex] = w_GainValue;
 
-#             ifdef PRINT_INFO
-			printk("\n Gain value = %d",
-				BoardInformations->s_Module[w_ModulCounter].
-				w_GainValue[w_GainIndex]);
-#             endif
-
 	  /*************************************/
 	  /** Read gain factor for the module **/
 	  /*************************************/
@@ -472,12 +464,6 @@ static void v_GetAPCI3200EepromCalibrationValue(unsigned int dw_PCIBoardEepromAd
 				ul_GainFactor[w_GainIndex] =
 				(w_GainFactorValue[1] << 16) +
 				w_GainFactorValue[0];
-
-#             ifdef PRINT_INFO
-			printk("\n w_GainFactorValue [%d] = %lu", w_GainIndex,
-				BoardInformations->s_Module[w_ModulCounter].
-				ul_GainFactor[w_GainIndex]);
-#             endif
 		}
 
       /***************************************************************/
@@ -499,12 +485,6 @@ static void v_GetAPCI3200EepromCalibrationValue(unsigned int dw_PCIBoardEepromAd
 				ul_CurrentSource[w_Input] =
 				(w_CurrentSources[0] +
 				((w_CurrentSources[1] & 0xFFF) << 16));
-
-#             ifdef PRINT_INFO
-			printk("\n Current sources [%d] = %lu", w_Input,
-				BoardInformations->s_Module[w_ModulCounter].
-				ul_CurrentSource[w_Input]);
-#             endif
 		}
 
       /***************************************/
@@ -522,12 +502,6 @@ static void v_GetAPCI3200EepromCalibrationValue(unsigned int dw_PCIBoardEepromAd
 			ul_CurrentSourceCJC =
 			(w_CurrentSources[0] +
 			((w_CurrentSources[1] & 0xFFF) << 16));
-
-#          ifdef PRINT_INFO
-		printk("\n Current sources CJC = %lu",
-			BoardInformations->s_Module[w_ModulCounter].
-			ul_CurrentSourceCJC);
-#          endif
 	}
 }
 
@@ -539,10 +513,6 @@ static int i_APCI3200_GetChannelCalibrationValue(struct comedi_device *dev,
 {
 	int i_DiffChannel = 0;
 	int i_Module = 0;
-
-#ifdef PRINT_INFO
-	printk("\n Channel = %u", ui_Channel_num);
-#endif
 
 	/* Test if single or differential mode */
 	if (s_BoardInfos[dev->minor].i_ConnectionType == 1) {
@@ -580,16 +550,10 @@ static int i_APCI3200_GetChannelCalibrationValue(struct comedi_device *dev,
 	/* Test if thermocouple or RTD mode */
 	*CJCCurrentSource =
 		s_BoardInfos[dev->minor].s_Module[i_Module].ul_CurrentSourceCJC;
-#ifdef PRINT_INFO
-	printk("\n CJCCurrentSource = %lu", *CJCCurrentSource);
-#endif
 
 	*ChannelCurrentSource =
 		s_BoardInfos[dev->minor].s_Module[i_Module].
 		ul_CurrentSource[i_DiffChannel];
-#ifdef PRINT_INFO
-	printk("\n ChannelCurrentSource = %lu", *ChannelCurrentSource);
-#endif
 	/*       } */
 	/*    } */
 
@@ -597,9 +561,6 @@ static int i_APCI3200_GetChannelCalibrationValue(struct comedi_device *dev,
 	*ChannelGainFactor =
 		s_BoardInfos[dev->minor].s_Module[i_Module].
 		ul_GainFactor[s_BoardInfos[dev->minor].i_ADDIDATAGain];
-#ifdef PRINT_INFO
-	printk("\n ChannelGainFactor = %lu", *ChannelGainFactor);
-#endif
 	/* End JK 21.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values */
 
 	return 0;
@@ -1279,10 +1240,6 @@ static int apci3200_ai_read(struct comedi_device *dev,
 		return -EINVAL;
 	}			/* if(i_Initialised==0); */
 
-#ifdef PRINT_INFO
-	printk("\n insn->unused[0] = %i", insn->unused[0]);
-#endif
-
 	switch (insn->unused[0]) {
 	case 0:
 
@@ -1307,15 +1264,6 @@ static int apci3200_ai_read(struct comedi_device *dev,
 			&s_BoardInfos[dev->minor].
 			ui_InterruptChannelValue[s_BoardInfos[dev->minor].
 				i_Count + 8]);
-
-#ifdef PRINT_INFO
-		printk("\n s_BoardInfos [dev->minor].ui_InterruptChannelValue[s_BoardInfos [dev->minor].i_Count+6] = %lu", s_BoardInfos[dev->minor].ui_InterruptChannelValue[s_BoardInfos[dev->minor].i_Count + 6]);
-
-		printk("\n s_BoardInfos [dev->minor].ui_InterruptChannelValue[s_BoardInfos [dev->minor].i_Count+7] = %lu", s_BoardInfos[dev->minor].ui_InterruptChannelValue[s_BoardInfos[dev->minor].i_Count + 7]);
-
-		printk("\n s_BoardInfos [dev->minor].ui_InterruptChannelValue[s_BoardInfos [dev->minor].i_Count+8] = %lu", s_BoardInfos[dev->minor].ui_InterruptChannelValue[s_BoardInfos[dev->minor].i_Count + 8]);
-#endif
-
 		/* End JK 25.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values */
 
 		/* BEGIN JK 06.07.04: Management of sevrals boards */
@@ -1471,9 +1419,6 @@ static int apci3200_ai_read(struct comedi_device *dev,
 			   data[4]= ui_InterruptChannelValue[4];
 			   data[5]= ui_InterruptChannelValue[5];
 			 */
-#ifdef PRINT_INFO
-			printk("\n data[0]= s_BoardInfos [dev->minor].ui_InterruptChannelValue[0];");
-#endif
 			data[0] =
 				s_BoardInfos[dev->minor].
 				ui_InterruptChannelValue[0];
@@ -1576,13 +1521,6 @@ static int apci3200_ai_config(struct comedi_device *dev,
 	unsigned int ui_Dummy = 0;
 	int i_err = 0;
 
-	/* Begin JK 21.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values */
-
-#ifdef PRINT_INFO
-	int i = 0, i2 = 0;
-#endif
-	/* End JK 21.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values */
-
 	/* BEGIN JK 06.07.04: Management of sevrals boards */
 	/*  Initialize the structure */
 	if (s_BoardInfos[dev->minor].b_StructInitialized != 1) {
@@ -1608,29 +1546,6 @@ static int apci3200_ai_config(struct comedi_device *dev,
 
 		v_GetAPCI3200EepromCalibrationValue(devpriv->i_IobaseAmcc,
 			&s_BoardInfos[dev->minor]);
-
-#ifdef PRINT_INFO
-		for (i = 0; i < MAX_MODULE; i++) {
-			printk("\n s_Module[%i].ul_CurrentSourceCJC = %lu", i,
-				s_BoardInfos[dev->minor].s_Module[i].
-				ul_CurrentSourceCJC);
-
-			for (i2 = 0; i2 < 5; i2++) {
-				printk("\n s_Module[%i].ul_CurrentSource [%i] = %lu", i, i2, s_BoardInfos[dev->minor].s_Module[i].ul_CurrentSource[i2]);
-			}
-
-			for (i2 = 0; i2 < 8; i2++) {
-				printk("\n s_Module[%i].ul_GainFactor [%i] = %lu", i, i2, s_BoardInfos[dev->minor].s_Module[i].ul_GainFactor[i2]);
-			}
-
-			for (i2 = 0; i2 < 8; i2++) {
-				printk("\n s_Module[%i].w_GainValue [%i] = %u",
-					i, i2,
-					s_BoardInfos[dev->minor].s_Module[i].
-					w_GainValue[i2]);
-			}
-		}
-#endif
 		/* End JK 21.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values */
 	}
 
