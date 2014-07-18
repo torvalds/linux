@@ -1439,7 +1439,6 @@ static int apci3200_ai_read(struct comedi_device *dev,
 				ui_InterruptChannelValue[5];
 
 			/* Begin JK 22.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values */
-			/* printk("\n 0 - i_APCI3200_GetChannelCalibrationValue data [6] = %lu, data [7] = %lu, data [8] = %lu", data [6], data [7], data [8]); */
 			i_APCI3200_GetChannelCalibrationValue(dev,
 				s_BoardInfos[dev->minor].ui_Channel_num,
 				&data[6], &data[7], &data[8]);
@@ -2050,7 +2049,6 @@ static int apci3200_ai_bits_test(struct comedi_device *dev,
 	}
 	/* i_InterruptFlag=i_Temp ; */
 	s_BoardInfos[dev->minor].i_InterruptFlag = i_Temp;
-	/* printk("\ni_InterruptFlag=%d\n",i_InterruptFlag); */
 	return insn->n;
 }
 
@@ -2322,8 +2320,6 @@ static int apci3200_ai_cmd(struct comedi_device *dev,
 		ui_DelayTimeBase = cmd->scan_begin_arg >> 16;
 		ui_DelayMode = 1;
 	}			/* else if(cmd->scan_begin_src==TRIG_FOLLOW) */
-	/*         printk("\nui_DelayTime=%u\n",ui_DelayTime); */
-	/*         printk("\nui_DelayTimeBase=%u\n",ui_DelayTimeBase); */
 	if (cmd->convert_src == TRIG_TIMER) {
 		ui_ConvertTime = cmd->convert_arg & 0xFFFF;
 		ui_ConvertTimeBase = cmd->convert_arg >> 16;
@@ -2351,13 +2347,6 @@ static int apci3200_ai_cmd(struct comedi_device *dev,
 		devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 12);
 	/*  } */
 	ui_Configuration = 0;
-	/*      printk("\nfirstchannel=%u\n",i_FirstChannel); */
-	/*      printk("\nlastchannel=%u\n",i_LastChannel); */
-	/*      printk("\nui_Trigger=%u\n",ui_Trigger); */
-	/*      printk("\nui_TriggerEdge=%u\n",ui_TriggerEdge); */
-	/*      printk("\nui_Triggermode=%u\n",ui_Triggermode); */
-	/*       printk("\nui_DelayMode=%u\n",ui_DelayMode); */
-	/*      printk("\nui_ScanMode=%u\n",ui_ScanMode); */
 
 	/* ui_Configuration = i_FirstChannel |(i_LastChannel << 8)| 0x00100000 | */
 	ui_Configuration =
@@ -2609,8 +2598,6 @@ static void apci3200_interrupt(int irq, void *d)
 	int i_ReturnValue = 0;
 	/* END JK TEST */
 
-	/* printk ("\n i_ScanType = %i i_ADDIDATAType = %i", s_BoardInfos [dev->minor].i_ScanType, s_BoardInfos [dev->minor].i_ADDIDATAType); */
-
 	/* switch(i_ScanType) */
 	switch (s_BoardInfos[dev->minor].i_ScanType) {
 	case 0:
@@ -2661,7 +2648,6 @@ static void apci3200_interrupt(int irq, void *d)
 
 					/* Begin JK 22.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values */
 					/*
-					   printk("\n 1 - i_APCI3200_GetChannelCalibrationValue (dev, s_BoardInfos %i", ui_ChannelNumber);
 					   i_APCI3200_GetChannelCalibrationValue (dev, s_BoardInfos [dev->minor].ui_Channel_num,
 					   &s_BoardInfos [dev->minor].ui_InterruptChannelValue[s_BoardInfos [dev->minor].i_Count + 6],
 					   &s_BoardInfos [dev->minor].ui_InterruptChannelValue[s_BoardInfos [dev->minor].i_Count + 7],
