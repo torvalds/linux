@@ -393,6 +393,8 @@ struct ohci_hcd {
 	unsigned long		next_statechange;	/* suspend/resume */
 	u32			fminterval;		/* saved register */
 	unsigned		autostop:1;	/* rh auto stopping/stopped */
+	unsigned		working:1;
+	unsigned		restart_work:1;
 
 	unsigned long		flags;		/* for HC bugs */
 #define	OHCI_QUIRK_AMD756	0x01			/* erratum #4 */

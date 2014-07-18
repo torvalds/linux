@@ -964,9 +964,9 @@ static void update_done_list(struct ohci_hcd *ohci)
 /*-------------------------------------------------------------------------*/
 
 /* there are some urbs/eds to unlink; called in_irq(), with HCD locked */
-static void
-finish_unlinks (struct ohci_hcd *ohci, u16 tick)
+static void finish_unlinks(struct ohci_hcd *ohci)
 {
+	unsigned	tick = ohci_frame_no(ohci);
 	struct ed	*ed, **last;
 
 rescan_all:
@@ -1201,4 +1201,28 @@ static void process_done_list(struct ohci_hcd *ohci)
 
 		takeback_td(ohci, td);
 	}
+}
+
+/*
+ * TD takeback and URB giveback must be single-threaded.
+ * This routine takes care of it all.
+ */
+static void ohci_work(struct ohci_hcd *ohci)
+{
+	if (ohci->working) {
+		ohci->restart_work = 1;
+		return;
+	}
+	ohci->working = 1;
+
+ restart:
+	process_done_list(ohci);
+	if (ohci->ed_rm_list)
+		finish_unlinks(ohci);
+
+	if (ohci->restart_work) {
+		ohci->restart_work = 0;
+		goto restart;
+	}
+	ohci->working = 0;
 }

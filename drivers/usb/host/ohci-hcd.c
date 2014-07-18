@@ -316,7 +316,7 @@ static int ohci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 
 		if (ohci->rh_state != OHCI_RH_RUNNING) {
 			/* With HC dead, we can clean up right away */
-			finish_unlinks(ohci, 0);
+			ohci_work(ohci);
 		}
 	}
 	spin_unlock_irqrestore (&ohci->lock, flags);
@@ -349,7 +349,7 @@ rescan:
 	if (ohci->rh_state != OHCI_RH_RUNNING) {
 sanitize:
 		ed->state = ED_IDLE;
-		finish_unlinks (ohci, 0);
+		ohci_work(ohci);
 	}
 
 	switch (ed->state) {
@@ -789,9 +789,7 @@ static irqreturn_t ohci_irq (struct usb_hcd *hcd)
 	/* handle any pending URB/ED unlinks, leaving INTR_SF enabled
 	 * when there's still unlinking to be done (next frame).
 	 */
-	process_done_list(ohci);
-	if (ohci->ed_rm_list)
-		finish_unlinks (ohci, ohci_frame_no(ohci));
+	ohci_work(ohci);
 	if ((ints & OHCI_INTR_SF) != 0 && !ohci->ed_rm_list
 			&& ohci->rh_state == OHCI_RH_RUNNING)
 		ohci_writel (ohci, OHCI_INTR_SF, &regs->intrdisable);
@@ -879,7 +877,7 @@ int ohci_restart(struct ohci_hcd *ohci)
 		if (!urb->unlinked)
 			urb->unlinked = -ESHUTDOWN;
 	}
-	finish_unlinks (ohci, 0);
+	ohci_work(ohci);
 	spin_unlock_irq(&ohci->lock);
 
 	/* paranoia, in case that didn't work: */

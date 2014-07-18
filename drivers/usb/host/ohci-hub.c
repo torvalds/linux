@@ -40,8 +40,7 @@
 	(OHCI_CTRL_CLE|OHCI_CTRL_BLE|OHCI_CTRL_PLE|OHCI_CTRL_IE)
 
 static void update_done_list(struct ohci_hcd *);
-static void process_done_list(struct ohci_hcd *);
-static void finish_unlinks (struct ohci_hcd *, u16);
+static void ohci_work(struct ohci_hcd *);
 
 #ifdef	CONFIG_PM
 static int ohci_rh_suspend (struct ohci_hcd *ohci, int autostop)
@@ -89,8 +88,7 @@ __acquires(ohci->lock)
 		spin_lock_irq (&ohci->lock);
 	}
 	update_done_list(ohci);
-	process_done_list(ohci);
-	finish_unlinks (ohci, ohci_frame_no(ohci));
+	ohci_work(ohci);
 
 	/*
 	 * Some controllers don't handle "global" suspend properly if
