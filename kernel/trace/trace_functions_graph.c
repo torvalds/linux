@@ -475,6 +475,12 @@ static void graph_trace_reset(struct trace_array *tr)
 	unregister_ftrace_graph();
 }
 
+int graph_trace_update_thresh(struct trace_array *tr)
+{
+	graph_trace_reset(tr);
+	return graph_trace_init(tr);
+}
+
 static int max_bytes_for_cpu;
 
 static enum print_line_t
@@ -1525,6 +1531,7 @@ static struct trace_event graph_trace_ret_event = {
 
 static struct tracer graph_trace __tracer_data = {
 	.name		= "function_graph",
+	.update_thresh	= graph_trace_update_thresh,
 	.open		= graph_trace_open,
 	.pipe_open	= graph_trace_open,
 	.close		= graph_trace_close,
