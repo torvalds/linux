@@ -4902,10 +4902,9 @@ static int ni_mseries_get_pll_parameters(unsigned reference_period_ns,
 			}
 		}
 	}
-	if (best_period_picosec == 0) {
-		printk("%s: bug, failed to find pll parameters\n", __func__);
+	if (best_period_picosec == 0)
 		return -EIO;
-	}
+
 	*freq_divider = best_div;
 	*freq_multiplier = best_mult;
 	*actual_period_ns =
@@ -4948,21 +4947,11 @@ static int ni_mseries_set_pll_master_clock(struct comedi_device *dev,
 	case NI_MIO_PLL_PXI_STAR_TRIGGER_CLOCK:
 		devpriv->clock_and_fout2 |=
 		    MSeries_PLL_In_Source_Select_Star_Trigger_Bits;
-		retval = ni_mseries_get_pll_parameters(period_ns, &freq_divider,
-						       &freq_multiplier,
-						       &devpriv->clock_ns);
-		if (retval < 0)
-			return retval;
 		break;
 	case NI_MIO_PLL_PXI10_CLOCK:
 		/* pxi clock is 10MHz */
 		devpriv->clock_and_fout2 |=
 		    MSeries_PLL_In_Source_Select_PXI_Clock10;
-		retval = ni_mseries_get_pll_parameters(period_ns, &freq_divider,
-						       &freq_multiplier,
-						       &devpriv->clock_ns);
-		if (retval < 0)
-			return retval;
 		break;
 	default:
 		{
@@ -4981,16 +4970,19 @@ static int ni_mseries_set_pll_master_clock(struct comedi_device *dev,
 			}
 			if (rtsi_channel > max_rtsi_channel)
 				return -EINVAL;
-			retval = ni_mseries_get_pll_parameters(period_ns,
-							       &freq_divider,
-							       &freq_multiplier,
-							       &devpriv->
-							       clock_ns);
-			if (retval < 0)
-				return retval;
 		}
 		break;
 	}
+	retval = ni_mseries_get_pll_parameters(period_ns,
+					       &freq_divider,
+					       &freq_multiplier,
+					       &devpriv->clock_ns);
+	if (retval < 0) {
+		dev_err(dev->class_dev,
+			"%s: bug, failed to find pll parameters\n", __func__);
+		return retval;
+	}
+
 	ni_writew(dev, devpriv->clock_and_fout2, M_Offset_Clock_and_Fout2);
 	pll_control_bits |=
 	    MSeries_PLL_Divisor_Bits(freq_divider) |
