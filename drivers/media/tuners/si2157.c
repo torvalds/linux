@@ -277,7 +277,7 @@ err:
 	return ret;
 }
 
-static const struct dvb_tuner_ops si2157_tuner_ops = {
+static const struct dvb_tuner_ops si2157_ops = {
 	.info = {
 		.name           = "Silicon Labs Si2157/Si2158",
 		.frequency_min  = 110000000,
@@ -317,7 +317,7 @@ static int si2157_probe(struct i2c_client *client,
 		goto err;
 
 	fe->tuner_priv = s;
-	memcpy(&fe->ops.tuner_ops, &si2157_tuner_ops,
+	memcpy(&fe->ops.tuner_ops, &si2157_ops,
 			sizeof(struct dvb_tuner_ops));
 
 	i2c_set_clientdata(client, s);
