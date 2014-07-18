@@ -734,8 +734,6 @@ int vnt_radio_power_off(struct vnt_private *priv)
 {
 	int ret = true;
 
-	priv->bRadioOff = true;
-
 	switch (priv->byRFType) {
 	case RF_AL2230:
 	case RF_AL2230S:
@@ -773,8 +771,6 @@ int vnt_radio_power_on(struct vnt_private *priv)
 
 	if (priv->bHWRadioOff == true)
 		return false;
-
-	priv->bRadioOff = false;
 
 	vnt_exit_deep_sleep(priv);
 

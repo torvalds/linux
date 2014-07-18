@@ -368,8 +368,6 @@ struct vnt_private {
 	int bShortSlotTime;
 	int bBarkerPreambleMd;
 
-	int bRadioOff;
-
 	/* Power save */
 	u16 current_aid;
 
