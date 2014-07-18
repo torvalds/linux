@@ -147,17 +147,25 @@ static int nfs_wait_bit_uninterruptible(void *word)
  * @req - request in group that is to be locked
  *
  * this lock must be held if modifying the page group list
+ *
+ * returns result from wait_on_bit_lock: 0 on success, < 0 on error
  */
-void
-nfs_page_group_lock(struct nfs_page *req)
+int
+nfs_page_group_lock(struct nfs_page *req, bool wait)
 {
 	struct nfs_page *head = req->wb_head;
+	int ret;
 
 	WARN_ON_ONCE(head != head->wb_head);
 
-	wait_on_bit_lock(&head->wb_flags, PG_HEADLOCK,
+	do {
+		ret = wait_on_bit_lock(&head->wb_flags, PG_HEADLOCK,
 			nfs_wait_bit_uninterruptible,
 			TASK_UNINTERRUPTIBLE);
+	} while (wait && ret != 0);
+
+	WARN_ON_ONCE(ret > 0);
+	return ret;
 }
 
 /*
@@ -218,7 +226,7 @@ bool nfs_page_group_sync_on_bit(struct nfs_page *req, unsigned int bit)
 {
 	bool ret;
 
-	nfs_page_group_lock(req);
+	nfs_page_group_lock(req, true);
 	ret = nfs_page_group_sync_on_bit_locked(req, bit);
 	nfs_page_group_unlock(req);
 
@@ -858,8 +866,13 @@ static int __nfs_pageio_add_request(struct nfs_pageio_descriptor *desc,
 	struct nfs_page *subreq;
 	unsigned int bytes_left = 0;
 	unsigned int offset, pgbase;
+	int ret;
 
-	nfs_page_group_lock(req);
+	ret = nfs_page_group_lock(req, false);
+	if (ret < 0) {
+		desc->pg_error = ret;
+		return 0;
+	}
 
 	subreq = req;
 	bytes_left = subreq->wb_bytes;
@@ -881,7 +894,11 @@ static int __nfs_pageio_add_request(struct nfs_pageio_descriptor *desc,
 			if (desc->pg_recoalesce)
 				return 0;
 			/* retry add_request for this subreq */
-			nfs_page_group_lock(req);
+			ret = nfs_page_group_lock(req, false);
+			if (ret < 0) {
+				desc->pg_error = ret;
+				return 0;
+			}
 			continue;
 		}
 
