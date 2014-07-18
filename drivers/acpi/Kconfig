@@ -45,6 +45,9 @@ if ACPI
 config ACPI_LEGACY_TABLES_LOOKUP
 	bool
 
+config ARCH_MIGHT_HAVE_ACPI_PDC
+	bool
+
 config ACPI_SLEEP
 	bool
 	depends on SUSPEND || HIBERNATION
