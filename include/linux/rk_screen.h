@@ -141,6 +141,7 @@ struct rk29fb_info {
 
 extern void set_lcd_info(struct rk_screen *screen, struct rk29lcd_info *lcd_info);
 extern size_t get_fb_size(void);
+extern size_t get_rotate_fb_size(void);
 
 extern void set_tv_info(struct rk_screen *screen);
 extern void set_hdmi_info(struct rk_screen *screen);

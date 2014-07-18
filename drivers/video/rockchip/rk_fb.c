@@ -1504,7 +1504,7 @@ static int rk_fb_update_hdmi_win(struct rk_lcdc_win *ext_win,
                 if (ext_win->id == 0) {
                         ext_win->area[0].smem_start =
 	                        rk_fb->fb[rk_fb->num_fb >> 1]->fix.smem_start;
-                        ext_win->area[0].y_offset = (get_fb_size() >> 1) * fb_index;
+                        ext_win->area[0].y_offset = (get_rotate_fb_size() >> 1) * fb_index;
                         if ((++fb_index) > 1)
                                 fb_index = 0;
                 } else {
@@ -3271,7 +3271,8 @@ static int rk_fb_alloc_buffer_by_ion(struct fb_info *fbi,
 		goto err_share_dma_buf;
 	}
 	win->area[0].ion_hdl = handle;
-	fbi->screen_base = ion_map_kernel(rk_fb->ion_client, handle);
+        if (dev_drv->prop == PRMRY)
+	        fbi->screen_base = ion_map_kernel(rk_fb->ion_client, handle);
 #ifdef CONFIG_ROCKCHIP_IOMMU
 	if (dev_drv->iommu_enabled)
 		ion_map_iommu(dev_drv->dev, rk_fb->ion_client, handle,
@@ -3335,7 +3336,7 @@ static int rk_fb_alloc_buffer(struct fb_info *fbi, int fb_id)
 		       fbi->fix.smem_len);
 	} else {
 		if (dev_drv->rotate_mode > X_Y_MIRROR) {
-			fb_mem_size = get_fb_size();
+			fb_mem_size = get_rotate_fb_size();
 #if defined(CONFIG_ION_ROCKCHIP)
 			if (rk_fb_alloc_buffer_by_ion(fbi, win, fb_mem_size) < 0)
 				return -ENOMEM;
