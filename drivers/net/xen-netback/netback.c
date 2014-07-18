@@ -1030,10 +1030,16 @@ static int xenvif_tx_check_gop(struct xenvif_queue *queue,
 {
 	struct gnttab_map_grant_ref *gop_map = *gopp_map;
 	u16 pending_idx = XENVIF_TX_CB(skb)->pending_idx;
+	/* This always points to the shinfo of the skb being checked, which
+	 * could be either the first or the one on the frag_list
+	 */
 	struct skb_shared_info *shinfo = skb_shinfo(skb);
+	/* If this is non-NULL, we are currently checking the frag_list skb, and
+	 * this points to the shinfo of the first one
+	 */
+	struct skb_shared_info *first_shinfo = NULL;
 	int nr_frags = shinfo->nr_frags;
 	int i, err;
-	struct sk_buff *first_skb = NULL;
 
 	/* Check status of header. */
 	err = (*gopp_copy)->status;
@@ -1086,29 +1092,26 @@ check_frags:
 			xenvif_idx_unmap(queue, pending_idx);
 		}
 
+		/* And if we found the error while checking the frag_list, unmap
+		 * the first skb's frags
+		 */
+		if (first_shinfo) {
+			for (j = 0; j < first_shinfo->nr_frags; j++) {
+				pending_idx = frag_get_pending_idx(&first_shinfo->frags[j]);
+				xenvif_idx_unmap(queue, pending_idx);
+			}
+		}
+
 		/* Remember the error: invalidate all subsequent fragments. */
 		err = newerr;
 	}
 
-	if (skb_has_frag_list(skb)) {
-		first_skb = skb;
-		skb = shinfo->frag_list;
-		shinfo = skb_shinfo(skb);
+	if (skb_has_frag_list(skb) && !first_shinfo) {
+		first_shinfo = skb_shinfo(skb);
+		shinfo = skb_shinfo(skb_shinfo(skb)->frag_list);
 		nr_frags = shinfo->nr_frags;
 
 		goto check_frags;
-	}
-
-	/* There was a mapping error in the frag_list skb. We have to unmap
-	 * the first skb's frags
-	 */
-	if (first_skb && err) {
-		int j;
-		shinfo = skb_shinfo(first_skb);
-		for (j = 0; j < shinfo->nr_frags; j++) {
-			pending_idx = frag_get_pending_idx(&shinfo->frags[j]);
-			xenvif_idx_unmap(queue, pending_idx);
-		}
 	}
 
 	*gopp_map = gop_map;
