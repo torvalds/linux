@@ -538,6 +538,8 @@ struct intel_dp {
 	unsigned long last_power_on;
 	unsigned long last_backlight_off;
 	bool psr_setup_done;
+	struct notifier_block edp_notifier;
+
 	bool use_tps3;
 	struct intel_connector *attached_connector;
 
@@ -950,8 +952,8 @@ int intel_power_domains_init(struct drm_i915_private *);
 void intel_power_domains_remove(struct drm_i915_private *);
 bool intel_display_power_enabled(struct drm_i915_private *dev_priv,
 				 enum intel_display_power_domain domain);
-bool intel_display_power_enabled_sw(struct drm_i915_private *dev_priv,
-				    enum intel_display_power_domain domain);
+bool intel_display_power_enabled_unlocked(struct drm_i915_private *dev_priv,
+					  enum intel_display_power_domain domain);
 void intel_display_power_get(struct drm_i915_private *dev_priv,
 			     enum intel_display_power_domain domain);
 void intel_display_power_put(struct drm_i915_private *dev_priv,

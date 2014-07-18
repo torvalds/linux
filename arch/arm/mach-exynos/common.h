@@ -111,25 +111,14 @@ IS_SAMSUNG_CPU(exynos5800, EXYNOS5800_SOC_ID, EXYNOS5_SOC_MASK)
 #define soc_is_exynos5() (soc_is_exynos5250() || soc_is_exynos5410() || \
 			  soc_is_exynos5420() || soc_is_exynos5800())
 
-void mct_init(void __iomem *base, int irq_g0, int irq_l0, int irq_l1);
-
-struct map_desc;
 extern void __iomem *sysram_ns_base_addr;
 extern void __iomem *sysram_base_addr;
-void exynos_init_io(void);
-void exynos_restart(enum reboot_mode mode, const char *cmd);
+extern void __iomem *pmu_base_addr;
 void exynos_sysram_init(void);
-void exynos_cpuidle_init(void);
-void exynos_cpufreq_init(void);
-void exynos_init_late(void);
 
 void exynos_firmware_init(void);
 
-#ifdef CONFIG_PINCTRL_EXYNOS
 extern u32 exynos_get_eint_wake_mask(void);
-#else
-static inline u32 exynos_get_eint_wake_mask(void) { return 0xffffffff; }
-#endif
 
 #ifdef CONFIG_PM_SLEEP
 extern void __init exynos_pm_init(void);

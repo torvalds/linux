@@ -28,6 +28,8 @@
 #include <assert.h>
 #include <asm/tm.h>
 
+#include "utils.h"
+
 #define TBEGIN          ".long 0x7C00051D ;"
 #define TEND            ".long 0x7C00055D ;"
 #define TCHECK          ".long 0x7C00059C ;"
@@ -36,7 +38,8 @@
 #define SPRN_TEXASR     0x82
 #define SPRN_DSCR       0x03
 
-int main(void) {
+int test_body(void)
+{
 	uint64_t rv, dscr1 = 1, dscr2, texasr;
 
 	printf("Check DSCR TM context switch: ");
@@ -81,10 +84,15 @@ int main(void) {
 		}
 		if (dscr2 != dscr1) {
 			printf(" FAIL\n");
-			exit(EXIT_FAILURE);
+			return 1;
 		} else {
 			printf(" OK\n");
-			exit(EXIT_SUCCESS);
+			return 0;
 		}
 	}
+}
+
+int main(void)
+{
+	return test_harness(test_body, "tm_resched_dscr");
 }

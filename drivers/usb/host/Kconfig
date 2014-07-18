@@ -176,7 +176,7 @@ config USB_EHCI_HCD_AT91
 
 config USB_EHCI_MSM
 	tristate "Support for Qualcomm QSD/MSM on-chip EHCI USB controller"
-	depends on ARCH_MSM
+	depends on ARCH_MSM || ARCH_QCOM
 	select USB_EHCI_ROOT_HUB_TT
 	---help---
 	  Enables support for the USB Host controller present on the

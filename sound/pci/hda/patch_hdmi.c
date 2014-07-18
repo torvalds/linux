@@ -2204,7 +2204,7 @@ static int generic_hdmi_resume(struct hda_codec *codec)
 	struct hdmi_spec *spec = codec->spec;
 	int pin_idx;
 
-	generic_hdmi_init(codec);
+	codec->patch_ops.init(codec);
 	snd_hda_codec_resume_amp(codec);
 	snd_hda_codec_resume_cache(codec);
 

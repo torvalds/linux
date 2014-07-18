@@ -1,5 +1,4 @@
-/* linux arch/arm/mach-exynos4/hotplug.c
- *
+/*
  *  Cloned from linux/arch/arm/mach-realview/hotplug.c
  *
  *  Copyright (C) 2002 ARM Ltd.
@@ -46,13 +45,7 @@ static inline void platform_do_lowpower(unsigned int cpu, int *spurious)
 		if (cpu == 1)
 			exynos_cpu_power_down(cpu);
 
-		/*
-		 * here's the WFI
-		 */
-		asm(".word	0xe320f003\n"
-		    :
-		    :
-		    : "memory", "cc");
+		wfi();
 
 		if (pen_release == cpu_logical_map(cpu)) {
 			/*

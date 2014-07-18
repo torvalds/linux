@@ -293,7 +293,6 @@ void output_sc_defines(void)
 	OFFSET(SC_LO2, sigcontext, sc_lo2);
 	OFFSET(SC_HI3, sigcontext, sc_hi3);
 	OFFSET(SC_LO3, sigcontext, sc_lo3);
-	OFFSET(SC_MSAREGS, sigcontext, sc_msaregs);
 	BLANK();
 }
 #endif
@@ -308,7 +307,6 @@ void output_sc_defines(void)
 	OFFSET(SC_MDLO, sigcontext, sc_mdlo);
 	OFFSET(SC_PC, sigcontext, sc_pc);
 	OFFSET(SC_FPC_CSR, sigcontext, sc_fpc_csr);
-	OFFSET(SC_MSAREGS, sigcontext, sc_msaregs);
 	BLANK();
 }
 #endif
@@ -320,7 +318,6 @@ void output_sc32_defines(void)
 	OFFSET(SC32_FPREGS, sigcontext32, sc_fpregs);
 	OFFSET(SC32_FPC_CSR, sigcontext32, sc_fpc_csr);
 	OFFSET(SC32_FPC_EIR, sigcontext32, sc_fpc_eir);
-	OFFSET(SC32_MSAREGS, sigcontext32, sc_msaregs);
 	BLANK();
 }
 #endif

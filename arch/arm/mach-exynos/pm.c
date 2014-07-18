@@ -35,6 +35,7 @@
 
 #include "common.h"
 #include "regs-pmu.h"
+#include "regs-sys.h"
 
 /**
  * struct exynos_wkup_irq - Exynos GIC to PMU IRQ mapping
@@ -300,7 +301,7 @@ static int exynos_pm_suspend(void)
 	tmp = (S5P_USE_STANDBY_WFI0 | S5P_USE_STANDBY_WFE0);
 	__raw_writel(tmp, S5P_CENTRAL_SEQ_OPTION);
 
-	if (!soc_is_exynos5250())
+	if (read_cpuid_part_number() == ARM_CPU_PART_CORTEX_A9)
 		exynos_cpu_save_register();
 
 	return 0;
@@ -334,7 +335,7 @@ static void exynos_pm_resume(void)
 	if (exynos_pm_central_resume())
 		goto early_wakeup;
 
-	if (!soc_is_exynos5250())
+	if (read_cpuid_part_number() == ARM_CPU_PART_CORTEX_A9)
 		exynos_cpu_restore_register();
 
 	/* For release retention */
@@ -353,7 +354,7 @@ static void exynos_pm_resume(void)
 
 	s3c_pm_do_restore_core(exynos_core_save, ARRAY_SIZE(exynos_core_save));
 
-	if (!soc_is_exynos5250())
+	if (read_cpuid_part_number() == ARM_CPU_PART_CORTEX_A9)
 		scu_enable(S5P_VA_SCU);
 
 early_wakeup:
@@ -440,15 +441,18 @@ static int exynos_cpu_pm_notifier(struct notifier_block *self,
 	case CPU_PM_ENTER:
 		if (cpu == 0) {
 			exynos_pm_central_suspend();
-			exynos_cpu_save_register();
+			if (read_cpuid_part_number() == ARM_CPU_PART_CORTEX_A9)
+				exynos_cpu_save_register();
 		}
 		break;
 
 	case CPU_PM_EXIT:
 		if (cpu == 0) {
-			if (!soc_is_exynos5250())
+			if (read_cpuid_part_number() ==
+					ARM_CPU_PART_CORTEX_A9) {
 				scu_enable(S5P_VA_SCU);
-			exynos_cpu_restore_register();
+				exynos_cpu_restore_register();
+			}
 			exynos_pm_central_resume();
 		}
 		break;
