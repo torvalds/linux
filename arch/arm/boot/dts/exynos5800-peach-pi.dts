@@ -23,6 +23,11 @@
 		"google,pi", "google,peach", "samsung,exynos5800",
 		"samsung,exynos5";
 
+	aliases {
+		/* Assign 20 so we don't get confused w/ builtin ones */
+		i2c20 = "/spi@12d40000/cros-ec@0/i2c-tunnel";
+	};
+
 	backlight {
 		compatible = "pwm-backlight";
 		pwms = <&pwm 0 1000000 0>;
@@ -85,6 +90,13 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&usb301_vbus_en>;
 		enable-active-high;
+	};
+
+	vbat: fixed-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "vbat-supply";
+		regulator-boot-on;
+		regulator-always-on;
 	};
 };
 
@@ -242,6 +254,20 @@
 		samsung,pin-drv = <0>;
 	};
 
+	ec_irq: ec-irq {
+		samsung,pins = "gpx1-5";
+		samsung,pin-function = <0>;
+		samsung,pin-pud = <0>;
+		samsung,pin-drv = <0>;
+	};
+
+	tps65090_irq: tps65090-irq {
+		samsung,pins = "gpx2-5";
+		samsung,pin-function = <0>;
+		samsung,pin-pud = <0>;
+		samsung,pin-drv = <0>;
+	};
+
 	dp_hpd_gpio: dp_hpd_gpio {
 		samsung,pins = "gpx2-6";
 		samsung,pin-function = <0>;
@@ -258,6 +284,19 @@
 };
 
 &pinctrl_3 {
+	/* Drive SPI lines at x2 for better integrity */
+	spi2-bus {
+		samsung,pin-drv = <2>;
+	};
+
+	/* Drive SPI chip select at x2 for better integrity */
+	ec_spi_cs: ec-spi-cs {
+		samsung,pins = "gpb1-2";
+		samsung,pin-function = <1>;
+		samsung,pin-pud = <0>;
+		samsung,pin-drv = <2>;
+	};
+
 	usb300_vbus_en: usb300-vbus-en {
 		samsung,pins = "gph0-0";
 		samsung,pin-function = <1>;
@@ -275,6 +314,111 @@
 
 &rtc {
 	status = "okay";
+};
+
+&spi_2 {
+	status = "okay";
+	num-cs = <1>;
+	samsung,spi-src-clk = <0>;
+	cs-gpios = <&gpb1 2 0>;
+
+	cros_ec: cros-ec@0 {
+		compatible = "google,cros-ec-spi";
+		interrupt-parent = <&gpx1>;
+		interrupts = <5 0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&ec_spi_cs &ec_irq>;
+		reg = <0>;
+		spi-max-frequency = <3125000>;
+
+		controller-data {
+			samsung,spi-feedback-delay = <1>;
+		};
+
+		i2c-tunnel {
+			compatible = "google,cros-ec-i2c-tunnel";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			google,remote-bus = <0>;
+
+			battery: sbs-battery@b {
+				compatible = "sbs,sbs-battery";
+				reg = <0xb>;
+				sbs,poll-retry-count = <1>;
+				sbs,i2c-retry-count = <2>;
+			};
+
+			power-regulator@48 {
+				compatible = "ti,tps65090";
+				reg = <0x48>;
+
+				/*
+				 * Config irq to disable internal pulls
+				 * even though we run in polling mode.
+				 */
+				pinctrl-names = "default";
+				pinctrl-0 = <&tps65090_irq>;
+
+				vsys1-supply = <&vbat>;
+				vsys2-supply = <&vbat>;
+				vsys3-supply = <&vbat>;
+				infet1-supply = <&vbat>;
+				infet2-supply = <&vbat>;
+				infet3-supply = <&vbat>;
+				infet4-supply = <&vbat>;
+				infet5-supply = <&vbat>;
+				infet6-supply = <&vbat>;
+				infet7-supply = <&vbat>;
+				vsys-l1-supply = <&vbat>;
+				vsys-l2-supply = <&vbat>;
+
+				regulators {
+					tps65090_dcdc1: dcdc1 {
+						ti,enable-ext-control;
+					};
+					tps65090_dcdc2: dcdc2 {
+						ti,enable-ext-control;
+					};
+					tps65090_dcdc3: dcdc3 {
+						ti,enable-ext-control;
+					};
+					tps65090_fet1: fet1 {
+						regulator-name = "vcd_led";
+					};
+					tps65090_fet2: fet2 {
+						regulator-name = "video_mid";
+						regulator-always-on;
+					};
+					tps65090_fet3: fet3 {
+						regulator-name = "wwan_r";
+						regulator-always-on;
+					};
+					tps65090_fet4: fet4 {
+						regulator-name = "sdcard";
+						regulator-always-on;
+					};
+					tps65090_fet5: fet5 {
+						regulator-name = "camout";
+					};
+					tps65090_fet6: fet6 {
+						regulator-name = "lcd_vdd";
+					};
+					tps65090_fet7: fet7 {
+						regulator-name = "video_mid_1a";
+						regulator-always-on;
+					};
+					tps65090_ldo1: ldo1 {
+					};
+					tps65090_ldo2: ldo2 {
+					};
+				};
+
+				charger {
+					compatible = "ti,tps65090-charger";
+				};
+			};
+		};
+	};
 };
 
 &uart_3 {
@@ -298,3 +442,4 @@
 	timeout-sec = <32>;
 };
 
+#include "cros-ec-keyboard.dtsi"
