@@ -1223,10 +1223,8 @@ static void nfsd4_init_conn(struct svc_rqst *rqstp, struct nfsd4_conn *conn, str
 	if (ret)
 		/* oops; xprt is already down: */
 		nfsd4_conn_lost(&conn->cn_xpt_user);
-	if (conn->cn_flags & NFS4_CDFC4_BACK) {
-		/* callback channel may be back up */
-		nfsd4_probe_callback(ses->se_client);
-	}
+	/* We may have gained or lost a callback channel: */
+	nfsd4_probe_callback_sync(ses->se_client);
 }
 
 static struct nfsd4_conn *alloc_conn_from_crses(struct svc_rqst *rqstp, struct nfsd4_create_session *cses)
