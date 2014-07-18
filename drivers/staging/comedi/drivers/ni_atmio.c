@@ -253,20 +253,17 @@ static int ni_isapnp_find_board(struct pnp_dev **dev)
 		if (isapnp_dev == NULL || isapnp_dev->card == NULL)
 			continue;
 
-		if (pnp_device_attach(isapnp_dev) < 0) {
-			printk
-			 ("ni_atmio: %s found but already active, skipping.\n",
-			  ni_boards[i].name);
+		if (pnp_device_attach(isapnp_dev) < 0)
 			continue;
-		}
+
 		if (pnp_activate_dev(isapnp_dev) < 0) {
 			pnp_device_detach(isapnp_dev);
 			return -EAGAIN;
 		}
-		if (!pnp_port_valid(isapnp_dev, 0)
-		    || !pnp_irq_valid(isapnp_dev, 0)) {
+
+		if (!pnp_port_valid(isapnp_dev, 0) ||
+		    !pnp_irq_valid(isapnp_dev, 0)) {
 			pnp_device_detach(isapnp_dev);
-			printk("ni_atmio: pnp invalid port or irq, aborting\n");
 			return -ENOMEM;
 		}
 		break;
