@@ -1642,6 +1642,12 @@ struct v4l2_vbi_format {
 #define V4L2_VBI_UNSYNC		(1 << 0)
 #define V4L2_VBI_INTERLACED	(1 << 1)
 
+/* ITU-R start lines for each field */
+#define V4L2_VBI_ITU_525_F1_START (1)
+#define V4L2_VBI_ITU_525_F2_START (264)
+#define V4L2_VBI_ITU_625_F1_START (1)
+#define V4L2_VBI_ITU_625_F2_START (314)
+
 /* Sliced VBI
  *
  *    This implements is a proposal V4L2 API to allow SLICED VBI
