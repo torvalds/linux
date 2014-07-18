@@ -472,13 +472,13 @@ static int radeon_bo_vm_update_pte(struct radeon_cs_parser *p,
 	if (r)
 		return r;
 
-	bo_va = radeon_vm_bo_find(vm, rdev->ring_tmp_bo.bo);
-	if (bo_va == NULL) {
+	if (vm->ib_bo_va == NULL) {
 		DRM_ERROR("Tmp BO not in VM!\n");
 		return -EINVAL;
 	}
 
-	r = radeon_vm_bo_update(rdev, bo_va, &rdev->ring_tmp_bo.bo->tbo.mem);
+	r = radeon_vm_bo_update(rdev, vm->ib_bo_va,
+				&rdev->ring_tmp_bo.bo->tbo.mem);
 	if (r)
 		return r;
 

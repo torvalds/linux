@@ -1007,6 +1007,7 @@ int radeon_vm_init(struct radeon_device *rdev, struct radeon_vm *vm)
 	int r;
 
 	vm->id = 0;
+	vm->ib_bo_va = NULL;
 	vm->fence = NULL;
 	vm->last_flush = NULL;
 	vm->last_id_use = NULL;

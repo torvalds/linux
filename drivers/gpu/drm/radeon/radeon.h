@@ -879,6 +879,8 @@ struct radeon_vm {
 	/* array of page tables, one for each page directory entry */
 	struct radeon_vm_pt		*page_tables;
 
+	struct radeon_bo_va		*ib_bo_va;
+
 	struct mutex			mutex;
 	/* last fence for cs using this vm */
 	struct radeon_fence		*fence;
