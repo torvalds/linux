@@ -39,7 +39,7 @@ def trace_end():
 
 def raw_syscalls__sys_exit(event_name, context, common_cpu,
 	common_secs, common_nsecs, common_pid, common_comm,
-	id, ret):
+	common_callchain, id, ret):
 	if (for_comm and common_comm != for_comm) or \
 	   (for_pid  and common_pid  != for_pid ):
 		return

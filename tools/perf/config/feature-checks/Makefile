@@ -5,6 +5,7 @@ FILES=					\
 	test-bionic.bin			\
 	test-dwarf.bin			\
 	test-fortify-source.bin		\
+	test-sync-compare-and-swap.bin	\
 	test-glibc.bin			\
 	test-gtk2.bin			\
 	test-gtk2-infobar.bin		\
@@ -140,6 +141,9 @@ test-timerfd.bin:
 
 test-libdw-dwarf-unwind.bin:
 	$(BUILD)
+
+test-sync-compare-and-swap.bin:
+	$(BUILD) -Werror
 
 -include *.d
 

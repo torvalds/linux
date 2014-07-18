@@ -69,15 +69,26 @@ static void perf_probe_sample_identifier(struct perf_evsel *evsel)
 	evsel->attr.sample_type |= PERF_SAMPLE_IDENTIFIER;
 }
 
+static void perf_probe_comm_exec(struct perf_evsel *evsel)
+{
+	evsel->attr.comm_exec = 1;
+}
+
 bool perf_can_sample_identifier(void)
 {
 	return perf_probe_api(perf_probe_sample_identifier);
+}
+
+static bool perf_can_comm_exec(void)
+{
+	return perf_probe_api(perf_probe_comm_exec);
 }
 
 void perf_evlist__config(struct perf_evlist *evlist, struct record_opts *opts)
 {
 	struct perf_evsel *evsel;
 	bool use_sample_identifier = false;
+	bool use_comm_exec;
 
 	/*
 	 * Set the evsel leader links before we configure attributes,
@@ -89,8 +100,13 @@ void perf_evlist__config(struct perf_evlist *evlist, struct record_opts *opts)
 	if (evlist->cpus->map[0] < 0)
 		opts->no_inherit = true;
 
-	evlist__for_each(evlist, evsel)
+	use_comm_exec = perf_can_comm_exec();
+
+	evlist__for_each(evlist, evsel) {
 		perf_evsel__config(evsel, opts);
+		if (!evsel->idx && use_comm_exec)
+			evsel->attr.comm_exec = 1;
+	}
 
 	if (evlist->nr_entries > 1) {
 		struct perf_evsel *first = perf_evlist__first(evlist);

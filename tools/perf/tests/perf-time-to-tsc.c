@@ -8,9 +8,8 @@
 #include "evsel.h"
 #include "thread_map.h"
 #include "cpumap.h"
+#include "tsc.h"
 #include "tests.h"
-
-#include "../arch/x86/util/tsc.h"
 
 #define CHECK__(x) {				\
 	while ((x) < 0) {			\

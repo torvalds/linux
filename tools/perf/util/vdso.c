@@ -12,6 +12,7 @@
 #include "util.h"
 #include "symbol.h"
 #include "linux/string.h"
+#include "debug.h"
 
 static bool vdso_found;
 static char vdso_file[] = "/tmp/perf-vdso.so-XXXXXX";

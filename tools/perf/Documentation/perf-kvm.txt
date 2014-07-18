@@ -51,9 +51,9 @@ There are a couple of variants of perf kvm:
   'perf kvm stat <command>' to run a command and gather performance counter
   statistics.
   Especially, perf 'kvm stat record/report' generates a statistical analysis
-  of KVM events. Currently, vmexit, mmio and ioport events are supported.
-  'perf kvm stat record <command>' records kvm events and the events between
-  start and end <command>.
+  of KVM events. Currently, vmexit, mmio (x86 only) and ioport (x86 only)
+  events are supported. 'perf kvm stat record <command>' records kvm events
+  and the events between start and end <command>.
   And this command produces a file which contains tracing results of kvm
   events.
 
@@ -103,8 +103,8 @@ STAT REPORT OPTIONS
        analyze events which occures on this vcpu. (default: all vcpus)
 
 --event=<value>::
-       event to be analyzed. Possible values: vmexit, mmio, ioport.
-       (default: vmexit)
+       event to be analyzed. Possible values: vmexit, mmio (x86 only),
+       ioport (x86 only). (default: vmexit)
 -k::
 --key=<value>::
        Sorting key. Possible values: sample (default, sort by samples
@@ -138,7 +138,8 @@ STAT LIVE OPTIONS
 
 
 --event=<value>::
-       event to be analyzed. Possible values: vmexit, mmio, ioport.
+       event to be analyzed. Possible values: vmexit,
+       mmio (x86 only), ioport (x86 only).
        (default: vmexit)
 
 -k::
@@ -147,7 +148,8 @@ STAT LIVE OPTIONS
        number), time (sort by average time).
 
 --duration=<value>::
-       Show events other than HLT that take longer than duration usecs.
+       Show events other than HLT (x86 only) or Wait state (s390 only)
+       that take longer than duration usecs.
 
 SEE ALSO
 --------
