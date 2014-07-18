@@ -667,17 +667,9 @@ static void ast_encoder_destroy(struct drm_encoder *encoder)
 static struct drm_encoder *ast_best_single_encoder(struct drm_connector *connector)
 {
 	int enc_id = connector->encoder_ids[0];
-	struct drm_mode_object *obj;
-	struct drm_encoder *encoder;
-
 	/* pick the encoder ids */
-	if (enc_id) {
-		obj = drm_mode_object_find(connector->dev, enc_id, DRM_MODE_OBJECT_ENCODER);
-		if (!obj)
-			return NULL;
-		encoder = obj_to_encoder(obj);
-		return encoder;
-	}
+	if (enc_id)
+		return drm_encoder_find(connector->dev, enc_id);
 	return NULL;
 }
 
