@@ -187,7 +187,7 @@ int vnt_submit_rx_urb(struct vnt_private *priv, struct vnt_rcb *rcb)
 	int status = 0;
 	struct urb *urb;
 
-	urb = rcb->pUrb;
+	urb = rcb->urb;
 	if (rcb->skb == NULL) {
 		dev_dbg(&priv->usb->dev, "rcb->skb is null\n");
 		return status;
@@ -207,7 +207,7 @@ int vnt_submit_rx_urb(struct vnt_private *priv, struct vnt_rcb *rcb)
 		return STATUS_FAILURE ;
 	}
 
-	rcb->bBoolInUse = true;
+	rcb->in_use = true;
 
 	return status;
 }
@@ -215,7 +215,7 @@ int vnt_submit_rx_urb(struct vnt_private *priv, struct vnt_rcb *rcb)
 static void vnt_submit_rx_urb_complete(struct urb *urb)
 {
 	struct vnt_rcb *rcb = urb->context;
-	struct vnt_private *priv = rcb->pDevice;
+	struct vnt_private *priv = rcb->priv;
 	unsigned long flags;
 
 	switch (urb->status) {
@@ -240,7 +240,7 @@ static void vnt_submit_rx_urb_complete(struct urb *urb)
 				dev_dbg(&priv->usb->dev,
 					"Failed to re-alloc rx skb\n");
 
-				rcb->bBoolInUse = false;
+				rcb->in_use = false;
 				spin_unlock_irqrestore(&priv->lock, flags);
 				return;
 			}
@@ -258,7 +258,7 @@ static void vnt_submit_rx_urb_complete(struct urb *urb)
 	if (usb_submit_urb(urb, GFP_ATOMIC)) {
 		dev_dbg(&priv->usb->dev, "Failed to re submit rx skb\n");
 
-		rcb->bBoolInUse = false;
+		rcb->in_use = false;
 	}
 
 	return;

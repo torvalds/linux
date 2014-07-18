@@ -423,9 +423,9 @@ static void device_free_rx_bufs(struct vnt_private *priv)
 			continue;
 
 		/* deallocate URBs */
-		if (rcb->pUrb) {
-			usb_kill_urb(rcb->pUrb);
-			usb_free_urb(rcb->pUrb);
+		if (rcb->urb) {
+			usb_kill_urb(rcb->urb);
+			usb_free_urb(rcb->urb);
 		}
 
 		/* deallocate skb */
@@ -495,11 +495,11 @@ static bool device_alloc_bufs(struct vnt_private *priv)
 
 		rcb = priv->apRCB[ii];
 
-		rcb->pDevice = priv;
+		rcb->priv = priv;
 
 		/* allocate URBs */
-		rcb->pUrb = usb_alloc_urb(0, GFP_ATOMIC);
-		if (rcb->pUrb == NULL) {
+		rcb->urb = usb_alloc_urb(0, GFP_ATOMIC);
+		if (rcb->urb == NULL) {
 			dev_err(&priv->usb->dev, "Failed to alloc rx urb\n");
 			goto free_rx_tx;
 		}
@@ -510,7 +510,7 @@ static bool device_alloc_bufs(struct vnt_private *priv)
 			goto free_rx_tx;
 		}
 
-		rcb->bBoolInUse = false;
+		rcb->in_use = false;
 
 		/* submit rx urb */
 		if (vnt_submit_rx_urb(priv, rcb))

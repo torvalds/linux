@@ -219,10 +219,10 @@ enum {
 
 /* RCB (Receive Control Block) */
 struct vnt_rcb {
-	void *pDevice;
-	struct urb *pUrb;
+	void *priv;
+	struct urb *urb;
 	struct sk_buff *skb;
-	int bBoolInUse;
+	int in_use;
 };
 
 /* used to track bulk out irps */
