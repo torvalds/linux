@@ -270,7 +270,7 @@ static int apci3120_ai_insn_config(struct comedi_device *dev,
 
 			if (CR_CHAN(data[4 + i]) >=
 				this_board->i_NbrAiChannel) {
-				printk("bad channel list\n");
+				dev_err(dev->class_dev, "bad channel list\n");
 				return -2;
 			}
 		}
@@ -345,11 +345,6 @@ static int apci3120_setup_chan_list(struct comedi_device *dev,
 		us_TmpValue |= ((gain & 0x03) << 4);	/* <<4 for G0 and G1 bit in RAM */
 		us_TmpValue |= i << 8;	/* To select the RAM LOCATION.... */
 		outw(us_TmpValue, dev->iobase + APCI3120_SEQ_RAM_ADDRESS);
-
-		printk("\n Gain = %i",
-			(((unsigned char)CR_RANGE(chanlist[i]) & 0x03) << 2));
-		printk("\n Channel = %i", CR_CHAN(chanlist[i]));
-		printk("\n Polarity = %i", us_TmpValue & APCI3120_UNIPOLAR);
 	}
 	return 1;		/*  we can serve this with scan logic */
 }
@@ -370,10 +365,9 @@ static int apci3120_ai_insn_read(struct comedi_device *dev,
 	unsigned char b_Tmp;
 
 	/*  fix conversion time to 10 us */
-	if (!devpriv->ui_EocEosConversionTime) {
-		printk("No timer0 Value using 10 us\n");
+	if (!devpriv->ui_EocEosConversionTime)
 		us_ConvertTiming = 10;
-	} else
+	else
 		us_ConvertTiming = (unsigned short) (devpriv->ui_EocEosConversionTime / 1000);	/*  nano to useconds */
 
 	/*  this_board->ai_read(dev,us_ConvertTiming,insn->n,&insn->chanspec,data,insn->unused[0]); */
@@ -594,7 +588,7 @@ static int apci3120_ai_insn_read(struct comedi_device *dev,
 			break;
 
 		default:
-			printk("inputs wrong\n");
+			dev_err(dev->class_dev, "inputs wrong\n");
 
 		}
 		devpriv->ui_EocEosConversionTime = 0;	/*  re initializing the variable; */
@@ -2162,10 +2156,6 @@ static int apci3120_ao_insn_write(struct comedi_device *dev,
 
 	}
 
-/*
- * out put n values at the given channel. printk("\nwaiting for
- * DA_READY BIT");
- */
 	do {			/* Waiting of DA_READY BIT */
 		us_TmpValue =
 			((unsigned short) inw(devpriv->iobase +
