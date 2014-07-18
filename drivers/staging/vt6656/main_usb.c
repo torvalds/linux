@@ -438,13 +438,13 @@ static void device_free_rx_bufs(struct vnt_private *priv)
 	return;
 }
 
-static void usb_device_reset(struct vnt_private *pDevice)
+static void usb_device_reset(struct vnt_private *priv)
 {
 	int status;
 
-	status = usb_reset_device(pDevice->usb);
+	status = usb_reset_device(priv->usb);
 	if (status)
-		dev_warn(&pDevice->usb->dev,
+		dev_warn(&priv->usb->dev,
 			 "usb_device_reset fail status=%d\n", status);
 	return ;
 }
