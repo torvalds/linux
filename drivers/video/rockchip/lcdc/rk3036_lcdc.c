@@ -896,8 +896,11 @@ static int rk3036_lcdc_cfg_done(struct rk_lcdc_driver *dev_drv)
 	struct lcdc_device *lcdc_dev = container_of(dev_drv, 
 					struct lcdc_device, driver);
 	spin_lock(&lcdc_dev->reg_lock);
-	if (lcdc_dev->clk_on)
+	if (lcdc_dev->clk_on) {
+		lcdc_msk_reg(lcdc_dev, SYS_CTRL, m_LCDC_STANDBY,
+			     v_LCDC_STANDBY(lcdc_dev->standby));
 		lcdc_cfg_done(lcdc_dev);
+	}
 	spin_unlock(&lcdc_dev->reg_lock);
 	return 0;
 }
