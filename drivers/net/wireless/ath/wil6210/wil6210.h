@@ -24,6 +24,13 @@
 
 #define WIL_NAME "wil6210"
 
+struct wil_board {
+	int board;
+#define WIL_BOARD_MARLON	(1)
+#define WIL_BOARD_SPARROW	(2)
+	const char * const name;
+};
+
 /**
  * extract bits [@b0:@b1] (inclusive) from the value @x
  * it should be @b0 <= @b1, or result is incorrect
@@ -78,6 +85,7 @@ struct RGF_ICR {
 } __packed;
 
 /* registers - FW addresses */
+#define RGF_USER_USAGE_1		(0x880004)
 #define RGF_USER_HW_MACHINE_STATE	(0x8801dc)
 	#define HW_MACHINE_BOOT_DONE	(0x3fffffd)
 #define RGF_USER_USER_CPU_0		(0x8801e0)
@@ -93,6 +101,7 @@ struct RGF_ICR {
 #define RGF_USER_CLKS_CTL_SW_RST_MASK_0	(0x880b14)
 #define RGF_USER_USER_ICR		(0x880b4c) /* struct RGF_ICR */
 	#define BIT_USER_USER_ICR_SW_INT_2	BIT(18)
+#define RGF_USER_CLKS_CTL_EXT_SW_RST_VEC_0	(0x880c18)
 
 #define RGF_DMA_EP_TX_ICR		(0x881bb4) /* struct RGF_ICR */
 	#define BIT_DMA_EP_TX_ICR_TX_DONE	BIT(0)
@@ -121,6 +130,7 @@ struct RGF_ICR {
 	#define BIT_DMA_PSEUDO_CAUSE_TX		BIT(1)
 	#define BIT_DMA_PSEUDO_CAUSE_MISC	BIT(2)
 
+#define RGF_HP_CTRL			(0x88265c)
 #define RGF_PCIE_LOS_COUNTER_CTL	(0x882dc4)
 
 /* popular locations */
@@ -135,6 +145,14 @@ struct RGF_ICR {
 #define ISR_MISC_FW_ERROR	BIT_DMA_EP_MISC_ICR_FW_INT(3)
 
 /* Hardware definitions end */
+struct fw_map {
+	u32 from; /* linker address - from, inclusive */
+	u32 to;   /* linker address - to, exclusive */
+	u32 host; /* PCI/Host address - BAR0 + 0x880000 */
+	const char *name; /* for debugfs */
+};
+/* array size should be in sync with actual definition in the wmi.c */
+extern const struct fw_map fw_mapping[7];
 
 /**
  * mk_cidxtid - construct @cidxtid field
@@ -365,6 +383,7 @@ struct wil6210_priv {
 	ulong status;
 	u32 fw_version;
 	u32 hw_version;
+	struct wil_board *board;
 	u8 n_mids; /* number of additional MIDs as reported by FW */
 	int recovery_count; /* num of FW recovery attempts in a short time */
 	unsigned long last_fw_recovery; /* jiffies of last fw recovery */
@@ -415,12 +434,7 @@ struct wil6210_priv {
 	atomic_t isr_count_rx, isr_count_tx;
 	/* debugfs */
 	struct dentry *debug;
-	struct debugfs_blob_wrapper fw_code_blob;
-	struct debugfs_blob_wrapper fw_data_blob;
-	struct debugfs_blob_wrapper fw_peri_blob;
-	struct debugfs_blob_wrapper uc_code_blob;
-	struct debugfs_blob_wrapper uc_data_blob;
-	struct debugfs_blob_wrapper rgf_blob;
+	struct debugfs_blob_wrapper blobs[ARRAY_SIZE(fw_mapping)];
 };
 
 #define wil_to_wiphy(i) (i->wdev->wiphy)

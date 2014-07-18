@@ -122,10 +122,12 @@ static int wil_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	struct wil6210_priv *wil;
 	struct device *dev = &pdev->dev;
 	void __iomem *csr;
+	struct wil_board *board = (struct wil_board *)id->driver_data;
 	int rc;
 
 	/* check HW */
-	dev_info(&pdev->dev, WIL_NAME " device found [%04x:%04x] (rev %x)\n",
+	dev_info(&pdev->dev, WIL_NAME
+		 " \"%s\" device found [%04x:%04x] (rev %x)\n", board->name,
 		 (int)pdev->vendor, (int)pdev->device, (int)pdev->revision);
 
 	if (pci_resource_len(pdev, 0) != WIL6210_MEM_SIZE) {
@@ -175,6 +177,7 @@ static int wil_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	pci_set_drvdata(pdev, wil);
 	wil->pdev = pdev;
+	wil->board = board;
 
 	wil6210_clear_irq(wil);
 	/* FW should raise IRQ when ready */
@@ -225,8 +228,21 @@ static void wil_pcie_remove(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(wil6210_pcie_ids) = {
-	{ PCI_DEVICE(0x1ae9, 0x0301) },
+static const struct wil_board wil_board_marlon = {
+	.board = WIL_BOARD_MARLON,
+	.name = "marlon",
+};
+
+static const struct wil_board wil_board_sparrow = {
+	.board = WIL_BOARD_SPARROW,
+	.name = "sparrow",
+};
+
+static const struct pci_device_id wil6210_pcie_ids[] = {
+	{ PCI_DEVICE(0x1ae9, 0x0301),
+	  .driver_data = (kernel_ulong_t)&wil_board_marlon },
+	{ PCI_DEVICE(0x1ae9, 0x0310),
+	  .driver_data = (kernel_ulong_t)&wil_board_sparrow },
 	{ /* end: all zeroes */	},
 };
 MODULE_DEVICE_TABLE(pci, wil6210_pcie_ids);

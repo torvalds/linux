@@ -1604,9 +1604,6 @@ mwifiex_cfg80211_assoc(struct mwifiex_private *priv, size_t ssid_len,
 		return -EINVAL;
 	}
 
-	/* disconnect before try to associate */
-	mwifiex_deauthenticate(priv, NULL);
-
 	/* As this is new association, clear locally stored
 	 * keys and security related flags */
 	priv->sec_info.wpa_enabled = false;
@@ -1742,6 +1739,11 @@ mwifiex_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 			  "%s: reject infra assoc request in non-STA role\n",
 			  dev->name);
 		return -EINVAL;
+	}
+
+	if (priv->wdev && priv->wdev->current_bss) {
+		wiphy_warn(wiphy, "%s: already connected\n", dev->name);
+		return -EALREADY;
 	}
 
 	wiphy_dbg(wiphy, "info: Trying to associate to %s and bssid %pM\n",

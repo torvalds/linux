@@ -202,7 +202,7 @@ static ssize_t write_file_ani(struct file *file,
 	if (kstrtoul(buf, 0, &ani))
 		return -EINVAL;
 
-	if (ani < 0 || ani > 1)
+	if (ani > 1)
 		return -EINVAL;
 
 	common->disable_ani = !ani;

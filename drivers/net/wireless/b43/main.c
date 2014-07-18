@@ -2964,6 +2964,45 @@ void b43_mac_phy_clock_set(struct b43_wldev *dev, bool on)
 	}
 }
 
+/* brcms_b_switch_macfreq */
+void b43_mac_switch_freq(struct b43_wldev *dev, u8 spurmode)
+{
+	u16 chip_id = dev->dev->chip_id;
+
+	if (chip_id == BCMA_CHIP_ID_BCM43217 ||
+	    chip_id == BCMA_CHIP_ID_BCM43222 ||
+	    chip_id == BCMA_CHIP_ID_BCM43224 ||
+	    chip_id == BCMA_CHIP_ID_BCM43225 ||
+	    chip_id == BCMA_CHIP_ID_BCM43227 ||
+	    chip_id == BCMA_CHIP_ID_BCM43228) {
+		switch (spurmode) {
+		case 2: /* 126 Mhz */
+			b43_write16(dev, B43_MMIO_TSF_CLK_FRAC_LOW, 0x2082);
+			b43_write16(dev, B43_MMIO_TSF_CLK_FRAC_HIGH, 0x8);
+			break;
+		case 1: /* 123 Mhz */
+			b43_write16(dev, B43_MMIO_TSF_CLK_FRAC_LOW, 0x5341);
+			b43_write16(dev, B43_MMIO_TSF_CLK_FRAC_HIGH, 0x8);
+			break;
+		default: /* 120 Mhz */
+			b43_write16(dev, B43_MMIO_TSF_CLK_FRAC_LOW, 0x8889);
+			b43_write16(dev, B43_MMIO_TSF_CLK_FRAC_HIGH, 0x8);
+			break;
+		}
+	} else if (dev->phy.type == B43_PHYTYPE_LCN) {
+		switch (spurmode) {
+		case 1: /* 82 Mhz */
+			b43_write16(dev, B43_MMIO_TSF_CLK_FRAC_LOW, 0x7CE0);
+			b43_write16(dev, B43_MMIO_TSF_CLK_FRAC_HIGH, 0xC);
+			break;
+		default: /* 80 Mhz */
+			b43_write16(dev, B43_MMIO_TSF_CLK_FRAC_LOW, 0xCCCD);
+			b43_write16(dev, B43_MMIO_TSF_CLK_FRAC_HIGH, 0xC);
+			break;
+		}
+	}
+}
+
 static void b43_adjust_opmode(struct b43_wldev *dev)
 {
 	struct b43_wl *wl = dev->wl;

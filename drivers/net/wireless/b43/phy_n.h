@@ -366,11 +366,13 @@
 #define B43_NPHY_TXF_40CO_B1S0			B43_PHY_N(0x0E5) /* TX filter 40 coeff B1 stage 0 */
 #define B43_NPHY_TXF_40CO_B32S1			B43_PHY_N(0x0E6) /* TX filter 40 coeff B32 stage 1 */
 #define B43_NPHY_TXF_40CO_B1S1			B43_PHY_N(0x0E7) /* TX filter 40 coeff B1 stage 1 */
+#define B43_NPHY_REV3_RFCTL_OVER0		B43_PHY_N(0x0E7)
 #define B43_NPHY_TXF_40CO_B32S2			B43_PHY_N(0x0E8) /* TX filter 40 coeff B32 stage 2 */
 #define B43_NPHY_TXF_40CO_B1S2			B43_PHY_N(0x0E9) /* TX filter 40 coeff B1 stage 2 */
 #define B43_NPHY_BIST_STAT2			B43_PHY_N(0x0EA) /* BIST status 2 */
 #define B43_NPHY_BIST_STAT3			B43_PHY_N(0x0EB) /* BIST status 3 */
 #define B43_NPHY_RFCTL_OVER			B43_PHY_N(0x0EC) /* RF control override */
+#define B43_NPHY_REV3_RFCTL_OVER1		B43_PHY_N(0x0EC)
 #define B43_NPHY_MIMOCFG			B43_PHY_N(0x0ED) /* MIMO config */
 #define  B43_NPHY_MIMOCFG_GFMIX			0x0004 /* Greenfield or mixed mode */
 #define  B43_NPHY_MIMOCFG_AUTO			0x0100 /* Greenfield/mixed mode auto */
@@ -867,6 +869,8 @@
 #define B43_NPHY_REV7_RF_CTL_OVER6		B43_PHY_N(0x347)
 
 #define B43_PHY_B_BBCFG				B43_PHY_N_BMODE(0x001) /* BB config */
+#define  B43_PHY_B_BBCFG_RSTCCA			0x4000 /* Reset CCA */
+#define  B43_PHY_B_BBCFG_RSTRX			0x8000 /* Reset RX */
 #define B43_PHY_B_TEST				B43_PHY_N_BMODE(0x00A)
 
 struct b43_wldev;

@@ -201,6 +201,23 @@ static int bcma_sprom_valid(struct bcma_bus *bus, const u16 *sprom,
 		SPEX(_field[7], _offset + 14, _mask, _shift);	\
 	} while (0)
 
+static s8 sprom_extract_antgain(const u16 *in, u16 offset, u16 mask, u16 shift)
+{
+	u16 v;
+	u8 gain;
+
+	v = in[SPOFF(offset)];
+	gain = (v & mask) >> shift;
+	if (gain == 0xFF) {
+		gain = 8; /* If unset use 2dBm */
+	} else {
+		/* Q5.2 Fractional part is stored in 0xC0 */
+		gain = ((gain & 0xC0) >> 6) | ((gain & 0x3F) << 2);
+	}
+
+	return (s8)gain;
+}
+
 static void bcma_sprom_extract_r8(struct bcma_bus *bus, const u16 *sprom)
 {
 	u16 v, o;
@@ -381,14 +398,22 @@ static void bcma_sprom_extract_r8(struct bcma_bus *bus, const u16 *sprom)
 	SPEX32(ofdm5ghpo, SSB_SPROM8_OFDM5GHPO, ~0, 0);
 
 	/* Extract the antenna gain values. */
-	SPEX(antenna_gain.a0, SSB_SPROM8_AGAIN01,
-	     SSB_SPROM8_AGAIN0, SSB_SPROM8_AGAIN0_SHIFT);
-	SPEX(antenna_gain.a1, SSB_SPROM8_AGAIN01,
-	     SSB_SPROM8_AGAIN1, SSB_SPROM8_AGAIN1_SHIFT);
-	SPEX(antenna_gain.a2, SSB_SPROM8_AGAIN23,
-	     SSB_SPROM8_AGAIN2, SSB_SPROM8_AGAIN2_SHIFT);
-	SPEX(antenna_gain.a3, SSB_SPROM8_AGAIN23,
-	     SSB_SPROM8_AGAIN3, SSB_SPROM8_AGAIN3_SHIFT);
+	bus->sprom.antenna_gain.a0 = sprom_extract_antgain(sprom,
+							   SSB_SPROM8_AGAIN01,
+							   SSB_SPROM8_AGAIN0,
+							   SSB_SPROM8_AGAIN0_SHIFT);
+	bus->sprom.antenna_gain.a1 = sprom_extract_antgain(sprom,
+							   SSB_SPROM8_AGAIN01,
+							   SSB_SPROM8_AGAIN1,
+							   SSB_SPROM8_AGAIN1_SHIFT);
+	bus->sprom.antenna_gain.a2 = sprom_extract_antgain(sprom,
+							   SSB_SPROM8_AGAIN23,
+							   SSB_SPROM8_AGAIN2,
+							   SSB_SPROM8_AGAIN2_SHIFT);
+	bus->sprom.antenna_gain.a3 = sprom_extract_antgain(sprom,
+							   SSB_SPROM8_AGAIN23,
+							   SSB_SPROM8_AGAIN3,
+							   SSB_SPROM8_AGAIN3_SHIFT);
 
 	SPEX(leddc_on_time, SSB_SPROM8_LEDDC, SSB_SPROM8_LEDDC_ON,
 	     SSB_SPROM8_LEDDC_ON_SHIFT);
@@ -509,6 +534,7 @@ static bool bcma_sprom_onchip_available(struct bcma_bus *bus)
 		/* for these chips OTP is always available */
 		present = true;
 		break;
+	case BCMA_CHIP_ID_BCM43217:
 	case BCMA_CHIP_ID_BCM43227:
 	case BCMA_CHIP_ID_BCM43228:
 	case BCMA_CHIP_ID_BCM43428:

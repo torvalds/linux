@@ -296,7 +296,6 @@ static void hci_cc_write_scan_enable(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	__u8 status = *((__u8 *) skb->data);
 	__u8 param;
-	int old_pscan, old_iscan;
 	void *sent;
 
 	BT_DBG("%s status 0x%2.2x", hdev->name, status);
@@ -310,32 +309,19 @@ static void hci_cc_write_scan_enable(struct hci_dev *hdev, struct sk_buff *skb)
 	hci_dev_lock(hdev);
 
 	if (status) {
-		mgmt_write_scan_failed(hdev, param, status);
 		hdev->discov_timeout = 0;
 		goto done;
 	}
 
-	/* We need to ensure that we set this back on if someone changed
-	 * the scan mode through a raw HCI socket.
-	 */
-	set_bit(HCI_BREDR_ENABLED, &hdev->dev_flags);
-
-	old_pscan = test_and_clear_bit(HCI_PSCAN, &hdev->flags);
-	old_iscan = test_and_clear_bit(HCI_ISCAN, &hdev->flags);
-
-	if (param & SCAN_INQUIRY) {
+	if (param & SCAN_INQUIRY)
 		set_bit(HCI_ISCAN, &hdev->flags);
-		if (!old_iscan)
-			mgmt_discoverable(hdev, 1);
-	} else if (old_iscan)
-		mgmt_discoverable(hdev, 0);
+	else
+		clear_bit(HCI_ISCAN, &hdev->flags);
 
-	if (param & SCAN_PAGE) {
+	if (param & SCAN_PAGE)
 		set_bit(HCI_PSCAN, &hdev->flags);
-		if (!old_pscan)
-			mgmt_connectable(hdev, 1);
-	} else if (old_pscan)
-		mgmt_connectable(hdev, 0);
+	else
+		clear_bit(HCI_ISCAN, &hdev->flags);
 
 done:
 	hci_dev_unlock(hdev);
@@ -3678,18 +3664,14 @@ static void hci_io_capa_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 		/* If we are initiators, there is no remote information yet */
 		if (conn->remote_auth == 0xff) {
-			cp.authentication = conn->auth_type;
-
 			/* Request MITM protection if our IO caps allow it
 			 * except for the no-bonding case.
-			 * conn->auth_type is not updated here since
-			 * that might cause the user confirmation to be
-			 * rejected in case the remote doesn't have the
-			 * IO capabilities for MITM.
 			 */
 			if (conn->io_capability != HCI_IO_NO_INPUT_OUTPUT &&
 			    cp.authentication != HCI_AT_NO_BONDING)
-				cp.authentication |= 0x01;
+				conn->auth_type |= 0x01;
+
+			cp.authentication = conn->auth_type;
 		} else {
 			conn->auth_type = hci_get_auth_req(conn);
 			cp.authentication = conn->auth_type;
@@ -3761,9 +3743,12 @@ static void hci_user_confirm_request_evt(struct hci_dev *hdev,
 	rem_mitm = (conn->remote_auth & 0x01);
 
 	/* If we require MITM but the remote device can't provide that
-	 * (it has NoInputNoOutput) then reject the confirmation request
+	 * (it has NoInputNoOutput) then reject the confirmation
+	 * request. We check the security level here since it doesn't
+	 * necessarily match conn->auth_type.
 	 */
-	if (loc_mitm && conn->remote_cap == HCI_IO_NO_INPUT_OUTPUT) {
+	if (conn->pending_sec_level > BT_SECURITY_MEDIUM &&
+	    conn->remote_cap == HCI_IO_NO_INPUT_OUTPUT) {
 		BT_DBG("Rejecting request: remote device can't provide MITM");
 		hci_send_cmd(hdev, HCI_OP_USER_CONFIRM_NEG_REPLY,
 			     sizeof(ev->bdaddr), &ev->bdaddr);
@@ -4638,7 +4623,7 @@ void hci_event_packet(struct hci_dev *hdev, struct sk_buff *skb)
 	/* Received events are (currently) only needed when a request is
 	 * ongoing so avoid unnecessary memory allocation.
 	 */
-	if (hdev->req_status == HCI_REQ_PEND) {
+	if (hci_req_pending(hdev)) {
 		kfree_skb(hdev->recv_evt);
 		hdev->recv_evt = skb_clone(skb, GFP_KERNEL);
 	}

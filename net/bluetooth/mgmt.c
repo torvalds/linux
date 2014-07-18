@@ -906,6 +906,16 @@ static void update_adv_data(struct hci_request *req)
 	hci_req_add(req, HCI_OP_LE_SET_ADV_DATA, sizeof(cp), &cp);
 }
 
+int mgmt_update_adv_data(struct hci_dev *hdev)
+{
+	struct hci_request req;
+
+	hci_req_init(&req, hdev);
+	update_adv_data(&req);
+
+	return hci_req_run(&req, NULL);
+}
+
 static void create_eir(struct hci_dev *hdev, u8 *data)
 {
 	u8 *ptr = data;
@@ -1743,7 +1753,7 @@ static void set_connectable_complete(struct hci_dev *hdev, u8 status)
 {
 	struct pending_cmd *cmd;
 	struct mgmt_mode *cp;
-	bool changed;
+	bool conn_changed, discov_changed;
 
 	BT_DBG("status 0x%02x", status);
 
@@ -1760,15 +1770,23 @@ static void set_connectable_complete(struct hci_dev *hdev, u8 status)
 	}
 
 	cp = cmd->param;
-	if (cp->val)
-		changed = !test_and_set_bit(HCI_CONNECTABLE, &hdev->dev_flags);
-	else
-		changed = test_and_clear_bit(HCI_CONNECTABLE, &hdev->dev_flags);
+	if (cp->val) {
+		conn_changed = !test_and_set_bit(HCI_CONNECTABLE,
+						 &hdev->dev_flags);
+		discov_changed = false;
+	} else {
+		conn_changed = test_and_clear_bit(HCI_CONNECTABLE,
+						  &hdev->dev_flags);
+		discov_changed = test_and_clear_bit(HCI_DISCOVERABLE,
+						    &hdev->dev_flags);
+	}
 
 	send_settings_rsp(cmd->sk, MGMT_OP_SET_CONNECTABLE, hdev);
 
-	if (changed) {
+	if (conn_changed || discov_changed) {
 		new_settings(hdev, cmd->sk);
+		if (discov_changed)
+			mgmt_update_adv_data(hdev);
 		hci_update_background_scan(hdev);
 	}
 
@@ -1882,8 +1900,8 @@ static int set_connectable(struct sock *sk, struct hci_dev *hdev, void *data,
 	if (cp->val || test_bit(HCI_FAST_CONNECTABLE, &hdev->dev_flags))
 		write_fast_connectable(&req, false);
 
-	if (test_bit(HCI_ADVERTISING, &hdev->dev_flags) &&
-	    !test_bit(HCI_LE_ADV, &hdev->dev_flags))
+	/* Update the advertising parameters if necessary */
+	if (test_bit(HCI_ADVERTISING, &hdev->dev_flags))
 		enable_advertising(&req);
 
 	err = hci_req_run(&req, set_connectable_complete);
@@ -6029,88 +6047,6 @@ void mgmt_discoverable_timeout(struct hci_dev *hdev)
 	new_settings(hdev, NULL);
 
 	hci_dev_unlock(hdev);
-}
-
-void mgmt_discoverable(struct hci_dev *hdev, u8 discoverable)
-{
-	bool changed;
-
-	/* Nothing needed here if there's a pending command since that
-	 * commands request completion callback takes care of everything
-	 * necessary.
-	 */
-	if (mgmt_pending_find(MGMT_OP_SET_DISCOVERABLE, hdev))
-		return;
-
-	/* Powering off may clear the scan mode - don't let that interfere */
-	if (!discoverable && mgmt_pending_find(MGMT_OP_SET_POWERED, hdev))
-		return;
-
-	if (discoverable) {
-		changed = !test_and_set_bit(HCI_DISCOVERABLE, &hdev->dev_flags);
-	} else {
-		clear_bit(HCI_LIMITED_DISCOVERABLE, &hdev->dev_flags);
-		changed = test_and_clear_bit(HCI_DISCOVERABLE, &hdev->dev_flags);
-	}
-
-	if (changed) {
-		struct hci_request req;
-
-		/* In case this change in discoverable was triggered by
-		 * a disabling of connectable there could be a need to
-		 * update the advertising flags.
-		 */
-		hci_req_init(&req, hdev);
-		update_adv_data(&req);
-		hci_req_run(&req, NULL);
-
-		new_settings(hdev, NULL);
-	}
-}
-
-void mgmt_connectable(struct hci_dev *hdev, u8 connectable)
-{
-	bool changed;
-
-	/* Nothing needed here if there's a pending command since that
-	 * commands request completion callback takes care of everything
-	 * necessary.
-	 */
-	if (mgmt_pending_find(MGMT_OP_SET_CONNECTABLE, hdev))
-		return;
-
-	/* Powering off may clear the scan mode - don't let that interfere */
-	if (!connectable && mgmt_pending_find(MGMT_OP_SET_POWERED, hdev))
-		return;
-
-	/* If something else than mgmt changed the page scan state we
-	 * can't differentiate this from a change triggered by adding
-	 * the first element to the whitelist. Therefore, avoid
-	 * incorrectly setting HCI_CONNECTABLE.
-	 */
-	if (connectable && !list_empty(&hdev->whitelist))
-		return;
-
-	if (connectable)
-		changed = !test_and_set_bit(HCI_CONNECTABLE, &hdev->dev_flags);
-	else
-		changed = test_and_clear_bit(HCI_CONNECTABLE, &hdev->dev_flags);
-
-	if (changed)
-		new_settings(hdev, NULL);
-}
-
-void mgmt_write_scan_failed(struct hci_dev *hdev, u8 scan, u8 status)
-{
-	u8 mgmt_err = mgmt_status(status);
-
-	if (scan & SCAN_PAGE)
-		mgmt_pending_foreach(MGMT_OP_SET_CONNECTABLE, hdev,
-				     cmd_status_rsp, &mgmt_err);
-
-	if (scan & SCAN_INQUIRY)
-		mgmt_pending_foreach(MGMT_OP_SET_DISCOVERABLE, hdev,
-				     cmd_status_rsp, &mgmt_err);
 }
 
 void mgmt_new_link_key(struct hci_dev *hdev, struct link_key *key,
