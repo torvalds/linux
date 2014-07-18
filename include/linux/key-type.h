@@ -45,6 +45,7 @@ struct key_preparsed_payload {
 	const void	*data;		/* Raw data */
 	size_t		datalen;	/* Raw datalen */
 	size_t		quotalen;	/* Quota length for proposed payload */
+	time_t		expiry;		/* Expiry time of key */
 	bool		trusted;	/* True if key is trusted */
 };
 
