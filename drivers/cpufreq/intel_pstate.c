@@ -599,10 +599,9 @@ static inline void intel_pstate_sample(struct cpudata *cpu)
 
 static inline void intel_pstate_set_sample_time(struct cpudata *cpu)
 {
-	int sample_time, delay;
+	int delay;
 
-	sample_time = pid_params.sample_rate_ms;
-	delay = msecs_to_jiffies(sample_time);
+	delay = msecs_to_jiffies(pid_params.sample_rate_ms);
 	mod_timer_pinned(&cpu->timer, jiffies + delay);
 }
 
