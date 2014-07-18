@@ -2039,7 +2039,7 @@ static int dasd_eckd_online_to_ready(struct dasd_device *device)
 	return 0;
 };
 
-static int dasd_eckd_ready_to_basic(struct dasd_device *device)
+static int dasd_eckd_basic_to_known(struct dasd_device *device)
 {
 	return dasd_alias_remove_device(device);
 };
@@ -4511,7 +4511,7 @@ static struct dasd_discipline dasd_eckd_discipline = {
 	.verify_path = dasd_eckd_verify_path,
 	.basic_to_ready = dasd_eckd_basic_to_ready,
 	.online_to_ready = dasd_eckd_online_to_ready,
-	.ready_to_basic = dasd_eckd_ready_to_basic,
+	.basic_to_known = dasd_eckd_basic_to_known,
 	.fill_geometry = dasd_eckd_fill_geometry,
 	.start_IO = dasd_start_IO,
 	.term_IO = dasd_term_IO,

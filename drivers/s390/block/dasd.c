@@ -285,6 +285,12 @@ static int dasd_state_basic_to_known(struct dasd_device *device)
 {
 	int rc;
 
+	if (device->discipline->basic_to_known) {
+		rc = device->discipline->basic_to_known(device);
+		if (rc)
+			return rc;
+	}
+
 	if (device->block) {
 		dasd_profile_exit(&device->block->profile);
 		debugfs_remove(device->block->debugfs_dentry);
@@ -375,11 +381,6 @@ static int dasd_state_ready_to_basic(struct dasd_device *device)
 {
 	int rc;
 
-	if (device->discipline->ready_to_basic) {
-		rc = device->discipline->ready_to_basic(device);
-		if (rc)
-			return rc;
-	}
 	device->state = DASD_STATE_BASIC;
 	if (device->block) {
 		struct dasd_block *block = device->block;

@@ -304,7 +304,7 @@ struct dasd_discipline {
 	 */
 	int (*basic_to_ready) (struct dasd_device *);
 	int (*online_to_ready) (struct dasd_device *);
-	int (*ready_to_basic)  (struct dasd_device *);
+	int (*basic_to_known)(struct dasd_device *);
 
 	/* (struct dasd_device *);
 	 * Device operation functions. build_cp creates a ccw chain for
