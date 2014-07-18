@@ -338,25 +338,18 @@ static int ni_atmio_attach(struct comedi_device *dev,
 
 	dev->board_ptr = ni_boards + board;
 	boardtype = comedi_board(dev);
-
-	printk(" %s", boardtype->name);
 	dev->board_name = boardtype->name;
 
 	/* irq stuff */
 
 	if (irq != 0) {
-		if (irq > 15 || ni_irqpin[irq] == -1) {
-			printk(" invalid irq %u\n", irq);
+		if (irq > 15 || ni_irqpin[irq] == -1)
 			return -EINVAL;
-		}
-		printk(" ( irq = %u )", irq);
 		ret = request_irq(irq, ni_E_interrupt, 0,
 				  "ni_atmio", dev);
 
-		if (ret < 0) {
-			printk(" irq not available\n");
+		if (ret < 0)
 			return -EINVAL;
-		}
 		dev->irq = irq;
 	}
 
