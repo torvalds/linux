@@ -494,7 +494,7 @@ int key_instantiate_and_link(struct key *key,
 	if (keyring) {
 		ret = __key_link_begin(keyring, &key->index_key, &edit);
 		if (ret < 0)
-			goto error_free_preparse;
+			goto error;
 	}
 
 	ret = __key_instantiate_and_link(key, &prep, keyring, authkey, &edit);
@@ -502,10 +502,9 @@ int key_instantiate_and_link(struct key *key,
 	if (keyring)
 		__key_link_end(keyring, &key->index_key, edit);
 
-error_free_preparse:
+error:
 	if (key->type->preparse)
 		key->type->free_preparse(&prep);
-error:
 	return ret;
 }
 
@@ -822,7 +821,7 @@ key_ref_t key_create_or_update(key_ref_t keyring_ref,
 		ret = index_key.type->preparse(&prep);
 		if (ret < 0) {
 			key_ref = ERR_PTR(ret);
-			goto error_put_type;
+			goto error_free_prep;
 		}
 		if (!index_key.description)
 			index_key.description = prep.description;
@@ -964,9 +963,9 @@ int key_update(key_ref_t key_ref, const void *payload, size_t plen)
 
 	up_write(&key->sem);
 
+error:
 	if (key->type->preparse)
 		key->type->free_preparse(&prep);
-error:
 	return ret;
 }
 EXPORT_SYMBOL(key_update);

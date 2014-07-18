@@ -1176,7 +1176,9 @@ The structure has a number of fields, some of which are mandatory:
      This method is only required if the preparse() method is provided,
      otherwise it is unused.  It cleans up anything attached to the
      description, type_data and payload fields of the key_preparsed_payload
-     struct as filled in by the preparse() method.
+     struct as filled in by the preparse() method.  It will always be called
+     after preparse() returns successfully, even if instantiate() or update()
+     succeed.
 
 
  (*) int (*instantiate)(struct key *key, struct key_preparsed_payload *prep);
