@@ -707,6 +707,8 @@ static void nfs_inode_remove_request(struct nfs_page *req)
 
 	if (test_and_clear_bit(PG_INODE_REF, &req->wb_flags))
 		nfs_release_request(req);
+	else
+		WARN_ON_ONCE(1);
 }
 
 static void

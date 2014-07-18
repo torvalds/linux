@@ -26,7 +26,7 @@ enum {
 	PG_MAPPED,		/* page private set for buffered io */
 	PG_CLEAN,		/* write succeeded */
 	PG_COMMIT_TO_DS,	/* used by pnfs layouts */
-	PG_INODE_REF,		/* extra ref held by inode (head req only) */
+	PG_INODE_REF,		/* extra ref held by inode when in writeback */
 	PG_HEADLOCK,		/* page group lock of wb_head */
 	PG_TEARDOWN,		/* page group sync for destroy */
 	PG_UNLOCKPAGE,		/* page group sync bit in read path */
