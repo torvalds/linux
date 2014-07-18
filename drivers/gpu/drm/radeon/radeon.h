@@ -2353,6 +2353,7 @@ struct radeon_device {
 
 	struct dev_pm_domain vga_pm_domain;
 	bool have_disp_power_ref;
+	u32 px_quirk_flags;
 
 	/* tracking pinned memory */
 	u64 vram_pin_size;
