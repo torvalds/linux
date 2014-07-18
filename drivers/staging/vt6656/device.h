@@ -381,8 +381,6 @@ struct vnt_private {
 
 	enum vnt_cmd command;
 
-	int bStopDataPkt;
-
 	/* 802.11 counter */
 
 	enum vnt_cmd cmd_queue[CMD_Q_SIZE];
@@ -396,21 +394,14 @@ struct vnt_private {
 	u8 byAutoFBCtrl;
 
 	/* For Update BaseBand VGA Gain Offset */
-	u32 uBBVGADiffCount;
-	u8 byBBVGANew;
-	u8 byBBVGACurrent;
 	u8 abyBBVGA[BB_VGA_LEVEL];
 	signed long ldBmThreshold[BB_VGA_LEVEL];
 
 	u8 byBBPreEDRSSI;
 	u8 byBBPreEDIndex;
 
-	int bRadioCmd;
-
 	/* command timer */
 	struct delayed_work run_command_work;
-
-	u8 tx_data_time_out;
 
 	int bChannelSwitch;
 	u8 byNewChannel;
