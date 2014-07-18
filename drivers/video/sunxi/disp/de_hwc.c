@@ -32,11 +32,8 @@ __s32 DE_BE_HWC_Enable(__u32 sel, __bool enable)
 
 __s32 DE_BE_HWC_Set_Pos(__u32 sel, __disp_pos_t *pos)
 {
-	__u32 tmp;
-
-	tmp = DE_BE_RUINT32(sel, DE_BE_HWC_CRD_CTL_OFF);
-	DE_BE_WUINT32(sel, DE_BE_HWC_CRD_CTL_OFF, (tmp & 0xf800f800) |
-		      (pos->y & 0x7ff) << 16 | (pos->x & 0x7ff));
+	DE_BE_WUINT32(sel, DE_BE_HWC_CRD_CTL_OFF,
+		      (pos->y & 0x3fff) << 16 | (pos->x & 0x3fff));
 
 	return 0;
 }
@@ -46,8 +43,8 @@ __s32 DE_BE_HWC_Get_Pos(__u32 sel, __disp_pos_t *pos)
 	__u32 readval;
 
 	readval = DE_BE_RUINT32(sel, DE_BE_HWC_CRD_CTL_OFF);
-	pos->y = (readval & 0x07ff0000) >> 16;
-	pos->x = (readval & 0x07ff);
+	pos->y = sign_extend32((readval & 0x3fff0000) >> 16, 13);
+	pos->x = sign_extend32(readval & 0x3fff, 13);
 
 	return 0;
 
