@@ -108,7 +108,7 @@ static int pio2_gpio_dir_in(struct gpio_chip *chip, unsigned offset)
 	if ((card->bank[PIO2_CHANNEL_BANK[offset]].config == OUTPUT) |
 		(card->bank[PIO2_CHANNEL_BANK[offset]].config == NOFIT)) {
 		dev_err(&card->vdev->dev,
-			"Channel directionality not configurable at runtine\n");
+			"Channel directionality not configurable at runtime\n");
 
 		data = -EINVAL;
 	} else {
@@ -127,7 +127,7 @@ static int pio2_gpio_dir_out(struct gpio_chip *chip, unsigned offset, int value)
 	if ((card->bank[PIO2_CHANNEL_BANK[offset]].config == INPUT) |
 		(card->bank[PIO2_CHANNEL_BANK[offset]].config == NOFIT)) {
 		dev_err(&card->vdev->dev,
-			"Channel directionality not configurable at runtine\n");
+			"Channel directionality not configurable at runtime\n");
 
 		data = -EINVAL;
 	} else {
