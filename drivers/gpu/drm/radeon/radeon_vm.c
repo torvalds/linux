@@ -238,8 +238,7 @@ void radeon_vm_flush(struct radeon_device *rdev,
 	uint64_t pd_addr = radeon_bo_gpu_offset(vm->page_directory);
 
 	/* if we can't remember our last VM flush then flush now! */
-	/* XXX figure out why we have to flush all the time */
-	if (!vm->last_flush || true || pd_addr != vm->pd_gpu_addr) {
+	if (!vm->last_flush || pd_addr != vm->pd_gpu_addr) {
 		trace_radeon_vm_flush(pd_addr, ring, vm->id);
 		vm->pd_gpu_addr = pd_addr;
 		radeon_ring_vm_flush(rdev, ring, vm);
