@@ -240,6 +240,11 @@ static inline uint64_t pte_to_entrylo(unsigned long pte_val)
 #define _CACHE_CACHABLE_NONCOHERENT (3<<_CACHE_SHIFT)  /* LOONGSON       */
 #define _CACHE_CACHABLE_COHERENT    (3<<_CACHE_SHIFT)  /* LOONGSON-3     */
 
+#elif defined(CONFIG_MACH_JZ4740)
+
+/* Ingenic uses the WA bit to achieve write-combine memory writes */
+#define _CACHE_UNCACHED_ACCELERATED (1<<_CACHE_SHIFT)
+
 #endif
 
 #ifndef _CACHE_CACHABLE_NO_WA
