@@ -1045,7 +1045,6 @@ static int xenvif_tx_check_gop(struct xenvif_queue *queue,
 
 	/* Check status of header. */
 	err = (*gopp_copy)->status;
-	(*gopp_copy)++;
 	if (unlikely(err)) {
 		if (net_ratelimit())
 			netdev_dbg(queue->vif->dev,
@@ -1058,6 +1057,7 @@ static int xenvif_tx_check_gop(struct xenvif_queue *queue,
 			xenvif_idx_release(queue, pending_idx,
 					   XEN_NETIF_RSP_ERROR);
 	}
+	(*gopp_copy)++;
 
 check_frags:
 	for (i = 0; i < nr_frags; i++, gop_map++) {
