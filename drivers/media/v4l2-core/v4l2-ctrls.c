@@ -1295,11 +1295,19 @@ static void std_log(const struct v4l2_ctrl *ctrl)
 	}
 }
 
-/* Round towards the closest legal value */
+/*
+ * Round towards the closest legal value. Be careful when we are
+ * close to the maximum range of the control type to prevent
+ * wrap-arounds.
+ */
 #define ROUND_TO_RANGE(val, offset_type, ctrl)			\
 ({								\
 	offset_type offset;					\
-	val += (ctrl)->step / 2;				\
+	if ((ctrl)->maximum >= 0 &&				\
+	    val >= (ctrl)->maximum - ((ctrl)->step / 2))	\
+		val = (ctrl)->maximum;				\
+	else							\
+		val += (ctrl)->step / 2;			\
 	val = clamp_t(typeof(val), val,				\
 		      (ctrl)->minimum, (ctrl)->maximum);	\
 	offset = (val) - (ctrl)->minimum;			\
@@ -1325,7 +1333,10 @@ static int std_validate(const struct v4l2_ctrl *ctrl, u32 idx,
 		 * the u64 divide that needs special care.
 		 */
 		val = ptr.p_s64[idx];
-		val += ctrl->step / 2;
+		if (ctrl->maximum >= 0 && val >= ctrl->maximum - ctrl->step / 2)
+			val = ctrl->maximum;
+		else
+			val += ctrl->step / 2;
 		val = clamp_t(s64, val, ctrl->minimum, ctrl->maximum);
 		offset = val - ctrl->minimum;
 		do_div(offset, ctrl->step);
