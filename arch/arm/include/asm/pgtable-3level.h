@@ -79,18 +79,19 @@
 #define L_PTE_PRESENT		(_AT(pteval_t, 3) << 0)		/* Present */
 #define L_PTE_FILE		(_AT(pteval_t, 1) << 2)		/* only when !PRESENT */
 #define L_PTE_USER		(_AT(pteval_t, 1) << 6)		/* AP[1] */
-#define L_PTE_RDONLY		(_AT(pteval_t, 1) << 7)		/* AP[2] */
 #define L_PTE_SHARED		(_AT(pteval_t, 3) << 8)		/* SH[1:0], inner shareable */
 #define L_PTE_YOUNG		(_AT(pteval_t, 1) << 10)	/* AF */
 #define L_PTE_XN		(_AT(pteval_t, 1) << 54)	/* XN */
-#define L_PTE_DIRTY		(_AT(pteval_t, 1) << 55)	/* unused */
-#define L_PTE_SPECIAL		(_AT(pteval_t, 1) << 56)	/* unused */
+#define L_PTE_DIRTY		(_AT(pteval_t, 1) << 55)
+#define L_PTE_SPECIAL		(_AT(pteval_t, 1) << 56)
 #define L_PTE_NONE		(_AT(pteval_t, 1) << 57)	/* PROT_NONE */
+#define L_PTE_RDONLY		(_AT(pteval_t, 1) << 58)	/* READ ONLY */
 
-#define PMD_SECT_VALID		(_AT(pmdval_t, 1) << 0)
-#define PMD_SECT_DIRTY		(_AT(pmdval_t, 1) << 55)
-#define PMD_SECT_SPLITTING	(_AT(pmdval_t, 1) << 56)
-#define PMD_SECT_NONE		(_AT(pmdval_t, 1) << 57)
+#define L_PMD_SECT_VALID	(_AT(pmdval_t, 1) << 0)
+#define L_PMD_SECT_DIRTY	(_AT(pmdval_t, 1) << 55)
+#define L_PMD_SECT_SPLITTING	(_AT(pmdval_t, 1) << 56)
+#define L_PMD_SECT_NONE		(_AT(pmdval_t, 1) << 57)
+#define L_PMD_SECT_RDONLY	(_AT(pteval_t, 1) << 58)
 
 /*
  * To be used in assembly code with the upper page attributes.
@@ -214,24 +215,25 @@ static inline pmd_t *pmd_offset(pud_t *pud, unsigned long addr)
 #define pmd_young(pmd)		(pmd_isset((pmd), PMD_SECT_AF))
 
 #define __HAVE_ARCH_PMD_WRITE
-#define pmd_write(pmd)		(pmd_isclear((pmd), PMD_SECT_RDONLY))
+#define pmd_write(pmd)		(pmd_isclear((pmd), L_PMD_SECT_RDONLY))
+#define pmd_dirty(pmd)		(pmd_isset((pmd), L_PMD_SECT_DIRTY))
 
 #define pmd_hugewillfault(pmd)	(!pmd_young(pmd) || !pmd_write(pmd))
 #define pmd_thp_or_huge(pmd)	(pmd_huge(pmd) || pmd_trans_huge(pmd))
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 #define pmd_trans_huge(pmd)	(pmd_val(pmd) && !pmd_table(pmd))
-#define pmd_trans_splitting(pmd) (pmd_isset((pmd), PMD_SECT_SPLITTING))
+#define pmd_trans_splitting(pmd) (pmd_isset((pmd), L_PMD_SECT_SPLITTING))
 #endif
 
 #define PMD_BIT_FUNC(fn,op) \
 static inline pmd_t pmd_##fn(pmd_t pmd) { pmd_val(pmd) op; return pmd; }
 
-PMD_BIT_FUNC(wrprotect,	|= PMD_SECT_RDONLY);
+PMD_BIT_FUNC(wrprotect,	|= L_PMD_SECT_RDONLY);
 PMD_BIT_FUNC(mkold,	&= ~PMD_SECT_AF);
-PMD_BIT_FUNC(mksplitting, |= PMD_SECT_SPLITTING);
-PMD_BIT_FUNC(mkwrite,   &= ~PMD_SECT_RDONLY);
-PMD_BIT_FUNC(mkdirty,   |= PMD_SECT_DIRTY);
+PMD_BIT_FUNC(mksplitting, |= L_PMD_SECT_SPLITTING);
+PMD_BIT_FUNC(mkwrite,   &= ~L_PMD_SECT_RDONLY);
+PMD_BIT_FUNC(mkdirty,   |= L_PMD_SECT_DIRTY);
 PMD_BIT_FUNC(mkyoung,   |= PMD_SECT_AF);
 
 #define pmd_mkhuge(pmd)		(__pmd(pmd_val(pmd) & ~PMD_TABLE_BIT))
@@ -245,8 +247,8 @@ PMD_BIT_FUNC(mkyoung,   |= PMD_SECT_AF);
 
 static inline pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot)
 {
-	const pmdval_t mask = PMD_SECT_USER | PMD_SECT_XN | PMD_SECT_RDONLY |
-				PMD_SECT_VALID | PMD_SECT_NONE;
+	const pmdval_t mask = PMD_SECT_USER | PMD_SECT_XN | L_PMD_SECT_RDONLY |
+				L_PMD_SECT_VALID | L_PMD_SECT_NONE;
 	pmd_val(pmd) = (pmd_val(pmd) & ~mask) | (pgprot_val(newprot) & mask);
 	return pmd;
 }
@@ -257,8 +259,13 @@ static inline void set_pmd_at(struct mm_struct *mm, unsigned long addr,
 	BUG_ON(addr >= TASK_SIZE);
 
 	/* create a faulting entry if PROT_NONE protected */
-	if (pmd_val(pmd) & PMD_SECT_NONE)
-		pmd_val(pmd) &= ~PMD_SECT_VALID;
+	if (pmd_val(pmd) & L_PMD_SECT_NONE)
+		pmd_val(pmd) &= ~L_PMD_SECT_VALID;
+
+	if (pmd_write(pmd) && pmd_dirty(pmd))
+		pmd_val(pmd) &= ~PMD_SECT_AP2;
+	else
+		pmd_val(pmd) |= PMD_SECT_AP2;
 
 	*pmdp = __pmd(pmd_val(pmd) | PMD_SECT_nG);
 	flush_pmd_entry(pmdp);
