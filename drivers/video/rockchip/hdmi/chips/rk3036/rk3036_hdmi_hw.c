@@ -76,7 +76,7 @@ static void rk3036_hdmi_set_pwr_mode(struct hdmi *hdmi_drv, int mode)
 			 __func__, hdmi_drv->pwr_mode, mode);
 		rk3036_hdmi_sys_power(hdmi_drv, false);
 		hdmi_writel(hdmi_dev, PHY_DRIVER, 0xaa);
-		hdmi_writel(hdmi_dev, PHY_PRE_EMPHASIS, 0x5f);
+		hdmi_writel(hdmi_dev, PHY_PRE_EMPHASIS, 0x6f);
 		hdmi_writel(hdmi_dev, PHY_SYS_CTL, 0x15);
 		hdmi_writel(hdmi_dev, PHY_SYS_CTL, 0x14);
 		hdmi_writel(hdmi_dev, PHY_SYS_CTL, 0x10);
@@ -237,7 +237,10 @@ static void rk3036_hdmi_config_avi(struct hdmi *hdmi_drv,
 	    ACTIVE_ASPECT_RATE_SAME_AS_CODED_FRAME;
 	info[6] = 0;
 	info[7] = vic;
-	info[8] = 0;
+	if ((vic == HDMI_720X480I_60HZ_VIC) || (vic == HDMI_720X576I_50HZ_VIC))
+		info[8] = 1;
+	else
+		info[8] = 0;
 
 	/* Calculate AVI InfoFrame ChecKsum */
 	for (i = 4; i < SIZE_AVI_INFOFRAME; i++)

@@ -11,12 +11,12 @@
 struct hdmi *m_hdmi_drv;
 
 static const struct fb_videomode hdmi_mode[] = {
-	/*	name		refresh	xres	yres	pixclock	h_bp	h_fp	v_bp	v_fp	h_pw	v_pw			polariry			PorI	flag(used for vic) */
+	/*	name		refresh	xres	yres	pixclock		h_bp	h_fp	v_bp	v_fp	h_pw	v_pw			polariry			PorI	flag(used for vic) */
 /*
 	{"640x480p@60Hz",	60,	640,	480,	25175000,	48,	16,	33,	10,	96,	2,			0,				0,	1 },
-	{"720x480i@60Hz",	60,	720,    480,    27000000,       114,    38,     15,     4,      124,    3,			0,				1,      6 },
-	{"720x576i@50Hz",	50,	720,	576,	27000000,	138,	24,	19,	2,	126,	3,			0,				1,	21},
 */
+	{"720x480i@60Hz",	60,	720,    480,    27000000,       57,     19,   15,     4,        62,     3,			0,				1,      6 },
+	{"720x576i@50Hz",	50,	720,	576,	27000000,	69,	12,	19,	2,	63,	3,			0,				1,	21},
 	{"720x480p@60Hz",	60,	720,	480,	27000000,	60,	16,	30,	9,	62,	6,			0,				0,	2 },
 	{"720x576p@50Hz",	50,	720,	576,	27000000,	68,	12,	39,	5,	64,	5,			0,				0,	17},
 /*
@@ -31,9 +31,9 @@ static const struct fb_videomode hdmi_mode[] = {
 	{"1920x1080p@25Hz",	25,	1920,   1080,   74250000,       148,    528,    36,     4,      44,     5,      FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,	0,	33},
 	{"1920x1080p@30Hz",	30,	1920,	1080,	74250000,	148,	88,	36,	4,	44,	5,	FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,	0,	34},
 	{"1920x1080i@50Hz_2",	50,	1920,   1080,   72000000,       184,    32,     57,     23,     168,    5,      FB_SYNC_HOR_HIGH_ACT,				1,	39},
+*/
 	{"1920x1080i@50Hz",	50,	1920,   1080,   74250000,       148,    528,    15,     2,      44,     5,      FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,	1,	20},
 	{"1920x1080i@60Hz",	60,	1920,   1080,   74250000,       148,    88,     15,     2,      44,     5,      FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,	1,	5 },
-*/
 	{"1920x1080p@50Hz",	50,	1920,	1080,	148500000,	148,	528,	36,	4,	44,	5,	FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,	0,	31},
 	{"1920x1080p@60Hz",	60,	1920,	1080,	148500000,	148,	88,	36,	4,	44,	5,	FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,	0,	16},
 /*
@@ -121,7 +121,11 @@ int hdmi_set_info(struct rk_screen *screen, unsigned int vic)
 	screen->mode.upper_margin = hdmi_mode[i].upper_margin;
 	screen->mode.lower_margin = hdmi_mode[i].lower_margin;
 	screen->mode.vsync_len = hdmi_mode[i].vsync_len;
+	screen->mode.vmode = hdmi_mode[i].vmode;
 	screen->hdmi_resolution = hdmi_mode[i].flag;
+	if ((screen->hdmi_resolution == HDMI_720X480I_60HZ_VIC) ||
+		(screen->hdmi_resolution == HDMI_720X576I_50HZ_VIC))
+		screen->pixelrepeat = 1;
 
 	/* Pin polarity */
 #if defined(CONFIG_HDMI_RK616) && !defined(CONFIG_ARCH_RK3026)
@@ -439,10 +443,11 @@ int hdmi_videomode_to_vic(struct fb_videomode *vmode)
 		    vmode->lower_margin == hdmi_mode[i].lower_margin &&
 		    vmode->hsync_len == hdmi_mode[i].hsync_len &&
 		    vmode->vsync_len == hdmi_mode[i].vsync_len) {
-			if ((vmode->vmode == FB_VMODE_NONINTERLACED
+			/*if ((vmode->vmode == FB_VMODE_NONINTERLACED
 			     && vmode->yres == hdmi_mode[i].yres)
 			    || (vmode->vmode == FB_VMODE_INTERLACED
-				&& vmode->yres == hdmi_mode[i].yres / 2)) {
+				&& vmode->yres == hdmi_mode[i].yres / 2))*/
+			{
 				vic = hdmi_mode[i].flag;
 				break;
 			}
