@@ -545,13 +545,9 @@ static inline void intel_pstate_calc_busy(struct cpudata *cpu)
 {
 	struct sample *sample = &cpu->sample;
 	int64_t core_pct;
-	int32_t rem;
 
 	core_pct = int_tofp(sample->aperf) * int_tofp(100);
-	core_pct = div_u64_rem(core_pct, int_tofp(sample->mperf), &rem);
-
-	if ((rem << 1) >= int_tofp(sample->mperf))
-		core_pct += 1;
+	core_pct = div64_u64(core_pct, int_tofp(sample->mperf));
 
 	sample->freq = fp_toint(
 		mul_fp(int_tofp(cpu->pstate.max_pstate * 1000), core_pct));
