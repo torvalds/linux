@@ -418,7 +418,7 @@ static void device_free_rx_bufs(struct vnt_private *priv)
 	int ii;
 
 	for (ii = 0; ii < priv->cbRD; ii++) {
-		rcb = priv->apRCB[ii];
+		rcb = priv->rcb[ii];
 		if (!rcb)
 			continue;
 
@@ -486,14 +486,14 @@ static bool device_alloc_bufs(struct vnt_private *priv)
 	}
 
 	for (ii = 0; ii < priv->cbRD; ii++) {
-		priv->apRCB[ii] = kzalloc(sizeof(struct vnt_rcb), GFP_KERNEL);
-		if (!priv->apRCB[ii]) {
+		priv->rcb[ii] = kzalloc(sizeof(struct vnt_rcb), GFP_KERNEL);
+		if (!priv->rcb[ii]) {
 			dev_err(&priv->usb->dev,
 					"failed to allocate rcb no %d\n", ii);
 			goto free_rx_tx;
 		}
 
-		rcb = priv->apRCB[ii];
+		rcb = priv->rcb[ii];
 
 		rcb->priv = priv;
 

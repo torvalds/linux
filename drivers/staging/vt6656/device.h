@@ -288,7 +288,7 @@ struct vnt_private {
 	u32 int_interval;
 
 	/* Variables to track resources for the BULK In Pipe */
-	struct vnt_rcb *apRCB[CB_MAX_RX_DESC];
+	struct vnt_rcb *rcb[CB_MAX_RX_DESC];
 	u32 cbRD;
 
 	/* Variables to track resources for the BULK Out Pipe */
