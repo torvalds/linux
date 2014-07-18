@@ -350,19 +350,22 @@ static int coda_hw_reset(struct coda_ctx *ctx)
 
 	idx = coda_read(dev, CODA_REG_BIT_RUN_INDEX);
 
-	timeout = jiffies + msecs_to_jiffies(100);
-	coda_write(dev, 0x11, CODA9_GDI_BUS_CTRL);
-	while (coda_read(dev, CODA9_GDI_BUS_STATUS) != 0x77) {
-		if (time_after(jiffies, timeout))
-			return -ETIME;
-		cpu_relax();
+	if (dev->devtype->product == CODA_960) {
+		timeout = jiffies + msecs_to_jiffies(100);
+		coda_write(dev, 0x11, CODA9_GDI_BUS_CTRL);
+		while (coda_read(dev, CODA9_GDI_BUS_STATUS) != 0x77) {
+			if (time_after(jiffies, timeout))
+				return -ETIME;
+			cpu_relax();
+		}
 	}
 
 	ret = reset_control_reset(dev->rstc);
 	if (ret < 0)
 		return ret;
 
-	coda_write(dev, 0x00, CODA9_GDI_BUS_CTRL);
+	if (dev->devtype->product == CODA_960)
+		coda_write(dev, 0x00, CODA9_GDI_BUS_CTRL);
 	coda_write(dev, CODA_REG_BIT_BUSY_FLAG, CODA_REG_BIT_BUSY);
 	coda_write(dev, CODA_REG_RUN_ENABLE, CODA_REG_BIT_CODE_RUN);
 	ret = coda_wait_timeout(dev);
