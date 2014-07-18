@@ -354,12 +354,6 @@
 #define MISCFIFO_KEYETRY0	32
 #define MISCFIFO_KEYENTRYSIZE	22
 
-// max time out delay time
-#define W_MAX_TIMEOUT       0xFFF0U     //
-
-// wait time within loop
-#define CB_DELAY_LOOP_WAIT  10          // 10ms
-
 #define MAC_REVISION_A0		0x00
 #define MAC_REVISION_A1		0x01
 
