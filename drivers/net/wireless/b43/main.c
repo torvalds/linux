@@ -4512,7 +4512,8 @@ static int b43_phy_versioning(struct b43_wldev *dev)
 		if (radio_ver != 0x2055 && radio_ver != 0x2056 &&
 		    radio_ver != 0x2057)
 			unsupported = 1;
-		if (radio_ver == 0x2057 && !(radio_rev == 9))
+		if (radio_ver == 0x2057 &&
+		    !(radio_rev == 9 || radio_rev == 14))
 			unsupported = 1;
 		break;
 	case B43_PHYTYPE_LP:
@@ -5152,7 +5153,8 @@ static int b43_setup_bands(struct b43_wldev *dev,
 	bool limited_2g;
 
 	/* We don't support all 2 GHz channels on some devices */
-	limited_2g = phy->radio_ver == 0x2057 && phy->radio_rev == 9;
+	limited_2g = phy->radio_ver == 0x2057 &&
+		     (phy->radio_rev == 9 || phy->radio_rev == 14);
 
 	if (have_2ghz_phy)
 		hw->wiphy->bands[IEEE80211_BAND_2GHZ] = limited_2g ?
