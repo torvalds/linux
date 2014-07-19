@@ -11,8 +11,8 @@
  * more details.
  */
 
-#ifndef __LINUX_TEGRA_CPUIDLE_H__
-#define __LINUX_TEGRA_CPUIDLE_H__
+#ifndef __SOC_TEGRA_CPUIDLE_H__
+#define __SOC_TEGRA_CPUIDLE_H__
 
 #ifdef CONFIG_CPU_IDLE
 void tegra_cpuidle_pcie_irqs_in_use(void);
@@ -22,4 +22,4 @@ static inline void tegra_cpuidle_pcie_irqs_in_use(void)
 }
 #endif
 
-#endif
+#endif /* __SOC_TEGRA_CPUIDLE_H__ */

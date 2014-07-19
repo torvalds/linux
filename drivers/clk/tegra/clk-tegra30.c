@@ -22,8 +22,11 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/clk/tegra.h>
-#include <linux/tegra-powergate.h>
+
+#include <soc/tegra/powergate.h>
+
 #include <dt-bindings/clock/tegra30-car.h>
+
 #include "clk.h"
 #include "clk-id.h"
 

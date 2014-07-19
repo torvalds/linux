@@ -15,15 +15,16 @@
  *
  */
 
-#include <linux/kernel.h>
 #include <linux/clk.h>
 #include <linux/io.h>
+#include <linux/kernel.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/tegra-powergate.h>
+
+#include <soc/tegra/fuse.h>
+#include <soc/tegra/powergate.h>
 
 #include "flowctrl.h"
-#include "fuse.h"
 #include "pm.h"
 #include "pmc.h"
 #include "sleep.h"
@@ -251,7 +252,7 @@ void tegra_pmc_pm_set(enum tegra_suspend_mode mode)
 	reg |= TEGRA_POWER_CPU_PWRREQ_OE;
 	reg &= ~TEGRA_POWER_EFFECT_LP0;
 
-	switch (tegra_chip_id) {
+	switch (tegra_get_chip_id()) {
 	case TEGRA20:
 	case TEGRA30:
 		break;

@@ -15,8 +15,8 @@
  *
  */
 
-#ifndef _MACH_TEGRA_POWERGATE_H_
-#define _MACH_TEGRA_POWERGATE_H_
+#ifndef __SOC_TEGRA_POWERGATE_H__
+#define __SOC_TEGRA_POWERGATE_H__
 
 struct clk;
 struct reset_control;
@@ -131,4 +131,4 @@ static inline int tegra_io_rail_power_off(int id)
 }
 #endif
 
-#endif /* _MACH_TEGRA_POWERGATE_H_ */
+#endif /* __SOC_TEGRA_POWERGATE_H__ */

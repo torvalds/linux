@@ -14,20 +14,21 @@
  *
  */
 
+#include <linux/bitops.h>
+#include <linux/cpumask.h>
 #include <linux/init.h>
 #include <linux/io.h>
-#include <linux/cpumask.h>
-#include <linux/bitops.h>
+
+#include <soc/tegra/fuse.h>
 
 #include <asm/cacheflush.h>
-#include <asm/hardware/cache-l2x0.h>
 #include <asm/firmware.h>
+#include <asm/hardware/cache-l2x0.h>
 
 #include "iomap.h"
 #include "irammap.h"
 #include "reset.h"
 #include "sleep.h"
-#include "fuse.h"
 
 #define TEGRA_IRAM_RESET_BASE (TEGRA_IRAM_BASE + \
 				TEGRA_IRAM_RESET_HANDLER_OFFSET)
@@ -53,7 +54,7 @@ static void __init tegra_cpu_reset_handler_set(const u32 reset_address)
 	 * Prevent further modifications to the physical reset vector.
 	 *  NOTE: Has no effect on chips prior to Tegra30.
 	 */
-	if (tegra_chip_id != TEGRA20) {
+	if (tegra_get_chip_id() != TEGRA20) {
 		reg = readl(sb_ctrl);
 		reg |= 2;
 		writel(reg, sb_ctrl);

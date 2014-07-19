@@ -9,14 +9,11 @@
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef __LINUX_TEGRA_SOC_H_
-#define __LINUX_TEGRA_SOC_H_
+#ifndef __SOC_TEGRA_AHB_H__
+#define __SOC_TEGRA_AHB_H__
 
-u32 tegra_read_chipid(void);
+extern int tegra_ahb_enable_smmu(struct device_node *ahb);
 
-#endif /* __LINUX_TEGRA_SOC_H_ */
+#endif /* __SOC_TEGRA_AHB_H__ */
