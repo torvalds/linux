@@ -583,7 +583,7 @@ void vnt_adjust_tsf(struct vnt_private *priv, u8 rx_rate,
 bool vnt_get_current_tsf(struct vnt_private *priv, u64 *current_tsf)
 {
 
-	*current_tsf = priv->qwCurrTSF;
+	*current_tsf = priv->current_tsf;
 
 	return true;
 }
@@ -604,7 +604,7 @@ bool vnt_clear_current_tsf(struct vnt_private *priv)
 
 	vnt_mac_reg_bits_on(priv, MAC_REG_TFTCTL, TFTCTL_TSFCNTRST);
 
-	priv->qwCurrTSF = 0;
+	priv->current_tsf = 0;
 
 	return true;
 }

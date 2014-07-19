@@ -162,7 +162,7 @@ void vnt_int_process_data(struct vnt_private *priv)
 			}
 #endif
 		}
-		priv->qwCurrTSF = le64_to_cpu(int_data->tsf);
+		priv->current_tsf = le64_to_cpu(int_data->tsf);
 
 		low_stats->dot11RTSSuccessCount += int_data->rts_success;
 		low_stats->dot11RTSFailureCount += int_data->rts_fail;

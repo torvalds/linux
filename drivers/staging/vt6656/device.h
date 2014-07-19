@@ -311,7 +311,7 @@ struct vnt_private {
 
 	u8 exist_sw_net_addr;
 
-	u64 qwCurrTSF;
+	u64 current_tsf;
 
 	/* 802.11 MAC specific */
 	u32 uCurrRSSI;
