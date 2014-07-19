@@ -352,11 +352,11 @@ void vnt_set_antenna_mode(struct vnt_private *priv, u8 antenna_mode)
 	case ANT_TXB:
 		break;
 	case ANT_RXA:
-		priv->byBBRxConf &= 0xFC;
+		priv->bb_rx_conf &= 0xFC;
 		break;
 	case ANT_RXB:
-		priv->byBBRxConf &= 0xFE;
-		priv->byBBRxConf |= 0x02;
+		priv->bb_rx_conf &= 0xFE;
+		priv->bb_rx_conf |= 0x02;
 		break;
 	}
 
@@ -404,7 +404,7 @@ int vnt_vt3184_init(struct vnt_private *priv)
 
 	if ((priv->rf_type == RF_AL2230) ||
 				(priv->rf_type == RF_AL2230S)) {
-		priv->byBBRxConf = vnt_vt3184_al2230[10];
+		priv->bb_rx_conf = vnt_vt3184_al2230[10];
 		length = sizeof(vnt_vt3184_al2230);
 		addr = vnt_vt3184_al2230;
 		agc = vnt_vt3184_agc;
@@ -419,7 +419,7 @@ int vnt_vt3184_init(struct vnt_private *priv)
 		priv->ldBmThreshold[2] = 0;
 		priv->ldBmThreshold[3] = 0;
 	} else if (priv->rf_type == RF_AIROHA7230) {
-		priv->byBBRxConf = vnt_vt3184_al2230[10];
+		priv->bb_rx_conf = vnt_vt3184_al2230[10];
 		length = sizeof(vnt_vt3184_al2230);
 		addr = vnt_vt3184_al2230;
 		agc = vnt_vt3184_agc;
@@ -437,7 +437,7 @@ int vnt_vt3184_init(struct vnt_private *priv)
 		priv->ldBmThreshold[3] = 0;
 	} else if ((priv->rf_type == RF_VT3226) ||
 			(priv->rf_type == RF_VT3226D0)) {
-		priv->byBBRxConf = vnt_vt3184_vt3226d0[10];
+		priv->bb_rx_conf = vnt_vt3184_vt3226d0[10];
 		length = sizeof(vnt_vt3184_vt3226d0);
 		addr = vnt_vt3184_vt3226d0;
 		agc = vnt_vt3184_agc;
@@ -455,7 +455,7 @@ int vnt_vt3184_init(struct vnt_private *priv)
 		vnt_mac_reg_bits_on(priv, MAC_REG_SOFTPWRCTL2,
 				    SOFTPWRCTL_RFLEOPT);
 	} else if (priv->rf_type == RF_VT3342A0) {
-		priv->byBBRxConf = vnt_vt3184_vt3226d0[10];
+		priv->bb_rx_conf = vnt_vt3184_vt3226d0[10];
 		length = sizeof(vnt_vt3184_vt3226d0);
 		addr = vnt_vt3184_vt3226d0;
 		agc = vnt_vt3184_agc;
@@ -531,16 +531,16 @@ void vnt_set_short_slot_time(struct vnt_private *priv)
 	u8 bb_vga = 0;
 
 	if (priv->bShortSlotTime)
-		priv->byBBRxConf &= 0xdf;
+		priv->bb_rx_conf &= 0xdf;
 	else
-		priv->byBBRxConf |= 0x20;
+		priv->bb_rx_conf |= 0x20;
 
 	vnt_control_in_u8(priv, MESSAGE_REQUEST_BBREG, 0xe7, &bb_vga);
 
 	if (bb_vga == priv->abyBBVGA[0])
-		priv->byBBRxConf |= 0x20;
+		priv->bb_rx_conf |= 0x20;
 
-	vnt_control_out_u8(priv, MESSAGE_REQUEST_BBREG, 0x0a, priv->byBBRxConf);
+	vnt_control_out_u8(priv, MESSAGE_REQUEST_BBREG, 0x0a, priv->bb_rx_conf);
 }
 
 void vnt_set_vga_gain_offset(struct vnt_private *priv, u8 data)
@@ -550,11 +550,11 @@ void vnt_set_vga_gain_offset(struct vnt_private *priv, u8 data)
 
 	/* patch for 3253B0 Baseband with Cardbus module */
 	if (priv->bShortSlotTime)
-		priv->byBBRxConf &= 0xdf; /* 1101 1111 */
+		priv->bb_rx_conf &= 0xdf; /* 1101 1111 */
 	else
-		priv->byBBRxConf |= 0x20; /* 0010 0000 */
+		priv->bb_rx_conf |= 0x20; /* 0010 0000 */
 
-	vnt_control_out_u8(priv, MESSAGE_REQUEST_BBREG, 0x0a, priv->byBBRxConf);
+	vnt_control_out_u8(priv, MESSAGE_REQUEST_BBREG, 0x0a, priv->bb_rx_conf);
 }
 
 /*

@@ -302,7 +302,7 @@ struct vnt_private {
 	u16 firmware_version;
 	u8 local_id;
 	u8 rf_type;
-	u8 byBBRxConf;
+	u8 bb_rx_conf;
 
 	u8 byZoneType;
 
