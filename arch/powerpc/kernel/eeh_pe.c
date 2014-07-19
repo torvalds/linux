@@ -503,13 +503,17 @@ static void *__eeh_pe_state_mark(void *data, void *flag)
 	struct eeh_dev *edev, *tmp;
 	struct pci_dev *pdev;
 
-	/*
-	 * Mark the PE with the indicated state. Also,
-	 * the associated PCI device will be put into
-	 * I/O frozen state to avoid I/O accesses from
-	 * the PCI device driver.
-	 */
+	/* Keep the state of permanently removed PE intact */
+	if ((pe->freeze_count > EEH_MAX_ALLOWED_FREEZES) &&
+	    (state & (EEH_PE_ISOLATED | EEH_PE_RECOVERING)))
+		return NULL;
+
 	pe->state |= state;
+
+	/* Offline PCI devices if applicable */
+	if (state != EEH_PE_ISOLATED)
+		return NULL;
+
 	eeh_pe_for_each_dev(pe, edev, tmp) {
 		pdev = eeh_dev_to_pci_dev(edev);
 		if (pdev)
@@ -532,6 +536,27 @@ void eeh_pe_state_mark(struct eeh_pe *pe, int state)
 	eeh_pe_traverse(pe, __eeh_pe_state_mark, &state);
 }
 
+static void *__eeh_pe_dev_mode_mark(void *data, void *flag)
+{
+	struct eeh_dev *edev = data;
+	int mode = *((int *)flag);
+
+	edev->mode |= mode;
+
+	return NULL;
+}
+
+/**
+ * eeh_pe_dev_state_mark - Mark state for all device under the PE
+ * @pe: EEH PE
+ *
+ * Mark specific state for all child devices of the PE.
+ */
+void eeh_pe_dev_mode_mark(struct eeh_pe *pe, int mode)
+{
+	eeh_pe_dev_traverse(pe, __eeh_pe_dev_mode_mark, &mode);
+}
+
 /**
  * __eeh_pe_state_clear - Clear state for the PE
  * @data: EEH PE
@@ -546,8 +571,16 @@ static void *__eeh_pe_state_clear(void *data, void *flag)
 	struct eeh_pe *pe = (struct eeh_pe *)data;
 	int state = *((int *)flag);
 
+	/* Keep the state of permanently removed PE intact */
+	if ((pe->freeze_count > EEH_MAX_ALLOWED_FREEZES) &&
+	    (state & EEH_PE_ISOLATED))
+		return NULL;
+
 	pe->state &= ~state;
-	pe->check_count = 0;
+
+	/* Clear check count since last isolation */
+	if (state & EEH_PE_ISOLATED)
+		pe->check_count = 0;
 
 	return NULL;
 }
@@ -756,6 +789,66 @@ void eeh_pe_restore_bars(struct eeh_pe *pe)
 	 * will take that.
 	 */
 	eeh_pe_dev_traverse(pe, eeh_restore_one_device_bars, NULL);
+}
+
+/**
+ * eeh_pe_loc_get - Retrieve location code binding to the given PE
+ * @pe: EEH PE
+ *
+ * Retrieve the location code of the given PE. If the primary PE bus
+ * is root bus, we will grab location code from PHB device tree node
+ * or root port. Otherwise, the upstream bridge's device tree node
+ * of the primary PE bus will be checked for the location code.
+ */
+const char *eeh_pe_loc_get(struct eeh_pe *pe)
+{
+	struct pci_controller *hose;
+	struct pci_bus *bus = eeh_pe_bus_get(pe);
+	struct pci_dev *pdev;
+	struct device_node *dn;
+	const char *loc;
+
+	if (!bus)
+		return "N/A";
+
+	/* PHB PE or root PE ? */
+	if (pci_is_root_bus(bus)) {
+		hose = pci_bus_to_host(bus);
+		loc = of_get_property(hose->dn,
+				"ibm,loc-code", NULL);
+		if (loc)
+			return loc;
+		loc = of_get_property(hose->dn,
+				"ibm,io-base-loc-code", NULL);
+		if (loc)
+			return loc;
+
+		pdev = pci_get_slot(bus, 0x0);
+	} else {
+		pdev = bus->self;
+	}
+
+	if (!pdev) {
+		loc = "N/A";
+		goto out;
+	}
+
+	dn = pci_device_to_OF_node(pdev);
+	if (!dn) {
+		loc = "N/A";
+		goto out;
+	}
+
+	loc = of_get_property(dn, "ibm,loc-code", NULL);
+	if (!loc)
+		loc = of_get_property(dn, "ibm,slot-location-code", NULL);
+	if (!loc)
+		loc = "N/A";
+
+out:
+	if (pci_is_root_bus(bus) && pdev)
+		pci_dev_put(pdev);
+	return loc;
 }
 
 /**

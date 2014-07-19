@@ -37,18 +37,18 @@ SCHED_FEAT(CACHE_HOT_BUDDY, true)
 SCHED_FEAT(WAKEUP_PREEMPTION, true)
 
 /*
- * Use arch dependent cpu power functions
+ * Use arch dependent cpu capacity functions
  */
-SCHED_FEAT(ARCH_POWER, true)
+SCHED_FEAT(ARCH_CAPACITY, true)
 
 SCHED_FEAT(HRTICK, false)
 SCHED_FEAT(DOUBLE_TICK, false)
 SCHED_FEAT(LB_BIAS, true)
 
 /*
- * Decrement CPU power based on time not spent running tasks
+ * Decrement CPU capacity based on time not spent running tasks
  */
-SCHED_FEAT(NONTASK_POWER, true)
+SCHED_FEAT(NONTASK_CAPACITY, true)
 
 /*
  * Queue remote wakeups on the target CPU and process them

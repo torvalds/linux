@@ -15,11 +15,12 @@
  *      2 of the License, or (at your option) any later version.
  */
 
-#include <linux/kernel.h>
-#include <linux/types.h>
-#include <linux/string.h>
-#include <linux/mm.h>
 #include <linux/memblock.h>
+#include <linux/kernel.h>
+#include <linux/string.h>
+#include <linux/types.h>
+#include <linux/cpu.h>
+#include <linux/mm.h>
 #include <linux/of.h>
 
 #include <asm/prom.h>

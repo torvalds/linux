@@ -289,7 +289,7 @@ static int xgpio_of_probe(struct device_node *np)
 	return 0;
 }
 
-static struct of_device_id xgpio_of_match[] = {
+static const struct of_device_id xgpio_of_match[] = {
 	{ .compatible = "xlnx,xps-gpio-1.00.a", },
 	{ /* end of list */ },
 };

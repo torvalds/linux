@@ -89,14 +89,16 @@ static void ni_tio_configure_dma(struct ni_gpct *counter, short enable,
 
 static int ni_tio_input_inttrig(struct comedi_device *dev,
 				struct comedi_subdevice *s,
-				unsigned int trignum)
+				unsigned int trig_num)
 {
+	struct ni_gpct *counter = s->private;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned long flags;
 	int retval = 0;
-	struct ni_gpct *counter = s->private;
 
 	BUG_ON(counter == NULL);
-	if (trignum != 0)
+
+	if (trig_num != cmd->start_src)
 		return -EINVAL;
 
 	spin_lock_irqsave(&counter->lock, flags);
@@ -113,15 +115,17 @@ static int ni_tio_input_inttrig(struct comedi_device *dev,
 	return retval;
 }
 
-static int ni_tio_input_cmd(struct ni_gpct *counter, struct comedi_async *async)
+static int ni_tio_input_cmd(struct comedi_subdevice *s)
 {
+	struct ni_gpct *counter = s->private;
 	struct ni_gpct_device *counter_dev = counter->counter_dev;
 	unsigned cidx = counter->counter_index;
+	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
 	int retval = 0;
 
 	/* write alloc the entire buffer */
-	comedi_buf_write_alloc(async, async->prealloc_bufsz);
+	comedi_buf_write_alloc(s, async->prealloc_bufsz);
 	counter->mite_chan->dir = COMEDI_INPUT;
 	switch (counter_dev->variant) {
 	case ni_gpct_variant_m_series:
@@ -162,9 +166,10 @@ static int ni_tio_input_cmd(struct ni_gpct *counter, struct comedi_async *async)
 	return retval;
 }
 
-static int ni_tio_output_cmd(struct ni_gpct *counter,
-			     struct comedi_async *async)
+static int ni_tio_output_cmd(struct comedi_subdevice *s)
 {
+	struct ni_gpct *counter = s->private;
+
 	dev_err(counter->counter_dev->dev->class_dev,
 		"output commands not yet implemented.\n");
 	return -ENOTSUPP;
@@ -176,9 +181,10 @@ static int ni_tio_output_cmd(struct ni_gpct *counter,
 	return ni_tio_arm(counter, 1, NI_GPCT_ARM_IMMEDIATE);
 }
 
-static int ni_tio_cmd_setup(struct ni_gpct *counter, struct comedi_async *async)
+static int ni_tio_cmd_setup(struct comedi_subdevice *s)
 {
-	struct comedi_cmd *cmd = &async->cmd;
+	struct comedi_cmd *cmd = &s->async->cmd;
+	struct ni_gpct *counter = s->private;
 	unsigned cidx = counter->counter_index;
 	int set_gate_source = 0;
 	unsigned gate_source;
@@ -217,12 +223,12 @@ int ni_tio_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 			"Interrupt-driven commands not yet implemented.\n");
 		retval = -EIO;
 	} else {
-		retval = ni_tio_cmd_setup(counter, async);
+		retval = ni_tio_cmd_setup(s);
 		if (retval == 0) {
 			if (cmd->flags & CMDF_WRITE)
-				retval = ni_tio_output_cmd(counter, async);
+				retval = ni_tio_output_cmd(s);
 			else
-				retval = ni_tio_input_cmd(counter, async);
+				retval = ni_tio_input_cmd(s);
 		}
 	}
 	spin_unlock_irqrestore(&counter->lock, flags);
@@ -271,8 +277,16 @@ int ni_tio_cmdtest(struct comedi_device *dev,
 
 	/* Step 3: check if arguments are trivially valid */
 
-	if (cmd->start_src != TRIG_EXT)
+	switch (cmd->start_src) {
+	case TRIG_NOW:
+	case TRIG_INT:
+	case TRIG_OTHER:
 		err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+		break;
+	case TRIG_EXT:
+		/* start_arg is the start_trigger passed to ni_tio_arm() */
+		break;
+	}
 
 	if (cmd->scan_begin_src != TRIG_EXT)
 		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
@@ -450,7 +464,7 @@ void ni_tio_handle_interrupt(struct ni_gpct *counter,
 		       counter->mite_chan->mite->mite_io_addr +
 		       MITE_CHOR(counter->mite_chan->channel));
 	}
-	mite_sync_input_dma(counter->mite_chan, s->async);
+	mite_sync_input_dma(counter->mite_chan, s);
 	spin_unlock_irqrestore(&counter->lock, flags);
 }
 EXPORT_SYMBOL_GPL(ni_tio_handle_interrupt);

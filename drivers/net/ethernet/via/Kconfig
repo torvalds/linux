@@ -19,7 +19,7 @@ if NET_VENDOR_VIA
 
 config VIA_RHINE
 	tristate "VIA Rhine support"
-	depends on PCI
+	depends on (PCI || USE_OF)
 	select CRC32
 	select MII
 	---help---

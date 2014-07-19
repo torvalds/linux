@@ -120,10 +120,8 @@ static int timeriomem_rng_probe(struct platform_device *pdev)
 	/* Allocate memory for the device structure (and zero it) */
 	priv = devm_kzalloc(&pdev->dev,
 			sizeof(struct timeriomem_rng_private_data), GFP_KERNEL);
-	if (!priv) {
-		dev_err(&pdev->dev, "failed to allocate device structure.\n");
+	if (!priv)
 		return -ENOMEM;
-	}
 
 	platform_set_drvdata(pdev, priv);
 

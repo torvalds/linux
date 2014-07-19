@@ -263,16 +263,16 @@ static inline struct osd_cdb_head *osd_cdb_head(struct osd_cdb *ocdb)
  * Ex name = FORMAT_OSD we have OSD_ACT_FORMAT_OSD && OSDv1_ACT_FORMAT_OSD
  */
 #define OSD_ACT___(Name, Num) \
-	OSD_ACT_##Name = __constant_cpu_to_be16(0x8880 + Num), \
-	OSDv1_ACT_##Name = __constant_cpu_to_be16(0x8800 + Num),
+	OSD_ACT_##Name = cpu_to_be16(0x8880 + Num), \
+	OSDv1_ACT_##Name = cpu_to_be16(0x8800 + Num),
 
 /* V2 only actions */
 #define OSD_ACT_V2(Name, Num) \
-	OSD_ACT_##Name = __constant_cpu_to_be16(0x8880 + Num),
+	OSD_ACT_##Name = cpu_to_be16(0x8880 + Num),
 
 #define OSD_ACT_V1_V2(Name, Num1, Num2) \
-	OSD_ACT_##Name = __constant_cpu_to_be16(Num2), \
-	OSDv1_ACT_##Name = __constant_cpu_to_be16(Num1),
+	OSD_ACT_##Name = cpu_to_be16(Num2), \
+	OSDv1_ACT_##Name = cpu_to_be16(Num1),
 
 enum osd_service_actions {
 	OSD_ACT_V2(OBJECT_STRUCTURE_CHECK,	0x00)

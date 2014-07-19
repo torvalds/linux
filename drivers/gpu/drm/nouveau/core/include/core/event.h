@@ -12,32 +12,33 @@ struct nouveau_eventh {
 	struct nouveau_event *event;
 	struct list_head head;
 	unsigned long flags;
+	u32 types;
 	int index;
-	int (*func)(void *, int);
+	int (*func)(void *, u32, int);
 	void *priv;
 };
 
 struct nouveau_event {
-	spinlock_t list_lock;
-	spinlock_t refs_lock;
-
 	void *priv;
-	void (*enable)(struct nouveau_event *, int index);
-	void (*disable)(struct nouveau_event *, int index);
+	int (*check)(struct nouveau_event *, u32 type, int index);
+	void (*enable)(struct nouveau_event *, int type, int index);
+	void (*disable)(struct nouveau_event *, int type, int index);
 
+	int types_nr;
 	int index_nr;
-	struct {
-		struct list_head list;
-		int refs;
-	} index[];
+
+	spinlock_t list_lock;
+	struct list_head *list;
+	spinlock_t refs_lock;
+	int refs[];
 };
 
-int  nouveau_event_create(int index_nr, struct nouveau_event **);
+int  nouveau_event_create(int types_nr, int index_nr, struct nouveau_event **);
 void nouveau_event_destroy(struct nouveau_event **);
-void nouveau_event_trigger(struct nouveau_event *, int index);
+void nouveau_event_trigger(struct nouveau_event *, u32 types, int index);
 
-int  nouveau_event_new(struct nouveau_event *, int index,
-		       int (*func)(void *, int), void *,
+int  nouveau_event_new(struct nouveau_event *, u32 types, int index,
+		       int (*func)(void *, u32, int), void *,
 		       struct nouveau_eventh **);
 void nouveau_event_ref(struct nouveau_eventh *, struct nouveau_eventh **);
 void nouveau_event_get(struct nouveau_eventh *);

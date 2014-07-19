@@ -425,8 +425,8 @@ dmamem_err:
  * @rx_rsize: ring size
  * Description:  this function initializes the DMA RX descriptor
  */
-void free_rx_ring(struct device *dev, struct sxgbe_rx_queue *rx_ring,
-		  int rx_rsize)
+static void free_rx_ring(struct device *dev, struct sxgbe_rx_queue *rx_ring,
+			 int rx_rsize)
 {
 	dma_free_coherent(dev, rx_rsize * sizeof(struct sxgbe_rx_norm_desc),
 			  rx_ring->dma_rx, rx_ring->dma_rx_phy);
@@ -519,8 +519,8 @@ error:
  * @tx_rsize: ring size
  * Description:  this function initializes the DMA TX descriptor
  */
-void free_tx_ring(struct device *dev, struct sxgbe_tx_queue *tx_ring,
-		  int tx_rsize)
+static void free_tx_ring(struct device *dev, struct sxgbe_tx_queue *tx_ring,
+			 int tx_rsize)
 {
 	dma_free_coherent(dev, tx_rsize * sizeof(struct sxgbe_tx_norm_desc),
 			  tx_ring->dma_tx, tx_ring->dma_tx_phy);
@@ -1221,11 +1221,10 @@ static int sxgbe_release(struct net_device *dev)
 
 	return 0;
 }
-
 /* Prepare first Tx descriptor for doing TSO operation */
-void sxgbe_tso_prepare(struct sxgbe_priv_data *priv,
-		       struct sxgbe_tx_norm_desc *first_desc,
-		       struct sk_buff *skb)
+static void sxgbe_tso_prepare(struct sxgbe_priv_data *priv,
+			      struct sxgbe_tx_norm_desc *first_desc,
+			      struct sk_buff *skb)
 {
 	unsigned int total_hdr_len, tcp_hdr_len;
 
@@ -1914,40 +1913,6 @@ static void sxgbe_set_rx_mode(struct net_device *dev)
 		   readl(ioaddr + SXGBE_HASH_LOW));
 }
 
-/**
- * sxgbe_config - entry point for changing configuration mode passed on by
- * ifconfig
- * @dev : pointer to the device structure
- * @map : pointer to the device mapping structure
- * Description:
- * This function is a driver entry point which gets called by the kernel
- * whenever some device configuration is changed.
- * Return value:
- * This function returns 0 if success and appropriate error otherwise.
- */
-static int sxgbe_config(struct net_device *dev, struct ifmap *map)
-{
-	struct sxgbe_priv_data *priv = netdev_priv(dev);
-
-	/* Can't act on a running interface */
-	if (dev->flags & IFF_UP)
-		return -EBUSY;
-
-	/* Don't allow changing the I/O address */
-	if (map->base_addr != (unsigned long)priv->ioaddr) {
-		netdev_warn(dev, "can't change I/O address\n");
-		return -EOPNOTSUPP;
-	}
-
-	/* Don't allow changing the IRQ */
-	if (map->irq != priv->irq) {
-		netdev_warn(dev, "not change IRQ number %d\n", priv->irq);
-		return -EOPNOTSUPP;
-	}
-
-	return 0;
-}
-
 #ifdef CONFIG_NET_POLL_CONTROLLER
 /**
  * sxgbe_poll_controller - entry point for polling receive by device
@@ -2009,7 +1974,6 @@ static const struct net_device_ops sxgbe_netdev_ops = {
 	.ndo_set_rx_mode	= sxgbe_set_rx_mode,
 	.ndo_tx_timeout		= sxgbe_tx_timeout,
 	.ndo_do_ioctl		= sxgbe_ioctl,
-	.ndo_set_config		= sxgbe_config,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= sxgbe_poll_controller,
 #endif

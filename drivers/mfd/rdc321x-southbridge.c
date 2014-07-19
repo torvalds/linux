@@ -38,7 +38,7 @@ static struct resource rdc321x_wdt_resource[] = {
 };
 
 static struct rdc321x_gpio_pdata rdc321x_gpio_pdata = {
-	.max_gpios	= RDC321X_MAX_GPIO,
+	.max_gpios	= RDC321X_NUM_GPIO,
 };
 
 static struct resource rdc321x_gpio_resources[] = {

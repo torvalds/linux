@@ -223,7 +223,6 @@ static int InterfaceAbortIdlemode(struct bcm_mini_adapter *Adapter,
 }
 int InterfaceIdleModeWakeup(struct bcm_mini_adapter *Adapter)
 {
-	ULONG	Status = 0;
 	if (Adapter->bTriedToWakeUpFromlowPowerMode) {
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS,
 		IDLE_MODE, DBG_LVL_ALL,
@@ -233,7 +232,7 @@ int InterfaceIdleModeWakeup(struct bcm_mini_adapter *Adapter)
 		InterfaceAbortIdlemode(Adapter, Adapter->usIdleModePattern);
 
 	}
-	return Status;
+	return 0;
 }
 
 void InterfaceHandleShutdownModeWakeup(struct bcm_mini_adapter *Adapter)

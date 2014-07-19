@@ -309,7 +309,7 @@ nva3_ram_prog(struct nouveau_fb *pfb)
 	struct nouveau_device *device = nv_device(pfb);
 	struct nva3_ram *ram = (void *)pfb->ram;
 	struct nva3_ramfuc *fuc = &ram->fuc;
-	ram_exec(fuc, nouveau_boolopt(device->cfgopt, "NvMemExec", false));
+	ram_exec(fuc, nouveau_boolopt(device->cfgopt, "NvMemExec", true));
 	return 0;
 }
 

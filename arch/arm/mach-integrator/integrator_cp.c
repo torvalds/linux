@@ -279,20 +279,13 @@ static const struct of_device_id intcp_syscon_match[] = {
 
 static void __init intcp_init_of(void)
 {
-	struct device_node *root;
 	struct device_node *cpcon;
 	struct device *parent;
 	struct soc_device *soc_dev;
 	struct soc_device_attribute *soc_dev_attr;
 	u32 intcp_sc_id;
-	int err;
 
-	/* Here we create an SoC device for the root node */
-	root = of_find_node_by_path("/");
-	if (!root)
-		return;
-
-	cpcon = of_find_matching_node(root, intcp_syscon_match);
+	cpcon = of_find_matching_node(NULL, intcp_syscon_match);
 	if (!cpcon)
 		return;
 
@@ -300,19 +293,17 @@ static void __init intcp_init_of(void)
 	if (!intcp_con_base)
 		return;
 
+	of_platform_populate(NULL, of_default_bus_match_table,
+			     intcp_auxdata_lookup, NULL);
+
 	intcp_sc_id = readl(intcp_con_base);
 
 	soc_dev_attr = kzalloc(sizeof(*soc_dev_attr), GFP_KERNEL);
 	if (!soc_dev_attr)
 		return;
 
-	err = of_property_read_string(root, "compatible",
-				      &soc_dev_attr->soc_id);
-	if (err)
-		return;
-	err = of_property_read_string(root, "model", &soc_dev_attr->machine);
-	if (err)
-		return;
+	soc_dev_attr->soc_id = "XCV";
+	soc_dev_attr->machine = "Integrator/CP";
 	soc_dev_attr->family = "Integrator";
 	soc_dev_attr->revision = kasprintf(GFP_KERNEL, "%c",
 					   'A' + (intcp_sc_id & 0x0f));
@@ -326,8 +317,6 @@ static void __init intcp_init_of(void)
 
 	parent = soc_device_to_device(soc_dev);
 	integrator_init_sysfs(parent, intcp_sc_id);
-	of_platform_populate(root, of_default_bus_match_table,
-			intcp_auxdata_lookup, parent);
 }
 
 static const char * intcp_dt_board_compat[] = {

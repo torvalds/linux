@@ -115,13 +115,6 @@ static void bcm1480_smp_finish(void)
 }
 
 /*
- * Final cleanup after all secondaries booted
- */
-static void bcm1480_cpus_done(void)
-{
-}
-
-/*
  * Setup the PC, SP, and GP of a secondary processor and start it
  * running!
  */
@@ -170,7 +163,6 @@ struct plat_smp_ops bcm1480_smp_ops = {
 	.send_ipi_mask		= bcm1480_send_ipi_mask,
 	.init_secondary		= bcm1480_init_secondary,
 	.smp_finish		= bcm1480_smp_finish,
-	.cpus_done		= bcm1480_cpus_done,
 	.boot_secondary		= bcm1480_boot_secondary,
 	.smp_setup		= bcm1480_smp_setup,
 	.prepare_cpus		= bcm1480_prepare_cpus,

@@ -17,20 +17,12 @@
 
 #include <osdep_service.h>
 #include <drv_types.h>
+#include <net/lib80211.h>
 
 
-#define _NO_PRIVACY_		0x0
-#define _WEP40_			0x1
-#define _TKIP_			0x2
-#define _TKIP_WTMIC_		0x3
-#define _AES_			0x4
-#define _WEP104_		0x5
-#define _WEP_WPA_MIXED_	0x07  /*  WEP + WPA */
-#define _SMS4_			0x06
+#define is_wep_enc(alg) (alg == WLAN_CIPHER_SUITE_WEP40 || \
+			 alg == WLAN_CIPHER_SUITE_WEP104)
 
-#define is_wep_enc(alg) (((alg) == _WEP40_) || ((alg) == _WEP104_))
-
-#define _WPA_IE_ID_	0xdd
 #define _WPA2_IE_ID_	0x30
 
 #define SHA256_MAC_LEN 32
@@ -93,6 +85,10 @@ union Keytype {
 	u32    lkey[4];
 };
 
+struct rtw_wep_key {
+	u8 key[WLAN_KEY_LEN_WEP104 + 1]; /* 14 */
+	u16 keylen;
+};
 
 struct rt_pmkid_list {
 	u8	bUsed;
@@ -113,8 +109,7 @@ struct security_priv {
 	u32	  dot11PrivacyKeyIndex;	/*  this is only valid for legendary
 					 * wep, 0~3 for key id. (tx key index)
 					 */
-	union Keytype dot11DefKey[4];	/*  this is only valid for def. key */
-	u32	dot11DefKeylen[4];
+	struct rtw_wep_key wep_key[NUM_WEP_KEYS];
 
 	u32 dot118021XGrpPrivacy;	/* specify the privacy algthm.
 					 * used for Grp key
@@ -140,15 +135,13 @@ struct security_priv {
 
 	u8 wps_ie[MAX_WPS_IE_LEN];/* added in assoc req */
 	int wps_ie_len;
-	u8	binstallGrpkey;
-	u8	busetkipkey;
-	u8	bcheck_grpkey;
-	u8	bgrpkey_handshake;
-	s32	hw_decrypted;
+	unsigned int binstallGrpkey:1;
+	unsigned int busetkipkey:1;
+	unsigned int bcheck_grpkey:1;
+	unsigned int hw_decrypted:1;
 	u32 ndisauthtype;	/*  enum ndis_802_11_auth_mode */
 	u32 ndisencryptstatus;	/*  NDIS_802_11_ENCRYPTION_STATUS */
 	struct wlan_bssid_ex sec_bss;  /* for joinbss (h2c buffer) usage */
-	struct ndis_802_11_wep ndiswep;
 	u8 assoc_info[600];
 	u8 szofcapability[256]; /* for wpa2 usage */
 	u8 oidassociation[512]; /* for wpa/wpa2 usage */
@@ -179,13 +172,13 @@ do {\
 	case dot11AuthAlgrthm_Open:\
 	case dot11AuthAlgrthm_Shared:\
 	case dot11AuthAlgrthm_Auto:\
-		encry_algo = (u8)psecuritypriv->dot11PrivacyAlgrthm;\
+		encry_algo = psecuritypriv->dot11PrivacyAlgrthm;\
 		break;\
 	case dot11AuthAlgrthm_8021X:\
 		if (bmcst)\
-			encry_algo = (u8)psecuritypriv->dot118021XGrpPrivacy;\
+			encry_algo = psecuritypriv->dot118021XGrpPrivacy;\
 		else\
-			encry_algo = (u8)psta->dot118021XPrivacy;\
+			encry_algo = psta->dot118021XPrivacy;\
 		break;\
 	}	\
 } while (0)
@@ -316,22 +309,6 @@ static const unsigned long K[64] = {
 	0x90befffaUL, 0xa4506cebUL, 0xbef9a3f7UL, 0xc67178f2UL
 };
 
-/* Various logical functions */
-#define RORc(x, y) \
-(((((unsigned long)(x) & 0xFFFFFFFFUL) >> (unsigned long) ((y) & 31)) | \
-((unsigned long)(x) << (unsigned long) (32 - ((y) & 31)))) & 0xFFFFFFFFUL)
-#define Ch(x, y, z)     (z ^ (x & (y ^ z)))
-#define Maj(x, y, z)    (((x | y) & z) | (x & y))
-#define S(x, n)         RORc((x), (n))
-#define R(x, n)         (((x)&0xFFFFFFFFUL)>>(n))
-#define Sigma0(x)       (S(x, 2) ^ S(x, 13) ^ S(x, 22))
-#define Sigma1(x)       (S(x, 6) ^ S(x, 11) ^ S(x, 25))
-#define Gamma0(x)       (S(x, 7) ^ S(x, 18) ^ R(x, 3))
-#define Gamma1(x)       (S(x, 17) ^ S(x, 19) ^ R(x, 10))
-#ifndef MIN
-#define MIN(x, y) (((x) < (y)) ? (x) : (y))
-#endif
-
 void rtw_secmicsetkey23a(struct mic_data *pmicdata, u8 *key);
 void rtw_secmicappend23abyte23a(struct mic_data *pmicdata, u8 b);
 void rtw_secmicappend23a(struct mic_data *pmicdata, u8 *src, u32 nbBytes);
@@ -340,15 +317,15 @@ void rtw_secgetmic23a(struct mic_data *pmicdata, u8 *dst);
 void rtw_seccalctkipmic23a(u8 *key, u8 *header, u8 *data, u32 data_len,
 			u8 *Miccode, u8 priorityi);
 
-u32 rtw_aes_encrypt23a(struct rtw_adapter *padapter,
+int rtw_aes_encrypt23a(struct rtw_adapter *padapter,
 		    struct xmit_frame *pxmitframe);
-u32 rtw_tkip_encrypt23a(struct rtw_adapter *padapter,
+int rtw_tkip_encrypt23a(struct rtw_adapter *padapter,
 		     struct xmit_frame *pxmitframe);
 void rtw_wep_encrypt23a(struct rtw_adapter *padapter,
 		     struct xmit_frame *pxmitframe);
-u32 rtw_aes_decrypt23a(struct rtw_adapter *padapter,
+int rtw_aes_decrypt23a(struct rtw_adapter *padapter,
 		    struct recv_frame *precvframe);
-u32 rtw_tkip_decrypt23a(struct rtw_adapter *padapter,
+int rtw_tkip_decrypt23a(struct rtw_adapter *padapter,
 		     struct recv_frame *precvframe);
 void rtw_wep_decrypt23a(struct rtw_adapter *padapter, struct recv_frame *precvframe);
 

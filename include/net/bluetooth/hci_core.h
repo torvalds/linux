@@ -68,6 +68,11 @@ struct discovery_state {
 	struct list_head	unknown;	/* Name state not known */
 	struct list_head	resolve;	/* Name needs to be resolved */
 	__u32			timestamp;
+	bdaddr_t		last_adv_addr;
+	u8			last_adv_addr_type;
+	s8			last_adv_rssi;
+	u8			last_adv_data[HCI_MAX_AD_LENGTH];
+	u8			last_adv_data_len;
 };
 
 struct hci_conn_hash {
@@ -140,6 +145,10 @@ struct oob_data {
 /* Default LE RPA expiry time, 15 minutes */
 #define HCI_DEFAULT_RPA_TIMEOUT		(15 * 60)
 
+/* Default min/max age of connection information (1s/3s) */
+#define DEFAULT_CONN_INFO_MIN_AGE	1000
+#define DEFAULT_CONN_INFO_MAX_AGE	3000
+
 struct amp_assoc {
 	__u16	len;
 	__u16	offset;
@@ -194,6 +203,9 @@ struct hci_dev {
 	__u16		le_scan_window;
 	__u16		le_conn_min_interval;
 	__u16		le_conn_max_interval;
+	__u16		discov_interleaved_timeout;
+	__u16		conn_info_min_age;
+	__u16		conn_info_max_age;
 	__u8		ssp_debug_mode;
 
 	__u16		devid_source;
@@ -368,7 +380,12 @@ struct hci_conn {
 	__u16		setting;
 	__u16		le_conn_min_interval;
 	__u16		le_conn_max_interval;
+	__s8		rssi;
+	__s8		tx_power;
+	__s8		max_tx_power;
 	unsigned long	flags;
+
+	unsigned long	conn_info_timestamp;
 
 	__u8		remote_cap;
 	__u8		remote_auth;
@@ -1204,8 +1221,8 @@ void hci_sock_dev_event(struct hci_dev *hdev, int event);
  */
 #define DISCOV_LE_SCAN_WIN		0x12
 #define DISCOV_LE_SCAN_INT		0x12
-#define DISCOV_LE_TIMEOUT		msecs_to_jiffies(10240)
-#define DISCOV_INTERLEAVED_TIMEOUT	msecs_to_jiffies(5120)
+#define DISCOV_LE_TIMEOUT		10240	/* msec */
+#define DISCOV_INTERLEAVED_TIMEOUT	5120	/* msec */
 #define DISCOV_INTERLEAVED_INQUIRY_LEN	0x04
 #define DISCOV_BREDR_INQUIRY_LEN	0x08
 
@@ -1265,7 +1282,8 @@ void mgmt_read_local_oob_data_complete(struct hci_dev *hdev, u8 *hash192,
 				       u8 *randomizer256, u8 status);
 void mgmt_device_found(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 		       u8 addr_type, u8 *dev_class, s8 rssi, u8 cfm_name,
-		       u8 ssp, u8 *eir, u16 eir_len);
+		       u8 ssp, u8 *eir, u16 eir_len, u8 *scan_rsp,
+		       u8 scan_rsp_len);
 void mgmt_remote_name(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 		      u8 addr_type, s8 rssi, u8 *name, u8 name_len);
 void mgmt_discovering(struct hci_dev *hdev, u8 discovering);

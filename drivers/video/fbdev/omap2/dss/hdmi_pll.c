@@ -23,6 +23,18 @@
 #define HDMI_DEFAULT_REGN 16
 #define HDMI_DEFAULT_REGM2 1
 
+struct hdmi_pll_features {
+	bool sys_reset;
+	/* this is a hack, need to replace it with a better computation of M2 */
+	bool bound_dcofreq;
+	unsigned long fint_min, fint_max;
+	u16 regm_max;
+	unsigned long dcofreq_low_min, dcofreq_low_max;
+	unsigned long dcofreq_high_min, dcofreq_high_max;
+};
+
+static const struct hdmi_pll_features *pll_feat;
+
 void hdmi_pll_dump(struct hdmi_pll_data *pll, struct seq_file *s)
 {
 #define DUMPPLL(r) seq_printf(s, "%-35s %08x\n", #r,\
@@ -57,7 +69,11 @@ void hdmi_pll_compute(struct hdmi_pll_data *pll, unsigned long clkin, int phy)
 
 	refclk = clkin / pi->regn;
 
-	pi->regm2 = HDMI_DEFAULT_REGM2;
+	/* temorary hack to make sure DCO freq isn't calculated too low */
+	if (pll_feat->bound_dcofreq && phy <= 65000)
+		pi->regm2 = 3;
+	else
+		pi->regm2 = HDMI_DEFAULT_REGM2;
 
 	/*
 	 * multiplier is pixel_clk/ref_clk
@@ -154,7 +170,7 @@ static int hdmi_pll_config(struct hdmi_pll_data *pll)
 static int hdmi_pll_reset(struct hdmi_pll_data *pll)
 {
 	/* SYSRESET  controlled by power FSM */
-	REG_FLD_MOD(pll->base, PLLCTRL_PLL_CONTROL, 0x0, 3, 3);
+	REG_FLD_MOD(pll->base, PLLCTRL_PLL_CONTROL, pll_feat->sys_reset, 3, 3);
 
 	/* READ 0x0 reset is in progress */
 	if (hdmi_wait_for_bit_change(pll->base, PLLCTRL_PLL_STATUS, 0, 0, 1)
@@ -194,38 +210,81 @@ void hdmi_pll_disable(struct hdmi_pll_data *pll, struct hdmi_wp_data *wp)
 	hdmi_wp_set_pll_pwr(wp, HDMI_PLLPWRCMD_ALLOFF);
 }
 
-#define PLL_OFFSET	0x200
-#define PLL_SIZE	0x100
+static const struct hdmi_pll_features omap44xx_pll_feats = {
+	.sys_reset		=	false,
+	.bound_dcofreq		=	false,
+	.fint_min		=	500000,
+	.fint_max		=	2500000,
+	.regm_max		=	4095,
+	.dcofreq_low_min	=	500000000,
+	.dcofreq_low_max	=	1000000000,
+	.dcofreq_high_min	=	1000000000,
+	.dcofreq_high_max	=	2000000000,
+};
+
+static const struct hdmi_pll_features omap54xx_pll_feats = {
+	.sys_reset		=	true,
+	.bound_dcofreq		=	true,
+	.fint_min		=	620000,
+	.fint_max		=	2500000,
+	.regm_max		=	2046,
+	.dcofreq_low_min	=	750000000,
+	.dcofreq_low_max	=	1500000000,
+	.dcofreq_high_min	=	1250000000,
+	.dcofreq_high_max	=	2500000000UL,
+};
+
+static int hdmi_pll_init_features(struct platform_device *pdev)
+{
+	struct hdmi_pll_features *dst;
+	const struct hdmi_pll_features *src;
+
+	dst = devm_kzalloc(&pdev->dev, sizeof(*dst), GFP_KERNEL);
+	if (!dst) {
+		dev_err(&pdev->dev, "Failed to allocate HDMI PHY Features\n");
+		return -ENOMEM;
+	}
+
+	switch (omapdss_get_version()) {
+	case OMAPDSS_VER_OMAP4430_ES1:
+	case OMAPDSS_VER_OMAP4430_ES2:
+	case OMAPDSS_VER_OMAP4:
+		src = &omap44xx_pll_feats;
+		break;
+
+	case OMAPDSS_VER_OMAP5:
+		src = &omap54xx_pll_feats;
+		break;
+
+	default:
+		return -ENODEV;
+	}
+
+	memcpy(dst, src, sizeof(*dst));
+	pll_feat = dst;
+
+	return 0;
+}
 
 int hdmi_pll_init(struct platform_device *pdev, struct hdmi_pll_data *pll)
 {
+	int r;
 	struct resource *res;
-	struct resource temp_res;
+
+	r = hdmi_pll_init_features(pdev);
+	if (r)
+		return r;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "pll");
 	if (!res) {
-		DSSDBG("can't get PLL mem resource by name\n");
-		/*
-		 * if hwmod/DT doesn't have the memory resource information
-		 * split into HDMI sub blocks by name, we try again by getting
-		 * the platform's first resource. this code will be removed when
-		 * the driver can get the mem resources by name
-		 */
-		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-		if (!res) {
-			DSSERR("can't get PLL mem resource\n");
-			return -EINVAL;
-		}
-
-		temp_res.start = res->start + PLL_OFFSET;
-		temp_res.end = temp_res.start + PLL_SIZE - 1;
-		res = &temp_res;
+		DSSERR("can't get PLL mem resource\n");
+		return -EINVAL;
 	}
 
-	pll->base = devm_ioremap(&pdev->dev, res->start, resource_size(res));
-	if (!pll->base) {
+	pll->base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(pll->base)) {
 		DSSERR("can't ioremap PLLCTRL\n");
-		return -ENOMEM;
+		return PTR_ERR(pll->base);
 	}
 
 	return 0;

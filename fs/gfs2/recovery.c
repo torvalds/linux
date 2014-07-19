@@ -454,7 +454,7 @@ void gfs2_recover_func(struct work_struct *work)
 	struct gfs2_inode *ip = GFS2_I(jd->jd_inode);
 	struct gfs2_sbd *sdp = GFS2_SB(jd->jd_inode);
 	struct gfs2_log_header_host head;
-	struct gfs2_holder j_gh, ji_gh, t_gh;
+	struct gfs2_holder j_gh, ji_gh, thaw_gh;
 	unsigned long t;
 	int ro = 0;
 	unsigned int pass;
@@ -508,11 +508,11 @@ void gfs2_recover_func(struct work_struct *work)
 
 		t = jiffies;
 
-		/* Acquire a shared hold on the transaction lock */
+		/* Acquire a shared hold on the freeze lock */
 
-		error = gfs2_glock_nq_init(sdp->sd_trans_gl, LM_ST_SHARED,
-					   LM_FLAG_NOEXP | LM_FLAG_PRIORITY |
-					   GL_NOCACHE, &t_gh);
+		error = gfs2_glock_nq_init(sdp->sd_freeze_gl, LM_ST_SHARED,
+					   LM_FLAG_NOEXP | LM_FLAG_PRIORITY,
+					   &thaw_gh);
 		if (error)
 			goto fail_gunlock_ji;
 
@@ -538,7 +538,7 @@ void gfs2_recover_func(struct work_struct *work)
 			fs_warn(sdp, "jid=%u: Can't replay: read-only block "
 				"device\n", jd->jd_jid);
 			error = -EROFS;
-			goto fail_gunlock_tr;
+			goto fail_gunlock_thaw;
 		}
 
 		fs_info(sdp, "jid=%u: Replaying journal...\n", jd->jd_jid);
@@ -549,14 +549,14 @@ void gfs2_recover_func(struct work_struct *work)
 						   head.lh_blkno, pass);
 			lops_after_scan(jd, error, pass);
 			if (error)
-				goto fail_gunlock_tr;
+				goto fail_gunlock_thaw;
 		}
 
 		error = clean_journal(jd, &head);
 		if (error)
-			goto fail_gunlock_tr;
+			goto fail_gunlock_thaw;
 
-		gfs2_glock_dq_uninit(&t_gh);
+		gfs2_glock_dq_uninit(&thaw_gh);
 		t = DIV_ROUND_UP(jiffies - t, HZ);
 		fs_info(sdp, "jid=%u: Journal replayed in %lus\n",
 			jd->jd_jid, t);
@@ -572,8 +572,8 @@ void gfs2_recover_func(struct work_struct *work)
 	fs_info(sdp, "jid=%u: Done\n", jd->jd_jid);
 	goto done;
 
-fail_gunlock_tr:
-	gfs2_glock_dq_uninit(&t_gh);
+fail_gunlock_thaw:
+	gfs2_glock_dq_uninit(&thaw_gh);
 fail_gunlock_ji:
 	if (jlocked) {
 		gfs2_glock_dq_uninit(&ji_gh);
@@ -587,7 +587,7 @@ fail:
 	gfs2_recovery_done(sdp, jd->jd_jid, LM_RD_GAVEUP);
 done:
 	clear_bit(JDF_RECOVERY, &jd->jd_flags);
-	smp_mb__after_clear_bit();
+	smp_mb__after_atomic();
 	wake_up_bit(&jd->jd_flags, JDF_RECOVERY);
 }
 

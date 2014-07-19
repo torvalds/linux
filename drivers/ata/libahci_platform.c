@@ -250,8 +250,13 @@ struct ahci_host_priv *ahci_platform_get_resources(struct platform_device *pdev)
 	if (IS_ERR(hpriv->phy)) {
 		rc = PTR_ERR(hpriv->phy);
 		switch (rc) {
-		case -ENODEV:
 		case -ENOSYS:
+			/* No PHY support. Check if PHY is required. */
+			if (of_find_property(dev->of_node, "phys", NULL)) {
+				dev_err(dev, "couldn't get sata-phy: ENOSYS\n");
+				goto err_out;
+			}
+		case -ENODEV:
 			/* continue normally */
 			hpriv->phy = NULL;
 			break;
@@ -283,6 +288,7 @@ EXPORT_SYMBOL_GPL(ahci_platform_get_resources);
  * @pdev: platform device pointer for the host
  * @hpriv: ahci-host private data for the host
  * @pi_template: template for the ata_port_info to use
+ * @host_flags: ahci host flags used in ahci_host_priv
  * @force_port_map: param passed to ahci_save_initial_config
  * @mask_port_map: param passed to ahci_save_initial_config
  *
@@ -296,6 +302,7 @@ EXPORT_SYMBOL_GPL(ahci_platform_get_resources);
 int ahci_platform_init_host(struct platform_device *pdev,
 			    struct ahci_host_priv *hpriv,
 			    const struct ata_port_info *pi_template,
+			    unsigned long host_flags,
 			    unsigned int force_port_map,
 			    unsigned int mask_port_map)
 {
@@ -312,7 +319,8 @@ int ahci_platform_init_host(struct platform_device *pdev,
 	}
 
 	/* prepare host */
-	hpriv->flags |= (unsigned long)pi.private_data;
+	pi.private_data = (void *)host_flags;
+	hpriv->flags |= host_flags;
 
 	ahci_save_initial_config(dev, hpriv, force_port_map, mask_port_map);
 

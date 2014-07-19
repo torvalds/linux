@@ -61,7 +61,7 @@ static int s2mpa01_regulator_set_voltage_time_sel(struct regulator_dev *rdev,
 	unsigned int ramp_delay = 0;
 	int old_volt, new_volt;
 
-	switch (rdev->desc->id) {
+	switch (rdev_get_id(rdev)) {
 	case S2MPA01_BUCK2:
 	case S2MPA01_BUCK4:
 		ramp_delay = s2mpa01->ramp_delay24;
@@ -102,7 +102,7 @@ static int s2mpa01_set_ramp_delay(struct regulator_dev *rdev, int ramp_delay)
 	unsigned int ramp_enable = 1, enable_shift = 0;
 	int ret;
 
-	switch (rdev->desc->id) {
+	switch (rdev_get_id(rdev)) {
 	case S2MPA01_BUCK1:
 		enable_shift = S2MPA01_BUCK1_RAMP_EN_SHIFT;
 		if (!ramp_delay) {
@@ -116,7 +116,6 @@ static int s2mpa01_set_ramp_delay(struct regulator_dev *rdev, int ramp_delay)
 			ramp_delay = s2mpa01->ramp_delay16;
 
 		ramp_shift = S2MPA01_BUCK16_RAMP_SHIFT;
-		ramp_reg = S2MPA01_REG_RAMP1;
 		break;
 	case S2MPA01_BUCK2:
 		enable_shift = S2MPA01_BUCK2_RAMP_EN_SHIFT;
@@ -192,11 +191,15 @@ static int s2mpa01_set_ramp_delay(struct regulator_dev *rdev, int ramp_delay)
 	if (!ramp_enable)
 		goto ramp_disable;
 
-	ret = regmap_update_bits(rdev->regmap, S2MPA01_REG_RAMP1,
-				 1 << enable_shift, 1 << enable_shift);
-	if (ret) {
-		dev_err(&rdev->dev, "failed to enable ramp rate\n");
-		return ret;
+	/* Ramp delay can be enabled/disabled only for buck[1234] */
+	if (rdev_get_id(rdev) >= S2MPA01_BUCK1 &&
+			rdev_get_id(rdev) <= S2MPA01_BUCK4) {
+		ret = regmap_update_bits(rdev->regmap, S2MPA01_REG_RAMP1,
+					 1 << enable_shift, 1 << enable_shift);
+		if (ret) {
+			dev_err(&rdev->dev, "failed to enable ramp rate\n");
+			return ret;
+		}
 	}
 
 	ramp_val = get_ramp_delay(ramp_delay);

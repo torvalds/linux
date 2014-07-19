@@ -35,19 +35,30 @@ struct smiapp_sensor;
  * @post_poweron: Called always after the sensor has been fully powered on.
  * @pre_streamon: Called just before streaming is enabled.
  * @post_streamon: Called right after stopping streaming.
+ * @reg_access: Register access quirk. The quirk may divert the access
+ *		to another register, or no register at all.
+ *
+ *		@write: Is this read (false) or write (true) access?
+ *		@reg: Pointer to the register to access
+ *		@value: Register value, set by the caller on write, or
+ *			by the quirk on read
+ *
+ *		@return: 0 on success, -ENOIOCTLCMD if no register
+ *			 access may be done by the caller (default read
+ *			 value is zero), else negative error code on error
  */
 struct smiapp_quirk {
 	int (*limits)(struct smiapp_sensor *sensor);
 	int (*post_poweron)(struct smiapp_sensor *sensor);
 	int (*pre_streamon)(struct smiapp_sensor *sensor);
 	int (*post_streamoff)(struct smiapp_sensor *sensor);
-	const struct smia_reg *regs;
+	unsigned long (*pll_flags)(struct smiapp_sensor *sensor);
+	int (*reg_access)(struct smiapp_sensor *sensor, bool write, u32 *reg,
+			  u32 *val);
 	unsigned long flags;
 };
 
-/* op pix clock is for all lanes in total normally */
-#define SMIAPP_QUIRK_FLAG_OP_PIX_CLOCK_PER_LANE			(1 << 0)
-#define SMIAPP_QUIRK_FLAG_8BIT_READ_ONLY			(1 << 1)
+#define SMIAPP_QUIRK_FLAG_8BIT_READ_ONLY			(1 << 0)
 
 struct smiapp_reg_8 {
 	u16 reg;
@@ -56,12 +67,9 @@ struct smiapp_reg_8 {
 
 void smiapp_replace_limit(struct smiapp_sensor *sensor,
 			  u32 limit, u32 val);
-bool smiapp_quirk_reg(struct smiapp_sensor *sensor,
-		      u32 reg, u32 *val);
 
-#define SMIAPP_MK_QUIRK_REG(_reg, _val) \
+#define SMIAPP_MK_QUIRK_REG_8(_reg, _val) \
 	{				\
-		.type = (_reg >> 16),	\
 		.reg = (u16)_reg,	\
 		.val = _val,		\
 	}

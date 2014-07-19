@@ -493,48 +493,10 @@ static void vlan_dev_change_rx_flags(struct net_device *dev, int change)
 	}
 }
 
-static int vlan_calculate_locking_subclass(struct net_device *real_dev)
-{
-	int subclass = 0;
-
-	while (is_vlan_dev(real_dev)) {
-		subclass++;
-		real_dev = vlan_dev_priv(real_dev)->real_dev;
-	}
-
-	return subclass;
-}
-
-static void vlan_dev_mc_sync(struct net_device *to, struct net_device *from)
-{
-	int err = 0, subclass;
-
-	subclass = vlan_calculate_locking_subclass(to);
-
-	spin_lock_nested(&to->addr_list_lock, subclass);
-	err = __hw_addr_sync(&to->mc, &from->mc, to->addr_len);
-	if (!err)
-		__dev_set_rx_mode(to);
-	spin_unlock(&to->addr_list_lock);
-}
-
-static void vlan_dev_uc_sync(struct net_device *to, struct net_device *from)
-{
-	int err = 0, subclass;
-
-	subclass = vlan_calculate_locking_subclass(to);
-
-	spin_lock_nested(&to->addr_list_lock, subclass);
-	err = __hw_addr_sync(&to->uc, &from->uc, to->addr_len);
-	if (!err)
-		__dev_set_rx_mode(to);
-	spin_unlock(&to->addr_list_lock);
-}
-
 static void vlan_dev_set_rx_mode(struct net_device *vlan_dev)
 {
-	vlan_dev_mc_sync(vlan_dev_priv(vlan_dev)->real_dev, vlan_dev);
-	vlan_dev_uc_sync(vlan_dev_priv(vlan_dev)->real_dev, vlan_dev);
+	dev_mc_sync(vlan_dev_priv(vlan_dev)->real_dev, vlan_dev);
+	dev_uc_sync(vlan_dev_priv(vlan_dev)->real_dev, vlan_dev);
 }
 
 /*
@@ -560,6 +522,11 @@ static void vlan_dev_set_lockdep_class(struct net_device *dev, int subclass)
 				       &vlan_netdev_addr_lock_key,
 				       subclass);
 	netdev_for_each_tx_queue(dev, vlan_dev_set_lockdep_one, &subclass);
+}
+
+static int vlan_dev_get_lock_subclass(struct net_device *dev)
+{
+	return vlan_dev_priv(dev)->nest_level;
 }
 
 static const struct header_ops vlan_header_ops = {
@@ -597,7 +564,6 @@ static const struct net_device_ops vlan_netdev_ops;
 static int vlan_dev_init(struct net_device *dev)
 {
 	struct net_device *real_dev = vlan_dev_priv(dev)->real_dev;
-	int subclass = 0;
 
 	netif_carrier_off(dev);
 
@@ -646,8 +612,7 @@ static int vlan_dev_init(struct net_device *dev)
 
 	SET_NETDEV_DEVTYPE(dev, &vlan_type);
 
-	subclass = vlan_calculate_locking_subclass(dev);
-	vlan_dev_set_lockdep_class(dev, subclass);
+	vlan_dev_set_lockdep_class(dev, vlan_dev_get_lock_subclass(dev));
 
 	vlan_dev_priv(dev)->vlan_pcpu_stats = netdev_alloc_pcpu_stats(struct vlan_pcpu_stats);
 	if (!vlan_dev_priv(dev)->vlan_pcpu_stats)
@@ -678,9 +643,9 @@ static netdev_features_t vlan_dev_fix_features(struct net_device *dev,
 	struct net_device *real_dev = vlan_dev_priv(dev)->real_dev;
 	netdev_features_t old_features = features;
 
-	features &= real_dev->vlan_features;
+	features = netdev_intersect_features(features, real_dev->vlan_features);
 	features |= NETIF_F_RXCSUM;
-	features &= real_dev->features;
+	features = netdev_intersect_features(features, real_dev->features);
 
 	features |= old_features & NETIF_F_SOFT_FEATURES;
 	features |= NETIF_F_LLTX;
@@ -706,38 +671,36 @@ static void vlan_ethtool_get_drvinfo(struct net_device *dev,
 
 static struct rtnl_link_stats64 *vlan_dev_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 {
+	struct vlan_pcpu_stats *p;
+	u32 rx_errors = 0, tx_dropped = 0;
+	int i;
 
-	if (vlan_dev_priv(dev)->vlan_pcpu_stats) {
-		struct vlan_pcpu_stats *p;
-		u32 rx_errors = 0, tx_dropped = 0;
-		int i;
+	for_each_possible_cpu(i) {
+		u64 rxpackets, rxbytes, rxmulticast, txpackets, txbytes;
+		unsigned int start;
 
-		for_each_possible_cpu(i) {
-			u64 rxpackets, rxbytes, rxmulticast, txpackets, txbytes;
-			unsigned int start;
+		p = per_cpu_ptr(vlan_dev_priv(dev)->vlan_pcpu_stats, i);
+		do {
+			start = u64_stats_fetch_begin_irq(&p->syncp);
+			rxpackets	= p->rx_packets;
+			rxbytes		= p->rx_bytes;
+			rxmulticast	= p->rx_multicast;
+			txpackets	= p->tx_packets;
+			txbytes		= p->tx_bytes;
+		} while (u64_stats_fetch_retry_irq(&p->syncp, start));
 
-			p = per_cpu_ptr(vlan_dev_priv(dev)->vlan_pcpu_stats, i);
-			do {
-				start = u64_stats_fetch_begin_irq(&p->syncp);
-				rxpackets	= p->rx_packets;
-				rxbytes		= p->rx_bytes;
-				rxmulticast	= p->rx_multicast;
-				txpackets	= p->tx_packets;
-				txbytes		= p->tx_bytes;
-			} while (u64_stats_fetch_retry_irq(&p->syncp, start));
-
-			stats->rx_packets	+= rxpackets;
-			stats->rx_bytes		+= rxbytes;
-			stats->multicast	+= rxmulticast;
-			stats->tx_packets	+= txpackets;
-			stats->tx_bytes		+= txbytes;
-			/* rx_errors & tx_dropped are u32 */
-			rx_errors	+= p->rx_errors;
-			tx_dropped	+= p->tx_dropped;
-		}
-		stats->rx_errors  = rx_errors;
-		stats->tx_dropped = tx_dropped;
+		stats->rx_packets	+= rxpackets;
+		stats->rx_bytes		+= rxbytes;
+		stats->multicast	+= rxmulticast;
+		stats->tx_packets	+= txpackets;
+		stats->tx_bytes		+= txbytes;
+		/* rx_errors & tx_dropped are u32 */
+		rx_errors	+= p->rx_errors;
+		tx_dropped	+= p->tx_dropped;
 	}
+	stats->rx_errors  = rx_errors;
+	stats->tx_dropped = tx_dropped;
+
 	return stats;
 }
 
@@ -819,6 +782,7 @@ static const struct net_device_ops vlan_netdev_ops = {
 	.ndo_netpoll_cleanup	= vlan_dev_netpoll_cleanup,
 #endif
 	.ndo_fix_features	= vlan_dev_fix_features,
+	.ndo_get_lock_subclass  = vlan_dev_get_lock_subclass,
 };
 
 void vlan_setup(struct net_device *dev)

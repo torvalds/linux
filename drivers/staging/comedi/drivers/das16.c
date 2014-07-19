@@ -600,29 +600,56 @@ static void das16_timer_interrupt(unsigned long arg)
 		mod_timer(&devpriv->timer, jiffies + timer_period());
 }
 
+static int das16_ai_check_chanlist(struct comedi_device *dev,
+				   struct comedi_subdevice *s,
+				   struct comedi_cmd *cmd)
+{
+	unsigned int chan0 = CR_CHAN(cmd->chanlist[0]);
+	unsigned int range0 = CR_RANGE(cmd->chanlist[0]);
+	int i;
+
+	for (i = 1; i < cmd->chanlist_len; i++) {
+		unsigned int chan = CR_CHAN(cmd->chanlist[i]);
+		unsigned int range = CR_RANGE(cmd->chanlist[i]);
+
+		if (chan != ((chan0 + i) % s->n_chan)) {
+			dev_dbg(dev->class_dev,
+				"entries in chanlist must be consecutive channels, counting upwards\n");
+			return -EINVAL;
+		}
+
+		if (range != range0) {
+			dev_dbg(dev->class_dev,
+				"entries in chanlist must all have the same gain\n");
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
 static int das16_cmd_test(struct comedi_device *dev, struct comedi_subdevice *s,
 			  struct comedi_cmd *cmd)
 {
 	const struct das16_board *board = comedi_board(dev);
 	struct das16_private_struct *devpriv = dev->private;
-	int err = 0, tmp;
-	int gain, start_chan, i;
-	int mask;
+	int err = 0;
+	unsigned int trig_mask;
+	unsigned int arg;
 
 	/* Step 1 : check if triggers are trivially valid */
 
 	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW);
 
-	mask = TRIG_FOLLOW;
+	trig_mask = TRIG_FOLLOW;
 	if (devpriv->can_burst)
-		mask |= TRIG_TIMER | TRIG_EXT;
-	err |= cfc_check_trigger_src(&cmd->scan_begin_src, mask);
+		trig_mask |= TRIG_TIMER | TRIG_EXT;
+	err |= cfc_check_trigger_src(&cmd->scan_begin_src, trig_mask);
 
-	tmp = cmd->convert_src;
-	mask = TRIG_TIMER | TRIG_EXT;
+	trig_mask = TRIG_TIMER | TRIG_EXT;
 	if (devpriv->can_burst)
-		mask |= TRIG_NOW;
-	err |= cfc_check_trigger_src(&cmd->convert_src, mask);
+		trig_mask |= TRIG_NOW;
+	err |= cfc_check_trigger_src(&cmd->convert_src, trig_mask);
 
 	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
 	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
@@ -673,44 +700,28 @@ static int das16_cmd_test(struct comedi_device *dev, struct comedi_subdevice *s,
 
 	/*  step 4: fix up arguments */
 	if (cmd->scan_begin_src == TRIG_TIMER) {
-		unsigned int tmp = cmd->scan_begin_arg;
-		/*  set divisors, correct timing arguments */
+		arg = cmd->scan_begin_arg;
 		i8253_cascade_ns_to_timer(devpriv->clockbase,
 					  &devpriv->divisor1,
 					  &devpriv->divisor2,
-					  &cmd->scan_begin_arg, cmd->flags);
-		err += (tmp != cmd->scan_begin_arg);
+					  &arg, cmd->flags);
+		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, arg);
 	}
 	if (cmd->convert_src == TRIG_TIMER) {
-		unsigned int tmp = cmd->convert_arg;
-		/*  set divisors, correct timing arguments */
+		arg = cmd->convert_arg;
 		i8253_cascade_ns_to_timer(devpriv->clockbase,
 					  &devpriv->divisor1,
 					  &devpriv->divisor2,
-					  &cmd->convert_arg, cmd->flags);
-		err += (tmp != cmd->convert_arg);
+					  &arg, cmd->flags);
+		err |= cfc_check_trigger_arg_is(&cmd->convert_arg, arg);
 	}
 	if (err)
 		return 4;
 
-	/*  check channel/gain list against card's limitations */
-	if (cmd->chanlist) {
-		gain = CR_RANGE(cmd->chanlist[0]);
-		start_chan = CR_CHAN(cmd->chanlist[0]);
-		for (i = 1; i < cmd->chanlist_len; i++) {
-			if (CR_CHAN(cmd->chanlist[i]) !=
-			    (start_chan + i) % s->n_chan) {
-				dev_err(dev->class_dev,
-					"entries in chanlist must be consecutive channels, counting upwards\n");
-				err++;
-			}
-			if (CR_RANGE(cmd->chanlist[i]) != gain) {
-				dev_err(dev->class_dev,
-					"entries in chanlist must all have the same gain\n");
-				err++;
-			}
-		}
-	}
+	/* Step 5: check channel list if it exists */
+	if (cmd->chanlist && cmd->chanlist_len > 0)
+		err |= das16_ai_check_chanlist(dev, s, cmd);
+
 	if (err)
 		return 5;
 
@@ -727,9 +738,10 @@ static unsigned int das16_set_pacer(struct comedi_device *dev, unsigned int ns,
 				  &devpriv->divisor1, &devpriv->divisor2,
 				  &ns, rounding_flags);
 
-	/* Write the values of ctr1 and ctr2 into counters 1 and 2 */
-	i8254_load(timer_base, 0, 1, devpriv->divisor1, 2);
-	i8254_load(timer_base, 0, 2, devpriv->divisor2, 2);
+	i8254_set_mode(timer_base, 0, 1, I8254_MODE2 | I8254_BINARY);
+	i8254_set_mode(timer_base, 0, 2, I8254_MODE2 | I8254_BINARY);
+	i8254_write(timer_base, 0, 1, devpriv->divisor1);
+	i8254_write(timer_base, 0, 2, devpriv->divisor2);
 
 	return ns;
 }
@@ -750,8 +762,7 @@ static int das16_cmd_exec(struct comedi_device *dev, struct comedi_subdevice *s)
 		return -1;
 	}
 
-	devpriv->adc_byte_count =
-	    cmd->stop_arg * cmd->chanlist_len * sizeof(uint16_t);
+	devpriv->adc_byte_count = cmd->stop_arg * cfc_bytes_per_scan(s);
 
 	if (devpriv->can_burst)
 		outb(DAS1600_CONV_DISABLE, dev->iobase + DAS1600_CONV_REG);

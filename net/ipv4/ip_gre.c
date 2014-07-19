@@ -410,7 +410,7 @@ static int ipgre_open(struct net_device *dev)
 		struct flowi4 fl4;
 		struct rtable *rt;
 
-		rt = ip_route_output_gre(dev_net(dev), &fl4,
+		rt = ip_route_output_gre(t->net, &fl4,
 					 t->parms.iph.daddr,
 					 t->parms.iph.saddr,
 					 t->parms.o_key,
@@ -434,7 +434,7 @@ static int ipgre_close(struct net_device *dev)
 
 	if (ipv4_is_multicast(t->parms.iph.daddr) && t->mlink) {
 		struct in_device *in_dev;
-		in_dev = inetdev_by_index(dev_net(dev), t->mlink);
+		in_dev = inetdev_by_index(t->net, t->mlink);
 		if (in_dev)
 			ip_mc_dec_group(in_dev, t->parms.iph.daddr);
 	}
@@ -478,7 +478,7 @@ static void __gre_tunnel_init(struct net_device *dev)
 	dev->needed_headroom	= LL_MAX_HEADER + sizeof(struct iphdr) + 4;
 	dev->mtu		= ETH_DATA_LEN - sizeof(struct iphdr) - 4;
 
-	dev->features		|= NETIF_F_NETNS_LOCAL | GRE_FEATURES;
+	dev->features		|= GRE_FEATURES;
 	dev->hw_features	|= GRE_FEATURES;
 
 	if (!(tunnel->parms.o_flags & TUNNEL_SEQ)) {
@@ -649,6 +649,7 @@ static void ipgre_tap_setup(struct net_device *dev)
 {
 	ether_setup(dev);
 	dev->netdev_ops		= &gre_tap_netdev_ops;
+	dev->priv_flags 	|= IFF_LIVE_ADDR_CHANGE;
 	ip_tunnel_setup(dev, gre_tap_net_id);
 }
 

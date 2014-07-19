@@ -681,12 +681,11 @@ static int start_streaming(struct vb2_queue *vq, unsigned int count)
 	return r;
 }
 
-static int stop_streaming(struct vb2_queue *vq)
+static void stop_streaming(struct vb2_queue *vq)
 {
 	struct pwc_device *pdev = vb2_get_drv_priv(vq);
 
-	if (mutex_lock_interruptible(&pdev->v4l2_lock))
-		return -ERESTARTSYS;
+	mutex_lock(&pdev->v4l2_lock);
 	if (pdev->udev) {
 		pwc_set_leds(pdev, 0, 0);
 		pwc_camera_power(pdev, 0);
@@ -695,8 +694,6 @@ static int stop_streaming(struct vb2_queue *vq)
 
 	pwc_cleanup_queued_bufs(pdev);
 	mutex_unlock(&pdev->v4l2_lock);
-
-	return 0;
 }
 
 static struct vb2_ops pwc_vb_queue_ops = {

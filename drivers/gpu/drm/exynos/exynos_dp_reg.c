@@ -13,6 +13,7 @@
 #include <linux/device.h>
 #include <linux/io.h>
 #include <linux/delay.h>
+#include <linux/gpio.h>
 
 #include "exynos_dp_core.h"
 #include "exynos_dp_reg.h"
@@ -326,6 +327,9 @@ void exynos_dp_clear_hotplug_interrupts(struct exynos_dp_device *dp)
 {
 	u32 reg;
 
+	if (gpio_is_valid(dp->hpd_gpio))
+		return;
+
 	reg = HOTPLUG_CHG | HPD_LOST | PLUG;
 	writel(reg, dp->reg_base + EXYNOS_DP_COMMON_INT_STA_4);
 
@@ -336,6 +340,9 @@ void exynos_dp_clear_hotplug_interrupts(struct exynos_dp_device *dp)
 void exynos_dp_init_hpd(struct exynos_dp_device *dp)
 {
 	u32 reg;
+
+	if (gpio_is_valid(dp->hpd_gpio))
+		return;
 
 	exynos_dp_clear_hotplug_interrupts(dp);
 
@@ -348,19 +355,27 @@ enum dp_irq_type exynos_dp_get_irq_type(struct exynos_dp_device *dp)
 {
 	u32 reg;
 
-	/* Parse hotplug interrupt status register */
-	reg = readl(dp->reg_base + EXYNOS_DP_COMMON_INT_STA_4);
+	if (gpio_is_valid(dp->hpd_gpio)) {
+		reg = gpio_get_value(dp->hpd_gpio);
+		if (reg)
+			return DP_IRQ_TYPE_HP_CABLE_IN;
+		else
+			return DP_IRQ_TYPE_HP_CABLE_OUT;
+	} else {
+		/* Parse hotplug interrupt status register */
+		reg = readl(dp->reg_base + EXYNOS_DP_COMMON_INT_STA_4);
 
-	if (reg & PLUG)
-		return DP_IRQ_TYPE_HP_CABLE_IN;
+		if (reg & PLUG)
+			return DP_IRQ_TYPE_HP_CABLE_IN;
 
-	if (reg & HPD_LOST)
-		return DP_IRQ_TYPE_HP_CABLE_OUT;
+		if (reg & HPD_LOST)
+			return DP_IRQ_TYPE_HP_CABLE_OUT;
 
-	if (reg & HOTPLUG_CHG)
-		return DP_IRQ_TYPE_HP_CHANGE;
+		if (reg & HOTPLUG_CHG)
+			return DP_IRQ_TYPE_HP_CHANGE;
 
-	return DP_IRQ_TYPE_UNKNOWN;
+		return DP_IRQ_TYPE_UNKNOWN;
+	}
 }
 
 void exynos_dp_reset_aux(struct exynos_dp_device *dp)
@@ -386,7 +401,7 @@ void exynos_dp_init_aux(struct exynos_dp_device *dp)
 	/* Disable AUX transaction H/W retry */
 	reg = AUX_BIT_PERIOD_EXPECTED_DELAY(3) | AUX_HW_RETRY_COUNT_SEL(0)|
 		AUX_HW_RETRY_INTERVAL_600_MICROSECONDS;
-	writel(reg, dp->reg_base + EXYNOS_DP_AUX_HW_RETRY_CTL) ;
+	writel(reg, dp->reg_base + EXYNOS_DP_AUX_HW_RETRY_CTL);
 
 	/* Receive AUX Channel DEFER commands equal to DEFFER_COUNT*64 */
 	reg = DEFER_CTRL_EN | DEFER_COUNT(1);
@@ -402,9 +417,14 @@ int exynos_dp_get_plug_in_status(struct exynos_dp_device *dp)
 {
 	u32 reg;
 
-	reg = readl(dp->reg_base + EXYNOS_DP_SYS_CTL_3);
-	if (reg & HPD_STATUS)
-		return 0;
+	if (gpio_is_valid(dp->hpd_gpio)) {
+		if (gpio_get_value(dp->hpd_gpio))
+			return 0;
+	} else {
+		reg = readl(dp->reg_base + EXYNOS_DP_SYS_CTL_3);
+		if (reg & HPD_STATUS)
+			return 0;
+	}
 
 	return -EINVAL;
 }

@@ -32,7 +32,7 @@ static char *integrity_status_msg[] = {
 };
 char *evm_hmac = "hmac(sha1)";
 char *evm_hash = "sha1";
-int evm_hmac_version = CONFIG_EVM_HMAC_VERSION;
+int evm_hmac_attrs;
 
 char *evm_config_xattrnames[] = {
 #ifdef CONFIG_SECURITY_SELINUX
@@ -40,6 +40,11 @@ char *evm_config_xattrnames[] = {
 #endif
 #ifdef CONFIG_SECURITY_SMACK
 	XATTR_NAME_SMACK,
+#ifdef CONFIG_EVM_EXTRA_SMACK_XATTRS
+	XATTR_NAME_SMACKEXEC,
+	XATTR_NAME_SMACKTRANSMUTE,
+	XATTR_NAME_SMACKMMAP,
+#endif
 #endif
 #ifdef CONFIG_IMA_APPRAISE
 	XATTR_NAME_IMA,
@@ -56,6 +61,14 @@ static int __init evm_set_fixmode(char *str)
 	return 0;
 }
 __setup("evm=", evm_set_fixmode);
+
+static void __init evm_init_config(void)
+{
+#ifdef CONFIG_EVM_ATTR_FSUUID
+	evm_hmac_attrs |= EVM_ATTR_FSUUID;
+#endif
+	pr_info("HMAC attrs: 0x%x\n", evm_hmac_attrs);
+}
 
 static int evm_find_protected_xattrs(struct dentry *dentry)
 {
@@ -287,12 +300,20 @@ out:
  * @xattr_value: pointer to the new extended attribute value
  * @xattr_value_len: pointer to the new extended attribute value length
  *
- * Updating 'security.evm' requires CAP_SYS_ADMIN privileges and that
- * the current value is valid.
+ * Before allowing the 'security.evm' protected xattr to be updated,
+ * verify the existing value is valid.  As only the kernel should have
+ * access to the EVM encrypted key needed to calculate the HMAC, prevent
+ * userspace from writing HMAC value.  Writing 'security.evm' requires
+ * requires CAP_SYS_ADMIN privileges.
  */
 int evm_inode_setxattr(struct dentry *dentry, const char *xattr_name,
 		       const void *xattr_value, size_t xattr_value_len)
 {
+	const struct evm_ima_xattr_data *xattr_data = xattr_value;
+
+	if ((strcmp(xattr_name, XATTR_NAME_EVM) == 0)
+	    && (xattr_data->type == EVM_XATTR_HMAC))
+		return -EPERM;
 	return evm_protect_xattr(dentry, xattr_name, xattr_value,
 				 xattr_value_len);
 }
@@ -431,6 +452,8 @@ EXPORT_SYMBOL_GPL(evm_inode_init_security);
 static int __init init_evm(void)
 {
 	int error;
+
+	evm_init_config();
 
 	error = evm_init_secfs();
 	if (error < 0) {

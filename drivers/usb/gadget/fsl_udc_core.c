@@ -2256,10 +2256,8 @@ static int __init struct_udc_setup(struct fsl_udc *udc,
 	udc->phy_mode = pdata->phy_mode;
 
 	udc->eps = kzalloc(sizeof(struct fsl_ep) * udc->max_ep, GFP_KERNEL);
-	if (!udc->eps) {
-		ERR("malloc fsl_ep failed\n");
+	if (!udc->eps)
 		return -1;
-	}
 
 	/* initialized QHs, take care of alignment */
 	size = udc->max_ep * sizeof(struct ep_queue_head);
@@ -2342,10 +2340,8 @@ static int __init fsl_udc_probe(struct platform_device *pdev)
 	u32 dccparams;
 
 	udc_controller = kzalloc(sizeof(struct fsl_udc), GFP_KERNEL);
-	if (udc_controller == NULL) {
-		ERR("malloc udc failed\n");
+	if (udc_controller == NULL)
 		return -ENOMEM;
-	}
 
 	pdata = dev_get_platdata(&pdev->dev);
 	udc_controller->pdata = pdata;

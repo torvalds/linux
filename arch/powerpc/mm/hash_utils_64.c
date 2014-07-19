@@ -207,6 +207,10 @@ int htab_bolt_mapping(unsigned long vstart, unsigned long vend,
 		if (overlaps_kernel_text(vaddr, vaddr + step))
 			tprot &= ~HPTE_R_N;
 
+		/* Make kvm guest trampolines executable */
+		if (overlaps_kvm_tmp(vaddr, vaddr + step))
+			tprot &= ~HPTE_R_N;
+
 		/*
 		 * If relocatable, check if it overlaps interrupt vectors that
 		 * are copied down to real 0. For relocatable kernel
@@ -265,9 +269,9 @@ static int __init htab_dt_scan_seg_sizes(unsigned long node,
 					 const char *uname, int depth,
 					 void *data)
 {
-	char *type = of_get_flat_dt_prop(node, "device_type", NULL);
-	__be32 *prop;
-	unsigned long size = 0;
+	const char *type = of_get_flat_dt_prop(node, "device_type", NULL);
+	const __be32 *prop;
+	int size = 0;
 
 	/* We are scanning "cpu" nodes only */
 	if (type == NULL || strcmp(type, "cpu") != 0)
@@ -320,9 +324,9 @@ static int __init htab_dt_scan_page_sizes(unsigned long node,
 					  const char *uname, int depth,
 					  void *data)
 {
-	char *type = of_get_flat_dt_prop(node, "device_type", NULL);
-	__be32 *prop;
-	unsigned long size = 0;
+	const char *type = of_get_flat_dt_prop(node, "device_type", NULL);
+	const __be32 *prop;
+	int size = 0;
 
 	/* We are scanning "cpu" nodes only */
 	if (type == NULL || strcmp(type, "cpu") != 0)
@@ -402,9 +406,9 @@ static int __init htab_dt_scan_page_sizes(unsigned long node,
 static int __init htab_dt_scan_hugepage_blocks(unsigned long node,
 					const char *uname, int depth,
 					void *data) {
-	char *type = of_get_flat_dt_prop(node, "device_type", NULL);
-	__be64 *addr_prop;
-	__be32 *page_count_prop;
+	const char *type = of_get_flat_dt_prop(node, "device_type", NULL);
+	const __be64 *addr_prop;
+	const __be32 *page_count_prop;
 	unsigned int expected_pages;
 	long unsigned int phys_addr;
 	long unsigned int block_size;
@@ -444,6 +448,24 @@ static void mmu_psize_set_default_penc(void)
 		for (apsize = 0; apsize < MMU_PAGE_COUNT; apsize++)
 			mmu_psize_defs[bpsize].penc[apsize] = -1;
 }
+
+#ifdef CONFIG_PPC_64K_PAGES
+
+static bool might_have_hea(void)
+{
+	/*
+	 * The HEA ethernet adapter requires awareness of the
+	 * GX bus. Without that awareness we can easily assume
+	 * we will never see an HEA ethernet device.
+	 */
+#ifdef CONFIG_IBMEBUS
+	return !cpu_has_feature(CPU_FTR_ARCH_207S);
+#else
+	return false;
+#endif
+}
+
+#endif /* #ifdef CONFIG_PPC_64K_PAGES */
 
 static void __init htab_init_page_sizes(void)
 {
@@ -499,10 +521,11 @@ static void __init htab_init_page_sizes(void)
 			mmu_linear_psize = MMU_PAGE_64K;
 		if (mmu_has_feature(MMU_FTR_CI_LARGE_PAGE)) {
 			/*
-			 * Don't use 64k pages for ioremap on pSeries, since
-			 * that would stop us accessing the HEA ethernet.
+			 * When running on pSeries using 64k pages for ioremap
+			 * would stop us accessing the HEA ethernet. So if we
+			 * have the chance of ever seeing one, stay at 4k.
 			 */
-			if (!machine_is(pseries))
+			if (!might_have_hea() || !machine_is(pseries))
 				mmu_io_psize = MMU_PAGE_64K;
 		} else
 			mmu_ci_restrictions = 1;
@@ -546,8 +569,8 @@ static int __init htab_dt_scan_pftsize(unsigned long node,
 				       const char *uname, int depth,
 				       void *data)
 {
-	char *type = of_get_flat_dt_prop(node, "device_type", NULL);
-	__be32 *prop;
+	const char *type = of_get_flat_dt_prop(node, "device_type", NULL);
+	const __be32 *prop;
 
 	/* We are scanning "cpu" nodes only */
 	if (type == NULL || strcmp(type, "cpu") != 0)
@@ -603,47 +626,43 @@ int remove_section_mapping(unsigned long start, unsigned long end)
 }
 #endif /* CONFIG_MEMORY_HOTPLUG */
 
-#define FUNCTION_TEXT(A)	((*(unsigned long *)(A)))
+extern u32 htab_call_hpte_insert1[];
+extern u32 htab_call_hpte_insert2[];
+extern u32 htab_call_hpte_remove[];
+extern u32 htab_call_hpte_updatepp[];
+extern u32 ht64_call_hpte_insert1[];
+extern u32 ht64_call_hpte_insert2[];
+extern u32 ht64_call_hpte_remove[];
+extern u32 ht64_call_hpte_updatepp[];
 
 static void __init htab_finish_init(void)
 {
-	extern unsigned int *htab_call_hpte_insert1;
-	extern unsigned int *htab_call_hpte_insert2;
-	extern unsigned int *htab_call_hpte_remove;
-	extern unsigned int *htab_call_hpte_updatepp;
-
 #ifdef CONFIG_PPC_HAS_HASH_64K
-	extern unsigned int *ht64_call_hpte_insert1;
-	extern unsigned int *ht64_call_hpte_insert2;
-	extern unsigned int *ht64_call_hpte_remove;
-	extern unsigned int *ht64_call_hpte_updatepp;
-
 	patch_branch(ht64_call_hpte_insert1,
-		FUNCTION_TEXT(ppc_md.hpte_insert),
+		ppc_function_entry(ppc_md.hpte_insert),
 		BRANCH_SET_LINK);
 	patch_branch(ht64_call_hpte_insert2,
-		FUNCTION_TEXT(ppc_md.hpte_insert),
+		ppc_function_entry(ppc_md.hpte_insert),
 		BRANCH_SET_LINK);
 	patch_branch(ht64_call_hpte_remove,
-		FUNCTION_TEXT(ppc_md.hpte_remove),
+		ppc_function_entry(ppc_md.hpte_remove),
 		BRANCH_SET_LINK);
 	patch_branch(ht64_call_hpte_updatepp,
-		FUNCTION_TEXT(ppc_md.hpte_updatepp),
+		ppc_function_entry(ppc_md.hpte_updatepp),
 		BRANCH_SET_LINK);
-
 #endif /* CONFIG_PPC_HAS_HASH_64K */
 
 	patch_branch(htab_call_hpte_insert1,
-		FUNCTION_TEXT(ppc_md.hpte_insert),
+		ppc_function_entry(ppc_md.hpte_insert),
 		BRANCH_SET_LINK);
 	patch_branch(htab_call_hpte_insert2,
-		FUNCTION_TEXT(ppc_md.hpte_insert),
+		ppc_function_entry(ppc_md.hpte_insert),
 		BRANCH_SET_LINK);
 	patch_branch(htab_call_hpte_remove,
-		FUNCTION_TEXT(ppc_md.hpte_remove),
+		ppc_function_entry(ppc_md.hpte_remove),
 		BRANCH_SET_LINK);
 	patch_branch(htab_call_hpte_updatepp,
-		FUNCTION_TEXT(ppc_md.hpte_updatepp),
+		ppc_function_entry(ppc_md.hpte_updatepp),
 		BRANCH_SET_LINK);
 }
 
@@ -960,6 +979,22 @@ void hash_failure_debug(unsigned long ea, unsigned long access,
 		trap, vsid, ssize, psize, lpsize, pte);
 }
 
+static void check_paca_psize(unsigned long ea, struct mm_struct *mm,
+			     int psize, bool user_region)
+{
+	if (user_region) {
+		if (psize != get_paca_psize(ea)) {
+			get_paca()->context = mm->context;
+			slb_flush_and_rebolt();
+		}
+	} else if (get_paca()->vmalloc_sllp !=
+		   mmu_psize_defs[mmu_vmalloc_psize].sllp) {
+		get_paca()->vmalloc_sllp =
+			mmu_psize_defs[mmu_vmalloc_psize].sllp;
+		slb_vmalloc_update();
+	}
+}
+
 /* Result code is:
  *  0 - handled
  *  1 - normal page fault
@@ -1081,6 +1116,8 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 			WARN_ON(1);
 		}
 #endif
+		check_paca_psize(ea, mm, psize, user_region);
+
 		goto bail;
 	}
 
@@ -1121,17 +1158,8 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 #endif
 		}
 	}
-	if (user_region) {
-		if (psize != get_paca_psize(ea)) {
-			get_paca()->context = mm->context;
-			slb_flush_and_rebolt();
-		}
-	} else if (get_paca()->vmalloc_sllp !=
-		   mmu_psize_defs[mmu_vmalloc_psize].sllp) {
-		get_paca()->vmalloc_sllp =
-			mmu_psize_defs[mmu_vmalloc_psize].sllp;
-		slb_vmalloc_update();
-	}
+
+	check_paca_psize(ea, mm, psize, user_region);
 #endif /* CONFIG_PPC_64K_PAGES */
 
 #ifdef CONFIG_PPC_HAS_HASH_64K

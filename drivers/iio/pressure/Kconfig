@@ -19,6 +19,16 @@ config HID_SENSOR_PRESS
           To compile this driver as a module, choose M here: the module
           will be called hid-sensor-press.
 
+config MPL115
+	tristate "Freescale MPL115A2 pressure sensor driver"
+	depends on I2C
+	help
+	  Say yes here to build support for the Freescale MPL115A2
+	  pressure sensor connected via I2C.
+
+          To compile this driver as a module, choose M here: the module
+          will be called mpl115.
+
 config MPL3115
 	tristate "Freescale MPL3115A2 pressure sensor driver"
 	depends on I2C

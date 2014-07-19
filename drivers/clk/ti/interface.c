@@ -94,6 +94,7 @@ static void __init of_ti_no_wait_interface_clk_setup(struct device_node *node)
 CLK_OF_DECLARE(ti_no_wait_interface_clk, "ti,omap3-no-wait-interface-clock",
 	       of_ti_no_wait_interface_clk_setup);
 
+#ifdef CONFIG_ARCH_OMAP3
 static void __init of_ti_hsotgusb_interface_clk_setup(struct device_node *node)
 {
 	_of_ti_interface_clk_setup(node,
@@ -123,3 +124,13 @@ static void __init of_ti_am35xx_interface_clk_setup(struct device_node *node)
 }
 CLK_OF_DECLARE(ti_am35xx_interface_clk, "ti,am35xx-interface-clock",
 	       of_ti_am35xx_interface_clk_setup);
+#endif
+
+#ifdef CONFIG_SOC_OMAP2430
+static void __init of_ti_omap2430_interface_clk_setup(struct device_node *node)
+{
+	_of_ti_interface_clk_setup(node, &clkhwops_omap2430_i2chs_wait);
+}
+CLK_OF_DECLARE(ti_omap2430_interface_clk, "ti,omap2430-interface-clock",
+	       of_ti_omap2430_interface_clk_setup);
+#endif

@@ -106,19 +106,15 @@
 
 		internal-regs {
 			serial@12000 {
-				clock-frequency = <250000000>;
 				status = "okay";
 			};
 			serial@12100 {
-				clock-frequency = <250000000>;
 				status = "okay";
 			};
 			serial@12200 {
-				clock-frequency = <250000000>;
 				status = "okay";
 			};
 			serial@12300 {
-				clock-frequency = <250000000>;
 				status = "okay";
 			};
 

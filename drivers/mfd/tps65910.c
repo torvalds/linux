@@ -379,7 +379,7 @@ err_sleep_init:
 }
 
 #ifdef CONFIG_OF
-static struct of_device_id tps65910_of_match[] = {
+static const struct of_device_id tps65910_of_match[] = {
 	{ .compatible = "ti,tps65910", .data = (void *)TPS65910},
 	{ .compatible = "ti,tps65911", .data = (void *)TPS65911},
 	{ },

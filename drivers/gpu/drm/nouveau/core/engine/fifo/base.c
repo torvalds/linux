@@ -91,7 +91,7 @@ nouveau_fifo_channel_create_(struct nouveau_object *parent,
 	if (!chan->user)
 		return -EFAULT;
 
-	nouveau_event_trigger(priv->cevent, 0);
+	nouveau_event_trigger(priv->cevent, 1, 0);
 
 	chan->size = size;
 	return 0;
@@ -194,11 +194,11 @@ nouveau_fifo_create_(struct nouveau_object *parent,
 	if (!priv->channel)
 		return -ENOMEM;
 
-	ret = nouveau_event_create(1, &priv->cevent);
+	ret = nouveau_event_create(1, 1, &priv->cevent);
 	if (ret)
 		return ret;
 
-	ret = nouveau_event_create(1, &priv->uevent);
+	ret = nouveau_event_create(1, 1, &priv->uevent);
 	if (ret)
 		return ret;
 

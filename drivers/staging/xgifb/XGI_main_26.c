@@ -66,6 +66,7 @@ static int XGIfb_mode_rate_to_dclock(struct vb_device_info *XGI_Pr,
 	unsigned short ModeIdIndex = 0, ClockIndex = 0;
 	unsigned short RefreshRateTableIndex = 0;
 	int Clock;
+
 	InitTo330Pointer(HwDeviceExtension->jChipType, XGI_Pr);
 
 	XGI_SearchModeID(ModeNo, &ModeIdIndex);
@@ -95,6 +96,7 @@ static int XGIfb_mode_rate_to_ddata(struct vb_device_info *XGI_Pr,
 	unsigned short HRE, HBE, HRS, HDE;
 	unsigned char sr_data, cr_data, cr_data2;
 	int B, C, D, F, temp, j;
+
 	InitTo330Pointer(HwDeviceExtension->jChipType, XGI_Pr);
 	if (!XGI_SearchModeID(ModeNo, &ModeIdIndex))
 		return 0;
@@ -216,6 +218,7 @@ void XGIRegInit(struct vb_device_info *XGI_Pr, unsigned long BaseAddr)
 	XGI_Pr->P3c8 = BaseAddr + 0x18;
 	XGI_Pr->P3c9 = BaseAddr + 0x19;
 	XGI_Pr->P3da = BaseAddr + 0x2A;
+	XGI_Pr->Part0Port = BaseAddr + XGI_CRT2_PORT_00;
 	/* Digital video interface registers (LCD) */
 	XGI_Pr->Part1Port = BaseAddr + SIS_CRT2_PORT_04;
 	/* 301 TV Encoder registers */

@@ -754,17 +754,20 @@ resubmit:
 	usb_submit_urb(purb, GFP_ATOMIC);
 }
 
-int dib0700_rc_setup(struct dvb_usb_device *d)
+int dib0700_rc_setup(struct dvb_usb_device *d, struct usb_interface *intf)
 {
 	struct dib0700_state *st = d->priv;
 	struct urb *purb;
-	int ret;
+	const struct usb_endpoint_descriptor *e;
+	int ret, rc_ep = 1;
+	unsigned int pipe = 0;
 
 	/* Poll-based. Don't initialize bulk mode */
-	if (st->fw_version < 0x10200)
+	if (st->fw_version < 0x10200 || !intf)
 		return 0;
 
 	/* Starting in firmware 1.20, the RC info is provided on a bulk pipe */
+
 	purb = usb_alloc_urb(0, GFP_KERNEL);
 	if (purb == NULL) {
 		err("rc usb alloc urb failed");
@@ -779,9 +782,35 @@ int dib0700_rc_setup(struct dvb_usb_device *d)
 	}
 
 	purb->status = -EINPROGRESS;
-	usb_fill_bulk_urb(purb, d->udev, usb_rcvbulkpipe(d->udev, 1),
-			  purb->transfer_buffer, RC_MSG_SIZE_V1_20,
-			  dib0700_rc_urb_completion, d);
+
+	/*
+	 * Some devices like the Hauppauge NovaTD model 52009 use an interrupt
+	 * endpoint, while others use a bulk one.
+	 */
+	e = &intf->altsetting[0].endpoint[rc_ep].desc;
+	if (usb_endpoint_dir_in(e)) {
+		if (usb_endpoint_xfer_bulk(e)) {
+			pipe = usb_rcvbulkpipe(d->udev, rc_ep);
+			usb_fill_bulk_urb(purb, d->udev, pipe,
+					  purb->transfer_buffer,
+					  RC_MSG_SIZE_V1_20,
+					  dib0700_rc_urb_completion, d);
+
+		} else if (usb_endpoint_xfer_int(e)) {
+			pipe = usb_rcvintpipe(d->udev, rc_ep);
+			usb_fill_int_urb(purb, d->udev, pipe,
+					  purb->transfer_buffer,
+					  RC_MSG_SIZE_V1_20,
+					  dib0700_rc_urb_completion, d, 1);
+		}
+	}
+
+	if (!pipe) {
+		err("There's no endpoint for remote controller");
+		kfree(purb->transfer_buffer);
+		usb_free_urb(purb);
+		return 0;
+	}
 
 	ret = usb_submit_urb(purb, GFP_ATOMIC);
 	if (ret) {
@@ -820,7 +849,7 @@ static int dib0700_probe(struct usb_interface *intf,
 			else
 				dev->props.rc.core.bulk_mode = false;
 
-			dib0700_rc_setup(dev);
+			dib0700_rc_setup(dev, intf);
 
 			return 0;
 		}

@@ -3607,7 +3607,8 @@ static int cma_get_id_stats(struct sk_buff *skb, struct netlink_callback *cb)
 
 			id_stats = ibnl_put_msg(skb, &nlh, cb->nlh->nlmsg_seq,
 						sizeof *id_stats, RDMA_NL_RDMA_CM,
-						RDMA_NL_RDMA_CM_ID_STATS);
+						RDMA_NL_RDMA_CM_ID_STATS,
+						NLM_F_MULTI);
 			if (!id_stats)
 				goto out;
 

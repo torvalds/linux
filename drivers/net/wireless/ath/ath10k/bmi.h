@@ -201,7 +201,8 @@ int ath10k_bmi_write_memory(struct ath10k *ar, u32 address,
 									\
 		addr = host_interest_item_address(HI_ITEM(item));	\
 		ret = ath10k_bmi_read_memory(ar, addr, (u8 *)&tmp, 4); \
-		*val = __le32_to_cpu(tmp);				\
+		if (!ret)						\
+			*val = __le32_to_cpu(tmp);			\
 		ret;							\
 	 })
 
@@ -217,7 +218,7 @@ int ath10k_bmi_write_memory(struct ath10k *ar, u32 address,
 		ret;							\
 	})
 
-int ath10k_bmi_execute(struct ath10k *ar, u32 address, u32 *param);
+int ath10k_bmi_execute(struct ath10k *ar, u32 address, u32 param, u32 *result);
 int ath10k_bmi_lz_stream_start(struct ath10k *ar, u32 address);
 int ath10k_bmi_lz_data(struct ath10k *ar, const void *buffer, u32 length);
 int ath10k_bmi_fast_download(struct ath10k *ar, u32 address,

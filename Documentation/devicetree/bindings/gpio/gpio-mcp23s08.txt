@@ -54,7 +54,7 @@ Optional device specific properties:
         IO 8-15 are bank 2. These chips have two different interrupt outputs:
         One for bank 1 and another for bank 2. If irq-mirror is set, both
         interrupts are generated regardless of the bank that an input change
-        occured on. If it is not set, the interrupt are only generated for the
+        occurred on. If it is not set, the interrupt are only generated for the
         bank they belong to.
         On devices with only one interrupt output this property is useless.
 

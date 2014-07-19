@@ -1079,4 +1079,4 @@ const struct drm_ioctl_desc savage_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(SAVAGE_BCI_EVENT_WAIT, savage_bci_event_wait, DRM_AUTH),
 };
 
-int savage_max_ioctl = DRM_ARRAY_SIZE(savage_ioctls);
+int savage_max_ioctl = ARRAY_SIZE(savage_ioctls);

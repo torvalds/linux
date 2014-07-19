@@ -27,6 +27,7 @@
 #include <linux/clk.h>
 #include <linux/mutex.h>
 #include <linux/dma/ipu-dma.h>
+#include <linux/backlight.h>
 
 #include <linux/platform_data/dma-imx.h>
 #include <linux/platform_data/video-mx3fb.h>
@@ -241,6 +242,7 @@ struct mx3fb_data {
 	void __iomem		*reg_base;
 	spinlock_t		lock;
 	struct device		*dev;
+	struct backlight_device	*bl;
 
 	uint32_t		h_start_width;
 	uint32_t		v_start_width;
@@ -270,6 +272,71 @@ struct mx3fb_info {
 
 	struct fb_var_screeninfo	cur_var; /* current var info */
 };
+
+static void sdc_set_brightness(struct mx3fb_data *mx3fb, uint8_t value);
+static u32 sdc_get_brightness(struct mx3fb_data *mx3fb);
+
+static int mx3fb_bl_get_brightness(struct backlight_device *bl)
+{
+	struct mx3fb_data *fbd = bl_get_data(bl);
+
+	return sdc_get_brightness(fbd);
+}
+
+static int mx3fb_bl_update_status(struct backlight_device *bl)
+{
+	struct mx3fb_data *fbd = bl_get_data(bl);
+	int brightness = bl->props.brightness;
+
+	if (bl->props.power != FB_BLANK_UNBLANK)
+		brightness = 0;
+	if (bl->props.fb_blank != FB_BLANK_UNBLANK)
+		brightness = 0;
+
+	fbd->backlight_level = (fbd->backlight_level & ~0xFF) | brightness;
+
+	sdc_set_brightness(fbd, fbd->backlight_level);
+
+	return 0;
+}
+
+static const struct backlight_ops mx3fb_lcdc_bl_ops = {
+	.update_status = mx3fb_bl_update_status,
+	.get_brightness = mx3fb_bl_get_brightness,
+};
+
+static void mx3fb_init_backlight(struct mx3fb_data *fbd)
+{
+	struct backlight_properties props;
+	struct backlight_device	*bl;
+
+	if (fbd->bl)
+		return;
+
+	memset(&props, 0, sizeof(struct backlight_properties));
+	props.max_brightness = 0xff;
+	props.type = BACKLIGHT_RAW;
+	sdc_set_brightness(fbd, fbd->backlight_level);
+
+	bl = backlight_device_register("mx3fb-bl", fbd->dev, fbd,
+				       &mx3fb_lcdc_bl_ops, &props);
+	if (IS_ERR(bl)) {
+		dev_err(fbd->dev, "error %ld on backlight register\n",
+				PTR_ERR(bl));
+		return;
+	}
+
+	fbd->bl = bl;
+	bl->props.power = FB_BLANK_UNBLANK;
+	bl->props.fb_blank = FB_BLANK_UNBLANK;
+	bl->props.brightness = mx3fb_bl_get_brightness(bl);
+}
+
+static void mx3fb_exit_backlight(struct mx3fb_data *fbd)
+{
+	if (fbd->bl)
+		backlight_device_unregister(fbd->bl);
+}
 
 static void mx3fb_dma_done(void *);
 
@@ -626,6 +693,16 @@ static int sdc_set_global_alpha(struct mx3fb_data *mx3fb, bool enable, uint8_t a
 	spin_unlock_irqrestore(&mx3fb->lock, lock_flags);
 
 	return 0;
+}
+
+static u32 sdc_get_brightness(struct mx3fb_data *mx3fb)
+{
+	u32 brightness;
+
+	brightness = mx3fb_read_reg(mx3fb, SDC_PWM_CTRL);
+	brightness = (brightness >> 16) & 0xFF;
+
+	return brightness;
 }
 
 static void sdc_set_brightness(struct mx3fb_data *mx3fb, uint8_t value)
@@ -1496,7 +1573,7 @@ static int mx3fb_probe(struct platform_device *pdev)
 	if (!sdc_reg)
 		return -EINVAL;
 
-	mx3fb = kzalloc(sizeof(*mx3fb), GFP_KERNEL);
+	mx3fb = devm_kzalloc(&pdev->dev, sizeof(*mx3fb), GFP_KERNEL);
 	if (!mx3fb)
 		return -ENOMEM;
 
@@ -1534,6 +1611,8 @@ static int mx3fb_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto eisdc0;
 
+	mx3fb_init_backlight(mx3fb);
+
 	return 0;
 
 eisdc0:
@@ -1542,7 +1621,6 @@ ersdc0:
 	dmaengine_put();
 	iounmap(mx3fb->reg_base);
 eremap:
-	kfree(mx3fb);
 	dev_err(dev, "mx3fb: failed to register fb\n");
 	return ret;
 }
@@ -1557,11 +1635,12 @@ static int mx3fb_remove(struct platform_device *dev)
 	chan = &mx3_fbi->idmac_channel->dma_chan;
 	release_fbi(fbi);
 
+	mx3fb_exit_backlight(mx3fb);
+
 	dma_release_channel(chan);
 	dmaengine_put();
 
 	iounmap(mx3fb->reg_base);
-	kfree(mx3fb);
 	return 0;
 }
 

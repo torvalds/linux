@@ -19,6 +19,38 @@
 #include <linux/threads.h>
 #include <linux/spinlock.h>
 
+/* MIPS KVM register ids */
+#define MIPS_CP0_32(_R, _S)					\
+	(KVM_REG_MIPS | KVM_REG_SIZE_U32 | 0x10000 | (8 * (_R) + (_S)))
+
+#define MIPS_CP0_64(_R, _S)					\
+	(KVM_REG_MIPS | KVM_REG_SIZE_U64 | 0x10000 | (8 * (_R) + (_S)))
+
+#define KVM_REG_MIPS_CP0_INDEX		MIPS_CP0_32(0, 0)
+#define KVM_REG_MIPS_CP0_ENTRYLO0	MIPS_CP0_64(2, 0)
+#define KVM_REG_MIPS_CP0_ENTRYLO1	MIPS_CP0_64(3, 0)
+#define KVM_REG_MIPS_CP0_CONTEXT	MIPS_CP0_64(4, 0)
+#define KVM_REG_MIPS_CP0_USERLOCAL	MIPS_CP0_64(4, 2)
+#define KVM_REG_MIPS_CP0_PAGEMASK	MIPS_CP0_32(5, 0)
+#define KVM_REG_MIPS_CP0_PAGEGRAIN	MIPS_CP0_32(5, 1)
+#define KVM_REG_MIPS_CP0_WIRED		MIPS_CP0_32(6, 0)
+#define KVM_REG_MIPS_CP0_HWRENA		MIPS_CP0_32(7, 0)
+#define KVM_REG_MIPS_CP0_BADVADDR	MIPS_CP0_64(8, 0)
+#define KVM_REG_MIPS_CP0_COUNT		MIPS_CP0_32(9, 0)
+#define KVM_REG_MIPS_CP0_ENTRYHI	MIPS_CP0_64(10, 0)
+#define KVM_REG_MIPS_CP0_COMPARE	MIPS_CP0_32(11, 0)
+#define KVM_REG_MIPS_CP0_STATUS		MIPS_CP0_32(12, 0)
+#define KVM_REG_MIPS_CP0_CAUSE		MIPS_CP0_32(13, 0)
+#define KVM_REG_MIPS_CP0_EPC		MIPS_CP0_64(14, 0)
+#define KVM_REG_MIPS_CP0_EBASE		MIPS_CP0_64(15, 1)
+#define KVM_REG_MIPS_CP0_CONFIG		MIPS_CP0_32(16, 0)
+#define KVM_REG_MIPS_CP0_CONFIG1	MIPS_CP0_32(16, 1)
+#define KVM_REG_MIPS_CP0_CONFIG2	MIPS_CP0_32(16, 2)
+#define KVM_REG_MIPS_CP0_CONFIG3	MIPS_CP0_32(16, 3)
+#define KVM_REG_MIPS_CP0_CONFIG7	MIPS_CP0_32(16, 7)
+#define KVM_REG_MIPS_CP0_XCONTEXT	MIPS_CP0_64(20, 0)
+#define KVM_REG_MIPS_CP0_ERROREPC	MIPS_CP0_64(30, 0)
+
 
 #define KVM_MAX_VCPUS		1
 #define KVM_USER_MEM_SLOTS	8
@@ -372,8 +404,19 @@ struct kvm_vcpu_arch {
 
 	u32 io_gpr;		/* GPR used as IO source/target */
 
-	/* Used to calibrate the virutal count register for the guest */
-	int32_t host_cp0_count;
+	struct hrtimer comparecount_timer;
+	/* Count timer control KVM register */
+	uint32_t count_ctl;
+	/* Count bias from the raw time */
+	uint32_t count_bias;
+	/* Frequency of timer in Hz */
+	uint32_t count_hz;
+	/* Dynamic nanosecond bias (multiple of count_period) to avoid overflow */
+	s64 count_dyn_bias;
+	/* Resume time */
+	ktime_t count_resume;
+	/* Period of timer tick in ns */
+	u64 count_period;
 
 	/* Bitmask of exceptions that are pending */
 	unsigned long pending_exceptions;
@@ -394,8 +437,6 @@ struct kvm_vcpu_arch {
 	uint32_t guest_kernel_asid[NR_CPUS];
 	struct mm_struct guest_kernel_mm, guest_user_mm;
 
-	struct hrtimer comparecount_timer;
-
 	int last_sched_cpu;
 
 	/* WAIT executed */
@@ -410,6 +451,7 @@ struct kvm_vcpu_arch {
 #define kvm_read_c0_guest_context(cop0)		(cop0->reg[MIPS_CP0_TLB_CONTEXT][0])
 #define kvm_write_c0_guest_context(cop0, val)	(cop0->reg[MIPS_CP0_TLB_CONTEXT][0] = (val))
 #define kvm_read_c0_guest_userlocal(cop0)	(cop0->reg[MIPS_CP0_TLB_CONTEXT][2])
+#define kvm_write_c0_guest_userlocal(cop0, val)	(cop0->reg[MIPS_CP0_TLB_CONTEXT][2] = (val))
 #define kvm_read_c0_guest_pagemask(cop0)	(cop0->reg[MIPS_CP0_TLB_PG_MASK][0])
 #define kvm_write_c0_guest_pagemask(cop0, val)	(cop0->reg[MIPS_CP0_TLB_PG_MASK][0] = (val))
 #define kvm_read_c0_guest_wired(cop0)		(cop0->reg[MIPS_CP0_TLB_WIRED][0])
@@ -449,15 +491,74 @@ struct kvm_vcpu_arch {
 #define kvm_read_c0_guest_errorepc(cop0)	(cop0->reg[MIPS_CP0_ERROR_PC][0])
 #define kvm_write_c0_guest_errorepc(cop0, val)	(cop0->reg[MIPS_CP0_ERROR_PC][0] = (val))
 
+/*
+ * Some of the guest registers may be modified asynchronously (e.g. from a
+ * hrtimer callback in hard irq context) and therefore need stronger atomicity
+ * guarantees than other registers.
+ */
+
+static inline void _kvm_atomic_set_c0_guest_reg(unsigned long *reg,
+						unsigned long val)
+{
+	unsigned long temp;
+	do {
+		__asm__ __volatile__(
+		"	.set	mips3				\n"
+		"	" __LL "%0, %1				\n"
+		"	or	%0, %2				\n"
+		"	" __SC	"%0, %1				\n"
+		"	.set	mips0				\n"
+		: "=&r" (temp), "+m" (*reg)
+		: "r" (val));
+	} while (unlikely(!temp));
+}
+
+static inline void _kvm_atomic_clear_c0_guest_reg(unsigned long *reg,
+						  unsigned long val)
+{
+	unsigned long temp;
+	do {
+		__asm__ __volatile__(
+		"	.set	mips3				\n"
+		"	" __LL "%0, %1				\n"
+		"	and	%0, %2				\n"
+		"	" __SC	"%0, %1				\n"
+		"	.set	mips0				\n"
+		: "=&r" (temp), "+m" (*reg)
+		: "r" (~val));
+	} while (unlikely(!temp));
+}
+
+static inline void _kvm_atomic_change_c0_guest_reg(unsigned long *reg,
+						   unsigned long change,
+						   unsigned long val)
+{
+	unsigned long temp;
+	do {
+		__asm__ __volatile__(
+		"	.set	mips3				\n"
+		"	" __LL "%0, %1				\n"
+		"	and	%0, %2				\n"
+		"	or	%0, %3				\n"
+		"	" __SC	"%0, %1				\n"
+		"	.set	mips0				\n"
+		: "=&r" (temp), "+m" (*reg)
+		: "r" (~change), "r" (val & change));
+	} while (unlikely(!temp));
+}
+
 #define kvm_set_c0_guest_status(cop0, val)	(cop0->reg[MIPS_CP0_STATUS][0] |= (val))
 #define kvm_clear_c0_guest_status(cop0, val)	(cop0->reg[MIPS_CP0_STATUS][0] &= ~(val))
-#define kvm_set_c0_guest_cause(cop0, val)	(cop0->reg[MIPS_CP0_CAUSE][0] |= (val))
-#define kvm_clear_c0_guest_cause(cop0, val)	(cop0->reg[MIPS_CP0_CAUSE][0] &= ~(val))
+
+/* Cause can be modified asynchronously from hardirq hrtimer callback */
+#define kvm_set_c0_guest_cause(cop0, val)				\
+	_kvm_atomic_set_c0_guest_reg(&cop0->reg[MIPS_CP0_CAUSE][0], val)
+#define kvm_clear_c0_guest_cause(cop0, val)				\
+	_kvm_atomic_clear_c0_guest_reg(&cop0->reg[MIPS_CP0_CAUSE][0], val)
 #define kvm_change_c0_guest_cause(cop0, change, val)			\
-{									\
-	kvm_clear_c0_guest_cause(cop0, change);				\
-	kvm_set_c0_guest_cause(cop0, ((val) & (change)));		\
-}
+	_kvm_atomic_change_c0_guest_reg(&cop0->reg[MIPS_CP0_CAUSE][0],	\
+					change, val)
+
 #define kvm_set_c0_guest_ebase(cop0, val)	(cop0->reg[MIPS_CP0_PRID][1] |= (val))
 #define kvm_clear_c0_guest_ebase(cop0, val)	(cop0->reg[MIPS_CP0_PRID][1] &= ~(val))
 #define kvm_change_c0_guest_ebase(cop0, change, val)			\
@@ -468,29 +569,33 @@ struct kvm_vcpu_arch {
 
 
 struct kvm_mips_callbacks {
-	int (*handle_cop_unusable) (struct kvm_vcpu *vcpu);
-	int (*handle_tlb_mod) (struct kvm_vcpu *vcpu);
-	int (*handle_tlb_ld_miss) (struct kvm_vcpu *vcpu);
-	int (*handle_tlb_st_miss) (struct kvm_vcpu *vcpu);
-	int (*handle_addr_err_st) (struct kvm_vcpu *vcpu);
-	int (*handle_addr_err_ld) (struct kvm_vcpu *vcpu);
-	int (*handle_syscall) (struct kvm_vcpu *vcpu);
-	int (*handle_res_inst) (struct kvm_vcpu *vcpu);
-	int (*handle_break) (struct kvm_vcpu *vcpu);
-	int (*vm_init) (struct kvm *kvm);
-	int (*vcpu_init) (struct kvm_vcpu *vcpu);
-	int (*vcpu_setup) (struct kvm_vcpu *vcpu);
-	 gpa_t(*gva_to_gpa) (gva_t gva);
-	void (*queue_timer_int) (struct kvm_vcpu *vcpu);
-	void (*dequeue_timer_int) (struct kvm_vcpu *vcpu);
-	void (*queue_io_int) (struct kvm_vcpu *vcpu,
-			      struct kvm_mips_interrupt *irq);
-	void (*dequeue_io_int) (struct kvm_vcpu *vcpu,
-				struct kvm_mips_interrupt *irq);
-	int (*irq_deliver) (struct kvm_vcpu *vcpu, unsigned int priority,
-			    uint32_t cause);
-	int (*irq_clear) (struct kvm_vcpu *vcpu, unsigned int priority,
-			  uint32_t cause);
+	int (*handle_cop_unusable)(struct kvm_vcpu *vcpu);
+	int (*handle_tlb_mod)(struct kvm_vcpu *vcpu);
+	int (*handle_tlb_ld_miss)(struct kvm_vcpu *vcpu);
+	int (*handle_tlb_st_miss)(struct kvm_vcpu *vcpu);
+	int (*handle_addr_err_st)(struct kvm_vcpu *vcpu);
+	int (*handle_addr_err_ld)(struct kvm_vcpu *vcpu);
+	int (*handle_syscall)(struct kvm_vcpu *vcpu);
+	int (*handle_res_inst)(struct kvm_vcpu *vcpu);
+	int (*handle_break)(struct kvm_vcpu *vcpu);
+	int (*vm_init)(struct kvm *kvm);
+	int (*vcpu_init)(struct kvm_vcpu *vcpu);
+	int (*vcpu_setup)(struct kvm_vcpu *vcpu);
+	gpa_t (*gva_to_gpa)(gva_t gva);
+	void (*queue_timer_int)(struct kvm_vcpu *vcpu);
+	void (*dequeue_timer_int)(struct kvm_vcpu *vcpu);
+	void (*queue_io_int)(struct kvm_vcpu *vcpu,
+			     struct kvm_mips_interrupt *irq);
+	void (*dequeue_io_int)(struct kvm_vcpu *vcpu,
+			       struct kvm_mips_interrupt *irq);
+	int (*irq_deliver)(struct kvm_vcpu *vcpu, unsigned int priority,
+			   uint32_t cause);
+	int (*irq_clear)(struct kvm_vcpu *vcpu, unsigned int priority,
+			 uint32_t cause);
+	int (*get_one_reg)(struct kvm_vcpu *vcpu,
+			   const struct kvm_one_reg *reg, s64 *v);
+	int (*set_one_reg)(struct kvm_vcpu *vcpu,
+			   const struct kvm_one_reg *reg, s64 v);
 };
 extern struct kvm_mips_callbacks *kvm_mips_callbacks;
 int kvm_mips_emulation_init(struct kvm_mips_callbacks **install_callbacks);
@@ -609,7 +714,16 @@ extern enum emulation_result kvm_mips_emulate_bp_exc(unsigned long cause,
 extern enum emulation_result kvm_mips_complete_mmio_load(struct kvm_vcpu *vcpu,
 							 struct kvm_run *run);
 
-enum emulation_result kvm_mips_emulate_count(struct kvm_vcpu *vcpu);
+uint32_t kvm_mips_read_count(struct kvm_vcpu *vcpu);
+void kvm_mips_write_count(struct kvm_vcpu *vcpu, uint32_t count);
+void kvm_mips_write_compare(struct kvm_vcpu *vcpu, uint32_t compare);
+void kvm_mips_init_count(struct kvm_vcpu *vcpu);
+int kvm_mips_set_count_ctl(struct kvm_vcpu *vcpu, s64 count_ctl);
+int kvm_mips_set_count_resume(struct kvm_vcpu *vcpu, s64 count_resume);
+int kvm_mips_set_count_hz(struct kvm_vcpu *vcpu, s64 count_hz);
+void kvm_mips_count_enable_cause(struct kvm_vcpu *vcpu);
+void kvm_mips_count_disable_cause(struct kvm_vcpu *vcpu);
+enum hrtimer_restart kvm_mips_count_timeout(struct kvm_vcpu *vcpu);
 
 enum emulation_result kvm_mips_check_privilege(unsigned long cause,
 					       uint32_t *opc,
@@ -646,7 +760,6 @@ extern int kvm_mips_trans_mtc0(uint32_t inst, uint32_t *opc,
 			       struct kvm_vcpu *vcpu);
 
 /* Misc */
-extern void mips32_SyncICache(unsigned long addr, unsigned long size);
 extern int kvm_mips_dump_stats(struct kvm_vcpu *vcpu);
 extern unsigned long kvm_mips_get_ramsize(struct kvm *kvm);
 

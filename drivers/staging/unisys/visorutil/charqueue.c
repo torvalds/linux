@@ -1,6 +1,6 @@
 /* charqueue.c
  *
- * Copyright © 2010 - 2013 UNISYS CORPORATION
+ * Copyright (C) 2010 - 2013 UNISYS CORPORATION
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -41,6 +41,7 @@ CHARQUEUE *visor_charqueue_create(ulong nslots)
 {
 	int alloc_size = sizeof(CHARQUEUE) + nslots + 1;
 	CHARQUEUE *cq = kmalloc(alloc_size, GFP_KERNEL|__GFP_NORETRY);
+
 	if (cq == NULL) {
 		ERRDRV("visor_charqueue_create allocation failed (alloc_size=%d)",
 		       alloc_size);
@@ -75,6 +76,7 @@ EXPORT_SYMBOL_GPL(visor_charqueue_enqueue);
 BOOL visor_charqueue_is_empty(CHARQUEUE *charqueue)
 {
 	BOOL b;
+
 	spin_lock(&charqueue->lock);
 	b = IS_EMPTY(charqueue);
 	spin_unlock(&charqueue->lock);

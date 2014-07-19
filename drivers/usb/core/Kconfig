@@ -1,13 +1,6 @@
 #
 # USB Core configuration
 #
-config USB_DEBUG
-	bool "USB verbose debug messages"
-	help
-	  Say Y here if you want the USB core & hub drivers to produce a bunch
-	  of debug messages to the system log. Select this if you are having a
-	  problem with USB support and want to see more of what is going on.
-
 config USB_ANNOUNCE_NEW_DEVICES
 	bool "USB announce new devices"
 	help
@@ -87,4 +80,13 @@ config USB_OTG_BLACKLIST_HUB
 	  external hubs.  OTG hosts are allowed to reduce hardware
 	  and software costs by not supporting external hubs.  So
 	  are "Embedded Hosts" that don't offer OTG support.
+
+config USB_OTG_FSM
+	tristate "USB 2.0 OTG FSM implementation"
+	depends on USB
+	select USB_OTG
+	select USB_PHY
+	help
+	  Implements OTG Finite State Machine as specified in On-The-Go
+	  and Embedded Host Supplement to the USB Revision 2.0 Specification.
 

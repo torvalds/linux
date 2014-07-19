@@ -44,8 +44,7 @@
 #include "wcmd.h"
 #include "rxtx.h"
 #include "card.h"
-#include "control.h"
-#include "rndis.h"
+#include "usbpipe.h"
 
 static int msglevel = MSG_LEVEL_INFO;
 
@@ -130,7 +129,7 @@ void PSvDisablePowerSaving(struct vnt_private *pDevice)
 {
 
 	/* disable power saving hw function */
-	CONTROLnsRequestOut(pDevice, MESSAGE_TYPE_DISABLE_PS, 0,
+	vnt_control_out(pDevice, MESSAGE_TYPE_DISABLE_PS, 0,
 						0, 0, NULL);
 
 	/* clear AutoSleep */
@@ -163,7 +162,7 @@ int PSbConsiderPowerDown(struct vnt_private *pDevice, int bCheckRxDMA,
 	u8 byData;
 
 	/* check if already in Doze mode */
-	ControlvReadByte(pDevice, MESSAGE_REQUEST_MACREG,
+	vnt_control_in_u8(pDevice, MESSAGE_REQUEST_MACREG,
 					MAC_REG_PSCTL, &byData);
 
 	if ((byData & PSCTL_PS) != 0)

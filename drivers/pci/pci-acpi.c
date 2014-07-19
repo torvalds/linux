@@ -309,13 +309,7 @@ static struct acpi_device *acpi_pci_find_companion(struct device *dev)
 	bool check_children;
 	u64 addr;
 
-	/*
-	 * pci_is_bridge() is not suitable here, because pci_dev->subordinate
-	 * is set only after acpi_pci_find_device() has been called for the
-	 * given device.
-	 */
-	check_children = pci_dev->hdr_type == PCI_HEADER_TYPE_BRIDGE
-			|| pci_dev->hdr_type == PCI_HEADER_TYPE_CARDBUS;
+	check_children = pci_is_bridge(pci_dev);
 	/* Please ref to ACPI spec for the syntax of _ADR */
 	addr = (PCI_SLOT(pci_dev->devfn) << 16) | PCI_FUNC(pci_dev->devfn);
 	return acpi_find_child_device(ACPI_COMPANION(dev->parent), addr,

@@ -74,18 +74,8 @@ static void __init estimate_frequencies(void)
 	unsigned int giccount = 0, gicstart = 0;
 #endif
 
-#if defined (CONFIG_KVM_GUEST) && defined (CONFIG_KVM_HOST_FREQ)
-	unsigned int prid = read_c0_prid() & (PRID_COMP_MASK | PRID_IMP_MASK);
-
-	/*
-	 * XXXKYMA: hardwire the CPU frequency to Host Freq/4
-	 */
-	count = (CONFIG_KVM_HOST_FREQ * 1000000) >> 3;
-	if ((prid != (PRID_COMP_MIPS | PRID_IMP_20KC)) &&
-	    (prid != (PRID_COMP_MIPS | PRID_IMP_25KF)))
-		count *= 2;
-
-	mips_hpt_frequency = count;
+#if defined(CONFIG_KVM_GUEST) && CONFIG_KVM_GUEST_TIMER_FREQ
+	mips_hpt_frequency = CONFIG_KVM_GUEST_TIMER_FREQ * 1000000;
 	return;
 #endif
 

@@ -195,8 +195,6 @@ static void mdp5_crtc_destroy(struct drm_crtc *crtc)
 {
 	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
 
-	mdp5_crtc->plane->funcs->destroy(mdp5_crtc->plane);
-
 	drm_crtc_cleanup(crtc);
 	drm_flip_work_cleanup(&mdp5_crtc->unref_fb_work);
 

@@ -266,8 +266,7 @@ static int pciehp_probe(struct pcie_device *dev)
 	rc = init_slot(ctrl);
 	if (rc) {
 		if (rc == -EBUSY)
-			ctrl_warn(ctrl, "Slot already registered by another "
-				  "hotplug driver\n");
+			ctrl_warn(ctrl, "Slot already registered by another hotplug driver\n");
 		else
 			ctrl_err(ctrl, "Slot initialization failed\n");
 		goto err_out_release_ctlr;
@@ -312,12 +311,12 @@ static void pciehp_remove(struct pcie_device *dev)
 }
 
 #ifdef CONFIG_PM
-static int pciehp_suspend (struct pcie_device *dev)
+static int pciehp_suspend(struct pcie_device *dev)
 {
 	return 0;
 }
 
-static int pciehp_resume (struct pcie_device *dev)
+static int pciehp_resume(struct pcie_device *dev)
 {
 	struct controller *ctrl;
 	struct slot *slot;

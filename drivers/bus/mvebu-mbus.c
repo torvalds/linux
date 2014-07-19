@@ -704,7 +704,6 @@ static int __init mvebu_mbus_common_init(struct mvebu_mbus_state *mbus,
 					 phys_addr_t sdramwins_phys_base,
 					 size_t sdramwins_size)
 {
-	struct device_node *np;
 	int win;
 
 	mbus->mbuswins_base = ioremap(mbuswins_phys_base, mbuswins_size);
@@ -715,12 +714,6 @@ static int __init mvebu_mbus_common_init(struct mvebu_mbus_state *mbus,
 	if (!mbus->sdramwins_base) {
 		iounmap(mbus_state.mbuswins_base);
 		return -ENOMEM;
-	}
-
-	np = of_find_compatible_node(NULL, NULL, "marvell,coherency-fabric");
-	if (np) {
-		mbus->hw_io_coherency = 1;
-		of_node_put(np);
 	}
 
 	for (win = 0; win < mbus->soc->num_wins; win++)
@@ -892,7 +885,7 @@ static void __init mvebu_mbus_get_pcie_resources(struct device_node *np,
 	}
 }
 
-int __init mvebu_mbus_dt_init(void)
+int __init mvebu_mbus_dt_init(bool is_coherent)
 {
 	struct resource mbuswins_res, sdramwins_res;
 	struct device_node *np, *controller;
@@ -929,6 +922,8 @@ int __init mvebu_mbus_dt_init(void)
 		pr_err("cannot get SDRAM register address\n");
 		return -EINVAL;
 	}
+
+	mbus_state.hw_io_coherency = is_coherent;
 
 	/* Get optional pcie-{mem,io}-aperture properties */
 	mvebu_mbus_get_pcie_resources(np, &mbus_state.pcie_mem_aperture,

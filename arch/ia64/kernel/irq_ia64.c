@@ -93,14 +93,6 @@ static int irq_status[NR_IRQS] = {
 	[0 ... NR_IRQS -1] = IRQ_UNUSED
 };
 
-int check_irq_used(int irq)
-{
-	if (irq_status[irq] == IRQ_USED)
-		return 1;
-
-	return -1;
-}
-
 static inline int find_unassigned_irq(void)
 {
 	int irq;
@@ -390,8 +382,7 @@ void destroy_and_reserve_irq(unsigned int irq)
 {
 	unsigned long flags;
 
-	dynamic_irq_cleanup(irq);
-
+	irq_init_desc(irq);
 	spin_lock_irqsave(&vector_lock, flags);
 	__clear_irq_vector(irq);
 	irq_status[irq] = IRQ_RSVD;
@@ -424,13 +415,13 @@ int create_irq(void)
  out:
 	spin_unlock_irqrestore(&vector_lock, flags);
 	if (irq >= 0)
-		dynamic_irq_init(irq);
+		irq_init_desc(irq);
 	return irq;
 }
 
 void destroy_irq(unsigned int irq)
 {
-	dynamic_irq_cleanup(irq);
+	irq_init_desc(irq);
 	clear_irq_vector(irq);
 }
 

@@ -27,7 +27,6 @@
 #include <linux/clk.h>
 #include <linux/mm.h>
 #include <linux/module.h>
-#include <linux/omap-iommu.h>
 #include <linux/pagemap.h>
 #include <linux/scatterlist.h>
 #include <linux/sched.h>
@@ -35,6 +34,7 @@
 #include <linux/vmalloc.h>
 #include <media/v4l2-dev.h>
 #include <media/v4l2-ioctl.h>
+#include <media/videobuf2-dma-contig.h>
 
 #include "ispvideo.h"
 #include "isp.h"
@@ -326,90 +326,36 @@ isp_video_check_format(struct isp_video *video, struct isp_video_fh *vfh)
 }
 
 /* -----------------------------------------------------------------------------
- * IOMMU management
- */
-
-#define IOMMU_FLAG	(IOVMF_ENDIAN_LITTLE | IOVMF_ELSZ_8)
-
-/*
- * ispmmu_vmap - Wrapper for Virtual memory mapping of a scatter gather list
- * @isp: Device pointer specific to the OMAP3 ISP.
- * @sglist: Pointer to source Scatter gather list to allocate.
- * @sglen: Number of elements of the scatter-gatter list.
- *
- * Returns a resulting mapped device address by the ISP MMU, or -ENOMEM if
- * we ran out of memory.
- */
-static dma_addr_t
-ispmmu_vmap(struct isp_device *isp, const struct scatterlist *sglist, int sglen)
-{
-	struct sg_table *sgt;
-	u32 da;
-
-	sgt = kmalloc(sizeof(*sgt), GFP_KERNEL);
-	if (sgt == NULL)
-		return -ENOMEM;
-
-	sgt->sgl = (struct scatterlist *)sglist;
-	sgt->nents = sglen;
-	sgt->orig_nents = sglen;
-
-	da = omap_iommu_vmap(isp->domain, isp->dev, 0, sgt, IOMMU_FLAG);
-	if (IS_ERR_VALUE(da))
-		kfree(sgt);
-
-	return da;
-}
-
-/*
- * ispmmu_vunmap - Unmap a device address from the ISP MMU
- * @isp: Device pointer specific to the OMAP3 ISP.
- * @da: Device address generated from a ispmmu_vmap call.
- */
-static void ispmmu_vunmap(struct isp_device *isp, dma_addr_t da)
-{
-	struct sg_table *sgt;
-
-	sgt = omap_iommu_vunmap(isp->domain, isp->dev, (u32)da);
-	kfree(sgt);
-}
-
-/* -----------------------------------------------------------------------------
  * Video queue operations
  */
 
-static void isp_video_queue_prepare(struct isp_video_queue *queue,
-				    unsigned int *nbuffers, unsigned int *size)
+static int isp_video_queue_setup(struct vb2_queue *queue,
+				 const struct v4l2_format *fmt,
+				 unsigned int *count, unsigned int *num_planes,
+				 unsigned int sizes[], void *alloc_ctxs[])
 {
-	struct isp_video_fh *vfh =
-		container_of(queue, struct isp_video_fh, queue);
+	struct isp_video_fh *vfh = vb2_get_drv_priv(queue);
 	struct isp_video *video = vfh->video;
 
-	*size = vfh->format.fmt.pix.sizeimage;
-	if (*size == 0)
-		return;
+	*num_planes = 1;
 
-	*nbuffers = min(*nbuffers, video->capture_mem / PAGE_ALIGN(*size));
+	sizes[0] = vfh->format.fmt.pix.sizeimage;
+	if (sizes[0] == 0)
+		return -EINVAL;
+
+	alloc_ctxs[0] = video->alloc_ctx;
+
+	*count = min(*count, video->capture_mem / PAGE_ALIGN(sizes[0]));
+
+	return 0;
 }
 
-static void isp_video_buffer_cleanup(struct isp_video_buffer *buf)
+static int isp_video_buffer_prepare(struct vb2_buffer *buf)
 {
-	struct isp_video_fh *vfh = isp_video_queue_to_isp_video_fh(buf->queue);
+	struct isp_video_fh *vfh = vb2_get_drv_priv(buf->vb2_queue);
 	struct isp_buffer *buffer = to_isp_buffer(buf);
 	struct isp_video *video = vfh->video;
-
-	if (buffer->isp_addr) {
-		ispmmu_vunmap(video->isp, buffer->isp_addr);
-		buffer->isp_addr = 0;
-	}
-}
-
-static int isp_video_buffer_prepare(struct isp_video_buffer *buf)
-{
-	struct isp_video_fh *vfh = isp_video_queue_to_isp_video_fh(buf->queue);
-	struct isp_buffer *buffer = to_isp_buffer(buf);
-	struct isp_video *video = vfh->video;
-	unsigned long addr;
+	dma_addr_t addr;
 
 	/* Refuse to prepare the buffer is the video node has registered an
 	 * error. We don't need to take any lock here as the operation is
@@ -420,19 +366,16 @@ static int isp_video_buffer_prepare(struct isp_video_buffer *buf)
 	if (unlikely(video->error))
 		return -EIO;
 
-	addr = ispmmu_vmap(video->isp, buf->sglist, buf->sglen);
-	if (IS_ERR_VALUE(addr))
-		return -EIO;
-
+	addr = vb2_dma_contig_plane_dma_addr(buf, 0);
 	if (!IS_ALIGNED(addr, 32)) {
-		dev_dbg(video->isp->dev, "Buffer address must be "
-			"aligned to 32 bytes boundary.\n");
-		ispmmu_vunmap(video->isp, buffer->isp_addr);
+		dev_dbg(video->isp->dev,
+			"Buffer address must be aligned to 32 bytes boundary.\n");
 		return -EINVAL;
 	}
 
-	buf->vbuf.bytesused = vfh->format.fmt.pix.sizeimage;
-	buffer->isp_addr = addr;
+	vb2_set_plane_payload(&buffer->vb, 0, vfh->format.fmt.pix.sizeimage);
+	buffer->dma = addr;
+
 	return 0;
 }
 
@@ -445,9 +388,9 @@ static int isp_video_buffer_prepare(struct isp_video_buffer *buf)
  * If the pipeline is busy, it will be restarted in the output module interrupt
  * handler.
  */
-static void isp_video_buffer_queue(struct isp_video_buffer *buf)
+static void isp_video_buffer_queue(struct vb2_buffer *buf)
 {
-	struct isp_video_fh *vfh = isp_video_queue_to_isp_video_fh(buf->queue);
+	struct isp_video_fh *vfh = vb2_get_drv_priv(buf->vb2_queue);
 	struct isp_buffer *buffer = to_isp_buffer(buf);
 	struct isp_video *video = vfh->video;
 	struct isp_pipeline *pipe = to_isp_pipeline(&video->video.entity);
@@ -456,14 +399,18 @@ static void isp_video_buffer_queue(struct isp_video_buffer *buf)
 	unsigned int empty;
 	unsigned int start;
 
+	spin_lock_irqsave(&video->irqlock, flags);
+
 	if (unlikely(video->error)) {
-		buf->state = ISP_BUF_STATE_ERROR;
-		wake_up(&buf->wait);
+		vb2_buffer_done(&buffer->vb, VB2_BUF_STATE_ERROR);
+		spin_unlock_irqrestore(&video->irqlock, flags);
 		return;
 	}
 
 	empty = list_empty(&video->dmaqueue);
-	list_add_tail(&buffer->buffer.irqlist, &video->dmaqueue);
+	list_add_tail(&buffer->irqlist, &video->dmaqueue);
+
+	spin_unlock_irqrestore(&video->irqlock, flags);
 
 	if (empty) {
 		if (video->type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
@@ -487,23 +434,22 @@ static void isp_video_buffer_queue(struct isp_video_buffer *buf)
 	}
 }
 
-static const struct isp_video_queue_operations isp_video_queue_ops = {
-	.queue_prepare = &isp_video_queue_prepare,
-	.buffer_prepare = &isp_video_buffer_prepare,
-	.buffer_queue = &isp_video_buffer_queue,
-	.buffer_cleanup = &isp_video_buffer_cleanup,
+static const struct vb2_ops isp_video_queue_ops = {
+	.queue_setup = isp_video_queue_setup,
+	.buf_prepare = isp_video_buffer_prepare,
+	.buf_queue = isp_video_buffer_queue,
 };
 
 /*
  * omap3isp_video_buffer_next - Complete the current buffer and return the next
  * @video: ISP video object
  *
- * Remove the current video buffer from the DMA queue and fill its timestamp,
- * field count and state fields before waking up its completion handler.
+ * Remove the current video buffer from the DMA queue and fill its timestamp and
+ * field count before handing it back to videobuf2.
  *
- * For capture video nodes the buffer state is set to ISP_BUF_STATE_DONE if no
- * error has been flagged in the pipeline, or to ISP_BUF_STATE_ERROR otherwise.
- * For video output nodes the buffer state is always set to ISP_BUF_STATE_DONE.
+ * For capture video nodes the buffer state is set to VB2_BUF_STATE_DONE if no
+ * error has been flagged in the pipeline, or to VB2_BUF_STATE_ERROR otherwise.
+ * For video output nodes the buffer state is always set to VB2_BUF_STATE_DONE.
  *
  * The DMA queue is expected to contain at least one buffer.
  *
@@ -513,26 +459,25 @@ static const struct isp_video_queue_operations isp_video_queue_ops = {
 struct isp_buffer *omap3isp_video_buffer_next(struct isp_video *video)
 {
 	struct isp_pipeline *pipe = to_isp_pipeline(&video->video.entity);
-	struct isp_video_queue *queue = video->queue;
 	enum isp_pipeline_state state;
-	struct isp_video_buffer *buf;
+	struct isp_buffer *buf;
 	unsigned long flags;
 	struct timespec ts;
 
-	spin_lock_irqsave(&queue->irqlock, flags);
+	spin_lock_irqsave(&video->irqlock, flags);
 	if (WARN_ON(list_empty(&video->dmaqueue))) {
-		spin_unlock_irqrestore(&queue->irqlock, flags);
+		spin_unlock_irqrestore(&video->irqlock, flags);
 		return NULL;
 	}
 
-	buf = list_first_entry(&video->dmaqueue, struct isp_video_buffer,
+	buf = list_first_entry(&video->dmaqueue, struct isp_buffer,
 			       irqlist);
 	list_del(&buf->irqlist);
-	spin_unlock_irqrestore(&queue->irqlock, flags);
+	spin_unlock_irqrestore(&video->irqlock, flags);
 
 	ktime_get_ts(&ts);
-	buf->vbuf.timestamp.tv_sec = ts.tv_sec;
-	buf->vbuf.timestamp.tv_usec = ts.tv_nsec / NSEC_PER_USEC;
+	buf->vb.v4l2_buf.timestamp.tv_sec = ts.tv_sec;
+	buf->vb.v4l2_buf.timestamp.tv_usec = ts.tv_nsec / NSEC_PER_USEC;
 
 	/* Do frame number propagation only if this is the output video node.
 	 * Frame number either comes from the CSI receivers or it gets
@@ -541,22 +486,27 @@ struct isp_buffer *omap3isp_video_buffer_next(struct isp_video *video)
 	 * first, so the input number might lag behind by 1 in some cases.
 	 */
 	if (video == pipe->output && !pipe->do_propagation)
-		buf->vbuf.sequence = atomic_inc_return(&pipe->frame_number);
+		buf->vb.v4l2_buf.sequence =
+			atomic_inc_return(&pipe->frame_number);
 	else
-		buf->vbuf.sequence = atomic_read(&pipe->frame_number);
+		buf->vb.v4l2_buf.sequence = atomic_read(&pipe->frame_number);
 
 	/* Report pipeline errors to userspace on the capture device side. */
-	if (queue->type == V4L2_BUF_TYPE_VIDEO_CAPTURE && pipe->error) {
-		buf->state = ISP_BUF_STATE_ERROR;
+	if (video->type == V4L2_BUF_TYPE_VIDEO_CAPTURE && pipe->error) {
+		state = VB2_BUF_STATE_ERROR;
 		pipe->error = false;
 	} else {
-		buf->state = ISP_BUF_STATE_DONE;
+		state = VB2_BUF_STATE_DONE;
 	}
 
-	wake_up(&buf->wait);
+	vb2_buffer_done(&buf->vb, state);
+
+	spin_lock_irqsave(&video->irqlock, flags);
 
 	if (list_empty(&video->dmaqueue)) {
-		if (queue->type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		spin_unlock_irqrestore(&video->irqlock, flags);
+
+		if (video->type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
 			state = ISP_PIPELINE_QUEUE_OUTPUT
 			      | ISP_PIPELINE_STREAM;
 		else
@@ -571,16 +521,19 @@ struct isp_buffer *omap3isp_video_buffer_next(struct isp_video *video)
 		return NULL;
 	}
 
-	if (queue->type == V4L2_BUF_TYPE_VIDEO_CAPTURE && pipe->input != NULL) {
-		spin_lock_irqsave(&pipe->lock, flags);
+	if (video->type == V4L2_BUF_TYPE_VIDEO_CAPTURE && pipe->input != NULL) {
+		spin_lock(&pipe->lock);
 		pipe->state &= ~ISP_PIPELINE_STREAM;
-		spin_unlock_irqrestore(&pipe->lock, flags);
+		spin_unlock(&pipe->lock);
 	}
 
-	buf = list_first_entry(&video->dmaqueue, struct isp_video_buffer,
+	buf = list_first_entry(&video->dmaqueue, struct isp_buffer,
 			       irqlist);
-	buf->state = ISP_BUF_STATE_ACTIVE;
-	return to_isp_buffer(buf);
+	buf->vb.state = VB2_BUF_STATE_ACTIVE;
+
+	spin_unlock_irqrestore(&video->irqlock, flags);
+
+	return buf;
 }
 
 /*
@@ -592,25 +545,22 @@ struct isp_buffer *omap3isp_video_buffer_next(struct isp_video *video)
  */
 void omap3isp_video_cancel_stream(struct isp_video *video)
 {
-	struct isp_video_queue *queue = video->queue;
 	unsigned long flags;
 
-	spin_lock_irqsave(&queue->irqlock, flags);
+	spin_lock_irqsave(&video->irqlock, flags);
 
 	while (!list_empty(&video->dmaqueue)) {
-		struct isp_video_buffer *buf;
+		struct isp_buffer *buf;
 
 		buf = list_first_entry(&video->dmaqueue,
-				       struct isp_video_buffer, irqlist);
+				       struct isp_buffer, irqlist);
 		list_del(&buf->irqlist);
-
-		buf->state = ISP_BUF_STATE_ERROR;
-		wake_up(&buf->wait);
+		vb2_buffer_done(&buf->vb, VB2_BUF_STATE_ERROR);
 	}
 
 	video->error = true;
 
-	spin_unlock_irqrestore(&queue->irqlock, flags);
+	spin_unlock_irqrestore(&video->irqlock, flags);
 }
 
 /*
@@ -627,12 +577,15 @@ void omap3isp_video_resume(struct isp_video *video, int continuous)
 {
 	struct isp_buffer *buf = NULL;
 
-	if (continuous && video->type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		omap3isp_video_queue_discard_done(video->queue);
+	if (continuous && video->type == V4L2_BUF_TYPE_VIDEO_CAPTURE) {
+		mutex_lock(&video->queue_lock);
+		vb2_discard_done(video->queue);
+		mutex_unlock(&video->queue_lock);
+	}
 
 	if (!list_empty(&video->dmaqueue)) {
 		buf = list_first_entry(&video->dmaqueue,
-				       struct isp_buffer, buffer.irqlist);
+				       struct isp_buffer, irqlist);
 		video->ops->queue(video, buf);
 		video->dmaqueue_flags |= ISP_VIDEO_DMAQUEUE_QUEUED;
 	} else {
@@ -840,33 +793,56 @@ static int
 isp_video_reqbufs(struct file *file, void *fh, struct v4l2_requestbuffers *rb)
 {
 	struct isp_video_fh *vfh = to_isp_video_fh(fh);
+	struct isp_video *video = video_drvdata(file);
+	int ret;
 
-	return omap3isp_video_queue_reqbufs(&vfh->queue, rb);
+	mutex_lock(&video->queue_lock);
+	ret = vb2_reqbufs(&vfh->queue, rb);
+	mutex_unlock(&video->queue_lock);
+
+	return ret;
 }
 
 static int
 isp_video_querybuf(struct file *file, void *fh, struct v4l2_buffer *b)
 {
 	struct isp_video_fh *vfh = to_isp_video_fh(fh);
+	struct isp_video *video = video_drvdata(file);
+	int ret;
 
-	return omap3isp_video_queue_querybuf(&vfh->queue, b);
+	mutex_lock(&video->queue_lock);
+	ret = vb2_querybuf(&vfh->queue, b);
+	mutex_unlock(&video->queue_lock);
+
+	return ret;
 }
 
 static int
 isp_video_qbuf(struct file *file, void *fh, struct v4l2_buffer *b)
 {
 	struct isp_video_fh *vfh = to_isp_video_fh(fh);
+	struct isp_video *video = video_drvdata(file);
+	int ret;
 
-	return omap3isp_video_queue_qbuf(&vfh->queue, b);
+	mutex_lock(&video->queue_lock);
+	ret = vb2_qbuf(&vfh->queue, b);
+	mutex_unlock(&video->queue_lock);
+
+	return ret;
 }
 
 static int
 isp_video_dqbuf(struct file *file, void *fh, struct v4l2_buffer *b)
 {
 	struct isp_video_fh *vfh = to_isp_video_fh(fh);
+	struct isp_video *video = video_drvdata(file);
+	int ret;
 
-	return omap3isp_video_queue_dqbuf(&vfh->queue, b,
-					  file->f_flags & O_NONBLOCK);
+	mutex_lock(&video->queue_lock);
+	ret = vb2_dqbuf(&vfh->queue, b, file->f_flags & O_NONBLOCK);
+	mutex_unlock(&video->queue_lock);
+
+	return ret;
 }
 
 static int isp_video_check_external_subdevs(struct isp_video *video,
@@ -1006,11 +982,6 @@ isp_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 
 	mutex_lock(&video->stream_lock);
 
-	if (video->streaming) {
-		mutex_unlock(&video->stream_lock);
-		return -EBUSY;
-	}
-
 	/* Start streaming on the pipeline. No link touching an entity in the
 	 * pipeline can be activated or deactivated once streaming is started.
 	 */
@@ -1069,7 +1040,9 @@ isp_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 	INIT_LIST_HEAD(&video->dmaqueue);
 	atomic_set(&pipe->frame_number, -1);
 
-	ret = omap3isp_video_queue_streamon(&vfh->queue);
+	mutex_lock(&video->queue_lock);
+	ret = vb2_streamon(&vfh->queue, type);
+	mutex_unlock(&video->queue_lock);
 	if (ret < 0)
 		goto err_check_format;
 
@@ -1082,19 +1055,19 @@ isp_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 					      ISP_PIPELINE_STREAM_CONTINUOUS);
 		if (ret < 0)
 			goto err_set_stream;
-		spin_lock_irqsave(&video->queue->irqlock, flags);
+		spin_lock_irqsave(&video->irqlock, flags);
 		if (list_empty(&video->dmaqueue))
 			video->dmaqueue_flags |= ISP_VIDEO_DMAQUEUE_UNDERRUN;
-		spin_unlock_irqrestore(&video->queue->irqlock, flags);
+		spin_unlock_irqrestore(&video->irqlock, flags);
 	}
-
-	video->streaming = 1;
 
 	mutex_unlock(&video->stream_lock);
 	return 0;
 
 err_set_stream:
-	omap3isp_video_queue_streamoff(&vfh->queue);
+	mutex_lock(&video->queue_lock);
+	vb2_streamoff(&vfh->queue, type);
+	mutex_unlock(&video->queue_lock);
 err_check_format:
 	media_entity_pipeline_stop(&video->video.entity);
 err_pipeline_start:
@@ -1130,9 +1103,9 @@ isp_video_streamoff(struct file *file, void *fh, enum v4l2_buf_type type)
 	mutex_lock(&video->stream_lock);
 
 	/* Make sure we're not streaming yet. */
-	mutex_lock(&vfh->queue.lock);
-	streaming = vfh->queue.streaming;
-	mutex_unlock(&vfh->queue.lock);
+	mutex_lock(&video->queue_lock);
+	streaming = vb2_is_streaming(&vfh->queue);
+	mutex_unlock(&video->queue_lock);
 
 	if (!streaming)
 		goto done;
@@ -1151,9 +1124,12 @@ isp_video_streamoff(struct file *file, void *fh, enum v4l2_buf_type type)
 
 	/* Stop the stream. */
 	omap3isp_pipeline_set_stream(pipe, ISP_PIPELINE_STREAM_STOPPED);
-	omap3isp_video_queue_streamoff(&vfh->queue);
+	omap3isp_video_cancel_stream(video);
+
+	mutex_lock(&video->queue_lock);
+	vb2_streamoff(&vfh->queue, type);
+	mutex_unlock(&video->queue_lock);
 	video->queue = NULL;
-	video->streaming = 0;
 	video->error = false;
 
 	if (video->isp->pdata->set_constraints)
@@ -1223,6 +1199,7 @@ static int isp_video_open(struct file *file)
 {
 	struct isp_video *video = video_drvdata(file);
 	struct isp_video_fh *handle;
+	struct vb2_queue *queue;
 	int ret = 0;
 
 	handle = kzalloc(sizeof(*handle), GFP_KERNEL);
@@ -1244,9 +1221,20 @@ static int isp_video_open(struct file *file)
 		goto done;
 	}
 
-	omap3isp_video_queue_init(&handle->queue, video->type,
-				  &isp_video_queue_ops, video->isp->dev,
-				  sizeof(struct isp_buffer));
+	queue = &handle->queue;
+	queue->type = video->type;
+	queue->io_modes = VB2_MMAP | VB2_USERPTR;
+	queue->drv_priv = handle;
+	queue->ops = &isp_video_queue_ops;
+	queue->mem_ops = &vb2_dma_contig_memops;
+	queue->buf_struct_size = sizeof(struct isp_buffer);
+	queue->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+
+	ret = vb2_queue_init(&handle->queue);
+	if (ret < 0) {
+		omap3isp_put(video->isp);
+		goto done;
+	}
 
 	memset(&handle->format, 0, sizeof(handle->format));
 	handle->format.type = video->type;
@@ -1273,9 +1261,9 @@ static int isp_video_release(struct file *file)
 	/* Disable streaming and free the buffers queue resources. */
 	isp_video_streamoff(file, vfh, video->type);
 
-	mutex_lock(&handle->queue.lock);
-	omap3isp_video_queue_cleanup(&handle->queue);
-	mutex_unlock(&handle->queue.lock);
+	mutex_lock(&video->queue_lock);
+	vb2_queue_release(&handle->queue);
+	mutex_unlock(&video->queue_lock);
 
 	omap3isp_pipeline_pm_use(&video->video.entity, 0);
 
@@ -1292,16 +1280,27 @@ static int isp_video_release(struct file *file)
 static unsigned int isp_video_poll(struct file *file, poll_table *wait)
 {
 	struct isp_video_fh *vfh = to_isp_video_fh(file->private_data);
-	struct isp_video_queue *queue = &vfh->queue;
+	struct isp_video *video = video_drvdata(file);
+	int ret;
 
-	return omap3isp_video_queue_poll(queue, file, wait);
+	mutex_lock(&video->queue_lock);
+	ret = vb2_poll(&vfh->queue, file, wait);
+	mutex_unlock(&video->queue_lock);
+
+	return ret;
 }
 
 static int isp_video_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct isp_video_fh *vfh = to_isp_video_fh(file->private_data);
+	struct isp_video *video = video_drvdata(file);
+	int ret;
 
-	return omap3isp_video_queue_mmap(&vfh->queue, vma);
+	mutex_lock(&video->queue_lock);
+	ret = vb2_mmap(&vfh->queue, vma);
+	mutex_unlock(&video->queue_lock);
+
+	return ret;
 }
 
 static struct v4l2_file_operations isp_video_fops = {
@@ -1342,15 +1341,23 @@ int omap3isp_video_init(struct isp_video *video, const char *name)
 		return -EINVAL;
 	}
 
+	video->alloc_ctx = vb2_dma_contig_init_ctx(video->isp->dev);
+	if (IS_ERR(video->alloc_ctx))
+		return PTR_ERR(video->alloc_ctx);
+
 	ret = media_entity_init(&video->video.entity, 1, &video->pad, 0);
-	if (ret < 0)
+	if (ret < 0) {
+		vb2_dma_contig_cleanup_ctx(video->alloc_ctx);
 		return ret;
+	}
 
 	mutex_init(&video->mutex);
 	atomic_set(&video->active, 0);
 
 	spin_lock_init(&video->pipe.lock);
 	mutex_init(&video->stream_lock);
+	mutex_init(&video->queue_lock);
+	spin_lock_init(&video->irqlock);
 
 	/* Initialize the video device. */
 	if (video->ops == NULL)
@@ -1371,7 +1378,9 @@ int omap3isp_video_init(struct isp_video *video, const char *name)
 
 void omap3isp_video_cleanup(struct isp_video *video)
 {
+	vb2_dma_contig_cleanup_ctx(video->alloc_ctx);
 	media_entity_cleanup(&video->video.entity);
+	mutex_destroy(&video->queue_lock);
 	mutex_destroy(&video->stream_lock);
 	mutex_destroy(&video->mutex);
 }

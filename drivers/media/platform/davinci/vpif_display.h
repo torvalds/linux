@@ -13,8 +13,8 @@
  * GNU General Public License for more details.
  */
 
-#ifndef DAVINCIHD_DISPLAY_H
-#define DAVINCIHD_DISPLAY_H
+#ifndef VPIF_DISPLAY_H
+#define VPIF_DISPLAY_H
 
 /* Header files */
 #include <media/videobuf2-dma-contig.h>
@@ -67,17 +67,10 @@ struct vpif_disp_buffer {
 };
 
 struct common_obj {
-	/* Buffer specific parameters */
-	u8 *fbuffers[VIDEO_MAX_FRAME];		/* List of buffer pointers for
-						 * storing frames */
-	u32 numbuffers;				/* number of buffers */
 	struct vpif_disp_buffer *cur_frm;	/* Pointer pointing to current
 						 * vb2_buffer */
 	struct vpif_disp_buffer *next_frm;	/* Pointer pointing to next
 						 * vb2_buffer */
-	enum v4l2_memory memory;		/* This field keeps track of
-						 * type of buffer exchange
-						 * method user has selected */
 	struct v4l2_format fmt;			/* Used to store the format */
 	struct vb2_queue buffer_queue;		/* Buffer queue used in
 						 * video-buf */
@@ -90,10 +83,6 @@ struct common_obj {
 	/* channel specific parameters */
 	struct mutex lock;			/* lock used to access this
 						 * structure */
-	u32 io_usrs;				/* number of users performing
-						 * IO */
-	u8 started;				/* Indicates whether streaming
-						 * started */
 	u32 ytop_off;				/* offset of Y top from the
 						 * starting of the buffer */
 	u32 ybtm_off;				/* offset of Y bottom from the
@@ -103,7 +92,7 @@ struct common_obj {
 	u32 cbtm_off;				/* offset of C bottom from the
 						 * starting of the buffer */
 	/* Function pointer to set the addresses */
-	void (*set_addr) (unsigned long, unsigned long,
+	void (*set_addr)(unsigned long, unsigned long,
 				unsigned long, unsigned long);
 	u32 height;
 	u32 width;
@@ -113,10 +102,6 @@ struct channel_obj {
 	/* V4l2 specific parameters */
 	struct video_device *video_dev;	/* Identifies video device for
 					 * this channel */
-	struct v4l2_prio_state prio;	/* Used to keep track of state of
-					 * the priority */
-	atomic_t usrs;			/* number of open instances of
-					 * the channel */
 	u32 field_id;			/* Indicates id of the field
 					 * which is being displayed */
 	u8 initialized;			/* flag to indicate whether
@@ -130,19 +115,6 @@ struct channel_obj {
 	struct video_obj video;
 };
 
-/* File handle structure */
-struct vpif_fh {
-	struct channel_obj *channel;	/* pointer to channel object for
-					 * opened device */
-	u8 io_allowed[VPIF_NUMOBJECTS];	/* Indicates whether this file handle
-					 * is doing IO */
-	enum v4l2_priority prio;	/* Used to keep track priority of
-					 * this instance */
-	u8 initialized;			/* Used to keep track of whether this
-					 * file handle has initialized
-					 * channel or not */
-};
-
 /* vpif device structure */
 struct vpif_device {
 	struct v4l2_device v4l2_dev;
@@ -152,12 +124,4 @@ struct vpif_device {
 	struct vpif_display_config *config;
 };
 
-struct vpif_config_params {
-	u32 min_bufsize[VPIF_DISPLAY_NUM_CHANNELS];
-	u32 channel_bufsize[VPIF_DISPLAY_NUM_CHANNELS];
-	u8 numbuffers[VPIF_DISPLAY_NUM_CHANNELS];
-	u32 video_limit[VPIF_DISPLAY_NUM_CHANNELS];
-	u8 min_numbuffers;
-};
-
-#endif				/* DAVINCIHD_DISPLAY_H */
+#endif				/* VPIF_DISPLAY_H */

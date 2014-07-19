@@ -130,6 +130,9 @@
 #include <linux/percpu.h>
 #include <linux/lglock.h>
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/filelock.h>
+
 #include <asm/uaccess.h>
 
 #define IS_POSIX(fl)	(fl->fl_flags & FL_POSIX)
@@ -322,6 +325,7 @@ static int flock_make_lock(struct file *filp, struct file_lock **lock,
 		return -ENOMEM;
 
 	fl->fl_file = filp;
+	fl->fl_owner = (fl_owner_t)filp;
 	fl->fl_pid = current->tgid;
 	fl->fl_flags = FL_FLOCK;
 	fl->fl_type = type;
@@ -427,7 +431,7 @@ static int lease_init(struct file *filp, long type, struct file_lock *fl)
 	if (assign_type(fl, type) != 0)
 		return -EINVAL;
 
-	fl->fl_owner = current->files;
+	fl->fl_owner = (fl_owner_t)current->files;
 	fl->fl_pid = current->tgid;
 
 	fl->fl_file = filp;
@@ -1286,6 +1290,7 @@ static void time_out_leases(struct inode *inode)
 
 	before = &inode->i_flock;
 	while ((fl = *before) && IS_LEASE(fl) && lease_breaking(fl)) {
+		trace_time_out_leases(inode, fl);
 		if (past_time(fl->fl_downgrade_time))
 			lease_modify(before, F_RDLCK);
 		if (past_time(fl->fl_break_time))
@@ -1373,6 +1378,7 @@ int __break_lease(struct inode *inode, unsigned int mode, unsigned int type)
 	}
 
 	if (i_have_this_lease || (mode & O_NONBLOCK)) {
+		trace_break_lease_noblock(inode, new_fl);
 		error = -EWOULDBLOCK;
 		goto out;
 	}
@@ -1384,10 +1390,12 @@ restart:
 	if (break_time == 0)
 		break_time++;
 	locks_insert_block(flock, new_fl);
+	trace_break_lease_block(inode, new_fl);
 	spin_unlock(&inode->i_lock);
 	error = wait_event_interruptible_timeout(new_fl->fl_wait,
 						!new_fl->fl_next, break_time);
 	spin_lock(&inode->i_lock);
+	trace_break_lease_unblock(inode, new_fl);
 	locks_delete_block(new_fl);
 	if (error >= 0) {
 		if (error == 0)
@@ -1509,6 +1517,8 @@ static int generic_add_lease(struct file *filp, long arg, struct file_lock **flp
 	int error;
 
 	lease = *flp;
+	trace_generic_add_lease(inode, lease);
+
 	/*
 	 * In the delegation case we need mutual exclusion with
 	 * a number of operations that take the i_mutex.  We trylock
@@ -1597,6 +1607,8 @@ static int generic_delete_lease(struct file *filp, struct file_lock **flp)
 	struct file_lock *fl, **before;
 	struct dentry *dentry = filp->f_path.dentry;
 	struct inode *inode = dentry->d_inode;
+
+	trace_generic_delete_lease(inode, *flp);
 
 	for (before = &inode->i_flock;
 			((fl = *before) != NULL) && IS_LEASE(fl);
@@ -2316,6 +2328,7 @@ void locks_remove_file(struct file *filp)
 
 	if (filp->f_op->flock) {
 		struct file_lock fl = {
+			.fl_owner = (fl_owner_t)filp,
 			.fl_pid = current->tgid,
 			.fl_file = filp,
 			.fl_flags = FL_FLOCK,
@@ -2423,31 +2436,31 @@ static void lock_get_status(struct seq_file *f, struct file_lock *fl,
 	seq_printf(f, "%lld:%s ", id, pfx);
 	if (IS_POSIX(fl)) {
 		if (fl->fl_flags & FL_ACCESS)
-			seq_printf(f, "ACCESS");
+			seq_puts(f, "ACCESS");
 		else if (IS_OFDLCK(fl))
-			seq_printf(f, "OFDLCK");
+			seq_puts(f, "OFDLCK");
 		else
-			seq_printf(f, "POSIX ");
+			seq_puts(f, "POSIX ");
 
 		seq_printf(f, " %s ",
 			     (inode == NULL) ? "*NOINODE*" :
 			     mandatory_lock(inode) ? "MANDATORY" : "ADVISORY ");
 	} else if (IS_FLOCK(fl)) {
 		if (fl->fl_type & LOCK_MAND) {
-			seq_printf(f, "FLOCK  MSNFS     ");
+			seq_puts(f, "FLOCK  MSNFS     ");
 		} else {
-			seq_printf(f, "FLOCK  ADVISORY  ");
+			seq_puts(f, "FLOCK  ADVISORY  ");
 		}
 	} else if (IS_LEASE(fl)) {
-		seq_printf(f, "LEASE  ");
+		seq_puts(f, "LEASE  ");
 		if (lease_breaking(fl))
-			seq_printf(f, "BREAKING  ");
+			seq_puts(f, "BREAKING  ");
 		else if (fl->fl_file)
-			seq_printf(f, "ACTIVE    ");
+			seq_puts(f, "ACTIVE    ");
 		else
-			seq_printf(f, "BREAKER   ");
+			seq_puts(f, "BREAKER   ");
 	} else {
-		seq_printf(f, "UNKNOWN UNKNOWN  ");
+		seq_puts(f, "UNKNOWN UNKNOWN  ");
 	}
 	if (fl->fl_type & LOCK_MAND) {
 		seq_printf(f, "%s ",
@@ -2479,7 +2492,7 @@ static void lock_get_status(struct seq_file *f, struct file_lock *fl,
 		else
 			seq_printf(f, "%Ld %Ld\n", fl->fl_start, fl->fl_end);
 	} else {
-		seq_printf(f, "0 EOF\n");
+		seq_puts(f, "0 EOF\n");
 	}
 }
 

@@ -60,13 +60,6 @@ void rtw_hal_dm_init(struct adapter *adapt)
 		adapt->HalFunc.dm_init(adapt);
 }
 
-void rtw_hal_dm_deinit(struct adapter *adapt)
-{
-	/*  cancel dm  timer */
-	if (adapt->HalFunc.dm_deinit)
-		adapt->HalFunc.dm_deinit(adapt);
-}
-
 void rtw_hal_sw_led_init(struct adapter *adapt)
 {
 	if (adapt->HalFunc.InitSwLeds)
@@ -204,15 +197,6 @@ u32 rtw_hal_inirp_deinit(struct adapter *adapt)
 	if (adapt->HalFunc.inirp_deinit)
 		return adapt->HalFunc.inirp_deinit(adapt);
 
-	return _FAIL;
-}
-
-u8 rtw_hal_intf_ps_func(struct adapter *adapt,
-			enum hal_intf_ps_func efunc_id, u8 *val)
-{
-	if (adapt->HalFunc.interface_ps_func)
-		return adapt->HalFunc.interface_ps_func(adapt, efunc_id,
-							   val);
 	return _FAIL;
 }
 

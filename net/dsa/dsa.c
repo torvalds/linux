@@ -406,8 +406,9 @@ static int dsa_of_probe(struct platform_device *pdev)
 		goto out_free;
 	}
 
-	chip_index = 0;
+	chip_index = -1;
 	for_each_available_child_of_node(np, child) {
+		chip_index++;
 		cd = &pd->chip[chip_index];
 
 		cd->mii_bus = &mdio_bus->dev;

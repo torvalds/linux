@@ -25,23 +25,45 @@
 #
 # Note: 'make mrproper' will also remove .tmp_objdiff
 
-GIT_DIR="`git rev-parse --git-dir`"
+SRCTREE=$(cd $(git rev-parse --show-toplevel 2>/dev/null); pwd)
 
-if [ -d "$GIT_DIR" ]; then
-	TMPD="${GIT_DIR%git}tmp_objdiff"
-
-	[ -d "$TMPD" ] || mkdir "$TMPD"
-else
-	echo "ERROR: git directory not found."
+if [ -z "$SRCTREE" ]; then
+	echo >&2 "ERROR: Not a git repository."
 	exit 1
 fi
 
+TMPD=$SRCTREE/.tmp_objdiff
+
 usage() {
-	echo "Usage: $0 <command> <args>"
-	echo "  record    <list of object files>"
-	echo "  diff      <commitA> <commitB>"
-	echo "  clean     all | <commit>"
+	echo >&2 "Usage: $0 <command> <args>"
+	echo >&2 "  record    <list of object files or directories>"
+	echo >&2 "  diff      <commitA> <commitB>"
+	echo >&2 "  clean     all | <commit>"
 	exit 1
+}
+
+get_output_dir() {
+	dir=${1%/*}
+
+	if [ "$dir" = "$1" ]; then
+		dir=.
+	fi
+
+	dir=$(cd $dir; pwd)
+
+	echo $TMPD/$CMT${dir#$SRCTREE}
+}
+
+do_objdump() {
+	dir=$(get_output_dir $1)
+	base=${1##*/}
+	dis=$dir/${base%.o}.dis
+
+	[ ! -d "$dir" ] && mkdir -p $dir
+
+	# remove addresses for a cleaner diff
+	# http://dummdida.tumblr.com/post/60924060451/binary-diff-between-libc-from-scientificlinux-and
+	$OBJDUMP -D $1 | sed "s/^[[:space:]]\+[0-9a-f]\+//" > $dis
 }
 
 dorecord() {
@@ -52,20 +74,16 @@ dorecord() {
 	CMT="`git rev-parse --short HEAD`"
 
 	OBJDUMP="${CROSS_COMPILE}objdump"
-	OBJDIFFD="$TMPD/$CMT"
 
-	[ ! -d "$OBJDIFFD" ] && mkdir -p "$OBJDIFFD"
-
-	for f in $FILES; do
-		dn="${f%/*}"
-		bn="${f##*/}"
-
-		[ ! -d "$OBJDIFFD/$dn" ] && mkdir -p "$OBJDIFFD/$dn"
-
-		# remove addresses for a more clear diff
-		# http://dummdida.tumblr.com/post/60924060451/binary-diff-between-libc-from-scientificlinux-and
-		$OBJDUMP -D "$f" | sed "s/^[[:space:]]\+[0-9a-f]\+//" \
-			>"$OBJDIFFD/$dn/$bn"
+	for d in $FILES; do
+		if [ -d "$d" ]; then
+			for f in $(find $d -name '*.o')
+			do
+				do_objdump $f
+			done
+		else
+			do_objdump $d
+		fi
 	done
 }
 
@@ -90,12 +108,12 @@ dodiff() {
 	DSTD="$TMPD/$DST"
 
 	if [ ! -d "$SRCD" ]; then
-		echo "ERROR: $SRCD doesn't exist"
+		echo >&2 "ERROR: $SRCD doesn't exist"
 		exit 1
 	fi
 
 	if [ ! -d "$DSTD" ]; then
-		echo "ERROR: $DSTD doesn't exist"
+		echo >&2 "ERROR: $DSTD doesn't exist"
 		exit 1
 	fi
 
@@ -114,7 +132,7 @@ doclean() {
 		if [ -d "$TMPD/$CMT" ]; then
 			rm -rf $TMPD/$CMT
 		else
-			echo "$CMT not found"
+			echo >&2 "$CMT not found"
 		fi
 	fi
 }
@@ -135,7 +153,7 @@ case "$1" in
 		doclean $*
 		;;
 	*)
-		echo "Unrecognized command '$1'"
+		echo >&2 "Unrecognized command '$1'"
 		exit 1
 		;;
 esac

@@ -629,7 +629,7 @@ static int ai_read_n(struct comedi_device *dev, struct comedi_subdevice *s,
 			d = comedi_offset_munge(s, d);
 		d &= s->maxdata;
 
-		if (!comedi_buf_put(s->async, d))
+		if (!comedi_buf_put(s, d))
 			return -1;
 
 		if (devpriv->ai_count > 0)	/* < 0, means read forever */
@@ -658,7 +658,7 @@ static int ai_read_dregs(struct comedi_device *dev, struct comedi_subdevice *s)
 			d = comedi_offset_munge(s, d);
 		d &= s->maxdata;
 
-		if (!comedi_buf_put(s->async, d))
+		if (!comedi_buf_put(s, d))
 			return -1;
 
 		if (devpriv->ai_count > 0)	/* < 0, means read forever */
@@ -779,7 +779,7 @@ static int rtd_ai_cmdtest(struct comedi_device *dev,
 			  struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
 	int err = 0;
-	int tmp;
+	unsigned int arg;
 
 	/* Step 1 : check if triggers are trivially valid */
 
@@ -878,6 +878,8 @@ static int rtd_ai_cmdtest(struct comedi_device *dev,
 		err |= cfc_check_trigger_arg_max(&cmd->convert_arg, 9);
 	}
 
+	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
+
 	if (cmd->stop_src == TRIG_COUNT) {
 		/* TODO check for rounding error due to counter wrap */
 	} else {
@@ -891,31 +893,21 @@ static int rtd_ai_cmdtest(struct comedi_device *dev,
 
 	/* step 4: fix up any arguments */
 
-	if (cmd->chanlist_len > RTD_MAX_CHANLIST) {
-		cmd->chanlist_len = RTD_MAX_CHANLIST;
-		err++;
-	}
 	if (cmd->scan_begin_src == TRIG_TIMER) {
-		tmp = cmd->scan_begin_arg;
-		rtd_ns_to_timer(&cmd->scan_begin_arg,
-				cmd->flags & TRIG_ROUND_MASK);
-		if (tmp != cmd->scan_begin_arg)
-			err++;
-
+		arg = cmd->scan_begin_arg;
+		rtd_ns_to_timer(&arg, cmd->flags & TRIG_ROUND_MASK);
+		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, arg);
 	}
-	if (cmd->convert_src == TRIG_TIMER) {
-		tmp = cmd->convert_arg;
-		rtd_ns_to_timer(&cmd->convert_arg,
-				cmd->flags & TRIG_ROUND_MASK);
-		if (tmp != cmd->convert_arg)
-			err++;
 
-		if (cmd->scan_begin_src == TRIG_TIMER
-		    && (cmd->scan_begin_arg
-			< (cmd->convert_arg * cmd->scan_end_arg))) {
-			cmd->scan_begin_arg =
-			    cmd->convert_arg * cmd->scan_end_arg;
-			err++;
+	if (cmd->convert_src == TRIG_TIMER) {
+		arg = cmd->convert_arg;
+		rtd_ns_to_timer(&arg, cmd->flags & TRIG_ROUND_MASK);
+		err |= cfc_check_trigger_arg_is(&cmd->convert_arg, arg);
+
+		if (cmd->scan_begin_src == TRIG_TIMER) {
+			arg = cmd->convert_arg * cmd->scan_end_arg;
+			err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
+							 arg);
 		}
 	}
 

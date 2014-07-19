@@ -726,6 +726,11 @@ static int qlcnic_set_channels(struct net_device *dev,
 	struct qlcnic_adapter *adapter = netdev_priv(dev);
 	int err;
 
+	if (!(adapter->flags & QLCNIC_MSIX_ENABLED)) {
+		netdev_err(dev, "No RSS/TSS support in non MSI-X mode\n");
+		return -EINVAL;
+	}
+
 	if (channel->other_count || channel->combined_count)
 		return -EINVAL;
 
@@ -734,7 +739,7 @@ static int qlcnic_set_channels(struct net_device *dev,
 	if (err)
 		return err;
 
-	if (channel->rx_count) {
+	if (adapter->drv_sds_rings != channel->rx_count) {
 		err = qlcnic_validate_rings(adapter, channel->rx_count,
 					    QLCNIC_RX_QUEUE);
 		if (err) {
@@ -745,7 +750,7 @@ static int qlcnic_set_channels(struct net_device *dev,
 		adapter->drv_rss_rings = channel->rx_count;
 	}
 
-	if (channel->tx_count) {
+	if (adapter->drv_tx_rings != channel->tx_count) {
 		err = qlcnic_validate_rings(adapter, channel->tx_count,
 					    QLCNIC_TX_QUEUE);
 		if (err) {

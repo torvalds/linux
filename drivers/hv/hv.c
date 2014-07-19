@@ -383,6 +383,8 @@ void hv_synic_init(void *arg)
 	 */
 	rdmsrl(HV_X64_MSR_VP_INDEX, vp_index);
 	hv_context.vp_index[cpu] = (u32)vp_index;
+
+	INIT_LIST_HEAD(&hv_context.percpu_list[cpu]);
 	return;
 }
 

@@ -4,6 +4,9 @@
 #include <stdio.h>
 #include <stdbool.h>
 
+#include "perf.h"
+#include "util/debug.h"
+
 struct cpu_map {
 	int nr;
 	int map[];
@@ -44,6 +47,38 @@ static inline int cpu_map__nr(const struct cpu_map *map)
 static inline bool cpu_map__empty(const struct cpu_map *map)
 {
 	return map ? map->map[0] == -1 : true;
+}
+
+int max_cpu_num;
+int max_node_num;
+int *cpunode_map;
+
+int cpu__setup_cpunode_map(void);
+
+static inline int cpu__max_node(void)
+{
+	if (unlikely(!max_node_num))
+		pr_debug("cpu_map not initialized\n");
+
+	return max_node_num;
+}
+
+static inline int cpu__max_cpu(void)
+{
+	if (unlikely(!max_cpu_num))
+		pr_debug("cpu_map not initialized\n");
+
+	return max_cpu_num;
+}
+
+static inline int cpu__get_node(int cpu)
+{
+	if (unlikely(cpunode_map == NULL)) {
+		pr_debug("cpu_map not initialized\n");
+		return -1;
+	}
+
+	return cpunode_map[cpu];
 }
 
 #endif /* __PERF_CPUMAP_H */

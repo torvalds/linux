@@ -221,7 +221,7 @@ static irqreturn_t atmio16d_interrupt(int irq, void *d)
 	struct comedi_device *dev = d;
 	struct comedi_subdevice *s = dev->read_subdev;
 
-	comedi_buf_put(s->async, inw(dev->iobase + AD_FIFO_REG));
+	comedi_buf_put(s, inw(dev->iobase + AD_FIFO_REG));
 
 	comedi_event(dev, s);
 	return IRQ_HANDLED;

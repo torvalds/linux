@@ -89,7 +89,7 @@ int ldlm_proc_setup(void)
 {
 	int rc;
 	struct lprocfs_vars list[] = {
-		{ "dump_namespaces", &ldlm_dump_ns_fops, 0, 0222 },
+		{ "dump_namespaces", &ldlm_dump_ns_fops, NULL, 0222 },
 		{ "dump_granted_max", &ldlm_rw_uint_fops,
 		  &ldlm_dump_granted_max },
 		{ "cancel_unused_locks_before_replay", &ldlm_rw_uint_fops,
@@ -322,7 +322,7 @@ void ldlm_namespace_proc_unregister(struct ldlm_namespace *ns)
 		snprintf(lock_name, MAX_STRING_SIZE, name);	\
 		lock_vars[0].data = var;			\
 		lock_vars[0].fops = ops;			\
-		lprocfs_add_vars(ns_pde, lock_vars, 0);		\
+		lprocfs_add_vars(ns_pde, lock_vars, NULL);	\
 	} while (0)
 
 int ldlm_namespace_proc_register(struct ldlm_namespace *ns)
@@ -1014,7 +1014,7 @@ static struct ldlm_resource *ldlm_resource_new(void)
 	struct ldlm_resource *res;
 	int idx;
 
-	OBD_SLAB_ALLOC_PTR_GFP(res, ldlm_resource_slab, __GFP_IO);
+	OBD_SLAB_ALLOC_PTR_GFP(res, ldlm_resource_slab, GFP_NOFS);
 	if (res == NULL)
 		return NULL;
 

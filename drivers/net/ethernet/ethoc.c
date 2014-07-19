@@ -769,11 +769,6 @@ static int ethoc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	return phy_mii_ioctl(phy, ifr, cmd);
 }
 
-static int ethoc_config(struct net_device *dev, struct ifmap *map)
-{
-	return -ENOSYS;
-}
-
 static void ethoc_do_set_mac_address(struct net_device *dev)
 {
 	struct ethoc *priv = netdev_priv(dev);
@@ -995,7 +990,6 @@ static const struct net_device_ops ethoc_netdev_ops = {
 	.ndo_open = ethoc_open,
 	.ndo_stop = ethoc_stop,
 	.ndo_do_ioctl = ethoc_ioctl,
-	.ndo_set_config = ethoc_config,
 	.ndo_set_mac_address = ethoc_set_mac_address,
 	.ndo_set_rx_mode = ethoc_set_multicast_list,
 	.ndo_change_mtu = ethoc_change_mtu,

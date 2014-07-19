@@ -83,12 +83,12 @@ MODULE_PARM_DESC(ql4xsess_recovery_tmo,
 		" Target Session Recovery Timeout.\n"
 		"\t\t  Default: 120 sec.");
 
-int ql4xmdcapmask = 0x1F;
+int ql4xmdcapmask = 0;
 module_param(ql4xmdcapmask, int, S_IRUGO);
 MODULE_PARM_DESC(ql4xmdcapmask,
 		 " Set the Minidump driver capture mask level.\n"
-		 "\t\t  Default is 0x1F.\n"
-		 "\t\t  Can be set to 0x3, 0x7, 0xF, 0x1F, 0x3F, 0x7F");
+		 "\t\t  Default is 0 (firmware default capture mask)\n"
+		 "\t\t  Can be set to 0x3, 0x7, 0xF, 0x1F, 0x3F, 0x7F, 0xFF");
 
 int ql4xenablemd = 1;
 module_param(ql4xenablemd, int, S_IRUGO | S_IWUSR);
@@ -1742,6 +1742,9 @@ static int qla4xxx_get_ep_param(struct iscsi_endpoint *ep,
 	struct sockaddr *dst_addr;
 	struct scsi_qla_host *ha;
 
+	if (!qla_ep)
+		return -ENOTCONN;
+
 	ha = to_qla_host(qla_ep->host);
 	DEBUG2(ql4_printk(KERN_INFO, ha, "%s: host: %ld\n", __func__,
 			  ha->host_no));
@@ -1749,9 +1752,6 @@ static int qla4xxx_get_ep_param(struct iscsi_endpoint *ep,
 	switch (param) {
 	case ISCSI_PARAM_CONN_PORT:
 	case ISCSI_PARAM_CONN_ADDRESS:
-		if (!qla_ep)
-			return -ENOTCONN;
-
 		dst_addr = (struct sockaddr *)&qla_ep->dst_addr;
 		if (!dst_addr)
 			return -ENOTCONN;
@@ -2879,7 +2879,6 @@ static int qla4xxx_conn_get_param(struct iscsi_cls_conn *cls_conn,
 	struct iscsi_conn *conn;
 	struct qla_conn *qla_conn;
 	struct sockaddr *dst_addr;
-	int len = 0;
 
 	conn = cls_conn->dd_data;
 	qla_conn = conn->dd_data;
@@ -2893,9 +2892,6 @@ static int qla4xxx_conn_get_param(struct iscsi_cls_conn *cls_conn,
 	default:
 		return iscsi_conn_get_param(cls_conn, param, buf);
 	}
-
-	return len;
-
 }
 
 int qla4xxx_get_ddb_index(struct scsi_qla_host *ha, uint16_t *ddb_index)
@@ -3569,14 +3565,13 @@ static int qla4xxx_copy_from_fwddb_param(struct iscsi_bus_flash_session *sess,
 	if (test_bit(OPT_IPV6_DEVICE, &options)) {
 		conn->ipv6_traffic_class = fw_ddb_entry->ipv4_tos;
 
-		conn->link_local_ipv6_addr = kzalloc(IPv6_ADDR_LEN, GFP_KERNEL);
+		conn->link_local_ipv6_addr = kmemdup(
+					fw_ddb_entry->link_local_ipv6_addr,
+					IPv6_ADDR_LEN, GFP_KERNEL);
 		if (!conn->link_local_ipv6_addr) {
 			rc = -ENOMEM;
 			goto exit_copy;
 		}
-
-		memcpy(conn->link_local_ipv6_addr,
-		       fw_ddb_entry->link_local_ipv6_addr, IPv6_ADDR_LEN);
 	} else {
 		conn->ipv4_tos = fw_ddb_entry->ipv4_tos;
 	}
@@ -4565,6 +4560,7 @@ static void qla4xxx_timer(struct scsi_qla_host *ha)
 	     test_bit(DPC_LINK_CHANGED, &ha->dpc_flags) ||
 	     test_bit(DPC_HA_UNRECOVERABLE, &ha->dpc_flags) ||
 	     test_bit(DPC_HA_NEED_QUIESCENT, &ha->dpc_flags) ||
+	     test_bit(DPC_SYSFS_DDB_EXPORT, &ha->dpc_flags) ||
 	     test_bit(DPC_AEN, &ha->dpc_flags)) {
 		DEBUG2(printk("scsi%ld: %s: scheduling dpc routine"
 			      " - dpc flags = 0x%lx\n",
@@ -4862,9 +4858,6 @@ static int qla4xxx_recover_adapter(struct scsi_qla_host *ha)
 		    ha->host_no, __func__));
 		status = ha->isp_ops->reset_firmware(ha);
 		if (status == QLA_SUCCESS) {
-			if (!test_bit(AF_FW_RECOVERY, &ha->flags))
-				qla4xxx_cmd_wait(ha);
-
 			ha->isp_ops->disable_intrs(ha);
 			qla4xxx_process_aen(ha, FLUSH_DDB_CHANGED_AENS);
 			qla4xxx_abort_active_cmds(ha, DID_RESET << 16);
@@ -5431,6 +5424,11 @@ dpc_post_reset_ha:
 			} else
 				qla4xxx_relogin_all_devices(ha);
 		}
+	}
+	if (test_and_clear_bit(DPC_SYSFS_DDB_EXPORT, &ha->dpc_flags)) {
+		if (qla4xxx_sysfs_ddb_export(ha))
+			ql4_printk(KERN_ERR, ha, "%s: Error exporting ddb to sysfs\n",
+				   __func__);
 	}
 }
 
@@ -8409,7 +8407,7 @@ exit_ddb_del:
  *
  * Export the firmware DDB for all send targets and normal targets to sysfs.
  **/
-static int qla4xxx_sysfs_ddb_export(struct scsi_qla_host *ha)
+int qla4xxx_sysfs_ddb_export(struct scsi_qla_host *ha)
 {
 	struct dev_db_entry *fw_ddb_entry = NULL;
 	dma_addr_t fw_ddb_entry_dma;
@@ -8847,11 +8845,8 @@ skip_retry_init:
 		ql4_printk(KERN_ERR, ha,
 			   "%s: No iSCSI boot target configured\n", __func__);
 
-	if (qla4xxx_sysfs_ddb_export(ha))
-		ql4_printk(KERN_ERR, ha,
-			   "%s: Error exporting ddb to sysfs\n", __func__);
-
-		/* Perform the build ddb list and login to each */
+	set_bit(DPC_SYSFS_DDB_EXPORT, &ha->dpc_flags);
+	/* Perform the build ddb list and login to each */
 	qla4xxx_build_ddb_list(ha, INIT_ADAPTER);
 	iscsi_host_for_each_session(ha->host, qla4xxx_login_flash_ddb);
 	qla4xxx_wait_login_resp_boot_tgt(ha);

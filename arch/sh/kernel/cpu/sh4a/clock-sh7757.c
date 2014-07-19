@@ -123,8 +123,8 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_CON_ID("riic6", &mstp_clks[MSTP000]),
 	CLKDEV_CON_ID("riic7", &mstp_clks[MSTP000]),
 
-	CLKDEV_ICK_ID("tmu_fck", "sh_tmu.0", &mstp_clks[MSTP113]),
-	CLKDEV_ICK_ID("tmu_fck", "sh_tmu.1", &mstp_clks[MSTP114]),
+	CLKDEV_ICK_ID("fck", "sh-tmu.0", &mstp_clks[MSTP113]),
+	CLKDEV_ICK_ID("fck", "sh-tmu.1", &mstp_clks[MSTP114]),
 	CLKDEV_ICK_ID("sci_fck", "sh-sci.2", &mstp_clks[MSTP112]),
 	CLKDEV_ICK_ID("sci_fck", "sh-sci.1", &mstp_clks[MSTP111]),
 	CLKDEV_ICK_ID("sci_fck", "sh-sci.0", &mstp_clks[MSTP110]),

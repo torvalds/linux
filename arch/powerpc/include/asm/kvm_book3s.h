@@ -268,9 +268,10 @@ static inline ulong kvmppc_get_pc(struct kvm_vcpu *vcpu)
 	return vcpu->arch.pc;
 }
 
+static inline u64 kvmppc_get_msr(struct kvm_vcpu *vcpu);
 static inline bool kvmppc_need_byteswap(struct kvm_vcpu *vcpu)
 {
-	return (vcpu->arch.shared->msr & MSR_LE) != (MSR_KERNEL & MSR_LE);
+	return (kvmppc_get_msr(vcpu) & MSR_LE) != (MSR_KERNEL & MSR_LE);
 }
 
 static inline u32 kvmppc_get_last_inst_internal(struct kvm_vcpu *vcpu, ulong pc)

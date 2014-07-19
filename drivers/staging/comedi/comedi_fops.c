@@ -238,9 +238,9 @@ comedi_write_subdevice(const struct comedi_device *dev, unsigned int minor)
 }
 
 static int resize_async_buffer(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_async *async, unsigned new_size)
+			       struct comedi_subdevice *s, unsigned new_size)
 {
+	struct comedi_async *async = s->async;
 	int retval;
 
 	if (new_size > async->max_bufsize)
@@ -251,7 +251,7 @@ static int resize_async_buffer(struct comedi_device *dev,
 			"subdevice is busy, cannot resize buffer\n");
 		return -EBUSY;
 	}
-	if (comedi_buf_is_mmapped(async)) {
+	if (comedi_buf_is_mmapped(s)) {
 		dev_dbg(dev->class_dev,
 			"subdevice is mmapped, cannot resize buffer\n");
 		return -EBUSY;
@@ -380,7 +380,7 @@ static ssize_t read_buffer_kb_store(struct device *csdev,
 	mutex_lock(&dev->mutex);
 	s = comedi_read_subdevice(dev, minor);
 	if (s && (s->subdev_flags & SDF_CMD_READ) && s->async)
-		err = resize_async_buffer(dev, s, s->async, size);
+		err = resize_async_buffer(dev, s, size);
 	else
 		err = -EINVAL;
 	mutex_unlock(&dev->mutex);
@@ -493,7 +493,7 @@ static ssize_t write_buffer_kb_store(struct device *csdev,
 	mutex_lock(&dev->mutex);
 	s = comedi_write_subdevice(dev, minor);
 	if (s && (s->subdev_flags & SDF_CMD_WRITE) && s->async)
-		err = resize_async_buffer(dev, s, s->async, size);
+		err = resize_async_buffer(dev, s, size);
 	else
 		err = -EINVAL;
 	mutex_unlock(&dev->mutex);
@@ -583,7 +583,7 @@ static void do_become_nonbusy(struct comedi_device *dev,
 
 	comedi_set_subdevice_runflags(s, SRF_RUNNING, 0);
 	if (async) {
-		comedi_buf_reset(async);
+		comedi_buf_reset(s);
 		async->inttrig = NULL;
 		kfree(async->cmd.chanlist);
 		async->cmd.chanlist = NULL;
@@ -635,7 +635,7 @@ static int is_device_busy(struct comedi_device *dev)
 		s = &dev->subdevices[i];
 		if (s->busy)
 			return 1;
-		if (s->async && comedi_buf_is_mmapped(s->async))
+		if (s->async && comedi_buf_is_mmapped(s))
 			return 1;
 	}
 
@@ -668,6 +668,7 @@ static int do_devconfig_ioctl(struct comedi_device *dev,
 			return -EBUSY;
 		if (dev->attached) {
 			struct module *driver_module = dev->driver->module;
+
 			comedi_device_detach(dev);
 			module_put(driver_module);
 		}
@@ -740,7 +741,7 @@ static int do_bufconfig_ioctl(struct comedi_device *dev,
 	}
 
 	if (bc.size) {
-		retval = resize_async_buffer(dev, s, async, bc.size);
+		retval = resize_async_buffer(dev, s, bc.size);
 		if (retval < 0)
 			return retval;
 	}
@@ -992,8 +993,8 @@ static int do_bufinfo_ioctl(struct comedi_device *dev,
 		return -EACCES;
 
 	if (bi.bytes_read && (s->subdev_flags & SDF_CMD_READ)) {
-		bi.bytes_read = comedi_buf_read_alloc(async, bi.bytes_read);
-		comedi_buf_read_free(async, bi.bytes_read);
+		bi.bytes_read = comedi_buf_read_alloc(s, bi.bytes_read);
+		comedi_buf_read_free(s, bi.bytes_read);
 
 		if (comedi_is_subdevice_idle(s) &&
 		    async->buf_write_count == async->buf_read_count) {
@@ -1003,8 +1004,8 @@ static int do_bufinfo_ioctl(struct comedi_device *dev,
 
 	if (bi.bytes_written && (s->subdev_flags & SDF_CMD_WRITE)) {
 		bi.bytes_written =
-		    comedi_buf_write_alloc(async, bi.bytes_written);
-		comedi_buf_write_free(async, bi.bytes_written);
+		    comedi_buf_write_alloc(s, bi.bytes_written);
+		comedi_buf_write_free(s, bi.bytes_written);
 	}
 
 copyback_position:
@@ -1435,13 +1436,15 @@ static int __comedi_get_user_cmd(struct comedi_device *dev,
 	s = &dev->subdevices[cmd->subdev];
 
 	if (s->type == COMEDI_SUBD_UNUSED) {
-		dev_dbg(dev->class_dev, "%d not valid subdevice\n", cmd->subdev);
+		dev_dbg(dev->class_dev, "%d not valid subdevice\n",
+			cmd->subdev);
 		return -EIO;
 	}
 
 	if (!s->do_cmd || !s->do_cmdtest || !s->async) {
 		dev_dbg(dev->class_dev,
-			"subdevice %d does not support commands\n", cmd->subdev);
+			"subdevice %d does not support commands\n",
+			cmd->subdev);
 		return -EIO;
 	}
 
@@ -1554,7 +1557,7 @@ static int do_cmd_ioctl(struct comedi_device *dev,
 		goto cleanup;
 	}
 
-	comedi_buf_reset(async);
+	comedi_buf_reset(s);
 
 	async->cb_mask =
 	    COMEDI_CB_EOA | COMEDI_CB_BLOCK | COMEDI_CB_ERROR |
@@ -1597,7 +1600,6 @@ static int do_cmdtest_ioctl(struct comedi_device *dev,
 {
 	struct comedi_cmd cmd;
 	struct comedi_subdevice *s;
-	unsigned int *chanlist = NULL;
 	unsigned int __user *user_chanlist;
 	int ret;
 
@@ -1625,8 +1627,6 @@ static int do_cmdtest_ioctl(struct comedi_device *dev,
 		dev_dbg(dev->class_dev, "bad cmd address\n");
 		ret = -EFAULT;
 	}
-
-	kfree(chanlist);
 
 	return ret;
 }
@@ -2029,18 +2029,18 @@ static unsigned int comedi_poll(struct file *file, poll_table *wait)
 	if (s && s->async) {
 		poll_wait(file, &s->async->wait_head, wait);
 		if (!s->busy || !comedi_is_subdevice_running(s) ||
-		    comedi_buf_read_n_available(s->async) > 0)
+		    comedi_buf_read_n_available(s) > 0)
 			mask |= POLLIN | POLLRDNORM;
 	}
 
 	s = comedi_write_subdevice(dev, minor);
 	if (s && s->async) {
-		unsigned int bps = bytes_per_sample(s->async->subdevice);
+		unsigned int bps = bytes_per_sample(s);
 
 		poll_wait(file, &s->async->wait_head, wait);
-		comedi_buf_write_alloc(s->async, s->async->prealloc_bufsz);
+		comedi_buf_write_alloc(s, s->async->prealloc_bufsz);
 		if (!s->busy || !comedi_is_subdevice_running(s) ||
-		    comedi_buf_write_n_allocated(s->async) >= bps)
+		    comedi_buf_write_n_allocated(s) >= bps)
 			mask |= POLLOUT | POLLWRNORM;
 	}
 
@@ -2136,9 +2136,9 @@ static ssize_t comedi_write(struct file *file, const char __user *buf,
 		m = n;
 		if (async->buf_write_ptr + m > async->prealloc_bufsz)
 			m = async->prealloc_bufsz - async->buf_write_ptr;
-		comedi_buf_write_alloc(async, async->prealloc_bufsz);
-		if (m > comedi_buf_write_n_allocated(async))
-			m = comedi_buf_write_n_allocated(async);
+		comedi_buf_write_alloc(s, async->prealloc_bufsz);
+		if (m > comedi_buf_write_n_allocated(s))
+			m = comedi_buf_write_n_allocated(s);
 		if (m < n)
 			n = m;
 
@@ -2167,7 +2167,7 @@ static ssize_t comedi_write(struct file *file, const char __user *buf,
 			n -= m;
 			retval = -EFAULT;
 		}
-		comedi_buf_write_free(async, n);
+		comedi_buf_write_free(s, n);
 
 		count += n;
 		nbytes -= n;
@@ -2229,7 +2229,7 @@ static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 
 		n = nbytes;
 
-		m = comedi_buf_read_n_available(async);
+		m = comedi_buf_read_n_available(s);
 		/* printk("%d available\n",m); */
 		if (async->buf_read_ptr + m > async->prealloc_bufsz)
 			m = async->prealloc_bufsz - async->buf_read_ptr;
@@ -2272,8 +2272,8 @@ static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 			retval = -EFAULT;
 		}
 
-		comedi_buf_read_alloc(async, n);
-		comedi_buf_read_free(async, n);
+		comedi_buf_read_alloc(s, n);
+		comedi_buf_read_free(s, n);
 
 		count += n;
 		nbytes -= n;
@@ -2327,46 +2327,12 @@ static int comedi_open(struct inode *inode, struct file *file)
 		return -ENODEV;
 	}
 
-	/* This is slightly hacky, but we want module autoloading
-	 * to work for root.
-	 * case: user opens device, attached -> ok
-	 * case: user opens device, unattached, !in_request_module -> autoload
-	 * case: user opens device, unattached, in_request_module -> fail
-	 * case: root opens device, attached -> ok
-	 * case: root opens device, unattached, in_request_module -> ok
-	 *   (typically called from modprobe)
-	 * case: root opens device, unattached, !in_request_module -> autoload
-	 *
-	 * The last could be changed to "-> ok", which would deny root
-	 * autoloading.
-	 */
 	mutex_lock(&dev->mutex);
-	if (dev->attached)
-		goto ok;
-	if (!capable(CAP_NET_ADMIN) && dev->in_request_module) {
-		dev_dbg(dev->class_dev, "in request module\n");
-		rc = -ENODEV;
-		goto out;
-	}
-	if (capable(CAP_NET_ADMIN) && dev->in_request_module)
-		goto ok;
-
-	dev->in_request_module = true;
-
-#ifdef CONFIG_KMOD
-	mutex_unlock(&dev->mutex);
-	request_module("char-major-%i-%i", COMEDI_MAJOR, dev->minor);
-	mutex_lock(&dev->mutex);
-#endif
-
-	dev->in_request_module = false;
-
 	if (!dev->attached && !capable(CAP_NET_ADMIN)) {
 		dev_dbg(dev->class_dev, "not attached and not CAP_NET_ADMIN\n");
 		rc = -ENODEV;
 		goto out;
 	}
-ok:
 	if (dev->attached && dev->use_count == 0) {
 		if (!try_module_get(dev->driver->module)) {
 			rc = -ENOSYS;
@@ -2654,6 +2620,7 @@ static int __init comedi_init(void)
 	/* create devices files for legacy/manual use */
 	for (i = 0; i < comedi_num_legacy_minors; i++) {
 		struct comedi_device *dev;
+
 		dev = comedi_alloc_board_minor(NULL);
 		if (IS_ERR(dev)) {
 			comedi_cleanup_board_minors();

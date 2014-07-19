@@ -117,7 +117,7 @@ static u32 ACPI_SYSTEM_XFACE acpi_ev_sci_xrupt_handler(void *context)
 	ACPI_FUNCTION_TRACE(ev_sci_xrupt_handler);
 
 	/*
-	 * We are guaranteed by the ACPI CA initialization/shutdown code that
+	 * We are guaranteed by the ACPICA initialization/shutdown code that
 	 * if this interrupt handler is installed, ACPI is enabled.
 	 */
 

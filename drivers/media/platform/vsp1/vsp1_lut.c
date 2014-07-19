@@ -229,7 +229,6 @@ struct vsp1_lut *vsp1_lut_create(struct vsp1_device *vsp1)
 		return ERR_PTR(-ENOMEM);
 
 	lut->entity.type = VSP1_ENTITY_LUT;
-	lut->entity.id = VI6_DPR_NODE_LUT;
 
 	ret = vsp1_entity_init(vsp1, &lut->entity, 2);
 	if (ret < 0)

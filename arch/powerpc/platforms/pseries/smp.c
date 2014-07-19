@@ -44,6 +44,7 @@
 #include <asm/xics.h>
 #include <asm/dbell.h>
 #include <asm/plpar_wrappers.h>
+#include <asm/code-patching.h>
 
 #include "pseries.h"
 #include "offline_states.h"
@@ -96,8 +97,8 @@ int smp_query_cpu_stopped(unsigned int pcpu)
 static inline int smp_startup_cpu(unsigned int lcpu)
 {
 	int status;
-	unsigned long start_here = __pa((u32)*((unsigned long *)
-					       generic_secondary_smp_init));
+	unsigned long start_here =
+			__pa(ppc_function_entry(generic_secondary_smp_init));
 	unsigned int pcpu;
 	int start_cpu;
 

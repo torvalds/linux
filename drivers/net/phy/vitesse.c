@@ -319,8 +319,7 @@ static int __init vsc82xx_init(void)
 
 static void __exit vsc82xx_exit(void)
 {
-	return phy_drivers_unregister(vsc82xx_driver,
-		ARRAY_SIZE(vsc82xx_driver));
+	phy_drivers_unregister(vsc82xx_driver, ARRAY_SIZE(vsc82xx_driver));
 }
 
 module_init(vsc82xx_init);

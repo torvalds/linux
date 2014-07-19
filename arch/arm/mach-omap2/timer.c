@@ -546,15 +546,15 @@ static void __init realtime_counter_init(void)
 	}
 
 	/* Program numerator and denumerator registers */
-	reg = __raw_readl(base + INCREMENTER_NUMERATOR_OFFSET) &
+	reg = readl_relaxed(base + INCREMENTER_NUMERATOR_OFFSET) &
 			NUMERATOR_DENUMERATOR_MASK;
 	reg |= num;
-	__raw_writel(reg, base + INCREMENTER_NUMERATOR_OFFSET);
+	writel_relaxed(reg, base + INCREMENTER_NUMERATOR_OFFSET);
 
-	reg = __raw_readl(base + INCREMENTER_DENUMERATOR_RELOAD_OFFSET) &
+	reg = readl_relaxed(base + INCREMENTER_DENUMERATOR_RELOAD_OFFSET) &
 			NUMERATOR_DENUMERATOR_MASK;
 	reg |= den;
-	__raw_writel(reg, base + INCREMENTER_DENUMERATOR_RELOAD_OFFSET);
+	writel_relaxed(reg, base + INCREMENTER_DENUMERATOR_RELOAD_OFFSET);
 
 	arch_timer_freq = (rate / den) * num;
 	set_cntfreq();

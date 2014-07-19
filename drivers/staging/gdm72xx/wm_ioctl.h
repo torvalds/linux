@@ -19,10 +19,10 @@
 
 #define NETLINK_WIMAX	31
 
-#define SIOCWMIOCTL			SIOCDEVPRIVATE
+#define SIOCWMIOCTL	SIOCDEVPRIVATE
 
-#define SIOCG_DATA			0x8D10
-#define SIOCS_DATA			0x8D11
+#define SIOCG_DATA	0x8D10
+#define SIOCS_DATA	0x8D11
 
 enum {
 	SIOC_DATA_FSM,
@@ -34,7 +34,7 @@ enum {
 	SIOC_DATA_END
 };
 
-#define SIOC_DATA_MAX			16
+#define SIOC_DATA_MAX	16
 
 /* FSM */
 enum {
@@ -67,23 +67,21 @@ enum {
 };
 
 struct fsm_s {
-	int		m_status;	/*main status*/
-	int		c_status;	/*connection status*/
-	int		d_status;	/*oma-dm status*/
+	int	m_status;	/*main status*/
+	int	c_status;	/*connection status*/
+	int	d_status;	/*oma-dm status*/
 };
 
 struct data_s {
-	int		size;
+	int	size;
 	void	*buf;
 };
 
 struct wm_req_s {
 	union {
-		char	ifrn_name[IFNAMSIZ];
+		char ifrn_name[IFNAMSIZ];
 	} ifr_ifrn;
-
 	unsigned short	cmd;
-
 	unsigned short	data_id;
 	struct data_s	data;
 
@@ -91,7 +89,7 @@ struct wm_req_s {
 };
 
 #ifndef ifr_name
-#define ifr_name	ifr_ifrn.ifrn_name
+#define ifr_name ifr_ifrn.ifrn_name
 #endif
 
 #endif

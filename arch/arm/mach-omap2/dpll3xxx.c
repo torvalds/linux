@@ -319,6 +319,15 @@ static int omap3_noncore_dpll_program(struct clk_hw_omap *clk, u16 freqsel)
 
 	/* Set DPLL multiplier, divider */
 	v = omap2_clk_readl(clk, dd->mult_div1_reg);
+
+	/* Handle Duty Cycle Correction */
+	if (dd->dcc_mask) {
+		if (dd->last_rounded_rate >= dd->dcc_rate)
+			v |= dd->dcc_mask; /* Enable DCC */
+		else
+			v &= ~dd->dcc_mask; /* Disable DCC */
+	}
+
 	v &= ~(dd->mult_mask | dd->div1_mask);
 	v |= dd->last_rounded_m << __ffs(dd->mult_mask);
 	v |= (dd->last_rounded_n - 1) << __ffs(dd->div1_mask);

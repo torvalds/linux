@@ -295,7 +295,7 @@ static struct generic_bl_info p720t_lcd_backlight_pdata = {
 };
 
 static void __init
-fixup_p720t(struct tag *tag, char **cmdline, struct meminfo *mi)
+fixup_p720t(struct tag *tag, char **cmdline)
 {
 	/*
 	 * Our bootloader doesn't setup any tags (yet).

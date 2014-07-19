@@ -49,9 +49,8 @@
 
 extern unsigned short TxRate_iwconfig; //2008-5-8 <add> by chester
 /*---------------------  Static Variables  --------------------------*/
-//static int          msglevel                =MSG_LEVEL_DEBUG;
 static int msglevel = MSG_LEVEL_INFO;
-const unsigned char acbyIERate[MAX_RATE] =
+static const unsigned char acbyIERate[MAX_RATE] =
 {0x02, 0x04, 0x0B, 0x16, 0x0C, 0x12, 0x18, 0x24, 0x30, 0x48, 0x60, 0x6C};
 
 #define AUTORATE_TXOK_CNT       0x0400
@@ -251,13 +250,11 @@ RATEvParseMaxRate(
 			if (byRate > byHighSuppRate)
 				byHighSuppRate = byRate;
 			*pwSuppRate |= (1<<wGetRateIdx(byRate));
-			//DBG_PRN_GRP09(("ParseMaxRate : HighSuppRate: %d, %X\n", wGetRateIdx(byRate), byRate));
 		}
-	} //if (pItemExtRates != NULL)
-
-	if ((pDevice->byPacketType == PK_TYPE_11GB) && CARDbIsOFDMinBasicRate((void *)pDevice)) {
-		pDevice->byPacketType = PK_TYPE_11GA;
 	}
+
+	if ((pDevice->byPacketType == PK_TYPE_11GB) && CARDbIsOFDMinBasicRate((void *)pDevice))
+		pDevice->byPacketType = PK_TYPE_11GA;
 
 	*pbyTopCCKRate = pDevice->byTopCCKBasicRate;
 	*pbyTopOFDMRate = pDevice->byTopOFDMBasicRate;
@@ -299,7 +296,6 @@ RATEvTxRateFallBack(
 	PSDevice        pDevice = (PSDevice) pDeviceHandler;
 	unsigned short wIdxDownRate = 0;
 	unsigned int ii;
-//unsigned long dwRateTable[MAX_RATE]  = {1,   2,   5,   11,  6,    9,    12,   18,  24,  36,  48,  54};
 	bool bAutoRate[MAX_RATE]    = {true, true, true, true, false, false, true, true, true, true, true, true};
 	unsigned long dwThroughputTbl[MAX_RATE] = {10, 20, 55, 110, 60, 90, 120, 180, 240, 360, 480, 540};
 	unsigned long dwThroughput = 0;
@@ -322,15 +318,14 @@ RATEvTxRateFallBack(
 		return;
 	}
 
-	if (psNodeDBTable->uTimeCount >= AUTORATE_TIMEOUT) {
+	if (psNodeDBTable->uTimeCount >= AUTORATE_TIMEOUT)
 		psNodeDBTable->uTimeCount = 0;
-	}
 
 	for (ii = 0; ii < MAX_RATE; ii++) {
 		if (psNodeDBTable->wSuppRate & (0x0001<<ii)) {
-			if (bAutoRate[ii]) {
+			if (bAutoRate[ii])
 				wIdxUpRate = (unsigned short) ii;
-			}
+
 		} else {
 			bAutoRate[ii] = false;
 		}
@@ -340,13 +335,11 @@ RATEvTxRateFallBack(
 		if ((psNodeDBTable->uTxOk[ii] != 0) ||
 		    (psNodeDBTable->uTxFail[ii] != 0)) {
 			dwThroughputTbl[ii] *= psNodeDBTable->uTxOk[ii];
-			if (ii < RATE_11M) {
+			if (ii < RATE_11M)
 				psNodeDBTable->uTxFail[ii] *= 4;
-			}
+
 			dwThroughputTbl[ii] /= (psNodeDBTable->uTxOk[ii] + psNodeDBTable->uTxFail[ii]);
 		}
-//        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Rate %d,Ok: %d, Fail:%d, Throughput:%d\n",
-//                       ii, psNodeDBTable->uTxOk[ii], psNodeDBTable->uTxFail[ii], dwThroughputTbl[ii]);
 	}
 	dwThroughput = dwThroughputTbl[psNodeDBTable->wTxDataRate];
 
@@ -371,7 +364,6 @@ RATEvTxRateFallBack(
 //2008-5-8 <add> by chester
 	TxRate_iwconfig = psNodeDBTable->wTxDataRate;
 	s_vResetCounter(psNodeDBTable);
-//    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Rate: %d, U:%d, D:%d\n", psNodeDBTable->wTxDataRate, wIdxUpRate, wIdxDownRate);
 
 	return;
 }

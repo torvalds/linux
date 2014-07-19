@@ -551,7 +551,7 @@ void timer_interrupt(struct pt_regs * regs)
 	may_hard_irq_enable();
 
 
-#if defined(CONFIG_PPC32) && defined(CONFIG_PMAC)
+#if defined(CONFIG_PPC32) && defined(CONFIG_PPC_PMAC)
 	if (atomic_read(&ppc_n_lost_interrupts) != 0)
 		do_IRQ(regs);
 #endif

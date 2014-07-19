@@ -54,14 +54,11 @@ int hfsplus_attr_build_key(struct super_block *sb, hfsplus_btree_key *key,
 	memset(key, 0, sizeof(struct hfsplus_attr_key));
 	key->attr.cnid = cpu_to_be32(cnid);
 	if (name) {
-		len = strlen(name);
-		if (len > HFSPLUS_ATTR_MAX_STRLEN) {
-			pr_err("invalid xattr name's length\n");
-			return -EINVAL;
-		}
-		hfsplus_asc2uni(sb,
+		int res = hfsplus_asc2uni(sb,
 				(struct hfsplus_unistr *)&key->attr.key_name,
-				HFSPLUS_ATTR_MAX_STRLEN, name, len);
+				HFSPLUS_ATTR_MAX_STRLEN, name, strlen(name));
+		if (res)
+			return res;
 		len = be16_to_cpu(key->attr.key_name.length);
 	} else {
 		key->attr.key_name.length = 0;
@@ -80,31 +77,6 @@ int hfsplus_attr_build_key(struct super_block *sb, hfsplus_btree_key *key,
 				2 * len);
 
 	return 0;
-}
-
-void hfsplus_attr_build_key_uni(hfsplus_btree_key *key,
-					u32 cnid,
-					struct hfsplus_attr_unistr *name)
-{
-	int ustrlen;
-
-	memset(key, 0, sizeof(struct hfsplus_attr_key));
-	ustrlen = be16_to_cpu(name->length);
-	key->attr.cnid = cpu_to_be32(cnid);
-	key->attr.key_name.length = cpu_to_be16(ustrlen);
-	ustrlen *= 2;
-	memcpy(key->attr.key_name.unicode, name->unicode, ustrlen);
-
-	/* The length of the key, as stored in key_len field, does not include
-	 * the size of the key_len field itself.
-	 * So, offsetof(hfsplus_attr_key, key_name) is a trick because
-	 * it takes into consideration key_len field (__be16) of
-	 * hfsplus_attr_key structure instead of length field (__be16) of
-	 * hfsplus_attr_unistr structure.
-	 */
-	key->key_len =
-		cpu_to_be16(offsetof(struct hfsplus_attr_key, key_name) +
-				ustrlen);
 }
 
 hfsplus_attr_entry *hfsplus_alloc_attr_entry(void)

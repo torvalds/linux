@@ -727,7 +727,7 @@ replicas continue to be exactly same.
 			  mkdir -p /tmp/m3
 			  mount --rbind /root /tmp/m3
 
-			  I wont' draw the tree..but it has 24 vfsmounts
+			  I won't draw the tree..but it has 24 vfsmounts
 
 
 		at step i the number of vfsmounts is V[i] = i*V[i-1].

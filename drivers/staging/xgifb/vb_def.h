@@ -44,12 +44,10 @@
 #define SetLCDtoNonExpanding 0x0010
 #define SetLCDDualLink       0x0100
 #define SetLCDLowResolution  0x0200
-#define SetLCDStdMode        0x0400
 
 /* LCD Capability shampoo */
 #define DefaultLCDCap        0x80ea
 #define EnableLCD24bpp       0x0004 /* default */
-#define DisableLCD24bpp      0x0000
 #define LCDPolarity          0x00c0 /* default: SyncNN */
 #define XGI_LCDDualLink      0x0100
 #define EnableSpectrum       0x0200

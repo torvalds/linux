@@ -65,15 +65,16 @@ static int msglevel = MSG_LEVEL_INFO; /* MSG_LEVEL_DEBUG */
 -*/
 void INTvWorkItem(struct vnt_private *pDevice)
 {
+	unsigned long flags;
 	int ntStatus;
 
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->Interrupt Polling Thread\n");
 
-	spin_lock_irq(&pDevice->lock);
+	spin_lock_irqsave(&pDevice->lock, flags);
 
 	ntStatus = PIPEnsInterruptRead(pDevice);
 
-	spin_unlock_irq(&pDevice->lock);
+	spin_unlock_irqrestore(&pDevice->lock, flags);
 }
 
 void INTnsProcessData(struct vnt_private *priv)

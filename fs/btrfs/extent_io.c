@@ -1693,6 +1693,7 @@ again:
 		 * shortening the size of the delalloc range we're searching
 		 */
 		free_extent_state(cached_state);
+		cached_state = NULL;
 		if (!loops) {
 			max_bytes = PAGE_CACHE_SIZE;
 			loops = 1;
@@ -2353,7 +2354,7 @@ int end_extent_writepage(struct page *page, int err, u64 start, u64 end)
 {
 	int uptodate = (err == 0);
 	struct extent_io_tree *tree;
-	int ret;
+	int ret = 0;
 
 	tree = &BTRFS_I(page->mapping->host)->io_tree;
 
@@ -2367,6 +2368,8 @@ int end_extent_writepage(struct page *page, int err, u64 start, u64 end)
 	if (!uptodate) {
 		ClearPageUptodate(page);
 		SetPageError(page);
+		ret = ret < 0 ? ret : -EIO;
+		mapping_set_error(page->mapping, ret);
 	}
 	return 0;
 }
@@ -3098,143 +3101,130 @@ static noinline void update_nr_written(struct page *page,
 }
 
 /*
- * the writepage semantics are similar to regular writepage.  extent
- * records are inserted to lock ranges in the tree, and as dirty areas
- * are found, they are marked writeback.  Then the lock bits are removed
- * and the end_io handler clears the writeback ranges
+ * helper for __extent_writepage, doing all of the delayed allocation setup.
+ *
+ * This returns 1 if our fill_delalloc function did all the work required
+ * to write the page (copy into inline extent).  In this case the IO has
+ * been started and the page is already unlocked.
+ *
+ * This returns 0 if all went well (page still locked)
+ * This returns < 0 if there were errors (page still locked)
  */
-static int __extent_writepage(struct page *page, struct writeback_control *wbc,
-			      void *data)
+static noinline_for_stack int writepage_delalloc(struct inode *inode,
+			      struct page *page, struct writeback_control *wbc,
+			      struct extent_page_data *epd,
+			      u64 delalloc_start,
+			      unsigned long *nr_written)
 {
-	struct inode *inode = page->mapping->host;
-	struct extent_page_data *epd = data;
+	struct extent_io_tree *tree = epd->tree;
+	u64 page_end = delalloc_start + PAGE_CACHE_SIZE - 1;
+	u64 nr_delalloc;
+	u64 delalloc_to_write = 0;
+	u64 delalloc_end = 0;
+	int ret;
+	int page_started = 0;
+
+	if (epd->extent_locked || !tree->ops || !tree->ops->fill_delalloc)
+		return 0;
+
+	while (delalloc_end < page_end) {
+		nr_delalloc = find_lock_delalloc_range(inode, tree,
+					       page,
+					       &delalloc_start,
+					       &delalloc_end,
+					       128 * 1024 * 1024);
+		if (nr_delalloc == 0) {
+			delalloc_start = delalloc_end + 1;
+			continue;
+		}
+		ret = tree->ops->fill_delalloc(inode, page,
+					       delalloc_start,
+					       delalloc_end,
+					       &page_started,
+					       nr_written);
+		/* File system has been set read-only */
+		if (ret) {
+			SetPageError(page);
+			/* fill_delalloc should be return < 0 for error
+			 * but just in case, we use > 0 here meaning the
+			 * IO is started, so we don't want to return > 0
+			 * unless things are going well.
+			 */
+			ret = ret < 0 ? ret : -EIO;
+			goto done;
+		}
+		/*
+		 * delalloc_end is already one less than the total
+		 * length, so we don't subtract one from
+		 * PAGE_CACHE_SIZE
+		 */
+		delalloc_to_write += (delalloc_end - delalloc_start +
+				      PAGE_CACHE_SIZE) >>
+				      PAGE_CACHE_SHIFT;
+		delalloc_start = delalloc_end + 1;
+	}
+	if (wbc->nr_to_write < delalloc_to_write) {
+		int thresh = 8192;
+
+		if (delalloc_to_write < thresh * 2)
+			thresh = delalloc_to_write;
+		wbc->nr_to_write = min_t(u64, delalloc_to_write,
+					 thresh);
+	}
+
+	/* did the fill delalloc function already unlock and start
+	 * the IO?
+	 */
+	if (page_started) {
+		/*
+		 * we've unlocked the page, so we can't update
+		 * the mapping's writeback index, just update
+		 * nr_to_write.
+		 */
+		wbc->nr_to_write -= *nr_written;
+		return 1;
+	}
+
+	ret = 0;
+
+done:
+	return ret;
+}
+
+/*
+ * helper for __extent_writepage.  This calls the writepage start hooks,
+ * and does the loop to map the page into extents and bios.
+ *
+ * We return 1 if the IO is started and the page is unlocked,
+ * 0 if all went well (page still locked)
+ * < 0 if there were errors (page still locked)
+ */
+static noinline_for_stack int __extent_writepage_io(struct inode *inode,
+				 struct page *page,
+				 struct writeback_control *wbc,
+				 struct extent_page_data *epd,
+				 loff_t i_size,
+				 unsigned long nr_written,
+				 int write_flags, int *nr_ret)
+{
 	struct extent_io_tree *tree = epd->tree;
 	u64 start = page_offset(page);
-	u64 delalloc_start;
 	u64 page_end = start + PAGE_CACHE_SIZE - 1;
 	u64 end;
 	u64 cur = start;
 	u64 extent_offset;
-	u64 last_byte = i_size_read(inode);
 	u64 block_start;
 	u64 iosize;
 	sector_t sector;
 	struct extent_state *cached_state = NULL;
 	struct extent_map *em;
 	struct block_device *bdev;
-	int ret;
-	int nr = 0;
 	size_t pg_offset = 0;
 	size_t blocksize;
-	loff_t i_size = i_size_read(inode);
-	unsigned long end_index = i_size >> PAGE_CACHE_SHIFT;
-	u64 nr_delalloc;
-	u64 delalloc_end;
-	int page_started;
-	int compressed;
-	int write_flags;
-	unsigned long nr_written = 0;
-	bool fill_delalloc = true;
+	int ret = 0;
+	int nr = 0;
+	bool compressed;
 
-	if (wbc->sync_mode == WB_SYNC_ALL)
-		write_flags = WRITE_SYNC;
-	else
-		write_flags = WRITE;
-
-	trace___extent_writepage(page, inode, wbc);
-
-	WARN_ON(!PageLocked(page));
-
-	ClearPageError(page);
-
-	pg_offset = i_size & (PAGE_CACHE_SIZE - 1);
-	if (page->index > end_index ||
-	   (page->index == end_index && !pg_offset)) {
-		page->mapping->a_ops->invalidatepage(page, 0, PAGE_CACHE_SIZE);
-		unlock_page(page);
-		return 0;
-	}
-
-	if (page->index == end_index) {
-		char *userpage;
-
-		userpage = kmap_atomic(page);
-		memset(userpage + pg_offset, 0,
-		       PAGE_CACHE_SIZE - pg_offset);
-		kunmap_atomic(userpage);
-		flush_dcache_page(page);
-	}
-	pg_offset = 0;
-
-	set_page_extent_mapped(page);
-
-	if (!tree->ops || !tree->ops->fill_delalloc)
-		fill_delalloc = false;
-
-	delalloc_start = start;
-	delalloc_end = 0;
-	page_started = 0;
-	if (!epd->extent_locked && fill_delalloc) {
-		u64 delalloc_to_write = 0;
-		/*
-		 * make sure the wbc mapping index is at least updated
-		 * to this page.
-		 */
-		update_nr_written(page, wbc, 0);
-
-		while (delalloc_end < page_end) {
-			nr_delalloc = find_lock_delalloc_range(inode, tree,
-						       page,
-						       &delalloc_start,
-						       &delalloc_end,
-						       128 * 1024 * 1024);
-			if (nr_delalloc == 0) {
-				delalloc_start = delalloc_end + 1;
-				continue;
-			}
-			ret = tree->ops->fill_delalloc(inode, page,
-						       delalloc_start,
-						       delalloc_end,
-						       &page_started,
-						       &nr_written);
-			/* File system has been set read-only */
-			if (ret) {
-				SetPageError(page);
-				goto done;
-			}
-			/*
-			 * delalloc_end is already one less than the total
-			 * length, so we don't subtract one from
-			 * PAGE_CACHE_SIZE
-			 */
-			delalloc_to_write += (delalloc_end - delalloc_start +
-					      PAGE_CACHE_SIZE) >>
-					      PAGE_CACHE_SHIFT;
-			delalloc_start = delalloc_end + 1;
-		}
-		if (wbc->nr_to_write < delalloc_to_write) {
-			int thresh = 8192;
-
-			if (delalloc_to_write < thresh * 2)
-				thresh = delalloc_to_write;
-			wbc->nr_to_write = min_t(u64, delalloc_to_write,
-						 thresh);
-		}
-
-		/* did the fill delalloc function already unlock and start
-		 * the IO?
-		 */
-		if (page_started) {
-			ret = 0;
-			/*
-			 * we've unlocked the page, so we can't update
-			 * the mapping's writeback index, just update
-			 * nr_to_write.
-			 */
-			wbc->nr_to_write -= nr_written;
-			goto done_unlocked;
-		}
-	}
 	if (tree->ops && tree->ops->writepage_start_hook) {
 		ret = tree->ops->writepage_start_hook(page, start,
 						      page_end);
@@ -3244,9 +3234,10 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 				wbc->pages_skipped++;
 			else
 				redirty_page_for_writepage(wbc, page);
+
 			update_nr_written(page, wbc, nr_written);
 			unlock_page(page);
-			ret = 0;
+			ret = 1;
 			goto done_unlocked;
 		}
 	}
@@ -3258,7 +3249,7 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 	update_nr_written(page, wbc, nr_written + 1);
 
 	end = page_end;
-	if (last_byte <= start) {
+	if (i_size <= start) {
 		if (tree->ops && tree->ops->writepage_end_io_hook)
 			tree->ops->writepage_end_io_hook(page, start,
 							 page_end, NULL, 1);
@@ -3268,7 +3259,8 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 	blocksize = inode->i_sb->s_blocksize;
 
 	while (cur <= end) {
-		if (cur >= last_byte) {
+		u64 em_end;
+		if (cur >= i_size) {
 			if (tree->ops && tree->ops->writepage_end_io_hook)
 				tree->ops->writepage_end_io_hook(page, cur,
 							 page_end, NULL, 1);
@@ -3278,13 +3270,15 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 				     end - cur + 1, 1);
 		if (IS_ERR_OR_NULL(em)) {
 			SetPageError(page);
+			ret = PTR_ERR_OR_ZERO(em);
 			break;
 		}
 
 		extent_offset = cur - em->start;
-		BUG_ON(extent_map_end(em) <= cur);
+		em_end = extent_map_end(em);
+		BUG_ON(em_end <= cur);
 		BUG_ON(end < cur);
-		iosize = min(extent_map_end(em) - cur, end - cur + 1);
+		iosize = min(em_end - cur, end - cur + 1);
 		iosize = ALIGN(iosize, blocksize);
 		sector = (em->block_start + extent_offset) >> 9;
 		bdev = em->bdev;
@@ -3320,13 +3314,6 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 			pg_offset += iosize;
 			continue;
 		}
-		/* leave this out until we have a page_mkwrite call */
-		if (0 && !test_range_bit(tree, cur, cur + iosize - 1,
-				   EXTENT_DIRTY, 0, NULL)) {
-			cur = cur + iosize;
-			pg_offset += iosize;
-			continue;
-		}
 
 		if (tree->ops && tree->ops->writepage_io_hook) {
 			ret = tree->ops->writepage_io_hook(page, cur,
@@ -3337,7 +3324,7 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 		if (ret) {
 			SetPageError(page);
 		} else {
-			unsigned long max_nr = end_index + 1;
+			unsigned long max_nr = (i_size >> PAGE_CACHE_SHIFT) + 1;
 
 			set_range_writeback(tree, cur, cur + iosize - 1);
 			if (!PageWriteback(page)) {
@@ -3359,17 +3346,94 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 		nr++;
 	}
 done:
-	if (nr == 0) {
-		/* make sure the mapping tag for page dirty gets cleared */
-		set_page_writeback(page);
-		end_page_writeback(page);
-	}
-	unlock_page(page);
+	*nr_ret = nr;
 
 done_unlocked:
 
 	/* drop our reference on any cached states */
 	free_extent_state(cached_state);
+	return ret;
+}
+
+/*
+ * the writepage semantics are similar to regular writepage.  extent
+ * records are inserted to lock ranges in the tree, and as dirty areas
+ * are found, they are marked writeback.  Then the lock bits are removed
+ * and the end_io handler clears the writeback ranges
+ */
+static int __extent_writepage(struct page *page, struct writeback_control *wbc,
+			      void *data)
+{
+	struct inode *inode = page->mapping->host;
+	struct extent_page_data *epd = data;
+	u64 start = page_offset(page);
+	u64 page_end = start + PAGE_CACHE_SIZE - 1;
+	int ret;
+	int nr = 0;
+	size_t pg_offset = 0;
+	loff_t i_size = i_size_read(inode);
+	unsigned long end_index = i_size >> PAGE_CACHE_SHIFT;
+	int write_flags;
+	unsigned long nr_written = 0;
+
+	if (wbc->sync_mode == WB_SYNC_ALL)
+		write_flags = WRITE_SYNC;
+	else
+		write_flags = WRITE;
+
+	trace___extent_writepage(page, inode, wbc);
+
+	WARN_ON(!PageLocked(page));
+
+	ClearPageError(page);
+
+	pg_offset = i_size & (PAGE_CACHE_SIZE - 1);
+	if (page->index > end_index ||
+	   (page->index == end_index && !pg_offset)) {
+		page->mapping->a_ops->invalidatepage(page, 0, PAGE_CACHE_SIZE);
+		unlock_page(page);
+		return 0;
+	}
+
+	if (page->index == end_index) {
+		char *userpage;
+
+		userpage = kmap_atomic(page);
+		memset(userpage + pg_offset, 0,
+		       PAGE_CACHE_SIZE - pg_offset);
+		kunmap_atomic(userpage);
+		flush_dcache_page(page);
+	}
+
+	pg_offset = 0;
+
+	set_page_extent_mapped(page);
+
+	ret = writepage_delalloc(inode, page, wbc, epd, start, &nr_written);
+	if (ret == 1)
+		goto done_unlocked;
+	if (ret)
+		goto done;
+
+	ret = __extent_writepage_io(inode, page, wbc, epd,
+				    i_size, nr_written, write_flags, &nr);
+	if (ret == 1)
+		goto done_unlocked;
+
+done:
+	if (nr == 0) {
+		/* make sure the mapping tag for page dirty gets cleared */
+		set_page_writeback(page);
+		end_page_writeback(page);
+	}
+	if (PageError(page)) {
+		ret = ret < 0 ? ret : -EIO;
+		end_extent_writepage(page, ret, start, page_end);
+	}
+	unlock_page(page);
+	return ret;
+
+done_unlocked:
 	return 0;
 }
 
@@ -3385,9 +3449,10 @@ void wait_on_extent_buffer_writeback(struct extent_buffer *eb)
 		    TASK_UNINTERRUPTIBLE);
 }
 
-static int lock_extent_buffer_for_io(struct extent_buffer *eb,
-				     struct btrfs_fs_info *fs_info,
-				     struct extent_page_data *epd)
+static noinline_for_stack int
+lock_extent_buffer_for_io(struct extent_buffer *eb,
+			  struct btrfs_fs_info *fs_info,
+			  struct extent_page_data *epd)
 {
 	unsigned long i, num_pages;
 	int flush = 0;
@@ -3458,7 +3523,7 @@ static int lock_extent_buffer_for_io(struct extent_buffer *eb,
 static void end_extent_buffer_writeback(struct extent_buffer *eb)
 {
 	clear_bit(EXTENT_BUFFER_WRITEBACK, &eb->bflags);
-	smp_mb__after_clear_bit();
+	smp_mb__after_atomic();
 	wake_up_bit(&eb->bflags, EXTENT_BUFFER_WRITEBACK);
 }
 
@@ -3492,7 +3557,7 @@ static void end_bio_extent_buffer_writepage(struct bio *bio, int err)
 	bio_put(bio);
 }
 
-static int write_one_eb(struct extent_buffer *eb,
+static noinline_for_stack int write_one_eb(struct extent_buffer *eb,
 			struct btrfs_fs_info *fs_info,
 			struct writeback_control *wbc,
 			struct extent_page_data *epd)
@@ -3690,6 +3755,7 @@ static int extent_write_cache_pages(struct extent_io_tree *tree,
 	struct inode *inode = mapping->host;
 	int ret = 0;
 	int done = 0;
+	int err = 0;
 	int nr_to_write_done = 0;
 	struct pagevec pvec;
 	int nr_pages;
@@ -3776,8 +3842,8 @@ retry:
 				unlock_page(page);
 				ret = 0;
 			}
-			if (ret)
-				done = 1;
+			if (!err && ret < 0)
+				err = ret;
 
 			/*
 			 * the filesystem may choose to bump up nr_to_write.
@@ -3789,7 +3855,7 @@ retry:
 		pagevec_release(&pvec);
 		cond_resched();
 	}
-	if (!scanned && !done) {
+	if (!scanned && !done && !err) {
 		/*
 		 * We hit the last page and there is more work to be done: wrap
 		 * back to the start of the file
@@ -3799,7 +3865,7 @@ retry:
 		goto retry;
 	}
 	btrfs_add_delayed_iput(inode);
-	return ret;
+	return err;
 }
 
 static void flush_epd_write_bio(struct extent_page_data *epd)
@@ -4510,7 +4576,8 @@ static void check_buffer_tree_ref(struct extent_buffer *eb)
 	spin_unlock(&eb->refs_lock);
 }
 
-static void mark_extent_buffer_accessed(struct extent_buffer *eb)
+static void mark_extent_buffer_accessed(struct extent_buffer *eb,
+		struct page *accessed)
 {
 	unsigned long num_pages, i;
 
@@ -4519,7 +4586,8 @@ static void mark_extent_buffer_accessed(struct extent_buffer *eb)
 	num_pages = num_extent_pages(eb->start, eb->len);
 	for (i = 0; i < num_pages; i++) {
 		struct page *p = extent_buffer_page(eb, i);
-		mark_page_accessed(p);
+		if (p != accessed)
+			mark_page_accessed(p);
 	}
 }
 
@@ -4533,13 +4601,60 @@ struct extent_buffer *find_extent_buffer(struct btrfs_fs_info *fs_info,
 			       start >> PAGE_CACHE_SHIFT);
 	if (eb && atomic_inc_not_zero(&eb->refs)) {
 		rcu_read_unlock();
-		mark_extent_buffer_accessed(eb);
+		mark_extent_buffer_accessed(eb, NULL);
 		return eb;
 	}
 	rcu_read_unlock();
 
 	return NULL;
 }
+
+#ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
+struct extent_buffer *alloc_test_extent_buffer(struct btrfs_fs_info *fs_info,
+					       u64 start, unsigned long len)
+{
+	struct extent_buffer *eb, *exists = NULL;
+	int ret;
+
+	eb = find_extent_buffer(fs_info, start);
+	if (eb)
+		return eb;
+	eb = alloc_dummy_extent_buffer(start, len);
+	if (!eb)
+		return NULL;
+	eb->fs_info = fs_info;
+again:
+	ret = radix_tree_preload(GFP_NOFS & ~__GFP_HIGHMEM);
+	if (ret)
+		goto free_eb;
+	spin_lock(&fs_info->buffer_lock);
+	ret = radix_tree_insert(&fs_info->buffer_radix,
+				start >> PAGE_CACHE_SHIFT, eb);
+	spin_unlock(&fs_info->buffer_lock);
+	radix_tree_preload_end();
+	if (ret == -EEXIST) {
+		exists = find_extent_buffer(fs_info, start);
+		if (exists)
+			goto free_eb;
+		else
+			goto again;
+	}
+	check_buffer_tree_ref(eb);
+	set_bit(EXTENT_BUFFER_IN_TREE, &eb->bflags);
+
+	/*
+	 * We will free dummy extent buffer's if they come into
+	 * free_extent_buffer with a ref count of 2, but if we are using this we
+	 * want the buffers to stay in memory until we're done with them, so
+	 * bump the ref count again.
+	 */
+	atomic_inc(&eb->refs);
+	return eb;
+free_eb:
+	btrfs_release_extent_buffer(eb);
+	return exists;
+}
+#endif
 
 struct extent_buffer *alloc_extent_buffer(struct btrfs_fs_info *fs_info,
 					  u64 start, unsigned long len)
@@ -4581,7 +4696,7 @@ struct extent_buffer *alloc_extent_buffer(struct btrfs_fs_info *fs_info,
 				spin_unlock(&mapping->private_lock);
 				unlock_page(p);
 				page_cache_release(p);
-				mark_extent_buffer_accessed(exists);
+				mark_extent_buffer_accessed(exists, p);
 				goto free_eb;
 			}
 
@@ -4596,7 +4711,6 @@ struct extent_buffer *alloc_extent_buffer(struct btrfs_fs_info *fs_info,
 		attach_extent_buffer_page(eb, p);
 		spin_unlock(&mapping->private_lock);
 		WARN_ON(PageDirty(p));
-		mark_page_accessed(p);
 		eb->pages[i] = p;
 		if (!PageUptodate(p))
 			uptodate = 0;
@@ -4952,6 +5066,43 @@ void read_extent_buffer(struct extent_buffer *eb, void *dstv,
 		offset = 0;
 		i++;
 	}
+}
+
+int read_extent_buffer_to_user(struct extent_buffer *eb, void __user *dstv,
+			unsigned long start,
+			unsigned long len)
+{
+	size_t cur;
+	size_t offset;
+	struct page *page;
+	char *kaddr;
+	char __user *dst = (char __user *)dstv;
+	size_t start_offset = eb->start & ((u64)PAGE_CACHE_SIZE - 1);
+	unsigned long i = (start_offset + start) >> PAGE_CACHE_SHIFT;
+	int ret = 0;
+
+	WARN_ON(start > eb->len);
+	WARN_ON(start + len > eb->start + eb->len);
+
+	offset = (start_offset + start) & (PAGE_CACHE_SIZE - 1);
+
+	while (len > 0) {
+		page = extent_buffer_page(eb, i);
+
+		cur = min(len, (PAGE_CACHE_SIZE - offset));
+		kaddr = page_address(page);
+		if (copy_to_user(dst, kaddr + offset, cur)) {
+			ret = -EFAULT;
+			break;
+		}
+
+		dst += cur;
+		len -= cur;
+		offset = 0;
+		i++;
+	}
+
+	return ret;
 }
 
 int map_private_extent_buffer(struct extent_buffer *eb, unsigned long start,

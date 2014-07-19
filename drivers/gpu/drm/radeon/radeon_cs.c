@@ -140,10 +140,10 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 		if (p->ring == R600_RING_TYPE_UVD_INDEX &&
 		    (i == 0 || drm_pci_device_is_agp(p->rdev->ddev))) {
 			/* TODO: is this still needed for NI+ ? */
-			p->relocs[i].domain =
+			p->relocs[i].prefered_domains =
 				RADEON_GEM_DOMAIN_VRAM;
 
-			p->relocs[i].alt_domain =
+			p->relocs[i].allowed_domains =
 				RADEON_GEM_DOMAIN_VRAM;
 
 			/* prioritize this over any other relocation */
@@ -152,10 +152,16 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 			uint32_t domain = r->write_domain ?
 				r->write_domain : r->read_domains;
 
-			p->relocs[i].domain = domain;
+			if (domain & RADEON_GEM_DOMAIN_CPU) {
+				DRM_ERROR("RADEON_GEM_DOMAIN_CPU is not valid "
+					  "for command submission\n");
+				return -EINVAL;
+			}
+
+			p->relocs[i].prefered_domains = domain;
 			if (domain == RADEON_GEM_DOMAIN_VRAM)
 				domain |= RADEON_GEM_DOMAIN_GTT;
-			p->relocs[i].alt_domain = domain;
+			p->relocs[i].allowed_domains = domain;
 		}
 
 		p->relocs[i].tv.bo = &p->relocs[i].robj->tbo;
@@ -342,10 +348,17 @@ int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data)
 			return -EINVAL;
 
 		/* we only support VM on some SI+ rings */
-		if ((p->rdev->asic->ring[p->ring]->cs_parse == NULL) &&
-		   ((p->cs_flags & RADEON_CS_USE_VM) == 0)) {
-			DRM_ERROR("Ring %d requires VM!\n", p->ring);
-			return -EINVAL;
+		if ((p->cs_flags & RADEON_CS_USE_VM) == 0) {
+			if (p->rdev->asic->ring[p->ring]->cs_parse == NULL) {
+				DRM_ERROR("Ring %d requires VM!\n", p->ring);
+				return -EINVAL;
+			}
+		} else {
+			if (p->rdev->asic->ring[p->ring]->ib_parse == NULL) {
+				DRM_ERROR("VM not supported on ring %d!\n",
+					  p->ring);
+				return -EINVAL;
+			}
 		}
 	}
 

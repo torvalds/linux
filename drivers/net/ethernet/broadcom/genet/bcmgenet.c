@@ -2481,7 +2481,7 @@ static int bcmgenet_probe(struct platform_device *pdev)
 	dev_set_drvdata(&pdev->dev, dev);
 	ether_addr_copy(dev->dev_addr, macaddr);
 	dev->watchdog_timeo = 2 * HZ;
-	SET_ETHTOOL_OPS(dev, &bcmgenet_ethtool_ops);
+	dev->ethtool_ops = &bcmgenet_ethtool_ops;
 	dev->netdev_ops = &bcmgenet_netdev_ops;
 	netif_napi_add(dev, &priv->napi, bcmgenet_poll, 64);
 

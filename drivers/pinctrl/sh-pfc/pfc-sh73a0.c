@@ -26,7 +26,9 @@
 #include <linux/regulator/machine.h>
 #include <linux/slab.h>
 
+#ifndef CONFIG_ARCH_MULTIPLATFORM
 #include <mach/irqs.h>
+#endif
 
 #include "core.h"
 #include "sh_pfc.h"

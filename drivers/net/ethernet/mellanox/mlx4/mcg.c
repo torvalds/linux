@@ -638,7 +638,7 @@ static int find_entry(struct mlx4_dev *dev, u8 port,
 
 		if (!(be32_to_cpu(mgm->members_count) & 0xffffff)) {
 			if (*index != hash) {
-				mlx4_err(dev, "Found zero MGID in AMGM.\n");
+				mlx4_err(dev, "Found zero MGID in AMGM\n");
 				err = -EINVAL;
 			}
 			return err;
@@ -874,7 +874,7 @@ static void mlx4_err_rule(struct mlx4_dev *dev, char *str,
 	mlx4_err(dev, "%s", buf);
 
 	if (len >= BUF_SIZE)
-		mlx4_err(dev, "Network rule error message was truncated, print buffer is too small.\n");
+		mlx4_err(dev, "Network rule error message was truncated, print buffer is too small\n");
 }
 
 int mlx4_flow_attach(struct mlx4_dev *dev,
@@ -897,7 +897,7 @@ int mlx4_flow_attach(struct mlx4_dev *dev,
 		ret = parse_trans_rule(dev, cur, mailbox->buf + size);
 		if (ret < 0) {
 			mlx4_free_cmd_mailbox(dev, mailbox);
-			return -EINVAL;
+			return ret;
 		}
 		size += ret;
 	}
@@ -905,10 +905,10 @@ int mlx4_flow_attach(struct mlx4_dev *dev,
 	ret = mlx4_QP_FLOW_STEERING_ATTACH(dev, mailbox, size >> 2, reg_id);
 	if (ret == -ENOMEM)
 		mlx4_err_rule(dev,
-			      "mcg table is full. Fail to register network rule.\n",
+			      "mcg table is full. Fail to register network rule\n",
 			      rule);
 	else if (ret)
-		mlx4_err_rule(dev, "Fail to register network rule.\n", rule);
+		mlx4_err_rule(dev, "Fail to register network rule\n", rule);
 
 	mlx4_free_cmd_mailbox(dev, mailbox);
 
@@ -994,7 +994,7 @@ int mlx4_qp_attach_common(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16],
 
 	members_count = be32_to_cpu(mgm->members_count) & 0xffffff;
 	if (members_count == dev->caps.num_qp_per_mgm) {
-		mlx4_err(dev, "MGM at index %x is full.\n", index);
+		mlx4_err(dev, "MGM at index %x is full\n", index);
 		err = -ENOMEM;
 		goto out;
 	}
@@ -1042,7 +1042,7 @@ out:
 	}
 	if (err && link && index != -1) {
 		if (index < dev->caps.num_mgms)
-			mlx4_warn(dev, "Got AMGM index %d < %d",
+			mlx4_warn(dev, "Got AMGM index %d < %d\n",
 				  index, dev->caps.num_mgms);
 		else
 			mlx4_bitmap_free(&priv->mcg_table.bitmap,
@@ -1133,7 +1133,7 @@ int mlx4_qp_detach_common(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16],
 
 		if (amgm_index) {
 			if (amgm_index < dev->caps.num_mgms)
-				mlx4_warn(dev, "MGM entry %d had AMGM index %d < %d",
+				mlx4_warn(dev, "MGM entry %d had AMGM index %d < %d\n",
 					  index, amgm_index, dev->caps.num_mgms);
 			else
 				mlx4_bitmap_free(&priv->mcg_table.bitmap,
@@ -1153,7 +1153,7 @@ int mlx4_qp_detach_common(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16],
 			goto out;
 
 		if (index < dev->caps.num_mgms)
-			mlx4_warn(dev, "entry %d had next AMGM index %d < %d",
+			mlx4_warn(dev, "entry %d had next AMGM index %d < %d\n",
 				  prev, index, dev->caps.num_mgms);
 		else
 			mlx4_bitmap_free(&priv->mcg_table.bitmap,

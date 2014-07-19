@@ -46,6 +46,10 @@ struct radeon_device;
 #define to_radeon_encoder(x) container_of(x, struct radeon_encoder, base)
 #define to_radeon_framebuffer(x) container_of(x, struct radeon_framebuffer, base)
 
+#define RADEON_MAX_HPD_PINS 7
+#define RADEON_MAX_CRTCS 6
+#define RADEON_MAX_AFMT_BLOCKS 7
+
 enum radeon_rmx_type {
 	RMX_OFF,
 	RMX_FULL,
@@ -191,6 +195,7 @@ struct radeon_i2c_chan {
 	struct radeon_i2c_bus_rec rec;
 	struct drm_dp_aux aux;
 	bool has_aux;
+	struct mutex mutex;
 };
 
 /* mostly for macs, but really any system without connector tables */
@@ -232,8 +237,8 @@ struct radeon_mode_info {
 	struct card_info *atom_card_info;
 	enum radeon_connector_table connector_table;
 	bool mode_config_initialized;
-	struct radeon_crtc *crtcs[6];
-	struct radeon_afmt *afmt[7];
+	struct radeon_crtc *crtcs[RADEON_MAX_CRTCS];
+	struct radeon_afmt *afmt[RADEON_MAX_AFMT_BLOCKS];
 	/* DVI-I properties */
 	struct drm_property *coherent_mode_property;
 	/* DAC enable load detect */
@@ -301,6 +306,12 @@ struct radeon_atom_ss {
 	uint16_t amount;
 };
 
+enum radeon_flip_status {
+	RADEON_FLIP_NONE,
+	RADEON_FLIP_PENDING,
+	RADEON_FLIP_SUBMITTED
+};
+
 struct radeon_crtc {
 	struct drm_crtc base;
 	int crtc_id;
@@ -324,8 +335,9 @@ struct radeon_crtc {
 	struct drm_display_mode native_mode;
 	int pll_id;
 	/* page flipping */
-	struct radeon_unpin_work *unpin_work;
-	int deferred_flip_completion;
+	struct workqueue_struct *flip_queue;
+	struct radeon_flip_work *flip_work;
+	enum radeon_flip_status flip_status;
 	/* pll sharing */
 	struct radeon_atom_ss ss;
 	bool ss_enabled;
@@ -505,6 +517,7 @@ struct radeon_connector {
 	struct radeon_i2c_chan *router_bus;
 	enum radeon_connector_audio audio;
 	enum radeon_connector_dither dither;
+	int pixelclock_for_modeset;
 };
 
 struct radeon_framebuffer {
@@ -906,6 +919,7 @@ bool radeon_fbdev_robj_is_fb(struct radeon_device *rdev, struct radeon_bo *robj)
 
 void radeon_fb_output_poll_changed(struct radeon_device *rdev);
 
+void radeon_crtc_handle_vblank(struct radeon_device *rdev, int crtc_id);
 void radeon_crtc_handle_flip(struct radeon_device *rdev, int crtc_id);
 
 int radeon_align_pitch(struct radeon_device *rdev, int width, int bpp, bool tiled);

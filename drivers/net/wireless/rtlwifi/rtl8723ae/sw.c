@@ -238,7 +238,6 @@ static struct rtl_hal_ops rtl8723ae_hal_ops = {
 	.enable_hw_sec = rtl8723ae_enable_hw_security_config,
 	.set_key = rtl8723ae_set_key,
 	.init_sw_leds = rtl8723ae_init_sw_leds,
-	.allow_all_destaddr = rtl8723ae_allow_all_destaddr,
 	.get_bbreg = rtl8723_phy_query_bb_reg,
 	.set_bbreg = rtl8723_phy_set_bb_reg,
 	.get_rfreg = rtl8723ae_phy_query_rf_reg,

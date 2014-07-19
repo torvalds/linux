@@ -1794,6 +1794,11 @@ registers, find a list below:
   PPC   | KVM_REG_PPC_MMCR0     | 64
   PPC   | KVM_REG_PPC_MMCR1     | 64
   PPC   | KVM_REG_PPC_MMCRA     | 64
+  PPC   | KVM_REG_PPC_MMCR2     | 64
+  PPC   | KVM_REG_PPC_MMCRS     | 64
+  PPC   | KVM_REG_PPC_SIAR      | 64
+  PPC   | KVM_REG_PPC_SDAR      | 64
+  PPC   | KVM_REG_PPC_SIER      | 64
   PPC   | KVM_REG_PPC_PMC1      | 32
   PPC   | KVM_REG_PPC_PMC2      | 32
   PPC   | KVM_REG_PPC_PMC3      | 32
@@ -1868,6 +1873,7 @@ registers, find a list below:
   PPC   | KVM_REG_PPC_PPR	| 64
   PPC   | KVM_REG_PPC_ARCH_COMPAT 32
   PPC   | KVM_REG_PPC_DABRX     | 32
+  PPC   | KVM_REG_PPC_WORT      | 64
   PPC   | KVM_REG_PPC_TM_GPR0	| 64
           ...
   PPC   | KVM_REG_PPC_TM_GPR31	| 64
@@ -2066,7 +2072,7 @@ the "Server" class MMU emulation supported by KVM.
 This can in turn be used by userspace to generate the appropriate
 device-tree properties for the guest operating system.
 
-The structure contains some global informations, followed by an
+The structure contains some global information, followed by an
 array of supported segment page sizes:
 
       struct kvm_ppc_smmu_info {
@@ -2126,7 +2132,7 @@ into the hash PTE second double word).
 4.75 KVM_IRQFD
 
 Capability: KVM_CAP_IRQFD
-Architectures: x86
+Architectures: x86 s390
 Type: vm ioctl
 Parameters: struct kvm_irqfd (in)
 Returns: 0 on success, -1 on error
@@ -2211,6 +2217,8 @@ KVM_S390_SIGP_STOP (vcpu) - sigp restart
 KVM_S390_PROGRAM_INT (vcpu) - program check; code in parm
 KVM_S390_SIGP_SET_PREFIX (vcpu) - sigp set prefix; prefix address in parm
 KVM_S390_RESTART (vcpu) - restart
+KVM_S390_INT_CLOCK_COMP (vcpu) - clock comparator interrupt
+KVM_S390_INT_CPU_TIMER (vcpu) - CPU timer interrupt
 KVM_S390_INT_VIRTIO (vm) - virtio external interrupt; external interrupt
 			   parameters in parm and parm64
 KVM_S390_INT_SERVICE (vm) - sclp external interrupt; sclp parameter in parm
@@ -2314,8 +2322,8 @@ struct kvm_create_device {
 
 4.80 KVM_SET_DEVICE_ATTR/KVM_GET_DEVICE_ATTR
 
-Capability: KVM_CAP_DEVICE_CTRL
-Type: device ioctl
+Capability: KVM_CAP_DEVICE_CTRL, KVM_CAP_VM_ATTRIBUTES for vm device
+Type: device ioctl, vm ioctl
 Parameters: struct kvm_device_attr
 Returns: 0 on success, -1 on error
 Errors:
@@ -2340,8 +2348,8 @@ struct kvm_device_attr {
 
 4.81 KVM_HAS_DEVICE_ATTR
 
-Capability: KVM_CAP_DEVICE_CTRL
-Type: device ioctl
+Capability: KVM_CAP_DEVICE_CTRL, KVM_CAP_VM_ATTRIBUTES for vm device
+Type: device ioctl, vm ioctl
 Parameters: struct kvm_device_attr
 Returns: 0 on success, -1 on error
 Errors:
@@ -2376,6 +2384,8 @@ Possible features:
 	  Depends on KVM_CAP_ARM_PSCI.
 	- KVM_ARM_VCPU_EL1_32BIT: Starts the CPU in a 32bit mode.
 	  Depends on KVM_CAP_ARM_EL1_32BIT (arm64 only).
+	- KVM_ARM_VCPU_PSCI_0_2: Emulate PSCI v0.2 for the CPU.
+	  Depends on KVM_CAP_ARM_PSCI_0_2.
 
 
 4.83 KVM_ARM_PREFERRED_TARGET
@@ -2737,6 +2747,21 @@ delivered interrupt vector using this exit.
 It gets triggered whenever both KVM_CAP_PPC_EPR are enabled and an
 external interrupt has just been delivered into the guest. User space
 should put the acknowledged interrupt vector into the 'epr' field.
+
+		/* KVM_EXIT_SYSTEM_EVENT */
+		struct {
+#define KVM_SYSTEM_EVENT_SHUTDOWN       1
+#define KVM_SYSTEM_EVENT_RESET          2
+			__u32 type;
+			__u64 flags;
+		} system_event;
+
+If exit_reason is KVM_EXIT_SYSTEM_EVENT then the vcpu has triggered
+a system-level event using some architecture specific mechanism (hypercall
+or some special instruction). In case of ARM/ARM64, this is triggered using
+HVC instruction based PSCI call from the vcpu. The 'type' field describes
+the system-level event type. The 'flags' field describes architecture
+specific flags for the system-level event.
 
 		/* Fix the size of the union. */
 		char padding[256];

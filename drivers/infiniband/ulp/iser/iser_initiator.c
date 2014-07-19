@@ -41,11 +41,11 @@
 #include "iscsi_iser.h"
 
 /* Register user buffer memory and initialize passive rdma
- *  dto descriptor. Total data size is stored in
- *  iser_task->data[ISER_DIR_IN].data_len
+ *  dto descriptor. Data size is stored in
+ *  task->data[ISER_DIR_IN].data_len, Protection size
+ *  os stored in task->prot[ISER_DIR_IN].data_len
  */
-static int iser_prepare_read_cmd(struct iscsi_task *task,
-				 unsigned int edtl)
+static int iser_prepare_read_cmd(struct iscsi_task *task)
 
 {
 	struct iscsi_iser_task *iser_task = task->dd_data;
@@ -73,14 +73,6 @@ static int iser_prepare_read_cmd(struct iscsi_task *task,
 			return err;
 	}
 
-	if (edtl > iser_task->data[ISER_DIR_IN].data_len) {
-		iser_err("Total data length: %ld, less than EDTL: "
-			 "%d, in READ cmd BHS itt: %d, conn: 0x%p\n",
-			 iser_task->data[ISER_DIR_IN].data_len, edtl,
-			 task->itt, iser_task->ib_conn);
-		return -EINVAL;
-	}
-
 	err = device->iser_reg_rdma_mem(iser_task, ISER_DIR_IN);
 	if (err) {
 		iser_err("Failed to set up Data-IN RDMA\n");
@@ -100,8 +92,9 @@ static int iser_prepare_read_cmd(struct iscsi_task *task,
 }
 
 /* Register user buffer memory and initialize passive rdma
- *  dto descriptor. Total data size is stored in
- *  task->data[ISER_DIR_OUT].data_len
+ *  dto descriptor. Data size is stored in
+ *  task->data[ISER_DIR_OUT].data_len, Protection size
+ *  is stored at task->prot[ISER_DIR_OUT].data_len
  */
 static int
 iser_prepare_write_cmd(struct iscsi_task *task,
@@ -133,14 +126,6 @@ iser_prepare_write_cmd(struct iscsi_task *task,
 					     DMA_TO_DEVICE);
 		if (err)
 			return err;
-	}
-
-	if (edtl > iser_task->data[ISER_DIR_OUT].data_len) {
-		iser_err("Total data length: %ld, less than EDTL: %d, "
-			 "in WRITE cmd BHS itt: %d, conn: 0x%p\n",
-			 iser_task->data[ISER_DIR_OUT].data_len,
-			 edtl, task->itt, task->conn);
-		return -EINVAL;
 	}
 
 	err = device->iser_reg_rdma_mem(iser_task, ISER_DIR_OUT);
@@ -417,11 +402,12 @@ int iser_send_command(struct iscsi_conn *conn,
 	if (scsi_prot_sg_count(sc)) {
 		prot_buf->buf  = scsi_prot_sglist(sc);
 		prot_buf->size = scsi_prot_sg_count(sc);
-		prot_buf->data_len = sc->prot_sdb->length;
+		prot_buf->data_len = data_buf->data_len >>
+				     ilog2(sc->device->sector_size) * 8;
 	}
 
 	if (hdr->flags & ISCSI_FLAG_CMD_READ) {
-		err = iser_prepare_read_cmd(task, edtl);
+		err = iser_prepare_read_cmd(task);
 		if (err)
 			goto send_command_error;
 	}

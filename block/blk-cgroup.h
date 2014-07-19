@@ -18,6 +18,7 @@
 #include <linux/seq_file.h>
 #include <linux/radix-tree.h>
 #include <linux/blkdev.h>
+#include <linux/atomic.h>
 
 /* Max limits for throttle policy */
 #define THROTL_IOPS_MAX		UINT_MAX
@@ -104,7 +105,7 @@ struct blkcg_gq {
 	struct request_list		rl;
 
 	/* reference count */
-	int				refcnt;
+	atomic_t			refcnt;
 
 	/* is this blkg online? protected by both blkcg and q locks */
 	bool				online;
@@ -204,7 +205,7 @@ static inline struct blkcg *bio_blkcg(struct bio *bio)
  */
 static inline struct blkcg *blkcg_parent(struct blkcg *blkcg)
 {
-	return css_to_blkcg(css_parent(&blkcg->css));
+	return css_to_blkcg(blkcg->css.parent);
 }
 
 /**
@@ -257,13 +258,12 @@ static inline int blkg_path(struct blkcg_gq *blkg, char *buf, int buflen)
  * blkg_get - get a blkg reference
  * @blkg: blkg to get
  *
- * The caller should be holding queue_lock and an existing reference.
+ * The caller should be holding an existing reference.
  */
 static inline void blkg_get(struct blkcg_gq *blkg)
 {
-	lockdep_assert_held(blkg->q->queue_lock);
-	WARN_ON_ONCE(!blkg->refcnt);
-	blkg->refcnt++;
+	WARN_ON_ONCE(atomic_read(&blkg->refcnt) <= 0);
+	atomic_inc(&blkg->refcnt);
 }
 
 void __blkg_release_rcu(struct rcu_head *rcu);
@@ -271,14 +271,11 @@ void __blkg_release_rcu(struct rcu_head *rcu);
 /**
  * blkg_put - put a blkg reference
  * @blkg: blkg to put
- *
- * The caller should be holding queue_lock.
  */
 static inline void blkg_put(struct blkcg_gq *blkg)
 {
-	lockdep_assert_held(blkg->q->queue_lock);
-	WARN_ON_ONCE(blkg->refcnt <= 0);
-	if (!--blkg->refcnt)
+	WARN_ON_ONCE(atomic_read(&blkg->refcnt) <= 0);
+	if (atomic_dec_and_test(&blkg->refcnt))
 		call_rcu(&blkg->rcu_head, __blkg_release_rcu);
 }
 

@@ -2,7 +2,7 @@
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/usb/otg.h>
-#include <linux/usb/usb_phy_gen_xceiv.h>
+#include <linux/usb/usb_phy_generic.h>
 #include <linux/slab.h>
 #include <linux/clk.h>
 #include <linux/regulator/consumer.h>
@@ -13,7 +13,7 @@
 #include "phy-generic.h"
 
 struct am335x_phy {
-	struct usb_phy_gen_xceiv usb_phy_gen;
+	struct usb_phy_generic usb_phy_gen;
 	struct phy_control *phy_ctrl;
 	int id;
 };

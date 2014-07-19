@@ -15,6 +15,8 @@
 #ifndef __LINUX_MFD_SYSCON_H__
 #define __LINUX_MFD_SYSCON_H__
 
+#include <linux/err.h>
+
 struct device_node;
 
 #ifdef CONFIG_MFD_SYSCON

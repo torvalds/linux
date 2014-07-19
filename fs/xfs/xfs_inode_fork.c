@@ -798,8 +798,7 @@ xfs_iflush_fork(
 	xfs_inode_t		*ip,
 	xfs_dinode_t		*dip,
 	xfs_inode_log_item_t	*iip,
-	int			whichfork,
-	xfs_buf_t		*bp)
+	int			whichfork)
 {
 	char			*cp;
 	xfs_ifork_t		*ifp;

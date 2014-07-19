@@ -41,7 +41,7 @@ Both functions return either a valid GPIO descriptor, or an error code checkable
 with IS_ERR() (they will never return a NULL pointer). -ENOENT will be returned
 if and only if no GPIO has been assigned to the device/function/index triplet,
 other error codes are used for cases where a GPIO has been assigned but an error
-occured while trying to acquire it. This is useful to discriminate between mere
+occurred while trying to acquire it. This is useful to discriminate between mere
 errors and an absence of GPIO for optional GPIO parameters.
 
 Device-managed variants of these functions are also defined:

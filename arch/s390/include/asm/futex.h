@@ -29,7 +29,7 @@ static inline int futex_atomic_op_inuser(int encoded_op, u32 __user *uaddr)
 	int cmparg = (encoded_op << 20) >> 20;
 	int oldval = 0, newval, ret;
 
-	update_primary_asce(current);
+	load_kernel_asce();
 	if (encoded_op & (FUTEX_OP_OPARG_SHIFT << 28))
 		oparg = 1 << oparg;
 
@@ -79,7 +79,7 @@ static inline int futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr,
 {
 	int ret;
 
-	update_primary_asce(current);
+	load_kernel_asce();
 	asm volatile(
 		"   sacf 256\n"
 		"0: cs   %1,%4,0(%5)\n"

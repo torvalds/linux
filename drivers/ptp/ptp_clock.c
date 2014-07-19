@@ -142,7 +142,10 @@ static int ptp_clock_adjtime(struct posix_clock *pc, struct timex *tx)
 		delta = ktime_to_ns(kt);
 		err = ops->adjtime(ops, delta);
 	} else if (tx->modes & ADJ_FREQUENCY) {
-		err = ops->adjfreq(ops, scaled_ppm_to_ppb(tx->freq));
+		s32 ppb = scaled_ppm_to_ppb(tx->freq);
+		if (ppb > ops->max_adj || ppb < -ops->max_adj)
+			return -ERANGE;
+		err = ops->adjfreq(ops, ppb);
 		ptp->dialed_frequency = tx->freq;
 	} else if (tx->modes == 0) {
 		tx->freq = ptp->dialed_frequency;

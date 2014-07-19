@@ -549,7 +549,7 @@ static void ccp2_isr_buffer(struct isp_ccp2_device *ccp2)
 
 	buffer = omap3isp_video_buffer_next(&ccp2->video_in);
 	if (buffer != NULL)
-		ccp2_set_inaddr(ccp2, buffer->isp_addr);
+		ccp2_set_inaddr(ccp2, buffer->dma);
 
 	pipe->state |= ISP_PIPELINE_IDLE_INPUT;
 
@@ -940,7 +940,7 @@ static int ccp2_video_queue(struct isp_video *video, struct isp_buffer *buffer)
 {
 	struct isp_ccp2_device *ccp2 = &video->isp->isp_ccp2;
 
-	ccp2_set_inaddr(ccp2, buffer->isp_addr);
+	ccp2_set_inaddr(ccp2, buffer->dma);
 	return 0;
 }
 

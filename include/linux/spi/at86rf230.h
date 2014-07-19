@@ -26,20 +26,6 @@ struct at86rf230_platform_data {
 	int rstn;
 	int slp_tr;
 	int dig2;
-
-	/* Setting the irq_type will configure the driver to request
-	 * the platform irq trigger type according to the given value
-	 * and configure the interrupt polarity of the device to the
-	 * corresponding polarity.
-	 *
-	 * Allowed values are: IRQF_TRIGGER_RISING, IRQF_TRIGGER_FALLING,
-	 *                     IRQF_TRIGGER_HIGH and IRQF_TRIGGER_LOW
-	 *
-	 * Setting it to 0, the driver does not touch the trigger type
-	 * configuration of the interrupt and sets the interrupt polarity
-	 * of the device to high active (the default value).
-	 */
-	int irq_type;
 };
 
 #endif

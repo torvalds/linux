@@ -83,3 +83,7 @@ config VIDEOBUF2_DMA_SG
 	#depends on HAS_DMA
 	select VIDEOBUF2_CORE
 	select VIDEOBUF2_MEMOPS
+
+config VIDEOBUF2_DVB
+	tristate
+	select VIDEOBUF2_CORE

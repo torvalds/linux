@@ -130,7 +130,7 @@ void HTDebugHTCapability(u8 *CapIE, u8 *TitleString )
 	if(!memcmp(CapIE, EWC11NHTCap, sizeof(EWC11NHTCap)))
 	{
 		//EWC IE
-		IEEE80211_DEBUG(IEEE80211_DL_HT, "EWC IE in %s()\n", __FUNCTION__);
+		IEEE80211_DEBUG(IEEE80211_DL_HT, "EWC IE in %s()\n", __func__);
 		pCapELE = (PHT_CAPABILITY_ELE)(&CapIE[4]);
 	}else
 		pCapELE = (PHT_CAPABILITY_ELE)(&CapIE[0]);
@@ -167,7 +167,7 @@ void HTDebugHTInfo(u8 *InfoIE, u8 *TitleString)
 	if(!memcmp(InfoIE, EWC11NHTInfo, sizeof(EWC11NHTInfo)))
 	{
 		// Not EWC IE
-		IEEE80211_DEBUG(IEEE80211_DL_HT, "EWC IE in %s()\n", __FUNCTION__);
+		IEEE80211_DEBUG(IEEE80211_DL_HT, "EWC IE in %s()\n", __func__);
 		pHTInfoEle = (PHT_INFORMATION_ELE)(&InfoIE[4]);
 	}else
 		pHTInfoEle = (PHT_INFORMATION_ELE)(&InfoIE[0]);
@@ -415,8 +415,7 @@ static void HTIOTPeerDetermine(struct ieee80211_device *ieee)
   * *****************************************************************************************************************/
 static u8 HTIOTActIsDisableMCS14(struct ieee80211_device *ieee, u8 *PeerMacAddr)
 {
-	u8 ret = 0;
-	return ret;
+	return 0;
  }
 
 
@@ -1134,7 +1133,7 @@ void HTInitializeHTInfo(struct ieee80211_device *ieee)
 	//
 	// These parameters will be reset when receiving deauthentication packet
 	//
-	IEEE80211_DEBUG(IEEE80211_DL_HT, "===========>%s()\n", __FUNCTION__);
+	IEEE80211_DEBUG(IEEE80211_DL_HT, "===========>%s()\n", __func__);
 	pHTInfo->bCurrentHTSupport = false;
 
 	// 40MHz channel support
@@ -1229,7 +1228,7 @@ void HTResetSelfAndSavePeerSetting(struct ieee80211_device *ieee,	struct ieee802
 	//
 	//  Save Peer Setting before Association
 	//
-	IEEE80211_DEBUG(IEEE80211_DL_HT, "==============>%s()\n", __FUNCTION__);
+	IEEE80211_DEBUG(IEEE80211_DL_HT, "==============>%s()\n", __func__);
 	/*unmark bEnableHT flag here is the same reason why unmarked in function ieee80211_softmac_new_net. WB 2008.09.10*/
 //	if( pHTInfo->bEnableHT &&  pNetwork->bssht.bdSupportHT)
 	if (pNetwork->bssht.bdSupportHT)
@@ -1319,6 +1318,7 @@ void HTUpdateSelfAndPeerSetting(struct ieee80211_device *ieee,	struct ieee80211_
 		//
 	}
 }
+EXPORT_SYMBOL(HTUpdateSelfAndPeerSetting);
 
 /********************************************************************************************************************
  *function:  check whether HT control field exists
@@ -1397,7 +1397,7 @@ void HTSetConnectBwModeCallback(struct ieee80211_device *ieee)
 {
 	PRT_HIGH_THROUGHPUT pHTInfo = ieee->pHTInfo;
 
-	IEEE80211_DEBUG(IEEE80211_DL_HT, "======>%s()\n", __FUNCTION__);
+	IEEE80211_DEBUG(IEEE80211_DL_HT, "======>%s()\n", __func__);
 
 	if(pHTInfo->bCurBW40MHz)
 	{
@@ -1416,5 +1416,3 @@ void HTSetConnectBwModeCallback(struct ieee80211_device *ieee)
 
 	pHTInfo->bSwBwInProgress = false;
 }
-
-EXPORT_SYMBOL(HTUpdateSelfAndPeerSetting);

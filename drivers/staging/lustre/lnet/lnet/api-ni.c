@@ -127,8 +127,7 @@ lnet_create_remote_nets_table(void)
 static void
 lnet_destroy_remote_nets_table(void)
 {
-	int		i;
-	struct list_head	*hash;
+	int i;
 
 	if (the_lnet.ln_remote_nets_hash == NULL)
 		return;
@@ -137,7 +136,8 @@ lnet_destroy_remote_nets_table(void)
 		LASSERT(list_empty(&the_lnet.ln_remote_nets_hash[i]));
 
 	LIBCFS_FREE(the_lnet.ln_remote_nets_hash,
-		    LNET_REMOTE_NETS_HASH_SIZE * sizeof(*hash));
+		    LNET_REMOTE_NETS_HASH_SIZE *
+		    sizeof(the_lnet.ln_remote_nets_hash[0]));
 	the_lnet.ln_remote_nets_hash = NULL;
 }
 
@@ -338,7 +338,7 @@ lnet_counters_get(lnet_counters_t *counters)
 		counters->send_count   += ctr->send_count;
 		counters->recv_count   += ctr->recv_count;
 		counters->route_count  += ctr->route_count;
-		counters->drop_length  += ctr->drop_length;
+		counters->drop_count   += ctr->drop_count;
 		counters->send_length  += ctr->send_length;
 		counters->recv_length  += ctr->recv_length;
 		counters->route_length += ctr->route_length;
@@ -986,12 +986,11 @@ lnet_shutdown_lndnis (void)
 			break;
 		}
 
-		while (!list_empty(&ni->ni_list)) {
+		if (!list_empty(&ni->ni_list)) {
 			lnet_net_unlock(LNET_LOCK_EX);
 			++i;
 			if ((i & (-i)) == i) {
-				CDEBUG(D_WARNING,
-				       "Waiting for zombie LNI %s\n",
+				CDEBUG(D_WARNING, "Waiting for zombie LNI %s\n",
 				       libcfs_nid2str(ni->ni_nid));
 			}
 			set_current_state(TASK_UNINTERRUPTIBLE);
@@ -1016,6 +1015,8 @@ lnet_shutdown_lndnis (void)
 			       libcfs_nid2str(ni->ni_nid));
 
 		lnet_ni_free(ni);
+		i = 2;
+
 		lnet_net_lock(LNET_LOCK_EX);
 	}
 
@@ -1926,6 +1927,7 @@ lnet_ping (lnet_process_id_t id, int timeout_ms, lnet_process_id_t *ids, int n_i
 
 	rc = -EFAULT;			   /* If I SEGV... */
 
+	memset(&tmpid, 0, sizeof(tmpid));
 	for (i = 0; i < n_ids; i++) {
 		tmpid.pid = info->pi_pid;
 		tmpid.nid = info->pi_ni[i].ns_nid;

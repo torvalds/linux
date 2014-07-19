@@ -285,20 +285,20 @@ static int fscache_objlist_show(struct seq_file *m, void *v)
 		fscache_unuse_cookie(obj);
 
 		if (keylen > 0 || auxlen > 0) {
-			seq_printf(m, " ");
+			seq_puts(m, " ");
 			for (p = buf; keylen > 0; keylen--)
 				seq_printf(m, "%02x", *p++);
 			if (auxlen > 0) {
 				if (config & FSCACHE_OBJLIST_CONFIG_KEY)
-					seq_printf(m, ", ");
+					seq_puts(m, ", ");
 				for (; auxlen > 0; auxlen--)
 					seq_printf(m, "%02x", *p++);
 			}
 		}
 
-		seq_printf(m, "\n");
+		seq_puts(m, "\n");
 	} else {
-		seq_printf(m, "<no_netfs>\n");
+		seq_puts(m, "<no_netfs>\n");
 	}
 	return 0;
 }

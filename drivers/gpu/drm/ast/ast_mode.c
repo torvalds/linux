@@ -115,11 +115,17 @@ static bool ast_get_vbios_mode_info(struct drm_crtc *crtc, struct drm_display_mo
 		else
 			vbios_mode->enh_table = &res_1280x1024[refresh_rate_index];
 		break;
+	case 1360:
+		vbios_mode->enh_table = &res_1360x768[refresh_rate_index];
+		break;
 	case 1440:
 		vbios_mode->enh_table = &res_1440x900[refresh_rate_index];
 		break;
 	case 1600:
-		vbios_mode->enh_table = &res_1600x1200[refresh_rate_index];
+		if (crtc->mode.crtc_vdisplay == 900)
+			vbios_mode->enh_table = &res_1600x900[refresh_rate_index];
+		else
+			vbios_mode->enh_table = &res_1600x1200[refresh_rate_index];
 		break;
 	case 1680:
 		vbios_mode->enh_table = &res_1680x1050[refresh_rate_index];
@@ -175,14 +181,17 @@ static bool ast_get_vbios_mode_info(struct drm_crtc *crtc, struct drm_display_mo
 		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x8d, refresh_rate_index & 0xff);
 		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x8e, mode_id & 0xff);
 
-		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x91, 0xa8);
-		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x92, crtc->primary->fb->bits_per_pixel);
-		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x93, adjusted_mode->clock / 1000);
-		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x94, adjusted_mode->crtc_hdisplay);
-		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x95, adjusted_mode->crtc_hdisplay >> 8);
+		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x91, 0x00);
+		if (vbios_mode->enh_table->flags & NewModeInfo) {
+			ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x91, 0xa8);
+			ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x92, crtc->primary->fb->bits_per_pixel);
+			ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x93, adjusted_mode->clock / 1000);
+			ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x94, adjusted_mode->crtc_hdisplay);
+			ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x95, adjusted_mode->crtc_hdisplay >> 8);
 
-		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x96, adjusted_mode->crtc_vdisplay);
-		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x97, adjusted_mode->crtc_vdisplay >> 8);
+			ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x96, adjusted_mode->crtc_vdisplay);
+			ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x97, adjusted_mode->crtc_vdisplay >> 8);
+		}
 	}
 
 	return true;
@@ -389,7 +398,7 @@ static void ast_set_ext_reg(struct drm_crtc *crtc, struct drm_display_mode *mode
 	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xa8, 0xfd, jregA8);
 
 	/* Set Threshold */
-	if (ast->chip == AST2300) {
+	if (ast->chip == AST2300 || ast->chip == AST2400) {
 		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xa7, 0x78);
 		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xa6, 0x60);
 	} else if (ast->chip == AST2100 ||
@@ -451,9 +460,13 @@ static void ast_crtc_dpms(struct drm_crtc *crtc, int mode)
 	case DRM_MODE_DPMS_STANDBY:
 	case DRM_MODE_DPMS_SUSPEND:
 		ast_set_index_reg_mask(ast, AST_IO_SEQ_PORT, 0x1, 0xdf, 0);
+		if (ast->tx_chip_type == AST_TX_DP501)
+			ast_set_dp501_video_output(crtc->dev, 1);
 		ast_crtc_load_lut(crtc);
 		break;
 	case DRM_MODE_DPMS_OFF:
+		if (ast->tx_chip_type == AST_TX_DP501)
+			ast_set_dp501_video_output(crtc->dev, 0);
 		ast_set_index_reg_mask(ast, AST_IO_SEQ_PORT, 0x1, 0xdf, 0x20);
 		break;
 	}
@@ -729,10 +742,24 @@ static int ast_encoder_init(struct drm_device *dev)
 static int ast_get_modes(struct drm_connector *connector)
 {
 	struct ast_connector *ast_connector = to_ast_connector(connector);
+	struct ast_private *ast = connector->dev->dev_private;
 	struct edid *edid;
 	int ret;
+	bool flags = false;
+	if (ast->tx_chip_type == AST_TX_DP501) {
+		ast->dp501_maxclk = 0xff;
+		edid = kmalloc(128, GFP_KERNEL);
+		if (!edid)
+			return -ENOMEM;
 
-	edid = drm_get_edid(connector, &ast_connector->i2c->adapter);
+		flags = ast_dp501_read_edid(connector->dev, (u8 *)edid);
+		if (flags)
+			ast->dp501_maxclk = ast_get_dp501_max_clk(connector->dev);
+		else
+			kfree(edid);
+	}
+	if (!flags)
+		edid = drm_get_edid(connector, &ast_connector->i2c->adapter);
 	if (edid) {
 		drm_mode_connector_update_edid_property(&ast_connector->base, edid);
 		ret = drm_add_edid_modes(connector, edid);
@@ -746,7 +773,56 @@ static int ast_get_modes(struct drm_connector *connector)
 static int ast_mode_valid(struct drm_connector *connector,
 			  struct drm_display_mode *mode)
 {
-	return MODE_OK;
+	struct ast_private *ast = connector->dev->dev_private;
+	int flags = MODE_NOMODE;
+	uint32_t jtemp;
+
+	if (ast->support_wide_screen) {
+		if ((mode->hdisplay == 1680) && (mode->vdisplay == 1050))
+			return MODE_OK;
+		if ((mode->hdisplay == 1280) && (mode->vdisplay == 800))
+			return MODE_OK;
+		if ((mode->hdisplay == 1440) && (mode->vdisplay == 900))
+			return MODE_OK;
+		if ((mode->hdisplay == 1360) && (mode->vdisplay == 768))
+			return MODE_OK;
+		if ((mode->hdisplay == 1600) && (mode->vdisplay == 900))
+			return MODE_OK;
+
+		if ((ast->chip == AST2100) || (ast->chip == AST2200) || (ast->chip == AST2300) || (ast->chip == AST2400) || (ast->chip == AST1180)) {
+			if ((mode->hdisplay == 1920) && (mode->vdisplay == 1080))
+				return MODE_OK;
+
+			if ((mode->hdisplay == 1920) && (mode->vdisplay == 1200)) {
+				jtemp = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xd1, 0xff);
+				if (jtemp & 0x01)
+					return MODE_NOMODE;
+				else
+					return MODE_OK;
+			}
+		}
+	}
+	switch (mode->hdisplay) {
+	case 640:
+		if (mode->vdisplay == 480) flags = MODE_OK;
+		break;
+	case 800:
+		if (mode->vdisplay == 600) flags = MODE_OK;
+		break;
+	case 1024:
+		if (mode->vdisplay == 768) flags = MODE_OK;
+		break;
+	case 1280:
+		if (mode->vdisplay == 1024) flags = MODE_OK;
+		break;
+	case 1600:
+		if (mode->vdisplay == 1200) flags = MODE_OK;
+		break;
+	default:
+		return flags;
+	}
+
+	return flags;
 }
 
 static void ast_connector_destroy(struct drm_connector *connector)

@@ -13,7 +13,7 @@
   operation.
 
   Note that the driver is slightly non-portable in that it assumes
-  a single memory/DMA buffer will be useable for bulk-in and bulk-out
+  a single memory/DMA buffer will be usable for bulk-in and bulk-out
   endpoints.  With most device controllers this is not an issue, but
   there may be some with hardware restrictions that prevent a buffer
   from being used by more than one endpoint.

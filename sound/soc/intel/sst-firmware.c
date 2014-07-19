@@ -30,6 +30,8 @@
 #include "sst-dsp.h"
 #include "sst-dsp-priv.h"
 
+static void block_module_remove(struct sst_module *module);
+
 static void sst_memcpy32(volatile void __iomem *dest, void *src, u32 bytes)
 {
 	u32 i;
@@ -90,6 +92,42 @@ parse_err:
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(sst_fw_new);
+
+int sst_fw_reload(struct sst_fw *sst_fw)
+{
+	struct sst_dsp *dsp = sst_fw->dsp;
+	int ret;
+
+	dev_dbg(dsp->dev, "reloading firmware\n");
+
+	/* call core specific FW paser to load FW data into DSP */
+	ret = dsp->ops->parse_fw(sst_fw);
+	if (ret < 0)
+		dev_err(dsp->dev, "error: parse fw failed %d\n", ret);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(sst_fw_reload);
+
+void sst_fw_unload(struct sst_fw *sst_fw)
+{
+        struct sst_dsp *dsp = sst_fw->dsp;
+        struct sst_module *module, *tmp;
+
+        dev_dbg(dsp->dev, "unloading firmware\n");
+
+        mutex_lock(&dsp->mutex);
+        list_for_each_entry_safe(module, tmp, &dsp->module_list, list) {
+                if (module->sst_fw == sst_fw) {
+                        block_module_remove(module);
+                        list_del(&module->list);
+                        kfree(module);
+                }
+        }
+
+        mutex_unlock(&dsp->mutex);
+}
+EXPORT_SYMBOL_GPL(sst_fw_unload);
 
 /* free single firmware object */
 void sst_fw_free(struct sst_fw *sst_fw)
@@ -496,9 +534,7 @@ struct sst_module *sst_mem_block_alloc_scratch(struct sst_dsp *dsp)
 
 	/* calculate required scratch size */
 	list_for_each_entry(sst_module, &dsp->module_list, list) {
-		if (scratch->s.size > sst_module->s.size)
-			scratch->s.size = scratch->s.size;
-		else
+		if (scratch->s.size < sst_module->s.size)
 			scratch->s.size = sst_module->s.size;
 	}
 

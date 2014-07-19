@@ -34,6 +34,9 @@
 #include "omap-iopgtable.h"
 #include "omap-iommu.h"
 
+#define to_iommu(dev)							\
+	((struct omap_iommu *)platform_get_drvdata(to_platform_device(dev)))
+
 #define for_each_iotlb_cr(obj, n, __i, cr)				\
 	for (__i = 0;							\
 	     (__i < (n)) && (cr = __iotlb_read_cr((obj), __i), true);	\
@@ -391,6 +394,7 @@ static void flush_iotlb_page(struct omap_iommu *obj, u32 da)
 				__func__, start, da, bytes);
 			iotlb_load_cr(obj, &cr);
 			iommu_write_reg(obj, 1, MMU_FLUSH_ENTRY);
+			break;
 		}
 	}
 	pm_runtime_put_sync(obj->dev);
@@ -1037,19 +1041,18 @@ static void iopte_cachep_ctor(void *iopte)
 	clean_dcache_area(iopte, IOPTE_TABLE_SIZE);
 }
 
-static u32 iotlb_init_entry(struct iotlb_entry *e, u32 da, u32 pa,
-				   u32 flags)
+static u32 iotlb_init_entry(struct iotlb_entry *e, u32 da, u32 pa, int pgsz)
 {
 	memset(e, 0, sizeof(*e));
 
 	e->da		= da;
 	e->pa		= pa;
-	e->valid	= 1;
+	e->valid	= MMU_CAM_V;
 	/* FIXME: add OMAP1 support */
-	e->pgsz		= flags & MMU_CAM_PGSZ_MASK;
-	e->endian	= flags & MMU_RAM_ENDIAN_MASK;
-	e->elsz		= flags & MMU_RAM_ELSZ_MASK;
-	e->mixed	= flags & MMU_RAM_MIXED_MASK;
+	e->pgsz		= pgsz;
+	e->endian	= MMU_RAM_ENDIAN_LITTLE;
+	e->elsz		= MMU_RAM_ELSZ_8;
+	e->mixed	= 0;
 
 	return iopgsz_to_bytes(e->pgsz);
 }
@@ -1062,9 +1065,8 @@ static int omap_iommu_map(struct iommu_domain *domain, unsigned long da,
 	struct device *dev = oiommu->dev;
 	struct iotlb_entry e;
 	int omap_pgsz;
-	u32 ret, flags;
+	u32 ret;
 
-	/* we only support mapping a single iommu page for now */
 	omap_pgsz = bytes_to_iopgsz(bytes);
 	if (omap_pgsz < 0) {
 		dev_err(dev, "invalid size to map: %d\n", bytes);
@@ -1073,9 +1075,7 @@ static int omap_iommu_map(struct iommu_domain *domain, unsigned long da,
 
 	dev_dbg(dev, "mapping da 0x%lx to pa 0x%x size 0x%x\n", da, pa, bytes);
 
-	flags = omap_pgsz | prot;
-
-	iotlb_init_entry(&e, da, pa, flags);
+	iotlb_init_entry(&e, da, pa, omap_pgsz);
 
 	ret = omap_iopgtable_store_entry(oiommu, &e);
 	if (ret)
@@ -1248,12 +1248,6 @@ static phys_addr_t omap_iommu_iova_to_phys(struct iommu_domain *domain,
 	return ret;
 }
 
-static int omap_iommu_domain_has_cap(struct iommu_domain *domain,
-				    unsigned long cap)
-{
-	return 0;
-}
-
 static int omap_iommu_add_device(struct device *dev)
 {
 	struct omap_iommu_arch_data *arch_data;
@@ -1305,7 +1299,6 @@ static struct iommu_ops omap_iommu_ops = {
 	.map		= omap_iommu_map,
 	.unmap		= omap_iommu_unmap,
 	.iova_to_phys	= omap_iommu_iova_to_phys,
-	.domain_has_cap	= omap_iommu_domain_has_cap,
 	.add_device	= omap_iommu_add_device,
 	.remove_device	= omap_iommu_remove_device,
 	.pgsize_bitmap	= OMAP_IOMMU_PGSIZES,

@@ -586,7 +586,7 @@ static int do_set_fan_startv(struct device *dev, unsigned long val)
  */
 
 #ifdef CONFIG_OF
-static struct of_device_id g762_dt_match[] = {
+static const struct of_device_id g762_dt_match[] = {
 	{ .compatible = "gmt,g762" },
 	{ .compatible = "gmt,g763" },
 	{ },

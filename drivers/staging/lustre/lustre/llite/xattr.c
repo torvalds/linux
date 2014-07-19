@@ -112,8 +112,8 @@ int ll_setxattr_common(struct inode *inode, const char *name,
 	struct ptlrpc_request *req = NULL;
 	int xattr_type, rc;
 	struct obd_capa *oc;
-	struct rmtacl_ctl_entry *rce = NULL;
 #ifdef CONFIG_FS_POSIX_ACL
+	struct rmtacl_ctl_entry *rce = NULL;
 	posix_acl_xattr_header *new_value = NULL;
 	ext_acl_xattr_header *acl = NULL;
 #endif
@@ -123,6 +123,11 @@ int ll_setxattr_common(struct inode *inode, const char *name,
 	rc = xattr_type_filter(sbi, xattr_type);
 	if (rc)
 		return rc;
+
+	if ((xattr_type == XATTR_ACL_ACCESS_T ||
+	     xattr_type == XATTR_ACL_DEFAULT_T) &&
+	    !inode_owner_or_capable(inode))
+		return -EPERM;
 
 	/* b10667: ignore lustre special xattr for now */
 	if ((xattr_type == XATTR_TRUSTED_T && strcmp(name, "trusted.lov") == 0) ||

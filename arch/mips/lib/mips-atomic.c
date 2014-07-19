@@ -15,7 +15,7 @@
 #include <linux/export.h>
 #include <linux/stringify.h>
 
-#if !defined(CONFIG_CPU_MIPSR2) || defined(CONFIG_MIPS_MT_SMTC)
+#ifndef CONFIG_CPU_MIPSR2
 
 /*
  * For cli() we have to insert nops to make sure that the new value
@@ -42,12 +42,7 @@ notrace void arch_local_irq_disable(void)
 	__asm__ __volatile__(
 	"	.set	push						\n"
 	"	.set	noat						\n"
-#ifdef CONFIG_MIPS_MT_SMTC
-	"	mfc0	$1, $2, 1					\n"
-	"	ori	$1, 0x400					\n"
-	"	.set	noreorder					\n"
-	"	mtc0	$1, $2, 1					\n"
-#elif defined(CONFIG_CPU_MIPSR2)
+#if   defined(CONFIG_CPU_MIPSR2)
 	/* see irqflags.h for inline function */
 #else
 	"	mfc0	$1,$12						\n"
@@ -77,13 +72,7 @@ notrace unsigned long arch_local_irq_save(void)
 	"	.set	push						\n"
 	"	.set	reorder						\n"
 	"	.set	noat						\n"
-#ifdef CONFIG_MIPS_MT_SMTC
-	"	mfc0	%[flags], $2, 1				\n"
-	"	ori	$1, %[flags], 0x400				\n"
-	"	.set	noreorder					\n"
-	"	mtc0	$1, $2, 1					\n"
-	"	andi	%[flags], %[flags], 0x400			\n"
-#elif defined(CONFIG_CPU_MIPSR2)
+#if   defined(CONFIG_CPU_MIPSR2)
 	/* see irqflags.h for inline function */
 #else
 	"	mfc0	%[flags], $12					\n"
@@ -108,29 +97,13 @@ notrace void arch_local_irq_restore(unsigned long flags)
 {
 	unsigned long __tmp1;
 
-#ifdef CONFIG_MIPS_MT_SMTC
-	/*
-	 * SMTC kernel needs to do a software replay of queued
-	 * IPIs, at the cost of branch and call overhead on each
-	 * local_irq_restore()
-	 */
-	if (unlikely(!(flags & 0x0400)))
-		smtc_ipi_replay();
-#endif
 	preempt_disable();
 
 	__asm__ __volatile__(
 	"	.set	push						\n"
 	"	.set	noreorder					\n"
 	"	.set	noat						\n"
-#ifdef CONFIG_MIPS_MT_SMTC
-	"	mfc0	$1, $2, 1					\n"
-	"	andi	%[flags], 0x400					\n"
-	"	ori	$1, 0x400					\n"
-	"	xori	$1, 0x400					\n"
-	"	or	%[flags], $1					\n"
-	"	mtc0	%[flags], $2, 1					\n"
-#elif defined(CONFIG_CPU_MIPSR2) && defined(CONFIG_IRQ_CPU)
+#if   defined(CONFIG_CPU_MIPSR2) && defined(CONFIG_IRQ_CPU)
 	/* see irqflags.h for inline function */
 #elif defined(CONFIG_CPU_MIPSR2)
 	/* see irqflags.h for inline function */
@@ -163,14 +136,7 @@ notrace void __arch_local_irq_restore(unsigned long flags)
 	"	.set	push						\n"
 	"	.set	noreorder					\n"
 	"	.set	noat						\n"
-#ifdef CONFIG_MIPS_MT_SMTC
-	"	mfc0	$1, $2, 1					\n"
-	"	andi	%[flags], 0x400					\n"
-	"	ori	$1, 0x400					\n"
-	"	xori	$1, 0x400					\n"
-	"	or	%[flags], $1					\n"
-	"	mtc0	%[flags], $2, 1					\n"
-#elif defined(CONFIG_CPU_MIPSR2) && defined(CONFIG_IRQ_CPU)
+#if   defined(CONFIG_CPU_MIPSR2) && defined(CONFIG_IRQ_CPU)
 	/* see irqflags.h for inline function */
 #elif defined(CONFIG_CPU_MIPSR2)
 	/* see irqflags.h for inline function */
@@ -192,4 +158,4 @@ notrace void __arch_local_irq_restore(unsigned long flags)
 }
 EXPORT_SYMBOL(__arch_local_irq_restore);
 
-#endif /* !defined(CONFIG_CPU_MIPSR2) || defined(CONFIG_MIPS_MT_SMTC) */
+#endif /* !CONFIG_CPU_MIPSR2 */

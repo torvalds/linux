@@ -40,7 +40,6 @@
 #include "datarate.h"
 #include "card.h"
 #include "baseband.h"
-#include "srom.h"
 #include "rf.h"
 
 /* static int msglevel = MSG_LEVEL_DEBUG; */

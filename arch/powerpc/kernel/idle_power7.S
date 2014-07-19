@@ -39,6 +39,10 @@
  * Pass requested state in r3:
  * 	0 - nap
  * 	1 - sleep
+ *
+ * To check IRQ_HAPPENED in r4
+ * 	0 - don't check
+ * 	1 - check
  */
 _GLOBAL(power7_powersave_common)
 	/* Use r3 to pass state nap/sleep/winkle */
@@ -58,7 +62,7 @@ _GLOBAL(power7_powersave_common)
 	/* Make sure FPU, VSX etc... are flushed as we may lose
 	 * state when going to nap mode
 	 */
-	bl	.discard_lazy_cpu_state
+	bl	discard_lazy_cpu_state
 #endif /* CONFIG_SMP */
 
 	/* Hard disable interrupts */
@@ -70,6 +74,8 @@ _GLOBAL(power7_powersave_common)
 	/* Check if something happened while soft-disabled */
 	lbz	r0,PACAIRQHAPPENED(r13)
 	cmpwi	cr0,r0,0
+	beq	1f
+	cmpwi	cr0,r4,0
 	beq	1f
 	addi	r1,r1,INT_FRAME_SIZE
 	ld	r0,16(r1)
@@ -114,15 +120,18 @@ _GLOBAL(power7_idle)
 	lwz	r4,ADDROFF(powersave_nap)(r3)
 	cmpwi	0,r4,0
 	beqlr
+	li	r3, 1
 	/* fall through */
 
 _GLOBAL(power7_nap)
+	mr	r4,r3
 	li	r3,0
 	b	power7_powersave_common
 	/* No return */
 
 _GLOBAL(power7_sleep)
 	li	r3,1
+	li	r4,1
 	b	power7_powersave_common
 	/* No return */
 
@@ -168,7 +177,7 @@ _GLOBAL(power7_wakeup_loss)
 _GLOBAL(power7_wakeup_noloss)
 	lbz	r0,PACA_NAPSTATELOST(r13)
 	cmpwi	r0,0
-	bne	.power7_wakeup_loss
+	bne	power7_wakeup_loss
 	ld	r1,PACAR1(r13)
 	ld	r4,_MSR(r1)
 	ld	r5,_NIP(r1)

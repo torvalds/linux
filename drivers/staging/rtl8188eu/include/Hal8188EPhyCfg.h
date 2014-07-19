@@ -224,7 +224,6 @@ void rtl8192c_PHY_GetHWRegOriginalValue(struct adapter *adapter);
 /*  BB TX Power R/W */
 void PHY_GetTxPowerLevel8188E(struct adapter *adapter, u32 *powerlevel);
 void PHY_SetTxPowerLevel8188E(struct adapter *adapter, u8 channel);
-bool PHY_UpdateTxPowerDbm8188E(struct adapter *adapter, int power);
 
 void PHY_ScanOperationBackup8188E(struct adapter *Adapter, u8 Operation);
 

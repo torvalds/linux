@@ -1704,7 +1704,7 @@ static int stmmac_open(struct net_device *dev)
 		if (ret) {
 			pr_err("%s: Cannot attach to PHY (error: %d)\n",
 			       __func__, ret);
-			goto phy_error;
+			return ret;
 		}
 	}
 
@@ -1753,7 +1753,7 @@ static int stmmac_open(struct net_device *dev)
 	}
 
 	/* Request the IRQ lines */
-	if (priv->lpi_irq != -ENXIO) {
+	if (priv->lpi_irq > 0) {
 		ret = request_irq(priv->lpi_irq, stmmac_interrupt, IRQF_SHARED,
 				  dev->name, dev);
 		if (unlikely(ret < 0)) {
@@ -1779,8 +1779,6 @@ init_error:
 dma_desc_error:
 	if (priv->phydev)
 		phy_disconnect(priv->phydev);
-phy_error:
-	clk_disable_unprepare(priv->stmmac_clk);
 
 	return ret;
 }
@@ -1815,7 +1813,7 @@ static int stmmac_release(struct net_device *dev)
 	free_irq(dev->irq, dev);
 	if (priv->wol_irq != dev->irq)
 		free_irq(priv->wol_irq, dev);
-	if (priv->lpi_irq != -ENXIO)
+	if (priv->lpi_irq > 0)
 		free_irq(priv->lpi_irq, dev);
 
 	/* Stop TX/RX DMA and clear the descriptors */
@@ -2214,27 +2212,6 @@ static void stmmac_tx_timeout(struct net_device *dev)
 	stmmac_tx_err(priv);
 }
 
-/* Configuration changes (passed on by ifconfig) */
-static int stmmac_config(struct net_device *dev, struct ifmap *map)
-{
-	if (dev->flags & IFF_UP)	/* can't act on a running interface */
-		return -EBUSY;
-
-	/* Don't allow changing the I/O address */
-	if (map->base_addr != dev->base_addr) {
-		pr_warn("%s: can't change I/O address\n", dev->name);
-		return -EOPNOTSUPP;
-	}
-
-	/* Don't allow changing the IRQ */
-	if (map->irq != dev->irq) {
-		pr_warn("%s: not change IRQ number %d\n", dev->name, dev->irq);
-		return -EOPNOTSUPP;
-	}
-
-	return 0;
-}
-
 /**
  *  stmmac_set_rx_mode - entry point for multicast addressing
  *  @dev : pointer to the device structure
@@ -2600,7 +2577,6 @@ static const struct net_device_ops stmmac_netdev_ops = {
 	.ndo_set_rx_mode = stmmac_set_rx_mode,
 	.ndo_tx_timeout = stmmac_tx_timeout,
 	.ndo_do_ioctl = stmmac_ioctl,
-	.ndo_set_config = stmmac_config,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller = stmmac_poll_controller,
 #endif

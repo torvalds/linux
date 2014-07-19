@@ -68,7 +68,7 @@ static int acpi_install_cmos_rtc_space_handler(struct acpi_device *adev,
 		return -ENODEV;
 	}
 
-	return 0;
+	return 1;
 }
 
 static void acpi_remove_cmos_rtc_space_handler(struct acpi_device *adev)

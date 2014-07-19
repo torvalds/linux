@@ -23,6 +23,7 @@
 #include <asm/bootinfo.h>
 #include <asm/cpu.h>
 #include <asm/cpu-features.h>
+#include <asm/cpu-type.h>
 #include <asm/irq.h>
 #include <asm/irq_cpu.h>
 #include <asm/mipsregs.h>
@@ -748,6 +749,10 @@ void __init arch_init_irq(void)
 		cpu_fpu_mask = 0;
 		dec_interrupt[DEC_IRQ_FPU] = -1;
 	}
+	/* Free the halt interrupt unused on R4k systems.  */
+	if (current_cpu_type() == CPU_R4000SC ||
+	    current_cpu_type() == CPU_R4400SC)
+		dec_interrupt[DEC_IRQ_HALT] = -1;
 
 	/* Register board interrupts: FPU and cascade. */
 	if (dec_interrupt[DEC_IRQ_FPU] >= 0)

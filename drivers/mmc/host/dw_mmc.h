@@ -195,7 +195,6 @@ extern int dw_mci_resume(struct dw_mci *host);
  * @mmc: The mmc_host representing this slot.
  * @host: The MMC controller this slot is using.
  * @quirks: Slot-level quirks (DW_MCI_SLOT_QUIRK_XXX)
- * @wp_gpio: If gpio_is_valid() we'll use this to read write protect.
  * @ctype: Card type for this slot.
  * @mrq: mmc_request currently being processed or waiting to be
  *	processed, or NULL when the slot is idle.
@@ -214,7 +213,6 @@ struct dw_mci_slot {
 	struct dw_mci		*host;
 
 	int			quirks;
-	int			wp_gpio;
 
 	u32			ctype;
 

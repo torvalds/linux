@@ -36,46 +36,11 @@
 
 #define bond_version DRV_DESCRIPTION ": v" DRV_VERSION " (" DRV_RELDATE ")\n"
 
+#define BOND_MAX_VLAN_ENCAP	2
 #define BOND_MAX_ARP_TARGETS	16
 
 #define BOND_DEFAULT_MIIMON	100
 
-#define IS_UP(dev)					   \
-	      ((((dev)->flags & IFF_UP) == IFF_UP)	&& \
-	       netif_running(dev)			&& \
-	       netif_carrier_ok(dev))
-
-/*
- * Checks whether slave is ready for transmit.
- */
-#define SLAVE_IS_OK(slave)			        \
-		    (((slave)->dev->flags & IFF_UP)  && \
-		     netif_running((slave)->dev)     && \
-		     ((slave)->link == BOND_LINK_UP) && \
-		     bond_is_active_slave(slave))
-
-
-#define USES_PRIMARY(mode)				\
-		(((mode) == BOND_MODE_ACTIVEBACKUP) ||	\
-		 ((mode) == BOND_MODE_TLB)          ||	\
-		 ((mode) == BOND_MODE_ALB))
-
-#define BOND_NO_USES_ARP(mode)				\
-		(((mode) == BOND_MODE_8023AD)	||	\
-		 ((mode) == BOND_MODE_TLB)	||	\
-		 ((mode) == BOND_MODE_ALB))
-
-#define TX_QUEUE_OVERRIDE(mode)				\
-			(((mode) == BOND_MODE_ACTIVEBACKUP) ||	\
-			 ((mode) == BOND_MODE_ROUNDROBIN))
-
-#define BOND_MODE_IS_LB(mode)			\
-		(((mode) == BOND_MODE_TLB) ||	\
-		 ((mode) == BOND_MODE_ALB))
-
-#define IS_IP_TARGET_UNUSABLE_ADDRESS(a)	\
-	((htonl(INADDR_BROADCAST) == a) ||	\
-	 ipv4_is_zeronet(a))
 /*
  * Less bad way to call ioctl from within the kernel; this needs to be
  * done some other way to get the call out of interrupt context.
@@ -88,6 +53,8 @@
 	res = ioctl(dev, arg, cmd);	\
 	set_fs(fs);			\
 	res; })
+
+#define BOND_MODE(bond) ((bond)->params.mode)
 
 /* slave list primitives */
 #define bond_slave_list(bond) (&(bond)->dev->adj_list.lower)
@@ -174,6 +141,7 @@ struct bond_params {
 	int resend_igmp;
 	int lp_interval;
 	int packets_per_slave;
+	int tlb_dynamic_lb;
 	struct reciprocal_value reciprocal_packets_per_slave;
 };
 
@@ -181,8 +149,6 @@ struct bond_parm_tbl {
 	char *modename;
 	int mode;
 };
-
-#define BOND_MAX_MODENAME_LEN 20
 
 struct slave {
 	struct net_device *dev; /* first - useful for panic debug */
@@ -204,7 +170,7 @@ struct slave {
 	u32    speed;
 	u16    queue_id;
 	u8     perm_hwaddr[ETH_ALEN];
-	struct ad_slave_info ad_info; /* HUGE - better to dynamically alloc */
+	struct ad_slave_info *ad_info;
 	struct tlb_slave_info tlb_info;
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	struct netpoll *np;
@@ -284,14 +250,41 @@ static inline struct slave *bond_get_slave_by_dev(struct bonding *bond,
 
 static inline struct bonding *bond_get_bond_by_slave(struct slave *slave)
 {
-	if (!slave || !slave->bond)
-		return NULL;
 	return slave->bond;
+}
+
+static inline bool bond_should_override_tx_queue(struct bonding *bond)
+{
+	return BOND_MODE(bond) == BOND_MODE_ACTIVEBACKUP ||
+	       BOND_MODE(bond) == BOND_MODE_ROUNDROBIN;
 }
 
 static inline bool bond_is_lb(const struct bonding *bond)
 {
-	return BOND_MODE_IS_LB(bond->params.mode);
+	return BOND_MODE(bond) == BOND_MODE_TLB ||
+	       BOND_MODE(bond) == BOND_MODE_ALB;
+}
+
+static inline bool bond_mode_uses_arp(int mode)
+{
+	return mode != BOND_MODE_8023AD && mode != BOND_MODE_TLB &&
+	       mode != BOND_MODE_ALB;
+}
+
+static inline bool bond_mode_uses_primary(int mode)
+{
+	return mode == BOND_MODE_ACTIVEBACKUP || mode == BOND_MODE_TLB ||
+	       mode == BOND_MODE_ALB;
+}
+
+static inline bool bond_uses_primary(struct bonding *bond)
+{
+	return bond_mode_uses_primary(BOND_MODE(bond));
+}
+
+static inline bool bond_slave_is_up(struct slave *slave)
+{
+	return netif_running(slave->dev) && netif_carrier_ok(slave->dev);
 }
 
 static inline void bond_set_active_slave(struct slave *slave)
@@ -364,6 +357,12 @@ static inline bool bond_is_active_slave(struct slave *slave)
 	return !bond_slave_state(slave);
 }
 
+static inline bool bond_slave_can_tx(struct slave *slave)
+{
+	return bond_slave_is_up(slave) && slave->link == BOND_LINK_UP &&
+	       bond_is_active_slave(slave);
+}
+
 #define BOND_PRI_RESELECT_ALWAYS	0
 #define BOND_PRI_RESELECT_BETTER	1
 #define BOND_PRI_RESELECT_FAILURE	2
@@ -395,10 +394,14 @@ static inline int slave_do_arp_validate(struct bonding *bond,
 	return bond->params.arp_validate & (1 << bond_slave_state(slave));
 }
 
-static inline int slave_do_arp_validate_only(struct bonding *bond,
-					     struct slave *slave)
+static inline int slave_do_arp_validate_only(struct bonding *bond)
 {
 	return bond->params.arp_validate & BOND_ARP_FILTER;
+}
+
+static inline int bond_is_ip_target_ok(__be32 addr)
+{
+	return !ipv4_is_lbcast(addr) && !ipv4_is_zeronet(addr);
 }
 
 /* Get the oldest arp which we've received on this slave for bond's
@@ -478,16 +481,14 @@ static inline __be32 bond_confirm_addr(struct net_device *dev, __be32 dst, __be3
 	return addr;
 }
 
-static inline bool slave_can_tx(struct slave *slave)
-{
-	if (IS_UP(slave->dev) && slave->link == BOND_LINK_UP &&
-	    bond_is_active_slave(slave))
-		return true;
-	else
-		return false;
-}
-
-struct bond_net;
+struct bond_net {
+	struct net		*net;	/* Associated network namespace */
+	struct list_head	dev_list;
+#ifdef CONFIG_PROC_FS
+	struct proc_dir_entry	*proc_dir;
+#endif
+	struct class_attribute	class_attr_bonding_masters;
+};
 
 int bond_arp_rcv(const struct sk_buff *skb, struct bonding *bond, struct slave *slave);
 void bond_dev_queue_xmit(struct bonding *bond, struct sk_buff *skb, struct net_device *slave_dev);
@@ -499,7 +500,7 @@ int bond_sysfs_slave_add(struct slave *slave);
 void bond_sysfs_slave_del(struct slave *slave);
 int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev);
 int bond_release(struct net_device *bond_dev, struct net_device *slave_dev);
-int bond_xmit_hash(struct bonding *bond, struct sk_buff *skb, int count);
+u32 bond_xmit_hash(struct bonding *bond, struct sk_buff *skb);
 void bond_select_active_slave(struct bonding *bond);
 void bond_change_active_slave(struct bonding *bond, struct slave *new_active);
 void bond_create_debugfs(void);
@@ -515,15 +516,9 @@ void bond_netlink_fini(void);
 struct net_device *bond_option_active_slave_get_rcu(struct bonding *bond);
 struct net_device *bond_option_active_slave_get(struct bonding *bond);
 const char *bond_slave_link_status(s8 link);
-
-struct bond_net {
-	struct net *		net;	/* Associated network namespace */
-	struct list_head	dev_list;
-#ifdef CONFIG_PROC_FS
-	struct proc_dir_entry *	proc_dir;
-#endif
-	struct class_attribute	class_attr_bonding_masters;
-};
+bool bond_verify_device_path(struct net_device *start_dev,
+			     struct net_device *end_dev,
+			     struct bond_vlan_tag *tags);
 
 #ifdef CONFIG_PROC_FS
 void bond_create_proc_entry(struct bonding *bond);
@@ -573,6 +568,27 @@ static inline struct slave *bond_slave_has_mac_rcu(struct bonding *bond,
 			return tmp;
 
 	return NULL;
+}
+
+/* Caller must hold rcu_read_lock() for read */
+static inline bool bond_slave_has_mac_rx(struct bonding *bond, const u8 *mac)
+{
+	struct list_head *iter;
+	struct slave *tmp;
+	struct netdev_hw_addr *ha;
+
+	bond_for_each_slave_rcu(bond, tmp, iter)
+		if (ether_addr_equal_64bits(mac, tmp->dev->dev_addr))
+			return true;
+
+	if (netdev_uc_empty(bond->dev))
+		return false;
+
+	netdev_for_each_uc_addr(ha, bond->dev)
+		if (ether_addr_equal_64bits(mac, ha->addr))
+			return true;
+
+	return false;
 }
 
 /* Check if the ip is present in arp ip list, or first free slot if ip == 0

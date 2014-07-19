@@ -141,7 +141,8 @@ enum iwl_bt_coex_lut_type {
 	BT_COEX_TX_DIS_LUT,
 
 	BT_COEX_MAX_LUT,
-};
+	BT_COEX_INVALID_LUT = 0xff,
+}; /* BT_COEX_DECISION_LUT_INDEX_API_E_VER_1 */
 
 #define BT_COEX_LUT_SIZE (12)
 #define BT_COEX_CORUN_LUT_SIZE (32)
@@ -154,19 +155,23 @@ enum iwl_bt_coex_lut_type {
  * @flags:&enum iwl_bt_coex_flags
  * @max_kill:
  * @bt_reduced_tx_power: enum %iwl_bt_reduced_tx_power
- * @bt4_antenna_isolation:
- * @bt4_antenna_isolation_thr:
- * @bt4_tx_tx_delta_freq_thr:
- * @bt4_tx_rx_max_freq0:
- * @bt_prio_boost:
+ * @override_primary_lut: enum %iwl_bt_coex_lut_type: BT_COEX_INVALID_LUT
+ *	should be set by default
+ * @override_secondary_lut: enum %iwl_bt_coex_lut_type: BT_COEX_INVALID_LUT
+ *	should be set by default
+ * @bt4_antenna_isolation: antenna isolation
+ * @bt4_antenna_isolation_thr: antenna threshold value
+ * @bt4_tx_tx_delta_freq_thr: TxTx delta frequency
+ * @bt4_tx_rx_max_freq0: TxRx max frequency
+ * @bt_prio_boost: BT priority boost registers
  * @wifi_tx_prio_boost: SW boost of wifi tx priority
  * @wifi_rx_prio_boost: SW boost of wifi rx priority
- * @kill_ack_msk:
- * @kill_cts_msk:
- * @decision_lut:
- * @bt4_multiprio_lut:
- * @bt4_corun_lut20:
- * @bt4_corun_lut40:
+ * @kill_ack_msk: kill ACK mask. 1 - Tx ACK, 0 - kill Tx of ACK.
+ * @kill_cts_msk: kill CTS mask. 1 - Tx CTS, 0 - kill Tx of CTS.
+ * @decision_lut: PTA decision LUT, per Prio-Ch
+ * @bt4_multiprio_lut: multi priority LUT configuration
+ * @bt4_corun_lut20: co-running 20 MHz LUT configuration
+ * @bt4_corun_lut40: co-running 40 MHz LUT configuration
  * @valid_bit_msk: enum %iwl_bt_coex_valid_bit_msk
  *
  * The structure is used for the BT_COEX command.
@@ -175,7 +180,8 @@ struct iwl_bt_coex_cmd {
 	__le32 flags;
 	u8 max_kill;
 	u8 bt_reduced_tx_power;
-	u8 reserved[2];
+	u8 override_primary_lut;
+	u8 override_secondary_lut;
 
 	u8 bt4_antenna_isolation;
 	u8 bt4_antenna_isolation_thr;
@@ -194,7 +200,7 @@ struct iwl_bt_coex_cmd {
 	__le32 bt4_corun_lut40[BT_COEX_CORUN_LUT_SIZE];
 
 	__le32 valid_bit_msk;
-} __packed; /* BT_COEX_CMD_API_S_VER_3 */
+} __packed; /* BT_COEX_CMD_API_S_VER_5 */
 
 /**
  * struct iwl_bt_coex_ci_cmd - bt coex channel inhibition command
@@ -282,7 +288,7 @@ enum iwl_bt_activity_grading {
 	BT_ON_NO_CONNECTION	= 1,
 	BT_LOW_TRAFFIC		= 2,
 	BT_HIGH_TRAFFIC		= 3,
-};
+}; /* BT_COEX_BT_ACTIVITY_GRADING_API_E_VER_1 */
 
 /**
  * struct iwl_bt_coex_profile_notif - notification about BT coex
@@ -310,7 +316,7 @@ struct iwl_bt_coex_profile_notif {
 	__le32 primary_ch_lut;
 	__le32 secondary_ch_lut;
 	__le32 bt_activity_grading;
-} __packed; /* BT_COEX_PROFILE_NTFY_API_S_VER_2 */
+} __packed; /* BT_COEX_PROFILE_NTFY_API_S_VER_3 */
 
 enum iwl_bt_coex_prio_table_event {
 	BT_COEX_PRIO_TBL_EVT_INIT_CALIB1		= 0,

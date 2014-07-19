@@ -101,7 +101,7 @@ static int netvsc_open(struct net_device *net)
 		return ret;
 	}
 
-	netif_start_queue(net);
+	netif_tx_start_all_queues(net);
 
 	nvdev = hv_get_drvdata(device_obj);
 	rdev = nvdev->extension;
@@ -149,15 +149,100 @@ static void *init_ppi_data(struct rndis_message *msg, u32 ppi_size,
 	return ppi;
 }
 
+union sub_key {
+	u64 k;
+	struct {
+		u8 pad[3];
+		u8 kb;
+		u32 ka;
+	};
+};
+
+/* Toeplitz hash function
+ * data: network byte order
+ * return: host byte order
+ */
+static u32 comp_hash(u8 *key, int klen, u8 *data, int dlen)
+{
+	union sub_key subk;
+	int k_next = 4;
+	u8 dt;
+	int i, j;
+	u32 ret = 0;
+
+	subk.k = 0;
+	subk.ka = ntohl(*(u32 *)key);
+
+	for (i = 0; i < dlen; i++) {
+		subk.kb = key[k_next];
+		k_next = (k_next + 1) % klen;
+		dt = data[i];
+		for (j = 0; j < 8; j++) {
+			if (dt & 0x80)
+				ret ^= subk.ka;
+			dt <<= 1;
+			subk.k <<= 1;
+		}
+	}
+
+	return ret;
+}
+
+static bool netvsc_set_hash(u32 *hash, struct sk_buff *skb)
+{
+	struct iphdr *iphdr;
+	int data_len;
+	bool ret = false;
+
+	if (eth_hdr(skb)->h_proto != htons(ETH_P_IP))
+		return false;
+
+	iphdr = ip_hdr(skb);
+
+	if (iphdr->version == 4) {
+		if (iphdr->protocol == IPPROTO_TCP)
+			data_len = 12;
+		else
+			data_len = 8;
+		*hash = comp_hash(netvsc_hash_key, HASH_KEYLEN,
+				  (u8 *)&iphdr->saddr, data_len);
+		ret = true;
+	}
+
+	return ret;
+}
+
+static u16 netvsc_select_queue(struct net_device *ndev, struct sk_buff *skb,
+			void *accel_priv, select_queue_fallback_t fallback)
+{
+	struct net_device_context *net_device_ctx = netdev_priv(ndev);
+	struct hv_device *hdev =  net_device_ctx->device_ctx;
+	struct netvsc_device *nvsc_dev = hv_get_drvdata(hdev);
+	u32 hash;
+	u16 q_idx = 0;
+
+	if (nvsc_dev == NULL || ndev->real_num_tx_queues <= 1)
+		return 0;
+
+	if (netvsc_set_hash(&hash, skb)) {
+		q_idx = nvsc_dev->send_table[hash % VRSS_SEND_TAB_SIZE] %
+			ndev->real_num_tx_queues;
+		skb_set_hash(skb, hash, PKT_HASH_TYPE_L3);
+	}
+
+	return q_idx;
+}
+
 static void netvsc_xmit_completion(void *context)
 {
 	struct hv_netvsc_packet *packet = (struct hv_netvsc_packet *)context;
 	struct sk_buff *skb = (struct sk_buff *)
-		(unsigned long)packet->completion.send.send_completion_tid;
+		(unsigned long)packet->send_completion_tid;
+	u32 index = packet->send_buf_index;
 
 	kfree(packet);
 
-	if (skb)
+	if (skb && (index == NETVSC_INVALID_INDEX))
 		dev_kfree_skb_any(skb);
 }
 
@@ -301,6 +386,7 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 	struct ndis_tcp_lso_info *lso_info;
 	int  hdr_offset;
 	u32 net_trans_info;
+	u32 hash;
 
 
 	/* We will atmost need two pages to describe the rndis
@@ -319,9 +405,8 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 	packet = kzalloc(sizeof(struct hv_netvsc_packet) +
 			 (num_data_pgs * sizeof(struct hv_page_buffer)) +
 			 sizeof(struct rndis_message) +
-			 NDIS_VLAN_PPI_SIZE +
-			 NDIS_CSUM_PPI_SIZE +
-			 NDIS_LSO_PPI_SIZE, GFP_ATOMIC);
+			 NDIS_VLAN_PPI_SIZE + NDIS_CSUM_PPI_SIZE +
+			 NDIS_LSO_PPI_SIZE + NDIS_HASH_PPI_SIZE, GFP_ATOMIC);
 	if (!packet) {
 		/* out of memory, drop packet */
 		netdev_err(net, "unable to allocate hv_netvsc_packet\n");
@@ -333,6 +418,8 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 
 	packet->vlan_tci = skb->vlan_tci;
 
+	packet->q_idx = skb_get_queue_mapping(skb);
+
 	packet->is_data_pkt = true;
 	packet->total_data_buflen = skb->len;
 
@@ -341,9 +428,9 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 				(num_data_pgs * sizeof(struct hv_page_buffer)));
 
 	/* Set the completion routine */
-	packet->completion.send.send_completion = netvsc_xmit_completion;
-	packet->completion.send.send_completion_ctx = packet;
-	packet->completion.send.send_completion_tid = (unsigned long)skb;
+	packet->send_completion = netvsc_xmit_completion;
+	packet->send_completion_ctx = packet;
+	packet->send_completion_tid = (unsigned long)skb;
 
 	isvlan = packet->vlan_tci & VLAN_TAG_PRESENT;
 
@@ -357,6 +444,14 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 	rndis_pkt->per_pkt_info_offset = sizeof(struct rndis_packet);
 
 	rndis_msg_size = RNDIS_MESSAGE_SIZE(struct rndis_packet);
+
+	hash = skb_get_hash_raw(skb);
+	if (hash != 0 && net->real_num_tx_queues > 1) {
+		rndis_msg_size += NDIS_HASH_PPI_SIZE;
+		ppi = init_ppi_data(rndis_msg, NDIS_HASH_PPI_SIZE,
+				    NBL_HASH_VALUE);
+		*(u32 *)((void *)ppi + ppi->ppi_offset) = hash;
+	}
 
 	if (isvlan) {
 		struct ndis_pkt_8021q_info *vlan;
@@ -558,6 +653,9 @@ int netvsc_recv_callback(struct hv_device *device_obj,
 		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q),
 				       packet->vlan_tci);
 
+	skb_record_rx_queue(skb, packet->channel->
+			    offermsg.offer.sub_channel_index);
+
 	net->stats.rx_packets++;
 	net->stats.rx_bytes += packet->total_data_buflen;
 
@@ -606,7 +704,7 @@ static int netvsc_change_mtu(struct net_device *ndev, int mtu)
 	hv_set_drvdata(hdev, ndev);
 	device_info.ring_size = ring_size;
 	rndis_filter_device_add(hdev, &device_info);
-	netif_wake_queue(ndev);
+	netif_tx_wake_all_queues(ndev);
 
 	return 0;
 }
@@ -652,6 +750,7 @@ static const struct net_device_ops device_ops = {
 	.ndo_change_mtu =		netvsc_change_mtu,
 	.ndo_validate_addr =		eth_validate_addr,
 	.ndo_set_mac_address =		netvsc_set_mac_addr,
+	.ndo_select_queue =		netvsc_select_queue,
 };
 
 /*
@@ -698,9 +797,11 @@ static int netvsc_probe(struct hv_device *dev,
 	struct net_device *net = NULL;
 	struct net_device_context *net_device_ctx;
 	struct netvsc_device_info device_info;
+	struct netvsc_device *nvdev;
 	int ret;
 
-	net = alloc_etherdev(sizeof(struct net_device_context));
+	net = alloc_etherdev_mq(sizeof(struct net_device_context),
+				num_online_cpus());
 	if (!net)
 		return -ENOMEM;
 
@@ -719,7 +820,7 @@ static int netvsc_probe(struct hv_device *dev,
 	net->features = NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_SG | NETIF_F_RXCSUM |
 			NETIF_F_IP_CSUM | NETIF_F_TSO;
 
-	SET_ETHTOOL_OPS(net, &ethtool_ops);
+	net->ethtool_ops = &ethtool_ops;
 	SET_NETDEV_DEV(net, &dev->device);
 
 	/* Notify the netvsc driver of the new device */
@@ -732,6 +833,10 @@ static int netvsc_probe(struct hv_device *dev,
 		return ret;
 	}
 	memcpy(net->dev_addr, device_info.mac_adr, ETH_ALEN);
+
+	nvdev = hv_get_drvdata(dev);
+	netif_set_real_num_tx_queues(net, nvdev->num_chn);
+	netif_set_real_num_rx_queues(net, nvdev->num_chn);
 
 	ret = register_netdev(net);
 	if (ret != 0) {

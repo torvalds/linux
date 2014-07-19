@@ -1594,7 +1594,7 @@ static int r128_getparam(struct drm_device *dev, void *data, struct drm_file *fi
 
 	switch (param->param) {
 	case R128_PARAM_IRQ_NR:
-		value = drm_dev_to_irq(dev);
+		value = dev->pdev->irq;
 		break;
 	default:
 		return -EINVAL;
@@ -1641,4 +1641,4 @@ const struct drm_ioctl_desc r128_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(R128_GETPARAM, r128_getparam, DRM_AUTH),
 };
 
-int r128_max_ioctl = DRM_ARRAY_SIZE(r128_ioctls);
+int r128_max_ioctl = ARRAY_SIZE(r128_ioctls);

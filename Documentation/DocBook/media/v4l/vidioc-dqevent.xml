@@ -242,6 +242,22 @@
       </tgroup>
     </table>
 
+    <table frame="none" pgwide="1" id="v4l2-event-src-change">
+      <title>struct <structname>v4l2_event_src_change</structname></title>
+      <tgroup cols="3">
+	&cs-str;
+	<tbody valign="top">
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>changes</structfield></entry>
+	    <entry>
+	      A bitmask that tells what has changed. See <xref linkend="src-changes-flags" />.
+	    </entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+
     <table pgwide="1" frame="none" id="changes-flags">
       <title>Changes</title>
       <tgroup cols="3">
@@ -266,6 +282,23 @@
 	    <entry>0x0004</entry>
 	    <entry>This control event was triggered because the minimum,
 	    maximum, step or the default value of the control changed.</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+
+    <table pgwide="1" frame="none" id="src-changes-flags">
+      <title>Source Changes</title>
+      <tgroup cols="3">
+	&cs-def;
+	<tbody valign="top">
+	  <row>
+	    <entry><constant>V4L2_EVENT_SRC_CH_RESOLUTION</constant></entry>
+	    <entry>0x0001</entry>
+	    <entry>This event gets triggered when a resolution change is
+	    detected at an input. This can come from an input connector or
+	    from a video decoder.
+	    </entry>
 	  </row>
 	</tbody>
       </tgroup>

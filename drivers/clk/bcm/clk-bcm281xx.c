@@ -15,14 +15,10 @@
 #include "clk-kona.h"
 #include "dt-bindings/clock/bcm281xx.h"
 
-/* bcm11351 CCU device tree "compatible" strings */
-#define BCM11351_DT_ROOT_CCU_COMPAT	"brcm,bcm11351-root-ccu"
-#define BCM11351_DT_AON_CCU_COMPAT	"brcm,bcm11351-aon-ccu"
-#define BCM11351_DT_HUB_CCU_COMPAT	"brcm,bcm11351-hub-ccu"
-#define BCM11351_DT_MASTER_CCU_COMPAT	"brcm,bcm11351-master-ccu"
-#define BCM11351_DT_SLAVE_CCU_COMPAT	"brcm,bcm11351-slave-ccu"
+#define BCM281XX_CCU_COMMON(_name, _ucase_name) \
+	KONA_CCU_COMMON(BCM281XX, _name, _ucase_name)
 
-/* Root CCU clocks */
+/* Root CCU */
 
 static struct peri_clk_data frac_1m_data = {
 	.gate		= HW_SW_GATE(0x214, 16, 0, 1),
@@ -31,7 +27,16 @@ static struct peri_clk_data frac_1m_data = {
 	.clocks		= CLOCKS("ref_crystal"),
 };
 
-/* AON CCU clocks */
+static struct ccu_data root_ccu_data = {
+	BCM281XX_CCU_COMMON(root, ROOT),
+	.kona_clks	= {
+		[BCM281XX_ROOT_CCU_FRAC_1M] =
+			KONA_CLK(root, frac_1m, peri),
+		[BCM281XX_ROOT_CCU_CLOCK_COUNT] = LAST_KONA_CLK,
+	},
+};
+
+/* AON CCU */
 
 static struct peri_clk_data hub_timer_data = {
 	.gate		= HW_SW_GATE(0x0414, 16, 0, 1),
@@ -60,7 +65,20 @@ static struct peri_clk_data pmu_bsc_var_data = {
 	.trig		= TRIGGER(0x0a40, 2),
 };
 
-/* Hub CCU clocks */
+static struct ccu_data aon_ccu_data = {
+	BCM281XX_CCU_COMMON(aon, AON),
+	.kona_clks	= {
+		[BCM281XX_AON_CCU_HUB_TIMER] =
+			KONA_CLK(aon, hub_timer, peri),
+		[BCM281XX_AON_CCU_PMU_BSC] =
+			KONA_CLK(aon, pmu_bsc, peri),
+		[BCM281XX_AON_CCU_PMU_BSC_VAR] =
+			KONA_CLK(aon, pmu_bsc_var, peri),
+		[BCM281XX_AON_CCU_CLOCK_COUNT] = LAST_KONA_CLK,
+	},
+};
+
+/* Hub CCU */
 
 static struct peri_clk_data tmon_1m_data = {
 	.gate		= HW_SW_GATE(0x04a4, 18, 2, 3),
@@ -70,7 +88,16 @@ static struct peri_clk_data tmon_1m_data = {
 	.trig		= TRIGGER(0x0e84, 1),
 };
 
-/* Master CCU clocks */
+static struct ccu_data hub_ccu_data = {
+	BCM281XX_CCU_COMMON(hub, HUB),
+	.kona_clks	= {
+		[BCM281XX_HUB_CCU_TMON_1M] =
+			KONA_CLK(hub, tmon_1m, peri),
+		[BCM281XX_HUB_CCU_CLOCK_COUNT] = LAST_KONA_CLK,
+	},
+};
+
+/* Master CCU */
 
 static struct peri_clk_data sdio1_data = {
 	.gate		= HW_SW_GATE(0x0358, 18, 2, 3),
@@ -153,7 +180,28 @@ static struct peri_clk_data hsic2_12m_data = {
 	.trig		= TRIGGER(0x0afc, 5),
 };
 
-/* Slave CCU clocks */
+static struct ccu_data master_ccu_data = {
+	BCM281XX_CCU_COMMON(master, MASTER),
+	.kona_clks	= {
+		[BCM281XX_MASTER_CCU_SDIO1] =
+			KONA_CLK(master, sdio1, peri),
+		[BCM281XX_MASTER_CCU_SDIO2] =
+			KONA_CLK(master, sdio2, peri),
+		[BCM281XX_MASTER_CCU_SDIO3] =
+			KONA_CLK(master, sdio3, peri),
+		[BCM281XX_MASTER_CCU_SDIO4] =
+			KONA_CLK(master, sdio4, peri),
+		[BCM281XX_MASTER_CCU_USB_IC] =
+			KONA_CLK(master, usb_ic, peri),
+		[BCM281XX_MASTER_CCU_HSIC2_48M] =
+			KONA_CLK(master, hsic2_48m, peri),
+		[BCM281XX_MASTER_CCU_HSIC2_12M] =
+			KONA_CLK(master, hsic2_12m, peri),
+		[BCM281XX_MASTER_CCU_CLOCK_COUNT] = LAST_KONA_CLK,
+	},
+};
+
+/* Slave CCU */
 
 static struct peri_clk_data uartb_data = {
 	.gate		= HW_SW_GATE(0x0400, 18, 2, 3),
@@ -261,156 +309,67 @@ static struct peri_clk_data pwm_data = {
 	.trig		= TRIGGER(0x0afc, 15),
 };
 
-/*
- * CCU setup routines
- *
- * These are called from kona_dt_ccu_setup() to initialize the array
- * of clocks provided by the CCU.  Once allocated, the entries in
- * the array are initialized by calling kona_clk_setup() with the
- * initialization data for each clock.  They return 0 if successful
- * or an error code otherwise.
- */
-static int __init bcm281xx_root_ccu_clks_setup(struct ccu_data *ccu)
-{
-	struct clk **clks;
-	size_t count = BCM281XX_ROOT_CCU_CLOCK_COUNT;
-
-	clks = kzalloc(count * sizeof(*clks), GFP_KERNEL);
-	if (!clks) {
-		pr_err("%s: failed to allocate root clocks\n", __func__);
-		return -ENOMEM;
-	}
-	ccu->data.clks = clks;
-	ccu->data.clk_num = count;
-
-	PERI_CLK_SETUP(clks, ccu, BCM281XX_ROOT_CCU_FRAC_1M, frac_1m);
-
-	return 0;
-}
-
-static int __init bcm281xx_aon_ccu_clks_setup(struct ccu_data *ccu)
-{
-	struct clk **clks;
-	size_t count = BCM281XX_AON_CCU_CLOCK_COUNT;
-
-	clks = kzalloc(count * sizeof(*clks), GFP_KERNEL);
-	if (!clks) {
-		pr_err("%s: failed to allocate aon clocks\n", __func__);
-		return -ENOMEM;
-	}
-	ccu->data.clks = clks;
-	ccu->data.clk_num = count;
-
-	PERI_CLK_SETUP(clks, ccu, BCM281XX_AON_CCU_HUB_TIMER, hub_timer);
-	PERI_CLK_SETUP(clks, ccu, BCM281XX_AON_CCU_PMU_BSC, pmu_bsc);
-	PERI_CLK_SETUP(clks, ccu, BCM281XX_AON_CCU_PMU_BSC_VAR, pmu_bsc_var);
-
-	return 0;
-}
-
-static int __init bcm281xx_hub_ccu_clks_setup(struct ccu_data *ccu)
-{
-	struct clk **clks;
-	size_t count = BCM281XX_HUB_CCU_CLOCK_COUNT;
-
-	clks = kzalloc(count * sizeof(*clks), GFP_KERNEL);
-	if (!clks) {
-		pr_err("%s: failed to allocate hub clocks\n", __func__);
-		return -ENOMEM;
-	}
-	ccu->data.clks = clks;
-	ccu->data.clk_num = count;
-
-	PERI_CLK_SETUP(clks, ccu, BCM281XX_HUB_CCU_TMON_1M, tmon_1m);
-
-	return 0;
-}
-
-static int __init bcm281xx_master_ccu_clks_setup(struct ccu_data *ccu)
-{
-	struct clk **clks;
-	size_t count = BCM281XX_MASTER_CCU_CLOCK_COUNT;
-
-	clks = kzalloc(count * sizeof(*clks), GFP_KERNEL);
-	if (!clks) {
-		pr_err("%s: failed to allocate master clocks\n", __func__);
-		return -ENOMEM;
-	}
-	ccu->data.clks = clks;
-	ccu->data.clk_num = count;
-
-	PERI_CLK_SETUP(clks, ccu, BCM281XX_MASTER_CCU_SDIO1, sdio1);
-	PERI_CLK_SETUP(clks, ccu, BCM281XX_MASTER_CCU_SDIO2, sdio2);
-	PERI_CLK_SETUP(clks, ccu, BCM281XX_MASTER_CCU_SDIO3, sdio3);
-	PERI_CLK_SETUP(clks, ccu, BCM281XX_MASTER_CCU_SDIO4, sdio4);
-	PERI_CLK_SETUP(clks, ccu, BCM281XX_MASTER_CCU_USB_IC, usb_ic);
-	PERI_CLK_SETUP(clks, ccu, BCM281XX_MASTER_CCU_HSIC2_48M, hsic2_48m);
-	PERI_CLK_SETUP(clks, ccu, BCM281XX_MASTER_CCU_HSIC2_12M, hsic2_12m);
-
-	return 0;
-}
-
-static int __init bcm281xx_slave_ccu_clks_setup(struct ccu_data *ccu)
-{
-	struct clk **clks;
-	size_t count = BCM281XX_SLAVE_CCU_CLOCK_COUNT;
-
-	clks = kzalloc(count * sizeof(*clks), GFP_KERNEL);
-	if (!clks) {
-		pr_err("%s: failed to allocate slave clocks\n", __func__);
-		return -ENOMEM;
-	}
-	ccu->data.clks = clks;
-	ccu->data.clk_num = count;
-
-	PERI_CLK_SETUP(clks, ccu, BCM281XX_SLAVE_CCU_UARTB, uartb);
-	PERI_CLK_SETUP(clks, ccu, BCM281XX_SLAVE_CCU_UARTB2, uartb2);
-	PERI_CLK_SETUP(clks, ccu, BCM281XX_SLAVE_CCU_UARTB3, uartb3);
-	PERI_CLK_SETUP(clks, ccu, BCM281XX_SLAVE_CCU_UARTB4, uartb4);
-	PERI_CLK_SETUP(clks, ccu, BCM281XX_SLAVE_CCU_SSP0, ssp0);
-	PERI_CLK_SETUP(clks, ccu, BCM281XX_SLAVE_CCU_SSP2, ssp2);
-	PERI_CLK_SETUP(clks, ccu, BCM281XX_SLAVE_CCU_BSC1, bsc1);
-	PERI_CLK_SETUP(clks, ccu, BCM281XX_SLAVE_CCU_BSC2, bsc2);
-	PERI_CLK_SETUP(clks, ccu, BCM281XX_SLAVE_CCU_BSC3, bsc3);
-	PERI_CLK_SETUP(clks, ccu, BCM281XX_SLAVE_CCU_PWM, pwm);
-
-	return 0;
-}
+static struct ccu_data slave_ccu_data = {
+	BCM281XX_CCU_COMMON(slave, SLAVE),
+	.kona_clks	= {
+		[BCM281XX_SLAVE_CCU_UARTB] =
+			KONA_CLK(slave, uartb, peri),
+		[BCM281XX_SLAVE_CCU_UARTB2] =
+			KONA_CLK(slave, uartb2, peri),
+		[BCM281XX_SLAVE_CCU_UARTB3] =
+			KONA_CLK(slave, uartb3, peri),
+		[BCM281XX_SLAVE_CCU_UARTB4] =
+			KONA_CLK(slave, uartb4, peri),
+		[BCM281XX_SLAVE_CCU_SSP0] =
+			KONA_CLK(slave, ssp0, peri),
+		[BCM281XX_SLAVE_CCU_SSP2] =
+			KONA_CLK(slave, ssp2, peri),
+		[BCM281XX_SLAVE_CCU_BSC1] =
+			KONA_CLK(slave, bsc1, peri),
+		[BCM281XX_SLAVE_CCU_BSC2] =
+			KONA_CLK(slave, bsc2, peri),
+		[BCM281XX_SLAVE_CCU_BSC3] =
+			KONA_CLK(slave, bsc3, peri),
+		[BCM281XX_SLAVE_CCU_PWM] =
+			KONA_CLK(slave, pwm, peri),
+		[BCM281XX_SLAVE_CCU_CLOCK_COUNT] = LAST_KONA_CLK,
+	},
+};
 
 /* Device tree match table callback functions */
 
 static void __init kona_dt_root_ccu_setup(struct device_node *node)
 {
-	kona_dt_ccu_setup(node, bcm281xx_root_ccu_clks_setup);
+	kona_dt_ccu_setup(&root_ccu_data, node);
 }
 
 static void __init kona_dt_aon_ccu_setup(struct device_node *node)
 {
-	kona_dt_ccu_setup(node, bcm281xx_aon_ccu_clks_setup);
+	kona_dt_ccu_setup(&aon_ccu_data, node);
 }
 
 static void __init kona_dt_hub_ccu_setup(struct device_node *node)
 {
-	kona_dt_ccu_setup(node, bcm281xx_hub_ccu_clks_setup);
+	kona_dt_ccu_setup(&hub_ccu_data, node);
 }
 
 static void __init kona_dt_master_ccu_setup(struct device_node *node)
 {
-	kona_dt_ccu_setup(node, bcm281xx_master_ccu_clks_setup);
+	kona_dt_ccu_setup(&master_ccu_data, node);
 }
 
 static void __init kona_dt_slave_ccu_setup(struct device_node *node)
 {
-	kona_dt_ccu_setup(node, bcm281xx_slave_ccu_clks_setup);
+	kona_dt_ccu_setup(&slave_ccu_data, node);
 }
 
-CLK_OF_DECLARE(bcm11351_root_ccu, BCM11351_DT_ROOT_CCU_COMPAT,
+CLK_OF_DECLARE(bcm281xx_root_ccu, BCM281XX_DT_ROOT_CCU_COMPAT,
 			kona_dt_root_ccu_setup);
-CLK_OF_DECLARE(bcm11351_aon_ccu, BCM11351_DT_AON_CCU_COMPAT,
+CLK_OF_DECLARE(bcm281xx_aon_ccu, BCM281XX_DT_AON_CCU_COMPAT,
 			kona_dt_aon_ccu_setup);
-CLK_OF_DECLARE(bcm11351_hub_ccu, BCM11351_DT_HUB_CCU_COMPAT,
+CLK_OF_DECLARE(bcm281xx_hub_ccu, BCM281XX_DT_HUB_CCU_COMPAT,
 			kona_dt_hub_ccu_setup);
-CLK_OF_DECLARE(bcm11351_master_ccu, BCM11351_DT_MASTER_CCU_COMPAT,
+CLK_OF_DECLARE(bcm281xx_master_ccu, BCM281XX_DT_MASTER_CCU_COMPAT,
 			kona_dt_master_ccu_setup);
-CLK_OF_DECLARE(bcm11351_slave_ccu, BCM11351_DT_SLAVE_CCU_COMPAT,
+CLK_OF_DECLARE(bcm281xx_slave_ccu, BCM281XX_DT_SLAVE_CCU_COMPAT,
 			kona_dt_slave_ccu_setup);

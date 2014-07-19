@@ -35,7 +35,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/pm_runtime.h>
 #include <linux/module.h>
-#include <linux/usb/usb_phy_gen_xceiv.h>
+#include <linux/usb/usb_phy_generic.h>
 #include <linux/platform_data/usb-omap.h>
 #include <linux/sizes.h>
 
@@ -329,8 +329,20 @@ static irqreturn_t dsps_interrupt(int irq, void *hci)
 	 * value but DEVCTL.BDEVICE is invalid without DEVCTL.SESSION set.
 	 * Also, DRVVBUS pulses for SRP (but not at 5V) ...
 	 */
-	if (is_host_active(musb) && usbintr & MUSB_INTR_BABBLE)
+	if (is_host_active(musb) && usbintr & MUSB_INTR_BABBLE) {
 		pr_info("CAUTION: musb: Babble Interrupt Occurred\n");
+
+		/*
+		 * When a babble condition occurs, the musb controller removes
+		 * the session and is no longer in host mode. Hence, all
+		 * devices connected to its root hub get disconnected.
+		 *
+		 * Hand this error down to the musb core isr, so it can
+		 * recover.
+		 */
+		musb->int_usb = MUSB_INTR_BABBLE | MUSB_INTR_DISCONNECT;
+		musb->int_tx = musb->int_rx = 0;
+	}
 
 	if (usbintr & ((1 << wrp->drvvbus) << wrp->usb_shift)) {
 		int drvvbus = dsps_readl(reg_base, wrp->status);
@@ -482,10 +494,9 @@ static int dsps_musb_set_mode(struct musb *musb, u8 mode)
 	struct dsps_glue *glue = dev_get_drvdata(dev->parent);
 	const struct dsps_musb_wrapper *wrp = glue->wrp;
 	void __iomem *ctrl_base = musb->ctrl_base;
-	void __iomem *base = musb->mregs;
 	u32 reg;
 
-	reg = dsps_readl(base, wrp->mode);
+	reg = dsps_readl(ctrl_base, wrp->mode);
 
 	switch (mode) {
 	case MUSB_HOST:
@@ -498,7 +509,7 @@ static int dsps_musb_set_mode(struct musb *musb, u8 mode)
 		 */
 		reg |= (1 << wrp->iddig_mux);
 
-		dsps_writel(base, wrp->mode, reg);
+		dsps_writel(ctrl_base, wrp->mode, reg);
 		dsps_writel(ctrl_base, wrp->phy_utmi, 0x02);
 		break;
 	case MUSB_PERIPHERAL:
@@ -511,10 +522,10 @@ static int dsps_musb_set_mode(struct musb *musb, u8 mode)
 		 */
 		reg |= (1 << wrp->iddig_mux);
 
-		dsps_writel(base, wrp->mode, reg);
+		dsps_writel(ctrl_base, wrp->mode, reg);
 		break;
 	case MUSB_OTG:
-		dsps_writel(base, wrp->phy_utmi, 0x02);
+		dsps_writel(ctrl_base, wrp->phy_utmi, 0x02);
 		break;
 	default:
 		dev_err(glue->dev, "unsupported mode %d\n", mode);
@@ -522,6 +533,16 @@ static int dsps_musb_set_mode(struct musb *musb, u8 mode)
 	}
 
 	return 0;
+}
+
+static void dsps_musb_reset(struct musb *musb)
+{
+	struct device *dev = musb->controller;
+	struct dsps_glue *glue = dev_get_drvdata(dev->parent);
+	const struct dsps_musb_wrapper *wrp = glue->wrp;
+
+	dsps_writel(musb->ctrl_base, wrp->control, (1 << wrp->reset));
+	udelay(100);
 }
 
 static struct musb_platform_ops dsps_ops = {
@@ -533,6 +554,7 @@ static struct musb_platform_ops dsps_ops = {
 
 	.try_idle	= dsps_musb_try_idle,
 	.set_mode	= dsps_musb_set_mode,
+	.reset		= dsps_musb_reset,
 };
 
 static u64 musb_dmamask = DMA_BIT_MASK(32);
@@ -750,7 +772,7 @@ static const struct of_device_id musb_dsps_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, musb_dsps_of_match);
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int dsps_suspend(struct device *dev)
 {
 	struct dsps_glue *glue = dev_get_drvdata(dev);

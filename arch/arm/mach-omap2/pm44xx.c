@@ -96,6 +96,8 @@ static int omap4_pm_suspend(void)
 
 	return 0;
 }
+#else
+#define omap4_pm_suspend NULL
 #endif /* CONFIG_SUSPEND */
 
 static int __init pwrdms_setup(struct powerdomain *pwrdm, void *unused)
@@ -251,9 +253,7 @@ int __init omap4_pm_init(void)
 
 	(void) clkdm_for_each(omap_pm_clkdms_setup, NULL);
 
-#ifdef CONFIG_SUSPEND
-	omap_pm_suspend = omap4_pm_suspend;
-#endif
+	omap_common_suspend_init(omap4_pm_suspend);
 
 	/* Overwrite the default cpu_do_idle() */
 	arm_pm_idle = omap_default_idle;

@@ -33,14 +33,14 @@ _GLOBAL(memcpy_power7)
 	cmpldi	r5,16
 	cmpldi	cr1,r5,4096
 
-	std	r3,48(r1)
+	std	r3,-STACKFRAMESIZE+STK_REG(R31)(r1)
 
 	blt	.Lshort_copy
 	bgt	cr1,.Lvmx_copy
 #else
 	cmpldi	r5,16
 
-	std	r3,48(r1)
+	std	r3,-STACKFRAMESIZE+STK_REG(R31)(r1)
 
 	blt	.Lshort_copy
 #endif
@@ -216,7 +216,7 @@ _GLOBAL(memcpy_power7)
 	lbz	r0,0(r4)
 	stb	r0,0(r3)
 
-15:	ld	r3,48(r1)
+15:	ld	r3,-STACKFRAMESIZE+STK_REG(R31)(r1)
 	blr
 
 .Lunwind_stack_nonvmx_copy:
@@ -226,16 +226,16 @@ _GLOBAL(memcpy_power7)
 #ifdef CONFIG_ALTIVEC
 .Lvmx_copy:
 	mflr	r0
-	std	r4,56(r1)
-	std	r5,64(r1)
+	std	r4,-STACKFRAMESIZE+STK_REG(R30)(r1)
+	std	r5,-STACKFRAMESIZE+STK_REG(R29)(r1)
 	std	r0,16(r1)
 	stdu	r1,-STACKFRAMESIZE(r1)
-	bl	.enter_vmx_copy
+	bl	enter_vmx_copy
 	cmpwi	cr1,r3,0
 	ld	r0,STACKFRAMESIZE+16(r1)
-	ld	r3,STACKFRAMESIZE+48(r1)
-	ld	r4,STACKFRAMESIZE+56(r1)
-	ld	r5,STACKFRAMESIZE+64(r1)
+	ld	r3,STK_REG(R31)(r1)
+	ld	r4,STK_REG(R30)(r1)
+	ld	r5,STK_REG(R29)(r1)
 	mtlr	r0
 
 	/*
@@ -447,8 +447,8 @@ _GLOBAL(memcpy_power7)
 	stb	r0,0(r3)
 
 15:	addi	r1,r1,STACKFRAMESIZE
-	ld	r3,48(r1)
-	b	.exit_vmx_copy		/* tail call optimise */
+	ld	r3,-STACKFRAMESIZE+STK_REG(R31)(r1)
+	b	exit_vmx_copy		/* tail call optimise */
 
 .Lvmx_unaligned_copy:
 	/* Get the destination 16B aligned */
@@ -651,6 +651,6 @@ _GLOBAL(memcpy_power7)
 	stb	r0,0(r3)
 
 15:	addi	r1,r1,STACKFRAMESIZE
-	ld	r3,48(r1)
-	b	.exit_vmx_copy		/* tail call optimise */
+	ld	r3,-STACKFRAMESIZE+STK_REG(R31)(r1)
+	b	exit_vmx_copy		/* tail call optimise */
 #endif /* CONFiG_ALTIVEC */

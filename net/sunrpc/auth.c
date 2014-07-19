@@ -296,7 +296,7 @@ static void
 rpcauth_unhash_cred_locked(struct rpc_cred *cred)
 {
 	hlist_del_rcu(&cred->cr_hash);
-	smp_mb__before_clear_bit();
+	smp_mb__before_atomic();
 	clear_bit(RPCAUTH_CRED_HASHED, &cred->cr_flags);
 }
 
@@ -592,6 +592,7 @@ rpcauth_lookupcred(struct rpc_auth *auth, int flags)
 	put_group_info(acred.group_info);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(rpcauth_lookupcred);
 
 void
 rpcauth_init_cred(struct rpc_cred *cred, const struct auth_cred *acred,

@@ -151,6 +151,29 @@ int copy_thread(unsigned long clone_flags,
 }
 
 /*
+ * Do necessary setup to start up a new user task
+ */
+void start_thread(struct pt_regs * regs, unsigned long pc, unsigned long usp)
+{
+	set_fs(USER_DS); /* user space */
+
+	regs->sp = usp;
+	regs->ret = pc;
+
+	/*
+	 * [U]ser Mode bit set
+	 * [L] ZOL loop inhibited to begin with - cleared by a LP insn
+	 * Interrupts enabled
+	 */
+	regs->status32 = STATUS_U_MASK | STATUS_L_MASK |
+			 STATUS_E1_MASK | STATUS_E2_MASK;
+
+	/* bogus seed values for debugging */
+	regs->lp_start = 0x10;
+	regs->lp_end = 0x80;
+}
+
+/*
  * Some archs flush debug and FPU info here
  */
 void flush_thread(void)

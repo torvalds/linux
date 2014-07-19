@@ -142,6 +142,16 @@ static inline acpi_handle func_to_handle(struct acpiphp_func *func)
 	return func_to_acpi_device(func)->handle;
 }
 
+struct acpiphp_root_context {
+	struct acpi_hotplug_context hp;
+	struct acpiphp_bridge *root_bridge;
+};
+
+static inline struct acpiphp_root_context *to_acpiphp_root_context(struct acpi_hotplug_context *hp)
+{
+	return container_of(hp, struct acpiphp_root_context, hp);
+}
+
 /*
  * struct acpiphp_attention_info - device specific attention registration
  *

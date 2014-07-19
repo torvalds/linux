@@ -1400,7 +1400,6 @@ static int sep_lli_table_secure_dma(struct sep_device *sep,
 	struct sep_dma_context *dma_ctx)
 
 {
-	int error = 0;
 	u32 count;
 	/* The the page of the end address of the user space buffer */
 	u32 end_page;
@@ -1491,7 +1490,7 @@ static int sep_lli_table_secure_dma(struct sep_device *sep,
 	dma_ctx->dma_res_arr[dma_ctx->nr_dcb_creat].out_map_array = NULL;
 	dma_ctx->dma_res_arr[dma_ctx->nr_dcb_creat].out_map_num_entries = 0;
 
-	return error;
+	return 0;
 }
 
 /**

@@ -237,10 +237,12 @@ static int stmmac_pltfr_probe(struct platform_device *pdev)
 
 	/* Get the MAC information */
 	priv->dev->irq = platform_get_irq_byname(pdev, "macirq");
-	if (priv->dev->irq == -ENXIO) {
-		pr_err("%s: ERROR: MAC IRQ configuration "
-		       "information not found\n", __func__);
-		return -ENXIO;
+	if (priv->dev->irq < 0) {
+		if (priv->dev->irq != -EPROBE_DEFER) {
+			netdev_err(priv->dev,
+				   "MAC IRQ configuration information not found\n");
+		}
+		return priv->dev->irq;
 	}
 
 	/*
@@ -252,10 +254,15 @@ static int stmmac_pltfr_probe(struct platform_device *pdev)
 	 * so the driver will continue to use the mac irq (ndev->irq)
 	 */
 	priv->wol_irq = platform_get_irq_byname(pdev, "eth_wake_irq");
-	if (priv->wol_irq == -ENXIO)
+	if (priv->wol_irq < 0) {
+		if (priv->wol_irq == -EPROBE_DEFER)
+			return -EPROBE_DEFER;
 		priv->wol_irq = priv->dev->irq;
+	}
 
 	priv->lpi_irq = platform_get_irq_byname(pdev, "eth_lpi");
+	if (priv->lpi_irq == -EPROBE_DEFER)
+		return -EPROBE_DEFER;
 
 	platform_set_drvdata(pdev, priv->dev);
 

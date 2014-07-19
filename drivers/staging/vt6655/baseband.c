@@ -1095,7 +1095,6 @@ unsigned char byVT3253B0_AIROHA2230[CB_VT3253B0_INIT_FOR_AIROHA2230][2] = {
 	{0x69, 0x00},
 	{0x6a, 0x00},
 	{0x6b, 0x00},
-	//{0x6c, 0x80},
 	{0x6c, 0x00}, //RobertYu:20050125, request by JJSue
 	{0x6d, 0x03},
 	{0x6e, 0x01},
@@ -1357,7 +1356,6 @@ unsigned char byVT3253B0_UW2451[CB_VT3253B0_INIT_FOR_UW2451][2] = {
 	{0x69, 0x00},
 	{0x6a, 0x00},
 	{0x6b, 0x00},
-	//{0x6c, 0x80},
 	{0x6c, 0x00}, //RobertYu:20050125, request by JJSue
 	{0x6d, 0x03},
 	{0x6e, 0x01},
@@ -1786,29 +1784,27 @@ BBuGetFrameTime(
 	uRate = (unsigned int)awcFrameTime[uRateIdx];
 
 	if (uRateIdx <= 3) {          //CCK mode
-
-		if (byPreambleType == 1) {//Short
+		if (byPreambleType == 1) //Short
 			uPreamble = 96;
-		} else {
+		else
 			uPreamble = 192;
-		}
+
 		uFrameTime = (cbFrameLength * 80) / uRate;  //?????
 		uTmp = (uFrameTime * uRate) / 80;
-		if (cbFrameLength != uTmp) {
+		if (cbFrameLength != uTmp)
 			uFrameTime++;
-		}
 
 		return uPreamble + uFrameTime;
 	} else {
 		uFrameTime = (cbFrameLength * 8 + 22) / uRate;   //????????
 		uTmp = ((uFrameTime * uRate) - 22) / 8;
-		if (cbFrameLength != uTmp) {
+		if (cbFrameLength != uTmp)
 			uFrameTime++;
-		}
+
 		uFrameTime = uFrameTime * 4;    //???????
-		if (byPktType != PK_TYPE_11A) {
+		if (byPktType != PK_TYPE_11A)
 			uFrameTime += 6;     //??????
-		}
+
 		return 20 + uFrameTime; //??????
 	}
 }
@@ -2129,16 +2125,16 @@ bool BBbVT3253Init(PSDevice pDevice)
 
 	if (byRFType == RF_RFMD2959) {
 		if (byLocalID <= REV_ID_VT3253_A1) {
-			for (ii = 0; ii < CB_VT3253_INIT_FOR_RFMD; ii++) {
+			for (ii = 0; ii < CB_VT3253_INIT_FOR_RFMD; ii++)
 				bResult &= BBbWriteEmbedded(dwIoBase, byVT3253InitTab_RFMD[ii][0], byVT3253InitTab_RFMD[ii][1]);
-			}
+
 		} else {
-			for (ii = 0; ii < CB_VT3253B0_INIT_FOR_RFMD; ii++) {
+			for (ii = 0; ii < CB_VT3253B0_INIT_FOR_RFMD; ii++)
 				bResult &= BBbWriteEmbedded(dwIoBase, byVT3253B0_RFMD[ii][0], byVT3253B0_RFMD[ii][1]);
-			}
-			for (ii = 0; ii < CB_VT3253B0_AGC_FOR_RFMD2959; ii++) {
+
+			for (ii = 0; ii < CB_VT3253B0_AGC_FOR_RFMD2959; ii++)
 				bResult &= BBbWriteEmbedded(dwIoBase, byVT3253B0_AGC4_RFMD2959[ii][0], byVT3253B0_AGC4_RFMD2959[ii][1]);
-			}
+
 			VNSvOutPortD(dwIoBase + MAC_REG_ITRTMSET, 0x23);
 			MACvRegBitsOn(dwIoBase, MAC_REG_PAPEDELAY, BIT0);
 		}
@@ -2151,12 +2147,12 @@ bool BBbVT3253Init(PSDevice pDevice)
 		pDevice->ldBmThreshold[2] = 0;
 		pDevice->ldBmThreshold[3] = 0;
 	} else if ((byRFType == RF_AIROHA) || (byRFType == RF_AL2230S)) {
-		for (ii = 0; ii < CB_VT3253B0_INIT_FOR_AIROHA2230; ii++) {
+		for (ii = 0; ii < CB_VT3253B0_INIT_FOR_AIROHA2230; ii++)
 			bResult &= BBbWriteEmbedded(dwIoBase, byVT3253B0_AIROHA2230[ii][0], byVT3253B0_AIROHA2230[ii][1]);
-		}
-		for (ii = 0; ii < CB_VT3253B0_AGC; ii++) {
+
+		for (ii = 0; ii < CB_VT3253B0_AGC; ii++)
 			bResult &= BBbWriteEmbedded(dwIoBase, byVT3253B0_AGC[ii][0], byVT3253B0_AGC[ii][1]);
-		}
+
 		pDevice->abyBBVGA[0] = 0x1C;
 		pDevice->abyBBVGA[1] = 0x10;
 		pDevice->abyBBVGA[2] = 0x0;
@@ -2166,12 +2162,12 @@ bool BBbVT3253Init(PSDevice pDevice)
 		pDevice->ldBmThreshold[2] = 0;
 		pDevice->ldBmThreshold[3] = 0;
 	} else if (byRFType == RF_UW2451) {
-		for (ii = 0; ii < CB_VT3253B0_INIT_FOR_UW2451; ii++) {
+		for (ii = 0; ii < CB_VT3253B0_INIT_FOR_UW2451; ii++)
 			bResult &= BBbWriteEmbedded(dwIoBase, byVT3253B0_UW2451[ii][0], byVT3253B0_UW2451[ii][1]);
-		}
-		for (ii = 0; ii < CB_VT3253B0_AGC; ii++) {
+
+		for (ii = 0; ii < CB_VT3253B0_AGC; ii++)
 			bResult &= BBbWriteEmbedded(dwIoBase, byVT3253B0_AGC[ii][0], byVT3253B0_AGC[ii][1]);
-		}
+
 		VNSvOutPortB(dwIoBase + MAC_REG_ITRTMSET, 0x23);
 		MACvRegBitsOn(dwIoBase, MAC_REG_PAPEDELAY, BIT0);
 
@@ -2184,9 +2180,9 @@ bool BBbVT3253Init(PSDevice pDevice)
 		pDevice->ldBmThreshold[2] = 0;
 		pDevice->ldBmThreshold[3] = 0;
 	} else if (byRFType == RF_UW2452) {
-		for (ii = 0; ii < CB_VT3253B0_INIT_FOR_UW2451; ii++) {
+		for (ii = 0; ii < CB_VT3253B0_INIT_FOR_UW2451; ii++)
 			bResult &= BBbWriteEmbedded(dwIoBase, byVT3253B0_UW2451[ii][0], byVT3253B0_UW2451[ii][1]);
-		}
+
 		// Init ANT B select,TX Config CR09 = 0x61->0x45, 0x45->0x41(VC1/VC2 define, make the ANT_A, ANT_B inverted)
 		//bResult &= BBbWriteEmbedded(dwIoBase,0x09,0x41);
 		// Init ANT B select,RX Config CR10 = 0x28->0x2A, 0x2A->0x28(VC1/VC2 define, make the ANT_A, ANT_B inverted)
@@ -2205,11 +2201,8 @@ bool BBbVT3253Init(PSDevice pDevice)
 		//}}
 		bResult &= BBbWriteEmbedded(dwIoBase, 0xb0, 0x58);
 
-		for (ii = 0; ii < CB_VT3253B0_AGC; ii++) {
+		for (ii = 0; ii < CB_VT3253B0_AGC; ii++)
 			bResult &= BBbWriteEmbedded(dwIoBase, byVT3253B0_AGC[ii][0], byVT3253B0_AGC[ii][1]);
-		}
-		//VNSvOutPortB(dwIoBase + MAC_REG_ITRTMSET, 0x23); // RobertYu: 20050104, 20050131 disable PA_Delay
-		//MACvRegBitsOn(dwIoBase, MAC_REG_PAPEDELAY, BIT0); // RobertYu: 20050104, 20050131 disable PA_Delay
 
 		pDevice->abyBBVGA[0] = 0x14;
 		pDevice->abyBBVGA[1] = 0x0A;
@@ -2222,12 +2215,12 @@ bool BBbVT3253Init(PSDevice pDevice)
 		//}} RobertYu
 
 	} else if (byRFType == RF_VT3226) {
-		for (ii = 0; ii < CB_VT3253B0_INIT_FOR_AIROHA2230; ii++) {
+		for (ii = 0; ii < CB_VT3253B0_INIT_FOR_AIROHA2230; ii++)
 			bResult &= BBbWriteEmbedded(dwIoBase, byVT3253B0_AIROHA2230[ii][0], byVT3253B0_AIROHA2230[ii][1]);
-		}
-		for (ii = 0; ii < CB_VT3253B0_AGC; ii++) {
+
+		for (ii = 0; ii < CB_VT3253B0_AGC; ii++)
 			bResult &= BBbWriteEmbedded(dwIoBase, byVT3253B0_AGC[ii][0], byVT3253B0_AGC[ii][1]);
-		}
+
 		pDevice->abyBBVGA[0] = 0x1C;
 		pDevice->abyBBVGA[1] = 0x10;
 		pDevice->abyBBVGA[2] = 0x0;
@@ -2240,9 +2233,9 @@ bool BBbVT3253Init(PSDevice pDevice)
 		MACvSetRFLE_LatchBase(dwIoBase);
 		//{{ RobertYu: 20050104
 	} else if (byRFType == RF_AIROHA7230) {
-		for (ii = 0; ii < CB_VT3253B0_INIT_FOR_AIROHA2230; ii++) {
+		for (ii = 0; ii < CB_VT3253B0_INIT_FOR_AIROHA2230; ii++)
 			bResult &= BBbWriteEmbedded(dwIoBase, byVT3253B0_AIROHA2230[ii][0], byVT3253B0_AIROHA2230[ii][1]);
-		}
+
 
 		//{{ RobertYu:20050223, request by JerryChung
 		// Init ANT B select,TX Config CR09 = 0x61->0x45, 0x45->0x41(VC1/VC2 define, make the ANT_A, ANT_B inverted)
@@ -2253,9 +2246,9 @@ bool BBbVT3253Init(PSDevice pDevice)
 		bResult &= BBbWriteEmbedded(dwIoBase, 0xd7, 0x06);
 		//}}
 
-		for (ii = 0; ii < CB_VT3253B0_AGC; ii++) {
+		for (ii = 0; ii < CB_VT3253B0_AGC; ii++)
 			bResult &= BBbWriteEmbedded(dwIoBase, byVT3253B0_AGC[ii][0], byVT3253B0_AGC[ii][1]);
-		}
+
 		pDevice->abyBBVGA[0] = 0x1C;
 		pDevice->abyBBVGA[1] = 0x10;
 		pDevice->abyBBVGA[2] = 0x0;
@@ -2411,17 +2404,15 @@ BBvSetShortSlotTime(PSDevice pDevice)
 
 	BBbReadEmbedded(pDevice->PortOffset, 0x0A, &byBBRxConf);//CR10
 
-	if (pDevice->bShortSlotTime) {
+	if (pDevice->bShortSlotTime)
 		byBBRxConf &= 0xDF;//1101 1111
-	} else {
+	else
 		byBBRxConf |= 0x20;//0010 0000
-	}
 
 	// patch for 3253B0 Baseband with Cardbus module
 	BBbReadEmbedded(pDevice->PortOffset, 0xE7, &byBBVGA);
-	if (byBBVGA == pDevice->abyBBVGA[0]) {
+	if (byBBVGA == pDevice->abyBBVGA[0])
 		byBBRxConf |= 0x20;//0010 0000
-	}
 
 	BBbWriteEmbedded(pDevice->PortOffset, 0x0A, byBBRxConf);//CR10
 }
@@ -2613,13 +2604,11 @@ s_ulGetRatio(PSDevice pDevice)
 	if (pDevice->uNumSQ3[RATE_54M] != 0) {
 		ulPacketNum = pDevice->uNumSQ3[RATE_54M];
 		ulRatio = (ulPacketNum * 1000 / pDevice->uDiversityCnt);
-		//ulRatio = (pDevice->uNumSQ3[RATE_54M] * 1000 / pDevice->uDiversityCnt);
 		ulRatio += TOP_RATE_54M;
 	}
 	if (pDevice->uNumSQ3[RATE_48M] > ulMaxPacket) {
 		ulPacketNum = pDevice->uNumSQ3[RATE_54M] + pDevice->uNumSQ3[RATE_48M];
 		ulRatio = (ulPacketNum * 1000 / pDevice->uDiversityCnt);
-		//ulRatio = (pDevice->uNumSQ3[RATE_48M] * 1000 / pDevice->uDiversityCnt);
 		ulRatio += TOP_RATE_48M;
 		ulMaxPacket = pDevice->uNumSQ3[RATE_48M];
 	}
@@ -2627,7 +2616,6 @@ s_ulGetRatio(PSDevice pDevice)
 		ulPacketNum = pDevice->uNumSQ3[RATE_54M] + pDevice->uNumSQ3[RATE_48M] +
 			pDevice->uNumSQ3[RATE_36M];
 		ulRatio = (ulPacketNum * 1000 / pDevice->uDiversityCnt);
-		//ulRatio = (pDevice->uNumSQ3[RATE_36M] * 1000 / pDevice->uDiversityCnt);
 		ulRatio += TOP_RATE_36M;
 		ulMaxPacket = pDevice->uNumSQ3[RATE_36M];
 	}
@@ -2635,7 +2623,6 @@ s_ulGetRatio(PSDevice pDevice)
 		ulPacketNum = pDevice->uNumSQ3[RATE_54M] + pDevice->uNumSQ3[RATE_48M] +
 			pDevice->uNumSQ3[RATE_36M] + pDevice->uNumSQ3[RATE_24M];
 		ulRatio = (ulPacketNum * 1000 / pDevice->uDiversityCnt);
-		//ulRatio = (pDevice->uNumSQ3[RATE_24M] * 1000 / pDevice->uDiversityCnt);
 		ulRatio += TOP_RATE_24M;
 		ulMaxPacket = pDevice->uNumSQ3[RATE_24M];
 	}
@@ -2644,7 +2631,6 @@ s_ulGetRatio(PSDevice pDevice)
 			pDevice->uNumSQ3[RATE_36M] + pDevice->uNumSQ3[RATE_24M] +
 			pDevice->uNumSQ3[RATE_18M];
 		ulRatio = (ulPacketNum * 1000 / pDevice->uDiversityCnt);
-		//ulRatio = (pDevice->uNumSQ3[RATE_18M] * 1000 / pDevice->uDiversityCnt);
 		ulRatio += TOP_RATE_18M;
 		ulMaxPacket = pDevice->uNumSQ3[RATE_18M];
 	}
@@ -2653,7 +2639,6 @@ s_ulGetRatio(PSDevice pDevice)
 			pDevice->uNumSQ3[RATE_36M] + pDevice->uNumSQ3[RATE_24M] +
 			pDevice->uNumSQ3[RATE_18M] + pDevice->uNumSQ3[RATE_12M];
 		ulRatio = (ulPacketNum * 1000 / pDevice->uDiversityCnt);
-		//ulRatio = (pDevice->uNumSQ3[RATE_12M] * 1000 / pDevice->uDiversityCnt);
 		ulRatio += TOP_RATE_12M;
 		ulMaxPacket = pDevice->uNumSQ3[RATE_12M];
 	}
@@ -2662,7 +2647,6 @@ s_ulGetRatio(PSDevice pDevice)
 			pDevice->uNumSQ3[RATE_2M] - pDevice->uNumSQ3[RATE_5M] -
 			pDevice->uNumSQ3[RATE_6M] - pDevice->uNumSQ3[RATE_9M];
 		ulRatio = (ulPacketNum * 1000 / pDevice->uDiversityCnt);
-		//ulRatio = (pDevice->uNumSQ3[RATE_11M] * 1000 / pDevice->uDiversityCnt);
 		ulRatio += TOP_RATE_11M;
 		ulMaxPacket = pDevice->uNumSQ3[RATE_11M];
 	}
@@ -2671,7 +2655,6 @@ s_ulGetRatio(PSDevice pDevice)
 			pDevice->uNumSQ3[RATE_2M] - pDevice->uNumSQ3[RATE_5M] -
 			pDevice->uNumSQ3[RATE_6M];
 		ulRatio = (ulPacketNum * 1000 / pDevice->uDiversityCnt);
-		//ulRatio = (pDevice->uNumSQ3[RATE_9M] * 1000 / pDevice->uDiversityCnt);
 		ulRatio += TOP_RATE_9M;
 		ulMaxPacket = pDevice->uNumSQ3[RATE_9M];
 	}
@@ -2679,7 +2662,6 @@ s_ulGetRatio(PSDevice pDevice)
 		ulPacketNum = pDevice->uDiversityCnt - pDevice->uNumSQ3[RATE_1M] -
 			pDevice->uNumSQ3[RATE_2M] - pDevice->uNumSQ3[RATE_5M];
 		ulRatio = (ulPacketNum * 1000 / pDevice->uDiversityCnt);
-		//ulRatio = (pDevice->uNumSQ3[RATE_6M] * 1000 / pDevice->uDiversityCnt);
 		ulRatio += TOP_RATE_6M;
 		ulMaxPacket = pDevice->uNumSQ3[RATE_6M];
 	}
@@ -2687,21 +2669,18 @@ s_ulGetRatio(PSDevice pDevice)
 		ulPacketNum = pDevice->uDiversityCnt - pDevice->uNumSQ3[RATE_1M] -
 			pDevice->uNumSQ3[RATE_2M];
 		ulRatio = (ulPacketNum * 1000 / pDevice->uDiversityCnt);
-		//ulRatio = (pDevice->uNumSQ3[RATE_5M] * 1000 / pDevice->uDiversityCnt);
 		ulRatio += TOP_RATE_55M;
 		ulMaxPacket = pDevice->uNumSQ3[RATE_5M];
 	}
 	if (pDevice->uNumSQ3[RATE_2M] > ulMaxPacket) {
 		ulPacketNum = pDevice->uDiversityCnt - pDevice->uNumSQ3[RATE_1M];
 		ulRatio = (ulPacketNum * 1000 / pDevice->uDiversityCnt);
-		//ulRatio = (pDevice->uNumSQ3[RATE_2M]  * 1000 / pDevice->uDiversityCnt);
 		ulRatio += TOP_RATE_2M;
 		ulMaxPacket = pDevice->uNumSQ3[RATE_2M];
 	}
 	if (pDevice->uNumSQ3[RATE_1M] > ulMaxPacket) {
 		ulPacketNum = pDevice->uDiversityCnt;
 		ulRatio = (ulPacketNum * 1000 / pDevice->uDiversityCnt);
-		//ulRatio = (pDevice->uNumSQ3[RATE_1M]  * 1000 / pDevice->uDiversityCnt);
 		ulRatio += TOP_RATE_1M;
 	}
 
@@ -2714,9 +2693,8 @@ BBvClearAntDivSQ3Value(PSDevice pDevice)
 	unsigned int ii;
 
 	pDevice->uDiversityCnt = 0;
-	for (ii = 0; ii < MAX_RATE; ii++) {
+	for (ii = 0; ii < MAX_RATE; ii++)
 		pDevice->uNumSQ3[ii] = 0;
-	}
 }
 
 /*
@@ -2737,11 +2715,10 @@ BBvClearAntDivSQ3Value(PSDevice pDevice)
 void
 BBvAntennaDiversity(PSDevice pDevice, unsigned char byRxRate, unsigned char bySQ3)
 {
-	if ((byRxRate >= MAX_RATE) || (pDevice->wAntDiversityMaxRate >= MAX_RATE)) {
+	if ((byRxRate >= MAX_RATE) || (pDevice->wAntDiversityMaxRate >= MAX_RATE))
 		return;
-	}
+
 	pDevice->uDiversityCnt++;
-	// DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pDevice->uDiversityCnt = %d\n", (int)pDevice->uDiversityCnt);
 
 	pDevice->uNumSQ3[byRxRate]++;
 

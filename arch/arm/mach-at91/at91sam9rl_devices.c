@@ -23,9 +23,11 @@
 #include <mach/at91sam9_smc.h>
 #include <mach/hardware.h>
 #include <linux/platform_data/dma-atmel.h>
+#include <linux/platform_data/at91_adc.h>
 
 #include "board.h"
 #include "generic.h"
+#include "gpio.h"
 
 
 /* --------------------------------------------------------------------
@@ -608,14 +610,13 @@ static void __init at91_add_device_tc(void) { }
 
 
 /* --------------------------------------------------------------------
- *  Touchscreen
+ *  ADC and Touchscreen
  * -------------------------------------------------------------------- */
 
-#if defined(CONFIG_TOUCHSCREEN_ATMEL_TSADCC) || defined(CONFIG_TOUCHSCREEN_ATMEL_TSADCC_MODULE)
-static u64 tsadcc_dmamask = DMA_BIT_MASK(32);
-static struct at91_tsadcc_data tsadcc_data;
+#if IS_ENABLED(CONFIG_AT91_ADC)
+static struct at91_adc_data adc_data;
 
-static struct resource tsadcc_resources[] = {
+static struct resource adc_resources[] = {
 	[0] = {
 		.start	= AT91SAM9RL_BASE_TSC,
 		.end	= AT91SAM9RL_BASE_TSC + SZ_16K - 1,
@@ -628,35 +629,70 @@ static struct resource tsadcc_resources[] = {
 	}
 };
 
-static struct platform_device at91sam9rl_tsadcc_device = {
-	.name		= "atmel_tsadcc",
-	.id		= -1,
-	.dev		= {
-				.dma_mask		= &tsadcc_dmamask,
-				.coherent_dma_mask	= DMA_BIT_MASK(32),
-				.platform_data		= &tsadcc_data,
+static struct platform_device at91_adc_device = {
+	.name           = "at91sam9rl-adc",
+	.id             = -1,
+	.dev            = {
+		.platform_data  = &adc_data,
 	},
-	.resource	= tsadcc_resources,
-	.num_resources	= ARRAY_SIZE(tsadcc_resources),
+	.resource       = adc_resources,
+	.num_resources  = ARRAY_SIZE(adc_resources),
 };
 
-void __init at91_add_device_tsadcc(struct at91_tsadcc_data *data)
+static struct at91_adc_trigger at91_adc_triggers[] = {
+	[0] = {
+		.name = "external-rising",
+		.value = 1,
+		.is_external = true,
+	},
+	[1] = {
+		.name = "external-falling",
+		.value = 2,
+		.is_external = true,
+	},
+	[2] = {
+		.name = "external-any",
+		.value = 3,
+		.is_external = true,
+	},
+	[3] = {
+		.name = "continuous",
+		.value = 6,
+		.is_external = false,
+	},
+};
+
+void __init at91_add_device_adc(struct at91_adc_data *data)
 {
 	if (!data)
 		return;
 
-	at91_set_A_periph(AT91_PIN_PA17, 0);	/* AD0_XR */
-	at91_set_A_periph(AT91_PIN_PA18, 0);	/* AD1_XL */
-	at91_set_A_periph(AT91_PIN_PA19, 0);	/* AD2_YT */
-	at91_set_A_periph(AT91_PIN_PA20, 0);	/* AD3_TB */
+	if (test_bit(0, &data->channels_used))
+		at91_set_A_periph(AT91_PIN_PA17, 0);
+	if (test_bit(1, &data->channels_used))
+		at91_set_A_periph(AT91_PIN_PA18, 0);
+	if (test_bit(2, &data->channels_used))
+		at91_set_A_periph(AT91_PIN_PA19, 0);
+	if (test_bit(3, &data->channels_used))
+		at91_set_A_periph(AT91_PIN_PA20, 0);
+	if (test_bit(4, &data->channels_used))
+		at91_set_A_periph(AT91_PIN_PD6, 0);
+	if (test_bit(5, &data->channels_used))
+		at91_set_A_periph(AT91_PIN_PD7, 0);
 
-	tsadcc_data = *data;
-	platform_device_register(&at91sam9rl_tsadcc_device);
+	if (data->use_external_triggers)
+		at91_set_A_periph(AT91_PIN_PB15, 0);
+
+	data->startup_time = 40;
+	data->trigger_number = 4;
+	data->trigger_list = at91_adc_triggers;
+
+	adc_data = *data;
+	platform_device_register(&at91_adc_device);
 }
 #else
-void __init at91_add_device_tsadcc(struct at91_tsadcc_data *data) {}
+void __init at91_add_device_adc(struct at91_adc_data *data) {}
 #endif
-
 
 /* --------------------------------------------------------------------
  *  RTC
@@ -957,7 +993,6 @@ static struct resource dbgu_resources[] = {
 static struct atmel_uart_data dbgu_data = {
 	.use_dma_tx	= 0,
 	.use_dma_rx	= 0,		/* DBGU not capable of receive DMA */
-	.rts_gpio	= -EINVAL,
 };
 
 static u64 dbgu_dmamask = DMA_BIT_MASK(32);
@@ -996,7 +1031,6 @@ static struct resource uart0_resources[] = {
 static struct atmel_uart_data uart0_data = {
 	.use_dma_tx	= 1,
 	.use_dma_rx	= 1,
-	.rts_gpio	= -EINVAL,
 };
 
 static u64 uart0_dmamask = DMA_BIT_MASK(32);
@@ -1048,7 +1082,6 @@ static struct resource uart1_resources[] = {
 static struct atmel_uart_data uart1_data = {
 	.use_dma_tx	= 1,
 	.use_dma_rx	= 1,
-	.rts_gpio	= -EINVAL,
 };
 
 static u64 uart1_dmamask = DMA_BIT_MASK(32);
@@ -1092,7 +1125,6 @@ static struct resource uart2_resources[] = {
 static struct atmel_uart_data uart2_data = {
 	.use_dma_tx	= 1,
 	.use_dma_rx	= 1,
-	.rts_gpio	= -EINVAL,
 };
 
 static u64 uart2_dmamask = DMA_BIT_MASK(32);
@@ -1136,7 +1168,6 @@ static struct resource uart3_resources[] = {
 static struct atmel_uart_data uart3_data = {
 	.use_dma_tx	= 1,
 	.use_dma_rx	= 1,
-	.rts_gpio	= -EINVAL,
 };
 
 static u64 uart3_dmamask = DMA_BIT_MASK(32);

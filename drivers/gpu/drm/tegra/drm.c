@@ -33,7 +33,6 @@ static int tegra_drm_load(struct drm_device *drm, unsigned long flags)
 	if (!tegra)
 		return -ENOMEM;
 
-	dev_set_drvdata(drm->dev, tegra);
 	mutex_init(&tegra->clients_lock);
 	INIT_LIST_HEAD(&tegra->clients);
 	drm->dev_private = tegra;
@@ -640,14 +639,40 @@ int tegra_drm_unregister_client(struct tegra_drm *tegra,
 	return 0;
 }
 
-static int host1x_drm_probe(struct host1x_device *device)
+static int host1x_drm_probe(struct host1x_device *dev)
 {
-	return drm_host1x_init(&tegra_drm_driver, device);
+	struct drm_driver *driver = &tegra_drm_driver;
+	struct drm_device *drm;
+	int err;
+
+	drm = drm_dev_alloc(driver, &dev->dev);
+	if (!drm)
+		return -ENOMEM;
+
+	drm_dev_set_unique(drm, dev_name(&dev->dev));
+	dev_set_drvdata(&dev->dev, drm);
+
+	err = drm_dev_register(drm, 0);
+	if (err < 0)
+		goto unref;
+
+	DRM_INFO("Initialized %s %d.%d.%d %s on minor %d\n", driver->name,
+		 driver->major, driver->minor, driver->patchlevel,
+		 driver->date, drm->primary->index);
+
+	return 0;
+
+unref:
+	drm_dev_unref(drm);
+	return err;
 }
 
-static int host1x_drm_remove(struct host1x_device *device)
+static int host1x_drm_remove(struct host1x_device *dev)
 {
-	drm_host1x_exit(&tegra_drm_driver, device);
+	struct drm_device *drm = dev_get_drvdata(&dev->dev);
+
+	drm_dev_unregister(drm);
+	drm_dev_unref(drm);
 
 	return 0;
 }
@@ -666,6 +691,7 @@ static const struct of_device_id host1x_drm_subdevs[] = {
 	{ .compatible = "nvidia,tegra114-gr3d", },
 	{ .compatible = "nvidia,tegra124-dc", },
 	{ .compatible = "nvidia,tegra124-sor", },
+	{ .compatible = "nvidia,tegra124-hdmi", },
 	{ /* sentinel */ }
 };
 

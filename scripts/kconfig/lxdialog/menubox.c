@@ -64,7 +64,7 @@ static int menu_width, item_x;
  * Print menu item
  */
 static void do_print_item(WINDOW * win, const char *item, int line_y,
-                          int selected, int hotkey)
+			  int selected, int hotkey)
 {
 	int j;
 	char *menu_item = malloc(menu_width + 1);
@@ -182,7 +182,7 @@ static void do_scroll(WINDOW *win, int *scroll, int n)
  * Display a menu for choosing among a number of options
  */
 int dialog_menu(const char *title, const char *prompt,
-                const void *selected, int *s_scroll)
+		const void *selected, int *s_scroll)
 {
 	int i, j, x, y, box_x, box_y;
 	int height, width, menu_height;

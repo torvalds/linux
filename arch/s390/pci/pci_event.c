@@ -76,7 +76,7 @@ static void __zpci_event_availability(struct zpci_ccdf_avail *ccdf)
 
 	switch (ccdf->pec) {
 	case 0x0301: /* Standby -> Configured */
-		if (!zdev || zdev->state == ZPCI_FN_STATE_CONFIGURED)
+		if (!zdev || zdev->state != ZPCI_FN_STATE_STANDBY)
 			break;
 		zdev->state = ZPCI_FN_STATE_CONFIGURED;
 		zdev->fh = ccdf->fh;
@@ -86,7 +86,8 @@ static void __zpci_event_availability(struct zpci_ccdf_avail *ccdf)
 		pci_rescan_bus(zdev->bus);
 		break;
 	case 0x0302: /* Reserved -> Standby */
-		clp_add_pci_device(ccdf->fid, ccdf->fh, 0);
+		if (!zdev)
+			clp_add_pci_device(ccdf->fid, ccdf->fh, 0);
 		break;
 	case 0x0303: /* Deconfiguration requested */
 		if (pdev)

@@ -213,29 +213,6 @@ typedef struct tagDEVICE_RD_INFO {
 	dma_addr_t  curr_desc;
 } DEVICE_RD_INFO,   *PDEVICE_RD_INFO;
 
-/*
-  static inline PDEVICE_RD_INFO alloc_rd_info(void) {
-  PDEVICE_RD_INFO  ptr;
-  ptr = kmalloc(sizeof(DEVICE_RD_INFO), GFP_ATOMIC);
-  if (ptr == NULL)
-  return NULL;
-  else {
-  memset(ptr,0,sizeof(DEVICE_RD_INFO));
-  return ptr;
-  }
-  }
-*/
-
-/*
-  typedef struct tagRDES0 {
-  unsigned short wResCount;
-  unsigned short wf1Owner;
-//    unsigned short f15Reserved : 15;
-//    unsigned short f1Owner : 1;
-} __attribute__ ((__packed__))
-SRDES0;
-*/
-
 #ifdef __BIG_ENDIAN
 
 typedef struct tagRDES0 {
@@ -284,17 +261,6 @@ typedef const SRxDesc *PCSRxDesc;
 
 #ifdef __BIG_ENDIAN
 
-/*
-  typedef struct tagTDES0 {
-  volatile    unsigned char byTSR0;
-  volatile    unsigned char byTSR1;
-  volatile    unsigned short wOwner_Txtime;
-//    volatile    unsigned short f15Txtime : 15;
-//    volatile    unsigned short f1Owner:1;
-} __attribute__ ((__packed__))
-STDES0;
-*/
-
 typedef struct tagTDES0 {
 	volatile    unsigned char byTSR0;
 	volatile    unsigned char byTSR1;
@@ -338,19 +304,6 @@ typedef struct tagDEVICE_TD_INFO {
 	unsigned long dwHeaderLength;
 	unsigned char byFlags;
 } DEVICE_TD_INFO,    *PDEVICE_TD_INFO;
-
-/*
-  static inline PDEVICE_TD_INFO alloc_td_info(void) {
-  PDEVICE_TD_INFO  ptr;
-  ptr = kmalloc(sizeof(DEVICE_TD_INFO),GFP_ATOMIC);
-  if (ptr == NULL)
-  return NULL;
-  else {
-  memset(ptr,0,sizeof(DEVICE_TD_INFO));
-  return ptr;
-  }
-  }
-*/
 
 //
 // transmit descriptor

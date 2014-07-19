@@ -21,6 +21,7 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/slab.h>
+#include <linux/delay.h>
 #include <linux/hid-sensor-hub.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
@@ -73,8 +74,8 @@ static int prox_read_raw(struct iio_dev *indio_dev,
 	struct prox_state *prox_state = iio_priv(indio_dev);
 	int report_id = -1;
 	u32 address;
-	int ret;
 	int ret_type;
+	s32 poll_value;
 
 	*val = 0;
 	*val2 = 0;
@@ -90,12 +91,24 @@ static int prox_read_raw(struct iio_dev *indio_dev,
 			report_id = -1;
 			break;
 		}
-		if (report_id >= 0)
+		if (report_id >= 0) {
+			poll_value = hid_sensor_read_poll_value(
+					&prox_state->common_attributes);
+			if (poll_value < 0)
+				return -EINVAL;
+
+			hid_sensor_power_state(&prox_state->common_attributes,
+						true);
+
+			msleep_interruptible(poll_value * 2);
+
 			*val = sensor_hub_input_attr_get_raw_value(
 				prox_state->common_attributes.hsdev,
 				HID_USAGE_SENSOR_PROX, address,
 				report_id);
-		else {
+			hid_sensor_power_state(&prox_state->common_attributes,
+						false);
+		} else {
 			*val = 0;
 			return -EINVAL;
 		}
@@ -111,14 +124,12 @@ static int prox_read_raw(struct iio_dev *indio_dev,
 		ret_type = IIO_VAL_INT;
 		break;
 	case IIO_CHAN_INFO_SAMP_FREQ:
-		ret = hid_sensor_read_samp_freq_value(
+		ret_type = hid_sensor_read_samp_freq_value(
 				&prox_state->common_attributes, val, val2);
-		ret_type = IIO_VAL_INT_PLUS_MICRO;
 		break;
 	case IIO_CHAN_INFO_HYSTERESIS:
-		ret = hid_sensor_read_raw_hyst_value(
+		ret_type = hid_sensor_read_raw_hyst_value(
 				&prox_state->common_attributes, val, val2);
-		ret_type = IIO_VAL_INT_PLUS_MICRO;
 		break;
 	default:
 		ret_type = -EINVAL;
@@ -176,9 +187,8 @@ static int prox_proc_event(struct hid_sensor_hub_device *hsdev,
 	struct iio_dev *indio_dev = platform_get_drvdata(priv);
 	struct prox_state *prox_state = iio_priv(indio_dev);
 
-	dev_dbg(&indio_dev->dev, "prox_proc_event [%d]\n",
-				prox_state->common_attributes.data_ready);
-	if (prox_state->common_attributes.data_ready)
+	dev_dbg(&indio_dev->dev, "prox_proc_event\n");
+	if (atomic_read(&prox_state->common_attributes.data_ready))
 		hid_sensor_push_data(indio_dev,
 				&prox_state->human_presence,
 				sizeof(prox_state->human_presence));
@@ -297,7 +307,7 @@ static int hid_prox_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to initialize trigger buffer\n");
 		goto error_free_dev_mem;
 	}
-	prox_state->common_attributes.data_ready = false;
+	atomic_set(&prox_state->common_attributes.data_ready, 0);
 	ret = hid_sensor_setup_trigger(indio_dev, name,
 				&prox_state->common_attributes);
 	if (ret) {

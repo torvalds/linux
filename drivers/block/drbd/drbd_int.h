@@ -382,6 +382,12 @@ enum {
 	__EE_CALL_AL_COMPLETE_IO,
 	__EE_MAY_SET_IN_SYNC,
 
+	/* is this a TRIM aka REQ_DISCARD? */
+	__EE_IS_TRIM,
+	/* our lower level cannot handle trim,
+	 * and we want to fall back to zeroout instead */
+	__EE_IS_TRIM_USE_ZEROOUT,
+
 	/* In case a barrier failed,
 	 * we need to resubmit without the barrier flag. */
 	__EE_RESUBMITTED,
@@ -405,7 +411,9 @@ enum {
 };
 #define EE_CALL_AL_COMPLETE_IO (1<<__EE_CALL_AL_COMPLETE_IO)
 #define EE_MAY_SET_IN_SYNC     (1<<__EE_MAY_SET_IN_SYNC)
-#define	EE_RESUBMITTED         (1<<__EE_RESUBMITTED)
+#define EE_IS_TRIM             (1<<__EE_IS_TRIM)
+#define EE_IS_TRIM_USE_ZEROOUT (1<<__EE_IS_TRIM_USE_ZEROOUT)
+#define EE_RESUBMITTED         (1<<__EE_RESUBMITTED)
 #define EE_WAS_ERROR           (1<<__EE_WAS_ERROR)
 #define EE_HAS_DIGEST          (1<<__EE_HAS_DIGEST)
 #define EE_RESTART_REQUESTS	(1<<__EE_RESTART_REQUESTS)
@@ -579,6 +587,7 @@ struct drbd_resource {
 	struct list_head resources;
 	struct res_opts res_opts;
 	struct mutex conf_update;	/* mutex for ready-copy-update of net_conf and disk_conf */
+	struct mutex adm_mutex;		/* mutex to serialize administrative requests */
 	spinlock_t req_lock;
 
 	unsigned susp:1;		/* IO suspended by user */
@@ -609,6 +618,7 @@ struct drbd_connection {
 	struct drbd_socket data;	/* data/barrier/cstate/parameter packets */
 	struct drbd_socket meta;	/* ping/ack (metadata) packets */
 	int agreed_pro_version;		/* actually used protocol version */
+	u32 agreed_features;
 	unsigned long last_received;	/* in jiffies, either socket */
 	unsigned int ko_count;
 
@@ -814,6 +824,28 @@ struct drbd_device {
 	struct submit_worker submit;
 };
 
+struct drbd_config_context {
+	/* assigned from drbd_genlmsghdr */
+	unsigned int minor;
+	/* assigned from request attributes, if present */
+	unsigned int volume;
+#define VOLUME_UNSPECIFIED		(-1U)
+	/* pointer into the request skb,
+	 * limited lifetime! */
+	char *resource_name;
+	struct nlattr *my_addr;
+	struct nlattr *peer_addr;
+
+	/* reply buffer */
+	struct sk_buff *reply_skb;
+	/* pointer into reply buffer */
+	struct drbd_genlmsghdr *reply_dh;
+	/* resolved from attributes, if possible */
+	struct drbd_device *device;
+	struct drbd_resource *resource;
+	struct drbd_connection *connection;
+};
+
 static inline struct drbd_device *minor_to_device(unsigned int minor)
 {
 	return (struct drbd_device *)idr_find(&drbd_devices, minor);
@@ -821,7 +853,7 @@ static inline struct drbd_device *minor_to_device(unsigned int minor)
 
 static inline struct drbd_peer_device *first_peer_device(struct drbd_device *device)
 {
-	return list_first_entry(&device->peer_devices, struct drbd_peer_device, peer_devices);
+	return list_first_entry_or_null(&device->peer_devices, struct drbd_peer_device, peer_devices);
 }
 
 #define for_each_resource(resource, _resources) \
@@ -1139,6 +1171,12 @@ struct bm_extent {
 #define DRBD_MAX_SIZE_H80_PACKET (1U << 15) /* Header 80 only allows packets up to 32KiB data */
 #define DRBD_MAX_BIO_SIZE_P95    (1U << 17) /* Protocol 95 to 99 allows bios up to 128KiB */
 
+/* For now, don't allow more than one activity log extent worth of data
+ * to be discarded in one go. We may need to rework drbd_al_begin_io()
+ * to allow for even larger discard ranges */
+#define DRBD_MAX_DISCARD_SIZE	AL_EXTENT_SIZE
+#define DRBD_MAX_DISCARD_SECTORS (DRBD_MAX_DISCARD_SIZE >> 9)
+
 extern int  drbd_bm_init(struct drbd_device *device);
 extern int  drbd_bm_resize(struct drbd_device *device, sector_t sectors, int set_new_bits);
 extern void drbd_bm_cleanup(struct drbd_device *device);
@@ -1229,9 +1267,9 @@ extern struct bio *bio_alloc_drbd(gfp_t gfp_mask);
 extern rwlock_t global_state_lock;
 
 extern int conn_lowest_minor(struct drbd_connection *connection);
-enum drbd_ret_code drbd_create_device(struct drbd_resource *resource, unsigned int minor, int vnr);
+extern enum drbd_ret_code drbd_create_device(struct drbd_config_context *adm_ctx, unsigned int minor);
 extern void drbd_destroy_device(struct kref *kref);
-extern void drbd_delete_device(struct drbd_device *mdev);
+extern void drbd_delete_device(struct drbd_device *device);
 
 extern struct drbd_resource *drbd_create_resource(const char *name);
 extern void drbd_free_resource(struct drbd_resource *resource);
@@ -1257,7 +1295,7 @@ extern int is_valid_ar_handle(struct drbd_request *, sector_t);
 
 
 /* drbd_nl.c */
-extern int drbd_msg_put_info(const char *info);
+extern int drbd_msg_put_info(struct sk_buff *skb, const char *info);
 extern void drbd_suspend_io(struct drbd_device *device);
 extern void drbd_resume_io(struct drbd_device *device);
 extern char *ppsize(char *buf, unsigned long long size);
@@ -1283,6 +1321,10 @@ extern void conn_try_outdate_peer_async(struct drbd_connection *connection);
 extern int drbd_khelper(struct drbd_device *device, char *cmd);
 
 /* drbd_worker.c */
+/* bi_end_io handlers */
+extern void drbd_md_io_complete(struct bio *bio, int error);
+extern void drbd_peer_request_endio(struct bio *bio, int error);
+extern void drbd_request_endio(struct bio *bio, int error);
 extern int drbd_worker(struct drbd_thread *thi);
 enum drbd_ret_code drbd_resync_after_valid(struct drbd_device *device, int o_minor);
 void drbd_resync_after_changed(struct drbd_device *device);
@@ -1332,16 +1374,20 @@ extern int w_start_resync(struct drbd_work *, int);
 extern void resync_timer_fn(unsigned long data);
 extern void start_resync_timer_fn(unsigned long data);
 
+extern void drbd_endio_write_sec_final(struct drbd_peer_request *peer_req);
+
 /* drbd_receiver.c */
 extern int drbd_receiver(struct drbd_thread *thi);
 extern int drbd_asender(struct drbd_thread *thi);
-extern int drbd_rs_should_slow_down(struct drbd_device *device, sector_t sector);
+extern bool drbd_rs_c_min_rate_throttle(struct drbd_device *device);
+extern bool drbd_rs_should_slow_down(struct drbd_device *device, sector_t sector);
 extern int drbd_submit_peer_request(struct drbd_device *,
 				    struct drbd_peer_request *, const unsigned,
 				    const int);
 extern int drbd_free_peer_reqs(struct drbd_device *, struct list_head *);
 extern struct drbd_peer_request *drbd_alloc_peer_req(struct drbd_peer_device *, u64,
 						     sector_t, unsigned int,
+						     bool,
 						     gfp_t) __must_hold(local);
 extern void __drbd_free_peer_req(struct drbd_device *, struct drbd_peer_request *,
 				 int);
@@ -1401,6 +1447,37 @@ static inline void drbd_tcp_quickack(struct socket *sock)
 			(char*)&val, sizeof(val));
 }
 
+/* sets the number of 512 byte sectors of our virtual device */
+static inline void drbd_set_my_capacity(struct drbd_device *device,
+					sector_t size)
+{
+	/* set_capacity(device->this_bdev->bd_disk, size); */
+	set_capacity(device->vdisk, size);
+	device->this_bdev->bd_inode->i_size = (loff_t)size << 9;
+}
+
+/*
+ * used to submit our private bio
+ */
+static inline void drbd_generic_make_request(struct drbd_device *device,
+					     int fault_type, struct bio *bio)
+{
+	__release(local);
+	if (!bio->bi_bdev) {
+		printk(KERN_ERR "drbd%d: drbd_generic_make_request: "
+				"bio->bi_bdev == NULL\n",
+		       device_to_minor(device));
+		dump_stack();
+		bio_endio(bio, -ENODEV);
+		return;
+	}
+
+	if (drbd_insert_fault(device, fault_type))
+		bio_endio(bio, -EIO);
+	else
+		generic_make_request(bio);
+}
+
 void drbd_bump_write_ordering(struct drbd_connection *connection, enum write_ordering_e wo);
 
 /* drbd_proc.c */
@@ -1410,6 +1487,7 @@ extern const char *drbd_conn_str(enum drbd_conns s);
 extern const char *drbd_role_str(enum drbd_role s);
 
 /* drbd_actlog.c */
+extern bool drbd_al_begin_io_prepare(struct drbd_device *device, struct drbd_interval *i);
 extern int drbd_al_begin_io_nonblock(struct drbd_device *device, struct drbd_interval *i);
 extern void drbd_al_begin_io_commit(struct drbd_device *device, bool delegate);
 extern bool drbd_al_begin_io_fastpath(struct drbd_device *device, struct drbd_interval *i);
@@ -2144,7 +2222,7 @@ static inline void drbd_md_flush(struct drbd_device *device)
 
 static inline struct drbd_connection *first_connection(struct drbd_resource *resource)
 {
-	return list_first_entry(&resource->connections,
+	return list_first_entry_or_null(&resource->connections,
 				struct drbd_connection, connections);
 }
 

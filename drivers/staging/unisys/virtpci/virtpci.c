@@ -1,6 +1,6 @@
 /* virtpci.c
  *
- * Copyright © 2010 - 2013 UNISYS CORPORATION
+ * Copyright (C) 2010 - 2013 UNISYS CORPORATION
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -39,6 +39,7 @@
 #include <linux/version.h>
 #include "version.h"
 #include "guestlinuxdebug.h"
+#include "timskmodutils.h"
 
 struct driver_private {
 	struct kobject kobj;
@@ -364,7 +365,7 @@ static int add_vhba(struct add_virt_guestpart *addparams)
 		memcpy_fromio(&net.zoneGuid, \
 			      &((ULTRA_IO_CHANNEL_PROTOCOL __iomem *)	\
 				chanptr)->vnic.zoneGuid,		\
-			      sizeof(GUID));				\
+			      sizeof(uuid_le));				\
 }
 
 /* adds a vnic
@@ -390,14 +391,10 @@ add_vnic(struct add_virt_guestpart *addparams)
 
 	GET_BUS_DEV(addparams->busNo);
 
-	LOGINF("Adding vnic macaddr:%02x:%02x:%02x:%02x:%02x:%02x rcvbufs:%d mtu:%d chanptr:%p{%-8.8lx-%-4.4x-%-4.4x-%-2.2x%-2.2x%-2.2x%-2.2x%-2.2x%-2.2x%-2.2x%-2.2x}\n",
+	LOGINF("Adding vnic macaddr:%02x:%02x:%02x:%02x:%02x:%02x rcvbufs:%d mtu:%d chanptr:%p%pUL\n",
 	     net.mac_addr[0], net.mac_addr[1], net.mac_addr[2], net.mac_addr[3],
 	     net.mac_addr[4], net.mac_addr[5], net.num_rcv_bufs, net.mtu,
-	     addparams->chanptr, (ulong) net.zoneGuid.data1, net.zoneGuid.data2,
-	     net.zoneGuid.data3, net.zoneGuid.data4[0], net.zoneGuid.data4[1],
-	     net.zoneGuid.data4[2], net.zoneGuid.data4[3],
-	     net.zoneGuid.data4[4], net.zoneGuid.data4[5],
-	     net.zoneGuid.data4[6], net.zoneGuid.data4[7]);
+	     addparams->chanptr, &net.zoneGuid);
 	i = virtpci_device_add(vbus, VIRTNIC_TYPE, addparams, NULL, &net);
 	if (i) {
 		LOGINF("Added vnic macaddr:%02x:%02x:%02x:%02x:%02x:%02x\n",
@@ -1509,7 +1506,6 @@ static ssize_t virt_proc_write(struct file *file, const char __user *buffer,
 	struct add_virt_guestpart addparams;
 	struct del_vbus_guestpart busdelparams;
 	struct del_virt_guestpart delparams;
-	GUID dummyGuid = GUID0;
 #ifdef STORAGE_CHANNEL
 	U64 storagechannel;
 #endif
@@ -1560,7 +1556,7 @@ static ssize_t virt_proc_write(struct file *file, const char __user *buffer,
 						   __pa(chanptr),
 						   MIN_IO_CHANNEL_SIZE,
 						   1, /* test msg */
-						   dummyGuid, /* inst guid */
+						   NULL_UUID_LE, /* inst guid */
 						   NULL)) { /*interrupt info */
 			LOGERR("FAILED to inject add vnic\n");
 			return -EFAULT;
@@ -1686,6 +1682,9 @@ static int __init virtpci_mod_init(void)
 {
 	int ret;
 
+
+	if (!unisys_spar_platform)
+		return -ENODEV;
 
 	LOGINF("Module build: Date:%s Time:%s...\n", __DATE__, __TIME__);
 

@@ -24,6 +24,7 @@
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
+		enable-method = "rockchip,rk3066-smp";
 
 		cpu@0 {
 			device_type = "cpu";
@@ -75,17 +76,16 @@
 
 		pinctrl@20008000 {
 			compatible = "rockchip,rk3188-pinctrl";
-			reg = <0x20008000 0xa0>,
-			      <0x20008164 0x1a0>;
-			reg-names = "base", "pull";
+			rockchip,grf = <&grf>;
+			rockchip,pmu = <&pmu>;
+
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges;
 
 			gpio0: gpio0@0x2000a000 {
 				compatible = "rockchip,rk3188-gpio-bank0";
-				reg = <0x2000a000 0x100>,
-				      <0x20004064 0x8>;
+				reg = <0x2000a000 0x100>;
 				interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clk_gates8 9>;
 

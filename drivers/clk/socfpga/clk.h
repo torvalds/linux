@@ -27,6 +27,7 @@
 #define CLKMGR_PERPLL_SRC	0xAC
 
 #define SOCFPGA_MAX_PARENTS		3
+#define div_mask(width) ((1 << (width)) - 1)
 
 extern void __iomem *clk_mgr_base_addr;
 
@@ -52,6 +53,9 @@ struct socfpga_periph_clk {
 	struct clk_gate hw;
 	char *parent_name;
 	u32 fixed_div;
+	void __iomem *div_reg;
+	u32 width;      /* only valid if div_reg != 0 */
+	u32 shift;      /* only valid if div_reg != 0 */
 };
 
 #endif /* SOCFPGA_CLK_H */

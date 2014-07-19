@@ -18,7 +18,7 @@ static inline int cpu_to_node(int cpu)
 
 struct pci_bus;
 #ifdef CONFIG_PCI
-extern int pcibus_to_node(struct pci_bus *pbus);
+int pcibus_to_node(struct pci_bus *pbus);
 #else
 static inline int pcibus_to_node(struct pci_bus *pbus)
 {

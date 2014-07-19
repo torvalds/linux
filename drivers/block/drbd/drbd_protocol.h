@@ -54,6 +54,11 @@ enum drbd_packet {
 	P_CONN_ST_CHG_REPLY   = 0x2b, /* meta sock: Connection side state req reply */
 	P_RETRY_WRITE	      = 0x2c, /* Protocol C: retry conflicting write request */
 	P_PROTOCOL_UPDATE     = 0x2d, /* data sock: is used in established connections */
+        /* 0x2e to 0x30 reserved, used in drbd 9 */
+
+	/* REQ_DISCARD. We used "discard" in different contexts before,
+	 * which is why I chose TRIM here, to disambiguate. */
+	P_TRIM                = 0x31,
 
 	P_MAY_IGNORE	      = 0x100, /* Flag to test if (cmd > P_MAY_IGNORE) ... */
 	P_MAX_OPT_CMD	      = 0x101,
@@ -119,6 +124,11 @@ struct p_data {
 	u32	    dp_flags;
 } __packed;
 
+struct p_trim {
+	struct p_data p_data;
+	u32	    size;	/* == bio->bi_size */
+} __packed;
+
 /*
  * commands which share a struct:
  *  p_block_ack:
@@ -149,6 +159,8 @@ struct p_block_req {
  *   P_SYNC_PARAM
  *   ReportParams
  */
+
+#define FF_TRIM      1
 
 struct p_connection_features {
 	u32 protocol_min;

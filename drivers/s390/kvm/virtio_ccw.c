@@ -27,6 +27,7 @@
 #include <linux/module.h>
 #include <linux/io.h>
 #include <linux/kvm_para.h>
+#include <linux/notifier.h>
 #include <asm/setup.h>
 #include <asm/irq.h>
 #include <asm/cio.h>
@@ -62,6 +63,7 @@ struct virtio_ccw_device {
 	struct vq_config_block *config_block;
 	bool is_thinint;
 	bool going_away;
+	bool device_lost;
 	void *airq_info;
 };
 
@@ -1010,11 +1012,14 @@ static void virtio_ccw_remove(struct ccw_device *cdev)
 	unsigned long flags;
 	struct virtio_ccw_device *vcdev = virtio_grab_drvdata(cdev);
 
-	if (vcdev && cdev->online)
+	if (vcdev && cdev->online) {
+		if (vcdev->device_lost)
+			virtio_break_device(&vcdev->vdev);
 		unregister_virtio_device(&vcdev->vdev);
-	spin_lock_irqsave(get_ccwdev_lock(cdev), flags);
-	dev_set_drvdata(&cdev->dev, NULL);
-	spin_unlock_irqrestore(get_ccwdev_lock(cdev), flags);
+		spin_lock_irqsave(get_ccwdev_lock(cdev), flags);
+		dev_set_drvdata(&cdev->dev, NULL);
+		spin_unlock_irqrestore(get_ccwdev_lock(cdev), flags);
+	}
 	cdev->handler = NULL;
 }
 
@@ -1023,12 +1028,14 @@ static int virtio_ccw_offline(struct ccw_device *cdev)
 	unsigned long flags;
 	struct virtio_ccw_device *vcdev = virtio_grab_drvdata(cdev);
 
-	if (vcdev) {
-		unregister_virtio_device(&vcdev->vdev);
-		spin_lock_irqsave(get_ccwdev_lock(cdev), flags);
-		dev_set_drvdata(&cdev->dev, NULL);
-		spin_unlock_irqrestore(get_ccwdev_lock(cdev), flags);
-	}
+	if (!vcdev)
+		return 0;
+	if (vcdev->device_lost)
+		virtio_break_device(&vcdev->vdev);
+	unregister_virtio_device(&vcdev->vdev);
+	spin_lock_irqsave(get_ccwdev_lock(cdev), flags);
+	dev_set_drvdata(&cdev->dev, NULL);
+	spin_unlock_irqrestore(get_ccwdev_lock(cdev), flags);
 	return 0;
 }
 
@@ -1096,8 +1103,26 @@ out_free:
 
 static int virtio_ccw_cio_notify(struct ccw_device *cdev, int event)
 {
-	/* TODO: Check whether we need special handling here. */
-	return 0;
+	int rc;
+	struct virtio_ccw_device *vcdev = dev_get_drvdata(&cdev->dev);
+
+	/*
+	 * Make sure vcdev is set
+	 * i.e. set_offline/remove callback not already running
+	 */
+	if (!vcdev)
+		return NOTIFY_DONE;
+
+	switch (event) {
+	case CIO_GONE:
+		vcdev->device_lost = true;
+		rc = NOTIFY_DONE;
+		break;
+	default:
+		rc = NOTIFY_DONE;
+		break;
+	}
+	return rc;
 }
 
 static struct ccw_device_id virtio_ids[] = {

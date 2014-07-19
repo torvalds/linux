@@ -58,12 +58,10 @@ int r8712_init_recv_priv(struct recv_priv *precvpriv, struct _adapter *padapter)
 
 	/*init recv_buf*/
 	_init_queue(&precvpriv->free_recv_buf_queue);
-	precvpriv->pallocated_recv_buf = _malloc(NR_RECVBUFF *
-					 sizeof(struct recv_buf) + 4);
+	precvpriv->pallocated_recv_buf = kzalloc(NR_RECVBUFF * sizeof(struct recv_buf) + 4,
+						 GFP_ATOMIC);
 	if (precvpriv->pallocated_recv_buf == NULL)
 		return _FAIL;
-	memset(precvpriv->pallocated_recv_buf, 0, NR_RECVBUFF *
-		sizeof(struct recv_buf) + 4);
 	precvpriv->precv_buf = precvpriv->pallocated_recv_buf + 4 -
 			      ((addr_t) (precvpriv->pallocated_recv_buf) & 3);
 	precvbuf = (struct recv_buf *)precvpriv->precv_buf;
@@ -123,8 +121,6 @@ void r8712_free_recv_priv(struct recv_priv *precvpriv)
 
 int r8712_init_recvbuf(struct _adapter *padapter, struct recv_buf *precvbuf)
 {
-	int res = _SUCCESS;
-
 	precvbuf->transfer_len = 0;
 	precvbuf->len = 0;
 	precvbuf->ref_cnt = 0;
@@ -134,7 +130,7 @@ int r8712_init_recvbuf(struct _adapter *padapter, struct recv_buf *precvbuf)
 		precvbuf->ptail = precvbuf->pbuf;
 		precvbuf->pend = precvbuf->pdata + MAX_RECVBUF_SZ;
 	}
-	return res;
+	return _SUCCESS;
 }
 
 int r8712_free_recvframe(union recv_frame *precvframe,
@@ -347,7 +343,6 @@ static int amsdu_to_msdu(struct _adapter *padapter, union recv_frame *prframe)
 	_pkt *sub_skb, *subframes[MAX_SUBFRAME_COUNT];
 	struct recv_priv *precvpriv = &padapter->recvpriv;
 	struct  __queue *pfree_recv_queue = &(precvpriv->free_recv_queue);
-	int	ret = _SUCCESS;
 
 	nr_subframes = 0;
 	pattrib = &prframe->u.hdr.attrib;
@@ -435,7 +430,7 @@ static int amsdu_to_msdu(struct _adapter *padapter, union recv_frame *prframe)
 exit:
 	prframe->u.hdr.len = 0;
 	r8712_free_recvframe(prframe, pfree_recv_queue);
-	return ret;
+	return _SUCCESS;
 }
 
 void r8712_rxcmd_event_hdl(struct _adapter *padapter, void *prxcmdbuf)

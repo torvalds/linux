@@ -25,6 +25,7 @@
 #include <linux/ftrace.h>
 #include <linux/cpu.h>
 #include <linux/slab.h>
+#include <linux/kgdb.h>
 
 #include <asm/head.h>
 #include <asm/ptrace.h>
@@ -35,6 +36,7 @@
 #include <asm/hvtramp.h>
 #include <asm/io.h>
 #include <asm/timer.h>
+#include <asm/setup.h>
 
 #include <asm/irq.h>
 #include <asm/irq_regs.h>
@@ -52,6 +54,7 @@
 #include <asm/pcr.h>
 
 #include "cpumap.h"
+#include "kernel.h"
 
 DEFINE_PER_CPU(cpumask_t, cpu_sibling_map) = CPU_MASK_NONE;
 cpumask_t cpu_core_map[NR_CPUS] __read_mostly =
@@ -272,14 +275,6 @@ static void smp_synchronize_one_tick(int cpu)
 }
 
 #if defined(CONFIG_SUN_LDOMS) && defined(CONFIG_HOTPLUG_CPU)
-/* XXX Put this in some common place. XXX */
-static unsigned long kimage_addr_to_ra(void *p)
-{
-	unsigned long val = (unsigned long) p;
-
-	return kern_base + (val - KERNBASE);
-}
-
 static void ldom_startcpu_cpuid(unsigned int cpu, unsigned long thread_reg,
 				void **descrp)
 {
@@ -866,11 +861,6 @@ extern unsigned long xcall_kgdb_capture;
 extern unsigned long xcall_flush_dcache_page_cheetah;
 #endif
 extern unsigned long xcall_flush_dcache_page_spitfire;
-
-#ifdef CONFIG_DEBUG_DCFLUSH
-extern atomic_t dcpage_flushes;
-extern atomic_t dcpage_flushes_xcall;
-#endif
 
 static inline void __local_flush_dcache_page(struct page *page)
 {

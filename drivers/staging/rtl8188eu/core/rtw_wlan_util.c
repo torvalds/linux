@@ -1599,13 +1599,18 @@ int update_sta_support_rate(struct adapter *padapter, u8 *pvar_ie, uint var_ie_l
 	pIE = (struct ndis_802_11_var_ie *)rtw_get_ie(pvar_ie, _SUPPORTEDRATES_IE_, &ie_len, var_ie_len);
 	if (pIE == NULL)
 		return _FAIL;
+	if (ie_len > NDIS_802_11_LENGTH_RATES_EX)
+		return _FAIL;
 
 	memcpy(pmlmeinfo->FW_sta_info[cam_idx].SupportedRates, pIE->data, ie_len);
 	supportRateNum = ie_len;
 
 	pIE = (struct ndis_802_11_var_ie *)rtw_get_ie(pvar_ie, _EXT_SUPPORTEDRATES_IE_, &ie_len, var_ie_len);
-	if (pIE)
+	if (pIE) {
+		if (supportRateNum + ie_len > NDIS_802_11_LENGTH_RATES_EX)
+			return _FAIL;
 		memcpy((pmlmeinfo->FW_sta_info[cam_idx].SupportedRates + supportRateNum), pIE->data, ie_len);
+	}
 
 	return _SUCCESS;
 }
@@ -1655,27 +1660,4 @@ void correct_TSF(struct adapter *padapter, struct mlme_ext_priv *pmlmeext)
 void beacon_timing_control(struct adapter *padapter)
 {
 	rtw_hal_bcn_related_reg_setting(padapter);
-}
-
-static struct adapter *pbuddy_padapter;
-
-int rtw_handle_dualmac(struct adapter *adapter, bool init)
-{
-	int status = _SUCCESS;
-
-	if (init) {
-		if (pbuddy_padapter == NULL) {
-			pbuddy_padapter = adapter;
-			DBG_88E("%s(): pbuddy_padapter == NULL, Set pbuddy_padapter\n", __func__);
-		} else {
-			adapter->pbuddy_adapter = pbuddy_padapter;
-			pbuddy_padapter->pbuddy_adapter = adapter;
-			/*  clear global value */
-			pbuddy_padapter = NULL;
-			DBG_88E("%s(): pbuddy_padapter exist, Exchange Information\n", __func__);
-		}
-	} else {
-		pbuddy_padapter = NULL;
-	}
-	return status;
 }

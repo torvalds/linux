@@ -92,7 +92,7 @@ mwifiex_wmm_ac_debug_print(const struct ieee_types_wmm_ac_parameters *ac_param)
  * The function also initializes the list with the provided RA.
  */
 static struct mwifiex_ra_list_tbl *
-mwifiex_wmm_allocate_ralist_node(struct mwifiex_adapter *adapter, u8 *ra)
+mwifiex_wmm_allocate_ralist_node(struct mwifiex_adapter *adapter, const u8 *ra)
 {
 	struct mwifiex_ra_list_tbl *ra_list;
 
@@ -139,8 +139,7 @@ static u8 mwifiex_get_random_ba_threshold(void)
  * This function allocates and adds a RA list for all TIDs
  * with the given RA.
  */
-void
-mwifiex_ralist_add(struct mwifiex_private *priv, u8 *ra)
+void mwifiex_ralist_add(struct mwifiex_private *priv, const u8 *ra)
 {
 	int i;
 	struct mwifiex_ra_list_tbl *ra_list;
@@ -164,6 +163,7 @@ mwifiex_ralist_add(struct mwifiex_private *priv, u8 *ra)
 		if (!mwifiex_queuing_ra_based(priv)) {
 			if (mwifiex_get_tdls_link_status(priv, ra) ==
 			    TDLS_SETUP_COMPLETE) {
+				ra_list->tdls_link = true;
 				ra_list->is_11n_enabled =
 					mwifiex_tdls_peer_11n_enabled(priv, ra);
 			} else {
@@ -426,15 +426,6 @@ mwifiex_wmm_init(struct mwifiex_adapter *adapter)
 							priv->tos_to_tid_inv[i];
 		}
 
-		priv->aggr_prio_tbl[6].amsdu
-					= priv->aggr_prio_tbl[6].ampdu_ap
-					= priv->aggr_prio_tbl[6].ampdu_user
-					= BA_STREAM_NOT_ALLOWED;
-
-		priv->aggr_prio_tbl[7].amsdu = priv->aggr_prio_tbl[7].ampdu_ap
-					= priv->aggr_prio_tbl[7].ampdu_user
-					= BA_STREAM_NOT_ALLOWED;
-
 		mwifiex_set_ba_params(priv);
 		mwifiex_reset_11n_rx_seq_num(priv);
 
@@ -575,7 +566,7 @@ mwifiex_clean_txrx(struct mwifiex_private *priv)
  */
 static struct mwifiex_ra_list_tbl *
 mwifiex_wmm_get_ralist_node(struct mwifiex_private *priv, u8 tid,
-			    u8 *ra_addr)
+			    const u8 *ra_addr)
 {
 	struct mwifiex_ra_list_tbl *ra_list;
 
@@ -596,7 +587,8 @@ mwifiex_wmm_get_ralist_node(struct mwifiex_private *priv, u8 tid,
  * retrieved.
  */
 struct mwifiex_ra_list_tbl *
-mwifiex_wmm_get_queue_raptr(struct mwifiex_private *priv, u8 tid, u8 *ra_addr)
+mwifiex_wmm_get_queue_raptr(struct mwifiex_private *priv, u8 tid,
+			    const u8 *ra_addr)
 {
 	struct mwifiex_ra_list_tbl *ra_list;
 
@@ -657,7 +649,7 @@ mwifiex_wmm_add_buf_txqueue(struct mwifiex_private *priv,
 		if (ntohs(eth_hdr->h_proto) == ETH_P_TDLS)
 			dev_dbg(adapter->dev,
 				"TDLS setup packet for %pM. Don't block\n", ra);
-		else
+		else if (memcmp(priv->cfg_bssid, ra, ETH_ALEN))
 			tdls_status = mwifiex_get_tdls_link_status(priv, ra);
 	}
 

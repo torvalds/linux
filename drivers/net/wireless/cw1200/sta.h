@@ -40,7 +40,8 @@ int cw1200_set_key(struct ieee80211_hw *dev, enum set_key_cmd cmd,
 
 int cw1200_set_rts_threshold(struct ieee80211_hw *hw, u32 value);
 
-void cw1200_flush(struct ieee80211_hw *hw, u32 queues, bool drop);
+void cw1200_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+		  u32 queues, bool drop);
 
 u64 cw1200_prepare_multicast(struct ieee80211_hw *hw,
 			     struct netdev_hw_addr_list *mc_list);

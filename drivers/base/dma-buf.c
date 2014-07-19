@@ -491,7 +491,7 @@ EXPORT_SYMBOL_GPL(dma_buf_kunmap);
  * 			dma-buf buffer.
  *
  * This function adjusts the passed in vma so that it points at the file of the
- * dma_buf operation. It alsog adjusts the starting pgoff and does bounds
+ * dma_buf operation. It also adjusts the starting pgoff and does bounds
  * checking on the size of the vma. Then it calls the exporters mmap function to
  * set up the mapping.
  *

@@ -127,10 +127,10 @@
 
 /* macros for registers read/write */
 #define nand_writel(info, off, val)	\
-	__raw_writel((val), (info)->mmio_base + (off))
+	writel_relaxed((val), (info)->mmio_base + (off))
 
 #define nand_readl(info, off)		\
-	__raw_readl((info)->mmio_base + (off))
+	readl_relaxed((info)->mmio_base + (off))
 
 /* error code and state */
 enum {
@@ -337,7 +337,7 @@ static struct nand_ecclayout ecc_layout_4KB_bch8bit = {
 /* convert nano-seconds to nand flash controller clock cycles */
 #define ns2cycle(ns, clk)	(int)((ns) * (clk / 1000000) / 1000)
 
-static struct of_device_id pxa3xx_nand_dt_ids[] = {
+static const struct of_device_id pxa3xx_nand_dt_ids[] = {
 	{
 		.compatible = "marvell,pxa3xx-nand",
 		.data       = (void *)PXA3XX_NAND_VARIANT_PXA,
@@ -1354,7 +1354,6 @@ static int pxa_ecc_init(struct pxa3xx_nand_info *info,
 		ecc->mode = NAND_ECC_HW;
 		ecc->size = 512;
 		ecc->strength = 1;
-		return 1;
 
 	} else if (strength == 1 && ecc_stepsize == 512 && page_size == 512) {
 		info->chunk_size = 512;
@@ -1363,7 +1362,6 @@ static int pxa_ecc_init(struct pxa3xx_nand_info *info,
 		ecc->mode = NAND_ECC_HW;
 		ecc->size = 512;
 		ecc->strength = 1;
-		return 1;
 
 	/*
 	 * Required ECC: 4-bit correction per 512 bytes
@@ -1378,7 +1376,6 @@ static int pxa_ecc_init(struct pxa3xx_nand_info *info,
 		ecc->size = info->chunk_size;
 		ecc->layout = &ecc_layout_2KB_bch4bit;
 		ecc->strength = 16;
-		return 1;
 
 	} else if (strength == 4 && ecc_stepsize == 512 && page_size == 4096) {
 		info->ecc_bch = 1;
@@ -1389,7 +1386,6 @@ static int pxa_ecc_init(struct pxa3xx_nand_info *info,
 		ecc->size = info->chunk_size;
 		ecc->layout = &ecc_layout_4KB_bch4bit;
 		ecc->strength = 16;
-		return 1;
 
 	/*
 	 * Required ECC: 8-bit correction per 512 bytes
@@ -1404,8 +1400,15 @@ static int pxa_ecc_init(struct pxa3xx_nand_info *info,
 		ecc->size = info->chunk_size;
 		ecc->layout = &ecc_layout_4KB_bch8bit;
 		ecc->strength = 16;
-		return 1;
+	} else {
+		dev_err(&info->pdev->dev,
+			"ECC strength %d at page size %d is not supported\n",
+			strength, page_size);
+		return -ENODEV;
 	}
+
+	dev_info(&info->pdev->dev, "ECC strength %d, ECC step size %d\n",
+		 ecc->strength, ecc->size);
 	return 0;
 }
 
@@ -1516,8 +1519,13 @@ KEEP_CONFIG:
 		}
 	}
 
-	ecc_strength = chip->ecc_strength_ds;
-	ecc_step = chip->ecc_step_ds;
+	if (pdata->ecc_strength && pdata->ecc_step_size) {
+		ecc_strength = pdata->ecc_strength;
+		ecc_step = pdata->ecc_step_size;
+	} else {
+		ecc_strength = chip->ecc_strength_ds;
+		ecc_step = chip->ecc_step_ds;
+	}
 
 	/* Set default ECC strength requirements on non-ONFI devices */
 	if (ecc_strength < 1 && ecc_step < 1) {
@@ -1527,12 +1535,8 @@ KEEP_CONFIG:
 
 	ret = pxa_ecc_init(info, &chip->ecc, ecc_strength,
 			   ecc_step, mtd->writesize);
-	if (!ret) {
-		dev_err(&info->pdev->dev,
-			"ECC strength %d at page size %d is not supported\n",
-			ecc_strength, mtd->writesize);
-		return -ENODEV;
-	}
+	if (ret)
+		return ret;
 
 	/* calculate addressing information */
 	if (mtd->writesize >= 2048)
@@ -1729,6 +1733,14 @@ static int pxa3xx_nand_probe_dt(struct platform_device *pdev)
 		pdata->keep_config = 1;
 	of_property_read_u32(np, "num-cs", &pdata->num_cs);
 	pdata->flash_bbt = of_get_nand_on_flash_bbt(np);
+
+	pdata->ecc_strength = of_get_nand_ecc_strength(np);
+	if (pdata->ecc_strength < 0)
+		pdata->ecc_strength = 0;
+
+	pdata->ecc_step_size = of_get_nand_ecc_step_size(np);
+	if (pdata->ecc_step_size < 0)
+		pdata->ecc_step_size = 0;
 
 	pdev->dev.platform_data = pdata;
 

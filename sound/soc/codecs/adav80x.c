@@ -172,14 +172,14 @@ static ADAV80X_MUX_ENUM_DECL(adav80x_capture_enum, ADAV80X_DPATH_CTRL1, 3);
 static ADAV80X_MUX_ENUM_DECL(adav80x_dac_enum, ADAV80X_DPATH_CTRL2, 3);
 
 static const struct snd_kcontrol_new adav80x_aux_capture_mux_ctrl =
-	SOC_DAPM_VALUE_ENUM("Route", adav80x_aux_capture_enum);
+	SOC_DAPM_ENUM("Route", adav80x_aux_capture_enum);
 static const struct snd_kcontrol_new adav80x_capture_mux_ctrl =
-	SOC_DAPM_VALUE_ENUM("Route", adav80x_capture_enum);
+	SOC_DAPM_ENUM("Route", adav80x_capture_enum);
 static const struct snd_kcontrol_new adav80x_dac_mux_ctrl =
-	SOC_DAPM_VALUE_ENUM("Route", adav80x_dac_enum);
+	SOC_DAPM_ENUM("Route", adav80x_dac_enum);
 
 #define ADAV80X_MUX(name, ctrl) \
-	SND_SOC_DAPM_VALUE_MUX(name, SND_SOC_NOPM, 0, 0, ctrl)
+	SND_SOC_DAPM_MUX(name, SND_SOC_NOPM, 0, 0, ctrl)
 
 static const struct snd_soc_dapm_widget adav80x_dapm_widgets[] = {
 	SND_SOC_DAPM_DAC("DAC", NULL, ADAV80X_DAC_CTRL1, 7, 1),
@@ -315,7 +315,7 @@ static int adav80x_set_deemph(struct snd_soc_codec *codec)
 static int adav80x_put_deemph(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct adav80x *adav80x = snd_soc_codec_get_drvdata(codec);
 	unsigned int deemph = ucontrol->value.enumerated.item[0];
 
@@ -330,7 +330,7 @@ static int adav80x_put_deemph(struct snd_kcontrol *kcontrol,
 static int adav80x_get_deemph(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct adav80x *adav80x = snd_soc_codec_get_drvdata(codec);
 
 	ucontrol->value.enumerated.item[0] = adav80x->deemph;

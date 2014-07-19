@@ -16,7 +16,7 @@
 #include "vhci_driver.h"
 #include "usbip_common.h"
 
-static int list_imported_devices()
+static int list_imported_devices(void)
 {
 	int i;
 	struct usbip_imported_device *idev;

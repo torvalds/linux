@@ -11,6 +11,8 @@
 
 #include "dport.h"
 #include "priv.h"
+#include "outp.h"
+#include "outpdp.h"
 
 struct nv50_disp_impl {
 	struct nouveau_disp_impl base;
@@ -43,13 +45,11 @@ struct nv50_disp_priv {
 		int (*hda_eld)(struct nv50_disp_priv *, int sor, u8 *, u32);
 		int (*hdmi)(struct nv50_disp_priv *, int head, int sor, u32);
 		u32 lvdsconf;
-		const struct nouveau_dp_func *dp;
 	} sor;
 	struct {
 		int nr;
 		int (*power)(struct nv50_disp_priv *, int ext, u32 data);
 		u8 type[3];
-		const struct nouveau_dp_func *dp;
 	} pior;
 };
 
@@ -198,5 +198,15 @@ void nvd0_disp_intr(struct nouveau_subdev *);
 
 extern const struct nv50_disp_mthd_chan nve0_disp_mast_mthd_chan;
 extern const struct nv50_disp_mthd_chan nve0_disp_ovly_mthd_chan;
+
+extern struct nvkm_output_dp_impl nv50_pior_dp_impl;
+extern struct nouveau_oclass *nv50_disp_outp_sclass[];
+
+extern struct nvkm_output_dp_impl nv94_sor_dp_impl;
+int nv94_sor_dp_lnk_pwr(struct nvkm_output_dp *, int);
+extern struct nouveau_oclass *nv94_disp_outp_sclass[];
+
+extern struct nvkm_output_dp_impl nvd0_sor_dp_impl;
+extern struct nouveau_oclass *nvd0_disp_outp_sclass[];
 
 #endif

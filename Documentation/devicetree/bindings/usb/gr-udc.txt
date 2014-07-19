@@ -12,17 +12,23 @@ Required properties:
 
 - reg : Address and length of the register set for the device
 
-- interrupts : Interrupt numbers for this device
+- interrupts : Interrupt numbers for this device. Either one interrupt number
+	for all interrupts, or one for status related interrupts, one for IN
+	endpoint related interrupts and one for OUT endpoint related interrupts.
 
 Optional properties:
 
-- epobufsizes : An array of buffer sizes for OUT endpoints. If the property is
-	not present, or for endpoints outside of the array, 1024 is assumed by
-	the driver.
+- epobufsizes : Array of buffer sizes for OUT endpoints when they differ
+	from the default size of 1024. The array is indexed by the OUT endpoint
+	number. If the property is present it typically contains one entry for
+	each OUT endpoint of the core. Fewer entries overrides the default sizes
+	only for as many endpoints as the array contains.
 
-- epibufsizes : An array of buffer sizes for IN endpoints. If the property is
-	not present, or for endpoints outside of the array, 1024 is assumed by
-	the driver.
+- epibufsizes : Array of buffer sizes for IN endpoints when they differ
+	from the default size of 1024. The array is indexed by the IN endpoint
+	number. If the property is present it typically contains one entry for
+	each IN endpoint of the core. Fewer entries overrides the default sizes
+	only for as many endpoints as the array contains.
 
 For further information look in the documentation for the GLIB IP core library:
 http://www.gaisler.com/products/grlib/grip.pdf

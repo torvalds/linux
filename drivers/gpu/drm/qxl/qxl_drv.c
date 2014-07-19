@@ -214,7 +214,6 @@ static struct pci_driver qxl_pci_driver = {
 static struct drm_driver qxl_driver = {
 	.driver_features = DRIVER_GEM | DRIVER_MODESET |
 			   DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED,
-	.dev_priv_size = 0,
 	.load = qxl_driver_load,
 	.unload = qxl_driver_unload,
 

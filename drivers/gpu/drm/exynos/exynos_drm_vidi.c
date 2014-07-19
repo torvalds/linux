@@ -51,6 +51,7 @@ struct vidi_context {
 	struct drm_crtc			*crtc;
 	struct drm_encoder		*encoder;
 	struct drm_connector		connector;
+	struct exynos_drm_subdrv	subdrv;
 	struct vidi_win_data		win_data[WINDOWS_NR];
 	struct edid			*raw_edid;
 	unsigned int			clkdiv;
@@ -294,14 +295,13 @@ static void vidi_dpms(struct exynos_drm_manager *mgr, int mode)
 }
 
 static int vidi_mgr_initialize(struct exynos_drm_manager *mgr,
-			struct drm_device *drm_dev, int pipe)
+			struct drm_device *drm_dev)
 {
 	struct vidi_context *ctx = mgr->ctx;
+	struct exynos_drm_private *priv = drm_dev->dev_private;
 
-	DRM_ERROR("vidi initialize ct=%p dev=%p pipe=%d\n", ctx, drm_dev, pipe);
-
-	ctx->drm_dev = drm_dev;
-	ctx->pipe = pipe;
+	mgr->drm_dev = ctx->drm_dev = drm_dev;
+	mgr->pipe = ctx->pipe = priv->pipe++;
 
 	/*
 	 * enable drm irq mode.
@@ -324,7 +324,6 @@ static int vidi_mgr_initialize(struct exynos_drm_manager *mgr,
 }
 
 static struct exynos_drm_manager_ops vidi_manager_ops = {
-	.initialize = vidi_mgr_initialize,
 	.dpms = vidi_dpms,
 	.commit = vidi_commit,
 	.enable_vblank = vidi_enable_vblank,
@@ -533,12 +532,6 @@ static int vidi_get_modes(struct drm_connector *connector)
 	return drm_add_edid_modes(connector, edid);
 }
 
-static int vidi_mode_valid(struct drm_connector *connector,
-			struct drm_display_mode *mode)
-{
-	return MODE_OK;
-}
-
 static struct drm_encoder *vidi_best_encoder(struct drm_connector *connector)
 {
 	struct vidi_context *ctx = ctx_from_connector(connector);
@@ -548,7 +541,6 @@ static struct drm_encoder *vidi_best_encoder(struct drm_connector *connector)
 
 static struct drm_connector_helper_funcs vidi_connector_helper_funcs = {
 	.get_modes = vidi_get_modes,
-	.mode_valid = vidi_mode_valid,
 	.best_encoder = vidi_best_encoder,
 };
 
@@ -586,13 +578,38 @@ static struct exynos_drm_display vidi_display = {
 	.ops = &vidi_display_ops,
 };
 
+static int vidi_subdrv_probe(struct drm_device *drm_dev, struct device *dev)
+{
+	struct exynos_drm_manager *mgr = get_vidi_mgr(dev);
+	struct vidi_context *ctx = mgr->ctx;
+	struct drm_crtc *crtc = ctx->crtc;
+	int ret;
+
+	vidi_mgr_initialize(mgr, drm_dev);
+
+	ret = exynos_drm_crtc_create(&vidi_manager);
+	if (ret) {
+		DRM_ERROR("failed to create crtc.\n");
+		return ret;
+	}
+
+	ret = exynos_drm_create_enc_conn(drm_dev, &vidi_display);
+	if (ret) {
+		crtc->funcs->destroy(crtc);
+		DRM_ERROR("failed to create encoder and connector.\n");
+		return ret;
+	}
+
+	return 0;
+}
+
 static int vidi_probe(struct platform_device *pdev)
 {
-	struct device *dev = &pdev->dev;
+	struct exynos_drm_subdrv *subdrv;
 	struct vidi_context *ctx;
 	int ret;
 
-	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
+	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
 		return -ENOMEM;
 
@@ -607,27 +624,42 @@ static int vidi_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, &vidi_manager);
 
-	ret = device_create_file(dev, &dev_attr_connection);
-	if (ret < 0)
-		DRM_INFO("failed to create connection sysfs.\n");
+	subdrv = &ctx->subdrv;
+	subdrv->dev = &pdev->dev;
+	subdrv->probe = vidi_subdrv_probe;
 
-	exynos_drm_manager_register(&vidi_manager);
-	exynos_drm_display_register(&vidi_display);
+	ret = exynos_drm_subdrv_register(subdrv);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "failed to register drm vidi device\n");
+		return ret;
+	}
+
+	ret = device_create_file(&pdev->dev, &dev_attr_connection);
+	if (ret < 0) {
+		exynos_drm_subdrv_unregister(subdrv);
+		DRM_INFO("failed to create connection sysfs.\n");
+	}
 
 	return 0;
 }
 
 static int vidi_remove(struct platform_device *pdev)
 {
-	struct vidi_context *ctx = platform_get_drvdata(pdev);
-
-	exynos_drm_display_unregister(&vidi_display);
-	exynos_drm_manager_unregister(&vidi_manager);
+	struct exynos_drm_manager *mgr = platform_get_drvdata(pdev);
+	struct vidi_context *ctx = mgr->ctx;
+	struct drm_encoder *encoder = ctx->encoder;
+	struct drm_crtc *crtc = mgr->crtc;
 
 	if (ctx->raw_edid != (struct edid *)fake_edid_info) {
 		kfree(ctx->raw_edid);
 		ctx->raw_edid = NULL;
+
+		return -EINVAL;
 	}
+
+	crtc->funcs->destroy(crtc);
+	encoder->funcs->destroy(encoder);
+	drm_connector_cleanup(&ctx->connector);
 
 	return 0;
 }
@@ -640,3 +672,31 @@ struct platform_driver vidi_driver = {
 		.owner	= THIS_MODULE,
 	},
 };
+
+int exynos_drm_probe_vidi(void)
+{
+	struct platform_device *pdev;
+	int ret;
+
+	pdev = platform_device_register_simple("exynos-drm-vidi", -1, NULL, 0);
+	if (IS_ERR(pdev))
+		return PTR_ERR(pdev);
+
+	ret = platform_driver_register(&vidi_driver);
+	if (ret) {
+		platform_device_unregister(pdev);
+		return ret;
+	}
+
+	return ret;
+}
+
+void exynos_drm_remove_vidi(void)
+{
+	struct vidi_context *ctx = vidi_manager.ctx;
+	struct exynos_drm_subdrv *subdrv = &ctx->subdrv;
+	struct platform_device *pdev = to_platform_device(subdrv->dev);
+
+	platform_driver_unregister(&vidi_driver);
+	platform_device_unregister(pdev);
+}

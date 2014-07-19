@@ -282,6 +282,7 @@ static char ohci_driver_name[] = KBUILD_MODNAME;
 #define PCI_DEVICE_ID_TI_TSB82AA2	0x8025
 #define PCI_DEVICE_ID_VIA_VT630X	0x3044
 #define PCI_REV_ID_VIA_VT6306		0x46
+#define PCI_DEVICE_ID_VIA_VT6315	0x3403
 
 #define QUIRK_CYCLE_TIMER		0x1
 #define QUIRK_RESET_PACKET		0x2
@@ -333,6 +334,12 @@ static const struct {
 
 	{PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_VT630X, PCI_REV_ID_VIA_VT6306,
 		QUIRK_CYCLE_TIMER | QUIRK_IR_WAKE},
+
+	{PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_VT6315, 0,
+		QUIRK_CYCLE_TIMER | QUIRK_NO_MSI},
+
+	{PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_VT6315, PCI_ANY_ID,
+		0},
 
 	{PCI_VENDOR_ID_VIA, PCI_ANY_ID, PCI_ANY_ID,
 		QUIRK_CYCLE_TIMER | QUIRK_NO_MSI},
@@ -3498,7 +3505,7 @@ static int ohci_flush_iso_completions(struct fw_iso_context *base)
 		}
 
 		clear_bit_unlock(0, &ctx->flushing_completions);
-		smp_mb__after_clear_bit();
+		smp_mb__after_atomic();
 	}
 
 	tasklet_enable(&ctx->context.tasklet);
@@ -3716,7 +3723,7 @@ static int pci_probe(struct pci_dev *dev,
 		    version >> 16, version & 0xff, ohci->card.index,
 		    ohci->n_ir, ohci->n_it, ohci->quirks,
 		    reg_read(ohci, OHCI1394_PhyUpperBound) ?
-			", >4 GB phys DMA" : "");
+			", physUB" : "");
 
 	return 0;
 

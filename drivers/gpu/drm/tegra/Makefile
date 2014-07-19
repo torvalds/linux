@@ -1,7 +1,6 @@
 ccflags-$(CONFIG_DRM_TEGRA_DEBUG) += -DDEBUG
 
 tegra-drm-y := \
-	bus.o \
 	drm.o \
 	gem.o \
 	fb.o \

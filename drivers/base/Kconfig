@@ -1,10 +1,10 @@
 menu "Generic Driver Options"
 
-config UEVENT_HELPER_PATH
-	string "path to uevent helper"
-	default ""
+config UEVENT_HELPER
+	bool "Support for uevent helper"
+	default y
 	help
-	  Path to uevent helper program forked by the kernel for
+	  The uevent helper program is forked by the kernel for
 	  every uevent.
 	  Before the switch to the netlink-based uevent source, this was
 	  used to hook hotplug scripts into kernel device events. It
@@ -15,8 +15,13 @@ config UEVENT_HELPER_PATH
 	  that it creates a high system load, or on smaller systems
 	  it is known to create out-of-memory situations during bootup.
 
-	  To disable user space helper program execution at early boot
-	  time specify an empty string here. This setting can be altered
+config UEVENT_HELPER_PATH
+	string "path to uevent helper"
+	depends on UEVENT_HELPER
+	default ""
+	help
+	  To disable user space helper program execution at by default
+	  specify an empty string here. This setting can still be altered
 	  via /proc/sys/kernel/hotplug or via /sys/kernel/uevent_helper
 	  later at runtime.
 
@@ -253,7 +258,7 @@ endchoice
 
 config CMA_ALIGNMENT
 	int "Maximum PAGE_SIZE order of alignment for contiguous buffers"
-	range 4 9
+	range 4 12
 	default 8
 	help
 	  DMA mapping framework by default aligns all buffers to the smallest

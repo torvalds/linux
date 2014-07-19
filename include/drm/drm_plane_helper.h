@@ -24,6 +24,17 @@
 #ifndef DRM_PLANE_HELPER_H
 #define DRM_PLANE_HELPER_H
 
+#include <drm/drm_rect.h>
+
+/*
+ * Drivers that don't allow primary plane scaling may pass this macro in place
+ * of the min/max scale parameters of the update checker function.
+ *
+ * Due to src being in 16.16 fixed point and dest being in integer pixels,
+ * 1<<16 represents no scaling.
+ */
+#define DRM_PLANE_HELPER_NO_SCALING (1<<16)
+
 /**
  * DOC: plane helpers
  *
@@ -31,6 +42,17 @@
  * planes.
  */
 
+extern int drm_plane_helper_check_update(struct drm_plane *plane,
+					 struct drm_crtc *crtc,
+					 struct drm_framebuffer *fb,
+					 struct drm_rect *src,
+					 struct drm_rect *dest,
+					 const struct drm_rect *clip,
+					 int min_scale,
+					 int max_scale,
+					 bool can_position,
+					 bool can_update_disabled,
+					 bool *visible);
 extern int drm_primary_helper_update(struct drm_plane *plane,
 				     struct drm_crtc *crtc,
 				     struct drm_framebuffer *fb,
@@ -42,7 +64,7 @@ extern int drm_primary_helper_disable(struct drm_plane *plane);
 extern void drm_primary_helper_destroy(struct drm_plane *plane);
 extern const struct drm_plane_funcs drm_primary_helper_funcs;
 extern struct drm_plane *drm_primary_helper_create_plane(struct drm_device *dev,
-							 uint32_t *formats,
+							 const uint32_t *formats,
 							 int num_formats);
 
 

@@ -159,17 +159,18 @@ int sensor_hub_register_callback(struct hid_sensor_hub_device *hsdev,
 {
 	struct hid_sensor_hub_callbacks_list *callback;
 	struct sensor_hub_data *pdata = hid_get_drvdata(hsdev->hdev);
+	unsigned long flags;
 
-	spin_lock(&pdata->dyn_callback_lock);
+	spin_lock_irqsave(&pdata->dyn_callback_lock, flags);
 	list_for_each_entry(callback, &pdata->dyn_callback_list, list)
 		if (callback->usage_id == usage_id &&
 						callback->hsdev == hsdev) {
-			spin_unlock(&pdata->dyn_callback_lock);
+			spin_unlock_irqrestore(&pdata->dyn_callback_lock, flags);
 			return -EINVAL;
 		}
 	callback = kzalloc(sizeof(*callback), GFP_ATOMIC);
 	if (!callback) {
-		spin_unlock(&pdata->dyn_callback_lock);
+		spin_unlock_irqrestore(&pdata->dyn_callback_lock, flags);
 		return -ENOMEM;
 	}
 	callback->hsdev = hsdev;
@@ -177,7 +178,7 @@ int sensor_hub_register_callback(struct hid_sensor_hub_device *hsdev,
 	callback->usage_id = usage_id;
 	callback->priv = NULL;
 	list_add_tail(&callback->list, &pdata->dyn_callback_list);
-	spin_unlock(&pdata->dyn_callback_lock);
+	spin_unlock_irqrestore(&pdata->dyn_callback_lock, flags);
 
 	return 0;
 }
@@ -188,8 +189,9 @@ int sensor_hub_remove_callback(struct hid_sensor_hub_device *hsdev,
 {
 	struct hid_sensor_hub_callbacks_list *callback;
 	struct sensor_hub_data *pdata = hid_get_drvdata(hsdev->hdev);
+	unsigned long flags;
 
-	spin_lock(&pdata->dyn_callback_lock);
+	spin_lock_irqsave(&pdata->dyn_callback_lock, flags);
 	list_for_each_entry(callback, &pdata->dyn_callback_list, list)
 		if (callback->usage_id == usage_id &&
 						callback->hsdev == hsdev) {
@@ -197,7 +199,7 @@ int sensor_hub_remove_callback(struct hid_sensor_hub_device *hsdev,
 			kfree(callback);
 			break;
 		}
-	spin_unlock(&pdata->dyn_callback_lock);
+	spin_unlock_irqrestore(&pdata->dyn_callback_lock, flags);
 
 	return 0;
 }
@@ -378,15 +380,16 @@ static int sensor_hub_suspend(struct hid_device *hdev, pm_message_t message)
 {
 	struct sensor_hub_data *pdata = hid_get_drvdata(hdev);
 	struct hid_sensor_hub_callbacks_list *callback;
+	unsigned long flags;
 
 	hid_dbg(hdev, " sensor_hub_suspend\n");
-	spin_lock(&pdata->dyn_callback_lock);
+	spin_lock_irqsave(&pdata->dyn_callback_lock, flags);
 	list_for_each_entry(callback, &pdata->dyn_callback_list, list) {
 		if (callback->usage_callback->suspend)
 			callback->usage_callback->suspend(
 					callback->hsdev, callback->priv);
 	}
-	spin_unlock(&pdata->dyn_callback_lock);
+	spin_unlock_irqrestore(&pdata->dyn_callback_lock, flags);
 
 	return 0;
 }
@@ -395,15 +398,16 @@ static int sensor_hub_resume(struct hid_device *hdev)
 {
 	struct sensor_hub_data *pdata = hid_get_drvdata(hdev);
 	struct hid_sensor_hub_callbacks_list *callback;
+	unsigned long flags;
 
 	hid_dbg(hdev, " sensor_hub_resume\n");
-	spin_lock(&pdata->dyn_callback_lock);
+	spin_lock_irqsave(&pdata->dyn_callback_lock, flags);
 	list_for_each_entry(callback, &pdata->dyn_callback_list, list) {
 		if (callback->usage_callback->resume)
 			callback->usage_callback->resume(
 					callback->hsdev, callback->priv);
 	}
-	spin_unlock(&pdata->dyn_callback_lock);
+	spin_unlock_irqrestore(&pdata->dyn_callback_lock, flags);
 
 	return 0;
 }
@@ -632,6 +636,7 @@ static int sensor_hub_probe(struct hid_device *hdev,
 			if (name == NULL) {
 				hid_err(hdev, "Failed MFD device name\n");
 					ret = -ENOMEM;
+					kfree(hsdev);
 					goto err_no_mem;
 			}
 			sd->hid_sensor_hub_client_devs[
@@ -705,8 +710,17 @@ static const struct hid_device_id sensor_hub_devices[] = {
 	{ HID_DEVICE(HID_BUS_ANY, HID_GROUP_SENSOR_HUB, USB_VENDOR_ID_INTEL_1,
 			USB_DEVICE_ID_INTEL_HID_SENSOR_1),
 			.driver_data = HID_SENSOR_HUB_ENUM_QUIRK},
+	{ HID_DEVICE(HID_BUS_ANY, HID_GROUP_SENSOR_HUB, USB_VENDOR_ID_MICROSOFT,
+			USB_DEVICE_ID_MS_SURFACE_PRO_2),
+			.driver_data = HID_SENSOR_HUB_ENUM_QUIRK},
+	{ HID_DEVICE(HID_BUS_ANY, HID_GROUP_SENSOR_HUB, USB_VENDOR_ID_MICROSOFT,
+			USB_DEVICE_ID_MS_TOUCH_COVER_2),
+			.driver_data = HID_SENSOR_HUB_ENUM_QUIRK},
+	{ HID_DEVICE(HID_BUS_ANY, HID_GROUP_SENSOR_HUB, USB_VENDOR_ID_MICROSOFT,
+			USB_DEVICE_ID_MS_TYPE_COVER_2),
+			.driver_data = HID_SENSOR_HUB_ENUM_QUIRK},
 	{ HID_DEVICE(HID_BUS_ANY, HID_GROUP_SENSOR_HUB, USB_VENDOR_ID_STM_0,
-			USB_DEVICE_ID_STM_HID_SENSOR),
+			USB_DEVICE_ID_STM_HID_SENSOR_1),
 			.driver_data = HID_SENSOR_HUB_ENUM_QUIRK},
 	{ HID_DEVICE(HID_BUS_ANY, HID_GROUP_SENSOR_HUB, USB_VENDOR_ID_TEXAS_INSTRUMENTS,
 			USB_DEVICE_ID_TEXAS_INSTRUMENTS_LENOVO_YOGA),

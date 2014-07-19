@@ -156,6 +156,6 @@ typedef __uint16_t	xfs_qwarncnt_t;
 
 extern int xfs_dqcheck(struct xfs_mount *mp, xfs_disk_dquot_t *ddq,
 		       xfs_dqid_t id, uint type, uint flags, char *str);
-extern int xfs_calc_dquots_per_chunk(struct xfs_mount *mp, unsigned int nbblks);
+extern int xfs_calc_dquots_per_chunk(unsigned int nbblks);
 
 #endif	/* __XFS_QUOTA_H__ */

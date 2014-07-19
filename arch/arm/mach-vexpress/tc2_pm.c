@@ -209,7 +209,7 @@ static int tc2_core_in_reset(unsigned int cpu, unsigned int cluster)
 #define POLL_MSEC 10
 #define TIMEOUT_MSEC 1000
 
-static int tc2_pm_power_down_finish(unsigned int cpu, unsigned int cluster)
+static int tc2_pm_wait_for_powerdown(unsigned int cpu, unsigned int cluster)
 {
 	unsigned tries;
 
@@ -290,7 +290,7 @@ static void tc2_pm_powered_up(void)
 static const struct mcpm_platform_ops tc2_pm_power_ops = {
 	.power_up		= tc2_pm_power_up,
 	.power_down		= tc2_pm_power_down,
-	.power_down_finish	= tc2_pm_power_down_finish,
+	.wait_for_powerdown	= tc2_pm_wait_for_powerdown,
 	.suspend		= tc2_pm_suspend,
 	.powered_up		= tc2_pm_powered_up,
 };

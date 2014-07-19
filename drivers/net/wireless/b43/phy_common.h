@@ -231,8 +231,11 @@ struct b43_phy {
 	/* HT info */
 	bool is_40mhz;
 
-	/* GMODE bit enabled? */
+	/* Is GMODE (2 GHz mode) bit enabled? */
 	bool gmode;
+
+	/* After power reset full init has to be performed */
+	bool do_full_init;
 
 	/* Analog Type */
 	u8 analog;
@@ -389,6 +392,9 @@ void b43_phy_lock(struct b43_wldev *dev);
  * b43_phy_unlock - Unlock firmware PHY register access
  */
 void b43_phy_unlock(struct b43_wldev *dev);
+
+void b43_phy_put_into_reset(struct b43_wldev *dev);
+void b43_phy_take_out_of_reset(struct b43_wldev *dev);
 
 /**
  * b43_switch_channel - Switch to another channel

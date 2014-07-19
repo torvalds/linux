@@ -277,51 +277,22 @@ static void iwl_mvm_scan_calc_params(struct iwl_mvm *mvm,
 					    IEEE80211_IFACE_ITER_NORMAL,
 					    iwl_mvm_scan_condition_iterator,
 					    &global_bound);
-	/*
-	 * Under low latency traffic passive scan is fragmented meaning
-	 * that dwell on a particular channel will be fragmented. Each fragment
-	 * dwell time is 20ms and fragments period is 105ms. Skipping to next
-	 * channel will be delayed by the same period - 105ms. So suspend_time
-	 * parameter describing both fragments and channels skipping periods is
-	 * set to 105ms. This value is chosen so that overall passive scan
-	 * duration will not be too long. Max_out_time in this case is set to
-	 * 70ms, so for active scanning operating channel will be left for 70ms
-	 * while for passive still for 20ms (fragment dwell).
-	 */
-	if (global_bound) {
-		if (!iwl_mvm_low_latency(mvm)) {
-			params->suspend_time = ieee80211_tu_to_usec(100);
-			params->max_out_time = ieee80211_tu_to_usec(600);
-		} else {
-			params->suspend_time = ieee80211_tu_to_usec(105);
-			/* P2P doesn't support fragmented passive scan, so
-			 * configure max_out_time to be at least longest dwell
-			 * time for passive scan.
-			 */
-			if (vif->type == NL80211_IFTYPE_STATION && !vif->p2p) {
-				params->max_out_time = ieee80211_tu_to_usec(70);
-				params->passive_fragmented = true;
-			} else {
-				u32 passive_dwell;
 
-				/*
-				 * Use band G so that passive channel dwell time
-				 * will be assigned with maximum value.
-				 */
-				band = IEEE80211_BAND_2GHZ;
-				passive_dwell = iwl_mvm_get_passive_dwell(band);
-				params->max_out_time =
-					ieee80211_tu_to_usec(passive_dwell);
-			}
-		}
+	if (!global_bound)
+		goto not_bound;
+
+	params->suspend_time = 100;
+	params->max_out_time = 600;
+
+	if (iwl_mvm_low_latency(mvm)) {
+		params->suspend_time = 250;
+		params->max_out_time = 250;
 	}
 
+not_bound:
+
 	for (band = IEEE80211_BAND_2GHZ; band < IEEE80211_NUM_BANDS; band++) {
-		if (params->passive_fragmented)
-			params->dwell[band].passive = 20;
-		else
-			params->dwell[band].passive =
-				iwl_mvm_get_passive_dwell(band);
+		params->dwell[band].passive = iwl_mvm_get_passive_dwell(band);
 		params->dwell[band].active = iwl_mvm_get_active_dwell(band,
 								      n_ssids);
 	}
@@ -335,7 +306,6 @@ int iwl_mvm_scan_request(struct iwl_mvm *mvm,
 		.id = SCAN_REQUEST_CMD,
 		.len = { 0, },
 		.data = { mvm->scan_cmd, },
-		.flags = CMD_SYNC,
 		.dataflags = { IWL_HCMD_DFL_NOCOPY, },
 	};
 	struct iwl_scan_cmd *cmd = mvm->scan_cmd;
@@ -348,7 +318,10 @@ int iwl_mvm_scan_request(struct iwl_mvm *mvm,
 	struct iwl_mvm_scan_params params = {};
 
 	lockdep_assert_held(&mvm->mutex);
-	BUG_ON(mvm->scan_cmd == NULL);
+
+	/* we should have failed registration if scan_cmd was NULL */
+	if (WARN_ON(mvm->scan_cmd == NULL))
+		return -ENOMEM;
 
 	IWL_DEBUG_SCAN(mvm, "Handling mac80211 scan request\n");
 	mvm->scan_status = IWL_MVM_SCAN_OS;
@@ -543,7 +516,7 @@ int iwl_mvm_cancel_scan(struct iwl_mvm *mvm)
 				   ARRAY_SIZE(scan_abort_notif),
 				   iwl_mvm_scan_abort_notif, NULL);
 
-	ret = iwl_mvm_send_cmd_pdu(mvm, SCAN_ABORT_CMD, CMD_SYNC, 0, NULL);
+	ret = iwl_mvm_send_cmd_pdu(mvm, SCAN_ABORT_CMD, 0, 0, NULL);
 	if (ret) {
 		IWL_ERR(mvm, "Couldn't send SCAN_ABORT_CMD: %d\n", ret);
 		/* mac80211's state will be cleaned in the nic_restart flow */
@@ -567,15 +540,21 @@ int iwl_mvm_rx_scan_offload_complete_notif(struct iwl_mvm *mvm,
 	/* scan status must be locked for proper checking */
 	lockdep_assert_held(&mvm->mutex);
 
-	IWL_DEBUG_SCAN(mvm, "Scheduled scan completed, status %s\n",
+	IWL_DEBUG_SCAN(mvm,
+		       "Scheduled scan completed, status %s EBS status %s:%d\n",
 		       scan_notif->status == IWL_SCAN_OFFLOAD_COMPLETED ?
-		       "completed" : "aborted");
+		       "completed" : "aborted", scan_notif->ebs_status ==
+		       IWL_SCAN_EBS_SUCCESS ? "success" : "failed",
+		       scan_notif->ebs_status);
+
 
 	/* only call mac80211 completion if the stop was initiated by FW */
 	if (mvm->scan_status == IWL_MVM_SCAN_SCHED) {
 		mvm->scan_status = IWL_MVM_SCAN_NONE;
 		ieee80211_sched_scan_stopped(mvm->hw);
 	}
+
+	mvm->last_ebs_successful = !scan_notif->ebs_status;
 
 	return 0;
 }
@@ -761,7 +740,7 @@ int iwl_mvm_config_sched_scan(struct iwl_mvm *mvm,
 	int band_2ghz = mvm->nvm_data->bands[IEEE80211_BAND_2GHZ].n_channels;
 	int band_5ghz = mvm->nvm_data->bands[IEEE80211_BAND_5GHZ].n_channels;
 	int head = 0;
-	int tail = band_2ghz + band_5ghz;
+	int tail = band_2ghz + band_5ghz - 1;
 	u32 ssid_bitmap;
 	int cmd_len;
 	int ret;
@@ -769,7 +748,6 @@ int iwl_mvm_config_sched_scan(struct iwl_mvm *mvm,
 	struct iwl_scan_offload_cfg *scan_cfg;
 	struct iwl_host_cmd cmd = {
 		.id = SCAN_OFFLOAD_CONFIG_CMD,
-		.flags = CMD_SYNC,
 	};
 	struct iwl_mvm_scan_params params = {};
 
@@ -827,7 +805,6 @@ int iwl_mvm_config_sched_scan_profiles(struct iwl_mvm *mvm,
 	struct iwl_scan_offload_blacklist *blacklist;
 	struct iwl_host_cmd cmd = {
 		.id = SCAN_OFFLOAD_UPDATE_PROFILES_CMD,
-		.flags = CMD_SYNC,
 		.len[1] = sizeof(*profile_cfg),
 		.dataflags[0] = IWL_HCMD_DFL_NOCOPY,
 		.dataflags[1] = IWL_HCMD_DFL_NOCOPY,
@@ -913,7 +890,12 @@ int iwl_mvm_sched_scan_start(struct iwl_mvm *mvm,
 		scan_req.flags |= cpu_to_le16(IWL_SCAN_OFFLOAD_FLAG_PASS_ALL);
 	}
 
-	return iwl_mvm_send_cmd_pdu(mvm, SCAN_OFFLOAD_REQUEST_CMD, CMD_SYNC,
+	if (mvm->last_ebs_successful &&
+	    mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_EBS_SUPPORT)
+		scan_req.flags |=
+			cpu_to_le16(IWL_SCAN_OFFLOAD_FLAG_EBS_ACCURATE_MODE);
+
+	return iwl_mvm_send_cmd_pdu(mvm, SCAN_OFFLOAD_REQUEST_CMD, 0,
 				    sizeof(scan_req), &scan_req);
 }
 
@@ -922,7 +904,6 @@ static int iwl_mvm_send_sched_scan_abort(struct iwl_mvm *mvm)
 	int ret;
 	struct iwl_host_cmd cmd = {
 		.id = SCAN_OFFLOAD_ABORT_CMD,
-		.flags = CMD_SYNC,
 	};
 	u32 status;
 
@@ -951,7 +932,7 @@ static int iwl_mvm_send_sched_scan_abort(struct iwl_mvm *mvm)
 	return ret;
 }
 
-int iwl_mvm_sched_scan_stop(struct iwl_mvm *mvm)
+int iwl_mvm_sched_scan_stop(struct iwl_mvm *mvm, bool notify)
 {
 	int ret;
 	struct iwl_notification_wait wait_scan_done;
@@ -988,6 +969,9 @@ int iwl_mvm_sched_scan_stop(struct iwl_mvm *mvm)
 	 * stopped from above.
 	 */
 	mvm->scan_status = IWL_MVM_SCAN_NONE;
+
+	if (notify)
+		ieee80211_sched_scan_stopped(mvm->hw);
 
 	return 0;
 }

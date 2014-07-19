@@ -125,6 +125,9 @@ static struct regulator_ops pfuze100_ldo_regulator_ops = {
 };
 
 static struct regulator_ops pfuze100_fixed_regulator_ops = {
+	.enable = regulator_enable_regmap,
+	.disable = regulator_disable_regmap,
+	.is_enabled = regulator_is_enabled_regmap,
 	.list_voltage = regulator_list_voltage_linear,
 };
 
@@ -137,6 +140,8 @@ static struct regulator_ops pfuze100_sw_regulator_ops = {
 };
 
 static struct regulator_ops pfuze100_swb_regulator_ops = {
+	.enable = regulator_enable_regmap,
+	.disable = regulator_disable_regmap,
 	.list_voltage = regulator_list_voltage_table,
 	.map_voltage = regulator_map_voltage_ascend,
 	.set_voltage_sel = regulator_set_voltage_sel_regmap,
@@ -189,6 +194,8 @@ static struct regulator_ops pfuze100_swb_regulator_ops = {
 			.volt_table = voltages,	\
 			.vsel_reg = (base),	\
 			.vsel_mask = (mask),	\
+			.enable_reg = (base),	\
+			.enable_mask = 0x48,	\
 		},	\
 	}
 
@@ -502,6 +509,7 @@ static int pfuze100_regulator_probe(struct i2c_client *client,
 		config.init_data = init_data;
 		config.driver_data = pfuze_chip;
 		config.of_node = match_of_node(i);
+		config.ena_gpio = -EINVAL;
 
 		pfuze_chip->regulators[i] =
 			devm_regulator_register(&client->dev, desc, &config);

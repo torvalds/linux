@@ -1,7 +1,7 @@
 #ifndef _PERF_UI_PROGRESS_H_
 #define _PERF_UI_PROGRESS_H_ 1
 
-#include <../types.h>
+#include <linux/types.h>
 
 void ui_progress__finish(void);
  

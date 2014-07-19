@@ -5,6 +5,7 @@ Required properties:
 	1) "samsung,exynos5-hdmi" <DEPRECATED>
 	2) "samsung,exynos4210-hdmi"
 	3) "samsung,exynos4212-hdmi"
+	4) "samsung,exynos5420-hdmi"
 - reg: physical base address of the hdmi and length of memory mapped
 	region.
 - interrupts: interrupt number to the cpu.
@@ -27,6 +28,7 @@ Required properties:
 	"hdmi", "sclk_hdmi", "sclk_pixel", "sclk_hdmiphy" and "mout_hdmi".
 - ddc: phandle to the hdmi ddc node
 - phy: phandle to the hdmi phy node
+- samsung,syscon-phandle: phandle for system controller node for PMU.
 
 Example:
 
@@ -37,4 +39,5 @@ Example:
 		hpd-gpio = <&gpx3 7 1>;
 		ddc = <&hdmi_ddc_node>;
 		phy = <&hdmi_phy_node>;
+		samsung,syscon-phandle = <&pmu_system_controller>;
 	};

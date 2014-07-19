@@ -13,6 +13,8 @@
 #ifndef _UAPI_ASM_INST_H
 #define _UAPI_ASM_INST_H
 
+#include <asm/bitfield.h>
+
 /*
  * Major opcodes; before MIPS IV cop1x was called cop3.
  */
@@ -74,16 +76,17 @@ enum spec2_op {
 enum spec3_op {
 	ext_op, dextm_op, dextu_op, dext_op,
 	ins_op, dinsm_op, dinsu_op, dins_op,
-	lx_op     = 0x0a, lwle_op   = 0x19,
-	lwre_op   = 0x1a, cachee_op = 0x1b,
-	sbe_op    = 0x1c, she_op    = 0x1d,
-	sce_op    = 0x1e, swe_op    = 0x1f,
-	bshfl_op  = 0x20, swle_op   = 0x21,
-	swre_op   = 0x22, prefe_op  = 0x23,
-	dbshfl_op = 0x24, lbue_op   = 0x28,
-	lhue_op   = 0x29, lbe_op    = 0x2c,
-	lhe_op    = 0x2d, lle_op    = 0x2e,
-	lwe_op    = 0x2f, rdhwr_op  = 0x3b
+	yield_op  = 0x09, lx_op     = 0x0a,
+	lwle_op   = 0x19, lwre_op   = 0x1a,
+	cachee_op = 0x1b, sbe_op    = 0x1c,
+	she_op    = 0x1d, sce_op    = 0x1e,
+	swe_op    = 0x1f, bshfl_op  = 0x20,
+	swle_op   = 0x21, swre_op   = 0x22,
+	prefe_op  = 0x23, dbshfl_op = 0x24,
+	lbue_op   = 0x28, lhue_op   = 0x29,
+	lbe_op    = 0x2c, lhe_op    = 0x2d,
+	lle_op    = 0x2e, lwe_op    = 0x2f,
+	rdhwr_op  = 0x3b
 };
 
 /*
@@ -125,7 +128,8 @@ enum bcop_op {
 enum cop0_coi_func {
 	tlbr_op	      = 0x01, tlbwi_op	    = 0x02,
 	tlbwr_op      = 0x06, tlbp_op	    = 0x08,
-	rfe_op	      = 0x10, eret_op	    = 0x18
+	rfe_op	      = 0x10, eret_op	    = 0x18,
+	wait_op       = 0x20,
 };
 
 /*
@@ -202,6 +206,16 @@ enum lx_func {
 };
 
 /*
+ * BSHFL opcodes
+ */
+enum bshfl_func {
+	wsbh_op = 0x2,
+	dshd_op = 0x5,
+	seb_op  = 0x10,
+	seh_op  = 0x18,
+};
+
+/*
  * (microMIPS) Major opcodes.
  */
 enum mm_major_op {
@@ -244,17 +258,23 @@ enum mm_32i_minor_op {
 enum mm_32a_minor_op {
 	mm_sll32_op = 0x000,
 	mm_ins_op = 0x00c,
+	mm_sllv32_op = 0x010,
 	mm_ext_op = 0x02c,
 	mm_pool32axf_op = 0x03c,
 	mm_srl32_op = 0x040,
 	mm_sra_op = 0x080,
+	mm_srlv32_op = 0x090,
 	mm_rotr_op = 0x0c0,
 	mm_lwxs_op = 0x118,
 	mm_addu32_op = 0x150,
 	mm_subu32_op = 0x1d0,
+	mm_wsbh_op = 0x1ec,
+	mm_mul_op = 0x210,
 	mm_and_op = 0x250,
 	mm_or32_op = 0x290,
 	mm_xor32_op = 0x310,
+	mm_slt_op = 0x350,
+	mm_sltu_op = 0x390,
 };
 
 /*
@@ -294,15 +314,20 @@ enum mm_32axf_minor_op {
 	mm_mfc0_op = 0x003,
 	mm_mtc0_op = 0x00b,
 	mm_tlbp_op = 0x00d,
+	mm_mfhi32_op = 0x035,
 	mm_jalr_op = 0x03c,
 	mm_tlbr_op = 0x04d,
+	mm_mflo32_op = 0x075,
 	mm_jalrhb_op = 0x07c,
 	mm_tlbwi_op = 0x08d,
 	mm_tlbwr_op = 0x0cd,
 	mm_jalrs_op = 0x13c,
 	mm_jalrshb_op = 0x17c,
+	mm_sync_op = 0x1ad,
 	mm_syscall_op = 0x22d,
+	mm_wait_op = 0x24d,
 	mm_eret_op = 0x3cd,
+	mm_divu_op = 0x5dc,
 };
 
 /*
@@ -479,24 +504,6 @@ enum MIPS6e_i8_func {
  * (microMIPS & MIPS16e) NOP instruction.
  */
 #define MM_NOP16	0x0c00
-
-/*
- * Damn ...  bitfields depend from byteorder :-(
- */
-#ifdef __MIPSEB__
-#define __BITFIELD_FIELD(field, more)					\
-	field;								\
-	more
-
-#elif defined(__MIPSEL__)
-
-#define __BITFIELD_FIELD(field, more)					\
-	more								\
-	field;
-
-#else /* !defined (__MIPSEB__) && !defined (__MIPSEL__) */
-#error "MIPS but neither __MIPSEL__ nor __MIPSEB__?"
-#endif
 
 struct j_format {
 	__BITFIELD_FIELD(unsigned int opcode : 6, /* Jump format */

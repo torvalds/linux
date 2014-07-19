@@ -300,6 +300,12 @@ show_map_vma(struct seq_file *m, struct vm_area_struct *vma, int is_pid)
 		goto done;
 	}
 
+	if (vma->vm_ops && vma->vm_ops->name) {
+		name = vma->vm_ops->name(vma);
+		if (name)
+			goto done;
+	}
+
 	name = arch_vma_name(vma);
 	if (!name) {
 		pid_t tid;
@@ -737,9 +743,6 @@ static inline void clear_soft_dirty(struct vm_area_struct *vma,
 		ptent = pte_file_clear_soft_dirty(ptent);
 	}
 
-	if (vma->vm_flags & VM_SOFTDIRTY)
-		vma->vm_flags &= ~VM_SOFTDIRTY;
-
 	set_pte_at(vma->vm_mm, addr, pte, ptent);
 #endif
 }
@@ -807,8 +810,9 @@ static ssize_t clear_refs_write(struct file *file, const char __user *buf,
 
 	if (type == CLEAR_REFS_SOFT_DIRTY) {
 		soft_dirty_cleared = true;
-		pr_warn_once("The pagemap bits 55-60 has changed their meaning! "
-				"See the linux/Documentation/vm/pagemap.txt for details.\n");
+		pr_warn_once("The pagemap bits 55-60 has changed their meaning!"
+			     " See the linux/Documentation/vm/pagemap.txt for "
+			     "details.\n");
 	}
 
 	task = get_proc_task(file_inode(file));
@@ -839,11 +843,17 @@ static ssize_t clear_refs_write(struct file *file, const char __user *buf,
 			 *
 			 * Writing 3 to /proc/pid/clear_refs only affects file
 			 * mapped pages.
+			 *
+			 * Writing 4 to /proc/pid/clear_refs affects all pages.
 			 */
 			if (type == CLEAR_REFS_ANON && vma->vm_file)
 				continue;
 			if (type == CLEAR_REFS_MAPPED && !vma->vm_file)
 				continue;
+			if (type == CLEAR_REFS_SOFT_DIRTY) {
+				if (vma->vm_flags & VM_SOFTDIRTY)
+					vma->vm_flags &= ~VM_SOFTDIRTY;
+			}
 			walk_page_range(vma->vm_start, vma->vm_end,
 					&clear_refs_walk);
 		}
@@ -1351,7 +1361,7 @@ static int gather_hugetbl_stats(pte_t *pte, unsigned long hmask,
 	struct numa_maps *md;
 	struct page *page;
 
-	if (pte_none(*pte))
+	if (!pte_present(*pte))
 		return 0;
 
 	page = pte_page(*pte);
@@ -1408,10 +1418,10 @@ static int show_numa_map(struct seq_file *m, void *v, int is_pid)
 	seq_printf(m, "%08lx %s", vma->vm_start, buffer);
 
 	if (file) {
-		seq_printf(m, " file=");
+		seq_puts(m, " file=");
 		seq_path(m, &file->f_path, "\n\t= ");
 	} else if (vma->vm_start <= mm->brk && vma->vm_end >= mm->start_brk) {
-		seq_printf(m, " heap");
+		seq_puts(m, " heap");
 	} else {
 		pid_t tid = vm_is_stack(task, vma, is_pid);
 		if (tid != 0) {
@@ -1421,14 +1431,14 @@ static int show_numa_map(struct seq_file *m, void *v, int is_pid)
 			 */
 			if (!is_pid || (vma->vm_start <= mm->start_stack &&
 			    vma->vm_end >= mm->start_stack))
-				seq_printf(m, " stack");
+				seq_puts(m, " stack");
 			else
 				seq_printf(m, " stack:%d", tid);
 		}
 	}
 
 	if (is_vm_hugetlb_page(vma))
-		seq_printf(m, " huge");
+		seq_puts(m, " huge");
 
 	walk_page_range(vma->vm_start, vma->vm_end, &walk);
 

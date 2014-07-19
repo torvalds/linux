@@ -129,8 +129,6 @@ static int pas16_bus_reset(Scsi_Cmnd *);
 #define CAN_QUEUE 32 
 #endif
 
-#ifndef HOSTS_C
-
 #define NCR5380_implementation_fields \
     volatile unsigned short io_port
 
@@ -171,6 +169,5 @@ static int pas16_bus_reset(Scsi_Cmnd *);
    
 #define PAS16_IRQS 0xd4a8 
 
-#endif /* else def HOSTS_C */
 #endif /* ndef ASM */
 #endif /* PAS16_H */

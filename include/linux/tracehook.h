@@ -191,7 +191,7 @@ static inline void tracehook_notify_resume(struct pt_regs *regs)
 	 * pairs with task_work_add()->set_notify_resume() after
 	 * hlist_add_head(task->task_works);
 	 */
-	smp_mb__after_clear_bit();
+	smp_mb__after_atomic();
 	if (unlikely(current->task_works))
 		task_work_run();
 }
