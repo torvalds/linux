@@ -1441,8 +1441,13 @@ xfer_exit:
 
 static void dma_pl330_rqcb(struct dma_pl330_desc *desc, enum pl330_op_err err)
 {
-	struct dma_pl330_chan *pch = desc->pchan;
+	struct dma_pl330_chan *pch;
 	unsigned long flags;
+
+	if (!desc)
+		return;
+
+	pch = desc->pchan;
 
 	/* If desc aborted */
 	if (!pch)
