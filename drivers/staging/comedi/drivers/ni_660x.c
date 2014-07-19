@@ -1165,8 +1165,8 @@ static int ni_660x_auto_attach(struct comedi_device *dev,
 	for (i = 0; i < board->n_chips; ++i)
 		set_tio_counterswap(dev, i);
 
-	ret = request_irq(pcidev->irq, ni_660x_interrupt,
-			  IRQF_SHARED, "ni_660x", dev);
+	ret = request_irq(pcidev->irq, ni_660x_interrupt, IRQF_SHARED,
+			  dev->board_name, dev);
 	if (ret < 0) {
 		dev_warn(dev->class_dev, " irq not available\n");
 		return ret;

@@ -345,8 +345,7 @@ static int ni_atmio_attach(struct comedi_device *dev,
 		if (irq > 15 || ni_irqpin[irq] == -1)
 			return -EINVAL;
 		ret = request_irq(irq, ni_E_interrupt, 0,
-				  "ni_atmio", dev);
-
+				  dev->board_name, dev);
 		if (ret < 0)
 			return -EINVAL;
 		dev->irq = irq;

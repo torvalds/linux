@@ -3989,12 +3989,13 @@ static int auto_attach(struct comedi_device *dev,
 		devpriv->hw_revision);
 	init_plx9080(dev);
 	init_stc_registers(dev);
-	/*  get irq */
-	if (request_irq(pcidev->irq, handle_interrupt, IRQF_SHARED,
-			"cb_pcidas64", dev)) {
+
+	retval = request_irq(pcidev->irq, handle_interrupt, IRQF_SHARED,
+			     dev->board_name, dev);
+	if (retval) {
 		dev_dbg(dev->class_dev, "unable to allocate irq %u\n",
 			pcidev->irq);
-		return -EINVAL;
+		return retval;
 	}
 	dev->irq = pcidev->irq;
 	dev_dbg(dev->class_dev, "irq %u\n", dev->irq);
