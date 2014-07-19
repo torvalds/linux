@@ -26,6 +26,10 @@
 		samsung,combiner-nr = <20>;
 	};
 
+	pmu {
+		interrupts = <2 2>, <3 2>, <18 2>, <19 2>;
+	};
+
 	gic: interrupt-controller@10490000 {
 		cpu-offset = <0x4000>;
 	};
