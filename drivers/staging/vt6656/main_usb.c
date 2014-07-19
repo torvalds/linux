@@ -334,9 +334,8 @@ static int device_init_registers(struct vnt_private *priv)
 	}
 
 	/* get permanent network address */
-	memcpy(priv->abyPermanentNetAddr, init_rsp->net_addr, 6);
-	memcpy(priv->current_net_addr,
-				priv->abyPermanentNetAddr, ETH_ALEN);
+	memcpy(priv->permanent_net_addr, init_rsp->net_addr, 6);
+	memcpy(priv->current_net_addr, priv->permanent_net_addr, ETH_ALEN);
 
 	/* if exist SW network address, use it */
 	dev_dbg(&priv->usb->dev, "Network address = %pM\n",
@@ -970,7 +969,7 @@ int vnt_init(struct vnt_private *priv)
 	if (!(device_init_registers(priv)))
 		return -EAGAIN;
 
-	SET_IEEE80211_PERM_ADDR(priv->hw, priv->abyPermanentNetAddr);
+	SET_IEEE80211_PERM_ADDR(priv->hw, priv->permanent_net_addr);
 
 	vnt_init_bands(priv);
 
