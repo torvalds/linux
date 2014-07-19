@@ -130,7 +130,6 @@ void sep_queue_status_remove(struct sep_device *sep,
 
 	dev_dbg(&sep->pdev->dev, "[PID%d] sep_queue_status_remove return\n",
 		current->pid);
-	return;
 }
 
 /**
@@ -1736,7 +1735,7 @@ static void sep_debug_print_lli_tables(struct sep_device *sep,
 		return;
 	}
 
-	while ((unsigned long) lli_table_ptr->bus_address != 0xffffffff) {
+	while ((unsigned long)lli_table_ptr->bus_address != 0xffffffff) {
 		dev_dbg(&sep->pdev->dev,
 			"[PID%d] lli table %08lx, table_data_size is (hex) %lx\n",
 			current->pid, table_count, table_data_size);
@@ -1751,7 +1750,7 @@ static void sep_debug_print_lli_tables(struct sep_device *sep,
 			dev_dbg(&sep->pdev->dev,
 				"[PID%d] lli_table_ptr address is %08lx\n",
 				current->pid,
-				(unsigned long) lli_table_ptr);
+				(unsigned long)lli_table_ptr);
 
 			dev_dbg(&sep->pdev->dev,
 				"[PID%d] phys address is %08lx block size is (hex) %x\n",
