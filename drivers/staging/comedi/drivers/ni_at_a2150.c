@@ -156,13 +156,6 @@ struct a2150_private {
 	int config_bits;	/*  config register bits */
 };
 
-static int a2150_cancel(struct comedi_device *dev, struct comedi_subdevice *s);
-
-static int a2150_get_timing(struct comedi_device *dev, unsigned int *period,
-			    unsigned int flags);
-static int a2150_set_chanlist(struct comedi_device *dev,
-			      unsigned int start_channel,
-			      unsigned int num_channels);
 /* interrupt service routine */
 static irqreturn_t a2150_interrupt(int irq, void *d)
 {
@@ -284,6 +277,117 @@ static int a2150_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	/*  clear fifo and reset triggering circuitry */
 	outw(0, dev->iobase + FIFO_RESET_REG);
+
+	return 0;
+}
+
+/*
+ * sets bits in devpriv->clock_bits to nearest approximation of requested
+ * period, adjusts requested period to actual timing.
+ */
+static int a2150_get_timing(struct comedi_device *dev, unsigned int *period,
+			    unsigned int flags)
+{
+	const struct a2150_board *thisboard = comedi_board(dev);
+	struct a2150_private *devpriv = dev->private;
+	int lub, glb, temp;
+	int lub_divisor_shift, lub_index, glb_divisor_shift, glb_index;
+	int i, j;
+
+	/*  initialize greatest lower and least upper bounds */
+	lub_divisor_shift = 3;
+	lub_index = 0;
+	lub = thisboard->clock[lub_index] * (1 << lub_divisor_shift);
+	glb_divisor_shift = 0;
+	glb_index = thisboard->num_clocks - 1;
+	glb = thisboard->clock[glb_index] * (1 << glb_divisor_shift);
+
+	/*  make sure period is in available range */
+	if (*period < glb)
+		*period = glb;
+	if (*period > lub)
+		*period = lub;
+
+	/*  we can multiply period by 1, 2, 4, or 8, using (1 << i) */
+	for (i = 0; i < 4; i++) {
+		/*  there are a maximum of 4 master clocks */
+		for (j = 0; j < thisboard->num_clocks; j++) {
+			/*  temp is the period in nanosec we are evaluating */
+			temp = thisboard->clock[j] * (1 << i);
+			/*  if it is the best match yet */
+			if (temp < lub && temp >= *period) {
+				lub_divisor_shift = i;
+				lub_index = j;
+				lub = temp;
+			}
+			if (temp > glb && temp <= *period) {
+				glb_divisor_shift = i;
+				glb_index = j;
+				glb = temp;
+			}
+		}
+	}
+	switch (flags & TRIG_ROUND_MASK) {
+	case TRIG_ROUND_NEAREST:
+	default:
+		/*  if least upper bound is better approximation */
+		if (lub - *period < *period - glb)
+			*period = lub;
+		else
+			*period = glb;
+		break;
+	case TRIG_ROUND_UP:
+		*period = lub;
+		break;
+	case TRIG_ROUND_DOWN:
+		*period = glb;
+		break;
+	}
+
+	/*  set clock bits for config register appropriately */
+	devpriv->config_bits &= ~CLOCK_MASK;
+	if (*period == lub) {
+		devpriv->config_bits |=
+		    CLOCK_SELECT_BITS(lub_index) |
+		    CLOCK_DIVISOR_BITS(lub_divisor_shift);
+	} else {
+		devpriv->config_bits |=
+		    CLOCK_SELECT_BITS(glb_index) |
+		    CLOCK_DIVISOR_BITS(glb_divisor_shift);
+	}
+
+	return 0;
+}
+
+static int a2150_set_chanlist(struct comedi_device *dev,
+			      unsigned int start_channel,
+			      unsigned int num_channels)
+{
+	struct a2150_private *devpriv = dev->private;
+
+	if (start_channel + num_channels > 4)
+		return -1;
+
+	devpriv->config_bits &= ~CHANNEL_MASK;
+
+	switch (num_channels) {
+	case 1:
+		devpriv->config_bits |= CHANNEL_BITS(0x4 | start_channel);
+		break;
+	case 2:
+		if (start_channel == 0)
+			devpriv->config_bits |= CHANNEL_BITS(0x2);
+		else if (start_channel == 2)
+			devpriv->config_bits |= CHANNEL_BITS(0x3);
+		else
+			return -1;
+		break;
+	case 4:
+		devpriv->config_bits |= CHANNEL_BITS(0x1);
+		break;
+	default:
+		return -1;
+	}
 
 	return 0;
 }
@@ -573,117 +677,6 @@ static int a2150_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 	outw(0, dev->iobase + FIFO_RESET_REG);
 
 	return n;
-}
-
-/*
- * sets bits in devpriv->clock_bits to nearest approximation of requested
- * period, adjusts requested period to actual timing.
- */
-static int a2150_get_timing(struct comedi_device *dev, unsigned int *period,
-			    unsigned int flags)
-{
-	const struct a2150_board *thisboard = comedi_board(dev);
-	struct a2150_private *devpriv = dev->private;
-	int lub, glb, temp;
-	int lub_divisor_shift, lub_index, glb_divisor_shift, glb_index;
-	int i, j;
-
-	/*  initialize greatest lower and least upper bounds */
-	lub_divisor_shift = 3;
-	lub_index = 0;
-	lub = thisboard->clock[lub_index] * (1 << lub_divisor_shift);
-	glb_divisor_shift = 0;
-	glb_index = thisboard->num_clocks - 1;
-	glb = thisboard->clock[glb_index] * (1 << glb_divisor_shift);
-
-	/*  make sure period is in available range */
-	if (*period < glb)
-		*period = glb;
-	if (*period > lub)
-		*period = lub;
-
-	/*  we can multiply period by 1, 2, 4, or 8, using (1 << i) */
-	for (i = 0; i < 4; i++) {
-		/*  there are a maximum of 4 master clocks */
-		for (j = 0; j < thisboard->num_clocks; j++) {
-			/*  temp is the period in nanosec we are evaluating */
-			temp = thisboard->clock[j] * (1 << i);
-			/*  if it is the best match yet */
-			if (temp < lub && temp >= *period) {
-				lub_divisor_shift = i;
-				lub_index = j;
-				lub = temp;
-			}
-			if (temp > glb && temp <= *period) {
-				glb_divisor_shift = i;
-				glb_index = j;
-				glb = temp;
-			}
-		}
-	}
-	switch (flags & TRIG_ROUND_MASK) {
-	case TRIG_ROUND_NEAREST:
-	default:
-		/*  if least upper bound is better approximation */
-		if (lub - *period < *period - glb)
-			*period = lub;
-		else
-			*period = glb;
-		break;
-	case TRIG_ROUND_UP:
-		*period = lub;
-		break;
-	case TRIG_ROUND_DOWN:
-		*period = glb;
-		break;
-	}
-
-	/*  set clock bits for config register appropriately */
-	devpriv->config_bits &= ~CLOCK_MASK;
-	if (*period == lub) {
-		devpriv->config_bits |=
-		    CLOCK_SELECT_BITS(lub_index) |
-		    CLOCK_DIVISOR_BITS(lub_divisor_shift);
-	} else {
-		devpriv->config_bits |=
-		    CLOCK_SELECT_BITS(glb_index) |
-		    CLOCK_DIVISOR_BITS(glb_divisor_shift);
-	}
-
-	return 0;
-}
-
-static int a2150_set_chanlist(struct comedi_device *dev,
-			      unsigned int start_channel,
-			      unsigned int num_channels)
-{
-	struct a2150_private *devpriv = dev->private;
-
-	if (start_channel + num_channels > 4)
-		return -1;
-
-	devpriv->config_bits &= ~CHANNEL_MASK;
-
-	switch (num_channels) {
-	case 1:
-		devpriv->config_bits |= CHANNEL_BITS(0x4 | start_channel);
-		break;
-	case 2:
-		if (start_channel == 0)
-			devpriv->config_bits |= CHANNEL_BITS(0x2);
-		else if (start_channel == 2)
-			devpriv->config_bits |= CHANNEL_BITS(0x3);
-		else
-			return -1;
-		break;
-	case 4:
-		devpriv->config_bits |= CHANNEL_BITS(0x1);
-		break;
-	default:
-		return -1;
-	}
-
-	return 0;
 }
 
 /* probes board type, returns offset */
