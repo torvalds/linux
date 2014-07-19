@@ -1010,7 +1010,7 @@ int i915_get_reset_stats_ioctl(struct drm_device *dev,
 	if (args->flags || args->pad)
 		return -EINVAL;
 
-	if (args->ctx_id == DEFAULT_CONTEXT_ID && !capable(CAP_SYS_ADMIN))
+	if (args->ctx_id == DEFAULT_CONTEXT_HANDLE && !capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
 	ret = mutex_lock_interruptible(&dev->struct_mutex);

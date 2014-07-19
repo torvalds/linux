@@ -1090,6 +1090,53 @@ static bool intel_hpd_irq_event(struct drm_device *dev,
 	return true;
 }
 
+static void i915_digport_work_func(struct work_struct *work)
+{
+	struct drm_i915_private *dev_priv =
+		container_of(work, struct drm_i915_private, dig_port_work);
+	unsigned long irqflags;
+	u32 long_port_mask, short_port_mask;
+	struct intel_digital_port *intel_dig_port;
+	int i, ret;
+	u32 old_bits = 0;
+
+	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
+	long_port_mask = dev_priv->long_hpd_port_mask;
+	dev_priv->long_hpd_port_mask = 0;
+	short_port_mask = dev_priv->short_hpd_port_mask;
+	dev_priv->short_hpd_port_mask = 0;
+	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
+
+	for (i = 0; i < I915_MAX_PORTS; i++) {
+		bool valid = false;
+		bool long_hpd = false;
+		intel_dig_port = dev_priv->hpd_irq_port[i];
+		if (!intel_dig_port || !intel_dig_port->hpd_pulse)
+			continue;
+
+		if (long_port_mask & (1 << i))  {
+			valid = true;
+			long_hpd = true;
+		} else if (short_port_mask & (1 << i))
+			valid = true;
+
+		if (valid) {
+			ret = intel_dig_port->hpd_pulse(intel_dig_port, long_hpd);
+			if (ret == true) {
+				/* if we get true fallback to old school hpd */
+				old_bits |= (1 << intel_dig_port->base.hpd_pin);
+			}
+		}
+	}
+
+	if (old_bits) {
+		spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
+		dev_priv->hpd_event_bits |= old_bits;
+		spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
+		schedule_work(&dev_priv->hotplug_work);
+	}
+}
+
 /*
  * Handle hotplug events outside the interrupt handler proper.
  */
@@ -1221,6 +1268,131 @@ static void notify_ring(struct drm_device *dev,
 	i915_queue_hangcheck(dev);
 }
 
+static u32 vlv_c0_residency(struct drm_i915_private *dev_priv,
+			    struct intel_rps_ei *rps_ei)
+{
+	u32 cz_ts, cz_freq_khz;
+	u32 render_count, media_count;
+	u32 elapsed_render, elapsed_media, elapsed_time;
+	u32 residency = 0;
+
+	cz_ts = vlv_punit_read(dev_priv, PUNIT_REG_CZ_TIMESTAMP);
+	cz_freq_khz = DIV_ROUND_CLOSEST(dev_priv->mem_freq * 1000, 4);
+
+	render_count = I915_READ(VLV_RENDER_C0_COUNT_REG);
+	media_count = I915_READ(VLV_MEDIA_C0_COUNT_REG);
+
+	if (rps_ei->cz_clock == 0) {
+		rps_ei->cz_clock = cz_ts;
+		rps_ei->render_c0 = render_count;
+		rps_ei->media_c0 = media_count;
+
+		return dev_priv->rps.cur_freq;
+	}
+
+	elapsed_time = cz_ts - rps_ei->cz_clock;
+	rps_ei->cz_clock = cz_ts;
+
+	elapsed_render = render_count - rps_ei->render_c0;
+	rps_ei->render_c0 = render_count;
+
+	elapsed_media = media_count - rps_ei->media_c0;
+	rps_ei->media_c0 = media_count;
+
+	/* Convert all the counters into common unit of milli sec */
+	elapsed_time /= VLV_CZ_CLOCK_TO_MILLI_SEC;
+	elapsed_render /=  cz_freq_khz;
+	elapsed_media /= cz_freq_khz;
+
+	/*
+	 * Calculate overall C0 residency percentage
+	 * only if elapsed time is non zero
+	 */
+	if (elapsed_time) {
+		residency =
+			((max(elapsed_render, elapsed_media) * 100)
+				/ elapsed_time);
+	}
+
+	return residency;
+}
+
+/**
+ * vlv_calc_delay_from_C0_counters - Increase/Decrease freq based on GPU
+ * busy-ness calculated from C0 counters of render & media power wells
+ * @dev_priv: DRM device private
+ *
+ */
+static u32 vlv_calc_delay_from_C0_counters(struct drm_i915_private *dev_priv)
+{
+	u32 residency_C0_up = 0, residency_C0_down = 0;
+	u8 new_delay, adj;
+
+	dev_priv->rps.ei_interrupt_count++;
+
+	WARN_ON(!mutex_is_locked(&dev_priv->rps.hw_lock));
+
+
+	if (dev_priv->rps.up_ei.cz_clock == 0) {
+		vlv_c0_residency(dev_priv, &dev_priv->rps.up_ei);
+		vlv_c0_residency(dev_priv, &dev_priv->rps.down_ei);
+		return dev_priv->rps.cur_freq;
+	}
+
+
+	/*
+	 * To down throttle, C0 residency should be less than down threshold
+	 * for continous EI intervals. So calculate down EI counters
+	 * once in VLV_INT_COUNT_FOR_DOWN_EI
+	 */
+	if (dev_priv->rps.ei_interrupt_count == VLV_INT_COUNT_FOR_DOWN_EI) {
+
+		dev_priv->rps.ei_interrupt_count = 0;
+
+		residency_C0_down = vlv_c0_residency(dev_priv,
+						     &dev_priv->rps.down_ei);
+	} else {
+		residency_C0_up = vlv_c0_residency(dev_priv,
+						   &dev_priv->rps.up_ei);
+	}
+
+	new_delay = dev_priv->rps.cur_freq;
+
+	adj = dev_priv->rps.last_adj;
+	/* C0 residency is greater than UP threshold. Increase Frequency */
+	if (residency_C0_up >= VLV_RP_UP_EI_THRESHOLD) {
+		if (adj > 0)
+			adj *= 2;
+		else
+			adj = 1;
+
+		if (dev_priv->rps.cur_freq < dev_priv->rps.max_freq_softlimit)
+			new_delay = dev_priv->rps.cur_freq + adj;
+
+		/*
+		 * For better performance, jump directly
+		 * to RPe if we're below it.
+		 */
+		if (new_delay < dev_priv->rps.efficient_freq)
+			new_delay = dev_priv->rps.efficient_freq;
+
+	} else if (!dev_priv->rps.ei_interrupt_count &&
+			(residency_C0_down < VLV_RP_DOWN_EI_THRESHOLD)) {
+		if (adj < 0)
+			adj *= 2;
+		else
+			adj = -1;
+		/*
+		 * This means, C0 residency is less than down threshold over
+		 * a period of VLV_INT_COUNT_FOR_DOWN_EI. So, reduce the freq
+		 */
+		if (dev_priv->rps.cur_freq > dev_priv->rps.min_freq_softlimit)
+			new_delay = dev_priv->rps.cur_freq + adj;
+	}
+
+	return new_delay;
+}
+
 static void gen6_pm_rps_work(struct work_struct *work)
 {
 	struct drm_i915_private *dev_priv =
@@ -1269,6 +1441,8 @@ static void gen6_pm_rps_work(struct work_struct *work)
 		else
 			new_delay = dev_priv->rps.min_freq_softlimit;
 		adj = 0;
+	} else if (pm_iir & GEN6_PM_RP_UP_EI_EXPIRED) {
+		new_delay = vlv_calc_delay_from_C0_counters(dev_priv);
 	} else if (pm_iir & GEN6_PM_RP_DOWN_THRESHOLD) {
 		if (adj < 0)
 			adj *= 2;
@@ -1517,23 +1691,104 @@ static irqreturn_t gen8_gt_irq_handler(struct drm_device *dev,
 #define HPD_STORM_DETECT_PERIOD 1000
 #define HPD_STORM_THRESHOLD 5
 
+static int ilk_port_to_hotplug_shift(enum port port)
+{
+	switch (port) {
+	case PORT_A:
+	case PORT_E:
+	default:
+		return -1;
+	case PORT_B:
+		return 0;
+	case PORT_C:
+		return 8;
+	case PORT_D:
+		return 16;
+	}
+}
+
+static int g4x_port_to_hotplug_shift(enum port port)
+{
+	switch (port) {
+	case PORT_A:
+	case PORT_E:
+	default:
+		return -1;
+	case PORT_B:
+		return 17;
+	case PORT_C:
+		return 19;
+	case PORT_D:
+		return 21;
+	}
+}
+
+static inline enum port get_port_from_pin(enum hpd_pin pin)
+{
+	switch (pin) {
+	case HPD_PORT_B:
+		return PORT_B;
+	case HPD_PORT_C:
+		return PORT_C;
+	case HPD_PORT_D:
+		return PORT_D;
+	default:
+		return PORT_A; /* no hpd */
+	}
+}
+
 static inline void intel_hpd_irq_handler(struct drm_device *dev,
 					 u32 hotplug_trigger,
+					 u32 dig_hotplug_reg,
 					 const u32 *hpd)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int i;
+	enum port port;
 	bool storm_detected = false;
+	bool queue_dig = false, queue_hp = false;
+	u32 dig_shift;
+	u32 dig_port_mask = 0;
 
 	if (!hotplug_trigger)
 		return;
 
-	DRM_DEBUG_DRIVER("hotplug event received, stat 0x%08x\n",
-			  hotplug_trigger);
+	DRM_DEBUG_DRIVER("hotplug event received, stat 0x%08x, dig 0x%08x\n",
+			 hotplug_trigger, dig_hotplug_reg);
 
 	spin_lock(&dev_priv->irq_lock);
 	for (i = 1; i < HPD_NUM_PINS; i++) {
+		if (!(hpd[i] & hotplug_trigger))
+			continue;
 
+		port = get_port_from_pin(i);
+		if (port && dev_priv->hpd_irq_port[port]) {
+			bool long_hpd;
+
+			if (IS_G4X(dev)) {
+				dig_shift = g4x_port_to_hotplug_shift(port);
+				long_hpd = (hotplug_trigger >> dig_shift) & PORTB_HOTPLUG_LONG_DETECT;
+			} else {
+				dig_shift = ilk_port_to_hotplug_shift(port);
+				long_hpd = (dig_hotplug_reg >> dig_shift) & PORTB_HOTPLUG_LONG_DETECT;
+			}
+
+			DRM_DEBUG_DRIVER("digital hpd port %d %d\n", port, long_hpd);
+			/* for long HPD pulses we want to have the digital queue happen,
+			   but we still want HPD storm detection to function. */
+			if (long_hpd) {
+				dev_priv->long_hpd_port_mask |= (1 << port);
+				dig_port_mask |= hpd[i];
+			} else {
+				/* for short HPD just trigger the digital queue */
+				dev_priv->short_hpd_port_mask |= (1 << port);
+				hotplug_trigger &= ~hpd[i];
+			}
+			queue_dig = true;
+		}
+	}
+
+	for (i = 1; i < HPD_NUM_PINS; i++) {
 		if (hpd[i] & hotplug_trigger &&
 		    dev_priv->hpd_stats[i].hpd_mark == HPD_DISABLED) {
 			/*
@@ -1553,7 +1808,11 @@ static inline void intel_hpd_irq_handler(struct drm_device *dev,
 		    dev_priv->hpd_stats[i].hpd_mark != HPD_ENABLED)
 			continue;
 
-		dev_priv->hpd_event_bits |= (1 << i);
+		if (!(dig_port_mask & hpd[i])) {
+			dev_priv->hpd_event_bits |= (1 << i);
+			queue_hp = true;
+		}
+
 		if (!time_in_range(jiffies, dev_priv->hpd_stats[i].hpd_last_jiffies,
 				   dev_priv->hpd_stats[i].hpd_last_jiffies
 				   + msecs_to_jiffies(HPD_STORM_DETECT_PERIOD))) {
@@ -1582,7 +1841,10 @@ static inline void intel_hpd_irq_handler(struct drm_device *dev,
 	 * queue for otherwise the flush_work in the pageflip code will
 	 * deadlock.
 	 */
-	schedule_work(&dev_priv->hotplug_work);
+	if (queue_dig)
+		schedule_work(&dev_priv->dig_port_work);
+	if (queue_hp)
+		schedule_work(&dev_priv->hotplug_work);
 }
 
 static void gmbus_irq_handler(struct drm_device *dev)
@@ -1823,11 +2085,11 @@ static void i9xx_hpd_irq_handler(struct drm_device *dev)
 		if (IS_G4X(dev)) {
 			u32 hotplug_trigger = hotplug_status & HOTPLUG_INT_STATUS_G4X;
 
-			intel_hpd_irq_handler(dev, hotplug_trigger, hpd_status_g4x);
+			intel_hpd_irq_handler(dev, hotplug_trigger, 0, hpd_status_g4x);
 		} else {
 			u32 hotplug_trigger = hotplug_status & HOTPLUG_INT_STATUS_I915;
 
-			intel_hpd_irq_handler(dev, hotplug_trigger, hpd_status_i915);
+			intel_hpd_irq_handler(dev, hotplug_trigger, 0, hpd_status_i915);
 		}
 
 		if ((IS_G4X(dev) || IS_VALLEYVIEW(dev)) &&
@@ -1925,8 +2187,12 @@ static void ibx_irq_handler(struct drm_device *dev, u32 pch_iir)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int pipe;
 	u32 hotplug_trigger = pch_iir & SDE_HOTPLUG_MASK;
+	u32 dig_hotplug_reg;
 
-	intel_hpd_irq_handler(dev, hotplug_trigger, hpd_ibx);
+	dig_hotplug_reg = I915_READ(PCH_PORT_HOTPLUG);
+	I915_WRITE(PCH_PORT_HOTPLUG, dig_hotplug_reg);
+
+	intel_hpd_irq_handler(dev, hotplug_trigger, dig_hotplug_reg, hpd_ibx);
 
 	if (pch_iir & SDE_AUDIO_POWER_MASK) {
 		int port = ffs((pch_iir & SDE_AUDIO_POWER_MASK) >>
@@ -2032,8 +2298,12 @@ static void cpt_irq_handler(struct drm_device *dev, u32 pch_iir)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int pipe;
 	u32 hotplug_trigger = pch_iir & SDE_HOTPLUG_MASK_CPT;
+	u32 dig_hotplug_reg;
 
-	intel_hpd_irq_handler(dev, hotplug_trigger, hpd_cpt);
+	dig_hotplug_reg = I915_READ(PCH_PORT_HOTPLUG);
+	I915_WRITE(PCH_PORT_HOTPLUG, dig_hotplug_reg);
+
+	intel_hpd_irq_handler(dev, hotplug_trigger, dig_hotplug_reg, hpd_cpt);
 
 	if (pch_iir & SDE_AUDIO_POWER_MASK_CPT) {
 		int port = ffs((pch_iir & SDE_AUDIO_POWER_MASK_CPT) >>
@@ -2780,12 +3050,7 @@ static bool
 ipehr_is_semaphore_wait(struct drm_device *dev, u32 ipehr)
 {
 	if (INTEL_INFO(dev)->gen >= 8) {
-		/*
-		 * FIXME: gen8 semaphore support - currently we don't emit
-		 * semaphores on bdw anyway, but this needs to be addressed when
-		 * we merge that code.
-		 */
-		return false;
+		return (ipehr >> 23) == 0x1c;
 	} else {
 		ipehr &= ~MI_SEMAPHORE_SYNC_MASK;
 		return ipehr == (MI_SEMAPHORE_MBOX | MI_SEMAPHORE_COMPARE |
@@ -2794,19 +3059,20 @@ ipehr_is_semaphore_wait(struct drm_device *dev, u32 ipehr)
 }
 
 static struct intel_engine_cs *
-semaphore_wait_to_signaller_ring(struct intel_engine_cs *ring, u32 ipehr)
+semaphore_wait_to_signaller_ring(struct intel_engine_cs *ring, u32 ipehr, u64 offset)
 {
 	struct drm_i915_private *dev_priv = ring->dev->dev_private;
 	struct intel_engine_cs *signaller;
 	int i;
 
 	if (INTEL_INFO(dev_priv->dev)->gen >= 8) {
-		/*
-		 * FIXME: gen8 semaphore support - currently we don't emit
-		 * semaphores on bdw anyway, but this needs to be addressed when
-		 * we merge that code.
-		 */
-		return NULL;
+		for_each_ring(signaller, dev_priv, i) {
+			if (ring == signaller)
+				continue;
+
+			if (offset == signaller->semaphore.signal_ggtt[ring->id])
+				return signaller;
+		}
 	} else {
 		u32 sync_bits = ipehr & MI_SEMAPHORE_SYNC_MASK;
 
@@ -2819,8 +3085,8 @@ semaphore_wait_to_signaller_ring(struct intel_engine_cs *ring, u32 ipehr)
 		}
 	}
 
-	DRM_ERROR("No signaller ring found for ring %i, ipehr 0x%08x\n",
-		  ring->id, ipehr);
+	DRM_ERROR("No signaller ring found for ring %i, ipehr 0x%08x, offset 0x%016llx\n",
+		  ring->id, ipehr, offset);
 
 	return NULL;
 }
@@ -2830,7 +3096,8 @@ semaphore_waits_for(struct intel_engine_cs *ring, u32 *seqno)
 {
 	struct drm_i915_private *dev_priv = ring->dev->dev_private;
 	u32 cmd, ipehr, head;
-	int i;
+	u64 offset = 0;
+	int i, backwards;
 
 	ipehr = I915_READ(RING_IPEHR(ring->mmio_base));
 	if (!ipehr_is_semaphore_wait(ring->dev, ipehr))
@@ -2839,13 +3106,15 @@ semaphore_waits_for(struct intel_engine_cs *ring, u32 *seqno)
 	/*
 	 * HEAD is likely pointing to the dword after the actual command,
 	 * so scan backwards until we find the MBOX. But limit it to just 3
-	 * dwords. Note that we don't care about ACTHD here since that might
+	 * or 4 dwords depending on the semaphore wait command size.
+	 * Note that we don't care about ACTHD here since that might
 	 * point at at batch, and semaphores are always emitted into the
 	 * ringbuffer itself.
 	 */
 	head = I915_READ_HEAD(ring) & HEAD_ADDR;
+	backwards = (INTEL_INFO(ring->dev)->gen >= 8) ? 5 : 4;
 
-	for (i = 4; i; --i) {
+	for (i = backwards; i; --i) {
 		/*
 		 * Be paranoid and presume the hw has gone off into the wild -
 		 * our ring is smaller than what the hardware (and hence
@@ -2865,7 +3134,12 @@ semaphore_waits_for(struct intel_engine_cs *ring, u32 *seqno)
 		return NULL;
 
 	*seqno = ioread32(ring->buffer->virtual_start + head + 4) + 1;
-	return semaphore_wait_to_signaller_ring(ring, ipehr);
+	if (INTEL_INFO(ring->dev)->gen >= 8) {
+		offset = ioread32(ring->buffer->virtual_start + head + 12);
+		offset <<= 32;
+		offset = ioread32(ring->buffer->virtual_start + head + 8);
+	}
+	return semaphore_wait_to_signaller_ring(ring, ipehr, offset);
 }
 
 static int semaphore_passed(struct intel_engine_cs *ring)
@@ -4354,12 +4628,17 @@ void intel_irq_init(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	INIT_WORK(&dev_priv->hotplug_work, i915_hotplug_work_func);
+	INIT_WORK(&dev_priv->dig_port_work, i915_digport_work_func);
 	INIT_WORK(&dev_priv->gpu_error.work, i915_error_work_func);
 	INIT_WORK(&dev_priv->rps.work, gen6_pm_rps_work);
 	INIT_WORK(&dev_priv->l3_parity.error_work, ivybridge_parity_work);
 
 	/* Let's track the enabled rps events */
-	dev_priv->pm_rps_events = GEN6_PM_RPS_EVENTS;
+	if (IS_VALLEYVIEW(dev))
+		/* WaGsvRC0ResidenncyMethod:VLV */
+		dev_priv->pm_rps_events = GEN6_PM_RP_UP_EI_EXPIRED;
+	else
+		dev_priv->pm_rps_events = GEN6_PM_RPS_EVENTS;
 
 	setup_timer(&dev_priv->gpu_error.hangcheck_timer,
 		    i915_hangcheck_elapsed,

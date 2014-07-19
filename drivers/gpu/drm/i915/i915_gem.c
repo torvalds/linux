@@ -1168,7 +1168,7 @@ static int __wait_seqno(struct intel_engine_cs *ring, u32 seqno,
 
 	timeout_expire = timeout ? jiffies + timespec_to_jiffies_timeout(timeout) : 0;
 
-	if (INTEL_INFO(dev)->gen >= 6 && can_wait_boost(file_priv)) {
+	if (INTEL_INFO(dev)->gen >= 6 && ring->id == RCS && can_wait_boost(file_priv)) {
 		gen6_rps_boost(dev_priv);
 		if (file_priv)
 			mod_delayed_work(dev_priv->wq,
@@ -2330,7 +2330,7 @@ int __i915_add_request(struct intel_engine_cs *ring,
 	u32 request_ring_position, request_start;
 	int ret;
 
-	request_start = intel_ring_get_tail(ring);
+	request_start = intel_ring_get_tail(ring->buffer);
 	/*
 	 * Emit any outstanding flushes - execbuf can fail to emit the flush
 	 * after having emitted the batchbuffer command. Hence we need to fix
@@ -2351,7 +2351,7 @@ int __i915_add_request(struct intel_engine_cs *ring,
 	 * GPU processing the request, we never over-estimate the
 	 * position of the head.
 	 */
-	request_ring_position = intel_ring_get_tail(ring);
+	request_ring_position = intel_ring_get_tail(ring->buffer);
 
 	ret = ring->add_request(ring);
 	if (ret)
@@ -2842,6 +2842,8 @@ i915_gem_object_sync(struct drm_i915_gem_object *obj,
 	idx = intel_ring_sync_index(from, to);
 
 	seqno = obj->last_read_seqno;
+	/* Optimization: Avoid semaphore sync when we are sure we already
+	 * waited for an object with higher seqno */
 	if (seqno <= from->semaphore.sync_seqno[idx])
 		return 0;
 

@@ -477,10 +477,6 @@ bool i915_semaphore_is_enabled(struct drm_device *dev)
 	if (i915.semaphores >= 0)
 		return i915.semaphores;
 
-	/* Until we get further testing... */
-	if (IS_GEN8(dev))
-		return false;
-
 #ifdef CONFIG_INTEL_IOMMU
 	/* Enable semaphores on SNB when IO remapping is off */
 	if (INTEL_INFO(dev)->gen == 6 && intel_iommu_gfx_mapped)
@@ -520,6 +516,8 @@ static int i915_drm_freeze(struct drm_device *dev)
 			return error;
 		}
 
+		flush_delayed_work(&dev_priv->rps.delayed_resume_work);
+
 		intel_runtime_pm_disable_interrupts(dev);
 
 		intel_suspend_gt_powersave(dev);
@@ -541,10 +539,11 @@ static int i915_drm_freeze(struct drm_device *dev)
 
 	i915_save_state(dev);
 
-	if (acpi_target_system_state() >= ACPI_STATE_S3)
-		opregion_target_state = PCI_D3cold;
-	else
+	opregion_target_state = PCI_D3cold;
+#if IS_ENABLED(CONFIG_ACPI_SLEEP)
+	if (acpi_target_system_state() < ACPI_STATE_S3)
 		opregion_target_state = PCI_D1;
+#endif
 	intel_opregion_notify_adapter(dev, opregion_target_state);
 
 	intel_uncore_forcewake_reset(dev, false);

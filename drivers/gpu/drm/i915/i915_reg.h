@@ -240,7 +240,7 @@
 #define   MI_DISPLAY_FLIP_IVB_SPRITE_B (3 << 19)
 #define   MI_DISPLAY_FLIP_IVB_PLANE_C  (4 << 19)
 #define   MI_DISPLAY_FLIP_IVB_SPRITE_C (5 << 19)
-#define MI_SEMAPHORE_MBOX	MI_INSTR(0x16, 1) /* gen6+ */
+#define MI_SEMAPHORE_MBOX	MI_INSTR(0x16, 1) /* gen6, gen7 */
 #define   MI_SEMAPHORE_GLOBAL_GTT    (1<<22)
 #define   MI_SEMAPHORE_UPDATE	    (1<<21)
 #define   MI_SEMAPHORE_COMPARE	    (1<<20)
@@ -266,6 +266,11 @@
 #define   MI_RESTORE_EXT_STATE_EN	(1<<2)
 #define   MI_FORCE_RESTORE		(1<<1)
 #define   MI_RESTORE_INHIBIT		(1<<0)
+#define MI_SEMAPHORE_SIGNAL	MI_INSTR(0x1b, 0) /* GEN8+ */
+#define   MI_SEMAPHORE_TARGET(engine)	((engine)<<15)
+#define MI_SEMAPHORE_WAIT	MI_INSTR(0x1c, 2) /* GEN8+ */
+#define   MI_SEMAPHORE_POLL		(1<<15)
+#define   MI_SEMAPHORE_SAD_GTE_SDD	(1<<12)
 #define MI_STORE_DWORD_IMM	MI_INSTR(0x20, 1)
 #define   MI_MEM_VIRTUAL	(1 << 22) /* 965+ only */
 #define MI_STORE_DWORD_INDEX	MI_INSTR(0x21, 1)
@@ -360,6 +365,7 @@
 #define   PIPE_CONTROL_TEXTURE_CACHE_INVALIDATE		(1<<10) /* GM45+ only */
 #define   PIPE_CONTROL_INDIRECT_STATE_DISABLE		(1<<9)
 #define   PIPE_CONTROL_NOTIFY				(1<<8)
+#define   PIPE_CONTROL_FLUSH_ENABLE			(1<<7) /* gen7+ */
 #define   PIPE_CONTROL_VF_CACHE_INVALIDATE		(1<<4)
 #define   PIPE_CONTROL_CONST_CACHE_INVALIDATE		(1<<3)
 #define   PIPE_CONTROL_STATE_CACHE_INVALIDATE		(1<<2)
@@ -525,6 +531,7 @@ enum punit_power_well {
 #define PUNIT_REG_GPU_FREQ_STS			0xd8
 #define   GENFREQSTATUS				(1<<0)
 #define PUNIT_REG_MEDIA_TURBO_FREQ_REQ		0xdc
+#define PUNIT_REG_CZ_TIMESTAMP			0xce
 
 #define PUNIT_FUSE_BUS2				0xf6 /* bits 47:40 */
 #define PUNIT_FUSE_BUS1				0xf5 /* bits 55:48 */
@@ -549,6 +556,11 @@ enum punit_power_well {
 #define IOSF_NC_FB_GFX_FMAX_FUSE_LO		0x30
 #define   FB_FMAX_VMIN_FREQ_LO_SHIFT		27
 #define   FB_FMAX_VMIN_FREQ_LO_MASK		0xf8000000
+
+#define VLV_CZ_CLOCK_TO_MILLI_SEC		100000
+#define VLV_RP_UP_EI_THRESHOLD			90
+#define VLV_RP_DOWN_EI_THRESHOLD		70
+#define VLV_INT_COUNT_FOR_DOWN_EI		5
 
 /* vlv2 north clock has */
 #define CCK_FUSE_REG				0x8
@@ -584,6 +596,11 @@ enum punit_power_well {
 #define  DSI_PLL_M1_DIV_SHIFT			0
 #define  DSI_PLL_M1_DIV_MASK			(0x1ff << 0)
 #define CCK_DISPLAY_CLOCK_CONTROL		0x6b
+#define  DISPLAY_TRUNK_FORCE_ON			(1 << 17)
+#define  DISPLAY_TRUNK_FORCE_OFF		(1 << 16)
+#define  DISPLAY_FREQUENCY_STATUS		(0x1f << 8)
+#define  DISPLAY_FREQUENCY_STATUS_SHIFT		8
+#define  DISPLAY_FREQUENCY_VALUES		(0x1f << 0)
 
 /**
  * DOC: DPIO
@@ -5383,6 +5400,7 @@ enum punit_power_well {
 #define   VLV_GTLC_ALLOWWAKEERR			(1 << 1)
 #define   VLV_GTLC_PW_MEDIA_STATUS_MASK		(1 << 5)
 #define   VLV_GTLC_PW_RENDER_STATUS_MASK	(1 << 7)
+#define VLV_GTLC_SURVIVABILITY_REG              0x130098
 #define  FORCEWAKE_MT				0xa188 /* multi-threaded */
 #define   FORCEWAKE_KERNEL			0x1
 #define   FORCEWAKE_USER			0x2
@@ -5530,6 +5548,8 @@ enum punit_power_well {
 #define GEN6_GT_GFX_RC6_LOCKED			0x138104
 #define VLV_COUNTER_CONTROL			0x138104
 #define   VLV_COUNT_RANGE_HIGH			(1<<15)
+#define   VLV_MEDIA_RC0_COUNT_EN		(1<<5)
+#define   VLV_RENDER_RC0_COUNT_EN		(1<<4)
 #define   VLV_MEDIA_RC6_COUNT_EN		(1<<1)
 #define   VLV_RENDER_RC6_COUNT_EN		(1<<0)
 #define GEN6_GT_GFX_RC6				0x138108
@@ -5538,6 +5558,8 @@ enum punit_power_well {
 
 #define GEN6_GT_GFX_RC6p			0x13810C
 #define GEN6_GT_GFX_RC6pp			0x138110
+#define VLV_RENDER_C0_COUNT_REG		0x138118
+#define VLV_MEDIA_C0_COUNT_REG			0x13811C
 
 #define GEN6_PCODE_MAILBOX			0x138124
 #define   GEN6_PCODE_READY			(1<<31)
@@ -5772,6 +5794,7 @@ enum punit_power_well {
 #define  TRANS_DDI_FUNC_ENABLE		(1<<31)
 /* Those bits are ignored by pipe EDP since it can only connect to DDI A */
 #define  TRANS_DDI_PORT_MASK		(7<<28)
+#define  TRANS_DDI_PORT_SHIFT		28
 #define  TRANS_DDI_SELECT_PORT(x)	((x)<<28)
 #define  TRANS_DDI_PORT_NONE		(0<<28)
 #define  TRANS_DDI_MODE_SELECT_MASK	(7<<24)
@@ -5899,10 +5922,12 @@ enum punit_power_well {
 /* WRPLL */
 #define WRPLL_CTL1			0x46040
 #define WRPLL_CTL2			0x46060
+#define WRPLL_CTL(pll)			(pll == 0 ? WRPLL_CTL1 : WRPLL_CTL2)
 #define  WRPLL_PLL_ENABLE		(1<<31)
-#define  WRPLL_PLL_SELECT_SSC		(0x01<<28)
-#define  WRPLL_PLL_SELECT_NON_SSC	(0x02<<28)
-#define  WRPLL_PLL_SELECT_LCPLL_2700	(0x03<<28)
+#define  WRPLL_PLL_SSC			(1<<28)
+#define  WRPLL_PLL_NON_SSC		(2<<28)
+#define  WRPLL_PLL_LCPLL		(3<<28)
+#define  WRPLL_PLL_REF_MASK		(3<<28)
 /* WRPLL divider programming */
 #define  WRPLL_DIVIDER_REFERENCE(x)	((x)<<0)
 #define  WRPLL_DIVIDER_REF_MASK		(0xff)
@@ -5921,6 +5946,7 @@ enum punit_power_well {
 #define  PORT_CLK_SEL_LCPLL_1350	(1<<29)
 #define  PORT_CLK_SEL_LCPLL_810		(2<<29)
 #define  PORT_CLK_SEL_SPLL		(3<<29)
+#define  PORT_CLK_SEL_WRPLL(pll)	(((pll)+4)<<29)
 #define  PORT_CLK_SEL_WRPLL1		(4<<29)
 #define  PORT_CLK_SEL_WRPLL2		(5<<29)
 #define  PORT_CLK_SEL_NONE		(7<<29)
@@ -5962,7 +5988,10 @@ enum punit_power_well {
 #define  LCPLL_CD_SOURCE_FCLK		(1<<21)
 #define  LCPLL_CD_SOURCE_FCLK_DONE	(1<<19)
 
-#define D_COMP				(MCHBAR_MIRROR_BASE_SNB + 0x5F0C)
+/* Please see hsw_read_dcomp() and hsw_write_dcomp() before using this register,
+ * since on HSW we can't write to it using I915_WRITE. */
+#define D_COMP_HSW			(MCHBAR_MIRROR_BASE_SNB + 0x5F0C)
+#define D_COMP_BDW			0x138144
 #define  D_COMP_RCOMP_IN_PROGRESS	(1<<9)
 #define  D_COMP_COMP_FORCE		(1<<8)
 #define  D_COMP_COMP_DISABLE		(1<<0)
