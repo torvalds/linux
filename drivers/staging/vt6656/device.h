@@ -328,8 +328,6 @@ struct vnt_private {
 	u32 uDIFS;  /* Current DIFS */
 	u32 uEIFS;  /* Current EIFS */
 	u32 uSlot;  /* Current SlotTime */
-	u32 uCwMin; /* Current CwMin */
-	u32 uCwMax; /* CwMax is fixed on 1023 */
 
 	/* Rate */
 	u8 byBBType; /* 0: 11A, 1:11B, 2:11G */

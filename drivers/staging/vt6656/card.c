@@ -369,13 +369,11 @@ void vnt_update_ifs(struct vnt_private *priv)
 		priv->uSlot = C_SLOT_SHORT;
 		priv->uSIFS = C_SIFS_A;
 		priv->uDIFS = C_SIFS_A + 2 * C_SLOT_SHORT;
-		priv->uCwMin = C_CWMIN_A;
 		max_min = 4;
 	} else if (priv->byPacketType == PK_TYPE_11B) {
 		priv->uSlot = C_SLOT_LONG;
 		priv->uSIFS = C_SIFS_BG;
 		priv->uDIFS = C_SIFS_BG + 2 * C_SLOT_LONG;
-		priv->uCwMin = C_CWMIN_B;
 		max_min = 5;
 	} else {/* PK_TYPE_11GA & PK_TYPE_11GB */
 		bool ofdm_rate = false;
@@ -397,16 +395,12 @@ void vnt_update_ifs(struct vnt_private *priv)
 			}
 		}
 
-		if (ofdm_rate == true) {
-			priv->uCwMin = C_CWMIN_A;
+		if (ofdm_rate == true)
 			max_min = 4;
-		} else {
-			priv->uCwMin = C_CWMIN_B;
+		else
 			max_min = 5;
-			}
 	}
 
-	priv->uCwMax = C_CWMAX;
 	priv->uEIFS = C_EIFS;
 
 	switch (priv->rf_type) {
