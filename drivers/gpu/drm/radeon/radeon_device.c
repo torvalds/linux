@@ -1123,7 +1123,19 @@ static void radeon_check_arguments(struct radeon_device *rdev)
 	/* defines number of bits in page table versus page directory,
 	 * a page is 4KB so we have 12 bits offset, minimum 9 bits in the
 	 * page table and the remaining bits are in the page directory */
-	if (radeon_vm_block_size < 9) {
+	if (radeon_vm_block_size == -1) {
+
+		/* Total bits covered by PD + PTs */
+		unsigned bits = ilog2(radeon_vm_size) + 17;
+
+		/* Make sure the PD is 4K in size up to 8GB address space.
+		   Above that split equal between PD and PTs */
+		if (radeon_vm_size <= 8)
+			radeon_vm_block_size = bits - 9;
+		else
+			radeon_vm_block_size = (bits + 3) / 2;
+
+	} else if (radeon_vm_block_size < 9) {
 		dev_warn(rdev->dev, "VM page table size (%d) too small\n",
 			 radeon_vm_block_size);
 		radeon_vm_block_size = 9;
