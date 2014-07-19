@@ -239,9 +239,9 @@ static int device_init_registers(struct vnt_private *priv)
 	antenna = priv->abyEEPROM[EEP_OFS_ANTENNA];
 
 	if (antenna & EEP_ANTINV)
-		priv->bTxRxAntInv = true;
+		priv->tx_rx_ant_inv = true;
 	else
-		priv->bTxRxAntInv = false;
+		priv->tx_rx_ant_inv = false;
 
 	antenna &= (EEP_ANTENNA_AUX | EEP_ANTENNA_MAIN);
 
@@ -249,35 +249,35 @@ static int device_init_registers(struct vnt_private *priv)
 		antenna = (EEP_ANTENNA_AUX | EEP_ANTENNA_MAIN);
 
 	if (antenna == (EEP_ANTENNA_AUX | EEP_ANTENNA_MAIN)) {
-		priv->byTxAntennaMode = ANT_B;
-		priv->dwRxAntennaSel = 1;
+		priv->tx_antenna_mode = ANT_B;
+		priv->rx_antenna_sel = 1;
 
-		if (priv->bTxRxAntInv == true)
-			priv->byRxAntennaMode = ANT_A;
+		if (priv->tx_rx_ant_inv == true)
+			priv->rx_antenna_mode = ANT_A;
 		else
-			priv->byRxAntennaMode = ANT_B;
+			priv->rx_antenna_mode = ANT_B;
 	} else  {
-		priv->dwRxAntennaSel = 0;
+		priv->rx_antenna_sel = 0;
 
 		if (antenna & EEP_ANTENNA_AUX) {
-			priv->byTxAntennaMode = ANT_A;
+			priv->tx_antenna_mode = ANT_A;
 
-			if (priv->bTxRxAntInv == true)
-				priv->byRxAntennaMode = ANT_B;
+			if (priv->tx_rx_ant_inv == true)
+				priv->rx_antenna_mode = ANT_B;
 			else
-				priv->byRxAntennaMode = ANT_A;
+				priv->rx_antenna_mode = ANT_A;
 		} else {
-			priv->byTxAntennaMode = ANT_B;
+			priv->tx_antenna_mode = ANT_B;
 
-		if (priv->bTxRxAntInv == true)
-			priv->byRxAntennaMode = ANT_A;
+		if (priv->tx_rx_ant_inv == true)
+			priv->rx_antenna_mode = ANT_A;
 		else
-			priv->byRxAntennaMode = ANT_B;
+			priv->rx_antenna_mode = ANT_B;
 		}
 	}
 
 	/* Set initial antenna mode */
-	vnt_set_antenna_mode(priv, priv->byRxAntennaMode);
+	vnt_set_antenna_mode(priv, priv->rx_antenna_mode);
 
 	/* get Auto Fall Back type */
 	priv->byAutoFBCtrl = AUTO_FB_0;
@@ -348,9 +348,9 @@ static int device_init_registers(struct vnt_private *priv)
 
 	vnt_set_short_slot_time(priv);
 
-	priv->byRadioCtl = priv->abyEEPROM[EEP_OFS_RADIOCTL];
+	priv->radio_ctl = priv->abyEEPROM[EEP_OFS_RADIOCTL];
 
-	if ((priv->byRadioCtl & EEP_RADIOCTL_ENABLE) != 0) {
+	if ((priv->radio_ctl & EEP_RADIOCTL_ENABLE) != 0) {
 		status = vnt_control_in(priv, MESSAGE_TYPE_READ,
 			MAC_REG_GPIOCTL1, MESSAGE_REQUEST_MACREG, 1, &tmp);
 

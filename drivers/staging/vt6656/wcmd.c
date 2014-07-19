@@ -146,17 +146,17 @@ void vnt_run_command(struct work_struct *work)
 
 	case WLAN_CMD_CHANGE_ANTENNA_START:
 		dev_dbg(&priv->usb->dev, "Change from Antenna%d to",
-							priv->dwRxAntennaSel);
+							priv->rx_antenna_sel);
 
-		if (priv->dwRxAntennaSel == 0) {
-			priv->dwRxAntennaSel = 1;
-			if (priv->bTxRxAntInv == true)
+		if (priv->rx_antenna_sel == 0) {
+			priv->rx_antenna_sel = 1;
+			if (priv->tx_rx_ant_inv == true)
 				vnt_set_antenna_mode(priv, ANT_RXA);
 			else
 				vnt_set_antenna_mode(priv, ANT_RXB);
 		} else {
-			priv->dwRxAntennaSel = 0;
-			if (priv->bTxRxAntInv == true)
+			priv->rx_antenna_sel = 0;
+			if (priv->tx_rx_ant_inv == true)
 				vnt_set_antenna_mode(priv, ANT_RXB);
 			else
 				vnt_set_antenna_mode(priv, ANT_RXA);

@@ -317,11 +317,11 @@ struct vnt_private {
 	u32 current_rssi;
 
 	/* Antenna Diversity */
-	int bTxRxAntInv;
-	u32 dwRxAntennaSel;
-	u8 byRxAntennaMode;
-	u8 byTxAntennaMode;
-	u8 byRadioCtl;
+	int tx_rx_ant_inv;
+	u32 rx_antenna_sel;
+	u8 rx_antenna_mode;
+	u8 tx_antenna_mode;
+	u8 radio_ctl;
 
 	/* IFS & Cw */
 	u32 uSIFS;  /* Current SIFS */
