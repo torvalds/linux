@@ -40,9 +40,6 @@ Configuration Options:
 #include "comedi_fc.h"
 
 /* Board register addresses */
-
-#define DMM32AT_MEMSIZE 0x10
-
 #define DMM32AT_CONV 0x00
 #define DMM32AT_AILSB 0x00
 #define DMM32AT_AUXDOUT 0x01
@@ -684,7 +681,7 @@ static int dmm32at_attach(struct comedi_device *dev,
 	struct comedi_subdevice *s;
 	unsigned char aihi, ailo, fifostat, aistat, intstat, airback;
 
-	ret = comedi_request_region(dev, it->options[0], DMM32AT_MEMSIZE);
+	ret = comedi_request_region(dev, it->options[0], 0x10);
 	if (ret)
 		return ret;
 
