@@ -62,6 +62,7 @@ enum rockchip_pinctrl_type {
 	RK2928,
 	RK3066B,
 	RK3188,
+	RK3288,
 };
 
 /**
@@ -597,6 +598,7 @@ static int rockchip_get_pull(struct rockchip_pin_bank *bank, int pin_num)
 				? PIN_CONFIG_BIAS_PULL_PIN_DEFAULT
 				: PIN_CONFIG_BIAS_DISABLE;
 	case RK3188:
+	case RK3288:
 		data >>= bit;
 		data &= (1 << RK3188_PULL_BITS_PER_PIN) - 1;
 
@@ -651,6 +653,7 @@ static int rockchip_set_pull(struct rockchip_pin_bank *bank,
 		spin_unlock_irqrestore(&bank->slock, flags);
 		break;
 	case RK3188:
+	case RK3288:
 		spin_lock_irqsave(&bank->slock, flags);
 
 		/* enable the write to the equivalent lower bits */
@@ -812,6 +815,7 @@ static bool rockchip_pinconf_pull_valid(struct rockchip_pin_ctrl *ctrl,
 	case RK3066B:
 		return pull ? false : true;
 	case RK3188:
+	case RK3288:
 		return (pull != PIN_CONFIG_BIAS_PULL_PIN_DEFAULT);
 	}
 
@@ -1838,7 +1842,7 @@ static struct rockchip_pin_ctrl rk3288_pin_ctrl = {
 		.pin_banks		= rk3288_pin_banks,
 		.nr_banks		= ARRAY_SIZE(rk3288_pin_banks),
 		.label			= "RK3288-GPIO",
-		.type			= RK3188,
+		.type			= RK3288,
 		.grf_mux_offset		= 0x0,
 		.pmu_mux_offset		= 0x84,
 		.pull_calc_reg		= rk3288_calc_pull_reg_and_bit,
