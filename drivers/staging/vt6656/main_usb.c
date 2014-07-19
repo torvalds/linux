@@ -189,7 +189,7 @@ static int device_init_registers(struct vnt_private *priv)
 	/* local ID for AES functions */
 	status = vnt_control_in(priv, MESSAGE_TYPE_READ,
 		MAC_REG_LOCALID, MESSAGE_REQUEST_MACREG, 1,
-			&priv->byLocalID);
+			&priv->local_id);
 	if (status != STATUS_SUCCESS)
 		return false;
 

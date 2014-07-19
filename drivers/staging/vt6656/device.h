@@ -300,7 +300,7 @@ struct vnt_private {
 
 	/* Version control */
 	u16 firmware_version;
-	u8 byLocalID;
+	u8 local_id;
 	u8 byRFType;
 	u8 byBBRxConf;
 
