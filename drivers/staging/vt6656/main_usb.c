@@ -249,9 +249,7 @@ static int device_init_registers(struct vnt_private *priv)
 		antenna = (EEP_ANTENNA_AUX | EEP_ANTENNA_MAIN);
 
 	if (antenna == (EEP_ANTENNA_AUX | EEP_ANTENNA_MAIN)) {
-		priv->byAntennaCount = 2;
 		priv->byTxAntennaMode = ANT_B;
-		priv->dwTxAntennaSel = 1;
 		priv->dwRxAntennaSel = 1;
 
 		if (priv->bTxRxAntInv == true)
@@ -259,8 +257,6 @@ static int device_init_registers(struct vnt_private *priv)
 		else
 			priv->byRxAntennaMode = ANT_B;
 	} else  {
-		priv->byAntennaCount = 1;
-		priv->dwTxAntennaSel = 0;
 		priv->dwRxAntennaSel = 0;
 
 		if (antenna & EEP_ANTENNA_AUX) {

@@ -319,8 +319,6 @@ struct vnt_private {
 	/* Antenna Diversity */
 	int bTxRxAntInv;
 	u32 dwRxAntennaSel;
-	u32 dwTxAntennaSel;
-	u8 byAntennaCount;
 	u8 byRxAntennaMode;
 	u8 byTxAntennaMode;
 	u8 byRadioCtl;
