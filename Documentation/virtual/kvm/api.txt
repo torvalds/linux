@@ -1869,7 +1869,8 @@ registers, find a list below:
   PPC   | KVM_REG_PPC_PID	| 64
   PPC   | KVM_REG_PPC_ACOP	| 64
   PPC   | KVM_REG_PPC_VRSAVE	| 32
-  PPC   | KVM_REG_PPC_LPCR	| 64
+  PPC   | KVM_REG_PPC_LPCR	| 32
+  PPC   | KVM_REG_PPC_LPCR_64	| 64
   PPC   | KVM_REG_PPC_PPR	| 64
   PPC   | KVM_REG_PPC_ARCH_COMPAT 32
   PPC   | KVM_REG_PPC_DABRX     | 32
