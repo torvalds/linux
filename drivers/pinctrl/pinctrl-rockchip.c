@@ -573,6 +573,98 @@ static void rk3288_calc_pull_reg_and_bit(struct rockchip_pin_bank *bank,
 	}
 }
 
+#define RK3288_DRV_PMU_OFFSET		0x70
+#define RK3288_DRV_GRF_OFFSET		0x1c0
+#define RK3288_DRV_BITS_PER_PIN		2
+#define RK3288_DRV_PINS_PER_REG		8
+#define RK3288_DRV_BANK_STRIDE		16
+static int rk3288_drv_list[] = { 2, 4, 8, 12 };
+
+static void rk3288_calc_drv_reg_and_bit(struct rockchip_pin_bank *bank,
+				    int pin_num, struct regmap **regmap,
+				    int *reg, u8 *bit)
+{
+	struct rockchip_pinctrl *info = bank->drvdata;
+
+	/* The first 24 pins of the first bank are located in PMU */
+	if (bank->bank_num == 0) {
+		*regmap = info->regmap_pmu;
+		*reg = RK3288_DRV_PMU_OFFSET;
+
+		*reg += ((pin_num / RK3288_DRV_PINS_PER_REG) * 4);
+		*bit = pin_num % RK3288_DRV_PINS_PER_REG;
+		*bit *= RK3288_DRV_BITS_PER_PIN;
+	} else {
+		*regmap = info->regmap_base;
+		*reg = RK3288_DRV_GRF_OFFSET;
+
+		/* correct the offset, as we're starting with the 2nd bank */
+		*reg -= 0x10;
+		*reg += bank->bank_num * RK3288_DRV_BANK_STRIDE;
+		*reg += ((pin_num / RK3288_DRV_PINS_PER_REG) * 4);
+
+		*bit = (pin_num % RK3288_DRV_PINS_PER_REG);
+		*bit *= RK3288_DRV_BITS_PER_PIN;
+	}
+}
+
+static int rk3288_get_drive(struct rockchip_pin_bank *bank, int pin_num)
+{
+	struct regmap *regmap;
+	int reg, ret;
+	u32 data;
+	u8 bit;
+
+	rk3288_calc_drv_reg_and_bit(bank, pin_num, &regmap, &reg, &bit);
+
+	ret = regmap_read(regmap, reg, &data);
+	if (ret)
+		return ret;
+
+	data >>= bit;
+	data &= (1 << RK3288_DRV_BITS_PER_PIN) - 1;
+
+	return rk3288_drv_list[data];
+}
+
+static int rk3288_set_drive(struct rockchip_pin_bank *bank, int pin_num,
+			    int strength)
+{
+	struct rockchip_pinctrl *info = bank->drvdata;
+	struct regmap *regmap;
+	unsigned long flags;
+	int reg, ret, i;
+	u32 data;
+	u8 bit;
+
+	rk3288_calc_drv_reg_and_bit(bank, pin_num, &regmap, &reg, &bit);
+
+	ret = -EINVAL;
+	for (i = 0; i < ARRAY_SIZE(rk3288_drv_list); i++) {
+		if (rk3288_drv_list[i] == strength) {
+			ret = i;
+			break;
+		}
+	}
+
+	if (ret < 0) {
+		dev_err(info->dev, "unsupported driver strength %d\n",
+			strength);
+		return ret;
+	}
+
+	spin_lock_irqsave(&bank->slock, flags);
+
+	/* enable the write to the equivalent lower bits */
+	data = ((1 << RK3288_DRV_BITS_PER_PIN) - 1) << (bit + 16);
+	data |= (ret << bit);
+
+	ret = regmap_write(regmap, reg, data);
+	spin_unlock_irqrestore(&bank->slock, flags);
+
+	return ret;
+}
+
 static int rockchip_get_pull(struct rockchip_pin_bank *bank, int pin_num)
 {
 	struct rockchip_pinctrl *info = bank->drvdata;
@@ -870,6 +962,15 @@ static int rockchip_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 			if (rc)
 				return rc;
 			break;
+		case PIN_CONFIG_DRIVE_STRENGTH:
+			/* rk3288 is the first with per-pin drive-strength */
+			if (info->ctrl->type != RK3288)
+				return -ENOTSUPP;
+
+			rc = rk3288_set_drive(bank, pin - bank->pin_base, arg);
+			if (rc < 0)
+				return rc;
+			break;
 		default:
 			return -ENOTSUPP;
 			break;
@@ -918,6 +1019,17 @@ static int rockchip_pinconf_get(struct pinctrl_dev *pctldev, unsigned int pin,
 			return rc;
 
 		arg = rc ? 1 : 0;
+		break;
+	case PIN_CONFIG_DRIVE_STRENGTH:
+		/* rk3288 is the first with per-pin drive-strength */
+		if (info->ctrl->type != RK3288)
+			return -ENOTSUPP;
+
+		rc = rk3288_get_drive(bank, pin - bank->pin_base);
+		if (rc < 0)
+			return rc;
+
+		arg = rc;
 		break;
 	default:
 		return -ENOTSUPP;
