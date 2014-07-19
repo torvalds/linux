@@ -1544,6 +1544,7 @@ static const struct dev_pm_ops g2d_pm_ops = {
 
 static const struct of_device_id exynos_g2d_match[] = {
 	{ .compatible = "samsung,exynos5250-g2d" },
+	{ .compatible = "samsung,exynos4212-g2d" },
 	{},
 };
 
