@@ -396,14 +396,14 @@ int vnt_vt3184_init(struct vnt_private *priv)
 
 	priv->byZoneType = priv->abyEEPROM[EEP_OFS_ZONETYPE];
 
-	priv->byRFType = priv->abyEEPROM[EEP_OFS_RFTYPE];
+	priv->rf_type = priv->abyEEPROM[EEP_OFS_RFTYPE];
 
 	dev_dbg(&priv->usb->dev, "Zone Type %x\n", priv->byZoneType);
 
-	dev_dbg(&priv->usb->dev, "RF Type %d\n", priv->byRFType);
+	dev_dbg(&priv->usb->dev, "RF Type %d\n", priv->rf_type);
 
-	if ((priv->byRFType == RF_AL2230) ||
-				(priv->byRFType == RF_AL2230S)) {
+	if ((priv->rf_type == RF_AL2230) ||
+				(priv->rf_type == RF_AL2230S)) {
 		priv->byBBRxConf = vnt_vt3184_al2230[10];
 		length = sizeof(vnt_vt3184_al2230);
 		addr = vnt_vt3184_al2230;
@@ -418,7 +418,7 @@ int vnt_vt3184_init(struct vnt_private *priv)
 		priv->ldBmThreshold[1] = -48;
 		priv->ldBmThreshold[2] = 0;
 		priv->ldBmThreshold[3] = 0;
-	} else if (priv->byRFType == RF_AIROHA7230) {
+	} else if (priv->rf_type == RF_AIROHA7230) {
 		priv->byBBRxConf = vnt_vt3184_al2230[10];
 		length = sizeof(vnt_vt3184_al2230);
 		addr = vnt_vt3184_al2230;
@@ -435,8 +435,8 @@ int vnt_vt3184_init(struct vnt_private *priv)
 		priv->ldBmThreshold[1] = -48;
 		priv->ldBmThreshold[2] = 0;
 		priv->ldBmThreshold[3] = 0;
-	} else if ((priv->byRFType == RF_VT3226) ||
-			(priv->byRFType == RF_VT3226D0)) {
+	} else if ((priv->rf_type == RF_VT3226) ||
+			(priv->rf_type == RF_VT3226D0)) {
 		priv->byBBRxConf = vnt_vt3184_vt3226d0[10];
 		length = sizeof(vnt_vt3184_vt3226d0);
 		addr = vnt_vt3184_vt3226d0;
@@ -454,7 +454,7 @@ int vnt_vt3184_init(struct vnt_private *priv)
 		/* Fix VT3226 DFC system timing issue */
 		vnt_mac_reg_bits_on(priv, MAC_REG_SOFTPWRCTL2,
 				    SOFTPWRCTL_RFLEOPT);
-	} else if (priv->byRFType == RF_VT3342A0) {
+	} else if (priv->rf_type == RF_VT3342A0) {
 		priv->byBBRxConf = vnt_vt3184_vt3226d0[10];
 		length = sizeof(vnt_vt3184_vt3226d0);
 		addr = vnt_vt3184_vt3226d0;
@@ -486,12 +486,12 @@ int vnt_vt3184_init(struct vnt_private *priv)
 	vnt_control_out(priv, MESSAGE_TYPE_WRITE, 0,
 		MESSAGE_REQUEST_BBAGC, length_agc, array);
 
-	if ((priv->byRFType == RF_VT3226) ||
-		(priv->byRFType == RF_VT3342A0)) {
+	if ((priv->rf_type == RF_VT3226) ||
+		(priv->rf_type == RF_VT3342A0)) {
 		vnt_control_out_u8(priv, MESSAGE_REQUEST_MACREG,
 						MAC_REG_ITRTMSET, 0x23);
 		vnt_mac_reg_bits_on(priv, MAC_REG_PAPEDELAY, 0x01);
-	} else if (priv->byRFType == RF_VT3226D0) {
+	} else if (priv->rf_type == RF_VT3226D0) {
 		vnt_control_out_u8(priv, MESSAGE_REQUEST_MACREG,
 						MAC_REG_ITRTMSET, 0x11);
 		vnt_mac_reg_bits_on(priv, MAC_REG_PAPEDELAY, 0x01);
@@ -586,7 +586,7 @@ void vnt_update_pre_ed_threshold(struct vnt_private *priv, int scanning)
 	u8 cr_201 = 0x0, cr_206 = 0x0;
 	u8 ed_inx = priv->byBBPreEDIndex;
 
-	switch (priv->byRFType) {
+	switch (priv->rf_type) {
 	case RF_AL2230:
 	case RF_AL2230S:
 	case RF_AIROHA7230:

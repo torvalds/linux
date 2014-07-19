@@ -290,10 +290,10 @@ static int device_init_registers(struct vnt_private *priv)
 	priv->byBBType = BB_TYPE_11G;
 
 	/* get RFType */
-	priv->byRFType = init_rsp->rf_type;
+	priv->rf_type = init_rsp->rf_type;
 
 	/* load vt3266 calibration parameters in EEPROM */
-	if (priv->byRFType == RF_VT3226D0) {
+	if (priv->rf_type == RF_VT3226D0) {
 		if ((priv->abyEEPROM[EEP_OFS_MAJOR_VER] == 0x1) &&
 		    (priv->abyEEPROM[EEP_OFS_MINOR_VER] >= 0x4)) {
 

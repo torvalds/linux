@@ -146,7 +146,7 @@ void vnt_init_bands(struct vnt_private *priv)
 	struct ieee80211_channel *ch;
 	int i;
 
-	switch (priv->byRFType) {
+	switch (priv->rf_type) {
 	case RF_AIROHA7230:
 	case RF_VT3342A0:
 	default:

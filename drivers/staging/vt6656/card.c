@@ -409,7 +409,7 @@ void vnt_update_ifs(struct vnt_private *priv)
 	priv->uCwMax = C_CWMAX;
 	priv->uEIFS = C_EIFS;
 
-	switch (priv->byRFType) {
+	switch (priv->rf_type) {
 	case RF_VT3226D0:
 		if (priv->byBBType != BB_TYPE_11B) {
 			priv->uSIFS -= 1;
@@ -734,7 +734,7 @@ int vnt_radio_power_off(struct vnt_private *priv)
 {
 	int ret = true;
 
-	switch (priv->byRFType) {
+	switch (priv->rf_type) {
 	case RF_AL2230:
 	case RF_AL2230S:
 	case RF_AIROHA7230:
@@ -775,7 +775,7 @@ int vnt_radio_power_on(struct vnt_private *priv)
 
 	vnt_mac_reg_bits_on(priv, MAC_REG_HOSTCR, HOSTCR_RXON);
 
-	switch (priv->byRFType) {
+	switch (priv->rf_type) {
 	case RF_AL2230:
 	case RF_AL2230S:
 	case RF_AIROHA7230:
@@ -794,7 +794,7 @@ int vnt_radio_power_on(struct vnt_private *priv)
 
 void vnt_set_bss_mode(struct vnt_private *priv)
 {
-	if (priv->byRFType == RF_AIROHA7230 && priv->byBBType == BB_TYPE_11A)
+	if (priv->rf_type == RF_AIROHA7230 && priv->byBBType == BB_TYPE_11A)
 		vnt_mac_set_bb_type(priv, BB_TYPE_11G);
 	else
 		vnt_mac_set_bb_type(priv, priv->byBBType);
@@ -812,7 +812,7 @@ void vnt_set_bss_mode(struct vnt_private *priv)
 	vnt_set_rspinf(priv, (u8)priv->byBBType);
 
 	if (priv->byBBType == BB_TYPE_11A) {
-		if (priv->byRFType == RF_AIROHA7230) {
+		if (priv->rf_type == RF_AIROHA7230) {
 			priv->abyBBVGA[0] = 0x20;
 
 			vnt_control_out_u8(priv, MESSAGE_REQUEST_BBREG,
@@ -822,7 +822,7 @@ void vnt_set_bss_mode(struct vnt_private *priv)
 		priv->abyBBVGA[2] = 0x10;
 		priv->abyBBVGA[3] = 0x10;
 	} else {
-		if (priv->byRFType == RF_AIROHA7230) {
+		if (priv->rf_type == RF_AIROHA7230) {
 			priv->abyBBVGA[0] = 0x1c;
 
 			vnt_control_out_u8(priv, MESSAGE_REQUEST_BBREG,
