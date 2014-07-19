@@ -394,11 +394,7 @@ int vnt_vt3184_init(struct vnt_private *priv)
 	if (status != STATUS_SUCCESS)
 		return false;
 
-	priv->byZoneType = priv->abyEEPROM[EEP_OFS_ZONETYPE];
-
 	priv->rf_type = priv->abyEEPROM[EEP_OFS_RFTYPE];
-
-	dev_dbg(&priv->usb->dev, "Zone Type %x\n", priv->byZoneType);
 
 	dev_dbg(&priv->usb->dev, "RF Type %d\n", priv->rf_type);
 

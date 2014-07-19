@@ -304,8 +304,6 @@ struct vnt_private {
 	u8 rf_type;
 	u8 bb_rx_conf;
 
-	u8 byZoneType;
-
 	struct vnt_cmd_card_init init_command;
 	struct vnt_rsp_card_init init_response;
 	u8 abyCurrentNetAddr[ETH_ALEN];
