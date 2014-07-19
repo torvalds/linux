@@ -2880,12 +2880,11 @@ static int sep_free_dma_tables_and_dcb(struct sep_device *sep, bool isapplet,
 				if (is_kva) {
 					error = -ENODEV;
 					break;
-				} else {
-					error_temp = copy_to_user(
+				}
+				error_temp = copy_to_user(
 						(void __user *)tail_pt,
 						dcb_table_ptr->tail_data,
 						dcb_table_ptr->tail_data_size);
-				}
 				if (error_temp) {
 					/* Release the DMA resource */
 					error = -EFAULT;
