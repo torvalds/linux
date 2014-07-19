@@ -54,12 +54,10 @@ static void __init tegra_cpu_reset_handler_set(const u32 reset_address)
 	 * Prevent further modifications to the physical reset vector.
 	 *  NOTE: Has no effect on chips prior to Tegra30.
 	 */
-	if (tegra_get_chip_id() != TEGRA20) {
-		reg = readl(sb_ctrl);
-		reg |= 2;
-		writel(reg, sb_ctrl);
-		wmb();
-	}
+	reg = readl(sb_ctrl);
+	reg |= 2;
+	writel(reg, sb_ctrl);
+	wmb();
 }
 
 static void __init tegra_cpu_reset_handler_enable(void)

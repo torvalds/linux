@@ -23,7 +23,7 @@
 #include <linux/of_address.h>
 #include <linux/clk/tegra.h>
 
-#include <soc/tegra/powergate.h>
+#include <soc/tegra/pmc.h>
 
 #include <dt-bindings/clock/tegra30-car.h>
 
