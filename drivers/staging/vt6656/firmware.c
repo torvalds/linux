@@ -118,24 +118,24 @@ int vnt_check_firmware_version(struct vnt_private *priv)
 					0,
 					MESSAGE_REQUEST_VERSION,
 					2,
-					(u8 *) &(priv->wFirmwareVersion));
+					(u8 *)&priv->firmware_version);
 
 	dev_dbg(&priv->usb->dev, "Firmware Version [%04x]\n",
-						priv->wFirmwareVersion);
+						priv->firmware_version);
 
 	if (status != STATUS_SUCCESS) {
 		dev_dbg(&priv->usb->dev, "Firmware Invalid.\n");
 		return false;
 	}
-	if (priv->wFirmwareVersion == 0xFFFF) {
+	if (priv->firmware_version == 0xFFFF) {
 		dev_dbg(&priv->usb->dev, "In Loader.\n");
 		return false;
 	}
 
 	dev_dbg(&priv->usb->dev, "Firmware Version [%04x]\n",
-						priv->wFirmwareVersion);
+						priv->firmware_version);
 
-	if (priv->wFirmwareVersion < FIRMWARE_VERSION) {
+	if (priv->firmware_version < FIRMWARE_VERSION) {
 		/* branch to loader for download new firmware */
 		vnt_firmware_branch_to_sram(priv);
 		return false;

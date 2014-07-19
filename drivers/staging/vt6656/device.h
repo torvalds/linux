@@ -299,7 +299,7 @@ struct vnt_private {
 	struct vnt_interrupt_buffer int_buf;
 
 	/* Version control */
-	u16 wFirmwareVersion;
+	u16 firmware_version;
 	u8 byLocalID;
 	u8 byRFType;
 	u8 byBBRxConf;
