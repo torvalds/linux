@@ -1290,6 +1290,8 @@ static int process_single_tx_qlock(struct drm_dp_mst_topology_mgr *mgr,
 	int len, space, idx, tosend;
 	int ret;
 
+	memset(&hdr, 0, sizeof(struct drm_dp_sideband_msg_hdr));
+
 	if (txmsg->state == DRM_DP_SIDEBAND_TX_QUEUED) {
 		txmsg->seqno = -1;
 		txmsg->state = DRM_DP_SIDEBAND_TX_START_SEND;
@@ -1644,7 +1646,7 @@ int drm_dp_update_payload_part2(struct drm_dp_mst_topology_mgr *mgr)
 {
 	struct drm_dp_mst_port *port;
 	int i;
-	int ret;
+	int ret = 0;
 	mutex_lock(&mgr->payload_lock);
 	for (i = 0; i < mgr->max_payloads; i++) {
 

@@ -3388,7 +3388,7 @@ fail:
 EXPORT_SYMBOL(drm_property_create);
 
 /**
- * drm_property_create - create a new enumeration property type
+ * drm_property_create_enum - create a new enumeration property type
  * @dev: drm device
  * @flags: flags specifying the property type
  * @name: name of the property
@@ -3434,7 +3434,7 @@ struct drm_property *drm_property_create_enum(struct drm_device *dev, int flags,
 EXPORT_SYMBOL(drm_property_create_enum);
 
 /**
- * drm_property_create - create a new bitmask property type
+ * drm_property_create_bitmask - create a new bitmask property type
  * @dev: drm device
  * @flags: flags specifying the property type
  * @name: name of the property
@@ -3496,7 +3496,7 @@ static struct drm_property *property_create_range(struct drm_device *dev,
 }
 
 /**
- * drm_property_create - create a new ranged property type
+ * drm_property_create_range - create a new ranged property type
  * @dev: drm device
  * @flags: flags specifying the property type
  * @name: name of the property
