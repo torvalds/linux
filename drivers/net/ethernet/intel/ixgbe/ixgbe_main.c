@@ -7973,7 +7973,7 @@ static const struct net_device_ops ixgbe_netdev_ops = {
  **/
 static inline int ixgbe_enumerate_functions(struct ixgbe_adapter *adapter)
 {
-	struct pci_dev *entry;
+	struct pci_dev *entry, *pdev = adapter->pdev;
 	int physfns = 0;
 
 	/* Some cards can not use the generic count PCIe functions method,
@@ -7985,8 +7985,20 @@ static inline int ixgbe_enumerate_functions(struct ixgbe_adapter *adapter)
 
 	list_for_each_entry(entry, &adapter->pdev->bus->devices, bus_list) {
 		/* don't count virtual functions */
-		if (!entry->is_virtfn)
-			physfns++;
+		if (entry->is_virtfn)
+			continue;
+
+		/* When the devices on the bus don't all match our device ID,
+		 * we can't reliably determine the correct number of
+		 * functions. This can occur if a function has been direct
+		 * attached to a virtual machine using VT-d, for example. In
+		 * this case, simply return -1 to indicate this.
+		 */
+		if ((entry->vendor != pdev->vendor) ||
+		    (entry->device != pdev->device))
+			return -1;
+
+		physfns++;
 	}
 
 	return physfns;
@@ -8381,7 +8393,10 @@ skip_sriov:
 		expected_gts = ixgbe_enumerate_functions(adapter) * 10;
 		break;
 	}
-	ixgbe_check_minimum_link(adapter, expected_gts);
+
+	/* don't check link if we failed to enumerate functions */
+	if (expected_gts > 0)
+		ixgbe_check_minimum_link(adapter, expected_gts);
 
 	err = ixgbe_read_pba_string_generic(hw, part_str, sizeof(part_str));
 	if (err)
