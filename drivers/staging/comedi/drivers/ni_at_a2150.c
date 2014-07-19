@@ -159,7 +159,7 @@ struct a2150_private {
 static int a2150_cancel(struct comedi_device *dev, struct comedi_subdevice *s);
 
 static int a2150_get_timing(struct comedi_device *dev, unsigned int *period,
-			    int flags);
+			    unsigned int flags);
 static int a2150_set_chanlist(struct comedi_device *dev,
 			      unsigned int start_channel,
 			      unsigned int num_channels);
@@ -580,7 +580,7 @@ static int a2150_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
  * period, adjusts requested period to actual timing.
  */
 static int a2150_get_timing(struct comedi_device *dev, unsigned int *period,
-			    int flags)
+			    unsigned int flags)
 {
 	const struct a2150_board *thisboard = comedi_board(dev);
 	struct a2150_private *devpriv = dev->private;
@@ -621,8 +621,7 @@ static int a2150_get_timing(struct comedi_device *dev, unsigned int *period,
 			}
 		}
 	}
-	flags &= TRIG_ROUND_MASK;
-	switch (flags) {
+	switch (flags & TRIG_ROUND_MASK) {
 	case TRIG_ROUND_NEAREST:
 	default:
 		/*  if least upper bound is better approximation */

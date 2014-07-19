@@ -729,14 +729,14 @@ static int das16_cmd_test(struct comedi_device *dev, struct comedi_subdevice *s,
 }
 
 static unsigned int das16_set_pacer(struct comedi_device *dev, unsigned int ns,
-				    int rounding_flags)
+				    unsigned int flags)
 {
 	struct das16_private_struct *devpriv = dev->private;
 	unsigned long timer_base = dev->iobase + DAS16_TIMER_BASE_REG;
 
 	i8253_cascade_ns_to_timer(devpriv->clockbase,
 				  &devpriv->divisor1, &devpriv->divisor2,
-				  &ns, rounding_flags);
+				  &ns, flags);
 
 	i8254_set_mode(timer_base, 0, 1, I8254_MODE2 | I8254_BINARY);
 	i8254_set_mode(timer_base, 0, 2, I8254_MODE2 | I8254_BINARY);
@@ -782,9 +782,7 @@ static int das16_cmd_exec(struct comedi_device *dev, struct comedi_subdevice *s)
 	}
 
 	/* set counter mode and counts */
-	cmd->convert_arg =
-	    das16_set_pacer(dev, cmd->convert_arg,
-			    cmd->flags & TRIG_ROUND_MASK);
+	cmd->convert_arg = das16_set_pacer(dev, cmd->convert_arg, cmd->flags);
 
 	/* enable counters */
 	byte = 0;

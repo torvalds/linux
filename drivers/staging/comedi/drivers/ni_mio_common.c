@@ -2213,12 +2213,12 @@ static int ni_ai_insn_read(struct comedi_device *dev,
 }
 
 static int ni_ns_to_timer(const struct comedi_device *dev, unsigned nanosec,
-			  int round_mode)
+			  unsigned int flags)
 {
 	struct ni_private *devpriv = dev->private;
 	int divider;
 
-	switch (round_mode) {
+	switch (flags & TRIG_ROUND_MASK) {
 	case TRIG_ROUND_NEAREST:
 	default:
 		divider = (nanosec + devpriv->clock_ns / 2) / devpriv->clock_ns;
@@ -2375,9 +2375,7 @@ static int ni_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 		cmd->scan_begin_arg =
 		    ni_timer_to_ns(dev, ni_ns_to_timer(dev,
 						       cmd->scan_begin_arg,
-						       cmd->
-						       flags &
-						       TRIG_ROUND_MASK));
+						       cmd->flags));
 		if (tmp != cmd->scan_begin_arg)
 			err++;
 	}
@@ -2387,9 +2385,7 @@ static int ni_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 			cmd->convert_arg =
 			    ni_timer_to_ns(dev, ni_ns_to_timer(dev,
 							       cmd->convert_arg,
-							       cmd->
-							       flags &
-							       TRIG_ROUND_MASK));
+							       cmd->flags));
 			if (tmp != cmd->convert_arg)
 				err++;
 			if (cmd->scan_begin_src == TRIG_TIMER &&
@@ -3386,9 +3382,7 @@ static int ni_ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 		cmd->scan_begin_arg =
 		    ni_timer_to_ns(dev, ni_ns_to_timer(dev,
 						       cmd->scan_begin_arg,
-						       cmd->
-						       flags &
-						       TRIG_ROUND_MASK));
+						       cmd->flags));
 		if (tmp != cmd->scan_begin_arg)
 			err++;
 	}

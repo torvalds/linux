@@ -1981,13 +1981,13 @@ static int s626_ai_inttrig(struct comedi_device *dev,
  * Also, it should adjust ns so that it cooresponds to the actual time
  * that the device will use.
  */
-static int s626_ns_to_timer(unsigned int *nanosec, int round_mode)
+static int s626_ns_to_timer(unsigned int *nanosec, unsigned int flags)
 {
 	int divider, base;
 
 	base = 500;		/* 2MHz internal clock */
 
-	switch (round_mode) {
+	switch (flags & TRIG_ROUND_MASK) {
 	case TRIG_ROUND_NEAREST:
 	default:
 		divider = (*nanosec + base / 2) / base;
@@ -2087,8 +2087,7 @@ static int s626_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		 * set a counter to generate adc trigger at scan_begin_arg
 		 * interval
 		 */
-		tick = s626_ns_to_timer(&cmd->scan_begin_arg,
-					cmd->flags & TRIG_ROUND_MASK);
+		tick = s626_ns_to_timer(&cmd->scan_begin_arg, cmd->flags);
 
 		/* load timer value and enable interrupt */
 		s626_timer_load(dev, 5, tick);
@@ -2109,8 +2108,7 @@ static int s626_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		 * set a counter to generate adc trigger at convert_arg
 		 * interval
 		 */
-		tick = s626_ns_to_timer(&cmd->convert_arg,
-					cmd->flags & TRIG_ROUND_MASK);
+		tick = s626_ns_to_timer(&cmd->convert_arg, cmd->flags);
 
 		/* load timer value and enable interrupt */
 		s626_timer_load(dev, 4, tick);
@@ -2252,13 +2250,13 @@ static int s626_ai_cmdtest(struct comedi_device *dev,
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		arg = cmd->scan_begin_arg;
-		s626_ns_to_timer(&arg, cmd->flags & TRIG_ROUND_MASK);
+		s626_ns_to_timer(&arg, cmd->flags);
 		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, arg);
 	}
 
 	if (cmd->convert_src == TRIG_TIMER) {
 		arg = cmd->convert_arg;
-		s626_ns_to_timer(&arg, cmd->flags & TRIG_ROUND_MASK);
+		s626_ns_to_timer(&arg, cmd->flags);
 		err |= cfc_check_trigger_arg_is(&cmd->convert_arg, arg);
 
 		if (cmd->scan_begin_src == TRIG_TIMER) {

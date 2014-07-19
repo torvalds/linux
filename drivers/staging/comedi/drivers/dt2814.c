@@ -171,7 +171,7 @@ static int dt2814_ai_cmdtest(struct comedi_device *dev,
 	/* step 4: fix up any arguments */
 
 	arg = cmd->scan_begin_arg;
-	dt2814_ns_to_timer(&arg, cmd->flags & TRIG_ROUND_MASK);
+	dt2814_ns_to_timer(&arg, cmd->flags);
 	err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, arg);
 
 	if (err)
@@ -187,9 +187,7 @@ static int dt2814_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	int chan;
 	int trigvar;
 
-	trigvar =
-	    dt2814_ns_to_timer(&cmd->scan_begin_arg,
-			       cmd->flags & TRIG_ROUND_MASK);
+	trigvar = dt2814_ns_to_timer(&cmd->scan_begin_arg, cmd->flags);
 
 	chan = CR_CHAN(cmd->chanlist[0]);
 

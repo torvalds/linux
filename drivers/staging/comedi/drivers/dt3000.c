@@ -377,7 +377,7 @@ static irqreturn_t dt3k_interrupt(int irq, void *d)
 }
 
 static int dt3k_ns_to_timer(unsigned int timer_base, unsigned int *nanosec,
-			    unsigned int round_mode)
+			    unsigned int flags)
 {
 	int divider, base, prescale;
 
@@ -386,7 +386,7 @@ static int dt3k_ns_to_timer(unsigned int timer_base, unsigned int *nanosec,
 
 	for (prescale = 0; prescale < 16; prescale++) {
 		base = timer_base * (prescale + 1);
-		switch (round_mode) {
+		switch (flags & TRIG_ROUND_MASK) {
 		case TRIG_ROUND_NEAREST:
 		default:
 			divider = (*nanosec + base / 2) / base;
@@ -467,13 +467,13 @@ static int dt3k_ai_cmdtest(struct comedi_device *dev,
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		arg = cmd->scan_begin_arg;
-		dt3k_ns_to_timer(100, &arg, cmd->flags & TRIG_ROUND_MASK);
+		dt3k_ns_to_timer(100, &arg, cmd->flags);
 		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, arg);
 	}
 
 	if (cmd->convert_src == TRIG_TIMER) {
 		arg = cmd->convert_arg;
-		dt3k_ns_to_timer(50, &arg, cmd->flags & TRIG_ROUND_MASK);
+		dt3k_ns_to_timer(50, &arg, cmd->flags);
 		err |= cfc_check_trigger_arg_is(&cmd->convert_arg, arg);
 
 		if (cmd->scan_begin_src == TRIG_TIMER) {
@@ -511,15 +511,14 @@ static int dt3k_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	writew(cmd->scan_end_arg, devpriv->io_addr + DPR_Params(0));
 
 	if (cmd->convert_src == TRIG_TIMER) {
-		divider = dt3k_ns_to_timer(50, &cmd->convert_arg,
-					   cmd->flags & TRIG_ROUND_MASK);
+		divider = dt3k_ns_to_timer(50, &cmd->convert_arg, cmd->flags);
 		writew((divider >> 16), devpriv->io_addr + DPR_Params(1));
 		writew((divider & 0xffff), devpriv->io_addr + DPR_Params(2));
 	}
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		tscandiv = dt3k_ns_to_timer(100, &cmd->scan_begin_arg,
-					    cmd->flags & TRIG_ROUND_MASK);
+					    cmd->flags);
 		writew((tscandiv >> 16), devpriv->io_addr + DPR_Params(3));
 		writew((tscandiv & 0xffff), devpriv->io_addr + DPR_Params(4));
 	}

@@ -477,7 +477,7 @@ static int apci3xxx_ai_insn_read(struct comedi_device *dev,
 }
 
 static int apci3xxx_ai_ns_to_timer(struct comedi_device *dev,
-				   unsigned int *ns, int round_mode)
+				   unsigned int *ns, unsigned int flags)
 {
 	const struct apci3xxx_boardinfo *board = comedi_board(dev);
 	struct apci3xxx_private *devpriv = dev->private;
@@ -503,7 +503,7 @@ static int apci3xxx_ai_ns_to_timer(struct comedi_device *dev,
 			break;
 		}
 
-		switch (round_mode) {
+		switch (flags & TRIG_ROUND_MASK) {
 		case TRIG_ROUND_NEAREST:
 		default:
 			timer = (*ns + base / 2) / base;
@@ -573,7 +573,7 @@ static int apci3xxx_ai_cmdtest(struct comedi_device *dev,
 	/* step 4: fix up any arguments */
 
 	arg = cmd->convert_arg;
-	err |= apci3xxx_ai_ns_to_timer(dev, &arg, cmd->flags & TRIG_ROUND_MASK);
+	err |= apci3xxx_ai_ns_to_timer(dev, &arg, cmd->flags);
 	err |= cfc_check_trigger_arg_is(&cmd->convert_arg, arg);
 
 	if (err)

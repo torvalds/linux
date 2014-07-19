@@ -303,7 +303,7 @@ static int ni_pcidio_cmdtest(struct comedi_device *dev,
 static int ni_pcidio_cmd(struct comedi_device *dev, struct comedi_subdevice *s);
 static int ni_pcidio_inttrig(struct comedi_device *dev,
 			     struct comedi_subdevice *s, unsigned int trignum);
-static int ni_pcidio_ns_to_timer(int *nanosec, int round_mode);
+static int ni_pcidio_ns_to_timer(int *nanosec, unsigned int flags);
 static int setup_mite_dma(struct comedi_device *dev,
 			  struct comedi_subdevice *s);
 
@@ -596,7 +596,7 @@ static int ni_pcidio_cmdtest(struct comedi_device *dev,
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		arg = cmd->scan_begin_arg;
-		ni_pcidio_ns_to_timer(&arg, cmd->flags & TRIG_ROUND_MASK);
+		ni_pcidio_ns_to_timer(&arg, cmd->flags);
 		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, arg);
 	}
 
@@ -606,13 +606,13 @@ static int ni_pcidio_cmdtest(struct comedi_device *dev,
 	return 0;
 }
 
-static int ni_pcidio_ns_to_timer(int *nanosec, int round_mode)
+static int ni_pcidio_ns_to_timer(int *nanosec, unsigned int flags)
 {
 	int divider, base;
 
 	base = TIMER_BASE;
 
-	switch (round_mode) {
+	switch (flags & TRIG_ROUND_MASK) {
 	case TRIG_ROUND_NEAREST:
 	default:
 		divider = (*nanosec + base / 2) / base;

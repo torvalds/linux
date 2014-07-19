@@ -237,7 +237,7 @@ static int dmm32at_ai_rinsn(struct comedi_device *dev,
 	return n;
 }
 
-static int dmm32at_ns_to_timer(unsigned int *ns, int round)
+static int dmm32at_ns_to_timer(unsigned int *ns, unsigned int flags)
 {
 	/* trivial timer */
 	return *ns;
@@ -352,12 +352,12 @@ static int dmm32at_ai_cmdtest(struct comedi_device *dev,
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		arg = cmd->scan_begin_arg;
-		dmm32at_ns_to_timer(&arg, cmd->flags & TRIG_ROUND_MASK);
+		dmm32at_ns_to_timer(&arg, cmd->flags);
 		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, arg);
 	}
 	if (cmd->convert_src == TRIG_TIMER) {
 		arg = cmd->convert_arg;
-		dmm32at_ns_to_timer(&arg, cmd->flags & TRIG_ROUND_MASK);
+		dmm32at_ns_to_timer(&arg, cmd->flags);
 		err |= cfc_check_trigger_arg_is(&cmd->convert_arg, arg);
 
 		if (cmd->scan_begin_src == TRIG_TIMER) {

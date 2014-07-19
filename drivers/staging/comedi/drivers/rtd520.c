@@ -397,11 +397,11 @@ struct rtd_private {
   Note: you have to check if the value is larger than the counter range!
 */
 static int rtd_ns_to_timer_base(unsigned int *nanosec,
-				int round_mode, int base)
+				unsigned int flags, int base)
 {
 	int divider;
 
-	switch (round_mode) {
+	switch (flags & TRIG_ROUND_MASK) {
 	case TRIG_ROUND_NEAREST:
 	default:
 		divider = (*nanosec + base / 2) / base;
@@ -428,9 +428,9 @@ static int rtd_ns_to_timer_base(unsigned int *nanosec,
   return the proper counter value (divider-1) for the internal clock.
   Sets the original period to be the true value.
 */
-static int rtd_ns_to_timer(unsigned int *ns, int round_mode)
+static int rtd_ns_to_timer(unsigned int *ns, unsigned int flags)
 {
-	return rtd_ns_to_timer_base(ns, round_mode, RTD_CLOCK_BASE);
+	return rtd_ns_to_timer_base(ns, flags, RTD_CLOCK_BASE);
 }
 
 /*
@@ -895,13 +895,13 @@ static int rtd_ai_cmdtest(struct comedi_device *dev,
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		arg = cmd->scan_begin_arg;
-		rtd_ns_to_timer(&arg, cmd->flags & TRIG_ROUND_MASK);
+		rtd_ns_to_timer(&arg, cmd->flags);
 		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, arg);
 	}
 
 	if (cmd->convert_src == TRIG_TIMER) {
 		arg = cmd->convert_arg;
-		rtd_ns_to_timer(&arg, cmd->flags & TRIG_ROUND_MASK);
+		rtd_ns_to_timer(&arg, cmd->flags);
 		err |= cfc_check_trigger_arg_is(&cmd->convert_arg, arg);
 
 		if (cmd->scan_begin_src == TRIG_TIMER) {

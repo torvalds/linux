@@ -712,15 +712,14 @@ static inline void put_all_resources(struct comedi_device *dev,
 }
 
 static unsigned int divide_ns(uint64_t ns, unsigned int timebase,
-			      unsigned int round_mode)
+			      unsigned int flags)
 {
 	uint64_t div;
 	unsigned int rem;
 
 	div = ns;
 	rem = do_div(div, timebase);
-	round_mode &= TRIG_ROUND_MASK;
-	switch (round_mode) {
+	switch (flags & TRIG_ROUND_MASK) {
 	default:
 	case TRIG_ROUND_NEAREST:
 		div += (rem + (timebase / 2)) / timebase;
@@ -737,12 +736,12 @@ static unsigned int divide_ns(uint64_t ns, unsigned int timebase,
 /* Given desired period in ns, returns the required internal clock source
  * and gets the initial count. */
 static unsigned int pci230_choose_clk_count(uint64_t ns, unsigned int *count,
-					    unsigned int round_mode)
+					    unsigned int flags)
 {
 	unsigned int clk_src, cnt;
 
 	for (clk_src = CLK_10MHZ;; clk_src++) {
-		cnt = divide_ns(ns, pci230_timebase[clk_src], round_mode);
+		cnt = divide_ns(ns, pci230_timebase[clk_src], flags);
 		if ((cnt <= 65536) || (clk_src == CLK_1KHZ))
 			break;
 
@@ -751,18 +750,18 @@ static unsigned int pci230_choose_clk_count(uint64_t ns, unsigned int *count,
 	return clk_src;
 }
 
-static void pci230_ns_to_single_timer(unsigned int *ns, unsigned int round)
+static void pci230_ns_to_single_timer(unsigned int *ns, unsigned int flags)
 {
 	unsigned int count;
 	unsigned int clk_src;
 
-	clk_src = pci230_choose_clk_count(*ns, &count, round);
+	clk_src = pci230_choose_clk_count(*ns, &count, flags);
 	*ns = count * pci230_timebase[clk_src];
 }
 
 static void pci230_ct_setup_ns_mode(struct comedi_device *dev, unsigned int ct,
 				    unsigned int mode, uint64_t ns,
-				    unsigned int round)
+				    unsigned int flags)
 {
 	struct pci230_private *devpriv = dev->private;
 	unsigned int clk_src;
@@ -771,7 +770,7 @@ static void pci230_ct_setup_ns_mode(struct comedi_device *dev, unsigned int ct,
 	/* Set mode. */
 	i8254_set_mode(devpriv->iobase1 + PCI230_Z2_CT_BASE, 0, ct, mode);
 	/* Determine clock source and count. */
-	clk_src = pci230_choose_clk_count(ns, &count, round);
+	clk_src = pci230_choose_clk_count(ns, &count, flags);
 	/* Program clock source. */
 	outb(CLK_CONFIG(ct, clk_src), devpriv->iobase1 + PCI230_ZCLK_SCE);
 	/* Set initial count. */
@@ -1079,8 +1078,7 @@ static int pci230_ao_cmdtest(struct comedi_device *dev,
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		tmp = cmd->scan_begin_arg;
-		pci230_ns_to_single_timer(&cmd->scan_begin_arg,
-					  cmd->flags & TRIG_ROUND_MASK);
+		pci230_ns_to_single_timer(&cmd->scan_begin_arg, cmd->flags);
 		if (tmp != cmd->scan_begin_arg)
 			err++;
 	}
@@ -1492,7 +1490,7 @@ static int pci230_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		     devpriv->iobase1 + PCI230_ZGAT_SCE);
 		pci230_ct_setup_ns_mode(dev, 1, I8254_MODE3,
 					cmd->scan_begin_arg,
-					cmd->flags & TRIG_ROUND_MASK);
+					cmd->flags);
 	}
 
 	/* N.B. cmd->start_src == TRIG_INT */
@@ -1799,8 +1797,7 @@ static int pci230_ai_cmdtest(struct comedi_device *dev,
 
 	if (cmd->convert_src == TRIG_TIMER) {
 		tmp = cmd->convert_arg;
-		pci230_ns_to_single_timer(&cmd->convert_arg,
-					  cmd->flags & TRIG_ROUND_MASK);
+		pci230_ns_to_single_timer(&cmd->convert_arg, cmd->flags);
 		if (tmp != cmd->convert_arg)
 			err++;
 	}
@@ -1808,8 +1805,7 @@ static int pci230_ai_cmdtest(struct comedi_device *dev,
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		/* N.B. cmd->convert_arg is also TRIG_TIMER */
 		tmp = cmd->scan_begin_arg;
-		pci230_ns_to_single_timer(&cmd->scan_begin_arg,
-					  cmd->flags & TRIG_ROUND_MASK);
+		pci230_ns_to_single_timer(&cmd->scan_begin_arg, cmd->flags);
 		if (!pci230_ai_check_scan_period(cmd)) {
 			/* Was below minimum required.  Round up. */
 			pci230_ns_to_single_timer(&cmd->scan_begin_arg,
@@ -2380,7 +2376,7 @@ static int pci230_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		outb(zgat, devpriv->iobase1 + PCI230_ZGAT_SCE);
 		/* Set counter/timer 2 to the specified conversion period. */
 		pci230_ct_setup_ns_mode(dev, 2, I8254_MODE3, cmd->convert_arg,
-					cmd->flags & TRIG_ROUND_MASK);
+					cmd->flags);
 		if (cmd->scan_begin_src != TRIG_FOLLOW) {
 			/*
 			 * Set up monostable on CT0 output for scan timing.  A
@@ -2411,9 +2407,7 @@ static int pci230_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 				outb(zgat, devpriv->iobase1 + PCI230_ZGAT_SCE);
 				pci230_ct_setup_ns_mode(dev, 1, I8254_MODE3,
 							cmd->scan_begin_arg,
-							cmd->
-							flags &
-							TRIG_ROUND_MASK);
+							cmd->flags);
 			}
 		}
 	}
