@@ -240,7 +240,7 @@ static void sel_netif_kill(int ifindex)
  * Remove all entries from the network interface table.
  *
  */
-static void sel_netif_flush(void)
+void sel_netif_flush(void)
 {
 	int idx;
 	struct sel_netif *netif;
@@ -250,15 +250,6 @@ static void sel_netif_flush(void)
 		list_for_each_entry(netif, &sel_netif_hash[idx], list)
 			sel_netif_destroy(netif);
 	spin_unlock_bh(&sel_netif_lock);
-}
-
-static int sel_netif_avc_callback(u32 event)
-{
-	if (event == AVC_CALLBACK_RESET) {
-		sel_netif_flush();
-		synchronize_net();
-	}
-	return 0;
 }
 
 static int sel_netif_netdev_notifier_handler(struct notifier_block *this,
@@ -290,10 +281,6 @@ static __init int sel_netif_init(void)
 		INIT_LIST_HEAD(&sel_netif_hash[i]);
 
 	register_netdevice_notifier(&sel_netif_netdev_notifier);
-
-	err = avc_add_callback(sel_netif_avc_callback, AVC_CALLBACK_RESET);
-	if (err)
-		panic("avc_add_callback() failed, error %d\n", err);
 
 	return err;
 }
