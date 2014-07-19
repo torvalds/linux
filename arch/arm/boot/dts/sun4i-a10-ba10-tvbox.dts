@@ -1,6 +1,5 @@
 /*
- * Copyright 2012 Stefan Roese
- * Stefan Roese <sr@denx.de>
+ * Copyright 2014 Hans de Goede <hdegoede@redhat.com>
  *
  * The code contained herein is licensed under the GNU General Public
  * License. You may obtain a copy of the GNU General Public License
@@ -15,8 +14,8 @@
 /include/ "sunxi-common-regulators.dtsi"
 
 / {
-	model = "Cubietech Cubieboard";
-	compatible = "cubietech,a10-cubieboard", "allwinner,sun4i-a10";
+	model = "BA10 tvbox";
+	compatible = "allwinner,ba10-tvbox", "allwinner,sun4i-a10";
 
 	soc@01c00000 {
 		emac: ethernet@01c0b000 {
@@ -58,11 +57,6 @@
 			status = "okay";
 		};
 
-		ahci: sata@01c18000 {
-			target-supply = <&reg_ahci_5v>;
-			status = "okay";
-		};
-
 		ehci1: usb@01c1c000 {
 			status = "okay";
 		};
@@ -72,11 +66,8 @@
 		};
 
 		pinctrl@01c20800 {
-			led_pins_cubieboard: led_pins@0 {
-				allwinner,pins = "PH20", "PH21";
-				allwinner,function = "gpio_out";
-				allwinner,drive = <1>;
-				allwinner,pull = <0>;
+			usb2_vbus_pin_a: usb2_vbus_pin@0 {
+				allwinner,pins = "PH12";
 			};
 		};
 
@@ -106,33 +97,6 @@
 				#interrupt-cells = <1>;
 			};
 		};
-
-		i2c1: i2c@01c2b000 {
-			pinctrl-names = "default";
-			pinctrl-0 = <&i2c1_pins_a>;
-			status = "okay";
-		};
-	};
-
-	leds {
-		compatible = "gpio-leds";
-		pinctrl-names = "default";
-		pinctrl-0 = <&led_pins_cubieboard>;
-
-		blue {
-			label = "cubieboard:blue:usr";
-			gpios = <&pio 7 21 0>; /* LED1 */
-		};
-
-		green {
-			label = "cubieboard:green:usr";
-			gpios = <&pio 7 20 0>; /* LED2 */
-			linux,default-trigger = "heartbeat";
-		};
-	};
-
-	reg_ahci_5v: ahci-5v {
-		status = "okay";
 	};
 
 	reg_usb1_vbus: usb1-vbus {
@@ -140,6 +104,7 @@
 	};
 
 	reg_usb2_vbus: usb2-vbus {
+		gpio = <&pio 7 12 0>;
 		status = "okay";
 	};
 };
