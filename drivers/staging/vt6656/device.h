@@ -306,7 +306,7 @@ struct vnt_private {
 
 	struct vnt_cmd_card_init init_command;
 	struct vnt_rsp_card_init init_response;
-	u8 abyCurrentNetAddr[ETH_ALEN];
+	u8 current_net_addr[ETH_ALEN];
 	u8 abyPermanentNetAddr[ETH_ALEN];
 
 	int bExistSWNetAddr;

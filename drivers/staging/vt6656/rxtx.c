@@ -517,7 +517,7 @@ static u16 vnt_fill_cts_head(struct vnt_usb_send_context *tx_context,
 		buf->data.frame_control =
 			cpu_to_le16(IEEE80211_FTYPE_CTL | IEEE80211_STYPE_CTS);
 
-		memcpy(buf->data.ra, priv->abyCurrentNetAddr, ETH_ALEN);
+		memcpy(buf->data.ra, priv->current_net_addr, ETH_ALEN);
 
 		return vnt_rxtx_datahead_g_fb(tx_context, pkt_type,
 				current_rate, &buf->data_head, frame_len,
@@ -536,7 +536,7 @@ static u16 vnt_fill_cts_head(struct vnt_usb_send_context *tx_context,
 		buf->data.frame_control =
 			cpu_to_le16(IEEE80211_FTYPE_CTL | IEEE80211_STYPE_CTS);
 
-		memcpy(buf->data.ra, priv->abyCurrentNetAddr, ETH_ALEN);
+		memcpy(buf->data.ra, priv->current_net_addr, ETH_ALEN);
 
 		return vnt_rxtx_datahead_g(tx_context, pkt_type, current_rate,
 				&buf->data_head, frame_len, need_ack);

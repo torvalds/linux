@@ -165,7 +165,7 @@ static int device_init_registers(struct vnt_private *priv)
 	init_cmd->init_class = DEVICE_INIT_COLD;
 	init_cmd->exist_sw_net_addr = (u8) priv->bExistSWNetAddr;
 	for (ii = 0; ii < 6; ii++)
-		init_cmd->sw_net_addr[ii] = priv->abyCurrentNetAddr[ii];
+		init_cmd->sw_net_addr[ii] = priv->current_net_addr[ii];
 	init_cmd->short_retry_limit = priv->byShortRetryLimit;
 	init_cmd->long_retry_limit = priv->byLongRetryLimit;
 
@@ -335,12 +335,12 @@ static int device_init_registers(struct vnt_private *priv)
 
 	/* get permanent network address */
 	memcpy(priv->abyPermanentNetAddr, init_rsp->net_addr, 6);
-	memcpy(priv->abyCurrentNetAddr,
+	memcpy(priv->current_net_addr,
 				priv->abyPermanentNetAddr, ETH_ALEN);
 
 	/* if exist SW network address, use it */
 	dev_dbg(&priv->usb->dev, "Network address = %pM\n",
-		priv->abyCurrentNetAddr);
+		priv->current_net_addr);
 
 	/*
 	* set BB and packet type at the same time
