@@ -21,6 +21,10 @@
 	model = "KZM-A9-GT";
 	compatible = "renesas,kzm9g-reference", "renesas,sh73a0";
 
+	aliases {
+		serial4 = &scifa4;
+	};
+
 	cpus {
 		cpu@0 {
 			cpu0-supply = <&vdd_dvfs>;
@@ -35,7 +39,7 @@
 	};
 
 	chosen {
-		bootargs = "console=tty0 console=ttySC4,115200 root=/dev/nfs ip=dhcp ignore_loglevel earlyprintk=sh-sci.4,115200 rw";
+		bootargs = "console=tty0 console=ttySC4,115200 root=/dev/nfs ip=dhcp ignore_loglevel rw";
 	};
 
 	memory {
@@ -276,9 +280,6 @@
 };
 
 &pfc {
-	pinctrl-0 = <&scifa4_pins>;
-	pinctrl-names = "default";
-
 	i2c3_pins: i2c3 {
 		renesas,groups = "i2c3_1";
 		renesas,function = "i2c3";
@@ -316,6 +317,13 @@
 				 "fsia_data_in", "fsia_data_out";
 		renesas,function = "fsia";
 	};
+};
+
+&scifa4 {
+	pinctrl-0 = <&scifa4_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
 };
 
 &sdhi0 {

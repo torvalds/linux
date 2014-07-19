@@ -16,6 +16,10 @@
 	model = "APE6EVM";
 	compatible = "renesas,ape6evm-reference", "renesas,r8a73a4";
 
+	aliases {
+		serial0 = &scifa0;
+	};
+
 	chosen {
 		bootargs = "console=ttySC0,115200 ignore_loglevel rw";
 	};
@@ -90,9 +94,6 @@
 };
 
 &pfc {
-	pinctrl-0 = <&scifa0_pins>;
-	pinctrl-names = "default";
-
 	scifa0_pins: serial0 {
 		renesas,groups = "scifa0_data";
 		renesas,function = "scifa0";
@@ -120,6 +121,13 @@
 	non-removable;
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc0_pins>;
+	status = "okay";
+};
+
+&scifa0 {
+	pinctrl-0 = <&scifa0_pins>;
+	pinctrl-names = "default";
+
 	status = "okay";
 };
 

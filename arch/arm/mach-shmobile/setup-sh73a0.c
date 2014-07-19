@@ -696,6 +696,10 @@ static struct platform_device irqpin3_device = {
 };
 
 static struct platform_device *sh73a0_devices_dt[] __initdata = {
+	&cmt1_device,
+};
+
+static struct platform_device *sh73a0_early_devices[] __initdata = {
 	&scif0_device,
 	&scif1_device,
 	&scif2_device,
@@ -705,10 +709,6 @@ static struct platform_device *sh73a0_devices_dt[] __initdata = {
 	&scif6_device,
 	&scif7_device,
 	&scif8_device,
-	&cmt1_device,
-};
-
-static struct platform_device *sh73a0_early_devices[] __initdata = {
 	&tmu0_device,
 	&ipmmu_device,
 };

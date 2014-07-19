@@ -59,29 +59,37 @@ void __init shmobile_setup_delay(unsigned int max_cpu_core_mhz,
 
 void __init shmobile_init_delay(void)
 {
-	struct device_node *np, *parent;
-	u32 max_freq, freq;
+	struct device_node *np, *cpus;
+	bool is_a8_a9 = false;
+	bool is_a15 = false;
+	u32 max_freq = 0;
 
-	max_freq = 0;
+	cpus = of_find_node_by_path("/cpus");
+	if (!cpus)
+		return;
 
-	parent = of_find_node_by_path("/cpus");
-	if (parent) {
-		for_each_child_of_node(parent, np) {
-			if (!of_property_read_u32(np, "clock-frequency", &freq))
-				max_freq = max(max_freq, freq);
-		}
-		of_node_put(parent);
+	for_each_child_of_node(cpus, np) {
+		u32 freq;
+
+		if (!of_property_read_u32(np, "clock-frequency", &freq))
+			max_freq = max(max_freq, freq);
+
+		if (of_device_is_compatible(np, "arm,cortex-a8") ||
+		    of_device_is_compatible(np, "arm,cortex-a9"))
+			is_a8_a9 = true;
+		else if (of_device_is_compatible(np, "arm,cortex-a15"))
+			is_a15 = true;
 	}
 
-	if (max_freq) {
-		if (of_find_compatible_node(NULL, NULL, "arm,cortex-a8"))
-			shmobile_setup_delay_hz(max_freq, 1, 3);
-		else if (of_find_compatible_node(NULL, NULL, "arm,cortex-a9"))
-			shmobile_setup_delay_hz(max_freq, 1, 3);
-		else if (of_find_compatible_node(NULL, NULL, "arm,cortex-a15"))
-			if (!IS_ENABLED(CONFIG_ARM_ARCH_TIMER))
-				shmobile_setup_delay_hz(max_freq, 2, 4);
-	}
+	of_node_put(cpus);
+
+	if (!max_freq)
+		return;
+
+	if (is_a8_a9)
+		shmobile_setup_delay_hz(max_freq, 1, 3);
+	else if (is_a15 && !IS_ENABLED(CONFIG_ARM_ARCH_TIMER))
+		shmobile_setup_delay_hz(max_freq, 2, 4);
 }
 
 static void __init shmobile_late_time_init(void)
