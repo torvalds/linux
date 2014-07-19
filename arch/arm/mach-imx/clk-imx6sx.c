@@ -124,6 +124,9 @@ static struct clk_div_table video_div_table[] = {
 static u32 share_count_asrc;
 static u32 share_count_audio;
 static u32 share_count_esai;
+static u32 share_count_ssi1;
+static u32 share_count_ssi2;
+static u32 share_count_ssi3;
 
 static void __init imx6sx_clocks_init(struct device_node *ccm_node)
 {
@@ -409,12 +412,12 @@ static void __init imx6sx_clocks_init(struct device_node *ccm_node)
 	clks[IMX6SX_CLK_SPBA]         = imx_clk_gate2("spba",          "ipg",               base + 0x7c, 12);
 	clks[IMX6SX_CLK_AUDIO]        = imx_clk_gate2_shared("audio",  "audio_podf",        base + 0x7c, 14, &share_count_audio);
 	clks[IMX6SX_CLK_SPDIF]        = imx_clk_gate2_shared("spdif",  "spdif_podf",        base + 0x7c, 14, &share_count_audio);
-	clks[IMX6SX_CLK_SSI1_IPG]     = imx_clk_gate2("ssi1_ipg",      "ipg",               base + 0x7c, 18);
-	clks[IMX6SX_CLK_SSI2_IPG]     = imx_clk_gate2("ssi2_ipg",      "ipg",               base + 0x7c, 20);
-	clks[IMX6SX_CLK_SSI3_IPG]     = imx_clk_gate2("ssi3_ipg",      "ipg",               base + 0x7c, 22);
-	clks[IMX6SX_CLK_SSI1]         = imx_clk_gate2("ssi1",          "ssi1_podf",         base + 0x7c, 18);
-	clks[IMX6SX_CLK_SSI2]         = imx_clk_gate2("ssi2",          "ssi2_podf",         base + 0x7c, 20);
-	clks[IMX6SX_CLK_SSI3]         = imx_clk_gate2("ssi3",          "ssi3_podf",         base + 0x7c, 22);
+	clks[IMX6SX_CLK_SSI1_IPG]     = imx_clk_gate2_shared("ssi1_ipg",      "ipg",        base + 0x7c, 18, &share_count_ssi1);
+	clks[IMX6SX_CLK_SSI2_IPG]     = imx_clk_gate2_shared("ssi2_ipg",      "ipg",        base + 0x7c, 20, &share_count_ssi2);
+	clks[IMX6SX_CLK_SSI3_IPG]     = imx_clk_gate2_shared("ssi3_ipg",      "ipg",        base + 0x7c, 22, &share_count_ssi3);
+	clks[IMX6SX_CLK_SSI1]         = imx_clk_gate2_shared("ssi1",          "ssi1_podf",  base + 0x7c, 18, &share_count_ssi1);
+	clks[IMX6SX_CLK_SSI2]         = imx_clk_gate2_shared("ssi2",          "ssi2_podf",  base + 0x7c, 20, &share_count_ssi2);
+	clks[IMX6SX_CLK_SSI3]         = imx_clk_gate2_shared("ssi3",          "ssi3_podf",  base + 0x7c, 22, &share_count_ssi3);
 	clks[IMX6SX_CLK_UART_IPG]     = imx_clk_gate2("uart_ipg",      "ipg",               base + 0x7c, 24);
 	clks[IMX6SX_CLK_UART_SERIAL]  = imx_clk_gate2("uart_serial",   "uart_podf",         base + 0x7c, 26);
 	clks[IMX6SX_CLK_SAI1_IPG]     = imx_clk_gate2("sai1_ipg",      "ipg",               base + 0x7c, 28);
@@ -443,16 +446,11 @@ static void __init imx6sx_clocks_init(struct device_node *ccm_node)
 	/* mask handshake of mmdc */
 	writel_relaxed(BM_CCM_CCDR_MMDC_CH0_MASK, base + CCDR);
 
-	for (i = 0; i < ARRAY_SIZE(clks); i++)
-		if (IS_ERR(clks[i]))
-			pr_err("i.MX6sx clk %d: register failed with %ld\n", i, PTR_ERR(clks[i]));
+	imx_check_clocks(clks, ARRAY_SIZE(clks));
 
 	clk_data.clks = clks;
 	clk_data.clk_num = ARRAY_SIZE(clks);
 	of_clk_add_provider(np, of_clk_src_onecell_get, &clk_data);
-
-	clk_register_clkdev(clks[IMX6SX_CLK_GPT_BUS], "ipg", "imx-gpt.0");
-	clk_register_clkdev(clks[IMX6SX_CLK_GPT_SERIAL], "per", "imx-gpt.0");
 
 	for (i = 0; i < ARRAY_SIZE(clks_init_on); i++)
 		clk_prepare_enable(clks[clks_init_on[i]]);
@@ -517,8 +515,5 @@ static void __init imx6sx_clocks_init(struct device_node *ccm_node)
 
 	/* Set initial power mode */
 	imx6q_set_lpm(WAIT_CLOCKED);
-
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx6sx-gpt");
-	mxc_timer_init_dt(np);
 }
 CLK_OF_DECLARE(imx6sx, "fsl,imx6sx-ccm", imx6sx_clocks_init);

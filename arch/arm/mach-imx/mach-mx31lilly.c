@@ -45,6 +45,7 @@
 #include "board-mx31lilly.h"
 #include "common.h"
 #include "devices-imx31.h"
+#include "ehci.h"
 #include "hardware.h"
 #include "iomux-mx3.h"
 #include "ulpi.h"
