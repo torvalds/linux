@@ -28,6 +28,8 @@
 #include <linux/i2c.h>
 #include <linux/slab.h>
 #include <linux/export.h>
+#include <linux/notifier.h>
+#include <linux/reboot.h>
 #include <drm/drmP.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
@@ -334,6 +336,37 @@ static u32 _pp_stat_reg(struct intel_dp *intel_dp)
 		return PCH_PP_STATUS;
 	else
 		return VLV_PIPE_PP_STATUS(vlv_power_sequencer_pipe(intel_dp));
+}
+
+/* Reboot notifier handler to shutdown panel power to guarantee T12 timing
+   This function only applicable when panel PM state is not to be tracked */
+static int edp_notify_handler(struct notifier_block *this, unsigned long code,
+			      void *unused)
+{
+	struct intel_dp *intel_dp = container_of(this, typeof(* intel_dp),
+						 edp_notifier);
+	struct drm_device *dev = intel_dp_to_dev(intel_dp);
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 pp_div;
+	u32 pp_ctrl_reg, pp_div_reg;
+	enum pipe pipe = vlv_power_sequencer_pipe(intel_dp);
+
+	if (!is_edp(intel_dp) || code != SYS_RESTART)
+		return 0;
+
+	if (IS_VALLEYVIEW(dev)) {
+		pp_ctrl_reg = VLV_PIPE_PP_CONTROL(pipe);
+		pp_div_reg  = VLV_PIPE_PP_DIVISOR(pipe);
+		pp_div = I915_READ(pp_div_reg);
+		pp_div &= PP_REFERENCE_DIVIDER_MASK;
+
+		/* 0x1F write to PP_DIV_REG sets max cycle delay */
+		I915_WRITE(pp_div_reg, pp_div | 0x1F);
+		I915_WRITE(pp_ctrl_reg, PANEL_UNLOCK_REGS | PANEL_POWER_OFF);
+		msleep(intel_dp->panel_power_cycle_delay);
+	}
+
+	return 0;
 }
 
 static bool edp_have_panel_power(struct intel_dp *intel_dp)
@@ -3707,6 +3740,10 @@ void intel_dp_encoder_destroy(struct drm_encoder *encoder)
 		drm_modeset_lock(&dev->mode_config.connection_mutex, NULL);
 		edp_panel_vdd_off_sync(intel_dp);
 		drm_modeset_unlock(&dev->mode_config.connection_mutex);
+		if (intel_dp->edp_notifier.notifier_call) {
+			unregister_reboot_notifier(&intel_dp->edp_notifier);
+			intel_dp->edp_notifier.notifier_call = NULL;
+		}
 	}
 	kfree(intel_dig_port);
 }
@@ -4183,6 +4220,11 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 			fixed_mode->type |= DRM_MODE_TYPE_PREFERRED;
 	}
 	mutex_unlock(&dev->mode_config.mutex);
+
+	if (IS_VALLEYVIEW(dev)) {
+		intel_dp->edp_notifier.notifier_call = edp_notify_handler;
+		register_reboot_notifier(&intel_dp->edp_notifier);
+	}
 
 	intel_panel_init(&intel_connector->panel, fixed_mode, downclock_mode);
 	intel_panel_setup_backlight(connector);
