@@ -7973,23 +7973,20 @@ static const struct net_device_ops ixgbe_netdev_ops = {
  **/
 static inline int ixgbe_enumerate_functions(struct ixgbe_adapter *adapter)
 {
-	struct list_head *entry;
+	struct pci_dev *entry;
 	int physfns = 0;
 
 	/* Some cards can not use the generic count PCIe functions method,
 	 * because they are behind a parent switch, so we hardcode these with
 	 * the correct number of functions.
 	 */
-	if (ixgbe_pcie_from_parent(&adapter->hw)) {
+	if (ixgbe_pcie_from_parent(&adapter->hw))
 		physfns = 4;
-	} else {
-		list_for_each(entry, &adapter->pdev->bus_list) {
-			struct pci_dev *pdev =
-				list_entry(entry, struct pci_dev, bus_list);
-			/* don't count virtual functions */
-			if (!pdev->is_virtfn)
-				physfns++;
-		}
+
+	list_for_each_entry(entry, &adapter->pdev->bus->devices, bus_list) {
+		/* don't count virtual functions */
+		if (!entry->is_virtfn)
+			physfns++;
 	}
 
 	return physfns;
