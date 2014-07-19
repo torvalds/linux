@@ -108,8 +108,6 @@ Caveats:
 #include "comedi_fc.h"
 #include "8253.h"
 
-#define DRIVER_NAME	"amplc_pci224"
-
 /*
  * PCI IDs.
  */
@@ -352,7 +350,7 @@ static const struct pci224_board pci224_boards[] = {
 	 .ao_bits = 16,
 	 },
 	{
-	 .name = DRIVER_NAME,
+	 .name = "amplc_pci224",
 	 .devid = PCI_DEVICE_ID_INVALID,
 	 .model = any_model,	/* wildcard */
 	 },
@@ -1204,8 +1202,8 @@ static int pci224_attach_common(struct comedi_device *dev,
 		if (options) {
 			for (n = 2; n < 3 + s->n_chan; n++) {
 				if (options[n] < 0 || options[n] > 1) {
-					dev_warn(dev->class_dev, DRIVER_NAME
-						 ": warning! bad options[%u]=%d\n",
+					dev_warn(dev->class_dev,
+						 "warning! bad options[%u]=%d\n",
 						 n, options[n]);
 				}
 			}
@@ -1235,8 +1233,8 @@ static int pci224_attach_common(struct comedi_device *dev,
 			devpriv->hwrange = hwrange_pci224_external;
 		} else {
 			if (options && options[2] != 0) {
-				dev_warn(dev->class_dev, DRIVER_NAME
-					 ": warning! bad options[2]=%d\n",
+				dev_warn(dev->class_dev,
+					 "warning! bad options[2]=%d\n",
 					 options[2]);
 			}
 			s->range_table = &range_pci224_internal;
@@ -1248,7 +1246,7 @@ static int pci224_attach_common(struct comedi_device *dev,
 
 	if (irq) {
 		ret = request_irq(irq, pci224_interrupt, IRQF_SHARED,
-				  DRIVER_NAME, dev);
+				  dev->board_name, dev);
 		if (ret < 0) {
 			dev_err(dev->class_dev,
 				"error! unable to allocate irq %u\n", irq);
@@ -1265,7 +1263,7 @@ static int pci224_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	struct pci224_private *devpriv;
 	struct pci_dev *pci_dev;
 
-	dev_info(dev->class_dev, DRIVER_NAME ": attach\n");
+	dev_info(dev->class_dev, "attach\n");
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
@@ -1284,8 +1282,7 @@ pci224_auto_attach(struct comedi_device *dev, unsigned long context_unused)
 	struct pci_dev *pci_dev = comedi_to_pci_dev(dev);
 	struct pci224_private *devpriv;
 
-	dev_info(dev->class_dev, DRIVER_NAME ": attach pci %s\n",
-		 pci_name(pci_dev));
+	dev_info(dev->class_dev, "attach pci %s\n", pci_name(pci_dev));
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
@@ -1294,7 +1291,7 @@ pci224_auto_attach(struct comedi_device *dev, unsigned long context_unused)
 	dev->board_ptr = pci224_find_pci_board(pci_dev);
 	if (dev->board_ptr == NULL) {
 		dev_err(dev->class_dev,
-			DRIVER_NAME ": BUG! cannot determine board type!\n");
+			"BUG! cannot determine board type!\n");
 		return -EINVAL;
 	}
 	/*

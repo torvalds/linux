@@ -36,8 +36,6 @@ The state of the outputs can be read.
 #include <linux/module.h>
 #include "../comedidev.h"
 
-#define PC263_DRIVER_NAME	"amplc_pc263"
-
 /* PC263 registers */
 
 /*
@@ -97,7 +95,7 @@ static int pc263_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 }
 
 static struct comedi_driver amplc_pc263_driver = {
-	.driver_name = PC263_DRIVER_NAME,
+	.driver_name = "amplc_pc263",
 	.module = THIS_MODULE,
 	.attach = pc263_attach,
 	.detach = comedi_legacy_detach,

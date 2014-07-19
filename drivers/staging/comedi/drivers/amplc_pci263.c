@@ -37,8 +37,6 @@ The state of the outputs can be read.
 
 #include "../comedidev.h"
 
-#define PCI263_DRIVER_NAME	"amplc_pci263"
-
 static int pci263_do_insn_bits(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn,
@@ -85,7 +83,7 @@ static int pci263_auto_attach(struct comedi_device *dev,
 }
 
 static struct comedi_driver amplc_pci263_driver = {
-	.driver_name	= PCI263_DRIVER_NAME,
+	.driver_name	= "amplc_pci263",
 	.module		= THIS_MODULE,
 	.auto_attach	= pci263_auto_attach,
 	.detach		= comedi_pci_disable,
@@ -105,7 +103,7 @@ static int amplc_pci263_pci_probe(struct pci_dev *dev,
 }
 
 static struct pci_driver amplc_pci263_pci_driver = {
-	.name		= PCI263_DRIVER_NAME,
+	.name		= "amplc_pci263",
 	.id_table	= pci263_pci_table,
 	.probe		= &amplc_pci263_pci_probe,
 	.remove		= comedi_pci_auto_unconfig,
