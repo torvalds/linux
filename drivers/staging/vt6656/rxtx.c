@@ -125,7 +125,7 @@ static u32 vnt_get_rsvtime(struct vnt_private *priv, u8 pkt_type,
 					14, (u16)priv->byTopOFDMBasicRate);
 
 	if (need_ack)
-		return data_time + priv->uSIFS + ack_time;
+		return data_time + priv->sifs + ack_time;
 
 	return data_time;
 }
@@ -170,12 +170,12 @@ static __le16 vnt_get_rtscts_rsvtime_le(struct vnt_private *priv,
 		ack_time = vnt_get_frame_time(priv->byPreambleType, pkt_type,
 			14, priv->byTopOFDMBasicRate);
 
-		rrv_time = cts_time + ack_time + data_time + 2 * priv->uSIFS;
+		rrv_time = cts_time + ack_time + data_time + 2 * priv->sifs;
 
 		return cpu_to_le16((u16)rrv_time);
 	}
 
-	rrv_time = rts_time + cts_time + ack_time + data_time + 3 * priv->uSIFS;
+	rrv_time = rts_time + cts_time + ack_time + data_time + 3 * priv->sifs;
 
 	return cpu_to_le16((u16)rrv_time);
 }
@@ -193,7 +193,7 @@ static __le16 vnt_get_duration_le(struct vnt_private *piv,
 			ack_time = vnt_get_frame_time(piv->byPreambleType,
 				pkt_type, 14, piv->byTopOFDMBasicRate);
 
-		return cpu_to_le16((u16)(piv->uSIFS + ack_time));
+		return cpu_to_le16((u16)(piv->sifs + ack_time));
 	}
 
 	return 0;
@@ -211,7 +211,7 @@ static __le16 vnt_get_rtscts_duration_le(struct vnt_private *priv, u8 dur_type,
 	case RTSDUR_BA_F1:
 		cts_time = vnt_get_frame_time(priv->byPreambleType,
 				pkt_type, 14, priv->byTopCCKBasicRate);
-		dur_time = cts_time + 2 * priv->uSIFS +
+		dur_time = cts_time + 2 * priv->sifs +
 			vnt_get_rsvtime(priv, pkt_type,
 						frame_length, rate, need_ack);
 		break;
@@ -221,7 +221,7 @@ static __le16 vnt_get_rtscts_duration_le(struct vnt_private *priv, u8 dur_type,
 	case RTSDUR_AA_F1:
 		cts_time = vnt_get_frame_time(priv->byPreambleType,
 				pkt_type, 14, priv->byTopOFDMBasicRate);
-		dur_time = cts_time + 2 * priv->uSIFS +
+		dur_time = cts_time + 2 * priv->sifs +
 			vnt_get_rsvtime(priv, pkt_type,
 						frame_length, rate, need_ack);
 		break;
@@ -229,7 +229,7 @@ static __le16 vnt_get_rtscts_duration_le(struct vnt_private *priv, u8 dur_type,
 	case CTSDUR_BA:
 	case CTSDUR_BA_F0:
 	case CTSDUR_BA_F1:
-		dur_time = priv->uSIFS + vnt_get_rsvtime(priv,
+		dur_time = priv->sifs + vnt_get_rsvtime(priv,
 				pkt_type, frame_length, rate, need_ack);
 		break;
 

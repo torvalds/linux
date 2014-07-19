@@ -324,10 +324,10 @@ struct vnt_private {
 	u8 radio_ctl;
 
 	/* IFS & Cw */
-	u32 uSIFS;  /* Current SIFS */
-	u32 uDIFS;  /* Current DIFS */
-	u32 uEIFS;  /* Current EIFS */
-	u32 uSlot;  /* Current SlotTime */
+	u32 sifs;  /* Current SIFS */
+	u32 difs;  /* Current DIFS */
+	u32 eifs;  /* Current EIFS */
+	u32 slot;  /* Current SlotTime */
 
 	/* Rate */
 	u8 byBBType; /* 0: 11A, 1:11B, 2:11G */

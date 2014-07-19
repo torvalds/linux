@@ -366,27 +366,27 @@ void vnt_update_ifs(struct vnt_private *priv)
 	u8 data[4];
 
 	if (priv->byPacketType == PK_TYPE_11A) {
-		priv->uSlot = C_SLOT_SHORT;
-		priv->uSIFS = C_SIFS_A;
-		priv->uDIFS = C_SIFS_A + 2 * C_SLOT_SHORT;
+		priv->slot = C_SLOT_SHORT;
+		priv->sifs = C_SIFS_A;
+		priv->difs = C_SIFS_A + 2 * C_SLOT_SHORT;
 		max_min = 4;
 	} else if (priv->byPacketType == PK_TYPE_11B) {
-		priv->uSlot = C_SLOT_LONG;
-		priv->uSIFS = C_SIFS_BG;
-		priv->uDIFS = C_SIFS_BG + 2 * C_SLOT_LONG;
+		priv->slot = C_SLOT_LONG;
+		priv->sifs = C_SIFS_BG;
+		priv->difs = C_SIFS_BG + 2 * C_SLOT_LONG;
 		max_min = 5;
 	} else {/* PK_TYPE_11GA & PK_TYPE_11GB */
 		bool ofdm_rate = false;
 		unsigned int ii = 0;
 
-		priv->uSIFS = C_SIFS_BG;
+		priv->sifs = C_SIFS_BG;
 
 		if (priv->bShortSlotTime)
-			priv->uSlot = C_SLOT_SHORT;
+			priv->slot = C_SLOT_SHORT;
 		else
-			priv->uSlot = C_SLOT_LONG;
+			priv->slot = C_SLOT_LONG;
 
-		priv->uDIFS = C_SIFS_BG + 2 * priv->uSlot;
+		priv->difs = C_SIFS_BG + 2 * priv->slot;
 
 		for (ii = RATE_54M; ii >= RATE_6M; ii--) {
 			if (priv->wBasicRate & ((u32)(0x1 << ii))) {
@@ -401,13 +401,13 @@ void vnt_update_ifs(struct vnt_private *priv)
 			max_min = 5;
 	}
 
-	priv->uEIFS = C_EIFS;
+	priv->eifs = C_EIFS;
 
 	switch (priv->rf_type) {
 	case RF_VT3226D0:
 		if (priv->byBBType != BB_TYPE_11B) {
-			priv->uSIFS -= 1;
-			priv->uDIFS -= 1;
+			priv->sifs -= 1;
+			priv->difs -= 1;
 			break;
 		}
 	case RF_AIROHA7230:
@@ -418,25 +418,25 @@ void vnt_update_ifs(struct vnt_private *priv)
 	case RF_RFMD2959:
 	case RF_VT3226:
 	case RF_VT3342A0:
-		priv->uSIFS -= 3;
-		priv->uDIFS -= 3;
+		priv->sifs -= 3;
+		priv->difs -= 3;
 		break;
 	case RF_MAXIM2829:
 		if (priv->byBBType == BB_TYPE_11A) {
-			priv->uSIFS -= 5;
-			priv->uDIFS -= 5;
+			priv->sifs -= 5;
+			priv->difs -= 5;
 		} else {
-			priv->uSIFS -= 2;
-			priv->uDIFS -= 2;
+			priv->sifs -= 2;
+			priv->difs -= 2;
 		}
 
 		break;
 	}
 
-	data[0] = (u8)priv->uSIFS;
-	data[1] = (u8)priv->uDIFS;
-	data[2] = (u8)priv->uEIFS;
-	data[3] = (u8)priv->uSlot;
+	data[0] = (u8)priv->sifs;
+	data[1] = (u8)priv->difs;
+	data[2] = (u8)priv->eifs;
+	data[3] = (u8)priv->slot;
 
 	vnt_control_out(priv, MESSAGE_TYPE_WRITE, MAC_REG_SIFS,
 		MESSAGE_REQUEST_MACREG, 4, &data[0]);
