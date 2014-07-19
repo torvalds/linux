@@ -16,30 +16,31 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <linux/kernel.h>
-#include <linux/spinlock.h>
-#include <linux/io.h>
-#include <linux/cpumask.h>
-#include <linux/delay.h>
-#include <linux/cpu_pm.h>
-#include <linux/suspend.h>
-#include <linux/err.h>
-#include <linux/slab.h>
 #include <linux/clk/tegra.h>
+#include <linux/cpumask.h>
+#include <linux/cpu_pm.h>
+#include <linux/delay.h>
+#include <linux/err.h>
+#include <linux/io.h>
+#include <linux/kernel.h>
+#include <linux/slab.h>
+#include <linux/spinlock.h>
+#include <linux/suspend.h>
 
-#include <asm/smp_plat.h>
+#include <soc/tegra/fuse.h>
+
 #include <asm/cacheflush.h>
-#include <asm/suspend.h>
 #include <asm/idmap.h>
 #include <asm/proc-fns.h>
+#include <asm/smp_plat.h>
+#include <asm/suspend.h>
 #include <asm/tlbflush.h>
 
-#include "iomap.h"
-#include "reset.h"
 #include "flowctrl.h"
-#include "fuse.h"
-#include "pm.h"
+#include "iomap.h"
 #include "pmc.h"
+#include "pm.h"
+#include "reset.h"
 #include "sleep.h"
 
 #ifdef CONFIG_PM_SLEEP
@@ -53,7 +54,7 @@ static int (*tegra_sleep_func)(unsigned long v2p);
 
 static void tegra_tear_down_cpu_init(void)
 {
-	switch (tegra_chip_id) {
+	switch (tegra_get_chip_id()) {
 	case TEGRA20:
 		if (IS_ENABLED(CONFIG_ARCH_TEGRA_2x_SOC))
 			tegra_tear_down_cpu = tegra20_tear_down_cpu;
@@ -143,7 +144,7 @@ bool tegra_set_cpu_in_lp2(void)
 
 	if ((phy_cpu_id == 0) && cpumask_equal(cpu_lp2_mask, cpu_online_mask))
 		last_cpu = true;
-	else if (tegra_chip_id == TEGRA20 && phy_cpu_id == 1)
+	else if (tegra_get_chip_id() == TEGRA20 && phy_cpu_id == 1)
 		tegra20_cpu_set_resettable_soon();
 
 	spin_unlock(&tegra_lp2_lock);
@@ -212,7 +213,7 @@ static int tegra_sleep_core(unsigned long v2p)
  */
 static bool tegra_lp1_iram_hook(void)
 {
-	switch (tegra_chip_id) {
+	switch (tegra_get_chip_id()) {
 	case TEGRA20:
 		if (IS_ENABLED(CONFIG_ARCH_TEGRA_2x_SOC))
 			tegra20_lp1_iram_hook();
@@ -242,7 +243,7 @@ static bool tegra_lp1_iram_hook(void)
 
 static bool tegra_sleep_core_init(void)
 {
-	switch (tegra_chip_id) {
+	switch (tegra_get_chip_id()) {
 	case TEGRA20:
 		if (IS_ENABLED(CONFIG_ARCH_TEGRA_2x_SOC))
 			tegra20_sleep_core_init();

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2012-2014, NVIDIA CORPORATION.  All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -14,17 +14,20 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <linux/kernel.h>
 #include <linux/bug.h>
+#include <linux/device.h>
+#include <linux/kernel.h>
+
+#include <soc/tegra/fuse.h>
 
 #include "fuse.h"
 
-#define CORE_PROCESS_CORNERS_NUM	1
-#define CPU_PROCESS_CORNERS_NUM		6
+#define CORE_PROCESS_CORNERS	1
+#define CPU_PROCESS_CORNERS	6
 
-#define FUSE_SPEEDO_CALIB_0	0x114
-#define FUSE_PACKAGE_INFO	0X1FC
-#define FUSE_TEST_PROG_VER	0X128
+#define FUSE_SPEEDO_CALIB_0	0x14
+#define FUSE_PACKAGE_INFO	0XFC
+#define FUSE_TEST_PROG_VER	0X28
 
 #define G_SPEEDO_BIT_MINUS1	58
 #define G_SPEEDO_BIT_MINUS1_R	59
@@ -51,7 +54,7 @@ enum {
 	THRESHOLD_INDEX_COUNT,
 };
 
-static const u32 core_process_speedos[][CORE_PROCESS_CORNERS_NUM] = {
+static const u32 __initconst core_process_speedos[][CORE_PROCESS_CORNERS] = {
 	{180},
 	{170},
 	{195},
@@ -66,7 +69,7 @@ static const u32 core_process_speedos[][CORE_PROCESS_CORNERS_NUM] = {
 	{180},
 };
 
-static const u32 cpu_process_speedos[][CPU_PROCESS_CORNERS_NUM] = {
+static const u32 __initconst cpu_process_speedos[][CPU_PROCESS_CORNERS] = {
 	{306, 338, 360, 376, UINT_MAX},
 	{295, 336, 358, 375, UINT_MAX},
 	{325, 325, 358, 375, UINT_MAX},
@@ -81,35 +84,34 @@ static const u32 cpu_process_speedos[][CPU_PROCESS_CORNERS_NUM] = {
 	{295, 336, 358, 375, 391, UINT_MAX},
 };
 
-static int threshold_index;
-static int package_id;
+static int threshold_index __initdata;
 
-static void fuse_speedo_calib(u32 *speedo_g, u32 *speedo_lp)
+static void __init fuse_speedo_calib(u32 *speedo_g, u32 *speedo_lp)
 {
 	u32 reg;
 	int ate_ver;
 	int bit_minus1;
 	int bit_minus2;
 
-	reg = tegra_fuse_readl(FUSE_SPEEDO_CALIB_0);
+	reg = tegra30_fuse_readl(FUSE_SPEEDO_CALIB_0);
 
 	*speedo_lp = (reg & 0xFFFF) * 4;
 	*speedo_g = ((reg >> 16) & 0xFFFF) * 4;
 
-	ate_ver = tegra_fuse_readl(FUSE_TEST_PROG_VER);
-	pr_info("%s: ATE prog ver %d.%d\n", __func__, ate_ver/10, ate_ver%10);
+	ate_ver = tegra30_fuse_readl(FUSE_TEST_PROG_VER);
+	pr_debug("Tegra ATE prog ver %d.%d\n", ate_ver/10, ate_ver%10);
 
 	if (ate_ver >= 26) {
-		bit_minus1 = tegra_spare_fuse(LP_SPEEDO_BIT_MINUS1);
-		bit_minus1 |= tegra_spare_fuse(LP_SPEEDO_BIT_MINUS1_R);
-		bit_minus2 = tegra_spare_fuse(LP_SPEEDO_BIT_MINUS2);
-		bit_minus2 |= tegra_spare_fuse(LP_SPEEDO_BIT_MINUS2_R);
+		bit_minus1 = tegra30_spare_fuse(LP_SPEEDO_BIT_MINUS1);
+		bit_minus1 |= tegra30_spare_fuse(LP_SPEEDO_BIT_MINUS1_R);
+		bit_minus2 = tegra30_spare_fuse(LP_SPEEDO_BIT_MINUS2);
+		bit_minus2 |= tegra30_spare_fuse(LP_SPEEDO_BIT_MINUS2_R);
 		*speedo_lp |= (bit_minus1 << 1) | bit_minus2;
 
-		bit_minus1 = tegra_spare_fuse(G_SPEEDO_BIT_MINUS1);
-		bit_minus1 |= tegra_spare_fuse(G_SPEEDO_BIT_MINUS1_R);
-		bit_minus2 = tegra_spare_fuse(G_SPEEDO_BIT_MINUS2);
-		bit_minus2 |= tegra_spare_fuse(G_SPEEDO_BIT_MINUS2_R);
+		bit_minus1 = tegra30_spare_fuse(G_SPEEDO_BIT_MINUS1);
+		bit_minus1 |= tegra30_spare_fuse(G_SPEEDO_BIT_MINUS1_R);
+		bit_minus2 = tegra30_spare_fuse(G_SPEEDO_BIT_MINUS2);
+		bit_minus2 |= tegra30_spare_fuse(G_SPEEDO_BIT_MINUS2_R);
 		*speedo_g |= (bit_minus1 << 1) | bit_minus2;
 	} else {
 		*speedo_lp |= 0x3;
@@ -117,133 +119,131 @@ static void fuse_speedo_calib(u32 *speedo_g, u32 *speedo_lp)
 	}
 }
 
-static void rev_sku_to_speedo_ids(int rev, int sku)
+static void __init rev_sku_to_speedo_ids(struct tegra_sku_info *sku_info)
 {
-	switch (rev) {
+	int package_id = tegra30_fuse_readl(FUSE_PACKAGE_INFO) & 0x0F;
+
+	switch (sku_info->revision) {
 	case TEGRA_REVISION_A01:
-		tegra_cpu_speedo_id = 0;
-		tegra_soc_speedo_id = 0;
+		sku_info->cpu_speedo_id = 0;
+		sku_info->soc_speedo_id = 0;
 		threshold_index = THRESHOLD_INDEX_0;
 		break;
 	case TEGRA_REVISION_A02:
 	case TEGRA_REVISION_A03:
-		switch (sku) {
+		switch (sku_info->sku_id) {
 		case 0x87:
 		case 0x82:
-			tegra_cpu_speedo_id = 1;
-			tegra_soc_speedo_id = 1;
+			sku_info->cpu_speedo_id = 1;
+			sku_info->soc_speedo_id = 1;
 			threshold_index = THRESHOLD_INDEX_1;
 			break;
 		case 0x81:
 			switch (package_id) {
 			case 1:
-				tegra_cpu_speedo_id = 2;
-				tegra_soc_speedo_id = 2;
+				sku_info->cpu_speedo_id = 2;
+				sku_info->soc_speedo_id = 2;
 				threshold_index = THRESHOLD_INDEX_2;
 				break;
 			case 2:
-				tegra_cpu_speedo_id = 4;
-				tegra_soc_speedo_id = 1;
+				sku_info->cpu_speedo_id = 4;
+				sku_info->soc_speedo_id = 1;
 				threshold_index = THRESHOLD_INDEX_7;
 				break;
 			default:
-				pr_err("Tegra30: Unknown pkg %d\n", package_id);
-				BUG();
+				pr_err("Tegra Unknown pkg %d\n", package_id);
 				break;
 			}
 			break;
 		case 0x80:
 			switch (package_id) {
 			case 1:
-				tegra_cpu_speedo_id = 5;
-				tegra_soc_speedo_id = 2;
+				sku_info->cpu_speedo_id = 5;
+				sku_info->soc_speedo_id = 2;
 				threshold_index = THRESHOLD_INDEX_8;
 				break;
 			case 2:
-				tegra_cpu_speedo_id = 6;
-				tegra_soc_speedo_id = 2;
+				sku_info->cpu_speedo_id = 6;
+				sku_info->soc_speedo_id = 2;
 				threshold_index = THRESHOLD_INDEX_9;
 				break;
 			default:
-				pr_err("Tegra30: Unknown pkg %d\n", package_id);
-				BUG();
+				pr_err("Tegra Unknown pkg %d\n", package_id);
 				break;
 			}
 			break;
 		case 0x83:
 			switch (package_id) {
 			case 1:
-				tegra_cpu_speedo_id = 7;
-				tegra_soc_speedo_id = 1;
+				sku_info->cpu_speedo_id = 7;
+				sku_info->soc_speedo_id = 1;
 				threshold_index = THRESHOLD_INDEX_10;
 				break;
 			case 2:
-				tegra_cpu_speedo_id = 3;
-				tegra_soc_speedo_id = 2;
+				sku_info->cpu_speedo_id = 3;
+				sku_info->soc_speedo_id = 2;
 				threshold_index = THRESHOLD_INDEX_3;
 				break;
 			default:
-				pr_err("Tegra30: Unknown pkg %d\n", package_id);
-				BUG();
+				pr_err("Tegra Unknown pkg %d\n", package_id);
 				break;
 			}
 			break;
 		case 0x8F:
-			tegra_cpu_speedo_id = 8;
-			tegra_soc_speedo_id = 1;
+			sku_info->cpu_speedo_id = 8;
+			sku_info->soc_speedo_id = 1;
 			threshold_index = THRESHOLD_INDEX_11;
 			break;
 		case 0x08:
-			tegra_cpu_speedo_id = 1;
-			tegra_soc_speedo_id = 1;
+			sku_info->cpu_speedo_id = 1;
+			sku_info->soc_speedo_id = 1;
 			threshold_index = THRESHOLD_INDEX_4;
 			break;
 		case 0x02:
-			tegra_cpu_speedo_id = 2;
-			tegra_soc_speedo_id = 2;
+			sku_info->cpu_speedo_id = 2;
+			sku_info->soc_speedo_id = 2;
 			threshold_index = THRESHOLD_INDEX_5;
 			break;
 		case 0x04:
-			tegra_cpu_speedo_id = 3;
-			tegra_soc_speedo_id = 2;
+			sku_info->cpu_speedo_id = 3;
+			sku_info->soc_speedo_id = 2;
 			threshold_index = THRESHOLD_INDEX_6;
 			break;
 		case 0:
 			switch (package_id) {
 			case 1:
-				tegra_cpu_speedo_id = 2;
-				tegra_soc_speedo_id = 2;
+				sku_info->cpu_speedo_id = 2;
+				sku_info->soc_speedo_id = 2;
 				threshold_index = THRESHOLD_INDEX_2;
 				break;
 			case 2:
-				tegra_cpu_speedo_id = 3;
-				tegra_soc_speedo_id = 2;
+				sku_info->cpu_speedo_id = 3;
+				sku_info->soc_speedo_id = 2;
 				threshold_index = THRESHOLD_INDEX_3;
 				break;
 			default:
-				pr_err("Tegra30: Unknown pkg %d\n", package_id);
-				BUG();
+				pr_err("Tegra Unknown pkg %d\n", package_id);
 				break;
 			}
 			break;
 		default:
-			pr_warn("Tegra30: Unknown SKU %d\n", sku);
-			tegra_cpu_speedo_id = 0;
-			tegra_soc_speedo_id = 0;
+			pr_warn("Tegra Unknown SKU %d\n", sku_info->sku_id);
+			sku_info->cpu_speedo_id = 0;
+			sku_info->soc_speedo_id = 0;
 			threshold_index = THRESHOLD_INDEX_0;
 			break;
 		}
 		break;
 	default:
-		pr_warn("Tegra30: Unknown chip rev %d\n", rev);
-		tegra_cpu_speedo_id = 0;
-		tegra_soc_speedo_id = 0;
+		pr_warn("Tegra Unknown chip rev %d\n", sku_info->revision);
+		sku_info->cpu_speedo_id = 0;
+		sku_info->soc_speedo_id = 0;
 		threshold_index = THRESHOLD_INDEX_0;
 		break;
 	}
 }
 
-void tegra30_init_speedo_data(void)
+void __init tegra30_init_speedo_data(struct tegra_sku_info *sku_info)
 {
 	u32 cpu_speedo_val;
 	u32 core_speedo_val;
@@ -254,39 +254,35 @@ void tegra30_init_speedo_data(void)
 	BUILD_BUG_ON(ARRAY_SIZE(core_process_speedos) !=
 			THRESHOLD_INDEX_COUNT);
 
-	package_id = tegra_fuse_readl(FUSE_PACKAGE_INFO) & 0x0F;
 
-	rev_sku_to_speedo_ids(tegra_revision, tegra_sku_id);
+	rev_sku_to_speedo_ids(sku_info);
 	fuse_speedo_calib(&cpu_speedo_val, &core_speedo_val);
-	pr_debug("%s CPU speedo value %u\n", __func__, cpu_speedo_val);
-	pr_debug("%s Core speedo value %u\n", __func__, core_speedo_val);
+	pr_debug("Tegra CPU speedo value %u\n", cpu_speedo_val);
+	pr_debug("Tegra Core speedo value %u\n", core_speedo_val);
 
-	for (i = 0; i < CPU_PROCESS_CORNERS_NUM; i++) {
+	for (i = 0; i < CPU_PROCESS_CORNERS; i++) {
 		if (cpu_speedo_val < cpu_process_speedos[threshold_index][i])
 			break;
 	}
-	tegra_cpu_process_id = i - 1;
+	sku_info->cpu_process_id = i - 1;
 
-	if (tegra_cpu_process_id == -1) {
-		pr_warn("Tegra30: CPU speedo value %3d out of range",
-		       cpu_speedo_val);
-		tegra_cpu_process_id = 0;
-		tegra_cpu_speedo_id = 1;
+	if (sku_info->cpu_process_id == -1) {
+		pr_warn("Tegra CPU speedo value %3d out of range",
+			 cpu_speedo_val);
+		sku_info->cpu_process_id = 0;
+		sku_info->cpu_speedo_id = 1;
 	}
 
-	for (i = 0; i < CORE_PROCESS_CORNERS_NUM; i++) {
+	for (i = 0; i < CORE_PROCESS_CORNERS; i++) {
 		if (core_speedo_val < core_process_speedos[threshold_index][i])
 			break;
 	}
-	tegra_core_process_id = i - 1;
+	sku_info->core_process_id = i - 1;
 
-	if (tegra_core_process_id == -1) {
-		pr_warn("Tegra30: CORE speedo value %3d out of range",
-		       core_speedo_val);
-		tegra_core_process_id = 0;
-		tegra_soc_speedo_id = 1;
+	if (sku_info->core_process_id == -1) {
+		pr_warn("Tegra CORE speedo value %3d out of range",
+				 core_speedo_val);
+		sku_info->core_process_id = 0;
+		sku_info->soc_speedo_id = 1;
 	}
-
-	pr_info("Tegra30: CPU Speedo ID %d, Soc Speedo ID %d",
-		tegra_cpu_speedo_id, tegra_soc_speedo_id);
 }
