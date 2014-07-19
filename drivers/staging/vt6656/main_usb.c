@@ -114,9 +114,9 @@ static void device_set_options(struct vnt_private *priv)
 
 	/* Set number of RX buffers */
 	if (vnt_rx_buffers < CB_MIN_RX_DESC || vnt_rx_buffers > CB_MAX_RX_DESC)
-		priv->cbRD = RX_DESC_DEF0;
+		priv->num_rcb = RX_DESC_DEF0;
 	else
-		priv->cbRD = vnt_rx_buffers;
+		priv->num_rcb = vnt_rx_buffers;
 
 	priv->byShortRetryLimit = SHORT_RETRY_DEF;
 	priv->byLongRetryLimit = LONG_RETRY_DEF;
@@ -407,7 +407,7 @@ static void device_free_rx_bufs(struct vnt_private *priv)
 	struct vnt_rcb *rcb;
 	int ii;
 
-	for (ii = 0; ii < priv->cbRD; ii++) {
+	for (ii = 0; ii < priv->num_rcb; ii++) {
 		rcb = priv->rcb[ii];
 		if (!rcb)
 			continue;
@@ -475,7 +475,7 @@ static bool device_alloc_bufs(struct vnt_private *priv)
 		tx_context->in_use = false;
 	}
 
-	for (ii = 0; ii < priv->cbRD; ii++) {
+	for (ii = 0; ii < priv->num_rcb; ii++) {
 		priv->rcb[ii] = kzalloc(sizeof(struct vnt_rcb), GFP_KERNEL);
 		if (!priv->rcb[ii]) {
 			dev_err(&priv->usb->dev,

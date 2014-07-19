@@ -289,7 +289,7 @@ struct vnt_private {
 
 	/* Variables to track resources for the BULK In Pipe */
 	struct vnt_rcb *rcb[CB_MAX_RX_DESC];
-	u32 cbRD;
+	u32 num_rcb;
 
 	/* Variables to track resources for the BULK Out Pipe */
 	struct vnt_usb_send_context *tx_context[CB_MAX_TX_DESC];
