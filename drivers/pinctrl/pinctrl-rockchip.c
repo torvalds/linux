@@ -928,6 +928,7 @@ static int rockchip_pinconf_get(struct pinctrl_dev *pctldev, unsigned int pin,
 static const struct pinconf_ops rockchip_pinconf_ops = {
 	.pin_config_get			= rockchip_pinconf_get,
 	.pin_config_set			= rockchip_pinconf_set,
+	.is_generic			= true,
 };
 
 static const struct of_device_id rockchip_bank_match[] = {
