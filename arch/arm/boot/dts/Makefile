@@ -157,10 +157,14 @@ dtb-$(CONFIG_ARCH_MARCO) += marco-evb.dtb
 dtb-$(CONFIG_ARCH_MOXART) += moxart-uc7112lx.dtb
 dtb-$(CONFIG_ARCH_MXC) += \
 	imx25-eukrea-mbimxsd25-baseboard.dtb \
+	imx25-eukrea-mbimxsd25-baseboard-cmo-qvga.dtb \
+	imx25-eukrea-mbimxsd25-baseboard-dvi-svga.dtb \
+	imx25-eukrea-mbimxsd25-baseboard-dvi-vga.dtb \
 	imx25-karo-tx25.dtb \
 	imx25-pdk.dtb \
 	imx27-apf27.dtb \
 	imx27-apf27dev.dtb \
+	imx27-eukrea-mbimxsd27-baseboard.dtb \
 	imx27-pdk.dtb \
 	imx27-phytec-phycore-rdk.dtb \
 	imx27-phytec-phycard-s-rdk.dtb \
@@ -182,6 +186,8 @@ dtb-$(CONFIG_ARCH_MXC) += \
 	imx53-tx53-x03x.dtb \
 	imx53-tx53-x13x.dtb \
 	imx53-voipac-bsb.dtb \
+	imx6dl-aristainetos_4.dtb \
+	imx6dl-aristainetos_7.dtb \
 	imx6dl-cubox-i.dtb \
 	imx6dl-dfi-fs700-m60.dtb \
 	imx6dl-gw51xx.dtb \
@@ -191,11 +197,16 @@ dtb-$(CONFIG_ARCH_MXC) += \
 	imx6dl-hummingboard.dtb \
 	imx6dl-nitrogen6x.dtb \
 	imx6dl-phytec-pbab01.dtb \
+	imx6dl-rex-basic.dtb \
 	imx6dl-riotboard.dtb \
 	imx6dl-sabreauto.dtb \
 	imx6dl-sabrelite.dtb \
 	imx6dl-sabresd.dtb \
+	imx6dl-tx6dl-comtft.dtb \
+	imx6dl-tx6u-801x.dtb \
+	imx6dl-tx6u-811x.dtb \
 	imx6dl-wandboard.dtb \
+	imx6dl-wandboard-revb1.dtb \
 	imx6q-arm2.dtb \
 	imx6q-cm-fx6.dtb \
 	imx6q-cubox-i.dtb \
@@ -209,13 +220,21 @@ dtb-$(CONFIG_ARCH_MXC) += \
 	imx6q-gw54xx.dtb \
 	imx6q-nitrogen6x.dtb \
 	imx6q-phytec-pbab01.dtb \
+	imx6q-rex-pro.dtb \
 	imx6q-sabreauto.dtb \
 	imx6q-sabrelite.dtb \
 	imx6q-sabresd.dtb \
 	imx6q-sbc6x.dtb \
 	imx6q-udoo.dtb \
 	imx6q-wandboard.dtb \
+	imx6q-wandboard-revb1.dtb \
+	imx6q-tx6q-1010.dtb \
+	imx6q-tx6q-1010-comtft.dtb \
+	imx6q-tx6q-1020.dtb \
+	imx6q-tx6q-1020-comtft.dtb \
+	imx6q-tx6q-1110.dtb \
 	imx6sl-evk.dtb \
+	imx6sx-sdb.dtb \
 	vf610-colibri.dtb \
 	vf610-cosmic.dtb \
 	vf610-twr.dtb

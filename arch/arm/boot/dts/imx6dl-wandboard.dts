@@ -10,7 +10,7 @@
  */
 /dts-v1/;
 #include "imx6dl.dtsi"
-#include "imx6qdl-wandboard.dtsi"
+#include "imx6qdl-wandboard-revc1.dtsi"
 
 / {
 	model = "Wandboard i.MX6 Dual Lite Board";

@@ -193,6 +193,14 @@
 				#clock-cells = <1>;
 			};
 
+			gpt: timer@53f90000 {
+				compatible = "fsl,imx35-gpt", "fsl,imx31-gpt";
+				reg = <0x53f90000 0x4000>;
+				interrupts = <29>;
+				clocks = <&clks 9>, <&clks 50>;
+				clock-names = "ipg", "per";
+			};
+
 			gpio3: gpio@53fa4000 {
 				compatible = "fsl,imx35-gpio", "fsl,imx31-gpio";
 				reg = <0x53fa4000 0x4000>;

@@ -14,6 +14,8 @@
 
 / {
 	aliases {
+		can0 = &can0;
+		can1 = &can1;
 		serial0 = &uart0;
 		serial1 = &uart1;
 		serial2 = &uart2;
@@ -101,6 +103,16 @@
 				clock-names = "dmamux0", "dmamux1";
 				clocks = <&clks VF610_CLK_DMAMUX0>,
 					<&clks VF610_CLK_DMAMUX1>;
+			};
+
+			can0: flexcan@40020000 {
+				compatible = "fsl,vf610-flexcan";
+				reg = <0x40020000 0x4000>;
+				interrupts = <0 58 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clks VF610_CLK_FLEXCAN0>,
+					 <&clks VF610_CLK_FLEXCAN0>;
+				clock-names = "ipg", "per";
+				status = "disabled";
 			};
 
 			uart0: serial@40027000 {
@@ -362,7 +374,7 @@
 
 			esdhc1: esdhc@400b2000 {
 				compatible = "fsl,imx53-esdhc";
-				reg = <0x400b2000 0x4000>;
+				reg = <0x400b2000 0x1000>;
 				interrupts = <0 28 0x04>;
 				clocks = <&clks VF610_CLK_IPG_BUS>,
 					<&clks VF610_CLK_PLATFORM_BUS>,
@@ -405,6 +417,17 @@
 				clock-names = "ipg", "ahb", "ptp";
 				status = "disabled";
 			};
+
+			can1: flexcan@400d4000 {
+				compatible = "fsl,vf610-flexcan";
+				reg = <0x400d4000 0x4000>;
+				interrupts = <0 59 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clks VF610_CLK_FLEXCAN1>,
+					 <&clks VF610_CLK_FLEXCAN1>;
+				clock-names = "ipg", "per";
+				status = "disabled";
+			};
+
 		};
 	};
 };

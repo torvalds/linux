@@ -233,7 +233,6 @@
 
 &ssi1 {
 	codec-handle = <&codec>;
-	fsl,mode = "i2s-slave";
 	status = "okay";
 };
 
@@ -247,5 +246,12 @@
 &usbhost1 {
 	phy_type = "serial";
 	dr_mode = "host";
+	status = "okay";
+};
+
+&usbotg {
+	phy_type = "utmi";
+	dr_mode = "otg";
+	external-vbus-divider;
 	status = "okay";
 };
