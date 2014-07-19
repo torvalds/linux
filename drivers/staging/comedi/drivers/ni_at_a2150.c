@@ -71,7 +71,6 @@ TRIG_WAKE_EOS
 #include "8253.h"
 #include "comedi_fc.h"
 
-#define A2150_SIZE           28
 #define A2150_DMA_BUFFER_SIZE	0xff00	/*  size in bytes of dma buffer */
 
 /* Registers and bits */
@@ -702,7 +701,7 @@ static int a2150_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (!devpriv)
 		return -ENOMEM;
 
-	ret = comedi_request_region(dev, it->options[0], A2150_SIZE);
+	ret = comedi_request_region(dev, it->options[0], 0x1c);
 	if (ret)
 		return ret;
 

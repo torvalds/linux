@@ -94,8 +94,6 @@ Devices: [National Instruments] AT-MIO-16 (atmio16), AT-MIO-16D (atmio16d)
 #define CLOCK_10_KHZ	0x8D25
 #define CLOCK_1_KHZ		0x8E25
 #define CLOCK_100_HZ	0x8F25
-/* Other miscellaneous defines */
-#define ATMIO16D_SIZE	32	/* bus address range */
 
 struct atmio16_board_t {
 
@@ -624,7 +622,7 @@ static int atmio16d_attach(struct comedi_device *dev,
 	struct comedi_subdevice *s;
 	int ret;
 
-	ret = comedi_request_region(dev, it->options[0], ATMIO16D_SIZE);
+	ret = comedi_request_region(dev, it->options[0], 0x20);
 	if (ret)
 		return ret;
 

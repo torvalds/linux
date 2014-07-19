@@ -72,8 +72,6 @@
 #include "ni_labpc_regs.h"
 #include "ni_labpc_isadma.h"
 
-#define LABPC_SIZE		0x20	/* size of ISA io region */
-
 enum scan_mode {
 	MODE_SINGLE_CHAN,
 	MODE_SINGLE_CHAN_INTERVAL,
@@ -1465,7 +1463,7 @@ static int labpc_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (!devpriv)
 		return -ENOMEM;
 
-	ret = comedi_request_region(dev, it->options[0], LABPC_SIZE);
+	ret = comedi_request_region(dev, it->options[0], 0x20);
 	if (ret)
 		return ret;
 

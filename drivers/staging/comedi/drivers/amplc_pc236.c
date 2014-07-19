@@ -68,9 +68,6 @@ unused.
 
 /* PC36AT / PCI236 registers */
 
-#define PC236_IO_SIZE		4
-#define PC236_LCR_IO_SIZE	128
-
 /* Disable, and clear, interrupts */
 #define PCI236_INTR_DISABLE	(PLX9052_INTCSR_LI1POL |	\
 				 PLX9052_INTCSR_LI2POL |	\
@@ -448,7 +445,7 @@ static int pc236_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	/* Process options according to bus type. */
 	if (is_isa_board(thisboard)) {
-		ret = comedi_request_region(dev, it->options[0], PC236_IO_SIZE);
+		ret = comedi_request_region(dev, it->options[0], 0x4);
 		if (ret)
 			return ret;
 

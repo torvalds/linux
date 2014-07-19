@@ -39,7 +39,6 @@ The state of the outputs can be read.
 #define PC263_DRIVER_NAME	"amplc_pc263"
 
 /* PC263 registers */
-#define PC263_IO_SIZE	2
 
 /*
  * Board descriptions for Amplicon PC263.
@@ -75,7 +74,7 @@ static int pc263_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	struct comedi_subdevice *s;
 	int ret;
 
-	ret = comedi_request_region(dev, it->options[0], PC263_IO_SIZE);
+	ret = comedi_request_region(dev, it->options[0], 0x2);
 	if (ret)
 		return ret;
 

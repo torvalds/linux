@@ -60,7 +60,6 @@ irq can be omitted, although the cmd interface will not work without it.
 #include "8253.h"
 #include "comedi_fc.h"
 
-#define DAS16M1_SIZE 16
 #define DAS16M1_SIZE2 8
 
 #define FIFO_SIZE 1024		/*  1024 sample fifo */
@@ -549,7 +548,7 @@ static int das16m1_attach(struct comedi_device *dev,
 	if (!devpriv)
 		return -ENOMEM;
 
-	ret = comedi_request_region(dev, it->options[0], DAS16M1_SIZE);
+	ret = comedi_request_region(dev, it->options[0], 0x10);
 	if (ret)
 		return ret;
 	/* Request an additional region for the 8255 */

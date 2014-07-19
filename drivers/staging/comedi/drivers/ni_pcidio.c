@@ -58,9 +58,6 @@ comedi_nonfree_firmware tarball available from http://www.comedi.org
 #include "comedi_fc.h"
 #include "mite.h"
 
-#define PCI_DIO_SIZE 4096
-#define PCI_MITE_SIZE 4096
-
 /* defines for the PCI-DIO-32HS */
 
 #define Window_Address			4	/* W */

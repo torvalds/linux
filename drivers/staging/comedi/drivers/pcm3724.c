@@ -33,7 +33,6 @@ Copy/pasted/hacked from pcm724.c
 
 #include "8255.h"
 
-#define PCM3724_SIZE   16
 #define SIZE_8255	4
 
 #define BUF_C0 0x1
@@ -202,7 +201,7 @@ static int pcm3724_attach(struct comedi_device *dev,
 	if (!priv)
 		return -ENOMEM;
 
-	ret = comedi_request_region(dev, it->options[0], PCM3724_SIZE);
+	ret = comedi_request_region(dev, it->options[0], 0x10);
 	if (ret)
 		return ret;
 

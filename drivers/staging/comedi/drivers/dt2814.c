@@ -42,8 +42,6 @@ addition, the clock does not seem to be very accurate.
 
 #include "comedi_fc.h"
 
-#define DT2814_SIZE 2
-
 #define DT2814_CSR 0
 #define DT2814_DATA 1
 
@@ -243,7 +241,7 @@ static int dt2814_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	int ret;
 	int i;
 
-	ret = comedi_request_region(dev, it->options[0], DT2814_SIZE);
+	ret = comedi_request_region(dev, it->options[0], 0x2);
 	if (ret)
 		return ret;
 

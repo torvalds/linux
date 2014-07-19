@@ -120,7 +120,6 @@ Caveats:
 /*
  * PCI224/234 i/o space 1 (PCIBAR2) registers.
  */
-#define PCI224_IO1_SIZE	0x20	/* Size of i/o space 1 (8-bit registers) */
 #define PCI224_Z2_CT0	0x14	/* 82C54 counter/timer 0 */
 #define PCI224_Z2_CT1	0x15	/* 82C54 counter/timer 1 */
 #define PCI224_Z2_CT2	0x16	/* 82C54 counter/timer 2 */
@@ -133,7 +132,6 @@ Caveats:
 /*
  * PCI224/234 i/o space 2 (PCIBAR3) 16-bit registers.
  */
-#define PCI224_IO2_SIZE	0x10	/* Size of i/o space 2 (16-bit registers). */
 #define PCI224_DACDATA	0x00	/* (w-o) DAC FIFO data. */
 #define PCI224_SOFTTRIG	0x00	/* (r-o) DAC software scan trigger. */
 #define PCI224_DACCON	0x02	/* (r/w) DAC status/configuration. */

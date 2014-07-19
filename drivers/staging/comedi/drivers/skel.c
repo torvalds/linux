@@ -75,9 +75,6 @@ Configuration Options:
 #include "comedi_fc.h"
 
 /* Imaginary registers for the imaginary board */
-
-#define SKEL_SIZE 0
-
 #define SKEL_START_AI_CONV	0
 #define SKEL_AI_READ		0
 

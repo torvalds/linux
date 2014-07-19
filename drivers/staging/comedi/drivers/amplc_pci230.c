@@ -200,9 +200,6 @@ for (or detection of) various hardware problems added by Ian Abbott.
 #define PCI_DEVICE_ID_PCI260 0x0006
 #define PCI_DEVICE_ID_INVALID 0xffff
 
-#define PCI230_IO1_SIZE 32	/* Size of I/O space 1 */
-#define PCI230_IO2_SIZE 16	/* Size of I/O space 2 */
-
 /* PCI230 i/o space 1 registers. */
 #define PCI230_PPI_X_BASE	0x00	/* User PPI (82C55) base */
 #define PCI230_PPI_X_A		0x00	/* User PPI (82C55) port A */
