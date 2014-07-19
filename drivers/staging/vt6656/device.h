@@ -309,7 +309,7 @@ struct vnt_private {
 	u8 current_net_addr[ETH_ALEN];
 	u8 permanent_net_addr[ETH_ALEN];
 
-	int bExistSWNetAddr;
+	u8 exist_sw_net_addr;
 
 	u64 qwCurrTSF;
 

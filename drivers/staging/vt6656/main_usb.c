@@ -125,7 +125,7 @@ static void device_set_options(struct vnt_private *priv)
 	priv->byPacketType = priv->byBBType;
 	priv->byAutoFBCtrl = AUTO_FB_0;
 	priv->byPreambleType = 0;
-	priv->bExistSWNetAddr = false;
+	priv->exist_sw_net_addr = false;
 }
 
 /*
@@ -163,7 +163,7 @@ static int device_init_registers(struct vnt_private *priv)
 	}
 
 	init_cmd->init_class = DEVICE_INIT_COLD;
-	init_cmd->exist_sw_net_addr = (u8) priv->bExistSWNetAddr;
+	init_cmd->exist_sw_net_addr = priv->exist_sw_net_addr;
 	for (ii = 0; ii < 6; ii++)
 		init_cmd->sw_net_addr[ii] = priv->current_net_addr[ii];
 	init_cmd->short_retry_limit = priv->byShortRetryLimit;
