@@ -314,7 +314,7 @@ struct vnt_private {
 	u64 current_tsf;
 
 	/* 802.11 MAC specific */
-	u32 uCurrRSSI;
+	u32 current_rssi;
 
 	/* Antenna Diversity */
 	int bTxRxAntInv;

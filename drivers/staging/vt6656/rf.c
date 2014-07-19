@@ -660,7 +660,7 @@ int vnt_rf_setpower(struct vnt_private *priv, u32 rate, u32 channel)
 
 static u8 vnt_rf_addpower(struct vnt_private *priv)
 {
-	s32 rssi = -priv->uCurrRSSI;
+	s32 rssi = -priv->current_rssi;
 
 	if (!rssi)
 		return 7;
