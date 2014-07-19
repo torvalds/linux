@@ -413,16 +413,9 @@ static hva_t kvmppc_bad_hva(void)
 	return PAGE_OFFSET;
 }
 
-static hva_t kvmppc_pte_to_hva(struct kvm_vcpu *vcpu, struct kvmppc_pte *pte,
-			       bool read)
+static hva_t kvmppc_pte_to_hva(struct kvm_vcpu *vcpu, struct kvmppc_pte *pte)
 {
 	hva_t hpage;
-
-	if (read && !pte->may_read)
-		goto err;
-
-	if (!read && !pte->may_write)
-		goto err;
 
 	hpage = gfn_to_hva(vcpu->kvm, pte->raddr >> PAGE_SHIFT);
 	if (kvm_is_error_hva(hpage))
@@ -462,15 +455,23 @@ int kvmppc_ld(struct kvm_vcpu *vcpu, ulong *eaddr, int size, void *ptr,
 {
 	struct kvmppc_pte pte;
 	hva_t hva = *eaddr;
+	int rc;
 
 	vcpu->stat.ld++;
 
-	if (kvmppc_xlate(vcpu, *eaddr, data, false, &pte))
-		goto nopte;
+	rc = kvmppc_xlate(vcpu, *eaddr, data, false, &pte);
+	if (rc)
+		return rc;
 
 	*eaddr = pte.raddr;
 
-	hva = kvmppc_pte_to_hva(vcpu, &pte, true);
+	if (!pte.may_read)
+		return -EPERM;
+
+	if (!data && !pte.may_execute)
+		return -ENOEXEC;
+
+	hva = kvmppc_pte_to_hva(vcpu, &pte);
 	if (kvm_is_error_hva(hva))
 		goto mmio;
 
@@ -481,8 +482,6 @@ int kvmppc_ld(struct kvm_vcpu *vcpu, ulong *eaddr, int size, void *ptr,
 
 	return EMULATE_DONE;
 
-nopte:
-	return -ENOENT;
 mmio:
 	return EMULATE_DO_MMIO;
 }
