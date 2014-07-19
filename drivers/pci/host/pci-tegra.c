@@ -233,7 +233,6 @@ struct tegra_pcie_soc_data {
 	bool has_pex_clkreq_en;
 	bool has_pex_bias_ctrl;
 	bool has_intr_prsnt_sense;
-	bool has_avdd_supply;
 	bool has_cml_clk;
 };
 
@@ -272,9 +271,8 @@ struct tegra_pcie {
 	unsigned int num_ports;
 	u32 xbar_config;
 
-	struct regulator *pex_clk_supply;
-	struct regulator *vdd_supply;
-	struct regulator *avdd_supply;
+	struct regulator_bulk_data *supplies;
+	unsigned int num_supplies;
 
 	const struct tegra_pcie_soc_data *soc_data;
 };
@@ -894,7 +892,6 @@ static int tegra_pcie_enable_controller(struct tegra_pcie *pcie)
 
 static void tegra_pcie_power_off(struct tegra_pcie *pcie)
 {
-	const struct tegra_pcie_soc_data *soc = pcie->soc_data;
 	int err;
 
 	/* TODO: disable and unprepare clocks? */
@@ -905,23 +902,9 @@ static void tegra_pcie_power_off(struct tegra_pcie *pcie)
 
 	tegra_powergate_power_off(TEGRA_POWERGATE_PCIE);
 
-	if (soc->has_avdd_supply) {
-		err = regulator_disable(pcie->avdd_supply);
-		if (err < 0)
-			dev_warn(pcie->dev,
-				 "failed to disable AVDD regulator: %d\n",
-				 err);
-	}
-
-	err = regulator_disable(pcie->pex_clk_supply);
+	err = regulator_bulk_disable(pcie->num_supplies, pcie->supplies);
 	if (err < 0)
-		dev_warn(pcie->dev, "failed to disable pex-clk regulator: %d\n",
-			 err);
-
-	err = regulator_disable(pcie->vdd_supply);
-	if (err < 0)
-		dev_warn(pcie->dev, "failed to disable VDD regulator: %d\n",
-			 err);
+		dev_warn(pcie->dev, "failed to disable regulators: %d\n", err);
 }
 
 static int tegra_pcie_power_on(struct tegra_pcie *pcie)
@@ -936,28 +919,9 @@ static int tegra_pcie_power_on(struct tegra_pcie *pcie)
 	tegra_powergate_power_off(TEGRA_POWERGATE_PCIE);
 
 	/* enable regulators */
-	err = regulator_enable(pcie->vdd_supply);
-	if (err < 0) {
-		dev_err(pcie->dev, "failed to enable VDD regulator: %d\n", err);
-		return err;
-	}
-
-	err = regulator_enable(pcie->pex_clk_supply);
-	if (err < 0) {
-		dev_err(pcie->dev, "failed to enable pex-clk regulator: %d\n",
-			err);
-		return err;
-	}
-
-	if (soc->has_avdd_supply) {
-		err = regulator_enable(pcie->avdd_supply);
-		if (err < 0) {
-			dev_err(pcie->dev,
-				"failed to enable AVDD regulator: %d\n",
-				err);
-			return err;
-		}
-	}
+	err = regulator_bulk_enable(pcie->num_supplies, pcie->supplies);
+	if (err < 0)
+		dev_err(pcie->dev, "failed to enable regulators: %d\n", err);
 
 	err = tegra_powergate_sequence_power_up(TEGRA_POWERGATE_PCIE,
 						pcie->pex_clk,
@@ -1394,33 +1358,162 @@ static int tegra_pcie_get_xbar_config(struct tegra_pcie *pcie, u32 lanes,
 	return -EINVAL;
 }
 
+/*
+ * Check whether a given set of supplies is available in a device tree node.
+ * This is used to check whether the new or the legacy device tree bindings
+ * should be used.
+ */
+static bool of_regulator_bulk_available(struct device_node *np,
+					struct regulator_bulk_data *supplies,
+					unsigned int num_supplies)
+{
+	char property[32];
+	unsigned int i;
+
+	for (i = 0; i < num_supplies; i++) {
+		snprintf(property, 32, "%s-supply", supplies[i].supply);
+
+		if (of_find_property(np, property, NULL) == NULL)
+			return false;
+	}
+
+	return true;
+}
+
+/*
+ * Old versions of the device tree binding for this device used a set of power
+ * supplies that didn't match the hardware inputs. This happened to work for a
+ * number of cases but is not future proof. However to preserve backwards-
+ * compatibility with old device trees, this function will try to use the old
+ * set of supplies.
+ */
+static int tegra_pcie_get_legacy_regulators(struct tegra_pcie *pcie)
+{
+	struct device_node *np = pcie->dev->of_node;
+
+	if (of_device_is_compatible(np, "nvidia,tegra30-pcie"))
+		pcie->num_supplies = 3;
+	else if (of_device_is_compatible(np, "nvidia,tegra20-pcie"))
+		pcie->num_supplies = 2;
+
+	if (pcie->num_supplies == 0) {
+		dev_err(pcie->dev, "device %s not supported in legacy mode\n",
+			np->full_name);
+		return -ENODEV;
+	}
+
+	pcie->supplies = devm_kcalloc(pcie->dev, pcie->num_supplies,
+				      sizeof(*pcie->supplies),
+				      GFP_KERNEL);
+	if (!pcie->supplies)
+		return -ENOMEM;
+
+	pcie->supplies[0].supply = "pex-clk";
+	pcie->supplies[1].supply = "vdd";
+
+	if (pcie->num_supplies > 2)
+		pcie->supplies[2].supply = "avdd";
+
+	return devm_regulator_bulk_get(pcie->dev, pcie->num_supplies,
+				       pcie->supplies);
+}
+
+/*
+ * Obtains the list of regulators required for a particular generation of the
+ * IP block.
+ *
+ * This would've been nice to do simply by providing static tables for use
+ * with the regulator_bulk_*() API, but unfortunately Tegra30 is a bit quirky
+ * in that it has two pairs or AVDD_PEX and VDD_PEX supplies (PEXA and PEXB)
+ * and either seems to be optional depending on which ports are being used.
+ */
+static int tegra_pcie_get_regulators(struct tegra_pcie *pcie, u32 lane_mask)
+{
+	struct device_node *np = pcie->dev->of_node;
+	unsigned int i = 0;
+
+	if (of_device_is_compatible(np, "nvidia,tegra30-pcie")) {
+		bool need_pexa = false, need_pexb = false;
+
+		/* VDD_PEXA and AVDD_PEXA supply lanes 0 to 3 */
+		if (lane_mask & 0x0f)
+			need_pexa = true;
+
+		/* VDD_PEXB and AVDD_PEXB supply lanes 4 to 5 */
+		if (lane_mask & 0x30)
+			need_pexb = true;
+
+		pcie->num_supplies = 4 + (need_pexa ? 2 : 0) +
+					 (need_pexb ? 2 : 0);
+
+		pcie->supplies = devm_kcalloc(pcie->dev, pcie->num_supplies,
+					      sizeof(*pcie->supplies),
+					      GFP_KERNEL);
+		if (!pcie->supplies)
+			return -ENOMEM;
+
+		pcie->supplies[i++].supply = "avdd-pex-pll";
+		pcie->supplies[i++].supply = "hvdd-pex";
+		pcie->supplies[i++].supply = "vddio-pex-ctl";
+		pcie->supplies[i++].supply = "avdd-plle";
+
+		if (need_pexa) {
+			pcie->supplies[i++].supply = "avdd-pexa";
+			pcie->supplies[i++].supply = "vdd-pexa";
+		}
+
+		if (need_pexb) {
+			pcie->supplies[i++].supply = "avdd-pexb";
+			pcie->supplies[i++].supply = "vdd-pexb";
+		}
+	} else if (of_device_is_compatible(np, "nvidia,tegra20-pcie")) {
+		pcie->num_supplies = 5;
+
+		pcie->supplies = devm_kcalloc(pcie->dev, pcie->num_supplies,
+					      sizeof(*pcie->supplies),
+					      GFP_KERNEL);
+		if (!pcie->supplies)
+			return -ENOMEM;
+
+		pcie->supplies[0].supply = "avdd-pex";
+		pcie->supplies[1].supply = "vdd-pex";
+		pcie->supplies[2].supply = "avdd-pex-pll";
+		pcie->supplies[3].supply = "avdd-plle";
+		pcie->supplies[4].supply = "vddio-pex-clk";
+	}
+
+	if (of_regulator_bulk_available(pcie->dev->of_node, pcie->supplies,
+					pcie->num_supplies))
+		return devm_regulator_bulk_get(pcie->dev, pcie->num_supplies,
+					       pcie->supplies);
+
+	/*
+	 * If not all regulators are available for this new scheme, assume
+	 * that the device tree complies with an older version of the device
+	 * tree binding.
+	 */
+	dev_info(pcie->dev, "using legacy DT binding for power supplies\n");
+
+	devm_kfree(pcie->dev, pcie->supplies);
+	pcie->num_supplies = 0;
+
+	return tegra_pcie_get_legacy_regulators(pcie);
+}
+
 static int tegra_pcie_parse_dt(struct tegra_pcie *pcie)
 {
 	const struct tegra_pcie_soc_data *soc = pcie->soc_data;
 	struct device_node *np = pcie->dev->of_node, *port;
 	struct of_pci_range_parser parser;
 	struct of_pci_range range;
+	u32 lanes = 0, mask = 0;
+	unsigned int lane = 0;
 	struct resource res;
-	u32 lanes = 0;
 	int err;
 
 	if (of_pci_range_parser_init(&parser, np)) {
 		dev_err(pcie->dev, "missing \"ranges\" property\n");
 		return -EINVAL;
-	}
-
-	pcie->vdd_supply = devm_regulator_get(pcie->dev, "vdd");
-	if (IS_ERR(pcie->vdd_supply))
-		return PTR_ERR(pcie->vdd_supply);
-
-	pcie->pex_clk_supply = devm_regulator_get(pcie->dev, "pex-clk");
-	if (IS_ERR(pcie->pex_clk_supply))
-		return PTR_ERR(pcie->pex_clk_supply);
-
-	if (soc->has_avdd_supply) {
-		pcie->avdd_supply = devm_regulator_get(pcie->dev, "avdd");
-		if (IS_ERR(pcie->avdd_supply))
-			return PTR_ERR(pcie->avdd_supply);
 	}
 
 	for_each_of_pci_range(&parser, &range) {
@@ -1490,8 +1583,13 @@ static int tegra_pcie_parse_dt(struct tegra_pcie *pcie)
 
 		lanes |= value << (index << 3);
 
-		if (!of_device_is_available(port))
+		if (!of_device_is_available(port)) {
+			lane += value;
 			continue;
+		}
+
+		mask |= ((1 << value) - 1) << lane;
+		lane += value;
 
 		rp = devm_kzalloc(pcie->dev, sizeof(*rp), GFP_KERNEL);
 		if (!rp)
@@ -1521,6 +1619,10 @@ static int tegra_pcie_parse_dt(struct tegra_pcie *pcie)
 		dev_err(pcie->dev, "invalid lane configuration\n");
 		return err;
 	}
+
+	err = tegra_pcie_get_regulators(pcie, mask);
+	if (err < 0)
+		return err;
 
 	return 0;
 }
@@ -1615,7 +1717,6 @@ static const struct tegra_pcie_soc_data tegra20_pcie_data = {
 	.has_pex_clkreq_en = false,
 	.has_pex_bias_ctrl = false,
 	.has_intr_prsnt_sense = false,
-	.has_avdd_supply = false,
 	.has_cml_clk = false,
 };
 
@@ -1627,7 +1728,6 @@ static const struct tegra_pcie_soc_data tegra30_pcie_data = {
 	.has_pex_clkreq_en = true,
 	.has_pex_bias_ctrl = true,
 	.has_intr_prsnt_sense = true,
-	.has_avdd_supply = true,
 	.has_cml_clk = true,
 };
 

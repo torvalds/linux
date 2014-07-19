@@ -38,9 +38,14 @@
 
 	pcie-controller@00003000 {
 		status = "okay";
-		pex-clk-supply = <&pex_hvdd_3v3_reg>;
-		vdd-supply = <&ldo1_reg>;
-		avdd-supply = <&ldo2_reg>;
+
+		/* AVDD_PEXA and VDD_PEXA inputs are grounded on Cardhu. */
+		avdd-pexb-supply = <&ldo1_reg>;
+		vdd-pexb-supply = <&ldo1_reg>;
+		avdd-pex-pll-supply = <&ldo1_reg>;
+		hvdd-pex-supply = <&pex_hvdd_3v3_reg>;
+		vddio-pex-ctl-supply = <&sys_3v3_reg>;
+		avdd-plle-supply = <&ldo2_reg>;
 
 		pci@1,0 {
 			nvidia,num-lanes = <4>;
