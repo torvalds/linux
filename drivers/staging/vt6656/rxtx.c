@@ -81,7 +81,7 @@ static struct vnt_usb_send_context
 
 	dev_dbg(&priv->usb->dev, "%s\n", __func__);
 
-	for (ii = 0; ii < priv->cbTD; ii++) {
+	for (ii = 0; ii < priv->num_tx_context; ii++) {
 		if (!priv->tx_context[ii])
 			return NULL;
 
@@ -97,7 +97,7 @@ static struct vnt_usb_send_context
 		}
 	}
 
-	if (ii == priv->cbTD)
+	if (ii == priv->num_tx_context)
 		dev_dbg(&priv->usb->dev, "%s No Free Tx Context\n", __func__);
 
 	return NULL;

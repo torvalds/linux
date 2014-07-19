@@ -108,9 +108,9 @@ static void device_set_options(struct vnt_private *priv)
 {
 	/* Set number of TX buffers */
 	if (vnt_tx_buffers < CB_MIN_TX_DESC || vnt_tx_buffers > CB_MAX_TX_DESC)
-		priv->cbTD = TX_DESC_DEF0;
+		priv->num_tx_context = TX_DESC_DEF0;
 	else
-		priv->cbTD = vnt_tx_buffers;
+		priv->num_tx_context = vnt_tx_buffers;
 
 	/* Set number of RX buffers */
 	if (vnt_rx_buffers < CB_MIN_RX_DESC || vnt_rx_buffers > CB_MAX_RX_DESC)
@@ -388,7 +388,7 @@ static void device_free_tx_bufs(struct vnt_private *priv)
 	struct vnt_usb_send_context *tx_context;
 	int ii;
 
-	for (ii = 0; ii < priv->cbTD; ii++) {
+	for (ii = 0; ii < priv->num_tx_context; ii++) {
 		tx_context = priv->tx_context[ii];
 		/* deallocate URBs */
 		if (tx_context->urb) {
@@ -452,7 +452,7 @@ static bool device_alloc_bufs(struct vnt_private *priv)
 	struct vnt_rcb *rcb;
 	int ii;
 
-	for (ii = 0; ii < priv->cbTD; ii++) {
+	for (ii = 0; ii < priv->num_tx_context; ii++) {
 		tx_context = kmalloc(sizeof(struct vnt_usb_send_context),
 								GFP_KERNEL);
 		if (tx_context == NULL) {

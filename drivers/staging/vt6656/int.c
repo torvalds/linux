@@ -75,7 +75,7 @@ static int vnt_int_report_rate(struct vnt_private *priv, u8 pkt_no, u8 tsr)
 	u8 tx_retry = (tsr & 0xf0) >> 4;
 	s8 idx;
 
-	if (pkt_no >= priv->cbTD)
+	if (pkt_no >= priv->num_tx_context)
 		return -EINVAL;
 
 	context = priv->tx_context[pkt_no];
