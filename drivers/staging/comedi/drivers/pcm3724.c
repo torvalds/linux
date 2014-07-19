@@ -66,19 +66,6 @@ struct priv_pcm3724 {
 	int dio_2;
 };
 
-static int subdev_8255_cb(int dir, int port, int data, unsigned long arg)
-{
-	unsigned long iobase = arg;
-	unsigned char inbres;
-	if (dir) {
-		outb(data, iobase + port);
-		return 0;
-	} else {
-		inbres = inb(iobase + port);
-		return inbres;
-	}
-}
-
 static int compute_buffer(int config, int devno, struct comedi_subdevice *s)
 {
 	/* 1 in io_bits indicates output */
@@ -225,7 +212,7 @@ static int pcm3724_attach(struct comedi_device *dev,
 
 	for (i = 0; i < dev->n_subdevices; i++) {
 		s = &dev->subdevices[i];
-		ret = subdev_8255_init(dev, s, subdev_8255_cb,
+		ret = subdev_8255_init(dev, s, NULL,
 				       dev->iobase + SIZE_8255 * i);
 		if (ret)
 			return ret;
