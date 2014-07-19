@@ -2729,6 +2729,8 @@ static void b43_nphy_workarounds_rev7plus(struct b43_wldev *dev)
 
 	u16 bias, conv, filt;
 
+	u32 noise_tbl[2];
+
 	u32 tmp32;
 	u8 core;
 
@@ -2955,9 +2957,10 @@ static void b43_nphy_workarounds_rev7plus(struct b43_wldev *dev)
 			b43_ntab_write(dev, B43_NTAB16(7, 0x159 + core * 16),
 				       rx2tx_lut_40_11n[core]);
 		}
-		b43_nphy_rf_ctl_override_rev7(dev, 16, 1, 3, false, 2);
 	}
+
 	b43_phy_write(dev, 0x32F, 0x3);
+
 	if (phy->radio_rev == 4 || phy->radio_rev == 6)
 		b43_nphy_rf_ctl_override_rev7(dev, 4, 1, 3, false, 0);
 
@@ -3104,8 +3107,8 @@ static void b43_nphy_workarounds_rev7plus(struct b43_wldev *dev)
 		b43_phy_set(dev, B43_NPHY_AFECTL_OVER1, 0x1);
 		b43_phy_mask(dev, B43_NPHY_AFECTL_C2, ~0x1);
 		b43_phy_set(dev, B43_NPHY_AFECTL_OVER, 0x1);
-		b43_ntab_write(dev, B43_NTAB16(8, 0x05), 0x20);
-		b43_ntab_write(dev, B43_NTAB16(8, 0x15), 0x20);
+		b43_ntab_write(dev, B43_NTAB16(8, 0x05), 0);
+		b43_ntab_write(dev, B43_NTAB16(8, 0x15), 0);
 
 		b43_phy_mask(dev, B43_NPHY_AFECTL_C1, ~0x4);
 		b43_phy_mask(dev, B43_NPHY_AFECTL_OVER1, ~0x4);
@@ -3116,20 +3119,20 @@ static void b43_nphy_workarounds_rev7plus(struct b43_wldev *dev)
 	b43_phy_write(dev, B43_NPHY_ENDROP_TLEN, 0x2);
 
 	b43_ntab_write(dev, B43_NTAB32(16, 0x100), 20);
-	b43_ntab_write_bulk(dev, B43_NTAB16(7, 0x138), 2, ntab7_138_146);
+	b43_ntab_write_bulk(dev, B43_NTAB8(7, 0x138), 2, ntab7_138_146);
 	b43_ntab_write(dev, B43_NTAB16(7, 0x141), 0x77);
-	b43_ntab_write_bulk(dev, B43_NTAB16(7, 0x133), 3, ntab7_133);
-	b43_ntab_write_bulk(dev, B43_NTAB16(7, 0x146), 2, ntab7_138_146);
+	b43_ntab_write_bulk(dev, B43_NTAB8(7, 0x133), 3, ntab7_133);
+	b43_ntab_write_bulk(dev, B43_NTAB8(7, 0x146), 2, ntab7_138_146);
 	b43_ntab_write(dev, B43_NTAB16(7, 0x123), 0x77);
 	b43_ntab_write(dev, B43_NTAB16(7, 0x12A), 0x77);
 
-	if (!b43_is_40mhz(dev)) {
-		b43_ntab_write(dev, B43_NTAB32(16, 0x03), 0x18D);
-		b43_ntab_write(dev, B43_NTAB32(16, 0x7F), 0x18D);
-	} else {
-		b43_ntab_write(dev, B43_NTAB32(16, 0x03), 0x14D);
-		b43_ntab_write(dev, B43_NTAB32(16, 0x7F), 0x14D);
-	}
+	b43_ntab_read_bulk(dev, B43_NTAB32(16, 0x02), 1, noise_tbl);
+	noise_tbl[1] = b43_is_40mhz(dev) ? 0x14D : 0x18D;
+	b43_ntab_write_bulk(dev, B43_NTAB32(16, 0x02), 2, noise_tbl);
+
+	b43_ntab_read_bulk(dev, B43_NTAB32(16, 0x7E), 1, noise_tbl);
+	noise_tbl[1] = b43_is_40mhz(dev) ? 0x14D : 0x18D;
+	b43_ntab_write_bulk(dev, B43_NTAB32(16, 0x7E), 2, noise_tbl);
 
 	b43_nphy_gain_ctl_workarounds(dev);
 
