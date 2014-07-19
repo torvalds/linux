@@ -681,6 +681,14 @@ usbhs_fifo_read_end:
 		usbhs_pipe_number(pipe),
 		pkt->length, pkt->actual, *is_done, pkt->zero);
 
+	/*
+	 * Transmission end
+	 */
+	if (*is_done) {
+		if (usbhs_pipe_is_dcp(pipe))
+			usbhs_dcp_control_transfer_done(pipe);
+	}
+
 usbhs_fifo_read_busy:
 	usbhsf_fifo_unselect(pipe, fifo);
 

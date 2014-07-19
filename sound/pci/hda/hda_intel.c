@@ -62,9 +62,9 @@
 #include <linux/vga_switcheroo.h>
 #include <linux/firmware.h>
 #include "hda_codec.h"
-#include "hda_i915.h"
 #include "hda_controller.h"
 #include "hda_priv.h"
+#include "hda_i915.h"
 
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;
@@ -288,21 +288,8 @@ static char *driver_short_names[] = {
 	[AZX_DRIVER_GENERIC] = "HD-Audio Generic",
 };
 
-
-/* Intel HSW/BDW display HDA controller Extended Mode registers.
- * EM4 (M value) and EM5 (N Value) are used to convert CDClk (Core Display
- * Clock) to 24MHz BCLK: BCLK = CDCLK * M / N
- * The values will be lost when the display power well is disabled.
- */
-#define ICH6_REG_EM4			0x100c
-#define ICH6_REG_EM5			0x1010
-
 struct hda_intel {
 	struct azx chip;
-
-	/* HSW/BDW display HDA controller to restore BCLK from CDCLK */
-	unsigned int bclk_m;
-	unsigned int bclk_n;
 };
 
 
@@ -598,22 +585,6 @@ static int param_set_xint(const char *val, const struct kernel_param *kp)
 #define azx_del_card_list(chip) /* NOP */
 #endif /* CONFIG_PM */
 
-static void haswell_save_bclk(struct azx *chip)
-{
-	struct hda_intel *hda = container_of(chip, struct hda_intel, chip);
-
-	hda->bclk_m = azx_readw(chip, EM4);
-	hda->bclk_n = azx_readw(chip, EM5);
-}
-
-static void haswell_restore_bclk(struct azx *chip)
-{
-	struct hda_intel *hda = container_of(chip, struct hda_intel, chip);
-
-	azx_writew(chip, EM4, hda->bclk_m);
-	azx_writew(chip, EM5, hda->bclk_n);
-}
-
 #if defined(CONFIG_PM_SLEEP) || defined(SUPPORT_VGA_SWITCHEROO)
 /*
  * power management
@@ -641,12 +612,6 @@ static int azx_suspend(struct device *dev)
 		chip->irq = -1;
 	}
 
-	/* Save BCLK M/N values before they become invalid in D3.
-	 * Will test if display power well can be released now.
-	 */
-	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL)
-		haswell_save_bclk(chip);
-
 	if (chip->msi)
 		pci_disable_msi(chip->pci);
 	pci_disable_device(pci);
@@ -668,7 +633,7 @@ static int azx_resume(struct device *dev)
 
 	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL) {
 		hda_display_power(true);
-		haswell_restore_bclk(chip);
+		haswell_set_bclk(chip);
 	}
 	pci_set_power_state(pci, PCI_D0);
 	pci_restore_state(pci);
@@ -713,10 +678,9 @@ static int azx_runtime_suspend(struct device *dev)
 	azx_stop_chip(chip);
 	azx_enter_link_reset(chip);
 	azx_clear_irq_pending(chip);
-	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL) {
-		haswell_save_bclk(chip);
+	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL)
 		hda_display_power(false);
-	}
+
 	return 0;
 }
 
@@ -736,7 +700,7 @@ static int azx_runtime_resume(struct device *dev)
 
 	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL) {
 		hda_display_power(true);
-		haswell_restore_bclk(chip);
+		haswell_set_bclk(chip);
 	}
 
 	/* Read STATESTS before controller reset */
@@ -1426,6 +1390,10 @@ static int azx_first_init(struct azx *chip)
 
 	/* initialize chip */
 	azx_init_pci(chip);
+
+	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL)
+		haswell_set_bclk(chip);
+
 	azx_init_chip(chip, (probe_only[dev] & 2) == 0);
 
 	/* codec detection */

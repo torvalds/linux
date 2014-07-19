@@ -403,6 +403,15 @@ static u32 asle_set_backlight(struct drm_device *dev, u32 bclp)
 
 	DRM_DEBUG_DRIVER("bclp = 0x%08x\n", bclp);
 
+	/*
+	 * If the acpi_video interface is not supposed to be used, don't
+	 * bother processing backlight level change requests from firmware.
+	 */
+	if (!acpi_video_verify_backlight_support()) {
+		DRM_DEBUG_KMS("opregion backlight request ignored\n");
+		return 0;
+	}
+
 	if (!(bclp & ASLE_BCLP_VALID))
 		return ASLC_BACKLIGHT_FAILED;
 
