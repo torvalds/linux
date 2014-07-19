@@ -49,8 +49,6 @@ Configuration options: not applicable, uses PCI auto config
 
 #include "../comedidev.h"
 
-#define PCI_DEVICE_ID_ICP_MULTI	0x8000
-
 #define ICP_MULTI_ADC_CSR	0	/* R/W: ADC command/status register */
 #define ICP_MULTI_AI		2	/* R:   Analogue input data */
 #define ICP_MULTI_DAC_CSR	4	/* R/W: DAC command/status register */
@@ -594,7 +592,7 @@ static int icp_multi_pci_probe(struct pci_dev *dev,
 }
 
 static const struct pci_device_id icp_multi_pci_table[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_ICP, PCI_DEVICE_ID_ICP_MULTI) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_ICP, 0x8000) },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, icp_multi_pci_table);

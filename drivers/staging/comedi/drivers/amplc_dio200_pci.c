@@ -228,13 +228,6 @@
 
 #include "amplc_dio200.h"
 
-/* PCI IDs */
-#define PCI_DEVICE_ID_AMPLICON_PCI272 0x000a
-#define PCI_DEVICE_ID_AMPLICON_PCI215 0x000b
-#define PCI_DEVICE_ID_AMPLICON_PCIE236 0x0011
-#define PCI_DEVICE_ID_AMPLICON_PCIE215 0x0012
-#define PCI_DEVICE_ID_AMPLICON_PCIE296 0x0014
-
 /*
  * Board descriptions.
  */
@@ -440,22 +433,11 @@ static struct comedi_driver dio200_pci_comedi_driver = {
 };
 
 static const struct pci_device_id dio200_pci_table[] = {
-	{
-		PCI_VDEVICE(AMPLICON, PCI_DEVICE_ID_AMPLICON_PCI215),
-		pci215_model
-	}, {
-		PCI_VDEVICE(AMPLICON, PCI_DEVICE_ID_AMPLICON_PCI272),
-		pci272_model
-	}, {
-		PCI_VDEVICE(AMPLICON, PCI_DEVICE_ID_AMPLICON_PCIE236),
-		pcie236_model
-	}, {
-		PCI_VDEVICE(AMPLICON, PCI_DEVICE_ID_AMPLICON_PCIE215),
-		pcie215_model
-	}, {
-		PCI_VDEVICE(AMPLICON, PCI_DEVICE_ID_AMPLICON_PCIE296),
-		pcie296_model
-	},
+	{ PCI_VDEVICE(AMPLICON, 0x000b), pci215_model },
+	{ PCI_VDEVICE(AMPLICON, 0x000a), pci272_model },
+	{ PCI_VDEVICE(AMPLICON, 0x0011), pcie236_model },
+	{ PCI_VDEVICE(AMPLICON, 0x0012), pcie215_model },
+	{ PCI_VDEVICE(AMPLICON, 0x0014), pcie296_model },
 	{0}
 };
 

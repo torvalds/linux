@@ -39,9 +39,6 @@ The state of the outputs can be read.
 
 #define PCI263_DRIVER_NAME	"amplc_pci263"
 
-/* PCI263 PCI configuration register information */
-#define PCI_DEVICE_ID_AMPLICON_PCI263 0x000c
-
 static int pci263_do_insn_bits(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn,
@@ -95,7 +92,7 @@ static struct comedi_driver amplc_pci263_driver = {
 };
 
 static const struct pci_device_id pci263_pci_table[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_AMPLICON_PCI263) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_AMPLICON, 0x000c) },
 	{0}
 };
 MODULE_DEVICE_TABLE(pci, pci263_pci_table);
