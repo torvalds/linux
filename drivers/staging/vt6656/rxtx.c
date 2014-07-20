@@ -966,7 +966,7 @@ static int vnt_beacon_xmit(struct vnt_private *priv,
 	beacon_buffer = (struct vnt_beacon_buffer *)&context->data[0];
 	short_head = &beacon_buffer->short_head;
 
-	if (priv->byBBType == BB_TYPE_11A) {
+	if (priv->bb_type == BB_TYPE_11A) {
 		current_rate = RATE_6M;
 
 		/* Get SignalField,ServiceField,Length */

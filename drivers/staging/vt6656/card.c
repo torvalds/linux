@@ -405,7 +405,7 @@ void vnt_update_ifs(struct vnt_private *priv)
 
 	switch (priv->rf_type) {
 	case RF_VT3226D0:
-		if (priv->byBBType != BB_TYPE_11B) {
+		if (priv->bb_type != BB_TYPE_11B) {
 			priv->sifs -= 1;
 			priv->difs -= 1;
 			break;
@@ -413,7 +413,7 @@ void vnt_update_ifs(struct vnt_private *priv)
 	case RF_AIROHA7230:
 	case RF_AL2230:
 	case RF_AL2230S:
-		if (priv->byBBType != BB_TYPE_11B)
+		if (priv->bb_type != BB_TYPE_11B)
 			break;
 	case RF_RFMD2959:
 	case RF_VT3226:
@@ -422,7 +422,7 @@ void vnt_update_ifs(struct vnt_private *priv)
 		priv->difs -= 3;
 		break;
 	case RF_MAXIM2829:
-		if (priv->byBBType == BB_TYPE_11A) {
+		if (priv->bb_type == BB_TYPE_11A) {
 			priv->sifs -= 5;
 			priv->difs -= 5;
 		} else {
@@ -489,8 +489,8 @@ int vnt_ofdm_min_rate(struct vnt_private *priv)
 u8 vnt_get_pkt_type(struct vnt_private *priv)
 {
 
-	if (priv->byBBType == BB_TYPE_11A || priv->byBBType == BB_TYPE_11B)
-		return (u8)priv->byBBType;
+	if (priv->bb_type == BB_TYPE_11A || priv->bb_type == BB_TYPE_11B)
+		return (u8)priv->bb_type;
 	else if (vnt_ofdm_min_rate(priv))
 		return PK_TYPE_11GA;
 	else
@@ -788,24 +788,24 @@ int vnt_radio_power_on(struct vnt_private *priv)
 
 void vnt_set_bss_mode(struct vnt_private *priv)
 {
-	if (priv->rf_type == RF_AIROHA7230 && priv->byBBType == BB_TYPE_11A)
+	if (priv->rf_type == RF_AIROHA7230 && priv->bb_type == BB_TYPE_11A)
 		vnt_mac_set_bb_type(priv, BB_TYPE_11G);
 	else
-		vnt_mac_set_bb_type(priv, priv->byBBType);
+		vnt_mac_set_bb_type(priv, priv->bb_type);
 
 	priv->byPacketType = vnt_get_pkt_type(priv);
 
-	if (priv->byBBType == BB_TYPE_11A)
+	if (priv->bb_type == BB_TYPE_11A)
 		vnt_control_out_u8(priv, MESSAGE_REQUEST_BBREG, 0x88, 0x03);
-	else if (priv->byBBType == BB_TYPE_11B)
+	else if (priv->bb_type == BB_TYPE_11B)
 		vnt_control_out_u8(priv, MESSAGE_REQUEST_BBREG, 0x88, 0x02);
-	else if (priv->byBBType == BB_TYPE_11G)
+	else if (priv->bb_type == BB_TYPE_11G)
 		vnt_control_out_u8(priv, MESSAGE_REQUEST_BBREG, 0x88, 0x08);
 
 	vnt_update_ifs(priv);
-	vnt_set_rspinf(priv, (u8)priv->byBBType);
+	vnt_set_rspinf(priv, (u8)priv->bb_type);
 
-	if (priv->byBBType == BB_TYPE_11A) {
+	if (priv->bb_type == BB_TYPE_11A) {
 		if (priv->rf_type == RF_AIROHA7230) {
 			priv->abyBBVGA[0] = 0x20;
 

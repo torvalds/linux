@@ -121,8 +121,8 @@ static void device_set_options(struct vnt_private *priv)
 	priv->byShortRetryLimit = SHORT_RETRY_DEF;
 	priv->byLongRetryLimit = LONG_RETRY_DEF;
 	priv->op_mode = NL80211_IFTYPE_UNSPECIFIED;
-	priv->byBBType = BBP_TYPE_DEF;
-	priv->byPacketType = priv->byBBType;
+	priv->bb_type = BBP_TYPE_DEF;
+	priv->byPacketType = priv->bb_type;
 	priv->byAutoFBCtrl = AUTO_FB_0;
 	priv->byPreambleType = 0;
 	priv->exist_sw_net_addr = false;
@@ -283,7 +283,7 @@ static int device_init_registers(struct vnt_private *priv)
 	priv->byAutoFBCtrl = AUTO_FB_0;
 
 	/* default Auto Mode */
-	priv->byBBType = BB_TYPE_11G;
+	priv->bb_type = BB_TYPE_11G;
 
 	/* get RFType */
 	priv->rf_type = init_rsp->rf_type;
@@ -341,7 +341,7 @@ static int device_init_registers(struct vnt_private *priv)
 	* set BB and packet type at the same time
 	* set Short Slot Time, xIFS, and RSPINF
 	*/
-	if (priv->byBBType == BB_TYPE_11A)
+	if (priv->bb_type == BB_TYPE_11A)
 		priv->bShortSlotTime = true;
 	else
 		priv->bShortSlotTime = false;
@@ -709,15 +709,15 @@ static int vnt_config(struct ieee80211_hw *hw, u32 changed)
 		else
 			bb_type = BB_TYPE_11G;
 
-		if (priv->byBBType != bb_type) {
-			priv->byBBType = bb_type;
+		if (priv->bb_type != bb_type) {
+			priv->bb_type = bb_type;
 
 			vnt_set_bss_mode(priv);
 		}
 	}
 
 	if (changed & IEEE80211_CONF_CHANGE_POWER) {
-		if (priv->byBBType == BB_TYPE_11B)
+		if (priv->bb_type == BB_TYPE_11B)
 			priv->wCurrentRate = RATE_1M;
 		else
 			priv->wCurrentRate = RATE_54M;

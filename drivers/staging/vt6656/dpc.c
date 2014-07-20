@@ -133,7 +133,7 @@ int vnt_rx_data(struct vnt_private *priv, struct vnt_rcb *ptr_rcb,
 
 	priv->tsf_time = le64_to_cpu(*tsf_time);
 
-	if (priv->byBBType == BB_TYPE_11G) {
+	if (priv->bb_type == BB_TYPE_11G) {
 		sq_3 = skb_data + 8 + pay_load_with_padding + 12;
 		sq = sq_3;
 	} else {
