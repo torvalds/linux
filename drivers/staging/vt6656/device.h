@@ -234,6 +234,7 @@ struct vnt_usb_send_context {
 	unsigned int buf_len;
 	u32 frame_len;
 	u16 tx_hdr_size;
+	u16 tx_rate;
 	u8 type;
 	u8 pkt_no;
 	u8 pkt_type;
