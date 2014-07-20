@@ -201,17 +201,17 @@ static int device_init_registers(struct vnt_private *priv)
 	/* target to IF pin while programming to RF chip */
 	priv->byCurPwr = 0xFF;
 
-	priv->byCCKPwr = priv->abyEEPROM[EEP_OFS_PWR_CCK];
-	priv->byOFDMPwrG = priv->abyEEPROM[EEP_OFS_PWR_OFDMG];
+	priv->byCCKPwr = priv->eeprom[EEP_OFS_PWR_CCK];
+	priv->byOFDMPwrG = priv->eeprom[EEP_OFS_PWR_OFDMG];
 	/* load power table */
 	for (ii = 0; ii < 14; ii++) {
 		priv->abyCCKPwrTbl[ii] =
-			priv->abyEEPROM[ii + EEP_OFS_CCK_PWR_TBL];
+			priv->eeprom[ii + EEP_OFS_CCK_PWR_TBL];
 
 		if (priv->abyCCKPwrTbl[ii] == 0)
 			priv->abyCCKPwrTbl[ii] = priv->byCCKPwr;
 		priv->abyOFDMPwrTbl[ii] =
-				priv->abyEEPROM[ii + EEP_OFS_OFDM_PWR_TBL];
+				priv->eeprom[ii + EEP_OFS_OFDM_PWR_TBL];
 		if (priv->abyOFDMPwrTbl[ii] == 0)
 			priv->abyOFDMPwrTbl[ii] = priv->byOFDMPwrG;
 	}
@@ -230,13 +230,13 @@ static int device_init_registers(struct vnt_private *priv)
 	/* load OFDM A power table */
 	for (ii = 0; ii < CB_MAX_CHANNEL_5G; ii++) {
 		priv->abyOFDMAPwrTbl[ii] =
-			priv->abyEEPROM[ii + EEP_OFS_OFDMA_PWR_TBL];
+			priv->eeprom[ii + EEP_OFS_OFDMA_PWR_TBL];
 
 		if (priv->abyOFDMAPwrTbl[ii] == 0)
 			priv->abyOFDMAPwrTbl[ii] = priv->byOFDMPwrA;
 	}
 
-	antenna = priv->abyEEPROM[EEP_OFS_ANTENNA];
+	antenna = priv->eeprom[EEP_OFS_ANTENNA];
 
 	if (antenna & EEP_ANTINV)
 		priv->tx_rx_ant_inv = true;
@@ -290,12 +290,12 @@ static int device_init_registers(struct vnt_private *priv)
 
 	/* load vt3266 calibration parameters in EEPROM */
 	if (priv->rf_type == RF_VT3226D0) {
-		if ((priv->abyEEPROM[EEP_OFS_MAJOR_VER] == 0x1) &&
-		    (priv->abyEEPROM[EEP_OFS_MINOR_VER] >= 0x4)) {
+		if ((priv->eeprom[EEP_OFS_MAJOR_VER] == 0x1) &&
+		    (priv->eeprom[EEP_OFS_MINOR_VER] >= 0x4)) {
 
-			calib_tx_iq = priv->abyEEPROM[EEP_OFS_CALIB_TX_IQ];
-			calib_tx_dc = priv->abyEEPROM[EEP_OFS_CALIB_TX_DC];
-			calib_rx_iq = priv->abyEEPROM[EEP_OFS_CALIB_RX_IQ];
+			calib_tx_iq = priv->eeprom[EEP_OFS_CALIB_TX_IQ];
+			calib_tx_dc = priv->eeprom[EEP_OFS_CALIB_TX_DC];
+			calib_rx_iq = priv->eeprom[EEP_OFS_CALIB_RX_IQ];
 			if (calib_tx_iq || calib_tx_dc || calib_rx_iq) {
 				/* CR255, enable TX/RX IQ and
 				   DC compensation mode */
@@ -348,7 +348,7 @@ static int device_init_registers(struct vnt_private *priv)
 
 	vnt_set_short_slot_time(priv);
 
-	priv->radio_ctl = priv->abyEEPROM[EEP_OFS_RADIOCTL];
+	priv->radio_ctl = priv->eeprom[EEP_OFS_RADIOCTL];
 
 	if ((priv->radio_ctl & EEP_RADIOCTL_ENABLE) != 0) {
 		status = vnt_control_in(priv, MESSAGE_TYPE_READ,

@@ -336,7 +336,7 @@ struct vnt_private {
 	u8 top_ofdm_basic_rate;
 	u8 top_cck_basic_rate;
 
-	u8 abyEEPROM[EEP_MAX_CONTEXT_SIZE];  /*u32 alignment */
+	u8 eeprom[EEP_MAX_CONTEXT_SIZE];  /*u32 alignment */
 
 	u8 byPreambleType;
 

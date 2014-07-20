@@ -390,11 +390,11 @@ int vnt_vt3184_init(struct vnt_private *priv)
 
 	status = vnt_control_in(priv, MESSAGE_TYPE_READ, 0,
 		MESSAGE_REQUEST_EEPROM, EEP_MAX_CONTEXT_SIZE,
-						priv->abyEEPROM);
+						priv->eeprom);
 	if (status != STATUS_SUCCESS)
 		return false;
 
-	priv->rf_type = priv->abyEEPROM[EEP_OFS_RFTYPE];
+	priv->rf_type = priv->eeprom[EEP_OFS_RFTYPE];
 
 	dev_dbg(&priv->usb->dev, "RF Type %d\n", priv->rf_type);
 
