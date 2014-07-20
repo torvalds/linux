@@ -1633,22 +1633,17 @@ static int mwl8k_tid_queue_mapping(u8 tid)
 	case 0:
 	case 3:
 		return IEEE80211_AC_BE;
-		break;
 	case 1:
 	case 2:
 		return IEEE80211_AC_BK;
-		break;
 	case 4:
 	case 5:
 		return IEEE80211_AC_VI;
-		break;
 	case 6:
 	case 7:
 		return IEEE80211_AC_VO;
-		break;
 	default:
 		return -1;
-		break;
 	}
 }
 
