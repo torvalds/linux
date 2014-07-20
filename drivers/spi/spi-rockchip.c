@@ -26,7 +26,6 @@
 #include <linux/of.h>
 #include <linux/pm_runtime.h>
 #include <linux/io.h>
-#include <linux/scatterlist.h>
 #include <linux/dmaengine.h>
 
 #define DRIVER_NAME "rockchip-spi"
