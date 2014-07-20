@@ -391,10 +391,6 @@ struct vnt_private {
 	/* command timer */
 	struct delayed_work run_command_work;
 
-	int bChannelSwitch;
-	u8 byNewChannel;
-	u8 byChannelSwitchCount;
-
 	struct ieee80211_low_level_stats low_stats;
 };
 

@@ -83,10 +83,6 @@ static int vnt_cmd_complete(struct vnt_private *priv)
 		priv->command_state = WLAN_CMD_CHANGE_ANTENNA_START;
 		break;
 
-	case WLAN_CMD_11H_CHSW:
-		priv->command_state = WLAN_CMD_11H_CHSW_START;
-		break;
-
 	default:
 		break;
 	}
@@ -161,10 +157,6 @@ void vnt_run_command(struct work_struct *work)
 			else
 				vnt_set_antenna_mode(priv, ANT_RXA);
 		}
-		break;
-
-	case WLAN_CMD_11H_CHSW_START:
-		vnt_set_channel(priv, priv->hw->conf.chandef.chan->hw_value);
 		break;
 
 	default:

@@ -153,14 +153,6 @@ void vnt_int_process_data(struct vnt_private *priv)
 			if (priv->hw->conf.flags & IEEE80211_CONF_PS)
 				vnt_schedule_command(priv,
 							WLAN_CMD_TBTT_WAKEUP);
-#if 0 /* TODO channel switch */
-			if (priv->bChannelSwitch) {
-				priv->byChannelSwitchCount--;
-				if (priv->byChannelSwitchCount == 0)
-					vnt_schedule_command(priv,
-							WLAN_CMD_11H_CHSW);
-			}
-#endif
 		}
 		priv->current_tsf = le64_to_cpu(int_data->tsf);
 
