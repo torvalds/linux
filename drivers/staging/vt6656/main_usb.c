@@ -124,7 +124,7 @@ static void device_set_options(struct vnt_private *priv)
 	priv->bb_type = BBP_TYPE_DEF;
 	priv->packet_type = priv->bb_type;
 	priv->byAutoFBCtrl = AUTO_FB_0;
-	priv->byPreambleType = 0;
+	priv->preamble_type = 0;
 	priv->exist_sw_net_addr = false;
 }
 
@@ -752,10 +752,10 @@ static void vnt_bss_info_changed(struct ieee80211_hw *hw,
 	if (changed & BSS_CHANGED_ERP_PREAMBLE) {
 		if (conf->use_short_preamble) {
 			vnt_mac_enable_barker_preamble_mode(priv);
-			priv->byPreambleType = true;
+			priv->preamble_type = true;
 		} else {
 			vnt_mac_disable_barker_preamble_mode(priv);
-			priv->byPreambleType = false;
+			priv->preamble_type = false;
 		}
 	}
 

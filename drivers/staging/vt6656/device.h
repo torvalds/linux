@@ -338,7 +338,7 @@ struct vnt_private {
 
 	u8 eeprom[EEP_MAX_CONTEXT_SIZE];  /*u32 alignment */
 
-	u8 byPreambleType;
+	u8 preamble_type;
 
 	/* For RF Power table */
 	u8 byCCKPwr;
