@@ -624,7 +624,7 @@ int vnt_rf_write_embedded(struct vnt_private *priv, u32 data)
 int vnt_rf_setpower(struct vnt_private *priv, u32 rate, u32 channel)
 {
 	int ret = true;
-	u8 power = priv->byCCKPwr;
+	u8 power = priv->cck_pwr;
 
 	if (channel == 0)
 		return -EINVAL;
@@ -636,8 +636,8 @@ int vnt_rf_setpower(struct vnt_private *priv, u32 rate, u32 channel)
 	case RATE_11M:
 		channel--;
 
-		if (channel < sizeof(priv->abyCCKPwrTbl))
-			power = priv->abyCCKPwrTbl[channel];
+		if (channel < sizeof(priv->cck_pwr_tbl))
+			power = priv->cck_pwr_tbl[channel];
 		break;
 	case RATE_6M:
 	case RATE_9M:
@@ -647,9 +647,9 @@ int vnt_rf_setpower(struct vnt_private *priv, u32 rate, u32 channel)
 	case RATE_48M:
 	case RATE_54M:
 		if (channel > CB_MAX_CHANNEL_24G)
-			power = priv->abyOFDMAPwrTbl[channel-15];
+			power = priv->ofdm_a_pwr_tbl[channel-15];
 		else
-			power = priv->abyOFDMPwrTbl[channel-1];
+			power = priv->ofdm_pwr_tbl[channel-1];
 		break;
 	}
 
@@ -694,10 +694,10 @@ int vnt_rf_set_txpower(struct vnt_private *priv, u8 power, u32 rate)
 	if (power > VNT_RF_MAX_POWER)
 		power = VNT_RF_MAX_POWER;
 
-	if (priv->byCurPwr == power)
+	if (priv->power == power)
 		return true;
 
-	priv->byCurPwr = power;
+	priv->power = power;
 
 	switch (priv->rf_type) {
 	case RF_AL2230:

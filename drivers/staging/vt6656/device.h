@@ -341,13 +341,13 @@ struct vnt_private {
 	u8 preamble_type;
 
 	/* For RF Power table */
-	u8 byCCKPwr;
-	u8 byOFDMPwrG;
-	u8 byOFDMPwrA;
-	u8 byCurPwr;
-	u8 abyCCKPwrTbl[14];
-	u8 abyOFDMPwrTbl[14];
-	u8 abyOFDMAPwrTbl[42];
+	u8 cck_pwr;
+	u8 ofdm_pwr_g;
+	u8 ofdm_pwr_a;
+	u8 power;
+	u8 cck_pwr_tbl[14];
+	u8 ofdm_pwr_tbl[14];
+	u8 ofdm_a_pwr_tbl[42];
 
 	u16 wCurrentRate;
 	u16 tx_rate_fb0;

@@ -199,21 +199,21 @@ static int device_init_registers(struct vnt_private *priv)
 	priv->top_cck_basic_rate = RATE_1M;
 
 	/* target to IF pin while programming to RF chip */
-	priv->byCurPwr = 0xFF;
+	priv->power = 0xFF;
 
-	priv->byCCKPwr = priv->eeprom[EEP_OFS_PWR_CCK];
-	priv->byOFDMPwrG = priv->eeprom[EEP_OFS_PWR_OFDMG];
+	priv->cck_pwr = priv->eeprom[EEP_OFS_PWR_CCK];
+	priv->ofdm_pwr_g = priv->eeprom[EEP_OFS_PWR_OFDMG];
 	/* load power table */
 	for (ii = 0; ii < 14; ii++) {
-		priv->abyCCKPwrTbl[ii] =
+		priv->cck_pwr_tbl[ii] =
 			priv->eeprom[ii + EEP_OFS_CCK_PWR_TBL];
+		if (priv->cck_pwr_tbl[ii] == 0)
+			priv->cck_pwr_tbl[ii] = priv->cck_pwr;
 
-		if (priv->abyCCKPwrTbl[ii] == 0)
-			priv->abyCCKPwrTbl[ii] = priv->byCCKPwr;
-		priv->abyOFDMPwrTbl[ii] =
+		priv->ofdm_pwr_tbl[ii] =
 				priv->eeprom[ii + EEP_OFS_OFDM_PWR_TBL];
-		if (priv->abyOFDMPwrTbl[ii] == 0)
-			priv->abyOFDMPwrTbl[ii] = priv->byOFDMPwrG;
+		if (priv->ofdm_pwr_tbl[ii] == 0)
+			priv->ofdm_pwr_tbl[ii] = priv->ofdm_pwr_g;
 	}
 
 	/*
@@ -221,19 +221,19 @@ static int device_init_registers(struct vnt_private *priv)
 	 * then need to recover 12, 13, 14 channels with 11 channel
 	 */
 	for (ii = 11; ii < 14; ii++) {
-		priv->abyCCKPwrTbl[ii] = priv->abyCCKPwrTbl[10];
-		priv->abyOFDMPwrTbl[ii] = priv->abyOFDMPwrTbl[10];
+		priv->cck_pwr_tbl[ii] = priv->cck_pwr_tbl[10];
+		priv->ofdm_pwr_tbl[ii] = priv->ofdm_pwr_tbl[10];
 	}
 
-	priv->byOFDMPwrA = 0x34; /* same as RFbMA2829SelectChannel */
+	priv->ofdm_pwr_a = 0x34; /* same as RFbMA2829SelectChannel */
 
 	/* load OFDM A power table */
 	for (ii = 0; ii < CB_MAX_CHANNEL_5G; ii++) {
-		priv->abyOFDMAPwrTbl[ii] =
+		priv->ofdm_a_pwr_tbl[ii] =
 			priv->eeprom[ii + EEP_OFS_OFDMA_PWR_TBL];
 
-		if (priv->abyOFDMAPwrTbl[ii] == 0)
-			priv->abyOFDMAPwrTbl[ii] = priv->byOFDMPwrA;
+		if (priv->ofdm_a_pwr_tbl[ii] == 0)
+			priv->ofdm_a_pwr_tbl[ii] = priv->ofdm_pwr_a;
 	}
 
 	antenna = priv->eeprom[EEP_OFS_ANTENNA];
