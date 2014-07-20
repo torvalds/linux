@@ -6307,6 +6307,7 @@ static int mvpp2_probe(struct platform_device *pdev)
 	port_count = of_get_available_child_count(dn);
 	if (port_count == 0) {
 		dev_err(&pdev->dev, "no ports enabled\n");
+		err = -ENODEV;
 		goto err_gop_clk;
 	}
 
