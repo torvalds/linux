@@ -232,6 +232,7 @@ struct vnt_usb_send_context {
 	struct urb *urb;
 	struct ieee80211_hdr *hdr;
 	unsigned int buf_len;
+	u32 frame_len;
 	u16 tx_hdr_size;
 	u8 type;
 	u8 pkt_no;
