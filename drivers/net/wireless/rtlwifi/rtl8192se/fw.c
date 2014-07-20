@@ -112,13 +112,10 @@ static u8 _rtl92s_firmware_header_map_rftype(struct ieee80211_hw *hw)
 	switch (rtlphy->rf_type) {
 	case RF_1T1R:
 		return 0x11;
-		break;
 	case RF_1T2R:
 		return 0x12;
-		break;
 	case RF_2T2R:
 		return 0x22;
-		break;
 	default:
 		RT_TRACE(rtlpriv, COMP_INIT, DBG_EMERG, "Unknown RF type(%x)\n",
 			 rtlphy->rf_type);
