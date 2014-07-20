@@ -406,7 +406,8 @@ static int orion_spi_probe(struct platform_device *pdev)
 	pm_runtime_set_autosuspend_delay(&pdev->dev, SPI_AUTOSUSPEND_TIMEOUT);
 	pm_runtime_enable(&pdev->dev);
 
-	if (orion_spi_reset(spi) < 0)
+	status = orion_spi_reset(spi);
+	if (status < 0)
 		goto out_rel_pm;
 
 	pm_runtime_mark_last_busy(&pdev->dev);
