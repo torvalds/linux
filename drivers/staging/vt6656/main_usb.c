@@ -742,7 +742,7 @@ static void vnt_bss_info_changed(struct ieee80211_hw *hw,
 
 
 	if (changed & BSS_CHANGED_BASIC_RATES) {
-		priv->wBasicRate = conf->basic_rates;
+		priv->basic_rates = conf->basic_rates;
 
 		vnt_update_top_rates(priv);
 

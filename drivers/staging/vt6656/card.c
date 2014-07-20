@@ -109,7 +109,7 @@ static u16 vnt_get_cck_rate(struct vnt_private *priv, u16 rate_idx)
 	u16 ui = rate_idx;
 
 	while (ui > RATE_1M) {
-		if (priv->wBasicRate & (1 << ui))
+		if (priv->basic_rates & (1 << ui))
 			return ui;
 		ui--;
 	}
@@ -135,7 +135,7 @@ static u16 vnt_get_ofdm_rate(struct vnt_private *priv, u16 rate_idx)
 	u16 ui = rate_idx;
 
 	dev_dbg(&priv->usb->dev, "%s basic rate: %d\n",
-					__func__,  priv->wBasicRate);
+					__func__,  priv->basic_rates);
 
 	if (!vnt_ofdm_min_rate(priv)) {
 		dev_dbg(&priv->usb->dev, "%s (NO OFDM) %d\n",
@@ -146,7 +146,7 @@ static u16 vnt_get_ofdm_rate(struct vnt_private *priv, u16 rate_idx)
 	}
 
 	while (ui > RATE_11M) {
-		if (priv->wBasicRate & (1 << ui)) {
+		if (priv->basic_rates & (1 << ui)) {
 			dev_dbg(&priv->usb->dev, "%s rate: %d\n",
 							__func__, ui);
 			return ui;
@@ -389,7 +389,7 @@ void vnt_update_ifs(struct vnt_private *priv)
 		priv->difs = C_SIFS_BG + 2 * priv->slot;
 
 		for (ii = RATE_54M; ii >= RATE_6M; ii--) {
-			if (priv->wBasicRate & ((u32)(0x1 << ii))) {
+			if (priv->basic_rates & ((u32)(0x1 << ii))) {
 				ofdm_rate = true;
 				break;
 			}
@@ -454,7 +454,7 @@ void vnt_update_top_rates(struct vnt_private *priv)
 
 	/*Determines the highest basic rate.*/
 	for (i = RATE_54M; i >= RATE_6M; i--) {
-		if (priv->wBasicRate & (u16)(1 << i)) {
+		if (priv->basic_rates & (u16)(1 << i)) {
 			top_ofdm = i;
 			break;
 		}
@@ -463,7 +463,7 @@ void vnt_update_top_rates(struct vnt_private *priv)
 	priv->byTopOFDMBasicRate = top_ofdm;
 
 	for (i = RATE_11M;; i--) {
-		if (priv->wBasicRate & (u16)(1 << i)) {
+		if (priv->basic_rates & (u16)(1 << i)) {
 			top_cck = i;
 			break;
 		}
@@ -479,7 +479,7 @@ int vnt_ofdm_min_rate(struct vnt_private *priv)
 	int ii;
 
 	for (ii = RATE_54M; ii >= RATE_6M; ii--) {
-		if ((priv->wBasicRate) & ((u16)(1 << ii)))
+		if ((priv->basic_rates) & ((u16)(1 << ii)))
 			return true;
 	}
 
