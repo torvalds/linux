@@ -1033,6 +1033,44 @@ static ULONG BcmFlashUnProtectBlock(struct bcm_mini_adapter *Adapter, unsigned i
 	return ulStatus;
 }
 
+static int bulk_read_complete_sector(struct bcm_mini_adapter *ad,
+				     UCHAR read_bk[],
+				     PCHAR tmpbuff,
+				     unsigned int offset,
+				     unsigned int partoff,
+				     unsigned int i)
+{
+	unsigned int j;
+	int bulk_read_stat;
+
+	for (i = 0; i < ad->uiSectorSize; i += MAX_RW_SIZE) {
+		bulk_read_stat = BeceemFlashBulkRead(ad,
+						     (PUINT)read_bk,
+						     offset + i,
+						     MAX_RW_SIZE);
+
+		if (bulk_read_stat == STATUS_SUCCESS) {
+			if (ad->ulFlashWriteSize == 1) {
+				for (j = 0; j < 16; j++) {
+					if (read_bk[j] != tmpbuff[i+j]) {
+						if (STATUS_SUCCESS != (*ad->fpFlashWriteWithStatusCheck)(ad, partoff + i + j, &tmpbuff[i+j])) {
+							return STATUS_FAILURE;
+						}
+					}
+				}
+			} else {
+				if (memcmp(read_bk, &tmpbuff[i], MAX_RW_SIZE)) {
+					if (STATUS_SUCCESS != (*ad->fpFlashWriteWithStatusCheck)(ad, partoff + i, &tmpbuff[i])) {
+						return STATUS_FAILURE;
+					}
+				}
+			}
+		}
+	}
+
+	return STATUS_SUCCESS;
+}
+
 /*
  * Procedure:	BeceemFlashBulkWrite
  *
@@ -1169,29 +1207,17 @@ static int BeceemFlashBulkWrite(struct bcm_mini_adapter *Adapter,
 		/* do_gettimeofday(&tw);
 		 * BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0, "Total time taken in Write  to Flash :%ld ms\n", (tw.tv_sec *1000 + tw.tv_usec/1000) - (te.tv_sec *1000 + te.tv_usec/1000));
 		 */
-		for (uiIndex = 0; uiIndex < Adapter->uiSectorSize; uiIndex += MAX_RW_SIZE) {
-			if (STATUS_SUCCESS == BeceemFlashBulkRead(Adapter, (PUINT)ucReadBk, uiOffsetFromSectStart + uiIndex, MAX_RW_SIZE)) {
-				if (Adapter->ulFlashWriteSize == 1) {
-					unsigned int uiReadIndex = 0;
 
-					for (uiReadIndex = 0; uiReadIndex < 16; uiReadIndex++) {
-						if (ucReadBk[uiReadIndex] != pTempBuff[uiIndex + uiReadIndex]) {
-							if (STATUS_SUCCESS != (*Adapter->fpFlashWriteWithStatusCheck)(Adapter, uiPartOffset + uiIndex + uiReadIndex, &pTempBuff[uiIndex+uiReadIndex])) {
-								Status = STATUS_FAILURE;
-								goto BeceemFlashBulkWrite_EXIT;
-							}
-						}
-					}
-				} else {
-					if (memcmp(ucReadBk, &pTempBuff[uiIndex], MAX_RW_SIZE)) {
-						if (STATUS_SUCCESS != (*Adapter->fpFlashWriteWithStatusCheck)(Adapter, uiPartOffset + uiIndex, &pTempBuff[uiIndex])) {
-							Status = STATUS_FAILURE;
-							goto BeceemFlashBulkWrite_EXIT;
-						}
-					}
-				}
-			}
+		if (STATUS_FAILURE == bulk_read_complete_sector(Adapter,
+								ucReadBk,
+								pTempBuff,
+								uiOffsetFromSectStart,
+								uiPartOffset,
+								uiIndex)) {
+			Status = STATUS_FAILURE;
+			goto BeceemFlashBulkWrite_EXIT;
 		}
+
 		/* do_gettimeofday(&twv);
 		 * BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0, "Total time taken in Write  to Flash verification :%ld ms\n", (twv.tv_sec *1000 + twv.tv_usec/1000) - (tw.tv_sec *1000 + tw.tv_usec/1000));
 		 */
