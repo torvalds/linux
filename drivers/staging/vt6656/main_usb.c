@@ -196,7 +196,7 @@ static int device_init_registers(struct vnt_private *priv)
 	/* do MACbSoftwareReset in MACvInitialize */
 
 	priv->top_ofdm_basic_rate = RATE_24M;
-	priv->byTopCCKBasicRate = RATE_1M;
+	priv->top_cck_basic_rate = RATE_1M;
 
 	/* target to IF pin while programming to RF chip */
 	priv->byCurPwr = 0xFF;

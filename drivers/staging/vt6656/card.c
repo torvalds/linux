@@ -471,7 +471,7 @@ void vnt_update_top_rates(struct vnt_private *priv)
 			break;
 	}
 
-	priv->byTopCCKBasicRate = top_cck;
+	priv->top_cck_basic_rate = top_cck;
 }
 
 int vnt_ofdm_min_rate(struct vnt_private *priv)
