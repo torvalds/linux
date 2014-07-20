@@ -118,8 +118,8 @@ static void device_set_options(struct vnt_private *priv)
 	else
 		priv->num_rcb = vnt_rx_buffers;
 
-	priv->byShortRetryLimit = SHORT_RETRY_DEF;
-	priv->byLongRetryLimit = LONG_RETRY_DEF;
+	priv->short_retry_limit = SHORT_RETRY_DEF;
+	priv->long_retry_limit = LONG_RETRY_DEF;
 	priv->op_mode = NL80211_IFTYPE_UNSPECIFIED;
 	priv->bb_type = BBP_TYPE_DEF;
 	priv->packet_type = priv->bb_type;
@@ -166,8 +166,8 @@ static int device_init_registers(struct vnt_private *priv)
 	init_cmd->exist_sw_net_addr = priv->exist_sw_net_addr;
 	for (ii = 0; ii < 6; ii++)
 		init_cmd->sw_net_addr[ii] = priv->current_net_addr[ii];
-	init_cmd->short_retry_limit = priv->byShortRetryLimit;
-	init_cmd->long_retry_limit = priv->byLongRetryLimit;
+	init_cmd->short_retry_limit = priv->short_retry_limit;
+	init_cmd->long_retry_limit = priv->long_retry_limit;
 
 	/* issue card_init command to device */
 	status = vnt_control_out(priv,

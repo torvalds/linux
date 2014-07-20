@@ -353,8 +353,8 @@ struct vnt_private {
 	u16 tx_rate_fb0;
 	u16 tx_rate_fb1;
 
-	u8 byShortRetryLimit;
-	u8 byLongRetryLimit;
+	u8 short_retry_limit;
+	u8 long_retry_limit;
 
 	enum nl80211_iftype op_mode;
 
