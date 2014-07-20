@@ -1051,7 +1051,8 @@ static int pci171x_reset(struct comedi_device *dev)
 	outw(0x30, dev->iobase + PCI171x_CNTCTRL);
 	/* Software trigger, CNT0=external */
 	devpriv->CntrlReg = Control_SW | Control_CNT0;
-	outw(devpriv->CntrlReg, dev->iobase + PCI171x_CONTROL);	/*  reset any operations */
+	/* reset any operations */
+	outw(devpriv->CntrlReg, dev->iobase + PCI171x_CONTROL);
 	outb(0, dev->iobase + PCI171x_CLRFIFO);	/*  clear FIFO */
 	outb(0, dev->iobase + PCI171x_CLRINT);	/*  clear INT request */
 	pci171x_start_pacer(dev, false);
