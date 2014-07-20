@@ -382,7 +382,7 @@ static const struct of_device_id spear13xx_pcie_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, spear13xx_pcie_of_match);
 
-static struct platform_driver spear13xx_pcie_driver = {
+static struct platform_driver spear13xx_pcie_driver __initdata = {
 	.probe		= spear13xx_pcie_probe,
 	.remove		= spear13xx_pcie_remove,
 	.driver = {
