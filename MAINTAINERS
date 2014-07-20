@@ -9708,6 +9708,13 @@ M:	Pierre Ossman <pierre@ossman.eu>
 S:	Maintained
 F:	drivers/mmc/host/wbsd.*
 
+WACOM PROTOCOL 4 SERIAL TABLETS
+M:	Julian Squires <julian@cipht.net>
+M:	Hans de Goede <hdegoede@redhat.com>
+L:	linux-input@vger.kernel.org
+S:	Maintained
+F:	drivers/input/tablet/wacom_serial4.c
+
 WATCHDOG DEVICE DRIVERS
 M:	Wim Van Sebroeck <wim@iguana.be>
 L:	linux-watchdog@vger.kernel.org

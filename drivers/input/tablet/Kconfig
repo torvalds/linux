@@ -89,4 +89,14 @@ config TABLET_USB_WACOM
 	  To compile this driver as a module, choose M here: the
 	  module will be called wacom.
 
+config TABLET_SERIAL_WACOM4
+	tristate "Wacom protocol 4 serial tablet support"
+	select SERIO
+	help
+	  Say Y here if you want to use Wacom protocol 4 serial tablets.
+	  E.g. serial versions of the Cintiq, Graphire or Penpartner.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called wacom_serial4.
+
 endif
