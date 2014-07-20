@@ -386,7 +386,7 @@ struct vnt_private {
 	u8 bb_vga[BB_VGA_LEVEL];
 
 	u8 bb_pre_ed_rssi;
-	u8 byBBPreEDIndex;
+	u8 bb_pre_ed_index;
 
 	/* command timer */
 	struct delayed_work run_command_work;

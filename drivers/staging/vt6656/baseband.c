@@ -568,7 +568,7 @@ void vnt_exit_deep_sleep(struct vnt_private *priv)
 void vnt_update_pre_ed_threshold(struct vnt_private *priv, int scanning)
 {
 	u8 cr_201 = 0x0, cr_206 = 0x0;
-	u8 ed_inx = priv->byBBPreEDIndex;
+	u8 ed_inx = priv->bb_pre_ed_index;
 
 	switch (priv->rf_type) {
 	case RF_AL2230:
@@ -816,10 +816,10 @@ void vnt_update_pre_ed_threshold(struct vnt_private *priv, int scanning)
 
 	}
 
-	if (ed_inx == priv->byBBPreEDIndex && !scanning)
+	if (ed_inx == priv->bb_pre_ed_index && !scanning)
 		return;
 
-	priv->byBBPreEDIndex = ed_inx;
+	priv->bb_pre_ed_index = ed_inx;
 
 	dev_dbg(&priv->usb->dev, "%s bb_pre_ed_rssi %d\n",
 					__func__, priv->bb_pre_ed_rssi);
