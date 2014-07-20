@@ -331,7 +331,7 @@ struct vnt_private {
 
 	/* Rate */
 	u8 bb_type; /* 0: 11A, 1:11B, 2:11G */
-	u8 byPacketType; /* 0:11a 1:11b 2:11gb 3:11ga */
+	u8 packet_type; /* 0:11a 1:11b 2:11gb 3:11ga */
 	u32 wBasicRate;
 	u8 byTopOFDMBasicRate;
 	u8 byTopCCKBasicRate;

@@ -365,12 +365,12 @@ void vnt_update_ifs(struct vnt_private *priv)
 	u8 max_min = 0;
 	u8 data[4];
 
-	if (priv->byPacketType == PK_TYPE_11A) {
+	if (priv->packet_type == PK_TYPE_11A) {
 		priv->slot = C_SLOT_SHORT;
 		priv->sifs = C_SIFS_A;
 		priv->difs = C_SIFS_A + 2 * C_SLOT_SHORT;
 		max_min = 4;
-	} else if (priv->byPacketType == PK_TYPE_11B) {
+	} else if (priv->packet_type == PK_TYPE_11B) {
 		priv->slot = C_SLOT_LONG;
 		priv->sifs = C_SIFS_BG;
 		priv->difs = C_SIFS_BG + 2 * C_SLOT_LONG;
@@ -793,7 +793,7 @@ void vnt_set_bss_mode(struct vnt_private *priv)
 	else
 		vnt_mac_set_bb_type(priv, priv->bb_type);
 
-	priv->byPacketType = vnt_get_pkt_type(priv);
+	priv->packet_type = vnt_get_pkt_type(priv);
 
 	if (priv->bb_type == BB_TYPE_11A)
 		vnt_control_out_u8(priv, MESSAGE_REQUEST_BBREG, 0x88, 0x03);

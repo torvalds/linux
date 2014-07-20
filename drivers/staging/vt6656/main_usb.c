@@ -122,7 +122,7 @@ static void device_set_options(struct vnt_private *priv)
 	priv->byLongRetryLimit = LONG_RETRY_DEF;
 	priv->op_mode = NL80211_IFTYPE_UNSPECIFIED;
 	priv->bb_type = BBP_TYPE_DEF;
-	priv->byPacketType = priv->bb_type;
+	priv->packet_type = priv->bb_type;
 	priv->byAutoFBCtrl = AUTO_FB_0;
 	priv->byPreambleType = 0;
 	priv->exist_sw_net_addr = false;
@@ -142,7 +142,7 @@ static int device_init_registers(struct vnt_private *priv)
 	u8 calib_tx_iq = 0, calib_tx_dc = 0, calib_rx_iq = 0;
 
 	dev_dbg(&priv->usb->dev, "---->INIbInitAdapter. [%d][%d]\n",
-				DEVICE_INIT_COLD, priv->byPacketType);
+				DEVICE_INIT_COLD, priv->packet_type);
 
 	if (!vnt_check_firmware_version(priv)) {
 		if (vnt_download_firmware(priv) == true) {

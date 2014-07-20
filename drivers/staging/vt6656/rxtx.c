@@ -771,7 +771,7 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 	}
 
 	if (current_rate > RATE_11M)
-		pkt_type = priv->byPacketType;
+		pkt_type = priv->packet_type;
 	else
 		pkt_type = PK_TYPE_11B;
 
