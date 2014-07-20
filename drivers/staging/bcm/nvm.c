@@ -1049,20 +1049,21 @@ static int bulk_read_complete_sector(struct bcm_mini_adapter *ad,
 						     offset + i,
 						     MAX_RW_SIZE);
 
-		if (bulk_read_stat == STATUS_SUCCESS) {
-			if (ad->ulFlashWriteSize == 1) {
-				for (j = 0; j < 16; j++) {
-					if (read_bk[j] != tmpbuff[i+j]) {
-						if (STATUS_SUCCESS != (*ad->fpFlashWriteWithStatusCheck)(ad, partoff + i + j, &tmpbuff[i+j])) {
-							return STATUS_FAILURE;
-						}
-					}
-				}
-			} else {
-				if (memcmp(read_bk, &tmpbuff[i], MAX_RW_SIZE)) {
-					if (STATUS_SUCCESS != (*ad->fpFlashWriteWithStatusCheck)(ad, partoff + i, &tmpbuff[i])) {
+		if (bulk_read_stat != STATUS_SUCCESS)
+			continue;
+
+		if (ad->ulFlashWriteSize == 1) {
+			for (j = 0; j < 16; j++) {
+				if (read_bk[j] != tmpbuff[i+j]) {
+					if (STATUS_SUCCESS != (*ad->fpFlashWriteWithStatusCheck)(ad, partoff + i + j, &tmpbuff[i+j])) {
 						return STATUS_FAILURE;
 					}
+				}
+			}
+		} else {
+			if (memcmp(read_bk, &tmpbuff[i], MAX_RW_SIZE)) {
+				if (STATUS_SUCCESS != (*ad->fpFlashWriteWithStatusCheck)(ad, partoff + i, &tmpbuff[i])) {
+					return STATUS_FAILURE;
 				}
 			}
 		}
