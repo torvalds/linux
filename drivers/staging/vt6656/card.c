@@ -460,7 +460,7 @@ void vnt_update_top_rates(struct vnt_private *priv)
 		}
 	}
 
-	priv->byTopOFDMBasicRate = top_ofdm;
+	priv->top_ofdm_basic_rate = top_ofdm;
 
 	for (i = RATE_11M;; i--) {
 		if (priv->basic_rates & (u16)(1 << i)) {

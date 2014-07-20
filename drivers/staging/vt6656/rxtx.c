@@ -122,7 +122,7 @@ static u32 vnt_get_rsvtime(struct vnt_private *priv, u8 pkt_type,
 					14, (u16)priv->byTopCCKBasicRate);
 	else
 		ack_time = vnt_get_frame_time(priv->byPreambleType, pkt_type,
-					14, (u16)priv->byTopOFDMBasicRate);
+					14, (u16)priv->top_ofdm_basic_rate);
 
 	if (need_ack)
 		return data_time + priv->sifs + ack_time;
@@ -158,17 +158,17 @@ static __le16 vnt_get_rtscts_rsvtime_le(struct vnt_private *priv,
 		cts_time = vnt_get_frame_time(priv->byPreambleType, pkt_type,
 			14, priv->byTopCCKBasicRate);
 		ack_time = vnt_get_frame_time(priv->byPreambleType, pkt_type,
-			14, priv->byTopOFDMBasicRate);
+			14, priv->top_ofdm_basic_rate);
 	} else if (rsv_type == 2) {
 		rts_time = vnt_get_frame_time(priv->byPreambleType, pkt_type,
-			20, priv->byTopOFDMBasicRate);
+			20, priv->top_ofdm_basic_rate);
 		cts_time = ack_time = vnt_get_frame_time(priv->byPreambleType,
-			pkt_type, 14, priv->byTopOFDMBasicRate);
+			pkt_type, 14, priv->top_ofdm_basic_rate);
 	} else if (rsv_type == 3) {
 		cts_time = vnt_get_frame_time(priv->byPreambleType, pkt_type,
 			14, priv->byTopCCKBasicRate);
 		ack_time = vnt_get_frame_time(priv->byPreambleType, pkt_type,
-			14, priv->byTopOFDMBasicRate);
+			14, priv->top_ofdm_basic_rate);
 
 		rrv_time = cts_time + ack_time + data_time + 2 * priv->sifs;
 
@@ -191,7 +191,7 @@ static __le16 vnt_get_duration_le(struct vnt_private *piv,
 				pkt_type, 14, piv->byTopCCKBasicRate);
 		else
 			ack_time = vnt_get_frame_time(piv->byPreambleType,
-				pkt_type, 14, piv->byTopOFDMBasicRate);
+				pkt_type, 14, piv->top_ofdm_basic_rate);
 
 		return cpu_to_le16((u16)(piv->sifs + ack_time));
 	}
@@ -220,7 +220,7 @@ static __le16 vnt_get_rtscts_duration_le(struct vnt_private *priv, u8 dur_type,
 	case RTSDUR_AA_F0:
 	case RTSDUR_AA_F1:
 		cts_time = vnt_get_frame_time(priv->byPreambleType,
-				pkt_type, 14, priv->byTopOFDMBasicRate);
+				pkt_type, 14, priv->top_ofdm_basic_rate);
 		dur_time = cts_time + 2 * priv->sifs +
 			vnt_get_rsvtime(priv, pkt_type,
 						frame_length, rate, need_ack);
@@ -390,7 +390,7 @@ static u16 vnt_rxtx_rts_g_head(struct vnt_usb_send_context *tx_context,
 	vnt_get_phy_field(priv, rts_frame_len, priv->byTopCCKBasicRate,
 		PK_TYPE_11B, &buf->b);
 	vnt_get_phy_field(priv, rts_frame_len,
-		priv->byTopOFDMBasicRate, pkt_type, &buf->a);
+		priv->top_ofdm_basic_rate, pkt_type, &buf->a);
 
 	buf->duration_bb = vnt_get_rtscts_duration_le(priv, RTSDUR_BB,
 		frame_len, PK_TYPE_11B, priv->byTopCCKBasicRate, need_ack);
@@ -415,7 +415,7 @@ static u16 vnt_rxtx_rts_g_fb_head(struct vnt_usb_send_context *tx_context,
 	vnt_get_phy_field(priv, rts_frame_len, priv->byTopCCKBasicRate,
 		PK_TYPE_11B, &buf->b);
 	vnt_get_phy_field(priv, rts_frame_len,
-		priv->byTopOFDMBasicRate, pkt_type, &buf->a);
+		priv->top_ofdm_basic_rate, pkt_type, &buf->a);
 
 
 	buf->duration_bb = vnt_get_rtscts_duration_le(priv, RTSDUR_BB,
@@ -449,7 +449,7 @@ static u16 vnt_rxtx_rts_ab_head(struct vnt_usb_send_context *tx_context,
 	u16 rts_frame_len = 20;
 
 	vnt_get_phy_field(priv, rts_frame_len,
-		priv->byTopOFDMBasicRate, pkt_type, &buf->ab);
+		priv->top_ofdm_basic_rate, pkt_type, &buf->ab);
 
 	buf->duration = vnt_get_rtscts_duration_le(priv, RTSDUR_AA, frame_len,
 		pkt_type, current_rate, need_ack);
@@ -468,7 +468,7 @@ static u16 vnt_rxtx_rts_a_fb_head(struct vnt_usb_send_context *tx_context,
 	u16 rts_frame_len = 20;
 
 	vnt_get_phy_field(priv, rts_frame_len,
-		priv->byTopOFDMBasicRate, pkt_type, &buf->a);
+		priv->top_ofdm_basic_rate, pkt_type, &buf->a);
 
 	buf->duration = vnt_get_rtscts_duration_le(priv, RTSDUR_AA, frame_len,
 		pkt_type, current_rate, need_ack);

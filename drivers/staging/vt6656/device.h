@@ -333,7 +333,7 @@ struct vnt_private {
 	u8 bb_type; /* 0: 11A, 1:11B, 2:11G */
 	u8 packet_type; /* 0:11a 1:11b 2:11gb 3:11ga */
 	u32 basic_rates;
-	u8 byTopOFDMBasicRate;
+	u8 top_ofdm_basic_rate;
 	u8 byTopCCKBasicRate;
 
 	u8 abyEEPROM[EEP_MAX_CONTEXT_SIZE];  /*u32 alignment */
