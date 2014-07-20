@@ -600,7 +600,6 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	rs->regs = devm_ioremap_resource(&pdev->dev, mem);
 	if (IS_ERR(rs->regs)) {
-		dev_err(&pdev->dev, "Failed to map SPI region\n");
 		ret =  PTR_ERR(rs->regs);
 		goto err_ioremap_resource;
 	}
