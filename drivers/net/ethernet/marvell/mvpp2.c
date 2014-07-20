@@ -6062,7 +6062,6 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 	port->base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(port->base)) {
 		err = PTR_ERR(port->base);
-		dev_err(&pdev->dev, "cannot obtain port base address\n");
 		goto err_free_irq;
 	}
 
