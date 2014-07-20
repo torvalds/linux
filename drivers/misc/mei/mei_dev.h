@@ -227,7 +227,6 @@ struct mei_cl {
 
 /** struct mei_hw_ops
  *
- * @fw_status        - read FW status from PCI config space
  * @host_is_ready    - query for host readiness
 
  * @hw_is_ready      - query if hw is ready
@@ -255,8 +254,6 @@ struct mei_cl {
  */
 struct mei_hw_ops {
 
-	int (*fw_status)(struct mei_device *dev,
-		struct mei_fw_status *fw_status);
 	bool (*host_is_ready)(struct mei_device *dev);
 
 	bool (*hw_is_ready)(struct mei_device *dev);
