@@ -75,6 +75,20 @@ void machine_power_off(void)
 	__asm__("l.nop 1");
 }
 
+/*
+ * Send the doze signal to the cpu if available.
+ * Make sure, that all interrupts are enabled
+ */
+void arch_cpu_idle(void)
+{
+	unsigned long upr;
+
+	local_irq_enable();
+	upr = mfspr(SPR_UPR);
+	if (upr & SPR_UPR_PMP)
+		mtspr(SPR_PMR, mfspr(SPR_PMR) | SPR_PMR_DME);
+}
+
 void (*pm_power_off) (void) = machine_power_off;
 
 /*
