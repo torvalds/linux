@@ -1846,10 +1846,8 @@ static int r8a66597_sudmac_ioremap(struct r8a66597 *r8a66597,
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "sudmac");
 	r8a66597->sudmac_reg = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(r8a66597->sudmac_reg)) {
-		dev_err(&pdev->dev, "ioremap error(sudmac).\n");
+	if (IS_ERR(r8a66597->sudmac_reg))
 		return PTR_ERR(r8a66597->sudmac_reg);
-	}
 
 	return 0;
 }
