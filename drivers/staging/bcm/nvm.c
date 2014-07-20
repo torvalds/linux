@@ -2,35 +2,52 @@
 
 #define DWORD unsigned int
 
-static int BcmDoChipSelect(struct bcm_mini_adapter *Adapter, unsigned int offset);
+static int BcmDoChipSelect(struct bcm_mini_adapter *Adapter,
+			   unsigned int offset);
 static int BcmGetActiveDSD(struct bcm_mini_adapter *Adapter);
 static int BcmGetActiveISO(struct bcm_mini_adapter *Adapter);
 static unsigned int BcmGetEEPROMSize(struct bcm_mini_adapter *Adapter);
 static int BcmGetFlashCSInfo(struct bcm_mini_adapter *Adapter);
-static unsigned int BcmGetFlashSectorSize(struct bcm_mini_adapter *Adapter, unsigned int FlashSectorSizeSig, unsigned int FlashSectorSize);
+static unsigned int BcmGetFlashSectorSize(struct bcm_mini_adapter *Adapter,
+					  unsigned int FlashSectorSizeSig,
+					  unsigned int FlashSectorSize);
 
 static VOID BcmValidateNvmType(struct bcm_mini_adapter *Adapter);
 static int BcmGetNvmSize(struct bcm_mini_adapter *Adapter);
 static unsigned int BcmGetFlashSize(struct bcm_mini_adapter *Adapter);
 static enum bcm_nvm_type BcmGetNvmType(struct bcm_mini_adapter *Adapter);
 
-static int BcmGetSectionValEndOffset(struct bcm_mini_adapter *Adapter, enum bcm_flash2x_section_val eFlash2xSectionVal);
+static int BcmGetSectionValEndOffset(struct bcm_mini_adapter *Adapter,
+				     enum bcm_flash2x_section_val eFlash2xSectionVal);
 
-static B_UINT8 IsOffsetWritable(struct bcm_mini_adapter *Adapter, unsigned int uiOffset);
-static int IsSectionWritable(struct bcm_mini_adapter *Adapter, enum bcm_flash2x_section_val Section);
-static int IsSectionExistInVendorInfo(struct bcm_mini_adapter *Adapter, enum bcm_flash2x_section_val section);
+static B_UINT8 IsOffsetWritable(struct bcm_mini_adapter *Adapter,
+				unsigned int uiOffset);
+static int IsSectionWritable(struct bcm_mini_adapter *Adapter,
+			     enum bcm_flash2x_section_val Section);
+static int IsSectionExistInVendorInfo(struct bcm_mini_adapter *Adapter,
+				      enum bcm_flash2x_section_val section);
 
-static int ReadDSDPriority(struct bcm_mini_adapter *Adapter, enum bcm_flash2x_section_val dsd);
-static int ReadDSDSignature(struct bcm_mini_adapter *Adapter, enum bcm_flash2x_section_val dsd);
-static int ReadISOPriority(struct bcm_mini_adapter *Adapter, enum bcm_flash2x_section_val iso);
-static int ReadISOSignature(struct bcm_mini_adapter *Adapter, enum bcm_flash2x_section_val iso);
+static int ReadDSDPriority(struct bcm_mini_adapter *Adapter,
+			   enum bcm_flash2x_section_val dsd);
+static int ReadDSDSignature(struct bcm_mini_adapter *Adapter,
+			    enum bcm_flash2x_section_val dsd);
+static int ReadISOPriority(struct bcm_mini_adapter *Adapter,
+			   enum bcm_flash2x_section_val iso);
+static int ReadISOSignature(struct bcm_mini_adapter *Adapter,
+			    enum bcm_flash2x_section_val iso);
 
-static int CorruptDSDSig(struct bcm_mini_adapter *Adapter, enum bcm_flash2x_section_val eFlash2xSectionVal);
-static int CorruptISOSig(struct bcm_mini_adapter *Adapter, enum bcm_flash2x_section_val eFlash2xSectionVal);
-static int SaveHeaderIfPresent(struct bcm_mini_adapter *Adapter, PUCHAR pBuff, unsigned int uiSectAlignAddr);
-static int WriteToFlashWithoutSectorErase(struct bcm_mini_adapter *Adapter, PUINT pBuff,
-					enum bcm_flash2x_section_val eFlash2xSectionVal,
-					unsigned int uiOffset, unsigned int uiNumBytes);
+static int CorruptDSDSig(struct bcm_mini_adapter *Adapter,
+			 enum bcm_flash2x_section_val eFlash2xSectionVal);
+static int CorruptISOSig(struct bcm_mini_adapter *Adapter,
+			 enum bcm_flash2x_section_val eFlash2xSectionVal);
+static int SaveHeaderIfPresent(struct bcm_mini_adapter *Adapter,
+			       PUCHAR pBuff,
+			       unsigned int uiSectAlignAddr);
+static int WriteToFlashWithoutSectorErase(struct bcm_mini_adapter *Adapter,
+					  PUINT pBuff,
+					  enum bcm_flash2x_section_val eFlash2xSectionVal,
+					  unsigned int uiOffset,
+					  unsigned int uiNumBytes);
 static enum bcm_flash2x_section_val getHighestPriDSD(struct bcm_mini_adapter *Adapter);
 static enum bcm_flash2x_section_val getHighestPriISO(struct bcm_mini_adapter *Adapter);
 
@@ -3492,11 +3509,10 @@ int BcmCopyISO(struct bcm_mini_adapter *Adapter, struct bcm_flash2x_copy_section
 		return STATUS_FAILURE;
 	}
 
-	Status = BcmFlash2xBulkRead(Adapter,
-				&ISOLength,
-				sCopySectStrut.SrcSection,
-				0 + FIELD_OFFSET_IN_HEADER(struct bcm_iso_header *, ISOImageSize),
-				4);
+	Status = BcmFlash2xBulkRead(Adapter, &ISOLength,
+				    sCopySectStrut.SrcSection,
+				    0 + FIELD_OFFSET_IN_HEADER(struct bcm_iso_header *, ISOImageSize),
+				    4);
 	if (Status) {
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Read failed while copying ISO\n");
 		return Status;
