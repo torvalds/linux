@@ -19,6 +19,7 @@
 
 #include <linux/pagemap.h>
 #include <linux/vfs.h>
+#include <linux/falloc.h>
 #include "cifsglob.h"
 #include "smb2pdu.h"
 #include "smb2proto.h"
@@ -736,7 +737,7 @@ smb2_set_file_size(const unsigned int xid, struct cifs_tcon *tcon,
 {
 	__le64 eof = cpu_to_le64(size);
 	return SMB2_set_eof(xid, tcon, cfile->fid.persistent_fid,
-			    cfile->fid.volatile_fid, cfile->pid, &eof);
+			    cfile->fid.volatile_fid, cfile->pid, &eof, false);
 }
 
 static int
