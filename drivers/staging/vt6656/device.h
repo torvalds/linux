@@ -385,7 +385,7 @@ struct vnt_private {
 	/* For Update BaseBand VGA Gain Offset */
 	u8 bb_vga[BB_VGA_LEVEL];
 
-	u8 byBBPreEDRSSI;
+	u8 bb_pre_ed_rssi;
 	u8 byBBPreEDIndex;
 
 	/* command timer */
