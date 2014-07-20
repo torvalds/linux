@@ -342,9 +342,9 @@ static int device_init_registers(struct vnt_private *priv)
 	* set Short Slot Time, xIFS, and RSPINF
 	*/
 	if (priv->bb_type == BB_TYPE_11A)
-		priv->bShortSlotTime = true;
+		priv->short_slot_time = true;
 	else
-		priv->bShortSlotTime = false;
+		priv->short_slot_time = false;
 
 	vnt_set_short_slot_time(priv);
 
@@ -768,9 +768,9 @@ static void vnt_bss_info_changed(struct ieee80211_hw *hw,
 
 	if (changed & BSS_CHANGED_ERP_SLOT) {
 		if (conf->use_short_slot)
-			priv->bShortSlotTime = true;
+			priv->short_slot_time = true;
 		else
-			priv->bShortSlotTime = false;
+			priv->short_slot_time = false;
 
 		vnt_set_short_slot_time(priv);
 		vnt_set_vga_gain_offset(priv, priv->abyBBVGA[0]);

@@ -381,7 +381,7 @@ void vnt_update_ifs(struct vnt_private *priv)
 
 		priv->sifs = C_SIFS_BG;
 
-		if (priv->bShortSlotTime)
+		if (priv->short_slot_time)
 			priv->slot = C_SLOT_SHORT;
 		else
 			priv->slot = C_SLOT_LONG;

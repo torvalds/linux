@@ -526,7 +526,7 @@ void vnt_set_short_slot_time(struct vnt_private *priv)
 {
 	u8 bb_vga = 0;
 
-	if (priv->bShortSlotTime)
+	if (priv->short_slot_time)
 		priv->bb_rx_conf &= 0xdf;
 	else
 		priv->bb_rx_conf |= 0x20;
@@ -545,7 +545,7 @@ void vnt_set_vga_gain_offset(struct vnt_private *priv, u8 data)
 	vnt_control_out_u8(priv, MESSAGE_REQUEST_BBREG, 0xE7, data);
 
 	/* patch for 3253B0 Baseband with Cardbus module */
-	if (priv->bShortSlotTime)
+	if (priv->short_slot_time)
 		priv->bb_rx_conf &= 0xdf; /* 1101 1111 */
 	else
 		priv->bb_rx_conf |= 0x20; /* 0010 0000 */

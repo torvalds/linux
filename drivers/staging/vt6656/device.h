@@ -358,7 +358,7 @@ struct vnt_private {
 
 	enum nl80211_iftype op_mode;
 
-	int bShortSlotTime;
+	int short_slot_time;
 	int bBarkerPreambleMd;
 
 	/* Power save */
