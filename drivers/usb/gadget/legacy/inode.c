@@ -440,7 +440,7 @@ ep_write (struct file *fd, const char __user *buf, size_t len, loff_t *ptr)
 
 	value = -ENOMEM;
 	kbuf = memdup_user(buf, len);
-	if (!kbuf) {
+	if (IS_ERR(kbuf)) {
 		value = PTR_ERR(kbuf);
 		goto free1;
 	}
