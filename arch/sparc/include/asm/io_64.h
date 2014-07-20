@@ -9,10 +9,6 @@
 #include <asm/asi.h>
 #include <asm-generic/pci_iomap.h>
 
-/* PC crapola... */
-#define __SLOW_DOWN_IO	do { } while (0)
-#define SLOW_DOWN_IO	do { } while (0)
-
 /* BIO layer definitions. */
 extern unsigned long kern_base, kern_size;
 
