@@ -187,67 +187,37 @@ static inline void writeq(u64 q, volatile void __iomem *addr)
 #define inb inb
 static inline u8 inb(unsigned long addr)
 {
-	u8 ret;
-
-	__asm__ __volatile__("lduba\t[%1] %2, %0\t/* pci_inb */"
-			     : "=r" (ret)
-			     : "r" (addr), "i" (ASI_PHYS_BYPASS_EC_E_L)
-			     : "memory");
-
-	return ret;
+	return readb((volatile void __iomem *)addr);
 }
 
 #define inw inw
 static inline u16 inw(unsigned long addr)
 {
-	u16 ret;
-
-	__asm__ __volatile__("lduha\t[%1] %2, %0\t/* pci_inw */"
-			     : "=r" (ret)
-			     : "r" (addr), "i" (ASI_PHYS_BYPASS_EC_E_L)
-			     : "memory");
-
-	return ret;
+	return readw((volatile void __iomem *)addr);
 }
 
 #define inl inl
 static inline u32 inl(unsigned long addr)
 {
-	u32 ret;
-
-	__asm__ __volatile__("lduwa\t[%1] %2, %0\t/* pci_inl */"
-			     : "=r" (ret)
-			     : "r" (addr), "i" (ASI_PHYS_BYPASS_EC_E_L)
-			     : "memory");
-
-	return ret;
+	return readl((volatile void __iomem *)addr);
 }
 
 #define outb outb
 static inline void outb(u8 b, unsigned long addr)
 {
-	__asm__ __volatile__("stba\t%r0, [%1] %2\t/* pci_outb */"
-			     : /* no outputs */
-			     : "Jr" (b), "r" (addr), "i" (ASI_PHYS_BYPASS_EC_E_L)
-			     : "memory");
+	writeb(b, (volatile void __iomem *)addr);
 }
 
 #define outw outw
 static inline void outw(u16 w, unsigned long addr)
 {
-	__asm__ __volatile__("stha\t%r0, [%1] %2\t/* pci_outw */"
-			     : /* no outputs */
-			     : "Jr" (w), "r" (addr), "i" (ASI_PHYS_BYPASS_EC_E_L)
-			     : "memory");
+	writew(w, (volatile void __iomem *)addr);
 }
 
 #define outl outl
 static inline void outl(u32 l, unsigned long addr)
 {
-	__asm__ __volatile__("stwa\t%r0, [%1] %2\t/* pci_outl */"
-			     : /* no outputs */
-			     : "Jr" (l), "r" (addr), "i" (ASI_PHYS_BYPASS_EC_E_L)
-			     : "memory");
+	writel(l, (volatile void __iomem *)addr);
 }
 
 
@@ -309,82 +279,42 @@ static inline void iowrite32_rep(void __iomem *port, const void *buf, unsigned l
  */
 static inline u8 sbus_readb(const volatile void __iomem *addr)
 {
-	u8 ret;
-
-	__asm__ __volatile__("lduba\t[%1] %2, %0\t/* sbus_readb */"
-			     : "=r" (ret)
-			     : "r" (addr), "i" (ASI_PHYS_BYPASS_EC_E)
-			     : "memory");
-
-	return ret;
+	return __raw_readb(addr);
 }
 
 static inline u16 sbus_readw(const volatile void __iomem *addr)
 {
-	u16 ret;
-
-	__asm__ __volatile__("lduha\t[%1] %2, %0\t/* sbus_readw */"
-			     : "=r" (ret)
-			     : "r" (addr), "i" (ASI_PHYS_BYPASS_EC_E)
-			     : "memory");
-
-	return ret;
+	return __raw_readw(addr);
 }
 
 static inline u32 sbus_readl(const volatile void __iomem *addr)
 {
-	u32 ret;
-
-	__asm__ __volatile__("lduwa\t[%1] %2, %0\t/* sbus_readl */"
-			     : "=r" (ret)
-			     : "r" (addr), "i" (ASI_PHYS_BYPASS_EC_E)
-			     : "memory");
-
-	return ret;
+	return __raw_readl(addr);
 }
 
 static inline u64 sbus_readq(const volatile void __iomem *addr)
 {
-	u64 ret;
-
-	__asm__ __volatile__("ldxa\t[%1] %2, %0\t/* sbus_readq */"
-			     : "=r" (ret)
-			     : "r" (addr), "i" (ASI_PHYS_BYPASS_EC_E)
-			     : "memory");
-
-	return ret;
+	return __raw_readq(addr);
 }
 
 static inline void sbus_writeb(u8 b, volatile void __iomem *addr)
 {
-	__asm__ __volatile__("stba\t%r0, [%1] %2\t/* sbus_writeb */"
-			     : /* no outputs */
-			     : "Jr" (b), "r" (addr), "i" (ASI_PHYS_BYPASS_EC_E)
-			     : "memory");
+	__raw_writeb(b, addr);
 }
 
 static inline void sbus_writew(u16 w, volatile void __iomem *addr)
 {
-	__asm__ __volatile__("stha\t%r0, [%1] %2\t/* sbus_writew */"
-			     : /* no outputs */
-			     : "Jr" (w), "r" (addr), "i" (ASI_PHYS_BYPASS_EC_E)
-			     : "memory");
+	__raw_writew(w, addr);
 }
 
 static inline void sbus_writel(u32 l, volatile void __iomem *addr)
 {
-	__asm__ __volatile__("stwa\t%r0, [%1] %2\t/* sbus_writel */"
-			     : /* no outputs */
-			     : "Jr" (l), "r" (addr), "i" (ASI_PHYS_BYPASS_EC_E)
-			     : "memory");
+	__raw_writel(l, addr);
 }
 
-static inline void sbus_writeq(u64 l, volatile void __iomem *addr)
+static inline void sbus_writeq(u64 q, volatile void __iomem *addr)
 {
-	__asm__ __volatile__("stxa\t%r0, [%1] %2\t/* sbus_writeq */"
-			     : /* no outputs */
-			     : "Jr" (l), "r" (addr), "i" (ASI_PHYS_BYPASS_EC_E)
-			     : "memory");
+	__raw_writeq(q, addr);
 }
 
 static inline void sbus_memset_io(volatile void __iomem *dst, int c, __kernel_size_t n)
