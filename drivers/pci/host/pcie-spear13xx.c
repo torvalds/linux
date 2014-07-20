@@ -365,17 +365,6 @@ fail_clk:
 	return ret;
 }
 
-static int __exit spear13xx_pcie_remove(struct platform_device *pdev)
-{
-	struct spear13xx_pcie *spear13xx_pcie = platform_get_drvdata(pdev);
-
-	clk_disable_unprepare(spear13xx_pcie->clk);
-
-	phy_exit(spear13xx_pcie->phy);
-
-	return 0;
-}
-
 static const struct of_device_id spear13xx_pcie_of_match[] = {
 	{ .compatible = "st,spear1340-pcie", },
 	{},
@@ -384,7 +373,6 @@ MODULE_DEVICE_TABLE(of, spear13xx_pcie_of_match);
 
 static struct platform_driver spear13xx_pcie_driver __initdata = {
 	.probe		= spear13xx_pcie_probe,
-	.remove		= spear13xx_pcie_remove,
 	.driver = {
 		.name	= "spear-pcie",
 		.owner	= THIS_MODULE,
