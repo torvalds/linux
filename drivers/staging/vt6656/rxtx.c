@@ -914,7 +914,7 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 				tx_key, skb, tx_body_size, mic_hdr);
 	}
 
-	priv->wSeqCounter = (le16_to_cpu(hdr->seq_ctrl) &
+	priv->seq_counter = (le16_to_cpu(hdr->seq_ctrl) &
 						IEEE80211_SCTL_SEQ) >> 4;
 
 	tx_buffer->tx_byte_count = cpu_to_le16(tx_bytes);
@@ -1004,12 +1004,12 @@ static int vnt_beacon_xmit(struct vnt_private *priv,
 	if (info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ) {
 		struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)mgmt_hdr;
 		hdr->duration_id = 0;
-		hdr->seq_ctrl = cpu_to_le16(priv->wSeqCounter << 4);
+		hdr->seq_ctrl = cpu_to_le16(priv->seq_counter << 4);
 	}
 
-	priv->wSeqCounter++;
-	if (priv->wSeqCounter > 0x0fff)
-		priv->wSeqCounter = 0;
+	priv->seq_counter++;
+	if (priv->seq_counter > 0x0fff)
+		priv->seq_counter = 0;
 
 	count = sizeof(struct vnt_tx_short_buf_head) + skb->len;
 
