@@ -1060,7 +1060,7 @@ static int pci171x_reset(struct comedi_device *dev)
 	if (this_board->n_aochan) {
 		/* set DACs to 0..5V */
 		outb(devpriv->da_ranges, dev->iobase + PCI171x_DAREF);
-		outw(0, dev->iobase + PCI171x_DA1);	/*  set DA outputs to 0V */
+		outw(0, dev->iobase + PCI171x_DA1); /* set DA outputs to 0V */
 		devpriv->ao_data[0] = 0x0000;
 		if (this_board->n_aochan > 1) {
 			outw(0, dev->iobase + PCI171x_DA2);
