@@ -635,7 +635,8 @@ void tipc_sk_mcast_rcv(struct sk_buff *buf)
  * Returns 0 (TIPC_OK) if message was consumed, 1 (TIPC_FWD_MSG) if
  * (CONN_PROBE_REPLY) message should be forwarded.
  */
-int tipc_sk_proto_rcv(struct tipc_sock *tsk, u32 *dnode, struct sk_buff *buf)
+static int tipc_sk_proto_rcv(struct tipc_sock *tsk, u32 *dnode,
+			     struct sk_buff *buf)
 {
 	struct tipc_msg *msg = buf_msg(buf);
 	struct tipc_port *port = &tsk->port;
@@ -2068,7 +2069,7 @@ static int tipc_getsockopt(struct socket *sock, int lvl, int opt,
 	return put_user(sizeof(value), ol);
 }
 
-int tipc_ioctl(struct socket *sk, unsigned int cmd, unsigned long arg)
+static int tipc_ioctl(struct socket *sk, unsigned int cmd, unsigned long arg)
 {
 	struct tipc_sioc_ln_req lnr;
 	void __user *argp = (void __user *)arg;
