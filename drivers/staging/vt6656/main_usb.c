@@ -123,7 +123,7 @@ static void device_set_options(struct vnt_private *priv)
 	priv->op_mode = NL80211_IFTYPE_UNSPECIFIED;
 	priv->bb_type = BBP_TYPE_DEF;
 	priv->packet_type = priv->bb_type;
-	priv->byAutoFBCtrl = AUTO_FB_0;
+	priv->auto_fb_ctrl = AUTO_FB_0;
 	priv->preamble_type = 0;
 	priv->exist_sw_net_addr = false;
 }
@@ -280,7 +280,7 @@ static int device_init_registers(struct vnt_private *priv)
 	vnt_set_antenna_mode(priv, priv->rx_antenna_mode);
 
 	/* get Auto Fall Back type */
-	priv->byAutoFBCtrl = AUTO_FB_0;
+	priv->auto_fb_ctrl = AUTO_FB_0;
 
 	/* default Auto Mode */
 	priv->bb_type = BB_TYPE_11G;

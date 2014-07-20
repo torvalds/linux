@@ -866,7 +866,7 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 
 	/* legacy rates TODO use ieee80211_tx_rate */
 	if (current_rate >= RATE_18M && ieee80211_is_data(hdr->frame_control)) {
-		if (priv->byAutoFBCtrl == AUTO_FB_0) {
+		if (priv->auto_fb_ctrl == AUTO_FB_0) {
 			tx_buffer_head->wFIFOCtl |= FIFOCTL_AUTO_FB_0;
 
 			priv->tx_rate_fb0 =
@@ -875,7 +875,7 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 				vnt_fb_opt0[FB_RATE1][current_rate - RATE_18M];
 
 			fb_option = AUTO_FB_0;
-		} else if (priv->byAutoFBCtrl == AUTO_FB_1) {
+		} else if (priv->auto_fb_ctrl == AUTO_FB_1) {
 			tx_buffer_head->wFIFOCtl |= FIFOCTL_AUTO_FB_1;
 
 			priv->tx_rate_fb0 =

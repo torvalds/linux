@@ -380,7 +380,7 @@ struct vnt_private {
 
 	unsigned long key_entry_inuse;
 
-	u8 byAutoFBCtrl;
+	u8 auto_fb_ctrl;
 
 	/* For Update BaseBand VGA Gain Offset */
 	u8 abyBBVGA[BB_VGA_LEVEL];
