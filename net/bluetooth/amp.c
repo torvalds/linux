@@ -133,8 +133,8 @@ struct hci_conn *phylink_add(struct hci_dev *hdev, struct amp_mgr *mgr,
 /* AMP crypto key generation interface */
 static int hmac_sha256(u8 *key, u8 ksize, char *plaintext, u8 psize, u8 *output)
 {
-	int ret = 0;
 	struct crypto_shash *tfm;
+	int ret;
 
 	if (!ksize)
 		return -EINVAL;
