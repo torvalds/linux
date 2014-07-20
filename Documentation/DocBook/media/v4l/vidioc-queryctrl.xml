@@ -76,7 +76,7 @@ structure. The driver fills the rest of the structure or returns an
 <constant>VIDIOC_QUERYCTRL</constant> with successive
 <structfield>id</structfield> values starting from
 <constant>V4L2_CID_BASE</constant> up to and exclusive
-<constant>V4L2_CID_BASE_LASTP1</constant>. Drivers may return
+<constant>V4L2_CID_LASTP1</constant>. Drivers may return
 <errorcode>EINVAL</errorcode> if a control in this range is not
 supported. Further applications can enumerate private controls, which
 are not defined in this specification, by starting at
