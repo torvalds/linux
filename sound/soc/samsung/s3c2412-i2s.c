@@ -154,13 +154,9 @@ static int s3c2412_iis_dev_probe(struct platform_device *pdev)
 	struct resource *res;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "Can't get IO resource.\n");
-		return -ENOENT;
-	}
 	s3c2412_i2s.regs = devm_ioremap_resource(&pdev->dev, res);
-	if (s3c2412_i2s.regs == NULL)
-		return -ENXIO;
+	if (IS_ERR(s3c2412_i2s.regs))
+		return PTR_ERR(s3c2412_i2s.regs);
 
 	s3c2412_i2s_pcm_stereo_out.dma_addr = res->start + S3C2412_IISTXD;
 	s3c2412_i2s_pcm_stereo_in.dma_addr = res->start + S3C2412_IISRXD;
