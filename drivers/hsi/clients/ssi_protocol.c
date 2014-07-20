@@ -901,7 +901,7 @@ out:
 	ssip_free_data(msg);
 }
 
-void ssip_port_event(struct hsi_client *cl, unsigned long event)
+static void ssip_port_event(struct hsi_client *cl, unsigned long event)
 {
 	switch (event) {
 	case HSI_EVENT_START_RX:
