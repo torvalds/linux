@@ -410,10 +410,7 @@ int vnt_vt3184_init(struct vnt_private *priv)
 		priv->bb_vga[1] = 0x10;
 		priv->bb_vga[2] = 0x0;
 		priv->bb_vga[3] = 0x0;
-		priv->ldBmThreshold[0] = -70;
-		priv->ldBmThreshold[1] = -48;
-		priv->ldBmThreshold[2] = 0;
-		priv->ldBmThreshold[3] = 0;
+
 	} else if (priv->rf_type == RF_AIROHA7230) {
 		priv->bb_rx_conf = vnt_vt3184_al2230[10];
 		length = sizeof(vnt_vt3184_al2230);
@@ -427,10 +424,7 @@ int vnt_vt3184_init(struct vnt_private *priv)
 		priv->bb_vga[1] = 0x10;
 		priv->bb_vga[2] = 0x0;
 		priv->bb_vga[3] = 0x0;
-		priv->ldBmThreshold[0] = -70;
-		priv->ldBmThreshold[1] = -48;
-		priv->ldBmThreshold[2] = 0;
-		priv->ldBmThreshold[3] = 0;
+
 	} else if ((priv->rf_type == RF_VT3226) ||
 			(priv->rf_type == RF_VT3226D0)) {
 		priv->bb_rx_conf = vnt_vt3184_vt3226d0[10];
@@ -443,10 +437,7 @@ int vnt_vt3184_init(struct vnt_private *priv)
 		priv->bb_vga[1] = 0x10;
 		priv->bb_vga[2] = 0x0;
 		priv->bb_vga[3] = 0x0;
-		priv->ldBmThreshold[0] = -70;
-		priv->ldBmThreshold[1] = -48;
-		priv->ldBmThreshold[2] = 0;
-		priv->ldBmThreshold[3] = 0;
+
 		/* Fix VT3226 DFC system timing issue */
 		vnt_mac_reg_bits_on(priv, MAC_REG_SOFTPWRCTL2,
 				    SOFTPWRCTL_RFLEOPT);
@@ -461,10 +452,7 @@ int vnt_vt3184_init(struct vnt_private *priv)
 		priv->bb_vga[1] = 0x10;
 		priv->bb_vga[2] = 0x0;
 		priv->bb_vga[3] = 0x0;
-		priv->ldBmThreshold[0] = -70;
-		priv->ldBmThreshold[1] = -48;
-		priv->ldBmThreshold[2] = 0;
-		priv->ldBmThreshold[3] = 0;
+
 		/* Fix VT3226 DFC system timing issue */
 		vnt_mac_reg_bits_on(priv, MAC_REG_SOFTPWRCTL2,
 				    SOFTPWRCTL_RFLEOPT);
