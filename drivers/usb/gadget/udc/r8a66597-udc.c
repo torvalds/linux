@@ -1868,8 +1868,8 @@ static int r8a66597_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	reg = devm_ioremap_resource(&pdev->dev, res);
-	if (!reg)
-		return -ENODEV;
+	if (IS_ERR(reg))
+		return PTR_ERR(reg);
 
 	ires = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	irq = ires->start;
