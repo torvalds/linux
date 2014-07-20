@@ -349,7 +349,7 @@ struct vnt_private {
 	u8 ofdm_pwr_tbl[14];
 	u8 ofdm_a_pwr_tbl[42];
 
-	u16 wCurrentRate;
+	u16 current_rate;
 	u16 tx_rate_fb0;
 	u16 tx_rate_fb1;
 

@@ -718,11 +718,11 @@ static int vnt_config(struct ieee80211_hw *hw, u32 changed)
 
 	if (changed & IEEE80211_CONF_CHANGE_POWER) {
 		if (priv->bb_type == BB_TYPE_11B)
-			priv->wCurrentRate = RATE_1M;
+			priv->current_rate = RATE_1M;
 		else
-			priv->wCurrentRate = RATE_54M;
+			priv->current_rate = RATE_54M;
 
-		vnt_rf_setpower(priv, priv->wCurrentRate,
+		vnt_rf_setpower(priv, priv->current_rate,
 				conf->chandef.chan->hw_value);
 	}
 
@@ -778,7 +778,7 @@ static void vnt_bss_info_changed(struct ieee80211_hw *hw,
 	}
 
 	if (changed & BSS_CHANGED_TXPOWER)
-		vnt_rf_setpower(priv, priv->wCurrentRate,
+		vnt_rf_setpower(priv, priv->current_rate,
 					conf->chandef.chan->hw_value);
 
 	if (changed & BSS_CHANGED_BEACON_ENABLED) {

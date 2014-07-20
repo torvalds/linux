@@ -139,7 +139,7 @@ void vnt_run_command(struct work_struct *work)
 
 	case WLAN_CMD_SETPOWER_START:
 
-		vnt_rf_setpower(priv, priv->wCurrentRate,
+		vnt_rf_setpower(priv, priv->current_rate,
 				priv->hw->conf.chandef.chan->hw_value);
 
 		break;
