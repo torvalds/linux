@@ -18,7 +18,7 @@ enum _VOP_SOC_TYPE {
 #ifdef BIT_MASK
 #undef BIT_MASK
 #endif
-#define BIT_MASK(x, bit, mask) BIT((x) & (mask), bit)
+#define BIT_MASK(x, mask, bit) BIT((x) & (mask), bit)
 
 /*******************register definition**********************/
 
@@ -150,10 +150,10 @@ enum _VOP_SOC_TYPE {
         #define m_DSP_DUMMY_SWAP	BIT(1, 30)	        /* rk3036 */
         #define m_DSP_OUT_ZERO		BIT(1, 31)
 	
-        #define v_BG_COLOR(x)		BIT((x) & 0xffffff, 0)
-        #define v_BG_B(x)		BIT((x) & 0xff, 0)
-        #define v_BG_G(x)		BIT((x) & 0xff, 8)
-        #define v_BG_R(x)		BIT((x) & 0xff, 16)
+        #define v_BG_COLOR(x)		BIT_MASK(x, 0xffffff, 0)
+        #define v_BG_B(x)		BIT_MASK(x, 0xff, 0)
+        #define v_BG_G(x)		BIT_MASK(x, 0xff, 8)
+        #define v_BG_R(x)		BIT_MASK(x, 0xff, 16)
         #define v_BLANK_EN(x)		BIT_MASK(x, 1, 24)
         #define v_BLACK_EN(x)		BIT_MASK(x, 1, 25)
         #define v_DSP_BG_SWAP(x)	BIT_MASK(x, 1, 26)
@@ -211,7 +211,7 @@ enum _VOP_SOC_TYPE {
         #define v_FS_INT_CLEAR(x)	BIT_MASK(x, 1, 9)
         #define v_LF_INT_CLEAR(x)	BIT_MASK(x, 1, 10)
         #define v_BUS_ERR_INT_CLEAR(x)	BIT_MASK(x, 1, 11)
-        #define v_LF_INT_NUM(x)		BIT((x) & 0xfff, 12)
+        #define v_LF_INT_NUM(x)		BIT_MASK(x, 0xfff, 12)
         #define v_WIN0_EMPTY_INT_EN(x)	BIT_MASK(x, 1, 24)
         #define v_WIN1_EMPTY_INT_EN(x)	BIT_MASK(x, 1, 25)
         #define v_WIN0_EMPTY_INT_CLEAR(x)	BIT_MASK(x, 1, 26)
@@ -230,16 +230,16 @@ enum _VOP_SOC_TYPE {
         #define v_WIN1_ALPHA_EN(x)	BIT_MASK(x, 1, 1)
         #define v_HWC_ALPAH_EN(x)	BIT_MASK(x, 1, 2)
         #define v_WIN1_PREMUL_SCALE(x)	BIT_MASK(x, 1, 3)       /* rk3036 */
-        #define v_WIN0_ALPHA_VAL(x)	BIT((x) & 0xff, 4)
-        #define v_WIN1_ALPHA_VAL(x)	BIT((x) & 0xff, 12)
-        #define v_HWC_ALPAH_VAL(x)	BIT((x) & 0xff, 20)
+        #define v_WIN0_ALPHA_VAL(x)	BIT_MASK(x, 0xff, 4)
+        #define v_WIN1_ALPHA_VAL(x)	BIT_MASK(x, 0xff, 12)
+        #define v_HWC_ALPAH_VAL(x)	BIT_MASK(x, 0xff, 20)
 
 #define WIN0_COLOR_KEY		(0x18)
 #define WIN1_COLOR_KEY		(0x1c)
         #define m_COLOR_KEY_VAL		BIT(0xffffff, 0)
         #define m_COLOR_KEY_EN		BIT(1, 24)
 
-        #define v_COLOR_KEY_VAL(x)	(((x) & 0xffffff) << 0)
+        #define v_COLOR_KEY_VAL(x)	BIT_MASK(x, 0xffffff, 0)
         #define v_COLOR_KEY_EN(x)	BIT_MASK(x, 1, 24)
 
 /* Layer Registers */
@@ -254,21 +254,22 @@ enum _VOP_SOC_TYPE {
         #define m_YRGB_VIR	        BIT(0x1fff, 0)
         #define m_CBBR_VIR	        BIT(0x1fff, 16)   
 	
-        #define v_YRGB_VIR(x)           (((x) & 0x1fff) << 0)
-        #define v_CBCR_VIR(x)           (((x) & 0x1fff) << 16)
+        #define v_YRGB_VIR(x)           BIT_MASK(x, 0x1fff, 0)
+        #define v_CBBR_VIR(x)           BIT_MASK(x, 0x1fff, 16)
 	
-	#define v_ARGB888_VIRWIDTH(x)	(((x) & 0x1fff) << 0)
-	#define v_RGB888_VIRWIDTH(x) 	((((x*3)>>2)+((x)%3)) & 0x1fff)
-	#define v_RGB565_VIRWIDTH(x)	(DIV_ROUND_UP(x, 2) & 0x1fff)
-	#define v_YUV_VIRWIDTH(x)	(DIV_ROUND_UP(x, 4) & 0x1fff)
+	#define v_ARGB888_VIRWIDTH(x)	BIT_MASK(x, 0x1fff, 0)
+	#define v_RGB888_VIRWIDTH(x) 	BIT_MASK(((x*3)>>2)+((x)%3), 0x1fff, 0)
+	#define v_RGB565_VIRWIDTH(x)	BIT_MASK(DIV_ROUND_UP(x, 2), 0x1fff, 0)
+	#define v_YUV_VIRWIDTH(x)	BIT_MASK(DIV_ROUND_UP(x, 4), 0x1fff, 0)
+	#define v_CBCR_VIR(x)		BIT_MASK(x, 0x1fff, 16)
 
 #define WIN0_ACT_INFO		(0x34)
 #define WIN1_ACT_INFO		(0xb4)          /* rk3036 */
 	#define m_ACT_WIDTH       	BIT(0x1fff, 0)
 	#define m_ACT_HEIGHT      	BIT(0x1fff, 16)
  
-	#define v_ACT_WIDTH(x)       	(((x - 1) & 0x1fff) << 0)
-	#define v_ACT_HEIGHT(x)      	(((x - 1) & 0x1fff) << 16)
+	#define v_ACT_WIDTH(x)       	BIT_MASK(x - 1, 0x1fff, 0)
+	#define v_ACT_HEIGHT(x)      	BIT_MASK(x - 1, 0x1fff, 16)
 
 #define WIN0_DSP_INFO		(0x38)
 #define WIN1_DSP_INFO		(0xb8)          /* rk3036 */
@@ -276,8 +277,8 @@ enum _VOP_SOC_TYPE {
         #define m_DSP_WIDTH       	BIT(0x7ff, 0)
 	#define m_DSP_HEIGHT      	BIT(0x7ff, 16)
 
-	#define v_DSP_WIDTH(x)     	(((x - 1) & 0x7ff) << 0)
-	#define v_DSP_HEIGHT(x)    	(((x - 1) & 0x7ff) << 16)
+	#define v_DSP_WIDTH(x)     	BIT_MASK(x - 1, 0x7ff, 0)
+	#define v_DSP_HEIGHT(x)    	BIT_MASK(x - 1, 0x7ff, 16)
 	
 #define WIN0_DSP_ST		(0x3c)
 #define WIN1_DSP_ST		(0xbc)          /* rk3036 */
@@ -286,8 +287,8 @@ enum _VOP_SOC_TYPE {
         #define m_DSP_STX               BIT(0xfff, 0)
 	#define m_DSP_STY               BIT(0xfff, 16)
 
-	#define v_DSP_STX(x)      	(((x) & 0xfff) << 0)
-	#define v_DSP_STY(x)      	(((x) & 0xfff) << 16)
+	#define v_DSP_STX(x)      	BIT_MASK(x, 0xfff, 0)
+	#define v_DSP_STY(x)      	BIT_MASK(x, 0xfff, 16)
 	
 #define WIN0_SCL_FACTOR_YRGB	(0x40)
 #define WIN0_SCL_FACTOR_CBR	(0x44)
@@ -295,8 +296,8 @@ enum _VOP_SOC_TYPE {
         #define m_X_SCL_FACTOR          BIT(0xffff, 0)
 	#define m_Y_SCL_FACTOR          BIT(0xffff, 16)
 
-	#define v_X_SCL_FACTOR(x)  	(((x) & 0xffff) << 0)
-	#define v_Y_SCL_FACTOR(x)  	(((x) & 0xffff) << 16)
+	#define v_X_SCL_FACTOR(x)  	BIT_MASK(x, 0xffff, 0)
+	#define v_Y_SCL_FACTOR(x)  	BIT_MASK(x, 0xffff, 16)
 	
 #define WIN0_SCL_OFFSET		(0x48)
 #define WIN1_SCL_OFFSET		(0xc8)          /* rk3036 */
@@ -308,27 +309,27 @@ enum _VOP_SOC_TYPE {
 
 /* Display Infomation Registers */
 #define DSP_HTOTAL_HS_END	(0x6c)
-	#define v_HSYNC(x)  		(((x) & 0xfff) << 0)   /* hsync pulse width */
-	#define v_HORPRD(x) 		(((x) & 0xfff) << 16)  /* horizontal period */
+	#define v_HSYNC(x)  		BIT_MASK(x, 0xfff, 0)   /* hsync pulse width */
+	#define v_HORPRD(x) 		BIT_MASK(x, 0xfff, 16)  /* horizontal period */
 
 #define DSP_HACT_ST_END		(0x70)
-	#define v_HAEP(x) 		(((x) & 0xfff) << 0)  /* horizontal active end point */
-	#define v_HASP(x) 		(((x) & 0xfff) << 16) /* horizontal active start point */
+	#define v_HAEP(x) 		BIT_MASK(x, 0xfff, 0)  /* horizontal active end point */
+	#define v_HASP(x) 		BIT_MASK(x, 0xfff, 16) /* horizontal active start point */
 
 #define DSP_VTOTAL_VS_END	(0x74)
-	#define v_VSYNC(x) 		(((x) & 0xfff) << 0)
-	#define v_VERPRD(x) 		(((x) & 0xfff) << 16)
+	#define v_VSYNC(x) 		BIT_MASK(x, 0xfff, 0)
+	#define v_VERPRD(x) 		BIT_MASK(x, 0xfff, 16)
 	
 #define DSP_VACT_ST_END		(0x78)
-	#define v_VAEP(x) 		BIT((x) & 0xfff, 0)
-	#define v_VASP(x) 		BIT((x) & 0xfff, 16)
+	#define v_VAEP(x) 		BIT_MASK(x, 0xfff, 0)
+	#define v_VASP(x) 		BIT_MASK(x, 0xfff, 16)
 
 #define DSP_VS_ST_END_F1	(0x7c)
-	#define v_VSYNC_END_F1(x) 	(((x) & 0xfff) << 0)
-	#define v_VSYNC_ST_F1(x) 	(((x) & 0xfff) << 16)
+	#define v_VSYNC_END_F1(x) 	BIT_MASK(x, 0xfff, 0)
+	#define v_VSYNC_ST_F1(x) 	BIT_MASK(x, 0xfff, 16)
 #define DSP_VACT_ST_END_F1	(0x80)
-        #define v_VAEP_F1(x) 		(((x) & 0xfff) << 0)
-	#define v_VASP_F1(x) 		(((x) & 0xfff) << 16)
+        #define v_VAEP_F1(x) 		BIT_MASK(x, 0xfff, 0)
+	#define v_VASP_F1(x) 		BIT_MASK(x, 0xfff, 16)
 
 /* Scaler Registers 
  * Only used for rk312x
@@ -348,63 +349,63 @@ enum _VOP_SOC_TYPE {
         #define v_SCALER_OUT_ZERO(x)    BIT_MASK(x, 1, 4)
         #define v_SCALER_OUT_EN(x)      BIT_MASK(x, 1, 5)
         #define v_SCALER_VSYNC_MODE(x)  BIT_MASK(x, 3, 6)
-        #define v_SCALER_VSYNC_VST(x)   BIT((x) & 0xff, 8)
+        #define v_SCALER_VSYNC_VST(x)   BIT_MASK(x, 0xff, 8)
 
 #define SCALER_FACTOR           (0xa4)
         #define m_SCALER_H_FACTOR       BIT(0x3fff, 0)
         #define m_SCALER_V_FACTOR       BIT(0x3fff, 16)
 
-        #define v_SCALER_H_FACTOR(x)    BIT((x) & 0x3fff, 0)
-        #define v_SCALER_V_FACTOR(x)    BIT((x) & 0x3fff, 16)
+        #define v_SCALER_H_FACTOR(x)    BIT_MASK(x, 0x3fff, 0)
+        #define v_SCALER_V_FACTOR(x)    BIT_MASK(x, 0x3fff, 16)
 
 #define SCALER_FRAME_ST         (0xa8)
         #define m_SCALER_FRAME_HST      BIT(0xfff, 0)
         #define m_SCALER_FRAME_VST      BIT(0xfff, 16)
 
-        #define v_SCALER_FRAME_HST(x)   BIT((x) & 0xfff, 0)
-        #define v_SCALER_FRAME_VST(x)   BIT((x) & 0xfff, 16)
+        #define v_SCALER_FRAME_HST(x)   BIT_MASK(x, 0xfff, 0)
+        #define v_SCALER_FRAME_VST(x)   BIT_MASK(x, 0xfff, 16)
 
 #define SCALER_DSP_HOR_TIMING   (0xac)
         #define m_SCALER_HTOTAL         BIT(0xfff, 0)
         #define m_SCALER_HS_END         BIT(0xff, 16)
 
-        #define v_SCALER_HTOTAL(x)      BIT((x) & 0xfff, 0)
-        #define v_SCALER_HS_END(x)      BIT((x) & 0xff, 16)
+        #define v_SCALER_HTOTAL(x)      BIT_MASK(x, 0xfff, 0)
+        #define v_SCALER_HS_END(x)      BIT_MASK(x, 0xff, 16)
 
 #define SCALER_DSP_HACT_ST_END  (0xb0)
         #define m_SCALER_HAEP           BIT(0xfff, 0)
         #define m_SCALER_HASP           BIT(0x3ff, 16)
 
-        #define v_SCALER_HAEP(x)        BIT((x) & 0xfff, 0)
-        #define v_SCALER_HASP(x)        BIT((x) & 0x3ff, 16)
+        #define v_SCALER_HAEP(x)        BIT_MASK(x, 0xfff, 0)
+        #define v_SCALER_HASP(x)        BIT_MASK(x, 0x3ff, 16)
 
 #define SCALER_DSP_VER_TIMING   (0xb4)
         #define m_SCALER_VTOTAL         BIT(0xfff, 0)
         #define m_SCALER_VS_END         BIT(0xff, 16)
 
-        #define v_SCALER_VTOTAL(x)      BIT((x) & 0xfff, 0)
-        #define v_SCALER_VS_END(x)      BIT((x) & 0xff, 16)
+        #define v_SCALER_VTOTAL(x)      BIT_MASK(0xfff, 0)
+        #define v_SCALER_VS_END(x)      BIT_MASK(0xff, 16)
 
 #define SCALER_DSP_VACT_ST_END  (0xb8)
         #define m_SCALER_VAEP           BIT(0xfff, 0)
         #define m_SCALER_VASP           BIT(0xff, 16)
 
-        #define v_SCALER_VAEP(x)        BIT((x) & 0xfff, 0)
-        #define v_SCALER_VASP(x)        BIT((x) & 0xff, 16)
+        #define v_SCALER_VAEP(x)        BIT_MASK(x, 0xfff, 0)
+        #define v_SCALER_VASP(x)        BIT_MASK(x, 0xff, 16)
 
 #define SCALER_DSP_HBOR_TIMING  (0xbc)
         #define m_SCALER_HBOR_END       BIT(0xfff, 0)
         #define m_SCALER_HBOR_ST        BIT(0x3ff, 16)
 
-        #define v_SCALER_HBOR_END(x)    BIT((x) & 0xfff, 0)
-        #define v_SCALER_HBOR_ST(x)     BIT((x) & 0x3ff, 16)
+        #define v_SCALER_HBOR_END(x)    BIT_MASK(x, 0xfff, 0)
+        #define v_SCALER_HBOR_ST(x)     BIT_MASK(x, 0x3ff, 16)
 
 #define SCALER_DSP_VBOR_TIMING  (0xc0)
         #define m_SCALER_VBOR_END       BIT(0xfff, 0)
         #define m_SCALER_VBOR_ST        BIT(0xff, 16)
 
-        #define v_SCALER_VBOR_END(x)    BIT((x) & 0xfff, 0)
-        #define v_SCALER_VBOR_ST(x)     BIT((x) & 0xff, 16)        
+        #define v_SCALER_VBOR_END(x)    BIT_MASK(x, 0xfff, 0)
+        #define v_SCALER_VBOR_ST(x)     BIT_MASK(x, 0xff, 16)        
 
 /* BCSH Registers */
 #define BCSH_CTRL		(0xd0)
@@ -427,9 +428,9 @@ enum _VOP_SOC_TYPE {
 	#define m_BCSH_COLOR_BAR_U	BIT(0xff, 8)
 	#define m_BCSH_COLOR_BAR_V	BIT(0xff, 16)
 
-	#define v_BCSH_COLOR_BAR_Y(x)	BIT((x) & 0xff, 0)
-	#define v_BCSH_COLOR_BAR_U(x)   BIT((x) & 0xff, 8)
-	#define v_BCSH_COLOR_BAR_V(x)   BIT((x) & 0xff, 16)
+	#define v_BCSH_COLOR_BAR_Y(x)	BIT_MASK(x, 0xff, 0)
+	#define v_BCSH_COLOR_BAR_U(x)   BIT_MASK(x, 0xff, 8)
+	#define v_BCSH_COLOR_BAR_V(x)   BIT_MASK(x, 0xff, 16)
 
 #define BCSH_BCS 		(0xd8)	
 	#define m_BCSH_BRIGHTNESS	BIT(0x1f, 0)	
@@ -437,15 +438,15 @@ enum _VOP_SOC_TYPE {
 	#define m_BCSH_SAT_CON		BIT(0x1ff, 16)
 
 	#define v_BCSH_BRIGHTNESS(x)	BIT_MASK(x, 0x1f, 0)	
-	#define v_BCSH_CONTRAST(x)	BIT((x) & 0xff, 8)	
-	#define v_BCSH_SAT_CON(x)       BIT((x) & 0x1ff, 16)			
+	#define v_BCSH_CONTRAST(x)	BIT_MASK(x, 0xff, 8)	
+	#define v_BCSH_SAT_CON(x)       BIT_MASK(x, 0x1ff, 16)			
 
 #define BCSH_H 			(0xdc)	
 	#define m_BCSH_SIN_HUE		BIT(0xff, 0)
 	#define m_BCSH_COS_HUE		BIT(0xff, 16)
 
-	#define v_BCSH_SIN_HUE(x)	BIT((x) & 0xff, 0)
-	#define v_BCSH_COS_HUE(x)	BIT((x) & 0xff, 16)
+	#define v_BCSH_SIN_HUE(x)	BIT_MASK(x, 0xff, 0)
+	#define v_BCSH_COS_HUE(x)	BIT_MASK(x, 0xff, 16)
 
 #define FRC_LOWER01_0           (0xe0)
 #define FRC_LOWER01_1           (0xe4)
@@ -518,7 +519,7 @@ enum _VOP_SOC_TYPE {
 #define VERSION_INFO		(0x94)
 	#define m_MAJOR		                BIT(0xff, 24)
 	#define m_MINOR		                BIT(0xff, 16)
-	#define m_BUILD		                BIT(0xffff, 0)
+	#define m_BUILD		                BIT(0xffff)
 		
 #define REG_CFG_DONE		(0x90)
 
@@ -544,7 +545,7 @@ enum _VOP_SOC_TYPE {
 /* MMU registers */
 #define MMU_DTE_ADDR		(0x0300)
         #define m_MMU_DTE_ADDR			BIT(0xffffffff, 0)
-	#define v_MMU_DTE_ADDR(x)		((x) & 0xffffffff)
+	#define v_MMU_DTE_ADDR(x)		BIT_MASK(x, 0xffffffff, 0)
 
 #define MMU_STATUS		(0x0304)
         #define m_PAGING_ENABLED		BIT(1, 0)
@@ -569,11 +570,11 @@ enum _VOP_SOC_TYPE {
 
 #define MMU_PAGE_FAULT_ADDR	(0x030c)
         #define m_PAGE_FAULT_ADDR		BIT(0xffffffff, 0)
-	#define v_PAGE_FAULT_ADDR(x)		((x) & 0xffffffff)
+	#define v_PAGE_FAULT_ADDR(x)		BIT_MASK(x, 0xffffffff, 0)
 	
 #define MMU_ZAP_ONE_LINE	(0x0310)
         #define m_MMU_ZAP_ONE_LINE		BIT(0xffffffff, 0)
-	#define v_MMU_ZAP_ONE_LINE(x)		((x) & 0xffffffff)
+	#define v_MMU_ZAP_ONE_LINE(x)		BIT_MASK(x, 0xffffffff, 0)
 
 #define MMU_INT_RAWSTAT		(0x0314)
         #define m_PAGE_FAULT_RAWSTAT		BIT(1, 0)
