@@ -1080,8 +1080,8 @@ static int pci171x_reset(struct comedi_device *dev)
 static int pci1720_reset(struct comedi_device *dev)
 {
 	struct pci1710_private *devpriv = dev->private;
-
-	outb(Syncont_SC0, dev->iobase + PCI1720_SYNCONT);	/*  set synchronous output mode */
+	/* set synchronous output mode */
+	outb(Syncont_SC0, dev->iobase + PCI1720_SYNCONT);
 	devpriv->da_ranges = 0xAA;
 	outb(devpriv->da_ranges, dev->iobase + PCI1720_RANGE);	/*  set all ranges to +/-5V */
 	outw(0x0800, dev->iobase + PCI1720_DA0);	/*  set outputs to 0V */
