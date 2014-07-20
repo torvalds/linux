@@ -406,10 +406,10 @@ int vnt_vt3184_init(struct vnt_private *priv)
 		agc = vnt_vt3184_agc;
 		length_agc = sizeof(vnt_vt3184_agc);
 
-		priv->abyBBVGA[0] = 0x1C;
-		priv->abyBBVGA[1] = 0x10;
-		priv->abyBBVGA[2] = 0x0;
-		priv->abyBBVGA[3] = 0x0;
+		priv->bb_vga[0] = 0x1C;
+		priv->bb_vga[1] = 0x10;
+		priv->bb_vga[2] = 0x0;
+		priv->bb_vga[3] = 0x0;
 		priv->ldBmThreshold[0] = -70;
 		priv->ldBmThreshold[1] = -48;
 		priv->ldBmThreshold[2] = 0;
@@ -423,10 +423,10 @@ int vnt_vt3184_init(struct vnt_private *priv)
 
 		addr[0xd7] = 0x06;
 
-		priv->abyBBVGA[0] = 0x1c;
-		priv->abyBBVGA[1] = 0x10;
-		priv->abyBBVGA[2] = 0x0;
-		priv->abyBBVGA[3] = 0x0;
+		priv->bb_vga[0] = 0x1c;
+		priv->bb_vga[1] = 0x10;
+		priv->bb_vga[2] = 0x0;
+		priv->bb_vga[3] = 0x0;
 		priv->ldBmThreshold[0] = -70;
 		priv->ldBmThreshold[1] = -48;
 		priv->ldBmThreshold[2] = 0;
@@ -439,10 +439,10 @@ int vnt_vt3184_init(struct vnt_private *priv)
 		agc = vnt_vt3184_agc;
 		length_agc = sizeof(vnt_vt3184_agc);
 
-		priv->abyBBVGA[0] = 0x20;
-		priv->abyBBVGA[1] = 0x10;
-		priv->abyBBVGA[2] = 0x0;
-		priv->abyBBVGA[3] = 0x0;
+		priv->bb_vga[0] = 0x20;
+		priv->bb_vga[1] = 0x10;
+		priv->bb_vga[2] = 0x0;
+		priv->bb_vga[3] = 0x0;
 		priv->ldBmThreshold[0] = -70;
 		priv->ldBmThreshold[1] = -48;
 		priv->ldBmThreshold[2] = 0;
@@ -457,10 +457,10 @@ int vnt_vt3184_init(struct vnt_private *priv)
 		agc = vnt_vt3184_agc;
 		length_agc = sizeof(vnt_vt3184_agc);
 
-		priv->abyBBVGA[0] = 0x20;
-		priv->abyBBVGA[1] = 0x10;
-		priv->abyBBVGA[2] = 0x0;
-		priv->abyBBVGA[3] = 0x0;
+		priv->bb_vga[0] = 0x20;
+		priv->bb_vga[1] = 0x10;
+		priv->bb_vga[2] = 0x0;
+		priv->bb_vga[3] = 0x0;
 		priv->ldBmThreshold[0] = -70;
 		priv->ldBmThreshold[1] = -48;
 		priv->ldBmThreshold[2] = 0;
@@ -533,7 +533,7 @@ void vnt_set_short_slot_time(struct vnt_private *priv)
 
 	vnt_control_in_u8(priv, MESSAGE_REQUEST_BBREG, 0xe7, &bb_vga);
 
-	if (bb_vga == priv->abyBBVGA[0])
+	if (bb_vga == priv->bb_vga[0])
 		priv->bb_rx_conf |= 0x20;
 
 	vnt_control_out_u8(priv, MESSAGE_REQUEST_BBREG, 0x0a, priv->bb_rx_conf);

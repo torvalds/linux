@@ -383,7 +383,7 @@ struct vnt_private {
 	u8 auto_fb_ctrl;
 
 	/* For Update BaseBand VGA Gain Offset */
-	u8 abyBBVGA[BB_VGA_LEVEL];
+	u8 bb_vga[BB_VGA_LEVEL];
 	signed long ldBmThreshold[BB_VGA_LEVEL];
 
 	u8 byBBPreEDRSSI;

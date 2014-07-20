@@ -807,25 +807,25 @@ void vnt_set_bss_mode(struct vnt_private *priv)
 
 	if (priv->bb_type == BB_TYPE_11A) {
 		if (priv->rf_type == RF_AIROHA7230) {
-			priv->abyBBVGA[0] = 0x20;
+			priv->bb_vga[0] = 0x20;
 
 			vnt_control_out_u8(priv, MESSAGE_REQUEST_BBREG,
-						0xe7, priv->abyBBVGA[0]);
+						0xe7, priv->bb_vga[0]);
 		}
 
-		priv->abyBBVGA[2] = 0x10;
-		priv->abyBBVGA[3] = 0x10;
+		priv->bb_vga[2] = 0x10;
+		priv->bb_vga[3] = 0x10;
 	} else {
 		if (priv->rf_type == RF_AIROHA7230) {
-			priv->abyBBVGA[0] = 0x1c;
+			priv->bb_vga[0] = 0x1c;
 
 			vnt_control_out_u8(priv, MESSAGE_REQUEST_BBREG,
-						0xe7, priv->abyBBVGA[0]);
+						0xe7, priv->bb_vga[0]);
 		}
 
-		priv->abyBBVGA[2] = 0x0;
-		priv->abyBBVGA[3] = 0x0;
+		priv->bb_vga[2] = 0x0;
+		priv->bb_vga[3] = 0x0;
 	}
 
-	vnt_set_vga_gain_offset(priv, priv->abyBBVGA[0]);
+	vnt_set_vga_gain_offset(priv, priv->bb_vga[0]);
 }
