@@ -1601,8 +1601,8 @@ static int msm_otg_probe(struct platform_device *pdev)
 	 */
 	if (motg->phy_number) {
 		phy_select = devm_ioremap_nocache(&pdev->dev, USB2_PHY_SEL, 4);
-		if (IS_ERR(phy_select))
-			return PTR_ERR(phy_select);
+		if (!phy_select)
+			return -ENOMEM;
 		/* Enable second PHY with the OTG port */
 		writel(0x1, phy_select);
 	}
