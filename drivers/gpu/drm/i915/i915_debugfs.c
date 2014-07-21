@@ -3267,7 +3267,7 @@ static int pri_wm_latency_open(struct inode *inode, struct file *file)
 {
 	struct drm_device *dev = inode->i_private;
 
-	if (!HAS_PCH_SPLIT(dev))
+	if (HAS_GMCH_DISPLAY(dev))
 		return -ENODEV;
 
 	return single_open(file, pri_wm_latency_show, dev);
@@ -3277,7 +3277,7 @@ static int spr_wm_latency_open(struct inode *inode, struct file *file)
 {
 	struct drm_device *dev = inode->i_private;
 
-	if (!HAS_PCH_SPLIT(dev))
+	if (HAS_GMCH_DISPLAY(dev))
 		return -ENODEV;
 
 	return single_open(file, spr_wm_latency_show, dev);
@@ -3287,7 +3287,7 @@ static int cur_wm_latency_open(struct inode *inode, struct file *file)
 {
 	struct drm_device *dev = inode->i_private;
 
-	if (!HAS_PCH_SPLIT(dev))
+	if (HAS_GMCH_DISPLAY(dev))
 		return -ENODEV;
 
 	return single_open(file, cur_wm_latency_show, dev);
