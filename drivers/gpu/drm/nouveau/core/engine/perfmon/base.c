@@ -303,6 +303,7 @@ nouveau_perfctx_dtor(struct nouveau_object *object)
 {
 	struct nouveau_perfmon *ppm = (void *)object->engine;
 	mutex_lock(&nv_subdev(ppm)->mutex);
+	nouveau_engctx_destroy(&ppm->context->base);
 	ppm->context = NULL;
 	mutex_unlock(&nv_subdev(ppm)->mutex);
 }
