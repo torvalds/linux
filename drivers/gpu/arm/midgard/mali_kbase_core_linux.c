@@ -86,7 +86,7 @@ EXPORT_SYMBOL(shared_kernel_test_data);
 #endif /* MALI_UNIT_TEST */
 
 #define KBASE_DRV_NAME "mali"
-#define ROCKCHIP_VERSION 6
+#define ROCKCHIP_VERSION 7
 static const char kbase_drv_name[] = KBASE_DRV_NAME;
 
 static int kbase_dev_nr;

@@ -573,18 +573,26 @@ static ssize_t set_dtlb(struct device *dev, struct device_attribute *attr, const
 static ssize_t show_dvfs(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct kbase_device *kbdev;
+	struct rk_context *platform;
 	ssize_t ret = 0;
+	unsigned int clkrate;
 
 	kbdev = dev_get_drvdata(dev);
 
 	if (!kbdev)
 		return -ENODEV;
+	
+	platform = (struct rk_context *)kbdev->platform_context;
+	if (!platform)
+		return -ENODEV;
+
+	clkrate = dvfs_clk_get_rate(platform->mali_clk_node);
 
 #ifdef CONFIG_MALI_MIDGARD_DVFS
 	if (kbase_platform_dvfs_get_enable_status())
-		ret += snprintf(buf + ret, PAGE_SIZE - ret, "mali DVFS is on\nutilisation:%d", kbase_platform_dvfs_get_utilisation());
+		ret += snprintf(buf + ret, PAGE_SIZE - ret, "mali DVFS is on\nutilisation:%d\ncurrent clock:%dMhz", kbase_platform_dvfs_get_utilisation(),clkrate/1000000);
 	else
-		ret += snprintf(buf + ret, PAGE_SIZE - ret, "mali  DVFS is off");
+		ret += snprintf(buf + ret, PAGE_SIZE - ret, "mali  DVFS is off,clock:%dMhz",clkrate/1000000);
 #else
 	ret += snprintf(buf + ret, PAGE_SIZE - ret, "mali  DVFS is disabled");
 #endif
