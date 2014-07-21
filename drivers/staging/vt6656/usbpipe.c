@@ -45,7 +45,7 @@
 #include "device.h"
 #include "usbpipe.h"
 
-#define USB_CTL_WAIT   500 //ms
+#define USB_CTL_WAIT	500 /* ms */
 
 int vnt_control_out(struct vnt_private *priv, u8 request, u16 value,
 		u16 index, u16 length, u8 *buffer)
