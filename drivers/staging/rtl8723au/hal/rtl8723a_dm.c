@@ -185,7 +185,6 @@ void rtl8723a_InitHalDm(struct rtw_adapter *Adapter)
 	struct dm_odm_t *pDM_Odm = &pHalData->odmpriv;
 	u8	i;
 
-	pdmpriv->DM_Type = DM_Type_ByDriver;
 	pdmpriv->DMFlag = DYNAMIC_FUNC_DISABLE;
 
 #ifdef CONFIG_8723AU_BT_COEXIST
