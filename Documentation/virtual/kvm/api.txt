@@ -988,7 +988,7 @@ for vm-wide capabilities.
 4.38 KVM_GET_MP_STATE
 
 Capability: KVM_CAP_MP_STATE
-Architectures: x86, ia64
+Architectures: x86, ia64, s390
 Type: vcpu ioctl
 Parameters: struct kvm_mp_state (out)
 Returns: 0 on success; -1 on error
@@ -1002,24 +1002,32 @@ uniprocessor guests).
 
 Possible values are:
 
- - KVM_MP_STATE_RUNNABLE:        the vcpu is currently running
+ - KVM_MP_STATE_RUNNABLE:        the vcpu is currently running [x86, ia64]
  - KVM_MP_STATE_UNINITIALIZED:   the vcpu is an application processor (AP)
-                                 which has not yet received an INIT signal
+                                 which has not yet received an INIT signal [x86,
+                                 ia64]
  - KVM_MP_STATE_INIT_RECEIVED:   the vcpu has received an INIT signal, and is
-                                 now ready for a SIPI
+                                 now ready for a SIPI [x86, ia64]
  - KVM_MP_STATE_HALTED:          the vcpu has executed a HLT instruction and
-                                 is waiting for an interrupt
+                                 is waiting for an interrupt [x86, ia64]
  - KVM_MP_STATE_SIPI_RECEIVED:   the vcpu has just received a SIPI (vector
-                                 accessible via KVM_GET_VCPU_EVENTS)
+                                 accessible via KVM_GET_VCPU_EVENTS) [x86, ia64]
+ - KVM_MP_STATE_STOPPED:         the vcpu is stopped [s390]
+ - KVM_MP_STATE_CHECK_STOP:      the vcpu is in a special error state [s390]
+ - KVM_MP_STATE_OPERATING:       the vcpu is operating (running or halted)
+                                 [s390]
+ - KVM_MP_STATE_LOAD:            the vcpu is in a special load/startup state
+                                 [s390]
 
-This ioctl is only useful after KVM_CREATE_IRQCHIP.  Without an in-kernel
-irqchip, the multiprocessing state must be maintained by userspace.
+On x86 and ia64, this ioctl is only useful after KVM_CREATE_IRQCHIP. Without an
+in-kernel irqchip, the multiprocessing state must be maintained by userspace on
+these architectures.
 
 
 4.39 KVM_SET_MP_STATE
 
 Capability: KVM_CAP_MP_STATE
-Architectures: x86, ia64
+Architectures: x86, ia64, s390
 Type: vcpu ioctl
 Parameters: struct kvm_mp_state (in)
 Returns: 0 on success; -1 on error
@@ -1027,8 +1035,9 @@ Returns: 0 on success; -1 on error
 Sets the vcpu's current "multiprocessing state"; see KVM_GET_MP_STATE for
 arguments.
 
-This ioctl is only useful after KVM_CREATE_IRQCHIP.  Without an in-kernel
-irqchip, the multiprocessing state must be maintained by userspace.
+On x86 and ia64, this ioctl is only useful after KVM_CREATE_IRQCHIP. Without an
+in-kernel irqchip, the multiprocessing state must be maintained by userspace on
+these architectures.
 
 
 4.40 KVM_SET_IDENTITY_MAP_ADDR
