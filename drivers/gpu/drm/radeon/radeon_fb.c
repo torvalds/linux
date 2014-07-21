@@ -127,8 +127,7 @@ static int radeonfb_create_pinned_object(struct radeon_fbdev *rfbdev,
 	aligned_size = ALIGN(size, PAGE_SIZE);
 	ret = radeon_gem_object_create(rdev, aligned_size, 0,
 				       RADEON_GEM_DOMAIN_VRAM,
-				       0, false, true,
-				       &gobj);
+				       0, true, &gobj);
 	if (ret) {
 		printk(KERN_ERR "failed to allocate framebuffer (%d)\n",
 		       aligned_size);

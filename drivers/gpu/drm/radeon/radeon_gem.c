@@ -42,7 +42,7 @@ void radeon_gem_object_free(struct drm_gem_object *gobj)
 
 int radeon_gem_object_create(struct radeon_device *rdev, unsigned long size,
 				int alignment, int initial_domain,
-				u32 flags, bool discardable, bool kernel,
+				u32 flags, bool kernel,
 				struct drm_gem_object **obj)
 {
 	struct radeon_bo *robj;
@@ -253,7 +253,7 @@ int radeon_gem_create_ioctl(struct drm_device *dev, void *data,
 	args->size = roundup(args->size, PAGE_SIZE);
 	r = radeon_gem_object_create(rdev, args->size, args->alignment,
 				     args->initial_domain, args->flags,
-				     false, false, &gobj);
+				     false, &gobj);
 	if (r) {
 		up_read(&rdev->exclusive_lock);
 		r = radeon_gem_handle_lockup(rdev, r);
@@ -568,8 +568,7 @@ int radeon_mode_dumb_create(struct drm_file *file_priv,
 
 	r = radeon_gem_object_create(rdev, args->size, 0,
 				     RADEON_GEM_DOMAIN_VRAM, 0,
-				     false, ttm_bo_type_device,
-				     &gobj);
+				     false, &gobj);
 	if (r)
 		return -ENOMEM;
 
