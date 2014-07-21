@@ -3420,7 +3420,7 @@ static int mvpp2_bm_pool_destroy(struct platform_device *pdev,
 	u32 val;
 
 	num = mvpp2_bm_bufs_free(priv, bm_pool, bm_pool->buf_num);
-	if (num != bm_pool->buf_num) {
+	if (bm_pool->buf_num) {
 		WARN(1, "cannot free all buffers in pool %d\n", bm_pool->id);
 		return 0;
 	}
@@ -3748,8 +3748,8 @@ static int mvpp2_bm_update_mtu(struct net_device *dev, int mtu)
 	int pkt_size = MVPP2_RX_PKT_SIZE(mtu);
 
 	/* Update BM pool with new buffer size */
-	num = mvpp2_bm_bufs_free(port->priv, port_pool, pkts_num);
-	if (num != pkts_num) {
+	mvpp2_bm_bufs_free(port->priv, port_pool, pkts_num);
+	if (port_pool->buf_num) {
 		WARN(1, "cannot free all buffers in pool %d\n", port_pool->id);
 		return -EIO;
 	}
