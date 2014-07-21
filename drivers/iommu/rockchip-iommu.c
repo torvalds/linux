@@ -162,14 +162,14 @@ static void rockchip_vcodec_select(const char *string)
 	if(strstr(string,"hevc"))
 	{
 		writel_relaxed(readl_relaxed(RK_GRF_VIRT + RK3036_GRF_SOC_CON1) |
-	       (BIT_VCODEC_SEL) | (BIT_VCODEC_SEL << 16),
-	       RK_GRF_VIRT + RK3036_GRF_SOC_CON1);
+			      (BIT_VCODEC_SEL) | (BIT_VCODEC_SEL << 16),
+			      RK_GRF_VIRT + RK3036_GRF_SOC_CON1);
 	}
 	else if(strstr(string,"vpu"))
 	{
-		writel_relaxed(readl_relaxed(RK_GRF_VIRT + RK3036_GRF_SOC_CON1) |
-	      (BIT_VCODEC_SEL << 16),
-	       RK_GRF_VIRT + RK3036_GRF_SOC_CON1);
+		writel_relaxed((readl_relaxed(RK_GRF_VIRT + RK3036_GRF_SOC_CON1) &
+			       (~BIT_VCODEC_SEL)) | (BIT_VCODEC_SEL << 16),
+			       RK_GRF_VIRT + RK3036_GRF_SOC_CON1);
 	}
 }
 static unsigned long *section_entry(unsigned long *pgtable, unsigned long iova)
