@@ -153,8 +153,10 @@ static inline struct mipi_dsi_device *to_mipi_dsi_device(struct device *dev)
 
 int mipi_dsi_attach(struct mipi_dsi_device *dsi);
 int mipi_dsi_detach(struct mipi_dsi_device *dsi);
-ssize_t mipi_dsi_dcs_write(struct mipi_dsi_device *dsi, const void *data,
-			    size_t len);
+ssize_t mipi_dsi_dcs_write_buffer(struct mipi_dsi_device *dsi,
+				  const void *data, size_t len);
+ssize_t mipi_dsi_dcs_write(struct mipi_dsi_device *dsi, u8 cmd,
+			   const void *data, size_t len);
 ssize_t mipi_dsi_dcs_read(struct mipi_dsi_device *dsi, u8 cmd, void *data,
 			  size_t len);
 
