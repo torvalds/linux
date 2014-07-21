@@ -153,26 +153,24 @@ uint	 rtw_hal_init(_adapter *padapter)
 
 		rtw_hal_init_opmode(padapter);
 
-		for (i = 0; i<dvobj->iface_nums; i++) {
-			padapter = dvobj->padapters[i];
-			padapter->hw_init_completed = _TRUE;
-		}
+		for (i = 0; i<dvobj->iface_nums; i++)
+			dvobj->padapters[i]->hw_init_completed = _TRUE;
 			
 		if (padapter->registrypriv.notch_filter == 1)
 			rtw_hal_notch_filter(padapter, 1);
 
 		rtw_hal_reset_security_engine(padapter);
-		rtw_sec_restore_wep_key(padapter);
+
+		for (i = 0; i<dvobj->iface_nums; i++)
+			rtw_sec_restore_wep_key(dvobj->padapters[i]);
 
 		rtw_led_control(padapter, LED_CTL_POWER_ON);
 
 		init_hw_mlme_ext(padapter);
 	}
 	else{
-		for (i = 0; i<dvobj->iface_nums; i++) {
-			padapter = dvobj->padapters[i];
-			padapter->hw_init_completed = _FALSE;
-		}
+		for (i = 0; i<dvobj->iface_nums; i++)
+			dvobj->padapters[i]->hw_init_completed = _FALSE;
 		DBG_871X("rtw_hal_init: hal__init fail\n");
 	}
 

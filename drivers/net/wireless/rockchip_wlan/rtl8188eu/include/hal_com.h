@@ -321,5 +321,8 @@ void rtw_get_raw_rssi_info(void *sel, _adapter *padapter);
 void rtw_store_phy_info(_adapter *padapter, union recv_frame *prframe);
 void rtw_dump_raw_rssi_info(_adapter *padapter);
 #endif
+
+u8 rtw_hal_busagg_qsel_check(_adapter *padapter,u8 pre_qsel,u8 next_qsel);
+
 #endif //__HAL_COMMON_H__
 

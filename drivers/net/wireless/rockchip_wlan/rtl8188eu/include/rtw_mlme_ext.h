@@ -725,7 +725,11 @@ unsigned int is_ap_in_tkip(_adapter *padapter);
 unsigned int is_ap_in_wep(_adapter *padapter);
 unsigned int should_forbid_n_rate(_adapter * padapter);
 
-extern uint rtw_get_camid(uint macid);
+s16 rtw_get_camid(_adapter *adapter, struct sta_info* sta, s16 kid);
+s16 rtw_camid_search(_adapter *adapter, u8 *addr, s16 kid);
+s16 rtw_camid_alloc(_adapter *adapter, struct sta_info *sta, u8 kid);
+void rtw_camid_free(_adapter *adapter, u8 cam_id);
+
 extern void rtw_alloc_macid(_adapter *padapter, struct sta_info *psta);
 extern void rtw_release_macid(_adapter *padapter, struct sta_info *psta);
 extern u8 rtw_search_max_mac_id(_adapter *padapter);

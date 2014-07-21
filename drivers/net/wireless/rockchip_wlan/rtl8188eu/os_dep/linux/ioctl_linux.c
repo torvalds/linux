@@ -300,28 +300,12 @@ uint	rtw_is_cckratesonly_included(u8 *rate)
 }
 */
 
-static char *translate_scan(_adapter *padapter, 
+static int search_p2p_wfd_ie(_adapter *padapter,
 				struct iw_request_info* info, struct wlan_network *pnetwork,
 				char *start, char *stop)
 {
-	struct iw_event iwe;
-	u16 cap;
-	u32 ht_ielen = 0, vht_ielen = 0;
-	char custom[MAX_CUSTOM_LEN];
-	char *p;
-	u16 max_rate=0, rate, ht_cap=_FALSE, vht_cap = _FALSE;
-	u32 i = 0;	
-	char	*current_val;
-	long rssi;
-	u8 bw_40MHz=0, short_GI=0, bw_160MHz=0, vht_highest_rate = 0;
-	u16 mcs_rate=0, vht_data_rate=0;
-	u8 ie_offset = (pnetwork->network.Reserved[0] == 2? 0:12);
-	struct registry_priv *pregpriv = &padapter->registrypriv;
 #ifdef CONFIG_P2P
 	struct wifidirect_info	*pwdinfo = &padapter->wdinfo;
-#endif //CONFIG_P2P
-
-#ifdef CONFIG_P2P
 #ifdef CONFIG_WFD
 	if ( SCAN_RESULT_ALL == pwdinfo->wfd_info->scan_result_type )
 	{
@@ -345,7 +329,7 @@ static char *translate_scan(_adapter *padapter,
 				u32	p2pielen = 0;
 
 				//	Verifying the P2P IE
-				if (rtw_get_p2p_ie_from_scan_queue(&pnetwork->network.IEs[0], pnetwork->network.IELength, NULL, &p2pielen, pnetwork->network.Reserved[0])) 
+				if (rtw_get_p2p_ie_from_scan_queue(&pnetwork->network.IEs[0], pnetwork->network.IELength, NULL, &p2pielen, pnetwork->network.Reserved[0]))
 				{
 					blnGotP2PIE = _TRUE;
 				}
@@ -353,7 +337,7 @@ static char *translate_scan(_adapter *padapter,
 
 			if ( blnGotP2PIE == _FALSE )
 			{
-				return start;
+				return _FALSE;
 			}
 			
 		}
@@ -397,40 +381,167 @@ static char *translate_scan(_adapter *padapter,
 		
 		if ( blnGotWFD == _FALSE )
 		{
-			return start;
+			return _FALSE;
 		}
 	}
 #endif // CONFIG_WFD
 
 #endif //CONFIG_P2P
+	return _TRUE;
+}
 
+static inline char *iwe_stream_mac_addr_proess(_adapter *padapter,
+				struct iw_request_info* info, struct wlan_network *pnetwork,
+				char *start, char *stop,struct iw_event *iwe)
+{
 	/*  AP MAC address  */
-	iwe.cmd = SIOCGIWAP;
-	iwe.u.ap_addr.sa_family = ARPHRD_ETHER;
+	iwe->cmd = SIOCGIWAP;
+	iwe->u.ap_addr.sa_family = ARPHRD_ETHER;
 
-	_rtw_memcpy(iwe.u.ap_addr.sa_data, pnetwork->network.MacAddress, ETH_ALEN);
-	start = iwe_stream_add_event(info, start, stop, &iwe, IW_EV_ADDR_LEN);
+	_rtw_memcpy(iwe->u.ap_addr.sa_data, pnetwork->network.MacAddress, ETH_ALEN);
+	start = iwe_stream_add_event(info, start, stop, iwe, IW_EV_ADDR_LEN);
+	return start;
+}
 
+static inline char * iwe_stream_essid_proess(_adapter *padapter,
+				struct iw_request_info* info, struct wlan_network *pnetwork,
+				char *start, char *stop,struct iw_event *iwe)
+{
 	/* Add the ESSID */
-	iwe.cmd = SIOCGIWESSID;
-	iwe.u.data.flags = 1;	
-	iwe.u.data.length = min((u16)pnetwork->network.Ssid.SsidLength, (u16)32);
-	start = iwe_stream_add_point(info, start, stop, &iwe, pnetwork->network.Ssid.Ssid);
+	iwe->cmd = SIOCGIWESSID;
+	iwe->u.data.flags = 1;
+	iwe->u.data.length = min((u16)pnetwork->network.Ssid.SsidLength, (u16)32);
+	start = iwe_stream_add_point(info, start, stop, iwe, pnetwork->network.Ssid.Ssid);
+	return start;
+}
+
+static inline char * iwe_stream_chan_process(_adapter *padapter,
+				struct iw_request_info* info, struct wlan_network *pnetwork,
+				char *start, char *stop,struct iw_event *iwe)
+{
+	if(pnetwork->network.Configuration.DSConfig<1 /*|| pnetwork->network.Configuration.DSConfig>14*/)
+		pnetwork->network.Configuration.DSConfig = 1;
+
+	/* Add frequency/channel */
+	iwe->cmd = SIOCGIWFREQ;
+	iwe->u.freq.m = rtw_ch2freq(pnetwork->network.Configuration.DSConfig) * 100000;
+	iwe->u.freq.e = 1;
+	iwe->u.freq.i = pnetwork->network.Configuration.DSConfig;
+	start = iwe_stream_add_event(info, start, stop, iwe, IW_EV_FREQ_LEN);
+	return start;
+}
+
+static inline char * iwe_stream_mode_process(_adapter *padapter,
+				struct iw_request_info* info, struct wlan_network *pnetwork,
+				char *start, char *stop,struct iw_event *iwe,u16 cap)
+{
+	/* Add mode */
+	if(cap & (WLAN_CAPABILITY_IBSS |WLAN_CAPABILITY_BSS)){
+		iwe->cmd = SIOCGIWMODE;
+		if (cap & WLAN_CAPABILITY_BSS)
+			iwe->u.mode = IW_MODE_MASTER;
+		else
+			iwe->u.mode = IW_MODE_ADHOC;
+
+		start = iwe_stream_add_event(info, start, stop, iwe, IW_EV_UINT_LEN);
+	}
+	return start;
+}
+
+static inline char * iwe_stream_encryption_process(_adapter *padapter,
+				struct iw_request_info* info, struct wlan_network *pnetwork,
+				char *start, char *stop,struct iw_event *iwe,u16 cap)
+{
+	/* Add encryption capability */
+	iwe->cmd = SIOCGIWENCODE;
+	if (cap & WLAN_CAPABILITY_PRIVACY)
+		iwe->u.data.flags = IW_ENCODE_ENABLED | IW_ENCODE_NOKEY;
+	else
+		iwe->u.data.flags = IW_ENCODE_DISABLED;
+	iwe->u.data.length = 0;
+	start = iwe_stream_add_point(info, start, stop, iwe, pnetwork->network.Ssid.Ssid);
+	return start;
+}
+
+static inline char * iwe_stream_protocol_process(_adapter *padapter,
+				struct iw_request_info* info, struct wlan_network *pnetwork,
+				char *start, char *stop,struct iw_event *iwe)
+{
+	u16 ht_cap=_FALSE,vht_cap = _FALSE;
+	u32 ht_ielen = 0, vht_ielen = 0;
+	char *p;
+	u8 ie_offset = (pnetwork->network.Reserved[0] == 2? 0:12);// Probe Request
 
 	//parsing HT_CAP_IE
-	if (pnetwork->network.Reserved[0] == 2) // Probe Request
+	p = rtw_get_ie(&pnetwork->network.IEs[ie_offset], _HT_CAPABILITY_IE_, &ht_ielen, pnetwork->network.IELength-ie_offset);
+	if(p && ht_ielen>0)
+		ht_cap = _TRUE;
+
+	#ifdef CONFIG_80211AC_VHT
+	//parsing VHT_CAP_IE
+	p = rtw_get_ie(&pnetwork->network.IEs[ie_offset], EID_VHTCapability, &vht_ielen, pnetwork->network.IELength-ie_offset);
+	if(p && vht_ielen>0)
+		vht_cap = _TRUE;
+	#endif
+	/* Add the protocol name */
+	iwe->cmd = SIOCGIWNAME;
+	if ((rtw_is_cckratesonly_included((u8*)&pnetwork->network.SupportedRates)) == _TRUE)
 	{
-		p = rtw_get_ie(&pnetwork->network.IEs[0], _HT_CAPABILITY_IE_, &ht_ielen, pnetwork->network.IELength);
+		if(ht_cap == _TRUE)
+			snprintf(iwe->u.name, IFNAMSIZ, "IEEE 802.11bn");
+		else
+			snprintf(iwe->u.name, IFNAMSIZ, "IEEE 802.11b");
+	}
+	else if ((rtw_is_cckrates_included((u8*)&pnetwork->network.SupportedRates)) == _TRUE)
+	{
+		if(ht_cap == _TRUE)
+			snprintf(iwe->u.name, IFNAMSIZ, "IEEE 802.11bgn");
+		else
+			snprintf(iwe->u.name, IFNAMSIZ, "IEEE 802.11bg");
 	}
 	else
 	{
-		p = rtw_get_ie(&pnetwork->network.IEs[12], _HT_CAPABILITY_IE_, &ht_ielen, pnetwork->network.IELength-12);
+		if(pnetwork->network.Configuration.DSConfig > 14)
+		{
+			if(vht_cap == _TRUE)
+				snprintf(iwe->u.name, IFNAMSIZ, "IEEE 802.11AC");
+			else if(ht_cap == _TRUE)
+				snprintf(iwe->u.name, IFNAMSIZ, "IEEE 802.11an");
+			else
+				snprintf(iwe->u.name, IFNAMSIZ, "IEEE 802.11a");
+		}
+		else
+		{
+			if(ht_cap == _TRUE)
+				snprintf(iwe->u.name, IFNAMSIZ, "IEEE 802.11gn");
+			else
+				snprintf(iwe->u.name, IFNAMSIZ, "IEEE 802.11g");
+		}
 	}
+	start = iwe_stream_add_event(info, start, stop, iwe, IW_EV_CHAR_LEN);
+	return start;
+}
+
+static inline char * iwe_stream_rate_process(_adapter *padapter,
+				struct iw_request_info* info, struct wlan_network *pnetwork,
+				char *start, char *stop,struct iw_event *iwe)
+{
+	u32 ht_ielen = 0, vht_ielen = 0;
+	char *p;
+	u16 max_rate=0, rate, ht_cap=_FALSE, vht_cap = _FALSE;
+	u32 i = 0;
+	u8 bw_40MHz=0, short_GI=0, bw_160MHz=0, vht_highest_rate = 0;
+	u16 mcs_rate=0, vht_data_rate=0;
+	char custom[MAX_CUSTOM_LEN]={0};
+	u8 ie_offset = (pnetwork->network.Reserved[0] == 2? 0:12);// Probe Request
+
+	//parsing HT_CAP_IE
+	p = rtw_get_ie(&pnetwork->network.IEs[ie_offset], _HT_CAPABILITY_IE_, &ht_ielen, pnetwork->network.IELength-ie_offset);
 	if(p && ht_ielen>0)
 	{
 		struct rtw_ieee80211_ht_cap *pht_capie;
-		ht_cap = _TRUE;			
-		pht_capie = (struct rtw_ieee80211_ht_cap *)(p+2);		
+		ht_cap = _TRUE;
+		pht_capie = (struct rtw_ieee80211_ht_cap *)(p+2);
 		_rtw_memcpy(&mcs_rate , pht_capie->supp_mcs_set, 2);
 		bw_40MHz = (pht_capie->cap_info&IEEE80211_HT_CAP_SUP_WIDTH) ? 1:0;
 		short_GI = (pht_capie->cap_info&(IEEE80211_HT_CAP_SGI_20|IEEE80211_HT_CAP_SGI_40)) ? 1:0;
@@ -443,7 +554,7 @@ static char *translate_scan(_adapter *padapter,
 	{
 		u8	mcs_map[2];
 
-		vht_cap = _TRUE;		
+		vht_cap = _TRUE;
 		bw_160MHz = GET_VHT_CAPABILITY_ELE_CHL_WIDTH(p+2);
 		if(bw_160MHz)
 			short_GI = GET_VHT_CAPABILITY_ELE_SHORT_GI160M(p+2);
@@ -457,91 +568,12 @@ static char *translate_scan(_adapter *padapter,
 	}
 #endif
 
-	/* Add the protocol name */
-	iwe.cmd = SIOCGIWNAME;
-	if ((rtw_is_cckratesonly_included((u8*)&pnetwork->network.SupportedRates)) == _TRUE)		
-	{
-		if(ht_cap == _TRUE)
-			snprintf(iwe.u.name, IFNAMSIZ, "IEEE 802.11bn");
-		else
-		snprintf(iwe.u.name, IFNAMSIZ, "IEEE 802.11b");
-	}	
-	else if ((rtw_is_cckrates_included((u8*)&pnetwork->network.SupportedRates)) == _TRUE)	
-	{
-		if(ht_cap == _TRUE)
-			snprintf(iwe.u.name, IFNAMSIZ, "IEEE 802.11bgn");
-		else
-			snprintf(iwe.u.name, IFNAMSIZ, "IEEE 802.11bg");
-	}	
-	else
-	{
-		if(pnetwork->network.Configuration.DSConfig > 14)
-		{
-			if(vht_cap == _TRUE)
-				snprintf(iwe.u.name, IFNAMSIZ, "IEEE 802.11AC");
-			else if(ht_cap == _TRUE)
-				snprintf(iwe.u.name, IFNAMSIZ, "IEEE 802.11an");
-			else
-				snprintf(iwe.u.name, IFNAMSIZ, "IEEE 802.11a");
-		}
-		else
-		{
-			if(ht_cap == _TRUE)
-				snprintf(iwe.u.name, IFNAMSIZ, "IEEE 802.11gn");
-			else
-				snprintf(iwe.u.name, IFNAMSIZ, "IEEE 802.11g");
-		}
-	}	
-
-	start = iwe_stream_add_event(info, start, stop, &iwe, IW_EV_CHAR_LEN);
-
-	  /* Add mode */
-	if (pnetwork->network.Reserved[0] == 2) // Probe Request
-	{
-		cap = 0;
-	}
-	else
-	{
-        iwe.cmd = SIOCGIWMODE;
-		_rtw_memcpy((u8 *)&cap, rtw_get_capability_from_ie(pnetwork->network.IEs), 2);
-		cap = le16_to_cpu(cap);
-	}
-
-	if(cap & (WLAN_CAPABILITY_IBSS |WLAN_CAPABILITY_BSS)){
-		if (cap & WLAN_CAPABILITY_BSS)
-			iwe.u.mode = IW_MODE_MASTER;
-		else
-			iwe.u.mode = IW_MODE_ADHOC;
-
-		start = iwe_stream_add_event(info, start, stop, &iwe, IW_EV_UINT_LEN);
-	}
-
-	if(pnetwork->network.Configuration.DSConfig<1 /*|| pnetwork->network.Configuration.DSConfig>14*/)
-		pnetwork->network.Configuration.DSConfig = 1;
-
-	 /* Add frequency/channel */
-	iwe.cmd = SIOCGIWFREQ;
-	iwe.u.freq.m = rtw_ch2freq(pnetwork->network.Configuration.DSConfig) * 100000;
-	iwe.u.freq.e = 1;
-	iwe.u.freq.i = pnetwork->network.Configuration.DSConfig;
-	start = iwe_stream_add_event(info, start, stop, &iwe, IW_EV_FREQ_LEN);
-
-	/* Add encryption capability */
-	iwe.cmd = SIOCGIWENCODE;
-	if (cap & WLAN_CAPABILITY_PRIVACY)
-		iwe.u.data.flags = IW_ENCODE_ENABLED | IW_ENCODE_NOKEY;
-	else
-		iwe.u.data.flags = IW_ENCODE_DISABLED;
-	iwe.u.data.length = 0;
-	start = iwe_stream_add_point(info, start, stop, &iwe, pnetwork->network.Ssid.Ssid);
-
 	/*Add basic and extended rates */
-	max_rate = 0;
 	p = custom;
 	p += snprintf(p, MAX_CUSTOM_LEN - (p - custom), " Rates (Mb/s): ");
 	while(pnetwork->network.SupportedRates[i]!=0)
 	{
-		rate = pnetwork->network.SupportedRates[i]&0x7F; 
+		rate = pnetwork->network.SupportedRates[i]&0x7F;
 		if (rate > max_rate)
 			max_rate = rate;
 		p += snprintf(p, MAX_CUSTOM_LEN - (p - custom),
@@ -557,7 +589,6 @@ static char *translate_scan(_adapter *padapter,
 		if(mcs_rate&0x8000)//MCS15
 		{
 			max_rate = (bw_40MHz) ? ((short_GI)?300:270):((short_GI)?144:130);
-			
 		}
 		else if(mcs_rate&0x0080)//MCS7
 		{
@@ -569,118 +600,142 @@ static char *translate_scan(_adapter *padapter,
 			max_rate = (bw_40MHz) ? ((short_GI)?150:135):((short_GI)?72:65);
 		}
 
-		max_rate = max_rate*2;//Mbps/2;		
+		max_rate = max_rate*2;//Mbps/2;
 	}
 
-	iwe.cmd = SIOCGIWRATE;
-	iwe.u.bitrate.fixed = iwe.u.bitrate.disabled = 0;
-	iwe.u.bitrate.value = max_rate * 500000;
-	start = iwe_stream_add_event(info, start, stop, &iwe, IW_EV_PARAM_LEN);
+	iwe->cmd = SIOCGIWRATE;
+	iwe->u.bitrate.fixed = iwe->u.bitrate.disabled = 0;
+	iwe->u.bitrate.value = max_rate * 500000;
+	start =iwe_stream_add_event(info, start, stop, iwe, IW_EV_PARAM_LEN);
+	return start ;
+}
 
-	//parsing WPA/WPA2 IE
-	if (pnetwork->network.Reserved[0] != 2) // Probe Request
-	{
-		u8 buf[MAX_WPA_IE_LEN*2];
-		u8 wpa_ie[255],rsn_ie[255];
-		u16 wpa_len=0,rsn_len=0;
-		u8 *p;
-		sint out_len=0;
-		out_len=rtw_get_sec_ie(pnetwork->network.IEs ,pnetwork->network.IELength,rsn_ie,&rsn_len,wpa_ie,&wpa_len);
-		RT_TRACE(_module_rtl871x_mlme_c_,_drv_info_,("rtw_wx_get_scan: ssid=%s\n",pnetwork->network.Ssid.Ssid));
-		RT_TRACE(_module_rtl871x_mlme_c_,_drv_info_,("rtw_wx_get_scan: wpa_len=%d rsn_len=%d\n",wpa_len,rsn_len));
+static inline char * iwe_stream_wpa_wpa2_process(_adapter *padapter,
+				struct iw_request_info* info, struct wlan_network *pnetwork,
+				char *start, char *stop,struct iw_event *iwe)
+{
+	int buf_size = MAX_WPA_IE_LEN*2;
+	//u8 pbuf[buf_size]={0};
+	u8 *pbuf = rtw_zmalloc(buf_size);
 
-		if (wpa_len > 0)
+	u8 wpa_ie[255]={0},rsn_ie[255]={0};
+	u16 i, wpa_len=0,rsn_len=0;
+	u8 *p;
+	sint out_len=0;
+
+	if(pbuf){
+		p=pbuf;
+
+		//parsing WPA/WPA2 IE
+		if (pnetwork->network.Reserved[0] != 2) // Probe Request
 		{
-			p=buf;
-			_rtw_memset(buf, 0, MAX_WPA_IE_LEN*2);
-			p += sprintf(p, "wpa_ie=");
-			for (i = 0; i < wpa_len; i++) {
-				p += sprintf(p, "%02x", wpa_ie[i]);
-			}
+			out_len=rtw_get_sec_ie(pnetwork->network.IEs ,pnetwork->network.IELength,rsn_ie,&rsn_len,wpa_ie,&wpa_len);
+			RT_TRACE(_module_rtl871x_mlme_c_,_drv_info_,("rtw_wx_get_scan: ssid=%s\n",pnetwork->network.Ssid.Ssid));
+			RT_TRACE(_module_rtl871x_mlme_c_,_drv_info_,("rtw_wx_get_scan: wpa_len=%d rsn_len=%d\n",wpa_len,rsn_len));
 
-			if (wpa_len > 100) {
-				printk("-----------------Len %d----------------\n", wpa_len);
+			if (wpa_len > 0){
+				_rtw_memset(pbuf, 0, buf_size);
+				p += sprintf(p, "wpa_ie=");
 				for (i = 0; i < wpa_len; i++) {
-					printk("%02x ", wpa_ie[i]);
+					p += sprintf(p, "%02x", wpa_ie[i]);
 				}
-				printk("\n");
-				printk("-----------------Len %d----------------\n", wpa_len);
+
+				if (wpa_len > 100) {
+					printk("-----------------Len %d----------------\n", wpa_len);
+					for (i = 0; i < wpa_len; i++) {
+						printk("%02x ", wpa_ie[i]);
+					}
+					printk("\n");
+					printk("-----------------Len %d----------------\n", wpa_len);
+				}
+
+				_rtw_memset(iwe, 0, sizeof(iwe));
+				iwe->cmd = IWEVCUSTOM;
+				iwe->u.data.length = strlen(pbuf);
+				start = iwe_stream_add_point(info, start, stop, iwe,pbuf);
+
+				_rtw_memset(iwe, 0, sizeof(iwe));
+				iwe->cmd =IWEVGENIE;
+				iwe->u.data.length = wpa_len;
+				start = iwe_stream_add_point(info, start, stop, iwe, wpa_ie);
 			}
-	
-			_rtw_memset(&iwe, 0, sizeof(iwe));
-			iwe.cmd = IWEVCUSTOM;
-			iwe.u.data.length = strlen(buf);
-			start = iwe_stream_add_point(info, start, stop, &iwe,buf);
-			
-			_rtw_memset(&iwe, 0, sizeof(iwe));
-			iwe.cmd =IWEVGENIE;
-			iwe.u.data.length = wpa_len;
-			start = iwe_stream_add_point(info, start, stop, &iwe, wpa_ie);			
-		}
-		if (rsn_len > 0)
-		{
-			p = buf;
-			_rtw_memset(buf, 0, MAX_WPA_IE_LEN*2);
-			p += sprintf(p, "rsn_ie=");
-			for (i = 0; i < rsn_len; i++) {
-				p += sprintf(p, "%02x", rsn_ie[i]);
+
+			if (rsn_len > 0){
+				_rtw_memset(pbuf, 0, buf_size);
+				p += sprintf(p, "rsn_ie=");
+				for (i = 0; i < rsn_len; i++) {
+					p += sprintf(p, "%02x", rsn_ie[i]);
+				}
+				_rtw_memset(iwe, 0, sizeof(iwe));
+				iwe->cmd = IWEVCUSTOM;
+				iwe->u.data.length = strlen(pbuf);
+				start = iwe_stream_add_point(info, start, stop, iwe,pbuf);
+
+				_rtw_memset(iwe, 0, sizeof(iwe));
+				iwe->cmd =IWEVGENIE;
+				iwe->u.data.length = rsn_len;
+				start = iwe_stream_add_point(info, start, stop, iwe, rsn_ie);
 			}
-			_rtw_memset(&iwe, 0, sizeof(iwe));
-			iwe.cmd = IWEVCUSTOM;
-			iwe.u.data.length = strlen(buf);
-			start = iwe_stream_add_point(info, start, stop, &iwe,buf);
-		
-			_rtw_memset(&iwe, 0, sizeof(iwe));
-			iwe.cmd =IWEVGENIE;
-			iwe.u.data.length = rsn_len;
-			start = iwe_stream_add_point(info, start, stop, &iwe, rsn_ie);		
 		}
+
+		rtw_mfree(pbuf, buf_size);
+	}
+	return start;
+}
+
+static inline char * iwe_stream_wps_process(_adapter *padapter,
+				struct iw_request_info* info, struct wlan_network *pnetwork,
+				char *start, char *stop,struct iw_event *iwe)
+{
+	//parsing WPS IE
+	uint cnt = 0,total_ielen;
+	u8 *wpsie_ptr=NULL;
+	uint wps_ielen = 0;
+	u8 ie_offset = (pnetwork->network.Reserved[0] == 2? 0:12);
+
+	u8 *ie_ptr = pnetwork->network.IEs + ie_offset;
+	total_ielen= pnetwork->network.IELength - ie_offset;
+
+	if (pnetwork->network.Reserved[0] == 2) // Probe Request
+	{
+		ie_ptr = pnetwork->network.IEs;
+		total_ielen = pnetwork->network.IELength;
+	}
+	else // Beacon or Probe Respones
+	{
+		ie_ptr = pnetwork->network.IEs + _FIXED_IE_LENGTH_;
+		total_ielen = pnetwork->network.IELength - _FIXED_IE_LENGTH_;
 	}
 
-	{ //parsing WPS IE
-		uint cnt = 0,total_ielen;	
-		u8 *wpsie_ptr=NULL;
-		uint wps_ielen = 0;		
-
-		u8 *ie_ptr = pnetwork->network.IEs + ie_offset;
-		total_ielen= pnetwork->network.IELength - ie_offset;
-
-		if (pnetwork->network.Reserved[0] == 2) // Probe Request
+	while(cnt < total_ielen)
+	{
+		if(rtw_is_wps_ie(&ie_ptr[cnt], &wps_ielen) && (wps_ielen>2))
 		{
-			ie_ptr = pnetwork->network.IEs;
-			total_ielen = pnetwork->network.IELength;
+			wpsie_ptr = &ie_ptr[cnt];
+			iwe->cmd =IWEVGENIE;
+			iwe->u.data.length = (u16)wps_ielen;
+			start = iwe_stream_add_point(info, start, stop,iwe, wpsie_ptr);
 		}
-		else     // Beacon or Probe Respones
-		{
-			ie_ptr = pnetwork->network.IEs + _FIXED_IE_LENGTH_;
-			total_ielen = pnetwork->network.IELength - _FIXED_IE_LENGTH_;
-		}
-        
-		while(cnt < total_ielen)
-		{
-			if(rtw_is_wps_ie(&ie_ptr[cnt], &wps_ielen) && (wps_ielen>2))			
-			{
-				wpsie_ptr = &ie_ptr[cnt];
-				iwe.cmd =IWEVGENIE;
-				iwe.u.data.length = (u16)wps_ielen;
-				start = iwe_stream_add_point(info, start, stop, &iwe, wpsie_ptr);						
-			}			
-			cnt+=ie_ptr[cnt+1]+2; //goto next
-		}
+		cnt+=ie_ptr[cnt+1]+2; //goto next
 	}
+	return start;
+}
 
+static inline char * iwe_stream_wapi_process(_adapter *padapter,
+				struct iw_request_info* info, struct wlan_network *pnetwork,
+				char *start, char *stop,struct iw_event *iwe)
+{
 #ifdef CONFIG_WAPI_SUPPORT
+	char *p;
+
 	if (pnetwork->network.Reserved[0] != 2) // Probe Request
 	{
 		sint out_len_wapi=0;
 		/* here use static for stack size */
-		static u8 buf_wapi[MAX_WAPI_IE_LEN*2];
-		static u8 wapi_ie[MAX_WAPI_IE_LEN];
+		static u8 buf_wapi[MAX_WAPI_IE_LEN*2]={0};
+		static u8 wapi_ie[MAX_WAPI_IE_LEN]={0};
 		u16 wapi_len=0;
 		u16  i;
-
-		_rtw_memset(buf_wapi, 0, MAX_WAPI_IE_LEN);
-		_rtw_memset(wapi_ie, 0, MAX_WAPI_IE_LEN);
 
 		out_len_wapi=rtw_get_wapi_ie(pnetwork->network.IEs ,pnetwork->network.IELength,wapi_ie,&wapi_len);
 		RT_TRACE(_module_rtl871x_mlme_c_,_drv_info_,("rtw_wx_get_scan: ssid=%s\n",pnetwork->network.Ssid.Ssid));
@@ -689,36 +744,45 @@ static char *translate_scan(_adapter *padapter,
 		DBG_871X("rtw_wx_get_scan: %s ",pnetwork->network.Ssid.Ssid);
 		DBG_871X("rtw_wx_get_scan: ssid = %d ",wapi_len);
 
-
 		if (wapi_len > 0)
 		{
 			p=buf_wapi;
-			_rtw_memset(buf_wapi, 0, MAX_WAPI_IE_LEN*2);
+			//_rtw_memset(buf_wapi, 0, MAX_WAPI_IE_LEN*2);
 			p += sprintf(p, "wapi_ie=");
 			for (i = 0; i < wapi_len; i++) {
 				p += sprintf(p, "%02x", wapi_ie[i]);
 			}
 
-			_rtw_memset(&iwe, 0, sizeof(iwe));
-			iwe.cmd = IWEVCUSTOM;
-			iwe.u.data.length = strlen(buf_wapi);
-			start = iwe_stream_add_point(info, start, stop, &iwe,buf_wapi);
+			_rtw_memset(iwe, 0, sizeof(iwe));
+			iwe->cmd = IWEVCUSTOM;
+			iwe->u.data.length = strlen(buf_wapi);
+			start = iwe_stream_add_point(info, start, stop, iwe,buf_wapi);
 
-			_rtw_memset(&iwe, 0, sizeof(iwe));
-			iwe.cmd =IWEVGENIE;
-			iwe.u.data.length = wapi_len;
-			start = iwe_stream_add_point(info, start, stop, &iwe, wapi_ie);
+			_rtw_memset(iwe, 0, sizeof(iwe));
+			iwe->cmd =IWEVGENIE;
+			iwe->u.data.length = wapi_len;
+			start = iwe_stream_add_point(info, start, stop, iwe, wapi_ie);
 		}
 	}
-#endif
+#endif//#ifdef CONFIG_WAPI_SUPPORT
+	return start;
+}
 
+static inline char *  iwe_stream_rssi_process(_adapter *padapter,
+				struct iw_request_info* info, struct wlan_network *pnetwork,
+				char *start, char *stop,struct iw_event *iwe)
 {
-	struct mlme_priv *pmlmepriv = &(padapter->mlmepriv);
 	u8 ss, sq;
-	
+	struct mlme_priv *pmlmepriv = &(padapter->mlmepriv);
+
 	/* Add quality statistics */
-	iwe.cmd = IWEVQUAL;
-	iwe.u.qual.updated = IW_QUAL_QUAL_UPDATED | IW_QUAL_LEVEL_UPDATED | IW_QUAL_NOISE_INVALID
+	iwe->cmd = IWEVQUAL;
+	iwe->u.qual.updated = IW_QUAL_QUAL_UPDATED | IW_QUAL_LEVEL_UPDATED
+	#if defined(CONFIG_SIGNAL_DISPLAY_DBM) && defined(CONFIG_BACKGROUND_NOISE_MONITOR)
+		| IW_QUAL_NOISE_UPDATED
+	#else
+		| IW_QUAL_NOISE_INVALID
+	#endif
 	#ifdef CONFIG_SIGNAL_DISPLAY_DBM
 		| IW_QUAL_DBM
 	#endif
@@ -732,42 +796,96 @@ static char *translate_scan(_adapter *padapter,
 		ss = pnetwork->network.PhyInfo.SignalStrength;
 		sq = pnetwork->network.PhyInfo.SignalQuality;
 	}
-	
-	
+
 	#ifdef CONFIG_SIGNAL_DISPLAY_DBM
-	iwe.u.qual.level = (u8) translate_percentage_to_dbm(ss);//dbm
+	iwe->u.qual.level = (u8) translate_percentage_to_dbm(ss);//dbm
 	#else
-	iwe.u.qual.level = (u8)ss;//%
+	#ifdef CONFIG_SKIP_SIGNAL_SCALE_MAPPING
+	{
+		/* Do signal scale mapping when using percentage as the unit of signal strength, since the scale mapping is skipped in odm */
+		HAL_DATA_TYPE *pHal = GET_HAL_DATA(padapter);
+		iwe->u.qual.level = (u8)odm_SignalScaleMapping(&pHal->odmpriv, ss);
+	}
+	#else
+	iwe->u.qual.level = (u8)ss;//%
 	#endif
-	
-	iwe.u.qual.qual = (u8)sq;   // signal quality
+	#endif
+
+	iwe->u.qual.qual = (u8)sq;   // signal quality
 
 	#ifdef CONFIG_PLATFORM_ROCKCHIPS
-	iwe.u.qual.noise = -100; // noise level suggest by zhf@rockchips
-	#else 
-	iwe.u.qual.noise = 0; // noise level
+	iwe->u.qual.noise = -100; // noise level suggest by zhf@rockchips
+	#else
+	#if defined(CONFIG_SIGNAL_DISPLAY_DBM) && defined(CONFIG_BACKGROUND_NOISE_MONITOR)
+	{
+		s16 tmp_noise=0;
+		rtw_hal_get_odm_var(padapter, HAL_ODM_NOISE_MONITOR,&(pnetwork->network.Configuration.DSConfig), &(tmp_noise));
+		iwe->u.qual.noise = tmp_noise;
+	}
+	#else
+	iwe->u.qual.noise = 0; // noise level
+	#endif
 	#endif //CONFIG_PLATFORM_ROCKCHIPS
-	
+
 	//DBG_871X("iqual=%d, ilevel=%d, inoise=%d, iupdated=%d\n", iwe.u.qual.qual, iwe.u.qual.level , iwe.u.qual.noise, iwe.u.qual.updated);
 
-	start = iwe_stream_add_event(info, start, stop, &iwe, IW_EV_QUAL_LEN);
+	start = iwe_stream_add_event(info, start, stop, iwe, IW_EV_QUAL_LEN);
+	return start;
 }
 
+static inline char *  iwe_stream_net_rsv_process(_adapter *padapter,
+				struct iw_request_info* info, struct wlan_network *pnetwork,
+				char *start, char *stop,struct iw_event *iwe)
+{
+	u8 buf[32] = {0};
+	u8 * p,*pos;
+	int len;
+	p = buf;
+	pos = pnetwork->network.Reserved;
+
+	p += sprintf(p, "fm=%02X%02X", pos[1], pos[0]);
+	_rtw_memset(iwe, 0, sizeof(iwe));
+	iwe->cmd = IWEVCUSTOM;
+	iwe->u.data.length = strlen(buf);
+	start = iwe_stream_add_point(info, start, stop,iwe, buf);
+	return start;
+}
+
+static char *translate_scan(_adapter *padapter,
+				struct iw_request_info* info, struct wlan_network *pnetwork,
+				char *start, char *stop)
+{
+	struct iw_event iwe;
+	u16 cap = 0;
+	_rtw_memset(&iwe, 0, sizeof(iwe));
+
+	if(_FALSE == search_p2p_wfd_ie(padapter,info,pnetwork,start,stop))
+		return start;
+
+	start = iwe_stream_mac_addr_proess(padapter,info,pnetwork,start,stop,&iwe);
+	start = iwe_stream_essid_proess(padapter,info,pnetwork,start,stop,&iwe);
+	start = iwe_stream_protocol_process(padapter,info,pnetwork,start,stop,&iwe);
+	if (pnetwork->network.Reserved[0] == 2) // Probe Request
 	{
-		u8 buf[MAX_WPA_IE_LEN];
-		u8 * p,*pos;
-		int len;
-		p = buf;
-		pos = pnetwork->network.Reserved;
-		_rtw_memset(buf, 0, MAX_WPA_IE_LEN);
-		p += sprintf(p, "fm=%02X%02X", pos[1], pos[0]);
-		_rtw_memset(&iwe, 0, sizeof(iwe));
-		iwe.cmd = IWEVCUSTOM;
-		iwe.u.data.length = strlen(buf);
-		start = iwe_stream_add_point(info, start, stop, &iwe, buf);
+		cap = 0;
 	}
-	
-	return start;	
+	else
+	{
+		_rtw_memcpy((u8 *)&cap, rtw_get_capability_from_ie(pnetwork->network.IEs), 2);
+		cap = le16_to_cpu(cap);
+	}
+
+	start = iwe_stream_mode_process(padapter,info,pnetwork,start,stop,&iwe,cap);
+	start = iwe_stream_chan_process(padapter,info,pnetwork,start,stop,&iwe);
+	start = iwe_stream_encryption_process(padapter,info,pnetwork,start,stop,&iwe,cap);
+	start = iwe_stream_rate_process(padapter,info,pnetwork,start,stop,&iwe);
+	start = iwe_stream_wpa_wpa2_process(padapter,info,pnetwork,start,stop,&iwe);
+	start = iwe_stream_wps_process(padapter,info,pnetwork,start,stop,&iwe);
+	start = iwe_stream_wapi_process(padapter,info,pnetwork,start,stop,&iwe);
+	start = iwe_stream_rssi_process(padapter,info,pnetwork,start,stop,&iwe);
+	start = iwe_stream_net_rsv_process(padapter,info,pnetwork,start,stop,&iwe);
+
+	return start;
 }
 
 static int wpa_set_auth_algs(struct net_device *dev, u32 value)
@@ -994,7 +1112,7 @@ _func_enter_;
 					//DEBUG_ERR((" param->u.crypt.key_len=%d\n",param->u.crypt.key_len));
 					DBG_871X(" ~~~~set sta key:unicastkey\n");
 					
-					rtw_setstakey_cmd(padapter, (unsigned char *)psta, _TRUE, _TRUE);
+					rtw_setstakey_cmd(padapter, psta, _TRUE, _TRUE);
 				}
 				else//group key
 				{ 					
@@ -9523,7 +9641,8 @@ static int rtw_mp_efuse_set(struct net_device *dev,
 	struct pwrctrl_priv *pwrctrlpriv ;
 	PHAL_DATA_TYPE pHalData;
 	PEFUSE_HAL pEfuseHal;
-
+	struct mp_priv *pmppriv;
+	
 	u8 ips_mode = IPS_NUM; // init invalid value
 	u8 lps_mode = PS_MODE_NUM; // init invalid value
 	u32 i=0,j=0, jj, kk;
@@ -9540,6 +9659,8 @@ static int rtw_mp_efuse_set(struct net_device *dev,
 	pwrctrlpriv = adapter_to_pwrctl(padapter);
 	pHalData = GET_HAL_DATA(padapter);
 	pEfuseHal = &pHalData->EfuseHal;
+	pmppriv = &padapter->mppriv;
+	
 	err = 0;
 	
 	if (copy_from_user(extra, wrqu->pointer, wrqu->length))
@@ -9595,12 +9716,15 @@ static int rtw_mp_efuse_set(struct net_device *dev,
 	// wmap,addr,00e04c871200
 	if (strcmp(tmp[0], "wmap") == 0)
 	{
+#if defined(CONFIG_RTL8188E) || defined(CONFIG_USB_HCI)
+		if(pmppriv->bPreBrunEfuse==_FALSE)
+			Rtw_EfuseChkPreBurn8188ESerial(padapter);
+#endif		
 		if ((tmp[1]==NULL) || (tmp[2]==NULL))
 		{
 			err = -EINVAL;
 			goto exit;
 		}
-
 #if 1
 		// unknown bug workaround, need to fix later
 		addr=0x1ff;
@@ -9628,7 +9752,6 @@ static int rtw_mp_efuse_set(struct net_device *dev,
 			err = -EINVAL;
 			goto exit;
 		}
-
 		DBG_871X("%s: addr=0x%X\n", __FUNCTION__, addr);
 		DBG_871X("%s: cnts=%d\n", __FUNCTION__, cnts);
 		DBG_871X("%s: map data=%s\n", __FUNCTION__, tmp[2]);
@@ -10593,9 +10716,9 @@ static int rtw_mp_start(struct net_device *dev,
 		DBG_871X("_rtw_mp_xmit_priv for Download BT patch FW\n");
 		_rtw_mp_xmit_priv(&padapter->xmitpriv);
 		#endif
-	
+		pHalFunc->hal_deinit(padapter);
 		padapter->registrypriv.mp_mode =1;
-
+		pHalFunc->hal_init(padapter);
 		rtw_pm_set_ips(padapter,IPS_NONE);
 		LeaveAllPowerSaveMode(padapter);
 
@@ -11119,9 +11242,10 @@ static int rtw_mp_arx(struct net_device *dev,
 	u32		mac_cck_err=0, mac_ofdm_err=0, mac_ht_err=0, mac_vht_err=0;
 	u8 		input[wrqu->length];
 	char *pch, *ptmp, *token, *tmp[2]={0x00,0x00};
-	u32 i=0,ii=0,jj=0,kk=0,cnts=0;
+	u32 i=0,ii=0,jj=0,kk=0,cnts=0,bmon=0;
 	PADAPTER padapter = rtw_netdev_priv(dev);
 	struct mp_priv *pmppriv = &padapter->mppriv;
+
 
 	if (copy_from_user(input, wrqu->pointer, wrqu->length))
 			return -EFAULT;
@@ -11135,6 +11259,7 @@ static int rtw_mp_arx(struct net_device *dev,
 	bSetBssid = (strncmp(input, "setbssid=", 8)==0)?1:0; // strncmp TRUE is 0
 	//bfilter_init = (strncmp(input, "filter_init",11)==0)?1:0;
 	bmac_filter = (strncmp(input, "accept_mac",10)==0)?1:0;
+	bmon = (strncmp(input, "mon=",4)==0)?1:0;
 
 
 	if(bSetBssid==1){
@@ -11263,6 +11388,19 @@ static int rtw_mp_arx(struct net_device *dev,
 		
 		sprintf( extra, "Mac Received packet OK: %d , CRC error: %d , Drop Packets: %d\n",
 				mac_cck_ok+mac_ofdm_ok+mac_ht_ok+mac_vht_ok,mac_cck_err+mac_ofdm_err+mac_ht_err+mac_vht_err,DropPacket);			
+	}
+
+
+
+	if( bmon==1 ) {
+		sscanf(input, "mon=%d", &bmon);
+		if(bmon==1)		{
+		pmppriv->rx_bindicatePkt= _TRUE;	
+		sprintf( extra, "Indicating Receive Packet to network start\n");
+		}else {			
+			pmppriv->rx_bindicatePkt= _FALSE;			
+			sprintf( extra, "Indicating Receive Packet to network Stop\n");
+		}
 	}
 	wrqu->length = strlen(extra) + 1;
 

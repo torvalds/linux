@@ -1580,6 +1580,21 @@ phy_GetCurrentTxNum_8188E(
 	return TxNum;
 }
 
+s8 tx_power_extra_bias(
+	IN	u8				RFPath,
+	IN	u8				Rate,	
+	IN	CHANNEL_WIDTH	BandWidth,	
+	IN	u8				Channel
+	)
+{
+	s8 bias = 0;
+
+	if (Rate == MGN_2M)
+		bias = -9;
+
+	return bias;
+}
+
 u8
 PHY_GetTxPowerIndex_8188E(
 	IN	PADAPTER		pAdapter,
@@ -1589,30 +1604,31 @@ PHY_GetTxPowerIndex_8188E(
 	IN	u8				Channel
 	)
 {
-	PHAL_DATA_TYPE		pHalData = GET_HAL_DATA(pAdapter);
-	s8				powerDiffByRate = 0, txPower = 0, limit = 0;
-	u8				txNum = phy_GetCurrentTxNum_8188E( pAdapter, Rate );
-	BOOLEAN			bIn24G = _FALSE;
+	PHAL_DATA_TYPE pHalData = GET_HAL_DATA(pAdapter);
+	u8 base_index = 0;
+	s8 by_rate_diff = 0, txPower = 0, limit = 0, track_diff = 0, extra_bias = 0;
+	u8 txNum = phy_GetCurrentTxNum_8188E(pAdapter, Rate);
+	BOOLEAN bIn24G = _FALSE;
 
-	//DBG_871X("===>%s\n", __FUNCTION__ );
-	
-	txPower = (s8) PHY_GetTxPowerIndexBase( pAdapter,RFPath, Rate, BandWidth, Channel, &bIn24G );
+	base_index = PHY_GetTxPowerIndexBase(pAdapter,RFPath, Rate, BandWidth, Channel, &bIn24G);
 
-	powerDiffByRate = PHY_GetTxPowerByRate( pAdapter, BAND_ON_2_4G, RFPath, txNum, Rate );
+	by_rate_diff = PHY_GetTxPowerByRate(pAdapter, BAND_ON_2_4G, RFPath, txNum, Rate);
+	limit = PHY_GetTxPowerLimit(pAdapter, pAdapter->registrypriv.RegPwrTblSel, (u8)(!bIn24G), pHalData->CurrentChannelBW, RFPath, Rate, pHalData->CurrentChannel);
+	by_rate_diff = by_rate_diff > limit ? limit : by_rate_diff;
 
-	limit = PHY_GetTxPowerLimit( pAdapter, pAdapter->registrypriv.RegPwrTblSel, (u8)(!bIn24G), pHalData->CurrentChannelBW, RFPath, Rate, pHalData->CurrentChannel);
+	track_diff = PHY_GetTxPowerTrackingOffset(pAdapter, RFPath, Rate);
 
-	powerDiffByRate = powerDiffByRate > limit ? limit : powerDiffByRate;
+	extra_bias = tx_power_extra_bias(RFPath, Rate, BandWidth, Channel);
 
-	txPower += powerDiffByRate;
-
-	txPower += PHY_GetTxPowerTrackingOffset( pAdapter, RFPath, Rate );
+	txPower = base_index + by_rate_diff + track_diff + extra_bias;
 
 	if(txPower > MAX_POWER_INDEX)
 		txPower = MAX_POWER_INDEX;
 
-	//DBG_871X("Final Tx Power(RF-%c, Channel: %d) = %d(0x%X)\n", ((RFPath==0)?'A':'B'), Channel, txPower, txPower);
-	
+	if (0)
+	DBG_871X("RF-%c ch%d TxPwrIdx = %d(0x%X) [%2u %2d %2d %2d]\n"
+		, ((RFPath==0)?'A':'B'), Channel, txPower, txPower, base_index, by_rate_diff, track_diff, extra_bias);
+
 	return (u8)txPower;	
 }
 

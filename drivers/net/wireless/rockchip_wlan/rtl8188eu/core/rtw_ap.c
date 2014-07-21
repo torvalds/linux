@@ -2886,7 +2886,7 @@ u8 ap_free_sta(_adapter *padapter, struct sta_info *psta, bool active, u16 reaso
 	//report_del_sta_event(padapter, psta->hwaddr, reason);
 
 	//clear cam entry / key
-	rtw_clearstakey_cmd(padapter, (u8*)psta, (u8)rtw_get_camid(psta->mac_id), _TRUE);
+	rtw_clearstakey_cmd(padapter, psta, _TRUE);
 
 
 	_enter_critical_bh(&psta->lock, &irqL);
@@ -3125,13 +3125,14 @@ void rtw_ap_restore_network(_adapter *padapter)
 		if (psta == NULL) {
 			DBG_871X(FUNC_ADPT_FMT" sta_info is null\n", FUNC_ADPT_ARG(padapter));
 		} else if (psta->state &_FW_LINKED) {
+			rtw_sta_media_status_rpt(padapter, psta, 1);
 			Update_RA_Entry(padapter, psta);
 			//pairwise key
 			/* per sta pairwise key and settings */
 			if(	(padapter->securitypriv.dot11PrivacyAlgrthm == _TKIP_) ||
 				(padapter->securitypriv.dot11PrivacyAlgrthm == _AES_))
 			{
-				rtw_setstakey_cmd(padapter, (unsigned char *)psta, _TRUE,_FALSE);
+				rtw_setstakey_cmd(padapter, psta, _TRUE,_FALSE);
 			}			
 		}
 	}

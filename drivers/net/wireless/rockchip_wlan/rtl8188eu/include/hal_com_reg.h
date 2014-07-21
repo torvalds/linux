@@ -762,10 +762,6 @@ Default: 00b.
 #define CAM_READ				0x00000000
 #define CAM_POLLINIG			BIT31
 
-#define SCR_UseDK				0x01
-#define SCR_TxSecEnable			0x02
-#define SCR_RxSecEnable			0x04
-
 //
 // 10. Power Save Control Registers	 
 //
@@ -1514,6 +1510,7 @@ Current IOREG MAP
 #define SCR_NoSKMC				BIT(5)			//No Key Search Multicast
 #define SCR_TXBCUSEDK			BIT(6)			// Force Tx Broadcast packets Use Default Key
 #define SCR_RXBCUSEDK			BIT(7)			// Force Rx Broadcast packets Use Default Key
+#define SCR_CHK_KEYID			BIT(8)
 
 //-----------------------------------------------------
 //

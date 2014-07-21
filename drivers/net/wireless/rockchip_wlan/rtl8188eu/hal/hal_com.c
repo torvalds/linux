@@ -1019,6 +1019,40 @@ _func_enter_;
 	case HW_VAR_PORT_SWITCH:
 		hw_var_port_switch(adapter);
 		break;
+	case HW_VAR_SEC_CFG:
+	{
+		#if defined(CONFIG_CONCURRENT_MODE) && !defined(DYNAMIC_CAMID_ALLOC)
+		// enable tx enc and rx dec engine, and no key search for MC/BC
+		rtw_write8(adapter, REG_SECCFG, SCR_NoSKMC|SCR_RxDecEnable|SCR_TxEncEnable);
+		#elif defined(DYNAMIC_CAMID_ALLOC)
+		u16 reg_scr;
+
+		reg_scr = rtw_read16(adapter, REG_SECCFG);
+		rtw_write16(adapter, REG_SECCFG, reg_scr|SCR_CHK_KEYID|SCR_RxDecEnable|SCR_TxEncEnable);
+		#else
+		rtw_write8(adapter, REG_SECCFG, *((u8*)val));
+		#endif
+	}
+		break;
+	case HW_VAR_SEC_DK_CFG:
+	{
+		struct security_priv *sec = &adapter->securitypriv;
+		u8 reg_scr = rtw_read8(adapter, REG_SECCFG);
+
+		if (val) /* Enable default key related setting */
+		{
+			reg_scr |= SCR_TXBCUSEDK;
+			if (sec->dot11AuthAlgrthm != dot11AuthAlgrthm_8021X)
+				reg_scr |= (SCR_RxUseDK|SCR_TxUseDK);
+		}
+		else /* Disable default key related setting */
+		{
+			reg_scr &= ~(SCR_RXBCUSEDK|SCR_TXBCUSEDK|SCR_RxUseDK|SCR_TxUseDK);
+		}
+
+		rtw_write8(adapter, REG_SECCFG, reg_scr);
+	}
+		break;
 	case HW_VAR_DM_FLAG:
 		odm->SupportAbility = *((u32*)val);
 		break;
@@ -1631,3 +1665,25 @@ void rtw_store_phy_info(_adapter *padapter, union recv_frame *prframe)
 	}
 }
 #endif
+
+//bus-agg check for SoftAP mode
+inline u8 rtw_hal_busagg_qsel_check(_adapter *padapter,u8 pre_qsel,u8 next_qsel)
+{
+	struct mlme_priv *pmlmepriv = &(padapter->mlmepriv);
+	u8 chk_rst = _SUCCESS;
+	
+	if(check_fwstate(pmlmepriv, WIFI_AP_STATE) != _TRUE)
+		return chk_rst;
+
+	//if((pre_qsel == 0xFF)||(next_qsel== 0xFF)) 
+	//	return chk_rst;
+	
+	if(	((pre_qsel == QSLT_HIGH)||((next_qsel== QSLT_HIGH))) 
+			&& (pre_qsel != next_qsel )){
+			//DBG_871X("### bus-agg break cause of qsel misatch, pre_qsel=0x%02x,next_qsel=0x%02x ###\n",
+			//	pre_qsel,next_qsel);
+			chk_rst = _FAIL;
+		}
+	return chk_rst;
+}
+

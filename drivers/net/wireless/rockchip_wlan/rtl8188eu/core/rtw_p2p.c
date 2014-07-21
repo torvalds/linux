@@ -3612,6 +3612,9 @@ _func_enter_;
 	pcfg80211_wdinfo->is_ro_ch = _FALSE;
 	pcfg80211_wdinfo->last_ro_ch_time = rtw_get_current_time();
 
+	if (pcfg80211_wdinfo->not_indic_ro_ch_exp == _TRUE)
+		return;
+
 	DBG_871X("cfg80211_remain_on_channel_expired, ch=%d, bw=%d, offset=%d\n", 
 		rtw_get_oper_ch(padapter), rtw_get_oper_bw(padapter), rtw_get_oper_choffset(padapter));
 

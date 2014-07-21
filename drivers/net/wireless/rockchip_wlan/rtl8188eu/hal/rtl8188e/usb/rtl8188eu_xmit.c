@@ -794,9 +794,11 @@ s32 rtl8188eu_xmitframe_complete(_adapter *padapter, struct xmit_priv *pxmitpriv
 	// check pkt amount in one bulk
 	descCount = 0;
 	bulkPtr = bulkSize;
-	if (pbuf < bulkPtr)
+	if (pbuf < bulkPtr) {
 		descCount++;
-	else {
+		if (descCount == pHalData->UsbTxAggDescNum)
+			goto agg_end;
+	} else {
 		descCount = 0;
 		bulkPtr = ((pbuf / bulkSize) + 1) * bulkSize; // round to next bulkSize
 	}
@@ -853,7 +855,10 @@ s32 rtl8188eu_xmitframe_complete(_adapter *padapter, struct xmit_priv *pxmitpriv
 		pxmitframe = LIST_CONTAINOR(xmitframe_plist, struct xmit_frame, list);
 		xmitframe_plist = get_next(xmitframe_plist);
 
-             pxmitframe->agg_num = 0; // not first frame of aggregation
+		if(_FAIL == rtw_hal_busagg_qsel_check(padapter,pfirstframe->attrib.qsel,pxmitframe->attrib.qsel))
+			break;
+
+		pxmitframe->agg_num = 0; // not first frame of aggregation
 		#ifdef CONFIG_TX_EARLY_MODE
 		pxmitframe->pkt_offset = 1;// not first frame of aggregation,reserve offset for EM Info
 		#else
@@ -937,11 +942,13 @@ s32 rtl8188eu_xmitframe_complete(_adapter *padapter, struct xmit_priv *pxmitpriv
 		}
 	}//end while( aggregate same priority and same DA(AP or STA) frames)
 
-
 	if (_rtw_queue_empty(&ptxservq->sta_pending) == _TRUE)
 		rtw_list_delete(&ptxservq->tx_pending);
 
 	_exit_critical_bh(&pxmitpriv->lock, &irqL);
+
+agg_end:
+
 #ifdef CONFIG_80211N_HT
 	if ((pfirstframe->attrib.ether_type != 0x0806) &&
 	    (pfirstframe->attrib.ether_type != 0x888e) &&

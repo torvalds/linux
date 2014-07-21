@@ -106,7 +106,7 @@ void rtl8188eu_interface_configure(_adapter *padapter)
 
 #ifdef CONFIG_USB_TX_AGGREGATION
 	pHalData->UsbTxAggMode		= 1;
-	pHalData->UsbTxAggDescNum	= 0x6;	// only 4 bits
+	pHalData->UsbTxAggDescNum	= 0x1;	// only 4 bits
 #endif
 
 #ifdef CONFIG_USB_RX_AGGREGATION
@@ -2599,6 +2599,7 @@ Hal_ReadMACAddrFromFile_8188EU(
 }
 #endif //CONFIG_EFUSE_CONFIG_FILE
 
+
 static VOID
 readAdapterInfo_8188EU(
 	IN	PADAPTER	padapter
@@ -3409,41 +3410,6 @@ _func_enter_;
 		case HW_VAR_BSSID:
 			hw_var_set_bssid(Adapter, variable, val);
 			break;
-		case HW_VAR_BASIC_RATE:
-			{
-				u16			BrateCfg = 0;
-				u8			RateIndex = 0;
-
-				// 2007.01.16, by Emily
-				// Select RRSR (in Legacy-OFDM and CCK)
-				// For 8190, we select only 24M, 12M, 6M, 11M, 5.5M, 2M, and 1M from the Basic rate.
-				// We do not use other rates.
-				HalSetBrateCfg( Adapter, val, &BrateCfg );
-				DBG_8192C("HW_VAR_BASIC_RATE: BrateCfg(%#x)\n", BrateCfg);
-
-				//2011.03.30 add by Luke Lee
-				//CCK 2M ACK should be disabled for some BCM and Atheros AP IOT
-				//because CCK 2M has poor TXEVM
-				//CCK 5.5M & 11M ACK should be enabled for better performance
-
-				pHalData->BasicRateSet = BrateCfg = (BrateCfg |0xd) & 0x15d;
-
-				BrateCfg |= 0x01; // default enable 1M ACK rate
-				// Set RRSR rate table.
-				rtw_write8(Adapter, REG_RRSR, BrateCfg&0xff);
-				rtw_write8(Adapter, REG_RRSR+1, (BrateCfg>>8)&0xff);
-				rtw_write8(Adapter, REG_RRSR+2, rtw_read8(Adapter, REG_RRSR+2)&0xf0);
-
-				// Set RTS initial rate
-				while(BrateCfg > 0x1)
-				{
-					BrateCfg = (BrateCfg>> 1);
-					RateIndex++;
-				}
-				// Ziv - Check
-				rtw_write8(Adapter, REG_INIRTS_RATE_SEL, RateIndex);
-			}
-			break;
 		case HW_VAR_TXPAUSE:
 			rtw_write8(Adapter, REG_TXPAUSE, *((u8 *)val));	
 			break;
@@ -3678,13 +3644,6 @@ _func_enter_;
 					regTmp &= (~BIT1);
 				rtw_write8(Adapter,REG_WMAC_TRXPTCL_CTL+2,regTmp);				
 			}
-			break;
-		case HW_VAR_SEC_CFG:
-#ifdef CONFIG_CONCURRENT_MODE
-			rtw_write8(Adapter, REG_SECCFG, 0x0c|BIT(5));// enable tx enc and rx dec engine, and no key search for MC/BC				
-#else
-			rtw_write8(Adapter, REG_SECCFG, *((u8 *)val));
-#endif
 			break;
 		case HW_VAR_CAM_EMPTY_ENTRY:
 			{
@@ -4042,9 +4001,12 @@ _func_enter_;
 				case WOWLAN_ENABLE:
 					DBG_871X_LEVEL(_drv_always_, "WOWLAN_ENABLE\n");
 
+					#ifndef DYNAMIC_CAMID_ALLOC
 					val8 = (psecuritypriv->dot11AuthAlgrthm == dot11AuthAlgrthm_8021X)? 0xcc: 0xcf;
 					rtw_write8(Adapter, REG_SECCFG, val8);
 					DBG_871X_LEVEL(_drv_always_, "REG_SECCFG: %02x\n", rtw_read8(Adapter, REG_SECCFG));
+					#endif
+
 					SetFwRelatedForWoWLAN8188ES(Adapter, _TRUE);
 
 					rtl8188e_set_FwJoinBssReport_cmd(Adapter, 1);
@@ -4102,8 +4064,11 @@ _func_enter_;
 					DBG_871X_LEVEL(_drv_always_, "WOWLAN_DISABLE\n");
 
 					rtl8188e_set_FwJoinBssReport_cmd(Adapter, 0);
+
+					#ifndef DYNAMIC_CAMID_ALLOC
 					rtw_write8(Adapter, REG_SECCFG, 0x0c|BIT(5));// enable tx enc and rx dec engine, and no key search for MC/BC
 					DBG_871X_LEVEL(_drv_always_, "REG_SECCFG: %02x\n", rtw_read8(Adapter, REG_SECCFG));
+					#endif
 
 					pwrctl->wowlan_wake_reason =
 						rtw_read8(Adapter, REG_WOWLAN_WAKE_REASON);
