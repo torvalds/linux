@@ -486,7 +486,7 @@ for a pixel lie next to each other in memory.</para>
 	  </row>
 	  <row id="V4L2-PIX-FMT-ARGB32">
 	    <entry><constant>V4L2_PIX_FMT_ARGB32</constant></entry>
-	    <entry>'AX24'</entry>
+	    <entry>'BA24'</entry>
 	    <entry></entry>
 	    <entry>a<subscript>7</subscript></entry>
 	    <entry>a<subscript>6</subscript></entry>
