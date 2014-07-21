@@ -3383,9 +3383,24 @@ extern struct pernet_operations __net_initdata loopback_net_ops;
 
 static inline const char *netdev_name(const struct net_device *dev)
 {
-	if (dev->reg_state != NETREG_REGISTERED)
-		return "(unregistered net_device)";
+	if (!dev->name[0] || strchr(dev->name, '%'))
+		return "(unnamed net_device)";
 	return dev->name;
+}
+
+static inline const char *netdev_reg_state(const struct net_device *dev)
+{
+	switch (dev->reg_state) {
+	case NETREG_UNINITIALIZED: return " (uninitialized)";
+	case NETREG_REGISTERED: return "";
+	case NETREG_UNREGISTERING: return " (unregistering)";
+	case NETREG_UNREGISTERED: return " (unregistered)";
+	case NETREG_RELEASED: return " (released)";
+	case NETREG_DUMMY: return " (dummy)";
+	}
+
+	WARN_ONCE(1, "%s: unknown reg_state %d\n", dev->name, dev->reg_state);
+	return " (unknown)";
 }
 
 __printf(3, 4)
@@ -3444,7 +3459,8 @@ do {								\
  * file/line information and a backtrace.
  */
 #define netdev_WARN(dev, format, args...)			\
-	WARN(1, "netdevice: %s\n" format, netdev_name(dev), ##args)
+	WARN(1, "netdevice: %s%s\n" format, netdev_name(dev),	\
+	     netdev_reg_state(dev), ##args)
 
 /* netif printk helpers, similar to netdev_printk */
 
