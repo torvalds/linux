@@ -79,6 +79,11 @@ static inline int au_plink_hash(ino_t ino)
 struct au_fhsm {
 #ifdef CONFIG_AUFS_FHSM
 	/* will be added more */
+	/* allow only one process who can receive the notification */
+	spinlock_t		fhsm_spin;
+	pid_t			fhsm_pid;
+
+	/* only this is protected by si_rwsem */
 	unsigned long		fhsm_expire;
 #endif
 };
@@ -306,10 +311,22 @@ int au_mvdown(struct dentry *dentry, struct aufs_mvdown __user *arg);
 
 #ifdef CONFIG_AUFS_FHSM
 /* fhsm.c */
+static inline pid_t au_fhsm_pid(struct au_fhsm *fhsm)
+{
+	pid_t pid;
+
+	spin_lock(&fhsm->fhsm_spin);
+	pid = fhsm->fhsm_pid;
+	spin_unlock(&fhsm->fhsm_spin);
+
+	return pid;
+}
+
 void au_fhsm_init(struct au_sbinfo *sbinfo);
 void au_fhsm_set(struct au_sbinfo *sbinfo, unsigned int sec);
 void au_fhsm_show(struct seq_file *seq, struct au_sbinfo *sbinfo);
 #else
+AuStub(pid_t, au_fhsm_pid, return 0, struct au_fhsm *fhsm);
 AuStubVoid(au_fhsm_init, struct au_sbinfo *sbinfo)
 AuStubVoid(au_fhsm_set, struct au_sbinfo *sbinfo, unsigned int sec)
 AuStubVoid(au_fhsm_show, struct seq_file *seq, struct au_sbinfo *sbinfo)

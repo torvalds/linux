@@ -25,7 +25,11 @@
 
 void au_fhsm_init(struct au_sbinfo *sbinfo)
 {
-	sbinfo->si_fhsm.fhsm_expire
+	struct au_fhsm *fhsm;
+
+	fhsm = &sbinfo->si_fhsm;
+	spin_lock_init(&fhsm->fhsm_spin);
+	fhsm->fhsm_expire
 		= msecs_to_jiffies(AUFS_FHSM_CACHE_DEF_SEC * MSEC_PER_SEC);
 }
 
