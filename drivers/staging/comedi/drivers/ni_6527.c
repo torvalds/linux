@@ -393,6 +393,9 @@ static void ni6527_reset(struct comedi_device *dev)
 	/* disable deglitch filters on all channels */
 	ni6527_set_filter_enable(dev, 0);
 
+	/* disable edge detection */
+	ni6527_set_edge_detection(dev, 0xffffffff, 0, 0);
+
 	writeb(NI6527_CLR_IRQS | NI6527_CLR_RESET_FILT,
 	       mmio + NI6527_CLR_REG);
 	writeb(NI6527_CTRL_DISABLE_IRQS, mmio + NI6527_CTRL_REG);
