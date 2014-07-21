@@ -37,6 +37,7 @@
  * specials for cache aliasing:
  *
  * __flush_invalidate_dcache_page_alias(vaddr,paddr)
+ * __invalidate_dcache_page_alias(vaddr,paddr)
  * __invalidate_icache_page_alias(vaddr,paddr)
  */
 
@@ -62,6 +63,7 @@ extern void __flush_invalidate_dcache_range(unsigned long, unsigned long);
 
 #if defined(CONFIG_MMU) && (DCACHE_WAY_SIZE > PAGE_SIZE)
 extern void __flush_invalidate_dcache_page_alias(unsigned long, unsigned long);
+extern void __invalidate_dcache_page_alias(unsigned long, unsigned long);
 #else
 static inline void __flush_invalidate_dcache_page_alias(unsigned long virt,
 							unsigned long phys) { }
