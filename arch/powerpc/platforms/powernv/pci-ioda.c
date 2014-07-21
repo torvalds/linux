@@ -347,6 +347,146 @@ static void __init pnv_ioda_parse_m64_window(struct pnv_phb *phb)
 	phb->pick_m64_pe = pnv_ioda2_pick_m64_pe;
 }
 
+static void pnv_ioda_freeze_pe(struct pnv_phb *phb, int pe_no)
+{
+	struct pnv_ioda_pe *pe = &phb->ioda.pe_array[pe_no];
+	struct pnv_ioda_pe *slave;
+	s64 rc;
+
+	/* Fetch master PE */
+	if (pe->flags & PNV_IODA_PE_SLAVE) {
+		pe = pe->master;
+		WARN_ON(!pe || !(pe->flags & PNV_IODA_PE_MASTER));
+		pe_no = pe->pe_number;
+	}
+
+	/* Freeze master PE */
+	rc = opal_pci_eeh_freeze_set(phb->opal_id,
+				     pe_no,
+				     OPAL_EEH_ACTION_SET_FREEZE_ALL);
+	if (rc != OPAL_SUCCESS) {
+		pr_warn("%s: Failure %lld freezing PHB#%x-PE#%x\n",
+			__func__, rc, phb->hose->global_number, pe_no);
+		return;
+	}
+
+	/* Freeze slave PEs */
+	if (!(pe->flags & PNV_IODA_PE_MASTER))
+		return;
+
+	list_for_each_entry(slave, &pe->slaves, list) {
+		rc = opal_pci_eeh_freeze_set(phb->opal_id,
+					     slave->pe_number,
+					     OPAL_EEH_ACTION_SET_FREEZE_ALL);
+		if (rc != OPAL_SUCCESS)
+			pr_warn("%s: Failure %lld freezing PHB#%x-PE#%x\n",
+				__func__, rc, phb->hose->global_number,
+				slave->pe_number);
+	}
+}
+
+int pnv_ioda_unfreeze_pe(struct pnv_phb *phb, int pe_no, int opt)
+{
+	struct pnv_ioda_pe *pe, *slave;
+	s64 rc;
+
+	/* Find master PE */
+	pe = &phb->ioda.pe_array[pe_no];
+	if (pe->flags & PNV_IODA_PE_SLAVE) {
+		pe = pe->master;
+		WARN_ON(!pe || !(pe->flags & PNV_IODA_PE_MASTER));
+		pe_no = pe->pe_number;
+	}
+
+	/* Clear frozen state for master PE */
+	rc = opal_pci_eeh_freeze_clear(phb->opal_id, pe_no, opt);
+	if (rc != OPAL_SUCCESS) {
+		pr_warn("%s: Failure %lld clear %d on PHB#%x-PE#%x\n",
+			__func__, rc, opt, phb->hose->global_number, pe_no);
+		return -EIO;
+	}
+
+	if (!(pe->flags & PNV_IODA_PE_MASTER))
+		return 0;
+
+	/* Clear frozen state for slave PEs */
+	list_for_each_entry(slave, &pe->slaves, list) {
+		rc = opal_pci_eeh_freeze_clear(phb->opal_id,
+					     slave->pe_number,
+					     opt);
+		if (rc != OPAL_SUCCESS) {
+			pr_warn("%s: Failure %lld clear %d on PHB#%x-PE#%x\n",
+				__func__, rc, opt, phb->hose->global_number,
+				slave->pe_number);
+			return -EIO;
+		}
+	}
+
+	return 0;
+}
+
+static int pnv_ioda_get_pe_state(struct pnv_phb *phb, int pe_no)
+{
+	struct pnv_ioda_pe *slave, *pe;
+	u8 fstate, state;
+	__be16 pcierr;
+	s64 rc;
+
+	/* Sanity check on PE number */
+	if (pe_no < 0 || pe_no >= phb->ioda.total_pe)
+		return OPAL_EEH_STOPPED_PERM_UNAVAIL;
+
+	/*
+	 * Fetch the master PE and the PE instance might be
+	 * not initialized yet.
+	 */
+	pe = &phb->ioda.pe_array[pe_no];
+	if (pe->flags & PNV_IODA_PE_SLAVE) {
+		pe = pe->master;
+		WARN_ON(!pe || !(pe->flags & PNV_IODA_PE_MASTER));
+		pe_no = pe->pe_number;
+	}
+
+	/* Check the master PE */
+	rc = opal_pci_eeh_freeze_status(phb->opal_id, pe_no,
+					&state, &pcierr, NULL);
+	if (rc != OPAL_SUCCESS) {
+		pr_warn("%s: Failure %lld getting "
+			"PHB#%x-PE#%x state\n",
+			__func__, rc,
+			phb->hose->global_number, pe_no);
+		return OPAL_EEH_STOPPED_TEMP_UNAVAIL;
+	}
+
+	/* Check the slave PE */
+	if (!(pe->flags & PNV_IODA_PE_MASTER))
+		return state;
+
+	list_for_each_entry(slave, &pe->slaves, list) {
+		rc = opal_pci_eeh_freeze_status(phb->opal_id,
+						slave->pe_number,
+						&fstate,
+						&pcierr,
+						NULL);
+		if (rc != OPAL_SUCCESS) {
+			pr_warn("%s: Failure %lld getting "
+				"PHB#%x-PE#%x state\n",
+				__func__, rc,
+				phb->hose->global_number, slave->pe_number);
+			return OPAL_EEH_STOPPED_TEMP_UNAVAIL;
+		}
+
+		/*
+		 * Override the result based on the ascending
+		 * priority.
+		 */
+		if (fstate > state)
+			state = fstate;
+	}
+
+	return state;
+}
+
 /* Currently those 2 are only used when MSIs are enabled, this will change
  * but in the meantime, we need to protect them to avoid warnings
  */
@@ -1629,6 +1769,9 @@ void __init pnv_pci_init_ioda_phb(struct device_node *np,
 
 
 	phb->hose->ops = &pnv_pci_ops;
+	phb->get_pe_state = pnv_ioda_get_pe_state;
+	phb->freeze_pe = pnv_ioda_freeze_pe;
+	phb->unfreeze_pe = pnv_ioda_unfreeze_pe;
 #ifdef CONFIG_EEH
 	phb->eeh_ops = &ioda_eeh_ops;
 #endif
