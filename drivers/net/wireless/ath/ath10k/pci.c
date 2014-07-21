@@ -726,18 +726,12 @@ static void ath10k_pci_ce_recv_data(struct ath10k_ce_pipe *ce_state)
 	unsigned int nbytes, max_nbytes;
 	unsigned int transfer_id;
 	unsigned int flags;
-	int err;
+	int err, num_replenish = 0;
 
 	while (ath10k_ce_completed_recv_next(ce_state, &transfer_context,
 					     &ce_data, &nbytes, &transfer_id,
 					     &flags) == 0) {
-		err = ath10k_pci_post_rx_pipe(pipe_info, 1);
-		if (unlikely(err)) {
-			/* FIXME: retry */
-			ath10k_warn("failed to replenish CE rx ring %d: %d\n",
-				    pipe_info->pipe_num, err);
-		}
-
+		num_replenish++;
 		skb = transfer_context;
 		max_nbytes = skb->len + skb_tailroom(skb);
 		dma_unmap_single(ar->dev, ATH10K_SKB_CB(skb)->paddr,
@@ -752,6 +746,13 @@ static void ath10k_pci_ce_recv_data(struct ath10k_ce_pipe *ce_state)
 
 		skb_put(skb, nbytes);
 		cb->rx_completion(ar, skb, pipe_info->pipe_num);
+	}
+
+	err = ath10k_pci_post_rx_pipe(pipe_info, num_replenish);
+	if (unlikely(err)) {
+		/* FIXME: retry */
+		ath10k_warn("failed to replenish CE rx ring %d (%d bufs): %d\n",
+			    pipe_info->pipe_num, num_replenish, err);
 	}
 }
 
