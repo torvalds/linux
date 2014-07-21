@@ -361,15 +361,15 @@ void intel_gmch_panel_fitting(struct intel_crtc *intel_crtc,
 		pfit_control |= ((intel_crtc->pipe << PFIT_PIPE_SHIFT) |
 				 PFIT_FILTER_FUZZY);
 
-	/* Make sure pre-965 set dither correctly for 18bpp panels. */
-	if (INTEL_INFO(dev)->gen < 4 && pipe_config->pipe_bpp == 18)
-		pfit_control |= PANEL_8TO6_DITHER_ENABLE;
-
 out:
 	if ((pfit_control & PFIT_ENABLE) == 0) {
 		pfit_control = 0;
 		pfit_pgm_ratios = 0;
 	}
+
+	/* Make sure pre-965 set dither correctly for 18bpp panels. */
+	if (INTEL_INFO(dev)->gen < 4 && pipe_config->pipe_bpp == 18)
+		pfit_control |= PANEL_8TO6_DITHER_ENABLE;
 
 	pipe_config->gmch_pfit.control = pfit_control;
 	pipe_config->gmch_pfit.pgm_ratios = pfit_pgm_ratios;
@@ -798,9 +798,6 @@ static void i965_enable_backlight(struct intel_connector *connector)
 	ctl = freq << 16;
 	I915_WRITE(BLC_PWM_CTL, ctl);
 
-	/* XXX: combine this into above write? */
-	intel_panel_actually_set_backlight(connector, panel->backlight.level);
-
 	ctl2 = BLM_PIPE(pipe);
 	if (panel->backlight.combination_mode)
 		ctl2 |= BLM_COMBINATION_MODE;
@@ -809,6 +806,8 @@ static void i965_enable_backlight(struct intel_connector *connector)
 	I915_WRITE(BLC_PWM_CTL2, ctl2);
 	POSTING_READ(BLC_PWM_CTL2);
 	I915_WRITE(BLC_PWM_CTL2, ctl2 | BLM_PWM_ENABLE);
+
+	intel_panel_actually_set_backlight(connector, panel->backlight.level);
 }
 
 static void vlv_enable_backlight(struct intel_connector *connector)
@@ -1119,8 +1118,12 @@ int intel_panel_setup_backlight(struct drm_connector *connector)
 	int ret;
 
 	if (!dev_priv->vbt.backlight.present) {
-		DRM_DEBUG_KMS("native backlight control not available per VBT\n");
-		return 0;
+		if (dev_priv->quirks & QUIRK_BACKLIGHT_PRESENT) {
+			DRM_DEBUG_KMS("no backlight present per VBT, but present per quirk\n");
+		} else {
+			DRM_DEBUG_KMS("no backlight present per VBT\n");
+			return 0;
+		}
 	}
 
 	/* set level and max in panel struct */

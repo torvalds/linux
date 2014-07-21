@@ -455,9 +455,9 @@ EXPORT_SYMBOL_GPL(irq_alloc_hwirqs);
  */
 void irq_free_hwirqs(unsigned int from, int cnt)
 {
-	int i;
+	int i, j;
 
-	for (i = from; cnt > 0; i++, cnt--) {
+	for (i = from, j = cnt; j > 0; i++, j--) {
 		irq_set_status_flags(i, _IRQ_NOREQUEST | _IRQ_NOPROBE);
 		arch_teardown_hwirq(i);
 	}

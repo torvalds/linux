@@ -349,6 +349,11 @@ struct vmxnet3_adapter {
 	u32     link_speed; /* in mbps */
 
 	u64     tx_timeout_count;
+
+	/* Ring sizes */
+	u32 tx_ring_size;
+	u32 rx_ring_size;
+
 	struct work_struct work;
 
 	unsigned long  state;    /* VMXNET3_STATE_BIT_xxx */

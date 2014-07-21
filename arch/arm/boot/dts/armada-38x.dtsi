@@ -20,7 +20,7 @@
 
 / {
 	model = "Marvell Armada 38x family SoC";
-	compatible = "marvell,armada38x";
+	compatible = "marvell,armada380";
 
 	aliases {
 		gpio0 = &gpio0;

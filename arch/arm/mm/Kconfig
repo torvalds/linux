@@ -889,9 +889,10 @@ config CACHE_L2X0
 	help
 	  This option enables the L2x0 PrimeCell.
 
+if CACHE_L2X0
+
 config CACHE_PL310
 	bool
-	depends on CACHE_L2X0
 	default y if CPU_V7 && !(CPU_V6 || CPU_V6K)
 	help
 	  This option enables optimisations for the PL310 cache
@@ -899,7 +900,6 @@ config CACHE_PL310
 
 config PL310_ERRATA_588369
 	bool "PL310 errata: Clean & Invalidate maintenance operations do not invalidate clean lines"
-	depends on CACHE_L2X0
 	help
 	   The PL310 L2 cache controller implements three types of Clean &
 	   Invalidate maintenance operations: by Physical Address
@@ -912,7 +912,6 @@ config PL310_ERRATA_588369
 
 config PL310_ERRATA_727915
 	bool "PL310 errata: Background Clean & Invalidate by Way operation can cause data corruption"
-	depends on CACHE_L2X0
 	help
 	  PL310 implements the Clean & Invalidate by Way L2 cache maintenance
 	  operation (offset 0x7FC). This operation runs in background so that
@@ -923,7 +922,6 @@ config PL310_ERRATA_727915
 
 config PL310_ERRATA_753970
 	bool "PL310 errata: cache sync operation may be faulty"
-	depends on CACHE_PL310
 	help
 	  This option enables the workaround for the 753970 PL310 (r3p0) erratum.
 
@@ -938,7 +936,6 @@ config PL310_ERRATA_753970
 
 config PL310_ERRATA_769419
 	bool "PL310 errata: no automatic Store Buffer drain"
-	depends on CACHE_L2X0
 	help
 	  On revisions of the PL310 prior to r3p2, the Store Buffer does
 	  not automatically drain. This can cause normal, non-cacheable
@@ -947,6 +944,8 @@ config PL310_ERRATA_769419
 	  This option adds a write barrier to the cpu_idle loop so that,
 	  on systems with an outer cache, the store buffer is drained
 	  explicitly.
+
+endif
 
 config CACHE_TAUROS2
 	bool "Enable the Tauros2 L2 cache controller"

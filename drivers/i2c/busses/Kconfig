@@ -676,6 +676,16 @@ config I2C_RIIC
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-riic.
 
+config I2C_RK3X
+	tristate "Rockchip RK3xxx I2C adapter"
+	depends on OF
+	help
+	  Say Y here to include support for the I2C adapter in Rockchip RK3xxx
+	  SoCs.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called i2c-rk3x.
+
 config HAVE_S3C2410_I2C
 	bool
 	help
@@ -763,6 +773,19 @@ config I2C_STU300
 
 	  This driver can also be built as a module. If so, the module
 	  will be called i2c-stu300.
+
+config I2C_SUN6I_P2WI
+	tristate "Allwinner sun6i internal P2WI controller"
+	depends on RESET_CONTROLLER
+	depends on MACH_SUN6I || COMPILE_TEST
+	help
+	  If you say yes to this option, support will be included for the
+	  P2WI (Push/Pull 2 Wire Interface) controller embedded in some sunxi
+	  SOCs.
+	  The P2WI looks like an SMBus controller (which supports only byte
+	  accesses), except that it only supports one slave device.
+	  This interface is used to connect to specific PMIC devices (like the
+	  AXP221).
 
 config I2C_TEGRA
 	tristate "NVIDIA Tegra internal I2C controller"

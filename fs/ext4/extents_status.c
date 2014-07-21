@@ -966,10 +966,10 @@ retry:
 			continue;
 		}
 
-		if (ei->i_es_lru_nr == 0 || ei == locked_ei)
+		if (ei->i_es_lru_nr == 0 || ei == locked_ei ||
+		    !write_trylock(&ei->i_es_lock))
 			continue;
 
-		write_lock(&ei->i_es_lock);
 		shrunk = __es_try_to_reclaim_extents(ei, nr_to_scan);
 		if (ei->i_es_lru_nr == 0)
 			list_del_init(&ei->i_es_lru);

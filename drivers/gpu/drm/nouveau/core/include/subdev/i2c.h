@@ -84,6 +84,7 @@ extern struct nouveau_oclass *nv4e_i2c_oclass;
 extern struct nouveau_oclass *nv50_i2c_oclass;
 extern struct nouveau_oclass *nv94_i2c_oclass;
 extern struct nouveau_oclass *nvd0_i2c_oclass;
+extern struct nouveau_oclass *gf117_i2c_oclass;
 extern struct nouveau_oclass *nve0_i2c_oclass;
 
 static inline int

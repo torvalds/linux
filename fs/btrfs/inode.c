@@ -693,7 +693,7 @@ retry:
 		ret = btrfs_reserve_extent(root,
 					   async_extent->compressed_size,
 					   async_extent->compressed_size,
-					   0, alloc_hint, &ins, 1);
+					   0, alloc_hint, &ins, 1, 1);
 		if (ret) {
 			int i;
 
@@ -794,7 +794,7 @@ retry:
 out:
 	return ret;
 out_free_reserve:
-	btrfs_free_reserved_extent(root, ins.objectid, ins.offset);
+	btrfs_free_reserved_extent(root, ins.objectid, ins.offset, 1);
 out_free:
 	extent_clear_unlock_delalloc(inode, async_extent->start,
 				     async_extent->start +
@@ -917,7 +917,7 @@ static noinline int cow_file_range(struct inode *inode,
 		cur_alloc_size = disk_num_bytes;
 		ret = btrfs_reserve_extent(root, cur_alloc_size,
 					   root->sectorsize, 0, alloc_hint,
-					   &ins, 1);
+					   &ins, 1, 1);
 		if (ret < 0)
 			goto out_unlock;
 
@@ -995,7 +995,7 @@ out:
 	return ret;
 
 out_reserve:
-	btrfs_free_reserved_extent(root, ins.objectid, ins.offset);
+	btrfs_free_reserved_extent(root, ins.objectid, ins.offset, 1);
 out_unlock:
 	extent_clear_unlock_delalloc(inode, start, end, locked_page,
 				     EXTENT_LOCKED | EXTENT_DO_ACCOUNTING |
@@ -2599,6 +2599,21 @@ out_kfree:
 	return NULL;
 }
 
+static void btrfs_release_delalloc_bytes(struct btrfs_root *root,
+					 u64 start, u64 len)
+{
+	struct btrfs_block_group_cache *cache;
+
+	cache = btrfs_lookup_block_group(root->fs_info, start);
+	ASSERT(cache);
+
+	spin_lock(&cache->lock);
+	cache->delalloc_bytes -= len;
+	spin_unlock(&cache->lock);
+
+	btrfs_put_block_group(cache);
+}
+
 /* as ordered data IO finishes, this gets called so we can finish
  * an ordered extent if the range of bytes in the file it covers are
  * fully written.
@@ -2698,6 +2713,10 @@ static int btrfs_finish_ordered_io(struct btrfs_ordered_extent *ordered_extent)
 						logical_len, logical_len,
 						compress_type, 0, 0,
 						BTRFS_FILE_EXTENT_REG);
+		if (!ret)
+			btrfs_release_delalloc_bytes(root,
+						     ordered_extent->start,
+						     ordered_extent->disk_len);
 	}
 	unpin_extent_cache(&BTRFS_I(inode)->extent_tree,
 			   ordered_extent->file_offset, ordered_extent->len,
@@ -2750,7 +2769,7 @@ out:
 		    !test_bit(BTRFS_ORDERED_NOCOW, &ordered_extent->flags) &&
 		    !test_bit(BTRFS_ORDERED_PREALLOC, &ordered_extent->flags))
 			btrfs_free_reserved_extent(root, ordered_extent->start,
-						   ordered_extent->disk_len);
+						   ordered_extent->disk_len, 1);
 	}
 
 
@@ -6535,21 +6554,21 @@ static struct extent_map *btrfs_new_extent_direct(struct inode *inode,
 
 	alloc_hint = get_extent_allocation_hint(inode, start, len);
 	ret = btrfs_reserve_extent(root, len, root->sectorsize, 0,
-				   alloc_hint, &ins, 1);
+				   alloc_hint, &ins, 1, 1);
 	if (ret)
 		return ERR_PTR(ret);
 
 	em = create_pinned_em(inode, start, ins.offset, start, ins.objectid,
 			      ins.offset, ins.offset, ins.offset, 0);
 	if (IS_ERR(em)) {
-		btrfs_free_reserved_extent(root, ins.objectid, ins.offset);
+		btrfs_free_reserved_extent(root, ins.objectid, ins.offset, 1);
 		return em;
 	}
 
 	ret = btrfs_add_ordered_extent_dio(inode, start, ins.objectid,
 					   ins.offset, ins.offset, 0);
 	if (ret) {
-		btrfs_free_reserved_extent(root, ins.objectid, ins.offset);
+		btrfs_free_reserved_extent(root, ins.objectid, ins.offset, 1);
 		free_extent_map(em);
 		return ERR_PTR(ret);
 	}
@@ -7437,7 +7456,7 @@ free_ordered:
 		if (!test_bit(BTRFS_ORDERED_PREALLOC, &ordered->flags) &&
 		    !test_bit(BTRFS_ORDERED_NOCOW, &ordered->flags))
 			btrfs_free_reserved_extent(root, ordered->start,
-						   ordered->disk_len);
+						   ordered->disk_len, 1);
 		btrfs_put_ordered_extent(ordered);
 		btrfs_put_ordered_extent(ordered);
 	}
@@ -8808,7 +8827,7 @@ static int __btrfs_prealloc_file_range(struct inode *inode, int mode,
 		cur_bytes = min(num_bytes, 256ULL * 1024 * 1024);
 		cur_bytes = max(cur_bytes, min_size);
 		ret = btrfs_reserve_extent(root, cur_bytes, min_size, 0,
-					   *alloc_hint, &ins, 1);
+					   *alloc_hint, &ins, 1, 0);
 		if (ret) {
 			if (own_trans)
 				btrfs_end_transaction(trans, root);
@@ -8822,7 +8841,7 @@ static int __btrfs_prealloc_file_range(struct inode *inode, int mode,
 						  BTRFS_FILE_EXTENT_PREALLOC);
 		if (ret) {
 			btrfs_free_reserved_extent(root, ins.objectid,
-						   ins.offset);
+						   ins.offset, 0);
 			btrfs_abort_transaction(trans, root, ret);
 			if (own_trans)
 				btrfs_end_transaction(trans, root);

@@ -15,7 +15,7 @@
 
 #ifdef __KERNEL__
 
-extern void __memmove(void *,const void *,__kernel_size_t);
+void __memmove(void *,const void *,__kernel_size_t);
 
 #ifndef EXPORT_SYMTAB_STROPS
 
@@ -40,8 +40,8 @@ extern void __memmove(void *,const void *,__kernel_size_t);
 #undef memscan
 #define memscan(__arg0, __char, __arg2)						\
 ({										\
-	extern void *__memscan_zero(void *, size_t);				\
-	extern void *__memscan_generic(void *, int, size_t);			\
+	void *__memscan_zero(void *, size_t);					\
+	void *__memscan_generic(void *, int, size_t);				\
 	void *__retval, *__addr = (__arg0);					\
 	size_t __size = (__arg2);						\
 										\
@@ -54,14 +54,14 @@ extern void __memmove(void *,const void *,__kernel_size_t);
 })
 
 #define __HAVE_ARCH_MEMCMP
-extern int memcmp(const void *,const void *,__kernel_size_t);
+int memcmp(const void *,const void *,__kernel_size_t);
 
 /* Now the str*() stuff... */
 #define __HAVE_ARCH_STRLEN
-extern __kernel_size_t strlen(const char *);
+__kernel_size_t strlen(const char *);
 
 #define __HAVE_ARCH_STRNCMP
-extern int strncmp(const char *, const char *, __kernel_size_t);
+int strncmp(const char *, const char *, __kernel_size_t);
 
 #endif /* !EXPORT_SYMTAB_STROPS */
 

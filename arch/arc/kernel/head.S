@@ -77,10 +77,11 @@ stext:
 	; Clear BSS before updating any globals
 	; XXX: use ZOL here
 	mov	r5, __bss_start
-	mov	r6, __bss_stop
+	sub	r6, __bss_stop, r5
+	lsr.f	lp_count, r6, 2
+	lpnz	1f
+	st.ab   0, [r5, 4]
 1:
-	st.ab   0, [r5,4]
-	brlt    r5, r6, 1b
 
 	; Uboot - kernel ABI
 	;    r0 = [0] No uboot interaction, [1] cmdline in r2, [2] DTB in r2

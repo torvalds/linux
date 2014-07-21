@@ -32,28 +32,6 @@
 
 extern void exynos4_secondary_startup(void);
 
-void __iomem *sysram_base_addr;
-void __iomem *sysram_ns_base_addr;
-
-static void __init exynos_smp_prepare_sysram(void)
-{
-	struct device_node *node;
-
-	for_each_compatible_node(node, NULL, "samsung,exynos4210-sysram") {
-		if (!of_device_is_available(node))
-			continue;
-		sysram_base_addr = of_iomap(node, 0);
-		break;
-	}
-
-	for_each_compatible_node(node, NULL, "samsung,exynos4210-sysram-ns") {
-		if (!of_device_is_available(node))
-			continue;
-		sysram_ns_base_addr = of_iomap(node, 0);
-		break;
-	}
-}
-
 static inline void __iomem *cpu_boot_reg_base(void)
 {
 	if (soc_is_exynos4210() && samsung_rev() == EXYNOS4210_REV_1_1)
@@ -112,7 +90,8 @@ static void exynos_secondary_init(unsigned int cpu)
 static int exynos_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	unsigned long timeout;
-	unsigned long phys_cpu = cpu_logical_map(cpu);
+	u32 mpidr = cpu_logical_map(cpu);
+	u32 core_id = MPIDR_AFFINITY_LEVEL(mpidr, 0);
 	int ret = -ENOSYS;
 
 	/*
@@ -126,17 +105,18 @@ static int exynos_boot_secondary(unsigned int cpu, struct task_struct *idle)
 	 * the holding pen - release it, then wait for it to flag
 	 * that it has been released by resetting pen_release.
 	 *
-	 * Note that "pen_release" is the hardware CPU ID, whereas
+	 * Note that "pen_release" is the hardware CPU core ID, whereas
 	 * "cpu" is Linux's internal ID.
 	 */
-	write_pen_release(phys_cpu);
+	write_pen_release(core_id);
 
-	if (!exynos_cpu_power_state(cpu)) {
-		exynos_cpu_power_up(cpu);
+	if (!exynos_cpu_power_state(core_id)) {
+		exynos_cpu_power_up(core_id);
 		timeout = 10;
 
 		/* wait max 10 ms until cpu1 is on */
-		while (exynos_cpu_power_state(cpu) != S5P_CORE_LOCAL_PWR_EN) {
+		while (exynos_cpu_power_state(core_id)
+		       != S5P_CORE_LOCAL_PWR_EN) {
 			if (timeout-- == 0)
 				break;
 
@@ -167,20 +147,20 @@ static int exynos_boot_secondary(unsigned int cpu, struct task_struct *idle)
 		 * Try to set boot address using firmware first
 		 * and fall back to boot register if it fails.
 		 */
-		ret = call_firmware_op(set_cpu_boot_addr, phys_cpu, boot_addr);
+		ret = call_firmware_op(set_cpu_boot_addr, core_id, boot_addr);
 		if (ret && ret != -ENOSYS)
 			goto fail;
 		if (ret == -ENOSYS) {
-			void __iomem *boot_reg = cpu_boot_reg(phys_cpu);
+			void __iomem *boot_reg = cpu_boot_reg(core_id);
 
 			if (IS_ERR(boot_reg)) {
 				ret = PTR_ERR(boot_reg);
 				goto fail;
 			}
-			__raw_writel(boot_addr, cpu_boot_reg(phys_cpu));
+			__raw_writel(boot_addr, cpu_boot_reg(core_id));
 		}
 
-		call_firmware_op(cpu_boot, phys_cpu);
+		call_firmware_op(cpu_boot, core_id);
 
 		arch_send_wakeup_ipi_mask(cpumask_of(cpu));
 
@@ -234,10 +214,10 @@ static void __init exynos_smp_prepare_cpus(unsigned int max_cpus)
 {
 	int i;
 
+	exynos_sysram_init();
+
 	if (read_cpuid_part_number() == ARM_CPU_PART_CORTEX_A9)
 		scu_enable(scu_base_addr());
-
-	exynos_smp_prepare_sysram();
 
 	/*
 	 * Write the address of secondary startup into the
@@ -249,22 +229,24 @@ static void __init exynos_smp_prepare_cpus(unsigned int max_cpus)
 	 * boot register if it fails.
 	 */
 	for (i = 1; i < max_cpus; ++i) {
-		unsigned long phys_cpu;
 		unsigned long boot_addr;
+		u32 mpidr;
+		u32 core_id;
 		int ret;
 
-		phys_cpu = cpu_logical_map(i);
+		mpidr = cpu_logical_map(i);
+		core_id = MPIDR_AFFINITY_LEVEL(mpidr, 0);
 		boot_addr = virt_to_phys(exynos4_secondary_startup);
 
-		ret = call_firmware_op(set_cpu_boot_addr, phys_cpu, boot_addr);
+		ret = call_firmware_op(set_cpu_boot_addr, core_id, boot_addr);
 		if (ret && ret != -ENOSYS)
 			break;
 		if (ret == -ENOSYS) {
-			void __iomem *boot_reg = cpu_boot_reg(phys_cpu);
+			void __iomem *boot_reg = cpu_boot_reg(core_id);
 
 			if (IS_ERR(boot_reg))
 				break;
-			__raw_writel(boot_addr, cpu_boot_reg(phys_cpu));
+			__raw_writel(boot_addr, cpu_boot_reg(core_id));
 		}
 	}
 }

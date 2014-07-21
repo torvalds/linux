@@ -102,6 +102,7 @@ extern int radeon_runtime_pm;
 extern int radeon_hard_reset;
 extern int radeon_vm_size;
 extern int radeon_vm_block_size;
+extern int radeon_deep_color;
 
 /*
  * Copy from radeon_drv.h so we don't have to include both and have conflicting
@@ -683,10 +684,9 @@ struct radeon_flip_work {
 	struct work_struct		unpin_work;
 	struct radeon_device		*rdev;
 	int				crtc_id;
-	struct drm_framebuffer		*fb;
+	uint64_t			base;
 	struct drm_pending_vblank_event *event;
 	struct radeon_bo		*old_rbo;
-	struct radeon_bo		*new_rbo;
 	struct radeon_fence		*fence;
 };
 
@@ -748,10 +748,6 @@ union radeon_irq_stat_regs {
 	struct evergreen_irq_stat_regs evergreen;
 	struct cik_irq_stat_regs cik;
 };
-
-#define RADEON_MAX_HPD_PINS 7
-#define RADEON_MAX_CRTCS 6
-#define RADEON_MAX_AFMT_BLOCKS 7
 
 struct radeon_irq {
 	bool				installed;

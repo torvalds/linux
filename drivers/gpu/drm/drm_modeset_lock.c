@@ -64,6 +64,7 @@
 void drm_modeset_acquire_init(struct drm_modeset_acquire_ctx *ctx,
 		uint32_t flags)
 {
+	memset(ctx, 0, sizeof(*ctx));
 	ww_acquire_init(&ctx->ww_ctx, &crtc_ww_class);
 	INIT_LIST_HEAD(&ctx->locked);
 }

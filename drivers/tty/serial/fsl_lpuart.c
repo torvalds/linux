@@ -902,7 +902,7 @@ lpuart_set_termios(struct uart_port *port, struct ktermios *termios,
 	sport->port.read_status_mask = 0;
 	if (termios->c_iflag & INPCK)
 		sport->port.read_status_mask |=	(UARTSR1_FE | UARTSR1_PE);
-	if (termios->c_iflag & (BRKINT | PARMRK))
+	if (termios->c_iflag & (IGNBRK | BRKINT | PARMRK))
 		sport->port.read_status_mask |= UARTSR1_FE;
 
 	/* characters to ignore */

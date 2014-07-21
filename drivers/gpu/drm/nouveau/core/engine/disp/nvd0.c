@@ -1159,11 +1159,11 @@ nvd0_disp_intr_unk2_2(struct nv50_disp_priv *priv, int head)
 	if (outp->info.type == DCB_OUTPUT_DP) {
 		u32 sync = nv_rd32(priv, 0x660404 + (head * 0x300));
 		switch ((sync & 0x000003c0) >> 6) {
-		case 6: pclk = pclk * 30 / 8; break;
-		case 5: pclk = pclk * 24 / 8; break;
+		case 6: pclk = pclk * 30; break;
+		case 5: pclk = pclk * 24; break;
 		case 2:
 		default:
-			pclk = pclk * 18 / 8;
+			pclk = pclk * 18;
 			break;
 		}
 

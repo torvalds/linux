@@ -598,6 +598,7 @@ static int do_switch(struct intel_engine_cs *ring,
 	struct intel_context *from = ring->last_context;
 	struct i915_hw_ppgtt *ppgtt = ctx_to_ppgtt(to);
 	u32 hw_flags = 0;
+	bool uninitialized = false;
 	int ret, i;
 
 	if (from != NULL && ring == &dev_priv->ring[RCS]) {
@@ -696,18 +697,19 @@ static int do_switch(struct intel_engine_cs *ring,
 		i915_gem_context_unreference(from);
 	}
 
+	uninitialized = !to->is_initialized && from == NULL;
+	to->is_initialized = true;
+
 done:
 	i915_gem_context_reference(to);
 	ring->last_context = to;
 	to->last_ring = ring;
 
-	if (ring->id == RCS && !to->is_initialized && from == NULL) {
+	if (uninitialized) {
 		ret = i915_gem_render_state_init(ring);
 		if (ret)
 			DRM_ERROR("init render state: %d\n", ret);
 	}
-
-	to->is_initialized = true;
 
 	return 0;
 
