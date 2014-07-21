@@ -166,7 +166,7 @@ static int max77686_i2c_probe(struct i2c_client *i2c,
 	i2c_set_clientdata(max77686->rtc, max77686);
 
 	max77686->rtc_regmap = devm_regmap_init_i2c(max77686->rtc,
-						    &max77686_rtc_regmap_config);
+						&max77686_rtc_regmap_config);
 	if (IS_ERR(max77686->rtc_regmap)) {
 		ret = PTR_ERR(max77686->rtc_regmap);
 		dev_err(max77686->dev, "failed to allocate RTC regmap: %d\n",
