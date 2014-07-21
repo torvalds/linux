@@ -723,6 +723,12 @@ static long uinput_ioctl_handler(struct file *file, unsigned int cmd,
 	}
 
 	switch (cmd) {
+		case UI_GET_VERSION:
+			if (put_user(UINPUT_VERSION,
+				     (unsigned int __user *)p))
+				retval = -EFAULT;
+			goto out;
+
 		case UI_DEV_CREATE:
 			retval = uinput_create_device(udev);
 			goto out;
