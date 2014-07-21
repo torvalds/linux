@@ -50,6 +50,7 @@
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_device.h>
 #include <asm/param.h>
+#include <linux/debugfs.h>
 #include <linux/types.h>
 
 #include "virthba.h"
@@ -65,6 +66,11 @@
 
 /* NOTE:  L1_CACHE_BYTES >=128 */
 #define DEVICE_ATTRIBUTE struct device_attribute
+
+ /* MAX_BUF = 6 lines x 10 MAXVHBA x 80 characters
+ *         = 4800 bytes ~ 2^13 = 8192 bytes
+ */
+#define MAX_BUF 8192
 
 /*****************************************************/
 /* Forward declarations                              */
@@ -104,6 +110,8 @@ static int virthba_serverup(struct virtpci_dev *virtpcidev);
 static int virthba_serverdown(struct virtpci_dev *virtpcidev, u32 state);
 static void doDiskAddRemove(struct work_struct *work);
 static void virthba_serverdown_complete(struct work_struct *work);
+static ssize_t info_debugfs_read(struct file *file, char __user *buf,
+			size_t len, loff_t *offset);
 
 /*****************************************************/
 /* Globals                                           */
@@ -221,9 +229,18 @@ struct virthba_devices_open {
 	struct virthba_info *virthbainfo;
 };
 
+static const struct file_operations debugfs_info_fops = {
+	.read = info_debugfs_read,
+};
+
+/*****************************************************/
+/* Structs                                           */
+/*****************************************************/
+
 #define VIRTHBASOPENMAX 1
 /* array of open devices maintained by open() and close(); */
 static struct virthba_devices_open VirtHbasOpen[VIRTHBASOPENMAX];
+static struct dentry *virthba_debugfs_dir;
 
 /*****************************************************/
 /* Local Functions				     */
@@ -1342,6 +1359,62 @@ process_incoming_rsps(void *v)
 	complete_and_exit(&dc->threadinfo.has_stopped, 0);
 }
 
+/*****************************************************/
+/* Debugfs filesystem functions                      */
+/*****************************************************/
+
+static ssize_t info_debugfs_read(struct file *file,
+			char __user *buf, size_t len, loff_t *offset)
+{
+	ssize_t bytes_read = 0;
+	int str_pos = 0;
+	U64 phys_flags_addr;
+	int i;
+	struct virthba_info *virthbainfo;
+	char *vbuf;
+
+	if (len > MAX_BUF)
+		len = MAX_BUF;
+	vbuf = kzalloc(len, GFP_KERNEL);
+	if (!vbuf)
+		return -ENOMEM;
+
+	for (i = 0; i < VIRTHBASOPENMAX; i++) {
+		if (VirtHbasOpen[i].virthbainfo == NULL)
+			continue;
+
+		virthbainfo = VirtHbasOpen[i].virthbainfo;
+
+		str_pos += scnprintf(vbuf + str_pos,
+				len - str_pos, "MaxBuffLen:%u\n", MaxBuffLen);
+
+		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
+				"\nvirthba result queue poll wait:%d usecs.\n",
+				rsltq_wait_usecs);
+		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
+				"\ninterrupts_rcvd = %llu, interrupts_disabled = %llu\n",
+				virthbainfo->interrupts_rcvd,
+				virthbainfo->interrupts_disabled);
+		str_pos += scnprintf(vbuf + str_pos,
+				len - str_pos, "\ninterrupts_notme = %llu,\n",
+				virthbainfo->interrupts_notme);
+		phys_flags_addr = virt_to_phys((__force  void *)
+					       virthbainfo->flags_addr);
+		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
+				"flags_addr = %p, phys_flags_addr=0x%016llx, FeatureFlags=%llu\n",
+				virthbainfo->flags_addr, phys_flags_addr,
+				(__le64)readq(virthbainfo->flags_addr));
+		str_pos += scnprintf(vbuf + str_pos,
+			len - str_pos, "acquire_failed_cnt:%llu\n",
+			virthbainfo->acquire_failed_cnt);
+		str_pos += scnprintf(vbuf + str_pos, len - str_pos, "\n");
+	}
+
+	bytes_read = simple_read_from_buffer(buf, len, offset, vbuf, str_pos);
+	kfree(vbuf);
+	return bytes_read;
+}
+
 /* As per VirtpciFunc returns 1 for success and 0 for failure */
 static int
 virthba_serverup(struct virtpci_dev *virtpcidev)
@@ -1526,6 +1599,10 @@ virthba_mod_init(void)
 				 POSTCODE_SEVERITY_ERR);
 	} else {
 
+		/* create the debugfs directories and entries */
+		virthba_debugfs_dir = debugfs_create_dir("virthba", NULL);
+		debugfs_create_file("info", S_IRUSR, virthba_debugfs_dir,
+				NULL, &debugfs_info_fops);
 		/* Initialize DARWorkQ */
 		INIT_WORK(&DARWorkQ, doDiskAddRemove);
 		spin_lock_init(&DARWorkQLock);
@@ -1605,6 +1682,8 @@ virthba_mod_exit(void)
 		virthba_serverdown_workqueue = NULL;
 	}
 
+	/* remove debugfs directory and files. */
+	debugfs_remove_recursive(virthba_debugfs_dir);
 	LOGINF("Leaving virthba_mod_exit\n");
 
 }
