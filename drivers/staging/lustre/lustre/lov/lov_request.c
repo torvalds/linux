@@ -140,14 +140,14 @@ void lov_set_add_req(struct lov_request *req, struct lov_request_set *set)
 
 static int lov_check_set(struct lov_obd *lov, int idx)
 {
-	int rc = 0;
+	int rc;
+	struct lov_tgt_desc *tgt;
 	mutex_lock(&lov->lov_lock);
 
-	if (lov->lov_tgts[idx] == NULL ||
-	    lov->lov_tgts[idx]->ltd_active ||
-	    (lov->lov_tgts[idx]->ltd_exp != NULL &&
-	     class_exp2cliimp(lov->lov_tgts[idx]->ltd_exp)->imp_connect_tried))
-		rc = 1;
+	tgt = lov->lov_tgts[idx];
+	rc = !tgt || tgt->ltd_active ||
+		(tgt->ltd_exp &&
+		 class_exp2cliimp(tgt->ltd_exp)->imp_connect_tried);
 
 	mutex_unlock(&lov->lov_lock);
 	return rc;
