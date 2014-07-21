@@ -326,12 +326,6 @@ enum odm_cmninfo {
 
 	ODM_CMNINFO_SCAN,
 	ODM_CMNINFO_POWER_SAVING,
-	ODM_CMNINFO_ONE_PATH_CCA,			/*  enum odm_cca_path */
-	ODM_CMNINFO_DRV_STOP,
-	ODM_CMNINFO_PNP_IN,
-	ODM_CMNINFO_INIT_ON,
-	ODM_CMNINFO_ANT_TEST,
-	ODM_CMNINFO_NET_CLOSED,
 	ODM_CMNINFO_MP_MODE,
 
 	ODM_CMNINFO_WIFI_DIRECT,
@@ -713,11 +707,6 @@ struct dm_odm_t {
 	/*  Common info for Status */
 	bool			*pbScanInProcess;
 	bool			*pbPowerSaving;
-	/*  CCA Path 2-path/path-A/path-B = 0/1/2; using enum odm_cca_path. */
-	u8			*pOnePathCCA;
-	/* pMgntInfo->AntennaTest */
-	u8			*pAntennaTest;
-	bool			*pbNet_closed;
 /*  POINTER REFERENCE----------- */
 	/*  */
 /* CALL BY VALUE------------- */
@@ -782,11 +771,6 @@ struct dm_odm_t {
 	/*  */
 	/*  ================================================== */
 	/*  */
-
-	/* common */
-	bool			*pbDriverStopped;
-	bool			*pbDriverIsGoingToPnpSetPowerSleep;
-	bool			*pinit_adpt_in_progress;
 
 	/* PSD */
 	bool			bUserAssignLevel;

@@ -159,8 +159,6 @@ static void Update_ODM_ComInfo_8723a(struct rtw_adapter *Adapter)
 			   &pHalData->CurrentChannelBW);
 	ODM23a_CmnInfoHook(pDM_Odm, ODM_CMNINFO_CHNL,
 			   &pHalData->CurrentChannel);
-	ODM23a_CmnInfoHook(pDM_Odm, ODM_CMNINFO_NET_CLOSED, &Adapter->net_closed);
-
 	ODM23a_CmnInfoHook(pDM_Odm, ODM_CMNINFO_SCAN, &pmlmepriv->bScanInProcess);
 	ODM23a_CmnInfoHook(pDM_Odm, ODM_CMNINFO_POWER_SAVING,
 			   &pwrctrlpriv->bpower_saving);
