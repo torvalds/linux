@@ -408,21 +408,6 @@ void ODM_CmnInfoInit23a(struct dm_odm_t *pDM_Odm,
 
 }
 
-void ODM23a_CmnInfoHook(struct dm_odm_t *pDM_Odm,
-		enum odm_cmninfo CmnInfo,
-		void *pValue
-	)
-{
-	/*  Hook call by reference pointer. */
-	switch	(CmnInfo) {
-	/*  Dynamic call by reference pointer. */
-	/* To remove the compiler warning, must add an empty default statement to handle the other values. */
-	default:
-		/* do nothing */
-		break;
-	}
-}
-
 void ODM_CmnInfoPtrArrayHook23a(struct dm_odm_t *pDM_Odm, enum odm_cmninfo CmnInfo,
 				u16 Index, void *pValue)
 {
