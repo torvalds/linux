@@ -23,16 +23,6 @@ static efi_status_t update_fdt(efi_system_table_t *sys_table, void *orig_fdt,
 	u32 fdt_val32;
 	u64 fdt_val64;
 
-	/*
-	 * Copy definition of linux_banner here.  Since this code is
-	 * built as part of the decompressor for ARM v7, pulling
-	 * in version.c where linux_banner is defined for the
-	 * kernel brings other kernel dependencies with it.
-	 */
-	const char linux_banner[] =
-	    "Linux version " UTS_RELEASE " (" LINUX_COMPILE_BY "@"
-	    LINUX_COMPILE_HOST ") (" LINUX_COMPILER ") " UTS_VERSION "\n";
-
 	/* Do some checks on provided FDT, if it exists*/
 	if (orig_fdt) {
 		if (fdt_check_header(orig_fdt)) {

@@ -68,6 +68,7 @@ void gre_build_header(struct sk_buff *skb, const struct tnl_ptk_info *tpi,
 
 	skb_push(skb, hdr_len);
 
+	skb_reset_transport_header(skb);
 	greh = (struct gre_base_hdr *)skb->data;
 	greh->flags = tnl_flags_to_gre_flags(tpi->flags);
 	greh->protocol = tpi->proto;
