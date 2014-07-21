@@ -147,6 +147,7 @@ struct opal_sg_list {
 #define OPAL_SET_PARAM				90
 #define OPAL_DUMP_RESEND			91
 #define OPAL_DUMP_INFO2				94
+#define OPAL_PCI_EEH_FREEZE_SET			97
 
 #ifndef __ASSEMBLY__
 
@@ -170,7 +171,11 @@ enum OpalFreezeState {
 enum OpalEehFreezeActionToken {
 	OPAL_EEH_ACTION_CLEAR_FREEZE_MMIO = 1,
 	OPAL_EEH_ACTION_CLEAR_FREEZE_DMA = 2,
-	OPAL_EEH_ACTION_CLEAR_FREEZE_ALL = 3
+	OPAL_EEH_ACTION_CLEAR_FREEZE_ALL = 3,
+
+	OPAL_EEH_ACTION_SET_FREEZE_MMIO = 1,
+	OPAL_EEH_ACTION_SET_FREEZE_DMA  = 2,
+	OPAL_EEH_ACTION_SET_FREEZE_ALL  = 3
 };
 
 enum OpalPciStatusToken {
@@ -764,6 +769,8 @@ int64_t opal_pci_eeh_freeze_status(uint64_t phb_id, uint64_t pe_number,
 				   __be64 *phb_status);
 int64_t opal_pci_eeh_freeze_clear(uint64_t phb_id, uint64_t pe_number,
 				  uint64_t eeh_action_token);
+int64_t opal_pci_eeh_freeze_set(uint64_t phb_id, uint64_t pe_number,
+				uint64_t eeh_action_token);
 int64_t opal_pci_shpc(uint64_t phb_id, uint64_t shpc_action, uint8_t *state);
 
 
