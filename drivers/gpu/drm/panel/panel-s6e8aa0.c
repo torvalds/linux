@@ -120,7 +120,10 @@ struct s6e8aa0 {
 	int error;
 };
 
-#define panel_to_s6e8aa0(p) container_of(p, struct s6e8aa0, panel)
+static inline struct s6e8aa0 *panel_to_s6e8aa0(struct drm_panel *panel)
+{
+	return container_of(panel, struct s6e8aa0, panel);
+}
 
 static int s6e8aa0_clear_error(struct s6e8aa0 *ctx)
 {
