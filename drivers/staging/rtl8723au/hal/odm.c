@@ -291,6 +291,7 @@ void ODM_DMWatchdog23a(struct rtw_adapter *adapter)
 {
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(adapter);
 	struct dm_odm_t *pDM_Odm = &pHalData->odmpriv;
+	struct pwrctrl_priv *pwrctrlpriv = &adapter->pwrctrlpriv;
 
 	/* 2012.05.03 Luke: For all IC series */
 	odm_CmnInfoHook_Debug23a(pDM_Odm);
@@ -313,7 +314,7 @@ void ODM_DMWatchdog23a(struct rtw_adapter *adapter)
 
 	odm_CCKPacketDetectionThresh23a(pDM_Odm);
 
-	if (*(pDM_Odm->pbPowerSaving))
+	if (pwrctrlpriv->bpower_saving)
 		return;
 
 	odm_RefreshRateAdaptiveMask23a(pDM_Odm);
@@ -418,9 +419,6 @@ void ODM23a_CmnInfoHook(struct dm_odm_t *pDM_Odm,
 	/*  Hook call by reference pointer. */
 	switch	(CmnInfo) {
 	/*  Dynamic call by reference pointer. */
-	case	ODM_CMNINFO_POWER_SAVING:
-		pDM_Odm->pbPowerSaving = (bool *)pValue;
-		break;
 	/* To remove the compiler warning, must add an empty default statement to handle the other values. */
 	default:
 		/* do nothing */
@@ -541,8 +539,6 @@ void odm_CmnInfoInit_Debug23a(struct dm_odm_t *pDM_Odm)
 void odm_CmnInfoHook_Debug23a(struct dm_odm_t *pDM_Odm)
 {
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("odm_CmnInfoHook_Debug23a ==>\n"));
-
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("pbPowerSaving =%d\n", *(pDM_Odm->pbPowerSaving)));
 }
 
 void odm_CmnInfoUpdate_Debug23a(struct dm_odm_t *pDM_Odm)

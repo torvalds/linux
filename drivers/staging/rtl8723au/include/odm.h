@@ -319,7 +319,6 @@ enum odm_cmninfo {
 	/*  */
 	/*  Dynamic value: */
 	/*  */
-	ODM_CMNINFO_POWER_SAVING,
 	ODM_CMNINFO_MP_MODE,
 
 	ODM_CMNINFO_WIFI_DIRECT,
@@ -683,8 +682,6 @@ struct dm_odm_t {
 	bool			bool_temp;
 	struct rtw_adapter	*PADAPTER_temp;
 
-	/*  Common info for Status */
-	bool			*pbPowerSaving;
 /*  POINTER REFERENCE----------- */
 	/*  */
 /* CALL BY VALUE------------- */

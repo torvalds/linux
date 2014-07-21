@@ -133,7 +133,6 @@ static void Init_ODM_ComInfo_8723a(struct rtw_adapter *Adapter)
 
 static void Update_ODM_ComInfo_8723a(struct rtw_adapter *Adapter)
 {
-	struct pwrctrl_priv *pwrctrlpriv = &Adapter->pwrctrlpriv;
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(Adapter);
 	struct dm_odm_t *pDM_Odm = &pHalData->odmpriv;
 	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
@@ -150,9 +149,6 @@ static void Update_ODM_ComInfo_8723a(struct rtw_adapter *Adapter)
 				ODM_RF_CALIBRATION;
 	/*  Pointer reference */
 	rtl8723a_odm_support_ability_set(Adapter, DYNAMIC_ALL_FUNC_ENABLE);
-
-	ODM23a_CmnInfoHook(pDM_Odm, ODM_CMNINFO_POWER_SAVING,
-			   &pwrctrlpriv->bpower_saving);
 
 	for (i = 0; i < NUM_STA; i++)
 		ODM_CmnInfoPtrArrayHook23a(pDM_Odm, ODM_CMNINFO_STA_STATUS, i, NULL);
