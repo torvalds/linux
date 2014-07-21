@@ -29,6 +29,8 @@
 #include <linux/sysfs.h>
 #include <linux/input/mt.h>
 #include <linux/platform_data/zforce_ts.h>
+#include <linux/regulator/consumer.h>
+#include <linux/delay.h>
 #include <linux/of.h>
 #include <linux/of_gpio.h>
 
@@ -116,6 +118,8 @@ struct zforce_ts {
 	struct input_dev	*input;
 	const struct zforce_ts_platdata *pdata;
 	char			phys[32];
+
+	struct regulator	*reg_vdd;
 
 	bool			suspending;
 	bool			suspended;
@@ -690,6 +694,11 @@ static void zforce_reset(void *data)
 	struct zforce_ts *ts = data;
 
 	gpio_set_value(ts->pdata->gpio_rst, 0);
+
+	udelay(10);
+
+	if (!IS_ERR(ts->reg_vdd))
+		regulator_disable(ts->reg_vdd);
 }
 
 static struct zforce_ts_platdata *zforce_parse_dt(struct device *dev)
@@ -765,10 +774,32 @@ static int zforce_probe(struct i2c_client *client,
 		return ret;
 	}
 
+	ts->reg_vdd = devm_regulator_get_optional(&client->dev, "vdd");
+	if (IS_ERR(ts->reg_vdd)) {
+		ret = PTR_ERR(ts->reg_vdd);
+		if (ret == -EPROBE_DEFER)
+			return ret;
+	} else {
+		ret = regulator_enable(ts->reg_vdd);
+		if (ret)
+			return ret;
+
+		/*
+		 * according to datasheet add 100us grace time after regular
+		 * regulator enable delay.
+		 */
+		udelay(100);
+	}
+
 	ret = devm_add_action(&client->dev, zforce_reset, ts);
 	if (ret) {
 		dev_err(&client->dev, "failed to register reset action, %d\n",
 			ret);
+
+		/* hereafter the regulator will be disabled by the action */
+		if (!IS_ERR(ts->reg_vdd))
+			regulator_disable(ts->reg_vdd);
+
 		return ret;
 	}
 
