@@ -1484,10 +1484,10 @@ static int drm_dp_send_enum_path_resources(struct drm_dp_mst_topology_mgr *mgr,
 	return 0;
 }
 
-int drm_dp_payload_send_msg(struct drm_dp_mst_topology_mgr *mgr,
-			    struct drm_dp_mst_port *port,
-			    int id,
-			    int pbn)
+static int drm_dp_payload_send_msg(struct drm_dp_mst_topology_mgr *mgr,
+				   struct drm_dp_mst_port *port,
+				   int id,
+				   int pbn)
 {
 	struct drm_dp_sideband_msg_tx *txmsg;
 	struct drm_dp_mst_branch *mstb;
@@ -1538,10 +1538,10 @@ static int drm_dp_create_payload_step1(struct drm_dp_mst_topology_mgr *mgr,
 	return 0;
 }
 
-int drm_dp_create_payload_step2(struct drm_dp_mst_topology_mgr *mgr,
-				struct drm_dp_mst_port *port,
-				int id,
-				struct drm_dp_payload *payload)
+static int drm_dp_create_payload_step2(struct drm_dp_mst_topology_mgr *mgr,
+				       struct drm_dp_mst_port *port,
+				       int id,
+				       struct drm_dp_payload *payload)
 {
 	int ret;
 	ret = drm_dp_payload_send_msg(mgr, port, id, port->vcpi.pbn);
@@ -1551,10 +1551,10 @@ int drm_dp_create_payload_step2(struct drm_dp_mst_topology_mgr *mgr,
 	return ret;
 }
 
-int drm_dp_destroy_payload_step1(struct drm_dp_mst_topology_mgr *mgr,
-				 struct drm_dp_mst_port *port,
-				 int id,
-				 struct drm_dp_payload *payload)
+static int drm_dp_destroy_payload_step1(struct drm_dp_mst_topology_mgr *mgr,
+					struct drm_dp_mst_port *port,
+					int id,
+					struct drm_dp_payload *payload)
 {
 	DRM_DEBUG_KMS("\n");
 	/* its okay for these to fail */
@@ -1567,9 +1567,9 @@ int drm_dp_destroy_payload_step1(struct drm_dp_mst_topology_mgr *mgr,
 	return 0;
 }
 
-int drm_dp_destroy_payload_step2(struct drm_dp_mst_topology_mgr *mgr,
-				 int id,
-				 struct drm_dp_payload *payload)
+static int drm_dp_destroy_payload_step2(struct drm_dp_mst_topology_mgr *mgr,
+					int id,
+					struct drm_dp_payload *payload)
 {
 	payload->payload_state = 0;
 	return 0;
