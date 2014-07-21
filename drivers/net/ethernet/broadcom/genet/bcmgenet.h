@@ -569,6 +569,8 @@ struct bcmgenet_priv {
 	int irq1;
 	unsigned int irq0_stat;
 	unsigned int irq1_stat;
+	int wol_irq;
+	bool wol_irq_disabled;
 
 	/* HW descriptors/checksum variables */
 	bool desc_64b_en;

@@ -1918,6 +1918,15 @@ static irqreturn_t bcmgenet_isr0(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static irqreturn_t bcmgenet_wol_isr(int irq, void *dev_id)
+{
+	struct bcmgenet_priv *priv = dev_id;
+
+	pm_wakeup_event(&priv->pdev->dev, 0);
+
+	return IRQ_HANDLED;
+}
+
 static void bcmgenet_umac_reset(struct bcmgenet_priv *priv)
 {
 	u32 reg;
@@ -2045,8 +2054,6 @@ static int bcmgenet_open(struct net_device *dev)
 		reg |= EXT_ENERGY_DET_MASK;
 		bcmgenet_ext_writel(priv, reg, EXT_EXT_PWR_MGMT);
 	}
-
-	device_set_wakeup_capable(&dev->dev, 1);
 
 	/* Disable RX/TX DMA and flush TX queues */
 	dma_ctrl = bcmgenet_dma_disable(priv);
@@ -2473,6 +2480,7 @@ static int bcmgenet_probe(struct platform_device *pdev)
 	priv = netdev_priv(dev);
 	priv->irq0 = platform_get_irq(pdev, 0);
 	priv->irq1 = platform_get_irq(pdev, 1);
+	priv->wol_irq = platform_get_irq(pdev, 2);
 	if (!priv->irq0 || !priv->irq1) {
 		dev_err(&pdev->dev, "can't find IRQs\n");
 		err = -EINVAL;
@@ -2506,6 +2514,13 @@ static int bcmgenet_probe(struct platform_device *pdev)
 	/* Set hardware features */
 	dev->hw_features |= NETIF_F_SG | NETIF_F_IP_CSUM |
 		NETIF_F_IPV6_CSUM | NETIF_F_RXCSUM;
+
+	/* Request the WOL interrupt and advertise suspend if available */
+	priv->wol_irq_disabled = true;
+	err = devm_request_irq(&pdev->dev, priv->wol_irq, bcmgenet_wol_isr, 0,
+			       dev->name, priv);
+	if (!err)
+		device_set_wakeup_capable(&pdev->dev, 1);
 
 	/* Set the needed headroom to account for any possible
 	 * features enabling/disabling at runtime
