@@ -47,13 +47,21 @@
  *	    (National Instruments) PXI-6521 [ni_65xx]
  *	    (National Instruments) PCI-6528 [ni_65xx]
  *	    (National Instruments) PXI-6528 [ni_65xx]
- * Updated: Wed Oct 18 08:59:11 EDT 2006
+ * Updated: Mon, 21 Jul 2014 12:49:58 +0000
  *
  * Configuration Options: not applicable, uses PCI auto config
  *
  * Based on the PCI-6527 driver by ds.
  * The interrupt subdevice (subdevice 3) is probably broken for all
  * boards except maybe the 6514.
+ *
+ * This driver previously inverted the outputs on PCI-6513 through to
+ * PCI-6519 and on PXI-6513 through to PXI-6515.  It no longer inverts
+ * outputs on those cards by default as it didn't make much sense.  If
+ * you require the outputs to be inverted on those cards for legacy
+ * reasons, set the module parameter "legacy_invert_outputs=true" when
+ * loading the module, or set "ni_65xx.legacy_invert_outputs=true" on
+ * the kernel command line if the driver is built in to the kernel.
  */
 
 /*
@@ -163,7 +171,7 @@ struct ni_65xx_board {
 	unsigned num_dio_ports;
 	unsigned num_di_ports;
 	unsigned num_do_ports;
-	unsigned invert_outputs:1;
+	unsigned legacy_invert:1;
 };
 
 static const struct ni_65xx_board ni_65xx_boards[] = {
@@ -198,58 +206,58 @@ static const struct ni_65xx_board ni_65xx_boards[] = {
 	[BOARD_PCI6513] = {
 		.name		= "pci-6513",
 		.num_do_ports	= 8,
-		.invert_outputs	= 1,
+		.legacy_invert	= 1,
 	},
 	[BOARD_PXI6513] = {
 		.name		= "pxi-6513",
 		.num_do_ports	= 8,
-		.invert_outputs	= 1,
+		.legacy_invert	= 1,
 	},
 	[BOARD_PCI6514] = {
 		.name		= "pci-6514",
 		.num_di_ports	= 4,
 		.num_do_ports	= 4,
-		.invert_outputs	= 1,
+		.legacy_invert	= 1,
 	},
 	[BOARD_PXI6514] = {
 		.name		= "pxi-6514",
 		.num_di_ports	= 4,
 		.num_do_ports	= 4,
-		.invert_outputs	= 1,
+		.legacy_invert	= 1,
 	},
 	[BOARD_PCI6515] = {
 		.name		= "pci-6515",
 		.num_di_ports	= 4,
 		.num_do_ports	= 4,
-		.invert_outputs	= 1,
+		.legacy_invert	= 1,
 	},
 	[BOARD_PXI6515] = {
 		.name		= "pxi-6515",
 		.num_di_ports	= 4,
 		.num_do_ports	= 4,
-		.invert_outputs	= 1,
+		.legacy_invert	= 1,
 	},
 	[BOARD_PCI6516] = {
 		.name		= "pci-6516",
 		.num_do_ports	= 4,
-		.invert_outputs	= 1,
+		.legacy_invert	= 1,
 	},
 	[BOARD_PCI6517] = {
 		.name		= "pci-6517",
 		.num_do_ports	= 4,
-		.invert_outputs	= 1,
+		.legacy_invert	= 1,
 	},
 	[BOARD_PCI6518] = {
 		.name		= "pci-6518",
 		.num_di_ports	= 2,
 		.num_do_ports	= 2,
-		.invert_outputs	= 1,
+		.legacy_invert	= 1,
 	},
 	[BOARD_PCI6519] = {
 		.name		= "pci-6519",
 		.num_di_ports	= 2,
 		.num_do_ports	= 2,
-		.invert_outputs	= 1,
+		.legacy_invert	= 1,
 	},
 	[BOARD_PCI6520] = {
 		.name		= "pci-6520",
@@ -277,6 +285,12 @@ static const struct ni_65xx_board ni_65xx_boards[] = {
 		.num_do_ports	= 3,
 	},
 };
+
+static bool ni_65xx_legacy_invert_outputs;
+module_param_named(legacy_invert_outputs, ni_65xx_legacy_invert_outputs,
+		   bool, 0444);
+MODULE_PARM_DESC(legacy_invert_outputs,
+		 "invert outputs of PCI/PXI-6513/6514/6515/6516/6517/6518/6519 for compatibility with old user code");
 
 struct ni_65xx_private {
 	void __iomem *mmio;
@@ -670,8 +684,13 @@ static int ni_65xx_auto_attach(struct comedi_device *dev,
 		/* the output ports always start after the input ports */
 		s->private = (void *)(unsigned long)board->num_di_ports;
 
-		/* use the io_bits to handle the inverted outputs */
-		s->io_bits	= (board->invert_outputs) ? 0xff : 0x00;
+		/*
+		 * Use the io_bits to handle the inverted outputs.  Inverted
+		 * outputs are only supported if the "legacy_invert_outputs"
+		 * module parameter is set to "true".
+		 */
+		if (ni_65xx_legacy_invert_outputs && board->legacy_invert)
+			s->io_bits = 0xff;
 
 		/* reset all output ports to comedi '0' */
 		for (i = 0; i < board->num_do_ports; ++i) {
