@@ -133,8 +133,7 @@ static void Init_ODM_ComInfo_8723a(struct rtw_adapter *Adapter)
 
 static void Update_ODM_ComInfo_8723a(struct rtw_adapter *Adapter)
 {
-	struct mlme_ext_priv	*pmlmeext = &Adapter->mlmeextpriv;
-	struct mlme_priv		*pmlmepriv = &Adapter->mlmepriv;
+	struct mlme_priv *pmlmepriv = &Adapter->mlmepriv;
 	struct pwrctrl_priv *pwrctrlpriv = &Adapter->pwrctrlpriv;
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(Adapter);
 	struct dm_odm_t *pDM_Odm = &pHalData->odmpriv;
@@ -156,8 +155,6 @@ static void Update_ODM_ComInfo_8723a(struct rtw_adapter *Adapter)
 
 	ODM23a_CmnInfoHook(pDM_Odm, ODM_CMNINFO_SEC_CHNL_OFFSET,
 			   &pHalData->nCur40MhzPrimeSC);
-	ODM23a_CmnInfoHook(pDM_Odm, ODM_CMNINFO_SEC_MODE,
-			   &Adapter->securitypriv.dot11PrivacyAlgrthm);
 	ODM23a_CmnInfoHook(pDM_Odm, ODM_CMNINFO_BW,
 			   &pHalData->CurrentChannelBW);
 	ODM23a_CmnInfoHook(pDM_Odm, ODM_CMNINFO_CHNL,

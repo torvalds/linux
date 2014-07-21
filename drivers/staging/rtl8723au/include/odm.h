@@ -320,15 +320,10 @@ enum odm_cmninfo {
 	/*  */
 	/*  Dynamic value: */
 	/*  */
-	ODM_CMNINFO_MAC_PHY_MODE,			/*  enum odm_mac_phy_mode */
 	ODM_CMNINFO_SEC_CHNL_OFFSET,		/*  enum odm_sec_chnl_offset */
-	ODM_CMNINFO_SEC_MODE,				/*  enum odm_security */
-	ODM_CMNINFO_BW,						/*  enum odm_band_width */
+	ODM_CMNINFO_BW,				/*  enum odm_band_width */
 	ODM_CMNINFO_CHNL,
 
-	ODM_CMNINFO_DMSP_GET_VALUE,
-	ODM_CMNINFO_BUDDY_ADAPTOR,
-	ODM_CMNINFO_DMSP_IS_MASTER,
 	ODM_CMNINFO_SCAN,
 	ODM_CMNINFO_POWER_SAVING,
 	ODM_CMNINFO_ONE_PATH_CCA,			/*  enum odm_cca_path */
@@ -709,21 +704,12 @@ struct dm_odm_t {
 	bool			bool_temp;
 	struct rtw_adapter	*PADAPTER_temp;
 
-	/*  MAC PHY Mode SMSP/DMSP/DMDP = 0/1/2 */
-	u8			*pMacPhyMode;
 	/*  Secondary channel offset don't_care/below/above = 0/1/2 */
 	u8			*pSecChOffset;
-	/*  Security mode Open/WEP/AES/TKIP = 0/1/2/3 */
-	u8			*pSecurity;
 	/*  BW info 20M/40M/80M = 0/1/2 */
 	u8			*pBandWidth;
 	/*  Central channel location Ch1/Ch2/.... */
 	u8			*pChannel;	/* central channel number */
-	/*  Common info for 92D DMSP */
-
-	bool			*pbGetValueFromOtherMac;
-	struct rtw_adapter	**pBuddyAdapter;
-	bool			*pbMasterOfDMSP; /* MAC0: master, MAC1: slave */
 	/*  Common info for Status */
 	bool			*pbScanInProcess;
 	bool			*pbPowerSaving;
