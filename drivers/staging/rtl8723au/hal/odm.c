@@ -287,8 +287,10 @@ void ODM23a_DMInit(struct dm_odm_t *pDM_Odm)
 /*  2011/09/20 MH This is the entry pointer for all team to execute HW out source DM. */
 /*  You can not add any dummy function here, be care, you can only use DM structure */
 /*  to perform any new ODM_DM. */
-void ODM_DMWatchdog23a(struct dm_odm_t *pDM_Odm)
+void ODM_DMWatchdog23a(struct hal_data_8723a *pHalData)
 {
+	struct dm_odm_t *pDM_Odm = &pHalData->odmpriv;
+
 	/* 2012.05.03 Luke: For all IC series */
 	odm_CmnInfoHook_Debug23a(pDM_Odm);
 	odm_CmnInfoUpdate_Debug23a(pDM_Odm);

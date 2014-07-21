@@ -999,7 +999,8 @@ u32 ODM_Get_Rate_Bitmap23a(struct dm_odm_t *pDM_Odm, u32 macid, u32 ra_mask, u8 
 
 void ODM23a_DMInit(struct dm_odm_t *pDM_Odm);
 
-void ODM_DMWatchdog23a(struct dm_odm_t *pDM_Odm); /*  For common use in the future */
+struct hal_data_8723a;
+void ODM_DMWatchdog23a(struct hal_data_8723a *pHalData);
 
 void ODM_CmnInfoInit23a(struct dm_odm_t *pDM_Odm, enum odm_cmninfo	CmnInfo, u32 Value);
 

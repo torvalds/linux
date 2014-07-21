@@ -216,7 +216,7 @@ rtl8723a_HalDmWatchDog(
 		bLinked = true;
 
 	ODM_CmnInfoUpdate23a(&pHalData->odmpriv, ODM_CMNINFO_LINK, bLinked);
-	ODM_DMWatchdog23a(&pHalData->odmpriv);
+	ODM_DMWatchdog23a(pHalData);
 
 skip_dm:
 
