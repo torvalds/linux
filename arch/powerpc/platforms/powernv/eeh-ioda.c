@@ -187,10 +187,10 @@ static int ioda_eeh_post_init(struct pci_controller *hose)
  */
 static int ioda_eeh_set_option(struct eeh_pe *pe, int option)
 {
-	s64 ret;
-	u32 pe_no;
 	struct pci_controller *hose = pe->phb;
 	struct pnv_phb *phb = hose->private_data;
+	int enable, ret = 0;
+	s64 rc;
 
 	/* Check on PE number */
 	if (pe->addr < 0 || pe->addr >= phb->ioda.total_pe) {
@@ -201,39 +201,36 @@ static int ioda_eeh_set_option(struct eeh_pe *pe, int option)
 		return -EINVAL;
 	}
 
-	pe_no = pe->addr;
 	switch (option) {
 	case EEH_OPT_DISABLE:
-		ret = -EEXIST;
-		break;
+		return -EPERM;
 	case EEH_OPT_ENABLE:
-		ret = 0;
-		break;
+		return 0;
 	case EEH_OPT_THAW_MMIO:
-		ret = opal_pci_eeh_freeze_clear(phb->opal_id, pe_no,
-				OPAL_EEH_ACTION_CLEAR_FREEZE_MMIO);
-		if (ret) {
-			pr_warning("%s: Failed to enable MMIO for "
-				   "PHB#%x-PE#%x, err=%lld\n",
-				__func__, hose->global_number, pe_no, ret);
-			return -EIO;
-		}
-
+		enable = OPAL_EEH_ACTION_CLEAR_FREEZE_MMIO;
 		break;
 	case EEH_OPT_THAW_DMA:
-		ret = opal_pci_eeh_freeze_clear(phb->opal_id, pe_no,
-				OPAL_EEH_ACTION_CLEAR_FREEZE_DMA);
-		if (ret) {
-			pr_warning("%s: Failed to enable DMA for "
-				   "PHB#%x-PE#%x, err=%lld\n",
-				__func__, hose->global_number, pe_no, ret);
-			return -EIO;
-		}
-
+		enable = OPAL_EEH_ACTION_CLEAR_FREEZE_DMA;
 		break;
 	default:
-		pr_warning("%s: Invalid option %d\n", __func__, option);
+		pr_warn("%s: Invalid option %d\n",
+			__func__, option);
 		return -EINVAL;
+	}
+
+	/* If PHB supports compound PE, to handle it */
+	if (phb->unfreeze_pe) {
+		ret = phb->unfreeze_pe(phb, pe->addr, enable);
+	} else {
+		rc = opal_pci_eeh_freeze_clear(phb->opal_id,
+					       pe->addr,
+					       enable);
+		if (rc != OPAL_SUCCESS) {
+			pr_warn("%s: Failure %lld enable %d for PHB#%x-PE#%x\n",
+				__func__, rc, option, phb->hose->global_number,
+				pe->addr);
+			ret = -EIO;
+		}
 	}
 
 	return ret;
@@ -309,16 +306,23 @@ static int ioda_eeh_get_pe_state(struct eeh_pe *pe)
 		return result;
 	}
 
-	/* Fetch state from hardware */
-	rc = opal_pci_eeh_freeze_status(phb->opal_id,
-					pe->addr,
-					&fstate,
-					&pcierr,
-					NULL);
-	if (rc != OPAL_SUCCESS) {
-		pr_warn("%s: Failure %lld getting PHB#%x-PE%x state\n",
-			__func__, rc, phb->hose->global_number, pe->addr);
-		return EEH_STATE_NOT_SUPPORT;
+	/*
+	 * Fetch PE state from hardware. If the PHB
+	 * supports compound PE, let it handle that.
+	 */
+	if (phb->get_pe_state) {
+		fstate = phb->get_pe_state(phb, pe->addr);
+	} else {
+		rc = opal_pci_eeh_freeze_status(phb->opal_id,
+						pe->addr,
+						&fstate,
+						&pcierr,
+						NULL);
+		if (rc != OPAL_SUCCESS) {
+			pr_warn("%s: Failure %lld getting PHB#%x-PE%x state\n",
+				__func__, rc, phb->hose->global_number, pe->addr);
+			return EEH_STATE_NOT_SUPPORT;
+		}
 	}
 
 	/* Figure out state */
@@ -357,6 +361,9 @@ static int ioda_eeh_get_pe_state(struct eeh_pe *pe)
 	}
 
 	/*
+	 * If PHB supports compound PE, to freeze all
+	 * slave PEs for consistency.
+	 *
 	 * If the PE is switching to frozen state for the
 	 * first time, to dump the PHB diag-data.
 	 */
@@ -365,6 +372,9 @@ static int ioda_eeh_get_pe_state(struct eeh_pe *pe)
 	    !(result & EEH_STATE_MMIO_ACTIVE) &&
 	    !(result & EEH_STATE_DMA_ACTIVE)  &&
 	    !(pe->state & EEH_PE_ISOLATED)) {
+		if (phb->freeze_pe)
+			phb->freeze_pe(phb, pe->addr);
+
 		eeh_pe_state_mark(pe, EEH_PE_ISOLATED);
 		ioda_eeh_phb_diag(pe);
 	}
@@ -723,22 +733,43 @@ static void ioda_eeh_hub_diag(struct pci_controller *hose)
 static int ioda_eeh_get_pe(struct pci_controller *hose,
 			   u16 pe_no, struct eeh_pe **pe)
 {
-	struct eeh_pe *phb_pe, *dev_pe;
-	struct eeh_dev dev;
+	struct pnv_phb *phb = hose->private_data;
+	struct pnv_ioda_pe *pnv_pe;
+	struct eeh_pe *dev_pe;
+	struct eeh_dev edev;
 
-	/* Find the PHB PE */
-	phb_pe = eeh_phb_pe_get(hose);
-	if (!phb_pe)
-		return -EEXIST;
+	/*
+	 * If PHB supports compound PE, to fetch
+	 * the master PE because slave PE is invisible
+	 * to EEH core.
+	 */
+	if (phb->get_pe_state) {
+		pnv_pe = &phb->ioda.pe_array[pe_no];
+		if (pnv_pe->flags & PNV_IODA_PE_SLAVE) {
+			pnv_pe = pnv_pe->master;
+			WARN_ON(!pnv_pe ||
+				!(pnv_pe->flags & PNV_IODA_PE_MASTER));
+			pe_no = pnv_pe->pe_number;
+		}
+	}
 
 	/* Find the PE according to PE# */
-	memset(&dev, 0, sizeof(struct eeh_dev));
-	dev.phb = hose;
-	dev.pe_config_addr = pe_no;
-	dev_pe = eeh_pe_get(&dev);
-	if (!dev_pe) return -EEXIST;
+	memset(&edev, 0, sizeof(struct eeh_dev));
+	edev.phb = hose;
+	edev.pe_config_addr = pe_no;
+	dev_pe = eeh_pe_get(&edev);
+	if (!dev_pe)
+		return -EEXIST;
 
+	/*
+	 * At this point, we're sure the compound PE should
+	 * be put into frozen state.
+	 */
 	*pe = dev_pe;
+	if (phb->freeze_pe &&
+	    !(dev_pe->state & EEH_PE_ISOLATED))
+		phb->freeze_pe(phb, pe_no);
+
 	return 0;
 }
 
