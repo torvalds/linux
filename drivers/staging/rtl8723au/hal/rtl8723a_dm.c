@@ -34,10 +34,6 @@
 /*  Global var */
 /*  */
 
-static void dm_CheckStatistics(struct rtw_adapter *Adapter)
-{
-}
-
 static void dm_CheckPbcGPIO(struct rtw_adapter *padapter)
 {
 	u8	tmp1byte;
@@ -225,9 +221,6 @@ rtl8723a_HalDmWatchDog(
 	bFwPSAwake = rtl8723a_get_fwlps_rf_on(Adapter);
 
 	if (!bFwCurrentInPSMode && bFwPSAwake) {
-		/*  Calculate Tx/Rx statistics. */
-		dm_CheckStatistics(Adapter);
-
 		/*  Read REG_INIDATA_RATE_SEL value for TXDESC. */
 		if (check_fwstate(&Adapter->mlmepriv, WIFI_STATION_STATE)) {
 			pdmpriv->INIDATA_RATE[0] = rtl8723au_read8(Adapter, REG_INIDATA_RATE_SEL) & 0x3f;
