@@ -40,18 +40,86 @@ struct i915_mmu_notifier {
 	struct hlist_node node;
 	struct mmu_notifier mn;
 	struct rb_root objects;
+	struct list_head linear;
 	struct drm_device *dev;
 	struct mm_struct *mm;
 	struct work_struct work;
 	unsigned long count;
 	unsigned long serial;
+	bool has_linear;
 };
 
 struct i915_mmu_object {
 	struct i915_mmu_notifier *mmu;
 	struct interval_tree_node it;
+	struct list_head link;
 	struct drm_i915_gem_object *obj;
+	bool is_linear;
 };
+
+static unsigned long cancel_userptr(struct drm_i915_gem_object *obj)
+{
+	struct drm_device *dev = obj->base.dev;
+	unsigned long end;
+
+	mutex_lock(&dev->struct_mutex);
+	/* Cancel any active worker and force us to re-evaluate gup */
+	obj->userptr.work = NULL;
+
+	if (obj->pages != NULL) {
+		struct drm_i915_private *dev_priv = to_i915(dev);
+		struct i915_vma *vma, *tmp;
+		bool was_interruptible;
+
+		was_interruptible = dev_priv->mm.interruptible;
+		dev_priv->mm.interruptible = false;
+
+		list_for_each_entry_safe(vma, tmp, &obj->vma_list, vma_link) {
+			int ret = i915_vma_unbind(vma);
+			WARN_ON(ret && ret != -EIO);
+		}
+		WARN_ON(i915_gem_object_put_pages(obj));
+
+		dev_priv->mm.interruptible = was_interruptible;
+	}
+
+	end = obj->userptr.ptr + obj->base.size;
+
+	drm_gem_object_unreference(&obj->base);
+	mutex_unlock(&dev->struct_mutex);
+
+	return end;
+}
+
+static void invalidate_range__linear(struct i915_mmu_notifier *mn,
+				     struct mm_struct *mm,
+				     unsigned long start,
+				     unsigned long end)
+{
+	struct i915_mmu_object *mmu;
+	unsigned long serial;
+
+restart:
+	serial = mn->serial;
+	list_for_each_entry(mmu, &mn->linear, link) {
+		struct drm_i915_gem_object *obj;
+
+		if (mmu->it.last < start || mmu->it.start > end)
+			continue;
+
+		obj = mmu->obj;
+		drm_gem_object_reference(&obj->base);
+		spin_unlock(&mn->lock);
+
+		cancel_userptr(obj);
+
+		spin_lock(&mn->lock);
+		if (serial != mn->serial)
+			goto restart;
+	}
+
+	spin_unlock(&mn->lock);
+}
 
 static void i915_gem_userptr_mn_invalidate_range_start(struct mmu_notifier *_mn,
 						       struct mm_struct *mm,
@@ -60,16 +128,19 @@ static void i915_gem_userptr_mn_invalidate_range_start(struct mmu_notifier *_mn,
 {
 	struct i915_mmu_notifier *mn = container_of(_mn, struct i915_mmu_notifier, mn);
 	struct interval_tree_node *it = NULL;
+	unsigned long next = start;
 	unsigned long serial = 0;
 
 	end--; /* interval ranges are inclusive, but invalidate range is exclusive */
-	while (start < end) {
+	while (next < end) {
 		struct drm_i915_gem_object *obj;
 
 		obj = NULL;
 		spin_lock(&mn->lock);
+		if (mn->has_linear)
+			return invalidate_range__linear(mn, mm, start, end);
 		if (serial == mn->serial)
-			it = interval_tree_iter_next(it, start, end);
+			it = interval_tree_iter_next(it, next, end);
 		else
 			it = interval_tree_iter_first(&mn->objects, start, end);
 		if (it != NULL) {
@@ -81,31 +152,7 @@ static void i915_gem_userptr_mn_invalidate_range_start(struct mmu_notifier *_mn,
 		if (obj == NULL)
 			return;
 
-		mutex_lock(&mn->dev->struct_mutex);
-		/* Cancel any active worker and force us to re-evaluate gup */
-		obj->userptr.work = NULL;
-
-		if (obj->pages != NULL) {
-			struct drm_i915_private *dev_priv = to_i915(mn->dev);
-			struct i915_vma *vma, *tmp;
-			bool was_interruptible;
-
-			was_interruptible = dev_priv->mm.interruptible;
-			dev_priv->mm.interruptible = false;
-
-			list_for_each_entry_safe(vma, tmp, &obj->vma_list, vma_link) {
-				int ret = i915_vma_unbind(vma);
-				WARN_ON(ret && ret != -EIO);
-			}
-			WARN_ON(i915_gem_object_put_pages(obj));
-
-			dev_priv->mm.interruptible = was_interruptible;
-		}
-
-		start = obj->userptr.ptr + obj->base.size;
-
-		drm_gem_object_unreference(&obj->base);
-		mutex_unlock(&mn->dev->struct_mutex);
+		next = cancel_userptr(obj);
 	}
 }
 
@@ -151,6 +198,8 @@ i915_mmu_notifier_get(struct drm_device *dev, struct mm_struct *mm)
 	mmu->objects = RB_ROOT;
 	mmu->count = 0;
 	mmu->serial = 1;
+	INIT_LIST_HEAD(&mmu->linear);
+	mmu->has_linear = false;
 
 	/* Protected by mmap_sem (write-lock) */
 	ret = __mmu_notifier_register(&mmu->mn, mm);
@@ -197,6 +246,17 @@ static void __i915_mmu_notifier_update_serial(struct i915_mmu_notifier *mmu)
 		mmu->serial = 1;
 }
 
+static bool i915_mmu_notifier_has_linear(struct i915_mmu_notifier *mmu)
+{
+	struct i915_mmu_object *mn;
+
+	list_for_each_entry(mn, &mmu->linear, link)
+		if (mn->is_linear)
+			return true;
+
+	return false;
+}
+
 static void
 i915_mmu_notifier_del(struct i915_mmu_notifier *mmu,
 		      struct i915_mmu_object *mn)
@@ -204,7 +264,11 @@ i915_mmu_notifier_del(struct i915_mmu_notifier *mmu,
 	lockdep_assert_held(&mmu->dev->struct_mutex);
 
 	spin_lock(&mmu->lock);
-	interval_tree_remove(&mn->it, &mmu->objects);
+	list_del(&mn->link);
+	if (mn->is_linear)
+		mmu->has_linear = i915_mmu_notifier_has_linear(mmu);
+	else
+		interval_tree_remove(&mn->it, &mmu->objects);
 	__i915_mmu_notifier_update_serial(mmu);
 	spin_unlock(&mmu->lock);
 
@@ -230,7 +294,6 @@ i915_mmu_notifier_add(struct i915_mmu_notifier *mmu,
 	 */
 	i915_gem_retire_requests(mmu->dev);
 
-	/* Disallow overlapping userptr objects */
 	spin_lock(&mmu->lock);
 	it = interval_tree_iter_first(&mmu->objects,
 				      mn->it.start, mn->it.last);
@@ -243,14 +306,22 @@ i915_mmu_notifier_add(struct i915_mmu_notifier *mmu,
 		 * to flush their object references upon which the object will
 		 * be removed from the interval-tree, or the the range is
 		 * still in use by another client and the overlap is invalid.
+		 *
+		 * If we do have an overlap, we cannot use the interval tree
+		 * for fast range invalidation.
 		 */
 
 		obj = container_of(it, struct i915_mmu_object, it)->obj;
-		ret = obj->userptr.workers ? -EAGAIN : -EINVAL;
-	} else {
+		if (!obj->userptr.workers)
+			mmu->has_linear = mn->is_linear = true;
+		else
+			ret = -EAGAIN;
+	} else
 		interval_tree_insert(&mn->it, &mmu->objects);
+
+	if (ret == 0) {
+		list_add(&mn->link, &mmu->linear);
 		__i915_mmu_notifier_update_serial(mmu);
-		ret = 0;
 	}
 	spin_unlock(&mmu->lock);
 	mutex_unlock(&mmu->dev->struct_mutex);
@@ -611,12 +682,11 @@ static const struct drm_i915_gem_object_ops i915_gem_userptr_ops = {
  * We impose several restrictions upon the memory being mapped
  * into the GPU.
  * 1. It must be page aligned (both start/end addresses, i.e ptr and size).
- * 2. It cannot overlap any other userptr object in the same address space.
- * 3. It must be normal system memory, not a pointer into another map of IO
+ * 2. It must be normal system memory, not a pointer into another map of IO
  *    space (e.g. it must not be a GTT mmapping of another object).
- * 4. We only allow a bo as large as we could in theory map into the GTT,
+ * 3. We only allow a bo as large as we could in theory map into the GTT,
  *    that is we limit the size to the total size of the GTT.
- * 5. The bo is marked as being snoopable. The backing pages are left
+ * 4. The bo is marked as being snoopable. The backing pages are left
  *    accessible directly by the CPU, but reads and writes by the GPU may
  *    incur the cost of a snoop (unless you have an LLC architecture).
  *
