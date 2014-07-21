@@ -1994,12 +1994,6 @@ static int bcmgenet_open(struct net_device *dev)
 
 	bcmgenet_set_hw_addr(priv, dev->dev_addr);
 
-	if (priv->wol_enabled) {
-		ret = bcmgenet_wol_resume(priv);
-		if (ret)
-			return ret;
-	}
-
 	if (phy_is_internal(priv->phydev)) {
 		reg = bcmgenet_ext_readl(priv, EXT_EXT_PWR_MGMT);
 		reg |= EXT_ENERGY_DET_MASK;
@@ -2160,9 +2154,6 @@ static int bcmgenet_close(struct net_device *dev)
 
 	if (phy_is_internal(priv->phydev))
 		bcmgenet_power_down(priv, GENET_POWER_PASSIVE);
-
-	if (priv->wol_enabled)
-		clk_enable(priv->clk_wol);
 
 	if (!IS_ERR(priv->clk))
 		clk_disable_unprepare(priv->clk);

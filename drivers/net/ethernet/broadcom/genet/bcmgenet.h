@@ -583,7 +583,6 @@ struct bcmgenet_priv {
 	struct platform_device *pdev;
 
 	/* WOL */
-	unsigned long wol_enabled;
 	struct clk *clk_wol;
 	u32 wolopts;
 
