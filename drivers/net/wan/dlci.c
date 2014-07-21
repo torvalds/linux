@@ -255,7 +255,6 @@ static int dlci_dev_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 				return -EINVAL;
 
 			return dlci_config(dev, ifr->ifr_data, cmd == DLCI_GET_CONF);
-			break;
 
 		default: 
 			return -EOPNOTSUPP;

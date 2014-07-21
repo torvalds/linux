@@ -1187,7 +1187,6 @@ static int ath6kl_upload_board_file(struct ath6kl *ar)
 	default:
 		WARN_ON(1);
 		return -EINVAL;
-		break;
 	}
 
 	if (board_ext_address &&

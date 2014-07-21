@@ -1103,7 +1103,6 @@ static int _rtl8723ae_set_media_status(struct ieee80211_hw *hw,
 			 "Network type %d not supported!\n",
 			 type);
 		return 1;
-		break;
 
 	}
 
