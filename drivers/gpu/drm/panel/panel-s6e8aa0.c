@@ -133,14 +133,14 @@ static int s6e8aa0_clear_error(struct s6e8aa0 *ctx)
 static void s6e8aa0_dcs_write(struct s6e8aa0 *ctx, const void *data, size_t len)
 {
 	struct mipi_dsi_device *dsi = to_mipi_dsi_device(ctx->dev);
-	int ret;
+	ssize_t ret;
 
 	if (ctx->error < 0)
 		return;
 
 	ret = mipi_dsi_dcs_write(dsi, dsi->channel, data, len);
 	if (ret < 0) {
-		dev_err(ctx->dev, "error %d writing dcs seq: %*ph\n", ret, len,
+		dev_err(ctx->dev, "error %zd writing dcs seq: %*ph\n", ret, len,
 			data);
 		ctx->error = ret;
 	}

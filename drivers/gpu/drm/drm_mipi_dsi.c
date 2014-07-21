@@ -205,8 +205,8 @@ EXPORT_SYMBOL(mipi_dsi_detach);
  * @data: pointer to the command followed by parameters
  * @len: length of @data
  */
-int mipi_dsi_dcs_write(struct mipi_dsi_device *dsi, unsigned int channel,
-		       const void *data, size_t len)
+ssize_t mipi_dsi_dcs_write(struct mipi_dsi_device *dsi, unsigned int channel,
+			   const void *data, size_t len)
 {
 	const struct mipi_dsi_host_ops *ops = dsi->host->ops;
 	struct mipi_dsi_msg msg = {
