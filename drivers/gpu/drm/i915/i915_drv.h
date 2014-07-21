@@ -2803,10 +2803,10 @@ int vlv_freq_opcode(struct drm_i915_private *dev_priv, int val);
 
 static inline uint32_t i915_vgacntrl_reg(struct drm_device *dev)
 {
-	if (HAS_PCH_SPLIT(dev))
-		return CPU_VGACNTRL;
-	else if (IS_VALLEYVIEW(dev))
+	if (IS_VALLEYVIEW(dev))
 		return VLV_VGACNTRL;
+	else if (INTEL_INFO(dev)->gen >= 5)
+		return CPU_VGACNTRL;
 	else
 		return VGACNTRL;
 }
