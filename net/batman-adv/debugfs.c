@@ -233,7 +233,6 @@ static int batadv_debug_log_setup(struct batadv_priv *bat_priv)
 
 static void batadv_debug_log_cleanup(struct batadv_priv *bat_priv)
 {
-	return;
 }
 #endif
 
