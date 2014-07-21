@@ -303,7 +303,7 @@ static void rtw_dev_unload(struct rtw_adapter *padapter)
 
 		/* s5. */
 		if (!padapter->bSurpriseRemoved) {
-			rtw_hal_deinit23a(padapter);
+			rtl8723au_hal_deinit(padapter);
 			padapter->bSurpriseRemoved = true;
 		}
 		padapter->bup = false;

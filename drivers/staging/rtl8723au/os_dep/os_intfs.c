@@ -666,7 +666,7 @@ int netdev_open23a(struct net_device *pnetdev)
 		padapter->bSurpriseRemoved = false;
 		padapter->bCardDisableWOHSM = false;
 
-		status = rtw_hal_init23a(padapter);
+		status = rtl8723au_hal_init(padapter);
 		if (status == _FAIL) {
 			RT_TRACE(_module_os_intfs_c_, _drv_err_,
 				 ("rtl871x_hal_init(): Can't init h/w!\n"));
@@ -735,7 +735,7 @@ static int ips_netdrv_open(struct rtw_adapter *padapter)
 	padapter->bSurpriseRemoved = false;
 	padapter->bCardDisableWOHSM = false;
 
-	status = rtw_hal_init23a(padapter);
+	status = rtl8723au_hal_init(padapter);
 	if (status == _FAIL) {
 		RT_TRACE(_module_os_intfs_c_, _drv_err_,
 			 ("ips_netdrv_open(): Can't init h/w!\n"));
@@ -800,7 +800,7 @@ void rtw_ips_dev_unload23a(struct rtw_adapter *padapter)
 
 	/* s5. */
 	if (!padapter->bSurpriseRemoved)
-		rtw_hal_deinit23a(padapter);
+		rtl8723au_hal_deinit(padapter);
 }
 
 int pm_netdev_open23a(struct net_device *pnetdev, u8 bnormal)

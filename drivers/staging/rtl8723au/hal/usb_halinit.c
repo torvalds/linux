@@ -534,7 +534,7 @@ enum rt_rf_power_state RfOnOffDetect23a(struct rtw_adapter *pAdapter)
 
 void _ps_open_RF23a(struct rtw_adapter *padapter);
 
-static int rtl8723au_hal_init(struct rtw_adapter *Adapter)
+int rtl8723au_hal_init(struct rtw_adapter *Adapter)
 {
 	u8 val8 = 0;
 	u32 boundary;
@@ -544,6 +544,8 @@ static int rtl8723au_hal_init(struct rtw_adapter *Adapter)
 	struct registry_priv *pregistrypriv = &Adapter->registrypriv;
 
 	unsigned long init_start_time = jiffies;
+
+	Adapter->hw_init_completed = false;
 
 	if (Adapter->pwrctrlpriv.bkeepfwalive) {
 		_ps_open_RF23a(Adapter);
@@ -796,6 +798,13 @@ static int rtl8723au_hal_init(struct rtw_adapter *Adapter)
 			  rtl8723au_read32(Adapter, REG_FWHW_TXQ_CTRL)|BIT(12));
 
 exit:
+	if (status == _SUCCESS) {
+		Adapter->hw_init_completed = true;
+
+		if (Adapter->registrypriv.notch_filter == 1)
+			rtl8723a_notch_filter(Adapter, 1);
+	}
+
 	DBG_8723A("%s in %dms\n", __func__,
 		  jiffies_to_msecs(jiffies - init_start_time));
 	return status;
@@ -1105,7 +1114,7 @@ static void CardDisableRTL8723U(struct rtw_adapter *Adapter)
 	rtl8723au_write8(Adapter, REG_RSV_CTRL, 0x0e);
 }
 
-static int rtl8723au_hal_deinit(struct rtw_adapter *padapter)
+int rtl8723au_hal_deinit(struct rtw_adapter *padapter)
 {
 	DBG_8723A("==> %s\n", __func__);
 
@@ -1117,6 +1126,8 @@ static int rtl8723au_hal_deinit(struct rtw_adapter *padapter)
 	    According to EEchou's opinion, we can enable the ability for all */
 	/*  IC. Accord to johnny's opinion, only RU need the support. */
 	CardDisableRTL8723U(padapter);
+
+	padapter->hw_init_completed = false;
 
 	return _SUCCESS;
 }
@@ -1542,41 +1553,4 @@ void rtl8723a_update_ramask(struct rtw_adapter *padapter,
 
 	/* set correct initial date rate for each mac_id */
 	pdmpriv->INIDATA_RATE[mac_id] = init_rate;
-}
-
-int rtw_hal_init23a(struct rtw_adapter *padapter)
-{
-	int status;
-
-	padapter->hw_init_completed = false;
-
-	status = rtl8723au_hal_init(padapter);
-
-	if (status == _SUCCESS) {
-		padapter->hw_init_completed = true;
-
-		if (padapter->registrypriv.notch_filter == 1)
-			rtl8723a_notch_filter(padapter, 1);
-	} else {
-		padapter->hw_init_completed = false;
-		DBG_8723A("rtw_hal_init23a: hal__init fail\n");
-	}
-
-	RT_TRACE(_module_hal_init_c_, _drv_err_,
-		 ("-rtl871x_hal_init:status = 0x%x\n", status));
-
-	return status;
-}
-
-int rtw_hal_deinit23a(struct rtw_adapter *padapter)
-{
-	int status;
-
-	status = rtl8723au_hal_deinit(padapter);
-
-	if (status == _SUCCESS)
-		padapter->hw_init_completed = false;
-	else
-		DBG_8723A("\n rtw_hal_deinit23a: hal_init fail\n");
-	return status;
 }
