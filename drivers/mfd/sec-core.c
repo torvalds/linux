@@ -273,6 +273,7 @@ static inline unsigned long sec_i2c_get_driver_data(struct i2c_client *i2c,
 #ifdef CONFIG_OF
 	if (i2c->dev.of_node) {
 		const struct of_device_id *match;
+
 		match = of_match_node(sec_dt_match, i2c->dev.of_node);
 		return (unsigned long)match->data;
 	}
