@@ -54,15 +54,6 @@ extern void __pmd_error(const char *file, int line, unsigned long val);
 extern void __pud_error(const char *file, int line, unsigned long val);
 extern void __pgd_error(const char *file, int line, unsigned long val);
 
-#define pte_ERROR(pte)		__pte_error(__FILE__, __LINE__, pte_val(pte))
-#if CONFIG_ARM64_PGTABLE_LEVELS > 2
-#define pmd_ERROR(pmd)		__pmd_error(__FILE__, __LINE__, pmd_val(pmd))
-#endif
-#if CONFIG_ARM64_PGTABLE_LEVELS > 3
-#define pud_ERROR(pud)		__pud_error(__FILE__, __LINE__, pud_val(pud))
-#endif
-#define pgd_ERROR(pgd)		__pgd_error(__FILE__, __LINE__, pgd_val(pgd))
-
 #ifdef CONFIG_SMP
 #define PROT_DEFAULT		(PTE_TYPE_PAGE | PTE_AF | PTE_SHARED)
 #define PROT_SECT_DEFAULT	(PMD_TYPE_SECT | PMD_SECT_AF | PMD_SECT_S)
@@ -123,6 +114,8 @@ extern void __pgd_error(const char *file, int line, unsigned long val);
 extern struct page *empty_zero_page;
 #define ZERO_PAGE(vaddr)	(empty_zero_page)
 
+#define pte_ERROR(pte)		__pte_error(__FILE__, __LINE__, pte_val(pte))
+
 #define pte_pfn(pte)		((pte_val(pte) & PHYS_MASK) >> PAGE_SHIFT)
 
 #define pfn_pte(pfn,prot)	(__pte(((phys_addr_t)(pfn) << PAGE_SHIFT) | pgprot_val(prot)))
@@ -130,6 +123,10 @@ extern struct page *empty_zero_page;
 #define pte_none(pte)		(!pte_val(pte))
 #define pte_clear(mm,addr,ptep)	set_pte(ptep, __pte(0))
 #define pte_page(pte)		(pfn_to_page(pte_pfn(pte)))
+
+/* Find an entry in the third-level page table. */
+#define pte_index(addr)		(((addr) >> PAGE_SHIFT) & (PTRS_PER_PTE - 1))
+
 #define pte_offset_kernel(dir,addr)	(pmd_page_vaddr(*(dir)) + pte_index(addr))
 
 #define pte_offset_map(dir,addr)	pte_offset_kernel((dir), (addr))
@@ -336,6 +333,8 @@ static inline pte_t *pmd_page_vaddr(pmd_t pmd)
 
 #if CONFIG_ARM64_PGTABLE_LEVELS > 2
 
+#define pmd_ERROR(pmd)		__pmd_error(__FILE__, __LINE__, pmd_val(pmd))
+
 #define pud_none(pud)		(!pud_val(pud))
 #define pud_bad(pud)		(!(pud_val(pud) & 2))
 #define pud_present(pud)	(pud_val(pud))
@@ -356,9 +355,19 @@ static inline pmd_t *pud_page_vaddr(pud_t pud)
 	return __va(pud_val(pud) & PHYS_MASK & (s32)PAGE_MASK);
 }
 
+/* Find an entry in the second-level page table. */
+#define pmd_index(addr)		(((addr) >> PMD_SHIFT) & (PTRS_PER_PMD - 1))
+
+static inline pmd_t *pmd_offset(pud_t *pud, unsigned long addr)
+{
+	return (pmd_t *)pud_page_vaddr(*pud) + pmd_index(addr);
+}
+
 #endif	/* CONFIG_ARM64_PGTABLE_LEVELS > 2 */
 
 #if CONFIG_ARM64_PGTABLE_LEVELS > 3
+
+#define pud_ERROR(pud)		__pud_error(__FILE__, __LINE__, pud_val(pud))
 
 #define pgd_none(pgd)		(!pgd_val(pgd))
 #define pgd_bad(pgd)		(!(pgd_val(pgd) & 2))
@@ -380,7 +389,17 @@ static inline pud_t *pgd_page_vaddr(pgd_t pgd)
 	return __va(pgd_val(pgd) & PHYS_MASK & (s32)PAGE_MASK);
 }
 
+/* Find an entry in the frst-level page table. */
+#define pud_index(addr)		(((addr) >> PUD_SHIFT) & (PTRS_PER_PUD - 1))
+
+static inline pud_t *pud_offset(pgd_t *pgd, unsigned long addr)
+{
+	return (pud_t *)pgd_page_vaddr(*pgd) + pud_index(addr);
+}
+
 #endif  /* CONFIG_ARM64_PGTABLE_LEVELS > 3 */
+
+#define pgd_ERROR(pgd)		__pgd_error(__FILE__, __LINE__, pgd_val(pgd))
 
 /* to find an entry in a page-table-directory */
 #define pgd_index(addr)		(((addr) >> PGDIR_SHIFT) & (PTRS_PER_PGD - 1))
@@ -389,26 +408,6 @@ static inline pud_t *pgd_page_vaddr(pgd_t pgd)
 
 /* to find an entry in a kernel page-table-directory */
 #define pgd_offset_k(addr)	pgd_offset(&init_mm, addr)
-
-#if CONFIG_ARM64_PGTABLE_LEVELS > 3
-#define pud_index(addr)		(((addr) >> PUD_SHIFT) & (PTRS_PER_PUD - 1))
-static inline pud_t *pud_offset(pgd_t *pgd, unsigned long addr)
-{
-	return (pud_t *)pgd_page_vaddr(*pgd) + pud_index(addr);
-}
-#endif
-
-/* Find an entry in the second-level page table.. */
-#if CONFIG_ARM64_PGTABLE_LEVELS > 2
-#define pmd_index(addr)		(((addr) >> PMD_SHIFT) & (PTRS_PER_PMD - 1))
-static inline pmd_t *pmd_offset(pud_t *pud, unsigned long addr)
-{
-	return (pmd_t *)pud_page_vaddr(*pud) + pmd_index(addr);
-}
-#endif
-
-/* Find an entry in the third-level page table.. */
-#define pte_index(addr)		(((addr) >> PAGE_SHIFT) & (PTRS_PER_PTE - 1))
 
 static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 {
