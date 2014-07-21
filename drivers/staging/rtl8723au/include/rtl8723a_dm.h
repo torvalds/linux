@@ -39,8 +39,6 @@ enum{
 /*  duplicate code,will move to ODM ######### */
 struct dm_priv
 {
-	u8	DMFlag;
-	u8	InitDMFlag;
 	u32	InitODMFlag;
 
 	/*  Upper and Lower Signal threshold for Rate Adaptive*/

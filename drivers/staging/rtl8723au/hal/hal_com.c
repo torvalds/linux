@@ -867,12 +867,10 @@ void rtl8723a_odm_support_ability_set(struct rtw_adapter *padapter, u32 val)
 {
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(padapter);
 
-	if (val == DYNAMIC_ALL_FUNC_ENABLE) {
-		pHalData->dmpriv.DMFlag = pHalData->dmpriv.InitDMFlag;
+	if (val == DYNAMIC_ALL_FUNC_ENABLE)
 		pHalData->odmpriv.SupportAbility = pHalData->dmpriv.InitODMFlag;
-	} else {
+	else
 		pHalData->odmpriv.SupportAbility |= val;
-	}
 }
 
 void rtl8723a_odm_support_ability_clr(struct rtw_adapter *padapter, u32 val)

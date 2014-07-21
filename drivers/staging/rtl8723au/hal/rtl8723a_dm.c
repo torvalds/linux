@@ -185,13 +185,6 @@ void rtl8723a_InitHalDm(struct rtw_adapter *Adapter)
 	struct dm_odm_t *pDM_Odm = &pHalData->odmpriv;
 	u8	i;
 
-	pdmpriv->DMFlag = DYNAMIC_FUNC_DISABLE;
-
-#ifdef CONFIG_8723AU_BT_COEXIST
-	pdmpriv->DMFlag |= DYNAMIC_FUNC_BT;
-#endif
-	pdmpriv->InitDMFlag = pdmpriv->DMFlag;
-
 	Update_ODM_ComInfo_8723a(Adapter);
 	ODM23a_DMInit(pDM_Odm);
 	/*  Save REG_INIDATA_RATE_SEL value for TXDESC. */
