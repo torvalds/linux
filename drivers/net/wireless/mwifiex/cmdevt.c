@@ -453,6 +453,7 @@ int mwifiex_process_event(struct mwifiex_adapter *adapter)
 
 	if (skb) {
 		rx_info = MWIFIEX_SKB_RXCB(skb);
+		memset(rx_info, 0, sizeof(*rx_info));
 		rx_info->bss_num = priv->bss_num;
 		rx_info->bss_type = priv->bss_type;
 	}

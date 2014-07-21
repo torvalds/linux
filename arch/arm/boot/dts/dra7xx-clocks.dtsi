@@ -673,10 +673,12 @@
 
 	l3_iclk_div: l3_iclk_div {
 		#clock-cells = <0>;
-		compatible = "fixed-factor-clock";
+		compatible = "ti,divider-clock";
+		ti,max-div = <2>;
+		ti,bit-shift = <4>;
+		reg = <0x0100>;
 		clocks = <&dpll_core_h12x2_ck>;
-		clock-mult = <1>;
-		clock-div = <1>;
+		ti,index-power-of-two;
 	};
 
 	l4_root_clk_div: l4_root_clk_div {
@@ -684,7 +686,7 @@
 		compatible = "fixed-factor-clock";
 		clocks = <&l3_iclk_div>;
 		clock-mult = <1>;
-		clock-div = <1>;
+		clock-div = <2>;
 	};
 
 	video1_clk2_div: video1_clk2_div {

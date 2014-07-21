@@ -1,7 +1,9 @@
-/* Disk protection for HP machines.
+/* Disk protection for HP/DELL machines.
  *
  * Copyright 2008 Eric Piel
  * Copyright 2009 Pavel Machek <pavel@ucw.cz>
+ * Copyright 2012 Sonal Santan
+ * Copyright 2014 Pali Rohár <pali.rohar@gmail.com>
  *
  * GPLv2.
  */
@@ -18,24 +20,31 @@
 #include <signal.h>
 #include <sys/mman.h>
 #include <sched.h>
+#include <syslog.h>
 
-char unload_heads_path[64];
+static int noled;
+static char unload_heads_path[64];
+static char device_path[32];
+static const char app_name[] = "FREE FALL";
 
-int set_unload_heads_path(char *device)
+static int set_unload_heads_path(char *device)
 {
 	char devname[64];
 
 	if (strlen(device) <= 5 || strncmp(device, "/dev/", 5) != 0)
 		return -EINVAL;
-	strncpy(devname, device + 5, sizeof(devname));
+	strncpy(devname, device + 5, sizeof(devname) - 1);
+	strncpy(device_path, device, sizeof(device_path) - 1);
 
 	snprintf(unload_heads_path, sizeof(unload_heads_path) - 1,
 				"/sys/block/%s/device/unload_heads", devname);
 	return 0;
 }
-int valid_disk(void)
+
+static int valid_disk(void)
 {
 	int fd = open(unload_heads_path, O_RDONLY);
+
 	if (fd < 0) {
 		perror(unload_heads_path);
 		return 0;
@@ -45,43 +54,54 @@ int valid_disk(void)
 	return 1;
 }
 
-void write_int(char *path, int i)
+static void write_int(char *path, int i)
 {
 	char buf[1024];
 	int fd = open(path, O_RDWR);
+
 	if (fd < 0) {
 		perror("open");
 		exit(1);
 	}
+
 	sprintf(buf, "%d", i);
+
 	if (write(fd, buf, strlen(buf)) != strlen(buf)) {
 		perror("write");
 		exit(1);
 	}
+
 	close(fd);
 }
 
-void set_led(int on)
+static void set_led(int on)
 {
+	if (noled)
+		return;
 	write_int("/sys/class/leds/hp::hddprotect/brightness", on);
 }
 
-void protect(int seconds)
+static void protect(int seconds)
 {
+	const char *str = (seconds == 0) ? "Unparked" : "Parked";
+
 	write_int(unload_heads_path, seconds*1000);
+	syslog(LOG_INFO, "%s %s disk head\n", str, device_path);
 }
 
-int on_ac(void)
+static int on_ac(void)
 {
-//	/sys/class/power_supply/AC0/online
+	/* /sys/class/power_supply/AC0/online */
+	return 1;
 }
 
-int lid_open(void)
+static int lid_open(void)
 {
-//	/proc/acpi/button/lid/LID/state
+	/* /proc/acpi/button/lid/LID/state */
+	return 1;
 }
 
-void ignore_me(void)
+static void ignore_me(int signum)
 {
 	protect(0);
 	set_led(0);
@@ -90,6 +110,7 @@ void ignore_me(void)
 int main(int argc, char **argv)
 {
 	int fd, ret;
+	struct stat st;
 	struct sched_param param;
 
 	if (argc == 1)
@@ -111,7 +132,16 @@ int main(int argc, char **argv)
 		return EXIT_FAILURE;
 	}
 
-	daemon(0, 0);
+	if (stat("/sys/class/leds/hp::hddprotect/brightness", &st))
+		noled = 1;
+
+	if (daemon(0, 0) != 0) {
+		perror("daemon");
+		return EXIT_FAILURE;
+	}
+
+	openlog(app_name, LOG_CONS | LOG_PID | LOG_NDELAY, LOG_LOCAL1);
+
 	param.sched_priority = sched_get_priority_max(SCHED_FIFO);
 	sched_setscheduler(0, SCHED_FIFO, &param);
 	mlockall(MCL_CURRENT|MCL_FUTURE);
@@ -141,6 +171,7 @@ int main(int argc, char **argv)
 			alarm(20);
 	}
 
+	closelog();
 	close(fd);
 	return EXIT_SUCCESS;
 }

@@ -739,8 +739,6 @@ static void icmp_unreach(struct sk_buff *skb)
 				/* fall through */
 			case 0:
 				info = ntohs(icmph->un.frag.mtu);
-				if (!info)
-					goto out;
 			}
 			break;
 		case ICMP_SR_FAILED:

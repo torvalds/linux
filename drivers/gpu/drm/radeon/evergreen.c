@@ -189,7 +189,7 @@ static const u32 evergreen_golden_registers[] =
 	0x8c1c, 0xffffffff, 0x00001010,
 	0x28350, 0xffffffff, 0x00000000,
 	0xa008, 0xffffffff, 0x00010000,
-	0x5cc, 0xffffffff, 0x00000001,
+	0x5c4, 0xffffffff, 0x00000001,
 	0x9508, 0xffffffff, 0x00000002,
 	0x913c, 0x0000000f, 0x0000000a
 };
@@ -476,7 +476,7 @@ static const u32 cedar_golden_registers[] =
 	0x8c1c, 0xffffffff, 0x00001010,
 	0x28350, 0xffffffff, 0x00000000,
 	0xa008, 0xffffffff, 0x00010000,
-	0x5cc, 0xffffffff, 0x00000001,
+	0x5c4, 0xffffffff, 0x00000001,
 	0x9508, 0xffffffff, 0x00000002
 };
 
@@ -635,7 +635,7 @@ static const u32 juniper_mgcg_init[] =
 static const u32 supersumo_golden_registers[] =
 {
 	0x5eb4, 0xffffffff, 0x00000002,
-	0x5cc, 0xffffffff, 0x00000001,
+	0x5c4, 0xffffffff, 0x00000001,
 	0x7030, 0xffffffff, 0x00000011,
 	0x7c30, 0xffffffff, 0x00000011,
 	0x6104, 0x01000300, 0x00000000,
@@ -719,7 +719,7 @@ static const u32 sumo_golden_registers[] =
 static const u32 wrestler_golden_registers[] =
 {
 	0x5eb4, 0xffffffff, 0x00000002,
-	0x5cc, 0xffffffff, 0x00000001,
+	0x5c4, 0xffffffff, 0x00000001,
 	0x7030, 0xffffffff, 0x00000011,
 	0x7c30, 0xffffffff, 0x00000011,
 	0x6104, 0x01000300, 0x00000000,
@@ -2642,8 +2642,9 @@ void evergreen_mc_resume(struct radeon_device *rdev, struct evergreen_mc_save *s
 	for (i = 0; i < rdev->num_crtc; i++) {
 		if (save->crtc_enabled[i]) {
 			tmp = RREG32(EVERGREEN_MASTER_UPDATE_MODE + crtc_offsets[i]);
-			if ((tmp & 0x3) != 0) {
-				tmp &= ~0x3;
+			if ((tmp & 0x7) != 3) {
+				tmp &= ~0x7;
+				tmp |= 0x3;
 				WREG32(EVERGREEN_MASTER_UPDATE_MODE + crtc_offsets[i], tmp);
 			}
 			tmp = RREG32(EVERGREEN_GRPH_UPDATE + crtc_offsets[i]);
@@ -5066,14 +5067,16 @@ restart_ih:
 		case 147:
 			addr = RREG32(VM_CONTEXT1_PROTECTION_FAULT_ADDR);
 			status = RREG32(VM_CONTEXT1_PROTECTION_FAULT_STATUS);
+			/* reset addr and status */
+			WREG32_P(VM_CONTEXT1_CNTL2, 1, ~1);
+			if (addr == 0x0 && status == 0x0)
+				break;
 			dev_err(rdev->dev, "GPU fault detected: %d 0x%08x\n", src_id, src_data);
 			dev_err(rdev->dev, "  VM_CONTEXT1_PROTECTION_FAULT_ADDR   0x%08X\n",
 				addr);
 			dev_err(rdev->dev, "  VM_CONTEXT1_PROTECTION_FAULT_STATUS 0x%08X\n",
 				status);
 			cayman_vm_decode_fault(rdev, status, addr);
-			/* reset addr and status */
-			WREG32_P(VM_CONTEXT1_CNTL2, 1, ~1);
 			break;
 		case 176: /* CP_INT in ring buffer */
 		case 177: /* CP_INT in IB1 */
