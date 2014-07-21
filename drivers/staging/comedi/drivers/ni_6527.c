@@ -299,21 +299,38 @@ static int ni6527_intr_insn_bits(struct comedi_device *dev,
 }
 
 static void ni6527_set_edge_detection(struct comedi_device *dev,
+				      unsigned int mask,
 				      unsigned int rising,
 				      unsigned int falling)
 {
 	struct ni6527_private *devpriv = dev->private;
 	void __iomem *mmio = devpriv->mmio_base;
+	unsigned int i;
 
-	/* enable rising-edge detection channels */
-	writeb(rising & 0xff, mmio + NI6527_RISING_EDGE_REG(0));
-	writeb((rising >> 8) & 0xff, mmio + NI6527_RISING_EDGE_REG(1));
-	writeb((rising >> 16) & 0xff, mmio + NI6527_RISING_EDGE_REG(2));
-
-	/* enable falling-edge detection channels */
-	writeb(falling & 0xff, mmio + NI6527_FALLING_EDGE_REG(0));
-	writeb((falling >> 8) & 0xff, mmio + NI6527_FALLING_EDGE_REG(1));
-	writeb((falling >> 16) & 0xff, mmio + NI6527_FALLING_EDGE_REG(2));
+	rising &= mask;
+	falling &= mask;
+	for (i = 0; i < 2; i++) {
+		if (mask & 0xff) {
+			if (~mask & 0xff) {
+				/* preserve rising-edge detection channels */
+				rising |= readb(mmio +
+						NI6527_RISING_EDGE_REG(i)) &
+					  (~mask & 0xff);
+				/* preserve falling-edge detection channels */
+				falling |= readb(mmio +
+						 NI6527_FALLING_EDGE_REG(i)) &
+					   (~mask & 0xff);
+			}
+			/* update rising-edge detection channels */
+			writeb(rising & 0xff, mmio + NI6527_RISING_EDGE_REG(i));
+			/* update falling-edge detection channels */
+			writeb(falling & 0xff,
+			       mmio + NI6527_FALLING_EDGE_REG(i));
+		}
+		rising >>= 8;
+		falling >>= 8;
+		mask >>= 8;
+	}
 }
 
 static int ni6527_intr_insn_config(struct comedi_device *dev,
@@ -321,12 +338,45 @@ static int ni6527_intr_insn_config(struct comedi_device *dev,
 				   struct comedi_insn *insn,
 				   unsigned int *data)
 {
+	unsigned int mask = 0xffffffff;
+	unsigned int rising, falling, shift;
+
 	switch (data[0]) {
 	case INSN_CONFIG_CHANGE_NOTIFY:
 		/* check_insn_config_length() does not check this instruction */
 		if (insn->n != 3)
 			return -EINVAL;
-		ni6527_set_edge_detection(dev, data[1], data[2]);
+		rising = data[1];
+		falling = data[2];
+		ni6527_set_edge_detection(dev, mask, rising, falling);
+		break;
+	case INSN_CONFIG_DIGITAL_TRIG:
+		/* check trigger number */
+		if (data[1] != 0)
+			return -EINVAL;
+		/* check digital trigger operation */
+		switch (data[2]) {
+		case COMEDI_DIGITAL_TRIG_DISABLE:
+			rising = 0;
+			falling = 0;
+			break;
+		case COMEDI_DIGITAL_TRIG_ENABLE_EDGES:
+			/* check shift amount */
+			shift = data[3];
+			if (shift >= s->n_chan) {
+				mask = 0;
+				rising = 0;
+				falling = 0;
+			} else {
+				mask <<= shift;
+				rising = data[4] << shift;
+				falling = data[5] << shift;
+			}
+			break;
+		default:
+			return -EINVAL;
+		}
+		ni6527_set_edge_detection(dev, mask, rising, falling);
 		break;
 	default:
 		return -EINVAL;
