@@ -340,6 +340,12 @@ enum OpalMveEnableAction {
 	OPAL_ENABLE_MVE = 1
 };
 
+enum OpalM64EnableAction {
+	OPAL_DISABLE_M64 = 0,
+	OPAL_ENABLE_M64_SPLIT = 1,
+	OPAL_ENABLE_M64_NON_SPLIT = 2
+};
+
 enum OpalPciResetScope {
 	OPAL_PHB_COMPLETE = 1, OPAL_PCI_LINK = 2, OPAL_PHB_ERROR = 3,
 	OPAL_PCI_HOT_RESET = 4, OPAL_PCI_FUNDAMENTAL_RESET = 5,
@@ -768,7 +774,7 @@ int64_t opal_pci_set_phb_mem_window(uint64_t phb_id, uint16_t window_type,
 				    uint16_t window_num,
 				    uint64_t starting_real_address,
 				    uint64_t starting_pci_address,
-				    uint16_t segment_size);
+				    uint64_t size);
 int64_t opal_pci_map_pe_mmio_window(uint64_t phb_id, uint16_t pe_number,
 				    uint16_t window_type, uint16_t window_num,
 				    uint16_t segment_num);
