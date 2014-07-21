@@ -13225,7 +13225,7 @@ intel_display_capture_error_state(struct drm_device *dev)
 
 		error->pipe[i].source = I915_READ(PIPESRC(i));
 
-		if (!HAS_PCH_SPLIT(dev))
+		if (HAS_GMCH_DISPLAY(dev))
 			error->pipe[i].stat = I915_READ(PIPESTAT(i));
 	}
 
