@@ -116,6 +116,7 @@ struct xc4000_priv {
 #define XC4000_AUDIO_STD_MONO		32
 
 #define XC4000_DEFAULT_FIRMWARE "dvb-fe-xc4000-1.4.fw"
+#define XC4000_DEFAULT_FIRMWARE_NEW "dvb-fe-xc4000-1.4.1.fw"
 
 /* Misc Defines */
 #define MAX_TV_STANDARD			24
@@ -730,13 +731,25 @@ static int xc4000_fwupload(struct dvb_frontend *fe)
 	char		      name[33];
 	const char	      *fname;
 
-	if (firmware_name[0] != '\0')
+	if (firmware_name[0] != '\0') {
 		fname = firmware_name;
-	else
-		fname = XC4000_DEFAULT_FIRMWARE;
 
-	dprintk(1, "Reading firmware %s\n", fname);
-	rc = request_firmware(&fw, fname, priv->i2c_props.adap->dev.parent);
+		dprintk(1, "Reading custom firmware %s\n", fname);
+		rc = request_firmware(&fw, fname,
+				      priv->i2c_props.adap->dev.parent);
+	} else {
+		fname = XC4000_DEFAULT_FIRMWARE_NEW;
+		dprintk(1, "Trying to read firmware %s\n", fname);
+		rc = request_firmware(&fw, fname,
+				      priv->i2c_props.adap->dev.parent);
+		if (rc == -ENOENT) {
+			fname = XC4000_DEFAULT_FIRMWARE;
+			dprintk(1, "Trying to read firmware %s\n", fname);
+			rc = request_firmware(&fw, fname,
+					      priv->i2c_props.adap->dev.parent);
+		}
+	}
+
 	if (rc < 0) {
 		if (rc == -ENOENT)
 			printk(KERN_ERR "Error: firmware %s not found.\n", fname);
@@ -746,6 +759,8 @@ static int xc4000_fwupload(struct dvb_frontend *fe)
 
 		return rc;
 	}
+	dprintk(1, "Loading Firmware: %s\n", fname);
+
 	p = fw->data;
 	endp = p + fw->size;
 
