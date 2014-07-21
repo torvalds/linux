@@ -3037,6 +3037,45 @@ int qeth_query_ipassists(struct qeth_card *card, enum qeth_prot_versions prot)
 }
 EXPORT_SYMBOL_GPL(qeth_query_ipassists);
 
+static int qeth_query_switch_attributes_cb(struct qeth_card *card,
+				struct qeth_reply *reply, unsigned long data)
+{
+	struct qeth_ipa_cmd *cmd;
+	struct qeth_switch_info *sw_info;
+	struct qeth_query_switch_attributes *attrs;
+
+	QETH_CARD_TEXT(card, 2, "qswiatcb");
+	cmd = (struct qeth_ipa_cmd *) data;
+	sw_info = (struct qeth_switch_info *)reply->param;
+	if (cmd->data.setadapterparms.hdr.return_code == 0) {
+		attrs = &cmd->data.setadapterparms.data.query_switch_attributes;
+		sw_info->capabilities = attrs->capabilities;
+		sw_info->settings = attrs->settings;
+		QETH_CARD_TEXT_(card, 2, "%04x%04x", sw_info->capabilities,
+							sw_info->settings);
+	}
+	qeth_default_setadapterparms_cb(card, reply, (unsigned long) cmd);
+
+	return 0;
+}
+
+int qeth_query_switch_attributes(struct qeth_card *card,
+				 struct qeth_switch_info *sw_info)
+{
+	struct qeth_cmd_buffer *iob;
+
+	QETH_CARD_TEXT(card, 2, "qswiattr");
+	if (!qeth_adp_supported(card, IPA_SETADP_QUERY_SWITCH_ATTRIBUTES))
+		return -EOPNOTSUPP;
+	if (!netif_carrier_ok(card->dev))
+		return -ENOMEDIUM;
+	iob = qeth_get_adapter_cmd(card, IPA_SETADP_QUERY_SWITCH_ATTRIBUTES,
+				sizeof(struct qeth_ipacmd_setadpparms_hdr));
+	return qeth_send_ipa_cmd(card, iob,
+				qeth_query_switch_attributes_cb, sw_info);
+}
+EXPORT_SYMBOL_GPL(qeth_query_switch_attributes);
+
 static int qeth_query_setdiagass_cb(struct qeth_card *card,
 		struct qeth_reply *reply, unsigned long data)
 {
