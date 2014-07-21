@@ -311,7 +311,7 @@ static void lvs_rh_work(struct work_struct *work)
 		if (ret < 4)
 			continue;
 
-		portchange = port_status->wPortChange;
+		portchange = le16_to_cpu(port_status->wPortChange);
 
 		if (portchange & USB_PORT_STAT_C_LINK_STATE)
 			lvs_rh_clear_port_feature(hdev, i,
@@ -329,7 +329,7 @@ static void lvs_rh_work(struct work_struct *work)
 			lvs_rh_clear_port_feature(hdev, i,
 					USB_PORT_FEAT_C_CONNECTION);
 
-			if (port_status->wPortStatus &
+			if (le16_to_cpu(port_status->wPortStatus) &
 					USB_PORT_STAT_CONNECTION) {
 				lvs->present = true;
 				lvs->portnum = i;
