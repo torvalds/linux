@@ -696,7 +696,11 @@ static int dw_pcie_rd_conf(struct pci_bus *bus, u32 devfn, int where,
 	}
 
 	if (bus->number != pp->root_bus_nr)
-		ret = dw_pcie_rd_other_conf(pp, bus, devfn,
+		if (pp->ops->rd_other_conf)
+			ret = pp->ops->rd_other_conf(pp, bus, devfn,
+						where, size, val);
+		else
+			ret = dw_pcie_rd_other_conf(pp, bus, devfn,
 						where, size, val);
 	else
 		ret = dw_pcie_rd_own_conf(pp, where, size, val);
@@ -719,7 +723,11 @@ static int dw_pcie_wr_conf(struct pci_bus *bus, u32 devfn,
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
 	if (bus->number != pp->root_bus_nr)
-		ret = dw_pcie_wr_other_conf(pp, bus, devfn,
+		if (pp->ops->wr_other_conf)
+			ret = pp->ops->wr_other_conf(pp, bus, devfn,
+						where, size, val);
+		else
+			ret = dw_pcie_wr_other_conf(pp, bus, devfn,
 						where, size, val);
 	else
 		ret = dw_pcie_wr_own_conf(pp, where, size, val);
