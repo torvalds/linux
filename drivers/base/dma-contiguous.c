@@ -297,12 +297,18 @@ struct page *dma_alloc_from_contiguous(struct device *dev, int count,
 	mutex_lock(&cma_mutex);
 
 	for (;;) {
+#ifdef CONFIG_CMA_ALLOC_RETRY
+		int retry = 0;
+#endif
 		pageno = bitmap_find_next_zero_area(cma->bitmap, cma->count,
 						    start, count, mask);
 		if (pageno >= cma->count)
 			break;
 
 		pfn = cma->base_pfn + pageno;
+#ifdef CONFIG_CMA_ALLOC_RETRY
+		do {
+#endif
 		ret = alloc_contig_range(pfn, pfn + count, MIGRATE_CMA);
 		if (ret == 0) {
 			bitmap_set(cma->bitmap, pageno, count);
@@ -311,6 +317,12 @@ struct page *dma_alloc_from_contiguous(struct device *dev, int count,
 		} else if (ret != -EBUSY) {
 			break;
 		}
+#ifdef CONFIG_CMA_ALLOC_RETRY
+		}while (++retry<=CONFIG_CMA_ALLOC_RETRY);
+
+		if (retry<=CONFIG_CMA_ALLOC_RETRY)
+			break;
+#endif
 		pr_debug("%s(): memory range at %p is busy, retrying\n",
 			 __func__, pfn_to_page(pfn));
 		/* try again with a bit different memory target */
