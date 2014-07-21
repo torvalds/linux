@@ -1836,6 +1836,13 @@ static void bcmgenet_irq_task(struct work_struct *work)
 
 	netif_dbg(priv, intr, priv->dev, "%s\n", __func__);
 
+	if (priv->irq0_stat & UMAC_IRQ_MPD_R) {
+		priv->irq0_stat &= ~UMAC_IRQ_MPD_R;
+		netif_dbg(priv, wol, priv->dev,
+			  "magic packet detected, waking up\n");
+		bcmgenet_power_up(priv, GENET_POWER_WOL_MAGIC);
+	}
+
 	/* Link UP/DOWN event */
 	if ((priv->hw_params->flags & GENET_HAS_MDIO_INTR) &&
 		(priv->irq0_stat & (UMAC_IRQ_LINK_UP|UMAC_IRQ_LINK_DOWN))) {
