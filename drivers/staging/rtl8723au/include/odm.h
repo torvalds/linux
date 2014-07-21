@@ -125,7 +125,6 @@ struct  dig_t {
 	bool		bMediaConnect_0;
 	bool		bMediaConnect_1;
 
-	u32		AntDiv_RSSI_max;
 	u32		RSSI_max;
 };
 
@@ -670,7 +669,6 @@ struct dm_odm_t {
 
 	bool			bDualMacSmartConcurrent;
 	u32			BK_SupportAbility;
-	u8			AntDivType;
 /* HOOK BEFORE REG INIT----------- */
 
 	/*  */
@@ -952,19 +950,12 @@ void ODM_SetAntenna(struct dm_odm_t *pDM_Odm, u8 Antenna);
 #define dm_RF_Saving	ODM_RF_Saving23a
 void ODM_RF_Saving23a(struct dm_odm_t *pDM_Odm, u8 bForceInNormal);
 
-#define SwAntDivRestAfterLink	ODM_SwAntDivRestAfterLink
-void ODM_SwAntDivRestAfterLink(struct dm_odm_t *pDM_Odm);
-
 #define dm_CheckTXPowerTracking		ODM_TXPowerTrackingCheck23a
 void ODM_TXPowerTrackingCheck23a(struct dm_odm_t *pDM_Odm);
 
 bool ODM_RAStateCheck23a(struct dm_odm_t *pDM_Odm, s32 RSSI, bool bForceUpdate,
 		      u8 *pRATRState);
 
-
-#define dm_SWAW_RSSI_Check	ODM_SwAntDivChkPerPktRssi
-void ODM_SwAntDivChkPerPktRssi(struct dm_odm_t *pDM_Odm, u8 StationID,
-			       struct phy_info *pPhyInfo);
 
 u32 ConvertTo_dB23a(u32 Value);
 

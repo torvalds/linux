@@ -208,18 +208,6 @@ void odm_RSSIMonitorCheck23aAP(struct dm_odm_t *pDM_Odm);
 void odm_RSSIMonitorCheck23a(struct dm_odm_t *pDM_Odm);
 void odm_DynamicTxPower23a(struct dm_odm_t *pDM_Odm);
 
-void odm_SwAntDivInit(struct dm_odm_t *pDM_Odm);
-
-void odm_SwAntDivInit_NIC(struct dm_odm_t *pDM_Odm);
-
-void odm_SwAntDivChkAntSwitch(struct dm_odm_t *pDM_Odm, u8 Step);
-
-void odm_SwAntDivChkAntSwitchNIC(struct dm_odm_t *pDM_Odm,
-		u8 Step
-	);
-
-void odm_SwAntDivChkAntSwitchCallback23a(unsigned long data);
-
 void odm_RefreshRateAdaptiveMask23a(struct dm_odm_t *pDM_Odm);
 
 void ODM_TXPowerTrackingCheck23a(struct dm_odm_t *pDM_Odm);
@@ -242,8 +230,6 @@ static void ODM_EdcaTurboInit23a(struct dm_odm_t *pDM_Odm);
 #define		RxDefaultAnt1		0x65a9
 #define	RxDefaultAnt2		0x569a
 
-void odm_InitHybridAntDiv23a(struct dm_odm_t *pDM_Odm);
-
 bool odm_StaDefAntSel(struct dm_odm_t *pDM_Odm,
  u32 OFDM_Ant1_Cnt,
  u32 OFDM_Ant2_Cnt,
@@ -256,8 +242,6 @@ void odm_SetRxIdleAnt(struct dm_odm_t *pDM_Odm,
 	u8 Ant,
    bool   bDualPath
 );
-
-void odm_HwAntDiv23a(struct dm_odm_t *pDM_Odm);
 
 /* 3 Export Interface */
 
@@ -274,12 +258,6 @@ void ODM23a_DMInit(struct dm_odm_t *pDM_Odm)
 	odm_DynamicTxPower23aInit(pDM_Odm);
 	odm_TXPowerTrackingInit23a(pDM_Odm);
 	ODM_EdcaTurboInit23a(pDM_Odm);
-	if ((pDM_Odm->AntDivType == CG_TRX_HW_ANTDIV)	||
-	    (pDM_Odm->AntDivType == CGCS_RX_HW_ANTDIV)	||
-	    (pDM_Odm->AntDivType == CG_TRX_SMART_ANTDIV))
-		odm_InitHybridAntDiv23a(pDM_Odm);
-	else if (pDM_Odm->AntDivType == CGCS_RX_SW_ANTDIV)
-		odm_SwAntDivInit(pDM_Odm);
 }
 
 /*  2011/09/20 MH This is the entry pointer for all team to execute HW out source DM. */
@@ -317,12 +295,6 @@ void ODM_DMWatchdog23a(struct rtw_adapter *adapter)
 	odm_RefreshRateAdaptiveMask23a(pDM_Odm);
 
 	odm_DynamicBBPowerSaving23a(pDM_Odm);
-	if ((pDM_Odm->AntDivType ==  CG_TRX_HW_ANTDIV)	||
-	    (pDM_Odm->AntDivType == CGCS_RX_HW_ANTDIV)	||
-	    (pDM_Odm->AntDivType == CG_TRX_SMART_ANTDIV))
-		odm_HwAntDiv23a(pDM_Odm);
-	else if (pDM_Odm->AntDivType == CGCS_RX_SW_ANTDIV)
-		odm_SwAntDivChkAntSwitch(pDM_Odm, SWAW_STEP_PEAK);
 
 	ODM_TXPowerTrackingCheck23a(pDM_Odm);
 	odm_EdcaTurboCheck23a(pDM_Odm);
@@ -364,9 +336,6 @@ void ODM_CmnInfoInit23a(struct dm_odm_t *pDM_Odm,
 		break;
 	case	ODM_CMNINFO_RF_TYPE:
 		pDM_Odm->RFType = (u8)Value;
-		break;
-	case    ODM_CMNINFO_RF_ANTENNA_TYPE:
-		pDM_Odm->AntDivType = (u8)Value;
 		break;
 	case	ODM_CMNINFO_BOARD_TYPE:
 		pDM_Odm->BoardType = (u8)Value;
@@ -467,8 +436,6 @@ void odm_CommonInfoSelfInit23a(struct dm_odm_t *pDM_Odm
 		(bool) ODM_GetBBReg(pDM_Odm, rFPGA0_XA_HSSIParameter2, BIT(9));
 	pDM_Odm->RFPathRxEnable =
 		(u8) ODM_GetBBReg(pDM_Odm, rOFDM0_TRxPathEnable, 0x0F);
-	if (pDM_Odm->SupportICType & ODM_RTL8723A)
-		pDM_Odm->AntDivType = CGCS_RX_SW_ANTDIV;
 
 	ODM_InitDebugSetting23a(pDM_Odm);
 }
@@ -1460,50 +1427,6 @@ void odm_TXPowerTrackingCheckMP(struct dm_odm_t *pDM_Odm)
 }
 
 void odm_TXPowerTrackingCheckAP(struct dm_odm_t *pDM_Odm)
-{
-}
-
-/* antenna mapping info */
-/*  1: right-side antenna */
-/*  2/0: left-side antenna */
-/* PpDM_SWAT_Table->CCK_Ant1_Cnt /OFDM_Ant1_Cnt:  for right-side antenna:   Ant:1    RxDefaultAnt1 */
-/* PpDM_SWAT_Table->CCK_Ant2_Cnt /OFDM_Ant2_Cnt:  for left-side antenna:     Ant:0    RxDefaultAnt2 */
-/*  We select left antenna as default antenna in initial process, modify it as needed */
-/*  */
-
-/* 3 ============================================================ */
-/* 3 SW Antenna Diversity */
-/* 3 ============================================================ */
-void odm_SwAntDivInit(struct dm_odm_t *pDM_Odm)
-{
-}
-
-void ODM_SwAntDivChkPerPktRssi(struct dm_odm_t *pDM_Odm, u8 StationID,
-			       struct phy_info *pPhyInfo)
-{
-}
-
-void odm_SwAntDivChkAntSwitch(struct dm_odm_t *pDM_Odm, u8 Step)
-{
-}
-
-void ODM_SwAntDivRestAfterLink(struct dm_odm_t *pDM_Odm)
-{
-}
-
-void odm_SwAntDivChkAntSwitchCallback23a(unsigned long data)
-{
-}
-
-/* 3 ============================================================ */
-/* 3 SW Antenna Diversity */
-/* 3 ============================================================ */
-
-void odm_InitHybridAntDiv23a(struct dm_odm_t *pDM_Odm)
-{
-}
-
-void odm_HwAntDiv23a(struct dm_odm_t *pDM_Odm)
 {
 }
 

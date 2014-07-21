@@ -401,8 +401,6 @@ static void ODM_PhyStatusQuery23a_92CSeries(struct dm_odm_t *pDM_Odm,
 					 pPhyStatus, pPktinfo);
 	if (pDM_Odm->RSSI_test) {
 		/*  Select the packets to do RSSI checking for antenna switching. */
-		if (pPktinfo->bPacketToSelf || pPktinfo->bPacketBeacon)
-			ODM_SwAntDivChkPerPktRssi(pDM_Odm, pPktinfo->StationID, pPhyInfo);
 	} else {
 		odm_Process_RSSIForDM(pDM_Odm, pPhyInfo, pPktinfo);
 	}
