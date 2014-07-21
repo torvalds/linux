@@ -238,8 +238,8 @@ void odm_TXPowerTrackingCheckMP(struct dm_odm_t *pDM_Odm);
 
 void odm_TXPowerTrackingCheckCE23a(struct dm_odm_t *pDM_Odm);
 
-void odm_EdcaTurboCheck23a(struct dm_odm_t *pDM_Odm);
-void ODM_EdcaTurboInit23a(struct dm_odm_t *pDM_Odm);
+static void odm_EdcaTurboCheck23a(struct dm_odm_t *pDM_Odm);
+static void ODM_EdcaTurboInit23a(struct dm_odm_t *pDM_Odm);
 
 #define		RxDefaultAnt1		0x65a9
 #define	RxDefaultAnt2		0x569a
@@ -1609,7 +1609,7 @@ void odm_HwAntDiv23a(struct dm_odm_t *pDM_Odm)
 }
 
 /* EDCA Turbo */
-void ODM_EdcaTurboInit23a(struct dm_odm_t *pDM_Odm)
+static void ODM_EdcaTurboInit23a(struct dm_odm_t *pDM_Odm)
 {
 
 	struct rtw_adapter *Adapter = pDM_Odm->Adapter;
@@ -1624,7 +1624,7 @@ void ODM_EdcaTurboInit23a(struct dm_odm_t *pDM_Odm)
 
 }	/*  ODM_InitEdcaTurbo */
 
-void odm_EdcaTurboCheck23a(struct dm_odm_t *pDM_Odm)
+static void odm_EdcaTurboCheck23a(struct dm_odm_t *pDM_Odm)
 {
 	struct rtw_adapter *Adapter = pDM_Odm->Adapter;
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(Adapter);
