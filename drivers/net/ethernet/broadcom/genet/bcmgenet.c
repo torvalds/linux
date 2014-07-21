@@ -2584,6 +2584,100 @@ static int bcmgenet_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int bcmgenet_suspend(struct device *d)
+{
+	struct net_device *dev = dev_get_drvdata(d);
+	struct bcmgenet_priv *priv = netdev_priv(dev);
+	int ret;
+
+	if (!netif_running(dev))
+		return 0;
+
+	bcmgenet_netif_stop(dev);
+
+	netif_device_detach(dev);
+
+	/* Disable MAC receive */
+	umac_enable_set(priv, CMD_RX_EN, false);
+
+	ret = bcmgenet_dma_teardown(priv);
+	if (ret)
+		return ret;
+
+	/* Disable MAC transmit. TX DMA disabled have to done before this */
+	umac_enable_set(priv, CMD_TX_EN, false);
+
+	/* tx reclaim */
+	bcmgenet_tx_reclaim_all(dev);
+	bcmgenet_fini_dma(priv);
+
+	/* Turn off the clocks */
+	clk_disable_unprepare(priv->clk);
+
+	return 0;
+}
+
+static int bcmgenet_resume(struct device *d)
+{
+	struct net_device *dev = dev_get_drvdata(d);
+	struct bcmgenet_priv *priv = netdev_priv(dev);
+	unsigned long dma_ctrl;
+	int ret;
+	u32 reg;
+
+	if (!netif_running(dev))
+		return 0;
+
+	/* Turn on the clock */
+	ret = clk_prepare_enable(priv->clk);
+	if (ret)
+		return ret;
+
+	bcmgenet_umac_reset(priv);
+
+	ret = init_umac(priv);
+	if (ret)
+		goto out_clk_disable;
+
+	/* disable ethernet MAC while updating its registers */
+	umac_enable_set(priv, CMD_TX_EN | CMD_RX_EN, false);
+
+	bcmgenet_set_hw_addr(priv, dev->dev_addr);
+
+	if (phy_is_internal(priv->phydev)) {
+		reg = bcmgenet_ext_readl(priv, EXT_EXT_PWR_MGMT);
+		reg |= EXT_ENERGY_DET_MASK;
+		bcmgenet_ext_writel(priv, reg, EXT_EXT_PWR_MGMT);
+	}
+
+	/* Disable RX/TX DMA and flush TX queues */
+	dma_ctrl = bcmgenet_dma_disable(priv);
+
+	/* Reinitialize TDMA and RDMA and SW housekeeping */
+	ret = bcmgenet_init_dma(priv);
+	if (ret) {
+		netdev_err(dev, "failed to initialize DMA\n");
+		goto out_clk_disable;
+	}
+
+	/* Always enable ring 16 - descriptor ring */
+	bcmgenet_enable_dma(priv, dma_ctrl);
+
+	netif_device_attach(dev);
+
+	bcmgenet_netif_start(dev);
+
+	return 0;
+
+out_clk_disable:
+	clk_disable_unprepare(priv->clk);
+	return ret;
+}
+#endif /* CONFIG_PM_SLEEP */
+
+static SIMPLE_DEV_PM_OPS(bcmgenet_pm_ops, bcmgenet_suspend, bcmgenet_resume);
+
 static struct platform_driver bcmgenet_driver = {
 	.probe	= bcmgenet_probe,
 	.remove	= bcmgenet_remove,
@@ -2591,6 +2685,7 @@ static struct platform_driver bcmgenet_driver = {
 		.name	= "bcmgenet",
 		.owner	= THIS_MODULE,
 		.of_match_table = bcmgenet_match,
+		.pm	= &bcmgenet_pm_ops,
 	},
 };
 module_platform_driver(bcmgenet_driver);
