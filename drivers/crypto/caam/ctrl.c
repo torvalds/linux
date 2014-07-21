@@ -89,12 +89,15 @@ static inline int run_descriptor_deco0(struct device *ctrldev, u32 *desc,
 	/* Set the bit to request direct access to DECO0 */
 	topregs = (struct caam_full __iomem *)ctrlpriv->ctrl;
 
-	if (ctrlpriv->virt_en == 1)
+	if (ctrlpriv->virt_en == 1) {
 		setbits32(&topregs->ctrl.deco_rsr, DECORSR_JR0);
 
-	while (!(rd_reg32(&topregs->ctrl.deco_rsr) & DECORSR_VALID) &&
-	       --timeout)
-		cpu_relax();
+		while (!(rd_reg32(&topregs->ctrl.deco_rsr) & DECORSR_VALID) &&
+		       --timeout)
+			cpu_relax();
+
+		timeout = 100000;
+	}
 
 	setbits32(&topregs->ctrl.deco_rq, DECORR_RQD0ENABLE);
 
