@@ -421,12 +421,6 @@ void ODM23a_CmnInfoHook(struct dm_odm_t *pDM_Odm,
 	case	ODM_CMNINFO_MAC_PHY_MODE:
 		pDM_Odm->pMacPhyMode = (u8 *)pValue;
 		break;
-	case	ODM_CMNINFO_WM_MODE:
-		pDM_Odm->pWirelessMode = (u8 *)pValue;
-		break;
-	case	ODM_CMNINFO_BAND:
-		pDM_Odm->pBandType = (u8 *)pValue;
-		break;
 	case	ODM_CMNINFO_SEC_CHNL_OFFSET:
 		pDM_Odm->pSecChOffset = (u8 *)pValue;
 		break;
@@ -594,7 +588,6 @@ void odm_CmnInfoInit_Debug23a(struct dm_odm_t *pDM_Odm)
 void odm_CmnInfoHook_Debug23a(struct dm_odm_t *pDM_Odm)
 {
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("odm_CmnInfoHook_Debug23a ==>\n"));
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("pWirelessMode = 0x%x\n", *(pDM_Odm->pWirelessMode)));
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("pSecChOffset =%d\n", *(pDM_Odm->pSecChOffset)));
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("pSecurity =%d\n", *(pDM_Odm->pSecurity)));
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("pBandWidth =%d\n", *(pDM_Odm->pBandWidth)));
@@ -1193,7 +1186,6 @@ u32 ODM_Get_Rate_Bitmap23a(struct dm_odm_t *pDM_Odm,
 	struct sta_info *pEntry;
 	u32 rate_bitmap = 0x0fffffff;
 	u8 WirelessMode;
-	/* u8 WirelessMode =*(pDM_Odm->pWirelessMode); */
 
 	pEntry = pDM_Odm->pODM_StaInfo[macid];
 	if (!pEntry)
