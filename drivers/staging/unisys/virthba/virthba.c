@@ -1603,6 +1603,8 @@ virthba_mod_init(void)
 		virthba_debugfs_dir = debugfs_create_dir("virthba", NULL);
 		debugfs_create_file("info", S_IRUSR, virthba_debugfs_dir,
 				NULL, &debugfs_info_fops);
+		debugfs_create_u32("rqwait_usecs", S_IRUSR | S_IWUSR,
+				virthba_debugfs_dir, &rsltq_wait_usecs);
 		/* Initialize DARWorkQ */
 		INIT_WORK(&DARWorkQ, doDiskAddRemove);
 		spin_lock_init(&DARWorkQLock);
