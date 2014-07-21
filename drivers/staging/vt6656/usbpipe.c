@@ -53,10 +53,6 @@
 
 #define USB_CTL_WAIT   500 //ms
 
-#ifndef URB_ASYNC_UNLINK
-#define URB_ASYNC_UNLINK    0
-#endif
-
 int vnt_control_out(struct vnt_private *priv, u8 request, u16 value,
 		u16 index, u16 length, u8 *buffer)
 {
