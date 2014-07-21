@@ -417,9 +417,6 @@ void ODM23a_CmnInfoHook(struct dm_odm_t *pDM_Odm,
 	/*  Hook call by reference pointer. */
 	switch	(CmnInfo) {
 	/*  Dynamic call by reference pointer. */
-	case	ODM_CMNINFO_CHNL:
-		pDM_Odm->pChannel = (u8 *)pValue;
-		break;
 	case	ODM_CMNINFO_SCAN:
 		pDM_Odm->pbScanInProcess = (bool *)pValue;
 		break;
@@ -505,11 +502,11 @@ static void odm_CommonInfoSelfUpdate(struct hal_data_8723a *pHalData)
 
 	if (pHalData->CurrentChannelBW == HT_CHANNEL_WIDTH_40) {
 		if (pHalData->nCur40MhzPrimeSC == 1)
-			pDM_Odm->ControlChannel = *(pDM_Odm->pChannel) - 2;
+			pDM_Odm->ControlChannel = pHalData->CurrentChannel - 2;
 		else if (pHalData->nCur40MhzPrimeSC == 2)
-			pDM_Odm->ControlChannel = *(pDM_Odm->pChannel) + 2;
+			pDM_Odm->ControlChannel = pHalData->CurrentChannel + 2;
 	} else {
-		pDM_Odm->ControlChannel = *(pDM_Odm->pChannel);
+		pDM_Odm->ControlChannel = pHalData->CurrentChannel;
 	}
 
 	for (i = 0; i < ODM_ASSOCIATE_ENTRY_NUM; i++) {
@@ -546,7 +543,6 @@ void odm_CmnInfoInit_Debug23a(struct dm_odm_t *pDM_Odm)
 void odm_CmnInfoHook_Debug23a(struct dm_odm_t *pDM_Odm)
 {
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("odm_CmnInfoHook_Debug23a ==>\n"));
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("pChannel =%d\n", *(pDM_Odm->pChannel)));
 
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("pbScanInProcess =%d\n", *(pDM_Odm->pbScanInProcess)));
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("pbPowerSaving =%d\n", *(pDM_Odm->pbPowerSaving)));

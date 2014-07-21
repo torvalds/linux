@@ -319,8 +319,6 @@ enum odm_cmninfo {
 	/*  */
 	/*  Dynamic value: */
 	/*  */
-	ODM_CMNINFO_CHNL,
-
 	ODM_CMNINFO_SCAN,
 	ODM_CMNINFO_POWER_SAVING,
 	ODM_CMNINFO_MP_MODE,
@@ -686,8 +684,6 @@ struct dm_odm_t {
 	bool			bool_temp;
 	struct rtw_adapter	*PADAPTER_temp;
 
-	/*  Central channel location Ch1/Ch2/.... */
-	u8			*pChannel;	/* central channel number */
 	/*  Common info for Status */
 	bool			*pbScanInProcess;
 	bool			*pbPowerSaving;
