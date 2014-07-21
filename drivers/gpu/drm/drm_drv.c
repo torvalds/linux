@@ -233,7 +233,7 @@ module_exit(drm_core_exit);
 /**
  * Copy and IOCTL return string to user space
  */
-static int drm_copy_field(char *buf, size_t *buf_len, const char *value)
+static int drm_copy_field(char __user *buf, size_t *buf_len, const char *value)
 {
 	int len;
 
