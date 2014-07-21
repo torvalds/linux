@@ -805,6 +805,15 @@ const char *v4l2_ctrl_get_name(u32 id)
 	case V4L2_CID_RDS_TX_PTY:		return "RDS Program Type";
 	case V4L2_CID_RDS_TX_PS_NAME:		return "RDS PS Name";
 	case V4L2_CID_RDS_TX_RADIO_TEXT:	return "RDS Radio Text";
+	case V4L2_CID_RDS_TX_MONO_STEREO:	return "RDS Stereo";
+	case V4L2_CID_RDS_TX_ARTIFICIAL_HEAD:	return "RDS Artificial Head";
+	case V4L2_CID_RDS_TX_COMPRESSED:	return "RDS Compressed";
+	case V4L2_CID_RDS_TX_DYNAMIC_PTY:	return "RDS Dynamic PTY";
+	case V4L2_CID_RDS_TX_TRAFFIC_ANNOUNCEMENT: return "RDS Traffic Announcement";
+	case V4L2_CID_RDS_TX_TRAFFIC_PROGRAM:	return "RDS Traffic Program";
+	case V4L2_CID_RDS_TX_MUSIC_SPEECH:	return "RDS Music";
+	case V4L2_CID_RDS_TX_ALT_FREQS_ENABLE:	return "RDS Enable Alt Frequencies";
+	case V4L2_CID_RDS_TX_ALT_FREQS:		return "RDS Alternate Frequencies";
 	case V4L2_CID_AUDIO_LIMITER_ENABLED:	return "Audio Limiter Feature Enabled";
 	case V4L2_CID_AUDIO_LIMITER_RELEASE_TIME: return "Audio Limiter Release Time";
 	case V4L2_CID_AUDIO_LIMITER_DEVIATION:	return "Audio Limiter Deviation";
@@ -946,6 +955,14 @@ void v4l2_ctrl_fill(u32 id, const char **name, enum v4l2_ctrl_type *type,
 	case V4L2_CID_RF_TUNER_IF_GAIN_AUTO:
 	case V4L2_CID_RF_TUNER_BANDWIDTH_AUTO:
 	case V4L2_CID_RF_TUNER_PLL_LOCK:
+	case V4L2_CID_RDS_TX_MONO_STEREO:
+	case V4L2_CID_RDS_TX_ARTIFICIAL_HEAD:
+	case V4L2_CID_RDS_TX_COMPRESSED:
+	case V4L2_CID_RDS_TX_DYNAMIC_PTY:
+	case V4L2_CID_RDS_TX_TRAFFIC_ANNOUNCEMENT:
+	case V4L2_CID_RDS_TX_TRAFFIC_PROGRAM:
+	case V4L2_CID_RDS_TX_MUSIC_SPEECH:
+	case V4L2_CID_RDS_TX_ALT_FREQS_ENABLE:
 		*type = V4L2_CTRL_TYPE_BOOLEAN;
 		*min = 0;
 		*max = *step = 1;
@@ -1089,6 +1106,9 @@ void v4l2_ctrl_fill(u32 id, const char **name, enum v4l2_ctrl_type *type,
 	case V4L2_CID_DETECT_MD_THRESHOLD_GRID:
 		*type = V4L2_CTRL_TYPE_U16;
 		break;
+	case V4L2_CID_RDS_TX_ALT_FREQS:
+		*type = V4L2_CTRL_TYPE_U32;
+		break;
 	default:
 		*type = V4L2_CTRL_TYPE_INTEGER;
 		break;
@@ -1209,6 +1229,8 @@ static bool std_equal(const struct v4l2_ctrl *ctrl, u32 idx,
 		return ptr1.p_u8[idx] == ptr2.p_u8[idx];
 	case V4L2_CTRL_TYPE_U16:
 		return ptr1.p_u16[idx] == ptr2.p_u16[idx];
+	case V4L2_CTRL_TYPE_U32:
+		return ptr1.p_u32[idx] == ptr2.p_u32[idx];
 	default:
 		if (ctrl->is_int)
 			return ptr1.p_s32[idx] == ptr2.p_s32[idx];
@@ -1241,6 +1263,9 @@ static void std_init(const struct v4l2_ctrl *ctrl, u32 idx,
 		break;
 	case V4L2_CTRL_TYPE_U16:
 		ptr.p_u16[idx] = ctrl->default_value;
+		break;
+	case V4L2_CTRL_TYPE_U32:
+		ptr.p_u32[idx] = ctrl->default_value;
 		break;
 	default:
 		idx *= ctrl->elem_size;
@@ -1288,6 +1313,9 @@ static void std_log(const struct v4l2_ctrl *ctrl)
 		break;
 	case V4L2_CTRL_TYPE_U16:
 		pr_cont("%u", (unsigned)*ptr.p_u16);
+		break;
+	case V4L2_CTRL_TYPE_U32:
+		pr_cont("%u", (unsigned)*ptr.p_u32);
 		break;
 	default:
 		pr_cont("unknown type %d", ctrl->type);
@@ -1346,6 +1374,8 @@ static int std_validate(const struct v4l2_ctrl *ctrl, u32 idx,
 		return ROUND_TO_RANGE(ptr.p_u8[idx], u8, ctrl);
 	case V4L2_CTRL_TYPE_U16:
 		return ROUND_TO_RANGE(ptr.p_u16[idx], u16, ctrl);
+	case V4L2_CTRL_TYPE_U32:
+		return ROUND_TO_RANGE(ptr.p_u32[idx], u32, ctrl);
 
 	case V4L2_CTRL_TYPE_BOOLEAN:
 		ptr.p_s32[idx] = !!ptr.p_s32[idx];
@@ -1578,6 +1608,7 @@ static int check_range(enum v4l2_ctrl_type type,
 		/* fall through */
 	case V4L2_CTRL_TYPE_U8:
 	case V4L2_CTRL_TYPE_U16:
+	case V4L2_CTRL_TYPE_U32:
 	case V4L2_CTRL_TYPE_INTEGER:
 	case V4L2_CTRL_TYPE_INTEGER64:
 		if (step == 0 || min > max || def < min || def > max)
@@ -1892,6 +1923,9 @@ static struct v4l2_ctrl *v4l2_ctrl_new(struct v4l2_ctrl_handler *hdl,
 		break;
 	case V4L2_CTRL_TYPE_U16:
 		elem_size = sizeof(u16);
+		break;
+	case V4L2_CTRL_TYPE_U32:
+		elem_size = sizeof(u32);
 		break;
 	default:
 		if (type < V4L2_CTRL_COMPOUND_TYPES)
@@ -3248,6 +3282,7 @@ int __v4l2_ctrl_modify_range(struct v4l2_ctrl *ctrl,
 	case V4L2_CTRL_TYPE_BITMASK:
 	case V4L2_CTRL_TYPE_U8:
 	case V4L2_CTRL_TYPE_U16:
+	case V4L2_CTRL_TYPE_U32:
 		if (ctrl->is_array)
 			return -EINVAL;
 		ret = check_range(ctrl->type, min, max, step, def);
