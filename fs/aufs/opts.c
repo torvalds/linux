@@ -1513,7 +1513,7 @@ static int au_opt_xino(struct super_block *sb, struct au_opt *opt,
 int au_opts_verify(struct super_block *sb, unsigned long sb_flags,
 		   unsigned int pending)
 {
-	int err;
+	int err, fhsm;
 	aufs_bindex_t bindex, bend;
 	unsigned char do_plink, skip, do_free;
 	struct au_branch *br;
@@ -1544,6 +1544,7 @@ int au_opts_verify(struct super_block *sb, unsigned long sb_flags,
 			" by the permission bits on the lower branch\n");
 
 	err = 0;
+	fhsm = 0;
 	root = sb->s_root;
 	dir = root->d_inode;
 	do_plink = !!au_opt_test(sbinfo->si_mntflags, PLINK);
@@ -1586,6 +1587,9 @@ int au_opts_verify(struct super_block *sb, unsigned long sb_flags,
 		if (wbr)
 			wbr_wh_read_unlock(wbr);
 
+		if (au_br_fhsm(br->br_perm))
+			fhsm++;
+
 		if (skip)
 			continue;
 
@@ -1603,6 +1607,11 @@ int au_opts_verify(struct super_block *sb, unsigned long sb_flags,
 			br->br_wbr = NULL;
 		}
 	}
+
+	if (fhsm >= 2)
+		au_fset_si(au_sbi(sb), FHSM);
+	else
+		au_fclr_si(au_sbi(sb), FHSM);
 
 	return err;
 }

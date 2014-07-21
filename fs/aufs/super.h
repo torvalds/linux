@@ -203,6 +203,14 @@ struct au_sbinfo {
  * if it is false, refreshing dirs at access time is unnecesary
  */
 #define AuSi_FAILED_REFRESH_DIR	1
+
+#define AuSi_FHSM		(1 << 1)	/* fhsm is active now */
+
+#ifndef CONFIG_AUFS_FHSM
+#undef AuSi_FHSM
+#define AuSi_FHSM		0
+#endif
+
 static inline unsigned char au_do_ftest_si(struct au_sbinfo *sbi,
 					   unsigned int flag)
 {
