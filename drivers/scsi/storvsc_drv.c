@@ -327,6 +327,8 @@ MODULE_PARM_DESC(storvsc_ringbuffer_size, "Ring buffer size (bytes)");
  */
 static int storvsc_timeout = 180;
 
+static int msft_blist_flags = BLIST_TRY_VPD_PAGES;
+
 #define STORVSC_MAX_IO_REQUESTS				200
 
 static void storvsc_on_channel_callback(void *context);
@@ -1448,6 +1450,14 @@ static int storvsc_device_configure(struct scsi_device *sdevice)
 	blk_queue_rq_timeout(sdevice->request_queue, (storvsc_timeout * HZ));
 
 	sdevice->no_write_same = 1;
+
+	/*
+	 * Add blist flags to permit the reading of the VPD pages even when
+	 * the target may claim SPC-2 compliance. MSFT targets currently
+	 * claim SPC-2 compliance while they implement post SPC-2 features.
+	 * With this patch we can correctly handle WRITE_SAME_16 issues.
+	 */
+	sdevice->sdev_bflags |= msft_blist_flags;
 
 	return 0;
 }
