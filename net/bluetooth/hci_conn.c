@@ -428,7 +428,7 @@ struct hci_conn *hci_conn_add(struct hci_dev *hdev, int type, bdaddr_t *dst,
 
 	BT_DBG("%s dst %pMR", hdev->name, dst);
 
-	conn = kzalloc(sizeof(struct hci_conn), GFP_KERNEL);
+	conn = kzalloc(sizeof(*conn), GFP_KERNEL);
 	if (!conn)
 		return NULL;
 
@@ -1282,7 +1282,7 @@ struct hci_chan *hci_chan_create(struct hci_conn *conn)
 
 	BT_DBG("%s hcon %p", hdev->name, conn);
 
-	chan = kzalloc(sizeof(struct hci_chan), GFP_KERNEL);
+	chan = kzalloc(sizeof(*chan), GFP_KERNEL);
 	if (!chan)
 		return NULL;
 
