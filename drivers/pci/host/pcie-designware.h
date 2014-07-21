@@ -71,6 +71,9 @@ struct pcie_host_ops {
 			unsigned int devfn, int where, int size, u32 val);
 	int (*link_up)(struct pcie_port *pp);
 	void (*host_init)(struct pcie_port *pp);
+	void (*msi_set_irq)(struct pcie_port *pp, int irq);
+	void (*msi_clear_irq)(struct pcie_port *pp, int irq);
+	u32 (*get_msi_data)(struct pcie_port *pp);
 };
 
 int dw_pcie_cfg_read(void __iomem *addr, int where, int size, u32 *val);

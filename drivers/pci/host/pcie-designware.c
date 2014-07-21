@@ -218,27 +218,47 @@ static int find_valid_pos0(struct pcie_port *pp, int msgvec, int pos, int *pos0)
 	return 0;
 }
 
+static void dw_pcie_msi_clear_irq(struct pcie_port *pp, int irq)
+{
+	unsigned int res, bit, val;
+
+	res = (irq / 32) * 12;
+	bit = irq % 32;
+	dw_pcie_rd_own_conf(pp, PCIE_MSI_INTR0_ENABLE + res, 4, &val);
+	val &= ~(1 << bit);
+	dw_pcie_wr_own_conf(pp, PCIE_MSI_INTR0_ENABLE + res, 4, val);
+}
+
 static void clear_irq_range(struct pcie_port *pp, unsigned int irq_base,
 			    unsigned int nvec, unsigned int pos)
 {
-	unsigned int i, res, bit, val;
+	unsigned int i;
 
 	for (i = 0; i < nvec; i++) {
 		irq_set_msi_desc_off(irq_base, i, NULL);
 		clear_bit(pos + i, pp->msi_irq_in_use);
 		/* Disable corresponding interrupt on MSI controller */
-		res = ((pos + i) / 32) * 12;
-		bit = (pos + i) % 32;
-		dw_pcie_rd_own_conf(pp, PCIE_MSI_INTR0_ENABLE + res, 4, &val);
-		val &= ~(1 << bit);
-		dw_pcie_wr_own_conf(pp, PCIE_MSI_INTR0_ENABLE + res, 4, val);
+		if (pp->ops->msi_clear_irq)
+			pp->ops->msi_clear_irq(pp, pos + i);
+		else
+			dw_pcie_msi_clear_irq(pp, pos + i);
 	}
+}
+
+static void dw_pcie_msi_set_irq(struct pcie_port *pp, int irq)
+{
+	unsigned int res, bit, val;
+
+	res = (irq / 32) * 12;
+	bit = irq % 32;
+	dw_pcie_rd_own_conf(pp, PCIE_MSI_INTR0_ENABLE + res, 4, &val);
+	val |= 1 << bit;
+	dw_pcie_wr_own_conf(pp, PCIE_MSI_INTR0_ENABLE + res, 4, val);
 }
 
 static int assign_irq(int no_irqs, struct msi_desc *desc, int *pos)
 {
-	int res, bit, irq, pos0, pos1, i;
-	u32 val;
+	int irq, pos0, pos1, i;
 	struct pcie_port *pp = sys_to_pcie(desc->dev->bus->sysdata);
 
 	if (!pp) {
@@ -282,11 +302,10 @@ static int assign_irq(int no_irqs, struct msi_desc *desc, int *pos)
 		}
 		set_bit(pos0 + i, pp->msi_irq_in_use);
 		/*Enable corresponding interrupt in MSI interrupt controller */
-		res = ((pos0 + i) / 32) * 12;
-		bit = (pos0 + i) % 32;
-		dw_pcie_rd_own_conf(pp, PCIE_MSI_INTR0_ENABLE + res, 4, &val);
-		val |= 1 << bit;
-		dw_pcie_wr_own_conf(pp, PCIE_MSI_INTR0_ENABLE + res, 4, val);
+		if (pp->ops->msi_set_irq)
+			pp->ops->msi_set_irq(pp, pos0 + i);
+		else
+			dw_pcie_msi_set_irq(pp, pos0 + i);
 	}
 
 	*pos = pos0;
@@ -354,7 +373,10 @@ static int dw_msi_setup_irq(struct msi_chip *chip, struct pci_dev *pdev,
 	 */
 	desc->msi_attrib.multiple = msgvec;
 
-	msg.address_lo = virt_to_phys((void *)pp->msi_data);
+	if (pp->ops->get_msi_data)
+		msg.address_lo = pp->ops->get_msi_data(pp);
+	else
+		msg.address_lo = virt_to_phys((void *)pp->msi_data);
 	msg.address_hi = 0x0;
 	msg.data = pos;
 	write_msi_msg(irq, &msg);
