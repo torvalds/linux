@@ -3385,17 +3385,12 @@ static void mvpp2_bm_pool_bufsize_set(struct mvpp2 *priv,
 	mvpp2_write(priv, MVPP2_POOL_BUF_SIZE_REG(bm_pool->id), val);
 }
 
-/* Free "num" buffers from the pool */
-static int mvpp2_bm_bufs_free(struct mvpp2 *priv,
-			      struct mvpp2_bm_pool *bm_pool, int num)
+/* Free all buffers from the pool */
+static void mvpp2_bm_bufs_free(struct mvpp2 *priv, struct mvpp2_bm_pool *bm_pool)
 {
 	int i;
 
-	if (num >= bm_pool->buf_num)
-		/* Free all buffers from the pool */
-		num = bm_pool->buf_num;
-
-	for (i = 0; i < num; i++) {
+	for (i = 0; i < bm_pool->buf_num; i++) {
 		u32 vaddr;
 
 		/* Get buffer virtual adress (indirect access) */
@@ -3408,7 +3403,6 @@ static int mvpp2_bm_bufs_free(struct mvpp2 *priv,
 
 	/* Update BM driver with number of buffers removed from pool */
 	bm_pool->buf_num -= i;
-	return i;
 }
 
 /* Cleanup pool */
@@ -3416,10 +3410,9 @@ static int mvpp2_bm_pool_destroy(struct platform_device *pdev,
 				 struct mvpp2 *priv,
 				 struct mvpp2_bm_pool *bm_pool)
 {
-	int num;
 	u32 val;
 
-	num = mvpp2_bm_bufs_free(priv, bm_pool, bm_pool->buf_num);
+	mvpp2_bm_bufs_free(priv, bm_pool);
 	if (bm_pool->buf_num) {
 		WARN(1, "cannot free all buffers in pool %d\n", bm_pool->id);
 		return 0;
@@ -3675,7 +3668,7 @@ mvpp2_bm_pool_use(struct mvpp2_port *port, int pool, enum mvpp2_bm_type type,
 				   MVPP2_BM_LONG_BUF_NUM :
 				   MVPP2_BM_SHORT_BUF_NUM;
 		else
-			mvpp2_bm_bufs_free(port->priv, new_pool, pkts_num);
+			mvpp2_bm_bufs_free(port->priv, new_pool);
 
 		new_pool->pkt_size = pkt_size;
 
@@ -3748,7 +3741,7 @@ static int mvpp2_bm_update_mtu(struct net_device *dev, int mtu)
 	int pkt_size = MVPP2_RX_PKT_SIZE(mtu);
 
 	/* Update BM pool with new buffer size */
-	mvpp2_bm_bufs_free(port->priv, port_pool, pkts_num);
+	mvpp2_bm_bufs_free(port->priv, port_pool);
 	if (port_pool->buf_num) {
 		WARN(1, "cannot free all buffers in pool %d\n", port_pool->id);
 		return -EIO;
