@@ -57,7 +57,6 @@
 #define URB_ASYNC_UNLINK    0
 #endif
 
-static void vnt_submit_rx_urb_complete(struct urb *urb);
 static void vnt_tx_context_complete(struct urb *urb);
 
 int vnt_control_out(struct vnt_private *priv, u8 request, u16 value,
@@ -181,36 +180,6 @@ int vnt_start_interrupt_urb(struct vnt_private *priv)
 	return status;
 }
 
-int vnt_submit_rx_urb(struct vnt_private *priv, struct vnt_rcb *rcb)
-{
-	int status = 0;
-	struct urb *urb;
-
-	urb = rcb->urb;
-	if (rcb->skb == NULL) {
-		dev_dbg(&priv->usb->dev, "rcb->skb is null\n");
-		return status;
-	}
-
-	usb_fill_bulk_urb(urb,
-		priv->usb,
-		usb_rcvbulkpipe(priv->usb, 2),
-		skb_put(rcb->skb, skb_tailroom(rcb->skb)),
-		MAX_TOTAL_SIZE_WITH_ALL_HEADERS,
-		vnt_submit_rx_urb_complete,
-		rcb);
-
-	status = usb_submit_urb(urb, GFP_ATOMIC);
-	if (status != 0) {
-		dev_dbg(&priv->usb->dev, "Submit Rx URB failed %d\n", status);
-		return STATUS_FAILURE ;
-	}
-
-	rcb->in_use = true;
-
-	return status;
-}
-
 static void vnt_submit_rx_urb_complete(struct urb *urb)
 {
 	struct vnt_rcb *rcb = urb->context;
@@ -262,6 +231,37 @@ static void vnt_submit_rx_urb_complete(struct urb *urb)
 
 	return;
 }
+
+int vnt_submit_rx_urb(struct vnt_private *priv, struct vnt_rcb *rcb)
+{
+	int status = 0;
+	struct urb *urb;
+
+	urb = rcb->urb;
+	if (rcb->skb == NULL) {
+		dev_dbg(&priv->usb->dev, "rcb->skb is null\n");
+		return status;
+	}
+
+	usb_fill_bulk_urb(urb,
+			  priv->usb,
+			  usb_rcvbulkpipe(priv->usb, 2),
+			  skb_put(rcb->skb, skb_tailroom(rcb->skb)),
+			  MAX_TOTAL_SIZE_WITH_ALL_HEADERS,
+			  vnt_submit_rx_urb_complete,
+			  rcb);
+
+	status = usb_submit_urb(urb, GFP_ATOMIC);
+	if (status != 0) {
+		dev_dbg(&priv->usb->dev, "Submit Rx URB failed %d\n", status);
+		return STATUS_FAILURE;
+	}
+
+	rcb->in_use = true;
+
+	return status;
+}
+
 
 int vnt_tx_context(struct vnt_private *priv,
 				struct vnt_usb_send_context *context)
