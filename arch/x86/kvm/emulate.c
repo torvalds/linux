@@ -2211,7 +2211,7 @@ static int em_syscall(struct x86_emulate_ctxt *ctxt)
 	*reg_write(ctxt, VCPU_REGS_RCX) = ctxt->_eip;
 	if (efer & EFER_LMA) {
 #ifdef CONFIG_X86_64
-		*reg_write(ctxt, VCPU_REGS_R11) = ctxt->eflags & ~EFLG_RF;
+		*reg_write(ctxt, VCPU_REGS_R11) = ctxt->eflags;
 
 		ops->get_msr(ctxt,
 			     ctxt->mode == X86EMUL_MODE_PROT64 ?
@@ -2219,14 +2219,14 @@ static int em_syscall(struct x86_emulate_ctxt *ctxt)
 		ctxt->_eip = msr_data;
 
 		ops->get_msr(ctxt, MSR_SYSCALL_MASK, &msr_data);
-		ctxt->eflags &= ~(msr_data | EFLG_RF);
+		ctxt->eflags &= ~msr_data;
 #endif
 	} else {
 		/* legacy mode */
 		ops->get_msr(ctxt, MSR_STAR, &msr_data);
 		ctxt->_eip = (u32)msr_data;
 
-		ctxt->eflags &= ~(EFLG_VM | EFLG_IF | EFLG_RF);
+		ctxt->eflags &= ~(EFLG_VM | EFLG_IF);
 	}
 
 	return X86EMUL_CONTINUE;
@@ -2275,7 +2275,7 @@ static int em_sysenter(struct x86_emulate_ctxt *ctxt)
 		break;
 	}
 
-	ctxt->eflags &= ~(EFLG_VM | EFLG_IF | EFLG_RF);
+	ctxt->eflags &= ~(EFLG_VM | EFLG_IF);
 	cs_sel = (u16)msr_data;
 	cs_sel &= ~SELECTOR_RPL_MASK;
 	ss_sel = cs_sel + 8;
