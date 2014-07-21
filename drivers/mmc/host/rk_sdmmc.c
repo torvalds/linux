@@ -3939,14 +3939,11 @@ int dw_mci_resume(struct dw_mci *host)
 		/* Disable jtag*/
 		if(cpu_is_rk3288())
                         grf_writel(((1 << 12) << 16) | (0 << 12), RK3288_GRF_SOC_CON0);
-                /*
                 else if(cpu_is_rk3036())
                         grf_writel(((1 << 11) << 16) | (0 << 11), RK3036_GRF_SOC_CON0);
-                else if(cpu_is_rk3126())
-                        TODO;
-                else if audi-b
-                        TODO;
-                */
+                else if(cpu_is_rk312x())
+                        /* RK3036_GRF_SOC_CON0 is compatible with rk312x, tmp setting */
+                        grf_writel(((1 << 8) << 16) | (0 << 8), RK3036_GRF_SOC_CON0);
 	}
 	if(host->vmmc){
 		ret = regulator_enable(host->vmmc);
