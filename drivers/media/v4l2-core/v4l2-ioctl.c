@@ -1014,6 +1014,7 @@ static int v4l_querycap(const struct v4l2_ioctl_ops *ops,
 	ret = ops->vidioc_querycap(file, fh, cap);
 
 	cap->capabilities |= V4L2_CAP_EXT_PIX_FORMAT;
+	cap->device_caps |= V4L2_CAP_EXT_PIX_FORMAT;
 
 	return ret;
 }
