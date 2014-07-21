@@ -1813,6 +1813,20 @@ static int is_neg_adv(unsigned int status)
 	       status == CPL_ERR_KEEPALV_NEG_ADVICE;
 }
 
+static char *neg_adv_str(unsigned int status)
+{
+	switch (status) {
+	case CPL_ERR_RTX_NEG_ADVICE:
+		return "Retransmit timeout";
+	case CPL_ERR_PERSIST_NEG_ADVICE:
+		return "Persist timeout";
+	case CPL_ERR_KEEPALV_NEG_ADVICE:
+		return "Keepalive timeout";
+	default:
+		return "Unknown";
+	}
+}
+
 static void set_tcp_window(struct c4iw_ep *ep, struct port_info *pi)
 {
 	ep->snd_win = snd_win;
@@ -2011,8 +2025,9 @@ static int act_open_rpl(struct c4iw_dev *dev, struct sk_buff *skb)
 	     status, status2errno(status));
 
 	if (is_neg_adv(status)) {
-		printk(KERN_WARNING MOD "Connection problems for atid %u\n",
-			atid);
+		dev_warn(&dev->rdev.lldi.pdev->dev,
+			 "Connection problems for atid %u status %u (%s)\n",
+			 atid, status, neg_adv_str(status));
 		return 0;
 	}
 
@@ -2488,8 +2503,9 @@ static int peer_abort(struct c4iw_dev *dev, struct sk_buff *skb)
 
 	ep = lookup_tid(t, tid);
 	if (is_neg_adv(req->status)) {
-		PDBG("%s neg_adv_abort ep %p tid %u\n", __func__, ep,
-		     ep->hwtid);
+		dev_warn(&dev->rdev.lldi.pdev->dev,
+			 "Negative advice on abort - tid %u status %d (%s)\n",
+			 ep->hwtid, req->status, neg_adv_str(req->status));
 		return 0;
 	}
 	PDBG("%s ep %p tid %u state %u\n", __func__, ep, ep->hwtid,
@@ -3894,8 +3910,9 @@ static int peer_abort_intr(struct c4iw_dev *dev, struct sk_buff *skb)
 		return 0;
 	}
 	if (is_neg_adv(req->status)) {
-		PDBG("%s neg_adv_abort ep %p tid %u\n", __func__, ep,
-		     ep->hwtid);
+		dev_warn(&dev->rdev.lldi.pdev->dev,
+			 "Negative advice on abort - tid %u status %d (%s)\n",
+			 ep->hwtid, req->status, neg_adv_str(req->status));
 		kfree_skb(skb);
 		return 0;
 	}
