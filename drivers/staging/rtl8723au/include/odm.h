@@ -818,7 +818,6 @@ struct dm_odm_t {
 	bool			bUserAssignLevel;
 	u8			RSSI_BT;			/* come from BT */
 	bool			bPSDinProcess;
-	bool			bDMInitialGainEnable;
 
 	/* for rate adaptive, in fact,  88c/92c fw will handle this */
 	u8			bUseRAMask;

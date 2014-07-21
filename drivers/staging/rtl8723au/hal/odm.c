@@ -717,10 +717,6 @@ void odm_DIG23aInit(struct dm_odm_t *pDM_Odm)
 	pDM_DigTable->DIG_Dynamic_MIN_1 = DM_DIG_MIN_NIC;
 	pDM_DigTable->bMediaConnect_0 = false;
 	pDM_DigTable->bMediaConnect_1 = false;
-
-	/* To Initialize pDM_Odm->bDMInitialGainEnable == false to avoid DIG error */
-	pDM_Odm->bDMInitialGainEnable = true;
-
 }
 
 void odm_DIG23a(struct dm_odm_t *pDM_Odm)
@@ -744,12 +740,6 @@ void odm_DIG23a(struct dm_odm_t *pDM_Odm)
 
 	if (*(pDM_Odm->pbScanInProcess)) {
 		ODM_RT_TRACE(pDM_Odm, ODM_COMP_DIG, ODM_DBG_LOUD, ("odm_DIG23a() Return: In Scan Progress \n"));
-		return;
-	}
-
-	/* add by Neil Chen to avoid PSD is processing */
-	if (!pDM_Odm->bDMInitialGainEnable) {
-		ODM_RT_TRACE(pDM_Odm, ODM_COMP_DIG, ODM_DBG_LOUD, ("odm_DIG23a() Return: PSD is Processing \n"));
 		return;
 	}
 
