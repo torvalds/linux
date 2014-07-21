@@ -2117,6 +2117,10 @@ Beamforming_GetEntryBeamCapByMacId(
  );
 #endif
 
+VOID
+odm_TXPowerTrackingInit(
+	IN	PDM_ODM_T	pDM_Odm 
+	);
 
 
 VOID ODM_DMInit( IN	PDM_ODM_T	pDM_Odm);

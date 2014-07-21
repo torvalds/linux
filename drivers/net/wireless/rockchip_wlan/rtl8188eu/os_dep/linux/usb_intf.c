@@ -1938,6 +1938,7 @@ static void rtw_drv_halt(void)
 	rtw_mstat_dump(RTW_DBGDUMP);
 }
 
+
 #include "wifi_version.h"
 #include <linux/rfkill-wlan.h>
 
@@ -1966,6 +1967,8 @@ void rockchip_wifi_exit_module(void)
 
 EXPORT_SYMBOL(rockchip_wifi_init_module);
 EXPORT_SYMBOL(rockchip_wifi_exit_module);
+//module_init(rtw_drv_entry);
+//module_exit(rtw_drv_halt);
 
 #ifdef CONFIG_INTEL_PROXIM
 _adapter  *rtw_usb_get_sw_pointer(void)

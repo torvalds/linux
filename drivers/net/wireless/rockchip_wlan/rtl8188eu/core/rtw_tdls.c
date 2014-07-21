@@ -210,7 +210,7 @@ void free_tdls_sta(_adapter *padapter, struct sta_info *ptdls_sta)
 	}
 
 	//clear cam
-	rtw_clearstakey_cmd(padapter, (u8 *)ptdls_sta, (u8)rtw_get_camid(ptdls_sta->mac_id), _TRUE);
+	rtw_clearstakey_cmd(padapter, ptdls_sta, _TRUE);
 
 	if(ptdlsinfo->sta_cnt==0){
 		rtw_tdls_cmd(padapter, myid(&(padapter->eeprompriv)), TDLS_RS_RCR);
@@ -230,7 +230,7 @@ void rtw_tdls_set_key(_adapter *padapter, struct rx_pkt_attrib *prx_pkt_attrib, 
 	if(prx_pkt_attrib->encrypt)
 	{
 		ptdls_sta->dot118021XPrivacy=_AES_;
-		rtw_setstakey_cmd(padapter, (u8*)ptdls_sta, _TRUE, _TRUE);
+		rtw_setstakey_cmd(padapter, ptdls_sta, _TRUE, _TRUE);
 	}
 }
 

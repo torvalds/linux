@@ -3831,6 +3831,46 @@ void SetHwReg8188E(_adapter *adapter, u8 variable, u8 *val)
 _func_enter_;
 
 	switch (variable) {
+	case HW_VAR_BASIC_RATE:
+	{
+		struct mlme_ext_info *mlmext_info = &adapter->mlmeextpriv.mlmext_info;
+		u16 input_b = 0, masked = 0, ioted = 0, BrateCfg = 0, RateIndex = 0;
+		u16 rrsr_2g_force_mask = (RRSR_11M|RRSR_5_5M|RRSR_1M);
+		u16 rrsr_2g_allow_mask = (RRSR_24M|RRSR_12M|RRSR_6M|RRSR_11M|RRSR_5_5M|RRSR_2M|RRSR_1M);
+
+		HalSetBrateCfg(adapter, val, &BrateCfg);
+		input_b = BrateCfg;
+
+		/* apply force and allow mask */
+		BrateCfg |= rrsr_2g_force_mask;
+		BrateCfg &= rrsr_2g_allow_mask;
+		masked = BrateCfg;
+
+		/* IOT consideration */
+		if (mlmext_info->assoc_AP_vendor == HT_IOT_PEER_CISCO) {
+			/* if peer is cisco and didn't use ofdm rate, we enable 6M ack */
+			if((BrateCfg & (RRSR_24M|RRSR_12M|RRSR_6M)) == 0)
+				BrateCfg |= RRSR_6M;
+		}
+		ioted = BrateCfg;
+
+		HalData->BasicRateSet = BrateCfg;
+
+		DBG_8192C("HW_VAR_BASIC_RATE: %#x -> %#x -> %#x\n", input_b, masked, ioted);
+
+		// Set RRSR rate table.
+		rtw_write16(adapter, REG_RRSR, BrateCfg);
+		rtw_write8(adapter, REG_RRSR+2, rtw_read8(adapter, REG_RRSR+2)&0xf0);
+
+		// Set RTS initial rate
+		while(BrateCfg > 0x1)
+		{
+			BrateCfg = (BrateCfg>> 1);
+			RateIndex++;
+		}
+		rtw_write8(adapter, REG_INIRTS_RATE_SEL, RateIndex);
+	}
+		break;
 	case HW_VAR_CHECK_TXBUF:
 	{
 		u8 retry_limit;

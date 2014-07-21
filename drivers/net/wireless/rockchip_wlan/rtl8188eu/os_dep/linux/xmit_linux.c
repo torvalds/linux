@@ -372,6 +372,11 @@ int _rtw_xmit_entry(_pkt *pkt, _nic_hdl pnetdev)
 
 _func_enter_;
 
+	if(padapter->registrypriv.mp_mode)
+	{
+		DBG_871X("MP_TX_DROP_OS_FRAME\n");
+		goto drop_packet;
+	}
 	RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_, ("+xmit_enry\n"));
 
 	if (rtw_if_up(padapter) == _FALSE) {
@@ -388,7 +393,11 @@ _func_enter_;
 	if ( !rtw_mc2u_disable
 		&& check_fwstate(pmlmepriv, WIFI_AP_STATE) == _TRUE
 		&& ( IP_MCAST_MAC(pkt->data)
-			|| ICMPV6_MCAST_MAC(pkt->data) )
+			|| ICMPV6_MCAST_MAC(pkt->data)
+			#ifdef CONFIG_TX_BCAST2UNI
+			|| is_broadcast_mac_addr(pkt->data)
+			#endif
+			)
 		&& (padapter->registrypriv.wifi_spec == 0)
 		)
 	{

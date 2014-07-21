@@ -55,6 +55,9 @@ extern unsigned char RSN_TKIP_CIPHER[4];
 #define WAIT_FOR_BCN_TO_MIN	(6000)
 #define WAIT_FOR_BCN_TO_MAX	(20000)
 
+#define DISCONNECT_BY_CHK_BCN_FAIL_OBSERV_PERIOD_IN_MS 1000
+#define DISCONNECT_BY_CHK_BCN_FAIL_THRESHOLD 3
+
 static u8 rtw_basic_rate_cck[4] = {
 	IEEE80211_CCK_RATE_1MB|IEEE80211_BASIC_RATE_MASK, IEEE80211_CCK_RATE_2MB|IEEE80211_BASIC_RATE_MASK,
 	IEEE80211_CCK_RATE_5MB|IEEE80211_BASIC_RATE_MASK, IEEE80211_CCK_RATE_11MB|IEEE80211_BASIC_RATE_MASK
@@ -848,7 +851,16 @@ void CAM_empty_entry(
 
 void invalidate_cam_all(_adapter *padapter)
 {
+	struct dvobj_priv *dvobj = adapter_to_dvobj(padapter);
+	struct cam_ctl_t *cam_ctl = &dvobj->cam_ctl;
+	_irqL irqL;
+
 	rtw_hal_set_hwreg(padapter, HW_VAR_CAM_INVALID_ALL, 0);
+
+	_enter_critical_bh(&cam_ctl->lock, &irqL);
+	cam_ctl->bitmap = 0;
+	_rtw_memset(dvobj->cam_cache, 0, sizeof(struct cam_entry_cache)*TOTAL_CAM_ENTRY);
+	_exit_critical_bh(&cam_ctl->lock, &irqL);
 }
 #if 1
 static u32 _ReadCAM(_adapter *padapter ,u32 addr)
@@ -938,24 +950,254 @@ inline void clear_cam_entry(_adapter *adapter, u8 id)
 inline void write_cam_from_cache(_adapter *adapter, u8 id)
 {
 	struct dvobj_priv *dvobj = adapter_to_dvobj(adapter);
+	struct cam_ctl_t *cam_ctl = &dvobj->cam_ctl;
+	_irqL irqL;
+	struct cam_entry_cache cache;
 
-	_write_cam(adapter, id, dvobj->cam_cache[id].ctrl, dvobj->cam_cache[id].mac, dvobj->cam_cache[id].key);
+	_enter_critical_bh(&cam_ctl->lock, &irqL);
+	_rtw_memcpy(&cache, &dvobj->cam_cache[id], sizeof(struct cam_entry_cache));
+	_exit_critical_bh(&cam_ctl->lock, &irqL);
+
+	_write_cam(adapter, id, cache.ctrl, cache.mac, cache.key);
 }
 
 void write_cam_cache(_adapter *adapter, u8 id, u16 ctrl, u8 *mac, u8 *key)
 {
 	struct dvobj_priv *dvobj = adapter_to_dvobj(adapter);
+	struct cam_ctl_t *cam_ctl = &dvobj->cam_ctl;
+	_irqL irqL;
+
+	_enter_critical_bh(&cam_ctl->lock, &irqL);
 
 	dvobj->cam_cache[id].ctrl = ctrl;
 	_rtw_memcpy(dvobj->cam_cache[id].mac, mac, ETH_ALEN);
 	_rtw_memcpy(dvobj->cam_cache[id].key, key, 16);
+
+	_exit_critical_bh(&cam_ctl->lock, &irqL);
 }
 
 void clear_cam_cache(_adapter *adapter, u8 id)
 {
 	struct dvobj_priv *dvobj = adapter_to_dvobj(adapter);
+	struct cam_ctl_t *cam_ctl = &dvobj->cam_ctl;
+	_irqL irqL;
+
+	_enter_critical_bh(&cam_ctl->lock, &irqL);
 
 	_rtw_memset(&(dvobj->cam_cache[id]), 0, sizeof(struct cam_entry_cache));
+
+	_exit_critical_bh(&cam_ctl->lock, &irqL);
+}
+
+s16 rtw_get_camid(_adapter *adapter, struct sta_info *sta, s16 kid)
+{
+	u8 macid;
+	s16 camid;
+
+	//cam_entry:
+	//0~3 for default key
+
+	//for concurrent mode (ap+sta, sta+sta):
+	//default key is disable, using sw encrypt/decrypt
+	//camid 0, 1, 2, 3 is default entry for default key/group key
+	//macid = 1 is for bc/mc stainfo, no mapping to camid
+	//macid = 0 mapping to camid 4
+	//for macid >=2, camid = macid+3;
+
+	if (sta) {
+		struct mlme_ext_info *mlmeinfo = &adapter->mlmeextpriv.mlmext_info;
+		macid = sta->mac_id;
+
+		if((mlmeinfo->state&0x03) == WIFI_FW_AP_STATE) {
+			if((macid == 1) || (macid>(NUM_STA-4))){
+				DBG_871X_LEVEL(_drv_always_, FUNC_ADPT_FMT" failed, mac_id=%d\n", FUNC_ADPT_ARG(adapter), macid);
+				camid = -1;
+				goto exit;
+			}
+		}
+
+		if(macid==0)
+			camid = 4;
+		else if(macid >=2)
+			camid = macid + 3;
+		else
+			camid = 4;
+	}
+	else {
+		/* default key is disabled */
+		camid = -1;
+	}
+
+exit:
+	return (s16)camid;
+}
+
+bool _rtw_camid_is_gk(_adapter *adapter, u8 cam_id)
+{
+	struct dvobj_priv *dvobj = adapter_to_dvobj(adapter);
+	struct cam_ctl_t *cam_ctl = &dvobj->cam_ctl;
+	bool ret = _FALSE;
+
+	if (cam_id >= TOTAL_CAM_ENTRY)
+		goto exit;
+
+	if (!(cam_ctl->bitmap & BIT(cam_id)))
+		goto exit;
+	
+	ret = (dvobj->cam_cache[cam_id].ctrl&BIT6)?_TRUE:_FALSE;
+
+exit:
+	return ret;
+}
+
+bool rtw_camid_is_gk(_adapter *adapter, u8 cam_id)
+{
+	struct dvobj_priv *dvobj = adapter_to_dvobj(adapter);
+	struct cam_ctl_t *cam_ctl = &dvobj->cam_ctl;
+	_irqL irqL;
+	bool ret;
+
+	_enter_critical_bh(&cam_ctl->lock, &irqL);
+	ret = _rtw_camid_is_gk(adapter, cam_id);
+	_exit_critical_bh(&cam_ctl->lock, &irqL);
+
+	return ret;
+}
+
+s16 _rtw_camid_search(_adapter *adapter, u8 *addr, s16 kid)
+{
+	struct dvobj_priv *dvobj = adapter_to_dvobj(adapter);
+	struct cam_ctl_t *cam_ctl = &dvobj->cam_ctl;
+	int i;
+	s16 cam_id = -1;
+
+	for (i=0;i<TOTAL_CAM_ENTRY;i++) {
+		if (addr && _rtw_memcmp(dvobj->cam_cache[i].mac, addr, ETH_ALEN) == _FALSE)
+			continue;
+		if (kid >= 0 && kid != (dvobj->cam_cache[i].ctrl&0x03))
+			continue;
+
+		cam_id = i;
+		break;
+	}
+
+	if (0) {
+		if (addr)
+			DBG_871X(FUNC_ADPT_FMT" addr:"MAC_FMT" kid:%d, return cam_id:%d\n"
+				, FUNC_ADPT_ARG(adapter), MAC_ARG(addr), kid, cam_id);
+		else
+			DBG_871X(FUNC_ADPT_FMT" addr:%p kid:%d, return cam_id:%d\n"
+				, FUNC_ADPT_ARG(adapter), addr, kid, cam_id);
+	}
+
+	return cam_id;
+}
+
+s16 rtw_camid_search(_adapter *adapter, u8 *addr, s16 kid)
+{
+	struct dvobj_priv *dvobj = adapter_to_dvobj(adapter);
+	struct cam_ctl_t *cam_ctl = &dvobj->cam_ctl;
+	_irqL irqL;
+	s16 cam_id = -1;
+
+	_enter_critical_bh(&cam_ctl->lock, &irqL);
+	cam_id = _rtw_camid_search(adapter, addr, kid);
+	_exit_critical_bh(&cam_ctl->lock, &irqL);
+
+	return cam_id;
+}
+
+s16 rtw_camid_alloc(_adapter *adapter, struct sta_info *sta, u8 kid)
+{
+	struct dvobj_priv *dvobj = adapter_to_dvobj(adapter);
+	struct cam_ctl_t *cam_ctl = &dvobj->cam_ctl;
+	_irqL irqL;
+	s16 cam_id = -1;
+
+	_enter_critical_bh(&cam_ctl->lock, &irqL);
+
+#ifdef DYNAMIC_CAMID_ALLOC
+	{
+		struct mlme_ext_info *mlmeinfo = &adapter->mlmeextpriv.mlmext_info;
+
+		if((((mlmeinfo->state&0x03) == WIFI_FW_AP_STATE) || ((mlmeinfo->state&0x03) == WIFI_FW_ADHOC_STATE))
+			&& !sta) {
+			/* AP/Ad-hoc mode group key: static alloction to default key by key ID */
+			if (kid > 3) {
+				DBG_871X_LEVEL(_drv_always_, FUNC_ADPT_FMT" group key with invalid key id:%u\n"
+					, FUNC_ADPT_ARG(adapter), kid);
+				rtw_warn_on(1);
+				goto bitmap_handle;
+			}
+
+			cam_id = kid;
+		}
+		else {
+			int i;
+			u8 *addr = sta?sta->hwaddr:NULL;
+
+			if(!sta) {
+				if (!(mlmeinfo->state & WIFI_FW_ASSOC_SUCCESS)) {
+					/* bypass STA mode group key setting before connected(ex:WEP) because bssid is not ready */
+					goto bitmap_handle;
+				}
+
+				addr = get_bssid(&adapter->mlmepriv);
+			}
+
+			if ((i = _rtw_camid_search(adapter, addr, kid)) >= 0) {
+				/* Fix issue that pairwise and group key have same key id. Pairwise key first, group key can overwirte group only(ex: rekey) */
+				if (sta || _rtw_camid_is_gk(adapter, i) == _TRUE)
+					cam_id = i;
+				else
+					DBG_871X_LEVEL(_drv_always_, FUNC_ADPT_FMT" group key id:%u the same key id as pairwise key\n"
+						, FUNC_ADPT_ARG(adapter), kid);
+				goto bitmap_handle;
+			}
+
+			for (i=4;i<TOTAL_CAM_ENTRY;i++)
+				if (!(cam_ctl->bitmap & BIT(i)))
+					break;
+
+			if (i == TOTAL_CAM_ENTRY) {
+				if (sta)
+					DBG_871X_LEVEL(_drv_always_, FUNC_ADPT_FMT" pairwise key with "MAC_FMT" id:%u no room\n"
+					, FUNC_ADPT_ARG(adapter), MAC_ARG(sta->hwaddr), kid);
+				else
+					DBG_871X_LEVEL(_drv_always_, FUNC_ADPT_FMT" group key id:%u no room\n"
+					, FUNC_ADPT_ARG(adapter), kid);
+				rtw_warn_on(1);
+				goto bitmap_handle;
+			}
+
+			cam_id = i;
+		}
+	}
+#else
+	cam_id = rtw_get_camid(adapter, sta, kid);
+#endif /* DYNAMIC_CAMID_ALLOC */
+
+bitmap_handle:
+	if (cam_id >= 0)
+		cam_ctl->bitmap |= BIT(cam_id);
+
+	_exit_critical_bh(&cam_ctl->lock, &irqL);
+
+	return cam_id;
+}
+
+void rtw_camid_free(_adapter *adapter, u8 cam_id)
+{
+	struct dvobj_priv *dvobj = adapter_to_dvobj(adapter);
+	struct cam_ctl_t *cam_ctl = &dvobj->cam_ctl;
+	_irqL irqL;
+
+	_enter_critical_bh(&cam_ctl->lock, &irqL);
+
+	if (cam_id < TOTAL_CAM_ENTRY)
+		cam_ctl->bitmap &= ~(BIT(cam_id));
+
+	_exit_critical_bh(&cam_ctl->lock, &irqL);
 }
 
 int allocate_fw_sta_entry(_adapter *padapter)
@@ -979,46 +1221,58 @@ int allocate_fw_sta_entry(_adapter *padapter)
 
 void flush_all_cam_entry(_adapter *padapter)
 {
-	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
-	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
-
-#ifdef CONFIG_CONCURRENT_MODE
-
+	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
+	struct mlme_ext_info *pmlmeinfo = &(pmlmeext->mlmext_info);
 	struct mlme_priv *pmlmepriv = &(padapter->mlmepriv);
 
-	//if(check_buddy_mlmeinfo_state(padapter, _HW_STATE_NOLINK_))	
-	if(check_buddy_fwstate(padapter, _FW_LINKED) == _FALSE)
-	{
-		rtw_hal_set_hwreg(padapter, HW_VAR_CAM_INVALID_ALL, 0);		
-	}
-	else
+#ifdef CONFIG_CONCURRENT_MODE
+	if(check_buddy_fwstate(padapter, _FW_LINKED) == _TRUE)
 	{
 		if(check_fwstate(pmlmepriv, WIFI_STATION_STATE))
 		{
 			struct sta_priv	*pstapriv = &padapter->stapriv;
 			struct sta_info	*psta;
-			u8 cam_id;//cam_entry
 
 			psta = rtw_get_stainfo(pstapriv, pmlmeinfo->network.MacAddress);
 			if(psta) {
 				if(psta->state & WIFI_AP_STATE)
 				{}   //clear cam when ap free per sta_info        
 				else {
-					cam_id = (u8)rtw_get_camid(psta->mac_id);
-					rtw_clearstakey_cmd(padapter, (u8*)psta, cam_id, _FALSE);
-				}				
+					rtw_clearstakey_cmd(padapter, psta, _FALSE);
+				}
 			}
 		}
 		else if(check_fwstate(pmlmepriv, WIFI_AP_STATE) == _TRUE)
 		{
-			//clear cam when ap free per sta_info 
-		}			
+			/* clear default key */
+			int i, cam_id;
+			u8 null_addr[ETH_ALEN]= {0,0,0,0,0,0};
+
+			for (i=0;i<4;i++) {
+				cam_id = rtw_camid_search(padapter, null_addr, i);
+				if (cam_id >= 0) {
+					clear_cam_entry(padapter, cam_id);
+					rtw_camid_free(padapter, cam_id);
+				}
+			}
+
+			/* clear default key related key search setting */
+			#ifdef DYNAMIC_CAMID_ALLOC
+			rtw_hal_set_hwreg(padapter, HW_VAR_SEC_DK_CFG, (u8*)_FALSE);
+			#endif
+
+			/* leave pairwise key when ap free per sta_info */
+		}
 	}
-#else //CONFIG_CONCURRENT_MODE
-
-	rtw_hal_set_hwreg(padapter, HW_VAR_CAM_INVALID_ALL, 0);	
-
+	else
 #endif //CONFIG_CONCURRENT_MODE
+	{
+		invalidate_cam_all(padapter);
+		/* clear default key related key search setting */
+		#ifdef DYNAMIC_CAMID_ALLOC
+		rtw_hal_set_hwreg(padapter, HW_VAR_SEC_DK_CFG, (u8*)_FALSE);
+		#endif
+	}
 
 	_rtw_memset((u8 *)(pmlmeinfo->FW_sta_info), 0, sizeof(pmlmeinfo->FW_sta_info));
 	
@@ -1748,6 +2002,7 @@ int rtw_check_bcn_info(ADAPTER *Adapter, u8 *pframe, u32 packet_len)
 	u32 bcn_channel;
 	unsigned short 	ht_cap_info;
 	unsigned char	ht_info_infos_0;
+	struct mlme_priv *pmlmepriv = &Adapter->mlmepriv;
 
 	if (is_client_associated_to_ap(Adapter) == _FALSE)
 		return _TRUE;
@@ -1769,6 +2024,12 @@ int rtw_check_bcn_info(ADAPTER *Adapter, u8 *pframe, u32 packet_len)
 	if (bssid == NULL) {
 		DBG_871X("%s rtw_zmalloc fail !!!\n", __func__);
 		return _TRUE;
+	}
+
+	if ((pmlmepriv->timeBcnInfoChkStart != 0) && (rtw_get_passing_time_ms(pmlmepriv->timeBcnInfoChkStart) > DISCONNECT_BY_CHK_BCN_FAIL_OBSERV_PERIOD_IN_MS))
+	{
+		pmlmepriv->timeBcnInfoChkStart = 0;
+		pmlmepriv->NumOfBcnInfoChkFail = 0;
 	}
 
 	subtype = GetFrameSubType(pframe) >> 4;
@@ -1805,7 +2066,7 @@ int rtw_check_bcn_info(ADAPTER *Adapter, u8 *pframe, u32 packet_len)
 						   	ht_cap_info, ht_info_infos_0);
 			DBG_871X("%s bcn link: ht_cap_info:%x ht_info_infos_0:%x\n", __func__,
 						   	cur_network->BcnInfo.ht_cap_info, cur_network->BcnInfo.ht_info_infos_0);
-			DBG_871X("%s bw mode change, disconnect\n", __func__);
+			DBG_871X("%s bw mode change\n", __func__);
 			{	
 				//bcn_info_update
 				cur_network->BcnInfo.ht_cap_info = ht_cap_info;
@@ -1858,7 +2119,7 @@ int rtw_check_bcn_info(ADAPTER *Adapter, u8 *pframe, u32 packet_len)
 	if (_rtw_memcmp(bssid->Ssid.Ssid, cur_network->network.Ssid.Ssid, 32) == _FALSE ||
 			bssid->Ssid.SsidLength != cur_network->network.Ssid.SsidLength) {
 		if (bssid->Ssid.Ssid[0] != '\0' && bssid->Ssid.SsidLength != 0) { /* not hidden ssid */
-			DBG_871X("%s(), SSID is not match return FAIL\n", __func__);
+			DBG_871X("%s(), SSID is not match\n", __func__);
 			goto _mismatch;
 		}
 	}
@@ -1875,7 +2136,7 @@ int rtw_check_bcn_info(ADAPTER *Adapter, u8 *pframe, u32 packet_len)
 			("%s(): cur_network->network.Privacy is %d, bssid.Privacy is %d\n",
 			 __func__, cur_network->network.Privacy,bssid->Privacy));
 	if (cur_network->network.Privacy != bssid->Privacy) {
-		DBG_871X("%s(), privacy is not match return FAIL\n",__func__);
+		DBG_871X("%s(), privacy is not match\n",__func__);
 		goto _mismatch;
 	}
 
@@ -1891,7 +2152,7 @@ int rtw_check_bcn_info(ADAPTER *Adapter, u8 *pframe, u32 packet_len)
 	}
 
 	if (cur_network->BcnInfo.encryp_protocol != encryp_protocol) {
-		DBG_871X("%s(): enctyp is not match ,return FAIL\n",__func__);
+		DBG_871X("%s(): enctyp is not match\n",__func__);
 		goto _mismatch;
 	}
 
@@ -1918,14 +2179,14 @@ int rtw_check_bcn_info(ADAPTER *Adapter, u8 *pframe, u32 packet_len)
 		RT_TRACE(_module_rtl871x_mlme_c_,_drv_err_,
 				("%s cur_network->group_cipher is %d: %d\n",__func__, cur_network->BcnInfo.group_cipher, group_cipher));
 		if (pairwise_cipher != cur_network->BcnInfo.pairwise_cipher || group_cipher != cur_network->BcnInfo.group_cipher) {
-			DBG_871X("%s pairwise_cipher(%x:%x) or group_cipher(%x:%x) is not match ,return FAIL\n",__func__,
+			DBG_871X("%s pairwise_cipher(%x:%x) or group_cipher(%x:%x) is not match\n",__func__,
 					pairwise_cipher, cur_network->BcnInfo.pairwise_cipher,
 					group_cipher, cur_network->BcnInfo.group_cipher);
 			goto _mismatch;
 		}
 
 		if (is_8021x != cur_network->BcnInfo.is_8021x) {
-			DBG_871X("%s authentication is not match ,return FAIL\n", __func__);
+			DBG_871X("%s authentication is not match\n", __func__);
 			goto _mismatch;
 		}
 	}
@@ -1935,7 +2196,26 @@ int rtw_check_bcn_info(ADAPTER *Adapter, u8 *pframe, u32 packet_len)
 
 _mismatch:
 	rtw_mfree((u8 *)bssid, sizeof(WLAN_BSSID_EX));
-	return _FAIL;
+
+	if (pmlmepriv->NumOfBcnInfoChkFail == 0)
+	{
+		pmlmepriv->timeBcnInfoChkStart = rtw_get_current_time();
+	}
+
+	pmlmepriv->NumOfBcnInfoChkFail++;
+	DBG_871X("%s by "ADPT_FMT" - NumOfChkFail = %d (SeqNum of this Beacon frame = %d).\n", __func__, ADPT_ARG(Adapter), pmlmepriv->NumOfBcnInfoChkFail, GetSequence(pframe));
+
+	if ((pmlmepriv->timeBcnInfoChkStart != 0) && (rtw_get_passing_time_ms(pmlmepriv->timeBcnInfoChkStart) <= DISCONNECT_BY_CHK_BCN_FAIL_OBSERV_PERIOD_IN_MS) 
+		&& (pmlmepriv->NumOfBcnInfoChkFail >= DISCONNECT_BY_CHK_BCN_FAIL_THRESHOLD))
+	{
+		DBG_871X("%s by "ADPT_FMT" - NumOfChkFail = %d >= threshold : %d (in %d ms), return FAIL.\n", __func__, ADPT_ARG(Adapter), pmlmepriv->NumOfBcnInfoChkFail, 
+			DISCONNECT_BY_CHK_BCN_FAIL_THRESHOLD, rtw_get_passing_time_ms(pmlmepriv->timeBcnInfoChkStart));
+		pmlmepriv->timeBcnInfoChkStart = 0;
+		pmlmepriv->NumOfBcnInfoChkFail = 0;
+		return _FAIL;
+	}
+
+	return _SUCCESS;
 }
 
 void update_beacon_info(_adapter *padapter, u8 *pframe, uint pkt_len, struct sta_info *psta)
@@ -2870,25 +3150,6 @@ void adaptive_early_32k(struct mlme_ext_priv *pmlmeext, u8 *pframe, uint len)
 void beacon_timing_control(_adapter *padapter)
 {
 	rtw_hal_bcn_related_reg_setting(padapter);
-}
-
-uint rtw_get_camid(uint macid)
-{
-	uint camid;
-
-	//camid 0, 1, 2, 3 is default entry for default key/group key
-	//macid = 1 is for bc/mc stainfo, no mapping to camid
-	//macid = 0 mapping to camid 4
-	//for macid >=2, camid = macid+3;
-
-	if(macid==0)
-		camid = 4;
-	else if(macid >=2)
-		camid = macid + 3;
-	else
-		camid = 4;
-
-	return camid;
 }
 
 void rtw_alloc_macid(_adapter *padapter, struct sta_info *psta)

@@ -320,6 +320,8 @@ struct registry_priv
 	u8 ext_iface_num;//primary/secondary iface is excluded
 #endif
 	u8 qos_opt_enable;
+
+	u8 hiq_filter;
 };
 
 
@@ -418,6 +420,11 @@ struct rtw_traffic_statistics {
 	u32	cur_rx_tp; // Rx throughput in MBps.
 };
 
+struct cam_ctl_t {
+	_lock lock;
+	u64 bitmap;
+};
+
 struct cam_entry_cache {
 	u16 ctrl;
 	u8 mac[ETH_ALEN];
@@ -460,7 +467,8 @@ struct dvobj_priv
 	_adapter *padapters[IFACE_ID_MAX];
 	u8 iface_nums; // total number of ifaces used runtime
 
-	struct cam_entry_cache cam_cache[32];
+	struct cam_ctl_t cam_ctl;
+	struct cam_entry_cache cam_cache[TOTAL_CAM_ENTRY];
 
 	//For 92D, DMDP have 2 interface.
 	u8	InterfaceNumber;

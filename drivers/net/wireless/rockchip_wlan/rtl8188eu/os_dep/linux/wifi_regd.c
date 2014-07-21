@@ -474,11 +474,19 @@ static const struct ieee80211_regdomain *_rtw_regdomain_select(struct
 #endif
 }
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 0))
+static int _rtw_regd_init_wiphy(struct rtw_regulatory *reg,
+				struct wiphy *wiphy,
+				void (*reg_notifier) (struct wiphy * wiphy,
+						     struct regulatory_request *
+						     request))
+#else
 static int _rtw_regd_init_wiphy(struct rtw_regulatory *reg,
 				struct wiphy *wiphy,
 				int (*reg_notifier) (struct wiphy * wiphy,
 						     struct regulatory_request *
 						     request))
+#endif
 {
 	const struct ieee80211_regdomain *regd;
 
@@ -509,9 +517,15 @@ static struct country_code_to_enum_rd *_rtw_regd_find_country(u16 countrycode)
 	return NULL;
 }
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 0))
 int rtw_regd_init(_adapter * padapter,
-		  int (*reg_notifier) (struct wiphy * wiphy,
+		  void (*reg_notifier) (struct wiphy * wiphy,
 				       struct regulatory_request * request))
+#else
+int rtw_regd_init(_adapter * padapter,
+                  int (*reg_notifier) (struct wiphy * wiphy,
+                                       struct regulatory_request * request))
+#endif
 {
 	//struct registry_priv  *registrypriv = &padapter->registrypriv;
 	struct wiphy *wiphy = padapter->rtw_wdev->wiphy;
@@ -536,12 +550,23 @@ int rtw_regd_init(_adapter * padapter,
 	return 0;
 }
 
-int rtw_reg_notifier(struct wiphy *wiphy, struct regulatory_request *request)
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 0))
+void rtw_reg_notifier(struct wiphy *wiphy, struct regulatory_request *request)
 {
 	struct rtw_regulatory *reg = NULL;
 
 	DBG_8192C("%s\n", __func__);
 
-	return _rtw_reg_notifier_apply(wiphy, request, reg);
+	_rtw_reg_notifier_apply(wiphy, request, reg);
 }
+#else
+int rtw_reg_notifier(struct wiphy *wiphy, struct regulatory_request *request)
+{
+        struct rtw_regulatory *reg = NULL;
+
+        DBG_8192C("%s\n", __func__);
+
+        return _rtw_reg_notifier_apply(wiphy, request, reg);
+}
+#endif
 #endif //CONFIG_IOCTL_CFG80211

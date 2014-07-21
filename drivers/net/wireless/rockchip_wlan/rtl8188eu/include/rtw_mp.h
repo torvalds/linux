@@ -379,6 +379,7 @@ struct mp_priv
 	u32 rx_pktcount_filter_out;
 	u32 rx_crcerrpktcount;
 	u32 rx_pktloss;
+	BOOLEAN  rx_bindicatePkt;
 
 	struct recv_stat rxstat;
 
@@ -440,6 +441,7 @@ struct mp_priv
 	u32 free_mp_xmitframe_cnt;
 	BOOLEAN bSetRxBssid;
 	BOOLEAN bTxBufCkFail;
+	BOOLEAN bPreBrunEfuse;
 	
 	MPT_CONTEXT MptCtx;
 
@@ -788,6 +790,7 @@ extern void MP_PHY_SetRFPathSwitch(PADAPTER pAdapter ,BOOLEAN bMain);
 extern ULONG mpt_ProQueryCalTxPower(PADAPTER	pAdapter,u8 RfPath);
 extern void MPT_PwrCtlDM(PADAPTER padapter, u32 bstart);
 extern u8 MptToMgntRate(u32	MptRateIdx);
+extern s32 Rtw_EfuseChkPreBurn8188ESerial(PADAPTER pAdapter);
 
 #endif //_RTW_MP_H_
 
