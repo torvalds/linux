@@ -316,7 +316,7 @@ static int vmw_dummy_query_bo_create(struct vmw_private *dev_priv)
 	if (unlikely(ret != 0))
 		return ret;
 
-	ret = ttm_bo_reserve(bo, false, true, false, 0);
+	ret = ttm_bo_reserve(bo, false, true, false, NULL);
 	BUG_ON(ret != 0);
 
 	ret = ttm_bo_kmap(bo, 0, 1, &map);
