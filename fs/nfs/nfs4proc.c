@@ -2224,8 +2224,15 @@ static int _nfs4_open_and_get_state(struct nfs4_opendata *opendata,
 	seq = raw_seqcount_begin(&sp->so_reclaim_seqcount);
 
 	ret = _nfs4_proc_open(opendata);
-	if (ret != 0)
+	if (ret != 0) {
+		if (ret == -ENOENT) {
+			d_drop(opendata->dentry);
+			d_add(opendata->dentry, NULL);
+			nfs_set_verifier(opendata->dentry,
+					 nfs_save_change_attribute(opendata->dir->d_inode));
+		}
 		goto out;
+	}
 
 	state = nfs4_opendata_to_nfs4_state(opendata);
 	ret = PTR_ERR(state);
