@@ -4051,6 +4051,68 @@ to find receivers which can scroll strings sized as 32 x N or 64 x N characters.
 with steps of 32 or 64 characters. The result is it must always contain a string with size multiple of 32 or 64. </entry>
 	  </row>
 	  <row>
+	    <entry spanname="id"><constant>V4L2_CID_RDS_TX_MONO_STEREO</constant>&nbsp;</entry>
+	    <entry>boolean</entry>
+	  </row>
+	  <row><entry spanname="descr">Sets the Mono/Stereo bit of the Decoder Identification code. If set,
+then the audio was recorded as stereo.</entry>
+	  </row>
+	  <row>
+	    <entry spanname="id"><constant>V4L2_CID_RDS_TX_ARTIFICIAL_HEAD</constant>&nbsp;</entry>
+	    <entry>boolean</entry>
+	  </row>
+	  <row><entry spanname="descr">Sets the
+<ulink url="http://en.wikipedia.org/wiki/Artificial_head">Artificial Head</ulink> bit of the Decoder
+Identification code. If set, then the audio was recorded using an artificial head.</entry>
+	  </row>
+	  <row>
+	    <entry spanname="id"><constant>V4L2_CID_RDS_TX_COMPRESSED</constant>&nbsp;</entry>
+	    <entry>boolean</entry>
+	  </row>
+	  <row><entry spanname="descr">Sets the Compressed bit of the Decoder Identification code. If set,
+then the audio is compressed.</entry>
+	  </row>
+	  <row>
+	    <entry spanname="id"><constant>V4L2_CID_RDS_TX_DYNAMIC_PTY</constant>&nbsp;</entry>
+	    <entry>boolean</entry>
+	  </row>
+	  <row><entry spanname="descr">Sets the Dynamic PTY bit of the Decoder Identification code. If set,
+then the PTY code is dynamically switched.</entry>
+	  </row>
+	  <row>
+	    <entry spanname="id"><constant>V4L2_CID_RDS_TX_TRAFFIC_ANNOUNCEMENT</constant>&nbsp;</entry>
+	    <entry>boolean</entry>
+	  </row>
+	  <row><entry spanname="descr">If set, then a traffic announcement is in progress.</entry>
+	  </row>
+	  <row>
+	    <entry spanname="id"><constant>V4L2_CID_RDS_TX_TRAFFIC_PROGRAM</constant>&nbsp;</entry>
+	    <entry>boolean</entry>
+	  </row>
+	  <row><entry spanname="descr">If set, then the tuned programme carries traffic announcements.</entry>
+	  </row>
+	  <row>
+	    <entry spanname="id"><constant>V4L2_CID_RDS_TX_MUSIC_SPEECH</constant>&nbsp;</entry>
+	    <entry>boolean</entry>
+	  </row>
+	  <row><entry spanname="descr">If set, then this channel broadcasts music. If cleared, then it
+broadcasts speech. If the transmitter doesn't make this distinction, then it should be set.</entry>
+	  </row>
+	  <row>
+	    <entry spanname="id"><constant>V4L2_CID_RDS_TX_ALT_FREQS_ENABLE</constant>&nbsp;</entry>
+	    <entry>boolean</entry>
+	  </row>
+	  <row><entry spanname="descr">If set, then transmit alternate frequencies.</entry>
+	  </row>
+	  <row>
+	    <entry spanname="id"><constant>V4L2_CID_RDS_TX_ALT_FREQS</constant>&nbsp;</entry>
+	    <entry>__u32 array</entry>
+	  </row>
+	  <row><entry spanname="descr">The alternate frequencies in kHz units. The RDS standard allows
+for up to 25 frequencies to be defined. Drivers may support fewer frequencies so check
+the array size.</entry>
+	  </row>
+	  <row>
 	    <entry spanname="id"><constant>V4L2_CID_AUDIO_LIMITER_ENABLED</constant>&nbsp;</entry>
 	    <entry>boolean</entry>
 	  </row>
