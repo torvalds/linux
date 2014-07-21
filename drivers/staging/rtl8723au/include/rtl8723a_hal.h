@@ -315,7 +315,6 @@ struct hal_data_8723a {
 	u8	framesync;
 	u32	framesyncC34;
 	u8	framesyncMonitor;
-	u8	DefaultInitialGain[4];
 	u8	pwrGroupCnt;
 	u32	MCSTxPowerLevelOriginalOffset[7][16];
 	u32	CCKTxPowerLevelOriginalOffset;
