@@ -11,12 +11,14 @@
 #include <linux/freezer.h>
 #include <linux/kthread.h>
 #include <linux/sched/rt.h>
+#include <linux/rockchip/dvfs.h>
 
 #include <dt-bindings/clock/ddr.h>
 
 struct ddrtest {
     struct clk *pll;
     struct clk *clk;
+	struct dvfs_node *clk_dvfs_node;
     volatile unsigned int freq;
     volatile bool change_end;
     struct task_struct *task;
@@ -220,8 +222,7 @@ static const struct file_operations ddr_proc_fops = {
 
 static void ddrtest_work(unsigned int value)
 {
-
-    clk_set_rate(ddrtest.clk, value * 1000000);
+	dvfs_clk_set_rate(ddrtest.clk_dvfs_node, value * 1000000);
     ddrtest.change_end = true;
 }
 
@@ -260,6 +261,10 @@ static int ddr_proc_init(void)
         goto err;
     }
     ddrtest.freq = clk_get_rate(ddrtest.clk)/1000000;
+
+	ddrtest.clk_dvfs_node = clk_get_dvfs_node("clk_ddr");
+	if (!ddrtest.clk_dvfs_node)
+		goto err;
 
     ddr_proc_entry = proc_create("driver/ddr_ts",
                            S_IRUGO | S_IWUGO | S_IWUSR | S_IRUSR,
