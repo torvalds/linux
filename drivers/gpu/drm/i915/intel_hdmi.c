@@ -882,7 +882,7 @@ static bool hdmi_12bpc_possible(struct intel_crtc *crtc)
 	struct intel_encoder *encoder;
 	int count = 0, count_hdmi = 0;
 
-	if (!HAS_PCH_SPLIT(dev))
+	if (HAS_GMCH_DISPLAY(dev))
 		return false;
 
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, base.head) {
