@@ -1437,6 +1437,25 @@ static void bcmgenet_free_rx_buffers(struct bcmgenet_priv *priv)
 	}
 }
 
+static void umac_enable_set(struct bcmgenet_priv *priv, u32 mask,
+				bool enable)
+{
+	u32 reg;
+
+	reg = bcmgenet_umac_readl(priv, UMAC_CMD);
+	if (enable)
+		reg |= mask;
+	else
+		reg &= ~mask;
+	bcmgenet_umac_writel(priv, reg, UMAC_CMD);
+
+	/* UniMAC stops on a packet boundary, wait for a full-size packet
+	 * to be processed
+	 */
+	if (enable == 0)
+		usleep_range(1000, 2000);
+}
+
 static int reset_umac(struct bcmgenet_priv *priv)
 {
 	struct device *kdev = &priv->pdev->dev;
@@ -1988,9 +2007,7 @@ static int bcmgenet_open(struct net_device *dev)
 		goto err_clk_disable;
 
 	/* disable ethernet MAC while updating its registers */
-	reg = bcmgenet_umac_readl(priv, UMAC_CMD);
-	reg &= ~(CMD_TX_EN | CMD_RX_EN);
-	bcmgenet_umac_writel(priv, reg, UMAC_CMD);
+	umac_enable_set(priv, CMD_TX_EN | CMD_RX_EN, false);
 
 	bcmgenet_set_hw_addr(priv, dev->dev_addr);
 
@@ -2030,11 +2047,10 @@ static int bcmgenet_open(struct net_device *dev)
 	/* Start the network engine */
 	napi_enable(&priv->napi);
 
-	reg = bcmgenet_umac_readl(priv, UMAC_CMD);
-	reg |= (CMD_TX_EN | CMD_RX_EN);
-	bcmgenet_umac_writel(priv, reg, UMAC_CMD);
+	umac_enable_set(priv, CMD_TX_EN | CMD_RX_EN, true);
 
 	/* Make sure we reflect the value of CRC_CMD_FWD */
+	reg = bcmgenet_umac_readl(priv, UMAC_CMD);
 	priv->crc_fwd_en = !!(reg & CMD_CRC_FWD);
 
 	device_set_wakeup_capable(&dev->dev, 1);
@@ -2115,16 +2131,13 @@ static int bcmgenet_close(struct net_device *dev)
 {
 	struct bcmgenet_priv *priv = netdev_priv(dev);
 	int ret;
-	u32 reg;
 
 	netif_dbg(priv, ifdown, dev, "bcmgenet_close\n");
 
 	phy_stop(priv->phydev);
 
 	/* Disable MAC receive */
-	reg = bcmgenet_umac_readl(priv, UMAC_CMD);
-	reg &= ~CMD_RX_EN;
-	bcmgenet_umac_writel(priv, reg, UMAC_CMD);
+	umac_enable_set(priv, CMD_RX_EN, false);
 
 	netif_tx_stop_all_queues(dev);
 
@@ -2133,9 +2146,7 @@ static int bcmgenet_close(struct net_device *dev)
 		return ret;
 
 	/* Disable MAC transmit. TX DMA disabled have to done before this */
-	reg = bcmgenet_umac_readl(priv, UMAC_CMD);
-	reg &= ~CMD_TX_EN;
-	bcmgenet_umac_writel(priv, reg, UMAC_CMD);
+	umac_enable_set(priv, CMD_TX_EN, false);
 
 	napi_disable(&priv->napi);
 
