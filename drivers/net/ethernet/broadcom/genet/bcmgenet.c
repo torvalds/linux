@@ -743,6 +743,10 @@ static void bcmgenet_power_down(struct bcmgenet_priv *priv,
 		phy_detach(priv->phydev);
 		break;
 
+	case GENET_POWER_WOL_MAGIC:
+		bcmgenet_wol_power_down_cfg(priv, mode);
+		break;
+
 	case GENET_POWER_PASSIVE:
 		/* Power down LED */
 		bcmgenet_mii_reset(priv->dev);
@@ -777,6 +781,9 @@ static void bcmgenet_power_up(struct bcmgenet_priv *priv,
 		/* enable APD */
 		reg |= EXT_PWR_DN_EN_LD;
 		break;
+	case GENET_POWER_WOL_MAGIC:
+		bcmgenet_wol_power_up_cfg(priv, mode);
+		return;
 	default:
 		break;
 	}
