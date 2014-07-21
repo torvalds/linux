@@ -780,7 +780,9 @@ static int rtl8723au_hal_init(struct rtw_adapter *Adapter)
 
 	rtl8723a_InitHalDm(Adapter);
 
-	rtl8723a_set_nav_upper(Adapter, WiFiNavUpperUs);
+	val8 = ((WiFiNavUpperUs + HAL_8723A_NAV_UPPER_UNIT - 1) /
+		HAL_8723A_NAV_UPPER_UNIT);
+	rtl8723au_write8(Adapter, REG_NAV_UPPER, val8);
 
 	/*  2011/03/09 MH debug only, UMC-B cut pass 2500 S5 test, but we need to fin root cause. */
 	if (((rtl8723au_read32(Adapter, rFPGA0_RFMOD) & 0xFF000000) !=

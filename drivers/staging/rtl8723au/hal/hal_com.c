@@ -818,24 +818,6 @@ void rtl8723a_set_rxdma_agg_pg_th(struct rtw_adapter *padapter, u8 val)
 	rtl8723au_write8(padapter, REG_RXDMA_AGG_PG_TH, val);
 }
 
-void rtl8723a_set_nav_upper(struct rtw_adapter *padapter, u32 usNavUpper)
-{
-	if (usNavUpper > HAL_8723A_NAV_UPPER_UNIT * 0xFF) {
-		RT_TRACE(_module_hal_init_c_, _drv_notice_,
-			 ("The setting value (0x%08X us) of NAV_UPPER "
-			  "is larger than (%d * 0xFF)!!!\n",
-			  usNavUpper, HAL_8723A_NAV_UPPER_UNIT));
-		return;
-	}
-
-	/*  The value of ((usNavUpper + HAL_8723A_NAV_UPPER_UNIT - 1) /
-	    HAL_8723A_NAV_UPPER_UNIT) */
-	/*  is getting the upper integer. */
-	usNavUpper = (usNavUpper + HAL_8723A_NAV_UPPER_UNIT - 1) /
-		HAL_8723A_NAV_UPPER_UNIT;
-	rtl8723au_write8(padapter, REG_NAV_UPPER, (u8) usNavUpper);
-}
-
 void rtl8723a_set_initial_gain(struct rtw_adapter *padapter, u32 rx_gain)
 {
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(padapter);
