@@ -57,7 +57,6 @@
 #define URB_ASYNC_UNLINK    0
 #endif
 
-static void vnt_start_interrupt_urb_complete(struct urb *urb);
 static void vnt_submit_rx_urb_complete(struct urb *urb);
 static void vnt_tx_context_complete(struct urb *urb);
 
@@ -117,33 +116,6 @@ void vnt_control_in_u8(struct vnt_private *priv, u8 reg, u8 reg_off, u8 *data)
 			reg_off, reg, sizeof(u8), data);
 }
 
-int vnt_start_interrupt_urb(struct vnt_private *priv)
-{
-	int status = STATUS_FAILURE;
-
-	if (priv->int_buf.in_use == true)
-		return STATUS_FAILURE;
-
-	priv->int_buf.in_use = true;
-
-	usb_fill_int_urb(priv->interrupt_urb,
-		priv->usb,
-		usb_rcvintpipe(priv->usb, 1),
-		priv->int_buf.data_buf,
-		MAX_INTERRUPT_SIZE,
-		vnt_start_interrupt_urb_complete,
-		priv,
-		priv->int_interval);
-
-	status = usb_submit_urb(priv->interrupt_urb, GFP_ATOMIC);
-	if (status) {
-		dev_dbg(&priv->usb->dev, "Submit int URB failed %d\n", status);
-		priv->int_buf.in_use = false;
-	}
-
-	return status;
-}
-
 static void vnt_start_interrupt_urb_complete(struct urb *urb)
 {
 	struct vnt_private *priv = urb->context;
@@ -180,6 +152,33 @@ static void vnt_start_interrupt_urb_complete(struct urb *urb)
 	}
 
 	return;
+}
+
+int vnt_start_interrupt_urb(struct vnt_private *priv)
+{
+	int status = STATUS_FAILURE;
+
+	if (priv->int_buf.in_use == true)
+		return STATUS_FAILURE;
+
+	priv->int_buf.in_use = true;
+
+	usb_fill_int_urb(priv->interrupt_urb,
+			 priv->usb,
+			 usb_rcvintpipe(priv->usb, 1),
+			 priv->int_buf.data_buf,
+			 MAX_INTERRUPT_SIZE,
+			 vnt_start_interrupt_urb_complete,
+			 priv,
+			 priv->int_interval);
+
+	status = usb_submit_urb(priv->interrupt_urb, GFP_ATOMIC);
+	if (status) {
+		dev_dbg(&priv->usb->dev, "Submit int URB failed %d\n", status);
+		priv->int_buf.in_use = false;
+	}
+
+	return status;
 }
 
 int vnt_submit_rx_urb(struct vnt_private *priv, struct vnt_rcb *rcb)
