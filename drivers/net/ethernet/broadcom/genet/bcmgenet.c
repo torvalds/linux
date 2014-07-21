@@ -730,6 +730,8 @@ static struct ethtool_ops bcmgenet_ethtool_ops = {
 	.get_link		= ethtool_op_get_link,
 	.get_msglevel		= bcmgenet_get_msglevel,
 	.set_msglevel		= bcmgenet_set_msglevel,
+	.get_wol		= bcmgenet_get_wol,
+	.set_wol		= bcmgenet_set_wol,
 };
 
 /* Power down the unimac, based on mode. */
@@ -741,6 +743,10 @@ static void bcmgenet_power_down(struct bcmgenet_priv *priv,
 	switch (mode) {
 	case GENET_POWER_CABLE_SENSE:
 		phy_detach(priv->phydev);
+		break;
+
+	case GENET_POWER_WOL_MAGIC:
+		bcmgenet_wol_power_down_cfg(priv, mode);
 		break;
 
 	case GENET_POWER_PASSIVE:
@@ -777,6 +783,9 @@ static void bcmgenet_power_up(struct bcmgenet_priv *priv,
 		/* enable APD */
 		reg |= EXT_PWR_DN_EN_LD;
 		break;
+	case GENET_POWER_WOL_MAGIC:
+		bcmgenet_wol_power_up_cfg(priv, mode);
+		return;
 	default:
 		break;
 	}
@@ -1437,6 +1446,25 @@ static void bcmgenet_free_rx_buffers(struct bcmgenet_priv *priv)
 	}
 }
 
+static void umac_enable_set(struct bcmgenet_priv *priv, u32 mask,
+				bool enable)
+{
+	u32 reg;
+
+	reg = bcmgenet_umac_readl(priv, UMAC_CMD);
+	if (enable)
+		reg |= mask;
+	else
+		reg &= ~mask;
+	bcmgenet_umac_writel(priv, reg, UMAC_CMD);
+
+	/* UniMAC stops on a packet boundary, wait for a full-size packet
+	 * to be processed
+	 */
+	if (enable == 0)
+		usleep_range(1000, 2000);
+}
+
 static int reset_umac(struct bcmgenet_priv *priv)
 {
 	struct device *kdev = &priv->pdev->dev;
@@ -1469,6 +1497,17 @@ static int reset_umac(struct bcmgenet_priv *priv)
 	return 0;
 }
 
+static void bcmgenet_intr_disable(struct bcmgenet_priv *priv)
+{
+	/* Mask all interrupts.*/
+	bcmgenet_intrl2_0_writel(priv, 0xFFFFFFFF, INTRL2_CPU_MASK_SET);
+	bcmgenet_intrl2_0_writel(priv, 0xFFFFFFFF, INTRL2_CPU_CLEAR);
+	bcmgenet_intrl2_0_writel(priv, 0, INTRL2_CPU_MASK_CLEAR);
+	bcmgenet_intrl2_1_writel(priv, 0xFFFFFFFF, INTRL2_CPU_MASK_SET);
+	bcmgenet_intrl2_1_writel(priv, 0xFFFFFFFF, INTRL2_CPU_CLEAR);
+	bcmgenet_intrl2_1_writel(priv, 0, INTRL2_CPU_MASK_CLEAR);
+}
+
 static int init_umac(struct bcmgenet_priv *priv)
 {
 	struct device *kdev = &priv->pdev->dev;
@@ -1497,10 +1536,7 @@ static int init_umac(struct bcmgenet_priv *priv)
 	if (!GENET_IS_V1(priv) && !GENET_IS_V2(priv))
 		bcmgenet_rbuf_writel(priv, 1, RBUF_TBUF_SIZE_CTRL);
 
-	/* Mask all interrupts.*/
-	bcmgenet_intrl2_0_writel(priv, 0xFFFFFFFF, INTRL2_CPU_MASK_SET);
-	bcmgenet_intrl2_0_writel(priv, 0xFFFFFFFF, INTRL2_CPU_CLEAR);
-	bcmgenet_intrl2_0_writel(priv, 0, INTRL2_CPU_MASK_CLEAR);
+	bcmgenet_intr_disable(priv);
 
 	cpu_mask_clear = UMAC_IRQ_RXDMA_BDONE;
 
@@ -1802,6 +1838,13 @@ static void bcmgenet_irq_task(struct work_struct *work)
 
 	netif_dbg(priv, intr, priv->dev, "%s\n", __func__);
 
+	if (priv->irq0_stat & UMAC_IRQ_MPD_R) {
+		priv->irq0_stat &= ~UMAC_IRQ_MPD_R;
+		netif_dbg(priv, wol, priv->dev,
+			  "magic packet detected, waking up\n");
+		bcmgenet_power_up(priv, GENET_POWER_WOL_MAGIC);
+	}
+
 	/* Link UP/DOWN event */
 	if ((priv->hw_params->flags & GENET_HAS_MDIO_INTR) &&
 		(priv->irq0_stat & (UMAC_IRQ_LINK_UP|UMAC_IRQ_LINK_DOWN))) {
@@ -1891,6 +1934,15 @@ static irqreturn_t bcmgenet_isr0(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static irqreturn_t bcmgenet_wol_isr(int irq, void *dev_id)
+{
+	struct bcmgenet_priv *priv = dev_id;
+
+	pm_wakeup_event(&priv->pdev->dev, 0);
+
+	return IRQ_HANDLED;
+}
+
 static void bcmgenet_umac_reset(struct bcmgenet_priv *priv)
 {
 	u32 reg;
@@ -1915,14 +1967,8 @@ static void bcmgenet_set_hw_addr(struct bcmgenet_priv *priv,
 
 static int bcmgenet_wol_resume(struct bcmgenet_priv *priv)
 {
-	int ret;
-
 	/* From WOL-enabled suspend, switch to regular clock */
-	clk_disable(priv->clk_wol);
-	/* init umac registers to synchronize s/w with h/w */
-	ret = init_umac(priv);
-	if (ret)
-		return ret;
+	clk_disable_unprepare(priv->clk_wol);
 
 	phy_init_hw(priv->phydev);
 	/* Speed settings must be restored */
@@ -1967,6 +2013,23 @@ static void bcmgenet_enable_dma(struct bcmgenet_priv *priv, u32 dma_ctrl)
 	bcmgenet_tdma_writel(priv, reg, DMA_CTRL);
 }
 
+static void bcmgenet_netif_start(struct net_device *dev)
+{
+	struct bcmgenet_priv *priv = netdev_priv(dev);
+
+	/* Start the network engine */
+	napi_enable(&priv->napi);
+
+	umac_enable_set(priv, CMD_TX_EN | CMD_RX_EN, true);
+
+	if (phy_is_internal(priv->phydev))
+		bcmgenet_power_up(priv, GENET_POWER_PASSIVE);
+
+	netif_tx_start_all_queues(dev);
+
+	phy_start(priv->phydev);
+}
+
 static int bcmgenet_open(struct net_device *dev)
 {
 	struct bcmgenet_priv *priv = netdev_priv(dev);
@@ -1988,17 +2051,13 @@ static int bcmgenet_open(struct net_device *dev)
 		goto err_clk_disable;
 
 	/* disable ethernet MAC while updating its registers */
+	umac_enable_set(priv, CMD_TX_EN | CMD_RX_EN, false);
+
+	/* Make sure we reflect the value of CRC_CMD_FWD */
 	reg = bcmgenet_umac_readl(priv, UMAC_CMD);
-	reg &= ~(CMD_TX_EN | CMD_RX_EN);
-	bcmgenet_umac_writel(priv, reg, UMAC_CMD);
+	priv->crc_fwd_en = !!(reg & CMD_CRC_FWD);
 
 	bcmgenet_set_hw_addr(priv, dev->dev_addr);
-
-	if (priv->wol_enabled) {
-		ret = bcmgenet_wol_resume(priv);
-		if (ret)
-			return ret;
-	}
 
 	if (phy_is_internal(priv->phydev)) {
 		reg = bcmgenet_ext_readl(priv, EXT_EXT_PWR_MGMT);
@@ -2033,24 +2092,7 @@ static int bcmgenet_open(struct net_device *dev)
 		goto err_irq0;
 	}
 
-	/* Start the network engine */
-	napi_enable(&priv->napi);
-
-	reg = bcmgenet_umac_readl(priv, UMAC_CMD);
-	reg |= (CMD_TX_EN | CMD_RX_EN);
-	bcmgenet_umac_writel(priv, reg, UMAC_CMD);
-
-	/* Make sure we reflect the value of CRC_CMD_FWD */
-	priv->crc_fwd_en = !!(reg & CMD_CRC_FWD);
-
-	device_set_wakeup_capable(&dev->dev, 1);
-
-	if (phy_is_internal(priv->phydev))
-		bcmgenet_power_up(priv, GENET_POWER_PASSIVE);
-
-	netif_tx_start_all_queues(dev);
-
-	phy_start(priv->phydev);
+	bcmgenet_netif_start(dev);
 
 	return 0;
 
@@ -2117,33 +2159,40 @@ static int bcmgenet_dma_teardown(struct bcmgenet_priv *priv)
 	return ret;
 }
 
+static void bcmgenet_netif_stop(struct net_device *dev)
+{
+	struct bcmgenet_priv *priv = netdev_priv(dev);
+
+	netif_tx_stop_all_queues(dev);
+	napi_disable(&priv->napi);
+	phy_stop(priv->phydev);
+
+	bcmgenet_intr_disable(priv);
+
+	/* Wait for pending work items to complete. Since interrupts are
+	 * disabled no new work will be scheduled.
+	 */
+	cancel_work_sync(&priv->bcmgenet_irq_work);
+}
+
 static int bcmgenet_close(struct net_device *dev)
 {
 	struct bcmgenet_priv *priv = netdev_priv(dev);
 	int ret;
-	u32 reg;
 
 	netif_dbg(priv, ifdown, dev, "bcmgenet_close\n");
 
-	phy_stop(priv->phydev);
+	bcmgenet_netif_stop(dev);
 
 	/* Disable MAC receive */
-	reg = bcmgenet_umac_readl(priv, UMAC_CMD);
-	reg &= ~CMD_RX_EN;
-	bcmgenet_umac_writel(priv, reg, UMAC_CMD);
-
-	netif_tx_stop_all_queues(dev);
+	umac_enable_set(priv, CMD_RX_EN, false);
 
 	ret = bcmgenet_dma_teardown(priv);
 	if (ret)
 		return ret;
 
 	/* Disable MAC transmit. TX DMA disabled have to done before this */
-	reg = bcmgenet_umac_readl(priv, UMAC_CMD);
-	reg &= ~CMD_TX_EN;
-	bcmgenet_umac_writel(priv, reg, UMAC_CMD);
-
-	napi_disable(&priv->napi);
+	umac_enable_set(priv, CMD_TX_EN, false);
 
 	/* tx reclaim */
 	bcmgenet_tx_reclaim_all(dev);
@@ -2152,17 +2201,8 @@ static int bcmgenet_close(struct net_device *dev)
 	free_irq(priv->irq0, priv);
 	free_irq(priv->irq1, priv);
 
-	/* Wait for pending work items to complete - we are stopping
-	 * the clock now. Since interrupts are disabled, no new work
-	 * will be scheduled.
-	 */
-	cancel_work_sync(&priv->bcmgenet_irq_work);
-
 	if (phy_is_internal(priv->phydev))
 		bcmgenet_power_down(priv, GENET_POWER_PASSIVE);
-
-	if (priv->wol_enabled)
-		clk_enable(priv->clk_wol);
 
 	if (!IS_ERR(priv->clk))
 		clk_disable_unprepare(priv->clk);
@@ -2450,6 +2490,7 @@ static int bcmgenet_probe(struct platform_device *pdev)
 	priv = netdev_priv(dev);
 	priv->irq0 = platform_get_irq(pdev, 0);
 	priv->irq1 = platform_get_irq(pdev, 1);
+	priv->wol_irq = platform_get_irq(pdev, 2);
 	if (!priv->irq0 || !priv->irq1) {
 		dev_err(&pdev->dev, "can't find IRQs\n");
 		err = -EINVAL;
@@ -2483,6 +2524,13 @@ static int bcmgenet_probe(struct platform_device *pdev)
 	/* Set hardware features */
 	dev->hw_features |= NETIF_F_SG | NETIF_F_IP_CSUM |
 		NETIF_F_IPV6_CSUM | NETIF_F_RXCSUM;
+
+	/* Request the WOL interrupt and advertise suspend if available */
+	priv->wol_irq_disabled = true;
+	err = devm_request_irq(&pdev->dev, priv->wol_irq, bcmgenet_wol_isr, 0,
+			       dev->name, priv);
+	if (!err)
+		device_set_wakeup_capable(&pdev->dev, 1);
 
 	/* Set the needed headroom to account for any possible
 	 * features enabling/disabling at runtime
@@ -2561,6 +2609,111 @@ static int bcmgenet_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int bcmgenet_suspend(struct device *d)
+{
+	struct net_device *dev = dev_get_drvdata(d);
+	struct bcmgenet_priv *priv = netdev_priv(dev);
+	int ret;
+
+	if (!netif_running(dev))
+		return 0;
+
+	bcmgenet_netif_stop(dev);
+
+	netif_device_detach(dev);
+
+	/* Disable MAC receive */
+	umac_enable_set(priv, CMD_RX_EN, false);
+
+	ret = bcmgenet_dma_teardown(priv);
+	if (ret)
+		return ret;
+
+	/* Disable MAC transmit. TX DMA disabled have to done before this */
+	umac_enable_set(priv, CMD_TX_EN, false);
+
+	/* tx reclaim */
+	bcmgenet_tx_reclaim_all(dev);
+	bcmgenet_fini_dma(priv);
+
+	/* Prepare the device for Wake-on-LAN and switch to the slow clock */
+	if (device_may_wakeup(d) && priv->wolopts) {
+		bcmgenet_power_down(priv, GENET_POWER_WOL_MAGIC);
+		clk_prepare_enable(priv->clk_wol);
+	}
+
+	/* Turn off the clocks */
+	clk_disable_unprepare(priv->clk);
+
+	return 0;
+}
+
+static int bcmgenet_resume(struct device *d)
+{
+	struct net_device *dev = dev_get_drvdata(d);
+	struct bcmgenet_priv *priv = netdev_priv(dev);
+	unsigned long dma_ctrl;
+	int ret;
+	u32 reg;
+
+	if (!netif_running(dev))
+		return 0;
+
+	/* Turn on the clock */
+	ret = clk_prepare_enable(priv->clk);
+	if (ret)
+		return ret;
+
+	bcmgenet_umac_reset(priv);
+
+	ret = init_umac(priv);
+	if (ret)
+		goto out_clk_disable;
+
+	if (priv->wolopts)
+		ret = bcmgenet_wol_resume(priv);
+
+	if (ret)
+		goto out_clk_disable;
+
+	/* disable ethernet MAC while updating its registers */
+	umac_enable_set(priv, CMD_TX_EN | CMD_RX_EN, false);
+
+	bcmgenet_set_hw_addr(priv, dev->dev_addr);
+
+	if (phy_is_internal(priv->phydev)) {
+		reg = bcmgenet_ext_readl(priv, EXT_EXT_PWR_MGMT);
+		reg |= EXT_ENERGY_DET_MASK;
+		bcmgenet_ext_writel(priv, reg, EXT_EXT_PWR_MGMT);
+	}
+
+	/* Disable RX/TX DMA and flush TX queues */
+	dma_ctrl = bcmgenet_dma_disable(priv);
+
+	/* Reinitialize TDMA and RDMA and SW housekeeping */
+	ret = bcmgenet_init_dma(priv);
+	if (ret) {
+		netdev_err(dev, "failed to initialize DMA\n");
+		goto out_clk_disable;
+	}
+
+	/* Always enable ring 16 - descriptor ring */
+	bcmgenet_enable_dma(priv, dma_ctrl);
+
+	netif_device_attach(dev);
+
+	bcmgenet_netif_start(dev);
+
+	return 0;
+
+out_clk_disable:
+	clk_disable_unprepare(priv->clk);
+	return ret;
+}
+#endif /* CONFIG_PM_SLEEP */
+
+static SIMPLE_DEV_PM_OPS(bcmgenet_pm_ops, bcmgenet_suspend, bcmgenet_resume);
 
 static struct platform_driver bcmgenet_driver = {
 	.probe	= bcmgenet_probe,
@@ -2569,6 +2722,7 @@ static struct platform_driver bcmgenet_driver = {
 		.name	= "bcmgenet",
 		.owner	= THIS_MODULE,
 		.of_match_table = bcmgenet_match,
+		.pm	= &bcmgenet_pm_ops,
 	},
 };
 module_platform_driver(bcmgenet_driver);
