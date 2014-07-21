@@ -2222,6 +2222,77 @@ int regulator_list_voltage(struct regulator *regulator, unsigned selector)
 EXPORT_SYMBOL_GPL(regulator_list_voltage);
 
 /**
+ * regulator_get_regmap - get the regulator's register map
+ * @regulator: regulator source
+ *
+ * Returns the register map for the given regulator, or an ERR_PTR value
+ * if the regulator doesn't use regmap.
+ */
+struct regmap *regulator_get_regmap(struct regulator *regulator)
+{
+	struct regmap *map = regulator->rdev->regmap;
+
+	return map ? map : ERR_PTR(-EOPNOTSUPP);
+}
+
+/**
+ * regulator_get_hardware_vsel_register - get the HW voltage selector register
+ * @regulator: regulator source
+ * @vsel_reg: voltage selector register, output parameter
+ * @vsel_mask: mask for voltage selector bitfield, output parameter
+ *
+ * Returns the hardware register offset and bitmask used for setting the
+ * regulator voltage. This might be useful when configuring voltage-scaling
+ * hardware or firmware that can make I2C requests behind the kernel's back,
+ * for example.
+ *
+ * On success, the output parameters @vsel_reg and @vsel_mask are filled in
+ * and 0 is returned, otherwise a negative errno is returned.
+ */
+int regulator_get_hardware_vsel_register(struct regulator *regulator,
+					 unsigned *vsel_reg,
+					 unsigned *vsel_mask)
+{
+	struct regulator_dev	*rdev = regulator->rdev;
+	struct regulator_ops	*ops = rdev->desc->ops;
+
+	if (ops->set_voltage_sel != regulator_set_voltage_sel_regmap)
+		return -EOPNOTSUPP;
+
+	 *vsel_reg = rdev->desc->vsel_reg;
+	 *vsel_mask = rdev->desc->vsel_mask;
+
+	 return 0;
+}
+EXPORT_SYMBOL_GPL(regulator_get_hardware_vsel_register);
+
+/**
+ * regulator_list_hardware_vsel - get the HW-specific register value for a selector
+ * @regulator: regulator source
+ * @selector: identify voltage to list
+ *
+ * Converts the selector to a hardware-specific voltage selector that can be
+ * directly written to the regulator registers. The address of the voltage
+ * register can be determined by calling @regulator_get_hardware_vsel_register.
+ *
+ * On error a negative errno is returned.
+ */
+int regulator_list_hardware_vsel(struct regulator *regulator,
+				 unsigned selector)
+{
+	struct regulator_dev	*rdev = regulator->rdev;
+	struct regulator_ops	*ops = rdev->desc->ops;
+
+	if (selector >= rdev->desc->n_voltages)
+		return -EINVAL;
+	if (ops->set_voltage_sel != regulator_set_voltage_sel_regmap)
+		return -EOPNOTSUPP;
+
+	return selector;
+}
+EXPORT_SYMBOL_GPL(regulator_list_hardware_vsel);
+
+/**
  * regulator_get_linear_step - return the voltage step size between VSEL values
  * @regulator: regulator source
  *
