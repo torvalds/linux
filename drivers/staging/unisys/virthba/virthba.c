@@ -112,6 +112,8 @@ static void doDiskAddRemove(struct work_struct *work);
 static void virthba_serverdown_complete(struct work_struct *work);
 static ssize_t info_debugfs_read(struct file *file, char __user *buf,
 			size_t len, loff_t *offset);
+static ssize_t enable_ints_write(struct file *file,
+			const char __user *buffer, size_t count, loff_t *ppos);
 
 /*****************************************************/
 /* Globals                                           */
@@ -231,6 +233,10 @@ struct virthba_devices_open {
 
 static const struct file_operations debugfs_info_fops = {
 	.read = info_debugfs_read,
+};
+
+static const struct file_operations debugfs_enable_ints_fops = {
+	.write = enable_ints_write,
 };
 
 /*****************************************************/
@@ -1415,6 +1421,60 @@ static ssize_t info_debugfs_read(struct file *file,
 	return bytes_read;
 }
 
+static ssize_t enable_ints_write(struct file *file,
+			const char __user *buffer, size_t count, loff_t *ppos)
+{
+	char buf[4];
+	int i, new_value;
+	struct virthba_info *virthbainfo;
+
+	U64 __iomem *Features_addr;
+	U64 mask;
+
+	if (count >= ARRAY_SIZE(buf))
+		return -EINVAL;
+
+	buf[count] = '\0';
+	if (copy_from_user(buf, buffer, count)) {
+		LOGERR("copy_from_user failed. buf<<%.*s>> count<<%lu>>\n",
+		       (int) count, buf, count);
+		return -EFAULT;
+	}
+
+	i = kstrtoint(buf, 10 , &new_value);
+
+	if (i != 0) {
+		LOGERR("Failed to scan value for enable_ints, buf<<%.*s>>",
+		       (int) count, buf);
+		return -EFAULT;
+	}
+
+	/*set all counts to new_value usually 0*/
+	for (i = 0; i < VIRTHBASOPENMAX; i++) {
+		if (VirtHbasOpen[i].virthbainfo != NULL) {
+			virthbainfo = VirtHbasOpen[i].virthbainfo;
+			Features_addr =
+				&virthbainfo->chinfo.queueinfo->chan->Features;
+			if (new_value == 1) {
+				mask = ~(ULTRA_IO_CHANNEL_IS_POLLING |
+					 ULTRA_IO_DRIVER_DISABLES_INTS);
+				uisqueue_InterlockedAnd(Features_addr, mask);
+				mask = ULTRA_IO_DRIVER_ENABLES_INTS;
+				uisqueue_InterlockedOr(Features_addr, mask);
+				rsltq_wait_usecs = 4000000;
+			} else {
+				mask = ~(ULTRA_IO_DRIVER_ENABLES_INTS |
+					 ULTRA_IO_DRIVER_DISABLES_INTS);
+				uisqueue_InterlockedAnd(Features_addr, mask);
+				mask = ULTRA_IO_CHANNEL_IS_POLLING;
+				uisqueue_InterlockedOr(Features_addr, mask);
+				rsltq_wait_usecs = 4000;
+			}
+		}
+	}
+	return count;
+}
+
 /* As per VirtpciFunc returns 1 for success and 0 for failure */
 static int
 virthba_serverup(struct virtpci_dev *virtpcidev)
@@ -1605,6 +1665,9 @@ virthba_mod_init(void)
 				NULL, &debugfs_info_fops);
 		debugfs_create_u32("rqwait_usecs", S_IRUSR | S_IWUSR,
 				virthba_debugfs_dir, &rsltq_wait_usecs);
+		debugfs_create_file("enable_ints", S_IWUSR,
+				virthba_debugfs_dir, NULL,
+				&debugfs_enable_ints_fops);
 		/* Initialize DARWorkQ */
 		INIT_WORK(&DARWorkQ, doDiskAddRemove);
 		spin_lock_init(&DARWorkQLock);
