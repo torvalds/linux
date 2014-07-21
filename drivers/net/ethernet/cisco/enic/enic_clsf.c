@@ -103,6 +103,24 @@ void enic_rfs_flw_tbl_free(struct enic *enic)
 	spin_unlock(&enic->rfs_h.lock);
 }
 
+struct enic_rfs_fltr_node *htbl_fltr_search(struct enic *enic, u16 fltr_id)
+{
+	int i;
+
+	for (i = 0; i < (1 << ENIC_RFS_FLW_BITSHIFT); i++) {
+		struct hlist_head *hhead;
+		struct hlist_node *tmp;
+		struct enic_rfs_fltr_node *n;
+
+		hhead = &enic->rfs_h.ht_head[i];
+		hlist_for_each_entry_safe(n, tmp, hhead, node)
+			if (n->fltr_id == fltr_id)
+				return n;
+	}
+
+	return NULL;
+}
+
 #ifdef CONFIG_RFS_ACCEL
 void enic_flow_may_expire(unsigned long data)
 {

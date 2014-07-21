@@ -22,6 +22,7 @@
 #include "enic_res.h"
 #include "enic.h"
 #include "enic_dev.h"
+#include "enic_clsf.h"
 
 struct enic_stat {
 	char name[ETH_GSTRING_LEN];
@@ -282,6 +283,102 @@ static int enic_set_coalesce(struct net_device *netdev,
 	return 0;
 }
 
+static int enic_grxclsrlall(struct enic *enic, struct ethtool_rxnfc *cmd,
+			    u32 *rule_locs)
+{
+	int j, ret = 0, cnt = 0;
+
+	cmd->data = enic->rfs_h.max - enic->rfs_h.free;
+	for (j = 0; j < (1 << ENIC_RFS_FLW_BITSHIFT); j++) {
+		struct hlist_head *hhead;
+		struct hlist_node *tmp;
+		struct enic_rfs_fltr_node *n;
+
+		hhead = &enic->rfs_h.ht_head[j];
+		hlist_for_each_entry_safe(n, tmp, hhead, node) {
+			if (cnt == cmd->rule_cnt)
+				return -EMSGSIZE;
+			rule_locs[cnt] = n->fltr_id;
+			cnt++;
+		}
+	}
+	cmd->rule_cnt = cnt;
+
+	return ret;
+}
+
+static int enic_grxclsrule(struct enic *enic, struct ethtool_rxnfc *cmd)
+{
+	struct ethtool_rx_flow_spec *fsp =
+				(struct ethtool_rx_flow_spec *)&cmd->fs;
+	struct enic_rfs_fltr_node *n;
+
+	n = htbl_fltr_search(enic, (u16)fsp->location);
+	if (!n)
+		return -EINVAL;
+	switch (n->keys.ip_proto) {
+	case IPPROTO_TCP:
+		fsp->flow_type = TCP_V4_FLOW;
+		break;
+	case IPPROTO_UDP:
+		fsp->flow_type = UDP_V4_FLOW;
+		break;
+	default:
+		return -EINVAL;
+		break;
+	}
+
+	fsp->h_u.tcp_ip4_spec.ip4src = n->keys.src;
+	fsp->m_u.tcp_ip4_spec.ip4src = (__u32)~0;
+
+	fsp->h_u.tcp_ip4_spec.ip4dst = n->keys.dst;
+	fsp->m_u.tcp_ip4_spec.ip4dst = (__u32)~0;
+
+	fsp->h_u.tcp_ip4_spec.psrc = n->keys.port16[0];
+	fsp->m_u.tcp_ip4_spec.psrc = (__u16)~0;
+
+	fsp->h_u.tcp_ip4_spec.pdst = n->keys.port16[1];
+	fsp->m_u.tcp_ip4_spec.pdst = (__u16)~0;
+
+	fsp->ring_cookie = n->rq_id;
+
+	return 0;
+}
+
+static int enic_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
+			  u32 *rule_locs)
+{
+	struct enic *enic = netdev_priv(dev);
+	int ret = 0;
+
+	switch (cmd->cmd) {
+	case ETHTOOL_GRXRINGS:
+		cmd->data = enic->rq_count;
+		break;
+	case ETHTOOL_GRXCLSRLCNT:
+		spin_lock_bh(&enic->rfs_h.lock);
+		cmd->rule_cnt = enic->rfs_h.max - enic->rfs_h.free;
+		cmd->data = enic->rfs_h.max;
+		spin_unlock_bh(&enic->rfs_h.lock);
+		break;
+	case ETHTOOL_GRXCLSRLALL:
+		spin_lock_bh(&enic->rfs_h.lock);
+		ret = enic_grxclsrlall(enic, cmd, rule_locs);
+		spin_unlock_bh(&enic->rfs_h.lock);
+		break;
+	case ETHTOOL_GRXCLSRULE:
+		spin_lock_bh(&enic->rfs_h.lock);
+		ret = enic_grxclsrule(enic, cmd);
+		spin_unlock_bh(&enic->rfs_h.lock);
+		break;
+	default:
+		ret = -EOPNOTSUPP;
+		break;
+	}
+
+	return ret;
+}
+
 static const struct ethtool_ops enic_ethtool_ops = {
 	.get_settings = enic_get_settings,
 	.get_drvinfo = enic_get_drvinfo,
@@ -293,6 +390,7 @@ static const struct ethtool_ops enic_ethtool_ops = {
 	.get_ethtool_stats = enic_get_ethtool_stats,
 	.get_coalesce = enic_get_coalesce,
 	.set_coalesce = enic_set_coalesce,
+	.get_rxnfc = enic_get_rxnfc,
 };
 
 void enic_set_ethtool_ops(struct net_device *netdev)
