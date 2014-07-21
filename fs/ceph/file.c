@@ -423,6 +423,9 @@ static ssize_t ceph_sync_read(struct kiocb *iocb, struct iov_iter *i,
 	dout("sync_read on file %p %llu~%u %s\n", file, off,
 	     (unsigned)len,
 	     (file->f_flags & O_DIRECT) ? "O_DIRECT" : "");
+
+	if (!len)
+		return 0;
 	/*
 	 * flush any page cache pages in this range.  this
 	 * will make concurrent normal and sync io slow,
