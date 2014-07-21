@@ -151,7 +151,8 @@ void rtl8723a_add_rateatid(struct rtw_adapter *pAdapter, u32 bitmap, u8 arg, u8 
 
 	bitmap &= 0x0fffffff;
 	if (rssi_level != DM_RATR_STA_INIT)
-		bitmap = ODM_Get_Rate_Bitmap23a(&pHalData->odmpriv, macid, bitmap, rssi_level);
+		bitmap = ODM_Get_Rate_Bitmap23a(pHalData, macid, bitmap,
+						rssi_level);
 
 	bitmap |= ((raid<<28)&0xf0000000);
 

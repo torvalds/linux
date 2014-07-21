@@ -319,7 +319,6 @@ enum odm_cmninfo {
 	/*  */
 	/*  Dynamic value: */
 	/*  */
-	ODM_CMNINFO_BW,				/*  enum odm_band_width */
 	ODM_CMNINFO_CHNL,
 
 	ODM_CMNINFO_SCAN,
@@ -493,15 +492,6 @@ enum odm_sec_chnl_offset {
 	ODM_DONT_CARE		= 0,
 	ODM_BELOW		= 1,
 	ODM_ABOVE		= 2
-};
-
-/*  ODM_CMNINFO_BW */
-enum odm_band_width {
-	ODM_BW20M		= 0,
-	ODM_BW40M		= 1,
-	ODM_BW80M		= 2,
-	ODM_BW160M		= 3,
-	ODM_BW10M		= 4,
 };
 
 /*  ODM_CMNINFO_CHNL */
@@ -696,8 +686,6 @@ struct dm_odm_t {
 	bool			bool_temp;
 	struct rtw_adapter	*PADAPTER_temp;
 
-	/*  BW info 20M/40M/80M = 0/1/2 */
-	u8			*pBandWidth;
 	/*  Central channel location Ch1/Ch2/.... */
 	u8			*pChannel;	/* central channel number */
 	/*  Common info for Status */
@@ -962,6 +950,8 @@ extern	u8 CCKSwingTable_Ch1423A [CCK_TABLE_SIZE][8];
 #define SWAW_STEP_PEAK		0
 #define SWAW_STEP_DETERMINE	1
 
+struct hal_data_8723a;
+
 void ODM_Write_DIG23a(struct dm_odm_t *pDM_Odm,	u8	CurrentIGI);
 void ODM_Write_CCK_CCA_Thres23a(struct dm_odm_t *pDM_Odm, u8	CurCCK_CCAThres);
 
@@ -991,12 +981,11 @@ u32 GetPSDData(struct dm_odm_t *pDM_Odm, unsigned int point, u8 initial_gain_psd
 
 void odm_DIG23abyRSSI_LPS(struct dm_odm_t *pDM_Odm);
 
-u32 ODM_Get_Rate_Bitmap23a(struct dm_odm_t *pDM_Odm, u32 macid, u32 ra_mask, u8 rssi_level);
+u32 ODM_Get_Rate_Bitmap23a(struct hal_data_8723a *pHalData, u32 macid, u32 ra_mask, u8 rssi_level);
 
 
 void ODM23a_DMInit(struct dm_odm_t *pDM_Odm);
 
-struct hal_data_8723a;
 void ODM_DMWatchdog23a(struct hal_data_8723a *pHalData);
 
 void ODM_CmnInfoInit23a(struct dm_odm_t *pDM_Odm, enum odm_cmninfo	CmnInfo, u32 Value);

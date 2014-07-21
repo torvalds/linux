@@ -417,9 +417,6 @@ void ODM23a_CmnInfoHook(struct dm_odm_t *pDM_Odm,
 	/*  Hook call by reference pointer. */
 	switch	(CmnInfo) {
 	/*  Dynamic call by reference pointer. */
-	case	ODM_CMNINFO_BW:
-		pDM_Odm->pBandWidth = (u8 *)pValue;
-		break;
 	case	ODM_CMNINFO_CHNL:
 		pDM_Odm->pChannel = (u8 *)pValue;
 		break;
@@ -506,7 +503,7 @@ static void odm_CommonInfoSelfUpdate(struct hal_data_8723a *pHalData)
 	u8 EntryCnt = 0;
 	u8 i;
 
-	if (*(pDM_Odm->pBandWidth) == ODM_BW40M) {
+	if (pHalData->CurrentChannelBW == HT_CHANNEL_WIDTH_40) {
 		if (pHalData->nCur40MhzPrimeSC == 1)
 			pDM_Odm->ControlChannel = *(pDM_Odm->pChannel) - 2;
 		else if (pHalData->nCur40MhzPrimeSC == 2)
@@ -549,7 +546,6 @@ void odm_CmnInfoInit_Debug23a(struct dm_odm_t *pDM_Odm)
 void odm_CmnInfoHook_Debug23a(struct dm_odm_t *pDM_Odm)
 {
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("odm_CmnInfoHook_Debug23a ==>\n"));
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("pBandWidth =%d\n", *(pDM_Odm->pBandWidth)));
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("pChannel =%d\n", *(pDM_Odm->pChannel)));
 
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("pbScanInProcess =%d\n", *(pDM_Odm->pbScanInProcess)));
@@ -1137,11 +1133,10 @@ void odm_RateAdaptiveMaskInit23a(struct dm_odm_t *pDM_Odm)
 	pOdmRA->LowRSSIThresh = 20;
 }
 
-u32 ODM_Get_Rate_Bitmap23a(struct dm_odm_t *pDM_Odm,
-	u32 macid,
-	u32 ra_mask,
-	u8 rssi_level)
+u32 ODM_Get_Rate_Bitmap23a(struct hal_data_8723a *pHalData, u32 macid,
+			   u32 ra_mask, u8 rssi_level)
 {
+	struct dm_odm_t *pDM_Odm = &pHalData->odmpriv;
 	struct sta_info *pEntry;
 	u32 rate_bitmap = 0x0fffffff;
 	u8 WirelessMode;
@@ -1181,7 +1176,8 @@ u32 ODM_Get_Rate_Bitmap23a(struct dm_odm_t *pDM_Odm,
 			} else if (rssi_level == DM_RATR_STA_MIDDLE) {
 				rate_bitmap = 0x000ff000;
 			} else {
-				if (*(pDM_Odm->pBandWidth) == ODM_BW40M)
+				if (pHalData->CurrentChannelBW ==
+				    HT_CHANNEL_WIDTH_40)
 					rate_bitmap = 0x000ff015;
 				else
 					rate_bitmap = 0x000ff005;
@@ -1192,7 +1188,8 @@ u32 ODM_Get_Rate_Bitmap23a(struct dm_odm_t *pDM_Odm,
 			} else if (rssi_level == DM_RATR_STA_MIDDLE) {
 				rate_bitmap = 0x0f8ff000;
 			} else {
-				if (*(pDM_Odm->pBandWidth) == ODM_BW40M)
+				if (pHalData->CurrentChannelBW ==
+				    HT_CHANNEL_WIDTH_40)
 					rate_bitmap = 0x0f8ff015;
 				else
 					rate_bitmap = 0x0f8ff005;
