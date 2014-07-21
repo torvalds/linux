@@ -211,6 +211,7 @@ rtl8723a_HalDmWatchDog(
 {
 	bool		bFwCurrentInPSMode = false;
 	bool		bFwPSAwake = true;
+	u8 bLinked = false;
 	u8 hw_init_completed = false;
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(Adapter);
 	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
@@ -223,7 +224,7 @@ rtl8723a_HalDmWatchDog(
 	bFwCurrentInPSMode = Adapter->pwrctrlpriv.bFwCurrentInPSMode;
 	bFwPSAwake = rtl8723a_get_fwlps_rf_on(Adapter);
 
-	if ((hw_init_completed) && ((!bFwCurrentInPSMode) && bFwPSAwake)) {
+	if (!bFwCurrentInPSMode && bFwPSAwake) {
 		/*  Calculate Tx/Rx statistics. */
 		dm_CheckStatistics(Adapter);
 
@@ -238,16 +239,11 @@ rtl8723a_HalDmWatchDog(
 	}
 
 	/* ODM */
-	if (hw_init_completed == true) {
-		u8	bLinked = false;
+	if (rtw_linked_check(Adapter))
+		bLinked = true;
 
-		if (rtw_linked_check(Adapter))
-			bLinked = true;
-
-		ODM_CmnInfoUpdate23a(&pHalData->odmpriv, ODM_CMNINFO_LINK,
-				     bLinked);
-		ODM_DMWatchdog23a(&pHalData->odmpriv);
-	}
+	ODM_CmnInfoUpdate23a(&pHalData->odmpriv, ODM_CMNINFO_LINK, bLinked);
+	ODM_DMWatchdog23a(&pHalData->odmpriv);
 
 skip_dm:
 
