@@ -319,7 +319,6 @@ enum odm_cmninfo {
 	/*  */
 	/*  Dynamic value: */
 	/*  */
-	ODM_CMNINFO_SEC_CHNL_OFFSET,		/*  enum odm_sec_chnl_offset */
 	ODM_CMNINFO_BW,				/*  enum odm_band_width */
 	ODM_CMNINFO_CHNL,
 
@@ -697,8 +696,6 @@ struct dm_odm_t {
 	bool			bool_temp;
 	struct rtw_adapter	*PADAPTER_temp;
 
-	/*  Secondary channel offset don't_care/below/above = 0/1/2 */
-	u8			*pSecChOffset;
 	/*  BW info 20M/40M/80M = 0/1/2 */
 	u8			*pBandWidth;
 	/*  Central channel location Ch1/Ch2/.... */

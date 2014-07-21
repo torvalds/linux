@@ -166,7 +166,7 @@ u8 CCKSwingTable_Ch1423A[CCK_TABLE_SIZE][8] = {
 /* START------------COMMON INFO RELATED--------------- */
 void odm_CommonInfoSelfInit23a(struct dm_odm_t *pDM_Odm);
 
-void odm_CommonInfoSelfUpdate23a(struct dm_odm_t *pDM_Odm);
+static void odm_CommonInfoSelfUpdate(struct hal_data_8723a *pHalData);
 
 void odm_CmnInfoInit_Debug23a(struct dm_odm_t *pDM_Odm);
 
@@ -294,7 +294,7 @@ void ODM_DMWatchdog23a(struct hal_data_8723a *pHalData)
 	/* 2012.05.03 Luke: For all IC series */
 	odm_CmnInfoHook_Debug23a(pDM_Odm);
 	odm_CmnInfoUpdate_Debug23a(pDM_Odm);
-	odm_CommonInfoSelfUpdate23a(pDM_Odm);
+	odm_CommonInfoSelfUpdate(pHalData);
 	odm_FalseAlarmCounterStatistics23a(pDM_Odm);
 	odm_RSSIMonitorCheck23a(pDM_Odm);
 
@@ -417,9 +417,6 @@ void ODM23a_CmnInfoHook(struct dm_odm_t *pDM_Odm,
 	/*  Hook call by reference pointer. */
 	switch	(CmnInfo) {
 	/*  Dynamic call by reference pointer. */
-	case	ODM_CMNINFO_SEC_CHNL_OFFSET:
-		pDM_Odm->pSecChOffset = (u8 *)pValue;
-		break;
 	case	ODM_CMNINFO_BW:
 		pDM_Odm->pBandWidth = (u8 *)pValue;
 		break;
@@ -502,16 +499,17 @@ void odm_CommonInfoSelfInit23a(struct dm_odm_t *pDM_Odm
 	ODM_InitDebugSetting23a(pDM_Odm);
 }
 
-void odm_CommonInfoSelfUpdate23a(struct dm_odm_t *pDM_Odm)
+static void odm_CommonInfoSelfUpdate(struct hal_data_8723a *pHalData)
 {
+	struct dm_odm_t *pDM_Odm = &pHalData->odmpriv;
+	struct sta_info *pEntry;
 	u8 EntryCnt = 0;
 	u8 i;
-	struct sta_info *pEntry;
 
 	if (*(pDM_Odm->pBandWidth) == ODM_BW40M) {
-		if (*(pDM_Odm->pSecChOffset) == 1)
+		if (pHalData->nCur40MhzPrimeSC == 1)
 			pDM_Odm->ControlChannel = *(pDM_Odm->pChannel) - 2;
-		else if (*(pDM_Odm->pSecChOffset) == 2)
+		else if (pHalData->nCur40MhzPrimeSC == 2)
 			pDM_Odm->ControlChannel = *(pDM_Odm->pChannel) + 2;
 	} else {
 		pDM_Odm->ControlChannel = *(pDM_Odm->pChannel);
@@ -551,7 +549,6 @@ void odm_CmnInfoInit_Debug23a(struct dm_odm_t *pDM_Odm)
 void odm_CmnInfoHook_Debug23a(struct dm_odm_t *pDM_Odm)
 {
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("odm_CmnInfoHook_Debug23a ==>\n"));
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("pSecChOffset =%d\n", *(pDM_Odm->pSecChOffset)));
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("pBandWidth =%d\n", *(pDM_Odm->pBandWidth)));
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("pChannel =%d\n", *(pDM_Odm->pChannel)));
 

@@ -152,8 +152,6 @@ static void Update_ODM_ComInfo_8723a(struct rtw_adapter *Adapter)
 	/*  Pointer reference */
 	rtl8723a_odm_support_ability_set(Adapter, DYNAMIC_ALL_FUNC_ENABLE);
 
-	ODM23a_CmnInfoHook(pDM_Odm, ODM_CMNINFO_SEC_CHNL_OFFSET,
-			   &pHalData->nCur40MhzPrimeSC);
 	ODM23a_CmnInfoHook(pDM_Odm, ODM_CMNINFO_BW,
 			   &pHalData->CurrentChannelBW);
 	ODM23a_CmnInfoHook(pDM_Odm, ODM_CMNINFO_CHNL,
