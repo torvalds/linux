@@ -1871,6 +1871,7 @@ static u8 ath10k_tx_h_get_vdev_id(struct ath10k *ar,
 static void ath10k_tx_h_nwifi(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr = (void *)skb->data;
+	struct ath10k_skb_cb *cb = ATH10K_SKB_CB(skb);
 	u8 *qos_ctl;
 
 	if (!ieee80211_is_data_qos(hdr->frame_control))
@@ -1880,6 +1881,16 @@ static void ath10k_tx_h_nwifi(struct ieee80211_hw *hw, struct sk_buff *skb)
 	memmove(skb->data + IEEE80211_QOS_CTL_LEN,
 		skb->data, (void *)qos_ctl - (void *)skb->data);
 	skb_pull(skb, IEEE80211_QOS_CTL_LEN);
+
+	/* Fw/Hw generates a corrupted QoS Control Field for QoS NullFunc
+	 * frames. Powersave is handled by the fw/hw so QoS NyllFunc frames are
+	 * used only for CQM purposes (e.g. hostapd station keepalive ping) so
+	 * it is safe to downgrade to NullFunc.
+	 */
+	if (ieee80211_is_qos_nullfunc(hdr->frame_control)) {
+		hdr->frame_control &= ~__cpu_to_le16(IEEE80211_STYPE_QOS_DATA);
+		cb->htt.tid = HTT_DATA_TX_EXT_TID_NON_QOS_MCAST_BCAST;
+	}
 }
 
 static void ath10k_tx_wep_key_work(struct work_struct *work)
