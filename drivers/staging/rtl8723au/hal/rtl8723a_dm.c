@@ -82,16 +82,15 @@ static void dm_CheckPbcGPIO(struct rtw_adapter *padapter)
 
 /*  Initialize GPIO setting registers */
 /*  functions */
-static void Init_ODM_ComInfo_8723a(struct rtw_adapter *Adapter)
+
+void rtl8723a_init_dm_priv(struct rtw_adapter *Adapter)
 {
-
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(Adapter);
+	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
 	struct dm_odm_t *pDM_Odm = &pHalData->odmpriv;
-	u8	cut_ver, fab_ver;
+	u8 cut_ver, fab_ver;
 
-	/*  */
-	/*  Init Value */
-	/*  */
+	memset(pdmpriv, 0, sizeof(struct dm_priv));
 	memset(pDM_Odm, 0, sizeof(*pDM_Odm));
 
 	pDM_Odm->Adapter = Adapter;
@@ -211,13 +210,4 @@ skip_dm:
 	/*  Check GPIO to determine current RF on/off and Pbc status. */
 	/*  Check Hardware Radio ON/OFF or not */
 	dm_CheckPbcGPIO(Adapter);
-}
-
-void rtl8723a_init_dm_priv(struct rtw_adapter *Adapter)
-{
-	struct hal_data_8723a *pHalData = GET_HAL_DATA(Adapter);
-	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
-
-	memset(pdmpriv, 0, sizeof(struct dm_priv));
-	Init_ODM_ComInfo_8723a(Adapter);
 }
