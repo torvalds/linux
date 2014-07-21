@@ -1660,14 +1660,6 @@ static int do_lock_ioctl(struct comedi_device *dev, unsigned int arg,
 		s->lock = file;
 	spin_unlock_irqrestore(&s->spin_lock, flags);
 
-#if 0
-	if (ret < 0)
-		return ret;
-
-	if (s->lock_f)
-		ret = s->lock_f(dev, s);
-#endif
-
 	return ret;
 }
 
@@ -1702,14 +1694,8 @@ static int do_unlock_ioctl(struct comedi_device *dev, unsigned int arg,
 	if (s->lock && s->lock != file)
 		return -EACCES;
 
-	if (s->lock == file) {
-#if 0
-		if (s->unlock)
-			s->unlock(dev, s);
-#endif
-
+	if (s->lock == file)
 		s->lock = NULL;
-	}
 
 	return 0;
 }
