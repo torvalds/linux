@@ -488,15 +488,6 @@ static int rtw_resume(struct usb_interface *pusb_intf)
 {
 	struct dvobj_priv *dvobj = usb_get_intfdata(pusb_intf);
 	struct rtw_adapter *padapter = dvobj->if1;
-	int ret;
-
-	ret = rtw_resume_process23a(padapter);
-
-	return ret;
-}
-
-int rtw_resume_process23a(struct rtw_adapter *padapter)
-{
 	struct net_device *pnetdev;
 	struct pwrctrl_priv *pwrpriv = NULL;
 	int ret = -1;
