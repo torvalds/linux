@@ -934,17 +934,17 @@ static struct c4iw_dev *c4iw_alloc(const struct cxgb4_lld_info *infop)
 
 	devp->rdev.hw_queue.t4_eq_status_entries =
 		devp->rdev.lldi.sge_ingpadboundary > 64 ? 2 : 1;
-	devp->rdev.hw_queue.t4_max_eq_size =
-		65520 - devp->rdev.hw_queue.t4_eq_status_entries;
-	devp->rdev.hw_queue.t4_max_iq_size = 65520 - 1;
-	devp->rdev.hw_queue.t4_max_rq_size =
-		8192 - devp->rdev.hw_queue.t4_eq_status_entries;
+	devp->rdev.hw_queue.t4_max_eq_size = 65520;
+	devp->rdev.hw_queue.t4_max_iq_size = 65520;
+	devp->rdev.hw_queue.t4_max_rq_size = 8192 -
+		devp->rdev.hw_queue.t4_eq_status_entries - 1;
 	devp->rdev.hw_queue.t4_max_sq_size =
-		devp->rdev.hw_queue.t4_max_eq_size - 1;
+		devp->rdev.hw_queue.t4_max_eq_size -
+		devp->rdev.hw_queue.t4_eq_status_entries - 1;
 	devp->rdev.hw_queue.t4_max_qp_depth =
-		devp->rdev.hw_queue.t4_max_rq_size - 1;
+		devp->rdev.hw_queue.t4_max_rq_size;
 	devp->rdev.hw_queue.t4_max_cq_depth =
-		devp->rdev.hw_queue.t4_max_iq_size - 1;
+		devp->rdev.hw_queue.t4_max_iq_size - 2;
 	devp->rdev.hw_queue.t4_stat_len =
 		devp->rdev.lldi.sge_egrstatuspagesize;
 

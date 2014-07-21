@@ -36,8 +36,6 @@
 #include "t4_msg.h"
 #include "t4fw_ri_api.h"
 
-#define T4_MAX_NUM_QP 65536
-#define T4_MAX_NUM_CQ 65536
 #define T4_MAX_NUM_PD 65536
 #define T4_MAX_NUM_STAG (1<<15)
 #define T4_MAX_MR_SIZE (~0ULL)
