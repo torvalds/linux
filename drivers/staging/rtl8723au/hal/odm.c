@@ -170,8 +170,6 @@ static void odm_CommonInfoSelfUpdate(struct hal_data_8723a *pHalData);
 
 void odm_CmnInfoInit_Debug23a(struct dm_odm_t *pDM_Odm);
 
-void odm_CmnInfoHook_Debug23a(struct dm_odm_t *pDM_Odm);
-
 void odm_CmnInfoUpdate_Debug23a(struct dm_odm_t *pDM_Odm);
 
 /* START---------------DIG--------------------------- */
@@ -294,7 +292,6 @@ void ODM_DMWatchdog23a(struct rtw_adapter *adapter)
 	struct pwrctrl_priv *pwrctrlpriv = &adapter->pwrctrlpriv;
 
 	/* 2012.05.03 Luke: For all IC series */
-	odm_CmnInfoHook_Debug23a(pDM_Odm);
 	odm_CmnInfoUpdate_Debug23a(pDM_Odm);
 	odm_CommonInfoSelfUpdate(pHalData);
 	odm_FalseAlarmCounterStatistics23a(pDM_Odm);
@@ -534,11 +531,6 @@ void odm_CmnInfoInit_Debug23a(struct dm_odm_t *pDM_Odm)
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("bWIFITest =%d\n", pDM_Odm->bWIFITest));
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("bDualMacSmartConcurrent =%d\n", pDM_Odm->bDualMacSmartConcurrent));
 
-}
-
-void odm_CmnInfoHook_Debug23a(struct dm_odm_t *pDM_Odm)
-{
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("odm_CmnInfoHook_Debug23a ==>\n"));
 }
 
 void odm_CmnInfoUpdate_Debug23a(struct dm_odm_t *pDM_Odm)
