@@ -45,12 +45,6 @@
 #include "device.h"
 #include "usbpipe.h"
 
-//endpoint def
-//endpoint 0: control
-//endpoint 1: interrupt
-//endpoint 2: read bulk
-//endpoint 3: write bulk
-
 #define USB_CTL_WAIT   500 //ms
 
 int vnt_control_out(struct vnt_private *priv, u8 request, u16 value,
