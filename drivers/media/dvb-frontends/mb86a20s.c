@@ -721,11 +721,10 @@ static int mb86a20s_get_frontend(struct dvb_frontend *fe)
 	rc = mb86a20s_readreg(state, 0x07);
 	if (rc < 0)
 		return rc;
+	c->transmission_mode = TRANSMISSION_MODE_AUTO;
 	if ((rc & 0x60) == 0x20) {
-		switch (rc & 0x0c >> 2) {
-		case 0:
-			c->transmission_mode = TRANSMISSION_MODE_2K;
-			break;
+		/* Only modes 2 and 3 are supported */
+		switch ((rc >> 2) & 0x03) {
 		case 1:
 			c->transmission_mode = TRANSMISSION_MODE_4K;
 			break;
@@ -734,7 +733,9 @@ static int mb86a20s_get_frontend(struct dvb_frontend *fe)
 			break;
 		}
 	}
+	c->guard_interval = GUARD_INTERVAL_AUTO;
 	if (!(rc & 0x10)) {
+		/* Guard interval 1/32 is not supported */
 		switch (rc & 0x3) {
 		case 0:
 			c->guard_interval = GUARD_INTERVAL_1_4;
