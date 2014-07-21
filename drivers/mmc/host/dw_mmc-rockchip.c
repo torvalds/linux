@@ -84,6 +84,7 @@ enum dw_mci_rockchip_type {
 	DW_MCI_TYPE_RK3188,
 	DW_MCI_TYPE_RK3288,
 	DW_MCI_TYPE_RK3036,
+	DW_MCI_TYPE_RK312X,
 };
 
 /* Rockchip implementation specific driver private data */
@@ -108,6 +109,9 @@ static struct dw_mci_rockchip_compatible {
 	},{
 		.compatible	= "rockchip,rk3036-sdmmc",
 		.ctrl_type	= DW_MCI_TYPE_RK3036,
+	},{
+		.compatible	= "rockchip,rk312x-sdmmc",
+		.ctrl_type	= DW_MCI_TYPE_RK312X,
 	},
 };
 
@@ -137,7 +141,8 @@ static int dw_mci_rockchip_setup_clock(struct dw_mci *host)
 	struct dw_mci_rockchip_priv_data *priv = host->priv;
 
 	if ((priv->ctrl_type == DW_MCI_TYPE_RK3288) ||
-	        (priv->ctrl_type == DW_MCI_TYPE_RK3036))
+                (priv->ctrl_type == DW_MCI_TYPE_RK3036) ||
+                (priv->ctrl_type == DW_MCI_TYPE_RK312X))
 		host->bus_hz /= (priv->ciu_div + 1);
 
 	return 0;
@@ -270,11 +275,6 @@ static void dw_mci_rockchip_load_tuning_base(void)
         /* load tuning base */
         if(cpu_is_rk3288())
                 cru_tuning_base =  RK3288_CRU_SDMMC_CON0;
-
-     /* Fixme: 3036
-        else if(cpu_is_rk3036())
-                cru_tuning_base =  RK3036_CRU_SDMMC_CON0;
-     */
 }
 
 static int inline __dw_mci_rockchip_execute_tuning(struct dw_mci_slot *slot, u32 opcode,
@@ -359,7 +359,6 @@ static int dw_mci_rockchip_execute_tuning(struct dw_mci_slot *slot, u32 opcode,
            0.9 / 60ps = 15 delayline
          */
         if(cpu_is_rk3288()){
-                /* Fixme: 3036:  dose it compatitable? */
                  ref = ((FREQ_REF_150MHZ + host->bus_hz - 1) / host->bus_hz);
                  step = (15 * ref);
 

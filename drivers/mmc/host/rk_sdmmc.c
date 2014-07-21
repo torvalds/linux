@@ -1827,12 +1827,9 @@ static int dw_mci_execute_tuning(struct mmc_host *mmc, u32 opcode)
 	struct dw_mci_tuning_data tuning_data;
 	int err = -ENOSYS;
 
-        /* Fixme: 3036/3126 doesn't support 1.8 io domain, no sense exe tuning
-        if(cpu_is_3036() || cpu_is_3126())
-                return ENOSYS;
-        AND
-                what about audi-b?
-        */
+        /* Fixme: 3036/3126 doesn't support 1.8 io domain, no sense exe tuning */
+        if(cpu_is_rk3036() || cpu_is_rk312x())
+                return err;
 
 	if (opcode == MMC_SEND_TUNING_BLOCK_HS200) {
 		if (mmc->ios.bus_width == MMC_BUS_WIDTH_8) {
@@ -2848,7 +2845,7 @@ static irqreturn_t dw_mci_interrupt(int irq, void *dev_id)
 
 #ifdef CONFIG_MMC_DW_IDMAC
         /* External DMA Soc platform NOT need to ack interrupt IDSTS */
-        if(!cpu_is_rk3036()){
+        if(!(cpu_is_rk3036() || cpu_is_rk312x())){
                 /* Handle DMA interrupts */
                 pending = mci_readl(host, IDSTS);
                 if (pending & (SDMMC_IDMAC_INT_TI | SDMMC_IDMAC_INT_RI)) {
@@ -2941,7 +2938,7 @@ static void dw_mci_work_routine_card(struct work_struct *work)
 				/* Clear down the FIFO */
 				dw_mci_fifo_reset(host);
 #ifdef CONFIG_MMC_DW_IDMAC
-                                if(!cpu_is_rk3036())
+                                if(!(cpu_is_rk3036() || cpu_is_rk312x()))
 				        dw_mci_idmac_reset(host);
 #endif
 
@@ -3247,7 +3244,7 @@ static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
 		mmc->max_blk_count = host->ring_size;
 		mmc->max_seg_size = 0x1000;
 		mmc->max_req_size = mmc->max_seg_size * mmc->max_blk_count;
-		if(cpu_is_rk3036()){
+		if(cpu_is_rk3036() || cpu_is_rk312x()){
                         /* fixup for external dmac setting */
                         mmc->max_segs = 64;
 		        mmc->max_blk_size = 65536; /* BLKSIZ is 16 bits */
@@ -3371,7 +3368,7 @@ static void dw_mci_init_dma(struct dw_mci *host)
 
 	/* Determine which DMA interface to use */
 #if defined(CONFIG_MMC_DW_IDMAC)
-        if(cpu_is_rk3036()){
+        if(cpu_is_rk3036() || cpu_is_rk312x()){
                 host->dma_ops = &dw_mci_edmac_ops;
                 dev_info(host->dev, "Using external DMA controller.\n");
         }else{
@@ -3564,7 +3561,7 @@ static void dw_mci_dealwith_timeout(struct dw_mci *host)
 
                         /* NO requirement to reclaim slave chn using external dmac */
                         #ifdef CONFIG_MMC_DW_IDMAC
-                        if(!cpu_is_rk3036())
+                        if(!(cpu_is_rk3036() || cpu_is_rk312x()))
                                 if (host->use_dma && host->dma_ops->init)
 	                                host->dma_ops->init(host);
                         #endif
