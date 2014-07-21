@@ -557,8 +557,6 @@ void rtw_cancel_all_timer23a(struct rtw_adapter *padapter)
 		 ("%s:cancel set_scan_deny_timer!\n", __func__));
 
 	del_timer_sync(&padapter->recvpriv.signal_stat_timer);
-	/* cancel dm timer */
-	rtl8723a_deinit_dm_priv(padapter);
 }
 
 int rtw_free_drv_sw23a(struct rtw_adapter *padapter)
