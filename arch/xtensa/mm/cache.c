@@ -59,10 +59,6 @@
  *
  */
 
-#if (DCACHE_WAY_SIZE > PAGE_SIZE) && defined(CONFIG_HIGHMEM)
-#error "HIGHMEM is not supported on cores with aliasing cache."
-#endif
-
 #if (DCACHE_WAY_SIZE > PAGE_SIZE)
 static inline void kmap_invalidate_coherent(struct page *page,
 					    unsigned long vaddr)
@@ -166,7 +162,8 @@ void flush_dcache_page(struct page *page)
 		if (!alias && !mapping)
 			return;
 
-		__flush_invalidate_dcache_page((long)page_address(page));
+		virt = TLBTEMP_BASE_1 + (phys & DCACHE_ALIAS_MASK);
+		__flush_invalidate_dcache_page_alias(virt, phys);
 
 		virt = TLBTEMP_BASE_1 + (temp & DCACHE_ALIAS_MASK);
 
@@ -231,13 +228,12 @@ update_mmu_cache(struct vm_area_struct * vma, unsigned long addr, pte_t *ptep)
 #if (DCACHE_WAY_SIZE > PAGE_SIZE) && XCHAL_DCACHE_IS_WRITEBACK
 
 	if (!PageReserved(page) && test_bit(PG_arch_1, &page->flags)) {
-
-		unsigned long paddr = (unsigned long) page_address(page);
 		unsigned long phys = page_to_phys(page);
-		unsigned long tmp = TLBTEMP_BASE_1 + (addr & DCACHE_ALIAS_MASK);
+		unsigned long tmp;
 
-		__flush_invalidate_dcache_page(paddr);
-
+		tmp = TLBTEMP_BASE_1 + (phys & DCACHE_ALIAS_MASK);
+		__flush_invalidate_dcache_page_alias(tmp, phys);
+		tmp = TLBTEMP_BASE_1 + (addr & DCACHE_ALIAS_MASK);
 		__flush_invalidate_dcache_page_alias(tmp, phys);
 		__invalidate_icache_page_alias(tmp, phys);
 
