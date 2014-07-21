@@ -737,6 +737,30 @@ static inline int v4l2_ctrl_s_ctrl_int64(struct v4l2_ctrl *ctrl, s64 val)
 	return rval;
 }
 
+/** __v4l2_ctrl_s_ctrl_string() - Unlocked variant of v4l2_ctrl_s_ctrl_string(). */
+int __v4l2_ctrl_s_ctrl_string(struct v4l2_ctrl *ctrl, const char *s);
+
+/** v4l2_ctrl_s_ctrl_string() - Helper function to set a control's string value from within a driver.
+  * @ctrl:	The control.
+  * @s:		The new string.
+  *
+  * This set the control's new string safely by going through the control
+  * framework. This function will lock the control's handler, so it cannot be
+  * used from within the &v4l2_ctrl_ops functions.
+  *
+  * This function is for string type controls only.
+  */
+static inline int v4l2_ctrl_s_ctrl_string(struct v4l2_ctrl *ctrl, const char *s)
+{
+	int rval;
+
+	v4l2_ctrl_lock(ctrl);
+	rval = __v4l2_ctrl_s_ctrl_string(ctrl, s);
+	v4l2_ctrl_unlock(ctrl);
+
+	return rval;
+}
+
 /* Internal helper functions that deal with control events. */
 extern const struct v4l2_subscribed_event_ops v4l2_ctrl_sub_ev_ops;
 void v4l2_ctrl_replace(struct v4l2_event *old, const struct v4l2_event *new);

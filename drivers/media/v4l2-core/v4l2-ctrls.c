@@ -3121,26 +3121,22 @@ static int set_ctrl(struct v4l2_fh *fh, struct v4l2_ctrl *ctrl,
 	struct v4l2_ctrl *master = ctrl->cluster[0];
 	int i;
 
-	/* Compound controls are not supported. The user_to_new() and
-	 * cur_to_user() calls below would need to be modified not to access
-	 * userspace memory when called from set_ctrl().
-	 */
-	if (ctrl->is_ptr)
-		return -EINVAL;
-
 	/* Reset the 'is_new' flags of the cluster */
 	for (i = 0; i < master->ncontrols; i++)
 		if (master->cluster[i])
 			master->cluster[i]->is_new = 0;
 
+	if (c)
+		user_to_new(c, ctrl);
+
 	/* For autoclusters with volatiles that are switched from auto to
 	   manual mode we have to update the current volatile values since
 	   those will become the initial manual values after such a switch. */
 	if (master->is_auto && master->has_volatiles && ctrl == master &&
-	    !is_cur_manual(master) && c->value == master->manual_mode_value)
+	    !is_cur_manual(master) && ctrl->val == master->manual_mode_value)
 		update_from_auto_cluster(master);
 
-	user_to_new(c, ctrl);
+	ctrl->is_new = 1;
 	return try_or_set_cluster(fh, master, true, ch_flags);
 }
 
@@ -3188,39 +3184,36 @@ EXPORT_SYMBOL(v4l2_subdev_s_ctrl);
 
 int __v4l2_ctrl_s_ctrl(struct v4l2_ctrl *ctrl, s32 val)
 {
-	struct v4l2_ext_control c;
-	int rval;
-
 	lockdep_assert_held(ctrl->handler->lock);
 
 	/* It's a driver bug if this happens. */
 	WARN_ON(!ctrl->is_int);
-	c.value = val;
-	rval = set_ctrl(NULL, ctrl, &c, 0);
-	if (!rval)
-		cur_to_user(&c, ctrl);
-
-	return rval;
+	ctrl->val = val;
+	return set_ctrl(NULL, ctrl, NULL, 0);
 }
 EXPORT_SYMBOL(__v4l2_ctrl_s_ctrl);
 
 int __v4l2_ctrl_s_ctrl_int64(struct v4l2_ctrl *ctrl, s64 val)
 {
-	struct v4l2_ext_control c;
-	int rval;
-
 	lockdep_assert_held(ctrl->handler->lock);
 
 	/* It's a driver bug if this happens. */
 	WARN_ON(ctrl->is_ptr || ctrl->type != V4L2_CTRL_TYPE_INTEGER64);
-	c.value64 = val;
-	rval = set_ctrl(NULL, ctrl, &c, 0);
-	if (!rval)
-		cur_to_user(&c, ctrl);
-
-	return rval;
+	*ctrl->p_new.p_s64 = val;
+	return set_ctrl(NULL, ctrl, NULL, 0);
 }
 EXPORT_SYMBOL(__v4l2_ctrl_s_ctrl_int64);
+
+int __v4l2_ctrl_s_ctrl_string(struct v4l2_ctrl *ctrl, const char *s)
+{
+	lockdep_assert_held(ctrl->handler->lock);
+
+	/* It's a driver bug if this happens. */
+	WARN_ON(ctrl->type != V4L2_CTRL_TYPE_STRING);
+	strlcpy(ctrl->p_new.p_char, s, ctrl->maximum + 1);
+	return set_ctrl(NULL, ctrl, NULL, 0);
+}
+EXPORT_SYMBOL(__v4l2_ctrl_s_ctrl_string);
 
 void v4l2_ctrl_notify(struct v4l2_ctrl *ctrl, v4l2_ctrl_notify_fnc notify, void *priv)
 {
