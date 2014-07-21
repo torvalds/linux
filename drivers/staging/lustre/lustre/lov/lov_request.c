@@ -142,14 +142,14 @@ static int lov_check_set(struct lov_obd *lov, int idx)
 {
 	int rc;
 	struct lov_tgt_desc *tgt;
-	mutex_lock(&lov->lov_lock);
 
+	mutex_lock(&lov->lov_lock);
 	tgt = lov->lov_tgts[idx];
 	rc = !tgt || tgt->ltd_active ||
 		(tgt->ltd_exp &&
 		 class_exp2cliimp(tgt->ltd_exp)->imp_connect_tried);
-
 	mutex_unlock(&lov->lov_lock);
+
 	return rc;
 }
 
@@ -836,6 +836,7 @@ static int cb_getattr_update(void *cookie, int rc)
 {
 	struct obd_info *oinfo = cookie;
 	struct lov_request *lovreq;
+
 	lovreq = container_of(oinfo, struct lov_request, rq_oi);
 	return lov_update_common_set(lovreq->rq_rqset, lovreq, rc);
 }
@@ -1018,6 +1019,7 @@ static int cb_setattr_update(void *cookie, int rc)
 {
 	struct obd_info *oinfo = cookie;
 	struct lov_request *lovreq;
+
 	lovreq = container_of(oinfo, struct lov_request, rq_oi);
 	return lov_update_setattr_set(lovreq->rq_rqset, lovreq, rc);
 }
@@ -1141,6 +1143,7 @@ static int cb_update_punch(void *cookie, int rc)
 {
 	struct obd_info *oinfo = cookie;
 	struct lov_request *lovreq;
+
 	lovreq = container_of(oinfo, struct lov_request, rq_oi);
 	return lov_update_punch_set(lovreq->rq_rqset, lovreq, rc);
 }
