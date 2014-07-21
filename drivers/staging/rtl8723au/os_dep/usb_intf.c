@@ -505,8 +505,10 @@ static int rtw_resume(struct usb_interface *pusb_intf)
 	pwrpriv->bkeepfwalive = false;
 
 	DBG_8723A("bkeepfwalive(%x)\n", pwrpriv->bkeepfwalive);
-	if (pm_netdev_open23a(pnetdev, true) != 0)
+	if (pm_netdev_open23a(pnetdev, true) != 0) {
+		up(&pwrpriv->lock);
 		goto exit;
+	}
 
 	netif_device_attach(pnetdev);
 	netif_carrier_on(pnetdev);
