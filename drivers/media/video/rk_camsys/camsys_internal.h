@@ -85,8 +85,10 @@
 *        1) isp_clk 208.8M for 1lane, isp_clk 416.6M for 2lane;
 *v0.f.0:
 		 1) mi_mis register may read erro, this may cause mistaken mi frame_end irqs.  
+*v0.0x10.0:
+		 1) add flash_prelight control.		 
 */
-#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0,0xe,0)
+#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0,0x10,0)
 
 
 #define CAMSYS_PLATFORM_DRV_NAME                "RockChip-CamSys"

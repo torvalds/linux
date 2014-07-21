@@ -181,7 +181,7 @@ static int camsys_extdev_register(camsys_devio_name_t *devio, camsys_dev_t *cams
     }
     
     extdev->dev_cfg = devio->dev_cfg;
-    
+    extdev->fl.fl.active = devio->fl.fl.active;
     regulator_info = &devio->avdd;
     regulator = &extdev->avdd;
     for (i=(CamSys_Vdd_Start_Tag+1); i<CamSys_Vdd_End_Tag; i++) {

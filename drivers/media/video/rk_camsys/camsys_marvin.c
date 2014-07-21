@@ -68,6 +68,18 @@ static int camsys_mrv_iomux_cb(camsys_extdev_t *extdev,void *ptr)
             } else {
                 strcpy(state_str,"isp_mipi_fl");
             }
+            {
+                //mux triggerout as gpio
+            //get gpio index
+                int flash_trigger_io ;
+                enum of_gpio_flags flags;
+                flash_trigger_io = of_get_named_gpio_flags(camsys_dev->pdev->dev.of_node, "rockchip,gpios", 0, &flags);
+                if(gpio_is_valid(flash_trigger_io)){
+                    flash_trigger_io = of_get_named_gpio_flags(camsys_dev->pdev->dev.of_node, "rockchip,gpios", 0, &flags);
+                    gpio_request(flash_trigger_io,"camsys_gpio");
+                    gpio_direction_output(flash_trigger_io, (~(extdev->fl.fl.active) & 0x1));
+                }
+            }			
         } else {
             strcpy(state_str,"default");
         }
@@ -122,7 +134,8 @@ static int camsys_mrv_flash_trigger_cb(void *ptr,unsigned int on)
     char state_str[20] = {0};
     int retval = 0;
     enum of_gpio_flags flags;
-
+    camsys_extdev_t *extdev = NULL;
+	
     if(!on){
         strcpy(state_str,"isp_flash_as_gpio");
         pinctrl = devm_pinctrl_get(dev);
@@ -148,9 +161,15 @@ static int camsys_mrv_flash_trigger_cb(void *ptr,unsigned int on)
         if(gpio_is_valid(flash_trigger_io)){
             flash_trigger_io = of_get_named_gpio_flags(camsys_dev->pdev->dev.of_node, "rockchip,gpios", 0, &flags);
             gpio_request(flash_trigger_io,"camsys_gpio");
-            gpio_direction_output(flash_trigger_io, 1);
-            }
-
+            //get flash io active pol
+            if (!list_empty(&camsys_dev->extdevs.list)) {
+                list_for_each_entry(extdev, &camsys_dev->extdevs.list, list) {
+                    if (extdev->dev_cfg & CAMSYS_DEVCFG_FLASHLIGHT) {
+                        gpio_direction_output(flash_trigger_io, (~(extdev->fl.fl.active) & 0x1));
+                    }
+                }
+            }    
+        }
     }else{
         strcpy(state_str,"isp_flash_as_trigger_out");
         pinctrl = devm_pinctrl_get(dev);
