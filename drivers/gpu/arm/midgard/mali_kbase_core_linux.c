@@ -38,6 +38,7 @@
 #include <linux/syscalls.h>
 #endif /* CONFIG_KDS */
 
+#include <linux/delay.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/poll.h>
@@ -85,7 +86,7 @@ EXPORT_SYMBOL(shared_kernel_test_data);
 #endif /* MALI_UNIT_TEST */
 
 #define KBASE_DRV_NAME "mali"
-#define ROCKCHIP_VERSION 5
+#define ROCKCHIP_VERSION 6
 static const char kbase_drv_name[] = KBASE_DRV_NAME;
 
 static int kbase_dev_nr;
@@ -922,6 +923,8 @@ static int kbase_release(struct inode *inode, struct file *filp)
 	struct kbase_device *kbdev = kctx->kbdev;
 	kbasep_kctx_list_element *element, *tmp;
 	mali_bool found_element = MALI_FALSE;
+	
+	msleep(500);
 
 	mutex_lock(&kbdev->kctx_list_lock);
 	list_for_each_entry_safe(element, tmp, &kbdev->kctx_list, link) {
