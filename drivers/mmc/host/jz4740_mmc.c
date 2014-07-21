@@ -114,6 +114,11 @@ enum jz4740_mmc_state {
 	JZ4740_MMC_STATE_DONE,
 };
 
+struct jz4740_mmc_host_next {
+	int sg_len;
+	s32 cookie;
+};
+
 struct jz4740_mmc_host {
 	struct mmc_host *mmc;
 	struct platform_device *pdev;
@@ -143,6 +148,7 @@ struct jz4740_mmc_host {
 	/* DMA support */
 	struct dma_chan *dma_rx;
 	struct dma_chan *dma_tx;
+	struct jz4740_mmc_host_next next_data;
 	bool use_dma;
 	int sg_len;
 
@@ -184,6 +190,9 @@ static int jz4740_mmc_acquire_dma_channels(struct jz4740_mmc_host *host)
 		goto free_master_write;
 	}
 
+	/* Initialize DMA pre request cookie */
+	host->next_data.cookie = 1;
+
 	return 0;
 
 free_master_write:
@@ -196,23 +205,72 @@ static inline int jz4740_mmc_get_dma_dir(struct mmc_data *data)
 	return (data->flags & MMC_DATA_READ) ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
 }
 
+static inline struct dma_chan *jz4740_mmc_get_dma_chan(struct jz4740_mmc_host *host,
+						       struct mmc_data *data)
+{
+	return (data->flags & MMC_DATA_READ) ? host->dma_rx : host->dma_tx;
+}
+
 static void jz4740_mmc_dma_unmap(struct jz4740_mmc_host *host,
 				 struct mmc_data *data)
 {
-	struct dma_chan *chan;
+	struct dma_chan *chan = jz4740_mmc_get_dma_chan(host, data);
 	enum dma_data_direction dir = jz4740_mmc_get_dma_dir(data);
 
-	if (dir == DMA_TO_DEVICE)
-		chan = host->dma_tx;
-	else
-		chan = host->dma_rx;
-
 	dma_unmap_sg(chan->device->dev, data->sg, data->sg_len, dir);
+}
+
+/* Prepares DMA data for current/next transfer, returns non-zero on failure */
+static int jz4740_mmc_prepare_dma_data(struct jz4740_mmc_host *host,
+				       struct mmc_data *data,
+				       struct jz4740_mmc_host_next *next,
+				       struct dma_chan *chan)
+{
+	struct jz4740_mmc_host_next *next_data = &host->next_data;
+	enum dma_data_direction dir = jz4740_mmc_get_dma_dir(data);
+	int sg_len;
+
+	if (!next && data->host_cookie &&
+	    data->host_cookie != host->next_data.cookie) {
+		dev_warn(mmc_dev(host->mmc),
+			 "[%s] invalid cookie: data->host_cookie %d host->next_data.cookie %d\n",
+			 __func__,
+			 data->host_cookie,
+			 host->next_data.cookie);
+		data->host_cookie = 0;
+	}
+
+	/* Check if next job is already prepared */
+	if (next || data->host_cookie != host->next_data.cookie) {
+		sg_len = dma_map_sg(chan->device->dev,
+				    data->sg,
+				    data->sg_len,
+				    dir);
+
+	} else {
+		sg_len = next_data->sg_len;
+		next_data->sg_len = 0;
+	}
+
+	if (sg_len <= 0) {
+		dev_err(mmc_dev(host->mmc),
+			"Failed to map scatterlist for DMA operation\n");
+		return -EINVAL;
+	}
+
+	if (next) {
+		next->sg_len = sg_len;
+		data->host_cookie = ++next->cookie < 0 ? 1 : next->cookie;
+	} else
+		host->sg_len = sg_len;
+
+	return 0;
 }
 
 static int jz4740_mmc_start_dma_transfer(struct jz4740_mmc_host *host,
 					 struct mmc_data *data)
 {
+	int ret;
 	struct dma_chan *chan;
 	struct dma_async_tx_descriptor *desc;
 	struct dma_slave_config conf = {
@@ -221,9 +279,8 @@ static int jz4740_mmc_start_dma_transfer(struct jz4740_mmc_host *host,
 		.src_maxburst = JZ4740_MMC_FIFO_HALF_SIZE,
 		.dst_maxburst = JZ4740_MMC_FIFO_HALF_SIZE,
 	};
-	enum dma_data_direction dir = jz4740_mmc_get_dma_dir(data);
 
-	if (dir == DMA_TO_DEVICE) {
+	if (data->flags & MMC_DATA_WRITE) {
 		conf.direction = DMA_MEM_TO_DEV;
 		conf.dst_addr = host->mem_res->start + JZ_REG_MMC_TXFIFO;
 		conf.slave_id = JZ4740_DMA_TYPE_MMC_TRANSMIT;
@@ -235,16 +292,9 @@ static int jz4740_mmc_start_dma_transfer(struct jz4740_mmc_host *host,
 		chan = host->dma_rx;
 	}
 
-	host->sg_len = dma_map_sg(chan->device->dev,
-				  data->sg,
-				  data->sg_len,
-				  dir);
-
-	if (host->sg_len == 0) {
-		dev_err(mmc_dev(host->mmc),
-			"Failed to map scatterlist for DMA operation\n");
-		return -EINVAL;
-	}
+	ret = jz4740_mmc_prepare_dma_data(host, data, NULL, chan);
+	if (ret)
+		return ret;
 
 	dmaengine_slave_config(chan, &conf);
 	desc = dmaengine_prep_slave_sg(chan,
@@ -267,6 +317,43 @@ static int jz4740_mmc_start_dma_transfer(struct jz4740_mmc_host *host,
 dma_unmap:
 	jz4740_mmc_dma_unmap(host, data);
 	return -ENOMEM;
+}
+
+static void jz4740_mmc_pre_request(struct mmc_host *mmc,
+				   struct mmc_request *mrq,
+				   bool is_first_req)
+{
+	struct jz4740_mmc_host *host = mmc_priv(mmc);
+	struct mmc_data *data = mrq->data;
+	struct jz4740_mmc_host_next *next_data = &host->next_data;
+
+	BUG_ON(data->host_cookie);
+
+	if (host->use_dma) {
+		struct dma_chan *chan = jz4740_mmc_get_dma_chan(host, data);
+
+		if (jz4740_mmc_prepare_dma_data(host, data, next_data, chan))
+			data->host_cookie = 0;
+	}
+}
+
+static void jz4740_mmc_post_request(struct mmc_host *mmc,
+				    struct mmc_request *mrq,
+				    int err)
+{
+	struct jz4740_mmc_host *host = mmc_priv(mmc);
+	struct mmc_data *data = mrq->data;
+
+	if (host->use_dma && data->host_cookie) {
+		jz4740_mmc_dma_unmap(host, data);
+		data->host_cookie = 0;
+	}
+
+	if (err) {
+		struct dma_chan *chan = jz4740_mmc_get_dma_chan(host, data);
+
+		dmaengine_terminate_all(chan);
+	}
 }
 
 /*----------------------------------------------------------------------------*/
@@ -627,14 +714,19 @@ static irqreturn_t jz_mmc_irq_worker(int irq, void *devid)
 
 	case JZ4740_MMC_STATE_TRANSFER_DATA:
 		if (host->use_dma) {
-			/* Use DMA if enabled, data transfer direction was
-			 * defined  before in jz_mmc_prepare_data_transfer().
+			/* Use DMA if enabled.
+			 * Data transfer direction is defined later by
+			 * relying on data flags in
+			 * jz4740_mmc_prepare_dma_data() and
+			 * jz4740_mmc_start_dma_transfer().
 			 */
 			timeout = jz4740_mmc_start_dma_transfer(host, data);
 			data->bytes_xfered = data->blocks * data->blksz;
 		} else if (data->flags & MMC_DATA_READ)
-			/* If DMA is not enabled, rely on data flags
-			 * to establish data transfer direction.
+			/* Use PIO if DMA is not enabled.
+			 * Data transfer direction was defined before
+			 * by relying on data flags in
+			 * jz_mmc_prepare_data_transfer().
 			 */
 			timeout = jz4740_mmc_read_data(host, data);
 		else
@@ -809,6 +901,8 @@ static void jz4740_mmc_enable_sdio_irq(struct mmc_host *mmc, int enable)
 
 static const struct mmc_host_ops jz4740_mmc_ops = {
 	.request	= jz4740_mmc_request,
+	.pre_req	= jz4740_mmc_pre_request,
+	.post_req	= jz4740_mmc_post_request,
 	.set_ios	= jz4740_mmc_set_ios,
 	.get_ro		= mmc_gpio_get_ro,
 	.get_cd		= mmc_gpio_get_cd,
