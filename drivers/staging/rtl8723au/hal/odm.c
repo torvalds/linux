@@ -344,9 +344,6 @@ void ODM_CmnInfoInit23a(struct dm_odm_t *pDM_Odm,
 	/*  */
 	switch	(CmnInfo) {
 	/*  Fixed ODM value. */
-	case	ODM_CMNINFO_ABILITY:
-		pDM_Odm->SupportAbility = (u32)Value;
-		break;
 	case	ODM_CMNINFO_PLATFORM:
 		break;
 	case	ODM_CMNINFO_INTERFACE:
@@ -461,9 +458,6 @@ void ODM_CmnInfoUpdate23a(struct dm_odm_t *pDM_Odm, u32 CmnInfo, u64 Value)
 {
 	/*  This init variable may be changed in run time. */
 	switch	(CmnInfo) {
-	case	ODM_CMNINFO_ABILITY:
-		pDM_Odm->SupportAbility = (u32)Value;
-		break;
 	case	ODM_CMNINFO_RF_TYPE:
 		pDM_Odm->RFType = (u8)Value;
 		break;

@@ -150,8 +150,7 @@ static void Update_ODM_ComInfo_8723a(struct rtw_adapter *Adapter)
 				ODM_RF_TX_PWR_TRACK	|
 				ODM_RF_CALIBRATION;
 	/*  Pointer reference */
-
-	ODM_CmnInfoUpdate23a(pDM_Odm, ODM_CMNINFO_ABILITY, pdmpriv->InitODMFlag);
+	rtl8723a_odm_support_ability_set(Adapter, DYNAMIC_ALL_FUNC_ENABLE);
 
 	ODM23a_CmnInfoHook(pDM_Odm, ODM_CMNINFO_SEC_CHNL_OFFSET,
 			   &pHalData->nCur40MhzPrimeSC);

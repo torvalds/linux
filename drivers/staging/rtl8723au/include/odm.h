@@ -300,7 +300,6 @@ enum odm_cmninfo {
 	/*  */
 
 	ODM_CMNINFO_PLATFORM = 0,
-	ODM_CMNINFO_ABILITY,					/*  enum odm_ability */
 	ODM_CMNINFO_INTERFACE,				/*  enum odm_interface_def */
 	ODM_CMNINFO_MP_TEST_CHIP,
 	ODM_CMNINFO_IC_TYPE,					/*  enum odm_ic_type_def */
