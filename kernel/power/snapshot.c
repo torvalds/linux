@@ -309,6 +309,11 @@ struct mem_zone_bm_rtree {
 struct bm_position {
 	struct bm_block *block;
 	int bit;
+
+	struct mem_zone_bm_rtree *zone;
+	struct rtree_node *node;
+	unsigned long node_pfn;
+	int node_bit;
 };
 
 struct memory_bitmap {
@@ -487,6 +492,13 @@ static void memory_bm_position_reset(struct memory_bitmap *bm)
 {
 	bm->cur.block = list_entry(bm->blocks.next, struct bm_block, hook);
 	bm->cur.bit = 0;
+
+	bm->cur.zone = list_entry(bm->zones.next, struct mem_zone_bm_rtree,
+				  list);
+	bm->cur.node = list_entry(bm->cur.zone->leaves.next,
+				  struct rtree_node, list);
+	bm->cur.node_pfn = 0;
+	bm->cur.node_bit = 0;
 }
 
 static void memory_bm_free(struct memory_bitmap *bm, int clear_nosave_free);
@@ -734,6 +746,11 @@ static int memory_rtree_find_bit(struct memory_bitmap *bm, unsigned long pfn,
 	struct rtree_node *node;
 	int i, block_nr;
 
+	zone = bm->cur.zone;
+
+	if (pfn >= zone->start_pfn && pfn < zone->end_pfn)
+		goto zone_found;
+
 	zone = NULL;
 
 	/* Find the right zone */
@@ -747,10 +764,16 @@ static int memory_rtree_find_bit(struct memory_bitmap *bm, unsigned long pfn,
 	if (!zone)
 		return -EFAULT;
 
+zone_found:
 	/*
 	 * We have a zone. Now walk the radix tree to find the leave
 	 * node for our pfn.
 	 */
+
+	node = bm->cur.node;
+	if (((pfn - zone->start_pfn) & ~BM_BLOCK_MASK) == bm->cur.node_pfn)
+		goto node_found;
+
 	node      = zone->rtree;
 	block_nr  = (pfn - zone->start_pfn) >> BM_BLOCK_SHIFT;
 
@@ -762,6 +785,12 @@ static int memory_rtree_find_bit(struct memory_bitmap *bm, unsigned long pfn,
 		BUG_ON(node->data[index] == 0);
 		node = (struct rtree_node *)node->data[index];
 	}
+
+node_found:
+	/* Update last position */
+	bm->cur.zone = zone;
+	bm->cur.node = node;
+	bm->cur.node_pfn = (pfn - zone->start_pfn) & ~BM_BLOCK_MASK;
 
 	/* Set return values */
 	*addr = node->data;
@@ -860,10 +889,15 @@ static bool memory_bm_pfn_present(struct memory_bitmap *bm, unsigned long pfn)
  *	this function.
  */
 
+static unsigned long memory_bm_rtree_next_pfn(struct memory_bitmap *bm);
+
 static unsigned long memory_bm_next_pfn(struct memory_bitmap *bm)
 {
+	unsigned long rtree_pfn;
 	struct bm_block *bb;
 	int bit;
+
+	rtree_pfn = memory_bm_rtree_next_pfn(bm);
 
 	bb = bm->cur.block;
 	do {
@@ -878,11 +912,75 @@ static unsigned long memory_bm_next_pfn(struct memory_bitmap *bm)
 	} while (&bb->hook != &bm->blocks);
 
 	memory_bm_position_reset(bm);
+	WARN_ON_ONCE(rtree_pfn != BM_END_OF_MAP);
 	return BM_END_OF_MAP;
 
  Return_pfn:
+	WARN_ON_ONCE(bb->start_pfn + bit != rtree_pfn);
 	bm->cur.bit = bit + 1;
 	return bb->start_pfn + bit;
+}
+
+/*
+ *	rtree_next_node - Jumps to the next leave node
+ *
+ *	Sets the position to the beginning of the next node in the
+ *	memory bitmap. This is either the next node in the current
+ *	zone's radix tree or the first node in the radix tree of the
+ *	next zone.
+ *
+ *	Returns true if there is a next node, false otherwise.
+ */
+static bool rtree_next_node(struct memory_bitmap *bm)
+{
+	bm->cur.node = list_entry(bm->cur.node->list.next,
+				  struct rtree_node, list);
+	if (&bm->cur.node->list != &bm->cur.zone->leaves) {
+		bm->cur.node_pfn += BM_BITS_PER_BLOCK;
+		bm->cur.node_bit  = 0;
+		return true;
+	}
+
+	/* No more nodes, goto next zone */
+	bm->cur.zone = list_entry(bm->cur.zone->list.next,
+				  struct mem_zone_bm_rtree, list);
+	if (&bm->cur.zone->list != &bm->zones) {
+		bm->cur.node = list_entry(bm->cur.zone->leaves.next,
+					  struct rtree_node, list);
+		bm->cur.node_pfn = 0;
+		bm->cur.node_bit = 0;
+		return true;
+	}
+
+	/* No more zones */
+	return false;
+}
+
+/*
+ *	memory_bm_rtree_next_pfn - Find the next set bit
+ *
+ *	Starting from the last returned position this function searches
+ *	for the next set bit in the memory bitmap and returns its
+ *	number. If no more bit is set BM_END_OF_MAP is returned.
+ */
+static unsigned long memory_bm_rtree_next_pfn(struct memory_bitmap *bm)
+{
+	unsigned long bits, pfn, pages;
+	int bit;
+
+	do {
+		pages	  = bm->cur.zone->end_pfn - bm->cur.zone->start_pfn;
+		bits      = min(pages - bm->cur.node_pfn, BM_BITS_PER_BLOCK);
+		bit	  = find_next_bit(bm->cur.node->data, bits,
+					  bm->cur.node_bit);
+		if (bit < bits) {
+			pfn = bm->cur.zone->start_pfn + bm->cur.node_pfn + bit;
+			bm->cur.node_bit = bit + 1;
+			return pfn;
+		}
+	} while (rtree_next_node(bm));
+
+	return BM_END_OF_MAP;
 }
 
 /**
