@@ -398,6 +398,7 @@ _GLOBAL(kvmppc_resume_host)
 #ifdef CONFIG_64BIT
 	PPC_LL	r3, PACA_SPRG_VDSO(r13)
 #endif
+	mfspr	r5, SPRN_SPRG9
 	PPC_STD(r6, VCPU_SHARED_SPRG4, r11)
 	mfspr	r8, SPRN_SPRG6
 	PPC_STD(r7, VCPU_SHARED_SPRG5, r11)
@@ -405,6 +406,7 @@ _GLOBAL(kvmppc_resume_host)
 #ifdef CONFIG_64BIT
 	mtspr	SPRN_SPRG_VDSO_WRITE, r3
 #endif
+	PPC_STD(r5, VCPU_SPRG9, r4)
 	PPC_STD(r8, VCPU_SHARED_SPRG6, r11)
 	mfxer	r3
 	PPC_STD(r9, VCPU_SHARED_SPRG7, r11)
@@ -639,7 +641,9 @@ lightweight_exit:
 	mtspr	SPRN_SPRG5W, r6
 	PPC_LD(r8, VCPU_SHARED_SPRG7, r11)
 	mtspr	SPRN_SPRG6W, r7
+	PPC_LD(r5, VCPU_SPRG9, r4)
 	mtspr	SPRN_SPRG7W, r8
+	mtspr	SPRN_SPRG9, r5
 
 	/* Load some guest volatiles. */
 	PPC_LL	r3, VCPU_LR(r4)

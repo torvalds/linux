@@ -587,6 +587,7 @@ struct kvm_vcpu_arch {
 	u32 mmucfg;
 	u32 eptcfg;
 	u32 epr;
+	u64 sprg9;
 	u32 pwrmgtcr0;
 	u32 crit_save;
 	/* guest debug registers*/
