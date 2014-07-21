@@ -33,6 +33,7 @@
 #include "stmmac.h"
 #include <linux/rockchip/iomap.h>
 #include <linux/rockchip/grf.h>
+#include <linux/regulator/consumer.h>
 
 #define grf_readl(offset)	readl_relaxed(RK_GRF_VIRT + offset)
 #define grf_writel(v, offset)	do { writel_relaxed(v, RK_GRF_VIRT + offset); dsb(); } while (0)
@@ -42,8 +43,8 @@
 #define GMAC_PHY_INTF_SEL_RMII  ((0x01C0 << 16) | (0x0100))
 #define GMAC_FLOW_CTRL          ((0x0200 << 16) | (0x0200))
 #define GMAC_FLOW_CTRL_CLR      ((0x0200 << 16) | (0x0000))
-#define GMAC_SPEED_10M          ((0x0400 << 16) | (0x0400))
-#define GMAC_SPEED_100M         ((0x0400 << 16) | (0x0000))
+#define GMAC_SPEED_10M          ((0x0400 << 16) | (0x0000))
+#define GMAC_SPEED_100M         ((0x0400 << 16) | (0x0400))
 #define GMAC_RMII_CLK_25M       ((0x0800 << 16) | (0x0800))
 #define GMAC_RMII_CLK_2_5M      ((0x0800 << 16) | (0x0000))
 #define GMAC_CLK_125M           ((0x3000 << 16) | (0x0000))
@@ -69,8 +70,9 @@ struct bsp_priv g_bsp_priv;
 static int phy_power_on(struct plat_stmmacenet_data *plat, int enable)
 {
 	struct bsp_priv * bsp_priv;
+	//int ret;
 
-	pr_info("%s: enable = %d \n", __func__, enable);
+	printk("%s: enable = %d \n", __func__, enable);
 
 	if ((plat) && (plat->bsp_priv)) {
 		bsp_priv = plat->bsp_priv;
@@ -108,7 +110,6 @@ static int phy_power_on(struct plat_stmmacenet_data *plat, int enable)
 }
 
 int stmmc_pltfr_init(struct platform_device *pdev) {
-	//struct pinctrl_state *gmac_state;
 	int phy_iface;
 	int err;
 	struct bsp_priv *bsp_priv;
@@ -134,35 +135,38 @@ int stmmc_pltfr_init(struct platform_device *pdev) {
 	if (!gpio_is_valid(bsp_priv->power_io)) {
 		pr_err("%s: ERROR: Get power-gpio failed.\n", __func__);
 		//return -EINVAL;
-	}
-
-	err = gpio_request(bsp_priv->power_io, "gmac_phy_power");
-	if (err) {
-		pr_err("%s: ERROR: Request gmac phy power pin failed.\n", __func__);
-		//return -EINVAL;
+	} else {
+		err = gpio_request(bsp_priv->power_io, "gmac_phy_power");
+		if (err) {
+			pr_err("%s: ERROR: Request gmac phy power pin failed.\n", __func__);
+			//return -EINVAL;
+		}
 	}
 
 	if (!gpio_is_valid(bsp_priv->reset_io)) {
 		pr_err("%s: ERROR: Get reset-gpio failed.\n", __func__);
 		//return -EINVAL;
+	} else {
+		err = gpio_request(bsp_priv->reset_io, "gmac_phy_reset");
+		if (err) {
+			pr_err("%s: ERROR: Request gmac phy reset pin failed.\n", __func__);
+			//return -EINVAL;
+		}
 	}
-
-	err = gpio_request(bsp_priv->reset_io, "gmac_phy_reset");
-	if (err) {
-		pr_err("%s: ERROR: Request gmac phy reset pin failed.\n", __func__);
-		//return -EINVAL;
-	}
-
 //rmii or rgmii
-	if (phy_iface & PHY_INTERFACE_MODE_RGMII) {
+	if (phy_iface == PHY_INTERFACE_MODE_RGMII) {
 		pr_info("%s: init for RGMII\n", __func__);
 		grf_writel(GMAC_PHY_INTF_SEL_RGMII, RK3288_GRF_SOC_CON1);
 		grf_writel(GMAC_RMII_MODE_CLR, RK3288_GRF_SOC_CON1);
 		grf_writel(GMAC_RXCLK_DLY_ENABLE, RK3288_GRF_SOC_CON3);
 		grf_writel(GMAC_TXCLK_DLY_ENABLE, RK3288_GRF_SOC_CON3);
 		grf_writel(GMAC_CLK_RX_DL_CFG(0x10), RK3288_GRF_SOC_CON3);
-		grf_writel(GMAC_CLK_TX_DL_CFG(0x40), RK3288_GRF_SOC_CON3);
-	} else if (phy_iface & PHY_INTERFACE_MODE_RMII) {
+		grf_writel(GMAC_CLK_TX_DL_CFG(0x30), RK3288_GRF_SOC_CON3);
+		grf_writel(0xffffffff,RK3288_GRF_GPIO3D_E);
+		grf_writel(grf_readl(RK3288_GRF_GPIO4B_E) | 0x3<<2<<16 | 0x3<<2, RK3288_GRF_GPIO4B_E);
+		grf_writel(0xffffffff,RK3288_GRF_GPIO4A_E);
+
+	} else if (phy_iface == PHY_INTERFACE_MODE_RMII) {
 		pr_info("%s: init for RMII\n", __func__);
 		grf_writel(GMAC_PHY_INTF_SEL_RMII, RK3288_GRF_SOC_CON1);
 		grf_writel(GMAC_RMII_MODE, RK3288_GRF_SOC_CON1);
@@ -183,7 +187,7 @@ void stmmc_pltfr_fix_mac_speed(void *priv, unsigned int speed){
 		interface = bsp_priv->phy_iface;
 	}
 
-	if (interface & PHY_INTERFACE_MODE_RGMII) {
+	if (interface == PHY_INTERFACE_MODE_RGMII) {
 		pr_info("%s: fix speed for RGMII\n", __func__);
 
 		switch (speed) {
@@ -204,15 +208,17 @@ void stmmc_pltfr_fix_mac_speed(void *priv, unsigned int speed){
 			}
 		}
 
-	} else if (interface & PHY_INTERFACE_MODE_RMII) {
+	} else if (interface == PHY_INTERFACE_MODE_RMII) {
 		pr_info("%s: fix speed for RMII\n", __func__);
 		switch (speed) {
 			case 10: {
 				grf_writel(GMAC_RMII_CLK_2_5M, RK3288_GRF_SOC_CON1);
+				grf_writel(GMAC_SPEED_10M, RK3288_GRF_SOC_CON1);
 				break;
 			}
 			case 100: {
 				grf_writel(GMAC_RMII_CLK_25M, RK3288_GRF_SOC_CON1);
+				grf_writel(GMAC_SPEED_100M, RK3288_GRF_SOC_CON1);
 				break;
 			}
 			default: {
@@ -232,18 +238,47 @@ static int stmmac_probe_config_dt(struct platform_device *pdev,
 {
 	struct device_node *np = pdev->dev.of_node;
 	enum of_gpio_flags flags;
+	int ret;
+	const char * strings = NULL;
+	int value;
 
 	if (!np)
 		return -ENODEV;
 
 	*mac = of_get_mac_address(np);
 	plat->interface = of_get_phy_mode(np);
+	//don't care about the return value of of_get_phy_mode(np)
+#ifdef CONFIG_GMAC_PHY_RMII
+	plat->interface = PHY_INTERFACE_MODE_RMII;
+#else
+	plat->interface = PHY_INTERFACE_MODE_RGMII;
+#endif
+
 	plat->mdio_bus_data = devm_kzalloc(&pdev->dev,
 					   sizeof(struct stmmac_mdio_bus_data),
 					   GFP_KERNEL);
 
 	plat->init = stmmc_pltfr_init;
 	plat->fix_mac_speed = stmmc_pltfr_fix_mac_speed;
+
+	ret = of_property_read_string(np, "pmu_regulator", &strings);
+	if (ret) {
+		pr_err("%s: Can not read property: pmu_regulator.\n", __func__);
+		g_bsp_priv.power_ctrl_by_pmu = false;
+	} else {
+		pr_info("%s: ethernet phy power controled by pmu(%s).\n", __func__, strings);
+		g_bsp_priv.power_ctrl_by_pmu = true;
+		strcpy(g_bsp_priv.pmu_regulator, strings);
+	}
+	ret = of_property_read_u32(np, "pmu_enable_level", &value);
+	if (ret) {
+		pr_err("%s: Can not read property: pmu_enable_level.\n", __func__);
+		g_bsp_priv.power_ctrl_by_pmu = false;
+	} else {
+		pr_info("%s: ethernet phy power controled by pmu(level = %s).\n", __func__, (value == 1)?"HIGH":"LOW");
+		g_bsp_priv.power_ctrl_by_pmu = true;
+		g_bsp_priv.pmu_enable_level = value;
+	}
 
 	g_bsp_priv.reset_io = 
 			of_get_named_gpio_flags(np, "reset-gpio", 0, &flags);

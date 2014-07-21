@@ -91,8 +91,10 @@ struct stmmac_priv {
 	u32 msg_enable;
 	int wolopts;
 	int wol_irq;
-	struct clk *stmmac_clk;
 	struct clk *clk_mac;
+	struct clk *stmmac_clk;
+	struct clk *clk_mac_pll;
+	struct clk *gmac_clkin;
 	struct clk *mac_clk_rx;
 	struct clk *mac_clk_tx;
 	struct clk *clk_mac_ref;
@@ -119,7 +121,9 @@ struct stmmac_priv {
 };
 
 struct bsp_priv {
-	char pwr_ctl_by[8];
+	bool power_ctrl_by_pmu;
+	char pmu_regulator[32];
+	int pmu_enable_level;
 	int power_io;
 	int power_io_level;
 	int reset_io;
