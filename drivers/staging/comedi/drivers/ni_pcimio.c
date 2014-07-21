@@ -977,8 +977,7 @@ static const struct ni_board_struct ni_boards[] = {
 #include "ni_mio_common.c"
 
 static int pcimio_ai_change(struct comedi_device *dev,
-			    struct comedi_subdevice *s,
-			    unsigned long new_size)
+			    struct comedi_subdevice *s)
 {
 	struct ni_private *devpriv = dev->private;
 	int ret;
@@ -991,8 +990,7 @@ static int pcimio_ai_change(struct comedi_device *dev,
 }
 
 static int pcimio_ao_change(struct comedi_device *dev,
-			    struct comedi_subdevice *s,
-			    unsigned long new_size)
+			    struct comedi_subdevice *s)
 {
 	struct ni_private *devpriv = dev->private;
 	int ret;
@@ -1005,8 +1003,7 @@ static int pcimio_ao_change(struct comedi_device *dev,
 }
 
 static int pcimio_gpct0_change(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       unsigned long new_size)
+			       struct comedi_subdevice *s)
 {
 	struct ni_private *devpriv = dev->private;
 	int ret;
@@ -1019,8 +1016,7 @@ static int pcimio_gpct0_change(struct comedi_device *dev,
 }
 
 static int pcimio_gpct1_change(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       unsigned long new_size)
+			       struct comedi_subdevice *s)
 {
 	struct ni_private *devpriv = dev->private;
 	int ret;
@@ -1033,8 +1029,7 @@ static int pcimio_gpct1_change(struct comedi_device *dev,
 }
 
 static int pcimio_dio_change(struct comedi_device *dev,
-			     struct comedi_subdevice *s,
-			     unsigned long new_size)
+			     struct comedi_subdevice *s)
 {
 	struct ni_private *devpriv = dev->private;
 	int ret;

@@ -268,7 +268,7 @@ static int resize_async_buffer(struct comedi_device *dev,
 		return retval;
 
 	if (s->buf_change) {
-		retval = s->buf_change(dev, s, new_size);
+		retval = s->buf_change(dev, s);
 		if (retval < 0)
 			return retval;
 	}

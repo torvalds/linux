@@ -320,7 +320,7 @@ static int __comedi_device_postconfig_async(struct comedi_device *dev,
 		return -ENOMEM;
 	}
 	if (s->buf_change) {
-		ret = s->buf_change(dev, s, buf_size);
+		ret = s->buf_change(dev, s);
 		if (ret < 0)
 			return ret;
 	}

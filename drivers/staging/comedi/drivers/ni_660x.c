@@ -825,8 +825,7 @@ static int ni_660x_input_poll(struct comedi_device *dev,
 }
 
 static int ni_660x_buf_change(struct comedi_device *dev,
-			      struct comedi_subdevice *s,
-			      unsigned long new_size)
+			      struct comedi_subdevice *s)
 {
 	struct ni_660x_private *devpriv = dev->private;
 	struct ni_gpct *counter = s->private;

@@ -77,8 +77,7 @@ struct comedi_subdevice {
 	int (*cancel)(struct comedi_device *, struct comedi_subdevice *);
 
 	/* called when the buffer changes */
-	int (*buf_change)(struct comedi_device *dev,
-			  struct comedi_subdevice *s, unsigned long new_size);
+	int (*buf_change)(struct comedi_device *, struct comedi_subdevice *);
 
 	void (*munge)(struct comedi_device *dev, struct comedi_subdevice *s,
 		      void *data, unsigned int num_bytes,
