@@ -75,9 +75,6 @@ struct comedi_subdevice {
 			  struct comedi_cmd *);
 	int (*poll)(struct comedi_device *, struct comedi_subdevice *);
 	int (*cancel)(struct comedi_device *, struct comedi_subdevice *);
-	/* int (*do_lock)(struct comedi_device *, struct comedi_subdevice *); */
-	/* int (*do_unlock)(struct comedi_device *, \
-			struct comedi_subdevice *); */
 
 	/* called when the buffer changes */
 	int (*buf_change)(struct comedi_device *dev,
