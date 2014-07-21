@@ -241,8 +241,6 @@ void odm_TXPowerTrackingCheckCE23a(struct dm_odm_t *pDM_Odm);
 void odm_EdcaTurboCheck23a(struct dm_odm_t *pDM_Odm);
 void ODM_EdcaTurboInit23a(struct dm_odm_t *pDM_Odm);
 
-void odm_EdcaTurboCheck23aCE23a(struct dm_odm_t *pDM_Odm);
-
 #define		RxDefaultAnt1		0x65a9
 #define	RxDefaultAnt2		0x569a
 
@@ -1628,37 +1626,28 @@ void ODM_EdcaTurboInit23a(struct dm_odm_t *pDM_Odm)
 
 void odm_EdcaTurboCheck23a(struct dm_odm_t *pDM_Odm)
 {
-	/*  For AP/ADSL use struct rtl8723a_priv * */
-	/*  For CE/NIC use struct rtw_adapter * */
-
-	/*  2011/09/29 MH In HW integration first stage, we provide 4 different handle to operate */
-	/*  at the same time. In the stage2/3, we need to prive universal interface and merge all */
-	/*  HW dynamic mechanism. */
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_EDCA_TURBO, ODM_DBG_LOUD, ("odm_EdcaTurboCheck23a ========================>\n"));
-
-	if (!(pDM_Odm->SupportAbility & ODM_MAC_EDCA_TURBO))
-		return;
-
-	odm_EdcaTurboCheck23aCE23a(pDM_Odm);
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_EDCA_TURBO, ODM_DBG_LOUD, ("<======================== odm_EdcaTurboCheck23a\n"));
-
-}	/*  odm_CheckEdcaTurbo */
-
-void odm_EdcaTurboCheck23aCE23a(struct dm_odm_t *pDM_Odm)
-{
 	struct rtw_adapter *Adapter = pDM_Odm->Adapter;
-
-	u32 trafficIndex;
-	u32 edca_param;
-	u64 cur_tx_bytes = 0;
-	u64 cur_rx_bytes = 0;
-	u8 bbtchange = false;
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(Adapter);
 	struct xmit_priv *pxmitpriv = &Adapter->xmitpriv;
 	struct recv_priv *precvpriv = &Adapter->recvpriv;
 	struct registry_priv *pregpriv = &Adapter->registrypriv;
 	struct mlme_ext_priv *pmlmeext = &Adapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
+	u32 trafficIndex;
+	u32 edca_param;
+	u64 cur_tx_bytes = 0;
+	u64 cur_rx_bytes = 0;
+	u8 bbtchange = false;
+
+	/*  For AP/ADSL use struct rtl8723a_priv * */
+	/*  For CE/NIC use struct rtw_adapter * */
+
+	/*  2011/09/29 MH In HW integration first stage, we provide 4 different handle to operate */
+	/*  at the same time. In the stage2/3, we need to prive universal interface and merge all */
+	/*  HW dynamic mechanism. */
+
+	if (!(pDM_Odm->SupportAbility & ODM_MAC_EDCA_TURBO))
+		return;
 
 	if ((pregpriv->wifi_spec == 1))/*  (pmlmeinfo->HT_enable == 0)) */
 		goto dm_CheckEdcaTurbo_EXIT;
