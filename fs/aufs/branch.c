@@ -74,6 +74,7 @@ static void au_br_do_free(struct au_branch *br)
 			dput(wbr->wbr_wh[i]);
 		AuDebugOn(atomic_read(&wbr->wbr_wh_running));
 		AuRwDestroy(&wbr->wbr_wh_rwsem);
+		au_wbr_fin_fhsm(wbr);
 	}
 
 	key = br->br_dykey;
@@ -361,6 +362,7 @@ static int au_wbr_init(struct au_branch *br, struct super_block *sb,
 	memset(wbr->wbr_wh, 0, sizeof(wbr->wbr_wh));
 	atomic_set(&wbr->wbr_wh_running, 0);
 	wbr->wbr_bytes = 0;
+	au_wbr_init_fhsm(wbr);
 
 	/*
 	 * a limit for rmdir/rename a dir
