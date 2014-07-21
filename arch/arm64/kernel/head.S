@@ -55,9 +55,11 @@
 #ifdef CONFIG_ARM64_64K_PAGES
 #define BLOCK_SHIFT	PAGE_SHIFT
 #define BLOCK_SIZE	PAGE_SIZE
+#define TABLE_SHIFT	PMD_SHIFT
 #else
 #define BLOCK_SHIFT	SECTION_SHIFT
 #define BLOCK_SIZE	SECTION_SIZE
+#define TABLE_SHIFT	PUD_SHIFT
 #endif
 
 #define KERNEL_START	KERNEL_RAM_VADDR
@@ -505,8 +507,8 @@ ENDPROC(__calc_phys_offset)
  */
 	.macro	create_pgd_entry, tbl, virt, tmp1, tmp2
 	create_table_entry \tbl, \virt, PGDIR_SHIFT, PTRS_PER_PGD, \tmp1, \tmp2
-#if CONFIG_ARM64_PGTABLE_LEVELS == 4
-	create_table_entry \tbl, \virt, PUD_SHIFT, PTRS_PER_PUD, \tmp1, \tmp2
+#if SWAPPER_PGTABLE_LEVELS == 3
+	create_table_entry \tbl, \virt, TABLE_SHIFT, PTRS_PER_PTE, \tmp1, \tmp2
 #endif
 	.endm
 

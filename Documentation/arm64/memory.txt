@@ -45,6 +45,14 @@ Start			End			Size		Use
 fffffc0000000000	ffffffffffffffff	   4TB		kernel
 
 
+AArch64 Linux memory layout with 64KB pages + 3 levels:
+
+Start			End			Size		Use
+-----------------------------------------------------------------------
+0000000000000000	0000ffffffffffff	 256TB		user
+ffff000000000000	ffffffffffffffff	 256TB		kernel
+
+
 For details of the virtual kernel memory layout please see the kernel
 booting log.
 
