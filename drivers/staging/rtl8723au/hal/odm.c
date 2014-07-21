@@ -463,8 +463,10 @@ void ODM_CmnInfoUpdate23a(struct dm_odm_t *pDM_Odm, u32 CmnInfo, u64 Value)
 void odm_CommonInfoSelfInit23a(struct dm_odm_t *pDM_Odm
 	)
 {
-	pDM_Odm->bCckHighPower = (bool) ODM_GetBBReg(pDM_Odm, 0x824, BIT(9));
-	pDM_Odm->RFPathRxEnable = (u8) ODM_GetBBReg(pDM_Odm, 0xc04, 0x0F);
+	pDM_Odm->bCckHighPower =
+		(bool) ODM_GetBBReg(pDM_Odm, rFPGA0_XA_HSSIParameter2, BIT(9));
+	pDM_Odm->RFPathRxEnable =
+		(u8) ODM_GetBBReg(pDM_Odm, rOFDM0_TRxPathEnable, 0x0F);
 	if (pDM_Odm->SupportICType & ODM_RTL8723A)
 		pDM_Odm->AntDivType = CGCS_RX_SW_ANTDIV;
 
