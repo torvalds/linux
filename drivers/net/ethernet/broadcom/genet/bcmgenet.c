@@ -2635,6 +2635,12 @@ static int bcmgenet_suspend(struct device *d)
 	bcmgenet_tx_reclaim_all(dev);
 	bcmgenet_fini_dma(priv);
 
+	/* Prepare the device for Wake-on-LAN and switch to the slow clock */
+	if (device_may_wakeup(d) && priv->wolopts) {
+		bcmgenet_power_down(priv, GENET_POWER_WOL_MAGIC);
+		clk_prepare_enable(priv->clk_wol);
+	}
+
 	/* Turn off the clocks */
 	clk_disable_unprepare(priv->clk);
 
@@ -2660,6 +2666,12 @@ static int bcmgenet_resume(struct device *d)
 	bcmgenet_umac_reset(priv);
 
 	ret = init_umac(priv);
+	if (ret)
+		goto out_clk_disable;
+
+	if (priv->wolopts)
+		ret = bcmgenet_wol_resume(priv);
+
 	if (ret)
 		goto out_clk_disable;
 
