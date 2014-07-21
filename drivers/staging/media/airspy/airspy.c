@@ -566,14 +566,13 @@ err:
 static void airspy_stop_streaming(struct vb2_queue *vq)
 {
 	struct airspy *s = vb2_get_drv_priv(vq);
-	int ret;
 
 	dev_dbg(&s->udev->dev, "%s:\n", __func__);
 
 	mutex_lock(&s->v4l2_lock);
 
 	/* stop hardware streaming */
-	ret = airspy_ctrl_msg(s, CMD_RECEIVER_MODE, 0, 0, NULL, 0);
+	airspy_ctrl_msg(s, CMD_RECEIVER_MODE, 0, 0, NULL, 0);
 
 	airspy_kill_urbs(s);
 	airspy_free_urbs(s);
