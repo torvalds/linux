@@ -531,6 +531,12 @@ int ath10k_htt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 	flags1 |= HTT_DATA_TX_DESC_FLAGS1_CKSUM_L3_OFFLOAD;
 	flags1 |= HTT_DATA_TX_DESC_FLAGS1_CKSUM_L4_OFFLOAD;
 
+	/* Prevent firmware from sending up tx inspection requests. There's
+	 * nothing ath10k can do with frames requested for inspection so force
+	 * it to simply rely a regular tx completion with discard status.
+	 */
+	flags1 |= HTT_DATA_TX_DESC_FLAGS1_POSTPONED;
+
 	skb_cb->htt.txbuf->cmd_hdr.msg_type = HTT_H2T_MSG_TYPE_TX_FRM;
 	skb_cb->htt.txbuf->cmd_tx.flags0 = flags0;
 	skb_cb->htt.txbuf->cmd_tx.flags1 = __cpu_to_le16(flags1);
