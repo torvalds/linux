@@ -421,12 +421,6 @@ void ODM23a_CmnInfoHook(struct dm_odm_t *pDM_Odm,
 	case	ODM_CMNINFO_MAC_PHY_MODE:
 		pDM_Odm->pMacPhyMode = (u8 *)pValue;
 		break;
-	case	ODM_CMNINFO_TX_UNI:
-		pDM_Odm->pNumTxBytesUnicast = (u64 *)pValue;
-		break;
-	case	ODM_CMNINFO_RX_UNI:
-		pDM_Odm->pNumRxBytesUnicast = (u64 *)pValue;
-		break;
 	case	ODM_CMNINFO_WM_MODE:
 		pDM_Odm->pWirelessMode = (u8 *)pValue;
 		break;
@@ -600,8 +594,6 @@ void odm_CmnInfoInit_Debug23a(struct dm_odm_t *pDM_Odm)
 void odm_CmnInfoHook_Debug23a(struct dm_odm_t *pDM_Odm)
 {
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("odm_CmnInfoHook_Debug23a ==>\n"));
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("pNumTxBytesUnicast =%llu\n", *(pDM_Odm->pNumTxBytesUnicast)));
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("pNumRxBytesUnicast =%llu\n", *(pDM_Odm->pNumRxBytesUnicast)));
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("pWirelessMode = 0x%x\n", *(pDM_Odm->pWirelessMode)));
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("pSecChOffset =%d\n", *(pDM_Odm->pSecChOffset)));
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("pSecurity =%d\n", *(pDM_Odm->pSecurity)));

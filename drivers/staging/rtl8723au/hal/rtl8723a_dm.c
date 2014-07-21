@@ -154,10 +154,6 @@ static void Update_ODM_ComInfo_8723a(struct rtw_adapter *Adapter)
 
 	ODM_CmnInfoUpdate23a(pDM_Odm, ODM_CMNINFO_ABILITY, pdmpriv->InitODMFlag);
 
-	ODM23a_CmnInfoHook(pDM_Odm, ODM_CMNINFO_TX_UNI,
-			   &Adapter->xmitpriv.tx_bytes);
-	ODM23a_CmnInfoHook(pDM_Odm, ODM_CMNINFO_RX_UNI,
-			   &Adapter->recvpriv.rx_bytes);
 	ODM23a_CmnInfoHook(pDM_Odm, ODM_CMNINFO_WM_MODE,
 			   &pmlmeext->cur_wireless_mode);
 	ODM23a_CmnInfoHook(pDM_Odm, ODM_CMNINFO_SEC_CHNL_OFFSET,

@@ -321,8 +321,6 @@ enum odm_cmninfo {
 	/*  Dynamic value: */
 	/*  */
 	ODM_CMNINFO_MAC_PHY_MODE,			/*  enum odm_mac_phy_mode */
-	ODM_CMNINFO_TX_UNI,
-	ODM_CMNINFO_RX_UNI,
 	ODM_CMNINFO_WM_MODE,				/*  enum odm_wireless_mode */
 	ODM_CMNINFO_BAND,					/*  enum odm_band_type */
 	ODM_CMNINFO_SEC_CHNL_OFFSET,		/*  enum odm_sec_chnl_offset */
@@ -715,10 +713,6 @@ struct dm_odm_t {
 
 	/*  MAC PHY Mode SMSP/DMSP/DMDP = 0/1/2 */
 	u8			*pMacPhyMode;
-	/* TX Unicast byte count */
-	u64			*pNumTxBytesUnicast;
-	/* RX Unicast byte count */
-	u64			*pNumRxBytesUnicast;
 	/*  Wireless mode B/G/A/N = BIT0/BIT1/BIT2/BIT3 */
 	u8			*pWirelessMode; /* enum odm_wireless_mode */
 	/*  Frequence band 2.4G/5G = 0/1 */
