@@ -179,7 +179,7 @@ void odm_FalseAlarmCounterStatistics23a(struct dm_odm_t *pDM_Odm);
 
 void odm_DIG23aInit(struct dm_odm_t *pDM_Odm);
 
-void odm_DIG23a(struct dm_odm_t *pDM_Odm);
+void odm_DIG23a(struct rtw_adapter *adapter);
 
 void odm_CCKPacketDetectionThresh23a(struct dm_odm_t *pDM_Odm);
 /* END---------------DIG--------------------------- */
@@ -287,8 +287,9 @@ void ODM23a_DMInit(struct dm_odm_t *pDM_Odm)
 /*  2011/09/20 MH This is the entry pointer for all team to execute HW out source DM. */
 /*  You can not add any dummy function here, be care, you can only use DM structure */
 /*  to perform any new ODM_DM. */
-void ODM_DMWatchdog23a(struct hal_data_8723a *pHalData)
+void ODM_DMWatchdog23a(struct rtw_adapter *adapter)
 {
+	struct hal_data_8723a *pHalData = GET_HAL_DATA(adapter);
 	struct dm_odm_t *pDM_Odm = &pHalData->odmpriv;
 
 	/* 2012.05.03 Luke: For all IC series */
@@ -307,7 +308,7 @@ void ODM_DMWatchdog23a(struct hal_data_8723a *pHalData)
 			ODM_RT_TRACE(pDM_Odm, ODM_COMP_DIG, ODM_DBG_LOUD, ("---Step2: 8723AS is in LPS mode\n"));
 			odm_DIG23abyRSSI_LPS(pDM_Odm);
 	} else {
-		odm_DIG23a(pDM_Odm);
+		odm_DIG23a(adapter);
 	}
 
 	odm_CCKPacketDetectionThresh23a(pDM_Odm);
@@ -417,9 +418,6 @@ void ODM23a_CmnInfoHook(struct dm_odm_t *pDM_Odm,
 	/*  Hook call by reference pointer. */
 	switch	(CmnInfo) {
 	/*  Dynamic call by reference pointer. */
-	case	ODM_CMNINFO_SCAN:
-		pDM_Odm->pbScanInProcess = (bool *)pValue;
-		break;
 	case	ODM_CMNINFO_POWER_SAVING:
 		pDM_Odm->pbPowerSaving = (bool *)pValue;
 		break;
@@ -544,7 +542,6 @@ void odm_CmnInfoHook_Debug23a(struct dm_odm_t *pDM_Odm)
 {
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("odm_CmnInfoHook_Debug23a ==>\n"));
 
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("pbScanInProcess =%d\n", *(pDM_Odm->pbScanInProcess)));
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("pbPowerSaving =%d\n", *(pDM_Odm->pbPowerSaving)));
 }
 
@@ -655,9 +652,10 @@ void odm_DIG23aInit(struct dm_odm_t *pDM_Odm)
 	pDM_DigTable->bMediaConnect_1 = false;
 }
 
-void odm_DIG23a(struct dm_odm_t *pDM_Odm)
+void odm_DIG23a(struct rtw_adapter *adapter)
 {
-
+	struct hal_data_8723a *pHalData = GET_HAL_DATA(adapter);
+	struct dm_odm_t *pDM_Odm = &pHalData->odmpriv;
 	struct dig_t *pDM_DigTable = &pDM_Odm->DM_DigTable;
 	struct false_alarm_stats *pFalseAlmCnt = &pDM_Odm->FalseAlmCnt;
 	u8 DIG_Dynamic_MIN;
@@ -674,7 +672,7 @@ void odm_DIG23a(struct dm_odm_t *pDM_Odm)
 		return;
 	}
 
-	if (*(pDM_Odm->pbScanInProcess)) {
+	if (adapter->mlmepriv.bScanInProcess) {
 		ODM_RT_TRACE(pDM_Odm, ODM_COMP_DIG, ODM_DBG_LOUD, ("odm_DIG23a() Return: In Scan Progress \n"));
 		return;
 	}

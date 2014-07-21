@@ -133,7 +133,6 @@ static void Init_ODM_ComInfo_8723a(struct rtw_adapter *Adapter)
 
 static void Update_ODM_ComInfo_8723a(struct rtw_adapter *Adapter)
 {
-	struct mlme_priv *pmlmepriv = &Adapter->mlmepriv;
 	struct pwrctrl_priv *pwrctrlpriv = &Adapter->pwrctrlpriv;
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(Adapter);
 	struct dm_odm_t *pDM_Odm = &pHalData->odmpriv;
@@ -152,7 +151,6 @@ static void Update_ODM_ComInfo_8723a(struct rtw_adapter *Adapter)
 	/*  Pointer reference */
 	rtl8723a_odm_support_ability_set(Adapter, DYNAMIC_ALL_FUNC_ENABLE);
 
-	ODM23a_CmnInfoHook(pDM_Odm, ODM_CMNINFO_SCAN, &pmlmepriv->bScanInProcess);
 	ODM23a_CmnInfoHook(pDM_Odm, ODM_CMNINFO_POWER_SAVING,
 			   &pwrctrlpriv->bpower_saving);
 
@@ -210,7 +208,7 @@ rtl8723a_HalDmWatchDog(
 		bLinked = true;
 
 	ODM_CmnInfoUpdate23a(&pHalData->odmpriv, ODM_CMNINFO_LINK, bLinked);
-	ODM_DMWatchdog23a(pHalData);
+	ODM_DMWatchdog23a(Adapter);
 
 skip_dm:
 
