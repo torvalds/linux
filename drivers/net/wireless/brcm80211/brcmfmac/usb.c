@@ -21,6 +21,7 @@
 #include <linux/vmalloc.h>
 
 #include <brcmu_utils.h>
+#include <brcm_hw_ids.h>
 #include <brcmu_wifi.h>
 #include <dhd_bus.h>
 #include <dhd_dbg.h>
@@ -913,16 +914,16 @@ static int brcmf_usb_dlrun(struct brcmf_usbdev_info *devinfo)
 static bool brcmf_usb_chip_support(int chipid, int chiprev)
 {
 	switch(chipid) {
-	case 43143:
+	case BRCM_CC_43143_CHIP_ID:
 		return true;
-	case 43235:
-	case 43236:
-	case 43238:
+	case BRCM_CC_43235_CHIP_ID:
+	case BRCM_CC_43236_CHIP_ID:
+	case BRCM_CC_43238_CHIP_ID:
 		return (chiprev == 3);
-	case 43242:
+	case BRCM_CC_43242_CHIP_ID:
 		return true;
-	case 43566:
-	case 43569:
+	case BRCM_CC_43566_CHIP_ID:
+	case BRCM_CC_43569_CHIP_ID:
 		return true;
 	default:
 		break;
@@ -1016,16 +1017,16 @@ static int check_file(const u8 *headers)
 static const char *brcmf_usb_get_fwname(struct brcmf_usbdev_info *devinfo)
 {
 	switch (devinfo->bus_pub.devid) {
-	case 43143:
+	case BRCM_CC_43143_CHIP_ID:
 		return BRCMF_USB_43143_FW_NAME;
-	case 43235:
-	case 43236:
-	case 43238:
+	case BRCM_CC_43235_CHIP_ID:
+	case BRCM_CC_43236_CHIP_ID:
+	case BRCM_CC_43238_CHIP_ID:
 		return BRCMF_USB_43236_FW_NAME;
-	case 43242:
+	case BRCM_CC_43242_CHIP_ID:
 		return BRCMF_USB_43242_FW_NAME;
-	case 43566:
-	case 43569:
+	case BRCM_CC_43566_CHIP_ID:
+	case BRCM_CC_43569_CHIP_ID:
 		return BRCMF_USB_43569_FW_NAME;
 	default:
 		return NULL;
@@ -1366,21 +1367,17 @@ static int brcmf_usb_reset_resume(struct usb_interface *intf)
 				      brcmf_usb_probe_phase2);
 }
 
-#define BRCMF_USB_VENDOR_ID_BROADCOM	0x0a5c
-#define BRCMF_USB_DEVICE_ID_43143	0xbd1e
-#define BRCMF_USB_DEVICE_ID_43236	0xbd17
-#define BRCMF_USB_DEVICE_ID_43242	0xbd1f
-#define BRCMF_USB_DEVICE_ID_43569	0xbd27
-#define BRCMF_USB_DEVICE_ID_BCMFW	0x0bdc
+#define BRCMF_USB_DEVICE(dev_id)	\
+	{ USB_DEVICE(BRCM_USB_VENDOR_ID_BROADCOM, dev_id) }
 
 static struct usb_device_id brcmf_usb_devid_table[] = {
-	{ USB_DEVICE(BRCMF_USB_VENDOR_ID_BROADCOM, BRCMF_USB_DEVICE_ID_43143) },
-	{ USB_DEVICE(BRCMF_USB_VENDOR_ID_BROADCOM, BRCMF_USB_DEVICE_ID_43236) },
-	{ USB_DEVICE(BRCMF_USB_VENDOR_ID_BROADCOM, BRCMF_USB_DEVICE_ID_43242) },
-	{ USB_DEVICE(BRCMF_USB_VENDOR_ID_BROADCOM, BRCMF_USB_DEVICE_ID_43569) },
+	BRCMF_USB_DEVICE(BRCM_USB_43143_DEVICE_ID),
+	BRCMF_USB_DEVICE(BRCM_USB_43236_DEVICE_ID),
+	BRCMF_USB_DEVICE(BRCM_USB_43242_DEVICE_ID),
+	BRCMF_USB_DEVICE(BRCM_USB_43569_DEVICE_ID),
 	/* special entry for device with firmware loaded and running */
-	{ USB_DEVICE(BRCMF_USB_VENDOR_ID_BROADCOM, BRCMF_USB_DEVICE_ID_BCMFW) },
-	{ }
+	BRCMF_USB_DEVICE(BRCM_USB_BCMFW_DEVICE_ID),
+	{ /* end: all zeroes */ }
 };
 
 MODULE_DEVICE_TABLE(usb, brcmf_usb_devid_table);

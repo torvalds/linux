@@ -2012,7 +2012,6 @@ static void mwifiex_sdio_fw_dump_work(struct work_struct *work)
 	int ret = 0;
 	unsigned int reg, reg_start, reg_end;
 	u8 *dbg_ptr, *end_ptr, dump_num, idx, i, read_reg, doneflag = 0;
-	struct timeval t;
 	enum rdwr_status stat;
 	u32 memory_size;
 	static char *env[] = { "DRIVER=mwifiex_sdio", "EVENT=fw_dump", NULL };
@@ -2033,9 +2032,7 @@ static void mwifiex_sdio_fw_dump_work(struct work_struct *work)
 	mwifiex_pm_wakeup_card(adapter);
 	sdio_claim_host(card->func);
 
-	do_gettimeofday(&t);
-	dev_info(adapter->dev, "== mwifiex firmware dump start: %u.%06u ==\n",
-		 (u32)t.tv_sec, (u32)t.tv_usec);
+	dev_info(adapter->dev, "== mwifiex firmware dump start ==\n");
 
 	stat = mwifiex_sdio_rdwr_firmware(adapter, doneflag);
 	if (stat == RDWR_STATUS_FAILURE)
@@ -2087,9 +2084,8 @@ static void mwifiex_sdio_fw_dump_work(struct work_struct *work)
 		end_ptr = dbg_ptr + memory_size;
 
 		doneflag = entry->done_flag;
-		do_gettimeofday(&t);
-		dev_info(adapter->dev, "Start %s output %u.%06u, please wait...\n",
-			 entry->mem_name, (u32)t.tv_sec, (u32)t.tv_usec);
+		dev_info(adapter->dev, "Start %s output, please wait...\n",
+			 entry->mem_name);
 
 		do {
 			stat = mwifiex_sdio_rdwr_firmware(adapter, doneflag);
@@ -2120,9 +2116,7 @@ static void mwifiex_sdio_fw_dump_work(struct work_struct *work)
 			break;
 		} while (1);
 	}
-	do_gettimeofday(&t);
-	dev_info(adapter->dev, "== mwifiex firmware dump end: %u.%06u ==\n",
-		 (u32)t.tv_sec, (u32)t.tv_usec);
+	dev_info(adapter->dev, "== mwifiex firmware dump end ==\n");
 
 	kobject_uevent_env(&adapter->wiphy->dev.kobj, KOBJ_CHANGE, env);
 

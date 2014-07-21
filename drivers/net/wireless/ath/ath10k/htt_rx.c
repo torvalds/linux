@@ -1516,6 +1516,13 @@ void ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb)
 		trace_ath10k_htt_stats(skb->data, skb->len);
 		break;
 	case HTT_T2H_MSG_TYPE_TX_INSPECT_IND:
+		/* Firmware can return tx frames if it's unable to fully
+		 * process them and suspects host may be able to fix it. ath10k
+		 * sends all tx frames as already inspected so this shouldn't
+		 * happen unless fw has a bug.
+		 */
+		ath10k_warn("received an unexpected htt tx inspect event\n");
+		break;
 	case HTT_T2H_MSG_TYPE_RX_ADDBA:
 	case HTT_T2H_MSG_TYPE_RX_DELBA:
 	case HTT_T2H_MSG_TYPE_RX_FLUSH:

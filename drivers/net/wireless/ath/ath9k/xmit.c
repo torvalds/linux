@@ -157,15 +157,14 @@ static void ath_txq_skb_done(struct ath_softc *sc, struct ath_txq *txq,
 			     struct sk_buff *skb)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-	int q, hw_queue;
+	struct ath_frame_info *fi = get_frame_info(skb);
+	int hw_queue;
+	int q = fi->txq;
 
-	q = skb_get_queue_mapping(skb);
-	if (txq == sc->tx.uapsdq)
-		txq = sc->tx.txq_map[q];
-
-	if (txq != sc->tx.txq_map[q])
+	if (q < 0)
 		return;
 
+	txq = sc->tx.txq_map[q];
 	if (WARN_ON(--txq->pending_frames < 0))
 		txq->pending_frames = 0;
 
@@ -2036,6 +2035,7 @@ static void setup_frame_info(struct ieee80211_hw *hw,
 		an = (struct ath_node *) sta->drv_priv;
 
 	memset(fi, 0, sizeof(*fi));
+	fi->txq = -1;
 	if (hw_key)
 		fi->keyix = hw_key->hw_key_idx;
 	else if (an && ieee80211_is_data(hdr->frame_control) && an->ps_key > 0)
@@ -2187,6 +2187,7 @@ int ath_tx_start(struct ieee80211_hw *hw, struct sk_buff *skb,
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_sta *sta = txctl->sta;
 	struct ieee80211_vif *vif = info->control.vif;
+	struct ath_frame_info *fi = get_frame_info(skb);
 	struct ath_vif *avp = NULL;
 	struct ath_softc *sc = hw->priv;
 	struct ath_txq *txq = txctl->txq;
@@ -2216,11 +2217,13 @@ int ath_tx_start(struct ieee80211_hw *hw, struct sk_buff *skb,
 	hw_queue = (info->hw_queue >= sc->hw->queues - 2) ? q : info->hw_queue;
 
 	ath_txq_lock(sc, txq);
-	if (txq == sc->tx.txq_map[q] &&
-	    ++txq->pending_frames > sc->tx.txq_max_pending[q] &&
-	    !txq->stopped) {
-		ieee80211_stop_queue(sc->hw, hw_queue);
-		txq->stopped = true;
+	if (txq == sc->tx.txq_map[q]) {
+		fi->txq = q;
+		if (++txq->pending_frames > sc->tx.txq_max_pending[q] &&
+		    !txq->stopped) {
+			ieee80211_stop_queue(sc->hw, hw_queue);
+			txq->stopped = true;
+		}
 	}
 
 	queue = ieee80211_is_data_present(hdr->frame_control);
