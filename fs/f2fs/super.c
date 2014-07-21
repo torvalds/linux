@@ -689,9 +689,7 @@ static struct inode *f2fs_nfs_get_inode(struct super_block *sb,
 	struct f2fs_sb_info *sbi = F2FS_SB(sb);
 	struct inode *inode;
 
-	if (unlikely(ino < F2FS_ROOT_INO(sbi)))
-		return ERR_PTR(-ESTALE);
-	if (unlikely(ino >= NM_I(sbi)->max_nid))
+	if (check_nid_range(sbi, ino))
 		return ERR_PTR(-ESTALE);
 
 	/*
