@@ -1865,13 +1865,10 @@ static u8 ath10k_tx_h_get_vdev_id(struct ath10k *ar,
 	return 0;
 }
 
-/*
- * Frames sent to the FW have to be in "Native Wifi" format.
- * Strip the QoS field from the 802.11 header.
+/* HTT Tx uses Native Wifi tx mode which expects 802.11 frames without QoS
+ * Control in the header.
  */
-static void ath10k_tx_h_qos_workaround(struct ieee80211_hw *hw,
-				       struct ieee80211_tx_control *control,
-				       struct sk_buff *skb)
+static void ath10k_tx_h_nwifi(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr = (void *)skb->data;
 	u8 *qos_ctl;
@@ -1919,14 +1916,13 @@ unlock:
 	mutex_unlock(&arvif->ar->conf_mutex);
 }
 
-static void ath10k_tx_h_update_wep_key(struct sk_buff *skb)
+static void ath10k_tx_h_update_wep_key(struct ieee80211_vif *vif,
+				       struct ieee80211_key_conf *key,
+				       struct sk_buff *skb)
 {
-	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-	struct ieee80211_vif *vif = info->control.vif;
 	struct ath10k_vif *arvif = ath10k_vif_to_arvif(vif);
 	struct ath10k *ar = arvif->ar;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
-	struct ieee80211_key_conf *key = info->control.hw_key;
 
 	if (!ieee80211_has_protected(hdr->frame_control))
 		return;
@@ -1948,11 +1944,11 @@ static void ath10k_tx_h_update_wep_key(struct sk_buff *skb)
 	ieee80211_queue_work(ar->hw, &arvif->wep_key_work);
 }
 
-static void ath10k_tx_h_add_p2p_noa_ie(struct ath10k *ar, struct sk_buff *skb)
+static void ath10k_tx_h_add_p2p_noa_ie(struct ath10k *ar,
+				       struct ieee80211_vif *vif,
+				       struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
-	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-	struct ieee80211_vif *vif = info->control.vif;
 	struct ath10k_vif *arvif = ath10k_vif_to_arvif(vif);
 
 	/* This is case only for P2P_GO */
@@ -2254,32 +2250,27 @@ static void ath10k_tx(struct ieee80211_hw *hw,
 		      struct ieee80211_tx_control *control,
 		      struct sk_buff *skb)
 {
-	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct ath10k *ar = hw->priv;
-	u8 tid, vdev_id;
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	struct ieee80211_vif *vif = info->control.vif;
+	struct ieee80211_key_conf *key = info->control.hw_key;
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 
 	/* We should disable CCK RATE due to P2P */
 	if (info->flags & IEEE80211_TX_CTL_NO_CCK_RATE)
 		ath10k_dbg(ATH10K_DBG_MAC, "IEEE80211_TX_CTL_NO_CCK_RATE\n");
 
-	/* we must calculate tid before we apply qos workaround
-	 * as we'd lose the qos control field */
-	tid = ath10k_tx_h_get_tid(hdr);
-	vdev_id = ath10k_tx_h_get_vdev_id(ar, info);
+	ATH10K_SKB_CB(skb)->htt.is_offchan = false;
+	ATH10K_SKB_CB(skb)->htt.tid = ath10k_tx_h_get_tid(hdr);
+	ATH10K_SKB_CB(skb)->vdev_id = ath10k_tx_h_get_vdev_id(ar, info);
 
 	/* it makes no sense to process injected frames like that */
-	if (info->control.vif &&
-	    info->control.vif->type != NL80211_IFTYPE_MONITOR) {
-		ath10k_tx_h_qos_workaround(hw, control, skb);
-		ath10k_tx_h_update_wep_key(skb);
-		ath10k_tx_h_add_p2p_noa_ie(ar, skb);
-		ath10k_tx_h_seq_no(skb);
+	if (vif && vif->type != NL80211_IFTYPE_MONITOR) {
+		ath10k_tx_h_nwifi(hw, skb);
+		ath10k_tx_h_update_wep_key(vif, key, skb);
+		ath10k_tx_h_add_p2p_noa_ie(ar, vif, skb);
+		ath10k_tx_h_seq_no(vif, skb);
 	}
-
-	ATH10K_SKB_CB(skb)->vdev_id = vdev_id;
-	ATH10K_SKB_CB(skb)->htt.is_offchan = false;
-	ATH10K_SKB_CB(skb)->htt.tid = tid;
 
 	if (info->flags & IEEE80211_TX_CTL_TX_OFFCHAN) {
 		spin_lock_bh(&ar->data_lock);
