@@ -769,6 +769,7 @@ static bool rtree_next_node(struct memory_bitmap *bm)
 	if (&bm->cur.node->list != &bm->cur.zone->leaves) {
 		bm->cur.node_pfn += BM_BITS_PER_BLOCK;
 		bm->cur.node_bit  = 0;
+		touch_softlockup_watchdog();
 		return true;
 	}
 
