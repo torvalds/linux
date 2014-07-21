@@ -1965,14 +1965,8 @@ static void bcmgenet_set_hw_addr(struct bcmgenet_priv *priv,
 
 static int bcmgenet_wol_resume(struct bcmgenet_priv *priv)
 {
-	int ret;
-
 	/* From WOL-enabled suspend, switch to regular clock */
-	clk_disable(priv->clk_wol);
-	/* init umac registers to synchronize s/w with h/w */
-	ret = init_umac(priv);
-	if (ret)
-		return ret;
+	clk_disable_unprepare(priv->clk_wol);
 
 	phy_init_hw(priv->phydev);
 	/* Speed settings must be restored */
