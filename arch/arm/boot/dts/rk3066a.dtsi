@@ -86,7 +86,7 @@
 		#reset-cells = <1>;
 	};
 
-	pinctrl: pinctrl@20008000 {
+	pinctrl: pinctrl {
 		compatible = "rockchip,rk3066a-pinctrl";
 		rockchip,grf = <&grf>;
 		#address-cells = <1>;
