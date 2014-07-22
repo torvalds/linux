@@ -126,6 +126,7 @@ static int subdev_close(struct file *file)
 	return 0;
 }
 
+#if defined(CONFIG_VIDEO_V4L2_SUBDEV_API)
 static int check_format(struct v4l2_subdev *sd,
 			struct v4l2_subdev_format *format)
 {
@@ -174,6 +175,7 @@ static int check_edid(struct v4l2_subdev *sd, struct v4l2_subdev_edid *edid)
 
 	return 0;
 }
+#endif
 
 static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 {
@@ -182,8 +184,8 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	struct v4l2_fh *vfh = file->private_data;
 #if defined(CONFIG_VIDEO_V4L2_SUBDEV_API)
 	struct v4l2_subdev_fh *subdev_fh = to_v4l2_subdev_fh(vfh);
-#endif
 	int rval;
+#endif
 
 	switch (cmd) {
 	case VIDIOC_QUERYCTRL:
