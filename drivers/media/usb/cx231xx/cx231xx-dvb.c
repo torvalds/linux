@@ -32,6 +32,7 @@
 #include "tda18271.h"
 #include "s5h1411.h"
 #include "lgdt3305.h"
+#include "si2165.h"
 #include "mb86a20s.h"
 
 MODULE_DESCRIPTION("driver for cx231xx based DVB cards");
@@ -150,6 +151,12 @@ static struct tda18271_config pv_tda18271_config = {
 	.std_map = &mb86a20s_tda18271_config,
 	.gate    = TDA18271_GATE_DIGITAL,
 	.small_i2c = TDA18271_03_BYTE_CHUNK_INIT,
+};
+
+static const struct si2165_config hauppauge_930C_HD_1113xx_si2165_config = {
+	.i2c_addr	= 0x64,
+	.chip_mode	= SI2165_MODE_PLL_XTAL,
+	.ref_freq_Hz	= 16000000,
 };
 
 static inline void print_err_status(struct cx231xx *dev, int packet, int status)
@@ -710,6 +717,33 @@ static int dvb_init(struct cx231xx *dev)
 		dvb_attach(tda18271_attach, dev->dvb->frontend,
 			   0x60, &dev->i2c_bus[dev->board.tuner_i2c_master].i2c_adap,
 			   &hcw_tda18271_config);
+		break;
+
+	case CX231XX_BOARD_HAUPPAUGE_930C_HD_1113xx:
+
+		dev->dvb->frontend = dvb_attach(si2165_attach,
+			&hauppauge_930C_HD_1113xx_si2165_config,
+			&dev->i2c_bus[dev->board.tuner_i2c_master].i2c_adap
+			);
+
+		if (dev->dvb->frontend == NULL) {
+			printk(DRIVER_NAME
+			       ": Failed to attach SI2165 front end\n");
+			result = -EINVAL;
+			goto out_free;
+		}
+
+		dev->dvb->frontend->ops.i2c_gate_ctrl = 0;
+
+		/* define general-purpose callback pointer */
+		dvb->frontend->callback = cx231xx_tuner_callback;
+
+		dvb_attach(tda18271_attach, dev->dvb->frontend,
+			0x60,
+			&dev->i2c_bus[dev->board.tuner_i2c_master].i2c_adap,
+			&hcw_tda18271_config);
+
+		dev->cx231xx_reset_analog_tuner = NULL;
 		break;
 
 	case CX231XX_BOARD_PV_PLAYTV_USB_HYBRID:
