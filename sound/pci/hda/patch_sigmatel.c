@@ -3449,9 +3449,11 @@ static void stac922x_fixup_intel_mac_auto(struct hda_codec *codec,
 {
 	if (action != HDA_FIXUP_ACT_PRE_PROBE)
 		return;
+
+	codec->fixup_id = HDA_FIXUP_ID_NOT_SET;
 	snd_hda_pick_fixup(codec, NULL, stac922x_intel_mac_fixup_tbl,
 			   stac922x_fixups);
-	if (codec->fixup_id != STAC_INTEL_MAC_AUTO)
+	if (codec->fixup_id != HDA_FIXUP_ID_NOT_SET)
 		snd_hda_apply_fixup(codec, action);
 }
 

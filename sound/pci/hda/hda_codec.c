@@ -1476,6 +1476,7 @@ int snd_hda_codec_new(struct hda_bus *bus,
 
 	INIT_DELAYED_WORK(&codec->jackpoll_work, hda_jackpoll_work);
 	codec->depop_delay = -1;
+	codec->fixup_id = HDA_FIXUP_ID_NOT_SET;
 
 #ifdef CONFIG_PM
 	spin_lock_init(&codec->power_lock);

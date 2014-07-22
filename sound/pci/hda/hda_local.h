@@ -438,6 +438,8 @@ struct snd_hda_pin_quirk {
 
 #endif
 
+#define HDA_FIXUP_ID_NOT_SET -1
+#define HDA_FIXUP_ID_NO_FIXUP -2
 
 /* fixup types */
 enum {
