@@ -121,6 +121,20 @@ void vdso__exit(struct machine *machine)
 	zfree(&machine->vdso_info);
 }
 
+static struct dso *vdso__new(struct machine *machine, const char *short_name,
+			     const char *long_name)
+{
+	struct dso *dso;
+
+	dso = dso__new(short_name);
+	if (dso != NULL) {
+		dsos__add(&machine->user_dsos, dso);
+		dso__set_long_name(dso, long_name, false);
+	}
+
+	return dso;
+}
+
 struct dso *vdso__dso_findnew(struct machine *machine)
 {
 	struct vdso_info *vdso_info;
@@ -141,11 +155,7 @@ struct dso *vdso__dso_findnew(struct machine *machine)
 		if (!file)
 			return NULL;
 
-		dso = dso__new(VDSO__MAP_NAME);
-		if (dso != NULL) {
-			dsos__add(&machine->user_dsos, dso);
-			dso__set_long_name(dso, file, false);
-		}
+		dso = vdso__new(machine, VDSO__MAP_NAME, file);
 	}
 
 	return dso;
