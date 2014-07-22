@@ -1174,7 +1174,17 @@ static int atmel_pmecc_nand_init_params(struct platform_device *pdev,
 
 	/* set ECC page size and oob layout */
 	switch (mtd->writesize) {
+	case 512:
+	case 1024:
 	case 2048:
+	case 4096:
+	case 8192:
+		if (sector_size > mtd->writesize) {
+			dev_err(host->dev, "pmecc sector size is bigger than the page size!\n");
+			err_no = -EINVAL;
+			goto err;
+		}
+
 		host->pmecc_degree = (sector_size == 512) ?
 			PMECC_GF_DIMENSION_13 : PMECC_GF_DIMENSION_14;
 		host->pmecc_cw_len = (1 << host->pmecc_degree) - 1;
@@ -1201,13 +1211,9 @@ static int atmel_pmecc_nand_init_params(struct platform_device *pdev,
 
 		nand_chip->ecc.layout = &atmel_pmecc_oobinfo;
 		break;
-	case 512:
-	case 1024:
-	case 4096:
-		/* TODO */
+	default:
 		dev_warn(host->dev,
 			"Unsupported page size for PMECC, use Software ECC\n");
-	default:
 		/* page size not handled by HW ECC */
 		/* switching back to soft ECC */
 		nand_chip->ecc.mode = NAND_ECC_SOFT;
