@@ -199,8 +199,7 @@ static int drm_open_helper(struct file *filp, struct drm_minor *minor)
 	priv->minor = minor;
 
 	/* for compatibility root is always authenticated */
-	priv->always_authenticated = capable(CAP_SYS_ADMIN);
-	priv->authenticated = priv->always_authenticated;
+	priv->authenticated = capable(CAP_SYS_ADMIN);
 	priv->lock_count = 0;
 
 	INIT_LIST_HEAD(&priv->lhead);
@@ -462,20 +461,12 @@ int drm_release(struct inode *inode, struct file *filp)
 
 	if (drm_is_master(file_priv)) {
 		struct drm_master *master = file_priv->master;
-		struct drm_file *temp;
-
-		mutex_lock(&dev->struct_mutex);
-		list_for_each_entry(temp, &dev->filelist, lhead) {
-			if ((temp->master == file_priv->master) &&
-			    (temp != file_priv))
-				temp->authenticated = temp->always_authenticated;
-		}
 
 		/**
 		 * Since the master is disappearing, so is the
 		 * possibility to lock.
 		 */
-
+		mutex_lock(&dev->struct_mutex);
 		if (master->lock.hw_lock) {
 			if (dev->sigdata.lock == master->lock.hw_lock)
 				dev->sigdata.lock = NULL;

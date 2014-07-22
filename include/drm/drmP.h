@@ -385,7 +385,6 @@ struct drm_prime_file_private {
 
 /** File private data */
 struct drm_file {
-	unsigned always_authenticated :1;
 	unsigned authenticated :1;
 	/* true when the client has asked us to expose stereo 3D mode flags */
 	unsigned stereo_allowed :1;
