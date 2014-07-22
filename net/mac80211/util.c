@@ -1150,11 +1150,12 @@ void ieee80211_send_auth(struct ieee80211_sub_if_data *sdata,
 	int err;
 
 	/* 24 + 6 = header + auth_algo + auth_transaction + status_code */
-	skb = dev_alloc_skb(local->hw.extra_tx_headroom + 24 + 6 + extra_len);
+	skb = dev_alloc_skb(local->hw.extra_tx_headroom + IEEE80211_WEP_IV_LEN +
+			    24 + 6 + extra_len + IEEE80211_WEP_ICV_LEN);
 	if (!skb)
 		return;
 
-	skb_reserve(skb, local->hw.extra_tx_headroom);
+	skb_reserve(skb, local->hw.extra_tx_headroom + IEEE80211_WEP_IV_LEN);
 
 	mgmt = (struct ieee80211_mgmt *) skb_put(skb, 24 + 6);
 	memset(mgmt, 0, 24 + 6);
@@ -3081,4 +3082,19 @@ int ieee80211_max_num_channels(struct ieee80211_local *local)
 		return err;
 
 	return max_num_different_channels;
+}
+
+u8 *ieee80211_add_wmm_info_ie(u8 *buf, u8 qosinfo)
+{
+	*buf++ = WLAN_EID_VENDOR_SPECIFIC;
+	*buf++ = 7; /* len */
+	*buf++ = 0x00; /* Microsoft OUI 00:50:F2 */
+	*buf++ = 0x50;
+	*buf++ = 0xf2;
+	*buf++ = 2; /* WME */
+	*buf++ = 0; /* WME info */
+	*buf++ = 1; /* WME ver */
+	*buf++ = qosinfo; /* U-APSD no in use */
+
+	return buf;
 }

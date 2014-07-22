@@ -671,6 +671,72 @@ static const struct file_operations fops_htt_stats_mask = {
 	.llseek = default_llseek,
 };
 
+static ssize_t ath10k_read_htt_max_amsdu_ampdu(struct file *file,
+					       char __user *user_buf,
+					       size_t count, loff_t *ppos)
+{
+	struct ath10k *ar = file->private_data;
+	char buf[64];
+	u8 amsdu = 3, ampdu = 64;
+	unsigned int len;
+
+	mutex_lock(&ar->conf_mutex);
+
+	if (ar->debug.htt_max_amsdu)
+		amsdu = ar->debug.htt_max_amsdu;
+
+	if (ar->debug.htt_max_ampdu)
+		ampdu = ar->debug.htt_max_ampdu;
+
+	mutex_unlock(&ar->conf_mutex);
+
+	len = scnprintf(buf, sizeof(buf), "%u %u\n", amsdu, ampdu);
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static ssize_t ath10k_write_htt_max_amsdu_ampdu(struct file *file,
+						const char __user *user_buf,
+						size_t count, loff_t *ppos)
+{
+	struct ath10k *ar = file->private_data;
+	int res;
+	char buf[64];
+	unsigned int amsdu, ampdu;
+
+	simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, user_buf, count);
+
+	/* make sure that buf is null terminated */
+	buf[sizeof(buf) - 1] = 0;
+
+	res = sscanf(buf, "%u %u", &amsdu, &ampdu);
+
+	if (res != 2)
+		return -EINVAL;
+
+	mutex_lock(&ar->conf_mutex);
+
+	res = ath10k_htt_h2t_aggr_cfg_msg(&ar->htt, ampdu, amsdu);
+	if (res)
+		goto out;
+
+	res = count;
+	ar->debug.htt_max_amsdu = amsdu;
+	ar->debug.htt_max_ampdu = ampdu;
+
+out:
+	mutex_unlock(&ar->conf_mutex);
+	return res;
+}
+
+static const struct file_operations fops_htt_max_amsdu_ampdu = {
+	.read = ath10k_read_htt_max_amsdu_ampdu,
+	.write = ath10k_write_htt_max_amsdu_ampdu,
+	.open = simple_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
 static ssize_t ath10k_read_fw_dbglog(struct file *file,
 					    char __user *user_buf,
 					    size_t count, loff_t *ppos)
@@ -757,6 +823,9 @@ void ath10k_debug_stop(struct ath10k *ar)
 	 * warning from del_timer(). */
 	if (ar->debug.htt_stats_mask != 0)
 		cancel_delayed_work(&ar->debug.htt_stats_dwork);
+
+	ar->debug.htt_max_amsdu = 0;
+	ar->debug.htt_max_ampdu = 0;
 }
 
 static ssize_t ath10k_write_simulate_radar(struct file *file,
@@ -866,6 +935,10 @@ int ath10k_debug_create(struct ath10k *ar)
 
 	debugfs_create_file("htt_stats_mask", S_IRUSR, ar->debug.debugfs_phy,
 			    ar, &fops_htt_stats_mask);
+
+	debugfs_create_file("htt_max_amsdu_ampdu", S_IRUSR | S_IWUSR,
+			    ar->debug.debugfs_phy, ar,
+			    &fops_htt_max_amsdu_ampdu);
 
 	debugfs_create_file("fw_dbglog", S_IRUSR, ar->debug.debugfs_phy,
 			    ar, &fops_fw_dbglog);

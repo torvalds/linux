@@ -18,9 +18,14 @@
 #include <linux/slab.h>
 #include <linux/device.h>
 #include <linux/firmware.h>
+#include <linux/module.h>
 
 #include "dhd_dbg.h"
 #include "firmware.h"
+
+char brcmf_firmware_path[BRCMF_FW_PATH_LEN];
+module_param_string(firmware_path, brcmf_firmware_path,
+		    BRCMF_FW_PATH_LEN, 0440);
 
 enum nvram_parser_state {
 	IDLE,

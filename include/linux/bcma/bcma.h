@@ -6,6 +6,7 @@
 
 #include <linux/bcma/bcma_driver_chipcommon.h>
 #include <linux/bcma/bcma_driver_pci.h>
+#include <linux/bcma/bcma_driver_pcie2.h>
 #include <linux/bcma/bcma_driver_mips.h>
 #include <linux/bcma/bcma_driver_gmac_cmn.h>
 #include <linux/ssb/ssb.h> /* SPROM sharing */
@@ -157,6 +158,8 @@ struct bcma_host_ops {
 /* Chip IDs of PCIe devices */
 #define BCMA_CHIP_ID_BCM4313	0x4313
 #define BCMA_CHIP_ID_BCM43142	43142
+#define BCMA_CHIP_ID_BCM43217	43217
+#define BCMA_CHIP_ID_BCM43222	43222
 #define BCMA_CHIP_ID_BCM43224	43224
 #define  BCMA_PKG_ID_BCM43224_FAB_CSM	0x8
 #define  BCMA_PKG_ID_BCM43224_FAB_SMIC	0xa
@@ -333,6 +336,7 @@ struct bcma_bus {
 
 	struct bcma_drv_cc drv_cc;
 	struct bcma_drv_pci drv_pci[2];
+	struct bcma_drv_pcie2 drv_pcie2;
 	struct bcma_drv_mips drv_mips;
 	struct bcma_drv_gmac_cmn drv_gmac_cmn;
 

@@ -702,6 +702,7 @@ static void ath6kl_update_target_stats(struct ath6kl_vif *vif, u8 *ptr, u32 len)
 	struct ath6kl *ar = vif->ar;
 	struct target_stats *stats = &vif->target_stats;
 	struct tkip_ccmp_stats *ccmp_stats;
+	s32 rate;
 	u8 ac;
 
 	if (len < sizeof(*tgt_stats))
@@ -731,8 +732,9 @@ static void ath6kl_update_target_stats(struct ath6kl_vif *vif, u8 *ptr, u32 len)
 		le32_to_cpu(tgt_stats->stats.tx.mult_retry_cnt);
 	stats->tx_rts_fail_cnt +=
 		le32_to_cpu(tgt_stats->stats.tx.rts_fail_cnt);
-	stats->tx_ucast_rate =
-	    ath6kl_wmi_get_rate(a_sle32_to_cpu(tgt_stats->stats.tx.ucast_rate));
+
+	rate = a_sle32_to_cpu(tgt_stats->stats.tx.ucast_rate);
+	stats->tx_ucast_rate = ath6kl_wmi_get_rate(ar->wmi, rate);
 
 	stats->rx_pkt += le32_to_cpu(tgt_stats->stats.rx.pkt);
 	stats->rx_byte += le32_to_cpu(tgt_stats->stats.rx.byte);
@@ -749,8 +751,9 @@ static void ath6kl_update_target_stats(struct ath6kl_vif *vif, u8 *ptr, u32 len)
 		le32_to_cpu(tgt_stats->stats.rx.key_cache_miss);
 	stats->rx_decrypt_err += le32_to_cpu(tgt_stats->stats.rx.decrypt_err);
 	stats->rx_dupl_frame += le32_to_cpu(tgt_stats->stats.rx.dupl_frame);
-	stats->rx_ucast_rate =
-	    ath6kl_wmi_get_rate(a_sle32_to_cpu(tgt_stats->stats.rx.ucast_rate));
+
+	rate = a_sle32_to_cpu(tgt_stats->stats.rx.ucast_rate);
+	stats->rx_ucast_rate = ath6kl_wmi_get_rate(ar->wmi, rate);
 
 	ccmp_stats = &tgt_stats->stats.tkip_ccmp_stats;
 
@@ -1290,6 +1293,8 @@ static const struct net_device_ops ath6kl_netdev_ops = {
 
 void init_netdev(struct net_device *dev)
 {
+	struct ath6kl *ar = ath6kl_priv(dev);
+
 	dev->netdev_ops = &ath6kl_netdev_ops;
 	dev->destructor = free_netdev;
 	dev->watchdog_timeo = ATH6KL_TX_TIMEOUT;
@@ -1301,7 +1306,9 @@ void init_netdev(struct net_device *dev)
 					WMI_MAX_TX_META_SZ +
 					ATH6KL_HTC_ALIGN_BYTES, 4);
 
-	dev->hw_features |= NETIF_F_IP_CSUM | NETIF_F_RXCSUM;
+	if (!test_bit(ATH6KL_FW_CAPABILITY_NO_IP_CHECKSUM,
+		      ar->fw_capabilities))
+		dev->hw_features |= NETIF_F_IP_CSUM | NETIF_F_RXCSUM;
 
 	return;
 }

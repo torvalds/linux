@@ -182,7 +182,8 @@ struct ath_atx_ac {
 
 struct ath_frame_info {
 	struct ath_buf *bf;
-	int framelen;
+	u16 framelen;
+	s8 txq;
 	enum ath9k_key_type keytype;
 	u8 keyix;
 	u8 rtscts_rate;

@@ -57,7 +57,7 @@ mwifiex_map_pci_memory(struct mwifiex_adapter *adapter, struct sk_buff *skb,
 		return -1;
 	}
 	mapping.len = size;
-	memcpy(skb->cb, &mapping, sizeof(mapping));
+	mwifiex_store_mapping(skb, &mapping);
 	return 0;
 }
 
@@ -67,7 +67,7 @@ static void mwifiex_unmap_pci_memory(struct mwifiex_adapter *adapter,
 	struct pcie_service_card *card = adapter->card;
 	struct mwifiex_dma_mapping mapping;
 
-	MWIFIEX_SKB_PACB(skb, &mapping);
+	mwifiex_get_mapping(skb, &mapping);
 	pci_unmap_single(card->dev, mapping.addr, mapping.len, flags);
 }
 
@@ -2238,7 +2238,6 @@ static void mwifiex_pcie_fw_dump_work(struct mwifiex_adapter *adapter)
 	struct pcie_service_card *card = adapter->card;
 	const struct mwifiex_pcie_card_reg *creg = card->pcie.reg;
 	unsigned int reg, reg_start, reg_end;
-	struct timeval t;
 	u8 *dbg_ptr, *end_ptr, dump_num, idx, i, read_reg, doneflag = 0;
 	enum rdwr_status stat;
 	u32 memory_size;
@@ -2257,9 +2256,7 @@ static void mwifiex_pcie_fw_dump_work(struct mwifiex_adapter *adapter)
 		entry->mem_size = 0;
 	}
 
-	do_gettimeofday(&t);
-	dev_info(adapter->dev, "== mwifiex firmware dump start: %u.%06u ==\n",
-		 (u32)t.tv_sec, (u32)t.tv_usec);
+	dev_info(adapter->dev, "== mwifiex firmware dump start ==\n");
 
 	/* Read the number of the memories which will dump */
 	stat = mwifiex_pcie_rdwr_firmware(adapter, doneflag);
@@ -2303,9 +2300,8 @@ static void mwifiex_pcie_fw_dump_work(struct mwifiex_adapter *adapter)
 		end_ptr = dbg_ptr + memory_size;
 
 		doneflag = entry->done_flag;
-		do_gettimeofday(&t);
-		dev_info(adapter->dev, "Start %s output %u.%06u, please wait...\n",
-			 entry->mem_name, (u32)t.tv_sec, (u32)t.tv_usec);
+		dev_info(adapter->dev, "Start %s output, please wait...\n",
+			 entry->mem_name);
 
 		do {
 			stat = mwifiex_pcie_rdwr_firmware(adapter, doneflag);
@@ -2331,9 +2327,7 @@ static void mwifiex_pcie_fw_dump_work(struct mwifiex_adapter *adapter)
 			break;
 		} while (true);
 	}
-	do_gettimeofday(&t);
-	dev_info(adapter->dev, "== mwifiex firmware dump end: %u.%06u ==\n",
-		 (u32)t.tv_sec, (u32)t.tv_usec);
+	dev_info(adapter->dev, "== mwifiex firmware dump end ==\n");
 
 	kobject_uevent_env(&adapter->wiphy->dev.kobj, KOBJ_CHANGE, env);
 

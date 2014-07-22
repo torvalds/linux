@@ -108,6 +108,7 @@ static const struct btmrvl_sdio_device btmrvl_sdio_sd8688 = {
 	.helper		= "mrvl/sd8688_helper.bin",
 	.firmware	= "mrvl/sd8688.bin",
 	.reg		= &btmrvl_reg_8688,
+	.support_pscan_win_report = false,
 	.sd_blksz_fw_dl	= 64,
 };
 
@@ -115,6 +116,7 @@ static const struct btmrvl_sdio_device btmrvl_sdio_sd8787 = {
 	.helper		= NULL,
 	.firmware	= "mrvl/sd8787_uapsta.bin",
 	.reg		= &btmrvl_reg_87xx,
+	.support_pscan_win_report = false,
 	.sd_blksz_fw_dl	= 256,
 };
 
@@ -122,6 +124,7 @@ static const struct btmrvl_sdio_device btmrvl_sdio_sd8797 = {
 	.helper		= NULL,
 	.firmware	= "mrvl/sd8797_uapsta.bin",
 	.reg		= &btmrvl_reg_87xx,
+	.support_pscan_win_report = false,
 	.sd_blksz_fw_dl	= 256,
 };
 
@@ -129,6 +132,7 @@ static const struct btmrvl_sdio_device btmrvl_sdio_sd8897 = {
 	.helper		= NULL,
 	.firmware	= "mrvl/sd8897_uapsta.bin",
 	.reg		= &btmrvl_reg_88xx,
+	.support_pscan_win_report = true,
 	.sd_blksz_fw_dl	= 256,
 };
 
@@ -1067,6 +1071,7 @@ static int btmrvl_sdio_probe(struct sdio_func *func,
 		card->firmware = data->firmware;
 		card->reg = data->reg;
 		card->sd_blksz_fw_dl = data->sd_blksz_fw_dl;
+		card->support_pscan_win_report = data->support_pscan_win_report;
 	}
 
 	if (btmrvl_sdio_register_dev(card) < 0) {

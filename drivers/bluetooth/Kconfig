@@ -30,8 +30,8 @@ config BT_HCIUART
 	help
 	  Bluetooth HCI UART driver.
 	  This driver is required if you want to use Bluetooth devices with
-	  serial port interface. You will also need this driver if you have 
-	  UART based Bluetooth PCMCIA and CF devices like Xircom Credit Card 
+	  serial port interface. You will also need this driver if you have
+	  UART based Bluetooth PCMCIA and CF devices like Xircom Credit Card
 	  adapter and BrainBoxes Bluetooth PC Card.
 
 	  Say Y here to compile support for Bluetooth UART devices into the
@@ -41,9 +41,9 @@ config BT_HCIUART_H4
 	bool "UART (H4) protocol support"
 	depends on BT_HCIUART
 	help
-	  UART (H4) is serial protocol for communication between Bluetooth 
-	  device and host. This protocol is required for most Bluetooth devices 
-	  with UART interface, including PCMCIA and CF cards. 
+	  UART (H4) is serial protocol for communication between Bluetooth
+	  device and host. This protocol is required for most Bluetooth devices
+	  with UART interface, including PCMCIA and CF cards.
 
 	  Say Y here to compile support for HCI UART (H4) protocol.
 
@@ -52,7 +52,7 @@ config BT_HCIUART_BCSP
 	depends on BT_HCIUART
 	select BITREVERSE
 	help
-	  BCSP (BlueCore Serial Protocol) is serial protocol for communication 
+	  BCSP (BlueCore Serial Protocol) is serial protocol for communication
 	  between Bluetooth device and host. This protocol is required for non
 	  USB Bluetooth devices based on CSR BlueCore chip, including PCMCIA and
 	  CF cards.

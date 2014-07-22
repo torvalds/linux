@@ -2899,7 +2899,8 @@ static int ath6kl_start_ap(struct wiphy *wiphy, struct net_device *dev,
 	if (info->inactivity_timeout) {
 		inactivity_timeout = info->inactivity_timeout;
 
-		if (ar->hw.flags & ATH6KL_HW_AP_INACTIVITY_MINS)
+		if (test_bit(ATH6KL_FW_CAPABILITY_AP_INACTIVITY_MINS,
+			     ar->fw_capabilities))
 			inactivity_timeout = DIV_ROUND_UP(inactivity_timeout,
 							  60);
 
@@ -3782,7 +3783,8 @@ int ath6kl_cfg80211_init(struct ath6kl *ar)
 		ath6kl_band_5ghz.ht_cap.ht_supported = false;
 	}
 
-	if (ar->hw.flags & ATH6KL_HW_64BIT_RATES) {
+	if (test_bit(ATH6KL_FW_CAPABILITY_64BIT_RATES,
+		     ar->fw_capabilities)) {
 		ath6kl_band_2ghz.ht_cap.mcs.rx_mask[0] = 0xff;
 		ath6kl_band_5ghz.ht_cap.mcs.rx_mask[0] = 0xff;
 		ath6kl_band_2ghz.ht_cap.mcs.rx_mask[1] = 0xff;

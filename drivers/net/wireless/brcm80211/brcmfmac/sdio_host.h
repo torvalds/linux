@@ -18,6 +18,8 @@
 #define	_BRCM_SDH_H_
 
 #include <linux/skbuff.h>
+#include <linux/firmware.h>
+#include "firmware.h"
 
 #define SDIO_FUNC_0		0
 #define SDIO_FUNC_1		1
@@ -182,6 +184,8 @@ struct brcmf_sdio_dev {
 	uint max_segment_size;
 	uint txglomsz;
 	struct sg_table sgtable;
+	char fw_name[BRCMF_FW_PATH_LEN + BRCMF_FW_NAME_LEN];
+	char nvram_name[BRCMF_FW_PATH_LEN + BRCMF_FW_NAME_LEN];
 };
 
 /* sdio core registers */

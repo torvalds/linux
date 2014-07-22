@@ -1647,7 +1647,7 @@ mwifiex_cmd_tdls_oper(struct mwifiex_private *priv,
 		timeout = (void *)(pos + config_len);
 		timeout->header.type = cpu_to_le16(TLV_TYPE_TDLS_IDLE_TIMEOUT);
 		timeout->header.len = cpu_to_le16(sizeof(timeout->value));
-		timeout->value = cpu_to_le16(MWIFIEX_TDLS_IDLE_TIMEOUT);
+		timeout->value = cpu_to_le16(MWIFIEX_TDLS_IDLE_TIMEOUT_IN_SEC);
 		config_len += sizeof(struct mwifiex_ie_types_tdls_idle_timeout);
 
 		break;
