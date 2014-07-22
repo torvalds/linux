@@ -1330,6 +1330,93 @@ afunc_setup(struct usb_function *fn, const struct usb_ctrlrequest *cr)
 	return value;
 }
 
+static inline struct f_uac2_opts *to_f_uac2_opts(struct config_item *item)
+{
+	return container_of(to_config_group(item), struct f_uac2_opts,
+			    func_inst.group);
+}
+
+CONFIGFS_ATTR_STRUCT(f_uac2_opts);
+CONFIGFS_ATTR_OPS(f_uac2_opts);
+
+static void f_uac2_attr_release(struct config_item *item)
+{
+	struct f_uac2_opts *opts = to_f_uac2_opts(item);
+
+	usb_put_function_instance(&opts->func_inst);
+}
+
+static struct configfs_item_operations f_uac2_item_ops = {
+	.release	= f_uac2_attr_release,
+	.show_attribute	= f_uac2_opts_attr_show,
+	.store_attribute = f_uac2_opts_attr_store,
+};
+
+#define UAC2_ATTRIBUTE(name)						\
+static ssize_t f_uac2_opts_##name##_show(struct f_uac2_opts *opts,	\
+					 char *page)			\
+{									\
+	int result;							\
+									\
+	mutex_lock(&opts->lock);					\
+	result = sprintf(page, "%u\n", opts->name);			\
+	mutex_unlock(&opts->lock);					\
+									\
+	return result;							\
+}									\
+									\
+static ssize_t f_uac2_opts_##name##_store(struct f_uac2_opts *opts,	\
+					  const char *page, size_t len)	\
+{									\
+	int ret;							\
+	u32 num;							\
+									\
+	mutex_lock(&opts->lock);					\
+	if (opts->refcnt) {						\
+		ret = -EBUSY;						\
+		goto end;						\
+	}								\
+									\
+	ret = kstrtou32(page, 0, &num);					\
+	if (ret)							\
+		goto end;						\
+									\
+	opts->name = num;						\
+	ret = len;							\
+									\
+end:									\
+	mutex_unlock(&opts->lock);					\
+	return ret;							\
+}									\
+									\
+static struct f_uac2_opts_attribute f_uac2_opts_##name =		\
+	__CONFIGFS_ATTR(name, S_IRUGO | S_IWUSR,			\
+			f_uac2_opts_##name##_show,			\
+			f_uac2_opts_##name##_store)
+
+UAC2_ATTRIBUTE(p_chmask);
+UAC2_ATTRIBUTE(p_srate);
+UAC2_ATTRIBUTE(p_ssize);
+UAC2_ATTRIBUTE(c_chmask);
+UAC2_ATTRIBUTE(c_srate);
+UAC2_ATTRIBUTE(c_ssize);
+
+static struct configfs_attribute *f_uac2_attrs[] = {
+	&f_uac2_opts_p_chmask.attr,
+	&f_uac2_opts_p_srate.attr,
+	&f_uac2_opts_p_ssize.attr,
+	&f_uac2_opts_c_chmask.attr,
+	&f_uac2_opts_c_srate.attr,
+	&f_uac2_opts_c_ssize.attr,
+	NULL,
+};
+
+static struct config_item_type f_uac2_func_type = {
+	.ct_item_ops	= &f_uac2_item_ops,
+	.ct_attrs	= f_uac2_attrs,
+	.ct_owner	= THIS_MODULE,
+};
+
 static void afunc_free_inst(struct usb_function_instance *f)
 {
 	struct f_uac2_opts *opts;
@@ -1346,17 +1433,32 @@ static struct usb_function_instance *afunc_alloc_inst(void)
 	if (!opts)
 		return ERR_PTR(-ENOMEM);
 
+	mutex_init(&opts->lock);
 	opts->func_inst.free_func_inst = afunc_free_inst;
 
+	config_group_init_type_name(&opts->func_inst.group, "",
+				    &f_uac2_func_type);
+
+	opts->p_chmask = UAC2_DEF_PCHMASK;
+	opts->p_srate = UAC2_DEF_PSRATE;
+	opts->p_ssize = UAC2_DEF_PSSIZE;
+	opts->c_chmask = UAC2_DEF_CCHMASK;
+	opts->c_srate = UAC2_DEF_CSRATE;
+	opts->c_ssize = UAC2_DEF_CSSIZE;
 	return &opts->func_inst;
 }
 
 static void afunc_free(struct usb_function *f)
 {
 	struct audio_dev *agdev;
+	struct f_uac2_opts *opts;
 
 	agdev = func_to_agdev(f);
+	opts = container_of(f->fi, struct f_uac2_opts, func_inst);
 	kfree(agdev);
+	mutex_lock(&opts->lock);
+	--opts->refcnt;
+	mutex_unlock(&opts->lock);
 }
 
 static void afunc_unbind(struct usb_configuration *c, struct usb_function *f)
@@ -1389,6 +1491,9 @@ struct usb_function *afunc_alloc(struct usb_function_instance *fi)
 		return ERR_PTR(-ENOMEM);
 
 	opts = container_of(fi, struct f_uac2_opts, func_inst);
+	mutex_lock(&opts->lock);
+	++opts->refcnt;
+	mutex_unlock(&opts->lock);
 
 	agdev->func.name = "uac2_func";
 	agdev->func.bind = afunc_bind;

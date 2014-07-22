@@ -34,6 +34,9 @@ struct f_uac2_opts {
 	int				c_srate;
 	int				c_ssize;
 	bool				bound;
+
+	struct mutex			lock;
+	int				refcnt;
 };
 
 #endif
