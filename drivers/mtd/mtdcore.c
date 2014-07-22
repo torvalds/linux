@@ -105,12 +105,11 @@ static LIST_HEAD(mtd_notifiers);
  */
 static void mtd_release(struct device *dev)
 {
-	struct mtd_info __maybe_unused *mtd = dev_get_drvdata(dev);
+	struct mtd_info *mtd = dev_get_drvdata(dev);
 	dev_t index = MTD_DEVT(mtd->index);
 
-	/* remove /dev/mtdXro node if needed */
-	if (index)
-		device_destroy(&mtd_class, index + 1);
+	/* remove /dev/mtdXro node */
+	device_destroy(&mtd_class, index + 1);
 }
 
 static int mtd_cls_suspend(struct device *dev, pm_message_t state)
@@ -442,10 +441,8 @@ int add_mtd_device(struct mtd_info *mtd)
 	if (device_register(&mtd->dev) != 0)
 		goto fail_added;
 
-	if (MTD_DEVT(i))
-		device_create(&mtd_class, mtd->dev.parent,
-			      MTD_DEVT(i) + 1,
-			      NULL, "mtd%dro", i);
+	device_create(&mtd_class, mtd->dev.parent, MTD_DEVT(i) + 1, NULL,
+		      "mtd%dro", i);
 
 	pr_debug("mtd: Giving out device %d to %s\n", i, mtd->name);
 	/* No need to get a refcount on the module containing
