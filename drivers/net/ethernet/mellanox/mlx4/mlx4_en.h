@@ -93,6 +93,8 @@
  * OS related constants and tunables
  */
 
+#define MLX4_EN_PRIV_FLAGS_BLUEFLAME 1
+
 #define MLX4_EN_WATCHDOG_TIMEOUT	(15 * HZ)
 
 /* Use the maximum between 16384 and a single page */
@@ -278,6 +280,7 @@ struct mlx4_en_tx_ring {
 	unsigned long wake_queue;
 	struct mlx4_bf bf;
 	bool bf_enabled;
+	bool bf_alloced;
 	struct netdev_queue *tx_queue;
 	int hwtstamp_tx_type;
 	int inline_thold;
@@ -592,6 +595,8 @@ struct mlx4_en_priv {
 #endif
 	u64 tunnel_reg_id;
 	__be16 vxlan_port;
+
+	u32 pflags;
 };
 
 enum mlx4_en_wol {
