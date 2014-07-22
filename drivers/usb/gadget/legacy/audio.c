@@ -45,6 +45,7 @@ static struct usb_gadget_strings *audio_strings[] = {
 #include "u_uac1.c"
 #include "f_uac1.c"
 #else
+#define USB_FUAC2_INCLUDED
 #include "f_uac2.c"
 #endif
 

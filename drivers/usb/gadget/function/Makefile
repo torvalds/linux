@@ -32,3 +32,5 @@ usb_f_mass_storage-y		:= f_mass_storage.o storage_common.o
 obj-$(CONFIG_USB_F_MASS_STORAGE)+= usb_f_mass_storage.o
 usb_f_fs-y			:= f_fs.o
 obj-$(CONFIG_USB_F_FS)		+= usb_f_fs.o
+usb_f_uac2-y			:= f_uac2.o
+obj-$(CONFIG_USB_F_UAC2)	+= usb_f_uac2.o
