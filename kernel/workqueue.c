@@ -2253,15 +2253,10 @@ repeat:
 				move_linked_works(work, scheduled, &n);
 
 		process_scheduled_works(rescuer);
-		spin_unlock_irq(&pool->lock);
-
-		worker_detach_from_pool(rescuer, pool);
-
-		spin_lock_irq(&pool->lock);
 
 		/*
 		 * Put the reference grabbed by send_mayday().  @pool won't
-		 * go away while we're holding its lock.
+		 * go away while we're still attached to it.
 		 */
 		put_pwq(pwq);
 
@@ -2274,8 +2269,11 @@ repeat:
 			wake_up_worker(pool);
 
 		rescuer->pool = NULL;
-		spin_unlock(&pool->lock);
-		spin_lock(&wq_mayday_lock);
+		spin_unlock_irq(&pool->lock);
+
+		worker_detach_from_pool(rescuer, pool);
+
+		spin_lock_irq(&wq_mayday_lock);
 	}
 
 	spin_unlock_irq(&wq_mayday_lock);
