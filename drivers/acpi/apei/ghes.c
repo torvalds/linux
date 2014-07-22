@@ -49,7 +49,7 @@
 #include <linux/aer.h>
 
 #include <acpi/ghes.h>
-#include <asm/mce.h>
+#include <acpi/apei.h>
 #include <asm/tlbflush.h>
 #include <asm/nmi.h>
 
@@ -455,9 +455,7 @@ static void ghes_do_proc(struct ghes *ghes,
 			mem_err = (struct cper_sec_mem_err *)(gdata+1);
 			ghes_edac_report_mem_error(ghes, sev, mem_err);
 
-#ifdef CONFIG_X86_MCE
-			apei_mce_report_mem_error(sev, mem_err);
-#endif
+			arch_apei_report_mem_error(sev, mem_err);
 			ghes_handle_memory_failure(gdata, sev);
 		}
 #ifdef CONFIG_ACPI_APEI_PCIEAER
