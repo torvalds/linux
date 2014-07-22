@@ -760,12 +760,150 @@ static int control_selector_init(struct f_audio *audio)
 	return 0;
 }
 
+static inline struct f_uac1_opts *to_f_uac1_opts(struct config_item *item)
+{
+	return container_of(to_config_group(item), struct f_uac1_opts,
+			    func_inst.group);
+}
+
+CONFIGFS_ATTR_STRUCT(f_uac1_opts);
+CONFIGFS_ATTR_OPS(f_uac1_opts);
+
+static void f_uac1_attr_release(struct config_item *item)
+{
+	struct f_uac1_opts *opts = to_f_uac1_opts(item);
+
+	usb_put_function_instance(&opts->func_inst);
+}
+
+static struct configfs_item_operations f_uac1_item_ops = {
+	.release	= f_uac1_attr_release,
+	.show_attribute	= f_uac1_opts_attr_show,
+	.store_attribute = f_uac1_opts_attr_store,
+};
+
+#define UAC1_INT_ATTRIBUTE(name)					\
+static ssize_t f_uac1_opts_##name##_show(struct f_uac1_opts *opts,	\
+					 char *page)			\
+{									\
+	int result;							\
+									\
+	mutex_lock(&opts->lock);					\
+	result = sprintf(page, "%u\n", opts->name);			\
+	mutex_unlock(&opts->lock);					\
+									\
+	return result;							\
+}									\
+									\
+static ssize_t f_uac1_opts_##name##_store(struct f_uac1_opts *opts,	\
+					  const char *page, size_t len)	\
+{									\
+	int ret;							\
+	u32 num;							\
+									\
+	mutex_lock(&opts->lock);					\
+	if (opts->refcnt) {						\
+		ret = -EBUSY;						\
+		goto end;						\
+	}								\
+									\
+	ret = kstrtou32(page, 0, &num);					\
+	if (ret)							\
+		goto end;						\
+									\
+	opts->name = num;						\
+	ret = len;							\
+									\
+end:									\
+	mutex_unlock(&opts->lock);					\
+	return ret;							\
+}									\
+									\
+static struct f_uac1_opts_attribute f_uac1_opts_##name =		\
+	__CONFIGFS_ATTR(name, S_IRUGO | S_IWUSR,			\
+			f_uac1_opts_##name##_show,			\
+			f_uac1_opts_##name##_store)
+
+UAC1_INT_ATTRIBUTE(req_buf_size);
+UAC1_INT_ATTRIBUTE(req_count);
+UAC1_INT_ATTRIBUTE(audio_buf_size);
+
+#define UAC1_STR_ATTRIBUTE(name)					\
+static ssize_t f_uac1_opts_##name##_show(struct f_uac1_opts *opts,	\
+					 char *page)			\
+{									\
+	int result;							\
+									\
+	mutex_lock(&opts->lock);					\
+	result = sprintf(page, "%s\n", opts->name);			\
+	mutex_unlock(&opts->lock);					\
+									\
+	return result;							\
+}									\
+									\
+static ssize_t f_uac1_opts_##name##_store(struct f_uac1_opts *opts,	\
+					  const char *page, size_t len)	\
+{									\
+	int ret = -EBUSY;						\
+	char *tmp;							\
+									\
+	mutex_lock(&opts->lock);					\
+	if (opts->refcnt)						\
+		goto end;						\
+									\
+	tmp = kstrndup(page, len, GFP_KERNEL);				\
+	if (tmp) {							\
+		ret = -ENOMEM;						\
+		goto end;						\
+	}								\
+	if (opts->name##_alloc)						\
+		kfree(opts->name);					\
+	opts->name##_alloc = true;					\
+	opts->name = tmp;						\
+	ret = len;							\
+									\
+end:									\
+	mutex_unlock(&opts->lock);					\
+	return ret;							\
+}									\
+									\
+static struct f_uac1_opts_attribute f_uac1_opts_##name =		\
+	__CONFIGFS_ATTR(name, S_IRUGO | S_IWUSR,			\
+			f_uac1_opts_##name##_show,			\
+			f_uac1_opts_##name##_store)
+
+UAC1_STR_ATTRIBUTE(fn_play);
+UAC1_STR_ATTRIBUTE(fn_cap);
+UAC1_STR_ATTRIBUTE(fn_cntl);
+
+static struct configfs_attribute *f_uac1_attrs[] = {
+	&f_uac1_opts_req_buf_size.attr,
+	&f_uac1_opts_req_count.attr,
+	&f_uac1_opts_audio_buf_size.attr,
+	&f_uac1_opts_fn_play.attr,
+	&f_uac1_opts_fn_cap.attr,
+	&f_uac1_opts_fn_cntl.attr,
+	NULL,
+};
+
+static struct config_item_type f_uac1_func_type = {
+	.ct_item_ops	= &f_uac1_item_ops,
+	.ct_attrs	= f_uac1_attrs,
+	.ct_owner	= THIS_MODULE,
+};
+
 static void f_audio_free_inst(struct usb_function_instance *f)
 {
 	struct f_uac1_opts *opts;
 
 	opts = container_of(f, struct f_uac1_opts, func_inst);
 	gaudio_cleanup(opts->card);
+	if (opts->fn_play_alloc)
+		kfree(opts->fn_play);
+	if (opts->fn_cap_alloc)
+		kfree(opts->fn_cap);
+	if (opts->fn_cntl_alloc)
+		kfree(opts->fn_cntl);
 	kfree(opts);
 }
 
@@ -777,16 +915,31 @@ static struct usb_function_instance *f_audio_alloc_inst(void)
 	if (!opts)
 		return ERR_PTR(-ENOMEM);
 
+	mutex_init(&opts->lock);
 	opts->func_inst.free_func_inst = f_audio_free_inst;
 
+	config_group_init_type_name(&opts->func_inst.group, "",
+				    &f_uac1_func_type);
+
+	opts->req_buf_size = UAC1_OUT_EP_MAX_PACKET_SIZE;
+	opts->req_count = UAC1_REQ_COUNT;
+	opts->audio_buf_size = UAC1_AUDIO_BUF_SIZE;
+	opts->fn_play = FILE_PCM_PLAYBACK;
+	opts->fn_cap = FILE_PCM_CAPTURE;
+	opts->fn_cntl = FILE_CONTROL;
 	return &opts->func_inst;
 }
 
 static void f_audio_free(struct usb_function *f)
 {
 	struct f_audio *audio = func_to_audio(f);
+	struct f_uac1_opts *opts;
 
+	opts = container_of(f->fi, struct f_uac1_opts, func_inst);
 	kfree(audio);
+	mutex_lock(&opts->lock);
+	--opts->refcnt;
+	mutex_unlock(&opts->lock);
 }
 
 static void f_audio_unbind(struct usb_configuration *c, struct usb_function *f)
@@ -797,6 +950,7 @@ static void f_audio_unbind(struct usb_configuration *c, struct usb_function *f)
 static struct usb_function *f_audio_alloc(struct usb_function_instance *fi)
 {
 	struct f_audio *audio;
+	struct f_uac1_opts *opts;
 
 	/* allocate and initialize one new instance */
 	audio = kzalloc(sizeof(*audio), GFP_KERNEL);
@@ -805,6 +959,10 @@ static struct usb_function *f_audio_alloc(struct usb_function_instance *fi)
 
 	audio->card.func.name = "g_audio";
 
+	opts = container_of(fi, struct f_uac1_opts, func_inst);
+	mutex_lock(&opts->lock);
+	++opts->refcnt;
+	mutex_unlock(&opts->lock);
 	INIT_LIST_HEAD(&audio->play_queue);
 	spin_lock_init(&audio->lock);
 
