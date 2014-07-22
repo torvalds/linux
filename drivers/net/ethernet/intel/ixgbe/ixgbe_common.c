@@ -1386,7 +1386,7 @@ static s32 ixgbe_get_eeprom_semaphore(struct ixgbe_hw *hw)
 			status = 0;
 			break;
 		}
-		udelay(50);
+		usleep_range(50, 100);
 	}
 
 	if (i == timeout) {
@@ -1399,7 +1399,7 @@ static s32 ixgbe_get_eeprom_semaphore(struct ixgbe_hw *hw)
 		 */
 		ixgbe_release_eeprom_semaphore(hw);
 
-		udelay(50);
+		usleep_range(50, 100);
 		/*
 		 * one last try
 		 * If the SMBI bit is 0 when we read it, then the bit will be
@@ -1427,7 +1427,7 @@ static s32 ixgbe_get_eeprom_semaphore(struct ixgbe_hw *hw)
 			if (swsm & IXGBE_SWSM_SWESMBI)
 				break;
 
-			udelay(50);
+			usleep_range(50, 100);
 		}
 
 		/*

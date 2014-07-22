@@ -699,7 +699,7 @@ static s32 ixgbe_get_swfw_sync_semaphore(struct ixgbe_hw *hw)
 			status = 0;
 			break;
 		}
-		udelay(50);
+		usleep_range(50, 100);
 	}
 
 	/* Now get the semaphore between SW/FW through the REGSMP bit */
@@ -709,7 +709,7 @@ static s32 ixgbe_get_swfw_sync_semaphore(struct ixgbe_hw *hw)
 			if (!(swsm & IXGBE_SWFW_REGSMP))
 				break;
 
-			udelay(50);
+			usleep_range(50, 100);
 		}
 	} else {
 		hw_dbg(hw, "Software semaphore SMBI between device drivers not granted.\n");
