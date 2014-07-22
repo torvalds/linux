@@ -1013,7 +1013,7 @@ static int vnt_beacon_xmit(struct vnt_private *priv,
 				vnt_time_stamp_off(priv, current_rate);
 	} else {
 		current_rate = RATE_1M;
-		short_head->fifo_ctl |= FIFOCTL_11B;
+		short_head->fifo_ctl |= cpu_to_le16(FIFOCTL_11B);
 
 		/* Get SignalField,ServiceField,Length */
 		vnt_get_phy_field(priv, frame_size, current_rate,

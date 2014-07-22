@@ -237,7 +237,7 @@ struct vnt_tx_buffer {
 } __packed;
 
 struct vnt_tx_short_buf_head {
-	u16 fifo_ctl;
+	__le16 fifo_ctl;
 	u16 time_stamp;
 	struct vnt_phy_field ab;
 	__le16 duration;
