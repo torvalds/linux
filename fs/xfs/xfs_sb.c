@@ -483,10 +483,16 @@ xfs_sb_quota_to_disk(
 	}
 
 	/*
-	 * GQUOTINO and PQUOTINO cannot be used together in versions
-	 * of superblock that do not have pquotino. from->sb_flags
-	 * tells us which quota is active and should be copied to
-	 * disk.
+	 * GQUOTINO and PQUOTINO cannot be used together in versions of
+	 * superblock that do not have pquotino. from->sb_flags tells us which
+	 * quota is active and should be copied to disk. If neither are active,
+	 * make sure we write NULLFSINO to the sb_gquotino field as a quota
+	 * inode value of "0" is invalid when the XFS_SB_VERSION_QUOTA feature
+	 * bit is set.
+	 *
+	 * Note that we don't need to handle the sb_uquotino or sb_pquotino here
+	 * as they do not require any translation. Hence the main sb field loop
+	 * will write them appropriately from the in-core superblock.
 	 */
 	if ((*fields & XFS_SB_GQUOTINO) &&
 				(from->sb_qflags & XFS_GQUOTA_ACCT))
@@ -494,6 +500,17 @@ xfs_sb_quota_to_disk(
 	else if ((*fields & XFS_SB_PQUOTINO) &&
 				(from->sb_qflags & XFS_PQUOTA_ACCT))
 		to->sb_gquotino = cpu_to_be64(from->sb_pquotino);
+	else {
+		/*
+		 * We can't rely on just the fields being logged to tell us
+		 * that it is safe to write NULLFSINO - we should only do that
+		 * if quotas are not actually enabled. Hence only write
+		 * NULLFSINO if both in-core quota inodes are NULL.
+		 */
+		if (from->sb_gquotino == NULLFSINO &&
+		    from->sb_pquotino == NULLFSINO)
+			to->sb_gquotino = cpu_to_be64(NULLFSINO);
+	}
 
 	*fields &= ~(XFS_SB_PQUOTINO | XFS_SB_GQUOTINO);
 }
