@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2013 Intel Corporation.
+  Copyright(c) 1999 - 2014 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -67,15 +67,14 @@ s32 ixgbe_read_mbx(struct ixgbe_hw *hw, u32 *msg, u16 size, u16 mbx_id)
 s32 ixgbe_write_mbx(struct ixgbe_hw *hw, u32 *msg, u16 size, u16 mbx_id)
 {
 	struct ixgbe_mbx_info *mbx = &hw->mbx;
-	s32 ret_val = 0;
 
 	if (size > mbx->size)
-		ret_val = IXGBE_ERR_MBX;
+		return IXGBE_ERR_MBX;
 
-	else if (mbx->ops.write)
-		ret_val = mbx->ops.write(hw, msg, size, mbx_id);
+	if (!mbx->ops.write)
+		return IXGBE_ERR_MBX;
 
-	return ret_val;
+	return mbx->ops.write(hw, msg, size, mbx_id);
 }
 
 /**
