@@ -1390,6 +1390,38 @@ static struct omap_hwmod dra7xx_qspi_hwmod = {
 };
 
 /*
+ * 'rtcss' class
+ *
+ */
+static struct omap_hwmod_class_sysconfig dra7xx_rtcss_sysc = {
+	.sysc_offs	= 0x0078,
+	.sysc_flags	= SYSC_HAS_SIDLEMODE,
+	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART |
+			   SIDLE_SMART_WKUP),
+	.sysc_fields	= &omap_hwmod_sysc_type3,
+};
+
+static struct omap_hwmod_class dra7xx_rtcss_hwmod_class = {
+	.name	= "rtcss",
+	.sysc	= &dra7xx_rtcss_sysc,
+};
+
+/* rtcss */
+static struct omap_hwmod dra7xx_rtcss_hwmod = {
+	.name		= "rtcss",
+	.class		= &dra7xx_rtcss_hwmod_class,
+	.clkdm_name	= "rtc_clkdm",
+	.main_clk	= "sys_32k_ck",
+	.prcm = {
+		.omap4 = {
+			.clkctrl_offs = DRA7XX_CM_RTC_RTCSS_CLKCTRL_OFFSET,
+			.context_offs = DRA7XX_RM_RTC_RTCSS_CONTEXT_OFFSET,
+			.modulemode   = MODULEMODE_SWCTRL,
+		},
+	},
+};
+
+/*
  * 'sata' class
  *
  */
@@ -2554,6 +2586,14 @@ static struct omap_hwmod_ocp_if dra7xx_l3_main_1__qspi = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
+/* l4_per3 -> rtcss */
+static struct omap_hwmod_ocp_if dra7xx_l4_per3__rtcss = {
+	.master		= &dra7xx_l4_per3_hwmod,
+	.slave		= &dra7xx_rtcss_hwmod,
+	.clk		= "l4_root_clk_div",
+	.user		= OCP_USER_MPU | OCP_USER_SDMA,
+};
+
 static struct omap_hwmod_addr_space dra7xx_sata_addrs[] = {
 	{
 		.name		= "sysc",
@@ -2892,6 +2932,7 @@ static struct omap_hwmod_ocp_if *dra7xx_hwmod_ocp_ifs[] __initdata = {
 	&dra7xx_l4_cfg__pcie1_phy,
 	&dra7xx_l4_cfg__pcie2_phy,
 	&dra7xx_l3_main_1__qspi,
+	&dra7xx_l4_per3__rtcss,
 	&dra7xx_l4_cfg__sata,
 	&dra7xx_l4_cfg__smartreflex_core,
 	&dra7xx_l4_cfg__smartreflex_mpu,
