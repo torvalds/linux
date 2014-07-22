@@ -28,6 +28,7 @@
 #include <linux/vmalloc.h>
 #include <linux/i2c.h>
 #include <linux/mtd/mtd.h>
+#include <net/busy_poll.h>
 
 #include "enum.h"
 #include "bitfield.h"
@@ -387,6 +388,8 @@ enum efx_sync_events_state {
  * @irq_moderation: IRQ moderation value (in hardware ticks)
  * @napi_dev: Net device used with NAPI
  * @napi_str: NAPI control structure
+ * @state: state for NAPI vs busy polling
+ * @state_lock: lock protecting @state
  * @eventq: Event queue buffer
  * @eventq_mask: Event queue pointer mask
  * @eventq_read_ptr: Event queue read pointer
@@ -424,6 +427,22 @@ struct efx_channel {
 	unsigned int irq_moderation;
 	struct net_device *napi_dev;
 	struct napi_struct napi_str;
+#ifdef CONFIG_NET_RX_BUSY_POLL
+	unsigned int state;
+	spinlock_t state_lock;
+#define EFX_CHANNEL_STATE_IDLE		0
+#define EFX_CHANNEL_STATE_NAPI		(1 << 0)  /* NAPI owns this channel */
+#define EFX_CHANNEL_STATE_POLL		(1 << 1)  /* poll owns this channel */
+#define EFX_CHANNEL_STATE_DISABLED	(1 << 2)  /* channel is disabled */
+#define EFX_CHANNEL_STATE_NAPI_YIELD	(1 << 3)  /* NAPI yielded this channel */
+#define EFX_CHANNEL_STATE_POLL_YIELD	(1 << 4)  /* poll yielded this channel */
+#define EFX_CHANNEL_OWNED \
+	(EFX_CHANNEL_STATE_NAPI | EFX_CHANNEL_STATE_POLL)
+#define EFX_CHANNEL_LOCKED \
+	(EFX_CHANNEL_OWNED | EFX_CHANNEL_STATE_DISABLED)
+#define EFX_CHANNEL_USER_PEND \
+	(EFX_CHANNEL_STATE_POLL | EFX_CHANNEL_STATE_POLL_YIELD)
+#endif /* CONFIG_NET_RX_BUSY_POLL */
 	struct efx_special_buffer eventq;
 	unsigned int eventq_mask;
 	unsigned int eventq_read_ptr;
@@ -456,6 +475,135 @@ struct efx_channel {
 	u32 sync_timestamp_major;
 	u32 sync_timestamp_minor;
 };
+
+#ifdef CONFIG_NET_RX_BUSY_POLL
+static inline void efx_channel_init_lock(struct efx_channel *channel)
+{
+	spin_lock_init(&channel->state_lock);
+}
+
+/* Called from the device poll routine to get ownership of a channel. */
+static inline bool efx_channel_lock_napi(struct efx_channel *channel)
+{
+	bool rc = true;
+
+	spin_lock_bh(&channel->state_lock);
+	if (channel->state & EFX_CHANNEL_LOCKED) {
+		WARN_ON(channel->state & EFX_CHANNEL_STATE_NAPI);
+		channel->state |= EFX_CHANNEL_STATE_NAPI_YIELD;
+		rc = false;
+	} else {
+		/* we don't care if someone yielded */
+		channel->state = EFX_CHANNEL_STATE_NAPI;
+	}
+	spin_unlock_bh(&channel->state_lock);
+	return rc;
+}
+
+static inline void efx_channel_unlock_napi(struct efx_channel *channel)
+{
+	spin_lock_bh(&channel->state_lock);
+	WARN_ON(channel->state &
+		(EFX_CHANNEL_STATE_POLL | EFX_CHANNEL_STATE_NAPI_YIELD));
+
+	channel->state &= EFX_CHANNEL_STATE_DISABLED;
+	spin_unlock_bh(&channel->state_lock);
+}
+
+/* Called from efx_busy_poll(). */
+static inline bool efx_channel_lock_poll(struct efx_channel *channel)
+{
+	bool rc = true;
+
+	spin_lock_bh(&channel->state_lock);
+	if ((channel->state & EFX_CHANNEL_LOCKED)) {
+		channel->state |= EFX_CHANNEL_STATE_POLL_YIELD;
+		rc = false;
+	} else {
+		/* preserve yield marks */
+		channel->state |= EFX_CHANNEL_STATE_POLL;
+	}
+	spin_unlock_bh(&channel->state_lock);
+	return rc;
+}
+
+/* Returns true if NAPI tried to get the channel while it was locked. */
+static inline void efx_channel_unlock_poll(struct efx_channel *channel)
+{
+	spin_lock_bh(&channel->state_lock);
+	WARN_ON(channel->state & EFX_CHANNEL_STATE_NAPI);
+
+	/* will reset state to idle, unless channel is disabled */
+	channel->state &= EFX_CHANNEL_STATE_DISABLED;
+	spin_unlock_bh(&channel->state_lock);
+}
+
+/* True if a socket is polling, even if it did not get the lock. */
+static inline bool efx_channel_busy_polling(struct efx_channel *channel)
+{
+	WARN_ON(!(channel->state & EFX_CHANNEL_OWNED));
+	return channel->state & EFX_CHANNEL_USER_PEND;
+}
+
+static inline void efx_channel_enable(struct efx_channel *channel)
+{
+	spin_lock_bh(&channel->state_lock);
+	channel->state = EFX_CHANNEL_STATE_IDLE;
+	spin_unlock_bh(&channel->state_lock);
+}
+
+/* False if the channel is currently owned. */
+static inline bool efx_channel_disable(struct efx_channel *channel)
+{
+	bool rc = true;
+
+	spin_lock_bh(&channel->state_lock);
+	if (channel->state & EFX_CHANNEL_OWNED)
+		rc = false;
+	channel->state |= EFX_CHANNEL_STATE_DISABLED;
+	spin_unlock_bh(&channel->state_lock);
+
+	return rc;
+}
+
+#else /* CONFIG_NET_RX_BUSY_POLL */
+
+static inline void efx_channel_init_lock(struct efx_channel *channel)
+{
+}
+
+static inline bool efx_channel_lock_napi(struct efx_channel *channel)
+{
+	return true;
+}
+
+static inline void efx_channel_unlock_napi(struct efx_channel *channel)
+{
+}
+
+static inline bool efx_channel_lock_poll(struct efx_channel *channel)
+{
+	return false;
+}
+
+static inline void efx_channel_unlock_poll(struct efx_channel *channel)
+{
+}
+
+static inline bool efx_channel_busy_polling(struct efx_channel *channel)
+{
+	return false;
+}
+
+static inline void efx_channel_enable(struct efx_channel *channel)
+{
+}
+
+static inline bool efx_channel_disable(struct efx_channel *channel)
+{
+	return true;
+}
+#endif /* CONFIG_NET_RX_BUSY_POLL */
 
 /**
  * struct efx_msi_context - Context for each MSI

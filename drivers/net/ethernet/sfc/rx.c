@@ -462,6 +462,7 @@ efx_rx_packet_gro(struct efx_channel *channel, struct efx_rx_buffer *rx_buf,
 
 	skb_record_rx_queue(skb, channel->rx_queue.core_index);
 
+	skb_mark_napi_id(skb, &channel->napi_str);
 	gro_result = napi_gro_frags(napi);
 	if (gro_result != GRO_DROP)
 		channel->irq_mod_score += 2;
@@ -519,6 +520,8 @@ static struct sk_buff *efx_rx_mk_skb(struct efx_channel *channel,
 
 	/* Move past the ethernet header */
 	skb->protocol = eth_type_trans(skb, efx->net_dev);
+
+	skb_mark_napi_id(skb, &channel->napi_str);
 
 	return skb;
 }
@@ -666,7 +669,8 @@ void __efx_rx_packet(struct efx_channel *channel)
 	if (unlikely(!(efx->net_dev->features & NETIF_F_RXCSUM)))
 		rx_buf->flags &= ~EFX_RX_PKT_CSUMMED;
 
-	if ((rx_buf->flags & EFX_RX_PKT_TCP) && !channel->type->receive_skb)
+	if ((rx_buf->flags & EFX_RX_PKT_TCP) && !channel->type->receive_skb &&
+	    !efx_channel_busy_polling(channel))
 		efx_rx_packet_gro(channel, rx_buf, channel->rx_pkt_n_frags, eh);
 	else
 		efx_rx_deliver(channel, eh, rx_buf, channel->rx_pkt_n_frags);
