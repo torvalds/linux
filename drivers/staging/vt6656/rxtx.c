@@ -950,7 +950,7 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 
 	tx_buffer->tx_byte_count = cpu_to_le16(tx_bytes);
 	tx_buffer->pkt_no = tx_context->pkt_no;
-	tx_buffer->byType = 0x00;
+	tx_buffer->type = 0x00;
 
 	tx_bytes += 4;
 

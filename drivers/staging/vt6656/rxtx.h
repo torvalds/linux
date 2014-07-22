@@ -229,7 +229,7 @@ struct vnt_tx_fifo_head {
 } __packed;
 
 struct vnt_tx_buffer {
-	u8 byType;
+	u8 type;
 	u8 pkt_no;
 	__le16 tx_byte_count;
 	struct vnt_tx_fifo_head fifo_head;
