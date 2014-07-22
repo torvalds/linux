@@ -1364,17 +1364,16 @@ static int rtl2832_sdr_s_ctrl(struct v4l2_ctrl *ctrl)
 		/* TODO: these controls should be moved to tuner drivers */
 		if (s->bandwidth_auto->val) {
 			/* Round towards the closest legal value */
-			s32 val = s->f_adc + s->bandwidth->step / 2;
+			s32 val = s->f_adc + div_u64(s->bandwidth->step, 2);
 			u32 offset;
 
 			val = clamp_t(s32, val, s->bandwidth->minimum,
 				      s->bandwidth->maximum);
 			offset = val - s->bandwidth->minimum;
 			offset = s->bandwidth->step *
-				(offset / s->bandwidth->step);
+				div_u64(offset, s->bandwidth->step);
 			s->bandwidth->val = s->bandwidth->minimum + offset;
 		}
-
 		c->bandwidth_hz = s->bandwidth->val;
 
 		if (!test_bit(POWER_ON, &s->flags))
