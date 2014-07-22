@@ -166,6 +166,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 	case KVM_CAP_IOEVENTFD:
 	case KVM_CAP_DEVICE_CTRL:
 	case KVM_CAP_ENABLE_CAP_VM:
+	case KVM_CAP_S390_IRQCHIP:
 	case KVM_CAP_VM_ATTRIBUTES:
 	case KVM_CAP_MP_STATE:
 		r = 1;
@@ -649,8 +650,6 @@ int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 			return rc;
 	}
 	hrtimer_init(&vcpu->arch.ckc_timer, CLOCK_REALTIME, HRTIMER_MODE_ABS);
-	tasklet_init(&vcpu->arch.tasklet, kvm_s390_tasklet,
-		     (unsigned long) vcpu);
 	vcpu->arch.ckc_timer.function = kvm_s390_idle_wakeup;
 	get_cpu_id(&vcpu->arch.cpu_id);
 	vcpu->arch.cpu_id.version = 0xff;
@@ -1068,6 +1067,9 @@ retry:
 		goto retry;
 	}
 
+	/* nothing to do, just clear the request */
+	clear_bit(KVM_REQ_UNHALT, &vcpu->requests);
+
 	return 0;
 }
 
@@ -1475,7 +1477,7 @@ void kvm_s390_vcpu_start(struct kvm_vcpu *vcpu)
 
 	trace_kvm_s390_vcpu_start_stop(vcpu->vcpu_id, 1);
 	/* Only one cpu at a time may enter/leave the STOPPED state. */
-	spin_lock_bh(&vcpu->kvm->arch.start_stop_lock);
+	spin_lock(&vcpu->kvm->arch.start_stop_lock);
 	online_vcpus = atomic_read(&vcpu->kvm->online_vcpus);
 
 	for (i = 0; i < online_vcpus; i++) {
@@ -1501,7 +1503,7 @@ void kvm_s390_vcpu_start(struct kvm_vcpu *vcpu)
 	 * Let's play safe and flush the VCPU at startup.
 	 */
 	vcpu->arch.sie_block->ihcpu  = 0xffff;
-	spin_unlock_bh(&vcpu->kvm->arch.start_stop_lock);
+	spin_unlock(&vcpu->kvm->arch.start_stop_lock);
 	return;
 }
 
@@ -1515,17 +1517,17 @@ void kvm_s390_vcpu_stop(struct kvm_vcpu *vcpu)
 
 	trace_kvm_s390_vcpu_start_stop(vcpu->vcpu_id, 0);
 	/* Only one cpu at a time may enter/leave the STOPPED state. */
-	spin_lock_bh(&vcpu->kvm->arch.start_stop_lock);
+	spin_lock(&vcpu->kvm->arch.start_stop_lock);
 	online_vcpus = atomic_read(&vcpu->kvm->online_vcpus);
 
 	/* Need to lock access to action_bits to avoid a SIGP race condition */
-	spin_lock_bh(&vcpu->arch.local_int.lock);
+	spin_lock(&vcpu->arch.local_int.lock);
 	atomic_set_mask(CPUSTAT_STOPPED, &vcpu->arch.sie_block->cpuflags);
 
 	/* SIGP STOP and SIGP STOP AND STORE STATUS has been fully processed */
 	vcpu->arch.local_int.action_bits &=
 				 ~(ACTION_STOP_ON_STOP | ACTION_STORE_ON_STOP);
-	spin_unlock_bh(&vcpu->arch.local_int.lock);
+	spin_unlock(&vcpu->arch.local_int.lock);
 
 	__disable_ibs_on_vcpu(vcpu);
 
@@ -1544,7 +1546,7 @@ void kvm_s390_vcpu_stop(struct kvm_vcpu *vcpu)
 		__enable_ibs_on_vcpu(started_vcpu);
 	}
 
-	spin_unlock_bh(&vcpu->kvm->arch.start_stop_lock);
+	spin_unlock(&vcpu->kvm->arch.start_stop_lock);
 	return;
 }
 

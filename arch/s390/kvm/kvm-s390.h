@@ -136,8 +136,8 @@ static inline int kvm_s390_user_cpu_state_ctrl(struct kvm *kvm)
 }
 
 int kvm_s390_handle_wait(struct kvm_vcpu *vcpu);
+void kvm_s390_vcpu_wakeup(struct kvm_vcpu *vcpu);
 enum hrtimer_restart kvm_s390_idle_wakeup(struct hrtimer *timer);
-void kvm_s390_tasklet(unsigned long parm);
 void kvm_s390_deliver_pending_interrupts(struct kvm_vcpu *vcpu);
 void kvm_s390_deliver_pending_machine_checks(struct kvm_vcpu *vcpu);
 void kvm_s390_clear_local_irqs(struct kvm_vcpu *vcpu);

@@ -2934,14 +2934,17 @@ The fields in each entry are defined as follows:
 6. Capabilities that can be enabled
 -----------------------------------
 
-There are certain capabilities that change the behavior of the virtual CPU when
-enabled. To enable them, please see section 4.37. Below you can find a list of
-capabilities and what their effect on the vCPU is when enabling them.
+There are certain capabilities that change the behavior of the virtual CPU or
+the virtual machine when enabled. To enable them, please see section 4.37.
+Below you can find a list of capabilities and what their effect on the vCPU or
+the virtual machine is when enabling them.
 
 The following information is provided along with the description:
 
   Architectures: which instruction set architectures provide this ioctl.
       x86 includes both i386 and x86_64.
+
+  Target: whether this is a per-vcpu or per-vm capability.
 
   Parameters: what parameters are accepted by the capability.
 
@@ -2952,6 +2955,7 @@ The following information is provided along with the description:
 6.1 KVM_CAP_PPC_OSI
 
 Architectures: ppc
+Target: vcpu
 Parameters: none
 Returns: 0 on success; -1 on error
 
@@ -2966,6 +2970,7 @@ When this capability is enabled, KVM_EXIT_OSI can occur.
 6.2 KVM_CAP_PPC_PAPR
 
 Architectures: ppc
+Target: vcpu
 Parameters: none
 Returns: 0 on success; -1 on error
 
@@ -2985,6 +2990,7 @@ When this capability is enabled, KVM_EXIT_PAPR_HCALL can occur.
 6.3 KVM_CAP_SW_TLB
 
 Architectures: ppc
+Target: vcpu
 Parameters: args[0] is the address of a struct kvm_config_tlb
 Returns: 0 on success; -1 on error
 
@@ -3027,6 +3033,7 @@ For mmu types KVM_MMU_FSL_BOOKE_NOHV and KVM_MMU_FSL_BOOKE_HV:
 6.4 KVM_CAP_S390_CSS_SUPPORT
 
 Architectures: s390
+Target: vcpu
 Parameters: none
 Returns: 0 on success; -1 on error
 
@@ -3038,9 +3045,13 @@ handled in-kernel, while the other I/O instructions are passed to userspace.
 When this capability is enabled, KVM_EXIT_S390_TSCH will occur on TEST
 SUBCHANNEL intercepts.
 
+Note that even though this capability is enabled per-vcpu, the complete
+virtual machine is affected.
+
 6.5 KVM_CAP_PPC_EPR
 
 Architectures: ppc
+Target: vcpu
 Parameters: args[0] defines whether the proxy facility is active
 Returns: 0 on success; -1 on error
 
@@ -3066,7 +3077,17 @@ This capability connects the vcpu to an in-kernel MPIC device.
 6.7 KVM_CAP_IRQ_XICS
 
 Architectures: ppc
+Target: vcpu
 Parameters: args[0] is the XICS device fd
             args[1] is the XICS CPU number (server ID) for this vcpu
 
 This capability connects the vcpu to an in-kernel XICS device.
+
+6.8 KVM_CAP_S390_IRQCHIP
+
+Architectures: s390
+Target: vm
+Parameters: none
+
+This capability enables the in-kernel irqchip for s390. Please refer to
+"4.24 KVM_CREATE_IRQCHIP" for details.
