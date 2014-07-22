@@ -22,4 +22,19 @@ config SENSORS_HMC5843_I2C
 	  - hmc5843_core (core functions)
 	  - hmc5843_i2c (support for HMC5843, HMC5883, HMC5883L and HMC5983)
 
+config SENSORS_HMC5843_SPI
+	tristate "Honeywell HMC5983 3-Axis Magnetometer (SPI)"
+	depends on SPI_MASTER
+	select SENSORS_HMC5843
+	select REGMAP_SPI
+	help
+	  Say Y here to add support for the Honeywell HMC5983 3-Axis Magnetometer
+	  (digital compass).
+
+	  This driver can also be compiled as a set of modules.
+	  If so, these modules will be created:
+	  - hmc5843_core (core functions)
+	  - hmc5843_spi (support for HMC5983)
+
+
 endmenu
