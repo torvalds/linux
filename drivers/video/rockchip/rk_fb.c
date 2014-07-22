@@ -642,6 +642,7 @@ u32 rk_fb_get_prmry_screen_pixclock(void)
 int rk_fb_poll_prmry_screen_vblank(void)
 {
 	struct rk_lcdc_driver *dev_drv = rk_get_prmry_lcdc_drv();
+
 	if (likely(dev_drv)) {
 		if (dev_drv->ops->poll_vblank)
 			return dev_drv->ops->poll_vblank(dev_drv);
@@ -700,6 +701,7 @@ static int get_extend_fb_id(struct fb_info *info)
 	int fb_id = 0;
 	char *id = info->fix.id;
 	struct rk_lcdc_driver *dev_drv = (struct rk_lcdc_driver *)info->par;
+
 	if (!strcmp(id, "fb0"))
 		fb_id = 0;
 	else if (!strcmp(id, "fb1"))
@@ -714,12 +716,12 @@ static int rk_fb_close(struct fb_info *info, int user)
 	struct rk_lcdc_driver *dev_drv = (struct rk_lcdc_driver *)info->par;
 	struct rk_lcdc_win *win = NULL;
 	int win_id = dev_drv->ops->fb_get_win_id(dev_drv, info->fix.id);
+
 	if (win_id >= 0) {
 		dev_drv->win[win_id]->logicalstate--;
-		if(!dev_drv->win[win_id]->logicalstate) {
+		if (!dev_drv->win[win_id]->logicalstate) {
 			win = dev_drv->win[win_id];
 			info->fix.smem_start = win->reserved;
-	
 			info->var.xres = dev_drv->screen0->mode.xres;
 			info->var.yres = dev_drv->screen0->mode.yres;
 			info->var.grayscale |=
@@ -731,7 +733,6 @@ static int rk_fb_close(struct fb_info *info, int user)
 #else
 			info->var.bits_per_pixel = 16;
 #endif
-	
 			info->fix.line_length =
 			    (info->var.xres_virtual) * (info->var.bits_per_pixel >> 3);
 			info->var.width = dev_drv->screen0->width;
@@ -2293,7 +2294,6 @@ static int rk_fb_blank(int blank_mode, struct fb_info *info)
 
 static int rk_fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 {
-
 	if ((0 == var->xres_virtual) || (0 == var->yres_virtual) ||
 	    (0 == var->xres) || (0 == var->yres) || (var->xres < 16) ||
 	    ((16 != var->bits_per_pixel) &&
@@ -2633,8 +2633,6 @@ static int rk_fb_set_par(struct fb_info *info)
 	win->area[0].xsize = screen->mode.xres*xsize/screen_primary.mode.xres;
 	win->area[0].ysize = screen->mode.yres*ysize/screen_primary.mode.yres;
 
-//	win->area[0].smem_start = fix->smem_start;
-//	win->area[0].cbr_start = fix->smem_start+stride*yvir;//fix->mmio_start;
 	win->area[0].xact = var->xres;	/* winx active window height,is a wint of vir */
 	win->area[0].yact = var->yres;
 	win->area[0].xvir = var->xres_virtual;	/* virtual resolution  stride --->LCDC_WINx_VIR */
@@ -2878,9 +2876,9 @@ int rk_fb_dpi_open(bool open)
 {
 	struct rk_lcdc_driver *dev_drv = NULL;
 	dev_drv = rk_get_prmry_lcdc_drv();
-	if(dev_drv->ops->dpi_open)
-		dev_drv->ops->dpi_open(dev_drv, open);
 
+	if (dev_drv->ops->dpi_open)
+		dev_drv->ops->dpi_open(dev_drv, open);
 	return 0;
 }
 
@@ -2888,9 +2886,9 @@ int rk_fb_dpi_win_sel(int win_id)
 {
 	struct rk_lcdc_driver *dev_drv = NULL;
 	dev_drv = rk_get_prmry_lcdc_drv();
-	if(dev_drv->ops->dpi_win_sel)
-		dev_drv->ops->dpi_win_sel(dev_drv, win_id);
 
+	if (dev_drv->ops->dpi_win_sel)
+		dev_drv->ops->dpi_win_sel(dev_drv, win_id);
 	return 0;
 }
 
@@ -2898,10 +2896,11 @@ int rk_fb_dpi_status(void)
 {
 	int ret = 0;
 	struct rk_lcdc_driver *dev_drv = NULL;
+
 	dev_drv = rk_get_prmry_lcdc_drv();
-	if(dev_drv->ops->dpi_status)
+	if (dev_drv->ops->dpi_status)
 		ret = dev_drv->ops->dpi_status(dev_drv);
-	
+
 	return ret;
 }
 #if 1
@@ -2918,58 +2917,45 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 	struct rk_lcdc_driver *dev_drv = NULL;
 	char name[6];
 	int i, win_id, load_screen = 0;
-	
-	if(screen == NULL)
+
+	if (screen == NULL)
 		return -ENODEV;
-	
-	printk("\n%s lcdc_id %d type %d enable %d\n", __FUNCTION__, lcdc_id, screen->type, enable);
-	
-	sprintf(name, "lcdc%d",lcdc_id);
-	for(i = 0; i < rk_fb->num_lcdc; i++) {
-		if(!strcmp(rk_fb->lcdc_dev_drv[i]->name, name)) {
+
+	sprintf(name, "lcdc%d", lcdc_id);
+	for (i = 0; i < rk_fb->num_lcdc; i++) {
+		if (!strcmp(rk_fb->lcdc_dev_drv[i]->name, name)) {
 			dev_drv = rk_fb->lcdc_dev_drv[i];
 			break;
 		}
 	}
-	if(i == rk_fb->num_lcdc) {
+	if (i == rk_fb->num_lcdc) {
 		printk(KERN_ERR "%s driver not found!", name);
 		return -ENODEV;
 	}
-	
-	if(enable == 2 /*&& dev_drv->enable*/)
+
+	if (enable == 2 /*&& dev_drv->enable*/)
 		return 0;
-	
-	if(!enable)
-	{
-		// if screen type is different, we do not disable lcdc.
-		if( dev_drv->cur_screen->type != screen->type )
+
+	if (!enable) {
+		/* if screen type is different, we do not disable lcdc. */
+		if (dev_drv->cur_screen->type != screen->type)
 			return 0;
-			
-		for(i = 0; i < dev_drv->lcdc_win_num; i++) {
-			//disable the layer which attached to this device
-			if(dev_drv->win[i] && dev_drv->win[i]->state)
+
+		for (i = 0; i < dev_drv->lcdc_win_num; i++) {
+			/* disable the layer which attached to this device */
+			if (dev_drv->win[i] && dev_drv->win[i]->state)
 				dev_drv->ops->open(dev_drv, i, 0);
 		}
-		
-//		dev_drv->enable = enable;
 		return 0;
-	}
-	else
+	} else
 		memcpy(dev_drv->cur_screen, screen, sizeof(struct rk_screen));
-		
-//	dev_drv->enable = enable;
 
-//	ret = dev_drv->ops->load_screen(dev_drv, 1);
-//	
-//	if(enable != 1)	return 0;
-		
-	for(i = 0; i < dev_drv->lcdc_win_num; i++) {
+	for (i = 0; i < dev_drv->lcdc_win_num; i++) {
 		#ifdef DUAL_LCDC_MAP_TO_SAME_FB
 		info = rk_fb->fb[i];
 		dev_drv1 = (struct rk_lcdc_driver *)info->par;
-		if(dev_drv1 != dev_drv) {
+		if (dev_drv1 != dev_drv) {
 			info->par = dev_drv;
-//			dev_drv->overlay = dev_drv1->overlay;
 			dev_drv->overscan = dev_drv1->overscan;
 			dev_drv->vsync_info.active = dev_drv1->vsync_info.active;
 		}
@@ -2977,21 +2963,17 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 		#else
 		info = rk_fb->fb[dev_drv->fb_index_base + i];
 		#endif
-		win_id = dev_drv->ops->fb_get_win_id(dev_drv,info->fix.id);
-//		printk("%s win id %d\n", info->fix.id, win_id);
-		if(dev_drv->win[win_id]) {
+		win_id = dev_drv->ops->fb_get_win_id(dev_drv, info->fix.id);
+		if (dev_drv->win[win_id]) {
 			#ifdef DUAL_LCDC_MAP_TO_SAME_FB
-			if(dev_drv1 && dev_drv1->win[win_id]) {
+			if (dev_drv1 && dev_drv1->win[win_id]) {
 				dev_drv->win[win_id]->logicalstate = dev_drv1->win[win_id]->logicalstate;
 				memcpy(dev_drv->win[win_id]->area, dev_drv1->win[win_id]->area, RK_WIN_MAX_AREA * sizeof(struct rk_lcdc_win_area));
-//				dev_drv->win[win_id]->area[0] = dev_drv1->win[win_id]->area[0];
-//				printk("%s win id %d state %d\n", info->fix.id, win_id, dev_drv->win[win_id]->logicalstate);
 			}
 			#endif
-			printk("%s win id %d state %d\n", info->fix.id, win_id, dev_drv->win[win_id]->logicalstate);
-			if( dev_drv->win[win_id]->logicalstate ) {
+			if (dev_drv->win[win_id]->logicalstate) {
 				dev_drv->ops->open(dev_drv, win_id, 1);
-				if(!load_screen) {
+				if (!load_screen) {
 					dev_drv->ops->load_screen(dev_drv, 1);
 					load_screen = 1;
 				}
@@ -2999,13 +2981,9 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 				info->fbops->fb_set_par(info);
 				info->fbops->fb_pan_display(&info->var, info);
 			}
-//			else
-//				dev_drv->ops->open(dev_drv, win_id, 0);
 		}
 	}
-	printk("\n%s lcdc_id %d type %d enable %d done\n\n", __FUNCTION__, lcdc_id, screen->type, enable);
 	return 0;
-
 }
 #else
 /*
@@ -3169,8 +3147,8 @@ int rk_fb_disp_scale(u8 scale_x, u8 scale_y, u8 lcdc_id)
 	u16 xpos, ypos;
 	char name[6];
 	int i = 0;
-	sprintf(name, "lcdc%d", lcdc_id);
 
+	sprintf(name, "lcdc%d", lcdc_id);
 #if defined(CONFIG_ONE_LCDC_DUAL_OUTPUT_INF)
 	dev_drv = inf->lcdc_dev_drv[0];
 #else
@@ -3222,7 +3200,6 @@ int rk_fb_disp_scale(u8 scale_x, u8 scale_y, u8 lcdc_id)
 	/* info->fbops->fb_ioctl(info, RK_FBIOSET_CONFIG_DONE, 0); */
 	dev_drv->ops->cfg_done(dev_drv);
 	return 0;
-
 }
 
 #if defined(CONFIG_ION_ROCKCHIP)
@@ -3235,6 +3212,7 @@ static int rk_fb_alloc_buffer_by_ion(struct fb_info *fbi,
 	struct ion_handle *handle;
 	ion_phys_addr_t phy_addr;
 	size_t len;
+
 	if (dev_drv->iommu_enabled)
 		handle = ion_alloc(rk_fb->ion_client, (size_t) fb_mem_size, 0,
 				   ION_HEAP(ION_VMALLOC_HEAP_ID), 0);
@@ -3371,6 +3349,7 @@ static int init_lcdc_win(struct rk_lcdc_driver *dev_drv,
 {
 	int i;
 	int lcdc_win_num = dev_drv->lcdc_win_num;
+
 	for (i = 0; i < lcdc_win_num; i++) {
 		struct rk_lcdc_win *win = NULL;
 		win = kzalloc(sizeof(struct rk_lcdc_win), GFP_KERNEL);
@@ -3395,6 +3374,7 @@ static int init_lcdc_device_driver(struct rk_fb *rk_fb,
 	struct rk_screen *screen = devm_kzalloc(dev_drv->dev,
 						sizeof(struct rk_screen),
 						GFP_KERNEL);
+
 	if (!screen) {
 		dev_err(dev_drv->dev, "malloc screen for lcdc%d fail!",
 			dev_drv->id);
@@ -3440,7 +3420,7 @@ static int init_lcdc_device_driver(struct rk_fb *rk_fb,
 	dev_drv->overscan.bottom = 100;
 	rk_disp_pwr_ctr_parse_dt(dev_drv);
 	if (dev_drv->prop == PRMRY) {
-		if(dev_drv->ops->set_dsp_cabc)
+		if (dev_drv->ops->set_dsp_cabc)
 			dev_drv->ops->set_dsp_cabc(dev_drv, dev_drv->cabc_mode);
 		rk_fb_set_prmry_screen(screen);
 	}
@@ -3484,6 +3464,7 @@ static void fb_show_bmp_logo(struct fb_info *info, int rotate)
 bool is_prmry_rk_lcdc_registered(void)
 {
 	struct rk_fb *rk_fb = platform_get_drvdata(fb_pdev);
+
 	if (rk_fb->lcdc_dev_drv[0])
 		return true;
 	else
@@ -3497,9 +3478,11 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 	struct rk_fb *rk_fb = platform_get_drvdata(fb_pdev);
 	struct fb_info *fbi;
 	int i = 0, ret = 0, index = 0;
-//#if defined(CONFIG_ROCKCHIP_IOMMU)
-//	struct device *mmu_dev = NULL;
-//#endif
+/*
+#if defined(CONFIG_ROCKCHIP_IOMMU)
+	struct device *mmu_dev = NULL;
+#endif
+*/
 	if (rk_fb->num_lcdc == RK30_MAX_LCDC_SUPPORT)
 		return -ENXIO;
 
@@ -3596,7 +3579,6 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 			    sw_sync_timeline_create("fb-timeline");
 			dev_drv->timeline_max = 1;
 		}
-
 	}
 
 	/* show logo for primary display device */
@@ -3625,7 +3607,7 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 			if (dev_drv->iommu_enabled) {
 				rk_fb_copy_from_loader(main_fbi);
 				dev_drv->ops->direct_set_addr(dev_drv, 0,
-							      main_fbi->fix.smem_start);
+					main_fbi->fix.smem_start);
 			}
 			return 0;
 		}
@@ -3646,18 +3628,16 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 #if !defined(CONFIG_ROCKCHIP_IOMMU)
 		struct fb_info *extend_fbi = rk_fb->fb[rk_fb->num_fb >> 1];
 		int extend_fb_id = get_extend_fb_id(extend_fbi);
+
 		rk_fb_alloc_buffer(extend_fbi, extend_fb_id);
 #endif
 	}
 #endif
-
 	return 0;
-
 }
 
 int rk_fb_unregister(struct rk_lcdc_driver *dev_drv)
 {
-
 	struct rk_fb *fb_inf = platform_get_drvdata(fb_pdev);
 	struct fb_info *fbi;
 	int fb_index_base = dev_drv->fb_index_base;
@@ -3711,7 +3691,7 @@ static int rk_fb_probe(struct platform_device *pdev)
 	}
 
 	if (!of_property_read_u32(np, "rockchip,uboot-logo-on", &uboot_logo_on))
-		printk("uboot-logo-on:%d\n", uboot_logo_on);
+		printk(KERN_DEBUG "uboot-logo-on:%d\n", uboot_logo_on);
 
 	dev_set_name(&pdev->dev, "rockchip-fb");
 #if defined(CONFIG_ION_ROCKCHIP)
@@ -3732,6 +3712,7 @@ static int rk_fb_probe(struct platform_device *pdev)
 static int rk_fb_remove(struct platform_device *pdev)
 {
 	struct rk_fb *rk_fb = platform_get_drvdata(pdev);
+
 	kfree(rk_fb);
 	platform_set_drvdata(pdev, NULL);
 	return 0;
@@ -3741,12 +3722,11 @@ static void rk_fb_shutdown(struct platform_device *pdev)
 {
 	struct rk_fb *rk_fb = platform_get_drvdata(pdev);
 	int i;
+
 	for (i = 0; i < rk_fb->num_lcdc; i++) {
 		if (!rk_fb->lcdc_dev_drv[i])
 			continue;
-
 	}
-
 }
 
 static const struct of_device_id rkfb_dt_ids[] = {
