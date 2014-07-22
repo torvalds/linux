@@ -95,7 +95,6 @@ struct gpio_desc *of_get_named_gpiod_flags(struct device_node *np,
 		 PTR_ERR_OR_ZERO(gg_data.out_gpio));
 	return gg_data.out_gpio;
 }
-EXPORT_SYMBOL(of_get_named_gpiod_flags);
 
 int of_get_named_gpio_flags(struct device_node *np, const char *list_name,
 			    int index, enum of_gpio_flags *flags)
