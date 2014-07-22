@@ -659,46 +659,44 @@ static void ixgbe_release_swfw_sync_X540(struct ixgbe_hw *hw, u16 mask)
 }
 
 /**
- * ixgbe_get_nvm_semaphore - Get hardware semaphore
+ * ixgbe_get_swfw_sync_semaphore - Get hardware semaphore
  * @hw: pointer to hardware structure
  *
  * Sets the hardware semaphores so SW/FW can gain control of shared resources
- **/
+ */
 static s32 ixgbe_get_swfw_sync_semaphore(struct ixgbe_hw *hw)
 {
-	s32 status = IXGBE_ERR_EEPROM;
 	u32 timeout = 2000;
 	u32 i;
 	u32 swsm;
 
 	/* Get SMBI software semaphore between device drivers first */
 	for (i = 0; i < timeout; i++) {
-		/*
-		 * If the SMBI bit is 0 when we read it, then the bit will be
+		/* If the SMBI bit is 0 when we read it, then the bit will be
 		 * set and we have the semaphore
 		 */
 		swsm = IXGBE_READ_REG(hw, IXGBE_SWSM);
-		if (!(swsm & IXGBE_SWSM_SMBI)) {
-			status = 0;
+		if (!(swsm & IXGBE_SWSM_SMBI))
 			break;
-		}
 		usleep_range(50, 100);
 	}
 
-	/* Now get the semaphore between SW/FW through the REGSMP bit */
-	if (status) {
-		for (i = 0; i < timeout; i++) {
-			swsm = IXGBE_READ_REG(hw, IXGBE_SWFW_SYNC);
-			if (!(swsm & IXGBE_SWFW_REGSMP))
-				break;
-
-			usleep_range(50, 100);
-		}
-	} else {
-		hw_dbg(hw, "Software semaphore SMBI between device drivers not granted.\n");
+	if (i == timeout) {
+		hw_dbg(hw,
+		       "Software semaphore SMBI between device drivers not granted.\n");
+		return IXGBE_ERR_EEPROM;
 	}
 
-	return status;
+	/* Now get the semaphore between SW/FW through the REGSMP bit */
+	for (i = 0; i < timeout; i++) {
+		swsm = IXGBE_READ_REG(hw, IXGBE_SWFW_SYNC);
+		if (!(swsm & IXGBE_SWFW_REGSMP))
+			return 0;
+
+		usleep_range(50, 100);
+	}
+
+	return IXGBE_ERR_EEPROM;
 }
 
 /**
