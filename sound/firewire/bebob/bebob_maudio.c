@@ -381,7 +381,7 @@ static int special_clk_ctl_put(struct snd_kcontrol *kctl,
 
 	id = uval->value.enumerated.item[0];
 	if (id >= ARRAY_SIZE(special_clk_labels))
-		return 0;
+		return -EINVAL;
 
 	mutex_lock(&bebob->mutex);
 
