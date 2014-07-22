@@ -66,8 +66,7 @@ static void hci_acl_create_connection(struct hci_conn *conn)
 
 	conn->state = BT_CONNECT;
 	conn->out = true;
-
-	set_bit(HCI_CONN_MASTER, &conn->flags);
+	conn->role = HCI_ROLE_MASTER;
 
 	conn->attempt++;
 
@@ -335,7 +334,7 @@ static void hci_conn_timeout(struct work_struct *work)
 			 * event handling and hci_clock_offset_evt function.
 			 */
 			if (conn->type == ACL_LINK &&
-			    test_bit(HCI_CONN_MASTER, &conn->flags)) {
+			    conn->role == HCI_ROLE_MASTER) {
 				struct hci_dev *hdev = conn->hdev;
 				struct hci_cp_read_clock_offset cp;
 
@@ -422,13 +421,14 @@ static void le_conn_timeout(struct work_struct *work)
 	hci_le_create_connection_cancel(conn);
 }
 
-struct hci_conn *hci_conn_add(struct hci_dev *hdev, int type, bdaddr_t *dst)
+struct hci_conn *hci_conn_add(struct hci_dev *hdev, int type, bdaddr_t *dst,
+			      u8 role)
 {
 	struct hci_conn *conn;
 
 	BT_DBG("%s dst %pMR", hdev->name, dst);
 
-	conn = kzalloc(sizeof(struct hci_conn), GFP_KERNEL);
+	conn = kzalloc(sizeof(*conn), GFP_KERNEL);
 	if (!conn)
 		return NULL;
 
@@ -436,6 +436,7 @@ struct hci_conn *hci_conn_add(struct hci_dev *hdev, int type, bdaddr_t *dst)
 	bacpy(&conn->src, &hdev->bdaddr);
 	conn->hdev  = hdev;
 	conn->type  = type;
+	conn->role  = role;
 	conn->mode  = HCI_CM_ACTIVE;
 	conn->state = BT_OPEN;
 	conn->auth_type = HCI_AT_GENERAL_BONDING;
@@ -447,6 +448,9 @@ struct hci_conn *hci_conn_add(struct hci_dev *hdev, int type, bdaddr_t *dst)
 
 	set_bit(HCI_CONN_POWER_SAVE, &conn->flags);
 	conn->disc_timeout = HCI_DISCONN_TIMEOUT;
+
+	if (conn->role == HCI_ROLE_MASTER)
+		conn->out = true;
 
 	switch (type) {
 	case ACL_LINK:
@@ -698,7 +702,7 @@ static void hci_req_directed_advertising(struct hci_request *req,
 
 struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
 				u8 dst_type, u8 sec_level, u16 conn_timeout,
-				bool master)
+				u8 role)
 {
 	struct hci_conn_params *params;
 	struct hci_conn *conn;
@@ -747,7 +751,7 @@ struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
 		dst_type = ADDR_LE_DEV_RANDOM;
 	}
 
-	conn = hci_conn_add(hdev, LE_LINK, dst);
+	conn = hci_conn_add(hdev, LE_LINK, dst, role);
 	if (!conn)
 		return ERR_PTR(-ENOMEM);
 
@@ -771,7 +775,7 @@ struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
 	}
 
 	/* If requested to connect as slave use directed advertising */
-	if (!master) {
+	if (conn->role == HCI_ROLE_SLAVE) {
 		/* If we're active scanning most controllers are unable
 		 * to initiate advertising. Simply reject the attempt.
 		 */
@@ -785,9 +789,6 @@ struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
 		hci_req_directed_advertising(&req, conn);
 		goto create_conn;
 	}
-
-	conn->out = true;
-	set_bit(HCI_CONN_MASTER, &conn->flags);
 
 	params = hci_conn_params_lookup(hdev, &conn->dst, conn->dst_type);
 	if (params) {
@@ -833,11 +834,11 @@ struct hci_conn *hci_connect_acl(struct hci_dev *hdev, bdaddr_t *dst,
 	struct hci_conn *acl;
 
 	if (!test_bit(HCI_BREDR_ENABLED, &hdev->dev_flags))
-		return ERR_PTR(-ENOTSUPP);
+		return ERR_PTR(-EOPNOTSUPP);
 
 	acl = hci_conn_hash_lookup_ba(hdev, ACL_LINK, dst);
 	if (!acl) {
-		acl = hci_conn_add(hdev, ACL_LINK, dst);
+		acl = hci_conn_add(hdev, ACL_LINK, dst, HCI_ROLE_MASTER);
 		if (!acl)
 			return ERR_PTR(-ENOMEM);
 	}
@@ -866,7 +867,7 @@ struct hci_conn *hci_connect_sco(struct hci_dev *hdev, int type, bdaddr_t *dst,
 
 	sco = hci_conn_hash_lookup_ba(hdev, type, dst);
 	if (!sco) {
-		sco = hci_conn_add(hdev, type, dst);
+		sco = hci_conn_add(hdev, type, dst, HCI_ROLE_MASTER);
 		if (!sco) {
 			hci_conn_drop(acl);
 			return ERR_PTR(-ENOMEM);
@@ -972,7 +973,8 @@ static void hci_conn_encrypt(struct hci_conn *conn)
 }
 
 /* Enable security */
-int hci_conn_security(struct hci_conn *conn, __u8 sec_level, __u8 auth_type)
+int hci_conn_security(struct hci_conn *conn, __u8 sec_level, __u8 auth_type,
+		      bool initiator)
 {
 	BT_DBG("hcon %p", conn);
 
@@ -1025,6 +1027,9 @@ auth:
 	if (test_bit(HCI_CONN_ENCRYPT_PEND, &conn->flags))
 		return 0;
 
+	if (initiator)
+		set_bit(HCI_CONN_AUTH_INITIATOR, &conn->flags);
+
 	if (!hci_conn_auth(conn, sec_level, auth_type))
 		return 0;
 
@@ -1076,7 +1081,7 @@ int hci_conn_switch_role(struct hci_conn *conn, __u8 role)
 {
 	BT_DBG("hcon %p", conn);
 
-	if (!role && test_bit(HCI_CONN_MASTER, &conn->flags))
+	if (role == conn->role)
 		return 1;
 
 	if (!test_and_set_bit(HCI_CONN_RSWITCH_PEND, &conn->flags)) {
@@ -1151,7 +1156,7 @@ static u32 get_link_mode(struct hci_conn *conn)
 {
 	u32 link_mode = 0;
 
-	if (test_bit(HCI_CONN_MASTER, &conn->flags))
+	if (conn->role == HCI_ROLE_MASTER)
 		link_mode |= HCI_LM_MASTER;
 
 	if (test_bit(HCI_CONN_ENCRYPT, &conn->flags))
@@ -1277,7 +1282,7 @@ struct hci_chan *hci_chan_create(struct hci_conn *conn)
 
 	BT_DBG("%s hcon %p", hdev->name, conn);
 
-	chan = kzalloc(sizeof(struct hci_chan), GFP_KERNEL);
+	chan = kzalloc(sizeof(*chan), GFP_KERNEL);
 	if (!chan)
 		return NULL;
 

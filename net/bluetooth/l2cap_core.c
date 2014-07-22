@@ -775,7 +775,7 @@ static inline u8 l2cap_get_auth_type(struct l2cap_chan *chan)
 }
 
 /* Service level security */
-int l2cap_chan_check_security(struct l2cap_chan *chan)
+int l2cap_chan_check_security(struct l2cap_chan *chan, bool initiator)
 {
 	struct l2cap_conn *conn = chan->conn;
 	__u8 auth_type;
@@ -785,7 +785,8 @@ int l2cap_chan_check_security(struct l2cap_chan *chan)
 
 	auth_type = l2cap_get_auth_type(chan);
 
-	return hci_conn_security(conn->hcon, chan->sec_level, auth_type);
+	return hci_conn_security(conn->hcon, chan->sec_level, auth_type,
+				 initiator);
 }
 
 static u8 l2cap_get_ident(struct l2cap_conn *conn)
@@ -1278,7 +1279,7 @@ static void l2cap_do_start(struct l2cap_chan *chan)
 		if (!(conn->info_state & L2CAP_INFO_FEAT_MASK_REQ_DONE))
 			return;
 
-		if (l2cap_chan_check_security(chan) &&
+		if (l2cap_chan_check_security(chan, true) &&
 		    __l2cap_no_conn_pending(chan)) {
 			l2cap_start_connection(chan);
 		}
@@ -1357,7 +1358,7 @@ static void l2cap_conn_start(struct l2cap_conn *conn)
 		}
 
 		if (chan->state == BT_CONNECT) {
-			if (!l2cap_chan_check_security(chan) ||
+			if (!l2cap_chan_check_security(chan, true) ||
 			    !__l2cap_no_conn_pending(chan)) {
 				l2cap_chan_unlock(chan);
 				continue;
@@ -1379,7 +1380,7 @@ static void l2cap_conn_start(struct l2cap_conn *conn)
 			rsp.scid = cpu_to_le16(chan->dcid);
 			rsp.dcid = cpu_to_le16(chan->scid);
 
-			if (l2cap_chan_check_security(chan)) {
+			if (l2cap_chan_check_security(chan, false)) {
 				if (test_bit(FLAG_DEFER_SETUP, &chan->flags)) {
 					rsp.result = cpu_to_le16(L2CAP_CR_PEND);
 					rsp.status = cpu_to_le16(L2CAP_CS_AUTHOR_PEND);
@@ -1487,7 +1488,7 @@ static void l2cap_le_conn_ready(struct l2cap_conn *conn)
 	 * been configured for this connection. If not, then trigger
 	 * the connection update procedure.
 	 */
-	if (!test_bit(HCI_CONN_MASTER, &hcon->flags) &&
+	if (hcon->role == HCI_ROLE_SLAVE &&
 	    (hcon->le_conn_interval < hcon->le_conn_min_interval ||
 	     hcon->le_conn_interval > hcon->le_conn_max_interval)) {
 		struct l2cap_conn_param_update_req req;
@@ -3849,7 +3850,7 @@ static struct l2cap_chan *l2cap_connect(struct l2cap_conn *conn,
 	chan->ident = cmd->ident;
 
 	if (conn->info_state & L2CAP_INFO_FEAT_MASK_REQ_DONE) {
-		if (l2cap_chan_check_security(chan)) {
+		if (l2cap_chan_check_security(chan, false)) {
 			if (test_bit(FLAG_DEFER_SETUP, &chan->flags)) {
 				l2cap_state_change(chan, BT_CONNECT2);
 				result = L2CAP_CR_PEND;
@@ -5227,7 +5228,7 @@ static inline int l2cap_conn_param_update_req(struct l2cap_conn *conn,
 	u16 min, max, latency, to_multiplier;
 	int err;
 
-	if (!test_bit(HCI_CONN_MASTER, &hcon->flags))
+	if (hcon->role != HCI_ROLE_MASTER)
 		return -EINVAL;
 
 	if (cmd_len != sizeof(struct l2cap_conn_param_update_req))
@@ -6984,7 +6985,7 @@ static struct l2cap_conn *l2cap_conn_add(struct hci_conn *hcon)
 	if (!hchan)
 		return NULL;
 
-	conn = kzalloc(sizeof(struct l2cap_conn), GFP_KERNEL);
+	conn = kzalloc(sizeof(*conn), GFP_KERNEL);
 	if (!conn) {
 		hci_chan_del(hchan);
 		return NULL;
@@ -7093,7 +7094,7 @@ int l2cap_chan_connect(struct l2cap_chan *chan, __le16 psm, u16 cid,
 			break;
 		/* fall through */
 	default:
-		err = -ENOTSUPP;
+		err = -EOPNOTSUPP;
 		goto done;
 	}
 
@@ -7128,7 +7129,7 @@ int l2cap_chan_connect(struct l2cap_chan *chan, __le16 psm, u16 cid,
 	chan->dcid = cid;
 
 	if (bdaddr_type_is_le(dst_type)) {
-		bool master;
+		u8 role;
 
 		/* Convert from L2CAP channel address type to HCI address type
 		 */
@@ -7137,10 +7138,13 @@ int l2cap_chan_connect(struct l2cap_chan *chan, __le16 psm, u16 cid,
 		else
 			dst_type = ADDR_LE_DEV_RANDOM;
 
-		master = !test_bit(HCI_ADVERTISING, &hdev->dev_flags);
+		if (test_bit(HCI_ADVERTISING, &hdev->dev_flags))
+			role = HCI_ROLE_SLAVE;
+		else
+			role = HCI_ROLE_MASTER;
 
 		hcon = hci_connect_le(hdev, dst, dst_type, chan->sec_level,
-				      HCI_LE_CONN_TIMEOUT, master);
+				      HCI_LE_CONN_TIMEOUT, role);
 	} else {
 		u8 auth_type = l2cap_get_auth_type(chan);
 		hcon = hci_connect_acl(hdev, dst, chan->sec_level, auth_type);
@@ -7188,7 +7192,7 @@ int l2cap_chan_connect(struct l2cap_chan *chan, __le16 psm, u16 cid,
 	if (hcon->state == BT_CONNECTED) {
 		if (chan->chan_type != L2CAP_CHAN_CONN_ORIENTED) {
 			__clear_chan_timer(chan);
-			if (l2cap_chan_check_security(chan))
+			if (l2cap_chan_check_security(chan, true))
 				l2cap_state_change(chan, BT_CONNECTED);
 		} else
 			l2cap_do_start(chan);

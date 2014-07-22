@@ -279,7 +279,7 @@ static int l2cap_sock_listen(struct socket *sock, int backlog)
 			break;
 		/* fall through */
 	default:
-		err = -ENOTSUPP;
+		err = -EOPNOTSUPP;
 		goto done;
 	}
 
@@ -797,7 +797,7 @@ static int l2cap_sock_setsockopt(struct socket *sock, int level, int optname,
 		} else if ((sk->sk_state == BT_CONNECT2 &&
 			    test_bit(BT_SK_DEFER_SETUP, &bt_sk(sk)->flags)) ||
 			   sk->sk_state == BT_CONNECTED) {
-			if (!l2cap_chan_check_security(chan))
+			if (!l2cap_chan_check_security(chan, true))
 				set_bit(BT_SK_SUSPEND, &bt_sk(sk)->flags);
 			else
 				sk->sk_state_change(sk);
@@ -1112,7 +1112,8 @@ static int l2cap_sock_shutdown(struct socket *sock, int how)
 		l2cap_chan_close(chan, 0);
 		lock_sock(sk);
 
-		if (sock_flag(sk, SOCK_LINGER) && sk->sk_lingertime)
+		if (sock_flag(sk, SOCK_LINGER) && sk->sk_lingertime &&
+		    !(current->flags & PF_EXITING))
 			err = bt_sock_wait_state(sk, BT_CLOSED,
 						 sk->sk_lingertime);
 	}
