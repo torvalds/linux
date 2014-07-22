@@ -2029,6 +2029,8 @@ static int cfi_amdstd_panic_wait(struct map_info *map, struct flchip *chip,
 
 			udelay(1);
 		}
+
+		retries--;
 	}
 
 	/* the chip never became ready */
