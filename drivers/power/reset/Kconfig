@@ -82,6 +82,12 @@ config POWER_RESET_SUN6I
 	help
 	  Reboot support for the Allwinner A31 SoCs.
 
+config POWER_RESET_ST
+	bool "ST restart power-off driver"
+	depends on POWER_RESET && ARCH_STI
+	help
+	  Power off and reset support for STMicroelectronics boards.
+
 config POWER_RESET_VEXPRESS
 	bool "ARM Versatile Express power-off and reset driver"
 	depends on ARM || ARM64
