@@ -760,18 +760,8 @@ int gpiochip_export(struct gpio_chip *chip)
 	chip->exported = (status == 0);
 	mutex_unlock(&sysfs_lock);
 
-	if (status) {
-		unsigned long	flags;
-		unsigned	gpio;
-
-		spin_lock_irqsave(&gpio_lock, flags);
-		gpio = 0;
-		while (gpio < chip->ngpio)
-			chip->desc[gpio++].chip = NULL;
-		spin_unlock_irqrestore(&gpio_lock, flags);
-
+	if (status)
 		chip_dbg(chip, "%s: status %d\n", __func__, status);
-	}
 
 	return status;
 }
@@ -817,6 +807,14 @@ static int __init gpiolib_sysfs_init(void)
 		if (!chip || chip->exported)
 			continue;
 
+		/*
+		 * TODO we yield gpio_lock here because gpiochip_export()
+		 * acquires a mutex. This is unsafe and needs to be fixed.
+		 *
+		 * Also it would be nice to use gpiochip_find() here so we
+		 * can keep gpio_chips local to gpiolib.c, but the yield of
+		 * gpio_lock prevents us from doing this.
+		 */
 		spin_unlock_irqrestore(&gpio_lock, flags);
 		status = gpiochip_export(chip);
 		spin_lock_irqsave(&gpio_lock, flags);
