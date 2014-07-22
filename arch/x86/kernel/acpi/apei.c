@@ -15,6 +15,7 @@
 #include <acpi/apei.h>
 
 #include <asm/mce.h>
+#include <asm/tlbflush.h>
 
 int arch_apei_enable_cmcff(struct acpi_hest_header *hest_hdr, void *data)
 {
@@ -53,4 +54,9 @@ void arch_apei_report_mem_error(int sev, struct cper_sec_mem_err *mem_err)
 #ifdef CONFIG_X86_MCE
 	apei_mce_report_mem_error(sev, mem_err);
 #endif
+}
+
+void arch_apei_flush_tlb_one(unsigned long addr)
+{
+	__flush_tlb_one(addr);
 }
