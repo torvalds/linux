@@ -867,6 +867,7 @@
 						#clock-cells = <0>;
 						rockchip,clkops-idx =
 							<CLKOPS_RATE_MUX_DIV>;
+						#clock-init-cells = <1>;
 					};
 
 					clk_mac_ref_div: clk_mac_ref_div {
@@ -1243,7 +1244,7 @@
 						<&dummy>,		<&dummy>,
 						<&dclk_lcdc1>,		<&dummy>,
 
-						<&dummy>,			<&dummy>,
+						<&dummy>,			<&hclk_peri_pre>,
 						<&dummy>,		<&dummy>,
 
 						<&pclk_cpu_pre>,		<&dummy>,
@@ -1256,7 +1257,7 @@
 						"reserved",		"reserved",
 						"dclk_lcdc1",		"reserved",
 
-						"reserved",		"reserved",
+						"reserved",		"g_hclk_mac",
 						"reserved",		"reserved",
 
 						"g_pclk_hdmi",		"reserved",
