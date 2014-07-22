@@ -162,6 +162,12 @@ config CFG80211_INTERNAL_REGDB
 	  and includes code to query that database.  This is an alternative
 	  to using CRDA for defining regulatory rules for the kernel.
 
+	  Using this option requires some parsing of the db.txt at build time,
+	  the parser will be upkept with the latest wireless-regdb updates but
+	  older wireless-regdb formats will be ignored. The parser may later
+	  be replaced to avoid issues with conflicts on versions of
+	  wireless-regdb.
+
 	  For details see:
 
 	  http://wireless.kernel.org/en/developers/Regulatory

@@ -129,6 +129,10 @@ ieee80211_vht_cap_ie_to_sta_vht_cap(struct ieee80211_sub_if_data *sdata,
 	if (!vht_cap_ie || !sband->vht_cap.vht_supported)
 		return;
 
+	/* don't support VHT for TDLS peers for now */
+	if (test_sta_flag(sta, WLAN_STA_TDLS_PEER))
+		return;
+
 	/*
 	 * A VHT STA must support 40 MHz, but if we verify that here
 	 * then we break a few things - some APs (e.g. Netgear R6300v2
