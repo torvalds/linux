@@ -377,12 +377,27 @@ static bool intel_dp_mst_get_hw_state(struct intel_connector *connector)
 	return false;
 }
 
+static void intel_connector_add_to_fbdev(struct intel_connector *connector)
+{
+#ifdef CONFIG_DRM_I915_FBDEV
+	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
+	drm_fb_helper_add_one_connector(&dev_priv->fbdev->helper, &connector->base);
+#endif
+}
+
+static void intel_connector_remove_from_fbdev(struct intel_connector *connector)
+{
+#ifdef CONFIG_DRM_I915_FBDEV
+	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
+	drm_fb_helper_remove_one_connector(&dev_priv->fbdev->helper, &connector->base);
+#endif
+}
+
 static struct drm_connector *intel_dp_add_mst_connector(struct drm_dp_mst_topology_mgr *mgr, struct drm_dp_mst_port *port, char *pathprop)
 {
 	struct intel_dp *intel_dp = container_of(mgr, struct intel_dp, mst_mgr);
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
 	struct drm_device *dev = intel_dig_port->base.base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_connector *intel_connector;
 	struct drm_connector *connector;
 	int i;
@@ -410,7 +425,7 @@ static struct drm_connector *intel_dp_add_mst_connector(struct drm_dp_mst_topolo
 	drm_mode_connector_set_path_property(connector, pathprop);
 	drm_reinit_primary_mode_group(dev);
 	mutex_lock(&dev->mode_config.mutex);
-	drm_fb_helper_add_one_connector(&dev_priv->fbdev->helper, connector);
+	intel_connector_add_to_fbdev(intel_connector);
 	mutex_unlock(&dev->mode_config.mutex);
 	drm_connector_register(&intel_connector->base);
 	return connector;
@@ -421,7 +436,6 @@ static void intel_dp_destroy_mst_connector(struct drm_dp_mst_topology_mgr *mgr,
 {
 	struct intel_connector *intel_connector = to_intel_connector(connector);
 	struct drm_device *dev = connector->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	/* need to nuke the connector */
 	mutex_lock(&dev->mode_config.mutex);
 	intel_connector_dpms(connector, DRM_MODE_DPMS_OFF);
@@ -430,7 +444,7 @@ static void intel_dp_destroy_mst_connector(struct drm_dp_mst_topology_mgr *mgr,
 	intel_connector->unregister(intel_connector);
 
 	mutex_lock(&dev->mode_config.mutex);
-	drm_fb_helper_remove_one_connector(&dev_priv->fbdev->helper, connector);
+	intel_connector_remove_from_fbdev(intel_connector);
 	drm_connector_cleanup(connector);
 	mutex_unlock(&dev->mode_config.mutex);
 
