@@ -74,6 +74,7 @@
 #define CX231XX_BOARD_OTG102 17
 #define CX231XX_BOARD_KWORLD_UB445_USB_HYBRID 18
 #define CX231XX_BOARD_HAUPPAUGE_930C_HD_1113xx 19
+#define CX231XX_BOARD_HAUPPAUGE_930C_HD_1114xx 20
 
 /* Limits minimum and default number of buffers */
 #define CX231XX_MIN_BUF                 4

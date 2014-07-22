@@ -34,6 +34,7 @@
 #include "lgdt3305.h"
 #include "si2165.h"
 #include "mb86a20s.h"
+#include "si2157.h"
 
 MODULE_DESCRIPTION("driver for cx231xx based DVB cards");
 MODULE_AUTHOR("Srinivasa Deevi <srinivasa.deevi@conexant.com>");
@@ -157,6 +158,12 @@ static const struct si2165_config hauppauge_930C_HD_1113xx_si2165_config = {
 	.i2c_addr	= 0x64,
 	.chip_mode	= SI2165_MODE_PLL_XTAL,
 	.ref_freq_Hz	= 16000000,
+};
+
+static const struct si2165_config pctv_quatro_stick_1114xx_si2165_config = {
+	.i2c_addr	= 0x64,
+	.chip_mode	= SI2165_MODE_PLL_EXT,
+	.ref_freq_Hz	= 24000000,
 };
 
 static inline void print_err_status(struct cx231xx *dev, int packet, int status)
@@ -745,6 +752,62 @@ static int dvb_init(struct cx231xx *dev)
 
 		dev->cx231xx_reset_analog_tuner = NULL;
 		break;
+
+	case CX231XX_BOARD_HAUPPAUGE_930C_HD_1114xx:
+	{
+		struct i2c_client *client;
+		struct i2c_board_info info;
+		struct si2157_config si2157_config;
+
+		memset(&info, 0, sizeof(struct i2c_board_info));
+
+		dev->dvb->frontend = dvb_attach(si2165_attach,
+			&pctv_quatro_stick_1114xx_si2165_config,
+			&dev->i2c_bus[dev->board.tuner_i2c_master].i2c_adap
+			);
+
+		if (dev->dvb->frontend == NULL) {
+			printk(DRIVER_NAME
+			       ": Failed to attach SI2165 front end\n");
+			result = -EINVAL;
+			goto out_free;
+		}
+
+		dev->dvb->frontend->ops.i2c_gate_ctrl = 0;
+
+		/* define general-purpose callback pointer */
+		dvb->frontend->callback = cx231xx_tuner_callback;
+
+		/* attach tuner */
+		memset(&si2157_config, 0, sizeof(si2157_config));
+		si2157_config.fe = dev->dvb->frontend;
+		si2157_config.inversion = true;
+		strlcpy(info.type, "si2157", I2C_NAME_SIZE);
+		info.addr = 0x60;
+		info.platform_data = &si2157_config;
+		request_module("si2157");
+
+		client = i2c_new_device(
+			&dev->i2c_bus[dev->board.tuner_i2c_master].i2c_adap,
+			&info);
+		if (client == NULL || client->dev.driver == NULL) {
+			dvb_frontend_detach(dev->dvb->frontend);
+			result = -ENODEV;
+			goto out_free;
+		}
+
+		if (!try_module_get(client->dev.driver->owner)) {
+			i2c_unregister_device(client);
+			dvb_frontend_detach(dev->dvb->frontend);
+			result = -ENODEV;
+			goto out_free;
+		}
+
+		dev->cx231xx_reset_analog_tuner = NULL;
+
+		dev->dvb->i2c_client_tuner = client;
+		break;
+	}
 
 	case CX231XX_BOARD_PV_PLAYTV_USB_HYBRID:
 	case CX231XX_BOARD_KWORLD_UB430_USB_HYBRID:
