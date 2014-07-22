@@ -23,7 +23,7 @@
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/slab.h>
 
-struct gpio_desc;
+#include "gpiolib.h"
 
 /* Private data structure for of_gpiochip_find_and_xlate */
 struct gg_data {

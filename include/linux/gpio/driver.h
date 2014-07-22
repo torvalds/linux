@@ -151,9 +151,6 @@ void gpiod_unlock_as_irq(struct gpio_desc *desc);
 
 struct gpio_chip *gpiod_to_chip(const struct gpio_desc *desc);
 
-struct gpio_desc *gpiochip_get_desc(struct gpio_chip *chip,
-				    u16 hwnum);
-
 enum gpio_lookup_flags {
 	GPIO_ACTIVE_HIGH = (0 << 0),
 	GPIO_ACTIVE_LOW = (1 << 0),
