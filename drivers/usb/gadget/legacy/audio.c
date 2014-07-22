@@ -80,6 +80,7 @@ static struct usb_function *f_uac2;
 #endif
 
 #ifdef CONFIG_GADGET_UAC1
+#define USBF_UAC1_INCLUDED
 #include "u_uac1.h"
 #include "f_uac1.c"
 #endif
