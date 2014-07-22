@@ -1045,7 +1045,7 @@ static int vnt_beacon_xmit(struct vnt_private *priv,
 	count = sizeof(struct vnt_tx_short_buf_head) + skb->len;
 
 	beacon_buffer->tx_byte_count = cpu_to_le16(count);
-	beacon_buffer->byPKTNO = context->pkt_no;
+	beacon_buffer->pkt_no = context->pkt_no;
 	beacon_buffer->byType = 0x01;
 
 	context->type = CONTEXT_BEACON_PACKET;
