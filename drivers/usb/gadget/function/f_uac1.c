@@ -15,6 +15,7 @@
 #include <linux/atomic.h>
 
 #include "u_uac1.h"
+#include "u_uac1.c"
 
 #define OUT_EP_MAX_PACKET_SIZE	200
 static int req_buf_size = OUT_EP_MAX_PACKET_SIZE;
