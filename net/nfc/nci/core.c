@@ -231,6 +231,14 @@ static void nci_rf_discover_req(struct nci_dev *ndev, unsigned long opt)
 		cmd.num_disc_configs++;
 	}
 
+	if ((cmd.num_disc_configs < NCI_MAX_NUM_RF_CONFIGS) &&
+	    (protocols & NFC_PROTO_ISO15693_MASK)) {
+		cmd.disc_configs[cmd.num_disc_configs].rf_tech_and_mode =
+			NCI_NFC_V_PASSIVE_POLL_MODE;
+		cmd.disc_configs[cmd.num_disc_configs].frequency = 1;
+		cmd.num_disc_configs++;
+	}
+
 	nci_send_cmd(ndev, NCI_OP_RF_DISCOVER_CMD,
 		     (1 + (cmd.num_disc_configs * sizeof(struct disc_config))),
 		     &cmd);
