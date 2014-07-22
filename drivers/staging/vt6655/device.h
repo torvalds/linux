@@ -391,7 +391,7 @@ typedef struct __device_info {
 
 	CHIP_TYPE                   chip_id;
 
-	unsigned long               PortOffset;
+	void __iomem                *PortOffset;
 	unsigned long dwIsr;
 	u32                         memaddr;
 	u32                         ioaddr;

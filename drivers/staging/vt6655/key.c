@@ -58,7 +58,7 @@ static int msglevel = MSG_LEVEL_INFO;
 
 /*---------------------  Static Functions  --------------------------*/
 static void
-s_vCheckKeyTableValid(PSKeyManagement pTable, unsigned long dwIoBase)
+s_vCheckKeyTableValid(PSKeyManagement pTable, void __iomem *dwIoBase)
 {
 	int i;
 
@@ -91,7 +91,7 @@ s_vCheckKeyTableValid(PSKeyManagement pTable, unsigned long dwIoBase)
  * Return Value: none
  *
  */
-void KeyvInitTable(PSKeyManagement pTable, unsigned long dwIoBase)
+void KeyvInitTable(PSKeyManagement pTable, void __iomem *dwIoBase)
 {
 	int i;
 	int jj;
@@ -187,7 +187,7 @@ bool KeybSetKey(
 	PQWORD          pKeyRSC,
 	unsigned char *pbyKey,
 	unsigned char byKeyDecMode,
-	unsigned long dwIoBase,
+	void __iomem *dwIoBase,
 	unsigned char byLocalID
 )
 {
@@ -351,7 +351,7 @@ bool KeybRemoveKey(
 	PSKeyManagement pTable,
 	unsigned char *pbyBSSID,
 	unsigned long dwKeyIndex,
-	unsigned long dwIoBase
+	void __iomem *dwIoBase
 )
 {
 	int  i;
@@ -418,7 +418,7 @@ bool KeybRemoveKey(
 bool KeybRemoveAllKey(
 	PSKeyManagement pTable,
 	unsigned char *pbyBSSID,
-	unsigned long dwIoBase
+	void __iomem *dwIoBase
 )
 {
 	int i, u;
@@ -453,7 +453,7 @@ bool KeybRemoveAllKey(
 void KeyvRemoveWEPKey(
 	PSKeyManagement pTable,
 	unsigned long dwKeyIndex,
-	unsigned long dwIoBase
+	void __iomem *dwIoBase
 )
 {
 	if ((dwKeyIndex & 0x000000FF) < MAX_GROUP_KEY) {
@@ -473,7 +473,7 @@ void KeyvRemoveWEPKey(
 
 void KeyvRemoveAllWEPKey(
 	PSKeyManagement pTable,
-	unsigned long dwIoBase
+	void __iomem *dwIoBase
 )
 {
 	int i;
@@ -610,7 +610,7 @@ bool KeybSetDefaultKey(
 	PQWORD          pKeyRSC,
 	unsigned char *pbyKey,
 	unsigned char byKeyDecMode,
-	unsigned long dwIoBase,
+	void __iomem *dwIoBase,
 	unsigned char byLocalID
 )
 {
@@ -716,7 +716,7 @@ bool KeybSetAllGroupKey(
 	PQWORD          pKeyRSC,
 	unsigned char *pbyKey,
 	unsigned char byKeyDecMode,
-	unsigned long dwIoBase,
+	void __iomem *dwIoBase,
 	unsigned char byLocalID
 )
 {

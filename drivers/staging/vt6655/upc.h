@@ -72,38 +72,32 @@ do {						\
 
 #define VNSvInPortB(dwIOAddress, pbyData)				\
 do {									\
-	volatile unsigned char *pbyAddr = (unsigned char *)(dwIOAddress); \
-	*(pbyData) = readb(pbyAddr);					\
+	*(pbyData) = readb(dwIOAddress);				\
 } while (0)
 
 #define VNSvInPortW(dwIOAddress, pwData)				\
 do {									\
-	volatile unsigned short *pwAddr = (unsigned short *)(dwIOAddress); \
-	*(pwData) = readw(pwAddr);					\
+	*(pwData) = readw(dwIOAddress);					\
 } while (0)
 
 #define VNSvInPortD(dwIOAddress, pdwData)				\
 do {									\
-	volatile unsigned long *pdwAddr = (unsigned long *)(dwIOAddress); \
-	*(pdwData) = readl(pdwAddr);					\
+	*(pdwData) = readl(dwIOAddress);				\
 } while (0)
 
 #define VNSvOutPortB(dwIOAddress, byData)				\
 do {									\
-	volatile unsigned char *pbyAddr = (unsigned char *)(dwIOAddress); \
-	writeb((unsigned char)byData, pbyAddr);				\
+	writeb((unsigned char)byData, dwIOAddress);			\
 } while (0)
 
 #define VNSvOutPortW(dwIOAddress, wData)				\
 do {									\
-	volatile unsigned short *pwAddr = ((unsigned short *)(dwIOAddress)); \
-	writew((unsigned short)wData, pwAddr);				\
+	writew((unsigned short)wData, dwIOAddress);			\
 } while (0)
 
 #define VNSvOutPortD(dwIOAddress, dwData)				\
 do {									\
-	volatile unsigned long *pdwAddr = (unsigned long *)(dwIOAddress); \
-	writel((unsigned long)dwData, pdwAddr);				\
+	writel((unsigned long)dwData, dwIOAddress);			\
 } while (0)
 
 #endif

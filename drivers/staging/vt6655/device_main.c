@@ -891,9 +891,9 @@ vt6655_probe(struct pci_dev *pcid, const struct pci_device_id *ent)
 
 #endif
 
-	pDevice->PortOffset = (unsigned long)ioremap(pDevice->memaddr & PCI_BASE_ADDRESS_MEM_MASK, pDevice->io_size);
+	pDevice->PortOffset = ioremap(pDevice->memaddr & PCI_BASE_ADDRESS_MEM_MASK, pDevice->io_size);
 
-	if (pDevice->PortOffset == 0) {
+	if (pDevice->PortOffset == NULL) {
 		printk(KERN_ERR DEVICE_NAME ": Failed to IO remapping ..\n");
 		device_free_info(pDevice);
 		return -ENODEV;
@@ -1079,7 +1079,7 @@ static void device_free_info(PSDevice pDevice) {
 		unregister_netdev(dev);
 
 	if (pDevice->PortOffset)
-		iounmap((void *)pDevice->PortOffset);
+		iounmap(pDevice->PortOffset);
 
 	if (pDevice->pcid)
 		pci_release_regions(pDevice->pcid);
