@@ -5,6 +5,7 @@
 #include <linux/rbtree.h>
 #include <stdbool.h>
 #include <linux/types.h>
+#include <linux/bitops.h>
 #include "map.h"
 #include "build-id.h"
 
@@ -48,6 +49,13 @@ enum dso_data_status {
 
 enum dso_data_status_seen {
 	DSO_DATA_STATUS_SEEN_ITRACE,
+};
+
+enum dso_type {
+	DSO__TYPE_UNKNOWN,
+	DSO__TYPE_64BIT,
+	DSO__TYPE_32BIT,
+	DSO__TYPE_X32BIT,
 };
 
 #define DSO__SWAP(dso, type, val)			\
@@ -244,5 +252,7 @@ static inline bool dso__is_kcore(struct dso *dso)
 }
 
 void dso__free_a2l(struct dso *dso);
+
+enum dso_type dso__type(struct dso *dso, struct machine *machine);
 
 #endif /* __PERF_DSO */

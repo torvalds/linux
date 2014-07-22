@@ -940,3 +940,14 @@ size_t dso__fprintf(struct dso *dso, enum map_type type, FILE *fp)
 
 	return ret;
 }
+
+enum dso_type dso__type(struct dso *dso, struct machine *machine)
+{
+	int fd;
+
+	fd = dso__data_fd(dso, machine);
+	if (fd < 0)
+		return DSO__TYPE_UNKNOWN;
+
+	return dso__type_fd(fd);
+}
