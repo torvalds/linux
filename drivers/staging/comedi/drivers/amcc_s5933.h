@@ -52,7 +52,8 @@
 #define INTCSR_INBOX_BYTE(x)	(((x) & 0x3) << 8)
 #define INTCSR_INBOX_SELECT(x)	(((x) & 0x3) << 10)
 #define INTCSR_INBOX_FULL_INT	0x1000	/*  enable inbox full interrupt */
-#define INTCSR_INBOX_INTR_STATUS	0x20000	/*  read, or write clear inbox full interrupt */
+/* read, or write clear inbox full interrupt */
+#define INTCSR_INBOX_INTR_STATUS	0x20000
 #define INTCSR_INTR_ASSERTED	0x800000	/*  read only, interrupt asserted */
 
 /****************************************************************************/
