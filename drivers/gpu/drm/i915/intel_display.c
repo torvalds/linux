@@ -3847,7 +3847,7 @@ static void intel_crtc_load_lut(struct drm_crtc *crtc)
 	}
 
 	/* use legacy palette for Ironlake */
-	if (HAS_PCH_SPLIT(dev))
+	if (!HAS_GMCH_DISPLAY(dev))
 		palreg = LGC_PALETTE(pipe);
 
 	/* Workaround : Do not read or write the pipe palette/gamma data while
