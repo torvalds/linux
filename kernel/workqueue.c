@@ -2048,10 +2048,13 @@ __acquires(&pool->lock)
 		worker_set_flags(worker, WORKER_CPU_INTENSIVE, true);
 
 	/*
-	 * Unbound pool isn't concurrency managed and work items should be
-	 * executed ASAP.  Wake up another worker if necessary.
+	 * Wake up another worker if necessary.  The condition is always
+	 * false for normal per-cpu workers since nr_running would always
+	 * be >= 1 at this point.  This is used to chain execution of the
+	 * pending work items for WORKER_NOT_RUNNING workers such as the
+	 * UNBOUND ones.
 	 */
-	if ((worker->flags & WORKER_UNBOUND) && need_more_worker(pool))
+	if (need_more_worker(pool))
 		wake_up_worker(pool);
 
 	/*
