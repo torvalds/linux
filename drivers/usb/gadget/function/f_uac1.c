@@ -216,6 +216,37 @@ static struct usb_descriptor_header *f_audio_desc[] __initdata = {
 	NULL,
 };
 
+enum {
+	STR_AC_IF,
+	STR_INPUT_TERMINAL,
+	STR_INPUT_TERMINAL_CH_NAMES,
+	STR_FEAT_DESC_0,
+	STR_OUTPUT_TERMINAL,
+	STR_AS_IF_ALT0,
+	STR_AS_IF_ALT1,
+};
+
+static struct usb_string strings_uac1[] = {
+	[STR_AC_IF].s = "AC Interface",
+	[STR_INPUT_TERMINAL].s = "Input terminal",
+	[STR_INPUT_TERMINAL_CH_NAMES].s = "Channels",
+	[STR_FEAT_DESC_0].s = "Volume control & mute",
+	[STR_OUTPUT_TERMINAL].s = "Output terminal",
+	[STR_AS_IF_ALT0].s = "AS Interface",
+	[STR_AS_IF_ALT1].s = "AS Interface",
+	{ },
+};
+
+static struct usb_gadget_strings str_uac1 = {
+	.language = 0x0409,	/* en-us */
+	.strings = strings_uac1,
+};
+
+static struct usb_gadget_strings *uac1_strings[] = {
+	&str_uac1,
+	NULL,
+};
+
 /*
  * This function is an ALSA sound card following USB Audio Class Spec 1.0.
  */
@@ -724,6 +755,24 @@ static int __init audio_bind_config(struct usb_configuration *c)
 	struct f_audio *audio;
 	int status;
 
+	if (strings_uac1[0].id == 0) {
+		status = usb_string_ids_tab(c->cdev, strings_uac1);
+		if (status < 0)
+			return status;
+		ac_interface_desc.iInterface = strings_uac1[STR_AC_IF].id;
+		input_terminal_desc.iTerminal =
+			strings_uac1[STR_INPUT_TERMINAL].id;
+		input_terminal_desc.iChannelNames =
+			strings_uac1[STR_INPUT_TERMINAL_CH_NAMES].id;
+		feature_unit_desc.iFeature = strings_uac1[STR_FEAT_DESC_0].id;
+		output_terminal_desc.iTerminal =
+			strings_uac1[STR_OUTPUT_TERMINAL].id;
+		as_interface_alt_0_desc.iInterface =
+			strings_uac1[STR_AS_IF_ALT0].id;
+		as_interface_alt_1_desc.iInterface =
+			strings_uac1[STR_AS_IF_ALT1].id;
+	}
+
 	/* allocate and initialize one new instance */
 	audio = kzalloc(sizeof *audio, GFP_KERNEL);
 	if (!audio)
@@ -740,7 +789,7 @@ static int __init audio_bind_config(struct usb_configuration *c)
 	if (status < 0)
 		goto setup_fail;
 
-	audio->card.func.strings = audio_strings;
+	audio->card.func.strings = uac1_strings;
 	audio->card.func.bind = f_audio_bind;
 	audio->card.func.unbind = f_audio_unbind;
 	audio->card.func.set_alt = f_audio_set_alt;
