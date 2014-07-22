@@ -1449,7 +1449,7 @@ static ssize_t enable_ints_write(struct file *file,
 		return -EFAULT;
 	}
 
-	/*set all counts to new_value usually 0*/
+	/* set all counts to new_value usually 0 */
 	for (i = 0; i < VIRTHBASOPENMAX; i++) {
 		if (VirtHbasOpen[i].virthbainfo != NULL) {
 			virthbainfo = VirtHbasOpen[i].virthbainfo;
@@ -1747,7 +1747,6 @@ virthba_mod_exit(void)
 		virthba_serverdown_workqueue = NULL;
 	}
 
-	/* remove debugfs directory and files. */
 	debugfs_remove_recursive(virthba_debugfs_dir);
 	LOGINF("Leaving virthba_mod_exit\n");
 
