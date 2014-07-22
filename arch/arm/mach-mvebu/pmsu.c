@@ -424,9 +424,9 @@ static int __init armada_xp_pmsu_cpufreq_init(void)
 		}
 
 		clk = clk_get(cpu_dev, 0);
-		if (!clk) {
+		if (IS_ERR(clk)) {
 			pr_err("Cannot get clock for CPU %d\n", cpu);
-			return -ENODEV;
+			return PTR_ERR(clk);
 		}
 
 		/*
