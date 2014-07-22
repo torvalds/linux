@@ -101,6 +101,11 @@ static const int hmc5883_regval_to_samp_freq[][2] = {
 	{75, 0}
 };
 
+static const int hmc5983_regval_to_samp_freq[][2] = {
+	{0, 750000}, {1, 500000}, {3, 0}, {7, 500000}, {15, 0}, {30, 0},
+	{75, 0}, {220, 0}
+};
+
 /* Describe chip variants */
 struct hmc5843_chip_info {
 	const struct iio_chan_spec *channels;
@@ -457,7 +462,7 @@ static const struct iio_chan_spec hmc5843_channels[] = {
 	IIO_CHAN_SOFT_TIMESTAMP(3),
 };
 
-/* Beware: Y and Z are exchanged on HMC5883 */
+/* Beware: Y and Z are exchanged on HMC5883 and 5983 */
 static const struct iio_chan_spec hmc5883_channels[] = {
 	HMC5843_CHANNEL(X, 0),
 	HMC5843_CHANNEL(Z, 1),
@@ -504,6 +509,15 @@ static const struct hmc5843_chip_info hmc5843_chip_info_tbl[] = {
 		.n_regval_to_nanoscale =
 				ARRAY_SIZE(hmc5883l_regval_to_nanoscale),
 	},
+	[HMC5983_ID] = {
+		.channels = hmc5883_channels,
+		.regval_to_samp_freq = hmc5983_regval_to_samp_freq,
+		.n_regval_to_samp_freq =
+				ARRAY_SIZE(hmc5983_regval_to_samp_freq),
+		.regval_to_nanoscale = hmc5883l_regval_to_nanoscale,
+		.n_regval_to_nanoscale =
+				ARRAY_SIZE(hmc5883l_regval_to_nanoscale),
+	}
 };
 
 static int hmc5843_init(struct hmc5843_data *data)
@@ -516,7 +530,7 @@ static int hmc5843_init(struct hmc5843_data *data)
 	if (ret < 0)
 		return ret;
 	if (id[0] != 'H' || id[1] != '4' || id[2] != '3') {
-		dev_err(data->dev, "no HMC5843/5883/5883L sensor\n");
+		dev_err(data->dev, "no HMC5843/5883/5883L/5983 sensor\n");
 		return -ENODEV;
 	}
 
@@ -620,5 +634,5 @@ int hmc5843_common_remove(struct device *dev)
 EXPORT_SYMBOL(hmc5843_common_remove);
 
 MODULE_AUTHOR("Shubhrajyoti Datta <shubhrajyoti@ti.com>");
-MODULE_DESCRIPTION("HMC5843/5883/5883L core driver");
+MODULE_DESCRIPTION("HMC5843/5883/5883L/5983 core driver");
 MODULE_LICENSE("GPL");

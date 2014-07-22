@@ -20,6 +20,6 @@ config SENSORS_HMC5843_I2C
 	  This driver can also be compiled as a set of modules.
 	  If so, these modules will be created:
 	  - hmc5843_core (core functions)
-	  - hmc5843_i2c (support for HMC5843, HMC5883 and HMC5883L)
+	  - hmc5843_i2c (support for HMC5843, HMC5883, HMC5883L and HMC5983)
 
 endmenu

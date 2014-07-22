@@ -6,6 +6,7 @@ Required properties:
   Other models which are supported with driver are:
 	"honeywell,hmc5883"
 	"honeywell,hmc5883l"
+	"honeywell,hmc5983"
   - reg : the I2C address of the magnetometer - typically 0x1e
 
 Optional properties:

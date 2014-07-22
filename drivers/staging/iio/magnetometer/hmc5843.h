@@ -29,6 +29,7 @@ enum hmc5843_ids {
 	HMC5843_ID,
 	HMC5883_ID,
 	HMC5883L_ID,
+	HMC5983_ID,
 };
 
 struct hmc5843_data {
