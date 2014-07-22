@@ -29,5 +29,9 @@
 				st,pcie-tx-pol-inv;
 			};
 		};
+
+		sata0: sata@fe380000{
+			status = "okay";
+		};
 	};
 };
