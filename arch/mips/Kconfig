@@ -2030,7 +2030,9 @@ config MIPS_CMP
 	bool "MIPS CMP framework support (DEPRECATED)"
 	depends on SYS_SUPPORTS_MIPS_CMP
 	select MIPS_GIC_IPI
+	select SMP
 	select SYNC_R4K
+	select SYS_SUPPORTS_SMP
 	select WEAK_ORDERING
 	default n
 	help
