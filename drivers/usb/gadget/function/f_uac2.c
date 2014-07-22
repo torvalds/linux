@@ -149,8 +149,6 @@ struct audio_dev {
 	struct snd_uac2_chip uac2;
 };
 
-static struct audio_dev *agdev_g;
-
 static inline
 struct audio_dev *func_to_agdev(struct usb_function *f)
 {
@@ -1039,6 +1037,7 @@ afunc_unbind(struct usb_configuration *cfg, struct usb_function *fn)
 		agdev->in_ep->driver_data = NULL;
 	if (agdev->out_ep)
 		agdev->out_ep->driver_data = NULL;
+	kfree(agdev);
 }
 
 static int
@@ -1311,10 +1310,11 @@ afunc_setup(struct usb_function *fn, const struct usb_ctrlrequest *cr)
 
 static int audio_bind_config(struct usb_configuration *cfg)
 {
+	struct audio_dev *agdev;
 	int res;
 
-	agdev_g = kzalloc(sizeof *agdev_g, GFP_KERNEL);
-	if (agdev_g == NULL)
+	agdev = kzalloc(sizeof(*agdev), GFP_KERNEL);
+	if (agdev == NULL)
 		return -ENOMEM;
 
 	res = usb_string_ids_tab(cfg->cdev, strings_fn);
@@ -1333,14 +1333,14 @@ static int audio_bind_config(struct usb_configuration *cfg)
 	std_as_in_if0_desc.iInterface = strings_fn[STR_AS_IN_ALT0].id;
 	std_as_in_if1_desc.iInterface = strings_fn[STR_AS_IN_ALT1].id;
 
-	agdev_g->func.name = "uac2_func";
-	agdev_g->func.strings = fn_strings;
-	agdev_g->func.bind = afunc_bind;
-	agdev_g->func.unbind = afunc_unbind;
-	agdev_g->func.set_alt = afunc_set_alt;
-	agdev_g->func.get_alt = afunc_get_alt;
-	agdev_g->func.disable = afunc_disable;
-	agdev_g->func.setup = afunc_setup;
+	agdev->func.name = "uac2_func";
+	agdev->func.strings = fn_strings;
+	agdev->func.bind = afunc_bind;
+	agdev->func.unbind = afunc_unbind;
+	agdev->func.set_alt = afunc_set_alt;
+	agdev->func.get_alt = afunc_get_alt;
+	agdev->func.disable = afunc_disable;
+	agdev->func.setup = afunc_setup;
 
 	/* Initialize the configurable parameters */
 	usb_out_it_desc.bNrChannels = num_channels(c_chmask);
@@ -1359,16 +1359,9 @@ static int audio_bind_config(struct usb_configuration *cfg)
 	snprintf(clksrc_in, sizeof(clksrc_in), "%uHz", p_srate);
 	snprintf(clksrc_out, sizeof(clksrc_out), "%uHz", c_srate);
 
-	res = usb_add_function(cfg, &agdev_g->func);
+	res = usb_add_function(cfg, &agdev->func);
 	if (res < 0)
-		kfree(agdev_g);
+		kfree(agdev);
 
 	return res;
-}
-
-static void
-uac2_unbind_config(struct usb_configuration *cfg)
-{
-	kfree(agdev_g);
-	agdev_g = NULL;
 }

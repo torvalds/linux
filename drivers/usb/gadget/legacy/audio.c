@@ -126,9 +126,6 @@ static struct usb_configuration audio_config_driver = {
 	.bConfigurationValue	= 1,
 	/* .iConfiguration = DYNAMIC */
 	.bmAttributes		= USB_CONFIG_ATT_SELFPOWER,
-#ifndef CONFIG_GADGET_UAC1
-	.unbind			= uac2_unbind_config,
-#endif
 };
 
 /*-------------------------------------------------------------------------*/
