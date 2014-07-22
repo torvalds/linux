@@ -1474,7 +1474,7 @@ static void mtdswap_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 	}
 
 	eblocks = mtd_div_by_eb(use_size, mtd);
-	use_size = eblocks * mtd->erasesize;
+	use_size = (uint64_t)eblocks * mtd->erasesize;
 	bad_blocks = mtdswap_badblocks(mtd, use_size);
 	eavailable = eblocks - bad_blocks;
 
