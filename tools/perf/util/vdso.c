@@ -135,7 +135,8 @@ static struct dso *vdso__new(struct machine *machine, const char *short_name,
 	return dso;
 }
 
-struct dso *vdso__dso_findnew(struct machine *machine)
+struct dso *vdso__dso_findnew(struct machine *machine,
+			      struct thread *thread __maybe_unused)
 {
 	struct vdso_info *vdso_info;
 	struct dso *dso;

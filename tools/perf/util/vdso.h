@@ -19,8 +19,9 @@ struct dso;
 bool dso__is_vdso(struct dso *dso);
 
 struct machine;
+struct thread;
 
-struct dso *vdso__dso_findnew(struct machine *machine);
+struct dso *vdso__dso_findnew(struct machine *machine, struct thread *thread);
 void vdso__exit(struct machine *machine);
 
 #endif /* __PERF_VDSO__ */
