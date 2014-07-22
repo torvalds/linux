@@ -64,7 +64,6 @@ config ARCH_VEXPRESS_DCSCB
 
 config ARCH_VEXPRESS_SPC
 	bool "Versatile Express Serial Power Controller (SPC)"
-	select ARCH_HAS_OPP
 	select PM_OPP
 	help
 	  The TC2 (A15x2 A7x3) versatile express core tile integrates a logic
