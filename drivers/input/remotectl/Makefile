@@ -4,4 +4,4 @@
 # Each configuration option enables a list of files.
 
 
-obj-$(CONFIG_RK_REMOTECTL)      += rkxx_remotectl.o
+obj-$(CONFIG_ROCKCHIP_REMOTECTL_PWM)      += rockchip_pwm_remotectl.o

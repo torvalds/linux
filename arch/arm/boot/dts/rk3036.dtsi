@@ -435,6 +435,18 @@
                 clock-names = "pclk_pwm";
                 status = "disabled";
         };
+        
+	remotectl: pwm@20050030 {
+		compatible = "rockchip,remotectl-pwm";
+		reg = <0x20050030 0x10>;
+		#pwm-cells = <2>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pwm3_pin>;
+		clocks = <&clk_gates7 10>;
+		clock-names = "pclk_pwm";
+		interrupts = <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
+		status = "okay";
+	};
 
 	emmc: rksdmmc@1021c000 {
 		compatible = "rockchip,rk_mmc", "rockchip,rk3036-sdmmc";
