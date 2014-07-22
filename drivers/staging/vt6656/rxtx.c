@@ -828,18 +828,18 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 
 	/*Set fifo controls */
 	if (pkt_type == PK_TYPE_11A)
-		tx_buffer_head->wFIFOCtl = 0;
+		tx_buffer_head->fifo_ctl = 0;
 	else if (pkt_type == PK_TYPE_11B)
-		tx_buffer_head->wFIFOCtl = FIFOCTL_11B;
+		tx_buffer_head->fifo_ctl = FIFOCTL_11B;
 	else if (pkt_type == PK_TYPE_11GB)
-		tx_buffer_head->wFIFOCtl = FIFOCTL_11GB;
+		tx_buffer_head->fifo_ctl = FIFOCTL_11GB;
 	else if (pkt_type == PK_TYPE_11GA)
-		tx_buffer_head->wFIFOCtl = FIFOCTL_11GA;
+		tx_buffer_head->fifo_ctl = FIFOCTL_11GA;
 
 	if (!ieee80211_is_data(hdr->frame_control)) {
-		tx_buffer_head->wFIFOCtl |= (FIFOCTL_GENINT |
+		tx_buffer_head->fifo_ctl |= (FIFOCTL_GENINT |
 			FIFOCTL_ISDMA0);
-		tx_buffer_head->wFIFOCtl |= FIFOCTL_TMOEN;
+		tx_buffer_head->fifo_ctl |= FIFOCTL_TMOEN;
 
 		tx_buffer_head->time_stamp =
 			cpu_to_le16(DEFAULT_MGN_LIFETIME_RES_64us);
@@ -849,12 +849,12 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 	}
 
 	if (!(info->flags & IEEE80211_TX_CTL_NO_ACK)) {
-		tx_buffer_head->wFIFOCtl |= FIFOCTL_NEEDACK;
+		tx_buffer_head->fifo_ctl |= FIFOCTL_NEEDACK;
 		tx_context->need_ack = true;
 	}
 
 	if (ieee80211_has_retry(hdr->frame_control))
-		tx_buffer_head->wFIFOCtl |= FIFOCTL_LRETRY;
+		tx_buffer_head->fifo_ctl |= FIFOCTL_LRETRY;
 
 	if (tx_rate->flags & IEEE80211_TX_RC_USE_SHORT_PREAMBLE)
 		priv->preamble_type = PREAMBLE_SHORT;
@@ -863,11 +863,11 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 
 	if (tx_rate->flags & IEEE80211_TX_RC_USE_RTS_CTS) {
 		need_rts = true;
-		tx_buffer_head->wFIFOCtl |= FIFOCTL_RTS;
+		tx_buffer_head->fifo_ctl |= FIFOCTL_RTS;
 	}
 
 	if (ieee80211_has_a4(hdr->frame_control))
-		tx_buffer_head->wFIFOCtl |= FIFOCTL_LHEAD;
+		tx_buffer_head->fifo_ctl |= FIFOCTL_LHEAD;
 
 	if (info->flags & IEEE80211_TX_CTL_NO_PS_BUFFER)
 		is_pspoll = true;
@@ -899,7 +899,7 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 	/* legacy rates TODO use ieee80211_tx_rate */
 	if (current_rate >= RATE_18M && ieee80211_is_data(hdr->frame_control)) {
 		if (priv->auto_fb_ctrl == AUTO_FB_0) {
-			tx_buffer_head->wFIFOCtl |= FIFOCTL_AUTO_FB_0;
+			tx_buffer_head->fifo_ctl |= FIFOCTL_AUTO_FB_0;
 
 			priv->tx_rate_fb0 =
 				vnt_fb_opt0[FB_RATE0][current_rate - RATE_18M];
@@ -908,7 +908,7 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 
 			fb_option = AUTO_FB_0;
 		} else if (priv->auto_fb_ctrl == AUTO_FB_1) {
-			tx_buffer_head->wFIFOCtl |= FIFOCTL_AUTO_FB_1;
+			tx_buffer_head->fifo_ctl |= FIFOCTL_AUTO_FB_1;
 
 			priv->tx_rate_fb0 =
 				vnt_fb_opt1[FB_RATE0][current_rate - RATE_18M];
