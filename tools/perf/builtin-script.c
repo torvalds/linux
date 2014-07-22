@@ -358,27 +358,6 @@ static void print_sample_start(struct perf_sample *sample,
 	}
 }
 
-static bool is_bts_event(struct perf_event_attr *attr)
-{
-	return ((attr->type == PERF_TYPE_HARDWARE) &&
-		(attr->config & PERF_COUNT_HW_BRANCH_INSTRUCTIONS) &&
-		(attr->sample_period == 1));
-}
-
-static bool sample_addr_correlates_sym(struct perf_event_attr *attr)
-{
-	if ((attr->type == PERF_TYPE_SOFTWARE) &&
-	    ((attr->config == PERF_COUNT_SW_PAGE_FAULTS) ||
-	     (attr->config == PERF_COUNT_SW_PAGE_FAULTS_MIN) ||
-	     (attr->config == PERF_COUNT_SW_PAGE_FAULTS_MAJ)))
-		return true;
-
-	if (is_bts_event(attr))
-		return true;
-
-	return false;
-}
-
 static void print_sample_addr(union perf_event *event,
 			  struct perf_sample *sample,
 			  struct machine *machine,
@@ -386,24 +365,13 @@ static void print_sample_addr(union perf_event *event,
 			  struct perf_event_attr *attr)
 {
 	struct addr_location al;
-	u8 cpumode = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
 
 	printf("%16" PRIx64, sample->addr);
 
 	if (!sample_addr_correlates_sym(attr))
 		return;
 
-	thread__find_addr_map(thread, machine, cpumode, MAP__FUNCTION,
-			      sample->addr, &al);
-	if (!al.map)
-		thread__find_addr_map(thread, machine, cpumode, MAP__VARIABLE,
-				      sample->addr, &al);
-
-	al.cpu = sample->cpu;
-	al.sym = NULL;
-
-	if (al.map)
-		al.sym = map__find_symbol(al.map, al.addr, NULL);
+	perf_event__preprocess_sample_addr(event, sample, machine, thread, &al);
 
 	if (PRINT_FIELD(SYM)) {
 		printf(" ");
