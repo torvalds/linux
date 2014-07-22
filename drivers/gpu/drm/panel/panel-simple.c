@@ -425,6 +425,28 @@ static const struct panel_desc foxlink_fl500wvr00_a0t = {
 	},
 };
 
+static const struct drm_display_mode innolux_n156bge_l21_mode = {
+	.clock = 69300,
+	.hdisplay = 1366,
+	.hsync_start = 1366 + 16,
+	.hsync_end = 1366 + 16 + 34,
+	.htotal = 1366 + 16 + 34 + 50,
+	.vdisplay = 768,
+	.vsync_start = 768 + 2,
+	.vsync_end = 768 + 2 + 6,
+	.vtotal = 768 + 2 + 6 + 12,
+	.vrefresh = 60,
+};
+
+static const struct panel_desc innolux_n156bge_l21 = {
+	.modes = &innolux_n156bge_l21_mode,
+	.num_modes = 1,
+	.size = {
+		.width = 344,
+		.height = 193,
+	},
+};
+
 static const struct drm_display_mode lg_lp129qe_mode = {
 	.clock = 285250,
 	.hdisplay = 2560,
@@ -494,6 +516,9 @@ static const struct of_device_id platform_of_match[] = {
 	}, {
 		.compatible = "foxlink,fl500wvr00-a0t",
 		.data = &foxlink_fl500wvr00_a0t,
+	}, {
+		.compatible = "innolux,n156bge-l21",
+		.data = &innolux_n156bge_l21,
 	}, {
 		.compatible = "lg,lp129qe",
 		.data = &lg_lp129qe,
