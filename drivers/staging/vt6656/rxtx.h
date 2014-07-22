@@ -245,7 +245,7 @@ struct vnt_tx_short_buf_head {
 } __packed;
 
 struct vnt_beacon_buffer {
-	u8 byType;
+	u8 type;
 	u8 pkt_no;
 	__le16 tx_byte_count;
 	struct vnt_tx_short_buf_head short_head;

@@ -1046,7 +1046,7 @@ static int vnt_beacon_xmit(struct vnt_private *priv,
 
 	beacon_buffer->tx_byte_count = cpu_to_le16(count);
 	beacon_buffer->pkt_no = context->pkt_no;
-	beacon_buffer->byType = 0x01;
+	beacon_buffer->type = 0x01;
 
 	context->type = CONTEXT_BEACON_PACKET;
 	context->buf_len = count + 4; /* USB header */
