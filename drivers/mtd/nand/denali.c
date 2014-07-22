@@ -1062,9 +1062,7 @@ static int write_page(struct mtd_info *mtd, struct nand_chip *chip,
 		dev_err(denali->dev,
 				"timeout on write_page (type = %d)\n",
 				raw_xfer);
-		denali->status =
-			(irq_status & INTR_STATUS__PROGRAM_FAIL) ?
-			NAND_STATUS_FAIL : PASS;
+		denali->status = NAND_STATUS_FAIL;
 	}
 
 	denali_enable_dma(denali, false);
