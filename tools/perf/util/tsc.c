@@ -23,3 +23,8 @@ u64 tsc_to_perf_time(u64 cyc, struct perf_tsc_conversion *tc)
 	return tc->time_zero + quot * tc->time_mult +
 	       ((rem * tc->time_mult) >> tc->time_shift);
 }
+
+u64 __weak rdtsc(void)
+{
+	return 0;
+}
