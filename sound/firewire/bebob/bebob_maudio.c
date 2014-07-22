@@ -379,11 +379,11 @@ static int special_clk_ctl_put(struct snd_kcontrol *kctl,
 	struct special_params *params = bebob->maudio_special_quirk;
 	int err, id;
 
-	mutex_lock(&bebob->mutex);
-
 	id = uval->value.enumerated.item[0];
 	if (id >= ARRAY_SIZE(special_clk_labels))
 		return 0;
+
+	mutex_lock(&bebob->mutex);
 
 	err = avc_maudio_set_special_clk(bebob, id,
 					 params->dig_in_fmt,
