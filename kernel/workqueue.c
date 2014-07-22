@@ -265,7 +265,6 @@ struct workqueue_struct {
 
 static struct kmem_cache *pwq_cache;
 
-static int wq_numa_tbl_len;		/* highest possible NUMA node id + 1 */
 static cpumask_var_t *wq_numa_possible_cpumask;
 					/* possible CPUs of each node */
 
@@ -3763,7 +3762,7 @@ int apply_workqueue_attrs(struct workqueue_struct *wq,
 	if (WARN_ON((wq->flags & __WQ_ORDERED) && !list_empty(&wq->pwqs)))
 		return -EINVAL;
 
-	pwq_tbl = kzalloc(wq_numa_tbl_len * sizeof(pwq_tbl[0]), GFP_KERNEL);
+	pwq_tbl = kzalloc(nr_node_ids * sizeof(pwq_tbl[0]), GFP_KERNEL);
 	new_attrs = alloc_workqueue_attrs(GFP_KERNEL);
 	tmp_attrs = alloc_workqueue_attrs(GFP_KERNEL);
 	if (!pwq_tbl || !new_attrs || !tmp_attrs)
@@ -4011,7 +4010,7 @@ struct workqueue_struct *__alloc_workqueue_key(const char *fmt,
 
 	/* allocate wq and format name */
 	if (flags & WQ_UNBOUND)
-		tbl_size = wq_numa_tbl_len * sizeof(wq->numa_pwq_tbl[0]);
+		tbl_size = nr_node_ids * sizeof(wq->numa_pwq_tbl[0]);
 
 	wq = kzalloc(sizeof(*wq) + tbl_size, GFP_KERNEL);
 	if (!wq)
@@ -4782,10 +4781,6 @@ static void __init wq_numa_init(void)
 	cpumask_var_t *tbl;
 	int node, cpu;
 
-	/* determine NUMA pwq table len - highest node id + 1 */
-	for_each_node(node)
-		wq_numa_tbl_len = max(wq_numa_tbl_len, node + 1);
-
 	if (num_possible_nodes() <= 1)
 		return;
 
@@ -4802,7 +4797,7 @@ static void __init wq_numa_init(void)
 	 * available.  Build one from cpu_to_node() which should have been
 	 * fully initialized by now.
 	 */
-	tbl = kzalloc(wq_numa_tbl_len * sizeof(tbl[0]), GFP_KERNEL);
+	tbl = kzalloc(nr_node_ids * sizeof(tbl[0]), GFP_KERNEL);
 	BUG_ON(!tbl);
 
 	for_each_node(node)
