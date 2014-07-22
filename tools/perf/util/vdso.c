@@ -11,6 +11,7 @@
 #include "vdso.h"
 #include "util.h"
 #include "symbol.h"
+#include "machine.h"
 #include "linux/string.h"
 #include "debug.h"
 
@@ -90,9 +91,9 @@ void vdso__exit(void)
 		unlink(vdso_file);
 }
 
-struct dso *vdso__dso_findnew(struct list_head *head)
+struct dso *vdso__dso_findnew(struct machine *machine)
 {
-	struct dso *dso = dsos__find(head, VDSO__MAP_NAME, true);
+	struct dso *dso = dsos__find(&machine->user_dsos, VDSO__MAP_NAME, true);
 
 	if (!dso) {
 		char *file;
@@ -103,7 +104,7 @@ struct dso *vdso__dso_findnew(struct list_head *head)
 
 		dso = dso__new(VDSO__MAP_NAME);
 		if (dso != NULL) {
-			dsos__add(head, dso);
+			dsos__add(&machine->user_dsos, dso);
 			dso__set_long_name(dso, file, false);
 		}
 	}

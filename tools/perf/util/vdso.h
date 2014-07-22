@@ -12,7 +12,9 @@ static inline bool is_vdso_map(const char *filename)
 	return !strcmp(filename, VDSO__MAP_NAME);
 }
 
-struct dso *vdso__dso_findnew(struct list_head *head);
+struct machine;
+
+struct dso *vdso__dso_findnew(struct machine *machine);
 void vdso__exit(void);
 
 #endif /* __PERF_VDSO__ */
