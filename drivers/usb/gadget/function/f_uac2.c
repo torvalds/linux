@@ -920,25 +920,27 @@ afunc_bind(struct usb_configuration *cfg, struct usb_function *fn)
 	struct usb_gadget *gadget = cdev->gadget;
 	struct uac2_rtd_params *prm;
 	struct f_uac2_opts *uac2_opts;
+	struct usb_string *us;
 	int ret;
 
 	uac2_opts = container_of(fn->fi, struct f_uac2_opts, func_inst);
 
-	ret = usb_string_ids_tab(cfg->cdev, strings_fn);
-	if (ret)
-		return ret;
-	iad_desc.iFunction = strings_fn[STR_ASSOC].id;
-	std_ac_if_desc.iInterface = strings_fn[STR_IF_CTRL].id;
-	in_clk_src_desc.iClockSource = strings_fn[STR_CLKSRC_IN].id;
-	out_clk_src_desc.iClockSource = strings_fn[STR_CLKSRC_OUT].id;
-	usb_out_it_desc.iTerminal = strings_fn[STR_USB_IT].id;
-	io_in_it_desc.iTerminal = strings_fn[STR_IO_IT].id;
-	usb_in_ot_desc.iTerminal = strings_fn[STR_USB_OT].id;
-	io_out_ot_desc.iTerminal = strings_fn[STR_IO_OT].id;
-	std_as_out_if0_desc.iInterface = strings_fn[STR_AS_OUT_ALT0].id;
-	std_as_out_if1_desc.iInterface = strings_fn[STR_AS_OUT_ALT1].id;
-	std_as_in_if0_desc.iInterface = strings_fn[STR_AS_IN_ALT0].id;
-	std_as_in_if1_desc.iInterface = strings_fn[STR_AS_IN_ALT1].id;
+	us = usb_gstrings_attach(cdev, fn_strings, ARRAY_SIZE(strings_fn));
+	if (IS_ERR(us))
+		return PTR_ERR(us);
+	iad_desc.iFunction = us[STR_ASSOC].id;
+	std_ac_if_desc.iInterface = us[STR_IF_CTRL].id;
+	in_clk_src_desc.iClockSource = us[STR_CLKSRC_IN].id;
+	out_clk_src_desc.iClockSource = us[STR_CLKSRC_OUT].id;
+	usb_out_it_desc.iTerminal = us[STR_USB_IT].id;
+	io_in_it_desc.iTerminal = us[STR_IO_IT].id;
+	usb_in_ot_desc.iTerminal = us[STR_USB_OT].id;
+	io_out_ot_desc.iTerminal = us[STR_IO_OT].id;
+	std_as_out_if0_desc.iInterface = us[STR_AS_OUT_ALT0].id;
+	std_as_out_if1_desc.iInterface = us[STR_AS_OUT_ALT1].id;
+	std_as_in_if0_desc.iInterface = us[STR_AS_IN_ALT0].id;
+	std_as_in_if1_desc.iInterface = us[STR_AS_IN_ALT1].id;
+
 
 	/* Initialize the configurable parameters */
 	usb_out_it_desc.bNrChannels = num_channels(uac2_opts->c_chmask);
@@ -1389,7 +1391,6 @@ struct usb_function *afunc_alloc(struct usb_function_instance *fi)
 	opts = container_of(fi, struct f_uac2_opts, func_inst);
 
 	agdev->func.name = "uac2_func";
-	agdev->func.strings = fn_strings;
 	agdev->func.bind = afunc_bind;
 	agdev->func.unbind = afunc_unbind;
 	agdev->func.set_alt = afunc_set_alt;
