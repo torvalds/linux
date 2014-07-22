@@ -4,16 +4,22 @@
 menu "Magnetometer sensors"
 
 config SENSORS_HMC5843
-	tristate "Honeywell HMC5843/5883/5883L 3-Axis Magnetometer"
-	depends on I2C
+	tristate
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
+
+config SENSORS_HMC5843_I2C
+	tristate "Honeywell HMC5843/5883/5883L 3-Axis Magnetometer (I2C)"
+	depends on I2C
+	select SENSORS_HMC5843
 	select REGMAP_I2C
 	help
 	  Say Y here to add support for the Honeywell HMC5843, HMC5883 and
 	  HMC5883L 3-Axis Magnetometer (digital compass).
 
-	  To compile this driver as a module, choose M here: the module
-	  will be called hmc5843.
+	  This driver can also be compiled as a set of modules.
+	  If so, these modules will be created:
+	  - hmc5843_core (core functions)
+	  - hmc5843_i2c (support for HMC5843, HMC5883 and HMC5883L)
 
 endmenu
