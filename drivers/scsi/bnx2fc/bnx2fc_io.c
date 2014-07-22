@@ -282,6 +282,8 @@ struct bnx2fc_cmd_mgr *bnx2fc_cmd_mgr_alloc(struct bnx2fc_hba *hba)
 				       arr_sz, GFP_KERNEL);
 	if (!cmgr->free_list_lock) {
 		printk(KERN_ERR PFX "failed to alloc free_list_lock\n");
+		kfree(cmgr->free_list);
+		cmgr->free_list = NULL;
 		goto mem_err;
 	}
 

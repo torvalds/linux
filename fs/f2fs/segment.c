@@ -272,14 +272,15 @@ int create_flush_cmd_control(struct f2fs_sb_info *sbi)
 		return -ENOMEM;
 	spin_lock_init(&fcc->issue_lock);
 	init_waitqueue_head(&fcc->flush_wait_queue);
+	sbi->sm_info->cmd_control_info = fcc;
 	fcc->f2fs_issue_flush = kthread_run(issue_flush_thread, sbi,
 				"f2fs_flush-%u:%u", MAJOR(dev), MINOR(dev));
 	if (IS_ERR(fcc->f2fs_issue_flush)) {
 		err = PTR_ERR(fcc->f2fs_issue_flush);
 		kfree(fcc);
+		sbi->sm_info->cmd_control_info = NULL;
 		return err;
 	}
-	sbi->sm_info->cmd_control_info = fcc;
 
 	return err;
 }
@@ -1885,8 +1886,6 @@ int build_segment_manager(struct f2fs_sb_info *sbi)
 
 	/* init sm info */
 	sbi->sm_info = sm_info;
-	INIT_LIST_HEAD(&sm_info->wblist_head);
-	spin_lock_init(&sm_info->wblist_lock);
 	sm_info->seg0_blkaddr = le32_to_cpu(raw_super->segment0_blkaddr);
 	sm_info->main_blkaddr = le32_to_cpu(raw_super->main_blkaddr);
 	sm_info->segment_count = le32_to_cpu(raw_super->segment_count);

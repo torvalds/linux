@@ -160,7 +160,7 @@ static void of_mux_clk_setup(struct device_node *node)
 	u8 clk_mux_flags = 0;
 	u32 mask = 0;
 	u32 shift = 0;
-	u32 flags = 0;
+	u32 flags = CLK_SET_RATE_NO_REPARENT;
 
 	num_parents = of_clk_get_parent_count(node);
 	if (num_parents < 2) {
