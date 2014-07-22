@@ -391,7 +391,10 @@ static int special_clk_ctl_put(struct snd_kcontrol *kctl,
 					 params->clk_lock);
 	mutex_unlock(&bebob->mutex);
 
-	return err >= 0;
+	if (err >= 0)
+		err = 1;
+
+	return err;
 }
 static struct snd_kcontrol_new special_clk_ctl = {
 	.name	= "Clock Source",
@@ -491,13 +494,15 @@ static int special_dig_in_iface_ctl_set(struct snd_kcontrol *kctl,
 	unsigned int id, dig_in_fmt, dig_in_iface;
 	int err;
 
-	mutex_lock(&bebob->mutex);
-
 	id = uval->value.enumerated.item[0];
+	if (id >= ARRAY_SIZE(special_dig_in_iface_labels))
+		return -EINVAL;
 
 	/* decode user value */
 	dig_in_fmt = (id >> 1) & 0x01;
 	dig_in_iface = id & 0x01;
+
+	mutex_lock(&bebob->mutex);
 
 	err = avc_maudio_set_special_clk(bebob,
 					 params->clk_src,
@@ -508,14 +513,17 @@ static int special_dig_in_iface_ctl_set(struct snd_kcontrol *kctl,
 		goto end;
 
 	/* For ADAT, optical interface is only available. */
-	if (params->dig_in_fmt > 0)
+	if (params->dig_in_fmt > 0) {
+		err = 1;
 		goto end;
+	}
 
 	/* For S/PDIF, optical/coaxial interfaces are selectable. */
 	err = avc_audio_set_selector(bebob->unit, 0x00, 0x04, dig_in_iface);
 	if (err < 0)
 		dev_err(&bebob->unit->device,
 			"fail to set digital input interface: %d\n", err);
+	err = 1;
 end:
 	special_stream_formation_set(bebob);
 	mutex_unlock(&bebob->mutex);
@@ -567,16 +575,20 @@ static int special_dig_out_iface_ctl_set(struct snd_kcontrol *kctl,
 	unsigned int id;
 	int err;
 
-	mutex_lock(&bebob->mutex);
-
 	id = uval->value.enumerated.item[0];
+	if (id >= ARRAY_SIZE(special_dig_out_iface_labels))
+		return -EINVAL;
+
+	mutex_lock(&bebob->mutex);
 
 	err = avc_maudio_set_special_clk(bebob,
 					 params->clk_src,
 					 params->dig_in_fmt,
 					 id, params->clk_lock);
-	if (err >= 0)
+	if (err >= 0) {
 		special_stream_formation_set(bebob);
+		err = 1;
+	}
 
 	mutex_unlock(&bebob->mutex);
 	return err;
