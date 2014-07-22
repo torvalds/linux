@@ -6796,6 +6796,14 @@ S:	Supported
 F:	Documentation/devicetree/bindings/pci/nvidia,tegra20-pcie.txt
 F:	drivers/pci/host/pci-tegra.c
 
+PCI DRIVER FOR TI DRA7XX
+M:	Kishon Vijay Abraham I <kishon@ti.com>
+L:	linux-omap@vger.kernel.org
+L:	linux-pci@vger.kernel.org
+S:	Supported
+F:	Documentation/devicetree/bindings/pci/ti-pci.txt
+F:	drivers/pci/host/pci-dra7xx.c
+
 PCI DRIVER FOR RENESAS R-CAR
 M:	Simon Horman <horms@verge.net.au>
 L:	linux-pci@vger.kernel.org
