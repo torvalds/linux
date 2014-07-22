@@ -42,7 +42,7 @@ static int   accept_port    = 988;
 static int   accept_backlog = 127;
 static int   accept_timeout = 5;
 
-struct {
+static struct {
 	int			pta_shutdown;
 	struct socket		*pta_sock;
 	struct completion	pta_signal;
@@ -75,7 +75,7 @@ MODULE_PARM_DESC(accept_timeout, "Acceptor's timeout (seconds)");
 
 static char *accept_type;
 
-int
+static int
 lnet_acceptor_get_tunables(void)
 {
 	/* Userland acceptor uses 'accept_type' instead of 'accept', due to
@@ -207,7 +207,7 @@ EXPORT_SYMBOL(lnet_connect);
 
 /* Below is the code common for both kernel and MT user-space */
 
-int
+static int
 lnet_accept(struct socket *sock, __u32 magic)
 {
 	lnet_acceptor_connreq_t cr;
@@ -329,7 +329,7 @@ lnet_accept(struct socket *sock, __u32 magic)
 	return rc;
 }
 
-int
+static int
 lnet_acceptor(void *arg)
 {
 	struct socket *newsock;
