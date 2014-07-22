@@ -560,7 +560,7 @@ static int mali_release(struct inode *inode, struct file *filp)
 
 	return 0;
 }
-#ifndef CONFIG_MALI400
+#ifdef CONFIG_MALI400
 int map_errcode( _mali_osk_errcode_t err )
 {
 	switch(err) {
