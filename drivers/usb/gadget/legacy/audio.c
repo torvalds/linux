@@ -22,33 +22,35 @@
 USB_GADGET_COMPOSITE_OPTIONS();
 
 #ifndef CONFIG_GADGET_UAC1
+#include "u_uac2.h"
+
 /* Playback(USB-IN) Default Stereo - Fl/Fr */
-static int p_chmask = 0x3;
+static int p_chmask = UAC2_DEF_PCHMASK;
 module_param(p_chmask, uint, S_IRUGO);
 MODULE_PARM_DESC(p_chmask, "Playback Channel Mask");
 
 /* Playback Default 48 KHz */
-static int p_srate = 48000;
+static int p_srate = UAC2_DEF_PSRATE;
 module_param(p_srate, uint, S_IRUGO);
 MODULE_PARM_DESC(p_srate, "Playback Sampling Rate");
 
 /* Playback Default 16bits/sample */
-static int p_ssize = 2;
+static int p_ssize = UAC2_DEF_PSSIZE;
 module_param(p_ssize, uint, S_IRUGO);
 MODULE_PARM_DESC(p_ssize, "Playback Sample Size(bytes)");
 
 /* Capture(USB-OUT) Default Stereo - Fl/Fr */
-static int c_chmask = 0x3;
+static int c_chmask = UAC2_DEF_CCHMASK;
 module_param(c_chmask, uint, S_IRUGO);
 MODULE_PARM_DESC(c_chmask, "Capture Channel Mask");
 
 /* Capture Default 64 KHz */
-static int c_srate = 64000;
+static int c_srate = UAC2_DEF_CSRATE;
 module_param(c_srate, uint, S_IRUGO);
 MODULE_PARM_DESC(c_srate, "Capture Sampling Rate");
 
 /* Capture Default 16bits/sample */
-static int c_ssize = 2;
+static int c_ssize = UAC2_DEF_CSSIZE;
 module_param(c_ssize, uint, S_IRUGO);
 MODULE_PARM_DESC(c_ssize, "Capture Sample Size(bytes)");
 #endif
@@ -81,8 +83,6 @@ static struct usb_function *f_uac2;
 #include "u_uac1.h"
 #include "u_uac1.c"
 #include "f_uac1.c"
-#else
-#include "u_uac2.h"
 #endif
 
 /*-------------------------------------------------------------------------*/
