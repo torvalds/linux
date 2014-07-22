@@ -145,7 +145,7 @@ struct mtdswap_dev {
 struct mtdswap_oobdata {
 	__le16 magic;
 	__le32 count;
-} __attribute__((packed));
+} __packed;
 
 #define MTDSWAP_MAGIC_CLEAN	0x2095
 #define MTDSWAP_MAGIC_DIRTY	(MTDSWAP_MAGIC_CLEAN + 1)
