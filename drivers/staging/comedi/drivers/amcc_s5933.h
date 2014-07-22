@@ -54,7 +54,8 @@
 #define INTCSR_INBOX_FULL_INT	0x1000	/*  enable inbox full interrupt */
 /* read, or write clear inbox full interrupt */
 #define INTCSR_INBOX_INTR_STATUS	0x20000
-#define INTCSR_INTR_ASSERTED	0x800000	/*  read only, interrupt asserted */
+/* read only, interrupt asserted */
+#define INTCSR_INTR_ASSERTED	0x800000
 
 /****************************************************************************/
 /* AMCC - PCI non-volatile ram command register (byte 3 of master control/status register) */
