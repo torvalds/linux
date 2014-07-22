@@ -1874,15 +1874,16 @@ int trinity_dpm_init(struct radeon_device *rdev)
 	for (i = 0; i < SUMO_MAX_HARDWARE_POWERLEVELS; i++)
 		pi->at[i] = TRINITY_AT_DFLT;
 
-	/* There are stability issues reported on latops with
-	 * bapm installed when switching between AC and battery
-	 * power.  At the same time, some desktop boards hang
-	 * if it's not enabled and dpm is enabled.
+	/* There are stability issues reported on with
+	 * bapm enabled when switching between AC and battery
+	 * power.  At the same time, some MSI boards hang
+	 * if it's not enabled and dpm is enabled.  Just enable
+	 * it for MSI boards right now.
 	 */
-	if (rdev->flags & RADEON_IS_MOBILITY)
-		pi->enable_bapm = false;
-	else
+	if (rdev->pdev->subsystem_vendor == 0x1462)
 		pi->enable_bapm = true;
+	else
+		pi->enable_bapm = false;
 	pi->enable_nbps_policy = true;
 	pi->enable_sclk_ds = true;
 	pi->enable_gfx_power_gating = true;
