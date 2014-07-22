@@ -15,8 +15,27 @@
 #include "linux/string.h"
 #include "debug.h"
 
-static bool vdso_found;
-static char vdso_file[] = "/tmp/perf-vdso.so-XXXXXX";
+#define VDSO__TEMP_FILE_NAME "/tmp/perf-vdso.so-XXXXXX"
+
+struct vdso_file {
+	bool found;
+	bool error;
+	char temp_file_name[sizeof(VDSO__TEMP_FILE_NAME)];
+	const char *dso_name;
+};
+
+struct vdso_info {
+	struct vdso_file vdso;
+};
+
+static struct vdso_info vdso_info_ = {
+	.vdso = {
+		.temp_file_name = VDSO__TEMP_FILE_NAME,
+		.dso_name = VDSO__MAP_NAME,
+	},
+};
+
+static struct vdso_info *vdso_info = &vdso_info_;
 
 static int find_vdso_map(void **start, void **end)
 {
@@ -49,7 +68,7 @@ static int find_vdso_map(void **start, void **end)
 	return !found;
 }
 
-static char *get_file(void)
+static char *get_file(struct vdso_file *vdso_file)
 {
 	char *vdso = NULL;
 	char *buf = NULL;
@@ -57,10 +76,10 @@ static char *get_file(void)
 	size_t size;
 	int fd;
 
-	if (vdso_found)
-		return vdso_file;
+	if (vdso_file->found)
+		return vdso_file->temp_file_name;
 
-	if (find_vdso_map(&start, &end))
+	if (vdso_file->error || find_vdso_map(&start, &end))
 		return NULL;
 
 	size = end - start;
@@ -69,26 +88,27 @@ static char *get_file(void)
 	if (!buf)
 		return NULL;
 
-	fd = mkstemp(vdso_file);
+	fd = mkstemp(vdso_file->temp_file_name);
 	if (fd < 0)
 		goto out;
 
 	if (size == (size_t) write(fd, buf, size))
-		vdso = vdso_file;
+		vdso = vdso_file->temp_file_name;
 
 	close(fd);
 
  out:
 	free(buf);
 
-	vdso_found = (vdso != NULL);
+	vdso_file->found = (vdso != NULL);
+	vdso_file->error = !vdso_file->found;
 	return vdso;
 }
 
 void vdso__exit(void)
 {
-	if (vdso_found)
-		unlink(vdso_file);
+	if (vdso_info->vdso.found)
+		unlink(vdso_info->vdso.temp_file_name);
 }
 
 struct dso *vdso__dso_findnew(struct machine *machine)
@@ -98,7 +118,7 @@ struct dso *vdso__dso_findnew(struct machine *machine)
 	if (!dso) {
 		char *file;
 
-		file = get_file();
+		file = get_file(&vdso_info->vdso);
 		if (!file)
 			return NULL;
 
