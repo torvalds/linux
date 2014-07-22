@@ -178,7 +178,7 @@ sctp_xmit_t sctp_packet_transmit_chunk(struct sctp_packet *packet,
 
 	case SCTP_XMIT_RWND_FULL:
 	case SCTP_XMIT_OK:
-	case SCTP_XMIT_NAGLE_DELAY:
+	case SCTP_XMIT_DELAY:
 		break;
 	}
 
@@ -712,7 +712,7 @@ static sctp_xmit_t sctp_packet_can_append_data(struct sctp_packet *packet,
 		return SCTP_XMIT_OK;
 
 	/* Defer until all data acked or packet full */
-	return SCTP_XMIT_NAGLE_DELAY;
+	return SCTP_XMIT_DELAY;
 }
 
 /* This private function does management things when adding DATA chunk */
