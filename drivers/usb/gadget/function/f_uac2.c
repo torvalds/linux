@@ -22,40 +22,6 @@
 
 #include "u_uac2.h"
 
-#ifdef USB_FUAC2_INCLUDED
-
-/* Playback(USB-IN) Default Stereo - Fl/Fr */
-static int p_chmask = 0x3;
-module_param(p_chmask, uint, S_IRUGO);
-MODULE_PARM_DESC(p_chmask, "Playback Channel Mask");
-
-/* Playback Default 48 KHz */
-static int p_srate = 48000;
-module_param(p_srate, uint, S_IRUGO);
-MODULE_PARM_DESC(p_srate, "Playback Sampling Rate");
-
-/* Playback Default 16bits/sample */
-static int p_ssize = 2;
-module_param(p_ssize, uint, S_IRUGO);
-MODULE_PARM_DESC(p_ssize, "Playback Sample Size(bytes)");
-
-/* Capture(USB-OUT) Default Stereo - Fl/Fr */
-static int c_chmask = 0x3;
-module_param(c_chmask, uint, S_IRUGO);
-MODULE_PARM_DESC(c_chmask, "Capture Channel Mask");
-
-/* Capture Default 64 KHz */
-static int c_srate = 64000;
-module_param(c_srate, uint, S_IRUGO);
-MODULE_PARM_DESC(c_srate, "Capture Sampling Rate");
-
-/* Capture Default 16bits/sample */
-static int c_ssize = 2;
-module_param(c_ssize, uint, S_IRUGO);
-MODULE_PARM_DESC(c_ssize, "Capture Sample Size(bytes)");
-
-#endif
-
 /* Keep everyone on toes */
 #define USB_XFERS	2
 
@@ -346,7 +312,6 @@ static int uac2_pcm_open(struct snd_pcm_substream *substream)
 {
 	struct snd_uac2_chip *uac2 = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
-#ifndef USB_FUAC2_INCLUDED
 	struct audio_dev *audio_dev;
 	struct f_uac2_opts *opts;
 	int p_ssize, c_ssize;
@@ -361,7 +326,6 @@ static int uac2_pcm_open(struct snd_pcm_substream *substream)
 	c_srate = opts->c_srate;
 	p_chmask = opts->p_chmask;
 	c_chmask = opts->c_chmask;
-#endif
 
 	runtime->hw = uac2_pcm_hardware;
 
@@ -431,19 +395,15 @@ static int snd_uac2_probe(struct platform_device *pdev)
 	struct snd_uac2_chip *uac2 = pdev_to_uac2(pdev);
 	struct snd_card *card;
 	struct snd_pcm *pcm;
-#ifndef USB_FUAC2_INCLUDED
 	struct audio_dev *audio_dev;
 	struct f_uac2_opts *opts;
-#endif
 	int err;
-#ifndef USB_FUAC2_INCLUDED
 	int p_chmask, c_chmask;
 
 	audio_dev = uac2_to_agdev(uac2);
 	opts = container_of(audio_dev->func.fi, struct f_uac2_opts, func_inst);
 	p_chmask = opts->p_chmask;
 	c_chmask = opts->c_chmask;
-#endif
 
 	/* Choose any slot, with no id */
 	err = snd_card_new(&pdev->dev, -1, NULL, THIS_MODULE, 0, &card);
@@ -959,14 +919,10 @@ afunc_bind(struct usb_configuration *cfg, struct usb_function *fn)
 	struct usb_composite_dev *cdev = cfg->cdev;
 	struct usb_gadget *gadget = cdev->gadget;
 	struct uac2_rtd_params *prm;
-#ifndef USB_FUAC2_INCLUDED
 	struct f_uac2_opts *uac2_opts;
-#endif
 	int ret;
 
-#ifndef USB_FUAC2_INCLUDED
 	uac2_opts = container_of(fn->fi, struct f_uac2_opts, func_inst);
-#endif
 
 	ret = usb_string_ids_tab(cfg->cdev, strings_fn);
 	if (ret)
@@ -984,7 +940,6 @@ afunc_bind(struct usb_configuration *cfg, struct usb_function *fn)
 	std_as_in_if0_desc.iInterface = strings_fn[STR_AS_IN_ALT0].id;
 	std_as_in_if1_desc.iInterface = strings_fn[STR_AS_IN_ALT1].id;
 
-#ifndef USB_FUAC2_INCLUDED
 	/* Initialize the configurable parameters */
 	usb_out_it_desc.bNrChannels = num_channels(uac2_opts->c_chmask);
 	usb_out_it_desc.bmChannelConfig = cpu_to_le32(uac2_opts->c_chmask);
@@ -1001,7 +956,6 @@ afunc_bind(struct usb_configuration *cfg, struct usb_function *fn)
 
 	snprintf(clksrc_in, sizeof(clksrc_in), "%uHz", uac2_opts->p_srate);
 	snprintf(clksrc_out, sizeof(clksrc_out), "%uHz", uac2_opts->c_srate);
-#endif
 
 	ret = usb_interface_id(cfg, fn);
 	if (ret < 0) {
@@ -1217,22 +1171,18 @@ in_rq_cur(struct usb_function *fn, const struct usb_ctrlrequest *cr)
 	struct usb_request *req = fn->config->cdev->req;
 	struct audio_dev *agdev = func_to_agdev(fn);
 	struct snd_uac2_chip *uac2 = &agdev->uac2;
-#ifndef USB_FUAC2_INCLUDED
 	struct f_uac2_opts *opts;
-#endif
 	u16 w_length = le16_to_cpu(cr->wLength);
 	u16 w_index = le16_to_cpu(cr->wIndex);
 	u16 w_value = le16_to_cpu(cr->wValue);
 	u8 entity_id = (w_index >> 8) & 0xff;
 	u8 control_selector = w_value >> 8;
 	int value = -EOPNOTSUPP;
-#ifndef USB_FUAC2_INCLUDED
 	int p_srate, c_srate;
 
 	opts = container_of(agdev->func.fi, struct f_uac2_opts, func_inst);
 	p_srate = opts->p_srate;
 	c_srate = opts->c_srate;
-#endif
 
 	if (control_selector == UAC2_CS_CONTROL_SAM_FREQ) {
 		struct cntrl_cur_lay3 c;
@@ -1262,9 +1212,7 @@ in_rq_range(struct usb_function *fn, const struct usb_ctrlrequest *cr)
 	struct usb_request *req = fn->config->cdev->req;
 	struct audio_dev *agdev = func_to_agdev(fn);
 	struct snd_uac2_chip *uac2 = &agdev->uac2;
-#ifndef USB_FUAC2_INCLUDED
 	struct f_uac2_opts *opts;
-#endif
 	u16 w_length = le16_to_cpu(cr->wLength);
 	u16 w_index = le16_to_cpu(cr->wIndex);
 	u16 w_value = le16_to_cpu(cr->wValue);
@@ -1272,13 +1220,11 @@ in_rq_range(struct usb_function *fn, const struct usb_ctrlrequest *cr)
 	u8 control_selector = w_value >> 8;
 	struct cntrl_range_lay3 r;
 	int value = -EOPNOTSUPP;
-#ifndef USB_FUAC2_INCLUDED
 	int p_srate, c_srate;
 
 	opts = container_of(agdev->func.fi, struct f_uac2_opts, func_inst);
 	p_srate = opts->p_srate;
 	c_srate = opts->c_srate;
-#endif
 
 	if (control_selector == UAC2_CS_CONTROL_SAM_FREQ) {
 		if (entity_id == USB_IN_CLK_ID)
@@ -1382,74 +1328,6 @@ afunc_setup(struct usb_function *fn, const struct usb_ctrlrequest *cr)
 	return value;
 }
 
-#ifdef USB_FUAC2_INCLUDED
-
-static void
-old_afunc_unbind(struct usb_configuration *cfg, struct usb_function *fn)
-{
-	struct audio_dev *agdev = func_to_agdev(fn);
-	struct uac2_rtd_params *prm;
-
-	alsa_uac2_exit(agdev);
-
-	prm = &agdev->uac2.p_prm;
-	kfree(prm->rbuf);
-
-	prm = &agdev->uac2.c_prm;
-	kfree(prm->rbuf);
-	usb_free_all_descriptors(fn);
-
-	if (agdev->in_ep)
-		agdev->in_ep->driver_data = NULL;
-	if (agdev->out_ep)
-		agdev->out_ep->driver_data = NULL;
-	kfree(agdev);
-}
-
-static int audio_bind_config(struct usb_configuration *cfg)
-{
-	struct audio_dev *agdev;
-	int res;
-
-	agdev = kzalloc(sizeof(*agdev), GFP_KERNEL);
-	if (agdev == NULL)
-		return -ENOMEM;
-
-	agdev->func.name = "uac2_func";
-	agdev->func.strings = fn_strings;
-	agdev->func.bind = afunc_bind;
-	agdev->func.unbind = old_afunc_unbind;
-	agdev->func.set_alt = afunc_set_alt;
-	agdev->func.get_alt = afunc_get_alt;
-	agdev->func.disable = afunc_disable;
-	agdev->func.setup = afunc_setup;
-
-	/* Initialize the configurable parameters */
-	usb_out_it_desc.bNrChannels = num_channels(c_chmask);
-	usb_out_it_desc.bmChannelConfig = cpu_to_le32(c_chmask);
-	io_in_it_desc.bNrChannels = num_channels(p_chmask);
-	io_in_it_desc.bmChannelConfig = cpu_to_le32(p_chmask);
-	as_out_hdr_desc.bNrChannels = num_channels(c_chmask);
-	as_out_hdr_desc.bmChannelConfig = cpu_to_le32(c_chmask);
-	as_in_hdr_desc.bNrChannels = num_channels(p_chmask);
-	as_in_hdr_desc.bmChannelConfig = cpu_to_le32(p_chmask);
-	as_out_fmt1_desc.bSubslotSize = c_ssize;
-	as_out_fmt1_desc.bBitResolution = c_ssize * 8;
-	as_in_fmt1_desc.bSubslotSize = p_ssize;
-	as_in_fmt1_desc.bBitResolution = p_ssize * 8;
-
-	snprintf(clksrc_in, sizeof(clksrc_in), "%uHz", p_srate);
-	snprintf(clksrc_out, sizeof(clksrc_out), "%uHz", c_srate);
-
-	res = usb_add_function(cfg, &agdev->func);
-	if (res < 0)
-		kfree(agdev);
-
-	return res;
-}
-
-#else
-
 static void afunc_free_inst(struct usb_function_instance *f)
 {
 	struct f_uac2_opts *opts;
@@ -1527,5 +1405,3 @@ DECLARE_USB_FUNCTION_INIT(uac2, afunc_alloc_inst, afunc_alloc);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Yadwinder Singh");
 MODULE_AUTHOR("Jaswinder Singh");
-
-#endif
