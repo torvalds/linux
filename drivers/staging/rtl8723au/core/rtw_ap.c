@@ -93,7 +93,7 @@ static void update_BCNTIM(struct rtw_adapter *padapter)
 	} else {
 		tim_ielen = 0;
 
-		/* calulate head_len */
+		/* calculate head_len */
 		offset = 0;
 
 		/* get ssid_ie len */
@@ -135,7 +135,7 @@ static void update_BCNTIM(struct rtw_adapter *padapter)
 	*dst_ie++= tim_ielen;
 
 	*dst_ie++= 0;/* DTIM count */
-	*dst_ie++= 1;/* DTIM peroid */
+	*dst_ie++= 1;/* DTIM period */
 
 	if (pstapriv->tim_bitmap & BIT(0))/* for bc/mc frames */
 		*dst_ie++ = BIT(0);/* bitmap ctrl */
@@ -243,7 +243,7 @@ void	expire_timeout_chk23a(struct rtw_adapter *padapter)
 
 			if (psta->state & WIFI_SLEEP_STATE) {
 				if (!(psta->state & WIFI_STA_ALIVE_CHK_STATE)) {
-					/* to check if alive by another methods if staion is at ps mode. */
+					/* to check if alive by another methods if station is at ps mode. */
 					psta->expire_to = pstapriv->expire_to;
 					psta->state |= WIFI_STA_ALIVE_CHK_STATE;
 
@@ -764,7 +764,7 @@ static void start_bss_network(struct rtw_adapter *padapter, u8 *pbuf)
 	/* update cur_wireless_mode */
 	update_wireless_mode23a(padapter);
 
-	/* udpate capability after cur_wireless_mode updated */
+	/* update capability after cur_wireless_mode updated */
 	update_capinfo23a(padapter, pnetwork->capability);
 
 	/* let pnetwork_mlmeext == pnetwork_mlme. */
@@ -844,7 +844,7 @@ int rtw_check_beacon_data23a(struct rtw_adapter *padapter,
 		pbss_network->Ssid.ssid_len = ie_len;
 	}
 
-	/* chnnel */
+	/* channel */
 	channel = 0;
 	p = rtw_get_ie23a(ie, WLAN_EID_DS_PARAMS, &ie_len,
 			  pbss_network->IELength);
@@ -1305,7 +1305,7 @@ void update_beacon23a(struct rtw_adapter *padapter, u8 ie_id, u8 *oui, u8 tx)
 
 /*
 op_mode
-Set to 0 (HT pure) under the followign conditions
+Set to 0 (HT pure) under the following conditions
 	- all STAs in the BSS are 20/40 MHz HT in 20/40 MHz BSS or
 	- all STAs in the BSS are 20 MHz HT in 20 MHz BSS
 Set to 1 (HT non-member protection) if there may be non-HT STAs
@@ -1387,7 +1387,7 @@ static int rtw_ht_operation_update(struct rtw_adapter *padapter)
 
 void associated_clients_update23a(struct rtw_adapter *padapter, u8 updated)
 {
-	/* update associcated stations cap. */
+	/* update associated stations cap. */
 	if (updated == true)
 	{
 		struct list_head *phead, *plist, *ptmp;
@@ -1572,7 +1572,7 @@ void bss_cap_update_on_sta_join23a(struct rtw_adapter *padapter, struct sta_info
 		update_beacon23a(padapter, WLAN_EID_HT_OPERATION, NULL, true);
 	}
 
-	/* update associcated stations cap. */
+	/* update associated stations cap. */
 	associated_clients_update23a(padapter,  beacon_updated);
 
 	DBG_8723A("%s, updated =%d\n", __func__, beacon_updated);
@@ -1641,7 +1641,7 @@ u8 bss_cap_update_on_sta_leave23a(struct rtw_adapter *padapter, struct sta_info 
 		update_beacon23a(padapter, WLAN_EID_HT_OPERATION, NULL, true);
 	}
 
-	/* update associcated stations cap. */
+	/* update associated stations cap. */
 
 	DBG_8723A("%s, updated =%d\n", __func__, beacon_updated);
 
