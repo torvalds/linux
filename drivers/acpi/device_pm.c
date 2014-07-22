@@ -596,7 +596,6 @@ static int acpi_dev_pm_get_state(struct device *dev, struct acpi_device *adev,
  */
 int acpi_pm_device_sleep_state(struct device *dev, int *d_min_p, int d_max_in)
 {
-	acpi_handle handle = ACPI_HANDLE(dev);
 	struct acpi_device *adev;
 	int ret, d_min, d_max;
 
@@ -611,8 +610,9 @@ int acpi_pm_device_sleep_state(struct device *dev, int *d_min_p, int d_max_in)
 			d_max_in = ACPI_STATE_D3_HOT;
 	}
 
-	if (!handle || acpi_bus_get_device(handle, &adev)) {
-		dev_dbg(dev, "ACPI handle without context in %s!\n", __func__);
+	adev = ACPI_COMPANION(dev);
+	if (!adev) {
+		dev_dbg(dev, "ACPI companion missing in %s!\n", __func__);
 		return -ENODEV;
 	}
 
@@ -700,15 +700,13 @@ static int acpi_device_wakeup(struct acpi_device *adev, u32 target_state,
 int acpi_pm_device_run_wake(struct device *phys_dev, bool enable)
 {
 	struct acpi_device *adev;
-	acpi_handle handle;
 
 	if (!device_run_wake(phys_dev))
 		return -EINVAL;
 
-	handle = ACPI_HANDLE(phys_dev);
-	if (!handle || acpi_bus_get_device(handle, &adev)) {
-		dev_dbg(phys_dev, "ACPI handle without context in %s!\n",
-			__func__);
+	adev = ACPI_COMPANION(phys_dev);
+	if (!adev) {
+		dev_dbg(phys_dev, "ACPI companion missing in %s!\n", __func__);
 		return -ENODEV;
 	}
 
@@ -725,16 +723,15 @@ EXPORT_SYMBOL(acpi_pm_device_run_wake);
  */
 int acpi_pm_device_sleep_wake(struct device *dev, bool enable)
 {
-	acpi_handle handle;
 	struct acpi_device *adev;
 	int error;
 
 	if (!device_can_wakeup(dev))
 		return -EINVAL;
 
-	handle = ACPI_HANDLE(dev);
-	if (!handle || acpi_bus_get_device(handle, &adev)) {
-		dev_dbg(dev, "ACPI handle without context in %s!\n", __func__);
+	adev = ACPI_COMPANION(dev);
+	if (!adev) {
+		dev_dbg(dev, "ACPI companion missing in %s!\n", __func__);
 		return -ENODEV;
 	}
 
