@@ -134,7 +134,7 @@ static void _rtw_free_network23a(struct mlme_priv *pmlmepriv,
 /*
  return the wlan_network with the matching addr
 
- Shall be calle under atomic context... to avoid possible racing condition...
+ Shall be called under atomic context... to avoid possible racing condition...
 */
 struct wlan_network *
 rtw_find_network23a(struct rtw_queue *scanned_queue, u8 *addr)
@@ -395,7 +395,7 @@ void update_network23a(struct wlan_bssid_ex *dst, struct wlan_bssid_ex *src,
 				    (u32)dst->PhyInfo.SignalQuality * 4) / 5;
 			rssi_final = src->Rssi+dst->Rssi * 4 / 5;
 		} else {
-			/* bss info not receving from the right channel, use
+			/* bss info not receiving from the right channel, use
 			   the original RX signal infos */
 			ss_final = dst->PhyInfo.SignalStrength;
 			sq_final = dst->PhyInfo.SignalQuality;
@@ -490,7 +490,7 @@ static void rtw_update_scanned_network(struct rtw_adapter *adapter,
 		pnetwork->aid = 0;
 		pnetwork->join_res = 0;
 
-		/* bss info not receving from the right channel */
+		/* bss info not receiving from the right channel */
 		if (pnetwork->network.PhyInfo.SignalQuality == 101)
 			pnetwork->network.PhyInfo.SignalQuality = 0;
 	} else {
@@ -956,7 +956,7 @@ rtw_joinbss_update_stainfo(struct rtw_adapter *padapter,
 		/*	Commented by Albert 2012/07/21 */
 		/*	When doing the WPS, the wps_ie_len won't equal to 0 */
 		/*	And the Wi-Fi driver shouldn't allow the data packet
-			to be tramsmitted. */
+			to be transmitted. */
 		if (padapter->securitypriv.wps_ie_len != 0) {
 			psta->ieee8021x_blocked = true;
 			padapter->securitypriv.wps_ie_len = 0;
@@ -964,7 +964,7 @@ rtw_joinbss_update_stainfo(struct rtw_adapter *padapter,
 
 		/* for A-MPDU Rx reordering buffer control for bmc_sta &
 		 * sta_info */
-		/* if A-MPDU Rx is enabled, reseting
+		/* if A-MPDU Rx is enabled, resetting
 		   rx_ordering_ctrl wstart_b(indicate_seq) to default
 		   value = 0xffff */
 		/* todo: check if AP can send A-MPDU packets */
@@ -1073,7 +1073,7 @@ rtw_joinbss_update_network23a(struct rtw_adapter *padapter,
 
 /*
  * Notes:
- * the fucntion could be > passive_level (the same context as Rx tasklet)
+ * the function could be > passive_level (the same context as Rx tasklet)
  * pnetwork : returns from rtw23a_joinbss_event_cb
  * ptarget_wlan: found from scanned_queue
  * if join_res > 0, for (fw_state==WIFI_STATION_STATE),
@@ -1419,7 +1419,7 @@ void rtw_stadel_event_callback23a(struct rtw_adapter *adapter, const u8 *pbuf)
 }
 
 /*
-* rtw23a_join_to_handler - Timeout/faliure handler for CMD JoinBss
+* rtw23a_join_to_handler - Timeout/failure handler for CMD JoinBss
 * @adapter: pointer to _adapter structure
 */
 void rtw23a_join_to_handler (unsigned long data)
@@ -1470,7 +1470,7 @@ void rtw23a_join_to_handler (unsigned long data)
 }
 
 /*
-* rtw_scan_timeout_handler23a - Timeout/Faliure handler for CMD SiteSurvey
+* rtw_scan_timeout_handler23a - Timeout/Failure handler for CMD SiteSurvey
 * @data: pointer to _adapter structure
 */
 void rtw_scan_timeout_handler23a(unsigned long data)
@@ -2102,7 +2102,7 @@ void rtw_update_registrypriv_dev_network23a(struct rtw_adapter* adapter)
 	/* pdev_network->IELength = cpu_to_le32(sz); */
 }
 
-/* the fucntion is at passive_level */
+/* the function is at passive_level */
 void rtw_joinbss_reset23a(struct rtw_adapter *padapter)
 {
 	u8 threshold;
@@ -2131,7 +2131,7 @@ void rtw_joinbss_reset23a(struct rtw_adapter *padapter)
 	rtl8723a_set_rxdma_agg_pg_th(padapter, threshold);
 }
 
-/* the fucntion is >= passive_level */
+/* the function is >= passive_level */
 bool rtw_restructure_ht_ie23a(struct rtw_adapter *padapter, u8 *in_ie,
 			      u8 *out_ie, uint in_len, uint *pout_len)
 {
@@ -2203,7 +2203,7 @@ bool rtw_restructure_ht_ie23a(struct rtw_adapter *padapter, u8 *in_ie,
 	return phtpriv->ht_option;
 }
 
-/* the fucntion is > passive_level (in critical_section) */
+/* the function is > passive_level (in critical_section) */
 void rtw_update_ht_cap23a(struct rtw_adapter *padapter, u8 *pie, uint ie_len)
 {
 	u8 max_ampdu_sz;
@@ -2271,7 +2271,7 @@ void rtw_update_ht_cap23a(struct rtw_adapter *padapter, u8 *pie, uint ie_len)
 				pmlmeinfo->ht_cap.mcs.rx_mask[i] &=
 					MCS_rate_2R23A[i];
 		}
-		/* switch to the 40M Hz mode accoring to the AP */
+		/* switch to the 40M Hz mode according to the AP */
 		pmlmeext->cur_bwmode = HT_CHANNEL_WIDTH_40;
 		switch (pmlmeinfo->HT_info.ht_param &
 			IEEE80211_HT_PARAM_CHA_SEC_OFFSET) {
