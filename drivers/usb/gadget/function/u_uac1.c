@@ -24,23 +24,6 @@
  * This component encapsulates the ALSA devices for USB audio gadget
  */
 
-#ifdef USBF_UAC1_INCLUDED
-#define FILE_PCM_PLAYBACK	"/dev/snd/pcmC0D0p"
-#define FILE_PCM_CAPTURE	"/dev/snd/pcmC0D0c"
-#define FILE_CONTROL		"/dev/snd/controlC0"
-
-static char *fn_play = FILE_PCM_PLAYBACK;
-module_param(fn_play, charp, S_IRUGO);
-MODULE_PARM_DESC(fn_play, "Playback PCM device file name");
-
-static char *fn_cap = FILE_PCM_CAPTURE;
-module_param(fn_cap, charp, S_IRUGO);
-MODULE_PARM_DESC(fn_cap, "Capture PCM device file name");
-
-static char *fn_cntl = FILE_CONTROL;
-module_param(fn_cntl, charp, S_IRUGO);
-MODULE_PARM_DESC(fn_cntl, "Control device file name");
-#endif
 /*-------------------------------------------------------------------------*/
 
 /**
@@ -222,7 +205,6 @@ static int gaudio_open_snd_dev(struct gaudio *card)
 {
 	struct snd_pcm_file *pcm_file;
 	struct gaudio_snd_dev *snd;
-#ifndef USBF_UAC1_INCLUDED
 	struct f_uac1_opts *opts;
 	char *fn_play, *fn_cap, *fn_cntl;
 
@@ -230,7 +212,6 @@ static int gaudio_open_snd_dev(struct gaudio *card)
 	fn_play = opts->fn_play;
 	fn_cap = opts->fn_cap;
 	fn_cntl = opts->fn_cntl;
-#endif
 
 	if (!card)
 		return -ENODEV;
@@ -304,9 +285,6 @@ static int gaudio_close_snd_dev(struct gaudio *gau)
 	return 0;
 }
 
-#ifdef USBF_UAC1_INCLUDED
-static struct gaudio *the_card;
-#endif
 /**
  * gaudio_setup - setup ALSA interface and preparing for USB transfer
  *
@@ -321,10 +299,6 @@ int gaudio_setup(struct gaudio *card)
 	ret = gaudio_open_snd_dev(card);
 	if (ret)
 		ERROR(card, "we need at least one control device\n");
-#ifdef USBF_UAC1_INCLUDED
-	else if (!the_card)
-		the_card = card;
-#endif
 
 	return ret;
 
@@ -335,17 +309,10 @@ int gaudio_setup(struct gaudio *card)
  *
  * This is called to free all resources allocated by @gaudio_setup().
  */
-#ifdef USBF_UAC1_INCLUDED
-void gaudio_cleanup(void)
-#else
 void gaudio_cleanup(struct gaudio *the_card)
-#endif
 {
 	if (the_card) {
 		gaudio_close_snd_dev(the_card);
-#ifdef USBF_UAC1_INCLUDED
-		the_card = NULL;
-#endif
 	}
 }
 

@@ -63,11 +63,7 @@ struct f_uac1_opts {
 };
 
 int gaudio_setup(struct gaudio *card);
-#ifdef USBF_UAC1_INCLUDED
-void gaudio_cleanup(void);
-#else
 void gaudio_cleanup(struct gaudio *the_card);
-#endif
 
 size_t u_audio_playback(struct gaudio *card, void *buf, size_t count);
 int u_audio_get_playback_channels(struct gaudio *card);

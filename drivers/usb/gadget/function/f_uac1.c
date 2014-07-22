@@ -16,24 +16,8 @@
 #include <linux/atomic.h>
 
 #include "u_uac1.h"
-#ifdef USBF_UAC1_INCLUDED
-#include "u_uac1.c"
-#endif
 
 #define OUT_EP_MAX_PACKET_SIZE	200
-#ifdef USBF_UAC1_INCLUDED
-static int req_buf_size = OUT_EP_MAX_PACKET_SIZE;
-module_param(req_buf_size, int, S_IRUGO);
-MODULE_PARM_DESC(req_buf_size, "ISO OUT endpoint request buffer size");
-
-static int req_count = 256;
-module_param(req_count, int, S_IRUGO);
-MODULE_PARM_DESC(req_count, "ISO OUT endpoint request count");
-
-static int audio_buf_size = 48000;
-module_param(audio_buf_size, int, S_IRUGO);
-MODULE_PARM_DESC(audio_buf_size, "Audio buffer size");
-#endif
 
 static int generic_set_cmd(struct usb_audio_control *con, u8 cmd, int value);
 static int generic_get_cmd(struct usb_audio_control *con, u8 cmd);
@@ -337,17 +321,14 @@ static int f_audio_out_ep_complete(struct usb_ep *ep, struct usb_request *req)
 	struct f_audio *audio = req->context;
 	struct usb_composite_dev *cdev = audio->card.func.config->cdev;
 	struct f_audio_buf *copy_buf = audio->copy_buf;
-#ifndef USBF_UAC1_INCLUDED
 	struct f_uac1_opts *opts;
 	int audio_buf_size;
-#endif
 	int err;
 
-#ifndef USBF_UAC1_INCLUDED
 	opts = container_of(audio->card.func.fi, struct f_uac1_opts,
 			    func_inst);
 	audio_buf_size = opts->audio_buf_size;
-#endif
+
 	if (!copy_buf)
 		return -EINVAL;
 
@@ -592,21 +573,17 @@ static int f_audio_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 	struct usb_composite_dev *cdev = f->config->cdev;
 	struct usb_ep *out_ep = audio->out_ep;
 	struct usb_request *req;
-#ifndef USBF_UAC1_INCLUDED
 	struct f_uac1_opts *opts;
 	int req_buf_size, req_count, audio_buf_size;
-#endif
 	int i = 0, err = 0;
 
 	DBG(cdev, "intf %d, alt %d\n", intf, alt);
 
-#ifndef USBF_UAC1_INCLUDED
 	opts = container_of(f->fi, struct f_uac1_opts, func_inst);
 	req_buf_size = opts->req_buf_size;
 	req_count = opts->req_count;
 	audio_buf_size = opts->audio_buf_size;
 
-#endif
 	if (intf == 1) {
 		if (alt == 1) {
 			usb_ep_enable(out_ep);
@@ -689,7 +666,6 @@ f_audio_bind(struct usb_configuration *c, struct usb_function *f)
 	struct f_audio		*audio = func_to_audio(f);
 	int			status;
 	struct usb_ep		*ep = NULL;
-#ifndef USBF_UAC1_INCLUDED
 	struct f_uac1_opts	*audio_opts;
 
 	audio_opts = container_of(f->fi, struct f_uac1_opts, func_inst);
@@ -702,17 +678,10 @@ f_audio_bind(struct usb_configuration *c, struct usb_function *f)
 			return status;
 		audio_opts->bound = true;
 	}
-#else
-	audio->card.gadget = c->cdev->gadget;
-#endif
 	if (strings_uac1[0].id == 0) {
 		status = usb_string_ids_tab(c->cdev, strings_uac1);
 		if (status < 0)
-#ifdef USBF_UAC1_INCLUDED
-			return status;
-#else
 			goto fail;
-#endif
 		ac_interface_desc.iInterface = strings_uac1[STR_AC_IF].id;
 		input_terminal_desc.iTerminal =
 			strings_uac1[STR_INPUT_TERMINAL].id;
@@ -760,24 +729,11 @@ f_audio_bind(struct usb_configuration *c, struct usb_function *f)
 	return 0;
 
 fail:
-#ifndef USBF_UAC1_INCLUDED
 	gaudio_cleanup(&audio->card);
-#endif
 	if (ep)
 		ep->driver_data = NULL;
 	return status;
 }
-
-#ifdef USBF_UAC1_INCLUDED
-static void
-old_f_audio_unbind(struct usb_configuration *c, struct usb_function *f)
-{
-	struct f_audio		*audio = func_to_audio(f);
-
-	usb_free_all_descriptors(f);
-	kfree(audio);
-}
-#endif
 
 /*-------------------------------------------------------------------------*/
 
@@ -811,61 +767,6 @@ static int control_selector_init(struct f_audio *audio)
 	return 0;
 }
 
-#ifdef USBF_UAC1_INCLUDED
-/**
- * audio_bind_config - add USB audio function to a configuration
- * @c: the configuration to supcard the USB audio function
- * Context: single threaded during gadget setup
- *
- * Returns zero on success, else negative errno.
- */
-static int __init audio_bind_config(struct usb_configuration *c)
-{
-	struct f_audio *audio;
-	int status;
-
-	/* allocate and initialize one new instance */
-	audio = kzalloc(sizeof *audio, GFP_KERNEL);
-	if (!audio)
-		return -ENOMEM;
-
-	audio->card.func.name = "g_audio";
-	audio->card.gadget = c->cdev->gadget;
-
-	INIT_LIST_HEAD(&audio->play_queue);
-	spin_lock_init(&audio->lock);
-
-	/* set up ASLA audio devices */
-	status = gaudio_setup(&audio->card);
-	if (status < 0)
-		goto setup_fail;
-	audio->card.func.strings = uac1_strings;
-	audio->card.func.bind = f_audio_bind;
-	audio->card.func.unbind = old_f_audio_unbind;
-	audio->card.func.set_alt = f_audio_set_alt;
-	audio->card.func.setup = f_audio_setup;
-	audio->card.func.disable = f_audio_disable;
-
-	control_selector_init(audio);
-
-	INIT_WORK(&audio->playback_work, f_audio_playback_work);
-
-	status = usb_add_function(c, &audio->card.func);
-	if (status)
-		goto add_fail;
-
-	INFO(c->cdev, "audio_buf_size %d, req_buf_size %d, req_count %d\n",
-		audio_buf_size, req_buf_size, req_count);
-
-	return status;
-
-add_fail:
-	gaudio_cleanup();
-setup_fail:
-	kfree(audio);
-	return status;
-}
-#else
 static void f_audio_free_inst(struct usb_function_instance *f)
 {
 	struct f_uac1_opts *opts;
@@ -932,4 +833,3 @@ static struct usb_function *f_audio_alloc(struct usb_function_instance *fi)
 DECLARE_USB_FUNCTION_INIT(uac1, f_audio_alloc_inst, f_audio_alloc);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Bryan Wu");
-#endif
