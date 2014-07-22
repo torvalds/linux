@@ -896,6 +896,7 @@ static void gdm_usb_disconnect(struct usb_interface *intf)
 	struct lte_udev *udev;
 	u16 idVendor, idProduct;
 	struct usb_device *usbdev;
+
 	usbdev = interface_to_usbdev(intf);
 
 	idVendor = __le16_to_cpu(usbdev->descriptor.idVendor);
