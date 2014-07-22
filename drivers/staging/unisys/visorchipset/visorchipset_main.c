@@ -149,19 +149,10 @@ static ssize_t proc_read_installer(struct file *file, char __user *buf,
 static ssize_t proc_write_installer(struct file *file,
 				    const char __user *buffer,
 				    size_t count, loff_t *ppos);
-static ssize_t proc_read_bootToTool(struct file *file, char __user *buf,
-				    size_t len, loff_t *offset);
-static ssize_t proc_write_bootToTool(struct file *file,
-				     const char __user *buffer,
-				     size_t count, loff_t *ppos);
+
 static const struct file_operations proc_installer_fops = {
 	.read = proc_read_installer,
 	.write = proc_write_installer,
-};
-
-static const struct file_operations proc_bootToTool_fops = {
-	.read = proc_read_bootToTool,
-	.write = proc_write_bootToTool,
 };
 
 typedef struct {
@@ -318,8 +309,15 @@ static ssize_t toolaction_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count);
 static DEVICE_ATTR_RW(toolaction);
 
+static ssize_t boottotool_show(struct device *dev,
+	struct device_attribute *attr, char *buf);
+static ssize_t boottotool_store(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count);
+static DEVICE_ATTR_RW(boottotool);
+
 static struct attribute *visorchipset_install_attrs[] = {
 	&dev_attr_toolaction.attr,
+	&dev_attr_boottotool.attr,
 	NULL
 };
 
@@ -377,6 +375,38 @@ ssize_t toolaction_store(struct device *dev, struct device_attribute *attr,
 		return -EIO;
 }
 
+ssize_t boottotool_show(struct device *dev, struct device_attribute *attr,
+		char *buf)
+{
+	ULTRA_EFI_SPAR_INDICATION efiSparIndication;
+
+	visorchannel_read(ControlVm_channel,
+		offsetof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL,
+			EfiSparIndication), &efiSparIndication,
+		sizeof(ULTRA_EFI_SPAR_INDICATION));
+	return scnprintf(buf, PAGE_SIZE, "%u\n",
+			efiSparIndication.BootToTool);
+}
+
+ssize_t boottotool_store(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	int val;
+	ULTRA_EFI_SPAR_INDICATION efiSparIndication;
+
+	if (sscanf(buf, "%u\n", &val) == 1) {
+		efiSparIndication.BootToTool = val;
+		if (visorchannel_write(ControlVm_channel,
+			offsetof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL,
+				 EfiSparIndication),
+			&(efiSparIndication),
+		sizeof(ULTRA_EFI_SPAR_INDICATION)) < 0)
+				return -EFAULT;
+			else
+				return count;
+	} else
+		return -EIO;
+}
 static void
 show_partition_property(struct seq_file *f, void *ctx, int property)
 {
@@ -2408,84 +2438,6 @@ proc_write_installer(struct file *file,
 	return count;
 }
 
-/**
- * Reads the EfiSparIndication.BootToTool field of ControlVMChannel.
- */
-static ssize_t
-proc_read_bootToTool(struct file *file, char __user *buf,
-		     size_t len, loff_t *offset)
-{
-	int length = 0;
-	ULTRA_EFI_SPAR_INDICATION efiSparIndication;
-	char *vbuf;
-	loff_t pos = *offset;
-
-	if (pos < 0)
-		return -EINVAL;
-
-	if (pos > 0 || !len)
-		return 0;
-
-	vbuf = kzalloc(len, GFP_KERNEL);
-	if (!vbuf)
-		return -ENOMEM;
-
-	visorchannel_read(ControlVm_channel,
-			  offsetof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL,
-				   EfiSparIndication), &efiSparIndication,
-			  sizeof(ULTRA_EFI_SPAR_INDICATION));
-
-	length = sprintf(vbuf, "%d\n", (int) efiSparIndication.BootToTool);
-	if (copy_to_user(buf, vbuf, length)) {
-		kfree(vbuf);
-		return -EFAULT;
-	}
-
-	kfree(vbuf);
-	*offset += length;
-	return length;
-}
-
-/**
- * Writes to the EfiSparIndication.BootToTool field of ControlVMChannel.
- * Input: 1 or 0 (1 being on, 0 being off)
- */
-static ssize_t
-proc_write_bootToTool(struct file *file,
-		      const char __user *buffer, size_t count, loff_t *ppos)
-{
-	char buf[3];
-	int inputVal;
-	ULTRA_EFI_SPAR_INDICATION efiSparIndication;
-
-	/* Check to make sure there is no buffer overflow */
-	if (count > (sizeof(buf) - 1))
-		return -EINVAL;
-
-	if (copy_from_user(buf, buffer, count)) {
-		WARN(1, "Error copying from user space\n");
-		return -EFAULT;
-	}
-
-	if (sscanf(buf, "%i", &inputVal) != 1)
-		inputVal = 0;
-
-	efiSparIndication.BootToTool = (inputVal == 1 ? 1 : 0);
-
-	if (visorchannel_write
-	    (ControlVm_channel,
-	     offsetof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL, EfiSparIndication),
-	     &efiSparIndication, sizeof(ULTRA_EFI_SPAR_INDICATION)) < 0)
-		printk
-		    ("Installation BootToTool Write Failed - BootToTool = %d\n",
-		     (int) efiSparIndication.BootToTool);
-
-	/* So this function isn't called multiple times, must return
-	 * size of buffer
-	 */
-	return count;
-}
-
 static const struct file_operations chipset_proc_fops = {
 	.owner = THIS_MODULE,
 	.read = visorchipset_proc_read_writeonly,
@@ -2498,7 +2450,6 @@ visorchipset_init(void)
 	int rc = 0, x = 0;
 	char s[64];
 	struct proc_dir_entry *installer_file;
-	struct proc_dir_entry *bootToTool_file;
 	HOSTADDRESS addr;
 
 	if (!unisys_spar_platform)
@@ -2575,9 +2526,6 @@ visorchipset_init(void)
 	/* Setup Installation fields */
 	installer_file = proc_create("installer", 0644, ProcDir,
 				     &proc_installer_fops);
-	/* Setup the BootToTool field */
-	bootToTool_file = proc_create("boottotool", 0644, ProcDir,
-				      &proc_bootToTool_fops);
 
 	memset(&g_DiagMsgHdr, 0, sizeof(CONTROLVM_MESSAGE_HEADER));
 
