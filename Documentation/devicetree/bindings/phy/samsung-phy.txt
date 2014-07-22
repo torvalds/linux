@@ -26,6 +26,7 @@ Samsung S5P/EXYNOS SoC series USB PHY
 
 Required properties:
 - compatible : should be one of the listed compatibles:
+	- "samsung,exynos3250-usb2-phy"
 	- "samsung,exynos4210-usb2-phy"
 	- "samsung,exynos4x12-usb2-phy"
 	- "samsung,exynos5250-usb2-phy"
@@ -46,6 +47,7 @@ and Exynos 4212) it is as follows:
   1 - USB host ("host"),
   2 - HSIC0 ("hsic0"),
   3 - HSIC1 ("hsic1"),
+Exynos3250 has only USB device phy available as phy 0.
 
 Exynos 4210 and Exynos 4212 use mode switching and require that mode switch
 register is supplied.

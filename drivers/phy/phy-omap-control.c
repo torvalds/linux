@@ -27,6 +27,41 @@
 #include <linux/phy/omap_control_phy.h>
 
 /**
+ * omap_control_pcie_pcs - set the PCS delay count
+ * @dev: the control module device
+ * @id: index of the pcie PHY (should be 1 or 2)
+ * @delay: 8 bit delay value
+ */
+void omap_control_pcie_pcs(struct device *dev, u8 id, u8 delay)
+{
+	u32 val;
+	struct omap_control_phy	*control_phy;
+
+	if (IS_ERR(dev) || !dev) {
+		pr_err("%s: invalid device\n", __func__);
+		return;
+	}
+
+	control_phy = dev_get_drvdata(dev);
+	if (!control_phy) {
+		dev_err(dev, "%s: invalid control phy device\n", __func__);
+		return;
+	}
+
+	if (control_phy->type != OMAP_CTRL_TYPE_PCIE) {
+		dev_err(dev, "%s: unsupported operation\n", __func__);
+		return;
+	}
+
+	val = readl(control_phy->pcie_pcs);
+	val &= ~(OMAP_CTRL_PCIE_PCS_MASK <<
+		(id * OMAP_CTRL_PCIE_PCS_DELAY_COUNT_SHIFT));
+	val |= delay << (id * OMAP_CTRL_PCIE_PCS_DELAY_COUNT_SHIFT);
+	writel(val, control_phy->pcie_pcs);
+}
+EXPORT_SYMBOL_GPL(omap_control_pcie_pcs);
+
+/**
  * omap_control_phy_power - power on/off the phy using control module reg
  * @dev: the control module device
  * @on: 0 or 1, based on powering on or off the PHY
@@ -61,6 +96,7 @@ void omap_control_phy_power(struct device *dev, int on)
 			val |= OMAP_CTRL_DEV_PHY_PD;
 		break;
 
+	case OMAP_CTRL_TYPE_PCIE:
 	case OMAP_CTRL_TYPE_PIPE3:
 		rate = clk_get_rate(control_phy->sys_clk);
 		rate = rate/1000000;
@@ -211,6 +247,7 @@ EXPORT_SYMBOL_GPL(omap_control_usb_set_mode);
 static const enum omap_control_phy_type otghs_data = OMAP_CTRL_TYPE_OTGHS;
 static const enum omap_control_phy_type usb2_data = OMAP_CTRL_TYPE_USB2;
 static const enum omap_control_phy_type pipe3_data = OMAP_CTRL_TYPE_PIPE3;
+static const enum omap_control_phy_type pcie_data = OMAP_CTRL_TYPE_PCIE;
 static const enum omap_control_phy_type dra7usb2_data = OMAP_CTRL_TYPE_DRA7USB2;
 static const enum omap_control_phy_type am437usb2_data = OMAP_CTRL_TYPE_AM437USB2;
 
@@ -226,6 +263,10 @@ static const struct of_device_id omap_control_phy_id_table[] = {
 	{
 		.compatible = "ti,control-phy-pipe3",
 		.data = &pipe3_data,
+	},
+	{
+		.compatible = "ti,control-phy-pcie",
+		.data = &pcie_data,
 	},
 	{
 		.compatible = "ti,control-phy-usb2-dra7",
@@ -279,13 +320,22 @@ static int omap_control_phy_probe(struct platform_device *pdev)
 		}
 	}
 
-	if (control_phy->type == OMAP_CTRL_TYPE_PIPE3) {
+	if (control_phy->type == OMAP_CTRL_TYPE_PIPE3 ||
+	    control_phy->type == OMAP_CTRL_TYPE_PCIE) {
 		control_phy->sys_clk = devm_clk_get(control_phy->dev,
 			"sys_clkin");
 		if (IS_ERR(control_phy->sys_clk)) {
 			pr_err("%s: unable to get sys_clkin\n", __func__);
 			return -EINVAL;
 		}
+	}
+
+	if (control_phy->type == OMAP_CTRL_TYPE_PCIE) {
+		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
+						   "pcie_pcs");
+		control_phy->pcie_pcs = devm_ioremap_resource(&pdev->dev, res);
+		if (IS_ERR(control_phy->pcie_pcs))
+			return PTR_ERR(control_phy->pcie_pcs);
 	}
 
 	dev_set_drvdata(control_phy->dev, control_phy);
