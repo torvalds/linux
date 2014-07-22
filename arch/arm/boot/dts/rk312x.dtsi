@@ -237,6 +237,7 @@
 		rockchip,check-idle = <1>;
 		status = "disabled";
 	};
+
 	emmc: rksdmmc@1021c000 {
 		compatible = "rockchip,rk_mmc", "rockchip,rk312x-sdmmc";
 		reg = <0x1021c000 0x4000>;
@@ -252,12 +253,11 @@
 		num-slots = <1>;
 		fifo-depth = <0x100>;
 		bus-width = <8>;
-		status = "disabled";
         };
 
 
         sdmmc: rksdmmc@10214000 {
-		compatible = "rockchip,rk_mmc", "rockchip,rk3036-sdmmc";
+		compatible = "rockchip,rk_mmc", "rockchip,rk312x-sdmmc";
 		reg = <0x10214000 0x4000>;
 		interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
@@ -273,11 +273,10 @@
 		num-slots = <1>;
 		fifo-depth = <0x100>;
 		bus-width = <4>;
-		status = "disabled";
 	};
 
 	sdio: rksdmmc@10218000 {
-		compatible = "rockchip,rk_mmc", "rockchip,rk3036-sdmmc";
+		compatible = "rockchip,rk_mmc", "rockchip,rk312x-sdmmc";
 		reg = <0x10218000 0x4000>;
 		interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
@@ -292,7 +291,6 @@
 		num-slots = <1>;
 		fifo-depth = <0x100>;
 		bus-width = <4>;
-		status = "disabled";
 	};
 
 	adc: adc@2006c000 {

@@ -14,4 +14,42 @@
 	&nandc0reg {
 		status = "disabled"; // used nand set "disabled" ,used emmc set "okay"
 	};
+
+	&emmc {
+		clock-frequency = <100000000>;
+		clock-freq-min-max = <400000 100000000>;
+		supports-highspeed;
+		supports-emmc;
+		bootpart-no-access;
+		//supports-DDR_MODE;
+		//caps2-mmc-hs200;
+		ignore-pm-notify;
+		keep-power-in-suspend;
+		//poll-hw-reset
+		status = "disabled";
+	};
+
+	&sdmmc {
+		clock-frequency = <50000000>;
+		clock-freq-min-max = <400000 50000000>;
+		supports-highspeed;
+		supports-sd;
+		broken-cd;
+		card-detect-delay = <200>;
+		ignore-pm-notify;
+		keep-power-in-suspend;
+		//vmmc-supply = <&rk808_ldo5_reg>;
+		status = "disabled";
+	};
+
+	&sdio {
+		clock-frequency = <50000000>;
+		clock-freq-min-max = <200000 50000000>;
+		supports-highspeed;
+		supports-sdio;
+		ignore-pm-notify;
+		keep-power-in-suspend;
+		//cap-sdio-irq;
+		status = "disabled";
+	};
     };
