@@ -95,39 +95,6 @@ int desc_to_gpio(const struct gpio_desc *desc)
 EXPORT_SYMBOL_GPL(desc_to_gpio);
 
 
-/* Warn when drivers omit gpio_request() calls -- legal but ill-advised
- * when setting direction, and otherwise illegal.  Until board setup code
- * and drivers use explicit requests everywhere (which won't happen when
- * those calls have no teeth) we can't avoid autorequesting.  This nag
- * message should motivate switching to explicit requests... so should
- * the weaker cleanup after faults, compared to gpio_request().
- *
- * NOTE: the autorequest mechanism is going away; at this point it's
- * only "legal" in the sense that (old) code using it won't break yet,
- * but instead only triggers a WARN() stack dump.
- */
-static int gpio_ensure_requested(struct gpio_desc *desc)
-{
-	const struct gpio_chip *chip = desc->chip;
-	const int gpio = desc_to_gpio(desc);
-
-	if (WARN(test_and_set_bit(FLAG_REQUESTED, &desc->flags) == 0,
-			"autorequest GPIO-%d\n", gpio)) {
-		if (!try_module_get(chip->owner)) {
-			gpiod_err(desc, "%s: module can't be gotten\n",
-					__func__);
-			clear_bit(FLAG_REQUESTED, &desc->flags);
-			/* lose */
-			return -EIO;
-		}
-		desc_set_label(desc, "[auto]");
-		/* caller must chip->request() w/o spinlock */
-		if (chip->request)
-			return 1;
-	}
-	return 0;
-}
-
 /**
  * gpiod_to_chip - Return the GPIO chip to which a GPIO descriptor belongs
  * @desc:	descriptor to return the chip of
@@ -964,10 +931,8 @@ void gpiochip_free_own_desc(struct gpio_desc *desc)
  */
 int gpiod_direction_input(struct gpio_desc *desc)
 {
-	unsigned long		flags;
 	struct gpio_chip	*chip;
 	int			status = -EINVAL;
-	int			offset;
 
 	if (!desc || !desc->chip) {
 		pr_warn("%s: invalid GPIO\n", __func__);
@@ -982,52 +947,20 @@ int gpiod_direction_input(struct gpio_desc *desc)
 		return -EIO;
 	}
 
-	spin_lock_irqsave(&gpio_lock, flags);
-
-	status = gpio_ensure_requested(desc);
-	if (status < 0)
-		goto fail;
-
-	/* now we know the gpio is valid and chip won't vanish */
-
-	spin_unlock_irqrestore(&gpio_lock, flags);
-
-	might_sleep_if(chip->can_sleep);
-
-	offset = gpio_chip_hwgpio(desc);
-	if (status) {
-		status = chip->request(chip, offset);
-		if (status < 0) {
-			gpiod_dbg(desc, "%s: chip request fail, %d\n",
-					__func__, status);
-			/* and it's not available to anyone else ...
-			 * gpio_request() is the fully clean solution.
-			 */
-			goto lose;
-		}
-	}
-
-	status = chip->direction_input(chip, offset);
+	status = chip->direction_input(chip, gpio_chip_hwgpio(desc));
 	if (status == 0)
 		clear_bit(FLAG_IS_OUT, &desc->flags);
 
 	trace_gpio_direction(desc_to_gpio(desc), 1, status);
-lose:
-	return status;
-fail:
-	spin_unlock_irqrestore(&gpio_lock, flags);
-	if (status)
-		gpiod_dbg(desc, "%s: status %d\n", __func__, status);
+
 	return status;
 }
 EXPORT_SYMBOL_GPL(gpiod_direction_input);
 
 static int _gpiod_direction_output_raw(struct gpio_desc *desc, int value)
 {
-	unsigned long		flags;
 	struct gpio_chip	*chip;
 	int			status = -EINVAL;
-	int offset;
 
 	/* GPIOs used for IRQs shall not be set as output */
 	if (test_bit(FLAG_USED_AS_IRQ, &desc->flags)) {
@@ -1053,42 +986,11 @@ static int _gpiod_direction_output_raw(struct gpio_desc *desc, int value)
 		return -EIO;
 	}
 
-	spin_lock_irqsave(&gpio_lock, flags);
-
-	status = gpio_ensure_requested(desc);
-	if (status < 0)
-		goto fail;
-
-	/* now we know the gpio is valid and chip won't vanish */
-
-	spin_unlock_irqrestore(&gpio_lock, flags);
-
-	might_sleep_if(chip->can_sleep);
-
-	offset = gpio_chip_hwgpio(desc);
-	if (status) {
-		status = chip->request(chip, offset);
-		if (status < 0) {
-			gpiod_dbg(desc, "%s: chip request fail, %d\n",
-					__func__, status);
-			/* and it's not available to anyone else ...
-			 * gpio_request() is the fully clean solution.
-			 */
-			goto lose;
-		}
-	}
-
-	status = chip->direction_output(chip, offset, value);
+	status = chip->direction_output(chip, gpio_chip_hwgpio(desc), value);
 	if (status == 0)
 		set_bit(FLAG_IS_OUT, &desc->flags);
 	trace_gpio_value(desc_to_gpio(desc), 0, value);
 	trace_gpio_direction(desc_to_gpio(desc), 0, status);
-lose:
-	return status;
-fail:
-	spin_unlock_irqrestore(&gpio_lock, flags);
-	if (status)
-		gpiod_dbg(desc, "%s: gpio status %d\n", __func__, status);
 	return status;
 }
 
@@ -1147,10 +1049,7 @@ EXPORT_SYMBOL_GPL(gpiod_direction_output);
  */
 int gpiod_set_debounce(struct gpio_desc *desc, unsigned debounce)
 {
-	unsigned long		flags;
 	struct gpio_chip	*chip;
-	int			status = -EINVAL;
-	int			offset;
 
 	if (!desc || !desc->chip) {
 		pr_warn("%s: invalid GPIO\n", __func__);
@@ -1165,27 +1064,7 @@ int gpiod_set_debounce(struct gpio_desc *desc, unsigned debounce)
 		return -ENOTSUPP;
 	}
 
-	spin_lock_irqsave(&gpio_lock, flags);
-
-	status = gpio_ensure_requested(desc);
-	if (status < 0)
-		goto fail;
-
-	/* now we know the gpio is valid and chip won't vanish */
-
-	spin_unlock_irqrestore(&gpio_lock, flags);
-
-	might_sleep_if(chip->can_sleep);
-
-	offset = gpio_chip_hwgpio(desc);
-	return chip->set_debounce(chip, offset, debounce);
-
-fail:
-	spin_unlock_irqrestore(&gpio_lock, flags);
-	if (status)
-		gpiod_dbg(desc, "%s: status %d\n", __func__, status);
-
-	return status;
+	return chip->set_debounce(chip, gpio_chip_hwgpio(desc), debounce);
 }
 EXPORT_SYMBOL_GPL(gpiod_set_debounce);
 
