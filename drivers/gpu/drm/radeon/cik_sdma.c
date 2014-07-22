@@ -771,8 +771,7 @@ void cik_sdma_vm_set_page(struct radeon_device *rdev,
 
 	trace_radeon_vm_set_page(pe, addr, count, incr, flags);
 
-	/* XXX: How to distinguish between GART and other system memory pages? */
-	if (flags & R600_PTE_SYSTEM) {
+	if ((flags & R600_PTE_GART_MASK) == R600_PTE_GART_MASK) {
 		uint64_t src = rdev->gart.table_addr + (addr >> 12) * 8;
 		while (count) {
 			unsigned bytes = count * 8;
