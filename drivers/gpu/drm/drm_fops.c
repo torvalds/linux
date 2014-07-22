@@ -233,7 +233,6 @@ static int drm_open_helper(struct file *filp, struct drm_minor *minor)
 			goto out_close;
 		}
 
-		priv->is_master = 1;
 		/* take another reference for the copy in the local file priv */
 		priv->master = drm_master_get(priv->minor->master);
 		priv->authenticated = 1;
@@ -461,7 +460,7 @@ int drm_release(struct inode *inode, struct file *filp)
 
 	mutex_lock(&dev->master_mutex);
 
-	if (file_priv->is_master) {
+	if (drm_is_master(file_priv)) {
 		struct drm_master *master = file_priv->master;
 		struct drm_file *temp;
 
@@ -497,7 +496,6 @@ int drm_release(struct inode *inode, struct file *filp)
 	/* drop the master reference held by the file priv */
 	if (file_priv->master)
 		drm_master_put(&file_priv->master);
-	file_priv->is_master = 0;
 	mutex_unlock(&dev->master_mutex);
 
 	mutex_lock(&dev->struct_mutex);
