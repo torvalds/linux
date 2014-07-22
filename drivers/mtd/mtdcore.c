@@ -778,7 +778,7 @@ EXPORT_SYMBOL_GPL(__put_mtd_device);
  */
 int mtd_erase(struct mtd_info *mtd, struct erase_info *instr)
 {
-	if (instr->addr > mtd->size || instr->len > mtd->size - instr->addr)
+	if (instr->addr >= mtd->size || instr->len > mtd->size - instr->addr)
 		return -EINVAL;
 	if (!(mtd->flags & MTD_WRITEABLE))
 		return -EROFS;
@@ -804,7 +804,7 @@ int mtd_point(struct mtd_info *mtd, loff_t from, size_t len, size_t *retlen,
 		*phys = 0;
 	if (!mtd->_point)
 		return -EOPNOTSUPP;
-	if (from < 0 || from > mtd->size || len > mtd->size - from)
+	if (from < 0 || from >= mtd->size || len > mtd->size - from)
 		return -EINVAL;
 	if (!len)
 		return 0;
@@ -817,7 +817,7 @@ int mtd_unpoint(struct mtd_info *mtd, loff_t from, size_t len)
 {
 	if (!mtd->_point)
 		return -EOPNOTSUPP;
-	if (from < 0 || from > mtd->size || len > mtd->size - from)
+	if (from < 0 || from >= mtd->size || len > mtd->size - from)
 		return -EINVAL;
 	if (!len)
 		return 0;
@@ -835,7 +835,7 @@ unsigned long mtd_get_unmapped_area(struct mtd_info *mtd, unsigned long len,
 {
 	if (!mtd->_get_unmapped_area)
 		return -EOPNOTSUPP;
-	if (offset > mtd->size || len > mtd->size - offset)
+	if (offset >= mtd->size || len > mtd->size - offset)
 		return -EINVAL;
 	return mtd->_get_unmapped_area(mtd, len, offset, flags);
 }
@@ -846,7 +846,7 @@ int mtd_read(struct mtd_info *mtd, loff_t from, size_t len, size_t *retlen,
 {
 	int ret_code;
 	*retlen = 0;
-	if (from < 0 || from > mtd->size || len > mtd->size - from)
+	if (from < 0 || from >= mtd->size || len > mtd->size - from)
 		return -EINVAL;
 	if (!len)
 		return 0;
@@ -869,7 +869,7 @@ int mtd_write(struct mtd_info *mtd, loff_t to, size_t len, size_t *retlen,
 	      const u_char *buf)
 {
 	*retlen = 0;
-	if (to < 0 || to > mtd->size || len > mtd->size - to)
+	if (to < 0 || to >= mtd->size || len > mtd->size - to)
 		return -EINVAL;
 	if (!mtd->_write || !(mtd->flags & MTD_WRITEABLE))
 		return -EROFS;
@@ -892,7 +892,7 @@ int mtd_panic_write(struct mtd_info *mtd, loff_t to, size_t len, size_t *retlen,
 	*retlen = 0;
 	if (!mtd->_panic_write)
 		return -EOPNOTSUPP;
-	if (to < 0 || to > mtd->size || len > mtd->size - to)
+	if (to < 0 || to >= mtd->size || len > mtd->size - to)
 		return -EINVAL;
 	if (!(mtd->flags & MTD_WRITEABLE))
 		return -EROFS;
@@ -1011,7 +1011,7 @@ int mtd_lock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 {
 	if (!mtd->_lock)
 		return -EOPNOTSUPP;
-	if (ofs < 0 || ofs > mtd->size || len > mtd->size - ofs)
+	if (ofs < 0 || ofs >= mtd->size || len > mtd->size - ofs)
 		return -EINVAL;
 	if (!len)
 		return 0;
@@ -1023,7 +1023,7 @@ int mtd_unlock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 {
 	if (!mtd->_unlock)
 		return -EOPNOTSUPP;
-	if (ofs < 0 || ofs > mtd->size || len > mtd->size - ofs)
+	if (ofs < 0 || ofs >= mtd->size || len > mtd->size - ofs)
 		return -EINVAL;
 	if (!len)
 		return 0;
@@ -1035,7 +1035,7 @@ int mtd_is_locked(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 {
 	if (!mtd->_is_locked)
 		return -EOPNOTSUPP;
-	if (ofs < 0 || ofs > mtd->size || len > mtd->size - ofs)
+	if (ofs < 0 || ofs >= mtd->size || len > mtd->size - ofs)
 		return -EINVAL;
 	if (!len)
 		return 0;
@@ -1045,7 +1045,7 @@ EXPORT_SYMBOL_GPL(mtd_is_locked);
 
 int mtd_block_isreserved(struct mtd_info *mtd, loff_t ofs)
 {
-	if (ofs < 0 || ofs > mtd->size)
+	if (ofs < 0 || ofs >= mtd->size)
 		return -EINVAL;
 	if (!mtd->_block_isreserved)
 		return 0;
@@ -1055,7 +1055,7 @@ EXPORT_SYMBOL_GPL(mtd_block_isreserved);
 
 int mtd_block_isbad(struct mtd_info *mtd, loff_t ofs)
 {
-	if (ofs < 0 || ofs > mtd->size)
+	if (ofs < 0 || ofs >= mtd->size)
 		return -EINVAL;
 	if (!mtd->_block_isbad)
 		return 0;
@@ -1067,7 +1067,7 @@ int mtd_block_markbad(struct mtd_info *mtd, loff_t ofs)
 {
 	if (!mtd->_block_markbad)
 		return -EOPNOTSUPP;
-	if (ofs < 0 || ofs > mtd->size)
+	if (ofs < 0 || ofs >= mtd->size)
 		return -EINVAL;
 	if (!(mtd->flags & MTD_WRITEABLE))
 		return -EROFS;
