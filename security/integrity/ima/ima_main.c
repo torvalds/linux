@@ -319,6 +319,17 @@ int ima_module_check(struct file *file)
 	return process_measurement(file, NULL, MAY_EXEC, MODULE_CHECK);
 }
 
+int ima_fw_from_file(struct file *file, char *buf, size_t size)
+{
+	if (!file) {
+		if ((ima_appraise & IMA_APPRAISE_FIRMWARE) &&
+		    (ima_appraise & IMA_APPRAISE_ENFORCE))
+			return -EACCES;	/* INTEGRITY_UNKNOWN */
+		return 0;
+	}
+	return process_measurement(file, NULL, MAY_EXEC, FIRMWARE_CHECK);
+}
+
 static int __init init_ima(void)
 {
 	int error;
