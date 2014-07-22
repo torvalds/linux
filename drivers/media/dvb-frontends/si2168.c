@@ -381,20 +381,6 @@ static int si2168_init(struct dvb_frontend *fe)
 	if (ret)
 		goto err;
 
-	cmd.args[0] = 0x05;
-	cmd.args[1] = 0x00;
-	cmd.args[2] = 0xaa;
-	cmd.args[3] = 0x4d;
-	cmd.args[4] = 0x56;
-	cmd.args[5] = 0x40;
-	cmd.args[6] = 0x00;
-	cmd.args[7] = 0x00;
-	cmd.wlen = 8;
-	cmd.rlen = 1;
-	ret = si2168_cmd_execute(s, &cmd);
-	if (ret)
-		goto err;
-
 	chip_id = cmd.args[1] << 24 | cmd.args[2] << 16 | cmd.args[3] << 8 |
 			cmd.args[4] << 0;
 
