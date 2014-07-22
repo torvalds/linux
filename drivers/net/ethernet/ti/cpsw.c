@@ -1675,14 +1675,34 @@ static const struct net_device_ops cpsw_netdev_ops = {
 	.ndo_vlan_rx_kill_vid	= cpsw_ndo_vlan_rx_kill_vid,
 };
 
+static int cpsw_get_regs_len(struct net_device *ndev)
+{
+	struct cpsw_priv *priv = netdev_priv(ndev);
+
+	return priv->data.ale_entries * ALE_ENTRY_WORDS * sizeof(u32);
+}
+
+static void cpsw_get_regs(struct net_device *ndev,
+			  struct ethtool_regs *regs, void *p)
+{
+	struct cpsw_priv *priv = netdev_priv(ndev);
+	u32 *reg = p;
+
+	/* update CPSW IP version */
+	regs->version = priv->version;
+
+	cpsw_ale_dump(priv->ale, reg);
+}
+
 static void cpsw_get_drvinfo(struct net_device *ndev,
 			     struct ethtool_drvinfo *info)
 {
 	struct cpsw_priv *priv = netdev_priv(ndev);
 
-	strlcpy(info->driver, "TI CPSW Driver v1.0", sizeof(info->driver));
+	strlcpy(info->driver, "cpsw", sizeof(info->driver));
 	strlcpy(info->version, "1.0", sizeof(info->version));
 	strlcpy(info->bus_info, priv->pdev->name, sizeof(info->bus_info));
+	info->regdump_len = cpsw_get_regs_len(ndev);
 }
 
 static u32 cpsw_get_msglevel(struct net_device *ndev)
@@ -1790,6 +1810,8 @@ static const struct ethtool_ops cpsw_ethtool_ops = {
 	.get_ethtool_stats	= cpsw_get_ethtool_stats,
 	.get_wol	= cpsw_get_wol,
 	.set_wol	= cpsw_set_wol,
+	.get_regs_len	= cpsw_get_regs_len,
+	.get_regs	= cpsw_get_regs,
 };
 
 static void cpsw_slave_init(struct cpsw_slave *slave, struct cpsw_priv *priv,
