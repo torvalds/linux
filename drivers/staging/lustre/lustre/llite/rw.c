@@ -496,14 +496,9 @@ static int ll_read_ahead_page(const struct lu_env *env, struct cl_io *io,
 	struct cl_object *clob  = ll_i2info(mapping->host)->lli_clob;
 	struct cl_page   *page;
 	enum ra_stat      which = _NR_RA_STAT; /* keep gcc happy */
-	unsigned int      gfp_mask;
 	int	       rc    = 0;
 	const char       *msg   = NULL;
 
-	gfp_mask = GFP_HIGHUSER & ~__GFP_WAIT;
-#ifdef __GFP_NOWARN
-	gfp_mask |= __GFP_NOWARN;
-#endif
 	vmpage = grab_cache_page_nowait(mapping, index);
 	if (vmpage != NULL) {
 		/* Check if vmpage was truncated or reclaimed */
