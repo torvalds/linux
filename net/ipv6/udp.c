@@ -673,7 +673,7 @@ int udpv6_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 			goto csum_error;
 	}
 
-	if (sk_rcvqueues_full(sk, skb, sk->sk_rcvbuf)) {
+	if (sk_rcvqueues_full(sk, sk->sk_rcvbuf)) {
 		UDP6_INC_STATS_BH(sock_net(sk),
 				  UDP_MIB_RCVBUFERRORS, is_udplite);
 		goto drop;
