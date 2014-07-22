@@ -250,7 +250,7 @@ u8 *rtw_get_ie23a_ex(u8 *in_ie, uint in_len, u8 eid, u8 *oui, u8 oui_len,
  * rtw_ies_remove_ie23a - Find matching IEs and remove
  * @ies: Address of IEs to search
  * @ies_len: Pointer of length of ies, will update to new length
- * @offset: The offset to start scarch
+ * @offset: The offset to start search
  * @eid: Element ID to match
  * @oui: OUI to match
  * @oui_len: OUI length

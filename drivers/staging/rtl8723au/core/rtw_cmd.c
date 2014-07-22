@@ -322,7 +322,7 @@ post_process:
 				  pcmd_callback, pcmd->cmdcode));
 			rtw_free_cmd_obj23a(pcmd);
 		} else {
-			/* need conider that free cmd_obj in
+			/* need consider that free cmd_obj in
 			   rtw_cmd_callback */
 			pcmd_callback(pcmd->padapter, pcmd);
 		}
@@ -736,7 +736,7 @@ int rtw_setstakey_cmd23a(struct rtw_adapter *padapter, u8 *psta, u8 unicast_key)
 		       &psecuritypriv->dot118021XGrpKey[idx].skey, 16);
         }
 
-	/* jeff: set this becasue at least sw key is ready */
+	/* jeff: set this because at least sw key is ready */
 	padapter->securitypriv.busetkipkey = 1;
 
 	res = rtw_enqueue_cmd23a(pcmdpriv, ph2c);

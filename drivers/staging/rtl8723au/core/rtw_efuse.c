@@ -59,7 +59,7 @@ static void Efuse_PowerSwitch(struct rtw_adapter *padapter,
 		rtl8723au_write8(padapter, REG_EFUSE_ACCESS, EFUSE_ACCESS_ON);
 
 		/*  1.2V Power: From VDDON with Power
-		    Cut(0x0000h[15]), defualt valid */
+		    Cut(0x0000h[15]), default valid */
 		tmpV16 = rtl8723au_read16(padapter, REG_SYS_ISO_CTRL);
 		if (!(tmpV16 & PWC_EV12V)) {
 			tmpV16 |= PWC_EV12V;
@@ -144,7 +144,7 @@ Efuse_CalculateWordCnts23a(u8 word_en)
 /*  */
 /*	Description: */
 /*		Execute E-Fuse read byte operation. */
-/*		Refered from SD1 Richard. */
+/*		Referred from SD1 Richard. */
 /*  */
 /*	Assumption: */
 /*		1. Boot from E-Fuse and successfully auto-load. */
@@ -521,7 +521,7 @@ static int efuse_write8(struct rtw_adapter *padapter, u16 address, u8 *value)
 }
 
 /*
- * read/wirte raw efuse data
+ * read/write raw efuse data
  */
 int rtw_efuse_access23a(struct rtw_adapter *padapter, u8 bWrite, u16 start_addr,
 			u16 cnts, u8 *data)
