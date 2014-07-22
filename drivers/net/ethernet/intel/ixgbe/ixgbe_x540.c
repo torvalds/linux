@@ -194,31 +194,6 @@ out:
 }
 
 /**
- *  ixgbe_get_supported_physical_layer_X540 - Returns physical layer type
- *  @hw: pointer to hardware structure
- *
- *  Determines physical layer capabilities of the current configuration.
- **/
-static u32 ixgbe_get_supported_physical_layer_X540(struct ixgbe_hw *hw)
-{
-	u32 physical_layer = IXGBE_PHYSICAL_LAYER_UNKNOWN;
-	u16 ext_ability = 0;
-
-	hw->phy.ops.identify(hw);
-
-	hw->phy.ops.read_reg(hw, MDIO_PMA_EXTABLE, MDIO_MMD_PMAPMD,
-			     &ext_ability);
-	if (ext_ability & MDIO_PMA_EXTABLE_10GBT)
-		physical_layer |= IXGBE_PHYSICAL_LAYER_10GBASE_T;
-	if (ext_ability & MDIO_PMA_EXTABLE_1000BT)
-		physical_layer |= IXGBE_PHYSICAL_LAYER_1000BASE_T;
-	if (ext_ability & MDIO_PMA_EXTABLE_100BTX)
-		physical_layer |= IXGBE_PHYSICAL_LAYER_100BASE_TX;
-
-	return physical_layer;
-}
-
-/**
  *  ixgbe_init_eeprom_params_X540 - Initialize EEPROM params
  *  @hw: pointer to hardware structure
  *
@@ -792,8 +767,6 @@ static struct ixgbe_mac_operations mac_ops_X540 = {
 	.start_hw               = &ixgbe_start_hw_X540,
 	.clear_hw_cntrs         = &ixgbe_clear_hw_cntrs_generic,
 	.get_media_type         = &ixgbe_get_media_type_X540,
-	.get_supported_physical_layer =
-				  &ixgbe_get_supported_physical_layer_X540,
 	.enable_rx_dma          = &ixgbe_enable_rx_dma_generic,
 	.get_mac_addr           = &ixgbe_get_mac_addr_generic,
 	.get_san_mac_addr       = &ixgbe_get_san_mac_addr_generic,

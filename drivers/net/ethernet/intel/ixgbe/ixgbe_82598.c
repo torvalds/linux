@@ -1109,106 +1109,6 @@ static s32 ixgbe_read_i2c_sff8472_82598(struct ixgbe_hw *hw, u8 byte_offset,
 }
 
 /**
- *  ixgbe_get_supported_physical_layer_82598 - Returns physical layer type
- *  @hw: pointer to hardware structure
- *
- *  Determines physical layer capabilities of the current configuration.
- **/
-static u32 ixgbe_get_supported_physical_layer_82598(struct ixgbe_hw *hw)
-{
-	u32 physical_layer = IXGBE_PHYSICAL_LAYER_UNKNOWN;
-	u32 autoc = IXGBE_READ_REG(hw, IXGBE_AUTOC);
-	u32 pma_pmd_10g = autoc & IXGBE_AUTOC_10G_PMA_PMD_MASK;
-	u32 pma_pmd_1g = autoc & IXGBE_AUTOC_1G_PMA_PMD_MASK;
-	u16 ext_ability = 0;
-
-	hw->phy.ops.identify(hw);
-
-	/* Copper PHY must be checked before AUTOC LMS to determine correct
-	 * physical layer because 10GBase-T PHYs use LMS = KX4/KX */
-	switch (hw->phy.type) {
-	case ixgbe_phy_tn:
-	case ixgbe_phy_cu_unknown:
-		hw->phy.ops.read_reg(hw, MDIO_PMA_EXTABLE,
-		MDIO_MMD_PMAPMD, &ext_ability);
-		if (ext_ability & MDIO_PMA_EXTABLE_10GBT)
-			physical_layer |= IXGBE_PHYSICAL_LAYER_10GBASE_T;
-		if (ext_ability & MDIO_PMA_EXTABLE_1000BT)
-			physical_layer |= IXGBE_PHYSICAL_LAYER_1000BASE_T;
-		if (ext_ability & MDIO_PMA_EXTABLE_100BTX)
-			physical_layer |= IXGBE_PHYSICAL_LAYER_100BASE_TX;
-		goto out;
-	default:
-		break;
-	}
-
-	switch (autoc & IXGBE_AUTOC_LMS_MASK) {
-	case IXGBE_AUTOC_LMS_1G_AN:
-	case IXGBE_AUTOC_LMS_1G_LINK_NO_AN:
-		if (pma_pmd_1g == IXGBE_AUTOC_1G_KX)
-			physical_layer = IXGBE_PHYSICAL_LAYER_1000BASE_KX;
-		else
-			physical_layer = IXGBE_PHYSICAL_LAYER_1000BASE_BX;
-		break;
-	case IXGBE_AUTOC_LMS_10G_LINK_NO_AN:
-		if (pma_pmd_10g == IXGBE_AUTOC_10G_CX4)
-			physical_layer = IXGBE_PHYSICAL_LAYER_10GBASE_CX4;
-		else if (pma_pmd_10g == IXGBE_AUTOC_10G_KX4)
-			physical_layer = IXGBE_PHYSICAL_LAYER_10GBASE_KX4;
-		else /* XAUI */
-			physical_layer = IXGBE_PHYSICAL_LAYER_UNKNOWN;
-		break;
-	case IXGBE_AUTOC_LMS_KX4_AN:
-	case IXGBE_AUTOC_LMS_KX4_AN_1G_AN:
-		if (autoc & IXGBE_AUTOC_KX_SUPP)
-			physical_layer |= IXGBE_PHYSICAL_LAYER_1000BASE_KX;
-		if (autoc & IXGBE_AUTOC_KX4_SUPP)
-			physical_layer |= IXGBE_PHYSICAL_LAYER_10GBASE_KX4;
-		break;
-	default:
-		break;
-	}
-
-	if (hw->phy.type == ixgbe_phy_nl) {
-		hw->phy.ops.identify_sfp(hw);
-
-		switch (hw->phy.sfp_type) {
-		case ixgbe_sfp_type_da_cu:
-			physical_layer = IXGBE_PHYSICAL_LAYER_SFP_PLUS_CU;
-			break;
-		case ixgbe_sfp_type_sr:
-			physical_layer = IXGBE_PHYSICAL_LAYER_10GBASE_SR;
-			break;
-		case ixgbe_sfp_type_lr:
-			physical_layer = IXGBE_PHYSICAL_LAYER_10GBASE_LR;
-			break;
-		default:
-			physical_layer = IXGBE_PHYSICAL_LAYER_UNKNOWN;
-			break;
-		}
-	}
-
-	switch (hw->device_id) {
-	case IXGBE_DEV_ID_82598_DA_DUAL_PORT:
-		physical_layer = IXGBE_PHYSICAL_LAYER_SFP_PLUS_CU;
-		break;
-	case IXGBE_DEV_ID_82598AF_DUAL_PORT:
-	case IXGBE_DEV_ID_82598AF_SINGLE_PORT:
-	case IXGBE_DEV_ID_82598_SR_DUAL_PORT_EM:
-		physical_layer = IXGBE_PHYSICAL_LAYER_10GBASE_SR;
-		break;
-	case IXGBE_DEV_ID_82598EB_XF_LR:
-		physical_layer = IXGBE_PHYSICAL_LAYER_10GBASE_LR;
-		break;
-	default:
-		break;
-	}
-
-out:
-	return physical_layer;
-}
-
-/**
  *  ixgbe_set_lan_id_multi_port_pcie_82598 - Set LAN id for PCIe multiple
  *  port devices.
  *  @hw: pointer to the HW structure
@@ -1285,7 +1185,6 @@ static struct ixgbe_mac_operations mac_ops_82598 = {
 	.start_hw		= &ixgbe_start_hw_82598,
 	.clear_hw_cntrs		= &ixgbe_clear_hw_cntrs_generic,
 	.get_media_type		= &ixgbe_get_media_type_82598,
-	.get_supported_physical_layer = &ixgbe_get_supported_physical_layer_82598,
 	.enable_rx_dma          = &ixgbe_enable_rx_dma_generic,
 	.get_mac_addr		= &ixgbe_get_mac_addr_generic,
 	.stop_adapter		= &ixgbe_stop_adapter_generic,
