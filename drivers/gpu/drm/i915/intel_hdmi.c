@@ -1562,7 +1562,7 @@ void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,
 	if (IS_VALLEYVIEW(dev)) {
 		intel_hdmi->write_infoframe = vlv_write_infoframe;
 		intel_hdmi->set_infoframes = vlv_set_infoframes;
-	} else if (!HAS_PCH_SPLIT(dev)) {
+	} else if (IS_G4X(dev)) {
 		intel_hdmi->write_infoframe = g4x_write_infoframe;
 		intel_hdmi->set_infoframes = g4x_set_infoframes;
 	} else if (HAS_DDI(dev)) {
