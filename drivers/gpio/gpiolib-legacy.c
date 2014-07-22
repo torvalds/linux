@@ -100,15 +100,3 @@ void gpio_free_array(const struct gpio *array, size_t num)
 		gpio_free((array++)->gpio);
 }
 EXPORT_SYMBOL_GPL(gpio_free_array);
-
-int gpio_lock_as_irq(struct gpio_chip *chip, unsigned int offset)
-{
-	return gpiod_lock_as_irq(gpiochip_get_desc(chip, offset));
-}
-EXPORT_SYMBOL_GPL(gpio_lock_as_irq);
-
-void gpio_unlock_as_irq(struct gpio_chip *chip, unsigned int offset)
-{
-	return gpiod_unlock_as_irq(gpiochip_get_desc(chip, offset));
-}
-EXPORT_SYMBOL_GPL(gpio_unlock_as_irq);

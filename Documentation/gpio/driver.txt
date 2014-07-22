@@ -157,12 +157,12 @@ Locking IRQ usage
 Input GPIOs can be used as IRQ signals. When this happens, a driver is requested
 to mark the GPIO as being used as an IRQ:
 
-	int gpiod_lock_as_irq(struct gpio_desc *desc)
+	int gpio_lock_as_irq(struct gpio_chip *chip, unsigned int offset)
 
 This will prevent the use of non-irq related GPIO APIs until the GPIO IRQ lock
 is released:
 
-	void gpiod_unlock_as_irq(struct gpio_desc *desc)
+	void gpio_unlock_as_irq(struct gpio_chip *chip, unsigned int offset)
 
 When implementing an irqchip inside a GPIO driver, these two functions should
 typically be called in the .startup() and .shutdown() callbacks from the

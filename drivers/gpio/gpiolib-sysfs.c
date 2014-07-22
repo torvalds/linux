@@ -161,7 +161,7 @@ static int gpio_setup_irq(struct gpio_desc *desc, struct device *dev,
 	desc->flags &= ~GPIO_TRIGGER_MASK;
 
 	if (!gpio_flags) {
-		gpiod_unlock_as_irq(desc);
+		gpio_unlock_as_irq(desc->chip, gpio_chip_hwgpio(desc));
 		ret = 0;
 		goto free_id;
 	}
@@ -200,7 +200,7 @@ static int gpio_setup_irq(struct gpio_desc *desc, struct device *dev,
 	if (ret < 0)
 		goto free_id;
 
-	ret = gpiod_lock_as_irq(desc);
+	ret = gpio_lock_as_irq(desc->chip, gpio_chip_hwgpio(desc));
 	if (ret < 0) {
 		gpiod_warn(desc, "failed to flag the GPIO for IRQ\n");
 		goto free_id;

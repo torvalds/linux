@@ -146,8 +146,8 @@ extern struct gpio_chip *gpiochip_find(void *data,
 			      int (*match)(struct gpio_chip *chip, void *data));
 
 /* lock/unlock as IRQ */
-int gpiod_lock_as_irq(struct gpio_desc *desc);
-void gpiod_unlock_as_irq(struct gpio_desc *desc);
+int gpio_lock_as_irq(struct gpio_chip *chip, unsigned int offset);
+void gpio_unlock_as_irq(struct gpio_chip *chip, unsigned int offset);
 
 struct gpio_chip *gpiod_to_chip(const struct gpio_desc *desc);
 
