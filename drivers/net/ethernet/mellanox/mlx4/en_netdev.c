@@ -644,6 +644,7 @@ static int mlx4_en_get_qp(struct mlx4_en_priv *priv)
 		goto alloc_err;
 	}
 	memcpy(entry->mac, priv->dev->dev_addr, sizeof(entry->mac));
+	memcpy(priv->current_mac, entry->mac, sizeof(priv->current_mac));
 	entry->reg_id = reg_id;
 
 	hlist_add_head_rcu(&entry->hlist,
