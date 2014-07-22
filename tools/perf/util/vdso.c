@@ -33,7 +33,7 @@ static struct vdso_info *vdso_info__new(void)
 	static const struct vdso_info vdso_info_init = {
 		.vdso    = {
 			.temp_file_name = VDSO__TEMP_FILE_NAME,
-			.dso_name = VDSO__MAP_NAME,
+			.dso_name = DSO__NAME_VDSO,
 		},
 	};
 
@@ -147,7 +147,7 @@ struct dso *vdso__dso_findnew(struct machine *machine)
 	if (!vdso_info)
 		return NULL;
 
-	dso = dsos__find(&machine->user_dsos, VDSO__MAP_NAME, true);
+	dso = dsos__find(&machine->user_dsos, DSO__NAME_VDSO, true);
 	if (!dso) {
 		char *file;
 
@@ -155,8 +155,13 @@ struct dso *vdso__dso_findnew(struct machine *machine)
 		if (!file)
 			return NULL;
 
-		dso = vdso__new(machine, VDSO__MAP_NAME, file);
+		dso = vdso__new(machine, DSO__NAME_VDSO, file);
 	}
 
 	return dso;
+}
+
+bool dso__is_vdso(struct dso *dso)
+{
+	return !strcmp(dso->short_name, DSO__NAME_VDSO);
 }
