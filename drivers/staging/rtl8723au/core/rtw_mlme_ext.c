@@ -2213,7 +2213,7 @@ exit:
 
 /****************************************************************************
 
-Following are some TX fuctions for WiFi MLME
+Following are some TX functions for WiFi MLME
 
 *****************************************************************************/
 
@@ -3352,7 +3352,7 @@ exit:
 	return;
 }
 
-/* when wait_ack is ture, this function shoule be called at process context */
+/* when wait_ack is true, this function should be called at process context */
 static int _issue_nulldata23a(struct rtw_adapter *padapter, unsigned char *da,
 			      unsigned int power_mode, int wait_ack)
 {
@@ -3423,7 +3423,7 @@ exit:
 	return ret;
 }
 
-/* when wait_ms >0 , this function shoule be called at process context */
+/* when wait_ms >0 , this function should be called at process context */
 /* da == NULL for station mode */
 int issue_nulldata23a(struct rtw_adapter *padapter, unsigned char *da,
 		      unsigned int power_mode, int try_cnt, int wait_ms)
@@ -3434,7 +3434,7 @@ int issue_nulldata23a(struct rtw_adapter *padapter, unsigned char *da,
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 
-	/* da == NULL, assum it's null data for sta to ap*/
+	/* da == NULL, assume it's null data for sta to ap*/
 	if (da == NULL)
 		da = get_my_bssid23a(&pmlmeinfo->network);
 
@@ -3476,7 +3476,7 @@ exit:
 	return ret;
 }
 
-/* when wait_ack is ture, this function shoule be called at process context */
+/* when wait_ack is true, this function should be called at process context */
 static int _issue_qos_nulldata23a(struct rtw_adapter *padapter,
 				  unsigned char *da, u16 tid, int wait_ack)
 {
@@ -3551,7 +3551,7 @@ exit:
 	return ret;
 }
 
-/* when wait_ms >0 , this function shoule be called at process context */
+/* when wait_ms >0 , this function should be called at process context */
 /* da == NULL for station mode */
 int issue_qos_nulldata23a(struct rtw_adapter *padapter, unsigned char *da,
 			  u16 tid, int try_cnt, int wait_ms)
@@ -3562,7 +3562,7 @@ int issue_qos_nulldata23a(struct rtw_adapter *padapter, unsigned char *da,
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 
-	/* da == NULL, assum it's null data for sta to ap*/
+	/* da == NULL, assume it's null data for sta to ap*/
 	if (da == NULL)
 		da = get_my_bssid23a(&pmlmeinfo->network);
 
@@ -4023,7 +4023,7 @@ int send_beacon23a(struct rtw_adapter *padapter)
 
 /****************************************************************************
 
-Following are some utitity fuctions for WiFi MLME
+Following are some utitity functions for WiFi MLME
 
 *****************************************************************************/
 
@@ -4303,7 +4303,7 @@ static struct wlan_bssid_ex *collect_bss_info(struct rtw_adapter *padapter,
 	}
 
 
-	/*  mark bss info receving from nearby channel as SignalQuality 101 */
+	/*  mark bss info receiving from nearby channel as SignalQuality 101 */
 	if (bssid->DSConfig != rtw_get_oper_ch23a(padapter))
 		bssid->PhyInfo.SignalQuality = 101;
 
@@ -4325,7 +4325,7 @@ static void start_create_ibss(struct rtw_adapter* padapter)
 	/* update wireless mode */
 	update_wireless_mode23a(padapter);
 
-	/* udpate capability */
+	/* update capability */
 	caps = pnetwork->capability;
 	update_capinfo23a(padapter, caps);
 	if (caps & WLAN_CAPABILITY_IBSS) {	/* adhoc master */
@@ -4377,7 +4377,7 @@ static void start_clnt_join(struct rtw_adapter* padapter)
 	/* update wireless mode */
 	update_wireless_mode23a(padapter);
 
-	/* udpate capability */
+	/* update capability */
 	caps = pnetwork->capability;
 	update_capinfo23a(padapter, caps);
 	if (caps & WLAN_CAPABILITY_ESS) {
@@ -5073,7 +5073,7 @@ void mlmeext_joinbss_event_callback23a(struct rtw_adapter *padapter,
 	/* BCN interval */
 	rtl8723a_set_beacon_interval(padapter, pmlmeinfo->bcn_interval);
 
-	/* udpate capability */
+	/* update capability */
 	update_capinfo23a(padapter, pmlmeinfo->capability);
 
 	/* WMM, Update EDCA param */
@@ -5851,7 +5851,7 @@ int sitesurvey_cmd_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 		rtl8723a_odm_support_ability_clr(padapter,
 						 DYNAMIC_FUNC_DISABLE);
 
-		/* config the initial gain under scaning, need to
+		/* config the initial gain under scanning, need to
 		   write the BB registers */
 		if (wdev_to_priv(padapter->rtw_wdev)->p2p_enabled == true)
 			initialgain = 0x30;
