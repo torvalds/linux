@@ -98,7 +98,9 @@ MODULE_AUTHOR("VIA Networking Technologies, Inc., <lyndonchen@vntek.com.tw>");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("VIA Networking Solomon-A/B/G Wireless LAN Adapter Driver");
 
+#ifdef	THREAD
 static int mlme_kill;
+#endif
 
 #define DEVICE_PARAM(N, D)
 
@@ -1612,7 +1614,8 @@ void	InitRxManagementQueue(PSDevice  pDevice)
 //PLICE_DEBUG<-
 
 //PLICE_DEBUG ->
-int MlmeThread(
+#ifdef	THREAD
+static int MlmeThread(
 	void *Context)
 {
 	PSDevice	pDevice =  (PSDevice) Context;
@@ -1635,6 +1638,7 @@ int MlmeThread(
 
 	return 0;
 }
+#endif
 
 static int  device_open(struct net_device *dev) {
 	PSDevice pDevice = (PSDevice)netdev_priv(dev);
