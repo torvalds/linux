@@ -46,6 +46,10 @@ enum dso_data_status {
 	DSO_DATA_STATUS_OK	= 1,
 };
 
+enum dso_data_status_seen {
+	DSO_DATA_STATUS_SEEN_ITRACE,
+};
+
 #define DSO__SWAP(dso, type, val)			\
 ({							\
 	type ____r = val;				\
@@ -111,6 +115,7 @@ struct dso {
 		struct rb_root	 cache;
 		int		 fd;
 		int		 status;
+		u32		 status_seen;
 		size_t		 file_size;
 		struct list_head open_entry;
 	} data;
@@ -203,6 +208,7 @@ ssize_t dso__data_read_offset(struct dso *dso, struct machine *machine,
 ssize_t dso__data_read_addr(struct dso *dso, struct map *map,
 			    struct machine *machine, u64 addr,
 			    u8 *data, ssize_t size);
+bool dso__data_status_seen(struct dso *dso, enum dso_data_status_seen by);
 
 struct map *dso__new_map(const char *name);
 struct dso *dso__kernel_findnew(struct machine *machine, const char *name,

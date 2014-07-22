@@ -359,6 +359,18 @@ out:
 	return dso->data.fd;
 }
 
+bool dso__data_status_seen(struct dso *dso, enum dso_data_status_seen by)
+{
+	u32 flag = 1 << by;
+
+	if (dso->data.status_seen & flag)
+		return true;
+
+	dso->data.status_seen |= flag;
+
+	return false;
+}
+
 static void
 dso_cache__free(struct rb_root *root)
 {
