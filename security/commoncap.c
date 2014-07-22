@@ -822,15 +822,20 @@ int cap_task_setnice(struct task_struct *p, int nice)
  * Implement PR_CAPBSET_DROP.  Attempt to remove the specified capability from
  * the current task's bounding set.  Returns 0 on success, -ve on error.
  */
-static long cap_prctl_drop(struct cred *new, unsigned long cap)
+static int cap_prctl_drop(unsigned long cap)
 {
+	struct cred *new;
+
 	if (!ns_capable(current_user_ns(), CAP_SETPCAP))
 		return -EPERM;
 	if (!cap_valid(cap))
 		return -EINVAL;
 
+	new = prepare_creds();
+	if (!new)
+		return -ENOMEM;
 	cap_lower(new->cap_bset, cap);
-	return 0;
+	return commit_creds(new);
 }
 
 /**
@@ -848,26 +853,17 @@ static long cap_prctl_drop(struct cred *new, unsigned long cap)
 int cap_task_prctl(int option, unsigned long arg2, unsigned long arg3,
 		   unsigned long arg4, unsigned long arg5)
 {
+	const struct cred *old = current_cred();
 	struct cred *new;
-	long error = 0;
-
-	new = prepare_creds();
-	if (!new)
-		return -ENOMEM;
 
 	switch (option) {
 	case PR_CAPBSET_READ:
-		error = -EINVAL;
 		if (!cap_valid(arg2))
-			goto error;
-		error = !!cap_raised(new->cap_bset, arg2);
-		goto no_change;
+			return -EINVAL;
+		return !!cap_raised(old->cap_bset, arg2);
 
 	case PR_CAPBSET_DROP:
-		error = cap_prctl_drop(new, arg2);
-		if (error < 0)
-			goto error;
-		goto changed;
+		return cap_prctl_drop(arg2);
 
 	/*
 	 * The next four prctl's remain to assist with transitioning a
@@ -889,10 +885,9 @@ int cap_task_prctl(int option, unsigned long arg2, unsigned long arg3,
 	 * capability-based-privilege environment.
 	 */
 	case PR_SET_SECUREBITS:
-		error = -EPERM;
-		if ((((new->securebits & SECURE_ALL_LOCKS) >> 1)
-		     & (new->securebits ^ arg2))			/*[1]*/
-		    || ((new->securebits & SECURE_ALL_LOCKS & ~arg2))	/*[2]*/
+		if ((((old->securebits & SECURE_ALL_LOCKS) >> 1)
+		     & (old->securebits ^ arg2))			/*[1]*/
+		    || ((old->securebits & SECURE_ALL_LOCKS & ~arg2))	/*[2]*/
 		    || (arg2 & ~(SECURE_ALL_LOCKS | SECURE_ALL_BITS))	/*[3]*/
 		    || (cap_capable(current_cred(),
 				    current_cred()->user_ns, CAP_SETPCAP,
@@ -906,46 +901,39 @@ int cap_task_prctl(int option, unsigned long arg2, unsigned long arg3,
 			 */
 		    )
 			/* cannot change a locked bit */
-			goto error;
+			return -EPERM;
+
+		new = prepare_creds();
+		if (!new)
+			return -ENOMEM;
 		new->securebits = arg2;
-		goto changed;
+		return commit_creds(new);
 
 	case PR_GET_SECUREBITS:
-		error = new->securebits;
-		goto no_change;
+		return old->securebits;
 
 	case PR_GET_KEEPCAPS:
-		if (issecure(SECURE_KEEP_CAPS))
-			error = 1;
-		goto no_change;
+		return !!issecure(SECURE_KEEP_CAPS);
 
 	case PR_SET_KEEPCAPS:
-		error = -EINVAL;
 		if (arg2 > 1) /* Note, we rely on arg2 being unsigned here */
-			goto error;
-		error = -EPERM;
+			return -EINVAL;
 		if (issecure(SECURE_KEEP_CAPS_LOCKED))
-			goto error;
+			return -EPERM;
+
+		new = prepare_creds();
+		if (!new)
+			return -ENOMEM;
 		if (arg2)
 			new->securebits |= issecure_mask(SECURE_KEEP_CAPS);
 		else
 			new->securebits &= ~issecure_mask(SECURE_KEEP_CAPS);
-		goto changed;
+		return commit_creds(new);
 
 	default:
 		/* No functionality available - continue with default */
-		error = -ENOSYS;
-		goto error;
+		return -ENOSYS;
 	}
-
-	/* Functionality provided */
-changed:
-	return commit_creds(new);
-
-no_change:
-error:
-	abort_creds(new);
-	return error;
 }
 
 /**
