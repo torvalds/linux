@@ -1811,7 +1811,7 @@ static unsigned int ata_eh_analyze_tf(struct ata_queued_cmd *qc,
 	case ATA_DEV_ATA:
 		if (err & ATA_ICRC)
 			qc->err_mask |= AC_ERR_ATA_BUS;
-		if (err & ATA_UNC)
+		if (err & (ATA_UNC | ATA_AMNF))
 			qc->err_mask |= AC_ERR_MEDIA;
 		if (err & ATA_IDNF)
 			qc->err_mask |= AC_ERR_INVALID;
@@ -2556,11 +2556,12 @@ static void ata_eh_link_report(struct ata_link *link)
 		}
 
 		if (cmd->command != ATA_CMD_PACKET &&
-		    (res->feature & (ATA_ICRC | ATA_UNC | ATA_IDNF |
-				     ATA_ABORTED)))
-			ata_dev_err(qc->dev, "error: { %s%s%s%s}\n",
+		    (res->feature & (ATA_ICRC | ATA_UNC | ATA_AMNF |
+				     ATA_IDNF | ATA_ABORTED)))
+			ata_dev_err(qc->dev, "error: { %s%s%s%s%s}\n",
 			  res->feature & ATA_ICRC ? "ICRC " : "",
 			  res->feature & ATA_UNC ? "UNC " : "",
+			  res->feature & ATA_AMNF ? "AMNF " : "",
 			  res->feature & ATA_IDNF ? "IDNF " : "",
 			  res->feature & ATA_ABORTED ? "ABRT " : "");
 #endif
