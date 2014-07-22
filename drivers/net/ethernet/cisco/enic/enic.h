@@ -99,7 +99,6 @@ struct enic_port_profile {
 	u8 mac_addr[ETH_ALEN];
 };
 
-#ifdef CONFIG_RFS_ACCEL
 /* enic_rfs_fltr_node - rfs filter node in hash table
  *	@@keys: IPv4 5 tuple
  *	@flow_id: flow_id of clsf filter provided by kernel
@@ -134,8 +133,6 @@ struct enic_rfs_flw_tbl {
 	spinlock_t lock;
 	struct timer_list rfs_may_expire;
 };
-
-#endif /* CONFIG_RFS_ACCEL */
 
 /* Per-instance private data structure */
 struct enic {
@@ -188,9 +185,7 @@ struct enic {
 	/* completion queue cache line section */
 	____cacheline_aligned struct vnic_cq cq[ENIC_CQ_MAX];
 	unsigned int cq_count;
-#ifdef CONFIG_RFS_ACCEL
 	struct enic_rfs_flw_tbl rfs_h;
-#endif
 };
 
 static inline struct device *enic_get_dev(struct enic *enic)

@@ -65,6 +65,62 @@ int enic_delfltr(struct enic *enic, u16 filter_id)
 	return ret;
 }
 
+/* enic_rfs_flw_tbl_init - initialize enic->rfs_h members
+ *	@enic: enic data
+ */
+void enic_rfs_flw_tbl_init(struct enic *enic)
+{
+	int i;
+
+	spin_lock_init(&enic->rfs_h.lock);
+	for (i = 0; i <= ENIC_RFS_FLW_MASK; i++)
+		INIT_HLIST_HEAD(&enic->rfs_h.ht_head[i]);
+	enic->rfs_h.max = enic->config.num_arfs;
+	enic->rfs_h.free = enic->rfs_h.max;
+	enic->rfs_h.toclean = 0;
+	enic_rfs_timer_start(enic);
+}
+
+void enic_rfs_flw_tbl_free(struct enic *enic)
+{
+	int i;
+
+	enic_rfs_timer_stop(enic);
+	spin_lock(&enic->rfs_h.lock);
+	enic->rfs_h.free = 0;
+	for (i = 0; i < (1 << ENIC_RFS_FLW_BITSHIFT); i++) {
+		struct hlist_head *hhead;
+		struct hlist_node *tmp;
+		struct enic_rfs_fltr_node *n;
+
+		hhead = &enic->rfs_h.ht_head[i];
+		hlist_for_each_entry_safe(n, tmp, hhead, node) {
+			enic_delfltr(enic, n->fltr_id);
+			hlist_del(&n->node);
+			kfree(n);
+		}
+	}
+	spin_unlock(&enic->rfs_h.lock);
+}
+
+struct enic_rfs_fltr_node *htbl_fltr_search(struct enic *enic, u16 fltr_id)
+{
+	int i;
+
+	for (i = 0; i < (1 << ENIC_RFS_FLW_BITSHIFT); i++) {
+		struct hlist_head *hhead;
+		struct hlist_node *tmp;
+		struct enic_rfs_fltr_node *n;
+
+		hhead = &enic->rfs_h.ht_head[i];
+		hlist_for_each_entry_safe(n, tmp, hhead, node)
+			if (n->fltr_id == fltr_id)
+				return n;
+	}
+
+	return NULL;
+}
+
 #ifdef CONFIG_RFS_ACCEL
 void enic_flow_may_expire(unsigned long data)
 {
@@ -94,47 +150,6 @@ void enic_flow_may_expire(unsigned long data)
 	}
 	spin_unlock(&enic->rfs_h.lock);
 	mod_timer(&enic->rfs_h.rfs_may_expire, jiffies + HZ/4);
-}
-
-/* enic_rfs_flw_tbl_init - initialize enic->rfs_h members
- *	@enic: enic data
- */
-void enic_rfs_flw_tbl_init(struct enic *enic)
-{
-	int i;
-
-	spin_lock_init(&enic->rfs_h.lock);
-	for (i = 0; i <= ENIC_RFS_FLW_MASK; i++)
-		INIT_HLIST_HEAD(&enic->rfs_h.ht_head[i]);
-	enic->rfs_h.max = enic->config.num_arfs;
-	enic->rfs_h.free = enic->rfs_h.max;
-	enic->rfs_h.toclean = 0;
-	init_timer(&enic->rfs_h.rfs_may_expire);
-	enic->rfs_h.rfs_may_expire.function = enic_flow_may_expire;
-	enic->rfs_h.rfs_may_expire.data = (unsigned long)enic;
-	mod_timer(&enic->rfs_h.rfs_may_expire, jiffies + HZ/4);
-}
-
-void enic_rfs_flw_tbl_free(struct enic *enic)
-{
-	int i;
-
-	del_timer_sync(&enic->rfs_h.rfs_may_expire);
-	spin_lock(&enic->rfs_h.lock);
-	enic->rfs_h.free = 0;
-	for (i = 0; i < (1 << ENIC_RFS_FLW_BITSHIFT); i++) {
-		struct hlist_head *hhead;
-		struct hlist_node *tmp;
-		struct enic_rfs_fltr_node *n;
-
-		hhead = &enic->rfs_h.ht_head[i];
-		hlist_for_each_entry_safe(n, tmp, hhead, node) {
-			enic_delfltr(enic, n->fltr_id);
-			hlist_del(&n->node);
-			kfree(n);
-		}
-	}
-	spin_unlock(&enic->rfs_h.lock);
 }
 
 static struct enic_rfs_fltr_node *htbl_key_search(struct hlist_head *h,
