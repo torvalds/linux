@@ -23,6 +23,14 @@
 
 #include "gadget_chips.h"
 
+#define FILE_PCM_PLAYBACK	"/dev/snd/pcmC0D0p"
+#define FILE_PCM_CAPTURE	"/dev/snd/pcmC0D0c"
+#define FILE_CONTROL		"/dev/snd/controlC0"
+
+#define UAC1_OUT_EP_MAX_PACKET_SIZE	200
+#define UAC1_REQ_COUNT			256
+#define UAC1_AUDIO_BUF_SIZE		48000
+
 /*
  * This represents the USB side of an audio card device, managed by a USB
  * function which provides control and stream interfaces.

@@ -54,9 +54,7 @@ static int c_ssize = UAC2_DEF_CSSIZE;
 module_param(c_ssize, uint, S_IRUGO);
 MODULE_PARM_DESC(c_ssize, "Capture Sample Size(bytes)");
 #else
-#define FILE_PCM_PLAYBACK	"/dev/snd/pcmC0D0p"
-#define FILE_PCM_CAPTURE	"/dev/snd/pcmC0D0c"
-#define FILE_CONTROL		"/dev/snd/controlC0"
+#include "u_uac1.h"
 
 static char *fn_play = FILE_PCM_PLAYBACK;
 module_param(fn_play, charp, S_IRUGO);
@@ -70,16 +68,15 @@ static char *fn_cntl = FILE_CONTROL;
 module_param(fn_cntl, charp, S_IRUGO);
 MODULE_PARM_DESC(fn_cntl, "Control device file name");
 
-#define OUT_EP_MAX_PACKET_SIZE	200
-static int req_buf_size = OUT_EP_MAX_PACKET_SIZE;
+static int req_buf_size = UAC1_OUT_EP_MAX_PACKET_SIZE;
 module_param(req_buf_size, int, S_IRUGO);
 MODULE_PARM_DESC(req_buf_size, "ISO OUT endpoint request buffer size");
 
-static int req_count = 256;
+static int req_count = UAC1_REQ_COUNT;
 module_param(req_count, int, S_IRUGO);
 MODULE_PARM_DESC(req_count, "ISO OUT endpoint request count");
 
-static int audio_buf_size = 48000;
+static int audio_buf_size = UAC1_AUDIO_BUF_SIZE;
 module_param(audio_buf_size, int, S_IRUGO);
 MODULE_PARM_DESC(audio_buf_size, "Audio buffer size");
 #endif
@@ -109,10 +106,6 @@ static struct usb_function *f_uac2;
 #else
 static struct usb_function_instance *fi_uac1;
 static struct usb_function *f_uac1;
-#endif
-
-#ifdef CONFIG_GADGET_UAC1
-#include "u_uac1.h"
 #endif
 
 /*-------------------------------------------------------------------------*/
