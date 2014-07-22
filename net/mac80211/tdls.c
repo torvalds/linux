@@ -316,8 +316,7 @@ ieee80211_tdls_add_setup_cfm_ies(struct ieee80211_sub_if_data *sdata,
 	}
 
 	/* add the QoS param IE if both the peer and we support it */
-	if (local->hw.queues >= IEEE80211_NUM_ACS &&
-	    test_sta_flag(sta, WLAN_STA_WME))
+	if (local->hw.queues >= IEEE80211_NUM_ACS && sta->sta.wme)
 		ieee80211_tdls_add_wmm_param_ie(sdata, skb);
 
 	/* add any custom IEs that go before HT operation */

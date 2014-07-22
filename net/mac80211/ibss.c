@@ -1038,7 +1038,7 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 		}
 
 		if (sta && elems->wmm_info)
-			set_sta_flag(sta, WLAN_STA_WME);
+			sta->sta.wme = true;
 
 		if (sta && elems->ht_operation && elems->ht_cap_elem &&
 		    sdata->u.ibss.chandef.width != NL80211_CHAN_WIDTH_20_NOHT &&

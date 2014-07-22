@@ -1844,7 +1844,7 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 			memcpy(hdr.addr4, skb->data + ETH_ALEN, ETH_ALEN);
 			hdrlen = 30;
 			authorized = test_sta_flag(sta, WLAN_STA_AUTHORIZED);
-			wme_sta = test_sta_flag(sta, WLAN_STA_WME);
+			wme_sta = sta->sta.wme;
 		}
 		ap_sdata = container_of(sdata->bss, struct ieee80211_sub_if_data,
 					u.ap);
@@ -1957,7 +1957,7 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 			if (sta) {
 				authorized = test_sta_flag(sta,
 							WLAN_STA_AUTHORIZED);
-				wme_sta = test_sta_flag(sta, WLAN_STA_WME);
+				wme_sta = sta->sta.wme;
 				tdls_peer = test_sta_flag(sta,
 							  WLAN_STA_TDLS_PEER);
 				tdls_auth = test_sta_flag(sta,
@@ -2035,7 +2035,7 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 		sta = sta_info_get(sdata, hdr.addr1);
 		if (sta) {
 			authorized = test_sta_flag(sta, WLAN_STA_AUTHORIZED);
-			wme_sta = test_sta_flag(sta, WLAN_STA_WME);
+			wme_sta = sta->sta.wme;
 		}
 	}
 
