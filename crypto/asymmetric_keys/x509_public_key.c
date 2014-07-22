@@ -177,7 +177,7 @@ static int x509_key_preparse(struct key_preparsed_payload *prep)
 	__module_get(public_key_subtype.owner);
 	prep->type_data[0] = &public_key_subtype;
 	prep->type_data[1] = cert->fingerprint;
-	prep->payload = cert->pub;
+	prep->payload[0] = cert->pub;
 	prep->description = desc;
 	prep->quotalen = 100;
 

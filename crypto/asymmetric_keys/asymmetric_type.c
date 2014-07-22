@@ -156,34 +156,11 @@ static void asymmetric_key_free_preparse(struct key_preparsed_payload *prep)
 	pr_devel("==>%s()\n", __func__);
 
 	if (subtype) {
-		subtype->destroy(prep->payload);
+		subtype->destroy(prep->payload[0]);
 		module_put(subtype->owner);
 	}
 	kfree(prep->type_data[1]);
 	kfree(prep->description);
-}
-
-/*
- * Instantiate a asymmetric_key defined key.  The key was preparsed, so we just
- * have to transfer the data here.
- */
-static int asymmetric_key_instantiate(struct key *key, struct key_preparsed_payload *prep)
-{
-	int ret;
-
-	pr_devel("==>%s()\n", __func__);
-
-	ret = key_payload_reserve(key, prep->quotalen);
-	if (ret == 0) {
-		key->type_data.p[0] = prep->type_data[0];
-		key->type_data.p[1] = prep->type_data[1];
-		key->payload.data = prep->payload;
-		prep->type_data[0] = NULL;
-		prep->type_data[1] = NULL;
-		prep->payload = NULL;
-	}
-	pr_devel("<==%s() = %d\n", __func__, ret);
-	return ret;
 }
 
 /*
@@ -205,7 +182,7 @@ struct key_type key_type_asymmetric = {
 	.name		= "asymmetric",
 	.preparse	= asymmetric_key_preparse,
 	.free_preparse	= asymmetric_key_free_preparse,
-	.instantiate	= asymmetric_key_instantiate,
+	.instantiate	= generic_key_instantiate,
 	.match		= asymmetric_key_match,
 	.destroy	= asymmetric_key_destroy,
 	.describe	= asymmetric_key_describe,
