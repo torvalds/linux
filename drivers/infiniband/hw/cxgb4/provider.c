@@ -318,7 +318,7 @@ static int c4iw_query_device(struct ib_device *ibdev,
 	props->vendor_id = (u32)dev->rdev.lldi.pdev->vendor;
 	props->vendor_part_id = (u32)dev->rdev.lldi.pdev->device;
 	props->max_mr_size = T4_MAX_MR_SIZE;
-	props->max_qp = T4_MAX_NUM_QP;
+	props->max_qp = dev->rdev.lldi.vr->qp.size / 2;
 	props->max_qp_wr = dev->rdev.hw_queue.t4_max_qp_depth;
 	props->max_sge = T4_MAX_RECV_SGE;
 	props->max_sge_rd = 1;
@@ -326,7 +326,7 @@ static int c4iw_query_device(struct ib_device *ibdev,
 	props->max_qp_rd_atom = min(dev->rdev.lldi.max_ordird_qp,
 				    c4iw_max_read_depth);
 	props->max_qp_init_rd_atom = props->max_qp_rd_atom;
-	props->max_cq = T4_MAX_NUM_CQ;
+	props->max_cq = dev->rdev.lldi.vr->qp.size;
 	props->max_cqe = dev->rdev.hw_queue.t4_max_cq_depth;
 	props->max_mr = c4iw_num_stags(&dev->rdev);
 	props->max_pd = T4_MAX_NUM_PD;

@@ -205,9 +205,9 @@ static int create_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 	}
 
 	/*
-	 * RQT must be a power of 2.
+	 * RQT must be a power of 2 and at least 16 deep.
 	 */
-	wq->rq.rqt_size = roundup_pow_of_two(wq->rq.size);
+	wq->rq.rqt_size = roundup_pow_of_two(max_t(u16, wq->rq.size, 16));
 	wq->rq.rqt_hwaddr = c4iw_rqtpool_alloc(rdev, wq->rq.rqt_size);
 	if (!wq->rq.rqt_hwaddr) {
 		ret = -ENOMEM;
@@ -1621,13 +1621,17 @@ struct ib_qp *c4iw_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attrs,
 	if (attrs->cap.max_inline_data > T4_MAX_SEND_INLINE)
 		return ERR_PTR(-EINVAL);
 
-	rqsize = roundup(attrs->cap.max_recv_wr + 1, 16);
-	if (rqsize > rhp->rdev.hw_queue.t4_max_rq_size)
+	if (attrs->cap.max_recv_wr > rhp->rdev.hw_queue.t4_max_rq_size)
 		return ERR_PTR(-E2BIG);
+	rqsize = attrs->cap.max_recv_wr + 1;
+	if (rqsize < 8)
+		rqsize = 8;
 
-	sqsize = roundup(attrs->cap.max_send_wr + 1, 16);
-	if (sqsize > rhp->rdev.hw_queue.t4_max_sq_size)
+	if (attrs->cap.max_send_wr > rhp->rdev.hw_queue.t4_max_sq_size)
 		return ERR_PTR(-E2BIG);
+	sqsize = attrs->cap.max_send_wr + 1;
+	if (sqsize < 8)
+		sqsize = 8;
 
 	ucontext = pd->uobject ? to_c4iw_ucontext(pd->uobject->context) : NULL;
 
@@ -1635,18 +1639,19 @@ struct ib_qp *c4iw_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attrs,
 	if (!qhp)
 		return ERR_PTR(-ENOMEM);
 	qhp->wq.sq.size = sqsize;
-	qhp->wq.sq.memsize = (sqsize + 1) * sizeof *qhp->wq.sq.queue;
+	qhp->wq.sq.memsize =
+		(sqsize + rhp->rdev.hw_queue.t4_eq_status_entries) *
+		sizeof(*qhp->wq.sq.queue) + 16 * sizeof(__be64);
 	qhp->wq.sq.flush_cidx = -1;
 	qhp->wq.rq.size = rqsize;
-	qhp->wq.rq.memsize = (rqsize + 1) * sizeof *qhp->wq.rq.queue;
+	qhp->wq.rq.memsize =
+		(rqsize + rhp->rdev.hw_queue.t4_eq_status_entries) *
+		sizeof(*qhp->wq.rq.queue);
 
 	if (ucontext) {
 		qhp->wq.sq.memsize = roundup(qhp->wq.sq.memsize, PAGE_SIZE);
 		qhp->wq.rq.memsize = roundup(qhp->wq.rq.memsize, PAGE_SIZE);
 	}
-
-	PDBG("%s sqsize %u sqmemsize %zu rqsize %u rqmemsize %zu\n",
-	     __func__, sqsize, qhp->wq.sq.memsize, rqsize, qhp->wq.rq.memsize);
 
 	ret = create_qp(&rhp->rdev, &qhp->wq, &schp->cq, &rchp->cq,
 			ucontext ? &ucontext->uctx : &rhp->rdev.uctx);
@@ -1766,9 +1771,11 @@ struct ib_qp *c4iw_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attrs,
 	qhp->ibqp.qp_num = qhp->wq.sq.qid;
 	init_timer(&(qhp->timer));
 	INIT_LIST_HEAD(&qhp->db_fc_entry);
-	PDBG("%s qhp %p sq_num_entries %d, rq_num_entries %d qpid 0x%0x\n",
-	     __func__, qhp, qhp->attr.sq_num_entries, qhp->attr.rq_num_entries,
-	     qhp->wq.sq.qid);
+	PDBG("%s sq id %u size %u memsize %zu num_entries %u "
+	     "rq id %u size %u memsize %zu num_entries %u\n", __func__,
+	     qhp->wq.sq.qid, qhp->wq.sq.size, qhp->wq.sq.memsize,
+	     attrs->cap.max_send_wr, qhp->wq.rq.qid, qhp->wq.rq.size,
+	     qhp->wq.rq.memsize, attrs->cap.max_recv_wr);
 	return &qhp->ibqp;
 err8:
 	kfree(mm5);
@@ -1856,5 +1863,11 @@ int c4iw_ib_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	memset(attr, 0, sizeof *attr);
 	memset(init_attr, 0, sizeof *init_attr);
 	attr->qp_state = to_ib_qp_state(qhp->attr.state);
+	init_attr->cap.max_send_wr = qhp->attr.sq_num_entries;
+	init_attr->cap.max_recv_wr = qhp->attr.rq_num_entries;
+	init_attr->cap.max_send_sge = qhp->attr.sq_max_sges;
+	init_attr->cap.max_recv_sge = qhp->attr.sq_max_sges;
+	init_attr->cap.max_inline_data = T4_MAX_SEND_INLINE;
+	init_attr->sq_sig_type = qhp->sq_sig_all ? IB_SIGNAL_ALL_WR : 0;
 	return 0;
 }

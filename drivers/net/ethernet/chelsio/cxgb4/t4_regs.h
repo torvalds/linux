@@ -448,11 +448,13 @@
 #define  TDUE 0x00010000U
 
 #define MC_INT_CAUSE 0x7518
+#define MC_P_INT_CAUSE 0x41318
 #define  ECC_UE_INT_CAUSE 0x00000004U
 #define  ECC_CE_INT_CAUSE 0x00000002U
 #define  PERR_INT_CAUSE   0x00000001U
 
 #define MC_ECC_STATUS 0x751c
+#define MC_P_ECC_STATUS 0x4131c
 #define  ECC_CECNT_MASK   0xffff0000U
 #define  ECC_CECNT_SHIFT  16
 #define  ECC_CECNT(x)     ((x) << ECC_CECNT_SHIFT)
@@ -1101,6 +1103,7 @@
 #define  I2CM       0x00000002U
 #define  CIM        0x00000001U
 
+#define MC1 0x31
 #define PL_INT_ENABLE 0x19410
 #define PL_INT_MAP0 0x19414
 #define PL_RST 0x19428
