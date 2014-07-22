@@ -72,6 +72,7 @@
 #include "tda10071.h"
 #include "a8293.h"
 #include "mb86a20s.h"
+#include "si2165.h"
 
 static unsigned int debug;
 
@@ -299,6 +300,11 @@ static struct tda18271_config hauppauge_hvr1200_tuner_config = {
 };
 
 static struct tda18271_config hauppauge_hvr1210_tuner_config = {
+	.gate    = TDA18271_GATE_DIGITAL,
+	.output_opt = TDA18271_OUTPUT_LT_OFF,
+};
+
+static struct tda18271_config hauppauge_hvr4400_tuner_config = {
 	.gate    = TDA18271_GATE_DIGITAL,
 	.output_opt = TDA18271_OUTPUT_LT_OFF,
 };
@@ -701,6 +707,12 @@ static const struct tda10071_config hauppauge_tda10071_config = {
 
 static const struct a8293_config hauppauge_a8293_config = {
 	.i2c_addr = 0x0b,
+};
+
+static const struct si2165_config hauppauge_hvr4400_si2165_config = {
+	.i2c_addr	= 0x64,
+	.chip_mode	= SI2165_MODE_PLL_XTAL,
+	.ref_freq_Hz	= 16000000,
 };
 
 static int netup_altera_fpga_rw(void *device, int flag, int data, int read)
@@ -1459,13 +1471,34 @@ static int dvb_register(struct cx23885_tsport *port)
 		break;
 	case CX23885_BOARD_HAUPPAUGE_HVR4400:
 		i2c_bus = &dev->i2c_bus[0];
-		fe0->dvb.frontend = dvb_attach(tda10071_attach,
+		i2c_bus2 = &dev->i2c_bus[1];
+		switch (port->nr) {
+		/* port b */
+		case 1:
+			fe0->dvb.frontend = dvb_attach(tda10071_attach,
 						&hauppauge_tda10071_config,
 						&i2c_bus->i2c_adap);
-		if (fe0->dvb.frontend != NULL) {
-			dvb_attach(a8293_attach, fe0->dvb.frontend,
-				   &i2c_bus->i2c_adap,
-				   &hauppauge_a8293_config);
+			if (fe0->dvb.frontend != NULL) {
+				if (!dvb_attach(a8293_attach, fe0->dvb.frontend,
+						&i2c_bus->i2c_adap,
+						&hauppauge_a8293_config))
+					goto frontend_detach;
+			}
+			break;
+		/* port c */
+		case 2:
+			fe0->dvb.frontend = dvb_attach(si2165_attach,
+					&hauppauge_hvr4400_si2165_config,
+					&i2c_bus->i2c_adap);
+			if (fe0->dvb.frontend != NULL) {
+				fe0->dvb.frontend->ops.i2c_gate_ctrl = 0;
+				if (!dvb_attach(tda18271_attach,
+						fe0->dvb.frontend,
+						0x60, &i2c_bus2->i2c_adap,
+					  &hauppauge_hvr4400_tuner_config))
+					goto frontend_detach;
+			}
+			break;
 		}
 		break;
 	default:
