@@ -7,7 +7,7 @@
 
 /*******************register definition**********************/
 
-#define SYS_CTRL 		(0x00)
+#define SYS_CTRL		(0x00)
 	#define m_WIN0_EN		(1<<0)
 	#define m_WIN1_EN		(1<<1)
 	#define m_HWC_EN		(1<<2)
@@ -28,7 +28,7 @@
 	#define m_DMA_STOP		(1<<29)
 	#define m_LCDC_STANDBY		(1<<30)
 	#define m_AUTO_GATING_EN	(1<<31)
-	
+
 	#define v_WIN0_EN(x)		(((x)&1)<<0)
 	#define v_WIN1_EN(x)		(((x)&1)<<1)
 	#define v_HWC_EN(x)		(((x)&1)<<2)
@@ -72,7 +72,7 @@
 	#define m_PREMUL_ALPHA_ENABLE	(1<<29)
 	#define m_ALPHA_MODE_SEL1	(1<<30)
 	#define m_WIN1_DIFF_DCLK_EN	(1<<31)
-	
+
 	#define v_DSP_OUT_FORMAT(x)	(((x)&0x0f)<<0)
 	#define v_HSYNC_POL(x)		(((x)&1)<<4)
 	#define v_VSYNC_POL(x)		(((x)&1)<<5)
@@ -107,7 +107,7 @@
 	#define m_DSP_DELTA_SWAP	(1<<29)
 	#define m_DSP_DUMMY_SWAP	(1<<30)
 	#define m_DSP_OUT_ZERO		(1<<31)
-	
+
 	#define v_BG_COLOR(x)		(((x)&0xffffff)<<0)
 	#define v_BG_B(x)		(((x)&0xff)<<0)
 	#define v_BG_G(x)		(((x)&0xff)<<8)
@@ -122,15 +122,15 @@
 	#define v_DSP_OUT_ZERO(x)	(((x)&1)<<31)
 
 #define INT_STATUS		(0x10)
-	#define m_HS_INT_STA		(1<<0)  //status
+	#define m_HS_INT_STA		(1<<0) /* status */
 	#define m_FS_INT_STA		(1<<1)
 	#define m_LF_INT_STA		(1<<2)
 	#define m_BUS_ERR_INT_STA	(1<<3)
-	#define m_HS_INT_EN		(1<<4)  //enable
-	#define m_FS_INT_EN          	(1<<5)
-	#define m_LF_INT_EN         	(1<<6)
+	#define m_HS_INT_EN		(1<<4) /* enable */
+	#define m_FS_INT_EN		(1<<5)
+	#define m_LF_INT_EN		(1<<6)
 	#define m_BUS_ERR_INT_EN	(1<<7)
-	#define m_HS_INT_CLEAR		(1<<8) //auto clear
+	#define m_HS_INT_CLEAR		(1<<8) /* auto clear*/
 	#define m_FS_INT_CLEAR		(1<<9)
 	#define m_LF_INT_CLEAR		(1<<10)
 	#define m_BUS_ERR_INT_CLEAR	(1<<11)
@@ -143,7 +143,7 @@
 	#define m_WIN1_EMPTY_INT_STA	(1<<29)
 	#define m_FS_RAW_STA		(1<<30)
 	#define m_LF_RAW_STA		(1<<31)
-	
+
 	#define v_HS_INT_EN(x)			(((x)&1)<<4)
 	#define v_FS_INT_EN(x)			(((x)&1)<<5)
 	#define v_LF_INT_EN(x)			(((x)&1)<<6)
@@ -167,7 +167,7 @@
 	#define m_WIN0_ALPHA_VAL	(0xff<<4)
 	#define m_WIN1_ALPHA_VAL	(0xff<<12)
 	#define m_HWC_ALPAH_VAL		(0xff<<20)
-	
+
 	#define v_WIN0_ALPHA_EN(x)	(((x)&1)<<0)
 	#define v_WIN1_ALPHA_EN(x)	(((x)&1)<<1)
 	#define v_HWC_ALPAH_EN(x)	(((x)&1)<<2)
@@ -193,67 +193,71 @@
 #define WIN0_VIR		(0x30)
 	#define m_YRGB_VIR	(0x1fff << 0)
 	#define m_CBBR_VIR	(0x1fff << 16)
-	
+
 	#define v_YRGB_VIR(x)	((x & 0x1fff) << 0)
 	#define v_CBBR_VIR(x)	((x & 0x1fff) << 16)
-	
-	#define v_ARGB888_VIRWIDTH(x)	(((x)&0x1fff)<<0)
-	#define v_RGB888_VIRWIDTH(x) 	(((((x*3)>>2)+((x)%3))&0x1fff)<<0)
-	#define v_RGB565_VIRWIDTH(x)	((DIV_ROUND_UP(x,2)&0x1fff)<<0)
-	#define v_YUV_VIRWIDTH(x)	((DIV_ROUND_UP(x,4)&0x1fff)<<0)
+
+	#define v_ARGB888_VIRWIDTH(x)	(((x) & 0x1fff) << 0)
+	#define v_RGB888_VIRWIDTH(x)	(((((x * 3) >> 2)+(x % 3))&0x1fff)<<0)
+	#define v_RGB565_VIRWIDTH(x)	((DIV_ROUND_UP(x, 2)&0x1fff)<<0)
+	#define v_YUV_VIRWIDTH(x)	((DIV_ROUND_UP(x, 4)&0x1fff)<<0)
 	#define v_CBCR_VIR(x)		((x & 0x1fff) << 16)
 
 #define WIN0_ACT_INFO		(0x34)
 #define WIN1_ACT_INFO		(0xB4)
-	#define m_ACT_WIDTH       	(0x1fff<<0)
-	#define m_ACT_HEIGHT      	(0x1fff<<16)
-	#define v_ACT_WIDTH(x)       	(((x-1)&0x1fff)<<0)
-	#define v_ACT_HEIGHT(x)      	(((x-1)&0x1fff)<<16)
+	#define m_ACT_WIDTH		(0x1fff << 0)
+	#define m_ACT_HEIGHT		(0x1fff << 16)
+	#define v_ACT_WIDTH(x)		(((x-1) & 0x1fff)<<0)
+	#define v_ACT_HEIGHT(x)		(((x-1) & 0x1fff)<<16)
 
 #define WIN0_DSP_INFO		(0x38)
 #define WIN1_DSP_INFO		(0xB8)
-	#define v_DSP_WIDTH(x)     	(((x-1)&0x7ff)<<0)
-	#define v_DSP_HEIGHT(x)    	(((x-1)&0x7ff)<<16)
-	
+	#define v_DSP_WIDTH(x)		(((x-1)&0x7ff)<<0)
+	#define v_DSP_HEIGHT(x)		(((x-1)&0x7ff)<<16)
+
 #define WIN0_DSP_ST		(0x3C)
 #define WIN1_DSP_ST		(0xBC)
 #define HWC_DSP_ST		(0x5C)
-	#define v_DSP_STX(x)      	(((x)&0xfff)<<0)
-	#define v_DSP_STY(x)      	(((x)&0xfff)<<16)
-	
+	#define v_DSP_STX(x)		(((x)&0xfff)<<0)
+	#define v_DSP_STY(x)		(((x)&0xfff)<<16)
+
 #define WIN0_SCL_FACTOR_YRGB	(0x40)
 #define WIN0_SCL_FACTOR_CBR	(0x44)
 #define WIN1_SCL_FACTOR_YRGB	(0xC0)
-	#define v_X_SCL_FACTOR(x)  	(((x)&0xffff)<<0)
-	#define v_Y_SCL_FACTOR(x)  	(((x)&0xffff)<<16)
-	
+	#define v_X_SCL_FACTOR(x)	(((x)&0xffff)<<0)
+	#define v_Y_SCL_FACTOR(x)	(((x)&0xffff)<<16)
+
 #define WIN0_SCL_OFFSET		(0x48)
 #define WIN1_SCL_OFFSET		(0xC8)
 
 /* LUT Registers */
-#define WIN1_LUT_ADDR 			(0x0400)
-#define HWC_LUT_ADDR   			(0x0800)
+#define WIN1_LUT_ADDR			(0x0400)
+#define HWC_LUT_ADDR			(0x0800)
 
 /* Display Infomation Registers */
 #define DSP_HTOTAL_HS_END	(0x6C)
-	#define v_HSYNC(x)  		(((x)&0xfff)<<0)   //hsync pulse width
-	#define v_HORPRD(x) 		(((x)&0xfff)<<16)   //horizontal period
+	/*hsync pulse width*/
+	#define v_HSYNC(x)		(((x)&0xfff)<<0)
+	/*horizontal period*/
+	#define v_HORPRD(x)		(((x)&0xfff)<<16)
 
 #define DSP_HACT_ST_END		(0x70)
-	#define v_HAEP(x) 		(((x)&0xfff)<<0)  //horizontal active end point
-	#define v_HASP(x) 		(((x)&0xfff)<<16) //horizontal active start point
+	/*horizontal active end point*/
+	#define v_HAEP(x)		(((x)&0xfff)<<0)
+	/*horizontal active start point*/
+	#define v_HASP(x)		(((x)&0xfff)<<16)
 
 #define DSP_VTOTAL_VS_END	(0x74)
-	#define v_VSYNC(x) 		(((x)&0xfff)<<0)
-	#define v_VERPRD(x) 		(((x)&0xfff)<<16)
-	
+	#define v_VSYNC(x)		(((x)&0xfff)<<0)
+	#define v_VERPRD(x)		(((x)&0xfff)<<16)
+
 #define DSP_VACT_ST_END		(0x78)
-	#define v_VAEP(x) 		(((x)&0xfff)<<0)
-	#define v_VASP(x) 		(((x)&0xfff)<<16)
+	#define v_VAEP(x)		(((x)&0xfff)<<0)
+	#define v_VASP(x)		(((x)&0xfff)<<16)
 
 #define DSP_VS_ST_END_F1	(0x7C)
-	#define v_VSYNC_END_F1(x) 		(((x)&0xfff)<<0)
-	#define v_VSYNC_ST_F1(x) 		(((x)&0xfff)<<16)
+	#define v_VSYNC_END_F1(x)	(((x)&0xfff)<<0)
+	#define v_VSYNC_ST_F1(x)	(((x)&0xfff)<<16)
 #define DSP_VACT_ST_END_F1	(0x80)
 
 /*BCSH Registers*/
@@ -261,12 +265,12 @@
 	#define m_BCSH_EN		(1 << 0)
 	#define m_BCSH_OUT_MODE		(3 << 2)
 	#define m_BCSH_CSC_MODE		(3 << 4)
-	
-	#define v_BCSH_EN(x)		( (1 & x) << 0)
-	#define v_BCSH_OUT_MODE(x)	( (3 & x) << 2)
-	#define v_BCSH_CSC_MODE(x)	( (3 & x) << 4)
 
-#define BCSH_COLOR_BAR 			(0xD4)
+	#define v_BCSH_EN(x)		((1 & x) << 0)
+	#define v_BCSH_OUT_MODE(x)	((3 & x) << 2)
+	#define v_BCSH_CSC_MODE(x)	((3 & x) << 4)
+
+#define BCSH_COLOR_BAR			(0xD4)
 	#define v_BCSH_COLOR_BAR_Y(x)		(((x)&0xf) << 0)
 	#define v_BCSH_COLOR_BAR_U(x)		(((x)&0xf) << 8)
 	#define v_BCSH_COLOR_BAR_V(x)		(((x)&0xf) << 16)
@@ -275,19 +279,19 @@
 	#define m_BCSH_COLOR_BAR_U		(0xf << 8)
 	#define m_BCSH_COLOR_BAR_V		(0xf << 16)
 
-#define BCSH_BCS 			(0xD8)
-	#define v_BCSH_BRIGHTNESS(x)		(((x)&0x1f) << 0)	
-	#define v_BCSH_CONTRAST(x)		(((x)&0xf) << 8)	
-	#define v_BCSH_SAT_CON(x)		(((x)&0xf) << 16)	
-	
-	#define m_BCSH_BRIGHTNESS		(0x1f << 0)	
-	#define m_BCSH_CONTRAST			(0xf << 8)
-	#define m_BCSH_SAT_CON			(0xf << 16)		
+#define BCSH_BCS			(0xD8)
+	#define v_BCSH_BRIGHTNESS(x)		(((x)&0x1f) << 0)
+	#define v_BCSH_CONTRAST(x)		(((x)&0xf) << 8)
+	#define v_BCSH_SAT_CON(x)		(((x)&0xf) << 16)
 
-#define BCSH_H 				(0xDC)
+	#define m_BCSH_BRIGHTNESS		(0x1f << 0)
+	#define m_BCSH_CONTRAST			(0xf << 8)
+	#define m_BCSH_SAT_CON			(0xf << 16)
+
+#define BCSH_H				(0xDC)
 	#define v_BCSH_SIN_HUE(x)		(((x)&0xf) << 0)
 	#define v_BCSH_COS_HUE(x)		(((x)&0xf) << 16)
-	
+
 	#define m_BCSH_SIN_HUE			(0xf << 0)
 	#define m_BCSH_COS_HUE			(0xf << 16)
 
@@ -308,7 +312,7 @@
 	#define m_NOC_HURRY_EN			(1 << 3)
 	#define m_NOC_QOS_VALUE			(3 << 1)
 	#define m_NOC_QOS_EN			(1 << 0)
-	
+
 	#define v_IO_PAD_CLK(x)			((x&1) << 31)
 	#define v_CORE_CLK_DIV_EN(x)		((x&1) << 30)
 	#define v_HDMI_DCLK_INVERT(x)		((x&1) << 23)
@@ -324,7 +328,7 @@
 	#define v_NOC_HURRY_EN(x)		((x&1) << 3)
 	#define v_NOC_QOS_VALUE(x)		((x&3) << 1)
 	#define v_NOC_QOS_EN(x)			((x&1) << 0)
-	
+
 #define GATHER_TRANSFER		(0x84)
 	#define m_WIN1_AXI_GATHER_NUM		(0xf << 12)
 	#define m_WIN0_CBCR_AXI_GATHER_NUM	(0x7 << 8)
@@ -332,23 +336,23 @@
 	#define m_WIN1_AXI_GAHTER_EN		(1 << 2)
 	#define m_WIN0_CBCR_AXI_GATHER_EN	(1 << 1)
 	#define m_WIN0_YRGB_AXI_GATHER_EN	(1 << 0)
-	
+
 	#define v_WIN1_AXI_GATHER_NUM(x)	((x & 0xf) << 12)
 	#define v_WIN0_CBCR_AXI_GATHER_NUM(x)	((x & 0x7) << 8)
 	#define v_WIN0_YRGB_AXI_GATHER_NUM(x)	((x & 0xf) << 4)
 	#define v_WIN1_AXI_GAHTER_EN(x)		((x & 1) << 2)
 	#define v_WIN0_CBCR_AXI_GATHER_EN(x)	((x & 1) << 1)
 	#define v_WIN0_YRGB_AXI_GATHER_EN(x)	((x & 1) << 0)
-	
+
 #define VERSION_INFO		(0x94)
 	#define m_MAJOR		(0xff << 24)
 	#define m_MINOR		(0xff << 16)
 	#define m_BUILD		(0xffff)
-		
+
 #define REG_CFG_DONE		(0x90)
 
 /* TV Control Registers */
-#define TV_CTRL			(0x200)	
+#define TV_CTRL			(0x200)
 #define TV_SYNC_TIMING		(0x204)
 #define TV_ACT_TIMING		(0x208)
 #define TV_ADJ_TIMING		(0x20c)
@@ -458,95 +462,110 @@ enum _vop_hwc_size {
 	VOP_HWC_SIZE_64
 };
 
-#define CalScale(x, y)	             ((((u32)(x-1))*0x1000)/(y-1))
+#define calscale(x, y)		((((u32)(x-1))*0x1000)/(y-1))
 
-struct lcdc_device{
+struct lcdc_device {
 	int id;
 	struct rk_lcdc_driver driver;
 	struct device *dev;
 	struct rk_screen *screen;
 
 	void __iomem *regs;
-	void *regsbak;			/*back up reg*/
-	u32 reg_phy_base;       	/* physical basic address of lcdc register*/
-	u32 len;               		/* physical map length of lcdc register*/
-	spinlock_t  reg_lock;		/*one time only one process allowed to config the register*/
-	
+	void *regsbak;		/* back up reg */
+	u32 reg_phy_base;	/* physical basic address of lcdc register*/
+	u32 len;		/* physical map length of lcdc register*/
+	spinlock_t  reg_lock;	/* one time only one process allowed to
+				   config the register*/
+
 	int __iomem *dsp_lut_addr_base;
 
 
-	int prop;			/*used for primary or extended display device*/
+	int prop;			/*used for primary or */
+					/*extended display device*/
 	bool pre_init;
 	bool pwr18;			/*if lcdc use 1.8v power supply*/
-	bool clk_on;			/*if aclk or hclk is closed ,acess to register is not allowed*/
-	u8 atv_layer_cnt;		/*active layer counter,when  atv_layer_cnt = 0,disable lcdc*/
-	
+	bool clk_on;			/*if aclk or hclk is closed,
+					  acess to register is not allowed*/
+	u8 atv_layer_cnt;		/*active layer counter, when
+					  atv_layer_cnt = 0,disable lcdc*/
 
 	unsigned int		irq;
 
-	struct clk		*pd;				/*lcdc power domain*/
-	struct clk		*hclk;				/*lcdc AHP clk*/
-	struct clk		*dclk;				/*lcdc dclk*/
-	struct clk		*aclk;				/*lcdc share memory frequency*/
-	u32 pixclock;	
+	struct clk		*pd;	/*lcdc power domain*/
+	struct clk		*hclk;	/*lcdc AHP clk*/
+	struct clk		*dclk;	/*lcdc dclk*/
+	struct clk		*aclk;	/*lcdc share memory frequency*/
+	u32 pixclock;
 
-	u32 standby;						/*1:standby,0:work*/
+	u32 standby;			/*1:standby,0:work*/
 };
 
-static inline void lcdc_writel(struct lcdc_device *lcdc_dev,u32 offset,u32 v)
+static inline
+void lcdc_writel(struct lcdc_device *lcdc_dev, u32 offset, u32 v)
 {
-	u32 *_pv = (u32*)lcdc_dev->regsbak;	
-	_pv += (offset >> 2);	
+	u32 *_pv = (u32 *)lcdc_dev->regsbak;
+
+	_pv += (offset >> 2);
 	*_pv = v;
-	writel_relaxed(v,lcdc_dev->regs+offset);	
+	writel_relaxed(v, lcdc_dev->regs + offset);
 }
 
-static inline u32 lcdc_readl(struct lcdc_device *lcdc_dev,u32 offset)
+static inline
+u32 lcdc_readl(struct lcdc_device *lcdc_dev, u32 offset)
 {
 	u32 v;
-	u32 *_pv = (u32*)lcdc_dev->regsbak;
+	u32 *_pv = (u32 *)lcdc_dev->regsbak;
+
 	_pv += (offset >> 2);
-	v = readl_relaxed(lcdc_dev->regs+offset);
+	v = readl_relaxed(lcdc_dev->regs + offset);
 	*_pv = v;
 	return v;
 }
 
-static inline u32 lcdc_read_bit(struct lcdc_device *lcdc_dev,u32 offset,u32 msk) 
+static inline
+u32 lcdc_read_bit(struct lcdc_device *lcdc_dev, u32 offset, u32 msk)
 {
-       u32 _v = readl_relaxed(lcdc_dev->regs+offset); 
-       _v &= msk;
-       return (_v?1:0);   
+	u32 _v = readl_relaxed(lcdc_dev->regs + offset);
+
+	_v &= msk;
+	return _v ? 1 : 0;
 }
 
-static inline void  lcdc_set_bit(struct lcdc_device *lcdc_dev,u32 offset,u32 msk) 
+static inline
+void  lcdc_set_bit(struct lcdc_device *lcdc_dev, u32 offset, u32 msk)
 {
-	u32* _pv = (u32*)lcdc_dev->regsbak;	
-	_pv += (offset >> 2);				
-	(*_pv) |= msk;				
-	writel_relaxed(*_pv,lcdc_dev->regs + offset); 
-} 
+	u32 *_pv = (u32 *)lcdc_dev->regsbak;
 
-static inline void lcdc_clr_bit(struct lcdc_device *lcdc_dev,u32 offset,u32 msk)
-{
-	u32* _pv = (u32*)lcdc_dev->regsbak;	
-	_pv += (offset >> 2);				
-	(*_pv) &= (~msk);				
-	writel_relaxed(*_pv,lcdc_dev->regs + offset); 
-} 
-
-static inline void  lcdc_msk_reg(struct lcdc_device *lcdc_dev,u32 offset,u32 msk,u32 v)
-{
-	u32 *_pv = (u32*)lcdc_dev->regsbak;	
-	_pv += (offset >> 2);			
-	(*_pv) &= (~msk);				
-	(*_pv) |= v;				
-	writel_relaxed(*_pv,lcdc_dev->regs+offset);	
+	_pv += (offset >> 2);
+	(*_pv) |= msk;
+	writel_relaxed(*_pv, lcdc_dev->regs + offset);
 }
 
-static inline void lcdc_cfg_done(struct lcdc_device *lcdc_dev) 
+static inline
+void lcdc_clr_bit(struct lcdc_device *lcdc_dev, u32 offset, u32 msk)
 {
-	writel_relaxed(0x01,lcdc_dev->regs+REG_CFG_DONE); 
-	dsb();	
-} 
+	u32 *_pv = (u32 *)lcdc_dev->regsbak;
+
+	_pv += (offset >> 2);
+	(*_pv) &= (~msk);
+	writel_relaxed(*_pv, lcdc_dev->regs + offset);
+}
+
+static inline
+void  lcdc_msk_reg(struct lcdc_device *lcdc_dev, u32 offset, u32 msk, u32 v)
+{
+	u32 *_pv = (u32 *)lcdc_dev->regsbak;
+
+	_pv += (offset >> 2);
+	(*_pv) &= (~msk);
+	(*_pv) |= v;
+	writel_relaxed(*_pv, lcdc_dev->regs + offset);
+}
+
+static inline void lcdc_cfg_done(struct lcdc_device *lcdc_dev)
+{
+	writel_relaxed(0x01, lcdc_dev->regs + REG_CFG_DONE);
+	dsb();
+}
 
 #endif /* _RK3036_LCDC_H_ */
