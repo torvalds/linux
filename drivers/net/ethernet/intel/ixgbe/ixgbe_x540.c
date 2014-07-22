@@ -99,8 +99,8 @@ static s32 ixgbe_reset_hw_X540(struct ixgbe_hw *hw)
 
 	/* Call adapter stop to disable tx/rx and clear interrupts */
 	status = hw->mac.ops.stop_adapter(hw);
-	if (status != 0)
-		goto reset_hw_out;
+	if (status)
+		return status;
 
 	/* flush pending Tx transactions */
 	ixgbe_clear_tx_pending(hw);
@@ -168,7 +168,6 @@ mac_reset_top:
 	hw->mac.ops.get_wwn_prefix(hw, &hw->mac.wwnn_prefix,
 				   &hw->mac.wwpn_prefix);
 
-reset_hw_out:
 	return status;
 }
 
@@ -182,15 +181,13 @@ reset_hw_out:
  **/
 static s32 ixgbe_start_hw_X540(struct ixgbe_hw *hw)
 {
-	s32 ret_val = 0;
+	s32 ret_val;
 
 	ret_val = ixgbe_start_hw_generic(hw);
-	if (ret_val != 0)
-		goto out;
+	if (ret_val)
+		return ret_val;
 
-	ret_val = ixgbe_start_hw_gen2(hw);
-out:
-	return ret_val;
+	return ixgbe_start_hw_gen2(hw);
 }
 
 /**
@@ -483,12 +480,12 @@ static s32 ixgbe_update_eeprom_checksum_X540(struct ixgbe_hw *hw)
 static s32 ixgbe_update_flash_X540(struct ixgbe_hw *hw)
 {
 	u32 flup;
-	s32 status = IXGBE_ERR_EEPROM;
+	s32 status;
 
 	status = ixgbe_poll_flash_update_done_X540(hw);
 	if (status == IXGBE_ERR_EEPROM) {
 		hw_dbg(hw, "Flash update time out\n");
-		goto out;
+		return status;
 	}
 
 	flup = IXGBE_READ_REG(hw, IXGBE_EEC) | IXGBE_EEC_FLUP;
@@ -514,7 +511,7 @@ static s32 ixgbe_update_flash_X540(struct ixgbe_hw *hw)
 		else
 			hw_dbg(hw, "Flash update time out\n");
 	}
-out:
+
 	return status;
 }
 
@@ -529,17 +526,14 @@ static s32 ixgbe_poll_flash_update_done_X540(struct ixgbe_hw *hw)
 {
 	u32 i;
 	u32 reg;
-	s32 status = IXGBE_ERR_EEPROM;
 
 	for (i = 0; i < IXGBE_FLUDONE_ATTEMPTS; i++) {
 		reg = IXGBE_READ_REG(hw, IXGBE_EEC);
-		if (reg & IXGBE_EEC_FLUDONE) {
-			status = 0;
-			break;
-		}
+		if (reg & IXGBE_EEC_FLUDONE)
+			return 0;
 		udelay(5);
 	}
-	return status;
+	return IXGBE_ERR_EEPROM;
 }
 
 /**
