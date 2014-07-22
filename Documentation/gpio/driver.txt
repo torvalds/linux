@@ -167,3 +167,24 @@ is released:
 When implementing an irqchip inside a GPIO driver, these two functions should
 typically be called in the .startup() and .shutdown() callbacks from the
 irqchip.
+
+
+Requesting self-owned GPIO pins
+-------------------------------
+
+Sometimes it is useful to allow a GPIO chip driver to request its own GPIO
+descriptors through the gpiolib API. Using gpio_request() for this purpose
+does not help since it pins the module to the kernel forever (it calls
+try_module_get()). A GPIO driver can use the following functions instead
+to request and free descriptors without being pinned to the kernel forever.
+
+	int gpiochip_request_own_desc(struct gpio_desc *desc, const char *label)
+
+	void gpiochip_free_own_desc(struct gpio_desc *desc)
+
+Descriptors requested with gpiochip_request_own_desc() must be released with
+gpiochip_free_own_desc().
+
+These functions must be used with care since they do not affect module use
+count. Do not use the functions to request gpio descriptors not owned by the
+calling driver.

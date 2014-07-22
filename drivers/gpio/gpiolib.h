@@ -45,9 +45,6 @@ acpi_get_gpiod_by_index(struct device *dev, int index,
 }
 #endif
 
-int gpiochip_request_own_desc(struct gpio_desc *desc, const char *label);
-void gpiochip_free_own_desc(struct gpio_desc *desc);
-
 struct gpio_desc *of_get_named_gpiod_flags(struct device_node *np,
 		   const char *list_name, int index, enum of_gpio_flags *flags);
 
