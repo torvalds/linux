@@ -744,7 +744,7 @@ struct cx231xx_board cx231xx_boards[] = {
 		} },
 	},
 	[CX231XX_BOARD_HAUPPAUGE_930C_HD_1114xx] = {
-		.name = "Hauppauge WinTV 930C-HD (1114xx)",
+		.name = "Hauppauge WinTV 930C-HD (1114xx) / PCTV QuatroStick 522e",
 		.tuner_type = TUNER_ABSENT,
 		.tuner_addr = 0x60,
 		.tuner_gpio = RDE250_XCV_TUNER,
@@ -822,6 +822,9 @@ struct usb_device_id cx231xx_id_table[] = {
 	/* PCTV QuatroStick 521e */
 	{USB_DEVICE(0x2013, 0x0259),
 	 .driver_info = CX231XX_BOARD_HAUPPAUGE_930C_HD_1113xx},
+	/* PCTV QuatroStick 522e */
+	{USB_DEVICE(0x2013, 0x025e),
+	 .driver_info = CX231XX_BOARD_HAUPPAUGE_930C_HD_1114xx},
 	{USB_DEVICE_VER(USB_VID_PIXELVIEW, USB_PID_PIXELVIEW_SBTVD, 0x4000, 0x4001),
 	 .driver_info = CX231XX_BOARD_PV_PLAYTV_USB_HYBRID},
 	{USB_DEVICE(USB_VID_PIXELVIEW, 0x5014),
