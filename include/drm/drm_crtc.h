@@ -31,6 +31,7 @@
 #include <linux/idr.h>
 #include <linux/fb.h>
 #include <linux/hdmi.h>
+#include <linux/media-bus-format.h>
 #include <uapi/drm/drm_mode.h>
 #include <uapi/drm/drm_fourcc.h>
 #include <drm/drm_modeset_lock.h>
@@ -138,6 +139,9 @@ struct drm_display_info {
 
 	enum subpixel_order subpixel_order;
 	u32 color_formats;
+
+	const u32 *bus_formats;
+	unsigned int num_bus_formats;
 
 	/* Mask of supported hdmi deep color modes */
 	u8 edid_hdmi_dc_modes;
@@ -1281,6 +1285,10 @@ extern int drm_mode_connector_set_path_property(struct drm_connector *connector,
 int drm_mode_connector_set_tile_property(struct drm_connector *connector);
 extern int drm_mode_connector_update_edid_property(struct drm_connector *connector,
 						   const struct edid *edid);
+
+extern int drm_display_info_set_bus_formats(struct drm_display_info *info,
+					    const u32 *formats,
+					    unsigned int num_formats);
 
 static inline bool drm_property_type_is(struct drm_property *property,
 		uint32_t type)
