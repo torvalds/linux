@@ -104,6 +104,24 @@ TRACE_EVENT(radeon_vm_set_page,
 		      __entry->flags, __entry->count)
 );
 
+TRACE_EVENT(radeon_vm_flush,
+	    TP_PROTO(uint64_t pd_addr, unsigned ring, unsigned id),
+	    TP_ARGS(pd_addr, ring, id),
+	    TP_STRUCT__entry(
+			     __field(u64, pd_addr)
+			     __field(u32, ring)
+			     __field(u32, id)
+			     ),
+
+	    TP_fast_assign(
+			   __entry->pd_addr = pd_addr;
+			   __entry->ring = ring;
+			   __entry->id = id;
+			   ),
+	    TP_printk("pd_addr=%010Lx, ring=%u, id=%u",
+		      __entry->pd_addr, __entry->ring, __entry->id)
+);
+
 DECLARE_EVENT_CLASS(radeon_fence_request,
 
 	    TP_PROTO(struct drm_device *dev, int ring, u32 seqno),
