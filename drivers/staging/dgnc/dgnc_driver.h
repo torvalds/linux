@@ -98,7 +98,7 @@
 /* Choose one: */
 #  define TRC_ON_OVERFLOW_WRAP_AROUND
 #  undef  TRC_ON_OVERFLOW_SHIFT_BUFFER
-# endif //TRC_TO_KMEM
+# endif /* TRC_TO_KMEM */
 
 # define TRC_MAXMSG		1024
 # define TRC_OVERFLOW		"(OVERFLOW)"
@@ -106,13 +106,13 @@
 
 #if defined TRC_TO_CONSOLE
 #define PRINTF_TO_CONSOLE(args) { printk(DRVSTR": "); printk args; }
-#else //!defined TRACE_TO_CONSOLE
+#else /* !defined TRACE_TO_CONSOLE */
 #define PRINTF_TO_CONSOLE(args)
 #endif
 
 #if defined TRC_TO_KMEM
 #define PRINTF_TO_KMEM(args) dgnc_tracef args
-#else //!defined TRC_TO_KMEM
+#else /* !defined TRC_TO_KMEM */
 #define PRINTF_TO_KMEM(args)
 #endif
 
@@ -140,7 +140,7 @@
 # define P(X)			dgnc_tracef(#X "=%p\n", X)
 # define X(X)			dgnc_tracef(#X "=%x\n", X)
 
-#else//!defined DGNC_TRACER
+#else/* !defined DGNC_TRACER */
 
 #define PRINTF_TO_KMEM(args)
 # define TRC(ARGS)
@@ -164,7 +164,7 @@
 
 # define DPR(args)
 
-#endif//DGNC_TRACER
+#endif/* DGNC_TRACER */
 
 /* Number of boards we support at once. */
 #define	MAXBOARDS	20
