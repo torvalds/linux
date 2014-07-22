@@ -664,6 +664,7 @@ f_audio_bind(struct usb_configuration *c, struct usb_function *f)
 {
 	struct usb_composite_dev *cdev = c->cdev;
 	struct f_audio		*audio = func_to_audio(f);
+	struct usb_string	*us;
 	int			status;
 	struct usb_ep		*ep = NULL;
 	struct f_uac1_opts	*audio_opts;
@@ -678,23 +679,17 @@ f_audio_bind(struct usb_configuration *c, struct usb_function *f)
 			return status;
 		audio_opts->bound = true;
 	}
-	if (strings_uac1[0].id == 0) {
-		status = usb_string_ids_tab(c->cdev, strings_uac1);
-		if (status < 0)
-			goto fail;
-		ac_interface_desc.iInterface = strings_uac1[STR_AC_IF].id;
-		input_terminal_desc.iTerminal =
-			strings_uac1[STR_INPUT_TERMINAL].id;
-		input_terminal_desc.iChannelNames =
-			strings_uac1[STR_INPUT_TERMINAL_CH_NAMES].id;
-		feature_unit_desc.iFeature = strings_uac1[STR_FEAT_DESC_0].id;
-		output_terminal_desc.iTerminal =
-			strings_uac1[STR_OUTPUT_TERMINAL].id;
-		as_interface_alt_0_desc.iInterface =
-			strings_uac1[STR_AS_IF_ALT0].id;
-		as_interface_alt_1_desc.iInterface =
-			strings_uac1[STR_AS_IF_ALT1].id;
-	}
+	us = usb_gstrings_attach(cdev, uac1_strings, ARRAY_SIZE(strings_uac1));
+	if (IS_ERR(us))
+		return PTR_ERR(us);
+	ac_interface_desc.iInterface = us[STR_AC_IF].id;
+	input_terminal_desc.iTerminal = us[STR_INPUT_TERMINAL].id;
+	input_terminal_desc.iChannelNames = us[STR_INPUT_TERMINAL_CH_NAMES].id;
+	feature_unit_desc.iFeature = us[STR_FEAT_DESC_0].id;
+	output_terminal_desc.iTerminal = us[STR_OUTPUT_TERMINAL].id;
+	as_interface_alt_0_desc.iInterface = us[STR_AS_IF_ALT0].id;
+	as_interface_alt_1_desc.iInterface = us[STR_AS_IF_ALT1].id;
+
 
 	f_audio_build_desc(audio);
 
@@ -815,7 +810,6 @@ static struct usb_function *f_audio_alloc(struct usb_function_instance *fi)
 	INIT_LIST_HEAD(&audio->play_queue);
 	spin_lock_init(&audio->lock);
 
-	audio->card.func.strings = uac1_strings;
 	audio->card.func.bind = f_audio_bind;
 	audio->card.func.unbind = f_audio_unbind;
 	audio->card.func.set_alt = f_audio_set_alt;
