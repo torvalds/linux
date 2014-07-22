@@ -21,6 +21,38 @@
 
 USB_GADGET_COMPOSITE_OPTIONS();
 
+#ifndef CONFIG_GADGET_UAC1
+/* Playback(USB-IN) Default Stereo - Fl/Fr */
+static int p_chmask = 0x3;
+module_param(p_chmask, uint, S_IRUGO);
+MODULE_PARM_DESC(p_chmask, "Playback Channel Mask");
+
+/* Playback Default 48 KHz */
+static int p_srate = 48000;
+module_param(p_srate, uint, S_IRUGO);
+MODULE_PARM_DESC(p_srate, "Playback Sampling Rate");
+
+/* Playback Default 16bits/sample */
+static int p_ssize = 2;
+module_param(p_ssize, uint, S_IRUGO);
+MODULE_PARM_DESC(p_ssize, "Playback Sample Size(bytes)");
+
+/* Capture(USB-OUT) Default Stereo - Fl/Fr */
+static int c_chmask = 0x3;
+module_param(c_chmask, uint, S_IRUGO);
+MODULE_PARM_DESC(c_chmask, "Capture Channel Mask");
+
+/* Capture Default 64 KHz */
+static int c_srate = 64000;
+module_param(c_srate, uint, S_IRUGO);
+MODULE_PARM_DESC(c_srate, "Capture Sampling Rate");
+
+/* Capture Default 16bits/sample */
+static int c_ssize = 2;
+module_param(c_ssize, uint, S_IRUGO);
+MODULE_PARM_DESC(c_ssize, "Capture Sample Size(bytes)");
+#endif
+
 /* string IDs are assigned dynamically */
 
 static struct usb_string strings_dev[] = {
@@ -40,13 +72,17 @@ static struct usb_gadget_strings *audio_strings[] = {
 	NULL,
 };
 
+#ifndef CONFIG_GADGET_UAC1
+static struct usb_function_instance *fi_uac2;
+static struct usb_function *f_uac2;
+#endif
+
 #ifdef CONFIG_GADGET_UAC1
 #include "u_uac1.h"
 #include "u_uac1.c"
 #include "f_uac1.c"
 #else
-#define USB_FUAC2_INCLUDED
-#include "f_uac2.c"
+#include "u_uac2.h"
 #endif
 
 /*-------------------------------------------------------------------------*/
@@ -110,6 +146,10 @@ static const struct usb_descriptor_header *otg_desc[] = {
 
 static int __init audio_do_config(struct usb_configuration *c)
 {
+#ifndef CONFIG_GADGET_UAC1
+	int status;
+#endif
+
 	/* FIXME alloc iConfiguration string, set it in c->strings */
 
 	if (gadget_is_otg(c->cdev->gadget)) {
@@ -117,7 +157,21 @@ static int __init audio_do_config(struct usb_configuration *c)
 		c->bmAttributes |= USB_CONFIG_ATT_WAKEUP;
 	}
 
+#ifdef CONFIG_GADGET_UAC1
 	audio_bind_config(c);
+#else
+	f_uac2 = usb_get_function(fi_uac2);
+	if (IS_ERR(f_uac2)) {
+		status = PTR_ERR(f_uac2);
+		return status;
+	}
+
+	status = usb_add_function(c, f_uac2);
+	if (status < 0) {
+		usb_put_function(f_uac2);
+		return status;
+	}
+#endif
 
 	return 0;
 }
@@ -133,7 +187,26 @@ static struct usb_configuration audio_config_driver = {
 
 static int __init audio_bind(struct usb_composite_dev *cdev)
 {
+#ifndef CONFIG_GADGET_UAC1
+	struct f_uac2_opts	*uac2_opts;
+#endif
 	int			status;
+
+#ifndef CONFIG_GADGET_UAC1
+	fi_uac2 = usb_get_function_instance("uac2");
+	if (IS_ERR(fi_uac2))
+		return PTR_ERR(fi_uac2);
+#endif
+
+#ifndef CONFIG_GADGET_UAC1
+	uac2_opts = container_of(fi_uac2, struct f_uac2_opts, func_inst);
+	uac2_opts->p_chmask = p_chmask;
+	uac2_opts->p_srate = p_srate;
+	uac2_opts->p_ssize = p_ssize;
+	uac2_opts->c_chmask = c_chmask;
+	uac2_opts->c_srate = c_srate;
+	uac2_opts->c_ssize = c_ssize;
+#endif
 
 	status = usb_string_ids_tab(cdev, strings_dev);
 	if (status < 0)
@@ -150,6 +223,9 @@ static int __init audio_bind(struct usb_composite_dev *cdev)
 	return 0;
 
 fail:
+#ifndef CONFIG_GADGET_UAC1
+	usb_put_function_instance(fi_uac2);
+#endif
 	return status;
 }
 
@@ -157,6 +233,11 @@ static int __exit audio_unbind(struct usb_composite_dev *cdev)
 {
 #ifdef CONFIG_GADGET_UAC1
 	gaudio_cleanup();
+#else
+	if (!IS_ERR_OR_NULL(f_uac2))
+		usb_put_function(f_uac2);
+	if (!IS_ERR_OR_NULL(fi_uac2))
+		usb_put_function_instance(fi_uac2);
 #endif
 	return 0;
 }
