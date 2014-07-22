@@ -87,7 +87,7 @@ static unsigned char abyDefaultSuppRatesB[] = {WLAN_EID_SUPP_RATES, 4, 0x02, 0x0
 
 /*---------------------  Static Variables  --------------------------*/
 
-const unsigned short cwRXBCNTSFOff[MAX_RATE] =
+static const unsigned short cwRXBCNTSFOff[MAX_RATE] =
 {17, 17, 17, 17, 34, 23, 17, 11, 8, 5, 4, 3};
 
 /*---------------------  Static Functions  --------------------------*/
@@ -1576,7 +1576,7 @@ CARDvSafeResetRx(
  * Return Value: response Control frame rate
  *
  */
-unsigned short CARDwGetCCKControlRate(void *pDeviceHandler, unsigned short wRateIdx)
+static unsigned short CARDwGetCCKControlRate(void *pDeviceHandler, unsigned short wRateIdx)
 {
 	PSDevice    pDevice = (PSDevice) pDeviceHandler;
 	unsigned int ui = (unsigned int) wRateIdx;
@@ -1603,7 +1603,7 @@ unsigned short CARDwGetCCKControlRate(void *pDeviceHandler, unsigned short wRate
  * Return Value: response Control frame rate
  *
  */
-unsigned short CARDwGetOFDMControlRate(void *pDeviceHandler, unsigned short wRateIdx)
+static unsigned short CARDwGetOFDMControlRate(void *pDeviceHandler, unsigned short wRateIdx)
 {
 	PSDevice pDevice = (PSDevice) pDeviceHandler;
 	unsigned int ui = (unsigned int) wRateIdx;

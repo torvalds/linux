@@ -3144,7 +3144,7 @@ s_MgrMakeBeacon(
  *
  -*/
 
-PSTxMgmtPacket
+static PSTxMgmtPacket
 s_MgrMakeProbeResponse(
 	PSDevice pDevice,
 	PSMgmtObject pMgmt,
@@ -3326,7 +3326,7 @@ s_MgrMakeProbeResponse(
  *
  -*/
 
-PSTxMgmtPacket
+static PSTxMgmtPacket
 s_MgrMakeAssocRequest(
 	PSDevice pDevice,
 	PSMgmtObject pMgmt,
@@ -3586,7 +3586,7 @@ s_MgrMakeAssocRequest(
  *
  -*/
 
-PSTxMgmtPacket
+static PSTxMgmtPacket
 s_MgrMakeReAssocRequest(
 	PSDevice pDevice,
 	PSMgmtObject pMgmt,
@@ -3831,7 +3831,7 @@ s_MgrMakeReAssocRequest(
  *
  -*/
 
-PSTxMgmtPacket
+static PSTxMgmtPacket
 s_MgrMakeAssocResponse(
 	PSDevice pDevice,
 	PSMgmtObject pMgmt,
@@ -3902,7 +3902,7 @@ s_MgrMakeAssocResponse(
  *
  -*/
 
-PSTxMgmtPacket
+static PSTxMgmtPacket
 s_MgrMakeReAssocResponse(
 	PSDevice pDevice,
 	PSMgmtObject pMgmt,

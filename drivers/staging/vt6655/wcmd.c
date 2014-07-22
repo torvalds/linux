@@ -234,7 +234,7 @@ s_vProbeChannel(
  *
  -*/
 
-PSTxMgmtPacket
+static PSTxMgmtPacket
 s_MgrMakeProbeRequest(
 	PSDevice pDevice,
 	PSMgmtObject pMgmt,

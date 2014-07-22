@@ -260,7 +260,7 @@ static CHIP_INFO chip_info_table[] = {
 	{0, NULL}
 };
 
-const struct pci_device_id vt6655_pci_id_table[] = {
+static const struct pci_device_id vt6655_pci_id_table[] = {
 	{ PCI_VDEVICE(VIA, 0x3253), (kernel_ulong_t)chip_info_table},
 	{ 0, }
 };
@@ -285,7 +285,7 @@ static int  device_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 static int device_notify_reboot(struct notifier_block *, unsigned long event, void *ptr);
 static int viawget_suspend(struct pci_dev *pcid, pm_message_t state);
 static int viawget_resume(struct pci_dev *pcid);
-struct notifier_block device_notifier = {
+static struct notifier_block device_notifier = {
 	.notifier_call = device_notify_reboot,
 	.next = NULL,
 	.priority = 0,
