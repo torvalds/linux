@@ -222,17 +222,17 @@ static const struct apll_clk_set rk3036_apll_table[] = {
 };
 
 static const struct pll_clk_set rk3036plus_pll_com_table[] = {
-//	_RK3036_PLL_SET_CLKS(297000, 2, 99, 4, 1, 1, 0),
-	_RK3036_PLL_SET_CLKS(594000, 2, 99, 2, 1, 1, 0),
 	_RK3036_PLL_SET_CLKS(1188000, 2, 99, 1, 1, 1, 0),
-
+	_RK3036_PLL_SET_CLKS(594000, 2, 99, 2, 1, 1, 0),
+	/*_RK3036_PLL_SET_CLKS(297000, 2, 99, 4, 1, 1, 0),*/
 };
 
 static const struct pll_clk_set rk312xplus_pll_com_table[] = {
-	_RK3036_PLL_SET_CLKS(798000, 4, 133, 1, 1, 1, 0),
+	/*_RK3036_PLL_SET_CLKS(1064000, 3, 133, 1, 1, 1, 0),*/
+	/*_RK3036_PLL_SET_CLKS(798000, 2, 133, 2, 1, 1, 0),*/
 	_RK3036_PLL_SET_CLKS(594000, 2, 99, 2, 1, 1, 0),
-	_RK3036_PLL_SET_CLKS(1064000, 3, 133, 1, 1, 1, 0),
-
+	_RK3036_PLL_SET_CLKS(500000, 6, 250, 2, 1, 1, 0),
+	_RK3036_PLL_SET_CLKS(400000, 6, 400, 2, 2, 1, 0),
 };
 
 static void pll_wait_lock(struct clk_hw *hw)
@@ -1630,7 +1630,7 @@ static int clk_pll_set_rate_3036_apll(struct clk_hw *hw, unsigned long rate,
 	clk_debug("clksel0 %08x\n", cru_readl(RK3036_CRU_CLKSELS_CON(0)));
 	clk_debug("clksel1 %08x\n", cru_readl(RK3036_CRU_CLKSELS_CON(1)));
 	if (ps->rate == rate) {
-		printk("apll get a rate\n");
+		clk_debug("apll get a rate\n");
 
 		/*enter slowmode*/
 		local_irq_save(flags);
@@ -1719,6 +1719,20 @@ static const struct clk_ops clk_pll_ops_3036plus_auto = {
 	.set_rate = clk_pll_set_rate_3036plus_auto,
 };
 
+static long clk_cpll_round_rate_312xplus(struct clk_hw *hw, unsigned long rate,
+		unsigned long *prate)
+{
+	struct clk *parent = __clk_get_parent(hw->clk);
+
+	if (parent && (rate == __clk_get_rate(parent))) {
+		clk_debug("pll %s round rate=%lu equal to parent rate\n",
+				__clk_get_name(hw->clk), rate);
+		return rate;
+	}
+
+	return (pll_com_get_best_set(rate, rk312xplus_pll_com_table)->rate);
+}
+
 static int clk_cpll_set_rate_312xplus(struct clk_hw *hw, unsigned long rate,
 		unsigned long parent_rate)
 {
@@ -1754,7 +1768,7 @@ static int clk_cpll_set_rate_312xplus(struct clk_hw *hw, unsigned long rate,
 
 static const struct clk_ops clk_pll_ops_312xplus = {
 	.recalc_rate = clk_pll_recalc_rate_3036_apll,
-	.round_rate = clk_pll_round_rate_3036plus_auto,
+	.round_rate = clk_cpll_round_rate_312xplus,
 	.set_rate = clk_cpll_set_rate_312xplus,
 };
 

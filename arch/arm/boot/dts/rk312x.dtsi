@@ -178,6 +178,111 @@
 		status = "disabled";
 	};
 
+	clocks-init{
+		compatible = "rockchip,clocks-init";
+		rockchip,clocks-init-parent =
+			<&clk_core &clk_apll>, <&aclk_cpu &clk_gpll_div2>,
+			<&aclk_peri &clk_gpll_div2>, <&clk_uart0_pll &clk_gpll>,
+			<&clk_uart2_pll &clk_gpll>, <&clk_i2s_2ch_pll &clk_gpll>,
+			<&clk_i2s_8ch_pll &clk_gpll>, <&clk_spdif_pll &clk_gpll>,
+			<&clk_vepu &clk_gpll_div2>, <&clk_vdpu &clk_gpll_div2>,
+			<&clk_hevc_core &clk_gpll>, <&aclk_vio0_pre &clk_gpll_div2>,
+			<&aclk_vio1_pre &clk_gpll_div2>, <&hclk_vio_pre &clk_gpll_div2>,
+			<&sclk_lcdc0 &clk_cpll>, <&clk_gpu_pre &clk_gpll_div2>,
+			<&clk_cif_pll &clk_gpll_div2>, <&dclk_ebc &clk_gpll_div2>,
+			<&clk_emmc &clk_gpll_div2>, <&clk_sdio &clk_gpll_div2>,
+			<&clk_sfc &clk_gpll_div2>, <&clk_sdmmc0 &clk_gpll_div2>,
+			<&clk_tsp &clk_gpll_div2>, <&clk_nandc &clk_gpll_div2>,
+			<&clk_mac_pll &clk_cpll>;
+		rockchip,clocks-init-rate =
+			<&clk_core 816000000>, <&clk_gpll 594000000>,
+	 		<&clk_cpll 400000000>, <&aclk_cpu 300000000>,
+			<&hclk_cpu_pre 150000000>, <&pclk_cpu_pre 75000000>,
+			<&aclk_peri 300000000>, <&hclk_peri_pre 150000000>,
+			<&pclk_peri_pre 75000000>, <&clk_gpu_pre 300000000>,
+			<&aclk_vio0_pre 300000000>, <&hclk_vio_pre 150000000>,
+			<&aclk_vio1_pre 300000000>, <&clk_vepu 300000000>,
+			<&clk_vdpu 300000000>, <&clk_hevc_core 200000000>,
+			<&clk_mac_ref 50000000>;
+	/*	rockchip,clocks-uboot-has-init =
+			<&aclk_vio1>;*/
+	};
+
+	clocks-enable {
+		compatible = "rockchip,clocks-enable";
+		clocks =
+				/*PD_CORE*/
+				<&clk_gates0 6>,<&clk_gates0 0>,
+				<&clk_gates0 7>,
+
+				/*PD_CPU*/
+				<&clk_gates0 1>, <&clk_gates0 3>,
+				<&clk_gates0 4>, <&clk_gates0 5>,
+				<&clk_gates0 12>,
+
+				/*TIMER*/
+				<&clk_gates10 3>, <&clk_gates10 4>,
+				<&clk_gates10 5>, <&clk_gates10 6>,
+				<&clk_gates10 7>, <&clk_gates10 8>,
+
+				/*PD_PERI*/
+				<&clk_gates2 0>, <&hclk_peri_pre>,
+				<&pclk_peri_pre>, <&clk_gates2 1>,
+
+				/*aclk_cpu_pre*/
+				<&clk_gates4 12>,/*aclk_intmem*/
+				<&clk_gates4 10>,/*aclk_strc_sys*/
+
+				/*hclk_cpu_pre*/
+				<&clk_gates5 6>,/*hclk_rom*/
+				<&clk_gates3 5>,/*hclk_crypto*/
+
+				/*pclk_cpu_pre*/
+				<&clk_gates5 4>,/*pclk_grf*/
+				<&clk_gates5 7>,/*pclk_ddrupctl*/
+				<&clk_gates5 14>,/*pclk_acodec*/
+				<&clk_gates3 8>,/*pclk_hdmi*/
+
+				/*aclk_peri_pre*/
+				<&clk_gates10 10>,/*aclk_gmac*/
+				<&clk_gates4 3>,/*aclk_peri_axi_matrix*/
+				<&clk_gates5 1>,/*aclk_dmac2*/
+				<&clk_gates9 15>,/*aclk_peri_niu*/
+				<&clk_gates4 2>,/*aclk_cpu_peri*/
+
+				/*hclk_peri_pre*/
+				<&clk_gates4 0>,/*hclk_peri_matrix*/
+				<&clk_gates9 13>,/*hclk_usb_peri*/
+				<&clk_gates9 14>,/*hclk_peri_arbi*/
+
+				/*pclk_peri_pre*/
+				<&clk_gates4 1>,/*pclk_peri_axi_matrix*/
+
+				/*hclk_vio_pre*/
+				<&clk_gates6 12>,/*hclk_vio_niu*/
+				<&clk_gates6 1>,/*hclk_lcdc*/
+
+				/*aclk_vio0_pre*/
+				<&clk_gates6 13>,/*aclk_vio*/
+				<&clk_gates6 0>,/*aclk_lcdc*/
+
+				/*aclk_vio1_pre*/
+				<&clk_gates9 10>,/*aclk_vio1_niu*/
+
+				/*UART*/
+				<&clk_gates1 12>,
+				<&clk_gates1 13>,
+				<&clk_gates8 2>,/*pclk_uart2*/
+
+				<&clk_gpu_pre>,
+
+				/*jtag*/
+				<&clk_gates1 3>,/*clk_jtag*/
+
+				/*pmu*/
+				<&clk_gates1 0>;/*pclk_pmu_pre*/
+	};
+
 	i2c0: i2c@20070000 {
 		compatible = "rockchip,rk30-i2c";
 		reg = <0x20070000 0x1000>;
@@ -355,7 +460,7 @@
 		reg = <0x10104000 0x800>;
 		interrupts = <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "irq_enc", "irq_dec";
-		clocks = <&aclk_vcodec_pre>, <&clk_gates3 12>;
+		clocks = <&clk_vdpu>, <&hclk_vdpu>;
 		clock-names = "aclk_vcodec", "hclk_vcodec";
 		name = "vpu_service";
 		status = "disabled";
@@ -366,7 +471,7 @@
 		reg = <0x10104000 0x400>;
 		interrupts = <GIC_SPI 66 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "irq_dec";
-		clocks = <&aclk_vcodec_pre>, <&clk_gates3 12>, <&clk_hevc_core>;
+		clocks = <&clk_vdpu>, <&hclk_vdpu>, <&clk_hevc_core>;
 		clock-names = "aclk_vcodec", "hclk_vcodec", "clk_core";
 		name = "hevc_service";
 		status = "disabled";
