@@ -149,11 +149,6 @@ static ssize_t proc_read_installer(struct file *file, char __user *buf,
 static ssize_t proc_write_installer(struct file *file,
 				    const char __user *buffer,
 				    size_t count, loff_t *ppos);
-static ssize_t proc_read_toolaction(struct file *file, char __user *buf,
-				    size_t len, loff_t *offset);
-static ssize_t proc_write_toolaction(struct file *file,
-				     const char __user *buffer,
-				     size_t count, loff_t *ppos);
 static ssize_t proc_read_bootToTool(struct file *file, char __user *buf,
 				    size_t len, loff_t *offset);
 static ssize_t proc_write_bootToTool(struct file *file,
@@ -162,11 +157,6 @@ static ssize_t proc_write_bootToTool(struct file *file,
 static const struct file_operations proc_installer_fops = {
 	.read = proc_read_installer,
 	.write = proc_write_installer,
-};
-
-static const struct file_operations proc_toolaction_fops = {
-	.read = proc_read_toolaction,
-	.write = proc_write_toolaction,
 };
 
 static const struct file_operations proc_bootToTool_fops = {
@@ -321,10 +311,33 @@ static VISORCHIPSET_BUSDEV_RESPONDERS BusDev_Responders = {
 /* info for /dev/visorchipset */
 static dev_t MajorDev = -1; /**< indicates major num for device */
 
+/* prototypes for attributes */
+static ssize_t toolaction_show(struct device *dev,
+	struct device_attribute *attr, char *buf);
+static ssize_t toolaction_store(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count);
+static DEVICE_ATTR_RW(toolaction);
+
+static struct attribute *visorchipset_install_attrs[] = {
+	&dev_attr_toolaction.attr,
+	NULL
+};
+
+static struct attribute_group visorchipset_install_group = {
+	.name = "install",
+	.attrs = visorchipset_install_attrs
+};
+
+static const struct attribute_group *visorchipset_dev_groups[] = {
+	&visorchipset_install_group,
+	NULL
+};
+
 /* /sys/devices/platform/visorchipset */
 static struct platform_device Visorchipset_platform_device = {
 	.name = "visorchipset",
 	.id = -1,
+	.dev.groups = visorchipset_dev_groups,
 };
 
 /* Function prototypes */
@@ -335,6 +348,34 @@ static void controlvm_respond_chipset_init(CONTROLVM_MESSAGE_HEADER *msgHdr,
 static void controlvm_respond_physdev_changestate(CONTROLVM_MESSAGE_HEADER *
 						  msgHdr, int response,
 						  ULTRA_SEGMENT_STATE state);
+
+ssize_t toolaction_show(struct device *dev, struct device_attribute *attr,
+		char *buf)
+{
+	U8 toolAction;
+
+	visorchannel_read(ControlVm_channel,
+		offsetof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL,
+			   ToolAction), &toolAction, sizeof(U8));
+	return scnprintf(buf, PAGE_SIZE, "%u\n", toolAction);
+}
+
+ssize_t toolaction_store(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	U8 toolAction;
+
+	if (sscanf(buf, "%hhu\n", &toolAction) == 1) {
+		if (visorchannel_write(ControlVm_channel,
+			offsetof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL,
+				ToolAction),
+			&toolAction, sizeof(U8)) < 0)
+				return -EFAULT;
+			else
+				return count;
+	} else
+		return -EIO;
+}
 
 static void
 show_partition_property(struct seq_file *f, void *ctx, int property)
@@ -2368,83 +2409,6 @@ proc_write_installer(struct file *file,
 }
 
 /**
- * Reads the ToolAction field of ControlVMChannel.
- */
-static ssize_t
-proc_read_toolaction(struct file *file, char __user *buf,
-		     size_t len, loff_t *offset)
-{
-	int length = 0;
-	U8 toolAction;
-	char *vbuf;
-	loff_t pos = *offset;
-
-	if (pos < 0)
-		return -EINVAL;
-
-	if (pos > 0 || !len)
-		return 0;
-
-	vbuf = kzalloc(len, GFP_KERNEL);
-	if (!vbuf)
-		return -ENOMEM;
-
-	visorchannel_read(ControlVm_channel,
-			  offsetof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL,
-				   ToolAction), &toolAction, sizeof(U8));
-
-	length = sprintf(vbuf, "%u\n", toolAction);
-	if (copy_to_user(buf, vbuf, length)) {
-		kfree(vbuf);
-		return -EFAULT;
-	}
-
-	kfree(vbuf);
-	*offset += length;
-	return length;
-}
-
-/**
- * Writes to the ToolAction field of ControlVMChannel.
- * Input: ToolAction
- * Limit 3 characters input
- */
-#define UINT8_MAX (255U)
-static ssize_t
-proc_write_toolaction(struct file *file,
-		      const char __user *buffer, size_t count, loff_t *ppos)
-{
-	char buf[3];
-	U8 toolAction;
-
-	/* Check to make sure there is no buffer overflow */
-	if (count > (sizeof(buf) - 1))
-		return -EINVAL;
-
-	if (copy_from_user(buf, buffer, count)) {
-		WARN(1, "Error copying from user space\n");
-		return -EFAULT;
-	}
-
-	if (sscanf(buf, "%hhd", &toolAction) != 1)
-		toolAction = UINT8_MAX;
-
-	if (toolAction != UINT8_MAX) {
-		if (visorchannel_write
-		    (ControlVm_channel,
-		     offsetof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL, ToolAction),
-		     &toolAction, sizeof(U8)) < 0)
-			WARN(1, "Installation ToolAction Write Failed - ToolAction = %d\n",
-			     toolAction);
-	}
-
-	/* So this function isn't called multiple times, must return
-	 * size of buffer
-	 */
-	return count;
-}
-
-/**
  * Reads the EfiSparIndication.BootToTool field of ControlVMChannel.
  */
 static ssize_t
@@ -2534,7 +2498,6 @@ visorchipset_init(void)
 	int rc = 0, x = 0;
 	char s[64];
 	struct proc_dir_entry *installer_file;
-	struct proc_dir_entry *toolaction_file;
 	struct proc_dir_entry *bootToTool_file;
 	HOSTADDRESS addr;
 
@@ -2612,9 +2575,6 @@ visorchipset_init(void)
 	/* Setup Installation fields */
 	installer_file = proc_create("installer", 0644, ProcDir,
 				     &proc_installer_fops);
-	/* Setup the ToolAction field */
-	toolaction_file = proc_create("toolaction", 0644, ProcDir,
-				      &proc_toolaction_fops);
 	/* Setup the BootToTool field */
 	bootToTool_file = proc_create("boottotool", 0644, ProcDir,
 				      &proc_bootToTool_fops);
