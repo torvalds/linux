@@ -8780,7 +8780,7 @@ static void intel_increase_pllclock(struct drm_device *dev,
 	int dpll_reg = DPLL(pipe);
 	int dpll;
 
-	if (HAS_PCH_SPLIT(dev))
+	if (!HAS_GMCH_DISPLAY(dev))
 		return;
 
 	if (!dev_priv->lvds_downclock_avail)
@@ -8808,7 +8808,7 @@ static void intel_decrease_pllclock(struct drm_crtc *crtc)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 
-	if (HAS_PCH_SPLIT(dev))
+	if (!HAS_GMCH_DISPLAY(dev))
 		return;
 
 	if (!dev_priv->lvds_downclock_avail)
