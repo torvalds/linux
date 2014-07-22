@@ -431,6 +431,10 @@ static int tk_request(struct l2cap_conn *conn, u8 remote_oob, u8 auth,
 	if (method == JUST_CFM && test_bit(SMP_FLAG_INITIATOR, &smp->flags))
 		method = JUST_WORKS;
 
+	/* Don't bother user space with no IO capabilities */
+	if (method == JUST_CFM && hcon->io_capability == HCI_IO_NO_INPUT_OUTPUT)
+		method = JUST_WORKS;
+
 	/* If Just Works, Continue with Zero TK */
 	if (method == JUST_WORKS) {
 		set_bit(SMP_FLAG_TK_VALID, &smp->flags);
@@ -445,7 +449,7 @@ static int tk_request(struct l2cap_conn *conn, u8 remote_oob, u8 auth,
 	 * Confirms and the slave Enters the passkey.
 	 */
 	if (method == OVERLAP) {
-		if (test_bit(HCI_CONN_MASTER, &hcon->flags))
+		if (hcon->role == HCI_ROLE_MASTER)
 			method = CFM_PASSKEY;
 		else
 			method = REQ_PASSKEY;
@@ -686,7 +690,7 @@ static u8 smp_cmd_pairing_req(struct l2cap_conn *conn, struct sk_buff *skb)
 	if (skb->len < sizeof(*req))
 		return SMP_INVALID_PARAMS;
 
-	if (test_bit(HCI_CONN_MASTER, &conn->hcon->flags))
+	if (conn->hcon->role != HCI_ROLE_SLAVE)
 		return SMP_CMD_NOTSUPP;
 
 	if (!test_and_set_bit(HCI_CONN_LE_SMP_PEND, &conn->hcon->flags))
@@ -755,7 +759,7 @@ static u8 smp_cmd_pairing_rsp(struct l2cap_conn *conn, struct sk_buff *skb)
 	if (skb->len < sizeof(*rsp))
 		return SMP_INVALID_PARAMS;
 
-	if (!test_bit(HCI_CONN_MASTER, &conn->hcon->flags))
+	if (conn->hcon->role != HCI_ROLE_MASTER)
 		return SMP_CMD_NOTSUPP;
 
 	skb_pull(skb, sizeof(*rsp));
@@ -849,7 +853,7 @@ static bool smp_ltk_encrypt(struct l2cap_conn *conn, u8 sec_level)
 	struct hci_conn *hcon = conn->hcon;
 
 	key = hci_find_ltk_by_addr(hcon->hdev, &hcon->dst, hcon->dst_type,
-				   hcon->out);
+				   hcon->role);
 	if (!key)
 		return false;
 
@@ -881,7 +885,7 @@ bool smp_sufficient_security(struct hci_conn *hcon, u8 sec_level)
 	 */
 	if (test_bit(HCI_CONN_STK_ENCRYPT, &hcon->flags) &&
 	    hci_find_ltk_by_addr(hcon->hdev, &hcon->dst, hcon->dst_type,
-				 hcon->out))
+				 hcon->role))
 		return false;
 
 	if (hcon->sec_level >= sec_level)
@@ -903,7 +907,7 @@ static u8 smp_cmd_security_req(struct l2cap_conn *conn, struct sk_buff *skb)
 	if (skb->len < sizeof(*rp))
 		return SMP_INVALID_PARAMS;
 
-	if (!test_bit(HCI_CONN_MASTER, &conn->hcon->flags))
+	if (hcon->role != HCI_ROLE_MASTER)
 		return SMP_CMD_NOTSUPP;
 
 	sec_level = authreq_to_seclevel(rp->auth_req);
@@ -961,7 +965,7 @@ int smp_conn_security(struct hci_conn *hcon, __u8 sec_level)
 	if (sec_level > hcon->pending_sec_level)
 		hcon->pending_sec_level = sec_level;
 
-	if (test_bit(HCI_CONN_MASTER, &hcon->flags))
+	if (hcon->role == HCI_ROLE_MASTER)
 		if (smp_ltk_encrypt(conn, hcon->pending_sec_level))
 			return 0;
 
@@ -981,7 +985,7 @@ int smp_conn_security(struct hci_conn *hcon, __u8 sec_level)
 	    hcon->pending_sec_level > BT_SECURITY_MEDIUM)
 		authreq |= SMP_AUTH_MITM;
 
-	if (test_bit(HCI_CONN_MASTER, &hcon->flags)) {
+	if (hcon->role == HCI_ROLE_MASTER) {
 		struct smp_cmd_pairing cp;
 
 		build_pairing_cmd(conn, &cp, NULL, authreq);
@@ -1185,7 +1189,7 @@ int smp_sig_channel(struct l2cap_conn *conn, struct sk_buff *skb)
 	}
 
 	if (!test_bit(HCI_LE_ENABLED, &hcon->hdev->dev_flags)) {
-		err = -ENOTSUPP;
+		err = -EOPNOTSUPP;
 		reason = SMP_PAIRING_NOTSUPP;
 		goto done;
 	}
@@ -1203,7 +1207,7 @@ int smp_sig_channel(struct l2cap_conn *conn, struct sk_buff *skb)
 	    !conn->smp_chan) {
 		BT_ERR("Unexpected SMP command 0x%02x. Disconnecting.", code);
 		kfree_skb(skb);
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 	}
 
 	switch (code) {
