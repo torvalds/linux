@@ -33,8 +33,6 @@ source "drivers/staging/media/go7007/Kconfig"
 
 source "drivers/staging/media/omap24xx/Kconfig"
 
-source "drivers/staging/media/solo6x10/Kconfig"
-
 source "drivers/staging/media/omap4iss/Kconfig"
 
 # Keep LIRC at the end, as it has sub-menus
