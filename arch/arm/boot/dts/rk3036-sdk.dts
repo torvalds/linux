@@ -130,7 +130,7 @@
 	supports-emmc;
         bootpart-no-access;
 
-	//supports-DDR_MODE; //you should set the two value in your project. only close in RK3288-SDK board.
+	supports-DDR_MODE;
 	//caps2-mmc-hs200;
 
         ignore-pm-notify;

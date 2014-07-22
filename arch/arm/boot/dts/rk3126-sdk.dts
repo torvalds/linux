@@ -21,7 +21,7 @@
 		supports-highspeed;
 		supports-emmc;
 		bootpart-no-access;
-		//supports-DDR_MODE;
+		supports-DDR_MODE;
 		//caps2-mmc-hs200;
 		ignore-pm-notify;
 		keep-power-in-suspend;
