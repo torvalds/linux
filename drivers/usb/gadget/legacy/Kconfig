@@ -54,6 +54,7 @@ config USB_AUDIO
 	depends on SND
 	select USB_LIBCOMPOSITE
 	select SND_PCM
+	select USB_F_UAC1 if GADGET_UAC1
 	select USB_F_UAC2 if !GADGET_UAC1
 	help
 	  This Gadget Audio driver is compatible with USB Audio Class

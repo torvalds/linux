@@ -53,6 +53,35 @@ MODULE_PARM_DESC(c_srate, "Capture Sampling Rate");
 static int c_ssize = UAC2_DEF_CSSIZE;
 module_param(c_ssize, uint, S_IRUGO);
 MODULE_PARM_DESC(c_ssize, "Capture Sample Size(bytes)");
+#else
+#define FILE_PCM_PLAYBACK	"/dev/snd/pcmC0D0p"
+#define FILE_PCM_CAPTURE	"/dev/snd/pcmC0D0c"
+#define FILE_CONTROL		"/dev/snd/controlC0"
+
+static char *fn_play = FILE_PCM_PLAYBACK;
+module_param(fn_play, charp, S_IRUGO);
+MODULE_PARM_DESC(fn_play, "Playback PCM device file name");
+
+static char *fn_cap = FILE_PCM_CAPTURE;
+module_param(fn_cap, charp, S_IRUGO);
+MODULE_PARM_DESC(fn_cap, "Capture PCM device file name");
+
+static char *fn_cntl = FILE_CONTROL;
+module_param(fn_cntl, charp, S_IRUGO);
+MODULE_PARM_DESC(fn_cntl, "Control device file name");
+
+#define OUT_EP_MAX_PACKET_SIZE	200
+static int req_buf_size = OUT_EP_MAX_PACKET_SIZE;
+module_param(req_buf_size, int, S_IRUGO);
+MODULE_PARM_DESC(req_buf_size, "ISO OUT endpoint request buffer size");
+
+static int req_count = 256;
+module_param(req_count, int, S_IRUGO);
+MODULE_PARM_DESC(req_count, "ISO OUT endpoint request count");
+
+static int audio_buf_size = 48000;
+module_param(audio_buf_size, int, S_IRUGO);
+MODULE_PARM_DESC(audio_buf_size, "Audio buffer size");
 #endif
 
 /* string IDs are assigned dynamically */
@@ -77,12 +106,13 @@ static struct usb_gadget_strings *audio_strings[] = {
 #ifndef CONFIG_GADGET_UAC1
 static struct usb_function_instance *fi_uac2;
 static struct usb_function *f_uac2;
+#else
+static struct usb_function_instance *fi_uac1;
+static struct usb_function *f_uac1;
 #endif
 
 #ifdef CONFIG_GADGET_UAC1
-#define USBF_UAC1_INCLUDED
 #include "u_uac1.h"
-#include "f_uac1.c"
 #endif
 
 /*-------------------------------------------------------------------------*/
@@ -146,9 +176,7 @@ static const struct usb_descriptor_header *otg_desc[] = {
 
 static int __init audio_do_config(struct usb_configuration *c)
 {
-#ifndef CONFIG_GADGET_UAC1
 	int status;
-#endif
 
 	/* FIXME alloc iConfiguration string, set it in c->strings */
 
@@ -158,7 +186,17 @@ static int __init audio_do_config(struct usb_configuration *c)
 	}
 
 #ifdef CONFIG_GADGET_UAC1
-	audio_bind_config(c);
+	f_uac1 = usb_get_function(fi_uac1);
+	if (IS_ERR(f_uac1)) {
+		status = PTR_ERR(f_uac1);
+		return status;
+	}
+
+	status = usb_add_function(c, f_uac1);
+	if (status < 0) {
+		usb_put_function(f_uac1);
+		return status;
+	}
 #else
 	f_uac2 = usb_get_function(fi_uac2);
 	if (IS_ERR(f_uac2)) {
@@ -189,6 +227,8 @@ static int __init audio_bind(struct usb_composite_dev *cdev)
 {
 #ifndef CONFIG_GADGET_UAC1
 	struct f_uac2_opts	*uac2_opts;
+#else
+	struct f_uac1_opts	*uac1_opts;
 #endif
 	int			status;
 
@@ -196,6 +236,10 @@ static int __init audio_bind(struct usb_composite_dev *cdev)
 	fi_uac2 = usb_get_function_instance("uac2");
 	if (IS_ERR(fi_uac2))
 		return PTR_ERR(fi_uac2);
+#else
+	fi_uac1 = usb_get_function_instance("uac1");
+	if (IS_ERR(fi_uac1))
+		return PTR_ERR(fi_uac1);
 #endif
 
 #ifndef CONFIG_GADGET_UAC1
@@ -206,6 +250,14 @@ static int __init audio_bind(struct usb_composite_dev *cdev)
 	uac2_opts->c_chmask = c_chmask;
 	uac2_opts->c_srate = c_srate;
 	uac2_opts->c_ssize = c_ssize;
+#else
+	uac1_opts = container_of(fi_uac1, struct f_uac1_opts, func_inst);
+	uac1_opts->fn_play = fn_play;
+	uac1_opts->fn_cap = fn_cap;
+	uac1_opts->fn_cntl = fn_cntl;
+	uac1_opts->req_buf_size = req_buf_size;
+	uac1_opts->req_count = req_count;
+	uac1_opts->audio_buf_size = audio_buf_size;
 #endif
 
 	status = usb_string_ids_tab(cdev, strings_dev);
@@ -225,6 +277,8 @@ static int __init audio_bind(struct usb_composite_dev *cdev)
 fail:
 #ifndef CONFIG_GADGET_UAC1
 	usb_put_function_instance(fi_uac2);
+#else
+	usb_put_function_instance(fi_uac1);
 #endif
 	return status;
 }
@@ -232,7 +286,10 @@ fail:
 static int __exit audio_unbind(struct usb_composite_dev *cdev)
 {
 #ifdef CONFIG_GADGET_UAC1
-	gaudio_cleanup();
+	if (!IS_ERR_OR_NULL(f_uac1))
+		usb_put_function(f_uac1);
+	if (!IS_ERR_OR_NULL(fi_uac1))
+		usb_put_function_instance(fi_uac1);
 #else
 	if (!IS_ERR_OR_NULL(f_uac2))
 		usb_put_function(f_uac2);
