@@ -346,18 +346,6 @@ struct drm_waitlist {
 	spinlock_t write_lock;
 };
 
-struct drm_freelist {
-	int initialized;	       /**< Freelist in use */
-	atomic_t count;		       /**< Number of free buffers */
-	struct drm_buf *next;	       /**< End pointer */
-
-	wait_queue_head_t waiting;     /**< Processes waiting on free bufs */
-	int low_mark;		       /**< Low water mark */
-	int high_mark;		       /**< High water mark */
-	atomic_t wfh;		       /**< If waiting for high mark */
-	spinlock_t lock;
-};
-
 typedef struct drm_dma_handle {
 	dma_addr_t busaddr;
 	void *vaddr;
@@ -375,7 +363,8 @@ struct drm_buf_entry {
 	int page_order;
 	struct drm_dma_handle **seglist;
 
-	struct drm_freelist freelist;
+	int low_mark;			/**< Low water mark */
+	int high_mark;			/**< High water mark */
 };
 
 /* Event queued up for userspace to read */
