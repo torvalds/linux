@@ -1040,7 +1040,7 @@ static int bulk_read_complete_sector(struct bcm_mini_adapter *ad,
 				     unsigned int partoff,
 				     unsigned int i)
 {
-	unsigned int j;
+	int j;
 	int bulk_read_stat;
 	FP_FLASH_WRITE_STATUS writef =
 		ad->fpFlashWriteWithStatusCheck;
