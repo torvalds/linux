@@ -30,6 +30,7 @@
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include <linux/clk.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/kernel.h>
@@ -330,9 +331,8 @@ struct panel_settings
 	uint32 mode_pwmhi;
 	uint32 mode_outmask;
 	uint32 mode_fifoctrl;
-	uint32 mode_toyclksrc;
 	uint32 mode_backlight;
-	uint32 mode_auxpll;
+	uint32 lcdclk;
 #define Xres min_xres
 #define Yres min_yres
 	u32	min_xres;		/* Minimum horizontal resolution */
@@ -379,9 +379,8 @@ static struct panel_settings known_lcd_panels[] =
 		.mode_pwmhi		= 0x00000000,
 		.mode_outmask	= 0x00FFFFFF,
 		.mode_fifoctrl	= 0x2f2f2f2f,
-		.mode_toyclksrc	= 0x00000004, /* AUXPLL directly */
 		.mode_backlight	= 0x00000000,
-		.mode_auxpll		= 8, /* 96MHz AUXPLL */
+		.lcdclk		= 96,
 		320, 320,
 		240, 240,
 	},
@@ -407,9 +406,8 @@ static struct panel_settings known_lcd_panels[] =
 		.mode_pwmhi		= 0x00000000,
 		.mode_outmask	= 0x00FFFFFF,
 		.mode_fifoctrl	= 0x2f2f2f2f,
-		.mode_toyclksrc	= 0x00000004, /* AUXPLL directly */
 		.mode_backlight	= 0x00000000,
-		.mode_auxpll		= 8, /* 96MHz AUXPLL */
+		.lcdclk		= 96,
 		640, 480,
 		640, 480,
 	},
@@ -435,9 +433,8 @@ static struct panel_settings known_lcd_panels[] =
 		.mode_pwmhi		= 0x00000000,
 		.mode_outmask	= 0x00FFFFFF,
 		.mode_fifoctrl	= 0x2f2f2f2f,
-		.mode_toyclksrc	= 0x00000004, /* AUXPLL directly */
 		.mode_backlight	= 0x00000000,
-		.mode_auxpll		= 8, /* 96MHz AUXPLL */
+		.lcdclk		= 96,
 		800, 800,
 		600, 600,
 	},
@@ -463,9 +460,8 @@ static struct panel_settings known_lcd_panels[] =
 		.mode_pwmhi		= 0x00000000,
 		.mode_outmask	= 0x00FFFFFF,
 		.mode_fifoctrl	= 0x2f2f2f2f,
-		.mode_toyclksrc	= 0x00000004, /* AUXPLL directly */
 		.mode_backlight	= 0x00000000,
-		.mode_auxpll		= 6, /* 72MHz AUXPLL */
+		.lcdclk		= 72,
 		1024, 1024,
 		768, 768,
 	},
@@ -491,9 +487,8 @@ static struct panel_settings known_lcd_panels[] =
 		.mode_pwmhi		= 0x00000000,
 		.mode_outmask	= 0x00FFFFFF,
 		.mode_fifoctrl	= 0x2f2f2f2f,
-		.mode_toyclksrc	= 0x00000004, /* AUXPLL directly */
 		.mode_backlight	= 0x00000000,
-		.mode_auxpll		= 10, /* 120MHz AUXPLL */
+		.lcdclk		= 120,
 		1280, 1280,
 		1024, 1024,
 	},
@@ -519,9 +514,8 @@ static struct panel_settings known_lcd_panels[] =
 		.mode_pwmhi		= 0x03400000, /* SCB 0x0 */
 		.mode_outmask	= 0x00FFFFFF,
 		.mode_fifoctrl	= 0x2f2f2f2f,
-		.mode_toyclksrc	= 0x00000004, /* AUXPLL directly */
 		.mode_backlight	= 0x00000000,
-		.mode_auxpll		= 8, /* 96MHz AUXPLL */
+		.lcdclk		= 96,
 		1024, 1024,
 		768, 768,
 	},
@@ -550,9 +544,8 @@ static struct panel_settings known_lcd_panels[] =
 		.mode_pwmhi		= 0x03400000,
 		.mode_outmask	= 0x00fcfcfc,
 		.mode_fifoctrl	= 0x2f2f2f2f,
-		.mode_toyclksrc	= 0x00000004, /* AUXPLL directly */
 		.mode_backlight	= 0x00000000,
-		.mode_auxpll		= 8, /* 96MHz AUXPLL */
+		.lcdclk		= 96,
 		640, 480,
 		640, 480,
 	},
@@ -581,9 +574,8 @@ static struct panel_settings known_lcd_panels[] =
 		.mode_pwmhi		= 0x03400000,
 		.mode_outmask	= 0x00fcfcfc,
 		.mode_fifoctrl	= 0x2f2f2f2f,
-		.mode_toyclksrc	= 0x00000004, /* AUXPLL directly */
 		.mode_backlight	= 0x00000000,
-		.mode_auxpll		= 8, /* 96MHz AUXPLL */
+		.lcdclk		= 96, /* 96MHz AUXPLL */
 		320, 320,
 		240, 240,
 	},
@@ -612,9 +604,8 @@ static struct panel_settings known_lcd_panels[] =
 		.mode_pwmhi		= 0x03400000,
 		.mode_outmask	= 0x00fcfcfc,
 		.mode_fifoctrl	= 0x2f2f2f2f,
-		.mode_toyclksrc	= 0x00000004, /* AUXPLL directly */
 		.mode_backlight	= 0x00000000,
-		.mode_auxpll		= 8, /* 96MHz AUXPLL */
+		.lcdclk		= 96,
 		856, 856,
 		480, 480,
 	},
@@ -646,9 +637,8 @@ static struct panel_settings known_lcd_panels[] =
 		.mode_pwmhi		= 0x00000000,
 		.mode_outmask		= 0x00FFFFFF,
 		.mode_fifoctrl		= 0x2f2f2f2f,
-		.mode_toyclksrc		= 0x00000004, /* AUXPLL directly */
 		.mode_backlight		= 0x00000000,
-		.mode_auxpll		= (48/12) * 2,
+		.lcdclk			= 96,
 		800, 800,
 		480, 480,
 	},
@@ -828,11 +818,17 @@ static void au1200_setpanel(struct panel_settings *newpanel,
 	 */
 	if (!(panel->mode_clkcontrol & LCD_CLKCONTROL_EXT))
 	{
-		uint32 sys_clksrc;
-		alchemy_wrsys(panel->mode_auxpll, AU1000_SYS_AUXPLL);
-		sys_clksrc = alchemy_rdsys(AU1000_SYS_CLKSRC) & ~0x0000001f;
-		sys_clksrc |= panel->mode_toyclksrc;
-		alchemy_wrsys(sys_clksrc, AU1000_SYS_CLKSRC);
+		struct clk *c = clk_get(NULL, "lcd_intclk");
+		long r, pc = panel->lcdclk * 1000000;
+
+		if (!IS_ERR(c)) {
+			r = clk_round_rate(c, pc);
+			if ((pc - r) < (pc / 10)) {	/* 10% slack */
+				clk_set_rate(c, r);
+				clk_prepare_enable(c);
+			}
+			clk_put(c);
+		}
 	}
 
 	/*
