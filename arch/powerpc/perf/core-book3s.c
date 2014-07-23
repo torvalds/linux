@@ -1219,8 +1219,10 @@ static void power_pmu_enable(struct pmu *pmu)
 	}
 
 	/*
-	 * Compute MMCR* values for the new set of events
+	 * Clear all MMCR settings and recompute them for the new set of events.
 	 */
+	memset(cpuhw->mmcr, 0, sizeof(cpuhw->mmcr));
+
 	if (ppmu->compute_mmcr(cpuhw->events, cpuhw->n_events, hwc_index,
 			       cpuhw->mmcr)) {
 		/* shouldn't ever get here */
