@@ -89,7 +89,8 @@ int SendControlPacket(struct bcm_mini_adapter *Adapter, char *pControlPacket)
  * to the target via the host h/w interface.
  * @return  zero(success) or -ve value(failure)
  */
-int SetupNextSend(struct bcm_mini_adapter *Adapter,  struct sk_buff *Packet, USHORT Vcid)
+int SetupNextSend(struct bcm_mini_adapter *Adapter,
+		struct sk_buff *Packet, USHORT Vcid)
 {
 	int	status = 0;
 	bool	bHeaderSupressionEnabled = false;
@@ -205,7 +206,9 @@ int tx_pkt_handler(struct bcm_mini_adapter *Adapter)
 	int status = 0;
 
 	while (!kthread_should_stop()) {
-		/* FIXME - the timeout looks like workaround for racey usage of TxPktAvail */
+		/* FIXME - the timeout looks like workaround
+		 *  for racey usage of TxPktAvail
+		*/
 		if (Adapter->LinkUpStatus)
 			wait_event_timeout(Adapter->tx_packet_wait_queue,
 					   tx_pending(Adapter),
@@ -229,7 +232,8 @@ int tx_pkt_handler(struct bcm_mini_adapter *Adapter)
 		if (Adapter->bEndPointHalted == TRUE) {
 			Bcm_clear_halt_of_endpoints(Adapter);
 			Adapter->bEndPointHalted = false;
-			StartInterruptUrb((struct bcm_interface_adapter *)(Adapter->pvInterfaceAdapter));
+			StartInterruptUrb((struct bcm_interface_adapter *)
+					(Adapter->pvInterfaceAdapter));
 		}
 
 		if (Adapter->LinkUpStatus && !Adapter->IdleMode) {
