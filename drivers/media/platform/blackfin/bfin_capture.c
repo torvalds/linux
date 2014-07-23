@@ -939,7 +939,7 @@ static int bcap_probe(struct platform_device *pdev)
 
 	bcap_dev->cfg = config;
 
-	bcap_dev->ppi = ppi_create_instance(config->ppi_info);
+	bcap_dev->ppi = ppi_create_instance(pdev, config->ppi_info);
 	if (!bcap_dev->ppi) {
 		v4l2_err(pdev->dev.driver, "Unable to create ppi\n");
 		ret = -ENODEV;

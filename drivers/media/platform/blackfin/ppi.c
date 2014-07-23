@@ -19,6 +19,7 @@
 
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/platform_device.h>
 
 #include <asm/bfin_ppi.h>
 #include <asm/blackfin.h>
@@ -307,7 +308,8 @@ static void ppi_update_addr(struct ppi_if *ppi, unsigned long addr)
 	set_dma_start_addr(ppi->info->dma_ch, addr);
 }
 
-struct ppi_if *ppi_create_instance(const struct ppi_info *info)
+struct ppi_if *ppi_create_instance(struct platform_device *pdev,
+			const struct ppi_info *info)
 {
 	struct ppi_if *ppi;
 
@@ -315,14 +317,14 @@ struct ppi_if *ppi_create_instance(const struct ppi_info *info)
 		return NULL;
 
 	if (peripheral_request_list(info->pin_req, KBUILD_MODNAME)) {
-		pr_err("request peripheral failed\n");
+		dev_err(&pdev->dev, "request peripheral failed\n");
 		return NULL;
 	}
 
 	ppi = kzalloc(sizeof(*ppi), GFP_KERNEL);
 	if (!ppi) {
 		peripheral_free_list(info->pin_req);
-		pr_err("unable to allocate memory for ppi handle\n");
+		dev_err(&pdev->dev, "unable to allocate memory for ppi handle\n");
 		return NULL;
 	}
 	ppi->ops = &ppi_ops;
