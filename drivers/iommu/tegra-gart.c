@@ -309,7 +309,7 @@ static int gart_iommu_domain_has_cap(struct iommu_domain *domain,
 	return 0;
 }
 
-static struct iommu_ops gart_iommu_ops = {
+static const struct iommu_ops gart_iommu_ops = {
 	.domain_init	= gart_iommu_domain_init,
 	.domain_destroy	= gart_iommu_domain_destroy,
 	.attach_dev	= gart_iommu_attach_dev,
