@@ -430,23 +430,6 @@ struct drm_file {
 	struct drm_prime_file_private prime;
 };
 
-/** Wait queue */
-struct drm_queue {
-	atomic_t use_count;		/**< Outstanding uses (+1) */
-	atomic_t finalization;		/**< Finalization in progress */
-	atomic_t block_count;		/**< Count of processes waiting */
-	atomic_t block_read;		/**< Queue blocked for reads */
-	wait_queue_head_t read_queue;	/**< Processes waiting on block_read */
-	atomic_t block_write;		/**< Queue blocked for writes */
-	wait_queue_head_t write_queue;	/**< Processes waiting on block_write */
-	atomic_t total_queued;		/**< Total queued statistic */
-	atomic_t total_flushed;		/**< Total flushes statistic */
-	atomic_t total_locks;		/**< Total locks statistics */
-	enum drm_ctx_flags flags;	/**< Context preserving and 2D-only */
-	struct drm_waitlist waitlist;	/**< Pending buffers */
-	wait_queue_head_t flush_queue;	/**< Processes waiting until flush */
-};
-
 /**
  * Lock data.
  */
