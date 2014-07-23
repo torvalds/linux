@@ -92,15 +92,10 @@ do {							\
 
 /* functions */
 
-static void __s3c2410wdt_keepalive(void)
-{
-	writel(wdt_count, wdt_base + S3C2410_WTCNT);
-}
-
 static int s3c2410wdt_keepalive(struct watchdog_device *wdd)
 {
 	spin_lock(&wdt_lock);
-	__s3c2410wdt_keepalive();
+	writel(wdt_count, wdt_base + S3C2410_WTCNT);
 	spin_unlock(&wdt_lock);
 
 	return 0;
@@ -124,9 +119,13 @@ static int s3c2410wdt_stop(struct watchdog_device *wdd)
 	return 0;
 }
 
-static void __s3c2410wdt_start(void)
+static int s3c2410wdt_start(struct watchdog_device *wdd)
 {
 	unsigned long wtcon;
+
+	spin_lock(&wdt_lock);
+
+	__s3c2410wdt_stop();
 
 	wtcon = readl(wdt_base + S3C2410_WTCON);
 	wtcon |= S3C2410_WTCON_ENABLE | S3C2410_WTCON_DIV128;
@@ -145,22 +144,12 @@ static void __s3c2410wdt_start(void)
 	writel(wdt_count, wdt_base + S3C2410_WTDAT);
 	writel(wdt_count, wdt_base + S3C2410_WTCNT);
 	writel(wtcon, wdt_base + S3C2410_WTCON);
-}
-
-static int s3c2410wdt_start(struct watchdog_device *wdd)
-{
-	spin_lock(&wdt_lock);
-
-	__s3c2410wdt_stop();
-
-	__s3c2410wdt_start();
-
 	spin_unlock(&wdt_lock);
 
 	return 0;
 }
 
-static inline int __s3c2410wdt_is_running(void)
+static inline int s3c2410wdt_is_running(void)
 {
 	return readl(wdt_base + S3C2410_WTCON) & S3C2410_WTCON_ENABLE;
 }
@@ -256,9 +245,7 @@ static int s3c2410wdt_cpufreq_transition(struct notifier_block *nb,
 {
 	int ret;
 
-	spin_lock(&wdt_lock);
-
-	if (!__s3c2410wdt_is_running())
+	if (!s3c2410wdt_is_running())
 		goto done;
 
 	if (val == CPUFREQ_PRECHANGE) {
@@ -267,24 +254,22 @@ static int s3c2410wdt_cpufreq_transition(struct notifier_block *nb,
 		 * the watchdog is running.
 		 */
 
-		__s3c2410wdt_keepalive();
+		s3c2410wdt_keepalive(&s3c2410_wdd);
 	} else if (val == CPUFREQ_POSTCHANGE) {
-		__s3c2410wdt_stop();
+		s3c2410wdt_stop(&s3c2410_wdd);
 
 		ret = s3c2410wdt_set_heartbeat(&s3c2410_wdd, s3c2410_wdd.timeout);
 
 		if (ret >= 0)
-			__s3c2410wdt_start();
+			s3c2410wdt_start(&s3c2410_wdd);
 		else
 			goto err;
 	}
 
 done:
-	spin_unlock(&wdt_lock);
 	return 0;
 
  err:
-	spin_unlock(&wdt_lock);
 	dev_err(wdt_dev, "cannot set new value for timeout %d\n",
 				s3c2410_wdd.timeout);
 	return ret;
