@@ -6,15 +6,6 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
 
@@ -44,15 +35,15 @@ static int bcmgenet_mii_read(struct mii_bus *bus, int phy_id, int location)
 	u32 reg;
 
 	bcmgenet_umac_writel(priv, (MDIO_RD | (phy_id << MDIO_PMD_SHIFT) |
-			(location << MDIO_REG_SHIFT)), UMAC_MDIO_CMD);
+			     (location << MDIO_REG_SHIFT)), UMAC_MDIO_CMD);
 	/* Start MDIO transaction*/
 	reg = bcmgenet_umac_readl(priv, UMAC_MDIO_CMD);
 	reg |= MDIO_START_BUSY;
 	bcmgenet_umac_writel(priv, reg, UMAC_MDIO_CMD);
 	wait_event_timeout(priv->wq,
-			!(bcmgenet_umac_readl(priv, UMAC_MDIO_CMD)
-				& MDIO_START_BUSY),
-			HZ / 100);
+			   !(bcmgenet_umac_readl(priv, UMAC_MDIO_CMD)
+			   & MDIO_START_BUSY),
+			   HZ / 100);
 	ret = bcmgenet_umac_readl(priv, UMAC_MDIO_CMD);
 
 	if (ret & MDIO_READ_FAIL)
@@ -63,22 +54,22 @@ static int bcmgenet_mii_read(struct mii_bus *bus, int phy_id, int location)
 
 /* write a value to the MII */
 static int bcmgenet_mii_write(struct mii_bus *bus, int phy_id,
-			int location, u16 val)
+			      int location, u16 val)
 {
 	struct net_device *dev = bus->priv;
 	struct bcmgenet_priv *priv = netdev_priv(dev);
 	u32 reg;
 
 	bcmgenet_umac_writel(priv, (MDIO_WR | (phy_id << MDIO_PMD_SHIFT) |
-			(location << MDIO_REG_SHIFT) | (0xffff & val)),
-			UMAC_MDIO_CMD);
+			     (location << MDIO_REG_SHIFT) | (0xffff & val)),
+			     UMAC_MDIO_CMD);
 	reg = bcmgenet_umac_readl(priv, UMAC_MDIO_CMD);
 	reg |= MDIO_START_BUSY;
 	bcmgenet_umac_writel(priv, reg, UMAC_MDIO_CMD);
 	wait_event_timeout(priv->wq,
-			!(bcmgenet_umac_readl(priv, UMAC_MDIO_CMD) &
-				MDIO_START_BUSY),
-			HZ / 100);
+			   !(bcmgenet_umac_readl(priv, UMAC_MDIO_CMD) &
+			   MDIO_START_BUSY),
+			   HZ / 100);
 
 	return 0;
 }
@@ -248,7 +239,7 @@ int bcmgenet_mii_config(struct net_device *dev)
 		phy_name = "external MII";
 		phydev->supported &= PHY_BASIC_FEATURES;
 		bcmgenet_sys_writel(priv,
-				PORT_MODE_EXT_EPHY, SYS_PORT_CTRL);
+				    PORT_MODE_EXT_EPHY, SYS_PORT_CTRL);
 		break;
 
 	case PHY_INTERFACE_MODE_REVMII:
@@ -284,7 +275,7 @@ int bcmgenet_mii_config(struct net_device *dev)
 		reg |= RGMII_MODE_EN | id_mode_dis;
 		bcmgenet_ext_writel(priv, reg, EXT_RGMII_OOB_CTRL);
 		bcmgenet_sys_writel(priv,
-				PORT_MODE_EXT_GPHY, SYS_PORT_CTRL);
+				    PORT_MODE_EXT_GPHY, SYS_PORT_CTRL);
 		break;
 	default:
 		dev_err(kdev, "unknown phy mode: %d\n", priv->phy_interface);
@@ -363,7 +354,7 @@ static int bcmgenet_mii_probe(struct net_device *dev)
 		priv->mii_bus->irq[phydev->addr] = PHY_POLL;
 
 	pr_info("attached PHY at address %d [%s]\n",
-			phydev->addr, phydev->drv->name);
+		phydev->addr, phydev->drv->name);
 
 	return 0;
 }
@@ -388,9 +379,9 @@ static int bcmgenet_mii_alloc(struct bcmgenet_priv *priv)
 	bus->read = bcmgenet_mii_read;
 	bus->write = bcmgenet_mii_write;
 	snprintf(bus->id, MII_BUS_ID_SIZE, "%s-%d",
-			priv->pdev->name, priv->pdev->id);
+		 priv->pdev->name, priv->pdev->id);
 
-	bus->irq = kzalloc(sizeof(int) * PHY_MAX_ADDR, GFP_KERNEL);
+	bus->irq = kcalloc(PHY_MAX_ADDR, sizeof(int), GFP_KERNEL);
 	if (!bus->irq) {
 		mdiobus_free(priv->mii_bus);
 		return -ENOMEM;
