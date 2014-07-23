@@ -1065,7 +1065,7 @@ static int msm_serial_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id msm_match_table[] = {
+static const struct of_device_id msm_match_table[] = {
 	{ .compatible = "qcom,msm-uart" },
 	{ .compatible = "qcom,msm-uartdm" },
 	{}
