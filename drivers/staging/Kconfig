@@ -106,8 +106,6 @@ source "drivers/staging/gdm724x/Kconfig"
 
 source "drivers/staging/silicom/Kconfig"
 
-source "drivers/staging/ced1401/Kconfig"
-
 source "drivers/staging/imx-drm/Kconfig"
 
 source "drivers/staging/fwserial/Kconfig"
