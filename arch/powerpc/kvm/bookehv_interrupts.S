@@ -29,7 +29,6 @@
 #include <asm/asm-compat.h>
 #include <asm/asm-offsets.h>
 #include <asm/bitsperlong.h>
-#include <asm/thread_info.h>
 
 #ifdef CONFIG_64BIT
 #include <asm/exception-64e.h>
@@ -164,32 +163,9 @@
 	PPC_STL	r30, VCPU_GPR(R30)(r4)
 	PPC_STL	r31, VCPU_GPR(R31)(r4)
 	mtspr	SPRN_EPLC, r8
-
-	/* disable preemption, so we are sure we hit the fixup handler */
-	CURRENT_THREAD_INFO(r8, r1)
-	li	r7, 1
-	stw	r7, TI_PREEMPT(r8)
-
 	isync
-
-	/*
-	 * In case the read goes wrong, we catch it and write an invalid value
-	 * in LAST_INST instead.
-	 */
-1:	lwepx	r9, 0, r5
-2:
-.section .fixup, "ax"
-3:	li	r9, KVM_INST_FETCH_FAILED
-	b	2b
-.previous
-.section __ex_table,"a"
-	PPC_LONG_ALIGN
-	PPC_LONG 1b,3b
-.previous
-
+	lwepx   r9, 0, r5
 	mtspr	SPRN_EPLC, r3
-	li	r7, 0
-	stw	r7, TI_PREEMPT(r8)
 	stw	r9, VCPU_LAST_INST(r4)
 	.endif
 
