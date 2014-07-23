@@ -379,7 +379,7 @@ static int mxt_bootloader_write(struct mxt_data *data,
 	return ret;
 }
 
-static int mxt_lookup_bootloader_address(struct mxt_data *data)
+static int mxt_lookup_bootloader_address(struct mxt_data *data, bool retry)
 {
 	u8 appmode = data->client->addr;
 	u8 bootloader;
@@ -388,7 +388,7 @@ static int mxt_lookup_bootloader_address(struct mxt_data *data)
 	case 0x4a:
 	case 0x4b:
 		/* Chips after 1664S use different scheme */
-		if (data->info.family_id >= 0xa2) {
+		if (retry || data->info.family_id >= 0xa2) {
 			bootloader = appmode - 0x24;
 			break;
 		}
@@ -410,14 +410,14 @@ static int mxt_lookup_bootloader_address(struct mxt_data *data)
 	return 0;
 }
 
-static int mxt_probe_bootloader(struct mxt_data *data)
+static int mxt_probe_bootloader(struct mxt_data *data, bool retry)
 {
 	struct device *dev = &data->client->dev;
 	int ret;
 	u8 val;
 	bool crc_failure;
 
-	ret = mxt_lookup_bootloader_address(data);
+	ret = mxt_lookup_bootloader_address(data, retry);
 	if (ret)
 		return ret;
 
@@ -518,13 +518,18 @@ recheck:
 	return 0;
 }
 
-static int mxt_unlock_bootloader(struct mxt_data *data)
+static int mxt_send_bootloader_cmd(struct mxt_data *data, bool unlock)
 {
 	int ret;
 	u8 buf[2];
 
-	buf[0] = MXT_UNLOCK_CMD_LSB;
-	buf[1] = MXT_UNLOCK_CMD_MSB;
+	if (unlock) {
+		buf[0] = MXT_UNLOCK_CMD_LSB;
+		buf[1] = MXT_UNLOCK_CMD_MSB;
+	} else {
+		buf[0] = 0x01;
+		buf[1] = 0x01;
+	}
 
 	ret = mxt_bootloader_write(data, buf, 2);
 	if (ret)
@@ -1481,15 +1486,40 @@ static int mxt_initialize(struct mxt_data *data)
 {
 	struct i2c_client *client = data->client;
 	int error;
+	bool alt_bootloader_addr = false;
+	bool retry = false;
 
+retry_info:
 	error = mxt_get_info(data);
 	if (error) {
-		error = mxt_probe_bootloader(data);
-		if (error)
-			return error;
+retry_bootloader:
+		error = mxt_probe_bootloader(data, alt_bootloader_addr);
+		if (error) {
+			if (alt_bootloader_addr) {
+				/* Chip is not in appmode or bootloader mode */
+				return error;
+			}
 
-		data->in_bootloader = true;
-		return 0;
+			dev_info(&client->dev, "Trying alternate bootloader address\n");
+			alt_bootloader_addr = true;
+			goto retry_bootloader;
+		} else {
+			if (retry) {
+				dev_err(&client->dev, "Could not recover from bootloader mode\n");
+				/*
+				 * We can reflash from this state, so do not
+				 * abort init
+				 */
+				data->in_bootloader = true;
+				return 0;
+			}
+
+			/* Attempt to exit bootloader into app mode */
+			mxt_send_bootloader_cmd(data, false);
+			msleep(MXT_FW_RESET_TIME);
+			retry = true;
+			goto retry_info;
+		}
 	}
 
 	/* Get object table information */
@@ -1664,10 +1694,6 @@ static int mxt_load_fw(struct device *dev, const char *fn)
 	if (ret)
 		goto release_firmware;
 
-	ret = mxt_lookup_bootloader_address(data);
-	if (ret)
-		goto release_firmware;
-
 	if (!data->in_bootloader) {
 		/* Change to the bootloader mode */
 		data->in_bootloader = true;
@@ -1678,6 +1704,13 @@ static int mxt_load_fw(struct device *dev, const char *fn)
 			goto release_firmware;
 
 		msleep(MXT_RESET_TIME);
+
+		/* Do not need to scan since we know family ID */
+		ret = mxt_lookup_bootloader_address(data, 0);
+		if (ret)
+			goto release_firmware;
+	} else {
+		enable_irq(data->irq);
 	}
 
 	mxt_free_object_table(data);
@@ -1693,7 +1726,7 @@ static int mxt_load_fw(struct device *dev, const char *fn)
 		dev_info(dev, "Unlocking bootloader\n");
 
 		/* Unlock bootloader */
-		ret = mxt_unlock_bootloader(data);
+		ret = mxt_send_bootloader_cmd(data, true);
 		if (ret)
 			goto disable_irq;
 	}
