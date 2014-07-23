@@ -256,6 +256,8 @@ static struct drm_minor **drm_minor_get_slot(struct drm_device *dev,
 static int drm_minor_alloc(struct drm_device *dev, unsigned int type)
 {
 	struct drm_minor *minor;
+	unsigned long flags;
+	int r;
 
 	minor = kzalloc(sizeof(*minor), GFP_KERNEL);
 	if (!minor)
@@ -264,57 +266,68 @@ static int drm_minor_alloc(struct drm_device *dev, unsigned int type)
 	minor->type = type;
 	minor->dev = dev;
 
+	idr_preload(GFP_KERNEL);
+	spin_lock_irqsave(&drm_minor_lock, flags);
+	r = idr_alloc(&drm_minors_idr,
+		      NULL,
+		      64 * type,
+		      64 * (type + 1),
+		      GFP_NOWAIT);
+	spin_unlock_irqrestore(&drm_minor_lock, flags);
+	idr_preload_end();
+
+	if (r < 0)
+		goto err_free;
+
+	minor->index = r;
+
 	*drm_minor_get_slot(dev, type) = minor;
 	return 0;
+
+err_free:
+	kfree(minor);
+	return r;
 }
 
 static void drm_minor_free(struct drm_device *dev, unsigned int type)
 {
-	struct drm_minor **slot;
+	struct drm_minor **slot, *minor;
+	unsigned long flags;
 
 	slot = drm_minor_get_slot(dev, type);
-	if (*slot) {
-		drm_mode_group_destroy(&(*slot)->mode_group);
-		kfree(*slot);
-		*slot = NULL;
-	}
+	minor = *slot;
+	if (!minor)
+		return;
+
+	drm_mode_group_destroy(&minor->mode_group);
+
+	spin_lock_irqsave(&drm_minor_lock, flags);
+	idr_remove(&drm_minors_idr, minor->index);
+	spin_unlock_irqrestore(&drm_minor_lock, flags);
+
+	kfree(minor);
+	*slot = NULL;
 }
 
 static int drm_minor_register(struct drm_device *dev, unsigned int type)
 {
-	struct drm_minor *new_minor;
+	struct drm_minor *minor;
 	unsigned long flags;
 	int ret;
-	int minor_id;
 
 	DRM_DEBUG("\n");
 
-	new_minor = *drm_minor_get_slot(dev, type);
-	if (!new_minor)
+	minor = *drm_minor_get_slot(dev, type);
+	if (!minor)
 		return 0;
 
-	idr_preload(GFP_KERNEL);
-	spin_lock_irqsave(&drm_minor_lock, flags);
-	minor_id = idr_alloc(&drm_minors_idr,
-			     NULL,
-			     64 * type,
-			     64 * (type + 1),
-			     GFP_NOWAIT);
-	spin_unlock_irqrestore(&drm_minor_lock, flags);
-	idr_preload_end();
-
-	if (minor_id < 0)
-		return minor_id;
-
-	new_minor->index = minor_id;
-
-	ret = drm_debugfs_init(new_minor, minor_id, drm_debugfs_root);
+	ret = drm_debugfs_init(minor, minor->index, drm_debugfs_root);
 	if (ret) {
 		DRM_ERROR("DRM: Failed to initialize /sys/kernel/debug/dri.\n");
-		goto err_id;
+		return ret;
 	}
 
-	ret = drm_sysfs_device_add(new_minor);
+	ret = drm_sysfs_device_add(minor);
 	if (ret) {
 		DRM_ERROR("DRM: Error sysfs_device_add.\n");
 		goto err_debugfs;
@@ -322,19 +335,14 @@ static int drm_minor_register(struct drm_device *dev, unsigned int type)
 
 	/* replace NULL with @minor so lookups will succeed from now on */
 	spin_lock_irqsave(&drm_minor_lock, flags);
-	idr_replace(&drm_minors_idr, new_minor, new_minor->index);
+	idr_replace(&drm_minors_idr, minor, minor->index);
 	spin_unlock_irqrestore(&drm_minor_lock, flags);
 
-	DRM_DEBUG("new minor assigned %d\n", minor_id);
+	DRM_DEBUG("new minor registered %d\n", minor->index);
 	return 0;
 
 err_debugfs:
-	drm_debugfs_cleanup(new_minor);
-err_id:
-	spin_lock_irqsave(&drm_minor_lock, flags);
-	idr_remove(&drm_minors_idr, minor_id);
-	spin_unlock_irqrestore(&drm_minor_lock, flags);
-	new_minor->index = 0;
+	drm_debugfs_cleanup(minor);
 	return ret;
 }
 
@@ -347,10 +355,10 @@ static void drm_minor_unregister(struct drm_device *dev, unsigned int type)
 	if (!minor || !minor->kdev)
 		return;
 
+	/* replace @minor with NULL so lookups will fail from now on */
 	spin_lock_irqsave(&drm_minor_lock, flags);
-	idr_remove(&drm_minors_idr, minor->index);
+	idr_replace(&drm_minors_idr, NULL, minor->index);
 	spin_unlock_irqrestore(&drm_minor_lock, flags);
-	minor->index = 0;
 
 	drm_debugfs_cleanup(minor);
 	drm_sysfs_device_remove(minor);
