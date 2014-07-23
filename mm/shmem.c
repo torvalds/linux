@@ -2054,10 +2054,13 @@ static int shmem_rmdir(struct inode *dir, struct dentry *dentry)
  * it exists so that the VFS layer correctly free's it when it
  * gets overwritten.
  */
-static int shmem_rename(struct inode *old_dir, struct dentry *old_dentry, struct inode *new_dir, struct dentry *new_dentry)
+static int shmem_rename2(struct inode *old_dir, struct dentry *old_dentry, struct inode *new_dir, struct dentry *new_dentry, unsigned int flags)
 {
 	struct inode *inode = old_dentry->d_inode;
 	int they_are_dirs = S_ISDIR(inode->i_mode);
+
+	if (flags & ~(RENAME_NOREPLACE))
+		return -EINVAL;
 
 	if (!simple_empty(new_dentry))
 		return -ENOTEMPTY;
@@ -2741,7 +2744,7 @@ static const struct inode_operations shmem_dir_inode_operations = {
 	.mkdir		= shmem_mkdir,
 	.rmdir		= shmem_rmdir,
 	.mknod		= shmem_mknod,
-	.rename		= shmem_rename,
+	.rename2	= shmem_rename2,
 	.tmpfile	= shmem_tmpfile,
 #endif
 #ifdef CONFIG_TMPFS_XATTR
