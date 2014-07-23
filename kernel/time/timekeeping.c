@@ -338,7 +338,7 @@ static inline void update_vsyscall(struct timekeeper *tk)
 {
 	struct timespec xt;
 
-	xt = tk_xtime(tk);
+	xt = timespec64_to_timespec(tk_xtime(tk));
 	update_vsyscall_old(&xt, &tk->wall_to_monotonic, tk->tkr.clock, tk->tkr.mult,
 			    tk->tkr.cycle_last);
 }
