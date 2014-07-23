@@ -22,7 +22,6 @@
 #include <linux/errno.h>
 #include <linux/ptrace.h>
 #include <linux/smp.h>
-#include <linux/user.h>
 #include <linux/security.h>
 
 #include <asm/cpu.h>
@@ -32,6 +31,7 @@
 #include <asm/mipsmtregs.h>
 #include <asm/pgtable.h>
 #include <asm/page.h>
+#include <asm/reg.h>
 #include <asm/uaccess.h>
 #include <asm/bootinfo.h>
 
