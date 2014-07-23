@@ -675,6 +675,10 @@ ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
 						u32 gpe_number))
 
 ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
+				acpi_mark_gpe_for_wake(acpi_handle gpe_device,
+						       u32 gpe_number))
+
+ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
 				acpi_setup_gpe_for_wake(acpi_handle
 							parent_device,
 							acpi_handle gpe_device,

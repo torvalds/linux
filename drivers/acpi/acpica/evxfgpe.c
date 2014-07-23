@@ -187,6 +187,53 @@ ACPI_EXPORT_SYMBOL(acpi_disable_gpe)
 
 /*******************************************************************************
  *
+ * FUNCTION:    acpi_mark_gpe_for_wake
+ *
+ * PARAMETERS:  gpe_device          - Parent GPE Device. NULL for GPE0/GPE1
+ *              gpe_number          - GPE level within the GPE block
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Mark a GPE as having the ability to wake the system. Simply
+ *              sets the ACPI_GPE_CAN_WAKE flag.
+ *
+ * Some potential callers of acpi_setup_gpe_for_wake may know in advance that
+ * there won't be any notify handlers installed for device wake notifications
+ * from the given GPE (one example is a button GPE in Linux). For these cases,
+ * acpi_mark_gpe_for_wake should be used instead of acpi_setup_gpe_for_wake.
+ * This will set the ACPI_GPE_CAN_WAKE flag for the GPE without trying to
+ * setup implicit wake notification for it (since there's no handler method).
+ *
+ ******************************************************************************/
+acpi_status acpi_mark_gpe_for_wake(acpi_handle gpe_device, u32 gpe_number)
+{
+	struct acpi_gpe_event_info *gpe_event_info;
+	acpi_status status = AE_BAD_PARAMETER;
+	acpi_cpu_flags flags;
+
+	ACPI_FUNCTION_TRACE(acpi_mark_gpe_for_wake);
+
+	flags = acpi_os_acquire_lock(acpi_gbl_gpe_lock);
+
+	/* Ensure that we have a valid GPE number */
+
+	gpe_event_info = acpi_ev_get_gpe_event_info(gpe_device, gpe_number);
+	if (gpe_event_info) {
+
+		/* Mark the GPE as a possible wake event */
+
+		gpe_event_info->flags |= ACPI_GPE_CAN_WAKE;
+		status = AE_OK;
+	}
+
+	acpi_os_release_lock(acpi_gbl_gpe_lock, flags);
+	return_ACPI_STATUS(status);
+}
+
+ACPI_EXPORT_SYMBOL(acpi_mark_gpe_for_wake)
+
+/*******************************************************************************
+ *
  * FUNCTION:    acpi_setup_gpe_for_wake
  *
  * PARAMETERS:  wake_device         - Device associated with the GPE (via _PRW)
