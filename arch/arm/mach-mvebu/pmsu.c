@@ -191,8 +191,14 @@ static void mvebu_v7_pmsu_enable_l2_powerdown_onidle(void)
 	writel(reg, pmsu_mp_base + L2C_NFABRIC_PM_CTL);
 }
 
+enum pmsu_idle_prepare_flags {
+	PMSU_PREPARE_NORMAL = 0,
+	PMSU_PREPARE_DEEP_IDLE = BIT(0),
+	PMSU_PREPARE_SNOOP_DISABLE = BIT(1),
+};
+
 /* No locking is needed because we only access per-CPU registers */
-static int mvebu_v7_pmsu_idle_prepare(bool deepidle)
+static int mvebu_v7_pmsu_idle_prepare(unsigned long flags)
 {
 	unsigned int hw_cpu = cpu_logical_map(smp_processor_id());
 	u32 reg;
@@ -216,26 +222,32 @@ static int mvebu_v7_pmsu_idle_prepare(bool deepidle)
 
 	reg = readl(pmsu_mp_base + PMSU_CONTROL_AND_CONFIG(hw_cpu));
 	/* ask HW to power down the L2 Cache if needed */
-	if (deepidle)
+	if (flags & PMSU_PREPARE_DEEP_IDLE)
 		reg |= PMSU_CONTROL_AND_CONFIG_L2_PWDDN;
 
 	/* request power down */
 	reg |= PMSU_CONTROL_AND_CONFIG_PWDDN_REQ;
 	writel(reg, pmsu_mp_base + PMSU_CONTROL_AND_CONFIG(hw_cpu));
 
-	/* Disable snoop disable by HW - SW is taking care of it */
-	reg = readl(pmsu_mp_base + PMSU_CPU_POWER_DOWN_CONTROL(hw_cpu));
-	reg |= PMSU_CPU_POWER_DOWN_DIS_SNP_Q_SKIP;
-	writel(reg, pmsu_mp_base + PMSU_CPU_POWER_DOWN_CONTROL(hw_cpu));
+	if (flags & PMSU_PREPARE_SNOOP_DISABLE) {
+		/* Disable snoop disable by HW - SW is taking care of it */
+		reg = readl(pmsu_mp_base + PMSU_CPU_POWER_DOWN_CONTROL(hw_cpu));
+		reg |= PMSU_CPU_POWER_DOWN_DIS_SNP_Q_SKIP;
+		writel(reg, pmsu_mp_base + PMSU_CPU_POWER_DOWN_CONTROL(hw_cpu));
+	}
 
 	return 0;
 }
 
 int armada_370_xp_pmsu_idle_enter(unsigned long deepidle)
 {
+	unsigned long flags = PMSU_PREPARE_SNOOP_DISABLE;
 	int ret;
 
-	ret = mvebu_v7_pmsu_idle_prepare(deepidle);
+	if (deepidle)
+		flags |= PMSU_PREPARE_DEEP_IDLE;
+
+	ret = mvebu_v7_pmsu_idle_prepare(flags);
 	if (ret)
 		return ret;
 
