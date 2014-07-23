@@ -13,8 +13,6 @@
 #ifndef __ASM_ARCH_MEMORY_H
 #define __ASM_ARCH_MEMORY_H
 
-#define PLAT_PHYS_OFFSET		UL(0x20000000)
-
 /*
  * Sparsemem support
  * Physical memory can be located from 0x20000000 to 0x7fffffff,

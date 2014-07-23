@@ -262,8 +262,22 @@ config NEED_MACH_MEMORY_H
 
 config PHYS_OFFSET
 	hex "Physical address of main memory" if MMU
-	depends on !ARM_PATCH_PHYS_VIRT && !NEED_MACH_MEMORY_H
+	depends on !ARM_PATCH_PHYS_VIRT
 	default DRAM_BASE if !MMU
+	default 0x00000000 if ARCH_EBSA110 || \
+			EP93XX_SDCE3_SYNC_PHYS_OFFSET || \
+			ARCH_FOOTBRIDGE || \
+			ARCH_INTEGRATOR || \
+			ARCH_IOP13XX || \
+			ARCH_KS8695 || \
+			(ARCH_REALVIEW && !REALVIEW_HIGH_PHYS_OFFSET)
+	default 0x10000000 if ARCH_OMAP1 || ARCH_RPC
+	default 0x20000000 if ARCH_S5PV210
+	default 0x70000000 if REALVIEW_HIGH_PHYS_OFFSET
+	default 0xc0000000 if EP93XX_SDCE0_PHYS_OFFSET || ARCH_SA1100
+	default 0xd0000000 if EP93XX_SDCE1_PHYS_OFFSET
+	default 0xe0000000 if EP93XX_SDCE2_PHYS_OFFSET
+	default 0xf0000000 if EP93XX_SDCE3_ASYNC_PHYS_OFFSET
 	help
 	  Please provide the physical address corresponding to the
 	  location of main memory in your system.
@@ -435,7 +449,6 @@ config ARCH_EP93XX
 	select ARM_VIC
 	select CLKDEV_LOOKUP
 	select CPU_ARM920T
-	select NEED_MACH_MEMORY_H
 	help
 	  This enables support for the Cirrus EP93xx series of CPUs.
 
