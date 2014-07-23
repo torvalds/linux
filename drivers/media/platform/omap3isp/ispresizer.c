@@ -229,7 +229,7 @@ static void resizer_set_phase(struct isp_res_device *res, u32 h_phase,
 			      u32 v_phase)
 {
 	struct isp_device *isp = to_isp_device(res);
-	u32 rgval = 0;
+	u32 rgval;
 
 	rgval = isp_reg_readl(isp, OMAP3_ISP_IOMEM_RESZ, ISPRSZ_CNT) &
 	      ~(ISPRSZ_CNT_HSTPH_MASK | ISPRSZ_CNT_VSTPH_MASK);
@@ -265,7 +265,7 @@ static void resizer_set_luma(struct isp_res_device *res,
 			     struct resizer_luma_yenh *luma)
 {
 	struct isp_device *isp = to_isp_device(res);
-	u32 rgval = 0;
+	u32 rgval;
 
 	rgval  = (luma->algo << ISPRSZ_YENH_ALGO_SHIFT)
 		  & ISPRSZ_YENH_ALGO_MASK;
@@ -312,7 +312,7 @@ static void resizer_set_ratio(struct isp_res_device *res,
 {
 	struct isp_device *isp = to_isp_device(res);
 	const u16 *h_filter, *v_filter;
-	u32 rgval = 0;
+	u32 rgval;
 
 	rgval = isp_reg_readl(isp, OMAP3_ISP_IOMEM_RESZ, ISPRSZ_CNT) &
 			      ~(ISPRSZ_CNT_HRSZ_MASK | ISPRSZ_CNT_VRSZ_MASK);
@@ -355,7 +355,7 @@ static void resizer_set_output_size(struct isp_res_device *res,
 				    u32 width, u32 height)
 {
 	struct isp_device *isp = to_isp_device(res);
-	u32 rgval = 0;
+	u32 rgval;
 
 	dev_dbg(isp->dev, "Output size[w/h]: %dx%d\n", width, height);
 	rgval  = (width << ISPRSZ_OUT_SIZE_HORZ_SHIFT)
@@ -399,7 +399,7 @@ static void resizer_set_output_offset(struct isp_res_device *res, u32 offset)
 static void resizer_set_start(struct isp_res_device *res, u32 left, u32 top)
 {
 	struct isp_device *isp = to_isp_device(res);
-	u32 rgval = 0;
+	u32 rgval;
 
 	rgval = (left << ISPRSZ_IN_START_HORZ_ST_SHIFT)
 		& ISPRSZ_IN_START_HORZ_ST_MASK;
@@ -419,7 +419,7 @@ static void resizer_set_input_size(struct isp_res_device *res,
 				   u32 width, u32 height)
 {
 	struct isp_device *isp = to_isp_device(res);
-	u32 rgval = 0;
+	u32 rgval;
 
 	dev_dbg(isp->dev, "Input size[w/h]: %dx%d\n", width, height);
 
