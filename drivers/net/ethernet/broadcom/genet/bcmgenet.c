@@ -1100,8 +1100,9 @@ static int bcmgenet_put_tx_csum(struct net_device *dev, struct sk_buff *skb)
 			tx_csum_info |= STATUS_TX_CSUM_LV;
 			if (ip_proto == IPPROTO_UDP && ip_ver == ETH_P_IP)
 				tx_csum_info |= STATUS_TX_CSUM_PROTO_UDP;
-		} else
+		} else {
 			tx_csum_info = 0;
+		}
 
 		status->tx_csum_info = tx_csum_info;
 	}
@@ -1529,11 +1530,11 @@ static int init_umac(struct bcmgenet_priv *priv)
 	dev_dbg(kdev, "%s:Enabling RXDMA_BDONE interrupt\n", __func__);
 
 	/* Monitor cable plug/unpluged event for internal PHY */
-	if (phy_is_internal(priv->phydev))
+	if (phy_is_internal(priv->phydev)) {
 		cpu_mask_clear |= (UMAC_IRQ_LINK_DOWN | UMAC_IRQ_LINK_UP);
-	else if (priv->ext_phy)
+	} else if (priv->ext_phy) {
 		cpu_mask_clear |= (UMAC_IRQ_LINK_DOWN | UMAC_IRQ_LINK_UP);
-	else if (priv->phy_interface == PHY_INTERFACE_MODE_MOCA) {
+	} else if (priv->phy_interface == PHY_INTERFACE_MODE_MOCA) {
 		reg = bcmgenet_bp_mc_get(priv);
 		reg |= BIT(priv->hw_params->bp_in_en_shift);
 
