@@ -399,6 +399,18 @@ static inline struct page *read_mapping_page(struct address_space *mapping,
 }
 
 /*
+ * Get the offset in PAGE_SIZE.
+ * (TODO: hugepage should have ->index in PAGE_SIZE)
+ */
+static inline pgoff_t page_to_pgoff(struct page *page)
+{
+	if (unlikely(PageHeadHuge(page)))
+		return page->index << compound_order(page);
+	else
+		return page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
+}
+
+/*
  * Return byte-offset into filesystem object for page.
  */
 static inline loff_t page_offset(struct page *page)
