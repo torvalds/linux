@@ -34,7 +34,6 @@
 #include <asm/tlbflush.h>
 #include "common.h"
 
-static void __iomem *pmsu_mp_base;
 
 #define PMSU_BASE_OFFSET    0x100
 #define PMSU_REG_SIZE	    0x1000
@@ -68,16 +67,17 @@ static void __iomem *pmsu_mp_base;
 #define BOOTROM_BASE    0xFFF00000
 #define BOOTROM_SIZE    0x100000
 
+#define ARMADA_370_CRYPT0_ENG_TARGET   0x9
+#define ARMADA_370_CRYPT0_ENG_ATTR     0x1
+
 extern void ll_disable_coherency(void);
 extern void ll_enable_coherency(void);
 
 extern void armada_370_xp_cpu_resume(void);
+static phys_addr_t pmsu_mp_phys_base;
+static void __iomem *pmsu_mp_base;
 
 static void *mvebu_cpu_resume;
-
-static struct platform_device mvebu_v7_cpuidle_device = {
-	.name = "cpuidle-armada-xp",
-};
 
 static struct of_device_id of_pmsu_table[] = {
 	{ .compatible = "marvell,armada-370-pmsu", },
@@ -164,6 +164,8 @@ static int __init mvebu_v7_pmsu_init(void)
 		ret = -EBUSY;
 		goto out;
 	}
+
+	pmsu_mp_phys_base = res.start;
 
 	pmsu_mp_base = ioremap(res.start, resource_size(&res));
 	if (!pmsu_mp_base) {
@@ -275,7 +277,7 @@ int armada_370_xp_pmsu_idle_enter(unsigned long deepidle)
 	"isb	"
 	: : : "r0");
 
-	pr_warn("Failed to suspend the system\n");
+	pr_debug("Failed to suspend the system\n");
 
 	return 0;
 }
@@ -325,7 +327,39 @@ static struct notifier_block mvebu_v7_cpu_pm_notifier = {
 	.notifier_call = mvebu_v7_cpu_pm_notify,
 };
 
-static int __init armada_xp_cpuidle_init(void)
+static struct platform_device mvebu_v7_cpuidle_device;
+
+static __init int armada_370_cpuidle_init(void)
+{
+	struct device_node *np;
+	phys_addr_t redirect_reg;
+
+	np = of_find_compatible_node(NULL, NULL, "marvell,coherency-fabric");
+	if (!np)
+		return -ENODEV;
+	of_node_put(np);
+
+	/*
+	 * On Armada 370, there is "a slow exit process from the deep
+	 * idle state due to heavy L1/L2 cache cleanup operations
+	 * performed by the BootROM software". To avoid this, we
+	 * replace the restart code of the bootrom by a a simple jump
+	 * to the boot address. Then the code located at this boot
+	 * address will take care of the initialization.
+	 */
+	redirect_reg = pmsu_mp_phys_base + PMSU_BOOT_ADDR_REDIRECT_OFFSET(0);
+	mvebu_setup_boot_addr_wa(ARMADA_370_CRYPT0_ENG_TARGET,
+				 ARMADA_370_CRYPT0_ENG_ATTR,
+				 redirect_reg);
+
+	mvebu_cpu_resume = armada_370_xp_cpu_resume;
+	mvebu_v7_cpuidle_device.dev.platform_data = armada_370_xp_cpu_suspend;
+	mvebu_v7_cpuidle_device.name = "cpuidle-armada-370";
+
+	return 0;
+}
+
+static __init int armada_xp_cpuidle_init(void)
 {
 	struct device_node *np;
 
@@ -336,6 +370,7 @@ static int __init armada_xp_cpuidle_init(void)
 
 	mvebu_cpu_resume = armada_370_xp_cpu_resume;
 	mvebu_v7_cpuidle_device.dev.platform_data = armada_370_xp_cpu_suspend;
+	mvebu_v7_cpuidle_device.name = "cpuidle-armada-xp";
 
 	return 0;
 }
@@ -352,6 +387,8 @@ static int __init mvebu_v7_cpu_pm_init(void)
 
 	if (of_machine_is_compatible("marvell,armadaxp"))
 		ret = armada_xp_cpuidle_init();
+	else if (of_machine_is_compatible("marvell,armada370"))
+		ret = armada_370_cpuidle_init();
 	else
 		return 0;
 
