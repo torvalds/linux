@@ -2970,8 +2970,6 @@ static void init_open_stateid(struct nfs4_ol_stateid *stp, struct nfs4_file *fp,
 	stp->st_file = fp;
 	stp->st_access_bmap = 0;
 	stp->st_deny_bmap = 0;
-	set_access(open->op_share_access, stp);
-	set_deny(open->op_share_deny, stp);
 	stp->st_openstp = NULL;
 	spin_lock(&fp->fi_lock);
 	list_add(&stp->st_perfile, &fp->fi_stateids);
