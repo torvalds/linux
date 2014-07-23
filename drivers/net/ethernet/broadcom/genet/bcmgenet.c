@@ -619,7 +619,6 @@ static void bcmgenet_get_drvinfo(struct net_device *dev,
 	strlcpy(info->driver, "bcmgenet", sizeof(info->driver));
 	strlcpy(info->version, "v2.0", sizeof(info->version));
 	info->n_stats = BCMGENET_STATS_LEN;
-
 }
 
 static int bcmgenet_get_sset_count(struct net_device *dev, int string_set)
@@ -1268,7 +1267,6 @@ static unsigned int bcmgenet_desc_rx(struct bcmgenet_priv *priv,
 
 	while ((rxpktprocessed < rxpkttoprocess) &&
 	       (rxpktprocessed < budget)) {
-
 		/* Unmap the packet contents such that we can use the
 		 * RSV from the 64 bytes descriptor when enabled and save
 		 * a 32-bits register read
@@ -1286,6 +1284,7 @@ static unsigned int bcmgenet_desc_rx(struct bcmgenet_priv *priv,
 							   DMA_DESC_SIZE));
 		} else {
 			struct status_64 *status;
+
 			status = (struct status_64 *)skb->data;
 			dma_length_status = status->length_status;
 		}
@@ -1408,7 +1407,6 @@ static int bcmgenet_alloc_rx_buffers(struct bcmgenet_priv *priv)
 		ret = bcmgenet_rx_refill(priv, cb);
 		if (ret)
 			break;
-
 	}
 
 	return ret;
