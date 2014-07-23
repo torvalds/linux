@@ -43,6 +43,7 @@ dmo	Data Modul AG
 ebv	EBV Elektronik
 edt	Emerging Display Technologies
 emmicro	EM Microelectronic
+energymicro	Silicon Laboratories (formerly Energy Micro AS)
 epcos	EPCOS AG
 epfl	Ecole Polytechnique Fédérale de Lausanne
 epson	Seiko Epson Corp.
