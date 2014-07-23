@@ -500,6 +500,16 @@ int __init dw_pcie_host_init(struct pcie_port *pp)
 		}
 	}
 
+	ret = of_pci_parse_bus_range(np, &pp->busn);
+	if (ret < 0) {
+		pp->busn.name = np->name;
+		pp->busn.start = 0;
+		pp->busn.end = 0xff;
+		pp->busn.flags = IORESOURCE_BUS;
+		dev_dbg(pp->dev, "failed to parse bus-range property: %d, using default %pR\n",
+			ret, &pp->busn);
+	}
+
 	if (!pp->dbi_base) {
 		pp->dbi_base = devm_ioremap(pp->dev, pp->cfg.start,
 					resource_size(&pp->cfg));
@@ -794,6 +804,7 @@ static int dw_pcie_setup(int nr, struct pci_sys_data *sys)
 
 	sys->mem_offset = pp->mem.start - pp->config.mem_bus_addr;
 	pci_add_resource_offset(&sys->resources, &pp->mem, sys->mem_offset);
+	pci_add_resource(&sys->resources, &pp->busn);
 
 	return 1;
 }

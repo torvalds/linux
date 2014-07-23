@@ -48,6 +48,7 @@ struct pcie_port {
 	struct resource		cfg;
 	struct resource		io;
 	struct resource		mem;
+	struct resource		busn;
 	struct pcie_port_info	config;
 	int			irq;
 	u32			lanes;
