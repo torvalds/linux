@@ -971,12 +971,6 @@ static int rbd_header_from_disk(struct rbd_device *rbd_dev,
 	header->snap_names = snap_names;
 	header->snap_sizes = snap_sizes;
 
-	/* Make sure mapping size is consistent with header info */
-
-	if (rbd_dev->spec->snap_id == CEPH_NOSNAP || first_time)
-		if (rbd_dev->mapping.size != header->image_size)
-			rbd_dev->mapping.size = header->image_size;
-
 	return 0;
 out_2big:
 	ret = -EIO;
@@ -3522,9 +3516,14 @@ static int rbd_dev_refresh(struct rbd_device *rbd_dev)
 	if (ret)
 		return ret;
 
-	/* If it's a mapped snapshot, validate its EXISTS flag */
+	if (rbd_dev->spec->snap_id == CEPH_NOSNAP) {
+		if (rbd_dev->mapping.size != rbd_dev->header.image_size)
+			rbd_dev->mapping.size = rbd_dev->header.image_size;
+	} else {
+		/* validate mapped snapshot's EXISTS flag */
+		rbd_exists_validate(rbd_dev);
+	}
 
-	rbd_exists_validate(rbd_dev);
 	up_write(&rbd_dev->header_rwsem);
 
 	if (mapping_size != rbd_dev->mapping.size) {
@@ -4506,10 +4505,6 @@ static int rbd_dev_v2_header_info(struct rbd_device *rbd_dev)
 			rbd_warn(rbd_dev, "WARNING: kernel layering "
 					"is EXPERIMENTAL!");
 	}
-
-	if (rbd_dev->spec->snap_id == CEPH_NOSNAP)
-		if (rbd_dev->mapping.size != rbd_dev->header.image_size)
-			rbd_dev->mapping.size = rbd_dev->header.image_size;
 
 	ret = rbd_dev_v2_snap_context(rbd_dev);
 	dout("rbd_dev_v2_snap_context returned %d\n", ret);
