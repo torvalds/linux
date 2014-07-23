@@ -143,7 +143,7 @@ static void armada_370_xp_pmsu_enable_l2_powerdown_onidle(void)
 }
 
 /* No locking is needed because we only access per-CPU registers */
-int armada_370_xp_pmsu_idle_enter(unsigned long deepidle)
+static int armada_370_xp_prepare(unsigned long deepidle)
 {
 	unsigned int hw_cpu = cpu_logical_map(smp_processor_id());
 	u32 reg;
@@ -178,6 +178,17 @@ int armada_370_xp_pmsu_idle_enter(unsigned long deepidle)
 	reg = readl(pmsu_mp_base + PMSU_CPU_POWER_DOWN_CONTROL(hw_cpu));
 	reg |= PMSU_CPU_POWER_DOWN_DIS_SNP_Q_SKIP;
 	writel(reg, pmsu_mp_base + PMSU_CPU_POWER_DOWN_CONTROL(hw_cpu));
+
+	return 0;
+}
+
+int armada_370_xp_pmsu_idle_enter(unsigned long deepidle)
+{
+	int ret;
+
+	ret = armada_370_xp_prepare(deepidle);
+	if (ret)
+		return ret;
 
 	v7_exit_coherency_flush(all);
 
