@@ -206,6 +206,20 @@ static int ppi_set_params(struct ppi_if *ppi, struct ppi_params *params)
 	int dma_config, bytes_per_line;
 	int hcount, hdelay, samples_per_line;
 
+#ifdef CONFIG_PINCTRL
+	static const char * const pin_state[] = {"8bit", "16bit", "24bit"};
+	struct pinctrl *pctrl;
+	struct pinctrl_state *pstate;
+
+	if (params->dlen > 24 || params->dlen <= 0)
+		return -EINVAL;
+	pctrl = devm_pinctrl_get(ppi->dev);
+	pstate = pinctrl_lookup_state(pctrl,
+				      pin_state[(params->dlen + 7) / 8 - 1]);
+	if (pinctrl_select_state(pctrl, pstate))
+		return -EINVAL;
+#endif
+
 	bytes_per_line = params->width * params->bpp / 8;
 	/* convert parameters unit from pixels to samples */
 	hcount = params->width * params->bpp / params->dlen;
@@ -316,10 +330,12 @@ struct ppi_if *ppi_create_instance(struct platform_device *pdev,
 	if (!info || !info->pin_req)
 		return NULL;
 
+#ifndef CONFIG_PINCTRL
 	if (peripheral_request_list(info->pin_req, KBUILD_MODNAME)) {
 		dev_err(&pdev->dev, "request peripheral failed\n");
 		return NULL;
 	}
+#endif
 
 	ppi = kzalloc(sizeof(*ppi), GFP_KERNEL);
 	if (!ppi) {
@@ -329,6 +345,7 @@ struct ppi_if *ppi_create_instance(struct platform_device *pdev,
 	}
 	ppi->ops = &ppi_ops;
 	ppi->info = info;
+	ppi->dev = &pdev->dev;
 
 	pr_info("ppi probe success\n");
 	return ppi;

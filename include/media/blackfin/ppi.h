@@ -83,6 +83,7 @@ struct ppi_info {
 };
 
 struct ppi_if {
+	struct device *dev;
 	unsigned long ppi_control;
 	const struct ppi_ops *ops;
 	const struct ppi_info *info;
