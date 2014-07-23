@@ -563,6 +563,51 @@ out:
 
 /* ---------------------------------------------------------------------- */
 
+static unsigned long long au_farray_cb(void *a,
+				       unsigned long long max __maybe_unused,
+				       void *arg)
+{
+	unsigned long long n;
+	struct file **p, *f;
+	struct super_block *sb = arg;
+
+	n = 0;
+	p = a;
+	lg_global_lock(&files_lglock);
+	do_file_list_for_each_entry(sb, f) {
+		if (au_fi(f)
+		    && file_count(f)
+		    && !special_file(file_inode(f)->i_mode)) {
+			get_file(f);
+			*p++ = f;
+			n++;
+			AuDebugOn(n > max);
+		}
+	} while_file_list_for_each_entry;
+	lg_global_unlock(&files_lglock);
+
+	return n;
+}
+
+static struct file **au_farray_alloc(struct super_block *sb,
+				     unsigned long long *max)
+{
+	*max = atomic_long_read(&au_sbi(sb)->si_nfiles);
+	return au_array_alloc(max, au_farray_cb, sb);
+}
+
+static void au_farray_free(struct file **a, unsigned long long max)
+{
+	unsigned long long ull;
+
+	for (ull = 0; ull < max; ull++)
+		if (a[ull])
+			fput(a[ull]);
+	au_array_free(a);
+}
+
+/* ---------------------------------------------------------------------- */
+
 /*
  * delete a branch
  */
@@ -995,49 +1040,6 @@ static int need_sigen_inc(int old, int new)
 {
 	return do_need_sigen_inc(old, new)
 		|| do_need_sigen_inc(new, old);
-}
-
-static unsigned long long au_farray_cb(void *a,
-				       unsigned long long max __maybe_unused,
-				       void *arg)
-{
-	unsigned long long n;
-	struct file **p, *f;
-	struct super_block *sb = arg;
-
-	n = 0;
-	p = a;
-	lg_global_lock(&files_lglock);
-	do_file_list_for_each_entry(sb, f) {
-		if (au_fi(f)
-		    && file_count(f)
-		    && !special_file(file_inode(f)->i_mode)) {
-			get_file(f);
-			*p++ = f;
-			n++;
-			AuDebugOn(n > max);
-		}
-	} while_file_list_for_each_entry;
-	lg_global_unlock(&files_lglock);
-
-	return n;
-}
-
-static struct file **au_farray_alloc(struct super_block *sb,
-				     unsigned long long *max)
-{
-	*max = atomic_long_read(&au_sbi(sb)->si_nfiles);
-	return au_array_alloc(max, au_farray_cb, sb);
-}
-
-static void au_farray_free(struct file **a, unsigned long long max)
-{
-	unsigned long long ull;
-
-	for (ull = 0; ull < max; ull++)
-		if (a[ull])
-			fput(a[ull]);
-	au_array_free(a);
 }
 
 static int au_br_mod_files_ro(struct super_block *sb, aufs_bindex_t bindex)
