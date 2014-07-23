@@ -206,11 +206,30 @@ static void __set_intercept_indicator(struct kvm_vcpu *vcpu,
 	}
 }
 
+static u16 get_ilc(struct kvm_vcpu *vcpu)
+{
+	const unsigned short table[] = { 2, 4, 4, 6 };
+
+	switch (vcpu->arch.sie_block->icptcode) {
+	case ICPT_INST:
+	case ICPT_INSTPROGI:
+	case ICPT_OPEREXC:
+	case ICPT_PARTEXEC:
+	case ICPT_IOINST:
+		/* last instruction only stored for these icptcodes */
+		return table[vcpu->arch.sie_block->ipa >> 14];
+	case ICPT_PROGI:
+		return vcpu->arch.sie_block->pgmilc;
+	default:
+		return 0;
+	}
+}
+
 static int __deliver_prog_irq(struct kvm_vcpu *vcpu,
 			      struct kvm_s390_pgm_info *pgm_info)
 {
-	const unsigned short table[] = { 2, 4, 4, 6 };
 	int rc = 0;
+	u16 ilc = get_ilc(vcpu);
 
 	switch (pgm_info->code & ~PGM_PER) {
 	case PGM_AFX_TRANSLATION:
@@ -277,25 +296,7 @@ static int __deliver_prog_irq(struct kvm_vcpu *vcpu,
 				   (u8 *) __LC_PER_ACCESS_ID);
 	}
 
-	switch (vcpu->arch.sie_block->icptcode) {
-	case ICPT_INST:
-	case ICPT_INSTPROGI:
-	case ICPT_OPEREXC:
-	case ICPT_PARTEXEC:
-	case ICPT_IOINST:
-		/* last instruction only stored for these icptcodes */
-		rc |= put_guest_lc(vcpu, table[vcpu->arch.sie_block->ipa >> 14],
-				   (u16 *) __LC_PGM_ILC);
-		break;
-	case ICPT_PROGI:
-		rc |= put_guest_lc(vcpu, vcpu->arch.sie_block->pgmilc,
-				   (u16 *) __LC_PGM_ILC);
-		break;
-	default:
-		rc |= put_guest_lc(vcpu, 0,
-				   (u16 *) __LC_PGM_ILC);
-	}
-
+	rc |= put_guest_lc(vcpu, ilc, (u16 *) __LC_PGM_ILC);
 	rc |= put_guest_lc(vcpu, pgm_info->code,
 			   (u16 *)__LC_PGM_INT_CODE);
 	rc |= write_guest_lc(vcpu, __LC_PGM_OLD_PSW,
