@@ -396,6 +396,7 @@ struct nfs4_file {
 	struct file		*fi_deleg_file;
 	struct file_lock	*fi_lease;
 	atomic_t		fi_delegees;
+	struct knfsd_fh		fi_fhandle;
 	struct inode		*fi_inode;
 	bool			fi_had_conflict;
 };
