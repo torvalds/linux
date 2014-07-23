@@ -46,17 +46,50 @@ static void micro_ts_receive(void *data, int len, unsigned char *msg)
 	}
 }
 
+static void micro_ts_toggle_receive(struct touchscreen_data *ts, bool enable)
+{
+	struct ipaq_micro *micro = ts->micro;
+
+	spin_lock_irq(&micro->lock);
+
+	if (enable) {
+		micro->ts = micro_ts_receive;
+		micro->ts_data = ts;
+	} else {
+		micro->ts = NULL;
+		micro->ts_data = NULL;
+	}
+
+	spin_unlock_irq(&ts->micro->lock);
+}
+
+static int micro_ts_open(struct input_dev *input)
+{
+	struct touchscreen_data *ts = input_get_drvdata(input);
+
+	micro_ts_toggle_receive(ts, true);
+
+	return 0;
+}
+
+static void micro_ts_close(struct input_dev *input)
+{
+	struct touchscreen_data *ts = input_get_drvdata(input);
+
+	micro_ts_toggle_receive(ts, false);
+}
+
 static int micro_ts_probe(struct platform_device *pdev)
 {
+	struct ipaq_micro *micro = dev_get_drvdata(pdev->dev.parent);
 	struct touchscreen_data *ts;
-	int ret;
+	int error;
 
 	ts = devm_kzalloc(&pdev->dev, sizeof(*ts), GFP_KERNEL);
 	if (!ts)
 		return -ENOMEM;
-	ts->micro = dev_get_drvdata(pdev->dev.parent);
 
-	platform_set_drvdata(pdev, ts);
+	ts->micro = micro;
 
 	ts->input = devm_input_allocate_device(&pdev->dev);
 	if (!ts->input) {
@@ -64,37 +97,27 @@ static int micro_ts_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
+	ts->input->name = "ipaq micro ts";
+	ts->input->open = micro_ts_open;
+	ts->input->close = micro_ts_close;
+
+	input_set_drvdata(ts->input, ts);
+
 	input_set_capability(ts->input, EV_KEY, BTN_TOUCH);
 	input_set_capability(ts->input, EV_ABS, ABS_X);
 	input_set_capability(ts->input, EV_ABS, ABS_Y);
 	input_set_abs_params(ts->input, ABS_X, 0, 1023, 0, 0);
 	input_set_abs_params(ts->input, ABS_Y, 0, 1023, 0, 0);
 
-	ts->input->name = "ipaq micro ts";
-
-	ret = input_register_device(ts->input);
-	if (ret) {
+	error = input_register_device(ts->input);
+	if (error) {
 		dev_err(&pdev->dev, "error registering touch input\n");
-		return ret;
+		return error;
 	}
 
-	spin_lock_irq(&ts->micro->lock);
-	ts->micro->ts = micro_ts_receive;
-	ts->micro->ts_data = ts;
-	spin_unlock_irq(&ts->micro->lock);
+	platform_set_drvdata(pdev, ts);
 
 	dev_info(&pdev->dev, "iPAQ micro touchscreen\n");
-	return 0;
-}
-
-static int micro_ts_remove(struct platform_device *pdev)
-{
-	struct touchscreen_data *ts = platform_get_drvdata(pdev);
-
-	spin_lock_irq(&ts->micro->lock);
-	ts->micro->ts = NULL;
-	ts->micro->ts_data = NULL;
-	spin_unlock_irq(&ts->micro->lock);
 
 	return 0;
 }
@@ -104,21 +127,23 @@ static int micro_ts_suspend(struct device *dev)
 {
 	struct touchscreen_data *ts = dev_get_drvdata(dev);
 
-	spin_lock_irq(&ts->micro->lock);
-	ts->micro->ts = NULL;
-	ts->micro->ts_data = NULL;
-	spin_unlock_irq(&ts->micro->lock);
+	micro_ts_toggle_receive(ts, false);
+
 	return 0;
 }
 
 static int micro_ts_resume(struct device *dev)
 {
 	struct touchscreen_data *ts = dev_get_drvdata(dev);
+	struct input_dev *input = ts->input;
 
-	spin_lock_irq(&ts->micro->lock);
-	ts->micro->ts = micro_ts_receive;
-	ts->micro->ts_data = ts;
-	spin_unlock_irq(&ts->micro->lock);
+	mutex_lock(&input->mutex);
+
+	if (input->users)
+		micro_ts_toggle_receive(ts, true);
+
+	mutex_unlock(&input->mutex);
+
 	return 0;
 }
 #endif
@@ -133,7 +158,6 @@ static struct platform_driver micro_ts_device_driver = {
 		.pm	= &micro_ts_dev_pm_ops,
 	},
 	.probe	= micro_ts_probe,
-	.remove	= micro_ts_remove,
 };
 module_platform_driver(micro_ts_device_driver);
 
