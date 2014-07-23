@@ -227,3 +227,5 @@ struct coda_ctx {
 	int				display_idx;
 	struct dentry			*debugfs_entry;
 };
+
+int coda_h264_padding(int size, char *p);

@@ -72,10 +72,6 @@ struct coda_fmt {
 	u32 fourcc;
 };
 
-static const u8 coda_filler_nal[14] = { 0x00, 0x00, 0x00, 0x01, 0x0c, 0xff,
-			0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x80 };
-static const u8 coda_filler_size[8] = { 0, 7, 14, 13, 12, 11, 10, 9 };
-
 void coda_write(struct coda_dev *dev, u32 data, u32 reg)
 {
 	v4l2_dbg(1, coda_debug, &dev->v4l2_dev,
@@ -1625,24 +1621,6 @@ static int coda_alloc_framebuffers(struct coda_ctx *ctx, struct coda_q_data *q_d
 					    ysize + ysize/4 + ysize/4);
 
 	return 0;
-}
-
-static int coda_h264_padding(int size, char *p)
-{
-	int nal_size;
-	int diff;
-
-	diff = size - (size & ~0x7);
-	if (diff == 0)
-		return 0;
-
-	nal_size = coda_filler_size[diff];
-	memcpy(p, coda_filler_nal, nal_size);
-
-	/* Add rbsp stop bit and trailing at the end */
-	*(p + nal_size - 1) = 0x80;
-
-	return nal_size;
 }
 
 static phys_addr_t coda_iram_alloc(struct coda_iram_info *iram, size_t size)
