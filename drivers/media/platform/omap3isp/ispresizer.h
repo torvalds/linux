@@ -17,6 +17,7 @@
 #ifndef OMAP3_ISP_RESIZER_H
 #define OMAP3_ISP_RESIZER_H
 
+#include <linux/spinlock.h>
 #include <linux/types.h>
 
 /*
@@ -86,6 +87,7 @@ enum resizer_input_entity {
 
 /*
  * struct isp_res_device - OMAP3 ISP resizer module
+ * @lock: Protects formats and crop rectangles between set_selection and IRQ
  * @crop.request: Crop rectangle requested by the user
  * @crop.active: Active crop rectangle (based on hardware requirements)
  */
@@ -106,6 +108,7 @@ struct isp_res_device {
 	enum isp_pipeline_stream_state state;
 	wait_queue_head_t wait;
 	atomic_t stopping;
+	spinlock_t lock;
 
 	struct {
 		struct v4l2_rect request;
