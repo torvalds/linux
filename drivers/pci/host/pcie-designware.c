@@ -425,7 +425,7 @@ int __init dw_pcie_host_init(struct pcie_port *pp)
 	struct resource *cfg_res;
 	u32 val, na, ns;
 	const __be32 *addrp;
-	int i, index;
+	int i, index, ret;
 
 	/* Find the address cell size and the number of cells in order to get
 	 * the untranslated address.
@@ -511,17 +511,24 @@ int __init dw_pcie_host_init(struct pcie_port *pp)
 
 	pp->mem_base = pp->mem.start;
 
-	pp->va_cfg0_base = devm_ioremap(pp->dev, pp->cfg0_base,
-					pp->config.cfg0_size);
 	if (!pp->va_cfg0_base) {
-		dev_err(pp->dev, "error with ioremap in function\n");
-		return -ENOMEM;
+		pp->cfg0_base = pp->cfg.start;
+		pp->va_cfg0_base = devm_ioremap(pp->dev, pp->cfg0_base,
+						pp->config.cfg0_size);
+		if (!pp->va_cfg0_base) {
+			dev_err(pp->dev, "error with ioremap in function\n");
+			return -ENOMEM;
+		}
 	}
-	pp->va_cfg1_base = devm_ioremap(pp->dev, pp->cfg1_base,
-					pp->config.cfg1_size);
+
 	if (!pp->va_cfg1_base) {
-		dev_err(pp->dev, "error with ioremap\n");
-		return -ENOMEM;
+		pp->cfg1_base = pp->cfg.start + pp->config.cfg0_size;
+		pp->va_cfg1_base = devm_ioremap(pp->dev, pp->cfg1_base,
+						pp->config.cfg1_size);
+		if (!pp->va_cfg1_base) {
+			dev_err(pp->dev, "error with ioremap\n");
+			return -ENOMEM;
+		}
 	}
 
 	if (of_property_read_u32(np, "num-lanes", &pp->lanes)) {
@@ -530,16 +537,22 @@ int __init dw_pcie_host_init(struct pcie_port *pp)
 	}
 
 	if (IS_ENABLED(CONFIG_PCI_MSI)) {
-		pp->irq_domain = irq_domain_add_linear(pp->dev->of_node,
-					MAX_MSI_IRQS, &msi_domain_ops,
-					&dw_pcie_msi_chip);
-		if (!pp->irq_domain) {
-			dev_err(pp->dev, "irq domain init failed\n");
-			return -ENXIO;
-		}
+		if (!pp->ops->msi_host_init) {
+			pp->irq_domain = irq_domain_add_linear(pp->dev->of_node,
+						MAX_MSI_IRQS, &msi_domain_ops,
+						&dw_pcie_msi_chip);
+			if (!pp->irq_domain) {
+				dev_err(pp->dev, "irq domain init failed\n");
+				return -ENXIO;
+			}
 
-		for (i = 0; i < MAX_MSI_IRQS; i++)
-			irq_create_mapping(pp->irq_domain, i);
+			for (i = 0; i < MAX_MSI_IRQS; i++)
+				irq_create_mapping(pp->irq_domain, i);
+		} else {
+			ret = pp->ops->msi_host_init(pp, &dw_pcie_msi_chip);
+			if (ret < 0)
+				return ret;
+		}
 	}
 
 	if (pp->ops->host_init)
@@ -798,6 +811,9 @@ static struct pci_bus *dw_pcie_scan_bus(int nr, struct pci_sys_data *sys)
 		bus = NULL;
 		BUG();
 	}
+
+	if (bus && pp->ops->scan_bus)
+		pp->ops->scan_bus(pp);
 
 	return bus;
 }
