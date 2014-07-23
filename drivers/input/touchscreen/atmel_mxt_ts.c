@@ -404,6 +404,30 @@ static int mxt_lookup_bootloader_address(struct mxt_data *data)
 	return 0;
 }
 
+static int mxt_probe_bootloader(struct mxt_data *data)
+{
+	struct device *dev = &data->client->dev;
+	int ret;
+	u8 val;
+	bool crc_failure;
+
+	ret = mxt_lookup_bootloader_address(data);
+	if (ret)
+		return ret;
+
+	ret = mxt_bootloader_read(data, &val, 1);
+	if (ret)
+		return ret;
+
+	/* Check app crc fail mode */
+	crc_failure = (val & ~MXT_BOOT_STATUS_MASK) == MXT_APP_CRC_FAIL;
+
+	dev_err(dev, "Detected bootloader, status:%02X%s\n",
+			val, crc_failure ? ", APP_CRC_FAIL" : "");
+
+	return 0;
+}
+
 static u8 mxt_get_bootloader_version(struct mxt_data *data, u8 val)
 {
 	struct device *dev = &data->client->dev;
@@ -463,6 +487,7 @@ recheck:
 	switch (state) {
 	case MXT_WAITING_BOOTLOAD_CMD:
 	case MXT_WAITING_FRAME_DATA:
+	case MXT_APP_CRC_FAIL:
 		val &= ~MXT_BOOT_STATUS_MASK;
 		break;
 	case MXT_FRAME_CRC_PASS:
@@ -1451,8 +1476,14 @@ static int mxt_initialize(struct mxt_data *data)
 	int error;
 
 	error = mxt_get_info(data);
-	if (error)
-		return error;
+	if (error) {
+		error = mxt_probe_bootloader(data);
+		if (error)
+			return error;
+
+		data->in_bootloader = true;
+		return 0;
+	}
 
 	/* Get object table information */
 	error = mxt_get_object_table(data);
@@ -1630,15 +1661,19 @@ static int mxt_load_fw(struct device *dev, const char *fn)
 	if (ret)
 		goto release_firmware;
 
-	/* Change to the bootloader mode */
-	data->in_bootloader = true;
+	if (!data->in_bootloader) {
+		/* Change to the bootloader mode */
+		data->in_bootloader = true;
 
-	ret = mxt_t6_command(data, MXT_COMMAND_RESET, MXT_BOOT_VALUE, false);
-	if (ret)
-		goto release_firmware;
+		ret = mxt_t6_command(data, MXT_COMMAND_RESET,
+				     MXT_BOOT_VALUE, false);
+		if (ret)
+			goto release_firmware;
 
-	msleep(MXT_RESET_TIME);
+		msleep(MXT_RESET_TIME);
+	}
 
+	mxt_free_object_table(data);
 	reinit_completion(&data->bl_completion);
 
 	ret = mxt_check_bootloader(data, MXT_WAITING_BOOTLOAD_CMD);
@@ -1722,8 +1757,6 @@ static ssize_t mxt_update_fw_store(struct device *dev,
 		count = error;
 	} else {
 		dev_info(dev, "The firmware update succeeded\n");
-
-		mxt_free_object_table(data);
 
 		error = mxt_initialize(data);
 		if (error)
