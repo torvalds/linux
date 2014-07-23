@@ -34,317 +34,6 @@
 #ifndef _AU1000_H_
 #define _AU1000_H_
 
-
-#ifndef _LANGUAGE_ASSEMBLY
-
-#include <linux/delay.h>
-#include <linux/types.h>
-
-#include <linux/io.h>
-#include <linux/irq.h>
-
-#include <asm/cpu.h>
-
-/* cpu pipeline flush */
-void static inline au_sync(void)
-{
-	__asm__ volatile ("sync");
-}
-
-void static inline au_sync_udelay(int us)
-{
-	__asm__ volatile ("sync");
-	udelay(us);
-}
-
-void static inline au_sync_delay(int ms)
-{
-	__asm__ volatile ("sync");
-	mdelay(ms);
-}
-
-void static inline au_writeb(u8 val, unsigned long reg)
-{
-	*(volatile u8 *)reg = val;
-}
-
-void static inline au_writew(u16 val, unsigned long reg)
-{
-	*(volatile u16 *)reg = val;
-}
-
-void static inline au_writel(u32 val, unsigned long reg)
-{
-	*(volatile u32 *)reg = val;
-}
-
-static inline u8 au_readb(unsigned long reg)
-{
-	return *(volatile u8 *)reg;
-}
-
-static inline u16 au_readw(unsigned long reg)
-{
-	return *(volatile u16 *)reg;
-}
-
-static inline u32 au_readl(unsigned long reg)
-{
-	return *(volatile u32 *)reg;
-}
-
-/* Early Au1000 have a write-only SYS_CPUPLL register. */
-static inline int au1xxx_cpu_has_pll_wo(void)
-{
-	switch (read_c0_prid()) {
-	case 0x00030100:	/* Au1000 DA */
-	case 0x00030201:	/* Au1000 HA */
-	case 0x00030202:	/* Au1000 HB */
-		return 1;
-	}
-	return 0;
-}
-
-/* does CPU need CONFIG[OD] set to fix tons of errata? */
-static inline int au1xxx_cpu_needs_config_od(void)
-{
-	/*
-	 * c0_config.od (bit 19) was write only (and read as 0) on the
-	 * early revisions of Alchemy SOCs.  It disables the bus trans-
-	 * action overlapping and needs to be set to fix various errata.
-	 */
-	switch (read_c0_prid()) {
-	case 0x00030100: /* Au1000 DA */
-	case 0x00030201: /* Au1000 HA */
-	case 0x00030202: /* Au1000 HB */
-	case 0x01030200: /* Au1500 AB */
-	/*
-	 * Au1100/Au1200 errata actually keep silence about this bit,
-	 * so we set it just in case for those revisions that require
-	 * it to be set according to the (now gone) cpu_table.
-	 */
-	case 0x02030200: /* Au1100 AB */
-	case 0x02030201: /* Au1100 BA */
-	case 0x02030202: /* Au1100 BC */
-	case 0x04030201: /* Au1200 AC */
-		return 1;
-	}
-	return 0;
-}
-
-#define ALCHEMY_CPU_UNKNOWN	-1
-#define ALCHEMY_CPU_AU1000	0
-#define ALCHEMY_CPU_AU1500	1
-#define ALCHEMY_CPU_AU1100	2
-#define ALCHEMY_CPU_AU1550	3
-#define ALCHEMY_CPU_AU1200	4
-#define ALCHEMY_CPU_AU1300	5
-
-static inline int alchemy_get_cputype(void)
-{
-	switch (read_c0_prid() & (PRID_OPT_MASK | PRID_COMP_MASK)) {
-	case 0x00030000:
-		return ALCHEMY_CPU_AU1000;
-		break;
-	case 0x01030000:
-		return ALCHEMY_CPU_AU1500;
-		break;
-	case 0x02030000:
-		return ALCHEMY_CPU_AU1100;
-		break;
-	case 0x03030000:
-		return ALCHEMY_CPU_AU1550;
-		break;
-	case 0x04030000:
-	case 0x05030000:
-		return ALCHEMY_CPU_AU1200;
-		break;
-	case 0x800c0000:
-		return ALCHEMY_CPU_AU1300;
-		break;
-	}
-
-	return ALCHEMY_CPU_UNKNOWN;
-}
-
-/* return number of uarts on a given cputype */
-static inline int alchemy_get_uarts(int type)
-{
-	switch (type) {
-	case ALCHEMY_CPU_AU1000:
-	case ALCHEMY_CPU_AU1300:
-		return 4;
-	case ALCHEMY_CPU_AU1500:
-	case ALCHEMY_CPU_AU1200:
-		return 2;
-	case ALCHEMY_CPU_AU1100:
-	case ALCHEMY_CPU_AU1550:
-		return 3;
-	}
-	return 0;
-}
-
-/* enable an UART block if it isn't already */
-static inline void alchemy_uart_enable(u32 uart_phys)
-{
-	void __iomem *addr = (void __iomem *)KSEG1ADDR(uart_phys);
-
-	/* reset, enable clock, deassert reset */
-	if ((__raw_readl(addr + 0x100) & 3) != 3) {
-		__raw_writel(0, addr + 0x100);
-		wmb();
-		__raw_writel(1, addr + 0x100);
-		wmb();
-	}
-	__raw_writel(3, addr + 0x100);
-	wmb();
-}
-
-static inline void alchemy_uart_disable(u32 uart_phys)
-{
-	void __iomem *addr = (void __iomem *)KSEG1ADDR(uart_phys);
-	__raw_writel(0, addr + 0x100);	/* UART_MOD_CNTRL */
-	wmb();
-}
-
-static inline void alchemy_uart_putchar(u32 uart_phys, u8 c)
-{
-	void __iomem *base = (void __iomem *)KSEG1ADDR(uart_phys);
-	int timeout, i;
-
-	/* check LSR TX_EMPTY bit */
-	timeout = 0xffffff;
-	do {
-		if (__raw_readl(base + 0x1c) & 0x20)
-			break;
-		/* slow down */
-		for (i = 10000; i; i--)
-			asm volatile ("nop");
-	} while (--timeout);
-
-	__raw_writel(c, base + 0x04);	/* tx */
-	wmb();
-}
-
-/* return number of ethernet MACs on a given cputype */
-static inline int alchemy_get_macs(int type)
-{
-	switch (type) {
-	case ALCHEMY_CPU_AU1000:
-	case ALCHEMY_CPU_AU1500:
-	case ALCHEMY_CPU_AU1550:
-		return 2;
-	case ALCHEMY_CPU_AU1100:
-		return 1;
-	}
-	return 0;
-}
-
-/* arch/mips/au1000/common/clocks.c */
-extern void set_au1x00_speed(unsigned int new_freq);
-extern unsigned int get_au1x00_speed(void);
-extern void set_au1x00_uart_baud_base(unsigned long new_baud_base);
-extern unsigned long get_au1x00_uart_baud_base(void);
-extern unsigned long au1xxx_calc_clock(void);
-
-/* PM: arch/mips/alchemy/common/sleeper.S, power.c, irq.c */
-void alchemy_sleep_au1000(void);
-void alchemy_sleep_au1550(void);
-void alchemy_sleep_au1300(void);
-void au_sleep(void);
-
-/* USB: drivers/usb/host/alchemy-common.c */
-enum alchemy_usb_block {
-	ALCHEMY_USB_OHCI0,
-	ALCHEMY_USB_UDC0,
-	ALCHEMY_USB_EHCI0,
-	ALCHEMY_USB_OTG0,
-	ALCHEMY_USB_OHCI1,
-};
-int alchemy_usb_control(int block, int enable);
-
-/* PCI controller platform data */
-struct alchemy_pci_platdata {
-	int (*board_map_irq)(const struct pci_dev *d, u8 slot, u8 pin);
-	int (*board_pci_idsel)(unsigned int devsel, int assert);
-	/* bits to set/clear in PCI_CONFIG register */
-	unsigned long pci_cfg_set;
-	unsigned long pci_cfg_clr;
-};
-
-/* Multifunction pins: Each of these pins can either be assigned to the
- * GPIO controller or a on-chip peripheral.
- * Call "au1300_pinfunc_to_dev()" or "au1300_pinfunc_to_gpio()" to
- * assign one of these to either the GPIO controller or the device.
- */
-enum au1300_multifunc_pins {
-	/* wake-from-str pins 0-3 */
-	AU1300_PIN_WAKE0 = 0, AU1300_PIN_WAKE1, AU1300_PIN_WAKE2,
-	AU1300_PIN_WAKE3,
-	/* external clock sources for PSCs: 4-5 */
-	AU1300_PIN_EXTCLK0, AU1300_PIN_EXTCLK1,
-	/* 8bit MMC interface on SD0: 6-9 */
-	AU1300_PIN_SD0DAT4, AU1300_PIN_SD0DAT5, AU1300_PIN_SD0DAT6,
-	AU1300_PIN_SD0DAT7,
-	/* aux clk input for freqgen 3: 10 */
-	AU1300_PIN_FG3AUX,
-	/* UART1 pins: 11-18 */
-	AU1300_PIN_U1RI, AU1300_PIN_U1DCD, AU1300_PIN_U1DSR,
-	AU1300_PIN_U1CTS, AU1300_PIN_U1RTS, AU1300_PIN_U1DTR,
-	AU1300_PIN_U1RX, AU1300_PIN_U1TX,
-	/* UART0 pins: 19-24 */
-	AU1300_PIN_U0RI, AU1300_PIN_U0DCD, AU1300_PIN_U0DSR,
-	AU1300_PIN_U0CTS, AU1300_PIN_U0RTS, AU1300_PIN_U0DTR,
-	/* UART2: 25-26 */
-	AU1300_PIN_U2RX, AU1300_PIN_U2TX,
-	/* UART3: 27-28 */
-	AU1300_PIN_U3RX, AU1300_PIN_U3TX,
-	/* LCD controller PWMs, ext pixclock: 29-31 */
-	AU1300_PIN_LCDPWM0, AU1300_PIN_LCDPWM1, AU1300_PIN_LCDCLKIN,
-	/* SD1 interface: 32-37 */
-	AU1300_PIN_SD1DAT0, AU1300_PIN_SD1DAT1, AU1300_PIN_SD1DAT2,
-	AU1300_PIN_SD1DAT3, AU1300_PIN_SD1CMD, AU1300_PIN_SD1CLK,
-	/* SD2 interface: 38-43 */
-	AU1300_PIN_SD2DAT0, AU1300_PIN_SD2DAT1, AU1300_PIN_SD2DAT2,
-	AU1300_PIN_SD2DAT3, AU1300_PIN_SD2CMD, AU1300_PIN_SD2CLK,
-	/* PSC0/1 clocks: 44-45 */
-	AU1300_PIN_PSC0CLK, AU1300_PIN_PSC1CLK,
-	/* PSCs: 46-49/50-53/54-57/58-61 */
-	AU1300_PIN_PSC0SYNC0, AU1300_PIN_PSC0SYNC1, AU1300_PIN_PSC0D0,
-	AU1300_PIN_PSC0D1,
-	AU1300_PIN_PSC1SYNC0, AU1300_PIN_PSC1SYNC1, AU1300_PIN_PSC1D0,
-	AU1300_PIN_PSC1D1,
-	AU1300_PIN_PSC2SYNC0, AU1300_PIN_PSC2SYNC1, AU1300_PIN_PSC2D0,
-	AU1300_PIN_PSC2D1,
-	AU1300_PIN_PSC3SYNC0, AU1300_PIN_PSC3SYNC1, AU1300_PIN_PSC3D0,
-	AU1300_PIN_PSC3D1,
-	/* PCMCIA interface: 62-70 */
-	AU1300_PIN_PCE2, AU1300_PIN_PCE1, AU1300_PIN_PIOS16,
-	AU1300_PIN_PIOR, AU1300_PIN_PWE, AU1300_PIN_PWAIT,
-	AU1300_PIN_PREG, AU1300_PIN_POE, AU1300_PIN_PIOW,
-	/* camera interface H/V sync inputs: 71-72 */
-	AU1300_PIN_CIMLS, AU1300_PIN_CIMFS,
-	/* PSC2/3 clocks: 73-74 */
-	AU1300_PIN_PSC2CLK, AU1300_PIN_PSC3CLK,
-};
-
-/* GPIC (Au1300) pin management: arch/mips/alchemy/common/gpioint.c */
-extern void au1300_pinfunc_to_gpio(enum au1300_multifunc_pins gpio);
-extern void au1300_pinfunc_to_dev(enum au1300_multifunc_pins gpio);
-extern void au1300_set_irq_priority(unsigned int irq, int p);
-extern void au1300_set_dbdma_gpio(int dchan, unsigned int gpio);
-
-/* Au1300 allows to disconnect certain blocks from internal power supply */
-enum au1300_vss_block {
-	AU1300_VSS_MPE = 0,
-	AU1300_VSS_BSA,
-	AU1300_VSS_GPE,
-	AU1300_VSS_MGP,
-};
-
-extern void au1300_vss_block_control(int block, int enable);
-
-
 /* SOC Interrupt numbers */
 /* Au1000-style (IC0/1): 2 controllers with 32 sources each */
 #define AU1000_INTC0_INT_BASE	(MIPS_CPU_IRQ_BASE + 8)
@@ -358,325 +47,6 @@ extern void au1300_vss_block_control(int block, int enable);
 #define ALCHEMY_GPIC_INT_NUM	128
 #define ALCHEMY_GPIC_INT_LAST	(ALCHEMY_GPIC_INT_BASE + ALCHEMY_GPIC_INT_NUM - 1)
 
-enum soc_au1000_ints {
-	AU1000_FIRST_INT	= AU1000_INTC0_INT_BASE,
-	AU1000_UART0_INT	= AU1000_FIRST_INT,
-	AU1000_UART1_INT,
-	AU1000_UART2_INT,
-	AU1000_UART3_INT,
-	AU1000_SSI0_INT,
-	AU1000_SSI1_INT,
-	AU1000_DMA_INT_BASE,
-
-	AU1000_TOY_INT		= AU1000_FIRST_INT + 14,
-	AU1000_TOY_MATCH0_INT,
-	AU1000_TOY_MATCH1_INT,
-	AU1000_TOY_MATCH2_INT,
-	AU1000_RTC_INT,
-	AU1000_RTC_MATCH0_INT,
-	AU1000_RTC_MATCH1_INT,
-	AU1000_RTC_MATCH2_INT,
-	AU1000_IRDA_TX_INT,
-	AU1000_IRDA_RX_INT,
-	AU1000_USB_DEV_REQ_INT,
-	AU1000_USB_DEV_SUS_INT,
-	AU1000_USB_HOST_INT,
-	AU1000_ACSYNC_INT,
-	AU1000_MAC0_DMA_INT,
-	AU1000_MAC1_DMA_INT,
-	AU1000_I2S_UO_INT,
-	AU1000_AC97C_INT,
-	AU1000_GPIO0_INT,
-	AU1000_GPIO1_INT,
-	AU1000_GPIO2_INT,
-	AU1000_GPIO3_INT,
-	AU1000_GPIO4_INT,
-	AU1000_GPIO5_INT,
-	AU1000_GPIO6_INT,
-	AU1000_GPIO7_INT,
-	AU1000_GPIO8_INT,
-	AU1000_GPIO9_INT,
-	AU1000_GPIO10_INT,
-	AU1000_GPIO11_INT,
-	AU1000_GPIO12_INT,
-	AU1000_GPIO13_INT,
-	AU1000_GPIO14_INT,
-	AU1000_GPIO15_INT,
-	AU1000_GPIO16_INT,
-	AU1000_GPIO17_INT,
-	AU1000_GPIO18_INT,
-	AU1000_GPIO19_INT,
-	AU1000_GPIO20_INT,
-	AU1000_GPIO21_INT,
-	AU1000_GPIO22_INT,
-	AU1000_GPIO23_INT,
-	AU1000_GPIO24_INT,
-	AU1000_GPIO25_INT,
-	AU1000_GPIO26_INT,
-	AU1000_GPIO27_INT,
-	AU1000_GPIO28_INT,
-	AU1000_GPIO29_INT,
-	AU1000_GPIO30_INT,
-	AU1000_GPIO31_INT,
-};
-
-enum soc_au1100_ints {
-	AU1100_FIRST_INT	= AU1000_INTC0_INT_BASE,
-	AU1100_UART0_INT	= AU1100_FIRST_INT,
-	AU1100_UART1_INT,
-	AU1100_SD_INT,
-	AU1100_UART3_INT,
-	AU1100_SSI0_INT,
-	AU1100_SSI1_INT,
-	AU1100_DMA_INT_BASE,
-
-	AU1100_TOY_INT		= AU1100_FIRST_INT + 14,
-	AU1100_TOY_MATCH0_INT,
-	AU1100_TOY_MATCH1_INT,
-	AU1100_TOY_MATCH2_INT,
-	AU1100_RTC_INT,
-	AU1100_RTC_MATCH0_INT,
-	AU1100_RTC_MATCH1_INT,
-	AU1100_RTC_MATCH2_INT,
-	AU1100_IRDA_TX_INT,
-	AU1100_IRDA_RX_INT,
-	AU1100_USB_DEV_REQ_INT,
-	AU1100_USB_DEV_SUS_INT,
-	AU1100_USB_HOST_INT,
-	AU1100_ACSYNC_INT,
-	AU1100_MAC0_DMA_INT,
-	AU1100_GPIO208_215_INT,
-	AU1100_LCD_INT,
-	AU1100_AC97C_INT,
-	AU1100_GPIO0_INT,
-	AU1100_GPIO1_INT,
-	AU1100_GPIO2_INT,
-	AU1100_GPIO3_INT,
-	AU1100_GPIO4_INT,
-	AU1100_GPIO5_INT,
-	AU1100_GPIO6_INT,
-	AU1100_GPIO7_INT,
-	AU1100_GPIO8_INT,
-	AU1100_GPIO9_INT,
-	AU1100_GPIO10_INT,
-	AU1100_GPIO11_INT,
-	AU1100_GPIO12_INT,
-	AU1100_GPIO13_INT,
-	AU1100_GPIO14_INT,
-	AU1100_GPIO15_INT,
-	AU1100_GPIO16_INT,
-	AU1100_GPIO17_INT,
-	AU1100_GPIO18_INT,
-	AU1100_GPIO19_INT,
-	AU1100_GPIO20_INT,
-	AU1100_GPIO21_INT,
-	AU1100_GPIO22_INT,
-	AU1100_GPIO23_INT,
-	AU1100_GPIO24_INT,
-	AU1100_GPIO25_INT,
-	AU1100_GPIO26_INT,
-	AU1100_GPIO27_INT,
-	AU1100_GPIO28_INT,
-	AU1100_GPIO29_INT,
-	AU1100_GPIO30_INT,
-	AU1100_GPIO31_INT,
-};
-
-enum soc_au1500_ints {
-	AU1500_FIRST_INT	= AU1000_INTC0_INT_BASE,
-	AU1500_UART0_INT	= AU1500_FIRST_INT,
-	AU1500_PCI_INTA,
-	AU1500_PCI_INTB,
-	AU1500_UART3_INT,
-	AU1500_PCI_INTC,
-	AU1500_PCI_INTD,
-	AU1500_DMA_INT_BASE,
-
-	AU1500_TOY_INT		= AU1500_FIRST_INT + 14,
-	AU1500_TOY_MATCH0_INT,
-	AU1500_TOY_MATCH1_INT,
-	AU1500_TOY_MATCH2_INT,
-	AU1500_RTC_INT,
-	AU1500_RTC_MATCH0_INT,
-	AU1500_RTC_MATCH1_INT,
-	AU1500_RTC_MATCH2_INT,
-	AU1500_PCI_ERR_INT,
-	AU1500_RESERVED_INT,
-	AU1500_USB_DEV_REQ_INT,
-	AU1500_USB_DEV_SUS_INT,
-	AU1500_USB_HOST_INT,
-	AU1500_ACSYNC_INT,
-	AU1500_MAC0_DMA_INT,
-	AU1500_MAC1_DMA_INT,
-	AU1500_AC97C_INT	= AU1500_FIRST_INT + 31,
-	AU1500_GPIO0_INT,
-	AU1500_GPIO1_INT,
-	AU1500_GPIO2_INT,
-	AU1500_GPIO3_INT,
-	AU1500_GPIO4_INT,
-	AU1500_GPIO5_INT,
-	AU1500_GPIO6_INT,
-	AU1500_GPIO7_INT,
-	AU1500_GPIO8_INT,
-	AU1500_GPIO9_INT,
-	AU1500_GPIO10_INT,
-	AU1500_GPIO11_INT,
-	AU1500_GPIO12_INT,
-	AU1500_GPIO13_INT,
-	AU1500_GPIO14_INT,
-	AU1500_GPIO15_INT,
-	AU1500_GPIO200_INT,
-	AU1500_GPIO201_INT,
-	AU1500_GPIO202_INT,
-	AU1500_GPIO203_INT,
-	AU1500_GPIO20_INT,
-	AU1500_GPIO204_INT,
-	AU1500_GPIO205_INT,
-	AU1500_GPIO23_INT,
-	AU1500_GPIO24_INT,
-	AU1500_GPIO25_INT,
-	AU1500_GPIO26_INT,
-	AU1500_GPIO27_INT,
-	AU1500_GPIO28_INT,
-	AU1500_GPIO206_INT,
-	AU1500_GPIO207_INT,
-	AU1500_GPIO208_215_INT,
-};
-
-enum soc_au1550_ints {
-	AU1550_FIRST_INT	= AU1000_INTC0_INT_BASE,
-	AU1550_UART0_INT	= AU1550_FIRST_INT,
-	AU1550_PCI_INTA,
-	AU1550_PCI_INTB,
-	AU1550_DDMA_INT,
-	AU1550_CRYPTO_INT,
-	AU1550_PCI_INTC,
-	AU1550_PCI_INTD,
-	AU1550_PCI_RST_INT,
-	AU1550_UART1_INT,
-	AU1550_UART3_INT,
-	AU1550_PSC0_INT,
-	AU1550_PSC1_INT,
-	AU1550_PSC2_INT,
-	AU1550_PSC3_INT,
-	AU1550_TOY_INT,
-	AU1550_TOY_MATCH0_INT,
-	AU1550_TOY_MATCH1_INT,
-	AU1550_TOY_MATCH2_INT,
-	AU1550_RTC_INT,
-	AU1550_RTC_MATCH0_INT,
-	AU1550_RTC_MATCH1_INT,
-	AU1550_RTC_MATCH2_INT,
-
-	AU1550_NAND_INT		= AU1550_FIRST_INT + 23,
-	AU1550_USB_DEV_REQ_INT,
-	AU1550_USB_DEV_SUS_INT,
-	AU1550_USB_HOST_INT,
-	AU1550_MAC0_DMA_INT,
-	AU1550_MAC1_DMA_INT,
-	AU1550_GPIO0_INT	= AU1550_FIRST_INT + 32,
-	AU1550_GPIO1_INT,
-	AU1550_GPIO2_INT,
-	AU1550_GPIO3_INT,
-	AU1550_GPIO4_INT,
-	AU1550_GPIO5_INT,
-	AU1550_GPIO6_INT,
-	AU1550_GPIO7_INT,
-	AU1550_GPIO8_INT,
-	AU1550_GPIO9_INT,
-	AU1550_GPIO10_INT,
-	AU1550_GPIO11_INT,
-	AU1550_GPIO12_INT,
-	AU1550_GPIO13_INT,
-	AU1550_GPIO14_INT,
-	AU1550_GPIO15_INT,
-	AU1550_GPIO200_INT,
-	AU1550_GPIO201_205_INT, /* Logical or of GPIO201:205 */
-	AU1550_GPIO16_INT,
-	AU1550_GPIO17_INT,
-	AU1550_GPIO20_INT,
-	AU1550_GPIO21_INT,
-	AU1550_GPIO22_INT,
-	AU1550_GPIO23_INT,
-	AU1550_GPIO24_INT,
-	AU1550_GPIO25_INT,
-	AU1550_GPIO26_INT,
-	AU1550_GPIO27_INT,
-	AU1550_GPIO28_INT,
-	AU1550_GPIO206_INT,
-	AU1550_GPIO207_INT,
-	AU1550_GPIO208_215_INT, /* Logical or of GPIO208:215 */
-};
-
-enum soc_au1200_ints {
-	AU1200_FIRST_INT	= AU1000_INTC0_INT_BASE,
-	AU1200_UART0_INT	= AU1200_FIRST_INT,
-	AU1200_SWT_INT,
-	AU1200_SD_INT,
-	AU1200_DDMA_INT,
-	AU1200_MAE_BE_INT,
-	AU1200_GPIO200_INT,
-	AU1200_GPIO201_INT,
-	AU1200_GPIO202_INT,
-	AU1200_UART1_INT,
-	AU1200_MAE_FE_INT,
-	AU1200_PSC0_INT,
-	AU1200_PSC1_INT,
-	AU1200_AES_INT,
-	AU1200_CAMERA_INT,
-	AU1200_TOY_INT,
-	AU1200_TOY_MATCH0_INT,
-	AU1200_TOY_MATCH1_INT,
-	AU1200_TOY_MATCH2_INT,
-	AU1200_RTC_INT,
-	AU1200_RTC_MATCH0_INT,
-	AU1200_RTC_MATCH1_INT,
-	AU1200_RTC_MATCH2_INT,
-	AU1200_GPIO203_INT,
-	AU1200_NAND_INT,
-	AU1200_GPIO204_INT,
-	AU1200_GPIO205_INT,
-	AU1200_GPIO206_INT,
-	AU1200_GPIO207_INT,
-	AU1200_GPIO208_215_INT, /* Logical OR of 208:215 */
-	AU1200_USB_INT,
-	AU1200_LCD_INT,
-	AU1200_MAE_BOTH_INT,
-	AU1200_GPIO0_INT,
-	AU1200_GPIO1_INT,
-	AU1200_GPIO2_INT,
-	AU1200_GPIO3_INT,
-	AU1200_GPIO4_INT,
-	AU1200_GPIO5_INT,
-	AU1200_GPIO6_INT,
-	AU1200_GPIO7_INT,
-	AU1200_GPIO8_INT,
-	AU1200_GPIO9_INT,
-	AU1200_GPIO10_INT,
-	AU1200_GPIO11_INT,
-	AU1200_GPIO12_INT,
-	AU1200_GPIO13_INT,
-	AU1200_GPIO14_INT,
-	AU1200_GPIO15_INT,
-	AU1200_GPIO16_INT,
-	AU1200_GPIO17_INT,
-	AU1200_GPIO18_INT,
-	AU1200_GPIO19_INT,
-	AU1200_GPIO20_INT,
-	AU1200_GPIO21_INT,
-	AU1200_GPIO22_INT,
-	AU1200_GPIO23_INT,
-	AU1200_GPIO24_INT,
-	AU1200_GPIO25_INT,
-	AU1200_GPIO26_INT,
-	AU1200_GPIO27_INT,
-	AU1200_GPIO28_INT,
-	AU1200_GPIO29_INT,
-	AU1200_GPIO30_INT,
-	AU1200_GPIO31_INT,
-};
-
-#endif /* !defined (_LANGUAGE_ASSEMBLY) */
 
 /* Au1300 peripheral interrupt numbers */
 #define AU1300_FIRST_INT	(ALCHEMY_GPIC_INT_BASE)
@@ -1004,20 +374,6 @@ enum soc_au1200_ints {
 #define SYS_RTCREAD		(SYS_BASE + 0x58)
 
 
-/*
- * The IrDA peripheral has an IRFIRSEL pin, but on the DB/PB boards it's not
- * used to select FIR/SIR mode on the transceiver but as a GPIO.  Instead a
- * CPLD has to be told about the mode.
- */
-#define AU1000_IRDA_PHY_MODE_OFF	0
-#define AU1000_IRDA_PHY_MODE_SIR	1
-#define AU1000_IRDA_PHY_MODE_FIR	2
-
-struct au1k_irda_platform_data {
-	void(*set_phy_mode)(int mode);
-};
-
-
 /* GPIO */
 #define SYS_PINFUNC		0xB190002C
 #  define SYS_PF_USB		(1 << 15)	/* 2nd USB device/host */
@@ -1275,5 +631,653 @@ struct au1k_irda_platform_data {
 #define PCI_PARAM_CLS(x)	((x) & 0xff)
 #define PCI_TIMEOUT_RETRIES(x)	(((x) & 0xff) << 8)	/* max retries */
 #define PCI_TIMEOUT_TO(x)	((x) & 0xff)	/* target ready timeout */
+
+
+/**********************************************************************/
+
+
+#ifndef _LANGUAGE_ASSEMBLY
+
+#include <linux/delay.h>
+#include <linux/types.h>
+
+#include <linux/io.h>
+#include <linux/irq.h>
+
+#include <asm/cpu.h>
+
+/* cpu pipeline flush */
+void static inline au_sync(void)
+{
+	__asm__ volatile ("sync");
+}
+
+void static inline au_sync_udelay(int us)
+{
+	__asm__ volatile ("sync");
+	udelay(us);
+}
+
+void static inline au_sync_delay(int ms)
+{
+	__asm__ volatile ("sync");
+	mdelay(ms);
+}
+
+void static inline au_writeb(u8 val, unsigned long reg)
+{
+	*(volatile u8 *)reg = val;
+}
+
+void static inline au_writew(u16 val, unsigned long reg)
+{
+	*(volatile u16 *)reg = val;
+}
+
+void static inline au_writel(u32 val, unsigned long reg)
+{
+	*(volatile u32 *)reg = val;
+}
+
+static inline u8 au_readb(unsigned long reg)
+{
+	return *(volatile u8 *)reg;
+}
+
+static inline u16 au_readw(unsigned long reg)
+{
+	return *(volatile u16 *)reg;
+}
+
+static inline u32 au_readl(unsigned long reg)
+{
+	return *(volatile u32 *)reg;
+}
+
+/* Early Au1000 have a write-only SYS_CPUPLL register. */
+static inline int au1xxx_cpu_has_pll_wo(void)
+{
+	switch (read_c0_prid()) {
+	case 0x00030100:	/* Au1000 DA */
+	case 0x00030201:	/* Au1000 HA */
+	case 0x00030202:	/* Au1000 HB */
+		return 1;
+	}
+	return 0;
+}
+
+/* does CPU need CONFIG[OD] set to fix tons of errata? */
+static inline int au1xxx_cpu_needs_config_od(void)
+{
+	/*
+	 * c0_config.od (bit 19) was write only (and read as 0) on the
+	 * early revisions of Alchemy SOCs.  It disables the bus trans-
+	 * action overlapping and needs to be set to fix various errata.
+	 */
+	switch (read_c0_prid()) {
+	case 0x00030100: /* Au1000 DA */
+	case 0x00030201: /* Au1000 HA */
+	case 0x00030202: /* Au1000 HB */
+	case 0x01030200: /* Au1500 AB */
+	/*
+	 * Au1100/Au1200 errata actually keep silence about this bit,
+	 * so we set it just in case for those revisions that require
+	 * it to be set according to the (now gone) cpu_table.
+	 */
+	case 0x02030200: /* Au1100 AB */
+	case 0x02030201: /* Au1100 BA */
+	case 0x02030202: /* Au1100 BC */
+	case 0x04030201: /* Au1200 AC */
+		return 1;
+	}
+	return 0;
+}
+
+#define ALCHEMY_CPU_UNKNOWN	-1
+#define ALCHEMY_CPU_AU1000	0
+#define ALCHEMY_CPU_AU1500	1
+#define ALCHEMY_CPU_AU1100	2
+#define ALCHEMY_CPU_AU1550	3
+#define ALCHEMY_CPU_AU1200	4
+#define ALCHEMY_CPU_AU1300	5
+
+static inline int alchemy_get_cputype(void)
+{
+	switch (read_c0_prid() & (PRID_OPT_MASK | PRID_COMP_MASK)) {
+	case 0x00030000:
+		return ALCHEMY_CPU_AU1000;
+		break;
+	case 0x01030000:
+		return ALCHEMY_CPU_AU1500;
+		break;
+	case 0x02030000:
+		return ALCHEMY_CPU_AU1100;
+		break;
+	case 0x03030000:
+		return ALCHEMY_CPU_AU1550;
+		break;
+	case 0x04030000:
+	case 0x05030000:
+		return ALCHEMY_CPU_AU1200;
+		break;
+	case 0x800c0000:
+		return ALCHEMY_CPU_AU1300;
+		break;
+	}
+
+	return ALCHEMY_CPU_UNKNOWN;
+}
+
+/* return number of uarts on a given cputype */
+static inline int alchemy_get_uarts(int type)
+{
+	switch (type) {
+	case ALCHEMY_CPU_AU1000:
+	case ALCHEMY_CPU_AU1300:
+		return 4;
+	case ALCHEMY_CPU_AU1500:
+	case ALCHEMY_CPU_AU1200:
+		return 2;
+	case ALCHEMY_CPU_AU1100:
+	case ALCHEMY_CPU_AU1550:
+		return 3;
+	}
+	return 0;
+}
+
+/* enable an UART block if it isn't already */
+static inline void alchemy_uart_enable(u32 uart_phys)
+{
+	void __iomem *addr = (void __iomem *)KSEG1ADDR(uart_phys);
+
+	/* reset, enable clock, deassert reset */
+	if ((__raw_readl(addr + 0x100) & 3) != 3) {
+		__raw_writel(0, addr + 0x100);
+		wmb(); /* drain writebuffer */
+		__raw_writel(1, addr + 0x100);
+		wmb(); /* drain writebuffer */
+	}
+	__raw_writel(3, addr + 0x100);
+	wmb(); /* drain writebuffer */
+}
+
+static inline void alchemy_uart_disable(u32 uart_phys)
+{
+	void __iomem *addr = (void __iomem *)KSEG1ADDR(uart_phys);
+
+	__raw_writel(0, addr + 0x100);	/* UART_MOD_CNTRL */
+	wmb(); /* drain writebuffer */
+}
+
+static inline void alchemy_uart_putchar(u32 uart_phys, u8 c)
+{
+	void __iomem *base = (void __iomem *)KSEG1ADDR(uart_phys);
+	int timeout, i;
+
+	/* check LSR TX_EMPTY bit */
+	timeout = 0xffffff;
+	do {
+		if (__raw_readl(base + 0x1c) & 0x20)
+			break;
+		/* slow down */
+		for (i = 10000; i; i--)
+			asm volatile ("nop");
+	} while (--timeout);
+
+	__raw_writel(c, base + 0x04);	/* tx */
+	wmb(); /* drain writebuffer */
+}
+
+/* return number of ethernet MACs on a given cputype */
+static inline int alchemy_get_macs(int type)
+{
+	switch (type) {
+	case ALCHEMY_CPU_AU1000:
+	case ALCHEMY_CPU_AU1500:
+	case ALCHEMY_CPU_AU1550:
+		return 2;
+	case ALCHEMY_CPU_AU1100:
+		return 1;
+	}
+	return 0;
+}
+
+/* arch/mips/au1000/common/clocks.c */
+extern void set_au1x00_speed(unsigned int new_freq);
+extern unsigned int get_au1x00_speed(void);
+extern void set_au1x00_uart_baud_base(unsigned long new_baud_base);
+extern unsigned long get_au1x00_uart_baud_base(void);
+extern unsigned long au1xxx_calc_clock(void);
+
+/* PM: arch/mips/alchemy/common/sleeper.S, power.c, irq.c */
+void alchemy_sleep_au1000(void);
+void alchemy_sleep_au1550(void);
+void alchemy_sleep_au1300(void);
+void au_sleep(void);
+
+/* USB: arch/mips/alchemy/common/usb.c */
+enum alchemy_usb_block {
+	ALCHEMY_USB_OHCI0,
+	ALCHEMY_USB_UDC0,
+	ALCHEMY_USB_EHCI0,
+	ALCHEMY_USB_OTG0,
+	ALCHEMY_USB_OHCI1,
+};
+int alchemy_usb_control(int block, int enable);
+
+/* PCI controller platform data */
+struct alchemy_pci_platdata {
+	int (*board_map_irq)(const struct pci_dev *d, u8 slot, u8 pin);
+	int (*board_pci_idsel)(unsigned int devsel, int assert);
+	/* bits to set/clear in PCI_CONFIG register */
+	unsigned long pci_cfg_set;
+	unsigned long pci_cfg_clr;
+};
+
+/* The IrDA peripheral has an IRFIRSEL pin, but on the DB/PB boards it's
+ * not used to select FIR/SIR mode on the transceiver but as a GPIO.
+ * Instead a CPLD has to be told about the mode.  The driver calls the
+ * set_phy_mode() function in addition to driving the IRFIRSEL pin.
+ */
+#define AU1000_IRDA_PHY_MODE_OFF	0
+#define AU1000_IRDA_PHY_MODE_SIR	1
+#define AU1000_IRDA_PHY_MODE_FIR	2
+
+struct au1k_irda_platform_data {
+	void (*set_phy_mode)(int mode);
+};
+
+
+/* Multifunction pins: Each of these pins can either be assigned to the
+ * GPIO controller or a on-chip peripheral.
+ * Call "au1300_pinfunc_to_dev()" or "au1300_pinfunc_to_gpio()" to
+ * assign one of these to either the GPIO controller or the device.
+ */
+enum au1300_multifunc_pins {
+	/* wake-from-str pins 0-3 */
+	AU1300_PIN_WAKE0 = 0, AU1300_PIN_WAKE1, AU1300_PIN_WAKE2,
+	AU1300_PIN_WAKE3,
+	/* external clock sources for PSCs: 4-5 */
+	AU1300_PIN_EXTCLK0, AU1300_PIN_EXTCLK1,
+	/* 8bit MMC interface on SD0: 6-9 */
+	AU1300_PIN_SD0DAT4, AU1300_PIN_SD0DAT5, AU1300_PIN_SD0DAT6,
+	AU1300_PIN_SD0DAT7,
+	/* aux clk input for freqgen 3: 10 */
+	AU1300_PIN_FG3AUX,
+	/* UART1 pins: 11-18 */
+	AU1300_PIN_U1RI, AU1300_PIN_U1DCD, AU1300_PIN_U1DSR,
+	AU1300_PIN_U1CTS, AU1300_PIN_U1RTS, AU1300_PIN_U1DTR,
+	AU1300_PIN_U1RX, AU1300_PIN_U1TX,
+	/* UART0 pins: 19-24 */
+	AU1300_PIN_U0RI, AU1300_PIN_U0DCD, AU1300_PIN_U0DSR,
+	AU1300_PIN_U0CTS, AU1300_PIN_U0RTS, AU1300_PIN_U0DTR,
+	/* UART2: 25-26 */
+	AU1300_PIN_U2RX, AU1300_PIN_U2TX,
+	/* UART3: 27-28 */
+	AU1300_PIN_U3RX, AU1300_PIN_U3TX,
+	/* LCD controller PWMs, ext pixclock: 29-31 */
+	AU1300_PIN_LCDPWM0, AU1300_PIN_LCDPWM1, AU1300_PIN_LCDCLKIN,
+	/* SD1 interface: 32-37 */
+	AU1300_PIN_SD1DAT0, AU1300_PIN_SD1DAT1, AU1300_PIN_SD1DAT2,
+	AU1300_PIN_SD1DAT3, AU1300_PIN_SD1CMD, AU1300_PIN_SD1CLK,
+	/* SD2 interface: 38-43 */
+	AU1300_PIN_SD2DAT0, AU1300_PIN_SD2DAT1, AU1300_PIN_SD2DAT2,
+	AU1300_PIN_SD2DAT3, AU1300_PIN_SD2CMD, AU1300_PIN_SD2CLK,
+	/* PSC0/1 clocks: 44-45 */
+	AU1300_PIN_PSC0CLK, AU1300_PIN_PSC1CLK,
+	/* PSCs: 46-49/50-53/54-57/58-61 */
+	AU1300_PIN_PSC0SYNC0, AU1300_PIN_PSC0SYNC1, AU1300_PIN_PSC0D0,
+	AU1300_PIN_PSC0D1,
+	AU1300_PIN_PSC1SYNC0, AU1300_PIN_PSC1SYNC1, AU1300_PIN_PSC1D0,
+	AU1300_PIN_PSC1D1,
+	AU1300_PIN_PSC2SYNC0, AU1300_PIN_PSC2SYNC1, AU1300_PIN_PSC2D0,
+	AU1300_PIN_PSC2D1,
+	AU1300_PIN_PSC3SYNC0, AU1300_PIN_PSC3SYNC1, AU1300_PIN_PSC3D0,
+	AU1300_PIN_PSC3D1,
+	/* PCMCIA interface: 62-70 */
+	AU1300_PIN_PCE2, AU1300_PIN_PCE1, AU1300_PIN_PIOS16,
+	AU1300_PIN_PIOR, AU1300_PIN_PWE, AU1300_PIN_PWAIT,
+	AU1300_PIN_PREG, AU1300_PIN_POE, AU1300_PIN_PIOW,
+	/* camera interface H/V sync inputs: 71-72 */
+	AU1300_PIN_CIMLS, AU1300_PIN_CIMFS,
+	/* PSC2/3 clocks: 73-74 */
+	AU1300_PIN_PSC2CLK, AU1300_PIN_PSC3CLK,
+};
+
+/* GPIC (Au1300) pin management: arch/mips/alchemy/common/gpioint.c */
+extern void au1300_pinfunc_to_gpio(enum au1300_multifunc_pins gpio);
+extern void au1300_pinfunc_to_dev(enum au1300_multifunc_pins gpio);
+extern void au1300_set_irq_priority(unsigned int irq, int p);
+extern void au1300_set_dbdma_gpio(int dchan, unsigned int gpio);
+
+/* Au1300 allows to disconnect certain blocks from internal power supply */
+enum au1300_vss_block {
+	AU1300_VSS_MPE = 0,
+	AU1300_VSS_BSA,
+	AU1300_VSS_GPE,
+	AU1300_VSS_MGP,
+};
+
+extern void au1300_vss_block_control(int block, int enable);
+
+enum soc_au1000_ints {
+	AU1000_FIRST_INT	= AU1000_INTC0_INT_BASE,
+	AU1000_UART0_INT	= AU1000_FIRST_INT,
+	AU1000_UART1_INT,
+	AU1000_UART2_INT,
+	AU1000_UART3_INT,
+	AU1000_SSI0_INT,
+	AU1000_SSI1_INT,
+	AU1000_DMA_INT_BASE,
+
+	AU1000_TOY_INT		= AU1000_FIRST_INT + 14,
+	AU1000_TOY_MATCH0_INT,
+	AU1000_TOY_MATCH1_INT,
+	AU1000_TOY_MATCH2_INT,
+	AU1000_RTC_INT,
+	AU1000_RTC_MATCH0_INT,
+	AU1000_RTC_MATCH1_INT,
+	AU1000_RTC_MATCH2_INT,
+	AU1000_IRDA_TX_INT,
+	AU1000_IRDA_RX_INT,
+	AU1000_USB_DEV_REQ_INT,
+	AU1000_USB_DEV_SUS_INT,
+	AU1000_USB_HOST_INT,
+	AU1000_ACSYNC_INT,
+	AU1000_MAC0_DMA_INT,
+	AU1000_MAC1_DMA_INT,
+	AU1000_I2S_UO_INT,
+	AU1000_AC97C_INT,
+	AU1000_GPIO0_INT,
+	AU1000_GPIO1_INT,
+	AU1000_GPIO2_INT,
+	AU1000_GPIO3_INT,
+	AU1000_GPIO4_INT,
+	AU1000_GPIO5_INT,
+	AU1000_GPIO6_INT,
+	AU1000_GPIO7_INT,
+	AU1000_GPIO8_INT,
+	AU1000_GPIO9_INT,
+	AU1000_GPIO10_INT,
+	AU1000_GPIO11_INT,
+	AU1000_GPIO12_INT,
+	AU1000_GPIO13_INT,
+	AU1000_GPIO14_INT,
+	AU1000_GPIO15_INT,
+	AU1000_GPIO16_INT,
+	AU1000_GPIO17_INT,
+	AU1000_GPIO18_INT,
+	AU1000_GPIO19_INT,
+	AU1000_GPIO20_INT,
+	AU1000_GPIO21_INT,
+	AU1000_GPIO22_INT,
+	AU1000_GPIO23_INT,
+	AU1000_GPIO24_INT,
+	AU1000_GPIO25_INT,
+	AU1000_GPIO26_INT,
+	AU1000_GPIO27_INT,
+	AU1000_GPIO28_INT,
+	AU1000_GPIO29_INT,
+	AU1000_GPIO30_INT,
+	AU1000_GPIO31_INT,
+};
+
+enum soc_au1100_ints {
+	AU1100_FIRST_INT	= AU1000_INTC0_INT_BASE,
+	AU1100_UART0_INT	= AU1100_FIRST_INT,
+	AU1100_UART1_INT,
+	AU1100_SD_INT,
+	AU1100_UART3_INT,
+	AU1100_SSI0_INT,
+	AU1100_SSI1_INT,
+	AU1100_DMA_INT_BASE,
+
+	AU1100_TOY_INT		= AU1100_FIRST_INT + 14,
+	AU1100_TOY_MATCH0_INT,
+	AU1100_TOY_MATCH1_INT,
+	AU1100_TOY_MATCH2_INT,
+	AU1100_RTC_INT,
+	AU1100_RTC_MATCH0_INT,
+	AU1100_RTC_MATCH1_INT,
+	AU1100_RTC_MATCH2_INT,
+	AU1100_IRDA_TX_INT,
+	AU1100_IRDA_RX_INT,
+	AU1100_USB_DEV_REQ_INT,
+	AU1100_USB_DEV_SUS_INT,
+	AU1100_USB_HOST_INT,
+	AU1100_ACSYNC_INT,
+	AU1100_MAC0_DMA_INT,
+	AU1100_GPIO208_215_INT,
+	AU1100_LCD_INT,
+	AU1100_AC97C_INT,
+	AU1100_GPIO0_INT,
+	AU1100_GPIO1_INT,
+	AU1100_GPIO2_INT,
+	AU1100_GPIO3_INT,
+	AU1100_GPIO4_INT,
+	AU1100_GPIO5_INT,
+	AU1100_GPIO6_INT,
+	AU1100_GPIO7_INT,
+	AU1100_GPIO8_INT,
+	AU1100_GPIO9_INT,
+	AU1100_GPIO10_INT,
+	AU1100_GPIO11_INT,
+	AU1100_GPIO12_INT,
+	AU1100_GPIO13_INT,
+	AU1100_GPIO14_INT,
+	AU1100_GPIO15_INT,
+	AU1100_GPIO16_INT,
+	AU1100_GPIO17_INT,
+	AU1100_GPIO18_INT,
+	AU1100_GPIO19_INT,
+	AU1100_GPIO20_INT,
+	AU1100_GPIO21_INT,
+	AU1100_GPIO22_INT,
+	AU1100_GPIO23_INT,
+	AU1100_GPIO24_INT,
+	AU1100_GPIO25_INT,
+	AU1100_GPIO26_INT,
+	AU1100_GPIO27_INT,
+	AU1100_GPIO28_INT,
+	AU1100_GPIO29_INT,
+	AU1100_GPIO30_INT,
+	AU1100_GPIO31_INT,
+};
+
+enum soc_au1500_ints {
+	AU1500_FIRST_INT	= AU1000_INTC0_INT_BASE,
+	AU1500_UART0_INT	= AU1500_FIRST_INT,
+	AU1500_PCI_INTA,
+	AU1500_PCI_INTB,
+	AU1500_UART3_INT,
+	AU1500_PCI_INTC,
+	AU1500_PCI_INTD,
+	AU1500_DMA_INT_BASE,
+
+	AU1500_TOY_INT		= AU1500_FIRST_INT + 14,
+	AU1500_TOY_MATCH0_INT,
+	AU1500_TOY_MATCH1_INT,
+	AU1500_TOY_MATCH2_INT,
+	AU1500_RTC_INT,
+	AU1500_RTC_MATCH0_INT,
+	AU1500_RTC_MATCH1_INT,
+	AU1500_RTC_MATCH2_INT,
+	AU1500_PCI_ERR_INT,
+	AU1500_RESERVED_INT,
+	AU1500_USB_DEV_REQ_INT,
+	AU1500_USB_DEV_SUS_INT,
+	AU1500_USB_HOST_INT,
+	AU1500_ACSYNC_INT,
+	AU1500_MAC0_DMA_INT,
+	AU1500_MAC1_DMA_INT,
+	AU1500_AC97C_INT	= AU1500_FIRST_INT + 31,
+	AU1500_GPIO0_INT,
+	AU1500_GPIO1_INT,
+	AU1500_GPIO2_INT,
+	AU1500_GPIO3_INT,
+	AU1500_GPIO4_INT,
+	AU1500_GPIO5_INT,
+	AU1500_GPIO6_INT,
+	AU1500_GPIO7_INT,
+	AU1500_GPIO8_INT,
+	AU1500_GPIO9_INT,
+	AU1500_GPIO10_INT,
+	AU1500_GPIO11_INT,
+	AU1500_GPIO12_INT,
+	AU1500_GPIO13_INT,
+	AU1500_GPIO14_INT,
+	AU1500_GPIO15_INT,
+	AU1500_GPIO200_INT,
+	AU1500_GPIO201_INT,
+	AU1500_GPIO202_INT,
+	AU1500_GPIO203_INT,
+	AU1500_GPIO20_INT,
+	AU1500_GPIO204_INT,
+	AU1500_GPIO205_INT,
+	AU1500_GPIO23_INT,
+	AU1500_GPIO24_INT,
+	AU1500_GPIO25_INT,
+	AU1500_GPIO26_INT,
+	AU1500_GPIO27_INT,
+	AU1500_GPIO28_INT,
+	AU1500_GPIO206_INT,
+	AU1500_GPIO207_INT,
+	AU1500_GPIO208_215_INT,
+};
+
+enum soc_au1550_ints {
+	AU1550_FIRST_INT	= AU1000_INTC0_INT_BASE,
+	AU1550_UART0_INT	= AU1550_FIRST_INT,
+	AU1550_PCI_INTA,
+	AU1550_PCI_INTB,
+	AU1550_DDMA_INT,
+	AU1550_CRYPTO_INT,
+	AU1550_PCI_INTC,
+	AU1550_PCI_INTD,
+	AU1550_PCI_RST_INT,
+	AU1550_UART1_INT,
+	AU1550_UART3_INT,
+	AU1550_PSC0_INT,
+	AU1550_PSC1_INT,
+	AU1550_PSC2_INT,
+	AU1550_PSC3_INT,
+	AU1550_TOY_INT,
+	AU1550_TOY_MATCH0_INT,
+	AU1550_TOY_MATCH1_INT,
+	AU1550_TOY_MATCH2_INT,
+	AU1550_RTC_INT,
+	AU1550_RTC_MATCH0_INT,
+	AU1550_RTC_MATCH1_INT,
+	AU1550_RTC_MATCH2_INT,
+
+	AU1550_NAND_INT		= AU1550_FIRST_INT + 23,
+	AU1550_USB_DEV_REQ_INT,
+	AU1550_USB_DEV_SUS_INT,
+	AU1550_USB_HOST_INT,
+	AU1550_MAC0_DMA_INT,
+	AU1550_MAC1_DMA_INT,
+	AU1550_GPIO0_INT	= AU1550_FIRST_INT + 32,
+	AU1550_GPIO1_INT,
+	AU1550_GPIO2_INT,
+	AU1550_GPIO3_INT,
+	AU1550_GPIO4_INT,
+	AU1550_GPIO5_INT,
+	AU1550_GPIO6_INT,
+	AU1550_GPIO7_INT,
+	AU1550_GPIO8_INT,
+	AU1550_GPIO9_INT,
+	AU1550_GPIO10_INT,
+	AU1550_GPIO11_INT,
+	AU1550_GPIO12_INT,
+	AU1550_GPIO13_INT,
+	AU1550_GPIO14_INT,
+	AU1550_GPIO15_INT,
+	AU1550_GPIO200_INT,
+	AU1550_GPIO201_205_INT, /* Logical or of GPIO201:205 */
+	AU1550_GPIO16_INT,
+	AU1550_GPIO17_INT,
+	AU1550_GPIO20_INT,
+	AU1550_GPIO21_INT,
+	AU1550_GPIO22_INT,
+	AU1550_GPIO23_INT,
+	AU1550_GPIO24_INT,
+	AU1550_GPIO25_INT,
+	AU1550_GPIO26_INT,
+	AU1550_GPIO27_INT,
+	AU1550_GPIO28_INT,
+	AU1550_GPIO206_INT,
+	AU1550_GPIO207_INT,
+	AU1550_GPIO208_215_INT, /* Logical or of GPIO208:215 */
+};
+
+enum soc_au1200_ints {
+	AU1200_FIRST_INT	= AU1000_INTC0_INT_BASE,
+	AU1200_UART0_INT	= AU1200_FIRST_INT,
+	AU1200_SWT_INT,
+	AU1200_SD_INT,
+	AU1200_DDMA_INT,
+	AU1200_MAE_BE_INT,
+	AU1200_GPIO200_INT,
+	AU1200_GPIO201_INT,
+	AU1200_GPIO202_INT,
+	AU1200_UART1_INT,
+	AU1200_MAE_FE_INT,
+	AU1200_PSC0_INT,
+	AU1200_PSC1_INT,
+	AU1200_AES_INT,
+	AU1200_CAMERA_INT,
+	AU1200_TOY_INT,
+	AU1200_TOY_MATCH0_INT,
+	AU1200_TOY_MATCH1_INT,
+	AU1200_TOY_MATCH2_INT,
+	AU1200_RTC_INT,
+	AU1200_RTC_MATCH0_INT,
+	AU1200_RTC_MATCH1_INT,
+	AU1200_RTC_MATCH2_INT,
+	AU1200_GPIO203_INT,
+	AU1200_NAND_INT,
+	AU1200_GPIO204_INT,
+	AU1200_GPIO205_INT,
+	AU1200_GPIO206_INT,
+	AU1200_GPIO207_INT,
+	AU1200_GPIO208_215_INT, /* Logical OR of 208:215 */
+	AU1200_USB_INT,
+	AU1200_LCD_INT,
+	AU1200_MAE_BOTH_INT,
+	AU1200_GPIO0_INT,
+	AU1200_GPIO1_INT,
+	AU1200_GPIO2_INT,
+	AU1200_GPIO3_INT,
+	AU1200_GPIO4_INT,
+	AU1200_GPIO5_INT,
+	AU1200_GPIO6_INT,
+	AU1200_GPIO7_INT,
+	AU1200_GPIO8_INT,
+	AU1200_GPIO9_INT,
+	AU1200_GPIO10_INT,
+	AU1200_GPIO11_INT,
+	AU1200_GPIO12_INT,
+	AU1200_GPIO13_INT,
+	AU1200_GPIO14_INT,
+	AU1200_GPIO15_INT,
+	AU1200_GPIO16_INT,
+	AU1200_GPIO17_INT,
+	AU1200_GPIO18_INT,
+	AU1200_GPIO19_INT,
+	AU1200_GPIO20_INT,
+	AU1200_GPIO21_INT,
+	AU1200_GPIO22_INT,
+	AU1200_GPIO23_INT,
+	AU1200_GPIO24_INT,
+	AU1200_GPIO25_INT,
+	AU1200_GPIO26_INT,
+	AU1200_GPIO27_INT,
+	AU1200_GPIO28_INT,
+	AU1200_GPIO29_INT,
+	AU1200_GPIO30_INT,
+	AU1200_GPIO31_INT,
+};
+
+#endif /* !defined (_LANGUAGE_ASSEMBLY) */
 
 #endif
