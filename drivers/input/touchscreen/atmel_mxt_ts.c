@@ -22,6 +22,7 @@
 #include <linux/i2c/atmel_mxt_ts.h>
 #include <linux/input/mt.h>
 #include <linux/interrupt.h>
+#include <linux/of.h>
 #include <linux/slab.h>
 
 /* Version */
@@ -1527,15 +1528,65 @@ static void mxt_input_close(struct input_dev *dev)
 	mxt_stop(data);
 }
 
-static int mxt_probe(struct i2c_client *client,
-		const struct i2c_device_id *id)
+#ifdef CONFIG_OF
+static struct mxt_platform_data *mxt_parse_dt(struct i2c_client *client)
+{
+	struct mxt_platform_data *pdata;
+	u32 *keymap;
+	u32 keycode;
+	int proplen, i, ret;
+
+	if (!client->dev.of_node)
+		return ERR_PTR(-ENODEV);
+
+	pdata = devm_kzalloc(&client->dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata)
+		return ERR_PTR(-ENOMEM);
+
+	if (of_find_property(client->dev.of_node, "linux,gpio-keymap",
+			     &proplen)) {
+		pdata->t19_num_keys = proplen / sizeof(u32);
+
+		keymap = devm_kzalloc(&client->dev,
+				pdata->t19_num_keys * sizeof(keymap[0]),
+				GFP_KERNEL);
+		if (!keymap)
+			return ERR_PTR(-ENOMEM);
+
+		for (i = 0; i < pdata->t19_num_keys; i++) {
+			ret = of_property_read_u32_index(client->dev.of_node,
+					"linux,gpio-keymap", i, &keycode);
+			if (ret)
+				keycode = KEY_RESERVED;
+
+			keymap[i] = keycode;
+		}
+
+		pdata->t19_keymap = keymap;
+	}
+
+	return pdata;
+}
+#else
+static struct mxt_platform_data *mxt_parse_dt(struct i2c_client *client)
+{
+	dev_dbg(&client->dev, "No platform data specified\n");
+	return ERR_PTR(-EINVAL);
+}
+#endif
+
+static int mxt_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	struct mxt_data *data;
-	const struct mxt_platform_data *pdata = dev_get_platdata(&client->dev);
+	const struct mxt_platform_data *pdata;
 	int error;
 
-	if (!pdata)
-		return -EINVAL;
+	pdata = dev_get_platdata(&client->dev);
+	if (!pdata) {
+		pdata = mxt_parse_dt(client);
+		if (IS_ERR(pdata))
+			return PTR_ERR(pdata);
+	}
 
 	data = kzalloc(sizeof(struct mxt_data), GFP_KERNEL);
 	if (!data) {
@@ -1638,6 +1689,12 @@ static int mxt_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(mxt_pm_ops, mxt_suspend, mxt_resume);
 
+static const struct of_device_id mxt_of_match[] = {
+	{ .compatible = "atmel,maxtouch", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, mxt_of_match);
+
 static const struct i2c_device_id mxt_id[] = {
 	{ "qt602240_ts", 0 },
 	{ "atmel_mxt_ts", 0 },
@@ -1651,6 +1708,7 @@ static struct i2c_driver mxt_driver = {
 	.driver = {
 		.name	= "atmel_mxt_ts",
 		.owner	= THIS_MODULE,
+		.of_match_table = of_match_ptr(mxt_of_match),
 		.pm	= &mxt_pm_ops,
 	},
 	.probe		= mxt_probe,
