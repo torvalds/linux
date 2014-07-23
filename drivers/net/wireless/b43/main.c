@@ -5338,7 +5338,6 @@ static int b43_wireless_core_attach(struct b43_wldev *dev)
 		switch (dev->phy.type) {
 		case B43_PHYTYPE_A:
 		case B43_PHYTYPE_G:
-		case B43_PHYTYPE_N:
 		case B43_PHYTYPE_LP:
 		case B43_PHYTYPE_HT:
 			b43warn(wl, "5 GHz band is unsupported on this PHY\n");
