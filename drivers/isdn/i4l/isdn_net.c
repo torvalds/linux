@@ -2918,8 +2918,8 @@ isdn_net_getcfg(isdn_net_ioctl_cfg *cfg)
 			cfg->callback = 2;
 		cfg->cbhup = (lp->flags & ISDN_NET_CBHUP) ? 1 : 0;
 		cfg->dialmode = lp->flags & ISDN_NET_DIALMODE_MASK;
-		cfg->chargehup = (lp->hupflags & 4) ? 1 : 0;
-		cfg->ihup = (lp->hupflags & 8) ? 1 : 0;
+		cfg->chargehup = (lp->hupflags & ISDN_CHARGEHUP) ? 1 : 0;
+		cfg->ihup = (lp->hupflags & ISDN_INHUP) ? 1 : 0;
 		cfg->cbdelay = lp->cbdelay;
 		cfg->dialmax = lp->dialmax;
 		cfg->triggercps = lp->triggercps;
