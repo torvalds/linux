@@ -1038,6 +1038,13 @@ static int coda_prepare_decode(struct coda_ctx *ctx)
 	coda_write(dev, 0, CODA_CMD_DEC_PIC_BB_START);
 	coda_write(dev, 0, CODA_CMD_DEC_PIC_START_BYTE);
 
+	if (dev->devtype->product != CODA_DX6)
+		coda_write(dev, ctx->iram_info.axi_sram_use,
+				CODA7_REG_BIT_AXI_SRAM_USE);
+
+	coda_kfifo_sync_to_device_full(ctx);
+	coda_command_async(ctx, CODA_COMMAND_PIC_RUN);
+
 	return 0;
 }
 
@@ -1184,6 +1191,12 @@ static int coda_prepare_encode(struct coda_ctx *ctx)
 		coda_write(dev, ctx->bit_stream_param, CODA_REG_BIT_BIT_STREAM_PARAM);
 	}
 
+	if (dev->devtype->product != CODA_DX6)
+		coda_write(dev, ctx->iram_info.axi_sram_use,
+				CODA7_REG_BIT_AXI_SRAM_USE);
+
+	coda_command_async(ctx, CODA_COMMAND_PIC_RUN);
+
 	return 0;
 }
 
@@ -1242,14 +1255,6 @@ static void coda_pic_run_work(struct work_struct *work)
 		/* job_finish scheduled by prepare_decode */
 		return;
 	}
-
-	if (dev->devtype->product != CODA_DX6)
-		coda_write(dev, ctx->iram_info.axi_sram_use,
-				CODA7_REG_BIT_AXI_SRAM_USE);
-
-	if (ctx->inst_type == CODA_INST_DECODER)
-		coda_kfifo_sync_to_device_full(ctx);
-	coda_command_async(ctx, CODA_COMMAND_PIC_RUN);
 
 	if (!wait_for_completion_timeout(&ctx->completion, msecs_to_jiffies(1000))) {
 		dev_err(&dev->plat_dev->dev, "CODA PIC_RUN timeout\n");
