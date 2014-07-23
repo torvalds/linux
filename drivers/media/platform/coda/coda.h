@@ -164,6 +164,18 @@ struct gdi_tiled_map {
 #define GDI_LINEAR_FRAME_MAP 0
 };
 
+struct coda_ctx;
+
+struct coda_context_ops {
+	int (*queue_init)(void *priv, struct vb2_queue *src_vq,
+			  struct vb2_queue *dst_vq);
+	int (*start_streaming)(struct coda_ctx *ctx);
+	int (*prepare_run)(struct coda_ctx *ctx);
+	void (*finish_run)(struct coda_ctx *ctx);
+	void (*seq_end_work)(struct work_struct *work);
+	void (*release)(struct coda_ctx *ctx);
+};
+
 struct coda_ctx {
 	struct coda_dev			*dev;
 	struct mutex			buffer_mutex;
@@ -171,6 +183,7 @@ struct coda_ctx {
 	struct work_struct		pic_run_work;
 	struct work_struct		seq_end_work;
 	struct completion		completion;
+	const struct coda_context_ops	*ops;
 	int				aborting;
 	int				initialized;
 	int				streamon_out;
