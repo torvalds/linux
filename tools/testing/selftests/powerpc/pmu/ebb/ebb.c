@@ -224,6 +224,7 @@ void dump_ebb_hw_state(void)
 
 	printf("HW state:\n"		\
 	       "MMCR0 0x%016x %s\n"	\
+	       "MMCR2 0x%016lx\n"	\
 	       "EBBHR 0x%016lx\n"	\
 	       "BESCR 0x%016llx %s\n"	\
 	       "PMC1  0x%016lx\n"	\
@@ -233,10 +234,11 @@ void dump_ebb_hw_state(void)
 	       "PMC5  0x%016lx\n"	\
 	       "PMC6  0x%016lx\n"	\
 	       "SIAR  0x%016lx\n",
-	       mmcr0, decode_mmcr0(mmcr0), mfspr(SPRN_EBBHR), bescr,
-	       decode_bescr(bescr), mfspr(SPRN_PMC1), mfspr(SPRN_PMC2),
-	       mfspr(SPRN_PMC3), mfspr(SPRN_PMC4), mfspr(SPRN_PMC5),
-	       mfspr(SPRN_PMC6), mfspr(SPRN_SIAR));
+	       mmcr0, decode_mmcr0(mmcr0), mfspr(SPRN_MMCR2),
+	       mfspr(SPRN_EBBHR), bescr, decode_bescr(bescr),
+	       mfspr(SPRN_PMC1), mfspr(SPRN_PMC2), mfspr(SPRN_PMC3),
+	       mfspr(SPRN_PMC4), mfspr(SPRN_PMC5), mfspr(SPRN_PMC6),
+	       mfspr(SPRN_SIAR));
 }
 
 void dump_ebb_state(void)
