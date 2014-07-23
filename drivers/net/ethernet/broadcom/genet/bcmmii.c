@@ -381,7 +381,7 @@ static int bcmgenet_mii_alloc(struct bcmgenet_priv *priv)
 	snprintf(bus->id, MII_BUS_ID_SIZE, "%s-%d",
 		 priv->pdev->name, priv->pdev->id);
 
-	bus->irq = kzalloc(sizeof(int) * PHY_MAX_ADDR, GFP_KERNEL);
+	bus->irq = kcalloc(PHY_MAX_ADDR, sizeof(int), GFP_KERNEL);
 	if (!bus->irq) {
 		mdiobus_free(priv->mii_bus);
 		return -ENOMEM;
