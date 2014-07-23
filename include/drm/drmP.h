@@ -1502,9 +1502,8 @@ extern int drm_pci_set_unique(struct drm_device *dev,
 struct drm_sysfs_class;
 extern struct class *drm_sysfs_create(struct module *owner, char *name);
 extern void drm_sysfs_destroy(void);
-extern int drm_sysfs_device_add(struct drm_minor *minor);
+extern struct device *drm_sysfs_minor_alloc(struct drm_minor *minor);
 extern void drm_sysfs_hotplug_event(struct drm_device *dev);
-extern void drm_sysfs_device_remove(struct drm_minor *minor);
 extern int drm_sysfs_connector_add(struct drm_connector *connector);
 extern void drm_sysfs_connector_remove(struct drm_connector *connector);
 
