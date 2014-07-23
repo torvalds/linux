@@ -22,6 +22,7 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
+#include <linux/mbus.h>
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
 #include <linux/resource.h>
@@ -63,6 +64,10 @@ static void __iomem *pmsu_mp_base;
 #define L2C_NFABRIC_PM_CTL		    0x4
 #define L2C_NFABRIC_PM_CTL_PWR_DOWN		BIT(20)
 
+#define SRAM_PHYS_BASE  0xFFFF0000
+#define BOOTROM_BASE    0xFFF00000
+#define BOOTROM_SIZE    0x100000
+
 extern void ll_disable_coherency(void);
 extern void ll_enable_coherency(void);
 
@@ -83,6 +88,48 @@ void mvebu_pmsu_set_cpu_boot_addr(int hw_cpu, void *boot_addr)
 {
 	writel(virt_to_phys(boot_addr), pmsu_mp_base +
 		PMSU_BOOT_ADDR_REDIRECT_OFFSET(hw_cpu));
+}
+
+extern unsigned char mvebu_boot_wa_start;
+extern unsigned char mvebu_boot_wa_end;
+
+/*
+ * This function sets up the boot address workaround needed for SMP
+ * boot on Armada 375 Z1 and cpuidle on Armada 370. It unmaps the
+ * BootROM Mbus window, and instead remaps a crypto SRAM into which a
+ * custom piece of code is copied to replace the problematic BootROM.
+ */
+int mvebu_setup_boot_addr_wa(unsigned int crypto_eng_target,
+			     unsigned int crypto_eng_attribute,
+			     phys_addr_t resume_addr_reg)
+{
+	void __iomem *sram_virt_base;
+	u32 code_len = &mvebu_boot_wa_end - &mvebu_boot_wa_start;
+
+	mvebu_mbus_del_window(BOOTROM_BASE, BOOTROM_SIZE);
+	mvebu_mbus_add_window_by_id(crypto_eng_target, crypto_eng_attribute,
+				    SRAM_PHYS_BASE, SZ_64K);
+
+	sram_virt_base = ioremap(SRAM_PHYS_BASE, SZ_64K);
+	if (!sram_virt_base) {
+		pr_err("Unable to map SRAM to setup the boot address WA\n");
+		return -ENOMEM;
+	}
+
+	memcpy(sram_virt_base, &mvebu_boot_wa_start, code_len);
+
+	/*
+	 * The last word of the code copied in SRAM must contain the
+	 * physical base address of the PMSU register. We
+	 * intentionally store this address in the native endianness
+	 * of the system.
+	 */
+	__raw_writel((unsigned long)resume_addr_reg,
+		     sram_virt_base + code_len - 4);
+
+	iounmap(sram_virt_base);
+
+	return 0;
 }
 
 static int __init armada_370_xp_pmsu_init(void)
