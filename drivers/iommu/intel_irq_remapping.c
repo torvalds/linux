@@ -70,6 +70,11 @@ static int get_irte(int irq, struct irte *entry)
 
 	raw_spin_lock_irqsave(&irq_2_ir_lock, flags);
 
+	if (unlikely(!irq_iommu->iommu)) {
+		raw_spin_unlock_irqrestore(&irq_2_ir_lock, flags);
+		return -1;
+	}
+
 	index = irq_iommu->irte_index + irq_iommu->sub_handle;
 	*entry = *(irq_iommu->iommu->ir_table->base + index);
 
