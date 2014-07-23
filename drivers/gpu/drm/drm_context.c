@@ -111,6 +111,36 @@ void drm_ctxbitmap_cleanup(struct drm_device * dev)
 	mutex_unlock(&dev->struct_mutex);
 }
 
+/**
+ * drm_ctxbitmap_flush() - Flush all contexts owned by a file
+ * @dev: DRM device to operate on
+ * @file: Open file to flush contexts for
+ *
+ * This iterates over all contexts on @dev and drops them if they're owned by
+ * @file. Note that after this call returns, new contexts might be added if
+ * the file is still alive.
+ */
+void drm_ctxbitmap_flush(struct drm_device *dev, struct drm_file *file)
+{
+	struct drm_ctx_list *pos, *tmp;
+
+	mutex_lock(&dev->ctxlist_mutex);
+
+	list_for_each_entry_safe(pos, tmp, &dev->ctxlist, head) {
+		if (pos->tag == file &&
+		    pos->handle != DRM_KERNEL_CONTEXT) {
+			if (dev->driver->context_dtor)
+				dev->driver->context_dtor(dev, pos->handle);
+
+			drm_ctxbitmap_free(dev, pos->handle);
+			list_del(&pos->head);
+			kfree(pos);
+		}
+	}
+
+	mutex_unlock(&dev->ctxlist_mutex);
+}
+
 /*@}*/
 
 /******************************************************************/
