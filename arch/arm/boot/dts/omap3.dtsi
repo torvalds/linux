@@ -332,6 +332,8 @@
 			ti,hwmods = "mailbox";
 			reg = <0x48094000 0x200>;
 			interrupts = <26>;
+			ti,mbox-num-users = <2>;
+			ti,mbox-num-fifos = <2>;
 		};
 
 		mcspi1: spi@48098000 {
