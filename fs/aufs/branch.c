@@ -768,6 +768,81 @@ static int test_children_busy(struct dentry *root, aufs_bindex_t bindex,
 	return err;
 }
 
+static int test_dir_busy(struct file *file, aufs_bindex_t bindex, void *to_free,
+			 int *idx)
+{
+	int err, found, i;
+	aufs_bindex_t bstart, bend;
+	struct file **p;
+
+	err = 0;
+	bstart = au_fbstart(file);
+	bend = au_fbend_dir(file);
+	if (bindex < bstart
+	    || bend < bindex
+	    || !au_hf_dir(file, bindex))
+		goto out;
+
+	found = 0;
+	for (i = bstart; !found && i <= bend; i++)
+		if (i != bindex)
+			found = !!au_hf_dir(file, i);
+	if (found) {
+		p = to_free;
+		get_file(file);
+		p[*idx] = file;
+		(*idx)++;
+	} else
+		err = -EBUSY;
+
+out:
+	return err;
+}
+
+static int test_file_busy(struct super_block *sb, aufs_bindex_t bindex,
+			  void *to_free, int opened)
+{
+	int err, idx;
+	unsigned long long ull, max;
+	aufs_bindex_t bstart;
+	struct file *file, **array;
+	struct inode *inode;
+	struct dentry *root;
+
+	array = au_farray_alloc(sb, &max);
+	err = PTR_ERR(array);
+	if (IS_ERR(array))
+		goto out;
+
+	err = 0;
+	idx = 0;
+	root = sb->s_root;
+	di_write_unlock(root);
+	for (ull = 0; ull < max; ull++) {
+		file = array[ull];
+
+		/* AuDbg("%.*s\n", AuDLNPair(file->f_dentry)); */
+		fi_read_lock(file);
+		bstart = au_fbstart(file);
+		inode = file_inode(file);
+		if (!S_ISDIR(inode->i_mode)) {
+			bstart = au_fbstart(file);
+			if (bstart == bindex)
+				err = -EBUSY;
+		} else
+			err = test_dir_busy(file, bindex, to_free, &idx);
+		fi_read_unlock(file);
+		if (unlikely(err))
+			break;
+	}
+	di_write_lock_child(root);
+	au_farray_free(array, max);
+	AuDebugOn(idx > opened);
+
+out:
+	return err;
+}
+
 static void au_br_do_del_brp(struct au_sbinfo *sbinfo,
 			     const aufs_bindex_t bindex,
 			     const aufs_bindex_t bend)
@@ -860,17 +935,27 @@ static void au_br_do_del(struct super_block *sb, aufs_bindex_t bindex,
 	au_br_do_free(br);
 }
 
+static unsigned long long empty_cb(void *array, unsigned long long max,
+				   void *arg)
+{
+	return max;
+}
+
 int au_br_del(struct super_block *sb, struct au_opt_del *del, int remount)
 {
 	int err, rerr, i;
+	unsigned long long opened;
 	unsigned int mnt_flags;
-	aufs_bindex_t bindex, bend, br_id;
+	aufs_bindex_t bindex, bend, br_id, bstart;
 	unsigned char do_wh, verbose;
 	struct au_branch *br;
 	struct au_wbr *wbr;
 	struct dentry *root;
+	struct file *file, **to_free;
 
 	err = 0;
+	opened = 0;
+	to_free = NULL;
 	root = sb->s_root;
 	bindex = au_find_dbindex(root, del->h_path.dentry);
 	if (bindex < 0) {
@@ -892,10 +977,19 @@ int au_br_del(struct super_block *sb, struct au_opt_del *del, int remount)
 	}
 	br = au_sbr(sb, bindex);
 	AuDebugOn(!path_equal(&br->br_path, &del->h_path));
-	i = atomic_read(&br->br_count);
-	if (unlikely(i)) {
-		AuVerbose(verbose, "%d file(s) opened\n", i);
-		goto out;
+
+	opened = atomic_read(&br->br_count);
+	if (unlikely(opened)) {
+		to_free = au_array_alloc(&opened, empty_cb, NULL);
+		err = PTR_ERR(to_free);
+		if (IS_ERR(to_free))
+			goto out;
+
+		err = test_file_busy(sb, bindex, to_free, opened);
+		if (unlikely(err)) {
+			AuVerbose(verbose, "%llu file(s) opened\n", opened);
+			goto out;
+		}
 	}
 
 	wbr = br->br_wbr;
@@ -917,6 +1011,32 @@ int au_br_del(struct super_block *sb, struct au_opt_del *del, int remount)
 	}
 
 	err = 0;
+	if (to_free) {
+		/*
+		 * now we confirmed the branch is deletable.
+		 * let's free the remaining opened dirs on the branch.
+		 */
+		di_write_unlock(root);
+		for (i = 0; i < opened; i++) {
+			file = to_free[i];
+
+			/* AuDbg("%.*s\n", AuDLNPair(file->f_dentry)); */
+			fi_write_lock(file);
+			au_set_h_fptr(file, bindex, NULL);
+			bstart = au_fbstart(file);
+			if (bindex == bstart) {
+				bend = au_fbend_dir(file);
+				for (bstart++; bstart <= bend; bstart++)
+					if (au_hf_dir(file, bstart)) {
+						au_set_fbstart(file, bstart);
+						break;
+					}
+			}
+			fi_write_unlock(file);
+		}
+		di_write_lock_child(root);
+	}
+
 	br_id = br->br_id;
 	if (!remount)
 		au_br_do_del(sb, bindex, br);
@@ -945,6 +1065,8 @@ out_wh:
 		pr_warn("failed re-creating base whiteout, %s. (%d)\n",
 			del->pathname, rerr);
 out:
+	if (to_free)
+		au_farray_free(to_free, opened);
 	return err;
 }
 
