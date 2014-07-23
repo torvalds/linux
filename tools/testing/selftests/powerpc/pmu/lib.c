@@ -177,8 +177,8 @@ struct addr_range libc, vdso;
 
 int parse_proc_maps(void)
 {
+	unsigned long start, end;
 	char execute, name[128];
-	uint64_t start, end;
 	FILE *f;
 	int rc;
 
