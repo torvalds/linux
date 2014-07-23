@@ -67,8 +67,6 @@ NESTED(handle_sys, PT_SIZE, sp)
 
 	/*
 	 * Ok, copy the args from the luser stack to the kernel stack.
-	 * t3 is the precomputed number of instruction bytes needed to
-	 * load or store arguments 6-8.
 	 */
 
 	.set    push
