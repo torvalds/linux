@@ -54,8 +54,6 @@ source "drivers/staging/rtl8821ae/Kconfig"
 
 source "drivers/staging/rts5208/Kconfig"
 
-source "drivers/staging/frontier/Kconfig"
-
 source "drivers/staging/phison/Kconfig"
 
 source "drivers/staging/line6/Kconfig"

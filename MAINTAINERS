@@ -8542,11 +8542,6 @@ M:	Marek Belisko <marek.belisko@gmail.com>
 S:	Odd Fixes
 F:	drivers/staging/ft1000/
 
-STAGING - FRONTIER TRANZPORT AND ALPHATRACK
-M:	David Täht <d@teklibre.com>
-S:	Odd Fixes
-F:	drivers/staging/frontier/
-
 STAGING - GO7007 MPEG CODEC
 M:	Hans Verkuil <hans.verkuil@cisco.com>
 S:	Maintained
