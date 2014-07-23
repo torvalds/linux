@@ -868,9 +868,11 @@ int au_br_del(struct super_block *sb, struct au_opt_del *del, int remount)
 	unsigned char do_wh, verbose;
 	struct au_branch *br;
 	struct au_wbr *wbr;
+	struct dentry *root;
 
 	err = 0;
-	bindex = au_find_dbindex(sb->s_root, del->h_path.dentry);
+	root = sb->s_root;
+	bindex = au_find_dbindex(root, del->h_path.dentry);
 	if (bindex < 0) {
 		if (remount)
 			goto out; /* success */
@@ -907,7 +909,7 @@ int au_br_del(struct super_block *sb, struct au_opt_del *del, int remount)
 		}
 	}
 
-	err = test_children_busy(sb->s_root, bindex, verbose);
+	err = test_children_busy(root, bindex, verbose);
 	if (unlikely(err)) {
 		if (do_wh)
 			goto out_wh;
@@ -925,10 +927,10 @@ int au_br_del(struct super_block *sb, struct au_opt_del *del, int remount)
 	}
 
 	if (!bindex) {
-		au_cpup_attr_all(sb->s_root->d_inode, /*force*/1);
+		au_cpup_attr_all(root->d_inode, /*force*/1);
 		sb->s_maxbytes = au_sbr_sb(sb, 0)->s_maxbytes;
 	} else
-		au_sub_nlink(sb->s_root->d_inode, del->h_path.dentry->d_inode);
+		au_sub_nlink(root->d_inode, del->h_path.dentry->d_inode);
 	if (au_opt_test(mnt_flags, PLINK))
 		au_plink_half_refresh(sb, br_id);
 
