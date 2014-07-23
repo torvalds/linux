@@ -37,10 +37,13 @@ struct device_node *of_chosen;
 struct device_node *of_aliases;
 static struct device_node *of_stdout;
 
-static struct kset *of_kset;
+struct kset *of_kset;
 
 /*
- * Used to protect the of_aliases, to hold off addition of nodes to sysfs
+ * Used to protect the of_aliases, to hold off addition of nodes to sysfs.
+ * This mutex must be held whenever modifications are being made to the
+ * device tree. The of_{attach,detach}_node() and
+ * of_{add,remove,update}_property() helpers make sure this happens.
  */
 DEFINE_MUTEX(of_mutex);
 
@@ -127,12 +130,15 @@ static const char *safe_name(struct kobject *kobj, const char *orig_name)
 	return name;
 }
 
-static int __of_add_property_sysfs(struct device_node *np, struct property *pp)
+int __of_add_property_sysfs(struct device_node *np, struct property *pp)
 {
 	int rc;
 
 	/* Important: Don't leak passwords */
 	bool secure = strncmp(pp->name, "security-", 9) == 0;
+
+	if (!of_kset || !of_node_is_attached(np))
+		return 0;
 
 	sysfs_bin_attr_init(&pp->attr);
 	pp->attr.attr.name = safe_name(&np->kobj, pp->name);
@@ -145,11 +151,14 @@ static int __of_add_property_sysfs(struct device_node *np, struct property *pp)
 	return rc;
 }
 
-static int __of_node_add(struct device_node *np)
+int __of_attach_node_sysfs(struct device_node *np)
 {
 	const char *name;
 	struct property *pp;
 	int rc;
+
+	if (!of_kset)
+		return 0;
 
 	np->kobj.kset = of_kset;
 	if (!np->parent) {
@@ -172,26 +181,6 @@ static int __of_node_add(struct device_node *np)
 	return 0;
 }
 
-int of_node_add(struct device_node *np)
-{
-	int rc = 0;
-
-	BUG_ON(!of_node_is_initialized(np));
-
-	/*
-	 * Grab the mutex here so that in a race condition between of_init() and
-	 * of_node_add(), node addition will still be consistent.
-	 */
-	mutex_lock(&of_mutex);
-	if (of_kset)
-		rc = __of_node_add(np);
-	else
-		/* This scenario may be perfectly valid, but report it anyway */
-		pr_info("of_node_add(%s) before of_init()\n", np->full_name);
-	mutex_unlock(&of_mutex);
-	return rc;
-}
-
 static int __init of_init(void)
 {
 	struct device_node *np;
@@ -204,7 +193,7 @@ static int __init of_init(void)
 		return -ENOMEM;
 	}
 	for_each_of_allnodes(np)
-		__of_node_add(np);
+		__of_attach_node_sysfs(np);
 	mutex_unlock(&of_mutex);
 
 	/* Symlink in /proc as required by userspace ABI */
@@ -1689,14 +1678,16 @@ int of_add_property(struct device_node *np, struct property *prop)
 	if (rc)
 		return rc;
 
+	mutex_lock(&of_mutex);
+
 	raw_spin_lock_irqsave(&devtree_lock, flags);
 	rc = __of_add_property(np, prop);
 	raw_spin_unlock_irqrestore(&devtree_lock, flags);
-	if (rc)
-		return rc;
 
-	if (of_node_is_attached(np))
+	if (!rc)
 		__of_add_property_sysfs(np, prop);
+
+	mutex_unlock(&of_mutex);
 
 	return rc;
 }
@@ -1720,6 +1711,13 @@ int __of_remove_property(struct device_node *np, struct property *prop)
 	return 0;
 }
 
+void __of_remove_property_sysfs(struct device_node *np, struct property *prop)
+{
+	/* at early boot, bail here and defer setup to of_init() */
+	if (of_kset && of_node_is_attached(np))
+		sysfs_remove_bin_file(&np->kobj, &prop->attr);
+}
+
 /**
  * of_remove_property - Remove a property from a node.
  *
@@ -1737,20 +1735,18 @@ int of_remove_property(struct device_node *np, struct property *prop)
 	if (rc)
 		return rc;
 
+	mutex_lock(&of_mutex);
+
 	raw_spin_lock_irqsave(&devtree_lock, flags);
 	rc = __of_remove_property(np, prop);
 	raw_spin_unlock_irqrestore(&devtree_lock, flags);
 
-	if (rc)
-		return rc;
+	if (!rc)
+		__of_remove_property_sysfs(np, prop);
 
-	/* at early boot, bail hear and defer setup to of_init() */
-	if (!of_kset)
-		return 0;
+	mutex_unlock(&of_mutex);
 
-	sysfs_remove_bin_file(&np->kobj, &prop->attr);
-
-	return 0;
+	return rc;
 }
 
 int __of_update_property(struct device_node *np, struct property *newprop,
@@ -1779,6 +1775,18 @@ int __of_update_property(struct device_node *np, struct property *newprop,
 	return 0;
 }
 
+void __of_update_property_sysfs(struct device_node *np, struct property *newprop,
+		struct property *oldprop)
+{
+	/* At early boot, bail out and defer setup to of_init() */
+	if (!of_kset)
+		return;
+
+	if (oldprop)
+		sysfs_remove_bin_file(&np->kobj, &oldprop->attr);
+	__of_add_property_sysfs(np, newprop);
+}
+
 /*
  * of_update_property - Update a property in a node, if the property does
  * not exist, add it.
@@ -1801,22 +1809,18 @@ int of_update_property(struct device_node *np, struct property *newprop)
 	if (rc)
 		return rc;
 
+	mutex_lock(&of_mutex);
+
 	raw_spin_lock_irqsave(&devtree_lock, flags);
 	rc = __of_update_property(np, newprop, &oldprop);
 	raw_spin_unlock_irqrestore(&devtree_lock, flags);
-	if (rc)
-		return rc;
 
-	/* At early boot, bail out and defer setup to of_init() */
-	if (!of_kset)
-		return 0;
+	if (!rc)
+		__of_update_property_sysfs(np, newprop, oldprop);
 
-	/* Update the sysfs attribute */
-	if (oldprop)
-		sysfs_remove_bin_file(&np->kobj, &oldprop->attr);
-	__of_add_property_sysfs(np, newprop);
+	mutex_unlock(&of_mutex);
 
-	return 0;
+	return rc;
 }
 
 static void of_alias_add(struct alias_prop *ap, struct device_node *np,
