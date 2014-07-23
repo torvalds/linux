@@ -16,11 +16,15 @@ if ARCH_MVEBU
 
 menu "Marvell EBU SoC variants"
 
+config MACH_MVEBU_ANY
+	bool
+
 config MACH_MVEBU_V7
 	bool
 	select ARMADA_370_XP_TIMER
 	select CACHE_L2X0
 	select ARM_CPU_SUSPEND
+	select MACH_MVEBU_ANY
 
 config MACH_ARMADA_370
 	bool "Marvell Armada 370 boards" if ARCH_MULTI_V7
@@ -77,6 +81,7 @@ config MACH_DOVE
 	select CACHE_L2X0
 	select CPU_PJ4
 	select DOVE_CLK
+	select MACH_MVEBU_ANY
 	select ORION_IRQCHIP
 	select ORION_TIMER
 	select PINCTRL_DOVE
@@ -90,6 +95,7 @@ config MACH_KIRKWOOD
 	select ARCH_REQUIRE_GPIOLIB
 	select CPU_FEROCEON
 	select KIRKWOOD_CLK
+	select MACH_MVEBU_ANY
 	select ORION_IRQCHIP
 	select ORION_TIMER
 	select PCI
