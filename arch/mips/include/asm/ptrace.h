@@ -47,8 +47,10 @@ struct pt_regs {
 
 struct task_struct;
 
-extern int ptrace_getregs(struct task_struct *child, __s64 __user *data);
-extern int ptrace_setregs(struct task_struct *child, __s64 __user *data);
+extern int ptrace_getregs(struct task_struct *child,
+	struct user_pt_regs __user *data);
+extern int ptrace_setregs(struct task_struct *child,
+	struct user_pt_regs __user *data);
 
 extern int ptrace_getfpregs(struct task_struct *child, __u32 __user *data);
 extern int ptrace_setfpregs(struct task_struct *child, __u32 __user *data);

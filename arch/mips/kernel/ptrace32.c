@@ -256,11 +256,13 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 		}
 
 	case PTRACE_GETREGS:
-		ret = ptrace_getregs(child, (__s64 __user *) (__u64) data);
+		ret = ptrace_getregs(child,
+				(struct user_pt_regs __user *) (__u64) data);
 		break;
 
 	case PTRACE_SETREGS:
-		ret = ptrace_setregs(child, (__s64 __user *) (__u64) data);
+		ret = ptrace_setregs(child,
+				(struct user_pt_regs __user *) (__u64) data);
 		break;
 
 	case PTRACE_GETFPREGS:

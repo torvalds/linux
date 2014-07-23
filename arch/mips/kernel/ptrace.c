@@ -63,7 +63,7 @@ void ptrace_disable(struct task_struct *child)
  * for 32-bit kernels and for 32-bit processes on a 64-bit kernel.
  * Registers are sign extended to fill the available space.
  */
-int ptrace_getregs(struct task_struct *child, __s64 __user *data)
+int ptrace_getregs(struct task_struct *child, struct user_pt_regs __user *data)
 {
 	struct pt_regs *regs;
 	int i;
@@ -74,13 +74,13 @@ int ptrace_getregs(struct task_struct *child, __s64 __user *data)
 	regs = task_pt_regs(child);
 
 	for (i = 0; i < 32; i++)
-		__put_user((long)regs->regs[i], data + i);
-	__put_user((long)regs->lo, data + EF_LO - EF_R0);
-	__put_user((long)regs->hi, data + EF_HI - EF_R0);
-	__put_user((long)regs->cp0_epc, data + EF_CP0_EPC - EF_R0);
-	__put_user((long)regs->cp0_badvaddr, data + EF_CP0_BADVADDR - EF_R0);
-	__put_user((long)regs->cp0_status, data + EF_CP0_STATUS - EF_R0);
-	__put_user((long)regs->cp0_cause, data + EF_CP0_CAUSE - EF_R0);
+		__put_user((long)regs->regs[i], (__s64 __user *)&data->regs[i]);
+	__put_user((long)regs->lo, (__s64 __user *)&data->lo);
+	__put_user((long)regs->hi, (__s64 __user *)&data->hi);
+	__put_user((long)regs->cp0_epc, (__s64 __user *)&data->cp0_epc);
+	__put_user((long)regs->cp0_badvaddr, (__s64 __user *)&data->cp0_badvaddr);
+	__put_user((long)regs->cp0_status, (__s64 __user *)&data->cp0_status);
+	__put_user((long)regs->cp0_cause, (__s64 __user *)&data->cp0_cause);
 
 	return 0;
 }
@@ -90,7 +90,7 @@ int ptrace_getregs(struct task_struct *child, __s64 __user *data)
  * the 64-bit format.  On a 32-bit kernel only the lower order half
  * (according to endianness) will be used.
  */
-int ptrace_setregs(struct task_struct *child, __s64 __user *data)
+int ptrace_setregs(struct task_struct *child, struct user_pt_regs __user *data)
 {
 	struct pt_regs *regs;
 	int i;
@@ -101,10 +101,10 @@ int ptrace_setregs(struct task_struct *child, __s64 __user *data)
 	regs = task_pt_regs(child);
 
 	for (i = 0; i < 32; i++)
-		__get_user(regs->regs[i], data + i);
-	__get_user(regs->lo, data + EF_LO - EF_R0);
-	__get_user(regs->hi, data + EF_HI - EF_R0);
-	__get_user(regs->cp0_epc, data + EF_CP0_EPC - EF_R0);
+		__get_user(regs->regs[i], (__s64 __user *)&data->regs[i]);
+	__get_user(regs->lo, (__s64 __user *)&data->lo);
+	__get_user(regs->hi, (__s64 __user *)&data->hi);
+	__get_user(regs->cp0_epc, (__s64 __user *)&data->cp0_epc);
 
 	/* badvaddr, status, and cause may not be written.  */
 
