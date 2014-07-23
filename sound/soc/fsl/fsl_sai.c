@@ -327,7 +327,7 @@ static int fsl_sai_trigger(struct snd_pcm_substream *substream, int cmd,
 {
 	struct fsl_sai *sai = snd_soc_dai_get_drvdata(cpu_dai);
 	bool tx = substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
-	u32 xcsr;
+	u32 xcsr, count = 100;
 
 	/*
 	 * The transmitter bit clock and frame sync are to be
@@ -369,11 +369,20 @@ static int fsl_sai_trigger(struct snd_pcm_substream *substream, int cmd,
 		if (!(xcsr & FSL_SAI_CSR_FRDE)) {
 			/* Disable both directions and reset their FIFOs */
 			regmap_update_bits(sai->regmap, FSL_SAI_TCSR,
-					   FSL_SAI_CSR_TERE | FSL_SAI_CSR_FR,
-					   FSL_SAI_CSR_FR);
+					   FSL_SAI_CSR_TERE, 0);
 			regmap_update_bits(sai->regmap, FSL_SAI_RCSR,
-					   FSL_SAI_CSR_TERE | FSL_SAI_CSR_FR,
-					   FSL_SAI_CSR_FR);
+					   FSL_SAI_CSR_TERE, 0);
+
+			/* TERE will remain set till the end of current frame */
+			do {
+				udelay(10);
+				regmap_read(sai->regmap, FSL_SAI_xCSR(tx), &xcsr);
+			} while (--count && xcsr & FSL_SAI_CSR_TERE);
+
+			regmap_update_bits(sai->regmap, FSL_SAI_TCSR,
+					   FSL_SAI_CSR_FR, FSL_SAI_CSR_FR);
+			regmap_update_bits(sai->regmap, FSL_SAI_RCSR,
+					   FSL_SAI_CSR_FR, FSL_SAI_CSR_FR);
 		}
 		break;
 	default:
