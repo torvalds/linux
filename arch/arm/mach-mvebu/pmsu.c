@@ -29,6 +29,7 @@
 #include <linux/smp.h>
 #include <asm/cacheflush.h>
 #include <asm/cp15.h>
+#include <asm/smp_scu.h>
 #include <asm/smp_plat.h>
 #include <asm/suspend.h>
 #include <asm/tlbflush.h>
@@ -63,6 +64,18 @@
 #define L2C_NFABRIC_PM_CTL		    0x4
 #define L2C_NFABRIC_PM_CTL_PWR_DOWN		BIT(20)
 
+/* PMSU delay registers */
+#define PMSU_POWERDOWN_DELAY		    0xF04
+#define PMSU_POWERDOWN_DELAY_PMU		BIT(1)
+#define PMSU_POWERDOWN_DELAY_MASK		0xFFFE
+#define PMSU_DFLT_ARMADA38X_DELAY	        0x64
+
+/* CA9 MPcore SoC Control registers */
+
+#define MPCORE_RESET_CTL		    0x64
+#define MPCORE_RESET_CTL_L2			BIT(0)
+#define MPCORE_RESET_CTL_DEBUG			BIT(16)
+
 #define SRAM_PHYS_BASE  0xFFFF0000
 #define BOOTROM_BASE    0xFFF00000
 #define BOOTROM_SIZE    0x100000
@@ -74,6 +87,8 @@ extern void ll_disable_coherency(void);
 extern void ll_enable_coherency(void);
 
 extern void armada_370_xp_cpu_resume(void);
+extern void armada_38x_cpu_resume(void);
+
 static phys_addr_t pmsu_mp_phys_base;
 static void __iomem *pmsu_mp_base;
 
@@ -287,6 +302,32 @@ static int armada_370_xp_cpu_suspend(unsigned long deepidle)
 	return cpu_suspend(deepidle, armada_370_xp_pmsu_idle_enter);
 }
 
+static int armada_38x_do_cpu_suspend(unsigned long deepidle)
+{
+	unsigned long flags = 0;
+
+	if (deepidle)
+		flags |= PMSU_PREPARE_DEEP_IDLE;
+
+	mvebu_v7_pmsu_idle_prepare(flags);
+	/*
+	 * Already flushed cache, but do it again as the outer cache
+	 * functions dirty the cache with spinlocks
+	 */
+	v7_exit_coherency_flush(louis);
+
+	scu_power_mode(mvebu_get_scu_base(), SCU_PM_POWEROFF);
+
+	cpu_do_idle();
+
+	return 1;
+}
+
+static int armada_38x_cpu_suspend(unsigned long deepidle)
+{
+	return cpu_suspend(false, armada_38x_do_cpu_suspend);
+}
+
 /* No locking is needed because we only access per-CPU registers */
 void mvebu_v7_pmsu_idle_exit(void)
 {
@@ -295,7 +336,6 @@ void mvebu_v7_pmsu_idle_exit(void)
 
 	if (pmsu_mp_base == NULL)
 		return;
-
 	/* cancel ask HW to power down the L2 Cache if possible */
 	reg = readl(pmsu_mp_base + PMSU_CONTROL_AND_CONFIG(hw_cpu));
 	reg &= ~PMSU_CONTROL_AND_CONFIG_L2_PWDDN;
@@ -359,6 +399,47 @@ static __init int armada_370_cpuidle_init(void)
 	return 0;
 }
 
+static __init int armada_38x_cpuidle_init(void)
+{
+	struct device_node *np;
+	void __iomem *mpsoc_base;
+	u32 reg;
+
+	np = of_find_compatible_node(NULL, NULL,
+				     "marvell,armada-380-coherency-fabric");
+	if (!np)
+		return -ENODEV;
+	of_node_put(np);
+
+	np = of_find_compatible_node(NULL, NULL,
+				     "marvell,armada-380-mpcore-soc-ctrl");
+	if (!np)
+		return -ENODEV;
+	mpsoc_base = of_iomap(np, 0);
+	BUG_ON(!mpsoc_base);
+	of_node_put(np);
+
+	/* Set up reset mask when powering down the cpus */
+	reg = readl(mpsoc_base + MPCORE_RESET_CTL);
+	reg |= MPCORE_RESET_CTL_L2;
+	reg |= MPCORE_RESET_CTL_DEBUG;
+	writel(reg, mpsoc_base + MPCORE_RESET_CTL);
+	iounmap(mpsoc_base);
+
+	/* Set up delay */
+	reg = readl(pmsu_mp_base + PMSU_POWERDOWN_DELAY);
+	reg &= ~PMSU_POWERDOWN_DELAY_MASK;
+	reg |= PMSU_DFLT_ARMADA38X_DELAY;
+	reg |= PMSU_POWERDOWN_DELAY_PMU;
+	writel(reg, pmsu_mp_base + PMSU_POWERDOWN_DELAY);
+
+	mvebu_cpu_resume = armada_38x_cpu_resume;
+	mvebu_v7_cpuidle_device.dev.platform_data = armada_38x_cpu_suspend;
+	mvebu_v7_cpuidle_device.name = "cpuidle-armada-38x";
+
+	return 0;
+}
+
 static __init int armada_xp_cpuidle_init(void)
 {
 	struct device_node *np;
@@ -389,6 +470,8 @@ static int __init mvebu_v7_cpu_pm_init(void)
 		ret = armada_xp_cpuidle_init();
 	else if (of_machine_is_compatible("marvell,armada370"))
 		ret = armada_370_cpuidle_init();
+	else if (of_machine_is_compatible("marvell,armada380"))
+		ret = armada_38x_cpuidle_init();
 	else
 		return 0;
 
