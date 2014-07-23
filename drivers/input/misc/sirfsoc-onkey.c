@@ -213,7 +213,7 @@ static struct platform_driver sirfsoc_pwrc_driver = {
 
 module_platform_driver(sirfsoc_pwrc_driver);
 
-MODULE_LICENSE("GPLv2");
+MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Binghua Duan <Binghua.Duan@csr.com>, Xianglong Du <Xianglong.Du@csr.com>");
 MODULE_DESCRIPTION("CSR Prima2 PWRC Driver");
 MODULE_ALIAS("platform:sirfsoc-pwrc");
