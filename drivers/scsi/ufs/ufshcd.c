@@ -464,7 +464,8 @@ int ufshcd_copy_query_response(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
 		/* data segment length */
 		resp_len = be32_to_cpu(lrbp->ucd_rsp_ptr->header.dword_2) &
 						MASK_QUERY_DATA_SEG_LEN;
-		buf_len = hba->dev_cmd.query.request.upiu_req.length;
+		buf_len = be16_to_cpu(
+				hba->dev_cmd.query.request.upiu_req.length);
 		if (likely(buf_len >= resp_len)) {
 			memcpy(hba->dev_cmd.query.descriptor, descp, resp_len);
 		} else {
@@ -1342,7 +1343,7 @@ static int ufshcd_query_descriptor(struct ufs_hba *hba,
 	ufshcd_init_query(hba, &request, &response, opcode, idn, index,
 			selector);
 	hba->dev_cmd.query.descriptor = desc_buf;
-	request->upiu_req.length = *buf_len;
+	request->upiu_req.length = cpu_to_be16(*buf_len);
 
 	switch (opcode) {
 	case UPIU_QUERY_OPCODE_WRITE_DESC:
@@ -1368,7 +1369,7 @@ static int ufshcd_query_descriptor(struct ufs_hba *hba,
 	}
 
 	hba->dev_cmd.query.descriptor = NULL;
-	*buf_len = response->upiu_res.length;
+	*buf_len = be16_to_cpu(response->upiu_res.length);
 
 out_unlock:
 	mutex_unlock(&hba->dev_cmd.lock);
