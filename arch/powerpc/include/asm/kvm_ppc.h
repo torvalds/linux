@@ -47,6 +47,11 @@ enum emulation_result {
 	EMULATE_EXIT_USER,    /* emulation requires exit to user-space */
 };
 
+enum instruction_type {
+	INST_GENERIC,
+	INST_SC,		/* system call */
+};
+
 extern int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu);
 extern int __kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu);
 extern void kvmppc_handler_highmem(void);
@@ -61,6 +66,9 @@ extern int kvmppc_handle_loads(struct kvm_run *run, struct kvm_vcpu *vcpu,
 extern int kvmppc_handle_store(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			       u64 val, unsigned int bytes,
 			       int is_default_endian);
+
+extern int kvmppc_load_last_inst(struct kvm_vcpu *vcpu,
+				 enum instruction_type type, u32 *inst);
 
 extern int kvmppc_emulate_instruction(struct kvm_run *run,
                                       struct kvm_vcpu *vcpu);
@@ -233,6 +241,29 @@ struct kvmppc_ops {
 
 extern struct kvmppc_ops *kvmppc_hv_ops;
 extern struct kvmppc_ops *kvmppc_pr_ops;
+
+static inline int kvmppc_get_last_inst(struct kvm_vcpu *vcpu,
+					enum instruction_type type, u32 *inst)
+{
+	int ret = EMULATE_DONE;
+	u32 fetched_inst;
+
+	/* Load the instruction manually if it failed to do so in the
+	 * exit path */
+	if (vcpu->arch.last_inst == KVM_INST_FETCH_FAILED)
+		ret = kvmppc_load_last_inst(vcpu, type, &vcpu->arch.last_inst);
+
+	/*  Write fetch_failed unswapped if the fetch failed */
+	if (ret == EMULATE_DONE)
+		fetched_inst = kvmppc_need_byteswap(vcpu) ?
+				swab32(vcpu->arch.last_inst) :
+				vcpu->arch.last_inst;
+	else
+		fetched_inst = vcpu->arch.last_inst;
+
+	*inst = fetched_inst;
+	return ret;
+}
 
 static inline bool is_kvmppc_hv_enabled(struct kvm *kvm)
 {

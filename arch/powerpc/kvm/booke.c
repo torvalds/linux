@@ -702,6 +702,9 @@ static int emulation_exit(struct kvm_run *run, struct kvm_vcpu *vcpu)
 		 * they were actually modified by emulation. */
 		return RESUME_GUEST_NV;
 
+	case EMULATE_AGAIN:
+		return RESUME_GUEST;
+
 	case EMULATE_DO_DCR:
 		run->exit_reason = KVM_EXIT_DCR;
 		return RESUME_HOST;

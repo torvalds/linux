@@ -224,18 +224,24 @@ static int kvmppc_emulate_mfspr(struct kvm_vcpu *vcpu, int sprn, int rt)
  * from opcode tables in the future. */
 int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 {
-	u32 inst = kvmppc_get_last_inst(vcpu);
-	int ra = get_ra(inst);
-	int rs = get_rs(inst);
-	int rt = get_rt(inst);
-	int sprn = get_sprn(inst);
-	enum emulation_result emulated = EMULATE_DONE;
+	u32 inst;
+	int ra, rs, rt, sprn;
+	enum emulation_result emulated;
 	int advance = 1;
 
 	/* this default type might be overwritten by subcategories */
 	kvmppc_set_exit_type(vcpu, EMULATED_INST_EXITS);
 
+	emulated = kvmppc_get_last_inst(vcpu, false, &inst);
+	if (emulated != EMULATE_DONE)
+		return emulated;
+
 	pr_debug("Emulating opcode %d / %d\n", get_op(inst), get_xop(inst));
+
+	ra = get_ra(inst);
+	rs = get_rs(inst);
+	rt = get_rt(inst);
+	sprn = get_sprn(inst);
 
 	switch (get_op(inst)) {
 	case OP_TRAP:

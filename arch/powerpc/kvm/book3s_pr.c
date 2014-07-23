@@ -1018,15 +1018,24 @@ int kvmppc_handle_exit_pr(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	{
 		enum emulation_result er;
 		ulong flags;
+		u32 last_inst;
+		int emul;
 
 program_interrupt:
 		flags = vcpu->arch.shadow_srr1 & 0x1f0000ull;
 
+		emul = kvmppc_get_last_inst(vcpu, INST_GENERIC, &last_inst);
+		if (emul != EMULATE_DONE) {
+			r = RESUME_GUEST;
+			break;
+		}
+
 		if (kvmppc_get_msr(vcpu) & MSR_PR) {
 #ifdef EXIT_DEBUG
-			printk(KERN_INFO "Userspace triggered 0x700 exception at 0x%lx (0x%x)\n", kvmppc_get_pc(vcpu), kvmppc_get_last_inst(vcpu));
+			pr_info("Userspace triggered 0x700 exception at\n 0x%lx (0x%x)\n",
+				kvmppc_get_pc(vcpu), last_inst);
 #endif
-			if ((kvmppc_get_last_inst(vcpu) & 0xff0007ff) !=
+			if ((last_inst & 0xff0007ff) !=
 			    (INS_DCBZ & 0xfffffff7)) {
 				kvmppc_core_queue_program(vcpu, flags);
 				r = RESUME_GUEST;
@@ -1045,7 +1054,7 @@ program_interrupt:
 			break;
 		case EMULATE_FAIL:
 			printk(KERN_CRIT "%s: emulation at %lx failed (%08x)\n",
-			       __func__, kvmppc_get_pc(vcpu), kvmppc_get_last_inst(vcpu));
+			       __func__, kvmppc_get_pc(vcpu), last_inst);
 			kvmppc_core_queue_program(vcpu, flags);
 			r = RESUME_GUEST;
 			break;
@@ -1062,8 +1071,23 @@ program_interrupt:
 		break;
 	}
 	case BOOK3S_INTERRUPT_SYSCALL:
+	{
+		u32 last_sc;
+		int emul;
+
+		/* Get last sc for papr */
+		if (vcpu->arch.papr_enabled) {
+			/* The sc instuction points SRR0 to the next inst */
+			emul = kvmppc_get_last_inst(vcpu, INST_SC, &last_sc);
+			if (emul != EMULATE_DONE) {
+				kvmppc_set_pc(vcpu, kvmppc_get_pc(vcpu) - 4);
+				r = RESUME_GUEST;
+				break;
+			}
+		}
+
 		if (vcpu->arch.papr_enabled &&
-		    (kvmppc_get_last_sc(vcpu) == 0x44000022) &&
+		    (last_sc == 0x44000022) &&
 		    !(kvmppc_get_msr(vcpu) & MSR_PR)) {
 			/* SC 1 papr hypercalls */
 			ulong cmd = kvmppc_get_gpr(vcpu, 3);
@@ -1108,21 +1132,19 @@ program_interrupt:
 			r = RESUME_GUEST;
 		}
 		break;
+	}
 	case BOOK3S_INTERRUPT_FP_UNAVAIL:
 	case BOOK3S_INTERRUPT_ALTIVEC:
 	case BOOK3S_INTERRUPT_VSX:
 	{
 		int ext_msr = 0;
 		int emul;
-		ulong pc;
 		u32 last_inst;
 
 		if (vcpu->arch.hflags & BOOK3S_HFLAG_PAIRED_SINGLE) {
 			/* Do paired single instruction emulation */
-			pc = kvmppc_get_pc(vcpu);
-			last_inst = kvmppc_get_last_inst(vcpu);
-			emul = kvmppc_ld(vcpu, &pc, sizeof(u32), &last_inst,
-					 false);
+			emul = kvmppc_get_last_inst(vcpu, INST_GENERIC,
+						    &last_inst);
 			if (emul == EMULATE_DONE)
 				goto program_interrupt;
 			else
@@ -1151,9 +1173,8 @@ program_interrupt:
 	}
 	case BOOK3S_INTERRUPT_ALIGNMENT:
 	{
-		ulong pc = kvmppc_get_pc(vcpu);
-		u32 last_inst = kvmppc_get_last_inst(vcpu);
-		int emul = kvmppc_ld(vcpu, &pc, sizeof(u32), &last_inst, false);
+		u32 last_inst;
+		int emul = kvmppc_get_last_inst(vcpu, INST_GENERIC, &last_inst);
 
 		if (emul == EMULATE_DONE) {
 			u32 dsisr;

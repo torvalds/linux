@@ -69,11 +69,6 @@ static inline bool kvmppc_need_byteswap(struct kvm_vcpu *vcpu)
 	return false;
 }
 
-static inline u32 kvmppc_get_last_inst(struct kvm_vcpu *vcpu)
-{
-	return vcpu->arch.last_inst;
-}
-
 static inline void kvmppc_set_ctr(struct kvm_vcpu *vcpu, ulong val)
 {
 	vcpu->arch.ctr = val;

@@ -530,21 +530,14 @@ static int instruction_is_store(unsigned int instr)
 static int kvmppc_hv_emulate_mmio(struct kvm_run *run, struct kvm_vcpu *vcpu,
 				  unsigned long gpa, gva_t ea, int is_store)
 {
-	int ret;
 	u32 last_inst;
-	unsigned long srr0 = kvmppc_get_pc(vcpu);
 
-	/* We try to load the last instruction.  We don't let
-	 * emulate_instruction do it as it doesn't check what
-	 * kvmppc_ld returns.
+	/*
 	 * If we fail, we just return to the guest and try executing it again.
 	 */
-	if (vcpu->arch.last_inst == KVM_INST_FETCH_FAILED) {
-		ret = kvmppc_ld(vcpu, &srr0, sizeof(u32), &last_inst, false);
-		if (ret != EMULATE_DONE || last_inst == KVM_INST_FETCH_FAILED)
-			return RESUME_GUEST;
-		vcpu->arch.last_inst = last_inst;
-	}
+	if (kvmppc_get_last_inst(vcpu, INST_GENERIC, &last_inst) !=
+		EMULATE_DONE)
+		return RESUME_GUEST;
 
 	/*
 	 * WARNING: We do not know for sure whether the instruction we just
@@ -558,7 +551,7 @@ static int kvmppc_hv_emulate_mmio(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	 * we just return and retry the instruction.
 	 */
 
-	if (instruction_is_store(kvmppc_get_last_inst(vcpu)) != !!is_store)
+	if (instruction_is_store(last_inst) != !!is_store)
 		return RESUME_GUEST;
 
 	/*

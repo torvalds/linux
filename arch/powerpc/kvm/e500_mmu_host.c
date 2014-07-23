@@ -610,6 +610,12 @@ void kvmppc_mmu_map(struct kvm_vcpu *vcpu, u64 eaddr, gpa_t gpaddr,
 	}
 }
 
+int kvmppc_load_last_inst(struct kvm_vcpu *vcpu, enum instruction_type type,
+			  u32 *instr)
+{
+	return EMULATE_AGAIN;
+}
+
 /************* MMU Notifiers *************/
 
 int kvm_unmap_hva(struct kvm *kvm, unsigned long hva)

@@ -488,6 +488,23 @@ mmio:
 }
 EXPORT_SYMBOL_GPL(kvmppc_ld);
 
+int kvmppc_load_last_inst(struct kvm_vcpu *vcpu, enum instruction_type type,
+					 u32 *inst)
+{
+	ulong pc = kvmppc_get_pc(vcpu);
+	int r;
+
+	if (type == INST_SC)
+		pc -= 4;
+
+	r = kvmppc_ld(vcpu, &pc, sizeof(u32), inst, false);
+	if (r == EMULATE_DONE)
+		return r;
+	else
+		return EMULATE_AGAIN;
+}
+EXPORT_SYMBOL_GPL(kvmppc_load_last_inst);
+
 int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 {
 	return 0;

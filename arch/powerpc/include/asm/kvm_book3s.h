@@ -276,32 +276,6 @@ static inline bool kvmppc_need_byteswap(struct kvm_vcpu *vcpu)
 	return (kvmppc_get_msr(vcpu) & MSR_LE) != (MSR_KERNEL & MSR_LE);
 }
 
-static inline u32 kvmppc_get_last_inst_internal(struct kvm_vcpu *vcpu, ulong pc)
-{
-	/* Load the instruction manually if it failed to do so in the
-	 * exit path */
-	if (vcpu->arch.last_inst == KVM_INST_FETCH_FAILED)
-		kvmppc_ld(vcpu, &pc, sizeof(u32), &vcpu->arch.last_inst, false);
-
-	return kvmppc_need_byteswap(vcpu) ? swab32(vcpu->arch.last_inst) :
-		vcpu->arch.last_inst;
-}
-
-static inline u32 kvmppc_get_last_inst(struct kvm_vcpu *vcpu)
-{
-	return kvmppc_get_last_inst_internal(vcpu, kvmppc_get_pc(vcpu));
-}
-
-/*
- * Like kvmppc_get_last_inst(), but for fetching a sc instruction.
- * Because the sc instruction sets SRR0 to point to the following
- * instruction, we have to fetch from pc - 4.
- */
-static inline u32 kvmppc_get_last_sc(struct kvm_vcpu *vcpu)
-{
-	return kvmppc_get_last_inst_internal(vcpu, kvmppc_get_pc(vcpu) - 4);
-}
-
 static inline ulong kvmppc_get_fault_dar(struct kvm_vcpu *vcpu)
 {
 	return vcpu->arch.fault_dar;
