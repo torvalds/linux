@@ -1284,6 +1284,7 @@ int __perf_session__process_events(struct perf_session *session,
 	union perf_event *event;
 	uint32_t size;
 	struct ui_progress prog;
+	int skip;
 
 	perf_tool__fill_defaults(tool);
 
@@ -1344,13 +1345,17 @@ more:
 	size = event->header.size;
 
 	if (size < sizeof(struct perf_event_header) ||
-	    perf_session__process_event(session, event, tool, file_pos) < 0) {
+	    (skip = perf_session__process_event(session, event, tool, file_pos))
+									< 0) {
 		pr_err("%#" PRIx64 " [%#x]: failed to process type: %d\n",
 		       file_offset + head, event->header.size,
 		       event->header.type);
 		err = -EINVAL;
 		goto out_err;
 	}
+
+	if (skip)
+		size += skip;
 
 	head += size;
 	file_pos += size;
