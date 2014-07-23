@@ -38,7 +38,7 @@
 #include <media/videobuf2-core.h>
 #include <media/videobuf2-dma-contig.h>
 
-#include "coda.h"
+#include "coda_regs.h"
 
 #define CODA_NAME		"coda"
 
