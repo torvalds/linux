@@ -1224,7 +1224,7 @@ static void power_pmu_enable(struct pmu *pmu)
 	memset(cpuhw->mmcr, 0, sizeof(cpuhw->mmcr));
 
 	if (ppmu->compute_mmcr(cpuhw->events, cpuhw->n_events, hwc_index,
-			       cpuhw->mmcr)) {
+			       cpuhw->mmcr, cpuhw->event)) {
 		/* shouldn't ever get here */
 		printk(KERN_ERR "oops compute_mmcr failed\n");
 		goto out;

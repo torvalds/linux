@@ -393,7 +393,8 @@ static int power8_get_constraint(u64 event, unsigned long *maskp, unsigned long 
 }
 
 static int power8_compute_mmcr(u64 event[], int n_ev,
-			       unsigned int hwc[], unsigned long mmcr[])
+			       unsigned int hwc[], unsigned long mmcr[],
+			       struct perf_event *pevents[])
 {
 	unsigned long mmcra, mmcr1, unit, combine, psel, cache, val;
 	unsigned int pmc, pmc_inuse;
