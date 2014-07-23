@@ -47,6 +47,21 @@
 #define ALCHEMY_GPIC_INT_NUM	128
 #define ALCHEMY_GPIC_INT_LAST	(ALCHEMY_GPIC_INT_BASE + ALCHEMY_GPIC_INT_NUM - 1)
 
+/* common clock names, shared among all variants. AUXPLL2 is Au1300 */
+#define ALCHEMY_ROOT_CLK		"root_clk"
+#define ALCHEMY_CPU_CLK			"cpu_clk"
+#define ALCHEMY_AUXPLL_CLK		"auxpll_clk"
+#define ALCHEMY_AUXPLL2_CLK		"auxpll2_clk"
+#define ALCHEMY_SYSBUS_CLK		"sysbus_clk"
+#define ALCHEMY_PERIPH_CLK		"periph_clk"
+#define ALCHEMY_MEM_CLK			"mem_clk"
+#define ALCHEMY_LR_CLK			"lr_clk"
+#define ALCHEMY_FG0_CLK			"fg0_clk"
+#define ALCHEMY_FG1_CLK			"fg1_clk"
+#define ALCHEMY_FG2_CLK			"fg2_clk"
+#define ALCHEMY_FG3_CLK			"fg3_clk"
+#define ALCHEMY_FG4_CLK			"fg4_clk"
+#define ALCHEMY_FG5_CLK			"fg5_clk"
 
 /* Au1300 peripheral interrupt numbers */
 #define AU1300_FIRST_INT	(ALCHEMY_GPIC_INT_BASE)
@@ -523,6 +538,7 @@
 
 #define AU1000_SYS_CPUPLL	0x60
 #define AU1000_SYS_AUXPLL	0x64
+#define AU1300_SYS_AUXPLL2	0x68
 
 
 /**********************************************************************/
