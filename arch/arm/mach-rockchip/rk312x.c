@@ -40,7 +40,7 @@
 #include "sram.h"
 #include "pm.h"
 
-#define RK312x_DEVICE(name) \
+#define RK312X_DEVICE(name) \
 	{ \
 		.virtual	= (unsigned long) RK_##name##_VIRT, \
 		.pfn		= __phys_to_pfn(RK312X_##name##_PHYS), \
@@ -58,17 +58,29 @@ static const char * const rk3128_dt_compat[] __initconst = {
 	NULL,
 };
 
-static struct map_desc rk312x_io_desc[] __initdata = {
-	RK_DEVICE(RK_DEBUG_UART_VIRT, RK312X_UART2_PHYS, RK312X_UART_SIZE),
-	RK312x_DEVICE(TIMER),
-};
-
+#define RK312X_IMEM_VIRT (RK_BOOTRAM_VIRT + SZ_32K)
 #define RK312X_TIMER5_VIRT (RK_TIMER_VIRT + 0xa0)
+
+static struct map_desc rk312x_io_desc[] __initdata = {
+	RK312X_DEVICE(CRU),
+	RK312X_DEVICE(GRF),
+	RK312X_DEVICE(ROM),
+	RK312X_DEVICE(EFUSE),
+	RK312X_DEVICE(TIMER),
+	RK_DEVICE(RK_DEBUG_UART_VIRT, RK312X_UART2_PHYS, RK312X_UART_SIZE),
+	RK_DEVICE(RK_DDR_VIRT, RK312X_DDR_PCTL_PHYS, RK312X_DDR_PCTL_SIZE),
+	RK_DEVICE(RK_DDR_VIRT + RK312X_DDR_PCTL_SIZE, RK312X_DDR_PHY_PHYS, RK312X_DDR_PHY_SIZE),
+	RK_DEVICE(RK_GPIO_VIRT(0), RK312X_GPIO0_PHYS, RK312X_GPIO_SIZE),
+	RK_DEVICE(RK_GPIO_VIRT(1), RK312X_GPIO1_PHYS, RK312X_GPIO_SIZE),
+	RK_DEVICE(RK_GPIO_VIRT(2), RK312X_GPIO2_PHYS, RK312X_GPIO_SIZE),
+	RK_DEVICE(RK_GPIO_VIRT(3), RK312X_GPIO3_PHYS, RK312X_GPIO_SIZE),
+	RK_DEVICE(RK_GIC_VIRT, RK312X_GIC_DIST_PHYS, RK312X_GIC_DIST_SIZE),
+	RK_DEVICE(RK_GIC_VIRT + RK312X_GIC_DIST_SIZE, RK312X_GIC_CPU_PHYS, RK312X_GIC_CPU_SIZE),
+	RK_DEVICE(RK312X_IMEM_VIRT, RK312X_IMEM_PHYS, SZ_4K),
+};
 
 static void __init rk312x_dt_map_io(void)
 {
-	rockchip_soc_id = ROCKCHIP_SOC_RK3126;
-
 	iotable_init(rk312x_io_desc, ARRAY_SIZE(rk312x_io_desc));
 	debug_ll_io_init();
 
@@ -98,6 +110,7 @@ static void __init rk3128_dt_map_io(void)
 
 static void __init rk312x_dt_init_timer(void)
 {
+	of_clk_init(NULL);
 	clocksource_of_init();
 }
 

@@ -171,6 +171,7 @@
 #define RK312X_GPIO0_PHYS               RK3036_GPIO0_PHYS
 #define RK312X_GPIO1_PHYS               RK3036_GPIO1_PHYS
 #define RK312X_GPIO2_PHYS               RK3036_GPIO2_PHYS
+#define RK312X_GPIO3_PHYS               0x20088000
 #define RK312X_GPIO_SIZE                RK3036_GPIO_SIZE
 #define RK312X_EFUSE_PHYS               RK3036_EFUSE_PHYS
 #define RK312X_EFUSE_SIZE               RK3036_EFUSE_SIZE
