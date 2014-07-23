@@ -382,13 +382,6 @@ static int cp_get_eeprom(struct net_device *dev,
 static int cp_set_eeprom(struct net_device *dev,
 			 struct ethtool_eeprom *eeprom, u8 *data);
 
-static DEFINE_PCI_DEVICE_TABLE(cp_pci_tbl) = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_REALTEK,	PCI_DEVICE_ID_REALTEK_8139), },
-	{ PCI_DEVICE(PCI_VENDOR_ID_TTTECH,	PCI_DEVICE_ID_TTTECH_MC322), },
-	{ },
-};
-MODULE_DEVICE_TABLE(pci, cp_pci_tbl);
-
 static struct {
 	const char str[ETH_GSTRING_LEN];
 } ethtool_stats_keys[] = {
@@ -2105,6 +2098,13 @@ static int cp_resume (struct pci_dev *pdev)
 	return 0;
 }
 #endif /* CONFIG_PM */
+
+static const struct pci_device_id cp_pci_tbl[] = {
+        { PCI_DEVICE(PCI_VENDOR_ID_REALTEK,     PCI_DEVICE_ID_REALTEK_8139), },
+        { PCI_DEVICE(PCI_VENDOR_ID_TTTECH,      PCI_DEVICE_ID_TTTECH_MC322), },
+        { },
+};
+MODULE_DEVICE_TABLE(pci, cp_pci_tbl);
 
 static struct pci_driver cp_driver = {
 	.name         = DRV_NAME,
