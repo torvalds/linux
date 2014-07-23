@@ -68,7 +68,7 @@ R8A73A4_SCIFB(4, 0xe6ce0000, gic_spi(150)); /* SCIFB2 */
 R8A73A4_SCIFB(5, 0xe6cf0000, gic_spi(151)); /* SCIFB3 */
 
 #define r8a73a4_register_scif(index)					       \
-	platform_device_register_resndata(&platform_bus, "sh-sci", index,      \
+	platform_device_register_resndata(NULL, "sh-sci", index,	       \
 					  scif##index##_resources,	       \
 					  ARRAY_SIZE(scif##index##_resources), \
 					  &scif##index##_platform_data,	       \
@@ -149,7 +149,7 @@ static const struct resource irqc1_resources[] = {
 };
 
 #define r8a73a4_register_irqc(idx)					\
-	platform_device_register_resndata(&platform_bus, "renesas_irqc", \
+	platform_device_register_resndata(NULL, "renesas_irqc", 	\
 					  idx, irqc##idx##_resources,	\
 					  ARRAY_SIZE(irqc##idx##_resources), \
 					  &irqc##idx##_data,		\
@@ -179,7 +179,7 @@ static struct resource cmt1_resources[] = {
 };
 
 #define r8a7790_register_cmt(idx)					\
-	platform_device_register_resndata(&platform_bus, "sh-cmt-48-gen2", \
+	platform_device_register_resndata(NULL, "sh-cmt-48-gen2",	\
 					  idx, cmt##idx##_resources,	\
 					  ARRAY_SIZE(cmt##idx##_resources), \
 					  &cmt##idx##_platform_data,	\
@@ -280,7 +280,7 @@ static struct resource dma_resources[] = {
 };
 
 #define r8a73a4_register_dmac()							\
-	platform_device_register_resndata(&platform_bus, "sh-dma-engine", 0,	\
+	platform_device_register_resndata(NULL, "sh-dma-engine", 0,		\
 				dma_resources, ARRAY_SIZE(dma_resources),	\
 				&dma_pdata, sizeof(dma_pdata))
 

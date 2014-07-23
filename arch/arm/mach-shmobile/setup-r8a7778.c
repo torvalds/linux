@@ -64,7 +64,7 @@ R8A7778_SCIF(4, 0xffe44000, gic_iid(0x6a));
 R8A7778_SCIF(5, 0xffe45000, gic_iid(0x6b));
 
 #define r8a7778_register_scif(index)					       \
-	platform_device_register_resndata(&platform_bus, "sh-sci", index,      \
+	platform_device_register_resndata(NULL, "sh-sci", index,	       \
 					  scif##index##_resources,	       \
 					  ARRAY_SIZE(scif##index##_resources), \
 					  &scif##index##_platform_data,	       \
@@ -84,7 +84,7 @@ static struct resource sh_tmu0_resources[] = {
 
 #define r8a7778_register_tmu(idx)			\
 	platform_device_register_resndata(		\
-		&platform_bus, "sh-tmu", idx,		\
+		NULL, "sh-tmu", idx,			\
 		sh_tmu##idx##_resources,		\
 		ARRAY_SIZE(sh_tmu##idx##_resources),	\
 		&sh_tmu##idx##_platform_data,		\
@@ -173,7 +173,6 @@ static struct resource ohci_resources[] __initdata = {
 
 #define USB_PLATFORM_INFO(hci)					\
 static struct platform_device_info hci##_info __initdata = {	\
-	.parent		= &platform_bus,			\
 	.name		= #hci "-platform",			\
 	.id		= -1,					\
 	.res		= hci##_resources,			\
@@ -212,7 +211,7 @@ R8A7778_GPIO(4);
 
 #define r8a7778_register_gpio(idx)				\
 	platform_device_register_resndata(			\
-		&platform_bus, "gpio_rcar", idx,		\
+		NULL, "gpio_rcar", idx,				\
 		r8a7778_gpio##idx##_resources,			\
 		ARRAY_SIZE(r8a7778_gpio##idx##_resources),	\
 		&r8a7778_gpio##idx##_platform_data,		\
@@ -496,8 +495,8 @@ static struct resource hpb_dmae_resources[] __initdata = {
 
 static void __init r8a7778_register_hpb_dmae(void)
 {
-	platform_device_register_resndata(&platform_bus, "hpb-dma-engine", -1,
-					  hpb_dmae_resources,
+	platform_device_register_resndata(NULL, "hpb-dma-engine",
+					  -1, hpb_dmae_resources,
 					  ARRAY_SIZE(hpb_dmae_resources),
 					  &dma_platform_data,
 					  sizeof(dma_platform_data));
@@ -565,7 +564,7 @@ void __init r8a7778_init_irq_extpin(int irlm)
 	r8a7778_init_irq_extpin_dt(irlm);
 	if (irlm)
 		platform_device_register_resndata(
-			&platform_bus, "renesas_intc_irqpin", -1,
+			NULL, "renesas_intc_irqpin", -1,
 			irqpin_resources, ARRAY_SIZE(irqpin_resources),
 			&irqpin_platform_data, sizeof(irqpin_platform_data));
 }

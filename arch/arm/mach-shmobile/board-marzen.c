@@ -272,7 +272,6 @@ static struct resource vin##idx##_resources[] __initdata = {	\
 };								\
 								\
 static struct platform_device_info vin##idx##_info __initdata = { \
-	.parent		= &platform_bus,			\
 	.name		= "r8a7779-vin",			\
 	.id		= idx,					\
 	.res		= vin##idx##_resources,			\

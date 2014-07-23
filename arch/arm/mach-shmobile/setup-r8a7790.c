@@ -113,7 +113,7 @@ static struct resource r8a7790_audio_dmac_resources[] = {
 
 #define r8a7790_register_audio_dmac(id)				\
 	platform_device_register_resndata(			\
-		&platform_bus, "sh-dma-engine", id,		\
+		NULL, "sh-dma-engine", id,			\
 		&r8a7790_audio_dmac_resources[id * 3],	3,	\
 		&r8a7790_audio_dmac_platform_data,		\
 		sizeof(r8a7790_audio_dmac_platform_data))
@@ -149,7 +149,7 @@ R8A7790_GPIO(4);
 R8A7790_GPIO(5);
 
 #define r8a7790_register_gpio(idx)					\
-	platform_device_register_resndata(&platform_bus, "gpio_rcar", idx, \
+	platform_device_register_resndata(NULL, "gpio_rcar", idx,	\
 		r8a7790_gpio##idx##_resources,				\
 		ARRAY_SIZE(r8a7790_gpio##idx##_resources),		\
 		&r8a7790_gpio##idx##_platform_data,			\
@@ -227,7 +227,7 @@ R8A7790_HSCIF(8, 0xe62c0000, gic_spi(154)); /* HSCIF0 */
 R8A7790_HSCIF(9, 0xe62c8000, gic_spi(155)); /* HSCIF1 */
 
 #define r8a7790_register_scif(index)					       \
-	platform_device_register_resndata(&platform_bus, "sh-sci", index,      \
+	platform_device_register_resndata(NULL, "sh-sci", index,  	       \
 					  scif##index##_resources,	       \
 					  ARRAY_SIZE(scif##index##_resources), \
 					  &scif##index##_platform_data,	       \
@@ -246,7 +246,7 @@ static const struct resource irqc0_resources[] __initconst = {
 };
 
 #define r8a7790_register_irqc(idx)					\
-	platform_device_register_resndata(&platform_bus, "renesas_irqc", \
+	platform_device_register_resndata(NULL, "renesas_irqc",		\
 					  idx, irqc##idx##_resources,	\
 					  ARRAY_SIZE(irqc##idx##_resources), \
 					  &irqc##idx##_data,		\
@@ -273,7 +273,7 @@ static struct resource cmt0_resources[] = {
 };
 
 #define r8a7790_register_cmt(idx)					\
-	platform_device_register_resndata(&platform_bus, "sh-cmt-48-gen2", \
+	platform_device_register_resndata(NULL, "sh-cmt-48-gen2",	\
 					  idx, cmt##idx##_resources,	\
 					  ARRAY_SIZE(cmt##idx##_resources), \
 					  &cmt##idx##_platform_data,	\

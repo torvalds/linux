@@ -33,7 +33,7 @@ static struct resource mtu2_resources[] __initdata = {
 };
 
 #define r7s72100_register_mtu2()					\
-	platform_device_register_resndata(&platform_bus, "sh-mtu2",	\
+	platform_device_register_resndata(NULL, "sh-mtu2",		\
 					  -1, mtu2_resources,		\
 					  ARRAY_SIZE(mtu2_resources),	\
 					  NULL, 0)
