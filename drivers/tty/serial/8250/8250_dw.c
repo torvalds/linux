@@ -365,8 +365,10 @@ static int dw8250_probe(struct platform_device *pdev)
 
 	data->usr_reg = DW_UART_USR;
 	data->clk = devm_clk_get(&pdev->dev, "baudclk");
-	if (IS_ERR(data->clk))
+	if (IS_ERR(data->clk) && PTR_ERR(data->clk) != -EPROBE_DEFER)
 		data->clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(data->clk) && PTR_ERR(data->clk) == -EPROBE_DEFER)
+		return -EPROBE_DEFER;
 	if (!IS_ERR(data->clk)) {
 		err = clk_prepare_enable(data->clk);
 		if (err)
@@ -377,15 +379,23 @@ static int dw8250_probe(struct platform_device *pdev)
 	}
 
 	data->pclk = devm_clk_get(&pdev->dev, "apb_pclk");
+	if (IS_ERR(data->clk) && PTR_ERR(data->clk) == -EPROBE_DEFER) {
+		err = -EPROBE_DEFER;
+		goto err_clk;
+	}
 	if (!IS_ERR(data->pclk)) {
 		err = clk_prepare_enable(data->pclk);
 		if (err) {
 			dev_err(&pdev->dev, "could not enable apb_pclk\n");
-			return err;
+			goto err_clk;
 		}
 	}
 
 	data->rst = devm_reset_control_get_optional(&pdev->dev, NULL);
+	if (IS_ERR(data->rst) && PTR_ERR(data->rst) == -EPROBE_DEFER) {
+		err = -EPROBE_DEFER;
+		goto err_pclk;
+	}
 	if (!IS_ERR(data->rst))
 		reset_control_deassert(data->rst);
 
@@ -403,18 +413,21 @@ static int dw8250_probe(struct platform_device *pdev)
 	if (pdev->dev.of_node) {
 		err = dw8250_probe_of(&uart.port, data);
 		if (err)
-			return err;
+			goto err_reset;
 	} else if (ACPI_HANDLE(&pdev->dev)) {
 		err = dw8250_probe_acpi(&uart, data);
 		if (err)
-			return err;
+			goto err_reset;
 	} else {
-		return -ENODEV;
+		err = -ENODEV;
+		goto err_reset;
 	}
 
 	data->line = serial8250_register_8250_port(&uart);
-	if (data->line < 0)
-		return data->line;
+	if (data->line < 0) {
+		err = data->line;
+		goto err_reset;
+	}
 
 	platform_set_drvdata(pdev, data);
 
@@ -422,6 +435,20 @@ static int dw8250_probe(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 
 	return 0;
+
+err_reset:
+	if (!IS_ERR(data->rst))
+		reset_control_assert(data->rst);
+
+err_pclk:
+	if (!IS_ERR(data->pclk))
+		clk_disable_unprepare(data->pclk);
+
+err_clk:
+	if (!IS_ERR(data->clk))
+		clk_disable_unprepare(data->clk);
+
+	return err;
 }
 
 static int dw8250_remove(struct platform_device *pdev)
