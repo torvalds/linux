@@ -3957,7 +3957,8 @@ static void b43_nphy_tx_power_ctl_idle_tssi(struct b43_wldev *dev)
 	u32 tmp;
 	s32 rssi[4] = { };
 
-	/* TODO: check if we can transmit */
+	if (phy->chandef->chan->flags & IEEE80211_CHAN_NO_IR)
+		return;
 
 	if (b43_nphy_ipa(dev))
 		b43_nphy_ipa_internal_tssi_setup(dev);
