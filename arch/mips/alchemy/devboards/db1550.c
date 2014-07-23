@@ -4,6 +4,7 @@
  * (c) 2011 Manuel Lauss <manuel.lauss@googlemail.com>
  */
 
+#include <linux/clk.h>
 #include <linux/dma-mapping.h>
 #include <linux/gpio.h>
 #include <linux/i2c.h>
@@ -574,6 +575,7 @@ static void __init pb1550_devices(void)
 int __init db1550_dev_setup(void)
 {
 	int swapped, id;
+	struct clk *c;
 
 	id = (BCSR_WHOAMI_BOARD(bcsr_read(BCSR_WHOAMI)) != BCSR_WHOAMI_DB1550);
 
@@ -581,6 +583,17 @@ int __init db1550_dev_setup(void)
 				ARRAY_SIZE(db1550_i2c_devs));
 	spi_register_board_info(db1550_spi_devs,
 				ARRAY_SIZE(db1550_i2c_devs));
+
+	c = clk_get(NULL, "psc0_intclk");
+	if (!IS_ERR(c)) {
+		clk_prepare_enable(c);
+		clk_put(c);
+	}
+	c = clk_get(NULL, "psc2_intclk");
+	if (!IS_ERR(c)) {
+		clk_prepare_enable(c);
+		clk_put(c);
+	}
 
 	/* Audio PSC clock is supplied by codecs (PSC1, 3) FIXME: platdata!! */
 	__raw_writel(PSC_SEL_CLK_SERCLK,
