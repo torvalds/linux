@@ -150,12 +150,11 @@ int __init db1200_board_setup(void)
 		(whoami >> 4) & 0xf, (whoami >> 8) & 0xf, whoami & 0xf);
 
 	/* SMBus/SPI on PSC0, Audio on PSC1 */
-	pfc = __raw_readl((void __iomem *)SYS_PINFUNC);
+	pfc = alchemy_rdsys(AU1000_SYS_PINFUNC);
 	pfc &= ~(SYS_PINFUNC_P0A | SYS_PINFUNC_P0B);
 	pfc &= ~(SYS_PINFUNC_P1A | SYS_PINFUNC_P1B | SYS_PINFUNC_FS3);
 	pfc |= SYS_PINFUNC_P1C; /* SPI is configured later */
-	__raw_writel(pfc, (void __iomem *)SYS_PINFUNC);
-	wmb();
+	alchemy_wrsys(pfc, AU1000_SYS_PINFUNC);
 
 	/* Clock configurations: PSC0: ~50MHz via Clkgen0, derived from
 	 * CPU clock; all other clock generators off/unused.
@@ -166,16 +165,13 @@ int __init db1200_board_setup(void)
 	div = ((div >> 1) - 1) & 0xff;
 
 	freq0 = div << SYS_FC_FRDIV0_BIT;
-	__raw_writel(freq0, (void __iomem *)SYS_FREQCTRL0);
-	wmb();
+	alchemy_wrsys(freq0, AU1000_SYS_FREQCTRL0);
 	freq0 |= SYS_FC_FE0;	/* enable F0 */
-	__raw_writel(freq0, (void __iomem *)SYS_FREQCTRL0);
-	wmb();
+	alchemy_wrsys(freq0, AU1000_SYS_FREQCTRL0);
 
 	/* psc0_intclk comes 1:1 from F0 */
 	clksrc = SYS_CS_MUX_FQ0 << SYS_CS_ME0_BIT;
-	__raw_writel(clksrc, (void __iomem *)SYS_CLKSRC);
-	wmb();
+	alchemy_wrsys(clksrc, AU1000_SYS_CLKSRC);
 
 	return 0;
 }
@@ -886,7 +882,7 @@ int __init db1200_dev_setup(void)
 	 * As a result, in SPI mode, OTG simply won't work (PSC0 uses
 	 * it as an input pin which is pulled high on the boards).
 	 */
-	pfc = __raw_readl((void __iomem *)SYS_PINFUNC) & ~SYS_PINFUNC_P0A;
+	pfc = alchemy_rdsys(AU1000_SYS_PINFUNC) & ~SYS_PINFUNC_P0A;
 
 	/* switch off OTG VBUS supply */
 	gpio_request(215, "otg-vbus");
@@ -912,8 +908,7 @@ int __init db1200_dev_setup(void)
 		printk(KERN_INFO " S6.8 ON : PSC0 mode SPI\n");
 		printk(KERN_INFO "   OTG port VBUS supply disabled\n");
 	}
-	__raw_writel(pfc, (void __iomem *)SYS_PINFUNC);
-	wmb();
+	alchemy_wrsys(pfc, AU1000_SYS_PINFUNC);
 
 	/* Audio: DIP7 selects I2S(0)/AC97(1), but need I2C for I2S!
 	 * so: DIP7=1 || DIP8=0 => AC97, DIP7=0 && DIP8=1 => I2S

@@ -602,7 +602,7 @@ static void au1xmmc_set_clock(struct au1xmmc_host *host, int rate)
 	/* From databook:
 	 * divisor = ((((cpuclock / sbus_divisor) / 2) / mmcclock) / 2) - 1
 	 */
-	pbus /= ((au_readl(SYS_POWERCTRL) & 0x3) + 2);
+	pbus /= ((alchemy_rdsys(AU1000_SYS_POWERCTRL) & 0x3) + 2);
 	pbus /= 2;
 	divisor = ((pbus / rate) / 2) - 1;
 

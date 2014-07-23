@@ -54,14 +54,14 @@ static unsigned int sleep_static_memctlr[4][3];
 static void save_core_regs(void)
 {
 	/* Clocks and PLLs. */
-	sleep_sys_clocks[0] = au_readl(SYS_FREQCTRL0);
-	sleep_sys_clocks[1] = au_readl(SYS_FREQCTRL1);
-	sleep_sys_clocks[2] = au_readl(SYS_CLKSRC);
-	sleep_sys_clocks[3] = au_readl(SYS_CPUPLL);
-	sleep_sys_clocks[4] = au_readl(SYS_AUXPLL);
+	sleep_sys_clocks[0] = alchemy_rdsys(AU1000_SYS_FREQCTRL0);
+	sleep_sys_clocks[1] = alchemy_rdsys(AU1000_SYS_FREQCTRL1);
+	sleep_sys_clocks[2] = alchemy_rdsys(AU1000_SYS_CLKSRC);
+	sleep_sys_clocks[3] = alchemy_rdsys(AU1000_SYS_CPUPLL);
+	sleep_sys_clocks[4] = alchemy_rdsys(AU1000_SYS_AUXPLL);
 
 	/* pin mux config */
-	sleep_sys_pinfunc = au_readl(SYS_PINFUNC);
+	sleep_sys_pinfunc = alchemy_rdsys(AU1000_SYS_PINFUNC);
 
 	/* Save the static memory controller configuration. */
 	sleep_static_memctlr[0][0] = au_readl(MEM_STCFG0);
@@ -85,16 +85,14 @@ static void restore_core_regs(void)
 	 * one of those Au1000 with a write-only PLL, where we dont
 	 * have a valid value)
 	 */
-	au_writel(sleep_sys_clocks[0], SYS_FREQCTRL0);
-	au_writel(sleep_sys_clocks[1], SYS_FREQCTRL1);
-	au_writel(sleep_sys_clocks[2], SYS_CLKSRC);
-	au_writel(sleep_sys_clocks[4], SYS_AUXPLL);
+	alchemy_wrsys(sleep_sys_clocks[0], AU1000_SYS_FREQCTRL0);
+	alchemy_wrsys(sleep_sys_clocks[1], AU1000_SYS_FREQCTRL1);
+	alchemy_wrsys(sleep_sys_clocks[2], AU1000_SYS_CLKSRC);
+	alchemy_wrsys(sleep_sys_clocks[4], AU1000_SYS_AUXPLL);
 	if (!au1xxx_cpu_has_pll_wo())
-		au_writel(sleep_sys_clocks[3], SYS_CPUPLL);
-	au_sync();
+		alchemy_wrsys(sleep_sys_clocks[3], AU1000_SYS_CPUPLL);
 
-	au_writel(sleep_sys_pinfunc, SYS_PINFUNC);
-	au_sync();
+	alchemy_wrsys(sleep_sys_pinfunc, AU1000_SYS_PINFUNC);
 
 	/* Restore the static memory controller configuration. */
 	au_writel(sleep_static_memctlr[0][0], MEM_STCFG0);

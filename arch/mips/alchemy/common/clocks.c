@@ -91,13 +91,13 @@ unsigned long au1xxx_calc_clock(void)
 	if (au1xxx_cpu_has_pll_wo())
 		cpu_speed = 396000000;
 	else
-		cpu_speed = (au_readl(SYS_CPUPLL) & 0x0000003f) * AU1000_SRC_CLK;
+		cpu_speed = (alchemy_rdsys(AU1000_SYS_CPUPLL) & 0x3f) * AU1000_SRC_CLK;
 
 	/* On Alchemy CPU:counter ratio is 1:1 */
 	mips_hpt_frequency = cpu_speed;
 	/* Equation: Baudrate = CPU / (SD * 2 * CLKDIV * 16) */
-	set_au1x00_uart_baud_base(cpu_speed / (2 * ((int)(au_readl(SYS_POWERCTRL)
-							  & 0x03) + 2) * 16));
+	set_au1x00_uart_baud_base(cpu_speed / (2 *
+		((alchemy_rdsys(AU1000_SYS_POWERCTRL) & 0x03) + 2) * 16));
 
 	set_au1x00_speed(cpu_speed);
 

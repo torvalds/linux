@@ -507,8 +507,9 @@ static int au1100fb_drv_probe(struct platform_device *dev)
 	print_dbg("phys=0x%08x, size=%dK", fbdev->fb_phys, fbdev->fb_len / 1024);
 
 	/* Setup LCD clock to AUX (48 MHz) */
-	sys_clksrc = au_readl(SYS_CLKSRC) & ~(SYS_CS_ML_MASK | SYS_CS_DL | SYS_CS_CL);
-	au_writel((sys_clksrc | (1 << SYS_CS_ML_BIT)), SYS_CLKSRC);
+	sys_clksrc = alchemy_rdsys(AU1000_SYS_CLKSRC);
+	sys_clksrc &= ~(SYS_CS_ML_MASK | SYS_CS_DL | SYS_CS_CL);
+	alchemy_wrsys((sys_clksrc | (1 << SYS_CS_ML_BIT)), AU1000_SYS_CLKSRC);
 
 	/* load the panel info into the var struct */
 	au1100fb_var.bits_per_pixel = fbdev->panel->bpp;
@@ -591,13 +592,13 @@ int au1100fb_drv_suspend(struct platform_device *dev, pm_message_t state)
 		return 0;
 
 	/* Save the clock source state */
-	sys_clksrc = au_readl(SYS_CLKSRC);
+	sys_clksrc = alchemy_rdsys(AU1000_SYS_CLKSRC);
 
 	/* Blank the LCD */
 	au1100fb_fb_blank(VESA_POWERDOWN, &fbdev->info);
 
 	/* Stop LCD clocking */
-	au_writel(sys_clksrc & ~SYS_CS_ML_MASK, SYS_CLKSRC);
+	alchemy_wrsys(sys_clksrc & ~SYS_CS_ML_MASK, AU1000_SYS_CLKSRC);
 
 	memcpy(&fbregs, fbdev->regs, sizeof(struct au1100fb_regs));
 
@@ -614,7 +615,7 @@ int au1100fb_drv_resume(struct platform_device *dev)
 	memcpy(fbdev->regs, &fbregs, sizeof(struct au1100fb_regs));
 
 	/* Restart LCD clocking */
-	au_writel(sys_clksrc, SYS_CLKSRC);
+	alchemy_wrsys(sys_clksrc, AU1000_SYS_CLKSRC);
 
 	/* Unblank the LCD */
 	au1100fb_fb_blank(VESA_NO_BLANKING, &fbdev->info);

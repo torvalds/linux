@@ -335,8 +335,7 @@
 
 
 /* Programmable Counters 0 and 1 */
-#define SYS_BASE		0xB1900000
-#define SYS_COUNTER_CNTRL	(SYS_BASE + 0x14)
+#define AU1000_SYS_CNTRCTRL	0x14
 #  define SYS_CNTRL_E1S		(1 << 23)
 #  define SYS_CNTRL_T1S		(1 << 20)
 #  define SYS_CNTRL_M21		(1 << 19)
@@ -358,24 +357,24 @@
 #  define SYS_CNTRL_C0S		(1 << 0)
 
 /* Programmable Counter 0 Registers */
-#define SYS_TOYTRIM		(SYS_BASE + 0)
-#define SYS_TOYWRITE		(SYS_BASE + 4)
-#define SYS_TOYMATCH0		(SYS_BASE + 8)
-#define SYS_TOYMATCH1		(SYS_BASE + 0xC)
-#define SYS_TOYMATCH2		(SYS_BASE + 0x10)
-#define SYS_TOYREAD		(SYS_BASE + 0x40)
+#define AU1000_SYS_TOYTRIM	0x00
+#define AU1000_SYS_TOYWRITE	0x04
+#define AU1000_SYS_TOYMATCH0	0x08
+#define AU1000_SYS_TOYMATCH1	0x0c
+#define AU1000_SYS_TOYMATCH2	0x10
+#define AU1000_SYS_TOYREAD	0x40
 
 /* Programmable Counter 1 Registers */
-#define SYS_RTCTRIM		(SYS_BASE + 0x44)
-#define SYS_RTCWRITE		(SYS_BASE + 0x48)
-#define SYS_RTCMATCH0		(SYS_BASE + 0x4C)
-#define SYS_RTCMATCH1		(SYS_BASE + 0x50)
-#define SYS_RTCMATCH2		(SYS_BASE + 0x54)
-#define SYS_RTCREAD		(SYS_BASE + 0x58)
+#define AU1000_SYS_RTCTRIM	0x44
+#define AU1000_SYS_RTCWRITE	0x48
+#define AU1000_SYS_RTCMATCH0	0x4c
+#define AU1000_SYS_RTCMATCH1	0x50
+#define AU1000_SYS_RTCMATCH2	0x54
+#define AU1000_SYS_RTCREAD	0x58
 
 
 /* GPIO */
-#define SYS_PINFUNC		0xB190002C
+#define AU1000_SYS_PINFUNC	0x2C
 #  define SYS_PF_USB		(1 << 15)	/* 2nd USB device/host */
 #  define SYS_PF_U3		(1 << 14)	/* GPIO23/U3TXD */
 #  define SYS_PF_U2		(1 << 13)	/* GPIO22/U2TXD */
@@ -445,21 +444,21 @@
 #define SYS_PINFUNC_S1B		(1 << 2)
 
 /* Power Management */
-#define SYS_SCRATCH0		0xB1900018
-#define SYS_SCRATCH1		0xB190001C
-#define SYS_WAKEMSK		0xB1900034
-#define SYS_ENDIAN		0xB1900038
-#define SYS_POWERCTRL		0xB190003C
-#define SYS_WAKESRC		0xB190005C
-#define SYS_SLPPWR		0xB1900078
-#define SYS_SLEEP		0xB190007C
+#define AU1000_SYS_SCRATCH0	0x18
+#define AU1000_SYS_SCRATCH1	0x1c
+#define AU1000_SYS_WAKEMSK	0x34
+#define AU1000_SYS_ENDIAN	0x38
+#define AU1000_SYS_POWERCTRL	0x3c
+#define AU1000_SYS_WAKESRC	0x5c
+#define AU1000_SYS_SLPPWR	0x78
+#define AU1000_SYS_SLEEP	0x7c
 
 #define SYS_WAKEMSK_D2		(1 << 9)
 #define SYS_WAKEMSK_M2		(1 << 8)
 #define SYS_WAKEMSK_GPIO(x)	(1 << (x))
 
 /* Clock Controller */
-#define SYS_FREQCTRL0		0xB1900020
+#define AU1000_SYS_FREQCTRL0	0x20
 #  define SYS_FC_FRDIV2_BIT	22
 #  define SYS_FC_FRDIV2_MASK	(0xff << SYS_FC_FRDIV2_BIT)
 #  define SYS_FC_FE2		(1 << 21)
@@ -472,7 +471,7 @@
 #  define SYS_FC_FRDIV0_MASK	(0xff << SYS_FC_FRDIV0_BIT)
 #  define SYS_FC_FE0		(1 << 1)
 #  define SYS_FC_FS0		(1 << 0)
-#define SYS_FREQCTRL1		0xB1900024
+#define AU1000_SYS_FREQCTRL1	0x24
 #  define SYS_FC_FRDIV5_BIT	22
 #  define SYS_FC_FRDIV5_MASK	(0xff << SYS_FC_FRDIV5_BIT)
 #  define SYS_FC_FE5		(1 << 21)
@@ -485,7 +484,7 @@
 #  define SYS_FC_FRDIV3_MASK	(0xff << SYS_FC_FRDIV3_BIT)
 #  define SYS_FC_FE3		(1 << 1)
 #  define SYS_FC_FS3		(1 << 0)
-#define SYS_CLKSRC		0xB1900028
+#define AU1000_SYS_CLKSRC	0x28
 #  define SYS_CS_ME1_BIT	27
 #  define SYS_CS_ME1_MASK	(0x7 << SYS_CS_ME1_BIT)
 #  define SYS_CS_DE1		(1 << 26)
@@ -525,8 +524,12 @@
 #  define SYS_CS_MUX_FQ3	0x5
 #  define SYS_CS_MUX_FQ4	0x6
 #  define SYS_CS_MUX_FQ5	0x7
-#define SYS_CPUPLL		0xB1900060
-#define SYS_AUXPLL		0xB1900064
+
+#define AU1000_SYS_CPUPLL	0x60
+#define AU1000_SYS_AUXPLL	0x64
+
+
+/**********************************************************************/
 
 
 /* The PCI chip selects are outside the 32bit space, and since we can't
@@ -692,6 +695,22 @@ static inline u16 au_readw(unsigned long reg)
 static inline u32 au_readl(unsigned long reg)
 {
 	return *(volatile u32 *)reg;
+}
+
+/* helpers to access the SYS_* registers */
+static inline unsigned long alchemy_rdsys(int regofs)
+{
+	void __iomem *b = (void __iomem *)KSEG1ADDR(AU1000_SYS_PHYS_ADDR);
+
+	return __raw_readl(b + regofs);
+}
+
+static inline void alchemy_wrsys(unsigned long v, int regofs)
+{
+	void __iomem *b = (void __iomem *)KSEG1ADDR(AU1000_SYS_PHYS_ADDR);
+
+	__raw_writel(v, b + regofs);
+	wmb(); /* drain writebuffer */
 }
 
 /* Early Au1000 have a write-only SYS_CPUPLL register. */

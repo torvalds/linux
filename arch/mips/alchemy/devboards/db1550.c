@@ -31,16 +31,16 @@
 static void __init db1550_hw_setup(void)
 {
 	void __iomem *base;
+	unsigned long v;
 
 	/* complete SPI setup: link psc0_intclk to a 48MHz source,
 	 * and assign GPIO16 to PSC0_SYNC1 (SPI cs# line) as well as PSC1_SYNC
 	 * for AC97 on PB1550.
 	 */
-	base = (void __iomem *)SYS_CLKSRC;
-	__raw_writel(__raw_readl(base) | 0x000001e0, base);
-	base = (void __iomem *)SYS_PINFUNC;
-	__raw_writel(__raw_readl(base) | 1 | SYS_PF_PSC1_S1, base);
-	wmb();
+	v = alchemy_rdsys(AU1000_SYS_CLKSRC);
+	alchemy_wrsys(v | 0x000001e0, AU1000_SYS_CLKSRC);
+	v = alchemy_rdsys(AU1000_SYS_PINFUNC);
+	alchemy_wrsys(v | 1 | SYS_PF_PSC1_S1, AU1000_SYS_PINFUNC);
 
 	/* reset the AC97 codec now, the reset time in the psc-ac97 driver
 	 * is apparently too short although it's ridiculous as it is.

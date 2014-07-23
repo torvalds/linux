@@ -518,10 +518,9 @@ int __init db1000_dev_setup(void)
 		gpio_direction_input(20);	/* sd1 cd# */
 
 		/* spi_gpio on SSI0 pins */
-		pfc = __raw_readl((void __iomem *)SYS_PINFUNC);
+		pfc = alchemy_rdsys(AU1000_SYS_PINFUNC);
 		pfc |= (1 << 0);	/* SSI0 pins as GPIOs */
-		__raw_writel(pfc, (void __iomem *)SYS_PINFUNC);
-		wmb();
+		alchemy_wrsys(pfc, AU1000_SYS_PINFUNC);
 
 		spi_register_board_info(db1100_spi_info,
 					ARRAY_SIZE(db1100_spi_info));

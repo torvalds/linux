@@ -830,10 +830,10 @@ static void au1200_setpanel(struct panel_settings *newpanel,
 	if (!(panel->mode_clkcontrol & LCD_CLKCONTROL_EXT))
 	{
 		uint32 sys_clksrc;
-		au_writel(panel->mode_auxpll, SYS_AUXPLL);
-		sys_clksrc = au_readl(SYS_CLKSRC) & ~0x0000001f;
+		alchemy_wrsys(panel->mode_auxpll, AU1000_SYS_AUXPLL);
+		sys_clksrc = alchemy_rdsys(AU1000_SYS_CLKSRC) & ~0x0000001f;
 		sys_clksrc |= panel->mode_toyclksrc;
-		au_writel(sys_clksrc, SYS_CLKSRC);
+		alchemy_wrsys(sys_clksrc, AU1000_SYS_CLKSRC);
 	}
 
 	/*
