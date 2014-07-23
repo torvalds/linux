@@ -26,6 +26,7 @@
 #include <linux/slab.h>
 #include <linux/acpi.h>
 #include <linux/clk.h>
+#include <linux/reset.h>
 #include <linux/pm_runtime.h>
 
 #include <asm/byteorder.h>
@@ -60,6 +61,7 @@ struct dw8250_data {
 	int			line;
 	struct clk		*clk;
 	struct clk		*pclk;
+	struct reset_control	*rst;
 	struct uart_8250_dma	dma;
 };
 
@@ -383,6 +385,10 @@ static int dw8250_probe(struct platform_device *pdev)
 		}
 	}
 
+	data->rst = devm_reset_control_get_optional(&pdev->dev, NULL);
+	if (!IS_ERR(data->rst))
+		reset_control_deassert(data->rst);
+
 	data->dma.rx_chan_id = -1;
 	data->dma.tx_chan_id = -1;
 	data->dma.rx_param = data;
@@ -425,6 +431,9 @@ static int dw8250_remove(struct platform_device *pdev)
 	pm_runtime_get_sync(&pdev->dev);
 
 	serial8250_unregister_port(data->line);
+
+	if (!IS_ERR(data->rst))
+		reset_control_assert(data->rst);
 
 	if (!IS_ERR(data->pclk))
 		clk_disable_unprepare(data->pclk);
