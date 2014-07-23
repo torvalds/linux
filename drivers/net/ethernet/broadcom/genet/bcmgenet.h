@@ -504,9 +504,9 @@ struct bcmgenet_tx_ring {
 	unsigned int	cb_ptr;		/* Tx ring initial CB ptr */
 	unsigned int	end_ptr;	/* Tx ring end CB ptr */
 	void (*int_enable)(struct bcmgenet_priv *priv,
-				struct bcmgenet_tx_ring *);
+			   struct bcmgenet_tx_ring *);
 	void (*int_disable)(struct bcmgenet_priv *priv,
-				struct bcmgenet_tx_ring *);
+			    struct bcmgenet_tx_ring *);
 };
 
 /* device context */
