@@ -3763,7 +3763,7 @@ rb_iter_peek(struct ring_buffer_iter *iter, u64 *ts)
 	if (rb_per_cpu_empty(cpu_buffer))
 		return NULL;
 
-	if (iter->head >= local_read(&iter->head_page->page->commit)) {
+	if (iter->head >= rb_page_size(iter->head_page)) {
 		rb_inc_iter(iter);
 		goto again;
 	}
