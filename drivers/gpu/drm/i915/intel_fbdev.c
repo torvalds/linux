@@ -375,11 +375,6 @@ static bool intel_fb_initial_config(struct drm_fb_helper *fb_helper,
 		}
 
 		encoder = connector->encoder;
-		if (!encoder) {
-			struct drm_connector_helper_funcs *connector_funcs;
-			connector_funcs = connector->helper_private;
-			encoder = connector_funcs->best_encoder(connector);
-		}
 		if (!encoder || WARN_ON(!encoder->crtc)) {
 			DRM_DEBUG_KMS("connector %s has no encoder or crtc, skipping\n",
 				      connector->name);
