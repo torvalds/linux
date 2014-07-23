@@ -858,25 +858,25 @@
 						#clock-init-cells = <1>;
 					};
 
-					clk_mac_pll_div: clk_mac_pll_div {
+					clk_mac_ref_div: clk_mac_ref_div {
 						compatible = "rockchip,rk3188-div-con";
 						rockchip,bits = <4 5>;
+						clocks = <&clk_mac_ref>;
+						clock-output-names = "clk_mac";
+						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
+						#clock-cells = <0>;
+						#clock-init-cells = <1>;
+					};
+
+					clk_mac_pll_div: clk_mac_pll_div {
+						compatible = "rockchip,rk3188-div-con";
+						rockchip,bits = <9 5>;
 						clocks = <&clk_mac_pll>;
 						clock-output-names = "clk_mac_pll";
 						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
 						#clock-cells = <0>;
 						rockchip,clkops-idx =
 							<CLKOPS_RATE_MUX_DIV>;
-						#clock-init-cells = <1>;
-					};
-
-					clk_mac_ref_div: clk_mac_ref_div {
-						compatible = "rockchip,rk3188-div-con";
-						rockchip,bits = <9 5>;
-						clocks = <&clk_mac_ref>;
-						clock-output-names = "clk_mac";
-						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
-						#clock-cells = <0>;
 						#clock-init-cells = <1>;
 					};
 
