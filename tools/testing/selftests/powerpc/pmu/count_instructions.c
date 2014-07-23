@@ -12,6 +12,7 @@
 
 #include "event.h"
 #include "utils.h"
+#include "lib.h"
 
 extern void thirty_two_instruction_loop(u64 loops);
 
@@ -90,7 +91,7 @@ static u64 determine_overhead(struct event *events)
 	return overhead;
 }
 
-static int count_instructions(void)
+static int test_body(void)
 {
 	struct event events[2];
 	u64 overhead;
@@ -127,6 +128,11 @@ static int count_instructions(void)
 	event_close(&events[1]);
 
 	return 0;
+}
+
+static int count_instructions(void)
+{
+	return eat_cpu(test_body);
 }
 
 int main(void)

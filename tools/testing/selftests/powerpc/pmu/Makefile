@@ -2,7 +2,7 @@ noarg:
 	$(MAKE) -C ../
 
 PROGS := count_instructions l3_bank_test
-EXTRA_SOURCES := ../harness.c event.c
+EXTRA_SOURCES := ../harness.c event.c lib.c
 
 SUB_TARGETS = ebb
 
