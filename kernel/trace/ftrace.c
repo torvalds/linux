@@ -113,6 +113,9 @@ ftrace_func_t ftrace_pid_function __read_mostly = ftrace_stub;
 static struct ftrace_ops global_ops;
 static struct ftrace_ops control_ops;
 
+static void ftrace_ops_recurs_func(unsigned long ip, unsigned long parent_ip,
+				   struct ftrace_ops *op, struct pt_regs *regs);
+
 #if ARCH_SUPPORTS_FTRACE_OPS
 static void ftrace_ops_list_func(unsigned long ip, unsigned long parent_ip,
 				 struct ftrace_ops *op, struct pt_regs *regs);
@@ -258,11 +261,18 @@ static void update_ftrace_function(void)
 	if (ftrace_ops_list == &ftrace_list_end ||
 	    (ftrace_ops_list->next == &ftrace_list_end &&
 	     !(ftrace_ops_list->flags & FTRACE_OPS_FL_DYNAMIC) &&
-	     (ftrace_ops_list->flags & FTRACE_OPS_FL_RECURSION_SAFE) &&
 	     !FTRACE_FORCE_LIST_FUNC)) {
 		/* Set the ftrace_ops that the arch callback uses */
 		set_function_trace_op = ftrace_ops_list;
-		func = ftrace_ops_list->func;
+		/*
+		 * If the func handles its own recursion, call it directly.
+		 * Otherwise call the recursion protected function that
+		 * will call the ftrace ops function.
+		 */
+		if (ftrace_ops_list->flags & FTRACE_OPS_FL_RECURSION_SAFE)
+			func = ftrace_ops_list->func;
+		else
+			func = ftrace_ops_recurs_func;
 	} else {
 		/* Just use the default ftrace_ops */
 		set_function_trace_op = &ftrace_list_end;
@@ -4826,6 +4836,25 @@ static void ftrace_ops_no_ops(unsigned long ip, unsigned long parent_ip)
 	__ftrace_ops_list_func(ip, parent_ip, NULL, NULL);
 }
 #endif
+
+/*
+ * If there's only one function registered but it does not support
+ * recursion, this function will be called by the mcount trampoline.
+ * This function will handle recursion protection.
+ */
+static void ftrace_ops_recurs_func(unsigned long ip, unsigned long parent_ip,
+				   struct ftrace_ops *op, struct pt_regs *regs)
+{
+	int bit;
+
+	bit = trace_test_and_set_recursion(TRACE_LIST_START, TRACE_LIST_MAX);
+	if (bit < 0)
+		return;
+
+	op->func(ip, parent_ip, op, regs);
+
+	trace_clear_recursion(bit);
+}
 
 static void clear_ftrace_swapper(void)
 {
