@@ -654,10 +654,11 @@ static void mxt_input_button(struct mxt_data *data, struct mxt_message *message)
 	}
 }
 
-static void mxt_input_sync(struct input_dev *input_dev)
+static void mxt_input_sync(struct mxt_data *data)
 {
-	input_mt_report_pointer_emulation(input_dev, false);
-	input_sync(input_dev);
+	input_mt_report_pointer_emulation(data->input_dev,
+					  data->pdata->t19_num_keys);
+	input_sync(data->input_dev);
 }
 
 static void mxt_input_touchevent(struct mxt_data *data,
@@ -707,7 +708,7 @@ static void mxt_input_touchevent(struct mxt_data *data,
 		if (status & MXT_T9_RELEASE) {
 			input_mt_report_slot_state(input_dev,
 						   MT_TOOL_FINGER, 0);
-			mxt_input_sync(input_dev);
+			mxt_input_sync(data);
 		}
 
 		/* Touch active */
@@ -783,7 +784,7 @@ static irqreturn_t mxt_process_messages_until_invalid(struct mxt_data *data)
 	} while (reportid != 0xff);
 
 	if (update_input)
-		mxt_input_sync(data->input_dev);
+		mxt_input_sync(data);
 
 	return IRQ_HANDLED;
 }
