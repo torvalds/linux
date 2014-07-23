@@ -1,5 +1,5 @@
 /*
- * Marvell Armada 370 and Armada XP SoC cpuidle driver
+ * Marvell Armada 370, 38x and XP SoC cpuidle driver
  *
  * Copyright (C) 2014 Marvell
  *
@@ -86,6 +86,21 @@ static struct cpuidle_driver armada370_idle_driver = {
 	.state_count = 2,
 };
 
+static struct cpuidle_driver armada38x_idle_driver = {
+	.name			= "armada_38x_idle",
+	.states[0]		= ARM_CPUIDLE_WFI_STATE,
+	.states[1]		= {
+		.enter			= mvebu_v7_enter_idle,
+		.exit_latency		= 10,
+		.power_usage		= 5,
+		.target_residency	= 100,
+		.flags			= CPUIDLE_FLAG_TIME_VALID,
+		.name			= "Idle",
+		.desc			= "CPU and SCU power down",
+	},
+	.state_count = 2,
+};
+
 static int mvebu_v7_cpuidle_probe(struct platform_device *pdev)
 {
 	mvebu_v7_cpu_suspend = pdev->dev.platform_data;
@@ -94,6 +109,8 @@ static int mvebu_v7_cpuidle_probe(struct platform_device *pdev)
 		return cpuidle_register(&armadaxp_idle_driver, NULL);
 	else if (!strcmp(pdev->dev.driver->name, "cpuidle-armada-370"))
 		return cpuidle_register(&armada370_idle_driver, NULL);
+	else if (!strcmp(pdev->dev.driver->name, "cpuidle-armada-38x"))
+		return cpuidle_register(&armada38x_idle_driver, NULL);
 	else
 		return -EINVAL;
 }
@@ -117,6 +134,16 @@ static struct platform_driver armada370_cpuidle_plat_driver = {
 };
 
 module_platform_driver(armada370_cpuidle_plat_driver);
+
+static struct platform_driver armada38x_cpuidle_plat_driver = {
+	.driver = {
+		.name = "cpuidle-armada-38x",
+		.owner = THIS_MODULE,
+	},
+	.probe = mvebu_v7_cpuidle_probe,
+};
+
+module_platform_driver(armada38x_cpuidle_plat_driver);
 
 MODULE_AUTHOR("Gregory CLEMENT <gregory.clement@free-electrons.com>");
 MODULE_DESCRIPTION("Marvell EBU v7 cpuidle driver");
