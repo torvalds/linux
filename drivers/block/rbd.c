@@ -5143,8 +5143,6 @@ static int rbd_dev_image_probe(struct rbd_device *rbd_dev, bool mapping)
 	ret = rbd_dev_image_id(rbd_dev);
 	if (ret)
 		return ret;
-	rbd_assert(rbd_dev->spec->image_id);
-	rbd_assert(rbd_image_format_valid(rbd_dev->image_format));
 
 	ret = rbd_dev_header_name(rbd_dev);
 	if (ret)
