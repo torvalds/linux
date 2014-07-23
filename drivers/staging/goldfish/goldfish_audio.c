@@ -297,7 +297,7 @@ static int goldfish_audio_probe(struct platform_device *pdev)
 	}
 	data->buffer_virt = dmam_alloc_coherent(&pdev->dev,
 				COMBINED_BUFFER_SIZE, &buf_addr, GFP_KERNEL);
-	if (data->buffer_virt == 0) {
+	if (data->buffer_virt == NULL) {
 		dev_err(&pdev->dev, "allocate buffer failed\n");
 		return -ENOMEM;
 	}
