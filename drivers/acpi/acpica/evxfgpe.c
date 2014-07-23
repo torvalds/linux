@@ -126,11 +126,19 @@ acpi_status acpi_enable_gpe(acpi_handle gpe_device, u32 gpe_number)
 
 	flags = acpi_os_acquire_lock(acpi_gbl_gpe_lock);
 
-	/* Ensure that we have a valid GPE number */
-
+	/*
+	 * Ensure that we have a valid GPE number and that there is some way
+	 * of handling the GPE (handler or a GPE method). In other words, we
+	 * won't allow a valid GPE to be enabled if there is no way to handle it.
+	 */
 	gpe_event_info = acpi_ev_get_gpe_event_info(gpe_device, gpe_number);
 	if (gpe_event_info) {
-		status = acpi_ev_add_gpe_reference(gpe_event_info);
+		if ((gpe_event_info->flags & ACPI_GPE_DISPATCH_MASK) !=
+		    ACPI_GPE_DISPATCH_NONE) {
+			status = acpi_ev_add_gpe_reference(gpe_event_info);
+		} else {
+			status = AE_NO_HANDLER;
+		}
 	}
 
 	acpi_os_release_lock(acpi_gbl_gpe_lock, flags);
