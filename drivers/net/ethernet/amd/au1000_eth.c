@@ -270,10 +270,12 @@ static void au1000_enable_mac(struct net_device *dev, int force_reset)
 
 	if (force_reset || (!aup->mac_enabled)) {
 		writel(MAC_EN_CLOCK_ENABLE, aup->enable);
-		au_sync_delay(2);
+		wmb(); /* drain writebuffer */
+		mdelay(2);
 		writel((MAC_EN_RESET0 | MAC_EN_RESET1 | MAC_EN_RESET2
 				| MAC_EN_CLOCK_ENABLE), aup->enable);
-		au_sync_delay(2);
+		wmb(); /* drain writebuffer */
+		mdelay(2);
 
 		aup->mac_enabled = 1;
 	}
@@ -391,7 +393,8 @@ static void au1000_hard_stop(struct net_device *dev)
 	reg = readl(&aup->mac->control);
 	reg &= ~(MAC_RX_ENABLE | MAC_TX_ENABLE);
 	writel(reg, &aup->mac->control);
-	au_sync_delay(10);
+	wmb(); /* drain writebuffer */
+	mdelay(10);
 }
 
 static void au1000_enable_rx_tx(struct net_device *dev)
@@ -404,7 +407,8 @@ static void au1000_enable_rx_tx(struct net_device *dev)
 	reg = readl(&aup->mac->control);
 	reg |= (MAC_RX_ENABLE | MAC_TX_ENABLE);
 	writel(reg, &aup->mac->control);
-	au_sync_delay(10);
+	wmb(); /* drain writebuffer */
+	mdelay(10);
 }
 
 static void
@@ -454,7 +458,8 @@ au1000_adjust_link(struct net_device *dev)
 			reg |= MAC_DISABLE_RX_OWN;
 		}
 		writel(reg, &aup->mac->control);
-		au_sync_delay(1);
+		wmb(); /* drain writebuffer */
+		mdelay(1);
 
 		au1000_enable_rx_tx(dev);
 		aup->old_duplex = phydev->duplex;
@@ -618,9 +623,11 @@ static void au1000_reset_mac_unlocked(struct net_device *dev)
 	au1000_hard_stop(dev);
 
 	writel(MAC_EN_CLOCK_ENABLE, aup->enable);
-	au_sync_delay(2);
+	wmb(); /* drain writebuffer */
+	mdelay(2);
 	writel(0, aup->enable);
-	au_sync_delay(2);
+	wmb(); /* drain writebuffer */
+	mdelay(2);
 
 	aup->tx_full = 0;
 	for (i = 0; i < NUM_RX_DMA; i++) {
@@ -770,7 +777,7 @@ static int au1000_init(struct net_device *dev)
 	for (i = 0; i < NUM_RX_DMA; i++)
 		aup->rx_dma_ring[i]->buff_stat |= RX_DMA_ENABLE;
 
-	au_sync();
+	wmb(); /* drain writebuffer */
 
 	control = MAC_RX_ENABLE | MAC_TX_ENABLE;
 #ifndef CONFIG_CPU_LITTLE_ENDIAN
@@ -787,7 +794,7 @@ static int au1000_init(struct net_device *dev)
 
 	writel(control, &aup->mac->control);
 	writel(0x8100, &aup->mac->vlan1_tag); /* activate vlan support */
-	au_sync();
+	wmb(); /* drain writebuffer */
 
 	spin_unlock_irqrestore(&aup->lock, flags);
 	return 0;
@@ -878,7 +885,7 @@ static int au1000_rx(struct net_device *dev)
 		}
 		prxd->buff_stat = (u32)(pDB->dma_addr | RX_DMA_ENABLE);
 		aup->rx_head = (aup->rx_head + 1) & (NUM_RX_DMA - 1);
-		au_sync();
+		wmb(); /* drain writebuffer */
 
 		/* next descriptor */
 		prxd = aup->rx_dma_ring[aup->rx_head];
@@ -926,7 +933,7 @@ static void au1000_tx_ack(struct net_device *dev)
 		au1000_update_tx_stats(dev, ptxd->status);
 		ptxd->buff_stat &= ~TX_T_DONE;
 		ptxd->len = 0;
-		au_sync();
+		wmb(); /* drain writebuffer */
 
 		aup->tx_tail = (aup->tx_tail + 1) & (NUM_TX_DMA - 1);
 		ptxd = aup->tx_dma_ring[aup->tx_tail];
@@ -1057,7 +1064,7 @@ static netdev_tx_t au1000_tx(struct sk_buff *skb, struct net_device *dev)
 	ps->tx_bytes += ptxd->len;
 
 	ptxd->buff_stat = pDB->dma_addr | TX_DMA_ENABLE;
-	au_sync();
+	wmb(); /* drain writebuffer */
 	dev_kfree_skb(skb);
 	aup->tx_head = (aup->tx_head + 1) & (NUM_TX_DMA - 1);
 	return NETDEV_TX_OK;

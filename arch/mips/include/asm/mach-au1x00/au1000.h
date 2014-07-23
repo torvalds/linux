@@ -645,54 +645,6 @@
 
 #include <asm/cpu.h>
 
-/* cpu pipeline flush */
-void static inline au_sync(void)
-{
-	__asm__ volatile ("sync");
-}
-
-void static inline au_sync_udelay(int us)
-{
-	__asm__ volatile ("sync");
-	udelay(us);
-}
-
-void static inline au_sync_delay(int ms)
-{
-	__asm__ volatile ("sync");
-	mdelay(ms);
-}
-
-void static inline au_writeb(u8 val, unsigned long reg)
-{
-	*(volatile u8 *)reg = val;
-}
-
-void static inline au_writew(u16 val, unsigned long reg)
-{
-	*(volatile u16 *)reg = val;
-}
-
-void static inline au_writel(u32 val, unsigned long reg)
-{
-	*(volatile u32 *)reg = val;
-}
-
-static inline u8 au_readb(unsigned long reg)
-{
-	return *(volatile u8 *)reg;
-}
-
-static inline u16 au_readw(unsigned long reg)
-{
-	return *(volatile u16 *)reg;
-}
-
-static inline u32 au_readl(unsigned long reg)
-{
-	return *(volatile u32 *)reg;
-}
-
 /* helpers to access the SYS_* registers */
 static inline unsigned long alchemy_rdsys(int regofs)
 {

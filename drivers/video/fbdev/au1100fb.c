@@ -113,7 +113,7 @@ static int au1100fb_fb_blank(int blank_mode, struct fb_info *fbi)
 	case VESA_NO_BLANKING:
 		/* Turn on panel */
 		fbdev->regs->lcd_control |= LCD_CONTROL_GO;
-		au_sync();
+		wmb(); /* drain writebuffer */
 		break;
 
 	case VESA_VSYNC_SUSPEND:
@@ -121,7 +121,7 @@ static int au1100fb_fb_blank(int blank_mode, struct fb_info *fbi)
 	case VESA_POWERDOWN:
 		/* Turn off panel */
 		fbdev->regs->lcd_control &= ~LCD_CONTROL_GO;
-		au_sync();
+		wmb(); /* drain writebuffer */
 		break;
 	default:
 		break;

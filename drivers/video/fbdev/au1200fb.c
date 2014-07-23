@@ -764,7 +764,7 @@ static int au1200_setlocation (struct au1200fb_device *fbdev, int plane,
 
 	/* Disable the window while making changes, then restore WINEN */
 	winenable = lcd->winenable & (1 << plane);
-	au_sync();
+	wmb(); /* drain writebuffer */
 	lcd->winenable &= ~(1 << plane);
 	lcd->window[plane].winctrl0 = winctrl0;
 	lcd->window[plane].winctrl1 = winctrl1;
@@ -772,7 +772,7 @@ static int au1200_setlocation (struct au1200fb_device *fbdev, int plane,
 	lcd->window[plane].winbuf1 = fbdev->fb_phys;
 	lcd->window[plane].winbufctrl = 0; /* select winbuf0 */
 	lcd->winenable |= winenable;
-	au_sync();
+	wmb(); /* drain writebuffer */
 
 	return 0;
 }
@@ -788,22 +788,21 @@ static void au1200_setpanel(struct panel_settings *newpanel,
 	/* Make sure all windows disabled */
 	winenable = lcd->winenable;
 	lcd->winenable = 0;
-	au_sync();
+	wmb(); /* drain writebuffer */
 	/*
 	 * Ensure everything is disabled before reconfiguring
 	 */
 	if (lcd->screen & LCD_SCREEN_SEN) {
 		/* Wait for vertical sync period */
 		lcd->intstatus = LCD_INT_SS;
-		while ((lcd->intstatus & LCD_INT_SS) == 0) {
-			au_sync();
-		}
+		while ((lcd->intstatus & LCD_INT_SS) == 0)
+			;
 
 		lcd->screen &= ~LCD_SCREEN_SEN;	/*disable the controller*/
 
 		do {
 			lcd->intstatus = lcd->intstatus; /*clear interrupts*/
-			au_sync();
+			wmb(); /* drain writebuffer */
 		/*wait for controller to shut down*/
 		} while ((lcd->intstatus & LCD_INT_SD) == 0);
 
@@ -847,7 +846,7 @@ static void au1200_setpanel(struct panel_settings *newpanel,
 	lcd->pwmhi = panel->mode_pwmhi;
 	lcd->outmask = panel->mode_outmask;
 	lcd->fifoctrl = panel->mode_fifoctrl;
-	au_sync();
+	wmb(); /* drain writebuffer */
 
 	/* fixme: Check window settings to make sure still valid
 	 * for new geometry */
@@ -863,7 +862,7 @@ static void au1200_setpanel(struct panel_settings *newpanel,
 	 * Re-enable screen now that it is configured
 	 */
 	lcd->screen |= LCD_SCREEN_SEN;
-	au_sync();
+	wmb(); /* drain writebuffer */
 
 	/* Call init of panel */
 	if (pd->panel_init)
@@ -956,7 +955,7 @@ static void au1200_setmode(struct au1200fb_device *fbdev)
 		| LCD_WINCTRL2_SCY_1
 		) ;
 	lcd->winenable |= win->w[plane].mode_winenable;
-	au_sync();
+	wmb(); /* drain writebuffer */
 }
 
 
@@ -1270,7 +1269,7 @@ static void set_global(u_int cmd, struct au1200_lcd_global_regs_t *pdata)
 
 	if (pdata->flags & SCREEN_MASK)
 		lcd->colorkeymsk = pdata->mask;
-	au_sync();
+	wmb(); /* drain writebuffer */
 }
 
 static void get_global(u_int cmd, struct au1200_lcd_global_regs_t *pdata)
@@ -1288,7 +1287,7 @@ static void get_global(u_int cmd, struct au1200_lcd_global_regs_t *pdata)
 	hi1 = (lcd->pwmhi >> 16) + 1;
 	divider = (lcd->pwmdiv & 0x3FFFF) + 1;
 	pdata->brightness = ((hi1 << 8) / divider) - 1;
-	au_sync();
+	wmb(); /* drain writebuffer */
 }
 
 static void set_window(unsigned int plane,
@@ -1387,7 +1386,7 @@ static void set_window(unsigned int plane,
 		val |= (pdata->enable & 1) << plane;
 		lcd->winenable = val;
 	}
-	au_sync();
+	wmb(); /* drain writebuffer */
 }
 
 static void get_window(unsigned int plane,
@@ -1414,7 +1413,7 @@ static void get_window(unsigned int plane,
 	pdata->ram_array_mode = (lcd->window[plane].winctrl2 & LCD_WINCTRL2_RAM) >> 21;
 
 	pdata->enable = (lcd->winenable >> plane) & 1;
-	au_sync();
+	wmb(); /* drain writebuffer */
 }
 
 static int au1200fb_ioctl(struct fb_info *info, unsigned int cmd,
@@ -1511,7 +1510,7 @@ static irqreturn_t au1200fb_handle_irq(int irq, void* dev_id)
 {
 	/* Nothing to do for now, just clear any pending interrupt */
 	lcd->intstatus = lcd->intstatus;
-	au_sync();
+	wmb(); /* drain writebuffer */
 
 	return IRQ_HANDLED;
 }
@@ -1809,7 +1808,7 @@ static int au1200fb_drv_suspend(struct device *dev)
 	au1200_setpanel(NULL, pd);
 
 	lcd->outmask = 0;
-	au_sync();
+	wmb(); /* drain writebuffer */
 
 	return 0;
 }
