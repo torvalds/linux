@@ -294,15 +294,19 @@ struct vb2_buffer {
  *			of already queued buffers in count parameter; driver
  *			can return an error if hardware fails, in that case all
  *			buffers that have been already given by the @buf_queue
- *			callback are invalidated.
- *			If there were not enough queued buffers to start
- *			streaming, then this callback returns -ENOBUFS, and the
- *			vb2 core will retry calling @start_streaming when a new
- *			buffer is queued.
+ *			callback are to be returned by the driver by calling
+ *			@vb2_buffer_done(VB2_BUF_STATE_DEQUEUED).
+ *			If you need a minimum number of buffers before you can
+ *			start streaming, then set @min_buffers_needed in the
+ *			vb2_queue structure. If that is non-zero then
+ *			start_streaming won't be called until at least that
+ *			many buffers have been queued up by userspace.
  * @stop_streaming:	called when 'streaming' state must be disabled; driver
  *			should stop any DMA transactions or wait until they
  *			finish and give back all buffers it got from buf_queue()
- *			callback; may use vb2_wait_for_all_buffers() function
+ *			callback by calling @vb2_buffer_done() with either
+ *			VB2_BUF_STATE_DONE or VB2_BUF_STATE_ERROR; may use
+ *			vb2_wait_for_all_buffers() function
  * @buf_queue:		passes buffer vb to the driver; driver may start
  *			hardware operation on this buffer; driver should give
  *			the buffer back by calling vb2_buffer_done() function;
