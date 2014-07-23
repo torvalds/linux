@@ -1154,7 +1154,7 @@ static void doPowerAutoCorrection(struct bcm_mini_adapter *psAdapter)
 	reporting_mode = ntohl(psAdapter->pstargetparams->m_u32PowerSavingModeOptions) & 0x02;
 	psAdapter->bIsAutoCorrectEnabled = !((char)(psAdapter->ulPowerSaveMode >> 3) & 0x1);
 
-	if (reporting_mode == TRUE) {
+	if (reporting_mode) {
 		BCM_DEBUG_PRINT(psAdapter, DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "can't do suspen/resume as reporting mode is enable");
 		psAdapter->bDoSuspend = false;
 	}
