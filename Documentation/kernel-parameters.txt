@@ -2790,6 +2790,12 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			leaf rcu_node structure.  Useful for very large
 			systems.
 
+	rcutree.jiffies_till_sched_qs= [KNL]
+			Set required age in jiffies for a
+			given grace period before RCU starts
+			soliciting quiescent-state help from
+			rcu_note_context_switch().
+
 	rcutree.jiffies_till_first_fqs= [KNL]
 			Set delay from grace-period initialization to
 			first attempt to force quiescent states.
@@ -3526,7 +3532,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			the allocated input device; If set to 0, video driver
 			will only send out the event without touching backlight
 			brightness level.
-			default: 0
+			default: 1
 
 	virtio_mmio.device=
 			[VMMIO] Memory mapped virtio (platform) device.

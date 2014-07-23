@@ -150,7 +150,7 @@ int dns_query(const char *type, const char *name, size_t namelen,
 		goto put;
 
 	memcpy(*_result, upayload->data, len);
-	*_result[len] = '\0';
+	(*_result)[len] = '\0';
 
 	if (_expiry)
 		*_expiry = rkey->expiry;

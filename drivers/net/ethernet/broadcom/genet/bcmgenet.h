@@ -331,9 +331,9 @@ struct bcmgenet_mib_counters {
 #define  EXT_ENERGY_DET_MASK		(1 << 12)
 
 #define EXT_RGMII_OOB_CTRL		0x0C
-#define  RGMII_MODE_EN			(1 << 0)
 #define  RGMII_LINK			(1 << 4)
 #define  OOB_DISABLE			(1 << 5)
+#define  RGMII_MODE_EN			(1 << 6)
 #define  ID_MODE_DIS			(1 << 16)
 
 #define EXT_GPHY_CTRL			0x1C

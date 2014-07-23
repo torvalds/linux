@@ -704,15 +704,41 @@ static int af9035_read_config(struct dvb_usb_device *d)
 		if (ret < 0)
 			goto err;
 
-		if (tmp == 0x00)
-			dev_dbg(&d->udev->dev,
-					"%s: [%d]tuner not set, using default\n",
-					__func__, i);
-		else
-			state->af9033_config[i].tuner = tmp;
-
 		dev_dbg(&d->udev->dev, "%s: [%d]tuner=%02x\n",
-				__func__, i, state->af9033_config[i].tuner);
+				__func__, i, tmp);
+
+		/* tuner sanity check */
+		if (state->chip_type == 0x9135) {
+			if (state->chip_version == 0x02) {
+				/* IT9135 BX (v2) */
+				switch (tmp) {
+				case AF9033_TUNER_IT9135_60:
+				case AF9033_TUNER_IT9135_61:
+				case AF9033_TUNER_IT9135_62:
+					state->af9033_config[i].tuner = tmp;
+					break;
+				}
+			} else {
+				/* IT9135 AX (v1) */
+				switch (tmp) {
+				case AF9033_TUNER_IT9135_38:
+				case AF9033_TUNER_IT9135_51:
+				case AF9033_TUNER_IT9135_52:
+					state->af9033_config[i].tuner = tmp;
+					break;
+				}
+			}
+		} else {
+			/* AF9035 */
+			state->af9033_config[i].tuner = tmp;
+		}
+
+		if (state->af9033_config[i].tuner != tmp) {
+			dev_info(&d->udev->dev,
+					"%s: [%d] overriding tuner from %02x to %02x\n",
+					KBUILD_MODNAME, i, tmp,
+					state->af9033_config[i].tuner);
+		}
 
 		switch (state->af9033_config[i].tuner) {
 		case AF9033_TUNER_TUA9001:
