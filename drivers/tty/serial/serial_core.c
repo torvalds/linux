@@ -2618,7 +2618,7 @@ int uart_add_one_port(struct uart_driver *drv, struct uart_port *uport)
 	if (uport->attr_group)
 		num_groups++;
 
-	uport->tty_groups = kcalloc(num_groups, sizeof(**uport->tty_groups),
+	uport->tty_groups = kcalloc(num_groups, sizeof(*uport->tty_groups),
 				    GFP_KERNEL);
 	if (!uport->tty_groups) {
 		ret = -ENOMEM;
