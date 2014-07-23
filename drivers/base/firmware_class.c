@@ -906,7 +906,9 @@ static int _request_firmware_load(struct firmware_priv *fw_priv,
 	wait_for_completion(&buf->completion);
 
 	cancel_delayed_work_sync(&fw_priv->timeout_work);
-	if (!buf->data)
+	if (is_fw_load_aborted(buf))
+		retval = -EAGAIN;
+	else if (!buf->data)
 		retval = -ENOMEM;
 
 	device_remove_file(f_dev, &dev_attr_loading);
