@@ -54,6 +54,19 @@
 			gpio = <&gpio4 10 0>;
 			enable-active-high;
 		};
+
+		reg_pcie: regulator@3 {
+			compatible = "regulator-fixed";
+			reg = <3>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_pcie_reg>;
+			regulator-name = "MPCIE_3V3";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			gpio = <&gpio3 19 0>;
+			regulator-always-on;
+			enable-active-high;
+		};
 	};
 
 	gpio-keys {
@@ -397,6 +410,12 @@
 		pinctrl_pcie: pciegrp {
 			fsl,pins = <
 				MX6QDL_PAD_GPIO_17__GPIO7_IO12	0x80000000
+			>;
+		};
+
+		pinctrl_pcie_reg: pciereggrp {
+			fsl,pins = <
+				MX6QDL_PAD_EIM_D19__GPIO3_IO19	0x1b0b0
 			>;
 		};
 
