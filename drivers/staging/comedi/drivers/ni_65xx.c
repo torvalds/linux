@@ -365,6 +365,16 @@ static void ni_65xx_update_edge_detection(struct comedi_device *dev,
 	}
 }
 
+static void ni_65xx_disable_edge_detection(struct comedi_device *dev)
+{
+	/* clear edge detection for channels 0 to 31 */
+	ni_65xx_update_edge_detection(dev, 0, 0, 0);
+	/* clear edge detection for channels 32 to 63 */
+	ni_65xx_update_edge_detection(dev, 32, 0, 0);
+	/* clear edge detection for channels 64 to 95 */
+	ni_65xx_update_edge_detection(dev, 64, 0, 0);
+}
+
 static int ni_65xx_dio_insn_config(struct comedi_device *dev,
 				   struct comedi_subdevice *s,
 				   struct comedi_insn *insn,
@@ -599,10 +609,33 @@ static int ni_65xx_intr_insn_config(struct comedi_device *dev,
 		if (insn->n != 3)
 			return -EINVAL;
 
-		/*
-		 * This only works for the first 4 ports (32 channels)!
-		 */
+		/* update edge detection for channels 0 to 31 */
 		ni_65xx_update_edge_detection(dev, 0, data[1], data[2]);
+		/* clear edge detection for channels 32 to 63 */
+		ni_65xx_update_edge_detection(dev, 32, 0, 0);
+		/* clear edge detection for channels 64 to 95 */
+		ni_65xx_update_edge_detection(dev, 64, 0, 0);
+		break;
+	case INSN_CONFIG_DIGITAL_TRIG:
+		/* check trigger number */
+		if (data[1] != 0)
+			return -EINVAL;
+		/* check digital trigger operation */
+		switch (data[2]) {
+		case COMEDI_DIGITAL_TRIG_DISABLE:
+			ni_65xx_disable_edge_detection(dev);
+			break;
+		case COMEDI_DIGITAL_TRIG_ENABLE_EDGES:
+			/*
+			 * update edge detection for channels data[3]
+			 * to (data[3] + 31)
+			 */
+			ni_65xx_update_edge_detection(dev, data[3],
+						      data[4], data[5]);
+			break;
+		default:
+			return -EINVAL;
+		}
 		break;
 	default:
 		return -EINVAL;
