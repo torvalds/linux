@@ -228,4 +228,60 @@ struct coda_ctx {
 	struct dentry			*debugfs_entry;
 };
 
+extern int coda_debug;
+
+void coda_write(struct coda_dev *dev, u32 data, u32 reg);
+unsigned int coda_read(struct coda_dev *dev, u32 reg);
+
+int coda_alloc_aux_buf(struct coda_dev *dev, struct coda_aux_buf *buf,
+		       size_t size, const char *name, struct dentry *parent);
+void coda_free_aux_buf(struct coda_dev *dev, struct coda_aux_buf *buf);
+
+static inline int coda_alloc_context_buf(struct coda_ctx *ctx,
+					 struct coda_aux_buf *buf, size_t size,
+					 const char *name)
+{
+	return coda_alloc_aux_buf(ctx->dev, buf, size, name, ctx->debugfs_entry);
+}
+
+int coda_encoder_queue_init(void *priv, struct vb2_queue *src_vq,
+			    struct vb2_queue *dst_vq);
+int coda_decoder_queue_init(void *priv, struct vb2_queue *src_vq,
+			    struct vb2_queue *dst_vq);
+
+int coda_hw_reset(struct coda_ctx *ctx);
+
+void coda_fill_bitstream(struct coda_ctx *ctx);
+
+void coda_set_gdi_regs(struct coda_ctx *ctx);
+
+static inline struct coda_q_data *get_q_data(struct coda_ctx *ctx,
+					     enum v4l2_buf_type type)
+{
+	switch (type) {
+	case V4L2_BUF_TYPE_VIDEO_OUTPUT:
+		return &(ctx->q_data[V4L2_M2M_SRC]);
+	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
+		return &(ctx->q_data[V4L2_M2M_DST]);
+	default:
+		return NULL;
+	}
+}
+
+const char *coda_product_name(int product);
+
+int coda_check_firmware(struct coda_dev *dev);
+
+static inline int coda_get_bitstream_payload(struct coda_ctx *ctx)
+{
+	return kfifo_len(&ctx->bitstream_fifo);
+}
+
+void coda_bit_stream_end_flag(struct coda_ctx *ctx);
+
 int coda_h264_padding(int size, char *p);
+
+extern const struct coda_context_ops coda_bit_encode_ops;
+extern const struct coda_context_ops coda_bit_decode_ops;
+
+irqreturn_t coda_irq_handler(int irq, void *data);
