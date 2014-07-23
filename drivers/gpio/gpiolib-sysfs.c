@@ -804,7 +804,7 @@ static int __init gpiolib_sysfs_init(void)
 	 */
 	spin_lock_irqsave(&gpio_lock, flags);
 	list_for_each_entry(chip, &gpio_chips, list) {
-		if (!chip || chip->exported)
+		if (chip->exported)
 			continue;
 
 		/*
