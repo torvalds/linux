@@ -76,7 +76,7 @@ extern void armada_370_xp_cpu_resume(void);
 static void *mvebu_cpu_resume;
 
 static struct platform_device mvebu_v7_cpuidle_device = {
-	.name = "cpuidle-armada-370-xp",
+	.name = "cpuidle-armada-xp",
 };
 
 static struct of_device_id of_pmsu_table[] = {

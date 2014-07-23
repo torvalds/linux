@@ -21,12 +21,11 @@
 #include <linux/platform_device.h>
 #include <asm/cpuidle.h>
 
-#define ARMADA_370_XP_MAX_STATES	3
-#define ARMADA_370_XP_FLAG_DEEP_IDLE	0x10000
+#define MVEBU_V7_FLAG_DEEP_IDLE	0x10000
 
-static int (*armada_370_xp_cpu_suspend)(int);
+static int (*mvebu_v7_cpu_suspend)(int);
 
-static int armada_370_xp_enter_idle(struct cpuidle_device *dev,
+static int mvebu_v7_enter_idle(struct cpuidle_device *dev,
 				struct cpuidle_driver *drv,
 				int index)
 {
@@ -34,10 +33,10 @@ static int armada_370_xp_enter_idle(struct cpuidle_device *dev,
 	bool deepidle = false;
 	cpu_pm_enter();
 
-	if (drv->states[index].flags & ARMADA_370_XP_FLAG_DEEP_IDLE)
+	if (drv->states[index].flags & MVEBU_V7_FLAG_DEEP_IDLE)
 		deepidle = true;
 
-	ret = armada_370_xp_cpu_suspend(deepidle);
+	ret = mvebu_v7_cpu_suspend(deepidle);
 	if (ret)
 		return ret;
 
@@ -46,11 +45,11 @@ static int armada_370_xp_enter_idle(struct cpuidle_device *dev,
 	return index;
 }
 
-static struct cpuidle_driver armada_370_xp_idle_driver = {
-	.name			= "armada_370_xp_idle",
+static struct cpuidle_driver armadaxp_idle_driver = {
+	.name			= "armada_xp_idle",
 	.states[0]		= ARM_CPUIDLE_WFI_STATE,
 	.states[1]		= {
-		.enter			= armada_370_xp_enter_idle,
+		.enter			= mvebu_v7_enter_idle,
 		.exit_latency		= 10,
 		.power_usage		= 50,
 		.target_residency	= 100,
@@ -59,35 +58,35 @@ static struct cpuidle_driver armada_370_xp_idle_driver = {
 		.desc			= "CPU power down",
 	},
 	.states[2]		= {
-		.enter			= armada_370_xp_enter_idle,
+		.enter			= mvebu_v7_enter_idle,
 		.exit_latency		= 100,
 		.power_usage		= 5,
 		.target_residency	= 1000,
 		.flags			= CPUIDLE_FLAG_TIME_VALID |
-						ARMADA_370_XP_FLAG_DEEP_IDLE,
+						MVEBU_V7_FLAG_DEEP_IDLE,
 		.name			= "MV CPU DEEP IDLE",
 		.desc			= "CPU and L2 Fabric power down",
 	},
-	.state_count = ARMADA_370_XP_MAX_STATES,
+	.state_count = 3,
 };
 
-static int armada_370_xp_cpuidle_probe(struct platform_device *pdev)
+static int mvebu_v7_cpuidle_probe(struct platform_device *pdev)
 {
 
-	armada_370_xp_cpu_suspend = (void *)(pdev->dev.platform_data);
-	return cpuidle_register(&armada_370_xp_idle_driver, NULL);
+	mvebu_v7_cpu_suspend = pdev->dev.platform_data;
+	return cpuidle_register(&armadaxp_idle_driver, NULL);
 }
 
-static struct platform_driver armada_370_xp_cpuidle_plat_driver = {
+static struct platform_driver armadaxp_cpuidle_plat_driver = {
 	.driver = {
-		.name = "cpuidle-armada-370-xp",
+		.name = "cpuidle-armada-xp",
 		.owner = THIS_MODULE,
 	},
-	.probe = armada_370_xp_cpuidle_probe,
+	.probe = mvebu_v7_cpuidle_probe,
 };
 
-module_platform_driver(armada_370_xp_cpuidle_plat_driver);
+module_platform_driver(armadaxp_cpuidle_plat_driver);
 
 MODULE_AUTHOR("Gregory CLEMENT <gregory.clement@free-electrons.com>");
-MODULE_DESCRIPTION("Armada 370/XP cpu idle driver");
+MODULE_DESCRIPTION("Marvell EBU v7 cpuidle driver");
 MODULE_LICENSE("GPL");
