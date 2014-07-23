@@ -151,7 +151,7 @@ static void au1550_nand_cmd_ctrl(struct mtd_info *mtd, int cmd,
 
 static int au1550_nand_device_ready(struct mtd_info *mtd)
 {
-	return __raw_readl((void __iomem *)MEM_STSTAT) & 1;
+	return alchemy_rdsmem(AU1000_MEM_STSTAT) & 1;
 }
 
 static struct mtd_partition db1550_nand_parts[] = {
@@ -217,7 +217,7 @@ static struct platform_device pb1550_nand_dev = {
 
 static void __init pb1550_nand_setup(void)
 {
-	int boot_swapboot = (au_readl(MEM_STSTAT) & (0x7 << 1)) |
+	int boot_swapboot = (alchemy_rdsmem(AU1000_MEM_STSTAT) & (0x7 << 1)) |
 			    ((bcsr_read(BCSR_STATUS) >> 6) & 0x1);
 
 	gpio_direction_input(206);	/* de-assert NAND CS# */

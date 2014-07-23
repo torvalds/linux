@@ -246,7 +246,7 @@ static void au1200_nand_cmd_ctrl(struct mtd_info *mtd, int cmd,
 
 static int au1200_nand_device_ready(struct mtd_info *mtd)
 {
-	return __raw_readl((void __iomem *)MEM_STSTAT) & 1;
+	return alchemy_rdsmem(AU1000_MEM_STSTAT) & 1;
 }
 
 static struct mtd_partition db1200_nand_parts[] = {

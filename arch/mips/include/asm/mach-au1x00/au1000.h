@@ -309,25 +309,21 @@
 #define AU1550_MEM_SDSREF		0x08D0
 #define AU1550_MEM_SDSLEEP		MEM_SDSREF
 
-/* Static Bus Controller */
-#define MEM_STCFG0		0xB4001000
-#define MEM_STTIME0		0xB4001004
-#define MEM_STADDR0		0xB4001008
-
-#define MEM_STCFG1		0xB4001010
-#define MEM_STTIME1		0xB4001014
-#define MEM_STADDR1		0xB4001018
-
-#define MEM_STCFG2		0xB4001020
-#define MEM_STTIME2		0xB4001024
-#define MEM_STADDR2		0xB4001028
-
-#define MEM_STCFG3		0xB4001030
-#define MEM_STTIME3		0xB4001034
-#define MEM_STADDR3		0xB4001038
-
-#define MEM_STNDCTL		0xB4001100
-#define MEM_STSTAT		0xB4001104
+/* Static Bus Controller register offsets */
+#define AU1000_MEM_STCFG0	0x000
+#define AU1000_MEM_STTIME0	0x004
+#define AU1000_MEM_STADDR0	0x008
+#define AU1000_MEM_STCFG1	0x010
+#define AU1000_MEM_STTIME1	0x014
+#define AU1000_MEM_STADDR1	0x018
+#define AU1000_MEM_STCFG2	0x020
+#define AU1000_MEM_STTIME2	0x024
+#define AU1000_MEM_STADDR2	0x028
+#define AU1000_MEM_STCFG3	0x030
+#define AU1000_MEM_STTIME3	0x034
+#define AU1000_MEM_STADDR3	0x038
+#define AU1000_MEM_STNDCTL	0x100
+#define AU1000_MEM_STSTAT	0x104
 
 #define MEM_STNAND_CMD		0x0
 #define MEM_STNAND_ADDR		0x4
@@ -708,6 +704,22 @@ static inline unsigned long alchemy_rdsys(int regofs)
 static inline void alchemy_wrsys(unsigned long v, int regofs)
 {
 	void __iomem *b = (void __iomem *)KSEG1ADDR(AU1000_SYS_PHYS_ADDR);
+
+	__raw_writel(v, b + regofs);
+	wmb(); /* drain writebuffer */
+}
+
+/* helpers to access static memctrl registers */
+static inline unsigned long alchemy_rdsmem(int regofs)
+{
+	void __iomem *b = (void __iomem *)KSEG1ADDR(AU1000_STATIC_MEM_PHYS_ADDR);
+
+	return __raw_readl(b + regofs);
+}
+
+static inline void alchemy_wrsmem(unsigned long v, int regofs)
+{
+	void __iomem *b = (void __iomem *)KSEG1ADDR(AU1000_STATIC_MEM_PHYS_ADDR);
 
 	__raw_writel(v, b + regofs);
 	wmb(); /* drain writebuffer */

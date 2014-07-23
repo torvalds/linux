@@ -223,12 +223,12 @@ static void au1550_hwcontrol(struct mtd_info *mtd, int cmd)
 
 	case NAND_CTL_SETNCE:
 		/* assert (force assert) chip enable */
-		au_writel((1 << (4 + ctx->cs)), MEM_STNDCTL);
+		alchemy_wrsmem((1 << (4 + ctx->cs)), AU1000_MEM_STNDCTL);
 		break;
 
 	case NAND_CTL_CLRNCE:
 		/* deassert chip enable */
-		au_writel(0, MEM_STNDCTL);
+		alchemy_wrsmem(0, AU1000_MEM_STNDCTL);
 		break;
 	}
 
@@ -240,9 +240,7 @@ static void au1550_hwcontrol(struct mtd_info *mtd, int cmd)
 
 int au1550_device_ready(struct mtd_info *mtd)
 {
-	int ret = (au_readl(MEM_STSTAT) & 0x1) ? 1 : 0;
-	au_sync();
-	return ret;
+	return (alchemy_rdsmem(AU1000_MEM_STSTAT) & 0x1) ? 1 : 0;
 }
 
 /**
