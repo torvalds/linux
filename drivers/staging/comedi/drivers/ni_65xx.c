@@ -317,6 +317,54 @@ static void ni_65xx_disable_input_filters(struct comedi_device *dev)
 	writel(0x00000000, devpriv->mmio + NI_65XX_FILTER_REG);
 }
 
+/* updates edge detection for base_chan to base_chan+31 */
+static void ni_65xx_update_edge_detection(struct comedi_device *dev,
+					  unsigned int base_chan,
+					  unsigned int rising,
+					  unsigned int falling)
+{
+	struct ni_65xx_private *devpriv = dev->private;
+	unsigned int num_ports = ni_65xx_num_ports(dev);
+	unsigned int port;
+
+	if (base_chan >= NI_65XX_PORT_TO_CHAN(num_ports))
+		return;
+
+	for (port = NI_65XX_CHAN_TO_PORT(base_chan); port < num_ports; port++) {
+		int bitshift = (int)(NI_65XX_PORT_TO_CHAN(port) - base_chan);
+		unsigned int port_mask, port_rising, port_falling;
+
+		if (bitshift >= 32)
+			break;
+
+		if (bitshift >= 0) {
+			port_mask = ~0U >> bitshift;
+			port_rising = rising >> bitshift;
+			port_falling = falling >> bitshift;
+		} else {
+			port_mask = ~0U << -bitshift;
+			port_rising = rising << -bitshift;
+			port_falling = falling << -bitshift;
+		}
+		if (port_mask & 0xff) {
+			if (~port_mask & 0xff) {
+				port_rising |=
+				    readb(devpriv->mmio +
+					  NI_65XX_RISE_EDGE_ENA_REG(port)) &
+				    ~port_mask;
+				port_falling |=
+				    readb(devpriv->mmio +
+					  NI_65XX_FALL_EDGE_ENA_REG(port)) &
+				    ~port_mask;
+			}
+			writeb(port_rising & 0xff,
+			       devpriv->mmio + NI_65XX_RISE_EDGE_ENA_REG(port));
+			writeb(port_falling & 0xff,
+			       devpriv->mmio + NI_65XX_FALL_EDGE_ENA_REG(port));
+		}
+	}
+}
+
 static int ni_65xx_dio_insn_config(struct comedi_device *dev,
 				   struct comedi_subdevice *s,
 				   struct comedi_insn *insn,
@@ -545,8 +593,6 @@ static int ni_65xx_intr_insn_config(struct comedi_device *dev,
 				    struct comedi_insn *insn,
 				    unsigned int *data)
 {
-	struct ni_65xx_private *devpriv = dev->private;
-
 	switch (data[0]) {
 	case INSN_CONFIG_CHANGE_NOTIFY:
 		/* add instruction to check_insn_config_length() */
@@ -556,26 +602,7 @@ static int ni_65xx_intr_insn_config(struct comedi_device *dev,
 		/*
 		 * This only works for the first 4 ports (32 channels)!
 		 */
-
-		/* set the channels to monitor for rising edges */
-		writeb(data[1] & 0xff,
-		       devpriv->mmio + NI_65XX_RISE_EDGE_ENA_REG(0));
-		writeb((data[1] >> 8) & 0xff,
-		       devpriv->mmio + NI_65XX_RISE_EDGE_ENA_REG(1));
-		writeb((data[1] >> 16) & 0xff,
-		       devpriv->mmio + NI_65XX_RISE_EDGE_ENA_REG(2));
-		writeb((data[1] >> 24) & 0xff,
-		       devpriv->mmio + NI_65XX_RISE_EDGE_ENA_REG(3));
-
-		/* set the channels to monitor for falling edges */
-		writeb(data[2] & 0xff,
-		       devpriv->mmio + NI_65XX_FALL_EDGE_ENA_REG(0));
-		writeb((data[2] >> 8) & 0xff,
-		       devpriv->mmio + NI_65XX_FALL_EDGE_ENA_REG(1));
-		writeb((data[2] >> 16) & 0xff,
-		       devpriv->mmio + NI_65XX_FALL_EDGE_ENA_REG(2));
-		writeb((data[2] >> 24) & 0xff,
-		       devpriv->mmio + NI_65XX_FALL_EDGE_ENA_REG(3));
+		ni_65xx_update_edge_detection(dev, 0, data[1], data[2]);
 		break;
 	default:
 		return -EINVAL;
