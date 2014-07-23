@@ -32,7 +32,7 @@
 #define MAX_DIGEST_SIZE		64
 #define MAX_TAP			8
 
-#define MAX_KEYLEN		56
+#define MAX_KEYLEN		160
 #define MAX_IVLEN		32
 
 struct hash_testvec {
