@@ -575,6 +575,7 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 		      u32 flags, phy_interface_t interface)
 {
 	struct device *d = &phydev->dev;
+	struct module *bus_module;
 	int err;
 
 	/* Assume that if there is no driver, that it doesn't
@@ -597,6 +598,14 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 	if (phydev->attached_dev) {
 		dev_err(&dev->dev, "PHY already attached\n");
 		return -EBUSY;
+	}
+
+	/* Increment the bus module reference count */
+	bus_module = phydev->bus->dev.driver ?
+		     phydev->bus->dev.driver->owner : NULL;
+	if (!try_module_get(bus_module)) {
+		dev_err(&dev->dev, "failed to get the bus module\n");
+		return -EIO;
 	}
 
 	phydev->attached_dev = dev;
@@ -664,6 +673,10 @@ EXPORT_SYMBOL(phy_attach);
 void phy_detach(struct phy_device *phydev)
 {
 	int i;
+
+	if (phydev->bus->dev.driver)
+		module_put(phydev->bus->dev.driver->owner);
+
 	phydev->attached_dev->phydev = NULL;
 	phydev->attached_dev = NULL;
 	phy_suspend(phydev);
