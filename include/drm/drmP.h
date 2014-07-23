@@ -1199,7 +1199,6 @@ extern bool drm_ioctl_flags(unsigned int nr, unsigned int *flags);
 				/* Device support (drm_fops.h) */
 extern struct mutex drm_global_mutex;
 extern int drm_open(struct inode *inode, struct file *filp);
-extern int drm_stub_open(struct inode *inode, struct file *filp);
 extern ssize_t drm_read(struct file *filp, char __user *buffer,
 			size_t count, loff_t *offset);
 extern int drm_release(struct inode *inode, struct file *filp);
@@ -1386,9 +1385,6 @@ extern unsigned int drm_timestamp_precision;
 extern unsigned int drm_timestamp_monotonic;
 
 extern struct class *drm_class;
-extern struct dentry *drm_debugfs_root;
-
-extern struct idr drm_minors_idr;
 
 extern struct drm_local_map *drm_getsarea(struct drm_device *dev);
 

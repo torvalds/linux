@@ -112,45 +112,6 @@ err_undo:
 EXPORT_SYMBOL(drm_open);
 
 /**
- * File \c open operation.
- *
- * \param inode device inode.
- * \param filp file pointer.
- *
- * Puts the dev->fops corresponding to the device minor number into
- * \p filp, call the \c open method, and restore the file operations.
- */
-int drm_stub_open(struct inode *inode, struct file *filp)
-{
-	struct drm_device *dev;
-	struct drm_minor *minor;
-	int err = -ENODEV;
-	const struct file_operations *new_fops;
-
-	DRM_DEBUG("\n");
-
-	mutex_lock(&drm_global_mutex);
-	minor = drm_minor_acquire(iminor(inode));
-	if (IS_ERR(minor))
-		goto out_unlock;
-
-	dev = minor->dev;
-	new_fops = fops_get(dev->driver->fops);
-	if (!new_fops)
-		goto out_release;
-
-	replace_fops(filp, new_fops);
-	if (filp->f_op->open)
-		err = filp->f_op->open(inode, filp);
-
-out_release:
-	drm_minor_release(minor);
-out_unlock:
-	mutex_unlock(&drm_global_mutex);
-	return err;
-}
-
-/**
  * Check whether DRI will run on this CPU.
  *
  * \return non-zero if the DRI will run on this CPU, or zero otherwise.

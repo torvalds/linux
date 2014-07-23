@@ -26,6 +26,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
+#include <linux/debugfs.h>
 #include <linux/fs.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -61,10 +62,10 @@ module_param_named(timestamp_precision_usec, drm_timestamp_precision, int, 0600)
 module_param_named(timestamp_monotonic, drm_timestamp_monotonic, int, 0600);
 
 static DEFINE_SPINLOCK(drm_minor_lock);
-struct idr drm_minors_idr;
+static struct idr drm_minors_idr;
 
 struct class *drm_class;
-struct dentry *drm_debugfs_root;
+static struct dentry *drm_debugfs_root;
 
 int drm_err(const char *func, const char *format, ...)
 {
@@ -787,3 +788,115 @@ int drm_dev_set_unique(struct drm_device *dev, const char *fmt, ...)
 	return dev->unique ? 0 : -ENOMEM;
 }
 EXPORT_SYMBOL(drm_dev_set_unique);
+
+/*
+ * DRM Core
+ * The DRM core module initializes all global DRM objects and makes them
+ * available to drivers. Once setup, drivers can probe their respective
+ * devices.
+ * Currently, core management includes:
+ *  - The "DRM-Global" key/value database
+ *  - Global ID management for connectors
+ *  - DRM major number allocation
+ *  - DRM minor management
+ *  - DRM sysfs class
+ *  - DRM debugfs root
+ *
+ * Furthermore, the DRM core provides dynamic char-dev lookups. For each
+ * interface registered on a DRM device, you can request minor numbers from DRM
+ * core. DRM core takes care of major-number management and char-dev
+ * registration. A stub ->open() callback forwards any open() requests to the
+ * registered minor.
+ */
+
+static int drm_stub_open(struct inode *inode, struct file *filp)
+{
+	const struct file_operations *new_fops;
+	struct drm_minor *minor;
+	int err;
+
+	DRM_DEBUG("\n");
+
+	mutex_lock(&drm_global_mutex);
+	minor = drm_minor_acquire(iminor(inode));
+	if (IS_ERR(minor)) {
+		err = PTR_ERR(minor);
+		goto out_unlock;
+	}
+
+	new_fops = fops_get(minor->dev->driver->fops);
+	if (!new_fops) {
+		err = -ENODEV;
+		goto out_release;
+	}
+
+	replace_fops(filp, new_fops);
+	if (filp->f_op->open)
+		err = filp->f_op->open(inode, filp);
+	else
+		err = 0;
+
+out_release:
+	drm_minor_release(minor);
+out_unlock:
+	mutex_unlock(&drm_global_mutex);
+	return err;
+}
+
+static const struct file_operations drm_stub_fops = {
+	.owner = THIS_MODULE,
+	.open = drm_stub_open,
+	.llseek = noop_llseek,
+};
+
+static int __init drm_core_init(void)
+{
+	int ret = -ENOMEM;
+
+	drm_global_init();
+	drm_connector_ida_init();
+	idr_init(&drm_minors_idr);
+
+	if (register_chrdev(DRM_MAJOR, "drm", &drm_stub_fops))
+		goto err_p1;
+
+	drm_class = drm_sysfs_create(THIS_MODULE, "drm");
+	if (IS_ERR(drm_class)) {
+		printk(KERN_ERR "DRM: Error creating drm class.\n");
+		ret = PTR_ERR(drm_class);
+		goto err_p2;
+	}
+
+	drm_debugfs_root = debugfs_create_dir("dri", NULL);
+	if (!drm_debugfs_root) {
+		DRM_ERROR("Cannot create /sys/kernel/debug/dri\n");
+		ret = -1;
+		goto err_p3;
+	}
+
+	DRM_INFO("Initialized %s %d.%d.%d %s\n",
+		 CORE_NAME, CORE_MAJOR, CORE_MINOR, CORE_PATCHLEVEL, CORE_DATE);
+	return 0;
+err_p3:
+	drm_sysfs_destroy();
+err_p2:
+	unregister_chrdev(DRM_MAJOR, "drm");
+
+	idr_destroy(&drm_minors_idr);
+err_p1:
+	return ret;
+}
+
+static void __exit drm_core_exit(void)
+{
+	debugfs_remove(drm_debugfs_root);
+	drm_sysfs_destroy();
+
+	unregister_chrdev(DRM_MAJOR, "drm");
+
+	drm_connector_ida_destroy();
+	idr_destroy(&drm_minors_idr);
+}
+
+module_init(drm_core_init);
+module_exit(drm_core_exit);

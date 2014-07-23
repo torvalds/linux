@@ -171,65 +171,6 @@ static const struct drm_ioctl_desc drm_ioctls[] = {
 
 #define DRM_CORE_IOCTL_COUNT	ARRAY_SIZE( drm_ioctls )
 
-/** File operations structure */
-static const struct file_operations drm_stub_fops = {
-	.owner = THIS_MODULE,
-	.open = drm_stub_open,
-	.llseek = noop_llseek,
-};
-
-static int __init drm_core_init(void)
-{
-	int ret = -ENOMEM;
-
-	drm_global_init();
-	drm_connector_ida_init();
-	idr_init(&drm_minors_idr);
-
-	if (register_chrdev(DRM_MAJOR, "drm", &drm_stub_fops))
-		goto err_p1;
-
-	drm_class = drm_sysfs_create(THIS_MODULE, "drm");
-	if (IS_ERR(drm_class)) {
-		printk(KERN_ERR "DRM: Error creating drm class.\n");
-		ret = PTR_ERR(drm_class);
-		goto err_p2;
-	}
-
-	drm_debugfs_root = debugfs_create_dir("dri", NULL);
-	if (!drm_debugfs_root) {
-		DRM_ERROR("Cannot create /sys/kernel/debug/dri\n");
-		ret = -1;
-		goto err_p3;
-	}
-
-	DRM_INFO("Initialized %s %d.%d.%d %s\n",
-		 CORE_NAME, CORE_MAJOR, CORE_MINOR, CORE_PATCHLEVEL, CORE_DATE);
-	return 0;
-err_p3:
-	drm_sysfs_destroy();
-err_p2:
-	unregister_chrdev(DRM_MAJOR, "drm");
-
-	idr_destroy(&drm_minors_idr);
-err_p1:
-	return ret;
-}
-
-static void __exit drm_core_exit(void)
-{
-	debugfs_remove(drm_debugfs_root);
-	drm_sysfs_destroy();
-
-	unregister_chrdev(DRM_MAJOR, "drm");
-
-	drm_connector_ida_destroy();
-	idr_destroy(&drm_minors_idr);
-}
-
-module_init(drm_core_init);
-module_exit(drm_core_exit);
-
 /**
  * Copy and IOCTL return string to user space
  */
