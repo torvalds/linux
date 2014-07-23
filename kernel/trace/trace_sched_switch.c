@@ -14,12 +14,8 @@
 
 #include "trace.h"
 
-static struct trace_array	*ctx_trace;
-static int __read_mostly	tracer_enabled;
 static int			sched_ref;
 static DEFINE_MUTEX(sched_register_mutex);
-static int			sched_stopped;
-
 
 void
 tracing_sched_switch_trace(struct trace_array *tr,
@@ -52,29 +48,11 @@ tracing_sched_switch_trace(struct trace_array *tr,
 static void
 probe_sched_switch(void *ignore, struct task_struct *prev, struct task_struct *next)
 {
-	struct trace_array_cpu *data;
-	unsigned long flags;
-	int cpu;
-	int pc;
-
 	if (unlikely(!sched_ref))
 		return;
 
 	tracing_record_cmdline(prev);
 	tracing_record_cmdline(next);
-
-	if (!tracer_enabled || sched_stopped)
-		return;
-
-	pc = preempt_count();
-	local_irq_save(flags);
-	cpu = raw_smp_processor_id();
-	data = per_cpu_ptr(ctx_trace->trace_buffer.data, cpu);
-
-	if (likely(!atomic_read(&data->disabled)))
-		tracing_sched_switch_trace(ctx_trace, prev, next, flags, pc);
-
-	local_irq_restore(flags);
 }
 
 void
@@ -108,28 +86,10 @@ tracing_sched_wakeup_trace(struct trace_array *tr,
 static void
 probe_sched_wakeup(void *ignore, struct task_struct *wakee, int success)
 {
-	struct trace_array_cpu *data;
-	unsigned long flags;
-	int cpu, pc;
-
 	if (unlikely(!sched_ref))
 		return;
 
 	tracing_record_cmdline(current);
-
-	if (!tracer_enabled || sched_stopped)
-		return;
-
-	pc = preempt_count();
-	local_irq_save(flags);
-	cpu = raw_smp_processor_id();
-	data = per_cpu_ptr(ctx_trace->trace_buffer.data, cpu);
-
-	if (likely(!atomic_read(&data->disabled)))
-		tracing_sched_wakeup_trace(ctx_trace, wakee, current,
-					   flags, pc);
-
-	local_irq_restore(flags);
 }
 
 static int tracing_sched_register(void)
