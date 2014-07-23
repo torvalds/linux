@@ -581,7 +581,6 @@ int __init dw_pcie_host_init(struct pcie_port *pp)
 	dw_pci.private_data = (void **)&pp;
 
 	pci_common_init_dev(pp->dev, &dw_pci);
-	pci_assign_unassigned_resources();
 #ifdef CONFIG_PCI_DOMAINS
 	dw_pci.domain++;
 #endif
