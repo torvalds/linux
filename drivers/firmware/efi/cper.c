@@ -262,7 +262,7 @@ static const char *cper_pcie_port_type_strs[] = {
 };
 
 static void cper_print_pcie(const char *pfx, const struct cper_sec_pcie *pcie,
-			    const struct acpi_generic_data *gdata)
+			    const struct acpi_hest_generic_data *gdata)
 {
 	if (pcie->validation_bits & CPER_PCIE_VALID_PORT_TYPE)
 		printk("%s""port_type: %d, %s\n", pfx, pcie->port_type,
@@ -298,7 +298,7 @@ static void cper_print_pcie(const char *pfx, const struct cper_sec_pcie *pcie,
 }
 
 static void cper_estatus_print_section(
-	const char *pfx, const struct acpi_generic_data *gdata, int sec_no)
+	const char *pfx, const struct acpi_hest_generic_data *gdata, int sec_no)
 {
 	uuid_le *sec_type = (uuid_le *)gdata->section_type;
 	__u16 severity;
@@ -344,9 +344,9 @@ err_section_too_small:
 }
 
 void cper_estatus_print(const char *pfx,
-			const struct acpi_generic_status *estatus)
+			const struct acpi_hest_generic_status *estatus)
 {
-	struct acpi_generic_data *gdata;
+	struct acpi_hest_generic_data *gdata;
 	unsigned int data_len, gedata_len;
 	int sec_no = 0;
 	char newpfx[64];
@@ -359,7 +359,7 @@ void cper_estatus_print(const char *pfx,
 		       "and requires no further action");
 	printk("%s""event severity: %s\n", pfx, cper_severity_str(severity));
 	data_len = estatus->data_length;
-	gdata = (struct acpi_generic_data *)(estatus + 1);
+	gdata = (struct acpi_hest_generic_data *)(estatus + 1);
 	snprintf(newpfx, sizeof(newpfx), "%s%s", pfx, INDENT_SP);
 	while (data_len >= sizeof(*gdata)) {
 		gedata_len = gdata->error_data_length;
@@ -371,10 +371,10 @@ void cper_estatus_print(const char *pfx,
 }
 EXPORT_SYMBOL_GPL(cper_estatus_print);
 
-int cper_estatus_check_header(const struct acpi_generic_status *estatus)
+int cper_estatus_check_header(const struct acpi_hest_generic_status *estatus)
 {
 	if (estatus->data_length &&
-	    estatus->data_length < sizeof(struct acpi_generic_data))
+	    estatus->data_length < sizeof(struct acpi_hest_generic_data))
 		return -EINVAL;
 	if (estatus->raw_data_length &&
 	    estatus->raw_data_offset < sizeof(*estatus) + estatus->data_length)
@@ -384,9 +384,9 @@ int cper_estatus_check_header(const struct acpi_generic_status *estatus)
 }
 EXPORT_SYMBOL_GPL(cper_estatus_check_header);
 
-int cper_estatus_check(const struct acpi_generic_status *estatus)
+int cper_estatus_check(const struct acpi_hest_generic_status *estatus)
 {
-	struct acpi_generic_data *gdata;
+	struct acpi_hest_generic_data *gdata;
 	unsigned int data_len, gedata_len;
 	int rc;
 
@@ -394,7 +394,7 @@ int cper_estatus_check(const struct acpi_generic_status *estatus)
 	if (rc)
 		return rc;
 	data_len = estatus->data_length;
-	gdata = (struct acpi_generic_data *)(estatus + 1);
+	gdata = (struct acpi_hest_generic_data *)(estatus + 1);
 	while (data_len >= sizeof(*gdata)) {
 		gedata_len = gdata->error_data_length;
 		if (gedata_len > data_len - sizeof(*gdata))

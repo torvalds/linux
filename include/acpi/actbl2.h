@@ -516,7 +516,7 @@ struct acpi_dmar_andd {
 	struct acpi_dmar_header header;
 	u8 reserved[3];
 	u8 device_number;
-	u8 object_name[];
+	char object_name[1];
 };
 
 /*******************************************************************************
