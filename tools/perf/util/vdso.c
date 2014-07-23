@@ -28,14 +28,17 @@ struct vdso_info {
 	struct vdso_file vdso;
 };
 
-static struct vdso_info vdso_info_ = {
-	.vdso = {
-		.temp_file_name = VDSO__TEMP_FILE_NAME,
-		.dso_name = VDSO__MAP_NAME,
-	},
-};
+static struct vdso_info *vdso_info__new(void)
+{
+	static const struct vdso_info vdso_info_init = {
+		.vdso    = {
+			.temp_file_name = VDSO__TEMP_FILE_NAME,
+			.dso_name = VDSO__MAP_NAME,
+		},
+	};
 
-static struct vdso_info *vdso_info = &vdso_info_;
+	return memdup(&vdso_info_init, sizeof(vdso_info_init));
+}
 
 static int find_vdso_map(void **start, void **end)
 {
@@ -105,16 +108,32 @@ static char *get_file(struct vdso_file *vdso_file)
 	return vdso;
 }
 
-void vdso__exit(void)
+void vdso__exit(struct machine *machine)
 {
+	struct vdso_info *vdso_info = machine->vdso_info;
+
+	if (!vdso_info)
+		return;
+
 	if (vdso_info->vdso.found)
 		unlink(vdso_info->vdso.temp_file_name);
+
+	zfree(&machine->vdso_info);
 }
 
 struct dso *vdso__dso_findnew(struct machine *machine)
 {
-	struct dso *dso = dsos__find(&machine->user_dsos, VDSO__MAP_NAME, true);
+	struct vdso_info *vdso_info;
+	struct dso *dso;
 
+	if (!machine->vdso_info)
+		machine->vdso_info = vdso_info__new();
+
+	vdso_info = machine->vdso_info;
+	if (!vdso_info)
+		return NULL;
+
+	dso = dsos__find(&machine->user_dsos, VDSO__MAP_NAME, true);
 	if (!dso) {
 		char *file;
 

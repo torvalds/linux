@@ -8,6 +8,7 @@
 #include "sort.h"
 #include "strlist.h"
 #include "thread.h"
+#include "vdso.h"
 #include <stdbool.h>
 #include <symbol/kallsyms.h>
 #include "unwind.h"
@@ -22,6 +23,8 @@ int machine__init(struct machine *machine, const char *root_dir, pid_t pid)
 	machine->threads = RB_ROOT;
 	INIT_LIST_HEAD(&machine->dead_threads);
 	machine->last_match = NULL;
+
+	machine->vdso_info = NULL;
 
 	machine->kmaps.machine = machine;
 	machine->pid = pid;
@@ -105,6 +108,7 @@ void machine__exit(struct machine *machine)
 	map_groups__exit(&machine->kmaps);
 	dsos__delete(&machine->user_dsos);
 	dsos__delete(&machine->kernel_dsos);
+	vdso__exit(machine);
 	zfree(&machine->root_dir);
 	zfree(&machine->current_tid);
 }

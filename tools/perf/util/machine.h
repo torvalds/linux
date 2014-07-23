@@ -20,6 +20,8 @@ union perf_event;
 
 extern const char *ref_reloc_sym_names[];
 
+struct vdso_info;
+
 struct machine {
 	struct rb_node	  rb_node;
 	pid_t		  pid;
@@ -28,6 +30,7 @@ struct machine {
 	struct rb_root	  threads;
 	struct list_head  dead_threads;
 	struct thread	  *last_match;
+	struct vdso_info  *vdso_info;
 	struct list_head  user_dsos;
 	struct list_head  kernel_dsos;
 	struct map_groups kmaps;

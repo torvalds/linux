@@ -15,6 +15,6 @@ static inline bool is_vdso_map(const char *filename)
 struct machine;
 
 struct dso *vdso__dso_findnew(struct machine *machine);
-void vdso__exit(void);
+void vdso__exit(struct machine *machine);
 
 #endif /* __PERF_VDSO__ */
