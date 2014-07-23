@@ -25,6 +25,8 @@
 		gpio0 = &gpio0;
 		gpio1 = &gpio1;
 		gpio2 = &gpio2;
+		ethernet0 = &eth0;
+		ethernet1 = &eth1;
 	};
 
 	clocks {
@@ -156,6 +158,7 @@
 				#size-cells = <0>;
 				compatible = "marvell,orion-mdio";
 				reg = <0xc0054 0x4>;
+				clocks = <&gateclk 19>;
 			};
 
 			/* Network controller */
