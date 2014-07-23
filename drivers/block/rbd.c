@@ -2963,11 +2963,20 @@ static void rbd_watch_cb(u64 ver, u64 notify_id, u8 opcode, void *data)
 	dout("%s: \"%s\" notify_id %llu opcode %u\n", __func__,
 		rbd_dev->header_name, (unsigned long long)notify_id,
 		(unsigned int)opcode);
+
+	/*
+	 * Until adequate refresh error handling is in place, there is
+	 * not much we can do here, except warn.
+	 *
+	 * See http://tracker.ceph.com/issues/5040
+	 */
 	ret = rbd_dev_refresh(rbd_dev);
 	if (ret)
-		rbd_warn(rbd_dev, "header refresh error (%d)\n", ret);
+		rbd_warn(rbd_dev, "refresh failed: %d\n", ret);
 
-	rbd_obj_notify_ack_sync(rbd_dev, notify_id);
+	ret = rbd_obj_notify_ack_sync(rbd_dev, notify_id);
+	if (ret)
+		rbd_warn(rbd_dev, "notify_ack ret %d\n", ret);
 }
 
 /*
@@ -3510,6 +3519,8 @@ static int rbd_dev_refresh(struct rbd_device *rbd_dev)
 	mapping_size = rbd_dev->mapping.size;
 
 	ret = rbd_dev_header_info(rbd_dev);
+	if (ret)
+		return ret;
 
 	/* If it's a mapped snapshot, validate its EXISTS flag */
 
@@ -3520,7 +3531,7 @@ static int rbd_dev_refresh(struct rbd_device *rbd_dev)
 		rbd_dev_update_size(rbd_dev);
 	}
 
-	return ret;
+	return 0;
 }
 
 static int rbd_init_disk(struct rbd_device *rbd_dev)
@@ -3724,9 +3735,9 @@ static ssize_t rbd_image_refresh(struct device *dev,
 
 	ret = rbd_dev_refresh(rbd_dev);
 	if (ret)
-		rbd_warn(rbd_dev, ": manual header refresh error (%d)\n", ret);
+		return ret;
 
-	return ret < 0 ? ret : size;
+	return size;
 }
 
 static DEVICE_ATTR(size, S_IRUGO, rbd_size_show, NULL);
