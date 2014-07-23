@@ -4266,18 +4266,12 @@ static void check_pending_le_conn(struct hci_dev *hdev, bdaddr_t *addr,
 	if (hdev->conn_hash.le_num_slave > 0)
 		return;
 
-	/* If we're connectable, always connect any ADV_DIRECT_IND event */
-	if (test_bit(HCI_CONNECTABLE, &hdev->dev_flags) &&
-	    adv_type == LE_ADV_DIRECT_IND)
-		goto connect;
-
 	/* If we're not connectable only connect devices that we have in
 	 * our pend_le_conns list.
 	 */
 	if (!hci_pend_le_action_lookup(&hdev->pend_le_conns, addr, addr_type))
 		return;
 
-connect:
 	conn = hci_connect_le(hdev, addr, addr_type, BT_SECURITY_LOW,
 			      HCI_LE_AUTOCONN_TIMEOUT, HCI_ROLE_MASTER);
 	if (!IS_ERR(conn))
