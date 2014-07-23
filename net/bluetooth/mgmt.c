@@ -5271,7 +5271,7 @@ static int add_device(struct sock *sk, struct hci_dev *hdev,
 				    MGMT_STATUS_INVALID_PARAMS,
 				    &cp->addr, sizeof(cp->addr));
 
-	if (cp->action != 0x00 && cp->action != 0x01)
+	if (cp->action != 0x00 && cp->action != 0x01 && cp->action != 0x02)
 		return cmd_complete(sk, hdev->id, MGMT_OP_ADD_DEVICE,
 				    MGMT_STATUS_INVALID_PARAMS,
 				    &cp->addr, sizeof(cp->addr));
@@ -5281,7 +5281,7 @@ static int add_device(struct sock *sk, struct hci_dev *hdev,
 	if (cp->addr.type == BDADDR_BREDR) {
 		bool update_scan;
 
-		/* Only "connect" action supported for now */
+		/* Only incoming connections action is supported for now */
 		if (cp->action != 0x01) {
 			err = cmd_complete(sk, hdev->id, MGMT_OP_ADD_DEVICE,
 					   MGMT_STATUS_INVALID_PARAMS,
@@ -5307,8 +5307,10 @@ static int add_device(struct sock *sk, struct hci_dev *hdev,
 	else
 		addr_type = ADDR_LE_DEV_RANDOM;
 
-	if (cp->action)
+	if (cp->action == 0x02)
 		auto_conn = HCI_AUTO_CONN_ALWAYS;
+	else if (cp->action == 0x01)
+		auto_conn = HCI_AUTO_CONN_DIRECT;
 	else
 		auto_conn = HCI_AUTO_CONN_REPORT;
 
@@ -5870,6 +5872,7 @@ static void restart_le_actions(struct hci_dev *hdev)
 		list_del_init(&p->action);
 
 		switch (p->auto_connect) {
+		case HCI_AUTO_CONN_DIRECT:
 		case HCI_AUTO_CONN_ALWAYS:
 			list_add(&p->action, &hdev->pend_le_conns);
 			break;

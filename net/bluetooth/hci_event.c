@@ -2259,6 +2259,7 @@ static void hci_disconn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 				break;
 			/* Fall through */
 
+		case HCI_AUTO_CONN_DIRECT:
 		case HCI_AUTO_CONN_ALWAYS:
 			list_del_init(&params->action);
 			list_add(&params->action, &hdev->pend_le_conns);
@@ -4251,6 +4252,7 @@ static void check_pending_le_conn(struct hci_dev *hdev, bdaddr_t *addr,
 				  u8 addr_type, u8 adv_type)
 {
 	struct hci_conn *conn;
+	struct hci_conn_params *params;
 
 	/* If the event is not connectable don't proceed further */
 	if (adv_type != LE_ADV_IND && adv_type != LE_ADV_DIRECT_IND)
@@ -4269,8 +4271,31 @@ static void check_pending_le_conn(struct hci_dev *hdev, bdaddr_t *addr,
 	/* If we're not connectable only connect devices that we have in
 	 * our pend_le_conns list.
 	 */
-	if (!hci_pend_le_action_lookup(&hdev->pend_le_conns, addr, addr_type))
+	params = hci_pend_le_action_lookup(&hdev->pend_le_conns,
+					   addr, addr_type);
+	if (!params)
 		return;
+
+	switch (params->auto_connect) {
+	case HCI_AUTO_CONN_DIRECT:
+		/* Only devices advertising with ADV_DIRECT_IND are
+		 * triggering a connection attempt. This is allowing
+		 * incoming connections from slave devices.
+		 */
+		if (adv_type != LE_ADV_DIRECT_IND)
+			return;
+		break;
+	case HCI_AUTO_CONN_ALWAYS:
+		/* Devices advertising with ADV_IND or ADV_DIRECT_IND
+		 * are triggering a connection attempt. This means
+		 * that incoming connectioms from slave device are
+		 * accepted and also outgoing connections to slave
+		 * devices are established when found.
+		 */
+		break;
+	default:
+		return;
+	}
 
 	conn = hci_connect_le(hdev, addr, addr_type, BT_SECURITY_LOW,
 			      HCI_LE_AUTOCONN_TIMEOUT, HCI_ROLE_MASTER);
