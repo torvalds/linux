@@ -311,6 +311,16 @@ int iwl_mvm_tx_skb_non_sta(struct iwl_mvm *mvm, struct sk_buff *skb)
 		return -1;
 
 	/*
+	 * IWL_MVM_OFFCHANNEL_QUEUE is used for ROC packets that can be used
+	 * in 2 different types of vifs, P2P & STATION. P2P uses the offchannel
+	 * queue. STATION (HS2.0) uses the auxiliary context of the FW,
+	 * and hence needs to be sent on the aux queue
+	 */
+	if (IEEE80211_SKB_CB(skb)->hw_queue == IWL_MVM_OFFCHANNEL_QUEUE &&
+	    info->control.vif->type == NL80211_IFTYPE_STATION)
+		IEEE80211_SKB_CB(skb)->hw_queue = mvm->aux_queue;
+
+	/*
 	 * If the interface on which frame is sent is the P2P_DEVICE
 	 * or an AP/GO interface use the broadcast station associated
 	 * with it; otherwise use the AUX station.

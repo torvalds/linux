@@ -72,9 +72,6 @@
 #include "iwl-io.h"
 #include "iwl-prph.h"
 
-/* A TimeUnit is 1024 microsecond */
-#define MSEC_TO_TU(_msec)	(_msec*1000/1024)
-
 /*
  * For the high priority TE use a time event type that has similar priority to
  * the FW's action scan priority.
@@ -100,6 +97,21 @@ void iwl_mvm_te_clear_data(struct iwl_mvm *mvm,
 void iwl_mvm_roc_done_wk(struct work_struct *wk)
 {
 	struct iwl_mvm *mvm = container_of(wk, struct iwl_mvm, roc_done_wk);
+	u32 queues = 0;
+
+	/*
+	 * Clear the ROC_RUNNING /ROC_AUX_RUNNING status bit.
+	 * This will cause the TX path to drop offchannel transmissions.
+	 * That would also be done by mac80211, but it is racy, in particular
+	 * in the case that the time event actually completed in the firmware
+	 * (which is handled in iwl_mvm_te_handle_notif).
+	 */
+	if (test_and_clear_bit(IWL_MVM_STATUS_ROC_RUNNING, &mvm->status))
+		queues |= BIT(IWL_MVM_OFFCHANNEL_QUEUE);
+	if (test_and_clear_bit(IWL_MVM_STATUS_ROC_AUX_RUNNING, &mvm->status))
+		queues |= BIT(mvm->aux_queue);
+
+	iwl_mvm_unref(mvm, IWL_MVM_REF_ROC);
 
 	synchronize_net();
 
@@ -113,21 +125,11 @@ void iwl_mvm_roc_done_wk(struct work_struct *wk)
 	 * issue as it will have to complete before the next command is
 	 * executed, and a new time event means a new command.
 	 */
-	iwl_mvm_flush_tx_path(mvm, BIT(IWL_MVM_OFFCHANNEL_QUEUE), false);
+	iwl_mvm_flush_tx_path(mvm, queues, false);
 }
 
 static void iwl_mvm_roc_finished(struct iwl_mvm *mvm)
 {
-	/*
-	 * First, clear the ROC_RUNNING status bit. This will cause the TX
-	 * path to drop offchannel transmissions. That would also be done
-	 * by mac80211, but it is racy, in particular in the case that the
-	 * time event actually completed in the firmware (which is handled
-	 * in iwl_mvm_te_handle_notif).
-	 */
-	clear_bit(IWL_MVM_STATUS_ROC_RUNNING, &mvm->status);
-	iwl_mvm_unref(mvm, IWL_MVM_REF_ROC);
-
 	/*
 	 * Of course, our status bit is just as racy as mac80211, so in
 	 * addition, fire off the work struct which will drop all frames
@@ -263,6 +265,60 @@ static void iwl_mvm_te_handle_notif(struct iwl_mvm *mvm,
 }
 
 /*
+ * Handle A Aux ROC time event
+ */
+static int iwl_mvm_aux_roc_te_handle_notif(struct iwl_mvm *mvm,
+					   struct iwl_time_event_notif *notif)
+{
+	struct iwl_mvm_time_event_data *te_data, *tmp;
+	bool aux_roc_te = false;
+
+	list_for_each_entry_safe(te_data, tmp, &mvm->aux_roc_te_list, list) {
+		if (le32_to_cpu(notif->unique_id) == te_data->uid) {
+			aux_roc_te = true;
+			break;
+		}
+	}
+	if (!aux_roc_te) /* Not a Aux ROC time event */
+		return -EINVAL;
+
+	if (!le32_to_cpu(notif->status)) {
+		IWL_DEBUG_TE(mvm,
+			     "ERROR: Aux ROC Time Event %s notification failure\n",
+			     (le32_to_cpu(notif->action) &
+			      TE_V2_NOTIF_HOST_EVENT_START) ? "start" : "end");
+		return -EINVAL;
+	}
+
+	IWL_DEBUG_TE(mvm,
+		     "Aux ROC time event notification  - UID = 0x%x action %d\n",
+		     le32_to_cpu(notif->unique_id),
+		     le32_to_cpu(notif->action));
+
+	if (le32_to_cpu(notif->action) == TE_V2_NOTIF_HOST_EVENT_END) {
+		/* End TE, notify mac80211 */
+		ieee80211_remain_on_channel_expired(mvm->hw);
+		iwl_mvm_roc_finished(mvm); /* flush aux queue */
+		list_del(&te_data->list); /* remove from list */
+		te_data->running = false;
+		te_data->vif = NULL;
+		te_data->uid = 0;
+	} else if (le32_to_cpu(notif->action) == TE_V2_NOTIF_HOST_EVENT_START) {
+		set_bit(IWL_MVM_STATUS_ROC_RUNNING, &mvm->status);
+		set_bit(IWL_MVM_STATUS_ROC_AUX_RUNNING, &mvm->status);
+		te_data->running = true;
+		ieee80211_ready_on_channel(mvm->hw); /* Start TE */
+	} else {
+		IWL_DEBUG_TE(mvm,
+			     "ERROR: Unknown Aux ROC Time Event (action = %d)\n",
+			     le32_to_cpu(notif->action));
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+/*
  * The Rx handler for time event notifications
  */
 int iwl_mvm_rx_time_event_notif(struct iwl_mvm *mvm,
@@ -278,10 +334,15 @@ int iwl_mvm_rx_time_event_notif(struct iwl_mvm *mvm,
 		     le32_to_cpu(notif->action));
 
 	spin_lock_bh(&mvm->time_event_lock);
+	/* This time event is triggered for Aux ROC request */
+	if (!iwl_mvm_aux_roc_te_handle_notif(mvm, notif))
+		goto unlock;
+
 	list_for_each_entry_safe(te_data, tmp, &mvm->time_event_list, list) {
 		if (le32_to_cpu(notif->unique_id) == te_data->uid)
 			iwl_mvm_te_handle_notif(mvm, te_data, notif);
 	}
+unlock:
 	spin_unlock_bh(&mvm->time_event_lock);
 
 	return 0;

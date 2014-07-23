@@ -99,7 +99,7 @@ enum iwl_disable_11n {
  * @wd_disable: disable stuck queue check, default = 1
  * @bt_coex_active: enable bt coex, default = true
  * @led_mode: system default, default = 0
- * @power_save: disable power save, default = false
+ * @power_save: enable power save, default = false
  * @power_level: power level, default = 1
  * @debug_level: levels are IWL_DL_*
  * @ant_coupling: antenna coupling in dB, default = 0
