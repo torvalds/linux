@@ -21,6 +21,7 @@
 #include "txrx.h"
 #include "debug.h"
 #include "trace.h"
+#include "mac.h"
 
 #include <linux/log2.h>
 
@@ -1422,6 +1423,86 @@ static void ath10k_htt_rx_frm_tx_compl(struct ath10k *ar,
 	}
 }
 
+static void ath10k_htt_rx_addba(struct ath10k *ar, struct htt_resp *resp)
+{
+	struct htt_rx_addba *ev = &resp->rx_addba;
+	struct ath10k_peer *peer;
+	struct ath10k_vif *arvif;
+	u16 info0, tid, peer_id;
+
+	info0 = __le16_to_cpu(ev->info0);
+	tid = MS(info0, HTT_RX_BA_INFO0_TID);
+	peer_id = MS(info0, HTT_RX_BA_INFO0_PEER_ID);
+
+	ath10k_dbg(ATH10K_DBG_HTT,
+		   "htt rx addba tid %hu peer_id %hu size %hhu\n",
+		   tid, peer_id, ev->window_size);
+
+	spin_lock_bh(&ar->data_lock);
+	peer = ath10k_peer_find_by_id(ar, peer_id);
+	if (!peer) {
+		ath10k_warn("received addba event for invalid peer_id: %hu\n",
+			    peer_id);
+		spin_unlock_bh(&ar->data_lock);
+		return;
+	}
+
+	arvif = ath10k_get_arvif(ar, peer->vdev_id);
+	if (!arvif) {
+		ath10k_warn("received addba event for invalid vdev_id: %u\n",
+			    peer->vdev_id);
+		spin_unlock_bh(&ar->data_lock);
+		return;
+	}
+
+	ath10k_dbg(ATH10K_DBG_HTT,
+		   "htt rx start rx ba session sta %pM tid %hu size %hhu\n",
+		   peer->addr, tid, ev->window_size);
+
+	ieee80211_start_rx_ba_session_offl(arvif->vif, peer->addr, tid);
+	spin_unlock_bh(&ar->data_lock);
+}
+
+static void ath10k_htt_rx_delba(struct ath10k *ar, struct htt_resp *resp)
+{
+	struct htt_rx_delba *ev = &resp->rx_delba;
+	struct ath10k_peer *peer;
+	struct ath10k_vif *arvif;
+	u16 info0, tid, peer_id;
+
+	info0 = __le16_to_cpu(ev->info0);
+	tid = MS(info0, HTT_RX_BA_INFO0_TID);
+	peer_id = MS(info0, HTT_RX_BA_INFO0_PEER_ID);
+
+	ath10k_dbg(ATH10K_DBG_HTT,
+		   "htt rx delba tid %hu peer_id %hu\n",
+		   tid, peer_id);
+
+	spin_lock_bh(&ar->data_lock);
+	peer = ath10k_peer_find_by_id(ar, peer_id);
+	if (!peer) {
+		ath10k_warn("received addba event for invalid peer_id: %hu\n",
+			    peer_id);
+		spin_unlock_bh(&ar->data_lock);
+		return;
+	}
+
+	arvif = ath10k_get_arvif(ar, peer->vdev_id);
+	if (!arvif) {
+		ath10k_warn("received addba event for invalid vdev_id: %u\n",
+			    peer->vdev_id);
+		spin_unlock_bh(&ar->data_lock);
+		return;
+	}
+
+	ath10k_dbg(ATH10K_DBG_HTT,
+		   "htt rx stop rx ba session sta %pM tid %hu\n",
+		   peer->addr, tid);
+
+	ieee80211_stop_rx_ba_session_offl(arvif->vif, peer->addr, tid);
+	spin_unlock_bh(&ar->data_lock);
+}
+
 void ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb)
 {
 	struct ath10k_htt *htt = &ar->htt;
@@ -1524,8 +1605,17 @@ void ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb)
 		ath10k_warn("received an unexpected htt tx inspect event\n");
 		break;
 	case HTT_T2H_MSG_TYPE_RX_ADDBA:
+		ath10k_htt_rx_addba(ar, resp);
+		break;
 	case HTT_T2H_MSG_TYPE_RX_DELBA:
-	case HTT_T2H_MSG_TYPE_RX_FLUSH:
+		ath10k_htt_rx_delba(ar, resp);
+		break;
+	case HTT_T2H_MSG_TYPE_RX_FLUSH: {
+		/* Ignore this event because mac80211 takes care of Rx
+		 * aggregation reordering.
+		 */
+		break;
+	}
 	default:
 		ath10k_dbg(ATH10K_DBG_HTT, "htt event (%d) not handled\n",
 			   resp->hdr.msg_type);
