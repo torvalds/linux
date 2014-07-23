@@ -644,6 +644,7 @@ static int mlx4_en_get_qp(struct mlx4_en_priv *priv)
 		goto alloc_err;
 	}
 	memcpy(entry->mac, priv->dev->dev_addr, sizeof(entry->mac));
+	memcpy(priv->current_mac, entry->mac, sizeof(priv->current_mac));
 	entry->reg_id = reg_id;
 
 	hlist_add_head_rcu(&entry->hlist,
@@ -2464,6 +2465,7 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	priv->port = port;
 	priv->port_up = false;
 	priv->flags = prof->flags;
+	priv->pflags = MLX4_EN_PRIV_FLAGS_BLUEFLAME;
 	priv->ctrl_flags = cpu_to_be32(MLX4_WQE_CTRL_CQ_UPDATE |
 			MLX4_WQE_CTRL_SOLICITED);
 	priv->num_tx_rings_p_up = mdev->profile.num_tx_rings_p_up;
