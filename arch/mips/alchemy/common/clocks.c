@@ -38,7 +38,6 @@
 #define AU1000_SRC_CLK	12000000
 
 static unsigned int au1x00_clock; /*  Hz */
-static unsigned long uart_baud_base;
 
 /*
  * Set the au1000_clock
@@ -53,21 +52,6 @@ unsigned int get_au1x00_speed(void)
 	return au1x00_clock;
 }
 EXPORT_SYMBOL(get_au1x00_speed);
-
-/*
- * The UART baud base is not known at compile time ... if
- * we want to be able to use the same code on different
- * speed CPUs.
- */
-unsigned long get_au1x00_uart_baud_base(void)
-{
-	return uart_baud_base;
-}
-
-void set_au1x00_uart_baud_base(unsigned long new_baud_base)
-{
-	uart_baud_base = new_baud_base;
-}
 
 /*
  * We read the real processor speed from the PLL.  This is important
@@ -95,9 +79,6 @@ unsigned long au1xxx_calc_clock(void)
 
 	/* On Alchemy CPU:counter ratio is 1:1 */
 	mips_hpt_frequency = cpu_speed;
-	/* Equation: Baudrate = CPU / (SD * 2 * CLKDIV * 16) */
-	set_au1x00_uart_baud_base(cpu_speed / (2 *
-		((alchemy_rdsys(AU1000_SYS_POWERCTRL) & 0x03) + 2) * 16));
 
 	set_au1x00_speed(cpu_speed);
 
