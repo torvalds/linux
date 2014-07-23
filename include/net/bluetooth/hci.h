@@ -1074,6 +1074,8 @@ struct hci_rp_read_data_block_size {
 	__le16   num_blocks;
 } __packed;
 
+#define HCI_OP_READ_LOCAL_CODECS	0x100b
+
 #define HCI_OP_READ_PAGE_SCAN_ACTIVITY	0x0c1b
 struct hci_rp_read_page_scan_activity {
 	__u8     status;
