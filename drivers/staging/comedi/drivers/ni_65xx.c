@@ -804,6 +804,7 @@ static int ni_65xx_auto_attach(struct comedi_device *dev,
 	}
 
 	ni_65xx_disable_input_filters(dev);
+	ni_65xx_disable_edge_detection(dev);
 
 	return 0;
 }
