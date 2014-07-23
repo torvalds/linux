@@ -41,11 +41,13 @@ void of_node_put(struct device_node *node)
 }
 EXPORT_SYMBOL(of_node_put);
 
-static void of_node_remove(struct device_node *np)
+void __of_detach_node_sysfs(struct device_node *np)
 {
 	struct property *pp;
 
 	BUG_ON(!of_node_is_initialized(np));
+	if (!of_kset)
+		return;
 
 	/* only remove properties if on sysfs */
 	if (of_node_is_attached(np)) {
@@ -115,11 +117,13 @@ int of_attach_node(struct device_node *np)
 	if (rc)
 		return rc;
 
+	mutex_lock(&of_mutex);
 	raw_spin_lock_irqsave(&devtree_lock, flags);
 	__of_attach_node(np);
 	raw_spin_unlock_irqrestore(&devtree_lock, flags);
 
-	of_node_add(np);
+	__of_attach_node_sysfs(np);
+	mutex_unlock(&of_mutex);
 	return 0;
 }
 
@@ -174,11 +178,13 @@ int of_detach_node(struct device_node *np)
 	if (rc)
 		return rc;
 
+	mutex_lock(&of_mutex);
 	raw_spin_lock_irqsave(&devtree_lock, flags);
 	__of_detach_node(np);
 	raw_spin_unlock_irqrestore(&devtree_lock, flags);
 
-	of_node_remove(np);
+	__of_detach_node_sysfs(np);
+	mutex_unlock(&of_mutex);
 	return rc;
 }
 
