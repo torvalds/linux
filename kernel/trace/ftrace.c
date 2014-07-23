@@ -1513,7 +1513,7 @@ static void ftrace_remove_tramp(struct ftrace_ops *ops,
 	 * The tramp_hash entry will be removed at time
 	 * of update.
 	 */
-	ops->trampolines--;
+	ops->nr_trampolines--;
 	rec->flags &= ~FTRACE_FL_TRAMP;
 }
 
@@ -1522,7 +1522,7 @@ static void ftrace_clear_tramps(struct dyn_ftrace *rec)
 	struct ftrace_ops *op;
 
 	do_for_each_ftrace_op(op, ftrace_ops_list) {
-		if (op->trampolines)
+		if (op->nr_trampolines)
 			ftrace_remove_tramp(op, rec);
 	} while_for_each_ftrace_op(op);
 }
@@ -1617,7 +1617,7 @@ static void __ftrace_hash_rec_update(struct ftrace_ops *ops,
 			 */
 			if (ftrace_rec_count(rec) == 1 && ops->trampoline) {
 				rec->flags |= FTRACE_FL_TRAMP;
-				ops->trampolines++;
+				ops->nr_trampolines++;
 			} else {
 				/*
 				 * If we are adding another function callback
@@ -2185,7 +2185,7 @@ static int ftrace_save_ops_tramp_hash(struct ftrace_ops *ops)
 	int size, bits;
 	int ret;
 
-	size = ops->trampolines;
+	size = ops->nr_trampolines;
 	bits = 0;
 	/*
 	 * Make the hash size about 1/2 the # found
@@ -2239,7 +2239,7 @@ static int ftrace_save_tramp_hashes(void)
 		free_ftrace_hash(op->tramp_hash);
 		op->tramp_hash = NULL;
 
-		if (op->trampolines) {
+		if (op->nr_trampolines) {
 			ret = ftrace_save_ops_tramp_hash(op);
 			if (ret)
 				return ret;

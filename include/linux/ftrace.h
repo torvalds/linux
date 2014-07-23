@@ -120,7 +120,7 @@ struct ftrace_ops {
 	void				*private;
 	int __percpu			*disabled;
 #ifdef CONFIG_DYNAMIC_FTRACE
-	int				trampolines;
+	int				nr_trampolines;
 	struct ftrace_hash		*notrace_hash;
 	struct ftrace_hash		*filter_hash;
 	struct ftrace_hash		*tramp_hash;
