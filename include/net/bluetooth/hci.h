@@ -1172,6 +1172,8 @@ struct hci_rp_write_remote_amp_assoc {
 	__u8     phy_handle;
 } __packed;
 
+#define HCI_OP_GET_MWS_TRANSPORT_CONFIG	0x140c
+
 #define HCI_OP_ENABLE_DUT_MODE		0x1803
 
 #define HCI_OP_WRITE_SSP_DEBUG_MODE	0x1804
