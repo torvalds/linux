@@ -72,16 +72,6 @@ typedef elf_fpreg_t elf_fpregset_t[ELF_NFPREG];
 
 #include <asm/processor.h>
 
-/* These MUST be defined before elf.h gets included */
-extern void elf32_core_copy_regs(elf_gregset_t grp, struct pt_regs *regs);
-#define ELF_CORE_COPY_REGS(_dest, _regs) elf32_core_copy_regs(_dest, _regs);
-#define ELF_CORE_COPY_TASK_REGS(_tsk, _dest)				\
-({									\
-	int __res = 1;							\
-	elf32_core_copy_regs(*(_dest), task_pt_regs(_tsk));		\
-	__res;								\
-})
-
 #include <linux/module.h>
 #include <linux/elfcore.h>
 #include <linux/compat.h>
@@ -137,28 +127,6 @@ jiffies_to_compat_timeval(unsigned long jiffies, struct compat_timeval *value)
 	u32 rem;
 	value->tv_sec = div_u64_rem(nsec, NSEC_PER_SEC, &rem);
 	value->tv_usec = rem / NSEC_PER_USEC;
-}
-
-void elf32_core_copy_regs(elf_gregset_t grp, struct pt_regs *regs)
-{
-	int i;
-
-	for (i = 0; i < MIPS32_EF_R0; i++)
-		grp[i] = 0;
-	grp[MIPS32_EF_R0] = 0;
-	for (i = 1; i <= 31; i++)
-		grp[MIPS32_EF_R0 + i] = (elf_greg_t) regs->regs[i];
-	grp[MIPS32_EF_R26] = 0;
-	grp[MIPS32_EF_R27] = 0;
-	grp[MIPS32_EF_LO] = (elf_greg_t) regs->lo;
-	grp[MIPS32_EF_HI] = (elf_greg_t) regs->hi;
-	grp[MIPS32_EF_CP0_EPC] = (elf_greg_t) regs->cp0_epc;
-	grp[MIPS32_EF_CP0_BADVADDR] = (elf_greg_t) regs->cp0_badvaddr;
-	grp[MIPS32_EF_CP0_STATUS] = (elf_greg_t) regs->cp0_status;
-	grp[MIPS32_EF_CP0_CAUSE] = (elf_greg_t) regs->cp0_cause;
-#ifdef MIPS32_EF_UNUSED0
-	grp[MIPS32_EF_UNUSED0] = 0;
-#endif
 }
 
 MODULE_DESCRIPTION("Binary format loader for compatibility with o32 Linux/MIPS binaries");
