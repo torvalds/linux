@@ -17,7 +17,7 @@ PROGS := reg_access_test event_attributes_test cycles_test	\
 
 all: $(PROGS)
 
-$(PROGS): ../../harness.c ../event.c ../lib.c ebb.c ebb_handler.S trace.c
+$(PROGS): ../../harness.c ../event.c ../lib.c ebb.c ebb_handler.S trace.c busy_loop.S
 
 instruction_count_test: ../loop.S
 
