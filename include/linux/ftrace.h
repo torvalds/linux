@@ -56,6 +56,8 @@ struct ftrace_ops;
 typedef void (*ftrace_func_t)(unsigned long ip, unsigned long parent_ip,
 			      struct ftrace_ops *op, struct pt_regs *regs);
 
+ftrace_func_t ftrace_ops_get_func(struct ftrace_ops *ops);
+
 /*
  * FTRACE_OPS_FL_* bits denote the state of ftrace_ops struct and are
  * set in the flags member.

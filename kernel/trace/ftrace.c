@@ -259,20 +259,12 @@ static void update_ftrace_function(void)
 	 * then have the mcount trampoline call the function directly.
 	 */
 	if (ftrace_ops_list == &ftrace_list_end ||
-	    (ftrace_ops_list->next == &ftrace_list_end &&
-	     !(ftrace_ops_list->flags & FTRACE_OPS_FL_DYNAMIC) &&
-	     !FTRACE_FORCE_LIST_FUNC)) {
+	    (ftrace_ops_list->next == &ftrace_list_end)) {
+
 		/* Set the ftrace_ops that the arch callback uses */
 		set_function_trace_op = ftrace_ops_list;
-		/*
-		 * If the func handles its own recursion, call it directly.
-		 * Otherwise call the recursion protected function that
-		 * will call the ftrace ops function.
-		 */
-		if (ftrace_ops_list->flags & FTRACE_OPS_FL_RECURSION_SAFE)
-			func = ftrace_ops_list->func;
-		else
-			func = ftrace_ops_recurs_func;
+
+		func = ftrace_ops_get_func(ftrace_ops_list);
 	} else {
 		/* Just use the default ftrace_ops */
 		set_function_trace_op = &ftrace_list_end;
@@ -4854,6 +4846,37 @@ static void ftrace_ops_recurs_func(unsigned long ip, unsigned long parent_ip,
 	op->func(ip, parent_ip, op, regs);
 
 	trace_clear_recursion(bit);
+}
+
+/**
+ * ftrace_ops_get_func - get the function a trampoline should call
+ * @ops: the ops to get the function for
+ *
+ * Normally the mcount trampoline will call the ops->func, but there
+ * are times that it should not. For example, if the ops does not
+ * have its own recursion protection, then it should call the
+ * ftrace_ops_recurs_func() instead.
+ *
+ * Returns the function that the trampoline should call for @ops.
+ */
+ftrace_func_t ftrace_ops_get_func(struct ftrace_ops *ops)
+{
+	/*
+	 * If this is a dynamic ops or we force list func,
+	 * then it needs to call the list anyway.
+	 */
+	if (ops->flags & FTRACE_OPS_FL_DYNAMIC || FTRACE_FORCE_LIST_FUNC)
+		return ftrace_ops_list_func;
+
+	/*
+	 * If the func handles its own recursion, call it directly.
+	 * Otherwise call the recursion protected function that
+	 * will call the ftrace ops function.
+	 */
+	if (!(ops->flags & FTRACE_OPS_FL_RECURSION_SAFE))
+		return ftrace_ops_recurs_func;
+
+	return ops->func;
 }
 
 static void clear_ftrace_swapper(void)
