@@ -206,6 +206,16 @@ config NAU7802
 	  To compile this driver as a module, choose M here: the
 	  module will be called nau7802.
 
+config ROCKCHIP_SARADC
+	tristate "Rockchip SARADC driver"
+	depends on ARCH_ROCKCHIP || (ARM && COMPILE_TEST)
+	help
+	  Say yes here to build support for the SARADC found in SoCs from
+	  Rockchip.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rockchip_saradc.
+
 config TI_ADC081C
 	tristate "Texas Instruments ADC081C021/027"
 	depends on I2C
