@@ -28,8 +28,8 @@
 #include <asm/tlbflush.h>
 #include <asm/setup.h>
 
-unsigned long mc_saved_in_initrd[MAX_UCODE_COUNT];
-struct mc_saved_data {
+static unsigned long mc_saved_in_initrd[MAX_UCODE_COUNT];
+static struct mc_saved_data {
 	unsigned int mc_saved_count;
 	struct microcode_intel **mc_saved;
 } mc_saved_data;
