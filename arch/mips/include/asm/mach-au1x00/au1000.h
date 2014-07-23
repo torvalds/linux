@@ -470,72 +470,8 @@
 
 /* Clock Controller */
 #define AU1000_SYS_FREQCTRL0	0x20
-#  define SYS_FC_FRDIV2_BIT	22
-#  define SYS_FC_FRDIV2_MASK	(0xff << SYS_FC_FRDIV2_BIT)
-#  define SYS_FC_FE2		(1 << 21)
-#  define SYS_FC_FS2		(1 << 20)
-#  define SYS_FC_FRDIV1_BIT	12
-#  define SYS_FC_FRDIV1_MASK	(0xff << SYS_FC_FRDIV1_BIT)
-#  define SYS_FC_FE1		(1 << 11)
-#  define SYS_FC_FS1		(1 << 10)
-#  define SYS_FC_FRDIV0_BIT	2
-#  define SYS_FC_FRDIV0_MASK	(0xff << SYS_FC_FRDIV0_BIT)
-#  define SYS_FC_FE0		(1 << 1)
-#  define SYS_FC_FS0		(1 << 0)
 #define AU1000_SYS_FREQCTRL1	0x24
-#  define SYS_FC_FRDIV5_BIT	22
-#  define SYS_FC_FRDIV5_MASK	(0xff << SYS_FC_FRDIV5_BIT)
-#  define SYS_FC_FE5		(1 << 21)
-#  define SYS_FC_FS5		(1 << 20)
-#  define SYS_FC_FRDIV4_BIT	12
-#  define SYS_FC_FRDIV4_MASK	(0xff << SYS_FC_FRDIV4_BIT)
-#  define SYS_FC_FE4		(1 << 11)
-#  define SYS_FC_FS4		(1 << 10)
-#  define SYS_FC_FRDIV3_BIT	2
-#  define SYS_FC_FRDIV3_MASK	(0xff << SYS_FC_FRDIV3_BIT)
-#  define SYS_FC_FE3		(1 << 1)
-#  define SYS_FC_FS3		(1 << 0)
 #define AU1000_SYS_CLKSRC	0x28
-#  define SYS_CS_ME1_BIT	27
-#  define SYS_CS_ME1_MASK	(0x7 << SYS_CS_ME1_BIT)
-#  define SYS_CS_DE1		(1 << 26)
-#  define SYS_CS_CE1		(1 << 25)
-#  define SYS_CS_ME0_BIT	22
-#  define SYS_CS_ME0_MASK	(0x7 << SYS_CS_ME0_BIT)
-#  define SYS_CS_DE0		(1 << 21)
-#  define SYS_CS_CE0		(1 << 20)
-#  define SYS_CS_MI2_BIT	17
-#  define SYS_CS_MI2_MASK	(0x7 << SYS_CS_MI2_BIT)
-#  define SYS_CS_DI2		(1 << 16)
-#  define SYS_CS_CI2		(1 << 15)
-
-#  define SYS_CS_ML_BIT		7
-#  define SYS_CS_ML_MASK	(0x7 << SYS_CS_ML_BIT)
-#  define SYS_CS_DL		(1 << 6)
-#  define SYS_CS_CL		(1 << 5)
-
-#  define SYS_CS_MUH_BIT	12
-#  define SYS_CS_MUH_MASK	(0x7 << SYS_CS_MUH_BIT)
-#  define SYS_CS_DUH		(1 << 11)
-#  define SYS_CS_CUH		(1 << 10)
-#  define SYS_CS_MUD_BIT	7
-#  define SYS_CS_MUD_MASK	(0x7 << SYS_CS_MUD_BIT)
-#  define SYS_CS_DUD		(1 << 6)
-#  define SYS_CS_CUD		(1 << 5)
-
-#  define SYS_CS_MIR_BIT	2
-#  define SYS_CS_MIR_MASK	(0x7 << SYS_CS_MIR_BIT)
-#  define SYS_CS_DIR		(1 << 1)
-#  define SYS_CS_CIR		(1 << 0)
-
-#  define SYS_CS_MUX_AUX	0x1
-#  define SYS_CS_MUX_FQ0	0x2
-#  define SYS_CS_MUX_FQ1	0x3
-#  define SYS_CS_MUX_FQ2	0x4
-#  define SYS_CS_MUX_FQ3	0x5
-#  define SYS_CS_MUX_FQ4	0x6
-#  define SYS_CS_MUX_FQ5	0x7
-
 #define AU1000_SYS_CPUPLL	0x60
 #define AU1000_SYS_AUXPLL	0x64
 #define AU1300_SYS_AUXPLL2	0x68
@@ -840,11 +776,6 @@ static inline int alchemy_get_macs(int type)
 	}
 	return 0;
 }
-
-/* arch/mips/au1000/common/clocks.c */
-extern void set_au1x00_speed(unsigned int new_freq);
-extern unsigned int get_au1x00_speed(void);
-extern unsigned long au1xxx_calc_clock(void);
 
 /* PM: arch/mips/alchemy/common/sleeper.S, power.c, irq.c */
 void alchemy_sleep_au1000(void);

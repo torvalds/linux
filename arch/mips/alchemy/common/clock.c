@@ -151,7 +151,7 @@ static struct clk __init *alchemy_clk_setup_cpu(const char *parent_name,
 	id.name = ALCHEMY_CPU_CLK;
 	id.parent_names = &parent_name;
 	id.num_parents = 1;
-	id.flags = CLK_IS_BASIC | CLK_IGNORE_UNUSED;
+	id.flags = CLK_IS_BASIC;
 	id.ops = &alchemy_clkops_cpu;
 	h->init = &id;
 
@@ -236,7 +236,7 @@ static struct clk __init *alchemy_clk_setup_aux(const char *parent_name,
 	id.name = name;
 	id.parent_names = &parent_name;
 	id.num_parents = 1;
-	id.flags = CLK_GET_RATE_NOCACHE | CLK_IGNORE_UNUSED;
+	id.flags = CLK_GET_RATE_NOCACHE;
 	id.ops = &alchemy_clkops_aux;
 
 	a->reg = reg;
@@ -743,8 +743,7 @@ static int __init alchemy_clk_init_fgens(int ctype)
 	default:
 		return -ENODEV;
 	}
-	id.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE |
-		   CLK_IGNORE_UNUSED;
+	id.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE;
 
 	a = kzalloc((sizeof(*a)) * 6, GFP_KERNEL);
 	if (!a)
@@ -942,8 +941,7 @@ static int __init alchemy_clk_setup_imux(int ctype)
 	id.ops = &alchemy_clkops_csrc;
 	id.parent_names = (const char **)alchemy_clk_csrc_parents;
 	id.num_parents = 7;
-	id.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE |
-		   CLK_IGNORE_UNUSED;
+	id.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE;
 
 	dt = alchemy_csrc_dt1;
 	switch (ctype) {
