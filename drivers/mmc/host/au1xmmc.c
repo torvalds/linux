@@ -32,6 +32,7 @@
  * (the low to high transition will not occur).
  */
 
+#include <linux/clk.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
@@ -118,6 +119,7 @@ struct au1xmmc_host {
 	struct au1xmmc_platform_data *platdata;
 	struct platform_device *pdev;
 	struct resource *ioarea;
+	struct clk *clk;
 };
 
 /* Status flags used by the host structure */
@@ -597,16 +599,9 @@ static void au1xmmc_cmd_complete(struct au1xmmc_host *host, u32 status)
 
 static void au1xmmc_set_clock(struct au1xmmc_host *host, int rate)
 {
-	unsigned int pbus = get_au1x00_speed();
-	unsigned int divisor;
+	unsigned int pbus = clk_get_rate(host->clk);
+	unsigned int divisor = ((pbus / rate) / 2) - 1;
 	u32 config;
-
-	/* From databook:
-	 * divisor = ((((cpuclock / sbus_divisor) / 2) / mmcclock) / 2) - 1
-	 */
-	pbus /= ((alchemy_rdsys(AU1000_SYS_POWERCTRL) & 0x3) + 2);
-	pbus /= 2;
-	divisor = ((pbus / rate) / 2) - 1;
 
 	config = __raw_readl(HOST_CONFIG(host));
 
@@ -1030,6 +1025,16 @@ static int au1xmmc_probe(struct platform_device *pdev)
 		goto out3;
 	}
 
+	host->clk = clk_get(&pdev->dev, ALCHEMY_PERIPH_CLK);
+	if (IS_ERR(host->clk)) {
+		dev_err(&pdev->dev, "cannot find clock\n");
+		goto out_irq;
+	}
+	if (clk_prepare_enable(host->clk)) {
+		dev_err(&pdev->dev, "cannot enable clock\n");
+		goto out_clk;
+	}
+
 	host->status = HOST_S_IDLE;
 
 	/* board-specific carddetect setup, if any */
@@ -1106,7 +1111,10 @@ out5:
 	if (host->platdata && host->platdata->cd_setup &&
 	    !(mmc->caps & MMC_CAP_NEEDS_POLL))
 		host->platdata->cd_setup(mmc, 0);
-
+out_clk:
+	clk_disable_unprepare(host->clk);
+	clk_put(host->clk);
+out_irq:
 	free_irq(host->irq, host);
 out3:
 	iounmap((void *)host->iobase);
@@ -1147,6 +1155,9 @@ static int au1xmmc_remove(struct platform_device *pdev)
 			au1xmmc_dbdma_shutdown(host);
 
 		au1xmmc_set_power(host, 0);
+
+		clk_disable_unprepare(host->clk);
+		clk_put(host->clk);
 
 		free_irq(host->irq, host);
 		iounmap((void *)host->iobase);
