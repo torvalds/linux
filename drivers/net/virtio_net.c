@@ -725,15 +725,12 @@ static void refill_work(struct work_struct *work)
 	}
 }
 
-static int virtnet_poll(struct napi_struct *napi, int budget)
+static int virtnet_receive(struct receive_queue *rq, int budget)
 {
-	struct receive_queue *rq =
-		container_of(napi, struct receive_queue, napi);
 	struct virtnet_info *vi = rq->vq->vdev->priv;
+	unsigned int len, received = 0;
 	void *buf;
-	unsigned int r, len, received = 0;
 
-again:
 	while (received < budget &&
 	       (buf = virtqueue_get_buf(rq->vq, &len)) != NULL) {
 		receive_buf(rq, buf, len);
@@ -744,6 +741,18 @@ again:
 		if (!try_fill_recv(rq, GFP_ATOMIC))
 			schedule_delayed_work(&vi->refill, 0);
 	}
+
+	return received;
+}
+
+static int virtnet_poll(struct napi_struct *napi, int budget)
+{
+	struct receive_queue *rq =
+		container_of(napi, struct receive_queue, napi);
+	unsigned int r, received = 0;
+
+again:
+	received += virtnet_receive(rq, budget - received);
 
 	/* Out of packets? */
 	if (received < budget) {
