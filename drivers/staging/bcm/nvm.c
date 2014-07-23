@@ -1037,9 +1037,9 @@ static int bulk_read_complete_sector(struct bcm_mini_adapter *ad,
 				     UCHAR read_bk[],
 				     PCHAR tmpbuff,
 				     unsigned int offset,
-				     unsigned int partoff,
-				     unsigned int i)
+				     unsigned int partoff)
 {
+	unsigned int i;
 	int j;
 	int bulk_read_stat;
 	FP_FLASH_WRITE_STATUS writef =
@@ -1213,8 +1213,7 @@ static int BeceemFlashBulkWrite(struct bcm_mini_adapter *Adapter,
 								ucReadBk,
 								pTempBuff,
 								uiOffsetFromSectStart,
-								uiPartOffset,
-								uiIndex)) {
+								uiPartOffset)) {
 			Status = STATUS_FAILURE;
 			goto BeceemFlashBulkWrite_EXIT;
 		}
