@@ -819,6 +819,28 @@ static void kvmppc_restart_interrupt(struct kvm_vcpu *vcpu,
 	}
 }
 
+static int kvmppc_resume_inst_load(struct kvm_run *run, struct kvm_vcpu *vcpu,
+				  enum emulation_result emulated, u32 last_inst)
+{
+	switch (emulated) {
+	case EMULATE_AGAIN:
+		return RESUME_GUEST;
+
+	case EMULATE_FAIL:
+		pr_debug("%s: load instruction from guest address %lx failed\n",
+		       __func__, vcpu->arch.pc);
+		/* For debugging, encode the failing instruction and
+		 * report it to userspace. */
+		run->hw.hardware_exit_reason = ~0ULL << 32;
+		run->hw.hardware_exit_reason |= last_inst;
+		kvmppc_core_queue_program(vcpu, ESR_PIL);
+		return RESUME_HOST;
+
+	default:
+		BUG();
+	}
+}
+
 /**
  * kvmppc_handle_exit
  *
@@ -830,12 +852,28 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	int r = RESUME_HOST;
 	int s;
 	int idx;
+	u32 last_inst = KVM_INST_FETCH_FAILED;
+	enum emulation_result emulated = EMULATE_DONE;
 
 	/* update before a new last_exit_type is rewritten */
 	kvmppc_update_timing_stats(vcpu);
 
 	/* restart interrupts if they were meant for the host */
 	kvmppc_restart_interrupt(vcpu, exit_nr);
+
+	/*
+	 * get last instruction before beeing preempted
+	 * TODO: for e6500 check also BOOKE_INTERRUPT_LRAT_ERROR & ESR_DATA
+	 */
+	switch (exit_nr) {
+	case BOOKE_INTERRUPT_DATA_STORAGE:
+	case BOOKE_INTERRUPT_DTLB_MISS:
+	case BOOKE_INTERRUPT_HV_PRIV:
+		emulated = kvmppc_get_last_inst(vcpu, false, &last_inst);
+		break;
+	default:
+		break;
+	}
 
 	local_irq_enable();
 
@@ -844,6 +882,11 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 
 	run->exit_reason = KVM_EXIT_UNKNOWN;
 	run->ready_for_interrupt_injection = 1;
+
+	if (emulated != EMULATE_DONE) {
+		r = kvmppc_resume_inst_load(run, vcpu, emulated, last_inst);
+		goto out;
+	}
 
 	switch (exit_nr) {
 	case BOOKE_INTERRUPT_MACHINE_CHECK:
@@ -1134,6 +1177,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		BUG();
 	}
 
+out:
 	/*
 	 * To avoid clobbering exit_reason, only check for signals if we
 	 * aren't already exiting to userspace for some other reason.
