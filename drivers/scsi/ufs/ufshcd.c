@@ -1314,7 +1314,7 @@ out:
  * The buf_len parameter will contain, on return, the length parameter
  * received on the response.
  */
-int ufshcd_query_descriptor(struct ufs_hba *hba,
+static int ufshcd_query_descriptor(struct ufs_hba *hba,
 			enum query_opcode opcode, enum desc_idn idn, u8 index,
 			u8 selector, u8 *desc_buf, int *buf_len)
 {
@@ -2018,7 +2018,8 @@ static int ufshcd_slave_alloc(struct scsi_device *sdev)
  * Change queue depth according to the reason and make sure
  * the max. limits are not crossed.
  */
-int ufshcd_change_queue_depth(struct scsi_device *sdev, int depth, int reason)
+static int ufshcd_change_queue_depth(struct scsi_device *sdev,
+		int depth, int reason)
 {
 	struct ufs_hba *hba = shost_priv(sdev->host);
 
