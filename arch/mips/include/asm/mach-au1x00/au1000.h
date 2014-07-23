@@ -1003,38 +1003,6 @@ enum soc_au1200_ints {
 #define SYS_RTCMATCH2		(SYS_BASE + 0x54)
 #define SYS_RTCREAD		(SYS_BASE + 0x58)
 
-/* I2S Controller */
-#define I2S_DATA		0xB1000000
-#  define I2S_DATA_MASK		0xffffff
-#define I2S_CONFIG		0xB1000004
-#  define I2S_CONFIG_XU		(1 << 25)
-#  define I2S_CONFIG_XO		(1 << 24)
-#  define I2S_CONFIG_RU		(1 << 23)
-#  define I2S_CONFIG_RO		(1 << 22)
-#  define I2S_CONFIG_TR		(1 << 21)
-#  define I2S_CONFIG_TE		(1 << 20)
-#  define I2S_CONFIG_TF		(1 << 19)
-#  define I2S_CONFIG_RR		(1 << 18)
-#  define I2S_CONFIG_RE		(1 << 17)
-#  define I2S_CONFIG_RF		(1 << 16)
-#  define I2S_CONFIG_PD		(1 << 11)
-#  define I2S_CONFIG_LB		(1 << 10)
-#  define I2S_CONFIG_IC		(1 << 9)
-#  define I2S_CONFIG_FM_BIT	7
-#  define I2S_CONFIG_FM_MASK	(0x3 << I2S_CONFIG_FM_BIT)
-#    define I2S_CONFIG_FM_I2S	(0x0 << I2S_CONFIG_FM_BIT)
-#    define I2S_CONFIG_FM_LJ	(0x1 << I2S_CONFIG_FM_BIT)
-#    define I2S_CONFIG_FM_RJ	(0x2 << I2S_CONFIG_FM_BIT)
-#  define I2S_CONFIG_TN		(1 << 6)
-#  define I2S_CONFIG_RN		(1 << 5)
-#  define I2S_CONFIG_SZ_BIT	0
-#  define I2S_CONFIG_SZ_MASK	(0x1F << I2S_CONFIG_SZ_BIT)
-
-#define I2S_CONTROL		0xB1000008
-#  define I2S_CONTROL_D		(1 << 1)
-#  define I2S_CONTROL_CE	(1 << 0)
-
-
 /* Ethernet Controllers  */
 
 /* 4 byte offsets from AU1000_ETH_BASE */
@@ -1160,100 +1128,6 @@ enum soc_au1200_ints {
 #define MAC_RX_BUFF2_ADDR	0x24
 #define MAC_RX_BUFF3_STATUS	0x30
 #define MAC_RX_BUFF3_ADDR	0x34
-
-/* SSIO */
-#define SSI0_STATUS		0xB1600000
-#  define SSI_STATUS_BF		(1 << 4)
-#  define SSI_STATUS_OF		(1 << 3)
-#  define SSI_STATUS_UF		(1 << 2)
-#  define SSI_STATUS_D		(1 << 1)
-#  define SSI_STATUS_B		(1 << 0)
-#define SSI0_INT		0xB1600004
-#  define SSI_INT_OI		(1 << 3)
-#  define SSI_INT_UI		(1 << 2)
-#  define SSI_INT_DI		(1 << 1)
-#define SSI0_INT_ENABLE		0xB1600008
-#  define SSI_INTE_OIE		(1 << 3)
-#  define SSI_INTE_UIE		(1 << 2)
-#  define SSI_INTE_DIE		(1 << 1)
-#define SSI0_CONFIG		0xB1600020
-#  define SSI_CONFIG_AO		(1 << 24)
-#  define SSI_CONFIG_DO		(1 << 23)
-#  define SSI_CONFIG_ALEN_BIT	20
-#  define SSI_CONFIG_ALEN_MASK	(0x7 << 20)
-#  define SSI_CONFIG_DLEN_BIT	16
-#  define SSI_CONFIG_DLEN_MASK	(0x7 << 16)
-#  define SSI_CONFIG_DD		(1 << 11)
-#  define SSI_CONFIG_AD		(1 << 10)
-#  define SSI_CONFIG_BM_BIT	8
-#  define SSI_CONFIG_BM_MASK	(0x3 << 8)
-#  define SSI_CONFIG_CE		(1 << 7)
-#  define SSI_CONFIG_DP		(1 << 6)
-#  define SSI_CONFIG_DL		(1 << 5)
-#  define SSI_CONFIG_EP		(1 << 4)
-#define SSI0_ADATA		0xB1600024
-#  define SSI_AD_D		(1 << 24)
-#  define SSI_AD_ADDR_BIT	16
-#  define SSI_AD_ADDR_MASK	(0xff << 16)
-#  define SSI_AD_DATA_BIT	0
-#  define SSI_AD_DATA_MASK	(0xfff << 0)
-#define SSI0_CLKDIV		0xB1600028
-#define SSI0_CONTROL		0xB1600100
-#  define SSI_CONTROL_CD	(1 << 1)
-#  define SSI_CONTROL_E		(1 << 0)
-
-/* SSI1 */
-#define SSI1_STATUS		0xB1680000
-#define SSI1_INT		0xB1680004
-#define SSI1_INT_ENABLE		0xB1680008
-#define SSI1_CONFIG		0xB1680020
-#define SSI1_ADATA		0xB1680024
-#define SSI1_CLKDIV		0xB1680028
-#define SSI1_ENABLE		0xB1680100
-
-/*
- * Register content definitions
- */
-#define SSI_STATUS_BF		(1 << 4)
-#define SSI_STATUS_OF		(1 << 3)
-#define SSI_STATUS_UF		(1 << 2)
-#define SSI_STATUS_D		(1 << 1)
-#define SSI_STATUS_B		(1 << 0)
-
-/* SSI_INT */
-#define SSI_INT_OI		(1 << 3)
-#define SSI_INT_UI		(1 << 2)
-#define SSI_INT_DI		(1 << 1)
-
-/* SSI_INTEN */
-#define SSI_INTEN_OIE		(1 << 3)
-#define SSI_INTEN_UIE		(1 << 2)
-#define SSI_INTEN_DIE		(1 << 1)
-
-#define SSI_CONFIG_AO		(1 << 24)
-#define SSI_CONFIG_DO		(1 << 23)
-#define SSI_CONFIG_ALEN		(7 << 20)
-#define SSI_CONFIG_DLEN		(15 << 16)
-#define SSI_CONFIG_DD		(1 << 11)
-#define SSI_CONFIG_AD		(1 << 10)
-#define SSI_CONFIG_BM		(3 << 8)
-#define SSI_CONFIG_CE		(1 << 7)
-#define SSI_CONFIG_DP		(1 << 6)
-#define SSI_CONFIG_DL		(1 << 5)
-#define SSI_CONFIG_EP		(1 << 4)
-#define SSI_CONFIG_ALEN_N(N)	((N-1) << 20)
-#define SSI_CONFIG_DLEN_N(N)	((N-1) << 16)
-#define SSI_CONFIG_BM_HI	(0 << 8)
-#define SSI_CONFIG_BM_LO	(1 << 8)
-#define SSI_CONFIG_BM_CY	(2 << 8)
-
-#define SSI_ADATA_D		(1 << 24)
-#define SSI_ADATA_ADDR		(0xFF << 16)
-#define SSI_ADATA_DATA		0x0FFF
-#define SSI_ADATA_ADDR_N(N)	(N << 16)
-
-#define SSI_ENABLE_CD		(1 << 1)
-#define SSI_ENABLE_E		(1 << 0)
 
 
 /*
@@ -1423,37 +1297,6 @@ struct au1k_irda_platform_data {
 #  define SYS_CS_MUX_FQ5	0x7
 #define SYS_CPUPLL		0xB1900060
 #define SYS_AUXPLL		0xB1900064
-
-/* AC97 Controller */
-#define AC97C_CONFIG		0xB0000000
-#  define AC97C_RECV_SLOTS_BIT	13
-#  define AC97C_RECV_SLOTS_MASK (0x3ff << AC97C_RECV_SLOTS_BIT)
-#  define AC97C_XMIT_SLOTS_BIT	3
-#  define AC97C_XMIT_SLOTS_MASK (0x3ff << AC97C_XMIT_SLOTS_BIT)
-#  define AC97C_SG		(1 << 2)
-#  define AC97C_SYNC		(1 << 1)
-#  define AC97C_RESET		(1 << 0)
-#define AC97C_STATUS		0xB0000004
-#  define AC97C_XU		(1 << 11)
-#  define AC97C_XO		(1 << 10)
-#  define AC97C_RU		(1 << 9)
-#  define AC97C_RO		(1 << 8)
-#  define AC97C_READY		(1 << 7)
-#  define AC97C_CP		(1 << 6)
-#  define AC97C_TR		(1 << 5)
-#  define AC97C_TE		(1 << 4)
-#  define AC97C_TF		(1 << 3)
-#  define AC97C_RR		(1 << 2)
-#  define AC97C_RE		(1 << 1)
-#  define AC97C_RF		(1 << 0)
-#define AC97C_DATA		0xB0000008
-#define AC97C_CMD		0xB000000C
-#  define AC97C_WD_BIT		16
-#  define AC97C_READ		(1 << 7)
-#  define AC97C_INDEX_MASK	0x7f
-#define AC97C_CNTRL		0xB0000010
-#  define AC97C_RS		(1 << 1)
-#  define AC97C_CE		(1 << 0)
 
 
 /* The PCI chip selects are outside the 32bit space, and since we can't
