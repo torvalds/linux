@@ -3558,9 +3558,10 @@ static int _sched_setscheduler(struct task_struct *p, int policy,
 	};
 
 	/*
-	 * Fixup the legacy SCHED_RESET_ON_FORK hack
+	 * Fixup the legacy SCHED_RESET_ON_FORK hack, except if
+	 * the policy=-1 was passed by sched_setparam().
 	 */
-	if (policy & SCHED_RESET_ON_FORK) {
+	if ((policy != -1) && (policy & SCHED_RESET_ON_FORK)) {
 		attr.sched_flags |= SCHED_FLAG_RESET_ON_FORK;
 		policy &= ~SCHED_RESET_ON_FORK;
 		attr.sched_policy = policy;
