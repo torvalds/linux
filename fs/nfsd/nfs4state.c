@@ -3951,7 +3951,7 @@ laundromat_main(struct work_struct *laundry)
 
 static inline __be32 nfs4_check_fh(struct svc_fh *fhp, struct nfs4_ol_stateid *stp)
 {
-	if (fhp->fh_dentry->d_inode != stp->st_file->fi_inode)
+	if (!nfsd_fh_match(&fhp->fh_handle, &stp->st_file->fi_fhandle))
 		return nfserr_bad_stateid;
 	return nfs_ok;
 }
