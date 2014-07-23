@@ -357,7 +357,6 @@ static void resizer_set_output_size(struct isp_res_device *res,
 	struct isp_device *isp = to_isp_device(res);
 	u32 rgval;
 
-	dev_dbg(isp->dev, "Output size[w/h]: %dx%d\n", width, height);
 	rgval  = (width << ISPRSZ_OUT_SIZE_HORZ_SHIFT)
 		 & ISPRSZ_OUT_SIZE_HORZ_MASK;
 	rgval |= (height << ISPRSZ_OUT_SIZE_VERT_SHIFT)
@@ -420,8 +419,6 @@ static void resizer_set_input_size(struct isp_res_device *res,
 {
 	struct isp_device *isp = to_isp_device(res);
 	u32 rgval;
-
-	dev_dbg(isp->dev, "Input size[w/h]: %dx%d\n", width, height);
 
 	rgval = (width << ISPRSZ_IN_SIZE_HORZ_SHIFT)
 		& ISPRSZ_IN_SIZE_HORZ_MASK;
@@ -1292,12 +1289,10 @@ static int resizer_set_selection(struct v4l2_subdev *sd,
 	format_source = __resizer_get_format(res, fh, RESZ_PAD_SOURCE,
 					     sel->which);
 
-	dev_dbg(isp->dev, "%s: L=%d,T=%d,W=%d,H=%d,which=%d\n", __func__,
-		sel->r.left, sel->r.top, sel->r.width, sel->r.height,
-		sel->which);
-
-	dev_dbg(isp->dev, "%s: input=%dx%d, output=%dx%d\n", __func__,
+	dev_dbg(isp->dev, "%s(%s): req %ux%u -> (%d,%d)/%ux%u -> %ux%u\n",
+		__func__, sel->which == V4L2_SUBDEV_FORMAT_TRY ? "try" : "act",
 		format_sink->width, format_sink->height,
+		sel->r.left, sel->r.top, sel->r.width, sel->r.height,
 		format_source->width, format_source->height);
 
 	/* Clamp the crop rectangle to the bounds, and then mangle it further to
@@ -1311,6 +1306,12 @@ static int resizer_set_selection(struct v4l2_subdev *sd,
 	resizer_try_crop(format_sink, format_source, &sel->r);
 	*__resizer_get_crop(res, fh, sel->which) = sel->r;
 	resizer_calc_ratios(res, &sel->r, format_source, &ratio);
+
+	dev_dbg(isp->dev, "%s(%s): got %ux%u -> (%d,%d)/%ux%u -> %ux%u\n",
+		__func__, sel->which == V4L2_SUBDEV_FORMAT_TRY ? "try" : "act",
+		format_sink->width, format_sink->height,
+		sel->r.left, sel->r.top, sel->r.width, sel->r.height,
+		format_source->width, format_source->height);
 
 	if (sel->which == V4L2_SUBDEV_FORMAT_TRY)
 		return 0;
