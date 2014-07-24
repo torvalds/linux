@@ -174,9 +174,9 @@ static u64 __get_random_u32(u64 ctx, u64 a, u64 x, u64 r4, u64 r5)
 }
 
 static bool convert_bpf_extensions(struct sock_filter *fp,
-				   struct sock_filter_int **insnp)
+				   struct bpf_insn **insnp)
 {
-	struct sock_filter_int *insn = *insnp;
+	struct bpf_insn *insn = *insnp;
 
 	switch (fp->k) {
 	case SKF_AD_OFF + SKF_AD_PROTOCOL:
@@ -326,7 +326,7 @@ static bool convert_bpf_extensions(struct sock_filter *fp,
  *
  * 2) 2nd pass to remap in two passes: 1st pass finds new
  *    jump offsets, 2nd pass remapping:
- *   new_prog = kmalloc(sizeof(struct sock_filter_int) * new_len);
+ *   new_prog = kmalloc(sizeof(struct bpf_insn) * new_len);
  *   sk_convert_filter(old_prog, old_len, new_prog, &new_len);
  *
  * User BPF's register A is mapped to our BPF register 6, user BPF
@@ -336,10 +336,10 @@ static bool convert_bpf_extensions(struct sock_filter *fp,
  * ctx == 'struct seccomp_data *'.
  */
 int sk_convert_filter(struct sock_filter *prog, int len,
-		      struct sock_filter_int *new_prog, int *new_len)
+		      struct bpf_insn *new_prog, int *new_len)
 {
 	int new_flen = 0, pass = 0, target, i;
-	struct sock_filter_int *new_insn;
+	struct bpf_insn *new_insn;
 	struct sock_filter *fp;
 	int *addrs = NULL;
 	u8 bpf_src;
@@ -365,8 +365,8 @@ do_pass:
 	new_insn++;
 
 	for (i = 0; i < len; fp++, i++) {
-		struct sock_filter_int tmp_insns[6] = { };
-		struct sock_filter_int *insn = tmp_insns;
+		struct bpf_insn tmp_insns[6] = { };
+		struct bpf_insn *insn = tmp_insns;
 
 		if (addrs)
 			addrs[i] = new_insn - new_prog;
@@ -913,7 +913,7 @@ static struct sk_filter *__sk_migrate_filter(struct sk_filter *fp,
 	 * representation.
 	 */
 	BUILD_BUG_ON(sizeof(struct sock_filter) !=
-		     sizeof(struct sock_filter_int));
+		     sizeof(struct bpf_insn));
 
 	/* Conversion cannot happen on overlapping memory areas,
 	 * so we need to keep the user BPF around until the 2nd
@@ -945,7 +945,7 @@ static struct sk_filter *__sk_migrate_filter(struct sk_filter *fp,
 
 	fp->len = new_len;
 
-	/* 2nd pass: remap sock_filter insns into sock_filter_int insns. */
+	/* 2nd pass: remap sock_filter insns into bpf_insn insns. */
 	err = sk_convert_filter(old_prog, old_len, fp->insnsi, &new_len);
 	if (err)
 		/* 2nd sk_convert_filter() can fail only if it fails

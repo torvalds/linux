@@ -248,7 +248,7 @@ static long seccomp_attach_filter(struct sock_fprog *fprog)
 	if (ret)
 		goto free_prog;
 
-	/* Convert 'sock_filter' insns to 'sock_filter_int' insns */
+	/* Convert 'sock_filter' insns to 'bpf_insn' insns */
 	ret = sk_convert_filter(fp, fprog->len, NULL, &new_len);
 	if (ret)
 		goto free_prog;

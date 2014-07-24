@@ -214,7 +214,7 @@ struct jit_context {
 static int do_jit(struct sk_filter *bpf_prog, int *addrs, u8 *image,
 		  int oldproglen, struct jit_context *ctx)
 {
-	struct sock_filter_int *insn = bpf_prog->insnsi;
+	struct bpf_insn *insn = bpf_prog->insnsi;
 	int insn_cnt = bpf_prog->len;
 	u8 temp[64];
 	int i;

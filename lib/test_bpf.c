@@ -66,7 +66,7 @@ struct bpf_test {
 	const char *descr;
 	union {
 		struct sock_filter insns[MAX_INSNS];
-		struct sock_filter_int insns_int[MAX_INSNS];
+		struct bpf_insn insns_int[MAX_INSNS];
 	} u;
 	__u8 aux;
 	__u8 data[MAX_DATA];
@@ -1807,7 +1807,7 @@ static struct sk_filter *generate_filter(int which, int *err)
 
 		fp->len = flen;
 		memcpy(fp->insnsi, tests[which].u.insns_int,
-		       fp->len * sizeof(struct sock_filter_int));
+		       fp->len * sizeof(struct bpf_insn));
 
 		sk_filter_select_runtime(fp);
 		break;
