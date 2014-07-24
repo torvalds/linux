@@ -230,9 +230,7 @@ xfs_bulkstat(
 		*ubcountp = 0;
 		return 0;
 	}
-	if (!ubcountp || *ubcountp <= 0) {
-		return -EINVAL;
-	}
+
 	ubcount = *ubcountp; /* statstruct's */
 	ubleft = ubcount * statstruct_size; /* bytes */
 	*ubcountp = ubelem = 0;
