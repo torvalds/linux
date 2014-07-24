@@ -842,7 +842,8 @@ static int asc_console_setup(struct console *co, char *options)
 	 * this to be called during the uart port registration when the
 	 * driver gets probed and the port should be mapped at that point.
 	 */
-	BUG_ON(ascport->port.mapbase == 0 || ascport->port.membase == NULL);
+	if (ascport->port.mapbase == 0 || ascport->port.membase == NULL)
+		return -ENXIO;
 
 	if (options)
 		uart_parse_options(options, &baud, &parity, &bits, &flow);
