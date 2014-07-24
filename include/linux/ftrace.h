@@ -140,7 +140,7 @@ struct ftrace_ops {
 	int				nr_trampolines;
 	struct ftrace_ops_hash		local_hash;
 	struct ftrace_ops_hash		*func_hash;
-	struct ftrace_hash		*tramp_hash;
+	struct ftrace_ops_hash		old_hash;
 	unsigned long			trampoline;
 #endif
 };
