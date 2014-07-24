@@ -34,17 +34,17 @@
 #include <linux/rockchip/cpu.h>
 #include <linux/rockchip/dvfs.h>
 
-/*author@xxm*/
-#define GPUCLK_NAME  				 "gpu"
-#define GPUCLK_PD_NAME				 "pd_gpu"
-#define GPU_MHZ 					 1000000
-static struct dvfs_node  *mali_clock = 0;
-static struct clk		 *mali_clock_pd = 0;
+#define GPUCLK_NAME	"clk_gpu"
+#define GPUCLK_PD_NAME	"pd_gpu"
+#define GPU_MHZ 	1000000
 
+static struct dvfs_node *mali_clock = 0;
+static struct clk *mali_clock_pd = 0;
+static struct clk *audis_gpu_clk = 0;
 
 #define MALI_DVFS_DEFAULT_STEP 0 // 50Mhz default
 
-u32 mali_dvfs[] = {50,100,133,160,200,266,400};
+u32 mali_dvfs[] = {50, 100, 133, 160, 200, 266, 400};
 int num_clock;
 
 u32 mali_init_clock = 50;
@@ -65,24 +65,26 @@ static u32 utilization_global = 0;
 
 u32 mali_utilization_timeout = 10;
 u32 sampling_enable = 1;
+
 #define mali_freq_workqueue_name	 "mali_freq_workqueue"
 #define mali_freq_work_name 		 "mali_freq_work"
+
 struct mali_freq_data {
 	struct workqueue_struct *wq;
 	struct work_struct work;
 	u32 freq;
-}*mali_freq_data;
+} *mali_freq_data;
 
-typedef struct mali_dvfs_tableTag{
+typedef struct mali_dvfs_tableTag {
 	u32 clock;
 	u32 vol;
-}mali_dvfs_table;
+} mali_dvfs_table;
 
-typedef struct mali_dvfs_statusTag{
+typedef struct mali_dvfs_statusTag {
     int currentStep;
     mali_dvfs_table * pCurrentDvfs;
 
-}mali_dvfs_status;
+} mali_dvfs_status;
 
 mali_dvfs_status maliDvfsStatus;
 
@@ -102,7 +104,7 @@ unsigned long mali_clk_get_rate(struct dvfs_node *clk)
 	return dvfs_clk_get_rate(clk);
 }
 
-void mali_clk_set_rate(struct dvfs_node *clk,u32 value)
+void mali_clk_set_rate(struct dvfs_node *clk, u32 value)
 {
 	unsigned long rate = (unsigned long)value * GPU_MHZ;
 	dvfs_clk_set_rate(clk, rate);
@@ -128,10 +130,8 @@ static u32 mali_dvfs_search(u32 value)
 {
 	u32 i;	
 	u32 clock = value;
-	for(i=0;i<num_clock;i++)
-	{
-		if(clock == mali_dvfs[i])
-		{
+	for (i=0;i<num_clock;i++) {
+		if (clock == mali_dvfs[i]) {
 			_mali_osk_mutex_wait(clockSetlock);
 			mali_clk_set_rate(mali_clock,clock);
 			_mali_osk_mutex_signal(clockSetlock);
@@ -139,8 +139,8 @@ static u32 mali_dvfs_search(u32 value)
 			scale_enable_set(0);
 			return 0;
 		}
-		if(i>=7)
-		MALI_DEBUG_PRINT(2,("USER set clock not in the mali_dvfs table\r\n"));
+		if (i>=7)
+			MALI_DEBUG_PRINT(2,("USER set clock not in the mali_dvfs table\r\n"));
 	}
 	return 1;
 }
@@ -158,12 +158,9 @@ static int mali400_clock_set(struct device *dev,struct device_attribute *attr, c
 	currentStep = get_mali_dvfs_status();
 	timeValue = _mali_osk_time_get_ns();
 	/*MALI_PRINT(("USER SET CLOCK,%d\r\n",clock));*/
-	if(!clock)
-	{
+	if(!clock) {
 		scale_enable_set(1);
-	}
-	else
-	{
+	} else {
 		mali_dvfs_search(clock);
 	}
 	return count;
@@ -173,8 +170,7 @@ static int clock_show(struct device *dev,struct device_attribute *attr, char *bu
 	u32 i;
 	char *pos = buf;
 	pos += snprintf(pos,PAGE_SIZE,"%d,",num_clock);
-	for(i=0;i<(num_clock-1);i++)
-	{
+	for(i=0;i<(num_clock-1);i++) {
 		pos += snprintf(pos,PAGE_SIZE,"%d,",mali_dvfs[i]);
 	}
 	pos +=snprintf(pos,PAGE_SIZE,"%d\n",mali_dvfs[i]); 
@@ -184,21 +180,20 @@ static int sampling_timeout_show(struct device *dev,struct device_attribute *att
 {
 	return sprintf(buf, "mali_utilization_timeout = %d\n", mali_utilization_timeout);
 }
-static int sampling_timeout_set(struct device *dev,struct device_attribute *attr, const char *buf,u32 count)
+static int sampling_timeout_set(struct device *dev,struct device_attribute *attr,
+				const char *buf,u32 count)
 {
 	u32 sampling;
 	sampling = simple_strtoul(buf, NULL, 10);
 	
-	if(sampling == 0 )
-	{
+	if (sampling == 0 ) {
 		sampling_enable = 0;
 		MALI_PRINT(("disable mali clock frequency scalling\r\n"));
-	}
-	else
-	{
+	} else {
 		mali_utilization_timeout = sampling;
 		sampling_enable = 1;
-		MALI_PRINT(("enable mali clock frequency scalling ,mali_utilization_timeout : %dms\r\n",mali_utilization_timeout));
+		MALI_PRINT(("enable mali clock frequency scalling ,mali_utilization_timeout : %dms\r\n",
+			    mali_utilization_timeout));
 	}
 	return count;
 }
@@ -209,7 +204,7 @@ static int error_count_show(struct device *dev,struct device_attribute *attr, ch
 
 static DEVICE_ATTR(utility, 0644, mali400_utility_show, mali400_clock_set);
 static DEVICE_ATTR(param, 0644, clock_show, NULL);
-static DEVICE_ATTR(sampling_timeout, 0644, sampling_timeout_show,sampling_timeout_set);
+static DEVICE_ATTR(sampling_timeout, 0644, sampling_timeout_show, sampling_timeout_set);
 static DEVICE_ATTR(error_count, 0644, error_count_show, NULL);
 
 
@@ -242,62 +237,76 @@ static mali_bool mali400_utility_sysfs_init(void)
 static unsigned int decideNextStatus(unsigned int utilization)
 {
     u32 level=0;
-#if 1
-	{
-	    if(utilization>GPU_DVFS_UP_THRESHOLD && maliDvfsStatus.currentStep==0 && maliDvfsStatus.currentStep<(num_clock-minuend))
-	        level=1;
-	    else if(utilization>GPU_DVFS_UP_THRESHOLD && maliDvfsStatus.currentStep==1 && maliDvfsStatus.currentStep<(num_clock-minuend))
-	        level=2;
-		else if(utilization>GPU_DVFS_UP_THRESHOLD && maliDvfsStatus.currentStep==2 && maliDvfsStatus.currentStep<(num_clock-minuend))
-			level=3;
-		else if(utilization>GPU_DVFS_UP_THRESHOLD && maliDvfsStatus.currentStep==3 && maliDvfsStatus.currentStep<(num_clock-minuend))
-			level=4;
-		else if(utilization>GPU_DVFS_UP_THRESHOLD && maliDvfsStatus.currentStep==4 && maliDvfsStatus.currentStep<(num_clock-minuend))
-			level=5;
-		else if(utilization>GPU_DVFS_UP_THRESHOLD && maliDvfsStatus.currentStep==5 && maliDvfsStatus.currentStep<(num_clock-minuend))
-			level=6;
-		/*
-			determined by minuend to up to level 6
-		*/
-		else if(utilization<GPU_DVFS_DOWN_THRESHOLD && maliDvfsStatus.currentStep==6 /*&& maliDvfsStatus.currentStep<num_clock*/)
-			level=5;
-		else if(utilization<GPU_DVFS_DOWN_THRESHOLD && maliDvfsStatus.currentStep==5 /*&& maliDvfsStatus.currentStep<num_clock*/)
-			level=4;
-		else if(utilization<GPU_DVFS_DOWN_THRESHOLD && maliDvfsStatus.currentStep==4 /*&& maliDvfsStatus.currentStep<num_clock*/)
-			level=3;
-		else if(utilization<GPU_DVFS_DOWN_THRESHOLD && maliDvfsStatus.currentStep==3 /*&& maliDvfsStatus.currentStep<num_clock*/)
-			level=2;
-		else if(utilization<GPU_DVFS_DOWN_THRESHOLD && maliDvfsStatus.currentStep==2 /*&& maliDvfsStatus.currentStep<num_clock*/)
-			level=1;
-		else if(utilization<GPU_DVFS_DOWN_THRESHOLD && maliDvfsStatus.currentStep==1 /*&& maliDvfsStatus.currentStep<num_clock*/)
-			level=0;
-	    else
-	        level = maliDvfsStatus.currentStep;
-	}
-#endif
+
+    if(utilization > GPU_DVFS_UP_THRESHOLD &&
+	     maliDvfsStatus.currentStep == 0 &&
+	     maliDvfsStatus.currentStep < (num_clock-minuend))
+	    level = 1;
+    else if (utilization > GPU_DVFS_UP_THRESHOLD &&
+	     maliDvfsStatus.currentStep == 1 &&
+	     maliDvfsStatus.currentStep < (num_clock-minuend))
+	    level = 2;
+    else if (utilization > GPU_DVFS_UP_THRESHOLD &&
+	     maliDvfsStatus.currentStep == 2 &&
+	     maliDvfsStatus.currentStep < (num_clock-minuend))
+	    level = 3;
+    else if (utilization > GPU_DVFS_UP_THRESHOLD &&
+	     maliDvfsStatus.currentStep == 3 &&
+	     maliDvfsStatus.currentStep < (num_clock-minuend))
+	    level = 4;
+    else if (utilization > GPU_DVFS_UP_THRESHOLD &&
+	     maliDvfsStatus.currentStep == 4 &&
+	     maliDvfsStatus.currentStep < (num_clock-minuend))
+	    level = 5;
+    else if (utilization > GPU_DVFS_UP_THRESHOLD &&
+	     maliDvfsStatus.currentStep == 5 &&
+	     maliDvfsStatus.currentStep < (num_clock-minuend))
+	    level = 6;
+	/*
+	determined by minuend to up to level 6
+	*/
+    else if(utilization < GPU_DVFS_DOWN_THRESHOLD &&
+	    maliDvfsStatus.currentStep == 6)
+	    level = 5;
+    else if(utilization < GPU_DVFS_DOWN_THRESHOLD &&
+	    maliDvfsStatus.currentStep == 5)
+	    level = 4;
+    else if(utilization < GPU_DVFS_DOWN_THRESHOLD &&
+	    maliDvfsStatus.currentStep == 4)
+	    level = 3;
+    else if(utilization < GPU_DVFS_DOWN_THRESHOLD &&
+	    maliDvfsStatus.currentStep == 3)
+	    level = 2;
+    else if(utilization < GPU_DVFS_DOWN_THRESHOLD &&
+	    maliDvfsStatus.currentStep == 2)
+	    level = 1;
+    else if(utilization < GPU_DVFS_DOWN_THRESHOLD &&
+	    maliDvfsStatus.currentStep == 1)
+	    level = 0;
+    else
+	    level = maliDvfsStatus.currentStep;
     return level;
 }
 
 static mali_bool set_mali_dvfs_status(u32 step)
 {
-    u32 validatedStep=step;	
-	if(1)
-	{
-		_mali_osk_mutex_wait(clockSetlock);
+	u32 validatedStep=step;	
+
+	_mali_osk_mutex_wait(clockSetlock);
     	mali_clk_set_rate(mali_clock, mali_dvfs[validatedStep]);
-		_mali_osk_mutex_signal(clockSetlock);
-		set_mali_dvfs_step(validatedStep);
-	}	
-    return MALI_TRUE;
+	_mali_osk_mutex_signal(clockSetlock);
+	set_mali_dvfs_step(validatedStep);
+	
+	return MALI_TRUE;
 }
 
 static mali_bool change_mali_dvfs_status(u32 step)
 {
-    if(!set_mali_dvfs_status(step))
-    {
-        MALI_DEBUG_PRINT(2,("error on set_mali_dvfs_status: %d\n",step));
-        return MALI_FALSE;
-    }
+	if(!set_mali_dvfs_status(step)) {
+        	MALI_DEBUG_PRINT(2,("error on set_mali_dvfs_status: %d\n",step));
+		return MALI_FALSE;
+    	}
+
 	return MALI_TRUE;
 }
 
@@ -310,10 +319,8 @@ static void  mali_freq_scale_work(struct work_struct *work)
 	curStatus = get_mali_dvfs_status();
 	nextStatus = decideNextStatus(utilization_global);
 	
-	if(curStatus!=nextStatus)
-	{
-		if(!change_mali_dvfs_status(nextStatus))
-		{
+	if (curStatus!=nextStatus) {
+		if (!change_mali_dvfs_status(nextStatus)) {
 			MALI_DEBUG_PRINT(1, ("error on change_mali_dvfs_status \n"));
 		}
 	}		
@@ -322,12 +329,12 @@ static mali_bool init_mali_clock(void)
 {
 	mali_bool ret = MALI_TRUE;
 	int i;
+
 	if (mali_clock != 0 || mali_clock_pd != 0)
 		return ret; 
 	
 	mali_clock_pd = clk_get(NULL,GPUCLK_PD_NAME);
-	if (IS_ERR(mali_clock_pd))
-	{
+	if (IS_ERR(mali_clock_pd)) {
 		MALI_PRINT( ("MALI Error : failed to get source mali pd\n"));
 		ret = MALI_FALSE;
 		goto err_gpu_clk;
@@ -335,21 +342,18 @@ static mali_bool init_mali_clock(void)
 	clk_prepare_enable(mali_clock_pd);
 	
 	mali_clock = clk_get_dvfs_node(GPUCLK_NAME);
-	if (IS_ERR(mali_clock))
-	{
+	if (IS_ERR(mali_clock)) {
 		MALI_PRINT( ("MALI Error : failed to get source mali clock\n"));
 		ret = MALI_FALSE;
 		goto err_gpu_clk;
 	}
 	dvfs_clk_prepare_enable(mali_clock);
 	freq_table = dvfs_get_freq_volt_table(mali_clock);
-	if(!freq_table)
-	{
+	if (!freq_table) {
 		MALI_PRINT(("Stop,dvfs table should be set in dts\n"));
 		return MALI_FALSE;
 	}
-	for (i = 0; freq_table[i].frequency != CPUFREQ_TABLE_END; i++) 
-	{
+	for (i = 0; freq_table[i].frequency != CPUFREQ_TABLE_END; i++) {
 		mali_dvfs[i] = freq_table[i].frequency/1000;
 	}
 	mali_init_clock = mali_dvfs[0];
@@ -383,6 +387,7 @@ static mali_bool deinit_mali_clock(void)
 	mali_clock_pd = 0;
 	if(gpu_power_state)
 		gpu_power_state = 0;
+
 	return MALI_TRUE;
 }
 
@@ -410,9 +415,19 @@ static struct early_suspend mali_dev_early_suspend = {
 
 _mali_osk_errcode_t mali_platform_init(void)
 {
-	if (cpu_is_rk3036())
-		MALI_SUCCESS;
+	if (cpu_is_rk3036()) {
+		audis_gpu_clk = clk_get(NULL,"clk_gpu");	
 
+		if (IS_ERR(mali_clock_pd)) {
+			 MALI_PRINT( ("MALI Error : failed to get audis mali clk\n"));
+			 return MALI_FALSE;
+			 
+		}
+
+		clk_prepare_enable(audis_gpu_clk);
+
+		MALI_SUCCESS;
+	}
 	MALI_CHECK(init_mali_clock(), _MALI_OSK_ERR_FAULT);
 	
 	clockSetlock = _mali_osk_mutex_init(_MALI_OSK_LOCKFLAG_ORDERED,_MALI_OSK_LOCK_ORDER_UTILIZATION);
@@ -424,8 +439,7 @@ _mali_osk_errcode_t mali_platform_init(void)
 		MALI_PRINT(("mali400_utility_sysfs_init error\r\n"));
 	
 	mali_freq_data = kmalloc(sizeof(struct mali_freq_data), GFP_KERNEL);
-	if(!mali_freq_data)
-	{
+	if(!mali_freq_data) {
 		MALI_PRINT(("kmalloc error\r\n"));
 		MALI_ERROR(-1);
 	}
@@ -443,8 +457,10 @@ _mali_osk_errcode_t mali_platform_init(void)
 
 _mali_osk_errcode_t mali_platform_deinit(void)
 {
-	if (cpu_is_rk3036())
+	if (cpu_is_rk3036()) {
+		clk_disable_unprepare(audis_gpu_clk);
 		MALI_SUCCESS;
+	}
 
 	deinit_mali_clock();
 	_mali_osk_mutex_term(clockSetlock);
@@ -453,39 +469,36 @@ _mali_osk_errcode_t mali_platform_deinit(void)
 }
 _mali_osk_errcode_t mali_power_domain_control(u32 bpower_off)
 {
-	if (cpu_is_rk3036())
-		MALI_SUCCESS;
-
-	if (!bpower_off)
-	{
-		if(!gpu_power_state)
-		{
-			clk_prepare_enable(mali_clock_pd);
-			dvfs_clk_prepare_enable(mali_clock);
+	if (!bpower_off) {
+		if (!gpu_power_state) {
+			if (cpu_is_rk3036()) {
+				clk_prepare_enable(audis_gpu_clk);
+			} else {
+				clk_prepare_enable(mali_clock_pd);
+				dvfs_clk_prepare_enable(mali_clock);
+			}
 			gpu_power_state = 1 ;
 		}		
-	}
-	else if (bpower_off == 2)
-	{
+	} else if (bpower_off == 2) {
 		;
-	}
-	else if (bpower_off == 1)
-	{
-		if(gpu_power_state)
-		{
-			dvfs_clk_disable_unprepare(mali_clock);
-			clk_disable_unprepare(mali_clock_pd);	
+	} else if (bpower_off == 1) {
+		if(gpu_power_state) {
+			if (cpu_is_rk3036()) {
+				clk_disable_unprepare(audis_gpu_clk);
+			} else {
+				dvfs_clk_disable_unprepare(mali_clock);
+				clk_disable_unprepare(mali_clock_pd);	
+			}
 			gpu_power_state = 0;
 		}
 	}
-    MALI_SUCCESS;
+    	MALI_SUCCESS;
 }
 
 _mali_osk_errcode_t mali_platform_power_mode_change(mali_power_mode power_mode)
 {
-#if 0
-	switch(power_mode)
-	{
+#if 1
+	switch(power_mode) {
 		case MALI_POWER_MODE_ON:
 			MALI_DEBUG_PRINT(2,("MALI_POWER_MODE_ON\r\n"));
 			mali_power_domain_control(MALI_POWER_MODE_ON);
@@ -521,10 +534,3 @@ void mali_gpu_utilization_handler(struct mali_gpu_utilization_data *data)
 	
 	return ;
 }
-
-void set_mali_parent_power_domain(void* dev)
-{
-}
-
-
-

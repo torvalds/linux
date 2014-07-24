@@ -43,8 +43,7 @@ void mali_gpu_utilization_callback(struct mali_gpu_utilization_data *data);
 
 static struct work_struct wq_work;
 
-static struct dev_pm_ops mali_gpu_device_type_pm_ops =
-{
+static struct dev_pm_ops mali_gpu_device_type_pm_ops = {
 	.suspend = mali_os_suspend,
 	.resume = mali_os_resume,
 	.freeze = mali_os_freeze,
@@ -56,15 +55,13 @@ static struct dev_pm_ops mali_gpu_device_type_pm_ops =
 #endif
 };
 
-static struct device_type mali_gpu_device_device_type =
-{
+static struct device_type mali_gpu_device_device_type = {
 	.pm = &mali_gpu_device_type_pm_ops,
 };
 
 static u64 dma_dmamask = DMA_BIT_MASK(32);
 
-static struct mali_gpu_device_data mali_gpu_data =
-{
+static struct mali_gpu_device_data mali_gpu_data = {
 	.shared_mem_size = 1024* 1024 * 1024, /* 1GB */
 	.fb_start = 0x40000000,
 	.fb_size = 0xb1000000,
@@ -89,32 +86,29 @@ static void set_num_cores(struct work_struct *work)
 }
 static void enable_one_core(void)
 {
-	if (num_cores_enabled < num_cores_total)
-	{
+	if (num_cores_enabled < num_cores_total) {
 		++num_cores_enabled;
 		schedule_work(&wq_work);
 		MALI_DEBUG_PRINT(3, ("Core scaling: Enabling one more core\n"));
 	}
 
-	MALI_DEBUG_ASSERT(              1 <= num_cores_enabled);
+	MALI_DEBUG_ASSERT(1 <= num_cores_enabled);
 	MALI_DEBUG_ASSERT(num_cores_total >= num_cores_enabled);
 }
 static void disable_one_core(void)
 {
-	if (1 < num_cores_enabled)
-	{
+	if (1 < num_cores_enabled) {
 		--num_cores_enabled;
 		schedule_work(&wq_work);
 		MALI_DEBUG_PRINT(3, ("Core scaling: Disabling one core\n"));
 	}
 
-	MALI_DEBUG_ASSERT(              1 <= num_cores_enabled);
+	MALI_DEBUG_ASSERT(1 <= num_cores_enabled);
 	MALI_DEBUG_ASSERT(num_cores_total >= num_cores_enabled);
 }
 static void enable_max_num_cores(void)
 {
-	if (num_cores_enabled < num_cores_total)
-	{
+	if (num_cores_enabled < num_cores_total) {
 		num_cores_enabled = num_cores_total;
 		schedule_work(&wq_work);
 		MALI_DEBUG_PRINT(3, ("Core scaling: Enabling maximum number of cores\n"));
@@ -150,29 +144,22 @@ void mali_core_scaling_update(struct mali_gpu_utilization_data *data)
 	 * in order to make a good core scaling algorithm.
 	 */
 
-	MALI_DEBUG_PRINT(3, ("Utilization: (%3d, %3d, %3d), cores enabled: %d/%d\n", data->utilization_gpu, data->utilization_gp, data->utilization_pp, num_cores_enabled, num_cores_total));
+	MALI_DEBUG_PRINT(3, ("Utilization: (%3d, %3d, %3d), cores enabled: %d/%d\n", 
+			 data->utilization_gpu, data->utilization_gp,
+			 data->utilization_pp, num_cores_enabled, num_cores_total));
 
 	/* NOTE: this function is normally called directly from the utilization callback which is in
 	 * timer context. */
 
-	if (     PERCENT_OF(90, 256) < data->utilization_pp)
-	{
+	if (PERCENT_OF(90, 256) < data->utilization_pp) {
 		enable_max_num_cores();
-	}
-	else if (PERCENT_OF(50, 256) < data->utilization_pp)
-	{
+	} else if (PERCENT_OF(50, 256) < data->utilization_pp) {
 		enable_one_core();
-	}
-	else if (PERCENT_OF(40, 256) < data->utilization_pp)
-	{
+	} else if (PERCENT_OF(40, 256) < data->utilization_pp) {
 		/* do nothing */
-	}
-	else if (PERCENT_OF( 0, 256) < data->utilization_pp)
-	{
+	} else if (PERCENT_OF( 0, 256) < data->utilization_pp) {
 		disable_one_core();
-	}
-	else
-	{
+	} else {
 		/* do nothing */
 	}
 }
@@ -188,11 +175,9 @@ int mali_platform_device_register(struct platform_device *pdev)
 
 	err = platform_device_add_data(pdev, &mali_gpu_data, sizeof(mali_gpu_data));
 	
-	if (0 == err)
-	{
+	if (0 == err) {
 		err = mali_platform_init();
-		if(0 == err)
-		{
+		if(0 == err) {
 #ifdef CONFIG_PM_RUNTIME
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,37))
 			pm_runtime_set_autosuspend_delay(&(pdev->dev), 1000);
@@ -226,8 +211,7 @@ static int mali_os_suspend(struct device *device)
 	
 	if (NULL != device->driver &&
 	    NULL != device->driver->pm &&
-	    NULL != device->driver->pm->suspend)
-	{
+	    NULL != device->driver->pm->suspend) {
 		/* Need to notify Mali driver about this event */
 		ret = device->driver->pm->suspend(device);
 	}
@@ -247,8 +231,7 @@ static int mali_os_resume(struct device *device)
 
 	if (NULL != device->driver &&
 	    NULL != device->driver->pm &&
-	    NULL != device->driver->pm->resume)
-	{
+	    NULL != device->driver->pm->resume) {
 		/* Need to notify Mali driver about this event */
 		ret = device->driver->pm->resume(device);
 	}
@@ -264,8 +247,7 @@ static int mali_os_freeze(struct device *device)
 
 	if (NULL != device->driver &&
 	    NULL != device->driver->pm &&
-	    NULL != device->driver->pm->freeze)
-	{
+	    NULL != device->driver->pm->freeze) {
 		/* Need to notify Mali driver about this event */
 		ret = device->driver->pm->freeze(device);
 	}
@@ -281,8 +263,7 @@ static int mali_os_thaw(struct device *device)
 
 	if (NULL != device->driver &&
 	    NULL != device->driver->pm &&
-	    NULL != device->driver->pm->thaw)
-	{
+	    NULL != device->driver->pm->thaw) {
 		/* Need to notify Mali driver about this event */
 		ret = device->driver->pm->thaw(device);
 	}
@@ -298,8 +279,7 @@ static int mali_runtime_suspend(struct device *device)
 
 	if (NULL != device->driver &&
 	    NULL != device->driver->pm &&
-	    NULL != device->driver->pm->runtime_suspend)
-	{
+	    NULL != device->driver->pm->runtime_suspend) {
 		/* Need to notify Mali driver about this event */
 		ret = device->driver->pm->runtime_suspend(device);
 	}
@@ -318,8 +298,7 @@ static int mali_runtime_resume(struct device *device)
 
 	if (NULL != device->driver &&
 	    NULL != device->driver->pm &&
-	    NULL != device->driver->pm->runtime_resume)
-	{
+	    NULL != device->driver->pm->runtime_resume) {
 		/* Need to notify Mali driver about this event */
 		ret = device->driver->pm->runtime_resume(device);
 	}
@@ -334,14 +313,11 @@ static int mali_runtime_idle(struct device *device)
 
 	if (NULL != device->driver &&
 	    NULL != device->driver->pm &&
-	    NULL != device->driver->pm->runtime_idle)
-	{
+	    NULL != device->driver->pm->runtime_idle) {
 		/* Need to notify Mali driver about this event */
 		ret = device->driver->pm->runtime_idle(device);
 		if (0 != ret)
-		{
 			return ret;
-		}
 	}
 
 	pm_runtime_suspend(device);
