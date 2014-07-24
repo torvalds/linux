@@ -219,8 +219,8 @@
  * Makes spotting lock/unlock locations easier.
  */
 # define DGNC_SPINLOCK_INIT(x)		spin_lock_init(&(x))
-# define DGNC_LOCK(x,y)			spin_lock_irqsave(&(x), y)
-# define DGNC_UNLOCK(x,y)		spin_unlock_irqrestore(&(x), y)
+# define DGNC_LOCK(x, y)		spin_lock_irqsave(&(x), y)
+# define DGNC_UNLOCK(x, y)		spin_unlock_irqrestore(&(x), y)
 
 /*
  * All the possible states the driver can be while being loaded.
