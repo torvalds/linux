@@ -743,7 +743,8 @@ MACvStart(pDevice->PortOffset);
 netif_stop_queue(pDevice->dev);
 }
 
-static void device_init_diversity_timer(PSDevice pDevice) {
+static void device_init_diversity_timer(PSDevice pDevice)
+{
 	init_timer(&pDevice->TimerSQ3Tmax1);
 	pDevice->TimerSQ3Tmax1.data = (unsigned long) pDevice;
 	pDevice->TimerSQ3Tmax1.function = (TimerFunction)TimerSQ3CallBack;
@@ -999,7 +1000,8 @@ static void vt6655_init_info(struct pci_dev *pcid, PSDevice *ppDevice,
 	spin_lock_init(&((*ppDevice)->lock));
 }
 
-static bool device_get_pci_info(PSDevice pDevice, struct pci_dev *pcid) {
+static bool device_get_pci_info(PSDevice pDevice, struct pci_dev *pcid)
+{
 	u16 pci_cmd;
 	u8  b;
 	unsigned int cis_addr;
@@ -1046,7 +1048,8 @@ static bool device_get_pci_info(PSDevice pDevice, struct pci_dev *pcid) {
 	return true;
 }
 
-static void device_free_info(PSDevice pDevice) {
+static void device_free_info(PSDevice pDevice)
+{
 	PSDevice         ptr;
 	struct net_device *dev = pDevice->dev;
 
@@ -1090,7 +1093,8 @@ static void device_free_info(PSDevice pDevice) {
 		free_netdev(dev);
 }
 
-static bool device_init_rings(PSDevice pDevice) {
+static bool device_init_rings(PSDevice pDevice)
+{
 	void *vir_pool;
 
 	/*allocate all RD/TD rings a single pool*/
@@ -1181,7 +1185,8 @@ static bool device_init_rings(PSDevice pDevice) {
 	return true;
 }
 
-static void device_free_rings(PSDevice pDevice) {
+static void device_free_rings(PSDevice pDevice)
+{
 	pci_free_consistent(pDevice->pcid,
 			    pDevice->sOpts.nRxDescs0 * sizeof(SRxDesc) +
 			    pDevice->sOpts.nRxDescs1 * sizeof(SRxDesc) +
@@ -1201,7 +1206,8 @@ static void device_free_rings(PSDevice pDevice) {
 			);
 }
 
-static void device_init_rd0_ring(PSDevice pDevice) {
+static void device_init_rd0_ring(PSDevice pDevice)
+{
 	int i;
 	dma_addr_t      curr = pDevice->rd0_pool_dma;
 	PSRxDesc        pDesc;
@@ -1225,7 +1231,8 @@ static void device_init_rd0_ring(PSDevice pDevice) {
 	pDevice->pCurrRD[0] = &(pDevice->aRD0Ring[0]);
 }
 
-static void device_init_rd1_ring(PSDevice pDevice) {
+static void device_init_rd1_ring(PSDevice pDevice)
+{
 	int i;
 	dma_addr_t      curr = pDevice->rd1_pool_dma;
 	PSRxDesc        pDesc;
@@ -1249,7 +1256,8 @@ static void device_init_rd1_ring(PSDevice pDevice) {
 	pDevice->pCurrRD[1] = &(pDevice->aRD1Ring[0]);
 }
 
-static void device_init_defrag_cb(PSDevice pDevice) {
+static void device_init_defrag_cb(PSDevice pDevice)
+{
 	int i;
 	PSDeFragControlBlock pDeF;
 
@@ -1265,7 +1273,8 @@ static void device_init_defrag_cb(PSDevice pDevice) {
 	pDevice->cbFreeDFCB = pDevice->cbDFCB;
 }
 
-static void device_free_rd0_ring(PSDevice pDevice) {
+static void device_free_rd0_ring(PSDevice pDevice)
+{
 	int i;
 
 	for (i = 0; i < pDevice->sOpts.nRxDescs0; i++) {
@@ -1281,7 +1290,8 @@ static void device_free_rd0_ring(PSDevice pDevice) {
 	}
 }
 
-static void device_free_rd1_ring(PSDevice pDevice) {
+static void device_free_rd1_ring(PSDevice pDevice)
+{
 	int i;
 
 	for (i = 0; i < pDevice->sOpts.nRxDescs1; i++) {
@@ -1297,7 +1307,8 @@ static void device_free_rd1_ring(PSDevice pDevice) {
 	}
 }
 
-static void device_free_frag_buf(PSDevice pDevice) {
+static void device_free_frag_buf(PSDevice pDevice)
+{
 	PSDeFragControlBlock pDeF;
 	int i;
 
@@ -1310,7 +1321,8 @@ static void device_free_frag_buf(PSDevice pDevice) {
 	}
 }
 
-static void device_init_td0_ring(PSDevice pDevice) {
+static void device_init_td0_ring(PSDevice pDevice)
+{
 	int i;
 	dma_addr_t  curr;
 	PSTxDesc        pDesc;
@@ -1334,7 +1346,8 @@ static void device_init_td0_ring(PSDevice pDevice) {
 	pDevice->apTailTD[0] = pDevice->apCurrTD[0] = &(pDevice->apTD0Rings[0]);
 }
 
-static void device_init_td1_ring(PSDevice pDevice) {
+static void device_init_td1_ring(PSDevice pDevice)
+{
 	int i;
 	dma_addr_t  curr;
 	PSTxDesc    pDesc;
@@ -1359,7 +1372,8 @@ static void device_init_td1_ring(PSDevice pDevice) {
 	pDevice->apTailTD[1] = pDevice->apCurrTD[1] = &(pDevice->apTD1Rings[0]);
 }
 
-static void device_free_td0_ring(PSDevice pDevice) {
+static void device_free_td0_ring(PSDevice pDevice)
+{
 	int i;
 
 	for (i = 0; i < pDevice->sOpts.nTxDescs[0]; i++) {
@@ -1377,7 +1391,8 @@ static void device_free_td0_ring(PSDevice pDevice) {
 	}
 }
 
-static void device_free_td1_ring(PSDevice pDevice) {
+static void device_free_td1_ring(PSDevice pDevice)
+{
 	int i;
 
 	for (i = 0; i < pDevice->sOpts.nTxDescs[1]; i++) {
@@ -1397,7 +1412,8 @@ static void device_free_td1_ring(PSDevice pDevice) {
 
 /*-----------------------------------------------------------------*/
 
-static int device_rx_srv(PSDevice pDevice, unsigned int uIdx) {
+static int device_rx_srv(PSDevice pDevice, unsigned int uIdx)
+{
 	PSRxDesc    pRD;
 	int works = 0;
 
@@ -1422,7 +1438,8 @@ static int device_rx_srv(PSDevice pDevice, unsigned int uIdx) {
 	return works;
 }
 
-static bool device_alloc_rx_buf(PSDevice pDevice, PSRxDesc pRD) {
+static bool device_alloc_rx_buf(PSDevice pDevice, PSRxDesc pRD)
+{
 	PDEVICE_RD_INFO pRDInfo = pRD->pRDInfo;
 
 	pRDInfo->skb = dev_alloc_skb((int)pDevice->rx_buf_sz);
@@ -1442,7 +1459,8 @@ static bool device_alloc_rx_buf(PSDevice pDevice, PSRxDesc pRD) {
 	return true;
 }
 
-bool device_alloc_frag_buf(PSDevice pDevice, PSDeFragControlBlock pDeF) {
+bool device_alloc_frag_buf(PSDevice pDevice, PSDeFragControlBlock pDeF)
+{
 	pDeF->skb = dev_alloc_skb((int)pDevice->rx_buf_sz);
 	if (pDeF->skb == NULL)
 		return false;
@@ -1452,7 +1470,8 @@ bool device_alloc_frag_buf(PSDevice pDevice, PSDeFragControlBlock pDeF) {
 	return true;
 }
 
-static int device_tx_srv(PSDevice pDevice, unsigned int uIdx) {
+static int device_tx_srv(PSDevice pDevice, unsigned int uIdx)
+{
 	PSTxDesc                 pTD;
 	bool bFull = false;
 	int                      works = 0;
@@ -1575,7 +1594,8 @@ static int device_tx_srv(PSDevice pDevice, unsigned int uIdx) {
 	return works;
 }
 
-static void device_error(PSDevice pDevice, unsigned short status) {
+static void device_error(PSDevice pDevice, unsigned short status)
+{
 	if (status & ISR_FETALERR) {
 		DBG_PRT(MSG_LEVEL_ERR, KERN_ERR
 			"%s: Hardware fatal error.\n",
@@ -1589,7 +1609,8 @@ static void device_error(PSDevice pDevice, unsigned short status) {
 	}
 }
 
-static void device_free_tx_buf(PSDevice pDevice, PSTxDesc pDesc) {
+static void device_free_tx_buf(PSDevice pDevice, PSTxDesc pDesc)
+{
 	PDEVICE_TD_INFO  pTDInfo = pDesc->pTDInfo;
 	struct sk_buff *skb = pTDInfo->skb;
 
@@ -1642,7 +1663,8 @@ static int MlmeThread(
 }
 #endif
 
-static int  device_open(struct net_device *dev) {
+static int  device_open(struct net_device *dev)
+{
 	PSDevice pDevice = (PSDevice)netdev_priv(dev);
 	int i;
 #ifdef WPA_SM_Transtatus
@@ -1740,7 +1762,8 @@ static int  device_open(struct net_device *dev) {
 	return 0;
 }
 
-static int  device_close(struct net_device *dev) {
+static int  device_close(struct net_device *dev)
+{
 	PSDevice  pDevice = (PSDevice)netdev_priv(dev);
 	PSMgmtObject     pMgmt = pDevice->pMgmt;
 	//PLICE_DEBUG->
@@ -1792,7 +1815,8 @@ static int  device_close(struct net_device *dev) {
 	return 0;
 }
 
-static int device_dma0_tx_80211(struct sk_buff *skb, struct net_device *dev) {
+static int device_dma0_tx_80211(struct sk_buff *skb, struct net_device *dev)
+{
 	PSDevice pDevice = netdev_priv(dev);
 	unsigned char *pbMPDU;
 	unsigned int cbMPDULen = 0;
@@ -1823,7 +1847,8 @@ static int device_dma0_tx_80211(struct sk_buff *skb, struct net_device *dev) {
 	return 0;
 }
 
-bool device_dma0_xmit(PSDevice pDevice, struct sk_buff *skb, unsigned int uNodeIndex) {
+bool device_dma0_xmit(PSDevice pDevice, struct sk_buff *skb, unsigned int uNodeIndex)
+{
 	PSMgmtObject    pMgmt = pDevice->pMgmt;
 	PSTxDesc        pHeadTD, pLastTD;
 	unsigned int cbFrameBodySize;
@@ -1962,7 +1987,8 @@ bool device_dma0_xmit(PSDevice pDevice, struct sk_buff *skb, unsigned int uNodeI
 }
 
 //TYPE_AC0DMA data tx
-static int  device_xmit(struct sk_buff *skb, struct net_device *dev) {
+static int  device_xmit(struct sk_buff *skb, struct net_device *dev)
+{
 	PSDevice pDevice = netdev_priv(dev);
 
 	PSMgmtObject    pMgmt = pDevice->pMgmt;
@@ -2314,7 +2340,8 @@ static int  device_xmit(struct sk_buff *skb, struct net_device *dev) {
 	return 0;
 }
 
-static  irqreturn_t  device_intr(int irq,  void *dev_instance) {
+static  irqreturn_t  device_intr(int irq,  void *dev_instance)
+{
 	struct net_device *dev = dev_instance;
 	PSDevice     pDevice = (PSDevice)netdev_priv(dev);
 
@@ -2653,7 +2680,8 @@ error1:
 	return result;
 }
 
-static void device_set_multi(struct net_device *dev) {
+static void device_set_multi(struct net_device *dev)
+{
 	PSDevice         pDevice = (PSDevice)netdev_priv(dev);
 
 	PSMgmtObject     pMgmt = pDevice->pMgmt;
@@ -2698,13 +2726,15 @@ static void device_set_multi(struct net_device *dev) {
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pDevice->byRxMode = %x\n", pDevice->byRxMode);
 }
 
-static struct net_device_stats *device_get_stats(struct net_device *dev) {
+static struct net_device_stats *device_get_stats(struct net_device *dev)
+{
 	PSDevice pDevice = (PSDevice)netdev_priv(dev);
 
 	return &pDevice->stats;
 }
 
-static int  device_ioctl(struct net_device *dev, struct ifreq *rq, int cmd) {
+static int  device_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
+{
 	PSDevice	        pDevice = (PSDevice)netdev_priv(dev);
 
 	struct iwreq *wrq = (struct iwreq *)rq;
