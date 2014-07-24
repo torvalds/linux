@@ -101,8 +101,8 @@ static int rk32_mipi_dsi_enable_hs_clk(void *arg, u32 enable);
 static int rk32_mipi_dsi_enable_video_mode(void *arg, u32 enable);
 static int rk32_mipi_dsi_enable_command_mode(void *arg, u32 enable);
 static int rk32_mipi_dsi_is_enable(void *arg, u32 enable);
-static int rk32_mipi_power_down_DDR();
-static int rk32_mipi_power_up_DDR();
+//static int rk32_mipi_power_down_DDR(void);
+//static int rk32_mipi_power_up_DDR(void);
 int rk_mipi_screen_standby(u8 enable);
 
 #ifdef CONFIG_RK_3288_DSI_UBOOT
@@ -1338,6 +1338,11 @@ static int dwc_phy_test_rd(struct dsi *dsi, unsigned char test_code)
 static int rk32_dsi_enable(void)
 {
 	MIPI_DBG("rk32_dsi_enable-------\n");
+	
+	rk_fb_get_prmry_screen(dsi0->screen.screen);
+	dsi0->screen.lcdc_id = dsi0->screen.screen->lcdc_id;
+	rk32_init_phy_mode(dsi0->screen.lcdc_id);
+	
 	dsi_init(0, 0);
 	if (rk_mipi_get_dsi_num() ==2)
 		dsi_init(1, 0);
@@ -1662,6 +1667,7 @@ static int rk32_mipi_dsi_probe(struct platform_device *pdev)
 	ops->dsi_init = rk_mipi_dsi_init,
 
 	dsi_screen = &dsi->screen;
+	dsi_screen->screen = screen;
 	dsi_screen->type = screen->type;
 	dsi_screen->face = screen->face;
 	dsi_screen->lcdc_id = screen->lcdc_id;
@@ -1683,7 +1689,8 @@ static int rk32_mipi_dsi_probe(struct platform_device *pdev)
 //  dsi_screen->dsi_video_mode = screen->dsi_video_mode; //no sure
 	dsi_screen->dsi_lane = rk_mipi_get_dsi_lane();
 	dsi_screen->hs_tx_clk = rk_mipi_get_dsi_clk();  
-	dsi_screen->lcdc_id = 1;
+	//dsi_screen->lcdc_id = 1;
+
 
 	dsi->dsi_id = id++;
 
@@ -1699,8 +1706,8 @@ static int rk32_mipi_dsi_probe(struct platform_device *pdev)
 
 	if(id == 1){
 
-		if(!support_uboot_display())
-			rk32_init_phy_mode(dsi_screen->lcdc_id);
+		//if(!support_uboot_display())
+		//	rk32_init_phy_mode(dsi_screen->lcdc_id);
 		rk_fb_trsm_ops_register(&trsm_dsi_ops, SCREEN_MIPI);
 	
 #ifdef MIPI_DSI_REGISTER_IO        
