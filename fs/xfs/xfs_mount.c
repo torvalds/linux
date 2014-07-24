@@ -250,9 +250,9 @@ xfs_initialize_perag(
 		mp->m_flags &= ~XFS_MOUNT_32BITINODES;
 
 	if (mp->m_flags & XFS_MOUNT_32BITINODES)
-		index = xfs_set_inode32(mp);
+		index = xfs_set_inode32(mp, agcount);
 	else
-		index = xfs_set_inode64(mp);
+		index = xfs_set_inode64(mp, agcount);
 
 	if (maxagi)
 		*maxagi = index;

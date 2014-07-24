@@ -76,8 +76,8 @@ extern __uint64_t xfs_max_file_offset(unsigned int);
 
 extern void xfs_flush_inodes(struct xfs_mount *mp);
 extern void xfs_blkdev_issue_flush(struct xfs_buftarg *);
-extern xfs_agnumber_t xfs_set_inode32(struct xfs_mount *);
-extern xfs_agnumber_t xfs_set_inode64(struct xfs_mount *);
+extern xfs_agnumber_t xfs_set_inode32(struct xfs_mount *, xfs_agnumber_t agcount);
+extern xfs_agnumber_t xfs_set_inode64(struct xfs_mount *, xfs_agnumber_t agcount);
 
 extern const struct export_operations xfs_export_operations;
 extern const struct xattr_handler *xfs_xattr_handlers[];
