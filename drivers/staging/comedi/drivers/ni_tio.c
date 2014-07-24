@@ -154,18 +154,17 @@ enum ni_660x_gate_select {
 #define NI_660X_PIN_GATE_SEL(x)		(0x2 + (x))
 #define NI_660X_RTSI_GATE_SEL(x)	(0xb + (x))
 
-enum ni_m_series_gate_select {
-	NI_M_Series_Timestamp_Mux_Gate_Select = 0x0,
-	NI_M_Series_AI_START2_Gate_Select = 0x12,
-	NI_M_Series_PXI_Star_Trigger_Gate_Select = 0x13,
-	NI_M_Series_Next_Out_Gate_Select = 0x14,
-	NI_M_Series_AI_START1_Gate_Select = 0x1c,
-	NI_M_Series_Next_SRC_Gate_Select = 0x1d,
-	NI_M_Series_Analog_Trigger_Out_Gate_Select = 0x1e,
-	NI_M_Series_Logic_Low_Gate_Select = 0x1f,
-};
-#define NI_M_RTSI_GATE_SEL(x)		(((x) == 7) ? 0x1b : (0xb + (x)))
+/* NI M SERIES gate_select */
+#define NI_M_TIMESTAMP_MUX_GATE_SEL	0x0
 #define NI_M_PFI_GATE_SEL(x)		(((x) < 10) ? (1 + (x)) : (0xb + (x)))
+#define NI_M_RTSI_GATE_SEL(x)		(((x) == 7) ? 0x1b : (0xb + (x)))
+#define NI_M_AI_START2_GATE_SEL		0x12
+#define NI_M_PXI_STAR_TRIGGER_GATE_SEL	0x13
+#define NI_M_NEXT_OUT_GATE_SEL		0x14
+#define NI_M_AI_START1_GATE_SEL		0x1c
+#define NI_M_NEXT_SRC_GATE_SEL		0x1d
+#define NI_M_ANALOG_TRIG_OUT_GATE_SEL	0x1e
+#define NI_M_LOGIC_LOW_GATE_SEL		0x1f
 
 static inline unsigned Gi_Source_Select_Bits(unsigned source)
 {
@@ -1199,21 +1198,21 @@ ni_m_series_first_gate_to_generic_gate_source(unsigned ni_m_series_gate_select)
 	unsigned i;
 
 	switch (ni_m_series_gate_select) {
-	case NI_M_Series_Timestamp_Mux_Gate_Select:
+	case NI_M_TIMESTAMP_MUX_GATE_SEL:
 		return NI_GPCT_TIMESTAMP_MUX_GATE_SELECT;
-	case NI_M_Series_AI_START2_Gate_Select:
+	case NI_M_AI_START2_GATE_SEL:
 		return NI_GPCT_AI_START2_GATE_SELECT;
-	case NI_M_Series_PXI_Star_Trigger_Gate_Select:
+	case NI_M_PXI_STAR_TRIGGER_GATE_SEL:
 		return NI_GPCT_PXI_STAR_TRIGGER_GATE_SELECT;
-	case NI_M_Series_Next_Out_Gate_Select:
+	case NI_M_NEXT_OUT_GATE_SEL:
 		return NI_GPCT_NEXT_OUT_GATE_SELECT;
-	case NI_M_Series_AI_START1_Gate_Select:
+	case NI_M_AI_START1_GATE_SEL:
 		return NI_GPCT_AI_START1_GATE_SELECT;
-	case NI_M_Series_Next_SRC_Gate_Select:
+	case NI_M_NEXT_SRC_GATE_SEL:
 		return NI_GPCT_NEXT_SOURCE_GATE_SELECT;
-	case NI_M_Series_Analog_Trigger_Out_Gate_Select:
+	case NI_M_ANALOG_TRIG_OUT_GATE_SEL:
 		return NI_GPCT_ANALOG_TRIGGER_OUT_GATE_SELECT;
-	case NI_M_Series_Logic_Low_Gate_Select:
+	case NI_M_LOGIC_LOW_GATE_SEL:
 		return NI_GPCT_LOGIC_LOW_GATE_SELECT;
 	default:
 		for (i = 0; i <= NI_M_MAX_RTSI_CHAN; ++i) {
