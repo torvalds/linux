@@ -258,7 +258,8 @@ static int au_ren_diropq(struct au_ren_args *a)
 	au_hn_imtx_unlock(a->src_hinode);
 	if (IS_ERR(diropq))
 		err = PTR_ERR(diropq);
-	dput(diropq);
+	else
+		dput(diropq);
 
 	return err;
 }
