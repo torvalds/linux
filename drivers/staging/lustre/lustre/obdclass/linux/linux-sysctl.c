@@ -52,7 +52,7 @@
 #include "../../include/lprocfs_status.h"
 
 #ifdef CONFIG_SYSCTL
-struct ctl_table_header *obd_table_header = NULL;
+static struct ctl_table_header *obd_table_header;
 #endif
 
 
@@ -79,8 +79,8 @@ enum {
 };
 
 
-int proc_set_timeout(struct ctl_table *table, int write, void __user *buffer,
-		     size_t *lenp, loff_t *ppos)
+static int proc_set_timeout(struct ctl_table *table, int write,
+			void __user *buffer, size_t *lenp, loff_t *ppos)
 {
 	int rc;
 
@@ -90,8 +90,8 @@ int proc_set_timeout(struct ctl_table *table, int write, void __user *buffer,
 	return rc;
 }
 
-int proc_memory_alloc(struct ctl_table *table, int write, void __user *buffer,
-		      size_t *lenp, loff_t *ppos)
+static int proc_memory_alloc(struct ctl_table *table, int write,
+			void __user *buffer, size_t *lenp, loff_t *ppos)
 {
 	char buf[22];
 	int len;
@@ -114,8 +114,8 @@ int proc_memory_alloc(struct ctl_table *table, int write, void __user *buffer,
 	return 0;
 }
 
-int proc_pages_alloc(struct ctl_table *table, int write, void __user *buffer,
-		     size_t *lenp, loff_t *ppos)
+static int proc_pages_alloc(struct ctl_table *table, int write,
+			void __user *buffer, size_t *lenp, loff_t *ppos)
 {
 	char buf[22];
 	int len;
@@ -138,7 +138,7 @@ int proc_pages_alloc(struct ctl_table *table, int write, void __user *buffer,
 	return 0;
 }
 
-int proc_mem_max(struct ctl_table *table, int write, void __user *buffer,
+static int proc_mem_max(struct ctl_table *table, int write, void __user *buffer,
 		 size_t *lenp, loff_t *ppos)
 {
 	char buf[22];
@@ -162,8 +162,8 @@ int proc_mem_max(struct ctl_table *table, int write, void __user *buffer,
 	return 0;
 }
 
-int proc_pages_max(struct ctl_table *table, int write, void __user *buffer,
-		   size_t *lenp, loff_t *ppos)
+static int proc_pages_max(struct ctl_table *table, int write,
+			void __user *buffer, size_t *lenp, loff_t *ppos)
 {
 	char buf[22];
 	int len;
@@ -186,7 +186,7 @@ int proc_pages_max(struct ctl_table *table, int write, void __user *buffer,
 	return 0;
 }
 
-int proc_max_dirty_pages_in_mb(struct ctl_table *table, int write,
+static int proc_max_dirty_pages_in_mb(struct ctl_table *table, int write,
 			       void __user *buffer, size_t *lenp, loff_t *ppos)
 {
 	int rc = 0;
@@ -228,7 +228,7 @@ int proc_max_dirty_pages_in_mb(struct ctl_table *table, int write,
 	return rc;
 }
 
-int proc_alloc_fail_rate(struct ctl_table *table, int write,
+static int proc_alloc_fail_rate(struct ctl_table *table, int write,
 			 void __user *buffer, size_t *lenp, loff_t *ppos)
 {
 	int rc	  = 0;
