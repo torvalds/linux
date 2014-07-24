@@ -69,8 +69,7 @@
 // IEEE 802.11 Structures and definitions
 //
 
-typedef enum _NDIS_802_11_NETWORK_TYPE
-{
+typedef enum _NDIS_802_11_NETWORK_TYPE {
 	Ndis802_11FH,
 	Ndis802_11DS,
 	Ndis802_11OFDM5,

@@ -201,8 +201,7 @@ typedef enum __device_init_type {
 // PMKID Structures
 typedef unsigned char NDIS_802_11_PMKID_VALUE[16];
 
-typedef enum _NDIS_802_11_WEP_STATUS
-{
+typedef enum _NDIS_802_11_WEP_STATUS {
 	Ndis802_11WEPEnabled,
 	Ndis802_11Encryption1Enabled = Ndis802_11WEPEnabled,
 	Ndis802_11WEPDisabled,
@@ -218,8 +217,7 @@ typedef enum _NDIS_802_11_WEP_STATUS
 } NDIS_802_11_WEP_STATUS, *PNDIS_802_11_WEP_STATUS,
 	NDIS_802_11_ENCRYPTION_STATUS, *PNDIS_802_11_ENCRYPTION_STATUS;
 
-typedef enum _NDIS_802_11_STATUS_TYPE
-{
+typedef enum _NDIS_802_11_STATUS_TYPE {
 	Ndis802_11StatusType_Authentication,
 	Ndis802_11StatusType_MediaStreamMode,
 	Ndis802_11StatusType_PMKID_CandidateList,
@@ -232,8 +230,7 @@ struct pmkid_candidate {
 	unsigned long Flags;
 };
 
-typedef struct _BSSID_INFO
-{
+typedef struct _BSSID_INFO {
 	NDIS_802_11_MAC_ADDRESS BSSID;
 	NDIS_802_11_PMKID_VALUE PMKID;
 } BSSID_INFO, *PBSSID_INFO;
@@ -293,8 +290,7 @@ typedef struct tagSCache {
 
 #define CB_MAX_RX_FRAG                 64
 // DeFragment Control Block, used for collecting fragments prior to reassembly
-typedef struct tagSDeFragControlBlock
-{
+typedef struct tagSDeFragControlBlock {
 	unsigned short wSequence;
 	unsigned short wFragNum;
 	unsigned char abyAddr2[ETH_ALEN];
@@ -334,8 +330,7 @@ typedef struct tagSDeFragControlBlock
 
 //PLICE_DEBUG->
 
-typedef	struct _RxManagementQueue
-{
+typedef	struct _RxManagementQueue {
 	int	packet_num;
 	int	head, tail;
 	PSRxMgmtPacket	Q[NUM];
