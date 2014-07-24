@@ -411,8 +411,6 @@ struct vnt_private {
 #define MP_CLEAR_FLAG(_M, _F)            ((_M)->Flags &= ~(_F))
 #define MP_TEST_FLAGS(_M, _F)            (((_M)->Flags & (_F)) == (_F))
 
-#define MP_IS_READY(_M)        (((_M)->Flags & fMP_DISCONNECTED) == 0)
-
 int vnt_init(struct vnt_private *priv);
 
 #endif
