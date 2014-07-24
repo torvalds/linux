@@ -34,6 +34,7 @@
 #include <linux/slab.h>
 #include <drm/drmP.h>
 #include <drm/drm_core.h>
+#include "drm_legacy.h"
 
 unsigned int drm_debug = 0;	/* 1 to enable debug output */
 EXPORT_SYMBOL(drm_debug);
@@ -604,7 +605,7 @@ struct drm_device *drm_dev_alloc(struct drm_driver *driver,
 	if (drm_ht_create(&dev->map_hash, 12))
 		goto err_minors;
 
-	ret = drm_ctxbitmap_init(dev);
+	ret = drm_legacy_ctxbitmap_init(dev);
 	if (ret) {
 		DRM_ERROR("Cannot allocate memory for context bitmap.\n");
 		goto err_ht;
@@ -621,7 +622,7 @@ struct drm_device *drm_dev_alloc(struct drm_driver *driver,
 	return dev;
 
 err_ctxbitmap:
-	drm_ctxbitmap_cleanup(dev);
+	drm_legacy_ctxbitmap_cleanup(dev);
 err_ht:
 	drm_ht_remove(&dev->map_hash);
 err_minors:
@@ -643,7 +644,7 @@ static void drm_dev_release(struct kref *ref)
 	if (dev->driver->driver_features & DRIVER_GEM)
 		drm_gem_destroy(dev);
 
-	drm_ctxbitmap_cleanup(dev);
+	drm_legacy_ctxbitmap_cleanup(dev);
 	drm_ht_remove(&dev->map_hash);
 	drm_fs_inode_free(dev->anon_inode);
 

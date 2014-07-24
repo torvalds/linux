@@ -151,8 +151,6 @@ int drm_err(const char *func, const char *format, ...);
 				     also include looping detection. */
 
 #define DRM_MAGIC_HASH_ORDER  4  /**< Size of key hash table. Must be power of 2. */
-#define DRM_KERNEL_CONTEXT    0	 /**< Change drm_resctx if changed */
-#define DRM_RESERVED_CONTEXTS 1	 /**< Change drm_resctx if changed */
 
 #define DRM_MAP_HASH_OFFSET 0x10000000
 
@@ -533,15 +531,6 @@ struct drm_map_list {
 	struct drm_local_map *map;	/**< mapping */
 	uint64_t user_token;
 	struct drm_master *master;
-};
-
-/**
- * Context handle list
- */
-struct drm_ctx_list {
-	struct list_head head;		/**< list head */
-	drm_context_t handle;		/**< context handle */
-	struct drm_file *tag;		/**< associated fd private data */
 };
 
 /* location of GART table */
@@ -1235,30 +1224,6 @@ extern int drm_setversion(struct drm_device *dev, void *data,
 			  struct drm_file *file_priv);
 extern int drm_noop(struct drm_device *dev, void *data,
 		    struct drm_file *file_priv);
-
-				/* Context IOCTL support (drm_context.h) */
-extern int drm_resctx(struct drm_device *dev, void *data,
-		      struct drm_file *file_priv);
-extern int drm_addctx(struct drm_device *dev, void *data,
-		      struct drm_file *file_priv);
-extern int drm_getctx(struct drm_device *dev, void *data,
-		      struct drm_file *file_priv);
-extern int drm_switchctx(struct drm_device *dev, void *data,
-			 struct drm_file *file_priv);
-extern int drm_newctx(struct drm_device *dev, void *data,
-		      struct drm_file *file_priv);
-extern int drm_rmctx(struct drm_device *dev, void *data,
-		     struct drm_file *file_priv);
-
-extern int drm_ctxbitmap_init(struct drm_device *dev);
-extern void drm_ctxbitmap_cleanup(struct drm_device *dev);
-extern void drm_ctxbitmap_free(struct drm_device *dev, int ctx_handle);
-extern void drm_ctxbitmap_flush(struct drm_device *dev, struct drm_file *file);
-
-extern int drm_setsareactx(struct drm_device *dev, void *data,
-			   struct drm_file *file_priv);
-extern int drm_getsareactx(struct drm_device *dev, void *data,
-			   struct drm_file *file_priv);
 
 				/* Authentication IOCTL support (drm_auth.h) */
 extern int drm_getmagic(struct drm_device *dev, void *data,

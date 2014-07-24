@@ -38,6 +38,7 @@
 #include <linux/poll.h>
 #include <linux/slab.h>
 #include <linux/module.h>
+#include "drm_legacy.h"
 
 /* from BKL pushdown */
 DEFINE_MUTEX(drm_global_mutex);
@@ -416,7 +417,7 @@ int drm_release(struct inode *inode, struct file *filp)
 	if (dev->driver->driver_features & DRIVER_GEM)
 		drm_gem_release(dev, file_priv);
 
-	drm_ctxbitmap_flush(dev, file_priv);
+	drm_legacy_ctxbitmap_flush(dev, file_priv);
 
 	mutex_lock(&dev->master_mutex);
 
