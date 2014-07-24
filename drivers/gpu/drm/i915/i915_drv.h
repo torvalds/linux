@@ -2088,7 +2088,7 @@ struct drm_i915_cmd_table {
 #define I915_NEED_GFX_HWS(dev)	(INTEL_INFO(dev)->need_gfx_hws)
 
 #define HAS_HW_CONTEXTS(dev)	(INTEL_INFO(dev)->gen >= 6)
-#define HAS_LOGICAL_RING_CONTEXTS(dev)	0
+#define HAS_LOGICAL_RING_CONTEXTS(dev)	(INTEL_INFO(dev)->gen >= 8)
 #define HAS_ALIASING_PPGTT(dev)	(INTEL_INFO(dev)->gen >= 6)
 #define HAS_PPGTT(dev)		(INTEL_INFO(dev)->gen >= 7 && !IS_GEN8(dev))
 #define USES_PPGTT(dev)		(i915.enable_ppgtt)
