@@ -34,7 +34,7 @@
 #include <linux/rockchip/cpu.h>
 #include <linux/rockchip/dvfs.h>
 
-#define GPUCLK_NAME	"clk_gpu"
+#define GPUCLK_NAME	"clk_gpu_pre"
 #define GPUCLK_PD_NAME	"pd_gpu"
 #define GPU_MHZ 	1000000
 
@@ -332,7 +332,7 @@ static mali_bool init_mali_clock(void)
 
 	if (mali_clock != 0 || mali_clock_pd != 0)
 		return ret; 
-	
+#if 0
 	mali_clock_pd = clk_get(NULL,GPUCLK_PD_NAME);
 	if (IS_ERR(mali_clock_pd)) {
 		MALI_PRINT( ("MALI Error : failed to get source mali pd\n"));
@@ -340,7 +340,7 @@ static mali_bool init_mali_clock(void)
 		goto err_gpu_clk;
 	}
 	clk_prepare_enable(mali_clock_pd);
-	
+#endif
 	mali_clock = clk_get_dvfs_node(GPUCLK_NAME);
 	if (IS_ERR(mali_clock)) {
 		MALI_PRINT( ("MALI Error : failed to get source mali clock\n"));
@@ -359,7 +359,7 @@ static mali_bool init_mali_clock(void)
 	mali_init_clock = mali_dvfs[0];
 	num_clock = i;
 	minuend = 1;
-	MALI_PRINT(("Mali400 inside of rk3036\r\n"));
+	MALI_PRINT(("Mali400 inside of rk3126\r\n"));
 
 	mali_clk_set_rate(mali_clock, mali_init_clock);
 	gpu_power_state = 1;
@@ -369,11 +369,12 @@ static mali_bool init_mali_clock(void)
 err_gpu_clk:
 	MALI_PRINT(("::clk_put:: %s mali_clock\n", __FUNCTION__));
 	gpu_power_state = 0;
+#if 0
 	clk_disable_unprepare(mali_clock_pd);
+#endif
 	dvfs_clk_disable_unprepare(mali_clock);
 	mali_clock = 0;
 	mali_clock_pd = 0;
-
 	return ret;
 }
 
@@ -382,7 +383,9 @@ static mali_bool deinit_mali_clock(void)
 	if (mali_clock == 0 && mali_clock_pd == 0)
 		return MALI_TRUE;
 	dvfs_clk_disable_unprepare(mali_clock);
+#if 0
 	clk_disable_unprepare(mali_clock_pd);
+#endif
 	mali_clock = 0;
 	mali_clock_pd = 0;
 	if(gpu_power_state)
@@ -416,9 +419,9 @@ static struct early_suspend mali_dev_early_suspend = {
 _mali_osk_errcode_t mali_platform_init(void)
 {
 	if (cpu_is_rk3036()) {
-		audis_gpu_clk = clk_get(NULL,"clk_gpu");	
+		audis_gpu_clk = clk_get(NULL,"clk_gpu_pre");	
 
-		if (IS_ERR(mali_clock_pd)) {
+		if (IS_ERR(audis_gpu_clk)) {
 			 MALI_PRINT( ("MALI Error : failed to get audis mali clk\n"));
 			 return MALI_FALSE;
 			 
@@ -474,7 +477,9 @@ _mali_osk_errcode_t mali_power_domain_control(u32 bpower_off)
 			if (cpu_is_rk3036()) {
 				clk_prepare_enable(audis_gpu_clk);
 			} else {
+		#if 0
 				clk_prepare_enable(mali_clock_pd);
+		#endif
 				dvfs_clk_prepare_enable(mali_clock);
 			}
 			gpu_power_state = 1 ;
@@ -487,7 +492,9 @@ _mali_osk_errcode_t mali_power_domain_control(u32 bpower_off)
 				clk_disable_unprepare(audis_gpu_clk);
 			} else {
 				dvfs_clk_disable_unprepare(mali_clock);
+		#if 0
 				clk_disable_unprepare(mali_clock_pd);	
+		#endif
 			}
 			gpu_power_state = 0;
 		}
