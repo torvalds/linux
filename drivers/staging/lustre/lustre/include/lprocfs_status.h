@@ -604,7 +604,7 @@ extern int lprocfs_obd_seq_create(struct obd_device *dev, const char *name,
 
 extern int lprocfs_rd_u64(struct seq_file *m, void *data);
 extern int lprocfs_rd_atomic(struct seq_file *m, void *data);
-extern int lprocfs_wr_atomic(struct file *file, const char *buffer,
+extern int lprocfs_wr_atomic(struct file *file, const char __user *buffer,
 			     unsigned long count, void *data);
 extern int lprocfs_rd_uint(struct seq_file *m, void *data);
 extern int lprocfs_wr_uint(struct file *file, const char *buffer,
