@@ -192,11 +192,7 @@ static inline unsigned NI_660x_Up_Down_Pin_Second_Gate_Select(unsigned n)
 	return 0x2 + n;
 }
 
-static inline unsigned NI_660x_RTSI_Second_Gate_Select(unsigned n)
-{
-	BUG_ON(n > ni_660x_max_rtsi_channel);
-	return 0xb + n;
-}
+#define NI_660X_RTSI_GATE2_SEL(x)	(0xb + (x))
 
 static const unsigned int counter_status_mask =
 	COMEDI_COUNTER_ARMED | COMEDI_COUNTER_COUNTING;
@@ -1267,10 +1263,8 @@ ni_660x_second_gate_to_generic_gate_source(unsigned ni_660x_gate_select)
 		return NI_GPCT_LOGIC_LOW_GATE_SELECT;
 	default:
 		for (i = 0; i <= ni_660x_max_rtsi_channel; ++i) {
-			if (ni_660x_gate_select ==
-			    NI_660x_RTSI_Second_Gate_Select(i)) {
+			if (ni_660x_gate_select == NI_660X_RTSI_GATE2_SEL(i))
 				return NI_GPCT_RTSI_GATE_SELECT(i);
-			}
 		}
 		if (i <= ni_660x_max_rtsi_channel)
 			break;
