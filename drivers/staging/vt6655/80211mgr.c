@@ -546,6 +546,7 @@ vMgrDecodeReassocRequest(
 )
 {
 	PWLAN_IE   pItem;
+
 	pFrame->pHdr = (PUWLAN_80211HDR)pFrame->pBuf;
 
 	/* Fixed Fields */

@@ -786,6 +786,7 @@ inline  static	void   EnQueue(PSDevice pDevice, PSRxMgmtPacket  pRxMgmtPacket)
 inline  static  PSRxMgmtPacket DeQueue(PSDevice pDevice)
 {
 	PSRxMgmtPacket  pRxMgmtPacket;
+
 	if (pDevice->rxManeQueue.tail == pDevice->rxManeQueue.head) {
 		printk("Queue is Empty\n");
 		return NULL;

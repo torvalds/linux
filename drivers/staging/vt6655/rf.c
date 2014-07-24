@@ -750,6 +750,7 @@ bool RFbInit(
 )
 {
 	bool bResult = true;
+
 	switch (pDevice->byRFType) {
 	case RF_AIROHA:
 	case RF_AL2230S:
@@ -786,6 +787,7 @@ bool RFbInit(
 bool RFbSelectChannel(void __iomem *dwIoBase, unsigned char byRFType, unsigned char byChannel)
 {
 	bool bResult = true;
+
 	switch (byRFType) {
 	case RF_AIROHA:
 	case RF_AL2230S:

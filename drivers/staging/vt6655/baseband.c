@@ -2289,6 +2289,7 @@ void BBvReadAllRegs(void __iomem *dwIoBase, unsigned char *pbyBBRegs)
 {
 	int  ii;
 	unsigned char byBase = 1;
+
 	for (ii = 0; ii < BB_MAX_CONTEXT_SIZE; ii++) {
 		BBbReadEmbedded(dwIoBase, (unsigned char)(ii*byBase), pbyBBRegs);
 		pbyBBRegs += byBase;

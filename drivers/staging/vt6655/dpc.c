@@ -604,6 +604,7 @@ device_receive_frame(
 			{
 				unsigned char Protocol_Version;    //802.1x Authentication
 				unsigned char Packet_Type;           //802.1x Authentication
+
 				if (bIsWEP)
 					cbIVOffset = 8;
 				else
@@ -761,6 +762,7 @@ device_receive_frame(
 					union iwreq_data wrqu;
 					struct iw_michaelmicfailure ev;
 					int keyidx = pbyFrame[cbHeaderSize+3] >> 6; //top two-bits
+
 					memset(&ev, 0, sizeof(ev));
 					ev.flags = keyidx & IW_MICFAILURE_KEY_ID;
 					if ((pMgmt->eCurrMode == WMAC_MODE_ESS_STA) &&
@@ -1114,6 +1116,7 @@ static bool s_bHandleRxEncryption(
 			// Software TKIP
 			// 1. 3253 A
 			PS802_11Header  pMACHeader = (PS802_11Header)(pbyFrame);
+
 			TKIPvMixKey(pKey->abyKey, pMACHeader->abyAddr2, *pwRxTSC15_0, *pdwRxTSC47_16, pDevice->abyPRNG);
 			rc4_init(&pDevice->SBox, pDevice->abyPRNG, TKIP_KEY_LEN);
 			rc4_encrypt(&pDevice->SBox, pbyIV+8, pbyIV+8, PayloadLen);

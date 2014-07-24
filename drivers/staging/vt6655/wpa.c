@@ -73,6 +73,7 @@ WPA_ClearRSN(
 )
 {
 	int ii;
+
 	pBSSList->byGKType = WPA_TKIP;
 	for (ii = 0; ii < 4; ii++)
 		pBSSList->abyPKType[ii] = WPA_TKIP;

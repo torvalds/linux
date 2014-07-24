@@ -128,6 +128,7 @@ VNTWIFIpGetCurrentSSID(
 )
 {
 	PSMgmtObject        pMgmt = (PSMgmtObject)pMgmtHandle;
+
 	return (PWLAN_IE_SSID) pMgmt->abyCurrSSID;
 }
 
@@ -151,6 +152,7 @@ VNTWIFIpGetCurrentChannel(
 )
 {
 	PSMgmtObject        pMgmt = (PSMgmtObject)pMgmtHandle;
+
 	if (pMgmtHandle != NULL)
 		return pMgmt->uCurrChannel;
 
@@ -177,6 +179,7 @@ VNTWIFIwGetAssocID(
 )
 {
 	PSMgmtObject        pMgmt = (PSMgmtObject)pMgmtHandle;
+
 	return pMgmt->wCurrAID;
 }
 

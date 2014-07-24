@@ -990,6 +990,7 @@ BSSvSecondTxData(
 {
 	PSDevice        pDevice = (PSDevice)hDeviceContext;
 	PSMgmtObject  pMgmt = &(pDevice->sMgmtObj);
+
 	pDevice->nTxDataTimeCout++;
 
 	if (pDevice->nTxDataTimeCout < 4)     //don't tx data if timer less than 40s

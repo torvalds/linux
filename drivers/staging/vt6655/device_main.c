@@ -326,6 +326,7 @@ static int Config_FileGetParameter(unsigned char *string,
 static char *get_chip_name(int chip_id)
 {
 	int i;
+
 	for (i = 0; chip_info_table[i].name != NULL; i++)
 		if (chip_info_table[i].chip_id == chip_id)
 			break;
@@ -464,6 +465,7 @@ static void device_init_registers(PSDevice pDevice, DEVICE_INIT_TYPE InitType)
 	unsigned char byOFDMPwrdBm = 0;
 	int zonetype = 0;
 	PSMgmtObject    pMgmt = &(pDevice->sMgmtObj);
+
 	MACbShutdown(pDevice->PortOffset);
 	BBvSoftwareReset(pDevice->PortOffset);
 
@@ -1006,6 +1008,7 @@ static bool device_get_pci_info(PSDevice pDevice, struct pci_dev *pcid) {
 	unsigned char value = 0x00;
 	int		ii, j;
 	u16	max_lat = 0x0000;
+
 	memset(pci_config, 0x00, 256);
 #endif
 
@@ -1358,6 +1361,7 @@ static void device_init_td1_ring(PSDevice pDevice) {
 
 static void device_free_td0_ring(PSDevice pDevice) {
 	int i;
+
 	for (i = 0; i < pDevice->sOpts.nTxDescs[0]; i++) {
 		PSTxDesc        pDesc = &(pDevice->apTD0Rings[i]);
 		PDEVICE_TD_INFO  pTDInfo = pDesc->pTDInfo;
@@ -2278,6 +2282,7 @@ static int  device_xmit(struct sk_buff *skb, struct net_device *dev) {
 		unsigned char Descriptor_type;
 		unsigned short Key_info;
 		bool bTxeapol_key = false;
+
 		Protocol_Version = skb->data[ETH_HLEN];
 		Packet_Type = skb->data[ETH_HLEN+1];
 		Descriptor_type = skb->data[ETH_HLEN+1+1+2];
@@ -2576,6 +2581,7 @@ static inline u32 ether_crc(int length, unsigned char *data)
 	while (--length >= 0) {
 		unsigned char current_octet = *data++;
 		int bit;
+
 		for (bit = 0; bit < 8; bit++, current_octet >>= 1) {
 			crc = (crc << 1) ^
 				((crc < 0) ^ (current_octet & 1) ? ethernet_polynomial : 0);
@@ -2671,6 +2677,7 @@ static void device_set_multi(struct net_device *dev) {
 		memset(mc_filter, 0, sizeof(mc_filter));
 		netdev_for_each_mc_addr(ha, dev) {
 			int bit_nr = ether_crc(ETH_ALEN, ha->addr) >> 26;
+
 			mc_filter[bit_nr >> 5] |= cpu_to_le32(1 << (bit_nr & 31));
 		}
 		MACvSelectPage1(pDevice->PortOffset);
@@ -2734,6 +2741,7 @@ static int  device_ioctl(struct net_device *dev, struct ifreq *rq, int cmd) {
 
 	{
 		char essid[IW_ESSID_MAX_SIZE+1];
+
 		if (wrq->u.essid.length > IW_ESSID_MAX_SIZE) {
 			rc = -E2BIG;
 			break;
@@ -2753,6 +2761,7 @@ static int  device_ioctl(struct net_device *dev, struct ifreq *rq, int cmd) {
 
 	{
 		char essid[IW_ESSID_MAX_SIZE+1];
+
 		if (wrq->u.essid.pointer)
 			rc = iwctl_giwessid(dev, NULL,
 					    &(wrq->u.essid), essid);
@@ -3115,6 +3124,7 @@ static int ethtool_ioctl(struct net_device *dev, void __user *useraddr)
 	switch (ethcmd) {
 	case ETHTOOL_GDRVINFO: {
 		struct ethtool_drvinfo info = {ETHTOOL_GDRVINFO};
+
 		strncpy(info.driver, DEVICE_NAME, sizeof(info.driver)-1);
 		strncpy(info.version, DEVICE_VERSION, sizeof(info.version)-1);
 		if (copy_to_user(useraddr, &info, sizeof(info)))
@@ -3171,6 +3181,7 @@ static int
 device_notify_reboot(struct notifier_block *nb, unsigned long event, void *p)
 {
 	struct pci_dev *pdev = NULL;
+
 	switch (event) {
 	case SYS_DOWN:
 	case SYS_HALT:

@@ -1084,6 +1084,7 @@ s_vGenerateTxParameter(
 	unsigned char byFBOption = AUTO_FB_NONE;
 
 	PSTxBufHead pFifoHead = (PSTxBufHead)pTxBufHead;
+
 	pFifoHead->wReserved = wCurrentRate;
 	wFifoCtl = pFifoHead->wFIFOCtl;
 
@@ -1103,6 +1104,7 @@ s_vGenerateTxParameter(
 			//Fill RsvTime
 			if (pvRrvTime) {
 				PSRrvTime_gRTS pBuf = (PSRrvTime_gRTS)pvRrvTime;
+
 				pBuf->wRTSTxRrvTime_aa = cpu_to_le16((unsigned short)s_uGetRTSCTSRsvTime(pDevice, 2, byPktType, cbFrameSize, wCurrentRate));//2:RTSTxRrvTime_aa, 1:2.4GHz
 				pBuf->wRTSTxRrvTime_ba = cpu_to_le16((unsigned short)s_uGetRTSCTSRsvTime(pDevice, 1, byPktType, cbFrameSize, wCurrentRate));//1:RTSTxRrvTime_ba, 1:2.4GHz
 				pBuf->wRTSTxRrvTime_bb = cpu_to_le16((unsigned short)s_uGetRTSCTSRsvTime(pDevice, 0, byPktType, cbFrameSize, wCurrentRate));//0:RTSTxRrvTime_bb, 1:2.4GHz
@@ -1116,6 +1118,7 @@ s_vGenerateTxParameter(
 			//Fill RsvTime
 			if (pvRrvTime) {
 				PSRrvTime_gCTS pBuf = (PSRrvTime_gCTS)pvRrvTime;
+
 				pBuf->wTxRrvTime_a = cpu_to_le16((unsigned short)s_uGetTxRsvTime(pDevice, byPktType, cbFrameSize, wCurrentRate, bNeedACK));//2.4G OFDM
 				pBuf->wTxRrvTime_b = cpu_to_le16((unsigned short)s_uGetTxRsvTime(pDevice, PK_TYPE_11B, cbFrameSize, pDevice->byTopCCKBasicRate, bNeedACK));//1:CCK
 				pBuf->wCTSTxRrvTime_ba = cpu_to_le16((unsigned short)s_uGetRTSCTSRsvTime(pDevice, 3, byPktType, cbFrameSize, wCurrentRate));//3:CTSTxRrvTime_Ba, 1:2.4GHz
@@ -1129,6 +1132,7 @@ s_vGenerateTxParameter(
 			//Fill RsvTime
 			if (pvRrvTime) {
 				PSRrvTime_ab pBuf = (PSRrvTime_ab)pvRrvTime;
+
 				pBuf->wRTSTxRrvTime = cpu_to_le16((unsigned short)s_uGetRTSCTSRsvTime(pDevice, 2, byPktType, cbFrameSize, wCurrentRate));//2:RTSTxRrvTime_aa, 0:5GHz
 				pBuf->wTxRrvTime = cpu_to_le16((unsigned short)s_uGetTxRsvTime(pDevice, byPktType, cbFrameSize, wCurrentRate, bNeedACK));//0:OFDM
 			}
@@ -1138,6 +1142,7 @@ s_vGenerateTxParameter(
 			//Fill RsvTime
 			if (pvRrvTime) {
 				PSRrvTime_ab pBuf = (PSRrvTime_ab)pvRrvTime;
+
 				pBuf->wTxRrvTime = cpu_to_le16((unsigned short)s_uGetTxRsvTime(pDevice, PK_TYPE_11A, cbFrameSize, wCurrentRate, bNeedACK)); //0:OFDM
 			}
 		}
@@ -1146,6 +1151,7 @@ s_vGenerateTxParameter(
 			//Fill RsvTime
 			if (pvRrvTime) {
 				PSRrvTime_ab pBuf = (PSRrvTime_ab)pvRrvTime;
+
 				pBuf->wRTSTxRrvTime = cpu_to_le16((unsigned short)s_uGetRTSCTSRsvTime(pDevice, 0, byPktType, cbFrameSize, wCurrentRate));//0:RTSTxRrvTime_bb, 1:2.4GHz
 				pBuf->wTxRrvTime = cpu_to_le16((unsigned short)s_uGetTxRsvTime(pDevice, PK_TYPE_11B, cbFrameSize, wCurrentRate, bNeedACK));//1:CCK
 			}
@@ -1155,6 +1161,7 @@ s_vGenerateTxParameter(
 			//Fill RsvTime
 			if (pvRrvTime) {
 				PSRrvTime_ab pBuf = (PSRrvTime_ab)pvRrvTime;
+
 				pBuf->wTxRrvTime = cpu_to_le16((unsigned short)s_uGetTxRsvTime(pDevice, PK_TYPE_11B, cbFrameSize, wCurrentRate, bNeedACK)); //1:CCK
 			}
 		}
@@ -2025,6 +2032,7 @@ vGenerateMACHeader(
 
 	if (pDevice->bLongHeader) {
 		PWLAN_80211HDR_A4 pMACA4Header  = (PWLAN_80211HDR_A4) pbyBufferAddr;
+
 		pMACHeader->wFrameCtl |= (FC_TODS | FC_FROMDS);
 		memcpy(pMACA4Header->abyAddr4, pDevice->abyBSSID, WLAN_ADDR_LEN);
 	}

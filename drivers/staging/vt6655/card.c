@@ -1770,6 +1770,7 @@ void vUpdateIFS(void *pDeviceHandler)
 	PSDevice pDevice = (PSDevice) pDeviceHandler;
 
 	unsigned char byMaxMin = 0;
+
 	if (pDevice->byPacketType == PK_TYPE_11A) {//0000 0000 0000 0000,11a
 		pDevice->uSlot = C_SLOT_SHORT;
 		pDevice->uSIFS = C_SIFS_A;

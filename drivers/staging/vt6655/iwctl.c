@@ -139,11 +139,13 @@ static int iwctl_siwscan(struct net_device *dev,
 	struct iw_scan_req  *req = (struct iw_scan_req *)extra;
 	unsigned char abyScanSSID[WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1];
 	PWLAN_IE_SSID pItemSSID = NULL;
+
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " SIOCSIWSCAN \n");
 
 	if (pDevice->byReAssocCount > 0) {   //reject scan when re-associating!
 //send scan event to wpa_Supplicant
 		union iwreq_data wrqu;
+
 		PRINT_K("wireless_send_event--->SIOCGIWSCAN(scan done)\n");
 		memset(&wrqu, 0, sizeof(wrqu));
 		wireless_send_event(pDevice->dev, SIOCGIWSCAN, &wrqu, NULL);
@@ -255,6 +257,7 @@ static int iwctl_giwscan(struct net_device *dev,
 			//2008-0409-04, <Add> by Einsn Liu
 			{
 				int f = (int)pBSS->uChannel - 1;
+
 				if (f < 0)f = 0;
 				iwe.u.freq.m = frequency_list[f] * 100000;
 				iwe.u.freq.e = 1;
@@ -358,6 +361,7 @@ int iwctl_siwfreq(struct net_device *dev,
 	    (wrq->m <= (int) 2.487e8)) {
 		int f = wrq->m / 100000;
 		int c = 0;
+
 		while ((c < 14) && (f != frequency_list[c]))
 			c++;
 		wrq->e = 0;
@@ -368,6 +372,7 @@ int iwctl_siwfreq(struct net_device *dev,
 		rc = -EOPNOTSUPP;
 	else {
 		int channel = wrq->m;
+
 		if ((channel < 1) || (channel > 14)) {
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "%s: New channel value of %d is invalid!\n", dev->name, wrq->m);
 			rc = -EINVAL;
@@ -404,6 +409,7 @@ int iwctl_giwfreq(struct net_device *dev,
 #else
 	{
 		int f = (int)pMgmt->uCurrChannel - 1;
+
 		if (f < 0)
 			f = 0;
 		wrq->m = frequency_list[f] * 100000;
@@ -658,6 +664,7 @@ int iwctl_siwap(struct net_device *dev,
 		//                  then ignore,because you don't known which one to be connect with??
 		{
 			unsigned int ii, uSameBssidNum = 0;
+
 			for (ii = 0; ii < MAX_BSS_NUM; ii++) {
 				if (pMgmt->sBSSList[ii].bActive &&
 				    ether_addr_equal(pMgmt->sBSSList[ii].abyBSSID,
@@ -1059,6 +1066,7 @@ int iwctl_siwrts(struct net_device *dev,
 
 	{
 		int rthr = wrq->value;
+
 		if (wrq->disabled)
 			rthr = 2312;
 

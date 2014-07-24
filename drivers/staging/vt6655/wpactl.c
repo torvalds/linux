@@ -766,6 +766,7 @@ static int wpa_set_associate(PSDevice pDevice,
 /*******search if ap_scan=2 ,which is associating request in hidden ssid mode ****/
 	{
 		PKnownBSS       pCurr = NULL;
+
 		pCurr = BSSpSearchBSSList(pDevice,
 					  pMgmt->abyDesireBSSID,
 					  pMgmt->abyDesireSSID,
