@@ -667,7 +667,7 @@ static unsigned ni_m_clk_src(unsigned int clock_source)
 		}
 		if (i <= NI_M_MAX_PFI_CHAN)
 			break;
-		printk(KERN_ERR "invalid clock source 0x%lx\n",
+		pr_err("invalid clock source 0x%lx\n",
 		       (unsigned long)clock_source);
 		BUG();
 		ni_m_series_clock = 0;
