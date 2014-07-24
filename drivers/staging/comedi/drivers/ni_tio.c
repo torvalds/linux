@@ -154,12 +154,7 @@ static inline unsigned NI_M_Series_PFI_Clock(unsigned n)
 }
 
 static const unsigned ni_m_series_max_rtsi_channel = 7;
-static inline unsigned NI_M_Series_RTSI_Clock(unsigned n)
-{
-	BUG_ON(n > ni_m_series_max_rtsi_channel);
-
-	return (n == 7) ? 0x1b : (0xb + n);
-}
+#define NI_M_RTSI_CLK(x)		(((x) == 7) ? 0x1b : (0xb + (x)))
 
 enum ni_660x_gate_select {
 	NI_660x_Source_Pin_i_Gate_Select = 0x0,
@@ -622,7 +617,7 @@ static unsigned ni_m_series_source_select_bits(unsigned int clock_source)
 	default:
 		for (i = 0; i <= ni_m_series_max_rtsi_channel; ++i) {
 			if (clock_select_bits == NI_GPCT_RTSI_CLOCK_SRC_BITS(i)) {
-				ni_m_series_clock = NI_M_Series_RTSI_Clock(i);
+				ni_m_series_clock = NI_M_RTSI_CLK(i);
 				break;
 			}
 		}
@@ -791,7 +786,7 @@ static unsigned ni_m_series_clock_src_select(const struct ni_gpct *counter)
 		break;
 	default:
 		for (i = 0; i <= ni_m_series_max_rtsi_channel; ++i) {
-			if (input_select == NI_M_Series_RTSI_Clock(i)) {
+			if (input_select == NI_M_RTSI_CLK(i)) {
 				clock_source = NI_GPCT_RTSI_CLOCK_SRC_BITS(i);
 				break;
 			}
