@@ -47,6 +47,7 @@
 #define GEN8_LR_CONTEXT_ALIGN 4096
 
 #define RING_ELSP(ring)			((ring)->mmio_base+0x230)
+#define RING_EXECLIST_STATUS(ring)	((ring)->mmio_base+0x234)
 #define RING_CONTEXT_CONTROL(ring)	((ring)->mmio_base+0x244)
 
 #define CTX_LRI_HEADER_0		0x01
@@ -78,6 +79,26 @@
 #define CTX_R_PWR_CLK_STATE		0x42
 #define CTX_GPGPU_CSR_BASE_ADDRESS	0x44
 
+#define GEN8_CTX_VALID (1<<0)
+#define GEN8_CTX_FORCE_PD_RESTORE (1<<1)
+#define GEN8_CTX_FORCE_RESTORE (1<<2)
+#define GEN8_CTX_L3LLC_COHERENT (1<<5)
+#define GEN8_CTX_PRIVILEGE (1<<8)
+enum {
+	ADVANCED_CONTEXT = 0,
+	LEGACY_CONTEXT,
+	ADVANCED_AD_CONTEXT,
+	LEGACY_64B_CONTEXT
+};
+#define GEN8_CTX_MODE_SHIFT 3
+enum {
+	FAULT_AND_HANG = 0,
+	FAULT_AND_HALT, /* Debug only */
+	FAULT_AND_STREAM,
+	FAULT_AND_CONTINUE /* Unsupported */
+};
+#define GEN8_CTX_ID_SHIFT 32
+
 int intel_sanitize_enable_execlists(struct drm_device *dev, int enable_execlists)
 {
 	WARN_ON(i915.enable_ppgtt == -1);
@@ -88,6 +109,93 @@ int intel_sanitize_enable_execlists(struct drm_device *dev, int enable_execlists
 	if (HAS_LOGICAL_RING_CONTEXTS(dev) && USES_PPGTT(dev) &&
 	    i915.use_mmio_flip >= 0)
 		return 1;
+
+	return 0;
+}
+
+u32 intel_execlists_ctx_id(struct drm_i915_gem_object *ctx_obj)
+{
+	u32 lrca = i915_gem_obj_ggtt_offset(ctx_obj);
+
+	/* LRCA is required to be 4K aligned so the more significant 20 bits
+	 * are globally unique */
+	return lrca >> 12;
+}
+
+static uint64_t execlists_ctx_descriptor(struct drm_i915_gem_object *ctx_obj)
+{
+	uint64_t desc;
+	uint64_t lrca = i915_gem_obj_ggtt_offset(ctx_obj);
+	BUG_ON(lrca & 0xFFFFFFFF00000FFFULL);
+
+	desc = GEN8_CTX_VALID;
+	desc |= LEGACY_CONTEXT << GEN8_CTX_MODE_SHIFT;
+	desc |= GEN8_CTX_L3LLC_COHERENT;
+	desc |= GEN8_CTX_PRIVILEGE;
+	desc |= lrca;
+	desc |= (u64)intel_execlists_ctx_id(ctx_obj) << GEN8_CTX_ID_SHIFT;
+
+	/* TODO: WaDisableLiteRestore when we start using semaphore
+	 * signalling between Command Streamers */
+	/* desc |= GEN8_CTX_FORCE_RESTORE; */
+
+	return desc;
+}
+
+static void execlists_elsp_write(struct intel_engine_cs *ring,
+				 struct drm_i915_gem_object *ctx_obj0,
+				 struct drm_i915_gem_object *ctx_obj1)
+{
+	struct drm_i915_private *dev_priv = ring->dev->dev_private;
+	uint64_t temp = 0;
+	uint32_t desc[4];
+
+	/* XXX: You must always write both descriptors in the order below. */
+	if (ctx_obj1)
+		temp = execlists_ctx_descriptor(ctx_obj1);
+	else
+		temp = 0;
+	desc[1] = (u32)(temp >> 32);
+	desc[0] = (u32)temp;
+
+	temp = execlists_ctx_descriptor(ctx_obj0);
+	desc[3] = (u32)(temp >> 32);
+	desc[2] = (u32)temp;
+
+	/* Set Force Wakeup bit to prevent GT from entering C6 while
+	 * ELSP writes are in progress */
+	gen6_gt_force_wake_get(dev_priv, FORCEWAKE_ALL);
+
+	I915_WRITE(RING_ELSP(ring), desc[1]);
+	I915_WRITE(RING_ELSP(ring), desc[0]);
+	I915_WRITE(RING_ELSP(ring), desc[3]);
+	/* The context is automatically loaded after the following */
+	I915_WRITE(RING_ELSP(ring), desc[2]);
+
+	/* ELSP is a wo register, so use another nearby reg for posting instead */
+	POSTING_READ(RING_EXECLIST_STATUS(ring));
+
+	gen6_gt_force_wake_put(dev_priv, FORCEWAKE_ALL);
+}
+
+static int execlists_submit_context(struct intel_engine_cs *ring,
+				    struct intel_context *to0, u32 tail0,
+				    struct intel_context *to1, u32 tail1)
+{
+	struct drm_i915_gem_object *ctx_obj0;
+	struct drm_i915_gem_object *ctx_obj1 = NULL;
+
+	ctx_obj0 = to0->engine[ring->id].state;
+	BUG_ON(!ctx_obj0);
+	BUG_ON(!i915_gem_obj_is_pinned(ctx_obj0));
+
+	if (to1) {
+		ctx_obj1 = to1->engine[ring->id].state;
+		BUG_ON(!ctx_obj1);
+		BUG_ON(!i915_gem_obj_is_pinned(ctx_obj1));
+	}
+
+	execlists_elsp_write(ring, ctx_obj0, ctx_obj1);
 
 	return 0;
 }
@@ -270,12 +378,16 @@ int logical_ring_flush_all_caches(struct intel_ringbuffer *ringbuf)
 
 void intel_logical_ring_advance_and_submit(struct intel_ringbuffer *ringbuf)
 {
+	struct intel_engine_cs *ring = ringbuf->ring;
+	struct intel_context *ctx = ringbuf->FIXME_lrc_ctx;
+
 	intel_logical_ring_advance(ringbuf);
 
-	if (intel_ring_stopped(ringbuf->ring))
+	if (intel_ring_stopped(ring))
 		return;
 
-	/* TODO: how to submit a context to the ELSP is not here yet */
+	/* FIXME: too cheeky, we don't even check if the ELSP is ready */
+	execlists_submit_context(ring, ctx, ringbuf->tail, NULL, 0);
 }
 
 static int logical_ring_alloc_seqno(struct intel_engine_cs *ring,

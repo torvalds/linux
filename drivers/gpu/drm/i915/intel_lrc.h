@@ -57,5 +57,6 @@ int intel_execlists_submission(struct drm_device *dev, struct drm_file *file,
 			       struct list_head *vmas,
 			       struct drm_i915_gem_object *batch_obj,
 			       u64 exec_start, u32 flags);
+u32 intel_execlists_ctx_id(struct drm_i915_gem_object *ctx_obj);
 
 #endif /* _INTEL_LRC_H_ */
