@@ -126,9 +126,6 @@ InitPartitionProperties(void)
 
 static MYPROCTYPE *PartitionType;
 
-#define VISORCHIPSET_DIAG_PROC_ENTRY_FN "diagdump"
-static struct proc_dir_entry *diag_proc_dir;
-
 #define VISORCHIPSET_PARAHOTPLUG_PROC_ENTRY_FN "parahotplug"
 static struct proc_dir_entry *parahotplug_proc_dir;
 
@@ -2583,10 +2580,7 @@ visorchipset_exit(void)
 		visor_proc_DestroyType(PartitionType);
 		PartitionType = NULL;
 	}
-	if (diag_proc_dir) {
-		remove_proc_entry(VISORCHIPSET_DIAG_PROC_ENTRY_FN, ProcDir);
-		diag_proc_dir = NULL;
-	}
+
 	memset(&g_DiagMsgHdr, 0, sizeof(CONTROLVM_MESSAGE_HEADER));
 
 	memset(&g_ChipSetMsgHdr, 0, sizeof(CONTROLVM_MESSAGE_HEADER));
