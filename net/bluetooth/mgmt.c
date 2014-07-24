@@ -3154,9 +3154,9 @@ static int pair_device(struct sock *sk, struct hci_dev *hdev, void *data,
 		 */
 		hci_conn_params_add(hdev, &cp->addr.bdaddr, addr_type);
 
-		/* Request a connection with master = true role */
 		conn = hci_connect_le(hdev, &cp->addr.bdaddr, addr_type,
-				      sec_level, HCI_LE_CONN_TIMEOUT, true);
+				      sec_level, HCI_LE_CONN_TIMEOUT,
+				      HCI_ROLE_MASTER);
 	}
 
 	if (IS_ERR(conn)) {
@@ -3202,7 +3202,7 @@ static int pair_device(struct sock *sk, struct hci_dev *hdev, void *data,
 	cmd->user_data = conn;
 
 	if (conn->state == BT_CONNECTED &&
-	    hci_conn_security(conn, sec_level, auth_type))
+	    hci_conn_security(conn, sec_level, auth_type, true))
 		pairing_complete(cmd, 0);
 
 	err = 0;

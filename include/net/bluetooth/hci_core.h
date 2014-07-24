@@ -83,6 +83,7 @@ struct hci_conn_hash {
 	unsigned int     amp_num;
 	unsigned int     sco_num;
 	unsigned int     le_num;
+	unsigned int     le_num_slave;
 };
 
 struct bdaddr_list {
@@ -371,6 +372,7 @@ struct hci_conn {
 	__u16		state;
 	__u8		mode;
 	__u8		type;
+	__u8		role;
 	bool		out;
 	__u8		attempt;
 	__u8		dev_class[3];
@@ -540,12 +542,12 @@ enum {
 	HCI_CONN_POWER_SAVE,
 	HCI_CONN_REMOTE_OOB,
 	HCI_CONN_FLUSH_KEY,
-	HCI_CONN_MASTER,
 	HCI_CONN_ENCRYPT,
 	HCI_CONN_AUTH,
 	HCI_CONN_SECURE,
 	HCI_CONN_FIPS,
 	HCI_CONN_STK_ENCRYPT,
+	HCI_CONN_AUTH_INITIATOR,
 };
 
 static inline bool hci_conn_ssp_enabled(struct hci_conn *conn)
@@ -575,6 +577,8 @@ static inline void hci_conn_hash_add(struct hci_dev *hdev, struct hci_conn *c)
 		break;
 	case LE_LINK:
 		h->le_num++;
+		if (c->role == HCI_ROLE_SLAVE)
+			h->le_num_slave++;
 		break;
 	case SCO_LINK:
 	case ESCO_LINK:
@@ -599,6 +603,8 @@ static inline void hci_conn_hash_del(struct hci_dev *hdev, struct hci_conn *c)
 		break;
 	case LE_LINK:
 		h->le_num--;
+		if (c->role == HCI_ROLE_SLAVE)
+			h->le_num_slave--;
 		break;
 	case SCO_LINK:
 	case ESCO_LINK:
@@ -695,7 +701,8 @@ void hci_disconnect(struct hci_conn *conn, __u8 reason);
 bool hci_setup_sync(struct hci_conn *conn, __u16 handle);
 void hci_sco_setup(struct hci_conn *conn, __u8 status);
 
-struct hci_conn *hci_conn_add(struct hci_dev *hdev, int type, bdaddr_t *dst);
+struct hci_conn *hci_conn_add(struct hci_dev *hdev, int type, bdaddr_t *dst,
+			      u8 role);
 int hci_conn_del(struct hci_conn *conn);
 void hci_conn_hash_flush(struct hci_dev *hdev);
 void hci_conn_check_pending(struct hci_dev *hdev);
@@ -707,14 +714,15 @@ struct hci_chan *hci_chan_lookup_handle(struct hci_dev *hdev, __u16 handle);
 
 struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
 				u8 dst_type, u8 sec_level, u16 conn_timeout,
-				bool master);
+				u8 role);
 struct hci_conn *hci_connect_acl(struct hci_dev *hdev, bdaddr_t *dst,
 				 u8 sec_level, u8 auth_type);
 struct hci_conn *hci_connect_sco(struct hci_dev *hdev, int type, bdaddr_t *dst,
 				 __u16 setting);
 int hci_conn_check_link_mode(struct hci_conn *conn);
 int hci_conn_check_secure(struct hci_conn *conn, __u8 sec_level);
-int hci_conn_security(struct hci_conn *conn, __u8 sec_level, __u8 auth_type);
+int hci_conn_security(struct hci_conn *conn, __u8 sec_level, __u8 auth_type,
+		      bool initiator);
 int hci_conn_change_link_key(struct hci_conn *conn);
 int hci_conn_switch_role(struct hci_conn *conn, __u8 role);
 
@@ -881,12 +889,12 @@ struct link_key *hci_add_link_key(struct hci_dev *hdev, struct hci_conn *conn,
 				  bdaddr_t *bdaddr, u8 *val, u8 type,
 				  u8 pin_len, bool *persistent);
 struct smp_ltk *hci_find_ltk(struct hci_dev *hdev, __le16 ediv, __le64 rand,
-			     bool master);
+			     u8 role);
 struct smp_ltk *hci_add_ltk(struct hci_dev *hdev, bdaddr_t *bdaddr,
 			    u8 addr_type, u8 type, u8 authenticated,
 			    u8 tk[16], u8 enc_size, __le16 ediv, __le64 rand);
 struct smp_ltk *hci_find_ltk_by_addr(struct hci_dev *hdev, bdaddr_t *bdaddr,
-				     u8 addr_type, bool master);
+				     u8 addr_type, u8 role);
 int hci_remove_ltk(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 bdaddr_type);
 void hci_smp_ltks_clear(struct hci_dev *hdev);
 int hci_remove_link_key(struct hci_dev *hdev, bdaddr_t *bdaddr);

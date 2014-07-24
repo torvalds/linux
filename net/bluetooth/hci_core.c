@@ -2088,7 +2088,7 @@ u32 hci_inquiry_cache_update(struct hci_dev *hdev, struct inquiry_data *data,
 	}
 
 	/* Entry not in the cache. Add new one. */
-	ie = kzalloc(sizeof(struct inquiry_entry), GFP_KERNEL);
+	ie = kzalloc(sizeof(*ie), GFP_KERNEL);
 	if (!ie) {
 		flags |= MGMT_DEV_FOUND_CONFIRM_NAME;
 		goto done;
@@ -3121,13 +3121,16 @@ static bool hci_persistent_key(struct hci_dev *hdev, struct hci_conn *conn,
 	return false;
 }
 
-static bool ltk_type_master(u8 type)
+static u8 ltk_role(u8 type)
 {
-	return (type == SMP_LTK);
+	if (type == SMP_LTK)
+		return HCI_ROLE_MASTER;
+
+	return HCI_ROLE_SLAVE;
 }
 
 struct smp_ltk *hci_find_ltk(struct hci_dev *hdev, __le16 ediv, __le64 rand,
-			     bool master)
+			     u8 role)
 {
 	struct smp_ltk *k;
 
@@ -3135,7 +3138,7 @@ struct smp_ltk *hci_find_ltk(struct hci_dev *hdev, __le16 ediv, __le64 rand,
 		if (k->ediv != ediv || k->rand != rand)
 			continue;
 
-		if (ltk_type_master(k->type) != master)
+		if (ltk_role(k->type) != role)
 			continue;
 
 		return k;
@@ -3145,14 +3148,14 @@ struct smp_ltk *hci_find_ltk(struct hci_dev *hdev, __le16 ediv, __le64 rand,
 }
 
 struct smp_ltk *hci_find_ltk_by_addr(struct hci_dev *hdev, bdaddr_t *bdaddr,
-				     u8 addr_type, bool master)
+				     u8 addr_type, u8 role)
 {
 	struct smp_ltk *k;
 
 	list_for_each_entry(k, &hdev->long_term_keys, list)
 		if (addr_type == k->bdaddr_type &&
 		    bacmp(bdaddr, &k->bdaddr) == 0 &&
-		    ltk_type_master(k->type) == master)
+		    ltk_role(k->type) == role)
 			return k;
 
 	return NULL;
@@ -3247,9 +3250,9 @@ struct smp_ltk *hci_add_ltk(struct hci_dev *hdev, bdaddr_t *bdaddr,
 			    u8 tk[16], u8 enc_size, __le16 ediv, __le64 rand)
 {
 	struct smp_ltk *key, *old_key;
-	bool master = ltk_type_master(type);
+	u8 role = ltk_role(type);
 
-	old_key = hci_find_ltk_by_addr(hdev, bdaddr, addr_type, master);
+	old_key = hci_find_ltk_by_addr(hdev, bdaddr, addr_type, role);
 	if (old_key)
 		key = old_key;
 	else {
@@ -3489,7 +3492,7 @@ int hci_bdaddr_list_add(struct list_head *list, bdaddr_t *bdaddr, u8 type)
 	if (hci_bdaddr_list_lookup(list, bdaddr, type))
 		return -EEXIST;
 
-	entry = kzalloc(sizeof(struct bdaddr_list), GFP_KERNEL);
+	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry)
 		return -ENOMEM;
 
@@ -3894,7 +3897,7 @@ struct hci_dev *hci_alloc_dev(void)
 {
 	struct hci_dev *hdev;
 
-	hdev = kzalloc(sizeof(struct hci_dev), GFP_KERNEL);
+	hdev = kzalloc(sizeof(*hdev), GFP_KERNEL);
 	if (!hdev)
 		return NULL;
 
@@ -5462,8 +5465,7 @@ void hci_update_background_scan(struct hci_dev *hdev)
 
 	hci_req_init(&req, hdev);
 
-	if (!test_bit(HCI_CONNECTABLE, &hdev->dev_flags) &&
-	    list_empty(&hdev->pend_le_conns) &&
+	if (list_empty(&hdev->pend_le_conns) &&
 	    list_empty(&hdev->pend_le_reports)) {
 		/* If there is no pending LE connections or devices
 		 * to be scanned for, we should stop the background

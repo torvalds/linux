@@ -265,7 +265,7 @@ iwl_parse_nvm_sections(struct iwl_mvm *mvm)
 	if (mvm->trans->cfg->device_family != IWL_DEVICE_FAMILY_8000) {
 		if (!mvm->nvm_sections[NVM_SECTION_TYPE_SW].data ||
 		    !mvm->nvm_sections[mvm->cfg->nvm_hw_section_num].data) {
-			IWL_ERR(mvm, "Can't parse empty NVM sections\n");
+			IWL_ERR(mvm, "Can't parse empty OTP/NVM sections\n");
 			return NULL;
 		}
 	} else {
@@ -273,7 +273,7 @@ iwl_parse_nvm_sections(struct iwl_mvm *mvm)
 		if (!mvm->nvm_sections[NVM_SECTION_TYPE_SW].data ||
 		    !mvm->nvm_sections[NVM_SECTION_TYPE_REGULATORY].data) {
 			IWL_ERR(mvm,
-				"Can't parse empty family 8000 NVM sections\n");
+				"Can't parse empty family 8000 OTP/NVM sections\n");
 			return NULL;
 		}
 		/* MAC_OVERRIDE or at least HW section must exist */

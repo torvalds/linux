@@ -85,6 +85,9 @@
 #define NVM_HW_SECTION_NUM_FAMILY_8000		10
 #define DEFAULT_NVM_FILE_FAMILY_8000		"iwl_nvm_8000.bin"
 
+/* Max SDIO RX aggregation size of the ADDBA request/response */
+#define MAX_RX_AGG_SIZE_8260_SDIO	28
+
 static const struct iwl_base_params iwl8000_base_params = {
 	.eeprom_size = OTP_LOW_IMAGE_SIZE_FAMILY_8000,
 	.num_of_queues = IWLAGN_NUM_QUEUES,
@@ -129,6 +132,7 @@ const struct iwl_cfg iwl8260_2ac_sdio_cfg = {
 	.nvm_ver = IWL8000_NVM_VERSION,
 	.nvm_calib_ver = IWL8000_TX_POWER_VERSION,
 	.default_nvm_file = DEFAULT_NVM_FILE_FAMILY_8000,
+	.max_rx_agg_size = MAX_RX_AGG_SIZE_8260_SDIO,
 };
 
 MODULE_FIRMWARE(IWL8000_MODULE_FIRMWARE(IWL8000_UCODE_API_OK));
