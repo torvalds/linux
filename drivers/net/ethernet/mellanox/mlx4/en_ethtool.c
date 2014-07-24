@@ -1221,7 +1221,7 @@ static int mlx4_en_get_ts_info(struct net_device *dev,
 	return ret;
 }
 
-int mlx4_en_set_priv_flags(struct net_device *dev, u32 flags)
+static int mlx4_en_set_priv_flags(struct net_device *dev, u32 flags)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	bool bf_enabled_new = !!(flags & MLX4_EN_PRIV_FLAGS_BLUEFLAME);
@@ -1256,7 +1256,7 @@ int mlx4_en_set_priv_flags(struct net_device *dev, u32 flags)
 	return 0;
 }
 
-u32 mlx4_en_get_priv_flags(struct net_device *dev)
+static u32 mlx4_en_get_priv_flags(struct net_device *dev)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 
