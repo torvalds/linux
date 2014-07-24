@@ -1519,7 +1519,7 @@ static int init_phys_status_page(struct intel_engine_cs *ring)
 	return 0;
 }
 
-static void intel_destroy_ringbuffer_obj(struct intel_ringbuffer *ringbuf)
+void intel_destroy_ringbuffer_obj(struct intel_ringbuffer *ringbuf)
 {
 	if (!ringbuf->obj)
 		return;
@@ -1530,8 +1530,8 @@ static void intel_destroy_ringbuffer_obj(struct intel_ringbuffer *ringbuf)
 	ringbuf->obj = NULL;
 }
 
-static int intel_alloc_ringbuffer_obj(struct drm_device *dev,
-				      struct intel_ringbuffer *ringbuf)
+int intel_alloc_ringbuffer_obj(struct drm_device *dev,
+			       struct intel_ringbuffer *ringbuf)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_i915_gem_object *obj;

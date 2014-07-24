@@ -65,7 +65,11 @@ void intel_lr_context_free(struct intel_context *ctx)
 
 	for (i = 0; i < I915_NUM_RINGS; i++) {
 		struct drm_i915_gem_object *ctx_obj = ctx->engine[i].state;
+		struct intel_ringbuffer *ringbuf = ctx->engine[i].ringbuf;
+
 		if (ctx_obj) {
+			intel_destroy_ringbuffer_obj(ringbuf);
+			kfree(ringbuf);
 			i915_gem_object_ggtt_unpin(ctx_obj);
 			drm_gem_object_unreference(&ctx_obj->base);
 		}
@@ -99,6 +103,7 @@ int intel_lr_context_deferred_create(struct intel_context *ctx,
 	struct drm_device *dev = ring->dev;
 	struct drm_i915_gem_object *ctx_obj;
 	uint32_t context_size;
+	struct intel_ringbuffer *ringbuf;
 	int ret;
 
 	WARN_ON(ctx->legacy_hw_ctx.rcs_state != NULL);
@@ -119,6 +124,39 @@ int intel_lr_context_deferred_create(struct intel_context *ctx,
 		return ret;
 	}
 
+	ringbuf = kzalloc(sizeof(*ringbuf), GFP_KERNEL);
+	if (!ringbuf) {
+		DRM_DEBUG_DRIVER("Failed to allocate ringbuffer %s\n",
+				ring->name);
+		i915_gem_object_ggtt_unpin(ctx_obj);
+		drm_gem_object_unreference(&ctx_obj->base);
+		ret = -ENOMEM;
+		return ret;
+	}
+
+	ringbuf->size = 32 * PAGE_SIZE;
+	ringbuf->effective_size = ringbuf->size;
+	ringbuf->head = 0;
+	ringbuf->tail = 0;
+	ringbuf->space = ringbuf->size;
+	ringbuf->last_retired_head = -1;
+
+	/* TODO: For now we put this in the mappable region so that we can reuse
+	 * the existing ringbuffer code which ioremaps it. When we start
+	 * creating many contexts, this will no longer work and we must switch
+	 * to a kmapish interface.
+	 */
+	ret = intel_alloc_ringbuffer_obj(dev, ringbuf);
+	if (ret) {
+		DRM_DEBUG_DRIVER("Failed to allocate ringbuffer obj %s: %d\n",
+				ring->name, ret);
+		kfree(ringbuf);
+		i915_gem_object_ggtt_unpin(ctx_obj);
+		drm_gem_object_unreference(&ctx_obj->base);
+		return ret;
+	}
+
+	ctx->engine[ring->id].ringbuf = ringbuf;
 	ctx->engine[ring->id].state = ctx_obj;
 
 	return 0;
