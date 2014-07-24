@@ -113,7 +113,6 @@
 #include <linux/serio.h>
 #include <linux/slab.h>
 #include <linux/string.h>
-#include "wacom_wac.h"
 
 MODULE_AUTHOR("Julian Squires <julian@cipht.net>, Hans de Goede <hdegoede@redhat.com>");
 MODULE_DESCRIPTION("Wacom protocol 4 serial tablet driver");
@@ -148,6 +147,11 @@ MODULE_LICENSE("GPL");
 #define F_COVERS_SCREEN		0x01
 #define F_HAS_STYLUS2		0x02
 #define F_HAS_SCROLLWHEEL	0x04
+
+/* device IDs */
+#define STYLUS_DEVICE_ID	0x02
+#define CURSOR_DEVICE_ID	0x06
+#define ERASER_DEVICE_ID	0x0A
 
 enum { STYLUS = 1, ERASER, CURSOR };
 
