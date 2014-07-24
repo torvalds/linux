@@ -1022,35 +1022,33 @@ static int ni_tio_set_other_src(struct ni_gpct *counter, unsigned index,
 {
 	struct ni_gpct_device *counter_dev = counter->counter_dev;
 	unsigned cidx = counter->counter_index;
+	unsigned int abz_reg, shift, mask;
 
-	if (counter_dev->variant == ni_gpct_variant_m_series) {
-		unsigned int abz_reg, shift, mask;
+	if (counter_dev->variant != ni_gpct_variant_m_series)
+		return -EINVAL;
 
-		abz_reg = NITIO_ABZ_REG(cidx);
-		switch (index) {
-		case NI_GPCT_SOURCE_ENCODER_A:
-			shift = 10;
-			break;
-		case NI_GPCT_SOURCE_ENCODER_B:
-			shift = 5;
-			break;
-		case NI_GPCT_SOURCE_ENCODER_Z:
-			shift = 0;
-			break;
-		default:
-			return -EINVAL;
-		}
-		mask = 0x1f << shift;
-		if (source > 0x1f) {
-			/* Disable gate */
-			source = 0x1f;
-		}
-		counter_dev->regs[abz_reg] &= ~mask;
-		counter_dev->regs[abz_reg] |= (source << shift) & mask;
-		write_register(counter, counter_dev->regs[abz_reg], abz_reg);
-		return 0;
+	abz_reg = NITIO_ABZ_REG(cidx);
+	switch (index) {
+	case NI_GPCT_SOURCE_ENCODER_A:
+		shift = 10;
+		break;
+	case NI_GPCT_SOURCE_ENCODER_B:
+		shift = 5;
+		break;
+	case NI_GPCT_SOURCE_ENCODER_Z:
+		shift = 0;
+		break;
+	default:
+		return -EINVAL;
 	}
-	return -EINVAL;
+	mask = 0x1f << shift;
+	if (source > 0x1f)
+		source = 0x1f;	/* Disable gate */
+
+	counter_dev->regs[abz_reg] &= ~mask;
+	counter_dev->regs[abz_reg] |= (source << shift) & mask;
+	write_register(counter, counter_dev->regs[abz_reg], abz_reg);
+	return 0;
 }
 
 static unsigned ni_660x_gate_to_generic_gate(unsigned gate)
