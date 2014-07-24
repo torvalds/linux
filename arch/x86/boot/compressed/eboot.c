@@ -878,14 +878,15 @@ struct boot_params *make_boot_params(void *handle, efi_system_table_t *_table)
 	struct efi_info *efi;
 	efi_loaded_image_t *image;
 	void *options;
-	u32 load_options_size;
 	efi_guid_t proto = LOADED_IMAGE_PROTOCOL_GUID;
 	int options_size = 0;
 	efi_status_t status;
-	unsigned long cmdline;
+	char *cmdline_ptr;
 	u16 *s2;
 	u8 *s1;
 	int i;
+	unsigned long ramdisk_addr;
+	unsigned long ramdisk_size;
 
 	sys_table = _table;
 
@@ -896,13 +897,14 @@ struct boot_params *make_boot_params(void *handle, efi_system_table_t *_table)
 	status = efi_call_phys3(sys_table->boottime->handle_protocol,
 				handle, &proto, (void *)&image);
 	if (status != EFI_SUCCESS) {
-		efi_printk("Failed to get handle for LOADED_IMAGE_PROTOCOL\n");
+		efi_printk(sys_table, "Failed to get handle for LOADED_IMAGE_PROTOCOL\n");
 		return NULL;
 	}
 
-	status = low_alloc(0x4000, 1, (unsigned long *)&boot_params);
+	status = efi_low_alloc(sys_table, 0x4000, 1,
+			       (unsigned long *)&boot_params);
 	if (status != EFI_SUCCESS) {
-		efi_printk("Failed to alloc lowmem for boot params\n");
+		efi_printk(sys_table, "Failed to alloc lowmem for boot params\n");
 		return NULL;
 	}
 
@@ -927,40 +929,10 @@ struct boot_params *make_boot_params(void *handle, efi_system_table_t *_table)
 	hdr->type_of_loader = 0x21;
 
 	/* Convert unicode cmdline to ascii */
-	options = image->load_options;
-	load_options_size = image->load_options_size / 2; /* ASCII */
-	cmdline = 0;
-	s2 = (u16 *)options;
-
-	if (s2) {
-		while (*s2 && *s2 != '\n' && options_size < load_options_size) {
-			s2++;
-			options_size++;
-		}
-
-		if (options_size) {
-			if (options_size > hdr->cmdline_size)
-				options_size = hdr->cmdline_size;
-
-			options_size++;	/* NUL termination */
-
-			status = low_alloc(options_size, 1, &cmdline);
-			if (status != EFI_SUCCESS) {
-				efi_printk("Failed to alloc mem for cmdline\n");
-				goto fail;
-			}
-
-			s1 = (u8 *)(unsigned long)cmdline;
-			s2 = (u16 *)options;
-
-			for (i = 0; i < options_size - 1; i++)
-				*s1++ = *s2++;
-
-			*s1 = '\0';
-		}
-	}
-
-	hdr->cmd_line_ptr = cmdline;
+	cmdline_ptr = efi_convert_cmdline(sys_table, image, &options_size);
+	if (!cmdline_ptr)
+		goto fail;
+	hdr->cmd_line_ptr = (unsigned long)cmdline_ptr;
 
 	hdr->ramdisk_image = 0;
 	hdr->ramdisk_size = 0;
@@ -970,16 +942,20 @@ struct boot_params *make_boot_params(void *handle, efi_system_table_t *_table)
 
 	memset(sdt, 0, sizeof(*sdt));
 
-	status = handle_ramdisks(image, hdr);
+	status = handle_cmdline_files(sys_table, image,
+				      (char *)(unsigned long)hdr->cmd_line_ptr,
+				      "initrd=", hdr->initrd_addr_max,
+				      &ramdisk_addr, &ramdisk_size);
 	if (status != EFI_SUCCESS)
 		goto fail2;
+	hdr->ramdisk_image = ramdisk_addr;
+	hdr->ramdisk_size = ramdisk_size;
 
 	return boot_params;
 fail2:
-	if (options_size)
-		low_free(options_size, hdr->cmd_line_ptr);
+	efi_free(sys_table, options_size, hdr->cmd_line_ptr);
 fail:
-	low_free(0x4000, (unsigned long)boot_params);
+	efi_free(sys_table, 0x4000, (unsigned long)boot_params);
 	return NULL;
 }
 
@@ -1002,7 +978,7 @@ static efi_status_t exit_boot(struct boot_params *boot_params,
 again:
 	size += sizeof(*mem_map) * 2;
 	_size = size;
-	status = low_alloc(size, 1, (unsigned long *)&mem_map);
+	status = efi_low_alloc(sys_table, size, 1, (unsigned long *)&mem_map);
 	if (status != EFI_SUCCESS)
 		return status;
 
@@ -1010,7 +986,7 @@ get_map:
 	status = efi_call_phys5(sys_table->boottime->get_memory_map, &size,
 				mem_map, &key, &desc_size, &desc_version);
 	if (status == EFI_BUFFER_TOO_SMALL) {
-		low_free(_size, (unsigned long)mem_map);
+		efi_free(sys_table, _size, (unsigned long)mem_map);
 		goto again;
 	}
 
@@ -1112,44 +1088,10 @@ get_map:
 	return EFI_SUCCESS;
 
 free_mem_map:
-	low_free(_size, (unsigned long)mem_map);
+	efi_free(sys_table, _size, (unsigned long)mem_map);
 	return status;
 }
 
-static efi_status_t relocate_kernel(struct setup_header *hdr)
-{
-	unsigned long start, nr_pages;
-	efi_status_t status;
-
-	/*
-	 * The EFI firmware loader could have placed the kernel image
-	 * anywhere in memory, but the kernel has various restrictions
-	 * on the max physical address it can run at. Attempt to move
-	 * the kernel to boot_params.pref_address, or as low as
-	 * possible.
-	 */
-	start = hdr->pref_address;
-	nr_pages = round_up(hdr->init_size, EFI_PAGE_SIZE) / EFI_PAGE_SIZE;
-
-	status = efi_call_phys4(sys_table->boottime->allocate_pages,
-				EFI_ALLOCATE_ADDRESS, EFI_LOADER_DATA,
-				nr_pages, &start);
-	if (status != EFI_SUCCESS) {
-		status = low_alloc(hdr->init_size, hdr->kernel_alignment,
-				   &start);
-		if (status != EFI_SUCCESS)
-			efi_printk("Failed to alloc mem for kernel\n");
-	}
-
-	if (status == EFI_SUCCESS)
-		memcpy((void *)start, (void *)(unsigned long)hdr->code32_start,
-		       hdr->init_size);
-
-	hdr->pref_address = hdr->code32_start;
-	hdr->code32_start = (__u32)start;
-
-	return status;
-}
 
 /*
  * On success we return a pointer to a boot_params structure, and NULL
@@ -1178,14 +1120,15 @@ struct boot_params *efi_main(void *handle, efi_system_table_t *_table,
 				EFI_LOADER_DATA, sizeof(*gdt),
 				(void **)&gdt);
 	if (status != EFI_SUCCESS) {
-		efi_printk("Failed to alloc mem for gdt structure\n");
+		efi_printk(sys_table, "Failed to alloc mem for gdt structure\n");
 		goto fail;
 	}
 
 	gdt->size = 0x800;
-	status = low_alloc(gdt->size, 8, (unsigned long *)&gdt->address);
+	status = efi_low_alloc(sys_table, gdt->size, 8,
+			   (unsigned long *)&gdt->address);
 	if (status != EFI_SUCCESS) {
-		efi_printk("Failed to alloc mem for gdt\n");
+		efi_printk(sys_table, "Failed to alloc mem for gdt\n");
 		goto fail;
 	}
 
@@ -1193,7 +1136,7 @@ struct boot_params *efi_main(void *handle, efi_system_table_t *_table,
 				EFI_LOADER_DATA, sizeof(*idt),
 				(void **)&idt);
 	if (status != EFI_SUCCESS) {
-		efi_printk("Failed to alloc mem for idt structure\n");
+		efi_printk(sys_table, "Failed to alloc mem for idt structure\n");
 		goto fail;
 	}
 
@@ -1205,10 +1148,16 @@ struct boot_params *efi_main(void *handle, efi_system_table_t *_table,
 	 * address, relocate it.
 	 */
 	if (hdr->pref_address != hdr->code32_start) {
-		status = relocate_kernel(hdr);
-
+		unsigned long bzimage_addr = hdr->code32_start;
+		status = efi_relocate_kernel(sys_table, &bzimage_addr,
+					     hdr->init_size, hdr->init_size,
+					     hdr->pref_address,
+					     hdr->kernel_alignment);
 		if (status != EFI_SUCCESS)
 			goto fail;
+
+		hdr->pref_address = hdr->code32_start;
+		hdr->code32_start = bzimage_addr;
 	}
 
 	status = exit_boot(boot_params, handle);
