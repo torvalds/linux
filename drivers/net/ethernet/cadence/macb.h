@@ -305,6 +305,12 @@
 #define GEM_DBWDEF_OFFSET			25
 #define GEM_DBWDEF_SIZE				3
 
+/* Bitfields in DCFG2. */
+#define GEM_RX_PKT_BUFF_OFFSET			20
+#define GEM_RX_PKT_BUFF_SIZE			1
+#define GEM_TX_PKT_BUFF_OFFSET			21
+#define GEM_TX_PKT_BUFF_SIZE			1
+
 /* Constants for CLK */
 #define MACB_CLK_DIV8				0
 #define MACB_CLK_DIV16				1
@@ -326,7 +332,10 @@
 #define MACB_MAN_CODE				2
 
 /* Capability mask bits */
-#define MACB_CAPS_ISR_CLEAR_ON_WRITE		0x1
+#define MACB_CAPS_ISR_CLEAR_ON_WRITE		0x00000001
+#define MACB_CAPS_FIFO_MODE			0x10000000
+#define MACB_CAPS_GIGABIT_MODE_AVAILABLE	0x20000000
+#define MACB_CAPS_MACB_IS_GEM			0x80000000
 
 /* Bit manipulation macros */
 #define MACB_BIT(name)					\
@@ -554,6 +563,11 @@ struct macb_or_gem_ops {
 	int	(*mog_rx)(struct macb *bp, int budget);
 };
 
+struct macb_config {
+	u32			caps;
+	unsigned int		dma_burst_length;
+};
+
 struct macb {
 	void __iomem		*regs;
 
@@ -595,6 +609,7 @@ struct macb {
 	unsigned int 		duplex;
 
 	u32			caps;
+	unsigned int		dma_burst_length;
 
 	phy_interface_t		phy_interface;
 
@@ -615,7 +630,7 @@ void macb_get_hwaddr(struct macb *bp);
 
 static inline bool macb_is_gem(struct macb *bp)
 {
-	return MACB_BFEXT(IDNUM, macb_readl(bp, MID)) == 0x2;
+	return !!(bp->caps & MACB_CAPS_MACB_IS_GEM);
 }
 
 #endif /* _MACB_H */
