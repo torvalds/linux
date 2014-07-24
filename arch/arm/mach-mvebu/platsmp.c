@@ -109,7 +109,7 @@ static int armada_xp_boot_secondary(unsigned int cpu, struct task_struct *idle)
  */
 static void armada_xp_secondary_init(unsigned int cpu)
 {
-	armada_370_xp_pmsu_idle_exit();
+	mvebu_v7_pmsu_idle_exit();
 }
 
 static void __init armada_xp_smp_init_cpus(void)
