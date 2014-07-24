@@ -29,7 +29,6 @@ obj-$(CONFIG_VME_BUS)		+= vme/
 obj-$(CONFIG_DX_SEP)            += sep/
 obj-$(CONFIG_IIO)		+= iio/
 obj-$(CONFIG_FB_XGI)		+= xgifb/
-obj-$(CONFIG_ACPI_QUICKSTART)	+= quickstart/
 obj-$(CONFIG_USB_EMXX)		+= emxx_udc/
 obj-$(CONFIG_BCM_WIMAX)		+= bcm/
 obj-$(CONFIG_FT1000)		+= ft1000/
