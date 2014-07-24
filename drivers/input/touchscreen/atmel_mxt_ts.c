@@ -513,7 +513,6 @@ static int mxt_bootloader_read(struct mxt_data *data,
 	msg.buf = val;
 
 	ret = i2c_transfer(data->client->adapter, &msg, 1);
-
 	if (ret == 1) {
 		ret = 0;
 	} else {
