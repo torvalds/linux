@@ -253,14 +253,8 @@ xfs_bulkstat(
 	while (XFS_BULKSTAT_UBLEFT(ubleft) && agno < mp->m_sb.sb_agcount) {
 		cond_resched();
 		error = xfs_ialloc_read_agi(mp, NULL, agno, &agbp);
-		if (error) {
-			/*
-			 * Skip this allocation group and go to the next one.
-			 */
-			agno++;
-			agino = 0;
-			continue;
-		}
+		if (error)
+			break;
 		agi = XFS_BUF_TO_AGI(agbp);
 		/*
 		 * Allocate and initialize a btree cursor for ialloc btree.
@@ -332,34 +326,15 @@ xfs_bulkstat(
 			error = xfs_inobt_lookup(cur, 0, XFS_LOOKUP_GE, &tmp);
 			icount = 0;
 		}
+		if (error)
+			break;
+
 		/*
 		 * Loop through inode btree records in this ag,
 		 * until we run out of inodes or space in the buffer.
 		 */
 		while (irbp < irbufend && icount < ubcount) {
-			xfs_inobt_rec_incore_t r;
-
-			/*
-			 * Loop as long as we're unable to read the
-			 * inode btree.
-			 */
-			while (error) {
-				agino += XFS_INODES_PER_CHUNK;
-				if (XFS_AGINO_TO_AGBNO(mp, agino) >=
-						be32_to_cpu(agi->agi_length))
-					break;
-				error = xfs_inobt_lookup(cur, agino,
-							 XFS_LOOKUP_GE, &tmp);
-				cond_resched();
-			}
-			/*
-			 * If ran off the end of the ag either with an error,
-			 * or the normal way, set end and stop collecting.
-			 */
-			if (error) {
-				end_of_ag = 1;
-				break;
-			}
+			struct xfs_inobt_rec_incore	r;
 
 			error = xfs_inobt_get_rec(cur, &r, &i);
 			if (error || i == 0) {
