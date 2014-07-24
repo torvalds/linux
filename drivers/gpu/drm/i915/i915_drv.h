@@ -2266,6 +2266,12 @@ int i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 			      struct drm_file *file_priv);
 int i915_gem_sw_finish_ioctl(struct drm_device *dev, void *data,
 			     struct drm_file *file_priv);
+void i915_gem_execbuffer_move_to_active(struct list_head *vmas,
+					struct intel_engine_cs *ring);
+void i915_gem_execbuffer_retire_commands(struct drm_device *dev,
+					 struct drm_file *file,
+					 struct intel_engine_cs *ring,
+					 struct drm_i915_gem_object *obj);
 int i915_gem_ringbuffer_submission(struct drm_device *dev,
 				   struct drm_file *file,
 				   struct intel_engine_cs *ring,

@@ -91,6 +91,55 @@ int intel_sanitize_enable_execlists(struct drm_device *dev, int enable_execlists
 	return 0;
 }
 
+static int logical_ring_invalidate_all_caches(struct intel_ringbuffer *ringbuf)
+{
+	struct intel_engine_cs *ring = ringbuf->ring;
+	uint32_t flush_domains;
+	int ret;
+
+	flush_domains = 0;
+	if (ring->gpu_caches_dirty)
+		flush_domains = I915_GEM_GPU_DOMAINS;
+
+	ret = ring->emit_flush(ringbuf, I915_GEM_GPU_DOMAINS, flush_domains);
+	if (ret)
+		return ret;
+
+	ring->gpu_caches_dirty = false;
+	return 0;
+}
+
+static int execlists_move_to_gpu(struct intel_ringbuffer *ringbuf,
+				 struct list_head *vmas)
+{
+	struct intel_engine_cs *ring = ringbuf->ring;
+	struct i915_vma *vma;
+	uint32_t flush_domains = 0;
+	bool flush_chipset = false;
+	int ret;
+
+	list_for_each_entry(vma, vmas, exec_list) {
+		struct drm_i915_gem_object *obj = vma->obj;
+
+		ret = i915_gem_object_sync(obj, ring);
+		if (ret)
+			return ret;
+
+		if (obj->base.write_domain & I915_GEM_DOMAIN_CPU)
+			flush_chipset |= i915_gem_clflush_object(obj, false);
+
+		flush_domains |= obj->base.write_domain;
+	}
+
+	if (flush_domains & I915_GEM_DOMAIN_GTT)
+		wmb();
+
+	/* Unconditionally invalidate gpu caches and ensure that we do flush
+	 * any residual writes from the previous batch.
+	 */
+	return logical_ring_invalidate_all_caches(ringbuf);
+}
+
 int intel_execlists_submission(struct drm_device *dev, struct drm_file *file,
 			       struct intel_engine_cs *ring,
 			       struct intel_context *ctx,
@@ -99,7 +148,84 @@ int intel_execlists_submission(struct drm_device *dev, struct drm_file *file,
 			       struct drm_i915_gem_object *batch_obj,
 			       u64 exec_start, u32 flags)
 {
-	/* TODO */
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_ringbuffer *ringbuf = ctx->engine[ring->id].ringbuf;
+	int instp_mode;
+	u32 instp_mask;
+	int ret;
+
+	instp_mode = args->flags & I915_EXEC_CONSTANTS_MASK;
+	instp_mask = I915_EXEC_CONSTANTS_MASK;
+	switch (instp_mode) {
+	case I915_EXEC_CONSTANTS_REL_GENERAL:
+	case I915_EXEC_CONSTANTS_ABSOLUTE:
+	case I915_EXEC_CONSTANTS_REL_SURFACE:
+		if (instp_mode != 0 && ring != &dev_priv->ring[RCS]) {
+			DRM_DEBUG("non-0 rel constants mode on non-RCS\n");
+			return -EINVAL;
+		}
+
+		if (instp_mode != dev_priv->relative_constants_mode) {
+			if (instp_mode == I915_EXEC_CONSTANTS_REL_SURFACE) {
+				DRM_DEBUG("rel surface constants mode invalid on gen5+\n");
+				return -EINVAL;
+			}
+
+			/* The HW changed the meaning on this bit on gen6 */
+			instp_mask &= ~I915_EXEC_CONSTANTS_REL_SURFACE;
+		}
+		break;
+	default:
+		DRM_DEBUG("execbuf with unknown constants: %d\n", instp_mode);
+		return -EINVAL;
+	}
+
+	if (args->num_cliprects != 0) {
+		DRM_DEBUG("clip rectangles are only valid on pre-gen5\n");
+		return -EINVAL;
+	} else {
+		if (args->DR4 == 0xffffffff) {
+			DRM_DEBUG("UXA submitting garbage DR4, fixing up\n");
+			args->DR4 = 0;
+		}
+
+		if (args->DR1 || args->DR4 || args->cliprects_ptr) {
+			DRM_DEBUG("0 cliprects but dirt in cliprects fields\n");
+			return -EINVAL;
+		}
+	}
+
+	if (args->flags & I915_EXEC_GEN7_SOL_RESET) {
+		DRM_DEBUG("sol reset is gen7 only\n");
+		return -EINVAL;
+	}
+
+	ret = execlists_move_to_gpu(ringbuf, vmas);
+	if (ret)
+		return ret;
+
+	if (ring == &dev_priv->ring[RCS] &&
+	    instp_mode != dev_priv->relative_constants_mode) {
+		ret = intel_logical_ring_begin(ringbuf, 4);
+		if (ret)
+			return ret;
+
+		intel_logical_ring_emit(ringbuf, MI_NOOP);
+		intel_logical_ring_emit(ringbuf, MI_LOAD_REGISTER_IMM(1));
+		intel_logical_ring_emit(ringbuf, INSTPM);
+		intel_logical_ring_emit(ringbuf, instp_mask << 16 | instp_mode);
+		intel_logical_ring_advance(ringbuf);
+
+		dev_priv->relative_constants_mode = instp_mode;
+	}
+
+	ret = ring->emit_bb_start(ringbuf, exec_start, flags);
+	if (ret)
+		return ret;
+
+	i915_gem_execbuffer_move_to_active(vmas, ring);
+	i915_gem_execbuffer_retire_commands(dev, file, ring, batch_obj);
+
 	return 0;
 }
 
@@ -363,8 +489,6 @@ static int gen8_init_render_ring(struct intel_engine_cs *ring)
 static int gen8_emit_bb_start(struct intel_ringbuffer *ringbuf,
 			      u64 offset, unsigned flags)
 {
-	struct intel_engine_cs *ring = ringbuf->ring;
-	struct drm_i915_private *dev_priv = ring->dev->dev_private;
 	bool ppgtt = !(flags & I915_DISPATCH_SECURE);
 	int ret;
 

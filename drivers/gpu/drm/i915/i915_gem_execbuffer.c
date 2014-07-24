@@ -942,7 +942,7 @@ i915_gem_validate_context(struct drm_device *dev, struct drm_file *file,
 	return ctx;
 }
 
-static void
+void
 i915_gem_execbuffer_move_to_active(struct list_head *vmas,
 				   struct intel_engine_cs *ring)
 {
@@ -983,7 +983,7 @@ i915_gem_execbuffer_move_to_active(struct list_head *vmas,
 	}
 }
 
-static void
+void
 i915_gem_execbuffer_retire_commands(struct drm_device *dev,
 				    struct drm_file *file,
 				    struct intel_engine_cs *ring,
