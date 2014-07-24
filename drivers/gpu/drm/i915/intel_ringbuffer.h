@@ -224,6 +224,7 @@ struct  intel_engine_cs {
 	} semaphore;
 
 	/* Execlists */
+	u32             irq_keep_mask; /* bitmask for interrupts that should not be masked */
 	int		(*emit_request)(struct intel_ringbuffer *ringbuf);
 	int		(*emit_flush)(struct intel_ringbuffer *ringbuf,
 				      u32 invalidate_domains,

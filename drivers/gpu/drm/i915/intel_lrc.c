@@ -319,6 +319,9 @@ static int gen8_init_common_ring(struct intel_engine_cs *ring)
 	struct drm_device *dev = ring->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
+	I915_WRITE_IMR(ring, ~(ring->irq_enable_mask | ring->irq_keep_mask));
+	I915_WRITE(RING_HWSTAM(ring->mmio_base), 0xffffffff);
+
 	I915_WRITE(RING_MODE_GEN7(ring),
 		   _MASKED_BIT_DISABLE(GFX_REPLAY_MODE) |
 		   _MASKED_BIT_ENABLE(GFX_RUN_LIST_ENABLE));
@@ -355,6 +358,39 @@ static int gen8_init_render_ring(struct intel_engine_cs *ring)
 	I915_WRITE(INSTPM, _MASKED_BIT_ENABLE(INSTPM_FORCE_ORDERING));
 
 	return ret;
+}
+
+static bool gen8_logical_ring_get_irq(struct intel_engine_cs *ring)
+{
+	struct drm_device *dev = ring->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	unsigned long flags;
+
+	if (!dev->irq_enabled)
+		return false;
+
+	spin_lock_irqsave(&dev_priv->irq_lock, flags);
+	if (ring->irq_refcount++ == 0) {
+		I915_WRITE_IMR(ring, ~(ring->irq_enable_mask | ring->irq_keep_mask));
+		POSTING_READ(RING_IMR(ring->mmio_base));
+	}
+	spin_unlock_irqrestore(&dev_priv->irq_lock, flags);
+
+	return true;
+}
+
+static void gen8_logical_ring_put_irq(struct intel_engine_cs *ring)
+{
+	struct drm_device *dev = ring->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	unsigned long flags;
+
+	spin_lock_irqsave(&dev_priv->irq_lock, flags);
+	if (--ring->irq_refcount == 0) {
+		I915_WRITE_IMR(ring, ~ring->irq_keep_mask);
+		POSTING_READ(RING_IMR(ring->mmio_base));
+	}
+	spin_unlock_irqrestore(&dev_priv->irq_lock, flags);
 }
 
 static int gen8_emit_flush(struct intel_ringbuffer *ringbuf,
@@ -545,6 +581,10 @@ static int logical_render_ring_init(struct drm_device *dev)
 	ring->mmio_base = RENDER_RING_BASE;
 	ring->irq_enable_mask =
 		GT_RENDER_USER_INTERRUPT << GEN8_RCS_IRQ_SHIFT;
+	ring->irq_keep_mask =
+		GT_CONTEXT_SWITCH_INTERRUPT << GEN8_RCS_IRQ_SHIFT;
+	if (HAS_L3_DPF(dev))
+		ring->irq_keep_mask |= GT_RENDER_L3_PARITY_ERROR_INTERRUPT;
 
 	ring->init = gen8_init_render_ring;
 	ring->cleanup = intel_fini_pipe_control;
@@ -552,6 +592,8 @@ static int logical_render_ring_init(struct drm_device *dev)
 	ring->set_seqno = gen8_set_seqno;
 	ring->emit_request = gen8_emit_request;
 	ring->emit_flush = gen8_emit_flush_render;
+	ring->irq_get = gen8_logical_ring_get_irq;
+	ring->irq_put = gen8_logical_ring_put_irq;
 
 	return logical_ring_init(dev, ring);
 }
@@ -566,12 +608,16 @@ static int logical_bsd_ring_init(struct drm_device *dev)
 	ring->mmio_base = GEN6_BSD_RING_BASE;
 	ring->irq_enable_mask =
 		GT_RENDER_USER_INTERRUPT << GEN8_VCS1_IRQ_SHIFT;
+	ring->irq_keep_mask =
+		GT_CONTEXT_SWITCH_INTERRUPT << GEN8_VCS1_IRQ_SHIFT;
 
 	ring->init = gen8_init_common_ring;
 	ring->get_seqno = gen8_get_seqno;
 	ring->set_seqno = gen8_set_seqno;
 	ring->emit_request = gen8_emit_request;
 	ring->emit_flush = gen8_emit_flush;
+	ring->irq_get = gen8_logical_ring_get_irq;
+	ring->irq_put = gen8_logical_ring_put_irq;
 
 	return logical_ring_init(dev, ring);
 }
@@ -586,12 +632,16 @@ static int logical_bsd2_ring_init(struct drm_device *dev)
 	ring->mmio_base = GEN8_BSD2_RING_BASE;
 	ring->irq_enable_mask =
 		GT_RENDER_USER_INTERRUPT << GEN8_VCS2_IRQ_SHIFT;
+	ring->irq_keep_mask =
+		GT_CONTEXT_SWITCH_INTERRUPT << GEN8_VCS2_IRQ_SHIFT;
 
 	ring->init = gen8_init_common_ring;
 	ring->get_seqno = gen8_get_seqno;
 	ring->set_seqno = gen8_set_seqno;
 	ring->emit_request = gen8_emit_request;
 	ring->emit_flush = gen8_emit_flush;
+	ring->irq_get = gen8_logical_ring_get_irq;
+	ring->irq_put = gen8_logical_ring_put_irq;
 
 	return logical_ring_init(dev, ring);
 }
@@ -606,12 +656,16 @@ static int logical_blt_ring_init(struct drm_device *dev)
 	ring->mmio_base = BLT_RING_BASE;
 	ring->irq_enable_mask =
 		GT_RENDER_USER_INTERRUPT << GEN8_BCS_IRQ_SHIFT;
+	ring->irq_keep_mask =
+		GT_CONTEXT_SWITCH_INTERRUPT << GEN8_BCS_IRQ_SHIFT;
 
 	ring->init = gen8_init_common_ring;
 	ring->get_seqno = gen8_get_seqno;
 	ring->set_seqno = gen8_set_seqno;
 	ring->emit_request = gen8_emit_request;
 	ring->emit_flush = gen8_emit_flush;
+	ring->irq_get = gen8_logical_ring_get_irq;
+	ring->irq_put = gen8_logical_ring_put_irq;
 
 	return logical_ring_init(dev, ring);
 }
@@ -626,12 +680,16 @@ static int logical_vebox_ring_init(struct drm_device *dev)
 	ring->mmio_base = VEBOX_RING_BASE;
 	ring->irq_enable_mask =
 		GT_RENDER_USER_INTERRUPT << GEN8_VECS_IRQ_SHIFT;
+	ring->irq_keep_mask =
+		GT_CONTEXT_SWITCH_INTERRUPT << GEN8_VECS_IRQ_SHIFT;
 
 	ring->init = gen8_init_common_ring;
 	ring->get_seqno = gen8_get_seqno;
 	ring->set_seqno = gen8_set_seqno;
 	ring->emit_request = gen8_emit_request;
 	ring->emit_flush = gen8_emit_flush;
+	ring->irq_get = gen8_logical_ring_get_irq;
+	ring->irq_put = gen8_logical_ring_put_irq;
 
 	return logical_ring_init(dev, ring);
 }

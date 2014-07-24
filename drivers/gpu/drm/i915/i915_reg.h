@@ -1087,6 +1087,7 @@ enum punit_power_well {
 #define RING_ACTHD_UDW(base)	((base)+0x5c)
 #define RING_NOPID(base)	((base)+0x94)
 #define RING_IMR(base)		((base)+0xa8)
+#define RING_HWSTAM(base)	((base)+0x98)
 #define RING_TIMESTAMP(base)	((base)+0x358)
 #define   TAIL_ADDR		0x001FFFF8
 #define   HEAD_WRAP_COUNT	0xFFE00000
@@ -1403,6 +1404,7 @@ enum punit_power_well {
 #define GT_BSD_CS_ERROR_INTERRUPT		(1 << 15)
 #define GT_BSD_USER_INTERRUPT			(1 << 12)
 #define GT_RENDER_L3_PARITY_ERROR_INTERRUPT_S1	(1 << 11) /* hsw+; rsvd on snb, ivb, vlv */
+#define GT_CONTEXT_SWITCH_INTERRUPT		(1 <<  8)
 #define GT_RENDER_L3_PARITY_ERROR_INTERRUPT	(1 <<  5) /* !snb */
 #define GT_RENDER_PIPECTL_NOTIFY_INTERRUPT	(1 <<  4)
 #define GT_RENDER_CS_MASTER_ERROR_INTERRUPT	(1 <<  3)
