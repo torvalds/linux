@@ -109,10 +109,10 @@ install-%: checks-%
 	@echo Debug: $@ kernel_file $(kernel_file) kernfile $(kernfile) install_file $(install_file) instfile $(instfile)
 	dh_testdir
 	dh_testroot
-	dh_clean -k -p$(bin_pkg_name)-$*
-	dh_clean -k -p$(hdrs_pkg_name)-$*
+	dh_prep -p$(bin_pkg_name)-$*
+	dh_prep -p$(hdrs_pkg_name)-$*
 ifneq ($(skipdbg),true)
-	dh_clean -k -p$(dbg_pkg_name)-$*
+	dh_prep -p$(bin_pkg_name)-$*-dbgsym
 endif
 
 	# The main image
@@ -375,6 +375,9 @@ ifeq ($(do_tools_usbip),true)
 	$(LN) ../../$(src_pkg_name)-tools-$(abi_release)/usbip $(toolspkgdir)/usr/lib/linux-tools/$(abi_release)-$*
 	$(LN) ../../$(src_pkg_name)-tools-$(abi_release)/usbipd $(toolspkgdir)/usr/lib/linux-tools/$(abi_release)-$*
 endif
+ifeq ($(do_tools_acpidbg),true)
+	$(LN) ../../$(src_pkg_name)-tools-$(abi_release)/acpidbg $(toolspkgdir)/usr/lib/linux-tools/$(abi_release)-$*
+endif
 ifeq ($(do_tools_cpupower),true)
 	$(LN) ../../$(src_pkg_name)-tools-$(abi_release)/cpupower $(toolspkgdir)/usr/lib/linux-tools/$(abi_release)-$*
 endif
@@ -408,7 +411,7 @@ install-arch-headers:
 	@echo Debug: $@
 	dh_testdir
 	dh_testroot
-	dh_clean -k -plinux-libc-dev
+	dh_prep -plinux-libc-dev
 
 	rm -rf $(headers_tmp)
 	install -d $(headers_tmp) $(headers_dir)/usr/include/
@@ -456,7 +459,7 @@ binary-%: dbgpkg = $(bin_pkg_name)-$*-dbgsym
 binary-%: dbgpkgdir = $(CURDIR)/debian/$(bin_pkg_name)-$*-dbgsym
 binary-%: pkgtools = $(tools_flavour_pkg_name)-$*
 binary-%: pkgcloud = $(cloud_flavour_pkg_name)-$*
-binary-%: rprovides = $(if $(filter true,$(call custom_override,do_zfs,$*)),$(comma) spl-dkms$(comma) zfs-dkms)
+binary-%: rprovides = $(if $(filter true,$(call custom_override,do_zfs,$*)),$(comma) spl-modules$(comma) spl-dkms$(comma) zfs-modules$(comma) zfs-dkms)
 binary-%: target_flavour = $*
 binary-%: install-%
 	@echo Debug: $@
@@ -471,7 +474,7 @@ binary-%: install-%
 	dh_shlibdeps -p$(pkgimg) $(shlibdeps_opts)
 	$(lockme) dh_gencontrol -p$(pkgimg) -- -Vlinux:rprovides='$(rprovides)'
 	dh_md5sums -p$(pkgimg)
-	dh_builddeb -p$(pkgimg) -- -Zbzip2 -z9
+	dh_builddeb -p$(pkgimg)
 
 ifeq ($(do_extras_package),true)
 	if [ -f $(DEBIAN)/control.d/$(target_flavour).inclusion-list ] ; then \
@@ -483,7 +486,7 @@ ifeq ($(do_extras_package),true)
 		dh_shlibdeps -p$(pkgimg_ex) $(shlibdeps_opts); \
 		$(lockme) dh_gencontrol -p$(pkgimg_ex); \
 		dh_md5sums -p$(pkgimg_ex); \
-		dh_builddeb -p$(pkgimg_ex) -- -Zbzip2 -z9; \
+		dh_builddeb -p$(pkgimg_ex); \
 	fi
 endif
 
@@ -598,6 +601,9 @@ ifeq ($(do_tools_usbip),true)
 	cd $(builddirpa)/tools/usb/usbip && ./configure --prefix=$(builddirpa)/tools/usb/usbip/bin
 	cd $(builddirpa)/tools/usb/usbip && make install CFLAGS="-g -O2 -static" CROSS_COMPILE=$(CROSS_COMPILE)
 endif
+ifeq ($(do_tools_acpidbg),true)
+	cd $(builddirpa)/tools/power/acpi && make clean && make CFLAGS="-g -O2 -static -I$(builddirpa)/include" CROSS_COMPILE=$(CROSS_COMPILE) acpidbg
+endif
 ifeq ($(do_tools_cpupower),true)
 	# Allow for multiple installed versions of cpupower and libcpupower.so:
 	# Override LIB_MIN in order to to generate a versioned .so named
@@ -642,6 +648,10 @@ ifeq ($(do_tools_usbip),true)
 	install -m755 $(builddirpa)/tools/usb/usbip/bin/sbin/usbip \
 		$(toolspkgdir)/usr/lib/$(src_pkg_name)-tools-$(abi_release)
 	install -m755 $(builddirpa)/tools/usb/usbip/bin/sbin/usbipd \
+		$(toolspkgdir)/usr/lib/$(src_pkg_name)-tools-$(abi_release)
+endif
+ifeq ($(do_tools_acpidbg),true)
+	install -m755 $(builddirpa)/tools/power/acpi/acpidbg \
 		$(toolspkgdir)/usr/lib/$(src_pkg_name)-tools-$(abi_release)
 endif
 ifeq ($(do_tools_cpupower),true)

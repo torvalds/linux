@@ -1,0 +1,17 @@
+repo_list=(
+	"http://archive.ubuntu.com/ubuntu/pool/main/l/linux"
+	"http://ports.ubuntu.com/ubuntu-ports/pool/main/l/linux"
+	"http://archive.ubuntu.com/ubuntu/pool/universe/l/linux"
+	"http://ports.ubuntu.com/ubuntu-ports/pool/universe/l/linux"
+	"http://ppa.launchpad.net/canonical-kernel-team/ppa/ubuntu/pool/main/l/linux"
+)
+
+package_prefixes linux-image linux-image-extra
+
+getall armhf generic
+getall armhf generic-lpae
+getall amd64 generic lowlatency
+getall i386 generic lowlatency
+getall arm64 generic
+getall ppc64el generic
+getall s390x generic

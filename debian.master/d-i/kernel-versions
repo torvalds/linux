@@ -1,0 +1,16 @@
+# arch	version		flavour		installedname			suffix	bdep
+amd64	-		generic		-				-	-
+
+i386	-		generic		-				-	-
+
+armhf	-		generic		-				-	-
+armhf	-		generic-lpae	-				-	-
+
+arm64	-		generic		-				-	-
+
+ppc64el	-		generic		-				-	-
+
+s390x	-		generic		-				-	-
+
+# Ports
+# arch	version		flavour		installedname			suffix	bdep

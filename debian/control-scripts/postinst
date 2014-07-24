@@ -142,7 +142,7 @@ if (-r "$CONF_LOC" && -f "$CONF_LOC"  ) {
   }
 }
 
-
+$initrd = '' if (! -x "$ramdisk");
 
 # For some versions of kernel-package, we had this warning in the
 # postinst, but the rules did not really interpolate the value in.

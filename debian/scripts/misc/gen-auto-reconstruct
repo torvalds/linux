@@ -52,7 +52,7 @@ fi
 	git diff "$tag.." --raw --no-renames | awk '(/^:000000 120000/ && $5 == "A") { print $NF }' | \
 	while read name
 	do
-		echo "extend-diff-ignore=$name"
+		echo "extend-diff-ignore=^$name\$"
 	done
 ) >"$options.update"
 

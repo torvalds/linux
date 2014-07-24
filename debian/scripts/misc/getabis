@@ -1,5 +1,7 @@
 #!/bin/bash
 
+export LC_ALL=C.UTF-8
+
 if [ "$#" != "2" ]; then
 	echo "Usage: $0 <release> <revision>" 1>&2
 	exit 1

@@ -1,0 +1,6 @@
+arch="armhf"
+supported="Generic LPAE"
+target="Geared toward desktop and server systems."
+desc="=HUMAN= SMP"
+bootloader="flash-kernel [armhf]"
+provides="kvm-api-4, redhat-cluster-modules, ivtv-modules"

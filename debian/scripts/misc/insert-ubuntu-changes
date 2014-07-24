@@ -5,8 +5,30 @@ if ($#ARGV != 2) {
 }
 my ($changelog, $end, $start) = @ARGV;
 
-$end =~ s/.*\.//;
-$start =~ s/.*\.//;
+$end =~ s/^\D+//;
+$start =~ s/^\D+//;
+
+sub version_cmp($$) {
+	my @a = split(/[\.-]+/, $_[0]);
+	my @b = split(/[\.-]+/, $_[1]);
+	for (my $i = 1;; $i++) {
+		if (!defined $a[$i]) {
+			if (!defined $b[$i]) {
+				return 0;
+			}
+			return -1;
+		}
+		if (!defined $b[$i]) {
+			return 1;
+		}
+		if ($a[$i] < $b[$i]) {
+			return -1;
+		}
+		if ($a[$i] > $b[$i]) {
+			return 1;
+		}
+	}
+}
 
 my @changes = ();
 my $output = 0;
@@ -14,11 +36,11 @@ open(CHG, "<debian.master/changelog") ||
 	open(CHG, "<debian/changelog") ||
 	die "$0: debian/changelog: open failed - $!\n";
 while (<CHG>) {
-	if (/^\S+\s+\((.*\.(\d+))\)/) {
-		if ($2 <= $end) {
+	if (/^\S+\s+\((.*)\)/) {
+		if (version_cmp($1, $end) <= 0) {
 			last;
 		}
-		if ($2 == $start) {
+		if ($1 eq $start) {
 			$output = 1;
 		}
 		if ($output) {

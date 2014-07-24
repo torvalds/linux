@@ -1,0 +1,15 @@
+# Core stacks
+usb-storage ?
+
+# Block level
+ata_piix ?
+ata_generic ?
+
+# Loop modules
+cryptoloop ?
+
+# Needs to be here for better cdrom initrd layout
+isofs ?
+
+# Needed for NVMe disks under VMD PCIe domains
+vmd ?

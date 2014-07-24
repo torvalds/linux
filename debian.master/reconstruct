@@ -1,0 +1,3 @@
+# Recreate any symlinks created since the orig.
+# Remove any files deleted from the orig.
+exit 0

@@ -156,6 +156,8 @@ if (-r "$CONF_LOC" && -f "$CONF_LOC"  ) {
   }
 }
 
+$initrd = '' if (! -x "$ramdisk");
+
 if ($link_in_boot) {
   $image_dest = "/$image_dir/";
   $image_dest =~ s|^/*|/|o;

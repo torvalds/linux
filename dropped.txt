@@ -1,4 +1,48 @@
 This is the list of patches/features which have been temporarily
-reverted or disabled for Q:
+reverted or disabled for BB:
 
-UBUNTU: SAUCE: AppArmor: basic networking rules
+UBUNTU: SAUCE: (no-up) nbd: Change default partitions per device to 15
+UBUNTU: SAUCE: (no-up) firmware: Update bnx2x to current firmware version 7.2.51
+UBUNTU: SAUCE: (no-up) Remove redundant cis firmware
+UBUNTU: SAUCE: (no-up) Remove redundant ttusb-budget firmware
+UBUNTU: SAUCE: (no-up) Remove redundant ositech/Xilinx7OD firmware
+UBUNTU: SAUCE: (no-up) Remove redundant yamaha/ds1 firmware
+UBUNTU: SAUCE: (no-up) Remove redundant keyspan_pda firmware
+UBUNTU: SAUCE: (no-up) firmware: Remove ess files duplicated in linux-firmware
+UBUNTU: SAUCE: (no-up) firmware: Remove kaweth files duplicated in linux-firmware
+UBUNTU: SAUCE: (no-up) firmware: Remove edgeport files duplicated in linux-firmware
+UBUNTU: SAUCE: (no-up) firmware: Remove ti_usb_3410_5052 duplicated in linux-firmware
+UBUNTU: SAUCE: (no-up) firmware: Remove adaptec files duplicated in linux-firmware
+UBUNTU: SAUCE: (no-up) firmware: Remove advansys files duplicated in linux-firmware
+UBUNTU: SAUCE: (no-up) firmware: Remove ambassador files duplicated in linux-firmware
+UBUNTU: SAUCE: (no-up) firmware: Remove av7110 files duplicated in linux-firmware
+UBUNTU: SAUCE: (no-up) firmware: Remove cpia2 files duplicated in linux-firmware
+UBUNTU: SAUCE: (no-up) firmware: Remove obsolete Myricom firmware
+UBUNTU: SAUCE: (no-up) firmware: Upgrade bnx2 to current versions
+UBUNTU: SAUCE: (no-up) Remove yam files duplicated in linux-firmware
+UBUNTU: SAUCE: (no-up) Remove tehuti files duplicated in linux-firmware
+UBUNTU: SAUCE: (no-up) Remove matrox files duplicated in linux-firmware
+UBUNTU: SAUCE: (no-up) Remove cxgb3 files duplicated in linux-firmware
+UBUNTU: SAUCE: (no-up) Remove r128 files duplicated in linux-firmware
+UBUNTU: SAUCE: (no-up) Remove acenic files duplicated in linux-firmware
+UBUNTU: SAUCE: (no-up) Remove keyspan files duplicated in linux-firmware
+UBUNTU: SAUCE: (no-up) Remove sun files duplicated in linux-firmware
+UBUNTU: SAUCE: (no-up) Remove radeon files duplicated in linux-firmware
+UBUNTU: SAUCE: (no-up) Update bnx2x firmware to 7.8.2.0
+UBUNTU: SAUCE: (no-up) Remove dsp56k files used only by m68k
+UBUNTU: SAUCE: (no-up) Remove vicam files duplicated in linux-firmware
+UBUNTU: SAUCE: (no-up) Update bnx2x firmware to 7.8.17.0
+UBUNTU: SAUCE: (no-up) Update bnx2x firmware to 7.10.51.0
+UBUNTU: SAUCE: (no-up) Update bnx2x firmware to 7.12.30.0
+UBUNTU: SAUCE: drop obsolete bnx2x firmware
+UBUNTU: firmware: Update bnx2x to 7.13.1.0
+UBUNTU: SAUCE: (no-up) HID: Add quirk for Lenovo Yoga 910 with ITE Chips
+UBUNTU: SAUCE: igb: add support for using Broadcom 54616 as PHY
+UBUNTU: SAUCE: LIBIO: Introduce a generic PIO mapping method
+UBUNTU: SAUCE: OF: Add missing I/O range exception for indirect-IO devices
+UBUNTU: SAUCE: LPC: Support the device-tree LPC host on Hip06/Hip07
+UBUNTU: SAUCE: LPC: Add the ACPI LPC support
+UBUNTU: SAUCE: PCI: Apply the new generic I/O management on PCI IO hosts
+UBUNTU: SAUCE: PCI: Restore codepath for !CONFIG_LIBIO
+UBUNTU: SAUCE: PCI: Support hibmc VGA cards behind a misbehaving HiSilicon bridge
+UBUNTU: SAUCE: Clear Linux: smpboot: reuse timer calibration

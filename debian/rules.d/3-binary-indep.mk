@@ -43,14 +43,13 @@ ifeq ($(do_doc_package_content),true)
 		install -d $(docdir)/$(doc_pkg_name)-tmp; \
 		$(kmake) O=$(docdir)/$(doc_pkg_name)-tmp htmldocs; \
 		install -d $(docdir)/html; \
-		rsync -aL $(docdir)/$(doc_pkg_name)-tmp/Documentation/DocBook/ \
+		rsync -aL $(docdir)/$(doc_pkg_name)-tmp/Documentation/output/ \
 			$(docdir)/html/; \
 		rm -rf $(docdir)/$(doc_pkg_name)-tmp; \
 	fi
 endif
 	# Copy the rest
 	cp -a Documentation/* $(docdir)
-	rm -rf $(docdir)/DocBook
 	find $(docdir) -name .gitignore | xargs rm -f
 endif
 
@@ -134,6 +133,10 @@ ifeq ($(do_tools_common),true)
 
 	install -d $(cloudman)/man8
 	install -m644 $(CURDIR)/tools/hv/*.8 $(cloudman)/man8
+
+ifeq ($(do_tools_acpidbg),true)
+	install -m755 debian/tools/generic $(toolsbin)/acpidbg
+endif
 
 endif
 

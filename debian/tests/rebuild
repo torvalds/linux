@@ -17,4 +17,4 @@ if [ "$build_needed" -eq 0 ]; then
 fi
 
 set -e
-dpkg-buildpackage -rfakeroot -us -uc -b
+dpkg-buildpackage -rfakeroot -us -uc -b -Pautopkgtest

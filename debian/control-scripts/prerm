@@ -163,6 +163,7 @@ if (-r "$CONF_LOC" && -f "$CONF_LOC"  ) {
   }
 }
 
+$initrd = '' if (! -x "$ramdisk");
 
 $ENV{KERNEL_ARCH}=$kernel_arch if $kernel_arch;
 

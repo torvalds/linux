@@ -15,6 +15,12 @@ prev_revision := $(word $(words $(prev_revisions)),$(prev_revisions))
 
 prev_fullver ?= $(shell dpkg-parsechangelog -l$(DEBIAN)/changelog -o1 -c1 | sed -ne 's/^Version: *//p')
 
+# Get upstream version info
+upstream_version := $(shell sed -n 's/^VERSION = \(.*\)$$/\1/p' Makefile)
+upstream_patchlevel := $(shell sed -n 's/^PATCHLEVEL = \(.*\)$$/\1/p' Makefile)
+upstream_extraversion := $(shell sed -n 's/^EXTRAVERSION = \(.*\)$$/\1/p' Makefile)
+upstream_tag := "v$(upstream_version).$(upstream_patchlevel)$(upstream_extraversion)"
+
 family=ubuntu
 
 # This is an internally used mechanism for the daily kernel builds. It
