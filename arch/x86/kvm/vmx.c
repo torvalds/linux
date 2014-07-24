@@ -7608,6 +7608,8 @@ static struct kvm_vcpu *vmx_create_vcpu(struct kvm *kvm, unsigned int id)
 		goto free_vcpu;
 
 	vmx->guest_msrs = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	BUILD_BUG_ON(PAGE_SIZE / sizeof(struct shared_msr_entry) < NR_VMX_MSR);
+
 	err = -ENOMEM;
 	if (!vmx->guest_msrs) {
 		goto uninit_vcpu;
