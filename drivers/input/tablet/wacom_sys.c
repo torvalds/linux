@@ -1104,12 +1104,11 @@ static void wacom_wireless_work(struct work_struct *work)
 	wacom_unregister_inputs(wacom2);
 
 	if (wacom_wac->pid == 0) {
-		dev_info(&wacom->intf->dev, "wireless tablet disconnected\n");
+		hid_info(wacom->hdev, "wireless tablet disconnected\n");
 	} else {
 		const struct hid_device_id *id = wacom_ids;
 
-		dev_info(&wacom->intf->dev,
-			 "wireless tablet connected with PID %x\n",
+		hid_info(wacom->hdev, "wireless tablet connected with PID %x\n",
 			 wacom_wac->pid);
 
 		while (id->bus) {
@@ -1120,8 +1119,7 @@ static void wacom_wireless_work(struct work_struct *work)
 		}
 
 		if (!id->bus) {
-			dev_info(&wacom->intf->dev,
-				 "ignoring unknown PID.\n");
+			hid_info(wacom->hdev, "ignoring unknown PID.\n");
 			return;
 		}
 
