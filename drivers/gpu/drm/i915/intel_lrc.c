@@ -28,13 +28,108 @@
  *
  */
 
-/*
+/**
+ * DOC: Logical Rings, Logical Ring Contexts and Execlists
+ *
+ * Motivation:
  * GEN8 brings an expansion of the HW contexts: "Logical Ring Contexts".
  * These expanded contexts enable a number of new abilities, especially
  * "Execlists" (also implemented in this file).
  *
+ * One of the main differences with the legacy HW contexts is that logical
+ * ring contexts incorporate many more things to the context's state, like
+ * PDPs or ringbuffer control registers:
+ *
+ * The reason why PDPs are included in the context is straightforward: as
+ * PPGTTs (per-process GTTs) are actually per-context, having the PDPs
+ * contained there mean you don't need to do a ppgtt->switch_mm yourself,
+ * instead, the GPU will do it for you on the context switch.
+ *
+ * But, what about the ringbuffer control registers (head, tail, etc..)?
+ * shouldn't we just need a set of those per engine command streamer? This is
+ * where the name "Logical Rings" starts to make sense: by virtualizing the
+ * rings, the engine cs shifts to a new "ring buffer" with every context
+ * switch. When you want to submit a workload to the GPU you: A) choose your
+ * context, B) find its appropriate virtualized ring, C) write commands to it
+ * and then, finally, D) tell the GPU to switch to that context.
+ *
+ * Instead of the legacy MI_SET_CONTEXT, the way you tell the GPU to switch
+ * to a contexts is via a context execution list, ergo "Execlists".
+ *
+ * LRC implementation:
+ * Regarding the creation of contexts, we have:
+ *
+ * - One global default context.
+ * - One local default context for each opened fd.
+ * - One local extra context for each context create ioctl call.
+ *
+ * Now that ringbuffers belong per-context (and not per-engine, like before)
+ * and that contexts are uniquely tied to a given engine (and not reusable,
+ * like before) we need:
+ *
+ * - One ringbuffer per-engine inside each context.
+ * - One backing object per-engine inside each context.
+ *
+ * The global default context starts its life with these new objects fully
+ * allocated and populated. The local default context for each opened fd is
+ * more complex, because we don't know at creation time which engine is going
+ * to use them. To handle this, we have implemented a deferred creation of LR
+ * contexts:
+ *
+ * The local context starts its life as a hollow or blank holder, that only
+ * gets populated for a given engine once we receive an execbuffer. If later
+ * on we receive another execbuffer ioctl for the same context but a different
+ * engine, we allocate/populate a new ringbuffer and context backing object and
+ * so on.
+ *
+ * Finally, regarding local contexts created using the ioctl call: as they are
+ * only allowed with the render ring, we can allocate & populate them right
+ * away (no need to defer anything, at least for now).
+ *
+ * Execlists implementation:
  * Execlists are the new method by which, on gen8+ hardware, workloads are
  * submitted for execution (as opposed to the legacy, ringbuffer-based, method).
+ * This method works as follows:
+ *
+ * When a request is committed, its commands (the BB start and any leading or
+ * trailing commands, like the seqno breadcrumbs) are placed in the ringbuffer
+ * for the appropriate context. The tail pointer in the hardware context is not
+ * updated at this time, but instead, kept by the driver in the ringbuffer
+ * structure. A structure representing this request is added to a request queue
+ * for the appropriate engine: this structure contains a copy of the context's
+ * tail after the request was written to the ring buffer and a pointer to the
+ * context itself.
+ *
+ * If the engine's request queue was empty before the request was added, the
+ * queue is processed immediately. Otherwise the queue will be processed during
+ * a context switch interrupt. In any case, elements on the queue will get sent
+ * (in pairs) to the GPU's ExecLists Submit Port (ELSP, for short) with a
+ * globally unique 20-bits submission ID.
+ *
+ * When execution of a request completes, the GPU updates the context status
+ * buffer with a context complete event and generates a context switch interrupt.
+ * During the interrupt handling, the driver examines the events in the buffer:
+ * for each context complete event, if the announced ID matches that on the head
+ * of the request queue, then that request is retired and removed from the queue.
+ *
+ * After processing, if any requests were retired and the queue is not empty
+ * then a new execution list can be submitted. The two requests at the front of
+ * the queue are next to be submitted but since a context may not occur twice in
+ * an execution list, if subsequent requests have the same ID as the first then
+ * the two requests must be combined. This is done simply by discarding requests
+ * at the head of the queue until either only one requests is left (in which case
+ * we use a NULL second context) or the first two requests have unique IDs.
+ *
+ * By always executing the first two requests in the queue the driver ensures
+ * that the GPU is kept as busy as possible. In the case where a single context
+ * completes but a second context is still executing, the request for this second
+ * context will be at the head of the queue when we remove the first one. This
+ * request will then be resubmitted along with a new request for a different context,
+ * which will cause the hardware to continue executing the second request and queue
+ * the new request (the GPU detects the condition of a context getting preempted
+ * with the same context and optimizes the context switch flow by not doing
+ * preemption, but just sampling the new tail pointer).
+ *
  */
 
 #include <drm/drmP.h>
@@ -109,6 +204,17 @@ enum {
 };
 #define GEN8_CTX_ID_SHIFT 32
 
+/**
+ * intel_sanitize_enable_execlists() - sanitize i915.enable_execlists
+ * @dev: DRM device.
+ * @enable_execlists: value of i915.enable_execlists module parameter.
+ *
+ * Only certain platforms support Execlists (the prerequisites being
+ * support for Logical Ring Contexts and Aliasing PPGTT or better),
+ * and only when enabled via module parameter.
+ *
+ * Return: 1 if Execlists is supported and has to be enabled.
+ */
 int intel_sanitize_enable_execlists(struct drm_device *dev, int enable_execlists)
 {
 	WARN_ON(i915.enable_ppgtt == -1);
@@ -123,6 +229,18 @@ int intel_sanitize_enable_execlists(struct drm_device *dev, int enable_execlists
 	return 0;
 }
 
+/**
+ * intel_execlists_ctx_id() - get the Execlists Context ID
+ * @ctx_obj: Logical Ring Context backing object.
+ *
+ * Do not confuse with ctx->id! Unfortunately we have a name overload
+ * here: the old context ID we pass to userspace as a handler so that
+ * they can refer to a context, and the new context ID we pass to the
+ * ELSP so that the GPU can inform us of the context status via
+ * interrupts.
+ *
+ * Return: 20-bits globally unique context ID.
+ */
 u32 intel_execlists_ctx_id(struct drm_i915_gem_object *ctx_obj)
 {
 	u32 lrca = i915_gem_obj_ggtt_offset(ctx_obj);
@@ -313,6 +431,13 @@ static bool execlists_check_remove_request(struct intel_engine_cs *ring,
 	return false;
 }
 
+/**
+ * intel_execlists_handle_ctx_events() - handle Context Switch interrupts
+ * @ring: Engine Command Streamer to handle.
+ *
+ * Check the unread Context Status Buffers and manage the submission of new
+ * contexts to the ELSP accordingly.
+ */
 void intel_execlists_handle_ctx_events(struct intel_engine_cs *ring)
 {
 	struct drm_i915_private *dev_priv = ring->dev->dev_private;
@@ -481,6 +606,23 @@ static int execlists_move_to_gpu(struct intel_ringbuffer *ringbuf,
 	return logical_ring_invalidate_all_caches(ringbuf);
 }
 
+/**
+ * execlists_submission() - submit a batchbuffer for execution, Execlists style
+ * @dev: DRM device.
+ * @file: DRM file.
+ * @ring: Engine Command Streamer to submit to.
+ * @ctx: Context to employ for this submission.
+ * @args: execbuffer call arguments.
+ * @vmas: list of vmas.
+ * @batch_obj: the batchbuffer to submit.
+ * @exec_start: batchbuffer start virtual address pointer.
+ * @flags: translated execbuffer call flags.
+ *
+ * This is the evil twin version of i915_gem_ringbuffer_submission. It abstracts
+ * away the submission details of the execbuffer ioctl call.
+ *
+ * Return: non-zero if the submission fails.
+ */
 int intel_execlists_submission(struct drm_device *dev, struct drm_file *file,
 			       struct intel_engine_cs *ring,
 			       struct intel_context *ctx,
@@ -608,6 +750,15 @@ int logical_ring_flush_all_caches(struct intel_ringbuffer *ringbuf)
 	return 0;
 }
 
+/**
+ * intel_logical_ring_advance_and_submit() - advance the tail and submit the workload
+ * @ringbuf: Logical Ringbuffer to advance.
+ *
+ * The tail is updated in our logical ringbuffer struct, not in the actual context. What
+ * really happens during submission is that the context and current tail will be placed
+ * on a queue waiting for the ELSP to be ready to accept a new context submission. At that
+ * point, the tail *inside* the context is updated and the ELSP written to.
+ */
 void intel_logical_ring_advance_and_submit(struct intel_ringbuffer *ringbuf)
 {
 	struct intel_engine_cs *ring = ringbuf->ring;
@@ -781,6 +932,19 @@ static int logical_ring_prepare(struct intel_ringbuffer *ringbuf, int bytes)
 	return 0;
 }
 
+/**
+ * intel_logical_ring_begin() - prepare the logical ringbuffer to accept some commands
+ *
+ * @ringbuf: Logical ringbuffer.
+ * @num_dwords: number of DWORDs that we plan to write to the ringbuffer.
+ *
+ * The ringbuffer might not be ready to accept the commands right away (maybe it needs to
+ * be wrapped, or wait a bit for the tail to be updated). This function takes care of that
+ * and also preallocates a request (every workload submission is still mediated through
+ * requests, same as it did with legacy ringbuffer submission).
+ *
+ * Return: non-zero if the ringbuffer is not ready to be written to.
+ */
 int intel_logical_ring_begin(struct intel_ringbuffer *ringbuf, int num_dwords)
 {
 	struct intel_engine_cs *ring = ringbuf->ring;
@@ -1021,6 +1185,12 @@ static int gen8_emit_request(struct intel_ringbuffer *ringbuf)
 	return 0;
 }
 
+/**
+ * intel_logical_ring_cleanup() - deallocate the Engine Command Streamer
+ *
+ * @ring: Engine Command Streamer.
+ *
+ */
 void intel_logical_ring_cleanup(struct intel_engine_cs *ring)
 {
 	struct drm_i915_private *dev_priv = ring->dev->dev_private;
@@ -1215,6 +1385,16 @@ static int logical_vebox_ring_init(struct drm_device *dev)
 	return logical_ring_init(dev, ring);
 }
 
+/**
+ * intel_logical_rings_init() - allocate, populate and init the Engine Command Streamers
+ * @dev: DRM device.
+ *
+ * This function inits the engines for an Execlists submission style (the equivalent in the
+ * legacy ringbuffer submission world would be i915_gem_init_rings). It does it only for
+ * those engines that are present in the hardware.
+ *
+ * Return: non-zero if the initialization failed.
+ */
 int intel_logical_rings_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -1377,6 +1557,14 @@ populate_lr_context(struct intel_context *ctx, struct drm_i915_gem_object *ctx_o
 	return 0;
 }
 
+/**
+ * intel_lr_context_free() - free the LRC specific bits of a context
+ * @ctx: the LR context to free.
+ *
+ * The real context freeing is done in i915_gem_context_free: this only
+ * takes care of the bits that are LRC related: the per-engine backing
+ * objects and the logical ringbuffer.
+ */
 void intel_lr_context_free(struct intel_context *ctx)
 {
 	int i;
@@ -1415,6 +1603,19 @@ static uint32_t get_lr_context_size(struct intel_engine_cs *ring)
 	return ret;
 }
 
+/**
+ * intel_lr_context_deferred_create() - create the LRC specific bits of a context
+ * @ctx: LR context to create.
+ * @ring: engine to be used with the context.
+ *
+ * This function can be called more than once, with different engines, if we plan
+ * to use the context with them. The context backing objects and the ringbuffers
+ * (specially the ringbuffer backing objects) suck a lot of memory up, and that's why
+ * the creation is a deferred call: it's better to make sure first that we need to use
+ * a given ring with the context.
+ *
+ * Return: non-zero on eror.
+ */
 int intel_lr_context_deferred_create(struct intel_context *ctx,
 				     struct intel_engine_cs *ring)
 {
