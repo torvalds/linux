@@ -119,9 +119,6 @@ struct btrfs_device {
 struct btrfs_fs_devices {
 	u8 fsid[BTRFS_FSID_SIZE]; /* FS specific uuid */
 
-	/* the device with this id has the most recent copy of the super */
-	u64 latest_devid;
-	u64 latest_trans;
 	u64 num_devices;
 	u64 open_devices;
 	u64 rw_devices;
