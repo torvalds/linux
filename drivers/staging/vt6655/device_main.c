@@ -388,7 +388,8 @@ device_set_options(PSDevice pDevice) {
 	pDevice->b11hEnable = (pDevice->sOpts.flags & DEVICE_FLAGS_80211h_MODE) ? 1 : 0;
 	pDevice->bDiversityRegCtlON = (pDevice->sOpts.flags & DEVICE_FLAGS_DiversityANT) ? 1 : 0;
 	pDevice->uConnectionRate = pDevice->sOpts.data_rate;
-	if (pDevice->uConnectionRate < RATE_AUTO) pDevice->bFixRate = true;
+	if (pDevice->uConnectionRate < RATE_AUTO)
+		pDevice->bFixRate = true;
 	pDevice->byBBType = pDevice->sOpts.bbp_type;
 	pDevice->byPacketType = pDevice->byBBType;
 
@@ -2905,7 +2906,8 @@ static int  device_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 			char abyKey[WLAN_WEP232_KEYLEN];
 
 			rc = iwctl_giwencode(dev, NULL, &(wrq->u.encoding), abyKey);
-			if (rc != 0) break;
+			if (rc != 0)
+				break;
 			if (wrq->u.encoding.pointer) {
 				if (copy_to_user(wrq->u.encoding.pointer,
 						 abyKey,

@@ -934,8 +934,10 @@ bool CARDbRadioPowerOn(void *pDeviceHandler)
 
 	pr_debug("chester power on\n");
 	if (pDevice->bRadioControlOff == true) {
-		if (pDevice->bHWRadioOff == true) pr_debug("chester bHWRadioOff\n");
-		if (pDevice->bRadioControlOff == true) pr_debug("chester bRadioControlOff\n");
+		if (pDevice->bHWRadioOff == true)
+			pr_debug("chester bHWRadioOff\n");
+		if (pDevice->bRadioControlOff == true)
+			pr_debug("chester bRadioControlOff\n");
 		return false; }
 
 	if (pDevice->bRadioOff == false) {
