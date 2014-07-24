@@ -425,6 +425,10 @@ int drm_release(struct inode *inode, struct file *filp)
 
 	DRM_DEBUG("open_count = %d\n", dev->open_count);
 
+	mutex_lock(&dev->struct_mutex);
+	list_del(&file_priv->lhead);
+	mutex_unlock(&dev->struct_mutex);
+
 	if (dev->driver->preclose)
 		dev->driver->preclose(dev, file_priv);
 
@@ -517,10 +521,6 @@ int drm_release(struct inode *inode, struct file *filp)
 		drm_master_put(&file_priv->master);
 	file_priv->is_master = 0;
 	mutex_unlock(&dev->master_mutex);
-
-	mutex_lock(&dev->struct_mutex);
-	list_del(&file_priv->lhead);
-	mutex_unlock(&dev->struct_mutex);
 
 	if (dev->driver->postclose)
 		dev->driver->postclose(dev, file_priv);
