@@ -778,7 +778,7 @@ inline  static	void   EnQueue(PSDevice pDevice, PSRxMgmtPacket  pRxMgmtPacket)
 	}
 }
 
-inline  static  PSRxMgmtPacket DeQueue(PSDevice pDevice)
+static inline PSRxMgmtPacket DeQueue(PSDevice pDevice)
 {
 	PSRxMgmtPacket  pRxMgmtPacket;
 
@@ -800,7 +800,7 @@ void	InitRxManagementQueue(PSDevice   pDevice);
 
 //PLICE_DEBUG<-
 
-inline static bool device_get_ip(PSDevice pInfo) {
+static inline bool device_get_ip(PSDevice pInfo) {
 	struct in_device *in_dev = (struct in_device *)pInfo->dev->ip_ptr;
 	struct in_ifaddr *ifa;
 
