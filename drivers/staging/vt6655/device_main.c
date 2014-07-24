@@ -2635,12 +2635,12 @@ static int Config_FileGetParameter(unsigned char *string,
 	return true;
 }
 
-int Config_FileOperation(PSDevice pDevice,bool fwrite,unsigned char *Parameter)
+int Config_FileOperation(PSDevice pDevice, bool fwrite, unsigned char *Parameter)
 {
 	unsigned char *buffer = kmalloc(1024, GFP_KERNEL);
 	unsigned char tmpbuffer[20];
 	struct file *file;
-	int result=0;
+	int result = 0;
 
 	if (!buffer) {
 		pr_err("allocate mem for file fail?\n");
@@ -2665,11 +2665,11 @@ int Config_FileOperation(PSDevice pDevice,bool fwrite,unsigned char *Parameter)
 		goto error1;
 	}
 
-	if (memcmp(tmpbuffer,"USA",3)==0) {
+	if (memcmp(tmpbuffer, "USA", 3) == 0) {
 		result = ZoneType_USA;
-	} else if(memcmp(tmpbuffer,"JAPAN",5)==0) {
+	} else if(memcmp(tmpbuffer, "JAPAN", 5) == 0) {
 		result = ZoneType_Japan;
-	} else if(memcmp(tmpbuffer,"EUROPE",5)==0) {
+	} else if(memcmp(tmpbuffer, "EUROPE", 5) == 0) {
 		result = ZoneType_Europe;
 	} else {
 		result = -1;
