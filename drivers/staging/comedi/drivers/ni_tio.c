@@ -186,12 +186,7 @@ enum ni_660x_second_gate_select {
 	NI_660x_Logic_Low_Second_Gate_Select = 0x1f,
 };
 static const unsigned ni_660x_max_up_down_pin = 7;
-static inline unsigned NI_660x_Up_Down_Pin_Second_Gate_Select(unsigned n)
-{
-	BUG_ON(n > ni_660x_max_up_down_pin);
-	return 0x2 + n;
-}
-
+#define NI_660X_UD_PIN_GATE2_SEL(x)	(0x2 + (x))
 #define NI_660X_RTSI_GATE2_SEL(x)	(0xb + (x))
 
 static const unsigned int counter_status_mask =
@@ -1269,10 +1264,8 @@ ni_660x_second_gate_to_generic_gate_source(unsigned ni_660x_gate_select)
 		if (i <= ni_660x_max_rtsi_channel)
 			break;
 		for (i = 0; i <= ni_660x_max_up_down_pin; ++i) {
-			if (ni_660x_gate_select ==
-			    NI_660x_Up_Down_Pin_Second_Gate_Select(i)) {
+			if (ni_660x_gate_select == NI_660X_UD_PIN_GATE2_SEL(i))
 				return NI_GPCT_UP_DOWN_PIN_GATE_SELECT(i);
-			}
 		}
 		if (i <= ni_660x_max_up_down_pin)
 			break;
