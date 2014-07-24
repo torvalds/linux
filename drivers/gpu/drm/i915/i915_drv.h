@@ -1645,6 +1645,20 @@ struct drm_i915_private {
 	/* Old ums support infrastructure, same warning applies. */
 	struct i915_ums_state ums;
 
+	/* Abstract the submission mechanism (legacy ringbuffer or execlists) away */
+	struct {
+		int (*do_execbuf)(struct drm_device *dev, struct drm_file *file,
+				  struct intel_engine_cs *ring,
+				  struct intel_context *ctx,
+				  struct drm_i915_gem_execbuffer2 *args,
+				  struct list_head *vmas,
+				  struct drm_i915_gem_object *batch_obj,
+				  u64 exec_start, u32 flags);
+		int (*init_rings)(struct drm_device *dev);
+		void (*cleanup_ring)(struct intel_engine_cs *ring);
+		void (*stop_ring)(struct intel_engine_cs *ring);
+	} gt;
+
 	/*
 	 * NOTE: This is the dri1/ums dungeon, don't add stuff here. Your patch
 	 * will be rejected. Instead look for a better place.
@@ -2252,6 +2266,14 @@ int i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 			      struct drm_file *file_priv);
 int i915_gem_sw_finish_ioctl(struct drm_device *dev, void *data,
 			     struct drm_file *file_priv);
+int i915_gem_ringbuffer_submission(struct drm_device *dev,
+				   struct drm_file *file,
+				   struct intel_engine_cs *ring,
+				   struct intel_context *ctx,
+				   struct drm_i915_gem_execbuffer2 *args,
+				   struct list_head *vmas,
+				   struct drm_i915_gem_object *batch_obj,
+				   u64 exec_start, u32 flags);
 int i915_gem_execbuffer(struct drm_device *dev, void *data,
 			struct drm_file *file_priv);
 int i915_gem_execbuffer2(struct drm_device *dev, void *data,
@@ -2404,6 +2426,7 @@ void i915_gem_reset(struct drm_device *dev);
 bool i915_gem_clflush_object(struct drm_i915_gem_object *obj, bool force);
 int __must_check i915_gem_object_finish_gpu(struct drm_i915_gem_object *obj);
 int __must_check i915_gem_init(struct drm_device *dev);
+int i915_gem_init_rings(struct drm_device *dev);
 int __must_check i915_gem_init_hw(struct drm_device *dev);
 int i915_gem_l3_remap(struct intel_engine_cs *ring, int slice);
 void i915_gem_init_swizzling(struct drm_device *dev);

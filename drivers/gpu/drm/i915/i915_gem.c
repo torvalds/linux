@@ -4495,7 +4495,7 @@ i915_gem_stop_ringbuffers(struct drm_device *dev)
 	int i;
 
 	for_each_ring(ring, dev_priv, i)
-		intel_stop_ring_buffer(ring);
+		dev_priv->gt.stop_ring(ring);
 }
 
 int
@@ -4612,7 +4612,7 @@ intel_enable_blt(struct drm_device *dev)
 	return true;
 }
 
-static int i915_gem_init_rings(struct drm_device *dev)
+int i915_gem_init_rings(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret;
@@ -4695,7 +4695,7 @@ i915_gem_init_hw(struct drm_device *dev)
 
 	i915_gem_init_swizzling(dev);
 
-	ret = i915_gem_init_rings(dev);
+	ret = dev_priv->gt.init_rings(dev);
 	if (ret)
 		return ret;
 
@@ -4736,6 +4736,13 @@ int i915_gem_init(struct drm_device *dev)
 			DRM_DEBUG_DRIVER("allow wake ack timed out\n");
 	}
 
+	if (!i915.enable_execlists) {
+		dev_priv->gt.do_execbuf = i915_gem_ringbuffer_submission;
+		dev_priv->gt.init_rings = i915_gem_init_rings;
+		dev_priv->gt.cleanup_ring = intel_cleanup_ring_buffer;
+		dev_priv->gt.stop_ring = intel_stop_ring_buffer;
+	}
+
 	i915_gem_init_userptr(dev);
 	i915_gem_init_global_gtt(dev);
 
@@ -4771,7 +4778,7 @@ i915_gem_cleanup_ringbuffer(struct drm_device *dev)
 	int i;
 
 	for_each_ring(ring, dev_priv, i)
-		intel_cleanup_ring_buffer(ring);
+		dev_priv->gt.cleanup_ring(ring);
 }
 
 int

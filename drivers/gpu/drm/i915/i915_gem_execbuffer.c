@@ -1023,14 +1023,14 @@ i915_reset_gen7_sol_offsets(struct drm_device *dev,
 	return 0;
 }
 
-static int
-legacy_ringbuffer_submission(struct drm_device *dev, struct drm_file *file,
-			     struct intel_engine_cs *ring,
-			     struct intel_context *ctx,
-			     struct drm_i915_gem_execbuffer2 *args,
-			     struct list_head *vmas,
-			     struct drm_i915_gem_object *batch_obj,
-			     u64 exec_start, u32 flags)
+int
+i915_gem_ringbuffer_submission(struct drm_device *dev, struct drm_file *file,
+			       struct intel_engine_cs *ring,
+			       struct intel_context *ctx,
+			       struct drm_i915_gem_execbuffer2 *args,
+			       struct list_head *vmas,
+			       struct drm_i915_gem_object *batch_obj,
+			       u64 exec_start, u32 flags)
 {
 	struct drm_clip_rect *cliprects = NULL;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -1402,8 +1402,8 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	} else
 		exec_start += i915_gem_obj_offset(batch_obj, vm);
 
-	ret = legacy_ringbuffer_submission(dev, file, ring, ctx,
-					   args, &eb->vmas, batch_obj, exec_start, flags);
+	ret = dev_priv->gt.do_execbuf(dev, file, ring, ctx, args,
+				      &eb->vmas, batch_obj, exec_start, flags);
 
 	/*
 	 * FIXME: We crucially rely upon the active tracking for the (ppgtt)
