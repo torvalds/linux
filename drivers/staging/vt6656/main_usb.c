@@ -552,8 +552,6 @@ static int vnt_start(struct ieee80211_hw *hw)
 	}
 
 	MP_CLEAR_FLAG(priv, fMP_DISCONNECTED);
-	MP_SET_FLAG(priv, fMP_POST_READS);
-	MP_SET_FLAG(priv, fMP_POST_WRITES);
 
 	if (device_init_registers(priv) == false) {
 		dev_dbg(&priv->usb->dev, " init register fail\n");
@@ -601,8 +599,6 @@ static void vnt_stop(struct ieee80211_hw *hw)
 	ieee80211_stop_queues(hw);
 
 	MP_SET_FLAG(priv, fMP_DISCONNECTED);
-	MP_CLEAR_FLAG(priv, fMP_POST_WRITES);
-	MP_CLEAR_FLAG(priv, fMP_POST_READS);
 
 	cancel_delayed_work_sync(&priv->run_command_work);
 

@@ -289,7 +289,7 @@ int vnt_tx_context(struct vnt_private *priv,
 	int status;
 	struct urb *urb;
 
-	if (!(MP_IS_READY(priv) && priv->Flags & fMP_POST_WRITES)) {
+	if (!(MP_IS_READY(priv))) {
 		context->in_use = false;
 		return STATUS_RESOURCES;
 	}
