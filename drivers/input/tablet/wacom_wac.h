@@ -127,8 +127,8 @@ struct wacom_features {
 	int device_type;
 	int x_phy;
 	int y_phy;
-	unsigned char unit;
-	unsigned char unitExpo;
+	unsigned unit;
+	int unitExpo;
 	int x_fuzz;
 	int y_fuzz;
 	int pressure_fuzz;
