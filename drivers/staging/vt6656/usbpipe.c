@@ -52,7 +52,7 @@ int vnt_control_out(struct vnt_private *priv, u8 request, u16 value,
 {
 	int status = 0;
 
-	if (priv->flags & DEVICE_FLAGS_DISCONNECTED)
+	if (test_bit(DEVICE_FLAGS_DISCONNECTED, &priv->flags))
 		return STATUS_FAILURE;
 
 	mutex_lock(&priv->usb_lock);
@@ -80,7 +80,7 @@ int vnt_control_in(struct vnt_private *priv, u8 request, u16 value,
 {
 	int status;
 
-	if (priv->flags & DEVICE_FLAGS_DISCONNECTED)
+	if (test_bit(DEVICE_FLAGS_DISCONNECTED, &priv->flags))
 		return STATUS_FAILURE;
 
 	mutex_lock(&priv->usb_lock);
@@ -289,7 +289,7 @@ int vnt_tx_context(struct vnt_private *priv,
 	int status;
 	struct urb *urb;
 
-	if (priv->flags & DEVICE_FLAGS_DISCONNECTED) {
+	if (test_bit(DEVICE_FLAGS_DISCONNECTED, &priv->flags)) {
 		context->in_use = false;
 		return STATUS_RESOURCES;
 	}

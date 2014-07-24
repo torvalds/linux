@@ -591,7 +591,7 @@ static void vnt_stop(struct ieee80211_hw *hw)
 	/* clear all keys */
 	priv->key_entry_inuse = 0;
 
-	if ((priv->flags & DEVICE_FLAGS_UNPLUG) == false)
+	if (!test_bit(DEVICE_FLAGS_UNPLUG, &priv->flags))
 		vnt_mac_shutdown(priv);
 
 	ieee80211_stop_queues(hw);
