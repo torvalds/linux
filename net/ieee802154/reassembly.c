@@ -369,8 +369,6 @@ int lowpan_frag_rcv(struct sk_buff *skb, const u8 frag_type)
 	if (frag_info->d_size > ieee802154_lowpan->max_dsize)
 		goto err;
 
-	inet_frag_evictor(&ieee802154_lowpan->frags, &lowpan_frags, false);
-
 	fq = fq_find(net, frag_info, &source, &dest);
 	if (fq != NULL) {
 		int ret;

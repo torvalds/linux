@@ -46,6 +46,8 @@ const u8 ip_frag_ecn_table[16] = {
 };
 EXPORT_SYMBOL(ip_frag_ecn_table);
 
+static int inet_frag_evictor(struct netns_frags *nf, struct inet_frags *f, bool force);
+
 static unsigned int
 inet_frag_hashfn(const struct inet_frags *f, const struct inet_frag_queue *q)
 {
@@ -203,15 +205,10 @@ void inet_frag_destroy(struct inet_frag_queue *q, struct inet_frags *f,
 }
 EXPORT_SYMBOL(inet_frag_destroy);
 
-int inet_frag_evictor(struct netns_frags *nf, struct inet_frags *f, bool force)
+static int inet_frag_evictor(struct netns_frags *nf, struct inet_frags *f, bool force)
 {
 	struct inet_frag_queue *q;
 	int work, evicted = 0;
-
-	if (!force) {
-		if (frag_mem_limit(nf) <= nf->high_thresh)
-			return 0;
-	}
 
 	work = frag_mem_limit(nf) - nf->low_thresh;
 	while (work > 0 || force) {
@@ -242,7 +239,6 @@ int inet_frag_evictor(struct netns_frags *nf, struct inet_frags *f, bool force)
 
 	return evicted;
 }
-EXPORT_SYMBOL(inet_frag_evictor);
 
 static struct inet_frag_queue *inet_frag_intern(struct netns_frags *nf,
 		struct inet_frag_queue *qp_in, struct inet_frags *f,
@@ -296,6 +292,9 @@ static struct inet_frag_queue *inet_frag_alloc(struct netns_frags *nf,
 {
 	struct inet_frag_queue *q;
 
+	if (frag_mem_limit(nf) > nf->high_thresh)
+		return NULL;
+
 	q = kzalloc(f->qsize, GFP_ATOMIC);
 	if (q == NULL)
 		return NULL;
@@ -331,6 +330,9 @@ struct inet_frag_queue *inet_frag_find(struct netns_frags *nf,
 	struct inet_frag_bucket *hb;
 	struct inet_frag_queue *q;
 	int depth = 0;
+
+	if (frag_mem_limit(nf) > nf->high_thresh)
+		inet_frag_evictor(nf, f, false);
 
 	hash &= (INETFRAGS_HASHSZ - 1);
 	hb = &f->hash[hash];
