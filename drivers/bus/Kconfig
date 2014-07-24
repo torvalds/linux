@@ -53,6 +53,7 @@ config ARM_CCI
 config ARM_CCN
 	bool "ARM CCN driver support"
 	depends on ARM || ARM64
+	depends on PERF_EVENTS
 	help
 	  PMU (perf) driver supporting the ARM CCN (Cache Coherent Network)
 	  interconnect.
