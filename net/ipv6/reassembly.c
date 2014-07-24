@@ -190,7 +190,6 @@ fq_find(struct net *net, __be32 id, const struct in6_addr *src,
 	arg.dst = dst;
 	arg.ecn = ecn;
 
-	read_lock(&ip6_frags.lock);
 	hash = inet6_hash_frag(id, src, dst);
 
 	q = inet_frag_find(&net->ipv6.frags, &ip6_frags, &arg, hash);

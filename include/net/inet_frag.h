@@ -53,11 +53,6 @@ struct inet_frag_bucket {
 
 struct inet_frags {
 	struct inet_frag_bucket	hash[INETFRAGS_HASHSZ];
-	/* This rwlock is a global lock (seperate per IPv4, IPv6 and
-	 * netfilter). Important to keep this on a seperate cacheline.
-	 * Its primarily a rebuild protection rwlock.
-	 */
-	rwlock_t		lock ____cacheline_aligned_in_smp;
 
 	struct work_struct	frags_work;
 	unsigned int next_bucket;
@@ -66,8 +61,12 @@ struct inet_frags {
 
 	/* The first call to hashfn is responsible to initialize
 	 * rnd. This is best done with net_get_random_once.
+	 *
+	 * rnd_seqlock is used to let hash insertion detect
+	 * when it needs to re-lookup the hash chain to use.
 	 */
 	u32			rnd;
+	seqlock_t		rnd_seqlock;
 	int			qsize;
 
 	unsigned int		(*hashfn)(const struct inet_frag_queue *);
@@ -89,8 +88,8 @@ void inet_frags_exit_net(struct netns_frags *nf, struct inet_frags *f);
 void inet_frag_kill(struct inet_frag_queue *q, struct inet_frags *f);
 void inet_frag_destroy(struct inet_frag_queue *q, struct inet_frags *f);
 struct inet_frag_queue *inet_frag_find(struct netns_frags *nf,
-		struct inet_frags *f, void *key, unsigned int hash)
-	__releases(&f->lock);
+		struct inet_frags *f, void *key, unsigned int hash);
+
 void inet_frag_maybe_warn_overflow(struct inet_frag_queue *q,
 				   const char *prefix);
 
