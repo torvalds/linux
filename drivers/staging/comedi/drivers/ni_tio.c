@@ -226,14 +226,13 @@ static void ni_tio_set_sync_mode(struct ni_gpct *counter, int force_alt_sync)
 	unsigned cidx = counter->counter_index;
 	const unsigned counting_mode_reg = NITIO_CNT_MODE_REG(cidx);
 	static const uint64_t min_normal_sync_period_ps = 25000;
-	const uint64_t clock_period_ps = ni_tio_clock_period_ps(counter,
-								ni_tio_generic_clock_src_select
-								(counter));
+	uint64_t clock_period_ps;
 
 	if (ni_tio_counting_mode_registers_present(counter_dev) == 0)
 		return;
 
-	switch (ni_tio_get_soft_copy(counter, counting_mode_reg) & Gi_Counting_Mode_Mask) {
+	switch (ni_tio_get_soft_copy(counter, counting_mode_reg) &
+		Gi_Counting_Mode_Mask) {
 	case Gi_Counting_Mode_QuadratureX1_Bits:
 	case Gi_Counting_Mode_QuadratureX2_Bits:
 	case Gi_Counting_Mode_QuadratureX4_Bits:
@@ -243,6 +242,10 @@ static void ni_tio_set_sync_mode(struct ni_gpct *counter, int force_alt_sync)
 	default:
 		break;
 	}
+
+	clock_period_ps = ni_tio_clock_period_ps(counter,
+				ni_tio_generic_clock_src_select(counter));
+
 	/*
 	 * It's not clear what we should do if clock_period is unknown, so we
 	 * are not using the alt sync bit in that case, but allow the caller
