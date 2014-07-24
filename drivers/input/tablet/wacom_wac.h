@@ -114,7 +114,6 @@ enum {
 
 struct wacom_features {
 	const char *name;
-	int pktlen;
 	int x_max;
 	int y_max;
 	int pressure_max;
@@ -137,6 +136,7 @@ struct wacom_features {
 	unsigned touch_max;
 	int oVid;
 	int oPid;
+	int pktlen;
 	bool check_for_hid_type;
 	int hid_type;
 };
