@@ -512,7 +512,7 @@ xfs_bulkstat(
 int
 xfs_inumbers_fmt(
 	void			__user *ubuffer, /* buffer to write to */
-	const xfs_inogrp_t	*buffer,	/* buffer to read from */
+	const struct xfs_inogrp	*buffer,	/* buffer to read from */
 	long			count,		/* # of elements to read */
 	long			*written)	/* # of bytes written */
 {
@@ -527,37 +527,33 @@ xfs_inumbers_fmt(
  */
 int					/* error status */
 xfs_inumbers(
-	xfs_mount_t	*mp,		/* mount point for filesystem */
-	xfs_ino_t	*lastino,	/* last inode returned */
-	int		*count,		/* size of buffer/count returned */
-	void		__user *ubuffer,/* buffer with inode descriptions */
-	inumbers_fmt_pf	formatter)
+	struct xfs_mount	*mp,/* mount point for filesystem */
+	xfs_ino_t		*lastino,/* last inode returned */
+	int			*count,/* size of buffer/count returned */
+	void			__user *ubuffer,/* buffer with inode descriptions */
+	inumbers_fmt_pf		formatter)
 {
-	xfs_buf_t	*agbp;
-	xfs_agino_t	agino;
-	xfs_agnumber_t	agno;
-	int		bcount;
-	xfs_inogrp_t	*buffer;
-	int		bufidx;
-	xfs_btree_cur_t	*cur;
-	int		error;
-	xfs_inobt_rec_incore_t r;
-	int		i;
-	xfs_ino_t	ino;
-	int		left;
-	int		tmp;
+	xfs_agnumber_t		agno = XFS_INO_TO_AGNO(mp, *lastino);
+	xfs_agino_t		agino = XFS_INO_TO_AGINO(mp, *lastino);
+	struct xfs_btree_cur	*cur = NULL;
+	xfs_buf_t		*agbp = NULL;
+	struct xfs_inogrp	*buffer;
+	int			bcount;
+	int			left = *count;
+	int			bufidx = 0;
+	int			error = 0;
 
-	ino = (xfs_ino_t)*lastino;
-	agno = XFS_INO_TO_AGNO(mp, ino);
-	agino = XFS_INO_TO_AGINO(mp, ino);
-	left = *count;
 	*count = 0;
+	if (agno >= mp->m_sb.sb_agcount ||
+	    *lastino != XFS_AGINO_TO_INO(mp, agno, agino))
+		return error;
+
 	bcount = MIN(left, (int)(PAGE_SIZE / sizeof(*buffer)));
 	buffer = kmem_alloc(bcount * sizeof(*buffer), KM_SLEEP);
-	error = bufidx = 0;
-	cur = NULL;
-	agbp = NULL;
 	while (left > 0 && agno < mp->m_sb.sb_agcount) {
+		struct xfs_inobt_rec_incore	r;
+		int				stat;
+
 		if (agbp == NULL) {
 			error = xfs_ialloc_read_agi(mp, NULL, agno, &agbp);
 			if (error) {
@@ -574,7 +570,7 @@ xfs_inumbers(
 			cur = xfs_inobt_init_cursor(mp, NULL, agbp, agno,
 						    XFS_BTNUM_INO);
 			error = xfs_inobt_lookup(cur, agino, XFS_LOOKUP_GE,
-						 &tmp);
+						 &stat);
 			if (error) {
 				xfs_btree_del_cursor(cur, XFS_BTREE_ERROR);
 				cur = NULL;
@@ -589,8 +585,8 @@ xfs_inumbers(
 				continue;
 			}
 		}
-		error = xfs_inobt_get_rec(cur, &r, &i);
-		if (error || i == 0) {
+		error = xfs_inobt_get_rec(cur, &r, &stat);
+		if (error || stat == 0) {
 			xfs_buf_relse(agbp);
 			agbp = NULL;
 			xfs_btree_del_cursor(cur, XFS_BTREE_NOERROR);
@@ -609,16 +605,15 @@ xfs_inumbers(
 		left--;
 		if (bufidx == bcount) {
 			long written;
-			if (formatter(ubuffer, buffer, bufidx, &written)) {
-				error = -EFAULT;
+			error = formatter(ubuffer, buffer, bufidx, &written);
+			if (error)
 				break;
-			}
 			ubuffer += written;
 			*count += bufidx;
 			bufidx = 0;
 		}
 		if (left) {
-			error = xfs_btree_increment(cur, 0, &tmp);
+			error = xfs_btree_increment(cur, 0, &stat);
 			if (error) {
 				xfs_btree_del_cursor(cur, XFS_BTREE_ERROR);
 				cur = NULL;
@@ -636,9 +631,8 @@ xfs_inumbers(
 	if (!error) {
 		if (bufidx) {
 			long written;
-			if (formatter(ubuffer, buffer, bufidx, &written))
-				error = -EFAULT;
-			else
+			error = formatter(ubuffer, buffer, bufidx, &written);
+			if (!error)
 				*count += bufidx;
 		}
 		*lastino = XFS_AGINO_TO_INO(mp, agno, agino);

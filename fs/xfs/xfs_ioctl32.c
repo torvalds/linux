@@ -102,7 +102,7 @@ xfs_compat_growfs_rt_copyin(
 STATIC int
 xfs_inumbers_fmt_compat(
 	void			__user *ubuffer,
-	const xfs_inogrp_t	*buffer,
+	const struct xfs_inogrp	*buffer,
 	long			count,
 	long			*written)
 {
