@@ -420,7 +420,7 @@ static void tcindex_destroy(struct tcf_proto *tp)
 	pr_debug("tcindex_destroy(tp %p),p %p\n", tp, p);
 	walker.count = 0;
 	walker.skip = 0;
-	walker.fn = &tcindex_destroy_element;
+	walker.fn = tcindex_destroy_element;
 	tcindex_walk(tp, &walker);
 	kfree(p->perfect);
 	kfree(p->h);
