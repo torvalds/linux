@@ -341,7 +341,7 @@ device_receive_frame(
 	// Min (ACK): 10HD +4CRC + 2Padding + 4Len + 8TSF + 4RSR
 	if ((FrameSize > 2364) || (FrameSize <= 32)) {
 		// Frame Size error drop this packet.
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "---------- WRONG Length 1 \n");
+		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "---------- WRONG Length 1\n");
 		return false;
 	}
 
@@ -359,7 +359,7 @@ device_receive_frame(
 
 	if ((FrameSize > 2346)|(FrameSize < 14)) { // Max: 2312Payload + 30HD +4CRC
 		// Min: 14 bytes ACK
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "---------- WRONG Length 2 \n");
+		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "---------- WRONG Length 2\n");
 		return false;
 	}
 //PLICE_DEBUG->
@@ -671,7 +671,7 @@ device_receive_frame(
 		wEtherType = (skb->data[cbIVOffset + 4 + 24 + 6] << 8) |
 			skb->data[cbIVOffset + 4 + 24 + 6 + 1];
 
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "wEtherType = %04x \n", wEtherType);
+		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "wEtherType = %04x\n", wEtherType);
 		if (wEtherType == ETH_P_PAE) {
 			skb->dev = pDevice->apdev;
 
@@ -1179,7 +1179,8 @@ static bool s_bHostWepRxEncryption(
 
 	if (byDecMode == KEY_CTL_WEP) {
 		// handle WEP
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "byDecMode == KEY_CTL_WEP \n");
+		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "byDecMode == KEY_CTL_WEP\n");
+
 		if ((pDevice->byLocalID <= REV_ID_VT3253_A1) ||
 		    (((PSKeyTable)(pKey->pvKeyTable))->bSoftWEP == true) ||
 		    !bOnFly) {
@@ -1218,7 +1219,7 @@ static bool s_bHostWepRxEncryption(
 				// Software TKIP
 				// 1. 3253 A
 				// 2. NotOnFly
-				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "soft KEY_CTL_TKIP \n");
+				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "soft KEY_CTL_TKIP\n");
 				pMACHeader = (PS802_11Header)(pbyFrame);
 				TKIPvMixKey(pKey->abyKey, pMACHeader->abyAddr2, *pwRxTSC15_0, *pdwRxTSC47_16, pDevice->abyPRNG);
 				rc4_init(&pDevice->SBox, pDevice->abyPRNG, TKIP_KEY_LEN);
@@ -1280,7 +1281,7 @@ static bool s_bAPModeRxData(
 
 			// if any node in PS mode, buffer packet until DTIM.
 			if (skbcpy == NULL) {
-				DBG_PRT(MSG_LEVEL_NOTICE, KERN_INFO "relay multicast no skb available \n");
+				DBG_PRT(MSG_LEVEL_NOTICE, KERN_INFO "relay multicast no skb available\n");
 			} else {
 				skbcpy->dev = pDevice->dev;
 				skbcpy->len = FrameSize;

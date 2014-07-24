@@ -113,7 +113,7 @@ PSvEnablePowerSaving(
 		PSbSendNullPacket(pDevice);
 
 	pDevice->bPWBitOn = true;
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "PS:Power Saving Mode Enable... \n");
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "PS:Power Saving Mode Enable...\n");
 }
 
 /*+

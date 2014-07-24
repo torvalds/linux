@@ -216,9 +216,9 @@ s_vProbeChannel(
 	if (pTxPacket != NULL) {
 		for (ii = 0; ii < 2; ii++) {
 			if (csMgmt_xmit(pDevice, pTxPacket) != CMD_STATUS_PENDING)
-				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Probe request sending fail.. \n");
+				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Probe request sending fail..\n");
 			else
-				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Probe request is sending.. \n");
+				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Probe request is sending..\n");
 		}
 	}
 }
@@ -367,7 +367,7 @@ vCommandTimer(
 		} else {
 //2008-8-4 <add> by chester
 			if (!is_channel_valid(pMgmt->uScanChannel)) {
-				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Invalid channel pMgmt->uScanChannel = %d \n", pMgmt->uScanChannel);
+				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Invalid channel pMgmt->uScanChannel = %d\n", pMgmt->uScanChannel);
 				s_bCommandComplete(pDevice);
 				spin_unlock_irq(&pDevice->lock);
 				return;
@@ -559,7 +559,7 @@ vCommandTimer(
 				// start own IBSS
 				vMgrCreateOwnIBSS((void *)pDevice, &Status);
 				if (Status != CMD_STATUS_SUCCESS)
-					DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " WLAN_CMD_IBSS_CREATE fail ! \n");
+					DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " WLAN_CMD_IBSS_CREATE fail !\n");
 
 				BSSvAddMulticastNode(pDevice);
 			}
@@ -571,7 +571,7 @@ vCommandTimer(
 				// start own IBSS
 				vMgrCreateOwnIBSS((void *)pDevice, &Status);
 				if (Status != CMD_STATUS_SUCCESS)
-					DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " WLAN_CMD_IBSS_CREATE fail ! \n");
+					DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " WLAN_CMD_IBSS_CREATE fail !\n");
 
 				BSSvAddMulticastNode(pDevice);
 				if (netif_queue_stopped(pDevice->dev))
@@ -691,7 +691,7 @@ vCommandTimer(
 
 			vMgrCreateOwnIBSS((void *)pDevice, &Status);
 			if (Status != CMD_STATUS_SUCCESS)
-				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " vMgrCreateOwnIBSS fail ! \n");
+				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " vMgrCreateOwnIBSS fail !\n");
 
 			// alway turn off unicast bit
 			MACvRegBitsOff(pDevice->PortOffset, MAC_REG_RCR, RCR_UNICAST);
@@ -718,7 +718,7 @@ vCommandTimer(
 					pDevice->bMoreData = true;
 				}
 				if (!device_dma0_xmit(pDevice, skb, 0))
-					DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Multicast ps tx fail \n");
+					DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Multicast ps tx fail\n");
 
 				pMgmt->sNodeDBTable[0].wEnQueueCnt--;
 			}
@@ -740,7 +740,7 @@ vCommandTimer(
 						pDevice->bMoreData = true;
 					}
 					if (!device_dma0_xmit(pDevice, skb, ii))
-						DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "sta ps tx fail \n");
+						DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "sta ps tx fail\n");
 
 					pMgmt->sNodeDBTable[ii].wEnQueueCnt--;
 					// check if sta ps enabled, and wait next pspoll.
@@ -752,7 +752,7 @@ vCommandTimer(
 					// clear tx map
 					pMgmt->abyPSTxMap[pMgmt->sNodeDBTable[ii].wAID >> 3] &=
 						~byMask[pMgmt->sNodeDBTable[ii].wAID & 7];
-					DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Index=%d PS queue clear \n", ii);
+					DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Index=%d PS queue clear\n", ii);
 				}
 				pMgmt->sNodeDBTable[ii].bRxPSPoll = false;
 			}
