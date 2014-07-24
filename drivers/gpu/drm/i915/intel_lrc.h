@@ -29,6 +29,19 @@ void intel_logical_ring_stop(struct intel_engine_cs *ring);
 void intel_logical_ring_cleanup(struct intel_engine_cs *ring);
 int intel_logical_rings_init(struct drm_device *dev);
 
+void intel_logical_ring_advance_and_submit(struct intel_ringbuffer *ringbuf);
+static inline void intel_logical_ring_advance(struct intel_ringbuffer *ringbuf)
+{
+	ringbuf->tail &= ringbuf->size - 1;
+}
+static inline void intel_logical_ring_emit(struct intel_ringbuffer *ringbuf,
+					   u32 data)
+{
+	iowrite32(data, ringbuf->virtual_start + ringbuf->tail);
+	ringbuf->tail += 4;
+}
+int intel_logical_ring_begin(struct intel_ringbuffer *ringbuf, int num_dwords);
+
 /* Logical Ring Contexts */
 void intel_lr_context_free(struct intel_context *ctx);
 int intel_lr_context_deferred_create(struct intel_context *ctx,

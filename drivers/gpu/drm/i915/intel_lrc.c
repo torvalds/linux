@@ -108,6 +108,195 @@ void intel_logical_ring_stop(struct intel_engine_cs *ring)
 	/* TODO */
 }
 
+void intel_logical_ring_advance_and_submit(struct intel_ringbuffer *ringbuf)
+{
+	intel_logical_ring_advance(ringbuf);
+
+	if (intel_ring_stopped(ringbuf->ring))
+		return;
+
+	/* TODO: how to submit a context to the ELSP is not here yet */
+}
+
+static int logical_ring_alloc_seqno(struct intel_engine_cs *ring)
+{
+	if (ring->outstanding_lazy_seqno)
+		return 0;
+
+	if (ring->preallocated_lazy_request == NULL) {
+		struct drm_i915_gem_request *request;
+
+		request = kmalloc(sizeof(*request), GFP_KERNEL);
+		if (request == NULL)
+			return -ENOMEM;
+
+		ring->preallocated_lazy_request = request;
+	}
+
+	return i915_gem_get_seqno(ring->dev, &ring->outstanding_lazy_seqno);
+}
+
+static int logical_ring_wait_request(struct intel_ringbuffer *ringbuf,
+				     int bytes)
+{
+	struct intel_engine_cs *ring = ringbuf->ring;
+	struct drm_i915_gem_request *request;
+	u32 seqno = 0;
+	int ret;
+
+	if (ringbuf->last_retired_head != -1) {
+		ringbuf->head = ringbuf->last_retired_head;
+		ringbuf->last_retired_head = -1;
+
+		ringbuf->space = intel_ring_space(ringbuf);
+		if (ringbuf->space >= bytes)
+			return 0;
+	}
+
+	list_for_each_entry(request, &ring->request_list, list) {
+		if (__intel_ring_space(request->tail, ringbuf->tail,
+				       ringbuf->size) >= bytes) {
+			seqno = request->seqno;
+			break;
+		}
+	}
+
+	if (seqno == 0)
+		return -ENOSPC;
+
+	ret = i915_wait_seqno(ring, seqno);
+	if (ret)
+		return ret;
+
+	/* TODO: make sure we update the right ringbuffer's last_retired_head
+	 * when retiring requests */
+	i915_gem_retire_requests_ring(ring);
+	ringbuf->head = ringbuf->last_retired_head;
+	ringbuf->last_retired_head = -1;
+
+	ringbuf->space = intel_ring_space(ringbuf);
+	return 0;
+}
+
+static int logical_ring_wait_for_space(struct intel_ringbuffer *ringbuf,
+				       int bytes)
+{
+	struct intel_engine_cs *ring = ringbuf->ring;
+	struct drm_device *dev = ring->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	unsigned long end;
+	int ret;
+
+	ret = logical_ring_wait_request(ringbuf, bytes);
+	if (ret != -ENOSPC)
+		return ret;
+
+	/* Force the context submission in case we have been skipping it */
+	intel_logical_ring_advance_and_submit(ringbuf);
+
+	/* With GEM the hangcheck timer should kick us out of the loop,
+	 * leaving it early runs the risk of corrupting GEM state (due
+	 * to running on almost untested codepaths). But on resume
+	 * timers don't work yet, so prevent a complete hang in that
+	 * case by choosing an insanely large timeout. */
+	end = jiffies + 60 * HZ;
+
+	do {
+		ringbuf->head = I915_READ_HEAD(ring);
+		ringbuf->space = intel_ring_space(ringbuf);
+		if (ringbuf->space >= bytes) {
+			ret = 0;
+			break;
+		}
+
+		msleep(1);
+
+		if (dev_priv->mm.interruptible && signal_pending(current)) {
+			ret = -ERESTARTSYS;
+			break;
+		}
+
+		ret = i915_gem_check_wedge(&dev_priv->gpu_error,
+					   dev_priv->mm.interruptible);
+		if (ret)
+			break;
+
+		if (time_after(jiffies, end)) {
+			ret = -EBUSY;
+			break;
+		}
+	} while (1);
+
+	return ret;
+}
+
+static int logical_ring_wrap_buffer(struct intel_ringbuffer *ringbuf)
+{
+	uint32_t __iomem *virt;
+	int rem = ringbuf->size - ringbuf->tail;
+
+	if (ringbuf->space < rem) {
+		int ret = logical_ring_wait_for_space(ringbuf, rem);
+
+		if (ret)
+			return ret;
+	}
+
+	virt = ringbuf->virtual_start + ringbuf->tail;
+	rem /= 4;
+	while (rem--)
+		iowrite32(MI_NOOP, virt++);
+
+	ringbuf->tail = 0;
+	ringbuf->space = intel_ring_space(ringbuf);
+
+	return 0;
+}
+
+static int logical_ring_prepare(struct intel_ringbuffer *ringbuf, int bytes)
+{
+	int ret;
+
+	if (unlikely(ringbuf->tail + bytes > ringbuf->effective_size)) {
+		ret = logical_ring_wrap_buffer(ringbuf);
+		if (unlikely(ret))
+			return ret;
+	}
+
+	if (unlikely(ringbuf->space < bytes)) {
+		ret = logical_ring_wait_for_space(ringbuf, bytes);
+		if (unlikely(ret))
+			return ret;
+	}
+
+	return 0;
+}
+
+int intel_logical_ring_begin(struct intel_ringbuffer *ringbuf, int num_dwords)
+{
+	struct intel_engine_cs *ring = ringbuf->ring;
+	struct drm_device *dev = ring->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int ret;
+
+	ret = i915_gem_check_wedge(&dev_priv->gpu_error,
+				   dev_priv->mm.interruptible);
+	if (ret)
+		return ret;
+
+	ret = logical_ring_prepare(ringbuf, num_dwords * sizeof(uint32_t));
+	if (ret)
+		return ret;
+
+	/* Preallocate the olr before touching the ring */
+	ret = logical_ring_alloc_seqno(ring);
+	if (ret)
+		return ret;
+
+	ringbuf->space -= num_dwords * sizeof(uint32_t);
+	return 0;
+}
+
 static int gen8_init_common_ring(struct intel_engine_cs *ring)
 {
 	struct drm_device *dev = ring->dev;

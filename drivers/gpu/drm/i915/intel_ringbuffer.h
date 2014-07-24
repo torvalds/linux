@@ -374,6 +374,9 @@ static inline void intel_ring_advance(struct intel_engine_cs *ring)
 	struct intel_ringbuffer *ringbuf = ring->buffer;
 	ringbuf->tail &= ringbuf->size - 1;
 }
+int __intel_ring_space(int head, int tail, int size);
+int intel_ring_space(struct intel_ringbuffer *ringbuf);
+bool intel_ring_stopped(struct intel_engine_cs *ring);
 void __intel_ring_advance(struct intel_engine_cs *ring);
 
 int __must_check intel_ring_idle(struct intel_engine_cs *ring);
