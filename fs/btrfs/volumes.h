@@ -110,7 +110,9 @@ struct btrfs_device {
 	/* disk I/O failure stats. For detailed description refer to
 	 * enum btrfs_dev_stat_values in ioctl.h */
 	int dev_stats_valid;
-	int dev_stats_dirty; /* counters need to be written to disk */
+
+	/* Counter to record the change of device stats */
+	atomic_t dev_stats_ccnt;
 	atomic_t dev_stat_values[BTRFS_DEV_STAT_VALUES_MAX];
 };
 
@@ -359,11 +361,18 @@ unsigned long btrfs_full_stripe_len(struct btrfs_root *root,
 int btrfs_finish_chunk_alloc(struct btrfs_trans_handle *trans,
 				struct btrfs_root *extent_root,
 				u64 chunk_offset, u64 chunk_size);
+
+static inline int btrfs_dev_stats_dirty(struct btrfs_device *dev)
+{
+	return atomic_read(&dev->dev_stats_ccnt);
+}
+
 static inline void btrfs_dev_stat_inc(struct btrfs_device *dev,
 				      int index)
 {
 	atomic_inc(dev->dev_stat_values + index);
-	dev->dev_stats_dirty = 1;
+	smp_mb__before_atomic();
+	atomic_inc(&dev->dev_stats_ccnt);
 }
 
 static inline int btrfs_dev_stat_read(struct btrfs_device *dev,
@@ -378,7 +387,8 @@ static inline int btrfs_dev_stat_read_and_reset(struct btrfs_device *dev,
 	int ret;
 
 	ret = atomic_xchg(dev->dev_stat_values + index, 0);
-	dev->dev_stats_dirty = 1;
+	smp_mb__before_atomic();
+	atomic_inc(&dev->dev_stats_ccnt);
 	return ret;
 }
 
@@ -386,7 +396,8 @@ static inline void btrfs_dev_stat_set(struct btrfs_device *dev,
 				      int index, unsigned long val)
 {
 	atomic_set(dev->dev_stat_values + index, val);
-	dev->dev_stats_dirty = 1;
+	smp_mb__before_atomic();
+	atomic_inc(&dev->dev_stats_ccnt);
 }
 
 static inline void btrfs_dev_stat_reset(struct btrfs_device *dev,
