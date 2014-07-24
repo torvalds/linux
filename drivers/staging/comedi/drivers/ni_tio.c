@@ -160,12 +160,7 @@ enum ni_660x_gate_select {
 };
 static const unsigned ni_660x_max_gate_pin = 7;
 #define NI_660X_PIN_GATE_SEL(x)		(0x2 + (x))
-
-static inline unsigned NI_660x_RTSI_Gate_Select(unsigned n)
-{
-	BUG_ON(n > ni_660x_max_rtsi_channel);
-	return 0xb + n;
-}
+#define NI_660X_RTSI_GATE_SEL(x)	(0xb + (x))
 
 enum ni_m_series_gate_select {
 	NI_M_Series_Timestamp_Mux_Gate_Select = 0x0,
@@ -1215,7 +1210,7 @@ ni_660x_first_gate_to_generic_gate_source(unsigned ni_660x_gate_select)
 		return NI_GPCT_LOGIC_LOW_GATE_SELECT;
 	default:
 		for (i = 0; i <= ni_660x_max_rtsi_channel; ++i) {
-			if (ni_660x_gate_select == NI_660x_RTSI_Gate_Select(i))
+			if (ni_660x_gate_select == NI_660X_RTSI_GATE_SEL(i))
 				return NI_GPCT_RTSI_GATE_SELECT(i);
 		}
 		if (i <= ni_660x_max_rtsi_channel)
