@@ -912,9 +912,6 @@ static void i915_record_ring_state(struct drm_device *dev,
 		ering->hws = I915_READ(mmio);
 	}
 
-	ering->cpu_ring_head = ring->buffer->head;
-	ering->cpu_ring_tail = ring->buffer->tail;
-
 	ering->hangcheck_score = ring->hangcheck.score;
 	ering->hangcheck_action = ring->hangcheck.action;
 
@@ -977,6 +974,7 @@ static void i915_gem_record_rings(struct drm_device *dev,
 
 	for (i = 0; i < I915_NUM_RINGS; i++) {
 		struct intel_engine_cs *ring = &dev_priv->ring[i];
+		struct intel_ringbuffer *rbuf;
 
 		error->ring[i].pid = -1;
 
@@ -1023,8 +1021,24 @@ static void i915_gem_record_rings(struct drm_device *dev,
 			}
 		}
 
+		if (i915.enable_execlists) {
+			/* TODO: This is only a small fix to keep basic error
+			 * capture working, but we need to add more information
+			 * for it to be useful (e.g. dump the context being
+			 * executed).
+			 */
+			if (request)
+				rbuf = request->ctx->engine[ring->id].ringbuf;
+			else
+				rbuf = ring->default_context->engine[ring->id].ringbuf;
+		} else
+			rbuf = ring->buffer;
+
+		error->ring[i].cpu_ring_head = rbuf->head;
+		error->ring[i].cpu_ring_tail = rbuf->tail;
+
 		error->ring[i].ringbuffer =
-			i915_error_ggtt_object_create(dev_priv, ring->buffer->obj);
+			i915_error_ggtt_object_create(dev_priv, rbuf->obj);
 
 		error->ring[i].hws_page =
 			i915_error_ggtt_object_create(dev_priv, ring->status_page.obj);
