@@ -597,8 +597,25 @@ out:
 	return ret;
 }
 
-static int
-init_pipe_control(struct intel_engine_cs *ring)
+void
+intel_fini_pipe_control(struct intel_engine_cs *ring)
+{
+	struct drm_device *dev = ring->dev;
+
+	if (ring->scratch.obj == NULL)
+		return;
+
+	if (INTEL_INFO(dev)->gen >= 5) {
+		kunmap(sg_page(ring->scratch.obj->pages->sgl));
+		i915_gem_object_ggtt_unpin(ring->scratch.obj);
+	}
+
+	drm_gem_object_unreference(&ring->scratch.obj->base);
+	ring->scratch.obj = NULL;
+}
+
+int
+intel_init_pipe_control(struct intel_engine_cs *ring)
 {
 	int ret;
 
@@ -673,7 +690,7 @@ static int init_render_ring(struct intel_engine_cs *ring)
 			   _MASKED_BIT_ENABLE(GFX_REPLAY_MODE));
 
 	if (INTEL_INFO(dev)->gen >= 5) {
-		ret = init_pipe_control(ring);
+		ret = intel_init_pipe_control(ring);
 		if (ret)
 			return ret;
 	}
@@ -708,16 +725,7 @@ static void render_ring_cleanup(struct intel_engine_cs *ring)
 		dev_priv->semaphore_obj = NULL;
 	}
 
-	if (ring->scratch.obj == NULL)
-		return;
-
-	if (INTEL_INFO(dev)->gen >= 5) {
-		kunmap(sg_page(ring->scratch.obj->pages->sgl));
-		i915_gem_object_ggtt_unpin(ring->scratch.obj);
-	}
-
-	drm_gem_object_unreference(&ring->scratch.obj->base);
-	ring->scratch.obj = NULL;
+	intel_fini_pipe_control(ring);
 }
 
 static int gen8_rcs_signal(struct intel_engine_cs *signaller,

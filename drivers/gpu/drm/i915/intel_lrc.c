@@ -108,6 +108,49 @@ void intel_logical_ring_stop(struct intel_engine_cs *ring)
 	/* TODO */
 }
 
+static int gen8_init_common_ring(struct intel_engine_cs *ring)
+{
+	struct drm_device *dev = ring->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	I915_WRITE(RING_MODE_GEN7(ring),
+		   _MASKED_BIT_DISABLE(GFX_REPLAY_MODE) |
+		   _MASKED_BIT_ENABLE(GFX_RUN_LIST_ENABLE));
+	POSTING_READ(RING_MODE_GEN7(ring));
+	DRM_DEBUG_DRIVER("Execlists enabled for %s\n", ring->name);
+
+	memset(&ring->hangcheck, 0, sizeof(ring->hangcheck));
+
+	return 0;
+}
+
+static int gen8_init_render_ring(struct intel_engine_cs *ring)
+{
+	struct drm_device *dev = ring->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int ret;
+
+	ret = gen8_init_common_ring(ring);
+	if (ret)
+		return ret;
+
+	/* We need to disable the AsyncFlip performance optimisations in order
+	 * to use MI_WAIT_FOR_EVENT within the CS. It should already be
+	 * programmed to '1' on all products.
+	 *
+	 * WaDisableAsyncFlipPerfMode:snb,ivb,hsw,vlv,bdw,chv
+	 */
+	I915_WRITE(MI_MODE, _MASKED_BIT_ENABLE(ASYNC_FLIP_PERF_DISABLE));
+
+	ret = intel_init_pipe_control(ring);
+	if (ret)
+		return ret;
+
+	I915_WRITE(INSTPM, _MASKED_BIT_ENABLE(INSTPM_FORCE_ORDERING));
+
+	return ret;
+}
+
 void intel_logical_ring_cleanup(struct intel_engine_cs *ring)
 {
 	if (!intel_ring_initialized(ring))
@@ -178,6 +221,9 @@ static int logical_render_ring_init(struct drm_device *dev)
 	ring->irq_enable_mask =
 		GT_RENDER_USER_INTERRUPT << GEN8_RCS_IRQ_SHIFT;
 
+	ring->init = gen8_init_render_ring;
+	ring->cleanup = intel_fini_pipe_control;
+
 	return logical_ring_init(dev, ring);
 }
 
@@ -191,6 +237,8 @@ static int logical_bsd_ring_init(struct drm_device *dev)
 	ring->mmio_base = GEN6_BSD_RING_BASE;
 	ring->irq_enable_mask =
 		GT_RENDER_USER_INTERRUPT << GEN8_VCS1_IRQ_SHIFT;
+
+	ring->init = gen8_init_common_ring;
 
 	return logical_ring_init(dev, ring);
 }
@@ -206,6 +254,8 @@ static int logical_bsd2_ring_init(struct drm_device *dev)
 	ring->irq_enable_mask =
 		GT_RENDER_USER_INTERRUPT << GEN8_VCS2_IRQ_SHIFT;
 
+	ring->init = gen8_init_common_ring;
+
 	return logical_ring_init(dev, ring);
 }
 
@@ -220,6 +270,8 @@ static int logical_blt_ring_init(struct drm_device *dev)
 	ring->irq_enable_mask =
 		GT_RENDER_USER_INTERRUPT << GEN8_BCS_IRQ_SHIFT;
 
+	ring->init = gen8_init_common_ring;
+
 	return logical_ring_init(dev, ring);
 }
 
@@ -233,6 +285,8 @@ static int logical_vebox_ring_init(struct drm_device *dev)
 	ring->mmio_base = VEBOX_RING_BASE;
 	ring->irq_enable_mask =
 		GT_RENDER_USER_INTERRUPT << GEN8_VECS_IRQ_SHIFT;
+
+	ring->init = gen8_init_common_ring;
 
 	return logical_ring_init(dev, ring);
 }

@@ -381,6 +381,9 @@ void intel_ring_init_seqno(struct intel_engine_cs *ring, u32 seqno);
 int intel_ring_flush_all_caches(struct intel_engine_cs *ring);
 int intel_ring_invalidate_all_caches(struct intel_engine_cs *ring);
 
+void intel_fini_pipe_control(struct intel_engine_cs *ring);
+int intel_init_pipe_control(struct intel_engine_cs *ring);
+
 int intel_init_render_ring_buffer(struct drm_device *dev);
 int intel_init_bsd_ring_buffer(struct drm_device *dev);
 int intel_init_bsd2_ring_buffer(struct drm_device *dev);
