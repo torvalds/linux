@@ -596,7 +596,7 @@ static void vnt_stop(struct ieee80211_hw *hw)
 
 	ieee80211_stop_queues(hw);
 
-	MP_SET_FLAG(priv, DEVICE_FLAGS_DISCONNECTED);
+	set_bit(DEVICE_FLAGS_DISCONNECTED, &priv->flags);
 
 	cancel_delayed_work_sync(&priv->run_command_work);
 
@@ -1051,7 +1051,7 @@ static void vt6656_disconnect(struct usb_interface *intf)
 	usb_set_intfdata(intf, NULL);
 	usb_put_dev(interface_to_usbdev(intf));
 
-	priv->flags |= DEVICE_FLAGS_UNPLUG;
+	set_bit(DEVICE_FLAGS_UNPLUG, &priv->flags);
 
 	ieee80211_free_hw(priv->hw);
 }
