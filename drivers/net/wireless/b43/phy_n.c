@@ -4982,7 +4982,8 @@ static void b43_nphy_int_pa_set_tx_dig_filters(struct b43_wldev *dev)
 	if (dev->phy.rev == 16)
 		b43_nphy_pa_set_tx_dig_filter(dev, 0x186, dig_filter_phy_rev16);
 
-	if (dev->dev->chip_id == BCMA_CHIP_ID_BCM43217) {
+	/* Verified with BCM43131 and BCM43217 */
+	if (dev->phy.rev == 17) {
 		b43_nphy_pa_set_tx_dig_filter(dev, 0x186, dig_filter_phy_rev16);
 		b43_nphy_pa_set_tx_dig_filter(dev, 0x195,
 					      tbl_tx_filter_coef_rev4[1]);

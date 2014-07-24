@@ -2985,7 +2985,8 @@ void b43_mac_switch_freq(struct b43_wldev *dev, u8 spurmode)
 {
 	u16 chip_id = dev->dev->chip_id;
 
-	if (chip_id == BCMA_CHIP_ID_BCM43217 ||
+	if (chip_id == BCMA_CHIP_ID_BCM43131 ||
+	    chip_id == BCMA_CHIP_ID_BCM43217 ||
 	    chip_id == BCMA_CHIP_ID_BCM43222 ||
 	    chip_id == BCMA_CHIP_ID_BCM43224 ||
 	    chip_id == BCMA_CHIP_ID_BCM43225 ||
