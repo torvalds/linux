@@ -776,23 +776,6 @@ static void ni_tio_get_clock_src(struct ni_gpct *counter,
 	*period_ns = temp64;
 }
 
-static void ni_tio_set_first_gate_modifiers(struct ni_gpct *counter,
-					    unsigned int gate_source)
-{
-	const unsigned mode_mask = Gi_Gate_Polarity_Bit | Gi_Gating_Mode_Mask;
-	unsigned cidx = counter->counter_index;
-	unsigned mode_values = 0;
-
-	if (gate_source & CR_INVERT)
-		mode_values |= Gi_Gate_Polarity_Bit;
-	if (gate_source & CR_EDGE)
-		mode_values |= Gi_Rising_Edge_Gating_Bits;
-	else
-		mode_values |= Gi_Level_Gating_Bits;
-	ni_tio_set_bits(counter, NITIO_MODE_REG(cidx),
-			mode_mask, mode_values);
-}
-
 static int ni_660x_set_gate(struct ni_gpct *counter, unsigned int gate_source)
 {
 	unsigned int chan = CR_CHAN(gate_source);
@@ -953,6 +936,7 @@ int ni_tio_set_gate_src(struct ni_gpct *counter, unsigned gate_index,
 	unsigned cidx = counter->counter_index;
 	unsigned int chan = CR_CHAN(gate_source);
 	unsigned gate2_reg = NITIO_GATE2_REG(cidx);
+	unsigned mode = 0;
 
 	switch (gate_index) {
 	case 0:
@@ -962,7 +946,15 @@ int ni_tio_set_gate_src(struct ni_gpct *counter, unsigned gate_index,
 					Gi_Gating_Disabled_Bits);
 			return 0;
 		}
-		ni_tio_set_first_gate_modifiers(counter, gate_source);
+		if (gate_source & CR_INVERT)
+			mode |= Gi_Gate_Polarity_Bit;
+		if (gate_source & CR_EDGE)
+			mode |= Gi_Rising_Edge_Gating_Bits;
+		else
+			mode |= Gi_Level_Gating_Bits;
+		ni_tio_set_bits(counter, NITIO_MODE_REG(cidx),
+				Gi_Gate_Polarity_Bit | Gi_Gating_Mode_Mask,
+				mode);
 		switch (counter_dev->variant) {
 		case ni_gpct_variant_e_series:
 		case ni_gpct_variant_m_series:
