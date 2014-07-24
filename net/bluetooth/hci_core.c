@@ -1623,7 +1623,7 @@ static void hci_set_le_support(struct hci_request *req)
 
 	if (test_bit(HCI_LE_ENABLED, &hdev->dev_flags)) {
 		cp.le = 0x01;
-		cp.simul = lmp_le_br_capable(hdev);
+		cp.simul = 0x00;
 	}
 
 	if (cp.le != lmp_host_le_capable(hdev))

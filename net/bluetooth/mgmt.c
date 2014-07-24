@@ -2264,7 +2264,7 @@ static int set_le(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 
 	if (val) {
 		hci_cp.le = val;
-		hci_cp.simul = lmp_le_br_capable(hdev);
+		hci_cp.simul = 0x00;
 	} else {
 		if (test_bit(HCI_LE_ADV, &hdev->dev_flags))
 			disable_advertising(&req);
@@ -5925,8 +5925,8 @@ static int powered_update_hci(struct hci_dev *hdev)
 	    lmp_bredr_capable(hdev)) {
 		struct hci_cp_write_le_host_supported cp;
 
-		cp.le = 1;
-		cp.simul = lmp_le_br_capable(hdev);
+		cp.le = 0x01;
+		cp.simul = 0x00;
 
 		/* Check first if we already have the right
 		 * host state (host features set)
