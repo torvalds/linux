@@ -108,6 +108,13 @@
 		clock-frequency = <24000000>;
 	};
 
+	timer@20044000 {
+		compatible = "rockchip,timer";
+		reg = <0x20044000 0x20>;
+		interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
+		rockchip,broadcast = <1>;
+	};
+
 	watchdog: wdt@2004c000 {
 		compatible = "rockchip,watch dog";
 		reg = <0x2004c000 0x100>;
