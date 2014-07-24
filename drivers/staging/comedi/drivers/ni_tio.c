@@ -146,12 +146,7 @@ enum ni_m_series_clock_source {
 	NI_M_Series_Logic_Low_Clock = 0x1f,
 };
 static const unsigned ni_m_series_max_pfi_channel = 15;
-static inline unsigned NI_M_Series_PFI_Clock(unsigned n)
-{
-	BUG_ON(n > ni_m_series_max_pfi_channel);
-
-	return (n < 10) ? (1 + n) : (0xb + n);
-}
+#define NI_M_PFI_CLK(x)			(((x) < 10) ? (1 + (x)) : (0xb + (x)))
 
 static const unsigned ni_m_series_max_rtsi_channel = 7;
 #define NI_M_RTSI_CLK(x)		(((x) == 7) ? 0x1b : (0xb + (x)))
@@ -625,7 +620,7 @@ static unsigned ni_m_series_source_select_bits(unsigned int clock_source)
 			break;
 		for (i = 0; i <= ni_m_series_max_pfi_channel; ++i) {
 			if (clock_select_bits == NI_GPCT_PFI_CLOCK_SRC_BITS(i)) {
-				ni_m_series_clock = NI_M_Series_PFI_Clock(i);
+				ni_m_series_clock = NI_M_PFI_CLK(i);
 				break;
 			}
 		}
@@ -794,7 +789,7 @@ static unsigned ni_m_series_clock_src_select(const struct ni_gpct *counter)
 		if (i <= ni_m_series_max_rtsi_channel)
 			break;
 		for (i = 0; i <= ni_m_series_max_pfi_channel; ++i) {
-			if (input_select == NI_M_Series_PFI_Clock(i)) {
+			if (input_select == NI_M_PFI_CLK(i)) {
 				clock_source = NI_GPCT_PFI_CLOCK_SRC_BITS(i);
 				break;
 			}
