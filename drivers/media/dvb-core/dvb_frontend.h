@@ -408,6 +408,7 @@ struct dtv_frontend_properties {
 #define DVB_FE_NO_EXIT  0
 #define DVB_FE_NORMAL_EXIT      1
 #define DVB_FE_DEVICE_REMOVED   2
+#define DVB_FE_DEVICE_RESUME    3
 
 struct dvb_frontend {
 	struct dvb_frontend_ops ops;
