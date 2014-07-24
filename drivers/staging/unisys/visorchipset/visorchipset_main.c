@@ -144,16 +144,6 @@ static VISORCHANNEL *ControlVm_channel;
 static ssize_t visorchipset_proc_read_writeonly(struct file *file,
 						char __user *buf,
 						size_t len, loff_t *offset);
-static ssize_t proc_read_installer(struct file *file, char __user *buf,
-				   size_t len, loff_t *offset);
-static ssize_t proc_write_installer(struct file *file,
-				    const char __user *buffer,
-				    size_t count, loff_t *ppos);
-
-static const struct file_operations proc_installer_fops = {
-	.read = proc_read_installer,
-	.write = proc_write_installer,
-};
 
 typedef struct {
 	U8 __iomem *ptr;	/* pointer to base address of payload pool */
@@ -315,9 +305,30 @@ static ssize_t boottotool_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count);
 static DEVICE_ATTR_RW(boottotool);
 
+static ssize_t error_show(struct device *dev, struct device_attribute *attr,
+	char *buf);
+static ssize_t error_store(struct device *dev, struct device_attribute *attr,
+	const char *buf, size_t count);
+static DEVICE_ATTR_RW(error);
+
+static ssize_t textid_show(struct device *dev, struct device_attribute *attr,
+	char *buf);
+static ssize_t textid_store(struct device *dev, struct device_attribute *attr,
+	const char *buf, size_t count);
+static DEVICE_ATTR_RW(textid);
+
+static ssize_t remaining_steps_show(struct device *dev,
+	struct device_attribute *attr, char *buf);
+static ssize_t remaining_steps_store(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count);
+static DEVICE_ATTR_RW(remaining_steps);
+
 static struct attribute *visorchipset_install_attrs[] = {
 	&dev_attr_toolaction.attr,
 	&dev_attr_boottotool.attr,
+	&dev_attr_error.attr,
+	&dev_attr_textid.attr,
+	&dev_attr_remaining_steps.attr,
 	NULL
 };
 
@@ -407,6 +418,91 @@ ssize_t boottotool_store(struct device *dev, struct device_attribute *attr,
 	} else
 		return -EIO;
 }
+
+static ssize_t error_show(struct device *dev, struct device_attribute *attr,
+		char *buf)
+{
+	u32 error;
+
+	visorchannel_read(ControlVm_channel, offsetof(
+		ULTRA_CONTROLVM_CHANNEL_PROTOCOL, InstallationError),
+		&error, sizeof(u32));
+	return scnprintf(buf, PAGE_SIZE, "%i\n", error);
+}
+
+static ssize_t error_store(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	u32 error;
+
+	if (sscanf(buf, "%i\n", &error) == 1) {
+		if (visorchannel_write(ControlVm_channel,
+			offsetof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL,
+				InstallationError),
+			&error, sizeof(u32)) == 1) {
+				return count;
+		}
+	}
+	return -EIO;
+}
+
+static ssize_t textid_show(struct device *dev, struct device_attribute *attr,
+		char *buf)
+{
+	u32 textId;
+
+	visorchannel_read(ControlVm_channel, offsetof(
+		ULTRA_CONTROLVM_CHANNEL_PROTOCOL, InstallationTextId),
+		&textId, sizeof(u32));
+	return scnprintf(buf, PAGE_SIZE, "%i\n", textId);
+}
+
+static ssize_t textid_store(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	u32 textId;
+
+	if (sscanf(buf, "%i\n", &textId) == 1) {
+		if (visorchannel_write(ControlVm_channel,
+			offsetof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL,
+				InstallationTextId),
+			&textId, sizeof(u32)) == 1) {
+				return count;
+		}
+	}
+	return -EIO;
+}
+
+
+static ssize_t remaining_steps_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	u16 remainingSteps;
+
+	visorchannel_read(ControlVm_channel,
+		offsetof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL,
+			InstallationRemainingSteps),
+		&remainingSteps,
+		sizeof(u16));
+	return scnprintf(buf, PAGE_SIZE, "%hu\n", remainingSteps);
+}
+
+static ssize_t remaining_steps_store(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	u16 remainingSteps;
+
+	if (sscanf(buf, "%hu\n", &remainingSteps) == 1) {
+		if (visorchannel_write(ControlVm_channel,
+			offsetof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL,
+				InstallationRemainingSteps),
+			&remainingSteps, sizeof(u16)) == 1) {
+				return count;
+		}
+	}
+	return -EIO;
+}
+
 static void
 show_partition_property(struct seq_file *f, void *ctx, int property)
 {
@@ -2326,118 +2422,6 @@ visorchipset_proc_read_writeonly(struct file *file, char __user *buf,
 	return 0;
 }
 
-/**
- * Reads the InstallationError, InstallationTextId,
- * InstallationRemainingSteps fields of ControlVMChannel.
- */
-static ssize_t
-proc_read_installer(struct file *file, char __user *buf,
-		    size_t len, loff_t *offset)
-{
-	int length = 0;
-	U16 remainingSteps;
-	U32 error, textId;
-	char *vbuf;
-	loff_t pos = *offset;
-
-	if (pos < 0)
-		return -EINVAL;
-
-	if (pos > 0 || !len)
-		return 0;
-
-	vbuf = kzalloc(len, GFP_KERNEL);
-	if (!vbuf)
-		return -ENOMEM;
-
-	visorchannel_read(ControlVm_channel,
-			  offsetof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL,
-				   InstallationRemainingSteps), &remainingSteps,
-			  sizeof(U16));
-	visorchannel_read(ControlVm_channel,
-			  offsetof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL,
-				   InstallationError), &error, sizeof(U32));
-	visorchannel_read(ControlVm_channel,
-			  offsetof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL,
-				   InstallationTextId), &textId, sizeof(U32));
-
-	length = sprintf(vbuf, "%u %u %u\n", remainingSteps, error, textId);
-	if (copy_to_user(buf, vbuf, length)) {
-		kfree(vbuf);
-		return -EFAULT;
-	}
-
-	kfree(vbuf);
-	*offset += length;
-	return length;
-}
-
-/**
- * Writes to the InstallationError, InstallationTextId,
- * InstallationRemainingSteps fields of
- * ControlVMChannel.
- * Input: RemainingSteps Error TextId
- * Limit 32 characters input
- */
-#define UINT16_MAX		(65535U)
-#define UINT32_MAX		(4294967295U)
-static ssize_t
-proc_write_installer(struct file *file,
-		     const char __user *buffer, size_t count, loff_t *ppos)
-{
-	char buf[32];
-	U16 remainingSteps;
-	U32 error, textId;
-
-	/* Check to make sure there is no buffer overflow */
-	if (count > (sizeof(buf) - 1))
-		return -EINVAL;
-
-	if (copy_from_user(buf, buffer, count)) {
-		WARN(1, "Error copying from user space\n");
-		return -EFAULT;
-	}
-
-	if (sscanf(buf, "%hu %i %i", &remainingSteps, &error, &textId) != 3) {
-		remainingSteps = UINT16_MAX;
-		error = UINT32_MAX;
-		textId = UINT32_MAX;
-	}
-
-	if (remainingSteps != UINT16_MAX) {
-		if (visorchannel_write
-		    (ControlVm_channel,
-		     offsetof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL,
-			      InstallationRemainingSteps), &remainingSteps,
-		     sizeof(U16)) < 0)
-			WARN(1, "Installation Status Write Failed - Write function error - RemainingSteps = %d\n",
-			     remainingSteps);
-	}
-
-	if (error != UINT32_MAX) {
-		if (visorchannel_write
-		    (ControlVm_channel,
-		     offsetof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL,
-			      InstallationError), &error, sizeof(U32)) < 0)
-			WARN(1, "Installation Status Write Failed - Write function error - Error = %d\n",
-			     error);
-	}
-
-	if (textId != UINT32_MAX) {
-		if (visorchannel_write
-		    (ControlVm_channel,
-		     offsetof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL,
-			      InstallationTextId), &textId, sizeof(U32)) < 0)
-			WARN(1, "Installation Status Write Failed - Write function error - TextId = %d\n",
-			     textId);
-	}
-
-	/* So this function isn't called multiple times, must return
-	 * size of buffer
-	 */
-	return count;
-}
-
 static const struct file_operations chipset_proc_fops = {
 	.owner = THIS_MODULE,
 	.read = visorchipset_proc_read_writeonly,
@@ -2449,7 +2433,6 @@ visorchipset_init(void)
 {
 	int rc = 0, x = 0;
 	char s[64];
-	struct proc_dir_entry *installer_file;
 	HOSTADDRESS addr;
 
 	if (!unisys_spar_platform)
@@ -2522,10 +2505,6 @@ visorchipset_init(void)
 					      (const char **)
 					      PartitionPropertyNames,
 					      &show_partition_property);
-
-	/* Setup Installation fields */
-	installer_file = proc_create("installer", 0644, ProcDir,
-				     &proc_installer_fops);
 
 	memset(&g_DiagMsgHdr, 0, sizeof(CONTROLVM_MESSAGE_HEADER));
 
