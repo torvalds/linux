@@ -34,8 +34,6 @@
 #include "tether.h"
 #include "device.h"
 
-/*---------------------  Export Definitions -------------------------*/
-
 //
 // Registers in the BASEBAND
 //
@@ -64,21 +62,11 @@
 #define TOP_RATE_2M         0x00200000
 #define TOP_RATE_1M         0x00100000
 
-/*---------------------  Export Types  ------------------------------*/
-
-/*---------------------  Export Macros ------------------------------*/
-
 #define BBvClearFOE(dwIoBase)				\
 	BBbWriteEmbedded(dwIoBase, 0xB1, 0)
 
 #define BBvSetFOE(dwIoBase)				\
 	BBbWriteEmbedded(dwIoBase, 0xB1, 0x0C)
-
-/*---------------------  Export Classes  ----------------------------*/
-
-/*---------------------  Export Variables  --------------------------*/
-
-/*---------------------  Export Functions  --------------------------*/
 
 unsigned int
 BBuGetFrameTime(
