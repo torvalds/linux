@@ -4,9 +4,6 @@
 #include <linux/percpu_counter.h>
 
 struct netns_frags {
-	struct list_head	lru_list;
-	spinlock_t		lru_lock;
-
 	/* The percpu_counter "mem" need to be cacheline aligned.
 	 *  mem.count must not share cacheline with other writers
 	 */
@@ -21,7 +18,6 @@ struct netns_frags {
 struct inet_frag_queue {
 	spinlock_t		lock;
 	struct timer_list	timer;      /* when will this queue expire? */
-	struct list_head	lru_list;   /* lru list member */
 	struct hlist_node	list;
 	atomic_t		refcnt;
 	struct sk_buff		*fragments; /* list of received fragments */
@@ -91,8 +87,7 @@ void inet_frags_init_net(struct netns_frags *nf);
 void inet_frags_exit_net(struct netns_frags *nf, struct inet_frags *f);
 
 void inet_frag_kill(struct inet_frag_queue *q, struct inet_frags *f);
-void inet_frag_destroy(struct inet_frag_queue *q,
-				struct inet_frags *f, int *work);
+void inet_frag_destroy(struct inet_frag_queue *q, struct inet_frags *f);
 struct inet_frag_queue *inet_frag_find(struct netns_frags *nf,
 		struct inet_frags *f, void *key, unsigned int hash)
 	__releases(&f->lock);
@@ -102,7 +97,7 @@ void inet_frag_maybe_warn_overflow(struct inet_frag_queue *q,
 static inline void inet_frag_put(struct inet_frag_queue *q, struct inet_frags *f)
 {
 	if (atomic_dec_and_test(&q->refcnt))
-		inet_frag_destroy(q, f, NULL);
+		inet_frag_destroy(q, f);
 }
 
 /* Memory Tracking Functions. */
@@ -143,29 +138,6 @@ static inline unsigned int sum_frag_mem_limit(struct netns_frags *nf)
 	local_bh_enable();
 
 	return res;
-}
-
-static inline void inet_frag_lru_move(struct inet_frag_queue *q)
-{
-	spin_lock(&q->net->lru_lock);
-	if (!list_empty(&q->lru_list))
-		list_move_tail(&q->lru_list, &q->net->lru_list);
-	spin_unlock(&q->net->lru_lock);
-}
-
-static inline void inet_frag_lru_del(struct inet_frag_queue *q)
-{
-	spin_lock(&q->net->lru_lock);
-	list_del_init(&q->lru_list);
-	spin_unlock(&q->net->lru_lock);
-}
-
-static inline void inet_frag_lru_add(struct netns_frags *nf,
-				     struct inet_frag_queue *q)
-{
-	spin_lock(&nf->lru_lock);
-	list_add_tail(&q->lru_list, &nf->lru_list);
-	spin_unlock(&nf->lru_lock);
 }
 
 /* RFC 3168 support :

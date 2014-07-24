@@ -351,7 +351,6 @@ found:
 	}
 
 	skb_dst_drop(skb);
-	inet_frag_lru_move(&fq->q);
 	return -1;
 
 discard_fq:

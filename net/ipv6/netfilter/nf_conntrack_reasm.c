@@ -349,7 +349,6 @@ found:
 		fq->q.last_in |= INET_FRAG_FIRST_IN;
 	}
 
-	inet_frag_lru_move(&fq->q);
 	return 0;
 
 discard_fq:

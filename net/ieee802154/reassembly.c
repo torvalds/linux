@@ -219,7 +219,6 @@ found:
 		return res;
 	}
 
-	inet_frag_lru_move(&fq->q);
 	return -1;
 err:
 	kfree_skb(skb);
