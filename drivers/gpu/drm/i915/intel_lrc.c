@@ -392,10 +392,10 @@ static int execlists_context_queue(struct intel_engine_cs *ring,
 				   struct intel_context *to,
 				   u32 tail)
 {
-	struct intel_ctx_submit_request *req = NULL;
+	struct intel_ctx_submit_request *req = NULL, *cursor;
 	struct drm_i915_private *dev_priv = ring->dev->dev_private;
 	unsigned long flags;
-	bool was_empty;
+	int num_elements = 0;
 
 	req = kzalloc(sizeof(*req), GFP_KERNEL);
 	if (req == NULL)
@@ -410,9 +410,27 @@ static int execlists_context_queue(struct intel_engine_cs *ring,
 
 	spin_lock_irqsave(&ring->execlist_lock, flags);
 
-	was_empty = list_empty(&ring->execlist_queue);
+	list_for_each_entry(cursor, &ring->execlist_queue, execlist_link)
+		if (++num_elements > 2)
+			break;
+
+	if (num_elements > 2) {
+		struct intel_ctx_submit_request *tail_req;
+
+		tail_req = list_last_entry(&ring->execlist_queue,
+					   struct intel_ctx_submit_request,
+					   execlist_link);
+
+		if (to == tail_req->ctx) {
+			WARN(tail_req->elsp_submitted != 0,
+			     "More than 2 already-submitted reqs queued\n");
+			list_del(&tail_req->execlist_link);
+			queue_work(dev_priv->wq, &tail_req->work);
+		}
+	}
+
 	list_add_tail(&req->execlist_link, &ring->execlist_queue);
-	if (was_empty)
+	if (num_elements == 0)
 		execlists_context_unqueue(ring);
 
 	spin_unlock_irqrestore(&ring->execlist_lock, flags);
