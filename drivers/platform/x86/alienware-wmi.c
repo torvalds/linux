@@ -59,16 +59,24 @@ enum WMAX_CONTROL_STATES {
 
 struct quirk_entry {
 	u8 num_zones;
+	u8 hdmi_mux;
 };
 
 static struct quirk_entry *quirks;
 
 static struct quirk_entry quirk_unknown = {
 	.num_zones = 2,
+	.hdmi_mux = 0,
 };
 
 static struct quirk_entry quirk_x51_family = {
 	.num_zones = 3,
+	.hdmi_mux = 0.
+};
+
+static struct quirk_entry quirk_asm100 = {
+	.num_zones = 2,
+	.hdmi_mux = 1,
 };
 
 static int __init dmi_matched(const struct dmi_system_id *dmi)
@@ -96,6 +104,15 @@ static const struct dmi_system_id alienware_quirks[] __initconst = {
 		     },
 	 .driver_data = &quirk_x51_family,
 	 },
+	{
+		.callback = dmi_matched,
+		.ident = "Alienware ASM100",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Alienware"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "ASM100"),
+		},
+		.driver_data = &quirk_asm100,
+	},
 	{}
 };
 
@@ -537,7 +554,8 @@ static struct attribute_group hdmi_attribute_group = {
 
 static void remove_hdmi(struct platform_device *dev)
 {
-	sysfs_remove_group(&dev->dev.kobj, &hdmi_attribute_group);
+	if (quirks->hdmi_mux > 0)
+		sysfs_remove_group(&dev->dev.kobj, &hdmi_attribute_group);
 }
 
 static int create_hdmi(struct platform_device *dev)
@@ -583,7 +601,7 @@ static int __init alienware_wmi_init(void)
 	if (ret)
 		goto fail_platform_device2;
 
-	if (interface == WMAX) {
+	if (quirks->hdmi_mux > 0) {
 		ret = create_hdmi(platform_device);
 		if (ret)
 			goto fail_prep_hdmi;
