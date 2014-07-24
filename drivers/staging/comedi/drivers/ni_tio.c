@@ -143,16 +143,15 @@ enum ni_m_series_clock_source {
 #define NI_M_MAX_RTSI_CHAN		7
 #define NI_M_RTSI_CLK(x)		(((x) == 7) ? 0x1b : (0xb + (x)))
 
-enum ni_660x_gate_select {
-	NI_660x_Source_Pin_i_Gate_Select = 0x0,
-	NI_660x_Gate_Pin_i_Gate_Select = 0x1,
-	NI_660x_Next_SRC_Gate_Select = 0xa,
-	NI_660x_Next_Out_Gate_Select = 0x14,
-	NI_660x_Logic_Low_Gate_Select = 0x1f,
-};
-#define NI_660X_MAX_GATE_PIN		7
+/* NI660X gate select */
+#define NI_660X_SRC_PIN_I_GATE_SEL	0x0
+#define NI_660X_GATE_PIN_I_GATE_SEL	0x1
 #define NI_660X_PIN_GATE_SEL(x)		(0x2 + (x))
+#define NI_660X_NEXT_SRC_GATE_SEL	0xa
 #define NI_660X_RTSI_GATE_SEL(x)	(0xb + (x))
+#define NI_660X_NEXT_OUT_GATE_SEL	0x14
+#define NI_660X_LOGIC_LOW_GATE_SEL	0x1f
+#define NI_660X_MAX_GATE_PIN		7
 
 /* NI M SERIES gate_select */
 #define NI_M_TIMESTAMP_MUX_GATE_SEL	0x0
@@ -908,7 +907,7 @@ static int ni_660x_set_first_gate(struct ni_gpct *counter,
 
 	switch (chan) {
 	case NI_GPCT_NEXT_SOURCE_GATE_SELECT:
-		gate_sel = NI_660x_Next_SRC_Gate_Select;
+		gate_sel = NI_660X_NEXT_SRC_GATE_SEL;
 		break;
 	case NI_GPCT_NEXT_OUT_GATE_SELECT:
 	case NI_GPCT_LOGIC_LOW_GATE_SELECT:
@@ -1163,15 +1162,15 @@ ni_660x_first_gate_to_generic_gate_source(unsigned ni_660x_gate_select)
 	unsigned i;
 
 	switch (ni_660x_gate_select) {
-	case NI_660x_Source_Pin_i_Gate_Select:
+	case NI_660X_SRC_PIN_I_GATE_SEL:
 		return NI_GPCT_SOURCE_PIN_i_GATE_SELECT;
-	case NI_660x_Gate_Pin_i_Gate_Select:
+	case NI_660X_GATE_PIN_I_GATE_SEL:
 		return NI_GPCT_GATE_PIN_i_GATE_SELECT;
-	case NI_660x_Next_SRC_Gate_Select:
+	case NI_660X_NEXT_SRC_GATE_SEL:
 		return NI_GPCT_NEXT_SOURCE_GATE_SELECT;
-	case NI_660x_Next_Out_Gate_Select:
+	case NI_660X_NEXT_OUT_GATE_SEL:
 		return NI_GPCT_NEXT_OUT_GATE_SELECT;
-	case NI_660x_Logic_Low_Gate_Select:
+	case NI_660X_LOGIC_LOW_GATE_SEL:
 		return NI_GPCT_LOGIC_LOW_GATE_SELECT;
 	default:
 		for (i = 0; i <= NI_660X_MAX_RTSI_CHAN; ++i) {
