@@ -64,10 +64,10 @@ struct btrfs_device {
 	/* the internal btrfs device id */
 	u64 devid;
 
-	/* size of the device */
+	/* size of the device in memory */
 	u64 total_bytes;
 
-	/* size of the disk */
+	/* size of the device on disk */
 	u64 disk_total_bytes;
 
 	/* bytes used */
