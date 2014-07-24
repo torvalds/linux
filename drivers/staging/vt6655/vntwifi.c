@@ -684,9 +684,8 @@ VNTWIFIbMeasureReport(
 		pMgmt->uLengthOfRepEIDs += (2 + pMgmt->pCurrMeasureEIDRep->len);
 		pMgmt->pCurrMeasureEIDRep = (PWLAN_IE_MEASURE_REP) pbyCurrentEID;
 	}
-	if (bEndOfReport) {
+	if (bEndOfReport)
 		IEEE11hbMSRRepTx(pMgmt);
-	}
 
 	return true;
 }

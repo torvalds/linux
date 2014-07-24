@@ -4114,9 +4114,8 @@ s_vMgrRxProbeRequest(
 		if (pTxPacket != NULL) {
 			/* send the frame */
 			Status = csMgmt_xmit(pDevice, pTxPacket);
-			if (Status != CMD_STATUS_PENDING) {
+			if (Status != CMD_STATUS_PENDING)
 				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Mgt:Probe response tx failed\n");
-			}
 		}
 	}
 }
