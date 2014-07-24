@@ -678,29 +678,32 @@ done:
 
 static void ipmmu_clear_pud(struct ipmmu_vmsa_device *mmu, pud_t *pud)
 {
-	/* Free the page table. */
 	pgtable_t table = pud_pgtable(*pud);
-	__free_page(table);
 
 	/* Clear the PUD. */
 	*pud = __pud(0);
 	ipmmu_flush_pgtable(mmu, pud, sizeof(*pud));
+
+	/* Free the page table. */
+	__free_page(table);
 }
 
 static void ipmmu_clear_pmd(struct ipmmu_vmsa_device *mmu, pud_t *pud,
 			    pmd_t *pmd)
 {
+	pmd_t pmdval = *pmd;
 	unsigned int i;
-
-	/* Free the page table. */
-	if (pmd_table(*pmd)) {
-		pgtable_t table = pmd_pgtable(*pmd);
-		__free_page(table);
-	}
 
 	/* Clear the PMD. */
 	*pmd = __pmd(0);
 	ipmmu_flush_pgtable(mmu, pmd, sizeof(*pmd));
+
+	/* Free the page table. */
+	if (pmd_table(pmdval)) {
+		pgtable_t table = pmd_pgtable(pmdval);
+
+		__free_page(table);
+	}
 
 	/* Check whether the PUD is still needed. */
 	pmd = pmd_offset(pud, 0);
