@@ -104,7 +104,9 @@ ipfrag_high_thresh - INTEGER
 	is reached.
 
 ipfrag_low_thresh - INTEGER
-	See ipfrag_high_thresh
+	Maximum memory used to reassemble IP fragments before the kernel
+	begins to remove incomplete fragment queues to free up resources.
+	The kernel still accepts new fragments for defragmentation.
 
 ipfrag_time - INTEGER
 	Time in seconds to keep an IP fragment in memory.

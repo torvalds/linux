@@ -32,6 +32,7 @@ struct inet_frag_queue {
 	int			meat;
 	__u8			last_in;    /* first/last segment arrived? */
 
+#define INET_FRAG_EVICTED	8
 #define INET_FRAG_COMPLETE	4
 #define INET_FRAG_FIRST_IN	2
 #define INET_FRAG_LAST_IN	1
@@ -48,7 +49,7 @@ struct inet_frag_queue {
  *	       rounded up (SKB_TRUELEN(0) + sizeof(struct ipq or
  *	       struct frag_queue))
  */
-#define INETFRAGS_MAXDEPTH		128
+#define INETFRAGS_MAXDEPTH	128
 
 struct inet_frag_bucket {
 	struct hlist_head	chain;
@@ -64,6 +65,9 @@ struct inet_frags {
 	rwlock_t		lock ____cacheline_aligned_in_smp;
 	int			secret_interval;
 	struct timer_list	secret_timer;
+
+	struct work_struct	frags_work;
+	unsigned int next_bucket;
 
 	/* The first call to hashfn is responsible to initialize
 	 * rnd. This is best done with net_get_random_once.
