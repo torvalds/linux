@@ -24,6 +24,11 @@
 #ifndef _INTEL_LRC_H_
 #define _INTEL_LRC_H_
 
+/* Logical Ring Contexts */
+void intel_lr_context_free(struct intel_context *ctx);
+int intel_lr_context_deferred_create(struct intel_context *ctx,
+				     struct intel_engine_cs *ring);
+
 /* Execlists */
 int intel_sanitize_enable_execlists(struct drm_device *dev, int enable_execlists);
 

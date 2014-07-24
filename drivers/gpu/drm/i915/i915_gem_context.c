@@ -182,7 +182,10 @@ void i915_gem_context_free(struct kref *ctx_ref)
 						   typeof(*ctx), ref);
 	struct i915_hw_ppgtt *ppgtt = NULL;
 
-	if (ctx->legacy_hw_ctx.rcs_state) {
+	if (i915.enable_execlists) {
+		ppgtt = ctx_to_ppgtt(ctx);
+		intel_lr_context_free(ctx);
+	} else if (ctx->legacy_hw_ctx.rcs_state) {
 		/* We refcount even the aliasing PPGTT to keep the code symmetric */
 		if (USES_PPGTT(ctx->legacy_hw_ctx.rcs_state->base.dev))
 			ppgtt = ctx_to_ppgtt(ctx);
@@ -417,7 +420,11 @@ int i915_gem_context_init(struct drm_device *dev)
 	if (WARN_ON(dev_priv->ring[RCS].default_context))
 		return 0;
 
-	if (HAS_HW_CONTEXTS(dev)) {
+	if (i915.enable_execlists) {
+		/* NB: intentionally left blank. We will allocate our own
+		 * backing objects as we need them, thank you very much */
+		dev_priv->hw_context_size = 0;
+	} else if (HAS_HW_CONTEXTS(dev)) {
 		dev_priv->hw_context_size = round_up(get_context_size(dev), 4096);
 		if (dev_priv->hw_context_size > (1<<20)) {
 			DRM_DEBUG_DRIVER("Disabling HW Contexts; invalid size %d\n",
@@ -433,11 +440,20 @@ int i915_gem_context_init(struct drm_device *dev)
 		return PTR_ERR(ctx);
 	}
 
-	/* NB: RCS will hold a ref for all rings */
-	for (i = 0; i < I915_NUM_RINGS; i++)
-		dev_priv->ring[i].default_context = ctx;
+	for (i = 0; i < I915_NUM_RINGS; i++) {
+		struct intel_engine_cs *ring = &dev_priv->ring[i];
 
-	DRM_DEBUG_DRIVER("%s context support initialized\n", dev_priv->hw_context_size ? "HW" : "fake");
+		/* NB: RCS will hold a ref for all rings */
+		ring->default_context = ctx;
+
+		/* FIXME: we really only want to do this for initialized rings */
+		if (i915.enable_execlists)
+			intel_lr_context_deferred_create(ctx, ring);
+	}
+
+	DRM_DEBUG_DRIVER("%s context support initialized\n",
+			i915.enable_execlists ? "LR" :
+			dev_priv->hw_context_size ? "HW" : "fake");
 	return 0;
 }
 
@@ -779,6 +795,7 @@ int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
 	struct intel_context *ctx;
 	int ret;
 
+	/* FIXME: allow user-created LR contexts as well */
 	if (!hw_context_enabled(dev))
 		return -ENODEV;
 

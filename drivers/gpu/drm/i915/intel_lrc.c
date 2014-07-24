@@ -53,3 +53,18 @@ int intel_sanitize_enable_execlists(struct drm_device *dev, int enable_execlists
 
 	return 0;
 }
+
+void intel_lr_context_free(struct intel_context *ctx)
+{
+	/* TODO */
+}
+
+int intel_lr_context_deferred_create(struct intel_context *ctx,
+				     struct intel_engine_cs *ring)
+{
+	WARN_ON(ctx->legacy_hw_ctx.rcs_state != NULL);
+
+	/* TODO */
+
+	return 0;
+}
