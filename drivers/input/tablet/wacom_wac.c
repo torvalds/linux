@@ -1143,6 +1143,7 @@ static int wacom_bpt_touch(struct wacom_wac *wacom)
 {
 	struct wacom_features *features = &wacom->features;
 	struct input_dev *input = wacom->input;
+	struct input_dev *pad_input = wacom->pad_input;
 	unsigned char *data = wacom->data;
 	int i;
 
@@ -1177,14 +1178,12 @@ static int wacom_bpt_touch(struct wacom_wac *wacom)
 
 	input_mt_report_pointer_emulation(input, true);
 
-	input_report_key(input, BTN_LEFT, (data[1] & 0x08) != 0);
-	input_report_key(input, BTN_FORWARD, (data[1] & 0x04) != 0);
-	input_report_key(input, BTN_BACK, (data[1] & 0x02) != 0);
-	input_report_key(input, BTN_RIGHT, (data[1] & 0x01) != 0);
+	input_report_key(pad_input, BTN_LEFT, (data[1] & 0x08) != 0);
+	input_report_key(pad_input, BTN_FORWARD, (data[1] & 0x04) != 0);
+	input_report_key(pad_input, BTN_BACK, (data[1] & 0x02) != 0);
+	input_report_key(pad_input, BTN_RIGHT, (data[1] & 0x01) != 0);
 
-	input_sync(input);
-
-	return 0;
+	return 1;
 }
 
 static void wacom_bpt3_touch_msg(struct wacom_wac *wacom, unsigned char *data)
@@ -1232,7 +1231,7 @@ static void wacom_bpt3_touch_msg(struct wacom_wac *wacom, unsigned char *data)
 
 static void wacom_bpt3_button_msg(struct wacom_wac *wacom, unsigned char *data)
 {
-	struct input_dev *input = wacom->input;
+	struct input_dev *input = wacom->pad_input;
 	struct wacom_features *features = &wacom->features;
 
 	if (features->type == INTUOSHT) {
@@ -1269,9 +1268,7 @@ static int wacom_bpt3_touch(struct wacom_wac *wacom)
 	}
 	input_mt_report_pointer_emulation(input, true);
 
-	input_sync(input);
-
-	return 0;
+	return 1;
 }
 
 static int wacom_bpt_pen(struct wacom_wac *wacom)
@@ -1806,11 +1803,6 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 
 		if (features->device_type == BTN_TOOL_FINGER) {
 
-			__set_bit(BTN_LEFT, input_dev->keybit);
-			__set_bit(BTN_FORWARD, input_dev->keybit);
-			__set_bit(BTN_BACK, input_dev->keybit);
-			__set_bit(BTN_RIGHT, input_dev->keybit);
-
 			if (features->touch_max) {
 				/* touch interface */
 				unsigned int flags = INPUT_MT_POINTER;
@@ -1990,6 +1982,21 @@ int wacom_setup_pad_input_capabilities(struct input_dev *input_dev,
 	case CINTIQ_HYBRID:
 		for (i = 0; i < 9; i++)
 			__set_bit(BTN_0 + i, input_dev->keybit);
+
+		break;
+
+	case INTUOSHT:
+	case BAMBOO_PT:
+		/* pad device is on the touch interface */
+		if (features->device_type != BTN_TOOL_FINGER)
+			return 1;
+
+		__clear_bit(ABS_MISC, input_dev->absbit);
+
+		__set_bit(BTN_LEFT, input_dev->keybit);
+		__set_bit(BTN_FORWARD, input_dev->keybit);
+		__set_bit(BTN_BACK, input_dev->keybit);
+		__set_bit(BTN_RIGHT, input_dev->keybit);
 
 		break;
 
