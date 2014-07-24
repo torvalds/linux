@@ -112,7 +112,6 @@ struct wacom {
 	struct hid_device *hdev;
 	struct mutex lock;
 	struct work_struct work;
-	char phys[32];
 	struct wacom_led {
 		u8 select[2]; /* status led selector (0..3) */
 		u8 llv;       /* status led brightness no button (1..127) */

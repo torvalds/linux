@@ -986,8 +986,7 @@ static void wacom_destroy_battery(struct wacom *wacom)
 static struct input_dev *wacom_allocate_input(struct wacom *wacom)
 {
 	struct input_dev *input_dev;
-	struct usb_interface *intf = wacom->intf;
-	struct usb_device *dev = interface_to_usbdev(intf);
+	struct hid_device *hdev = wacom->hdev;
 	struct wacom_wac *wacom_wac = &(wacom->wacom_wac);
 
 	input_dev = input_allocate_device();
@@ -995,11 +994,15 @@ static struct input_dev *wacom_allocate_input(struct wacom *wacom)
 		return NULL;
 
 	input_dev->name = wacom_wac->name;
-	input_dev->phys = wacom->phys;
-	input_dev->dev.parent = &intf->dev;
+	input_dev->phys = hdev->phys;
+	input_dev->dev.parent = &hdev->dev;
 	input_dev->open = wacom_open;
 	input_dev->close = wacom_close;
-	usb_to_input_id(dev, &input_dev->id);
+	input_dev->uniq = hdev->uniq;
+	input_dev->id.bustype = hdev->bus;
+	input_dev->id.vendor  = hdev->vendor;
+	input_dev->id.product = hdev->product;
+	input_dev->id.version = hdev->version;
 	input_set_drvdata(input_dev, wacom);
 
 	return input_dev;
@@ -1266,8 +1269,6 @@ static int wacom_probe(struct hid_device *hdev,
 	wacom->intf = intf;
 	mutex_init(&wacom->lock);
 	INIT_WORK(&wacom->work, wacom_wireless_work);
-	usb_make_path(dev, wacom->phys, sizeof(wacom->phys));
-	strlcat(wacom->phys, "/input0", sizeof(wacom->phys));
 
 	/* set the default size in case we do not get them from hid */
 	wacom_set_default_phy(features);
