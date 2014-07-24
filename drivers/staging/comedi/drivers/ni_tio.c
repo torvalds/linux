@@ -1052,43 +1052,34 @@ static int ni_660x_set_second_gate(struct ni_gpct *counter,
 {
 	struct ni_gpct_device *counter_dev = counter->counter_dev;
 	unsigned cidx = counter->counter_index;
-	const unsigned second_gate_reg = NITIO_GATE2_REG(cidx);
-	const unsigned selected_second_gate = CR_CHAN(gate_source);
-	/* bits of second_gate that may be meaningful to second gate register */
-	static const unsigned selected_second_gate_mask = 0x1f;
-	unsigned ni_660x_second_gate_select;
+	unsigned int chan = CR_CHAN(gate_source);
+	unsigned gate2_reg = NITIO_GATE2_REG(cidx);
+	unsigned gate2_sel;
 	unsigned i;
 
-	switch (selected_second_gate) {
+	switch (chan) {
 	case NI_GPCT_SOURCE_PIN_i_GATE_SELECT:
 	case NI_GPCT_UP_DOWN_PIN_i_GATE_SELECT:
 	case NI_GPCT_SELECTED_GATE_GATE_SELECT:
 	case NI_GPCT_NEXT_OUT_GATE_SELECT:
 	case NI_GPCT_LOGIC_LOW_GATE_SELECT:
-		ni_660x_second_gate_select =
-		    selected_second_gate & selected_second_gate_mask;
+		gate2_sel = chan & 0x1f;
 		break;
 	case NI_GPCT_NEXT_SOURCE_GATE_SELECT:
-		ni_660x_second_gate_select =
-		    NI_660x_Next_SRC_Second_Gate_Select;
+		gate2_sel = NI_660x_Next_SRC_Second_Gate_Select;
 		break;
 	default:
 		for (i = 0; i <= ni_660x_max_rtsi_channel; ++i) {
-			if (selected_second_gate == NI_GPCT_RTSI_GATE_SELECT(i)) {
-				ni_660x_second_gate_select =
-				    selected_second_gate &
-				    selected_second_gate_mask;
+			if (chan == NI_GPCT_RTSI_GATE_SELECT(i)) {
+				gate2_sel = chan & 0x1f;
 				break;
 			}
 		}
 		if (i <= ni_660x_max_rtsi_channel)
 			break;
 		for (i = 0; i <= ni_660x_max_up_down_pin; ++i) {
-			if (selected_second_gate ==
-			    NI_GPCT_UP_DOWN_PIN_GATE_SELECT(i)) {
-				ni_660x_second_gate_select =
-				    selected_second_gate &
-				    selected_second_gate_mask;
+			if (chan == NI_GPCT_UP_DOWN_PIN_GATE_SELECT(i)) {
+				gate2_sel = chan & 0x1f;
 				break;
 			}
 		}
@@ -1096,12 +1087,10 @@ static int ni_660x_set_second_gate(struct ni_gpct *counter,
 			break;
 		return -EINVAL;
 	}
-	counter_dev->regs[second_gate_reg] |= Gi_Second_Gate_Mode_Bit;
-	counter_dev->regs[second_gate_reg] &= ~Gi_Second_Gate_Select_Mask;
-	counter_dev->regs[second_gate_reg] |=
-	    Gi_Second_Gate_Select_Bits(ni_660x_second_gate_select);
-	write_register(counter, counter_dev->regs[second_gate_reg],
-		       second_gate_reg);
+	counter_dev->regs[gate2_reg] |= Gi_Second_Gate_Mode_Bit;
+	counter_dev->regs[gate2_reg] &= ~Gi_Second_Gate_Select_Mask;
+	counter_dev->regs[gate2_reg] |= Gi_Second_Gate_Select_Bits(gate2_sel);
+	write_register(counter, counter_dev->regs[gate2_reg], gate2_reg);
 	return 0;
 }
 
