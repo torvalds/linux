@@ -109,4 +109,10 @@ static inline void iwl_scd_deactivate_fifos(struct iwl_trans *trans)
 {
 	iwl_write_prph(trans, SCD_TXFACT, 0);
 }
+
+static inline void iwl_scd_enable_set_active(struct iwl_trans *trans,
+					     u32 value)
+{
+	iwl_write_prph(trans, SCD_EN_CTRL, value);
+}
 #endif
