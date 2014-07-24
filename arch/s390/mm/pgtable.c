@@ -1433,6 +1433,9 @@ int pmdp_set_access_flags(struct vm_area_struct *vma,
 {
 	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
 
+	entry = pmd_mkyoung(entry);
+	if (dirty)
+		entry = pmd_mkdirty(entry);
 	if (pmd_same(*pmdp, entry))
 		return 0;
 	pmdp_invalidate(vma, address, pmdp);
