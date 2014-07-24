@@ -203,6 +203,63 @@ xfs_bulkstat_ichunk_ra(
 	blk_finish_plug(&plug);
 }
 
+/*
+ * Lookup the inode chunk that the given inode lives in and then get the record
+ * if we found the chunk.  If the inode was not the last in the chunk and there
+ * are some left allocated, update the data for the pointed-to record as well as
+ * return the count of grabbed inodes.
+ */
+STATIC int
+xfs_bulkstat_grab_ichunk(
+	struct xfs_btree_cur		*cur,	/* btree cursor */
+	xfs_agino_t			agino,	/* starting inode of chunk */
+	int				*icount,/* return # of inodes grabbed */
+	struct xfs_inobt_rec_incore	*irec)	/* btree record */
+{
+	int				idx;	/* index into inode chunk */
+	int				stat;
+	int				error = 0;
+
+	/* Lookup the inode chunk that this inode lives in */
+	error = xfs_inobt_lookup(cur, agino, XFS_LOOKUP_LE, &stat);
+	if (error)
+		return error;
+	if (!stat) {
+		*icount = 0;
+		return error;
+	}
+
+	/* Get the record, should always work */
+	error = xfs_inobt_get_rec(cur, irec, &stat);
+	if (error)
+		return error;
+	XFS_WANT_CORRUPTED_RETURN(stat == 1);
+
+	/* Check if the record contains the inode in request */
+	if (irec->ir_startino + XFS_INODES_PER_CHUNK <= agino)
+		return -EINVAL;
+
+	idx = agino - irec->ir_startino + 1;
+	if (idx < XFS_INODES_PER_CHUNK &&
+	    (xfs_inobt_maskn(idx, XFS_INODES_PER_CHUNK - idx) & ~irec->ir_free)) {
+		int	i;
+
+		/* We got a right chunk with some left inodes allocated at it.
+		 * Grab the chunk record.  Mark all the uninteresting inodes
+		 * free -- because they're before our start point.
+		 */
+		for (i = 0; i < idx; i++) {
+			if (XFS_INOBT_MASK(i) & ~irec->ir_free)
+				irec->ir_freecount++;
+		}
+
+		irec->ir_free |= xfs_inobt_maskn(0, idx);
+		*icount = XFS_INODES_PER_CHUNK - irec->ir_freecount;
+	}
+
+	return 0;
+}
+
 #define XFS_BULKSTAT_UBLEFT(ubleft)	((ubleft) >= statstruct_size)
 
 /*
@@ -290,67 +347,29 @@ xfs_bulkstat(
 		irbp = irbuf;
 		irbufend = irbuf + nirbuf;
 		end_of_ag = 0;
-		/*
-		 * If we're returning in the middle of an allocation group,
-		 * we need to get the remainder of the chunk we're in.
-		 */
+		icount = 0;
 		if (agino > 0) {
-			xfs_inobt_rec_incore_t r;
-
 			/*
-			 * Lookup the inode chunk that this inode lives in.
+			 * In the middle of an allocation group, we need to get
+			 * the remainder of the chunk we're in.
 			 */
-			error = xfs_inobt_lookup(cur, agino, XFS_LOOKUP_LE,
-						 &tmp);
-			if (!error &&	/* no I/O error */
-			    tmp &&	/* lookup succeeded */
-					/* got the record, should always work */
-			    !(error = xfs_inobt_get_rec(cur, &r, &i)) &&
-			    i == 1 &&
-					/* this is the right chunk */
-			    agino < r.ir_startino + XFS_INODES_PER_CHUNK &&
-					/* lastino was not last in chunk */
-			    (chunkidx = agino - r.ir_startino + 1) <
-				    XFS_INODES_PER_CHUNK &&
-					/* there are some left allocated */
-			    xfs_inobt_maskn(chunkidx,
-				    XFS_INODES_PER_CHUNK - chunkidx) &
-				    ~r.ir_free) {
-				/*
-				 * Grab the chunk record.  Mark all the
-				 * uninteresting inodes (because they're
-				 * before our start point) free.
-				 */
-				for (i = 0; i < chunkidx; i++) {
-					if (XFS_INOBT_MASK(i) & ~r.ir_free)
-						r.ir_freecount++;
-				}
-				r.ir_free |= xfs_inobt_maskn(0, chunkidx);
+			struct xfs_inobt_rec_incore	r;
+
+			error = xfs_bulkstat_grab_ichunk(cur, agino, &icount, &r);
+			if (error)
+				break;
+			if (icount) {
 				irbp->ir_startino = r.ir_startino;
 				irbp->ir_freecount = r.ir_freecount;
 				irbp->ir_free = r.ir_free;
 				irbp++;
 				agino = r.ir_startino + XFS_INODES_PER_CHUNK;
-				icount = XFS_INODES_PER_CHUNK - r.ir_freecount;
-			} else {
-				/*
-				 * If any of those tests failed, bump the
-				 * inode number (just in case).
-				 */
-				agino++;
-				icount = 0;
 			}
-			/*
-			 * In any case, increment to the next record.
-			 */
-			if (!error)
-				error = xfs_btree_increment(cur, 0, &tmp);
+			/* Increment to the next record */
+			error = xfs_btree_increment(cur, 0, &tmp);
 		} else {
-			/*
-			 * Start of ag.  Lookup the first inode chunk.
-			 */
+			/* Start of ag.  Lookup the first inode chunk */
 			error = xfs_inobt_lookup(cur, 0, XFS_LOOKUP_GE, &tmp);
-			icount = 0;
 		}
 		if (error)
 			break;
