@@ -262,7 +262,6 @@ WPA_SearchRSN(
 				return false;
 		}
 		return true;
-		break;
 
 	default:
 		break;

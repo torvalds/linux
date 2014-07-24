@@ -873,11 +873,9 @@ bool RFvWriteWakeProgSyn(void __iomem *dwIoBase, unsigned char byRFType, unsigne
 
 	case RF_NOTHING:
 		return true;
-		break;
 
 	default:
 		return false;
-		break;
 	}
 
 	MACvSetMISCFifo(dwIoBase, MISCFIFO_SYNINFO_IDX, (unsigned long)MAKEWORD(bySleepCount, byInitCount));
