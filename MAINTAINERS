@@ -8619,11 +8619,6 @@ W:	http://www.linux-speakup.org/
 S:	Odd Fixes
 F:	drivers/staging/speakup/
 
-STAGING - USB ENE SM/MS CARD READER DRIVER
-M:	Al Cho <acho@novell.com>
-S:	Odd Fixes
-F:	drivers/staging/keucr/
-
 STAGING - VIA VT665X DRIVERS
 M:	Forest Bond <forest@alittletooquiet.net>
 S:	Odd Fixes

@@ -32,7 +32,6 @@ obj-$(CONFIG_IIO)		+= iio/
 obj-$(CONFIG_FB_XGI)		+= xgifb/
 obj-$(CONFIG_ACPI_QUICKSTART)	+= quickstart/
 obj-$(CONFIG_USB_EMXX)		+= emxx_udc/
-obj-$(CONFIG_USB_ENESTORAGE)	+= keucr/
 obj-$(CONFIG_BCM_WIMAX)		+= bcm/
 obj-$(CONFIG_FT1000)		+= ft1000/
 obj-$(CONFIG_SPEAKUP)		+= speakup/

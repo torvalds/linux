@@ -76,8 +76,6 @@ source "drivers/staging/quickstart/Kconfig"
 
 source "drivers/staging/emxx_udc/Kconfig"
 
-source "drivers/staging/keucr/Kconfig"
-
 source "drivers/staging/bcm/Kconfig"
 
 source "drivers/staging/ft1000/Kconfig"
