@@ -793,8 +793,7 @@ static void ni_tio_set_first_gate_modifiers(struct ni_gpct *counter,
 			mode_mask, mode_values);
 }
 
-static int ni_660x_set_first_gate(struct ni_gpct *counter,
-				  unsigned int gate_source)
+static int ni_660x_set_gate(struct ni_gpct *counter, unsigned int gate_source)
 {
 	unsigned int chan = CR_CHAN(gate_source);
 	unsigned cidx = counter->counter_index;
@@ -835,8 +834,7 @@ static int ni_660x_set_first_gate(struct ni_gpct *counter,
 	return 0;
 }
 
-static int ni_m_series_set_first_gate(struct ni_gpct *counter,
-				      unsigned int gate_source)
+static int ni_m_set_gate(struct ni_gpct *counter, unsigned int gate_source)
 {
 	unsigned int chan = CR_CHAN(gate_source);
 	unsigned cidx = counter->counter_index;
@@ -878,8 +876,7 @@ static int ni_m_series_set_first_gate(struct ni_gpct *counter,
 	return 0;
 }
 
-static int ni_660x_set_second_gate(struct ni_gpct *counter,
-				   unsigned int gate_source)
+static int ni_660x_set_gate2(struct ni_gpct *counter, unsigned int gate_source)
 {
 	struct ni_gpct_device *counter_dev = counter->counter_dev;
 	unsigned cidx = counter->counter_index;
@@ -925,33 +922,27 @@ static int ni_660x_set_second_gate(struct ni_gpct *counter,
 	return 0;
 }
 
-static int ni_m_series_set_second_gate(struct ni_gpct *counter,
-				       unsigned int gate_source)
+static int ni_m_set_gate2(struct ni_gpct *counter, unsigned int gate_source)
 {
 	struct ni_gpct_device *counter_dev = counter->counter_dev;
 	unsigned cidx = counter->counter_index;
-	const unsigned second_gate_reg = NITIO_GATE2_REG(cidx);
-	const unsigned selected_second_gate = CR_CHAN(gate_source);
-	/* bits of second_gate that may be meaningful to second gate register */
-	static const unsigned selected_second_gate_mask = 0x1f;
-	unsigned ni_m_series_second_gate_select;
+	unsigned int chan = CR_CHAN(gate_source);
+	unsigned gate2_reg = NITIO_GATE2_REG(cidx);
+	unsigned gate2_sel;
 
 	/*
 	 * FIXME: We don't know what the m-series second gate codes are,
 	 * so we'll just pass the bits through for now.
 	 */
-	switch (selected_second_gate) {
+	switch (chan) {
 	default:
-		ni_m_series_second_gate_select =
-		    selected_second_gate & selected_second_gate_mask;
+		gate2_sel = chan & 0x1f;
 		break;
 	}
-	counter_dev->regs[second_gate_reg] |= Gi_Second_Gate_Mode_Bit;
-	counter_dev->regs[second_gate_reg] &= ~Gi_Second_Gate_Select_Mask;
-	counter_dev->regs[second_gate_reg] |=
-	    Gi_Second_Gate_Select_Bits(ni_m_series_second_gate_select);
-	write_register(counter, counter_dev->regs[second_gate_reg],
-		       second_gate_reg);
+	counter_dev->regs[gate2_reg] |= Gi_Second_Gate_Mode_Bit;
+	counter_dev->regs[gate2_reg] &= ~Gi_Second_Gate_Select_Mask;
+	counter_dev->regs[gate2_reg] |= Gi_Second_Gate_Select_Bits(gate2_sel);
+	write_register(counter, counter_dev->regs[gate2_reg], gate2_reg);
 	return 0;
 }
 
@@ -960,11 +951,12 @@ int ni_tio_set_gate_src(struct ni_gpct *counter, unsigned gate_index,
 {
 	struct ni_gpct_device *counter_dev = counter->counter_dev;
 	unsigned cidx = counter->counter_index;
-	const unsigned second_gate_reg = NITIO_GATE2_REG(cidx);
+	unsigned int chan = CR_CHAN(gate_source);
+	unsigned gate2_reg = NITIO_GATE2_REG(cidx);
 
 	switch (gate_index) {
 	case 0:
-		if (CR_CHAN(gate_source) == NI_GPCT_DISABLED_GATE_SELECT) {
+		if (chan == NI_GPCT_DISABLED_GATE_SELECT) {
 			ni_tio_set_bits(counter, NITIO_MODE_REG(cidx),
 					Gi_Gating_Mode_Mask,
 					Gi_Gating_Disabled_Bits);
@@ -975,36 +967,34 @@ int ni_tio_set_gate_src(struct ni_gpct *counter, unsigned gate_index,
 		case ni_gpct_variant_e_series:
 		case ni_gpct_variant_m_series:
 		default:
-			return ni_m_series_set_first_gate(counter, gate_source);
+			return ni_m_set_gate(counter, gate_source);
 		case ni_gpct_variant_660x:
-			return ni_660x_set_first_gate(counter, gate_source);
+			return ni_660x_set_gate(counter, gate_source);
 		}
 		break;
 	case 1:
 		if (!ni_tio_has_gate2_registers(counter_dev))
 			return -EINVAL;
 
-		if (CR_CHAN(gate_source) == NI_GPCT_DISABLED_GATE_SELECT) {
-			counter_dev->regs[second_gate_reg] &=
-			    ~Gi_Second_Gate_Mode_Bit;
-			write_register(counter,
-				       counter_dev->regs[second_gate_reg],
-				       second_gate_reg);
+		if (chan == NI_GPCT_DISABLED_GATE_SELECT) {
+			counter_dev->regs[gate2_reg] &=
+						~Gi_Second_Gate_Mode_Bit;
+			write_register(counter, counter_dev->regs[gate2_reg],
+				       gate2_reg);
 			return 0;
 		}
 		if (gate_source & CR_INVERT) {
-			counter_dev->regs[second_gate_reg] |=
-			    Gi_Second_Gate_Polarity_Bit;
+			counter_dev->regs[gate2_reg] |=
+						Gi_Second_Gate_Polarity_Bit;
 		} else {
-			counter_dev->regs[second_gate_reg] &=
-			    ~Gi_Second_Gate_Polarity_Bit;
+			counter_dev->regs[gate2_reg] &=
+						~Gi_Second_Gate_Polarity_Bit;
 		}
 		switch (counter_dev->variant) {
 		case ni_gpct_variant_m_series:
-			return ni_m_series_set_second_gate(counter,
-							   gate_source);
+			return ni_m_set_gate2(counter, gate_source);
 		case ni_gpct_variant_660x:
-			return ni_660x_set_second_gate(counter, gate_source);
+			return ni_660x_set_gate2(counter, gate_source);
 		default:
 			BUG();
 			break;
