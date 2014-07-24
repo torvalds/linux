@@ -388,12 +388,11 @@ EXPORT_SYMBOL_GPL(ni_tio_arm);
 
 static unsigned ni_660x_source_select_bits(unsigned int clock_source)
 {
+	unsigned clk_src = clock_source & NI_GPCT_CLOCK_SRC_SELECT_MASK;
 	unsigned ni_660x_clock;
 	unsigned i;
-	const unsigned clock_select_bits =
-	    clock_source & NI_GPCT_CLOCK_SRC_SELECT_MASK;
 
-	switch (clock_select_bits) {
+	switch (clk_src) {
 	case NI_GPCT_TIMEBASE_1_CLOCK_SRC_BITS:
 		ni_660x_clock = NI_660X_TIMEBASE_1_CLK;
 		break;
@@ -417,7 +416,7 @@ static unsigned ni_660x_source_select_bits(unsigned int clock_source)
 		break;
 	default:
 		for (i = 0; i <= NI_660X_MAX_RTSI_CHAN; ++i) {
-			if (clock_select_bits == NI_GPCT_RTSI_CLOCK_SRC_BITS(i)) {
+			if (clk_src == NI_GPCT_RTSI_CLOCK_SRC_BITS(i)) {
 				ni_660x_clock = NI_660X_RTSI_CLK(i);
 				break;
 			}
@@ -425,8 +424,7 @@ static unsigned ni_660x_source_select_bits(unsigned int clock_source)
 		if (i <= NI_660X_MAX_RTSI_CHAN)
 			break;
 		for (i = 0; i <= NI_660X_MAX_SRC_PIN; ++i) {
-			if (clock_select_bits ==
-			    NI_GPCT_SOURCE_PIN_CLOCK_SRC_BITS(i)) {
+			if (clk_src == NI_GPCT_SOURCE_PIN_CLOCK_SRC_BITS(i)) {
 				ni_660x_clock = NI_660X_SRC_PIN_CLK(i);
 				break;
 			}
