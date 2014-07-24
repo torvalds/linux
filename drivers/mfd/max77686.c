@@ -251,10 +251,9 @@ static int max77686_i2c_probe(struct i2c_client *i2c,
 		if (!match)
 			return -EINVAL;
 
-		max77686->type = (int)match->data;
-	} else {
+		max77686->type = (unsigned long)match->data;
+	} else
 		max77686->type = id->driver_data;
-	}
 
 	i2c_set_clientdata(i2c, max77686);
 	max77686->dev = &i2c->dev;

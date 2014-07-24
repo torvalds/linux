@@ -439,7 +439,7 @@ struct max77686_dev {
 	struct i2c_client *i2c; /* 0xcc / PMIC, Battery Control, and FLASH */
 	struct i2c_client *rtc; /* slave addr 0x0c */
 
-	int type;
+	unsigned long type;
 
 	struct regmap *regmap;		/* regmap for mfd */
 	struct regmap *rtc_regmap;	/* regmap for rtc */
