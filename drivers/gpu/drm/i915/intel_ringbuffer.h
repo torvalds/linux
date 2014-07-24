@@ -216,6 +216,9 @@ struct  intel_engine_cs {
 				  unsigned int num_dwords);
 	} semaphore;
 
+	/* Execlists */
+	int		(*emit_request)(struct intel_ringbuffer *ringbuf);
+
 	/**
 	 * List of objects currently involved in rendering from the
 	 * ringbuffer.

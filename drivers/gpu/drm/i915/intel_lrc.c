@@ -350,6 +350,32 @@ static void gen8_set_seqno(struct intel_engine_cs *ring, u32 seqno)
 	intel_write_status_page(ring, I915_GEM_HWS_INDEX, seqno);
 }
 
+static int gen8_emit_request(struct intel_ringbuffer *ringbuf)
+{
+	struct intel_engine_cs *ring = ringbuf->ring;
+	u32 cmd;
+	int ret;
+
+	ret = intel_logical_ring_begin(ringbuf, 6);
+	if (ret)
+		return ret;
+
+	cmd = MI_STORE_DWORD_IMM_GEN8;
+	cmd |= MI_GLOBAL_GTT;
+
+	intel_logical_ring_emit(ringbuf, cmd);
+	intel_logical_ring_emit(ringbuf,
+				(ring->status_page.gfx_addr +
+				(I915_GEM_HWS_INDEX << MI_STORE_DWORD_INDEX_SHIFT)));
+	intel_logical_ring_emit(ringbuf, 0);
+	intel_logical_ring_emit(ringbuf, ring->outstanding_lazy_seqno);
+	intel_logical_ring_emit(ringbuf, MI_USER_INTERRUPT);
+	intel_logical_ring_emit(ringbuf, MI_NOOP);
+	intel_logical_ring_advance_and_submit(ringbuf);
+
+	return 0;
+}
+
 void intel_logical_ring_cleanup(struct intel_engine_cs *ring)
 {
 	if (!intel_ring_initialized(ring))
@@ -424,6 +450,7 @@ static int logical_render_ring_init(struct drm_device *dev)
 	ring->cleanup = intel_fini_pipe_control;
 	ring->get_seqno = gen8_get_seqno;
 	ring->set_seqno = gen8_set_seqno;
+	ring->emit_request = gen8_emit_request;
 
 	return logical_ring_init(dev, ring);
 }
@@ -442,6 +469,7 @@ static int logical_bsd_ring_init(struct drm_device *dev)
 	ring->init = gen8_init_common_ring;
 	ring->get_seqno = gen8_get_seqno;
 	ring->set_seqno = gen8_set_seqno;
+	ring->emit_request = gen8_emit_request;
 
 	return logical_ring_init(dev, ring);
 }
@@ -460,6 +488,7 @@ static int logical_bsd2_ring_init(struct drm_device *dev)
 	ring->init = gen8_init_common_ring;
 	ring->get_seqno = gen8_get_seqno;
 	ring->set_seqno = gen8_set_seqno;
+	ring->emit_request = gen8_emit_request;
 
 	return logical_ring_init(dev, ring);
 }
@@ -478,6 +507,7 @@ static int logical_blt_ring_init(struct drm_device *dev)
 	ring->init = gen8_init_common_ring;
 	ring->get_seqno = gen8_get_seqno;
 	ring->set_seqno = gen8_set_seqno;
+	ring->emit_request = gen8_emit_request;
 
 	return logical_ring_init(dev, ring);
 }
@@ -496,6 +526,7 @@ static int logical_vebox_ring_init(struct drm_device *dev)
 	ring->init = gen8_init_common_ring;
 	ring->get_seqno = gen8_get_seqno;
 	ring->set_seqno = gen8_set_seqno;
+	ring->emit_request = gen8_emit_request;
 
 	return logical_ring_init(dev, ring);
 }
