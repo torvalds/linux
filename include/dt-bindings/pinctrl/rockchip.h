@@ -81,6 +81,9 @@
 #define RK3036_PULL_PINS_PER_REG	16
 #define RK3036_PULL_BANK_STRIDE		8
 
+#define RK312X_PULL_BITS_PER_PIN	1
+#define RK312X_PULL_PINS_PER_REG	16
+#define RK312X_PULL_BANK_STRIDE		8
 
 
 /*warning:don not chang the following value*/
