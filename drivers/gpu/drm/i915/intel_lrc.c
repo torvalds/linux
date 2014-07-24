@@ -360,6 +360,28 @@ static int gen8_init_render_ring(struct intel_engine_cs *ring)
 	return ret;
 }
 
+static int gen8_emit_bb_start(struct intel_ringbuffer *ringbuf,
+			      u64 offset, unsigned flags)
+{
+	struct intel_engine_cs *ring = ringbuf->ring;
+	struct drm_i915_private *dev_priv = ring->dev->dev_private;
+	bool ppgtt = !(flags & I915_DISPATCH_SECURE);
+	int ret;
+
+	ret = intel_logical_ring_begin(ringbuf, 4);
+	if (ret)
+		return ret;
+
+	/* FIXME(BDW): Address space and security selectors. */
+	intel_logical_ring_emit(ringbuf, MI_BATCH_BUFFER_START_GEN8 | (ppgtt<<8));
+	intel_logical_ring_emit(ringbuf, lower_32_bits(offset));
+	intel_logical_ring_emit(ringbuf, upper_32_bits(offset));
+	intel_logical_ring_emit(ringbuf, MI_NOOP);
+	intel_logical_ring_advance(ringbuf);
+
+	return 0;
+}
+
 static bool gen8_logical_ring_get_irq(struct intel_engine_cs *ring)
 {
 	struct drm_device *dev = ring->dev;
@@ -594,6 +616,7 @@ static int logical_render_ring_init(struct drm_device *dev)
 	ring->emit_flush = gen8_emit_flush_render;
 	ring->irq_get = gen8_logical_ring_get_irq;
 	ring->irq_put = gen8_logical_ring_put_irq;
+	ring->emit_bb_start = gen8_emit_bb_start;
 
 	return logical_ring_init(dev, ring);
 }
@@ -618,6 +641,7 @@ static int logical_bsd_ring_init(struct drm_device *dev)
 	ring->emit_flush = gen8_emit_flush;
 	ring->irq_get = gen8_logical_ring_get_irq;
 	ring->irq_put = gen8_logical_ring_put_irq;
+	ring->emit_bb_start = gen8_emit_bb_start;
 
 	return logical_ring_init(dev, ring);
 }
@@ -642,6 +666,7 @@ static int logical_bsd2_ring_init(struct drm_device *dev)
 	ring->emit_flush = gen8_emit_flush;
 	ring->irq_get = gen8_logical_ring_get_irq;
 	ring->irq_put = gen8_logical_ring_put_irq;
+	ring->emit_bb_start = gen8_emit_bb_start;
 
 	return logical_ring_init(dev, ring);
 }
@@ -666,6 +691,7 @@ static int logical_blt_ring_init(struct drm_device *dev)
 	ring->emit_flush = gen8_emit_flush;
 	ring->irq_get = gen8_logical_ring_get_irq;
 	ring->irq_put = gen8_logical_ring_put_irq;
+	ring->emit_bb_start = gen8_emit_bb_start;
 
 	return logical_ring_init(dev, ring);
 }
@@ -690,6 +716,7 @@ static int logical_vebox_ring_init(struct drm_device *dev)
 	ring->emit_flush = gen8_emit_flush;
 	ring->irq_get = gen8_logical_ring_get_irq;
 	ring->irq_put = gen8_logical_ring_put_irq;
+	ring->emit_bb_start = gen8_emit_bb_start;
 
 	return logical_ring_init(dev, ring);
 }

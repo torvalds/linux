@@ -229,6 +229,8 @@ struct  intel_engine_cs {
 	int		(*emit_flush)(struct intel_ringbuffer *ringbuf,
 				      u32 invalidate_domains,
 				      u32 flush_domains);
+	int		(*emit_bb_start)(struct intel_ringbuffer *ringbuf,
+					 u64 offset, unsigned flags);
 
 	/**
 	 * List of objects currently involved in rendering from the
