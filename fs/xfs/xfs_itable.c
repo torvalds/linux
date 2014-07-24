@@ -536,7 +536,7 @@ xfs_inumbers(
 	xfs_agnumber_t		agno = XFS_INO_TO_AGNO(mp, *lastino);
 	xfs_agino_t		agino = XFS_INO_TO_AGINO(mp, *lastino);
 	struct xfs_btree_cur	*cur = NULL;
-	xfs_buf_t		*agbp = NULL;
+	struct xfs_buf		*agbp = NULL;
 	struct xfs_inogrp	*buffer;
 	int			bcount;
 	int			left = *count;
@@ -550,61 +550,40 @@ xfs_inumbers(
 
 	bcount = MIN(left, (int)(PAGE_SIZE / sizeof(*buffer)));
 	buffer = kmem_alloc(bcount * sizeof(*buffer), KM_SLEEP);
-	while (left > 0 && agno < mp->m_sb.sb_agcount) {
+	do {
 		struct xfs_inobt_rec_incore	r;
 		int				stat;
 
-		if (agbp == NULL) {
+		if (!agbp) {
 			error = xfs_ialloc_read_agi(mp, NULL, agno, &agbp);
-			if (error) {
-				/*
-				 * If we can't read the AGI of this ag,
-				 * then just skip to the next one.
-				 */
-				ASSERT(cur == NULL);
-				agbp = NULL;
-				agno++;
-				agino = 0;
-				continue;
-			}
+			if (error)
+				break;
+
 			cur = xfs_inobt_init_cursor(mp, NULL, agbp, agno,
 						    XFS_BTNUM_INO);
 			error = xfs_inobt_lookup(cur, agino, XFS_LOOKUP_GE,
 						 &stat);
-			if (error) {
-				xfs_btree_del_cursor(cur, XFS_BTREE_ERROR);
-				cur = NULL;
-				xfs_buf_relse(agbp);
-				agbp = NULL;
-				/*
-				 * Move up the last inode in the current
-				 * chunk.  The lookup_ge will always get
-				 * us the first inode in the next chunk.
-				 */
-				agino += XFS_INODES_PER_CHUNK - 1;
-				continue;
-			}
+			if (error)
+				break;
+			if (!stat)
+				goto next_ag;
 		}
+
 		error = xfs_inobt_get_rec(cur, &r, &stat);
-		if (error || stat == 0) {
-			xfs_buf_relse(agbp);
-			agbp = NULL;
-			xfs_btree_del_cursor(cur, XFS_BTREE_NOERROR);
-			cur = NULL;
-			agno++;
-			agino = 0;
-			continue;
-		}
+		if (error)
+			break;
+		if (!stat)
+			goto next_ag;
+
 		agino = r.ir_startino + XFS_INODES_PER_CHUNK - 1;
 		buffer[bufidx].xi_startino =
 			XFS_AGINO_TO_INO(mp, agno, r.ir_startino);
 		buffer[bufidx].xi_alloccount =
 			XFS_INODES_PER_CHUNK - r.ir_freecount;
 		buffer[bufidx].xi_allocmask = ~r.ir_free;
-		bufidx++;
-		left--;
-		if (bufidx == bcount) {
-			long written;
+		if (++bufidx == bcount) {
+			long	written;
+
 			error = formatter(ubuffer, buffer, bufidx, &written);
 			if (error)
 				break;
@@ -612,36 +591,40 @@ xfs_inumbers(
 			*count += bufidx;
 			bufidx = 0;
 		}
-		if (left) {
-			error = xfs_btree_increment(cur, 0, &stat);
-			if (error) {
-				xfs_btree_del_cursor(cur, XFS_BTREE_ERROR);
-				cur = NULL;
-				xfs_buf_relse(agbp);
-				agbp = NULL;
-				/*
-				 * The agino value has already been bumped.
-				 * Just try to skip up to it.
-				 */
-				agino += XFS_INODES_PER_CHUNK;
-				continue;
-			}
-		}
-	}
+		if (!--left)
+			break;
+
+		error = xfs_btree_increment(cur, 0, &stat);
+		if (error)
+			break;
+		if (stat)
+			continue;
+
+next_ag:
+		xfs_btree_del_cursor(cur, XFS_BTREE_ERROR);
+		cur = NULL;
+		xfs_buf_relse(agbp);
+		agbp = NULL;
+		agino = 0;
+	} while (++agno < mp->m_sb.sb_agcount);
+
 	if (!error) {
 		if (bufidx) {
-			long written;
+			long	written;
+
 			error = formatter(ubuffer, buffer, bufidx, &written);
 			if (!error)
 				*count += bufidx;
 		}
 		*lastino = XFS_AGINO_TO_INO(mp, agno, agino);
 	}
+
 	kmem_free(buffer);
 	if (cur)
 		xfs_btree_del_cursor(cur, (error ? XFS_BTREE_ERROR :
 					   XFS_BTREE_NOERROR));
 	if (agbp)
 		xfs_buf_relse(agbp);
+
 	return error;
 }
