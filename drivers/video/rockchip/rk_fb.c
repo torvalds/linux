@@ -2106,6 +2106,9 @@ EXPORT_SYMBOL(rk_get_real_fps);
 
 #endif
 
+#define ION_MAX 10
+static struct ion_handle *ion_hanle[ION_MAX];
+
 static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd,
 		       unsigned long arg)
 {
@@ -2142,10 +2145,44 @@ static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd,
 	case RK_FBIOSET_YUV_ADDR:
 		{
 			u32 yuv_phy[2];
+
 			if (copy_from_user(yuv_phy, argp, 8))
 				return -EFAULT;
-			fix->smem_start = yuv_phy[0];
-			fix->mmio_start = yuv_phy[1];
+			if (!dev_drv->iommu_enabled) {
+				fix->smem_start = yuv_phy[0];
+				fix->mmio_start = yuv_phy[1];
+			} else {
+				int usr_fd, offset, tmp;
+				struct ion_handle *hdl;
+				ion_phys_addr_t phy_addr;
+				size_t len;
+
+				usr_fd = yuv_phy[0];
+				offset = yuv_phy[1] - yuv_phy[0];
+
+				if (!usr_fd) {
+					fix->smem_start = 0;
+					fix->mmio_start = 0;
+					break;
+				}
+
+				hdl = ion_import_dma_buf(rk_fb->ion_client, usr_fd);
+				ion_map_iommu(dev_drv->dev, rk_fb->ion_client, hdl,
+						(unsigned long *)&phy_addr, (unsigned long *)&len);
+
+				fix->smem_start = phy_addr;
+				fix->mmio_start = phy_addr + offset;
+
+				if (ion_hanle[ION_MAX - 1] != 0) {
+					ion_unmap_iommu(dev_drv->dev, rk_fb->ion_client, ion_hanle[ION_MAX - 1]);
+					ion_free(rk_fb->ion_client, ion_hanle[ION_MAX - 1]);
+				}
+				ion_hanle[0] = hdl;
+
+				for (tmp = ION_MAX - 1; tmp > 0; tmp--)
+					ion_hanle[tmp] = ion_hanle[tmp - 1];
+				ion_hanle[0] = 0;
+			}
 			break;
 		}
 	case RK_FBIOSET_ENABLE:
@@ -2345,14 +2382,14 @@ static ssize_t rk_fb_read(struct fb_info *info, char __user *buf,
 		win = dev_drv->win[win_id];
 
 	/* only read the current frame buffer */
-	if (win->format == RGB565)
+	if (win->format == RGB565) {
 		total_size = win->area[0].y_vir_stride * win->area[0].yact << 1;
-	else if (win->format == YUV420) {
+	} else if (win->format == YUV420) {
 		total_size =
 		    (win->area[0].y_vir_stride * win->area[0].yact * 6);
-	} else
+	} else {
 		total_size = win->area[0].y_vir_stride * win->area[0].yact << 2;
-
+	}
 	if (p >= total_size)
 		return 0;
 
@@ -2947,9 +2984,9 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 				dev_drv->ops->open(dev_drv, i, 0);
 		}
 		return 0;
-	} else
+	} else {
 		memcpy(dev_drv->cur_screen, screen, sizeof(struct rk_screen));
-
+	}
 	for (i = 0; i < dev_drv->lcdc_win_num; i++) {
 		#ifdef DUAL_LCDC_MAP_TO_SAME_FB
 		info = rk_fb->fb[i];
@@ -3162,7 +3199,6 @@ int rk_fb_disp_scale(u8 scale_x, u8 scale_y, u8 lcdc_id)
 	if (i == inf->num_lcdc) {
 		printk(KERN_ERR "%s driver not found!", name);
 		return -ENODEV;
-
 	}
 #endif
 	if (inf->num_lcdc == 1)
@@ -3453,7 +3489,6 @@ static void fb_show_bmp_logo(struct fb_info *info, int rotate)
 	for (i = 0; i < Needheight; i++)
 		memcpy(dst + info->var.xres * i * 4,
 		       src + bmp_logo->width * i * 4, Needwidth * 4);
-
 }
 #endif
 
@@ -3469,7 +3504,6 @@ bool is_prmry_rk_lcdc_registered(void)
 		return true;
 	else
 		return false;
-
 }
 
 int rk_fb_register(struct rk_lcdc_driver *dev_drv,
