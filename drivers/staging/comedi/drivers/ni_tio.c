@@ -127,11 +127,7 @@ static inline unsigned NI_660x_RTSI_Clock(unsigned n)
 }
 
 static const unsigned ni_660x_max_source_pin = 7;
-static inline unsigned NI_660x_Source_Pin_Clock(unsigned n)
-{
-	BUG_ON(n > ni_660x_max_source_pin);
-	return 0x2 + n;
-}
+#define NI_660X_SRC_PIN_CLK(x)		(0x2 + (x))
 
 /* clock sources for ni e and m series boards, get bits with Gi_Source_Select_Bits() */
 enum ni_m_series_clock_source {
@@ -540,7 +536,7 @@ static unsigned ni_660x_source_select_bits(unsigned int clock_source)
 		for (i = 0; i <= ni_660x_max_source_pin; ++i) {
 			if (clock_select_bits ==
 			    NI_GPCT_SOURCE_PIN_CLOCK_SRC_BITS(i)) {
-				ni_660x_clock = NI_660x_Source_Pin_Clock(i);
+				ni_660x_clock = NI_660X_SRC_PIN_CLK(i);
 				break;
 			}
 		}
@@ -822,7 +818,7 @@ static unsigned ni_660x_clock_src_select(const struct ni_gpct *counter)
 		if (i <= ni_660x_max_rtsi_channel)
 			break;
 		for (i = 0; i <= ni_660x_max_source_pin; ++i) {
-			if (input_select == NI_660x_Source_Pin_Clock(i)) {
+			if (input_select == NI_660X_SRC_PIN_CLK(i)) {
 				clock_source =
 				    NI_GPCT_SOURCE_PIN_CLOCK_SRC_BITS(i);
 				break;
