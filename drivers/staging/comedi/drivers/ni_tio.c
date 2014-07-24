@@ -49,6 +49,73 @@ TODO:
 
 #include "ni_tio_internal.h"
 
+/*
+ * clock sources for ni e and m series boards,
+ * get bits with Gi_Source_Select_Bits()
+ */
+#define NI_M_TIMEBASE_1_CLK		0x0	/* 20MHz */
+#define NI_M_PFI_CLK(x)			(((x) < 10) ? (1 + (x)) : (0xb + (x)))
+#define NI_M_RTSI_CLK(x)		(((x) == 7) ? 0x1b : (0xb + (x)))
+#define NI_M_TIMEBASE_2_CLK		0x12	/* 100KHz */
+#define NI_M_NEXT_TC_CLK		0x13
+#define NI_M_NEXT_GATE_CLK		0x14	/* Gi_Src_SubSelect=0 */
+#define NI_M_PXI_STAR_TRIGGER_CLK	0x14	/* Gi_Src_SubSelect=1 */
+#define NI_M_PXI10_CLK			0x1d
+#define NI_M_TIMEBASE_3_CLK		0x1e	/* 80MHz, Gi_Src_SubSelect=0 */
+#define NI_M_ANALOG_TRIGGER_OUT_CLK	0x1e	/* Gi_Src_SubSelect=1 */
+#define NI_M_LOGIC_LOW_CLK		0x1f
+#define NI_M_MAX_PFI_CHAN		15
+#define NI_M_MAX_RTSI_CHAN		7
+
+/*
+ * clock sources for ni_660x boards,
+ * get bits with Gi_Source_Select_Bits()
+ */
+#define NI_660X_TIMEBASE_1_CLK		0x0	/* 20MHz */
+#define NI_660X_SRC_PIN_I_CLK		0x1
+#define NI_660X_SRC_PIN_CLK(x)		(0x2 + (x))
+#define NI_660X_NEXT_GATE_CLK		0xa
+#define NI_660X_RTSI_CLK(x)		(0xb + (x))
+#define NI_660X_TIMEBASE_2_CLK		0x12	/* 100KHz */
+#define NI_660X_NEXT_TC_CLK		0x13
+#define NI_660X_TIMEBASE_3_CLK		0x1e	/* 80MHz */
+#define NI_660X_LOGIC_LOW_CLK		0x1f
+#define NI_660X_MAX_SRC_PIN		7
+#define NI_660X_MAX_RTSI_CHAN		6
+
+/* ni m series gate_select */
+#define NI_M_TIMESTAMP_MUX_GATE_SEL	0x0
+#define NI_M_PFI_GATE_SEL(x)		(((x) < 10) ? (1 + (x)) : (0xb + (x)))
+#define NI_M_RTSI_GATE_SEL(x)		(((x) == 7) ? 0x1b : (0xb + (x)))
+#define NI_M_AI_START2_GATE_SEL		0x12
+#define NI_M_PXI_STAR_TRIGGER_GATE_SEL	0x13
+#define NI_M_NEXT_OUT_GATE_SEL		0x14
+#define NI_M_AI_START1_GATE_SEL		0x1c
+#define NI_M_NEXT_SRC_GATE_SEL		0x1d
+#define NI_M_ANALOG_TRIG_OUT_GATE_SEL	0x1e
+#define NI_M_LOGIC_LOW_GATE_SEL		0x1f
+
+/* ni_660x gate select */
+#define NI_660X_SRC_PIN_I_GATE_SEL	0x0
+#define NI_660X_GATE_PIN_I_GATE_SEL	0x1
+#define NI_660X_PIN_GATE_SEL(x)		(0x2 + (x))
+#define NI_660X_NEXT_SRC_GATE_SEL	0xa
+#define NI_660X_RTSI_GATE_SEL(x)	(0xb + (x))
+#define NI_660X_NEXT_OUT_GATE_SEL	0x14
+#define NI_660X_LOGIC_LOW_GATE_SEL	0x1f
+#define NI_660X_MAX_GATE_PIN		7
+
+/* ni_660x second gate select */
+#define NI_660X_SRC_PIN_I_GATE2_SEL	0x0
+#define NI_660X_UD_PIN_I_GATE2_SEL	0x1
+#define NI_660X_UD_PIN_GATE2_SEL(x)	(0x2 + (x))
+#define NI_660X_NEXT_SRC_GATE2_SEL	0xa
+#define NI_660X_RTSI_GATE2_SEL(x)	(0xb + (x))
+#define NI_660X_NEXT_OUT_GATE2_SEL	0x14
+#define NI_660X_SELECTED_GATE2_SEL	0x1e
+#define NI_660X_LOGIC_LOW_GATE2_SEL	0x1f
+#define NI_660X_MAX_UP_DOWN_PIN		7
+
 static uint64_t ni_tio_clock_period_ps(const struct ni_gpct *counter,
 				       unsigned generic_clock_source);
 static unsigned ni_tio_generic_clock_src_select(const struct ni_gpct *counter);
@@ -109,59 +176,6 @@ Gi_HW_Arm_Select_Mask(enum ni_gpct_variant variant)
 	}
 }
 
-/* clock sources for ni_660x boards, get bits with Gi_Source_Select_Bits() */
-#define NI_660X_TIMEBASE_1_CLK		0x0	/* 20MHz */
-#define NI_660X_SRC_PIN_I_CLK		0x1
-#define NI_660X_SRC_PIN_CLK(x)		(0x2 + (x))
-#define NI_660X_NEXT_GATE_CLK		0xa
-#define NI_660X_RTSI_CLK(x)		(0xb + (x))
-#define NI_660X_TIMEBASE_2_CLK		0x12	/* 100KHz */
-#define NI_660X_NEXT_TC_CLK		0x13
-#define NI_660X_TIMEBASE_3_CLK		0x1e	/* 80MHz */
-#define NI_660X_LOGIC_LOW_CLK		0x1f
-#define NI_660X_MAX_SRC_PIN		7
-#define NI_660X_MAX_RTSI_CHAN		6
-
-/*
- * clock sources for ni e and m series boards,
- * get bits with Gi_Source_Select_Bits()
- */
-#define NI_M_TIMEBASE_1_CLK		0x0	/* 20MHz */
-#define NI_M_PFI_CLK(x)			(((x) < 10) ? (1 + (x)) : (0xb + (x)))
-#define NI_M_RTSI_CLK(x)		(((x) == 7) ? 0x1b : (0xb + (x)))
-#define NI_M_TIMEBASE_2_CLK		0x12	/* 100KHz */
-#define NI_M_NEXT_TC_CLK		0x13
-#define NI_M_NEXT_GATE_CLK		0x14	/* Gi_Src_SubSelect=0 */
-#define NI_M_PXI_STAR_TRIGGER_CLK	0x14	/* Gi_Src_SubSelect=1 */
-#define NI_M_PXI10_CLK			0x1d
-#define NI_M_TIMEBASE_3_CLK		0x1e	/* 80MHz, Gi_Src_SubSelect=0 */
-#define NI_M_ANALOG_TRIGGER_OUT_CLK	0x1e	/* Gi_Src_SubSelect=1 */
-#define NI_M_LOGIC_LOW_CLK		0x1f
-#define NI_M_MAX_PFI_CHAN		15
-#define NI_M_MAX_RTSI_CHAN		7
-
-/* NI660X gate select */
-#define NI_660X_SRC_PIN_I_GATE_SEL	0x0
-#define NI_660X_GATE_PIN_I_GATE_SEL	0x1
-#define NI_660X_PIN_GATE_SEL(x)		(0x2 + (x))
-#define NI_660X_NEXT_SRC_GATE_SEL	0xa
-#define NI_660X_RTSI_GATE_SEL(x)	(0xb + (x))
-#define NI_660X_NEXT_OUT_GATE_SEL	0x14
-#define NI_660X_LOGIC_LOW_GATE_SEL	0x1f
-#define NI_660X_MAX_GATE_PIN		7
-
-/* NI M SERIES gate_select */
-#define NI_M_TIMESTAMP_MUX_GATE_SEL	0x0
-#define NI_M_PFI_GATE_SEL(x)		(((x) < 10) ? (1 + (x)) : (0xb + (x)))
-#define NI_M_RTSI_GATE_SEL(x)		(((x) == 7) ? 0x1b : (0xb + (x)))
-#define NI_M_AI_START2_GATE_SEL		0x12
-#define NI_M_PXI_STAR_TRIGGER_GATE_SEL	0x13
-#define NI_M_NEXT_OUT_GATE_SEL		0x14
-#define NI_M_AI_START1_GATE_SEL		0x1c
-#define NI_M_NEXT_SRC_GATE_SEL		0x1d
-#define NI_M_ANALOG_TRIG_OUT_GATE_SEL	0x1e
-#define NI_M_LOGIC_LOW_GATE_SEL		0x1f
-
 static inline unsigned Gi_Source_Select_Bits(unsigned source)
 {
 	return (source << Gi_Source_Select_Shift) & Gi_Source_Select_Mask;
@@ -171,17 +185,6 @@ static inline unsigned Gi_Gate_Select_Bits(unsigned gate_select)
 {
 	return (gate_select << Gi_Gate_Select_Shift) & Gi_Gate_Select_Mask;
 }
-
-/* NI660X second gate select */
-#define NI_660X_SRC_PIN_I_GATE2_SEL	0x0
-#define NI_660X_UD_PIN_I_GATE2_SEL	0x1
-#define NI_660X_UD_PIN_GATE2_SEL(x)	(0x2 + (x))
-#define NI_660X_NEXT_SRC_GATE2_SEL	0xa
-#define NI_660X_RTSI_GATE2_SEL(x)	(0xb + (x))
-#define NI_660X_NEXT_OUT_GATE2_SEL	0x14
-#define NI_660X_SELECTED_GATE2_SEL	0x1e
-#define NI_660X_LOGIC_LOW_GATE2_SEL	0x1f
-#define NI_660X_MAX_UP_DOWN_PIN		7
 
 struct ni_gpct_device *
 ni_gpct_device_construct(struct comedi_device *dev,
