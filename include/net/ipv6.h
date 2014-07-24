@@ -299,11 +299,6 @@ static inline bool ipv6_accept_ra(struct inet6_dev *idev)
 }
 
 #if IS_ENABLED(CONFIG_IPV6)
-static inline int ip6_frag_nqueues(struct net *net)
-{
-	return net->ipv6.frags.nqueues;
-}
-
 static inline int ip6_frag_mem(struct net *net)
 {
 	return sum_frag_mem_limit(&net->ipv6.frags);
