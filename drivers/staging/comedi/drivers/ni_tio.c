@@ -125,23 +125,23 @@ enum ni_660x_clock_source {
 #define NI_660X_MAX_SRC_PIN		7
 #define NI_660X_SRC_PIN_CLK(x)		(0x2 + (x))
 
-/* clock sources for ni e and m series boards, get bits with Gi_Source_Select_Bits() */
-enum ni_m_series_clock_source {
-	NI_M_Series_Timebase_1_Clock = 0x0,	/* 20MHz */
-	NI_M_Series_Timebase_2_Clock = 0x12,	/* 100KHz */
-	NI_M_Series_Next_TC_Clock = 0x13,
-	NI_M_Series_Next_Gate_Clock = 0x14,	/* when Gi_Src_SubSelect = 0 */
-	NI_M_Series_PXI_Star_Trigger_Clock = 0x14,	/* when Gi_Src_SubSelect = 1 */
-	NI_M_Series_PXI10_Clock = 0x1d,
-	NI_M_Series_Timebase_3_Clock = 0x1e,	/* 80MHz, when Gi_Src_SubSelect = 0 */
-	NI_M_Series_Analog_Trigger_Out_Clock = 0x1e,	/* when Gi_Src_SubSelect = 1 */
-	NI_M_Series_Logic_Low_Clock = 0x1f,
-};
-#define NI_M_MAX_PFI_CHAN		15
+/*
+ * clock sources for ni e and m series boards,
+ * get bits with Gi_Source_Select_Bits()
+ */
+#define NI_M_TIMEBASE_1_CLK		0x0	/* 20MHz */
 #define NI_M_PFI_CLK(x)			(((x) < 10) ? (1 + (x)) : (0xb + (x)))
-
-#define NI_M_MAX_RTSI_CHAN		7
 #define NI_M_RTSI_CLK(x)		(((x) == 7) ? 0x1b : (0xb + (x)))
+#define NI_M_TIMEBASE_2_CLK		0x12	/* 100KHz */
+#define NI_M_NEXT_TC_CLK		0x13
+#define NI_M_NEXT_GATE_CLK		0x14	/* Gi_Src_SubSelect=0 */
+#define NI_M_PXI_STAR_TRIGGER_CLK	0x14	/* Gi_Src_SubSelect=1 */
+#define NI_M_PXI10_CLK			0x1d
+#define NI_M_TIMEBASE_3_CLK		0x1e	/* 80MHz, Gi_Src_SubSelect=0 */
+#define NI_M_ANALOG_TRIGGER_OUT_CLK	0x1e	/* Gi_Src_SubSelect=1 */
+#define NI_M_LOGIC_LOW_CLK		0x1f
+#define NI_M_MAX_PFI_CHAN		15
+#define NI_M_MAX_RTSI_CHAN		7
 
 /* NI660X gate select */
 #define NI_660X_SRC_PIN_I_GATE_SEL	0x0
@@ -538,31 +538,31 @@ static unsigned ni_m_series_source_select_bits(unsigned int clock_source)
 	    clock_source & NI_GPCT_CLOCK_SRC_SELECT_MASK;
 	switch (clock_select_bits) {
 	case NI_GPCT_TIMEBASE_1_CLOCK_SRC_BITS:
-		ni_m_series_clock = NI_M_Series_Timebase_1_Clock;
+		ni_m_series_clock = NI_M_TIMEBASE_1_CLK;
 		break;
 	case NI_GPCT_TIMEBASE_2_CLOCK_SRC_BITS:
-		ni_m_series_clock = NI_M_Series_Timebase_2_Clock;
+		ni_m_series_clock = NI_M_TIMEBASE_2_CLK;
 		break;
 	case NI_GPCT_TIMEBASE_3_CLOCK_SRC_BITS:
-		ni_m_series_clock = NI_M_Series_Timebase_3_Clock;
+		ni_m_series_clock = NI_M_TIMEBASE_3_CLK;
 		break;
 	case NI_GPCT_LOGIC_LOW_CLOCK_SRC_BITS:
-		ni_m_series_clock = NI_M_Series_Logic_Low_Clock;
+		ni_m_series_clock = NI_M_LOGIC_LOW_CLK;
 		break;
 	case NI_GPCT_NEXT_GATE_CLOCK_SRC_BITS:
-		ni_m_series_clock = NI_M_Series_Next_Gate_Clock;
+		ni_m_series_clock = NI_M_NEXT_GATE_CLK;
 		break;
 	case NI_GPCT_NEXT_TC_CLOCK_SRC_BITS:
-		ni_m_series_clock = NI_M_Series_Next_TC_Clock;
+		ni_m_series_clock = NI_M_NEXT_TC_CLK;
 		break;
 	case NI_GPCT_PXI10_CLOCK_SRC_BITS:
-		ni_m_series_clock = NI_M_Series_PXI10_Clock;
+		ni_m_series_clock = NI_M_PXI10_CLK;
 		break;
 	case NI_GPCT_PXI_STAR_TRIGGER_CLOCK_SRC_BITS:
-		ni_m_series_clock = NI_M_Series_PXI_Star_Trigger_Clock;
+		ni_m_series_clock = NI_M_PXI_STAR_TRIGGER_CLK;
 		break;
 	case NI_GPCT_ANALOG_TRIGGER_OUT_CLOCK_SRC_BITS:
-		ni_m_series_clock = NI_M_Series_Analog_Trigger_Out_Clock;
+		ni_m_series_clock = NI_M_ANALOG_TRIGGER_OUT_CLK;
 		break;
 	default:
 		for (i = 0; i <= NI_M_MAX_RTSI_CHAN; ++i) {
@@ -704,13 +704,13 @@ static unsigned ni_m_series_clock_src_select(const struct ni_gpct *counter)
 			Gi_Source_Select_Mask) >> Gi_Source_Select_Shift;
 
 	switch (input_select) {
-	case NI_M_Series_Timebase_1_Clock:
+	case NI_M_TIMEBASE_1_CLK:
 		clock_source = NI_GPCT_TIMEBASE_1_CLOCK_SRC_BITS;
 		break;
-	case NI_M_Series_Timebase_2_Clock:
+	case NI_M_TIMEBASE_2_CLK:
 		clock_source = NI_GPCT_TIMEBASE_2_CLOCK_SRC_BITS;
 		break;
-	case NI_M_Series_Timebase_3_Clock:
+	case NI_M_TIMEBASE_3_CLK:
 		if (counter_dev->regs[second_gate_reg] &
 		    Gi_Source_Subselect_Bit)
 			clock_source =
@@ -718,20 +718,20 @@ static unsigned ni_m_series_clock_src_select(const struct ni_gpct *counter)
 		else
 			clock_source = NI_GPCT_TIMEBASE_3_CLOCK_SRC_BITS;
 		break;
-	case NI_M_Series_Logic_Low_Clock:
+	case NI_M_LOGIC_LOW_CLK:
 		clock_source = NI_GPCT_LOGIC_LOW_CLOCK_SRC_BITS;
 		break;
-	case NI_M_Series_Next_Gate_Clock:
+	case NI_M_NEXT_GATE_CLK:
 		if (counter_dev->regs[second_gate_reg] &
 		    Gi_Source_Subselect_Bit)
 			clock_source = NI_GPCT_PXI_STAR_TRIGGER_CLOCK_SRC_BITS;
 		else
 			clock_source = NI_GPCT_NEXT_GATE_CLOCK_SRC_BITS;
 		break;
-	case NI_M_Series_PXI10_Clock:
+	case NI_M_PXI10_CLK:
 		clock_source = NI_GPCT_PXI10_CLOCK_SRC_BITS;
 		break;
-	case NI_M_Series_Next_TC_Clock:
+	case NI_M_NEXT_TC_CLK:
 		clock_source = NI_GPCT_NEXT_TC_CLOCK_SRC_BITS;
 		break;
 	default:
