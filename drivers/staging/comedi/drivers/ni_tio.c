@@ -442,11 +442,11 @@ static unsigned ni_660x_source_select_bits(unsigned int clock_source)
 
 static unsigned ni_m_series_source_select_bits(unsigned int clock_source)
 {
+	unsigned clk_src = clock_source & NI_GPCT_CLOCK_SRC_SELECT_MASK;
 	unsigned ni_m_series_clock;
 	unsigned i;
-	const unsigned clock_select_bits =
-	    clock_source & NI_GPCT_CLOCK_SRC_SELECT_MASK;
-	switch (clock_select_bits) {
+
+	switch (clk_src) {
 	case NI_GPCT_TIMEBASE_1_CLOCK_SRC_BITS:
 		ni_m_series_clock = NI_M_TIMEBASE_1_CLK;
 		break;
@@ -476,7 +476,7 @@ static unsigned ni_m_series_source_select_bits(unsigned int clock_source)
 		break;
 	default:
 		for (i = 0; i <= NI_M_MAX_RTSI_CHAN; ++i) {
-			if (clock_select_bits == NI_GPCT_RTSI_CLOCK_SRC_BITS(i)) {
+			if (clk_src == NI_GPCT_RTSI_CLOCK_SRC_BITS(i)) {
 				ni_m_series_clock = NI_M_RTSI_CLK(i);
 				break;
 			}
@@ -484,7 +484,7 @@ static unsigned ni_m_series_source_select_bits(unsigned int clock_source)
 		if (i <= NI_M_MAX_RTSI_CHAN)
 			break;
 		for (i = 0; i <= NI_M_MAX_PFI_CHAN; ++i) {
-			if (clock_select_bits == NI_GPCT_PFI_CLOCK_SRC_BITS(i)) {
+			if (clk_src == NI_GPCT_PFI_CLOCK_SRC_BITS(i)) {
 				ni_m_series_clock = NI_M_PFI_CLK(i);
 				break;
 			}
