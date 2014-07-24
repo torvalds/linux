@@ -106,14 +106,12 @@ MODULE_LICENSE(DRIVER_LICENSE);
 #define USB_VENDOR_ID_LENOVO	0x17ef
 
 struct wacom {
-	dma_addr_t data_dma;
 	struct usb_device *usbdev;
 	struct usb_interface *intf;
-	struct urb *irq;
 	struct wacom_wac wacom_wac;
+	struct hid_device *hdev;
 	struct mutex lock;
 	struct work_struct work;
-	bool open;
 	char phys[32];
 	struct wacom_led {
 		u8 select[2]; /* status led selector (0..3) */
@@ -130,7 +128,7 @@ static inline void wacom_schedule_work(struct wacom_wac *wacom_wac)
 	schedule_work(&wacom->work);
 }
 
-extern const struct usb_device_id wacom_ids[];
+extern const struct hid_device_id wacom_ids[];
 
 void wacom_wac_irq(struct wacom_wac *wacom_wac, size_t len);
 void wacom_setup_device_quirks(struct wacom_features *features);

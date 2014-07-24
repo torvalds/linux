@@ -2197,15 +2197,18 @@ static const struct wacom_features wacom_features_0x2A =
 static const struct wacom_features wacom_features_0x314 =
 	{ "Wacom Intuos Pro S", WACOM_PKGLEN_INTUOS,  31496, 19685, 2047,
 	  63, INTUOSPS, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES,
-	  .touch_max = 16 };
+	  .touch_max = 16,
+	  .check_for_hid_type = true, .hid_type = HID_TYPE_USBNONE };
 static const struct wacom_features wacom_features_0x315 =
 	{ "Wacom Intuos Pro M", WACOM_PKGLEN_INTUOS,  44704, 27940, 2047,
 	  63, INTUOSPM, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES,
-	  .touch_max = 16 };
+	  .touch_max = 16,
+	  .check_for_hid_type = true, .hid_type = HID_TYPE_USBNONE };
 static const struct wacom_features wacom_features_0x317 =
 	{ "Wacom Intuos Pro L", WACOM_PKGLEN_INTUOS,  65024, 40640, 2047,
 	  63, INTUOSPL, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES,
-	  .touch_max = 16 };
+	  .touch_max = 16,
+	  .check_for_hid_type = true, .hid_type = HID_TYPE_USBNONE };
 static const struct wacom_features wacom_features_0xF4 =
 	{ "Wacom Cintiq 24HD",       WACOM_PKGLEN_INTUOS,   104280, 65400, 2047,
 	  63, WACOM_24HD, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 200, 200 };
@@ -2215,7 +2218,8 @@ static const struct wacom_features wacom_features_0xF8 =
 	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0xf6 };
 static const struct wacom_features wacom_features_0xF6 =
 	{ "Wacom Cintiq 24HD touch", .type = WACOM_24HDT, /* Touch */
-	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0xf8, .touch_max = 10 };
+	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0xf8, .touch_max = 10,
+	  .check_for_hid_type = true, .hid_type = HID_TYPE_USBNONE };
 static const struct wacom_features wacom_features_0x3F =
 	{ "Wacom Cintiq 21UX",    WACOM_PKGLEN_INTUOS,    87200, 65600, 1023,
 	  63, CINTIQ, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES };
@@ -2233,7 +2237,8 @@ static const struct wacom_features wacom_features_0xC7 =
 	  0, PL, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0xCE =
 	{ "Wacom DTU2231",        WACOM_PKGLEN_GRAPHIRE,  47864, 27011,  511,
-	  0, DTU, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+	  0, DTU, WACOM_INTUOS_RES, WACOM_INTUOS_RES,
+	  .check_for_hid_type = true, .hid_type = HID_TYPE_USBMOUSE };
 static const struct wacom_features wacom_features_0xF0 =
 	{ "Wacom DTU1631",        WACOM_PKGLEN_GRAPHIRE,  34623, 19553,  511,
 	  0, DTU, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
@@ -2249,7 +2254,8 @@ static const struct wacom_features wacom_features_0x59 = /* Pen */
 	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x5D };
 static const struct wacom_features wacom_features_0x5D = /* Touch */
 	{ "Wacom DTH2242",       .type = WACOM_24HDT,
-	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x59, .touch_max = 10 };
+	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x59, .touch_max = 10,
+	  .check_for_hid_type = true, .hid_type = HID_TYPE_USBNONE };
 static const struct wacom_features wacom_features_0xCC =
 	{ "Wacom Cintiq 21UX2",   WACOM_PKGLEN_INTUOS,    87000, 65400, 2047,
 	  63, WACOM_21UX2, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 200, 200 };
@@ -2262,7 +2268,8 @@ static const struct wacom_features wacom_features_0x5B =
 	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x5e };
 static const struct wacom_features wacom_features_0x5E =
 	{ "Wacom Cintiq 22HDT", .type = WACOM_24HDT,
-	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x5b, .touch_max = 10 };
+	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x5b, .touch_max = 10,
+	  .check_for_hid_type = true, .hid_type = HID_TYPE_USBNONE };
 static const struct wacom_features wacom_features_0x90 =
 	{ "Wacom ISDv4 90",       WACOM_PKGLEN_GRAPHIRE,  26202, 16325,  255,
 	  0, TABLETPC, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
@@ -2400,14 +2407,17 @@ static const struct wacom_features wacom_features_0x301 =
 static const struct wacom_features wacom_features_0x302 =
 	{ "Wacom Intuos PT S",     WACOM_PKGLEN_BBPEN,    15200,  9500, 1023,
 	  31, INTUOSHT, WACOM_INTUOS_RES, WACOM_INTUOS_RES,
-	  .touch_max = 16 };
+	  .touch_max = 16,
+	  .check_for_hid_type = true, .hid_type = HID_TYPE_USBNONE };
 static const struct wacom_features wacom_features_0x303 =
 	{ "Wacom Intuos PT M",     WACOM_PKGLEN_BBPEN,    21600, 13500, 1023,
 	  31, INTUOSHT, WACOM_INTUOS_RES, WACOM_INTUOS_RES,
-	  .touch_max = 16 };
+	  .touch_max = 16,
+	  .check_for_hid_type = true, .hid_type = HID_TYPE_USBNONE };
 static const struct wacom_features wacom_features_0x30E =
 	{ "Wacom Intuos S",        WACOM_PKGLEN_BBPEN,    15200,  9500, 1023,
-	  31, INTUOSHT, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+	  31, INTUOSHT, WACOM_INTUOS_RES, WACOM_INTUOS_RES,
+	  .check_for_hid_type = true, .hid_type = HID_TYPE_USBNONE };
 static const struct wacom_features wacom_features_0x6004 =
 	{ "ISD-V4",               WACOM_PKGLEN_GRAPHIRE,  12800,  8000,  255,
 	  0, TABLETPC, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
@@ -2417,22 +2427,18 @@ static const struct wacom_features wacom_features_0x0307 =
 	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x309 };
 static const struct wacom_features wacom_features_0x0309 =
 	{ "Wacom ISDv5 309", .type = WACOM_24HDT, /* Touch */
-	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x0307, .touch_max = 10 };
+	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x0307, .touch_max = 10,
+	  .check_for_hid_type = true, .hid_type = HID_TYPE_USBNONE };
 
-#define USB_DEVICE_WACOM(prod)					\
-	USB_DEVICE(USB_VENDOR_ID_WACOM, prod),			\
-	.driver_info = (kernel_ulong_t)&wacom_features_##prod
-
-#define USB_DEVICE_DETAILED(prod, class, sub, proto)			\
-	USB_DEVICE_AND_INTERFACE_INFO(USB_VENDOR_ID_WACOM, prod, class,	\
-				      sub, proto),			\
-	.driver_info = (kernel_ulong_t)&wacom_features_##prod
+#define USB_DEVICE_WACOM(prod)						\
+	HID_DEVICE(BUS_USB, HID_GROUP_WACOM, USB_VENDOR_ID_WACOM, prod),\
+	.driver_data = (kernel_ulong_t)&wacom_features_##prod
 
 #define USB_DEVICE_LENOVO(prod)					\
-	USB_DEVICE(USB_VENDOR_ID_LENOVO, prod),			\
-	.driver_info = (kernel_ulong_t)&wacom_features_##prod
+	HID_USB_DEVICE(USB_VENDOR_ID_LENOVO, prod),			\
+	.driver_data = (kernel_ulong_t)&wacom_features_##prod
 
-const struct usb_device_id wacom_ids[] = {
+const struct hid_device_id wacom_ids[] = {
 	{ USB_DEVICE_WACOM(0x00) },
 	{ USB_DEVICE_WACOM(0x10) },
 	{ USB_DEVICE_WACOM(0x11) },
@@ -2478,9 +2484,9 @@ const struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE_WACOM(0x45) },
 	{ USB_DEVICE_WACOM(0x57) },
 	{ USB_DEVICE_WACOM(0x59) },
-	{ USB_DEVICE_DETAILED(0x5D, USB_CLASS_HID, 0, 0) },
+	{ USB_DEVICE_WACOM(0x5D) },
 	{ USB_DEVICE_WACOM(0x5B) },
-	{ USB_DEVICE_DETAILED(0x5E, USB_CLASS_HID, 0, 0) },
+	{ USB_DEVICE_WACOM(0x5E) },
 	{ USB_DEVICE_WACOM(0xB0) },
 	{ USB_DEVICE_WACOM(0xB1) },
 	{ USB_DEVICE_WACOM(0xB2) },
@@ -2502,13 +2508,7 @@ const struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE_WACOM(0xC5) },
 	{ USB_DEVICE_WACOM(0xC6) },
 	{ USB_DEVICE_WACOM(0xC7) },
-	/*
-	 * DTU-2231 has two interfaces on the same configuration,
-	 * only one is used.
-	 */
-	{ USB_DEVICE_DETAILED(0xCE, USB_CLASS_HID,
-			      USB_INTERFACE_SUBCLASS_BOOT,
-			      USB_INTERFACE_PROTOCOL_MOUSE) },
+	{ USB_DEVICE_WACOM(0xCE) },
 	{ USB_DEVICE_WACOM(0x84) },
 	{ USB_DEVICE_WACOM(0xD0) },
 	{ USB_DEVICE_WACOM(0xD1) },
@@ -2546,13 +2546,13 @@ const struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE_WACOM(0x116) },
 	{ USB_DEVICE_WACOM(0x300) },
 	{ USB_DEVICE_WACOM(0x301) },
-	{ USB_DEVICE_DETAILED(0x302, USB_CLASS_HID, 0, 0) },
-	{ USB_DEVICE_DETAILED(0x303, USB_CLASS_HID, 0, 0) },
-	{ USB_DEVICE_DETAILED(0x30E, USB_CLASS_HID, 0, 0) },
+	{ USB_DEVICE_WACOM(0x302) },
+	{ USB_DEVICE_WACOM(0x303) },
+	{ USB_DEVICE_WACOM(0x30E) },
 	{ USB_DEVICE_WACOM(0x304) },
-	{ USB_DEVICE_DETAILED(0x314, USB_CLASS_HID, 0, 0) },
-	{ USB_DEVICE_DETAILED(0x315, USB_CLASS_HID, 0, 0) },
-	{ USB_DEVICE_DETAILED(0x317, USB_CLASS_HID, 0, 0) },
+	{ USB_DEVICE_WACOM(0x314) },
+	{ USB_DEVICE_WACOM(0x315) },
+	{ USB_DEVICE_WACOM(0x317) },
 	{ USB_DEVICE_WACOM(0x4001) },
 	{ USB_DEVICE_WACOM(0x4004) },
 	{ USB_DEVICE_WACOM(0x5000) },
@@ -2560,12 +2560,12 @@ const struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE_WACOM(0x47) },
 	{ USB_DEVICE_WACOM(0xF4) },
 	{ USB_DEVICE_WACOM(0xF8) },
-	{ USB_DEVICE_DETAILED(0xF6, USB_CLASS_HID, 0, 0) },
+	{ USB_DEVICE_WACOM(0xF6) },
 	{ USB_DEVICE_WACOM(0xFA) },
 	{ USB_DEVICE_WACOM(0xFB) },
 	{ USB_DEVICE_WACOM(0x0307) },
-	{ USB_DEVICE_DETAILED(0x0309, USB_CLASS_HID, 0, 0) },
+	{ USB_DEVICE_WACOM(0x0309) },
 	{ USB_DEVICE_LENOVO(0x6004) },
 	{ }
 };
-MODULE_DEVICE_TABLE(usb, wacom_ids);
+MODULE_DEVICE_TABLE(hid, wacom_ids);

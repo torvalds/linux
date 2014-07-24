@@ -311,6 +311,11 @@ struct hid_item {
 #define HID_GROUP_RMI				0x0100
 
 /*
+ * Vendor specific HID device groups
+ */
+#define HID_GROUP_WACOM				0x0101
+
+/*
  * This is the global environment of the parser. This information is
  * persistent for main-items. The global environment can be saved and
  * restored with PUSH/POP statements.

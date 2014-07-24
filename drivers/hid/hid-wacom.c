@@ -960,7 +960,7 @@ static const struct hid_device_id wacom_devices[] = {
 MODULE_DEVICE_TABLE(hid, wacom_devices);
 
 static struct hid_driver wacom_driver = {
-	.name = "wacom",
+	.name = "hid-wacom",
 	.id_table = wacom_devices,
 	.probe = wacom_probe,
 	.remove = wacom_remove,
