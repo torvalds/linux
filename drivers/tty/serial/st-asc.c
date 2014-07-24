@@ -527,12 +527,12 @@ static void asc_set_termios(struct uart_port *port, struct ktermios *termios,
 		 * ASCBaudRate =   ------------------------
 		 *                          inputclock
 		 *
-		 * However to keep the maths inside 32bits we divide top and
-		 * bottom by 64. The +1 is to avoid a divide by zero if the
-		 * input clock rate is something unexpected.
+		 * To keep maths inside 64bits, we divide inputclock by 16.
 		 */
-		u32 counter = (baud * 16384) / ((port->uartclk / 64) + 1);
-		asc_out(port, ASC_BAUDRATE, counter);
+		u64 dividend = (u64)baud * (1 << 16);
+
+		do_div(dividend, port->uartclk / 16);
+		asc_out(port, ASC_BAUDRATE, dividend);
 		ctrl_val |= ASC_CTL_BAUDMODE;
 	}
 
