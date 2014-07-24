@@ -206,49 +206,6 @@ static void ni_tio_reset_count_and_disarm(struct ni_gpct *counter)
 	write_register(counter, Gi_Reset_Bit(cidx), NITIO_RESET_REG(cidx));
 }
 
-void ni_tio_init_counter(struct ni_gpct *counter)
-{
-	struct ni_gpct_device *counter_dev = counter->counter_dev;
-	unsigned cidx = counter->counter_index;
-
-	ni_tio_reset_count_and_disarm(counter);
-
-	/* initialize counter registers */
-	counter_dev->regs[NITIO_AUTO_INC_REG(cidx)] = 0x0;
-	write_register(counter, counter_dev->regs[NITIO_AUTO_INC_REG(cidx)],
-		       NITIO_AUTO_INC_REG(cidx));
-
-	ni_tio_set_bits(counter, NITIO_CMD_REG(cidx),
-			~0, Gi_Synchronize_Gate_Bit);
-
-	ni_tio_set_bits(counter, NITIO_MODE_REG(cidx), ~0, 0);
-
-	counter_dev->regs[NITIO_LOADA_REG(cidx)] = 0x0;
-	write_register(counter, counter_dev->regs[NITIO_LOADA_REG(cidx)],
-		       NITIO_LOADA_REG(cidx));
-
-	counter_dev->regs[NITIO_LOADB_REG(cidx)] = 0x0;
-	write_register(counter, counter_dev->regs[NITIO_LOADB_REG(cidx)],
-		       NITIO_LOADB_REG(cidx));
-
-	ni_tio_set_bits(counter, NITIO_INPUT_SEL_REG(cidx), ~0, 0);
-
-	if (ni_tio_counting_mode_registers_present(counter_dev))
-		ni_tio_set_bits(counter, NITIO_CNT_MODE_REG(cidx), ~0, 0);
-
-	if (ni_tio_second_gate_registers_present(counter_dev)) {
-		counter_dev->regs[NITIO_GATE2_REG(cidx)] = 0x0;
-		write_register(counter,
-			       counter_dev->regs[NITIO_GATE2_REG(cidx)],
-			       NITIO_GATE2_REG(cidx));
-	}
-
-	ni_tio_set_bits(counter, NITIO_DMA_CFG_REG(cidx), ~0, 0x0);
-
-	ni_tio_set_bits(counter, NITIO_INT_ENA_REG(cidx), ~0, 0x0);
-}
-EXPORT_SYMBOL_GPL(ni_tio_init_counter);
-
 static unsigned int ni_tio_counter_status(struct ni_gpct *counter)
 {
 	unsigned cidx = counter->counter_index;
@@ -1474,6 +1431,44 @@ int ni_tio_insn_write(struct comedi_device *dev,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ni_tio_insn_write);
+
+void ni_tio_init_counter(struct ni_gpct *counter)
+{
+	struct ni_gpct_device *counter_dev = counter->counter_dev;
+	unsigned cidx = counter->counter_index;
+
+	ni_tio_reset_count_and_disarm(counter);
+
+	/* initialize counter registers */
+	counter_dev->regs[NITIO_AUTO_INC_REG(cidx)] = 0x0;
+	write_register(counter, 0x0, NITIO_AUTO_INC_REG(cidx));
+
+	ni_tio_set_bits(counter, NITIO_CMD_REG(cidx),
+			~0, Gi_Synchronize_Gate_Bit);
+
+	ni_tio_set_bits(counter, NITIO_MODE_REG(cidx), ~0, 0);
+
+	counter_dev->regs[NITIO_LOADA_REG(cidx)] = 0x0;
+	write_register(counter, 0x0, NITIO_LOADA_REG(cidx));
+
+	counter_dev->regs[NITIO_LOADB_REG(cidx)] = 0x0;
+	write_register(counter, 0x0, NITIO_LOADB_REG(cidx));
+
+	ni_tio_set_bits(counter, NITIO_INPUT_SEL_REG(cidx), ~0, 0);
+
+	if (ni_tio_counting_mode_registers_present(counter_dev))
+		ni_tio_set_bits(counter, NITIO_CNT_MODE_REG(cidx), ~0, 0);
+
+	if (ni_tio_second_gate_registers_present(counter_dev)) {
+		counter_dev->regs[NITIO_GATE2_REG(cidx)] = 0x0;
+		write_register(counter, 0x0, NITIO_GATE2_REG(cidx));
+	}
+
+	ni_tio_set_bits(counter, NITIO_DMA_CFG_REG(cidx), ~0, 0x0);
+
+	ni_tio_set_bits(counter, NITIO_INT_ENA_REG(cidx), ~0, 0x0);
+}
+EXPORT_SYMBOL_GPL(ni_tio_init_counter);
 
 struct ni_gpct_device *
 ni_gpct_device_construct(struct comedi_device *dev,
