@@ -2208,6 +2208,14 @@ static int ftrace_save_ops_tramp_hash(struct ftrace_ops *ops)
 		if (ftrace_rec_count(rec) == 1 &&
 		    ftrace_ops_test(ops, rec->ip, rec)) {
 
+			/*
+			 * If another ops adds to a rec, the rec will
+			 * lose its trampoline and never get it back
+			 * until all ops are off of it.
+			 */
+			if (!(rec->flags & FTRACE_FL_TRAMP))
+				continue;
+
 			/* This record had better have a trampoline */
 			if (FTRACE_WARN_ON(!(rec->flags & FTRACE_FL_TRAMP_EN)))
 				return -1;
