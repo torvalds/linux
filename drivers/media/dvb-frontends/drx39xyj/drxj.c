@@ -11315,6 +11315,7 @@ rw_error:
 static int drx_ctrl_u_code(struct drx_demod_instance *demod,
 		       struct drxu_code_info *mc_info,
 		       enum drxu_code_action action);
+static int drxj_set_lna_state(struct drx_demod_instance *demod, bool state);
 
 /**
 * \fn drxj_open()
@@ -11527,6 +11528,7 @@ static int drxj_open(struct drx_demod_instance *demod)
 	ext_attr->aud_data = drxj_default_aud_data_g;
 
 	demod->my_common_attr->is_opened = true;
+	drxj_set_lna_state(demod, false);
 	return 0;
 rw_error:
 	common_attr->is_opened = false;
@@ -11890,6 +11892,33 @@ release:
 	return rc;
 }
 
+/* caller is expeced to check if lna is supported before enabling */
+static int drxj_set_lna_state(struct drx_demod_instance *demod, bool state)
+{
+	struct drxuio_cfg uio_cfg;
+	struct drxuio_data uio_data;
+	int result;
+
+	uio_cfg.uio = DRX_UIO1;
+	uio_cfg.mode = DRX_UIO_MODE_READWRITE;
+	/* Configure user-I/O #3: enable read/write */
+	result = ctrl_set_uio_cfg(demod, &uio_cfg);
+	if (result) {
+		pr_err("Failed to setup LNA GPIO!\n");
+		return result;
+	}
+
+	uio_data.uio = DRX_UIO1;
+	uio_data.value = state;
+	result = ctrl_uio_write(demod, &uio_data);
+	if (result != 0) {
+		pr_err("Failed to %sable LNA!\n",
+		       state ? "en" : "dis");
+		return result;
+	}
+	return 0;
+}
+
 /*
  * The Linux DVB Driver for Micronas DRX39xx family (drx3933j)
  *
@@ -12180,10 +12209,20 @@ static int drx39xxj_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
 
 static int drx39xxj_init(struct dvb_frontend *fe)
 {
-	/* Bring the demod out of sleep */
-	drx39xxj_set_powerstate(fe, 1);
+	struct drx39xxj_state *state = fe->demodulator_priv;
+	struct drx_demod_instance *demod = state->demod;
+	int rc = 0;
 
-	return 0;
+	if (fe->exit == DVB_FE_DEVICE_RESUME) {
+		/* so drxj_open() does what it needs to do */
+		demod->my_common_attr->is_opened = false;
+		rc = drxj_open(demod);
+		if (rc != 0)
+			pr_err("drx39xxj_init(): DRX open failed rc=%d!\n", rc);
+	} else
+		drx39xxj_set_powerstate(fe, 1);
+
+	return rc;
 }
 
 static int drx39xxj_set_lna(struct dvb_frontend *fe)
@@ -12261,8 +12300,6 @@ struct dvb_frontend *drx39xxj_attach(struct i2c_adapter *i2c)
 	struct drxj_data *demod_ext_attr = NULL;
 	struct drx_demod_instance *demod = NULL;
 	struct dtv_frontend_properties *p;
-	struct drxuio_cfg uio_cfg;
-	struct drxuio_data uio_data;
 	int result;
 
 	/* allocate memory for the internal state */
@@ -12310,24 +12347,6 @@ struct dvb_frontend *drx39xxj_attach(struct i2c_adapter *i2c)
 	result = drxj_open(demod);
 	if (result != 0) {
 		pr_err("DRX open failed!  Aborting\n");
-		goto error;
-	}
-
-	/* Turn off the LNA */
-	uio_cfg.uio = DRX_UIO1;
-	uio_cfg.mode = DRX_UIO_MODE_READWRITE;
-	/* Configure user-I/O #3: enable read/write */
-	result = ctrl_set_uio_cfg(demod, &uio_cfg);
-	if (result) {
-		pr_err("Failed to setup LNA GPIO!\n");
-		goto error;
-	}
-
-	uio_data.uio = DRX_UIO1;
-	uio_data.value = false;
-	result = ctrl_uio_write(demod, &uio_data);
-	if (result != 0) {
-		pr_err("Failed to disable LNA!\n");
 		goto error;
 	}
 
