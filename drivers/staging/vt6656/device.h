@@ -264,9 +264,6 @@ enum {
 /* flags for options */
 #define     DEVICE_FLAGS_UNPLUG          0x00000001UL
 
-/* flags for driver status */
-#define     DEVICE_FLAGS_OPENED          0x00010000UL
-
 struct vnt_private {
 	/* mac80211 */
 	struct ieee80211_hw *hw;

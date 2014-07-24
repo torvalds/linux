@@ -562,8 +562,6 @@ static int vnt_start(struct ieee80211_hw *hw)
 
 	vnt_int_start_interrupt(priv);
 
-	priv->flags |= DEVICE_FLAGS_OPENED;
-
 	ieee80211_wake_queues(hw);
 
 	return 0;
@@ -603,8 +601,6 @@ static void vnt_stop(struct ieee80211_hw *hw)
 	cancel_delayed_work_sync(&priv->run_command_work);
 
 	priv->cmd_running = false;
-
-	priv->flags &= ~DEVICE_FLAGS_OPENED;
 
 	device_free_tx_bufs(priv);
 	device_free_rx_bufs(priv);
