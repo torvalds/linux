@@ -135,6 +135,9 @@ static int wacom_open(struct input_dev *dev)
 
 	mutex_lock(&wacom->lock);
 
+	if (wacom->open)
+		goto out;
+
 	if (usb_submit_urb(wacom->irq, GFP_KERNEL)) {
 		retval = -EIO;
 		goto out;
@@ -157,9 +160,14 @@ static void wacom_close(struct input_dev *dev)
 	autopm_error = usb_autopm_get_interface(wacom->intf);
 
 	mutex_lock(&wacom->lock);
+	if (!wacom->open)
+		goto out;
+
 	usb_kill_urb(wacom->irq);
 	wacom->open = false;
 	wacom->intf->needs_remote_wakeup = 0;
+
+out:
 	mutex_unlock(&wacom->lock);
 
 	if (!autopm_error)
@@ -1112,19 +1120,16 @@ static void wacom_destroy_battery(struct wacom *wacom)
 	}
 }
 
-static int wacom_register_input(struct wacom *wacom)
+static struct input_dev *wacom_allocate_input(struct wacom *wacom)
 {
 	struct input_dev *input_dev;
 	struct usb_interface *intf = wacom->intf;
 	struct usb_device *dev = interface_to_usbdev(intf);
 	struct wacom_wac *wacom_wac = &(wacom->wacom_wac);
-	int error;
 
 	input_dev = input_allocate_device();
-	if (!input_dev) {
-		error = -ENOMEM;
-		goto fail1;
-	}
+	if (!input_dev)
+		return NULL;
 
 	input_dev->name = wacom_wac->name;
 	input_dev->phys = wacom->phys;
@@ -1134,21 +1139,59 @@ static int wacom_register_input(struct wacom *wacom)
 	usb_to_input_id(dev, &input_dev->id);
 	input_set_drvdata(input_dev, wacom);
 
+	return input_dev;
+}
+
+static int wacom_register_input(struct wacom *wacom)
+{
+	struct input_dev *input_dev, *pad_input_dev;
+	struct wacom_wac *wacom_wac = &(wacom->wacom_wac);
+	int error;
+
+	input_dev = wacom_allocate_input(wacom);
+	pad_input_dev = wacom_allocate_input(wacom);
+	if (!input_dev || !pad_input_dev) {
+		error = -ENOMEM;
+		goto fail1;
+	}
+
 	wacom_wac->input = input_dev;
+	wacom_wac->pad_input = pad_input_dev;
+	wacom_wac->pad_input->name = wacom_wac->pad_name;
+
 	error = wacom_setup_input_capabilities(input_dev, wacom_wac);
 	if (error)
-		goto fail1;
+		goto fail2;
 
 	error = input_register_device(input_dev);
 	if (error)
 		goto fail2;
 
+	error = wacom_setup_pad_input_capabilities(pad_input_dev, wacom_wac);
+	if (error) {
+		/* no pad in use on this interface */
+		input_free_device(pad_input_dev);
+		wacom_wac->pad_input = NULL;
+		pad_input_dev = NULL;
+	} else {
+		error = input_register_device(pad_input_dev);
+		if (error)
+			goto fail3;
+	}
+
 	return 0;
 
+fail3:
+	input_unregister_device(input_dev);
+	input_dev = NULL;
 fail2:
-	input_free_device(input_dev);
 	wacom_wac->input = NULL;
+	wacom_wac->pad_input = NULL;
 fail1:
+	if (input_dev)
+		input_free_device(input_dev);
+	if (pad_input_dev)
+		input_free_device(pad_input_dev);
 	return error;
 }
 
@@ -1367,6 +1410,8 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 	wacom_calculate_res(features);
 
 	strlcpy(wacom_wac->name, features->name, sizeof(wacom_wac->name));
+	snprintf(wacom_wac->pad_name, sizeof(wacom_wac->pad_name),
+		"%s Pad", features->name);
 
 	if (features->quirks & WACOM_QUIRK_MULTI_INPUT) {
 		struct usb_device *other_dev;
@@ -1441,6 +1486,8 @@ static void wacom_disconnect(struct usb_interface *intf)
 	cancel_work_sync(&wacom->work);
 	if (wacom->wacom_wac.input)
 		input_unregister_device(wacom->wacom_wac.input);
+	if (wacom->wacom_wac.pad_input)
+		input_unregister_device(wacom->wacom_wac.pad_input);
 	wacom_destroy_battery(wacom);
 	wacom_destroy_leds(wacom);
 	usb_free_urb(wacom->irq);

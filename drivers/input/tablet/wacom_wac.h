@@ -150,6 +150,7 @@ struct wacom_shared {
 
 struct wacom_wac {
 	char name[WACOM_NAME_MAX];
+	char pad_name[WACOM_NAME_MAX];
 	unsigned char *data;
 	int tool[2];
 	int id[2];
@@ -157,6 +158,7 @@ struct wacom_wac {
 	struct wacom_features features;
 	struct wacom_shared *shared;
 	struct input_dev *input;
+	struct input_dev *pad_input;
 	int pid;
 	int battery_capacity;
 	int num_contacts_left;

@@ -1489,8 +1489,11 @@ void wacom_wac_irq(struct wacom_wac *wacom_wac, size_t len)
 		break;
 	}
 
-	if (sync)
+	if (sync) {
 		input_sync(wacom_wac->input);
+		if (wacom_wac->pad_input)
+			input_sync(wacom_wac->pad_input);
+	}
 }
 
 static void wacom_setup_cintiq(struct wacom_wac *wacom_wac)
@@ -1935,6 +1938,28 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 
 		wacom_setup_cintiq(wacom_wac);
 		break;
+	}
+	return 0;
+}
+
+int wacom_setup_pad_input_capabilities(struct input_dev *input_dev,
+				   struct wacom_wac *wacom_wac)
+{
+	struct wacom_features *features = &wacom_wac->features;
+
+	input_dev->evbit[0] |= BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
+
+	/* kept for making legacy xf86-input-wacom working with the wheels */
+	__set_bit(ABS_MISC, input_dev->absbit);
+
+	/* kept for making legacy xf86-input-wacom accepting the pad */
+	input_set_abs_params(input_dev, ABS_X, 0, 1, 0, 0);
+	input_set_abs_params(input_dev, ABS_Y, 0, 1, 0, 0);
+
+	switch (features->type) {
+	default:
+		/* no pad supported */
+		return 1;
 	}
 	return 0;
 }
