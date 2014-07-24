@@ -190,7 +190,7 @@ static netdev_tx_t brcmf_netdev_start_xmit(struct sk_buff *skb,
 	int ret;
 	struct brcmf_if *ifp = netdev_priv(ndev);
 	struct brcmf_pub *drvr = ifp->drvr;
-	struct ethhdr *eh;
+	struct ethhdr *eh = (struct ethhdr *)(skb->data);
 
 	brcmf_dbg(DATA, "Enter, idx=%d\n", ifp->bssidx);
 
@@ -235,6 +235,9 @@ static netdev_tx_t brcmf_netdev_start_xmit(struct sk_buff *skb,
 		dev_kfree_skb(skb);
 		goto done;
 	}
+
+	if (eh->h_proto == htons(ETH_P_PAE))
+		atomic_inc(&ifp->pend_8021x_cnt);
 
 	ret = brcmf_fws_process_skb(ifp, skb);
 
@@ -538,31 +541,26 @@ void brcmf_rx_frame(struct device *dev, struct sk_buff *skb)
 		brcmf_netif_rx(ifp, skb);
 }
 
-void brcmf_txfinalize(struct brcmf_pub *drvr, struct sk_buff *txp,
+void brcmf_txfinalize(struct brcmf_pub *drvr, struct sk_buff *txp, u8 ifidx,
 		      bool success)
 {
 	struct brcmf_if *ifp;
 	struct ethhdr *eh;
-	u8 ifidx;
 	u16 type;
-	int res;
-
-	res = brcmf_proto_hdrpull(drvr, false, &ifidx, txp);
 
 	ifp = drvr->iflist[ifidx];
 	if (!ifp)
 		goto done;
 
-	if (res == 0) {
-		eh = (struct ethhdr *)(txp->data);
-		type = ntohs(eh->h_proto);
+	eh = (struct ethhdr *)(txp->data);
+	type = ntohs(eh->h_proto);
 
-		if (type == ETH_P_PAE) {
-			atomic_dec(&ifp->pend_8021x_cnt);
-			if (waitqueue_active(&ifp->pend_8021x_wait))
-				wake_up(&ifp->pend_8021x_wait);
-		}
+	if (type == ETH_P_PAE) {
+		atomic_dec(&ifp->pend_8021x_cnt);
+		if (waitqueue_active(&ifp->pend_8021x_wait))
+			wake_up(&ifp->pend_8021x_wait);
 	}
+
 	if (!success)
 		ifp->stats.tx_errors++;
 done:
@@ -573,13 +571,17 @@ void brcmf_txcomplete(struct device *dev, struct sk_buff *txp, bool success)
 {
 	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
 	struct brcmf_pub *drvr = bus_if->drvr;
+	u8 ifidx;
 
 	/* await txstatus signal for firmware if active */
 	if (brcmf_fws_fc_active(drvr->fws)) {
 		if (!success)
 			brcmf_fws_bustxfail(drvr->fws, txp);
 	} else {
-		brcmf_txfinalize(drvr, txp, success);
+		if (brcmf_proto_hdrpull(drvr, false, &ifidx, txp))
+			brcmu_pkt_buf_free_skb(txp);
+		else
+			brcmf_txfinalize(drvr, txp, ifidx, success);
 	}
 }
 
@@ -913,13 +915,6 @@ int brcmf_bus_start(struct device *dev)
 	struct brcmf_if *p2p_ifp;
 
 	brcmf_dbg(TRACE, "\n");
-
-	/* Bring up the bus */
-	ret = brcmf_bus_init(bus_if);
-	if (ret != 0) {
-		brcmf_err("brcmf_sdbrcm_bus_init failed %d\n", ret);
-		return ret;
-	}
 
 	/* add primary networking interface */
 	ifp = brcmf_add_if(drvr, 0, 0, "wlan%d", NULL);

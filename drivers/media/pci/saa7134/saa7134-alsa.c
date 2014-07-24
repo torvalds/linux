@@ -27,6 +27,7 @@
 #include <sound/pcm_params.h>
 #include <sound/initval.h>
 #include <linux/interrupt.h>
+#include <linux/vmalloc.h>
 
 #include "saa7134.h"
 #include "saa7134-reg.h"
@@ -274,6 +275,82 @@ static int snd_card_saa7134_capture_trigger(struct snd_pcm_substream * substream
 	return err;
 }
 
+static int saa7134_alsa_dma_init(struct saa7134_dev *dev, int nr_pages)
+{
+	struct saa7134_dmasound *dma = &dev->dmasound;
+	struct page *pg;
+	int i;
+
+	dma->vaddr = vmalloc_32(nr_pages << PAGE_SHIFT);
+	if (NULL == dma->vaddr) {
+		dprintk("vmalloc_32(%d pages) failed\n", nr_pages);
+		return -ENOMEM;
+	}
+
+	dprintk("vmalloc is at addr 0x%08lx, size=%d\n",
+				(unsigned long)dma->vaddr,
+				nr_pages << PAGE_SHIFT);
+
+	memset(dma->vaddr, 0, nr_pages << PAGE_SHIFT);
+	dma->nr_pages = nr_pages;
+
+	dma->sglist = vzalloc(dma->nr_pages * sizeof(*dma->sglist));
+	if (NULL == dma->sglist)
+		goto vzalloc_err;
+
+	sg_init_table(dma->sglist, dma->nr_pages);
+	for (i = 0; i < dma->nr_pages; i++) {
+		pg = vmalloc_to_page(dma->vaddr + i * PAGE_SIZE);
+		if (NULL == pg)
+			goto vmalloc_to_page_err;
+		sg_set_page(&dma->sglist[i], pg, PAGE_SIZE, 0);
+	}
+	return 0;
+
+vmalloc_to_page_err:
+	vfree(dma->sglist);
+	dma->sglist = NULL;
+vzalloc_err:
+	vfree(dma->vaddr);
+	dma->vaddr = NULL;
+	return -ENOMEM;
+}
+
+static int saa7134_alsa_dma_map(struct saa7134_dev *dev)
+{
+	struct saa7134_dmasound *dma = &dev->dmasound;
+
+	dma->sglen = dma_map_sg(&dev->pci->dev, dma->sglist,
+			dma->nr_pages, PCI_DMA_FROMDEVICE);
+
+	if (0 == dma->sglen) {
+		pr_warn("%s: saa7134_alsa_map_sg failed\n", __func__);
+		return -ENOMEM;
+	}
+	return 0;
+}
+
+static int saa7134_alsa_dma_unmap(struct saa7134_dev *dev)
+{
+	struct saa7134_dmasound *dma = &dev->dmasound;
+
+	if (!dma->sglen)
+		return 0;
+
+	dma_unmap_sg(&dev->pci->dev, dma->sglist, dma->sglen, PCI_DMA_FROMDEVICE);
+	dma->sglen = 0;
+	return 0;
+}
+
+static int saa7134_alsa_dma_free(struct saa7134_dmasound *dma)
+{
+	vfree(dma->sglist);
+	dma->sglist = NULL;
+	vfree(dma->vaddr);
+	dma->vaddr = NULL;
+	return 0;
+}
+
 /*
  * DMA buffer initialization
  *
@@ -291,9 +368,8 @@ static int dsp_buffer_init(struct saa7134_dev *dev)
 
 	BUG_ON(!dev->dmasound.bufsize);
 
-	videobuf_dma_init(&dev->dmasound.dma);
-	err = videobuf_dma_init_kernel(&dev->dmasound.dma, PCI_DMA_FROMDEVICE,
-				       (dev->dmasound.bufsize + PAGE_SIZE) >> PAGE_SHIFT);
+	err = saa7134_alsa_dma_init(dev,
+			       (dev->dmasound.bufsize + PAGE_SIZE) >> PAGE_SHIFT);
 	if (0 != err)
 		return err;
 	return 0;
@@ -310,7 +386,7 @@ static int dsp_buffer_free(struct saa7134_dev *dev)
 {
 	BUG_ON(!dev->dmasound.blksize);
 
-	videobuf_dma_free(&dev->dmasound.dma);
+	saa7134_alsa_dma_free(&dev->dmasound);
 
 	dev->dmasound.blocks  = 0;
 	dev->dmasound.blksize = 0;
@@ -632,7 +708,7 @@ static int snd_card_saa7134_hw_params(struct snd_pcm_substream * substream,
 	/* release the old buffer */
 	if (substream->runtime->dma_area) {
 		saa7134_pgtable_free(dev->pci, &dev->dmasound.pt);
-		videobuf_dma_unmap(&dev->pci->dev, &dev->dmasound.dma);
+		saa7134_alsa_dma_unmap(dev);
 		dsp_buffer_free(dev);
 		substream->runtime->dma_area = NULL;
 	}
@@ -648,21 +724,22 @@ static int snd_card_saa7134_hw_params(struct snd_pcm_substream * substream,
 		return err;
 	}
 
-	if (0 != (err = videobuf_dma_map(&dev->pci->dev, &dev->dmasound.dma))) {
+	err = saa7134_alsa_dma_map(dev);
+	if (err) {
 		dsp_buffer_free(dev);
 		return err;
 	}
-	if (0 != (err = saa7134_pgtable_alloc(dev->pci,&dev->dmasound.pt))) {
-		videobuf_dma_unmap(&dev->pci->dev, &dev->dmasound.dma);
+	err = saa7134_pgtable_alloc(dev->pci, &dev->dmasound.pt);
+	if (err) {
+		saa7134_alsa_dma_unmap(dev);
 		dsp_buffer_free(dev);
 		return err;
 	}
-	if (0 != (err = saa7134_pgtable_build(dev->pci,&dev->dmasound.pt,
-						dev->dmasound.dma.sglist,
-						dev->dmasound.dma.sglen,
-						0))) {
+	err = saa7134_pgtable_build(dev->pci, &dev->dmasound.pt,
+				dev->dmasound.sglist, dev->dmasound.sglen, 0);
+	if (err) {
 		saa7134_pgtable_free(dev->pci, &dev->dmasound.pt);
-		videobuf_dma_unmap(&dev->pci->dev, &dev->dmasound.dma);
+		saa7134_alsa_dma_unmap(dev);
 		dsp_buffer_free(dev);
 		return err;
 	}
@@ -671,7 +748,7 @@ static int snd_card_saa7134_hw_params(struct snd_pcm_substream * substream,
 	   byte, but it doesn't work. So I allocate the DMA using the
 	   V4L functions, and force ALSA to use that as the DMA area */
 
-	substream->runtime->dma_area = dev->dmasound.dma.vaddr;
+	substream->runtime->dma_area = dev->dmasound.vaddr;
 	substream->runtime->dma_bytes = dev->dmasound.bufsize;
 	substream->runtime->dma_addr = 0;
 
@@ -698,7 +775,7 @@ static int snd_card_saa7134_hw_free(struct snd_pcm_substream * substream)
 
 	if (substream->runtime->dma_area) {
 		saa7134_pgtable_free(dev->pci, &dev->dmasound.pt);
-		videobuf_dma_unmap(&dev->pci->dev, &dev->dmasound.dma);
+		saa7134_alsa_dma_unmap(dev);
 		dsp_buffer_free(dev);
 		substream->runtime->dma_area = NULL;
 	}

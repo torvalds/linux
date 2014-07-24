@@ -106,9 +106,9 @@ unsigned mite_dma_tcr(struct mite_channel *mite_chan);
 void mite_dma_arm(struct mite_channel *mite_chan);
 void mite_dma_disarm(struct mite_channel *mite_chan);
 int mite_sync_input_dma(struct mite_channel *mite_chan,
-			struct comedi_async *async);
+			struct comedi_subdevice *s);
 int mite_sync_output_dma(struct mite_channel *mite_chan,
-			 struct comedi_async *async);
+			 struct comedi_subdevice *s);
 u32 mite_bytes_written_to_memory_lb(struct mite_channel *mite_chan);
 u32 mite_bytes_written_to_memory_ub(struct mite_channel *mite_chan);
 u32 mite_bytes_read_from_memory_lb(struct mite_channel *mite_chan);
@@ -120,7 +120,7 @@ int mite_done(struct mite_channel *mite_chan);
 void mite_prep_dma(struct mite_channel *mite_chan,
 		   unsigned int num_device_bits, unsigned int num_memory_bits);
 int mite_buf_change(struct mite_dma_descriptor_ring *ring,
-		    struct comedi_async *async);
+		    struct comedi_subdevice *s);
 
 static inline int CHAN_OFFSET(int channel)
 {

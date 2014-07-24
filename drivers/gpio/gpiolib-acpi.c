@@ -449,9 +449,10 @@ acpi_gpio_adr_space_handler(u32 function, acpi_physical_address address,
 		mutex_unlock(&achip->conn_lock);
 
 		if (function == ACPI_WRITE)
-			gpiod_set_raw_value(desc, !!((1 << i) & *value));
+			gpiod_set_raw_value_cansleep(desc,
+						     !!((1 << i) & *value));
 		else
-			*value |= (u64)gpiod_get_raw_value(desc) << i;
+			*value |= (u64)gpiod_get_raw_value_cansleep(desc) << i;
 	}
 
 out:

@@ -73,12 +73,10 @@ static int fastsleep_loop(struct cpuidle_device *dev,
 		return index;
 
 	new_lpcr = old_lpcr;
-	new_lpcr &= ~(LPCR_MER | LPCR_PECE); /* lpcr[mer] must be 0 */
-
-	/* exit powersave upon external interrupt, but not decrementer
-	 * interrupt.
+	/* Do not exit powersave upon decrementer as we've setup the timer
+	 * offload.
 	 */
-	new_lpcr |= LPCR_PECE0;
+	new_lpcr &= ~LPCR_PECE1;
 
 	mtspr(SPRN_LPCR, new_lpcr);
 	power7_sleep();

@@ -340,7 +340,7 @@ void fsnotify_init_mark(struct fsnotify_mark *mark,
 static int fsnotify_mark_destroy(void *ignored)
 {
 	struct fsnotify_mark *mark, *next;
-	LIST_HEAD(private_destroy_list);
+	struct list_head private_destroy_list;
 
 	for (;;) {
 		spin_lock(&destroy_lock);

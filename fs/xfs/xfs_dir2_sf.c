@@ -82,8 +82,10 @@ xfs_dir2_block_sfsize(
 	xfs_ino_t		parent = 0;	/* parent inode number */
 	int			size=0;		/* total computed size */
 	int			has_ftype;
+	struct xfs_da_geometry	*geo;
 
 	mp = dp->i_mount;
+	geo = mp->m_dir_geo;
 
 	/*
 	 * if there is a filetype field, add the extra byte to the namelen
@@ -92,7 +94,7 @@ xfs_dir2_block_sfsize(
 	has_ftype = xfs_sb_version_hasftype(&mp->m_sb) ? 1 : 0;
 
 	count = i8count = namelen = 0;
-	btp = xfs_dir2_block_tail_p(mp, hdr);
+	btp = xfs_dir2_block_tail_p(geo, hdr);
 	blp = xfs_dir2_block_leaf_p(btp);
 
 	/*
@@ -104,8 +106,8 @@ xfs_dir2_block_sfsize(
 		/*
 		 * Calculate the pointer to the entry at hand.
 		 */
-		dep = (xfs_dir2_data_entry_t *)
-		      ((char *)hdr + xfs_dir2_dataptr_to_off(mp, addr));
+		dep = (xfs_dir2_data_entry_t *)((char *)hdr +
+				xfs_dir2_dataptr_to_off(geo, addr));
 		/*
 		 * Detect . and .., so we can special-case them.
 		 * . is not included in sf directories.
@@ -195,7 +197,7 @@ xfs_dir2_block_to_sf(
 	/*
 	 * Set up to loop over the block's entries.
 	 */
-	btp = xfs_dir2_block_tail_p(mp, hdr);
+	btp = xfs_dir2_block_tail_p(args->geo, hdr);
 	ptr = (char *)dp->d_ops->data_entry_p(hdr);
 	endptr = (char *)xfs_dir2_block_leaf_p(btp);
 	sfep = xfs_dir2_sf_firstentry(sfp);
@@ -247,7 +249,7 @@ xfs_dir2_block_to_sf(
 
 	/* now we are done with the block, we can shrink the inode */
 	logflags = XFS_ILOG_CORE;
-	error = xfs_dir2_shrink_inode(args, mp->m_dirdatablk, bp);
+	error = xfs_dir2_shrink_inode(args, args->geo->datablk, bp);
 	if (error) {
 		ASSERT(error != ENOSPC);
 		goto out;
@@ -285,14 +287,12 @@ int						/* error */
 xfs_dir2_sf_addname(
 	xfs_da_args_t		*args)		/* operation arguments */
 {
-	int			add_entsize;	/* size of the new entry */
 	xfs_inode_t		*dp;		/* incore directory inode */
 	int			error;		/* error return value */
 	int			incr_isize;	/* total change in size */
 	int			new_isize;	/* di_size after adding name */
 	int			objchange;	/* changing to 8-byte inodes */
 	xfs_dir2_data_aoff_t	offset = 0;	/* offset for new entry */
-	int			old_isize;	/* di_size before adding name */
 	int			pick;		/* which algorithm to use */
 	xfs_dir2_sf_hdr_t	*sfp;		/* shortform structure */
 	xfs_dir2_sf_entry_t	*sfep = NULL;	/* shortform entry */
@@ -316,8 +316,7 @@ xfs_dir2_sf_addname(
 	/*
 	 * Compute entry (and change in) size.
 	 */
-	add_entsize = dp->d_ops->sf_entsize(sfp, args->namelen);
-	incr_isize = add_entsize;
+	incr_isize = dp->d_ops->sf_entsize(sfp, args->namelen);
 	objchange = 0;
 #if XFS_BIG_INUMS
 	/*
@@ -325,11 +324,8 @@ xfs_dir2_sf_addname(
 	 */
 	if (args->inumber > XFS_DIR2_MAX_SHORT_INUM && sfp->i8count == 0) {
 		/*
-		 * Yes, adjust the entry size and the total size.
+		 * Yes, adjust the inode size.  old count + (parent + new)
 		 */
-		add_entsize +=
-			(uint)sizeof(xfs_dir2_ino8_t) -
-			(uint)sizeof(xfs_dir2_ino4_t);
 		incr_isize +=
 			(sfp->count + 2) *
 			((uint)sizeof(xfs_dir2_ino8_t) -
@@ -337,8 +333,7 @@ xfs_dir2_sf_addname(
 		objchange = 1;
 	}
 #endif
-	old_isize = (int)dp->i_d.di_size;
-	new_isize = old_isize + incr_isize;
+	new_isize = (int)dp->i_d.di_size + incr_isize;
 	/*
 	 * Won't fit as shortform any more (due to size),
 	 * or the pick routine says it won't (due to offset values).
@@ -593,7 +588,7 @@ xfs_dir2_sf_addname_pick(
 	 * we'll go back, convert to block, then try the insert and convert
 	 * to leaf.
 	 */
-	if (used + (holefit ? 0 : size) > mp->m_dirblksize)
+	if (used + (holefit ? 0 : size) > args->geo->blksize)
 		return 0;
 	/*
 	 * If changing the inode number size, do it the hard way.
@@ -608,7 +603,7 @@ xfs_dir2_sf_addname_pick(
 	/*
 	 * If it won't fit at the end then do it the hard way (use the hole).
 	 */
-	if (used + size > mp->m_dirblksize)
+	if (used + size > args->geo->blksize)
 		return 2;
 	/*
 	 * Do it the easy way.
@@ -659,7 +654,7 @@ xfs_dir2_sf_check(
 	ASSERT((char *)sfep - (char *)sfp == dp->i_d.di_size);
 	ASSERT(offset +
 	       (sfp->count + 2) * (uint)sizeof(xfs_dir2_leaf_entry_t) +
-	       (uint)sizeof(xfs_dir2_block_tail_t) <= mp->m_dirblksize);
+	       (uint)sizeof(xfs_dir2_block_tail_t) <= args->geo->blksize);
 }
 #endif	/* DEBUG */
 
@@ -1110,9 +1105,9 @@ xfs_dir2_sf_toino4(
 }
 
 /*
- * Convert from 4-byte inode numbers to 8-byte inode numbers.
- * The new 8-byte inode number is not there yet, we leave with the
- * count 1 but no corresponding entry.
+ * Convert existing entries from 4-byte inode numbers to 8-byte inode numbers.
+ * The new entry w/ an 8-byte inode number is not there yet; we leave with
+ * i8count set to 1, but no corresponding 8-byte entry.
  */
 static void
 xfs_dir2_sf_toino8(
@@ -1145,7 +1140,7 @@ xfs_dir2_sf_toino8(
 	ASSERT(oldsfp->i8count == 0);
 	memcpy(buf, oldsfp, oldsize);
 	/*
-	 * Compute the new inode size.
+	 * Compute the new inode size (nb: entry count + 1 for parent)
 	 */
 	newsize =
 		oldsize +

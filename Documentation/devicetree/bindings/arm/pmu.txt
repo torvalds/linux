@@ -8,6 +8,7 @@ Required properties:
 
 - compatible : should be one of
 	"arm,armv8-pmuv3"
+	"arm,cortex-a17-pmu"
 	"arm,cortex-a15-pmu"
 	"arm,cortex-a12-pmu"
 	"arm,cortex-a9-pmu"

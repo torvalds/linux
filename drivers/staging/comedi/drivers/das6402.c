@@ -125,7 +125,7 @@ struct das6402_boardinfo {
 	unsigned int maxdata;
 };
 
-struct das6402_boardinfo das6402_boards[] = {
+static struct das6402_boardinfo das6402_boards[] = {
 	{
 		.name		= "das6402-12",
 		.maxdata	= 0x0fff,

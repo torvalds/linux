@@ -4870,14 +4870,11 @@ static void brcms_c_detach_module(struct brcms_c_info *wlc)
 /*
  * low level detach
  */
-static int brcms_b_detach(struct brcms_c_info *wlc)
+static void brcms_b_detach(struct brcms_c_info *wlc)
 {
 	uint i;
 	struct brcms_hw_band *band;
 	struct brcms_hardware *wlc_hw = wlc->hw;
-	int callbacks;
-
-	callbacks = 0;
 
 	brcms_b_detach_dmapio(wlc_hw);
 
@@ -4900,9 +4897,6 @@ static int brcms_b_detach(struct brcms_c_info *wlc)
 		ai_detach(wlc_hw->sih);
 		wlc_hw->sih = NULL;
 	}
-
-	return callbacks;
-
 }
 
 /*
@@ -4917,14 +4911,15 @@ static int brcms_b_detach(struct brcms_c_info *wlc)
  */
 uint brcms_c_detach(struct brcms_c_info *wlc)
 {
-	uint callbacks = 0;
+	uint callbacks;
 
 	if (wlc == NULL)
 		return 0;
 
-	callbacks += brcms_b_detach(wlc);
+	brcms_b_detach(wlc);
 
 	/* delete software timers */
+	callbacks = 0;
 	if (!brcms_c_radio_monitor_stop(wlc))
 		callbacks++;
 

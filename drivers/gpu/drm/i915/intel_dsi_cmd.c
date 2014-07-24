@@ -389,7 +389,7 @@ int dsi_vc_generic_read(struct intel_dsi *intel_dsi, int channel,
  *
  * XXX: commands with data in MIPI_DPI_DATA?
  */
-int dpi_send_cmd(struct intel_dsi *intel_dsi, u32 cmd)
+int dpi_send_cmd(struct intel_dsi *intel_dsi, u32 cmd, bool hs)
 {
 	struct drm_encoder *encoder = &intel_dsi->base.base;
 	struct drm_device *dev = encoder->dev;
@@ -399,16 +399,10 @@ int dpi_send_cmd(struct intel_dsi *intel_dsi, u32 cmd)
 	u32 mask;
 
 	/* XXX: pipe, hs */
-	if (intel_dsi->hs)
+	if (hs)
 		cmd &= ~DPI_LP_MODE;
 	else
 		cmd |= DPI_LP_MODE;
-
-	/* DPI virtual channel?! */
-
-	mask = DPI_FIFO_EMPTY;
-	if (wait_for((I915_READ(MIPI_GEN_FIFO_STAT(pipe)) & mask) == mask, 50))
-		DRM_ERROR("Timeout waiting for DPI FIFO empty.\n");
 
 	/* clear bit */
 	I915_WRITE(MIPI_INTR_STAT(pipe), SPL_PKT_SENT_INTERRUPT);

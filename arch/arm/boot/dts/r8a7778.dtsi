@@ -20,6 +20,7 @@
 
 / {
 	compatible = "renesas,r8a7778";
+	interrupt-parent = <&gic>;
 
 	cpus {
 		cpu@0 {
@@ -52,7 +53,6 @@
 			<0xfe780024 4>,
 			<0xfe780044 4>,
 			<0xfe780064 4>;
-		interrupt-parent = <&gic>;
 		interrupts =   <0 27 IRQ_TYPE_LEVEL_HIGH
 				0 28 IRQ_TYPE_LEVEL_HIGH
 				0 29 IRQ_TYPE_LEVEL_HIGH
@@ -63,7 +63,6 @@
 	gpio0: gpio@ffc40000 {
 		compatible = "renesas,gpio-r8a7778", "renesas,gpio-rcar";
 		reg = <0xffc40000 0x2c>;
-		interrupt-parent = <&gic>;
 		interrupts = <0 103 IRQ_TYPE_LEVEL_HIGH>;
 		#gpio-cells = <2>;
 		gpio-controller;
@@ -75,7 +74,6 @@
 	gpio1: gpio@ffc41000 {
 		compatible = "renesas,gpio-r8a7778", "renesas,gpio-rcar";
 		reg = <0xffc41000 0x2c>;
-		interrupt-parent = <&gic>;
 		interrupts = <0 103 IRQ_TYPE_LEVEL_HIGH>;
 		#gpio-cells = <2>;
 		gpio-controller;
@@ -87,7 +85,6 @@
 	gpio2: gpio@ffc42000 {
 		compatible = "renesas,gpio-r8a7778", "renesas,gpio-rcar";
 		reg = <0xffc42000 0x2c>;
-		interrupt-parent = <&gic>;
 		interrupts = <0 103 IRQ_TYPE_LEVEL_HIGH>;
 		#gpio-cells = <2>;
 		gpio-controller;
@@ -99,7 +96,6 @@
 	gpio3: gpio@ffc43000 {
 		compatible = "renesas,gpio-r8a7778", "renesas,gpio-rcar";
 		reg = <0xffc43000 0x2c>;
-		interrupt-parent = <&gic>;
 		interrupts = <0 103 IRQ_TYPE_LEVEL_HIGH>;
 		#gpio-cells = <2>;
 		gpio-controller;
@@ -111,7 +107,6 @@
 	gpio4: gpio@ffc44000 {
 		compatible = "renesas,gpio-r8a7778", "renesas,gpio-rcar";
 		reg = <0xffc44000 0x2c>;
-		interrupt-parent = <&gic>;
 		interrupts = <0 103 IRQ_TYPE_LEVEL_HIGH>;
 		#gpio-cells = <2>;
 		gpio-controller;
@@ -130,7 +125,6 @@
 		#size-cells = <0>;
 		compatible = "renesas,i2c-r8a7778";
 		reg = <0xffc70000 0x1000>;
-		interrupt-parent = <&gic>;
 		interrupts = <0 67 IRQ_TYPE_LEVEL_HIGH>;
 		status = "disabled";
 	};
@@ -140,7 +134,6 @@
 		#size-cells = <0>;
 		compatible = "renesas,i2c-r8a7778";
 		reg = <0xffc71000 0x1000>;
-		interrupt-parent = <&gic>;
 		interrupts = <0 78 IRQ_TYPE_LEVEL_HIGH>;
 		status = "disabled";
 	};
@@ -150,7 +143,6 @@
 		#size-cells = <0>;
 		compatible = "renesas,i2c-r8a7778";
 		reg = <0xffc72000 0x1000>;
-		interrupt-parent = <&gic>;
 		interrupts = <0 76 IRQ_TYPE_LEVEL_HIGH>;
 		status = "disabled";
 	};
@@ -160,7 +152,6 @@
 		#size-cells = <0>;
 		compatible = "renesas,i2c-r8a7778";
 		reg = <0xffc73000 0x1000>;
-		interrupt-parent = <&gic>;
 		interrupts = <0 77 IRQ_TYPE_LEVEL_HIGH>;
 		status = "disabled";
 	};
@@ -168,7 +159,6 @@
 	mmcif: mmc@ffe4e000 {
 		compatible = "renesas,sh-mmcif";
 		reg = <0xffe4e000 0x100>;
-		interrupt-parent = <&gic>;
 		interrupts = <0 61 IRQ_TYPE_LEVEL_HIGH>;
 		status = "disabled";
 	};
@@ -176,7 +166,6 @@
 	sdhi0: sd@ffe4c000 {
 		compatible = "renesas,sdhi-r8a7778";
 		reg = <0xffe4c000 0x100>;
-		interrupt-parent = <&gic>;
 		interrupts = <0 87 IRQ_TYPE_LEVEL_HIGH>;
 		cap-sd-highspeed;
 		cap-sdio-irq;
@@ -186,7 +175,6 @@
 	sdhi1: sd@ffe4d000 {
 		compatible = "renesas,sdhi-r8a7778";
 		reg = <0xffe4d000 0x100>;
-		interrupt-parent = <&gic>;
 		interrupts = <0 88 IRQ_TYPE_LEVEL_HIGH>;
 		cap-sd-highspeed;
 		cap-sdio-irq;
@@ -196,7 +184,6 @@
 	sdhi2: sd@ffe4f000 {
 		compatible = "renesas,sdhi-r8a7778";
 		reg = <0xffe4f000 0x100>;
-		interrupt-parent = <&gic>;
 		interrupts = <0 86 IRQ_TYPE_LEVEL_HIGH>;
 		cap-sd-highspeed;
 		cap-sdio-irq;
@@ -204,26 +191,29 @@
 	};
 
 	hspi0: spi@fffc7000 {
-		compatible = "renesas,hspi";
+		compatible = "renesas,hspi-r8a7778", "renesas,hspi";
 		reg = <0xfffc7000 0x18>;
-		interrupt-controller = <&gic>;
 		interrupts = <0 63 IRQ_TYPE_LEVEL_HIGH>;
+		#address-cells = <1>;
+		#size-cells = <0>;
 		status = "disabled";
 	};
 
 	hspi1: spi@fffc8000 {
-		compatible = "renesas,hspi";
+		compatible = "renesas,hspi-r8a7778", "renesas,hspi";
 		reg = <0xfffc8000 0x18>;
-		interrupt-controller = <&gic>;
 		interrupts = <0 84 IRQ_TYPE_LEVEL_HIGH>;
+		#address-cells = <1>;
+		#size-cells = <0>;
 		status = "disabled";
 	};
 
 	hspi2: spi@fffc6000 {
-		compatible = "renesas,hspi";
+		compatible = "renesas,hspi-r8a7778", "renesas,hspi";
 		reg = <0xfffc6000 0x18>;
-		interrupt-controller = <&gic>;
 		interrupts = <0 85 IRQ_TYPE_LEVEL_HIGH>;
+		#address-cells = <1>;
+		#size-cells = <0>;
 		status = "disabled";
 	};
 };

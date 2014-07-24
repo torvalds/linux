@@ -129,7 +129,10 @@ static void __init tc_bus_add_devices(struct tc_bus *tbus)
 
 		tc_device_get_irq(tdev);
 
-		device_register(&tdev->dev);
+		if (device_register(&tdev->dev)) {
+			put_device(&tdev->dev);
+			goto out_err;
+		}
 		list_add_tail(&tdev->node, &tbus->devices);
 
 out_err:
@@ -148,7 +151,10 @@ static int __init tc_init(void)
 
 	INIT_LIST_HEAD(&tc_bus.devices);
 	dev_set_name(&tc_bus.dev, "tc");
-	device_register(&tc_bus.dev);
+	if (device_register(&tc_bus.dev)) {
+		put_device(&tc_bus.dev);
+		return 0;
+	}
 
 	if (tc_bus.info.slot_size) {
 		unsigned int tc_clock = tc_get_speed(&tc_bus) / 100000;

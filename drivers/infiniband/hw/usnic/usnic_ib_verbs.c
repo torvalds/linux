@@ -466,6 +466,9 @@ struct ib_qp *usnic_ib_create_qp(struct ib_pd *pd,
 	ucontext = to_uucontext(pd->uobject->context);
 	us_ibdev = to_usdev(pd->device);
 
+	if (init_attr->create_flags)
+		return ERR_PTR(-EINVAL);
+
 	err = ib_copy_from_udata(&cmd, udata, sizeof(cmd));
 	if (err) {
 		usnic_err("%s: cannot copy udata for create_qp\n",

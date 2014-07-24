@@ -19,15 +19,9 @@
 #include <mlme_osdep.h>
 #include <linux/ip.h>
 #include <linux/if_ether.h>
-#include <ethernet.h>
 #include <usb_ops.h>
 #include <wifi.h>
 #include <rtl8723a_hal.h>
-
-void rtl8723au_init_recvbuf(struct rtw_adapter *padapter,
-			    struct recv_buf *precvbuf)
-{
-}
 
 int rtl8723au_init_recv_priv(struct rtw_adapter *padapter)
 {
@@ -49,9 +43,6 @@ int rtl8723au_init_recv_priv(struct rtw_adapter *padapter)
 	if (!precvpriv->int_in_buf)
 		DBG_8723A("alloc_mem for interrupt in endpoint fail !!!!\n");
 
-	/* init recv_buf */
-	_rtw_init_queue23a(&precvpriv->free_recv_buf_queue);
-
 	size = NR_RECVBUFF * sizeof(struct recv_buf);
 	precvpriv->precv_buf = kzalloc(size, GFP_KERNEL);
 	if (!precvpriv->precv_buf) {
@@ -66,16 +57,14 @@ int rtl8723au_init_recv_priv(struct rtw_adapter *padapter)
 	for (i = 0; i < NR_RECVBUFF; i++) {
 		INIT_LIST_HEAD(&precvbuf->list);
 
-		res = rtw_os_recvbuf_resource_alloc23a(padapter, precvbuf);
-		if (res == _FAIL)
+		precvbuf->purb = usb_alloc_urb(0, GFP_KERNEL);
+		if (!precvbuf->purb)
 			break;
 
 		precvbuf->adapter = padapter;
 
 		precvbuf++;
 	}
-
-	precvpriv->free_recv_buf_queue_cnt = NR_RECVBUFF;
 
 	skb_queue_head_init(&precvpriv->rx_skb_queue);
 	skb_queue_head_init(&precvpriv->free_recv_skb_queue);
@@ -110,7 +99,11 @@ void rtl8723au_free_recv_priv(struct rtw_adapter *padapter)
 	precvbuf = (struct recv_buf *)precvpriv->precv_buf;
 
 	for (i = 0; i < NR_RECVBUFF; i++) {
-		rtw_os_recvbuf_resource_free23a(padapter, precvbuf);
+		usb_free_urb(precvbuf->purb);
+
+		if (precvbuf->pskb)
+			dev_kfree_skb_any(precvbuf->pskb);
+
 		precvbuf++;
 	}
 
@@ -132,11 +125,20 @@ void rtl8723au_free_recv_priv(struct rtw_adapter *padapter)
 	skb_queue_purge(&precvpriv->free_recv_skb_queue);
 }
 
+struct recv_stat_cpu {
+	u32 rxdw0;
+	u32 rxdw1;
+	u32 rxdw2;
+	u32 rxdw3;
+	u32 rxdw4;
+	u32 rxdw5;
+};
+
 void update_recvframe_attrib(struct recv_frame *precvframe,
 			     struct recv_stat *prxstat)
 {
 	struct rx_pkt_attrib *pattrib;
-	struct recv_stat report;
+	struct recv_stat_cpu report;
 	struct rxreport_8723a *prxreport;
 
 	report.rxdw0 = le32_to_cpu(prxstat->rxdw0);
@@ -182,25 +184,43 @@ void update_recvframe_phyinfo(struct recv_frame *precvframe,
 	struct rtw_adapter *padapter = precvframe->adapter;
 	struct rx_pkt_attrib *pattrib = &precvframe->attrib;
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(padapter);
-	struct odm_phy_info *pPHYInfo = (struct odm_phy_info *)(&pattrib->phy_info);
+	struct phy_info *pPHYInfo = &pattrib->phy_info;
 	struct odm_packet_info pkt_info;
 	u8 *sa = NULL, *da;
 	struct sta_priv *pstapriv;
 	struct sta_info *psta;
 	struct sk_buff *skb = precvframe->pkt;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
-	u8 *wlanhdr = skb->data;
+	bool matchbssid = false;
+	u8 *bssid;
 
-	pkt_info.bPacketMatchBSSID = false;
-	pkt_info.bPacketToSelf = false;
-	pkt_info.bPacketBeacon = false;
+	matchbssid = (!ieee80211_is_ctl(hdr->frame_control) &&
+		      !pattrib->icv_err && !pattrib->crc_err);
 
-	pkt_info.bPacketMatchBSSID =
-		(!ieee80211_is_ctl(hdr->frame_control) &&
-		 !pattrib->icv_err &&
-		 !pattrib->crc_err &&
-		 !memcmp(get_hdr_bssid(wlanhdr),
-			 get_bssid(&padapter->mlmepriv), ETH_ALEN));
+	if (matchbssid) {
+		switch (hdr->frame_control &
+			cpu_to_le16(IEEE80211_FCTL_TODS |
+				    IEEE80211_FCTL_FROMDS)) {
+		case cpu_to_le16(IEEE80211_FCTL_TODS):
+			bssid = hdr->addr1;
+			break;
+		case cpu_to_le16(IEEE80211_FCTL_FROMDS):
+			bssid = hdr->addr2;
+			break;
+		case cpu_to_le16(0):
+			bssid = hdr->addr3;
+			break;
+		default:
+			bssid = NULL;
+			matchbssid = false;
+		}
+
+		if (bssid)
+			matchbssid = ether_addr_equal(
+				get_bssid(&padapter->mlmepriv), bssid);
+	}
+
+	pkt_info.bPacketMatchBSSID = matchbssid;
 
 	da = ieee80211_get_DA(hdr);
 	pkt_info.bPacketToSelf = pkt_info.bPacketMatchBSSID &&
@@ -222,12 +242,12 @@ void update_recvframe_phyinfo(struct recv_frame *precvframe,
 	psta = rtw_get_stainfo23a(pstapriv, sa);
 	if (psta) {
 		pkt_info.StationID = psta->mac_id;
-		/* printk("%s ==> StationID(%d)\n", __FUNCTION__, pkt_info.StationID); */
+		/* printk("%s ==> StationID(%d)\n", __func__, pkt_info.StationID); */
 	}
 	pkt_info.Rate = pattrib->mcs_rate;
 
 	ODM_PhyStatusQuery23a(&pHalData->odmpriv, pPHYInfo,
-			   (u8 *)pphy_status, &pkt_info);
+			      (u8 *)pphy_status, &pkt_info);
 	precvframe->psta = NULL;
 	if (pkt_info.bPacketMatchBSSID &&
 	    (check_fwstate(&padapter->mlmepriv, WIFI_AP_STATE) == true)) {

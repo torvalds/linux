@@ -176,11 +176,6 @@ static struct platform_device *s3c24xx_snd_device;
 static int h1940_uda1380_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_codec *codec = rtd->codec;
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
-
-	snd_soc_dapm_enable_pin(dapm, "Headphone Jack");
-	snd_soc_dapm_enable_pin(dapm, "Speaker");
-	snd_soc_dapm_enable_pin(dapm, "Mic Jack");
 
 	snd_soc_jack_new(codec, "Headphone Jack", SND_JACK_HEADPHONE,
 		&hp_jack);
@@ -189,6 +184,14 @@ static int h1940_uda1380_init(struct snd_soc_pcm_runtime *rtd)
 		hp_jack_pins);
 
 	snd_soc_jack_add_gpios(&hp_jack, ARRAY_SIZE(hp_jack_gpios),
+		hp_jack_gpios);
+
+	return 0;
+}
+
+static int h1940_uda1380_card_remove(struct snd_soc_card *card)
+{
+	snd_soc_jack_free_gpios(&hp_jack, ARRAY_SIZE(hp_jack_gpios),
 		hp_jack_gpios);
 
 	return 0;
@@ -211,6 +214,7 @@ static struct snd_soc_dai_link h1940_uda1380_dai[] = {
 static struct snd_soc_card h1940_asoc = {
 	.name = "h1940",
 	.owner = THIS_MODULE,
+	.remove = h1940_uda1380_card_remove,
 	.dai_link = h1940_uda1380_dai,
 	.num_links = ARRAY_SIZE(h1940_uda1380_dai),
 
@@ -262,8 +266,6 @@ err_out:
 static void __exit h1940_exit(void)
 {
 	platform_device_unregister(s3c24xx_snd_device);
-	snd_soc_jack_free_gpios(&hp_jack, ARRAY_SIZE(hp_jack_gpios),
-		hp_jack_gpios);
 	gpio_free(S3C_GPIO_END + 9);
 }
 

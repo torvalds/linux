@@ -8,6 +8,7 @@
 
 #include "hfsplus_fs.h"
 #include <linux/posix_acl_xattr.h>
+#include <linux/nls.h>
 #include "xattr.h"
 #include "acl.h"
 
@@ -66,10 +67,10 @@ static void hfsplus_init_header_node(struct inode *attr_file,
 	char *bmp;
 	u32 used_nodes;
 	u32 used_bmp_bytes;
-	loff_t tmp;
+	u64 tmp;
 
 	hfs_dbg(ATTR_MOD, "init_hdr_attr_file: clump %u, node_size %u\n",
-				clump_size, node_size);
+		clump_size, node_size);
 
 	/* The end of the node contains list of record offsets */
 	rec_offsets = (__be16 *)(buf + node_size);
@@ -195,7 +196,7 @@ check_attr_tree_state_again:
 	}
 
 	while (hip->alloc_blocks < hip->clump_blocks) {
-		err = hfsplus_file_extend(attr_file);
+		err = hfsplus_file_extend(attr_file, false);
 		if (unlikely(err)) {
 			pr_err("failed to extend attributes file\n");
 			goto end_attr_file_creation;
@@ -645,8 +646,7 @@ ssize_t hfsplus_listxattr(struct dentry *dentry, char *buffer, size_t size)
 	struct hfs_find_data fd;
 	u16 key_len = 0;
 	struct hfsplus_attr_key attr_key;
-	char strbuf[HFSPLUS_ATTR_MAX_STRLEN +
-			XATTR_MAC_OSX_PREFIX_LEN + 1] = {0};
+	char *strbuf;
 	int xattr_name_len;
 
 	if ((!S_ISREG(inode->i_mode) &&
@@ -664,6 +664,13 @@ ssize_t hfsplus_listxattr(struct dentry *dentry, char *buffer, size_t size)
 	if (err) {
 		pr_err("can't init xattr find struct\n");
 		return err;
+	}
+
+	strbuf = kmalloc(NLS_MAX_CHARSET_SIZE * HFSPLUS_ATTR_MAX_STRLEN +
+			XATTR_MAC_OSX_PREFIX_LEN + 1, GFP_KERNEL);
+	if (!strbuf) {
+		res = -ENOMEM;
+		goto out;
 	}
 
 	err = hfsplus_find_attr(inode->i_sb, inode->i_ino, NULL, &fd);
@@ -692,7 +699,7 @@ ssize_t hfsplus_listxattr(struct dentry *dentry, char *buffer, size_t size)
 		if (be32_to_cpu(attr_key.cnid) != inode->i_ino)
 			goto end_listxattr;
 
-		xattr_name_len = HFSPLUS_ATTR_MAX_STRLEN;
+		xattr_name_len = NLS_MAX_CHARSET_SIZE * HFSPLUS_ATTR_MAX_STRLEN;
 		if (hfsplus_uni2asc(inode->i_sb,
 			(const struct hfsplus_unistr *)&fd.key->attr.key_name,
 					strbuf, &xattr_name_len)) {
@@ -718,6 +725,8 @@ ssize_t hfsplus_listxattr(struct dentry *dentry, char *buffer, size_t size)
 	}
 
 end_listxattr:
+	kfree(strbuf);
+out:
 	hfs_find_exit(&fd);
 	return res;
 }
@@ -797,15 +806,11 @@ end_removexattr:
 static int hfsplus_osx_getxattr(struct dentry *dentry, const char *name,
 					void *buffer, size_t size, int type)
 {
-	char xattr_name[HFSPLUS_ATTR_MAX_STRLEN +
-				XATTR_MAC_OSX_PREFIX_LEN + 1] = {0};
-	size_t len = strlen(name);
+	char *xattr_name;
+	int res;
 
 	if (!strcmp(name, ""))
 		return -EINVAL;
-
-	if (len > HFSPLUS_ATTR_MAX_STRLEN)
-		return -EOPNOTSUPP;
 
 	/*
 	 * Don't allow retrieving properly prefixed attributes
@@ -813,22 +818,26 @@ static int hfsplus_osx_getxattr(struct dentry *dentry, const char *name,
 	 */
 	if (is_known_namespace(name))
 		return -EOPNOTSUPP;
+	xattr_name = kmalloc(NLS_MAX_CHARSET_SIZE * HFSPLUS_ATTR_MAX_STRLEN
+		+ XATTR_MAC_OSX_PREFIX_LEN + 1, GFP_KERNEL);
+	if (!xattr_name)
+		return -ENOMEM;
+	strcpy(xattr_name, XATTR_MAC_OSX_PREFIX);
+	strcpy(xattr_name + XATTR_MAC_OSX_PREFIX_LEN, name);
 
-	return hfsplus_getxattr(dentry, xattr_name, buffer, size);
+	res = hfsplus_getxattr(dentry, xattr_name, buffer, size);
+	kfree(xattr_name);
+	return res;
 }
 
 static int hfsplus_osx_setxattr(struct dentry *dentry, const char *name,
 		const void *buffer, size_t size, int flags, int type)
 {
-	char xattr_name[HFSPLUS_ATTR_MAX_STRLEN +
-				XATTR_MAC_OSX_PREFIX_LEN + 1] = {0};
-	size_t len = strlen(name);
+	char *xattr_name;
+	int res;
 
 	if (!strcmp(name, ""))
 		return -EINVAL;
-
-	if (len > HFSPLUS_ATTR_MAX_STRLEN)
-		return -EOPNOTSUPP;
 
 	/*
 	 * Don't allow setting properly prefixed attributes
@@ -836,8 +845,16 @@ static int hfsplus_osx_setxattr(struct dentry *dentry, const char *name,
 	 */
 	if (is_known_namespace(name))
 		return -EOPNOTSUPP;
+	xattr_name = kmalloc(NLS_MAX_CHARSET_SIZE * HFSPLUS_ATTR_MAX_STRLEN
+		+ XATTR_MAC_OSX_PREFIX_LEN + 1, GFP_KERNEL);
+	if (!xattr_name)
+		return -ENOMEM;
+	strcpy(xattr_name, XATTR_MAC_OSX_PREFIX);
+	strcpy(xattr_name + XATTR_MAC_OSX_PREFIX_LEN, name);
 
-	return hfsplus_setxattr(dentry, xattr_name, buffer, size, flags);
+	res = hfsplus_setxattr(dentry, xattr_name, buffer, size, flags);
+	kfree(xattr_name);
+	return res;
 }
 
 static size_t hfsplus_osx_listxattr(struct dentry *dentry, char *list,

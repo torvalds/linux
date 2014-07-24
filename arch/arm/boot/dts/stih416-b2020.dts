@@ -11,6 +11,5 @@
 #include "stih41x-b2020.dtsi"
 / {
 	model = "STiH416 B2020";
-	compatible = "st,stih416", "st,stih416-b2020";
-
+	compatible = "st,stih416-b2020", "st,stih416";
 };

@@ -33,6 +33,7 @@
 #define CLK_MOUT_MPLL_USER_C	18 /* Exynos4x12 only */
 #define CLK_MOUT_CORE		19
 #define CLK_MOUT_APLL		20
+#define CLK_SCLK_HDMIPHY	22
 
 /* gate for special clocks (sclk) */
 #define CLK_SCLK_FIMC0		128
@@ -181,7 +182,6 @@
 #define CLK_KEYIF		347
 #define CLK_AUDSS		348
 #define CLK_MIPI_HSI		349 /* Exynos4210 only */
-#define CLK_MDMA2		350 /* Exynos4210 only */
 #define CLK_PIXELASYNCM0	351
 #define CLK_PIXELASYNCM1	352
 #define CLK_FIMC_LITE0		353 /* Exynos4x12 only */

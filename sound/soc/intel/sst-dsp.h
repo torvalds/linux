@@ -169,6 +169,7 @@ struct sst_pdata {
 	u32 dma_base;
 	u32 dma_size;
 	int dma_engine;
+	struct device *dma_dev;
 
 	/* DSP */
 	u32 id;

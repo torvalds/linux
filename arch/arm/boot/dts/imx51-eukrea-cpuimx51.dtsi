@@ -42,6 +42,17 @@
 		compatible = "nxp,pcf8563";
 		reg = <0x51>;
 	};
+
+	tsc2007: tsc2007@49 {
+		compatible = "ti,tsc2007";
+		gpios = <&gpio4 0 1>;
+		interrupt-parent = <&gpio4>;
+		interrupts = <0x0 0x8>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_tsc2007_1>;
+		reg = <0x49>;
+		ti,x-plate-ohms = <180>;
+	};
 };
 
 &iomuxc {

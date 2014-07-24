@@ -21,6 +21,7 @@
 #include <linux/bug.h>
 #include <linux/interrupt.h>
 #include <linux/dmapool.h>
+#include <net/mac80211.h>
 
 #include "htc.h"
 #include "rx_desc.h"
@@ -1172,23 +1173,6 @@ struct htt_peer_unmap_event {
 	u16 peer_id;
 };
 
-struct htt_rx_info {
-	struct sk_buff *skb;
-	enum htt_rx_mpdu_status status;
-	enum htt_rx_mpdu_encrypt_type encrypt_type;
-	s8 signal;
-	struct {
-		u8 info0;
-		u32 info1;
-		u32 info2;
-	} rate;
-
-	u32 tsf;
-	bool fcs_err;
-	bool amsdu_more;
-	bool mic_err;
-};
-
 struct ath10k_htt_txbuf {
 	struct htt_data_tx_desc_frag frags[2];
 	struct ath10k_htc_hdr htc_hdr;
@@ -1289,6 +1273,9 @@ struct ath10k_htt {
 	struct tasklet_struct txrx_compl_task;
 	struct sk_buff_head tx_compl_q;
 	struct sk_buff_head rx_compl_q;
+
+	/* rx_status template */
+	struct ieee80211_rx_status rx_status;
 };
 
 #define RX_HTT_HDR_STATUS_LEN 64
@@ -1341,14 +1328,16 @@ struct htt_rx_desc {
 #define HTT_LOG2_MAX_CACHE_LINE_SIZE 7	/* 2^7 = 128 */
 #define HTT_MAX_CACHE_LINE_SIZE_MASK ((1 << HTT_LOG2_MAX_CACHE_LINE_SIZE) - 1)
 
-int ath10k_htt_attach(struct ath10k *ar);
-int ath10k_htt_attach_target(struct ath10k_htt *htt);
-void ath10k_htt_detach(struct ath10k_htt *htt);
+int ath10k_htt_connect(struct ath10k_htt *htt);
+int ath10k_htt_init(struct ath10k *ar);
+int ath10k_htt_setup(struct ath10k_htt *htt);
 
-int ath10k_htt_tx_attach(struct ath10k_htt *htt);
-void ath10k_htt_tx_detach(struct ath10k_htt *htt);
-int ath10k_htt_rx_attach(struct ath10k_htt *htt);
-void ath10k_htt_rx_detach(struct ath10k_htt *htt);
+int ath10k_htt_tx_alloc(struct ath10k_htt *htt);
+void ath10k_htt_tx_free(struct ath10k_htt *htt);
+
+int ath10k_htt_rx_alloc(struct ath10k_htt *htt);
+void ath10k_htt_rx_free(struct ath10k_htt *htt);
+
 void ath10k_htt_htc_tx_complete(struct ath10k *ar, struct sk_buff *skb);
 void ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb);
 int ath10k_htt_h2t_ver_req_msg(struct ath10k_htt *htt);

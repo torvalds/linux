@@ -333,7 +333,9 @@ static void __init alloc_masks(struct sysinfo_15_1_x *info,
 		nr_masks *= info->mag[TOPOLOGY_NR_MAG - offset - 1 - i];
 	nr_masks = max(nr_masks, 1);
 	for (i = 0; i < nr_masks; i++) {
-		mask->next = alloc_bootmem(sizeof(struct mask_info));
+		mask->next = alloc_bootmem_align(
+			roundup_pow_of_two(sizeof(struct mask_info)),
+			roundup_pow_of_two(sizeof(struct mask_info)));
 		mask = mask->next;
 	}
 }
@@ -443,6 +445,23 @@ int topology_cpu_init(struct cpu *cpu)
 	return sysfs_create_group(&cpu->dev.kobj, &topology_cpu_attr_group);
 }
 
+const struct cpumask *cpu_coregroup_mask(int cpu)
+{
+	return &cpu_topology[cpu].core_mask;
+}
+
+static const struct cpumask *cpu_book_mask(int cpu)
+{
+	return &cpu_topology[cpu].book_mask;
+}
+
+static struct sched_domain_topology_level s390_topology[] = {
+	{ cpu_coregroup_mask, cpu_core_flags, SD_INIT_NAME(MC) },
+	{ cpu_book_mask, SD_INIT_NAME(BOOK) },
+	{ cpu_cpu_mask, SD_INIT_NAME(DIE) },
+	{ NULL, },
+};
+
 static int __init topology_init(void)
 {
 	if (!MACHINE_HAS_TOPOLOGY) {
@@ -451,6 +470,9 @@ static int __init topology_init(void)
 	}
 	set_topology_timer();
 out:
+
+	set_sched_topology(s390_topology);
+
 	return device_create_file(cpu_subsys.dev_root, &dev_attr_dispatching);
 }
 device_initcall(topology_init);

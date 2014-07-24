@@ -54,6 +54,7 @@ struct shdma_desc {
 	dma_cookie_t cookie;
 	int chunks;
 	int mark;
+	bool cyclic;			/* used as cyclic transfer */
 };
 
 struct shdma_chan {

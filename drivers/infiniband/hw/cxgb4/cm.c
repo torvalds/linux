@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2010 Chelsio, Inc. All rights reserved.
+ * Copyright (c) 2009-2014 Chelsio, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -46,6 +46,8 @@
 #include <net/tcp.h>
 #include <net/ip6_route.h>
 #include <net/addrconf.h>
+
+#include <rdma/ib_addr.h>
 
 #include "iw_cxgb4.h"
 
@@ -232,12 +234,16 @@ static void release_tid(struct c4iw_rdev *rdev, u32 hwtid, struct sk_buff *skb)
 
 static void set_emss(struct c4iw_ep *ep, u16 opt)
 {
-	ep->emss = ep->com.dev->rdev.lldi.mtus[GET_TCPOPT_MSS(opt)] - 40;
+	ep->emss = ep->com.dev->rdev.lldi.mtus[GET_TCPOPT_MSS(opt)] -
+		   sizeof(struct iphdr) - sizeof(struct tcphdr);
 	ep->mss = ep->emss;
 	if (GET_TCPOPT_TSTAMP(opt))
 		ep->emss -= 12;
 	if (ep->emss < 128)
 		ep->emss = 128;
+	if (ep->emss & 7)
+		PDBG("Warning: misaligned mtu idx %u mss %u emss=%u\n",
+		     GET_TCPOPT_MSS(opt), ep->mss, ep->emss);
 	PDBG("%s mss_idx %u mss %u emss=%u\n", __func__, GET_TCPOPT_MSS(opt),
 	     ep->mss, ep->emss);
 }
@@ -294,6 +300,12 @@ void _c4iw_free_ep(struct kref *kref)
 		dst_release(ep->dst);
 		cxgb4_l2t_release(ep->l2t);
 	}
+	if (test_bit(RELEASE_MAPINFO, &ep->com.flags)) {
+		print_addr(&ep->com, __func__, "remove_mapinfo/mapping");
+		iwpm_remove_mapinfo(&ep->com.local_addr,
+				    &ep->com.mapped_local_addr);
+		iwpm_remove_mapping(&ep->com.local_addr, RDMA_NL_C4IW);
+	}
 	kfree(ep);
 }
 
@@ -341,10 +353,7 @@ static struct sk_buff *get_skb(struct sk_buff *skb, int len, gfp_t gfp)
 
 static struct net_device *get_real_dev(struct net_device *egress_dev)
 {
-	struct net_device *phys_dev = egress_dev;
-	if (egress_dev->priv_flags & IFF_802_1Q_VLAN)
-		phys_dev = vlan_dev_real_dev(egress_dev);
-	return phys_dev;
+	return rdma_vlan_dev_real_dev(egress_dev) ? : egress_dev;
 }
 
 static int our_interface(struct c4iw_dev *dev, struct net_device *egress_dev)
@@ -423,8 +432,17 @@ static void arp_failure_discard(void *handle, struct sk_buff *skb)
  */
 static void act_open_req_arp_failure(void *handle, struct sk_buff *skb)
 {
+	struct c4iw_ep *ep = handle;
+
 	printk(KERN_ERR MOD "ARP failure duing connect\n");
 	kfree_skb(skb);
+	connect_reply_upcall(ep, -EHOSTUNREACH);
+	state_set(&ep->com, DEAD);
+	remove_handle(ep->com.dev, &ep->com.dev->atid_idr, ep->atid);
+	cxgb4_free_atid(ep->com.dev->rdev.lldi.tids, ep->atid);
+	dst_release(ep->dst);
+	cxgb4_l2t_release(ep->l2t);
+	c4iw_put_ep(&ep->com);
 }
 
 /*
@@ -468,7 +486,7 @@ static void send_flowc(struct c4iw_ep *ep, struct sk_buff *skb)
 	flowc->mnemval[5].mnemonic = FW_FLOWC_MNEM_RCVNXT;
 	flowc->mnemval[5].val = cpu_to_be32(ep->rcv_seq);
 	flowc->mnemval[6].mnemonic = FW_FLOWC_MNEM_SNDBUF;
-	flowc->mnemval[6].val = cpu_to_be32(snd_win);
+	flowc->mnemval[6].val = cpu_to_be32(ep->snd_win);
 	flowc->mnemval[7].mnemonic = FW_FLOWC_MNEM_MSS;
 	flowc->mnemval[7].val = cpu_to_be32(ep->emss);
 	/* Pad WR to 16 byte boundary */
@@ -528,6 +546,49 @@ static int send_abort(struct c4iw_ep *ep, struct sk_buff *skb, gfp_t gfp)
 	return c4iw_l2t_send(&ep->com.dev->rdev, skb, ep->l2t);
 }
 
+/*
+ * c4iw_form_pm_msg - Form a port mapper message with mapping info
+ */
+static void c4iw_form_pm_msg(struct c4iw_ep *ep,
+				struct iwpm_sa_data *pm_msg)
+{
+	memcpy(&pm_msg->loc_addr, &ep->com.local_addr,
+		sizeof(ep->com.local_addr));
+	memcpy(&pm_msg->rem_addr, &ep->com.remote_addr,
+		sizeof(ep->com.remote_addr));
+}
+
+/*
+ * c4iw_form_reg_msg - Form a port mapper message with dev info
+ */
+static void c4iw_form_reg_msg(struct c4iw_dev *dev,
+				struct iwpm_dev_data *pm_msg)
+{
+	memcpy(pm_msg->dev_name, dev->ibdev.name, IWPM_DEVNAME_SIZE);
+	memcpy(pm_msg->if_name, dev->rdev.lldi.ports[0]->name,
+				IWPM_IFNAME_SIZE);
+}
+
+static void c4iw_record_pm_msg(struct c4iw_ep *ep,
+			struct iwpm_sa_data *pm_msg)
+{
+	memcpy(&ep->com.mapped_local_addr, &pm_msg->mapped_loc_addr,
+		sizeof(ep->com.mapped_local_addr));
+	memcpy(&ep->com.mapped_remote_addr, &pm_msg->mapped_rem_addr,
+		sizeof(ep->com.mapped_remote_addr));
+}
+
+static void best_mtu(const unsigned short *mtus, unsigned short mtu,
+		     unsigned int *idx, int use_ts)
+{
+	unsigned short hdr_size = sizeof(struct iphdr) +
+				  sizeof(struct tcphdr) +
+				  (use_ts ? 12 : 0);
+	unsigned short data_size = mtu - hdr_size;
+
+	cxgb4_best_aligned_mtu(mtus, hdr_size, data_size, 8, idx);
+}
+
 static int send_connect(struct c4iw_ep *ep)
 {
 	struct cpl_act_open_req *req;
@@ -546,10 +607,15 @@ static int send_connect(struct c4iw_ep *ep)
 	int sizev6 = is_t4(ep->com.dev->rdev.lldi.adapter_type) ?
 				sizeof(struct cpl_act_open_req6) :
 				sizeof(struct cpl_t5_act_open_req6);
-	struct sockaddr_in *la = (struct sockaddr_in *)&ep->com.local_addr;
-	struct sockaddr_in *ra = (struct sockaddr_in *)&ep->com.remote_addr;
-	struct sockaddr_in6 *la6 = (struct sockaddr_in6 *)&ep->com.local_addr;
-	struct sockaddr_in6 *ra6 = (struct sockaddr_in6 *)&ep->com.remote_addr;
+	struct sockaddr_in *la = (struct sockaddr_in *)
+				 &ep->com.mapped_local_addr;
+	struct sockaddr_in *ra = (struct sockaddr_in *)
+				 &ep->com.mapped_remote_addr;
+	struct sockaddr_in6 *la6 = (struct sockaddr_in6 *)
+				   &ep->com.mapped_local_addr;
+	struct sockaddr_in6 *ra6 = (struct sockaddr_in6 *)
+				   &ep->com.mapped_remote_addr;
+	int win;
 
 	wrlen = (ep->com.remote_addr.ss_family == AF_INET) ?
 			roundup(sizev4, 16) :
@@ -565,8 +631,18 @@ static int send_connect(struct c4iw_ep *ep)
 	}
 	set_wr_txq(skb, CPL_PRIORITY_SETUP, ep->ctrlq_idx);
 
-	cxgb4_best_mtu(ep->com.dev->rdev.lldi.mtus, ep->mtu, &mtu_idx);
+	best_mtu(ep->com.dev->rdev.lldi.mtus, ep->mtu, &mtu_idx,
+		 enable_tcp_timestamps);
 	wscale = compute_wscale(rcv_win);
+
+	/*
+	 * Specify the largest window that will fit in opt0. The
+	 * remainder will be specified in the rx_data_ack.
+	 */
+	win = ep->rcv_win >> 10;
+	if (win > RCV_BUFSIZ_MASK)
+		win = RCV_BUFSIZ_MASK;
+
 	opt0 = (nocong ? NO_CONG(1) : 0) |
 	       KEEP_ALIVE(1) |
 	       DELACK(1) |
@@ -577,7 +653,7 @@ static int send_connect(struct c4iw_ep *ep)
 	       SMAC_SEL(ep->smac_idx) |
 	       DSCP(ep->tos) |
 	       ULP_MODE(ULP_MODE_TCPDDP) |
-	       RCV_BUFSIZ(rcv_win>>10);
+	       RCV_BUFSIZ(win);
 	opt2 = RX_CHANNEL(0) |
 	       CCTRL_ECN(enable_ecn) |
 	       RSS_QUEUE_VALID | RSS_QUEUE(ep->rss_qid);
@@ -591,7 +667,7 @@ static int send_connect(struct c4iw_ep *ep)
 		opt2 |= T5_OPT_2_VALID;
 		opt2 |= V_CONG_CNTRL(CONG_ALG_TAHOE);
 	}
-	t4_set_arp_err_handler(skb, NULL, act_open_req_arp_failure);
+	t4_set_arp_err_handler(skb, ep, act_open_req_arp_failure);
 
 	if (is_t4(ep->com.dev->rdev.lldi.adapter_type)) {
 		if (ep->com.remote_addr.ss_family == AF_INET) {
@@ -633,6 +709,13 @@ static int send_connect(struct c4iw_ep *ep)
 			req6->opt2 = cpu_to_be32(opt2);
 		}
 	} else {
+		u32 isn = (prandom_u32() & ~7UL) - 1;
+
+		opt2 |= T5_OPT_2_VALID;
+		opt2 |= CONG_CNTRL_VALID; /* OPT_2_ISS for T5 */
+		if (peer2peer)
+			isn += 4;
+
 		if (ep->com.remote_addr.ss_family == AF_INET) {
 			t5_req = (struct cpl_t5_act_open_req *)
 				 skb_put(skb, wrlen);
@@ -649,6 +732,9 @@ static int send_connect(struct c4iw_ep *ep)
 						     cxgb4_select_ntuple(
 					     ep->com.dev->rdev.lldi.ports[0],
 					     ep->l2t)));
+			t5_req->rsvd = cpu_to_be32(isn);
+			PDBG("%s snd_isn %u\n", __func__,
+			     be32_to_cpu(t5_req->rsvd));
 			t5_req->opt2 = cpu_to_be32(opt2);
 		} else {
 			t5_req6 = (struct cpl_t5_act_open_req6 *)
@@ -672,6 +758,9 @@ static int send_connect(struct c4iw_ep *ep)
 							cxgb4_select_ntuple(
 						ep->com.dev->rdev.lldi.ports[0],
 						ep->l2t));
+			t5_req6->rsvd = cpu_to_be32(isn);
+			PDBG("%s snd_isn %u\n", __func__,
+			     be32_to_cpu(t5_req6->rsvd));
 			t5_req6->opt2 = cpu_to_be32(opt2);
 		}
 	}
@@ -1144,6 +1233,14 @@ static int update_rx_credits(struct c4iw_ep *ep, u32 credits)
 		printk(KERN_ERR MOD "update_rx_credits - cannot alloc skb!\n");
 		return 0;
 	}
+
+	/*
+	 * If we couldn't specify the entire rcv window at connection setup
+	 * due to the limit in the number of bits in the RCV_BUFSIZ field,
+	 * then add the overage in to the credits returned.
+	 */
+	if (ep->rcv_win > RCV_BUFSIZ_MASK * 1024)
+		credits += ep->rcv_win - RCV_BUFSIZ_MASK * 1024;
 
 	req = (struct cpl_rx_data_ack *) skb_put(skb, wrlen);
 	memset(req, 0, wrlen);
@@ -1618,6 +1715,7 @@ static void send_fw_act_open_req(struct c4iw_ep *ep, unsigned int atid)
 	unsigned int mtu_idx;
 	int wscale;
 	struct sockaddr_in *sin;
+	int win;
 
 	skb = get_skb(NULL, sizeof(*req), GFP_KERNEL);
 	req = (struct fw_ofld_connection_wr *)__skb_put(skb, sizeof(*req));
@@ -1627,10 +1725,10 @@ static void send_fw_act_open_req(struct c4iw_ep *ep, unsigned int atid)
 	req->le.filter = cpu_to_be32(cxgb4_select_ntuple(
 				     ep->com.dev->rdev.lldi.ports[0],
 				     ep->l2t));
-	sin = (struct sockaddr_in *)&ep->com.local_addr;
+	sin = (struct sockaddr_in *)&ep->com.mapped_local_addr;
 	req->le.lport = sin->sin_port;
 	req->le.u.ipv4.lip = sin->sin_addr.s_addr;
-	sin = (struct sockaddr_in *)&ep->com.remote_addr;
+	sin = (struct sockaddr_in *)&ep->com.mapped_remote_addr;
 	req->le.pport = sin->sin_port;
 	req->le.u.ipv4.pip = sin->sin_addr.s_addr;
 	req->tcb.t_state_to_astid =
@@ -1640,8 +1738,18 @@ static void send_fw_act_open_req(struct c4iw_ep *ep, unsigned int atid)
 			htons(F_FW_OFLD_CONNECTION_WR_CPLRXDATAACK);
 	req->tcb.tx_max = (__force __be32) jiffies;
 	req->tcb.rcv_adv = htons(1);
-	cxgb4_best_mtu(ep->com.dev->rdev.lldi.mtus, ep->mtu, &mtu_idx);
+	best_mtu(ep->com.dev->rdev.lldi.mtus, ep->mtu, &mtu_idx,
+		 enable_tcp_timestamps);
 	wscale = compute_wscale(rcv_win);
+
+	/*
+	 * Specify the largest window that will fit in opt0. The
+	 * remainder will be specified in the rx_data_ack.
+	 */
+	win = ep->rcv_win >> 10;
+	if (win > RCV_BUFSIZ_MASK)
+		win = RCV_BUFSIZ_MASK;
+
 	req->tcb.opt0 = (__force __be64) (TCAM_BYPASS(1) |
 		(nocong ? NO_CONG(1) : 0) |
 		KEEP_ALIVE(1) |
@@ -1653,7 +1761,7 @@ static void send_fw_act_open_req(struct c4iw_ep *ep, unsigned int atid)
 		SMAC_SEL(ep->smac_idx) |
 		DSCP(ep->tos) |
 		ULP_MODE(ULP_MODE_TCPDDP) |
-		RCV_BUFSIZ(rcv_win >> 10));
+		RCV_BUFSIZ(win));
 	req->tcb.opt2 = (__force __be32) (PACE(1) |
 		TX_QUEUE(ep->com.dev->rdev.lldi.tx_modq[ep->tx_chan]) |
 		RX_CHANNEL(0) |
@@ -1688,6 +1796,13 @@ static int is_neg_adv(unsigned int status)
 	return status == CPL_ERR_RTX_NEG_ADVICE ||
 	       status == CPL_ERR_PERSIST_NEG_ADVICE ||
 	       status == CPL_ERR_KEEPALV_NEG_ADVICE;
+}
+
+static void set_tcp_window(struct c4iw_ep *ep, struct port_info *pi)
+{
+	ep->snd_win = snd_win;
+	ep->rcv_win = rcv_win;
+	PDBG("%s snd_win %d rcv_win %d\n", __func__, ep->snd_win, ep->rcv_win);
 }
 
 #define ACT_OPEN_RETRY_COUNT 2
@@ -1738,6 +1853,7 @@ static int import_ep(struct c4iw_ep *ep, int iptype, __u8 *peer_ip,
 		ep->ctrlq_idx = cxgb4_port_idx(pdev);
 		ep->rss_qid = cdev->rdev.lldi.rxq_ids[
 			cxgb4_port_idx(pdev) * step];
+		set_tcp_window(ep, (struct port_info *)netdev_priv(pdev));
 		dev_put(pdev);
 	} else {
 		pdev = get_real_dev(n->dev);
@@ -1746,16 +1862,17 @@ static int import_ep(struct c4iw_ep *ep, int iptype, __u8 *peer_ip,
 		if (!ep->l2t)
 			goto out;
 		ep->mtu = dst_mtu(dst);
-		ep->tx_chan = cxgb4_port_chan(n->dev);
-		ep->smac_idx = (cxgb4_port_viid(n->dev) & 0x7F) << 1;
+		ep->tx_chan = cxgb4_port_chan(pdev);
+		ep->smac_idx = (cxgb4_port_viid(pdev) & 0x7F) << 1;
 		step = cdev->rdev.lldi.ntxq /
 			cdev->rdev.lldi.nchan;
-		ep->txq_idx = cxgb4_port_idx(n->dev) * step;
-		ep->ctrlq_idx = cxgb4_port_idx(n->dev);
+		ep->txq_idx = cxgb4_port_idx(pdev) * step;
+		ep->ctrlq_idx = cxgb4_port_idx(pdev);
 		step = cdev->rdev.lldi.nrxq /
 			cdev->rdev.lldi.nchan;
 		ep->rss_qid = cdev->rdev.lldi.rxq_ids[
-			cxgb4_port_idx(n->dev) * step];
+			cxgb4_port_idx(pdev) * step];
+		set_tcp_window(ep, (struct port_info *)netdev_priv(pdev));
 
 		if (clear_mpa_v1) {
 			ep->retry_with_mpa_v1 = 0;
@@ -1870,10 +1987,10 @@ static int act_open_rpl(struct c4iw_dev *dev, struct sk_buff *skb)
 	struct sockaddr_in6 *ra6;
 
 	ep = lookup_atid(t, atid);
-	la = (struct sockaddr_in *)&ep->com.local_addr;
-	ra = (struct sockaddr_in *)&ep->com.remote_addr;
-	la6 = (struct sockaddr_in6 *)&ep->com.local_addr;
-	ra6 = (struct sockaddr_in6 *)&ep->com.remote_addr;
+	la = (struct sockaddr_in *)&ep->com.mapped_local_addr;
+	ra = (struct sockaddr_in *)&ep->com.mapped_remote_addr;
+	la6 = (struct sockaddr_in6 *)&ep->com.mapped_local_addr;
+	ra6 = (struct sockaddr_in6 *)&ep->com.mapped_remote_addr;
 
 	PDBG("%s ep %p atid %u status %u errno %d\n", __func__, ep, atid,
 	     status, status2errno(status));
@@ -1986,13 +2103,36 @@ static void accept_cr(struct c4iw_ep *ep, struct sk_buff *skb,
 	u64 opt0;
 	u32 opt2;
 	int wscale;
+	struct cpl_t5_pass_accept_rpl *rpl5 = NULL;
+	int win;
 
 	PDBG("%s ep %p tid %u\n", __func__, ep, ep->hwtid);
 	BUG_ON(skb_cloned(skb));
-	skb_trim(skb, sizeof(*rpl));
+
 	skb_get(skb);
-	cxgb4_best_mtu(ep->com.dev->rdev.lldi.mtus, ep->mtu, &mtu_idx);
+	rpl = cplhdr(skb);
+	if (is_t5(ep->com.dev->rdev.lldi.adapter_type)) {
+		skb_trim(skb, roundup(sizeof(*rpl5), 16));
+		rpl5 = (void *)rpl;
+		INIT_TP_WR(rpl5, ep->hwtid);
+	} else {
+		skb_trim(skb, sizeof(*rpl));
+		INIT_TP_WR(rpl, ep->hwtid);
+	}
+	OPCODE_TID(rpl) = cpu_to_be32(MK_OPCODE_TID(CPL_PASS_ACCEPT_RPL,
+						    ep->hwtid));
+
+	best_mtu(ep->com.dev->rdev.lldi.mtus, ep->mtu, &mtu_idx,
+		 enable_tcp_timestamps && req->tcpopt.tstamp);
 	wscale = compute_wscale(rcv_win);
+
+	/*
+	 * Specify the largest window that will fit in opt0. The
+	 * remainder will be specified in the rx_data_ack.
+	 */
+	win = ep->rcv_win >> 10;
+	if (win > RCV_BUFSIZ_MASK)
+		win = RCV_BUFSIZ_MASK;
 	opt0 = (nocong ? NO_CONG(1) : 0) |
 	       KEEP_ALIVE(1) |
 	       DELACK(1) |
@@ -2003,7 +2143,7 @@ static void accept_cr(struct c4iw_ep *ep, struct sk_buff *skb,
 	       SMAC_SEL(ep->smac_idx) |
 	       DSCP(ep->tos >> 2) |
 	       ULP_MODE(ULP_MODE_TCPDDP) |
-	       RCV_BUFSIZ(rcv_win>>10);
+	       RCV_BUFSIZ(win);
 	opt2 = RX_CHANNEL(0) |
 	       RSS_QUEUE_VALID | RSS_QUEUE(ep->rss_qid);
 
@@ -2023,14 +2163,18 @@ static void accept_cr(struct c4iw_ep *ep, struct sk_buff *skb,
 			opt2 |= CCTRL_ECN(1);
 	}
 	if (is_t5(ep->com.dev->rdev.lldi.adapter_type)) {
+		u32 isn = (prandom_u32() & ~7UL) - 1;
 		opt2 |= T5_OPT_2_VALID;
 		opt2 |= V_CONG_CNTRL(CONG_ALG_TAHOE);
+		opt2 |= CONG_CNTRL_VALID; /* OPT_2_ISS for T5 */
+		rpl5 = (void *)rpl;
+		memset(&rpl5->iss, 0, roundup(sizeof(*rpl5)-sizeof(*rpl), 16));
+		if (peer2peer)
+			isn += 4;
+		rpl5->iss = cpu_to_be32(isn);
+		PDBG("%s iss %u\n", __func__, be32_to_cpu(rpl5->iss));
 	}
 
-	rpl = cplhdr(skb);
-	INIT_TP_WR(rpl, ep->hwtid);
-	OPCODE_TID(rpl) = cpu_to_be32(MK_OPCODE_TID(CPL_PASS_ACCEPT_RPL,
-				      ep->hwtid));
 	rpl->opt0 = cpu_to_be64(opt0);
 	rpl->opt2 = cpu_to_be32(opt2);
 	set_wr_txq(skb, CPL_PRIORITY_SETUP, ep->ctrlq_idx);
@@ -2045,7 +2189,6 @@ static void reject_cr(struct c4iw_dev *dev, u32 hwtid, struct sk_buff *skb)
 	PDBG("%s c4iw_dev %p tid %u\n", __func__, dev, hwtid);
 	BUG_ON(skb_cloned(skb));
 	skb_trim(skb, sizeof(struct cpl_tid_release));
-	skb_get(skb);
 	release_tid(&dev->rdev, hwtid, skb);
 	return;
 }
@@ -2095,6 +2238,7 @@ static int pass_accept_req(struct c4iw_dev *dev, struct sk_buff *skb)
 	int err;
 	u16 peer_mss = ntohs(req->tcpopt.mss);
 	int iptype;
+	unsigned short hdrs;
 
 	parent_ep = lookup_stid(t, stid);
 	if (!parent_ep) {
@@ -2152,8 +2296,10 @@ static int pass_accept_req(struct c4iw_dev *dev, struct sk_buff *skb)
 		goto reject;
 	}
 
-	if (peer_mss && child_ep->mtu > (peer_mss + 40))
-		child_ep->mtu = peer_mss + 40;
+	hdrs = sizeof(struct iphdr) + sizeof(struct tcphdr) +
+	       ((enable_tcp_timestamps && req->tcpopt.tstamp) ? 12 : 0);
+	if (peer_mss && child_ep->mtu > (peer_mss + hdrs))
+		child_ep->mtu = peer_mss + hdrs;
 
 	state_set(&child_ep->com, CONNECTING);
 	child_ep->com.dev = dev;
@@ -2730,13 +2876,15 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	struct c4iw_dev *dev = to_c4iw_dev(cm_id->device);
 	struct c4iw_ep *ep;
 	int err = 0;
-	struct sockaddr_in *laddr = (struct sockaddr_in *)&cm_id->local_addr;
-	struct sockaddr_in *raddr = (struct sockaddr_in *)&cm_id->remote_addr;
-	struct sockaddr_in6 *laddr6 = (struct sockaddr_in6 *)&cm_id->local_addr;
-	struct sockaddr_in6 *raddr6 = (struct sockaddr_in6 *)
-				      &cm_id->remote_addr;
+	struct sockaddr_in *laddr;
+	struct sockaddr_in *raddr;
+	struct sockaddr_in6 *laddr6;
+	struct sockaddr_in6 *raddr6;
+	struct iwpm_dev_data pm_reg_msg;
+	struct iwpm_sa_data pm_msg;
 	__u8 *ra;
 	int iptype;
+	int iwpm_err = 0;
 
 	if ((conn_param->ord > c4iw_max_read_depth) ||
 	    (conn_param->ird > c4iw_max_read_depth)) {
@@ -2767,7 +2915,7 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	if (!ep->com.qp) {
 		PDBG("%s qpn 0x%x not found!\n", __func__, conn_param->qpn);
 		err = -EINVAL;
-		goto fail2;
+		goto fail1;
 	}
 	ref_qp(ep);
 	PDBG("%s qpn 0x%x qp %p cm_id %p\n", __func__, conn_param->qpn,
@@ -2780,9 +2928,49 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	if (ep->atid == -1) {
 		printk(KERN_ERR MOD "%s - cannot alloc atid.\n", __func__);
 		err = -ENOMEM;
-		goto fail2;
+		goto fail1;
 	}
 	insert_handle(dev, &dev->atid_idr, ep, ep->atid);
+
+	memcpy(&ep->com.local_addr, &cm_id->local_addr,
+	       sizeof(ep->com.local_addr));
+	memcpy(&ep->com.remote_addr, &cm_id->remote_addr,
+	       sizeof(ep->com.remote_addr));
+
+	/* No port mapper available, go with the specified peer information */
+	memcpy(&ep->com.mapped_local_addr, &cm_id->local_addr,
+	       sizeof(ep->com.mapped_local_addr));
+	memcpy(&ep->com.mapped_remote_addr, &cm_id->remote_addr,
+	       sizeof(ep->com.mapped_remote_addr));
+
+	c4iw_form_reg_msg(dev, &pm_reg_msg);
+	iwpm_err = iwpm_register_pid(&pm_reg_msg, RDMA_NL_C4IW);
+	if (iwpm_err) {
+		PDBG("%s: Port Mapper reg pid fail (err = %d).\n",
+			__func__, iwpm_err);
+	}
+	if (iwpm_valid_pid() && !iwpm_err) {
+		c4iw_form_pm_msg(ep, &pm_msg);
+		iwpm_err = iwpm_add_and_query_mapping(&pm_msg, RDMA_NL_C4IW);
+		if (iwpm_err)
+			PDBG("%s: Port Mapper query fail (err = %d).\n",
+				__func__, iwpm_err);
+		else
+			c4iw_record_pm_msg(ep, &pm_msg);
+	}
+	if (iwpm_create_mapinfo(&ep->com.local_addr,
+				&ep->com.mapped_local_addr, RDMA_NL_C4IW)) {
+		iwpm_remove_mapping(&ep->com.local_addr, RDMA_NL_C4IW);
+		err = -ENOMEM;
+		goto fail1;
+	}
+	print_addr(&ep->com, __func__, "add_query/create_mapinfo");
+	set_bit(RELEASE_MAPINFO, &ep->com.flags);
+
+	laddr = (struct sockaddr_in *)&ep->com.mapped_local_addr;
+	raddr = (struct sockaddr_in *)&ep->com.mapped_remote_addr;
+	laddr6 = (struct sockaddr_in6 *)&ep->com.mapped_local_addr;
+	raddr6 = (struct sockaddr_in6 *) &ep->com.mapped_remote_addr;
 
 	if (cm_id->remote_addr.ss_family == AF_INET) {
 		iptype = 4;
@@ -2794,7 +2982,7 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		if ((__force int)raddr->sin_addr.s_addr == INADDR_ANY) {
 			err = pick_local_ipaddrs(dev, cm_id);
 			if (err)
-				goto fail2;
+				goto fail1;
 		}
 
 		/* find a route */
@@ -2814,7 +3002,7 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		if (ipv6_addr_type(&raddr6->sin6_addr) == IPV6_ADDR_ANY) {
 			err = pick_local_ip6addrs(dev, cm_id);
 			if (err)
-				goto fail2;
+				goto fail1;
 		}
 
 		/* find a route */
@@ -2830,13 +3018,13 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	if (!ep->dst) {
 		printk(KERN_ERR MOD "%s - cannot find route.\n", __func__);
 		err = -EHOSTUNREACH;
-		goto fail3;
+		goto fail2;
 	}
 
 	err = import_ep(ep, iptype, ra, ep->dst, ep->com.dev, true);
 	if (err) {
 		printk(KERN_ERR MOD "%s - cannot alloc l2e.\n", __func__);
-		goto fail4;
+		goto fail3;
 	}
 
 	PDBG("%s txq_idx %u tx_chan %u smac_idx %u rss_qid %u l2t_idx %u\n",
@@ -2845,10 +3033,6 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 
 	state_set(&ep->com, CONNECTING);
 	ep->tos = 0;
-	memcpy(&ep->com.local_addr, &cm_id->local_addr,
-	       sizeof(ep->com.local_addr));
-	memcpy(&ep->com.remote_addr, &cm_id->remote_addr,
-	       sizeof(ep->com.remote_addr));
 
 	/* send connect request to rnic */
 	err = send_connect(ep);
@@ -2856,12 +3040,12 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		goto out;
 
 	cxgb4_l2t_release(ep->l2t);
-fail4:
-	dst_release(ep->dst);
 fail3:
+	dst_release(ep->dst);
+fail2:
 	remove_handle(ep->com.dev, &ep->com.dev->atid_idr, ep->atid);
 	cxgb4_free_atid(ep->com.dev->rdev.lldi.tids, ep->atid);
-fail2:
+fail1:
 	cm_id->rem_ref(cm_id);
 	c4iw_put_ep(&ep->com);
 out:
@@ -2871,7 +3055,8 @@ out:
 static int create_server6(struct c4iw_dev *dev, struct c4iw_listen_ep *ep)
 {
 	int err;
-	struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)&ep->com.local_addr;
+	struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)
+				    &ep->com.mapped_local_addr;
 
 	c4iw_init_wr_wait(&ep->com.wr_wait);
 	err = cxgb4_create_server6(ep->com.dev->rdev.lldi.ports[0],
@@ -2892,7 +3077,8 @@ static int create_server6(struct c4iw_dev *dev, struct c4iw_listen_ep *ep)
 static int create_server4(struct c4iw_dev *dev, struct c4iw_listen_ep *ep)
 {
 	int err;
-	struct sockaddr_in *sin = (struct sockaddr_in *)&ep->com.local_addr;
+	struct sockaddr_in *sin = (struct sockaddr_in *)
+				  &ep->com.mapped_local_addr;
 
 	if (dev->rdev.lldi.enable_fw_ofld_conn) {
 		do {
@@ -2927,6 +3113,9 @@ int c4iw_create_listen(struct iw_cm_id *cm_id, int backlog)
 	int err = 0;
 	struct c4iw_dev *dev = to_c4iw_dev(cm_id->device);
 	struct c4iw_listen_ep *ep;
+	struct iwpm_dev_data pm_reg_msg;
+	struct iwpm_sa_data pm_msg;
+	int iwpm_err = 0;
 
 	might_sleep();
 
@@ -2961,6 +3150,37 @@ int c4iw_create_listen(struct iw_cm_id *cm_id, int backlog)
 		goto fail2;
 	}
 	insert_handle(dev, &dev->stid_idr, ep, ep->stid);
+
+	/* No port mapper available, go with the specified info */
+	memcpy(&ep->com.mapped_local_addr, &cm_id->local_addr,
+	       sizeof(ep->com.mapped_local_addr));
+
+	c4iw_form_reg_msg(dev, &pm_reg_msg);
+	iwpm_err = iwpm_register_pid(&pm_reg_msg, RDMA_NL_C4IW);
+	if (iwpm_err) {
+		PDBG("%s: Port Mapper reg pid fail (err = %d).\n",
+			__func__, iwpm_err);
+	}
+	if (iwpm_valid_pid() && !iwpm_err) {
+		memcpy(&pm_msg.loc_addr, &ep->com.local_addr,
+				sizeof(ep->com.local_addr));
+		iwpm_err = iwpm_add_mapping(&pm_msg, RDMA_NL_C4IW);
+		if (iwpm_err)
+			PDBG("%s: Port Mapper query fail (err = %d).\n",
+				__func__, iwpm_err);
+		else
+			memcpy(&ep->com.mapped_local_addr,
+				&pm_msg.mapped_loc_addr,
+				sizeof(ep->com.mapped_local_addr));
+	}
+	if (iwpm_create_mapinfo(&ep->com.local_addr,
+				&ep->com.mapped_local_addr, RDMA_NL_C4IW)) {
+		err = -ENOMEM;
+		goto fail3;
+	}
+	print_addr(&ep->com, __func__, "add_mapping/create_mapinfo");
+
+	set_bit(RELEASE_MAPINFO, &ep->com.flags);
 	state_set(&ep->com, LISTEN);
 	if (ep->com.local_addr.ss_family == AF_INET)
 		err = create_server4(dev, ep);
@@ -2970,6 +3190,8 @@ int c4iw_create_listen(struct iw_cm_id *cm_id, int backlog)
 		cm_id->provider_data = ep;
 		goto out;
 	}
+
+fail3:
 	cxgb4_free_stid(ep->com.dev->rdev.lldi.tids, ep->stid,
 			ep->com.local_addr.ss_family);
 fail2:
@@ -3703,7 +3925,7 @@ int __init c4iw_cm_init(void)
 	return 0;
 }
 
-void __exit c4iw_cm_term(void)
+void c4iw_cm_term(void)
 {
 	WARN_ON(!list_empty(&timeout_list));
 	flush_workqueue(workq);

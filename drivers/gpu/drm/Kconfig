@@ -83,6 +83,8 @@ config DRM_KMS_CMA_HELPER
 
 source "drivers/gpu/drm/i2c/Kconfig"
 
+source "drivers/gpu/drm/bridge/Kconfig"
+
 config DRM_TDFX
 	tristate "3dfx Banshee/Voodoo3+"
 	depends on DRM && PCI
@@ -199,5 +201,3 @@ source "drivers/gpu/drm/msm/Kconfig"
 source "drivers/gpu/drm/tegra/Kconfig"
 
 source "drivers/gpu/drm/panel/Kconfig"
-
-source "drivers/gpu/drm/bridge/Kconfig"

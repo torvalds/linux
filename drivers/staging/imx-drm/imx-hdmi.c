@@ -27,8 +27,8 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_encoder_slave.h>
+#include <video/imx-ipu-v3.h>
 
-#include "ipu-v3/imx-ipu-v3.h"
 #include "imx-hdmi.h"
 #include "imx-drm.h"
 
@@ -120,8 +120,6 @@ struct imx_hdmi {
 	struct clk *isfr_clk;
 	struct clk *iahb_clk;
 
-	enum drm_connector_status connector_status;
-
 	struct hdmi_data_info hdmi_data;
 	int vic;
 
@@ -159,6 +157,7 @@ static inline u8 hdmi_readb(struct imx_hdmi *hdmi, int offset)
 static void hdmi_modb(struct imx_hdmi *hdmi, u8 data, u8 mask, unsigned reg)
 {
 	u8 val = hdmi_readb(hdmi, reg) & ~mask;
+
 	val |= data & mask;
 	hdmi_writeb(hdmi, val, reg);
 }
@@ -659,13 +658,10 @@ static inline void hdmi_phy_test_dout(struct imx_hdmi *hdmi,
 
 static bool hdmi_phy_wait_i2c_done(struct imx_hdmi *hdmi, int msec)
 {
-	unsigned char val = 0;
-	val = hdmi_readb(hdmi, HDMI_IH_I2CMPHY_STAT0) & 0x3;
-	while (!val) {
-		udelay(1000);
+	while ((hdmi_readb(hdmi, HDMI_IH_I2CMPHY_STAT0) & 0x3) == 0) {
 		if (msec-- == 0)
 			return false;
-		val = hdmi_readb(hdmi, HDMI_IH_I2CMPHY_STAT0) & 0x3;
+		udelay(1000);
 	}
 	return true;
 }
@@ -1382,7 +1378,9 @@ static enum drm_connector_status imx_hdmi_connector_detect(struct drm_connector
 {
 	struct imx_hdmi *hdmi = container_of(connector, struct imx_hdmi,
 					     connector);
-	return hdmi->connector_status;
+
+	return hdmi_readb(hdmi, HDMI_PHY_STAT0) & HDMI_PHY_HPD ?
+		connector_status_connected : connector_status_disconnected;
 }
 
 static int imx_hdmi_connector_get_modes(struct drm_connector *connector)
@@ -1492,7 +1490,6 @@ static struct drm_connector_funcs imx_hdmi_connector_funcs = {
 
 static struct drm_connector_helper_funcs imx_hdmi_connector_helper_funcs = {
 	.get_modes = imx_hdmi_connector_get_modes,
-	.mode_valid = imx_drm_connector_mode_valid,
 	.best_encoder = imx_hdmi_connector_best_encoder,
 };
 
@@ -1524,7 +1521,6 @@ static irqreturn_t imx_hdmi_irq(int irq, void *dev_id)
 
 			hdmi_modb(hdmi, 0, HDMI_PHY_HPD, HDMI_PHY_POL0);
 
-			hdmi->connector_status = connector_status_connected;
 			imx_hdmi_poweron(hdmi);
 		} else {
 			dev_dbg(hdmi->dev, "EVENT=plugout\n");
@@ -1532,7 +1528,6 @@ static irqreturn_t imx_hdmi_irq(int irq, void *dev_id)
 			hdmi_modb(hdmi, HDMI_PHY_HPD, HDMI_PHY_HPD,
 				HDMI_PHY_POL0);
 
-			hdmi->connector_status = connector_status_disconnected;
 			imx_hdmi_poweroff(hdmi);
 		}
 		drm_helper_hpd_irq_event(hdmi->connector.dev);
@@ -1606,12 +1601,12 @@ static int imx_hdmi_bind(struct device *dev, struct device *master, void *data)
 		return -ENOMEM;
 
 	hdmi->dev = dev;
-	hdmi->connector_status = connector_status_disconnected;
 	hdmi->sample_rate = 48000;
 	hdmi->ratio = 100;
 
 	if (of_id) {
 		const struct platform_device_id *device_id = of_id->data;
+
 		hdmi->dev_type = device_id->driver_data;
 	}
 
@@ -1628,7 +1623,7 @@ static int imx_hdmi_bind(struct device *dev, struct device *master, void *data)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
-		return -EINVAL;
+		return irq;
 
 	ret = devm_request_threaded_irq(dev, irq, imx_hdmi_hardirq,
 					imx_hdmi_irq, IRQF_SHARED,

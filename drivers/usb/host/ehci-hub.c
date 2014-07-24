@@ -33,15 +33,6 @@
 
 #ifdef	CONFIG_PM
 
-static int ehci_hub_control(
-	struct usb_hcd	*hcd,
-	u16		typeReq,
-	u16		wValue,
-	u16		wIndex,
-	char		*buf,
-	u16		wLength
-);
-
 static int persist_enabled_on_companion(struct usb_device *udev, void *unused)
 {
 	return !udev->maxchild && udev->persist_enabled &&
@@ -865,7 +856,7 @@ cleanup:
 #endif /* CONFIG_USB_HCD_TEST_MODE */
 /*-------------------------------------------------------------------------*/
 
-static int ehci_hub_control (
+int ehci_hub_control(
 	struct usb_hcd	*hcd,
 	u16		typeReq,
 	u16		wValue,
@@ -1285,6 +1276,7 @@ error_exit:
 	spin_unlock_irqrestore (&ehci->lock, flags);
 	return retval;
 }
+EXPORT_SYMBOL_GPL(ehci_hub_control);
 
 static void ehci_relinquish_port(struct usb_hcd *hcd, int portnum)
 {

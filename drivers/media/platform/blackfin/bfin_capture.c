@@ -427,14 +427,11 @@ static int bcap_start_streaming(struct vb2_queue *vq, unsigned int count)
 	return 0;
 }
 
-static int bcap_stop_streaming(struct vb2_queue *vq)
+static void bcap_stop_streaming(struct vb2_queue *vq)
 {
 	struct bcap_device *bcap_dev = vb2_get_drv_priv(vq);
 	struct ppi_if *ppi = bcap_dev->ppi;
 	int ret;
-
-	if (!vb2_is_streaming(vq))
-		return 0;
 
 	bcap_dev->stop = true;
 	wait_for_completion(&bcap_dev->comp);
@@ -452,7 +449,6 @@ static int bcap_stop_streaming(struct vb2_queue *vq)
 		list_del(&bcap_dev->cur_frm->list);
 		vb2_buffer_done(&bcap_dev->cur_frm->vb, VB2_BUF_STATE_ERROR);
 	}
-	return 0;
 }
 
 static struct vb2_ops bcap_video_qops = {
@@ -635,7 +631,7 @@ static int bcap_s_std(struct file *file, void *priv, v4l2_std_id std)
 	if (vb2_is_busy(&bcap_dev->buffer_queue))
 		return -EBUSY;
 
-	ret = v4l2_subdev_call(bcap_dev->sd, core, s_std, std);
+	ret = v4l2_subdev_call(bcap_dev->sd, video, s_std, std);
 	if (ret < 0)
 		return ret;
 
@@ -648,7 +644,9 @@ static int bcap_enum_dv_timings(struct file *file, void *priv,
 {
 	struct bcap_device *bcap_dev = video_drvdata(file);
 
-	return v4l2_subdev_call(bcap_dev->sd, video,
+	timings->pad = 0;
+
+	return v4l2_subdev_call(bcap_dev->sd, pad,
 			enum_dv_timings, timings);
 }
 
@@ -1069,7 +1067,7 @@ static int bcap_probe(struct platform_device *pdev)
 	/* now we can probe the default state */
 	if (config->inputs[0].capabilities & V4L2_IN_CAP_STD) {
 		v4l2_std_id std;
-		ret = v4l2_subdev_call(bcap_dev->sd, core, g_std, &std);
+		ret = v4l2_subdev_call(bcap_dev->sd, video, g_std, &std);
 		if (ret) {
 			v4l2_err(&bcap_dev->v4l2_dev,
 					"Unable to get std\n");

@@ -415,7 +415,7 @@ static int rsvp_change(struct net *net, struct sk_buff *in_skb,
 		       struct tcf_proto *tp, unsigned long base,
 		       u32 handle,
 		       struct nlattr **tca,
-		       unsigned long *arg)
+		       unsigned long *arg, bool ovr)
 {
 	struct rsvp_head *data = tp->root;
 	struct rsvp_filter *f, **fp;
@@ -436,7 +436,7 @@ static int rsvp_change(struct net *net, struct sk_buff *in_skb,
 		return err;
 
 	tcf_exts_init(&e, TCA_RSVP_ACT, TCA_RSVP_POLICE);
-	err = tcf_exts_validate(net, tp, tb, tca[TCA_RATE], &e);
+	err = tcf_exts_validate(net, tp, tb, tca[TCA_RATE], &e, ovr);
 	if (err < 0)
 		return err;
 

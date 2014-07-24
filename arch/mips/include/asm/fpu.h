@@ -17,6 +17,7 @@
 #include <asm/mipsregs.h>
 #include <asm/cpu.h>
 #include <asm/cpu-features.h>
+#include <asm/fpu_emulator.h>
 #include <asm/hazards.h>
 #include <asm/processor.h>
 #include <asm/current.h>
@@ -28,7 +29,6 @@
 struct sigcontext;
 struct sigcontext32;
 
-extern void fpu_emulator_init_fpu(void);
 extern void _init_fpu(void);
 extern void _save_fp(struct task_struct *);
 extern void _restore_fp(struct task_struct *);
@@ -156,15 +156,16 @@ static inline int init_fpu(void)
 	int ret = 0;
 
 	preempt_disable();
+
 	if (cpu_has_fpu) {
 		ret = __own_fpu();
 		if (!ret)
 			_init_fpu();
-	} else {
+	} else
 		fpu_emulator_init_fpu();
-	}
 
 	preempt_enable();
+
 	return ret;
 }
 

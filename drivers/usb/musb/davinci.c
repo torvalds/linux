@@ -32,7 +32,7 @@
 #include <linux/gpio.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
-#include <linux/usb/usb_phy_gen_xceiv.h>
+#include <linux/usb/usb_phy_generic.h>
 
 #include <mach/cputype.h>
 #include <mach/hardware.h>
@@ -381,7 +381,6 @@ static int davinci_musb_init(struct musb *musb)
 	u32		revision;
 	int 		ret = -ENODEV;
 
-	usb_nop_xceiv_register();
 	musb->xceiv = usb_get_phy(USB_PHY_TYPE_USB2);
 	if (IS_ERR_OR_NULL(musb->xceiv)) {
 		ret = -EPROBE_DEFER;
@@ -439,7 +438,7 @@ static int davinci_musb_init(struct musb *musb)
 fail:
 	usb_put_phy(musb->xceiv);
 unregister:
-	usb_nop_xceiv_unregister();
+	usb_phy_generic_unregister();
 	return ret;
 }
 
@@ -487,7 +486,6 @@ static int davinci_musb_exit(struct musb *musb)
 	phy_off();
 
 	usb_put_phy(musb->xceiv);
-	usb_nop_xceiv_unregister();
 
 	return 0;
 }
@@ -545,6 +543,7 @@ static int davinci_probe(struct platform_device *pdev)
 
 	pdata->platform_ops		= &davinci_ops;
 
+	usb_phy_generic_register();
 	platform_set_drvdata(pdev, glue);
 
 	memset(musb_resources, 0x00, sizeof(*musb_resources) *
@@ -603,6 +602,7 @@ static int davinci_remove(struct platform_device *pdev)
 	struct davinci_glue		*glue = platform_get_drvdata(pdev);
 
 	platform_device_unregister(glue->musb);
+	usb_phy_generic_unregister();
 	clk_disable(glue->clk);
 	clk_put(glue->clk);
 	kfree(glue);

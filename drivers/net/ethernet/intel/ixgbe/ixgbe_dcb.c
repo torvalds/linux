@@ -267,7 +267,7 @@ void ixgbe_dcb_unpack_map(struct ixgbe_dcb_config *cfg, int direction, u8 *map)
  * Configure dcb settings and enable dcb mode.
  */
 s32 ixgbe_dcb_hw_config(struct ixgbe_hw *hw,
-                        struct ixgbe_dcb_config *dcb_config)
+			struct ixgbe_dcb_config *dcb_config)
 {
 	s32 ret = 0;
 	u8 pfc_en;
@@ -389,7 +389,6 @@ static void ixgbe_dcb_read_rtrup2tc_82599(struct ixgbe_hw *hw, u8 *map)
 	for (i = 0; i < MAX_USER_PRIORITY; i++)
 		map[i] = IXGBE_RTRUP2TC_UP_MASK &
 			(reg >> (i * IXGBE_RTRUP2TC_UP_SHIFT));
-	return;
 }
 
 void ixgbe_dcb_read_rtrup2tc(struct ixgbe_hw *hw, u8 *map)

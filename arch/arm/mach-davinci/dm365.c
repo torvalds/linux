@@ -853,16 +853,6 @@ static u8 dm365_default_priorities[DAVINCI_N_AINTC_IRQ] = {
 
 /* Four Transfer Controllers on DM365 */
 static s8
-dm365_queue_tc_mapping[][2] = {
-	/* {event queue no, TC no} */
-	{0, 0},
-	{1, 1},
-	{2, 2},
-	{3, 3},
-	{-1, -1},
-};
-
-static s8
 dm365_queue_priority_mapping[][2] = {
 	/* {event queue no, Priority} */
 	{0, 7},
@@ -873,12 +863,6 @@ dm365_queue_priority_mapping[][2] = {
 };
 
 static struct edma_soc_info edma_cc0_info = {
-	.n_channel		= 64,
-	.n_region		= 4,
-	.n_slot			= 256,
-	.n_tc			= 4,
-	.n_cc			= 1,
-	.queue_tc_mapping	= dm365_queue_tc_mapping,
 	.queue_priority_mapping	= dm365_queue_priority_mapping,
 	.default_queue		= EVENTQ_3,
 };

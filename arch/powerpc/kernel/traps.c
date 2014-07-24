@@ -295,6 +295,8 @@ long machine_check_early(struct pt_regs *regs)
 {
 	long handled = 0;
 
+	__get_cpu_var(irq_stat).mce_exceptions++;
+
 	if (cur_cpu_spec && cur_cpu_spec->machine_check_early)
 		handled = cur_cpu_spec->machine_check_early(regs);
 	return handled;

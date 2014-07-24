@@ -12,6 +12,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/list.h>
+#include <linux/log2.h>
 #include <linux/jhash.h>
 #include <linux/netlink.h>
 #include <linux/vmalloc.h>
@@ -19,7 +20,7 @@
 #include <linux/netfilter/nf_tables.h>
 #include <net/netfilter/nf_tables.h>
 
-#define NFT_HASH_MIN_SIZE	4
+#define NFT_HASH_MIN_SIZE	4UL
 
 struct nft_hash {
 	struct nft_hash_table __rcu	*tbl;
@@ -27,7 +28,6 @@ struct nft_hash {
 
 struct nft_hash_table {
 	unsigned int			size;
-	unsigned int			elements;
 	struct nft_hash_elem __rcu	*buckets[];
 };
 
@@ -76,10 +76,12 @@ static bool nft_hash_lookup(const struct nft_set *set,
 
 static void nft_hash_tbl_free(const struct nft_hash_table *tbl)
 {
-	if (is_vmalloc_addr(tbl))
-		vfree(tbl);
-	else
-		kfree(tbl);
+	kvfree(tbl);
+}
+
+static unsigned int nft_hash_tbl_size(unsigned int nelem)
+{
+	return max(roundup_pow_of_two(nelem * 4 / 3), NFT_HASH_MIN_SIZE);
 }
 
 static struct nft_hash_table *nft_hash_tbl_alloc(unsigned int nbuckets)
@@ -161,7 +163,6 @@ static int nft_hash_tbl_expand(const struct nft_set *set, struct nft_hash *priv)
 			break;
 		}
 	}
-	ntbl->elements = tbl->elements;
 
 	/* Publish new table */
 	rcu_assign_pointer(priv->tbl, ntbl);
@@ -201,7 +202,6 @@ static int nft_hash_tbl_shrink(const struct nft_set *set, struct nft_hash *priv)
 			;
 		RCU_INIT_POINTER(*pprev, tbl->buckets[i + ntbl->size]);
 	}
-	ntbl->elements = tbl->elements;
 
 	/* Publish new table */
 	rcu_assign_pointer(priv->tbl, ntbl);
@@ -237,10 +237,9 @@ static int nft_hash_insert(const struct nft_set *set,
 	h = nft_hash_data(&he->key, tbl->size, set->klen);
 	RCU_INIT_POINTER(he->next, tbl->buckets[h]);
 	rcu_assign_pointer(tbl->buckets[h], he);
-	tbl->elements++;
 
 	/* Expand table when exceeding 75% load */
-	if (tbl->elements > tbl->size / 4 * 3)
+	if (set->nelems + 1 > tbl->size / 4 * 3)
 		nft_hash_tbl_expand(set, priv);
 
 	return 0;
@@ -268,10 +267,9 @@ static void nft_hash_remove(const struct nft_set *set,
 	RCU_INIT_POINTER(*pprev, he->next);
 	synchronize_rcu();
 	kfree(he);
-	tbl->elements--;
 
 	/* Shrink table beneath 30% load */
-	if (tbl->elements < tbl->size * 3 / 10 &&
+	if (set->nelems - 1 < tbl->size * 3 / 10 &&
 	    tbl->size > NFT_HASH_MIN_SIZE)
 		nft_hash_tbl_shrink(set, priv);
 }
@@ -335,17 +333,23 @@ static unsigned int nft_hash_privsize(const struct nlattr * const nla[])
 }
 
 static int nft_hash_init(const struct nft_set *set,
+			 const struct nft_set_desc *desc,
 			 const struct nlattr * const tb[])
 {
 	struct nft_hash *priv = nft_set_priv(set);
 	struct nft_hash_table *tbl;
+	unsigned int size;
 
 	if (unlikely(!nft_hash_rnd_initted)) {
 		get_random_bytes(&nft_hash_rnd, 4);
 		nft_hash_rnd_initted = true;
 	}
 
-	tbl = nft_hash_tbl_alloc(NFT_HASH_MIN_SIZE);
+	size = NFT_HASH_MIN_SIZE;
+	if (desc->size)
+		size = nft_hash_tbl_size(desc->size);
+
+	tbl = nft_hash_tbl_alloc(size);
 	if (tbl == NULL)
 		return -ENOMEM;
 	RCU_INIT_POINTER(priv->tbl, tbl);
@@ -369,8 +373,37 @@ static void nft_hash_destroy(const struct nft_set *set)
 	kfree(tbl);
 }
 
+static bool nft_hash_estimate(const struct nft_set_desc *desc, u32 features,
+			      struct nft_set_estimate *est)
+{
+	unsigned int esize;
+
+	esize = sizeof(struct nft_hash_elem);
+	if (features & NFT_SET_MAP)
+		esize += FIELD_SIZEOF(struct nft_hash_elem, data[0]);
+
+	if (desc->size) {
+		est->size = sizeof(struct nft_hash) +
+			    nft_hash_tbl_size(desc->size) *
+			    sizeof(struct nft_hash_elem *) +
+			    desc->size * esize;
+	} else {
+		/* Resizing happens when the load drops below 30% or goes
+		 * above 75%. The average of 52.5% load (approximated by 50%)
+		 * is used for the size estimation of the hash buckets,
+		 * meaning we calculate two buckets per element.
+		 */
+		est->size = esize + 2 * sizeof(struct nft_hash_elem *);
+	}
+
+	est->class = NFT_SET_CLASS_O_1;
+
+	return true;
+}
+
 static struct nft_set_ops nft_hash_ops __read_mostly = {
 	.privsize       = nft_hash_privsize,
+	.estimate	= nft_hash_estimate,
 	.init		= nft_hash_init,
 	.destroy	= nft_hash_destroy,
 	.get		= nft_hash_get,

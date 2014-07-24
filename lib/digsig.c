@@ -175,10 +175,11 @@ err1:
  * digsig_verify() - digital signature verification with public key
  * @keyring:	keyring to search key in
  * @sig:	digital signature
- * @sigen:	length of the signature
+ * @siglen:	length of the signature
  * @data:	data
  * @datalen:	length of the data
- * @return:	0 on success, -EINVAL otherwise
+ *
+ * Returns 0 on success, -EINVAL otherwise
  *
  * Verifies data integrity against digital signature.
  * Currently only RSA is supported.

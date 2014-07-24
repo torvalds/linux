@@ -31,21 +31,10 @@
 ENTRY(armada_xp_secondary_startup)
  ARM_BE8(setend	be )			@ go BE8 if entered LE
 
-	/* Get coherency fabric base physical address */
-	adr	r0, 1f
-	ldr	r1, [r0]
-	ldr	r0, [r0, r1]
+	bl	ll_add_cpu_to_smp_group
 
-	/* Read CPU id */
-	mrc     p15, 0, r1, c0, c0, 5
-	and     r1, r1, #0xF
+	bl	ll_enable_coherency
 
-	/* Add CPU to coherency fabric */
-	bl	ll_set_cpu_coherent
 	b	secondary_startup
 
 ENDPROC(armada_xp_secondary_startup)
-
-	.align 2
-1:
-	.long	coherency_phys_base - .

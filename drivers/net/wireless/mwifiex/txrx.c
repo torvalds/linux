@@ -55,6 +55,7 @@ int mwifiex_handle_rx_packet(struct mwifiex_adapter *adapter,
 		return -1;
 	}
 
+	memset(rx_info, 0, sizeof(*rx_info));
 	rx_info->bss_num = priv->bss_num;
 	rx_info->bss_type = priv->bss_type;
 

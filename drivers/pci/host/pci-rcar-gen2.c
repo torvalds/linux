@@ -99,6 +99,7 @@ struct rcar_pci_priv {
 	struct resource io_res;
 	struct resource mem_res;
 	struct resource *cfg_res;
+	unsigned busnr;
 	int irq;
 	unsigned long window_size;
 };
@@ -318,8 +319,8 @@ static int rcar_pci_setup(int nr, struct pci_sys_data *sys)
 	pci_add_resource(&sys->resources, &priv->io_res);
 	pci_add_resource(&sys->resources, &priv->mem_res);
 
-	/* Setup bus number based on platform device id */
-	sys->busnr = to_platform_device(priv->dev)->id;
+	/* Setup bus number based on platform device id / of bus-range */
+	sys->busnr = priv->busnr;
 	return 1;
 }
 
@@ -372,6 +373,23 @@ static int rcar_pci_probe(struct platform_device *pdev)
 
 	priv->window_size = SZ_1G;
 
+	if (pdev->dev.of_node) {
+		struct resource busnr;
+		int ret;
+
+		ret = of_pci_parse_bus_range(pdev->dev.of_node, &busnr);
+		if (ret < 0) {
+			dev_err(&pdev->dev, "failed to parse bus-range\n");
+			return ret;
+		}
+
+		priv->busnr = busnr.start;
+		if (busnr.end != busnr.start)
+			dev_warn(&pdev->dev, "only one bus number supported\n");
+	} else {
+		priv->busnr = pdev->id;
+	}
+
 	hw_private[0] = priv;
 	memset(&hw, 0, sizeof(hw));
 	hw.nr_controllers = ARRAY_SIZE(hw_private);
@@ -383,11 +401,20 @@ static int rcar_pci_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static struct of_device_id rcar_pci_of_match[] = {
+	{ .compatible = "renesas,pci-r8a7790", },
+	{ .compatible = "renesas,pci-r8a7791", },
+	{ },
+};
+
+MODULE_DEVICE_TABLE(of, rcar_pci_of_match);
+
 static struct platform_driver rcar_pci_driver = {
 	.driver = {
 		.name = "pci-rcar-gen2",
 		.owner = THIS_MODULE,
 		.suppress_bind_attrs = true,
+		.of_match_table = rcar_pci_of_match,
 	},
 	.probe = rcar_pci_probe,
 };

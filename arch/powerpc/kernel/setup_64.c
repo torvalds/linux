@@ -36,6 +36,7 @@
 #include <linux/lockdep.h>
 #include <linux/memblock.h>
 #include <linux/hugetlb.h>
+#include <linux/memory.h>
 
 #include <asm/io.h>
 #include <asm/kdump.h>
@@ -341,7 +342,7 @@ void smp_release_cpus(void)
 
 	ptr  = (unsigned long *)((unsigned long)&__secondary_hold_spinloop
 			- PHYSICAL_START);
-	*ptr = __pa(generic_secondary_smp_init);
+	*ptr = ppc_function_entry(generic_secondary_smp_init);
 
 	/* And wait a bit for them to catch up */
 	for (i = 0; i < 100000; i++) {
@@ -780,6 +781,15 @@ void __init setup_per_cpu_areas(void)
 }
 #endif
 
+#ifdef CONFIG_MEMORY_HOTPLUG_SPARSE
+unsigned long memory_block_size_bytes(void)
+{
+	if (ppc_md.memory_block_size)
+		return ppc_md.memory_block_size();
+
+	return MIN_MEMORY_BLOCK_SIZE;
+}
+#endif
 
 #if defined(CONFIG_PPC_INDIRECT_PIO) || defined(CONFIG_PPC_INDIRECT_MMIO)
 struct ppc_pci_io ppc_pci_io;

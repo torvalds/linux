@@ -224,7 +224,8 @@ static struct extent_buffer *btrfs_read_lock_root_node(struct btrfs_root *root)
 static void add_root_to_dirty_list(struct btrfs_root *root)
 {
 	spin_lock(&root->fs_info->trans_lock);
-	if (root->track_dirty && list_empty(&root->dirty_list)) {
+	if (test_bit(BTRFS_ROOT_TRACK_DIRTY, &root->state) &&
+	    list_empty(&root->dirty_list)) {
 		list_add(&root->dirty_list,
 			 &root->fs_info->dirty_cowonly_roots);
 	}
@@ -246,9 +247,10 @@ int btrfs_copy_root(struct btrfs_trans_handle *trans,
 	int level;
 	struct btrfs_disk_key disk_key;
 
-	WARN_ON(root->ref_cows && trans->transid !=
-		root->fs_info->running_transaction->transid);
-	WARN_ON(root->ref_cows && trans->transid != root->last_trans);
+	WARN_ON(test_bit(BTRFS_ROOT_REF_COWS, &root->state) &&
+		trans->transid != root->fs_info->running_transaction->transid);
+	WARN_ON(test_bit(BTRFS_ROOT_REF_COWS, &root->state) &&
+		trans->transid != root->last_trans);
 
 	level = btrfs_header_level(buf);
 	if (level == 0)
@@ -354,41 +356,11 @@ static inline void tree_mod_log_write_unlock(struct btrfs_fs_info *fs_info)
 }
 
 /*
- * Increment the upper half of tree_mod_seq, set lower half zero.
- *
- * Must be called with fs_info->tree_mod_seq_lock held.
+ * Pull a new tree mod seq number for our operation.
  */
-static inline u64 btrfs_inc_tree_mod_seq_major(struct btrfs_fs_info *fs_info)
-{
-	u64 seq = atomic64_read(&fs_info->tree_mod_seq);
-	seq &= 0xffffffff00000000ull;
-	seq += 1ull << 32;
-	atomic64_set(&fs_info->tree_mod_seq, seq);
-	return seq;
-}
-
-/*
- * Increment the lower half of tree_mod_seq.
- *
- * Must be called with fs_info->tree_mod_seq_lock held. The way major numbers
- * are generated should not technically require a spin lock here. (Rationale:
- * incrementing the minor while incrementing the major seq number is between its
- * atomic64_read and atomic64_set calls doesn't duplicate sequence numbers, it
- * just returns a unique sequence number as usual.) We have decided to leave
- * that requirement in here and rethink it once we notice it really imposes a
- * problem on some workload.
- */
-static inline u64 btrfs_inc_tree_mod_seq_minor(struct btrfs_fs_info *fs_info)
+static inline u64 btrfs_inc_tree_mod_seq(struct btrfs_fs_info *fs_info)
 {
 	return atomic64_inc_return(&fs_info->tree_mod_seq);
-}
-
-/*
- * return the last minor in the previous major tree_mod_seq number
- */
-u64 btrfs_tree_mod_seq_prev(u64 seq)
-{
-	return (seq & 0xffffffff00000000ull) - 1ull;
 }
 
 /*
@@ -402,19 +374,16 @@ u64 btrfs_tree_mod_seq_prev(u64 seq)
 u64 btrfs_get_tree_mod_seq(struct btrfs_fs_info *fs_info,
 			   struct seq_list *elem)
 {
-	u64 seq;
-
 	tree_mod_log_write_lock(fs_info);
 	spin_lock(&fs_info->tree_mod_seq_lock);
 	if (!elem->seq) {
-		elem->seq = btrfs_inc_tree_mod_seq_major(fs_info);
+		elem->seq = btrfs_inc_tree_mod_seq(fs_info);
 		list_add_tail(&elem->list, &fs_info->tree_mod_seq_list);
 	}
-	seq = btrfs_inc_tree_mod_seq_minor(fs_info);
 	spin_unlock(&fs_info->tree_mod_seq_lock);
 	tree_mod_log_write_unlock(fs_info);
 
-	return seq;
+	return elem->seq;
 }
 
 void btrfs_put_tree_mod_seq(struct btrfs_fs_info *fs_info,
@@ -487,9 +456,7 @@ __tree_mod_log_insert(struct btrfs_fs_info *fs_info, struct tree_mod_elem *tm)
 
 	BUG_ON(!tm);
 
-	spin_lock(&fs_info->tree_mod_seq_lock);
-	tm->seq = btrfs_inc_tree_mod_seq_minor(fs_info);
-	spin_unlock(&fs_info->tree_mod_seq_lock);
+	tm->seq = btrfs_inc_tree_mod_seq(fs_info);
 
 	tm_root = &fs_info->tree_mod_log;
 	new = &tm_root->rb_node;
@@ -997,14 +964,14 @@ int btrfs_block_can_be_shared(struct btrfs_root *root,
 	 * snapshot and the block was not allocated by tree relocation,
 	 * we know the block is not shared.
 	 */
-	if (root->ref_cows &&
+	if (test_bit(BTRFS_ROOT_REF_COWS, &root->state) &&
 	    buf != root->node && buf != root->commit_root &&
 	    (btrfs_header_generation(buf) <=
 	     btrfs_root_last_snapshot(&root->root_item) ||
 	     btrfs_header_flag(buf, BTRFS_HEADER_FLAG_RELOC)))
 		return 1;
 #ifdef BTRFS_COMPAT_EXTENT_TREE_V0
-	if (root->ref_cows &&
+	if (test_bit(BTRFS_ROOT_REF_COWS, &root->state) &&
 	    btrfs_header_backref_rev(buf) < BTRFS_MIXED_BACKREF_REV)
 		return 1;
 #endif
@@ -1146,9 +1113,10 @@ static noinline int __btrfs_cow_block(struct btrfs_trans_handle *trans,
 
 	btrfs_assert_tree_locked(buf);
 
-	WARN_ON(root->ref_cows && trans->transid !=
-		root->fs_info->running_transaction->transid);
-	WARN_ON(root->ref_cows && trans->transid != root->last_trans);
+	WARN_ON(test_bit(BTRFS_ROOT_REF_COWS, &root->state) &&
+		trans->transid != root->fs_info->running_transaction->transid);
+	WARN_ON(test_bit(BTRFS_ROOT_REF_COWS, &root->state) &&
+		trans->transid != root->last_trans);
 
 	level = btrfs_header_level(buf);
 
@@ -1193,7 +1161,7 @@ static noinline int __btrfs_cow_block(struct btrfs_trans_handle *trans,
 		return ret;
 	}
 
-	if (root->ref_cows) {
+	if (test_bit(BTRFS_ROOT_REF_COWS, &root->state)) {
 		ret = btrfs_reloc_cow_block(trans, root, buf, cow);
 		if (ret)
 			return ret;
@@ -1538,6 +1506,10 @@ static inline int should_cow_block(struct btrfs_trans_handle *trans,
 				   struct btrfs_root *root,
 				   struct extent_buffer *buf)
 {
+#ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
+	if (unlikely(test_bit(BTRFS_ROOT_DUMMY_ROOT, &root->state)))
+		return 0;
+#endif
 	/* ensure we can see the force_cow */
 	smp_rmb();
 
@@ -1556,7 +1528,7 @@ static inline int should_cow_block(struct btrfs_trans_handle *trans,
 	    !btrfs_header_flag(buf, BTRFS_HEADER_FLAG_WRITTEN) &&
 	    !(root->root_key.objectid != BTRFS_TREE_RELOC_OBJECTID &&
 	      btrfs_header_flag(buf, BTRFS_HEADER_FLAG_RELOC)) &&
-	    !root->force_cow)
+	    !test_bit(BTRFS_ROOT_FORCE_COW, &root->state))
 		return 0;
 	return 1;
 }
@@ -5125,7 +5097,17 @@ int btrfs_prev_leaf(struct btrfs_root *root, struct btrfs_path *path)
 		return ret;
 	btrfs_item_key(path->nodes[0], &found_key, 0);
 	ret = comp_keys(&found_key, &key);
-	if (ret < 0)
+	/*
+	 * We might have had an item with the previous key in the tree right
+	 * before we released our path. And after we released our path, that
+	 * item might have been pushed to the first slot (0) of the leaf we
+	 * were holding due to a tree balance. Alternatively, an item with the
+	 * previous key can exist as the only element of a leaf (big fat item).
+	 * Therefore account for these 2 cases, so that our callers (like
+	 * btrfs_previous_item) don't miss an existing item with a key matching
+	 * the previous key we computed above.
+	 */
+	if (ret <= 0)
 		return 0;
 	return 1;
 }
@@ -5733,6 +5715,24 @@ again:
 	if (nritems > 0 && path->slots[0] < nritems - 1) {
 		if (ret == 0)
 			path->slots[0]++;
+		ret = 0;
+		goto done;
+	}
+	/*
+	 * So the above check misses one case:
+	 * - after releasing the path above, someone has removed the item that
+	 *   used to be at the very end of the block, and balance between leafs
+	 *   gets another one with bigger key.offset to replace it.
+	 *
+	 * This one should be returned as well, or we can get leaf corruption
+	 * later(esp. in __btrfs_drop_extents()).
+	 *
+	 * And a bit more explanation about this check,
+	 * with ret > 0, the key isn't found, the path points to the slot
+	 * where it should be inserted, so the path->slots[0] item must be the
+	 * bigger one.
+	 */
+	if (nritems > 0 && ret > 0 && path->slots[0] == nritems - 1) {
 		ret = 0;
 		goto done;
 	}

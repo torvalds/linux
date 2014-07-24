@@ -99,11 +99,6 @@ int mpc8xxx_spi_transfer(struct spi_device *spi,
 	return 0;
 }
 
-void mpc8xxx_spi_cleanup(struct spi_device *spi)
-{
-	kfree(spi->controller_state);
-}
-
 const char *mpc8xxx_spi_strmode(unsigned int flags)
 {
 	if (flags & SPI_QE_CPU_MODE) {
@@ -134,7 +129,6 @@ int mpc8xxx_spi_probe(struct device *dev, struct resource *mem,
 			| SPI_LSB_FIRST | SPI_LOOP;
 
 	master->transfer = mpc8xxx_spi_transfer;
-	master->cleanup = mpc8xxx_spi_cleanup;
 	master->dev.of_node = dev->of_node;
 
 	mpc8xxx_spi = spi_master_get_devdata(master);

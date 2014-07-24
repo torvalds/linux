@@ -21,7 +21,6 @@
 
 #include <drv_types.h>
 
-#include "odm_precomp.h"
 #include "rtl8188e_hal.h"
 #include <linux/vmalloc.h>
 

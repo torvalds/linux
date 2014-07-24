@@ -1363,6 +1363,11 @@ void gpiochip_set_chained_irqchip(struct gpio_chip *gpiochip,
 				  int parent_irq,
 				  irq_flow_handler_t parent_handler)
 {
+	if (gpiochip->can_sleep) {
+		chip_err(gpiochip, "you cannot have chained interrupts on a chip that may sleep\n");
+		return;
+	}
+
 	irq_set_chained_handler(parent_irq, parent_handler);
 	/*
 	 * The parent irqchip is already using the chip_data for this
@@ -1371,6 +1376,12 @@ void gpiochip_set_chained_irqchip(struct gpio_chip *gpiochip,
 	irq_set_handler_data(parent_irq, gpiochip);
 }
 EXPORT_SYMBOL_GPL(gpiochip_set_chained_irqchip);
+
+/*
+ * This lock class tells lockdep that GPIO irqs are in a different
+ * category than their parents, so it won't report false recursion.
+ */
+static struct lock_class_key gpiochip_irq_lock_class;
 
 /**
  * gpiochip_irq_map() - maps an IRQ into a GPIO irqchip
@@ -1388,22 +1399,35 @@ static int gpiochip_irq_map(struct irq_domain *d, unsigned int irq,
 	struct gpio_chip *chip = d->host_data;
 
 	irq_set_chip_data(irq, chip);
+	irq_set_lockdep_class(irq, &gpiochip_irq_lock_class);
 	irq_set_chip_and_handler(irq, chip->irqchip, chip->irq_handler);
+	/* Chips that can sleep need nested thread handlers */
+	if (chip->can_sleep)
+		irq_set_nested_thread(irq, 1);
 #ifdef CONFIG_ARM
 	set_irq_flags(irq, IRQF_VALID);
 #else
 	irq_set_noprobe(irq);
 #endif
-	irq_set_irq_type(irq, chip->irq_default_type);
+	/*
+	 * No set-up of the hardware will happen if IRQ_TYPE_NONE
+	 * is passed as default type.
+	 */
+	if (chip->irq_default_type != IRQ_TYPE_NONE)
+		irq_set_irq_type(irq, chip->irq_default_type);
 
 	return 0;
 }
 
 static void gpiochip_irq_unmap(struct irq_domain *d, unsigned int irq)
 {
+	struct gpio_chip *chip = d->host_data;
+
 #ifdef CONFIG_ARM
 	set_irq_flags(irq, 0);
 #endif
+	if (chip->can_sleep)
+		irq_set_nested_thread(irq, 0);
 	irq_set_chip_and_handler(irq, NULL, NULL);
 	irq_set_chip_data(irq, NULL);
 }
@@ -1471,7 +1495,8 @@ static void gpiochip_irqchip_remove(struct gpio_chip *gpiochip)
  * @first_irq: if not dynamically assigned, the base (first) IRQ to
  * allocate gpiochip irqs from
  * @handler: the irq handler to use (often a predefined irq core function)
- * @type: the default type for IRQs on this irqchip
+ * @type: the default type for IRQs on this irqchip, pass IRQ_TYPE_NONE
+ * to have the core avoid setting up any default type in the hardware.
  *
  * This function closely associates a certain irqchip with a certain
  * gpiochip, providing an irq domain to translate the local IRQs to
@@ -2571,22 +2596,27 @@ void gpiod_add_lookup_table(struct gpiod_lookup_table *table)
 	mutex_unlock(&gpio_lookup_lock);
 }
 
-#ifdef CONFIG_OF
 static struct gpio_desc *of_find_gpio(struct device *dev, const char *con_id,
 				      unsigned int idx,
 				      enum gpio_lookup_flags *flags)
 {
+	static const char *suffixes[] = { "gpios", "gpio" };
 	char prop_name[32]; /* 32 is max size of property name */
 	enum of_gpio_flags of_flags;
 	struct gpio_desc *desc;
+	unsigned int i;
 
-	if (con_id)
-		snprintf(prop_name, 32, "%s-gpios", con_id);
-	else
-		snprintf(prop_name, 32, "gpios");
+	for (i = 0; i < ARRAY_SIZE(suffixes); i++) {
+		if (con_id)
+			snprintf(prop_name, 32, "%s-%s", con_id, suffixes[i]);
+		else
+			snprintf(prop_name, 32, "%s", suffixes[i]);
 
-	desc = of_get_named_gpiod_flags(dev->of_node, prop_name, idx,
-					&of_flags);
+		desc = of_get_named_gpiod_flags(dev->of_node, prop_name, idx,
+						&of_flags);
+		if (!IS_ERR(desc) || (PTR_ERR(desc) == -EPROBE_DEFER))
+			break;
+	}
 
 	if (IS_ERR(desc))
 		return desc;
@@ -2596,14 +2626,6 @@ static struct gpio_desc *of_find_gpio(struct device *dev, const char *con_id,
 
 	return desc;
 }
-#else
-static struct gpio_desc *of_find_gpio(struct device *dev, const char *con_id,
-				      unsigned int idx,
-				      enum gpio_lookup_flags *flags)
-{
-	return ERR_PTR(-ENODEV);
-}
-#endif
 
 static struct gpio_desc *acpi_find_gpio(struct device *dev, const char *con_id,
 					unsigned int idx,
@@ -2701,7 +2723,7 @@ static struct gpio_desc *gpiod_find(struct device *dev, const char *con_id,
 }
 
 /**
- * gpio_get - obtain a GPIO for a given GPIO function
+ * gpiod_get - obtain a GPIO for a given GPIO function
  * @dev:	GPIO consumer, can be NULL for system-global GPIOs
  * @con_id:	function within the GPIO consumer
  *
@@ -2714,6 +2736,22 @@ struct gpio_desc *__must_check gpiod_get(struct device *dev, const char *con_id)
 	return gpiod_get_index(dev, con_id, 0);
 }
 EXPORT_SYMBOL_GPL(gpiod_get);
+
+/**
+ * gpiod_get_optional - obtain an optional GPIO for a given GPIO function
+ * @dev: GPIO consumer, can be NULL for system-global GPIOs
+ * @con_id: function within the GPIO consumer
+ *
+ * This is equivalent to gpiod_get(), except that when no GPIO was assigned to
+ * the requested function it will return NULL. This is convenient for drivers
+ * that need to handle optional GPIOs.
+ */
+struct gpio_desc *__must_check gpiod_get_optional(struct device *dev,
+						  const char *con_id)
+{
+	return gpiod_get_index_optional(dev, con_id, 0);
+}
+EXPORT_SYMBOL_GPL(gpiod_get_optional);
 
 /**
  * gpiod_get_index - obtain a GPIO from a multi-index GPIO function
@@ -2776,6 +2814,33 @@ struct gpio_desc *__must_check gpiod_get_index(struct device *dev,
 	return desc;
 }
 EXPORT_SYMBOL_GPL(gpiod_get_index);
+
+/**
+ * gpiod_get_index_optional - obtain an optional GPIO from a multi-index GPIO
+ *                            function
+ * @dev: GPIO consumer, can be NULL for system-global GPIOs
+ * @con_id: function within the GPIO consumer
+ * @index: index of the GPIO to obtain in the consumer
+ *
+ * This is equivalent to gpiod_get_index(), except that when no GPIO with the
+ * specified index was assigned to the requested function it will return NULL.
+ * This is convenient for drivers that need to handle optional GPIOs.
+ */
+struct gpio_desc *__must_check gpiod_get_index_optional(struct device *dev,
+							const char *con_id,
+							unsigned int index)
+{
+	struct gpio_desc *desc;
+
+	desc = gpiod_get_index(dev, con_id, index);
+	if (IS_ERR(desc)) {
+		if (PTR_ERR(desc) == -ENOENT)
+			return NULL;
+	}
+
+	return desc;
+}
+EXPORT_SYMBOL_GPL(gpiod_get_index_optional);
 
 /**
  * gpiod_put - dispose of a GPIO descriptor

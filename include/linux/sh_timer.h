@@ -7,6 +7,7 @@ struct sh_timer_config {
 	int timer_bit;
 	unsigned long clockevent_rating;
 	unsigned long clocksource_rating;
+	unsigned int channels_mask;
 };
 
 #endif /* __SH_TIMER_H__ */

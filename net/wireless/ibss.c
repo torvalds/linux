@@ -45,7 +45,7 @@ void __cfg80211_ibss_joined(struct net_device *dev, const u8 *bssid,
 
 	cfg80211_upload_connect_keys(wdev);
 
-	nl80211_send_ibss_bssid(wiphy_to_dev(wdev->wiphy), dev, bssid,
+	nl80211_send_ibss_bssid(wiphy_to_rdev(wdev->wiphy), dev, bssid,
 				GFP_KERNEL);
 #ifdef CONFIG_CFG80211_WEXT
 	memset(&wrqu, 0, sizeof(wrqu));
@@ -58,7 +58,7 @@ void cfg80211_ibss_joined(struct net_device *dev, const u8 *bssid,
 			  struct ieee80211_channel *channel, gfp_t gfp)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
-	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wdev->wiphy);
 	struct cfg80211_event *ev;
 	unsigned long flags;
 
@@ -88,8 +88,6 @@ static int __cfg80211_join_ibss(struct cfg80211_registered_device *rdev,
 				struct cfg80211_cached_keys *connkeys)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
-	struct ieee80211_channel *check_chan;
-	u8 radar_detect_width = 0;
 	int err;
 
 	ASSERT_WDEV_LOCK(wdev);
@@ -126,28 +124,6 @@ static int __cfg80211_join_ibss(struct cfg80211_registered_device *rdev,
 #ifdef CONFIG_CFG80211_WEXT
 	wdev->wext.ibss.chandef = params->chandef;
 #endif
-	check_chan = params->chandef.chan;
-	if (params->userspace_handles_dfs) {
-		/* Check for radar even if the current channel is not
-		 * a radar channel - it might decide to change to DFS
-		 * channel later.
-		 */
-		radar_detect_width = BIT(params->chandef.width);
-	}
-
-	err = cfg80211_can_use_iftype_chan(rdev, wdev, wdev->iftype,
-					   check_chan,
-					   (params->channel_fixed &&
-					    !radar_detect_width)
-					   ? CHAN_MODE_SHARED
-					   : CHAN_MODE_EXCLUSIVE,
-					   radar_detect_width);
-
-	if (err) {
-		wdev->connect_keys = NULL;
-		return err;
-	}
-
 	err = rdev_join_ibss(rdev, dev, params);
 	if (err) {
 		wdev->connect_keys = NULL;
@@ -180,7 +156,7 @@ int cfg80211_join_ibss(struct cfg80211_registered_device *rdev,
 static void __cfg80211_clear_ibss(struct net_device *dev, bool nowext)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
-	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wdev->wiphy);
 	int i;
 
 	ASSERT_WDEV_LOCK(wdev);
@@ -335,7 +311,7 @@ int cfg80211_ibss_wext_siwfreq(struct net_device *dev,
 			       struct iw_freq *wextfreq, char *extra)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
-	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wdev->wiphy);
 	struct ieee80211_channel *chan = NULL;
 	int err, freq;
 
@@ -346,7 +322,7 @@ int cfg80211_ibss_wext_siwfreq(struct net_device *dev,
 	if (!rdev->ops->join_ibss)
 		return -EOPNOTSUPP;
 
-	freq = cfg80211_wext_freq(wdev->wiphy, wextfreq);
+	freq = cfg80211_wext_freq(wextfreq);
 	if (freq < 0)
 		return freq;
 
@@ -420,7 +396,7 @@ int cfg80211_ibss_wext_siwessid(struct net_device *dev,
 				struct iw_point *data, char *ssid)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
-	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wdev->wiphy);
 	size_t len = data->length;
 	int err;
 
@@ -444,8 +420,8 @@ int cfg80211_ibss_wext_siwessid(struct net_device *dev,
 	if (len > 0 && ssid[len - 1] == '\0')
 		len--;
 
+	memcpy(wdev->ssid, ssid, len);
 	wdev->wext.ibss.ssid = wdev->ssid;
-	memcpy(wdev->wext.ibss.ssid, ssid, len);
 	wdev->wext.ibss.ssid_len = len;
 
 	wdev_lock(wdev);
@@ -487,7 +463,7 @@ int cfg80211_ibss_wext_siwap(struct net_device *dev,
 			     struct sockaddr *ap_addr, char *extra)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
-	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wdev->wiphy);
 	u8 *bssid = ap_addr->sa_data;
 	int err;
 
@@ -504,6 +480,9 @@ int cfg80211_ibss_wext_siwap(struct net_device *dev,
 	/* automatic mode */
 	if (is_zero_ether_addr(bssid) || is_broadcast_ether_addr(bssid))
 		bssid = NULL;
+
+	if (bssid && !is_valid_ether_addr(bssid))
+		return -EINVAL;
 
 	/* both automatic */
 	if (!bssid && !wdev->wext.ibss.bssid)

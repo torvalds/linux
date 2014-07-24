@@ -87,7 +87,8 @@ static void vgacon_save_screen(struct vc_data *c);
 static int vgacon_scroll(struct vc_data *c, int t, int b, int dir,
 			 int lines);
 static void vgacon_invert_region(struct vc_data *c, u16 * p, int count);
-static unsigned long vgacon_uni_pagedir[2];
+static struct uni_pagedir *vgacon_uni_pagedir;
+static int vgacon_refcount;
 
 /* Description of the hardware situation */
 static int		vga_init_done		__read_mostly;
@@ -553,7 +554,7 @@ static const char *vgacon_startup(void)
 
 static void vgacon_init(struct vc_data *c, int init)
 {
-	unsigned long p;
+	struct uni_pagedir *p;
 
 	/*
 	 * We cannot be loaded as a module, therefore init is always 1,
@@ -575,12 +576,12 @@ static void vgacon_init(struct vc_data *c, int init)
 	if (vga_512_chars)
 		c->vc_hi_font_mask = 0x0800;
 	p = *c->vc_uni_pagedir_loc;
-	if (c->vc_uni_pagedir_loc == &c->vc_uni_pagedir ||
-	    !--c->vc_uni_pagedir_loc[1])
+	if (c->vc_uni_pagedir_loc != &vgacon_uni_pagedir) {
 		con_free_unimap(c);
-	c->vc_uni_pagedir_loc = vgacon_uni_pagedir;
-	vgacon_uni_pagedir[1]++;
-	if (!vgacon_uni_pagedir[0] && p)
+		c->vc_uni_pagedir_loc = &vgacon_uni_pagedir;
+		vgacon_refcount++;
+	}
+	if (!vgacon_uni_pagedir && p)
 		con_set_default_unimap(c);
 
 	/* Only set the default if the user didn't deliberately override it */
@@ -597,7 +598,7 @@ static void vgacon_deinit(struct vc_data *c)
 		vga_set_mem_top(c);
 	}
 
-	if (!--vgacon_uni_pagedir[1])
+	if (!--vgacon_refcount)
 		con_free_unimap(c);
 	c->vc_uni_pagedir_loc = &c->vc_uni_pagedir;
 	con_set_default_unimap(c);
@@ -1440,5 +1441,6 @@ const struct consw vga_con = {
 	.con_build_attr = vgacon_build_attr,
 	.con_invert_region = vgacon_invert_region,
 };
+EXPORT_SYMBOL(vga_con);
 
 MODULE_LICENSE("GPL");

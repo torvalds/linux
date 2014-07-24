@@ -292,12 +292,12 @@ static inline struct sock *inet_lookup_listener(struct net *net,
 #define INET_ADDR_COOKIE(__name, __saddr, __daddr) \
 	const __addrpair __name = (__force __addrpair) ( \
 				   (((__force __u64)(__be32)(__saddr)) << 32) | \
-				   ((__force __u64)(__be32)(__daddr)));
+				   ((__force __u64)(__be32)(__daddr)))
 #else /* __LITTLE_ENDIAN */
 #define INET_ADDR_COOKIE(__name, __saddr, __daddr) \
 	const __addrpair __name = (__force __addrpair) ( \
 				   (((__force __u64)(__be32)(__daddr)) << 32) | \
-				   ((__force __u64)(__be32)(__saddr)));
+				   ((__force __u64)(__be32)(__saddr)))
 #endif /* __BIG_ENDIAN */
 #define INET_MATCH(__sk, __net, __cookie, __saddr, __daddr, __ports, __dif)	\
 	(((__sk)->sk_portpair == (__ports))			&&	\
@@ -306,7 +306,9 @@ static inline struct sock *inet_lookup_listener(struct net *net,
 	   ((__sk)->sk_bound_dev_if == (__dif))) 		&& 	\
 	 net_eq(sock_net(__sk), (__net)))
 #else /* 32-bit arch */
-#define INET_ADDR_COOKIE(__name, __saddr, __daddr)
+#define INET_ADDR_COOKIE(__name, __saddr, __daddr) \
+	const int __name __deprecated __attribute__((unused))
+
 #define INET_MATCH(__sk, __net, __cookie, __saddr, __daddr, __ports, __dif) \
 	(((__sk)->sk_portpair == (__ports))		&&		\
 	 ((__sk)->sk_daddr	== (__saddr))		&&		\

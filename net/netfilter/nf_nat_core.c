@@ -358,6 +358,19 @@ out:
 	rcu_read_unlock();
 }
 
+struct nf_conn_nat *nf_ct_nat_ext_add(struct nf_conn *ct)
+{
+	struct nf_conn_nat *nat = nfct_nat(ct);
+	if (nat)
+		return nat;
+
+	if (!nf_ct_is_confirmed(ct))
+		nat = nf_ct_ext_add(ct, NF_CT_EXT_NAT, GFP_ATOMIC);
+
+	return nat;
+}
+EXPORT_SYMBOL_GPL(nf_ct_nat_ext_add);
+
 unsigned int
 nf_nat_setup_info(struct nf_conn *ct,
 		  const struct nf_nat_range *range,
@@ -368,14 +381,9 @@ nf_nat_setup_info(struct nf_conn *ct,
 	struct nf_conn_nat *nat;
 
 	/* nat helper or nfctnetlink also setup binding */
-	nat = nfct_nat(ct);
-	if (!nat) {
-		nat = nf_ct_ext_add(ct, NF_CT_EXT_NAT, GFP_ATOMIC);
-		if (nat == NULL) {
-			pr_debug("failed to add NAT extension\n");
-			return NF_ACCEPT;
-		}
-	}
+	nat = nf_ct_nat_ext_add(ct);
+	if (nat == NULL)
+		return NF_ACCEPT;
 
 	NF_CT_ASSERT(maniptype == NF_NAT_MANIP_SRC ||
 		     maniptype == NF_NAT_MANIP_DST);
@@ -515,6 +523,39 @@ static int nf_nat_proto_remove(struct nf_conn *i, void *data)
 		return 0;
 
 	return i->status & IPS_NAT_MASK ? 1 : 0;
+}
+
+static int nf_nat_proto_clean(struct nf_conn *ct, void *data)
+{
+	struct nf_conn_nat *nat = nfct_nat(ct);
+
+	if (nf_nat_proto_remove(ct, data))
+		return 1;
+
+	if (!nat || !nat->ct)
+		return 0;
+
+	/* This netns is being destroyed, and conntrack has nat null binding.
+	 * Remove it from bysource hash, as the table will be freed soon.
+	 *
+	 * Else, when the conntrack is destoyed, nf_nat_cleanup_conntrack()
+	 * will delete entry from already-freed table.
+	 */
+	if (!del_timer(&ct->timeout))
+		return 1;
+
+	spin_lock_bh(&nf_nat_lock);
+	hlist_del_rcu(&nat->bysource);
+	ct->status &= ~IPS_NAT_DONE_MASK;
+	nat->ct = NULL;
+	spin_unlock_bh(&nf_nat_lock);
+
+	add_timer(&ct->timeout);
+
+	/* don't delete conntrack.  Although that would make things a lot
+	 * simpler, we'd end up flushing all conntracks on nat rmmod.
+	 */
+	return 0;
 }
 
 static void nf_nat_l4proto_clean(u8 l3proto, u8 l4proto)
@@ -787,7 +828,7 @@ static void __net_exit nf_nat_net_exit(struct net *net)
 {
 	struct nf_nat_proto_clean clean = {};
 
-	nf_ct_iterate_cleanup(net, &nf_nat_proto_remove, &clean, 0, 0);
+	nf_ct_iterate_cleanup(net, nf_nat_proto_clean, &clean, 0, 0);
 	synchronize_rcu();
 	nf_ct_free_hashtable(net->ct.nat_bysource, net->ct.nat_htable_size);
 }

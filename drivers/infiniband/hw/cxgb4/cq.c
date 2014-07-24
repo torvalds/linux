@@ -134,7 +134,8 @@ static int create_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
 			V_FW_RI_RES_WR_IQANUS(0) |
 			V_FW_RI_RES_WR_IQANUD(1) |
 			F_FW_RI_RES_WR_IQANDST |
-			V_FW_RI_RES_WR_IQANDSTINDEX(*rdev->lldi.rxq_ids));
+			V_FW_RI_RES_WR_IQANDSTINDEX(
+				rdev->lldi.ciq_ids[cq->vector]));
 	res->u.cq.iqdroprss_to_iqesize = cpu_to_be16(
 			F_FW_RI_RES_WR_IQDROPRSS |
 			V_FW_RI_RES_WR_IQPCIECH(2) |
@@ -870,6 +871,9 @@ struct ib_cq *c4iw_create_cq(struct ib_device *ibdev, int entries,
 
 	rhp = to_c4iw_dev(ibdev);
 
+	if (vector >= rhp->rdev.lldi.nciq)
+		return ERR_PTR(-EINVAL);
+
 	chp = kzalloc(sizeof(*chp), GFP_KERNEL);
 	if (!chp)
 		return ERR_PTR(-ENOMEM);
@@ -915,6 +919,7 @@ struct ib_cq *c4iw_create_cq(struct ib_device *ibdev, int entries,
 	}
 	chp->cq.size = hwentries;
 	chp->cq.memsize = memsize;
+	chp->cq.vector = vector;
 
 	ret = create_cq(&rhp->rdev, &chp->cq,
 			ucontext ? &ucontext->uctx : &rhp->rdev.uctx);
@@ -940,7 +945,6 @@ struct ib_cq *c4iw_create_cq(struct ib_device *ibdev, int entries,
 		if (!mm2)
 			goto err4;
 
-		memset(&uresp, 0, sizeof(uresp));
 		uresp.qid_mask = rhp->rdev.cqmask;
 		uresp.cqid = chp->cq.cqid;
 		uresp.size = chp->cq.size;
@@ -951,7 +955,8 @@ struct ib_cq *c4iw_create_cq(struct ib_device *ibdev, int entries,
 		uresp.gts_key = ucontext->key;
 		ucontext->key += PAGE_SIZE;
 		spin_unlock(&ucontext->mmap_lock);
-		ret = ib_copy_to_udata(udata, &uresp, sizeof uresp);
+		ret = ib_copy_to_udata(udata, &uresp,
+				       sizeof(uresp) - sizeof(uresp.reserved));
 		if (ret)
 			goto err5;
 

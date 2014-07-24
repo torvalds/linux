@@ -195,15 +195,16 @@ ieee802154_hdr_get_sechdr(const u8 *buf, struct ieee802154_sechdr *hdr)
 	return pos;
 }
 
+static int ieee802154_sechdr_lengths[4] = {
+	[IEEE802154_SCF_KEY_IMPLICIT] = 5,
+	[IEEE802154_SCF_KEY_INDEX] = 6,
+	[IEEE802154_SCF_KEY_SHORT_INDEX] = 10,
+	[IEEE802154_SCF_KEY_HW_INDEX] = 14,
+};
+
 static int ieee802154_hdr_sechdr_len(u8 sc)
 {
-	switch (IEEE802154_SCF_KEY_ID_MODE(sc)) {
-	case IEEE802154_SCF_KEY_IMPLICIT: return 5;
-	case IEEE802154_SCF_KEY_INDEX: return 6;
-	case IEEE802154_SCF_KEY_SHORT_INDEX: return 10;
-	case IEEE802154_SCF_KEY_HW_INDEX: return 14;
-	default: return -EINVAL;
-	}
+	return ieee802154_sechdr_lengths[IEEE802154_SCF_KEY_ID_MODE(sc)];
 }
 
 static int ieee802154_hdr_minlen(const struct ieee802154_hdr *hdr)
@@ -285,3 +286,40 @@ ieee802154_hdr_peek_addrs(const struct sk_buff *skb, struct ieee802154_hdr *hdr)
 	return pos;
 }
 EXPORT_SYMBOL_GPL(ieee802154_hdr_peek_addrs);
+
+int
+ieee802154_hdr_peek(const struct sk_buff *skb, struct ieee802154_hdr *hdr)
+{
+	const u8 *buf = skb_mac_header(skb);
+	int pos;
+
+	pos = ieee802154_hdr_peek_addrs(skb, hdr);
+	if (pos < 0)
+		return -EINVAL;
+
+	if (hdr->fc.security_enabled) {
+		u8 key_id_mode = IEEE802154_SCF_KEY_ID_MODE(*(buf + pos));
+		int want = pos + ieee802154_sechdr_lengths[key_id_mode];
+
+		if (buf + want > skb_tail_pointer(skb))
+			return -EINVAL;
+
+		pos += ieee802154_hdr_get_sechdr(buf + pos, &hdr->sec);
+	}
+
+	return pos;
+}
+EXPORT_SYMBOL_GPL(ieee802154_hdr_peek);
+
+int ieee802154_max_payload(const struct ieee802154_hdr *hdr)
+{
+	int hlen = ieee802154_hdr_minlen(hdr);
+
+	if (hdr->fc.security_enabled) {
+		hlen += ieee802154_sechdr_lengths[hdr->sec.key_id_mode] - 1;
+		hlen += ieee802154_sechdr_authtag_len(&hdr->sec);
+	}
+
+	return IEEE802154_MTU - hlen - IEEE802154_MFR_SIZE;
+}
+EXPORT_SYMBOL_GPL(ieee802154_max_payload);

@@ -82,29 +82,42 @@ static void proc_cpufreq_output(void)
 	}
 }
 
+static int no_rounding;
 static void print_speed(unsigned long speed)
 {
 	unsigned long tmp;
 
-	if (speed > 1000000) {
-		tmp = speed % 10000;
-		if (tmp >= 5000)
-			speed += 10000;
-		printf("%u.%02u GHz", ((unsigned int) speed/1000000),
-			((unsigned int) (speed%1000000)/10000));
-	} else if (speed > 100000) {
-		tmp = speed % 1000;
-		if (tmp >= 500)
-			speed += 1000;
-		printf("%u MHz", ((unsigned int) speed / 1000));
-	} else if (speed > 1000) {
-		tmp = speed % 100;
-		if (tmp >= 50)
-			speed += 100;
-		printf("%u.%01u MHz", ((unsigned int) speed/1000),
-			((unsigned int) (speed%1000)/100));
-	} else
-		printf("%lu kHz", speed);
+	if (no_rounding) {
+		if (speed > 1000000)
+			printf("%u.%06u GHz", ((unsigned int) speed/1000000),
+				((unsigned int) speed%1000000));
+		else if (speed > 100000)
+			printf("%u MHz", (unsigned int) speed);
+		else if (speed > 1000)
+			printf("%u.%03u MHz", ((unsigned int) speed/1000),
+				(unsigned int) (speed%1000));
+		else
+			printf("%lu kHz", speed);
+	} else {
+		if (speed > 1000000) {
+			tmp = speed%10000;
+			if (tmp >= 5000)
+				speed += 10000;
+			printf("%u.%02u GHz", ((unsigned int) speed/1000000),
+				((unsigned int) (speed%1000000)/10000));
+		} else if (speed > 100000) {
+			tmp = speed%1000;
+			if (tmp >= 500)
+				speed += 1000;
+			printf("%u MHz", ((unsigned int) speed/1000));
+		} else if (speed > 1000) {
+			tmp = speed%100;
+			if (tmp >= 50)
+				speed += 100;
+			printf("%u.%01u MHz", ((unsigned int) speed/1000),
+				((unsigned int) (speed%1000)/100));
+		}
+	}
 
 	return;
 }
@@ -113,26 +126,38 @@ static void print_duration(unsigned long duration)
 {
 	unsigned long tmp;
 
-	if (duration > 1000000) {
-		tmp = duration % 10000;
-		if (tmp >= 5000)
-			duration += 10000;
-		printf("%u.%02u ms", ((unsigned int) duration/1000000),
-			((unsigned int) (duration%1000000)/10000));
-	} else if (duration > 100000) {
-		tmp = duration % 1000;
-		if (tmp >= 500)
-			duration += 1000;
-		printf("%u us", ((unsigned int) duration / 1000));
-	} else if (duration > 1000) {
-		tmp = duration % 100;
-		if (tmp >= 50)
-			duration += 100;
-		printf("%u.%01u us", ((unsigned int) duration/1000),
-			((unsigned int) (duration%1000)/100));
-	} else
-		printf("%lu ns", duration);
-
+	if (no_rounding) {
+		if (duration > 1000000)
+			printf("%u.%06u ms", ((unsigned int) duration/1000000),
+				((unsigned int) duration%1000000));
+		else if (duration > 100000)
+			printf("%u us", ((unsigned int) duration/1000));
+		else if (duration > 1000)
+			printf("%u.%03u us", ((unsigned int) duration/1000),
+				((unsigned int) duration%1000));
+		else
+			printf("%lu ns", duration);
+	} else {
+		if (duration > 1000000) {
+			tmp = duration%10000;
+			if (tmp >= 5000)
+				duration += 10000;
+			printf("%u.%02u ms", ((unsigned int) duration/1000000),
+				((unsigned int) (duration%1000000)/10000));
+		} else if (duration > 100000) {
+			tmp = duration%1000;
+			if (tmp >= 500)
+				duration += 1000;
+			printf("%u us", ((unsigned int) duration / 1000));
+		} else if (duration > 1000) {
+			tmp = duration%100;
+			if (tmp >= 50)
+				duration += 100;
+			printf("%u.%01u us", ((unsigned int) duration/1000),
+				((unsigned int) (duration%1000)/100));
+		} else
+			printf("%lu ns", duration);
+	}
 	return;
 }
 
@@ -525,6 +550,7 @@ static struct option info_opts[] = {
 	{ .name = "latency",	.has_arg = no_argument,		.flag = NULL,	.val = 'y'},
 	{ .name = "proc",	.has_arg = no_argument,		.flag = NULL,	.val = 'o'},
 	{ .name = "human",	.has_arg = no_argument,		.flag = NULL,	.val = 'm'},
+	{ .name = "no-rounding", .has_arg = no_argument,	.flag = NULL,	.val = 'n'},
 	{ },
 };
 
@@ -538,7 +564,8 @@ int cmd_freq_info(int argc, char **argv)
 	int output_param = 0;
 
 	do {
-		ret = getopt_long(argc, argv, "oefwldpgrasmyb", info_opts, NULL);
+		ret = getopt_long(argc, argv, "oefwldpgrasmybn", info_opts,
+				  NULL);
 		switch (ret) {
 		case '?':
 			output_param = '?';
@@ -574,6 +601,9 @@ int cmd_freq_info(int argc, char **argv)
 				break;
 			}
 			human = 1;
+			break;
+		case 'n':
+			no_rounding = 1;
 			break;
 		default:
 			fprintf(stderr, "invalid or unknown argument\n");

@@ -838,8 +838,6 @@ sclp_vt220_con_init(void)
 {
 	int rc;
 
-	if (!CONSOLE_IS_SCLP)
-		return 0;
 	rc = __sclp_vt220_init(sclp_console_pages);
 	if (rc)
 		return rc;

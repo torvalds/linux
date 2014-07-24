@@ -26,7 +26,6 @@
 #include <net/sock.h>
 
 #include <net/ipv6.h>
-#include <net/addrconf.h>
 #include <net/rawv6.h>
 #include <net/transp_v6.h>
 

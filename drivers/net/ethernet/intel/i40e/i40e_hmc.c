@@ -201,7 +201,7 @@ exit:
  **/
 i40e_status i40e_remove_pd_bp(struct i40e_hw *hw,
 					struct i40e_hmc_info *hmc_info,
-					u32 idx, bool is_pf)
+					u32 idx)
 {
 	i40e_status ret_code = 0;
 	struct i40e_hmc_pd_entry *pd_entry;
@@ -237,10 +237,7 @@ i40e_status i40e_remove_pd_bp(struct i40e_hw *hw,
 	pd_addr = (u64 *)pd_table->pd_page_addr.va;
 	pd_addr += rel_pd_idx;
 	memset(pd_addr, 0, sizeof(u64));
-	if (is_pf)
-		I40E_INVALIDATE_PF_HMC_PD(hw, sd_idx, idx);
-	else
-		I40E_INVALIDATE_VF_HMC_PD(hw, sd_idx, idx, hmc_info->hmc_fn_id);
+	I40E_INVALIDATE_PF_HMC_PD(hw, sd_idx, idx);
 
 	/* free memory here */
 	ret_code = i40e_free_dma_mem(hw, &(pd_entry->bp.addr));

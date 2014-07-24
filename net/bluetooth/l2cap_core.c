@@ -471,8 +471,14 @@ void l2cap_chan_set_defaults(struct l2cap_chan *chan)
 	chan->max_tx = L2CAP_DEFAULT_MAX_TX;
 	chan->tx_win = L2CAP_DEFAULT_TX_WINDOW;
 	chan->tx_win_max = L2CAP_DEFAULT_TX_WINDOW;
+	chan->remote_max_tx = chan->max_tx;
+	chan->remote_tx_win = chan->tx_win;
 	chan->ack_win = L2CAP_DEFAULT_TX_WINDOW;
 	chan->sec_level = BT_SECURITY_LOW;
+	chan->flush_to = L2CAP_DEFAULT_FLUSH_TO;
+	chan->retrans_timeout = L2CAP_DEFAULT_RETRANS_TO;
+	chan->monitor_timeout = L2CAP_DEFAULT_MONITOR_TO;
+	chan->conf_state = 0;
 
 	set_bit(FLAG_FORCE_ACTIVE, &chan->flags);
 }
@@ -1657,7 +1663,13 @@ static void l2cap_conn_del(struct hci_conn *hcon, int err)
 	kfree_skb(conn->rx_skb);
 
 	skb_queue_purge(&conn->pending_rx);
-	flush_work(&conn->pending_rx_work);
+
+	/* We can not call flush_work(&conn->pending_rx_work) here since we
+	 * might block if we are running on a worker from the same workqueue
+	 * pending_rx_work is waiting on.
+	 */
+	if (work_pending(&conn->pending_rx_work))
+		cancel_work_sync(&conn->pending_rx_work);
 
 	l2cap_unregister_all_users(conn);
 
@@ -7519,9 +7531,9 @@ int __init l2cap_init(void)
 	l2cap_debugfs = debugfs_create_file("l2cap", 0444, bt_debugfs,
 					    NULL, &l2cap_debugfs_fops);
 
-	debugfs_create_u16("l2cap_le_max_credits", 0466, bt_debugfs,
+	debugfs_create_u16("l2cap_le_max_credits", 0644, bt_debugfs,
 			   &le_max_credits);
-	debugfs_create_u16("l2cap_le_default_mps", 0466, bt_debugfs,
+	debugfs_create_u16("l2cap_le_default_mps", 0644, bt_debugfs,
 			   &le_default_mps);
 
 	bt_6lowpan_init();

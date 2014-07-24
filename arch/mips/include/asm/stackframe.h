@@ -19,21 +19,11 @@
 #include <asm/asm-offsets.h>
 #include <asm/thread_info.h>
 
-/*
- * For SMTC kernel, global IE should be left set, and interrupts
- * controlled exclusively via IXMT.
- */
-#ifdef CONFIG_MIPS_MT_SMTC
-#define STATMASK 0x1e
-#elif defined(CONFIG_CPU_R3000) || defined(CONFIG_CPU_TX39XX)
+#if defined(CONFIG_CPU_R3000) || defined(CONFIG_CPU_TX39XX)
 #define STATMASK 0x3f
 #else
 #define STATMASK 0x1f
 #endif
-
-#ifdef CONFIG_MIPS_MT_SMTC
-#include <asm/mipsmtregs.h>
-#endif /* CONFIG_MIPS_MT_SMTC */
 
 		.macro	SAVE_AT
 		.set	push
@@ -186,16 +176,6 @@
 		mfc0	v1, CP0_STATUS
 		LONG_S	$2, PT_R2(sp)
 		LONG_S	v1, PT_STATUS(sp)
-#ifdef CONFIG_MIPS_MT_SMTC
-		/*
-		 * Ideally, these instructions would be shuffled in
-		 * to cover the pipeline delay.
-		 */
-		.set	mips32
-		mfc0	k0, CP0_TCSTATUS
-		.set	mips0
-		LONG_S	k0, PT_TCSTATUS(sp)
-#endif /* CONFIG_MIPS_MT_SMTC */
 		LONG_S	$4, PT_R4(sp)
 		mfc0	v1, CP0_CAUSE
 		LONG_S	$5, PT_R5(sp)
@@ -321,36 +301,6 @@
 		.set	push
 		.set	reorder
 		.set	noat
-#ifdef CONFIG_MIPS_MT_SMTC
-		.set	mips32r2
-		/*
-		 * We need to make sure the read-modify-write
-		 * of Status below isn't perturbed by an interrupt
-		 * or cross-TC access, so we need to do at least a DMT,
-		 * protected by an interrupt-inhibit. But setting IXMT
-		 * also creates a few-cycle window where an IPI could
-		 * be queued and not be detected before potentially
-		 * returning to a WAIT or user-mode loop. It must be
-		 * replayed.
-		 *
-		 * We're in the middle of a context switch, and
-		 * we can't dispatch it directly without trashing
-		 * some registers, so we'll try to detect this unlikely
-		 * case and program a software interrupt in the VPE,
-		 * as would be done for a cross-VPE IPI.  To accommodate
-		 * the handling of that case, we're doing a DVPE instead
-		 * of just a DMT here to protect against other threads.
-		 * This is a lot of cruft to cover a tiny window.
-		 * If you can find a better design, implement it!
-		 *
-		 */
-		mfc0	v0, CP0_TCSTATUS
-		ori	v0, TCSTATUS_IXMT
-		mtc0	v0, CP0_TCSTATUS
-		_ehb
-		DVPE	5				# dvpe a1
-		jal	mips_ihb
-#endif /* CONFIG_MIPS_MT_SMTC */
 		mfc0	a0, CP0_STATUS
 		ori	a0, STATMASK
 		xori	a0, STATMASK
@@ -362,59 +312,6 @@
 		and	v0, v1
 		or	v0, a0
 		mtc0	v0, CP0_STATUS
-#ifdef CONFIG_MIPS_MT_SMTC
-/*
- * Only after EXL/ERL have been restored to status can we
- * restore TCStatus.IXMT.
- */
-		LONG_L	v1, PT_TCSTATUS(sp)
-		_ehb
-		mfc0	a0, CP0_TCSTATUS
-		andi	v1, TCSTATUS_IXMT
-		bnez	v1, 0f
-
-/*
- * We'd like to detect any IPIs queued in the tiny window
- * above and request an software interrupt to service them
- * when we ERET.
- *
- * Computing the offset into the IPIQ array of the executing
- * TC's IPI queue in-line would be tedious.  We use part of
- * the TCContext register to hold 16 bits of offset that we
- * can add in-line to find the queue head.
- */
-		mfc0	v0, CP0_TCCONTEXT
-		la	a2, IPIQ
-		srl	v0, v0, 16
-		addu	a2, a2, v0
-		LONG_L	v0, 0(a2)
-		beqz	v0, 0f
-/*
- * If we have a queue, provoke dispatch within the VPE by setting C_SW1
- */
-		mfc0	v0, CP0_CAUSE
-		ori	v0, v0, C_SW1
-		mtc0	v0, CP0_CAUSE
-0:
-		/*
-		 * This test should really never branch but
-		 * let's be prudent here.  Having atomized
-		 * the shared register modifications, we can
-		 * now EVPE, and must do so before interrupts
-		 * are potentially re-enabled.
-		 */
-		andi	a1, a1, MVPCONTROL_EVP
-		beqz	a1, 1f
-		evpe
-1:
-		/* We know that TCStatua.IXMT should be set from above */
-		xori	a0, a0, TCSTATUS_IXMT
-		or	a0, a0, v1
-		mtc0	a0, CP0_TCSTATUS
-		_ehb
-
-		.set	mips0
-#endif /* CONFIG_MIPS_MT_SMTC */
 		LONG_L	v1, PT_EPC(sp)
 		MTC0	v1, CP0_EPC
 		LONG_L	$31, PT_R31(sp)
@@ -467,33 +364,11 @@
  * Set cp0 enable bit as sign that we're running on the kernel stack
  */
 		.macro	CLI
-#if !defined(CONFIG_MIPS_MT_SMTC)
 		mfc0	t0, CP0_STATUS
 		li	t1, ST0_CU0 | STATMASK
 		or	t0, t1
 		xori	t0, STATMASK
 		mtc0	t0, CP0_STATUS
-#else /* CONFIG_MIPS_MT_SMTC */
-		/*
-		 * For SMTC, we need to set privilege
-		 * and disable interrupts only for the
-		 * current TC, using the TCStatus register.
-		 */
-		mfc0	t0, CP0_TCSTATUS
-		/* Fortunately CU 0 is in the same place in both registers */
-		/* Set TCU0, TMX, TKSU (for later inversion) and IXMT */
-		li	t1, ST0_CU0 | 0x08001c00
-		or	t0, t1
-		/* Clear TKSU, leave IXMT */
-		xori	t0, 0x00001800
-		mtc0	t0, CP0_TCSTATUS
-		_ehb
-		/* We need to leave the global IE bit set, but clear EXL...*/
-		mfc0	t0, CP0_STATUS
-		ori	t0, ST0_EXL | ST0_ERL
-		xori	t0, ST0_EXL | ST0_ERL
-		mtc0	t0, CP0_STATUS
-#endif /* CONFIG_MIPS_MT_SMTC */
 		irq_disable_hazard
 		.endm
 
@@ -502,35 +377,11 @@
  * Set cp0 enable bit as sign that we're running on the kernel stack
  */
 		.macro	STI
-#if !defined(CONFIG_MIPS_MT_SMTC)
 		mfc0	t0, CP0_STATUS
 		li	t1, ST0_CU0 | STATMASK
 		or	t0, t1
 		xori	t0, STATMASK & ~1
 		mtc0	t0, CP0_STATUS
-#else /* CONFIG_MIPS_MT_SMTC */
-		/*
-		 * For SMTC, we need to set privilege
-		 * and enable interrupts only for the
-		 * current TC, using the TCStatus register.
-		 */
-		_ehb
-		mfc0	t0, CP0_TCSTATUS
-		/* Fortunately CU 0 is in the same place in both registers */
-		/* Set TCU0, TKSU (for later inversion) and IXMT */
-		li	t1, ST0_CU0 | 0x08001c00
-		or	t0, t1
-		/* Clear TKSU *and* IXMT */
-		xori	t0, 0x00001c00
-		mtc0	t0, CP0_TCSTATUS
-		_ehb
-		/* We need to leave the global IE bit set, but clear EXL...*/
-		mfc0	t0, CP0_STATUS
-		ori	t0, ST0_EXL
-		xori	t0, ST0_EXL
-		mtc0	t0, CP0_STATUS
-		/* irq_enable_hazard below should expand to EHB for 24K/34K cpus */
-#endif /* CONFIG_MIPS_MT_SMTC */
 		irq_enable_hazard
 		.endm
 
@@ -540,32 +391,6 @@
  * Set cp0 enable bit as sign that we're running on the kernel stack
  */
 		.macro	KMODE
-#ifdef CONFIG_MIPS_MT_SMTC
-		/*
-		 * This gets baroque in SMTC.  We want to
-		 * protect the non-atomic clearing of EXL
-		 * with DMT/EMT, but we don't want to take
-		 * an interrupt while DMT is still in effect.
-		 */
-
-		/* KMODE gets invoked from both reorder and noreorder code */
-		.set	push
-		.set	mips32r2
-		.set	noreorder
-		mfc0	v0, CP0_TCSTATUS
-		andi	v1, v0, TCSTATUS_IXMT
-		ori	v0, TCSTATUS_IXMT
-		mtc0	v0, CP0_TCSTATUS
-		_ehb
-		DMT	2				# dmt	v0
-		/*
-		 * We don't know a priori if ra is "live"
-		 */
-		move	t0, ra
-		jal	mips_ihb
-		nop	/* delay slot */
-		move	ra, t0
-#endif /* CONFIG_MIPS_MT_SMTC */
 		mfc0	t0, CP0_STATUS
 		li	t1, ST0_CU0 | (STATMASK & ~1)
 #if defined(CONFIG_CPU_R3000) || defined(CONFIG_CPU_TX39XX)
@@ -576,25 +401,6 @@
 		or	t0, t1
 		xori	t0, STATMASK & ~1
 		mtc0	t0, CP0_STATUS
-#ifdef CONFIG_MIPS_MT_SMTC
-		_ehb
-		andi	v0, v0, VPECONTROL_TE
-		beqz	v0, 2f
-		nop	/* delay slot */
-		emt
-2:
-		mfc0	v0, CP0_TCSTATUS
-		/* Clear IXMT, then OR in previous value */
-		ori	v0, TCSTATUS_IXMT
-		xori	v0, TCSTATUS_IXMT
-		or	v0, v1, v0
-		mtc0	v0, CP0_TCSTATUS
-		/*
-		 * irq_disable_hazard below should expand to EHB
-		 * on 24K/34K CPUS
-		 */
-		.set pop
-#endif /* CONFIG_MIPS_MT_SMTC */
 		irq_disable_hazard
 		.endm
 

@@ -103,7 +103,7 @@ static void print_overflow_msg(const char *func, const struct xdr_stream *xdr)
 /*
  *	typedef opaque	nfsdata<>;
  */
-static int decode_nfsdata(struct xdr_stream *xdr, struct nfs_readres *result)
+static int decode_nfsdata(struct xdr_stream *xdr, struct nfs_pgio_res *result)
 {
 	u32 recvd, count;
 	__be32 *p;
@@ -613,7 +613,7 @@ static void nfs2_xdr_enc_readlinkargs(struct rpc_rqst *req,
  *	};
  */
 static void encode_readargs(struct xdr_stream *xdr,
-			    const struct nfs_readargs *args)
+			    const struct nfs_pgio_args *args)
 {
 	u32 offset = args->offset;
 	u32 count = args->count;
@@ -629,7 +629,7 @@ static void encode_readargs(struct xdr_stream *xdr,
 
 static void nfs2_xdr_enc_readargs(struct rpc_rqst *req,
 				  struct xdr_stream *xdr,
-				  const struct nfs_readargs *args)
+				  const struct nfs_pgio_args *args)
 {
 	encode_readargs(xdr, args);
 	prepare_reply_buffer(req, args->pages, args->pgbase,
@@ -649,7 +649,7 @@ static void nfs2_xdr_enc_readargs(struct rpc_rqst *req,
  *	};
  */
 static void encode_writeargs(struct xdr_stream *xdr,
-			     const struct nfs_writeargs *args)
+			     const struct nfs_pgio_args *args)
 {
 	u32 offset = args->offset;
 	u32 count = args->count;
@@ -669,7 +669,7 @@ static void encode_writeargs(struct xdr_stream *xdr,
 
 static void nfs2_xdr_enc_writeargs(struct rpc_rqst *req,
 				   struct xdr_stream *xdr,
-				   const struct nfs_writeargs *args)
+				   const struct nfs_pgio_args *args)
 {
 	encode_writeargs(xdr, args);
 	xdr->buf->flags |= XDRBUF_WRITE;
@@ -857,7 +857,7 @@ out_default:
  *	};
  */
 static int nfs2_xdr_dec_readres(struct rpc_rqst *req, struct xdr_stream *xdr,
-				struct nfs_readres *result)
+				struct nfs_pgio_res *result)
 {
 	enum nfs_stat status;
 	int error;
@@ -878,7 +878,7 @@ out_default:
 }
 
 static int nfs2_xdr_dec_writeres(struct rpc_rqst *req, struct xdr_stream *xdr,
-				 struct nfs_writeres *result)
+				 struct nfs_pgio_res *result)
 {
 	/* All NFSv2 writes are "file sync" writes */
 	result->verf->committed = NFS_FILE_SYNC;

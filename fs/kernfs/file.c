@@ -14,6 +14,7 @@
 #include <linux/poll.h>
 #include <linux/pagemap.h>
 #include <linux/sched.h>
+#include <linux/fsnotify.h>
 
 #include "kernfs-internal.h"
 
@@ -37,6 +38,19 @@ struct kernfs_open_node {
 	wait_queue_head_t	poll;
 	struct list_head	files; /* goes through kernfs_open_file.list */
 };
+
+/*
+ * kernfs_notify() may be called from any context and bounces notifications
+ * through a work item.  To minimize space overhead in kernfs_node, the
+ * pending queue is implemented as a singly linked list of kernfs_nodes.
+ * The list is terminated with the self pointer so that whether a
+ * kernfs_node is on the list or not can be determined by testing the next
+ * pointer for NULL.
+ */
+#define KERNFS_NOTIFY_EOL			((void *)&kernfs_notify_list)
+
+static DEFINE_SPINLOCK(kernfs_notify_lock);
+static struct kernfs_node *kernfs_notify_list = KERNFS_NOTIFY_EOL;
 
 static struct kernfs_open_file *kernfs_of(struct file *file)
 {
@@ -610,6 +624,7 @@ static void kernfs_put_open_node(struct kernfs_node *kn,
 static int kernfs_fop_open(struct inode *inode, struct file *file)
 {
 	struct kernfs_node *kn = file->f_path.dentry->d_fsdata;
+	struct kernfs_root *root = kernfs_root(kn);
 	const struct kernfs_ops *ops;
 	struct kernfs_open_file *of;
 	bool has_read, has_write, has_mmap;
@@ -624,14 +639,16 @@ static int kernfs_fop_open(struct inode *inode, struct file *file)
 	has_write = ops->write || ops->mmap;
 	has_mmap = ops->mmap;
 
-	/* check perms and supported operations */
-	if ((file->f_mode & FMODE_WRITE) &&
-	    (!(inode->i_mode & S_IWUGO) || !has_write))
-		goto err_out;
+	/* see the flag definition for details */
+	if (root->flags & KERNFS_ROOT_EXTRA_OPEN_PERM_CHECK) {
+		if ((file->f_mode & FMODE_WRITE) &&
+		    (!(inode->i_mode & S_IWUGO) || !has_write))
+			goto err_out;
 
-	if ((file->f_mode & FMODE_READ) &&
-	    (!(inode->i_mode & S_IRUGO) || !has_read))
-		goto err_out;
+		if ((file->f_mode & FMODE_READ) &&
+		    (!(inode->i_mode & S_IRUGO) || !has_read))
+			goto err_out;
+	}
 
 	/* allocate a kernfs_open_file for the file */
 	error = -ENOMEM;
@@ -779,28 +796,84 @@ static unsigned int kernfs_fop_poll(struct file *filp, poll_table *wait)
 	return DEFAULT_POLLMASK|POLLERR|POLLPRI;
 }
 
+static void kernfs_notify_workfn(struct work_struct *work)
+{
+	struct kernfs_node *kn;
+	struct kernfs_open_node *on;
+	struct kernfs_super_info *info;
+repeat:
+	/* pop one off the notify_list */
+	spin_lock_irq(&kernfs_notify_lock);
+	kn = kernfs_notify_list;
+	if (kn == KERNFS_NOTIFY_EOL) {
+		spin_unlock_irq(&kernfs_notify_lock);
+		return;
+	}
+	kernfs_notify_list = kn->attr.notify_next;
+	kn->attr.notify_next = NULL;
+	spin_unlock_irq(&kernfs_notify_lock);
+
+	/* kick poll */
+	spin_lock_irq(&kernfs_open_node_lock);
+
+	on = kn->attr.open;
+	if (on) {
+		atomic_inc(&on->event);
+		wake_up_interruptible(&on->poll);
+	}
+
+	spin_unlock_irq(&kernfs_open_node_lock);
+
+	/* kick fsnotify */
+	mutex_lock(&kernfs_mutex);
+
+	list_for_each_entry(info, &kernfs_root(kn)->supers, node) {
+		struct inode *inode;
+		struct dentry *dentry;
+
+		inode = ilookup(info->sb, kn->ino);
+		if (!inode)
+			continue;
+
+		dentry = d_find_any_alias(inode);
+		if (dentry) {
+			fsnotify_parent(NULL, dentry, FS_MODIFY);
+			fsnotify(inode, FS_MODIFY, inode, FSNOTIFY_EVENT_INODE,
+				 NULL, 0);
+			dput(dentry);
+		}
+
+		iput(inode);
+	}
+
+	mutex_unlock(&kernfs_mutex);
+	kernfs_put(kn);
+	goto repeat;
+}
+
 /**
  * kernfs_notify - notify a kernfs file
  * @kn: file to notify
  *
- * Notify @kn such that poll(2) on @kn wakes up.
+ * Notify @kn such that poll(2) on @kn wakes up.  Maybe be called from any
+ * context.
  */
 void kernfs_notify(struct kernfs_node *kn)
 {
-	struct kernfs_open_node *on;
+	static DECLARE_WORK(kernfs_notify_work, kernfs_notify_workfn);
 	unsigned long flags;
 
-	spin_lock_irqsave(&kernfs_open_node_lock, flags);
+	if (WARN_ON(kernfs_type(kn) != KERNFS_FILE))
+		return;
 
-	if (!WARN_ON(kernfs_type(kn) != KERNFS_FILE)) {
-		on = kn->attr.open;
-		if (on) {
-			atomic_inc(&on->event);
-			wake_up_interruptible(&on->poll);
-		}
+	spin_lock_irqsave(&kernfs_notify_lock, flags);
+	if (!kn->attr.notify_next) {
+		kernfs_get(kn);
+		kn->attr.notify_next = kernfs_notify_list;
+		kernfs_notify_list = kn;
+		schedule_work(&kernfs_notify_work);
 	}
-
-	spin_unlock_irqrestore(&kernfs_open_node_lock, flags);
+	spin_unlock_irqrestore(&kernfs_notify_lock, flags);
 }
 EXPORT_SYMBOL_GPL(kernfs_notify);
 

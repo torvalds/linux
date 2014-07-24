@@ -717,8 +717,6 @@ static int bfin_bf54x_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM
 static int bfin_bf54x_suspend(struct platform_device *pdev, pm_message_t state)
 {
-	struct fb_info *fbinfo = platform_get_drvdata(pdev);
-
 	bfin_write_EPPI0_CONTROL(bfin_read_EPPI0_CONTROL() & ~EPPI_EN);
 	disable_dma(CH_EPPI0);
 	bfin_write_EPPI0_STATUS(0xFFFF);

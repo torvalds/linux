@@ -66,10 +66,10 @@ static int set_dma_caps(struct pci_dev *pdev)
 
 	err = pci_set_dma_mask(pdev, DMA_BIT_MASK(64));
 	if (err) {
-		dev_warn(&pdev->dev, "Warning: couldn't set 64-bit PCI DMA mask.\n");
+		dev_warn(&pdev->dev, "Warning: couldn't set 64-bit PCI DMA mask\n");
 		err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 		if (err) {
-			dev_err(&pdev->dev, "Can't set PCI DMA mask, aborting.\n");
+			dev_err(&pdev->dev, "Can't set PCI DMA mask, aborting\n");
 			return err;
 		}
 	}
@@ -77,11 +77,11 @@ static int set_dma_caps(struct pci_dev *pdev)
 	err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
 	if (err) {
 		dev_warn(&pdev->dev,
-			 "Warning: couldn't set 64-bit consistent PCI DMA mask.\n");
+			 "Warning: couldn't set 64-bit consistent PCI DMA mask\n");
 		err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
 		if (err) {
 			dev_err(&pdev->dev,
-				"Can't set consistent PCI DMA mask, aborting.\n");
+				"Can't set consistent PCI DMA mask, aborting\n");
 			return err;
 		}
 	}
@@ -95,7 +95,7 @@ static int request_bar(struct pci_dev *pdev)
 	int err = 0;
 
 	if (!(pci_resource_flags(pdev, 0) & IORESOURCE_MEM)) {
-		dev_err(&pdev->dev, "Missing registers BAR, aborting.\n");
+		dev_err(&pdev->dev, "Missing registers BAR, aborting\n");
 		return -ENODEV;
 	}
 
@@ -319,13 +319,13 @@ int mlx5_dev_init(struct mlx5_core_dev *dev, struct pci_dev *pdev)
 
 	err = pci_enable_device(pdev);
 	if (err) {
-		dev_err(&pdev->dev, "Cannot enable PCI device, aborting.\n");
+		dev_err(&pdev->dev, "Cannot enable PCI device, aborting\n");
 		goto err_dbg;
 	}
 
 	err = request_bar(pdev);
 	if (err) {
-		dev_err(&pdev->dev, "error requesting BARs, aborting.\n");
+		dev_err(&pdev->dev, "error requesting BARs, aborting\n");
 		goto err_disable;
 	}
 

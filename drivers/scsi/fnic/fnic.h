@@ -39,14 +39,15 @@
 
 #define DRV_NAME		"fnic"
 #define DRV_DESCRIPTION		"Cisco FCoE HBA Driver"
-#define DRV_VERSION		"1.5.0.45"
+#define DRV_VERSION		"1.6.0.10"
 #define PFX			DRV_NAME ": "
 #define DFX                     DRV_NAME "%d: "
 
 #define DESC_CLEAN_LOW_WATERMARK 8
 #define FNIC_UCSM_DFLT_THROTTLE_CNT_BLD	16 /* UCSM default throttle count */
 #define FNIC_MIN_IO_REQ			256 /* Min IO throttle count */
-#define FNIC_MAX_IO_REQ		2048 /* scsi_cmnd tag map entries */
+#define FNIC_MAX_IO_REQ		1024 /* scsi_cmnd tag map entries */
+#define FNIC_DFLT_IO_REQ        256 /* Default scsi_cmnd tag map entries */
 #define	FNIC_IO_LOCKS		64 /* IO locks: power of 2 */
 #define FNIC_DFLT_QUEUE_DEPTH	32
 #define	FNIC_STATS_RATE_LIMIT	4 /* limit rate at which stats are pulled up */

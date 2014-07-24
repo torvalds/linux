@@ -2032,9 +2032,9 @@ static void nfs_access_free_entry(struct nfs_access_entry *entry)
 {
 	put_rpccred(entry->cred);
 	kfree(entry);
-	smp_mb__before_atomic_dec();
+	smp_mb__before_atomic();
 	atomic_long_dec(&nfs_access_nr_entries);
-	smp_mb__after_atomic_dec();
+	smp_mb__after_atomic();
 }
 
 static void nfs_access_free_list(struct list_head *head)
@@ -2082,9 +2082,9 @@ nfs_access_cache_scan(struct shrinker *shrink, struct shrink_control *sc)
 		else {
 remove_lru_entry:
 			list_del_init(&nfsi->access_cache_inode_lru);
-			smp_mb__before_clear_bit();
+			smp_mb__before_atomic();
 			clear_bit(NFS_INO_ACL_LRU_SET, &nfsi->flags);
-			smp_mb__after_clear_bit();
+			smp_mb__after_atomic();
 		}
 		spin_unlock(&inode->i_lock);
 	}
@@ -2232,9 +2232,9 @@ void nfs_access_add_cache(struct inode *inode, struct nfs_access_entry *set)
 	nfs_access_add_rbtree(inode, cache);
 
 	/* Update accounting */
-	smp_mb__before_atomic_inc();
+	smp_mb__before_atomic();
 	atomic_long_inc(&nfs_access_nr_entries);
-	smp_mb__after_atomic_inc();
+	smp_mb__after_atomic();
 
 	/* Add inode to global LRU list */
 	if (!test_bit(NFS_INO_ACL_LRU_SET, &NFS_I(inode)->flags)) {

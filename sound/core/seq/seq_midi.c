@@ -362,13 +362,13 @@ snd_seq_midisynth_register_port(struct snd_seq_device *dev)
 		if (! port->name[0]) {
 			if (info->name[0]) {
 				if (ports > 1)
-					snprintf(port->name, sizeof(port->name), "%s-%d", info->name, p);
+					snprintf(port->name, sizeof(port->name), "%s-%u", info->name, p);
 				else
 					snprintf(port->name, sizeof(port->name), "%s", info->name);
 			} else {
 				/* last resort */
 				if (ports > 1)
-					sprintf(port->name, "MIDI %d-%d-%d", card->number, device, p);
+					sprintf(port->name, "MIDI %d-%d-%u", card->number, device, p);
 				else
 					sprintf(port->name, "MIDI %d-%d", card->number, device);
 			}

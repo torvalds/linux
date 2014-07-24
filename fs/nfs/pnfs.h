@@ -113,8 +113,8 @@ struct pnfs_layoutdriver_type {
 	 * Return PNFS_ATTEMPTED to indicate the layout code has attempted
 	 * I/O, else return PNFS_NOT_ATTEMPTED to fall back to normal NFS
 	 */
-	enum pnfs_try_status (*read_pagelist) (struct nfs_read_data *nfs_data);
-	enum pnfs_try_status (*write_pagelist) (struct nfs_write_data *nfs_data, int how);
+	enum pnfs_try_status (*read_pagelist) (struct nfs_pgio_data *nfs_data);
+	enum pnfs_try_status (*write_pagelist) (struct nfs_pgio_data *nfs_data, int how);
 
 	void (*free_deviceid_node) (struct nfs4_deviceid_node *);
 
@@ -180,11 +180,6 @@ extern int nfs4_proc_layoutreturn(struct nfs4_layoutreturn *lrp);
 void pnfs_get_layout_hdr(struct pnfs_layout_hdr *lo);
 void pnfs_put_lseg(struct pnfs_layout_segment *lseg);
 
-void pnfs_pageio_init_read(struct nfs_pageio_descriptor *, struct inode *,
-			   const struct nfs_pgio_completion_ops *);
-void pnfs_pageio_init_write(struct nfs_pageio_descriptor *, struct inode *,
-			    int, const struct nfs_pgio_completion_ops *);
-
 void set_pnfs_layoutdriver(struct nfs_server *, const struct nfs_fh *, u32);
 void unset_pnfs_layoutdriver(struct nfs_server *);
 void pnfs_generic_pg_init_read(struct nfs_pageio_descriptor *, struct nfs_page *);
@@ -192,7 +187,8 @@ int pnfs_generic_pg_readpages(struct nfs_pageio_descriptor *desc);
 void pnfs_generic_pg_init_write(struct nfs_pageio_descriptor *pgio,
 			        struct nfs_page *req, u64 wb_size);
 int pnfs_generic_pg_writepages(struct nfs_pageio_descriptor *desc);
-bool pnfs_generic_pg_test(struct nfs_pageio_descriptor *pgio, struct nfs_page *prev, struct nfs_page *req);
+size_t pnfs_generic_pg_test(struct nfs_pageio_descriptor *pgio,
+			    struct nfs_page *prev, struct nfs_page *req);
 void pnfs_set_lo_fail(struct pnfs_layout_segment *lseg);
 struct pnfs_layout_segment *pnfs_layout_process(struct nfs4_layoutget *lgp);
 void pnfs_free_lseg_list(struct list_head *tmp_list);
@@ -217,13 +213,13 @@ bool pnfs_roc(struct inode *ino);
 void pnfs_roc_release(struct inode *ino);
 void pnfs_roc_set_barrier(struct inode *ino, u32 barrier);
 bool pnfs_roc_drain(struct inode *ino, u32 *barrier, struct rpc_task *task);
-void pnfs_set_layoutcommit(struct nfs_write_data *wdata);
+void pnfs_set_layoutcommit(struct nfs_pgio_data *wdata);
 void pnfs_cleanup_layoutcommit(struct nfs4_layoutcommit_data *data);
 int pnfs_layoutcommit_inode(struct inode *inode, bool sync);
 int _pnfs_return_layout(struct inode *);
 int pnfs_commit_and_return_layout(struct inode *);
-void pnfs_ld_write_done(struct nfs_write_data *);
-void pnfs_ld_read_done(struct nfs_read_data *);
+void pnfs_ld_write_done(struct nfs_pgio_data *);
+void pnfs_ld_read_done(struct nfs_pgio_data *);
 struct pnfs_layout_segment *pnfs_update_layout(struct inode *ino,
 					       struct nfs_open_context *ctx,
 					       loff_t pos,
@@ -275,7 +271,7 @@ pnfs_get_lseg(struct pnfs_layout_segment *lseg)
 {
 	if (lseg) {
 		atomic_inc(&lseg->pls_refcount);
-		smp_mb__after_atomic_inc();
+		smp_mb__after_atomic();
 	}
 	return lseg;
 }
@@ -459,18 +455,6 @@ static inline void set_pnfs_layoutdriver(struct nfs_server *s,
 
 static inline void unset_pnfs_layoutdriver(struct nfs_server *s)
 {
-}
-
-static inline void pnfs_pageio_init_read(struct nfs_pageio_descriptor *pgio, struct inode *inode,
-					 const struct nfs_pgio_completion_ops *compl_ops)
-{
-	nfs_pageio_init_read(pgio, inode, compl_ops);
-}
-
-static inline void pnfs_pageio_init_write(struct nfs_pageio_descriptor *pgio, struct inode *inode, int ioflags,
-					  const struct nfs_pgio_completion_ops *compl_ops)
-{
-	nfs_pageio_init_write(pgio, inode, ioflags, compl_ops);
 }
 
 static inline int

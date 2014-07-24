@@ -30,7 +30,7 @@ config ARM_EXYNOS_CPUFREQ
 
 config ARM_EXYNOS4210_CPUFREQ
 	bool "SAMSUNG EXYNOS4210"
-	depends on CPU_EXYNOS4210 && !ARCH_MULTIPLATFORM
+	depends on CPU_EXYNOS4210
 	default y
 	select ARM_EXYNOS_CPUFREQ
 	help
@@ -41,7 +41,7 @@ config ARM_EXYNOS4210_CPUFREQ
 
 config ARM_EXYNOS4X12_CPUFREQ
 	bool "SAMSUNG EXYNOS4x12"
-	depends on (SOC_EXYNOS4212 || SOC_EXYNOS4412) && !ARCH_MULTIPLATFORM
+	depends on SOC_EXYNOS4212 || SOC_EXYNOS4412
 	default y
 	select ARM_EXYNOS_CPUFREQ
 	help
@@ -52,7 +52,7 @@ config ARM_EXYNOS4X12_CPUFREQ
 
 config ARM_EXYNOS5250_CPUFREQ
 	bool "SAMSUNG EXYNOS5250"
-	depends on SOC_EXYNOS5250 && !ARCH_MULTIPLATFORM
+	depends on SOC_EXYNOS5250
 	default y
 	select ARM_EXYNOS_CPUFREQ
 	help
@@ -85,7 +85,7 @@ config ARM_EXYNOS_CPU_FREQ_BOOST_SW
 	  It allows usage of special frequencies for Samsung Exynos
 	  processors if thermal conditions are appropriate.
 
-	  It reguires, for safe operation, thermal framework with properly
+	  It requires, for safe operation, thermal framework with properly
 	  defined trip points.
 
 	  If in doubt, say N.
@@ -104,6 +104,7 @@ config ARM_IMX6Q_CPUFREQ
 	tristate "Freescale i.MX6 cpufreq support"
 	depends on ARCH_MXC
 	depends on REGULATOR_ANATOP
+	select PM_OPP
 	help
 	  This adds cpufreq driver support for Freescale i.MX6 series SoCs.
 
@@ -118,7 +119,7 @@ config ARM_INTEGRATOR
 	  If in doubt, say Y.
 
 config ARM_KIRKWOOD_CPUFREQ
-	def_bool MACH_KIRKWOOD
+	def_bool ARCH_KIRKWOOD || MACH_KIRKWOOD
 	help
 	  This adds the CPUFreq driver for Marvell Kirkwood
 	  SoCs.
@@ -186,7 +187,7 @@ config ARM_S3C2416_CPUFREQ
 	  S3C2450 SoC. The S3C2416 supports changing the rate of the
 	  armdiv clock source and also entering a so called dynamic
 	  voltage scaling mode in which it is possible to reduce the
-	  core voltage of the cpu.
+	  core voltage of the CPU.
 
 	  If in doubt, say N.
 

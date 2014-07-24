@@ -171,32 +171,39 @@ static const struct labpc_boardinfo labpc_boards[] = {
 };
 #endif
 
-static int labpc_counter_load(struct comedi_device *dev,
-			      unsigned long base_address,
-			      unsigned int counter_number,
-			      unsigned int count, unsigned int mode)
+static void labpc_counter_load(struct comedi_device *dev,
+			       unsigned long base_address,
+			       unsigned int counter_number,
+			       unsigned int count,
+			       unsigned int mode)
 {
 	const struct labpc_boardinfo *board = comedi_board(dev);
 
-	if (board->has_mmio)
-		return i8254_mm_load((void __iomem *)base_address, 0,
-				     counter_number, count, mode);
-	else
-		return i8254_load(base_address, 0, counter_number, count, mode);
+	if (board->has_mmio) {
+		void __iomem *mmio_base = (void __iomem *)base_address;
+
+		i8254_mm_set_mode(mmio_base, 0, counter_number, mode);
+		i8254_mm_write(mmio_base, 0, counter_number, count);
+	} else {
+		i8254_set_mode(base_address, 0, counter_number, mode);
+		i8254_write(base_address, 0, counter_number, count);
+	}
 }
 
-static int labpc_counter_set_mode(struct comedi_device *dev,
-				  unsigned long base_address,
-				  unsigned int counter_number,
-				  unsigned int mode)
+static void labpc_counter_set_mode(struct comedi_device *dev,
+				   unsigned long base_address,
+				   unsigned int counter_number,
+				   unsigned int mode)
 {
 	const struct labpc_boardinfo *board = comedi_board(dev);
 
-	if (board->has_mmio)
-		return i8254_mm_set_mode((void __iomem *)base_address, 0,
-					 counter_number, mode);
-	else
-		return i8254_set_mode(base_address, 0, counter_number, mode);
+	if (board->has_mmio) {
+		void __iomem *mmio_base = (void __iomem *)base_address;
+
+		i8254_mm_set_mode(mmio_base, 0, counter_number, mode);
+	} else {
+		i8254_set_mode(base_address, 0, counter_number, mode);
+	}
 }
 
 static int labpc_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
@@ -349,10 +356,8 @@ static int labpc_ai_insn_read(struct comedi_device *dev,
 	devpriv->write_byte(devpriv->cmd4, dev->iobase + CMD4_REG);
 
 	/* initialize pacer counter to prevent any problems */
-	ret = labpc_counter_set_mode(dev, dev->iobase + COUNTER_A_BASE_REG,
-				     0, I8254_MODE2);
-	if (ret)
-		return ret;
+	labpc_counter_set_mode(dev, dev->iobase + COUNTER_A_BASE_REG,
+			       0, I8254_MODE2);
 
 	labpc_clear_adc_fifo(dev);
 
@@ -546,72 +551,60 @@ static enum scan_mode labpc_ai_scan_mode(const struct comedi_cmd *cmd)
 	return 0;
 }
 
-static int labpc_ai_chanlist_invalid(const struct comedi_device *dev,
-				     const struct comedi_cmd *cmd,
-				     enum scan_mode mode)
+static int labpc_ai_check_chanlist(struct comedi_device *dev,
+				   struct comedi_subdevice *s,
+				   struct comedi_cmd *cmd)
 {
-	int channel, range, aref, i;
-
-	if (cmd->chanlist == NULL)
-		return 0;
+	enum scan_mode mode = labpc_ai_scan_mode(cmd);
+	unsigned int chan0 = CR_CHAN(cmd->chanlist[0]);
+	unsigned int range0 = CR_RANGE(cmd->chanlist[0]);
+	unsigned int aref0 = CR_AREF(cmd->chanlist[0]);
+	int i;
 
 	if (mode == MODE_SINGLE_CHAN)
 		return 0;
 
-	if (mode == MODE_SINGLE_CHAN_INTERVAL) {
-		if (cmd->chanlist_len > 0xff) {
-			comedi_error(dev,
-				     "ni_labpc: chanlist too long for single channel interval mode\n");
-			return 1;
-		}
-	}
-
-	channel = CR_CHAN(cmd->chanlist[0]);
-	range = CR_RANGE(cmd->chanlist[0]);
-	aref = CR_AREF(cmd->chanlist[0]);
-
 	for (i = 0; i < cmd->chanlist_len; i++) {
+		unsigned int chan = CR_CHAN(cmd->chanlist[i]);
+		unsigned int range = CR_RANGE(cmd->chanlist[i]);
+		unsigned int aref = CR_AREF(cmd->chanlist[i]);
 
 		switch (mode) {
+		case MODE_SINGLE_CHAN:
+			break;
 		case MODE_SINGLE_CHAN_INTERVAL:
-			if (CR_CHAN(cmd->chanlist[i]) != channel) {
-				comedi_error(dev,
-					     "channel scanning order specified in chanlist is not supported by hardware.\n");
-				return 1;
+			if (chan != chan0) {
+				dev_dbg(dev->class_dev,
+					"channel scanning order specified in chanlist is not supported by hardware\n");
+				return -EINVAL;
 			}
 			break;
 		case MODE_MULT_CHAN_UP:
-			if (CR_CHAN(cmd->chanlist[i]) != i) {
-				comedi_error(dev,
-					     "channel scanning order specified in chanlist is not supported by hardware.\n");
-				return 1;
+			if (chan != i) {
+				dev_dbg(dev->class_dev,
+					"channel scanning order specified in chanlist is not supported by hardware\n");
+				return -EINVAL;
 			}
 			break;
 		case MODE_MULT_CHAN_DOWN:
-			if (CR_CHAN(cmd->chanlist[i]) !=
-			    cmd->chanlist_len - i - 1) {
-				comedi_error(dev,
-					     "channel scanning order specified in chanlist is not supported by hardware.\n");
-				return 1;
+			if (chan != (cmd->chanlist_len - i - 1)) {
+				dev_dbg(dev->class_dev,
+					"channel scanning order specified in chanlist is not supported by hardware\n");
+				return -EINVAL;
 			}
 			break;
-		default:
-			dev_err(dev->class_dev,
-				"ni_labpc: bug! in chanlist check\n");
-			return 1;
-			break;
 		}
 
-		if (CR_RANGE(cmd->chanlist[i]) != range) {
-			comedi_error(dev,
-				     "entries in chanlist must all have the same range\n");
-			return 1;
+		if (range != range0) {
+			dev_dbg(dev->class_dev,
+				"entries in chanlist must all have the same range\n");
+			return -EINVAL;
 		}
 
-		if (CR_AREF(cmd->chanlist[i]) != aref) {
-			comedi_error(dev,
-				     "entries in chanlist must all have the same reference\n");
-			return 1;
+		if (aref != aref0) {
+			dev_dbg(dev->class_dev,
+				"entries in chanlist must all have the same reference\n");
+			return -EINVAL;
 		}
 	}
 
@@ -661,8 +654,14 @@ static int labpc_ai_cmdtest(struct comedi_device *dev,
 
 	/* Step 3: check if arguments are trivially valid */
 
-	if (cmd->start_arg == TRIG_NOW)
+	switch (cmd->start_src) {
+	case TRIG_NOW:
 		err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+		break;
+	case TRIG_EXT:
+		/* start_arg value is ignored */
+		break;
+	}
 
 	if (!cmd->chanlist_len)
 		err |= -EINVAL;
@@ -711,7 +710,11 @@ static int labpc_ai_cmdtest(struct comedi_device *dev,
 	if (err)
 		return 4;
 
-	if (labpc_ai_chanlist_invalid(dev, cmd, mode))
+	/* Step 5: check channel list if it exists */
+	if (cmd->chanlist && cmd->chanlist_len > 0)
+		err |= labpc_ai_check_chanlist(dev, s, cmd);
+
+	if (err)
 		return 5;
 
 	return 0;
@@ -732,7 +735,6 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	unsigned int aref = CR_AREF(chanspec);
 	enum transfer_type xfer;
 	unsigned long flags;
-	int ret;
 
 	/* make sure board is disabled before setting up acquisition */
 	labpc_cancel(dev, s);
@@ -747,17 +749,12 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		 * load counter a1 with count of 3
 		 * (pc+ manual says this is minimum allowed) using mode 0
 		 */
-		ret = labpc_counter_load(dev, dev->iobase + COUNTER_A_BASE_REG,
-					 1, 3, I8254_MODE0);
+		labpc_counter_load(dev, dev->iobase + COUNTER_A_BASE_REG,
+				   1, 3, I8254_MODE0);
 	} else	{
 		/* just put counter a1 in mode 0 to set its output low */
-		ret = labpc_counter_set_mode(dev,
-					     dev->iobase + COUNTER_A_BASE_REG,
-					     1, I8254_MODE0);
-	}
-	if (ret) {
-		comedi_error(dev, "error loading counter a1");
-		return ret;
+		labpc_counter_set_mode(dev, dev->iobase + COUNTER_A_BASE_REG,
+				       1, I8254_MODE0);
 	}
 
 	/* figure out what method we will use to transfer data */
@@ -802,38 +799,25 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		/*  set up pacing */
 		labpc_adc_timing(dev, cmd, mode);
 		/*  load counter b0 in mode 3 */
-		ret = labpc_counter_load(dev, dev->iobase + COUNTER_B_BASE_REG,
-					 0, devpriv->divisor_b0, I8254_MODE3);
-		if (ret < 0) {
-			comedi_error(dev, "error loading counter b0");
-			return -1;
-		}
+		labpc_counter_load(dev, dev->iobase + COUNTER_B_BASE_REG,
+				   0, devpriv->divisor_b0, I8254_MODE3);
 	}
 	/*  set up conversion pacing */
 	if (labpc_ai_convert_period(cmd, mode)) {
 		/*  load counter a0 in mode 2 */
-		ret = labpc_counter_load(dev, dev->iobase + COUNTER_A_BASE_REG,
-					 0, devpriv->divisor_a0, I8254_MODE2);
+		labpc_counter_load(dev, dev->iobase + COUNTER_A_BASE_REG,
+				   0, devpriv->divisor_a0, I8254_MODE2);
 	} else {
 		/* initialize pacer counter to prevent any problems */
-		ret = labpc_counter_set_mode(dev,
-					     dev->iobase + COUNTER_A_BASE_REG,
-					     0, I8254_MODE2);
-	}
-	if (ret) {
-		comedi_error(dev, "error loading counter a0");
-		return ret;
+		labpc_counter_set_mode(dev, dev->iobase + COUNTER_A_BASE_REG,
+				       0, I8254_MODE2);
 	}
 
 	/*  set up scan pacing */
 	if (labpc_ai_scan_period(cmd, mode)) {
 		/*  load counter b1 in mode 2 */
-		ret = labpc_counter_load(dev, dev->iobase + COUNTER_B_BASE_REG,
-					 1, devpriv->divisor_b1, I8254_MODE2);
-		if (ret < 0) {
-			comedi_error(dev, "error loading counter b1");
-			return -1;
-		}
+		labpc_counter_load(dev, dev->iobase + COUNTER_B_BASE_REG,
+				   1, devpriv->divisor_b1, I8254_MODE2);
 	}
 
 	labpc_clear_adc_fifo(dev);
@@ -890,8 +874,9 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 static int labpc_drain_fifo(struct comedi_device *dev)
 {
 	struct labpc_private *devpriv = dev->private;
-	unsigned short data;
 	struct comedi_async *async = dev->read_subdev->async;
+	struct comedi_cmd *cmd = &async->cmd;
+	unsigned short data;
 	const int timeout = 10000;
 	unsigned int i;
 
@@ -900,7 +885,7 @@ static int labpc_drain_fifo(struct comedi_device *dev)
 	for (i = 0; (devpriv->stat1 & STAT1_DAVAIL) && i < timeout;
 	     i++) {
 		/*  quit if we have all the data we want */
-		if (async->cmd.stop_src == TRIG_COUNT) {
+		if (cmd->stop_src == TRIG_COUNT) {
 			if (devpriv->count == 0)
 				break;
 			devpriv->count--;

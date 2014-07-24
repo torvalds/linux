@@ -200,7 +200,7 @@
 		};
 
 		mcc {
-			compatible = "arm,vexpress,config-bus", "simple-bus";
+			compatible = "arm,vexpress,config-bus";
 			arm,vexpress,config-bridge = <&v2m_sysreg>;
 
 			v2m_oscclk1: osc@1 {

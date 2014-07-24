@@ -714,7 +714,7 @@ fail:
 
 #ifdef CONFIG_OF
 #ifdef CONFIG_SPI_MASTER
-static struct of_device_id mcp23s08_spi_of_match[] = {
+static const struct of_device_id mcp23s08_spi_of_match[] = {
 	{
 		.compatible = "microchip,mcp23s08",
 		.data = (void *) MCP_TYPE_S08,
@@ -738,7 +738,7 @@ MODULE_DEVICE_TABLE(of, mcp23s08_spi_of_match);
 #endif
 
 #if IS_ENABLED(CONFIG_I2C)
-static struct of_device_id mcp23s08_i2c_of_match[] = {
+static const struct of_device_id mcp23s08_i2c_of_match[] = {
 	{
 		.compatible = "microchip,mcp23008",
 		.data = (void *) MCP_TYPE_008,
@@ -867,7 +867,7 @@ static int mcp23s08_probe(struct spi_device *spi)
 {
 	struct mcp23s08_platform_data	*pdata;
 	unsigned			addr;
-	unsigned			chips = 0;
+	int				chips = 0;
 	struct mcp23s08_driver_data	*data;
 	int				status, type;
 	unsigned			base = -1,
@@ -895,8 +895,11 @@ static int mcp23s08_probe(struct spi_device *spi)
 			return -ENODEV;
 		}
 
-		for (addr = 0; addr < ARRAY_SIZE(pdata->chip); addr++)
+		for (addr = 0; addr < ARRAY_SIZE(pdata->chip); addr++) {
 			pullups[addr] = 0;
+			if (spi_present_mask & (1 << addr))
+				chips++;
+		}
 	} else {
 		type = spi_get_device_id(spi)->driver_data;
 		pdata = dev_get_platdata(&spi->dev);
@@ -919,11 +922,11 @@ static int mcp23s08_probe(struct spi_device *spi)
 			pullups[addr] = pdata->chip[addr].pullups;
 		}
 
-		if (!chips)
-			return -ENODEV;
-
 		base = pdata->base;
 	}
+
+	if (!chips)
+		return -ENODEV;
 
 	data = kzalloc(sizeof(*data) + chips * sizeof(struct mcp23s08),
 			GFP_KERNEL);

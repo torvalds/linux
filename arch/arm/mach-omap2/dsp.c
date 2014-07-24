@@ -29,6 +29,7 @@
 #ifdef CONFIG_TIDSPBRIDGE_DVFS
 #include "omap-pm.h"
 #endif
+#include "soc.h"
 
 #include <linux/platform_data/dsp-omap.h>
 
@@ -59,6 +60,9 @@ void __init omap_dsp_reserve_sdram_memblock(void)
 	phys_addr_t size = CONFIG_TIDSPBRIDGE_MEMPOOL_SIZE;
 	phys_addr_t paddr;
 
+	if (!cpu_is_omap34xx())
+		return;
+
 	if (!size)
 		return;
 
@@ -82,6 +86,9 @@ static int __init omap_dsp_init(void)
 	struct platform_device *pdev;
 	int err = -ENOMEM;
 	struct omap_dsp_platform_data *pdata = &omap_dsp_pdata;
+
+	if (!cpu_is_omap34xx())
+		return 0;
 
 	pdata->phys_mempool_base = omap_dsp_get_mempool_base();
 
@@ -115,6 +122,9 @@ module_init(omap_dsp_init);
 
 static void __exit omap_dsp_exit(void)
 {
+	if (!cpu_is_omap34xx())
+		return;
+
 	platform_device_unregister(omap_dsp_pdev);
 }
 module_exit(omap_dsp_exit);

@@ -32,17 +32,20 @@
 
 
 #define seq_putx(m, message, size, var) \
-	seq_printf(m, message);	\
-	for (i = 0; i < (size - 1); i++) \
-		seq_printf(m, "%02x:", var[i]); \
-	seq_printf(m, "%02x\n", var[i])
+	do { \
+		seq_printf(m, message);	\
+		for (i = 0; i < (size - 1); i++) \
+			seq_printf(m, "%02x:", var[i]); \
+		seq_printf(m, "%02x\n", var[i]);	\
+	} while (0)
 
 #define seq_putd(m, message, size, var) \
-	seq_printf(m, message); \
-	for (i = 0; i < (size - 1); i++) \
-		seq_printf(m, "%d.", var[i]); \
-	seq_printf(m, "%d\n", var[i])
-
+	do { \
+		seq_printf(m, message); \
+		for (i = 0; i < (size - 1); i++) \
+			seq_printf(m, "%d.", var[i]); \
+		seq_printf(m, "%d\n", var[i]);	      \
+	} while (0)
 
 #define FTNET_PROC init_net.proc_net
 
@@ -200,7 +203,7 @@ int ft1000_init_proc(struct net_device *dev)
 
 	info->ft1000_proc_dir = proc_mkdir(FT1000_PROC_DIR, FTNET_PROC);
 	if (info->ft1000_proc_dir == NULL) {
-		printk(KERN_WARNING "Unable to create %s dir.\n",
+		netdev_warn(dev, "Unable to create %s dir.\n",
 			FT1000_PROC_DIR);
 		goto fail;
 	}
@@ -210,7 +213,7 @@ int ft1000_init_proc(struct net_device *dev)
 				 &ft1000_proc_fops, dev);
 
 	if (!ft1000_proc_file) {
-		printk(KERN_WARNING "Unable to create /proc entry.\n");
+		netdev_warn(dev, "Unable to create /proc entry.\n");
 		goto fail_entry;
 	}
 

@@ -176,7 +176,5 @@ Nonstandard compound limitations:
   ca_maxrequestsize request and a ca_maxresponsesize reply, so we may
   fail to live up to the promise we made in CREATE_SESSION fore channel
   negotiation.
-* No more than one read-like operation allowed per compound; encoding
-  replies that cross page boundaries (except for read data) not handled.
 
 See also http://wiki.linux-nfs.org/wiki/index.php/Server_4.0_and_4.1_issues.

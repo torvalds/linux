@@ -11,5 +11,5 @@
 #include "stih41x-b2000.dtsi"
 / {
 	model = "STiH415 B2000 Board";
-	compatible = "st,stih415", "st,stih415-b2000";
+	compatible = "st,stih415-b2000", "st,stih415";
 };

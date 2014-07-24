@@ -831,3 +831,100 @@ void devm_kfree(struct device *dev, void *p)
 	WARN_ON(rc);
 }
 EXPORT_SYMBOL_GPL(devm_kfree);
+
+/**
+ * devm_kmemdup - Resource-managed kmemdup
+ * @dev: Device this memory belongs to
+ * @src: Memory region to duplicate
+ * @len: Memory region length
+ * @gfp: GFP mask to use
+ *
+ * Duplicate region of a memory using resource managed kmalloc
+ */
+void *devm_kmemdup(struct device *dev, const void *src, size_t len, gfp_t gfp)
+{
+	void *p;
+
+	p = devm_kmalloc(dev, len, gfp);
+	if (p)
+		memcpy(p, src, len);
+
+	return p;
+}
+EXPORT_SYMBOL_GPL(devm_kmemdup);
+
+struct pages_devres {
+	unsigned long addr;
+	unsigned int order;
+};
+
+static int devm_pages_match(struct device *dev, void *res, void *p)
+{
+	struct pages_devres *devres = res;
+	struct pages_devres *target = p;
+
+	return devres->addr == target->addr;
+}
+
+static void devm_pages_release(struct device *dev, void *res)
+{
+	struct pages_devres *devres = res;
+
+	free_pages(devres->addr, devres->order);
+}
+
+/**
+ * devm_get_free_pages - Resource-managed __get_free_pages
+ * @dev: Device to allocate memory for
+ * @gfp_mask: Allocation gfp flags
+ * @order: Allocation size is (1 << order) pages
+ *
+ * Managed get_free_pages.  Memory allocated with this function is
+ * automatically freed on driver detach.
+ *
+ * RETURNS:
+ * Address of allocated memory on success, 0 on failure.
+ */
+
+unsigned long devm_get_free_pages(struct device *dev,
+				  gfp_t gfp_mask, unsigned int order)
+{
+	struct pages_devres *devres;
+	unsigned long addr;
+
+	addr = __get_free_pages(gfp_mask, order);
+
+	if (unlikely(!addr))
+		return 0;
+
+	devres = devres_alloc(devm_pages_release,
+			      sizeof(struct pages_devres), GFP_KERNEL);
+	if (unlikely(!devres)) {
+		free_pages(addr, order);
+		return 0;
+	}
+
+	devres->addr = addr;
+	devres->order = order;
+
+	devres_add(dev, devres);
+	return addr;
+}
+EXPORT_SYMBOL_GPL(devm_get_free_pages);
+
+/**
+ * devm_free_pages - Resource-managed free_pages
+ * @dev: Device this memory belongs to
+ * @addr: Memory to free
+ *
+ * Free memory allocated with devm_get_free_pages(). Unlike free_pages,
+ * there is no need to supply the @order.
+ */
+void devm_free_pages(struct device *dev, unsigned long addr)
+{
+	struct pages_devres devres = { .addr = addr };
+
+	WARN_ON(devres_release(dev, devm_pages_release, devm_pages_match,
+			       &devres));
+}
+EXPORT_SYMBOL_GPL(devm_free_pages);

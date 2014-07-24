@@ -255,7 +255,7 @@ However, rbtree can be augmented to store such interval ranges in a structured
 way making it possible to do efficient lookup and exact match.
 
 This "extra information" stored in each node is the maximum hi
-(max_hi) value among all the nodes that are its descendents. This
+(max_hi) value among all the nodes that are its descendants. This
 information can be maintained at each node just be looking at the node
 and its immediate children. And this will be used in O(log n) lookup
 for lowest match (lowest start address among all possible matches)

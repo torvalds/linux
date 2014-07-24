@@ -567,7 +567,7 @@ static int lzo_compress_threadfn(void *data)
 
 /**
  * save_image_lzo - Save the suspend image data compressed with LZO.
- * @handle: Swap mam handle to use for saving the image.
+ * @handle: Swap map handle to use for saving the image.
  * @snapshot: Image to read data from.
  * @nr_to_write: Number of pages to save.
  */

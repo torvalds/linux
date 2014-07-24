@@ -72,7 +72,7 @@ radeon-y += radeon_device.o radeon_asic.o radeon_kms.o \
 	radeon_cs.o radeon_bios.o radeon_benchmark.o r100.o r300.o r420.o \
 	rs400.o rs600.o rs690.o rv515.o r520.o r600.o rv770.o radeon_test.o \
 	r200.o radeon_legacy_tv.o r600_cs.o r600_blit_shaders.o \
-	radeon_pm.o atombios_dp.o r600_audio.o r600_hdmi.o \
+	radeon_pm.o atombios_dp.o r600_audio.o r600_hdmi.o dce3_1_afmt.o \
 	evergreen.o evergreen_cs.o evergreen_blit_shaders.o \
 	evergreen_hdmi.o radeon_trace_points.o ni.o cayman_blit_shaders.o \
 	atombios_encoders.o radeon_semaphore.o radeon_sa.o atombios_i2c.o si.o \

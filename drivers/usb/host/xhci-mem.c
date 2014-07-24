@@ -1020,7 +1020,6 @@ int xhci_alloc_virt_device(struct xhci_hcd *xhci, int slot_id,
 	dev->num_rings_cached = 0;
 
 	init_completion(&dev->cmd_completion);
-	INIT_LIST_HEAD(&dev->cmd_list);
 	dev->udev = udev;
 
 	/* Point to output device context in dcbaa. */
@@ -1794,9 +1793,10 @@ void xhci_free_command(struct xhci_hcd *xhci,
 void xhci_mem_cleanup(struct xhci_hcd *xhci)
 {
 	struct device	*dev = xhci_to_hcd(xhci)->self.controller;
-	struct xhci_cd  *cur_cd, *next_cd;
 	int size;
 	int i, j, num_ports;
+
+	del_timer_sync(&xhci->cmd_timer);
 
 	/* Free the Event Ring Segment Table and the actual Event Ring */
 	size = sizeof(struct xhci_erst_entry)*(xhci->erst.num_entries);
@@ -1816,10 +1816,16 @@ void xhci_mem_cleanup(struct xhci_hcd *xhci)
 		xhci_ring_free(xhci, xhci->cmd_ring);
 	xhci->cmd_ring = NULL;
 	xhci_dbg_trace(xhci, trace_xhci_dbg_init, "Freed command ring");
-	list_for_each_entry_safe(cur_cd, next_cd,
-			&xhci->cancel_cmd_list, cancel_cmd_list) {
-		list_del(&cur_cd->cancel_cmd_list);
-		kfree(cur_cd);
+	xhci_cleanup_command_queue(xhci);
+
+	num_ports = HCS_MAX_PORTS(xhci->hcs_params1);
+	for (i = 0; i < num_ports; i++) {
+		struct xhci_interval_bw_table *bwt = &xhci->rh_bw[i].bw_table;
+		for (j = 0; j < XHCI_MAX_INTERVAL; j++) {
+			struct list_head *ep = &bwt->interval_bw[j].endpoints;
+			while (!list_empty(ep))
+				list_del_init(ep->next);
+		}
 	}
 
 	for (i = 1; i < MAX_HC_SLOTS; ++i)
@@ -1856,16 +1862,6 @@ void xhci_mem_cleanup(struct xhci_hcd *xhci)
 
 	if (!xhci->rh_bw)
 		goto no_bw;
-
-	num_ports = HCS_MAX_PORTS(xhci->hcs_params1);
-	for (i = 0; i < num_ports; i++) {
-		struct xhci_interval_bw_table *bwt = &xhci->rh_bw[i].bw_table;
-		for (j = 0; j < XHCI_MAX_INTERVAL; j++) {
-			struct list_head *ep = &bwt->interval_bw[j].endpoints;
-			while (!list_empty(ep))
-				list_del_init(ep->next);
-		}
-	}
 
 	for (i = 0; i < num_ports; i++) {
 		struct xhci_tt_bw_info *tt, *n;
@@ -2323,7 +2319,7 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	u32 page_size, temp;
 	int i;
 
-	INIT_LIST_HEAD(&xhci->cancel_cmd_list);
+	INIT_LIST_HEAD(&xhci->cmd_list);
 
 	page_size = readl(&xhci->op_regs->page_size);
 	xhci_dbg_trace(xhci, trace_xhci_dbg_init,
@@ -2508,6 +2504,11 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	xhci_dbg_trace(xhci, trace_xhci_dbg_init,
 			"Wrote ERST address to ir_set 0.");
 	xhci_print_ir_set(xhci, 0);
+
+	/* init command timeout timer */
+	init_timer(&xhci->cmd_timer);
+	xhci->cmd_timer.data = (unsigned long) xhci;
+	xhci->cmd_timer.function = xhci_handle_command_timeout;
 
 	/*
 	 * XXX: Might need to set the Interrupter Moderation Register to

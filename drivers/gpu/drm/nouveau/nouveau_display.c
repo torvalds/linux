@@ -42,7 +42,7 @@
 #include <core/class.h>
 
 static int
-nouveau_display_vblank_handler(void *data, int head)
+nouveau_display_vblank_handler(void *data, u32 type, int head)
 {
 	struct nouveau_drm *drm = data;
 	drm_handle_vblank(drm->dev, head);
@@ -178,7 +178,7 @@ nouveau_display_vblank_init(struct drm_device *dev)
 		return -ENOMEM;
 
 	for (i = 0; i < dev->mode_config.num_crtc; i++) {
-		ret = nouveau_event_new(pdisp->vblank, i,
+		ret = nouveau_event_new(pdisp->vblank, 1, i,
 					nouveau_display_vblank_handler,
 					drm, &disp->vblank[i]);
 		if (ret) {
@@ -393,7 +393,7 @@ nouveau_display_init(struct drm_device *dev)
 	/* enable hotplug interrupts */
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		struct nouveau_connector *conn = nouveau_connector(connector);
-		if (conn->hpd_func) nouveau_event_get(conn->hpd_func);
+		if (conn->hpd) nouveau_event_get(conn->hpd);
 	}
 
 	return ret;
@@ -408,7 +408,7 @@ nouveau_display_fini(struct drm_device *dev)
 	/* disable hotplug interrupts */
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		struct nouveau_connector *conn = nouveau_connector(connector);
-		if (conn->hpd_func) nouveau_event_put(conn->hpd_func);
+		if (conn->hpd) nouveau_event_put(conn->hpd);
 	}
 
 	drm_kms_helper_poll_disable(dev);
@@ -736,6 +736,9 @@ nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 		  fb->bits_per_pixel, fb->pitches[0], crtc->x, crtc->y,
 		  new_bo->bo.offset };
 
+	/* Keep vblanks on during flip, for the target crtc of this flip */
+	drm_vblank_get(dev, nouveau_crtc(crtc)->index);
+
 	/* Emit a page flip */
 	if (nv_device(drm->device)->card_type >= NV_50) {
 		ret = nv50_display_flip_next(crtc, fb, chan, swap_interval);
@@ -779,6 +782,7 @@ nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	return 0;
 
 fail_unreserve:
+	drm_vblank_put(dev, nouveau_crtc(crtc)->index);
 	ttm_bo_unreserve(&old_bo->bo);
 fail_unpin:
 	mutex_unlock(&chan->cli->mutex);
@@ -798,6 +802,7 @@ nouveau_finish_page_flip(struct nouveau_channel *chan,
 	struct drm_device *dev = drm->dev;
 	struct nouveau_page_flip_state *s;
 	unsigned long flags;
+	int crtcid = -1;
 
 	spin_lock_irqsave(&dev->event_lock, flags);
 
@@ -808,8 +813,16 @@ nouveau_finish_page_flip(struct nouveau_channel *chan,
 	}
 
 	s = list_first_entry(&fctx->flip, struct nouveau_page_flip_state, head);
-	if (s->event)
-		drm_send_vblank_event(dev, s->crtc, s->event);
+	if (s->event) {
+		/* Vblank timestamps/counts are only correct on >= NV-50 */
+		if (nv_device(drm->device)->card_type >= NV_50)
+			crtcid = s->crtc;
+
+		drm_send_vblank_event(dev, crtcid, s->event);
+	}
+
+	/* Give up ownership of vblank for page-flipped crtc */
+	drm_vblank_put(dev, s->crtc);
 
 	list_del(&s->head);
 	if (ps)

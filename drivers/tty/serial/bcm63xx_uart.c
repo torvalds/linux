@@ -567,7 +567,7 @@ static void bcm_uart_set_termios(struct uart_port *port,
 		port->read_status_mask |= UART_FIFO_FRAMEERR_MASK;
 		port->read_status_mask |= UART_FIFO_PARERR_MASK;
 	}
-	if (new->c_iflag & (BRKINT))
+	if (new->c_iflag & (IGNBRK | BRKINT))
 		port->read_status_mask |= UART_FIFO_BRKDET_MASK;
 
 	port->ignore_status_mask = 0;

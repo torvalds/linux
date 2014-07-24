@@ -580,6 +580,7 @@ static void spi_set_cs(struct spi_device *spi, bool enable)
 		spi->master->set_cs(spi, !enable);
 }
 
+#ifdef CONFIG_HAS_DMA
 static int spi_map_buf(struct spi_master *master, struct device *dev,
 		       struct sg_table *sgt, void *buf, size_t len,
 		       enum dma_data_direction dir)
@@ -637,54 +638,11 @@ static void spi_unmap_buf(struct spi_master *master, struct device *dev,
 	}
 }
 
-static int spi_map_msg(struct spi_master *master, struct spi_message *msg)
+static int __spi_map_msg(struct spi_master *master, struct spi_message *msg)
 {
 	struct device *tx_dev, *rx_dev;
 	struct spi_transfer *xfer;
-	void *tmp;
-	unsigned int max_tx, max_rx;
 	int ret;
-
-	if (master->flags & (SPI_MASTER_MUST_RX | SPI_MASTER_MUST_TX)) {
-		max_tx = 0;
-		max_rx = 0;
-
-		list_for_each_entry(xfer, &msg->transfers, transfer_list) {
-			if ((master->flags & SPI_MASTER_MUST_TX) &&
-			    !xfer->tx_buf)
-				max_tx = max(xfer->len, max_tx);
-			if ((master->flags & SPI_MASTER_MUST_RX) &&
-			    !xfer->rx_buf)
-				max_rx = max(xfer->len, max_rx);
-		}
-
-		if (max_tx) {
-			tmp = krealloc(master->dummy_tx, max_tx,
-				       GFP_KERNEL | GFP_DMA);
-			if (!tmp)
-				return -ENOMEM;
-			master->dummy_tx = tmp;
-			memset(tmp, 0, max_tx);
-		}
-
-		if (max_rx) {
-			tmp = krealloc(master->dummy_rx, max_rx,
-				       GFP_KERNEL | GFP_DMA);
-			if (!tmp)
-				return -ENOMEM;
-			master->dummy_rx = tmp;
-		}
-
-		if (max_tx || max_rx) {
-			list_for_each_entry(xfer, &msg->transfers,
-					    transfer_list) {
-				if (!xfer->tx_buf)
-					xfer->tx_buf = master->dummy_tx;
-				if (!xfer->rx_buf)
-					xfer->rx_buf = master->dummy_rx;
-			}
-		}
-	}
 
 	if (!master->can_dma)
 		return 0;
@@ -742,6 +700,69 @@ static int spi_unmap_msg(struct spi_master *master, struct spi_message *msg)
 
 	return 0;
 }
+#else /* !CONFIG_HAS_DMA */
+static inline int __spi_map_msg(struct spi_master *master,
+				struct spi_message *msg)
+{
+	return 0;
+}
+
+static inline int spi_unmap_msg(struct spi_master *master,
+				struct spi_message *msg)
+{
+	return 0;
+}
+#endif /* !CONFIG_HAS_DMA */
+
+static int spi_map_msg(struct spi_master *master, struct spi_message *msg)
+{
+	struct spi_transfer *xfer;
+	void *tmp;
+	unsigned int max_tx, max_rx;
+
+	if (master->flags & (SPI_MASTER_MUST_RX | SPI_MASTER_MUST_TX)) {
+		max_tx = 0;
+		max_rx = 0;
+
+		list_for_each_entry(xfer, &msg->transfers, transfer_list) {
+			if ((master->flags & SPI_MASTER_MUST_TX) &&
+			    !xfer->tx_buf)
+				max_tx = max(xfer->len, max_tx);
+			if ((master->flags & SPI_MASTER_MUST_RX) &&
+			    !xfer->rx_buf)
+				max_rx = max(xfer->len, max_rx);
+		}
+
+		if (max_tx) {
+			tmp = krealloc(master->dummy_tx, max_tx,
+				       GFP_KERNEL | GFP_DMA);
+			if (!tmp)
+				return -ENOMEM;
+			master->dummy_tx = tmp;
+			memset(tmp, 0, max_tx);
+		}
+
+		if (max_rx) {
+			tmp = krealloc(master->dummy_rx, max_rx,
+				       GFP_KERNEL | GFP_DMA);
+			if (!tmp)
+				return -ENOMEM;
+			master->dummy_rx = tmp;
+		}
+
+		if (max_tx || max_rx) {
+			list_for_each_entry(xfer, &msg->transfers,
+					    transfer_list) {
+				if (!xfer->tx_buf)
+					xfer->tx_buf = master->dummy_tx;
+				if (!xfer->rx_buf)
+					xfer->rx_buf = master->dummy_rx;
+			}
+		}
+	}
+
+	return __spi_map_msg(master, msg);
+}
 
 /*
  * spi_transfer_one_message - Default implementation of transfer_one_message()
@@ -775,7 +796,7 @@ static int spi_transfer_one_message(struct spi_master *master,
 		if (ret > 0) {
 			ret = 0;
 			ms = xfer->len * 8 * 1000 / xfer->speed_hz;
-			ms += 10; /* some tolerance */
+			ms += ms + 100; /* some tolerance */
 
 			ms = wait_for_completion_timeout(&master->xfer_completion,
 							 msecs_to_jiffies(ms));
@@ -1151,7 +1172,6 @@ static int spi_master_initialize_queue(struct spi_master *master)
 {
 	int ret;
 
-	master->queued = true;
 	master->transfer = spi_queued_transfer;
 	if (!master->transfer_one_message)
 		master->transfer_one_message = spi_transfer_one_message;
@@ -1162,6 +1182,7 @@ static int spi_master_initialize_queue(struct spi_master *master)
 		dev_err(&master->dev, "problem initializing queue\n");
 		goto err_init_queue;
 	}
+	master->queued = true;
 	ret = spi_start_queue(master);
 	if (ret) {
 		dev_err(&master->dev, "problem starting queue\n");
@@ -1171,8 +1192,8 @@ static int spi_master_initialize_queue(struct spi_master *master)
 	return 0;
 
 err_start_queue:
-err_init_queue:
 	spi_destroy_queue(master);
+err_init_queue:
 	return ret;
 }
 
@@ -1234,6 +1255,8 @@ static void of_register_spi_devices(struct spi_master *master)
 			spi->mode |= SPI_CS_HIGH;
 		if (of_find_property(nc, "spi-3wire", NULL))
 			spi->mode |= SPI_3WIRE;
+		if (of_find_property(nc, "spi-lsb-first", NULL))
+			spi->mode |= SPI_LSB_FIRST;
 
 		/* Device DUAL/QUAD mode */
 		if (!of_property_read_u32(nc, "spi-tx-bus-width", &value)) {
@@ -1247,11 +1270,10 @@ static void of_register_spi_devices(struct spi_master *master)
 				spi->mode |= SPI_TX_QUAD;
 				break;
 			default:
-				dev_err(&master->dev,
-					"spi-tx-bus-width %d not supported\n",
-					value);
-				spi_dev_put(spi);
-				continue;
+				dev_warn(&master->dev,
+					 "spi-tx-bus-width %d not supported\n",
+					 value);
+				break;
 			}
 		}
 
@@ -1266,11 +1288,10 @@ static void of_register_spi_devices(struct spi_master *master)
 				spi->mode |= SPI_RX_QUAD;
 				break;
 			default:
-				dev_err(&master->dev,
-					"spi-rx-bus-width %d not supported\n",
-					value);
-				spi_dev_put(spi);
-				continue;
+				dev_warn(&master->dev,
+					 "spi-rx-bus-width %d not supported\n",
+					 value);
+				break;
 			}
 		}
 
@@ -1756,7 +1777,7 @@ EXPORT_SYMBOL_GPL(spi_busnum_to_master);
  */
 int spi_setup(struct spi_device *spi)
 {
-	unsigned	bad_bits;
+	unsigned	bad_bits, ugly_bits;
 	int		status = 0;
 
 	/* check mode to prevent that DUAL and QUAD set at the same time
@@ -1776,6 +1797,15 @@ int spi_setup(struct spi_device *spi)
 	 * that aren't supported with their current master
 	 */
 	bad_bits = spi->mode & ~spi->master->mode_bits;
+	ugly_bits = bad_bits &
+		    (SPI_TX_DUAL | SPI_TX_QUAD | SPI_RX_DUAL | SPI_RX_QUAD);
+	if (ugly_bits) {
+		dev_warn(&spi->dev,
+			 "setup: ignoring unsupported mode bits %x\n",
+			 ugly_bits);
+		spi->mode &= ~ugly_bits;
+		bad_bits &= ~ugly_bits;
+	}
 	if (bad_bits) {
 		dev_err(&spi->dev, "setup: unsupported mode bits %x\n",
 			bad_bits);

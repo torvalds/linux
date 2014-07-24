@@ -582,7 +582,6 @@ struct r8192_priv {
 
 	struct rt_firmware			*pFirmware;
 	enum rtl819x_loopback LoopbackMode;
-	enum firmware_source firmware_source;
 
 	struct timer_list			watch_dog_timer;
 	struct timer_list			fsync_timer;

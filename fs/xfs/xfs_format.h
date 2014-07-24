@@ -202,6 +202,8 @@ typedef __be32 xfs_alloc_ptr_t;
  */
 #define	XFS_IBT_MAGIC		0x49414254	/* 'IABT' */
 #define	XFS_IBT_CRC_MAGIC	0x49414233	/* 'IAB3' */
+#define	XFS_FIBT_MAGIC		0x46494254	/* 'FIBT' */
+#define	XFS_FIBT_CRC_MAGIC	0x46494233	/* 'FIB3' */
 
 typedef	__uint64_t	xfs_inofree_t;
 #define	XFS_INODES_PER_CHUNK		(NBBY * sizeof(xfs_inofree_t))
@@ -244,7 +246,17 @@ typedef __be32 xfs_inobt_ptr_t;
  * block numbers in the AG.
  */
 #define	XFS_IBT_BLOCK(mp)		((xfs_agblock_t)(XFS_CNT_BLOCK(mp) + 1))
-#define	XFS_PREALLOC_BLOCKS(mp)		((xfs_agblock_t)(XFS_IBT_BLOCK(mp) + 1))
+#define	XFS_FIBT_BLOCK(mp)		((xfs_agblock_t)(XFS_IBT_BLOCK(mp) + 1))
+
+/*
+ * The first data block of an AG depends on whether the filesystem was formatted
+ * with the finobt feature. If so, account for the finobt reserved root btree
+ * block.
+ */
+#define XFS_PREALLOC_BLOCKS(mp) \
+	(xfs_sb_version_hasfinobt(&((mp)->m_sb)) ? \
+	 XFS_FIBT_BLOCK(mp) + 1 : \
+	 XFS_IBT_BLOCK(mp) + 1)
 
 
 

@@ -57,7 +57,7 @@ BEGIN_FW_FTR_SECTION;							\
 	LDX_BE	r10,0,r10;		/* get log write index */	\
 	cmpd	cr1,r11,r10;						\
 	beq+	cr1,33f;						\
-	bl	.accumulate_stolen_time;				\
+	bl	accumulate_stolen_time;				\
 	ld	r12,_MSR(r1);						\
 	andi.	r10,r12,MSR_PR;		/* Restore cr0 (coming from user) */ \
 33:									\
@@ -189,8 +189,44 @@ END_FW_FTR_SECTION_IFSET(FW_FEATURE_SPLPAR)
 #define __STK_REG(i)   (112 + ((i)-14)*8)
 #define STK_REG(i)     __STK_REG(__REG_##i)
 
+#if defined(_CALL_ELF) && _CALL_ELF == 2
+#define STK_GOT		24
+#define __STK_PARAM(i)	(32 + ((i)-3)*8)
+#else
+#define STK_GOT		40
 #define __STK_PARAM(i)	(48 + ((i)-3)*8)
+#endif
 #define STK_PARAM(i)	__STK_PARAM(__REG_##i)
+
+#if defined(_CALL_ELF) && _CALL_ELF == 2
+
+#define _GLOBAL(name) \
+	.section ".text"; \
+	.align 2 ; \
+	.type name,@function; \
+	.globl name; \
+name:
+
+#define _GLOBAL_TOC(name) \
+	.section ".text"; \
+	.align 2 ; \
+	.type name,@function; \
+	.globl name; \
+name: \
+0:	addis r2,r12,(.TOC.-0b)@ha; \
+	addi r2,r2,(.TOC.-0b)@l; \
+	.localentry name,.-name
+
+#define _KPROBE(name) \
+	.section ".kprobes.text","a"; \
+	.align 2 ; \
+	.type name,@function; \
+	.globl name; \
+name:
+
+#define DOTSYM(a)	a
+
+#else
 
 #define XGLUE(a,b) a##b
 #define GLUE(a,b) XGLUE(a,b)
@@ -209,19 +245,7 @@ name: \
 	.type GLUE(.,name),@function; \
 GLUE(.,name):
 
-#define _INIT_GLOBAL(name) \
-	__REF; \
-	.align 2 ; \
-	.globl name; \
-	.globl GLUE(.,name); \
-	.section ".opd","aw"; \
-name: \
-	.quad GLUE(.,name); \
-	.quad .TOC.@tocbase; \
-	.quad 0; \
-	.previous; \
-	.type GLUE(.,name),@function; \
-GLUE(.,name):
+#define _GLOBAL_TOC(name) _GLOBAL(name)
 
 #define _KPROBE(name) \
 	.section ".kprobes.text","a"; \
@@ -237,29 +261,9 @@ name: \
 	.type GLUE(.,name),@function; \
 GLUE(.,name):
 
-#define _STATIC(name) \
-	.section ".text"; \
-	.align 2 ; \
-	.section ".opd","aw"; \
-name: \
-	.quad GLUE(.,name); \
-	.quad .TOC.@tocbase; \
-	.quad 0; \
-	.previous; \
-	.type GLUE(.,name),@function; \
-GLUE(.,name):
+#define DOTSYM(a)	GLUE(.,a)
 
-#define _INIT_STATIC(name) \
-	__REF; \
-	.align 2 ; \
-	.section ".opd","aw"; \
-name: \
-	.quad GLUE(.,name); \
-	.quad .TOC.@tocbase; \
-	.quad 0; \
-	.previous; \
-	.type GLUE(.,name),@function; \
-GLUE(.,name):
+#endif
 
 #else /* 32-bit */
 
@@ -318,11 +322,16 @@ n:
 	addi	reg,reg,(name - 0b)@l;
 
 #ifdef __powerpc64__
+#ifdef HAVE_AS_ATHIGH
+#define __AS_ATHIGH high
+#else
+#define __AS_ATHIGH h
+#endif
 #define LOAD_REG_IMMEDIATE(reg,expr)		\
 	lis     reg,(expr)@highest;		\
 	ori     reg,reg,(expr)@higher;	\
 	rldicr  reg,reg,32,31;		\
-	oris    reg,reg,(expr)@h;		\
+	oris    reg,reg,(expr)@__AS_ATHIGH;	\
 	ori     reg,reg,(expr)@l;
 
 #define LOAD_REG_ADDR(reg,name)			\

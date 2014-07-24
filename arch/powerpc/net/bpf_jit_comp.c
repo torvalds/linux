@@ -79,19 +79,11 @@ static void bpf_jit_build_prologue(struct sk_filter *fp, u32 *image,
 	}
 
 	switch (filter[0].code) {
-	case BPF_S_RET_K:
-	case BPF_S_LD_W_LEN:
-	case BPF_S_ANC_PROTOCOL:
-	case BPF_S_ANC_IFINDEX:
-	case BPF_S_ANC_MARK:
-	case BPF_S_ANC_RXHASH:
-	case BPF_S_ANC_VLAN_TAG:
-	case BPF_S_ANC_VLAN_TAG_PRESENT:
-	case BPF_S_ANC_CPU:
-	case BPF_S_ANC_QUEUE:
-	case BPF_S_LD_W_ABS:
-	case BPF_S_LD_H_ABS:
-	case BPF_S_LD_B_ABS:
+	case BPF_RET | BPF_K:
+	case BPF_LD | BPF_W | BPF_LEN:
+	case BPF_LD | BPF_W | BPF_ABS:
+	case BPF_LD | BPF_H | BPF_ABS:
+	case BPF_LD | BPF_B | BPF_ABS:
 		/* first instruction sets A register (or is RET 'constant') */
 		break;
 	default:
@@ -144,6 +136,7 @@ static int bpf_jit_build_body(struct sk_filter *fp, u32 *image,
 
 	for (i = 0; i < flen; i++) {
 		unsigned int K = filter[i].k;
+		u16 code = bpf_anc_helper(&filter[i]);
 
 		/*
 		 * addrs[] maps a BPF bytecode address into a real offset from
@@ -151,35 +144,35 @@ static int bpf_jit_build_body(struct sk_filter *fp, u32 *image,
 		 */
 		addrs[i] = ctx->idx * 4;
 
-		switch (filter[i].code) {
+		switch (code) {
 			/*** ALU ops ***/
-		case BPF_S_ALU_ADD_X: /* A += X; */
+		case BPF_ALU | BPF_ADD | BPF_X: /* A += X; */
 			ctx->seen |= SEEN_XREG;
 			PPC_ADD(r_A, r_A, r_X);
 			break;
-		case BPF_S_ALU_ADD_K: /* A += K; */
+		case BPF_ALU | BPF_ADD | BPF_K: /* A += K; */
 			if (!K)
 				break;
 			PPC_ADDI(r_A, r_A, IMM_L(K));
 			if (K >= 32768)
 				PPC_ADDIS(r_A, r_A, IMM_HA(K));
 			break;
-		case BPF_S_ALU_SUB_X: /* A -= X; */
+		case BPF_ALU | BPF_SUB | BPF_X: /* A -= X; */
 			ctx->seen |= SEEN_XREG;
 			PPC_SUB(r_A, r_A, r_X);
 			break;
-		case BPF_S_ALU_SUB_K: /* A -= K */
+		case BPF_ALU | BPF_SUB | BPF_K: /* A -= K */
 			if (!K)
 				break;
 			PPC_ADDI(r_A, r_A, IMM_L(-K));
 			if (K >= 32768)
 				PPC_ADDIS(r_A, r_A, IMM_HA(-K));
 			break;
-		case BPF_S_ALU_MUL_X: /* A *= X; */
+		case BPF_ALU | BPF_MUL | BPF_X: /* A *= X; */
 			ctx->seen |= SEEN_XREG;
 			PPC_MUL(r_A, r_A, r_X);
 			break;
-		case BPF_S_ALU_MUL_K: /* A *= K */
+		case BPF_ALU | BPF_MUL | BPF_K: /* A *= K */
 			if (K < 32768)
 				PPC_MULI(r_A, r_A, K);
 			else {
@@ -187,7 +180,7 @@ static int bpf_jit_build_body(struct sk_filter *fp, u32 *image,
 				PPC_MUL(r_A, r_A, r_scratch1);
 			}
 			break;
-		case BPF_S_ALU_MOD_X: /* A %= X; */
+		case BPF_ALU | BPF_MOD | BPF_X: /* A %= X; */
 			ctx->seen |= SEEN_XREG;
 			PPC_CMPWI(r_X, 0);
 			if (ctx->pc_ret0 != -1) {
@@ -201,13 +194,13 @@ static int bpf_jit_build_body(struct sk_filter *fp, u32 *image,
 			PPC_MUL(r_scratch1, r_X, r_scratch1);
 			PPC_SUB(r_A, r_A, r_scratch1);
 			break;
-		case BPF_S_ALU_MOD_K: /* A %= K; */
+		case BPF_ALU | BPF_MOD | BPF_K: /* A %= K; */
 			PPC_LI32(r_scratch2, K);
 			PPC_DIVWU(r_scratch1, r_A, r_scratch2);
 			PPC_MUL(r_scratch1, r_scratch2, r_scratch1);
 			PPC_SUB(r_A, r_A, r_scratch1);
 			break;
-		case BPF_S_ALU_DIV_X: /* A /= X; */
+		case BPF_ALU | BPF_DIV | BPF_X: /* A /= X; */
 			ctx->seen |= SEEN_XREG;
 			PPC_CMPWI(r_X, 0);
 			if (ctx->pc_ret0 != -1) {
@@ -223,17 +216,17 @@ static int bpf_jit_build_body(struct sk_filter *fp, u32 *image,
 			}
 			PPC_DIVWU(r_A, r_A, r_X);
 			break;
-		case BPF_S_ALU_DIV_K: /* A /= K */
+		case BPF_ALU | BPF_DIV | BPF_K: /* A /= K */
 			if (K == 1)
 				break;
 			PPC_LI32(r_scratch1, K);
 			PPC_DIVWU(r_A, r_A, r_scratch1);
 			break;
-		case BPF_S_ALU_AND_X:
+		case BPF_ALU | BPF_AND | BPF_X:
 			ctx->seen |= SEEN_XREG;
 			PPC_AND(r_A, r_A, r_X);
 			break;
-		case BPF_S_ALU_AND_K:
+		case BPF_ALU | BPF_AND | BPF_K:
 			if (!IMM_H(K))
 				PPC_ANDI(r_A, r_A, K);
 			else {
@@ -241,51 +234,51 @@ static int bpf_jit_build_body(struct sk_filter *fp, u32 *image,
 				PPC_AND(r_A, r_A, r_scratch1);
 			}
 			break;
-		case BPF_S_ALU_OR_X:
+		case BPF_ALU | BPF_OR | BPF_X:
 			ctx->seen |= SEEN_XREG;
 			PPC_OR(r_A, r_A, r_X);
 			break;
-		case BPF_S_ALU_OR_K:
+		case BPF_ALU | BPF_OR | BPF_K:
 			if (IMM_L(K))
 				PPC_ORI(r_A, r_A, IMM_L(K));
 			if (K >= 65536)
 				PPC_ORIS(r_A, r_A, IMM_H(K));
 			break;
-		case BPF_S_ANC_ALU_XOR_X:
-		case BPF_S_ALU_XOR_X: /* A ^= X */
+		case BPF_ANC | SKF_AD_ALU_XOR_X:
+		case BPF_ALU | BPF_XOR | BPF_X: /* A ^= X */
 			ctx->seen |= SEEN_XREG;
 			PPC_XOR(r_A, r_A, r_X);
 			break;
-		case BPF_S_ALU_XOR_K: /* A ^= K */
+		case BPF_ALU | BPF_XOR | BPF_K: /* A ^= K */
 			if (IMM_L(K))
 				PPC_XORI(r_A, r_A, IMM_L(K));
 			if (K >= 65536)
 				PPC_XORIS(r_A, r_A, IMM_H(K));
 			break;
-		case BPF_S_ALU_LSH_X: /* A <<= X; */
+		case BPF_ALU | BPF_LSH | BPF_X: /* A <<= X; */
 			ctx->seen |= SEEN_XREG;
 			PPC_SLW(r_A, r_A, r_X);
 			break;
-		case BPF_S_ALU_LSH_K:
+		case BPF_ALU | BPF_LSH | BPF_K:
 			if (K == 0)
 				break;
 			else
 				PPC_SLWI(r_A, r_A, K);
 			break;
-		case BPF_S_ALU_RSH_X: /* A >>= X; */
+		case BPF_ALU | BPF_RSH | BPF_X: /* A >>= X; */
 			ctx->seen |= SEEN_XREG;
 			PPC_SRW(r_A, r_A, r_X);
 			break;
-		case BPF_S_ALU_RSH_K: /* A >>= K; */
+		case BPF_ALU | BPF_RSH | BPF_K: /* A >>= K; */
 			if (K == 0)
 				break;
 			else
 				PPC_SRWI(r_A, r_A, K);
 			break;
-		case BPF_S_ALU_NEG:
+		case BPF_ALU | BPF_NEG:
 			PPC_NEG(r_A, r_A);
 			break;
-		case BPF_S_RET_K:
+		case BPF_RET | BPF_K:
 			PPC_LI32(r_ret, K);
 			if (!K) {
 				if (ctx->pc_ret0 == -1)
@@ -312,7 +305,7 @@ static int bpf_jit_build_body(struct sk_filter *fp, u32 *image,
 					PPC_BLR();
 			}
 			break;
-		case BPF_S_RET_A:
+		case BPF_RET | BPF_A:
 			PPC_MR(r_ret, r_A);
 			if (i != flen - 1) {
 				if (ctx->seen)
@@ -321,53 +314,53 @@ static int bpf_jit_build_body(struct sk_filter *fp, u32 *image,
 					PPC_BLR();
 			}
 			break;
-		case BPF_S_MISC_TAX: /* X = A */
+		case BPF_MISC | BPF_TAX: /* X = A */
 			PPC_MR(r_X, r_A);
 			break;
-		case BPF_S_MISC_TXA: /* A = X */
+		case BPF_MISC | BPF_TXA: /* A = X */
 			ctx->seen |= SEEN_XREG;
 			PPC_MR(r_A, r_X);
 			break;
 
 			/*** Constant loads/M[] access ***/
-		case BPF_S_LD_IMM: /* A = K */
+		case BPF_LD | BPF_IMM: /* A = K */
 			PPC_LI32(r_A, K);
 			break;
-		case BPF_S_LDX_IMM: /* X = K */
+		case BPF_LDX | BPF_IMM: /* X = K */
 			PPC_LI32(r_X, K);
 			break;
-		case BPF_S_LD_MEM: /* A = mem[K] */
+		case BPF_LD | BPF_MEM: /* A = mem[K] */
 			PPC_MR(r_A, r_M + (K & 0xf));
 			ctx->seen |= SEEN_MEM | (1<<(K & 0xf));
 			break;
-		case BPF_S_LDX_MEM: /* X = mem[K] */
+		case BPF_LDX | BPF_MEM: /* X = mem[K] */
 			PPC_MR(r_X, r_M + (K & 0xf));
 			ctx->seen |= SEEN_MEM | (1<<(K & 0xf));
 			break;
-		case BPF_S_ST: /* mem[K] = A */
+		case BPF_ST: /* mem[K] = A */
 			PPC_MR(r_M + (K & 0xf), r_A);
 			ctx->seen |= SEEN_MEM | (1<<(K & 0xf));
 			break;
-		case BPF_S_STX: /* mem[K] = X */
+		case BPF_STX: /* mem[K] = X */
 			PPC_MR(r_M + (K & 0xf), r_X);
 			ctx->seen |= SEEN_XREG | SEEN_MEM | (1<<(K & 0xf));
 			break;
-		case BPF_S_LD_W_LEN: /*	A = skb->len; */
+		case BPF_LD | BPF_W | BPF_LEN: /*	A = skb->len; */
 			BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, len) != 4);
 			PPC_LWZ_OFFS(r_A, r_skb, offsetof(struct sk_buff, len));
 			break;
-		case BPF_S_LDX_W_LEN: /* X = skb->len; */
+		case BPF_LDX | BPF_W | BPF_LEN: /* X = skb->len; */
 			PPC_LWZ_OFFS(r_X, r_skb, offsetof(struct sk_buff, len));
 			break;
 
 			/*** Ancillary info loads ***/
-		case BPF_S_ANC_PROTOCOL: /* A = ntohs(skb->protocol); */
+		case BPF_ANC | SKF_AD_PROTOCOL: /* A = ntohs(skb->protocol); */
 			BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff,
 						  protocol) != 2);
 			PPC_NTOHS_OFFS(r_A, r_skb, offsetof(struct sk_buff,
 							    protocol));
 			break;
-		case BPF_S_ANC_IFINDEX:
+		case BPF_ANC | SKF_AD_IFINDEX:
 			PPC_LD_OFFS(r_scratch1, r_skb, offsetof(struct sk_buff,
 								dev));
 			PPC_CMPDI(r_scratch1, 0);
@@ -384,33 +377,37 @@ static int bpf_jit_build_body(struct sk_filter *fp, u32 *image,
 			PPC_LWZ_OFFS(r_A, r_scratch1,
 				     offsetof(struct net_device, ifindex));
 			break;
-		case BPF_S_ANC_MARK:
+		case BPF_ANC | SKF_AD_MARK:
 			BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, mark) != 4);
 			PPC_LWZ_OFFS(r_A, r_skb, offsetof(struct sk_buff,
 							  mark));
 			break;
-		case BPF_S_ANC_RXHASH:
+		case BPF_ANC | SKF_AD_RXHASH:
 			BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, hash) != 4);
 			PPC_LWZ_OFFS(r_A, r_skb, offsetof(struct sk_buff,
 							  hash));
 			break;
-		case BPF_S_ANC_VLAN_TAG:
-		case BPF_S_ANC_VLAN_TAG_PRESENT:
+		case BPF_ANC | SKF_AD_VLAN_TAG:
+		case BPF_ANC | SKF_AD_VLAN_TAG_PRESENT:
 			BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, vlan_tci) != 2);
+			BUILD_BUG_ON(VLAN_TAG_PRESENT != 0x1000);
+
 			PPC_LHZ_OFFS(r_A, r_skb, offsetof(struct sk_buff,
 							  vlan_tci));
-			if (filter[i].code == BPF_S_ANC_VLAN_TAG)
-				PPC_ANDI(r_A, r_A, VLAN_VID_MASK);
-			else
+			if (code == (BPF_ANC | SKF_AD_VLAN_TAG)) {
+				PPC_ANDI(r_A, r_A, ~VLAN_TAG_PRESENT);
+			} else {
 				PPC_ANDI(r_A, r_A, VLAN_TAG_PRESENT);
+				PPC_SRWI(r_A, r_A, 12);
+			}
 			break;
-		case BPF_S_ANC_QUEUE:
+		case BPF_ANC | SKF_AD_QUEUE:
 			BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff,
 						  queue_mapping) != 2);
 			PPC_LHZ_OFFS(r_A, r_skb, offsetof(struct sk_buff,
 							  queue_mapping));
 			break;
-		case BPF_S_ANC_CPU:
+		case BPF_ANC | SKF_AD_CPU:
 #ifdef CONFIG_SMP
 			/*
 			 * PACA ptr is r13:
@@ -426,13 +423,13 @@ static int bpf_jit_build_body(struct sk_filter *fp, u32 *image,
 			break;
 
 			/*** Absolute loads from packet header/data ***/
-		case BPF_S_LD_W_ABS:
+		case BPF_LD | BPF_W | BPF_ABS:
 			func = CHOOSE_LOAD_FUNC(K, sk_load_word);
 			goto common_load;
-		case BPF_S_LD_H_ABS:
+		case BPF_LD | BPF_H | BPF_ABS:
 			func = CHOOSE_LOAD_FUNC(K, sk_load_half);
 			goto common_load;
-		case BPF_S_LD_B_ABS:
+		case BPF_LD | BPF_B | BPF_ABS:
 			func = CHOOSE_LOAD_FUNC(K, sk_load_byte);
 		common_load:
 			/* Load from [K]. */
@@ -449,13 +446,13 @@ static int bpf_jit_build_body(struct sk_filter *fp, u32 *image,
 			break;
 
 			/*** Indirect loads from packet header/data ***/
-		case BPF_S_LD_W_IND:
+		case BPF_LD | BPF_W | BPF_IND:
 			func = sk_load_word;
 			goto common_load_ind;
-		case BPF_S_LD_H_IND:
+		case BPF_LD | BPF_H | BPF_IND:
 			func = sk_load_half;
 			goto common_load_ind;
-		case BPF_S_LD_B_IND:
+		case BPF_LD | BPF_B | BPF_IND:
 			func = sk_load_byte;
 		common_load_ind:
 			/*
@@ -473,31 +470,31 @@ static int bpf_jit_build_body(struct sk_filter *fp, u32 *image,
 			PPC_BCC(COND_LT, exit_addr);
 			break;
 
-		case BPF_S_LDX_B_MSH:
+		case BPF_LDX | BPF_B | BPF_MSH:
 			func = CHOOSE_LOAD_FUNC(K, sk_load_byte_msh);
 			goto common_load;
 			break;
 
 			/*** Jump and branches ***/
-		case BPF_S_JMP_JA:
+		case BPF_JMP | BPF_JA:
 			if (K != 0)
 				PPC_JMP(addrs[i + 1 + K]);
 			break;
 
-		case BPF_S_JMP_JGT_K:
-		case BPF_S_JMP_JGT_X:
+		case BPF_JMP | BPF_JGT | BPF_K:
+		case BPF_JMP | BPF_JGT | BPF_X:
 			true_cond = COND_GT;
 			goto cond_branch;
-		case BPF_S_JMP_JGE_K:
-		case BPF_S_JMP_JGE_X:
+		case BPF_JMP | BPF_JGE | BPF_K:
+		case BPF_JMP | BPF_JGE | BPF_X:
 			true_cond = COND_GE;
 			goto cond_branch;
-		case BPF_S_JMP_JEQ_K:
-		case BPF_S_JMP_JEQ_X:
+		case BPF_JMP | BPF_JEQ | BPF_K:
+		case BPF_JMP | BPF_JEQ | BPF_X:
 			true_cond = COND_EQ;
 			goto cond_branch;
-		case BPF_S_JMP_JSET_K:
-		case BPF_S_JMP_JSET_X:
+		case BPF_JMP | BPF_JSET | BPF_K:
+		case BPF_JMP | BPF_JSET | BPF_X:
 			true_cond = COND_NE;
 			/* Fall through */
 		cond_branch:
@@ -508,20 +505,20 @@ static int bpf_jit_build_body(struct sk_filter *fp, u32 *image,
 				break;
 			}
 
-			switch (filter[i].code) {
-			case BPF_S_JMP_JGT_X:
-			case BPF_S_JMP_JGE_X:
-			case BPF_S_JMP_JEQ_X:
+			switch (code) {
+			case BPF_JMP | BPF_JGT | BPF_X:
+			case BPF_JMP | BPF_JGE | BPF_X:
+			case BPF_JMP | BPF_JEQ | BPF_X:
 				ctx->seen |= SEEN_XREG;
 				PPC_CMPLW(r_A, r_X);
 				break;
-			case BPF_S_JMP_JSET_X:
+			case BPF_JMP | BPF_JSET | BPF_X:
 				ctx->seen |= SEEN_XREG;
 				PPC_AND_DOT(r_scratch1, r_A, r_X);
 				break;
-			case BPF_S_JMP_JEQ_K:
-			case BPF_S_JMP_JGT_K:
-			case BPF_S_JMP_JGE_K:
+			case BPF_JMP | BPF_JEQ | BPF_K:
+			case BPF_JMP | BPF_JGT | BPF_K:
+			case BPF_JMP | BPF_JGE | BPF_K:
 				if (K < 32768)
 					PPC_CMPLWI(r_A, K);
 				else {
@@ -529,7 +526,7 @@ static int bpf_jit_build_body(struct sk_filter *fp, u32 *image,
 					PPC_CMPLW(r_A, r_scratch1);
 				}
 				break;
-			case BPF_S_JMP_JSET_K:
+			case BPF_JMP | BPF_JSET | BPF_K:
 				if (K < 32768)
 					/* PPC_ANDI is /only/ dot-form */
 					PPC_ANDI(r_scratch1, r_A, K);

@@ -55,6 +55,10 @@ int ptlrpcd_start(int index, int max, const char *name, struct ptlrpcd_ctl *pc);
 /* client.c */
 struct ptlrpc_bulk_desc *ptlrpc_new_bulk(unsigned npages, unsigned max_brw,
 					 unsigned type, unsigned portal);
+int ptlrpc_request_cache_init(void);
+void ptlrpc_request_cache_fini(void);
+struct ptlrpc_request *ptlrpc_request_cache_alloc(int flags);
+void ptlrpc_request_cache_free(struct ptlrpc_request *req);
 void ptlrpc_init_xid(void);
 
 /* events.c */

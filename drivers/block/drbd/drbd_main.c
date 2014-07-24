@@ -1607,8 +1607,8 @@ static u32 bio_flags_to_wire(struct drbd_connection *connection, unsigned long b
 		return bi_rw & REQ_SYNC ? DP_RW_SYNC : 0;
 }
 
-/* Used to send write requests
- * R_PRIMARY -> Peer	(P_DATA)
+/* Used to send write or TRIM aka REQ_DISCARD requests
+ * R_PRIMARY -> Peer	(P_DATA, P_TRIM)
  */
 int drbd_send_dblock(struct drbd_peer_device *peer_device, struct drbd_request *req)
 {
@@ -1640,6 +1640,16 @@ int drbd_send_dblock(struct drbd_peer_device *peer_device, struct drbd_request *
 			dp_flags |= DP_SEND_WRITE_ACK;
 	}
 	p->dp_flags = cpu_to_be32(dp_flags);
+
+	if (dp_flags & DP_DISCARD) {
+		struct p_trim *t = (struct p_trim*)p;
+		t->size = cpu_to_be32(req->i.size);
+		err = __send_command(peer_device->connection, device->vnr, sock, P_TRIM, sizeof(*t), NULL, 0);
+		goto out;
+	}
+
+	/* our digest is still only over the payload.
+	 * TRIM does not carry any payload. */
 	if (dgs)
 		drbd_csum_bio(peer_device->connection->integrity_tfm, req->master_bio, p + 1);
 	err = __send_command(peer_device->connection, device->vnr, sock, P_DATA, sizeof(*p) + dgs, NULL, req->i.size);
@@ -1675,6 +1685,7 @@ int drbd_send_dblock(struct drbd_peer_device *peer_device, struct drbd_request *
 		     ... Be noisy about digest too large ...
 		} */
 	}
+out:
 	mutex_unlock(&sock->mutex);  /* locked by drbd_prepare_command() */
 
 	return err;
@@ -2570,6 +2581,7 @@ struct drbd_resource *drbd_create_resource(const char *name)
 	INIT_LIST_HEAD(&resource->connections);
 	list_add_tail_rcu(&resource->resources, &drbd_resources);
 	mutex_init(&resource->conf_update);
+	mutex_init(&resource->adm_mutex);
 	spin_lock_init(&resource->req_lock);
 	return resource;
 
@@ -2687,14 +2699,16 @@ static int init_submitter(struct drbd_device *device)
 	return 0;
 }
 
-enum drbd_ret_code drbd_create_device(struct drbd_resource *resource, unsigned int minor, int vnr)
+enum drbd_ret_code drbd_create_device(struct drbd_config_context *adm_ctx, unsigned int minor)
 {
+	struct drbd_resource *resource = adm_ctx->resource;
 	struct drbd_connection *connection;
 	struct drbd_device *device;
 	struct drbd_peer_device *peer_device, *tmp_peer_device;
 	struct gendisk *disk;
 	struct request_queue *q;
 	int id;
+	int vnr = adm_ctx->volume;
 	enum drbd_ret_code err = ERR_NOMEM;
 
 	device = minor_to_device(minor);
@@ -2763,7 +2777,7 @@ enum drbd_ret_code drbd_create_device(struct drbd_resource *resource, unsigned i
 	if (id < 0) {
 		if (id == -ENOSPC) {
 			err = ERR_MINOR_EXISTS;
-			drbd_msg_put_info("requested minor exists already");
+			drbd_msg_put_info(adm_ctx->reply_skb, "requested minor exists already");
 		}
 		goto out_no_minor_idr;
 	}
@@ -2773,7 +2787,7 @@ enum drbd_ret_code drbd_create_device(struct drbd_resource *resource, unsigned i
 	if (id < 0) {
 		if (id == -ENOSPC) {
 			err = ERR_MINOR_EXISTS;
-			drbd_msg_put_info("requested minor exists already");
+			drbd_msg_put_info(adm_ctx->reply_skb, "requested minor exists already");
 		}
 		goto out_idr_remove_minor;
 	}
@@ -2794,7 +2808,7 @@ enum drbd_ret_code drbd_create_device(struct drbd_resource *resource, unsigned i
 		if (id < 0) {
 			if (id == -ENOSPC) {
 				err = ERR_INVALID_REQUEST;
-				drbd_msg_put_info("requested volume exists already");
+				drbd_msg_put_info(adm_ctx->reply_skb, "requested volume exists already");
 			}
 			goto out_idr_remove_from_resource;
 		}
@@ -2803,7 +2817,7 @@ enum drbd_ret_code drbd_create_device(struct drbd_resource *resource, unsigned i
 
 	if (init_submitter(device)) {
 		err = ERR_NOMEM;
-		drbd_msg_put_info("unable to create submit workqueue");
+		drbd_msg_put_info(adm_ctx->reply_skb, "unable to create submit workqueue");
 		goto out_idr_remove_vol;
 	}
 

@@ -95,8 +95,10 @@ static void ath9k_htc_vif_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
 
 	if ((vif->type == NL80211_IFTYPE_AP ||
 	     vif->type == NL80211_IFTYPE_MESH_POINT) &&
-	    bss_conf->enable_beacon)
+	    bss_conf->enable_beacon) {
 		priv->reconfig_beacon = true;
+		priv->rearm_ani = true;
+	}
 
 	if (bss_conf->assoc) {
 		priv->rearm_ani = true;
@@ -257,6 +259,7 @@ static int ath9k_htc_set_channel(struct ath9k_htc_priv *priv,
 
 	ath9k_htc_ps_wakeup(priv);
 
+	ath9k_htc_stop_ani(priv);
 	del_timer_sync(&priv->tx.cleanup_timer);
 	ath9k_htc_tx_drain(priv);
 

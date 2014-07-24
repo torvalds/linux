@@ -433,7 +433,7 @@ static int s3c_ac97_probe(struct platform_device *pdev)
 		goto err4;
 	}
 
-	ret = snd_soc_register_component(&pdev->dev, &s3c_ac97_component,
+	ret = devm_snd_soc_register_component(&pdev->dev, &s3c_ac97_component,
 					 s3c_ac97_dai, ARRAY_SIZE(s3c_ac97_dai));
 	if (ret)
 		goto err5;
@@ -441,12 +441,10 @@ static int s3c_ac97_probe(struct platform_device *pdev)
 	ret = samsung_asoc_dma_platform_register(&pdev->dev);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to get register DMA: %d\n", ret);
-		goto err6;
+		goto err5;
 	}
 
 	return 0;
-err6:
-	snd_soc_unregister_component(&pdev->dev);
 err5:
 	free_irq(irq_res->start, NULL);
 err4:
@@ -460,9 +458,6 @@ err2:
 static int s3c_ac97_remove(struct platform_device *pdev)
 {
 	struct resource *irq_res;
-
-	samsung_asoc_dma_platform_unregister(&pdev->dev);
-	snd_soc_unregister_component(&pdev->dev);
 
 	irq_res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (irq_res)

@@ -80,8 +80,8 @@ struct superblock_smack {
 
 struct socket_smack {
 	struct smack_known	*smk_out;	/* outbound label */
-	char			*smk_in;	/* inbound label */
-	char			*smk_packet;	/* TCP peer label */
+	struct smack_known	*smk_in;	/* inbound label */
+	struct smack_known	*smk_packet;	/* TCP peer label */
 };
 
 /*
@@ -133,7 +133,7 @@ struct smk_port_label {
 	struct list_head	list;
 	struct sock		*smk_sock;	/* socket initialized on */
 	unsigned short		smk_port;	/* the port number */
-	char			*smk_in;	/* incoming label */
+	struct smack_known	*smk_in;	/* inbound label */
 	struct smack_known	*smk_out;	/* outgoing label */
 };
 
@@ -175,6 +175,14 @@ struct smk_port_label {
  * the bits in 23 bytes, hence the unusual number.
  */
 #define SMACK_CIPSO_MAXCATNUM           184     /* 23 * 8 */
+
+/*
+ * Ptrace rules
+ */
+#define SMACK_PTRACE_DEFAULT	0
+#define SMACK_PTRACE_EXACT	1
+#define SMACK_PTRACE_DRACONIAN	2
+#define SMACK_PTRACE_MAX	SMACK_PTRACE_DRACONIAN
 
 /*
  * Flags for untraditional access modes.
@@ -225,6 +233,7 @@ struct inode_smack *new_inode_smack(char *);
  */
 int smk_access_entry(char *, char *, struct list_head *);
 int smk_access(struct smack_known *, char *, int, struct smk_audit_info *);
+int smk_tskacc(struct task_smack *, char *, u32, struct smk_audit_info *);
 int smk_curacc(char *, u32, struct smk_audit_info *);
 struct smack_known *smack_from_secid(const u32);
 char *smk_parse_smack(const char *string, int len);
@@ -244,6 +253,7 @@ extern struct smack_known *smack_net_ambient;
 extern struct smack_known *smack_onlycap;
 extern struct smack_known *smack_syslog_label;
 extern const char *smack_cipso_option;
+extern int smack_ptrace_rule;
 
 extern struct smack_known smack_known_floor;
 extern struct smack_known smack_known_hat;

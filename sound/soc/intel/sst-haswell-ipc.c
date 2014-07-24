@@ -25,7 +25,6 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/sched.h>
-#include <linux/list.h>
 #include <linux/platform_device.h>
 #include <linux/kthread.h>
 #include <linux/firmware.h>
@@ -1159,11 +1158,14 @@ struct sst_hsw_stream *sst_hsw_stream_new(struct sst_hsw *hsw, int id,
 	void *data)
 {
 	struct sst_hsw_stream *stream;
+	struct sst_dsp *sst = hsw->dsp;
+	unsigned long flags;
 
 	stream = kzalloc(sizeof(*stream), GFP_KERNEL);
 	if (stream == NULL)
 		return NULL;
 
+	spin_lock_irqsave(&sst->spinlock, flags);
 	list_add(&stream->node, &hsw->stream_list);
 	stream->notify_position = notify_position;
 	stream->pdata = data;
@@ -1172,6 +1174,7 @@ struct sst_hsw_stream *sst_hsw_stream_new(struct sst_hsw *hsw, int id,
 
 	/* work to process notification messages */
 	INIT_WORK(&stream->notify_work, hsw_notification_work);
+	spin_unlock_irqrestore(&sst->spinlock, flags);
 
 	return stream;
 }
@@ -1180,6 +1183,8 @@ int sst_hsw_stream_free(struct sst_hsw *hsw, struct sst_hsw_stream *stream)
 {
 	u32 header;
 	int ret = 0;
+	struct sst_dsp *sst = hsw->dsp;
+	unsigned long flags;
 
 	/* dont free DSP streams that are not commited */
 	if (!stream->commited)
@@ -1201,8 +1206,11 @@ int sst_hsw_stream_free(struct sst_hsw *hsw, struct sst_hsw_stream *stream)
 	trace_hsw_stream_free_req(stream, &stream->free_req);
 
 out:
+	cancel_work_sync(&stream->notify_work);
+	spin_lock_irqsave(&sst->spinlock, flags);
 	list_del(&stream->node);
 	kfree(stream);
+	spin_unlock_irqrestore(&sst->spinlock, flags);
 
 	return ret;
 }
@@ -1538,10 +1546,28 @@ int sst_hsw_stream_reset(struct sst_hsw *hsw, struct sst_hsw_stream *stream)
 }
 
 /* Stream pointer positions */
-int sst_hsw_get_dsp_position(struct sst_hsw *hsw,
+u32 sst_hsw_get_dsp_position(struct sst_hsw *hsw,
 	struct sst_hsw_stream *stream)
 {
-	return stream->rpos.position;
+	u32 rpos;
+
+	sst_dsp_read(hsw->dsp, &rpos,
+		stream->reply.read_position_register_address, sizeof(rpos));
+
+	return rpos;
+}
+
+/* Stream presentation (monotonic) positions */
+u64 sst_hsw_get_dsp_presentation_position(struct sst_hsw *hsw,
+	struct sst_hsw_stream *stream)
+{
+	u64 ppos;
+
+	sst_dsp_read(hsw->dsp, &ppos,
+		stream->reply.presentation_position_register_address,
+		sizeof(ppos));
+
+	return ppos;
 }
 
 int sst_hsw_stream_set_write_position(struct sst_hsw *hsw,
@@ -1703,17 +1729,17 @@ int sst_hsw_dsp_init(struct device *dev, struct sst_pdata *pdata)
 
 	ret = msg_empty_list_init(hsw);
 	if (ret < 0)
-		goto list_err;
+		return -ENOMEM;
 
 	/* start the IPC message thread */
 	init_kthread_worker(&hsw->kworker);
 	hsw->tx_thread = kthread_run(kthread_worker_fn,
-					   &hsw->kworker,
+					   &hsw->kworker, "%s",
 					   dev_name(hsw->dev));
 	if (IS_ERR(hsw->tx_thread)) {
 		ret = PTR_ERR(hsw->tx_thread);
 		dev_err(hsw->dev, "error: failed to create message TX task\n");
-		goto list_err;
+		goto err_free_msg;
 	}
 	init_kthread_work(&hsw->kwork, ipc_tx_msgs);
 
@@ -1723,7 +1749,7 @@ int sst_hsw_dsp_init(struct device *dev, struct sst_pdata *pdata)
 	hsw->dsp = sst_dsp_new(dev, &hsw_dev, pdata);
 	if (hsw->dsp == NULL) {
 		ret = -ENODEV;
-		goto list_err;
+		goto dsp_err;
 	}
 
 	/* keep the DSP in reset state for base FW loading */
@@ -1767,8 +1793,11 @@ boot_err:
 	sst_fw_free(hsw_sst_fw);
 fw_err:
 	sst_dsp_free(hsw->dsp);
+dsp_err:
+	kthread_stop(hsw->tx_thread);
+err_free_msg:
 	kfree(hsw->msg);
-list_err:
+
 	return ret;
 }
 EXPORT_SYMBOL_GPL(sst_hsw_dsp_init);
@@ -1781,6 +1810,7 @@ void sst_hsw_dsp_free(struct device *dev, struct sst_pdata *pdata)
 	sst_fw_free_all(hsw->dsp);
 	sst_dsp_free(hsw->dsp);
 	kfree(hsw->scratch);
+	kthread_stop(hsw->tx_thread);
 	kfree(hsw->msg);
 }
 EXPORT_SYMBOL_GPL(sst_hsw_dsp_free);

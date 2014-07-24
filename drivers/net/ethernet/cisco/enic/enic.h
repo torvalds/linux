@@ -43,11 +43,40 @@
 #define ENIC_CQ_MAX		(ENIC_WQ_MAX + ENIC_RQ_MAX)
 #define ENIC_INTR_MAX		(ENIC_CQ_MAX + 2)
 
+#define ENIC_AIC_LARGE_PKT_DIFF	3
+
 struct enic_msix_entry {
 	int requested;
 	char devname[IFNAMSIZ];
 	irqreturn_t (*isr)(int, void *);
 	void *devid;
+};
+
+/* Store only the lower range.  Higher range is given by fw. */
+struct enic_intr_mod_range {
+	u32 small_pkt_range_start;
+	u32 large_pkt_range_start;
+};
+
+struct enic_intr_mod_table {
+	u32 rx_rate;
+	u32 range_percent;
+};
+
+#define ENIC_MAX_LINK_SPEEDS		3
+#define ENIC_LINK_SPEED_10G		10000
+#define ENIC_LINK_SPEED_4G		4000
+#define ENIC_LINK_40G_INDEX		2
+#define ENIC_LINK_10G_INDEX		1
+#define ENIC_LINK_4G_INDEX		0
+#define ENIC_RX_COALESCE_RANGE_END	125
+#define ENIC_AIC_TS_BREAK		100
+
+struct enic_rx_coal {
+	u32 small_pkt_range_start;
+	u32 large_pkt_range_start;
+	u32 range_end;
+	u32 use_adaptive_rx_coalesce;
 };
 
 /* priv_flags */
@@ -85,13 +114,12 @@ struct enic {
 	u32 msg_enable;
 	spinlock_t devcmd_lock;
 	u8 mac_addr[ETH_ALEN];
-	u8 mc_addr[ENIC_MULTICAST_PERFECT_FILTERS][ETH_ALEN];
-	u8 uc_addr[ENIC_UNICAST_PERFECT_FILTERS][ETH_ALEN];
 	unsigned int flags;
 	unsigned int priv_flags;
 	unsigned int mc_count;
 	unsigned int uc_count;
 	u32 port_mtu;
+	struct enic_rx_coal rx_coalesce_setting;
 	u32 rx_coalesce_usecs;
 	u32 tx_coalesce_usecs;
 #ifdef CONFIG_PCI_IOV

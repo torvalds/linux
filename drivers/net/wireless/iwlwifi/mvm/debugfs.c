@@ -65,9 +65,8 @@
 #include "mvm.h"
 #include "sta.h"
 #include "iwl-io.h"
-#include "iwl-prph.h"
 #include "debugfs.h"
-#include "fw-error-dump.h"
+#include "iwl-fw-error-dump.h"
 
 static ssize_t iwl_dbgfs_tx_flush_write(struct iwl_mvm *mvm, char *buf,
 					size_t count, loff_t *ppos)
@@ -136,9 +135,6 @@ static int iwl_dbgfs_fw_error_dump_open(struct inode *inode, struct file *file)
 
 	file->private_data = mvm->fw_error_dump;
 	mvm->fw_error_dump = NULL;
-	kfree(mvm->fw_error_sram);
-	mvm->fw_error_sram = NULL;
-	mvm->fw_error_sram_len = 0;
 	ret = 0;
 
 out:
@@ -684,7 +680,7 @@ static ssize_t iwl_dbgfs_fw_restart_write(struct iwl_mvm *mvm, char *buf,
 		mvm->restart_fw++;
 
 	/* take the return value to make compiler happy - it will fail anyway */
-	ret = iwl_mvm_send_cmd_pdu(mvm, REPLY_ERROR, CMD_SYNC, 0, NULL);
+	ret = iwl_mvm_send_cmd_pdu(mvm, REPLY_ERROR, 0, 0, NULL);
 
 	mutex_unlock(&mvm->mutex);
 
@@ -694,7 +690,7 @@ static ssize_t iwl_dbgfs_fw_restart_write(struct iwl_mvm *mvm, char *buf,
 static ssize_t iwl_dbgfs_fw_nmi_write(struct iwl_mvm *mvm, char *buf,
 				      size_t count, loff_t *ppos)
 {
-	iwl_write_prph(mvm->trans, DEVICE_SET_NMI_REG, 1);
+	iwl_force_nmi(mvm->trans);
 
 	return count;
 }
@@ -841,7 +837,7 @@ static ssize_t iwl_dbgfs_bcast_filters_write(struct iwl_mvm *mvm, char *buf,
 	/* send updated bcast filtering configuration */
 	if (mvm->dbgfs_bcast_filtering.override &&
 	    iwl_mvm_bcast_filter_build_cmd(mvm, &cmd))
-		err = iwl_mvm_send_cmd_pdu(mvm, BCAST_FILTER_CMD, CMD_SYNC,
+		err = iwl_mvm_send_cmd_pdu(mvm, BCAST_FILTER_CMD, 0,
 					   sizeof(cmd), &cmd);
 	mutex_unlock(&mvm->mutex);
 
@@ -913,7 +909,7 @@ static ssize_t iwl_dbgfs_bcast_filters_macs_write(struct iwl_mvm *mvm,
 	/* send updated bcast filtering configuration */
 	if (mvm->dbgfs_bcast_filtering.override &&
 	    iwl_mvm_bcast_filter_build_cmd(mvm, &cmd))
-		err = iwl_mvm_send_cmd_pdu(mvm, BCAST_FILTER_CMD, CMD_SYNC,
+		err = iwl_mvm_send_cmd_pdu(mvm, BCAST_FILTER_CMD, 0,
 					   sizeof(cmd), &cmd);
 	mutex_unlock(&mvm->mutex);
 
@@ -1004,6 +1000,7 @@ static ssize_t iwl_dbgfs_d0i3_refs_read(struct file *file,
 	PRINT_MVM_REF(IWL_MVM_REF_P2P_CLIENT);
 	PRINT_MVM_REF(IWL_MVM_REF_AP_IBSS);
 	PRINT_MVM_REF(IWL_MVM_REF_USER);
+	PRINT_MVM_REF(IWL_MVM_REF_EXIT_WORK);
 
 	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 }
@@ -1108,9 +1105,9 @@ MVM_DEBUGFS_READ_WRITE_FILE_OPS(scan_ant_rxchain, 8);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(d0i3_refs, 8);
 
 static const struct file_operations iwl_dbgfs_fw_error_dump_ops = {
-        .open = iwl_dbgfs_fw_error_dump_open,
-        .read = iwl_dbgfs_fw_error_dump_read,
-        .release = iwl_dbgfs_fw_error_dump_release,
+	.open = iwl_dbgfs_fw_error_dump_open,
+	.read = iwl_dbgfs_fw_error_dump_read,
+	.release = iwl_dbgfs_fw_error_dump_release,
 };
 
 #ifdef CONFIG_IWLWIFI_BCAST_FILTERING
@@ -1138,9 +1135,8 @@ int iwl_mvm_dbgfs_register(struct iwl_mvm *mvm, struct dentry *dbgfs_dir)
 	MVM_DEBUGFS_ADD_FILE(fw_error_dump, dbgfs_dir, S_IRUSR);
 	MVM_DEBUGFS_ADD_FILE(bt_notif, dbgfs_dir, S_IRUSR);
 	MVM_DEBUGFS_ADD_FILE(bt_cmd, dbgfs_dir, S_IRUSR);
-	if (mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_DEVICE_PS_CMD)
-		MVM_DEBUGFS_ADD_FILE(disable_power_off, mvm->debugfs_dir,
-				     S_IRUSR | S_IWUSR);
+	MVM_DEBUGFS_ADD_FILE(disable_power_off, mvm->debugfs_dir,
+			     S_IRUSR | S_IWUSR);
 	MVM_DEBUGFS_ADD_FILE(fw_rx_stats, mvm->debugfs_dir, S_IRUSR);
 	MVM_DEBUGFS_ADD_FILE(drv_rx_stats, mvm->debugfs_dir, S_IRUSR);
 	MVM_DEBUGFS_ADD_FILE(fw_restart, mvm->debugfs_dir, S_IWUSR);

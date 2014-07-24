@@ -526,6 +526,6 @@ static struct i2c_driver si570_driver = {
 module_i2c_driver(si570_driver);
 
 MODULE_AUTHOR("Guenter Roeck <guenter.roeck@ericsson.com>");
-MODULE_AUTHOR("Soeren Brinkmann <soren.brinkmann@xilinx.com");
+MODULE_AUTHOR("Soeren Brinkmann <soren.brinkmann@xilinx.com>");
 MODULE_DESCRIPTION("Si570 driver");
 MODULE_LICENSE("GPL");

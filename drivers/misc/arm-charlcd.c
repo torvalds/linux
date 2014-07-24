@@ -11,6 +11,7 @@
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
+#include <linux/of.h>
 #include <linux/completion.h>
 #include <linux/delay.h>
 #include <linux/io.h>
@@ -366,11 +367,17 @@ static const struct dev_pm_ops charlcd_pm_ops = {
 	.resume = charlcd_resume,
 };
 
+static const struct of_device_id charlcd_match[] = {
+	{ .compatible = "arm,versatile-lcd", },
+	{}
+};
+
 static struct platform_driver charlcd_driver = {
 	.driver = {
 		.name = DRIVERNAME,
 		.owner = THIS_MODULE,
 		.pm = &charlcd_pm_ops,
+		.of_match_table = of_match_ptr(charlcd_match),
 	},
 	.remove = __exit_p(charlcd_remove),
 };

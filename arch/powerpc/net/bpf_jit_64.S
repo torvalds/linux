@@ -78,7 +78,7 @@ sk_load_byte_positive_offset:
 	blr
 
 /*
- * BPF_S_LDX_B_MSH: ldxb  4*([offset]&0xf)
+ * BPF_LDX | BPF_B | BPF_MSH: ldxb  4*([offset]&0xf)
  * r_addr is the offset value
  */
 	.globl sk_load_byte_msh

@@ -165,7 +165,6 @@ MACHINE_START(EUKREA_CPUIMX25SD, "Eukrea CPUIMX25")
 	.map_io = mx25_map_io,
 	.init_early = imx25_init_early,
 	.init_irq = mx25_init_irq,
-	.handle_irq = imx25_handle_irq,
 	.init_time = eukrea_cpuimx25_timer_init,
 	.init_machine = eukrea_cpuimx25_init,
 	.restart	= mxc_restart,

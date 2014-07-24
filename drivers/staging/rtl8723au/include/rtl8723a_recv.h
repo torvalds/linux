@@ -18,21 +18,21 @@
 #include <osdep_service.h>
 #include <drv_types.h>
 
-#define NR_RECVBUFF (4)
+#define NR_RECVBUFF			4
 
-#define NR_PREALLOC_RECV_SKB (8)
+#define NR_PREALLOC_RECV_SKB		8
 
-#define RECV_BLK_SZ 512
-#define RECV_BLK_CNT 16
-#define RECV_BLK_TH RECV_BLK_CNT
+#define RECV_BLK_SZ			512
+#define RECV_BLK_CNT			16
+#define RECV_BLK_TH			RECV_BLK_CNT
 
-#define MAX_RECVBUF_SZ (15360) /*  15k < 16k */
+#define MAX_RECVBUF_SZ			15360 /*  15k < 16k */
 
 #define RECV_BULK_IN_ADDR		0x80
 #define RECV_INT_IN_ADDR		0x81
 
-#define PHY_RSSI_SLID_WIN_MAX				100
-#define PHY_LINKQUALITY_SLID_WIN_MAX		20
+#define PHY_RSSI_SLID_WIN_MAX		100
+#define PHY_LINKQUALITY_SLID_WIN_MAX	20
 
 
 struct phy_stat
@@ -48,7 +48,7 @@ struct phy_stat
 };
 
 /*  Rx smooth factor */
-#define	Rx_Smooth_Factor (20)
+#define	Rx_Smooth_Factor		20
 
 struct interrupt_msg_format {
 	unsigned int C2H_MSG0;
@@ -60,8 +60,7 @@ struct interrupt_msg_format {
 	unsigned int  MSG_EX;
 };
 
-void rtl8723au_init_recvbuf(struct rtw_adapter *padapter, struct recv_buf *precvbuf);
-int	rtl8723au_init_recv_priv(struct rtw_adapter * padapter);
+int rtl8723au_init_recv_priv(struct rtw_adapter * padapter);
 void rtl8723au_free_recv_priv(struct rtw_adapter * padapter);
 void rtl8723a_process_phy_info(struct rtw_adapter *padapter, void *prframe);
 void update_recvframe_attrib(struct recv_frame *precvframe, struct recv_stat *prxstat);

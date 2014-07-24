@@ -107,11 +107,6 @@ static inline int usb_autoresume_device(struct usb_device *udev)
 	return 0;
 }
 
-static inline int usb_remote_wakeup(struct usb_device *udev)
-{
-	return 0;
-}
-
 static inline int usb_set_usb2_hardware_lpm(struct usb_device *udev, int enable)
 {
 	return 0;
@@ -119,6 +114,7 @@ static inline int usb_set_usb2_hardware_lpm(struct usb_device *udev, int enable)
 #endif
 
 extern struct bus_type usb_bus_type;
+extern struct mutex usb_port_peer_mutex;
 extern struct device_type usb_device_type;
 extern struct device_type usb_if_device_type;
 extern struct device_type usb_ep_device_type;
@@ -170,15 +166,17 @@ extern void usbfs_conn_disc_event(void);
 extern int usb_devio_init(void);
 extern void usb_devio_cleanup(void);
 
+/*
+ * Firmware specific cookie identifying a port's location. '0' == no location
+ * data available
+ */
+typedef u32 usb_port_location_t;
+
 /* internal notify stuff */
 extern void usb_notify_add_device(struct usb_device *udev);
 extern void usb_notify_remove_device(struct usb_device *udev);
 extern void usb_notify_add_bus(struct usb_bus *ubus);
 extern void usb_notify_remove_bus(struct usb_bus *ubus);
-extern enum usb_port_connect_type
-	usb_get_hub_port_connect_type(struct usb_device *hdev, int port1);
-extern void usb_set_hub_port_connect_type(struct usb_device *hdev, int port1,
-	enum usb_port_connect_type type);
 extern void usb_hub_adjust_deviceremovable(struct usb_device *hdev,
 		struct usb_hub_descriptor *desc);
 

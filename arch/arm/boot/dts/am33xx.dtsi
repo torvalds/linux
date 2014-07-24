@@ -144,12 +144,9 @@
 			compatible = "ti,edma3";
 			ti,hwmods = "tpcc", "tptc0", "tptc1", "tptc2";
 			reg =	<0x49000000 0x10000>,
-				<0x44e10f90 0x10>;
+				<0x44e10f90 0x40>;
 			interrupts = <12 13 14>;
 			#dma-cells = <1>;
-			dma-channels = <64>;
-			ti,edma-regions = <4>;
-			ti,edma-slots = <256>;
 		};
 
 		gpio0: gpio@44e07000 {
@@ -665,6 +662,8 @@
 		mac: ethernet@4a100000 {
 			compatible = "ti,cpsw";
 			ti,hwmods = "cpgmac0";
+			clocks = <&cpsw_125mhz_gclk>, <&cpsw_cpts_rft_clk>;
+			clock-names = "fck", "cpts";
 			cpdma_channels = <8>;
 			ale_entries = <1024>;
 			bd_ram_size = <0x2000>;
@@ -688,6 +687,7 @@
 			 */
 			interrupts = <40 41 42 43>;
 			ranges;
+			status = "disabled";
 
 			davinci_mdio: mdio@4a101000 {
 				compatible = "ti,davinci_mdio";
@@ -696,6 +696,7 @@
 				ti,hwmods = "davinci_mdio";
 				bus_freq = <1000000>;
 				reg = <0x4a101000 0x100>;
+				status = "disabled";
 			};
 
 			cpsw_emac0: slave@4a100200 {

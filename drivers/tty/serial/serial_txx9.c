@@ -535,13 +535,8 @@ static void serial_txx9_put_poll_char(struct uart_port *port, unsigned char c)
 	wait_for_xmitr(up);
 	/*
 	 *	Send the character out.
-	 *	If a LF, also do CR...
 	 */
 	sio_out(up, TXX9_SITFIFO, c);
-	if (c == 10) {
-		wait_for_xmitr(up);
-		sio_out(up, TXX9_SITFIFO, 13);
-	}
 
 	/*
 	 *	Finally, wait for transmitter to become empty
@@ -702,7 +697,7 @@ serial_txx9_set_termios(struct uart_port *port, struct ktermios *termios,
 		TXX9_SIDISR_TDIS | TXX9_SIDISR_RDIS;
 	if (termios->c_iflag & INPCK)
 		up->port.read_status_mask |= TXX9_SIDISR_UFER | TXX9_SIDISR_UPER;
-	if (termios->c_iflag & (BRKINT | PARMRK))
+	if (termios->c_iflag & (IGNBRK | BRKINT | PARMRK))
 		up->port.read_status_mask |= TXX9_SIDISR_UBRK;
 
 	/*

@@ -861,7 +861,7 @@ static void gpmi_compute_edo_timing(struct gpmi_nand_data *this,
 	struct resources *r = &this->resources;
 	unsigned long rate = clk_get_rate(r->clock[0]);
 	int mode = this->timing_mode;
-	int dll_threshold = 16; /* in ns */
+	int dll_threshold = this->devdata->max_chain_delay;
 	unsigned long delay;
 	unsigned long clk_period;
 	int t_rea;
@@ -885,9 +885,6 @@ static void gpmi_compute_edo_timing(struct gpmi_nand_data *this,
 
 	/* [3] for GPMI_HW_GPMI_CTRL1 */
 	hw->wrn_dly_sel = BV_GPMI_CTRL1_WRN_DLY_SEL_NO_DELAY;
-
-	if (GPMI_IS_MX6Q(this))
-		dll_threshold = 12;
 
 	/*
 	 * Enlarge 10 times for the numerator and denominator in {3}.
@@ -974,7 +971,7 @@ int gpmi_extra_init(struct gpmi_nand_data *this)
 	struct nand_chip *chip = &this->nand;
 
 	/* Enable the asynchronous EDO feature. */
-	if (GPMI_IS_MX6Q(this) && chip->onfi_version) {
+	if (GPMI_IS_MX6(this) && chip->onfi_version) {
 		int mode = onfi_get_async_timing_mode(chip);
 
 		/* We only support the timing mode 4 and mode 5. */
@@ -1096,12 +1093,12 @@ int gpmi_is_ready(struct gpmi_nand_data *this, unsigned chip)
 	if (GPMI_IS_MX23(this)) {
 		mask = MX23_BM_GPMI_DEBUG_READY0 << chip;
 		reg = readl(r->gpmi_regs + HW_GPMI_DEBUG);
-	} else if (GPMI_IS_MX28(this) || GPMI_IS_MX6Q(this)) {
+	} else if (GPMI_IS_MX28(this) || GPMI_IS_MX6(this)) {
 		/*
 		 * In the imx6, all the ready/busy pins are bound
 		 * together. So we only need to check chip 0.
 		 */
-		if (GPMI_IS_MX6Q(this))
+		if (GPMI_IS_MX6(this))
 			chip = 0;
 
 		/* MX28 shares the same R/B register as MX6Q. */

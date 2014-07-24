@@ -200,13 +200,6 @@ static const struct file_operations imx_drm_driver_fops = {
 	.llseek = noop_llseek,
 };
 
-int imx_drm_connector_mode_valid(struct drm_connector *connector,
-	struct drm_display_mode *mode)
-{
-	return MODE_OK;
-}
-EXPORT_SYMBOL(imx_drm_connector_mode_valid);
-
 void imx_drm_connector_destroy(struct drm_connector *connector)
 {
 	drm_sysfs_connector_remove(connector);
@@ -305,7 +298,7 @@ static int imx_drm_driver_load(struct drm_device *drm, unsigned long flags)
 			dev_err(drm->dev,
 				"[CONNECTOR:%d:%s] drm_sysfs_connector_add failed: %d\n",
 				connector->base.id,
-				drm_get_connector_name(connector), ret);
+				connector->name, ret);
 			goto err_unbind;
 		}
 	}
@@ -517,7 +510,7 @@ int imx_drm_encoder_get_mux_id(struct device_node *node,
 		of_node_put(port);
 		if (port == imx_crtc->port) {
 			ret = of_graph_parse_endpoint(ep, &endpoint);
-			return ret ? ret : endpoint.id;
+			return ret ? ret : endpoint.port;
 		}
 	} while (ep);
 
@@ -673,6 +666,11 @@ static int imx_drm_platform_probe(struct platform_device *pdev)
 		for_each_child_of_node(port, ep) {
 			remote = of_graph_get_remote_port_parent(ep);
 			if (!remote || !of_device_is_available(remote)) {
+				of_node_put(remote);
+				continue;
+			} else if (!of_device_is_available(remote->parent)) {
+				dev_warn(&pdev->dev, "parent device of %s is not available\n",
+					 remote->full_name);
 				of_node_put(remote);
 				continue;
 			}

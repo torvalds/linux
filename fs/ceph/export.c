@@ -169,7 +169,7 @@ static struct dentry *__get_parent(struct super_block *sb,
 	return dentry;
 }
 
-struct dentry *ceph_get_parent(struct dentry *child)
+static struct dentry *ceph_get_parent(struct dentry *child)
 {
 	/* don't re-export snaps */
 	if (ceph_snap(child->d_inode) != CEPH_NOSNAP)

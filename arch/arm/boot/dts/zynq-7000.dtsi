@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2011 Xilinx
+ *  Copyright (C) 2011 - 2014 Xilinx
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -25,6 +25,7 @@
 			reg = <0>;
 			clocks = <&clkc 3>;
 			clock-latency = <1000>;
+			cpu0-supply = <&regulator_vccpint>;
 			operating-points = <
 				/* kHz    uV */
 				666667  1000000
@@ -48,6 +49,15 @@
 		reg = < 0xf8891000 0x1000 0xf8893000 0x1000 >;
 	};
 
+	regulator_vccpint: fixedregulator@0 {
+		compatible = "regulator-fixed";
+		regulator-name = "VCCPINT";
+		regulator-min-microvolt = <1000000>;
+		regulator-max-microvolt = <1000000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
 	amba {
 		compatible = "simple-bus";
 		#address-cells = <1>;
@@ -55,7 +65,7 @@
 		interrupt-parent = <&intc>;
 		ranges;
 
-		i2c0: zynq-i2c@e0004000 {
+		i2c0: i2c@e0004000 {
 			compatible = "cdns,i2c-r1p10";
 			status = "disabled";
 			clocks = <&clkc 38>;
@@ -66,7 +76,7 @@
 			#size-cells = <0>;
 		};
 
-		i2c1: zynq-i2c@e0005000 {
+		i2c1: i2c@e0005000 {
 			compatible = "cdns,i2c-r1p10";
 			status = "disabled";
 			clocks = <&clkc 39>;
@@ -80,7 +90,6 @@
 		intc: interrupt-controller@f8f01000 {
 			compatible = "arm,cortex-a9-gic";
 			#interrupt-cells = <3>;
-			#address-cells = <1>;
 			interrupt-controller;
 			reg = <0xF8F01000 0x1000>,
 			      <0xF8F00100 0x100>;
@@ -95,7 +104,7 @@
 			cache-level = <2>;
 		};
 
-		uart0: uart@e0000000 {
+		uart0: serial@e0000000 {
 			compatible = "xlnx,xuartps";
 			status = "disabled";
 			clocks = <&clkc 23>, <&clkc 40>;
@@ -104,7 +113,7 @@
 			interrupts = <0 27 4>;
 		};
 
-		uart1: uart@e0001000 {
+		uart1: serial@e0001000 {
 			compatible = "xlnx,xuartps";
 			status = "disabled";
 			clocks = <&clkc 24>, <&clkc 41>;
@@ -131,7 +140,7 @@
 			clock-names = "pclk", "hclk", "tx_clk";
 		};
 
-		sdhci0: ps7-sdhci@e0100000 {
+		sdhci0: sdhci@e0100000 {
 			compatible = "arasan,sdhci-8.9a";
 			status = "disabled";
 			clock-names = "clk_xin", "clk_ahb";
@@ -141,7 +150,7 @@
 			reg = <0xe0100000 0x1000>;
 		} ;
 
-		sdhci1: ps7-sdhci@e0101000 {
+		sdhci1: sdhci@e0101000 {
 			compatible = "arasan,sdhci-8.9a";
 			status = "disabled";
 			clock-names = "clk_xin", "clk_ahb";
@@ -177,6 +186,11 @@
 			};
 		};
 
+		devcfg: devcfg@f8007000 {
+			compatible = "xlnx,zynq-devcfg-1.0";
+			reg = <0xf8007000 0x100>;
+		} ;
+
 		global_timer: timer@f8f00200 {
 			compatible = "arm,cortex-a9-global-timer";
 			reg = <0xf8f00200 0x20>;
@@ -185,26 +199,27 @@
 			clocks = <&clkc 4>;
 		};
 
-		ttc0: ttc0@f8001000 {
+		ttc0: timer@f8001000 {
 			interrupt-parent = <&intc>;
-			interrupts = < 0 10 4 0 11 4 0 12 4 >;
+			interrupts = <0 10 4>, <0 11 4>, <0 12 4>;
 			compatible = "cdns,ttc";
 			clocks = <&clkc 6>;
 			reg = <0xF8001000 0x1000>;
 		};
 
-		ttc1: ttc1@f8002000 {
+		ttc1: timer@f8002000 {
 			interrupt-parent = <&intc>;
-			interrupts = < 0 37 4 0 38 4 0 39 4 >;
+			interrupts = <0 37 4>, <0 38 4>, <0 39 4>;
 			compatible = "cdns,ttc";
 			clocks = <&clkc 6>;
 			reg = <0xF8002000 0x1000>;
 		};
-		scutimer: scutimer@f8f00600 {
+
+		scutimer: timer@f8f00600 {
 			interrupt-parent = <&intc>;
-			interrupts = < 1 13 0x301 >;
+			interrupts = <1 13 0x301>;
 			compatible = "arm,cortex-a9-twd-timer";
-			reg = < 0xf8f00600 0x20 >;
+			reg = <0xf8f00600 0x20>;
 			clocks = <&clkc 4>;
 		} ;
 	};

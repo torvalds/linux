@@ -30,12 +30,10 @@ void acpi_pci_root_init(void);
 void acpi_pci_link_init(void);
 void acpi_processor_init(void);
 void acpi_platform_init(void);
+void acpi_pnp_init(void);
 int acpi_sysfs_init(void);
-#ifdef CONFIG_ACPI_CONTAINER
 void acpi_container_init(void);
-#else
-static inline void acpi_container_init(void) {}
-#endif
+void acpi_memory_hotplug_init(void);
 #ifdef CONFIG_ACPI_DOCK
 void register_dock_dependent_device(struct acpi_device *adev,
 				    acpi_handle dshandle);
@@ -46,11 +44,6 @@ static inline void register_dock_dependent_device(struct acpi_device *adev,
 						  acpi_handle dshandle) {}
 static inline int dock_notify(struct acpi_device *adev, u32 event) { return -ENODEV; }
 static inline void acpi_dock_add(struct acpi_device *adev) {}
-#endif
-#ifdef CONFIG_ACPI_HOTPLUG_MEMORY
-void acpi_memory_hotplug_init(void);
-#else
-static inline void acpi_memory_hotplug_init(void) {}
 #endif
 #ifdef CONFIG_X86
 void acpi_cmos_rtc_init(void);
@@ -72,11 +65,7 @@ int acpi_debugfs_init(void);
 #else
 static inline void acpi_debugfs_init(void) { return; }
 #endif
-#ifdef CONFIG_X86_INTEL_LPSS
 void acpi_lpss_init(void);
-#else
-static inline void acpi_lpss_init(void) {}
-#endif
 
 acpi_status acpi_hotplug_schedule(struct acpi_device *adev, u32 src);
 bool acpi_queue_hotplug_work(struct work_struct *work);
@@ -180,8 +169,7 @@ static inline void suspend_nvs_restore(void) {}
   -------------------------------------------------------------------------- */
 struct platform_device;
 
-int acpi_create_platform_device(struct acpi_device *adev,
-				const struct acpi_device_id *id);
+struct platform_device *acpi_create_platform_device(struct acpi_device *adev);
 
 /*--------------------------------------------------------------------------
 					Video

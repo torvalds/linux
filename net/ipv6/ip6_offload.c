@@ -97,9 +97,11 @@ static struct sk_buff *ipv6_gso_segment(struct sk_buff *skb,
 		       SKB_GSO_DODGY |
 		       SKB_GSO_TCP_ECN |
 		       SKB_GSO_GRE |
+		       SKB_GSO_GRE_CSUM |
 		       SKB_GSO_IPIP |
 		       SKB_GSO_SIT |
 		       SKB_GSO_UDP_TUNNEL |
+		       SKB_GSO_UDP_TUNNEL_CSUM |
 		       SKB_GSO_MPLS |
 		       SKB_GSO_TCPV6 |
 		       0)))
@@ -196,7 +198,6 @@ static struct sk_buff **ipv6_gro_receive(struct sk_buff **head,
 	unsigned int off;
 	u16 flush = 1;
 	int proto;
-	__wsum csum;
 
 	off = skb_gro_offset(skb);
 	hlen = off + sizeof(*iph);
@@ -264,12 +265,9 @@ static struct sk_buff **ipv6_gro_receive(struct sk_buff **head,
 
 	NAPI_GRO_CB(skb)->flush |= flush;
 
-	csum = skb->csum;
-	skb_postpull_rcsum(skb, iph, skb_network_header_len(skb));
+	skb_gro_postpull_rcsum(skb, iph, nlen);
 
 	pp = ops->callbacks.gro_receive(head, skb);
-
-	skb->csum = csum;
 
 out_unlock:
 	rcu_read_unlock();

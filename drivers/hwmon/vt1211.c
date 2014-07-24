@@ -1152,10 +1152,8 @@ static int vt1211_probe(struct platform_device *pdev)
 	int i, err;
 
 	data = devm_kzalloc(dev, sizeof(struct vt1211_data), GFP_KERNEL);
-	if (!data) {
-		dev_err(dev, "Out of memory\n");
+	if (!data)
 		return -ENOMEM;
-	}
 
 	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
 	if (!devm_request_region(dev, res->start, resource_size(res),

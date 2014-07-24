@@ -57,8 +57,8 @@ get_ext_path(struct inode *inode, ext4_lblk_t lblock,
 static void
 copy_extent_status(struct ext4_extent *src, struct ext4_extent *dest)
 {
-	if (ext4_ext_is_uninitialized(src))
-		ext4_ext_mark_uninitialized(dest);
+	if (ext4_ext_is_unwritten(src))
+		ext4_ext_mark_unwritten(dest);
 	else
 		dest->ee_len = cpu_to_le16(ext4_ext_get_actual_len(dest));
 }
@@ -391,6 +391,7 @@ mext_insert_extents(handle_t *handle, struct inode *orig_inode,
 
 	if (depth) {
 		/* Register to journal */
+		BUFFER_TRACE(orig_path->p_bh, "get_write_access");
 		ret = ext4_journal_get_write_access(handle, orig_path->p_bh);
 		if (ret)
 			return ret;
@@ -593,14 +594,14 @@ mext_calc_swap_extents(struct ext4_extent *tmp_dext,
  * @inode:		inode in question
  * @from:		block offset of inode
  * @count:		block count to be checked
- * @uninit:		extents expected to be uninitialized
+ * @unwritten:		extents expected to be unwritten
  * @err:		pointer to save error value
  *
  * Return 1 if all extents in range has expected type, and zero otherwise.
  */
 static int
 mext_check_coverage(struct inode *inode, ext4_lblk_t from, ext4_lblk_t count,
-			  int uninit, int *err)
+		    int unwritten, int *err)
 {
 	struct ext4_ext_path *path = NULL;
 	struct ext4_extent *ext;
@@ -611,7 +612,7 @@ mext_check_coverage(struct inode *inode, ext4_lblk_t from, ext4_lblk_t count,
 		if (*err)
 			goto out;
 		ext = path[ext_depth(inode)].p_ext;
-		if (uninit != ext4_ext_is_uninitialized(ext))
+		if (unwritten != ext4_ext_is_unwritten(ext))
 			goto out;
 		from += ext4_ext_get_actual_len(ext);
 		ext4_ext_drop_refs(path);
@@ -894,7 +895,7 @@ out:
  * @orig_page_offset:		page index on original file
  * @data_offset_in_page:	block index where data swapping starts
  * @block_len_in_page:		the number of blocks to be swapped
- * @uninit:			orig extent is uninitialized or not
+ * @unwritten:			orig extent is unwritten or not
  * @err:			pointer to save return value
  *
  * Save the data in original inode blocks and replace original inode extents
@@ -905,7 +906,7 @@ out:
 static int
 move_extent_per_page(struct file *o_filp, struct inode *donor_inode,
 		  pgoff_t orig_page_offset, int data_offset_in_page,
-		  int block_len_in_page, int uninit, int *err)
+		  int block_len_in_page, int unwritten, int *err)
 {
 	struct inode *orig_inode = file_inode(o_filp);
 	struct page *pagep[2] = {NULL, NULL};
@@ -962,27 +963,27 @@ again:
 	if (unlikely(*err < 0))
 		goto stop_journal;
 	/*
-	 * If orig extent was uninitialized it can become initialized
+	 * If orig extent was unwritten it can become initialized
 	 * at any time after i_data_sem was dropped, in order to
 	 * serialize with delalloc we have recheck extent while we
 	 * hold page's lock, if it is still the case data copy is not
 	 * necessary, just swap data blocks between orig and donor.
 	 */
-	if (uninit) {
+	if (unwritten) {
 		ext4_double_down_write_data_sem(orig_inode, donor_inode);
 		/* If any of extents in range became initialized we have to
 		 * fallback to data copying */
-		uninit = mext_check_coverage(orig_inode, orig_blk_offset,
-					     block_len_in_page, 1, err);
+		unwritten = mext_check_coverage(orig_inode, orig_blk_offset,
+						block_len_in_page, 1, err);
 		if (*err)
 			goto drop_data_sem;
 
-		uninit &= mext_check_coverage(donor_inode, orig_blk_offset,
-					      block_len_in_page, 1, err);
+		unwritten &= mext_check_coverage(donor_inode, orig_blk_offset,
+						 block_len_in_page, 1, err);
 		if (*err)
 			goto drop_data_sem;
 
-		if (!uninit) {
+		if (!unwritten) {
 			ext4_double_up_write_data_sem(orig_inode, donor_inode);
 			goto data_copy;
 		}
@@ -1259,7 +1260,7 @@ ext4_move_extents(struct file *o_filp, struct file *d_filp,
 	int blocks_per_page = PAGE_CACHE_SIZE >> orig_inode->i_blkbits;
 	int data_offset_in_page;
 	int block_len_in_page;
-	int uninit;
+	int unwritten;
 
 	if (orig_inode->i_sb != donor_inode->i_sb) {
 		ext4_debug("ext4 move extent: The argument files "
@@ -1391,8 +1392,8 @@ ext4_move_extents(struct file *o_filp, struct file *d_filp,
 		    !last_extent)
 			continue;
 
-		/* Is original extent is uninitialized */
-		uninit = ext4_ext_is_uninitialized(ext_prev);
+		/* Is original extent is unwritten */
+		unwritten = ext4_ext_is_unwritten(ext_prev);
 
 		data_offset_in_page = seq_start % blocks_per_page;
 
@@ -1432,8 +1433,8 @@ ext4_move_extents(struct file *o_filp, struct file *d_filp,
 						o_filp, donor_inode,
 						orig_page_offset,
 						data_offset_in_page,
-						block_len_in_page, uninit,
-						&ret);
+						block_len_in_page,
+						unwritten, &ret);
 
 			/* Count how many blocks we have exchanged */
 			*moved_len += block_len_in_page;

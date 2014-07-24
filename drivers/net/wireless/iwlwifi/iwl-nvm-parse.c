@@ -62,6 +62,7 @@
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/export.h>
+#include <linux/etherdevice.h>
 #include "iwl-drv.h"
 #include "iwl-modparams.h"
 #include "iwl-nvm-parse.h"
@@ -127,19 +128,20 @@ static const u8 iwl_nvm_channels[] = {
 
 static const u8 iwl_nvm_channels_family_8000[] = {
 	/* 2.4 GHz */
-	1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13,
+	1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
 	/* 5 GHz */
 	36, 40, 44, 48, 52, 56, 60, 64, 68, 72, 76, 80, 84, 88, 92,
 	96, 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140, 144,
 	149, 153, 157, 161, 165, 169, 173, 177, 181
 };
 
-#define IWL_NUM_CHANNELS	ARRAY_SIZE(iwl_nvm_channels)
+#define IWL_NUM_CHANNELS		ARRAY_SIZE(iwl_nvm_channels)
 #define IWL_NUM_CHANNELS_FAMILY_8000	ARRAY_SIZE(iwl_nvm_channels_family_8000)
-#define NUM_2GHZ_CHANNELS	14
-#define FIRST_2GHZ_HT_MINUS	5
-#define LAST_2GHZ_HT_PLUS	9
-#define LAST_5GHZ_HT		161
+#define NUM_2GHZ_CHANNELS		14
+#define NUM_2GHZ_CHANNELS_FAMILY_8000	14
+#define FIRST_2GHZ_HT_MINUS		5
+#define LAST_2GHZ_HT_PLUS		9
+#define LAST_5GHZ_HT			161
 
 #define DEFAULT_MAX_TX_POWER 16
 
@@ -202,21 +204,23 @@ static int iwl_init_channel_map(struct device *dev, const struct iwl_cfg *cfg,
 	struct ieee80211_channel *channel;
 	u16 ch_flags;
 	bool is_5ghz;
-	int num_of_ch;
+	int num_of_ch, num_2ghz_channels;
 	const u8 *nvm_chan;
 
 	if (cfg->device_family != IWL_DEVICE_FAMILY_8000) {
 		num_of_ch = IWL_NUM_CHANNELS;
 		nvm_chan = &iwl_nvm_channels[0];
+		num_2ghz_channels = NUM_2GHZ_CHANNELS;
 	} else {
 		num_of_ch = IWL_NUM_CHANNELS_FAMILY_8000;
 		nvm_chan = &iwl_nvm_channels_family_8000[0];
+		num_2ghz_channels = NUM_2GHZ_CHANNELS_FAMILY_8000;
 	}
 
 	for (ch_idx = 0; ch_idx < num_of_ch; ch_idx++) {
 		ch_flags = __le16_to_cpup(nvm_ch_flags + ch_idx);
 
-		if (ch_idx >= NUM_2GHZ_CHANNELS &&
+		if (ch_idx >= num_2ghz_channels &&
 		    !data->sku_cap_band_52GHz_enable)
 			ch_flags &= ~NVM_CHANNEL_VALID;
 
@@ -225,7 +229,7 @@ static int iwl_init_channel_map(struct device *dev, const struct iwl_cfg *cfg,
 					 "Ch. %d Flags %x [%sGHz] - No traffic\n",
 					 nvm_chan[ch_idx],
 					 ch_flags,
-					 (ch_idx >= NUM_2GHZ_CHANNELS) ?
+					 (ch_idx >= num_2ghz_channels) ?
 					 "5.2" : "2.4");
 			continue;
 		}
@@ -234,7 +238,7 @@ static int iwl_init_channel_map(struct device *dev, const struct iwl_cfg *cfg,
 		n_channels++;
 
 		channel->hw_value = nvm_chan[ch_idx];
-		channel->band = (ch_idx < NUM_2GHZ_CHANNELS) ?
+		channel->band = (ch_idx < num_2ghz_channels) ?
 				IEEE80211_BAND_2GHZ : IEEE80211_BAND_5GHZ;
 		channel->center_freq =
 			ieee80211_channel_to_frequency(
@@ -242,7 +246,7 @@ static int iwl_init_channel_map(struct device *dev, const struct iwl_cfg *cfg,
 
 		/* TODO: Need to be dependent to the NVM */
 		channel->flags = IEEE80211_CHAN_NO_HT40;
-		if (ch_idx < NUM_2GHZ_CHANNELS &&
+		if (ch_idx < num_2ghz_channels &&
 		    (ch_flags & NVM_CHANNEL_40MHZ)) {
 			if (nvm_chan[ch_idx] <= LAST_2GHZ_HT_PLUS)
 				channel->flags &= ~IEEE80211_CHAN_NO_HT40PLUS;
@@ -250,7 +254,7 @@ static int iwl_init_channel_map(struct device *dev, const struct iwl_cfg *cfg,
 				channel->flags &= ~IEEE80211_CHAN_NO_HT40MINUS;
 		} else if (nvm_chan[ch_idx] <= LAST_5GHZ_HT &&
 			   (ch_flags & NVM_CHANNEL_40MHZ)) {
-			if ((ch_idx - NUM_2GHZ_CHANNELS) % 2 == 0)
+			if ((ch_idx - num_2ghz_channels) % 2 == 0)
 				channel->flags &= ~IEEE80211_CHAN_NO_HT40PLUS;
 			else
 				channel->flags &= ~IEEE80211_CHAN_NO_HT40MINUS;
@@ -447,13 +451,7 @@ static void iwl_set_hw_address(const struct iwl_cfg *cfg,
 			       struct iwl_nvm_data *data,
 			       const __le16 *nvm_sec)
 {
-	u8 hw_addr[ETH_ALEN];
-
-	if (cfg->device_family != IWL_DEVICE_FAMILY_8000)
-		memcpy(hw_addr, nvm_sec + HW_ADDR, ETH_ALEN);
-	else
-		memcpy(hw_addr, nvm_sec + MAC_ADDRESS_OVERRIDE_FAMILY_8000,
-		       ETH_ALEN);
+	const u8 *hw_addr = (const u8 *)(nvm_sec + HW_ADDR);
 
 	/* The byte order is little endian 16 bit, meaning 214365 */
 	data->hw_addr[0] = hw_addr[1];
@@ -462,6 +460,41 @@ static void iwl_set_hw_address(const struct iwl_cfg *cfg,
 	data->hw_addr[3] = hw_addr[2];
 	data->hw_addr[4] = hw_addr[5];
 	data->hw_addr[5] = hw_addr[4];
+}
+
+static void iwl_set_hw_address_family_8000(const struct iwl_cfg *cfg,
+					   struct iwl_nvm_data *data,
+					   const __le16 *mac_override,
+					   const __le16 *nvm_hw)
+{
+	const u8 *hw_addr;
+
+	if (mac_override) {
+		hw_addr = (const u8 *)(mac_override +
+				 MAC_ADDRESS_OVERRIDE_FAMILY_8000);
+
+		/* The byte order is little endian 16 bit, meaning 214365 */
+		data->hw_addr[0] = hw_addr[1];
+		data->hw_addr[1] = hw_addr[0];
+		data->hw_addr[2] = hw_addr[3];
+		data->hw_addr[3] = hw_addr[2];
+		data->hw_addr[4] = hw_addr[5];
+		data->hw_addr[5] = hw_addr[4];
+
+		if (is_valid_ether_addr(hw_addr))
+			return;
+	}
+
+	/* take the MAC address from the OTP */
+	hw_addr = (const u8 *)(nvm_hw + HW_ADDR0_FAMILY_8000);
+	data->hw_addr[0] = hw_addr[3];
+	data->hw_addr[1] = hw_addr[2];
+	data->hw_addr[2] = hw_addr[1];
+	data->hw_addr[3] = hw_addr[0];
+
+	hw_addr = (const u8 *)(nvm_hw + HW_ADDR1_FAMILY_8000);
+	data->hw_addr[4] = hw_addr[1];
+	data->hw_addr[5] = hw_addr[0];
 }
 
 struct iwl_nvm_data *
@@ -523,7 +556,7 @@ iwl_parse_nvm_data(struct device *dev, const struct iwl_cfg *cfg,
 				rx_chains);
 	} else {
 		/* MAC address in family 8000 */
-		iwl_set_hw_address(cfg, data, mac_override);
+		iwl_set_hw_address_family_8000(cfg, data, mac_override, nvm_hw);
 
 		iwl_init_sbands(dev, cfg, data, regulatory,
 				sku & NVM_SKU_CAP_11AC_ENABLE, tx_chains,

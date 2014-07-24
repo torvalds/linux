@@ -460,9 +460,9 @@ static int write_cnodes(struct ubifs_info *c)
 		 * important.
 		 */
 		clear_bit(DIRTY_CNODE, &cnode->flags);
-		smp_mb__before_clear_bit();
+		smp_mb__before_atomic();
 		clear_bit(COW_CNODE, &cnode->flags);
-		smp_mb__after_clear_bit();
+		smp_mb__after_atomic();
 		offs += len;
 		dbg_chk_lpt_sz(c, 1, len);
 		cnode = cnode->cnext;

@@ -51,7 +51,7 @@ static void h3a_af_setup_regs(struct ispstat *af, void *priv)
 	if (af->state == ISPSTAT_DISABLED)
 		return;
 
-	isp_reg_writel(af->isp, af->active_buf->iommu_addr, OMAP3_ISP_IOMEM_H3A,
+	isp_reg_writel(af->isp, af->active_buf->dma_addr, OMAP3_ISP_IOMEM_H3A,
 		       ISPH3A_AFBUFST);
 
 	if (!af->update)

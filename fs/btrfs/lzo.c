@@ -143,7 +143,7 @@ static int lzo_compress_pages(struct list_head *ws,
 		if (ret != LZO_E_OK) {
 			printk(KERN_DEBUG "BTRFS: deflate in loop returned %d\n",
 			       ret);
-			ret = -1;
+			ret = -EIO;
 			goto out;
 		}
 
@@ -189,7 +189,7 @@ static int lzo_compress_pages(struct list_head *ws,
 				kunmap(out_page);
 				if (nr_pages == nr_dest_pages) {
 					out_page = NULL;
-					ret = -1;
+					ret = -E2BIG;
 					goto out;
 				}
 
@@ -208,7 +208,7 @@ static int lzo_compress_pages(struct list_head *ws,
 
 		/* we're making it bigger, give up */
 		if (tot_in > 8192 && tot_in < tot_out) {
-			ret = -1;
+			ret = -E2BIG;
 			goto out;
 		}
 
@@ -335,7 +335,7 @@ cont:
 					break;
 
 				if (page_in_index + 1 >= total_pages_in) {
-					ret = -1;
+					ret = -EIO;
 					goto done;
 				}
 
@@ -358,7 +358,7 @@ cont:
 			kunmap(pages_in[page_in_index - 1]);
 		if (ret != LZO_E_OK) {
 			printk(KERN_WARNING "BTRFS: decompress failed\n");
-			ret = -1;
+			ret = -EIO;
 			break;
 		}
 
@@ -402,12 +402,12 @@ static int lzo_decompress(struct list_head *ws, unsigned char *data_in,
 	ret = lzo1x_decompress_safe(data_in, in_len, workspace->buf, &out_len);
 	if (ret != LZO_E_OK) {
 		printk(KERN_WARNING "BTRFS: decompress failed!\n");
-		ret = -1;
+		ret = -EIO;
 		goto out;
 	}
 
 	if (out_len < start_byte) {
-		ret = -1;
+		ret = -EIO;
 		goto out;
 	}
 

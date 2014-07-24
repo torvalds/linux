@@ -1,7 +1,7 @@
 /*
  * net/tipc/msg.c: TIPC message header routines
  *
- * Copyright (c) 2000-2006, Ericsson AB
+ * Copyright (c) 2000-2006, 2014, Ericsson AB
  * Copyright (c) 2005, 2010-2011, Wind River Systems
  * All rights reserved.
  *
@@ -98,4 +98,62 @@ int tipc_msg_build(struct tipc_msg *hdr, struct iovec const *msg_sect,
 		return -EFAULT;
 	}
 	return dsz;
+}
+
+/* tipc_buf_append(): Append a buffer to the fragment list of another buffer
+ * @*headbuf: in:  NULL for first frag, otherwise value returned from prev call
+ *            out: set when successful non-complete reassembly, otherwise NULL
+ * @*buf:     in:  the buffer to append. Always defined
+ *            out: head buf after sucessful complete reassembly, otherwise NULL
+ * Returns 1 when reassembly complete, otherwise 0
+ */
+int tipc_buf_append(struct sk_buff **headbuf, struct sk_buff **buf)
+{
+	struct sk_buff *head = *headbuf;
+	struct sk_buff *frag = *buf;
+	struct sk_buff *tail;
+	struct tipc_msg *msg = buf_msg(frag);
+	u32 fragid = msg_type(msg);
+	bool headstolen;
+	int delta;
+
+	skb_pull(frag, msg_hdr_sz(msg));
+
+	if (fragid == FIRST_FRAGMENT) {
+		if (head || skb_unclone(frag, GFP_ATOMIC))
+			goto out_free;
+		head = *headbuf = frag;
+		skb_frag_list_init(head);
+		*buf = NULL;
+		return 0;
+	}
+	if (!head)
+		goto out_free;
+	tail = TIPC_SKB_CB(head)->tail;
+	if (skb_try_coalesce(head, frag, &headstolen, &delta)) {
+		kfree_skb_partial(frag, headstolen);
+	} else {
+		if (!skb_has_frag_list(head))
+			skb_shinfo(head)->frag_list = frag;
+		else
+			tail->next = frag;
+		head->truesize += frag->truesize;
+		head->data_len += frag->len;
+		head->len += frag->len;
+		TIPC_SKB_CB(head)->tail = frag;
+	}
+	if (fragid == LAST_FRAGMENT) {
+		*buf = head;
+		TIPC_SKB_CB(head)->tail = NULL;
+		*headbuf = NULL;
+		return 1;
+	}
+	*buf = NULL;
+	return 0;
+out_free:
+	pr_warn_ratelimited("Unable to build fragment list\n");
+	kfree_skb(*buf);
+	kfree_skb(*headbuf);
+	*buf = *headbuf = NULL;
+	return 0;
 }

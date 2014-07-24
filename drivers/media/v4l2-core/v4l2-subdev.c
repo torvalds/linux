@@ -305,11 +305,23 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 					fse);
 	}
 
-	case VIDIOC_SUBDEV_G_FRAME_INTERVAL:
-		return v4l2_subdev_call(sd, video, g_frame_interval, arg);
+	case VIDIOC_SUBDEV_G_FRAME_INTERVAL: {
+		struct v4l2_subdev_frame_interval *fi = arg;
 
-	case VIDIOC_SUBDEV_S_FRAME_INTERVAL:
+		if (fi->pad >= sd->entity.num_pads)
+			return -EINVAL;
+
+		return v4l2_subdev_call(sd, video, g_frame_interval, arg);
+	}
+
+	case VIDIOC_SUBDEV_S_FRAME_INTERVAL: {
+		struct v4l2_subdev_frame_interval *fi = arg;
+
+		if (fi->pad >= sd->entity.num_pads)
+			return -EINVAL;
+
 		return v4l2_subdev_call(sd, video, s_frame_interval, arg);
+	}
 
 	case VIDIOC_SUBDEV_ENUM_FRAME_INTERVAL: {
 		struct v4l2_subdev_frame_interval_enum *fie = arg;
@@ -349,11 +361,54 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 			sd, pad, set_selection, subdev_fh, sel);
 	}
 
-	case VIDIOC_G_EDID:
-		return v4l2_subdev_call(sd, pad, get_edid, arg);
+	case VIDIOC_G_EDID: {
+		struct v4l2_subdev_edid *edid = arg;
 
-	case VIDIOC_S_EDID:
-		return v4l2_subdev_call(sd, pad, set_edid, arg);
+		if (edid->pad >= sd->entity.num_pads)
+			return -EINVAL;
+		if (edid->blocks && edid->edid == NULL)
+			return -EINVAL;
+
+		return v4l2_subdev_call(sd, pad, get_edid, edid);
+	}
+
+	case VIDIOC_S_EDID: {
+		struct v4l2_subdev_edid *edid = arg;
+
+		if (edid->pad >= sd->entity.num_pads)
+			return -EINVAL;
+		if (edid->blocks && edid->edid == NULL)
+			return -EINVAL;
+
+		return v4l2_subdev_call(sd, pad, set_edid, edid);
+	}
+
+	case VIDIOC_SUBDEV_DV_TIMINGS_CAP: {
+		struct v4l2_dv_timings_cap *cap = arg;
+
+		if (cap->pad >= sd->entity.num_pads)
+			return -EINVAL;
+
+		return v4l2_subdev_call(sd, pad, dv_timings_cap, cap);
+	}
+
+	case VIDIOC_SUBDEV_ENUM_DV_TIMINGS: {
+		struct v4l2_enum_dv_timings *dvt = arg;
+
+		if (dvt->pad >= sd->entity.num_pads)
+			return -EINVAL;
+
+		return v4l2_subdev_call(sd, pad, enum_dv_timings, dvt);
+	}
+
+	case VIDIOC_SUBDEV_QUERY_DV_TIMINGS:
+		return v4l2_subdev_call(sd, video, query_dv_timings, arg);
+
+	case VIDIOC_SUBDEV_G_DV_TIMINGS:
+		return v4l2_subdev_call(sd, video, g_dv_timings, arg);
+
+	case VIDIOC_SUBDEV_S_DV_TIMINGS:
+		return v4l2_subdev_call(sd, video, s_dv_timings, arg);
 #endif
 	default:
 		return v4l2_subdev_call(sd, core, ioctl, cmd, arg);

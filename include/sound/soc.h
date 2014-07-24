@@ -196,8 +196,6 @@
 	.info = snd_soc_info_enum_double, \
 	.get = snd_soc_get_enum_double, .put = snd_soc_put_enum_double, \
 	.private_value = (unsigned long)&xenum }
-#define SOC_VALUE_ENUM(xname, xenum) \
-	SOC_ENUM(xname, xenum)
 #define SOC_SINGLE_EXT(xname, xreg, xshift, xmax, xinvert,\
 	 xhandler_get, xhandler_put) \
 {	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, \
@@ -265,6 +263,13 @@
 		((unsigned long)&(struct soc_bytes)           \
 		{.base = xbase, .num_regs = xregs,	      \
 		 .mask = xmask }) }
+
+#define SND_SOC_BYTES_EXT(xname, xcount, xhandler_get, xhandler_put) \
+{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, \
+	.info = snd_soc_bytes_info_ext, \
+	.get = xhandler_get, .put = xhandler_put, \
+	.private_value = (unsigned long)&(struct soc_bytes_ext) \
+		{.max = xcount} }
 
 #define SOC_SINGLE_XR_SX(xname, xregbase, xregcount, xnbits, \
 		xmin, xmax, xinvert) \
@@ -377,6 +382,8 @@ int snd_soc_resume(struct device *dev);
 int snd_soc_poweroff(struct device *dev);
 int snd_soc_register_platform(struct device *dev,
 		const struct snd_soc_platform_driver *platform_drv);
+int devm_snd_soc_register_platform(struct device *dev,
+		const struct snd_soc_platform_driver *platform_drv);
 void snd_soc_unregister_platform(struct device *dev);
 int snd_soc_add_platform(struct device *dev, struct snd_soc_platform *platform,
 		const struct snd_soc_platform_driver *platform_drv);
@@ -393,14 +400,6 @@ int devm_snd_soc_register_component(struct device *dev,
 			 const struct snd_soc_component_driver *cmpnt_drv,
 			 struct snd_soc_dai_driver *dai_drv, int num_dai);
 void snd_soc_unregister_component(struct device *dev);
-int snd_soc_codec_volatile_register(struct snd_soc_codec *codec,
-				    unsigned int reg);
-int snd_soc_codec_readable_register(struct snd_soc_codec *codec,
-				    unsigned int reg);
-int snd_soc_codec_writable_register(struct snd_soc_codec *codec,
-				    unsigned int reg);
-int snd_soc_codec_set_cache_io(struct snd_soc_codec *codec,
-			       struct regmap *regmap);
 int snd_soc_cache_sync(struct snd_soc_codec *codec);
 int snd_soc_cache_init(struct snd_soc_codec *codec);
 int snd_soc_cache_exit(struct snd_soc_codec *codec);
@@ -453,11 +452,22 @@ int snd_soc_jack_get_type(struct snd_soc_jack *jack, int micbias_voltage);
 #ifdef CONFIG_GPIOLIB
 int snd_soc_jack_add_gpios(struct snd_soc_jack *jack, int count,
 			struct snd_soc_jack_gpio *gpios);
+int snd_soc_jack_add_gpiods(struct device *gpiod_dev,
+			    struct snd_soc_jack *jack,
+			    int count, struct snd_soc_jack_gpio *gpios);
 void snd_soc_jack_free_gpios(struct snd_soc_jack *jack, int count,
 			struct snd_soc_jack_gpio *gpios);
 #else
 static inline int snd_soc_jack_add_gpios(struct snd_soc_jack *jack, int count,
 					 struct snd_soc_jack_gpio *gpios)
+{
+	return 0;
+}
+
+static inline int snd_soc_jack_add_gpiods(struct device *gpiod_dev,
+					  struct snd_soc_jack *jack,
+					  int count,
+					  struct snd_soc_jack_gpio *gpios)
 {
 	return 0;
 }
@@ -469,12 +479,12 @@ static inline void snd_soc_jack_free_gpios(struct snd_soc_jack *jack, int count,
 #endif
 
 /* codec register bit access */
-int snd_soc_update_bits(struct snd_soc_codec *codec, unsigned short reg,
+int snd_soc_update_bits(struct snd_soc_codec *codec, unsigned int reg,
 				unsigned int mask, unsigned int value);
 int snd_soc_update_bits_locked(struct snd_soc_codec *codec,
-			       unsigned short reg, unsigned int mask,
+			       unsigned int reg, unsigned int mask,
 			       unsigned int value);
-int snd_soc_test_bits(struct snd_soc_codec *codec, unsigned short reg,
+int snd_soc_test_bits(struct snd_soc_codec *codec, unsigned int reg,
 				unsigned int mask, unsigned int value);
 
 int snd_soc_new_ac97_codec(struct snd_soc_codec *codec,
@@ -540,6 +550,8 @@ int snd_soc_bytes_get(struct snd_kcontrol *kcontrol,
 		      struct snd_ctl_elem_value *ucontrol);
 int snd_soc_bytes_put(struct snd_kcontrol *kcontrol,
 		      struct snd_ctl_elem_value *ucontrol);
+int snd_soc_bytes_info_ext(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_info *ucontrol);
 int snd_soc_info_xr_sx(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_info *uinfo);
 int snd_soc_get_xr_sx(struct snd_kcontrol *kcontrol,
@@ -586,8 +598,12 @@ struct snd_soc_jack_zone {
 /**
  * struct snd_soc_jack_gpio - Describes a gpio pin for jack detection
  *
- * @gpio:         gpio number
- * @name:         gpio name
+ * @gpio:         legacy gpio number
+ * @idx:          gpio descriptor index within the function of the GPIO
+ *                consumer device
+ * @gpiod_dev     GPIO consumer device
+ * @name:         gpio name. Also as connection ID for the GPIO consumer
+ *                device function name lookup
  * @report:       value to report when jack detected
  * @invert:       report presence in low state
  * @debouce_time: debouce time in ms
@@ -598,6 +614,8 @@ struct snd_soc_jack_zone {
  */
 struct snd_soc_jack_gpio {
 	unsigned int gpio;
+	unsigned int idx;
+	struct device *gpiod_dev;
 	const char *name;
 	int report;
 	int invert;
@@ -606,6 +624,7 @@ struct snd_soc_jack_gpio {
 
 	struct snd_soc_jack *jack;
 	struct delayed_work work;
+	struct gpio_desc *desc;
 
 	void *data;
 	int (*jack_status_check)(void *data);
@@ -668,6 +687,7 @@ struct snd_soc_component {
 	unsigned int active;
 
 	unsigned int ignore_pmdown_time:1; /* pmdown_time is ignored at stop */
+	unsigned int registered_as_component:1;
 
 	struct list_head list;
 
@@ -677,6 +697,14 @@ struct snd_soc_component {
 	const struct snd_soc_component_driver *driver;
 
 	struct list_head dai_list;
+
+	int (*read)(struct snd_soc_component *, unsigned int, unsigned int *);
+	int (*write)(struct snd_soc_component *, unsigned int, unsigned int);
+
+	struct regmap *regmap;
+	int val_bytes;
+
+	struct mutex io_mutex;
 };
 
 /* SoC Audio Codec device */
@@ -691,10 +719,6 @@ struct snd_soc_codec {
 	struct snd_soc_card *card;
 	struct list_head list;
 	struct list_head card_list;
-	int num_dai;
-	int (*volatile_register)(struct snd_soc_codec *, unsigned int);
-	int (*readable_register)(struct snd_soc_codec *, unsigned int);
-	int (*writable_register)(struct snd_soc_codec *, unsigned int);
 
 	/* runtime */
 	struct snd_ac97 *ac97;  /* for ad-hoc ac97 devices */
@@ -704,18 +728,14 @@ struct snd_soc_codec {
 	unsigned int ac97_registered:1; /* Codec has been AC97 registered */
 	unsigned int ac97_created:1; /* Codec has been created by SoC */
 	unsigned int cache_init:1; /* codec cache has been initialized */
-	unsigned int using_regmap:1; /* using regmap access */
 	u32 cache_only;  /* Suppress writes to hardware */
 	u32 cache_sync; /* Cache needs to be synced to hardware */
 
 	/* codec IO */
 	void *control_data; /* codec control (i2c/3wire) data */
 	hw_write_t hw_write;
-	unsigned int (*read)(struct snd_soc_codec *, unsigned int);
-	int (*write)(struct snd_soc_codec *, unsigned int, unsigned int);
 	void *reg_cache;
 	struct mutex cache_rw_mutex;
-	int val_bytes;
 
 	/* component */
 	struct snd_soc_component component;
@@ -754,13 +774,9 @@ struct snd_soc_codec_driver {
 		unsigned int freq_in, unsigned int freq_out);
 
 	/* codec IO */
+	struct regmap *(*get_regmap)(struct device *);
 	unsigned int (*read)(struct snd_soc_codec *, unsigned int);
 	int (*write)(struct snd_soc_codec *, unsigned int, unsigned int);
-	int (*display_register)(struct snd_soc_codec *, char *,
-				size_t, unsigned int);
-	int (*volatile_register)(struct snd_soc_codec *, unsigned int);
-	int (*readable_register)(struct snd_soc_codec *, unsigned int);
-	int (*writable_register)(struct snd_soc_codec *, unsigned int);
 	unsigned int reg_cache_size;
 	short reg_cache_step;
 	short reg_word_size;
@@ -791,6 +807,7 @@ struct snd_soc_platform_driver {
 	int (*remove)(struct snd_soc_platform *);
 	int (*suspend)(struct snd_soc_dai *dai);
 	int (*resume)(struct snd_soc_dai *dai);
+	struct snd_soc_component_driver component_driver;
 
 	/* pcm creation and destruction */
 	int (*pcm_new)(struct snd_soc_pcm_runtime *);
@@ -835,7 +852,6 @@ struct snd_soc_platform {
 	int id;
 	struct device *dev;
 	const struct snd_soc_platform_driver *driver;
-	struct mutex mutex;
 
 	unsigned int suspended:1; /* platform is suspended */
 	unsigned int probed:1;
@@ -843,6 +859,8 @@ struct snd_soc_platform {
 	struct snd_soc_card *card;
 	struct list_head list;
 	struct list_head card_list;
+
+	struct snd_soc_component component;
 
 	struct snd_soc_dapm_context dapm;
 
@@ -931,7 +949,12 @@ struct snd_soc_dai_link {
 };
 
 struct snd_soc_codec_conf {
+	/*
+	 * specify device either by device name, or by
+	 * DT/OF node, but not both.
+	 */
 	const char *dev_name;
+	const struct device_node *of_node;
 
 	/*
 	 * optional map of kcontrol, widget and path name prefixes that are
@@ -942,7 +965,13 @@ struct snd_soc_codec_conf {
 
 struct snd_soc_aux_dev {
 	const char *name;		/* Codec name */
-	const char *codec_name;		/* for multi-codec */
+
+	/*
+	 * specify multi-codec either by device name, or by
+	 * DT/OF node, but not both.
+	 */
+	const char *codec_name;
+	const struct device_node *codec_of_node;
 
 	/* codec/machine specific init - e.g. add machine controls */
 	int (*init)(struct snd_soc_dapm_context *dapm);
@@ -957,7 +986,6 @@ struct snd_soc_card {
 	struct snd_card *snd_card;
 	struct module *owner;
 
-	struct list_head list;
 	struct mutex mutex;
 	struct mutex dapm_mutex;
 
@@ -1020,7 +1048,6 @@ struct snd_soc_card {
 	/* lists of probed devices belonging to this card */
 	struct list_head codec_dev_list;
 	struct list_head platform_dev_list;
-	struct list_head dai_dev_list;
 
 	struct list_head widgets;
 	struct list_head paths;
@@ -1090,6 +1117,10 @@ struct soc_bytes {
 	u32 mask;
 };
 
+struct soc_bytes_ext {
+	int max;
+};
+
 /* multi register control */
 struct soc_mreg_control {
 	long min, max;
@@ -1120,10 +1151,66 @@ static inline struct snd_soc_codec *snd_soc_component_to_codec(
 	return container_of(component, struct snd_soc_codec, component);
 }
 
+/**
+ * snd_soc_component_to_platform() - Casts a component to the platform it is embedded in
+ * @component: The component to cast to a platform
+ *
+ * This function must only be used on components that are known to be platforms.
+ * Otherwise the behavior is undefined.
+ */
+static inline struct snd_soc_platform *snd_soc_component_to_platform(
+	struct snd_soc_component *component)
+{
+	return container_of(component, struct snd_soc_platform, component);
+}
+
+/**
+ * snd_soc_dapm_to_codec() - Casts a DAPM context to the CODEC it is embedded in
+ * @dapm: The DAPM context to cast to the CODEC
+ *
+ * This function must only be used on DAPM contexts that are known to be part of
+ * a CODEC (e.g. in a CODEC driver). Otherwise the behavior is undefined.
+ */
+static inline struct snd_soc_codec *snd_soc_dapm_to_codec(
+	struct snd_soc_dapm_context *dapm)
+{
+	return container_of(dapm, struct snd_soc_codec, dapm);
+}
+
+/**
+ * snd_soc_dapm_to_platform() - Casts a DAPM context to the platform it is
+ *  embedded in
+ * @dapm: The DAPM context to cast to the platform.
+ *
+ * This function must only be used on DAPM contexts that are known to be part of
+ * a platform (e.g. in a platform driver). Otherwise the behavior is undefined.
+ */
+static inline struct snd_soc_platform *snd_soc_dapm_to_platform(
+	struct snd_soc_dapm_context *dapm)
+{
+	return container_of(dapm, struct snd_soc_platform, dapm);
+}
+
 /* codec IO */
 unsigned int snd_soc_read(struct snd_soc_codec *codec, unsigned int reg);
-unsigned int snd_soc_write(struct snd_soc_codec *codec,
-			   unsigned int reg, unsigned int val);
+int snd_soc_write(struct snd_soc_codec *codec, unsigned int reg,
+	unsigned int val);
+
+/* component IO */
+int snd_soc_component_read(struct snd_soc_component *component,
+	unsigned int reg, unsigned int *val);
+int snd_soc_component_write(struct snd_soc_component *component,
+	unsigned int reg, unsigned int val);
+int snd_soc_component_update_bits(struct snd_soc_component *component,
+	unsigned int reg, unsigned int mask, unsigned int val);
+int snd_soc_component_update_bits_async(struct snd_soc_component *component,
+	unsigned int reg, unsigned int mask, unsigned int val);
+void snd_soc_component_async_complete(struct snd_soc_component *component);
+int snd_soc_component_test_bits(struct snd_soc_component *component,
+	unsigned int reg, unsigned int mask, unsigned int value);
+
+int snd_soc_component_init_io(struct snd_soc_component *component,
+	struct regmap *regmap);
 
 /* device driver data */
 
@@ -1173,7 +1260,6 @@ static inline void *snd_soc_pcm_get_drvdata(struct snd_soc_pcm_runtime *rtd)
 
 static inline void snd_soc_initialize_card_lists(struct snd_soc_card *card)
 {
-	INIT_LIST_HEAD(&card->dai_dev_list);
 	INIT_LIST_HEAD(&card->codec_dev_list);
 	INIT_LIST_HEAD(&card->platform_dev_list);
 	INIT_LIST_HEAD(&card->widgets);
@@ -1228,6 +1314,50 @@ static inline bool snd_soc_codec_is_active(struct snd_soc_codec *codec)
 	return snd_soc_component_is_active(&codec->component);
 }
 
+/**
+ * snd_soc_kcontrol_component() - Returns the component that registered the
+ *  control
+ * @kcontrol: The control for which to get the component
+ *
+ * Note: This function will work correctly if the control has been registered
+ * for a component. Either with snd_soc_add_codec_controls() or
+ * snd_soc_add_platform_controls() or via  table based setup for either a
+ * CODEC, a platform or component driver. Otherwise the behavior is undefined.
+ */
+static inline struct snd_soc_component *snd_soc_kcontrol_component(
+	struct snd_kcontrol *kcontrol)
+{
+	return snd_kcontrol_chip(kcontrol);
+}
+
+/**
+ * snd_soc_kcontrol_codec() - Returns the CODEC that registered the control
+ * @kcontrol: The control for which to get the CODEC
+ *
+ * Note: This function will only work correctly if the control has been
+ * registered with snd_soc_add_codec_controls() or via table based setup of
+ * snd_soc_codec_driver. Otherwise the behavior is undefined.
+ */
+static inline struct snd_soc_codec *snd_soc_kcontrol_codec(
+	struct snd_kcontrol *kcontrol)
+{
+	return snd_soc_component_to_codec(snd_soc_kcontrol_component(kcontrol));
+}
+
+/**
+ * snd_soc_kcontrol_platform() - Returns the platform that registerd the control
+ * @kcontrol: The control for which to get the platform
+ *
+ * Note: This function will only work correctly if the control has been
+ * registered with snd_soc_add_platform_controls() or via table based setup of
+ * a snd_soc_platform_driver. Otherwise the behavior is undefined.
+ */
+static inline struct snd_soc_platform *snd_soc_kcontrol_platform(
+	struct snd_kcontrol *kcontrol)
+{
+	return snd_soc_component_to_platform(snd_soc_kcontrol_component(kcontrol));
+}
+
 int snd_soc_util_init(void);
 void snd_soc_util_exit(void);
 
@@ -1241,7 +1371,9 @@ int snd_soc_of_parse_tdm_slot(struct device_node *np,
 int snd_soc_of_parse_audio_routing(struct snd_soc_card *card,
 				   const char *propname);
 unsigned int snd_soc_of_parse_daifmt(struct device_node *np,
-				     const char *prefix);
+				     const char *prefix,
+				     struct device_node **bitclkmaster,
+				     struct device_node **framemaster);
 int snd_soc_of_get_dai_name(struct device_node *of_node,
 			    const char **dai_name);
 

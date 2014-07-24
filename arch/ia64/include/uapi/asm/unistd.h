@@ -327,5 +327,6 @@
 #define __NR_finit_module		1335
 #define __NR_sched_setattr		1336
 #define __NR_sched_getattr		1337
+#define __NR_renameat2			1338
 
 #endif /* _UAPI_ASM_IA64_UNISTD_H */

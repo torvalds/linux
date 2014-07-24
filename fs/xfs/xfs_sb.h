@@ -36,8 +36,6 @@ struct xfs_trans;
 #define	XFS_SB_VERSION_5	5		/* CRC enabled filesystem */
 #define	XFS_SB_VERSION_NUMBITS		0x000f
 #define	XFS_SB_VERSION_ALLFBITS		0xfff0
-#define	XFS_SB_VERSION_SASHFBITS	0xf000
-#define	XFS_SB_VERSION_REALFBITS	0x0ff0
 #define	XFS_SB_VERSION_ATTRBIT		0x0010
 #define	XFS_SB_VERSION_NLINKBIT		0x0020
 #define	XFS_SB_VERSION_QUOTABIT		0x0040
@@ -50,24 +48,15 @@ struct xfs_trans;
 #define	XFS_SB_VERSION_DIRV2BIT		0x2000
 #define	XFS_SB_VERSION_BORGBIT		0x4000	/* ASCII only case-insens. */
 #define	XFS_SB_VERSION_MOREBITSBIT	0x8000
-#define	XFS_SB_VERSION_OKSASHFBITS	\
-	(XFS_SB_VERSION_EXTFLGBIT | \
-	 XFS_SB_VERSION_DIRV2BIT | \
-	 XFS_SB_VERSION_BORGBIT)
-#define	XFS_SB_VERSION_OKREALFBITS	\
-	(XFS_SB_VERSION_ATTRBIT | \
-	 XFS_SB_VERSION_NLINKBIT | \
-	 XFS_SB_VERSION_QUOTABIT | \
-	 XFS_SB_VERSION_ALIGNBIT | \
-	 XFS_SB_VERSION_DALIGNBIT | \
-	 XFS_SB_VERSION_SHAREDBIT | \
-	 XFS_SB_VERSION_LOGV2BIT | \
-	 XFS_SB_VERSION_SECTORBIT | \
-	 XFS_SB_VERSION_MOREBITSBIT)
-#define	XFS_SB_VERSION_OKREALBITS	\
-	(XFS_SB_VERSION_NUMBITS | \
-	 XFS_SB_VERSION_OKREALFBITS | \
-	 XFS_SB_VERSION_OKSASHFBITS)
+
+/*
+ * Supported feature bit list is just all bits in the versionnum field because
+ * we've used them all up and understand them all. Except, of course, for the
+ * shared superblock bit, which nobody knows what it does and so is unsupported.
+ */
+#define	XFS_SB_VERSION_OKBITS		\
+	((XFS_SB_VERSION_NUMBITS | XFS_SB_VERSION_ALLFBITS) & \
+		~XFS_SB_VERSION_SHAREDBIT)
 
 /*
  * There are two words to hold XFS "feature" bits: the original
@@ -76,7 +65,6 @@ struct xfs_trans;
  *
  * These defines represent bits in sb_features2.
  */
-#define XFS_SB_VERSION2_REALFBITS	0x00ffffff	/* Mask: features */
 #define XFS_SB_VERSION2_RESERVED1BIT	0x00000001
 #define XFS_SB_VERSION2_LAZYSBCOUNTBIT	0x00000002	/* Superblk counters */
 #define XFS_SB_VERSION2_RESERVED4BIT	0x00000004
@@ -86,16 +74,11 @@ struct xfs_trans;
 #define XFS_SB_VERSION2_CRCBIT		0x00000100	/* metadata CRCs */
 #define XFS_SB_VERSION2_FTYPE		0x00000200	/* inode type in dir */
 
-#define	XFS_SB_VERSION2_OKREALFBITS	\
+#define	XFS_SB_VERSION2_OKBITS		\
 	(XFS_SB_VERSION2_LAZYSBCOUNTBIT	| \
 	 XFS_SB_VERSION2_ATTR2BIT	| \
 	 XFS_SB_VERSION2_PROJID32BIT	| \
 	 XFS_SB_VERSION2_FTYPE)
-#define	XFS_SB_VERSION2_OKSASHFBITS	\
-	(0)
-#define XFS_SB_VERSION2_OKREALBITS	\
-	(XFS_SB_VERSION2_OKREALFBITS |	\
-	 XFS_SB_VERSION2_OKSASHFBITS )
 
 /*
  * Superblock - in core version.  Must match the ondisk version below.
@@ -345,214 +328,140 @@ typedef enum {
 
 #define	XFS_SB_VERSION_NUM(sbp)	((sbp)->sb_versionnum & XFS_SB_VERSION_NUMBITS)
 
-static inline int xfs_sb_good_version(xfs_sb_t *sbp)
+/*
+ * The first XFS version we support is a v4 superblock with V2 directories.
+ */
+static inline bool xfs_sb_good_v4_features(struct xfs_sb *sbp)
 {
-	/* We always support version 1-3 */
-	if (sbp->sb_versionnum >= XFS_SB_VERSION_1 &&
-	    sbp->sb_versionnum <= XFS_SB_VERSION_3)
-		return 1;
+	if (!(sbp->sb_versionnum & XFS_SB_VERSION_DIRV2BIT))
+		return false;
 
-	/* We support version 4 if all feature bits are supported */
-	if (XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_4) {
-		if ((sbp->sb_versionnum & ~XFS_SB_VERSION_OKREALBITS) ||
-		    ((sbp->sb_versionnum & XFS_SB_VERSION_MOREBITSBIT) &&
-		     (sbp->sb_features2 & ~XFS_SB_VERSION2_OKREALBITS)))
-			return 0;
+	/* check for unknown features in the fs */
+	if ((sbp->sb_versionnum & ~XFS_SB_VERSION_OKBITS) ||
+	    ((sbp->sb_versionnum & XFS_SB_VERSION_MOREBITSBIT) &&
+	     (sbp->sb_features2 & ~XFS_SB_VERSION2_OKBITS)))
+		return false;
 
-		if (sbp->sb_shared_vn > XFS_SB_MAX_SHARED_VN)
-			return 0;
-		return 1;
-	}
+	return true;
+}
+
+static inline bool xfs_sb_good_version(struct xfs_sb *sbp)
+{
 	if (XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_5)
-		return 1;
-
-	return 0;
+		return true;
+	if (XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_4)
+		return xfs_sb_good_v4_features(sbp);
+	return false;
 }
 
 /*
  * Detect a mismatched features2 field.  Older kernels read/wrote
  * this into the wrong slot, so to be safe we keep them in sync.
  */
-static inline int xfs_sb_has_mismatched_features2(xfs_sb_t *sbp)
+static inline bool xfs_sb_has_mismatched_features2(struct xfs_sb *sbp)
 {
-	return (sbp->sb_bad_features2 != sbp->sb_features2);
+	return sbp->sb_bad_features2 != sbp->sb_features2;
 }
 
-static inline unsigned xfs_sb_version_tonew(unsigned v)
+static inline bool xfs_sb_version_hasattr(struct xfs_sb *sbp)
 {
-	if (v == XFS_SB_VERSION_1)
-		return XFS_SB_VERSION_4;
-
-	if (v == XFS_SB_VERSION_2)
-		return XFS_SB_VERSION_4 | XFS_SB_VERSION_ATTRBIT;
-
-	return XFS_SB_VERSION_4 | XFS_SB_VERSION_ATTRBIT |
-		XFS_SB_VERSION_NLINKBIT;
+	return (sbp->sb_versionnum & XFS_SB_VERSION_ATTRBIT);
 }
 
-static inline unsigned xfs_sb_version_toold(unsigned v)
+static inline void xfs_sb_version_addattr(struct xfs_sb *sbp)
 {
-	if (v & (XFS_SB_VERSION_QUOTABIT | XFS_SB_VERSION_ALIGNBIT))
-		return 0;
-	if (v & XFS_SB_VERSION_NLINKBIT)
-		return XFS_SB_VERSION_3;
-	if (v & XFS_SB_VERSION_ATTRBIT)
-		return XFS_SB_VERSION_2;
-	return XFS_SB_VERSION_1;
+	sbp->sb_versionnum |= XFS_SB_VERSION_ATTRBIT;
 }
 
-static inline int xfs_sb_version_hasattr(xfs_sb_t *sbp)
+static inline bool xfs_sb_version_hasquota(struct xfs_sb *sbp)
 {
-	return sbp->sb_versionnum == XFS_SB_VERSION_2 ||
-		sbp->sb_versionnum == XFS_SB_VERSION_3 ||
-		(XFS_SB_VERSION_NUM(sbp) >= XFS_SB_VERSION_4 &&
-		 (sbp->sb_versionnum & XFS_SB_VERSION_ATTRBIT));
+	return (sbp->sb_versionnum & XFS_SB_VERSION_QUOTABIT);
 }
 
-static inline void xfs_sb_version_addattr(xfs_sb_t *sbp)
+static inline void xfs_sb_version_addquota(struct xfs_sb *sbp)
 {
-	if (sbp->sb_versionnum == XFS_SB_VERSION_1)
-		sbp->sb_versionnum = XFS_SB_VERSION_2;
-	else if (XFS_SB_VERSION_NUM(sbp) >= XFS_SB_VERSION_4)
-		sbp->sb_versionnum |= XFS_SB_VERSION_ATTRBIT;
-	else
-		sbp->sb_versionnum = XFS_SB_VERSION_4 | XFS_SB_VERSION_ATTRBIT;
+	sbp->sb_versionnum |= XFS_SB_VERSION_QUOTABIT;
 }
 
-static inline int xfs_sb_version_hasnlink(xfs_sb_t *sbp)
+static inline bool xfs_sb_version_hasalign(struct xfs_sb *sbp)
 {
-	return sbp->sb_versionnum == XFS_SB_VERSION_3 ||
-		 (XFS_SB_VERSION_NUM(sbp) >= XFS_SB_VERSION_4 &&
-		  (sbp->sb_versionnum & XFS_SB_VERSION_NLINKBIT));
-}
-
-static inline void xfs_sb_version_addnlink(xfs_sb_t *sbp)
-{
-	if (sbp->sb_versionnum <= XFS_SB_VERSION_2)
-		sbp->sb_versionnum = XFS_SB_VERSION_3;
-	else
-		sbp->sb_versionnum |= XFS_SB_VERSION_NLINKBIT;
-}
-
-static inline int xfs_sb_version_hasquota(xfs_sb_t *sbp)
-{
-	return XFS_SB_VERSION_NUM(sbp) >= XFS_SB_VERSION_4 &&
-		(sbp->sb_versionnum & XFS_SB_VERSION_QUOTABIT);
-}
-
-static inline void xfs_sb_version_addquota(xfs_sb_t *sbp)
-{
-	if (XFS_SB_VERSION_NUM(sbp) >= XFS_SB_VERSION_4)
-		sbp->sb_versionnum |= XFS_SB_VERSION_QUOTABIT;
-	else
-		sbp->sb_versionnum = xfs_sb_version_tonew(sbp->sb_versionnum) |
-					XFS_SB_VERSION_QUOTABIT;
-}
-
-static inline int xfs_sb_version_hasalign(xfs_sb_t *sbp)
-{
-	return (XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_5) ||
-	       (XFS_SB_VERSION_NUM(sbp) >= XFS_SB_VERSION_4 &&
+	return (XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_5 ||
 		(sbp->sb_versionnum & XFS_SB_VERSION_ALIGNBIT));
 }
 
-static inline int xfs_sb_version_hasdalign(xfs_sb_t *sbp)
+static inline bool xfs_sb_version_hasdalign(struct xfs_sb *sbp)
 {
-	return XFS_SB_VERSION_NUM(sbp) >= XFS_SB_VERSION_4 &&
-		(sbp->sb_versionnum & XFS_SB_VERSION_DALIGNBIT);
+	return (sbp->sb_versionnum & XFS_SB_VERSION_DALIGNBIT);
 }
 
-static inline int xfs_sb_version_hasshared(xfs_sb_t *sbp)
+static inline bool xfs_sb_version_haslogv2(struct xfs_sb *sbp)
 {
-	return XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_4 &&
-		(sbp->sb_versionnum & XFS_SB_VERSION_SHAREDBIT);
+	return XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_5 ||
+	       (sbp->sb_versionnum & XFS_SB_VERSION_LOGV2BIT);
 }
 
-static inline int xfs_sb_version_hasdirv2(xfs_sb_t *sbp)
+static inline bool xfs_sb_version_hasextflgbit(struct xfs_sb *sbp)
 {
-	return (XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_5) ||
-	       (XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_4 &&
-		(sbp->sb_versionnum & XFS_SB_VERSION_DIRV2BIT));
+	return XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_5 ||
+	       (sbp->sb_versionnum & XFS_SB_VERSION_EXTFLGBIT);
 }
 
-static inline int xfs_sb_version_haslogv2(xfs_sb_t *sbp)
+static inline bool xfs_sb_version_hassector(struct xfs_sb *sbp)
 {
-	return (XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_5) ||
-	       (XFS_SB_VERSION_NUM(sbp) >= XFS_SB_VERSION_4 &&
-		(sbp->sb_versionnum & XFS_SB_VERSION_LOGV2BIT));
+	return (sbp->sb_versionnum & XFS_SB_VERSION_SECTORBIT);
 }
 
-static inline int xfs_sb_version_hasextflgbit(xfs_sb_t *sbp)
+static inline bool xfs_sb_version_hasasciici(struct xfs_sb *sbp)
 {
-	return (XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_5) ||
-	       (XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_4 &&
-		(sbp->sb_versionnum & XFS_SB_VERSION_EXTFLGBIT));
+	return (sbp->sb_versionnum & XFS_SB_VERSION_BORGBIT);
 }
 
-static inline int xfs_sb_version_hassector(xfs_sb_t *sbp)
+static inline bool xfs_sb_version_hasmorebits(struct xfs_sb *sbp)
 {
-	return XFS_SB_VERSION_NUM(sbp) >= XFS_SB_VERSION_4 &&
-		(sbp->sb_versionnum & XFS_SB_VERSION_SECTORBIT);
-}
-
-static inline int xfs_sb_version_hasasciici(xfs_sb_t *sbp)
-{
-	return XFS_SB_VERSION_NUM(sbp) >= XFS_SB_VERSION_4 &&
-		(sbp->sb_versionnum & XFS_SB_VERSION_BORGBIT);
-}
-
-static inline int xfs_sb_version_hasmorebits(xfs_sb_t *sbp)
-{
-	return (XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_5) ||
-	       (XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_4 &&
-		(sbp->sb_versionnum & XFS_SB_VERSION_MOREBITSBIT));
+	return XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_5 ||
+	       (sbp->sb_versionnum & XFS_SB_VERSION_MOREBITSBIT);
 }
 
 /*
  * sb_features2 bit version macros.
- *
- * For example, for a bit defined as XFS_SB_VERSION2_FUNBIT, has a macro:
- *
- * SB_VERSION_HASFUNBIT(xfs_sb_t *sbp)
- *	((xfs_sb_version_hasmorebits(sbp) &&
- *	 ((sbp)->sb_features2 & XFS_SB_VERSION2_FUNBIT)
  */
-
-static inline int xfs_sb_version_haslazysbcount(xfs_sb_t *sbp)
+static inline bool xfs_sb_version_haslazysbcount(struct xfs_sb *sbp)
 {
 	return (XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_5) ||
 	       (xfs_sb_version_hasmorebits(sbp) &&
 		(sbp->sb_features2 & XFS_SB_VERSION2_LAZYSBCOUNTBIT));
 }
 
-static inline int xfs_sb_version_hasattr2(xfs_sb_t *sbp)
+static inline bool xfs_sb_version_hasattr2(struct xfs_sb *sbp)
 {
 	return (XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_5) ||
 	       (xfs_sb_version_hasmorebits(sbp) &&
 		(sbp->sb_features2 & XFS_SB_VERSION2_ATTR2BIT));
 }
 
-static inline void xfs_sb_version_addattr2(xfs_sb_t *sbp)
+static inline void xfs_sb_version_addattr2(struct xfs_sb *sbp)
 {
 	sbp->sb_versionnum |= XFS_SB_VERSION_MOREBITSBIT;
 	sbp->sb_features2 |= XFS_SB_VERSION2_ATTR2BIT;
+	sbp->sb_bad_features2 |= XFS_SB_VERSION2_ATTR2BIT;
 }
 
-static inline void xfs_sb_version_removeattr2(xfs_sb_t *sbp)
+static inline void xfs_sb_version_removeattr2(struct xfs_sb *sbp)
 {
 	sbp->sb_features2 &= ~XFS_SB_VERSION2_ATTR2BIT;
+	sbp->sb_bad_features2 &= ~XFS_SB_VERSION2_ATTR2BIT;
 	if (!sbp->sb_features2)
 		sbp->sb_versionnum &= ~XFS_SB_VERSION_MOREBITSBIT;
 }
 
-static inline int xfs_sb_version_hasprojid32bit(xfs_sb_t *sbp)
+static inline bool xfs_sb_version_hasprojid32bit(struct xfs_sb *sbp)
 {
 	return (XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_5) ||
 	       (xfs_sb_version_hasmorebits(sbp) &&
 		(sbp->sb_features2 & XFS_SB_VERSION2_PROJID32BIT));
 }
 
-static inline void xfs_sb_version_addprojid32bit(xfs_sb_t *sbp)
+static inline void xfs_sb_version_addprojid32bit(struct xfs_sb *sbp)
 {
 	sbp->sb_versionnum |= XFS_SB_VERSION_MOREBITSBIT;
 	sbp->sb_features2 |= XFS_SB_VERSION2_PROJID32BIT;
@@ -587,7 +496,9 @@ xfs_sb_has_compat_feature(
 	return (sbp->sb_features_compat & feature) != 0;
 }
 
-#define XFS_SB_FEAT_RO_COMPAT_ALL 0
+#define XFS_SB_FEAT_RO_COMPAT_FINOBT   (1 << 0)		/* free inode btree */
+#define XFS_SB_FEAT_RO_COMPAT_ALL \
+		(XFS_SB_FEAT_RO_COMPAT_FINOBT)
 #define XFS_SB_FEAT_RO_COMPAT_UNKNOWN	~XFS_SB_FEAT_RO_COMPAT_ALL
 static inline bool
 xfs_sb_has_ro_compat_feature(
@@ -623,12 +534,12 @@ xfs_sb_has_incompat_log_feature(
 /*
  * V5 superblock specific feature checks
  */
-static inline int xfs_sb_version_hascrc(xfs_sb_t *sbp)
+static inline int xfs_sb_version_hascrc(struct xfs_sb *sbp)
 {
 	return XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_5;
 }
 
-static inline int xfs_sb_version_has_pquotino(xfs_sb_t *sbp)
+static inline int xfs_sb_version_has_pquotino(struct xfs_sb *sbp)
 {
 	return XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_5;
 }
@@ -639,6 +550,12 @@ static inline int xfs_sb_version_hasftype(struct xfs_sb *sbp)
 		xfs_sb_has_incompat_feature(sbp, XFS_SB_FEAT_INCOMPAT_FTYPE)) ||
 	       (xfs_sb_version_hasmorebits(sbp) &&
 		 (sbp->sb_features2 & XFS_SB_VERSION2_FTYPE));
+}
+
+static inline int xfs_sb_version_hasfinobt(xfs_sb_t *sbp)
+{
+	return (XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_5) &&
+		(sbp->sb_features_ro_compat & XFS_SB_FEAT_RO_COMPAT_FINOBT);
 }
 
 /*

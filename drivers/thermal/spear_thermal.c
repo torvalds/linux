@@ -113,10 +113,8 @@ static int spear_thermal_probe(struct platform_device *pdev)
 	}
 
 	stdev = devm_kzalloc(&pdev->dev, sizeof(*stdev), GFP_KERNEL);
-	if (!stdev) {
-		dev_err(&pdev->dev, "kzalloc fail\n");
+	if (!stdev)
 		return -ENOMEM;
-	}
 
 	/* Enable thermal sensor */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);

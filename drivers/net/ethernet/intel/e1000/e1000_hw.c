@@ -4877,10 +4877,10 @@ void e1000_tbi_adjust_stats(struct e1000_hw *hw, struct e1000_hw_stats *stats,
 	 * since the test for a multicast frame will test positive on
 	 * a broadcast frame.
 	 */
-	if ((mac_addr[0] == (u8) 0xff) && (mac_addr[1] == (u8) 0xff))
+	if (is_broadcast_ether_addr(mac_addr))
 		/* Broadcast packet */
 		stats->bprc++;
-	else if (*mac_addr & 0x01)
+	else if (is_multicast_ether_addr(mac_addr))
 		/* Multicast packet */
 		stats->mprc++;
 

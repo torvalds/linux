@@ -47,7 +47,6 @@
 #include <lustre_fid.h>
 #include <lustre_acl.h>
 #include <lustre_net.h>
-#include <obd_lov.h>
 
 #include "echo_internal.h"
 
@@ -428,7 +427,7 @@ static int echo_lock_init(const struct lu_env *env,
 {
 	struct echo_lock *el;
 
-	OBD_SLAB_ALLOC_PTR_GFP(el, echo_lock_kmem, __GFP_IO);
+	OBD_SLAB_ALLOC_PTR_GFP(el, echo_lock_kmem, GFP_NOFS);
 	if (el != NULL) {
 		cl_lock_slice_add(lock, &el->el_cl, obj, &echo_lock_ops);
 		el->el_object = cl2echo_obj(obj);
@@ -599,7 +598,7 @@ static struct lu_object *echo_object_alloc(const struct lu_env *env,
 
 	/* we're the top dev. */
 	LASSERT(hdr == NULL);
-	OBD_SLAB_ALLOC_PTR_GFP(eco, echo_object_kmem, __GFP_IO);
+	OBD_SLAB_ALLOC_PTR_GFP(eco, echo_object_kmem, GFP_NOFS);
 	if (eco != NULL) {
 		struct cl_object_header *hdr = &eco->eo_hdr;
 
@@ -663,7 +662,7 @@ static void *echo_thread_key_init(const struct lu_context *ctx,
 {
 	struct echo_thread_info *info;
 
-	OBD_SLAB_ALLOC_PTR_GFP(info, echo_thread_kmem, __GFP_IO);
+	OBD_SLAB_ALLOC_PTR_GFP(info, echo_thread_kmem, GFP_NOFS);
 	if (info == NULL)
 		info = ERR_PTR(-ENOMEM);
 	return info;
@@ -693,7 +692,7 @@ static void *echo_session_key_init(const struct lu_context *ctx,
 {
 	struct echo_session_info *session;
 
-	OBD_SLAB_ALLOC_PTR_GFP(session, echo_session_kmem, __GFP_IO);
+	OBD_SLAB_ALLOC_PTR_GFP(session, echo_session_kmem, GFP_NOFS);
 	if (session == NULL)
 		session = ERR_PTR(-ENOMEM);
 	return session;
@@ -2432,7 +2431,7 @@ static int echo_client_kbrw(struct echo_device *ed, int rw, struct obdo *oa,
 	int		     i;
 	int		     rc;
 	int		     verify;
-	int		     gfp_mask;
+	gfp_t		     gfp_mask;
 	int		     brw_flags = 0;
 
 	verify = (ostid_id(&oa->o_oi) != ECHO_PERSISTENT_OBJID &&

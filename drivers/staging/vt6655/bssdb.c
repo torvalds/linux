@@ -497,9 +497,8 @@ BSSbInsertToBSSList(
 		}
 	}
 
-	if (bParsingQuiet && (pQuiet != NULL)) {
+	if (bParsingQuiet && (pQuiet != NULL))
 		CARDbStartQuiet(pMgmt->pAdapter);
-	}
 
 	pBSSList->uIELength = uIELength;
 	if (pBSSList->uIELength > WLAN_BEACON_FR_MAXLEN)
@@ -662,9 +661,8 @@ BSSbUpdateToBSSList(
 		}
 	}
 
-	if (bParsingQuiet && (pQuiet != NULL)) {
+	if (bParsingQuiet && (pQuiet != NULL))
 		CARDbStartQuiet(pMgmt->pAdapter);
-	}
 
 	pBSSList->uIELength = uIELength;
 	if (pBSSList->uIELength > WLAN_BEACON_FR_MAXLEN)

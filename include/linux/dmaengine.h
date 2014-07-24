@@ -292,7 +292,7 @@ struct dma_chan_dev {
 };
 
 /**
- * enum dma_slave_buswidth - defines bus with of the DMA slave
+ * enum dma_slave_buswidth - defines bus width of the DMA slave
  * device, source or target buses
  */
 enum dma_slave_buswidth {
@@ -429,6 +429,7 @@ typedef bool (*dma_filter_fn)(struct dma_chan *chan, void *filter_param);
 typedef void (*dma_async_tx_callback)(void *dma_async_param);
 
 struct dmaengine_unmap_data {
+	u8 map_cnt;
 	u8 to_cnt;
 	u8 from_cnt;
 	u8 bidi_cnt;

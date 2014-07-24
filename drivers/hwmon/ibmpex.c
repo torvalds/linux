@@ -463,10 +463,8 @@ static void ibmpex_register_bmc(int iface, struct device *dev)
 	int err;
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
-	if (!data) {
-		dev_err(dev, "Insufficient memory for BMC interface.\n");
+	if (!data)
 		return;
-	}
 
 	data->address.addr_type = IPMI_SYSTEM_INTERFACE_ADDR_TYPE;
 	data->address.channel = IPMI_BMC_CHANNEL;

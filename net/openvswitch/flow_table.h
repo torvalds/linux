@@ -52,10 +52,12 @@ struct flow_table {
 	unsigned int count;
 };
 
+extern struct kmem_cache *flow_stats_cache;
+
 int ovs_flow_init(void);
 void ovs_flow_exit(void);
 
-struct sw_flow *ovs_flow_alloc(bool percpu_stats);
+struct sw_flow *ovs_flow_alloc(void);
 void ovs_flow_free(struct sw_flow *, bool deferred);
 
 int ovs_flow_tbl_init(struct flow_table *);
@@ -74,7 +76,8 @@ struct sw_flow *ovs_flow_tbl_lookup_stats(struct flow_table *,
 				    u32 *n_mask_hit);
 struct sw_flow *ovs_flow_tbl_lookup(struct flow_table *,
 				    const struct sw_flow_key *);
-
+struct sw_flow *ovs_flow_tbl_lookup_exact(struct flow_table *tbl,
+					  struct sw_flow_match *match);
 bool ovs_flow_cmp_unmasked_key(const struct sw_flow *flow,
 			       struct sw_flow_match *match);
 

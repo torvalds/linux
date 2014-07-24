@@ -23,9 +23,9 @@
 #include "sn9c102_devtable.h"
 
 
-static int mi0343_init(struct sn9c102_device* cam)
+static int mi0343_init(struct sn9c102_device *cam)
 {
-	struct sn9c102_sensor* s = sn9c102_get_sensor(cam);
+	struct sn9c102_sensor *s = sn9c102_get_sensor(cam);
 	int err = 0;
 
 	err = sn9c102_write_const_regs(cam, {0x00, 0x10}, {0x00, 0x11},
@@ -52,10 +52,10 @@ static int mi0343_init(struct sn9c102_device* cam)
 }
 
 
-static int mi0343_get_ctrl(struct sn9c102_device* cam,
-			   struct v4l2_control* ctrl)
+static int mi0343_get_ctrl(struct sn9c102_device *cam,
+			   struct v4l2_control *ctrl)
 {
-	struct sn9c102_sensor* s = sn9c102_get_sensor(cam);
+	struct sn9c102_sensor *s = sn9c102_get_sensor(cam);
 	u8 data[2];
 
 	switch (ctrl->id) {
@@ -119,10 +119,10 @@ static int mi0343_get_ctrl(struct sn9c102_device* cam,
 }
 
 
-static int mi0343_set_ctrl(struct sn9c102_device* cam,
-			   const struct v4l2_control* ctrl)
+static int mi0343_set_ctrl(struct sn9c102_device *cam,
+			   const struct v4l2_control *ctrl)
 {
-	struct sn9c102_sensor* s = sn9c102_get_sensor(cam);
+	struct sn9c102_sensor *s = sn9c102_get_sensor(cam);
 	u16 reg = 0;
 	int err = 0;
 
@@ -189,10 +189,10 @@ static int mi0343_set_ctrl(struct sn9c102_device* cam,
 }
 
 
-static int mi0343_set_crop(struct sn9c102_device* cam,
-			    const struct v4l2_rect* rect)
+static int mi0343_set_crop(struct sn9c102_device *cam,
+			    const struct v4l2_rect *rect)
 {
-	struct sn9c102_sensor* s = sn9c102_get_sensor(cam);
+	struct sn9c102_sensor *s = sn9c102_get_sensor(cam);
 	int err = 0;
 	u8 h_start = (u8)(rect->left - s->cropcap.bounds.left) + 0,
 	   v_start = (u8)(rect->top - s->cropcap.bounds.top) + 2;
@@ -204,10 +204,10 @@ static int mi0343_set_crop(struct sn9c102_device* cam,
 }
 
 
-static int mi0343_set_pix_format(struct sn9c102_device* cam,
-				 const struct v4l2_pix_format* pix)
+static int mi0343_set_pix_format(struct sn9c102_device *cam,
+				 const struct v4l2_pix_format *pix)
 {
-	struct sn9c102_sensor* s = sn9c102_get_sensor(cam);
+	struct sn9c102_sensor *s = sn9c102_get_sensor(cam);
 	int err = 0;
 
 	if (pix->pixelformat == V4L2_PIX_FMT_SN9C10X) {
@@ -331,7 +331,7 @@ static const struct sn9c102_sensor mi0343 = {
 };
 
 
-int sn9c102_probe_mi0343(struct sn9c102_device* cam)
+int sn9c102_probe_mi0343(struct sn9c102_device *cam)
 {
 	u8 data[2];
 

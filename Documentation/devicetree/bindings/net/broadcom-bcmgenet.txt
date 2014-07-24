@@ -24,7 +24,7 @@ Optional properties:
 - fixed-link: When the GENET interface is connected to a MoCA hardware block or
   when operating in a RGMII to RGMII type of connection, or when the MDIO bus is
   voluntarily disabled, this property should be used to describe the "fixed link".
-  See Documentation/devicetree/bindings/net/fsl-tsec-phy.txt for information on
+  See Documentation/devicetree/bindings/net/fixed-link.txt for information on
   the property specifics
 
 Required child nodes:

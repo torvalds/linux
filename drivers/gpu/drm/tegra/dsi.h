@@ -117,4 +117,14 @@
 #define DSI_INIT_SEQ_DATA_14		0x5e
 #define DSI_INIT_SEQ_DATA_15		0x5f
 
+/*
+ * pixel format as used in the DSI_CONTROL_FORMAT field
+ */
+enum tegra_dsi_format {
+	TEGRA_DSI_FORMAT_16P,
+	TEGRA_DSI_FORMAT_18NP,
+	TEGRA_DSI_FORMAT_18P,
+	TEGRA_DSI_FORMAT_24P,
+};
+
 #endif

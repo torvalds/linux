@@ -228,6 +228,7 @@ struct sst_dsp {
 	spinlock_t spinlock;	/* IPC locking */
 	struct mutex mutex;	/* DSP FW lock */
 	struct device *dev;
+	struct device *dma_dev;
 	void *thread_context;
 	int irq;
 	u32 id;
@@ -283,6 +284,8 @@ struct sst_fw *sst_fw_new(struct sst_dsp *dsp,
 	const struct firmware *fw, void *private);
 void sst_fw_free(struct sst_fw *sst_fw);
 void sst_fw_free_all(struct sst_dsp *dsp);
+int sst_fw_reload(struct sst_fw *sst_fw);
+void sst_fw_unload(struct sst_fw *sst_fw);
 
 /* Create/Free firmware modules */
 struct sst_module *sst_module_new(struct sst_fw *sst_fw,

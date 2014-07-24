@@ -1,4 +1,4 @@
-/* Copyright © 2010 - 2013 UNISYS CORPORATION
+/* Copyright (C) 2010 - 2013 UNISYS CORPORATION
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -23,15 +23,16 @@
  *  We currently use this for the client to provide various information about
  *  the client devices and client drivers for the server end to see.
  */
+#include <linux/uuid.h>
 #include "commontypes.h"
 #include "vbusdeviceinfo.h"
 #include "channel.h"
 
 /* {193b331b-c58f-11da-95a9-00e08161165f} */
 #define ULTRA_VBUS_CHANNEL_PROTOCOL_GUID \
-	{0x193b331b, 0xc58f, 0x11da, \
-		{0x95, 0xa9, 0x0, 0xe0, 0x81, 0x61, 0x16, 0x5f} }
-static const GUID UltraVbusChannelProtocolGuid =
+		UUID_LE(0x193b331b, 0xc58f, 0x11da, \
+				0x95, 0xa9, 0x0, 0xe0, 0x81, 0x61, 0x16, 0x5f)
+static const uuid_le UltraVbusChannelProtocolGuid =
 	ULTRA_VBUS_CHANNEL_PROTOCOL_GUID;
 
 #define ULTRA_VBUS_CHANNEL_PROTOCOL_SIGNATURE ULTRA_CHANNEL_PROTOCOL_SIGNATURE
@@ -112,8 +113,7 @@ ULTRA_VBUS_init_channel(ULTRA_VBUS_CHANNEL_PROTOCOL __iomem *x,
 	writeq(bytesAllocated, &x->ChannelHeader.Size);
 	memcpy_toio(&x->ChannelHeader.Type, &UltraVbusChannelProtocolGuid,
 		    sizeof(x->ChannelHeader.Type));
-	memcpy_toio(&x->ChannelHeader.ZoneGuid, &Guid0,
-		    sizeof(x->ChannelHeader.ZoneGuid));
+	memcpy_toio(&x->ChannelHeader.ZoneGuid, &NULL_UUID_LE, sizeof(uuid_le));
 	writel(sizeof(ULTRA_VBUS_HEADERINFO), &x->HdrInfo.structBytes);
 	writel(sizeof(ULTRA_VBUS_HEADERINFO), &x->HdrInfo.chpInfoByteOffset);
 	writel(readl(&x->HdrInfo.chpInfoByteOffset) +

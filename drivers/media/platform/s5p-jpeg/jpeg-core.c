@@ -192,8 +192,7 @@ static struct s5p_jpeg_fmt sjpeg_formats[] = {
 		.colplanes	= 2,
 		.h_align	= 4,
 		.v_align	= 4,
-		.flags		= SJPEG_FMT_FLAG_ENC_OUTPUT |
-				  SJPEG_FMT_FLAG_DEC_CAPTURE |
+		.flags		= SJPEG_FMT_FLAG_DEC_CAPTURE |
 				  SJPEG_FMT_FLAG_S5P |
 				  SJPEG_FMT_NON_RGB,
 		.subsampling	= V4L2_JPEG_CHROMA_SUBSAMPLING_420,
@@ -959,7 +958,7 @@ static int s5p_jpeg_g_fmt(struct file *file, void *priv, struct v4l2_format *f)
 static struct s5p_jpeg_fmt *s5p_jpeg_find_format(struct s5p_jpeg_ctx *ctx,
 				u32 pixelformat, unsigned int fmt_type)
 {
-	unsigned int k, fmt_flag, ver_flag;
+	unsigned int k, fmt_flag;
 
 	if (ctx->mode == S5P_JPEG_ENCODE)
 		fmt_flag = (fmt_type == FMT_TYPE_OUTPUT) ?
@@ -970,16 +969,11 @@ static struct s5p_jpeg_fmt *s5p_jpeg_find_format(struct s5p_jpeg_ctx *ctx,
 				SJPEG_FMT_FLAG_DEC_OUTPUT :
 				SJPEG_FMT_FLAG_DEC_CAPTURE;
 
-	if (ctx->jpeg->variant->version == SJPEG_S5P)
-		ver_flag = SJPEG_FMT_FLAG_S5P;
-	else
-		ver_flag = SJPEG_FMT_FLAG_EXYNOS4;
-
 	for (k = 0; k < ARRAY_SIZE(sjpeg_formats); k++) {
 		struct s5p_jpeg_fmt *fmt = &sjpeg_formats[k];
 		if (fmt->fourcc == pixelformat &&
 		    fmt->flags & fmt_flag &&
-		    fmt->flags & ver_flag) {
+		    fmt->flags & ctx->jpeg->variant->fmt_ver_flag) {
 			return fmt;
 		}
 	}
@@ -1069,15 +1063,17 @@ static int s5p_jpeg_try_fmt_vid_cap(struct file *file, void *priv,
 		return -EINVAL;
 	}
 
+	if ((ctx->jpeg->variant->version != SJPEG_EXYNOS4) ||
+	    (ctx->mode != S5P_JPEG_DECODE))
+		goto exit;
+
 	/*
 	 * The exynos4x12 device requires resulting YUV image
 	 * subsampling not to be lower than the input jpeg subsampling.
 	 * If this requirement is not met then downgrade the requested
 	 * capture format to the one with subsampling equal to the input jpeg.
 	 */
-	if ((ctx->jpeg->variant->version != SJPEG_S5P) &&
-	    (ctx->mode == S5P_JPEG_DECODE) &&
-	    (fmt->flags & SJPEG_FMT_NON_RGB) &&
+	if ((fmt->flags & SJPEG_FMT_NON_RGB) &&
 	    (fmt->subsampling < ctx->subsampling)) {
 		ret = s5p_jpeg_adjust_fourcc_to_subsampling(ctx->subsampling,
 							    fmt->fourcc,
@@ -1090,6 +1086,23 @@ static int s5p_jpeg_try_fmt_vid_cap(struct file *file, void *priv,
 							FMT_TYPE_CAPTURE);
 	}
 
+	/*
+	 * Decompression of a JPEG file with 4:2:0 subsampling and odd
+	 * width to the YUV 4:2:0 compliant formats produces a raw image
+	 * with broken luma component. Adjust capture format to RGB565
+	 * in such a case.
+	 */
+	if (ctx->subsampling == V4L2_JPEG_CHROMA_SUBSAMPLING_420 &&
+	    (ctx->out_q.w & 1) &&
+	    (pix->pixelformat == V4L2_PIX_FMT_NV12 ||
+	     pix->pixelformat == V4L2_PIX_FMT_NV21 ||
+	     pix->pixelformat == V4L2_PIX_FMT_YUV420)) {
+		pix->pixelformat = V4L2_PIX_FMT_RGB565;
+		fmt = s5p_jpeg_find_format(ctx, pix->pixelformat,
+							FMT_TYPE_CAPTURE);
+	}
+
+exit:
 	return vidioc_try_fmt(f, fmt, ctx, FMT_TYPE_CAPTURE);
 }
 
@@ -1109,6 +1122,32 @@ static int s5p_jpeg_try_fmt_vid_out(struct file *file, void *priv,
 	}
 
 	return vidioc_try_fmt(f, fmt, ctx, FMT_TYPE_OUTPUT);
+}
+
+static int exynos4_jpeg_get_output_buffer_size(struct s5p_jpeg_ctx *ctx,
+						struct v4l2_format *f,
+						int fmt_depth)
+{
+	struct v4l2_pix_format *pix = &f->fmt.pix;
+	u32 pix_fmt = f->fmt.pix.pixelformat;
+	int w = pix->width, h = pix->height, wh_align;
+
+	if (pix_fmt == V4L2_PIX_FMT_RGB32 ||
+	    pix_fmt == V4L2_PIX_FMT_NV24 ||
+	    pix_fmt == V4L2_PIX_FMT_NV42 ||
+	    pix_fmt == V4L2_PIX_FMT_NV12 ||
+	    pix_fmt == V4L2_PIX_FMT_NV21 ||
+	    pix_fmt == V4L2_PIX_FMT_YUV420)
+		wh_align = 4;
+	else
+		wh_align = 1;
+
+	jpeg_bound_align_image(&w, S5P_JPEG_MIN_WIDTH,
+			       S5P_JPEG_MAX_WIDTH, wh_align,
+			       &h, S5P_JPEG_MIN_HEIGHT,
+			       S5P_JPEG_MAX_HEIGHT, wh_align);
+
+	return w * h * fmt_depth >> 3;
 }
 
 static int s5p_jpeg_s_fmt(struct s5p_jpeg_ctx *ct, struct v4l2_format *f)
@@ -1137,10 +1176,24 @@ static int s5p_jpeg_s_fmt(struct s5p_jpeg_ctx *ct, struct v4l2_format *f)
 	q_data->fmt = s5p_jpeg_find_format(ct, pix->pixelformat, f_type);
 	q_data->w = pix->width;
 	q_data->h = pix->height;
-	if (q_data->fmt->fourcc != V4L2_PIX_FMT_JPEG)
-		q_data->size = q_data->w * q_data->h * q_data->fmt->depth >> 3;
-	else
+	if (q_data->fmt->fourcc != V4L2_PIX_FMT_JPEG) {
+		/*
+		 * During encoding Exynos4x12 SoCs access wider memory area
+		 * than it results from Image_x and Image_y values written to
+		 * the JPEG_IMAGE_SIZE register. In order to avoid sysmmu
+		 * page fault calculate proper buffer size in such a case.
+		 */
+		if (ct->jpeg->variant->version == SJPEG_EXYNOS4 &&
+		    f_type == FMT_TYPE_OUTPUT && ct->mode == S5P_JPEG_ENCODE)
+			q_data->size = exynos4_jpeg_get_output_buffer_size(ct,
+							f,
+							q_data->fmt->depth);
+		else
+			q_data->size = q_data->w * q_data->h *
+						q_data->fmt->depth >> 3;
+	} else {
 		q_data->size = pix->sizeimage;
+	}
 
 	if (f_type == FMT_TYPE_OUTPUT) {
 		ctrl_subs = v4l2_ctrl_find(&ct->ctrl_handler,
@@ -1182,8 +1235,7 @@ static int s5p_jpeg_g_selection(struct file *file, void *priv,
 	struct s5p_jpeg_ctx *ctx = fh_to_ctx(priv);
 
 	if (s->type != V4L2_BUF_TYPE_VIDEO_OUTPUT &&
-	    s->type != V4L2_BUF_TYPE_VIDEO_CAPTURE &&
-	    ctx->jpeg->variant->version != SJPEG_S5P)
+	    s->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 
 	/* For JPEG blob active == default == bounds */
@@ -1571,7 +1623,7 @@ static struct v4l2_m2m_ops s5p_jpeg_m2m_ops = {
 	.job_abort	= s5p_jpeg_job_abort,
 }
 ;
-static struct v4l2_m2m_ops exynos_jpeg_m2m_ops = {
+static struct v4l2_m2m_ops exynos4_jpeg_m2m_ops = {
 	.device_run	= exynos4_jpeg_device_run,
 	.job_ready	= s5p_jpeg_job_ready,
 	.job_abort	= s5p_jpeg_job_abort,
@@ -1670,13 +1722,11 @@ static int s5p_jpeg_start_streaming(struct vb2_queue *q, unsigned int count)
 	return ret > 0 ? 0 : ret;
 }
 
-static int s5p_jpeg_stop_streaming(struct vb2_queue *q)
+static void s5p_jpeg_stop_streaming(struct vb2_queue *q)
 {
 	struct s5p_jpeg_ctx *ctx = vb2_get_drv_priv(q);
 
 	pm_runtime_put(ctx->jpeg->dev);
-
-	return 0;
 }
 
 static struct vb2_ops s5p_jpeg_qops = {
@@ -1845,7 +1895,7 @@ static irqreturn_t exynos4_jpeg_irq(int irq, void *priv)
 	return IRQ_HANDLED;
 }
 
-static void *jpeg_get_drv_data(struct platform_device *pdev);
+static void *jpeg_get_drv_data(struct device *dev);
 
 /*
  * ============================================================================
@@ -1857,18 +1907,14 @@ static int s5p_jpeg_probe(struct platform_device *pdev)
 {
 	struct s5p_jpeg *jpeg;
 	struct resource *res;
-	struct v4l2_m2m_ops *samsung_jpeg_m2m_ops;
 	int ret;
-
-	if (!pdev->dev.of_node)
-		return -ENODEV;
 
 	/* JPEG IP abstraction struct */
 	jpeg = devm_kzalloc(&pdev->dev, sizeof(struct s5p_jpeg), GFP_KERNEL);
 	if (!jpeg)
 		return -ENOMEM;
 
-	jpeg->variant = jpeg_get_drv_data(pdev);
+	jpeg->variant = jpeg_get_drv_data(&pdev->dev);
 
 	mutex_init(&jpeg->lock);
 	spin_lock_init(&jpeg->slock);
@@ -1911,13 +1957,8 @@ static int s5p_jpeg_probe(struct platform_device *pdev)
 		goto clk_get_rollback;
 	}
 
-	if (jpeg->variant->version == SJPEG_S5P)
-		samsung_jpeg_m2m_ops = &s5p_jpeg_m2m_ops;
-	else
-		samsung_jpeg_m2m_ops = &exynos_jpeg_m2m_ops;
-
 	/* mem2mem device */
-	jpeg->m2m_dev = v4l2_m2m_init(samsung_jpeg_m2m_ops);
+	jpeg->m2m_dev = v4l2_m2m_init(jpeg->variant->m2m_ops);
 	if (IS_ERR(jpeg->m2m_dev)) {
 		v4l2_err(&jpeg->v4l2_dev, "Failed to init mem2mem device\n");
 		ret = PTR_ERR(jpeg->m2m_dev);
@@ -2102,15 +2143,18 @@ static const struct dev_pm_ops s5p_jpeg_pm_ops = {
 	SET_RUNTIME_PM_OPS(s5p_jpeg_runtime_suspend, s5p_jpeg_runtime_resume, NULL)
 };
 
-#ifdef CONFIG_OF
 static struct s5p_jpeg_variant s5p_jpeg_drvdata = {
 	.version	= SJPEG_S5P,
 	.jpeg_irq	= s5p_jpeg_irq,
+	.m2m_ops	= &s5p_jpeg_m2m_ops,
+	.fmt_ver_flag	= SJPEG_FMT_FLAG_S5P,
 };
 
 static struct s5p_jpeg_variant exynos4_jpeg_drvdata = {
 	.version	= SJPEG_EXYNOS4,
 	.jpeg_irq	= exynos4_jpeg_irq,
+	.m2m_ops	= &exynos4_jpeg_m2m_ops,
+	.fmt_ver_flag	= SJPEG_FMT_FLAG_EXYNOS4,
 };
 
 static const struct of_device_id samsung_jpeg_match[] = {
@@ -2129,19 +2173,21 @@ static const struct of_device_id samsung_jpeg_match[] = {
 
 MODULE_DEVICE_TABLE(of, samsung_jpeg_match);
 
-static void *jpeg_get_drv_data(struct platform_device *pdev)
+static void *jpeg_get_drv_data(struct device *dev)
 {
 	struct s5p_jpeg_variant *driver_data = NULL;
 	const struct of_device_id *match;
 
-	match = of_match_node(of_match_ptr(samsung_jpeg_match),
-					 pdev->dev.of_node);
+	if (!IS_ENABLED(CONFIG_OF) || !dev->of_node)
+		return &s5p_jpeg_drvdata;
+
+	match = of_match_node(samsung_jpeg_match, dev->of_node);
+
 	if (match)
 		driver_data = (struct s5p_jpeg_variant *)match->data;
 
 	return driver_data;
 }
-#endif
 
 static struct platform_driver s5p_jpeg_driver = {
 	.probe = s5p_jpeg_probe,

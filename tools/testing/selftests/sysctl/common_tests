@@ -1,0 +1,109 @@
+#!/bin/sh
+
+TEST_FILE=$(mktemp)
+
+echo "== Testing sysctl behavior against ${TARGET} =="
+
+set_orig()
+{
+	echo "${ORIG}" > "${TARGET}"
+}
+
+set_test()
+{
+	echo "${TEST_STR}" > "${TARGET}"
+}
+
+verify()
+{
+	local seen
+	seen=$(cat "$1")
+	if [ "${seen}" != "${TEST_STR}" ]; then
+		return 1
+	fi
+	return 0
+}
+
+trap 'set_orig; rm -f "${TEST_FILE}"' EXIT
+
+rc=0
+
+echo -n "Writing test file ... "
+echo "${TEST_STR}" > "${TEST_FILE}"
+if ! verify "${TEST_FILE}"; then
+	echo "FAIL" >&2
+	exit 1
+else
+	echo "ok"
+fi
+
+echo -n "Checking sysctl is not set to test value ... "
+if verify "${TARGET}"; then
+	echo "FAIL" >&2
+	exit 1
+else
+	echo "ok"
+fi
+
+echo -n "Writing sysctl from shell ... "
+set_test
+if ! verify "${TARGET}"; then
+	echo "FAIL" >&2
+	exit 1
+else
+	echo "ok"
+fi
+
+echo -n "Resetting sysctl to original value ... "
+set_orig
+if verify "${TARGET}"; then
+	echo "FAIL" >&2
+	exit 1
+else
+	echo "ok"
+fi
+
+# Now that we've validated the sanity of "set_test" and "set_orig",
+# we can use those functions to set starting states before running
+# specific behavioral tests.
+
+echo -n "Writing entire sysctl in single write ... "
+set_orig
+dd if="${TEST_FILE}" of="${TARGET}" bs=4096 2>/dev/null
+if ! verify "${TARGET}"; then
+	echo "FAIL" >&2
+	rc=1
+else
+	echo "ok"
+fi
+
+echo -n "Writing middle of sysctl after synchronized seek ... "
+set_test
+dd if="${TEST_FILE}" of="${TARGET}" bs=1 seek=1 skip=1 2>/dev/null
+if ! verify "${TARGET}"; then
+	echo "FAIL" >&2
+	rc=1
+else
+	echo "ok"
+fi
+
+echo -n "Writing beyond end of sysctl ... "
+set_orig
+dd if="${TEST_FILE}" of="${TARGET}" bs=20 seek=2 2>/dev/null
+if verify "${TARGET}"; then
+        echo "FAIL" >&2
+        rc=1
+else
+        echo "ok"
+fi
+
+echo -n "Writing sysctl with multiple long writes ... "
+set_orig
+(perl -e 'print "A" x 50;'; echo "${TEST_STR}") | \
+	dd of="${TARGET}" bs=50 2>/dev/null
+if verify "${TARGET}"; then
+	echo "FAIL" >&2
+	rc=1
+else
+	echo "ok"
+fi

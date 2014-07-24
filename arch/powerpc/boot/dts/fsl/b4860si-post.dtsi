@@ -120,10 +120,6 @@
 		compatible = "fsl,b4860-l3-cache-controller", "cache";
 	};
 
-	corenet-cf@18000 {
-		compatible = "fsl,b4860-corenet-cf";
-	};
-
 	guts: global-utilities@e0000 {
 		compatible = "fsl,b4860-device-config", "fsl,qoriq-device-config-2.0";
 	};

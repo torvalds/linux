@@ -543,7 +543,7 @@ void rtllib_softmac_scan_syncro(struct rtllib_device *ieee, u8 is_mesh)
 				goto out; /* scan completed */
 		} while (!ieee->active_channel_map[ch]);
 
-		/* this fuction can be called in two situations
+		/* this function can be called in two situations
 		 * 1- We have switched to ad-hoc mode and we are
 		 *    performing a complete syncro scan before conclude
 		 *    there are no interesting cell and to create a
@@ -3239,7 +3239,6 @@ static int rtllib_wpa_set_auth_algs(struct rtllib_device *ieee, int value)
 	struct rtllib_security sec = {
 		.flags = SEC_AUTH_MODE,
 	};
-	int ret = 0;
 
 	if (value & AUTH_ALG_SHARED_KEY) {
 		sec.auth_mode = WLAN_AUTH_SHARED_KEY;
@@ -3259,7 +3258,7 @@ static int rtllib_wpa_set_auth_algs(struct rtllib_device *ieee, int value)
 	if (ieee->set_security)
 		ieee->set_security(ieee->dev, &sec);
 
-	return ret;
+	return 0;
 }
 
 static int rtllib_wpa_set_param(struct rtllib_device *ieee, u8 name, u32 value)

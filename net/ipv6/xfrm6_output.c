@@ -78,7 +78,7 @@ static int xfrm6_tunnel_check_size(struct sk_buff *skb)
 	if (mtu < IPV6_MIN_MTU)
 		mtu = IPV6_MIN_MTU;
 
-	if (!skb->local_df && skb->len > mtu) {
+	if (!skb->ignore_df && skb->len > mtu) {
 		skb->dev = dst->dev;
 
 		if (xfrm6_local_dontfrag(skb))
@@ -114,13 +114,7 @@ int xfrm6_prepare_output(struct xfrm_state *x, struct sk_buff *skb)
 	if (err)
 		return err;
 
-	memset(IP6CB(skb), 0, sizeof(*IP6CB(skb)));
-#ifdef CONFIG_NETFILTER
-	IP6CB(skb)->flags |= IP6SKB_XFRM_TRANSFORMED;
-#endif
-
-	skb->protocol = htons(ETH_P_IPV6);
-	skb->local_df = 1;
+	skb->ignore_df = 1;
 
 	return x->outer_mode->output2(x, skb);
 }
@@ -128,11 +122,13 @@ EXPORT_SYMBOL(xfrm6_prepare_output);
 
 int xfrm6_output_finish(struct sk_buff *skb)
 {
+	memset(IP6CB(skb), 0, sizeof(*IP6CB(skb)));
+	skb->protocol = htons(ETH_P_IPV6);
+
 #ifdef CONFIG_NETFILTER
 	IP6CB(skb)->flags |= IP6SKB_XFRM_TRANSFORMED;
 #endif
 
-	skb->protocol = htons(ETH_P_IPV6);
 	return xfrm_output(skb);
 }
 
@@ -142,6 +138,13 @@ static int __xfrm6_output(struct sk_buff *skb)
 	struct xfrm_state *x = dst->xfrm;
 	int mtu;
 
+#ifdef CONFIG_NETFILTER
+	if (!x) {
+		IP6CB(skb)->flags |= IP6SKB_REROUTED;
+		return dst_output(skb);
+	}
+#endif
+
 	if (skb->protocol == htons(ETH_P_IPV6))
 		mtu = ip6_skb_dst_mtu(skb);
 	else
@@ -150,7 +153,7 @@ static int __xfrm6_output(struct sk_buff *skb)
 	if (skb->len > mtu && xfrm6_local_dontfrag(skb)) {
 		xfrm6_local_rxpmtu(skb, mtu);
 		return -EMSGSIZE;
-	} else if (!skb->local_df && skb->len > mtu && skb->sk) {
+	} else if (!skb->ignore_df && skb->len > mtu && skb->sk) {
 		xfrm_local_error(skb, mtu);
 		return -EMSGSIZE;
 	}
@@ -165,6 +168,7 @@ static int __xfrm6_output(struct sk_buff *skb)
 
 int xfrm6_output(struct sock *sk, struct sk_buff *skb)
 {
-	return NF_HOOK(NFPROTO_IPV6, NF_INET_POST_ROUTING, skb, NULL,
-		       skb_dst(skb)->dev, __xfrm6_output);
+	return NF_HOOK_COND(NFPROTO_IPV6, NF_INET_POST_ROUTING, skb,
+			    NULL, skb_dst(skb)->dev, __xfrm6_output,
+			    !(IP6CB(skb)->flags & IP6SKB_REROUTED));
 }

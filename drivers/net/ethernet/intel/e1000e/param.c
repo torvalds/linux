@@ -436,6 +436,7 @@ void e1000e_check_options(struct e1000_adapter *adapter)
 
 		if (num_IntMode > bd) {
 			unsigned int int_mode = IntMode[bd];
+
 			e1000_validate_option(&int_mode, &opt, adapter);
 			adapter->int_mode = int_mode;
 		} else {
@@ -457,6 +458,7 @@ void e1000e_check_options(struct e1000_adapter *adapter)
 
 		if (num_SmartPowerDownEnable > bd) {
 			unsigned int spd = SmartPowerDownEnable[bd];
+
 			e1000_validate_option(&spd, &opt, adapter);
 			if ((adapter->flags & FLAG_HAS_SMART_POWER_DOWN) && spd)
 				adapter->flags |= FLAG_SMART_POWER_DOWN;
@@ -473,6 +475,7 @@ void e1000e_check_options(struct e1000_adapter *adapter)
 
 		if (num_CrcStripping > bd) {
 			unsigned int crc_stripping = CrcStripping[bd];
+
 			e1000_validate_option(&crc_stripping, &opt, adapter);
 			if (crc_stripping == OPTION_ENABLED) {
 				adapter->flags2 |= FLAG2_CRC_STRIPPING;
@@ -495,6 +498,7 @@ void e1000e_check_options(struct e1000_adapter *adapter)
 
 		if (num_KumeranLockLoss > bd) {
 			unsigned int kmrn_lock_loss = KumeranLockLoss[bd];
+
 			e1000_validate_option(&kmrn_lock_loss, &opt, adapter);
 			enabled = kmrn_lock_loss;
 		}

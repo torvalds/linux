@@ -116,7 +116,7 @@ static inline void set_cpu_wakeup_addr(unsigned int cpu_id, u32 addr)
 {
 	struct omap4_cpu_pm_info *pm_info = &per_cpu(omap4_pm_info, cpu_id);
 
-	__raw_writel(addr, pm_info->wkup_sar_addr);
+	writel_relaxed(addr, pm_info->wkup_sar_addr);
 }
 
 /*
@@ -141,7 +141,7 @@ static void scu_pwrst_prepare(unsigned int cpu_id, unsigned int cpu_state)
 		break;
 	}
 
-	__raw_writel(scu_pwr_st, pm_info->scu_sar_addr);
+	writel_relaxed(scu_pwr_st, pm_info->scu_sar_addr);
 }
 
 /* Helper functions for MPUSS OSWR */
@@ -179,7 +179,7 @@ static void l2x0_pwrst_prepare(unsigned int cpu_id, unsigned int save_state)
 {
 	struct omap4_cpu_pm_info *pm_info = &per_cpu(omap4_pm_info, cpu_id);
 
-	__raw_writel(save_state, pm_info->l2x0_sar_addr);
+	writel_relaxed(save_state, pm_info->l2x0_sar_addr);
 }
 
 /*
@@ -187,19 +187,15 @@ static void l2x0_pwrst_prepare(unsigned int cpu_id, unsigned int save_state)
  * in every restore MPUSS OFF path.
  */
 #ifdef CONFIG_CACHE_L2X0
-static void save_l2x0_context(void)
+static void __init save_l2x0_context(void)
 {
-	u32 val;
-	void __iomem *l2x0_base = omap4_get_l2cache_base();
-	if (l2x0_base) {
-		val = __raw_readl(l2x0_base + L2X0_AUX_CTRL);
-		__raw_writel(val, sar_base + L2X0_AUXCTRL_OFFSET);
-		val = __raw_readl(l2x0_base + L2X0_PREFETCH_CTRL);
-		__raw_writel(val, sar_base + L2X0_PREFETCH_CTRL_OFFSET);
-	}
+	writel_relaxed(l2x0_saved_regs.aux_ctrl,
+		     sar_base + L2X0_AUXCTRL_OFFSET);
+	writel_relaxed(l2x0_saved_regs.prefetch_ctrl,
+		     sar_base + L2X0_PREFETCH_CTRL_OFFSET);
 }
 #else
-static void save_l2x0_context(void)
+static void __init save_l2x0_context(void)
 {}
 #endif
 
@@ -386,9 +382,9 @@ int __init omap4_mpuss_init(void)
 
 	/* Save device type on scratchpad for low level code to use */
 	if (omap_type() != OMAP2_DEVICE_TYPE_GP)
-		__raw_writel(1, sar_base + OMAP_TYPE_OFFSET);
+		writel_relaxed(1, sar_base + OMAP_TYPE_OFFSET);
 	else
-		__raw_writel(0, sar_base + OMAP_TYPE_OFFSET);
+		writel_relaxed(0, sar_base + OMAP_TYPE_OFFSET);
 
 	save_l2x0_context();
 

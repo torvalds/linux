@@ -101,6 +101,11 @@
 	status = "okay";
 };
 
+&hdmi {
+	ddc-i2c-bus = <&i2c3>;
+	status = "okay";
+};
+
 &i2c1 {
 	clock-frequency = <100000>;
 	pinctrl-names = "default";
@@ -156,7 +161,7 @@
 	status = "okay";
 
 	pmic: ltc3676@3c {
-		compatible = "ltc,ltc3676";
+		compatible = "lltc,ltc3676";
 		reg = <0x3c>;
 
 		regulators {

@@ -104,8 +104,27 @@ kvm_start_lightweight:
 	stb	r3, HSTATE_RESTORE_HID5(r13)
 
 	/* Load up guest SPRG3 value, since it's user readable */
-	ld	r3, VCPU_SHARED(r4)
-	ld	r3, VCPU_SHARED_SPRG3(r3)
+	lwz	r3, VCPU_SHAREDBE(r4)
+	cmpwi	r3, 0
+	ld	r5, VCPU_SHARED(r4)
+	beq	sprg3_little_endian
+sprg3_big_endian:
+#ifdef __BIG_ENDIAN__
+	ld	r3, VCPU_SHARED_SPRG3(r5)
+#else
+	addi	r5, r5, VCPU_SHARED_SPRG3
+	ldbrx	r3, 0, r5
+#endif
+	b	after_sprg3_load
+sprg3_little_endian:
+#ifdef __LITTLE_ENDIAN__
+	ld	r3, VCPU_SHARED_SPRG3(r5)
+#else
+	addi	r5, r5, VCPU_SHARED_SPRG3
+	ldbrx	r3, 0, r5
+#endif
+
+after_sprg3_load:
 	mtspr	SPRN_SPRG3, r3
 #endif /* CONFIG_PPC_BOOK3S_64 */
 

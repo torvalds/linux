@@ -263,17 +263,11 @@ static int svc_connect(struct socket *sock, struct sockaddr *sockaddr,
 			goto out;
 		}
 	}
-/*
- * Not supported yet
- *
- * #ifndef CONFIG_SINGLE_SIGITF
- */
+
 	vcc->qos.txtp.max_pcr = SELECT_TOP_PCR(vcc->qos.txtp);
 	vcc->qos.txtp.pcr = 0;
 	vcc->qos.txtp.min_pcr = 0;
-/*
- * #endif
- */
+
 	error = vcc_connect(sock, vcc->itf, vcc->vpi, vcc->vci);
 	if (!error)
 		sock->state = SS_CONNECTED;

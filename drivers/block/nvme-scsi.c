@@ -1,6 +1,6 @@
 /*
  * NVM Express device driver
- * Copyright (c) 2011, Intel Corporation.
+ * Copyright (c) 2011-2014, Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -10,10 +10,6 @@
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
 /*
@@ -243,8 +239,6 @@ static int sg_version_num = 30534;	/* 2 digits for each component */
 #define READ_CAP_16_RESP_SIZE				32
 
 /* NVMe Namespace and Command Defines */
-#define NVME_GET_SMART_LOG_PAGE				0x02
-#define NVME_GET_FEAT_TEMP_THRESH			0x04
 #define BYTES_TO_DWORDS					4
 #define NVME_MAX_FIRMWARE_SLOT				7
 
@@ -686,6 +680,7 @@ static int nvme_trans_standard_inquiry_page(struct nvme_ns *ns,
 	u8 resp_data_format = 0x02;
 	u8 protect;
 	u8 cmdque = 0x01 << 1;
+	u8 fw_offset = sizeof(dev->firmware_rev);
 
 	mem = dma_alloc_coherent(&dev->pci_dev->dev, sizeof(struct nvme_id_ns),
 				&dma_addr, GFP_KERNEL);
@@ -721,7 +716,11 @@ static int nvme_trans_standard_inquiry_page(struct nvme_ns *ns,
 	inq_response[7] = cmdque;	/* wbus16=0 | sync=0 | vs=0 */
 	strncpy(&inq_response[8], "NVMe    ", 8);
 	strncpy(&inq_response[16], dev->model, 16);
-	strncpy(&inq_response[32], dev->firmware_rev, 4);
+
+	while (dev->firmware_rev[fw_offset - 1] == ' ' && fw_offset > 4)
+		fw_offset--;
+	fw_offset -= 4;
+	strncpy(&inq_response[32], dev->firmware_rev + fw_offset, 4);
 
 	xfer_len = min(alloc_len, STANDARD_INQUIRY_LENGTH);
 	res = nvme_trans_copy_to_user(hdr, inq_response, xfer_len);
@@ -1018,8 +1017,8 @@ static int nvme_trans_log_info_exceptions(struct nvme_ns *ns,
 	c.common.opcode = nvme_admin_get_log_page;
 	c.common.nsid = cpu_to_le32(0xFFFFFFFF);
 	c.common.prp1 = cpu_to_le64(dma_addr);
-	c.common.cdw10[0] = cpu_to_le32(((sizeof(struct nvme_smart_log) /
-			BYTES_TO_DWORDS) << 16) | NVME_GET_SMART_LOG_PAGE);
+	c.common.cdw10[0] = cpu_to_le32((((sizeof(struct nvme_smart_log) /
+			BYTES_TO_DWORDS) - 1) << 16) | NVME_LOG_SMART);
 	res = nvme_submit_admin_cmd(dev, &c, NULL);
 	if (res != NVME_SC_SUCCESS) {
 		temp_c = LOG_TEMP_UNKNOWN;
@@ -1086,8 +1085,8 @@ static int nvme_trans_log_temperature(struct nvme_ns *ns, struct sg_io_hdr *hdr,
 	c.common.opcode = nvme_admin_get_log_page;
 	c.common.nsid = cpu_to_le32(0xFFFFFFFF);
 	c.common.prp1 = cpu_to_le64(dma_addr);
-	c.common.cdw10[0] = cpu_to_le32(((sizeof(struct nvme_smart_log) /
-			BYTES_TO_DWORDS) << 16) | NVME_GET_SMART_LOG_PAGE);
+	c.common.cdw10[0] = cpu_to_le32((((sizeof(struct nvme_smart_log) /
+			BYTES_TO_DWORDS) - 1) << 16) | NVME_LOG_SMART);
 	res = nvme_submit_admin_cmd(dev, &c, NULL);
 	if (res != NVME_SC_SUCCESS) {
 		temp_c_cur = LOG_TEMP_UNKNOWN;
@@ -1477,7 +1476,7 @@ static int nvme_trans_power_state(struct nvme_ns *ns, struct sg_io_hdr *hdr,
 		goto out_dma;
 	}
 	id_ctrl = mem;
-	lowest_pow_st = id_ctrl->npss - 1;
+	lowest_pow_st = max(POWER_STATE_0, (int)(id_ctrl->npss - 1));
 
 	switch (pc) {
 	case NVME_POWER_STATE_START_VALID:
@@ -1494,20 +1493,19 @@ static int nvme_trans_power_state(struct nvme_ns *ns, struct sg_io_hdr *hdr,
 		break;
 	case NVME_POWER_STATE_IDLE:
 		/* Action unspecified if POWER CONDITION MODIFIER != [0,1,2] */
-		/* min of desired state and (lps-1) because lps is STOP */
 		if (pcmod == 0x0)
-			ps_desired = min(POWER_STATE_1, (lowest_pow_st - 1));
+			ps_desired = POWER_STATE_1;
 		else if (pcmod == 0x1)
-			ps_desired = min(POWER_STATE_2, (lowest_pow_st - 1));
+			ps_desired = POWER_STATE_2;
 		else if (pcmod == 0x2)
-			ps_desired = min(POWER_STATE_3, (lowest_pow_st - 1));
+			ps_desired = POWER_STATE_3;
 		break;
 	case NVME_POWER_STATE_STANDBY:
 		/* Action unspecified if POWER CONDITION MODIFIER != [0,1] */
 		if (pcmod == 0x0)
-			ps_desired = max(0, (lowest_pow_st - 2));
+			ps_desired = max(POWER_STATE_0, (lowest_pow_st - 2));
 		else if (pcmod == 0x1)
-			ps_desired = max(0, (lowest_pow_st - 1));
+			ps_desired = max(POWER_STATE_0, (lowest_pow_st - 1));
 		break;
 	case NVME_POWER_STATE_LU_CONTROL:
 	default:

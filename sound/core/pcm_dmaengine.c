@@ -182,6 +182,7 @@ static int dmaengine_pcm_prepare_and_submit(struct snd_pcm_substream *substream)
 int snd_dmaengine_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 {
 	struct dmaengine_pcm_runtime_data *prtd = substream_to_prtd(substream);
+	struct snd_pcm_runtime *runtime = substream->runtime;
 	int ret;
 
 	switch (cmd) {
@@ -196,6 +197,11 @@ int snd_dmaengine_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 		dmaengine_resume(prtd->dma_chan);
 		break;
 	case SNDRV_PCM_TRIGGER_SUSPEND:
+		if (runtime->info & SNDRV_PCM_INFO_PAUSE)
+			dmaengine_pause(prtd->dma_chan);
+		else
+			dmaengine_terminate_all(prtd->dma_chan);
+		break;
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		dmaengine_pause(prtd->dma_chan);
 		break;

@@ -554,8 +554,8 @@ static void fb_info_clear(struct fb_info *info)
 static int mmpfb_probe(struct platform_device *pdev)
 {
 	struct mmp_buffer_driver_mach_info *mi;
-	struct fb_info *info = 0;
-	struct mmpfb_info *fbi = 0;
+	struct fb_info *info;
+	struct mmpfb_info *fbi;
 	int ret, modes_num;
 
 	mi = pdev->dev.platform_data;
@@ -569,10 +569,6 @@ static int mmpfb_probe(struct platform_device *pdev)
 	if (info == NULL)
 		return -ENOMEM;
 	fbi = info->par;
-	if (!fbi) {
-		ret = -EINVAL;
-		goto failed;
-	}
 
 	/* init fb */
 	fbi->fb_info = info;
@@ -667,7 +663,6 @@ failed_free_buff:
 		fbi->fb_start_dma);
 failed_destroy_mutex:
 	mutex_destroy(&fbi->access_ok);
-failed:
 	dev_err(fbi->dev, "mmp-fb: frame buffer device init failed\n");
 
 	framebuffer_release(info);

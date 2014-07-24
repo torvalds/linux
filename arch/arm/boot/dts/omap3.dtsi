@@ -61,7 +61,7 @@
 			ti,hwmods = "mpu";
 		};
 
-		iva {
+		iva: iva {
 			compatible = "ti,iva2.2";
 			ti,hwmods = "iva";
 
@@ -267,7 +267,7 @@
 		uart1: serial@4806a000 {
 			compatible = "ti,omap3-uart";
 			reg = <0x4806a000 0x2000>;
-			interrupts = <72>;
+			interrupts-extended = <&intc 72>;
 			dmas = <&sdma 49 &sdma 50>;
 			dma-names = "tx", "rx";
 			ti,hwmods = "uart1";
@@ -277,7 +277,7 @@
 		uart2: serial@4806c000 {
 			compatible = "ti,omap3-uart";
 			reg = <0x4806c000 0x400>;
-			interrupts = <73>;
+			interrupts-extended = <&intc 73>;
 			dmas = <&sdma 51 &sdma 52>;
 			dma-names = "tx", "rx";
 			ti,hwmods = "uart2";
@@ -287,7 +287,7 @@
 		uart3: serial@49020000 {
 			compatible = "ti,omap3-uart";
 			reg = <0x49020000 0x400>;
-			interrupts = <74>;
+			interrupts-extended = <&intc 74>;
 			dmas = <&sdma 53 &sdma 54>;
 			dma-names = "tx", "rx";
 			ti,hwmods = "uart3";
@@ -755,6 +755,51 @@
 				ti,hwmods = "dss_venc";
 				clocks = <&dss_tv_fck>;
 				clock-names = "fck";
+			};
+		};
+
+		ssi: ssi-controller@48058000 {
+			compatible = "ti,omap3-ssi";
+			ti,hwmods = "ssi";
+
+			status = "disabled";
+
+			reg = <0x48058000 0x1000>,
+			      <0x48059000 0x1000>;
+			reg-names = "sys",
+				    "gdd";
+
+			interrupts = <71>;
+			interrupt-names = "gdd_mpu";
+
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+
+			ssi_port1: ssi-port@4805a000 {
+				compatible = "ti,omap3-ssi-port";
+
+				reg = <0x4805a000 0x800>,
+				      <0x4805a800 0x800>;
+				reg-names = "tx",
+					    "rx";
+
+				interrupt-parent = <&intc>;
+				interrupts = <67>,
+					     <68>;
+			};
+
+			ssi_port2: ssi-port@4805b000 {
+				compatible = "ti,omap3-ssi-port";
+
+				reg = <0x4805b000 0x800>,
+				      <0x4805b800 0x800>;
+				reg-names = "tx",
+					    "rx";
+
+				interrupt-parent = <&intc>;
+				interrupts = <69>,
+					     <70>;
 			};
 		};
 	};

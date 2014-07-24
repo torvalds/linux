@@ -105,6 +105,9 @@
 
 /* Device NMI register */
 #define DEVICE_SET_NMI_REG 0x00a01c30
+#define DEVICE_SET_NMI_VAL 0x1
+#define DEVICE_SET_NMI_8000B_REG 0x00a01c24
+#define DEVICE_SET_NMI_8000B_VAL 0x1000000
 
 /* Shared registers (0x0..0x3ff, via target indirect or periphery */
 #define SHR_BASE	0x00a10000
@@ -347,5 +350,13 @@ enum secure_load_status_reg {
 #define LMPM_SECURE_CPU2_HDR_MEM_SPACE		(0x420400)
 
 #define LMPM_SECURE_TIME_OUT	(100)
+
+/* Rx FIFO */
+#define RXF_SIZE_ADDR			(0xa00c88)
+#define RXF_SIZE_BYTE_CND_POS		(7)
+#define RXF_SIZE_BYTE_CNT_MSK		(0x3ff << RXF_SIZE_BYTE_CND_POS)
+
+#define RXF_LD_FENCE_OFFSET_ADDR	(0xa00c10)
+#define RXF_FIFO_RD_FENCE_ADDR		(0xa00c0c)
 
 #endif				/* __iwl_prph_h__ */

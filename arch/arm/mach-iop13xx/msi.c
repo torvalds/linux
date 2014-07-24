@@ -23,10 +23,7 @@
 #include <linux/msi.h>
 #include <asm/mach/irq.h>
 #include <asm/irq.h>
-
-
-#define IOP13XX_NUM_MSI_IRQS 128
-static DECLARE_BITMAP(msi_irq_in_use, IOP13XX_NUM_MSI_IRQS);
+#include <mach/irqs.h>
 
 /* IMIPR0 CP6 R8 Page 1
  */
@@ -121,41 +118,6 @@ void __init iop13xx_msi_init(void)
 	irq_set_chained_handler(IRQ_IOP13XX_INBD_MSI, iop13xx_msi_handler);
 }
 
-/*
- * Dynamic irq allocate and deallocation
- */
-int create_irq(void)
-{
-	int irq, pos;
-
-again:
-	pos = find_first_zero_bit(msi_irq_in_use, IOP13XX_NUM_MSI_IRQS);
-	irq = IRQ_IOP13XX_MSI_0 + pos;
-	if (irq > NR_IRQS)
-		return -ENOSPC;
-	/* test_and_set_bit operates on 32-bits at a time */
-	if (test_and_set_bit(pos, msi_irq_in_use))
-		goto again;
-
-	dynamic_irq_init(irq);
-
-	return irq;
-}
-
-void destroy_irq(unsigned int irq)
-{
-	int pos = irq - IRQ_IOP13XX_MSI_0;
-
-	dynamic_irq_cleanup(irq);
-
-	clear_bit(pos, msi_irq_in_use);
-}
-
-void arch_teardown_msi_irq(unsigned int irq)
-{
-	destroy_irq(irq);
-}
-
 static void iop13xx_msi_nop(struct irq_data *d)
 {
 	return;
@@ -172,11 +134,16 @@ static struct irq_chip iop13xx_msi_chip = {
 
 int arch_setup_msi_irq(struct pci_dev *pdev, struct msi_desc *desc)
 {
-	int id, irq = create_irq();
+	int id, irq = irq_alloc_desc_from(IRQ_IOP13XX_MSI_0, -1);
 	struct msi_msg msg;
 
 	if (irq < 0)
 		return irq;
+
+	if (irq >= NR_IOP13XX_IRQS) {
+		irq_free_desc(irq);
+		return -ENOSPC;
+	}
 
 	irq_set_msi_desc(irq, desc);
 
@@ -190,4 +157,9 @@ int arch_setup_msi_irq(struct pci_dev *pdev, struct msi_desc *desc)
 	irq_set_chip_and_handler(irq, &iop13xx_msi_chip, handle_simple_irq);
 
 	return 0;
+}
+
+void arch_teardown_msi_irq(unsigned int irq)
+{
+	irq_free_desc(irq);
 }

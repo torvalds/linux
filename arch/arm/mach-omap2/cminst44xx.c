@@ -21,8 +21,6 @@
 #include <linux/err.h>
 #include <linux/io.h>
 
-#include "iomap.h"
-#include "common.h"
 #include "clockdomain.h"
 #include "cm.h"
 #include "cm1_44xx.h"
@@ -30,11 +28,17 @@
 #include "cm44xx.h"
 #include "cminst44xx.h"
 #include "cm-regbits-34xx.h"
-#include "cm-regbits-44xx.h"
 #include "prcm44xx.h"
 #include "prm44xx.h"
 #include "prcm_mpu44xx.h"
 #include "prcm-common.h"
+
+#define OMAP4430_IDLEST_SHIFT		16
+#define OMAP4430_IDLEST_MASK		(0x3 << 16)
+#define OMAP4430_CLKTRCTRL_SHIFT	0
+#define OMAP4430_CLKTRCTRL_MASK		(0x3 << 0)
+#define OMAP4430_MODULEMODE_SHIFT	0
+#define OMAP4430_MODULEMODE_MASK	(0x3 << 0)
 
 /*
  * CLKCTRL_IDLEST_*: possible values for the CM_*_CLKCTRL.IDLEST bitfield:
@@ -116,7 +120,7 @@ u32 omap4_cminst_read_inst_reg(u8 part, u16 inst, u16 idx)
 	BUG_ON(part >= OMAP4_MAX_PRCM_PARTITIONS ||
 	       part == OMAP4430_INVALID_PRCM_PARTITION ||
 	       !_cm_bases[part]);
-	return __raw_readl(_cm_bases[part] + inst + idx);
+	return readl_relaxed(_cm_bases[part] + inst + idx);
 }
 
 /* Write into a register in a CM instance */
@@ -125,7 +129,7 @@ void omap4_cminst_write_inst_reg(u32 val, u8 part, u16 inst, u16 idx)
 	BUG_ON(part >= OMAP4_MAX_PRCM_PARTITIONS ||
 	       part == OMAP4430_INVALID_PRCM_PARTITION ||
 	       !_cm_bases[part]);
-	__raw_writel(val, _cm_bases[part] + inst + idx);
+	writel_relaxed(val, _cm_bases[part] + inst + idx);
 }
 
 /* Read-modify-write a register in CM1. Caller must lock */

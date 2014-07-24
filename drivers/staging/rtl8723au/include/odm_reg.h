@@ -102,13 +102,10 @@
 #define	PATHDIV_REG					0xB30
 #define	PATHDIV_TRI					0xBA0
 
-
 /*  */
 /*  Bitmap Definition */
 /*  */
 
-#define	BIT_FA_RESET					BIT0
-
-
+#define	BIT_FA_RESET					BIT(0)
 
 #endif

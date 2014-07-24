@@ -199,6 +199,7 @@ int ima_collect_measurement(struct integrity_iint_cache *iint,
 			    struct evm_ima_xattr_data **xattr_value,
 			    int *xattr_len)
 {
+	const char *audit_cause = "failed";
 	struct inode *inode = file_inode(file);
 	const char *filename = file->f_dentry->d_name.name;
 	int result = 0;
@@ -212,6 +213,12 @@ int ima_collect_measurement(struct integrity_iint_cache *iint,
 
 	if (!(iint->flags & IMA_COLLECTED)) {
 		u64 i_version = file_inode(file)->i_version;
+
+		if (file->f_flags & O_DIRECT) {
+			audit_cause = "failed(directio)";
+			result = -EACCES;
+			goto out;
+		}
 
 		/* use default hash algorithm */
 		hash.hdr.algo = ima_hash_algo;
@@ -233,9 +240,10 @@ int ima_collect_measurement(struct integrity_iint_cache *iint,
 				result = -ENOMEM;
 		}
 	}
+out:
 	if (result)
 		integrity_audit_msg(AUDIT_INTEGRITY_DATA, inode,
-				    filename, "collect_data", "failed",
+				    filename, "collect_data", audit_cause,
 				    result, 0);
 	return result;
 }

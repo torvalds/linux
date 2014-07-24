@@ -312,6 +312,7 @@
 			arm,vexpress-sysreg,func = <12 0>;
 			label = "A15 Pcore";
 		};
+
 		power@1 {
 			/* Total power for the three A7 cores */
 			compatible = "arm,vexpress-power";
@@ -322,14 +323,14 @@
 		energy@0 {
 			/* Total energy for the two A15 cores */
 			compatible = "arm,vexpress-energy";
-			arm,vexpress-sysreg,func = <13 0>;
+			arm,vexpress-sysreg,func = <13 0>, <13 1>;
 			label = "A15 Jcore";
 		};
 
 		energy@2 {
 			/* Total energy for the three A7 cores */
 			compatible = "arm,vexpress-energy";
-			arm,vexpress-sysreg,func = <13 2>;
+			arm,vexpress-sysreg,func = <13 2>, <13 3>;
 			label = "A7 Jcore";
 		};
 	};

@@ -442,7 +442,7 @@ static int get_filter(void __user *arg, struct sock_filter **p)
 {
 	struct sock_fprog uprog;
 	struct sock_filter *code = NULL;
-	int len, err;
+	int len;
 
 	if (copy_from_user(&uprog, arg, sizeof(uprog)))
 		return -EFAULT;
@@ -457,12 +457,6 @@ static int get_filter(void __user *arg, struct sock_filter **p)
 	code = memdup_user(uprog.filter, len);
 	if (IS_ERR(code))
 		return PTR_ERR(code);
-
-	err = sk_chk_filter(code, uprog.len);
-	if (err) {
-		kfree(code);
-		return err;
-	}
 
 	*p = code;
 	return uprog.len;
@@ -634,7 +628,7 @@ isdn_ppp_ioctl(int min, struct file *file, unsigned int cmd, unsigned long arg)
 #ifdef CONFIG_IPPP_FILTER
 	case PPPIOCSPASS:
 	{
-		struct sock_fprog fprog;
+		struct sock_fprog_kern fprog;
 		struct sock_filter *code;
 		int err, len = get_filter(argp, &code);
 
@@ -653,7 +647,7 @@ isdn_ppp_ioctl(int min, struct file *file, unsigned int cmd, unsigned long arg)
 	}
 	case PPPIOCSACTIVE:
 	{
-		struct sock_fprog fprog;
+		struct sock_fprog_kern fprog;
 		struct sock_filter *code;
 		int err, len = get_filter(argp, &code);
 

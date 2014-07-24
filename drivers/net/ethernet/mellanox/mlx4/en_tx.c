@@ -108,12 +108,12 @@ int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
 
 	ring->buf = ring->wqres.buf.direct.buf;
 
-	en_dbg(DRV, priv, "Allocated TX ring (addr:%p) - buf:%p size:%d "
-	       "buf_size:%d dma:%llx\n", ring, ring->buf, ring->size,
-	       ring->buf_size, (unsigned long long) ring->wqres.buf.direct.map);
+	en_dbg(DRV, priv, "Allocated TX ring (addr:%p) - buf:%p size:%d buf_size:%d dma:%llx\n",
+	       ring, ring->buf, ring->size, ring->buf_size,
+	       (unsigned long long) ring->wqres.buf.direct.map);
 
 	ring->qpn = qpn;
-	err = mlx4_qp_alloc(mdev->dev, ring->qpn, &ring->qp);
+	err = mlx4_qp_alloc(mdev->dev, ring->qpn, &ring->qp, GFP_KERNEL);
 	if (err) {
 		en_err(priv, "Failed allocating qp %d\n", ring->qpn);
 		goto err_map;
@@ -122,7 +122,7 @@ int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
 
 	err = mlx4_bf_alloc(mdev->dev, &ring->bf, node);
 	if (err) {
-		en_dbg(DRV, priv, "working without blueflame (%d)", err);
+		en_dbg(DRV, priv, "working without blueflame (%d)\n", err);
 		ring->bf.uar = &mdev->priv_uar;
 		ring->bf.uar->map = mdev->uar_map;
 		ring->bf_enabled = false;
@@ -351,9 +351,8 @@ int mlx4_en_free_tx_buf(struct net_device *dev, struct mlx4_en_tx_ring *ring)
 	return cnt;
 }
 
-static int mlx4_en_process_tx_cq(struct net_device *dev,
-				 struct mlx4_en_cq *cq,
-				 int budget)
+static bool mlx4_en_process_tx_cq(struct net_device *dev,
+				 struct mlx4_en_cq *cq)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	struct mlx4_cq *mcq = &cq->mcq;
@@ -372,9 +371,10 @@ static int mlx4_en_process_tx_cq(struct net_device *dev,
 	int factor = priv->cqe_factor;
 	u64 timestamp = 0;
 	int done = 0;
+	int budget = priv->tx_work_limit;
 
 	if (!priv->port_up)
-		return 0;
+		return true;
 
 	index = cons_index & size_mask;
 	cqe = &buf[(index << factor) + factor];
@@ -447,7 +447,7 @@ static int mlx4_en_process_tx_cq(struct net_device *dev,
 		netif_tx_wake_queue(ring->tx_queue);
 		ring->wake_queue++;
 	}
-	return done;
+	return done < budget;
 }
 
 void mlx4_en_tx_irq(struct mlx4_cq *mcq)
@@ -467,18 +467,16 @@ int mlx4_en_poll_tx_cq(struct napi_struct *napi, int budget)
 	struct mlx4_en_cq *cq = container_of(napi, struct mlx4_en_cq, napi);
 	struct net_device *dev = cq->dev;
 	struct mlx4_en_priv *priv = netdev_priv(dev);
-	int done;
+	int clean_complete;
 
-	done = mlx4_en_process_tx_cq(dev, cq, budget);
+	clean_complete = mlx4_en_process_tx_cq(dev, cq);
+	if (!clean_complete)
+		return budget;
 
-	/* If we used up all the quota - we're probably not done yet... */
-	if (done < budget) {
-		/* Done for now */
-		napi_complete(napi);
-		mlx4_en_arm_cq(priv, cq);
-		return done;
-	}
-	return budget;
+	napi_complete(napi);
+	mlx4_en_arm_cq(priv, cq);
+
+	return 0;
 }
 
 static struct mlx4_en_tx_desc *mlx4_en_bounce_to_desc(struct mlx4_en_priv *priv,

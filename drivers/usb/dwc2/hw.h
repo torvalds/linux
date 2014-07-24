@@ -109,6 +109,7 @@
 #define GUSBCFG_FSINTF			(1 << 5)
 #define GUSBCFG_ULPI_UTMI_SEL		(1 << 4)
 #define GUSBCFG_PHYIF16			(1 << 3)
+#define GUSBCFG_PHYIF8			(0 << 3)
 #define GUSBCFG_TOUTCAL_MASK		(0x7 << 0)
 #define GUSBCFG_TOUTCAL_SHIFT		0
 #define GUSBCFG_TOUTCAL_LIMIT		0x7
@@ -403,6 +404,7 @@
 #define FIFOSIZE_DEPTH_SHIFT		16
 #define FIFOSIZE_STARTADDR_MASK		(0xffff << 0)
 #define FIFOSIZE_STARTADDR_SHIFT	0
+#define FIFOSIZE_DEPTH_GET(_x)		(((_x) >> 16) & 0xffff)
 
 /* Device mode registers */
 
@@ -519,11 +521,11 @@
 #define DXEPCTL_STALL			(1 << 21)
 #define DXEPCTL_SNP			(1 << 20)
 #define DXEPCTL_EPTYPE_MASK		(0x3 << 18)
-#define DXEPCTL_EPTYPE_SHIFT		18
-#define DXEPCTL_EPTYPE_CONTROL		0
-#define DXEPCTL_EPTYPE_ISO		1
-#define DXEPCTL_EPTYPE_BULK		2
-#define DXEPCTL_EPTYPE_INTTERUPT	3
+#define DXEPCTL_EPTYPE_CONTROL		(0x0 << 18)
+#define DXEPCTL_EPTYPE_ISO		(0x1 << 18)
+#define DXEPCTL_EPTYPE_BULK		(0x2 << 18)
+#define DXEPCTL_EPTYPE_INTERRUPT	(0x3 << 18)
+
 #define DXEPCTL_NAKSTS			(1 << 17)
 #define DXEPCTL_DPID			(1 << 16)
 #define DXEPCTL_EOFRNUM			(1 << 16)

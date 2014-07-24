@@ -21,6 +21,12 @@ Required Properties:
     GPIO_ACTIVE_HIGH and GPIO_ACTIVE_LOW flags are supported.
   - gpio-ranges: Range of pins managed by the GPIO controller.
 
+Optional properties:
+
+  - clocks: Must contain a reference to the functional clock.  The property is
+    mandatory if the hardware implements a controllable functional clock for
+    the GPIO instance.
+
 Please refer to gpio.txt in this directory for details of gpio-ranges property
 and the common GPIO bindings used by client devices.
 

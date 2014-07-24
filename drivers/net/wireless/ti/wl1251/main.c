@@ -550,6 +550,34 @@ static void wl1251_op_remove_interface(struct ieee80211_hw *hw,
 	mutex_unlock(&wl->mutex);
 }
 
+static int wl1251_build_null_data(struct wl1251 *wl)
+{
+	struct sk_buff *skb = NULL;
+	int size;
+	void *ptr;
+	int ret = -ENOMEM;
+
+	if (wl->bss_type == BSS_TYPE_IBSS) {
+		size = sizeof(struct wl12xx_null_data_template);
+		ptr = NULL;
+	} else {
+		skb = ieee80211_nullfunc_get(wl->hw, wl->vif);
+		if (!skb)
+			goto out;
+		size = skb->len;
+		ptr = skb->data;
+	}
+
+	ret = wl1251_cmd_template_set(wl, CMD_NULL_DATA, ptr, size);
+
+out:
+	dev_kfree_skb(skb);
+	if (ret)
+		wl1251_warning("cmd buld null data failed: %d", ret);
+
+	return ret;
+}
+
 static int wl1251_build_qos_null_data(struct wl1251 *wl)
 {
 	struct ieee80211_qos_hdr template;
@@ -685,16 +713,6 @@ static int wl1251_op_config(struct ieee80211_hw *hw, u32 changed)
 			goto out_sleep;
 
 		wl->power_level = conf->power_level;
-	}
-
-	/*
-	 * Tell stack that connection is lost because hw encryption isn't
-	 * supported in monitor mode.
-	 * This requires temporary enabling of the hw connection monitor flag
-	 */
-	if ((changed & IEEE80211_CONF_CHANGE_MONITOR) && wl->vif) {
-		wl->hw->flags |= IEEE80211_HW_CONNECTION_MONITOR;
-		ieee80211_connection_loss(wl->vif);
 	}
 
 out_sleep:
@@ -1103,24 +1121,19 @@ static void wl1251_op_bss_info_changed(struct ieee80211_hw *hw,
 		wl->rssi_thold = bss_conf->cqm_rssi_thold;
 	}
 
-	if (changed & BSS_CHANGED_BSSID) {
+	if ((changed & BSS_CHANGED_BSSID) &&
+	    memcmp(wl->bssid, bss_conf->bssid, ETH_ALEN)) {
 		memcpy(wl->bssid, bss_conf->bssid, ETH_ALEN);
 
-		skb = ieee80211_nullfunc_get(wl->hw, wl->vif);
-		if (!skb)
-			goto out_sleep;
+		if (!is_zero_ether_addr(wl->bssid)) {
+			ret = wl1251_build_null_data(wl);
+			if (ret < 0)
+				goto out_sleep;
 
-		ret = wl1251_cmd_template_set(wl, CMD_NULL_DATA,
-					      skb->data, skb->len);
-		dev_kfree_skb(skb);
-		if (ret < 0)
-			goto out_sleep;
+			ret = wl1251_build_qos_null_data(wl);
+			if (ret < 0)
+				goto out_sleep;
 
-		ret = wl1251_build_qos_null_data(wl);
-		if (ret < 0)
-			goto out;
-
-		if (wl->bss_type != BSS_TYPE_IBSS) {
 			ret = wl1251_join(wl, wl->bss_type, wl->channel,
 					  wl->beacon_int, wl->dtim_period);
 			if (ret < 0)
@@ -1129,9 +1142,6 @@ static void wl1251_op_bss_info_changed(struct ieee80211_hw *hw,
 	}
 
 	if (changed & BSS_CHANGED_ASSOC) {
-		/* Disable temporary enabled hw connection monitor flag */
-		wl->hw->flags &= ~IEEE80211_HW_CONNECTION_MONITOR;
-
 		if (bss_conf->assoc) {
 			wl->beacon_int = bss_conf->beacon_int;
 
@@ -1216,8 +1226,8 @@ static void wl1251_op_bss_info_changed(struct ieee80211_hw *hw,
 		if (ret < 0)
 			goto out_sleep;
 
-		ret = wl1251_join(wl, wl->bss_type, wl->beacon_int,
-				  wl->channel, wl->dtim_period);
+		ret = wl1251_join(wl, wl->bss_type, wl->channel,
+				  wl->beacon_int, wl->dtim_period);
 
 		if (ret < 0)
 			goto out_sleep;

@@ -36,7 +36,6 @@
 
 #include <linux/slab.h>
 #include <linux/nfs_fs.h>
-#include <linux/export.h>
 #include "nfsfh.h"
 #include "nfsd.h"
 #include "acl.h"
@@ -402,8 +401,10 @@ sort_pacl(struct posix_acl *pacl)
 	 * by uid/gid. */
 	int i, j;
 
-	if (pacl->a_count <= 4)
-		return; /* no users or groups */
+	/* no users or groups */
+	if (!pacl || pacl->a_count <= 4)
+		return;
+
 	i = 1;
 	while (pacl->a_entries[i].e_tag == ACL_USER)
 		i++;
@@ -530,13 +531,12 @@ posix_state_to_acl(struct posix_acl_state *state, unsigned int flags)
 
 	/*
 	 * ACLs with no ACEs are treated differently in the inheritable
-	 * and effective cases: when there are no inheritable ACEs, we
-	 * set a zero-length default posix acl:
+	 * and effective cases: when there are no inheritable ACEs,
+	 * calls ->set_acl with a NULL ACL structure.
 	 */
-	if (state->empty && (flags & NFS4_ACL_TYPE_DEFAULT)) {
-		pacl = posix_acl_alloc(0, GFP_KERNEL);
-		return pacl ? pacl : ERR_PTR(-ENOMEM);
-	}
+	if (state->empty && (flags & NFS4_ACL_TYPE_DEFAULT))
+		return NULL;
+
 	/*
 	 * When there are no effective ACEs, the following will end
 	 * up setting a 3-element effective posix ACL with all
@@ -589,7 +589,7 @@ posix_state_to_acl(struct posix_acl_state *state, unsigned int flags)
 		add_to_mask(state, &state->groups->aces[i].perms);
 	}
 
-	if (!state->users->n && !state->groups->n) {
+	if (state->users->n || state->groups->n) {
 		pace++;
 		pace->e_tag = ACL_MASK;
 		low_mode_from_nfs4(state->mask.allow, &pace->e_perm, flags);
@@ -919,20 +919,19 @@ nfs4_acl_get_whotype(char *p, u32 len)
 	return NFS4_ACL_WHO_NAMED;
 }
 
-__be32 nfs4_acl_write_who(int who, __be32 **p, int *len)
+__be32 nfs4_acl_write_who(struct xdr_stream *xdr, int who)
 {
+	__be32 *p;
 	int i;
-	int bytes;
 
 	for (i = 0; i < ARRAY_SIZE(s2t_map); i++) {
 		if (s2t_map[i].type != who)
 			continue;
-		bytes = 4 + (XDR_QUADLEN(s2t_map[i].stringlen) << 2);
-		if (bytes > *len)
+		p = xdr_reserve_space(xdr, s2t_map[i].stringlen + 4);
+		if (!p)
 			return nfserr_resource;
-		*p = xdr_encode_opaque(*p, s2t_map[i].string,
+		p = xdr_encode_opaque(p, s2t_map[i].string,
 					s2t_map[i].stringlen);
-		*len -= bytes;
 		return 0;
 	}
 	WARN_ON_ONCE(1);

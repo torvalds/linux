@@ -59,7 +59,7 @@
 			/* Device Bus parameters are required */
 
 			/* Read parameters */
-			devbus,bus-width    = <8>;
+			devbus,bus-width    = <16>;
 			devbus,turn-off-ps  = <60000>;
 			devbus,badr-skew-ps = <0>;
 			devbus,acc-first-ps = <124000>;
@@ -104,19 +104,15 @@
 
 		internal-regs {
 			serial@12000 {
-				clock-frequency = <250000000>;
 				status = "okay";
 			};
 			serial@12100 {
-				clock-frequency = <250000000>;
 				status = "okay";
 			};
 			serial@12200 {
-				clock-frequency = <250000000>;
 				status = "okay";
 			};
 			serial@12300 {
-				clock-frequency = <250000000>;
 				status = "okay";
 			};
 
@@ -146,22 +142,22 @@
 			ethernet@70000 {
 				status = "okay";
 				phy = <&phy0>;
-				phy-mode = "rgmii-id";
+				phy-mode = "qsgmii";
 			};
 			ethernet@74000 {
 				status = "okay";
 				phy = <&phy1>;
-				phy-mode = "rgmii-id";
+				phy-mode = "qsgmii";
 			};
 			ethernet@30000 {
 				status = "okay";
 				phy = <&phy2>;
-				phy-mode = "rgmii-id";
+				phy-mode = "qsgmii";
 			};
 			ethernet@34000 {
 				status = "okay";
 				phy = <&phy3>;
-				phy-mode = "rgmii-id";
+				phy-mode = "qsgmii";
 			};
 
 			/* Front-side USB slot */

@@ -505,13 +505,6 @@ static int cirrus_vga_get_modes(struct drm_connector *connector)
 	return count;
 }
 
-static int cirrus_vga_mode_valid(struct drm_connector *connector,
-				 struct drm_display_mode *mode)
-{
-	/* Any mode we've added is valid */
-	return MODE_OK;
-}
-
 static struct drm_encoder *cirrus_connector_best_encoder(struct drm_connector
 						  *connector)
 {
@@ -546,7 +539,6 @@ static void cirrus_connector_destroy(struct drm_connector *connector)
 
 struct drm_connector_helper_funcs cirrus_vga_connector_helper_funcs = {
 	.get_modes = cirrus_vga_get_modes,
-	.mode_valid = cirrus_vga_mode_valid,
 	.best_encoder = cirrus_connector_best_encoder,
 };
 

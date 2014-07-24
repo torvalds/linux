@@ -14,13 +14,6 @@ config CAN_C_CAN_PLATFORM
 	  SPEAr1310 and SPEAr320 evaluation boards & TI (www.ti.com)
 	  boards like am335x, dm814x, dm813x and dm811x.
 
-config CAN_C_CAN_STRICT_FRAME_ORDERING
-	bool "Force a strict RX CAN frame order (may cause frame loss)"
-	---help---
-	  The RX split buffer prevents packet reordering but can cause packet
-	  loss. Only enable this option when you accept to lose CAN frames
-	  in favour of getting the received CAN frames in the correct order.
-
 config CAN_C_CAN_PCI
 	tristate "Generic PCI Bus based C_CAN/D_CAN driver"
 	depends on PCI

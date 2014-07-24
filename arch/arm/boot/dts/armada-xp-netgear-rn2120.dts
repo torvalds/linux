@@ -138,7 +138,6 @@
 			};
 
 			serial@12000 {
-				clocks = <&coreclk 0>;
 				status = "okay";
 			};
 

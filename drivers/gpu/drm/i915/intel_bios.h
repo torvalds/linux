@@ -282,6 +282,9 @@ struct bdb_general_definitions {
 	union child_device_config devices[0];
 } __packed;
 
+/* Mask for DRRS / Panel Channel / SSC / BLT control bits extraction */
+#define MODE_MASK		0x3
+
 struct bdb_lvds_options {
 	u8 panel_type;
 	u8 rsvd1;
@@ -294,6 +297,18 @@ struct bdb_lvds_options {
 	u8 lvds_edid:1;
 	u8 rsvd2:1;
 	u8 rsvd4;
+	/* LVDS Panel channel bits stored here */
+	u32 lvds_panel_channel_bits;
+	/* LVDS SSC (Spread Spectrum Clock) bits stored here. */
+	u16 ssc_bits;
+	u16 ssc_freq;
+	u16 ssc_ddt;
+	/* Panel color depth defined here */
+	u16 panel_color_depth;
+	/* LVDS panel type bits stored here */
+	u32 dps_panel_type_bits;
+	/* LVDS backlight control type bits stored here */
+	u32 blt_control_type_bits;
 } __packed;
 
 /* LFP pointer table contains entries to the struct below */
@@ -482,6 +497,20 @@ struct bdb_driver_features {
 
 	u8 hdmi_termination;
 	u8 custom_vbt_version;
+	/* Driver features data block */
+	u16 rmpm_enabled:1;
+	u16 s2ddt_enabled:1;
+	u16 dpst_enabled:1;
+	u16 bltclt_enabled:1;
+	u16 adb_enabled:1;
+	u16 drrs_enabled:1;
+	u16 grs_enabled:1;
+	u16 gpmt_enabled:1;
+	u16 tbt_enabled:1;
+	u16 psr_enabled:1;
+	u16 ips_enabled:1;
+	u16 reserved3:4;
+	u16 pc_feature_valid:1;
 } __packed;
 
 #define EDP_18BPP	0
@@ -714,6 +743,10 @@ int intel_parse_bios(struct drm_device *dev);
 #define DVO_PORT_DPC	8
 #define DVO_PORT_DPD	9
 #define DVO_PORT_DPA	10
+#define DVO_PORT_MIPIA	21
+#define DVO_PORT_MIPIB	22
+#define DVO_PORT_MIPIC	23
+#define DVO_PORT_MIPID	24
 
 /* Block 52 contains MIPI Panel info
  * 6 such enteries will there. Index into correct
@@ -868,6 +901,37 @@ struct bdb_mipi_config {
 struct bdb_mipi_sequence {
 	u8 version;
 	u8 data[0];
+};
+
+/* MIPI Sequnece Block definitions */
+enum mipi_seq {
+	MIPI_SEQ_UNDEFINED = 0,
+	MIPI_SEQ_ASSERT_RESET,
+	MIPI_SEQ_INIT_OTP,
+	MIPI_SEQ_DISPLAY_ON,
+	MIPI_SEQ_DISPLAY_OFF,
+	MIPI_SEQ_DEASSERT_RESET,
+	MIPI_SEQ_MAX
+};
+
+enum mipi_seq_element {
+	MIPI_SEQ_ELEM_UNDEFINED = 0,
+	MIPI_SEQ_ELEM_SEND_PKT,
+	MIPI_SEQ_ELEM_DELAY,
+	MIPI_SEQ_ELEM_GPIO,
+	MIPI_SEQ_ELEM_STATUS,
+	MIPI_SEQ_ELEM_MAX
+};
+
+enum mipi_gpio_pin_index {
+	MIPI_GPIO_UNDEFINED = 0,
+	MIPI_GPIO_PANEL_ENABLE,
+	MIPI_GPIO_BL_ENABLE,
+	MIPI_GPIO_PWM_ENABLE,
+	MIPI_GPIO_RESET_N,
+	MIPI_GPIO_PWR_DOWN_R,
+	MIPI_GPIO_STDBY_RST_N,
+	MIPI_GPIO_MAX
 };
 
 #endif /* _I830_BIOS_H_ */

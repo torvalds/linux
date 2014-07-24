@@ -1,6 +1,6 @@
 /* visorchipset.h
  *
- * Copyright © 2010 - 2013 UNISYS CORPORATION
+ * Copyright (C) 2010 - 2013 UNISYS CORPORATION
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -17,6 +17,8 @@
 
 #ifndef __VISORCHIPSET_H__
 #define __VISORCHIPSET_H__
+
+#include <linux/uuid.h>
 
 #include "timskmod.h"
 #include "channel.h"
@@ -63,8 +65,8 @@ typedef struct {
 	HOSTADDRESS channelAddr;
 	struct InterruptInfo intr;
 	U64 nChannelBytes;
-	GUID channelTypeGuid;
-	GUID channelInstGuid;
+	uuid_le channelTypeGuid;
+	uuid_le channelInstGuid;
 
 } VISORCHIPSET_CHANNEL_INFO;
 
@@ -77,7 +79,7 @@ typedef struct {
 	struct list_head entry;
 	U32 busNo;
 	U32 devNo;
-	GUID devInstGuid;
+	uuid_le devInstGuid;
 	VISORCHIPSET_STATE state;
 	VISORCHIPSET_CHANNEL_INFO chanInfo;
 	U32 Reserved1;		/* CONTROLVM_ID */
@@ -125,7 +127,7 @@ typedef struct {
 	U32 busNo;
 	VISORCHIPSET_STATE state;
 	VISORCHIPSET_CHANNEL_INFO chanInfo;
-	GUID partitionGuid;
+	uuid_le partitionGuid;
 	U64 partitionHandle;
 	U8 *name;		/* UTF8 */
 	U8 *description;	/* UTF8 */
@@ -161,7 +163,7 @@ findbus(struct list_head *list, U32 busNo)
 typedef struct {
 	U32 switchNo;
 	VISORCHIPSET_STATE state;
-	GUID switchTypeGuid;
+	uuid_le switchTypeGuid;
 	U8 *authService1;
 	U8 *authService2;
 	U8 *authService3;
@@ -181,7 +183,7 @@ typedef struct {
 	U32 switchNo;
 	U32 externalPortNo;
 	VISORCHIPSET_STATE state;
-	GUID networkZoneGuid;
+	uuid_le networkZoneGuid;
 	int pdPort;
 	U8 *ip;
 	U8 *ipNetmask;
@@ -224,7 +226,7 @@ typedef struct {
 	void (*device_destroy)(ulong busNo, ulong devNo);
 	void (*device_pause)(ulong busNo, ulong devNo);
 	void (*device_resume)(ulong busNo, ulong devNo);
-	int (*get_channel_info)(GUID typeGuid, ulong *minSize,
+	int (*get_channel_info)(uuid_le typeGuid, ulong *minSize,
 				 ulong *maxSize);
 } VISORCHIPSET_BUSDEV_NOTIFIERS;
 

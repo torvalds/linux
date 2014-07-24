@@ -39,45 +39,41 @@
 #include "name_distr.h"
 #include "subscr.h"
 #include "port.h"
+#include "socket.h"
 #include "node.h"
 #include "config.h"
 
 /*
  * The TIPC locking policy is designed to ensure a very fine locking
  * granularity, permitting complete parallel access to individual
- * port and node/link instances. The code consists of three major
+ * port and node/link instances. The code consists of four major
  * locking domains, each protected with their own disjunct set of locks.
  *
- * 1: The routing hierarchy.
- *    Comprises the structures 'zone', 'cluster', 'node', 'link'
- *    and 'bearer'. The whole hierarchy is protected by a big
- *    read/write lock, tipc_net_lock, to enssure that nothing is added
- *    or removed while code is accessing any of these structures.
- *    This layer must not be called from the two others while they
- *    hold any of their own locks.
- *    Neither must it itself do any upcalls to the other two before
- *    it has released tipc_net_lock and other protective locks.
+ * 1: The bearer level.
+ *    RTNL lock is used to serialize the process of configuring bearer
+ *    on update side, and RCU lock is applied on read side to make
+ *    bearer instance valid on both paths of message transmission and
+ *    reception.
  *
- *   Within the tipc_net_lock domain there are two sub-domains;'node' and
- *   'bearer', where local write operations are permitted,
- *   provided that those are protected by individual spin_locks
- *   per instance. Code holding tipc_net_lock(read) and a node spin_lock
- *   is permitted to poke around in both the node itself and its
- *   subordinate links. I.e, it can update link counters and queues,
- *   change link state, send protocol messages, and alter the
- *   "active_links" array in the node; but it can _not_ remove a link
- *   or a node from the overall structure.
- *   Correspondingly, individual bearers may change status within a
- *   tipc_net_lock(read), protected by an individual spin_lock ber bearer
- *   instance, but it needs tipc_net_lock(write) to remove/add any bearers.
+ * 2: The node and link level.
+ *    All node instances are saved into two tipc_node_list and node_htable
+ *    lists. The two lists are protected by node_list_lock on write side,
+ *    and they are guarded with RCU lock on read side. Especially node
+ *    instance is destroyed only when TIPC module is removed, and we can
+ *    confirm that there has no any user who is accessing the node at the
+ *    moment. Therefore, Except for iterating the two lists within RCU
+ *    protection, it's no needed to hold RCU that we access node instance
+ *    in other places.
  *
+ *    In addition, all members in node structure including link instances
+ *    are protected by node spin lock.
  *
- *  2: The transport level of the protocol.
- *     This consists of the structures port, (and its user level
- *     representations, such as user_port and tipc_sock), reference and
- *     tipc_user (port.c, reg.c, socket.c).
+ * 3: The transport level of the protocol.
+ *    This consists of the structures port, (and its user level
+ *    representations, such as user_port and tipc_sock), reference and
+ *    tipc_user (port.c, reg.c, socket.c).
  *
- *     This layer has four different locks:
+ *    This layer has four different locks:
  *     - The tipc_port spin_lock. This is protecting each port instance
  *       from parallel data access and removal. Since we can not place
  *       this lock in the port itself, it has been placed in the
@@ -96,7 +92,7 @@
  *       There are two such lists; 'port_list', which is used for management,
  *       and 'wait_list', which is used to queue ports during congestion.
  *
- *  3: The name table (name_table.c, name_distr.c, subscription.c)
+ *  4: The name table (name_table.c, name_distr.c, subscription.c)
  *     - There is one big read/write-lock (tipc_nametbl_lock) protecting the
  *       overall name table structure. Nothing must be added/removed to
  *       this structure without holding write access to it.
@@ -107,8 +103,6 @@
  *       This is always used within the scope of a tipc_nametbl_lock(read).
  *     - A local spin_lock protecting the queue of subscriber events.
 */
-
-DEFINE_RWLOCK(tipc_net_lock);
 
 static void net_route_named_msg(struct sk_buff *buf)
 {
@@ -148,7 +142,7 @@ void tipc_net_route_msg(struct sk_buff *buf)
 			if (msg_mcast(msg))
 				tipc_port_mcast_rcv(buf, NULL);
 			else if (msg_destport(msg))
-				tipc_port_rcv(buf);
+				tipc_sk_rcv(buf);
 			else
 				net_route_named_msg(buf);
 			return;
@@ -171,22 +165,25 @@ void tipc_net_route_msg(struct sk_buff *buf)
 	tipc_link_xmit(buf, dnode, msg_link_selector(msg));
 }
 
-void tipc_net_start(u32 addr)
+int tipc_net_start(u32 addr)
 {
 	char addr_string[16];
+	int res;
 
-	write_lock_bh(&tipc_net_lock);
 	tipc_own_addr = addr;
 	tipc_named_reinit();
 	tipc_port_reinit();
-	tipc_bclink_init();
-	write_unlock_bh(&tipc_net_lock);
+	res = tipc_bclink_init();
+	if (res)
+		return res;
 
 	tipc_nametbl_publish(TIPC_CFG_SRV, tipc_own_addr, tipc_own_addr,
 			     TIPC_ZONE_SCOPE, 0, tipc_own_addr);
+
 	pr_info("Started in network mode\n");
 	pr_info("Own node address %s, network identity %u\n",
 		tipc_addr_string_fill(addr_string, tipc_own_addr), tipc_net_id);
+	return 0;
 }
 
 void tipc_net_stop(void)
@@ -195,11 +192,11 @@ void tipc_net_stop(void)
 		return;
 
 	tipc_nametbl_withdraw(TIPC_CFG_SRV, tipc_own_addr, 0, tipc_own_addr);
-	write_lock_bh(&tipc_net_lock);
+	rtnl_lock();
 	tipc_bearer_stop();
 	tipc_bclink_stop();
 	tipc_node_stop();
-	write_unlock_bh(&tipc_net_lock);
+	rtnl_unlock();
 
 	pr_info("Left network mode\n");
 }

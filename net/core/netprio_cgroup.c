@@ -140,7 +140,7 @@ cgrp_css_alloc(struct cgroup_subsys_state *parent_css)
 
 static int cgrp_css_online(struct cgroup_subsys_state *css)
 {
-	struct cgroup_subsys_state *parent_css = css_parent(css);
+	struct cgroup_subsys_state *parent_css = css->parent;
 	struct net_device *dev;
 	int ret = 0;
 
@@ -185,15 +185,15 @@ static int read_priomap(struct seq_file *sf, void *v)
 	return 0;
 }
 
-static int write_priomap(struct cgroup_subsys_state *css, struct cftype *cft,
-			 char *buffer)
+static ssize_t write_priomap(struct kernfs_open_file *of,
+			     char *buf, size_t nbytes, loff_t off)
 {
 	char devname[IFNAMSIZ + 1];
 	struct net_device *dev;
 	u32 prio;
 	int ret;
 
-	if (sscanf(buffer, "%"__stringify(IFNAMSIZ)"s %u", devname, &prio) != 2)
+	if (sscanf(buf, "%"__stringify(IFNAMSIZ)"s %u", devname, &prio) != 2)
 		return -EINVAL;
 
 	dev = dev_get_by_name(&init_net, devname);
@@ -202,11 +202,11 @@ static int write_priomap(struct cgroup_subsys_state *css, struct cftype *cft,
 
 	rtnl_lock();
 
-	ret = netprio_set_prio(css, dev, prio);
+	ret = netprio_set_prio(of_css(of), dev, prio);
 
 	rtnl_unlock();
 	dev_put(dev);
-	return ret;
+	return ret ?: nbytes;
 }
 
 static int update_netprio(const void *v, struct file *file, unsigned n)
@@ -239,7 +239,7 @@ static struct cftype ss_files[] = {
 	{
 		.name = "ifpriomap",
 		.seq_show = read_priomap,
-		.write_string = write_priomap,
+		.write = write_priomap,
 	},
 	{ }	/* terminate */
 };

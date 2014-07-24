@@ -1109,7 +1109,7 @@ static void au0828_init_tuner(struct au0828_dev *dev)
 	/* If we've never sent the standard in tuner core, do so now.
 	   We don't do this at device probe because we don't want to
 	   incur the cost of a firmware load */
-	v4l2_device_call_all(&dev->v4l2_dev, 0, core, s_std, dev->std);
+	v4l2_device_call_all(&dev->v4l2_dev, 0, video, s_std, dev->std);
 	v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, s_frequency, &f);
 	i2c_gate_ctrl(dev, 0);
 }
@@ -1368,7 +1368,7 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id norm)
 	   have to make the au0828 bridge adjust the size of its capture
 	   buffer, which is currently hardcoded at 720x480 */
 
-	v4l2_device_call_all(&dev->v4l2_dev, 0, core, s_std, norm);
+	v4l2_device_call_all(&dev->v4l2_dev, 0, video, s_std, norm);
 
 	i2c_gate_ctrl(dev, 0);
 

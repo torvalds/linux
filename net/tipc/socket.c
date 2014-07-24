@@ -36,6 +36,7 @@
 
 #include "core.h"
 #include "port.h"
+#include "node.h"
 
 #include <linux/export.h>
 
@@ -44,7 +45,7 @@
 
 #define CONN_TIMEOUT_DEFAULT	8000	/* default connect timeout = 8s */
 
-static int backlog_rcv(struct sock *sk, struct sk_buff *skb);
+static int tipc_backlog_rcv(struct sock *sk, struct sk_buff *skb);
 static void tipc_data_ready(struct sock *sk);
 static void tipc_write_space(struct sock *sk);
 static int tipc_release(struct socket *sock);
@@ -195,11 +196,12 @@ static int tipc_sk_create(struct net *net, struct socket *sock,
 	sock->state = state;
 
 	sock_init_data(sock, sk);
-	sk->sk_backlog_rcv = backlog_rcv;
+	sk->sk_backlog_rcv = tipc_backlog_rcv;
 	sk->sk_rcvbuf = sysctl_tipc_rmem[1];
 	sk->sk_data_ready = tipc_data_ready;
 	sk->sk_write_space = tipc_write_space;
-	tipc_sk(sk)->conn_timeout = CONN_TIMEOUT_DEFAULT;
+	tsk->conn_timeout = CONN_TIMEOUT_DEFAULT;
+	atomic_set(&tsk->dupl_rcvcnt, 0);
 	tipc_port_unlock(port);
 
 	if (sock->state == SS_READY) {
@@ -983,10 +985,11 @@ static int anc_data_recv(struct msghdr *m, struct tipc_msg *msg,
 	return 0;
 }
 
-static int tipc_wait_for_rcvmsg(struct socket *sock, long timeo)
+static int tipc_wait_for_rcvmsg(struct socket *sock, long *timeop)
 {
 	struct sock *sk = sock->sk;
 	DEFINE_WAIT(wait);
+	long timeo = *timeop;
 	int err;
 
 	for (;;) {
@@ -1011,6 +1014,7 @@ static int tipc_wait_for_rcvmsg(struct socket *sock, long timeo)
 			break;
 	}
 	finish_wait(sk_sleep(sk), &wait);
+	*timeop = timeo;
 	return err;
 }
 
@@ -1054,7 +1058,7 @@ static int tipc_recvmsg(struct kiocb *iocb, struct socket *sock,
 restart:
 
 	/* Look for a message in receive queue; wait if necessary */
-	res = tipc_wait_for_rcvmsg(sock, timeo);
+	res = tipc_wait_for_rcvmsg(sock, &timeo);
 	if (res)
 		goto exit;
 
@@ -1100,7 +1104,7 @@ restart:
 	/* Consume received message (optional) */
 	if (likely(!(flags & MSG_PEEK))) {
 		if ((sock->state != SS_READY) &&
-		    (++port->conn_unacked >= TIPC_FLOW_CONTROL_WIN))
+		    (++port->conn_unacked >= TIPC_CONNACK_INTV))
 			tipc_acknowledge(port->ref, port->conn_unacked);
 		advance_rx_queue(sk);
 	}
@@ -1152,7 +1156,7 @@ static int tipc_recv_stream(struct kiocb *iocb, struct socket *sock,
 
 restart:
 	/* Look for a message in receive queue; wait if necessary */
-	res = tipc_wait_for_rcvmsg(sock, timeo);
+	res = tipc_wait_for_rcvmsg(sock, &timeo);
 	if (res)
 		goto exit;
 
@@ -1209,7 +1213,7 @@ restart:
 
 	/* Consume received message (optional) */
 	if (likely(!(flags & MSG_PEEK))) {
-		if (unlikely(++port->conn_unacked >= TIPC_FLOW_CONTROL_WIN))
+		if (unlikely(++port->conn_unacked >= TIPC_CONNACK_INTV))
 			tipc_acknowledge(port->ref, port->conn_unacked);
 		advance_rx_queue(sk);
 	}
@@ -1415,7 +1419,7 @@ static u32 filter_rcv(struct sock *sk, struct sk_buff *buf)
 }
 
 /**
- * backlog_rcv - handle incoming message from backlog queue
+ * tipc_backlog_rcv - handle incoming message from backlog queue
  * @sk: socket
  * @buf: message
  *
@@ -1423,47 +1427,74 @@ static u32 filter_rcv(struct sock *sk, struct sk_buff *buf)
  *
  * Returns 0
  */
-static int backlog_rcv(struct sock *sk, struct sk_buff *buf)
+static int tipc_backlog_rcv(struct sock *sk, struct sk_buff *buf)
 {
 	u32 res;
+	struct tipc_sock *tsk = tipc_sk(sk);
+	uint truesize = buf->truesize;
 
 	res = filter_rcv(sk, buf);
-	if (res)
+	if (unlikely(res))
 		tipc_reject_msg(buf, res);
+
+	if (atomic_read(&tsk->dupl_rcvcnt) < TIPC_CONN_OVERLOAD_LIMIT)
+		atomic_add(truesize, &tsk->dupl_rcvcnt);
+
 	return 0;
 }
 
 /**
  * tipc_sk_rcv - handle incoming message
- * @sk:  socket receiving message
- * @buf: message
- *
- * Called with port lock already taken.
- *
- * Returns TIPC error status code (TIPC_OK if message is not to be rejected)
+ * @buf: buffer containing arriving message
+ * Consumes buffer
+ * Returns 0 if success, or errno: -EHOSTUNREACH
  */
-u32 tipc_sk_rcv(struct sock *sk, struct sk_buff *buf)
+int tipc_sk_rcv(struct sk_buff *buf)
 {
-	u32 res;
+	struct tipc_sock *tsk;
+	struct tipc_port *port;
+	struct sock *sk;
+	u32 dport = msg_destport(buf_msg(buf));
+	int err = TIPC_OK;
+	uint limit;
 
-	/*
-	 * Process message if socket is unlocked; otherwise add to backlog queue
-	 *
-	 * This code is based on sk_receive_skb(), but must be distinct from it
-	 * since a TIPC-specific filter/reject mechanism is utilized
-	 */
-	bh_lock_sock(sk);
-	if (!sock_owned_by_user(sk)) {
-		res = filter_rcv(sk, buf);
-	} else {
-		if (sk_add_backlog(sk, buf, rcvbuf_limit(sk, buf)))
-			res = TIPC_ERR_OVERLOAD;
-		else
-			res = TIPC_OK;
+	/* Forward unresolved named message */
+	if (unlikely(!dport)) {
+		tipc_net_route_msg(buf);
+		return 0;
 	}
-	bh_unlock_sock(sk);
 
-	return res;
+	/* Validate destination */
+	port = tipc_port_lock(dport);
+	if (unlikely(!port)) {
+		err = TIPC_ERR_NO_PORT;
+		goto exit;
+	}
+
+	tsk = tipc_port_to_sock(port);
+	sk = &tsk->sk;
+
+	/* Queue message */
+	bh_lock_sock(sk);
+
+	if (!sock_owned_by_user(sk)) {
+		err = filter_rcv(sk, buf);
+	} else {
+		if (sk->sk_backlog.len == 0)
+			atomic_set(&tsk->dupl_rcvcnt, 0);
+		limit = rcvbuf_limit(sk, buf) + atomic_read(&tsk->dupl_rcvcnt);
+		if (sk_add_backlog(sk, buf, limit))
+			err = TIPC_ERR_OVERLOAD;
+	}
+
+	bh_unlock_sock(sk);
+	tipc_port_unlock(port);
+
+	if (likely(!err))
+		return 0;
+exit:
+	tipc_reject_msg(buf, err);
+	return -EHOSTUNREACH;
 }
 
 static int tipc_wait_for_connect(struct socket *sock, long *timeo_p)
@@ -1905,6 +1936,28 @@ static int tipc_getsockopt(struct socket *sock, int lvl, int opt,
 	return put_user(sizeof(value), ol);
 }
 
+int tipc_ioctl(struct socket *sk, unsigned int cmd, unsigned long arg)
+{
+	struct tipc_sioc_ln_req lnr;
+	void __user *argp = (void __user *)arg;
+
+	switch (cmd) {
+	case SIOCGETLINKNAME:
+		if (copy_from_user(&lnr, argp, sizeof(lnr)))
+			return -EFAULT;
+		if (!tipc_node_get_linkname(lnr.bearer_id, lnr.peer,
+					    lnr.linkname, TIPC_MAX_LINK_NAME)) {
+			if (copy_to_user(argp, &lnr, sizeof(lnr)))
+				return -EFAULT;
+			return 0;
+		}
+		return -EADDRNOTAVAIL;
+		break;
+	default:
+		return -ENOIOCTLCMD;
+	}
+}
+
 /* Protocol switches for the various types of TIPC sockets */
 
 static const struct proto_ops msg_ops = {
@@ -1917,7 +1970,7 @@ static const struct proto_ops msg_ops = {
 	.accept		= sock_no_accept,
 	.getname	= tipc_getname,
 	.poll		= tipc_poll,
-	.ioctl		= sock_no_ioctl,
+	.ioctl		= tipc_ioctl,
 	.listen		= sock_no_listen,
 	.shutdown	= tipc_shutdown,
 	.setsockopt	= tipc_setsockopt,
@@ -1938,7 +1991,7 @@ static const struct proto_ops packet_ops = {
 	.accept		= tipc_accept,
 	.getname	= tipc_getname,
 	.poll		= tipc_poll,
-	.ioctl		= sock_no_ioctl,
+	.ioctl		= tipc_ioctl,
 	.listen		= tipc_listen,
 	.shutdown	= tipc_shutdown,
 	.setsockopt	= tipc_setsockopt,
@@ -1959,7 +2012,7 @@ static const struct proto_ops stream_ops = {
 	.accept		= tipc_accept,
 	.getname	= tipc_getname,
 	.poll		= tipc_poll,
-	.ioctl		= sock_no_ioctl,
+	.ioctl		= tipc_ioctl,
 	.listen		= tipc_listen,
 	.shutdown	= tipc_shutdown,
 	.setsockopt	= tipc_setsockopt,

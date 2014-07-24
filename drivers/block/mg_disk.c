@@ -479,7 +479,7 @@ static unsigned int mg_out(struct mg_host *host,
 
 static void mg_read_one(struct mg_host *host, struct request *req)
 {
-	u16 *buff = (u16 *)req->buffer;
+	u16 *buff = (u16 *)bio_data(req->bio);
 	u32 i;
 
 	for (i = 0; i < MG_SECTOR_SIZE >> 1; i++)
@@ -496,7 +496,7 @@ static void mg_read(struct request *req)
 		mg_bad_rw_intr(host);
 
 	MG_DBG("requested %d sects (from %ld), buffer=0x%p\n",
-	       blk_rq_sectors(req), blk_rq_pos(req), req->buffer);
+	       blk_rq_sectors(req), blk_rq_pos(req), bio_data(req->bio));
 
 	do {
 		if (mg_wait(host, ATA_DRQ,
@@ -514,7 +514,7 @@ static void mg_read(struct request *req)
 
 static void mg_write_one(struct mg_host *host, struct request *req)
 {
-	u16 *buff = (u16 *)req->buffer;
+	u16 *buff = (u16 *)bio_data(req->bio);
 	u32 i;
 
 	for (i = 0; i < MG_SECTOR_SIZE >> 1; i++)
@@ -534,7 +534,7 @@ static void mg_write(struct request *req)
 	}
 
 	MG_DBG("requested %d sects (from %ld), buffer=0x%p\n",
-	       rem, blk_rq_pos(req), req->buffer);
+	       rem, blk_rq_pos(req), bio_data(req->bio));
 
 	if (mg_wait(host, ATA_DRQ,
 		    MG_TMAX_WAIT_WR_DRQ) != MG_ERR_NONE) {
@@ -585,7 +585,7 @@ ok_to_read:
 	mg_read_one(host, req);
 
 	MG_DBG("sector %ld, remaining=%ld, buffer=0x%p\n",
-	       blk_rq_pos(req), blk_rq_sectors(req) - 1, req->buffer);
+	       blk_rq_pos(req), blk_rq_sectors(req) - 1, bio_data(req->bio));
 
 	/* send read confirm */
 	outb(MG_CMD_RD_CONF, (unsigned long)host->dev_base + MG_REG_COMMAND);
@@ -624,7 +624,7 @@ ok_to_write:
 		/* write 1 sector and set handler if remains */
 		mg_write_one(host, req);
 		MG_DBG("sector %ld, remaining=%ld, buffer=0x%p\n",
-		       blk_rq_pos(req), blk_rq_sectors(req), req->buffer);
+		       blk_rq_pos(req), blk_rq_sectors(req), bio_data(req->bio));
 		host->mg_do_intr = mg_write_intr;
 		mod_timer(&host->timer, jiffies + 3 * HZ);
 	}

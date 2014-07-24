@@ -118,16 +118,6 @@ static ssize_t show_mem_start_phys_index(struct device *dev,
 	return sprintf(buf, "%08lx\n", phys_index);
 }
 
-static ssize_t show_mem_end_phys_index(struct device *dev,
-			struct device_attribute *attr, char *buf)
-{
-	struct memory_block *mem = to_memory_block(dev);
-	unsigned long phys_index;
-
-	phys_index = mem->end_section_nr / sections_per_block;
-	return sprintf(buf, "%08lx\n", phys_index);
-}
-
 /*
  * Show whether the section of memory is likely to be hot-removable
  */
@@ -384,7 +374,6 @@ static ssize_t show_phys_device(struct device *dev,
 }
 
 static DEVICE_ATTR(phys_index, 0444, show_mem_start_phys_index, NULL);
-static DEVICE_ATTR(end_phys_index, 0444, show_mem_end_phys_index, NULL);
 static DEVICE_ATTR(state, 0644, show_mem_state, store_mem_state);
 static DEVICE_ATTR(phys_device, 0444, show_phys_device, NULL);
 static DEVICE_ATTR(removable, 0444, show_mem_removable, NULL);
@@ -529,7 +518,6 @@ struct memory_block *find_memory_block(struct mem_section *section)
 
 static struct attribute *memory_memblk_attrs[] = {
 	&dev_attr_phys_index.attr,
-	&dev_attr_end_phys_index.attr,
 	&dev_attr_state.attr,
 	&dev_attr_phys_device.attr,
 	&dev_attr_removable.attr,

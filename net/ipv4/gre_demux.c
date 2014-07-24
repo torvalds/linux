@@ -68,6 +68,7 @@ void gre_build_header(struct sk_buff *skb, const struct tnl_ptk_info *tpi,
 
 	skb_push(skb, hdr_len);
 
+	skb_reset_transport_header(skb);
 	greh = (struct gre_base_hdr *)skb->data;
 	greh->flags = tnl_flags_to_gre_flags(tpi->flags);
 	greh->protocol = tpi->proto;
@@ -84,7 +85,8 @@ void gre_build_header(struct sk_buff *skb, const struct tnl_ptk_info *tpi,
 			ptr--;
 		}
 		if (tpi->flags&TUNNEL_CSUM &&
-		    !(skb_shinfo(skb)->gso_type & SKB_GSO_GRE)) {
+		    !(skb_shinfo(skb)->gso_type &
+		      (SKB_GSO_GRE|SKB_GSO_GRE_CSUM))) {
 			*ptr = 0;
 			*(__sum16 *)ptr = csum_fold(skb_checksum(skb, 0,
 								 skb->len, 0));
@@ -92,28 +94,6 @@ void gre_build_header(struct sk_buff *skb, const struct tnl_ptk_info *tpi,
 	}
 }
 EXPORT_SYMBOL_GPL(gre_build_header);
-
-static __sum16 check_checksum(struct sk_buff *skb)
-{
-	__sum16 csum = 0;
-
-	switch (skb->ip_summed) {
-	case CHECKSUM_COMPLETE:
-		csum = csum_fold(skb->csum);
-
-		if (!csum)
-			break;
-		/* Fall through. */
-
-	case CHECKSUM_NONE:
-		skb->csum = 0;
-		csum = __skb_checksum_complete(skb);
-		skb->ip_summed = CHECKSUM_COMPLETE;
-		break;
-	}
-
-	return csum;
-}
 
 static int parse_gre_header(struct sk_buff *skb, struct tnl_ptk_info *tpi,
 			    bool *csum_err)
@@ -141,7 +121,7 @@ static int parse_gre_header(struct sk_buff *skb, struct tnl_ptk_info *tpi,
 
 	options = (__be32 *)(greh + 1);
 	if (greh->flags & GRE_CSUM) {
-		if (check_checksum(skb)) {
+		if (skb_checksum_simple_validate(skb)) {
 			*csum_err = true;
 			return -EINVAL;
 		}

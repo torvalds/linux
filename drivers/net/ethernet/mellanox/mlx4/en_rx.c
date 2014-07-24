@@ -40,6 +40,7 @@
 #include <linux/if_ether.h>
 #include <linux/if_vlan.h>
 #include <linux/vmalloc.h>
+#include <linux/irq.h>
 
 #include "mlx4_en.h"
 
@@ -270,13 +271,11 @@ static int mlx4_en_fill_rx_buffers(struct mlx4_en_priv *priv)
 						    ring->actual_size,
 						    GFP_KERNEL)) {
 				if (ring->actual_size < MLX4_EN_MIN_RX_SIZE) {
-					en_err(priv, "Failed to allocate "
-						     "enough rx buffers\n");
+					en_err(priv, "Failed to allocate enough rx buffers\n");
 					return -ENOMEM;
 				} else {
 					new_size = rounddown_pow_of_two(ring->actual_size);
-					en_warn(priv, "Only %d buffers allocated "
-						      "reducing ring size to %d",
+					en_warn(priv, "Only %d buffers allocated reducing ring size to %d\n",
 						ring->actual_size, new_size);
 					goto reduce_rings;
 				}
@@ -685,10 +684,9 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 		/* Drop packet on bad receive or bad checksum */
 		if (unlikely((cqe->owner_sr_opcode & MLX4_CQE_OPCODE_MASK) ==
 						MLX4_CQE_OPCODE_ERROR)) {
-			en_err(priv, "CQE completed in error - vendor "
-				  "syndrom:%d syndrom:%d\n",
-				  ((struct mlx4_err_cqe *) cqe)->vendor_err_syndrome,
-				  ((struct mlx4_err_cqe *) cqe)->syndrome);
+			en_err(priv, "CQE completed in error - vendor syndrom:%d syndrom:%d\n",
+			       ((struct mlx4_err_cqe *)cqe)->vendor_err_syndrome,
+			       ((struct mlx4_err_cqe *)cqe)->syndrome);
 			goto next;
 		}
 		if (unlikely(cqe->badfcs_enc & MLX4_CQE_BAD_FCS)) {
@@ -785,6 +783,7 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 							     PKT_HASH_TYPE_L3);
 
 					skb_record_rx_queue(gro_skb, cq->ring);
+					skb_mark_napi_id(gro_skb, &cq->napi);
 
 					if (ring->hwtstamp_rx_filter == HWTSTAMP_FILTER_ALL) {
 						timestamp = mlx4_en_get_cqe_ts(cqe);
@@ -898,9 +897,25 @@ int mlx4_en_poll_rx_cq(struct napi_struct *napi, int budget)
 	mlx4_en_cq_unlock_napi(cq);
 
 	/* If we used up all the quota - we're probably not done yet... */
-	if (done == budget)
+	if (done == budget) {
+		int cpu_curr;
+		const struct cpumask *aff;
+
 		INC_PERF_COUNTER(priv->pstats.napi_quota);
-	else {
+
+		cpu_curr = smp_processor_id();
+		aff = irq_desc_get_irq_data(cq->irq_desc)->affinity;
+
+		if (unlikely(!cpumask_test_cpu(cpu_curr, aff))) {
+			/* Current cpu is not according to smp_irq_affinity -
+			 * probably affinity changed. need to stop this NAPI
+			 * poll, and restart it on the right CPU
+			 */
+			napi_complete(napi);
+			mlx4_en_arm_cq(priv, cq);
+			return 0;
+		}
+	} else {
 		/* Done for now */
 		napi_complete(napi);
 		mlx4_en_arm_cq(priv, cq);
@@ -944,8 +959,8 @@ void mlx4_en_calc_rx_buf(struct net_device *dev)
 	priv->rx_skb_size = eff_mtu;
 	priv->log_rx_info = ROUNDUP_LOG2(i * sizeof(struct mlx4_en_rx_alloc));
 
-	en_dbg(DRV, priv, "Rx buffer scatter-list (effective-mtu:%d "
-		  "num_frags:%d):\n", eff_mtu, priv->num_frags);
+	en_dbg(DRV, priv, "Rx buffer scatter-list (effective-mtu:%d num_frags:%d):\n",
+	       eff_mtu, priv->num_frags);
 	for (i = 0; i < priv->num_frags; i++) {
 		en_err(priv,
 		       "  frag:%d - size:%d prefix:%d align:%d stride:%d\n",
@@ -972,7 +987,7 @@ static int mlx4_en_config_rss_qp(struct mlx4_en_priv *priv, int qpn,
 	if (!context)
 		return -ENOMEM;
 
-	err = mlx4_qp_alloc(mdev->dev, qpn, qp);
+	err = mlx4_qp_alloc(mdev->dev, qpn, qp, GFP_KERNEL);
 	if (err) {
 		en_err(priv, "Failed to allocate qp #%x\n", qpn);
 		goto out;
@@ -1012,7 +1027,7 @@ int mlx4_en_create_drop_qp(struct mlx4_en_priv *priv)
 		en_err(priv, "Failed reserving drop qpn\n");
 		return err;
 	}
-	err = mlx4_qp_alloc(priv->mdev->dev, qpn, &priv->drop_qp);
+	err = mlx4_qp_alloc(priv->mdev->dev, qpn, &priv->drop_qp, GFP_KERNEL);
 	if (err) {
 		en_err(priv, "Failed allocating drop qp\n");
 		mlx4_qp_release_range(priv->mdev->dev, qpn, 1);
@@ -1071,7 +1086,7 @@ int mlx4_en_config_rss_steer(struct mlx4_en_priv *priv)
 	}
 
 	/* Configure RSS indirection qp */
-	err = mlx4_qp_alloc(mdev->dev, priv->base_qpn, &rss_map->indir_qp);
+	err = mlx4_qp_alloc(mdev->dev, priv->base_qpn, &rss_map->indir_qp, GFP_KERNEL);
 	if (err) {
 		en_err(priv, "Failed to allocate RSS indirection QP\n");
 		goto rss_err;

@@ -38,12 +38,12 @@ static inline void pmd_free(struct mm_struct *mm, pmd_t *pmd)
 	kmem_cache_free(pgtable_cache, pmd);
 }
 
-extern pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
-				   unsigned long address);
-extern pgtable_t pte_alloc_one(struct mm_struct *mm,
-			       unsigned long address);
-extern void pte_free_kernel(struct mm_struct *mm, pte_t *pte);
-extern void pte_free(struct mm_struct *mm, pgtable_t ptepage);
+pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
+			    unsigned long address);
+pgtable_t pte_alloc_one(struct mm_struct *mm,
+			unsigned long address);
+void pte_free_kernel(struct mm_struct *mm, pte_t *pte);
+void pte_free(struct mm_struct *mm, pgtable_t ptepage);
 
 #define pmd_populate_kernel(MM, PMD, PTE)	pmd_set(MM, PMD, PTE)
 #define pmd_populate(MM, PMD, PTE)		pmd_set(MM, PMD, PTE)
@@ -51,12 +51,12 @@ extern void pte_free(struct mm_struct *mm, pgtable_t ptepage);
 
 #define check_pgt_cache()	do { } while (0)
 
-extern void pgtable_free(void *table, bool is_page);
+void pgtable_free(void *table, bool is_page);
 
 #ifdef CONFIG_SMP
 
 struct mmu_gather;
-extern void tlb_remove_table(struct mmu_gather *, void *);
+void tlb_remove_table(struct mmu_gather *, void *);
 
 static inline void pgtable_free_tlb(struct mmu_gather *tlb, void *table, bool is_page)
 {

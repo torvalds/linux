@@ -53,15 +53,14 @@ int ncp_getopt(const char *caller, char **options, const struct ncp_option *opts
 				return -EINVAL;
 			}
 			if (opts->has_arg & OPT_INT) {
-				char* v;
+				int rc = kstrtoul(val, 0, value);
 
-				*value = simple_strtoul(val, &v, 0);
-				if (!*v) {
-					return opts->val;
+				if (rc) {
+					pr_info("%s: invalid numeric value in %s=%s\n",
+						caller, token, val);
+					return rc;
 				}
-				pr_info("%s: invalid numeric value in %s=%s\n",
-					caller, token, val);
-				return -EDOM;
+				return opts->val;
 			}
 			if (opts->has_arg & OPT_STRING) {
 				return opts->val;

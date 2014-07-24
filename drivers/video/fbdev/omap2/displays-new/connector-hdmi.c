@@ -13,6 +13,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/of.h>
+#include <linux/of_gpio.h>
 
 #include <drm/drm_edid.h>
 
@@ -43,6 +44,8 @@ struct panel_drv_data {
 	struct device *dev;
 
 	struct omap_video_timings timings;
+
+	int hpd_gpio;
 };
 
 #define to_panel_data(x) container_of(x, struct panel_drv_data, dssdev)
@@ -161,7 +164,10 @@ static bool hdmic_detect(struct omap_dss_device *dssdev)
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *in = ddata->in;
 
-	return in->ops.hdmi->detect(in);
+	if (gpio_is_valid(ddata->hpd_gpio))
+		return gpio_get_value_cansleep(ddata->hpd_gpio);
+	else
+		return in->ops.hdmi->detect(in);
 }
 
 static int hdmic_audio_enable(struct omap_dss_device *dssdev)
@@ -288,6 +294,8 @@ static int hdmic_probe_pdata(struct platform_device *pdev)
 
 	pdata = dev_get_platdata(&pdev->dev);
 
+	ddata->hpd_gpio = -ENODEV;
+
 	in = omap_dss_find_output(pdata->source);
 	if (in == NULL) {
 		dev_err(&pdev->dev, "Failed to find video source\n");
@@ -307,6 +315,14 @@ static int hdmic_probe_of(struct platform_device *pdev)
 	struct panel_drv_data *ddata = platform_get_drvdata(pdev);
 	struct device_node *node = pdev->dev.of_node;
 	struct omap_dss_device *in;
+	int gpio;
+
+	/* HPD GPIO */
+	gpio = of_get_named_gpio(node, "hpd-gpios", 0);
+	if (gpio_is_valid(gpio))
+		ddata->hpd_gpio = gpio;
+	else
+		ddata->hpd_gpio = -ENODEV;
 
 	in = omapdss_of_find_source_for_first_ep(node);
 	if (IS_ERR(in)) {
@@ -342,6 +358,13 @@ static int hdmic_probe(struct platform_device *pdev)
 			return r;
 	} else {
 		return -ENODEV;
+	}
+
+	if (gpio_is_valid(ddata->hpd_gpio)) {
+		r = devm_gpio_request_one(&pdev->dev, ddata->hpd_gpio,
+				GPIOF_DIR_IN, "hdmi_hpd");
+		if (r)
+			goto err_reg;
 	}
 
 	ddata->timings = hdmic_default_timings;

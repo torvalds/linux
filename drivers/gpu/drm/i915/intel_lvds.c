@@ -126,10 +126,6 @@ static void intel_lvds_get_config(struct intel_encoder *encoder,
 	pipe_config->adjusted_mode.crtc_clock = dotclock;
 }
 
-/* The LVDS pin pair needs to be on before the DPLLs are enabled.
- * This is an exception to the general rule that mode_set doesn't turn
- * things on.
- */
 static void intel_pre_enable_lvds(struct intel_encoder *encoder)
 {
 	struct intel_lvds_encoder *lvds_encoder = to_lvds_encoder(&encoder->base);
@@ -331,15 +327,6 @@ static bool intel_lvds_compute_config(struct intel_encoder *intel_encoder,
 	return true;
 }
 
-static void intel_lvds_mode_set(struct intel_encoder *encoder)
-{
-	/*
-	 * We don't do anything here, the LVDS port is fully set up in the pre
-	 * enable hook - the ordering constraints for enabling the lvds port vs.
-	 * enabling the display pll are too strict.
-	 */
-}
-
 /**
  * Detect the LVDS connection.
  *
@@ -354,7 +341,7 @@ intel_lvds_detect(struct drm_connector *connector, bool force)
 	enum drm_connector_status status;
 
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
-		      connector->base.id, drm_get_connector_name(connector));
+		      connector->base.id, connector->name);
 
 	status = intel_panel_detect(dev);
 	if (status != connector_status_unknown)
@@ -953,7 +940,6 @@ void intel_lvds_init(struct drm_device *dev)
 	intel_encoder->enable = intel_enable_lvds;
 	intel_encoder->pre_enable = intel_pre_enable_lvds;
 	intel_encoder->compute_config = intel_lvds_compute_config;
-	intel_encoder->mode_set = intel_lvds_mode_set;
 	intel_encoder->disable = intel_disable_lvds;
 	intel_encoder->get_hw_state = intel_lvds_get_hw_state;
 	intel_encoder->get_config = intel_lvds_get_config;

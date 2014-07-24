@@ -10,7 +10,7 @@ Introduction
 	  The main page is located at <http://sstfb.sourceforge.net>, and if
 	you want the latest version, check out the CVS, as the driver is a work
 	in progress, I feel uncomfortable with releasing tarballs of something
-	not completely working...Don't worry, it's still more than useable
+	not completely working...Don't worry, it's still more than usable
 	(I eat my own dog food)
 
 	  Please read the Bug section, and report any success or failure to me

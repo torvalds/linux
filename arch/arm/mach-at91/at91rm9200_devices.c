@@ -15,6 +15,7 @@
 
 #include <linux/dma-mapping.h>
 #include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/platform_device.h>
 #include <linux/i2c-gpio.h>
 
@@ -25,6 +26,7 @@
 
 #include "board.h"
 #include "generic.h"
+#include "gpio.h"
 
 
 /* --------------------------------------------------------------------
@@ -923,7 +925,6 @@ static struct resource dbgu_resources[] = {
 static struct atmel_uart_data dbgu_data = {
 	.use_dma_tx	= 0,
 	.use_dma_rx	= 0,		/* DBGU not capable of receive DMA */
-	.rts_gpio	= -EINVAL,
 };
 
 static u64 dbgu_dmamask = DMA_BIT_MASK(32);
@@ -962,7 +963,14 @@ static struct resource uart0_resources[] = {
 static struct atmel_uart_data uart0_data = {
 	.use_dma_tx	= 1,
 	.use_dma_rx	= 1,
-	.rts_gpio	= -EINVAL,
+};
+
+static struct gpiod_lookup_table uart0_gpios_table = {
+	.dev_id = "atmel_usart",
+	.table = {
+		GPIO_LOOKUP("pioA", 21, "rts", GPIO_ACTIVE_LOW),
+		{ },
+	},
 };
 
 static u64 uart0_dmamask = DMA_BIT_MASK(32);
@@ -993,7 +1001,7 @@ static inline void configure_usart0_pins(unsigned pins)
 		 * We need to drive the pin manually. The serial driver will driver
 		 * this to high when initializing.
 		 */
-		uart0_data.rts_gpio = AT91_PIN_PA21;
+		gpiod_add_lookup_table(&uart0_gpios_table);
 	}
 }
 
@@ -1013,7 +1021,6 @@ static struct resource uart1_resources[] = {
 static struct atmel_uart_data uart1_data = {
 	.use_dma_tx	= 1,
 	.use_dma_rx	= 1,
-	.rts_gpio	= -EINVAL,
 };
 
 static u64 uart1_dmamask = DMA_BIT_MASK(32);
@@ -1065,7 +1072,6 @@ static struct resource uart2_resources[] = {
 static struct atmel_uart_data uart2_data = {
 	.use_dma_tx	= 1,
 	.use_dma_rx	= 1,
-	.rts_gpio	= -EINVAL,
 };
 
 static u64 uart2_dmamask = DMA_BIT_MASK(32);
@@ -1109,7 +1115,6 @@ static struct resource uart3_resources[] = {
 static struct atmel_uart_data uart3_data = {
 	.use_dma_tx	= 1,
 	.use_dma_rx	= 1,
-	.rts_gpio	= -EINVAL,
 };
 
 static u64 uart3_dmamask = DMA_BIT_MASK(32);

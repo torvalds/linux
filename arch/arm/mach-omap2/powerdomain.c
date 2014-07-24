@@ -32,6 +32,7 @@
 
 #include "powerdomain.h"
 #include "clockdomain.h"
+#include "voltage.h"
 
 #include "soc.h"
 #include "pm.h"

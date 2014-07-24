@@ -335,9 +335,6 @@ static int pwm_samsung_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	writel(tcnt, our_chip->base + REG_TCNTB(pwm->hwpwm));
 	writel(tcmp, our_chip->base + REG_TCMPB(pwm->hwpwm));
 
-	if (test_bit(PWMF_ENABLED, &pwm->flags))
-		pwm_samsung_enable(chip, pwm);
-
 	chan->period_ns = period_ns;
 	chan->tin_ns = tin_ns;
 	chan->duty_ns = duty_ns;

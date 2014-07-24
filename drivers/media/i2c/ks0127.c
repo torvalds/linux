@@ -648,11 +648,8 @@ static int ks0127_g_input_status(struct v4l2_subdev *sd, u32 *status)
 
 /* ----------------------------------------------------------------------- */
 
-static const struct v4l2_subdev_core_ops ks0127_core_ops = {
-	.s_std = ks0127_s_std,
-};
-
 static const struct v4l2_subdev_video_ops ks0127_video_ops = {
+	.s_std = ks0127_s_std,
 	.s_routing = ks0127_s_routing,
 	.s_stream = ks0127_s_stream,
 	.querystd = ks0127_querystd,
@@ -660,7 +657,6 @@ static const struct v4l2_subdev_video_ops ks0127_video_ops = {
 };
 
 static const struct v4l2_subdev_ops ks0127_ops = {
-	.core = &ks0127_core_ops,
 	.video = &ks0127_video_ops,
 };
 

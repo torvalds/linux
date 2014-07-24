@@ -234,7 +234,7 @@ Table 1-2: Contents of the status files (as of 2.6.30-rc7)
  ShdPnd                      bitmap of shared pending signals for the process
  SigBlk                      bitmap of blocked signals
  SigIgn                      bitmap of ignored signals
- SigCgt                      bitmap of catched signals
+ SigCgt                      bitmap of caught signals
  CapInh                      bitmap of inheritable capabilities
  CapPrm                      bitmap of permitted capabilities
  CapEff                      bitmap of effective capabilities
@@ -300,7 +300,7 @@ Table 1-4: Contents of the stat files (as of 2.6.30-rc7)
   pending       bitmap of pending signals
   blocked       bitmap of blocked signals
   sigign        bitmap of ignored signals
-  sigcatch      bitmap of catched signals
+  sigcatch      bitmap of caught signals
   wchan         address where process went to sleep
   0             (place holder)
   0             (place holder)
@@ -854,7 +854,8 @@ WritebackTmp: Memory used by FUSE for temporary writeback buffers
               if strict overcommit accounting is enabled (mode 2 in
               'vm.overcommit_memory').
               The CommitLimit is calculated with the following formula:
-              CommitLimit = ('vm.overcommit_ratio' * Physical RAM) + Swap
+              CommitLimit = ([total RAM pages] - [total huge TLB pages]) *
+                             overcommit_ratio / 100 + [total swap pages]
               For example, on a system with 1G of physical RAM and 7G
               of swap with a `vm.overcommit_ratio` of 30 it would
               yield a CommitLimit of 7.3G.
@@ -1245,8 +1246,9 @@ second).  The meanings of the columns are as follows, from left to right:
 
 The "intr" line gives counts of interrupts  serviced since boot time, for each
 of the  possible system interrupts.   The first  column  is the  total of  all
-interrupts serviced; each  subsequent column is the  total for that particular
-interrupt.
+interrupts serviced  including  unnumbered  architecture specific  interrupts;
+each  subsequent column is the  total for that particular numbered interrupt.
+Unnumbered interrupts are not shown, only summed into the total.
 
 The "ctxt" line gives the total number of context switches across all CPUs.
 

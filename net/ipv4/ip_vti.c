@@ -239,6 +239,7 @@ static netdev_tx_t vti_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 static int vti4_err(struct sk_buff *skb, u32 info)
 {
 	__be32 spi;
+	__u32 mark;
 	struct xfrm_state *x;
 	struct ip_tunnel *tunnel;
 	struct ip_esp_hdr *esph;
@@ -253,6 +254,8 @@ static int vti4_err(struct sk_buff *skb, u32 info)
 				  iph->daddr, iph->saddr, 0);
 	if (!tunnel)
 		return -1;
+
+	mark = be32_to_cpu(tunnel->parms.o_key);
 
 	switch (protocol) {
 	case IPPROTO_ESP:
@@ -281,7 +284,7 @@ static int vti4_err(struct sk_buff *skb, u32 info)
 		return 0;
 	}
 
-	x = xfrm_state_lookup(net, skb->mark, (const xfrm_address_t *)&iph->daddr,
+	x = xfrm_state_lookup(net, mark, (const xfrm_address_t *)&iph->daddr,
 			      spi, protocol, AF_INET);
 	if (!x)
 		return 0;
@@ -310,7 +313,13 @@ vti_tunnel_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 			return -EINVAL;
 	}
 
-	p.i_flags |= VTI_ISVTI;
+	if (!(p.i_flags & GRE_KEY))
+		p.i_key = 0;
+	if (!(p.o_flags & GRE_KEY))
+		p.o_key = 0;
+
+	p.i_flags = VTI_ISVTI;
+
 	err = ip_tunnel_ioctl(dev, &p, cmd);
 	if (err)
 		return err;

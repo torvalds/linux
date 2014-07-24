@@ -26,6 +26,7 @@
 #include <linux/timer.h>
 #include <linux/platform_device.h>
 #include <linux/netdevice.h>
+#include <linux/device.h>
 #include <linux/spinlock.h>
 #include <net/mac802154.h>
 #include <net/wpan-phy.h>
@@ -228,7 +229,8 @@ static int fakelb_probe(struct platform_device *pdev)
 	int err = -ENOMEM;
 	int i;
 
-	priv = kzalloc(sizeof(struct fakelb_priv), GFP_KERNEL);
+	priv = devm_kzalloc(&pdev->dev, sizeof(struct fakelb_priv),
+			    GFP_KERNEL);
 	if (!priv)
 		goto err_alloc;
 
@@ -248,7 +250,6 @@ static int fakelb_probe(struct platform_device *pdev)
 err_slave:
 	list_for_each_entry(dp, &priv->list, list)
 		fakelb_del(dp);
-	kfree(priv);
 err_alloc:
 	return err;
 }
@@ -260,7 +261,6 @@ static int fakelb_remove(struct platform_device *pdev)
 
 	list_for_each_entry_safe(dp, temp, &priv->list, list)
 		fakelb_del(dp);
-	kfree(priv);
 
 	return 0;
 }

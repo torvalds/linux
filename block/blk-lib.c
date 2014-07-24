@@ -226,8 +226,8 @@ EXPORT_SYMBOL(blkdev_issue_write_same);
  *  Generate and issue number of bios with zerofiled pages.
  */
 
-int __blkdev_issue_zeroout(struct block_device *bdev, sector_t sector,
-			sector_t nr_sects, gfp_t gfp_mask)
+static int __blkdev_issue_zeroout(struct block_device *bdev, sector_t sector,
+				  sector_t nr_sects, gfp_t gfp_mask)
 {
 	int ret;
 	struct bio *bio;

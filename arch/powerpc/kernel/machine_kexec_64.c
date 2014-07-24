@@ -237,7 +237,7 @@ static void wake_offline_cpus(void)
 		if (!cpu_online(cpu)) {
 			printk(KERN_INFO "kexec: Waking offline cpu %d.\n",
 			       cpu);
-			cpu_up(cpu);
+			WARN_ON(cpu_up(cpu));
 		}
 	}
 }

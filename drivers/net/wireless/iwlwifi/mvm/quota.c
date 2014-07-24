@@ -285,7 +285,7 @@ int iwl_mvm_update_quotas(struct iwl_mvm *mvm, struct ieee80211_vif *newvif)
 
 	iwl_mvm_adjust_quota_for_noa(mvm, &cmd);
 
-	ret = iwl_mvm_send_cmd_pdu(mvm, TIME_QUOTA_CMD, CMD_SYNC,
+	ret = iwl_mvm_send_cmd_pdu(mvm, TIME_QUOTA_CMD, 0,
 				   sizeof(cmd), &cmd);
 	if (ret)
 		IWL_ERR(mvm, "Failed to send quota: %d\n", ret);

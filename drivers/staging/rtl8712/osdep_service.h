@@ -168,11 +168,6 @@ static inline void sleep_schedulable(int ms)
 		return;
 }
 
-static inline u8 *_malloc(u32 sz)
-{
-	return	kmalloc(sz, GFP_ATOMIC);
-}
-
 static inline unsigned char _cancel_timer_ex(struct timer_list *ptimer)
 {
 	return del_timer(ptimer);

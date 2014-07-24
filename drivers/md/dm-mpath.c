@@ -445,10 +445,10 @@ static int queue_if_no_path(struct multipath *m, unsigned queue_if_no_path,
 	else
 		m->saved_queue_if_no_path = queue_if_no_path;
 	m->queue_if_no_path = queue_if_no_path;
-	if (!m->queue_if_no_path)
-		dm_table_run_md_queue_async(m->ti->table);
-
 	spin_unlock_irqrestore(&m->lock, flags);
+
+	if (!queue_if_no_path)
+		dm_table_run_md_queue_async(m->ti->table);
 
 	return 0;
 }
@@ -954,7 +954,7 @@ out:
  */
 static int reinstate_path(struct pgpath *pgpath)
 {
-	int r = 0;
+	int r = 0, run_queue = 0;
 	unsigned long flags;
 	struct multipath *m = pgpath->pg->m;
 
@@ -978,7 +978,7 @@ static int reinstate_path(struct pgpath *pgpath)
 
 	if (!m->nr_valid_paths++) {
 		m->current_pgpath = NULL;
-		dm_table_run_md_queue_async(m->ti->table);
+		run_queue = 1;
 	} else if (m->hw_handler_name && (m->current_pg == pgpath->pg)) {
 		if (queue_work(kmpath_handlerd, &pgpath->activate_path.work))
 			m->pg_init_in_progress++;
@@ -991,6 +991,8 @@ static int reinstate_path(struct pgpath *pgpath)
 
 out:
 	spin_unlock_irqrestore(&m->lock, flags);
+	if (run_queue)
+		dm_table_run_md_queue_async(m->ti->table);
 
 	return r;
 }
@@ -1240,17 +1242,8 @@ static int do_end_io(struct multipath *m, struct request *clone,
 	if (!error && !clone->errors)
 		return 0;	/* I/O complete */
 
-	if (noretry_error(error)) {
-		if ((clone->cmd_flags & REQ_WRITE_SAME) &&
-		    !clone->q->limits.max_write_same_sectors) {
-			struct queue_limits *limits;
-
-			/* device doesn't really support WRITE SAME, disable it */
-			limits = dm_get_queue_limits(dm_table_get_md(m->ti->table));
-			limits->max_write_same_sectors = 0;
-		}
+	if (noretry_error(error))
 		return error;
-	}
 
 	if (mpio->pgpath)
 		fail_path(mpio->pgpath);
@@ -1618,8 +1611,9 @@ static int multipath_busy(struct dm_target *ti)
 
 	spin_lock_irqsave(&m->lock, flags);
 
-	/* pg_init in progress, requeue until done */
-	if (!pg_ready(m)) {
+	/* pg_init in progress or no paths available */
+	if (m->pg_init_in_progress ||
+	    (!m->nr_valid_paths && m->queue_if_no_path)) {
 		busy = 1;
 		goto out;
 	}

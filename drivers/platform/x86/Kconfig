@@ -102,7 +102,7 @@ config DELL_LAPTOP
 	default n
 	---help---
 	This driver adds support for rfkill and backlight control to Dell
-	laptops.
+	laptops (except for some models covered by the Compal driver).
 
 config DELL_WMI
 	tristate "Dell WMI extras"
@@ -126,6 +126,16 @@ config DELL_WMI_AIO
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called dell-wmi-aio.
+
+config DELL_SMO8800
+	tristate "Dell Latitude freefall driver (ACPI SMO8800/SMO8810)"
+	depends on ACPI
+	---help---
+	  Say Y here if you want to support SMO8800/SMO8810 freefall device
+	  on Dell Latitude laptops.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called dell-smo8800.
 
 
 config FUJITSU_LAPTOP
@@ -265,23 +275,21 @@ config PANASONIC_LAPTOP
 	  R2, R3, R5, T2, W2 and Y2 series), say Y.
 
 config COMPAL_LAPTOP
-	tristate "Compal Laptop Extras"
+	tristate "Compal (and others) Laptop Extras"
 	depends on ACPI
 	depends on BACKLIGHT_CLASS_DEVICE
 	depends on RFKILL
 	depends on HWMON
 	depends on POWER_SUPPLY
 	---help---
-	  This is a driver for laptops built by Compal:
+	  This is a driver for laptops built by Compal, and some models by
+	  other brands (e.g. Dell, Toshiba).
 
-	  Compal FL90/IFL90
-	  Compal FL91/IFL91
-	  Compal FL92/JFL92
-	  Compal FT00/IFT00
+	  It adds support for rfkill, Bluetooth, WLAN and LCD brightness
+	  control.
 
-	  It adds support for Bluetooth, WLAN and LCD brightness control.
-
-	  If you have an Compal FL9x/IFL9x/FT00 laptop, say Y or M here.
+	  For a (possibly incomplete) list of supported laptops, please refer
+	  to: Documentation/platform/x86-laptop-drivers.txt
 
 config SONY_LAPTOP
 	tristate "Sony Laptop Extras"
@@ -724,7 +732,7 @@ config IBM_RTL
 
 config XO1_RFKILL
 	tristate "OLPC XO-1 software RF kill switch"
-	depends on OLPC
+	depends on OLPC || COMPILE_TEST
 	depends on RFKILL
 	---help---
 	  Support for enabling/disabling the WLAN interface on the OLPC XO-1
@@ -732,6 +740,7 @@ config XO1_RFKILL
 
 config XO15_EBOOK
 	tristate "OLPC XO-1.5 ebook switch"
+	depends on OLPC || COMPILE_TEST
 	depends on ACPI && INPUT
 	---help---
 	  Support for the ebook switch on the OLPC XO-1.5 laptop.

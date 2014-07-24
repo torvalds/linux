@@ -214,8 +214,8 @@ static int gs_download_image(struct fpgaimage *fimage, enum wbus bus_bytes)
 {
 	char *bitdata;
 	int size, i, cnt;
-	cnt = 0;
 
+	cnt = 0;
 	bitdata = (char *)fimage->fpgadata;
 	size = fimage->lendata;
 

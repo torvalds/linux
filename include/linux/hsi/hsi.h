@@ -68,17 +68,31 @@ enum {
 };
 
 /**
+ * struct hsi_channel - channel resource used by the hsi clients
+ * @id: Channel number
+ * @name: Channel name
+ */
+struct hsi_channel {
+	unsigned int	id;
+	const char	*name;
+};
+
+/**
  * struct hsi_config - Configuration for RX/TX HSI modules
  * @mode: Bit transmission mode (STREAM or FRAME)
- * @channels: Number of channels to use [1..16]
+ * @channels: Channel resources used by the client
+ * @num_channels: Number of channel resources
+ * @num_hw_channels: Number of channels the transceiver is configured for [1..16]
  * @speed: Max bit transmission speed (Kbit/s)
  * @flow: RX flow type (SYNCHRONIZED or PIPELINE)
  * @arb_mode: Arbitration mode for TX frame (Round robin, priority)
  */
 struct hsi_config {
-	unsigned int	mode;
-	unsigned int	channels;
-	unsigned int	speed;
+	unsigned int		mode;
+	struct hsi_channel	*channels;
+	unsigned int		num_channels;
+	unsigned int		num_hw_channels;
+	unsigned int		speed;
 	union {
 		unsigned int	flow;		/* RX only */
 		unsigned int	arb_mode;	/* TX only */
@@ -282,6 +296,21 @@ struct hsi_controller *hsi_alloc_controller(unsigned int n_ports, gfp_t flags);
 void hsi_put_controller(struct hsi_controller *hsi);
 int hsi_register_controller(struct hsi_controller *hsi);
 void hsi_unregister_controller(struct hsi_controller *hsi);
+struct hsi_client *hsi_new_client(struct hsi_port *port,
+						struct hsi_board_info *info);
+int hsi_remove_client(struct device *dev, void *data);
+void hsi_port_unregister_clients(struct hsi_port *port);
+
+#ifdef CONFIG_OF
+void hsi_add_clients_from_dt(struct hsi_port *port,
+			     struct device_node *clients);
+#else
+static inline void hsi_add_clients_from_dt(struct hsi_port *port,
+					   struct device_node *clients)
+{
+	return;
+}
+#endif
 
 static inline void hsi_controller_set_drvdata(struct hsi_controller *hsi,
 								void *data)
@@ -304,6 +333,8 @@ static inline struct hsi_port *hsi_find_port_num(struct hsi_controller *hsi,
  * API for HSI clients
  */
 int hsi_async(struct hsi_client *cl, struct hsi_msg *msg);
+
+int hsi_get_channel_id_by_name(struct hsi_client *cl, char *name);
 
 /**
  * hsi_id - Get HSI controller ID associated to a client

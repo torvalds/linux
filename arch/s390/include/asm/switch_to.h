@@ -132,11 +132,6 @@ static inline void restore_access_regs(unsigned int *acrs)
 		update_cr_regs(next);					\
 	}								\
 	prev = __switch_to(prev,next);					\
-	update_primary_asce(current);					\
-} while (0)
-
-#define finish_arch_switch(prev) do {					     \
-	set_fs(current->thread.mm_segment);				     \
 } while (0)
 
 #endif /* __ASM_SWITCH_TO_H */

@@ -1,6 +1,6 @@
 /*
  * QLogic Fibre Channel HBA Driver
- * Copyright (c)  2003-2013 QLogic Corporation
+ * Copyright (c)  2003-2014 QLogic Corporation
  *
  * See LICENSE.qla2xxx for copyright and licensing details.
  */
@@ -1476,6 +1476,7 @@ qla2x00_alloc_fw_dump(scsi_qla_host_t *vha)
 	}
 
 	ha->fw_dumped = 0;
+	ha->fw_dump_cap_flags = 0;
 	dump_size = fixed_size = mem_size = eft_size = fce_size = mq_size = 0;
 	req_q_size = rsp_q_size = 0;
 
@@ -2061,6 +2062,10 @@ qla24xx_config_rings(struct scsi_qla_host *vha)
 	icb->atio_q_address[0] = cpu_to_le32(LSD(ha->tgt.atio_dma));
 	icb->atio_q_address[1] = cpu_to_le32(MSD(ha->tgt.atio_dma));
 
+	if (IS_SHADOW_REG_CAPABLE(ha))
+		icb->firmware_options_2 |=
+		    __constant_cpu_to_le32(BIT_30|BIT_29);
+
 	if (ha->mqenable || IS_QLA83XX(ha) || IS_QLA27XX(ha)) {
 		icb->qos = __constant_cpu_to_le16(QLA_DEFAULT_QUE_QOS);
 		icb->rid = __constant_cpu_to_le16(rid);
@@ -2138,6 +2143,8 @@ qla2x00_init_rings(scsi_qla_host_t *vha)
 		req = ha->req_q_map[que];
 		if (!req)
 			continue;
+		req->out_ptr = (void *)(req->ring + req->length);
+		*req->out_ptr = 0;
 		for (cnt = 1; cnt < req->num_outstanding_cmds; cnt++)
 			req->outstanding_cmds[cnt] = NULL;
 
@@ -2153,6 +2160,8 @@ qla2x00_init_rings(scsi_qla_host_t *vha)
 		rsp = ha->rsp_q_map[que];
 		if (!rsp)
 			continue;
+		rsp->in_ptr = (void *)(rsp->ring + rsp->length);
+		*rsp->in_ptr = 0;
 		/* Initialize response queue entries */
 		if (IS_QLAFX00(ha))
 			qlafx00_init_response_q_entries(rsp);
@@ -3406,7 +3415,7 @@ qla2x00_configure_fabric(scsi_qla_host_t *vha)
 					    fcport->d_id.b.domain,
 					    fcport->d_id.b.area,
 					    fcport->d_id.b.al_pa);
-					fcport->loop_id = FC_NO_LOOP_ID;
+					qla2x00_clear_loop_id(fcport);
 				}
 			}
 		}
@@ -4727,7 +4736,6 @@ static int
 qla2x00_restart_isp(scsi_qla_host_t *vha)
 {
 	int status = 0;
-	uint32_t wait_time;
 	struct qla_hw_data *ha = vha->hw;
 	struct req_que *req = ha->req_q_map[0];
 	struct rsp_que *rsp = ha->rsp_q_map[0];
@@ -4744,14 +4752,12 @@ qla2x00_restart_isp(scsi_qla_host_t *vha)
 	if (!status && !(status = qla2x00_init_rings(vha))) {
 		clear_bit(RESET_MARKER_NEEDED, &vha->dpc_flags);
 		ha->flags.chip_reset_done = 1;
+
 		/* Initialize the queues in use */
 		qla25xx_init_queues(ha);
 
 		status = qla2x00_fw_ready(vha);
 		if (!status) {
-			ql_dbg(ql_dbg_taskm, vha, 0x8031,
-			    "Start configure loop status = %d.\n", status);
-
 			/* Issue a marker after FW becomes ready. */
 			qla2x00_marker(vha, req, rsp, 0, 0, MK_SYNC_ALL);
 
@@ -4766,24 +4772,12 @@ qla2x00_restart_isp(scsi_qla_host_t *vha)
 				qlt_24xx_process_atio_queue(vha);
 			spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
-			/* Wait at most MAX_TARGET RSCNs for a stable link. */
-			wait_time = 256;
-			do {
-				clear_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags);
-				qla2x00_configure_loop(vha);
-				wait_time--;
-			} while (!atomic_read(&vha->loop_down_timer) &&
-				!(test_bit(ISP_ABORT_NEEDED, &vha->dpc_flags))
-				&& wait_time && (test_bit(LOOP_RESYNC_NEEDED,
-				&vha->dpc_flags)));
+			set_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags);
 		}
 
 		/* if no cable then assume it's good */
 		if ((vha->device_flags & DFLG_NO_CABLE))
 			status = 0;
-
-		ql_dbg(ql_dbg_taskm, vha, 0x8032,
-		    "Configure loop done, status = 0x%x.\n", status);
 	}
 	return (status);
 }
@@ -6130,7 +6124,6 @@ int
 qla82xx_restart_isp(scsi_qla_host_t *vha)
 {
 	int status, rval;
-	uint32_t wait_time;
 	struct qla_hw_data *ha = vha->hw;
 	struct req_que *req = ha->req_q_map[0];
 	struct rsp_que *rsp = ha->rsp_q_map[0];
@@ -6144,31 +6137,15 @@ qla82xx_restart_isp(scsi_qla_host_t *vha)
 
 		status = qla2x00_fw_ready(vha);
 		if (!status) {
-			ql_log(ql_log_info, vha, 0x803c,
-			    "Start configure loop, status =%d.\n", status);
-
 			/* Issue a marker after FW becomes ready. */
 			qla2x00_marker(vha, req, rsp, 0, 0, MK_SYNC_ALL);
-
 			vha->flags.online = 1;
-			/* Wait at most MAX_TARGET RSCNs for a stable link. */
-			wait_time = 256;
-			do {
-				clear_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags);
-				qla2x00_configure_loop(vha);
-				wait_time--;
-			} while (!atomic_read(&vha->loop_down_timer) &&
-			    !(test_bit(ISP_ABORT_NEEDED, &vha->dpc_flags)) &&
-			    wait_time &&
-			    (test_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags)));
+			set_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags);
 		}
 
 		/* if no cable then assume it's good */
 		if ((vha->device_flags & DFLG_NO_CABLE))
 			status = 0;
-
-		ql_log(ql_log_info, vha, 0x8000,
-		    "Configure loop done, status = 0x%x.\n", status);
 	}
 
 	if (!status) {
@@ -6181,8 +6158,6 @@ qla82xx_restart_isp(scsi_qla_host_t *vha)
 			 */
 			vha->marker_needed = 1;
 		}
-
-		vha->flags.online = 1;
 
 		ha->isp_ops->enable_intrs(ha);
 

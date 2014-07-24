@@ -254,7 +254,6 @@ struct tps65217 {
 	struct tps65217_board *pdata;
 	unsigned long id;
 	struct regulator_desc desc[TPS65217_NUM_REGULATOR];
-	struct regulator_dev *rdev[TPS65217_NUM_REGULATOR];
 	struct regmap *regmap;
 };
 

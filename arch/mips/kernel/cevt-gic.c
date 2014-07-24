@@ -26,7 +26,7 @@ static int gic_next_event(unsigned long delta, struct clock_event_device *evt)
 
 	cnt = gic_read_count();
 	cnt += (u64)delta;
-	gic_write_compare(cnt);
+	gic_write_cpu_compare(cnt, cpumask_first(evt->cpumask));
 	res = ((int)(gic_read_count() - cnt) >= 0) ? -ETIME : 0;
 	return res;
 }
@@ -73,7 +73,8 @@ int gic_clockevent_init(void)
 	cd = &per_cpu(gic_clockevent_device, cpu);
 
 	cd->name		= "MIPS GIC";
-	cd->features		= CLOCK_EVT_FEAT_ONESHOT;
+	cd->features		= CLOCK_EVT_FEAT_ONESHOT |
+				  CLOCK_EVT_FEAT_C3STOP;
 
 	clockevent_set_clock(cd, gic_frequency);
 

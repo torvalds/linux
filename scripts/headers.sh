@@ -28,5 +28,3 @@ for arch in ${archs}; do
 		;;
 	esac
 done
-
-

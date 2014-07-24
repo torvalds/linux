@@ -265,7 +265,7 @@
 		};
 
 		dma@2c000 {
-			compatible = "fsl,mpc8308-dma", "fsl,mpc5121-dma";
+			compatible = "fsl,mpc8308-dma";
 			reg = <0x2c000 0x1800>;
 			interrupts = <3 0x8
 					94 0x8>;

@@ -52,6 +52,8 @@
 
 #include <rdma/ib_verbs.h>
 #include <rdma/iw_cm.h>
+#include <rdma/rdma_netlink.h>
+#include <rdma/iw_portmap.h>
 
 #include "cxgb4.h"
 #include "cxgb4_uld.h"
@@ -728,6 +730,7 @@ enum c4iw_ep_flags {
 	CLOSE_SENT		= 3,
 	TIMEOUT                 = 4,
 	QP_REFERENCED           = 5,
+	RELEASE_MAPINFO		= 6,
 };
 
 enum c4iw_ep_history {
@@ -764,6 +767,8 @@ struct c4iw_ep_common {
 	struct mutex mutex;
 	struct sockaddr_storage local_addr;
 	struct sockaddr_storage remote_addr;
+	struct sockaddr_storage mapped_local_addr;
+	struct sockaddr_storage mapped_remote_addr;
 	struct c4iw_wr_wait wr_wait;
 	unsigned long flags;
 	unsigned long history;
@@ -805,7 +810,48 @@ struct c4iw_ep {
 	u8 retry_with_mpa_v1;
 	u8 tried_with_mpa_v1;
 	unsigned int retry_count;
+	int snd_win;
+	int rcv_win;
 };
+
+static inline void print_addr(struct c4iw_ep_common *epc, const char *func,
+			      const char *msg)
+{
+
+#define SINA(a) (&(((struct sockaddr_in *)(a))->sin_addr.s_addr))
+#define SINP(a) ntohs(((struct sockaddr_in *)(a))->sin_port)
+#define SIN6A(a) (&(((struct sockaddr_in6 *)(a))->sin6_addr))
+#define SIN6P(a) ntohs(((struct sockaddr_in6 *)(a))->sin6_port)
+
+	if (c4iw_debug) {
+		switch (epc->local_addr.ss_family) {
+		case AF_INET:
+			PDBG("%s %s %pI4:%u/%u <-> %pI4:%u/%u\n",
+			     func, msg, SINA(&epc->local_addr),
+			     SINP(&epc->local_addr),
+			     SINP(&epc->mapped_local_addr),
+			     SINA(&epc->remote_addr),
+			     SINP(&epc->remote_addr),
+			     SINP(&epc->mapped_remote_addr));
+			break;
+		case AF_INET6:
+			PDBG("%s %s %pI6:%u/%u <-> %pI6:%u/%u\n",
+			     func, msg, SIN6A(&epc->local_addr),
+			     SIN6P(&epc->local_addr),
+			     SIN6P(&epc->mapped_local_addr),
+			     SIN6A(&epc->remote_addr),
+			     SIN6P(&epc->remote_addr),
+			     SIN6P(&epc->mapped_remote_addr));
+			break;
+		default:
+			break;
+		}
+	}
+#undef SINA
+#undef SINP
+#undef SIN6A
+#undef SIN6P
+}
 
 static inline struct c4iw_ep *to_ep(struct iw_cm_id *cm_id)
 {
@@ -862,7 +908,7 @@ int c4iw_destroy_ctrl_qp(struct c4iw_rdev *rdev);
 int c4iw_register_device(struct c4iw_dev *dev);
 void c4iw_unregister_device(struct c4iw_dev *dev);
 int __init c4iw_cm_init(void);
-void __exit c4iw_cm_term(void);
+void c4iw_cm_term(void);
 void c4iw_release_dev_ucontext(struct c4iw_rdev *rdev,
 			       struct c4iw_dev_ucontext *uctx);
 void c4iw_init_dev_ucontext(struct c4iw_rdev *rdev,

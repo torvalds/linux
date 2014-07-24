@@ -46,31 +46,16 @@
 int
 libcfs_sock_ioctl(int cmd, unsigned long arg)
 {
-	mm_segment_t    oldmm = get_fs();
 	struct socket  *sock;
 	int	     rc;
-	struct file    *sock_filp;
 
 	rc = sock_create (PF_INET, SOCK_STREAM, 0, &sock);
 	if (rc != 0) {
 		CERROR ("Can't create socket: %d\n", rc);
 		return rc;
 	}
-
-	sock_filp = sock_alloc_file(sock, 0, NULL);
-	if (IS_ERR(sock_filp)) {
-		sock_release(sock);
-		rc = PTR_ERR(sock_filp);
-		goto out;
-	}
-
-	set_fs(KERNEL_DS);
-	if (sock_filp->f_op->unlocked_ioctl)
-		rc = sock_filp->f_op->unlocked_ioctl(sock_filp, cmd, arg);
-	set_fs(oldmm);
-
-	fput(sock_filp);
-out:
+	rc = kernel_sock_ioctl(sock, cmd, arg);
+	sock_release(sock);
 	return rc;
 }
 
@@ -255,7 +240,6 @@ int
 libcfs_sock_write (struct socket *sock, void *buffer, int nob, int timeout)
 {
 	int	    rc;
-	mm_segment_t   oldmm = get_fs();
 	long	   ticks = timeout * HZ;
 	unsigned long  then;
 	struct timeval tv;
@@ -279,10 +263,8 @@ libcfs_sock_write (struct socket *sock, void *buffer, int nob, int timeout)
 				.tv_sec = ticks / HZ,
 				.tv_usec = ((ticks % HZ) * 1000000) / HZ
 			};
-			set_fs(KERNEL_DS);
-			rc = sock_setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO,
+			rc = kernel_setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO,
 					     (char *)&tv, sizeof(tv));
-			set_fs(oldmm);
 			if (rc != 0) {
 				CERROR("Can't set socket send timeout "
 				       "%ld.%06d: %d\n",
@@ -321,7 +303,6 @@ int
 libcfs_sock_read (struct socket *sock, void *buffer, int nob, int timeout)
 {
 	int	    rc;
-	mm_segment_t   oldmm = get_fs();
 	long	   ticks = timeout * HZ;
 	unsigned long  then;
 	struct timeval tv;
@@ -343,10 +324,8 @@ libcfs_sock_read (struct socket *sock, void *buffer, int nob, int timeout)
 			.tv_sec = ticks / HZ,
 			.tv_usec = ((ticks % HZ) * 1000000) / HZ
 		};
-		set_fs(KERNEL_DS);
-		rc = sock_setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO,
+		rc = kernel_setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO,
 				     (char *)&tv, sizeof(tv));
-		set_fs(oldmm);
 		if (rc != 0) {
 			CERROR("Can't set socket recv timeout %ld.%06d: %d\n",
 			       (long)tv.tv_sec, (int)tv.tv_usec, rc);
@@ -384,7 +363,6 @@ libcfs_sock_create (struct socket **sockp, int *fatal,
 	struct socket      *sock;
 	int		 rc;
 	int		 option;
-	mm_segment_t	oldmm = get_fs();
 
 	/* All errors are fatal except bind failure if the port is in use */
 	*fatal = 1;
@@ -396,11 +374,9 @@ libcfs_sock_create (struct socket **sockp, int *fatal,
 		return (rc);
 	}
 
-	set_fs (KERNEL_DS);
 	option = 1;
-	rc = sock_setsockopt(sock, SOL_SOCKET, SO_REUSEADDR,
+	rc = kernel_setsockopt(sock, SOL_SOCKET, SO_REUSEADDR,
 			     (char *)&option, sizeof (option));
-	set_fs (oldmm);
 	if (rc != 0) {
 		CERROR("Can't set SO_REUSEADDR for socket: %d\n", rc);
 		goto failed;
@@ -437,16 +413,13 @@ libcfs_sock_create (struct socket **sockp, int *fatal,
 int
 libcfs_sock_setbuf (struct socket *sock, int txbufsize, int rxbufsize)
 {
-	mm_segment_t	oldmm = get_fs();
 	int		 option;
 	int		 rc;
 
 	if (txbufsize != 0) {
 		option = txbufsize;
-		set_fs (KERNEL_DS);
-		rc = sock_setsockopt(sock, SOL_SOCKET, SO_SNDBUF,
+		rc = kernel_setsockopt(sock, SOL_SOCKET, SO_SNDBUF,
 				     (char *)&option, sizeof (option));
-		set_fs (oldmm);
 		if (rc != 0) {
 			CERROR ("Can't set send buffer %d: %d\n",
 				option, rc);
@@ -456,10 +429,8 @@ libcfs_sock_setbuf (struct socket *sock, int txbufsize, int rxbufsize)
 
 	if (rxbufsize != 0) {
 		option = rxbufsize;
-		set_fs (KERNEL_DS);
-		rc = sock_setsockopt (sock, SOL_SOCKET, SO_RCVBUF,
+		rc = kernel_setsockopt(sock, SOL_SOCKET, SO_RCVBUF,
 				      (char *)&option, sizeof (option));
-		set_fs (oldmm);
 		if (rc != 0) {
 			CERROR ("Can't set receive buffer %d: %d\n",
 				option, rc);

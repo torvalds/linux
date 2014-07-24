@@ -234,7 +234,7 @@ config PL330_DMA
 
 config PCH_DMA
 	tristate "Intel EG20T PCH / LAPIS Semicon IOH(ML7213/ML7223/ML7831) DMA"
-	depends on PCI && X86
+	depends on PCI && (X86_32 || COMPILE_TEST)
 	select DMA_ENGINE
 	help
 	  Enable support for Intel EG20T PCH DMA engine.
@@ -269,7 +269,7 @@ config MXS_DMA
 	select DMA_ENGINE
 	help
 	  Support the MXS DMA engine. This engine including APBH-DMA
-	  and APBX-DMA is integrated into Freescale i.MX23/28 chips.
+	  and APBX-DMA is integrated into Freescale i.MX23/28/MX6Q/MX6DL chips.
 
 config EP93XX_DMA
 	bool "Cirrus Logic EP93xx DMA support"
@@ -360,6 +360,20 @@ config FSL_EDMA
 	  Support the Freescale eDMA engine with programmable channel
 	  multiplexing capability for DMA request sources(slot).
 	  This module can be found on Freescale Vybrid and LS-1 SoCs.
+
+config XILINX_VDMA
+	tristate "Xilinx AXI VDMA Engine"
+	depends on (ARCH_ZYNQ || MICROBLAZE)
+	select DMA_ENGINE
+	help
+	  Enable support for Xilinx AXI VDMA Soft IP.
+
+	  This engine provides high-bandwidth direct memory access
+	  between memory and AXI4-Stream video type target
+	  peripherals including peripherals which support AXI4-
+	  Stream Video Protocol.  It has two stream interfaces/
+	  channels, Memory Mapped to Stream (MM2S) and Stream to
+	  Memory Mapped (S2MM) for the data transfers.
 
 config DMA_ENGINE
 	bool

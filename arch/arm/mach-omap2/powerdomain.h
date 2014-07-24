@@ -21,8 +21,6 @@
 #include <linux/list.h>
 #include <linux/spinlock.h>
 
-#include "voltage.h"
-
 /* Powerdomain basic power states */
 #define PWRDM_POWER_OFF		0x0
 #define PWRDM_POWER_RET		0x1
@@ -75,6 +73,7 @@
 
 struct clockdomain;
 struct powerdomain;
+struct voltagedomain;
 
 /**
  * struct powerdomain - OMAP powerdomain
