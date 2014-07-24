@@ -53,9 +53,8 @@ static uint64_t ni_tio_clock_period_ps(const struct ni_gpct *counter,
 				       unsigned generic_clock_source);
 static unsigned ni_tio_generic_clock_src_select(const struct ni_gpct *counter);
 
-static inline enum Gi_Counting_Mode_Reg_Bits Gi_Alternate_Sync_Bit(enum
-								   ni_gpct_variant
-								   variant)
+static inline enum Gi_Counting_Mode_Reg_Bits
+Gi_Alternate_Sync_Bit(enum ni_gpct_variant variant)
 {
 	switch (variant) {
 	case ni_gpct_variant_e_series:
@@ -71,9 +70,8 @@ static inline enum Gi_Counting_Mode_Reg_Bits Gi_Alternate_Sync_Bit(enum
 	return 0;
 }
 
-static inline enum Gi_Counting_Mode_Reg_Bits Gi_Prescale_X2_Bit(enum
-								ni_gpct_variant
-								variant)
+static inline enum Gi_Counting_Mode_Reg_Bits
+Gi_Prescale_X2_Bit(enum ni_gpct_variant variant)
 {
 	switch (variant) {
 	case ni_gpct_variant_e_series:
@@ -89,9 +87,8 @@ static inline enum Gi_Counting_Mode_Reg_Bits Gi_Prescale_X2_Bit(enum
 	return 0;
 }
 
-static inline enum Gi_Counting_Mode_Reg_Bits Gi_Prescale_X8_Bit(enum
-								ni_gpct_variant
-								variant)
+static inline enum Gi_Counting_Mode_Reg_Bits
+Gi_Prescale_X8_Bit(enum ni_gpct_variant variant)
 {
 	switch (variant) {
 	case ni_gpct_variant_e_series:
@@ -107,9 +104,8 @@ static inline enum Gi_Counting_Mode_Reg_Bits Gi_Prescale_X8_Bit(enum
 	return 0;
 }
 
-static inline enum Gi_Counting_Mode_Reg_Bits Gi_HW_Arm_Select_Mask(enum
-								   ni_gpct_variant
-								   variant)
+static inline enum Gi_Counting_Mode_Reg_Bits
+Gi_HW_Arm_Select_Mask(enum ni_gpct_variant variant)
 {
 	switch (variant) {
 	case ni_gpct_variant_e_series:
@@ -257,21 +253,15 @@ static inline unsigned NI_660x_RTSI_Second_Gate_Select(unsigned n)
 static const unsigned int counter_status_mask =
 	COMEDI_COUNTER_ARMED | COMEDI_COUNTER_COUNTING;
 
-struct ni_gpct_device *ni_gpct_device_construct(struct comedi_device *dev,
-						void (*write_register) (struct
-									ni_gpct
-									*
-									counter,
-									unsigned
-									bits,
-									enum
-									ni_gpct_register
-									reg),
-						unsigned (*read_register)
-						(struct ni_gpct *counter,
-						 enum ni_gpct_register reg),
-						enum ni_gpct_variant variant,
-						unsigned num_counters)
+struct ni_gpct_device *
+ni_gpct_device_construct(struct comedi_device *dev,
+			 void (*write_register)(struct ni_gpct *counter,
+						unsigned bits,
+						enum ni_gpct_register reg),
+			 unsigned (*read_register)(struct ni_gpct *counter,
+						   enum ni_gpct_register reg),
+			 enum ni_gpct_variant variant,
+			 unsigned num_counters)
 {
 	unsigned i;
 
@@ -309,8 +299,8 @@ void ni_gpct_device_destroy(struct ni_gpct_device *counter_dev)
 }
 EXPORT_SYMBOL_GPL(ni_gpct_device_destroy);
 
-static int ni_tio_second_gate_registers_present(const struct ni_gpct_device
-						*counter_dev)
+static int
+ni_tio_second_gate_registers_present(const struct ni_gpct_device *counter_dev)
 {
 	switch (counter_dev->variant) {
 	case ni_gpct_variant_e_series:
@@ -1264,8 +1254,8 @@ static int ni_tio_set_other_src(struct ni_gpct *counter, unsigned index,
 	return -EINVAL;
 }
 
-static unsigned ni_660x_first_gate_to_generic_gate_source(unsigned
-							  ni_660x_gate_select)
+static unsigned
+ni_660x_first_gate_to_generic_gate_source(unsigned ni_660x_gate_select)
 {
 	unsigned i;
 
@@ -1300,8 +1290,8 @@ static unsigned ni_660x_first_gate_to_generic_gate_source(unsigned
 	return 0;
 };
 
-static unsigned ni_m_series_first_gate_to_generic_gate_source(unsigned
-							      ni_m_series_gate_select)
+static unsigned
+ni_m_series_first_gate_to_generic_gate_source(unsigned ni_m_series_gate_select)
 {
 	unsigned i;
 
@@ -1345,8 +1335,8 @@ static unsigned ni_m_series_first_gate_to_generic_gate_source(unsigned
 	return 0;
 };
 
-static unsigned ni_660x_second_gate_to_generic_gate_source(unsigned
-							   ni_660x_gate_select)
+static unsigned
+ni_660x_second_gate_to_generic_gate_source(unsigned ni_660x_gate_select)
 {
 	unsigned i;
 
@@ -1386,8 +1376,8 @@ static unsigned ni_660x_second_gate_to_generic_gate_source(unsigned
 	return 0;
 };
 
-static unsigned ni_m_series_second_gate_to_generic_gate_source(unsigned
-							       ni_m_series_gate_select)
+static unsigned
+ni_m_series_second_gate_to_generic_gate_source(unsigned ni_m_series_gate_select)
 {
 	/*
 	 * FIXME: the second gate sources for the m series are undocumented,
