@@ -111,11 +111,6 @@ ipfrag_low_thresh - INTEGER
 ipfrag_time - INTEGER
 	Time in seconds to keep an IP fragment in memory.
 
-ipfrag_secret_interval - INTEGER
-	Regeneration interval (in seconds) of the hash secret (or lifetime
-	for the hash secret) for IP fragments.
-	Default: 600
-
 ipfrag_max_dist - INTEGER
 	ipfrag_max_dist is a non-negative integer value which defines the
 	maximum "disorder" which is allowed among fragments which share a
@@ -1163,11 +1158,6 @@ ip6frag_low_thresh - INTEGER
 
 ip6frag_time - INTEGER
 	Time in seconds to keep an IPv6 fragment in memory.
-
-ip6frag_secret_interval - INTEGER
-	Regeneration interval (in seconds) of the hash secret (or lifetime
-	for the hash secret) for IPv6 fragments.
-	Default: 600
 
 conf/default/*:
 	Change the interface-specific default settings.

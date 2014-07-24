@@ -604,10 +604,12 @@ static struct ctl_table ip6_frags_ns_ctl_table[] = {
 	{ }
 };
 
+/* secret interval has been deprecated */
+static int ip6_frags_secret_interval_unused;
 static struct ctl_table ip6_frags_ctl_table[] = {
 	{
 		.procname	= "ip6frag_secret_interval",
-		.data		= &ip6_frags.secret_interval,
+		.data		= &ip6_frags_secret_interval_unused,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_jiffies,
@@ -737,7 +739,6 @@ int __init ipv6_frag_init(void)
 	ip6_frags.qsize = sizeof(struct frag_queue);
 	ip6_frags.match = ip6_frag_match;
 	ip6_frags.frag_expire = ip6_frag_expire;
-	ip6_frags.secret_interval = 10 * 60 * HZ;
 	inet_frags_init(&ip6_frags);
 out:
 	return ret;

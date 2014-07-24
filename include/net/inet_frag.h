@@ -58,11 +58,11 @@ struct inet_frags {
 	 * Its primarily a rebuild protection rwlock.
 	 */
 	rwlock_t		lock ____cacheline_aligned_in_smp;
-	int			secret_interval;
-	struct timer_list	secret_timer;
 
 	struct work_struct	frags_work;
 	unsigned int next_bucket;
+	unsigned long last_rebuild_jiffies;
+	bool rebuild;
 
 	/* The first call to hashfn is responsible to initialize
 	 * rnd. This is best done with net_get_random_once.

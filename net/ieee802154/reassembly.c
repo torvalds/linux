@@ -419,10 +419,12 @@ static struct ctl_table lowpan_frags_ns_ctl_table[] = {
 	{ }
 };
 
+/* secret interval has been deprecated */
+static int lowpan_frags_secret_interval_unused;
 static struct ctl_table lowpan_frags_ctl_table[] = {
 	{
 		.procname	= "6lowpanfrag_secret_interval",
-		.data		= &lowpan_frags.secret_interval,
+		.data		= &lowpan_frags_secret_interval_unused,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_jiffies,
@@ -562,7 +564,6 @@ int __init lowpan_net_frag_init(void)
 	lowpan_frags.qsize = sizeof(struct frag_queue);
 	lowpan_frags.match = lowpan_frag_match;
 	lowpan_frags.frag_expire = lowpan_frag_expire;
-	lowpan_frags.secret_interval = 10 * 60 * HZ;
 	inet_frags_init(&lowpan_frags);
 
 	return ret;

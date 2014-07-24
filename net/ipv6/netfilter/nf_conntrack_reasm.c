@@ -669,7 +669,6 @@ int nf_ct_frag6_init(void)
 	nf_frags.qsize = sizeof(struct frag_queue);
 	nf_frags.match = ip6_frag_match;
 	nf_frags.frag_expire = nf_ct_frag6_expire;
-	nf_frags.secret_interval = 10 * 60 * HZ;
 	inet_frags_init(&nf_frags);
 
 	ret = register_pernet_subsys(&nf_ct_net_ops);

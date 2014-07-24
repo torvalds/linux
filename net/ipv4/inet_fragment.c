@@ -28,6 +28,9 @@
 #define INETFRAGS_EVICT_BUCKETS   128
 #define INETFRAGS_EVICT_MAX	  512
 
+/* don't rebuild inetfrag table with new secret more often than this */
+#define INETFRAGS_MIN_REBUILD_INTERVAL (5 * HZ)
+
 /* Given the OR values of all fragments, apply RFC 3168 5.3 requirements
  * Value : 0xff if frame should be dropped.
  *         0 or INET_ECN_CE value, to be ORed in to final iph->tos field
@@ -55,16 +58,24 @@ inet_frag_hashfn(const struct inet_frags *f, const struct inet_frag_queue *q)
 	return f->hashfn(q) & (INETFRAGS_HASHSZ - 1);
 }
 
-static void inet_frag_secret_rebuild(unsigned long dummy)
+static bool inet_frag_may_rebuild(struct inet_frags *f)
 {
-	struct inet_frags *f = (struct inet_frags *)dummy;
-	unsigned long now = jiffies;
+	return time_after(jiffies,
+	       f->last_rebuild_jiffies + INETFRAGS_MIN_REBUILD_INTERVAL);
+}
+
+static void inet_frag_secret_rebuild(struct inet_frags *f)
+{
 	int i;
 
 	/* Per bucket lock NOT needed here, due to write lock protection */
-	write_lock(&f->lock);
+	write_lock_bh(&f->lock);
+
+	if (!inet_frag_may_rebuild(f))
+		goto out;
 
 	get_random_bytes(&f->rnd, sizeof(u32));
+
 	for (i = 0; i < INETFRAGS_HASHSZ; i++) {
 		struct inet_frag_bucket *hb;
 		struct inet_frag_queue *q;
@@ -85,9 +96,11 @@ static void inet_frag_secret_rebuild(unsigned long dummy)
 			}
 		}
 	}
-	write_unlock(&f->lock);
 
-	mod_timer(&f->secret_timer, now + f->secret_interval);
+	f->rebuild = false;
+	f->last_rebuild_jiffies = jiffies;
+out:
+	write_unlock_bh(&f->lock);
 }
 
 static bool inet_fragq_should_evict(const struct inet_frag_queue *q)
@@ -162,6 +175,8 @@ static void inet_frag_worker(struct work_struct *work)
 	f->next_bucket = i;
 
 	read_unlock_bh(&f->lock);
+	if (f->rebuild && inet_frag_may_rebuild(f))
+		inet_frag_secret_rebuild(f);
 }
 
 static void inet_frag_schedule_worker(struct inet_frags *f)
@@ -183,11 +198,7 @@ void inet_frags_init(struct inet_frags *f)
 		INIT_HLIST_HEAD(&hb->chain);
 	}
 	rwlock_init(&f->lock);
-
-	setup_timer(&f->secret_timer, inet_frag_secret_rebuild,
-			(unsigned long)f);
-	f->secret_timer.expires = jiffies + f->secret_interval;
-	add_timer(&f->secret_timer);
+	f->last_rebuild_jiffies = 0;
 }
 EXPORT_SYMBOL(inet_frags_init);
 
@@ -199,7 +210,6 @@ EXPORT_SYMBOL(inet_frags_init_net);
 
 void inet_frags_fini(struct inet_frags *f)
 {
-	del_timer(&f->secret_timer);
 	cancel_work_sync(&f->frags_work);
 }
 EXPORT_SYMBOL(inet_frags_fini);
@@ -399,8 +409,13 @@ struct inet_frag_queue *inet_frag_find(struct netns_frags *nf,
 
 	if (depth <= INETFRAGS_MAXDEPTH)
 		return inet_frag_create(nf, f, key);
-	else
-		return ERR_PTR(-ENOBUFS);
+
+	if (inet_frag_may_rebuild(f)) {
+		f->rebuild = true;
+		inet_frag_schedule_worker(f);
+	}
+
+	return ERR_PTR(-ENOBUFS);
 }
 EXPORT_SYMBOL(inet_frag_find);
 

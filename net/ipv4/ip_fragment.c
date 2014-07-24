@@ -720,10 +720,12 @@ static struct ctl_table ip4_frags_ns_ctl_table[] = {
 	{ }
 };
 
+/* secret interval has been deprecated */
+static int ip4_frags_secret_interval_unused;
 static struct ctl_table ip4_frags_ctl_table[] = {
 	{
 		.procname	= "ipfrag_secret_interval",
-		.data		= &ip4_frags.secret_interval,
+		.data		= &ip4_frags_secret_interval_unused,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_jiffies,
@@ -853,6 +855,5 @@ void __init ipfrag_init(void)
 	ip4_frags.qsize = sizeof(struct ipq);
 	ip4_frags.match = ip4_frag_match;
 	ip4_frags.frag_expire = ip_expire;
-	ip4_frags.secret_interval = 10 * 60 * HZ;
 	inet_frags_init(&ip4_frags);
 }
