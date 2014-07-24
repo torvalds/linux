@@ -91,10 +91,10 @@ static unsigned long cancel_userptr(struct drm_i915_gem_object *obj)
 	return end;
 }
 
-static void invalidate_range__linear(struct i915_mmu_notifier *mn,
-				     struct mm_struct *mm,
-				     unsigned long start,
-				     unsigned long end)
+static void *invalidate_range__linear(struct i915_mmu_notifier *mn,
+				      struct mm_struct *mm,
+				      unsigned long start,
+				      unsigned long end)
 {
 	struct i915_mmu_object *mmu;
 	unsigned long serial;
@@ -118,7 +118,7 @@ restart:
 			goto restart;
 	}
 
-	spin_unlock(&mn->lock);
+	return NULL;
 }
 
 static void i915_gem_userptr_mn_invalidate_range_start(struct mmu_notifier *_mn,
@@ -133,13 +133,12 @@ static void i915_gem_userptr_mn_invalidate_range_start(struct mmu_notifier *_mn,
 
 	end--; /* interval ranges are inclusive, but invalidate range is exclusive */
 	while (next < end) {
-		struct drm_i915_gem_object *obj;
+		struct drm_i915_gem_object *obj = NULL;
 
-		obj = NULL;
 		spin_lock(&mn->lock);
 		if (mn->has_linear)
-			return invalidate_range__linear(mn, mm, start, end);
-		if (serial == mn->serial)
+			it = invalidate_range__linear(mn, mm, start, end);
+		else if (serial == mn->serial)
 			it = interval_tree_iter_next(it, next, end);
 		else
 			it = interval_tree_iter_first(&mn->objects, start, end);
