@@ -509,54 +509,6 @@ xfs_bulkstat(
 	return rval;
 }
 
-/*
- * Return stat information in bulk (by-inode) for the filesystem.
- * Special case for non-sequential one inode bulkstat.
- */
-int					/* error status */
-xfs_bulkstat_single(
-	xfs_mount_t		*mp,	/* mount point for filesystem */
-	xfs_ino_t		*lastinop, /* inode to return */
-	char			__user *buffer, /* buffer with inode stats */
-	int			*done)	/* 1 if there are more stats to get */
-{
-	int			count;	/* count value for bulkstat call */
-	int			error;	/* return value */
-	xfs_ino_t		ino;	/* filesystem inode number */
-	int			res;	/* result from bs1 */
-
-	/*
-	 * note that requesting valid inode numbers which are not allocated
-	 * to inodes will most likely cause xfs_imap_to_bp to generate warning
-	 * messages about bad magic numbers. This is ok. The fact that
-	 * the inode isn't actually an inode is handled by the
-	 * error check below. Done this way to make the usual case faster
-	 * at the expense of the error case.
-	 */
-
-	ino = *lastinop;
-	error = xfs_bulkstat_one(mp, ino, buffer, sizeof(xfs_bstat_t),
-				 NULL, &res);
-	if (error) {
-		/*
-		 * Special case way failed, do it the "long" way
-		 * to see if that works.
-		 */
-		(*lastinop)--;
-		count = 1;
-		if (xfs_bulkstat(mp, lastinop, &count, xfs_bulkstat_one,
-				sizeof(xfs_bstat_t), buffer, done))
-			return error;
-		if (count == 0 || (xfs_ino_t)*lastinop != ino)
-			return error == -EFSCORRUPTED ?
-				EINVAL : error;
-		else
-			return 0;
-	}
-	*done = 0;
-	return 0;
-}
-
 int
 xfs_inumbers_fmt(
 	void			__user *ubuffer, /* buffer to write to */
