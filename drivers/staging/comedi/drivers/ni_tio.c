@@ -186,52 +186,6 @@ static inline unsigned Gi_Gate_Select_Bits(unsigned gate_select)
 	return (gate_select << Gi_Gate_Select_Shift) & Gi_Gate_Select_Mask;
 }
 
-struct ni_gpct_device *
-ni_gpct_device_construct(struct comedi_device *dev,
-			 void (*write_register)(struct ni_gpct *counter,
-						unsigned bits,
-						enum ni_gpct_register reg),
-			 unsigned (*read_register)(struct ni_gpct *counter,
-						   enum ni_gpct_register reg),
-			 enum ni_gpct_variant variant,
-			 unsigned num_counters)
-{
-	unsigned i;
-
-	struct ni_gpct_device *counter_dev =
-	    kzalloc(sizeof(struct ni_gpct_device), GFP_KERNEL);
-	if (counter_dev == NULL)
-		return NULL;
-	counter_dev->dev = dev;
-	counter_dev->write_register = write_register;
-	counter_dev->read_register = read_register;
-	counter_dev->variant = variant;
-	spin_lock_init(&counter_dev->regs_lock);
-	BUG_ON(num_counters == 0);
-	counter_dev->counters =
-	    kzalloc(sizeof(struct ni_gpct) * num_counters, GFP_KERNEL);
-	if (counter_dev->counters == NULL) {
-		kfree(counter_dev);
-		return NULL;
-	}
-	for (i = 0; i < num_counters; ++i) {
-		counter_dev->counters[i].counter_dev = counter_dev;
-		spin_lock_init(&counter_dev->counters[i].lock);
-	}
-	counter_dev->num_counters = num_counters;
-	return counter_dev;
-}
-EXPORT_SYMBOL_GPL(ni_gpct_device_construct);
-
-void ni_gpct_device_destroy(struct ni_gpct_device *counter_dev)
-{
-	if (counter_dev->counters == NULL)
-		return;
-	kfree(counter_dev->counters);
-	kfree(counter_dev);
-}
-EXPORT_SYMBOL_GPL(ni_gpct_device_destroy);
-
 static int
 ni_tio_second_gate_registers_present(const struct ni_gpct_device *counter_dev)
 {
@@ -1520,6 +1474,61 @@ int ni_tio_insn_write(struct comedi_device *dev,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ni_tio_insn_write);
+
+struct ni_gpct_device *
+ni_gpct_device_construct(struct comedi_device *dev,
+			 void (*write_register)(struct ni_gpct *counter,
+						unsigned bits,
+						enum ni_gpct_register reg),
+			 unsigned (*read_register)(struct ni_gpct *counter,
+						   enum ni_gpct_register reg),
+			 enum ni_gpct_variant variant,
+			 unsigned num_counters)
+{
+	struct ni_gpct_device *counter_dev;
+	struct ni_gpct *counter;
+	unsigned i;
+
+	if (num_counters == 0)
+		return NULL;
+
+	counter_dev = kzalloc(sizeof(*counter_dev), GFP_KERNEL);
+	if (!counter_dev)
+		return NULL;
+
+	counter_dev->dev = dev;
+	counter_dev->write_register = write_register;
+	counter_dev->read_register = read_register;
+	counter_dev->variant = variant;
+
+	spin_lock_init(&counter_dev->regs_lock);
+
+	counter_dev->counters = kcalloc(num_counters, sizeof(*counter),
+					GFP_KERNEL);
+	if (!counter_dev->counters) {
+		kfree(counter_dev);
+		return NULL;
+	}
+
+	for (i = 0; i < num_counters; ++i) {
+		counter = &counter_dev->counters[i];
+		counter->counter_dev = counter_dev;
+		spin_lock_init(&counter->lock);
+	}
+	counter_dev->num_counters = num_counters;
+
+	return counter_dev;
+}
+EXPORT_SYMBOL_GPL(ni_gpct_device_construct);
+
+void ni_gpct_device_destroy(struct ni_gpct_device *counter_dev)
+{
+	if (!counter_dev->counters)
+		return;
+	kfree(counter_dev->counters);
+	kfree(counter_dev);
+}
+EXPORT_SYMBOL_GPL(ni_gpct_device_destroy);
 
 static int __init ni_tio_init_module(void)
 {
