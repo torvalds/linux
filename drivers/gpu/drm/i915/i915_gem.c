@@ -2551,6 +2551,18 @@ static void i915_gem_reset_ring_cleanup(struct drm_i915_private *dev_priv,
 		i915_gem_free_request(request);
 	}
 
+	while (!list_empty(&ring->execlist_queue)) {
+		struct intel_ctx_submit_request *submit_req;
+
+		submit_req = list_first_entry(&ring->execlist_queue,
+				struct intel_ctx_submit_request,
+				execlist_link);
+		list_del(&submit_req->execlist_link);
+		intel_runtime_pm_put(dev_priv);
+		i915_gem_context_unreference(submit_req->ctx);
+		kfree(submit_req);
+	}
+
 	/* These may not have been flush before the reset, do so now */
 	kfree(ring->preallocated_lazy_request);
 	ring->preallocated_lazy_request = NULL;
