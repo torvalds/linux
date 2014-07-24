@@ -36,29 +36,30 @@ struct btrfs_device {
 	struct list_head dev_list;
 	struct list_head dev_alloc_list;
 	struct btrfs_fs_devices *fs_devices;
+
 	struct btrfs_root *dev_root;
 
+	struct rcu_string *name;
+
+	u64 generation;
+
+	spinlock_t io_lock ____cacheline_aligned;
+	int running_pending;
 	/* regular prio bios */
 	struct btrfs_pending_bios pending_bios;
 	/* WRITE_SYNC bios */
 	struct btrfs_pending_bios pending_sync_bios;
 
-	u64 generation;
-	int running_pending;
+	struct block_device *bdev;
+
+	/* the mode sent to blkdev_get */
+	fmode_t mode;
+
 	int writeable;
 	int in_fs_metadata;
 	int missing;
 	int can_discard;
 	int is_tgtdev_for_dev_replace;
-
-	spinlock_t io_lock;
-	/* the mode sent to blkdev_get */
-	fmode_t mode;
-
-	struct block_device *bdev;
-
-
-	struct rcu_string *name;
 
 	/* the internal btrfs device id */
 	u64 devid;
@@ -83,7 +84,6 @@ struct btrfs_device {
 	/* minimal io size for this device */
 	u32 sector_size;
 
-
 	/* physical drive uuid (or lvm uuid) */
 	u8 uuid[BTRFS_UUID_SIZE];
 
@@ -106,7 +106,6 @@ struct btrfs_device {
 	struct reada_zone *reada_curr_zone;
 	struct radix_tree_root reada_zones;
 	struct radix_tree_root reada_extents;
-
 
 	/* disk I/O failure stats. For detailed description refer to
 	 * enum btrfs_dev_stat_values in ioctl.h */
