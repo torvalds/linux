@@ -551,7 +551,7 @@ static int vnt_start(struct ieee80211_hw *hw)
 		return -ENOMEM;
 	}
 
-	MP_CLEAR_FLAG(priv, DEVICE_FLAGS_DISCONNECTED);
+	clear_bit(DEVICE_FLAGS_DISCONNECTED, &priv->flags);
 
 	if (device_init_registers(priv) == false) {
 		dev_dbg(&priv->usb->dev, " init register fail\n");
@@ -1025,7 +1025,7 @@ vt6656_probe(struct usb_interface *intf, const struct usb_device_id *id)
 
 	usb_device_reset(priv);
 
-	MP_CLEAR_FLAG(priv, DEVICE_FLAGS_DISCONNECTED);
+	clear_bit(DEVICE_FLAGS_DISCONNECTED, &priv->flags);
 	vnt_reset_command_timer(priv);
 
 	vnt_schedule_command(priv, WLAN_CMD_INIT_MAC80211);
