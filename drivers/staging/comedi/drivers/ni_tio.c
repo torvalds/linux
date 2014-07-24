@@ -205,21 +205,6 @@ static void ni_tio_reset_count_and_disarm(struct ni_gpct *counter)
 	write_register(counter, Gi_Reset_Bit(cidx), NITIO_RESET_REG(cidx));
 }
 
-static unsigned int ni_tio_counter_status(struct ni_gpct *counter)
-{
-	unsigned cidx = counter->counter_index;
-	const unsigned bits = read_register(counter,
-					    NITIO_SHARED_STATUS_REG(cidx));
-	unsigned int status = 0;
-
-	if (bits & Gi_Armed_Bit(cidx)) {
-		status |= COMEDI_COUNTER_ARMED;
-		if (bits & Gi_Counting_Bit(cidx))
-			status |= COMEDI_COUNTER_COUNTING;
-	}
-	return status;
-}
-
 static void ni_tio_set_sync_mode(struct ni_gpct *counter, int force_alt_sync)
 {
 	struct ni_gpct_device *counter_dev = counter->counter_dev;
@@ -1282,6 +1267,8 @@ int ni_tio_insn_config(struct comedi_device *dev,
 		       unsigned int *data)
 {
 	struct ni_gpct *counter = s->private;
+	unsigned cidx = counter->counter_index;
+	unsigned status;
 
 	switch (data[0]) {
 	case INSN_CONFIG_SET_COUNTER_MODE:
@@ -1292,7 +1279,13 @@ int ni_tio_insn_config(struct comedi_device *dev,
 		ni_tio_arm(counter, 0, 0);
 		return 0;
 	case INSN_CONFIG_GET_COUNTER_STATUS:
-		data[1] = ni_tio_counter_status(counter);
+		data[1] = 0;
+		status = read_register(counter, NITIO_SHARED_STATUS_REG(cidx));
+		if (status & Gi_Armed_Bit(cidx)) {
+			data[1] |= COMEDI_COUNTER_ARMED;
+			if (status & Gi_Counting_Bit(cidx))
+				data[1] |= COMEDI_COUNTER_COUNTING;
+		}
 		data[2] = COMEDI_COUNTER_ARMED | COMEDI_COUNTER_COUNTING;
 		return 0;
 	case INSN_CONFIG_SET_CLOCK_SRC:
