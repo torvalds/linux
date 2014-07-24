@@ -1848,8 +1848,12 @@ void btrfs_rm_dev_replace_srcdev(struct btrfs_fs_info *fs_info,
 	if (srcdev->bdev) {
 		fs_info->fs_devices->open_devices--;
 
-		/* zero out the old super */
-		btrfs_scratch_superblock(srcdev);
+		/*
+		 * zero out the old super if it is not writable
+		 * (e.g. seed device)
+		 */
+		if (srcdev->writeable)
+			btrfs_scratch_superblock(srcdev);
 	}
 
 	call_rcu(&srcdev->rcu, free_device);
