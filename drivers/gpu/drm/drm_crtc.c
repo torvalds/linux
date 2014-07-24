@@ -361,6 +361,32 @@ const char *drm_get_format_name(uint32_t format)
 }
 EXPORT_SYMBOL(drm_get_format_name);
 
+/*
+ * Internal function to assign a slot in the object idr and optionally
+ * register the object into the idr.
+ */
+static int drm_mode_object_get_reg(struct drm_device *dev,
+				   struct drm_mode_object *obj,
+				   uint32_t obj_type,
+				   bool register_obj)
+{
+	int ret;
+
+	mutex_lock(&dev->mode_config.idr_mutex);
+	ret = idr_alloc(&dev->mode_config.crtc_idr, register_obj ? obj : NULL, 1, 0, GFP_KERNEL);
+	if (ret >= 0) {
+		/*
+		 * Set up the object linking under the protection of the idr
+		 * lock so that other users can't see inconsistent state.
+		 */
+		obj->id = ret;
+		obj->type = obj_type;
+	}
+	mutex_unlock(&dev->mode_config.idr_mutex);
+
+	return ret < 0 ? ret : 0;
+}
+
 /**
  * drm_mode_object_get - allocate a new modeset identifier
  * @dev: DRM device
@@ -379,21 +405,15 @@ EXPORT_SYMBOL(drm_get_format_name);
 int drm_mode_object_get(struct drm_device *dev,
 			struct drm_mode_object *obj, uint32_t obj_type)
 {
-	int ret;
+	return drm_mode_object_get_reg(dev, obj, obj_type, true);
+}
 
+static void drm_mode_object_register(struct drm_device *dev,
+				     struct drm_mode_object *obj)
+{
 	mutex_lock(&dev->mode_config.idr_mutex);
-	ret = idr_alloc(&dev->mode_config.crtc_idr, obj, 1, 0, GFP_KERNEL);
-	if (ret >= 0) {
-		/*
-		 * Set up the object linking under the protection of the idr
-		 * lock so that other users can't see inconsistent state.
-		 */
-		obj->id = ret;
-		obj->type = obj_type;
-	}
+	idr_replace(&dev->mode_config.crtc_idr, obj, obj->id);
 	mutex_unlock(&dev->mode_config.idr_mutex);
-
-	return ret < 0 ? ret : 0;
 }
 
 /**
@@ -849,7 +869,7 @@ int drm_connector_init(struct drm_device *dev,
 
 	drm_modeset_lock_all(dev);
 
-	ret = drm_mode_object_get(dev, &connector->base, DRM_MODE_OBJECT_CONNECTOR);
+	ret = drm_mode_object_get_reg(dev, &connector->base, DRM_MODE_OBJECT_CONNECTOR, false);
 	if (ret)
 		goto out_unlock;
 
@@ -941,6 +961,8 @@ EXPORT_SYMBOL(drm_connector_cleanup);
 int drm_connector_register(struct drm_connector *connector)
 {
 	int ret;
+
+	drm_mode_object_register(connector->dev, &connector->base);
 
 	ret = drm_sysfs_connector_add(connector);
 	if (ret)
