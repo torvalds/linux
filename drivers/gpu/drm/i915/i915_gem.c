@@ -4723,6 +4723,9 @@ int i915_gem_init(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret;
 
+	i915.enable_execlists = intel_sanitize_enable_execlists(dev,
+			i915.enable_execlists);
+
 	mutex_lock(&dev->struct_mutex);
 
 	if (IS_VALLEYVIEW(dev)) {

@@ -40,3 +40,14 @@
 #include <drm/drmP.h>
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
+
+int intel_sanitize_enable_execlists(struct drm_device *dev, int enable_execlists)
+{
+	if (enable_execlists == 0)
+		return 0;
+
+	if (HAS_LOGICAL_RING_CONTEXTS(dev) && USES_PPGTT(dev))
+		return 1;
+
+	return 0;
+}

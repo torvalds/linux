@@ -24,4 +24,7 @@
 #ifndef _INTEL_LRC_H_
 #define _INTEL_LRC_H_
 
+/* Execlists */
+int intel_sanitize_enable_execlists(struct drm_device *dev, int enable_execlists);
+
 #endif /* _INTEL_LRC_H_ */
