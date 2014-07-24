@@ -110,20 +110,17 @@ Gi_HW_Arm_Select_Mask(enum ni_gpct_variant variant)
 }
 
 /* clock sources for ni_660x boards, get bits with Gi_Source_Select_Bits() */
-enum ni_660x_clock_source {
-	NI_660x_Timebase_1_Clock = 0x0,	/* 20MHz */
-	NI_660x_Source_Pin_i_Clock = 0x1,
-	NI_660x_Next_Gate_Clock = 0xa,
-	NI_660x_Timebase_2_Clock = 0x12,	/* 100KHz */
-	NI_660x_Next_TC_Clock = 0x13,
-	NI_660x_Timebase_3_Clock = 0x1e,	/* 80MHz */
-	NI_660x_Logic_Low_Clock = 0x1f,
-};
-#define NI_660X_MAX_RTSI_CHAN		6
-#define NI_660X_RTSI_CLK(x)		(0xb + (x))
-
-#define NI_660X_MAX_SRC_PIN		7
+#define NI_660X_TIMEBASE_1_CLK		0x0	/* 20MHz */
+#define NI_660X_SRC_PIN_I_CLK		0x1
 #define NI_660X_SRC_PIN_CLK(x)		(0x2 + (x))
+#define NI_660X_NEXT_GATE_CLK		0xa
+#define NI_660X_RTSI_CLK(x)		(0xb + (x))
+#define NI_660X_TIMEBASE_2_CLK		0x12	/* 100KHz */
+#define NI_660X_NEXT_TC_CLK		0x13
+#define NI_660X_TIMEBASE_3_CLK		0x1e	/* 80MHz */
+#define NI_660X_LOGIC_LOW_CLK		0x1f
+#define NI_660X_MAX_SRC_PIN		7
+#define NI_660X_MAX_RTSI_CHAN		6
 
 /*
  * clock sources for ni e and m series boards,
@@ -485,25 +482,25 @@ static unsigned ni_660x_source_select_bits(unsigned int clock_source)
 
 	switch (clock_select_bits) {
 	case NI_GPCT_TIMEBASE_1_CLOCK_SRC_BITS:
-		ni_660x_clock = NI_660x_Timebase_1_Clock;
+		ni_660x_clock = NI_660X_TIMEBASE_1_CLK;
 		break;
 	case NI_GPCT_TIMEBASE_2_CLOCK_SRC_BITS:
-		ni_660x_clock = NI_660x_Timebase_2_Clock;
+		ni_660x_clock = NI_660X_TIMEBASE_2_CLK;
 		break;
 	case NI_GPCT_TIMEBASE_3_CLOCK_SRC_BITS:
-		ni_660x_clock = NI_660x_Timebase_3_Clock;
+		ni_660x_clock = NI_660X_TIMEBASE_3_CLK;
 		break;
 	case NI_GPCT_LOGIC_LOW_CLOCK_SRC_BITS:
-		ni_660x_clock = NI_660x_Logic_Low_Clock;
+		ni_660x_clock = NI_660X_LOGIC_LOW_CLK;
 		break;
 	case NI_GPCT_SOURCE_PIN_i_CLOCK_SRC_BITS:
-		ni_660x_clock = NI_660x_Source_Pin_i_Clock;
+		ni_660x_clock = NI_660X_SRC_PIN_I_CLK;
 		break;
 	case NI_GPCT_NEXT_GATE_CLOCK_SRC_BITS:
-		ni_660x_clock = NI_660x_Next_Gate_Clock;
+		ni_660x_clock = NI_660X_NEXT_GATE_CLK;
 		break;
 	case NI_GPCT_NEXT_TC_CLOCK_SRC_BITS:
-		ni_660x_clock = NI_660x_Next_TC_Clock;
+		ni_660x_clock = NI_660X_NEXT_TC_CLK;
 		break;
 	default:
 		for (i = 0; i <= NI_660X_MAX_RTSI_CHAN; ++i) {
@@ -768,25 +765,25 @@ static unsigned ni_660x_clock_src_select(const struct ni_gpct *counter)
 	unsigned i;
 
 	switch (input_select) {
-	case NI_660x_Timebase_1_Clock:
+	case NI_660X_TIMEBASE_1_CLK:
 		clock_source = NI_GPCT_TIMEBASE_1_CLOCK_SRC_BITS;
 		break;
-	case NI_660x_Timebase_2_Clock:
+	case NI_660X_TIMEBASE_2_CLK:
 		clock_source = NI_GPCT_TIMEBASE_2_CLOCK_SRC_BITS;
 		break;
-	case NI_660x_Timebase_3_Clock:
+	case NI_660X_TIMEBASE_3_CLK:
 		clock_source = NI_GPCT_TIMEBASE_3_CLOCK_SRC_BITS;
 		break;
-	case NI_660x_Logic_Low_Clock:
+	case NI_660X_LOGIC_LOW_CLK:
 		clock_source = NI_GPCT_LOGIC_LOW_CLOCK_SRC_BITS;
 		break;
-	case NI_660x_Source_Pin_i_Clock:
+	case NI_660X_SRC_PIN_I_CLK:
 		clock_source = NI_GPCT_SOURCE_PIN_i_CLOCK_SRC_BITS;
 		break;
-	case NI_660x_Next_Gate_Clock:
+	case NI_660X_NEXT_GATE_CLK:
 		clock_source = NI_GPCT_NEXT_GATE_CLOCK_SRC_BITS;
 		break;
-	case NI_660x_Next_TC_Clock:
+	case NI_660X_NEXT_TC_CLK:
 		clock_source = NI_GPCT_NEXT_TC_CLOCK_SRC_BITS;
 		break;
 	default:
