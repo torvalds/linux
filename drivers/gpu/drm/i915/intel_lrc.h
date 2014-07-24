@@ -65,6 +65,9 @@ struct intel_ctx_submit_request {
 	u32 tail;
 
 	struct list_head execlist_link;
+	struct work_struct work;
 };
+
+void intel_execlists_handle_ctx_events(struct intel_engine_cs *ring);
 
 #endif /* _INTEL_LRC_H_ */

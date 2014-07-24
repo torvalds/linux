@@ -1632,6 +1632,7 @@ static irqreturn_t gen8_gt_irq_handler(struct drm_device *dev,
 				       struct drm_i915_private *dev_priv,
 				       u32 master_ctl)
 {
+	struct intel_engine_cs *ring;
 	u32 rcs, bcs, vcs;
 	uint32_t tmp = 0;
 	irqreturn_t ret = IRQ_NONE;
@@ -1641,14 +1642,20 @@ static irqreturn_t gen8_gt_irq_handler(struct drm_device *dev,
 		if (tmp) {
 			I915_WRITE(GEN8_GT_IIR(0), tmp);
 			ret = IRQ_HANDLED;
+
 			rcs = tmp >> GEN8_RCS_IRQ_SHIFT;
-			bcs = tmp >> GEN8_BCS_IRQ_SHIFT;
+			ring = &dev_priv->ring[RCS];
 			if (rcs & GT_RENDER_USER_INTERRUPT)
-				notify_ring(dev, &dev_priv->ring[RCS]);
+				notify_ring(dev, ring);
+			if (rcs & GT_CONTEXT_SWITCH_INTERRUPT)
+				intel_execlists_handle_ctx_events(ring);
+
+			bcs = tmp >> GEN8_BCS_IRQ_SHIFT;
+			ring = &dev_priv->ring[BCS];
 			if (bcs & GT_RENDER_USER_INTERRUPT)
-				notify_ring(dev, &dev_priv->ring[BCS]);
-			if ((rcs | bcs) & GT_CONTEXT_SWITCH_INTERRUPT)
-				DRM_DEBUG_DRIVER("TODO: Context switch\n");
+				notify_ring(dev, ring);
+			if (bcs & GT_CONTEXT_SWITCH_INTERRUPT)
+				intel_execlists_handle_ctx_events(ring);
 		} else
 			DRM_ERROR("The master control interrupt lied (GT0)!\n");
 	}
@@ -1658,16 +1665,20 @@ static irqreturn_t gen8_gt_irq_handler(struct drm_device *dev,
 		if (tmp) {
 			I915_WRITE(GEN8_GT_IIR(1), tmp);
 			ret = IRQ_HANDLED;
+
 			vcs = tmp >> GEN8_VCS1_IRQ_SHIFT;
+			ring = &dev_priv->ring[VCS];
 			if (vcs & GT_RENDER_USER_INTERRUPT)
-				notify_ring(dev, &dev_priv->ring[VCS]);
+				notify_ring(dev, ring);
 			if (vcs & GT_CONTEXT_SWITCH_INTERRUPT)
-				DRM_DEBUG_DRIVER("TODO: Context switch\n");
+				intel_execlists_handle_ctx_events(ring);
+
 			vcs = tmp >> GEN8_VCS2_IRQ_SHIFT;
+			ring = &dev_priv->ring[VCS2];
 			if (vcs & GT_RENDER_USER_INTERRUPT)
-				notify_ring(dev, &dev_priv->ring[VCS2]);
+				notify_ring(dev, ring);
 			if (vcs & GT_CONTEXT_SWITCH_INTERRUPT)
-				DRM_DEBUG_DRIVER("TODO: Context switch\n");
+				intel_execlists_handle_ctx_events(ring);
 		} else
 			DRM_ERROR("The master control interrupt lied (GT1)!\n");
 	}
@@ -1688,11 +1699,13 @@ static irqreturn_t gen8_gt_irq_handler(struct drm_device *dev,
 		if (tmp) {
 			I915_WRITE(GEN8_GT_IIR(3), tmp);
 			ret = IRQ_HANDLED;
+
 			vcs = tmp >> GEN8_VECS_IRQ_SHIFT;
+			ring = &dev_priv->ring[VECS];
 			if (vcs & GT_RENDER_USER_INTERRUPT)
-				notify_ring(dev, &dev_priv->ring[VECS]);
+				notify_ring(dev, ring);
 			if (vcs & GT_CONTEXT_SWITCH_INTERRUPT)
-				DRM_DEBUG_DRIVER("TODO: Context switch\n");
+				intel_execlists_handle_ctx_events(ring);
 		} else
 			DRM_ERROR("The master control interrupt lied (GT3)!\n");
 	}

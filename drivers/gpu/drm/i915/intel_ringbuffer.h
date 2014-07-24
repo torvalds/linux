@@ -233,6 +233,7 @@ struct  intel_engine_cs {
 	/* Execlists */
 	spinlock_t execlist_lock;
 	struct list_head execlist_queue;
+	u8 next_context_status_buffer;
 	u32             irq_keep_mask; /* bitmask for interrupts that should not be masked */
 	int		(*emit_request)(struct intel_ringbuffer *ringbuf);
 	int		(*emit_flush)(struct intel_ringbuffer *ringbuf,

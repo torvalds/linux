@@ -49,6 +49,22 @@
 #define RING_ELSP(ring)			((ring)->mmio_base+0x230)
 #define RING_EXECLIST_STATUS(ring)	((ring)->mmio_base+0x234)
 #define RING_CONTEXT_CONTROL(ring)	((ring)->mmio_base+0x244)
+#define RING_CONTEXT_STATUS_BUF(ring)	((ring)->mmio_base+0x370)
+#define RING_CONTEXT_STATUS_PTR(ring)	((ring)->mmio_base+0x3a0)
+
+#define RING_EXECLIST_QFULL		(1 << 0x2)
+#define RING_EXECLIST1_VALID		(1 << 0x3)
+#define RING_EXECLIST0_VALID		(1 << 0x4)
+#define RING_EXECLIST_ACTIVE_STATUS	(3 << 0xE)
+#define RING_EXECLIST1_ACTIVE		(1 << 0x11)
+#define RING_EXECLIST0_ACTIVE		(1 << 0x12)
+
+#define GEN8_CTX_STATUS_IDLE_ACTIVE	(1 << 0)
+#define GEN8_CTX_STATUS_PREEMPTED	(1 << 1)
+#define GEN8_CTX_STATUS_ELEMENT_SWITCH	(1 << 2)
+#define GEN8_CTX_STATUS_ACTIVE_IDLE	(1 << 3)
+#define GEN8_CTX_STATUS_COMPLETE	(1 << 4)
+#define GEN8_CTX_STATUS_LITE_RESTORE	(1 << 15)
 
 #define CTX_LRI_HEADER_0		0x01
 #define CTX_CONTEXT_CONTROL		0x02
@@ -150,6 +166,7 @@ static void execlists_elsp_write(struct intel_engine_cs *ring,
 	struct drm_i915_private *dev_priv = ring->dev->dev_private;
 	uint64_t temp = 0;
 	uint32_t desc[4];
+	unsigned long flags;
 
 	/* XXX: You must always write both descriptors in the order below. */
 	if (ctx_obj1)
@@ -163,9 +180,17 @@ static void execlists_elsp_write(struct intel_engine_cs *ring,
 	desc[3] = (u32)(temp >> 32);
 	desc[2] = (u32)temp;
 
-	/* Set Force Wakeup bit to prevent GT from entering C6 while
-	 * ELSP writes are in progress */
-	gen6_gt_force_wake_get(dev_priv, FORCEWAKE_ALL);
+	/* Set Force Wakeup bit to prevent GT from entering C6 while ELSP writes
+	 * are in progress.
+	 *
+	 * The other problem is that we can't just call gen6_gt_force_wake_get()
+	 * because that function calls intel_runtime_pm_get(), which might sleep.
+	 * Instead, we do the runtime_pm_get/put when creating/destroying requests.
+	 */
+	spin_lock_irqsave(&dev_priv->uncore.lock, flags);
+	if (dev_priv->uncore.forcewake_count++ == 0)
+		dev_priv->uncore.funcs.force_wake_get(dev_priv, FORCEWAKE_ALL);
+	spin_unlock_irqrestore(&dev_priv->uncore.lock, flags);
 
 	I915_WRITE(RING_ELSP(ring), desc[1]);
 	I915_WRITE(RING_ELSP(ring), desc[0]);
@@ -176,7 +201,11 @@ static void execlists_elsp_write(struct intel_engine_cs *ring,
 	/* ELSP is a wo register, so use another nearby reg for posting instead */
 	POSTING_READ(RING_EXECLIST_STATUS(ring));
 
-	gen6_gt_force_wake_put(dev_priv, FORCEWAKE_ALL);
+	/* Release Force Wakeup (see the big comment above). */
+	spin_lock_irqsave(&dev_priv->uncore.lock, flags);
+	if (--dev_priv->uncore.forcewake_count == 0)
+		dev_priv->uncore.funcs.force_wake_put(dev_priv, FORCEWAKE_ALL);
+	spin_unlock_irqrestore(&dev_priv->uncore.lock, flags);
 }
 
 static int execlists_ctx_write_tail(struct drm_i915_gem_object *ctx_obj, u32 tail)
@@ -224,6 +253,9 @@ static void execlists_context_unqueue(struct intel_engine_cs *ring)
 {
 	struct intel_ctx_submit_request *req0 = NULL, *req1 = NULL;
 	struct intel_ctx_submit_request *cursor = NULL, *tmp = NULL;
+	struct drm_i915_private *dev_priv = ring->dev->dev_private;
+
+	assert_spin_locked(&ring->execlist_lock);
 
 	if (list_empty(&ring->execlist_queue))
 		return;
@@ -237,8 +269,7 @@ static void execlists_context_unqueue(struct intel_engine_cs *ring)
 			/* Same ctx: ignore first request, as second request
 			 * will update tail past first request's workload */
 			list_del(&req0->execlist_link);
-			i915_gem_context_unreference(req0->ctx);
-			kfree(req0);
+			queue_work(dev_priv->wq, &req0->work);
 			req0 = cursor;
 		} else {
 			req1 = cursor;
@@ -251,11 +282,97 @@ static void execlists_context_unqueue(struct intel_engine_cs *ring)
 					 req1 ? req1->tail : 0));
 }
 
+static bool execlists_check_remove_request(struct intel_engine_cs *ring,
+					   u32 request_id)
+{
+	struct drm_i915_private *dev_priv = ring->dev->dev_private;
+	struct intel_ctx_submit_request *head_req;
+
+	assert_spin_locked(&ring->execlist_lock);
+
+	head_req = list_first_entry_or_null(&ring->execlist_queue,
+					    struct intel_ctx_submit_request,
+					    execlist_link);
+
+	if (head_req != NULL) {
+		struct drm_i915_gem_object *ctx_obj =
+				head_req->ctx->engine[ring->id].state;
+		if (intel_execlists_ctx_id(ctx_obj) == request_id) {
+			list_del(&head_req->execlist_link);
+			queue_work(dev_priv->wq, &head_req->work);
+			return true;
+		}
+	}
+
+	return false;
+}
+
+void intel_execlists_handle_ctx_events(struct intel_engine_cs *ring)
+{
+	struct drm_i915_private *dev_priv = ring->dev->dev_private;
+	u32 status_pointer;
+	u8 read_pointer;
+	u8 write_pointer;
+	u32 status;
+	u32 status_id;
+	u32 submit_contexts = 0;
+
+	status_pointer = I915_READ(RING_CONTEXT_STATUS_PTR(ring));
+
+	read_pointer = ring->next_context_status_buffer;
+	write_pointer = status_pointer & 0x07;
+	if (read_pointer > write_pointer)
+		write_pointer += 6;
+
+	spin_lock(&ring->execlist_lock);
+
+	while (read_pointer < write_pointer) {
+		read_pointer++;
+		status = I915_READ(RING_CONTEXT_STATUS_BUF(ring) +
+				(read_pointer % 6) * 8);
+		status_id = I915_READ(RING_CONTEXT_STATUS_BUF(ring) +
+				(read_pointer % 6) * 8 + 4);
+
+		if (status & GEN8_CTX_STATUS_COMPLETE) {
+			if (execlists_check_remove_request(ring, status_id))
+				submit_contexts++;
+		}
+	}
+
+	if (submit_contexts != 0)
+		execlists_context_unqueue(ring);
+
+	spin_unlock(&ring->execlist_lock);
+
+	WARN(submit_contexts > 2, "More than two context complete events?\n");
+	ring->next_context_status_buffer = write_pointer % 6;
+
+	I915_WRITE(RING_CONTEXT_STATUS_PTR(ring),
+		   ((u32)ring->next_context_status_buffer & 0x07) << 8);
+}
+
+static void execlists_free_request_task(struct work_struct *work)
+{
+	struct intel_ctx_submit_request *req =
+		container_of(work, struct intel_ctx_submit_request, work);
+	struct drm_device *dev = req->ring->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	intel_runtime_pm_put(dev_priv);
+
+	mutex_lock(&dev->struct_mutex);
+	i915_gem_context_unreference(req->ctx);
+	mutex_unlock(&dev->struct_mutex);
+
+	kfree(req);
+}
+
 static int execlists_context_queue(struct intel_engine_cs *ring,
 				   struct intel_context *to,
 				   u32 tail)
 {
 	struct intel_ctx_submit_request *req = NULL;
+	struct drm_i915_private *dev_priv = ring->dev->dev_private;
 	unsigned long flags;
 	bool was_empty;
 
@@ -266,6 +383,9 @@ static int execlists_context_queue(struct intel_engine_cs *ring,
 	i915_gem_context_reference(req->ctx);
 	req->ring = ring;
 	req->tail = tail;
+	INIT_WORK(&req->work, execlists_free_request_task);
+
+	intel_runtime_pm_get(dev_priv);
 
 	spin_lock_irqsave(&ring->execlist_lock, flags);
 
@@ -907,6 +1027,7 @@ static int logical_ring_init(struct drm_device *dev, struct intel_engine_cs *rin
 
 	INIT_LIST_HEAD(&ring->execlist_queue);
 	spin_lock_init(&ring->execlist_lock);
+	ring->next_context_status_buffer = 0;
 
 	ret = intel_lr_context_deferred_create(dctx, ring);
 	if (ret)
