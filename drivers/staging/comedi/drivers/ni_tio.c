@@ -173,14 +173,7 @@ enum ni_m_series_gate_select {
 	NI_M_Series_Logic_Low_Gate_Select = 0x1f,
 };
 #define NI_M_RTSI_GATE_SEL(x)		(((x) == 7) ? 0x1b : (0xb + (x)))
-
-static inline unsigned NI_M_Series_PFI_Gate_Select(unsigned n)
-{
-	BUG_ON(n > ni_m_series_max_pfi_channel);
-	if (n < 10)
-		return 1 + n;
-	return 0xb + n;
-}
+#define NI_M_PFI_GATE_SEL(x)		(((x) < 10) ? (1 + (x)) : (0xb + (x)))
 
 static inline unsigned Gi_Source_Select_Bits(unsigned source)
 {
@@ -1251,10 +1244,8 @@ ni_m_series_first_gate_to_generic_gate_source(unsigned ni_m_series_gate_select)
 		if (i <= ni_m_series_max_rtsi_channel)
 			break;
 		for (i = 0; i <= ni_m_series_max_pfi_channel; ++i) {
-			if (ni_m_series_gate_select ==
-			    NI_M_Series_PFI_Gate_Select(i)) {
+			if (ni_m_series_gate_select == NI_M_PFI_GATE_SEL(i))
 				return NI_GPCT_PFI_GATE_SELECT(i);
-			}
 		}
 		if (i <= ni_m_series_max_pfi_channel)
 			break;
