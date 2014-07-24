@@ -755,7 +755,7 @@ struct txmac_regs {			/* Location: */
  */
 
 /*
- * structure for Unicast Paket Filter Address 1 reg in rxmac address map
+ * structure for Unicast Packet Filter Address 1 reg in rxmac address map
  * located at address 0x4068
  *
  * 31-24: addr1_3
@@ -769,7 +769,7 @@ struct txmac_regs {			/* Location: */
 #define ET_RX_UNI_PF_ADDR1_5_SHIFT 8
 
 /*
- * structure for Unicast Paket Filter Address 2 reg in rxmac address map
+ * structure for Unicast Packet Filter Address 2 reg in rxmac address map
  * located at address 0x406C
  *
  * 31-24: addr2_3
@@ -783,7 +783,7 @@ struct txmac_regs {			/* Location: */
 #define ET_RX_UNI_PF_ADDR2_5_SHIFT 8
 
 /*
- * structure for Unicast Paket Filter Address 1 & 2 reg in rxmac address map
+ * structure for Unicast Packet Filter Address 1 & 2 reg in rxmac address map
  * located at address 0x4070
  *
  * 31-24: addr2_1

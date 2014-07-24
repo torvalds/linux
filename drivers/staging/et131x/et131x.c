@@ -285,7 +285,7 @@ struct fbr_lookup {
 	dma_addr_t	 buffsize;
 };
 
-/* struct rx_ring is the sructure representing the adaptor's local
+/* struct rx_ring is the structure representing the adaptor's local
  * reference(s) to the rings
  */
 struct rx_ring {
@@ -1941,7 +1941,7 @@ static void et131x_disable_interrupts(struct et131x_adapter *adapter)
 /* et131x_tx_dma_disable - Stop of Tx_DMA on the ET1310 */
 static void et131x_tx_dma_disable(struct et131x_adapter *adapter)
 {
-	/* Setup the tramsmit dma configuration register */
+	/* Setup the transmit dma configuration register */
 	writel(ET_TXDMA_CSR_HALT | ET_TXDMA_SNGL_EPKT,
 					&adapter->regs->txdma.csr);
 }
@@ -4023,7 +4023,7 @@ static void et131x_isr_handler(struct work_struct *work)
 	if (status & ET_INTR_RXDMA_STAT_LOW) {
 		/* Same idea as with the two Free Buffer Rings. Packets going
 		 * from the network to the host each consume a free buffer
-		 * resource and a packet status resource. These resoures are
+		 * resource and a packet status resource. These resources are
 		 * passed to the OS. When the OS is done with the resources,
 		 * they need to be returned to the ET1310. This is one method
 		 * of returning the resources.
@@ -4631,7 +4631,7 @@ static int et131x_pci_setup(struct pci_dev *pdev,
 	/* Allocate DMA memory */
 	rc = et131x_adapter_memory_alloc(adapter);
 	if (rc < 0) {
-		dev_err(&pdev->dev, "Could not alloc adapater memory (DMA)\n");
+		dev_err(&pdev->dev, "Could not alloc adapter memory (DMA)\n");
 		goto err_iounmap;
 	}
 
