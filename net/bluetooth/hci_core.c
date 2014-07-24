@@ -5406,12 +5406,101 @@ void hci_req_add_le_scan_disable(struct hci_request *req)
 	hci_req_add(req, HCI_OP_LE_SET_SCAN_ENABLE, sizeof(cp), &cp);
 }
 
+static void add_to_white_list(struct hci_request *req,
+			      struct hci_conn_params *params)
+{
+	struct hci_cp_le_add_to_white_list cp;
+
+	cp.bdaddr_type = params->addr_type;
+	bacpy(&cp.bdaddr, &params->addr);
+
+	hci_req_add(req, HCI_OP_LE_ADD_TO_WHITE_LIST, sizeof(cp), &cp);
+}
+
+static u8 update_white_list(struct hci_request *req)
+{
+	struct hci_dev *hdev = req->hdev;
+	struct hci_conn_params *params;
+	struct bdaddr_list *b;
+	uint8_t white_list_entries = 0;
+
+	/* Go through the current white list programmed into the
+	 * controller one by one and check if that address is still
+	 * in the list of pending connections or list of devices to
+	 * report. If not present in either list, then queue the
+	 * command to remove it from the controller.
+	 */
+	list_for_each_entry(b, &hdev->le_white_list, list) {
+		struct hci_cp_le_del_from_white_list cp;
+
+		if (hci_pend_le_action_lookup(&hdev->pend_le_conns,
+					      &b->bdaddr, b->bdaddr_type) ||
+		    hci_pend_le_action_lookup(&hdev->pend_le_reports,
+					      &b->bdaddr, b->bdaddr_type)) {
+			white_list_entries++;
+			continue;
+		}
+
+		cp.bdaddr_type = b->bdaddr_type;
+		bacpy(&cp.bdaddr, &b->bdaddr);
+
+		hci_req_add(req, HCI_OP_LE_DEL_FROM_WHITE_LIST,
+			    sizeof(cp), &cp);
+	}
+
+	/* Since all no longer valid white list entries have been
+	 * removed, walk through the list of pending connections
+	 * and ensure that any new device gets programmed into
+	 * the controller.
+	 *
+	 * If the list of the devices is larger than the list of
+	 * available white list entries in the controller, then
+	 * just abort and return filer policy value to not use the
+	 * white list.
+	 */
+	list_for_each_entry(params, &hdev->pend_le_conns, action) {
+		if (hci_bdaddr_list_lookup(&hdev->le_white_list,
+					   &params->addr, params->addr_type))
+			continue;
+
+		if (white_list_entries >= hdev->le_white_list_size) {
+			/* Select filter policy to accept all advertising */
+			return 0x00;
+		}
+
+		white_list_entries++;
+		add_to_white_list(req, params);
+	}
+
+	/* After adding all new pending connections, walk through
+	 * the list of pending reports and also add these to the
+	 * white list if there is still space.
+	 */
+	list_for_each_entry(params, &hdev->pend_le_reports, action) {
+		if (hci_bdaddr_list_lookup(&hdev->le_white_list,
+					   &params->addr, params->addr_type))
+			continue;
+
+		if (white_list_entries >= hdev->le_white_list_size) {
+			/* Select filter policy to accept all advertising */
+			return 0x00;
+		}
+
+		white_list_entries++;
+		add_to_white_list(req, params);
+	}
+
+	/* Select filter policy to use white list */
+	return 0x01;
+}
+
 void hci_req_add_le_passive_scan(struct hci_request *req)
 {
 	struct hci_cp_le_set_scan_param param_cp;
 	struct hci_cp_le_set_scan_enable enable_cp;
 	struct hci_dev *hdev = req->hdev;
 	u8 own_addr_type;
+	u8 filter_policy;
 
 	/* Set require_privacy to false since no SCAN_REQ are send
 	 * during passive scanning. Not using an unresolvable address
@@ -5422,11 +5511,18 @@ void hci_req_add_le_passive_scan(struct hci_request *req)
 	if (hci_update_random_address(req, false, &own_addr_type))
 		return;
 
+	/* Adding or removing entries from the white list must
+	 * happen before enabling scanning. The controller does
+	 * not allow white list modification while scanning.
+	 */
+	filter_policy = update_white_list(req);
+
 	memset(&param_cp, 0, sizeof(param_cp));
 	param_cp.type = LE_SCAN_PASSIVE;
 	param_cp.interval = cpu_to_le16(hdev->le_scan_interval);
 	param_cp.window = cpu_to_le16(hdev->le_scan_window);
 	param_cp.own_address_type = own_addr_type;
+	param_cp.filter_policy = filter_policy;
 	hci_req_add(req, HCI_OP_LE_SET_SCAN_PARAM, sizeof(param_cp),
 		    &param_cp);
 
