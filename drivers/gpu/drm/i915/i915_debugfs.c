@@ -1677,6 +1677,14 @@ static int i915_gem_framebuffer_info(struct seq_file *m, void *data)
 	return 0;
 }
 
+static void describe_ctx_ringbuf(struct seq_file *m,
+				 struct intel_ringbuffer *ringbuf)
+{
+	seq_printf(m, " (ringbuffer, space: %d, head: %u, tail: %u, last head: %d)",
+		   ringbuf->space, ringbuf->head, ringbuf->tail,
+		   ringbuf->last_retired_head);
+}
+
 static int i915_context_status(struct seq_file *m, void *unused)
 {
 	struct drm_info_node *node = m->private;
@@ -1703,16 +1711,37 @@ static int i915_context_status(struct seq_file *m, void *unused)
 	}
 
 	list_for_each_entry(ctx, &dev_priv->context_list, link) {
-		if (ctx->legacy_hw_ctx.rcs_state == NULL)
+		if (!i915.enable_execlists &&
+		    ctx->legacy_hw_ctx.rcs_state == NULL)
 			continue;
 
 		seq_puts(m, "HW context ");
 		describe_ctx(m, ctx);
-		for_each_ring(ring, dev_priv, i)
+		for_each_ring(ring, dev_priv, i) {
 			if (ring->default_context == ctx)
-				seq_printf(m, "(default context %s) ", ring->name);
+				seq_printf(m, "(default context %s) ",
+					   ring->name);
+		}
 
-		describe_obj(m, ctx->legacy_hw_ctx.rcs_state);
+		if (i915.enable_execlists) {
+			seq_putc(m, '\n');
+			for_each_ring(ring, dev_priv, i) {
+				struct drm_i915_gem_object *ctx_obj =
+					ctx->engine[i].state;
+				struct intel_ringbuffer *ringbuf =
+					ctx->engine[i].ringbuf;
+
+				seq_printf(m, "%s: ", ring->name);
+				if (ctx_obj)
+					describe_obj(m, ctx_obj);
+				if (ringbuf)
+					describe_ctx_ringbuf(m, ringbuf);
+				seq_putc(m, '\n');
+			}
+		} else {
+			describe_obj(m, ctx->legacy_hw_ctx.rcs_state);
+		}
+
 		seq_putc(m, '\n');
 	}
 
