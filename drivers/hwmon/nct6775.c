@@ -4221,7 +4221,7 @@ static void __exit sensors_nct6775_exit(void)
 }
 
 MODULE_AUTHOR("Guenter Roeck <linux@roeck-us.net>");
-MODULE_DESCRIPTION("NCT6775F/NCT6776F/NCT6779D driver");
+MODULE_DESCRIPTION("NCT6106D/NCT6775F/NCT6776F/NCT6779D/NCT6791D driver");
 MODULE_LICENSE("GPL");
 
 module_init(sensors_nct6775_init);
