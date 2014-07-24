@@ -1901,6 +1901,25 @@ int ftrace_test_record(struct dyn_ftrace *rec, int enable)
 }
 
 static struct ftrace_ops *
+ftrace_find_tramp_ops_any(struct dyn_ftrace *rec)
+{
+	struct ftrace_ops *op;
+
+	do_for_each_ftrace_op(op, ftrace_ops_list) {
+
+		if (!op->trampoline)
+			continue;
+
+		if (ftrace_lookup_ip(op->func_hash->filter_hash, rec->ip) &&
+		    (ftrace_hash_empty(op->func_hash->notrace_hash) ||
+		     !ftrace_lookup_ip(op->func_hash->notrace_hash, rec->ip)))
+			return op;
+	} while_for_each_ftrace_op(op);
+
+	return NULL;
+}
+
+static struct ftrace_ops *
 ftrace_find_tramp_ops_curr(struct dyn_ftrace *rec)
 {
 	struct ftrace_ops *op;
@@ -2966,7 +2985,7 @@ static int t_show(struct seq_file *m, void *v)
 		if (rec->flags & FTRACE_FL_TRAMP_EN) {
 			struct ftrace_ops *ops;
 
-			ops = ftrace_find_tramp_ops_curr(rec);
+			ops = ftrace_find_tramp_ops_any(rec);
 			if (ops && ops->trampoline)
 				seq_printf(m, "\ttramp: %pS",
 					   (void *)ops->trampoline);
