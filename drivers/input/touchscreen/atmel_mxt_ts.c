@@ -2534,9 +2534,14 @@ static int mxt_initialize(struct mxt_data *data)
 		goto err_free_object_table;
 
 	if (data->cfg_name) {
-		request_firmware_nowait(THIS_MODULE, true, data->cfg_name,
-					&data->client->dev, GFP_KERNEL, data,
-					mxt_config_cb);
+		error = request_firmware_nowait(THIS_MODULE, true,
+					data->cfg_name, &data->client->dev,
+					GFP_KERNEL, data, mxt_config_cb);
+		if (error) {
+			dev_err(&client->dev, "Failed to invoke firmware loader: %d\n",
+				error);
+			goto err_free_object_table;
+		}
 	} else {
 		error = mxt_configure_objects(data, NULL);
 		if (error)
