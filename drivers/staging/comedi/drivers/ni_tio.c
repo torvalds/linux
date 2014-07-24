@@ -58,16 +58,13 @@ Gi_Alternate_Sync_Bit(enum ni_gpct_variant variant)
 {
 	switch (variant) {
 	case ni_gpct_variant_e_series:
+	default:
 		return 0;
 	case ni_gpct_variant_m_series:
 		return Gi_M_Series_Alternate_Sync_Bit;
 	case ni_gpct_variant_660x:
 		return Gi_660x_Alternate_Sync_Bit;
-	default:
-		BUG();
-		break;
 	}
-	return 0;
 }
 
 static inline enum Gi_Counting_Mode_Reg_Bits
@@ -75,16 +72,13 @@ Gi_Prescale_X2_Bit(enum ni_gpct_variant variant)
 {
 	switch (variant) {
 	case ni_gpct_variant_e_series:
+	default:
 		return 0;
 	case ni_gpct_variant_m_series:
 		return Gi_M_Series_Prescale_X2_Bit;
 	case ni_gpct_variant_660x:
 		return Gi_660x_Prescale_X2_Bit;
-	default:
-		BUG();
-		break;
 	}
-	return 0;
 }
 
 static inline enum Gi_Counting_Mode_Reg_Bits
@@ -92,16 +86,13 @@ Gi_Prescale_X8_Bit(enum ni_gpct_variant variant)
 {
 	switch (variant) {
 	case ni_gpct_variant_e_series:
+	default:
 		return 0;
 	case ni_gpct_variant_m_series:
 		return Gi_M_Series_Prescale_X8_Bit;
 	case ni_gpct_variant_660x:
 		return Gi_660x_Prescale_X8_Bit;
-	default:
-		BUG();
-		break;
 	}
-	return 0;
 }
 
 static inline enum Gi_Counting_Mode_Reg_Bits
@@ -109,16 +100,13 @@ Gi_HW_Arm_Select_Mask(enum ni_gpct_variant variant)
 {
 	switch (variant) {
 	case ni_gpct_variant_e_series:
+	default:
 		return 0;
 	case ni_gpct_variant_m_series:
 		return Gi_M_Series_HW_Arm_Select_Mask;
 	case ni_gpct_variant_660x:
 		return Gi_660x_HW_Arm_Select_Mask;
-	default:
-		BUG();
-		break;
 	}
-	return 0;
 }
 
 /* clock sources for ni_660x boards, get bits with Gi_Source_Select_Bits() */
@@ -304,15 +292,12 @@ ni_tio_second_gate_registers_present(const struct ni_gpct_device *counter_dev)
 {
 	switch (counter_dev->variant) {
 	case ni_gpct_variant_e_series:
+	default:
 		return 0;
 	case ni_gpct_variant_m_series:
 	case ni_gpct_variant_660x:
 		return 1;
-	default:
-		BUG();
-		break;
 	}
-	return 0;
 }
 
 static void ni_tio_reset_count_and_disarm(struct ni_gpct *counter)
@@ -704,11 +689,9 @@ static int ni_tio_set_clock_src(struct ni_gpct *counter,
 		break;
 	case ni_gpct_variant_e_series:
 	case ni_gpct_variant_m_series:
+	default:
 		input_select_bits |=
 		    ni_m_series_source_select_bits(clock_source);
-		break;
-	default:
-		BUG();
 		break;
 	}
 	if (clock_source & NI_GPCT_INVERT_CLOCK_SRC_BIT)
@@ -891,14 +874,11 @@ static unsigned ni_tio_generic_clock_src_select(const struct ni_gpct *counter)
 	switch (counter->counter_dev->variant) {
 	case ni_gpct_variant_e_series:
 	case ni_gpct_variant_m_series:
+	default:
 		return ni_m_series_clock_src_select(counter);
 	case ni_gpct_variant_660x:
 		return ni_660x_clock_src_select(counter);
-	default:
-		BUG();
-		break;
 	}
-	return 0;
 }
 
 static uint64_t ni_tio_clock_period_ps(const struct ni_gpct *counter,
@@ -1174,12 +1154,10 @@ int ni_tio_set_gate_src(struct ni_gpct *counter, unsigned gate_index,
 		switch (counter_dev->variant) {
 		case ni_gpct_variant_e_series:
 		case ni_gpct_variant_m_series:
+		default:
 			return ni_m_series_set_first_gate(counter, gate_source);
 		case ni_gpct_variant_660x:
 			return ni_660x_set_first_gate(counter, gate_source);
-		default:
-			BUG();
-			break;
 		}
 		break;
 	case 1:
@@ -1415,6 +1393,7 @@ static int ni_tio_get_gate_src(struct ni_gpct *counter, unsigned gate_index,
 		switch (counter_dev->variant) {
 		case ni_gpct_variant_e_series:
 		case ni_gpct_variant_m_series:
+		default:
 			*gate_source =
 			    ni_m_series_first_gate_to_generic_gate_source
 			    (gate_select_bits);
@@ -1423,9 +1402,6 @@ static int ni_tio_get_gate_src(struct ni_gpct *counter, unsigned gate_index,
 			*gate_source =
 			    ni_660x_first_gate_to_generic_gate_source
 			    (gate_select_bits);
-			break;
-		default:
-			BUG();
 			break;
 		}
 		if (mode_bits & Gi_Gate_Polarity_Bit)
@@ -1448,6 +1424,7 @@ static int ni_tio_get_gate_src(struct ni_gpct *counter, unsigned gate_index,
 		switch (counter_dev->variant) {
 		case ni_gpct_variant_e_series:
 		case ni_gpct_variant_m_series:
+		default:
 			*gate_source =
 			    ni_m_series_second_gate_to_generic_gate_source
 			    (gate_select_bits);
@@ -1456,9 +1433,6 @@ static int ni_tio_get_gate_src(struct ni_gpct *counter, unsigned gate_index,
 			*gate_source =
 			    ni_660x_second_gate_to_generic_gate_source
 			    (gate_select_bits);
-			break;
-		default:
-			BUG();
 			break;
 		}
 		if (counter_dev->regs[second_gate_reg] &
