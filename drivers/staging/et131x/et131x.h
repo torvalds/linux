@@ -145,7 +145,7 @@
  *31:	selfclr_disable
  */
 
-#define ET_RESET_ALL	0x007F;
+#define ET_RESET_ALL	0x007F
 
 /*
  * SLV Timer reg at address 0x002C (low 24 bits)
@@ -394,7 +394,7 @@ struct txdma_regs {			/* Location: */
  * 11-0: psr ndes
  */
 
-#define ET_RXDMA_PSR_NUM_DES_MASK	0xFFF;
+#define ET_RXDMA_PSR_NUM_DES_MASK	0xFFF
 
 /*
  * structure for packet status ring available offset reg in rxdma address map
@@ -815,11 +815,11 @@ struct txmac_regs {			/* Location: */
  * 0: filter_broad_en
  */
 
-#define ET_RX_PFCTRL_MIN_PKT_SZ_SHIFT		16;
-#define ET_RX_PFCTRL_FRAG_FILTER_ENABLE		0x0008;
-#define ET_RX_PFCTRL_UNICST_FILTER_ENABLE	0x0004;
-#define ET_RX_PFCTRL_MLTCST_FILTER_ENABLE	0x0002;
-#define ET_RX_PFCTRL_BRDCST_FILTER_ENABLE	0x0001;
+#define ET_RX_PFCTRL_MIN_PKT_SZ_SHIFT		16
+#define ET_RX_PFCTRL_FRAG_FILTER_ENABLE		0x0008
+#define ET_RX_PFCTRL_UNICST_FILTER_ENABLE	0x0004
+#define ET_RX_PFCTRL_MLTCST_FILTER_ENABLE	0x0002
+#define ET_RX_PFCTRL_BRDCST_FILTER_ENABLE	0x0001
 
 /*
  * structure for Memory Controller Interface Control Max Segment reg in rxmac
@@ -831,9 +831,9 @@ struct txmac_regs {			/* Location: */
  * 0: seg_en
  */
 
-#define ET_RX_MCIF_CTRL_MAX_SEG_SIZE_SHIFT	2;
-#define ET_RX_MCIF_CTRL_MAX_SEG_FC_ENABLE	0x0002;
-#define ET_RX_MCIF_CTRL_MAX_SEG_ENABLE		0x0001;
+#define ET_RX_MCIF_CTRL_MAX_SEG_SIZE_SHIFT	2
+#define ET_RX_MCIF_CTRL_MAX_SEG_FC_ENABLE	0x0002
+#define ET_RX_MCIF_CTRL_MAX_SEG_ENABLE		0x0001
 
 /*
  * structure for Memory Controller Interface Water Mark reg in rxmac address
@@ -987,15 +987,15 @@ struct rxmac_regs {					/* Location: */
  * 0: full duplex
  */
 
-#define ET_MAC_CFG2_PREAMBLE_SHIFT	12;
-#define ET_MAC_CFG2_IFMODE_MASK		0x0300;
-#define ET_MAC_CFG2_IFMODE_1000		0x0200;
-#define ET_MAC_CFG2_IFMODE_100		0x0100;
-#define ET_MAC_CFG2_IFMODE_HUGE_FRAME	0x0020;
-#define ET_MAC_CFG2_IFMODE_LEN_CHECK	0x0010;
-#define ET_MAC_CFG2_IFMODE_PAD_CRC	0x0004;
-#define ET_MAC_CFG2_IFMODE_CRC_ENABLE	0x0002;
-#define ET_MAC_CFG2_IFMODE_FULL_DPLX	0x0001;
+#define ET_MAC_CFG2_PREAMBLE_SHIFT	12
+#define ET_MAC_CFG2_IFMODE_MASK		0x0300
+#define ET_MAC_CFG2_IFMODE_1000		0x0200
+#define ET_MAC_CFG2_IFMODE_100		0x0100
+#define ET_MAC_CFG2_IFMODE_HUGE_FRAME	0x0020
+#define ET_MAC_CFG2_IFMODE_LEN_CHECK	0x0010
+#define ET_MAC_CFG2_IFMODE_PAD_CRC	0x0004
+#define ET_MAC_CFG2_IFMODE_CRC_ENABLE	0x0002
+#define ET_MAC_CFG2_IFMODE_FULL_DPLX	0x0001
 
 /*
  * structure for Interpacket gap reg in mac address map.
@@ -1084,7 +1084,7 @@ struct rxmac_regs {					/* Location: */
  * 15-0: phy control
  */
 
-#define ET_MAC_MIIMGMT_STAT_PHYCRTL_MASK 0xFFFF;
+#define ET_MAC_MIIMGMT_STAT_PHYCRTL_MASK 0xFFFF
 
 /*
  * structure for MII Management Indicators reg in mac address map.
