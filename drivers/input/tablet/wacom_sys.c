@@ -85,49 +85,19 @@ static void wacom_close(struct input_dev *dev)
 }
 
 /*
- * Calculate the resolution of the X or Y axis, given appropriate HID data.
- * This function is little more than hidinput_calc_abs_res stripped down.
+ * Calculate the resolution of the X or Y axis using hidinput_calc_abs_res.
  */
 static int wacom_calc_hid_res(int logical_extents, int physical_extents,
 			       unsigned unit, int exponent)
 {
-	int prev;
-	int unit_exponent = exponent;
+	struct hid_field field = {
+		.logical_maximum = logical_extents,
+		.physical_maximum = physical_extents,
+		.unit = unit,
+		.unit_exponent = exponent,
+	};
 
-	/* Check if the extents are sane */
-	if (logical_extents <= 0 || physical_extents <= 0)
-		return 0;
-
-	/* Convert physical_extents to millimeters */
-	if (unit == 0x11) {		/* If centimeters */
-		unit_exponent += 1;
-	} else if (unit == 0x13) {	/* If inches */
-		prev = physical_extents;
-		physical_extents *= 254;
-		if (physical_extents < prev)
-			return 0;
-		unit_exponent -= 1;
-	} else {
-		return 0;
-	}
-
-	/* Apply negative unit exponent */
-	for (; unit_exponent < 0; unit_exponent++) {
-		prev = logical_extents;
-		logical_extents *= 10;
-		if (logical_extents < prev)
-			return 0;
-	}
-	/* Apply positive unit exponent */
-	for (; unit_exponent > 0; unit_exponent--) {
-		prev = physical_extents;
-		physical_extents *= 10;
-		if (physical_extents < prev)
-			return 0;
-	}
-
-	/* Calculate resolution */
-	return logical_extents / physical_extents;
+	return hidinput_calc_abs_res(&field, ABS_X);
 }
 
 static void wacom_feature_mapping(struct hid_device *hdev,
