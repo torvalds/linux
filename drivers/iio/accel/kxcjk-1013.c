@@ -98,7 +98,7 @@ static const struct {
 	int val2;
 	int odr_bits;
 } samp_freq_table[] = { {0, 781000, 0x08}, {1, 563000, 0x09},
-			{3, 125000, 0x0A}, {6, 25000, 0x0B}, {12, 5000, 0},
+			{3, 125000, 0x0A}, {6, 250000, 0x0B}, {12, 500000, 0},
 			{25, 0, 0x01}, {50, 0, 0x02}, {100, 0, 0x03},
 			{200, 0, 0x04}, {400, 0, 0x05}, {800, 0, 0x06},
 			{1600, 0, 0x07} };
@@ -136,19 +136,6 @@ static int kxcjk1013_set_mode(struct kxcjk1013_data *data,
 	}
 
 	return 0;
-}
-
-static int kxcjk1013_chip_ack_intr(struct kxcjk1013_data *data)
-{
-	int ret;
-
-	ret = i2c_smbus_read_byte_data(data->client, KXCJK1013_REG_INT_REL);
-	if (ret < 0) {
-		dev_err(&data->client->dev, "Error writing reg_int_rel\n");
-		return ret;
-	}
-
-	return ret;
 }
 
 static int kxcjk1013_chip_init(struct kxcjk1013_data *data)
@@ -466,7 +453,7 @@ static const struct attribute_group kxcjk1013_attrs_group = {
 		.realbits = 12,						\
 		.storagebits = 16,					\
 		.shift = 4,						\
-		.endianness = IIO_LE,					\
+		.endianness = IIO_CPU,					\
 	},								\
 }
 
@@ -498,15 +485,11 @@ static irqreturn_t kxcjk1013_trigger_handler(int irq, void *p)
 			 indio_dev->masklength) {
 		ret = kxcjk1013_get_acc_reg(data, bit);
 		if (ret < 0) {
-			kxcjk1013_chip_ack_intr(data);
 			mutex_unlock(&data->mutex);
 			goto err;
 		}
 		data->buffer[i++] = ret;
 	}
-
-	kxcjk1013_chip_ack_intr(data);
-
 	mutex_unlock(&data->mutex);
 
 	iio_push_to_buffers_with_timestamp(indio_dev, data->buffer,
@@ -515,6 +498,21 @@ err:
 	iio_trigger_notify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
+}
+
+static int kxcjk1013_trig_try_reen(struct iio_trigger *trig)
+{
+	struct iio_dev *indio_dev = iio_trigger_get_drvdata(trig);
+	struct kxcjk1013_data *data = iio_priv(indio_dev);
+	int ret;
+
+	ret = i2c_smbus_read_byte_data(data->client, KXCJK1013_REG_INT_REL);
+	if (ret < 0) {
+		dev_err(&data->client->dev, "Error reading reg_int_rel\n");
+		return ret;
+	}
+
+	return 0;
 }
 
 static int kxcjk1013_data_rdy_trigger_set_state(struct iio_trigger *trig,
@@ -543,6 +541,7 @@ static int kxcjk1013_data_rdy_trigger_set_state(struct iio_trigger *trig,
 
 static const struct iio_trigger_ops kxcjk1013_trigger_ops = {
 	.set_trigger_state = kxcjk1013_data_rdy_trigger_set_state,
+	.try_reenable = kxcjk1013_trig_try_reen,
 	.owner = THIS_MODULE,
 };
 
@@ -645,6 +644,7 @@ static int kxcjk1013_probe(struct i2c_client *client,
 		iio_trigger_set_drvdata(trig, indio_dev);
 		data->trig = trig;
 		indio_dev->trig = trig;
+		iio_trigger_get(indio_dev->trig);
 
 		ret = iio_trigger_register(trig);
 		if (ret)
