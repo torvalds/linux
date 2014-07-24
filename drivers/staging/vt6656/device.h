@@ -402,8 +402,6 @@ struct vnt_private {
 		(uVar)++;				\
 }
 
-#define MP_TEST_FLAGS(_M, _F)            (((_M)->flags & (_F)) == (_F))
-
 int vnt_init(struct vnt_private *priv);
 
 #endif
