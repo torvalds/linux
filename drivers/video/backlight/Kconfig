@@ -207,6 +207,15 @@ config BACKLIGHT_GENERIC
 	  known as the Corgi backlight driver. If you have a Sharp Zaurus
 	  SL-C7xx, SL-Cxx00 or SL-6000x say y.
 
+config BACKLIGHT_IPAQ_MICRO
+	tristate "iPAQ microcontroller backlight driver"
+	depends on MFD_IPAQ_MICRO
+	default y
+	help
+	  Say y to enable the backlight driver for Compaq iPAQ handheld
+	  computers. Say yes if you have one of the h3100/h3600/h3700
+	  machines.
+
 config BACKLIGHT_LM3533
 	tristate "Backlight Driver for LM3533"
 	depends on BACKLIGHT_CLASS_DEVICE
