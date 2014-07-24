@@ -446,8 +446,12 @@ static struct drm_mode_object *_object_find(struct drm_device *dev,
 
 	mutex_lock(&dev->mode_config.idr_mutex);
 	obj = idr_find(&dev->mode_config.crtc_idr, id);
-	if (!obj || (type != DRM_MODE_OBJECT_ANY && obj->type != type) ||
-	    (obj->id != id))
+	if (obj && type != DRM_MODE_OBJECT_ANY && obj->type != type)
+		obj = NULL;
+	if (obj && obj->id != id)
+		obj = NULL;
+	/* don't leak out unref'd fb's */
+	if (obj && (obj->type == DRM_MODE_OBJECT_FB))
 		obj = NULL;
 	mutex_unlock(&dev->mode_config.idr_mutex);
 
@@ -474,9 +478,6 @@ struct drm_mode_object *drm_mode_object_find(struct drm_device *dev,
 	 * function.*/
 	WARN_ON(type == DRM_MODE_OBJECT_FB);
 	obj = _object_find(dev, id, type);
-	/* don't leak out unref'd fb's */
-	if (obj && (obj->type == DRM_MODE_OBJECT_FB))
-		obj = NULL;
 	return obj;
 }
 EXPORT_SYMBOL(drm_mode_object_find);
