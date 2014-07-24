@@ -5468,6 +5468,12 @@ static u8 update_white_list(struct hci_request *req)
 			return 0x00;
 		}
 
+		if (hci_find_irk_by_addr(hdev, &params->addr,
+					 params->addr_type)) {
+			/* White list can not be used with RPAs */
+			return 0x00;
+		}
+
 		white_list_entries++;
 		add_to_white_list(req, params);
 	}
@@ -5483,6 +5489,12 @@ static u8 update_white_list(struct hci_request *req)
 
 		if (white_list_entries >= hdev->le_white_list_size) {
 			/* Select filter policy to accept all advertising */
+			return 0x00;
+		}
+
+		if (hci_find_irk_by_addr(hdev, &params->addr,
+					 params->addr_type)) {
+			/* White list can not be used with RPAs */
 			return 0x00;
 		}
 
