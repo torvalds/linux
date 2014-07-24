@@ -544,7 +544,7 @@ VNTWIFIvGetTxRate(
 
 		wTxDataRate = (pMgmt->sNodeDBTable[0].wTxDataRate);
 #ifdef	PLICE_DEBUG
-		printk(KERN_DEBUG "GetTxRate:AP MAC is %pM,TxRate is %d\n",
+		pr_debug("GetTxRate:AP MAC is %pM,TxRate is %d\n",
 		       pMgmt->sNodeDBTable[0].abyMACAddr, wTxDataRate);
 #endif
 

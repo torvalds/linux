@@ -492,7 +492,7 @@ vCommandTimer(
 			spin_unlock_irq(&pDevice->lock);
 			return;
 		}
-		printk("chester-abyDesireSSID=%s\n", ((PWLAN_IE_SSID)pMgmt->abyDesireSSID)->abySSID);
+		pr_debug("chester-abyDesireSSID=%s\n", ((PWLAN_IE_SSID)pMgmt->abyDesireSSID)->abySSID);
 		pItemSSID = (PWLAN_IE_SSID)pMgmt->abyDesireSSID;
 		pItemSSIDCurr = (PWLAN_IE_SSID)pMgmt->abyCurrSSID;
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " cmd: desire ssid = %s\n", pItemSSID->abySSID);
@@ -583,9 +583,10 @@ vCommandTimer(
 #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
 				{
 					union iwreq_data  wrqu;
+
 					memset(&wrqu, 0, sizeof(wrqu));
 					wrqu.ap_addr.sa_family = ARPHRD_ETHER;
-					printk("wireless_send_event--->SIOCGIWAP(disassociated:vMgrJoinBSSBegin Fail !!)\n");
+					pr_debug("wireless_send_event--->SIOCGIWAP(disassociated:vMgrJoinBSSBegin Fail !!)\n");
 					wireless_send_event(pDevice->dev, SIOCGIWAP, &wrqu, NULL);
 				}
 #endif
@@ -613,10 +614,10 @@ vCommandTimer(
 		}
 
 		else if (pMgmt->eCurrState < WMAC_STATE_AUTHPENDING) {
-			printk("WLAN_AUTHENTICATE_WAIT:Authen Fail???\n");
+			pr_debug("WLAN_AUTHENTICATE_WAIT:Authen Fail???\n");
 		} else if (pDevice->byLinkWaitCount <= 4) {    //mike add:wait another 2 sec if authenticated_frame delay!
 			pDevice->byLinkWaitCount++;
-			printk("WLAN_AUTHENTICATE_WAIT:wait %d times!!\n", pDevice->byLinkWaitCount);
+			pr_debug("WLAN_AUTHENTICATE_WAIT:wait %d times!!\n", pDevice->byLinkWaitCount);
 			spin_unlock_irq(&pDevice->lock);
 			vCommandTimerWait((void *)pDevice, AUTHENTICATE_TIMEOUT/2);
 			return;
@@ -663,7 +664,7 @@ vCommandTimer(
 			printk("WLAN_ASSOCIATE_WAIT:Association Fail???\n");
 		} else if (pDevice->byLinkWaitCount <= 4) {    //mike add:wait another 2 sec if associated_frame delay!
 			pDevice->byLinkWaitCount++;
-			printk("WLAN_ASSOCIATE_WAIT:wait %d times!!\n", pDevice->byLinkWaitCount);
+			pr_debug("WLAN_ASSOCIATE_WAIT:wait %d times!!\n", pDevice->byLinkWaitCount);
 			spin_unlock_irq(&pDevice->lock);
 			vCommandTimerWait((void *)pDevice, ASSOCIATE_TIMEOUT/2);
 			return;

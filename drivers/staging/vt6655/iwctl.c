@@ -643,7 +643,7 @@ int iwctl_siwap(struct net_device *dev,
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " SIOCSIWAP\n");
 	if (pMgmt->eScanState ==  WMAC_IS_SCANNING) {
 		// In scanning..
-		printk("SIOCSIWAP(??)-->In scanning...\n");
+		pr_debug("SIOCSIWAP(??)-->In scanning..\n");
 	}
 	if (wrq->sa_family != ARPHRD_ETHER)
 		rc = -EINVAL;
@@ -804,7 +804,7 @@ int iwctl_siwessid(struct net_device *dev,
 	pDevice->fWPA_Authened = false;
 	if (pMgmt->eScanState ==  WMAC_IS_SCANNING) {
 		// In scanning..
-		printk("SIOCSIWESSID(??)-->In scanning...\n");
+		pr_debug("SIOCSIWESSID(??)-->In scanning..\n");
 	}
 	// Check if we asked for `any'
 	if (wrq->flags == 0) {
@@ -827,7 +827,7 @@ int iwctl_siwessid(struct net_device *dev,
 				pItemSSID->len = wrq->length - 1;
 		} else
 			pItemSSID->len = wrq->length;
-		printk("set essid to %s\n", pItemSSID->abySSID);
+		pr_debug("set essid to %s\n", pItemSSID->abySSID);
 		//2008-0409-05, <Add> by Einsn Liu
 		len = (pItemSSID->len > ((PWLAN_IE_SSID)pMgmt->abyCurrSSID)->len) ? pItemSSID->len : ((PWLAN_IE_SSID)pMgmt->abyCurrSSID)->len;
 		if ((pDevice->bLinkPass == true) &&
@@ -873,7 +873,7 @@ int iwctl_siwessid(struct net_device *dev,
 						}
 					}
 					if (uSameBssidNum >= 2) {  //hit: desired AP is in hidden ssid mode!!!
-						printk("SIOCSIWESSID:hidden ssid directly associate.......\n");
+						pr_debug("SIOCSIWESSID:hidden ssid directly associate.......\n");
 						vResetCommandTimer((void *)pDevice);
 						pMgmt->eScanType = WMAC_SCAN_PASSIVE;          //this scan type,you'll submit scan result!
 						bScheduleCommand((void *)pDevice, WLAN_CMD_BSSID_SCAN, pMgmt->abyDesireSSID);
@@ -987,7 +987,7 @@ int iwctl_siwrate(struct net_device *dev,
 	if (wrq->fixed != 0) {
 		// Fixed mode
 		// One rate, fixed
-		printk("Rate Fix\n");
+		pr_debug("Rate Fix\n");
 		pDevice->bFixRate = true;
 		if ((pDevice->byBBType == BB_TYPE_11B) && (brate > 3)) {
 			pDevice->uConnectionRate = 3;
@@ -999,7 +999,7 @@ int iwctl_siwrate(struct net_device *dev,
 	} else {
 		pDevice->bFixRate = false;
 		pDevice->uConnectionRate = 13;
-		printk("auto rate:connection_rate is 13\n");
+		pr_debug("auto rate:connection_rate is 13\n");
 	}
 
 	return rc;
@@ -1775,7 +1775,7 @@ int iwctl_siwencodeext(struct net_device *dev,
 
 	}
 	if (pDevice->bwextcount == 4) {
-		printk("SIOCSIWENCODEEXT:Enable WPA WEXT SUPPORT!!!!!\n");
+		pr_debug("SIOCSIWENCODEEXT:Enable WPA WEXT SUPPORT!!!!!\n");
 		pDevice->bwextcount = 0;
 		pDevice->bWPASuppWextEnabled = true;
 	}
@@ -1819,7 +1819,7 @@ int iwctl_siwmlme(struct net_device *dev,
 		break;
 	case IW_MLME_DISASSOC:
 		if (pDevice->bLinkPass == true) {
-			printk("iwctl_siwmlme--->send DISASSOCIATE\n");
+			pr_debug("iwctl_siwmlme--->send DISASSOCIATE\n");
 			//clear related flags
 			memset(pMgmt->abyDesireBSSID, 0xFF, 6);
 			KeyvInitTable(&pDevice->sKey, pDevice->PortOffset);

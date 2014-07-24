@@ -579,12 +579,12 @@ static void device_init_registers(PSDevice pDevice, DEVICE_INIT_TYPE InitType)
 
 			else {
 				if (zonetype != pDevice->abyEEPROM[EEP_OFS_ZONETYPE])
-					printk("zonetype in file[%02x] mismatch with in EEPROM[%02x]\n", zonetype, pDevice->abyEEPROM[EEP_OFS_ZONETYPE]);
+					pr_debug("zonetype in file[%02x] mismatch with in EEPROM[%02x]\n", zonetype, pDevice->abyEEPROM[EEP_OFS_ZONETYPE]);
 				else
-					printk("Read Zonetype file success,use default zonetype setting[%02x]\n", zonetype);
+					pr_debug("Read Zonetype file success,use default zonetype setting[%02x]\n", zonetype);
 			}
 		} else
-			printk("Read Zonetype file fail,use default zonetype setting[%02x]\n", SROMbyReadEmbedded(pDevice->PortOffset, EEP_OFS_ZONETYPE));
+			pr_debug("Read Zonetype file fail,use default zonetype setting[%02x]\n", SROMbyReadEmbedded(pDevice->PortOffset, EEP_OFS_ZONETYPE));
 
 		// Get RFType
 		pDevice->byRFType = SROMbyReadEmbedded(pDevice->PortOffset, EEP_OFS_RFTYPE);
@@ -809,8 +809,9 @@ vt6655_probe(struct pci_dev *pcid, const struct pci_device_id *ent)
 	PCHIP_INFO  pChip_info = (PCHIP_INFO)ent->driver_data;
 	PSDevice    pDevice;
 	int         rc;
+
 	if (device_nics++ >= MAX_UINTS) {
-		printk(KERN_NOTICE DEVICE_NAME ": already found %d NICs\n", device_nics);
+		pr_notice(DEVICE_NAME ": already found %d NICs\n", device_nics);
 		return -ENODEV;
 	}
 
@@ -819,7 +820,7 @@ vt6655_probe(struct pci_dev *pcid, const struct pci_device_id *ent)
 	pDevice = (PSDevice) netdev_priv(dev);
 
 	if (dev == NULL) {
-		printk(KERN_ERR DEVICE_NAME ": allocate net device failed\n");
+		pr_err(DEVICE_NAME ": allocate net device failed\n");
 		return -ENOMEM;
 	}
 
@@ -827,8 +828,8 @@ vt6655_probe(struct pci_dev *pcid, const struct pci_device_id *ent)
 	SET_NETDEV_DEV(dev, &pcid->dev);
 
 	if (bFirst) {
-		printk(KERN_NOTICE "%s Ver. %s\n", DEVICE_FULL_DRV_NAM, DEVICE_VERSION);
-		printk(KERN_NOTICE "Copyright (c) 2003 VIA Networking Technologies, Inc.\n");
+		pr_notice("%s Ver. %s\n", DEVICE_FULL_DRV_NAM, DEVICE_VERSION);
+		pr_notice("Copyright (c) 2003 VIA Networking Technologies, Inc.\n");
 		bFirst = false;
 	}
 
@@ -844,10 +845,10 @@ vt6655_probe(struct pci_dev *pcid, const struct pci_device_id *ent)
 	dev->irq = pcid->irq;
 
 #ifdef	DEBUG
-	printk("Before get pci_info memaddr is %x\n", pDevice->memaddr);
+	pr_debug("Before get pci_info memaddr is %x\n", pDevice->memaddr);
 #endif
 	if (!device_get_pci_info(pDevice, pcid)) {
-		printk(KERN_ERR DEVICE_NAME ": Failed to find PCI device.\n");
+		pr_err(DEVICE_NAME ": Failed to find PCI device.\n");
 		device_free_info(pDevice);
 		return -ENODEV;
 	}
@@ -856,7 +857,7 @@ vt6655_probe(struct pci_dev *pcid, const struct pci_device_id *ent)
 
 #ifdef	DEBUG
 
-	printk("after get pci_info memaddr is %x, io addr is %x,io_size is %d\n", pDevice->memaddr, pDevice->ioaddr, pDevice->io_size);
+	pr_debug("after get pci_info memaddr is %x, io addr is %x,io_size is %d\n", pDevice->memaddr, pDevice->ioaddr, pDevice->io_size);
 	{
 		int i;
 		u32 bar, len;
@@ -870,9 +871,9 @@ vt6655_probe(struct pci_dev *pcid, const struct pci_device_id *ent)
 			0};
 		for (i = 0; address[i]; i++) {
 			pci_read_config_dword(pcid, address[i], &bar);
-			printk("bar %d is %x\n", i, bar);
+			pr_debug("bar %d is %x\n", i, bar);
 			if (!bar) {
-				printk("bar %d not implemented\n", i);
+				pr_debug("bar %d not implemented\n", i);
 				continue;
 			}
 			if (bar & PCI_BASE_ADDRESS_SPACE_IO) {
@@ -881,12 +882,12 @@ vt6655_probe(struct pci_dev *pcid, const struct pci_device_id *ent)
 				len = bar & (PCI_BASE_ADDRESS_IO_MASK & 0xFFFF);
 				len = len & ~(len - 1);
 
-				printk("IO space:  len in IO %x, BAR %d\n", len, i);
+				pr_debug("IO space:  len in IO %x, BAR %d\n", len, i);
 			} else {
 				len = bar & 0xFFFFFFF0;
 				len = ~len + 1;
 
-				printk("len in MEM %x, BAR %d\n", len, i);
+				pr_debug("len in MEM %x, BAR %d\n", len, i);
 			}
 		}
 	}
@@ -897,14 +898,14 @@ vt6655_probe(struct pci_dev *pcid, const struct pci_device_id *ent)
 	pDevice->PortOffset = ioremap(pDevice->memaddr & PCI_BASE_ADDRESS_MEM_MASK, pDevice->io_size);
 
 	if (pDevice->PortOffset == NULL) {
-		printk(KERN_ERR DEVICE_NAME ": Failed to IO remapping ..\n");
+		pr_err(DEVICE_NAME ": Failed to IO remapping ..\n");
 		device_free_info(pDevice);
 		return -ENODEV;
 	}
 
 	rc = pci_request_regions(pcid, DEVICE_NAME);
 	if (rc) {
-		printk(KERN_ERR DEVICE_NAME ": Failed to find PCI device\n");
+		pr_err(DEVICE_NAME ": Failed to find PCI device\n");
 		device_free_info(pDevice);
 		return -ENODEV;
 	}
@@ -914,10 +915,10 @@ vt6655_probe(struct pci_dev *pcid, const struct pci_device_id *ent)
 	unsigned char value;
 
 	VNSvInPortB(pDevice->PortOffset+0x4F, &value);
-	printk("Before write: value is %x\n", value);
+	pr_debug("Before write: value is %x\n", value);
 	VNSvOutPortB(pDevice->PortOffset, value);
 	VNSvInPortB(pDevice->PortOffset+0x4F, &value);
-	printk("After write: value is %x\n", value);
+	pr_debug("After write: value is %x\n", value);
 #endif
 
 #ifdef IO_MAP
@@ -925,7 +926,7 @@ vt6655_probe(struct pci_dev *pcid, const struct pci_device_id *ent)
 #endif
 	// do reset
 	if (!MACbSoftwareReset(pDevice->PortOffset)) {
-		printk(KERN_ERR DEVICE_NAME ": Failed to access MAC hardware..\n");
+		pr_err(DEVICE_NAME ": Failed to access MAC hardware..\n");
 		device_free_info(pDevice);
 		return -ENODEV;
 	}
@@ -951,7 +952,7 @@ vt6655_probe(struct pci_dev *pcid, const struct pci_device_id *ent)
 
 	rc = register_netdev(dev);
 	if (rc) {
-		printk(KERN_ERR DEVICE_NAME " Failed to register netdev\n");
+		pr_err(DEVICE_NAME " Failed to register netdev\n");
 		device_free_info(pDevice);
 		return -ENODEV;
 	}
@@ -1038,10 +1039,10 @@ static bool device_get_pci_info(PSDevice pDevice, struct pci_dev *pcid)
 	}
 	for (ii = 0, j = 1; ii < 0x100; ii++, j++) {
 		if (j % 16 == 0) {
-			printk("%x:", pci_config[ii]);
-			printk("\n");
+			pr_debug("%x:", pci_config[ii]);
+			pr_debug("\n");
 		} else {
-			printk("%x:", pci_config[ii]);
+			pr_debug("%x:", pci_config[ii]);
 		}
 	}
 #endif
@@ -1060,7 +1061,7 @@ static void device_free_info(PSDevice pDevice)
 //2008-07-21-01<Add>by MikeLiu
 //unregister wpadev
 	if (wpa_set_wpadev(pDevice, 0) != 0)
-		printk("unregister wpadev fail?\n");
+		pr_err("unregister wpadev fail?\n");
 
 	if (pDevice_Infos == NULL)
 		return;
@@ -1710,7 +1711,7 @@ static int  device_open(struct net_device *dev)
 	mlme_kill = 0;
 	mlme_task = kthread_run(MlmeThread, (void *)pDevice, "MLME");
 	if (IS_ERR(mlme_task)) {
-		printk("thread create fail\n");
+		pr_err("thread create fail\n");
 		return -1;
 	}
 
@@ -2162,7 +2163,7 @@ static int  device_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (pDevice->bFixRate) {
 #ifdef	PLICE_DEBUG
-		printk("Fix Rate: PhyType is %d,ConnectionRate is %d\n", pDevice->eCurrentPHYType, pDevice->uConnectionRate);
+		pr_debug("Fix Rate: PhyType is %d,ConnectionRate is %d\n", pDevice->eCurrentPHYType, pDevice->uConnectionRate);
 #endif
 
 		if (pDevice->eCurrentPHYType == PHY_TYPE_11B) {
@@ -2300,7 +2301,7 @@ static int  device_xmit(struct sk_buff *skb, struct net_device *dev)
 	pDevice->apCurrTD[TYPE_AC0DMA] = pHeadTD;
 
 	if (pDevice->bFixRate)
-		printk("FixRate:Rate is %d,TxPower is %d\n", pDevice->wCurrentRate, pDevice->byCurPwr);
+		pr_debug("FixRate:Rate is %d,TxPower is %d\n", pDevice->wCurrentRate, pDevice->byCurPwr);
 
 	{
 		unsigned char Protocol_Version;    //802.1x Authentication
@@ -2322,10 +2323,10 @@ static int  device_xmit(struct sk_buff *skb, struct net_device *dev)
 					    (Key_info & BIT8) && (Key_info & BIT9)) {    //send 2/2 key
 						pDevice->fWPA_Authened = true;
 						if (Descriptor_type == 254)
-							printk("WPA ");
+							pr_debug("WPA ");
 						else
-							printk("WPA2 ");
-						printk("Authentication completed!!\n");
+							pr_debug("WPA2 ");
+						pr_debug("Authentication completed!!\n");
 					}
 				}
 			}
@@ -2641,24 +2642,24 @@ int Config_FileOperation(PSDevice pDevice,bool fwrite,unsigned char *Parameter)
 	int result=0;
 
 	if (!buffer) {
-		printk("allocate mem for file fail?\n");
+		pr_err("allocate mem for file fail?\n");
 		return -1;
 	}
 	file = filp_open(CONFIG_PATH, O_RDONLY, 0);
 	if (IS_ERR(file)) {
 		kfree(buffer);
-		printk("Config_FileOperation:open file fail?\n");
+		pr_err("Config_FileOperation:open file fail?\n");
 		return -1;
 	}
 
 	if (kernel_read(file, 0, buffer, 1024) < 0) {
-		printk("read file error?\n");
+		pr_err("read file error?\n");
 		result = -1;
 		goto error1;
 	}
 
 	if (Config_FileGetParameter("ZONETYPE",tmpbuffer,buffer)!=true) {
-		printk("get parameter error?\n");
+		pr_err("get parameter error?\n");
 		result = -1;
 		goto error1;
 	}
@@ -2671,7 +2672,7 @@ int Config_FileOperation(PSDevice pDevice,bool fwrite,unsigned char *Parameter)
 		result = ZoneType_Europe;
 	} else {
 		result = -1;
-		printk("Unknown Zonetype[%s]?\n",tmpbuffer);
+		pr_err("Unknown Zonetype[%s]?\n", tmpbuffer);
 	}
 
 error1:

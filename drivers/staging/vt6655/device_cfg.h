@@ -81,7 +81,7 @@ typedef enum  _chip_type {
 #define ASSERT(x)							\
 do {									\
 	if (!(x)) {							\
-		printk(KERN_ERR "assertion %s failed: file %s line %d\n", \
+		pr_err("assertion %s failed: file %s line %d\n", \
 		       #x, __func__, __LINE__);				\
 		*(int *)0 = 0;						\
 	}								\

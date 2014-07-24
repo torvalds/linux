@@ -698,7 +698,7 @@ s_vMgrRxAssocRequest(
 		pMgmt->sNodeDBTable[uNodeIndex].wTxDataRate =
 			pMgmt->sNodeDBTable[uNodeIndex].wMaxSuppRate;
 #ifdef	PLICE_DEBUG
-		printk("RxAssocRequest:wTxDataRate is %d\n", pMgmt->sNodeDBTable[uNodeIndex].wTxDataRate);
+		pr_debug("RxAssocRequest:wTxDataRate is %d\n", pMgmt->sNodeDBTable[uNodeIndex].wTxDataRate);
 #endif
 		// Todo: check sta preamble, if ap can't support, set status code
 		pMgmt->sNodeDBTable[uNodeIndex].bShortPreamble =
@@ -846,7 +846,7 @@ s_vMgrRxReAssocRequest(
 		pMgmt->sNodeDBTable[uNodeIndex].wTxDataRate =
 			pMgmt->sNodeDBTable[uNodeIndex].wMaxSuppRate;
 #ifdef	PLICE_DEBUG
-		printk("RxReAssocRequest:TxDataRate is %d\n", pMgmt->sNodeDBTable[uNodeIndex].wTxDataRate);
+		pr_debug("RxReAssocRequest:TxDataRate is %d\n", pMgmt->sNodeDBTable[uNodeIndex].wTxDataRate);
 #endif
 		// Todo: check sta preamble, if ap can't support, set status code
 		pMgmt->sNodeDBTable[uNodeIndex].bShortPreamble =
@@ -1570,9 +1570,10 @@ s_vMgrRxDisassociation(
 #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
 		{
 			union iwreq_data  wrqu;
+
 			memset(&wrqu, 0, sizeof(wrqu));
 			wrqu.ap_addr.sa_family = ARPHRD_ETHER;
-			printk("wireless_send_event--->SIOCGIWAP(disassociated)\n");
+			pr_debug("wireless_send_event--->SIOCGIWAP(disassociated)\n");
 			wireless_send_event(pDevice->dev, SIOCGIWAP, &wrqu, NULL);
 		}
 #endif
@@ -2109,7 +2110,7 @@ s_vMgrRxBeacon(
 				pMgmt->sNodeDBTable[uNodeIndex].wTxDataRate = pMgmt->sNodeDBTable[uNodeIndex].wMaxSuppRate;
 #ifdef	PLICE_DEBUG
 				{
-					printk("s_vMgrRxBeacon:TxDataRate is %d,Index is %d\n", pMgmt->sNodeDBTable[uNodeIndex].wTxDataRate, uNodeIndex);
+					pr_debug("s_vMgrRxBeacon:TxDataRate is %d,Index is %d\n", pMgmt->sNodeDBTable[uNodeIndex].wTxDataRate, uNodeIndex);
 				}
 #endif
 			}
