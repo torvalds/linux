@@ -282,6 +282,7 @@
  *   address/value pairs. Don't overdue it, though, x <= 2^4 must hold!
  */
 #define MI_LOAD_REGISTER_IMM(x)	MI_INSTR(0x22, 2*(x)-1)
+#define   MI_LRI_FORCE_POSTED		(1<<12)
 #define MI_STORE_REGISTER_MEM(x) MI_INSTR(0x24, 2*(x)-1)
 #define MI_STORE_REGISTER_MEM_GEN8(x) MI_INSTR(0x24, 3*(x)-1)
 #define   MI_SRM_LRM_GLOBAL_GTT		(1<<22)

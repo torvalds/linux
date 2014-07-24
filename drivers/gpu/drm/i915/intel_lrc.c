@@ -46,6 +46,38 @@
 
 #define GEN8_LR_CONTEXT_ALIGN 4096
 
+#define RING_ELSP(ring)			((ring)->mmio_base+0x230)
+#define RING_CONTEXT_CONTROL(ring)	((ring)->mmio_base+0x244)
+
+#define CTX_LRI_HEADER_0		0x01
+#define CTX_CONTEXT_CONTROL		0x02
+#define CTX_RING_HEAD			0x04
+#define CTX_RING_TAIL			0x06
+#define CTX_RING_BUFFER_START		0x08
+#define CTX_RING_BUFFER_CONTROL		0x0a
+#define CTX_BB_HEAD_U			0x0c
+#define CTX_BB_HEAD_L			0x0e
+#define CTX_BB_STATE			0x10
+#define CTX_SECOND_BB_HEAD_U		0x12
+#define CTX_SECOND_BB_HEAD_L		0x14
+#define CTX_SECOND_BB_STATE		0x16
+#define CTX_BB_PER_CTX_PTR		0x18
+#define CTX_RCS_INDIRECT_CTX		0x1a
+#define CTX_RCS_INDIRECT_CTX_OFFSET	0x1c
+#define CTX_LRI_HEADER_1		0x21
+#define CTX_CTX_TIMESTAMP		0x22
+#define CTX_PDP3_UDW			0x24
+#define CTX_PDP3_LDW			0x26
+#define CTX_PDP2_UDW			0x28
+#define CTX_PDP2_LDW			0x2a
+#define CTX_PDP1_UDW			0x2c
+#define CTX_PDP1_LDW			0x2e
+#define CTX_PDP0_UDW			0x30
+#define CTX_PDP0_LDW			0x32
+#define CTX_LRI_HEADER_2		0x41
+#define CTX_R_PWR_CLK_STATE		0x42
+#define CTX_GPGPU_CSR_BASE_ADDRESS	0x44
+
 int intel_sanitize_enable_execlists(struct drm_device *dev, int enable_execlists)
 {
 	WARN_ON(i915.enable_ppgtt == -1);
@@ -55,6 +87,115 @@ int intel_sanitize_enable_execlists(struct drm_device *dev, int enable_execlists
 
 	if (HAS_LOGICAL_RING_CONTEXTS(dev) && USES_PPGTT(dev))
 		return 1;
+
+	return 0;
+}
+
+static int
+populate_lr_context(struct intel_context *ctx, struct drm_i915_gem_object *ctx_obj,
+		    struct intel_engine_cs *ring, struct intel_ringbuffer *ringbuf)
+{
+	struct drm_i915_gem_object *ring_obj = ringbuf->obj;
+	struct i915_hw_ppgtt *ppgtt = ctx_to_ppgtt(ctx);
+	struct page *page;
+	uint32_t *reg_state;
+	int ret;
+
+	ret = i915_gem_object_set_to_cpu_domain(ctx_obj, true);
+	if (ret) {
+		DRM_DEBUG_DRIVER("Could not set to CPU domain\n");
+		return ret;
+	}
+
+	ret = i915_gem_object_get_pages(ctx_obj);
+	if (ret) {
+		DRM_DEBUG_DRIVER("Could not get object pages\n");
+		return ret;
+	}
+
+	i915_gem_object_pin_pages(ctx_obj);
+
+	/* The second page of the context object contains some fields which must
+	 * be set up prior to the first execution. */
+	page = i915_gem_object_get_page(ctx_obj, 1);
+	reg_state = kmap_atomic(page);
+
+	/* A context is actually a big batch buffer with several MI_LOAD_REGISTER_IMM
+	 * commands followed by (reg, value) pairs. The values we are setting here are
+	 * only for the first context restore: on a subsequent save, the GPU will
+	 * recreate this batchbuffer with new values (including all the missing
+	 * MI_LOAD_REGISTER_IMM commands that we are not initializing here). */
+	if (ring->id == RCS)
+		reg_state[CTX_LRI_HEADER_0] = MI_LOAD_REGISTER_IMM(14);
+	else
+		reg_state[CTX_LRI_HEADER_0] = MI_LOAD_REGISTER_IMM(11);
+	reg_state[CTX_LRI_HEADER_0] |= MI_LRI_FORCE_POSTED;
+	reg_state[CTX_CONTEXT_CONTROL] = RING_CONTEXT_CONTROL(ring);
+	reg_state[CTX_CONTEXT_CONTROL+1] =
+			_MASKED_BIT_ENABLE((1<<3) | MI_RESTORE_INHIBIT);
+	reg_state[CTX_RING_HEAD] = RING_HEAD(ring->mmio_base);
+	reg_state[CTX_RING_HEAD+1] = 0;
+	reg_state[CTX_RING_TAIL] = RING_TAIL(ring->mmio_base);
+	reg_state[CTX_RING_TAIL+1] = 0;
+	reg_state[CTX_RING_BUFFER_START] = RING_START(ring->mmio_base);
+	reg_state[CTX_RING_BUFFER_START+1] = i915_gem_obj_ggtt_offset(ring_obj);
+	reg_state[CTX_RING_BUFFER_CONTROL] = RING_CTL(ring->mmio_base);
+	reg_state[CTX_RING_BUFFER_CONTROL+1] =
+			((ringbuf->size - PAGE_SIZE) & RING_NR_PAGES) | RING_VALID;
+	reg_state[CTX_BB_HEAD_U] = ring->mmio_base + 0x168;
+	reg_state[CTX_BB_HEAD_U+1] = 0;
+	reg_state[CTX_BB_HEAD_L] = ring->mmio_base + 0x140;
+	reg_state[CTX_BB_HEAD_L+1] = 0;
+	reg_state[CTX_BB_STATE] = ring->mmio_base + 0x110;
+	reg_state[CTX_BB_STATE+1] = (1<<5);
+	reg_state[CTX_SECOND_BB_HEAD_U] = ring->mmio_base + 0x11c;
+	reg_state[CTX_SECOND_BB_HEAD_U+1] = 0;
+	reg_state[CTX_SECOND_BB_HEAD_L] = ring->mmio_base + 0x114;
+	reg_state[CTX_SECOND_BB_HEAD_L+1] = 0;
+	reg_state[CTX_SECOND_BB_STATE] = ring->mmio_base + 0x118;
+	reg_state[CTX_SECOND_BB_STATE+1] = 0;
+	if (ring->id == RCS) {
+		/* TODO: according to BSpec, the register state context
+		 * for CHV does not have these. OTOH, these registers do
+		 * exist in CHV. I'm waiting for a clarification */
+		reg_state[CTX_BB_PER_CTX_PTR] = ring->mmio_base + 0x1c0;
+		reg_state[CTX_BB_PER_CTX_PTR+1] = 0;
+		reg_state[CTX_RCS_INDIRECT_CTX] = ring->mmio_base + 0x1c4;
+		reg_state[CTX_RCS_INDIRECT_CTX+1] = 0;
+		reg_state[CTX_RCS_INDIRECT_CTX_OFFSET] = ring->mmio_base + 0x1c8;
+		reg_state[CTX_RCS_INDIRECT_CTX_OFFSET+1] = 0;
+	}
+	reg_state[CTX_LRI_HEADER_1] = MI_LOAD_REGISTER_IMM(9);
+	reg_state[CTX_LRI_HEADER_1] |= MI_LRI_FORCE_POSTED;
+	reg_state[CTX_CTX_TIMESTAMP] = ring->mmio_base + 0x3a8;
+	reg_state[CTX_CTX_TIMESTAMP+1] = 0;
+	reg_state[CTX_PDP3_UDW] = GEN8_RING_PDP_UDW(ring, 3);
+	reg_state[CTX_PDP3_LDW] = GEN8_RING_PDP_LDW(ring, 3);
+	reg_state[CTX_PDP2_UDW] = GEN8_RING_PDP_UDW(ring, 2);
+	reg_state[CTX_PDP2_LDW] = GEN8_RING_PDP_LDW(ring, 2);
+	reg_state[CTX_PDP1_UDW] = GEN8_RING_PDP_UDW(ring, 1);
+	reg_state[CTX_PDP1_LDW] = GEN8_RING_PDP_LDW(ring, 1);
+	reg_state[CTX_PDP0_UDW] = GEN8_RING_PDP_UDW(ring, 0);
+	reg_state[CTX_PDP0_LDW] = GEN8_RING_PDP_LDW(ring, 0);
+	reg_state[CTX_PDP3_UDW+1] = upper_32_bits(ppgtt->pd_dma_addr[3]);
+	reg_state[CTX_PDP3_LDW+1] = lower_32_bits(ppgtt->pd_dma_addr[3]);
+	reg_state[CTX_PDP2_UDW+1] = upper_32_bits(ppgtt->pd_dma_addr[2]);
+	reg_state[CTX_PDP2_LDW+1] = lower_32_bits(ppgtt->pd_dma_addr[2]);
+	reg_state[CTX_PDP1_UDW+1] = upper_32_bits(ppgtt->pd_dma_addr[1]);
+	reg_state[CTX_PDP1_LDW+1] = lower_32_bits(ppgtt->pd_dma_addr[1]);
+	reg_state[CTX_PDP0_UDW+1] = upper_32_bits(ppgtt->pd_dma_addr[0]);
+	reg_state[CTX_PDP0_LDW+1] = lower_32_bits(ppgtt->pd_dma_addr[0]);
+	if (ring->id == RCS) {
+		reg_state[CTX_LRI_HEADER_2] = MI_LOAD_REGISTER_IMM(1);
+		reg_state[CTX_R_PWR_CLK_STATE] = 0x20c8;
+		reg_state[CTX_R_PWR_CLK_STATE+1] = 0;
+	}
+
+	kunmap_atomic(reg_state);
+
+	ctx_obj->dirty = 1;
+	set_page_dirty(page);
+	i915_gem_object_unpin_pages(ctx_obj);
 
 	return 0;
 }
@@ -151,14 +292,24 @@ int intel_lr_context_deferred_create(struct intel_context *ctx,
 	if (ret) {
 		DRM_DEBUG_DRIVER("Failed to allocate ringbuffer obj %s: %d\n",
 				ring->name, ret);
-		kfree(ringbuf);
-		i915_gem_object_ggtt_unpin(ctx_obj);
-		drm_gem_object_unreference(&ctx_obj->base);
-		return ret;
+		goto error;
+	}
+
+	ret = populate_lr_context(ctx, ctx_obj, ring, ringbuf);
+	if (ret) {
+		DRM_DEBUG_DRIVER("Failed to populate LRC: %d\n", ret);
+		intel_destroy_ringbuffer_obj(ringbuf);
+		goto error;
 	}
 
 	ctx->engine[ring->id].ringbuf = ringbuf;
 	ctx->engine[ring->id].state = ctx_obj;
 
 	return 0;
+
+error:
+	kfree(ringbuf);
+	i915_gem_object_ggtt_unpin(ctx_obj);
+	drm_gem_object_unreference(&ctx_obj->base);
+	return ret;
 }
