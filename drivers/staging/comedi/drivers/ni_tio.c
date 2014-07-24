@@ -177,17 +177,16 @@ static inline unsigned Gi_Gate_Select_Bits(unsigned gate_select)
 	return (gate_select << Gi_Gate_Select_Shift) & Gi_Gate_Select_Mask;
 }
 
-enum ni_660x_second_gate_select {
-	NI_660x_Source_Pin_i_Second_Gate_Select = 0x0,
-	NI_660x_Up_Down_Pin_i_Second_Gate_Select = 0x1,
-	NI_660x_Next_SRC_Second_Gate_Select = 0xa,
-	NI_660x_Next_Out_Second_Gate_Select = 0x14,
-	NI_660x_Selected_Gate_Second_Gate_Select = 0x1e,
-	NI_660x_Logic_Low_Second_Gate_Select = 0x1f,
-};
-#define NI_660X_MAX_UP_DOWN_PIN		7
+/* NI660X second gate select */
+#define NI_660X_SRC_PIN_I_GATE2_SEL	0x0
+#define NI_660X_UD_PIN_I_GATE2_SEL	0x1
 #define NI_660X_UD_PIN_GATE2_SEL(x)	(0x2 + (x))
+#define NI_660X_NEXT_SRC_GATE2_SEL	0xa
 #define NI_660X_RTSI_GATE2_SEL(x)	(0xb + (x))
+#define NI_660X_NEXT_OUT_GATE2_SEL	0x14
+#define NI_660X_SELECTED_GATE2_SEL	0x1e
+#define NI_660X_LOGIC_LOW_GATE2_SEL	0x1f
+#define NI_660X_MAX_UP_DOWN_PIN		7
 
 struct ni_gpct_device *
 ni_gpct_device_construct(struct comedi_device *dev,
@@ -1004,7 +1003,7 @@ static int ni_660x_set_second_gate(struct ni_gpct *counter,
 		gate2_sel = chan & 0x1f;
 		break;
 	case NI_GPCT_NEXT_SOURCE_GATE_SELECT:
-		gate2_sel = NI_660x_Next_SRC_Second_Gate_Select;
+		gate2_sel = NI_660X_NEXT_SRC_GATE2_SEL;
 		break;
 	default:
 		for (i = 0; i <= NI_660X_MAX_RTSI_CHAN; ++i) {
@@ -1241,17 +1240,17 @@ ni_660x_second_gate_to_generic_gate_source(unsigned ni_660x_gate_select)
 	unsigned i;
 
 	switch (ni_660x_gate_select) {
-	case NI_660x_Source_Pin_i_Second_Gate_Select:
+	case NI_660X_SRC_PIN_I_GATE2_SEL:
 		return NI_GPCT_SOURCE_PIN_i_GATE_SELECT;
-	case NI_660x_Up_Down_Pin_i_Second_Gate_Select:
+	case NI_660X_UD_PIN_I_GATE2_SEL:
 		return NI_GPCT_UP_DOWN_PIN_i_GATE_SELECT;
-	case NI_660x_Next_SRC_Second_Gate_Select:
+	case NI_660X_NEXT_SRC_GATE2_SEL:
 		return NI_GPCT_NEXT_SOURCE_GATE_SELECT;
-	case NI_660x_Next_Out_Second_Gate_Select:
+	case NI_660X_NEXT_OUT_GATE2_SEL:
 		return NI_GPCT_NEXT_OUT_GATE_SELECT;
-	case NI_660x_Selected_Gate_Second_Gate_Select:
+	case NI_660X_SELECTED_GATE2_SEL:
 		return NI_GPCT_SELECTED_GATE_GATE_SELECT;
-	case NI_660x_Logic_Low_Second_Gate_Select:
+	case NI_660X_LOGIC_LOW_GATE2_SEL:
 		return NI_GPCT_LOGIC_LOW_GATE_SELECT;
 	default:
 		for (i = 0; i <= NI_660X_MAX_RTSI_CHAN; ++i) {
