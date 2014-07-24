@@ -76,10 +76,8 @@ xfs_bulkstat_one_int(
 	error = xfs_iget(mp, NULL, ino,
 			 (XFS_IGET_DONTCACHE | XFS_IGET_UNTRUSTED),
 			 XFS_ILOCK_SHARED, &ip);
-	if (error) {
-		*stat = BULKSTAT_RV_NOTHING;
+	if (error)
 		goto out_free;
-	}
 
 	ASSERT(ip != NULL);
 	ASSERT(ip->i_imap.im_blkno != 0);
@@ -136,7 +134,6 @@ xfs_bulkstat_one_int(
 	IRELE(ip);
 
 	error = formatter(buffer, ubsize, ubused, buf);
-
 	if (!error)
 		*stat = BULKSTAT_RV_DIDONE;
 
