@@ -2311,10 +2311,21 @@ int __i915_add_request(struct intel_engine_cs *ring,
 {
 	struct drm_i915_private *dev_priv = ring->dev->dev_private;
 	struct drm_i915_gem_request *request;
+	struct intel_ringbuffer *ringbuf;
 	u32 request_ring_position, request_start;
 	int ret;
 
-	request_start = intel_ring_get_tail(ring->buffer);
+	request = ring->preallocated_lazy_request;
+	if (WARN_ON(request == NULL))
+		return -ENOMEM;
+
+	if (i915.enable_execlists) {
+		struct intel_context *ctx = request->ctx;
+		ringbuf = ctx->engine[ring->id].ringbuf;
+	} else
+		ringbuf = ring->buffer;
+
+	request_start = intel_ring_get_tail(ringbuf);
 	/*
 	 * Emit any outstanding flushes - execbuf can fail to emit the flush
 	 * after having emitted the batchbuffer command. Hence we need to fix
@@ -2322,24 +2333,32 @@ int __i915_add_request(struct intel_engine_cs *ring,
 	 * is that the flush _must_ happen before the next request, no matter
 	 * what.
 	 */
-	ret = intel_ring_flush_all_caches(ring);
-	if (ret)
-		return ret;
-
-	request = ring->preallocated_lazy_request;
-	if (WARN_ON(request == NULL))
-		return -ENOMEM;
+	if (i915.enable_execlists) {
+		ret = logical_ring_flush_all_caches(ringbuf);
+		if (ret)
+			return ret;
+	} else {
+		ret = intel_ring_flush_all_caches(ring);
+		if (ret)
+			return ret;
+	}
 
 	/* Record the position of the start of the request so that
 	 * should we detect the updated seqno part-way through the
 	 * GPU processing the request, we never over-estimate the
 	 * position of the head.
 	 */
-	request_ring_position = intel_ring_get_tail(ring->buffer);
+	request_ring_position = intel_ring_get_tail(ringbuf);
 
-	ret = ring->add_request(ring);
-	if (ret)
-		return ret;
+	if (i915.enable_execlists) {
+		ret = ring->emit_request(ringbuf);
+		if (ret)
+			return ret;
+	} else {
+		ret = ring->add_request(ring);
+		if (ret)
+			return ret;
+	}
 
 	request->seqno = intel_ring_get_seqno(ring);
 	request->ring = ring;
@@ -2354,12 +2373,14 @@ int __i915_add_request(struct intel_engine_cs *ring,
 	 */
 	request->batch_obj = obj;
 
-	/* Hold a reference to the current context so that we can inspect
-	 * it later in case a hangcheck error event fires.
-	 */
-	request->ctx = ring->last_context;
-	if (request->ctx)
-		i915_gem_context_reference(request->ctx);
+	if (!i915.enable_execlists) {
+		/* Hold a reference to the current context so that we can inspect
+		 * it later in case a hangcheck error event fires.
+		 */
+		request->ctx = ring->last_context;
+		if (request->ctx)
+			i915_gem_context_reference(request->ctx);
+	}
 
 	request->emitted_jiffies = jiffies;
 	list_add_tail(&request->list, &ring->request_list);
@@ -2614,6 +2635,7 @@ i915_gem_retire_requests_ring(struct intel_engine_cs *ring)
 
 	while (!list_empty(&ring->request_list)) {
 		struct drm_i915_gem_request *request;
+		struct intel_ringbuffer *ringbuf;
 
 		request = list_first_entry(&ring->request_list,
 					   struct drm_i915_gem_request,
@@ -2623,12 +2645,24 @@ i915_gem_retire_requests_ring(struct intel_engine_cs *ring)
 			break;
 
 		trace_i915_gem_request_retire(ring, request->seqno);
+
+		/* This is one of the few common intersection points
+		 * between legacy ringbuffer submission and execlists:
+		 * we need to tell them apart in order to find the correct
+		 * ringbuffer to which the request belongs to.
+		 */
+		if (i915.enable_execlists) {
+			struct intel_context *ctx = request->ctx;
+			ringbuf = ctx->engine[ring->id].ringbuf;
+		} else
+			ringbuf = ring->buffer;
+
 		/* We know the GPU must have read the request to have
 		 * sent us the seqno + interrupt, so use the position
 		 * of tail of the request to update the last known position
 		 * of the GPU head.
 		 */
-		ring->buffer->last_retired_head = request->tail;
+		ringbuf->last_retired_head = request->tail;
 
 		i915_gem_free_request(request);
 	}

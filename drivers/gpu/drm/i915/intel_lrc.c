@@ -252,6 +252,22 @@ void intel_logical_ring_stop(struct intel_engine_cs *ring)
 	I915_WRITE_MODE(ring, _MASKED_BIT_DISABLE(STOP_RING));
 }
 
+int logical_ring_flush_all_caches(struct intel_ringbuffer *ringbuf)
+{
+	struct intel_engine_cs *ring = ringbuf->ring;
+	int ret;
+
+	if (!ring->gpu_caches_dirty)
+		return 0;
+
+	ret = ring->emit_flush(ringbuf, 0, I915_GEM_GPU_DOMAINS);
+	if (ret)
+		return ret;
+
+	ring->gpu_caches_dirty = false;
+	return 0;
+}
+
 void intel_logical_ring_advance_and_submit(struct intel_ringbuffer *ringbuf)
 {
 	intel_logical_ring_advance(ringbuf);
@@ -262,7 +278,8 @@ void intel_logical_ring_advance_and_submit(struct intel_ringbuffer *ringbuf)
 	/* TODO: how to submit a context to the ELSP is not here yet */
 }
 
-static int logical_ring_alloc_seqno(struct intel_engine_cs *ring)
+static int logical_ring_alloc_seqno(struct intel_engine_cs *ring,
+				    struct intel_context *ctx)
 {
 	if (ring->outstanding_lazy_seqno)
 		return 0;
@@ -273,6 +290,13 @@ static int logical_ring_alloc_seqno(struct intel_engine_cs *ring)
 		request = kmalloc(sizeof(*request), GFP_KERNEL);
 		if (request == NULL)
 			return -ENOMEM;
+
+		/* Hold a reference to the context this request belongs to
+		 * (we will need it when the time comes to emit/retire the
+		 * request).
+		 */
+		request->ctx = ctx;
+		i915_gem_context_reference(request->ctx);
 
 		ring->preallocated_lazy_request = request;
 	}
@@ -312,8 +336,6 @@ static int logical_ring_wait_request(struct intel_ringbuffer *ringbuf,
 	if (ret)
 		return ret;
 
-	/* TODO: make sure we update the right ringbuffer's last_retired_head
-	 * when retiring requests */
 	i915_gem_retire_requests_ring(ring);
 	ringbuf->head = ringbuf->last_retired_head;
 	ringbuf->last_retired_head = -1;
@@ -433,7 +455,7 @@ int intel_logical_ring_begin(struct intel_ringbuffer *ringbuf, int num_dwords)
 		return ret;
 
 	/* Preallocate the olr before touching the ring */
-	ret = logical_ring_alloc_seqno(ring);
+	ret = logical_ring_alloc_seqno(ring, ringbuf->FIXME_lrc_ctx);
 	if (ret)
 		return ret;
 

@@ -29,6 +29,7 @@ void intel_logical_ring_stop(struct intel_engine_cs *ring);
 void intel_logical_ring_cleanup(struct intel_engine_cs *ring);
 int intel_logical_rings_init(struct drm_device *dev);
 
+int logical_ring_flush_all_caches(struct intel_ringbuffer *ringbuf);
 void intel_logical_ring_advance_and_submit(struct intel_ringbuffer *ringbuf);
 static inline void intel_logical_ring_advance(struct intel_ringbuffer *ringbuf)
 {
