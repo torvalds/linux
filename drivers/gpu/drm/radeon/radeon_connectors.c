@@ -1512,7 +1512,7 @@ u16 radeon_connector_encoder_get_dp_bridge_encoder_id(struct drm_connector *conn
 	return ENCODER_OBJECT_ID_NONE;
 }
 
-bool radeon_connector_encoder_is_hbr2(struct drm_connector *connector)
+static bool radeon_connector_encoder_is_hbr2(struct drm_connector *connector)
 {
 	struct drm_encoder *encoder;
 	struct radeon_encoder *radeon_encoder;
