@@ -335,6 +335,7 @@
 #define MACB_CAPS_ISR_CLEAR_ON_WRITE		0x00000001
 #define MACB_CAPS_FIFO_MODE			0x10000000
 #define MACB_CAPS_GIGABIT_MODE_AVAILABLE	0x20000000
+#define MACB_CAPS_SG_DISABLED			0x40000000
 #define MACB_CAPS_MACB_IS_GEM			0x80000000
 
 /* Bit manipulation macros */
@@ -468,14 +469,23 @@ struct macb_dma_desc {
 #define MACB_TX_USED_OFFSET			31
 #define MACB_TX_USED_SIZE			1
 
+#define GEM_TX_FRMLEN_OFFSET			0
+#define GEM_TX_FRMLEN_SIZE			14
+
 /**
  * struct macb_tx_skb - data about an skb which is being transmitted
- * @skb: skb currently being transmitted
- * @mapping: DMA address of the skb's data buffer
+ * @skb: skb currently being transmitted, only set for the last buffer
+ *       of the frame
+ * @mapping: DMA address of the skb's fragment buffer
+ * @size: size of the DMA mapped buffer
+ * @mapped_as_page: true when buffer was mapped with skb_frag_dma_map(),
+ *                  false when buffer was mapped with dma_map_single()
  */
 struct macb_tx_skb {
 	struct sk_buff		*skb;
 	dma_addr_t		mapping;
+	size_t			size;
+	bool			mapped_as_page;
 };
 
 /*
@@ -617,6 +627,7 @@ struct macb {
 	struct sk_buff *skb;			/* holds skb until xmit interrupt completes */
 	dma_addr_t skb_physaddr;		/* phys addr from pci_map_single */
 	int skb_length;				/* saved skb length for pci_unmap_single */
+	unsigned int		max_tx_length;
 };
 
 extern const struct ethtool_ops macb_ethtool_ops;
