@@ -745,6 +745,7 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 				    0x00, (0xff - 0x02) & rngmask, 0x00);
 
 		usbduxfast_cmd_data(dev, 6, 0x01, 0x00, rngmask, 0x00);
+		break;
 
 	case 16:
 		if (CR_RANGE(cmd->chanlist[0]) > 0)
