@@ -675,7 +675,7 @@ out:
 static ssize_t wacom_led_select_store(struct device *dev, int set_id,
 				      const char *buf, size_t count)
 {
-	struct hid_device *hdev = dev_get_drvdata(dev);
+	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
 	struct wacom *wacom = hid_get_drvdata(hdev);
 	unsigned int id;
 	int err;
@@ -703,7 +703,7 @@ static ssize_t wacom_led##SET_ID##_select_store(struct device *dev,	\
 static ssize_t wacom_led##SET_ID##_select_show(struct device *dev,	\
 	struct device_attribute *attr, char *buf)			\
 {									\
-	struct hid_device *hdev = dev_get_drvdata(dev);			\
+	struct hid_device *hdev = container_of(dev, struct hid_device, dev);\
 	struct wacom *wacom = hid_get_drvdata(hdev);			\
 	return snprintf(buf, 2, "%d\n", wacom->led.select[SET_ID]);	\
 }									\
@@ -738,7 +738,7 @@ static ssize_t wacom_luminance_store(struct wacom *wacom, u8 *dest,
 static ssize_t wacom_##name##_luminance_store(struct device *dev,	\
 	struct device_attribute *attr, const char *buf, size_t count)	\
 {									\
-	struct hid_device *hdev = dev_get_drvdata(dev);			\
+	struct hid_device *hdev = container_of(dev, struct hid_device, dev);\
 	struct wacom *wacom = hid_get_drvdata(hdev);			\
 									\
 	return wacom_luminance_store(wacom, &wacom->led.field,		\
@@ -754,7 +754,7 @@ DEVICE_LUMINANCE_ATTR(buttons, img_lum);
 static ssize_t wacom_button_image_store(struct device *dev, int button_id,
 					const char *buf, size_t count)
 {
-	struct hid_device *hdev = dev_get_drvdata(dev);
+	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
 	struct wacom *wacom = hid_get_drvdata(hdev);
 	int err;
 
@@ -845,7 +845,7 @@ static int wacom_initialize_leds(struct wacom *wacom)
 		wacom->led.llv = 10;
 		wacom->led.hlv = 20;
 		wacom->led.img_lum = 10;
-		error = sysfs_create_group(&wacom->intf->dev.kobj,
+		error = sysfs_create_group(&wacom->hdev->dev.kobj,
 					   &intuos4_led_attr_group);
 		break;
 
@@ -857,7 +857,7 @@ static int wacom_initialize_leds(struct wacom *wacom)
 		wacom->led.hlv = 0;
 		wacom->led.img_lum = 0;
 
-		error = sysfs_create_group(&wacom->intf->dev.kobj,
+		error = sysfs_create_group(&wacom->hdev->dev.kobj,
 					   &cintiq_led_attr_group);
 		break;
 
@@ -874,7 +874,7 @@ static int wacom_initialize_leds(struct wacom *wacom)
 			wacom->led.hlv = 0;
 			wacom->led.img_lum = 0;
 
-			error = sysfs_create_group(&wacom->intf->dev.kobj,
+			error = sysfs_create_group(&wacom->hdev->dev.kobj,
 						  &intuos5_led_attr_group);
 		} else
 			return 0;
@@ -885,7 +885,7 @@ static int wacom_initialize_leds(struct wacom *wacom)
 	}
 
 	if (error) {
-		dev_err(&wacom->intf->dev,
+		hid_err(wacom->hdev,
 			"cannot create sysfs group err: %d\n", error);
 		return error;
 	}
@@ -900,13 +900,13 @@ static void wacom_destroy_leds(struct wacom *wacom)
 	case INTUOS4S:
 	case INTUOS4:
 	case INTUOS4L:
-		sysfs_remove_group(&wacom->intf->dev.kobj,
+		sysfs_remove_group(&wacom->hdev->dev.kobj,
 				   &intuos4_led_attr_group);
 		break;
 
 	case WACOM_24HD:
 	case WACOM_21UX2:
-		sysfs_remove_group(&wacom->intf->dev.kobj,
+		sysfs_remove_group(&wacom->hdev->dev.kobj,
 				   &cintiq_led_attr_group);
 		break;
 
@@ -917,7 +917,7 @@ static void wacom_destroy_leds(struct wacom *wacom)
 	case INTUOSPM:
 	case INTUOSPL:
 		if (wacom->wacom_wac.features.device_type == BTN_TOOL_PEN)
-			sysfs_remove_group(&wacom->intf->dev.kobj,
+			sysfs_remove_group(&wacom->hdev->dev.kobj,
 					   &intuos5_led_attr_group);
 		break;
 	}
