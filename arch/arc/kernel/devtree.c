@@ -40,7 +40,7 @@ struct machine_desc * __init setup_machine_fdt(void *dt)
 	const char *model, *compat;
 	void *clk;
 	char manufacturer[16];
-	unsigned long len;
+	int len;
 
 	/* check device tree validity */
 	if (be32_to_cpu(devtree->magic) != OF_DT_HEADER)

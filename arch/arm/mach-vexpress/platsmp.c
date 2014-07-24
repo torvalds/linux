@@ -51,7 +51,7 @@ static int __init vexpress_dt_find_scu(unsigned long node,
 {
 	if (of_flat_dt_match(node, vexpress_dt_cortex_a9_match)) {
 		phys_addr_t phys_addr;
-		__be32 *reg = of_get_flat_dt_prop(node, "reg", NULL);
+		const __be32 *reg = of_get_flat_dt_prop(node, "reg", NULL);
 
 		if (WARN_ON(!reg))
 			return -EINVAL;
