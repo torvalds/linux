@@ -1127,6 +1127,7 @@ static int wacom_register_input(struct wacom *wacom)
 	}
 
 	input_dev->name = wacom_wac->name;
+	input_dev->phys = wacom->phys;
 	input_dev->dev.parent = &intf->dev;
 	input_dev->open = wacom_open;
 	input_dev->close = wacom_close;
