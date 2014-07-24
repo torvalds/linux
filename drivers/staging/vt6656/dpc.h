@@ -32,10 +32,6 @@
 #include "device.h"
 #include "wcmd.h"
 
-void RXvWorkItem(struct work_struct *work);
-
-void RXvFreeRCB(struct vnt_rcb *pRCB, int bReAllocSkb);
-
 int vnt_rx_data(struct vnt_private *, struct vnt_rcb *,
 	unsigned long bytes_recieved);
 
