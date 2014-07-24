@@ -609,8 +609,8 @@ xfs_set_inode32(struct xfs_mount *mp, xfs_agnumber_t agcount)
 	xfs_agnumber_t	maxagi = 0;
 	xfs_sb_t	*sbp = &mp->m_sb;
 	xfs_agnumber_t	max_metadata;
-	xfs_agino_t	agino =	XFS_OFFBNO_TO_AGINO(mp, sbp->sb_agblocks -1, 0);
-	xfs_ino_t	ino = XFS_AGINO_TO_INO(mp, sbp->sb_agcount -1, agino);
+	xfs_agino_t	agino;
+	xfs_ino_t	ino;
 	xfs_perag_t	*pag;
 
 	/* Calculate how much should be reserved for inodes to meet
@@ -627,6 +627,8 @@ xfs_set_inode32(struct xfs_mount *mp, xfs_agnumber_t agcount)
 	} else {
 		max_metadata = agcount;
 	}
+
+	agino =	XFS_OFFBNO_TO_AGINO(mp, sbp->sb_agblocks - 1, 0);
 
 	for (index = 0; index < agcount; index++) {
 		ino = XFS_AGINO_TO_INO(mp, index, agino);
