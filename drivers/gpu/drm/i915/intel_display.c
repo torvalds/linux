@@ -9536,6 +9536,8 @@ static bool use_mmio_flip(struct intel_engine_cs *ring,
 		return false;
 	else if (i915.use_mmio_flip > 0)
 		return true;
+	else if (i915.enable_execlists)
+		return true;
 	else
 		return ring != obj->ring;
 }
