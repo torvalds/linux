@@ -186,8 +186,7 @@ static inline unsigned Gi_Gate_Select_Bits(unsigned gate_select)
 	return (gate_select << Gi_Gate_Select_Shift) & Gi_Gate_Select_Mask;
 }
 
-static int
-ni_tio_second_gate_registers_present(const struct ni_gpct_device *counter_dev)
+static int ni_tio_has_gate2_registers(const struct ni_gpct_device *counter_dev)
 {
 	switch (counter_dev->variant) {
 	case ni_gpct_variant_e_series:
@@ -996,8 +995,9 @@ int ni_tio_set_gate_src(struct ni_gpct *counter, unsigned gate_index,
 		}
 		break;
 	case 1:
-		if (ni_tio_second_gate_registers_present(counter_dev) == 0)
+		if (!ni_tio_has_gate2_registers(counter_dev))
 			return -EINVAL;
+
 		if (CR_CHAN(gate_source) == NI_GPCT_DISABLED_GATE_SELECT) {
 			counter_dev->regs[second_gate_reg] &=
 			    ~Gi_Second_Gate_Mode_Bit;
@@ -1459,7 +1459,7 @@ void ni_tio_init_counter(struct ni_gpct *counter)
 	if (ni_tio_counting_mode_registers_present(counter_dev))
 		ni_tio_set_bits(counter, NITIO_CNT_MODE_REG(cidx), ~0, 0);
 
-	if (ni_tio_second_gate_registers_present(counter_dev)) {
+	if (ni_tio_has_gate2_registers(counter_dev)) {
 		counter_dev->regs[NITIO_GATE2_REG(cidx)] = 0x0;
 		write_register(counter, 0x0, NITIO_GATE2_REG(cidx));
 	}
