@@ -488,46 +488,48 @@ static int wacom_retrieve_hid_descriptor(struct hid_device *hdev,
 	return error;
 }
 
-struct wacom_usbdev_data {
+struct wacom_hdev_data {
 	struct list_head list;
 	struct kref kref;
-	struct usb_device *dev;
+	struct hid_device *dev;
 	struct wacom_shared shared;
 };
 
 static LIST_HEAD(wacom_udev_list);
 static DEFINE_MUTEX(wacom_udev_list_lock);
 
-static struct usb_device *wacom_get_sibling(struct usb_device *dev, int vendor, int product)
+static bool wacom_are_sibling(struct hid_device *hdev,
+		struct hid_device *sibling)
 {
-	int port1;
-	struct usb_device *sibling;
+	struct wacom *wacom = hid_get_drvdata(hdev);
+	struct wacom_features *features = &wacom->wacom_wac.features;
+	int vid = features->oVid;
+	int pid = features->oPid;
+	int n1,n2;
 
-	if (vendor == 0 && product == 0)
-		return dev;
-
-	if (dev->parent == NULL)
-		return NULL;
-
-	usb_hub_for_each_child(dev->parent, port1, sibling) {
-		struct usb_device_descriptor *d;
-		if (sibling == NULL)
-			continue;
-
-		d = &sibling->descriptor;
-		if (d->idVendor == vendor && d->idProduct == product)
-			return sibling;
+	if (vid == 0 && pid == 0) {
+		vid = hdev->vendor;
+		pid = hdev->product;
 	}
 
-	return NULL;
+	if (vid != sibling->vendor || pid != sibling->product)
+		return false;
+
+	/* Compare the physical path. */
+	n1 = strrchr(hdev->phys, '.') - hdev->phys;
+	n2 = strrchr(sibling->phys, '.') - sibling->phys;
+	if (n1 != n2 || n1 <= 0 || n2 <= 0)
+		return false;
+
+	return !strncmp(hdev->phys, sibling->phys, n1);
 }
 
-static struct wacom_usbdev_data *wacom_get_usbdev_data(struct usb_device *dev)
+static struct wacom_hdev_data *wacom_get_hdev_data(struct hid_device *hdev)
 {
-	struct wacom_usbdev_data *data;
+	struct wacom_hdev_data *data;
 
 	list_for_each_entry(data, &wacom_udev_list, list) {
-		if (data->dev == dev) {
+		if (wacom_are_sibling(hdev, data->dev)) {
 			kref_get(&data->kref);
 			return data;
 		}
@@ -536,28 +538,29 @@ static struct wacom_usbdev_data *wacom_get_usbdev_data(struct usb_device *dev)
 	return NULL;
 }
 
-static int wacom_add_shared_data(struct wacom_wac *wacom,
-				 struct usb_device *dev)
+static int wacom_add_shared_data(struct hid_device *hdev)
 {
-	struct wacom_usbdev_data *data;
+	struct wacom *wacom = hid_get_drvdata(hdev);
+	struct wacom_wac *wacom_wac = &wacom->wacom_wac;
+	struct wacom_hdev_data *data;
 	int retval = 0;
 
 	mutex_lock(&wacom_udev_list_lock);
 
-	data = wacom_get_usbdev_data(dev);
+	data = wacom_get_hdev_data(hdev);
 	if (!data) {
-		data = kzalloc(sizeof(struct wacom_usbdev_data), GFP_KERNEL);
+		data = kzalloc(sizeof(struct wacom_hdev_data), GFP_KERNEL);
 		if (!data) {
 			retval = -ENOMEM;
 			goto out;
 		}
 
 		kref_init(&data->kref);
-		data->dev = dev;
+		data->dev = hdev;
 		list_add_tail(&data->list, &wacom_udev_list);
 	}
 
-	wacom->shared = &data->shared;
+	wacom_wac->shared = &data->shared;
 
 out:
 	mutex_unlock(&wacom_udev_list_lock);
@@ -566,8 +569,8 @@ out:
 
 static void wacom_release_shared_data(struct kref *kref)
 {
-	struct wacom_usbdev_data *data =
-		container_of(kref, struct wacom_usbdev_data, kref);
+	struct wacom_hdev_data *data =
+		container_of(kref, struct wacom_hdev_data, kref);
 
 	mutex_lock(&wacom_udev_list_lock);
 	list_del(&data->list);
@@ -578,10 +581,10 @@ static void wacom_release_shared_data(struct kref *kref)
 
 static void wacom_remove_shared_data(struct wacom_wac *wacom)
 {
-	struct wacom_usbdev_data *data;
+	struct wacom_hdev_data *data;
 
 	if (wacom->shared) {
-		data = container_of(wacom->shared, struct wacom_usbdev_data, shared);
+		data = container_of(wacom->shared, struct wacom_hdev_data, shared);
 		kref_put(&data->kref, wacom_release_shared_data);
 		wacom->shared = NULL;
 	}
@@ -1308,8 +1311,6 @@ static int wacom_probe(struct hid_device *hdev,
 		"%s Pad", features->name);
 
 	if (features->quirks & WACOM_QUIRK_MULTI_INPUT) {
-		struct usb_device *other_dev;
-
 		/* Append the device type to the name */
 		if (features->device_type != BTN_TOOL_FINGER)
 			strlcat(wacom_wac->name, " Pen", WACOM_NAME_MAX);
@@ -1318,10 +1319,7 @@ static int wacom_probe(struct hid_device *hdev,
 		else
 			strlcat(wacom_wac->name, " Pad", WACOM_NAME_MAX);
 
-		other_dev = wacom_get_sibling(dev, features->oVid, features->oPid);
-		if (other_dev == NULL || wacom_get_usbdev_data(other_dev) == NULL)
-			other_dev = dev;
-		error = wacom_add_shared_data(wacom_wac, other_dev);
+		error = wacom_add_shared_data(hdev);
 		if (error)
 			goto fail1;
 	}
