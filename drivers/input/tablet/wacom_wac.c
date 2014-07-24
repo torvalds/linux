@@ -217,17 +217,13 @@ static int wacom_dtus_irq(struct wacom_wac *wacom)
 			"%s: received unknown report #%d", __func__, data[0]);
 		return 0;
 	} else if (data[0] == WACOM_REPORT_DTUSPAD) {
+		input = wacom->pad_input;
 		input_report_key(input, BTN_0, (data[1] & 0x01));
 		input_report_key(input, BTN_1, (data[1] & 0x02));
 		input_report_key(input, BTN_2, (data[1] & 0x04));
 		input_report_key(input, BTN_3, (data[1] & 0x08));
 		input_report_abs(input, ABS_MISC,
 				 data[1] & 0x0f ? PAD_DEVICE_ID : 0);
-		/*
-		 * Serial number is required when expresskeys are
-		 * reported through pen interface.
-		 */
-		input_event(input, EV_MSC, MSC_SERIAL, 0xf0);
 		return 1;
 	} else {
 		prox = data[1] & 0x80;
@@ -257,7 +253,6 @@ static int wacom_dtus_irq(struct wacom_wac *wacom)
 			wacom->id[0] = 0;
 		input_report_key(input, wacom->tool[0], prox);
 		input_report_abs(input, ABS_MISC, wacom->id[0]);
-		input_event(input, EV_MSC, MSC_SERIAL, 1);
 		return 1;
 	}
 }
@@ -1615,7 +1610,6 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 				   struct wacom_wac *wacom_wac)
 {
 	struct wacom_features *features = &wacom_wac->features;
-	int i;
 
 	input_dev->evbit[0] |= BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
 
@@ -1765,11 +1759,6 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 	case DTUS:
 	case PL:
 	case DTU:
-		if (features->type == DTUS) {
-			input_set_capability(input_dev, EV_MSC, MSC_SERIAL);
-			for (i = 0; i < 4; i++)
-				__set_bit(BTN_0 + i, input_dev->keybit);
-		}
 		__set_bit(BTN_TOOL_PEN, input_dev->keybit);
 		__set_bit(BTN_TOOL_RUBBER, input_dev->keybit);
 		__set_bit(BTN_STYLUS, input_dev->keybit);
@@ -1983,6 +1972,11 @@ int wacom_setup_pad_input_capabilities(struct input_dev *input_dev,
 		for (i = 0; i < 9; i++)
 			__set_bit(BTN_0 + i, input_dev->keybit);
 
+		break;
+
+	case DTUS:
+		for (i = 0; i < 4; i++)
+			__set_bit(BTN_0 + i, input_dev->keybit);
 		break;
 
 	case INTUOSHT:
