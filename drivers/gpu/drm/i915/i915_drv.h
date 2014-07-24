@@ -35,6 +35,7 @@
 #include "i915_reg.h"
 #include "intel_bios.h"
 #include "intel_ringbuffer.h"
+#include "intel_lrc.h"
 #include "i915_gem_gtt.h"
 #include <linux/io-mapping.h>
 #include <linux/i2c.h>
