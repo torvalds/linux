@@ -2226,6 +2226,9 @@ static int ftrace_save_ops_tramp_hash(struct ftrace_ops *ops)
 		}
 	} while_for_each_ftrace_rec();
 
+	/* The number of recs in the hash must match nr_trampolines */
+	FTRACE_WARN_ON(ops->tramp_hash->count != ops->nr_trampolines);
+
 	return 0;
 }
 
