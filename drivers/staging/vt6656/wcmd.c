@@ -97,7 +97,7 @@ void vnt_run_command(struct work_struct *work)
 	struct vnt_private *priv =
 		container_of(work, struct vnt_private, run_command_work.work);
 
-	if (priv->Flags & fMP_DISCONNECTED)
+	if (priv->flags & DEVICE_FLAGS_DISCONNECTED)
 		return;
 
 	if (priv->cmd_running != true)

@@ -262,7 +262,8 @@ enum {
 };
 
 /* flags for options */
-#define     DEVICE_FLAGS_UNPLUG          0x00000001UL
+#define DEVICE_FLAGS_UNPLUG		BIT(0)
+#define DEVICE_FLAGS_DISCONNECTED	BIT(1)
 
 struct vnt_private {
 	/* mac80211 */
@@ -281,8 +282,7 @@ struct vnt_private {
 	spinlock_t lock;
 	struct mutex usb_lock;
 
-	u32 flags;
-	unsigned long Flags;
+	unsigned long flags;
 
 	/* USB */
 	struct urb *interrupt_urb;
@@ -402,11 +402,9 @@ struct vnt_private {
 		(uVar)++;				\
 }
 
-#define fMP_DISCONNECTED                    0x00000002
-
-#define MP_SET_FLAG(_M, _F)             ((_M)->Flags |= (_F))
-#define MP_CLEAR_FLAG(_M, _F)            ((_M)->Flags &= ~(_F))
-#define MP_TEST_FLAGS(_M, _F)            (((_M)->Flags & (_F)) == (_F))
+#define MP_SET_FLAG(_M, _F)             ((_M)->flags |= (_F))
+#define MP_CLEAR_FLAG(_M, _F)            ((_M)->flags &= ~(_F))
+#define MP_TEST_FLAGS(_M, _F)            (((_M)->flags & (_F)) == (_F))
 
 int vnt_init(struct vnt_private *priv);
 
