@@ -1,6 +1,6 @@
-/* Internal definitions for asymmetric key type
+/* Signed PE file verification
  *
- * Copyright (C) 2012 Red Hat, Inc. All Rights Reserved.
+ * Copyright (C) 2014 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
  *
  * This program is free software; you can redistribute it and/or
@@ -9,9 +9,10 @@
  * 2 of the Licence, or (at your option) any later version.
  */
 
-int asymmetric_keyid_match(const char *kid, const char *id);
+#ifndef _LINUX_VERIFY_PEFILE_H
+#define _LINUX_VERIFY_PEFILE_H
 
-static inline const char *asymmetric_key_id(const struct key *key)
-{
-	return key->type_data.p[1];
-}
+extern int verify_pefile_signature(const void *pebuf, unsigned pelen,
+				   struct key *trusted_keyring, bool *_trusted);
+
+#endif /* _LINUX_VERIFY_PEFILE_H */
