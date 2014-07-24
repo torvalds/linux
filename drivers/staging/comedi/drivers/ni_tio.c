@@ -1512,6 +1512,38 @@ int ni_tio_insn_config(struct comedi_device *dev,
 }
 EXPORT_SYMBOL_GPL(ni_tio_insn_config);
 
+static unsigned int ni_tio_read_sw_save_reg(struct comedi_device *dev,
+					    struct comedi_subdevice *s)
+{
+	struct ni_gpct *counter = s->private;
+	unsigned cidx = counter->counter_index;
+	unsigned int first_read;
+	unsigned int second_read;
+	unsigned int correct_read;
+
+	ni_tio_set_bits(counter, NITIO_CMD_REG(cidx), Gi_Save_Trace_Bit, 0);
+	ni_tio_set_bits(counter, NITIO_CMD_REG(cidx),
+			Gi_Save_Trace_Bit, Gi_Save_Trace_Bit);
+
+	/*
+	 * The count doesn't get latched until the next clock edge, so it is
+	 * possible the count may change (once) while we are reading. Since
+	 * the read of the SW_Save_Reg isn't atomic (apparently even when it's
+	 * a 32 bit register according to 660x docs), we need to read twice
+	 * and make sure the reading hasn't changed. If it has, a third read
+	 * will be correct since the count value will definitely have latched
+	 * by then.
+	 */
+	first_read = read_register(counter, NITIO_SW_SAVE_REG(cidx));
+	second_read = read_register(counter, NITIO_SW_SAVE_REG(cidx));
+	if (first_read != second_read)
+		correct_read = read_register(counter, NITIO_SW_SAVE_REG(cidx));
+	else
+		correct_read = first_read;
+
+	return correct_read;
+}
+
 int ni_tio_insn_read(struct comedi_device *dev,
 		     struct comedi_subdevice *s,
 		     struct comedi_insn *insn,
@@ -1519,42 +1551,24 @@ int ni_tio_insn_read(struct comedi_device *dev,
 {
 	struct ni_gpct *counter = s->private;
 	struct ni_gpct_device *counter_dev = counter->counter_dev;
-	const unsigned channel = CR_CHAN(insn->chanspec);
+	unsigned int channel = CR_CHAN(insn->chanspec);
 	unsigned cidx = counter->counter_index;
-	unsigned first_read;
-	unsigned second_read;
-	unsigned correct_read;
+	int i;
 
-	if (insn->n < 1)
-		return 0;
-	switch (channel) {
-	case 0:
-		ni_tio_set_bits(counter, NITIO_CMD_REG(cidx),
-				Gi_Save_Trace_Bit, 0);
-		ni_tio_set_bits(counter, NITIO_CMD_REG(cidx),
-				Gi_Save_Trace_Bit, Gi_Save_Trace_Bit);
-		/* The count doesn't get latched until the next clock edge, so it is possible the count
-		   may change (once) while we are reading.  Since the read of the SW_Save_Reg isn't
-		   atomic (apparently even when it's a 32 bit register according to 660x docs),
-		   we need to read twice and make sure the reading hasn't changed.  If it has,
-		   a third read will be correct since the count value will definitely have latched by then. */
-		first_read = read_register(counter, NITIO_SW_SAVE_REG(cidx));
-		second_read = read_register(counter, NITIO_SW_SAVE_REG(cidx));
-		if (first_read != second_read)
-			correct_read =
-			    read_register(counter, NITIO_SW_SAVE_REG(cidx));
-		else
-			correct_read = first_read;
-		data[0] = correct_read;
-		return 0;
-	case 1:
-		data[0] = counter_dev->regs[NITIO_LOADA_REG(cidx)];
-		break;
-	case 2:
-		data[0] = counter_dev->regs[NITIO_LOADB_REG(cidx)];
-		break;
+	for (i = 0; i < insn->n; i++) {
+		switch (channel) {
+		case 0:
+			data[i] = ni_tio_read_sw_save_reg(dev, s);
+			break;
+		case 1:
+			data[i] = counter_dev->regs[NITIO_LOADA_REG(cidx)];
+			break;
+		case 2:
+			data[i] = counter_dev->regs[NITIO_LOADB_REG(cidx)];
+			break;
+		}
 	}
-	return 0;
+	return insn->n;
 }
 EXPORT_SYMBOL_GPL(ni_tio_insn_read);
 
