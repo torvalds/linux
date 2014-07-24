@@ -481,6 +481,10 @@ bool i915_semaphore_is_enabled(struct drm_device *dev)
 	if (i915.semaphores >= 0)
 		return i915.semaphores;
 
+	/* TODO: make semaphores and Execlists play nicely together */
+	if (i915.enable_execlists)
+		return false;
+
 	/* Until we get further testing... */
 	if (IS_GEN8(dev))
 		return false;
