@@ -164,6 +164,8 @@
 #define GEM_CLK_SIZE				3
 #define GEM_DBW_OFFSET				21
 #define GEM_DBW_SIZE				2
+#define GEM_RXCOEN_OFFSET			24
+#define GEM_RXCOEN_SIZE				1
 
 /* Constants for data bus width. */
 #define GEM_DBW32				0
@@ -452,6 +454,14 @@ struct macb_dma_desc {
 #define MACB_RX_BROADCAST_OFFSET		31
 #define MACB_RX_BROADCAST_SIZE			1
 
+/* RX checksum offload disabled: bit 24 clear in NCFGR */
+#define GEM_RX_TYPEID_MATCH_OFFSET		22
+#define GEM_RX_TYPEID_MATCH_SIZE		2
+
+/* RX checksum offload enabled: bit 24 set in NCFGR */
+#define GEM_RX_CSUM_OFFSET			22
+#define GEM_RX_CSUM_SIZE			2
+
 #define MACB_TX_FRMLEN_OFFSET			0
 #define MACB_TX_FRMLEN_SIZE			11
 #define MACB_TX_LAST_OFFSET			15
@@ -471,6 +481,15 @@ struct macb_dma_desc {
 
 #define GEM_TX_FRMLEN_OFFSET			0
 #define GEM_TX_FRMLEN_SIZE			14
+
+/* Buffer descriptor constants */
+#define GEM_RX_CSUM_NONE			0
+#define GEM_RX_CSUM_IP_ONLY			1
+#define GEM_RX_CSUM_IP_TCP			2
+#define GEM_RX_CSUM_IP_UDP			3
+
+/* limit RX checksum offload to TCP and UDP packets */
+#define GEM_RX_CSUM_CHECKED_MASK		2
 
 /**
  * struct macb_tx_skb - data about an skb which is being transmitted

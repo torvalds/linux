@@ -765,6 +765,10 @@ static int gem_rx(struct macb *bp, int budget)
 
 		skb->protocol = eth_type_trans(skb, bp->dev);
 		skb_checksum_none_assert(skb);
+		if (bp->dev->features & NETIF_F_RXCSUM &&
+		    !(bp->dev->flags & IFF_PROMISC) &&
+		    GEM_BFEXT(RX_CSUM, ctrl) & GEM_RX_CSUM_CHECKED_MASK)
+			skb->ip_summed = CHECKSUM_UNNECESSARY;
 
 		bp->stats.rx_packets++;
 		bp->stats.rx_bytes += skb->len;
@@ -1549,6 +1553,8 @@ static void macb_init_hw(struct macb *bp)
 	config |= MACB_BIT(BIG);		/* Receive oversized frames */
 	if (bp->dev->flags & IFF_PROMISC)
 		config |= MACB_BIT(CAF);	/* Copy All Frames */
+	else if (macb_is_gem(bp) && bp->dev->features & NETIF_F_RXCSUM)
+		config |= GEM_BIT(RXCOEN);
 	if (!(bp->dev->flags & IFF_BROADCAST))
 		config |= MACB_BIT(NBC);	/* No BroadCast */
 	config |= macb_dbw(bp);
@@ -1662,12 +1668,21 @@ void macb_set_rx_mode(struct net_device *dev)
 
 	cfg = macb_readl(bp, NCFGR);
 
-	if (dev->flags & IFF_PROMISC)
+	if (dev->flags & IFF_PROMISC) {
 		/* Enable promiscuous mode */
 		cfg |= MACB_BIT(CAF);
-	else if (dev->flags & (~IFF_PROMISC))
-		 /* Disable promiscuous mode */
+
+		/* Disable RX checksum offload */
+		if (macb_is_gem(bp))
+			cfg &= ~GEM_BIT(RXCOEN);
+	} else {
+		/* Disable promiscuous mode */
 		cfg &= ~MACB_BIT(CAF);
+
+		/* Enable RX checksum offload only if requested */
+		if (macb_is_gem(bp) && dev->features & NETIF_F_RXCSUM)
+			cfg |= GEM_BIT(RXCOEN);
+	}
 
 	if (dev->flags & IFF_ALLMULTI) {
 		/* Enable all multicast mode */
@@ -1947,6 +1962,19 @@ static int macb_set_features(struct net_device *netdev,
 		gem_writel(bp, DMACFG, dmacfg);
 	}
 
+	/* RX checksum offload */
+	if ((changed & NETIF_F_RXCSUM) && macb_is_gem(bp)) {
+		u32 netcfg;
+
+		netcfg = gem_readl(bp, NCFGR);
+		if (features & NETIF_F_RXCSUM &&
+		    !(netdev->flags & IFF_PROMISC))
+			netcfg |= GEM_BIT(RXCOEN);
+		else
+			netcfg &= ~GEM_BIT(RXCOEN);
+		gem_writel(bp, NCFGR, netcfg);
+	}
+
 	return 0;
 }
 
@@ -2150,7 +2178,7 @@ static int __init macb_probe(struct platform_device *pdev)
 	dev->hw_features = NETIF_F_SG;
 	/* Checksum offload is only available on gem with packet buffer */
 	if (macb_is_gem(bp) && !(bp->caps & MACB_CAPS_FIFO_MODE))
-		dev->hw_features |= NETIF_F_HW_CSUM;
+		dev->hw_features |= NETIF_F_HW_CSUM | NETIF_F_RXCSUM;
 	if (bp->caps & MACB_CAPS_SG_DISABLED)
 		dev->hw_features &= ~NETIF_F_SG;
 	dev->features = dev->hw_features;
