@@ -782,9 +782,9 @@ int i915_switch_context(struct intel_engine_cs *ring,
 	return do_switch(ring, to);
 }
 
-static bool hw_context_enabled(struct drm_device *dev)
+static bool contexts_enabled(struct drm_device *dev)
 {
-	return to_i915(dev)->hw_context_size;
+	return i915.enable_execlists || to_i915(dev)->hw_context_size;
 }
 
 int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
@@ -795,8 +795,7 @@ int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
 	struct intel_context *ctx;
 	int ret;
 
-	/* FIXME: allow user-created LR contexts as well */
-	if (!hw_context_enabled(dev))
+	if (!contexts_enabled(dev))
 		return -ENODEV;
 
 	ret = i915_mutex_lock_interruptible(dev);

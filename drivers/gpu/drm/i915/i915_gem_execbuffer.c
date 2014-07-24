@@ -931,6 +931,14 @@ i915_gem_validate_context(struct drm_device *dev, struct drm_file *file,
 		return ERR_PTR(-EIO);
 	}
 
+	if (i915.enable_execlists && !ctx->engine[ring->id].state) {
+		int ret = intel_lr_context_deferred_create(ctx, ring);
+		if (ret) {
+			DRM_DEBUG("Could not create LRC %u: %d\n", ctx_id, ret);
+			return ERR_PTR(ret);
+		}
+	}
+
 	return ctx;
 }
 
