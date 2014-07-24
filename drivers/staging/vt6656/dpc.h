@@ -30,7 +30,6 @@
 #define __DPC_H__
 
 #include "device.h"
-#include "wcmd.h"
 
 int vnt_rx_data(struct vnt_private *, struct vnt_rcb *,
 	unsigned long bytes_recieved);

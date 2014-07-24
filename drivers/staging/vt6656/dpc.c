@@ -32,12 +32,9 @@
 
 #include "dpc.h"
 #include "device.h"
-#include "rxtx.h"
-#include "card.h"
 #include "mac.h"
 #include "baseband.h"
 #include "rf.h"
-#include "usbpipe.h"
 
 int vnt_rx_data(struct vnt_private *priv, struct vnt_rcb *ptr_rcb,
 	unsigned long bytes_received)
