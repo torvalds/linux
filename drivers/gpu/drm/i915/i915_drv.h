@@ -626,10 +626,16 @@ struct intel_context {
 	struct i915_ctx_hang_stats hang_stats;
 	struct i915_address_space *vm;
 
+	/* Legacy ring buffer submission */
 	struct {
 		struct drm_i915_gem_object *rcs_state;
 		bool initialized;
 	} legacy_hw_ctx;
+
+	/* Execlists */
+	struct {
+		struct drm_i915_gem_object *state;
+	} engine[I915_NUM_RINGS];
 
 	struct list_head link;
 };
