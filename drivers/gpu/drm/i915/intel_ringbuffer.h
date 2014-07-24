@@ -99,6 +99,13 @@ struct intel_ringbuffer {
 
 	struct intel_engine_cs *ring;
 
+	/*
+	 * FIXME: This backpointer is an artifact of the history of how the
+	 * execlist patches came into being. It will get removed once the basic
+	 * code has landed.
+	 */
+	struct intel_context *FIXME_lrc_ctx;
+
 	u32 head;
 	u32 tail;
 	int space;
