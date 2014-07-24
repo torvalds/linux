@@ -91,6 +91,157 @@ int intel_sanitize_enable_execlists(struct drm_device *dev, int enable_execlists
 	return 0;
 }
 
+int intel_execlists_submission(struct drm_device *dev, struct drm_file *file,
+			       struct intel_engine_cs *ring,
+			       struct intel_context *ctx,
+			       struct drm_i915_gem_execbuffer2 *args,
+			       struct list_head *vmas,
+			       struct drm_i915_gem_object *batch_obj,
+			       u64 exec_start, u32 flags)
+{
+	/* TODO */
+	return 0;
+}
+
+void intel_logical_ring_stop(struct intel_engine_cs *ring)
+{
+	/* TODO */
+}
+
+void intel_logical_ring_cleanup(struct intel_engine_cs *ring)
+{
+	/* TODO */
+}
+
+static int logical_ring_init(struct drm_device *dev, struct intel_engine_cs *ring)
+{
+	/* TODO */
+	return 0;
+}
+
+static int logical_render_ring_init(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_engine_cs *ring = &dev_priv->ring[RCS];
+
+	ring->name = "render ring";
+	ring->id = RCS;
+	ring->mmio_base = RENDER_RING_BASE;
+	ring->irq_enable_mask =
+		GT_RENDER_USER_INTERRUPT << GEN8_RCS_IRQ_SHIFT;
+
+	return logical_ring_init(dev, ring);
+}
+
+static int logical_bsd_ring_init(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_engine_cs *ring = &dev_priv->ring[VCS];
+
+	ring->name = "bsd ring";
+	ring->id = VCS;
+	ring->mmio_base = GEN6_BSD_RING_BASE;
+	ring->irq_enable_mask =
+		GT_RENDER_USER_INTERRUPT << GEN8_VCS1_IRQ_SHIFT;
+
+	return logical_ring_init(dev, ring);
+}
+
+static int logical_bsd2_ring_init(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_engine_cs *ring = &dev_priv->ring[VCS2];
+
+	ring->name = "bds2 ring";
+	ring->id = VCS2;
+	ring->mmio_base = GEN8_BSD2_RING_BASE;
+	ring->irq_enable_mask =
+		GT_RENDER_USER_INTERRUPT << GEN8_VCS2_IRQ_SHIFT;
+
+	return logical_ring_init(dev, ring);
+}
+
+static int logical_blt_ring_init(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_engine_cs *ring = &dev_priv->ring[BCS];
+
+	ring->name = "blitter ring";
+	ring->id = BCS;
+	ring->mmio_base = BLT_RING_BASE;
+	ring->irq_enable_mask =
+		GT_RENDER_USER_INTERRUPT << GEN8_BCS_IRQ_SHIFT;
+
+	return logical_ring_init(dev, ring);
+}
+
+static int logical_vebox_ring_init(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_engine_cs *ring = &dev_priv->ring[VECS];
+
+	ring->name = "video enhancement ring";
+	ring->id = VECS;
+	ring->mmio_base = VEBOX_RING_BASE;
+	ring->irq_enable_mask =
+		GT_RENDER_USER_INTERRUPT << GEN8_VECS_IRQ_SHIFT;
+
+	return logical_ring_init(dev, ring);
+}
+
+int intel_logical_rings_init(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int ret;
+
+	ret = logical_render_ring_init(dev);
+	if (ret)
+		return ret;
+
+	if (HAS_BSD(dev)) {
+		ret = logical_bsd_ring_init(dev);
+		if (ret)
+			goto cleanup_render_ring;
+	}
+
+	if (HAS_BLT(dev)) {
+		ret = logical_blt_ring_init(dev);
+		if (ret)
+			goto cleanup_bsd_ring;
+	}
+
+	if (HAS_VEBOX(dev)) {
+		ret = logical_vebox_ring_init(dev);
+		if (ret)
+			goto cleanup_blt_ring;
+	}
+
+	if (HAS_BSD2(dev)) {
+		ret = logical_bsd2_ring_init(dev);
+		if (ret)
+			goto cleanup_vebox_ring;
+	}
+
+	ret = i915_gem_set_seqno(dev, ((u32)~0 - 0x1000));
+	if (ret)
+		goto cleanup_bsd2_ring;
+
+	return 0;
+
+cleanup_bsd2_ring:
+	intel_logical_ring_cleanup(&dev_priv->ring[VCS2]);
+cleanup_vebox_ring:
+	intel_logical_ring_cleanup(&dev_priv->ring[VECS]);
+cleanup_blt_ring:
+	intel_logical_ring_cleanup(&dev_priv->ring[BCS]);
+cleanup_bsd_ring:
+	intel_logical_ring_cleanup(&dev_priv->ring[VCS]);
+cleanup_render_ring:
+	intel_logical_ring_cleanup(&dev_priv->ring[RCS]);
+
+	return ret;
+}
+
 static int
 populate_lr_context(struct intel_context *ctx, struct drm_i915_gem_object *ctx_obj,
 		    struct intel_engine_cs *ring, struct intel_ringbuffer *ringbuf)

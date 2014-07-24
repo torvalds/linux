@@ -24,6 +24,11 @@
 #ifndef _INTEL_LRC_H_
 #define _INTEL_LRC_H_
 
+/* Logical Rings */
+void intel_logical_ring_stop(struct intel_engine_cs *ring);
+void intel_logical_ring_cleanup(struct intel_engine_cs *ring);
+int intel_logical_rings_init(struct drm_device *dev);
+
 /* Logical Ring Contexts */
 void intel_lr_context_free(struct intel_context *ctx);
 int intel_lr_context_deferred_create(struct intel_context *ctx,
@@ -31,5 +36,12 @@ int intel_lr_context_deferred_create(struct intel_context *ctx,
 
 /* Execlists */
 int intel_sanitize_enable_execlists(struct drm_device *dev, int enable_execlists);
+int intel_execlists_submission(struct drm_device *dev, struct drm_file *file,
+			       struct intel_engine_cs *ring,
+			       struct intel_context *ctx,
+			       struct drm_i915_gem_execbuffer2 *args,
+			       struct list_head *vmas,
+			       struct drm_i915_gem_object *batch_obj,
+			       u64 exec_start, u32 flags);
 
 #endif /* _INTEL_LRC_H_ */
