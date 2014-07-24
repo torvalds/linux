@@ -735,7 +735,6 @@ struct nct6775_data {
 	enum kinds kind;
 	const char *name;
 
-	int num_attr_groups;
 	const struct attribute_group *groups[6];
 
 	u16 reg_temp[5][NUM_TEMP]; /* 0=temp, 1=temp_over, 2=temp_hyst,
@@ -3276,6 +3275,7 @@ static int nct6775_probe(struct platform_device *pdev)
 	u8 cr2a;
 	struct attribute_group *group;
 	struct device *hwmon_dev;
+	int num_attr_groups = 0;
 
 	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
 	if (!devm_request_region(&pdev->dev, res->start, IOREGION_LENGTH,
@@ -3907,29 +3907,29 @@ static int nct6775_probe(struct platform_device *pdev)
 	if (IS_ERR(group))
 		return PTR_ERR(group);
 
-	data->groups[data->num_attr_groups++] = group;
+	data->groups[num_attr_groups++] = group;
 
 	group = nct6775_create_attr_group(dev, &nct6775_in_template_group,
 					  fls(data->have_in));
 	if (IS_ERR(group))
 		return PTR_ERR(group);
 
-	data->groups[data->num_attr_groups++] = group;
+	data->groups[num_attr_groups++] = group;
 
 	group = nct6775_create_attr_group(dev, &nct6775_fan_template_group,
 					  fls(data->has_fan));
 	if (IS_ERR(group))
 		return PTR_ERR(group);
 
-	data->groups[data->num_attr_groups++] = group;
+	data->groups[num_attr_groups++] = group;
 
 	group = nct6775_create_attr_group(dev, &nct6775_temp_template_group,
 					  fls(data->have_temp));
 	if (IS_ERR(group))
 		return PTR_ERR(group);
 
-	data->groups[data->num_attr_groups++] = group;
-	data->groups[data->num_attr_groups++] = &nct6775_group_other;
+	data->groups[num_attr_groups++] = group;
+	data->groups[num_attr_groups++] = &nct6775_group_other;
 
 	hwmon_dev = devm_hwmon_device_register_with_groups(dev, data->name,
 							   data, data->groups);
