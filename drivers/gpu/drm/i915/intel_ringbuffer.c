@@ -33,13 +33,6 @@
 #include "i915_trace.h"
 #include "intel_drv.h"
 
-/* Early gen2 devices have a cacheline of just 32 bytes, using 64 is overkill,
- * but keeps the logic simple. Indeed, the whole purpose of this macro is just
- * to give some inclination as to some of the magic values used in the various
- * workarounds!
- */
-#define CACHELINE_BYTES 64
-
 bool
 intel_ring_initialized(struct intel_engine_cs *ring)
 {

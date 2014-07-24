@@ -5,6 +5,13 @@
 
 #define I915_CMD_HASH_ORDER 9
 
+/* Early gen2 devices have a cacheline of just 32 bytes, using 64 is overkill,
+ * but keeps the logic simple. Indeed, the whole purpose of this macro is just
+ * to give some inclination as to some of the magic values used in the various
+ * workarounds!
+ */
+#define CACHELINE_BYTES 64
+
 /*
  * Gen2 BSpec "1. Programming Environment" / 1.4.4.6 "Ring Buffer Use"
  * Gen3 BSpec "vol1c Memory Interface Functions" / 2.3.4.5 "Ring Buffer Use"
@@ -218,6 +225,9 @@ struct  intel_engine_cs {
 
 	/* Execlists */
 	int		(*emit_request)(struct intel_ringbuffer *ringbuf);
+	int		(*emit_flush)(struct intel_ringbuffer *ringbuf,
+				      u32 invalidate_domains,
+				      u32 flush_domains);
 
 	/**
 	 * List of objects currently involved in rendering from the
