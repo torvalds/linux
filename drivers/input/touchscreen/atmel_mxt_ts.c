@@ -225,7 +225,7 @@ struct mxt_data {
 	struct i2c_client *client;
 	struct input_dev *input_dev;
 	char phys[64];		/* device physical location */
-	struct mxt_platform_data *pdata;
+	const struct mxt_platform_data *pdata;
 	struct mxt_object *object_table;
 	struct mxt_info *info;
 	void *raw_info_block;
@@ -3146,55 +3146,78 @@ static void mxt_input_close(struct input_dev *dev)
 static struct mxt_platform_data *mxt_parse_dt(struct i2c_client *client)
 {
 	struct mxt_platform_data *pdata;
-	struct device *dev = &client->dev;
-	struct property *prop;
-	unsigned int *keymap;
+	u32 *keymap;
 	int proplen, ret;
 
-	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	if (!client->dev.of_node)
+		return ERR_PTR(-ENODEV);
+
+	pdata = devm_kzalloc(&client->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	/* reset gpio */
-	pdata->gpio_reset = of_get_named_gpio_flags(dev->of_node,
+	pdata->gpio_reset = of_get_named_gpio_flags(client->dev.of_node,
 		"atmel,reset-gpio", 0, NULL);
 
-	of_property_read_string(dev->of_node, "atmel,cfg_name",
+	of_property_read_string(client->dev.of_node, "atmel,cfg_name",
 				&pdata->cfg_name);
 
-	of_property_read_string(dev->of_node, "atmel,input_name",
+	of_property_read_string(client->dev.of_node, "atmel,input_name",
 				&pdata->input_name);
 
-	prop = of_find_property(dev->of_node, "linux,gpio-keymap", &proplen);
-	if (prop) {
+	if (of_find_property(client->dev.of_node, "linux,gpio-keymap",
+			     &proplen)) {
 		pdata->t19_num_keys = proplen / sizeof(u32);
 
-		keymap = devm_kzalloc(dev,
-			pdata->t19_num_keys * sizeof(u32), GFP_KERNEL);
+		keymap = devm_kzalloc(&client->dev,
+				pdata->t19_num_keys * sizeof(keymap[0]),
+				GFP_KERNEL);
 		if (!keymap)
-			return NULL;
-
-		pdata->t19_keymap = keymap;
+			return ERR_PTR(-ENOMEM);
 
 		ret = of_property_read_u32_array(client->dev.of_node,
 			"linux,gpio-keymap", keymap, pdata->t19_num_keys);
 		if (ret) {
-			dev_err(dev,
+			dev_err(&client->dev,
 				"Unable to read device tree key codes: %d\n",
 				 ret);
 			return NULL;
 		}
+
+		pdata->t19_keymap = keymap;
 	}
+
+	return pdata;
+}
+#else
+static struct mxt_platform_data *mxt_parse_dt(struct i2c_client *client)
+{
+	struct mxt_platform_data *pdata;
+
+	pdata = devm_kzalloc(&client->dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata)
+		return ERR_PTR(-ENOMEM);
+
+	/* Set default parameters */
+	pdata->irqflags = IRQF_TRIGGER_FALLING;
 
 	return pdata;
 }
 #endif
 
-static int mxt_probe(struct i2c_client *client,
-		const struct i2c_device_id *id)
+static int mxt_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	struct mxt_data *data;
+	const struct mxt_platform_data *pdata;
 	int error;
+
+	pdata = dev_get_platdata(&client->dev);
+	if (!pdata) {
+		pdata = mxt_parse_dt(client);
+		if (IS_ERR(pdata))
+			return PTR_ERR(pdata);
+	}
 
 	data = kzalloc(sizeof(struct mxt_data), GFP_KERNEL);
 	if (!data) {
@@ -3206,27 +3229,9 @@ static int mxt_probe(struct i2c_client *client,
 		 client->adapter->nr, client->addr);
 
 	data->client = client;
+	data->pdata = pdata;
 	data->irq = client->irq;
-	data->pdata = dev_get_platdata(&client->dev);
 	i2c_set_clientdata(client, data);
-
-#ifdef CONFIG_OF
-	if (!data->pdata && client->dev.of_node)
-		data->pdata = mxt_parse_dt(client);
-#endif
-
-	if (!data->pdata) {
-		data->pdata = devm_kzalloc(&client->dev, sizeof(*data->pdata),
-					   GFP_KERNEL);
-		if (!data->pdata) {
-			dev_err(&client->dev, "Failed to allocate pdata\n");
-			error = -ENOMEM;
-			goto err_free_mem;
-		}
-
-		/* Set default parameters */
-		data->pdata->irqflags = IRQF_TRIGGER_FALLING;
-	}
 
 	if (data->pdata->cfg_name)
 		mxt_update_file_name(&data->client->dev,
@@ -3240,7 +3245,7 @@ static int mxt_probe(struct i2c_client *client,
 	mutex_init(&data->debug_msg_lock);
 
 	error = request_threaded_irq(client->irq, NULL, mxt_interrupt,
-				     data->pdata->irqflags | IRQF_ONESHOT,
+				     pdata->irqflags | IRQF_ONESHOT,
 				     client->name, data);
 	if (error) {
 		dev_err(&client->dev, "Failed to register interrupt\n");
