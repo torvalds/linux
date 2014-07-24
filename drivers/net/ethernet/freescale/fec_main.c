@@ -2696,9 +2696,7 @@ fec_drv_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int
-fec_suspend(struct device *dev)
+static int __maybe_unused fec_suspend(struct device *dev)
 {
 	struct net_device *ndev = dev_get_drvdata(dev);
 	struct fec_enet_private *fep = netdev_priv(ndev);
@@ -2723,8 +2721,7 @@ fec_suspend(struct device *dev)
 	return 0;
 }
 
-static int
-fec_resume(struct device *dev)
+static int __maybe_unused fec_resume(struct device *dev)
 {
 	struct net_device *ndev = dev_get_drvdata(dev);
 	struct fec_enet_private *fep = netdev_priv(ndev);
@@ -2759,7 +2756,6 @@ failed_clk:
 		regulator_disable(fep->reg_phy);
 	return ret;
 }
-#endif /* CONFIG_PM_SLEEP */
 
 static SIMPLE_DEV_PM_OPS(fec_pm_ops, fec_suspend, fec_resume);
 
