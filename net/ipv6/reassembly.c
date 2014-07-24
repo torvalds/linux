@@ -85,13 +85,9 @@ static int ip6_frag_reasm(struct frag_queue *fq, struct sk_buff *prev,
 static unsigned int inet6_hash_frag(__be32 id, const struct in6_addr *saddr,
 				    const struct in6_addr *daddr)
 {
-	u32 c;
-
 	net_get_random_once(&ip6_frags.rnd, sizeof(ip6_frags.rnd));
-	c = jhash_3words(ipv6_addr_hash(saddr), ipv6_addr_hash(daddr),
-			 (__force u32)id, ip6_frags.rnd);
-
-	return c & (INETFRAGS_HASHSZ - 1);
+	return jhash_3words(ipv6_addr_hash(saddr), ipv6_addr_hash(daddr),
+			    (__force u32)id, ip6_frags.rnd);
 }
 
 static unsigned int ip6_hashfn(const struct inet_frag_queue *q)

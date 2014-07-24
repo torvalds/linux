@@ -50,15 +50,11 @@ static unsigned int lowpan_hash_frag(__be16 tag, u16 d_size,
 				     const struct ieee802154_addr *saddr,
 				     const struct ieee802154_addr *daddr)
 {
-	u32 c;
-
 	net_get_random_once(&lowpan_frags.rnd, sizeof(lowpan_frags.rnd));
-	c = jhash_3words(ieee802154_addr_hash(saddr),
-			 ieee802154_addr_hash(daddr),
-			 (__force u32)(tag + (d_size << 16)),
-			 lowpan_frags.rnd);
-
-	return c & (INETFRAGS_HASHSZ - 1);
+	return jhash_3words(ieee802154_addr_hash(saddr),
+			    ieee802154_addr_hash(daddr),
+			    (__force u32)(tag + (d_size << 16)),
+			    lowpan_frags.rnd);
 }
 
 static unsigned int lowpan_hashfn(const struct inet_frag_queue *q)

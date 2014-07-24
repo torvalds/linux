@@ -46,6 +46,12 @@ const u8 ip_frag_ecn_table[16] = {
 };
 EXPORT_SYMBOL(ip_frag_ecn_table);
 
+static unsigned int
+inet_frag_hashfn(const struct inet_frags *f, const struct inet_frag_queue *q)
+{
+	return f->hashfn(q) & (INETFRAGS_HASHSZ - 1);
+}
+
 static void inet_frag_secret_rebuild(unsigned long dummy)
 {
 	struct inet_frags *f = (struct inet_frags *)dummy;
@@ -63,7 +69,7 @@ static void inet_frag_secret_rebuild(unsigned long dummy)
 
 		hb = &f->hash[i];
 		hlist_for_each_entry_safe(q, n, &hb->chain, list) {
-			unsigned int hval = f->hashfn(q);
+			unsigned int hval = inet_frag_hashfn(f, q);
 
 			if (hval != i) {
 				struct inet_frag_bucket *hb_dest;
@@ -133,7 +139,7 @@ static inline void fq_unlink(struct inet_frag_queue *fq, struct inet_frags *f)
 	unsigned int hash;
 
 	read_lock(&f->lock);
-	hash = f->hashfn(fq);
+	hash = inet_frag_hashfn(f, fq);
 	hb = &f->hash[hash];
 
 	spin_lock(&hb->chain_lock);
@@ -252,7 +258,7 @@ static struct inet_frag_queue *inet_frag_intern(struct netns_frags *nf,
 	 * the rnd seed, so we need to re-calculate the hash
 	 * chain. Fortunatelly the qp_in can be used to get one.
 	 */
-	hash = f->hashfn(qp_in);
+	hash = inet_frag_hashfn(f, qp_in);
 	hb = &f->hash[hash];
 	spin_lock(&hb->chain_lock);
 
@@ -326,6 +332,7 @@ struct inet_frag_queue *inet_frag_find(struct netns_frags *nf,
 	struct inet_frag_queue *q;
 	int depth = 0;
 
+	hash &= (INETFRAGS_HASHSZ - 1);
 	hb = &f->hash[hash];
 
 	spin_lock(&hb->chain_lock);
