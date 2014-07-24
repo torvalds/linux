@@ -101,7 +101,8 @@ ipfrag_high_thresh - INTEGER
 	Maximum memory used to reassemble IP fragments. When
 	ipfrag_high_thresh bytes of memory is allocated for this purpose,
 	the fragment handler will toss packets until ipfrag_low_thresh
-	is reached.
+	is reached. This also serves as a maximum limit to namespaces
+	different from the initial one.
 
 ipfrag_low_thresh - INTEGER
 	Maximum memory used to reassemble IP fragments before the kernel

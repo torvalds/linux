@@ -386,20 +386,25 @@ err:
 EXPORT_SYMBOL(lowpan_frag_rcv);
 
 #ifdef CONFIG_SYSCTL
+static int zero;
+
 static struct ctl_table lowpan_frags_ns_ctl_table[] = {
 	{
 		.procname	= "6lowpanfrag_high_thresh",
 		.data		= &init_net.ieee802154_lowpan.frags.high_thresh,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= &init_net.ieee802154_lowpan.frags.low_thresh
 	},
 	{
 		.procname	= "6lowpanfrag_low_thresh",
 		.data		= &init_net.ieee802154_lowpan.frags.low_thresh,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= &zero,
+		.extra2		= &init_net.ieee802154_lowpan.frags.high_thresh
 	},
 	{
 		.procname	= "6lowpanfrag_time",
@@ -446,7 +451,10 @@ static int __net_init lowpan_frags_ns_sysctl_register(struct net *net)
 			goto err_alloc;
 
 		table[0].data = &ieee802154_lowpan->frags.high_thresh;
+		table[0].extra1 = &ieee802154_lowpan->frags.low_thresh;
+		table[0].extra2 = &init_net.ieee802154_lowpan.frags.high_thresh;
 		table[1].data = &ieee802154_lowpan->frags.low_thresh;
+		table[1].extra2 = &ieee802154_lowpan->frags.high_thresh;
 		table[2].data = &ieee802154_lowpan->frags.timeout;
 		table[3].data = &ieee802154_lowpan->max_dsize;
 
