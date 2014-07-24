@@ -149,7 +149,6 @@ static int wacom_parse_logical_collection(unsigned char *report,
 	if (features->type == BAMBOO_PT) {
 
 		/* Logical collection is only used by 3rd gen Bamboo Touch */
-		features->pktlen = WACOM_PKGLEN_BBTOUCH3;
 		features->device_type = BTN_TOOL_FINGER;
 
 		features->x_max = features->y_max =
@@ -240,29 +239,6 @@ static int wacom_parse_hid(struct hid_device *hdev,
 					features->device_type = BTN_TOOL_FINGER;
 					/* touch device at least supports one touch point */
 					touch_max = 1;
-					switch (features->type) {
-					case TABLETPC2FG:
-						features->pktlen = WACOM_PKGLEN_TPC2FG;
-						break;
-
-					case MTSCREEN:
-					case WACOM_24HDT:
-						features->pktlen = WACOM_PKGLEN_MTOUCH;
-						break;
-
-					case MTTPC:
-					case MTTPC_B:
-						features->pktlen = WACOM_PKGLEN_MTTPC;
-						break;
-
-					case BAMBOO_PT:
-						features->pktlen = WACOM_PKGLEN_BBTOUCH;
-						break;
-
-					default:
-						features->pktlen = WACOM_PKGLEN_GRAPHIRE;
-						break;
-					}
 
 					switch (features->type) {
 					case BAMBOO_PT:
@@ -305,8 +281,6 @@ static int wacom_parse_hid(struct hid_device *hdev,
 					}
 				} else if (pen) {
 					/* penabled only accepts exact bytes of data */
-					if (features->type >= TABLETPC)
-						features->pktlen = WACOM_PKGLEN_GRAPHIRE;
 					features->device_type = BTN_TOOL_PEN;
 					features->x_max =
 						get_unaligned_le16(&report[i + 3]);
@@ -1224,12 +1198,34 @@ static void wacom_calculate_res(struct wacom_features *features)
 						    features->unitExpo);
 }
 
+static int wacom_hid_report_len(struct hid_report *report)
+{
+	/* equivalent to DIV_ROUND_UP(report->size, 8) + !!(report->id > 0) */
+	return ((report->size - 1) >> 3) + 1 + (report->id > 0);
+}
+
+static size_t wacom_compute_pktlen(struct hid_device *hdev)
+{
+	struct hid_report_enum *report_enum;
+	struct hid_report *report;
+	size_t size = 0;
+
+	report_enum = hdev->report_enum + HID_INPUT_REPORT;
+
+	list_for_each_entry(report, &report_enum->report_list, list) {
+		size_t report_size = wacom_hid_report_len(report);
+		if (report_size > size)
+			size = report_size;
+	}
+
+	return size;
+}
+
 static int wacom_probe(struct hid_device *hdev,
 		const struct hid_device_id *id)
 {
 	struct usb_interface *intf = to_usb_interface(hdev->dev.parent);
 	struct usb_device *dev = interface_to_usbdev(intf);
-	struct usb_endpoint_descriptor *endpoint;
 	struct wacom *wacom;
 	struct wacom_wac *wacom_wac;
 	struct wacom_features *features;
@@ -1255,6 +1251,7 @@ static int wacom_probe(struct hid_device *hdev,
 	wacom_wac = &wacom->wacom_wac;
 	wacom_wac->features = *((struct wacom_features *)id->driver_data);
 	features = &wacom_wac->features;
+	features->pktlen = wacom_compute_pktlen(hdev);
 	if (features->pktlen > WACOM_PKGLEN_MAX) {
 		error = -EINVAL;
 		goto fail1;
@@ -1272,8 +1269,6 @@ static int wacom_probe(struct hid_device *hdev,
 	usb_make_path(dev, wacom->phys, sizeof(wacom->phys));
 	strlcat(wacom->phys, "/input0", sizeof(wacom->phys));
 
-	endpoint = &intf->cur_altsetting->endpoint[0].desc;
-
 	/* set the default size in case we do not get them from hid */
 	wacom_set_default_phy(features);
 
@@ -1284,13 +1279,12 @@ static int wacom_probe(struct hid_device *hdev,
 
 	/*
 	 * Intuos5 has no useful data about its touch interface in its
-	 * HID descriptor. If this is the touch interface (wMaxPacketSize
+	 * HID descriptor. If this is the touch interface (PacketSize
 	 * of WACOM_PKGLEN_BBTOUCH3), override the table values.
 	 */
 	if (features->type >= INTUOS5S && features->type <= INTUOSHT) {
-		if (endpoint->wMaxPacketSize == WACOM_PKGLEN_BBTOUCH3) {
+		if (features->pktlen == WACOM_PKGLEN_BBTOUCH3) {
 			features->device_type = BTN_TOOL_FINGER;
-			features->pktlen = WACOM_PKGLEN_BBTOUCH3;
 
 			features->x_max = 4096;
 			features->y_max = 4096;
