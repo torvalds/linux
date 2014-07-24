@@ -31,9 +31,6 @@
 
 #include "device.h"
 
-#define AUTHENTICATE_TIMEOUT   1000 //ms
-#define ASSOCIATE_TIMEOUT      1000 //ms
-
 /* Command code */
 enum vnt_cmd {
 	WLAN_CMD_INIT_MAC80211,
