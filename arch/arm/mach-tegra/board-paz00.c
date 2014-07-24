@@ -18,7 +18,7 @@
  */
 
 #include <linux/platform_device.h>
-#include <linux/gpio/driver.h>
+#include <linux/gpio/machine.h>
 #include <linux/rfkill-gpio.h>
 #include "board.h"
 

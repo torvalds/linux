@@ -14,6 +14,7 @@
 #include <linux/slab.h>
 #include <linux/acpi.h>
 #include <linux/gpio/driver.h>
+#include <linux/gpio/machine.h>
 
 #include "gpiolib.h"
 
