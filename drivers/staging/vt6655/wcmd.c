@@ -295,7 +295,6 @@ vCommandTimerWait(
 	// RUN_AT :1 msec ~= (HZ/1024)
 	pDevice->sTimerCommand.expires = (unsigned int)RUN_AT((MSecond * HZ) >> 10);
 	add_timer(&pDevice->sTimerCommand);
-	return;
 }
 
 void
@@ -796,7 +795,6 @@ vCommandTimer(
 
 	} //switch
 	spin_unlock_irq(&pDevice->lock);
-	return;
 }
 
 static

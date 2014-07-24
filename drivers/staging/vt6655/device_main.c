@@ -756,8 +756,6 @@ static void device_init_diversity_timer(PSDevice pDevice) {
 	pDevice->TimerSQ3Tmax3.data = (unsigned long) pDevice;
 	pDevice->TimerSQ3Tmax3.function = (TimerFunction)TimerState1CallBack;
 	pDevice->TimerSQ3Tmax3.expires = RUN_AT(HZ);
-
-	return;
 }
 
 static bool device_release_WPADEV(PSDevice pDevice)

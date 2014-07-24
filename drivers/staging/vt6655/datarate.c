@@ -367,8 +367,6 @@ RATEvTxRateFallBack(
 	/* 2008-5-8 <add> by chester */
 	TxRate_iwconfig = psNodeDBTable->wTxDataRate;
 	s_vResetCounter(psNodeDBTable);
-
-	return;
 }
 
 /*+

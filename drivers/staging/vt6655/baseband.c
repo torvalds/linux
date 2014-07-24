@@ -2814,7 +2814,6 @@ TimerSQ3CallBack(
 	add_timer(&pDevice->TimerSQ3Tmax2);
 
 	spin_unlock_irq(&pDevice->lock);
-	return;
 }
 
 /*+
@@ -2873,6 +2872,4 @@ TimerState1CallBack(
 	pDevice->byAntennaState = 0;
 	BBvClearAntDivSQ3Value(pDevice);
 	spin_unlock_irq(&pDevice->lock);
-
-	return;
 }

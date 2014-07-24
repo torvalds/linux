@@ -500,8 +500,6 @@ VNTWIFIvUpdateNodeTxCounter(
 	pMgmt->sNodeDBTable[uNodeIndex].uTxRetry += pbyTxFailCount[MAX_RATE];
 	for (ii = 0; ii < MAX_RATE; ii++)
 		pMgmt->sNodeDBTable[uNodeIndex].uTxFail[ii] += pbyTxFailCount[ii];
-
-	return;
 }
 
 void
@@ -569,7 +567,6 @@ VNTWIFIvGetTxRate(
 	*pbyACKRate = byACKRate;
 	*pbyCCKBasicRate = byCCKBasicRate;
 	*pbyOFDMBasicRate = byOFDMBasicRate;
-	return;
 }
 
 unsigned char

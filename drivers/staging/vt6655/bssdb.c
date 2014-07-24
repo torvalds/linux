@@ -262,8 +262,6 @@ BSSvClearBSSList(
 		memset(&pMgmt->sBSSList[ii], 0, sizeof(KnownBSS));
 	}
 	BSSvClearAnyBSSJoinRecord(pDevice);
-
-	return;
 }
 
 /*+
@@ -1235,7 +1233,6 @@ start:
 
 	pMgmt->sTimerSecondCallback.expires = RUN_AT(HZ);
 	add_timer(&pMgmt->sTimerSecondCallback);
-	return;
 }
 
 /*+
@@ -1385,8 +1382,6 @@ BSSvUpdateNodeTxCounter(
 			}
 		}
 	}
-
-	return;
 }
 
 /*+
@@ -1494,7 +1489,6 @@ BSSvClearAnyBSSJoinRecord(
 
 	for (ii = 0; ii < MAX_BSS_NUM; ii++)
 		pMgmt->sBSSList[ii].bSelected = false;
-	return;
 }
 
 #ifdef Calcu_LinkQual
@@ -1535,7 +1529,6 @@ void s_uCalculateLinkQual(
 	pDevice->scStatistic.TxFailCount = 0;
 	pDevice->scStatistic.TxNoRetryOkCount = 0;
 	pDevice->scStatistic.TxRetryOkCount = 0;
-	return;
 }
 #endif
 
@@ -1553,5 +1546,4 @@ void s_vCheckPreEDThreshold(
 		if (pBSSList != NULL)
 			pDevice->byBBPreEDRSSI = (unsigned char) (~(pBSSList->ldBmAverRange) + 1);
 	}
-	return;
 }

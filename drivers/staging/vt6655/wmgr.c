@@ -358,8 +358,6 @@ vMgrObjectInit(
 	pMgmt->byCSSGK = KEY_CTL_NONE;
 	pMgmt->wIBSSBeaconPeriod = DEFAULT_IBSS_BI;
 	BSSvClearBSSList((void *)pDevice, false);
-
-	return;
 }
 
 /*+
@@ -403,8 +401,6 @@ vMgrTimerInit(
 	pDevice->cbFreeCmdQueue = CMD_Q_SIZE;
 	pDevice->uCmdDequeueIdx = 0;
 	pDevice->uCmdEnqueueIdx = 0;
-
-	return;
 }
 
 /*+
@@ -429,8 +425,6 @@ vMgrObjectReset(
 	pMgmt->eCurrState = WMAC_STATE_IDLE;
 	pDevice->bEnablePSMode = false;
 	// TODO: timer
-
-	return;
 }
 
 /*+
@@ -498,8 +492,6 @@ vMgrAssocBeginSta(
 	} else {
 		*pStatus = CMD_STATUS_RESOURCES;
 	}
-
-	return;
 }
 
 /*+
@@ -565,8 +557,6 @@ vMgrReAssocBeginSta(
 		else
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Mgt:Reassociation tx sending.\n");
 	}
-
-	return;
 }
 
 /*+
@@ -625,8 +615,6 @@ vMgrDisassocBeginSta(
 		pMgmt->eCurrState = WMAC_STATE_IDLE;
 		*pStatus = CMD_STATUS_SUCCESS;
 	}
-
-	return;
 }
 
 /*+
@@ -771,8 +759,6 @@ s_vMgrRxAssocRequest(
 		else
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Mgt:Assoc response tx sending..\n");
 	}
-
-	return;
 }
 
 /*+
@@ -921,7 +907,6 @@ s_vMgrRxReAssocRequest(
 		else
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Mgt:ReAssoc response tx sending..\n");
 	}
-	return;
 }
 
 /*+
@@ -1070,7 +1055,6 @@ s_vMgrRxAssocResponse(
 
 	if (pMgmt->eCurrState == WMAC_STATE_ASSOC)
 		timer_expire(pDevice->sTimerCommand, 0);
-	return;
 }
 
 /*+
@@ -1125,8 +1109,6 @@ vMgrAuthenBeginSta(
 		pMgmt->eCurrState = WMAC_STATE_AUTHPENDING;
 		*pStatus = CMD_STATUS_SUCCESS;
 	}
-
-	return;
 }
 
 /*+
@@ -1178,8 +1160,6 @@ vMgrDeAuthenBeginSta(
 	*pStatus = csMgmt_xmit(pDevice, pTxPacket);
 	if (*pStatus == CMD_STATUS_PENDING)
 		*pStatus = CMD_STATUS_SUCCESS;
-
-	return;
 }
 
 /*+
@@ -1232,7 +1212,6 @@ s_vMgrRxAuthentication(
 			cpu_to_le16((*(sFrame.pwAuthSequence))));
 		break;
 	}
-	return;
 }
 
 /*+
@@ -1332,8 +1311,6 @@ s_vMgrRxAuthenSequence_1(
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Mgt:Authreq_reply sequence_1 tx.. \n");
 	if (csMgmt_xmit(pDevice, pTxPacket) != CMD_STATUS_PENDING)
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Mgt:Authreq_reply sequence_1 tx failed.\n");
-
-	return;
 }
 
 /*+
@@ -1418,7 +1395,6 @@ s_vMgrRxAuthenSequence_2(
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Mgt: rx auth.seq = 2 unknown AuthAlgorithm=%d\n", cpu_to_le16((*(pFrame->pwAuthAlgorithm))));
 		break;
 	}
-	return;
 }
 
 /*+
@@ -1504,8 +1480,6 @@ reply:
 
 	if (csMgmt_xmit(pDevice, pTxPacket) != CMD_STATUS_PENDING)
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Mgt:Authreq_reply sequence_4 tx failed.\n");
-
-	return;
 }
 
 /*+
@@ -1604,8 +1578,6 @@ s_vMgrRxDisassociation(
 #endif
 	}
 	/* else, ignore it */
-
-	return;
 }
 
 /*+
@@ -1688,7 +1660,6 @@ s_vMgrRxDeauthentication(
 		/* else, ignore it.  TODO: IBSS authentication service
 		   would be implemented here */
 	}
-	return;
 }
 
 //2008-8-4 <add> by chester
@@ -2197,8 +2168,6 @@ if (bUpdateTSF) {
 		CARDbGetCurrentTSF(pDevice->PortOffset, &qwCurrTSF);
 		CARDvUpdateNextTBTT(pDevice->PortOffset, qwTimestamp, pMgmt->wCurrBeaconPeriod);
 	}
-
-	return;
 }
 
 /*+
@@ -2434,8 +2403,6 @@ vMgrCreateOwnIBSS(
 	// Prepare beacon to send
 	if (bMgrPrepareBeaconToSend((void *)pDevice, pMgmt))
 		*pStatus = CMD_STATUS_SUCCESS;
-
-	return;
 }
 
 /*+
@@ -2656,7 +2623,6 @@ vMgrJoinBSSBegin(
 			pMgmt->eCurrState = WMAC_STATE_IDLE;
 		}
 	}
-	return;
 }
 
 /*+
@@ -2838,8 +2804,6 @@ static void  Encyption_Rebuild(
 			}
 		}
 	}
-
-	return;
 }
 
 /*+
@@ -4079,7 +4043,6 @@ s_vMgrRxProbeResponse(
 				    (void *)pRxPacket
 );
 	}
-	return;
 }
 
 /*+
@@ -4153,8 +4116,6 @@ s_vMgrRxProbeRequest(
 			}
 		}
 	}
-
-	return;
 }
 
 /*+
@@ -4297,8 +4258,6 @@ vMgrRxManagePacket(
 	default:
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "rx unknown mgmt\n");
 	}
-
-	return;
 }
 
 /*+

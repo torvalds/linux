@@ -114,7 +114,6 @@ PSvEnablePowerSaving(
 
 	pDevice->bPWBitOn = true;
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "PS:Power Saving Mode Enable... \n");
-	return;
 }
 
 /*+
@@ -149,7 +148,6 @@ PSvDisablePowerSaving(
 		PSbSendNullPacket(pDevice);
 
 	pDevice->bPWBitOn = false;
-	return;
 }
 
 /*+
@@ -253,8 +251,6 @@ PSvSendPSPOLL(
 	if (csMgmt_xmit(pDevice, pTxPacket) != CMD_STATUS_PENDING) {
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Send PS-Poll packet failed..\n");
 	}
-
-	return;
 }
 
 /*+

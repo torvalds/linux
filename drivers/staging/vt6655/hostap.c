@@ -394,8 +394,6 @@ static void hostap_flush_sta(PSDevice pDevice)
 	// reserved node index =0 for multicast node.
 	BSSvClearNodeDBTable(pDevice, 1);
 	pDevice->uAssocCount = 0;
-
-	return;
 }
 
 /*

@@ -468,7 +468,6 @@ void KeyvRemoveWEPKey(
 		}
 		s_vCheckKeyTableValid(pTable, dwIoBase);
 	}
-	return;
 }
 
 void KeyvRemoveAllWEPKey(
