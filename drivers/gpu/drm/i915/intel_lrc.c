@@ -151,6 +151,16 @@ static int gen8_init_render_ring(struct intel_engine_cs *ring)
 	return ret;
 }
 
+static u32 gen8_get_seqno(struct intel_engine_cs *ring, bool lazy_coherency)
+{
+	return intel_read_status_page(ring, I915_GEM_HWS_INDEX);
+}
+
+static void gen8_set_seqno(struct intel_engine_cs *ring, u32 seqno)
+{
+	intel_write_status_page(ring, I915_GEM_HWS_INDEX, seqno);
+}
+
 void intel_logical_ring_cleanup(struct intel_engine_cs *ring)
 {
 	if (!intel_ring_initialized(ring))
@@ -223,6 +233,8 @@ static int logical_render_ring_init(struct drm_device *dev)
 
 	ring->init = gen8_init_render_ring;
 	ring->cleanup = intel_fini_pipe_control;
+	ring->get_seqno = gen8_get_seqno;
+	ring->set_seqno = gen8_set_seqno;
 
 	return logical_ring_init(dev, ring);
 }
@@ -239,6 +251,8 @@ static int logical_bsd_ring_init(struct drm_device *dev)
 		GT_RENDER_USER_INTERRUPT << GEN8_VCS1_IRQ_SHIFT;
 
 	ring->init = gen8_init_common_ring;
+	ring->get_seqno = gen8_get_seqno;
+	ring->set_seqno = gen8_set_seqno;
 
 	return logical_ring_init(dev, ring);
 }
@@ -255,6 +269,8 @@ static int logical_bsd2_ring_init(struct drm_device *dev)
 		GT_RENDER_USER_INTERRUPT << GEN8_VCS2_IRQ_SHIFT;
 
 	ring->init = gen8_init_common_ring;
+	ring->get_seqno = gen8_get_seqno;
+	ring->set_seqno = gen8_set_seqno;
 
 	return logical_ring_init(dev, ring);
 }
@@ -271,6 +287,8 @@ static int logical_blt_ring_init(struct drm_device *dev)
 		GT_RENDER_USER_INTERRUPT << GEN8_BCS_IRQ_SHIFT;
 
 	ring->init = gen8_init_common_ring;
+	ring->get_seqno = gen8_get_seqno;
+	ring->set_seqno = gen8_set_seqno;
 
 	return logical_ring_init(dev, ring);
 }
@@ -287,6 +305,8 @@ static int logical_vebox_ring_init(struct drm_device *dev)
 		GT_RENDER_USER_INTERRUPT << GEN8_VECS_IRQ_SHIFT;
 
 	ring->init = gen8_init_common_ring;
+	ring->get_seqno = gen8_get_seqno;
+	ring->set_seqno = gen8_set_seqno;
 
 	return logical_ring_init(dev, ring);
 }
