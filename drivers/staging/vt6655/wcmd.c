@@ -432,9 +432,10 @@ vCommandTimer(
 		vAdHocBeaconRestart(pDevice);
 //2008-0409-07, <Add> by Einsn Liu
 #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
-		if (pMgmt->eScanType == WMAC_SCAN_PASSIVE)
-		{//send scan event to wpa_Supplicant
+		if (pMgmt->eScanType == WMAC_SCAN_PASSIVE) {
+			//send scan event to wpa_Supplicant
 			union iwreq_data wrqu;
+
 			memset(&wrqu, 0, sizeof(wrqu));
 			wireless_send_event(pDevice->dev, SIOCGIWSCAN, &wrqu, NULL);
 		}
