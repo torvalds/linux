@@ -41,6 +41,11 @@
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
 
+#define GEN8_LR_CONTEXT_RENDER_SIZE (20 * PAGE_SIZE)
+#define GEN8_LR_CONTEXT_OTHER_SIZE (2 * PAGE_SIZE)
+
+#define GEN8_LR_CONTEXT_ALIGN 4096
+
 int intel_sanitize_enable_execlists(struct drm_device *dev, int enable_execlists)
 {
 	WARN_ON(i915.enable_ppgtt == -1);
@@ -56,15 +61,65 @@ int intel_sanitize_enable_execlists(struct drm_device *dev, int enable_execlists
 
 void intel_lr_context_free(struct intel_context *ctx)
 {
-	/* TODO */
+	int i;
+
+	for (i = 0; i < I915_NUM_RINGS; i++) {
+		struct drm_i915_gem_object *ctx_obj = ctx->engine[i].state;
+		if (ctx_obj) {
+			i915_gem_object_ggtt_unpin(ctx_obj);
+			drm_gem_object_unreference(&ctx_obj->base);
+		}
+	}
+}
+
+static uint32_t get_lr_context_size(struct intel_engine_cs *ring)
+{
+	int ret = 0;
+
+	WARN_ON(INTEL_INFO(ring->dev)->gen != 8);
+
+	switch (ring->id) {
+	case RCS:
+		ret = GEN8_LR_CONTEXT_RENDER_SIZE;
+		break;
+	case VCS:
+	case BCS:
+	case VECS:
+	case VCS2:
+		ret = GEN8_LR_CONTEXT_OTHER_SIZE;
+		break;
+	}
+
+	return ret;
 }
 
 int intel_lr_context_deferred_create(struct intel_context *ctx,
 				     struct intel_engine_cs *ring)
 {
+	struct drm_device *dev = ring->dev;
+	struct drm_i915_gem_object *ctx_obj;
+	uint32_t context_size;
+	int ret;
+
 	WARN_ON(ctx->legacy_hw_ctx.rcs_state != NULL);
 
-	/* TODO */
+	context_size = round_up(get_lr_context_size(ring), 4096);
+
+	ctx_obj = i915_gem_alloc_context_obj(dev, context_size);
+	if (IS_ERR(ctx_obj)) {
+		ret = PTR_ERR(ctx_obj);
+		DRM_DEBUG_DRIVER("Alloc LRC backing obj failed: %d\n", ret);
+		return ret;
+	}
+
+	ret = i915_gem_obj_ggtt_pin(ctx_obj, GEN8_LR_CONTEXT_ALIGN, 0);
+	if (ret) {
+		DRM_DEBUG_DRIVER("Pin LRC backing obj failed: %d\n", ret);
+		drm_gem_object_unreference(&ctx_obj->base);
+		return ret;
+	}
+
+	ctx->engine[ring->id].state = ctx_obj;
 
 	return 0;
 }
