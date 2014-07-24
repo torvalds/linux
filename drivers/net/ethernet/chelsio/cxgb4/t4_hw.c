@@ -545,7 +545,7 @@ int t4_memory_rw(struct adapter *adap, int win, int mtype, u32 addr,
 		unsigned char *bp;
 		int i;
 
-		if (dir == T4_MEMORY_WRITE) {
+		if (dir == T4_MEMORY_READ) {
 			last.word = (__force __be32) t4_read_reg(adap,
 							mem_base + offset);
 			for (bp = (unsigned char *)buf, i = resid; i < 4; i++)
