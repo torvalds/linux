@@ -12154,13 +12154,7 @@ static int drx39xxj_set_frontend(struct dvb_frontend *fe)
 		return -EINVAL;
 	}
 	/* Just for giggles, let's shut off the LNA again.... */
-	uio_data.uio = DRX_UIO1;
-	uio_data.value = false;
-	result = ctrl_uio_write(demod, &uio_data);
-	if (result != 0) {
-		pr_err("Failed to disable LNA!\n");
-		return 0;
-	}
+	drxj_set_lna_state(demod, false);
 
 	/* After set_frontend, except for strength, stats aren't available */
 	p->strength.stat[0].scale = FE_SCALE_RELATIVE;
@@ -12243,26 +12237,7 @@ static int drx39xxj_set_lna(struct dvb_frontend *fe)
 		}
 	}
 
-	/* Turn off the LNA */
-	uio_cfg.uio = DRX_UIO1;
-	uio_cfg.mode = DRX_UIO_MODE_READWRITE;
-	/* Configure user-I/O #3: enable read/write */
-	result = ctrl_set_uio_cfg(demod, &uio_cfg);
-	if (result) {
-		pr_err("Failed to setup LNA GPIO!\n");
-		return result;
-	}
-
-	uio_data.uio = DRX_UIO1;
-	uio_data.value = c->lna;
-	result = ctrl_uio_write(demod, &uio_data);
-	if (result != 0) {
-		pr_err("Failed to %sable LNA!\n",
-		       c->lna ? "en" : "dis");
-		return result;
-	}
-
-	return 0;
+	return drxj_set_lna_state(demod, c->lna);
 }
 
 static int drx39xxj_get_tune_settings(struct dvb_frontend *fe,
