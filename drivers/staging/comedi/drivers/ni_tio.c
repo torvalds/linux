@@ -119,10 +119,10 @@ enum ni_660x_clock_source {
 	NI_660x_Timebase_3_Clock = 0x1e,	/* 80MHz */
 	NI_660x_Logic_Low_Clock = 0x1f,
 };
-static const unsigned ni_660x_max_rtsi_channel = 6;
+#define NI_660X_MAX_RTSI_CHAN		6
 #define NI_660X_RTSI_CLK(x)		(0xb + (x))
 
-static const unsigned ni_660x_max_source_pin = 7;
+#define NI_660X_MAX_SRC_PIN		7
 #define NI_660X_SRC_PIN_CLK(x)		(0x2 + (x))
 
 /* clock sources for ni e and m series boards, get bits with Gi_Source_Select_Bits() */
@@ -137,10 +137,10 @@ enum ni_m_series_clock_source {
 	NI_M_Series_Analog_Trigger_Out_Clock = 0x1e,	/* when Gi_Src_SubSelect = 1 */
 	NI_M_Series_Logic_Low_Clock = 0x1f,
 };
-static const unsigned ni_m_series_max_pfi_channel = 15;
+#define NI_M_MAX_PFI_CHAN		15
 #define NI_M_PFI_CLK(x)			(((x) < 10) ? (1 + (x)) : (0xb + (x)))
 
-static const unsigned ni_m_series_max_rtsi_channel = 7;
+#define NI_M_MAX_RTSI_CHAN		7
 #define NI_M_RTSI_CLK(x)		(((x) == 7) ? 0x1b : (0xb + (x)))
 
 enum ni_660x_gate_select {
@@ -150,7 +150,7 @@ enum ni_660x_gate_select {
 	NI_660x_Next_Out_Gate_Select = 0x14,
 	NI_660x_Logic_Low_Gate_Select = 0x1f,
 };
-static const unsigned ni_660x_max_gate_pin = 7;
+#define NI_660X_MAX_GATE_PIN		7
 #define NI_660X_PIN_GATE_SEL(x)		(0x2 + (x))
 #define NI_660X_RTSI_GATE_SEL(x)	(0xb + (x))
 
@@ -185,7 +185,7 @@ enum ni_660x_second_gate_select {
 	NI_660x_Selected_Gate_Second_Gate_Select = 0x1e,
 	NI_660x_Logic_Low_Second_Gate_Select = 0x1f,
 };
-static const unsigned ni_660x_max_up_down_pin = 7;
+#define NI_660X_MAX_UP_DOWN_PIN		7
 #define NI_660X_UD_PIN_GATE2_SEL(x)	(0x2 + (x))
 #define NI_660X_RTSI_GATE2_SEL(x)	(0xb + (x))
 
@@ -512,22 +512,22 @@ static unsigned ni_660x_source_select_bits(unsigned int clock_source)
 		ni_660x_clock = NI_660x_Next_TC_Clock;
 		break;
 	default:
-		for (i = 0; i <= ni_660x_max_rtsi_channel; ++i) {
+		for (i = 0; i <= NI_660X_MAX_RTSI_CHAN; ++i) {
 			if (clock_select_bits == NI_GPCT_RTSI_CLOCK_SRC_BITS(i)) {
 				ni_660x_clock = NI_660X_RTSI_CLK(i);
 				break;
 			}
 		}
-		if (i <= ni_660x_max_rtsi_channel)
+		if (i <= NI_660X_MAX_RTSI_CHAN)
 			break;
-		for (i = 0; i <= ni_660x_max_source_pin; ++i) {
+		for (i = 0; i <= NI_660X_MAX_SRC_PIN; ++i) {
 			if (clock_select_bits ==
 			    NI_GPCT_SOURCE_PIN_CLOCK_SRC_BITS(i)) {
 				ni_660x_clock = NI_660X_SRC_PIN_CLK(i);
 				break;
 			}
 		}
-		if (i <= ni_660x_max_source_pin)
+		if (i <= NI_660X_MAX_SRC_PIN)
 			break;
 		ni_660x_clock = 0;
 		BUG();
@@ -571,21 +571,21 @@ static unsigned ni_m_series_source_select_bits(unsigned int clock_source)
 		ni_m_series_clock = NI_M_Series_Analog_Trigger_Out_Clock;
 		break;
 	default:
-		for (i = 0; i <= ni_m_series_max_rtsi_channel; ++i) {
+		for (i = 0; i <= NI_M_MAX_RTSI_CHAN; ++i) {
 			if (clock_select_bits == NI_GPCT_RTSI_CLOCK_SRC_BITS(i)) {
 				ni_m_series_clock = NI_M_RTSI_CLK(i);
 				break;
 			}
 		}
-		if (i <= ni_m_series_max_rtsi_channel)
+		if (i <= NI_M_MAX_RTSI_CHAN)
 			break;
-		for (i = 0; i <= ni_m_series_max_pfi_channel; ++i) {
+		for (i = 0; i <= NI_M_MAX_PFI_CHAN; ++i) {
 			if (clock_select_bits == NI_GPCT_PFI_CLOCK_SRC_BITS(i)) {
 				ni_m_series_clock = NI_M_PFI_CLK(i);
 				break;
 			}
 		}
-		if (i <= ni_m_series_max_pfi_channel)
+		if (i <= NI_M_MAX_PFI_CHAN)
 			break;
 		printk(KERN_ERR "invalid clock source 0x%lx\n",
 		       (unsigned long)clock_source);
@@ -741,21 +741,21 @@ static unsigned ni_m_series_clock_src_select(const struct ni_gpct *counter)
 		clock_source = NI_GPCT_NEXT_TC_CLOCK_SRC_BITS;
 		break;
 	default:
-		for (i = 0; i <= ni_m_series_max_rtsi_channel; ++i) {
+		for (i = 0; i <= NI_M_MAX_RTSI_CHAN; ++i) {
 			if (input_select == NI_M_RTSI_CLK(i)) {
 				clock_source = NI_GPCT_RTSI_CLOCK_SRC_BITS(i);
 				break;
 			}
 		}
-		if (i <= ni_m_series_max_rtsi_channel)
+		if (i <= NI_M_MAX_RTSI_CHAN)
 			break;
-		for (i = 0; i <= ni_m_series_max_pfi_channel; ++i) {
+		for (i = 0; i <= NI_M_MAX_PFI_CHAN; ++i) {
 			if (input_select == NI_M_PFI_CLK(i)) {
 				clock_source = NI_GPCT_PFI_CLOCK_SRC_BITS(i);
 				break;
 			}
 		}
-		if (i <= ni_m_series_max_pfi_channel)
+		if (i <= NI_M_MAX_PFI_CHAN)
 			break;
 		BUG();
 		break;
@@ -796,22 +796,22 @@ static unsigned ni_660x_clock_src_select(const struct ni_gpct *counter)
 		clock_source = NI_GPCT_NEXT_TC_CLOCK_SRC_BITS;
 		break;
 	default:
-		for (i = 0; i <= ni_660x_max_rtsi_channel; ++i) {
+		for (i = 0; i <= NI_660X_MAX_RTSI_CHAN; ++i) {
 			if (input_select == NI_660X_RTSI_CLK(i)) {
 				clock_source = NI_GPCT_RTSI_CLOCK_SRC_BITS(i);
 				break;
 			}
 		}
-		if (i <= ni_660x_max_rtsi_channel)
+		if (i <= NI_660X_MAX_RTSI_CHAN)
 			break;
-		for (i = 0; i <= ni_660x_max_source_pin; ++i) {
+		for (i = 0; i <= NI_660X_MAX_SRC_PIN; ++i) {
 			if (input_select == NI_660X_SRC_PIN_CLK(i)) {
 				clock_source =
 				    NI_GPCT_SOURCE_PIN_CLOCK_SRC_BITS(i);
 				break;
 			}
 		}
-		if (i <= ni_660x_max_source_pin)
+		if (i <= NI_660X_MAX_SRC_PIN)
 			break;
 		BUG();
 		break;
@@ -922,21 +922,21 @@ static int ni_660x_set_first_gate(struct ni_gpct *counter,
 		gate_sel = chan & 0x1f;
 		break;
 	default:
-		for (i = 0; i <= ni_660x_max_rtsi_channel; ++i) {
+		for (i = 0; i <= NI_660X_MAX_RTSI_CHAN; ++i) {
 			if (chan == NI_GPCT_RTSI_GATE_SELECT(i)) {
 				gate_sel = chan & 0x1f;
 				break;
 			}
 		}
-		if (i <= ni_660x_max_rtsi_channel)
+		if (i <= NI_660X_MAX_RTSI_CHAN)
 			break;
-		for (i = 0; i <= ni_660x_max_gate_pin; ++i) {
+		for (i = 0; i <= NI_660X_MAX_GATE_PIN; ++i) {
 			if (chan == NI_GPCT_GATE_PIN_GATE_SELECT(i)) {
 				gate_sel = chan & 0x1f;
 				break;
 			}
 		}
-		if (i <= ni_660x_max_gate_pin)
+		if (i <= NI_660X_MAX_GATE_PIN)
 			break;
 		return -EINVAL;
 	}
@@ -965,21 +965,21 @@ static int ni_m_series_set_first_gate(struct ni_gpct *counter,
 		gate_sel = chan & 0x1f;
 		break;
 	default:
-		for (i = 0; i <= ni_m_series_max_rtsi_channel; ++i) {
+		for (i = 0; i <= NI_M_MAX_RTSI_CHAN; ++i) {
 			if (chan == NI_GPCT_RTSI_GATE_SELECT(i)) {
 				gate_sel = chan & 0x1f;
 				break;
 			}
 		}
-		if (i <= ni_m_series_max_rtsi_channel)
+		if (i <= NI_M_MAX_RTSI_CHAN)
 			break;
-		for (i = 0; i <= ni_m_series_max_pfi_channel; ++i) {
+		for (i = 0; i <= NI_M_MAX_PFI_CHAN; ++i) {
 			if (chan == NI_GPCT_PFI_GATE_SELECT(i)) {
 				gate_sel = chan & 0x1f;
 				break;
 			}
 		}
-		if (i <= ni_m_series_max_pfi_channel)
+		if (i <= NI_M_MAX_PFI_CHAN)
 			break;
 		return -EINVAL;
 	}
@@ -1010,21 +1010,21 @@ static int ni_660x_set_second_gate(struct ni_gpct *counter,
 		gate2_sel = NI_660x_Next_SRC_Second_Gate_Select;
 		break;
 	default:
-		for (i = 0; i <= ni_660x_max_rtsi_channel; ++i) {
+		for (i = 0; i <= NI_660X_MAX_RTSI_CHAN; ++i) {
 			if (chan == NI_GPCT_RTSI_GATE_SELECT(i)) {
 				gate2_sel = chan & 0x1f;
 				break;
 			}
 		}
-		if (i <= ni_660x_max_rtsi_channel)
+		if (i <= NI_660X_MAX_RTSI_CHAN)
 			break;
-		for (i = 0; i <= ni_660x_max_up_down_pin; ++i) {
+		for (i = 0; i <= NI_660X_MAX_UP_DOWN_PIN; ++i) {
 			if (chan == NI_GPCT_UP_DOWN_PIN_GATE_SELECT(i)) {
 				gate2_sel = chan & 0x1f;
 				break;
 			}
 		}
-		if (i <= ni_660x_max_up_down_pin)
+		if (i <= NI_660X_MAX_UP_DOWN_PIN)
 			break;
 		return -EINVAL;
 	}
@@ -1179,17 +1179,17 @@ ni_660x_first_gate_to_generic_gate_source(unsigned ni_660x_gate_select)
 	case NI_660x_Logic_Low_Gate_Select:
 		return NI_GPCT_LOGIC_LOW_GATE_SELECT;
 	default:
-		for (i = 0; i <= ni_660x_max_rtsi_channel; ++i) {
+		for (i = 0; i <= NI_660X_MAX_RTSI_CHAN; ++i) {
 			if (ni_660x_gate_select == NI_660X_RTSI_GATE_SEL(i))
 				return NI_GPCT_RTSI_GATE_SELECT(i);
 		}
-		if (i <= ni_660x_max_rtsi_channel)
+		if (i <= NI_660X_MAX_RTSI_CHAN)
 			break;
-		for (i = 0; i <= ni_660x_max_gate_pin; ++i) {
+		for (i = 0; i <= NI_660X_MAX_GATE_PIN; ++i) {
 			if (ni_660x_gate_select == NI_660X_PIN_GATE_SEL(i))
 				return NI_GPCT_GATE_PIN_GATE_SELECT(i);
 		}
-		if (i <= ni_660x_max_gate_pin)
+		if (i <= NI_660X_MAX_GATE_PIN)
 			break;
 		BUG();
 		break;
@@ -1220,17 +1220,17 @@ ni_m_series_first_gate_to_generic_gate_source(unsigned ni_m_series_gate_select)
 	case NI_M_Series_Logic_Low_Gate_Select:
 		return NI_GPCT_LOGIC_LOW_GATE_SELECT;
 	default:
-		for (i = 0; i <= ni_m_series_max_rtsi_channel; ++i) {
+		for (i = 0; i <= NI_M_MAX_RTSI_CHAN; ++i) {
 			if (ni_m_series_gate_select == NI_M_RTSI_GATE_SEL(i))
 				return NI_GPCT_RTSI_GATE_SELECT(i);
 		}
-		if (i <= ni_m_series_max_rtsi_channel)
+		if (i <= NI_M_MAX_RTSI_CHAN)
 			break;
-		for (i = 0; i <= ni_m_series_max_pfi_channel; ++i) {
+		for (i = 0; i <= NI_M_MAX_PFI_CHAN; ++i) {
 			if (ni_m_series_gate_select == NI_M_PFI_GATE_SEL(i))
 				return NI_GPCT_PFI_GATE_SELECT(i);
 		}
-		if (i <= ni_m_series_max_pfi_channel)
+		if (i <= NI_M_MAX_PFI_CHAN)
 			break;
 		BUG();
 		break;
@@ -1257,17 +1257,17 @@ ni_660x_second_gate_to_generic_gate_source(unsigned ni_660x_gate_select)
 	case NI_660x_Logic_Low_Second_Gate_Select:
 		return NI_GPCT_LOGIC_LOW_GATE_SELECT;
 	default:
-		for (i = 0; i <= ni_660x_max_rtsi_channel; ++i) {
+		for (i = 0; i <= NI_660X_MAX_RTSI_CHAN; ++i) {
 			if (ni_660x_gate_select == NI_660X_RTSI_GATE2_SEL(i))
 				return NI_GPCT_RTSI_GATE_SELECT(i);
 		}
-		if (i <= ni_660x_max_rtsi_channel)
+		if (i <= NI_660X_MAX_RTSI_CHAN)
 			break;
-		for (i = 0; i <= ni_660x_max_up_down_pin; ++i) {
+		for (i = 0; i <= NI_660X_MAX_UP_DOWN_PIN; ++i) {
 			if (ni_660x_gate_select == NI_660X_UD_PIN_GATE2_SEL(i))
 				return NI_GPCT_UP_DOWN_PIN_GATE_SELECT(i);
 		}
-		if (i <= ni_660x_max_up_down_pin)
+		if (i <= NI_660X_MAX_UP_DOWN_PIN)
 			break;
 		BUG();
 		break;
