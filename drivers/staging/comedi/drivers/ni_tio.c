@@ -413,9 +413,11 @@ static void ni_tio_set_sync_mode(struct ni_gpct *counter, int force_alt_sync)
 	default:
 		break;
 	}
-	/* It's not clear what we should do if clock_period is unknown, so we are not
-	   using the alt sync bit in that case, but allow the caller to decide by using the
-	   force_alt_sync parameter. */
+	/*
+	 * It's not clear what we should do if clock_period is unknown, so we
+	 * are not using the alt sync bit in that case, but allow the caller
+	 * to decide by using the force_alt_sync parameter.
+	 */
 	if (force_alt_sync ||
 	    (clock_period_ps && clock_period_ps < min_normal_sync_period_ps)) {
 		ni_tio_set_bits(counter, counting_mode_reg,
@@ -520,7 +522,11 @@ int ni_tio_arm(struct ni_gpct *counter, int arm, unsigned start_trigger)
 				break;
 			default:
 				if (start_trigger & NI_GPCT_ARM_UNKNOWN) {
-					/* pass-through the least significant bits so we can figure out what select later */
+					/*
+					 * pass-through the least significant
+					 * bits so we can figure out what
+					 * select later
+					 */
 					unsigned hw_arm_select_bits =
 					    (start_trigger <<
 					     Gi_HW_Arm_Select_Shift) &
@@ -924,7 +930,10 @@ static uint64_t ni_tio_clock_period_ps(const struct ni_gpct *counter,
 		clock_period_ps = 100000;
 		break;
 	default:
-		/* clock period is specified by user with prescaling already taken into account. */
+		/*
+		 * clock period is specified by user with prescaling
+		 * already taken into account.
+		 */
 		return counter->clock_period_ps;
 	}
 
@@ -1137,8 +1146,10 @@ static int ni_m_series_set_second_gate(struct ni_gpct *counter,
 	static const unsigned selected_second_gate_mask = 0x1f;
 	unsigned ni_m_series_second_gate_select;
 
-	/* FIXME: We don't know what the m-series second gate codes are, so we'll just pass
-	   the bits through for now. */
+	/*
+	 * FIXME: We don't know what the m-series second gate codes are,
+	 * so we'll just pass the bits through for now.
+	 */
 	switch (selected_second_gate) {
 	default:
 		ni_m_series_second_gate_select =
@@ -1378,8 +1389,10 @@ static unsigned ni_660x_second_gate_to_generic_gate_source(unsigned
 static unsigned ni_m_series_second_gate_to_generic_gate_source(unsigned
 							       ni_m_series_gate_select)
 {
-	/*FIXME: the second gate sources for the m series are undocumented, so we just return
-	 * the raw bits for now. */
+	/*
+	 * FIXME: the second gate sources for the m series are undocumented,
+	 * so we just return the raw bits for now.
+	 */
 	switch (ni_m_series_gate_select) {
 	default:
 		return ni_m_series_gate_select;
@@ -1598,13 +1611,20 @@ int ni_tio_insn_write(struct comedi_device *dev,
 		return 0;
 	switch (channel) {
 	case 0:
-		/* Unsafe if counter is armed.  Should probably check status and return -EBUSY if armed. */
-		/* Don't disturb load source select, just use whichever load register is already selected. */
+		/*
+		 * Unsafe if counter is armed.
+		 * Should probably check status and return -EBUSY if armed.
+		 */
+
+		/*
+		 * Don't disturb load source select, just use whichever
+		 * load register is already selected.
+		 */
 		load_reg = ni_tio_next_load_register(counter);
 		write_register(counter, data[0], load_reg);
 		ni_tio_set_bits_transient(counter, NITIO_CMD_REG(cidx),
 					  0, 0, Gi_Load_Bit);
-		/* restore state of load reg to whatever the user set last set it to */
+		/* restore load reg */
 		write_register(counter, counter_dev->regs[load_reg], load_reg);
 		break;
 	case 1:
