@@ -71,10 +71,11 @@ struct inet_frags {
 	u32			rnd;
 	int			qsize;
 
-	unsigned int		(*hashfn)(struct inet_frag_queue *);
-	bool			(*match)(struct inet_frag_queue *q, void *arg);
+	unsigned int		(*hashfn)(const struct inet_frag_queue *);
+	bool			(*match)(const struct inet_frag_queue *q,
+					 const void *arg);
 	void			(*constructor)(struct inet_frag_queue *q,
-						void *arg);
+					       const void *arg);
 	void			(*destructor)(struct inet_frag_queue *);
 	void			(*skb_free)(struct sk_buff *);
 	void			(*frag_expire)(unsigned long data);
@@ -131,9 +132,9 @@ static inline void init_frag_mem_limit(struct netns_frags *nf)
 	percpu_counter_init(&nf->mem, 0);
 }
 
-static inline int sum_frag_mem_limit(struct netns_frags *nf)
+static inline unsigned int sum_frag_mem_limit(struct netns_frags *nf)
 {
-	int res;
+	unsigned int res;
 
 	local_bh_disable();
 	res = percpu_counter_sum_positive(&nf->mem);

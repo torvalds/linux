@@ -496,8 +496,8 @@ struct ip6_create_arg {
 	u8 ecn;
 };
 
-void ip6_frag_init(struct inet_frag_queue *q, void *a);
-bool ip6_frag_match(struct inet_frag_queue *q, void *a);
+void ip6_frag_init(struct inet_frag_queue *q, const void *a);
+bool ip6_frag_match(const struct inet_frag_queue *q, const void *a);
 
 /*
  *	Equivalent of ipv4 struct ip

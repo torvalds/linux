@@ -94,18 +94,18 @@ static unsigned int inet6_hash_frag(__be32 id, const struct in6_addr *saddr,
 	return c & (INETFRAGS_HASHSZ - 1);
 }
 
-static unsigned int ip6_hashfn(struct inet_frag_queue *q)
+static unsigned int ip6_hashfn(const struct inet_frag_queue *q)
 {
-	struct frag_queue *fq;
+	const struct frag_queue *fq;
 
 	fq = container_of(q, struct frag_queue, q);
 	return inet6_hash_frag(fq->id, &fq->saddr, &fq->daddr);
 }
 
-bool ip6_frag_match(struct inet_frag_queue *q, void *a)
+bool ip6_frag_match(const struct inet_frag_queue *q, const void *a)
 {
-	struct frag_queue *fq;
-	struct ip6_create_arg *arg = a;
+	const struct frag_queue *fq;
+	const struct ip6_create_arg *arg = a;
 
 	fq = container_of(q, struct frag_queue, q);
 	return	fq->id == arg->id &&
@@ -115,10 +115,10 @@ bool ip6_frag_match(struct inet_frag_queue *q, void *a)
 }
 EXPORT_SYMBOL(ip6_frag_match);
 
-void ip6_frag_init(struct inet_frag_queue *q, void *a)
+void ip6_frag_init(struct inet_frag_queue *q, const void *a)
 {
 	struct frag_queue *fq = container_of(q, struct frag_queue, q);
-	struct ip6_create_arg *arg = a;
+	const struct ip6_create_arg *arg = a;
 
 	fq->id = arg->id;
 	fq->user = arg->user;

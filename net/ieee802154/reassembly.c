@@ -61,18 +61,18 @@ static unsigned int lowpan_hash_frag(__be16 tag, u16 d_size,
 	return c & (INETFRAGS_HASHSZ - 1);
 }
 
-static unsigned int lowpan_hashfn(struct inet_frag_queue *q)
+static unsigned int lowpan_hashfn(const struct inet_frag_queue *q)
 {
-	struct lowpan_frag_queue *fq;
+	const struct lowpan_frag_queue *fq;
 
 	fq = container_of(q, struct lowpan_frag_queue, q);
 	return lowpan_hash_frag(fq->tag, fq->d_size, &fq->saddr, &fq->daddr);
 }
 
-static bool lowpan_frag_match(struct inet_frag_queue *q, void *a)
+static bool lowpan_frag_match(const struct inet_frag_queue *q, const void *a)
 {
-	struct lowpan_frag_queue *fq;
-	struct lowpan_create_arg *arg = a;
+	const struct lowpan_frag_queue *fq;
+	const struct lowpan_create_arg *arg = a;
 
 	fq = container_of(q, struct lowpan_frag_queue, q);
 	return	fq->tag == arg->tag && fq->d_size == arg->d_size &&
@@ -80,10 +80,10 @@ static bool lowpan_frag_match(struct inet_frag_queue *q, void *a)
 		ieee802154_addr_equal(&fq->daddr, arg->dst);
 }
 
-static void lowpan_frag_init(struct inet_frag_queue *q, void *a)
+static void lowpan_frag_init(struct inet_frag_queue *q, const void *a)
 {
+	const struct lowpan_create_arg *arg = a;
 	struct lowpan_frag_queue *fq;
-	struct lowpan_create_arg *arg = a;
 
 	fq = container_of(q, struct lowpan_frag_queue, q);
 

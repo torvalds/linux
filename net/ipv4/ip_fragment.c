@@ -112,18 +112,18 @@ static unsigned int ipqhashfn(__be16 id, __be32 saddr, __be32 daddr, u8 prot)
 			    ip4_frags.rnd) & (INETFRAGS_HASHSZ - 1);
 }
 
-static unsigned int ip4_hashfn(struct inet_frag_queue *q)
+static unsigned int ip4_hashfn(const struct inet_frag_queue *q)
 {
-	struct ipq *ipq;
+	const struct ipq *ipq;
 
 	ipq = container_of(q, struct ipq, q);
 	return ipqhashfn(ipq->id, ipq->saddr, ipq->daddr, ipq->protocol);
 }
 
-static bool ip4_frag_match(struct inet_frag_queue *q, void *a)
+static bool ip4_frag_match(const struct inet_frag_queue *q, const void *a)
 {
-	struct ipq *qp;
-	struct ip4_create_arg *arg = a;
+	const struct ipq *qp;
+	const struct ip4_create_arg *arg = a;
 
 	qp = container_of(q, struct ipq, q);
 	return	qp->id == arg->iph->id &&
@@ -133,14 +133,14 @@ static bool ip4_frag_match(struct inet_frag_queue *q, void *a)
 		qp->user == arg->user;
 }
 
-static void ip4_frag_init(struct inet_frag_queue *q, void *a)
+static void ip4_frag_init(struct inet_frag_queue *q, const void *a)
 {
 	struct ipq *qp = container_of(q, struct ipq, q);
 	struct netns_ipv4 *ipv4 = container_of(q->net, struct netns_ipv4,
 					       frags);
 	struct net *net = container_of(ipv4, struct net, ipv4);
 
-	struct ip4_create_arg *arg = a;
+	const struct ip4_create_arg *arg = a;
 
 	qp->protocol = arg->iph->protocol;
 	qp->id = arg->iph->id;
