@@ -129,9 +129,6 @@ static MYPROCTYPE *PartitionType;
 #define VISORCHIPSET_DIAG_PROC_ENTRY_FN "diagdump"
 static struct proc_dir_entry *diag_proc_dir;
 
-#define VISORCHIPSET_CHIPSET_PROC_ENTRY_FN "chipsetready"
-static struct proc_dir_entry *chipset_proc_dir;
-
 #define VISORCHIPSET_PARAHOTPLUG_PROC_ENTRY_FN "parahotplug"
 static struct proc_dir_entry *parahotplug_proc_dir;
 
@@ -323,6 +320,10 @@ static ssize_t remaining_steps_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count);
 static DEVICE_ATTR_RW(remaining_steps);
 
+static ssize_t chipsetready_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count);
+static DEVICE_ATTR_WO(chipsetready);
+
 static struct attribute *visorchipset_install_attrs[] = {
 	&dev_attr_toolaction.attr,
 	&dev_attr_boottotool.attr,
@@ -337,8 +338,19 @@ static struct attribute_group visorchipset_install_group = {
 	.attrs = visorchipset_install_attrs
 };
 
+static struct attribute *visorchipset_guest_attrs[] = {
+	&dev_attr_chipsetready.attr,
+	NULL
+};
+
+static struct attribute_group visorchipset_guest_group = {
+	.name = "guest",
+	.attrs = visorchipset_guest_attrs
+};
+
 static const struct attribute_group *visorchipset_dev_groups[] = {
 	&visorchipset_install_group,
+	&visorchipset_guest_group,
 	NULL
 };
 
@@ -2369,49 +2381,21 @@ visorchipset_cache_free(struct kmem_cache *pool, void *p, char *fn, int ln)
 	kmem_cache_free(pool, p);
 }
 
-#define gettoken(bufp) strsep(bufp, " -\t\n")
-
-static ssize_t
-chipset_proc_write(struct file *file, const char __user *buffer,
-		   size_t count, loff_t *ppos)
+static ssize_t chipsetready_store(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count)
 {
-	char buf[512];
-	char *token, *p;
+	char msgtype[64];
 
-	if (count > sizeof(buf) - 1) {
-		LOGERR("chipset_proc_write: count (%d) exceeds size of buffer (%d)",
-		     (int) count, (int) sizeof(buffer));
+	if (sscanf(buf, "%63s", msgtype) == 1) {
+		if (strcmp(msgtype, "CALLHOMEDISK_MOUNTED") == 0)
+			chipset_events[0] = 1;
+		else if (strcmp(msgtype, "MODULES_LOADED") == 0)
+			chipset_events[1] = 1;
+		else
+			return -EINVAL;
+	} else {
 		return -EINVAL;
 	}
-	if (copy_from_user(buf, buffer, count)) {
-		LOGERR("chipset_proc_write: copy_from_user failed");
-		return -EFAULT;
-	}
-	buf[count] = '\0';
-
-	p = buf;
-	token = gettoken(&p);
-
-	if (strcmp(token, "CALLHOMEDISK_MOUNTED") == 0) {
-		token = gettoken(&p);
-		/* The Call Home Disk has been mounted */
-		if (strcmp(token, "0") == 0)
-			chipset_events[0] = 1;
-	} else if (strcmp(token, "MODULES_LOADED") == 0) {
-		token = gettoken(&p);
-		/* All modules for the partition have been loaded */
-		if (strcmp(token, "0") == 0)
-			chipset_events[1] = 1;
-	} else if (token == NULL) {
-		/* No event specified */
-		LOGERR("No event was specified to send CHIPSET_READY response");
-		return -1;
-	} else {
-		/* Unsupported event specified */
-		LOGERR("%s is an invalid event for sending CHIPSET_READY response",		     token);
-		return -1;
-	}
-
 	return count;
 }
 
@@ -2421,12 +2405,6 @@ visorchipset_proc_read_writeonly(struct file *file, char __user *buf,
 {
 	return 0;
 }
-
-static const struct file_operations chipset_proc_fops = {
-	.owner = THIS_MODULE,
-	.read = visorchipset_proc_read_writeonly,
-	.write = chipset_proc_write,
-};
 
 static int __init
 visorchipset_init(void)
@@ -2508,8 +2486,6 @@ visorchipset_init(void)
 
 	memset(&g_DiagMsgHdr, 0, sizeof(CONTROLVM_MESSAGE_HEADER));
 
-	chipset_proc_dir = proc_create(VISORCHIPSET_CHIPSET_PROC_ENTRY_FN,
-				       0644, ProcDir, &chipset_proc_fops);
 	memset(&g_ChipSetMsgHdr, 0, sizeof(CONTROLVM_MESSAGE_HEADER));
 
 	parahotplug_proc_dir =
@@ -2613,10 +2589,6 @@ visorchipset_exit(void)
 	}
 	memset(&g_DiagMsgHdr, 0, sizeof(CONTROLVM_MESSAGE_HEADER));
 
-	if (chipset_proc_dir) {
-		remove_proc_entry(VISORCHIPSET_CHIPSET_PROC_ENTRY_FN, ProcDir);
-		chipset_proc_dir = NULL;
-	}
 	memset(&g_ChipSetMsgHdr, 0, sizeof(CONTROLVM_MESSAGE_HEADER));
 
 	if (parahotplug_proc_dir) {
