@@ -40,6 +40,23 @@
  */
 #define CACHELINE_BYTES 64
 
+bool
+intel_ring_initialized(struct intel_engine_cs *ring)
+{
+	struct drm_device *dev = ring->dev;
+
+	if (!dev)
+		return false;
+
+	if (i915.enable_execlists) {
+		struct intel_context *dctx = ring->default_context;
+		struct intel_ringbuffer *ringbuf = dctx->engine[ring->id].ringbuf;
+
+		return ringbuf->obj;
+	} else
+		return ring->buffer && ring->buffer->obj;
+}
+
 static inline int __ring_space(int head, int tail, int size)
 {
 	int space = head - (tail + I915_RING_FREE_SPACE);

@@ -445,10 +445,6 @@ int i915_gem_context_init(struct drm_device *dev)
 
 		/* NB: RCS will hold a ref for all rings */
 		ring->default_context = ctx;
-
-		/* FIXME: we really only want to do this for initialized rings */
-		if (i915.enable_execlists)
-			intel_lr_context_deferred_create(ctx, ring);
 	}
 
 	DRM_DEBUG_DRIVER("%s context support initialized\n",

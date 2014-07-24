@@ -110,12 +110,60 @@ void intel_logical_ring_stop(struct intel_engine_cs *ring)
 
 void intel_logical_ring_cleanup(struct intel_engine_cs *ring)
 {
-	/* TODO */
+	if (!intel_ring_initialized(ring))
+		return;
+
+	/* TODO: make sure the ring is stopped */
+	ring->preallocated_lazy_request = NULL;
+	ring->outstanding_lazy_seqno = 0;
+
+	if (ring->cleanup)
+		ring->cleanup(ring);
+
+	i915_cmd_parser_fini_ring(ring);
+
+	if (ring->status_page.obj) {
+		kunmap(sg_page(ring->status_page.obj->pages->sgl));
+		ring->status_page.obj = NULL;
+	}
 }
 
 static int logical_ring_init(struct drm_device *dev, struct intel_engine_cs *ring)
 {
-	/* TODO */
+	int ret;
+	struct intel_context *dctx = ring->default_context;
+	struct drm_i915_gem_object *dctx_obj;
+
+	/* Intentionally left blank. */
+	ring->buffer = NULL;
+
+	ring->dev = dev;
+	INIT_LIST_HEAD(&ring->active_list);
+	INIT_LIST_HEAD(&ring->request_list);
+	init_waitqueue_head(&ring->irq_queue);
+
+	ret = intel_lr_context_deferred_create(dctx, ring);
+	if (ret)
+		return ret;
+
+	/* The status page is offset 0 from the context object in LRCs. */
+	dctx_obj = dctx->engine[ring->id].state;
+	ring->status_page.gfx_addr = i915_gem_obj_ggtt_offset(dctx_obj);
+	ring->status_page.page_addr = kmap(sg_page(dctx_obj->pages->sgl));
+	if (ring->status_page.page_addr == NULL)
+		return -ENOMEM;
+	ring->status_page.obj = dctx_obj;
+
+	ret = i915_cmd_parser_init_ring(ring);
+	if (ret)
+		return ret;
+
+	if (ring->init) {
+		ret = ring->init(ring);
+		if (ret)
+			return ret;
+	}
+
 	return 0;
 }
 
@@ -399,6 +447,8 @@ int intel_lr_context_deferred_create(struct intel_context *ctx,
 	int ret;
 
 	WARN_ON(ctx->legacy_hw_ctx.rcs_state != NULL);
+	if (ctx->engine[ring->id].state)
+		return 0;
 
 	context_size = round_up(get_lr_context_size(ring), 4096);
 
