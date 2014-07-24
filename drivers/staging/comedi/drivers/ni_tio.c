@@ -1002,14 +1002,12 @@ static int ni_660x_set_first_gate(struct ni_gpct *counter,
 static int ni_m_series_set_first_gate(struct ni_gpct *counter,
 				      unsigned int gate_source)
 {
-	const unsigned selected_gate = CR_CHAN(gate_source);
+	unsigned int chan = CR_CHAN(gate_source);
 	unsigned cidx = counter->counter_index;
-	/* bits of selected_gate that may be meaningful to input select register */
-	const unsigned selected_gate_mask = 0x1f;
-	unsigned ni_m_series_gate_select;
+	unsigned gate_sel;
 	unsigned i;
 
-	switch (selected_gate) {
+	switch (chan) {
 	case NI_GPCT_TIMESTAMP_MUX_GATE_SELECT:
 	case NI_GPCT_AI_START2_GATE_SELECT:
 	case NI_GPCT_PXI_STAR_TRIGGER_GATE_SELECT:
@@ -1018,22 +1016,20 @@ static int ni_m_series_set_first_gate(struct ni_gpct *counter,
 	case NI_GPCT_NEXT_SOURCE_GATE_SELECT:
 	case NI_GPCT_ANALOG_TRIGGER_OUT_GATE_SELECT:
 	case NI_GPCT_LOGIC_LOW_GATE_SELECT:
-		ni_m_series_gate_select = selected_gate & selected_gate_mask;
+		gate_sel = chan & 0x1f;
 		break;
 	default:
 		for (i = 0; i <= ni_m_series_max_rtsi_channel; ++i) {
-			if (selected_gate == NI_GPCT_RTSI_GATE_SELECT(i)) {
-				ni_m_series_gate_select =
-				    selected_gate & selected_gate_mask;
+			if (chan == NI_GPCT_RTSI_GATE_SELECT(i)) {
+				gate_sel = chan & 0x1f;
 				break;
 			}
 		}
 		if (i <= ni_m_series_max_rtsi_channel)
 			break;
 		for (i = 0; i <= ni_m_series_max_pfi_channel; ++i) {
-			if (selected_gate == NI_GPCT_PFI_GATE_SELECT(i)) {
-				ni_m_series_gate_select =
-				    selected_gate & selected_gate_mask;
+			if (chan == NI_GPCT_PFI_GATE_SELECT(i)) {
+				gate_sel = chan & 0x1f;
 				break;
 			}
 		}
@@ -1042,8 +1038,7 @@ static int ni_m_series_set_first_gate(struct ni_gpct *counter,
 		return -EINVAL;
 	}
 	ni_tio_set_bits(counter, NITIO_INPUT_SEL_REG(cidx),
-			Gi_Gate_Select_Mask,
-			Gi_Gate_Select_Bits(ni_m_series_gate_select));
+			Gi_Gate_Select_Mask, Gi_Gate_Select_Bits(gate_sel));
 	return 0;
 }
 
