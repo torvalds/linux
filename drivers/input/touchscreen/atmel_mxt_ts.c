@@ -1144,7 +1144,7 @@ static int mxt_proc_message(struct mxt_data *data, u8 *message)
 		mxt_proc_t48_messages(data, message);
 	} else if (!data->input_dev || data->suspended) {
 		/*
-		 * do not report events if input device is not
+		 * Do not report events if input device is not
 		 * yet registered or returning from suspend
 		 */
 		mxt_dump_message(data, message);
