@@ -714,6 +714,8 @@ static int test_inode_busy(struct super_block *sb, aufs_bindex_t bindex,
 	AuDbg("b%d\n", bindex);
 	for (ull = 0; !err && ull < max; ull++) {
 		i = array[ull];
+		if (unlikely(!i))
+			break;
 		if (i->i_ino == AUFS_ROOT_INO)
 			continue;
 
@@ -820,6 +822,8 @@ static int test_file_busy(struct super_block *sb, aufs_bindex_t bindex,
 	di_write_unlock(root);
 	for (ull = 0; ull < max; ull++) {
 		file = array[ull];
+		if (unlikely(!file))
+			break;
 
 		/* AuDbg("%.*s\n", AuDLNPair(file->f_dentry)); */
 		fi_read_lock(file);
@@ -1019,6 +1023,8 @@ int au_br_del(struct super_block *sb, struct au_opt_del *del, int remount)
 		di_write_unlock(root);
 		for (i = 0; i < opened; i++) {
 			file = to_free[i];
+			if (unlikely(!file))
+				break;
 
 			/* AuDbg("%.*s\n", AuDLNPair(file->f_dentry)); */
 			fi_write_lock(file);
@@ -1189,6 +1195,8 @@ static int au_br_mod_files_ro(struct super_block *sb, aufs_bindex_t bindex)
 	br_id = au_sbr_id(sb, bindex);
 	for (ull = 0; ull < max; ull++) {
 		file = array[ull];
+		if (unlikely(!file))
+			break;
 
 		/* AuDbg("%.*s\n", AuDLNPair(file->f_dentry)); */
 		fi_read_lock(file);

@@ -494,9 +494,9 @@ void *au_array_alloc(unsigned long long *hint, au_arraycb_t cb, void *arg)
 	}
 
 	sz = sizeof(array) * *hint;
-	array = kmalloc(sz, GFP_NOFS);
+	array = kzalloc(sz, GFP_NOFS);
 	if (unlikely(!array))
-		array = vmalloc(sz);
+		array = vzalloc(sz);
 	if (unlikely(!array)) {
 		array = ERR_PTR(-ENOMEM);
 		goto out;
@@ -663,6 +663,8 @@ static int au_refresh_i(struct super_block *sb)
 	sigen = au_sigen(sb);
 	for (ull = 0; ull < max; ull++) {
 		inode = array[ull];
+		if (unlikely(!inode))
+			break;
 		if (au_iigen(inode, NULL) != sigen) {
 			ii_write_lock_child(inode);
 			e = au_refresh_hinode_self(inode);
