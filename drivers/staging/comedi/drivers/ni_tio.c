@@ -189,9 +189,6 @@ enum ni_660x_second_gate_select {
 #define NI_660X_UD_PIN_GATE2_SEL(x)	(0x2 + (x))
 #define NI_660X_RTSI_GATE2_SEL(x)	(0xb + (x))
 
-static const unsigned int counter_status_mask =
-	COMEDI_COUNTER_ARMED | COMEDI_COUNTER_COUNTING;
-
 struct ni_gpct_device *
 ni_gpct_device_construct(struct comedi_device *dev,
 			 void (*write_register)(struct ni_gpct *counter,
@@ -1387,7 +1384,7 @@ int ni_tio_insn_config(struct comedi_device *dev,
 		return 0;
 	case INSN_CONFIG_GET_COUNTER_STATUS:
 		data[1] = ni_tio_counter_status(counter);
-		data[2] = counter_status_mask;
+		data[2] = COMEDI_COUNTER_ARMED | COMEDI_COUNTER_COUNTING;
 		return 0;
 	case INSN_CONFIG_SET_CLOCK_SRC:
 		return ni_tio_set_clock_src(counter, data[1], data[2]);
