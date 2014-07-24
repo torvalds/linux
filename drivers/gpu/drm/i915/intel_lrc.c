@@ -126,7 +126,8 @@ static uint64_t execlists_ctx_descriptor(struct drm_i915_gem_object *ctx_obj)
 {
 	uint64_t desc;
 	uint64_t lrca = i915_gem_obj_ggtt_offset(ctx_obj);
-	BUG_ON(lrca & 0xFFFFFFFF00000FFFULL);
+
+	WARN_ON(lrca & 0xFFFFFFFF00000FFFULL);
 
 	desc = GEN8_CTX_VALID;
 	desc |= LEGACY_CONTEXT << GEN8_CTX_MODE_SHIFT;
@@ -202,19 +203,78 @@ static int execlists_submit_context(struct intel_engine_cs *ring,
 
 	ctx_obj0 = to0->engine[ring->id].state;
 	BUG_ON(!ctx_obj0);
-	BUG_ON(!i915_gem_obj_is_pinned(ctx_obj0));
+	WARN_ON(!i915_gem_obj_is_pinned(ctx_obj0));
 
 	execlists_ctx_write_tail(ctx_obj0, tail0);
 
 	if (to1) {
 		ctx_obj1 = to1->engine[ring->id].state;
 		BUG_ON(!ctx_obj1);
-		BUG_ON(!i915_gem_obj_is_pinned(ctx_obj1));
+		WARN_ON(!i915_gem_obj_is_pinned(ctx_obj1));
 
 		execlists_ctx_write_tail(ctx_obj1, tail1);
 	}
 
 	execlists_elsp_write(ring, ctx_obj0, ctx_obj1);
+
+	return 0;
+}
+
+static void execlists_context_unqueue(struct intel_engine_cs *ring)
+{
+	struct intel_ctx_submit_request *req0 = NULL, *req1 = NULL;
+	struct intel_ctx_submit_request *cursor = NULL, *tmp = NULL;
+
+	if (list_empty(&ring->execlist_queue))
+		return;
+
+	/* Try to read in pairs */
+	list_for_each_entry_safe(cursor, tmp, &ring->execlist_queue,
+				 execlist_link) {
+		if (!req0) {
+			req0 = cursor;
+		} else if (req0->ctx == cursor->ctx) {
+			/* Same ctx: ignore first request, as second request
+			 * will update tail past first request's workload */
+			list_del(&req0->execlist_link);
+			i915_gem_context_unreference(req0->ctx);
+			kfree(req0);
+			req0 = cursor;
+		} else {
+			req1 = cursor;
+			break;
+		}
+	}
+
+	WARN_ON(execlists_submit_context(ring, req0->ctx, req0->tail,
+					 req1 ? req1->ctx : NULL,
+					 req1 ? req1->tail : 0));
+}
+
+static int execlists_context_queue(struct intel_engine_cs *ring,
+				   struct intel_context *to,
+				   u32 tail)
+{
+	struct intel_ctx_submit_request *req = NULL;
+	unsigned long flags;
+	bool was_empty;
+
+	req = kzalloc(sizeof(*req), GFP_KERNEL);
+	if (req == NULL)
+		return -ENOMEM;
+	req->ctx = to;
+	i915_gem_context_reference(req->ctx);
+	req->ring = ring;
+	req->tail = tail;
+
+	spin_lock_irqsave(&ring->execlist_lock, flags);
+
+	was_empty = list_empty(&ring->execlist_queue);
+	list_add_tail(&req->execlist_link, &ring->execlist_queue);
+	if (was_empty)
+		execlists_context_unqueue(ring);
+
+	spin_unlock_irqrestore(&ring->execlist_lock, flags);
 
 	return 0;
 }
@@ -405,8 +465,7 @@ void intel_logical_ring_advance_and_submit(struct intel_ringbuffer *ringbuf)
 	if (intel_ring_stopped(ring))
 		return;
 
-	/* FIXME: too cheeky, we don't even check if the ELSP is ready */
-	execlists_submit_context(ring, ctx, ringbuf->tail, NULL, 0);
+	execlists_context_queue(ring, ctx, ringbuf->tail);
 }
 
 static int logical_ring_alloc_seqno(struct intel_engine_cs *ring,
@@ -845,6 +904,9 @@ static int logical_ring_init(struct drm_device *dev, struct intel_engine_cs *rin
 	INIT_LIST_HEAD(&ring->active_list);
 	INIT_LIST_HEAD(&ring->request_list);
 	init_waitqueue_head(&ring->irq_queue);
+
+	INIT_LIST_HEAD(&ring->execlist_queue);
+	spin_lock_init(&ring->execlist_lock);
 
 	ret = intel_lr_context_deferred_create(dctx, ring);
 	if (ret)
