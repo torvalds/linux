@@ -768,11 +768,11 @@ static void ni_tio_get_clock_src(struct ni_gpct *counter,
 				 unsigned int *clock_source,
 				 unsigned int *period_ns)
 {
-	static const unsigned pico_per_nano = 1000;
 	uint64_t temp64;
+
 	*clock_source = ni_tio_generic_clock_src_select(counter);
 	temp64 = ni_tio_clock_period_ps(counter, *clock_source);
-	do_div(temp64, pico_per_nano);
+	do_div(temp64, 1000);	/* ps to ns */
 	*period_ns = temp64;
 }
 
