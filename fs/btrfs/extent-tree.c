@@ -3586,13 +3586,7 @@ static u64 get_restripe_target(struct btrfs_fs_info *fs_info, u64 flags)
  */
 static u64 btrfs_reduce_alloc_profile(struct btrfs_root *root, u64 flags)
 {
-	/*
-	 * we add in the count of missing devices because we want
-	 * to make sure that any RAID levels on a degraded FS
-	 * continue to be honored.
-	 */
-	u64 num_devices = root->fs_info->fs_devices->rw_devices +
-		root->fs_info->fs_devices->missing_devices;
+	u64 num_devices = root->fs_info->fs_devices->rw_devices;
 	u64 target;
 	u64 tmp;
 
@@ -8440,13 +8434,7 @@ static u64 update_block_group_flags(struct btrfs_root *root, u64 flags)
 	if (stripped)
 		return extended_to_chunk(stripped);
 
-	/*
-	 * we add in the count of missing devices because we want
-	 * to make sure that any RAID levels on a degraded FS
-	 * continue to be honored.
-	 */
-	num_devices = root->fs_info->fs_devices->rw_devices +
-		root->fs_info->fs_devices->missing_devices;
+	num_devices = root->fs_info->fs_devices->rw_devices;
 
 	stripped = BTRFS_BLOCK_GROUP_RAID0 |
 		BTRFS_BLOCK_GROUP_RAID5 | BTRFS_BLOCK_GROUP_RAID6 |
