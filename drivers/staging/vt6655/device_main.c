@@ -1626,7 +1626,7 @@ static void device_free_tx_buf(PSDevice pDevice, PSTxDesc pDesc)
 		dev_kfree_skb_irq(skb);
 
 	pTDInfo->skb_dma = 0;
-	pTDInfo->skb = 0;
+	pTDInfo->skb = NULL;
 	pTDInfo->byFlags = 0;
 }
 
