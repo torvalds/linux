@@ -178,6 +178,21 @@ static void execlists_elsp_write(struct intel_engine_cs *ring,
 	gen6_gt_force_wake_put(dev_priv, FORCEWAKE_ALL);
 }
 
+static int execlists_ctx_write_tail(struct drm_i915_gem_object *ctx_obj, u32 tail)
+{
+	struct page *page;
+	uint32_t *reg_state;
+
+	page = i915_gem_object_get_page(ctx_obj, 1);
+	reg_state = kmap_atomic(page);
+
+	reg_state[CTX_RING_TAIL+1] = tail;
+
+	kunmap_atomic(reg_state);
+
+	return 0;
+}
+
 static int execlists_submit_context(struct intel_engine_cs *ring,
 				    struct intel_context *to0, u32 tail0,
 				    struct intel_context *to1, u32 tail1)
@@ -189,10 +204,14 @@ static int execlists_submit_context(struct intel_engine_cs *ring,
 	BUG_ON(!ctx_obj0);
 	BUG_ON(!i915_gem_obj_is_pinned(ctx_obj0));
 
+	execlists_ctx_write_tail(ctx_obj0, tail0);
+
 	if (to1) {
 		ctx_obj1 = to1->engine[ring->id].state;
 		BUG_ON(!ctx_obj1);
 		BUG_ON(!i915_gem_obj_is_pinned(ctx_obj1));
+
+		execlists_ctx_write_tail(ctx_obj1, tail1);
 	}
 
 	execlists_elsp_write(ring, ctx_obj0, ctx_obj1);
