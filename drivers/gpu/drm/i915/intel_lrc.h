@@ -66,6 +66,8 @@ struct intel_ctx_submit_request {
 
 	struct list_head execlist_link;
 	struct work_struct work;
+
+	int elsp_submitted;
 };
 
 void intel_execlists_handle_ctx_events(struct intel_engine_cs *ring);

@@ -268,6 +268,7 @@ static void execlists_context_unqueue(struct intel_engine_cs *ring)
 		} else if (req0->ctx == cursor->ctx) {
 			/* Same ctx: ignore first request, as second request
 			 * will update tail past first request's workload */
+			cursor->elsp_submitted = req0->elsp_submitted;
 			list_del(&req0->execlist_link);
 			queue_work(dev_priv->wq, &req0->work);
 			req0 = cursor;
@@ -277,9 +278,15 @@ static void execlists_context_unqueue(struct intel_engine_cs *ring)
 		}
 	}
 
+	WARN_ON(req1 && req1->elsp_submitted);
+
 	WARN_ON(execlists_submit_context(ring, req0->ctx, req0->tail,
 					 req1 ? req1->ctx : NULL,
 					 req1 ? req1->tail : 0));
+
+	req0->elsp_submitted++;
+	if (req1)
+		req1->elsp_submitted++;
 }
 
 static bool execlists_check_remove_request(struct intel_engine_cs *ring,
@@ -298,9 +305,14 @@ static bool execlists_check_remove_request(struct intel_engine_cs *ring,
 		struct drm_i915_gem_object *ctx_obj =
 				head_req->ctx->engine[ring->id].state;
 		if (intel_execlists_ctx_id(ctx_obj) == request_id) {
-			list_del(&head_req->execlist_link);
-			queue_work(dev_priv->wq, &head_req->work);
-			return true;
+			WARN(head_req->elsp_submitted == 0,
+			     "Never submitted head request\n");
+
+			if (--head_req->elsp_submitted <= 0) {
+				list_del(&head_req->execlist_link);
+				queue_work(dev_priv->wq, &head_req->work);
+				return true;
+			}
 		}
 	}
 
@@ -333,7 +345,16 @@ void intel_execlists_handle_ctx_events(struct intel_engine_cs *ring)
 		status_id = I915_READ(RING_CONTEXT_STATUS_BUF(ring) +
 				(read_pointer % 6) * 8 + 4);
 
-		if (status & GEN8_CTX_STATUS_COMPLETE) {
+		if (status & GEN8_CTX_STATUS_PREEMPTED) {
+			if (status & GEN8_CTX_STATUS_LITE_RESTORE) {
+				if (execlists_check_remove_request(ring, status_id))
+					WARN(1, "Lite Restored request removed from queue\n");
+			} else
+				WARN(1, "Preemption without Lite Restore\n");
+		}
+
+		 if ((status & GEN8_CTX_STATUS_ACTIVE_IDLE) ||
+		     (status & GEN8_CTX_STATUS_ELEMENT_SWITCH)) {
 			if (execlists_check_remove_request(ring, status_id))
 				submit_contexts++;
 		}
