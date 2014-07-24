@@ -1359,6 +1359,16 @@ static void scrub_recheck_block(struct btrfs_fs_info *fs_info,
 	return;
 }
 
+static inline int scrub_check_fsid(u8 fsid[],
+				   struct scrub_page *spage)
+{
+	struct btrfs_fs_devices *fs_devices = spage->dev->fs_devices;
+	int ret;
+
+	ret = memcmp(fsid, fs_devices->fsid, BTRFS_UUID_SIZE);
+	return !ret;
+}
+
 static void scrub_recheck_block_checksum(struct btrfs_fs_info *fs_info,
 					 struct scrub_block *sblock,
 					 int is_metadata, int have_csum,
@@ -1378,7 +1388,7 @@ static void scrub_recheck_block_checksum(struct btrfs_fs_info *fs_info,
 		h = (struct btrfs_header *)mapped_buffer;
 
 		if (sblock->pagev[0]->logical != btrfs_stack_header_bytenr(h) ||
-		    memcmp(h->fsid, fs_info->fsid, BTRFS_UUID_SIZE) ||
+		    !scrub_check_fsid(h->fsid, sblock->pagev[0]) ||
 		    memcmp(h->chunk_tree_uuid, fs_info->chunk_tree_uuid,
 			   BTRFS_UUID_SIZE)) {
 			sblock->header_error = 1;
@@ -1749,7 +1759,7 @@ static int scrub_checksum_tree_block(struct scrub_block *sblock)
 	if (sblock->pagev[0]->generation != btrfs_stack_header_generation(h))
 		++fail;
 
-	if (memcmp(h->fsid, fs_info->fsid, BTRFS_UUID_SIZE))
+	if (!scrub_check_fsid(h->fsid, sblock->pagev[0]))
 		++fail;
 
 	if (memcmp(h->chunk_tree_uuid, fs_info->chunk_tree_uuid,
@@ -1788,8 +1798,6 @@ static int scrub_checksum_super(struct scrub_block *sblock)
 {
 	struct btrfs_super_block *s;
 	struct scrub_ctx *sctx = sblock->sctx;
-	struct btrfs_root *root = sctx->dev_root;
-	struct btrfs_fs_info *fs_info = root->fs_info;
 	u8 calculated_csum[BTRFS_CSUM_SIZE];
 	u8 on_disk_csum[BTRFS_CSUM_SIZE];
 	struct page *page;
@@ -1814,7 +1822,7 @@ static int scrub_checksum_super(struct scrub_block *sblock)
 	if (sblock->pagev[0]->generation != btrfs_super_generation(s))
 		++fail_gen;
 
-	if (memcmp(s->fsid, fs_info->fsid, BTRFS_UUID_SIZE))
+	if (!scrub_check_fsid(s->fsid, sblock->pagev[0]))
 		++fail_cor;
 
 	len = BTRFS_SUPER_INFO_SIZE - BTRFS_CSUM_SIZE;
