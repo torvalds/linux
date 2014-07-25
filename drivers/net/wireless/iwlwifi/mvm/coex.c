@@ -585,8 +585,6 @@ int iwl_send_bt_init_conf(struct iwl_mvm *mvm)
 	lockdep_assert_held(&mvm->mutex);
 
 	if (unlikely(mvm->bt_force_ant_mode != BT_FORCE_ANT_DIS)) {
-		u32 mode;
-
 		switch (mvm->bt_force_ant_mode) {
 		case BT_FORCE_ANT_BT:
 			mode = BT_COEX_BT;
