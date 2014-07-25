@@ -80,6 +80,7 @@ typedef int16_t aufs_bindex_t;
 #define AUFS_WKQ_NAME		AUFS_NAME "d"
 #define AUFS_MFS_DEF_SEC	30 /* seconds */
 #define AUFS_MFS_MAX_SEC	3600 /* seconds */
+#define AUFS_FHSM_CACHE_DEF_SEC	30 /* seconds */
 #define AUFS_PLINK_WARN		50 /* number of plinks in a single bucket */
 
 /* pseudo-link maintenace under /proc */
@@ -105,6 +106,7 @@ typedef int16_t aufs_bindex_t;
 #define AUFS_BRPERM_RR		"rr"
 #define AUFS_BRATTR_COO_REG	"coo_reg"
 #define AUFS_BRATTR_COO_ALL	"coo_all"
+#define AUFS_BRATTR_FHSM	"fhsm"
 #define AUFS_BRATTR_UNPIN	"unpin"
 #define AUFS_BRRATTR_WH		"wh"
 #define AUFS_BRWATTR_NLWH	"nolwh"
@@ -119,21 +121,30 @@ typedef int16_t aufs_bindex_t;
 #define AuBrAttr_COO_ALL	(1 << 4)
 #define AuBrAttr_COO_Mask	(AuBrAttr_COO_REG | AuBrAttr_COO_ALL)
 
-#define AuBrAttr_UNPIN		(1 << 5)	/* rename-able top dir of
+#define AuBrAttr_FHSM		(1 << 5)	/* file-based hsm */
+#define AuBrAttr_UNPIN		(1 << 6)	/* rename-able top dir of
 						   branch */
 
-#define AuBrRAttr_WH		(1 << 6)	/* whiteout-able */
+#define AuBrRAttr_WH		(1 << 7)	/* whiteout-able */
 #define AuBrRAttr_Mask		AuBrRAttr_WH
 
-#define AuBrWAttr_NoLinkWH	(1 << 7)	/* un-hardlinkable whiteouts */
-#define AuBrWAttr_MOO		(1 << 8)	/* move-up on open */
+#define AuBrWAttr_NoLinkWH	(1 << 8)	/* un-hardlinkable whiteouts */
+#define AuBrWAttr_MOO		(1 << 9)	/* move-up on open */
 #define AuBrWAttr_Mask		(AuBrWAttr_NoLinkWH | AuBrWAttr_MOO)
 
 #define AuBrAttr_CMOO_Mask	(AuBrAttr_COO_Mask | AuBrWAttr_MOO)
 
+#ifdef __KERNEL__
+#ifndef CONFIG_AUFS_FHSM
+#undef AuBrAttr_FHSM
+#define AuBrAttr_FHSM		0
+#endif
+#endif
+
 /* the longest combination */
 #define AuBrPermStrSz	sizeof(AUFS_BRPERM_RW		\
 			       "+" AUFS_BRATTR_COO_REG	\
+			       "+" AUFS_BRATTR_FHSM	\
 			       "+" AUFS_BRATTR_UNPIN	\
 			       "+" AUFS_BRWATTR_NLWH)
 
@@ -161,6 +172,11 @@ static inline int au_br_cmoo(int brperm)
 	return brperm & AuBrAttr_CMOO_Mask;
 }
 
+static inline int au_br_fhsm(int brperm)
+{
+	return brperm & AuBrAttr_FHSM;
+}
+
 /* ---------------------------------------------------------------------- */
 
 /* ioctl */
@@ -172,7 +188,8 @@ enum {
 	AuCtl_WBR_FD,	/* pathconf wrapper */
 	AuCtl_IBUSY,	/* busy inode */
 	AuCtl_MVDOWN,	/* move-down */
-	AuCtl_BR	/* info about branches */
+	AuCtl_BR,	/* info about branches */
+	AuCtl_FHSM_FD	/* connection for fhsm */
 };
 
 /* borrowed from linux/include/linux/kernel.h */
@@ -344,5 +361,6 @@ union aufs_brinfo {
 #define AUFS_CTL_MVDOWN		_IOWR(AuCtlType, AuCtl_MVDOWN, \
 				      struct aufs_mvdown)
 #define AUFS_CTL_BRINFO		_IOW(AuCtlType, AuCtl_BR, union aufs_brinfo)
+#define AUFS_CTL_FHSM_FD	_IOW(AuCtlType, AuCtl_FHSM_FD, int)
 
 #endif /* __AUFS_TYPE_H__ */

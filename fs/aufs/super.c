@@ -266,6 +266,8 @@ static int aufs_show_options(struct seq_file *m, struct dentry *dentry)
 	AuUInt(RDBLK, rdblk, sbinfo->si_rdblk);
 	AuUInt(RDHASH, rdhash, sbinfo->si_rdhash);
 
+	au_fhsm_show(m, sbinfo);
+
 	AuBool(SUM, sum);
 	/* AuBool(SUM_W, wsum); */
 	AuBool(WARN_PERM, warn_perm);
@@ -481,9 +483,9 @@ void *au_array_alloc(unsigned long long *hint, au_arraycb_t cb, void *arg)
 	}
 
 	sz = sizeof(array) * *hint;
-	array = kmalloc(sz, GFP_NOFS);
+	array = kzalloc(sz, GFP_NOFS);
 	if (unlikely(!array))
-		array = vmalloc(sz);
+		array = vzalloc(sz);
 	if (unlikely(!array)) {
 		array = ERR_PTR(-ENOMEM);
 		goto out;
@@ -650,6 +652,8 @@ static int au_refresh_i(struct super_block *sb)
 	sigen = au_sigen(sb);
 	for (ull = 0; ull < max; ull++) {
 		inode = array[ull];
+		if (unlikely(!inode))
+			break;
 		if (au_iigen(inode, NULL) != sigen) {
 			ii_write_lock_child(inode);
 			e = au_refresh_hinode_self(inode);
@@ -783,6 +787,7 @@ static int aufs_remount_fs(struct super_block *sb, int *flags, char *data)
 		au_dy_arefresh(do_dx);
 	}
 
+	au_fhsm_wrote_all(sb, /*force*/1); /* ?? */
 	aufs_write_unlock(root);
 
 out_mtx:
@@ -958,6 +963,7 @@ static void aufs_kill_sb(struct super_block *sb)
 	if (sbinfo) {
 		au_sbilist_del(sb);
 		aufs_write_lock(sb->s_root);
+		au_fhsm_fin(sb);
 		if (sbinfo->si_wbr_create_ops->fin)
 			sbinfo->si_wbr_create_ops->fin(sb);
 		if (au_opt_test(sbinfo->si_mntflags, UDBA_HNOTIFY)) {
