@@ -21,19 +21,16 @@
  * Driver: amplc_pc236
  * Description: Amplicon PC36AT, PCI236
  * Author: Ian Abbott <abbotti@mev.co.uk>
- * Devices: [Amplicon] PC36AT (pc36at), PCI236 (pci236 or amplc_pc236)
- * Updated: Wed, 01 Apr 2009 15:41:25 +0100
+ * Devices: [Amplicon] PC36AT (pc36at), PCI236 (pci236)
+ * Updated: Thu, 24 Jul 2014 14:25:26 +0000
  * Status: works
  *
  * Configuration options - PC36AT:
  *   [0] - I/O port base address
  *   [1] - IRQ (optional)
  *
- * Configuration options - PCI236:
- *   [0] - PCI bus of device (optional)
- *   [1] - PCI slot of device (optional)
- *   If bus/slot is not specified, the first available PCI device will be
- *   used.
+ * Manual configuration of PCI board (PCI236) is not supported; it is
+ * configured automatically.
  *
  * The PC36AT ISA board and PCI236 PCI board have a single 8255 appearing
  * as subdevice 0.
@@ -85,7 +82,7 @@
  */
 
 enum pc236_bustype { isa_bustype, pci_bustype };
-enum pc236_model { pc36at_model, pci236_model, anypci_model };
+enum pc236_model { pc36at_model, pci236_model };
 
 struct pc236_board {
 	const char *name;
@@ -107,12 +104,6 @@ static const struct pc236_board pc236_boards[] = {
 		.devid = PCI_DEVICE_ID_AMPLICON_PCI236,
 		.bustype = pci_bustype,
 		.model = pci236_model,
-	},
-	{
-		.name = "amplc_pc236",
-		.devid = PCI_DEVICE_ID_INVALID,
-		.bustype = pci_bustype,
-		.model = anypci_model,	/* wildcard */
 	},
 #endif
 };
@@ -145,49 +136,6 @@ static const struct pc236_board *pc236_find_pci_board(struct pci_dev *pci_dev)
 		if (is_pci_board(&pc236_boards[i]) &&
 		    pci_dev->device == pc236_boards[i].devid)
 			return &pc236_boards[i];
-	return NULL;
-}
-
-/*
- * This function looks for a PCI device matching the requested board name,
- * bus and slot.
- */
-static struct pci_dev *pc236_find_pci_dev(struct comedi_device *dev,
-					  struct comedi_devconfig *it)
-{
-	const struct pc236_board *thisboard = comedi_board(dev);
-	struct pci_dev *pci_dev = NULL;
-	int bus = it->options[0];
-	int slot = it->options[1];
-
-	for_each_pci_dev(pci_dev) {
-		if (bus || slot) {
-			if (bus != pci_dev->bus->number ||
-			    slot != PCI_SLOT(pci_dev->devfn))
-				continue;
-		}
-		if (pci_dev->vendor != PCI_VENDOR_ID_AMPLICON)
-			continue;
-
-		if (thisboard->model == anypci_model) {
-			/* Wildcard board matches any supported PCI board. */
-			const struct pc236_board *foundboard;
-
-			foundboard = pc236_find_pci_board(pci_dev);
-			if (foundboard == NULL)
-				continue;
-			/* Replace wildcard board_ptr. */
-			dev->board_ptr = foundboard;
-		} else {
-			/* Match specific model name. */
-			if (pci_dev->device != thisboard->devid)
-				continue;
-		}
-		return pci_dev;
-	}
-	dev_err(dev->class_dev,
-		"No supported board found! (req. bus %d, slot %d)\n",
-		bus, slot);
 	return NULL;
 }
 
@@ -439,12 +387,10 @@ static int pc236_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 		return pc236_common_attach(dev, dev->iobase, it->options[1], 0);
 	} else if (is_pci_board(thisboard)) {
-		struct pci_dev *pci_dev;
-
-		pci_dev = pc236_find_pci_dev(dev, it);
-		if (!pci_dev)
-			return -EIO;
-		return pc236_pci_common_attach(dev, pci_dev);
+		dev_err(dev->class_dev,
+			"Manual configuration of PCI board '%s' is not supported\n",
+			thisboard->name);
+		return -EIO;
 	}
 
 	dev_err(dev->class_dev, "BUG! cannot determine board type!\n");
