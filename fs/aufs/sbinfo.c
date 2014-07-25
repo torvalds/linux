@@ -84,6 +84,8 @@ int au_si_alloc(struct super_block *sb)
 	sbinfo->si_wbr_copyup_ops = au_wbr_copyup_ops + sbinfo->si_wbr_copyup;
 	sbinfo->si_wbr_create_ops = au_wbr_create_ops + sbinfo->si_wbr_create;
 
+	au_fhsm_init(sbinfo);
+
 	sbinfo->si_mntflags = au_opts_plink(AuOpt_Def);
 
 	sbinfo->si_xino_jiffy = jiffies;

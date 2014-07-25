@@ -62,6 +62,20 @@ static inline int au_plink_hash(ino_t ino)
 	return ino % AuPlink_NHASH;
 }
 
+/* File-based Hierarchical Storage Management */
+struct au_fhsm {
+#ifdef CONFIG_AUFS_FHSM
+	/* allow only one process who can receive the notification */
+	spinlock_t		fhsm_spin;
+	pid_t			fhsm_pid;
+	wait_queue_head_t	fhsm_wqh;
+	atomic_t		fhsm_readable;
+
+	/* only this is protected by si_rwsem */
+	unsigned long		fhsm_expire;
+#endif
+};
+
 struct au_branch;
 struct au_sbinfo {
 	/* nowait tasks in the system-wide workqueue */
@@ -109,6 +123,9 @@ struct au_sbinfo {
 
 	/* most free space */
 	struct au_wbr_mfs	si_wbr_mfs;
+
+	/* File-based Hierarchical Storage Management */
+	struct au_fhsm		si_fhsm;
 
 	/* mount flags */
 	/* include/asm-ia64/siginfo.h defines a macro named si_flags */
@@ -190,6 +207,14 @@ struct au_sbinfo {
  * if it is false, refreshing dirs at access time is unnecesary
  */
 #define AuSi_FAILED_REFRESH_DIR	1
+
+#define AuSi_FHSM		(1 << 1)	/* fhsm is active now */
+
+#ifndef CONFIG_AUFS_FHSM
+#undef AuSi_FHSM
+#define AuSi_FHSM		0
+#endif
+
 static inline unsigned char au_do_ftest_si(struct au_sbinfo *sbi,
 					   unsigned int flag)
 {
@@ -271,6 +296,39 @@ int au_wbr_do_copyup_bu(struct dentry *dentry, aufs_bindex_t bstart);
 
 /* mvdown.c */
 int au_mvdown(struct dentry *dentry, struct aufs_mvdown __user *arg);
+
+#ifdef CONFIG_AUFS_FHSM
+/* fhsm.c */
+
+static inline pid_t au_fhsm_pid(struct au_fhsm *fhsm)
+{
+	pid_t pid;
+
+	spin_lock(&fhsm->fhsm_spin);
+	pid = fhsm->fhsm_pid;
+	spin_unlock(&fhsm->fhsm_spin);
+
+	return pid;
+}
+
+void au_fhsm_wrote(struct super_block *sb, aufs_bindex_t bindex, int force);
+void au_fhsm_wrote_all(struct super_block *sb, int force);
+int au_fhsm_fd(struct super_block *sb, int oflags);
+void au_fhsm_fin(struct super_block *sb);
+void au_fhsm_init(struct au_sbinfo *sbinfo);
+void au_fhsm_set(struct au_sbinfo *sbinfo, unsigned int sec);
+void au_fhsm_show(struct seq_file *seq, struct au_sbinfo *sbinfo);
+#else
+AuStubVoid(au_fhsm_wrote, struct super_block *sb, aufs_bindex_t bindex,
+	   int force)
+AuStubVoid(au_fhsm_wrote_all, struct super_block *sb, int force)
+AuStub(int, au_fhsm_fd, return -EOPNOTSUPP, struct super_block *sb, int oflags)
+AuStub(pid_t, au_fhsm_pid, return 0, struct au_fhsm *fhsm);
+AuStubVoid(au_fhsm_fin, struct super_block *sb)
+AuStubVoid(au_fhsm_init, struct au_sbinfo *sbinfo)
+AuStubVoid(au_fhsm_set, struct au_sbinfo *sbinfo, unsigned int sec)
+AuStubVoid(au_fhsm_show, struct seq_file *seq, struct au_sbinfo *sbinfo)
+#endif
 
 /* ---------------------------------------------------------------------- */
 
