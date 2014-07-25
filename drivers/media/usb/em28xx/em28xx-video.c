@@ -1868,7 +1868,7 @@ static int em28xx_v4l2_open(struct file *filp)
 	struct em28xx *dev = video_drvdata(filp);
 	struct em28xx_v4l2 *v4l2 = dev->v4l2;
 	enum v4l2_buf_type fh_type = 0;
-	struct v4l2_fh *fh;
+	int ret;
 
 	switch (vdev->vfl_type) {
 	case VFL_TYPE_GRABBER:
@@ -1889,14 +1889,14 @@ static int em28xx_v4l2_open(struct file *filp)
 
 	if (mutex_lock_interruptible(&dev->lock))
 		return -ERESTARTSYS;
-	fh = kzalloc(sizeof(struct v4l2_fh), GFP_KERNEL);
-	if (!fh) {
-		em28xx_errdev("em28xx-video.c: Out of memory?!\n");
+
+	ret = v4l2_fh_open(filp);
+	if (ret) {
+		em28xx_errdev("%s: v4l2_fh_open() returned error %d\n",
+			      __func__, ret);
 		mutex_unlock(&dev->lock);
-		return -ENOMEM;
+		return ret;
 	}
-	v4l2_fh_init(fh, vdev);
-	filp->private_data = fh;
 
 	if (v4l2->users == 0) {
 		em28xx_set_mode(dev, EM28XX_ANALOG_MODE);
@@ -1921,7 +1921,6 @@ static int em28xx_v4l2_open(struct file *filp)
 	v4l2->users++;
 
 	mutex_unlock(&dev->lock);
-	v4l2_fh_add(fh);
 
 	return 0;
 }
