@@ -141,7 +141,10 @@ static int d_namespace_path(const struct path *path, char *buf, int buflen,
 			error = -EACCES;
 			if (*res == '/')
 				*name = res + 1;
-		}
+		} else if (*res != '/')
+			/* CONNECT_PATH with missing root */
+			error = prepend(name, *name - buf, "/", 1);
+
 	}
 
 out:
