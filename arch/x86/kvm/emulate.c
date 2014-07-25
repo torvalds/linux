@@ -1317,8 +1317,7 @@ static int pio_in_emulated(struct x86_emulate_ctxt *ctxt,
 		in_page = (ctxt->eflags & EFLG_DF) ?
 			offset_in_page(reg_read(ctxt, VCPU_REGS_RDI)) :
 			PAGE_SIZE - offset_in_page(reg_read(ctxt, VCPU_REGS_RDI));
-		n = min(min(in_page, (unsigned int)sizeof(rc->data)) / size,
-			count);
+		n = min3(in_page, (unsigned int)sizeof(rc->data) / size, count);
 		if (n == 0)
 			n = 1;
 		rc->pos = rc->end = 0;
