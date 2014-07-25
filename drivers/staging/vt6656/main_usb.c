@@ -434,7 +434,7 @@ static void usb_device_reset(struct vnt_private *priv)
 	return ;
 }
 
-static void device_free_int_bufs(struct vnt_private *priv)
+static void vnt_free_int_bufs(struct vnt_private *priv)
 {
 	kfree(priv->int_buf.data_buf);
 
@@ -569,7 +569,7 @@ static int vnt_start(struct ieee80211_hw *hw)
 free_all:
 	vnt_free_rx_bufs(priv);
 	vnt_free_tx_bufs(priv);
-	device_free_int_bufs(priv);
+	vnt_free_int_bufs(priv);
 
 	usb_kill_urb(priv->interrupt_urb);
 	usb_free_urb(priv->interrupt_urb);
@@ -604,7 +604,7 @@ static void vnt_stop(struct ieee80211_hw *hw)
 
 	vnt_free_tx_bufs(priv);
 	vnt_free_rx_bufs(priv);
-	device_free_int_bufs(priv);
+	vnt_free_int_bufs(priv);
 
 	usb_kill_urb(priv->interrupt_urb);
 	usb_free_urb(priv->interrupt_urb);
