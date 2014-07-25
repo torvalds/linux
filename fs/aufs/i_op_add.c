@@ -20,17 +20,19 @@ static int epilog(struct inode *dir, aufs_bindex_t bindex,
 	int err, rerr;
 	aufs_bindex_t bwh;
 	struct path h_path;
+	struct super_block *sb;
 	struct inode *inode, *h_dir;
 	struct dentry *wh;
 
 	bwh = -1;
+	sb = dir->i_sb;
 	if (wh_dentry) {
 		h_dir = wh_dentry->d_parent->d_inode; /* dir inode is locked */
 		IMustLock(h_dir);
 		AuDebugOn(au_h_iptr(dir, bindex) != h_dir);
 		bwh = au_dbwh(dentry);
 		h_path.dentry = wh_dentry;
-		h_path.mnt = au_sbr_mnt(dir->i_sb, bindex);
+		h_path.mnt = au_sbr_mnt(sb, bindex);
 		err = au_wh_unlink_dentry(au_h_iptr(dir, bindex), &h_path,
 					  dentry);
 		if (unlikely(err))
@@ -45,6 +47,7 @@ static int epilog(struct inode *dir, aufs_bindex_t bindex,
 		if (au_ibstart(dir) == au_dbstart(dentry))
 			au_cpup_attr_timesizes(dir);
 		dir->i_version++;
+		au_fhsm_wrote(sb, bindex, /*force*/0);
 		return 0; /* success */
 	}
 
@@ -587,6 +590,8 @@ int aufs_link(struct dentry *src_dentry, struct inode *dir,
 	if (d_unhashed(a->h_path.dentry))
 		/* some filesystem calls d_drop() */
 		d_drop(dentry);
+	/* some filesystems consume an inode even hardlink */
+	au_fhsm_wrote(sb, a->bdst, /*force*/0);
 	goto out_unpin; /* success */
 
 out_revert:

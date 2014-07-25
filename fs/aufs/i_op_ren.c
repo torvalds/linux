@@ -245,7 +245,8 @@ static int au_ren_diropq(struct au_ren_args *a)
 	au_hn_imtx_unlock(a->src_hinode);
 	if (IS_ERR(diropq))
 		err = PTR_ERR(diropq);
-	dput(diropq);
+	else
+		dput(diropq);
 
 	return err;
 }
@@ -345,6 +346,7 @@ static int do_rename(struct au_ren_args *a)
 	if (a->thargs)
 		au_ren_del_whtmp(a); /* ignore this error */
 
+	au_fhsm_wrote(a->src_dentry->d_sb, a->btgt, /*force*/0);
 	err = 0;
 	goto out_success;
 

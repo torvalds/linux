@@ -26,6 +26,7 @@ aufs-$(CONFIG_AUFS_BDEV_LOOP) += loop.o
 aufs-$(CONFIG_AUFS_HNOTIFY) += hnotify.o
 aufs-$(CONFIG_AUFS_HFSNOTIFY) += hfsnotify.o
 aufs-$(CONFIG_AUFS_EXPORT) += export.o
+aufs-$(CONFIG_AUFS_FHSM) += fhsm.o
 aufs-$(CONFIG_AUFS_POLL) += poll.o
 aufs-$(CONFIG_AUFS_RDU) += rdu.o
 aufs-$(CONFIG_AUFS_BR_HFSPLUS) += hfsplus.o

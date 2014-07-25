@@ -475,7 +475,7 @@ int cpup_entry(struct au_cp_generic *cpg, struct dentry *dst_parent,
 	int err;
 	umode_t mode;
 	unsigned int mnt_flags;
-	unsigned char isdir;
+	unsigned char isdir, isreg, force;
 	const unsigned char do_dt = !!au_ftest_cpup(cpg->flags, DTIME);
 	struct au_dtime dt;
 	struct path h_path;
@@ -506,10 +506,12 @@ int cpup_entry(struct au_cp_generic *cpg, struct dentry *dst_parent,
 	}
 	h_path.dentry = h_dst;
 
+	isreg = 0;
 	isdir = 0;
 	mode = h_inode->i_mode;
 	switch (mode & S_IFMT) {
 	case S_IFREG:
+		isreg = 1;
 		err = vfsub_create(h_dir, &h_path, mode | S_IWUSR,
 				   /*want_excl*/true);
 		if (!err)
@@ -556,6 +558,16 @@ int cpup_entry(struct au_cp_generic *cpg, struct dentry *dst_parent,
 	    && !au_ftest_cpup(cpg->flags, KEEPLINO))
 		au_xino_write(sb, cpg->bsrc, h_inode->i_ino, /*ino*/0);
 		/* ignore this error */
+
+	if (!err) {
+		force = 0;
+		if (isreg) {
+			force = !!cpg->len;
+			if (cpg->len == -1)
+				force = !!i_size_read(h_inode);
+		}
+		au_fhsm_wrote(sb, cpg->bdst, force);
+	}
 
 	if (do_dt)
 		au_dtime_revert(&dt);
