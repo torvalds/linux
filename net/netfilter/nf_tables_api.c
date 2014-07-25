@@ -3073,6 +3073,9 @@ static int nf_tables_newsetelem(struct sock *nlsk, struct sk_buff *skb,
 	struct nft_ctx ctx;
 	int rem, err = 0;
 
+	if (nla[NFTA_SET_ELEM_LIST_ELEMENTS] == NULL)
+		return -EINVAL;
+
 	err = nft_ctx_init_from_elemattr(&ctx, skb, nlh, nla, true);
 	if (err < 0)
 		return err;
@@ -3155,6 +3158,9 @@ static int nf_tables_delsetelem(struct sock *nlsk, struct sk_buff *skb,
 	struct nft_set *set;
 	struct nft_ctx ctx;
 	int rem, err = 0;
+
+	if (nla[NFTA_SET_ELEM_LIST_ELEMENTS] == NULL)
+		return -EINVAL;
 
 	err = nft_ctx_init_from_elemattr(&ctx, skb, nlh, nla, false);
 	if (err < 0)
