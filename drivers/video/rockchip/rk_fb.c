@@ -2101,10 +2101,10 @@ int rk_get_real_fps(int before)
 EXPORT_SYMBOL(rk_get_real_fps);
 
 #endif
-
+#ifdef CONFIG_ROCKCHIP_IOMMU
 #define ION_MAX 10
 static struct ion_handle *ion_hanle[ION_MAX];
-
+#endif
 static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd,
 		       unsigned long arg)
 {
@@ -2144,9 +2144,12 @@ static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd,
 
 			if (copy_from_user(yuv_phy, argp, 8))
 				return -EFAULT;
+			#ifdef CONFIG_ROCKCHIP_IOMMU
 			if (!dev_drv->iommu_enabled || !strcmp(info->fix.id, "fb0")) {
+			#endif
 				fix->smem_start = yuv_phy[0];
 				fix->mmio_start = yuv_phy[1];
+			#ifdef CONFIG_ROCKCHIP_IOMMU
 			} else {
 				int usr_fd, offset, tmp;
 				struct ion_handle *hdl;
@@ -2179,6 +2182,7 @@ static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd,
 					ion_hanle[tmp] = ion_hanle[tmp - 1];
 				ion_hanle[0] = 0;
 			}
+			#endif
 			break;
 		}
 	case RK_FBIOSET_ENABLE:
