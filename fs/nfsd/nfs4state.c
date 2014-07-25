@@ -3552,12 +3552,20 @@ out_fput:
 	return status;
 }
 
-static int nfs4_set_delegation(struct nfs4_delegation *dp, struct nfs4_file *fp)
+static struct nfs4_delegation *
+nfs4_set_delegation(struct nfs4_client *clp, struct svc_fh *fh,
+		    struct nfs4_file *fp)
 {
-	int status = 0;
+	int status;
+	struct nfs4_delegation *dp;
 
 	if (fp->fi_had_conflict)
-		return -EAGAIN;
+		return ERR_PTR(-EAGAIN);
+
+	dp = alloc_init_deleg(clp, fh);
+	if (!dp)
+		return ERR_PTR(-ENOMEM);
+
 	get_nfs4_file(fp);
 	spin_lock(&state_lock);
 	spin_lock(&fp->fi_lock);
@@ -3565,7 +3573,8 @@ static int nfs4_set_delegation(struct nfs4_delegation *dp, struct nfs4_file *fp)
 	if (!fp->fi_lease) {
 		spin_unlock(&fp->fi_lock);
 		spin_unlock(&state_lock);
-		return nfs4_setlease(dp);
+		status = nfs4_setlease(dp);
+		goto out;
 	}
 	atomic_inc(&fp->fi_delegees);
 	if (fp->fi_had_conflict) {
@@ -3573,10 +3582,16 @@ static int nfs4_set_delegation(struct nfs4_delegation *dp, struct nfs4_file *fp)
 		goto out_unlock;
 	}
 	hash_delegation_locked(dp, fp);
+	status = 0;
 out_unlock:
 	spin_unlock(&fp->fi_lock);
 	spin_unlock(&state_lock);
-	return status;
+out:
+	if (status) {
+		nfs4_put_delegation(dp);
+		return ERR_PTR(status);
+	}
+	return dp;
 }
 
 static void nfsd4_open_deleg_none_ext(struct nfsd4_open *open, int status)
@@ -3650,12 +3665,9 @@ nfs4_open_delegation(struct svc_fh *fh, struct nfsd4_open *open,
 		default:
 			goto out_no_deleg;
 	}
-	dp = alloc_init_deleg(clp, fh);
-	if (dp == NULL)
+	dp = nfs4_set_delegation(clp, fh, stp->st_file);
+	if (IS_ERR(dp))
 		goto out_no_deleg;
-	status = nfs4_set_delegation(dp, stp->st_file);
-	if (status)
-		goto out_free;
 
 	memcpy(&open->op_delegate_stateid, &dp->dl_stid.sc_stateid, sizeof(dp->dl_stid.sc_stateid));
 
@@ -3663,8 +3675,6 @@ nfs4_open_delegation(struct svc_fh *fh, struct nfsd4_open *open,
 		STATEID_VAL(&dp->dl_stid.sc_stateid));
 	open->op_delegate_type = NFS4_OPEN_DELEGATE_READ;
 	return;
-out_free:
-	nfs4_put_delegation(dp);
 out_no_deleg:
 	open->op_delegate_type = NFS4_OPEN_DELEGATE_NONE;
 	if (open->op_claim_type == NFS4_OPEN_CLAIM_PREVIOUS &&
