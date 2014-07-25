@@ -213,7 +213,7 @@ static bool sanitize(char *p, int size)
 	bool ret = true;
 
 	for (i = 0; i < size; i++) {
-		if (p[i] < 32 || p[i] >= 128) {
+		if (p[i] < 32) {
 			p[i] = ' ';
 			ret = false;
 		}
