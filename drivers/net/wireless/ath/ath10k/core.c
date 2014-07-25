@@ -499,6 +499,13 @@ static int ath10k_core_fetch_firmware_api_n(struct ath10k *ar, const char *name)
 		goto err;
 	}
 
+	if (test_bit(ATH10K_FW_FEATURE_WMI_10_2, ar->fw_features) &&
+	    !test_bit(ATH10K_FW_FEATURE_WMI_10X, ar->fw_features)) {
+		ath10k_err("feature bits corrupted: 10.2 feature requires 10.x feature to be set as well");
+		ret = -EINVAL;
+		goto err;
+	}
+
 	/* now fetch the board file */
 	if (ar->hw_params.fw.board == NULL) {
 		ath10k_err("board data file not defined");
@@ -530,6 +537,13 @@ err:
 static int ath10k_core_fetch_firmware_files(struct ath10k *ar)
 {
 	int ret;
+
+	ar->fw_api = 3;
+	ath10k_dbg(ATH10K_DBG_BOOT, "trying fw api %d\n", ar->fw_api);
+
+	ret = ath10k_core_fetch_firmware_api_n(ar, ATH10K_FW_API3_FILE);
+	if (ret == 0)
+		goto success;
 
 	ar->fw_api = 2;
 	ath10k_dbg(ATH10K_DBG_BOOT, "trying fw api %d\n", ar->fw_api);

@@ -330,6 +330,11 @@ enum ath10k_fw_features {
 	/* Firmware does not support P2P */
 	ATH10K_FW_FEATURE_NO_P2P = 3,
 
+	/* Firmware 10.2 feature bit. The ATH10K_FW_FEATURE_WMI_10X feature bit
+	 * is required to be set as well.
+	 */
+	ATH10K_FW_FEATURE_WMI_10_2 = 4,
+
 	/* keep last */
 	ATH10K_FW_FEATURE_COUNT,
 };
