@@ -296,6 +296,10 @@ void f2fs_evict_inode(struct inode *inode)
 	sb_end_intwrite(inode->i_sb);
 no_delete:
 	invalidate_mapping_pages(NODE_MAPPING(sbi), inode->i_ino, inode->i_ino);
+	if (is_inode_flag_set(F2FS_I(inode), FI_APPEND_WRITE))
+		add_dirty_inode(sbi, inode->i_ino, APPEND_INO);
+	if (is_inode_flag_set(F2FS_I(inode), FI_UPDATE_WRITE))
+		add_dirty_inode(sbi, inode->i_ino, UPDATE_INO);
 out_clear:
 	clear_inode(inode);
 }

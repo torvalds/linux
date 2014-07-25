@@ -789,9 +789,11 @@ int do_write_data_page(struct page *page, struct f2fs_io_info *fio)
 			!is_cold_data(page) &&
 			need_inplace_update(inode))) {
 		rewrite_data_page(page, old_blkaddr, fio);
+		set_inode_flag(F2FS_I(inode), FI_UPDATE_WRITE);
 	} else {
 		write_data_page(page, &dn, &new_blkaddr, fio);
 		update_extent_cache(new_blkaddr, &dn);
+		set_inode_flag(F2FS_I(inode), FI_APPEND_WRITE);
 	}
 out_writepage:
 	f2fs_put_dnode(&dn);

@@ -326,6 +326,44 @@ static void __remove_ino_entry(struct f2fs_sb_info *sbi, nid_t ino, int type)
 	spin_unlock(&sbi->ino_lock[type]);
 }
 
+void add_dirty_inode(struct f2fs_sb_info *sbi, nid_t ino, int type)
+{
+	/* add new dirty ino entry into list */
+	__add_ino_entry(sbi, ino, type);
+}
+
+void remove_dirty_inode(struct f2fs_sb_info *sbi, nid_t ino, int type)
+{
+	/* remove dirty ino entry from list */
+	__remove_ino_entry(sbi, ino, type);
+}
+
+/* mode should be APPEND_INO or UPDATE_INO */
+bool exist_written_data(struct f2fs_sb_info *sbi, nid_t ino, int mode)
+{
+	struct ino_entry *e;
+	spin_lock(&sbi->ino_lock[mode]);
+	e = radix_tree_lookup(&sbi->ino_root[mode], ino);
+	spin_unlock(&sbi->ino_lock[mode]);
+	return e ? true : false;
+}
+
+static void release_dirty_inode(struct f2fs_sb_info *sbi)
+{
+	struct ino_entry *e, *tmp;
+	int i;
+
+	for (i = APPEND_INO; i <= UPDATE_INO; i++) {
+		spin_lock(&sbi->ino_lock[i]);
+		list_for_each_entry_safe(e, tmp, &sbi->ino_list[i], list) {
+			list_del(&e->list);
+			radix_tree_delete(&sbi->ino_root[i], e->ino);
+			kmem_cache_free(ino_entry_slab, e);
+		}
+		spin_unlock(&sbi->ino_lock[i]);
+	}
+}
+
 int acquire_orphan_inode(struct f2fs_sb_info *sbi)
 {
 	int err = 0;
@@ -897,6 +935,7 @@ static void do_checkpoint(struct f2fs_sb_info *sbi, bool is_umount)
 
 	if (unlikely(!is_set_ckpt_flags(ckpt, CP_ERROR_FLAG))) {
 		clear_prefree_segments(sbi);
+		release_dirty_inode(sbi);
 		F2FS_RESET_SB_DIRT(sbi);
 	}
 }
