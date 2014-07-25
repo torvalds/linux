@@ -101,12 +101,8 @@ static void hci_cc_role_discovery(struct hci_dev *hdev, struct sk_buff *skb)
 	hci_dev_lock(hdev);
 
 	conn = hci_conn_hash_lookup_handle(hdev, __le16_to_cpu(rp->handle));
-	if (conn) {
-		if (rp->role)
-			clear_bit(HCI_CONN_MASTER, &conn->flags);
-		else
-			set_bit(HCI_CONN_MASTER, &conn->flags);
-	}
+	if (conn)
+		conn->role = rp->role;
 
 	hci_dev_unlock(hdev);
 }
@@ -1418,11 +1414,9 @@ static void hci_cs_create_conn(struct hci_dev *hdev, __u8 status)
 		}
 	} else {
 		if (!conn) {
-			conn = hci_conn_add(hdev, ACL_LINK, &cp->bdaddr);
-			if (conn) {
-				conn->out = true;
-				set_bit(HCI_CONN_MASTER, &conn->flags);
-			} else
+			conn = hci_conn_add(hdev, ACL_LINK, &cp->bdaddr,
+					    HCI_ROLE_MASTER);
+			if (!conn)
 				BT_ERR("No memory for new connection");
 		}
 	}
@@ -1650,6 +1644,8 @@ static void hci_cs_remote_name_req(struct hci_dev *hdev, __u8 status)
 
 	if (!test_and_set_bit(HCI_CONN_AUTH_PEND, &conn->flags)) {
 		struct hci_cp_auth_requested auth_cp;
+
+		set_bit(HCI_CONN_AUTH_INITIATOR, &conn->flags);
 
 		auth_cp.handle = __cpu_to_le16(conn->handle);
 		hci_send_cmd(hdev, HCI_OP_AUTH_REQUESTED,
@@ -2135,18 +2131,17 @@ static void hci_conn_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		return;
 	}
 
-	if (test_bit(HCI_CONNECTABLE, &hdev->dev_flags)) {
-		if (hci_bdaddr_list_lookup(&hdev->blacklist, &ev->bdaddr,
-					   BDADDR_BREDR)) {
-			hci_reject_conn(hdev, &ev->bdaddr);
-			return;
-		}
-	} else {
-		if (!hci_bdaddr_list_lookup(&hdev->whitelist, &ev->bdaddr,
-					    BDADDR_BREDR)) {
-			hci_reject_conn(hdev, &ev->bdaddr);
-			return;
-		}
+	if (hci_bdaddr_list_lookup(&hdev->blacklist, &ev->bdaddr,
+				   BDADDR_BREDR)) {
+		hci_reject_conn(hdev, &ev->bdaddr);
+		return;
+	}
+
+	if (!test_bit(HCI_CONNECTABLE, &hdev->dev_flags) &&
+	    !hci_bdaddr_list_lookup(&hdev->whitelist, &ev->bdaddr,
+				    BDADDR_BREDR)) {
+		    hci_reject_conn(hdev, &ev->bdaddr);
+		    return;
 	}
 
 	/* Connection accepted */
@@ -2160,7 +2155,8 @@ static void hci_conn_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	conn = hci_conn_hash_lookup_ba(hdev, ev->link_type,
 			&ev->bdaddr);
 	if (!conn) {
-		conn = hci_conn_add(hdev, ev->link_type, &ev->bdaddr);
+		conn = hci_conn_add(hdev, ev->link_type, &ev->bdaddr,
+				    HCI_ROLE_SLAVE);
 		if (!conn) {
 			BT_ERR("No memory for new connection");
 			hci_dev_unlock(hdev);
@@ -2393,6 +2389,9 @@ check_auth:
 
 	if (!test_and_set_bit(HCI_CONN_AUTH_PEND, &conn->flags)) {
 		struct hci_cp_auth_requested cp;
+
+		set_bit(HCI_CONN_AUTH_INITIATOR, &conn->flags);
+
 		cp.handle = __cpu_to_le16(conn->handle);
 		hci_send_cmd(hdev, HCI_OP_AUTH_REQUESTED, sizeof(cp), &cp);
 	}
@@ -2924,12 +2923,8 @@ static void hci_role_change_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, &ev->bdaddr);
 	if (conn) {
-		if (!ev->status) {
-			if (ev->role)
-				clear_bit(HCI_CONN_MASTER, &conn->flags);
-			else
-				set_bit(HCI_CONN_MASTER, &conn->flags);
-		}
+		if (!ev->status)
+			conn->role = ev->role;
 
 		clear_bit(HCI_CONN_RSWITCH_PEND, &conn->flags);
 
@@ -3123,10 +3118,11 @@ static void hci_pin_code_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		hci_conn_drop(conn);
 	}
 
-	if (!test_bit(HCI_PAIRABLE, &hdev->dev_flags))
+	if (!test_bit(HCI_PAIRABLE, &hdev->dev_flags) &&
+	    !test_bit(HCI_CONN_AUTH_INITIATOR, &conn->flags)) {
 		hci_send_cmd(hdev, HCI_OP_PIN_CODE_NEG_REPLY,
 			     sizeof(ev->bdaddr), &ev->bdaddr);
-	else if (test_bit(HCI_MGMT, &hdev->dev_flags)) {
+	} else if (test_bit(HCI_MGMT, &hdev->dev_flags)) {
 		u8 secure;
 
 		if (conn->pending_sec_level == BT_SECURITY_HIGH)
@@ -3652,7 +3648,11 @@ static void hci_io_capa_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	if (!test_bit(HCI_MGMT, &hdev->dev_flags))
 		goto unlock;
 
+	/* Allow pairing if we're pairable, the initiators of the
+	 * pairing or if the remote is not requesting bonding.
+	 */
 	if (test_bit(HCI_PAIRABLE, &hdev->dev_flags) ||
+	    test_bit(HCI_CONN_AUTH_INITIATOR, &conn->flags) ||
 	    (conn->remote_auth & ~0x01) == HCI_AT_NO_BONDING) {
 		struct hci_cp_io_capability_reply cp;
 
@@ -3668,7 +3668,7 @@ static void hci_io_capa_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 			 * except for the no-bonding case.
 			 */
 			if (conn->io_capability != HCI_IO_NO_INPUT_OUTPUT &&
-			    cp.authentication != HCI_AT_NO_BONDING)
+			    conn->auth_type != HCI_AT_NO_BONDING)
 				conn->auth_type |= 0x01;
 
 			cp.authentication = conn->auth_type;
@@ -3762,9 +3762,11 @@ static void hci_user_confirm_request_evt(struct hci_dev *hdev,
 		/* If we're not the initiators request authorization to
 		 * proceed from user space (mgmt_user_confirm with
 		 * confirm_hint set to 1). The exception is if neither
-		 * side had MITM in which case we do auto-accept.
+		 * side had MITM or if the local IO capability is
+		 * NoInputNoOutput, in which case we do auto-accept
 		 */
 		if (!test_bit(HCI_CONN_AUTH_PEND, &conn->flags) &&
+		    conn->io_capability != HCI_IO_NO_INPUT_OUTPUT &&
 		    (loc_mitm || rem_mitm)) {
 			BT_DBG("Confirming auto-accept as acceptor");
 			confirm_hint = 1;
@@ -3877,6 +3879,9 @@ static void hci_simple_pair_complete_evt(struct hci_dev *hdev,
 	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, &ev->bdaddr);
 	if (!conn)
 		goto unlock;
+
+	/* Reset the authentication requirement to unknown */
+	conn->remote_auth = 0xff;
 
 	/* To avoid duplicate auth_failed events to user space we check
 	 * the HCI_CONN_AUTH_PEND flag which will be set if we
@@ -4108,18 +4113,13 @@ static void hci_le_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 	conn = hci_conn_hash_lookup_state(hdev, LE_LINK, BT_CONNECT);
 	if (!conn) {
-		conn = hci_conn_add(hdev, LE_LINK, &ev->bdaddr);
+		conn = hci_conn_add(hdev, LE_LINK, &ev->bdaddr, ev->role);
 		if (!conn) {
 			BT_ERR("No memory for new connection");
 			goto unlock;
 		}
 
 		conn->dst_type = ev->bdaddr_type;
-
-		if (ev->role == LE_CONN_ROLE_MASTER) {
-			conn->out = true;
-			set_bit(HCI_CONN_MASTER, &conn->flags);
-		}
 
 		/* If we didn't have a hci_conn object previously
 		 * but we're in master role this must be something
@@ -4187,14 +4187,14 @@ static void hci_le_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	else
 		addr_type = BDADDR_LE_RANDOM;
 
-	/* Drop the connection if he device is blocked */
-	if (hci_bdaddr_list_lookup(&hdev->blacklist, &conn->dst, addr_type)) {
-		hci_conn_drop(conn);
+	if (ev->status) {
+		hci_le_conn_failed(conn, ev->status);
 		goto unlock;
 	}
 
-	if (ev->status) {
-		hci_le_conn_failed(conn, ev->status);
+	/* Drop the connection if the device is blocked */
+	if (hci_bdaddr_list_lookup(&hdev->blacklist, &conn->dst, addr_type)) {
+		hci_conn_drop(conn);
 		goto unlock;
 	}
 
@@ -4260,6 +4260,12 @@ static void check_pending_le_conn(struct hci_dev *hdev, bdaddr_t *addr,
 	if (hci_bdaddr_list_lookup(&hdev->blacklist, addr, addr_type))
 		return;
 
+	/* Most controller will fail if we try to create new connections
+	 * while we have an existing one in slave role.
+	 */
+	if (hdev->conn_hash.le_num_slave > 0)
+		return;
+
 	/* If we're connectable, always connect any ADV_DIRECT_IND event */
 	if (test_bit(HCI_CONNECTABLE, &hdev->dev_flags) &&
 	    adv_type == LE_ADV_DIRECT_IND)
@@ -4272,9 +4278,8 @@ static void check_pending_le_conn(struct hci_dev *hdev, bdaddr_t *addr,
 		return;
 
 connect:
-	/* Request connection in master = true role */
 	conn = hci_connect_le(hdev, addr, addr_type, BT_SECURITY_LOW,
-			      HCI_LE_AUTOCONN_TIMEOUT, true);
+			      HCI_LE_AUTOCONN_TIMEOUT, HCI_ROLE_MASTER);
 	if (!IS_ERR(conn))
 		return;
 
@@ -4314,14 +4319,11 @@ static void process_adv_report(struct hci_dev *hdev, u8 type, bdaddr_t *bdaddr,
 	 * device found events.
 	 */
 	if (hdev->le_scan_type == LE_SCAN_PASSIVE) {
-		struct hci_conn_params *param;
-
 		if (type == LE_ADV_DIRECT_IND)
 			return;
 
-		param = hci_pend_le_action_lookup(&hdev->pend_le_reports,
-						  bdaddr, bdaddr_type);
-		if (!param)
+		if (!hci_pend_le_action_lookup(&hdev->pend_le_reports,
+					       bdaddr, bdaddr_type))
 			return;
 
 		if (type == LE_ADV_NONCONN_IND || type == LE_ADV_SCAN_IND)
@@ -4455,7 +4457,7 @@ static void hci_le_ltk_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	if (conn == NULL)
 		goto not_found;
 
-	ltk = hci_find_ltk(hdev, ev->ediv, ev->rand, conn->out);
+	ltk = hci_find_ltk(hdev, ev->ediv, ev->rand, conn->role);
 	if (ltk == NULL)
 		goto not_found;
 
@@ -4530,7 +4532,7 @@ static void hci_le_remote_conn_param_req_evt(struct hci_dev *hdev,
 		return send_conn_param_neg_reply(hdev, handle,
 						 HCI_ERROR_INVALID_LL_PARAMS);
 
-	if (test_bit(HCI_CONN_MASTER, &hcon->flags)) {
+	if (hcon->role == HCI_ROLE_MASTER) {
 		struct hci_conn_params *params;
 		u8 store_hint;
 

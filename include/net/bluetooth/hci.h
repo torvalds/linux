@@ -401,6 +401,9 @@ enum {
 /* The core spec defines 127 as the "not available" value */
 #define HCI_TX_POWER_INVALID	127
 
+#define HCI_ROLE_MASTER		0x00
+#define HCI_ROLE_SLAVE		0x01
+
 /* Extended Inquiry Response field types */
 #define EIR_FLAGS		0x01 /* flags */
 #define EIR_UUID16_SOME		0x02 /* 16-bit UUID, more available */
@@ -1712,9 +1715,6 @@ struct hci_ev_sync_train_complete {
 } __packed;
 
 #define HCI_EV_SLAVE_PAGE_RESP_TIMEOUT	0x54
-
-/* Low energy meta events */
-#define LE_CONN_ROLE_MASTER	0x00
 
 #define HCI_EV_LE_CONN_COMPLETE		0x01
 struct hci_ev_le_conn_complete {
