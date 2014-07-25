@@ -88,20 +88,20 @@ struct pc236_board {
 	unsigned short devid;
 	enum pc236_bustype bustype;
 };
-static const struct pc236_board pc236_boards[] = {
-#if DO_ISA
+
+static const struct pc236_board pc236_isa_boards[] = {
 	{
 		.name = "pc36at",
 		.bustype = isa_bustype,
 	},
-#endif
-#if DO_PCI
+};
+
+static const struct pc236_board pc236_pci_boards[] = {
 	{
 		.name = "pci236",
 		.devid = PCI_DEVICE_ID_AMPLICON_PCI236,
 		.bustype = pci_bustype,
 	},
-#endif
 };
 
 struct pc236_private {
@@ -128,10 +128,10 @@ static const struct pc236_board *pc236_find_pci_board(struct pci_dev *pci_dev)
 {
 	unsigned int i;
 
-	for (i = 0; i < ARRAY_SIZE(pc236_boards); i++)
-		if (is_pci_board(&pc236_boards[i]) &&
-		    pci_dev->device == pc236_boards[i].devid)
-			return &pc236_boards[i];
+	for (i = 0; i < ARRAY_SIZE(pc236_pci_boards); i++)
+		if (is_pci_board(&pc236_pci_boards[i]) &&
+		    pci_dev->device == pc236_pci_boards[i].devid)
+			return &pc236_pci_boards[i];
 	return NULL;
 }
 
@@ -429,9 +429,11 @@ static struct comedi_driver amplc_pc236_driver = {
 	.attach = pc236_attach,
 	.auto_attach = pc236_auto_attach,
 	.detach = pc236_detach,
-	.board_name = &pc236_boards[0].name,
+#if DO_ISA
+	.board_name = &pc236_isa_boards[0].name,
 	.offset = sizeof(struct pc236_board),
-	.num_names = ARRAY_SIZE(pc236_boards),
+	.num_names = ARRAY_SIZE(pc236_isa_boards),
+#endif
 };
 
 #if DO_PCI
