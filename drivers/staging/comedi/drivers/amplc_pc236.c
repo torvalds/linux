@@ -85,7 +85,6 @@ enum pc236_bustype { isa_bustype, pci_bustype };
 
 struct pc236_board {
 	const char *name;
-	unsigned short devid;
 	enum pc236_bustype bustype;
 };
 
@@ -96,12 +95,9 @@ static const struct pc236_board pc236_isa_boards[] = {
 	},
 };
 
-static const struct pc236_board pc236_pci_boards[] = {
-	{
-		.name = "pci236",
-		.devid = PCI_DEVICE_ID_AMPLICON_PCI236,
-		.bustype = pci_bustype,
-	},
+static const struct pc236_board pc236_pci_board = {
+	.name = "pci236",
+	.bustype = pci_bustype,
 };
 
 struct pc236_private {
@@ -119,19 +115,6 @@ static inline bool is_isa_board(const struct pc236_board *board)
 static inline bool is_pci_board(const struct pc236_board *board)
 {
 	return DO_PCI && board->bustype == pci_bustype;
-}
-
-/*
- * This function looks for a board matching the supplied PCI device.
- */
-static const struct pc236_board *pc236_find_pci_board(struct pci_dev *pci_dev)
-{
-	unsigned int i;
-
-	for (i = 0; i < ARRAY_SIZE(pc236_pci_boards); i++)
-		if (pci_dev->device == pc236_pci_boards[i].devid)
-			return &pc236_pci_boards[i];
-	return NULL;
 }
 
 /*
@@ -382,11 +365,7 @@ static int pc236_auto_attach(struct comedi_device *dev,
 	if (!devpriv)
 		return -ENOMEM;
 
-	dev->board_ptr = pc236_find_pci_board(pci_dev);
-	if (dev->board_ptr == NULL) {
-		dev_err(dev->class_dev, "BUG! cannot determine board type!\n");
-		return -EINVAL;
-	}
+	dev->board_ptr = &pc236_pci_board;
 	ret = comedi_pci_enable(dev);
 	if (ret)
 		return ret;
