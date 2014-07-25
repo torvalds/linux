@@ -247,16 +247,14 @@ static int panel_simple_probe(struct device *dev, const struct panel_desc *desc)
 	if (IS_ERR(panel->supply))
 		return PTR_ERR(panel->supply);
 
-	panel->enable_gpio = devm_gpiod_get(dev, "enable");
+	panel->enable_gpio = devm_gpiod_get_optional(dev, "enable");
 	if (IS_ERR(panel->enable_gpio)) {
 		err = PTR_ERR(panel->enable_gpio);
-		if (err != -ENOENT) {
-			dev_err(dev, "failed to request GPIO: %d\n", err);
-			return err;
-		}
+		dev_err(dev, "failed to request GPIO: %d\n", err);
+		return err;
+	}
 
-		panel->enable_gpio = NULL;
-	} else {
+	if (panel->enable_gpio) {
 		err = gpiod_direction_output(panel->enable_gpio, 0);
 		if (err < 0) {
 			dev_err(dev, "failed to setup GPIO: %d\n", err);
