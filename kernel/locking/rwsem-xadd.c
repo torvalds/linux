@@ -82,9 +82,9 @@ void __init_rwsem(struct rw_semaphore *sem, const char *name,
 	sem->count = RWSEM_UNLOCKED_VALUE;
 	raw_spin_lock_init(&sem->wait_lock);
 	INIT_LIST_HEAD(&sem->wait_list);
-#ifdef CONFIG_SMP
+#ifdef CONFIG_RWSEM_SPIN_ON_OWNER
 	sem->owner = NULL;
-	sem->osq = NULL;
+	osq_lock_init(&sem->osq);
 #endif
 }
 
@@ -262,7 +262,7 @@ static inline bool rwsem_try_write_lock(long count, struct rw_semaphore *sem)
 	return false;
 }
 
-#ifdef CONFIG_SMP
+#ifdef CONFIG_RWSEM_SPIN_ON_OWNER
 /*
  * Try to acquire write lock before the writer has been put on wait queue.
  */
@@ -285,10 +285,10 @@ static inline bool rwsem_try_write_lock_unqueued(struct rw_semaphore *sem)
 static inline bool rwsem_can_spin_on_owner(struct rw_semaphore *sem)
 {
 	struct task_struct *owner;
-	bool on_cpu = true;
+	bool on_cpu = false;
 
 	if (need_resched())
-		return 0;
+		return false;
 
 	rcu_read_lock();
 	owner = ACCESS_ONCE(sem->owner);
@@ -297,9 +297,9 @@ static inline bool rwsem_can_spin_on_owner(struct rw_semaphore *sem)
 	rcu_read_unlock();
 
 	/*
-	 * If sem->owner is not set, the rwsem owner may have
-	 * just acquired it and not set the owner yet or the rwsem
-	 * has been released.
+	 * If sem->owner is not set, yet we have just recently entered the
+	 * slowpath, then there is a possibility reader(s) may have the lock.
+	 * To be safe, avoid spinning in these situations.
 	 */
 	return on_cpu;
 }

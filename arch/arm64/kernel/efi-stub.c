@@ -12,8 +12,6 @@
 #include <linux/efi.h>
 #include <linux/libfdt.h>
 #include <asm/sections.h>
-#include <generated/compile.h>
-#include <generated/utsrelease.h>
 
 /*
  * AArch64 requires the DTB to be 8-byte aligned in the first 512MiB from
