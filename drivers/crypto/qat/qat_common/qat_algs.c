@@ -759,7 +759,7 @@ void qat_alg_callback(void *resp)
 	qat_alg_free_bufl(inst, qat_req);
 	if (unlikely(qat_res != ICP_QAT_FW_COMN_STATUS_FLAG_OK))
 		res = -EBADMSG;
-	areq->base.complete(&(areq->base), res);
+	areq->base.complete(&areq->base, res);
 }
 
 static int qat_alg_dec(struct aead_request *areq)

@@ -120,14 +120,14 @@ struct icp_qat_hw_auth_config {
 #define QAT_AUTH_ALGO_SHA3_BITPOS 22
 #define QAT_AUTH_ALGO_SHA3_MASK 0x3
 #define ICP_QAT_HW_AUTH_CONFIG_BUILD(mode, algo, cmp_len) \
-	((((mode) & QAT_AUTH_MODE_MASK) << QAT_AUTH_MODE_BITPOS) | \
-	(((algo) & QAT_AUTH_ALGO_MASK) << QAT_AUTH_ALGO_BITPOS) | \
+	(((mode & QAT_AUTH_MODE_MASK) << QAT_AUTH_MODE_BITPOS) | \
+	((algo & QAT_AUTH_ALGO_MASK) << QAT_AUTH_ALGO_BITPOS) | \
 	(((algo >> 4) & QAT_AUTH_ALGO_SHA3_MASK) << \
 	 QAT_AUTH_ALGO_SHA3_BITPOS) | \
 	 (((((algo == ICP_QAT_HW_AUTH_ALGO_SHA3_256) || \
 	(algo == ICP_QAT_HW_AUTH_ALGO_SHA3_512)) ? 1 : 0) \
 	& QAT_AUTH_SHA3_PADDING_MASK) << QAT_AUTH_SHA3_PADDING_BITPOS) | \
-	(((cmp_len) & QAT_AUTH_CMP_MASK) << QAT_AUTH_CMP_BITPOS))
+	((cmp_len & QAT_AUTH_CMP_MASK) << QAT_AUTH_CMP_BITPOS))
 
 struct icp_qat_hw_auth_counter {
 	__be32 counter;
