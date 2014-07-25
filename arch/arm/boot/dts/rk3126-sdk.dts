@@ -1,58 +1,59 @@
 /dts-v1/;
 
-#include "rk3288.dtsi"
-#include "lcd-b101ew05.dtsi"
+#include "rk312x.dtsi"
+#include "rk312x-pinctrl.dtsi"
 
 / {
 	fiq-debugger {
 		status = "okay";
 	};
-	&nandc {
-		status = "okay"; // used nand set "okay" ,used emmc set "disabled"
-	};  
+};
 
-	&nandc0reg {
-		status = "disabled"; // used nand set "disabled" ,used emmc set "okay"
-	};
+&nandc {
+	status = "okay"; // used nand set "okay" ,used emmc set "disabled"
+}; 
 
-	&emmc {
-		clock-frequency = <100000000>;
-		clock-freq-min-max = <400000 100000000>;
-		supports-highspeed;
-		supports-emmc;
-		bootpart-no-access;
-		supports-DDR_MODE;
-		//caps2-mmc-hs200;
-		ignore-pm-notify;
-		keep-power-in-suspend;
-		//poll-hw-reset
-		status = "disabled";
-	};
+&nandc0reg {
+	status = "disabled"; // used nand set "disabled" ,used emmc set "okay"
+};
 
-	&sdmmc {
-		clock-frequency = <50000000>;
-		clock-freq-min-max = <400000 50000000>;
-		supports-highspeed;
-		supports-sd;
-		broken-cd;
-		card-detect-delay = <200>;
-		ignore-pm-notify;
-		keep-power-in-suspend;
-		//vmmc-supply = <&rk808_ldo5_reg>;
-		status = "disabled";
-	};
+&emmc {
+	clock-frequency = <100000000>;
+	clock-freq-min-max = <400000 100000000>;
+	supports-highspeed;
+	supports-emmc;
+	bootpart-no-access;
+	supports-DDR_MODE;
+	//caps2-mmc-hs200;
+	ignore-pm-notify;
+	keep-power-in-suspend;
+	//poll-hw-reset
+	status = "disabled";
+};
 
-	&sdio {
-		clock-frequency = <50000000>;
-		clock-freq-min-max = <200000 50000000>;
-		supports-highspeed;
-		supports-sdio;
-		ignore-pm-notify;
-		keep-power-in-suspend;
-		//cap-sdio-irq;
-		status = "disabled";
-	};
-    };
+&sdmmc {
+	clock-frequency = <50000000>;
+	clock-freq-min-max = <400000 50000000>;
+	supports-highspeed;
+	supports-sd;
+	broken-cd;
+	card-detect-delay = <200>;
+	ignore-pm-notify;
+	keep-power-in-suspend;
+	//vmmc-supply = <&rk808_ldo5_reg>;
+	status = "disabled";
+};
+
+&sdio {
+	clock-frequency = <50000000>;
+	clock-freq-min-max = <200000 50000000>;
+	supports-highspeed;
+	supports-sdio;
+	ignore-pm-notify;
+	keep-power-in-suspend;
+	//cap-sdio-irq;
+	status = "disabled";
+};
 
 &i2c0 {
 	status = "okay";
