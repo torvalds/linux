@@ -1088,14 +1088,13 @@ static void qat_uclo_fill_uwords(struct icp_qat_uclo_objhandle *obj_handle,
 		*uword = fill;
 }
 
-static int qat_uclo_wr_uimage_raw_page(struct icp_qat_fw_loader_handle *handle,
-				       struct icp_qat_uclo_encap_page
-				       *encap_page, unsigned int ae)
+static void qat_uclo_wr_uimage_raw_page(struct icp_qat_fw_loader_handle *handle,
+					struct icp_qat_uclo_encap_page
+					*encap_page, unsigned int ae)
 {
 	unsigned int uw_physical_addr, uw_relative_addr, i, words_num, cpylen;
 	struct icp_qat_uclo_objhandle *obj_handle = handle->obj_handle;
 	uint64_t fill_pat;
-	int status = 0;
 
 	/* load the page starting at appropriate ustore address */
 	/* get fill-pattern from an image -- they are all the same */
@@ -1126,18 +1125,15 @@ static int qat_uclo_wr_uimage_raw_page(struct icp_qat_fw_loader_handle *handle,
 		uw_relative_addr += cpylen;
 		words_num -= cpylen;
 	}
-	return status;
 }
 
-static int
-qat_uclo_wr_uimage_pages(struct icp_qat_fw_loader_handle *handle,
-			 struct icp_qat_uof_image *image)
+static void qat_uclo_wr_uimage_pages(struct icp_qat_fw_loader_handle *handle,
+				     struct icp_qat_uof_image *image)
 {
 	struct icp_qat_uclo_objhandle *obj_handle = handle->obj_handle;
 	unsigned int ctx_mask, s;
 	struct icp_qat_uclo_page *page;
 	unsigned char ae;
-	int retval = 0;
 	int ctx;
 
 	if (ICP_QAT_CTX_MODE(image->ae_mode) == ICP_QAT_UCLO_MAX_CTX)
@@ -1160,8 +1156,7 @@ qat_uclo_wr_uimage_pages(struct icp_qat_fw_loader_handle *handle,
 		page = obj_handle->ae_data[ae].ae_slices[s].page;
 		if (!page->encap_page->def_page)
 			continue;
-		if (qat_uclo_wr_uimage_raw_page(handle, page->encap_page, ae))
-			return -EINVAL;
+		qat_uclo_wr_uimage_raw_page(handle, page->encap_page, ae);
 
 		page = obj_handle->ae_data[ae].ae_slices[s].page;
 		for (ctx = 0; ctx < ICP_QAT_UCLO_MAX_CTX; ctx++)
@@ -1172,7 +1167,6 @@ qat_uclo_wr_uimage_pages(struct icp_qat_fw_loader_handle *handle,
 		qat_hal_set_pc(handle, (unsigned char)ae, image->ctx_assigned,
 			       image->entry_address);
 	}
-	return retval;
 }
 
 int qat_uclo_wr_all_uimage(struct icp_qat_fw_loader_handle *handle)
@@ -1187,9 +1181,8 @@ int qat_uclo_wr_all_uimage(struct icp_qat_fw_loader_handle *handle)
 			return -EINVAL;
 		if (qat_uclo_init_ustore(handle, &(obj_handle->ae_uimage[i])))
 			return -EINVAL;
-		if (qat_uclo_wr_uimage_pages(handle,
-					     obj_handle->ae_uimage[i].img_ptr))
-			return -EINVAL;
+		qat_uclo_wr_uimage_pages(handle,
+					 obj_handle->ae_uimage[i].img_ptr);
 	}
 	return 0;
 }
