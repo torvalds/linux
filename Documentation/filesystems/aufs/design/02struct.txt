@@ -226,6 +226,8 @@ For desgin and implementation, aufs has to consider these issues.
 - free space on the lower branch will reduce.
 - another access to the file may happen during moving-down, including
   UDBA.
+- the file should not be hard-linked nor pseudo-linked. they should be
+  handled by auplink utility later.
 
 Sometimes users want to move-down a file from the upper writable branch
 to the lower readonly or writable branch. For instance,

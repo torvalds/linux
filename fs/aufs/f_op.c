@@ -160,10 +160,12 @@ static ssize_t aufs_write(struct file *file, const char __user *ubuf,
 			  size_t count, loff_t *ppos)
 {
 	ssize_t err;
+	blkcnt_t blks;
+	aufs_bindex_t bstart;
 	struct au_pin pin;
 	struct dentry *dentry;
+	struct inode *inode, *h_inode;
 	struct super_block *sb;
-	struct inode *inode;
 	struct file *h_file;
 	char __user *buf = (char __user *)ubuf;
 
@@ -184,13 +186,20 @@ static ssize_t aufs_write(struct file *file, const char __user *ubuf,
 		goto out;
 	}
 
+	bstart = au_fbstart(file);
 	h_file = au_hf_top(file);
 	get_file(h_file);
+	h_inode = h_file->f_dentry->d_inode;
+	blks = h_inode->i_blocks;
 	au_unpin(&pin);
 	di_read_unlock(dentry, AuLock_IR);
 	fi_write_unlock(file);
 
 	err = vfsub_write_u(h_file, buf, count, ppos);
+	AuDbg("blks %llu, %llu\n", (u64)blks, (u64)h_inode->i_blocks);
+	if (err > 0)
+		au_fhsm_wrote(sb, bstart, /*force*/h_inode->i_blocks > blks);
+
 	ii_write_lock_child(inode);
 	au_cpup_attr_timesizes(inode);
 	inode->i_mode = file_inode(h_file)->i_mode;
@@ -273,9 +282,11 @@ static ssize_t aufs_aio_write(struct kiocb *kio, const struct iovec *iov,
 			      unsigned long nv, loff_t pos)
 {
 	ssize_t err;
+	blkcnt_t blks;
+	aufs_bindex_t bstart;
 	struct au_pin pin;
 	struct dentry *dentry;
-	struct inode *inode;
+	struct inode *inode, *h_inode;
 	struct file *file, *h_file;
 	struct super_block *sb;
 
@@ -297,13 +308,20 @@ static ssize_t aufs_aio_write(struct kiocb *kio, const struct iovec *iov,
 		goto out;
 	}
 
+	bstart = au_fbstart(file);
 	h_file = au_hf_top(file);
 	get_file(h_file);
+	h_inode = h_file->f_dentry->d_inode;
+	blks = h_inode->i_blocks;
 	au_unpin(&pin);
 	di_read_unlock(dentry, AuLock_IR);
 	fi_write_unlock(file);
 
 	err = au_do_aio(h_file, MAY_WRITE, kio, iov, nv, pos);
+	AuDbg("blks %llu, %llu\n", (u64)blks, (u64)h_inode->i_blocks);
+	if (err > 0)
+		au_fhsm_wrote(sb, bstart, /*force*/h_inode->i_blocks > blks);
+
 	ii_write_lock_child(inode);
 	au_cpup_attr_timesizes(inode);
 	inode->i_mode = file_inode(h_file)->i_mode;
@@ -362,11 +380,13 @@ aufs_splice_write(struct pipe_inode_info *pipe, struct file *file, loff_t *ppos,
 		  size_t len, unsigned int flags)
 {
 	ssize_t err;
+	blkcnt_t blks;
+	aufs_bindex_t bstart;
 	struct au_pin pin;
 	struct dentry *dentry;
-	struct inode *inode;
-	struct file *h_file;
+	struct inode *inode, *h_inode;
 	struct super_block *sb;
+	struct file *h_file;
 
 	dentry = file->f_dentry;
 	sb = dentry->d_sb;
@@ -385,13 +405,20 @@ aufs_splice_write(struct pipe_inode_info *pipe, struct file *file, loff_t *ppos,
 		goto out;
 	}
 
+	bstart = au_fbstart(file);
 	h_file = au_hf_top(file);
 	get_file(h_file);
+	h_inode = h_file->f_dentry->d_inode;
+	blks = h_inode->i_blocks;
 	au_unpin(&pin);
 	di_read_unlock(dentry, AuLock_IR);
 	fi_write_unlock(file);
 
 	err = vfsub_splice_from(pipe, h_file, ppos, len, flags);
+	AuDbg("blks %llu, %llu\n", (u64)blks, (u64)h_inode->i_blocks);
+	if (err > 0)
+		au_fhsm_wrote(sb, bstart, /*force*/h_inode->i_blocks > blks);
+
 	ii_write_lock_child(inode);
 	au_cpup_attr_timesizes(inode);
 	inode->i_mode = file_inode(h_file)->i_mode;
