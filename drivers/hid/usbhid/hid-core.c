@@ -536,7 +536,8 @@ static void __usbhid_submit_report(struct hid_device *hid, struct hid_report *re
 	int head;
 	struct usbhid_device *usbhid = hid->driver_data;
 
-	if ((hid->quirks & HID_QUIRK_NOGET) && dir == USB_DIR_IN)
+	if (((hid->quirks & HID_QUIRK_NOGET) && dir == USB_DIR_IN) ||
+		test_bit(HID_DISCONNECTED, &usbhid->iofl))
 		return;
 
 	if (usbhid->urbout && dir == USB_DIR_OUT && report->type == HID_OUTPUT_REPORT) {
@@ -1366,6 +1367,9 @@ static void usbhid_disconnect(struct usb_interface *intf)
 		return;
 
 	usbhid = hid->driver_data;
+	spin_lock_irq(&usbhid->lock);	/* Sync with error and led handlers */
+	set_bit(HID_DISCONNECTED, &usbhid->iofl);
+	spin_unlock_irq(&usbhid->lock);
 	hid_destroy_device(hid);
 	kfree(usbhid);
 }
