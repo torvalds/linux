@@ -486,6 +486,10 @@ static inline bool need_inplace_update(struct inode *inode)
 	if (S_ISDIR(inode->i_mode))
 		return false;
 
+	/* this is only set during fdatasync */
+	if (is_inode_flag_set(F2FS_I(inode), FI_NEED_IPU))
+		return true;
+
 	switch (SM_I(sbi)->ipu_policy) {
 	case F2FS_IPU_FORCE:
 		return true;
