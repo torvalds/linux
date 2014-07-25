@@ -666,7 +666,7 @@
 				rockchip,pins = <GPIO0_D6>, //pwren
 						<GPIO0_A3>; //cmd
 				rockchip,pull = <VALUE_PULL_UP>;
-			}
+			};
 
 		};
                 
