@@ -613,6 +613,7 @@ static const struct mfd_cell wm5110_devs[] = {
 };
 
 static const char *wm8997_supplies[] = {
+	"MICVDD",
 	"DBVDD2",
 	"CPVDD",
 	"SPKVDD",
