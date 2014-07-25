@@ -217,7 +217,6 @@ int kvmppc_kvm_pv(struct kvm_vcpu *vcpu)
 	case KVM_HCALL_TOKEN(KVM_HC_FEATURES):
 		r = EV_SUCCESS;
 #if defined(CONFIG_PPC_BOOK3S) || defined(CONFIG_KVM_E500V2)
-		/* XXX Missing magic page on 44x */
 		r2 |= (1 << KVM_FEATURE_MAGIC_PAGE);
 #endif
 

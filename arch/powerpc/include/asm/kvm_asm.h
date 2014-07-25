@@ -33,7 +33,6 @@
 /* IVPR must be 64KiB-aligned. */
 #define VCPU_SIZE_ORDER 4
 #define VCPU_SIZE_LOG   (VCPU_SIZE_ORDER + 12)
-#define VCPU_TLB_PGSZ   PPC44x_TLB_64K
 #define VCPU_SIZE_BYTES (1<<VCPU_SIZE_LOG)
 
 #define BOOKE_INTERRUPT_CRITICAL 0

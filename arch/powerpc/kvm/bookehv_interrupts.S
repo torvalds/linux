@@ -24,7 +24,6 @@
 #include <asm/ppc_asm.h>
 #include <asm/kvm_asm.h>
 #include <asm/reg.h>
-#include <asm/mmu-44x.h>
 #include <asm/page.h>
 #include <asm/asm-compat.h>
 #include <asm/asm-offsets.h>
