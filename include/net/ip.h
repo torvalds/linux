@@ -216,6 +216,12 @@ static inline int inet_is_local_reserved_port(struct net *net, int port)
 		return 0;
 	return test_bit(port, net->ipv4.sysctl_local_reserved_ports);
 }
+
+static inline bool sysctl_dev_name_is_allowed(const char *name)
+{
+	return strcmp(name, "default") != 0  && strcmp(name, "all") != 0;
+}
+
 #else
 static inline int inet_is_local_reserved_port(struct net *net, int port)
 {
