@@ -733,7 +733,7 @@ static inline struct regmap *dev_get_regmap(struct device *dev,
 static inline struct device *regmap_get_device(struct regmap *map)
 {
 	WARN_ONCE(1, "regmap API is disabled");
-	return -EINVAL;
+	return NULL;
 }
 
 #endif
