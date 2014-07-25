@@ -441,7 +441,7 @@ static void vnt_free_int_bufs(struct vnt_private *priv)
 	return;
 }
 
-static bool device_alloc_bufs(struct vnt_private *priv)
+static bool vnt_alloc_bufs(struct vnt_private *priv)
 {
 	struct vnt_usb_send_context *tx_context;
 	struct vnt_rcb *rcb;
@@ -546,8 +546,8 @@ static int vnt_start(struct ieee80211_hw *hw)
 
 	priv->rx_buf_sz = MAX_TOTAL_SIZE_WITH_ALL_HEADERS;
 
-	if (device_alloc_bufs(priv) == false) {
-		dev_dbg(&priv->usb->dev, "device_alloc_bufs fail...\n");
+	if (vnt_alloc_bufs(priv) == false) {
+		dev_dbg(&priv->usb->dev, "vnt_alloc_bufs fail...\n");
 		return -ENOMEM;
 	}
 
