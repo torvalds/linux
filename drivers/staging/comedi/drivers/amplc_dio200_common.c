@@ -1197,11 +1197,6 @@ EXPORT_SYMBOL_GPL(amplc_dio200_common_attach);
 
 void amplc_dio200_common_detach(struct comedi_device *dev)
 {
-	const struct dio200_board *thisboard = comedi_board(dev);
-	struct dio200_private *devpriv = dev->private;
-
-	if (!thisboard || !devpriv)
-		return;
 	if (dev->irq) {
 		free_irq(dev->irq, dev);
 		dev->irq = 0;
