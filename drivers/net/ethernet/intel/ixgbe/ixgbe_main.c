@@ -7973,23 +7973,32 @@ static const struct net_device_ops ixgbe_netdev_ops = {
  **/
 static inline int ixgbe_enumerate_functions(struct ixgbe_adapter *adapter)
 {
-	struct list_head *entry;
+	struct pci_dev *entry, *pdev = adapter->pdev;
 	int physfns = 0;
 
 	/* Some cards can not use the generic count PCIe functions method,
 	 * because they are behind a parent switch, so we hardcode these with
 	 * the correct number of functions.
 	 */
-	if (ixgbe_pcie_from_parent(&adapter->hw)) {
+	if (ixgbe_pcie_from_parent(&adapter->hw))
 		physfns = 4;
-	} else {
-		list_for_each(entry, &adapter->pdev->bus_list) {
-			struct pci_dev *pdev =
-				list_entry(entry, struct pci_dev, bus_list);
-			/* don't count virtual functions */
-			if (!pdev->is_virtfn)
-				physfns++;
-		}
+
+	list_for_each_entry(entry, &adapter->pdev->bus->devices, bus_list) {
+		/* don't count virtual functions */
+		if (entry->is_virtfn)
+			continue;
+
+		/* When the devices on the bus don't all match our device ID,
+		 * we can't reliably determine the correct number of
+		 * functions. This can occur if a function has been direct
+		 * attached to a virtual machine using VT-d, for example. In
+		 * this case, simply return -1 to indicate this.
+		 */
+		if ((entry->vendor != pdev->vendor) ||
+		    (entry->device != pdev->device))
+			return -1;
+
+		physfns++;
 	}
 
 	return physfns;
@@ -8161,7 +8170,7 @@ static int ixgbe_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	netdev->netdev_ops = &ixgbe_netdev_ops;
 	ixgbe_set_ethtool_ops(netdev);
 	netdev->watchdog_timeo = 5 * HZ;
-	strncpy(netdev->name, pci_name(pdev), sizeof(netdev->name) - 1);
+	strlcpy(netdev->name, pci_name(pdev), sizeof(netdev->name));
 
 	adapter->bd_number = cards_found;
 
@@ -8384,11 +8393,14 @@ skip_sriov:
 		expected_gts = ixgbe_enumerate_functions(adapter) * 10;
 		break;
 	}
-	ixgbe_check_minimum_link(adapter, expected_gts);
 
-	err = ixgbe_read_pba_string_generic(hw, part_str, IXGBE_PBANUM_LENGTH);
+	/* don't check link if we failed to enumerate functions */
+	if (expected_gts > 0)
+		ixgbe_check_minimum_link(adapter, expected_gts);
+
+	err = ixgbe_read_pba_string_generic(hw, part_str, sizeof(part_str));
 	if (err)
-		strncpy(part_str, "Unknown", IXGBE_PBANUM_LENGTH);
+		strlcpy(part_str, "Unknown", sizeof(part_str));
 	if (ixgbe_is_sfp(hw) && hw->phy.sfp_type != ixgbe_sfp_type_not_present)
 		e_dev_info("MAC: %d, PHY: %d, SFP+: %d, PBA No: %s\n",
 			   hw->mac.type, hw->phy.type, hw->phy.sfp_type,
@@ -8477,7 +8489,7 @@ err_alloc_etherdev:
 				     pci_select_bars(pdev, IORESOURCE_MEM));
 err_pci_reg:
 err_dma:
-	if (!test_and_set_bit(__IXGBE_DISABLED, &adapter->state))
+	if (!adapter || !test_and_set_bit(__IXGBE_DISABLED, &adapter->state))
 		pci_disable_device(pdev);
 	return err;
 }

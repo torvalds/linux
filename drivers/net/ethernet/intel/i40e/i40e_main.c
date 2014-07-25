@@ -8642,24 +8642,18 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dev_info(&pdev->dev, "%s\n", i40e_fw_version_str(hw));
 	if (err) {
 		dev_info(&pdev->dev,
-			 "init_adminq failed: %d expecting API %02x.%02x\n",
-			 err,
-			 I40E_FW_API_VERSION_MAJOR, I40E_FW_API_VERSION_MINOR);
+			 "The driver for the device stopped because the NVM image is newer than expected. You must install the most recent version of the network driver.\n");
 		goto err_pf_reset;
 	}
 
-	if (hw->aq.api_min_ver > I40E_FW_API_VERSION_MINOR)
+	if (hw->aq.api_maj_ver == I40E_FW_API_VERSION_MAJOR &&
+	    hw->aq.api_min_ver > I40E_FW_API_VERSION_MINOR)
 		dev_info(&pdev->dev,
-			 "Note: FW API version %02x.%02x newer than expected %02x.%02x, recommend driver update.\n",
-			 hw->aq.api_maj_ver, hw->aq.api_min_ver,
-			 I40E_FW_API_VERSION_MAJOR, I40E_FW_API_VERSION_MINOR);
-
-	if (hw->aq.api_maj_ver < I40E_FW_API_VERSION_MAJOR ||
-	    hw->aq.api_min_ver < (I40E_FW_API_VERSION_MINOR-1))
+			 "The driver for the device detected a newer version of the NVM image than expected. Please install the most recent version of the network driver.\n");
+	else if (hw->aq.api_maj_ver < I40E_FW_API_VERSION_MAJOR ||
+		 hw->aq.api_min_ver < (I40E_FW_API_VERSION_MINOR - 1))
 		dev_info(&pdev->dev,
-			 "Note: FW API version %02x.%02x older than expected %02x.%02x, recommend nvm update.\n",
-			 hw->aq.api_maj_ver, hw->aq.api_min_ver,
-			 I40E_FW_API_VERSION_MAJOR, I40E_FW_API_VERSION_MINOR);
+			 "The driver for the device detected an older version of the NVM image than expected. Please update the NVM image.\n");
 
 
 	i40e_verify_eeprom(pf);

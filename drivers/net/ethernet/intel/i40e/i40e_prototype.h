@@ -150,6 +150,9 @@ i40e_status i40e_aq_read_nvm(struct i40e_hw *hw, u8 module_pointer,
 				u32 offset, u16 length, void *data,
 				bool last_command,
 				struct i40e_asq_cmd_details *cmd_details);
+i40e_status i40e_aq_erase_nvm(struct i40e_hw *hw, u8 module_pointer,
+			      u32 offset, u16 length, bool last_command,
+			      struct i40e_asq_cmd_details *cmd_details);
 i40e_status i40e_aq_discover_capabilities(struct i40e_hw *hw,
 				void *buff, u16 buff_size, u16 *data_size,
 				enum i40e_admin_queue_opc list_type_opc,
@@ -245,8 +248,12 @@ i40e_status i40e_read_nvm_word(struct i40e_hw *hw, u16 offset,
 					 u16 *data);
 i40e_status i40e_read_nvm_buffer(struct i40e_hw *hw, u16 offset,
 					   u16 *words, u16 *data);
+i40e_status i40e_update_nvm_checksum(struct i40e_hw *hw);
 i40e_status i40e_validate_nvm_checksum(struct i40e_hw *hw,
 						 u16 *checksum);
+i40e_status i40e_nvmupd_command(struct i40e_hw *hw,
+				struct i40e_nvm_access *cmd,
+				u8 *bytes, int *);
 void i40e_set_pci_config_data(struct i40e_hw *hw, u16 link_status);
 
 extern struct i40e_rx_ptype_decoded i40e_ptype_lookup[];

@@ -57,8 +57,8 @@
 #include "igb.h"
 
 #define MAJ 5
-#define MIN 0
-#define BUILD 5
+#define MIN 2
+#define BUILD 13
 #define DRV_VERSION __stringify(MAJ) "." __stringify(MIN) "." \
 __stringify(BUILD) "-k"
 char igb_driver_name[] = "igb";
@@ -4167,6 +4167,26 @@ static bool igb_thermal_sensor_event(struct e1000_hw *hw, u32 event)
 }
 
 /**
+ *  igb_check_lvmmc - check for malformed packets received
+ *  and indicated in LVMMC register
+ *  @adapter: pointer to adapter
+ **/
+static void igb_check_lvmmc(struct igb_adapter *adapter)
+{
+	struct e1000_hw *hw = &adapter->hw;
+	u32 lvmmc;
+
+	lvmmc = rd32(E1000_LVMMC);
+	if (lvmmc) {
+		if (unlikely(net_ratelimit())) {
+			netdev_warn(adapter->netdev,
+				    "malformed Tx packet detected and dropped, LVMMC:0x%08x\n",
+				    lvmmc);
+		}
+	}
+}
+
+/**
  *  igb_watchdog - Timer Call-back
  *  @data: pointer to adapter cast into an unsigned long
  **/
@@ -4360,6 +4380,11 @@ static void igb_watchdog_task(struct work_struct *work)
 
 	igb_spoof_check(adapter);
 	igb_ptp_rx_hang(adapter);
+
+	/* Check LVMMC register on i350/i354 only */
+	if ((adapter->hw.mac.type == e1000_i350) ||
+	    (adapter->hw.mac.type == e1000_i354))
+		igb_check_lvmmc(adapter);
 
 	/* Reset the timer */
 	if (!test_bit(__IGB_DOWN, &adapter->state)) {

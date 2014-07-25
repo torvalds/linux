@@ -708,12 +708,6 @@ i40e_status i40evf_asq_send_command(struct i40e_hw *hw,
 		goto asq_send_command_exit;
 	}
 
-	if (i40e_is_nvm_update_op(desc) && hw->aq.nvm_busy) {
-		i40e_debug(hw, I40E_DEBUG_AQ_MESSAGE, "AQTX: NVM busy.\n");
-		status = I40E_ERR_NVM;
-		goto asq_send_command_exit;
-	}
-
 	details = I40E_ADMINQ_DETAILS(hw->aq.asq, hw->aq.asq.next_to_use);
 	if (cmd_details) {
 		*details = *cmd_details;
@@ -846,11 +840,9 @@ i40e_status i40evf_asq_send_command(struct i40e_hw *hw,
 	if (i40e_is_nvm_update_op(desc))
 		hw->aq.nvm_busy = true;
 
-	if (le16_to_cpu(desc->datalen) == buff_size) {
-		i40e_debug(hw, I40E_DEBUG_AQ_MESSAGE,
-			   "AQTX: desc and buffer writeback:\n");
-		i40evf_debug_aq(hw, I40E_DEBUG_AQ_COMMAND, (void *)desc, buff);
-	}
+	i40e_debug(hw, I40E_DEBUG_AQ_MESSAGE,
+		   "AQTX: desc and buffer writeback:\n");
+	i40evf_debug_aq(hw, I40E_DEBUG_AQ_COMMAND, (void *)desc, buff);
 
 	/* update the error if time out occurred */
 	if ((!cmd_completed) &&
@@ -933,14 +925,14 @@ i40e_status i40evf_clean_arq_element(struct i40e_hw *hw,
 			   I40E_DEBUG_AQ_MESSAGE,
 			   "AQRX: Event received with error 0x%X.\n",
 			   hw->aq.arq_last_status);
-	} else {
-		e->desc = *desc;
-		datalen = le16_to_cpu(desc->datalen);
-		e->msg_size = min(datalen, e->msg_size);
-		if (e->msg_buf != NULL && (e->msg_size != 0))
-			memcpy(e->msg_buf, hw->aq.arq.r.arq_bi[desc_idx].va,
-			       e->msg_size);
 	}
+
+	e->desc = *desc;
+	datalen = le16_to_cpu(desc->datalen);
+	e->msg_size = min(datalen, e->msg_size);
+	if (e->msg_buf != NULL && (e->msg_size != 0))
+		memcpy(e->msg_buf, hw->aq.arq.r.arq_bi[desc_idx].va,
+		       e->msg_size);
 
 	if (i40e_is_nvm_update_op(&e->desc))
 		hw->aq.nvm_busy = false;
