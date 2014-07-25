@@ -901,8 +901,8 @@ static int qat_uclo_set_ae_mode(struct icp_qat_fw_loader_handle *handle)
 			      (unsigned long *)&handle->hal_handle->ae_mask))
 			continue;
 		ae_data = &obj_handle->ae_data[ae];
-		for (s = 0; s < ae_data->slice_num && s < ICP_QAT_UCLO_MAX_CTX;
-		     s++) {
+		for (s = 0; s < min_t(unsigned int, ae_data->slice_num,
+				      ICP_QAT_UCLO_MAX_CTX); s++) {
 			if (!obj_handle->ae_data[ae].ae_slices[s].encap_image)
 				continue;
 			uof_image = ae_data->ae_slices[s].encap_image->img_ptr;
