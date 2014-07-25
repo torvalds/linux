@@ -1,0 +1,35 @@
+* Rockchip I2S controller
+
+Required SoC Specific Properties:
+
+- compatible : "rockchip-i2s"
+- reg: physical base address of the controller and length of memory mapped
+  region.
+- i2s-id: i2s controller id,
+- clocks: must include clock specifiers corresponding to entries in the
+  clock-names property.
+- clocks-names: list of clock names sorted in the same order as the clocks
+  property. Must contain "i2s_clk" and "i2s_hclk".
+- interrupts: interrupt number to the cpu.
+- dmas: list of DMA controller phandle and DMA request line ordered pairs.
+- dma-names: identifier string for each DMA request line in the dmas property.
+  These strings correspond 1:1 with the ordered pairs in dmas.
+- pinctrl-names: must contain a "default" entry.
+- pinctrl-0: pin control group to be used for this controller.
+- pinctrl-1: pin control group to be used for gpio.
+
+Example:
+
+i2s0: i2s@10220000 {
+	compatible = "rockchip-i2s";
+	reg = <0x10220000 0x1000>;
+	i2s-id = <0>;
+	clocks = <&clk_i2s_2ch>, <&clk_i2s_2ch_out>, <&clk_gates7 2>;
+	clock-names = "i2s_clk", "i2s_mclk", "i2s_hclk";
+	interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>;
+	dmas = <&pdma 0>, <&pdma 1>;
+	dma-names = "tx", "rx";
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&i2s0_mclk &i2s0_sclk &i2s0_lrckrx &i2s0_lrcktx &i2s0_sdi &i2s0_sdo>;
+	pinctrl-1 = <&i2s0_gpio>;
+};

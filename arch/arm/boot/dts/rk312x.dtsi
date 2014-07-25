@@ -375,6 +375,45 @@
 		status = "disabled";
 	};
 
+	i2s0: i2s@10220000 {
+		compatible = "rockchip-i2s";
+		reg = <0x10220000 0x1000>;
+		i2s-id = <0>;
+		clocks = <&clk_i2s_2ch>, <&clk_i2s_2ch_out>, <&clk_gates7 2>;
+		clock-names = "i2s_clk", "i2s_mclk", "i2s_hclk";
+		interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>;
+		dmas = <&pdma 0>, <&pdma 1>;
+		//#dma-cells = <2>;
+		dma-names = "tx", "rx";
+		//pinctrl-names = "default", "sleep";
+		//pinctrl-0 = <&i2s0_mclk &i2s0_sclk &i2s0_lrckrx &i2s0_lrcktx &i2s0_sdi &i2s0_sdo>;
+		//pinctrl-1 = <&i2s0_gpio>;
+	};
+
+	i2s1: i2s@10200000 {
+		compatible = "rockchip-i2s";
+		reg = <0x10200000 0x1000>;
+		i2s-id = <1>;
+		clocks = <&clk_i2s_8ch>, <&clk_gates7 4>;
+		clock-names = "i2s_clk", "i2s_hclk";
+		interrupts = <GIC_SPI 68 IRQ_TYPE_LEVEL_HIGH>;
+		dmas = <&pdma 14>, <&pdma 15>;
+		//#dma-cells = <2>;
+		dma-names = "tx", "rx";
+	};
+
+	spdif: spdif@10204000 {
+		compatible = "rockchip-spdif";
+		reg = <0x10204000 0x1000>;
+		clocks = <&clk_spdif>, <&clk_gates10 8>;
+		clock-names = "spdif_8ch_mclk", "spdif_hclk";
+		interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
+		dmas = <&pdma 13>;
+		//#dma-cells = <1>;
+		dma-names = "tx";
+		//pinctrl-names = "default";
+		//pinctrl-0 = <&spdif_tx>;
+	};
 
 	dsihost0: mipi@10110000{
 		compatible = "rockchip,rk32-dsi";
