@@ -81,7 +81,7 @@
 #define DEVICE_NAME			"vt6656"
 #define DEVICE_FULL_DRV_NAM		"VIA Networking Wireless LAN USB Driver"
 
-#define DEVICE_VERSION			"1.19_12"
+#define DEVICE_VERSION			"mac80211"
 
 #define CONFIG_PATH			"/etc/vntconfiguration.dat"
 
