@@ -1,7 +1,9 @@
 /*
  * Device Tree for the ST-Ericsson Nomadik 8815 STn8815 SoC
  */
-/include/ "skeleton.dtsi"
+
+#include <dt-bindings/gpio/gpio.h>
+#include "skeleton.dtsi"
 
 / {
 	#address-cells = <1>;
@@ -842,8 +844,7 @@
 			bus-width = <4>;
 			cap-mmc-highspeed;
 			cap-sd-highspeed;
-			cd-gpios = <&gpio3 15 0x1>;
-			cd-inverted;
+			cd-gpios = <&gpio3 15 GPIO_ACTIVE_LOW>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&mmcsd_default_mux>, <&mmcsd_default_mode>;
 			vmmc-supply = <&vmmc_regulator>;
