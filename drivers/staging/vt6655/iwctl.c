@@ -1621,17 +1621,24 @@ int iwctl_giwauth(struct net_device *dev,
 int iwctl_siwgenie(struct net_device *dev,
 		   struct iw_request_info *info,
 		   struct iw_point *wrq,
-		   char *extra)
+		   char __user *extra)
 {
 	PSDevice			pDevice = (PSDevice)netdev_priv(dev);
 	PSMgmtObject	pMgmt = &(pDevice->sMgmtObj);
 	int ret = 0;
+	char length;
 
 	if (wrq->length) {
-		if ((wrq->length < 2) || (extra[1]+2 != wrq->length)) {
-			ret = -EINVAL;
-			goto out;
-		}
+		if (wrq->length < 2)
+			return -EINVAL;
+
+		ret = get_user(length, extra + 1);
+		if (ret)
+			return ret;
+
+		if (length + 2 != wrq->length)
+			return -EINVAL;
+
 		if (wrq->length > MAX_WPA_IE_LEN) {
 			ret = -ENOMEM;
 			goto out;
@@ -1654,7 +1661,7 @@ out://not completely ...not necessary in wpa_supplicant 0.5.8
 int iwctl_giwgenie(struct net_device *dev,
 		   struct iw_request_info *info,
 		   struct iw_point *wrq,
-		   char *extra)
+		   char __user *extra)
 {
 	PSDevice			pDevice = (PSDevice)netdev_priv(dev);
 	PSMgmtObject	pMgmt = &(pDevice->sMgmtObj);
@@ -1801,18 +1808,23 @@ int iwctl_giwencodeext(struct net_device *dev,
 int iwctl_siwmlme(struct net_device *dev,
 		  struct iw_request_info *info,
 		  struct iw_point *wrq,
-		  char *extra)
+		  char __user *extra)
 {
 	PSDevice			pDevice = (PSDevice)netdev_priv(dev);
 	PSMgmtObject	pMgmt = &(pDevice->sMgmtObj);
-	struct iw_mlme *mlme = (struct iw_mlme *)extra;
+	struct iw_mlme mime;
+
 	int ret = 0;
 
-	if (memcmp(pMgmt->abyCurrBSSID, mlme->addr.sa_data, ETH_ALEN)) {
+	ret = copy_from_user(&mime, extra, sizeof(mime));
+	if (ret)
+		return -EFAULT;
+
+	if (memcmp(pMgmt->abyCurrBSSID, mime.addr.sa_data, ETH_ALEN)) {
 		ret = -EINVAL;
 		return ret;
 	}
-	switch (mlme->cmd) {
+	switch (mime.cmd) {
 	case IW_MLME_DEAUTH:
 		//this command seems to be not complete,please test it --einsnliu
 		//bScheduleCommand((void *) pDevice, WLAN_CMD_DEAUTH, (unsigned char *)&reason);
