@@ -414,13 +414,10 @@ static int dio200_pci_auto_attach(struct comedi_device *dev,
 
 static void dio200_pci_detach(struct comedi_device *dev)
 {
-	const struct dio200_board *thisboard = comedi_board(dev);
 	struct dio200_private *devpriv = dev->private;
 
-	if (!thisboard || !devpriv)
-		return;
 	amplc_dio200_common_detach(dev);
-	if (devpriv->io.regtype == mmio_regtype)
+	if (devpriv && devpriv->io.regtype == mmio_regtype)
 		iounmap(devpriv->io.u.membase);
 	comedi_pci_disable(dev);
 }
