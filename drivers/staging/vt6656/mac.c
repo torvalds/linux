@@ -243,6 +243,4 @@ void vnt_mac_set_led(struct vnt_private *priv, u8 state, u8 led)
 
 	vnt_control_out(priv, MESSAGE_TYPE_WRITE_MASK, MAC_REG_PAPEDELAY,
 			MESSAGE_REQUEST_MACREG, ARRAY_SIZE(data), data);
-
-	return;
 }

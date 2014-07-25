@@ -669,8 +669,6 @@ void vnt_reset_next_tbtt(struct vnt_private *priv, u16 beacon_interval)
 
 	vnt_control_out(priv, MESSAGE_TYPE_SET_TSFTBTT,
 		MESSAGE_REQUEST_TBTT, 0, 8, data);
-
-	return;
 }
 
 /*
@@ -708,8 +706,6 @@ void vnt_update_next_tbtt(struct vnt_private *priv, u64 tsf,
 			MESSAGE_REQUEST_TBTT, 0, 8, data);
 
 	dev_dbg(&priv->usb->dev, "%s TBTT: %8llx\n", __func__, tsf);
-
-	return;
 }
 
 /*

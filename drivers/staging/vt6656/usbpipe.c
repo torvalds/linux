@@ -137,8 +137,6 @@ static void vnt_start_interrupt_urb_complete(struct urb *urb)
 	} else {
 		priv->int_buf.in_use = true;
 	}
-
-	return;
 }
 
 int vnt_start_interrupt_urb(struct vnt_private *priv)
@@ -216,8 +214,6 @@ static void vnt_submit_rx_urb_complete(struct urb *urb)
 
 		rcb->in_use = false;
 	}
-
-	return;
 }
 
 int vnt_submit_rx_urb(struct vnt_private *priv, struct vnt_rcb *rcb)
@@ -279,8 +275,6 @@ static void vnt_tx_context_complete(struct urb *urb)
 
 		context->in_use = false;
 	}
-
-	return;
 }
 
 int vnt_tx_context(struct vnt_private *priv,

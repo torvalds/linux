@@ -164,8 +164,6 @@ void vnt_run_command(struct work_struct *work)
 	}
 
 	vnt_cmd_complete(priv);
-
-	return;
 }
 
 int vnt_schedule_command(struct vnt_private *priv, enum vnt_cmd command)
