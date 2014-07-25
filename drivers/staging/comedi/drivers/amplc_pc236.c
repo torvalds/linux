@@ -129,8 +129,7 @@ static const struct pc236_board *pc236_find_pci_board(struct pci_dev *pci_dev)
 	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(pc236_pci_boards); i++)
-		if (is_pci_board(&pc236_pci_boards[i]) &&
-		    pci_dev->device == pc236_pci_boards[i].devid)
+		if (pci_dev->device == pc236_pci_boards[i].devid)
 			return &pc236_pci_boards[i];
 	return NULL;
 }
@@ -349,30 +348,21 @@ static int pc236_common_attach(struct comedi_device *dev, unsigned long iobase,
 
 static int pc236_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
-	const struct pc236_board *thisboard = comedi_board(dev);
 	struct pc236_private *devpriv;
 	int ret;
+
+	if (!DO_ISA)
+		return -EINVAL;
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
 
-	/* Process options according to bus type. */
-	if (is_isa_board(thisboard)) {
-		ret = comedi_request_region(dev, it->options[0], 0x4);
-		if (ret)
-			return ret;
+	ret = comedi_request_region(dev, it->options[0], 0x4);
+	if (ret)
+		return ret;
 
-		return pc236_common_attach(dev, dev->iobase, it->options[1], 0);
-	} else if (is_pci_board(thisboard)) {
-		dev_err(dev->class_dev,
-			"Manual configuration of PCI board '%s' is not supported\n",
-			thisboard->name);
-		return -EIO;
-	}
-
-	dev_err(dev->class_dev, "BUG! cannot determine board type!\n");
-	return -EINVAL;
+	return pc236_common_attach(dev, dev->iobase, it->options[1], 0);
 }
 
 static int pc236_auto_attach(struct comedi_device *dev,
