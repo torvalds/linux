@@ -164,6 +164,7 @@ static int au_cpdown_dir(struct dentry *dentry, aufs_bindex_t bdst,
 		au_set_ibend(inode, bdst);
 	au_set_h_iptr(inode, bdst, au_igrab(h_inode),
 		      au_hi_flags(inode, /*isdir*/1));
+	au_fhsm_wrote(dentry->d_sb, bdst, /*force*/0);
 	goto out; /* success */
 
 	/* revert */
