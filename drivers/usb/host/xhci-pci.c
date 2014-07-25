@@ -143,6 +143,7 @@ static void xhci_pci_quirks(struct device *dev, struct xhci_hcd *xhci)
 			pdev->device == PCI_DEVICE_ID_ASROCK_P67) {
 		xhci->quirks |= XHCI_RESET_ON_RESUME;
 		xhci->quirks |= XHCI_TRUST_TX_LENGTH;
+		xhci->quirks |= XHCI_BROKEN_STREAMS;
 	}
 	if (pdev->vendor == PCI_VENDOR_ID_RENESAS &&
 			pdev->device == 0x0015)
@@ -230,7 +231,8 @@ static int xhci_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		goto put_usb3_hcd;
 	/* Roothub already marked as USB 3.0 speed */
 
-	if (HCC_MAX_PSA(xhci->hcc_params) >= 4)
+	if (!(xhci->quirks & XHCI_BROKEN_STREAMS) &&
+			HCC_MAX_PSA(xhci->hcc_params) >= 4)
 		xhci->shared_hcd->can_do_streams = 1;
 
 	/* USB-2 and USB-3 roothubs initialized, allow runtime pm suspend */

@@ -3148,7 +3148,8 @@ int xhci_alloc_streams(struct usb_hcd *hcd, struct usb_device *udev,
 			num_streams);
 
 	/* MaxPSASize value 0 (2 streams) means streams are not supported */
-	if (HCC_MAX_PSA(xhci->hcc_params) < 4) {
+	if ((xhci->quirks & XHCI_BROKEN_STREAMS) ||
+			HCC_MAX_PSA(xhci->hcc_params) < 4) {
 		xhci_dbg(xhci, "xHCI controller does not support streams.\n");
 		return -ENOSYS;
 	}
