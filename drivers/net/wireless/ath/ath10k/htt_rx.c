@@ -308,7 +308,8 @@ static void ath10k_htt_rx_free_msdu_chain(struct sk_buff *skb)
 static int ath10k_htt_rx_amsdu_pop(struct ath10k_htt *htt,
 				   u8 **fw_desc, int *fw_desc_len,
 				   struct sk_buff **head_msdu,
-				   struct sk_buff **tail_msdu)
+				   struct sk_buff **tail_msdu,
+				   u32 *attention)
 {
 	int msdu_len, msdu_chaining = 0;
 	struct sk_buff *msdu;
@@ -358,6 +359,11 @@ static int ath10k_htt_rx_amsdu_pop(struct ath10k_htt *htt,
 			break;
 		}
 
+		*attention |= __le32_to_cpu(rx_desc->attention.flags) &
+					    (RX_ATTENTION_FLAGS_TKIP_MIC_ERR |
+					     RX_ATTENTION_FLAGS_DECRYPT_ERR |
+					     RX_ATTENTION_FLAGS_FCS_ERR |
+					     RX_ATTENTION_FLAGS_MGMT_TYPE);
 		/*
 		 * Copy the FW rx descriptor for this MSDU from the rx
 		 * indication message into the MSDU's netbuf. HL uses the
@@ -1216,13 +1222,15 @@ static void ath10k_htt_rx_handler(struct ath10k_htt *htt,
 		for (j = 0; j < mpdu_ranges[i].mpdu_count; j++) {
 			struct sk_buff *msdu_head, *msdu_tail;
 
+			attention = 0;
 			msdu_head = NULL;
 			msdu_tail = NULL;
 			ret = ath10k_htt_rx_amsdu_pop(htt,
 						      &fw_desc,
 						      &fw_desc_len,
 						      &msdu_head,
-						      &msdu_tail);
+						      &msdu_tail,
+						      &attention);
 
 			if (ret < 0) {
 				ath10k_warn("failed to pop amsdu from htt rx ring %d\n",
@@ -1234,7 +1242,6 @@ static void ath10k_htt_rx_handler(struct ath10k_htt *htt,
 			rxd = container_of((void *)msdu_head->data,
 					   struct htt_rx_desc,
 					   msdu_payload);
-			attention = __le32_to_cpu(rxd->attention.flags);
 
 			if (!ath10k_htt_rx_amsdu_allowed(htt, msdu_head,
 							 status,
@@ -1287,6 +1294,7 @@ static void ath10k_htt_rx_frag_handler(struct ath10k_htt *htt,
 	u8 *fw_desc;
 	int fw_desc_len, hdrlen, paramlen;
 	int trim;
+	u32 attention = 0;
 
 	fw_desc_len = __le16_to_cpu(frag->fw_rx_desc_bytes);
 	fw_desc = (u8 *)frag->fw_msdu_rx_desc;
@@ -1296,7 +1304,8 @@ static void ath10k_htt_rx_frag_handler(struct ath10k_htt *htt,
 
 	spin_lock_bh(&htt->rx_ring.lock);
 	ret = ath10k_htt_rx_amsdu_pop(htt, &fw_desc, &fw_desc_len,
-				      &msdu_head, &msdu_tail);
+				      &msdu_head, &msdu_tail,
+				      &attention);
 	spin_unlock_bh(&htt->rx_ring.lock);
 
 	ath10k_dbg(ATH10K_DBG_HTT_DUMP, "htt rx frag ahead\n");
@@ -1313,10 +1322,8 @@ static void ath10k_htt_rx_frag_handler(struct ath10k_htt *htt,
 
 	hdr = (struct ieee80211_hdr *)msdu_head->data;
 	rxd = (void *)msdu_head->data - sizeof(*rxd);
-	tkip_mic_err = !!(__le32_to_cpu(rxd->attention.flags) &
-				RX_ATTENTION_FLAGS_TKIP_MIC_ERR);
-	decrypt_err = !!(__le32_to_cpu(rxd->attention.flags) &
-				RX_ATTENTION_FLAGS_DECRYPT_ERR);
+	tkip_mic_err = !!(attention & RX_ATTENTION_FLAGS_TKIP_MIC_ERR);
+	decrypt_err = !!(attention & RX_ATTENTION_FLAGS_DECRYPT_ERR);
 	fmt = MS(__le32_to_cpu(rxd->msdu_start.info1),
 			RX_MSDU_START_INFO1_DECAP_FORMAT);
 
