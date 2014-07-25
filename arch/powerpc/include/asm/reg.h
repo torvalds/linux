@@ -944,9 +944,6 @@
  *      readable variant for reads, which can avoid a fault
  *      with KVM type virtualization.
  *
- *      (*) Under KVM, the host SPRG1 is used to point to
- *      the current VCPU data structure
- *
  * 32-bit 8xx:
  *	- SPRG0 scratch for exception vectors
  *	- SPRG1 scratch for exception vectors
