@@ -397,7 +397,7 @@ static void vnt_free_tx_bufs(struct vnt_private *priv)
 	return;
 }
 
-static void device_free_rx_bufs(struct vnt_private *priv)
+static void vnt_free_rx_bufs(struct vnt_private *priv)
 {
 	struct vnt_rcb *rcb;
 	int ii;
@@ -518,7 +518,7 @@ static bool device_alloc_bufs(struct vnt_private *priv)
 	return true;
 
 free_rx_tx:
-	device_free_rx_bufs(priv);
+	vnt_free_rx_bufs(priv);
 
 free_tx:
 	vnt_free_tx_bufs(priv);
@@ -567,7 +567,7 @@ static int vnt_start(struct ieee80211_hw *hw)
 	return 0;
 
 free_all:
-	device_free_rx_bufs(priv);
+	vnt_free_rx_bufs(priv);
 	vnt_free_tx_bufs(priv);
 	device_free_int_bufs(priv);
 
@@ -603,7 +603,7 @@ static void vnt_stop(struct ieee80211_hw *hw)
 	priv->cmd_running = false;
 
 	vnt_free_tx_bufs(priv);
-	device_free_rx_bufs(priv);
+	vnt_free_rx_bufs(priv);
 	device_free_int_bufs(priv);
 
 	usb_kill_urb(priv->interrupt_urb);
