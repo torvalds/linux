@@ -456,6 +456,7 @@ struct f2fs_sb_info {
 	wait_queue_head_t cp_wait;
 
 	/* for inode management */
+	struct radix_tree_root ino_root[MAX_INO_ENTRY];	/* ino entry array */
 	spinlock_t ino_lock[MAX_INO_ENTRY];		/* for ino entry lock */
 	struct list_head ino_list[MAX_INO_ENTRY];	/* inode list head */
 

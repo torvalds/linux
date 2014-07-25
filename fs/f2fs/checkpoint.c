@@ -284,24 +284,27 @@ const struct address_space_operations f2fs_meta_aops = {
 
 static void __add_ino_entry(struct f2fs_sb_info *sbi, nid_t ino, int type)
 {
-	struct ino_entry *new, *e;
-
-	new = f2fs_kmem_cache_alloc(ino_entry_slab, GFP_ATOMIC);
-	new->ino = ino;
-
+	struct ino_entry *e;
+retry:
 	spin_lock(&sbi->ino_lock[type]);
-	list_for_each_entry(e, &sbi->ino_list[type], list) {
-		if (e->ino == ino) {
-			spin_unlock(&sbi->ino_lock[type]);
-			kmem_cache_free(ino_entry_slab, new);
-			return;
-		}
-		if (e->ino > ino)
-			break;
-	}
 
-	/* add new entry into list which is sorted by inode number */
-	list_add_tail(&new->list, &e->list);
+	e = radix_tree_lookup(&sbi->ino_root[type], ino);
+	if (!e) {
+		e = kmem_cache_alloc(ino_entry_slab, GFP_ATOMIC);
+		if (!e) {
+			spin_unlock(&sbi->ino_lock[type]);
+			goto retry;
+		}
+		if (radix_tree_insert(&sbi->ino_root[type], ino, e)) {
+			spin_unlock(&sbi->ino_lock[type]);
+			kmem_cache_free(ino_entry_slab, e);
+			goto retry;
+		}
+		memset(e, 0, sizeof(struct ino_entry));
+		e->ino = ino;
+
+		list_add_tail(&e->list, &sbi->ino_list[type]);
+	}
 	spin_unlock(&sbi->ino_lock[type]);
 }
 
@@ -310,14 +313,15 @@ static void __remove_ino_entry(struct f2fs_sb_info *sbi, nid_t ino, int type)
 	struct ino_entry *e;
 
 	spin_lock(&sbi->ino_lock[type]);
-	list_for_each_entry(e, &sbi->ino_list[type], list) {
-		if (e->ino == ino) {
-			list_del(&e->list);
+	e = radix_tree_lookup(&sbi->ino_root[type], ino);
+	if (e) {
+		list_del(&e->list);
+		radix_tree_delete(&sbi->ino_root[type], ino);
+		if (type == ORPHAN_INO)
 			sbi->n_orphans--;
-			spin_unlock(&sbi->ino_lock[type]);
-			kmem_cache_free(ino_entry_slab, e);
-			return;
-		}
+		spin_unlock(&sbi->ino_lock[type]);
+		kmem_cache_free(ino_entry_slab, e);
+		return;
 	}
 	spin_unlock(&sbi->ino_lock[type]);
 }
@@ -346,7 +350,7 @@ void release_orphan_inode(struct f2fs_sb_info *sbi)
 
 void add_orphan_inode(struct f2fs_sb_info *sbi, nid_t ino)
 {
-	/* add new orphan entry into list which is sorted by inode number */
+	/* add new orphan ino entry into list */
 	__add_ino_entry(sbi, ino, ORPHAN_INO);
 }
 
@@ -943,6 +947,7 @@ void init_ino_entry_info(struct f2fs_sb_info *sbi)
 	int i;
 
 	for (i = 0; i < MAX_INO_ENTRY; i++) {
+		INIT_RADIX_TREE(&sbi->ino_root[i], GFP_ATOMIC);
 		spin_lock_init(&sbi->ino_lock[i]);
 		INIT_LIST_HEAD(&sbi->ino_list[i]);
 	}
