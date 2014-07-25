@@ -478,6 +478,7 @@ int omap3_noncore_dpll_set_rate(struct clk_hw *hw, unsigned long rate,
 {
 	struct clk_hw_omap *clk = to_clk_hw_omap(hw);
 	struct clk *new_parent = NULL;
+	unsigned long rrate;
 	u16 freqsel = 0;
 	struct dpll_data *dd;
 	int ret;
@@ -505,8 +506,16 @@ int omap3_noncore_dpll_set_rate(struct clk_hw *hw, unsigned long rate,
 		__clk_prepare(dd->clk_ref);
 		clk_enable(dd->clk_ref);
 
-		if (dd->last_rounded_rate != rate)
-			rate = __clk_round_rate(hw->clk, rate);
+		/* XXX this check is probably pointless in the CCF context */
+		if (dd->last_rounded_rate != rate) {
+			rrate = __clk_round_rate(hw->clk, rate);
+			if (rrate != rate) {
+				pr_warn("%s: %s: final rate %lu does not match desired rate %lu\n",
+					__func__, __clk_get_name(hw->clk),
+					rrate, rate);
+				rate = rrate;
+			}
+		}
 
 		if (dd->last_rounded_rate == 0)
 			return -EINVAL;
