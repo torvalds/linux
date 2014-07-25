@@ -257,7 +257,7 @@
 			<&clk_gpu_pre 300000000>,	 <&aclk_vio_pre 300000000>,
 			<&hclk_vio_pre 150000000>, <&aclk_vcodec_pre 300000000>,
 			<&clk_hevc_core 200000000>, <&clk_mac_pll_div 50000000>,
-			<&clk_mac_ref_div 50000000>;
+			<&clk_mac_ref_div 25000000>;
 	/*	rockchip,clocks-uboot-has-init =
 			<&aclk_vio1>;*/
 	};
@@ -676,4 +676,19 @@
 		interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "vpu_mmu";
 	};
+
+	vmac: eth@10200000 {
+		compatible = "rockchip,vmac";
+		reg = <0x10200000 0x4000>;
+		interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "macirq";
+		clocks = <&clk_mac_pll>, <&clk_mac_ref>, 
+			<&clk_mac_pll_div>, <&clk_mac_ref_div>, 
+			<&clk_gates2 6>, <&clk_gates3 5>;
+                clock-names = "clk_mac_pll", "clk_mac_ref",
+                          "clk_mac_pll_div", "clk_mac_ref_div",
+                          "clk_tx_rx_gate", "hclk_mac";
+                pinctrl-names = "default";
+                pinctrl-0 = <&mac_clk &mac_txpins &mac_rxpins &mac_crs &mac_mdpins>;
+        };
 };

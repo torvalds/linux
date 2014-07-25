@@ -275,11 +275,17 @@ static inline int fifo_inc_ct(int ct, int size)
 
 /*vmac*/
 struct rk29_vmac_platform_data {
-    int (*vmac_register_set)(void);
-    int (*rmii_io_init)(void);
-    int (*rmii_io_deinit)(void);
-    int (*rmii_power_control)(int enable);
-    int(*rmii_speed_switch)(int speed);
+	int (*vmac_register_set)(void);
+	int (*rmii_io_init)(void);
+	int (*rmii_io_deinit)(void);
+	int (*rmii_power_control)(int enable);
+	int (*rmii_speed_switch)(int speed);
+	struct clk *clk_mac_pll_div;
+	struct clk *clk_mac_ref_div;
+	struct clk *mac_parent;
+	struct clk *hclk_mac;
+	int reset_io;
+	int reset_io_enable;
 };
 
 extern struct rk29_vmac_platform_data board_vmac_data;

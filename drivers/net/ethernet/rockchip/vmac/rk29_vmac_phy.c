@@ -26,20 +26,23 @@
 #include <linux/rockchip/grf.h>
 
 #include "rk29_vmac.h"
-
+#if 0
 struct vmac_phy_data {
 	int power_io;
 	int power_io_enable;
 };
 struct vmac_phy_data g_vmac_phy_data;
+#endif
 
-#define grf_readl(offset)	readl_relaxed(RK_GRF_VIRT + offset)
-#define grf_writel(v, offset)	do { writel_relaxed(v, RK_GRF_VIRT + offset); dsb(); } while (0)
+#define grf_readl(offset)       readl_relaxed(RK_GRF_VIRT + offset)
+#define grf_writel(v, offset)   do { writel_relaxed(v, RK_GRF_VIRT + offset); dsb(); } while (0)
 
 static int rk30_vmac_register_set(void)
 {
 	//config rk30 vmac as rmii
-	writel_relaxed(0x3 << 16 | 0x2, RK_GRF_VIRT + RK3188_GRF_SOC_CON1);
+	grf_writel((0<<8) | ((1<<8)<<16), RK3036_GRF_SOC_CON0);
+	//newrev_en
+	grf_writel((1<<15) | ((1<<15)<<16), RK3036_GRF_SOC_CON0);
 	return 0;
 }
 
@@ -48,7 +51,7 @@ static int rk30_rmii_io_init(void)
 	printk("enter %s \n",__func__);
 
 	//rk3188 gpio3 and sdio drive strength , 
-	grf_writel((0x0f<<16)|0x0f, RK3188_GRF_IO_CON3);
+	//grf_writel((0x0f<<16)|0x0f, RK3188_GRF_IO_CON3);
 
 	return 0;
 }
@@ -62,6 +65,7 @@ static int rk30_rmii_io_deinit(void)
 
 static int rk30_rmii_power_control(int enable)
 {
+#if 0
 	struct vmac_phy_data *pdata = &g_vmac_phy_data;
 	
 	printk("enter %s ,enable = %d \n",__func__,enable);
@@ -76,18 +80,17 @@ static int rk30_rmii_power_control(int enable)
 			gpio_set_value(pdata->power_io, !pdata->power_io_enable);
 		}
 	}
+#endif
 	return 0;
 }
 
-#define BIT_EMAC_SPEED_100M      (1 << 1)
-#define BIT_EMAC_SPEED_10M       (0 << 1)
 static int rk29_vmac_speed_switch(int speed)
 {
 	//printk("%s: speed = %d\n", __func__, speed);
 	if (10 == speed) {
-	    writel_relaxed((2<<16)|BIT_EMAC_SPEED_10M, RK_GRF_VIRT + RK3188_GRF_SOC_CON1);
+	    grf_writel((0<<9) | ((1<<9)<<16), RK3036_GRF_SOC_CON0);
 	} else {
-	    writel_relaxed((2<<16)|BIT_EMAC_SPEED_100M, RK_GRF_VIRT + RK3188_GRF_SOC_CON1);
+	    grf_writel((1<<9) | ((1<<9)<<16), RK3036_GRF_SOC_CON0);
 	}
 	return 0;
 }
@@ -99,7 +102,7 @@ struct rk29_vmac_platform_data board_vmac_data = {
 	.rmii_power_control = rk30_rmii_power_control,
 	.rmii_speed_switch = rk29_vmac_speed_switch,
 };
-
+#if 0
 static int vmac_phy_probe(struct platform_device *pdev)
 {
 	struct vmac_phy_data *pdata = pdev->dev.platform_data;
@@ -167,3 +170,4 @@ module_platform_driver(vmac_phy_driver);
 
 MODULE_DESCRIPTION("VMAC PHY Power Driver");
 MODULE_LICENSE("GPL");
+#endif

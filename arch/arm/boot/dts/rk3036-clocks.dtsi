@@ -42,7 +42,7 @@
 			rmii_clkin: rmii_clkin {
 				compatible = "rockchip,rk-fixed-clock";
 				clock-output-names = "rmii_clkin";
-				clock-frequency = <0>;
+				clock-frequency = <50000000>;
 				#clock-cells = <0>;
 			};
 
@@ -104,6 +104,14 @@
 				#clock-cells = <0>;
 			};
 
+			io_mac_mdclkout: io_mac_mdclkout {
+				compatible = "rockchip,rk-fixed-factor-clock";
+				clocks = <&aclk_peri_pre>;
+				clock-output-names = "io_mac_mdclkout";
+				clock-div = <2>;
+				clock-mult = <1>;
+				#clock-cells = <0>;
+			};
 		};
 
 		clock_regs {
@@ -1290,7 +1298,7 @@
 						"g_hp_axi_matrix",		"g_pp_axi_matrix",
 						"g_aclk_cpu_peri",		"g_ap_axi_matrix",
 
-						"reserved",		"reserved",
+						"reserved",		"g_hclk_mac",
 						"reserved",		"reserved",
 
 						"reserved",		"reserved",

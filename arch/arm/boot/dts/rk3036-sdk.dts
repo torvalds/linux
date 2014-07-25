@@ -193,3 +193,10 @@
 	status = "okay";
 	//rockchips,hdmi_audio_source = <0>;
 };
+
+&vmac {
+//	pmu_regulator = "act_ldo5";
+//	pmu_enable_level = <1>; //1->HIGH, 0->LOW
+//      power-gpio = <&gpio0 GPIO_A6 GPIO_ACTIVE_HIGH>;
+        reset-gpio = <&gpio2 GPIO_C6 GPIO_ACTIVE_LOW>;
+};

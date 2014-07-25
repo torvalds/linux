@@ -538,7 +538,12 @@
 			};
 		};
 
-		gpio2_gmac {		
+		gpio2_gmac {
+			mac_clk: mac-clk {
+				rockchip,pins = <MAC_CLKOUT>;
+				rockchip,pull = <VALUE_PULL_DEFAULT>;
+			};
+		
 			mac_txpins: mac-txpins {
 				rockchip,pins = <MAC_TXD0>, <MAC_TXD1>,  <MAC_TXEN>;
 				rockchip,pull = <VALUE_PULL_DEFAULT>;
