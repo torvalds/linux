@@ -138,7 +138,7 @@ static int map_vdso(const struct vdso_image *image, bool calculate_addr)
 	vma = _install_special_mapping(mm,
 				       addr,
 				       -image->sym_vvar_start,
-				       VM_READ,
+				       VM_READ|VM_MAYREAD,
 				       &vvar_mapping);
 
 	if (IS_ERR(vma)) {
