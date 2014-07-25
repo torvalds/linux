@@ -402,7 +402,6 @@ struct digi_getcounter {
 
 #define EV_IPU		0x0010		/* !<Input paused unconditionally by user */
 #define EV_IPS		0x0020		/* !<Input paused by high/low water marks */
-/* #define EV_IPH	0x0040		//!<Input paused w/ hardware */
 #define EV_IPA		0x0400		/* !<Input paused by pattern alarm module */
 
 #define EV_TXB		0x0040		/* !<Transmit break pending */

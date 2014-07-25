@@ -28,16 +28,6 @@
 
 #include "dgnc_driver.h"
 
-#if 0
-
-# if !defined(TRC_TO_KMEM) && !defined(TRC_TO_CONSOLE)
-   void dgnc_tracef(const char *fmt, ...);
-# else
-   void dgnc_tracef(const char *fmt, ...);
-# endif
-
-#endif
-
 void dgnc_tracer_free(void);
 
 #endif

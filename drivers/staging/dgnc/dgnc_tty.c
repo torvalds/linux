@@ -2107,24 +2107,6 @@ static int dgnc_tty_write(struct tty_struct *tty,
 		ch->ch_w_head = head;
 	}
 
-#if 0
-	/*
-	 * If this is the print device, and the
-	 * printer is still on, we need to turn it
-	 * off before going idle.
-	 */
-	if (count == orig_count) {
-		if ((un->un_type == DGNC_PRINT) && (ch->ch_flags & CH_PRON)) {
-			head &= tmask;
-			ch->ch_w_head = head;
-			dgnc_wmove(ch, ch->ch_digi.digi_offstr,
-				(int) ch->ch_digi.digi_offlen);
-			head = (ch->ch_w_head) & tmask;
-			ch->ch_flags &= ~CH_PRON;
-		}
-	}
-#endif
-
 	/* Update printer buffer empty time. */
 	if ((un->un_type == DGNC_PRINT) && (ch->ch_digi.digi_maxcps > 0)
 	    && (ch->ch_digi.digi_bufsize > 0)) {

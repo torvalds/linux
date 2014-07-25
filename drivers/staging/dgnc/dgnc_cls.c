@@ -1046,10 +1046,7 @@ static void cls_flush_uart_read(struct channel_t *ch)
 	 * I believe this is a BUG in this UART.
 	 * So for now, we will leave the code #ifdef'ed out...
 	 */
-#if 0
-	writeb((UART_FCR_ENABLE_FIFO | UART_FCR_CLEAR_RCVR),
-					 &ch->ch_cls_uart->isr_fcr);
-#endif
+
 	udelay(10);
 }
 
