@@ -82,20 +82,17 @@
  */
 
 enum pc236_bustype { isa_bustype, pci_bustype };
-enum pc236_model { pc36at_model, pci236_model };
 
 struct pc236_board {
 	const char *name;
 	unsigned short devid;
 	enum pc236_bustype bustype;
-	enum pc236_model model;
 };
 static const struct pc236_board pc236_boards[] = {
 #if DO_ISA
 	{
 		.name = "pc36at",
 		.bustype = isa_bustype,
-		.model = pc36at_model,
 	},
 #endif
 #if DO_PCI
@@ -103,7 +100,6 @@ static const struct pc236_board pc236_boards[] = {
 		.name = "pci236",
 		.devid = PCI_DEVICE_ID_AMPLICON_PCI236,
 		.bustype = pci_bustype,
-		.model = pci236_model,
 	},
 #endif
 };
