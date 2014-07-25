@@ -604,7 +604,6 @@ alloc_init_deleg(struct nfs4_client *clp, struct svc_fh *current_fh)
 	INIT_LIST_HEAD(&dp->dl_perclnt);
 	INIT_LIST_HEAD(&dp->dl_recall_lru);
 	dp->dl_type = NFS4_OPEN_DELEGATE_READ;
-	fh_copy_shallow(&dp->dl_fh, &current_fh->fh_handle);
 	INIT_WORK(&dp->dl_recall.cb_work, nfsd4_run_cb_recall);
 	return dp;
 out_dec:
@@ -3097,7 +3096,7 @@ void nfsd4_prepare_cb_recall(struct nfs4_delegation *dp)
 	struct nfs4_client *clp = dp->dl_stid.sc_client;
 	struct nfsd_net *nn = net_generic(clp->net, nfsd_net_id);
 
-	block_delegations(&dp->dl_fh);
+	block_delegations(&dp->dl_file->fi_fhandle);
 
 	/*
 	 * We can't do this in nfsd_break_deleg_cb because it is

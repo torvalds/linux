@@ -337,7 +337,7 @@ static void encode_cb_recall4args(struct xdr_stream *xdr,
 	p = xdr_reserve_space(xdr, 4);
 	*p++ = xdr_zero;			/* truncate */
 
-	encode_nfs_fh4(xdr, &dp->dl_fh);
+	encode_nfs_fh4(xdr, &dp->dl_file->fi_fhandle);
 
 	hdr->nops++;
 }
