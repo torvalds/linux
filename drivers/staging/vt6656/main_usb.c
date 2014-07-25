@@ -34,7 +34,7 @@
  *   device_ioctl - ioctl entry
  *   device_close - shutdown mac/bbp & free dma/descriptor resource
  *   device_alloc_frag_buf - rx fragement pre-allocated function
- *   device_free_tx_bufs - free tx buffer function
+ *   vnt_free_tx_bufs - free tx buffer function
  *   device_dma0_tx_80211- tx 802.11 frame via dma0
  *   device_dma0_xmit- tx PS buffered frame via dma0
  *   vnt_init_registers- initial MAC & BBP & RF internal registers.
@@ -378,7 +378,7 @@ static int vnt_init_registers(struct vnt_private *priv)
 	return true;
 }
 
-static void device_free_tx_bufs(struct vnt_private *priv)
+static void vnt_free_tx_bufs(struct vnt_private *priv)
 {
 	struct vnt_usb_send_context *tx_context;
 	int ii;
@@ -521,7 +521,7 @@ free_rx_tx:
 	device_free_rx_bufs(priv);
 
 free_tx:
-	device_free_tx_bufs(priv);
+	vnt_free_tx_bufs(priv);
 
 	return false;
 }
@@ -568,7 +568,7 @@ static int vnt_start(struct ieee80211_hw *hw)
 
 free_all:
 	device_free_rx_bufs(priv);
-	device_free_tx_bufs(priv);
+	vnt_free_tx_bufs(priv);
 	device_free_int_bufs(priv);
 
 	usb_kill_urb(priv->interrupt_urb);
@@ -602,7 +602,7 @@ static void vnt_stop(struct ieee80211_hw *hw)
 
 	priv->cmd_running = false;
 
-	device_free_tx_bufs(priv);
+	vnt_free_tx_bufs(priv);
 	device_free_rx_bufs(priv);
 	device_free_int_bufs(priv);
 
