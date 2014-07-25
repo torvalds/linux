@@ -98,34 +98,6 @@ static CONTROLVM_MESSAGE_PACKET g_DeviceChangeStatePacket;
 #define is_diagpool_channel(channel_type_guid) \
 	 (uuid_le_cmp(channel_type_guid, UltraDiagPoolChannelProtocolGuid) == 0)
 
-typedef enum {
-	PARTPROP_invalid,
-	PARTPROP_name,
-	PARTPROP_description,
-	PARTPROP_handle,
-	PARTPROP_busNumber,
-	/* add new properties above, but don't forget to change
-	 * InitPartitionProperties() and show_partition_property() also...
-	 */
-	PARTPROP_last
-} PARTITION_property;
-static const char *PartitionTypeNames[] = { "partition", NULL };
-
-static char *PartitionPropertyNames[PARTPROP_last + 1];
-static void
-InitPartitionProperties(void)
-{
-	char **p = PartitionPropertyNames;
-	p[PARTPROP_invalid] = "";
-	p[PARTPROP_name] = "name";
-	p[PARTPROP_description] = "description";
-	p[PARTPROP_handle] = "handle";
-	p[PARTPROP_busNumber] = "busNumber";
-	p[PARTPROP_last] = NULL;
-}
-
-static MYPROCTYPE *PartitionType;
-
 #define VISORCHIPSET_PARAHOTPLUG_PROC_ENTRY_FN "parahotplug"
 static struct proc_dir_entry *parahotplug_proc_dir;
 
@@ -523,52 +495,6 @@ static ssize_t remaining_steps_store(struct device *dev,
 		return ret;
 	else
 		return count;
-}
-
-static void
-show_partition_property(struct seq_file *f, void *ctx, int property)
-{
-	VISORCHIPSET_BUS_INFO *info = (VISORCHIPSET_BUS_INFO *) (ctx);
-
-	switch (property) {
-	case PARTPROP_name:
-		seq_printf(f, "%s\n", NONULLSTR(info->name));
-		break;
-	case PARTPROP_description:
-		seq_printf(f, "%s\n", NONULLSTR(info->description));
-		break;
-	case PARTPROP_handle:
-		seq_printf(f, "0x%-16.16Lx\n", info->partitionHandle);
-		break;
-	case PARTPROP_busNumber:
-		seq_printf(f, "%d\n", info->busNo);
-		break;
-	default:
-		seq_printf(f, "(%d??)\n", property);
-		break;
-	}
-}
-
-static void
-proc_Init(void)
-{
-	if (ProcDir == NULL) {
-		ProcDir = proc_mkdir(MYDRVNAME, NULL);
-		if (ProcDir == NULL) {
-			LOGERR("failed to create /proc directory %s",
-			       MYDRVNAME);
-			POSTCODE_LINUX_2(CHIPSET_INIT_FAILURE_PC,
-					 POSTCODE_SEVERITY_ERR);
-		}
-	}
-}
-
-static void
-proc_DeInit(void)
-{
-	if (ProcDir != NULL)
-		remove_proc_entry(MYDRVNAME, NULL);
-	ProcDir = NULL;
 }
 
 #if 0
@@ -1273,16 +1199,6 @@ bus_configure(CONTROLVM_MESSAGE *inmsg, PARSER_CONTEXT *parser_ctx)
 	pBusInfo->name = parser_string_get(parser_ctx);
 
 	visorchannel_uuid_id(&pBusInfo->partitionGuid, s);
-	pBusInfo->procObject =
-	    visor_proc_CreateObject(PartitionType, s, (void *) (pBusInfo));
-	if (pBusInfo->procObject == NULL) {
-		LOGERR("CONTROLVM_BUS_CONFIGURE Failed: busNo=%lu failed to create /proc entry",
-		     busNo);
-		POSTCODE_LINUX_3(BUS_CONFIGURE_FAILURE_PC, busNo,
-				 POSTCODE_SEVERITY_ERR);
-		rc = -CONTROLVM_RESP_ERROR_KMALLOC_FAILED;
-		goto Away;
-	}
 	POSTCODE_LINUX_3(BUS_CONFIGURE_EXIT_PC, busNo, POSTCODE_SEVERITY_INFO);
 Away:
 	bus_epilog(busNo, CONTROLVM_BUS_CONFIGURE, &inmsg->hdr,
@@ -2485,15 +2401,6 @@ visorchipset_init(void)
 		goto Away;
 	}
 
-	proc_Init();
-	memset(PartitionPropertyNames, 0, sizeof(PartitionPropertyNames));
-	InitPartitionProperties();
-
-	PartitionType = visor_proc_CreateType(ProcDir, PartitionTypeNames,
-					      (const char **)
-					      PartitionPropertyNames,
-					      &show_partition_property);
-
 	memset(&g_DiagMsgHdr, 0, sizeof(CONTROLVM_MESSAGE_HEADER));
 
 	memset(&g_ChipSetMsgHdr, 0, sizeof(CONTROLVM_MESSAGE_HEADER));
@@ -2589,11 +2496,6 @@ visorchipset_exit(void)
 
 	cleanup_controlvm_structures();
 
-	if (PartitionType) {
-		visor_proc_DestroyType(PartitionType);
-		PartitionType = NULL;
-	}
-
 	memset(&g_DiagMsgHdr, 0, sizeof(CONTROLVM_MESSAGE_HEADER));
 
 	memset(&g_ChipSetMsgHdr, 0, sizeof(CONTROLVM_MESSAGE_HEADER));
@@ -2606,7 +2508,6 @@ visorchipset_exit(void)
 
 	memset(&g_DelDumpMsgHdr, 0, sizeof(CONTROLVM_MESSAGE_HEADER));
 
-	proc_DeInit();
 	LOGINF("Channel %s (ControlVm) disconnected",
 	       visorchannel_id(ControlVm_channel, s));
 	visorchannel_destroy(ControlVm_channel);
