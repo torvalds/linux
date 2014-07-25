@@ -1137,11 +1137,13 @@ static int solo_s_ctrl(struct v4l2_ctrl *ctrl)
 		solo_enc->motion_enabled = ctrl->val > V4L2_DETECT_MD_MODE_DISABLED;
 		if (ctrl->val) {
 			if (solo_enc->motion_global)
-				solo_set_motion_threshold(solo_dev, solo_enc->ch,
+				err = solo_set_motion_threshold(solo_dev, solo_enc->ch,
 					solo_enc->motion_thresh);
 			else
-				solo_set_motion_block(solo_dev, solo_enc->ch,
+				err = solo_set_motion_block(solo_dev, solo_enc->ch,
 					solo_enc->md_thresholds->p_cur.p_u16);
+			if (err)
+				return err;
 		}
 		solo_motion_toggle(solo_enc, ctrl->val);
 		return 0;
@@ -1152,8 +1154,7 @@ static int solo_s_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	case V4L2_CID_OSD_TEXT:
 		strcpy(solo_enc->osd_text, ctrl->p_new.p_char);
-		err = solo_osd_print(solo_enc);
-		return err;
+		return solo_osd_print(solo_enc);
 	default:
 		return -EINVAL;
 	}
