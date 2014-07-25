@@ -370,29 +370,31 @@ static void controlvm_respond_physdev_changestate(CONTROLVM_MESSAGE_HEADER *
 ssize_t toolaction_show(struct device *dev, struct device_attribute *attr,
 		char *buf)
 {
-	U8 toolAction;
+	u8 toolAction;
 
 	visorchannel_read(ControlVm_channel,
 		offsetof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL,
-			   ToolAction), &toolAction, sizeof(U8));
+			   ToolAction), &toolAction, sizeof(u8));
 	return scnprintf(buf, PAGE_SIZE, "%u\n", toolAction);
 }
 
 ssize_t toolaction_store(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t count)
 {
-	U8 toolAction;
+	u8 toolAction;
+	int ret;
 
-	if (sscanf(buf, "%hhu\n", &toolAction) == 1) {
-		if (visorchannel_write(ControlVm_channel,
-			offsetof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL,
-				ToolAction),
-			&toolAction, sizeof(U8)) < 0)
-				return -EFAULT;
-			else
-				return count;
-	} else
-		return -EIO;
+	if (kstrtou8(buf, 10, &toolAction) != 0)
+		return -EINVAL;
+
+	ret = visorchannel_write(ControlVm_channel,
+		offsetof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL, ToolAction),
+		&toolAction, sizeof(u8));
+
+	if (ret)
+		return ret;
+	else
+		return count;
 }
 
 ssize_t boottotool_show(struct device *dev, struct device_attribute *attr,
@@ -411,21 +413,23 @@ ssize_t boottotool_show(struct device *dev, struct device_attribute *attr,
 ssize_t boottotool_store(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t count)
 {
-	int val;
+	int val, ret;
 	ULTRA_EFI_SPAR_INDICATION efiSparIndication;
 
-	if (sscanf(buf, "%u\n", &val) == 1) {
-		efiSparIndication.BootToTool = val;
-		if (visorchannel_write(ControlVm_channel,
+	if (kstrtoint(buf, 10, &val) != 0)
+		return -EINVAL;
+
+	efiSparIndication.BootToTool = val;
+	ret = visorchannel_write(ControlVm_channel,
 			offsetof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL,
-				 EfiSparIndication),
+				EfiSparIndication),
 			&(efiSparIndication),
-		sizeof(ULTRA_EFI_SPAR_INDICATION)) < 0)
-				return -EFAULT;
-			else
-				return count;
-	} else
-		return -EIO;
+		sizeof(ULTRA_EFI_SPAR_INDICATION));
+
+	if (ret)
+		return ret;
+	else
+		return count;
 }
 
 static ssize_t error_show(struct device *dev, struct device_attribute *attr,
@@ -443,16 +447,19 @@ static ssize_t error_store(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t count)
 {
 	u32 error;
+	int ret;
 
-	if (sscanf(buf, "%i\n", &error) == 1) {
-		if (visorchannel_write(ControlVm_channel,
+	if (kstrtou32(buf, 10, &error) != 0)
+		return -EINVAL;
+
+	ret = visorchannel_write(ControlVm_channel,
 			offsetof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL,
 				InstallationError),
-			&error, sizeof(u32)) == 1) {
-				return count;
-		}
-	}
-	return -EIO;
+			&error, sizeof(u32));
+	if (ret)
+		return ret;
+	else
+		return count;
 }
 
 static ssize_t textid_show(struct device *dev, struct device_attribute *attr,
@@ -470,16 +477,19 @@ static ssize_t textid_store(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t count)
 {
 	u32 textId;
+	int ret;
 
-	if (sscanf(buf, "%i\n", &textId) == 1) {
-		if (visorchannel_write(ControlVm_channel,
+	if (kstrtou32(buf, 10, &textId) != 0)
+		return -EINVAL;
+
+	ret = visorchannel_write(ControlVm_channel,
 			offsetof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL,
 				InstallationTextId),
-			&textId, sizeof(u32)) == 1) {
-				return count;
-		}
-	}
-	return -EIO;
+			&textId, sizeof(u32));
+	if (ret)
+		return ret;
+	else
+		return count;
 }
 
 
@@ -500,16 +510,19 @@ static ssize_t remaining_steps_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
 	u16 remainingSteps;
+	int ret;
 
-	if (sscanf(buf, "%hu\n", &remainingSteps) == 1) {
-		if (visorchannel_write(ControlVm_channel,
+	if (kstrtou16(buf, 10, &remainingSteps) != 0)
+		return -EINVAL;
+
+	ret = visorchannel_write(ControlVm_channel,
 			offsetof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL,
 				InstallationRemainingSteps),
-			&remainingSteps, sizeof(u16)) == 1) {
-				return count;
-		}
-	}
-	return -EIO;
+			&remainingSteps, sizeof(u16));
+	if (ret)
+		return ret;
+	else
+		return count;
 }
 
 static void
@@ -2383,17 +2396,17 @@ static ssize_t chipsetready_store(struct device *dev,
 {
 	char msgtype[64];
 
-	if (sscanf(buf, "%63s", msgtype) == 1) {
-		if (strcmp(msgtype, "CALLHOMEDISK_MOUNTED") == 0)
-			chipset_events[0] = 1;
-		else if (strcmp(msgtype, "MODULES_LOADED") == 0)
-			chipset_events[1] = 1;
-		else
-			return -EINVAL;
-	} else {
+	if (sscanf(buf, "%63s", msgtype) != 1)
 		return -EINVAL;
-	}
-	return count;
+
+	if (strcmp(msgtype, "CALLHOMEDISK_MOUNTED") == 0) {
+		chipset_events[0] = 1;
+		return count;
+	} else if (strcmp(msgtype, "MODULES_LOADED") == 0) {
+		chipset_events[1] = 1;
+		return count;
+	} else
+		return -EINVAL;
 }
 
 static ssize_t
