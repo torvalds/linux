@@ -231,6 +231,22 @@ int vgic_v2_probe(struct device_node *vgic_node,
 		ret = -ENXIO;
 		goto out_unmap;
 	}
+
+	if (!PAGE_ALIGNED(vcpu_res.start)) {
+		kvm_err("GICV physical address 0x%llx not page aligned\n",
+			(unsigned long long)vcpu_res.start);
+		ret = -ENXIO;
+		goto out_unmap;
+	}
+
+	if (!PAGE_ALIGNED(resource_size(&vcpu_res))) {
+		kvm_err("GICV size 0x%llx not a multiple of page size 0x%lx\n",
+			(unsigned long long)resource_size(&vcpu_res),
+			PAGE_SIZE);
+		ret = -ENXIO;
+		goto out_unmap;
+	}
+
 	vgic->vcpu_base = vcpu_res.start;
 
 	kvm_info("%s@%llx IRQ%d\n", vgic_node->name,
