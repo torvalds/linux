@@ -57,10 +57,6 @@
 #define DO_ISA	IS_ENABLED(CONFIG_COMEDI_AMPLC_PC236_ISA)
 #define DO_PCI	IS_ENABLED(CONFIG_COMEDI_AMPLC_PC236_PCI)
 
-/* PCI236 PCI configuration register information */
-#define PCI_DEVICE_ID_AMPLICON_PCI236 0x0009
-#define PCI_DEVICE_ID_INVALID 0xffff
-
 /* PC36AT / PCI236 registers */
 
 /* Disable, and clear, interrupts */
@@ -407,8 +403,8 @@ static struct comedi_driver amplc_pc236_driver = {
 
 #if DO_PCI
 static const struct pci_device_id pc236_pci_table[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_AMPLICON_PCI236) },
-	{0}
+	{ PCI_DEVICE(PCI_VENDOR_ID_AMPLICON, 0x0009) },
+	{ 0 }
 };
 
 MODULE_DEVICE_TABLE(pci, pc236_pci_table);
