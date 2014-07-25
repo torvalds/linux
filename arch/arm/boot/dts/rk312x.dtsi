@@ -375,6 +375,18 @@
 		status = "disabled";
 	};
 
+
+	dsihost0: mipi@10110000{
+		compatible = "rockchip,rk32-dsi";
+		rockchip,prop = <0>;
+		reg = <0x10110000 0x4000>, <0x20038000 0x4000>;
+		reg-names = "mipi_dsi_host" ,"mipi_dsi_phy";
+		interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clk_gates2 15>, <&clk_gates5 0> ;//, <&pd_mipidsi>;
+		clock-names = "clk_mipi_24m", "pclk_mipi_dsi";//, "pd_mipi_dsi";
+		status = "okay";
+	};
+
 	emmc: rksdmmc@1021c000 {
 		compatible = "rockchip,rk_mmc", "rockchip,rk312x-sdmmc";
 		reg = <0x1021c000 0x4000>;

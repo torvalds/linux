@@ -15,6 +15,9 @@ drivers/video/rockchip/transmitter/rk32_mipi_dsi.h
 #else
 #include <linux/rockchip/grf.h>
 #endif
+#define MIPI_DSI_PHY_OFFSET		0x0C00
+#define MIPI_DSI_PHY_SIZE		0x34c
+
 #define MIPI_DSI_HOST_OFFSET	0x1000
 
 //function bits definition    register addr | bits | offest
@@ -23,6 +26,8 @@ drivers/video/rockchip/transmitter/rk32_mipi_dsi.h
 #define BITS_OFFSET(a)		(a)
 #define DSI_HOST_BITS(addr, bits, bit_offset)  (REG_ADDR((addr)+MIPI_DSI_HOST_OFFSET) \
 		| REG_BITS(bits) | BITS_OFFSET(bit_offset))  
+#define DSI_DPHY_BITS(addr, bits, bit_offset)  (REG_ADDR((addr)+MIPI_DSI_PHY_OFFSET) \
+		| REG_BITS(bits) | BITS_OFFSET(bit_offset))		
 
 //DWC_DSI_VERSION_0x3133302A
 #define VERSION 					DSI_HOST_BITS(0x000, 32, 0)
@@ -156,6 +161,51 @@ drivers/video/rockchip/transmitter/rk32_mipi_dsi.h
 #define code_hstxdatalanepreparestatetime   0x71
 #define code_hstxdatalanehszerostatetime    0x72
 
+//rk312x MIPI DSI DPHY REGISTERS
+#define DPHY_REGISTER0				DSI_DPHY_BITS(0x00, 32, 0)
+#define DPHY_REGISTER1				DSI_DPHY_BITS(0x04, 32, 0)
+#define DPHY_REGISTER3				DSI_DPHY_BITS(0x0c, 32, 0)
+#define DPHY_REGISTER4				DSI_DPHY_BITS(0x10, 32, 0)
+#define DPHY_REGISTER20				DSI_DPHY_BITS(0X80, 32, 0)
+
+#define lane_en_ck 					DSI_DPHY_BITS(0x00, 1, 6)
+#define lane_en_3 					DSI_DPHY_BITS(0x00, 1, 5)
+#define lane_en_2 					DSI_DPHY_BITS(0x00, 1, 4)
+#define lane_en_1 					DSI_DPHY_BITS(0x00, 1, 3)
+#define lane_en_0 					DSI_DPHY_BITS(0x00, 1, 2)
+
+#define reg_da_ppfc 				DSI_DPHY_BITS(0x04, 1, 4)
+#define reg_da_syncrst 				DSI_DPHY_BITS(0x04, 1, 2)
+#define reg_da_ldopd 				DSI_DPHY_BITS(0x04, 1, 1)
+#define reg_da_pllpd 				DSI_DPHY_BITS(0x04, 1, 0)
+
+#define reg_fbdiv_8 				DSI_DPHY_BITS(0x0c, 1, 5)
+#define reg_prediv 					DSI_DPHY_BITS(0x0c, 5, 0)
+#define reg_fbdiv 					DSI_DPHY_BITS(0x10, 8, 0)
+
+#define reg_dig_rstn 				DSI_DPHY_BITS(0X80, 1, 0)
+
+#define DPHY_CLOCK_OFFSET			REG_ADDR(0X0100)
+#define DPHY_LANE0_OFFSET			REG_ADDR(0X0180)
+#define DPHY_LANE1_OFFSET			REG_ADDR(0X0200)
+#define DPHY_LANE2_OFFSET			REG_ADDR(0X0280)
+#define DPHY_LANE3_OFFSET			REG_ADDR(0X0300)
+
+#define reg_ths_settle				DSI_DPHY_BITS(0x0000, 4, 0)
+#define reg_hs_tlpx					DSI_DPHY_BITS(0x0014, 6, 0)
+#define reg_hs_ths_prepare			DSI_DPHY_BITS(0x0018, 7, 0)
+#define reg_hs_the_zero				DSI_DPHY_BITS(0x001c, 6, 0)
+#define reg_hs_ths_trail			DSI_DPHY_BITS(0x0020, 7, 0)
+#define reg_hs_ths_exit				DSI_DPHY_BITS(0x0024, 5, 0)
+#define reg_hs_tclk_post			DSI_DPHY_BITS(0x0028, 4, 0)
+#define reserved					DSI_DPHY_BITS(0x002c, 1, 0)
+#define reg_hs_twakup_h				DSI_DPHY_BITS(0x0030, 2, 0)
+#define reg_hs_twakup_l				DSI_DPHY_BITS(0x0034, 8, 0)
+#define reg_hs_tclk_pre				DSI_DPHY_BITS(0x0038, 4, 0)
+#define reg_hs_tta_go				DSI_DPHY_BITS(0x0040, 6, 0)
+#define reg_hs_tta_sure				DSI_DPHY_BITS(0x0044, 6, 0)
+#define reg_hs_tta_wait				DSI_DPHY_BITS(0x0048, 6, 0)
+//end of rk312x MIPI DSI DPHY REGISTERS
 
 //global operation timing parameter
 struct gotp_m {
@@ -250,6 +300,7 @@ int rk_mipi_get_dsi_lane(void);
 static int rk32_mipi_power_down_DDR(void);
 static int rk32_mipi_power_up_DDR(void);
 static void rk32_init_phy_mode(int lcdc_id);
+static void rk_init_phy_mode(int lcdc_id);
 
 
 #endif /* end of RK32_MIPI_DSI_H */
