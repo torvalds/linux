@@ -32,7 +32,6 @@
 #include "ttype.h"
 #include <linux/types.h>
 
-/*---------------------  Export Definitions -------------------------*/
 //
 // Loopback mode
 //
@@ -48,7 +47,7 @@
 #define DEFAULT_MGN_LIFETIME_RES_64us   125  // 64us
 
 #define CB_MAX_CHANNEL_24G      14
-#define CB_MAX_CHANNEL_5G       42 //[20050104] add channel9(5045MHz), 41==>42
+#define CB_MAX_CHANNEL_5G       42
 #define CB_MAX_CHANNEL          (CB_MAX_CHANNEL_24G+CB_MAX_CHANNEL_5G)
 
 typedef enum _CARD_PHY_TYPE {
@@ -78,12 +77,6 @@ typedef enum _CARD_OP_MODE {
 	OP_MODE_UNKNOWN
 } CARD_OP_MODE, *PCARD_OP_MODE;
 
-/*---------------------  Export Classes  ----------------------------*/
-
-/*---------------------  Export Variables  --------------------------*/
-
-/*---------------------  Export Functions  --------------------------*/
-
 void CARDvSetRSPINF(void *pDeviceHandler, CARD_PHY_TYPE ePHYType);
 void vUpdateIFS(void *pDeviceHandler);
 void CARDvUpdateBasicTopRate(void *pDeviceHandler);
@@ -101,7 +94,6 @@ unsigned char CARDbyGetPktType(void *pDeviceHandler);
 void CARDvSafeResetTx(void *pDeviceHandler);
 void CARDvSafeResetRx(void *pDeviceHandler);
 
-//xxx
 bool CARDbRadioPowerOff(void *pDeviceHandler);
 bool CARDbRadioPowerOn(void *pDeviceHandler);
 bool CARDbIsShortPreamble(void *pDeviceHandler);
