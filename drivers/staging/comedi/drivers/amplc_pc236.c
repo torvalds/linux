@@ -117,10 +117,6 @@ static const struct pc236_board pc236_boards[] = {
 #endif
 };
 
-/* this structure is for data unique to this hardware driver.  If
-   several hardware drivers keep similar information in this structure,
-   feel free to suggest moving the variable to the struct comedi_device struct.
- */
 struct pc236_private {
 	unsigned long lcr_iobase; /* PLX PCI9052 config registers in PCIBAR1 */
 	int enable_irq;
@@ -425,12 +421,6 @@ static int pc236_pci_common_attach(struct comedi_device *dev,
 	return pc236_common_attach(dev, iobase, pci_dev->irq, IRQF_SHARED);
 }
 
-/*
- * Attach is called by the Comedi core to configure the driver
- * for a particular board.  If you specified a board_name array
- * in the driver structure, dev->board_ptr contains that
- * address.
- */
 static int pc236_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	const struct pc236_board *thisboard = comedi_board(dev);
@@ -461,11 +451,6 @@ static int pc236_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return -EINVAL;
 }
 
-/*
- * The auto_attach hook is called at PCI probe time via
- * comedi_pci_auto_config().  dev->board_ptr is NULL on entry.
- * There should be a board entry matching the supplied PCI device.
- */
 static int pc236_auto_attach(struct comedi_device *dev,
 				       unsigned long context_unused)
 {
@@ -517,12 +502,6 @@ static void pc236_detach(struct comedi_device *dev)
 	}
 }
 
-/*
- * The struct comedi_driver structure tells the Comedi core module
- * which functions to call to configure/deconfigure (attach/detach)
- * the board, and also about the kernel module that contains
- * the device code.
- */
 static struct comedi_driver amplc_pc236_driver = {
 	.driver_name = "amplc_pc236",
 	.module = THIS_MODULE,
