@@ -795,17 +795,6 @@ static void qat_hal_get_uwords(struct icp_qat_fw_loader_handle *handle,
 	qat_hal_wr_ae_csr(handle, ae, USTORE_ADDRESS, ustore_addr);
 }
 
-static int qat_hal_count_bits(unsigned int word)
-{
-	int n = 0;
-
-	while (word) {
-		n++;
-		word &= word - 1;
-	}
-	return n;
-}
-
 void qat_hal_wr_umem(struct icp_qat_fw_loader_handle *handle,
 		     unsigned char ae, unsigned int uaddr,
 		     unsigned int words_num, unsigned int *data)
@@ -822,9 +811,9 @@ void qat_hal_wr_umem(struct icp_qat_fw_loader_handle *handle,
 			  ((data[i] & 0xff00) << 2) |
 			  (0x3 << 8) | (data[i] & 0xff);
 		uwrd_hi = (0xf << 4) | ((data[i] & 0xf0000000) >> 28);
-		uwrd_hi |= (qat_hal_count_bits(data[i] & 0xffff) & 0x1) << 8;
+		uwrd_hi |= (hweight32(data[i] & 0xffff) & 0x1) << 8;
 		tmp = ((data[i] >> 0x10) & 0xffff);
-		uwrd_hi |= (qat_hal_count_bits(tmp) & 0x1) << 9;
+		uwrd_hi |= (hweight32(tmp) & 0x1) << 9;
 		qat_hal_wr_ae_csr(handle, ae, USTORE_DATA_LOWER, uwrd_lo);
 		qat_hal_wr_ae_csr(handle, ae, USTORE_DATA_UPPER, uwrd_hi);
 	}
