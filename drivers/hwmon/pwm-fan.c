@@ -110,7 +110,6 @@ static int pwm_fan_probe(struct platform_device *pdev)
 		return PTR_ERR(ctx->pwm);
 	}
 
-	dev_set_drvdata(&pdev->dev, ctx);
 	platform_set_drvdata(pdev, ctx);
 
 	/* Set duty cycle to maximum allowed */
