@@ -1060,7 +1060,6 @@ static int sc16is7xx_probe(struct device *dev,
 			   struct regmap *regmap, int irq, unsigned long flags)
 {
 	unsigned long freq, *pfreq = dev_get_platdata(dev);
-	struct clk *clk;
 	int i, ret;
 	struct sc16is7xx_port *s;
 
@@ -1076,14 +1075,14 @@ static int sc16is7xx_probe(struct device *dev,
 		return -ENOMEM;
 	}
 
-	clk = devm_clk_get(dev, NULL);
-	if (IS_ERR(clk)) {
+	s->clk = devm_clk_get(dev, NULL);
+	if (IS_ERR(s->clk)) {
 		if (pfreq)
 			freq = *pfreq;
 		else
-			return PTR_ERR(clk);
+			return PTR_ERR(s->clk);
 	} else {
-		freq = clk_get_rate(clk);
+		freq = clk_get_rate(s->clk);
 	}
 
 	s->regmap = regmap;
