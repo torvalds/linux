@@ -1222,7 +1222,7 @@ unsigned int is_ap_in_wep(struct adapter *padapter)
 	}
 }
 
-int wifirate2_ratetbl_inx(unsigned char rate)
+static int wifirate2_ratetbl_inx(unsigned char rate)
 {
 	int	inx = 0;
 	rate = rate & 0x7f;

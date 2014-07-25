@@ -32,6 +32,7 @@
 
 #include <rtw_iol.h>
 #include <linux/vmalloc.h>
+#include "osdep_intf.h"
 
 #define RTL_IOCTL_WPA_SUPPLICANT	(SIOCIWFIRSTPRIV + 30)
 

@@ -22,7 +22,7 @@
 #define		ODM_TXPWRTRACK_MAX_IDX_88E		6
 
 
-u8 ODM_GetRightChnlPlaceforIQK(u8 chnl)
+static u8 ODM_GetRightChnlPlaceforIQK(u8 chnl)
 {
 	u8	channel_all[ODM_TARGET_CHNL_NUM_2G_5G] = {
 		1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
