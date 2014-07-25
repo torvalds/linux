@@ -49,7 +49,6 @@
 #include <linux/list.h>
 #include <linux/seq_file.h>
 #include "adf_accel_devices.h"
-#include "adf_common_drv.h"
 #include "adf_cfg.h"
 
 static DEFINE_MUTEX(qat_cfg_read_lock);
