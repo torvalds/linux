@@ -2801,7 +2801,7 @@ static int drm_mode_cursor_common(struct drm_device *dev,
 	if (crtc->cursor)
 		return drm_mode_cursor_universal(crtc, req, file_priv);
 
-	drm_modeset_lock(&crtc->mutex, NULL);
+	drm_modeset_lock_crtc(crtc);
 	if (req->flags & DRM_MODE_CURSOR_BO) {
 		if (!crtc->funcs->cursor_set && !crtc->funcs->cursor_set2) {
 			ret = -ENXIO;
@@ -2825,7 +2825,7 @@ static int drm_mode_cursor_common(struct drm_device *dev,
 		}
 	}
 out:
-	drm_modeset_unlock(&crtc->mutex);
+	drm_modeset_unlock_crtc(crtc);
 
 	return ret;
 
@@ -4561,7 +4561,7 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 	if (!crtc)
 		return -ENOENT;
 
-	drm_modeset_lock(&crtc->mutex, NULL);
+	drm_modeset_lock_crtc(crtc);
 	if (crtc->primary->fb == NULL) {
 		/* The framebuffer is currently unbound, presumably
 		 * due to a hotplug event, that userspace has not
@@ -4645,7 +4645,7 @@ out:
 		drm_framebuffer_unreference(fb);
 	if (old_fb)
 		drm_framebuffer_unreference(old_fb);
-	drm_modeset_unlock(&crtc->mutex);
+	drm_modeset_unlock_crtc(crtc);
 
 	return ret;
 }

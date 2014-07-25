@@ -371,6 +371,12 @@ struct drm_crtc {
 	void *helper_private;
 
 	struct drm_object_properties properties;
+
+	/*
+	 * For legacy crtc ioctls so that atomic drivers can get at the locking
+	 * acquire context.
+	 */
+	struct drm_modeset_acquire_ctx *acquire_ctx;
 };
 
 
