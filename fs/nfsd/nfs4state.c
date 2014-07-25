@@ -3607,11 +3607,12 @@ static void nfsd4_open_deleg_none_ext(struct nfsd4_open *open, int status)
  * proper support for them.
  */
 static void
-nfs4_open_delegation(struct net *net, struct svc_fh *fh,
-		     struct nfsd4_open *open, struct nfs4_ol_stateid *stp)
+nfs4_open_delegation(struct svc_fh *fh, struct nfsd4_open *open,
+			struct nfs4_ol_stateid *stp)
 {
 	struct nfs4_delegation *dp;
-	struct nfs4_openowner *oo = container_of(stp->st_stateowner, struct nfs4_openowner, oo_owner);
+	struct nfs4_openowner *oo = openowner(stp->st_stateowner);
+	struct nfs4_client *clp = stp->st_stid.sc_client;
 	int cb_up;
 	int status = 0;
 
@@ -3630,7 +3631,7 @@ nfs4_open_delegation(struct net *net, struct svc_fh *fh,
 			 * Let's not give out any delegations till everyone's
 			 * had the chance to reclaim theirs....
 			 */
-			if (locks_in_grace(net))
+			if (locks_in_grace(clp->net))
 				goto out_no_deleg;
 			if (!cb_up || !(oo->oo_flags & NFS4_OO_CONFIRMED))
 				goto out_no_deleg;
@@ -3649,7 +3650,7 @@ nfs4_open_delegation(struct net *net, struct svc_fh *fh,
 		default:
 			goto out_no_deleg;
 	}
-	dp = alloc_init_deleg(oo->oo_owner.so_client, fh);
+	dp = alloc_init_deleg(clp, fh);
 	if (dp == NULL)
 		goto out_no_deleg;
 	status = nfs4_set_delegation(dp, stp->st_file);
@@ -3762,7 +3763,7 @@ nfsd4_process_open2(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nf
 	* Attempt to hand out a delegation. No error return, because the
 	* OPEN succeeds even if we fail.
 	*/
-	nfs4_open_delegation(SVC_NET(rqstp), current_fh, open, stp);
+	nfs4_open_delegation(current_fh, open, stp);
 nodeleg:
 	status = nfs_ok;
 
