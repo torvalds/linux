@@ -2528,7 +2528,7 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 		v4l2->vbi_dev->queue->lock = &v4l2->vb_vbi_queue_lock;
 
 		/* disable inapplicable ioctls */
-		v4l2_disable_ioctl(v4l2->vdev, VIDIOC_S_PARM);
+		v4l2_disable_ioctl(v4l2->vbi_dev, VIDIOC_S_PARM);
 		if (dev->tuner_type == TUNER_ABSENT) {
 			v4l2_disable_ioctl(v4l2->vbi_dev, VIDIOC_G_TUNER);
 			v4l2_disable_ioctl(v4l2->vbi_dev, VIDIOC_S_TUNER);
