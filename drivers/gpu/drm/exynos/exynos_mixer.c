@@ -365,6 +365,11 @@ static void mixer_cfg_layer(struct mixer_context *ctx, int win, bool enable)
 			vp_reg_writemask(res, VP_ENABLE, val, VP_ENABLE_ON);
 			mixer_reg_writemask(res, MXR_CFG, val,
 				MXR_CFG_VP_ENABLE);
+
+			/* control blending of graphic layer 0 */
+			mixer_reg_writemask(res, MXR_GRAPHIC_CFG(0), val,
+					MXR_GRP_CFG_BLEND_PRE_MUL |
+					MXR_GRP_CFG_PIXEL_BLEND_EN);
 		}
 		break;
 	}
