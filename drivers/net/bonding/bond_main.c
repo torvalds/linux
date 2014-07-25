@@ -2287,8 +2287,7 @@ found:
 		ip_rt_put(rt);
 		bond_arp_send(slave->dev, ARPOP_REQUEST, targets[i],
 			      addr, tags);
-		if (!tags)
-			kfree(tags);
+		kfree(tags);
 	}
 }
 
