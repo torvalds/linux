@@ -27,20 +27,8 @@
  * Functions:
  *
  *   vt6656_probe - module initial (insmod) driver entry
- *   device_remove1 - module remove entry
- *   device_open - allocate dma/descripter resource & initial mac/bbp function
- *   device_xmit - asynchronous data tx function
- *   device_set_multi - set mac filter
- *   device_ioctl - ioctl entry
- *   device_close - shutdown mac/bbp & free dma/descriptor resource
- *   device_alloc_frag_buf - rx fragement pre-allocated function
  *   vnt_free_tx_bufs - free tx buffer function
- *   device_dma0_tx_80211- tx 802.11 frame via dma0
- *   device_dma0_xmit- tx PS buffered frame via dma0
  *   vnt_init_registers- initial MAC & BBP & RF internal registers.
- *   device_init_rings- initial tx/rx ring buffer
- *   device_init_defrag_cb- initial & allocate de-fragement buffer.
- *   device_tx_srv- tx interrupt service function
  *
  * Revision History:
  */
