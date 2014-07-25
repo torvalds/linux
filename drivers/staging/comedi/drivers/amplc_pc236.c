@@ -284,11 +284,9 @@ static irqreturn_t pc236_interrupt(int irq, void *d)
 static int pc236_common_attach(struct comedi_device *dev, unsigned long iobase,
 			       unsigned int irq, unsigned long req_irq_flags)
 {
-	const struct pc236_board *thisboard = comedi_board(dev);
 	struct comedi_subdevice *s;
 	int ret;
 
-	dev->board_name = thisboard->name;
 	dev->iobase = iobase;
 
 	ret = comedi_alloc_subdevices(dev, 2);
@@ -362,6 +360,7 @@ static int pc236_auto_attach(struct comedi_device *dev,
 		return -ENOMEM;
 
 	dev->board_ptr = &pc236_pci_board;
+	dev->board_name = pc236_pci_board.name;
 	ret = comedi_pci_enable(dev);
 	if (ret)
 		return ret;
