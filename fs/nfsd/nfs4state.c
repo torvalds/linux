@@ -517,10 +517,11 @@ static struct nfs4_ol_stateid * nfs4_alloc_stateid(struct nfs4_client *clp)
  * Each filter is 256 bits.  We hash the filehandle to 32bit and use the
  * low 3 bytes as hash-table indices.
  *
- * 'state_lock', which is always held when block_delegations() is called,
+ * 'blocked_delegations_lock', which is always taken in block_delegations(),
  * is used to manage concurrent access.  Testing does not need the lock
  * except when swapping the two filters.
  */
+static DEFINE_SPINLOCK(blocked_delegations_lock);
 static struct bloom_pair {
 	int	entries, old_entries;
 	time_t	swap_time;
@@ -536,7 +537,7 @@ static int delegation_blocked(struct knfsd_fh *fh)
 	if (bd->entries == 0)
 		return 0;
 	if (seconds_since_boot() - bd->swap_time > 30) {
-		spin_lock(&state_lock);
+		spin_lock(&blocked_delegations_lock);
 		if (seconds_since_boot() - bd->swap_time > 30) {
 			bd->entries -= bd->old_entries;
 			bd->old_entries = bd->entries;
@@ -545,7 +546,7 @@ static int delegation_blocked(struct knfsd_fh *fh)
 			bd->new = 1-bd->new;
 			bd->swap_time = seconds_since_boot();
 		}
-		spin_unlock(&state_lock);
+		spin_unlock(&blocked_delegations_lock);
 	}
 	hash = arch_fast_hash(&fh->fh_base, fh->fh_size, 0);
 	if (test_bit(hash&255, bd->set[0]) &&
@@ -566,16 +567,16 @@ static void block_delegations(struct knfsd_fh *fh)
 	u32 hash;
 	struct bloom_pair *bd = &blocked_delegations;
 
-	lockdep_assert_held(&state_lock);
-
 	hash = arch_fast_hash(&fh->fh_base, fh->fh_size, 0);
 
+	spin_lock(&blocked_delegations_lock);
 	__set_bit(hash&255, bd->set[bd->new]);
 	__set_bit((hash>>8)&255, bd->set[bd->new]);
 	__set_bit((hash>>16)&255, bd->set[bd->new]);
 	if (bd->entries == 0)
 		bd->swap_time = seconds_since_boot();
 	bd->entries += 1;
+	spin_unlock(&blocked_delegations_lock);
 }
 
 static struct nfs4_delegation *
@@ -3096,16 +3097,16 @@ void nfsd4_prepare_cb_recall(struct nfs4_delegation *dp)
 	struct nfs4_client *clp = dp->dl_stid.sc_client;
 	struct nfsd_net *nn = net_generic(clp->net, nfsd_net_id);
 
+	block_delegations(&dp->dl_fh);
+
 	/*
 	 * We can't do this in nfsd_break_deleg_cb because it is
-	 * already holding inode->i_lock
-	 */
-	spin_lock(&state_lock);
-	block_delegations(&dp->dl_fh);
-	/*
+	 * already holding inode->i_lock.
+	 *
 	 * If the dl_time != 0, then we know that it has already been
 	 * queued for a lease break. Don't queue it again.
 	 */
+	spin_lock(&state_lock);
 	if (dp->dl_time == 0) {
 		dp->dl_time = get_seconds();
 		list_add_tail(&dp->dl_recall_lru, &nn->del_recall_lru);
