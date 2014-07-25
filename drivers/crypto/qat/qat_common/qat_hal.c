@@ -424,7 +424,7 @@ static void qat_hal_reset_timestamp(struct icp_qat_fw_loader_handle *handle)
 		SET_GLB_CSR(handle, MISC_CONTROL, misc_ctl &
 			    (~MC_TIMESTAMP_ENABLE));
 
-	for (ae = 0; ae <= handle->hal_handle->ae_max_num; ae++) {
+	for (ae = 0; ae < handle->hal_handle->ae_max_num; ae++) {
 		if (!(handle->hal_handle->ae_mask & (1 << ae)))
 			continue;
 		qat_hal_wr_ae_csr(handle, ae, TIMESTAMP_LOW, 0);
@@ -492,7 +492,7 @@ int qat_hal_clr_reset(struct icp_qat_fw_loader_handle *handle)
 		goto out_err;
 
 	/* Set undefined power-up/reset states to reasonable default values */
-	for (ae = 0; ae <= handle->hal_handle->ae_max_num; ae++) {
+	for (ae = 0; ae < handle->hal_handle->ae_max_num; ae++) {
 		if (!(handle->hal_handle->ae_mask & (1 << ae)))
 			continue;
 		qat_hal_wr_ae_csr(handle, ae, CTX_ENABLES,
@@ -608,7 +608,7 @@ static int qat_hal_clear_gpr(struct icp_qat_fw_loader_handle *handle)
 	unsigned int savctx = 0;
 	int ret = 0;
 
-	for (ae = 0; ae <= handle->hal_handle->ae_max_num; ae++) {
+	for (ae = 0; ae < handle->hal_handle->ae_max_num; ae++) {
 		if (!(handle->hal_handle->ae_mask & (1 << ae)))
 			continue;
 		for (reg = 0; reg < ICP_QAT_UCLO_MAX_GPR_REG; reg++) {
@@ -637,7 +637,7 @@ static int qat_hal_clear_gpr(struct icp_qat_fw_loader_handle *handle)
 		qat_hal_wr_ae_csr(handle, ae, CTX_SIG_EVENTS_ACTIVE, 0);
 		qat_hal_enable_ctx(handle, ae, ctx_mask);
 	}
-	for (ae = 0; ae <= handle->hal_handle->ae_max_num; ae++) {
+	for (ae = 0; ae < handle->hal_handle->ae_max_num; ae++) {
 		if (!(handle->hal_handle->ae_mask & (1 << ae)))
 			continue;
 		/* wait for AE to finish */
@@ -674,17 +674,16 @@ static int qat_hal_clear_gpr(struct icp_qat_fw_loader_handle *handle)
 #define ICP_DH895XCC_PMISC_BAR 1
 int qat_hal_init(struct adf_accel_dev *accel_dev)
 {
-	unsigned char ae = 0;
-	unsigned int csr_val = 0;
-	unsigned int max_en_ae_num = 0;
-	struct icp_qat_fw_loader_handle *handle = NULL;
+	unsigned char ae;
+	unsigned int max_en_ae_id = 0;
+	struct icp_qat_fw_loader_handle *handle;
 	struct adf_accel_pci *pci_info = &accel_dev->accel_pci_dev;
 	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
 	struct adf_bar *bar = &pci_info->pci_bars[ADF_DH895XCC_PMISC_BAR];
 
 	handle = kzalloc(sizeof(*handle), GFP_KERNEL);
 	if (!handle)
-		goto out_handle;
+		return -ENOMEM;
 
 	handle->hal_cap_g_ctl_csr_addr_v = bar->virt_addr +
 						ICP_DH895XCC_CAP_OFFSET;
@@ -713,9 +712,9 @@ int qat_hal_init(struct adf_accel_dev *accel_dev)
 		    handle->hal_handle->max_ustore;
 		handle->hal_handle->aes[ae].live_ctx_mask =
 						ICP_QAT_UCLO_AE_ALL_CTX;
-		max_en_ae_num = ae;
+		max_en_ae_id = ae;
 	}
-	handle->hal_handle->ae_max_num = max_en_ae_num;
+	handle->hal_handle->ae_max_num = max_en_ae_id + 1;
 	/* take all AEs out of reset */
 	if (qat_hal_clr_reset(handle)) {
 		pr_err("QAT: qat_hal_clr_reset error\n");
@@ -724,7 +723,9 @@ int qat_hal_init(struct adf_accel_dev *accel_dev)
 	if (qat_hal_clear_gpr(handle))
 		goto out_err;
 	/* Set SIGNATURE_ENABLE[0] to 0x1 in order to enable ALU_OUT csr */
-	for (ae = 0; ae <= handle->hal_handle->ae_max_num; ae++) {
+	for (ae = 0; ae < handle->hal_handle->ae_max_num; ae++) {
+		unsigned int csr_val = 0;
+
 		if (!(hw_data->ae_mask & (1 << ae)))
 			continue;
 		qat_hal_rd_ae_csr(handle, ae, SIGNATURE_ENABLE, &csr_val);
@@ -738,7 +739,6 @@ out_err:
 	kfree(handle->hal_handle);
 out_hal_handle:
 	kfree(handle);
-out_handle:
 	return -EFAULT;
 }
 
