@@ -136,7 +136,7 @@ int adf_dev_start(struct adf_accel_dev *accel_dev)
 	set_bit(ADF_STATUS_AE_INITIALISED, &accel_dev->status);
 
 	if (adf_ae_fw_load(accel_dev)) {
-		pr_err("Failed to load acceleration FW\n");
+		pr_err("QAT: Failed to load acceleration FW\n");
 		adf_ae_fw_release(accel_dev);
 		return -EFAULT;
 	}

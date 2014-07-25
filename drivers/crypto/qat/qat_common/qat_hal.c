@@ -849,8 +849,7 @@ static int qat_hal_exec_micro_inst(struct icp_qat_fw_loader_handle *handle,
 	unsigned int ctxarb_ctl, ctx_enables;
 
 	if ((inst_num > handle->hal_handle->max_ustore) || !micro_inst) {
-		pr_err("QAT: invalid instructs inst_num=%d, micro_inst=0x%p\n ",
-		       inst_num, micro_inst);
+		pr_err("QAT: invalid instruction num %d\n", inst_num);
 		return -EINVAL;
 	}
 	/* save current context */

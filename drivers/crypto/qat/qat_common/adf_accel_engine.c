@@ -67,11 +67,11 @@ int adf_ae_fw_load(struct adf_accel_dev *accel_dev)
 	uof_size = loader_data->uof_fw->size;
 	uof_addr = (void *)loader_data->uof_fw->data;
 	if (qat_uclo_map_uof_obj(loader_data->fw_loader, uof_addr, uof_size)) {
-		pr_err("QAT: Failed to map uof\n");
+		pr_err("QAT: Failed to map UOF\n");
 		goto out_err;
 	}
 	if (qat_uclo_wr_all_uimage(loader_data->fw_loader)) {
-		pr_err("QAT: Failed to map uof\n");
+		pr_err("QAT: Failed to map UOF\n");
 		goto out_err;
 	}
 	return 0;

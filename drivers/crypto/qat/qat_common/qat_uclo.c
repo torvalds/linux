@@ -132,7 +132,7 @@ static int qat_uclo_check_format(struct icp_qat_uof_filehdr *hdr)
 		return -EINVAL;
 	}
 	if (min != ICP_QAT_UOF_MINVER || maj != ICP_QAT_UOF_MAJVER) {
-		pr_err("QAT: bad uof version, major 0x%x, minor 0x%x\n",
+		pr_err("QAT: bad UOF version, major 0x%x, minor 0x%x\n",
 		       maj, min);
 		return -EINVAL;
 	}
@@ -249,7 +249,7 @@ static int qat_uclo_fetch_initmem_ae(struct icp_qat_fw_loader_handle *handle,
 	}
 	str = qat_uclo_get_string(&obj_handle->str_table, init_mem->sym_name);
 	if (!str) {
-		pr_err("QAT: AE name assigned in uof init table is NULL\n");
+		pr_err("QAT: AE name assigned in UOF init table is NULL\n");
 		return -EINVAL;
 	}
 	if (qat_uclo_parse_num(str, ae)) {
@@ -751,14 +751,14 @@ static int qat_uclo_check_uof_compat(struct icp_qat_uclo_objhandle *obj_handle)
 	unsigned int maj_ver, prod_type = obj_handle->prod_type;
 
 	if (!(prod_type & obj_handle->encap_uof_obj.obj_hdr->cpu_type)) {
-		pr_err("QAT: uof type 0x%x not match with cur platform 0x%x\n",
+		pr_err("QAT: UOF type 0x%x not match with cur platform 0x%x\n",
 		       obj_handle->encap_uof_obj.obj_hdr->cpu_type, prod_type);
 		return -EINVAL;
 	}
 	maj_ver = obj_handle->prod_rev & 0xff;
 	if ((obj_handle->encap_uof_obj.obj_hdr->max_cpu_ver < maj_ver) ||
 	    (obj_handle->encap_uof_obj.obj_hdr->min_cpu_ver > maj_ver)) {
-		pr_err("QAT: uof majVer 0x%x out of range\n", maj_ver);
+		pr_err("QAT: UOF majVer 0x%x out of range\n", maj_ver);
 		return -EINVAL;
 	}
 	return 0;
@@ -868,7 +868,7 @@ static int qat_uclo_init_globals(struct icp_qat_fw_loader_handle *handle)
 		return 0;
 	if (obj_handle->init_mem_tab.entry_num) {
 		if (qat_uclo_init_memory(handle)) {
-			pr_err("QAT: initalize memory failed\n");
+			pr_err("QAT: initialize memory failed\n");
 			return -EINVAL;
 		}
 	}
@@ -917,13 +917,13 @@ static int qat_uclo_set_ae_mode(struct icp_qat_fw_loader_handle *handle)
 			if (qat_hal_set_ae_lm_mode(handle, ae, ICP_LMEM0,
 						   (char)ICP_QAT_LOC_MEM0_MODE
 						   (uof_image->ae_mode))) {
-				pr_err("QAT: qat_hal_set_ae_lm_mode error\n ");
+				pr_err("QAT: qat_hal_set_ae_lm_mode LMEM0 error\n");
 				return -EFAULT;
 			}
 			if (qat_hal_set_ae_lm_mode(handle, ae, ICP_LMEM1,
 						   (char)ICP_QAT_LOC_MEM1_MODE
 						   (uof_image->ae_mode))) {
-				pr_err("QAT: qat_hal_set_ae_lm_mode error\n ");
+				pr_err("QAT: qat_hal_set_ae_lm_mode LMEM1 error\n");
 				return -EFAULT;
 			}
 		}
@@ -961,14 +961,14 @@ static int qat_uclo_parse_uof_obj(struct icp_qat_fw_loader_handle *handle)
 	obj_handle->prod_rev = PID_MAJOR_REV |
 			(PID_MINOR_REV & handle->hal_handle->revision_id);
 	if (qat_uclo_check_uof_compat(obj_handle)) {
-		pr_err("QAT: uof incompatible\n");
+		pr_err("QAT: UOF incompatible\n");
 		return -EINVAL;
 	}
 	obj_handle->ustore_phy_size = ICP_QAT_UCLO_MAX_USTORE;
 	if (!obj_handle->obj_hdr->file_buff ||
 	    !qat_uclo_map_str_table(obj_handle->obj_hdr, ICP_QAT_UOF_STRT,
 				    &obj_handle->str_table)) {
-		pr_err("QAT: uof doesn't have effective images\n");
+		pr_err("QAT: UOF doesn't have effective images\n");
 		goto out_err;
 	}
 	obj_handle->uimage_num =
