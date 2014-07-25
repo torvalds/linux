@@ -533,7 +533,7 @@ config SND_SOC_TLV320AIC26
 	depends on SPI
 
 config SND_SOC_TLV320AIC31XX
-        tristate
+	tristate "Texas Instruments TLV320AIC31xx CODECs"
 	depends on I2C
 	select REGMAP_I2C
 
