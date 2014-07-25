@@ -42,6 +42,16 @@ struct au_wbr {
 
 	/* mfs mode */
 	unsigned long long	wbr_bytes;
+
+	/* File-based Hierarchical Storage Management */
+#ifdef CONFIG_AUFS_FHSM
+	struct {
+		struct mutex		lock;
+		unsigned long		jiffy;
+		struct aufs_stfs	stfs;
+		int			readable;
+	} wbr_fhsm_notify;
+#endif
 };
 
 /* ext2 has 3 types of operations at least, ext3 has 4 */
@@ -220,6 +230,25 @@ AuSimpleRwsemFuncs(wbr_wh, struct au_wbr *wbr, &wbr->wbr_wh_rwsem);
 #define WbrWhMustNoWaiters(wbr)	AuRwMustNoWaiters(&wbr->wbr_wh_rwsem)
 #define WbrWhMustAnyLock(wbr)	AuRwMustAnyLock(&wbr->wbr_wh_rwsem)
 #define WbrWhMustWriteLock(wbr)	AuRwMustWriteLock(&wbr->wbr_wh_rwsem)
+
+/* ---------------------------------------------------------------------- */
+
+#ifdef CONFIG_AUFS_FHSM
+static inline void au_wbr_init_fhsm(struct au_wbr *wbr)
+{
+	mutex_init(&wbr->wbr_fhsm_notify.lock);
+	wbr->wbr_fhsm_notify.jiffy = 0;
+	wbr->wbr_fhsm_notify.readable = 0;
+}
+
+static inline void au_wbr_fin_fhsm(struct au_wbr *wbr)
+{
+	mutex_destroy(&wbr->wbr_fhsm_notify.lock);
+}
+#else
+AuStubVoid(au_wbr_init_fhsm, struct au_wbr *wbr)
+AuStubVoid(au_wbr_fin_fhsm, struct au_wbr *wbr)
+#endif
 
 #endif /* __KERNEL__ */
 #endif /* __AUFS_BRANCH_H__ */
