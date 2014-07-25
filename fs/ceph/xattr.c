@@ -597,7 +597,7 @@ start:
 		err = -ENOMEM;
 		if (!xattrs)
 			goto bad_lock;
-		memset(xattrs, 0, numattr*sizeof(struct ceph_xattr *));
+
 		for (i = 0; i < numattr; i++) {
 			xattrs[i] = kmalloc(sizeof(struct ceph_inode_xattr),
 					    GFP_NOFS);
