@@ -256,10 +256,6 @@ static int qat_uclo_fetch_initmem_ae(struct icp_qat_fw_loader_handle *handle,
 		pr_err("QAT: Parse num for AE number failed\n");
 		return -EINVAL;
 	}
-	if (!test_bit(*ae, (unsigned long *)&handle->hal_handle->ae_mask)) {
-		pr_err("QAT: ae %d to be init is fused off\n", *ae);
-		return -EINVAL;
-	}
 	if (*ae >= ICP_QAT_UCLO_MAX_AE) {
 		pr_err("QAT: ae %d out of range\n", *ae);
 		return -EINVAL;
@@ -456,7 +452,7 @@ static int qat_uclo_init_memory(struct icp_qat_fw_loader_handle *handle)
 			(sizeof(struct icp_qat_uof_memvar_attr) *
 			initmem->val_attr_num));
 	}
-	for (ae = 0; ae < ICP_QAT_UCLO_MAX_AE; ae++) {
+	for (ae = 0; ae < handle->hal_handle->ae_max_num; ae++) {
 		if (qat_hal_batch_wr_lm(handle, ae,
 					obj_handle->lm_init_tab[ae])) {
 			pr_err("QAT: fail to batch init lmem for AE %d\n", ae);
