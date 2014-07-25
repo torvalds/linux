@@ -71,6 +71,7 @@ struct au0828_board au0828_boards[] = {
 		.name	= "Hauppauge HVR950Q",
 		.tuner_type = TUNER_XC5000,
 		.tuner_addr = 0x61,
+		.has_ir_i2c = 1,
 		/* The au0828 hardware i2c implementation does not properly
 		   support the xc5000's i2c clock stretching.  So we need to
 		   lower the clock frequency enough where the 15us clock

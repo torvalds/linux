@@ -27,3 +27,10 @@ config VIDEO_AU0828_V4L2
 
 	  Choose Y here to include support for v4l2 analog video
 	  capture within the au0828 driver.
+
+config VIDEO_AU0828_RC
+	bool "AU0828 Remote Controller support"
+	depends on RC_CORE
+	depends on VIDEO_AU0828
+	---help---
+	   Enables Remote Controller support on au0828 driver.
