@@ -358,6 +358,7 @@ struct icp_qat_fw_la_resp {
 	uint64_t opaque_data;
 	uint32_t resrvd[ICP_QAT_FW_NUM_LONGWORDS_4];
 };
+
 #define ICP_QAT_FW_CIPHER_NEXT_ID_GET(cd_ctrl_hdr_t) \
 	((((cd_ctrl_hdr_t)->next_curr_id_cipher) & \
 	  ICP_QAT_FW_COMN_NEXT_ID_MASK) >> (ICP_QAT_FW_COMN_NEXT_ID_BITPOS))
