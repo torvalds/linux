@@ -218,10 +218,6 @@ struct drm_property {
 	struct list_head enum_blob_list;
 };
 
-void drm_modeset_lock_all(struct drm_device *dev);
-void drm_modeset_unlock_all(struct drm_device *dev);
-void drm_warn_on_modeset_not_all_locked(struct drm_device *dev);
-
 struct drm_crtc;
 struct drm_connector;
 struct drm_encoder;
