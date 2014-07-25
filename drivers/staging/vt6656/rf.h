@@ -32,9 +32,7 @@
 
 #include "device.h"
 
-//
-// Baseband RF pair definition in eeprom (Bits 6..0)
-//
+/* Baseband RF pair definition in eeprom (Bits 6..0) */
 #define RF_RFMD2959         0x01
 #define RF_MAXIMAG          0x02
 #define RF_AL2230           0x03
@@ -46,8 +44,8 @@
 #define RF_VT3226           0x09
 #define RF_AIROHA7230       0x0a
 #define RF_UW2453           0x0b
-#define RF_VT3226D0         0x0c //RobertYu:20051114
-#define RF_VT3342A0         0x0d //RobertYu:20060609
+#define RF_VT3226D0         0x0c /* RobertYu:20051114 */
+#define RF_VT3342A0         0x0d /* RobertYu:20060609 */
 #define RF_AL2230S          0x0e
 
 #define RF_EMU              0x80
