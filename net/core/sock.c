@@ -862,8 +862,6 @@ set_rcvbuf:
 					       (1UL << SOCK_TIMESTAMPING_RX_SOFTWARE));
 		sock_valbool_flag(sk, SOCK_TIMESTAMPING_SOFTWARE,
 				  val & SOF_TIMESTAMPING_SOFTWARE);
-		sock_valbool_flag(sk, SOCK_TIMESTAMPING_SYS_HARDWARE,
-				  val & SOF_TIMESTAMPING_SYS_HARDWARE);
 		sock_valbool_flag(sk, SOCK_TIMESTAMPING_RAW_HARDWARE,
 				  val & SOF_TIMESTAMPING_RAW_HARDWARE);
 		break;
@@ -1102,8 +1100,6 @@ int sock_getsockopt(struct socket *sock, int level, int optname,
 			v.val |= SOF_TIMESTAMPING_RX_SOFTWARE;
 		if (sock_flag(sk, SOCK_TIMESTAMPING_SOFTWARE))
 			v.val |= SOF_TIMESTAMPING_SOFTWARE;
-		if (sock_flag(sk, SOCK_TIMESTAMPING_SYS_HARDWARE))
-			v.val |= SOF_TIMESTAMPING_SYS_HARDWARE;
 		if (sock_flag(sk, SOCK_TIMESTAMPING_RAW_HARDWARE))
 			v.val |= SOF_TIMESTAMPING_RAW_HARDWARE;
 		break;

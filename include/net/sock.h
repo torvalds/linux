@@ -707,7 +707,6 @@ enum sock_flags {
 	SOCK_TIMESTAMPING_RX_SOFTWARE,  /* %SOF_TIMESTAMPING_RX_SOFTWARE */
 	SOCK_TIMESTAMPING_SOFTWARE,     /* %SOF_TIMESTAMPING_SOFTWARE */
 	SOCK_TIMESTAMPING_RAW_HARDWARE, /* %SOF_TIMESTAMPING_RAW_HARDWARE */
-	SOCK_TIMESTAMPING_SYS_HARDWARE, /* %SOF_TIMESTAMPING_SYS_HARDWARE */
 	SOCK_FASYNC, /* fasync() active */
 	SOCK_RXQ_OVFL,
 	SOCK_ZEROCOPY, /* buffers from userspace */
@@ -2166,16 +2165,13 @@ sock_recv_timestamp(struct msghdr *msg, struct sock *sk, struct sk_buff *skb)
 	 * - software time stamp available and wanted
 	 *   (SOCK_TIMESTAMPING_SOFTWARE)
 	 * - hardware time stamps available and wanted
-	 *   (SOCK_TIMESTAMPING_SYS_HARDWARE or
-	 *   SOCK_TIMESTAMPING_RAW_HARDWARE)
+	 *   SOCK_TIMESTAMPING_RAW_HARDWARE
 	 */
 	if (sock_flag(sk, SOCK_RCVTSTAMP) ||
 	    sock_flag(sk, SOCK_TIMESTAMPING_RX_SOFTWARE) ||
 	    (kt.tv64 && sock_flag(sk, SOCK_TIMESTAMPING_SOFTWARE)) ||
 	    (hwtstamps->hwtstamp.tv64 &&
-	     sock_flag(sk, SOCK_TIMESTAMPING_RAW_HARDWARE)) ||
-	    (hwtstamps->syststamp.tv64 &&
-	     sock_flag(sk, SOCK_TIMESTAMPING_SYS_HARDWARE)))
+	     sock_flag(sk, SOCK_TIMESTAMPING_RAW_HARDWARE)))
 		__sock_recv_timestamp(msg, sk, skb);
 	else
 		sk->sk_stamp = kt;
@@ -2193,8 +2189,7 @@ static inline void sock_recv_ts_and_drops(struct msghdr *msg, struct sock *sk,
 #define FLAGS_TS_OR_DROPS ((1UL << SOCK_RXQ_OVFL)			| \
 			   (1UL << SOCK_RCVTSTAMP)			| \
 			   (1UL << SOCK_TIMESTAMPING_SOFTWARE)		| \
-			   (1UL << SOCK_TIMESTAMPING_RAW_HARDWARE)	| \
-			   (1UL << SOCK_TIMESTAMPING_SYS_HARDWARE))
+			   (1UL << SOCK_TIMESTAMPING_RAW_HARDWARE))
 
 	if (sk->sk_flags & FLAGS_TS_OR_DROPS)
 		__sock_recv_ts_and_drops(msg, sk, skb);
