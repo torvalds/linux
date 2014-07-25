@@ -592,7 +592,7 @@ start:
 		xattr_version = ci->i_xattrs.version;
 		spin_unlock(&ci->i_ceph_lock);
 
-		xattrs = kcalloc(numattr, sizeof(struct ceph_xattr *),
+		xattrs = kcalloc(numattr, sizeof(struct ceph_inode_xattr *),
 				 GFP_NOFS);
 		err = -ENOMEM;
 		if (!xattrs)
