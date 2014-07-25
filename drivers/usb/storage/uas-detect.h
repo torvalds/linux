@@ -64,9 +64,6 @@ static int uas_use_uas_driver(struct usb_interface *intf,
 	if (flags & US_FL_IGNORE_UAS)
 		return 0;
 
-	if (udev->speed >= USB_SPEED_SUPER && !hcd->can_do_streams)
-		return 0;
-
 	alt = uas_find_uas_alt_setting(intf);
 	if (alt < 0)
 		return 0;
@@ -81,6 +78,15 @@ static int uas_use_uas_driver(struct usb_interface *intf,
 			hcd->driver->description);
 		dev_warn(&udev->dev,
 			"required by the UAS driver. Please try an other USB controller if you wish to use UAS.\n");
+		return 0;
+	}
+
+	if (udev->speed >= USB_SPEED_SUPER && !hcd->can_do_streams) {
+		dev_warn(&udev->dev,
+			"USB controller %s does not support streams, which are required by the UAS driver.\n",
+			hcd_to_bus(hcd)->bus_name);
+		dev_warn(&udev->dev,
+			"Please try an other USB controller if you wish to use UAS.\n");
 		return 0;
 	}
 
