@@ -351,22 +351,6 @@ static int pc236_common_attach(struct comedi_device *dev, unsigned long iobase,
 	return 0;
 }
 
-static int pc236_pci_common_attach(struct comedi_device *dev,
-				   struct pci_dev *pci_dev)
-{
-	struct pc236_private *devpriv = dev->private;
-	unsigned long iobase;
-	int ret;
-
-	ret = comedi_pci_enable(dev);
-	if (ret)
-		return ret;
-
-	devpriv->lcr_iobase = pci_resource_start(pci_dev, 1);
-	iobase = pci_resource_start(pci_dev, 2);
-	return pc236_common_attach(dev, iobase, pci_dev->irq, IRQF_SHARED);
-}
-
 static int pc236_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	const struct pc236_board *thisboard = comedi_board(dev);
@@ -400,6 +384,8 @@ static int pc236_auto_attach(struct comedi_device *dev,
 {
 	struct pci_dev *pci_dev = comedi_to_pci_dev(dev);
 	struct pc236_private *devpriv;
+	unsigned long iobase;
+	int ret;
 
 	if (!DO_PCI)
 		return -EINVAL;
@@ -415,7 +401,13 @@ static int pc236_auto_attach(struct comedi_device *dev,
 		dev_err(dev->class_dev, "BUG! cannot determine board type!\n");
 		return -EINVAL;
 	}
-	return pc236_pci_common_attach(dev, pci_dev);
+	ret = comedi_pci_enable(dev);
+	if (ret)
+		return ret;
+
+	devpriv->lcr_iobase = pci_resource_start(pci_dev, 1);
+	iobase = pci_resource_start(pci_dev, 2);
+	return pc236_common_attach(dev, iobase, pci_dev->irq, IRQF_SHARED);
 }
 
 static void pc236_detach(struct comedi_device *dev)
