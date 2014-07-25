@@ -250,8 +250,7 @@ static int record__mmap_read_all(struct record *rec)
 		}
 	}
 
-	if (perf_header__has_feat(&rec->session->header, HEADER_TRACING_DATA))
-		rc = record__write(rec, &finished_round_event, sizeof(finished_round_event));
+	rc = record__write(rec, &finished_round_event, sizeof(finished_round_event));
 
 out:
 	return rc;
