@@ -41,6 +41,7 @@
 #include <linux/i2c-mux.h>
 #include <linux/i2c/pca954x.h>
 #include <linux/module.h>
+#include <linux/pm.h>
 #include <linux/slab.h>
 
 #define PCA954X_MAX_NCHANS 8
@@ -273,9 +274,23 @@ static int pca954x_remove(struct i2c_client *client)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int pca954x_resume(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct pca954x *data = i2c_get_clientdata(client);
+
+	data->last_chan = 0;
+	return i2c_smbus_write_byte(client, 0);
+}
+#endif
+
+static SIMPLE_DEV_PM_OPS(pca954x_pm, NULL, pca954x_resume);
+
 static struct i2c_driver pca954x_driver = {
 	.driver		= {
 		.name	= "pca954x",
+		.pm	= &pca954x_pm,
 		.owner	= THIS_MODULE,
 	},
 	.probe		= pca954x_probe,
