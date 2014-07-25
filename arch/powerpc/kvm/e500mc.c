@@ -267,14 +267,32 @@ static int kvmppc_core_set_sregs_e500mc(struct kvm_vcpu *vcpu,
 static int kvmppc_get_one_reg_e500mc(struct kvm_vcpu *vcpu, u64 id,
 			      union kvmppc_one_reg *val)
 {
-	int r = kvmppc_get_one_reg_e500_tlb(vcpu, id, val);
+	int r = 0;
+
+	switch (id) {
+	case KVM_REG_PPC_SPRG9:
+		*val = get_reg_val(id, vcpu->arch.sprg9);
+		break;
+	default:
+		r = kvmppc_get_one_reg_e500_tlb(vcpu, id, val);
+	}
+
 	return r;
 }
 
 static int kvmppc_set_one_reg_e500mc(struct kvm_vcpu *vcpu, u64 id,
 			      union kvmppc_one_reg *val)
 {
-	int r = kvmppc_set_one_reg_e500_tlb(vcpu, id, val);
+	int r = 0;
+
+	switch (id) {
+	case KVM_REG_PPC_SPRG9:
+		vcpu->arch.sprg9 = set_reg_val(id, *val);
+		break;
+	default:
+		r = kvmppc_set_one_reg_e500_tlb(vcpu, id, val);
+	}
+
 	return r;
 }
 
