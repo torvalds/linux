@@ -238,6 +238,7 @@ static struct perf_event_header finished_round_event = {
 
 static int record__mmap_read_all(struct record *rec)
 {
+	u64 bytes_written = rec->bytes_written;
 	int i;
 	int rc = 0;
 
@@ -250,7 +251,12 @@ static int record__mmap_read_all(struct record *rec)
 		}
 	}
 
-	rc = record__write(rec, &finished_round_event, sizeof(finished_round_event));
+	/*
+	 * Mark the round finished in case we wrote
+	 * at least one event.
+	 */
+	if (bytes_written != rec->bytes_written)
+		rc = record__write(rec, &finished_round_event, sizeof(finished_round_event));
 
 out:
 	return rc;
