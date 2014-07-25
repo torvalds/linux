@@ -417,13 +417,6 @@ static int pc236_auto_attach(struct comedi_device *dev,
 		dev_err(dev->class_dev, "BUG! cannot determine board type!\n");
 		return -EINVAL;
 	}
-	/*
-	 * Need to 'get' the PCI device to match the 'put' in pc236_detach().
-	 * TODO: Remove the pci_dev_get() and matching pci_dev_put() once
-	 * support for manual attachment of PCI devices via pc236_attach()
-	 * has been removed.
-	 */
-	pci_dev_get(pci_dev);
 	return pc236_pci_common_attach(dev, pci_dev);
 }
 
@@ -438,13 +431,9 @@ static void pc236_detach(struct comedi_device *dev)
 	if (is_isa_board(thisboard)) {
 		comedi_legacy_detach(dev);
 	} else if (is_pci_board(thisboard)) {
-		struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-
 		if (dev->irq)
 			free_irq(dev->irq, dev);
 		comedi_pci_disable(dev);
-		if (pcidev)
-			pci_dev_put(pcidev);
 	}
 }
 
