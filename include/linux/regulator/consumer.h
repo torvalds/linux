@@ -460,20 +460,20 @@ static inline int regulator_allow_bypass(struct regulator *regulator,
 	return 0;
 }
 
-struct regmap *regulator_get_regmap(struct regulator *regulator)
+static inline struct regmap *regulator_get_regmap(struct regulator *regulator)
 {
 	return ERR_PTR(-EOPNOTSUPP);
 }
 
-int regulator_get_hardware_vsel_register(struct regulator *regulator,
-					 unsigned *vsel_reg,
-					 unsigned *vsel_mask)
+static inline int regulator_get_hardware_vsel_register(struct regulator *regulator,
+						       unsigned *vsel_reg,
+						       unsigned *vsel_mask)
 {
 	return -EOPNOTSUPP;
 }
 
-int regulator_list_hardware_vsel(struct regulator *regulator,
-				 unsigned selector)
+static inline int regulator_list_hardware_vsel(struct regulator *regulator,
+					       unsigned selector)
 {
 	return -EOPNOTSUPP;
 }
