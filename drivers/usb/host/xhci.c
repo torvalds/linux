@@ -1553,6 +1553,10 @@ int xhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 	 */
 	if (!(ep->ep_state & EP_HALT_PENDING)) {
 		command = xhci_alloc_command(xhci, false, false, GFP_ATOMIC);
+		if (!command) {
+			ret = -ENOMEM;
+			goto done;
+		}
 		ep->ep_state |= EP_HALT_PENDING;
 		ep->stop_cmds_pending++;
 		ep->stop_cmd_timer.expires = jiffies +
