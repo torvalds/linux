@@ -104,7 +104,7 @@ static struct usb_device_id vt6656_table[] = {
 	{}
 };
 
-static void device_set_options(struct vnt_private *priv)
+static void vnt_set_options(struct vnt_private *priv)
 {
 	/* Set number of TX buffers */
 	if (vnt_tx_buffers < CB_MIN_TX_DESC || vnt_tx_buffers > CB_MAX_TX_DESC)
@@ -997,7 +997,7 @@ vt6656_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	priv->hw = hw;
 	priv->usb = udev;
 
-	device_set_options(priv);
+	vnt_set_options(priv);
 
 	spin_lock_init(&priv->lock);
 	mutex_init(&priv->usb_lock);
