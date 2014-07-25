@@ -37,7 +37,7 @@
  *   device_free_tx_bufs - free tx buffer function
  *   device_dma0_tx_80211- tx 802.11 frame via dma0
  *   device_dma0_xmit- tx PS buffered frame via dma0
- *   device_init_registers- initial MAC & BBP & RF internal registers.
+ *   vnt_init_registers- initial MAC & BBP & RF internal registers.
  *   device_init_rings- initial tx/rx ring buffer
  *   device_init_defrag_cb- initial & allocate de-fragement buffer.
  *   device_tx_srv- tx interrupt service function
@@ -131,7 +131,7 @@ static void vnt_set_options(struct vnt_private *priv)
 /*
  * initialization of MAC & BBP registers
  */
-static int device_init_registers(struct vnt_private *priv)
+static int vnt_init_registers(struct vnt_private *priv)
 {
 	struct vnt_cmd_card_init *init_cmd = &priv->init_command;
 	struct vnt_rsp_card_init *init_rsp = &priv->init_response;
@@ -553,7 +553,7 @@ static int vnt_start(struct ieee80211_hw *hw)
 
 	clear_bit(DEVICE_FLAGS_DISCONNECTED, &priv->flags);
 
-	if (device_init_registers(priv) == false) {
+	if (vnt_init_registers(priv) == false) {
 		dev_dbg(&priv->usb->dev, " init register fail\n");
 		goto free_all;
 	}
@@ -954,7 +954,7 @@ static const struct ieee80211_ops vnt_mac_ops = {
 int vnt_init(struct vnt_private *priv)
 {
 
-	if (!(device_init_registers(priv)))
+	if (!(vnt_init_registers(priv)))
 		return -EAGAIN;
 
 	SET_IEEE80211_PERM_ADDR(priv->hw, priv->permanent_net_addr);
