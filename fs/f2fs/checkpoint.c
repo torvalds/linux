@@ -933,7 +933,7 @@ static void do_checkpoint(struct f2fs_sb_info *sbi, bool is_umount)
 	/* Here, we only have one bio having CP pack */
 	sync_meta_pages(sbi, META_FLUSH, LONG_MAX);
 
-	if (unlikely(!is_set_ckpt_flags(ckpt, CP_ERROR_FLAG))) {
+	if (!is_set_ckpt_flags(ckpt, CP_ERROR_FLAG)) {
 		clear_prefree_segments(sbi);
 		release_dirty_inode(sbi);
 		F2FS_RESET_SB_DIRT(sbi);
