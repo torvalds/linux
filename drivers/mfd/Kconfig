@@ -362,7 +362,7 @@ config MFD_RK818
 	bool "RK818 Power Management chip"
 	depends on I2C=y 
 	select MFD_CORE
-	select RTC_RK818
+	select RK818_RTC
 	help
 	  if you say yes here you get support for the RK818 series of
 	  Power Management chips.

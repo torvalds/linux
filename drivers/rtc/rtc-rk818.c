@@ -77,7 +77,7 @@ static int rk818_rtc_readtime(struct device *dev, struct rtc_time *tm)
 	struct rk818_rtc *rk818_rtc = dev_get_drvdata(dev);
 	struct rk818 *rk818 = rk818_rtc->rk818;
 	int ret;
-	int count = 0;
+	//int count = 0;
 	unsigned char rtc_data[ALL_TIME_REGS + 1];
 	u8 rtc_ctl;
 
@@ -379,6 +379,7 @@ static int rk818_rtc_update_irq_enable(struct device *dev,
  * bit 2: every hour
  * bit 3: every day
  */
+#if 0
 static int rk818_rtc_irq_set_freq(struct device *dev, int freq)
 {	
 	struct rk818_rtc *rk818_rtc = dev_get_drvdata(dev);
@@ -404,6 +405,7 @@ static int rk818_rtc_irq_set_freq(struct device *dev, int freq)
 	
 	return ret;
 }
+#endif
 
 static irqreturn_t rk818_alm_irq(int irq, void *data)
 {

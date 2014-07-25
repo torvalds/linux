@@ -29,6 +29,7 @@
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
 #include <linux/regmap.h>
+#include <linux/syscore_ops.h>
 
 
 #if 0
@@ -471,7 +472,7 @@ static int rk818_dcdc_set_voltage(struct regulator_dev *dev,
 	struct rk818 *rk818 = rdev_get_drvdata(dev);
 	int buck = rdev_get_id(dev) - RK818_DCDC1;
 	u16 val;
-	int ret = 0,old_voltage =0,vol_temp =0;
+	int ret = 0;
 
 	if (buck ==2){
 		return 0;
@@ -937,6 +938,7 @@ static struct rk818_attribute rk818_attrs[] = {
 };
 #endif
 
+#if 0
 extern void rk_send_wakeup_key(void);
 static irqreturn_t rk818_vbat_lo_irq(int irq, void *data)
 {
@@ -945,6 +947,7 @@ static irqreturn_t rk818_vbat_lo_irq(int irq, void *data)
 	rk_send_wakeup_key();
         return IRQ_HANDLED;
 }
+#endif
 
 #ifdef CONFIG_OF
 static struct of_device_id rk818_of_match[] = {
@@ -1031,23 +1034,41 @@ static struct rk818_board *rk818_parse_dt(struct i2c_client *i2c)
 }
 #endif
 
-int rk818_device_shutdown(void)
+static void rk818_shutdown(void)
 {
 	int ret;
-	int err = -1;
 	struct rk818 *rk818 = g_rk818;
-	
-	printk("%s\n",__func__);
+
+	pr_info("%s\n", __func__);
 	ret = rk818_set_bits(rk818, RK818_INT_STS_MSK_REG1,(0x3<<5),(0x3<<5)); //close rtc int when power off
 	ret = rk818_clear_bits(rk818, RK818_RTC_INT_REG,(0x3<<2)); //close rtc int when power off
-	ret = rk818_reg_read(rk818,RK818_DEVCTRL_REG);
-	ret = rk818_set_bits(rk818, RK818_DEVCTRL_REG,(0x1<<0),(0x1<<0));
-//	ret = rk818_set_bits(rk818, RK818_DEVCTRL_REG,(0x1<<4),(0x1<<4));
-	if (ret < 0) {
-		printk("rk818 power off error!\n");
-		return err;
+	mutex_lock(&rk818->io_lock);
+	mdelay(100);
+}
+
+static struct syscore_ops rk818_syscore_ops = {
+	.shutdown = rk818_shutdown,
+};
+
+void rk818_device_shutdown(void)
+{
+	int ret, i;
+	u8 reg = 0;
+	struct rk818 *rk818 = g_rk818;
+
+	for (i = 0; i < 10; i++) {
+		pr_info("%s\n", __func__);
+		ret = rk818_i2c_read(rk818, RK818_DEVCTRL_REG, 1, &reg);
+		if (ret < 0)
+			continue;
+		ret = rk818_i2c_write(rk818, RK818_DEVCTRL_REG, 1,
+				     (reg | (0x1 << 0)));
+		if (ret < 0) {
+			pr_err("rk818 power off error!\n");
+			continue;
+		}
 	}
-	return 0;	
+	while(1) wfi();
 }
 EXPORT_SYMBOL_GPL(rk818_device_shutdown);
 
@@ -1137,7 +1158,7 @@ static int  rk818_i2c_probe(struct i2c_client *i2c, const struct i2c_device_id *
 	struct regulator_dev *rk818_rdev;
 	struct regulator_init_data *reg_data;
 	const char *rail_name = NULL;
-	int ret,vlow_irq,i=0;
+	int ret, i = 0;
 	
 	printk("%s,line=%d\n", __func__,__LINE__);
 
@@ -1264,6 +1285,8 @@ static int  rk818_i2c_probe(struct i2c_client *i2c, const struct i2c_device_id *
 	}
 	#endif
 	
+	register_syscore_ops(&rk818_syscore_ops);
+
 	return 0;
 
 err:
@@ -1277,6 +1300,7 @@ static int  rk818_i2c_remove(struct i2c_client *i2c)
 	struct rk818 *rk818 = i2c_get_clientdata(i2c);
 	int i;
 
+	unregister_syscore_ops(&rk818_syscore_ops);
 	for (i = 0; i < rk818->num_regulators; i++)
 		if (rk818->rdev[i])
 			regulator_unregister(rk818->rdev[i]);
