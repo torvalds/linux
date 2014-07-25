@@ -227,7 +227,7 @@ struct drm_bridge;
 struct drm_atomic_state;
 
 /**
- * struct drm_crtc_state - mutable crtc state
+ * struct drm_crtc_state - mutable CRTC state
  * @enable: whether the CRTC should be enabled, gates all other state
  * @mode: current mode timings
  * @event: optional pointer to a DRM event to signal upon completion of the
@@ -235,7 +235,7 @@ struct drm_atomic_state;
  * @state: backpointer to global drm_atomic_state
  */
 struct drm_crtc_state {
-	bool enable        : 1;
+	bool enable;
 
 	struct drm_display_mode mode;
 
@@ -314,7 +314,7 @@ struct drm_crtc_funcs {
 	/* atomic update handling */
 	struct drm_crtc_state *(*atomic_duplicate_state)(struct drm_crtc *crtc);
 	void (*atomic_destroy_state)(struct drm_crtc *crtc,
-				     struct drm_crtc_state *cstate);
+				     struct drm_crtc_state *state);
 	int (*atomic_set_property)(struct drm_crtc *crtc,
 				   struct drm_crtc_state *state,
 				   struct drm_property *property,
@@ -417,7 +417,7 @@ struct drm_crtc {
 
 /**
  * struct drm_connector_state - mutable connector state
- * @crtc: crtc to connect connector to, NULL if disabled
+ * @crtc: CRTC to connect connector to, NULL if disabled
  * @state: backpointer to global drm_atomic_state
  */
 struct drm_connector_state {
@@ -440,7 +440,6 @@ struct drm_connector_state {
  * @atomic_duplicate_state: duplicate the atomic state for this connector
  * @atomic_destroy_state: destroy an atomic state for this connector
  * @atomic_set_property: set a property on an atomic state for this connector
- *
  *
  * Each CRTC may have one or more connectors attached to it.  The functions
  * below allow the core DRM code to control connectors, enumerate available modes,
@@ -469,7 +468,7 @@ struct drm_connector_funcs {
 	/* atomic update handling */
 	struct drm_connector_state *(*atomic_duplicate_state)(struct drm_connector *connector);
 	void (*atomic_destroy_state)(struct drm_connector *connector,
-				     struct drm_connector_state *cstate);
+				     struct drm_connector_state *state);
 	int (*atomic_set_property)(struct drm_connector *connector,
 				   struct drm_connector_state *state,
 				   struct drm_property *property,
@@ -640,7 +639,7 @@ struct drm_connector {
 /**
  * struct drm_plane_state - mutable plane state
  * @crtc: currently bound CRTC, NULL if disabled
- * @fb: currently bound fb
+ * @fb: currently bound framebuffer
  * @crtc_x: left position of visible portion of plane on crtc
  * @crtc_y: upper position of visible portion of plane on crtc
  * @crtc_w: width of visible portion of plane on crtc
@@ -697,7 +696,7 @@ struct drm_plane_funcs {
 	/* atomic update handling */
 	struct drm_plane_state *(*atomic_duplicate_state)(struct drm_plane *plane);
 	void (*atomic_destroy_state)(struct drm_plane *plane,
-				     struct drm_plane_state *cstate);
+				     struct drm_plane_state *state);
 	int (*atomic_set_property)(struct drm_plane *plane,
 				   struct drm_plane_state *state,
 				   struct drm_property *property,
@@ -794,6 +793,32 @@ struct drm_bridge {
 };
 
 /**
+ * struct struct drm_atomic_state - the global state object for atomic updates
+ * @dev: parent DRM device
+ * @flags: state flags like async update
+ * @planes: pointer to array of plane pointers
+ * @plane_states: pointer to array of plane states pointers
+ * @crtcs: pointer to array of CRTC pointers
+ * @crtc_states: pointer to array of CRTC states pointers
+ * @connectors: pointer to array of connector pointers
+ * @connector_states: pointer to array of connector states pointers
+ * @acquire_ctx: acquire context for this atomic modeset state update
+ */
+struct drm_atomic_state {
+	struct drm_device *dev;
+	uint32_t flags;
+	struct drm_plane **planes;
+	struct drm_plane_state **plane_states;
+	struct drm_crtc **crtcs;
+	struct drm_crtc_state **crtc_states;
+	struct drm_connector **connectors;
+	struct drm_connector_state **connector_states;
+
+	struct drm_modeset_acquire_ctx *acquire_ctx;
+};
+
+
+/**
  * struct drm_mode_set - new values for a CRTC config change
  * @fb: framebuffer to use for new config
  * @crtc: CRTC whose configuration we're about to change
@@ -824,6 +849,9 @@ struct drm_mode_set {
  * struct drm_mode_config_funcs - basic driver provided mode setting functions
  * @fb_create: create a new framebuffer object
  * @output_poll_changed: function to handle output configuration changes
+ * @atomic_check: check whether a give atomic state update is possible
+ * @atomic_commit: commit an atomic state update previously verified with
+ * 	atomic_check()
  *
  * Some global (i.e. not per-CRTC, connector, etc) mode setting functions that
  * involve drivers.
@@ -833,6 +861,12 @@ struct drm_mode_config_funcs {
 					     struct drm_file *file_priv,
 					     struct drm_mode_fb_cmd2 *mode_cmd);
 	void (*output_poll_changed)(struct drm_device *dev);
+
+	int (*atomic_check)(struct drm_device *dev,
+			    struct drm_atomic_state *a);
+	int (*atomic_commit)(struct drm_device *dev,
+			     struct drm_atomic_state *a,
+			     bool async);
 };
 
 /**
