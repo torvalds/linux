@@ -534,6 +534,8 @@ config SND_SOC_TLV320AIC26
 
 config SND_SOC_TLV320AIC31XX
         tristate
+	depends on I2C
+	select REGMAP_I2C
 
 config SND_SOC_TLV320AIC32X4
 	tristate
