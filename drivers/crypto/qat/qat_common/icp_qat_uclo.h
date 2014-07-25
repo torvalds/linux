@@ -124,7 +124,7 @@ struct icp_qat_uclo_region {
 };
 
 struct icp_qat_uclo_aeslice {
-	struct icp_qat_uclo_region *regions;
+	struct icp_qat_uclo_region *region;
 	struct icp_qat_uclo_page *page;
 	struct icp_qat_uclo_page *cur_page[ICP_QAT_UCLO_MAX_CTX];
 	struct icp_qat_uclo_encapme *encap_image;
