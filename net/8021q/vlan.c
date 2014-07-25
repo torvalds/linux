@@ -325,23 +325,24 @@ static void vlan_transfer_features(struct net_device *dev,
 	netdev_update_features(vlandev);
 }
 
-static void __vlan_device_event(struct net_device *dev, unsigned long event)
+static int __vlan_device_event(struct net_device *dev, unsigned long event)
 {
+	int err = 0;
+
 	switch (event) {
 	case NETDEV_CHANGENAME:
 		vlan_proc_rem_dev(dev);
-		if (vlan_proc_add_dev(dev) < 0)
-			pr_warn("failed to change proc name for %s\n",
-				dev->name);
+		err = vlan_proc_add_dev(dev);
 		break;
 	case NETDEV_REGISTER:
-		if (vlan_proc_add_dev(dev) < 0)
-			pr_warn("failed to add proc entry for %s\n", dev->name);
+		err = vlan_proc_add_dev(dev);
 		break;
 	case NETDEV_UNREGISTER:
 		vlan_proc_rem_dev(dev);
 		break;
 	}
+
+	return err;
 }
 
 static int vlan_device_event(struct notifier_block *unused, unsigned long event,
@@ -356,8 +357,12 @@ static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 	bool last = false;
 	LIST_HEAD(list);
 
-	if (is_vlan_dev(dev))
-		__vlan_device_event(dev, event);
+	if (is_vlan_dev(dev)) {
+		int err = __vlan_device_event(dev, event);
+
+		if (err)
+			return notifier_from_errno(err);
+	}
 
 	if ((event == NETDEV_UP) &&
 	    (dev->features & NETIF_F_HW_VLAN_CTAG_FILTER)) {
