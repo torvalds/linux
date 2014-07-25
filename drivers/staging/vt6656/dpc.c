@@ -25,11 +25,6 @@
  * Date: May 20, 2003
  *
  * Functions:
- *      device_receive_frame - Rcv 802.11 frame function
- *      s_bHandleRxEncryption- Rcv decrypted data via on-fly
- *      s_byGetRateIdx- get rate index
- *      s_vGetDASA- get data offset
- *      s_vProcessRxMACHeader- Rcv 802.11 and translate to 802.3
  *
  * Revision History:
  *

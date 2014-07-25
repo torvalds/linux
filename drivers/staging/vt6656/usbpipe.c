@@ -30,7 +30,6 @@
  *	vnt_control_in - Read variable length bytes from MEM/BB/MAC/EEPROM
  *	vnt_control_out_u8 - Write one byte to MEM/BB/MAC/EEPROM
  *	vnt_control_in_u8 - Read one byte from MEM/BB/MAC/EEPROM
- *      ControlvMaskByte - Read one byte from MEM/BB/MAC/EEPROM and clear/set some bits in the same address
  *
  * Revision History:
  *      04-05-2004 Jerry Chen:  Initial release

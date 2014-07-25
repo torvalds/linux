@@ -19,15 +19,11 @@
  * File: card.c
  * Purpose: Provide functions to setup NIC operation mode
  * Functions:
- *      s_vSafeResetTx - Rest Tx
  *      vnt_set_rspinf - Set RSPINF
  *      vnt_update_ifs - Update slotTime,SIFS,DIFS, and EIFS
  *      vnt_update_top_rates - Update BasicTopRate
  *      vnt_add_basic_rate - Add to BasicRateSet
- *      CARDbSetBasicRate - Set Basic Tx Rate
  *      vnt_ofdm_min_rate - Check if any OFDM rate is in BasicRateSet
- *      CARDvSetLoopbackMode - Set Loopback mode
- *      CARDbSoftwareReset - Sortware reset NIC
  *      vnt_get_tsf_offset - Calculate TSFOffset
  *      vnt_get_current_tsf - Read Current NIC TSF counter
  *      vnt_get_next_tbtt - Calculate Next Beacon TSF counter
@@ -35,8 +31,6 @@
  *      vnt_update_next_tbtt - Sync. NIC Beacon time
  *      vnt_radio_power_off - Turn Off NIC Radio Power
  *      vnt_radio_power_on - Turn On NIC Radio Power
- *      CARDbSetWEPMode - Set NIC Wep mode
- *      CARDbSetTxPower - Set NIC tx power
  *
  * Revision History:
  *      06-10-2003 Bryan YC Fan:  Re-write codes to support VT3253 spec.
