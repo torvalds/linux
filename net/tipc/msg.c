@@ -72,27 +72,38 @@ int tipc_buf_append(struct sk_buff **headbuf, struct sk_buff **buf)
 	struct sk_buff *head = *headbuf;
 	struct sk_buff *frag = *buf;
 	struct sk_buff *tail;
-	struct tipc_msg *msg = buf_msg(frag);
-	u32 fragid = msg_type(msg);
-	bool headstolen;
+	struct tipc_msg *msg;
+	u32 fragid;
 	int delta;
+	bool headstolen;
 
+	if (!frag)
+		goto err;
+
+	msg = buf_msg(frag);
+	fragid = msg_type(msg);
+	frag->next = NULL;
 	skb_pull(frag, msg_hdr_sz(msg));
 
 	if (fragid == FIRST_FRAGMENT) {
-		if (head || skb_unclone(frag, GFP_ATOMIC))
-			goto out_free;
+		if (unlikely(head))
+			goto err;
+		if (unlikely(skb_unclone(frag, GFP_ATOMIC)))
+			goto err;
 		head = *headbuf = frag;
 		skb_frag_list_init(head);
+		TIPC_SKB_CB(head)->tail = NULL;
 		*buf = NULL;
 		return 0;
 	}
+
 	if (!head)
-		goto out_free;
-	tail = TIPC_SKB_CB(head)->tail;
+		goto err;
+
 	if (skb_try_coalesce(head, frag, &headstolen, &delta)) {
 		kfree_skb_partial(frag, headstolen);
 	} else {
+		tail = TIPC_SKB_CB(head)->tail;
 		if (!skb_has_frag_list(head))
 			skb_shinfo(head)->frag_list = frag;
 		else
@@ -102,6 +113,7 @@ int tipc_buf_append(struct sk_buff **headbuf, struct sk_buff **buf)
 		head->len += frag->len;
 		TIPC_SKB_CB(head)->tail = frag;
 	}
+
 	if (fragid == LAST_FRAGMENT) {
 		*buf = head;
 		TIPC_SKB_CB(head)->tail = NULL;
@@ -110,7 +122,8 @@ int tipc_buf_append(struct sk_buff **headbuf, struct sk_buff **buf)
 	}
 	*buf = NULL;
 	return 0;
-out_free:
+
+err:
 	pr_warn_ratelimited("Unable to build fragment list\n");
 	kfree_skb(*buf);
 	kfree_skb(*headbuf);
