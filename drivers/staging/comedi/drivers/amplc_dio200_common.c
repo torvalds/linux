@@ -1202,8 +1202,10 @@ void amplc_dio200_common_detach(struct comedi_device *dev)
 
 	if (!thisboard || !devpriv)
 		return;
-	if (dev->irq)
+	if (dev->irq) {
 		free_irq(dev->irq, dev);
+		dev->irq = 0;
+	}
 }
 EXPORT_SYMBOL_GPL(amplc_dio200_common_detach);
 
