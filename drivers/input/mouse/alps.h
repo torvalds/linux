@@ -157,7 +157,7 @@ struct alps_data {
 
 	int (*hw_init)(struct psmouse *psmouse);
 	void (*process_packet)(struct psmouse *psmouse);
-	void (*decode_fields)(struct alps_fields *f, unsigned char *p,
+	int (*decode_fields)(struct alps_fields *f, unsigned char *p,
 			      struct psmouse *psmouse);
 	void (*set_abs_params)(struct alps_data *priv, struct input_dev *dev1);
 

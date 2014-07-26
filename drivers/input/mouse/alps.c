@@ -538,7 +538,7 @@ static void alps_decode_buttons_v3(struct alps_fields *f, unsigned char *p)
 	f->ts_middle = !!(p[3] & 0x40);
 }
 
-static void alps_decode_pinnacle(struct alps_fields *f, unsigned char *p,
+static int alps_decode_pinnacle(struct alps_fields *f, unsigned char *p,
 				 struct psmouse *psmouse)
 {
 	f->first_mp = !!(p[4] & 0x40);
@@ -558,9 +558,11 @@ static void alps_decode_pinnacle(struct alps_fields *f, unsigned char *p,
 	f->pressure = p[5] & 0x7f;
 
 	alps_decode_buttons_v3(f, p);
+
+	return 0;
 }
 
-static void alps_decode_rushmore(struct alps_fields *f, unsigned char *p,
+static int alps_decode_rushmore(struct alps_fields *f, unsigned char *p,
 				 struct psmouse *psmouse)
 {
 	alps_decode_pinnacle(f, p, psmouse);
@@ -570,9 +572,11 @@ static void alps_decode_rushmore(struct alps_fields *f, unsigned char *p,
 	f->fingers = max((p[5] & 0x3), ((p[5] >> 2) & 0x3)) + 1;
 	f->x_map |= (p[5] & 0x10) << 11;
 	f->y_map |= (p[5] & 0x20) << 6;
+
+	return 0;
 }
 
-static void alps_decode_dolphin(struct alps_fields *f, unsigned char *p,
+static int alps_decode_dolphin(struct alps_fields *f, unsigned char *p,
 				struct psmouse *psmouse)
 {
 	u64 palm_data = 0;
@@ -605,6 +609,8 @@ static void alps_decode_dolphin(struct alps_fields *f, unsigned char *p,
 		f->x_map = (palm_data >> priv->y_bits) &
 			   (BIT(priv->x_bits) - 1);
 	}
+
+	return 0;
 }
 
 static void alps_process_touchpad_packet_v3_v5(struct psmouse *psmouse)
