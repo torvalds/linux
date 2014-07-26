@@ -391,13 +391,13 @@ static int alps_process_bitmap(struct alps_data *priv,
 	 * adjacent fingers. Divide the single contact between the two points.
 	 */
 	if (fingers_x == 1) {
-		i = x_low.num_bits / 2;
+		i = (x_low.num_bits - 1) / 2;
 		x_low.num_bits = x_low.num_bits - i;
 		x_high.start_bit = x_low.start_bit + i;
 		x_high.num_bits = max(i, 1);
 	}
 	if (fingers_y == 1) {
-		i = y_low.num_bits / 2;
+		i = (y_low.num_bits - 1) / 2;
 		y_low.num_bits = y_low.num_bits - i;
 		y_high.start_bit = y_low.start_bit + i;
 		y_high.num_bits = max(i, 1);
