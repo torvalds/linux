@@ -12069,7 +12069,6 @@ static int drx39xxj_set_frontend(struct dvb_frontend *fe)
 	enum drx_standard standard = DRX_STANDARD_8VSB;
 	struct drx_channel channel;
 	int result;
-	struct drxuio_data uio_data;
 	static const struct drx_channel def_channel = {
 		/* frequency      */ 0,
 		/* bandwidth      */ DRX_BANDWIDTH_6MHZ,
@@ -12221,13 +12220,10 @@ static int drx39xxj_init(struct dvb_frontend *fe)
 
 static int drx39xxj_set_lna(struct dvb_frontend *fe)
 {
-	int result;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct drx39xxj_state *state = fe->demodulator_priv;
 	struct drx_demod_instance *demod = state->demod;
 	struct drxj_data *ext_attr = demod->my_ext_attr;
-	struct drxuio_cfg uio_cfg;
-	struct drxuio_data uio_data;
 
 	if (c->lna) {
 		if (!ext_attr->has_lna) {
