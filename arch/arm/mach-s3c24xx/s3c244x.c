@@ -38,11 +38,9 @@
 #include <mach/regs-clock.h>
 #include <mach/regs-gpio.h>
 
-#include <plat/clock.h>
 #include <plat/devs.h>
 #include <plat/cpu.h>
 #include <plat/pm.h>
-#include <plat/pll.h>
 #include <plat/nand-core.h>
 #include <plat/watchdog-reset.h>
 
@@ -76,10 +74,6 @@ void __init s3c244x_map_io(void)
 	s3c_device_ts.name = "s3c2440-ts";
 	s3c_device_usbgadget.name = "s3c2440-usbgadget";
 	s3c2410_device_dclk.name = "s3c2440-dclk";
-}
-
-void __init_or_cpufreq s3c244x_setup_clocks(void)
-{
 }
 
 /* Since the S3C2442 and S3C2440 share items, put both subsystems here */

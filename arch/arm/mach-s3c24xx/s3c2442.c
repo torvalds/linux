@@ -43,7 +43,6 @@
 
 #include <mach/regs-clock.h>
 
-#include <plat/clock.h>
 #include <plat/cpu.h>
 #include <plat/pm.h>
 

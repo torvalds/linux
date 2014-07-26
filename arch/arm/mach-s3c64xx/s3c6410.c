@@ -40,7 +40,6 @@
 
 #include <plat/cpu.h>
 #include <plat/devs.h>
-#include <plat/clock.h>
 #include <plat/sdhci.h>
 #include <plat/ata-core.h>
 #include <plat/adc-core.h>

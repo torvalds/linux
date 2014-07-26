@@ -60,7 +60,6 @@
 #include <plat/cpu.h>
 #include <plat/devs.h>
 #include <plat/gpio-cfg.h>
-#include <plat/pll.h>
 #include <plat/pm.h>
 #include <plat/samsung-time.h>
 
@@ -72,6 +71,10 @@
 #define H1940_PA_LATCH		S3C2410_CS2
 
 #define H1940_LATCH_BIT(x)	(1 << ((x) + 16 - S3C_GPIO_END))
+
+#define S3C24XX_PLL_MDIV_SHIFT         (12)
+#define S3C24XX_PLL_PDIV_SHIFT         (4)
+#define S3C24XX_PLL_SDIV_SHIFT         (0)
 
 static struct map_desc h1940_iodesc[] __initdata = {
 	[0] = {
