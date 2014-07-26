@@ -22,6 +22,7 @@
 #include <linux/log2.h>
 #include <linux/pm_runtime.h>
 #include <linux/power_supply.h>
+#include <linux/clk.h>
 
 #include <asm/unaligned.h>
 

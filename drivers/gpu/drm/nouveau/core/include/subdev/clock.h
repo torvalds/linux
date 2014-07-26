@@ -147,6 +147,7 @@ extern struct nouveau_oclass *nvaa_clock_oclass;
 extern struct nouveau_oclass nva3_clock_oclass;
 extern struct nouveau_oclass nvc0_clock_oclass;
 extern struct nouveau_oclass nve0_clock_oclass;
+extern struct nouveau_oclass gk20a_clock_oclass;
 
 int nv04_clock_pll_set(struct nouveau_clock *, u32 type, u32 freq);
 int nv04_clock_pll_calc(struct nouveau_clock *, struct nvbios_pll *,

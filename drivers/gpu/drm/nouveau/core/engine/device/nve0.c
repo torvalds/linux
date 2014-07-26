@@ -158,6 +158,7 @@ nve0_identify(struct nouveau_device *device)
 		break;
 	case 0xea:
 		device->cname = "GK20A";
+		device->oclass[NVDEV_SUBDEV_CLOCK  ] = &gk20a_clock_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] =  gk20a_mc_oclass;
 		device->oclass[NVDEV_SUBDEV_BUS    ] =  nvc0_bus_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &gk20a_timer_oclass;
