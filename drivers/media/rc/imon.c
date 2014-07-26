@@ -307,6 +307,27 @@ static const struct imon_usb_dev_descr imon_OEM_VFD = {
 	}
 };
 
+/* imon receiver front panel/knob key table for DH102*/
+static const struct imon_usb_dev_descr imon_DH102 = {
+	.flags = IMON_NO_FLAGS,
+	.key_table = {
+		{ 0x000100000000ffeell, KEY_VOLUMEUP },
+		{ 0x010000000000ffeell, KEY_VOLUMEDOWN },
+		{ 0x000000010000ffeell, KEY_MUTE },
+		{ 0x0000000f0000ffeell, KEY_MEDIA },
+		{ 0x000000120000ffeell, KEY_UP },
+		{ 0x000000130000ffeell, KEY_DOWN },
+		{ 0x000000140000ffeell, KEY_LEFT },
+		{ 0x000000150000ffeell, KEY_RIGHT },
+		{ 0x000000160000ffeell, KEY_ENTER },
+		{ 0x000000170000ffeell, KEY_ESC },
+		{ 0x0000002b0000ffeell, KEY_EXIT },
+		{ 0x0000002c0000ffeell, KEY_SELECT },
+		{ 0x0000002d0000ffeell, KEY_MENU },
+		{ 0, KEY_RESERVED }
+	}
+};
+
 /*
  * USB Device ID for iMON USB Control Boards
  *
@@ -335,7 +356,7 @@ static struct usb_device_id imon_usb_id_table[] = {
 	 */
 	/* SoundGraph iMON OEM Touch LCD (IR & 7" VGA LCD) */
 	{ USB_DEVICE(0x15c2, 0x0034),
-	  .driver_info = (unsigned long)&imon_default_table },
+	  .driver_info = (unsigned long)&imon_DH102 },
 	/* SoundGraph iMON OEM Touch LCD (IR & 4.3" VGA LCD) */
 	{ USB_DEVICE(0x15c2, 0x0035),
 	  .driver_info = (unsigned long)&imon_default_table},
