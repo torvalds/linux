@@ -33,7 +33,6 @@ extern struct omap_hwmod_addr_space omap2_mcspi1_addr_space[];
 extern struct omap_hwmod_addr_space omap2_mcspi2_addr_space[];
 extern struct omap_hwmod_addr_space omap2430_mcspi3_addr_space[];
 extern struct omap_hwmod_addr_space omap2_dma_system_addrs[];
-extern struct omap_hwmod_addr_space omap2_mailbox_addrs[];
 extern struct omap_hwmod_addr_space omap2_mcbsp1_addrs[];
 extern struct omap_hwmod_addr_space omap2_hdq1w_addr_space[];
 
