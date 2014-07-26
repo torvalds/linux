@@ -559,6 +559,9 @@ static void alps_decode_rushmore(struct alps_fields *f, unsigned char *p,
 {
 	alps_decode_pinnacle(f, p, psmouse);
 
+	/* Rushmore's packet decode has a bit difference with Pinnacle's */
+	f->is_mp = !!(p[5] & 0x40);
+	f->fingers = max((p[5] & 0x3), ((p[5] >> 2) & 0x3)) + 1;
 	f->x_map |= (p[5] & 0x10) << 11;
 	f->y_map |= (p[5] & 0x20) << 6;
 }
