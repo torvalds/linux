@@ -27,34 +27,16 @@
 		clock-output-names = "xin24m";
 	};
 
-	scu@1013c000 {
-		compatible = "arm,cortex-a9-scu";
-		reg = <0x1013c000 0x100>;
-	};
-
-	pmu: pmu@20004000 {
-		compatible = "rockchip,rk3066-pmu", "syscon";
-		reg = <0x20004000 0x100>;
-	};
-
-	grf: grf@20008000 {
-		compatible = "syscon";
-		reg = <0x20008000 0x200>;
-	};
-
-	gic: interrupt-controller@1013d000 {
-		compatible = "arm,cortex-a9-gic";
-		interrupt-controller;
-		#interrupt-cells = <3>;
-		reg = <0x1013d000 0x1000>,
-		      <0x1013c100 0x0100>;
-	};
-
 	L2: l2-cache-controller@10138000 {
 		compatible = "arm,pl310-cache";
 		reg = <0x10138000 0x1000>;
 		cache-unified;
 		cache-level = <2>;
+	};
+
+	scu@1013c000 {
+		compatible = "arm,cortex-a9-scu";
+		reg = <0x1013c000 0x100>;
 	};
 
 	global_timer: global-timer@1013c200 {
@@ -69,6 +51,14 @@
 		reg = <0x1013c600 0x20>;
 		interrupts = <GIC_PPI 13 0x304>;
 		clocks = <&cru CORE_PERI>;
+	};
+
+	gic: interrupt-controller@1013d000 {
+		compatible = "arm,cortex-a9-gic";
+		interrupt-controller;
+		#interrupt-cells = <3>;
+		reg = <0x1013d000 0x1000>,
+		      <0x1013c100 0x0100>;
 	};
 
 	uart0: serial@10124000 {
@@ -88,26 +78,6 @@
 		reg-shift = <2>;
 		reg-io-width = <1>;
 		clocks = <&cru SCLK_UART1>;
-		status = "disabled";
-	};
-
-	uart2: serial@20064000 {
-		compatible = "snps,dw-apb-uart";
-		reg = <0x20064000 0x400>;
-		interrupts = <GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>;
-		reg-shift = <2>;
-		reg-io-width = <1>;
-		clocks = <&cru SCLK_UART2>;
-		status = "disabled";
-	};
-
-	uart3: serial@20068000 {
-		compatible = "snps,dw-apb-uart";
-		reg = <0x20068000 0x400>;
-		interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
-		reg-shift = <2>;
-		reg-io-width = <1>;
-		clocks = <&cru SCLK_UART3>;
 		status = "disabled";
 	};
 
@@ -134,6 +104,36 @@
 		clocks = <&cru HCLK_SDIO>, <&cru SCLK_SDIO>;
 		clock-names = "biu", "ciu";
 
+		status = "disabled";
+	};
+
+	pmu: pmu@20004000 {
+		compatible = "rockchip,rk3066-pmu", "syscon";
+		reg = <0x20004000 0x100>;
+	};
+
+	grf: grf@20008000 {
+		compatible = "syscon";
+		reg = <0x20008000 0x200>;
+	};
+
+	uart2: serial@20064000 {
+		compatible = "snps,dw-apb-uart";
+		reg = <0x20064000 0x400>;
+		interrupts = <GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>;
+		reg-shift = <2>;
+		reg-io-width = <1>;
+		clocks = <&cru SCLK_UART2>;
+		status = "disabled";
+	};
+
+	uart3: serial@20068000 {
+		compatible = "snps,dw-apb-uart";
+		reg = <0x20068000 0x400>;
+		interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
+		reg-shift = <2>;
+		reg-io-width = <1>;
+		clocks = <&cru SCLK_UART3>;
 		status = "disabled";
 	};
 };
