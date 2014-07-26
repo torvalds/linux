@@ -697,30 +697,36 @@ should do something like the following:
 	}
 
 Finally, control dependencies do -not- provide transitivity.  This is
-demonstrated by two related examples:
+demonstrated by two related examples, with the initial values of
+x and y both being zero:
 
 	CPU 0                     CPU 1
 	=====================     =====================
 	r1 = ACCESS_ONCE(x);      r2 = ACCESS_ONCE(y);
-	if (r1 >= 0)              if (r2 >= 0)
+	if (r1 > 0)               if (r2 > 0)
 	  ACCESS_ONCE(y) = 1;       ACCESS_ONCE(x) = 1;
 
 	assert(!(r1 == 1 && r2 == 1));
 
 The above two-CPU example will never trigger the assert().  However,
 if control dependencies guaranteed transitivity (which they do not),
-then adding the following two CPUs would guarantee a related assertion:
+then adding the following CPU would guarantee a related assertion:
 
-	CPU 2                     CPU 3
-	=====================     =====================
-	ACCESS_ONCE(x) = 2;       ACCESS_ONCE(y) = 2;
+	CPU 2
+	=====================
+	ACCESS_ONCE(x) = 2;
 
-	assert(!(r1 == 2 && r2 == 2 && x == 1 && y == 1)); /* FAILS!!! */
+	assert(!(r1 == 2 && r2 == 1 && x == 2)); /* FAILS!!! */
 
-But because control dependencies do -not- provide transitivity, the
-above assertion can fail after the combined four-CPU example completes.
-If you need the four-CPU example to provide ordering, you will need
-smp_mb() between the loads and stores in the CPU 0 and CPU 1 code fragments.
+But because control dependencies do -not- provide transitivity, the above
+assertion can fail after the combined three-CPU example completes.  If you
+need the three-CPU example to provide ordering, you will need smp_mb()
+between the loads and stores in the CPU 0 and CPU 1 code fragments,
+that is, just before or just after the "if" statements.
+
+These two examples are the LB and WWC litmus tests from this paper:
+http://www.cl.cam.ac.uk/users/pes20/ppc-supplemental/test6.pdf and this
+site: https://www.cl.cam.ac.uk/~pes20/ppcmem/index.html.
 
 In summary:
 
