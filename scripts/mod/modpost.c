@@ -1703,12 +1703,11 @@ static void check_sec_ref(struct module *mod, const char *modname,
 
 static char *remove_dot(char *s)
 {
-	char *end;
-	int n = strcspn(s, ".");
+	size_t n = strcspn(s, ".");
 
-	if (n > 0 && s[n] != 0) {
-		strtoul(s + n + 1, &end, 10);
-		if  (end > s + n + 1 && (*end == '.' || *end == 0))
+	if (n && s[n]) {
+		size_t m = strspn(s + n + 1, "0123456789");
+		if (m && (s[n + m] == '.' || s[n + m] == 0))
 			s[n] = 0;
 	}
 	return s;
