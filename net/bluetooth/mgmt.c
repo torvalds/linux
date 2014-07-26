@@ -1086,8 +1086,8 @@ static void enable_advertising(struct hci_request *req)
 		return;
 
 	memset(&cp, 0, sizeof(cp));
-	cp.min_interval = cpu_to_le16(0x0800);
-	cp.max_interval = cpu_to_le16(0x0800);
+	cp.min_interval = cpu_to_le16(hdev->le_adv_min_interval);
+	cp.max_interval = cpu_to_le16(hdev->le_adv_max_interval);
 	cp.type = connectable ? LE_ADV_IND : LE_ADV_NONCONN_IND;
 	cp.own_address_type = own_addr_type;
 	cp.channel_map = hdev->le_adv_channel_map;
