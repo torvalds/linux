@@ -124,6 +124,7 @@ struct alps_fields {
  *   known format for this model.  The first byte of the report, ANDed with
  *   mask0, should match byte0.
  * @mask0: The mask used to check the first byte of the report.
+ * @fw_ver: cached copy of firmware version (EC report)
  * @flags: Additional device capabilities (passthrough port, trackstick, etc.).
  * @x_max: Largest possible X position value.
  * @y_max: Largest possible Y position value.
@@ -149,6 +150,7 @@ struct alps_data {
 	int addr_command;
 	unsigned char proto_version;
 	unsigned char byte0, mask0;
+	unsigned char fw_ver[3];
 	int flags;
 	int x_max;
 	int y_max;

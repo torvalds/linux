@@ -1901,6 +1901,9 @@ static int alps_identify(struct psmouse *psmouse, struct alps_data *priv)
 	    alps_exit_command_mode(psmouse))
 		return -EIO;
 
+	/* Save the Firmware version */
+	memcpy(priv->fw_ver, ec, 3);
+
 	if (alps_match_table(psmouse, priv, e7, ec) == 0) {
 		return 0;
 	} else if (e7[0] == 0x73 && e7[1] == 0x03 && e7[2] == 0x50 &&
