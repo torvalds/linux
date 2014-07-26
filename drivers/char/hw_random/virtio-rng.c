@@ -30,11 +30,11 @@ static DEFINE_IDA(rng_index_ida);
 struct virtrng_info {
 	struct hwrng hwrng;
 	struct virtqueue *vq;
-	unsigned int data_avail;
 	struct completion have_data;
-	bool busy;
 	char name[25];
+	unsigned int data_avail;
 	int index;
+	bool busy;
 };
 
 static bool probe_done;
