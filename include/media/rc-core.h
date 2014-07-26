@@ -26,7 +26,7 @@ extern int rc_core_debug;
 #define IR_dprintk(level, fmt, ...)				\
 do {								\
 	if (rc_core_debug >= level)				\
-		pr_debug("%s: " fmt, __func__, ##__VA_ARGS__);	\
+		printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__);	\
 } while (0)
 
 enum rc_driver_type {
