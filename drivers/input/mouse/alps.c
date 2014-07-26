@@ -669,7 +669,7 @@ static void alps_process_touchpad_packet_v3_v5(struct psmouse *psmouse)
 	 * If we don't have MT data or the bitmaps were empty, we have
 	 * to rely on ST data.
 	 */
-	if (!fingers) {
+	if (fingers < 2) {
 		f->mt[0].x = f->st.x;
 		f->mt[0].y = f->st.y;
 		fingers = f->pressure > 0 ? 1 : 0;
