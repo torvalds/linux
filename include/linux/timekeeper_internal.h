@@ -113,7 +113,7 @@ extern void update_vsyscall_tz(void);
 
 extern void update_vsyscall_old(struct timespec *ts, struct timespec *wtm,
 				struct clocksource *c, u32 mult,
-				cycles_t cycle_last);
+				cycle_t cycle_last);
 extern void update_vsyscall_tz(void);
 
 #else
