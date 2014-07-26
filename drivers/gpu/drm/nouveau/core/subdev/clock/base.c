@@ -534,6 +534,7 @@ nouveau_clock_create_(struct nouveau_object *parent,
 		      struct nouveau_object *engine,
 		      struct nouveau_oclass *oclass,
 		      struct nouveau_clocks *clocks,
+		      struct nouveau_pstate *pstates, int nb_pstates,
 		      bool allow_reclock,
 		      int length, void **object)
 {
@@ -557,10 +558,17 @@ nouveau_clock_create_(struct nouveau_object *parent,
 	init_waitqueue_head(&clk->wait);
 	atomic_set(&clk->waiting, 0);
 
-	idx = 0;
-	do {
-		ret = nouveau_pstate_new(clk, idx++);
-	} while (ret == 0);
+	/* If no pstates are provided, try and fetch them from the BIOS */
+	if (!pstates) {
+		idx = 0;
+		do {
+			ret = nouveau_pstate_new(clk, idx++);
+		} while (ret == 0);
+	} else {
+		for (idx = 0; idx < nb_pstates; idx++)
+			list_add_tail(&pstates[idx].head, &clk->states);
+		clk->state_nr = nb_pstates;
+	}
 
 	clk->allow_reclock = allow_reclock;
 

@@ -115,8 +115,9 @@ struct nouveau_clocks {
 	int mdiv;
 };
 
-#define nouveau_clock_create(p,e,o,i,r,d)                                      \
-	nouveau_clock_create_((p), (e), (o), (i), (r), sizeof(**d), (void **)d)
+#define nouveau_clock_create(p,e,o,i,r,s,n,d)                                  \
+	nouveau_clock_create_((p), (e), (o), (i), (r), (s), (n), sizeof(**d),  \
+			      (void **)d)
 #define nouveau_clock_destroy(p) ({                                            \
 	struct nouveau_clock *clk = (p);                                       \
 	_nouveau_clock_dtor(nv_object(clk));                                   \
@@ -132,7 +133,8 @@ struct nouveau_clocks {
 
 int  nouveau_clock_create_(struct nouveau_object *, struct nouveau_object *,
 			   struct nouveau_oclass *,
-			   struct nouveau_clocks *, bool, int, void **);
+			   struct nouveau_clocks *, struct nouveau_pstate *,
+			   int, bool, int, void **);
 void _nouveau_clock_dtor(struct nouveau_object *);
 int  _nouveau_clock_init(struct nouveau_object *);
 int  _nouveau_clock_fini(struct nouveau_object *, bool);
