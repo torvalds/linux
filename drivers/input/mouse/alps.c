@@ -342,14 +342,13 @@ static void alps_get_bitmap_points(unsigned int map,
 		if (bit) {
 			if (!prev_bit) {
 				point->start_bit = i;
+				point->num_bits = 0;
 				(*fingers)++;
 			}
 			point->num_bits++;
 		} else {
 			if (prev_bit)
 				point = high;
-			else
-				point->num_bits = 0;
 		}
 		prev_bit = bit;
 	}
