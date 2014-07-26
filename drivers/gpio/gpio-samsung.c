@@ -32,10 +32,7 @@
 
 #include <mach/map.h>
 #include <mach/regs-gpio.h>
-
-#if defined(CONFIG_ARCH_S3C24XX) || defined(CONFIG_ARCH_S3C64XX)
 #include <mach/gpio-samsung.h>
-#endif
 
 #include <plat/cpu.h>
 #include <plat/gpio-core.h>
