@@ -113,6 +113,16 @@ config IR_MCE_KBD_DECODER
 	   Enable this option if you have a Microsoft Remote Keyboard for
 	   Windows Media Center Edition, which you would like to use with
 	   a raw IR receiver in your system.
+
+config IR_XMP_DECODER
+	tristate "Enable IR raw decoder for the XMP protocol"
+	depends on RC_CORE
+	select BITREVERSE
+	default y
+
+	---help---
+	   Enable this option if you have IR with XMP protocol, and
+	   if the IR is decoded in software
 endif #RC_DECODERS
 
 menuconfig RC_DEVICES

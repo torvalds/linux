@@ -800,6 +800,7 @@ static struct {
 	{ RC_BIT_SHARP,		"sharp"		},
 	{ RC_BIT_MCE_KBD,	"mce_kbd"	},
 	{ RC_BIT_LIRC,		"lirc"		},
+	{ RC_BIT_XMP,		"xmp"		},
 };
 
 /**

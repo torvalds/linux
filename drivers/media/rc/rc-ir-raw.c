@@ -362,6 +362,7 @@ void ir_raw_init(void)
 	load_sharp_decode();
 	load_mce_kbd_decode();
 	load_lirc_codec();
+	load_xmp_decode();
 
 	/* If needed, we may later add some init code. In this case,
 	   it is needed to change the CONFIG_MODULE test at rc-core.h

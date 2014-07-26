@@ -110,6 +110,11 @@ struct ir_raw_event_ctrl {
 		bool send_timeout_reports;
 
 	} lirc;
+	struct xmp_dec {
+		int state;
+		unsigned count;
+		u32 durations[16];
+	} xmp;
 };
 
 /* macros for IR decoders */
@@ -223,6 +228,13 @@ static inline void load_mce_kbd_decode(void) { }
 #define load_lirc_codec()	request_module_nowait("ir-lirc-codec")
 #else
 static inline void load_lirc_codec(void) { }
+#endif
+
+/* from ir-xmp-decoder.c */
+#ifdef CONFIG_IR_XMP_DECODER_MODULE
+#define load_xmp_decode()      request_module_nowait("ir-xmp-decoder")
+#else
+static inline void load_xmp_decode(void) { }
 #endif
 
 
