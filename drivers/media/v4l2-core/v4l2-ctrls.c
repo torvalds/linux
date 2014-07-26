@@ -1347,14 +1347,14 @@ static void std_log(const struct v4l2_ctrl *ctrl)
 ({								\
 	offset_type offset;					\
 	if ((ctrl)->maximum >= 0 &&				\
-	    val >= (ctrl)->maximum - ((ctrl)->step / 2))	\
+	    val >= (ctrl)->maximum - (s32)((ctrl)->step / 2))	\
 		val = (ctrl)->maximum;				\
 	else							\
-		val += (ctrl)->step / 2;			\
+		val += (s32)((ctrl)->step / 2);			\
 	val = clamp_t(typeof(val), val,				\
 		      (ctrl)->minimum, (ctrl)->maximum);	\
 	offset = (val) - (ctrl)->minimum;			\
-	offset = (ctrl)->step * (offset / (s32)(ctrl)->step);	\
+	offset = (ctrl)->step * (offset / (u32)(ctrl)->step);	\
 	val = (ctrl)->minimum + offset;				\
 	0;							\
 })
@@ -1376,10 +1376,10 @@ static int std_validate(const struct v4l2_ctrl *ctrl, u32 idx,
 		 * the u64 divide that needs special care.
 		 */
 		val = ptr.p_s64[idx];
-		if (ctrl->maximum >= 0 && val >= ctrl->maximum - ctrl->step / 2)
+		if (ctrl->maximum >= 0 && val >= ctrl->maximum - (s64)(ctrl->step / 2))
 			val = ctrl->maximum;
 		else
-			val += ctrl->step / 2;
+			val += (s64)(ctrl->step / 2);
 		val = clamp_t(s64, val, ctrl->minimum, ctrl->maximum);
 		offset = val - ctrl->minimum;
 		do_div(offset, ctrl->step);
