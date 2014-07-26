@@ -31,7 +31,7 @@
 struct i915_render_state {
 	struct drm_i915_gem_object *obj;
 	unsigned long ggtt_offset;
-	void *batch;
+	u32 *batch;
 	u32 size;
 	u32 len;
 };
@@ -80,7 +80,7 @@ free:
 
 static void render_state_free(struct i915_render_state *so)
 {
-	kunmap(so->batch);
+	kunmap(kmap_to_page(so->batch));
 	i915_gem_object_ggtt_unpin(so->obj);
 	drm_gem_object_unreference(&so->obj->base);
 	kfree(so);
