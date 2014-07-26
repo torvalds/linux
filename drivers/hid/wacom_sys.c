@@ -769,6 +769,7 @@ static void wacom_destroy_leds(struct wacom *wacom)
 }
 
 static enum power_supply_property wacom_battery_props[] = {
+	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_SCOPE,
 	POWER_SUPPLY_PROP_CAPACITY
 };
@@ -786,7 +787,16 @@ static int wacom_battery_get_property(struct power_supply *psy,
 			break;
 		case POWER_SUPPLY_PROP_CAPACITY:
 			val->intval =
-				wacom->wacom_wac.battery_capacity * 100 / 31;
+				wacom->wacom_wac.battery_capacity;
+			break;
+		case POWER_SUPPLY_PROP_STATUS:
+			if (wacom->wacom_wac.bat_charging)
+				val->intval = POWER_SUPPLY_STATUS_CHARGING;
+			else if (wacom->wacom_wac.battery_capacity == 100 &&
+				    wacom->wacom_wac.ps_connected)
+				val->intval = POWER_SUPPLY_STATUS_FULL;
+			else
+				val->intval = POWER_SUPPLY_STATUS_DISCHARGING;
 			break;
 		default:
 			ret = -EINVAL;
@@ -800,7 +810,7 @@ static int wacom_initialize_battery(struct wacom *wacom)
 {
 	int error = 0;
 
-	if (wacom->wacom_wac.features.quirks & WACOM_QUIRK_MONITOR) {
+	if (wacom->wacom_wac.features.quirks & WACOM_QUIRK_BATTERY) {
 		wacom->battery.properties = wacom_battery_props;
 		wacom->battery.num_properties = ARRAY_SIZE(wacom_battery_props);
 		wacom->battery.get_property = wacom_battery_get_property;
@@ -821,8 +831,8 @@ static int wacom_initialize_battery(struct wacom *wacom)
 
 static void wacom_destroy_battery(struct wacom *wacom)
 {
-	if (wacom->wacom_wac.features.quirks & WACOM_QUIRK_MONITOR &&
-	    wacom->battery.dev) {
+	if ((wacom->wacom_wac.features.quirks & WACOM_QUIRK_BATTERY) &&
+	     wacom->battery.dev) {
 		power_supply_unregister(&wacom->battery);
 		wacom->battery.dev = NULL;
 	}
@@ -947,6 +957,7 @@ static void wacom_wireless_work(struct work_struct *work)
 
 	if (wacom_wac->pid == 0) {
 		hid_info(wacom->hdev, "wireless tablet disconnected\n");
+		wacom_wac1->shared->type = 0;
 	} else {
 		const struct hid_device_id *id = wacom_ids;
 

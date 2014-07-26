@@ -1365,7 +1365,7 @@ static int wacom_wireless_irq(struct wacom_wac *wacom, size_t len)
 
 	connected = data[1] & 0x01;
 	if (connected) {
-		int pid, battery;
+		int pid, battery, ps_connected;
 
 		if ((wacom->shared->type == INTUOSHT) &&
 				wacom->shared->touch_max) {
@@ -1375,17 +1375,29 @@ static int wacom_wireless_irq(struct wacom_wac *wacom, size_t len)
 		}
 
 		pid = get_unaligned_be16(&data[6]);
-		battery = data[5] & 0x3f;
+		battery = (data[5] & 0x3f) * 100 / 31;
+		ps_connected = !!(data[5] & 0x80);
 		if (wacom->pid != pid) {
 			wacom->pid = pid;
 			wacom_schedule_work(wacom);
 		}
-		wacom->battery_capacity = battery;
+
+		if (wacom->shared->type &&
+		    (battery != wacom->battery_capacity ||
+		     ps_connected != wacom->ps_connected)) {
+			wacom->battery_capacity = battery;
+			wacom->ps_connected = ps_connected;
+			wacom->bat_charging = ps_connected &&
+						wacom->battery_capacity < 100;
+			wacom_notify_battery(wacom);
+		}
 	} else if (wacom->pid != 0) {
 		/* disconnected while previously connected */
 		wacom->pid = 0;
 		wacom_schedule_work(wacom);
 		wacom->battery_capacity = 0;
+		wacom->bat_charging = 0;
+		wacom->ps_connected = 0;
 	}
 
 	return 0;
@@ -1558,8 +1570,10 @@ void wacom_setup_device_quirks(struct wacom_features *features)
 		features->quirks |= WACOM_QUIRK_NO_INPUT;
 
 		/* must be monitor interface if no device_type set */
-		if (!features->device_type)
+		if (!features->device_type) {
 			features->quirks |= WACOM_QUIRK_MONITOR;
+			features->quirks |= WACOM_QUIRK_BATTERY;
+		}
 	}
 }
 
