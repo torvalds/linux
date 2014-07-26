@@ -65,6 +65,11 @@ struct alps_nibble_commands {
 	unsigned char data;
 };
 
+struct alps_bitmap_point {
+	int start_bit;
+	int num_bits;
+};
+
 /**
  * struct alps_fields - decoded version of the report packet
  * @x_map: Bitmap of active X positions for MT.
