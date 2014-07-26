@@ -809,12 +809,16 @@ static int wacom_battery_get_property(struct power_supply *psy,
 static int wacom_initialize_battery(struct wacom *wacom)
 {
 	int error = 0;
+	static atomic_t battery_no = ATOMIC_INIT(0);
+	unsigned long n;
 
 	if (wacom->wacom_wac.features.quirks & WACOM_QUIRK_BATTERY) {
+		n = atomic_inc_return(&battery_no) - 1;
 		wacom->battery.properties = wacom_battery_props;
 		wacom->battery.num_properties = ARRAY_SIZE(wacom_battery_props);
 		wacom->battery.get_property = wacom_battery_get_property;
-		wacom->battery.name = "wacom_battery";
+		sprintf(wacom->wacom_wac.bat_name, "wacom_battery_%ld", n);
+		wacom->battery.name = wacom->wacom_wac.bat_name;
 		wacom->battery.type = POWER_SUPPLY_TYPE_BATTERY;
 		wacom->battery.use_for_apm = 0;
 
