@@ -764,7 +764,6 @@ static struct dib0070_config dib7070p_dib0070_config = {
 	.reset = dib7070_tuner_reset,
 	.sleep = dib7070_tuner_sleep,
 	.clock_khz = 12000,
-	.freq_offset_khz_vhf = 950,
 	.freq_offset_khz_vhf = 550,
 	/* .flip_chip = 1, */
 };
