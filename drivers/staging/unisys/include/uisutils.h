@@ -307,20 +307,20 @@ Issue_VMCALL_CHANNEL_MISMATCH(const char *ChannelName,
 	U64 physaddr;
 	char *last_slash = NULL;
 
-	strncpy(params.ChannelName, ChannelName,
+	strlcpy(params.ChannelName, ChannelName,
 		lengthof(VMCALL_CHANNEL_VERSION_MISMATCH_PARAMS, ChannelName));
-	strncpy(params.ItemName, ItemName,
+	strlcpy(params.ItemName, ItemName,
 		lengthof(VMCALL_CHANNEL_VERSION_MISMATCH_PARAMS, ItemName));
 	params.SourceLineNumber = SourceLineNumber;
 
 	last_slash = strrchr(path_n_fn, '/');
 	if (last_slash != NULL) {
 		last_slash++;
-		strncpy(params.SourceFileName, last_slash,
+		strlcpy(params.SourceFileName, last_slash,
 			lengthof(VMCALL_CHANNEL_VERSION_MISMATCH_PARAMS,
 				 SourceFileName));
 	} else
-		strncpy(params.SourceFileName,
+		strlcpy(params.SourceFileName,
 			"Cannot determine source filename",
 			lengthof(VMCALL_CHANNEL_VERSION_MISMATCH_PARAMS,
 				 SourceFileName));
