@@ -1370,11 +1370,11 @@ static void set_input_params(struct psmouse *psmouse,
 		__set_bit(BTN_TOOL_QUADTAP, dev->keybit);
 		__set_bit(BTN_TOOL_QUINTTAP, dev->keybit);
 	} else if (SYN_CAP_ADV_GESTURE(priv->ext_cap_0c)) {
-		/* Non-image sensors with AGM use semi-mt */
-		__set_bit(INPUT_PROP_SEMI_MT, dev->propbit);
-		input_mt_init_slots(dev, 2, 0);
 		set_abs_position_params(dev, priv, ABS_MT_POSITION_X,
 					ABS_MT_POSITION_Y);
+		/* Non-image sensors with AGM use semi-mt */
+		input_mt_init_slots(dev, 2,
+				    INPUT_MT_POINTER | INPUT_MT_SEMI_MT);
 	}
 
 	if (SYN_CAP_PALMDETECT(priv->capabilities))
