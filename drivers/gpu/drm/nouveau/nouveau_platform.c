@@ -27,7 +27,7 @@
 #include <linux/of.h>
 #include <linux/reset.h>
 #include <linux/regulator/consumer.h>
-#include <linux/tegra-powergate.h>
+#include <soc/tegra/pmc.h>
 
 #include "nouveau_drm.h"
 #include "nouveau_platform.h"
