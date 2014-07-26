@@ -57,14 +57,14 @@
 		cache-level = <2>;
 	};
 
-	global-timer@1013c200 {
+	global_timer: global-timer@1013c200 {
 		compatible = "arm,cortex-a9-global-timer";
 		reg = <0x1013c200 0x20>;
 		interrupts = <GIC_PPI 11 0x304>;
 		clocks = <&cru CORE_PERI>;
 	};
 
-	local-timer@1013c600 {
+	local_timer: local-timer@1013c600 {
 		compatible = "arm,cortex-a9-twd-timer";
 		reg = <0x1013c600 0x20>;
 		interrupts = <GIC_PPI 13 0x304>;
@@ -111,7 +111,7 @@
 		status = "disabled";
 	};
 
-	dwmmc@10214000 {
+	mmc0: dwmmc@10214000 {
 		compatible = "rockchip,rk2928-dw-mshc";
 		reg = <0x10214000 0x1000>;
 		interrupts = <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>;
@@ -124,7 +124,7 @@
 		status = "disabled";
 	};
 
-	dwmmc@10218000 {
+	mmc1: dwmmc@10218000 {
 		compatible = "rockchip,rk2928-dw-mshc";
 		reg = <0x10218000 0x1000>;
 		interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;

@@ -82,7 +82,7 @@
 		#reset-cells = <1>;
 	};
 
-	pinctrl@20008000 {
+	pinctrl: pinctrl@20008000 {
 		compatible = "rockchip,rk3188-pinctrl";
 		rockchip,grf = <&grf>;
 		rockchip,pmu = <&pmu>;
