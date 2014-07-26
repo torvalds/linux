@@ -408,6 +408,11 @@ static inline int within_module_init(unsigned long addr, const struct module *mo
 	       addr < (unsigned long)mod->module_init + mod->init_size;
 }
 
+static inline int within_module(unsigned long addr, const struct module *mod)
+{
+	return within_module_init(addr, mod) || within_module_core(addr, mod);
+}
+
 /* Search for module by name: must hold module_mutex. */
 struct module *find_module(const char *name);
 
