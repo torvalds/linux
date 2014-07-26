@@ -11,6 +11,7 @@
 
 #define pr_fmt(fmt) "PKCS7key: "fmt
 #include <linux/key.h>
+#include <linux/err.h>
 #include <linux/key-type.h>
 #include <crypto/pkcs7.h>
 #include <keys/user-type.h>
