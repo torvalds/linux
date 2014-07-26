@@ -46,7 +46,7 @@ struct alps_model_info {
 	unsigned char command_mode_resp;
 	unsigned char proto_version;
 	unsigned char byte0, mask0;
-	unsigned char flags;
+	int flags;
 };
 
 /**
@@ -142,7 +142,7 @@ struct alps_data {
 	int addr_command;
 	unsigned char proto_version;
 	unsigned char byte0, mask0;
-	unsigned char flags;
+	int flags;
 	int x_max;
 	int y_max;
 	int x_bits;

@@ -99,6 +99,7 @@ static const struct alps_nibble_commands alps_v6_nibble_commands[] = {
 #define ALPS_FOUR_BUTTONS	0x40	/* 4 direction button present */
 #define ALPS_PS2_INTERLEAVED	0x80	/* 3-byte PS/2 packet interleaved with
 					   6-byte ALPS packet */
+#define ALPS_IS_RUSHMORE	0x100	/* device is a rushmore */
 
 static const struct alps_model_info alps_model_data[] = {
 	{ { 0x32, 0x02, 0x14 },	0x00, ALPS_PROTO_V2, 0xf8, 0xf8, ALPS_PASS | ALPS_DUALPOINT },	/* Toshiba Salellite Pro M10 */
@@ -376,15 +377,10 @@ static int alps_process_bitmap(struct alps_data *priv,
 		prev_bit = bit;
 	}
 
-	/*
-	 * y bitmap is reversed for what we need (lower positions are in
-	 * higher bits), so we process from the top end.
-	 */
-	y_map = y_map << (sizeof(y_map) * BITS_PER_BYTE - priv->y_bits);
 	prev_bit = 0;
 	point = &y_low;
-	for (i = 0; y_map != 0; i++, y_map <<= 1) {
-		bit = y_map & (1 << (sizeof(y_map) * BITS_PER_BYTE - 1));
+	for (i = 0; y_map != 0; i++, y_map >>= 1) {
+		bit = y_map & 1;
 		if (bit) {
 			if (!prev_bit) {
 				point->start_bit = i;
@@ -434,6 +430,12 @@ static int alps_process_bitmap(struct alps_data *priv,
 	*y2 = (priv->y_max *
 	       (2 * y_high.start_bit + y_high.num_bits - 1)) /
 	      (2 * (priv->y_bits - 1));
+
+	/* y-bitmap order is reversed, except on rushmore */
+	if (!(priv->flags & ALPS_IS_RUSHMORE)) {
+		*y1 = priv->y_max - *y1;
+		*y2 = priv->y_max - *y2;
+	}
 
 	return fingers;
 }
@@ -1981,6 +1983,7 @@ static int alps_identify(struct psmouse *psmouse, struct alps_data *priv)
 		priv->decode_fields = alps_decode_rushmore;
 		priv->x_bits = 16;
 		priv->y_bits = 12;
+		priv->flags |= ALPS_IS_RUSHMORE;
 
 		/* hack to make addr_command, nibble_command available */
 		psmouse->private = priv;
