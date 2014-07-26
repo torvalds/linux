@@ -52,14 +52,6 @@
 		};
 	};
 
-	global-timer@1013c200 {
-		interrupts = <GIC_PPI 11 0xf04>;
-	};
-
-	local-timer@1013c600 {
-		interrupts = <GIC_PPI 13 0xf04>;
-	};
-
 	sram: sram@10080000 {
 		compatible = "mmio-sram";
 		reg = <0x10080000 0x8000>;
@@ -270,4 +262,32 @@
 			};
 		};
 	};
+};
+
+&global_timer {
+	interrupts = <GIC_PPI 11 0xf04>;
+};
+
+&local_timer {
+	interrupts = <GIC_PPI 13 0xf04>;
+};
+
+&uart0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart0_xfer>;
+};
+
+&uart1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart1_xfer>;
+};
+
+&uart2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart2_xfer>;
+};
+
+&uart3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart3_xfer>;
 };

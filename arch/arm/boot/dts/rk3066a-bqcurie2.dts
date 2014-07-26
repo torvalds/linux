@@ -24,24 +24,6 @@
 		reg = <0x60000000 0x40000000>;
 	};
 
-	uart0: serial@10124000 {
-		status = "okay";
-	};
-
-	uart1: serial@10126000 {
-		status = "okay";
-	};
-
-	uart2: serial@20064000 {
-		pinctrl-names = "default";
-		pinctrl-0 = <&uart2_xfer>;
-		status = "okay";
-	};
-
-	uart3: serial@20068000 {
-		status = "okay";
-	};
-
 	vcc_sd0: fixed-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "sdmmc-supply";
@@ -49,36 +31,6 @@
 		regulator-max-microvolt = <3000000>;
 		gpio = <&gpio3 7 GPIO_ACTIVE_LOW>;
 		startup-delay-us = <100000>;
-	};
-
-	dwmmc@10214000 { /* sdmmc */
-		num-slots = <1>;
-		status = "okay";
-
-		pinctrl-names = "default";
-		pinctrl-0 = <&sd0_clk &sd0_cmd &sd0_cd &sd0_bus4>;
-		vmmc-supply = <&vcc_sd0>;
-
-		slot@0 {
-			reg = <0>;
-			bus-width = <4>;
-			disable-wp;
-		};
-	};
-
-	dwmmc@10218000 { /* wifi */
-		num-slots = <1>;
-		status = "okay";
-		non-removable;
-
-		pinctrl-names = "default";
-		pinctrl-0 = <&sd1_clk &sd1_cmd &sd1_bus4>;
-
-		slot@0 {
-			reg = <0>;
-			bus-width = <4>;
-			disable-wp;
-		};
 	};
 
 	gpio-keys {
@@ -105,4 +57,47 @@
 		};
 		/* VOL+ comes somehow thru the ADC */
 	};
+};
+
+&mmc0 { /* sdmmc */
+	num-slots = <1>;
+	status = "okay";
+	vmmc-supply = <&vcc_sd0>;
+
+	slot@0 {
+		reg = <0>;
+		bus-width = <4>;
+		disable-wp;
+	};
+};
+
+&mmc1 { /* wifi */
+	num-slots = <1>;
+	status = "okay";
+	non-removable;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&sd1_clk &sd1_cmd &sd1_bus4>;
+
+	slot@0 {
+		reg = <0>;
+		bus-width = <4>;
+		disable-wp;
+	};
+};
+
+&uart0 {
+	status = "okay";
+};
+
+&uart1 {
+	status = "okay";
+};
+
+&uart2 {
+	status = "okay";
+};
+
+&uart3 {
+	status = "okay";
 };
