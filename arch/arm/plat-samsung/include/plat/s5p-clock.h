@@ -57,7 +57,7 @@ extern int s5p_gatectrl(void __iomem *reg, struct clk *clk, int enable);
 extern int s5p_epll_enable(struct clk *clk, int enable);
 extern unsigned long s5p_epll_get_rate(struct clk *clk);
 
-/* SPDIF clk operations common for S5PC100/V210/C110 and Exynos4 */
+/* SPDIF clk operations common for S5PV210/C110 and Exynos4 */
 extern int s5p_spdif_set_rate(struct clk *clk, unsigned long rate);
 extern unsigned long s5p_spdif_get_rate(struct clk *clk);
 

@@ -231,9 +231,12 @@ static enum hrtimer_restart rt2800usb_tx_sta_fifo_timeout(struct hrtimer *timer)
  */
 static int rt2800usb_autorun_detect(struct rt2x00_dev *rt2x00dev)
 {
-	__le32 reg;
+	__le32 *reg;
 	u32 fw_mode;
 
+	reg = kmalloc(sizeof(*reg), GFP_KERNEL);
+	if (reg == NULL)
+		return -ENOMEM;
 	/* cannot use rt2x00usb_register_read here as it uses different
 	 * mode (MULTI_READ vs. DEVICE_MODE) and does not pass the
 	 * magic value USB_MODE_AUTORUN (0x11) to the device, thus the
@@ -241,8 +244,9 @@ static int rt2800usb_autorun_detect(struct rt2x00_dev *rt2x00dev)
 	 */
 	rt2x00usb_vendor_request(rt2x00dev, USB_DEVICE_MODE,
 				 USB_VENDOR_REQUEST_IN, 0, USB_MODE_AUTORUN,
-				 &reg, sizeof(reg), REGISTER_TIMEOUT_FIRMWARE);
-	fw_mode = le32_to_cpu(reg);
+				 reg, sizeof(*reg), REGISTER_TIMEOUT_FIRMWARE);
+	fw_mode = le32_to_cpu(*reg);
+	kfree(reg);
 
 	if ((fw_mode & 0x00000003) == 2)
 		return 1;
@@ -261,6 +265,7 @@ static int rt2800usb_write_firmware(struct rt2x00_dev *rt2x00dev,
 	int status;
 	u32 offset;
 	u32 length;
+	int retval;
 
 	/*
 	 * Check which section of the firmware we need.
@@ -278,7 +283,10 @@ static int rt2800usb_write_firmware(struct rt2x00_dev *rt2x00dev,
 	/*
 	 * Write firmware to device.
 	 */
-	if (rt2800usb_autorun_detect(rt2x00dev)) {
+	retval = rt2800usb_autorun_detect(rt2x00dev);
+	if (retval < 0)
+		return retval;
+	if (retval) {
 		rt2x00_info(rt2x00dev,
 			    "Firmware loading not required - NIC in AutoRun mode\n");
 	} else {
@@ -763,7 +771,12 @@ static void rt2800usb_fill_rxdone(struct queue_entry *entry,
  */
 static int rt2800usb_efuse_detect(struct rt2x00_dev *rt2x00dev)
 {
-	if (rt2800usb_autorun_detect(rt2x00dev))
+	int retval;
+
+	retval = rt2800usb_autorun_detect(rt2x00dev);
+	if (retval < 0)
+		return retval;
+	if (retval)
 		return 1;
 	return rt2800_efuse_detect(rt2x00dev);
 }
@@ -772,7 +785,10 @@ static int rt2800usb_read_eeprom(struct rt2x00_dev *rt2x00dev)
 {
 	int retval;
 
-	if (rt2800usb_efuse_detect(rt2x00dev))
+	retval = rt2800usb_efuse_detect(rt2x00dev);
+	if (retval < 0)
+		return retval;
+	if (retval)
 		retval = rt2800_read_eeprom_efuse(rt2x00dev);
 	else
 		retval = rt2x00usb_eeprom_read(rt2x00dev, rt2x00dev->eeprom,

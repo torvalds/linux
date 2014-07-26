@@ -2336,7 +2336,7 @@ static void mlx4_en_add_vxlan_port(struct  net_device *dev,
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	__be16 current_port;
 
-	if (!(priv->mdev->dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_VXLAN_OFFLOADS))
+	if (priv->mdev->dev->caps.tunnel_offload_mode != MLX4_TUNNEL_OFFLOAD_MODE_VXLAN)
 		return;
 
 	if (sa_family == AF_INET6)
@@ -2473,6 +2473,7 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 			MLX4_WQE_CTRL_SOLICITED);
 	priv->num_tx_rings_p_up = mdev->profile.num_tx_rings_p_up;
 	priv->tx_ring_num = prof->tx_ring_num;
+	priv->tx_work_limit = MLX4_EN_DEFAULT_TX_WORK;
 
 	priv->tx_ring = kzalloc(sizeof(struct mlx4_en_tx_ring *) * MAX_TX_RINGS,
 				GFP_KERNEL);

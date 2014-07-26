@@ -2018,8 +2018,8 @@ config FB_TMIO_ACCELL
 
 config FB_S3C
 	tristate "Samsung S3C framebuffer support"
-	depends on FB && (CPU_S3C2416 || ARCH_S3C64XX || ARCH_S5P64X0 || \
-		ARCH_S5PC100 || ARCH_S5PV210 || ARCH_EXYNOS)
+	depends on FB && (CPU_S3C2416 || ARCH_S3C64XX || \
+		ARCH_S5PV210 || ARCH_EXYNOS)
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
