@@ -1610,6 +1610,7 @@ static void imon_incoming_packet(struct imon_context *ictx,
 		scancode = be64_to_cpu(*((u64 *)buf));
 		ktype = IMON_KEY_PANEL;
 		kc = imon_panel_key_lookup(ictx, scancode);
+		ictx->release_code = false;
 	} else {
 		scancode = be32_to_cpu(*((u32 *)buf));
 		if (ictx->rc_type == RC_BIT_RC6_MCE) {
