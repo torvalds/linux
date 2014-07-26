@@ -454,7 +454,7 @@ static void alps_report_semi_mt_data(struct psmouse *psmouse, int fingers)
 		fingers = f->pressure > 0 ? 1 : 0;
 	}
 
-	alps_report_mt_data(psmouse, (fingers <= 2) ? fingers : 1);
+	alps_report_mt_data(psmouse, (fingers <= 2) ? fingers : 2);
 
 	input_mt_report_finger_count(dev, fingers);
 
