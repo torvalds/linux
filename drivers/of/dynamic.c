@@ -259,7 +259,7 @@ struct property *__of_prop_dup(const struct property *prop, gfp_t allocflags)
 
 	/*
 	 * NOTE: There is no check for zero length value.
-	 * In case of a boolean property This will allocate a value
+	 * In case of a boolean property, this will allocate a value
 	 * of zero bytes. We do this to work around the use
 	 * of of_get_property() calls on boolean values.
 	 */
