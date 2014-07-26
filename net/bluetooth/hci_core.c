@@ -970,6 +970,62 @@ static int adv_channel_map_get(void *data, u64 *val)
 DEFINE_SIMPLE_ATTRIBUTE(adv_channel_map_fops, adv_channel_map_get,
 			adv_channel_map_set, "%llu\n");
 
+static int adv_min_interval_set(void *data, u64 val)
+{
+	struct hci_dev *hdev = data;
+
+	if (val < 0x0020 || val > 0x4000 || val > hdev->le_adv_max_interval)
+		return -EINVAL;
+
+	hci_dev_lock(hdev);
+	hdev->le_adv_min_interval = val;
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+static int adv_min_interval_get(void *data, u64 *val)
+{
+	struct hci_dev *hdev = data;
+
+	hci_dev_lock(hdev);
+	*val = hdev->le_adv_min_interval;
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(adv_min_interval_fops, adv_min_interval_get,
+			adv_min_interval_set, "%llu\n");
+
+static int adv_max_interval_set(void *data, u64 val)
+{
+	struct hci_dev *hdev = data;
+
+	if (val < 0x0020 || val > 0x4000 || val < hdev->le_adv_min_interval)
+		return -EINVAL;
+
+	hci_dev_lock(hdev);
+	hdev->le_adv_max_interval = val;
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+static int adv_max_interval_get(void *data, u64 *val)
+{
+	struct hci_dev *hdev = data;
+
+	hci_dev_lock(hdev);
+	*val = hdev->le_adv_max_interval;
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(adv_max_interval_fops, adv_max_interval_get,
+			adv_max_interval_set, "%llu\n");
+
 static int device_list_show(struct seq_file *f, void *ptr)
 {
 	struct hci_dev *hdev = f->private;
@@ -1833,6 +1889,10 @@ static int __hci_init(struct hci_dev *hdev)
 				    hdev, &supervision_timeout_fops);
 		debugfs_create_file("adv_channel_map", 0644, hdev->debugfs,
 				    hdev, &adv_channel_map_fops);
+		debugfs_create_file("adv_min_interval", 0644, hdev->debugfs,
+				    hdev, &adv_min_interval_fops);
+		debugfs_create_file("adv_max_interval", 0644, hdev->debugfs,
+				    hdev, &adv_max_interval_fops);
 		debugfs_create_file("device_list", 0444, hdev->debugfs, hdev,
 				    &device_list_fops);
 		debugfs_create_u16("discov_interleaved_timeout", 0644,
