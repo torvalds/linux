@@ -20,12 +20,30 @@
 #define ALPS_PROTO_V4	4
 #define ALPS_PROTO_V5	5
 #define ALPS_PROTO_V6	6
+#define ALPS_PROTO_V7	7	/* t3btl t4s */
 
 #define MAX_TOUCHES	2
 
 #define DOLPHIN_COUNT_PER_ELECTRODE	64
 #define DOLPHIN_PROFILE_XOFFSET		8	/* x-electrode offset */
 #define DOLPHIN_PROFILE_YOFFSET		1	/* y-electrode offset */
+
+/*
+ * enum V7_PACKET_ID - defines the packet type for V7
+ * V7_PACKET_ID_IDLE: There's no finger and no button activity.
+ * V7_PACKET_ID_TWO: There's one or two non-resting fingers on touchpad
+ *  or there's button activities.
+ * V7_PACKET_ID_MULTI: There are at least three non-resting fingers.
+ * V7_PACKET_ID_NEW: The finger position in slot is not continues from
+ *  previous packet.
+*/
+enum V7_PACKET_ID {
+	 V7_PACKET_ID_IDLE,
+	 V7_PACKET_ID_TWO,
+	 V7_PACKET_ID_MULTI,
+	 V7_PACKET_ID_NEW,
+	 V7_PACKET_ID_UNKNOWN,
+};
 
 /**
  * struct alps_model_info - touchpad ID table
