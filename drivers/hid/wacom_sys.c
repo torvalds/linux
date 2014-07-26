@@ -774,6 +774,12 @@ static enum power_supply_property wacom_battery_props[] = {
 	POWER_SUPPLY_PROP_CAPACITY
 };
 
+static enum power_supply_property wacom_ac_props[] = {
+	POWER_SUPPLY_PROP_PRESENT,
+	POWER_SUPPLY_PROP_ONLINE,
+	POWER_SUPPLY_PROP_SCOPE,
+};
+
 static int wacom_battery_get_property(struct power_supply *psy,
 				      enum power_supply_property psp,
 				      union power_supply_propval *val)
@@ -806,14 +812,38 @@ static int wacom_battery_get_property(struct power_supply *psy,
 	return ret;
 }
 
+static int wacom_ac_get_property(struct power_supply *psy,
+				enum power_supply_property psp,
+				union power_supply_propval *val)
+{
+	struct wacom *wacom = container_of(psy, struct wacom, ac);
+	int ret = 0;
+
+	switch (psp) {
+	case POWER_SUPPLY_PROP_PRESENT:
+		/* fall through */
+	case POWER_SUPPLY_PROP_ONLINE:
+		val->intval = wacom->wacom_wac.ps_connected;
+		break;
+	case POWER_SUPPLY_PROP_SCOPE:
+		val->intval = POWER_SUPPLY_SCOPE_DEVICE;
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+	return ret;
+}
+
 static int wacom_initialize_battery(struct wacom *wacom)
 {
-	int error = 0;
 	static atomic_t battery_no = ATOMIC_INIT(0);
+	int error;
 	unsigned long n;
 
 	if (wacom->wacom_wac.features.quirks & WACOM_QUIRK_BATTERY) {
 		n = atomic_inc_return(&battery_no) - 1;
+
 		wacom->battery.properties = wacom_battery_props;
 		wacom->battery.num_properties = ARRAY_SIZE(wacom_battery_props);
 		wacom->battery.get_property = wacom_battery_get_property;
@@ -822,15 +852,31 @@ static int wacom_initialize_battery(struct wacom *wacom)
 		wacom->battery.type = POWER_SUPPLY_TYPE_BATTERY;
 		wacom->battery.use_for_apm = 0;
 
+		wacom->ac.properties = wacom_ac_props;
+		wacom->ac.num_properties = ARRAY_SIZE(wacom_ac_props);
+		wacom->ac.get_property = wacom_ac_get_property;
+		sprintf(wacom->wacom_wac.ac_name, "wacom_ac_%ld", n);
+		wacom->ac.name = wacom->wacom_wac.ac_name;
+		wacom->ac.type = POWER_SUPPLY_TYPE_MAINS;
+		wacom->ac.use_for_apm = 0;
+
 		error = power_supply_register(&wacom->hdev->dev,
 					      &wacom->battery);
+		if (error)
+			return error;
 
-		if (!error)
-			power_supply_powers(&wacom->battery,
-					    &wacom->hdev->dev);
+		power_supply_powers(&wacom->battery, &wacom->hdev->dev);
+
+		error = power_supply_register(&wacom->hdev->dev, &wacom->ac);
+		if (error) {
+			power_supply_unregister(&wacom->battery);
+			return error;
+		}
+
+		power_supply_powers(&wacom->ac, &wacom->hdev->dev);
 	}
 
-	return error;
+	return 0;
 }
 
 static void wacom_destroy_battery(struct wacom *wacom)
@@ -839,6 +885,8 @@ static void wacom_destroy_battery(struct wacom *wacom)
 	     wacom->battery.dev) {
 		power_supply_unregister(&wacom->battery);
 		wacom->battery.dev = NULL;
+		power_supply_unregister(&wacom->ac);
+		wacom->ac.dev = NULL;
 	}
 }
 

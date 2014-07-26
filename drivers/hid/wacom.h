@@ -120,6 +120,7 @@ struct wacom {
 	} led;
 	bool led_initialized;
 	struct power_supply battery;
+	struct power_supply ac;
 };
 
 static inline void wacom_schedule_work(struct wacom_wac *wacom_wac)
