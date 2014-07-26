@@ -28,7 +28,6 @@
 static DEFINE_IDA(rng_index_ida);
 
 struct virtrng_info {
-	struct virtio_device *vdev;
 	struct hwrng hwrng;
 	struct virtqueue *vq;
 	unsigned int data_avail;
