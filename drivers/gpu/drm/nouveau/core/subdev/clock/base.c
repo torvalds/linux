@@ -90,16 +90,20 @@ nouveau_cstate_prog(struct nouveau_clock *clk,
 		cstate = &pstate->base;
 	}
 
-	ret = nouveau_therm_cstate(ptherm, pstate->fanspeed, +1);
-	if (ret && ret != -ENODEV) {
-		nv_error(clk, "failed to raise fan speed: %d\n", ret);
-		return ret;
+	if (ptherm) {
+		ret = nouveau_therm_cstate(ptherm, pstate->fanspeed, +1);
+		if (ret && ret != -ENODEV) {
+			nv_error(clk, "failed to raise fan speed: %d\n", ret);
+			return ret;
+		}
 	}
 
-	ret = volt->set_id(volt, cstate->voltage, +1);
-	if (ret && ret != -ENODEV) {
-		nv_error(clk, "failed to raise voltage: %d\n", ret);
-		return ret;
+	if (volt) {
+		ret = volt->set_id(volt, cstate->voltage, +1);
+		if (ret && ret != -ENODEV) {
+			nv_error(clk, "failed to raise voltage: %d\n", ret);
+			return ret;
+		}
 	}
 
 	ret = clk->calc(clk, cstate);
@@ -108,13 +112,17 @@ nouveau_cstate_prog(struct nouveau_clock *clk,
 		clk->tidy(clk);
 	}
 
-	ret = volt->set_id(volt, cstate->voltage, -1);
-	if (ret && ret != -ENODEV)
-		nv_error(clk, "failed to lower voltage: %d\n", ret);
+	if (volt) {
+		ret = volt->set_id(volt, cstate->voltage, -1);
+		if (ret && ret != -ENODEV)
+			nv_error(clk, "failed to lower voltage: %d\n", ret);
+	}
 
-	ret = nouveau_therm_cstate(ptherm, pstate->fanspeed, -1);
-	if (ret && ret != -ENODEV)
-		nv_error(clk, "failed to lower fan speed: %d\n", ret);
+	if (ptherm) {
+		ret = nouveau_therm_cstate(ptherm, pstate->fanspeed, -1);
+		if (ret && ret != -ENODEV)
+			nv_error(clk, "failed to lower fan speed: %d\n", ret);
+	}
 
 	return 0;
 }
