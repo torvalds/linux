@@ -964,12 +964,6 @@ void cx231xx_release_resources(struct cx231xx *dev)
 
 	/* Mark device as unused */
 	clear_bit(dev->devno, &cx231xx_devused);
-
-	kfree(dev->video_mode.alt_max_pkt_size);
-	kfree(dev->vbi_mode.alt_max_pkt_size);
-	kfree(dev->sliced_cc_mode.alt_max_pkt_size);
-	kfree(dev->ts1_mode.alt_max_pkt_size);
-	kfree(dev);
 }
 
 /*
@@ -1158,15 +1152,15 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 		}
 	} while (test_and_set_bit(nr, &cx231xx_devused));
 
+	udev = usb_get_dev(interface_to_usbdev(interface));
+
 	/* allocate memory for our device state and initialize it */
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = devm_kzalloc(&udev->dev, sizeof(*dev), GFP_KERNEL);
 	if (dev == NULL) {
 		cx231xx_err(DRIVER_NAME ": out of memory!\n");
 		clear_bit(nr, &cx231xx_devused);
 		return -ENOMEM;
 	}
-
-	udev = usb_get_dev(interface_to_usbdev(interface));
 
 	snprintf(dev->name, 29, "cx231xx #%d", nr);
 	dev->devno = nr;
@@ -1270,9 +1264,8 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 	cx231xx_info("EndPoint Addr 0x%x, Alternate settings: %i\n",
 		     dev->video_mode.end_point_addr,
 		     dev->video_mode.num_alt);
-	dev->video_mode.alt_max_pkt_size =
-		kmalloc(32 * dev->video_mode.num_alt, GFP_KERNEL);
 
+	dev->video_mode.alt_max_pkt_size = devm_kmalloc_array(&udev->dev, 32, dev->video_mode.num_alt, GFP_KERNEL);
 	if (dev->video_mode.alt_max_pkt_size == NULL) {
 		cx231xx_errdev("out of memory!\n");
 		retval = -ENOMEM;
@@ -1294,7 +1287,7 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 	if (idx >= dev->max_iad_interface_count) {
 		cx231xx_errdev("VBI PCB interface #%d doesn't exist\n", idx);
 		retval = -ENODEV;
-		goto err_vbi_alt;
+		goto err_video_alt;
 	}
 	uif = udev->actconfig->interface[idx];
 
@@ -1306,13 +1299,12 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 	cx231xx_info("EndPoint Addr 0x%x, Alternate settings: %i\n",
 		     dev->vbi_mode.end_point_addr,
 		     dev->vbi_mode.num_alt);
-	dev->vbi_mode.alt_max_pkt_size =
-	    kmalloc(32 * dev->vbi_mode.num_alt, GFP_KERNEL);
 
+	dev->vbi_mode.alt_max_pkt_size = devm_kmalloc_array(&udev->dev, 32, dev->vbi_mode.num_alt, GFP_KERNEL);
 	if (dev->vbi_mode.alt_max_pkt_size == NULL) {
 		cx231xx_errdev("out of memory!\n");
 		retval = -ENOMEM;
-		goto err_vbi_alt;
+		goto err_video_alt;
 	}
 
 	for (i = 0; i < dev->vbi_mode.num_alt; i++) {
@@ -1330,7 +1322,7 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 	if (idx >= dev->max_iad_interface_count) {
 		cx231xx_errdev("Sliced CC PCB interface #%d doesn't exist\n", idx);
 		retval = -ENODEV;
-		goto err_sliced_cc_alt;
+		goto err_video_alt;
 	}
 	uif = udev->actconfig->interface[idx];
 
@@ -1342,13 +1334,12 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 	cx231xx_info("EndPoint Addr 0x%x, Alternate settings: %i\n",
 		     dev->sliced_cc_mode.end_point_addr,
 		     dev->sliced_cc_mode.num_alt);
-	dev->sliced_cc_mode.alt_max_pkt_size =
-		kmalloc(32 * dev->sliced_cc_mode.num_alt, GFP_KERNEL);
+	dev->sliced_cc_mode.alt_max_pkt_size = devm_kmalloc_array(&udev->dev, 32, dev->sliced_cc_mode.num_alt, GFP_KERNEL);
 
 	if (dev->sliced_cc_mode.alt_max_pkt_size == NULL) {
 		cx231xx_errdev("out of memory!\n");
 		retval = -ENOMEM;
-		goto err_sliced_cc_alt;
+		goto err_video_alt;
 	}
 
 	for (i = 0; i < dev->sliced_cc_mode.num_alt; i++) {
@@ -1366,7 +1357,7 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 		if (idx >= dev->max_iad_interface_count) {
 			cx231xx_errdev("TS1 PCB interface #%d doesn't exist\n", idx);
 			retval = -ENODEV;
-			goto err_ts1_alt;
+			goto err_video_alt;
 		}
 		uif = udev->actconfig->interface[idx];
 
@@ -1378,13 +1369,12 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 		cx231xx_info("EndPoint Addr 0x%x, Alternate settings: %i\n",
 			     dev->ts1_mode.end_point_addr,
 			     dev->ts1_mode.num_alt);
-		dev->ts1_mode.alt_max_pkt_size =
-			kmalloc(32 * dev->ts1_mode.num_alt, GFP_KERNEL);
 
+		dev->ts1_mode.alt_max_pkt_size = devm_kmalloc_array(&udev->dev, 32, dev->ts1_mode.num_alt, GFP_KERNEL);
 		if (dev->ts1_mode.alt_max_pkt_size == NULL) {
 			cx231xx_errdev("out of memory!\n");
 			retval = -ENOMEM;
-			goto err_ts1_alt;
+			goto err_video_alt;
 		}
 
 		for (i = 0; i < dev->ts1_mode.num_alt; i++) {
@@ -1411,12 +1401,6 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 	request_modules(dev);
 
 	return 0;
-err_ts1_alt:
-	kfree(dev->sliced_cc_mode.alt_max_pkt_size);
-err_sliced_cc_alt:
-	kfree(dev->vbi_mode.alt_max_pkt_size);
-err_vbi_alt:
-	kfree(dev->video_mode.alt_max_pkt_size);
 err_video_alt:
 	/* cx231xx_uninit_dev: */
 	cx231xx_close_extension(dev);
@@ -1432,7 +1416,6 @@ err_v4l2:
 err_if:
 	usb_put_dev(udev);
 	clear_bit(dev->devno, &cx231xx_devused);
-	kfree(dev);
 	return retval;
 }
 
