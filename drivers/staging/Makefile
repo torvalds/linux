@@ -26,7 +26,6 @@ obj-$(CONFIG_OCTEON_USB)	+= octeon-usb/
 obj-$(CONFIG_VT6655)		+= vt6655/
 obj-$(CONFIG_VT6656)		+= vt6656/
 obj-$(CONFIG_VME_BUS)		+= vme/
-obj-$(CONFIG_DX_SEP)            += sep/
 obj-$(CONFIG_IIO)		+= iio/
 obj-$(CONFIG_FB_XGI)		+= xgifb/
 obj-$(CONFIG_USB_EMXX)		+= emxx_udc/
