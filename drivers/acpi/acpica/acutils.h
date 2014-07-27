@@ -95,7 +95,6 @@ extern const char *acpi_gbl_pt_decode[];
 #ifdef ACPI_ASL_COMPILER
 
 #include <stdio.h>
-extern FILE *acpi_gbl_output_file;
 
 #define ACPI_MSG_REDIRECT_BEGIN \
 	FILE                            *output_file = acpi_gbl_output_file; \
@@ -211,6 +210,8 @@ void acpi_ut_subsystem_shutdown(void);
 
 acpi_size acpi_ut_strlen(const char *string);
 
+char *acpi_ut_strchr(const char *string, int ch);
+
 char *acpi_ut_strcpy(char *dst_string, const char *src_string);
 
 char *acpi_ut_strncpy(char *dst_string,
@@ -257,7 +258,7 @@ extern const u8 _acpi_ctype[];
 #define ACPI_IS_XDIGIT(c) (_acpi_ctype[(unsigned char)(c)] & (_ACPI_XD))
 #define ACPI_IS_UPPER(c)  (_acpi_ctype[(unsigned char)(c)] & (_ACPI_UP))
 #define ACPI_IS_LOWER(c)  (_acpi_ctype[(unsigned char)(c)] & (_ACPI_LO))
-#define ACPI_IS_PRINT(c)  (_acpi_ctype[(unsigned char)(c)] & (_ACPI_LO | _ACPI_UP | _ACPI_DI | _ACPI_SP | _ACPI_PU))
+#define ACPI_IS_PRINT(c)  (_acpi_ctype[(unsigned char)(c)] & (_ACPI_LO | _ACPI_UP | _ACPI_DI | _ACPI_XS | _ACPI_PU))
 #define ACPI_IS_ALPHA(c)  (_acpi_ctype[(unsigned char)(c)] & (_ACPI_LO | _ACPI_UP))
 
 #endif				/* !ACPI_USE_SYSTEM_CLIBRARY */
@@ -352,6 +353,13 @@ acpi_ut_debug_dump_buffer(u8 *buffer, u32 count, u32 display, u32 component_id);
 
 void acpi_ut_dump_buffer(u8 *buffer, u32 count, u32 display, u32 offset);
 
+#ifdef ACPI_APPLICATION
+void
+acpi_ut_dump_buffer_to_file(ACPI_FILE file,
+			    u8 *buffer,
+			    u32 count, u32 display, u32 base_offset);
+#endif
+
 void acpi_ut_report_error(char *module_name, u32 line_number);
 
 void acpi_ut_report_info(char *module_name, u32 line_number);
@@ -392,6 +400,14 @@ acpi_status
 acpi_ut_execute_power_methods(struct acpi_namespace_node *device_node,
 			      const char **method_names,
 			      u8 method_count, u8 *out_values);
+
+/*
+ * utfileio - file operations
+ */
+#ifdef ACPI_APPLICATION
+acpi_status
+acpi_ut_read_table_from_file(char *filename, struct acpi_table_header **table);
+#endif
 
 /*
  * utids - device ID support
@@ -742,5 +758,24 @@ acpi_ut_method_error(const char *module_name,
 const struct ah_predefined_name *acpi_ah_match_predefined_name(char *nameseg);
 
 const struct ah_device_id *acpi_ah_match_hardware_id(char *hid);
+
+/*
+ * utprint - printf/vprintf output functions
+ */
+const char *acpi_ut_scan_number(const char *string, u64 *number_ptr);
+
+const char *acpi_ut_print_number(char *string, u64 number);
+
+int
+acpi_ut_vsnprintf(char *string,
+		  acpi_size size, const char *format, va_list args);
+
+int acpi_ut_snprintf(char *string, acpi_size size, const char *format, ...);
+
+#ifdef ACPI_APPLICATION
+int acpi_ut_file_vprintf(ACPI_FILE file, const char *format, va_list args);
+
+int acpi_ut_file_printf(ACPI_FILE file, const char *format, ...);
+#endif
 
 #endif				/* _ACUTILS_H */

@@ -69,11 +69,11 @@ static u32 l1_percpu_entry;
 #define ELOG_ENTRY_ADDR(phyaddr) \
 	(phyaddr - elog_base + (u8 *)elog_addr)
 
-static struct acpi_generic_status *extlog_elog_entry_check(int cpu, int bank)
+static struct acpi_hest_generic_status *extlog_elog_entry_check(int cpu, int bank)
 {
 	int idx;
 	u64 data;
-	struct acpi_generic_status *estatus;
+	struct acpi_hest_generic_status *estatus;
 
 	WARN_ON(cpu < 0);
 	idx = ELOG_IDX(cpu, bank);
@@ -82,7 +82,7 @@ static struct acpi_generic_status *extlog_elog_entry_check(int cpu, int bank)
 		return NULL;
 
 	data &= EXT_ELOG_ENTRY_MASK;
-	estatus = (struct acpi_generic_status *)ELOG_ENTRY_ADDR(data);
+	estatus = (struct acpi_hest_generic_status *)ELOG_ENTRY_ADDR(data);
 
 	/* if no valid data in elog entry, just return */
 	if (estatus->block_status == 0)
@@ -92,7 +92,7 @@ static struct acpi_generic_status *extlog_elog_entry_check(int cpu, int bank)
 }
 
 static void __print_extlog_rcd(const char *pfx,
-			       struct acpi_generic_status *estatus, int cpu)
+			       struct acpi_hest_generic_status *estatus, int cpu)
 {
 	static atomic_t seqno;
 	unsigned int curr_seqno;
@@ -111,7 +111,7 @@ static void __print_extlog_rcd(const char *pfx,
 }
 
 static int print_extlog_rcd(const char *pfx,
-			    struct acpi_generic_status *estatus, int cpu)
+			    struct acpi_hest_generic_status *estatus, int cpu)
 {
 	/* Not more than 2 messages every 5 seconds */
 	static DEFINE_RATELIMIT_STATE(ratelimit_corrected, 5*HZ, 2);
@@ -137,7 +137,7 @@ static int extlog_print(struct notifier_block *nb, unsigned long val,
 	struct mce *mce = (struct mce *)data;
 	int	bank = mce->bank;
 	int	cpu = mce->extcpu;
-	struct acpi_generic_status *estatus;
+	struct acpi_hest_generic_status *estatus;
 	int rc;
 
 	estatus = extlog_elog_entry_check(cpu, bank);
@@ -148,7 +148,7 @@ static int extlog_print(struct notifier_block *nb, unsigned long val,
 	/* clear record status to enable BIOS to update it again */
 	estatus->block_status = 0;
 
-	rc = print_extlog_rcd(NULL, (struct acpi_generic_status *)elog_buf, cpu);
+	rc = print_extlog_rcd(NULL, (struct acpi_hest_generic_status *)elog_buf, cpu);
 
 	return NOTIFY_STOP;
 }

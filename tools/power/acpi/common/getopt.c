@@ -51,14 +51,12 @@
  *    "f|"      - Option has required single-char sub-options
  */
 
-#include <stdio.h>
-#include <string.h>
 #include <acpi/acpi.h>
 #include "accommon.h"
 #include "acapps.h"
 
 #define ACPI_OPTION_ERROR(msg, badchar) \
-	if (acpi_gbl_opterr) {fprintf (stderr, "%s%c\n", msg, badchar);}
+	if (acpi_gbl_opterr) {acpi_log_error ("%s%c\n", msg, badchar);}
 
 int acpi_gbl_opterr = 1;
 int acpi_gbl_optind = 1;
@@ -113,7 +111,7 @@ int acpi_getopt_argument(int argc, char **argv)
  * PARAMETERS:  argc, argv          - from main
  *              opts                - options info list
  *
- * RETURN:      Option character or EOF
+ * RETURN:      Option character or ACPI_OPT_END
  *
  * DESCRIPTION: Get the next option
  *
@@ -128,10 +126,10 @@ int acpi_getopt(int argc, char **argv, char *opts)
 		if (acpi_gbl_optind >= argc ||
 		    argv[acpi_gbl_optind][0] != '-' ||
 		    argv[acpi_gbl_optind][1] == '\0') {
-			return (EOF);
-		} else if (strcmp(argv[acpi_gbl_optind], "--") == 0) {
+			return (ACPI_OPT_END);
+		} else if (ACPI_STRCMP(argv[acpi_gbl_optind], "--") == 0) {
 			acpi_gbl_optind++;
-			return (EOF);
+			return (ACPI_OPT_END);
 		}
 	}
 
@@ -142,7 +140,7 @@ int acpi_getopt(int argc, char **argv, char *opts)
 	/* Make sure that the option is legal */
 
 	if (current_char == ':' ||
-	    (opts_ptr = strchr(opts, current_char)) == NULL) {
+	    (opts_ptr = ACPI_STRCHR(opts, current_char)) == NULL) {
 		ACPI_OPTION_ERROR("Illegal option: -", current_char);
 
 		if (argv[acpi_gbl_optind][++current_char_ptr] == '\0') {
