@@ -53,6 +53,11 @@ struct drm_modeset_acquire_ctx {
 	 * list of held locks (drm_modeset_lock)
 	 */
 	struct list_head locked;
+
+	/**
+	 * Trylock mode, use only for panic handlers!
+	 */
+	bool trylock_only;
 };
 
 /**
@@ -123,6 +128,7 @@ struct drm_device;
 struct drm_crtc;
 
 void drm_modeset_lock_all(struct drm_device *dev);
+int __drm_modeset_lock_all(struct drm_device *dev, bool trylock);
 void drm_modeset_unlock_all(struct drm_device *dev);
 void drm_modeset_lock_crtc(struct drm_crtc *crtc);
 void drm_modeset_unlock_crtc(struct drm_crtc *crtc);

@@ -365,11 +365,11 @@ static bool drm_fb_helper_force_kernel_mode(void)
 		if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
 			continue;
 
-		/* NOTE: we use lockless flag below to avoid grabbing other
-		 * modeset locks.  So just trylock the underlying mutex
-		 * directly:
+		/*
+		 * NOTE: Use trylock mode to avoid deadlocks and sleeping in
+		 * panic context.
 		 */
-		if (!mutex_trylock(&dev->mode_config.mutex)) {
+		if (__drm_modeset_lock_all(dev, true) != 0) {
 			error = true;
 			continue;
 		}
@@ -378,7 +378,7 @@ static bool drm_fb_helper_force_kernel_mode(void)
 		if (ret)
 			error = true;
 
-		mutex_unlock(&dev->mode_config.mutex);
+		drm_modeset_unlock_all(dev);
 	}
 	return error;
 }
