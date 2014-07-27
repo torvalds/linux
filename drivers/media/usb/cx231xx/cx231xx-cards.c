@@ -997,7 +997,11 @@ static int cx231xx_init_dev(struct cx231xx *dev, struct usb_device *udev,
 	dev->cx231xx_gpio_i2c_write = cx231xx_gpio_i2c_write;
 
 	/* Query cx231xx to find what pcb config it is related to */
-	initialize_cx231xx(dev);
+	retval = initialize_cx231xx(dev);
+	if (retval < 0) {
+		cx231xx_errdev("Failed to read PCB config\n");
+		return retval;
+	}
 
 	/*To workaround error number=-71 on EP0 for VideoGrabber,
 		 need set alt here.*/

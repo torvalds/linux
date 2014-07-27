@@ -654,8 +654,9 @@ static struct pcb_config cx231xx_Scenario[] = {
 
 /*****************************************************************/
 
-u32 initialize_cx231xx(struct cx231xx *dev)
+int initialize_cx231xx(struct cx231xx *dev)
 {
+	int retval;
 	u32 config_info = 0;
 	struct pcb_config *p_pcb_info;
 	u8 usb_speed = 1;	/* from register,1--HS, 0--FS  */
@@ -670,7 +671,10 @@ u32 initialize_cx231xx(struct cx231xx *dev)
 
 	/* read board config register to find out which
 	pcb config it is related to */
-	cx231xx_read_ctrl_reg(dev, VRT_GET_REGISTER, BOARD_CFG_STAT, data, 4);
+	retval = cx231xx_read_ctrl_reg(dev, VRT_GET_REGISTER, BOARD_CFG_STAT,
+				       data, 4);
+	if (retval < 0)
+		return retval;
 
 	config_info = le32_to_cpu(*((__le32 *)data));
 	usb_speed = (u8) (config_info & 0x1);
@@ -767,7 +771,7 @@ u32 initialize_cx231xx(struct cx231xx *dev)
 			cx231xx_info("bad senario!!!!!\n");
 			cx231xx_info("config_info=%x\n",
 				     (config_info & SELFPOWER_MASK));
-			return 1;
+			return -ENODEV;
 		}
 	}
 
