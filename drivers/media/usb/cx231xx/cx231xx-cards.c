@@ -1135,6 +1135,7 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 	int nr = 0, ifnum;
 	int i, isoc_pipe = 0;
 	char *speed;
+	u8 idx;
 	struct usb_interface_assoc_descriptor *assoc_desc;
 
 	ifnum = interface->altsetting[0].desc.bInterfaceNumber;
@@ -1254,8 +1255,13 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 		goto err_init;
 
 	/* compute alternate max packet sizes for video */
-	uif = udev->actconfig->interface[dev->current_pcb_config.
-		       hs_config_info[0].interface_info.video_index + 1];
+	idx = dev->current_pcb_config.hs_config_info[0].interface_info.video_index + 1;
+	if (idx >= dev->max_iad_interface_count) {
+		cx231xx_errdev("Video PCB interface #%d doesn't exist\n", idx);
+		retval = -ENODEV;
+		goto err_init;
+	}
+	uif = udev->actconfig->interface[idx];
 
 	dev->video_mode.end_point_addr = uif->altsetting[0].
 			endpoint[isoc_pipe].desc.bEndpointAddress;
@@ -1283,9 +1289,14 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 	}
 
 	/* compute alternate max packet sizes for vbi */
-	uif = udev->actconfig->interface[dev->current_pcb_config.
-				       hs_config_info[0].interface_info.
-				       vanc_index + 1];
+
+	idx = dev->current_pcb_config.hs_config_info[0].interface_info.vanc_index + 1;
+	if (idx >= dev->max_iad_interface_count) {
+		cx231xx_errdev("VBI PCB interface #%d doesn't exist\n", idx);
+		retval = -ENODEV;
+		goto err_vbi_alt;
+	}
+	uif = udev->actconfig->interface[idx];
 
 	dev->vbi_mode.end_point_addr =
 	    uif->altsetting[0].endpoint[isoc_pipe].desc.
@@ -1315,9 +1326,13 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 	}
 
 	/* compute alternate max packet sizes for sliced CC */
-	uif = udev->actconfig->interface[dev->current_pcb_config.
-				       hs_config_info[0].interface_info.
-				       hanc_index + 1];
+	idx = dev->current_pcb_config.hs_config_info[0].interface_info.hanc_index + 1;
+	if (idx >= dev->max_iad_interface_count) {
+		cx231xx_errdev("Sliced CC PCB interface #%d doesn't exist\n", idx);
+		retval = -ENODEV;
+		goto err_sliced_cc_alt;
+	}
+	uif = udev->actconfig->interface[idx];
 
 	dev->sliced_cc_mode.end_point_addr =
 	    uif->altsetting[0].endpoint[isoc_pipe].desc.
@@ -1347,10 +1362,13 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 
 	if (dev->current_pcb_config.ts1_source != 0xff) {
 		/* compute alternate max packet sizes for TS1 */
-		uif = udev->actconfig->interface[dev->current_pcb_config.
-					       hs_config_info[0].
-					       interface_info.
-					       ts1_index + 1];
+		idx = dev->current_pcb_config.hs_config_info[0].interface_info.ts1_index + 1;
+		if (idx >= dev->max_iad_interface_count) {
+			cx231xx_errdev("TS1 PCB interface #%d doesn't exist\n", idx);
+			retval = -ENODEV;
+			goto err_ts1_alt;
+		}
+		uif = udev->actconfig->interface[idx];
 
 		dev->ts1_mode.end_point_addr =
 		    uif->altsetting[0].endpoint[isoc_pipe].
