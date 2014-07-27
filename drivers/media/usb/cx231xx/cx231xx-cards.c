@@ -1185,8 +1185,7 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 	dev->vbi_or_sliced_cc_mode = 0;
 
 	/* get maximum no.of IAD interfaces */
-	assoc_desc = udev->actconfig->intf_assoc[0];
-	dev->max_iad_interface_count = assoc_desc->bInterfaceCount;
+	dev->max_iad_interface_count = udev->config->desc.bNumInterfaces;
 
 	/* init CIR module TBD */
 
