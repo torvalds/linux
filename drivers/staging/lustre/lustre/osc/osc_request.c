@@ -3421,7 +3421,7 @@ static int brw_queue_work(const struct lu_env *env, void *data)
 
 int osc_setup(struct obd_device *obd, struct lustre_cfg *lcfg)
 {
-	struct lprocfs_static_vars lvars = { 0 };
+	struct lprocfs_static_vars lvars = { NULL };
 	struct client_obd	  *cli = &obd->u.cli;
 	void		       *handler;
 	int			rc;
@@ -3545,7 +3545,7 @@ int osc_cleanup(struct obd_device *obd)
 
 int osc_process_config_base(struct obd_device *obd, struct lustre_cfg *lcfg)
 {
-	struct lprocfs_static_vars lvars = { 0 };
+	struct lprocfs_static_vars lvars = { NULL };
 	int rc = 0;
 
 	lprocfs_osc_init_vars(&lvars);
@@ -3612,7 +3612,7 @@ extern struct lock_class_key osc_ast_guard_class;
 
 int __init osc_init(void)
 {
-	struct lprocfs_static_vars lvars = { 0 };
+	struct lprocfs_static_vars lvars = { NULL };
 	int rc;
 
 	/* print an address of _any_ initialized kernel symbol from this

@@ -453,7 +453,7 @@ static int lov_process_config(const struct lu_env *env,
 		case LCFG_LOV_ADD_INA:
 			rc = lov_cl_add_target(env, d, index);
 			if (rc != 0)
-				lov_del_target(d->ld_obd, index, 0, 0);
+				lov_del_target(d->ld_obd, index, NULL, 0);
 			break;
 		case LCFG_LOV_DEL_OBD:
 			lov_cl_del_target(env, d, index);

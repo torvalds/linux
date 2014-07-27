@@ -328,7 +328,7 @@ struct lprocfs_vars lprocfs_base[] = {
 	{ "jobid_var", &obd_proc_jobid_var_fops },
 	{ .name =	"jobid_name",
 	  .fops =	&obd_proc_jobid_name_fops},
-	{ 0 }
+	{ NULL }
 };
 
 static void *obd_device_list_seq_start(struct seq_file *p, loff_t *pos)

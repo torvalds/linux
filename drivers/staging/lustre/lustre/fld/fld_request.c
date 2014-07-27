@@ -168,7 +168,7 @@ struct lu_fld_hash fld_hash[] = {
 		.fh_scan_func = fld_rrb_scan
 	},
 	{
-		0,
+		NULL,
 	}
 };
 

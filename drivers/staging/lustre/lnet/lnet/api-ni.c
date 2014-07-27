@@ -1662,7 +1662,7 @@ lnet_destroy_ping_info(void)
 int
 lnet_ping_target_init(void)
 {
-	lnet_md_t	 md = {0};
+	lnet_md_t	 md = { NULL };
 	lnet_handle_me_t  meh;
 	lnet_process_id_t id;
 	int	       rc;
@@ -1770,7 +1770,7 @@ lnet_ping (lnet_process_id_t id, int timeout_ms, lnet_process_id_t *ids, int n_i
 	lnet_handle_eq_t     eqh;
 	lnet_handle_md_t     mdh;
 	lnet_event_t	 event;
-	lnet_md_t	    md = {0};
+	lnet_md_t	    md = { NULL };
 	int		  which;
 	int		  unlinked = 0;
 	int		  replied = 0;

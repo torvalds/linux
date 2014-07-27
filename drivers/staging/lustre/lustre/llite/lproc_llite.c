@@ -843,7 +843,7 @@ static struct lprocfs_vars lprocfs_llite_obd_vars[] = {
 	{ "default_cookiesize", &ll_defult_cookiesize_fops, NULL, 0 },
 	{ "sbi_flags",	      &ll_sbi_flags_fops, NULL, 0 },
 	{ "xattr_cache",      &ll_xattr_cache_fops, NULL, 0 },
-	{ 0 }
+	{ NULL }
 };
 
 #define MAX_STRING_SIZE 128

@@ -3113,7 +3113,7 @@ static struct obd_ops echo_client_obd_ops = {
 
 int echo_client_init(void)
 {
-	struct lprocfs_static_vars lvars = { 0 };
+	struct lprocfs_static_vars lvars = { NULL };
 	int rc;
 
 	lprocfs_echo_init_vars(&lvars);

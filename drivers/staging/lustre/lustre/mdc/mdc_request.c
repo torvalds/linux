@@ -2423,7 +2423,7 @@ struct ldlm_valblock_ops inode_lvbo = {
 static int mdc_setup(struct obd_device *obd, struct lustre_cfg *cfg)
 {
 	struct client_obd *cli = &obd->u.cli;
-	struct lprocfs_static_vars lvars = { 0 };
+	struct lprocfs_static_vars lvars = { NULL };
 	int rc;
 
 	OBD_ALLOC(cli->cl_rpc_lock, sizeof (*cli->cl_rpc_lock));
@@ -2566,7 +2566,7 @@ static int mdc_llog_finish(struct obd_device *obd, int count)
 static int mdc_process_config(struct obd_device *obd, obd_count len, void *buf)
 {
 	struct lustre_cfg *lcfg = buf;
-	struct lprocfs_static_vars lvars = { 0 };
+	struct lprocfs_static_vars lvars = { NULL };
 	int rc = 0;
 
 	lprocfs_mdc_init_vars(&lvars);
@@ -2737,7 +2737,7 @@ struct md_ops mdc_md_ops = {
 int __init mdc_init(void)
 {
 	int rc;
-	struct lprocfs_static_vars lvars = { 0 };
+	struct lprocfs_static_vars lvars = { NULL };
 	lprocfs_mdc_init_vars(&lvars);
 
 	rc = class_register_type(&mdc_obd_ops, &mdc_md_ops, lvars.module_vars,

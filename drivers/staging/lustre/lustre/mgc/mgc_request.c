@@ -197,7 +197,7 @@ struct config_llog_data *do_config_log_add(struct obd_device *obd,
 	int		      rc;
 
 	CDEBUG(D_MGC, "do adding config log %s:%p\n", logname,
-	       cfg ? cfg->cfg_instance : 0);
+	       cfg ? cfg->cfg_instance : NULL);
 
 	OBD_ALLOC(cld, sizeof(*cld) + strlen(logname) + 1);
 	if (!cld)
