@@ -991,13 +991,20 @@ static int read_eeprom(struct cx231xx *dev, u8 *eedata, int len)
 
 	/* start reading at offset 0 */
 	ret = i2c_transfer(&dev->i2c_bus[1].i2c_adap, &msg_write, 1);
+	if (ret < 0) {
+		cx231xx_err("Can't read eeprom\n");
+		return ret;
+	}
 
 	while (len_todo > 0) {
 		msg_read.len = (len_todo > 64) ? 64 : len_todo;
 		msg_read.buf = eedata_cur;
 
 		ret = i2c_transfer(&dev->i2c_bus[1].i2c_adap, &msg_read, 1);
-
+		if (ret < 0) {
+			cx231xx_err("Can't read eeprom\n");
+			return ret;
+		}
 		eedata_cur += msg_read.len;
 		len_todo -= msg_read.len;
 	}
