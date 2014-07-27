@@ -204,6 +204,7 @@ void __init ralink_clk_init(void)
 	ralink_clk_add("10000b00.spi", sys_rate);
 	ralink_clk_add("10000c00.uartlite", 40000000);
 	ralink_clk_add("10100000.ethernet", sys_rate);
+	ralink_clk_add("10180000.wmac", 40000000);
 }
 
 void __init ralink_of_remap(void)
