@@ -59,7 +59,8 @@ struct lgdt3306a_config {
 	enum lgdt3306a_tp_clock_edge tpclk_edge;
 	enum lgdt3306a_tp_valid_polarity tpvalid_polarity;
 
-	int  xtalMHz;//demod clock freq in MHz; 24 or 25 supported
+	/* demod clock freq in MHz; 24 or 25 supported */
+	int  xtalMHz;
 };
 
 #if defined(CONFIG_DVB_LGDT3306A) || (defined(CONFIG_DVB_LGDT3306A_MODULE) && \
