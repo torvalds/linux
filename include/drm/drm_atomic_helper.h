@@ -69,5 +69,10 @@ int drm_atomic_helper_plane_set_property(struct drm_plane *plane,
 int drm_atomic_helper_connector_set_property(struct drm_connector *connector,
 					struct drm_property *property,
 					uint64_t val);
+int drm_atomic_helper_page_flip(struct drm_crtc *crtc,
+				struct drm_framebuffer *fb,
+				struct drm_pending_vblank_event *event,
+				uint32_t flags);
+
 
 #endif /* DRM_ATOMIC_HELPER_H_ */
