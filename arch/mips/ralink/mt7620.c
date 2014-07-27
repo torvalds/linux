@@ -277,6 +277,7 @@ void __init ralink_clk_init(void)
 	ralink_clk_add("10000500.uart", periph_rate);
 	ralink_clk_add("10000b00.spi", sys_rate);
 	ralink_clk_add("10000c00.uartlite", periph_rate);
+	ralink_clk_add("10180000.wmac", xtal_rate);
 }
 
 void __init ralink_of_remap(void)
@@ -298,21 +299,26 @@ void prom_soc_init(struct ralink_soc_info *soc_info)
 	u32 cfg0;
 	u32 pmu0;
 	u32 pmu1;
+	u32 bga;
 
 	n0 = __raw_readl(sysc + SYSC_REG_CHIP_NAME0);
 	n1 = __raw_readl(sysc + SYSC_REG_CHIP_NAME1);
+	rev = __raw_readl(sysc + SYSC_REG_CHIP_REV);
+	bga = (rev >> CHIP_REV_PKG_SHIFT) & CHIP_REV_PKG_MASK;
 
-	if (n0 == MT7620N_CHIP_NAME0 && n1 == MT7620N_CHIP_NAME1) {
-		name = "MT7620N";
-		soc_info->compatible = "ralink,mt7620n-soc";
-	} else if (n0 == MT7620A_CHIP_NAME0 && n1 == MT7620A_CHIP_NAME1) {
+	if (n0 != MT7620_CHIP_NAME0 || n1 != MT7620_CHIP_NAME1)
+		panic("mt7620: unknown SoC, n0:%08x n1:%08x\n", n0, n1);
+
+	if (bga) {
 		name = "MT7620A";
 		soc_info->compatible = "ralink,mt7620a-soc";
 	} else {
-		panic("mt7620: unknown SoC, n0:%08x n1:%08x", n0, n1);
+		name = "MT7620N";
+		soc_info->compatible = "ralink,mt7620n-soc";
+#ifdef CONFIG_PCI
+		panic("mt7620n is only supported for non pci kernels");
+#endif
 	}
-
-	rev = __raw_readl(sysc + SYSC_REG_CHIP_REV);
 
 	snprintf(soc_info->sys_type, RAMIPS_SYS_TYPE_LEN,
 		"Ralink %s ver:%u eco:%u",
