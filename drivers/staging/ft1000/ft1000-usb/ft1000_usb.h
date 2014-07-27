@@ -149,7 +149,4 @@ int reg_ft1000_netdev(struct ft1000_usb *ft1000dev,
 		      struct usb_interface *intf);
 int ft1000_poll(void *dev_id);
 
-int ft1000_init_proc(struct net_device *dev);
-void ft1000_cleanup_proc(struct ft1000_info *info);
-
 #endif  /* _FT1000_USB_H_ */
