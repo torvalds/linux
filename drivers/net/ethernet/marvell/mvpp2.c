@@ -4842,7 +4842,7 @@ static void mvpp2_link_event(struct net_device *dev)
 
 			if (phydev->speed == SPEED_1000)
 				val |= MVPP2_GMAC_CONFIG_GMII_SPEED;
-			else
+			else if (phydev->speed == SPEED_100)
 				val |= MVPP2_GMAC_CONFIG_MII_SPEED;
 
 			writel(val, port->base + MVPP2_GMAC_AUTONEG_CONFIG);
