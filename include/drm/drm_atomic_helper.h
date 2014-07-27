@@ -49,4 +49,25 @@ void drm_atomic_helper_cleanup_planes(struct drm_device *dev,
 void drm_atomic_helper_swap_state(struct drm_device *dev,
 				  struct drm_atomic_state *state);
 
+/* implementations for legacy interfaces */
+int drm_atomic_helper_update_plane(struct drm_plane *plane,
+				   struct drm_crtc *crtc,
+				   struct drm_framebuffer *fb,
+				   int crtc_x, int crtc_y,
+				   unsigned int crtc_w, unsigned int crtc_h,
+				   uint32_t src_x, uint32_t src_y,
+				   uint32_t src_w, uint32_t src_h);
+int drm_atomic_helper_disable_plane(struct drm_plane *plane);
+int drm_atomic_helper_set_config(struct drm_mode_set *set);
+
+int drm_atomic_helper_crtc_set_property(struct drm_crtc *crtc,
+					struct drm_property *property,
+					uint64_t val);
+int drm_atomic_helper_plane_set_property(struct drm_plane *plane,
+					struct drm_property *property,
+					uint64_t val);
+int drm_atomic_helper_connector_set_property(struct drm_connector *connector,
+					struct drm_property *property,
+					uint64_t val);
+
 #endif /* DRM_ATOMIC_HELPER_H_ */

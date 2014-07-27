@@ -86,6 +86,7 @@ steal_encoder(struct drm_atomic_state *state,
 	struct drm_crtc_state *crtc_state;
 	struct drm_connector *connector;
 	struct drm_connector_state *connector_state;
+	int ret;
 
 	/*
 	 * We can only steal an encoder coming from a connector, which means we
@@ -116,7 +117,9 @@ steal_encoder(struct drm_atomic_state *state,
 		if (IS_ERR(connector_state))
 			return PTR_ERR(connector_state);
 
-		connector_state->crtc = NULL;
+		ret = drm_atomic_set_crtc_for_connector(connector_state, NULL);
+		if (ret)
+			return ret;
 		connector_state->best_encoder = NULL;
 	}
 
@@ -1050,3 +1053,509 @@ void drm_atomic_helper_swap_state(struct drm_device *dev,
 	}
 }
 EXPORT_SYMBOL(drm_atomic_helper_swap_state);
+
+/**
+ * drm_atomic_helper_update_plane - Helper for primary plane update using atomic
+ * @plane: plane object to update
+ * @crtc: owning CRTC of owning plane
+ * @fb: framebuffer to flip onto plane
+ * @crtc_x: x offset of primary plane on crtc
+ * @crtc_y: y offset of primary plane on crtc
+ * @crtc_w: width of primary plane rectangle on crtc
+ * @crtc_h: height of primary plane rectangle on crtc
+ * @src_x: x offset of @fb for panning
+ * @src_y: y offset of @fb for panning
+ * @src_w: width of source rectangle in @fb
+ * @src_h: height of source rectangle in @fb
+ *
+ * Provides a default plane update handler using the atomic driver interface.
+ *
+ * RETURNS:
+ * Zero on success, error code on failure
+ */
+int drm_atomic_helper_update_plane(struct drm_plane *plane,
+				   struct drm_crtc *crtc,
+				   struct drm_framebuffer *fb,
+				   int crtc_x, int crtc_y,
+				   unsigned int crtc_w, unsigned int crtc_h,
+				   uint32_t src_x, uint32_t src_y,
+				   uint32_t src_w, uint32_t src_h)
+{
+	struct drm_atomic_state *state;
+	struct drm_plane_state *plane_state;
+	int ret = 0;
+
+	state = drm_atomic_state_alloc(plane->dev);
+	if (!state)
+		return -ENOMEM;
+
+	state->acquire_ctx = drm_modeset_legacy_acquire_ctx(crtc);
+retry:
+	plane_state = drm_atomic_get_plane_state(state, plane);
+	if (IS_ERR(plane_state)) {
+		ret = PTR_ERR(plane_state);
+		goto fail;
+	}
+
+	ret = drm_atomic_set_crtc_for_plane(plane_state, crtc);
+	if (ret != 0)
+		goto fail;
+	plane_state->fb = fb;
+	plane_state->crtc_x = crtc_x;
+	plane_state->crtc_y = crtc_y;
+	plane_state->crtc_h = crtc_h;
+	plane_state->crtc_w = crtc_w;
+	plane_state->src_x = src_x;
+	plane_state->src_y = src_y;
+	plane_state->src_h = src_h;
+	plane_state->src_w = src_w;
+
+	ret = drm_atomic_commit(state);
+	if (ret != 0)
+		goto fail;
+
+	/* Driver takes ownership of state on successful commit. */
+	return 0;
+fail:
+	if (ret == -EDEADLK)
+		goto backoff;
+
+	drm_atomic_state_free(state);
+
+	return ret;
+backoff:
+	drm_atomic_legacy_backoff(state);
+	drm_atomic_state_clear(state);
+
+	/*
+	 * Someone might have exchanged the framebuffer while we dropped locks
+	 * in the backoff code. We need to fix up the fb refcount tracking the
+	 * core does for us.
+	 */
+	plane->old_fb = plane->fb;
+
+	goto retry;
+}
+EXPORT_SYMBOL(drm_atomic_helper_update_plane);
+
+/**
+ * drm_atomic_helper_disable_plane - Helper for primary plane disable using * atomic
+ * @plane: plane to disable
+ *
+ * Provides a default plane disable handler using the atomic driver interface.
+ *
+ * RETURNS:
+ * Zero on success, error code on failure
+ */
+int drm_atomic_helper_disable_plane(struct drm_plane *plane)
+{
+	struct drm_atomic_state *state;
+	struct drm_plane_state *plane_state;
+	int ret = 0;
+
+	state = drm_atomic_state_alloc(plane->dev);
+	if (!state)
+		return -ENOMEM;
+
+	state->acquire_ctx = drm_modeset_legacy_acquire_ctx(plane->crtc);
+retry:
+	plane_state = drm_atomic_get_plane_state(state, plane);
+	if (IS_ERR(plane_state)) {
+		ret = PTR_ERR(plane_state);
+		goto fail;
+	}
+
+	ret = drm_atomic_set_crtc_for_plane(plane_state, NULL);
+	if (ret != 0)
+		goto fail;
+	plane_state->fb = NULL;
+	plane_state->crtc_x = 0;
+	plane_state->crtc_y = 0;
+	plane_state->crtc_h = 0;
+	plane_state->crtc_w = 0;
+	plane_state->src_x = 0;
+	plane_state->src_y = 0;
+	plane_state->src_h = 0;
+	plane_state->src_w = 0;
+
+	ret = drm_atomic_commit(state);
+	if (ret != 0)
+		goto fail;
+
+	/* Driver takes ownership of state on successful commit. */
+	return 0;
+fail:
+	if (ret == -EDEADLK)
+		goto backoff;
+
+	drm_atomic_state_free(state);
+
+	return ret;
+backoff:
+	drm_atomic_legacy_backoff(state);
+	drm_atomic_state_clear(state);
+
+	/*
+	 * Someone might have exchanged the framebuffer while we dropped locks
+	 * in the backoff code. We need to fix up the fb refcount tracking the
+	 * core does for us.
+	 */
+	plane->old_fb = plane->fb;
+
+	goto retry;
+}
+EXPORT_SYMBOL(drm_atomic_helper_disable_plane);
+
+static int update_output_state(struct drm_atomic_state *state,
+			       struct drm_mode_set *set)
+{
+	struct drm_device *dev = set->crtc->dev;
+	struct drm_connector_state *conn_state;
+	int nconnectors = state->dev->mode_config.num_connector;
+	int ncrtcs = state->dev->mode_config.num_crtc;
+	int ret, i, j;
+
+	ret = drm_modeset_lock(&dev->mode_config.connection_mutex,
+			       state->acquire_ctx);
+	if (ret)
+		return ret;
+
+	/* First grab all affected connector/crtc states. */
+	for (i = 0; i < set->num_connectors; i++) {
+		conn_state = drm_atomic_get_connector_state(state,
+							    set->connectors[i]);
+		if (IS_ERR(conn_state))
+			return PTR_ERR(conn_state);
+	}
+
+	for (i = 0; i < ncrtcs; i++) {
+		struct drm_crtc *crtc = state->crtcs[i];
+
+		if (!crtc)
+			continue;
+
+		ret = drm_atomic_add_affected_connectors(state, crtc);
+		if (ret)
+			return ret;
+	}
+
+	/* Then recompute connector->crtc links and crtc enabling state. */
+	for (i = 0; i < nconnectors; i++) {
+		struct drm_connector *connector;
+
+		connector = state->connectors[i];
+		conn_state = state->connector_states[i];
+
+		if (!connector)
+			continue;
+
+		if (conn_state->crtc == set->crtc) {
+			ret = drm_atomic_set_crtc_for_connector(conn_state,
+								NULL);
+			if (ret)
+				return ret;
+		}
+
+		for (j = 0; j < set->num_connectors; j++) {
+			if (set->connectors[j] == connector) {
+				ret = drm_atomic_set_crtc_for_connector(conn_state,
+									set->crtc);
+				if (ret)
+					return ret;
+				break;
+			}
+		}
+	}
+
+	for (i = 0; i < ncrtcs; i++) {
+		struct drm_crtc *crtc = state->crtcs[i];
+		struct drm_crtc_state *crtc_state = state->crtc_states[i];
+
+		if (!crtc)
+			continue;
+
+		/* Don't update ->enable for the CRTC in the set_config request,
+		 * since a mismatch would indicate a bug in the upper layers.
+		 * The actual modeset code later on will catch any
+		 * inconsistencies here. */
+		if (crtc == set->crtc)
+			continue;
+
+		crtc_state->enable =
+			drm_atomic_connectors_for_crtc(state, crtc);
+	}
+
+	return 0;
+}
+
+/**
+ * drm_atomic_helper_set_config - set a new config from userspace
+ * @set: mode set configuration
+ *
+ * Provides a default crtc set_config handler using the atomic driver interface.
+ *
+ * Returns:
+ * Returns 0 on success, negative errno numbers on failure.
+ */
+int drm_atomic_helper_set_config(struct drm_mode_set *set)
+{
+	struct drm_atomic_state *state;
+	struct drm_crtc *crtc = set->crtc;
+	struct drm_crtc_state *crtc_state;
+	struct drm_plane_state *primary_state;
+	int ret = 0;
+
+	state = drm_atomic_state_alloc(crtc->dev);
+	if (!state)
+		return -ENOMEM;
+
+	state->acquire_ctx = drm_modeset_legacy_acquire_ctx(crtc);
+retry:
+	crtc_state = drm_atomic_get_crtc_state(state, crtc);
+	if (IS_ERR(crtc_state)) {
+		ret = PTR_ERR(crtc_state);
+		goto fail;
+	}
+
+	if (!set->mode) {
+		WARN_ON(set->fb);
+		WARN_ON(set->num_connectors);
+
+		crtc_state->enable = false;
+		goto commit;
+	}
+
+	WARN_ON(!set->fb);
+	WARN_ON(!set->num_connectors);
+
+	crtc_state->enable = true;
+	drm_mode_copy(&crtc_state->mode, set->mode);
+
+	primary_state = drm_atomic_get_plane_state(state, crtc->primary);
+	if (IS_ERR(primary_state)) {
+		ret = PTR_ERR(primary_state);
+		goto fail;
+	}
+
+	ret = drm_atomic_set_crtc_for_plane(primary_state, crtc);
+	if (ret != 0)
+		goto fail;
+	primary_state->fb = set->fb;
+	primary_state->crtc_x = 0;
+	primary_state->crtc_y = 0;
+	primary_state->crtc_h = set->mode->vdisplay;
+	primary_state->crtc_w = set->mode->hdisplay;
+	primary_state->src_x = set->x << 16;
+	primary_state->src_y = set->y << 16;
+	primary_state->src_h = set->mode->vdisplay << 16;
+	primary_state->src_w = set->mode->hdisplay << 16;
+
+commit:
+	ret = update_output_state(state, set);
+	if (ret)
+		goto fail;
+
+	ret = drm_atomic_commit(state);
+	if (ret != 0)
+		goto fail;
+
+	/* Driver takes ownership of state on successful commit. */
+	return 0;
+fail:
+	if (ret == -EDEADLK)
+		goto backoff;
+
+	drm_atomic_state_free(state);
+
+	return ret;
+backoff:
+	drm_atomic_legacy_backoff(state);
+	drm_atomic_state_clear(state);
+
+	/*
+	 * Someone might have exchanged the framebuffer while we dropped locks
+	 * in the backoff code. We need to fix up the fb refcount tracking the
+	 * core does for us.
+	 */
+	crtc->primary->old_fb = crtc->primary->fb;
+
+	goto retry;
+}
+EXPORT_SYMBOL(drm_atomic_helper_set_config);
+
+/**
+ * drm_atomic_helper_crtc_set_property - helper for crtc prorties
+ * @crtc: DRM crtc
+ * @property: DRM property
+ * @val: value of property
+ *
+ * Provides a default plane disablle handler using the atomic driver interface.
+ *
+ * RETURNS:
+ * Zero on success, error code on failure
+ */
+int
+drm_atomic_helper_crtc_set_property(struct drm_crtc *crtc,
+				    struct drm_property *property,
+				    uint64_t val)
+{
+	struct drm_atomic_state *state;
+	struct drm_crtc_state *crtc_state;
+	int ret = 0;
+
+	state = drm_atomic_state_alloc(crtc->dev);
+	if (!state)
+		return -ENOMEM;
+
+	/* ->set_property is always called with all locks held. */
+	state->acquire_ctx = crtc->dev->mode_config.acquire_ctx;
+retry:
+	crtc_state = drm_atomic_get_crtc_state(state, crtc);
+	if (IS_ERR(crtc_state)) {
+		ret = PTR_ERR(crtc_state);
+		goto fail;
+	}
+
+	ret = crtc->funcs->atomic_set_property(crtc, crtc_state,
+					       property, val);
+	if (ret)
+		goto fail;
+
+	ret = drm_atomic_commit(state);
+	if (ret != 0)
+		goto fail;
+
+	/* Driver takes ownership of state on successful commit. */
+	return 0;
+fail:
+	if (ret == -EDEADLK)
+		goto backoff;
+
+	drm_atomic_state_free(state);
+
+	return ret;
+backoff:
+	drm_atomic_legacy_backoff(state);
+	drm_atomic_state_clear(state);
+
+	goto retry;
+}
+EXPORT_SYMBOL(drm_atomic_helper_crtc_set_property);
+
+/**
+ * drm_atomic_helper_plane_set_property - helper for plane prorties
+ * @plane: DRM plane
+ * @property: DRM property
+ * @val: value of property
+ *
+ * Provides a default plane disable handler using the atomic driver interface.
+ *
+ * RETURNS:
+ * Zero on success, error code on failure
+ */
+int
+drm_atomic_helper_plane_set_property(struct drm_plane *plane,
+				    struct drm_property *property,
+				    uint64_t val)
+{
+	struct drm_atomic_state *state;
+	struct drm_plane_state *plane_state;
+	int ret = 0;
+
+	state = drm_atomic_state_alloc(plane->dev);
+	if (!state)
+		return -ENOMEM;
+
+	/* ->set_property is always called with all locks held. */
+	state->acquire_ctx = plane->dev->mode_config.acquire_ctx;
+retry:
+	plane_state = drm_atomic_get_plane_state(state, plane);
+	if (IS_ERR(plane_state)) {
+		ret = PTR_ERR(plane_state);
+		goto fail;
+	}
+
+	ret = plane->funcs->atomic_set_property(plane, plane_state,
+					       property, val);
+	if (ret)
+		goto fail;
+
+	ret = drm_atomic_commit(state);
+	if (ret != 0)
+		goto fail;
+
+	/* Driver takes ownership of state on successful commit. */
+	return 0;
+fail:
+	if (ret == -EDEADLK)
+		goto backoff;
+
+	drm_atomic_state_free(state);
+
+	return ret;
+backoff:
+	drm_atomic_legacy_backoff(state);
+	drm_atomic_state_clear(state);
+
+	goto retry;
+}
+EXPORT_SYMBOL(drm_atomic_helper_plane_set_property);
+
+/**
+ * drm_atomic_helper_connector_set_property - helper for connector prorties
+ * @connector: DRM connector
+ * @property: DRM property
+ * @val: value of property
+ *
+ * Provides a default plane disablle handler using the atomic driver interface.
+ *
+ * RETURNS:
+ * Zero on success, error code on failure
+ */
+int
+drm_atomic_helper_connector_set_property(struct drm_connector *connector,
+				    struct drm_property *property,
+				    uint64_t val)
+{
+	struct drm_atomic_state *state;
+	struct drm_connector_state *connector_state;
+	int ret = 0;
+
+	state = drm_atomic_state_alloc(connector->dev);
+	if (!state)
+		return -ENOMEM;
+
+	/* ->set_property is always called with all locks held. */
+	state->acquire_ctx = connector->dev->mode_config.acquire_ctx;
+retry:
+	connector_state = drm_atomic_get_connector_state(state, connector);
+	if (IS_ERR(connector_state)) {
+		ret = PTR_ERR(connector_state);
+		goto fail;
+	}
+
+	ret = connector->funcs->atomic_set_property(connector, connector_state,
+					       property, val);
+	if (ret)
+		goto fail;
+
+	ret = drm_atomic_commit(state);
+	if (ret != 0)
+		goto fail;
+
+	/* Driver takes ownership of state on successful commit. */
+	return 0;
+fail:
+	if (ret == -EDEADLK)
+		goto backoff;
+
+	drm_atomic_state_free(state);
+
+	return ret;
+backoff:
+	drm_atomic_legacy_backoff(state);
+	drm_atomic_state_clear(state);
+
+	goto retry;
+}
+EXPORT_SYMBOL(drm_atomic_helper_connector_set_property);
