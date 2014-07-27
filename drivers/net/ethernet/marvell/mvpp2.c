@@ -5714,6 +5714,21 @@ mvpp2_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 	return stats;
 }
 
+static int mvpp2_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
+{
+	struct mvpp2_port *port = netdev_priv(dev);
+	int ret;
+
+	if (!port->phy_dev)
+		return -ENOTSUPP;
+
+	ret = phy_mii_ioctl(port->phy_dev, ifr, cmd);
+	if (!ret)
+		mvpp2_link_event(dev);
+
+	return ret;
+}
+
 /* Ethtool methods */
 
 /* Get settings (phy address, speed) for ethtools */
@@ -5868,6 +5883,7 @@ static const struct net_device_ops mvpp2_netdev_ops = {
 	.ndo_set_mac_address	= mvpp2_set_mac_address,
 	.ndo_change_mtu		= mvpp2_change_mtu,
 	.ndo_get_stats64	= mvpp2_get_stats64,
+	.ndo_do_ioctl		= mvpp2_ioctl,
 };
 
 static const struct ethtool_ops mvpp2_eth_tool_ops = {
