@@ -1961,7 +1961,6 @@ ENTRY(_switch_to)
 
 	entry	a1, 16
 
-	mov	a10, a2			# preserve 'prev' (a2)
 	mov	a11, a3			# and 'next' (a3)
 
 	l32i	a4, a2, TASK_THREAD_INFO
@@ -1969,8 +1968,14 @@ ENTRY(_switch_to)
 
 	save_xtregs_user a4 a6 a8 a9 a12 a13 THREAD_XTREGS_USER
 
-	s32i	a0, a10, THREAD_RA	# save return address
-	s32i	a1, a10, THREAD_SP	# save stack pointer
+#if THREAD_RA > 1020 || THREAD_SP > 1020
+	addi	a10, a2, TASK_THREAD
+	s32i	a0, a10, THREAD_RA - TASK_THREAD	# save return address
+	s32i	a1, a10, THREAD_SP - TASK_THREAD	# save stack pointer
+#else
+	s32i	a0, a2, THREAD_RA	# save return address
+	s32i	a1, a2, THREAD_SP	# save stack pointer
+#endif
 
 	/* Disable ints while we manipulate the stack pointer. */
 
@@ -2011,7 +2016,6 @@ ENTRY(_switch_to)
 	load_xtregs_user a5 a6 a8 a9 a12 a13 THREAD_XTREGS_USER
 
 	wsr	a14, ps
-	mov	a2, a10			# return 'prev'
 	rsync
 
 	retw
