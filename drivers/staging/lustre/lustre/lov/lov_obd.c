@@ -899,7 +899,7 @@ static int lov_cleanup(struct obd_device *obd)
 				       " deathrow=%d, lovrc=%d\n",
 				       i, lov->lov_death_row,
 				       atomic_read(&lov->lov_refcount));
-			lov_del_target(obd, i, 0, 0);
+			lov_del_target(obd, i, NULL, 0);
 		}
 		obd_putref(obd);
 		OBD_FREE(lov->lov_tgts, sizeof(*lov->lov_tgts) *
@@ -943,7 +943,7 @@ int lov_process_config_base(struct obd_device *obd, struct lustre_cfg *lcfg,
 		GOTO(out, rc);
 	}
 	case LCFG_PARAM: {
-		struct lprocfs_static_vars lvars = { 0 };
+		struct lprocfs_static_vars lvars = { NULL };
 		struct lov_desc *desc = &(obd->u.lov.desc);
 
 		if (!desc)
@@ -2816,7 +2816,7 @@ struct kmem_cache *lov_oinfo_slab;
 
 int __init lov_init(void)
 {
-	struct lprocfs_static_vars lvars = { 0 };
+	struct lprocfs_static_vars lvars = { NULL };
 	int rc;
 
 	/* print an address of _any_ initialized kernel symbol from this
