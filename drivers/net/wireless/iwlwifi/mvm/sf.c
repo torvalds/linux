@@ -179,6 +179,10 @@ static int iwl_mvm_sf_config(struct iwl_mvm *mvm, u8 sta_id,
 	struct ieee80211_sta *sta;
 	int ret = 0;
 
+	if (mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_SF_NO_DUMMY_NOTIF &&
+	    mvm->cfg->disable_dummy_notification)
+		sf_cmd.state |= cpu_to_le32(SF_CFG_DUMMY_NOTIF_OFF);
+
 	/*
 	 * If an associated AP sta changed its antenna configuration, the state
 	 * will remain FULL_ON but SF parameters need to be reconsidered.

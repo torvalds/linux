@@ -144,6 +144,7 @@ const struct iwl_cfg iwl8260_2ac_sdio_cfg = {
 	.nvm_calib_ver = IWL8000_TX_POWER_VERSION,
 	.default_nvm_file = DEFAULT_NVM_FILE_FAMILY_8000,
 	.max_rx_agg_size = MAX_RX_AGG_SIZE_8260_SDIO,
+	.disable_dummy_notification = true,
 };
 
 MODULE_FIRMWARE(IWL8000_MODULE_FIRMWARE(IWL8000_UCODE_API_OK));
