@@ -77,7 +77,9 @@ void acpi_initialize_hp_context(struct acpi_device *adev,
 				void (*uevent)(struct acpi_device *, u32))
 {
 	acpi_lock_hp_context();
-	acpi_set_hp_context(adev, hp, notify, uevent, NULL);
+	hp->notify = notify;
+	hp->uevent = uevent;
+	acpi_set_hp_context(adev, hp);
 	acpi_unlock_hp_context();
 }
 EXPORT_SYMBOL_GPL(acpi_initialize_hp_context);
