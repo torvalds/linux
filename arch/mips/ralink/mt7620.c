@@ -20,6 +20,22 @@
 
 #include "common.h"
 
+/* analog */
+#define PMU0_CFG		0x88
+#define PMU_SW_SET		BIT(28)
+#define A_DCDC_EN		BIT(24)
+#define A_SSC_PERI		BIT(19)
+#define A_SSC_GEN		BIT(18)
+#define A_SSC_M			0x3
+#define A_SSC_S			16
+#define A_DLY_M			0x7
+#define A_DLY_S			8
+#define A_VTUNE_M		0xff
+
+/* digital */
+#define PMU1_CFG		0x8C
+#define DIG_SW_SEL		BIT(25)
+
 /* does the board have sdram or ddram */
 static int dram_type;
 
@@ -339,6 +355,8 @@ void prom_soc_init(struct ralink_soc_info *soc_info)
 	u32 n1;
 	u32 rev;
 	u32 cfg0;
+	u32 pmu0;
+	u32 pmu1;
 
 	n0 = __raw_readl(sysc + SYSC_REG_CHIP_NAME0);
 	n1 = __raw_readl(sysc + SYSC_REG_CHIP_NAME1);
@@ -386,4 +404,12 @@ void prom_soc_init(struct ralink_soc_info *soc_info)
 		BUG();
 	}
 	soc_info->mem_base = MT7620_DRAM_BASE;
+
+	pmu0 = __raw_readl(sysc + PMU0_CFG);
+	pmu1 = __raw_readl(sysc + PMU1_CFG);
+
+	pr_info("Analog PMU set to %s control\n",
+		(pmu0 & PMU_SW_SET) ? ("sw") : ("hw"));
+	pr_info("Digital PMU set to %s control\n",
+		(pmu1 & DIG_SW_SEL) ? ("sw") : ("hw"));
 }
