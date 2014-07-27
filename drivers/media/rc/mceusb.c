@@ -187,6 +187,7 @@
 #define VENDOR_CONEXANT		0x0572
 #define VENDOR_TWISTEDMELON	0x2596
 #define VENDOR_HAUPPAUGE	0x2040
+#define VENDOR_PCTV		0x2013
 
 enum mceusb_model_type {
 	MCE_GEN2 = 0,		/* Most boards */
@@ -396,6 +397,13 @@ static struct usb_device_id mceusb_dev_table[] = {
 	/* Hauppauge WINTV-HVR-HVR 930C-HD - based on cx231xx */
 	{ USB_DEVICE(VENDOR_HAUPPAUGE, 0xb130),
 	  .driver_info = HAUPPAUGE_CX_HYBRID_TV },
+	{ USB_DEVICE(VENDOR_HAUPPAUGE, 0xb131),
+	  .driver_info = HAUPPAUGE_CX_HYBRID_TV },
+	{ USB_DEVICE(VENDOR_PCTV, 0x0259),
+	  .driver_info = HAUPPAUGE_CX_HYBRID_TV },
+	{ USB_DEVICE(VENDOR_PCTV, 0x025e),
+	  .driver_info = HAUPPAUGE_CX_HYBRID_TV },
+
 	/* Terminating entry */
 	{ }
 };
