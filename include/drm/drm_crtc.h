@@ -341,10 +341,6 @@ struct drm_crtc {
 	int cursor_x;
 	int cursor_y;
 
-	/* Temporary tracking of the old fb while a modeset is ongoing. Used
-	 * by drm_mode_set_config_internal to implement correct refcounting. */
-	struct drm_framebuffer *old_fb;
-
 	bool enabled;
 
 	/* Requested mode from modesetting. */
@@ -622,6 +618,10 @@ struct drm_plane {
 
 	struct drm_crtc *crtc;
 	struct drm_framebuffer *fb;
+
+	/* Temporary tracking of the old fb while a modeset is ongoing. Used
+	 * by drm_mode_set_config_internal to implement correct refcounting. */
+	struct drm_framebuffer *old_fb;
 
 	const struct drm_plane_funcs *funcs;
 

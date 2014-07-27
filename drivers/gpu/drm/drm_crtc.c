@@ -1287,19 +1287,21 @@ EXPORT_SYMBOL(drm_plane_index);
  */
 void drm_plane_force_disable(struct drm_plane *plane)
 {
-	struct drm_framebuffer *old_fb = plane->fb;
 	int ret;
 
-	if (!old_fb)
+	if (!plane->fb)
 		return;
 
+	plane->old_fb = plane->fb;
 	ret = plane->funcs->disable_plane(plane);
 	if (ret) {
 		DRM_ERROR("failed to disable plane with busy fb\n");
+		plane->old_fb = NULL;
 		return;
 	}
 	/* disconnect the plane from the fb and crtc: */
-	__drm_framebuffer_unreference(old_fb);
+	__drm_framebuffer_unreference(plane->old_fb);
+	plane->old_fb = NULL;
 	plane->fb = NULL;
 	plane->crtc = NULL;
 }
@@ -2275,23 +2277,21 @@ static int setplane_internal(struct drm_plane *plane,
 			     uint32_t src_w, uint32_t src_h)
 {
 	struct drm_device *dev = plane->dev;
-	struct drm_framebuffer *old_fb = NULL;
 	int ret = 0;
 	unsigned int fb_width, fb_height;
 	int i;
 
+	drm_modeset_lock_all(dev);
 	/* No fb means shut it down */
 	if (!fb) {
-		drm_modeset_lock_all(dev);
-		old_fb = plane->fb;
+		plane->old_fb = plane->fb;
 		ret = plane->funcs->disable_plane(plane);
 		if (!ret) {
 			plane->crtc = NULL;
 			plane->fb = NULL;
 		} else {
-			old_fb = NULL;
+			plane->old_fb = NULL;
 		}
-		drm_modeset_unlock_all(dev);
 		goto out;
 	}
 
@@ -2331,8 +2331,7 @@ static int setplane_internal(struct drm_plane *plane,
 		goto out;
 	}
 
-	drm_modeset_lock_all(dev);
-	old_fb = plane->fb;
+	plane->old_fb = plane->fb;
 	ret = plane->funcs->update_plane(plane, crtc, fb,
 					 crtc_x, crtc_y, crtc_w, crtc_h,
 					 src_x, src_y, src_w, src_h);
@@ -2341,15 +2340,16 @@ static int setplane_internal(struct drm_plane *plane,
 		plane->fb = fb;
 		fb = NULL;
 	} else {
-		old_fb = NULL;
+		plane->old_fb = NULL;
 	}
-	drm_modeset_unlock_all(dev);
 
 out:
 	if (fb)
 		drm_framebuffer_unreference(fb);
-	if (old_fb)
-		drm_framebuffer_unreference(old_fb);
+	if (plane->old_fb)
+		drm_framebuffer_unreference(plane->old_fb);
+	plane->old_fb = NULL;
+	drm_modeset_unlock_all(dev);
 
 	return ret;
 
@@ -2456,7 +2456,7 @@ int drm_mode_set_config_internal(struct drm_mode_set *set)
 	 * crtcs. Atomic modeset will have saner semantics ...
 	 */
 	list_for_each_entry(tmp, &crtc->dev->mode_config.crtc_list, head)
-		tmp->old_fb = tmp->primary->fb;
+		tmp->primary->old_fb = tmp->primary->fb;
 
 	fb = set->fb;
 
@@ -2469,8 +2469,9 @@ int drm_mode_set_config_internal(struct drm_mode_set *set)
 	list_for_each_entry(tmp, &crtc->dev->mode_config.crtc_list, head) {
 		if (tmp->primary->fb)
 			drm_framebuffer_reference(tmp->primary->fb);
-		if (tmp->old_fb)
-			drm_framebuffer_unreference(tmp->old_fb);
+		if (tmp->primary->old_fb)
+			drm_framebuffer_unreference(tmp->primary->old_fb);
+		tmp->primary->old_fb = NULL;
 	}
 
 	return ret;
@@ -4545,7 +4546,7 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 {
 	struct drm_mode_crtc_page_flip *page_flip = data;
 	struct drm_crtc *crtc;
-	struct drm_framebuffer *fb = NULL, *old_fb = NULL;
+	struct drm_framebuffer *fb = NULL;
 	struct drm_pending_vblank_event *e = NULL;
 	unsigned long flags;
 	int ret = -EINVAL;
@@ -4617,7 +4618,7 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 			(void (*) (struct drm_pending_event *)) kfree;
 	}
 
-	old_fb = crtc->primary->fb;
+	crtc->primary->old_fb = crtc->primary->fb;
 	ret = crtc->funcs->page_flip(crtc, fb, e, page_flip->flags);
 	if (ret) {
 		if (page_flip->flags & DRM_MODE_PAGE_FLIP_EVENT) {
@@ -4627,7 +4628,7 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 			kfree(e);
 		}
 		/* Keep the old fb, don't unref it. */
-		old_fb = NULL;
+		crtc->primary->old_fb = NULL;
 	} else {
 		/*
 		 * Warn if the driver hasn't properly updated the crtc->fb
@@ -4643,8 +4644,9 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 out:
 	if (fb)
 		drm_framebuffer_unreference(fb);
-	if (old_fb)
-		drm_framebuffer_unreference(old_fb);
+	if (crtc->primary->old_fb)
+		drm_framebuffer_unreference(crtc->primary->old_fb);
+	crtc->primary->old_fb = NULL;
 	drm_modeset_unlock_crtc(crtc);
 
 	return ret;
