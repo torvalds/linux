@@ -849,6 +849,44 @@ int drm_atomic_helper_commit(struct drm_device *dev,
 EXPORT_SYMBOL(drm_atomic_helper_commit);
 
 /**
+ * DOC: implementing async commit
+ *
+ * For now the atomic helpers don't support async commit directly. If there is
+ * real need it could be added though, using the dma-buf fence infrastructure
+ * for generic synchronization with outstanding rendering.
+ *
+ * For now drivers have to implement async commit themselves, with the following
+ * sequence being the recommended one:
+ *
+ * 1. Run drm_atomic_helper_prepare_planes() first. This is the only function
+ * which commit needs to call which can fail, so we want to run it first and
+ * synchronously.
+ *
+ * 2. Synchronize with any outstanding asynchronous commit worker threads which
+ * might be affected the new state update. This can be done by either cancelling
+ * or flushing the work items, depending upon whether the driver can deal with
+ * cancelled updates. Note that it is important to ensure that the framebuffer
+ * cleanup is still done when cancelling.
+ *
+ * For sufficient parallelism it is recommended to have a work item per crtc
+ * (for updates which don't touch global state) and a global one. Then we only
+ * need to synchronize with the crtc work items for changed crtcs and the global
+ * work item, which allows nice concurrent updates on disjoint sets of crtcs.
+ *
+ * 3. The software state is updated synchronously with
+ * drm_atomic_helper_swap_state. Doing this under the protection of all modeset
+ * locks means concurrent callers never see inconsistent state. And doing this
+ * while it's guaranteed that no relevant async worker runs means that async
+ * workers do not need grab any locks. Actually they must not grab locks, for
+ * otherwise the work flushing will deadlock.
+ *
+ * 4. Schedule a work item to do all subsequent steps, using the split-out
+ * commit helpers: a) pre-plane commit b) plane commit c) post-plane commit and
+ * then cleaning up the framebuffers after the old framebuffer is no longer
+ * being displayed.
+ */
+
+/**
  * drm_atomic_helper_prepare_planes - prepare plane resources after commit
  * @dev: DRM device
  * @state: atomic state object with old state structures
