@@ -811,7 +811,7 @@ static int encrypted_instantiate(struct key *key,
 		goto out;
 	}
 
-	prep->payload[0] = epayload;
+	rcu_assign_keypointer(key, epayload);
 out:
 	kfree(datablob);
 	return ret;
