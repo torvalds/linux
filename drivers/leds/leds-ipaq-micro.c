@@ -127,7 +127,7 @@ static int micro_leds_remove(struct platform_device *pdev)
 	return 0;
 }
 
-struct platform_driver micro_leds_device_driver = {
+static struct platform_driver micro_leds_device_driver = {
 	.driver = {
 		.name    = "ipaq-micro-leds",
 	},
