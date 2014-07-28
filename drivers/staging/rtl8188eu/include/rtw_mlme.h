@@ -436,7 +436,6 @@ void indicate_wx_scan_complete_event(struct adapter *padapter);
 void rtw_indicate_wx_assoc_event(struct adapter *padapter);
 void rtw_indicate_wx_disassoc_event(struct adapter *padapter);
 int event_thread(void *context);
-void _rtw_scan_timeout_handler(void *FunctionContext);
 void rtw_free_network_queue(struct adapter *adapter, u8 isfreeall);
 int rtw_init_mlme_priv(struct adapter *adapter);
 void rtw_free_mlme_priv(struct mlme_priv *pmlmepriv);
@@ -553,7 +552,7 @@ void rtw_update_registrypriv_dev_network(struct adapter *adapter);
 void rtw_get_encrypt_decrypt_from_registrypriv(struct adapter *adapter);
 
 void _rtw_join_timeout_handler(void *function_context);
-void rtw_scan_timeout_handler(struct adapter *adapter);
+void rtw_scan_timeout_handler(void *function_context);
 
 void rtw_dynamic_check_timer_handlder(struct adapter *adapter);
 #define rtw_is_scan_deny(adapter) false
