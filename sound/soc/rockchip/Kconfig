@@ -117,7 +117,7 @@ config SND_RK_SOC_RT5631
 	help
 	  Say Y if you want to add support for SoC audio on rockchip
 	  with the RT5631.
-	  
+
 config SND_RK_SOC_RT5631_PHONE
 	tristate "SoC I2S Audio support for rockchip(phone) - RT5631"
 	depends on SND_RK_SOC
@@ -127,7 +127,7 @@ config SND_RK_SOC_RT5631_PHONE
 	  Say Y if you want to add support for SoC audio on rockchip
 	  with the RT5631.
 	  Driver code to use on the phone or voice Tablet.
-	  
+
 config SND_RK_SOC_RT5625
 	tristate "SoC I2S Audio support for rockchip - RT5625"
 	depends on SND_RK_SOC
@@ -160,7 +160,7 @@ config SND_RK_SOC_RT5640
 	select SND_SOC_RT5640
 	help
 	   RT5640 is pin to pin as RT5642, but not have dsp function.
-	  
+
 config SND_RK_SOC_RT3224
 	tristate "SoC I2S Audio support for rockchip - RT3224"
 	depends on SND_RK_SOC
@@ -168,7 +168,7 @@ config SND_RK_SOC_RT3224
 	select SND_SOC_RT3224
 	help
 	  RT3224 is pin to pin as RT3261, but not have dsp function.
-	  
+
 config SND_RK_SOC_RT5639
 	tristate "SoC I2S Audio support for rockchip - RT5639"
 	depends on SND_RK_SOC
@@ -176,7 +176,7 @@ config SND_RK_SOC_RT5639
 	select SND_SOC_RT5639
 	help
 	  rt5639
-	  
+
 config SND_RK_SOC_RT5616
 	tristate "SoC I2S Audio support for rockchip - RT5616"
 	depends on SND_RK_SOC
@@ -185,7 +185,7 @@ config SND_RK_SOC_RT5616
 	help
 	  Say Y if you want to add support for SoC audio on rockchip
 	  with the RT5616.
-	  
+
 config SND_RK_SOC_RT3261
 	tristate "SoC I2S Audio support for rockchip - RT3261"
 	depends on SND_RK_SOC

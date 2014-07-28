@@ -398,6 +398,7 @@
 		clocks = <&clk_gates5 14>;
 		clock-names = "g_pclk_acodec";
 	};
+
 	spdif: spdif@10204000 {
 		compatible = "rockchip-spdif";
 		reg = <0x10204000 0x1000>;
@@ -422,38 +423,38 @@
 		status = "disabled";
 	};
 
-        pwm1: pwm@20050010 {
-                compatible = "rockchip,rk-pwm";
-                reg = <0x20050010 0x10>;
-                #pwm-cells = <2>;
-                pinctrl-names = "default";
-                pinctrl-0 = <&pwm1_pin>;
-                clocks = <&clk_gates7 10>;
-                clock-names = "pclk_pwm";
-                status = "disabled";
-        };
+	pwm1: pwm@20050010 {
+		compatible = "rockchip,rk-pwm";
+		reg = <0x20050010 0x10>;
+		#pwm-cells = <2>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pwm1_pin>;
+		clocks = <&clk_gates7 10>;
+		clock-names = "pclk_pwm";
+		status = "disabled";
+	};
 
-        pwm2: pwm@20050020 {
-                compatible = "rockchip,rk-pwm";
-                reg = <0x20050020 0x10>;
-                #pwm-cells = <2>;
-                pinctrl-names = "default";
-                pinctrl-0 = <&pwm2_pin>;
-                clocks = <&clk_gates7 10>;
-                clock-names = "pclk_pwm";
-                status = "disabled";
-        };
+	pwm2: pwm@20050020 {
+		compatible = "rockchip,rk-pwm";
+		reg = <0x20050020 0x10>;
+		#pwm-cells = <2>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pwm2_pin>;
+		clocks = <&clk_gates7 10>;
+		clock-names = "pclk_pwm";
+		status = "disabled";
+	};
 
-        pwm3: pwm@20050030 {
-                compatible = "rockchip,rk-pwm";
-                reg = <0x20050030 0x10>;
-                #pwm-cells = <2>;
-                pinctrl-names = "default";
-                pinctrl-0 = <&pwm3_pin>;
-                clocks = <&clk_gates7 10>;
-                clock-names = "pclk_pwm";
-                status = "disabled";
-        };
+	pwm3: pwm@20050030 {
+		compatible = "rockchip,rk-pwm";
+		reg = <0x20050030 0x10>;
+		#pwm-cells = <2>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pwm3_pin>;
+		clocks = <&clk_gates7 10>;
+		clock-names = "pclk_pwm";
+		status = "disabled";
+	};
 
 	remotectl: pwm@20050030 {
 		compatible = "rockchip,remotectl-pwm";
@@ -536,7 +537,7 @@
 
 	    interrupts = <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>,
                      <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>,
+			  	     <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>,
                      <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>;
 	    interrupt-names = "Mali_GP_IRQ",
 						  "Mali_GP_MMU_IRQ",

@@ -73,7 +73,7 @@
 
         status = "okay";
     };
-    
+
 	usb_control {
 		compatible = "rockchip,rk3036-usb-control";
 		host_drv_gpio = <&gpio2 GPIO_C7 GPIO_ACTIVE_LOW>;
@@ -86,11 +86,11 @@
 	key {
 		compatible = "rockchip,key";
 	};
-	
+
 	codec_hdmi_i2s: codec-hdmi-i2s {
 		compatible = "hdmi-i2s";
 	};
-	
+
 	rockchip-hdmi-i2s {
 		compatible = "rockchip-hdmi-i2s";
 		dais {
@@ -132,7 +132,7 @@
 
 &nandc {
 	status = "okay"; // used nand set "okay" ,used emmc set "disabled"
-};  
+};
 
 &nandc0reg {
 	status = "disabled"; // used nand set "disabled" ,used emmc set "okay"
@@ -151,11 +151,11 @@
 
         ignore-pm-notify;
 	keep-power-in-suspend;
-	
-	//poll-hw-reset 
+
+	//poll-hw-reset
 	status = "disabled";
 };
-    
+
 &sdmmc {
 		clock-frequency = <50000000>;
 		clock-freq-min-max = <400000 50000000>;
@@ -166,11 +166,11 @@
 
 		ignore-pm-notify;
         	keep-power-in-suspend;
-	
+
         	//vmmc-supply = <&rk808_ldo5_reg>;
 		status = "disabled";
 };
-		
+
 &sdio {
 		clock-frequency = <50000000>;
 		clock-freq-min-max = <200000 50000000>;
