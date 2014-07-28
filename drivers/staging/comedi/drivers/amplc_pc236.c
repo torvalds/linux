@@ -369,8 +369,6 @@ static void pc236_detach(struct comedi_device *dev)
 
 	if (!thisboard)
 		return;
-	if (dev->iobase)
-		pc236_intr_disable(dev);
 	if (is_isa_board(thisboard)) {
 		comedi_legacy_detach(dev);
 	} else if (is_pci_board(thisboard)) {
