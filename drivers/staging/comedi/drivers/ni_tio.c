@@ -116,59 +116,55 @@ TODO:
 #define NI_660X_LOGIC_LOW_GATE2_SEL	0x1f
 #define NI_660X_MAX_UP_DOWN_PIN		7
 
-static inline enum Gi_Counting_Mode_Reg_Bits
-Gi_Alternate_Sync_Bit(enum ni_gpct_variant variant)
+static inline unsigned GI_ALT_SYNC(enum ni_gpct_variant variant)
 {
 	switch (variant) {
 	case ni_gpct_variant_e_series:
 	default:
 		return 0;
 	case ni_gpct_variant_m_series:
-		return Gi_M_Series_Alternate_Sync_Bit;
+		return GI_M_ALT_SYNC;
 	case ni_gpct_variant_660x:
-		return Gi_660x_Alternate_Sync_Bit;
+		return GI_660X_ALT_SYNC;
 	}
 }
 
-static inline enum Gi_Counting_Mode_Reg_Bits
-Gi_Prescale_X2_Bit(enum ni_gpct_variant variant)
+static inline unsigned GI_PRESCALE_X2(enum ni_gpct_variant variant)
 {
 	switch (variant) {
 	case ni_gpct_variant_e_series:
 	default:
 		return 0;
 	case ni_gpct_variant_m_series:
-		return Gi_M_Series_Prescale_X2_Bit;
+		return GI_M_PRESCALE_X2;
 	case ni_gpct_variant_660x:
-		return Gi_660x_Prescale_X2_Bit;
+		return GI_660X_PRESCALE_X2;
 	}
 }
 
-static inline enum Gi_Counting_Mode_Reg_Bits
-Gi_Prescale_X8_Bit(enum ni_gpct_variant variant)
+static inline unsigned GI_PRESCALE_X8(enum ni_gpct_variant variant)
 {
 	switch (variant) {
 	case ni_gpct_variant_e_series:
 	default:
 		return 0;
 	case ni_gpct_variant_m_series:
-		return Gi_M_Series_Prescale_X8_Bit;
+		return GI_M_PRESCALE_X8;
 	case ni_gpct_variant_660x:
-		return Gi_660x_Prescale_X8_Bit;
+		return GI_660X_PRESCALE_X8;
 	}
 }
 
-static inline enum Gi_Counting_Mode_Reg_Bits
-Gi_HW_Arm_Select_Mask(enum ni_gpct_variant variant)
+static inline unsigned GI_HW_ARM_SEL_MASK(enum ni_gpct_variant variant)
 {
 	switch (variant) {
 	case ni_gpct_variant_e_series:
 	default:
 		return 0;
 	case ni_gpct_variant_m_series:
-		return Gi_M_Series_HW_Arm_Select_Mask;
+		return GI_M_HW_ARM_SEL_MASK;
 	case ni_gpct_variant_660x:
-		return Gi_660x_HW_Arm_Select_Mask;
+		return GI_660X_HW_ARM_SEL_MASK;
 	}
 }
 
@@ -254,9 +250,9 @@ static unsigned ni_tio_clock_src_modifiers(const struct ni_gpct *counter)
 	if (ni_tio_get_soft_copy(counter, NITIO_INPUT_SEL_REG(cidx)) &
 	    Gi_Source_Polarity_Bit)
 		bits |= NI_GPCT_INVERT_CLOCK_SRC_BIT;
-	if (counting_mode_bits & Gi_Prescale_X2_Bit(counter_dev->variant))
+	if (counting_mode_bits & GI_PRESCALE_X2(counter_dev->variant))
 		bits |= NI_GPCT_PRESCALE_X2_CLOCK_SRC_BITS;
-	if (counting_mode_bits & Gi_Prescale_X8_Bit(counter_dev->variant))
+	if (counting_mode_bits & GI_PRESCALE_X8(counter_dev->variant))
 		bits |= NI_GPCT_PRESCALE_X8_CLOCK_SRC_BITS;
 	return bits;
 }
@@ -401,17 +397,18 @@ static void ni_tio_set_sync_mode(struct ni_gpct *counter, int force_alt_sync)
 	unsigned cidx = counter->counter_index;
 	const unsigned counting_mode_reg = NITIO_CNT_MODE_REG(cidx);
 	static const uint64_t min_normal_sync_period_ps = 25000;
+	unsigned mode;
 	uint64_t clock_period_ps;
 
 	if (ni_tio_counting_mode_registers_present(counter_dev) == 0)
 		return;
 
-	switch (ni_tio_get_soft_copy(counter, counting_mode_reg) &
-		Gi_Counting_Mode_Mask) {
-	case Gi_Counting_Mode_QuadratureX1_Bits:
-	case Gi_Counting_Mode_QuadratureX2_Bits:
-	case Gi_Counting_Mode_QuadratureX4_Bits:
-	case Gi_Counting_Mode_Sync_Source_Bits:
+	mode = ni_tio_get_soft_copy(counter, counting_mode_reg);
+	switch (mode & GI_CNT_MODE_MASK) {
+	case GI_CNT_MODE_QUADX1:
+	case GI_CNT_MODE_QUADX2:
+	case GI_CNT_MODE_QUADX4:
+	case GI_CNT_MODE_SYNC_SRC:
 		force_alt_sync = 1;
 		break;
 	default:
@@ -429,11 +426,11 @@ static void ni_tio_set_sync_mode(struct ni_gpct *counter, int force_alt_sync)
 	if (force_alt_sync ||
 	    (clock_period_ps && clock_period_ps < min_normal_sync_period_ps)) {
 		ni_tio_set_bits(counter, counting_mode_reg,
-				Gi_Alternate_Sync_Bit(counter_dev->variant),
-				Gi_Alternate_Sync_Bit(counter_dev->variant));
+				GI_ALT_SYNC(counter_dev->variant),
+				GI_ALT_SYNC(counter_dev->variant));
 	} else {
 		ni_tio_set_bits(counter, counting_mode_reg,
-				Gi_Alternate_Sync_Bit(counter_dev->variant),
+				GI_ALT_SYNC(counter_dev->variant),
 				0x0);
 	}
 }
@@ -472,19 +469,15 @@ static int ni_tio_set_counter_mode(struct ni_gpct *counter, unsigned mode)
 			mode_reg_mask, mode_reg_values);
 
 	if (ni_tio_counting_mode_registers_present(counter_dev)) {
-		unsigned counting_mode_bits = 0;
+		unsigned bits = 0;
 
-		counting_mode_bits |=
-		    (mode >> NI_GPCT_COUNTING_MODE_SHIFT) &
-		    Gi_Counting_Mode_Mask;
-		counting_mode_bits |=
-		    ((mode >> NI_GPCT_INDEX_PHASE_BITSHIFT) <<
-		     Gi_Index_Phase_Bitshift) & Gi_Index_Phase_Mask;
+		bits |= GI_CNT_MODE(mode >> NI_GPCT_COUNTING_MODE_SHIFT);
+		bits |= GI_INDEX_PHASE((mode >> NI_GPCT_INDEX_PHASE_BITSHIFT));
 		if (mode & NI_GPCT_INDEX_ENABLE_BIT)
-			counting_mode_bits |= Gi_Index_Mode_Bit;
+			bits |= GI_INDEX_MODE;
 		ni_tio_set_bits(counter, NITIO_CNT_MODE_REG(cidx),
-				Gi_Counting_Mode_Mask | Gi_Index_Phase_Mask |
-				Gi_Index_Mode_Bit, counting_mode_bits);
+				GI_CNT_MODE_MASK | GI_INDEX_PHASE_MASK |
+				GI_INDEX_MODE, bits);
 		ni_tio_set_sync_mode(counter, 0);
 	}
 
@@ -522,7 +515,10 @@ int ni_tio_arm(struct ni_gpct *counter, int arm, unsigned start_trigger)
 			break;
 		}
 		if (ni_tio_counting_mode_registers_present(counter_dev)) {
-			unsigned counting_mode_bits = 0;
+			unsigned bits = 0;
+			unsigned sel_mask;
+
+			sel_mask = GI_HW_ARM_SEL_MASK(counter_dev->variant);
 
 			switch (start_trigger) {
 			case NI_GPCT_ARM_IMMEDIATE:
@@ -535,25 +531,16 @@ int ni_tio_arm(struct ni_gpct *counter, int arm, unsigned start_trigger)
 					 * bits so we can figure out what
 					 * select later
 					 */
-					unsigned hw_arm_select_bits =
-					    (start_trigger <<
-					     Gi_HW_Arm_Select_Shift) &
-					    Gi_HW_Arm_Select_Mask
-					    (counter_dev->variant);
-
-					counting_mode_bits |=
-					    Gi_HW_Arm_Enable_Bit |
-					    hw_arm_select_bits;
+					bits |= GI_HW_ARM_ENA |
+						(GI_HW_ARM_SEL(start_trigger) &
+						 sel_mask);
 				} else {
 					return -EINVAL;
 				}
 				break;
 			}
 			ni_tio_set_bits(counter, NITIO_CNT_MODE_REG(cidx),
-					Gi_HW_Arm_Select_Mask
-					(counter_dev->variant) |
-					Gi_HW_Arm_Enable_Bit,
-					counting_mode_bits);
+					GI_HW_ARM_ENA | sel_mask, bits);
 		}
 	} else {
 		command_transient_bits |= Gi_Disarm_Bit;
@@ -735,17 +722,17 @@ static int ni_tio_set_clock_src(struct ni_gpct *counter,
 		case NI_GPCT_NO_PRESCALE_CLOCK_SRC_BITS:
 			break;
 		case NI_GPCT_PRESCALE_X2_CLOCK_SRC_BITS:
-			bits |= Gi_Prescale_X2_Bit(counter_dev->variant);
+			bits |= GI_PRESCALE_X2(counter_dev->variant);
 			break;
 		case NI_GPCT_PRESCALE_X8_CLOCK_SRC_BITS:
-			bits |= Gi_Prescale_X8_Bit(counter_dev->variant);
+			bits |= GI_PRESCALE_X8(counter_dev->variant);
 			break;
 		default:
 			return -EINVAL;
 		}
 		ni_tio_set_bits(counter, NITIO_CNT_MODE_REG(cidx),
-				Gi_Prescale_X2_Bit(counter_dev->variant) |
-				Gi_Prescale_X8_Bit(counter_dev->variant), bits);
+				GI_PRESCALE_X2(counter_dev->variant) |
+				GI_PRESCALE_X8(counter_dev->variant), bits);
 	}
 	counter->clock_period_ps = period_ns * 1000;
 	ni_tio_set_sync_mode(counter, 0);

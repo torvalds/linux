@@ -30,6 +30,27 @@
 #define NITIO_LOADB_REG(x)		(NITIO_G0_LOADB + (x))
 #define NITIO_INPUT_SEL_REG(x)		(NITIO_G0_INPUT_SEL + (x))
 #define NITIO_CNT_MODE_REG(x)		(NITIO_G0_CNT_MODE + (x))
+#define GI_CNT_MODE(x)			(((x) & 0x7) << 0)
+#define GI_CNT_MODE_NORMAL		GI_CNT_MODE(0)
+#define GI_CNT_MODE_QUADX1		GI_CNT_MODE(1)
+#define GI_CNT_MODE_QUADX2		GI_CNT_MODE(2)
+#define GI_CNT_MODE_QUADX4		GI_CNT_MODE(3)
+#define GI_CNT_MODE_TWO_PULSE		GI_CNT_MODE(4)
+#define GI_CNT_MODE_SYNC_SRC		GI_CNT_MODE(6)
+#define GI_CNT_MODE_MASK		(7 << 0)
+#define GI_INDEX_MODE			(1 << 4)
+#define GI_INDEX_PHASE(x)		(((x) & 0x3) << 5)
+#define GI_INDEX_PHASE_MASK		(3 << 5)
+#define GI_HW_ARM_ENA			(1 << 7)
+#define GI_HW_ARM_SEL(x)		((x) << 8)
+#define GI_660X_HW_ARM_SEL_MASK		(0x7 << 8)
+#define GI_M_HW_ARM_SEL_MASK		(0x1f << 8)
+#define GI_660X_PRESCALE_X8		(1 << 12)
+#define GI_M_PRESCALE_X8		(1 << 13)
+#define GI_660X_ALT_SYNC		(1 << 13)
+#define GI_M_ALT_SYNC			(1 << 14)
+#define GI_660X_PRESCALE_X2		(1 << 14)
+#define GI_M_PRESCALE_X2		(1 << 15)
 #define NITIO_GATE2_REG(x)		(NITIO_G0_GATE2 + (x))
 #define NITIO_SHARED_STATUS_REG(x)	(NITIO_G01_STATUS + ((x) / 2))
 #define NITIO_RESET_REG(x)		(NITIO_G01_RESET + ((x) / 2))
@@ -66,41 +87,6 @@ enum Gi_Command_Reg_Bits {
 	Gi_Arm_Copy_Bit = 0x2000,
 	Gi_Save_Trace_Copy_Bit = 0x4000,
 	Gi_Disarm_Copy_Bit = 0x8000
-};
-
-#define Gi_Index_Phase_Bitshift 5
-#define Gi_HW_Arm_Select_Shift 8
-enum Gi_Counting_Mode_Reg_Bits {
-	Gi_Counting_Mode_Mask = 0x7,
-	Gi_Counting_Mode_Normal_Bits = 0x0,
-	Gi_Counting_Mode_QuadratureX1_Bits = 0x1,
-	Gi_Counting_Mode_QuadratureX2_Bits = 0x2,
-	Gi_Counting_Mode_QuadratureX4_Bits = 0x3,
-	Gi_Counting_Mode_Two_Pulse_Bits = 0x4,
-	Gi_Counting_Mode_Sync_Source_Bits = 0x6,
-	Gi_Index_Mode_Bit = 0x10,
-	Gi_Index_Phase_Mask = 0x3 << Gi_Index_Phase_Bitshift,
-	Gi_Index_Phase_LowA_LowB = 0x0 << Gi_Index_Phase_Bitshift,
-	Gi_Index_Phase_LowA_HighB = 0x1 << Gi_Index_Phase_Bitshift,
-	Gi_Index_Phase_HighA_LowB = 0x2 << Gi_Index_Phase_Bitshift,
-	Gi_Index_Phase_HighA_HighB = 0x3 << Gi_Index_Phase_Bitshift,
-	/* from m-series example code, not documented in 660x register level
-	 * manual */
-	Gi_HW_Arm_Enable_Bit = 0x80,
-	/* from m-series example code, not documented in 660x register level
-	 * manual */
-	Gi_660x_HW_Arm_Select_Mask = 0x7 << Gi_HW_Arm_Select_Shift,
-	Gi_660x_Prescale_X8_Bit = 0x1000,
-	Gi_M_Series_Prescale_X8_Bit = 0x2000,
-	Gi_M_Series_HW_Arm_Select_Mask = 0x1f << Gi_HW_Arm_Select_Shift,
-	/* must be set for clocks over 40MHz, which includes synchronous
-	 * counting and quadrature modes */
-	Gi_660x_Alternate_Sync_Bit = 0x2000,
-	Gi_M_Series_Alternate_Sync_Bit = 0x4000,
-	/* from m-series example code, not documented in 660x register level
-	 * manual */
-	Gi_660x_Prescale_X2_Bit = 0x4000,
-	Gi_M_Series_Prescale_X2_Bit = 0x8000,
 };
 
 #define Gi_Source_Select_Shift 2
