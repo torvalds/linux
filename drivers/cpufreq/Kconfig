@@ -186,6 +186,8 @@ config CPU_FREQ_GOV_CONSERVATIVE
 config GENERIC_CPUFREQ_CPU0
 	tristate "Generic CPU0 cpufreq driver"
 	depends on HAVE_CLK && OF
+	# if CPU_THERMAL is on and THERMAL=m, CPU0 cannot be =y:
+	depends on !CPU_THERMAL || THERMAL
 	select PM_OPP
 	help
 	  This adds a generic cpufreq driver for CPU0 frequency management.

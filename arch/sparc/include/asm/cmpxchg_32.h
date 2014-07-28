@@ -20,7 +20,7 @@ static inline unsigned long xchg_u32(__volatile__ unsigned long *m, unsigned lon
 	return val;
 }
 
-extern void __xchg_called_with_bad_pointer(void);
+void __xchg_called_with_bad_pointer(void);
 
 static inline unsigned long __xchg(unsigned long x, __volatile__ void * ptr, int size)
 {
@@ -45,9 +45,9 @@ static inline unsigned long __xchg(unsigned long x, __volatile__ void * ptr, int
 #define __HAVE_ARCH_CMPXCHG	1
 
 /* bug catcher for when unsupported size is used - won't link */
-extern void __cmpxchg_called_with_bad_pointer(void);
+void __cmpxchg_called_with_bad_pointer(void);
 /* we only need to support cmpxchg of a u32 on sparc */
-extern unsigned long __cmpxchg_u32(volatile u32 *m, u32 old, u32 new_);
+unsigned long __cmpxchg_u32(volatile u32 *m, u32 old, u32 new_);
 
 /* don't worry...optimizer will get rid of most of this */
 static inline unsigned long

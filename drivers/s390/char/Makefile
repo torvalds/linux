@@ -19,7 +19,6 @@ obj-$(CONFIG_SCLP_VT220_TTY) += sclp_vt220.o
 obj-$(CONFIG_SCLP_CPI) += sclp_cpi.o
 obj-$(CONFIG_SCLP_ASYNC) += sclp_async.o
 
-obj-$(CONFIG_ZVM_WATCHDOG) += vmwatchdog.o
 obj-$(CONFIG_VMLOGRDR) += vmlogrdr.o
 obj-$(CONFIG_VMCP) += vmcp.o
 

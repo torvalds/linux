@@ -25,9 +25,6 @@ struct phy_device *of_phy_attach(struct net_device *dev,
 
 extern struct mii_bus *of_mdio_find_bus(struct device_node *mdio_np);
 
-extern void of_mdiobus_link_phydev(struct mii_bus *mdio,
-				   struct phy_device *phydev);
-
 #else /* CONFIG_OF */
 static inline int of_mdiobus_register(struct mii_bus *mdio, struct device_node *np)
 {
@@ -62,11 +59,6 @@ static inline struct phy_device *of_phy_attach(struct net_device *dev,
 static inline struct mii_bus *of_mdio_find_bus(struct device_node *mdio_np)
 {
 	return NULL;
-}
-
-static inline void of_mdiobus_link_phydev(struct mii_bus *mdio,
-					  struct phy_device *phydev)
-{
 }
 #endif /* CONFIG_OF */
 

@@ -1033,7 +1033,7 @@ uint32_t nvd0_pwr_code[] = {
 	0xb6026b21,
 	0x1ec40110,
 	0xb007f10f,
-	0x0001d004,
+	0x000ed004,
 	0x0ef404bd,
 /* 0x0365: host_send_done */
 /* 0x0367: host_recv */

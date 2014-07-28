@@ -422,44 +422,6 @@ void blk_insert_flush(struct request *rq)
 }
 
 /**
- * blk_abort_flushes - @q is being aborted, abort flush requests
- * @q: request_queue being aborted
- *
- * To be called from elv_abort_queue().  @q is being aborted.  Prepare all
- * FLUSH/FUA requests for abortion.
- *
- * CONTEXT:
- * spin_lock_irq(q->queue_lock)
- */
-void blk_abort_flushes(struct request_queue *q)
-{
-	struct request *rq, *n;
-	int i;
-
-	/*
-	 * Requests in flight for data are already owned by the dispatch
-	 * queue or the device driver.  Just restore for normal completion.
-	 */
-	list_for_each_entry_safe(rq, n, &q->flush_data_in_flight, flush.list) {
-		list_del_init(&rq->flush.list);
-		blk_flush_restore_request(rq);
-	}
-
-	/*
-	 * We need to give away requests on flush queues.  Restore for
-	 * normal completion and put them on the dispatch queue.
-	 */
-	for (i = 0; i < ARRAY_SIZE(q->flush_queue); i++) {
-		list_for_each_entry_safe(rq, n, &q->flush_queue[i],
-					 flush.list) {
-			list_del_init(&rq->flush.list);
-			blk_flush_restore_request(rq);
-			list_add_tail(&rq->queuelist, &q->queue_head);
-		}
-	}
-}
-
-/**
  * blkdev_issue_flush - queue a flush
  * @bdev:	blockdev to issue flush for
  * @gfp_mask:	memory allocation flags (for bio_alloc)

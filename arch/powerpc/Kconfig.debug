@@ -303,7 +303,6 @@ config PPC_EARLY_DEBUG_OPAL_VTERMNO
 	  This correspond to which /dev/hvcN you want to use for early
 	  debug.
 
-	  On OPAL v1 (takeover) this should always be 0
 	  On OPAL v2, this will be 0 for network console and 1 or 2 for
 	  the machine built-in serial ports.
 

@@ -35,9 +35,10 @@
 #include <asm/switch_to.h>
 #include <asm/cacheflush.h>
 
-#include "entry.h"
-#include "systbls.h"
 #include "sigutil.h"
+#include "systbls.h"
+#include "kernel.h"
+#include "entry.h"
 
 /* {set, get}context() needed for 64-bit SparcLinux userland. */
 asmlinkage void sparc64_set_context(struct pt_regs *regs)
@@ -492,7 +493,6 @@ static void do_signal(struct pt_regs *regs, unsigned long orig_i0)
 
 #ifdef CONFIG_COMPAT
 	if (test_thread_flag(TIF_32BIT)) {
-		extern void do_signal32(struct pt_regs *);
 		do_signal32(regs);
 		return;
 	}

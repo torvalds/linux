@@ -4,7 +4,7 @@ Kernel driver nouveau
 Supported chips:
 * NV43+
 
-Authors: Martin Peres (mupuf) <martin.peres@labri.fr>
+Authors: Martin Peres (mupuf) <martin.peres@free.fr>
 
 Description
 ---------
@@ -68,8 +68,9 @@ Your fan can be driven in different modes:
 
 NOTE: Be sure to use the manual mode if you want to drive the fan speed manually
 
-NOTE2: Not all fan management modes may be supported on all chipsets. We are
-working on it.
+NOTE2: When operating in manual mode outside the vbios-defined
+[PWM_min, PWM_max] range, the reported fan speed (RPM) may not be accurate
+depending on your hardware.
 
 Bug reports
 ---------

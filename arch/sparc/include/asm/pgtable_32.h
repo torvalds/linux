@@ -25,8 +25,9 @@
 struct vm_area_struct;
 struct page;
 
-extern void load_mmu(void);
-extern unsigned long calc_highpages(void);
+void load_mmu(void);
+unsigned long calc_highpages(void);
+unsigned long __init bootmem_init(unsigned long *pages_avail);
 
 #define pte_ERROR(e)   __builtin_trap()
 #define pmd_ERROR(e)   __builtin_trap()
@@ -56,7 +57,7 @@ extern unsigned long calc_highpages(void);
  * srmmu.c will assign the real one (which is dynamically sized) */
 #define swapper_pg_dir NULL
 
-extern void paging_init(void);
+void paging_init(void);
 
 extern unsigned long ptr_in_current_pgd;
 
@@ -428,8 +429,8 @@ extern unsigned long *sparc_valid_addr_bitmap;
 #define GET_IOSPACE(pfn)		(pfn >> (BITS_PER_LONG - 4))
 #define GET_PFN(pfn)			(pfn & 0x0fffffffUL)
 
-extern int remap_pfn_range(struct vm_area_struct *, unsigned long, unsigned long,
-			   unsigned long, pgprot_t);
+int remap_pfn_range(struct vm_area_struct *, unsigned long, unsigned long,
+		    unsigned long, pgprot_t);
 
 static inline int io_remap_pfn_range(struct vm_area_struct *vma,
 				     unsigned long from, unsigned long pfn,

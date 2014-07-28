@@ -1,4 +1,4 @@
-config ARCH_MOXART
+menuconfig ARCH_MOXART
 	bool "MOXA ART SoC" if ARCH_MULTI_V4
 	select CPU_FA526
 	select ARM_DMA_MEM_BUFFERABLE

@@ -741,6 +741,8 @@ static void fimd_apply(struct exynos_drm_manager *mgr)
 		win_data = &ctx->win_data[i];
 		if (win_data->enabled)
 			fimd_win_commit(mgr, i);
+		else
+			fimd_win_disable(mgr, i);
 	}
 
 	fimd_commit(mgr);

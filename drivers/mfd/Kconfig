@@ -760,6 +760,7 @@ config MFD_SYSCON
 config MFD_DAVINCI_VOICECODEC
 	tristate
 	select MFD_CORE
+	select REGMAP_MMIO
 
 config MFD_TI_AM335X_TSCADC
 	tristate "TI ADC / Touch Screen chip support"
@@ -1225,7 +1226,7 @@ config MFD_WM8994
 	  functionaltiy of the device other drivers must be enabled.
 
 config MFD_STW481X
-	bool "Support for ST Microelectronics STw481x"
+	tristate "Support for ST Microelectronics STw481x"
 	depends on I2C && ARCH_NOMADIK
 	select REGMAP_I2C
 	select MFD_CORE
@@ -1248,7 +1249,7 @@ config MCP_SA11X0
 
 # Chip drivers
 config MCP_UCB1200
-	bool "Support for UCB1200 / UCB1300"
+	tristate "Support for UCB1200 / UCB1300"
 	depends on MCP_SA11X0
 	select MCP
 

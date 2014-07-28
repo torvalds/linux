@@ -116,6 +116,8 @@
 #       define EVERGREEN_GRPH_ARRAY_LINEAR_ALIGNED      1
 #       define EVERGREEN_GRPH_ARRAY_1D_TILED_THIN1      2
 #       define EVERGREEN_GRPH_ARRAY_2D_TILED_THIN1      4
+#define EVERGREEN_GRPH_LUT_10BIT_BYPASS_CONTROL         0x6808
+#       define EVERGREEN_LUT_10BIT_BYPASS_EN            (1 << 8)
 #define EVERGREEN_GRPH_SWAP_CONTROL                     0x680c
 #       define EVERGREEN_GRPH_ENDIAN_SWAP(x)            (((x) & 0x3) << 0)
 #       define EVERGREEN_GRPH_ENDIAN_NONE               0
@@ -237,7 +239,6 @@
 #       define EVERGREEN_CRTC_V_BLANK                   (1 << 0)
 #define EVERGREEN_CRTC_STATUS_POSITION                  0x6e90
 #define EVERGREEN_CRTC_STATUS_HV_COUNT                  0x6ea0
-#define EVERGREEN_MASTER_UPDATE_MODE                    0x6ef8
 #define EVERGREEN_CRTC_UPDATE_LOCK                      0x6ed4
 #define EVERGREEN_MASTER_UPDATE_LOCK                    0x6ef4
 #define EVERGREEN_MASTER_UPDATE_MODE                    0x6ef8

@@ -465,7 +465,7 @@ static int ad7291_probe(struct i2c_client *client,
 	struct ad7291_platform_data *pdata = client->dev.platform_data;
 	struct ad7291_chip_info *chip;
 	struct iio_dev *indio_dev;
-	int ret = 0;
+	int ret;
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*chip));
 	if (!indio_dev)
@@ -475,7 +475,7 @@ static int ad7291_probe(struct i2c_client *client,
 	if (pdata && pdata->use_external_ref) {
 		chip->reg = devm_regulator_get(&client->dev, "vref");
 		if (IS_ERR(chip->reg))
-			return ret;
+			return PTR_ERR(chip->reg);
 
 		ret = regulator_enable(chip->reg);
 		if (ret)

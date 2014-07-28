@@ -4057,22 +4057,19 @@ int cxgb4_unregister_uld(enum cxgb4_uld type)
 EXPORT_SYMBOL(cxgb4_unregister_uld);
 
 /* Check if netdev on which event is occured belongs to us or not. Return
- * suceess (1) if it belongs otherwise failure (0).
+ * success (true) if it belongs otherwise failure (false).
+ * Called with rcu_read_lock() held.
  */
-static int cxgb4_netdev(struct net_device *netdev)
+static bool cxgb4_netdev(const struct net_device *netdev)
 {
 	struct adapter *adap;
 	int i;
 
-	spin_lock(&adap_rcu_lock);
 	list_for_each_entry_rcu(adap, &adap_rcu_list, rcu_node)
 		for (i = 0; i < MAX_NPORTS; i++)
-			if (adap->port[i] == netdev) {
-				spin_unlock(&adap_rcu_lock);
-				return 1;
-			}
-	spin_unlock(&adap_rcu_lock);
-	return 0;
+			if (adap->port[i] == netdev)
+				return true;
+	return false;
 }
 
 static int clip_add(struct net_device *event_dev, struct inet6_ifaddr *ifa,
@@ -6396,6 +6393,7 @@ static void remove_one(struct pci_dev *pdev)
 			adapter->flags &= ~DEV_ENABLED;
 		}
 		pci_release_regions(pdev);
+		synchronize_rcu();
 		kfree(adapter);
 	} else
 		pci_release_regions(pdev);

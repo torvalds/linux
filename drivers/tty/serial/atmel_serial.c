@@ -1932,7 +1932,7 @@ static void atmel_set_termios(struct uart_port *port, struct ktermios *termios,
 	port->read_status_mask = ATMEL_US_OVRE;
 	if (termios->c_iflag & INPCK)
 		port->read_status_mask |= (ATMEL_US_FRAME | ATMEL_US_PARE);
-	if (termios->c_iflag & (BRKINT | PARMRK))
+	if (termios->c_iflag & (IGNBRK | BRKINT | PARMRK))
 		port->read_status_mask |= ATMEL_US_RXBRK;
 
 	if (atmel_use_pdc_rx(port))

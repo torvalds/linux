@@ -604,7 +604,7 @@ static void mxs_auart_settermios(struct uart_port *u,
 
 	if (termios->c_iflag & INPCK)
 		u->read_status_mask |= AUART_STAT_PERR;
-	if (termios->c_iflag & (BRKINT | PARMRK))
+	if (termios->c_iflag & (IGNBRK | BRKINT | PARMRK))
 		u->read_status_mask |= AUART_STAT_BERR;
 
 	/*

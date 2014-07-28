@@ -12,27 +12,7 @@
 #ifndef __OPAL_H
 #define __OPAL_H
 
-/****** Takeover interface ********/
-
-/* PAPR H-Call used to querty the HAL existence and/or instanciate
- * it from within pHyp (tech preview only).
- *
- * This is exclusively used in prom_init.c
- */
-
 #ifndef __ASSEMBLY__
-
-struct opal_takeover_args {
-	u64	k_image;		/* r4 */
-	u64	k_size;			/* r5 */
-	u64	k_entry;		/* r6 */
-	u64	k_entry2;		/* r7 */
-	u64	hal_addr;		/* r8 */
-	u64	rd_image;		/* r9 */
-	u64	rd_size;		/* r10 */
-	u64	rd_loc;			/* r11 */
-};
-
 /*
  * SG entry
  *
@@ -54,15 +34,6 @@ struct opal_sg_list {
 
 /* We calculate number of sg entries based on PAGE_SIZE */
 #define SG_ENTRIES_PER_NODE ((PAGE_SIZE - 16) / sizeof(struct opal_sg_entry))
-
-extern long opal_query_takeover(u64 *hal_size, u64 *hal_align);
-
-extern long opal_do_takeover(struct opal_takeover_args *args);
-
-struct rtas_args;
-extern int opal_enter_rtas(struct rtas_args *args,
-			   unsigned long data,
-			   unsigned long entry);
 
 #endif /* __ASSEMBLY__ */
 

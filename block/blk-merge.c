@@ -568,6 +568,8 @@ int blk_attempt_req_merge(struct request_queue *q, struct request *rq,
 
 bool blk_rq_merge_ok(struct request *rq, struct bio *bio)
 {
+	struct request_queue *q = rq->q;
+
 	if (!rq_mergeable(rq) || !bio_mergeable(bio))
 		return false;
 
@@ -590,6 +592,14 @@ bool blk_rq_merge_ok(struct request *rq, struct bio *bio)
 	if (rq->cmd_flags & REQ_WRITE_SAME &&
 	    !blk_write_same_mergeable(rq->bio, bio))
 		return false;
+
+	if (q->queue_flags & (1 << QUEUE_FLAG_SG_GAPS)) {
+		struct bio_vec *bprev;
+
+		bprev = &rq->biotail->bi_io_vec[bio->bi_vcnt - 1];
+		if (bvec_gap_to_prev(bprev, bio->bi_io_vec[0].bv_offset))
+			return false;
+	}
 
 	return true;
 }

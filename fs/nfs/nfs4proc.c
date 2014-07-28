@@ -3247,7 +3247,7 @@ static int nfs4_proc_lookup_common(struct rpc_clnt **clnt, struct inode *dir,
 			err = -EPERM;
 			if (client != *clnt)
 				goto out;
-			client = nfs4_create_sec_client(client, dir, name);
+			client = nfs4_negotiate_security(client, dir, name);
 			if (IS_ERR(client))
 				return PTR_ERR(client);
 

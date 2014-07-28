@@ -182,40 +182,6 @@ int of_mdiobus_register(struct mii_bus *mdio, struct device_node *np)
 }
 EXPORT_SYMBOL(of_mdiobus_register);
 
-/**
- * of_mdiobus_link_phydev - Find a device node for a phy
- * @mdio: pointer to mii_bus structure
- * @phydev: phydev for which the of_node pointer should be set
- *
- * Walk the list of subnodes of a mdio bus and look for a node that matches the
- * phy's address with its 'reg' property. If found, set the of_node pointer for
- * the phy. This allows auto-probed pyh devices to be supplied with information
- * passed in via DT.
- */
-void of_mdiobus_link_phydev(struct mii_bus *mdio,
-			    struct phy_device *phydev)
-{
-	struct device *dev = &phydev->dev;
-	struct device_node *child;
-
-	if (dev->of_node || !mdio->dev.of_node)
-		return;
-
-	for_each_available_child_of_node(mdio->dev.of_node, child) {
-		int addr;
-
-		addr = of_mdio_parse_addr(&mdio->dev, child);
-		if (addr < 0)
-			continue;
-
-		if (addr == phydev->addr) {
-			dev->of_node = child;
-			return;
-		}
-	}
-}
-EXPORT_SYMBOL(of_mdiobus_link_phydev);
-
 /* Helper function for of_phy_find_device */
 static int of_phy_match(struct device *dev, void *phy_np)
 {
@@ -323,11 +289,13 @@ int of_phy_register_fixed_link(struct device_node *np)
 	fixed_link_node = of_get_child_by_name(np, "fixed-link");
 	if (fixed_link_node) {
 		status.link = 1;
-		status.duplex = of_property_read_bool(np, "full-duplex");
+		status.duplex = of_property_read_bool(fixed_link_node,
+						      "full-duplex");
 		if (of_property_read_u32(fixed_link_node, "speed", &status.speed))
 			return -EINVAL;
-		status.pause = of_property_read_bool(np, "pause");
-		status.asym_pause = of_property_read_bool(np, "asym-pause");
+		status.pause = of_property_read_bool(fixed_link_node, "pause");
+		status.asym_pause = of_property_read_bool(fixed_link_node,
+							  "asym-pause");
 		of_node_put(fixed_link_node);
 		return fixed_phy_register(PHY_POLL, &status, np);
 	}
