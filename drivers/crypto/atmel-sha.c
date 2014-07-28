@@ -1353,7 +1353,6 @@ static struct crypto_platform_data *atmel_sha_of_init(struct platform_device *pd
 					GFP_KERNEL);
 	if (!pdata->dma_slave) {
 		dev_err(&pdev->dev, "could not allocate memory for dma_slave\n");
-		devm_kfree(&pdev->dev, pdata);
 		return ERR_PTR(-ENOMEM);
 	}
 
@@ -1375,7 +1374,8 @@ static int atmel_sha_probe(struct platform_device *pdev)
 	unsigned long sha_phys_size;
 	int err;
 
-	sha_dd = kzalloc(sizeof(struct atmel_sha_dev), GFP_KERNEL);
+	sha_dd = devm_kzalloc(&pdev->dev, sizeof(struct atmel_sha_dev),
+				GFP_KERNEL);
 	if (sha_dd == NULL) {
 		dev_err(dev, "unable to alloc data struct.\n");
 		err = -ENOMEM;
@@ -1490,8 +1490,6 @@ clk_err:
 	free_irq(sha_dd->irq, sha_dd);
 res_err:
 	tasklet_kill(&sha_dd->done_task);
-	kfree(sha_dd);
-	sha_dd = NULL;
 sha_dd_err:
 	dev_err(dev, "initialization failed.\n");
 
@@ -1522,9 +1520,6 @@ static int atmel_sha_remove(struct platform_device *pdev)
 
 	if (sha_dd->irq >= 0)
 		free_irq(sha_dd->irq, sha_dd);
-
-	kfree(sha_dd);
-	sha_dd = NULL;
 
 	return 0;
 }
