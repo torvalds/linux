@@ -2792,8 +2792,6 @@ again:
 			if (!should_cow_block(trans, root, b))
 				goto cow_done;
 
-			btrfs_set_path_blocking(p);
-
 			/*
 			 * must have write locks on this node and the
 			 * parent
@@ -2807,6 +2805,7 @@ again:
 				goto again;
 			}
 
+			btrfs_set_path_blocking(p);
 			err = btrfs_cow_block(trans, root, b,
 					      p->nodes[level + 1],
 					      p->slots[level + 1], &b);
