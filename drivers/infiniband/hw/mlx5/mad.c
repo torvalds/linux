@@ -54,7 +54,7 @@ int mlx5_MAD_IFC(struct mlx5_ib_dev *dev, int ignore_mkey, int ignore_bkey,
 	if (ignore_bkey || !in_wc)
 		op_modifier |= 0x2;
 
-	return mlx5_core_mad_ifc(&dev->mdev, in_mad, response_mad, op_modifier, port);
+	return mlx5_core_mad_ifc(dev->mdev, in_mad, response_mad, op_modifier, port);
 }
 
 int mlx5_ib_process_mad(struct ib_device *ibdev, int mad_flags, u8 port_num,
@@ -129,7 +129,7 @@ int mlx5_query_ext_port_caps(struct mlx5_ib_dev *dev, u8 port)
 
 	packet_error = be16_to_cpu(out_mad->status);
 
-	dev->mdev.caps.ext_port_cap[port - 1] = (!err && !packet_error) ?
+	dev->mdev->caps.ext_port_cap[port - 1] = (!err && !packet_error) ?
 		MLX_EXT_PORT_CAP_FLAG_EXTENDED_PORT_INFO : 0;
 
 out:

@@ -543,6 +543,10 @@ struct mlx5_priv {
 	/* protect mkey key part */
 	spinlock_t		mkey_lock;
 	u8			mkey_key;
+
+	struct list_head        dev_list;
+	struct list_head        ctx_list;
+	spinlock_t              ctx_lock;
 };
 
 struct mlx5_core_dev {
@@ -686,8 +690,6 @@ static inline u32 mlx5_base_mkey(const u32 key)
 	return key & 0xffffff00u;
 }
 
-int mlx5_dev_init(struct mlx5_core_dev *dev, struct pci_dev *pdev);
-void mlx5_dev_cleanup(struct mlx5_core_dev *dev);
 int mlx5_cmd_init(struct mlx5_core_dev *dev);
 void mlx5_cmd_cleanup(struct mlx5_core_dev *dev);
 void mlx5_cmd_use_events(struct mlx5_core_dev *dev);
@@ -810,6 +812,17 @@ enum {
 enum {
 	MAX_MR_CACHE_ENTRIES    = 16,
 };
+
+struct mlx5_interface {
+	void *			(*add)(struct mlx5_core_dev *dev);
+	void			(*remove)(struct mlx5_core_dev *dev, void *context);
+	void			(*event)(struct mlx5_core_dev *dev, void *context,
+					 enum mlx5_dev_event event, void *data);
+	struct list_head	list;
+};
+
+int mlx5_register_interface(struct mlx5_interface *intf);
+void mlx5_unregister_interface(struct mlx5_interface *intf);
 
 struct mlx5_profile {
 	u64	mask;

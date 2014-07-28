@@ -360,7 +360,7 @@ struct mlx5_ib_resources {
 
 struct mlx5_ib_dev {
 	struct ib_device		ib_dev;
-	struct mlx5_core_dev		mdev;
+	struct mlx5_core_dev		*mdev;
 	MLX5_DECLARE_DOORBELL_LOCK(uar_lock);
 	struct list_head		eqs_list;
 	int				num_ports;
@@ -452,16 +452,6 @@ struct mlx5_ib_ah {
 static inline struct mlx5_ib_ah *to_mah(struct ib_ah *ibah)
 {
 	return container_of(ibah, struct mlx5_ib_ah, ibah);
-}
-
-static inline struct mlx5_ib_dev *mlx5_core2ibdev(struct mlx5_core_dev *dev)
-{
-	return container_of(dev, struct mlx5_ib_dev, mdev);
-}
-
-static inline struct mlx5_ib_dev *mlx5_pci2ibdev(struct pci_dev *pdev)
-{
-	return mlx5_core2ibdev(pci2mlx5_core_dev(pdev));
 }
 
 int mlx5_ib_db_map_user(struct mlx5_ib_ucontext *context, unsigned long virt,
