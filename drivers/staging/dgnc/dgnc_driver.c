@@ -388,10 +388,6 @@ void dgnc_cleanup_module(void)
 
 	dgnc_tty_post_uninit();
 
-#if defined(DGNC_TRACER)
-	/* last thing, make sure we release the tracebuffer */
-	dgnc_tracer_free();
-#endif
 	if (dgnc_NumBoards)
 		pci_unregister_driver(&dgnc_driver);
 }

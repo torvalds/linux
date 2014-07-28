@@ -42,14 +42,6 @@
 /* file level globals */
 static char *dgnc_trcbuf;		/* the ringbuffer */
 
-#if defined(TRC_TO_KMEM)
-static int dgnc_trcbufi = 0;		/* index of the tilde at the end of */
-#endif
-
-#if defined(TRC_TO_KMEM)
-static DEFINE_SPINLOCK(dgnc_tracef_lock);
-#endif
-
 /*
  * dgnc_tracer_free()
  *
