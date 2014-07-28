@@ -1908,7 +1908,7 @@ static const char *thermal_controller_names[] = {
 	"adm1032",
 	"adm1030",
 	"max6649",
-	"lm64",
+	"lm63", /* lm64 */
 	"f75375",
 	"asc7xxx",
 };
@@ -1919,7 +1919,7 @@ static const char *pp_lib_thermal_controller_names[] = {
 	"adm1032",
 	"adm1030",
 	"max6649",
-	"lm64",
+	"lm63", /* lm64 */
 	"f75375",
 	"RV6xx",
 	"RV770",
