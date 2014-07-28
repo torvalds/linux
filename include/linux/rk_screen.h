@@ -80,7 +80,7 @@ struct rk_screen {
 	u8  ft;
 	int *dsp_lut; 
 
-#if defined(CONFIG_MFD_RK616)
+#if defined(CONFIG_MFD_RK616) || defined(CONFIG_LCDC_RK312X)
 	u32 pll_cfg_val;  //bellow are for jettaB
 	u32 frac;
 	u16 scl_vst;

@@ -510,7 +510,199 @@ static void rk312x_lcdc_deinit(struct lcdc_device *lcdc_dev)
 
 }
 
-static int rk31xx_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
+static u32 calc_sclk(struct rk_screen *src_screen, struct rk_screen *dst_screen)
+{
+        u32 dsp_vtotal;
+        u64 dsp_htotal;
+        u32 dsp_in_vtotal;
+        u64 dsp_in_htotal;
+        u32 sclk;
+
+        if (!src_screen || !dst_screen)
+                return 0;
+
+        dsp_vtotal = dst_screen->mode.yres;
+        dsp_htotal = dst_screen->mode.left_margin + dst_screen->mode.hsync_len +
+                     dst_screen->mode.xres + dst_screen->mode.right_margin;
+        dsp_in_vtotal = src_screen->mode.yres;
+        dsp_in_htotal = src_screen->mode.left_margin +
+                        src_screen->mode.hsync_len +
+                        src_screen->mode.xres + src_screen->mode.right_margin;
+        sclk = (dsp_vtotal * dsp_htotal * src_screen->mode.pixclock) /
+               (dsp_in_vtotal * dsp_in_htotal);
+
+        return sclk;
+}
+
+static int calc_dsp_frm_vst_hst(struct rk_screen *src, struct rk_screen *dst)
+{
+        u32 BP_in, BP_out;
+        u32 v_scale_ratio;
+#if defined(FLOAT_CALC) /* use float */
+        double T_frm_st;
+        double T_BP_in, T_BP_out, T_Delta, Tin;
+#else
+        long long  T_frm_st;
+        __u64 T_BP_in, T_BP_out, T_Delta, Tin;
+        __u64 rate = (1 << 16);
+#endif
+        u32 dsp_htotal, src_htotal, src_vtotal;
+
+        dsp_htotal = dst->mode.left_margin + dst->mode.hsync_len +
+                     dst->mode.xres + dst->mode.right_margin;
+        src_htotal = src->mode.left_margin + src->mode.hsync_len +
+                     src->mode.xres + src->mode.right_margin;
+        src_vtotal = src->mode.upper_margin + src->mode.vsync_len +
+                     src->mode.yres + src->mode.lower_margin;
+        BP_in  = (src->mode.upper_margin + src->mode.vsync_len) * src_htotal;
+        BP_out = (dst->mode.upper_margin + dst->mode.vsync_len) * dsp_htotal;
+
+        v_scale_ratio = dst->mode.yres / src->mode.yres;
+
+#if defined(FLOAT_CALC)
+        T_BP_in = 1.0 * BP_in / src->mode.pixclock;
+        T_BP_out = 1.0 * BP_out / dst->mode.pixclock;
+        if (v_scale_ratio < 2)
+                T_Delta = 4.0 * src_htotal / src->mode.pixclock;
+        else
+                T_Delta = 12.0 * src_htotal / src->mode.pixclock;
+
+        Tin = 1.0 * src_vtotal * src_htotal / src->mode.pixclock;
+#else
+        T_BP_in = rate * BP_in / src->mode.pixclock;
+        T_BP_out = rate * BP_out / dst->mode.pixclock;
+        if (v_scale_ratio < 2)
+                T_Delta = rate * 4 * src_htotal / src->mode.pixclock;
+        else
+                T_Delta = rate * 12 * src_htotal / src->mode.pixclock;
+
+        Tin = rate * src_vtotal * src_htotal / src->mode.pixclock;
+#endif
+
+        T_frm_st = (T_BP_in + T_Delta - T_BP_out);
+        if (T_frm_st < 0)
+                T_frm_st  += Tin;
+
+#if defined(FLOAT_CALC)
+        dst->scl_vst = (u16)(T_frm_st * src->mode.pixclock / src_htotal);
+        dst->scl_hst = (u16)((T_frm_st * src->mode.pixclock) % src_htotal);
+#else
+        dst->scl_vst = (u16)((T_frm_st * src->mode.pixclock) / (src_htotal * rate));
+        dst->scl_hst = (u16)((T_frm_st * src->mode.pixclock / rate) % src_htotal);
+#endif
+        return 0;
+}
+
+static int rk312x_lcdc_set_scaler(struct rk_lcdc_driver *dev_drv,
+                                  struct rk_screen *dst_screen, bool enable)
+{
+        u32 dsp_htotal, dsp_hs_end, dsp_hact_st, dsp_hact_end;
+	u32 dsp_vtotal, dsp_vs_end, dsp_vact_st, dsp_vact_end;
+        u32 dsp_hbor_end, dsp_hbor_st, dsp_vbor_end, dsp_vbor_st;
+	u32 scl_v_factor, scl_h_factor;
+	u32 dst_frame_hst, dst_frame_vst;
+	u32 src_w, src_h, dst_w, dst_h;
+	u16 bor_right = 0;
+	u16 bor_left = 0;
+	u16 bor_up = 0;
+	u16 bor_down = 0;
+	struct rk_screen *src;
+	struct rk_screen *dst;
+        struct lcdc_device *lcdc_dev = container_of(dev_drv,
+						    struct lcdc_device, driver);
+
+        if (unlikely(!lcdc_dev->clk_on))
+                return 0;
+
+	if(!enable) {
+                dev_info(lcdc_dev->dev, "%s: disable\n", __func__);
+		return 0;
+	}
+
+        /* rk312x used one lcdc to apply dual disp
+         * hdmi screen is used for scaler src
+         * prmry screen is used for scaler dst
+         */
+	dst = dst_screen;
+	if (!dst) {
+		dev_err(lcdc_dev->dev, "%s: dst screen is null!\n", __func__);
+		return -EINVAL;
+	}
+
+	src = dst_screen->ext_screen;
+
+	lcdc_dev->s_pixclock = calc_sclk(src, dst);
+	clk_set_rate(lcdc_dev->sclk, lcdc_dev->s_pixclock);
+
+        /* config scale timing */
+        calc_dsp_frm_vst_hst(src, dst);
+	dst_frame_vst = dst->scl_vst;
+	dst_frame_hst = dst->scl_hst;
+
+	dsp_htotal    = dst->mode.hsync_len + dst->mode.left_margin +
+                        dst->mode.xres + dst->mode.right_margin;
+	dsp_hs_end    = dst->mode.hsync_len;
+
+	dsp_vtotal    = dst->mode.vsync_len + dst->mode.upper_margin +
+                        dst->mode.yres + dst->mode.lower_margin;
+	dsp_vs_end    = dst->mode.vsync_len;
+
+	dsp_hbor_end  = dst->mode.hsync_len + dst->mode.left_margin +
+                        dst->mode.xres;
+	dsp_hbor_st   = dst->mode.hsync_len + dst->mode.left_margin;
+	dsp_vbor_end  = dst->mode.vsync_len + dst->mode.upper_margin +
+                        dst->mode.yres;
+	dsp_vbor_st   = dst->mode.vsync_len + dst->mode.upper_margin;
+
+	dsp_hact_st   = dsp_hbor_st  + bor_left;
+	dsp_hact_end  = dsp_hbor_end - bor_right;
+	dsp_vact_st   = dsp_vbor_st  + bor_up;
+	dsp_vact_end  = dsp_vbor_end - bor_down;
+
+	src_w = src->mode.xres;
+	src_h = src->mode.yres;
+	dst_w = dsp_hact_end - dsp_hact_st;
+	dst_h = dsp_vact_end - dsp_vact_st;
+
+        /* calc scale factor */
+        scl_h_factor = ((src_w - 1) << 12) / (dst_w - 1);
+        scl_v_factor = ((src_h - 1) << 12) / (dst_h - 1);
+
+        spin_lock(&lcdc_dev->reg_lock);
+	lcdc_writel(lcdc_dev, SCALER_FACTOR,
+                    v_SCALER_H_FACTOR(scl_h_factor) |
+                    v_SCALER_V_FACTOR(scl_v_factor));
+
+        lcdc_writel(lcdc_dev, SCALER_FRAME_ST,
+                    v_SCALER_FRAME_HST(dst_frame_hst) |
+                    v_SCALER_FRAME_VST(dst_frame_hst));
+	lcdc_writel(lcdc_dev, SCALER_DSP_HOR_TIMING,
+                    v_SCALER_HS_END(dsp_hs_end) |
+                    v_SCALER_HTOTAL(dsp_htotal));
+	lcdc_writel(lcdc_dev, SCALER_DSP_HACT_ST_END,
+                    v_SCALER_HAEP(dsp_hact_end) |
+                    v_SCALER_HASP(dsp_hact_st));
+	lcdc_writel(lcdc_dev, SCALER_DSP_VER_TIMING,
+                    v_SCALER_VS_END(dsp_vs_end) |
+                    v_SCALER_VTOTAL(dsp_vtotal));
+	lcdc_writel(lcdc_dev, SCALER_DSP_VACT_ST_END,
+                    v_SCALER_VAEP(dsp_vact_end) |
+                    v_SCALER_VASP(dsp_vact_st));
+	lcdc_writel(lcdc_dev, SCALER_DSP_HBOR_TIMING,
+                    v_SCALER_HBOR_END(dsp_hbor_end) |
+                    v_SCALER_HBOR_ST(dsp_hbor_st));
+	lcdc_writel(lcdc_dev, SCALER_DSP_VBOR_TIMING,
+                    v_SCALER_VBOR_END(dsp_vbor_end) |
+                    v_SCALER_VBOR_ST(dsp_vbor_st));
+	lcdc_writel(lcdc_dev, SCALER_CTRL,
+                    m_SCALER_EN | m_SCALER_OUT_ZERO | m_SCALER_OUT_EN,
+                    v_SCALER_EN(1) | v_SCALER_OUT_ZERO(0) | v_SCALER_OUT_EN(1));
+        spin_unlock(&lcdc_dev->reg_lock);
+
+	return 0;
+}
+
+static int rk312x_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 {
 	u16 face = 0;
 	struct lcdc_device *lcdc_dev = container_of(dev_drv,
@@ -1289,7 +1481,7 @@ static int rk312x_lcdc_open_bcsh(struct rk_lcdc_driver *dev_drv, bool open)
 	return 0;
 }
 
-static int rk31xx_fb_win_remap(struct rk_lcdc_driver *dev_drv,
+static int rk312x_fb_win_remap(struct rk_lcdc_driver *dev_drv,
 			       enum fb_win_map_order order)
 {
 	mutex_lock(&dev_drv->fb_win_id_mutex);
@@ -1588,7 +1780,7 @@ static int rk312x_lcdc_dpi_status(struct rk_lcdc_driver *dev_drv)
 
 static struct rk_lcdc_drv_ops lcdc_drv_ops = {
 	.open = rk312x_lcdc_open,
-	.load_screen = rk31xx_load_screen,
+	.load_screen = rk312x_load_screen,
 	.set_par = rk312x_lcdc_set_par,
 	.pan_display = rk312x_lcdc_pan_display,
 	.blank = rk312x_lcdc_blank,
@@ -1598,7 +1790,7 @@ static struct rk_lcdc_drv_ops lcdc_drv_ops = {
 	.get_disp_info = rk312x_lcdc_get_disp_info,
 	.fps_mgr = rk312x_lcdc_fps_mgr,
 	.fb_get_win_id = rk312x_lcdc_get_win_id,
-	.fb_win_remap = rk31xx_fb_win_remap,
+	.fb_win_remap = rk312x_fb_win_remap,
 	.poll_vblank = rk312x_lcdc_poll_vblank,
 	.get_dsp_addr = rk312x_lcdc_get_dsp_addr,
 	.cfg_done = rk312x_lcdc_cfg_done,
@@ -1611,6 +1803,7 @@ static struct rk_lcdc_drv_ops lcdc_drv_ops = {
 	.get_dsp_bcsh_hue = rk312x_lcdc_get_bcsh_hue,
 	.get_dsp_bcsh_bcs = rk312x_lcdc_get_bcsh_bcs,
 	.open_bcsh = rk312x_lcdc_open_bcsh,
+	.set_screen_scaler = rk312x_lcdc_set_scaler;
 };
 
 static const struct rk_lcdc_drvdata rk3036_lcdc_drvdata = {
