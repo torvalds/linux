@@ -1704,9 +1704,6 @@ static int  device_open(struct net_device *dev)
 	vMgrTimerInit(pDevice);
 
 //PLICE_DEBUG->
-#ifdef	TASK_LET
-	tasklet_init(&pDevice->RxMngWorkItem, (void *)MngWorkItem, (unsigned long)pDevice);
-#endif
 #ifdef	THREAD
 	InitRxManagementQueue(pDevice);
 	mlme_kill = 0;
@@ -1789,9 +1786,6 @@ static int  device_close(struct net_device *dev)
 		del_timer(&pDevice->TimerSQ3Tmax3);
 	}
 
-#ifdef	TASK_LET
-	tasklet_kill(&pDevice->RxMngWorkItem);
-#endif
 	netif_stop_queue(dev);
 	pDevice->bCmdRunning = false;
 	MACbShutdown(pDevice->PortOffset);

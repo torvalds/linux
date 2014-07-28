@@ -39,6 +39,4 @@ device_receive_frame(
 	PSRxDesc pCurrRD
 );
 
-void	MngWorkItem(void *Context);
-
 #endif // __RXTX_H__

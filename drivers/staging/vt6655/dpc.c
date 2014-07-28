@@ -268,23 +268,6 @@ s_vGetDASA(unsigned char *pbyRxBufferAddr, unsigned int *pcbHeaderSize,
 	*pcbHeaderSize = cbHeaderSize;
 }
 
-//PLICE_DEBUG ->
-
-void	MngWorkItem(void *Context)
-{
-	PSRxMgmtPacket			pRxMgmtPacket;
-	PSDevice	pDevice =  (PSDevice) Context;
-
-	spin_lock_irq(&pDevice->lock);
-	while (pDevice->rxManeQueue.packet_num != 0) {
-		pRxMgmtPacket =  DeQueue(pDevice);
-		vMgrRxManagePacket(pDevice, pDevice->pMgmt, pRxMgmtPacket);
-	}
-	spin_unlock_irq(&pDevice->lock);
-}
-
-//PLICE_DEBUG<-
-
 bool
 device_receive_frame(
 	PSDevice pDevice,
@@ -551,14 +534,7 @@ device_receive_frame(
 #ifdef	THREAD
 			EnQueue(pDevice, pRxPacket);
 #else
-
-#ifdef	TASK_LET
-			EnQueue(pDevice, pRxPacket);
-			tasklet_schedule(&pDevice->RxMngWorkItem);
-#else
 			vMgrRxManagePacket((void *)pDevice, pDevice->pMgmt, pRxPacket);
-#endif
-
 #endif
 //PLICE_DEBUG<-
 			// hostap Deamon handle 802.11 management

@@ -425,7 +425,6 @@ typedef struct __device_info {
 
 	spinlock_t                  lock;
 //PLICE_DEBUG->
-	struct	tasklet_struct	RxMngWorkItem;
 	RxManagementQueue	rxManeQueue;
 //PLICE_DEBUG<-
 //PLICE_DEBUG ->
