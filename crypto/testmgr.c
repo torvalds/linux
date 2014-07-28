@@ -492,121 +492,116 @@ static int __test_aead(struct crypto_aead *tfm, int enc,
 				  tcrypt_complete, &result);
 
 	for (i = 0, j = 0; i < tcount; i++) {
-		if (!template[i].np) {
-			j++;
+		if (template[i].np)
+			continue;
 
-			/* some templates have no input data but they will
-			 * touch input
-			 */
-			input = xbuf[0];
-			input += align_offset;
-			assoc = axbuf[0];
+		j++;
 
+		/* some templates have no input data but they will
+		 * touch input
+		 */
+		input = xbuf[0];
+		input += align_offset;
+		assoc = axbuf[0];
+
+		ret = -EINVAL;
+		if (WARN_ON(align_offset + template[i].ilen >
+			    PAGE_SIZE || template[i].alen > PAGE_SIZE))
+			goto out;
+
+		memcpy(input, template[i].input, template[i].ilen);
+		memcpy(assoc, template[i].assoc, template[i].alen);
+		if (template[i].iv)
+			memcpy(iv, template[i].iv, MAX_IVLEN);
+		else
+			memset(iv, 0, MAX_IVLEN);
+
+		crypto_aead_clear_flags(tfm, ~0);
+		if (template[i].wk)
+			crypto_aead_set_flags(tfm, CRYPTO_TFM_REQ_WEAK_KEY);
+
+		if (template[i].klen > MAX_KEYLEN) {
+			pr_err("alg: aead%s: setkey failed on test %d for %s: key size %d > %d\n",
+			       d, j, algo, template[i].klen,
+			       MAX_KEYLEN);
 			ret = -EINVAL;
-			if (WARN_ON(align_offset + template[i].ilen >
-				    PAGE_SIZE || template[i].alen > PAGE_SIZE))
-				goto out;
+			goto out;
+		}
+		memcpy(key, template[i].key, template[i].klen);
 
-			memcpy(input, template[i].input, template[i].ilen);
-			memcpy(assoc, template[i].assoc, template[i].alen);
-			if (template[i].iv)
-				memcpy(iv, template[i].iv, MAX_IVLEN);
-			else
-				memset(iv, 0, MAX_IVLEN);
+		ret = crypto_aead_setkey(tfm, key, template[i].klen);
+		if (!ret == template[i].fail) {
+			pr_err("alg: aead%s: setkey failed on test %d for %s: flags=%x\n",
+			       d, j, algo, crypto_aead_get_flags(tfm));
+			goto out;
+		} else if (ret)
+			continue;
 
-			crypto_aead_clear_flags(tfm, ~0);
-			if (template[i].wk)
-				crypto_aead_set_flags(
-					tfm, CRYPTO_TFM_REQ_WEAK_KEY);
+		authsize = abs(template[i].rlen - template[i].ilen);
+		ret = crypto_aead_setauthsize(tfm, authsize);
+		if (ret) {
+			pr_err("alg: aead%s: Failed to set authsize to %u on test %d for %s\n",
+			       d, authsize, j, algo);
+			goto out;
+		}
 
-			if (template[i].klen > MAX_KEYLEN) {
-				pr_err("alg: aead%s: setkey failed on test %d for %s: key size %d > %d\n",
-				       d, j, algo, template[i].klen,
-				       MAX_KEYLEN);
-				ret = -EINVAL;
+		if (diff_dst) {
+			output = xoutbuf[0];
+			output += align_offset;
+			sg_init_one(&sg[0], input, template[i].ilen);
+			sg_init_one(&sgout[0], output, template[i].rlen);
+		} else {
+			sg_init_one(&sg[0], input,
+				    template[i].ilen + (enc ? authsize : 0));
+			output = input;
+		}
+
+		sg_init_one(&asg[0], assoc, template[i].alen);
+
+		aead_request_set_crypt(req, sg, (diff_dst) ? sgout : sg,
+				       template[i].ilen, iv);
+
+		aead_request_set_assoc(req, asg, template[i].alen);
+
+		ret = enc ? crypto_aead_encrypt(req) : crypto_aead_decrypt(req);
+
+		switch (ret) {
+		case 0:
+			if (template[i].novrfy) {
+				/* verification was supposed to fail */
+				pr_err("alg: aead%s: %s failed on test %d for %s: ret was 0, expected -EBADMSG\n",
+				       d, e, j, algo);
+				/* so really, we got a bad message */
+				ret = -EBADMSG;
 				goto out;
 			}
-			memcpy(key, template[i].key, template[i].klen);
-
-			ret = crypto_aead_setkey(tfm, key,
-						 template[i].klen);
-			if (!ret == template[i].fail) {
-				pr_err("alg: aead%s: setkey failed on test %d for %s: flags=%x\n",
-				       d, j, algo, crypto_aead_get_flags(tfm));
-				goto out;
-			} else if (ret)
-				continue;
-
-			authsize = abs(template[i].rlen - template[i].ilen);
-			ret = crypto_aead_setauthsize(tfm, authsize);
-			if (ret) {
-				pr_err("alg: aead%s: Failed to set authsize to %u on test %d for %s\n",
-				       d, authsize, j, algo);
-				goto out;
-			}
-
-			if (diff_dst) {
-				output = xoutbuf[0];
-				output += align_offset;
-				sg_init_one(&sg[0], input, template[i].ilen);
-				sg_init_one(&sgout[0], output,
-					    template[i].rlen);
-			} else {
-				sg_init_one(&sg[0], input,
-					    template[i].ilen +
-						(enc ? authsize : 0));
-				output = input;
-			}
-
-			sg_init_one(&asg[0], assoc, template[i].alen);
-
-			aead_request_set_crypt(req, sg, (diff_dst) ? sgout : sg,
-					       template[i].ilen, iv);
-
-			aead_request_set_assoc(req, asg, template[i].alen);
-
-			ret = enc ?
-				crypto_aead_encrypt(req) :
-				crypto_aead_decrypt(req);
-
-			switch (ret) {
-			case 0:
-				if (template[i].novrfy) {
-					/* verification was supposed to fail */
-					pr_err("alg: aead%s: %s failed on test %d for %s: ret was 0, expected -EBADMSG\n",
-					       d, e, j, algo);
-					/* so really, we got a bad message */
-					ret = -EBADMSG;
-					goto out;
-				}
+			break;
+		case -EINPROGRESS:
+		case -EBUSY:
+			ret = wait_for_completion_interruptible(
+				&result.completion);
+			if (!ret && !(ret = result.err)) {
+				reinit_completion(&result.completion);
 				break;
-			case -EINPROGRESS:
-			case -EBUSY:
-				ret = wait_for_completion_interruptible(
-					&result.completion);
-				if (!ret && !(ret = result.err)) {
-					reinit_completion(&result.completion);
-					break;
-				}
-			case -EBADMSG:
-				if (template[i].novrfy)
-					/* verification failure was expected */
-					continue;
-				/* fall through */
-			default:
-				pr_err("alg: aead%s: %s failed on test %d for %s: ret=%d\n",
-				       d, e, j, algo, -ret);
-				goto out;
 			}
+		case -EBADMSG:
+			if (template[i].novrfy)
+				/* verification failure was expected */
+				continue;
+			/* fall through */
+		default:
+			pr_err("alg: aead%s: %s failed on test %d for %s: ret=%d\n",
+			       d, e, j, algo, -ret);
+			goto out;
+		}
 
-			q = output;
-			if (memcmp(q, template[i].result, template[i].rlen)) {
-				pr_err("alg: aead%s: Test %d failed on %s for %s\n",
-				       d, j, e, algo);
-				hexdump(q, template[i].rlen);
-				ret = -EINVAL;
-				goto out;
-			}
+		q = output;
+		if (memcmp(q, template[i].result, template[i].rlen)) {
+			pr_err("alg: aead%s: Test %d failed on %s for %s\n",
+			       d, j, e, algo);
+			hexdump(q, template[i].rlen);
+			ret = -EINVAL;
+			goto out;
 		}
 	}
 
@@ -615,191 +610,182 @@ static int __test_aead(struct crypto_aead *tfm, int enc,
 		if (align_offset != 0)
 			break;
 
-		if (template[i].np) {
-			j++;
+		if (!template[i].np)
+			continue;
 
-			if (template[i].iv)
-				memcpy(iv, template[i].iv, MAX_IVLEN);
-			else
-				memset(iv, 0, MAX_IVLEN);
+		j++;
 
-			crypto_aead_clear_flags(tfm, ~0);
-			if (template[i].wk)
-				crypto_aead_set_flags(
-					tfm, CRYPTO_TFM_REQ_WEAK_KEY);
-			if (template[i].klen > MAX_KEYLEN) {
-				pr_err("alg: aead%s: setkey failed on test %d for %s: key size %d > %d\n",
-				       d, j, algo, template[i].klen,
-				       MAX_KEYLEN);
+		if (template[i].iv)
+			memcpy(iv, template[i].iv, MAX_IVLEN);
+		else
+			memset(iv, 0, MAX_IVLEN);
+
+		crypto_aead_clear_flags(tfm, ~0);
+		if (template[i].wk)
+			crypto_aead_set_flags(tfm, CRYPTO_TFM_REQ_WEAK_KEY);
+		if (template[i].klen > MAX_KEYLEN) {
+			pr_err("alg: aead%s: setkey failed on test %d for %s: key size %d > %d\n",
+			       d, j, algo, template[i].klen, MAX_KEYLEN);
+			ret = -EINVAL;
+			goto out;
+		}
+		memcpy(key, template[i].key, template[i].klen);
+
+		ret = crypto_aead_setkey(tfm, key, template[i].klen);
+		if (!ret == template[i].fail) {
+			pr_err("alg: aead%s: setkey failed on chunk test %d for %s: flags=%x\n",
+			       d, j, algo, crypto_aead_get_flags(tfm));
+			goto out;
+		} else if (ret)
+			continue;
+
+		authsize = abs(template[i].rlen - template[i].ilen);
+
+		ret = -EINVAL;
+		sg_init_table(sg, template[i].np);
+		if (diff_dst)
+			sg_init_table(sgout, template[i].np);
+		for (k = 0, temp = 0; k < template[i].np; k++) {
+			if (WARN_ON(offset_in_page(IDX[k]) +
+				    template[i].tap[k] > PAGE_SIZE))
+				goto out;
+
+			q = xbuf[IDX[k] >> PAGE_SHIFT] + offset_in_page(IDX[k]);
+			memcpy(q, template[i].input + temp, template[i].tap[k]);
+			sg_set_buf(&sg[k], q, template[i].tap[k]);
+
+			if (diff_dst) {
+				q = xoutbuf[IDX[k] >> PAGE_SHIFT] +
+				    offset_in_page(IDX[k]);
+
+				memset(q, 0, template[i].tap[k]);
+
+				sg_set_buf(&sgout[k], q, template[i].tap[k]);
+			}
+
+			n = template[i].tap[k];
+			if (k == template[i].np - 1 && enc)
+				n += authsize;
+			if (offset_in_page(q) + n < PAGE_SIZE)
+				q[n] = 0;
+
+			temp += template[i].tap[k];
+		}
+
+		ret = crypto_aead_setauthsize(tfm, authsize);
+		if (ret) {
+			pr_err("alg: aead%s: Failed to set authsize to %u on chunk test %d for %s\n",
+			       d, authsize, j, algo);
+			goto out;
+		}
+
+		if (enc) {
+			if (WARN_ON(sg[k - 1].offset +
+				    sg[k - 1].length + authsize >
+				    PAGE_SIZE)) {
 				ret = -EINVAL;
 				goto out;
 			}
-			memcpy(key, template[i].key, template[i].klen);
 
-			ret = crypto_aead_setkey(tfm, key, template[i].klen);
-			if (!ret == template[i].fail) {
-				pr_err("alg: aead%s: setkey failed on chunk test %d for %s: flags=%x\n",
-				       d, j, algo, crypto_aead_get_flags(tfm));
-				goto out;
-			} else if (ret)
-				continue;
-
-			authsize = abs(template[i].rlen - template[i].ilen);
-
-			ret = -EINVAL;
-			sg_init_table(sg, template[i].np);
 			if (diff_dst)
-				sg_init_table(sgout, template[i].np);
-			for (k = 0, temp = 0; k < template[i].np; k++) {
-				if (WARN_ON(offset_in_page(IDX[k]) +
-					    template[i].tap[k] > PAGE_SIZE))
-					goto out;
+				sgout[k - 1].length += authsize;
+			else
+				sg[k - 1].length += authsize;
+		}
 
+		sg_init_table(asg, template[i].anp);
+		ret = -EINVAL;
+		for (k = 0, temp = 0; k < template[i].anp; k++) {
+			if (WARN_ON(offset_in_page(IDX[k]) +
+				    template[i].atap[k] > PAGE_SIZE))
+				goto out;
+			sg_set_buf(&asg[k],
+				   memcpy(axbuf[IDX[k] >> PAGE_SHIFT] +
+					  offset_in_page(IDX[k]),
+					  template[i].assoc + temp,
+					  template[i].atap[k]),
+				   template[i].atap[k]);
+			temp += template[i].atap[k];
+		}
+
+		aead_request_set_crypt(req, sg, (diff_dst) ? sgout : sg,
+				       template[i].ilen,
+				       iv);
+
+		aead_request_set_assoc(req, asg, template[i].alen);
+
+		ret = enc ? crypto_aead_encrypt(req) : crypto_aead_decrypt(req);
+
+		switch (ret) {
+		case 0:
+			if (template[i].novrfy) {
+				/* verification was supposed to fail */
+				pr_err("alg: aead%s: %s failed on chunk test %d for %s: ret was 0, expected -EBADMSG\n",
+				       d, e, j, algo);
+				/* so really, we got a bad message */
+				ret = -EBADMSG;
+				goto out;
+			}
+			break;
+		case -EINPROGRESS:
+		case -EBUSY:
+			ret = wait_for_completion_interruptible(
+				&result.completion);
+			if (!ret && !(ret = result.err)) {
+				reinit_completion(&result.completion);
+				break;
+			}
+		case -EBADMSG:
+			if (template[i].novrfy)
+				/* verification failure was expected */
+				continue;
+			/* fall through */
+		default:
+			pr_err("alg: aead%s: %s failed on chunk test %d for %s: ret=%d\n",
+			       d, e, j, algo, -ret);
+			goto out;
+		}
+
+		ret = -EINVAL;
+		for (k = 0, temp = 0; k < template[i].np; k++) {
+			if (diff_dst)
+				q = xoutbuf[IDX[k] >> PAGE_SHIFT] +
+				    offset_in_page(IDX[k]);
+			else
 				q = xbuf[IDX[k] >> PAGE_SHIFT] +
 				    offset_in_page(IDX[k]);
 
-				memcpy(q, template[i].input + temp,
-				       template[i].tap[k]);
+			n = template[i].tap[k];
+			if (k == template[i].np - 1)
+				n += enc ? authsize : -authsize;
 
-				sg_set_buf(&sg[k], q, template[i].tap[k]);
-
-				if (diff_dst) {
-					q = xoutbuf[IDX[k] >> PAGE_SHIFT] +
-					    offset_in_page(IDX[k]);
-
-					memset(q, 0, template[i].tap[k]);
-
-					sg_set_buf(&sgout[k], q,
-						   template[i].tap[k]);
-				}
-
-				n = template[i].tap[k];
-				if (k == template[i].np - 1 && enc)
-					n += authsize;
-				if (offset_in_page(q) + n < PAGE_SIZE)
-					q[n] = 0;
-
-				temp += template[i].tap[k];
-			}
-
-			ret = crypto_aead_setauthsize(tfm, authsize);
-			if (ret) {
-				pr_err("alg: aead%s: Failed to set authsize to %u on chunk test %d for %s\n",
-				       d, authsize, j, algo);
+			if (memcmp(q, template[i].result + temp, n)) {
+				pr_err("alg: aead%s: Chunk test %d failed on %s at page %u for %s\n",
+				       d, j, e, k, algo);
+				hexdump(q, n);
 				goto out;
 			}
 
-			if (enc) {
-				if (WARN_ON(sg[k - 1].offset +
-					    sg[k - 1].length + authsize >
-					    PAGE_SIZE)) {
-					ret = -EINVAL;
-					goto out;
-				}
-
-				if (diff_dst)
-					sgout[k - 1].length += authsize;
+			q += n;
+			if (k == template[i].np - 1 && !enc) {
+				if (!diff_dst &&
+					memcmp(q, template[i].input +
+					      temp + n, authsize))
+					n = authsize;
 				else
-					sg[k - 1].length += authsize;
+					n = 0;
+			} else {
+				for (n = 0; offset_in_page(q + n) && q[n]; n++)
+					;
 			}
-
-			sg_init_table(asg, template[i].anp);
-			ret = -EINVAL;
-			for (k = 0, temp = 0; k < template[i].anp; k++) {
-				if (WARN_ON(offset_in_page(IDX[k]) +
-					    template[i].atap[k] > PAGE_SIZE))
-					goto out;
-				sg_set_buf(&asg[k],
-					   memcpy(axbuf[IDX[k] >> PAGE_SHIFT] +
-						  offset_in_page(IDX[k]),
-						  template[i].assoc + temp,
-						  template[i].atap[k]),
-					   template[i].atap[k]);
-				temp += template[i].atap[k];
-			}
-
-			aead_request_set_crypt(req, sg, (diff_dst) ? sgout : sg,
-					       template[i].ilen,
-					       iv);
-
-			aead_request_set_assoc(req, asg, template[i].alen);
-
-			ret = enc ?
-				crypto_aead_encrypt(req) :
-				crypto_aead_decrypt(req);
-
-			switch (ret) {
-			case 0:
-				if (template[i].novrfy) {
-					/* verification was supposed to fail */
-					pr_err("alg: aead%s: %s failed on chunk test %d for %s: ret was 0, expected -EBADMSG\n",
-					       d, e, j, algo);
-					/* so really, we got a bad message */
-					ret = -EBADMSG;
-					goto out;
-				}
-				break;
-			case -EINPROGRESS:
-			case -EBUSY:
-				ret = wait_for_completion_interruptible(
-					&result.completion);
-				if (!ret && !(ret = result.err)) {
-					reinit_completion(&result.completion);
-					break;
-				}
-			case -EBADMSG:
-				if (template[i].novrfy)
-					/* verification failure was expected */
-					continue;
-				/* fall through */
-			default:
-				pr_err("alg: aead%s: %s failed on chunk test %d for %s: ret=%d\n",
-				       d, e, j, algo, -ret);
+			if (n) {
+				pr_err("alg: aead%s: Result buffer corruption in chunk test %d on %s at page %u for %s: %u bytes:\n",
+				       d, j, e, k, algo, n);
+				hexdump(q, n);
 				goto out;
 			}
 
-			ret = -EINVAL;
-			for (k = 0, temp = 0; k < template[i].np; k++) {
-				if (diff_dst)
-					q = xoutbuf[IDX[k] >> PAGE_SHIFT] +
-					    offset_in_page(IDX[k]);
-				else
-					q = xbuf[IDX[k] >> PAGE_SHIFT] +
-					    offset_in_page(IDX[k]);
-
-				n = template[i].tap[k];
-				if (k == template[i].np - 1)
-					n += enc ? authsize : -authsize;
-
-				if (memcmp(q, template[i].result + temp, n)) {
-					pr_err("alg: aead%s: Chunk test %d failed on %s at page %u for %s\n",
-					       d, j, e, k, algo);
-					hexdump(q, n);
-					goto out;
-				}
-
-				q += n;
-				if (k == template[i].np - 1 && !enc) {
-					if (!diff_dst &&
-						memcmp(q, template[i].input +
-						      temp + n, authsize))
-						n = authsize;
-					else
-						n = 0;
-				} else {
-					for (n = 0; offset_in_page(q + n) &&
-						    q[n]; n++)
-						;
-				}
-				if (n) {
-					pr_err("alg: aead%s: Result buffer corruption in chunk test %d on %s at page %u for %s: %u bytes:\n",
-					       d, j, e, k, algo, n);
-					hexdump(q, n);
-					goto out;
-				}
-
-				temp += template[i].tap[k];
-			}
+			temp += template[i].tap[k];
 		}
 	}
 
