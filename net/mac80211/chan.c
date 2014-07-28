@@ -547,12 +547,12 @@ static void ieee80211_recalc_chanctx_chantype(struct ieee80211_local *local,
 
 		compat = cfg80211_chandef_compatible(
 				&sdata->vif.bss_conf.chandef, compat);
-		if (!compat)
+		if (WARN_ON_ONCE(!compat))
 			break;
 	}
 	rcu_read_unlock();
 
-	if (WARN_ON_ONCE(!compat))
+	if (!compat)
 		return;
 
 	ieee80211_change_chanctx(local, ctx, compat);
