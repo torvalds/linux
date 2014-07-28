@@ -184,7 +184,7 @@ static void ni_tio_reset_count_and_disarm(struct ni_gpct *counter)
 {
 	unsigned cidx = counter->counter_index;
 
-	write_register(counter, Gi_Reset_Bit(cidx), NITIO_RESET_REG(cidx));
+	write_register(counter, GI_RESET(cidx), NITIO_RESET_REG(cidx));
 }
 
 static uint64_t ni_tio_clock_period_ps(const struct ni_gpct *counter,

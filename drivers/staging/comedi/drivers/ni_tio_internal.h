@@ -126,6 +126,7 @@
 #define GI_TC_ERROR(x)			(((x) % 2) ? (1 << 13) : (1 << 12))
 #define GI_GATE_ERROR(x)		(((x) % 2) ? (1 << 15) : (1 << 14))
 #define NITIO_RESET_REG(x)		(NITIO_G01_RESET + ((x) / 2))
+#define GI_RESET(x)			(1 << (2 + ((x) % 2)))
 #define NITIO_STATUS1_REG(x)		(NITIO_G01_STATUS1 + ((x) / 2))
 #define NITIO_STATUS2_REG(x)		(NITIO_G01_STATUS2 + ((x) / 2))
 #define NITIO_DMA_CFG_REG(x)		(NITIO_G0_DMA_CFG + (x))
@@ -134,12 +135,6 @@
 #define NITIO_INT_ACK_REG(x)		(NITIO_G0_INT_ACK + (x))
 #define NITIO_STATUS_REG(x)		(NITIO_G0_STATUS + (x))
 #define NITIO_INT_ENA_REG(x)		(NITIO_G0_INT_ENA + (x))
-
-/* joint reset register bits */
-static inline unsigned Gi_Reset_Bit(unsigned counter_index)
-{
-	return 0x1 << (2 + (counter_index % 2));
-}
 
 enum Gxx_Joint_Status2_Bits {
 	G0_Output_Bit = 0x1,
