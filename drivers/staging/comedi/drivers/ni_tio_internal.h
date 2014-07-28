@@ -109,6 +109,13 @@
 #define GI_660X_PRESCALE_X2		(1 << 14)
 #define GI_M_PRESCALE_X2		(1 << 15)
 #define NITIO_GATE2_REG(x)		(NITIO_G0_GATE2 + (x))
+#define GI_GATE2_MODE			(1 << 0)
+#define GI_BITS_TO_GATE2(x)		(((x) >> 7) & 0x1f)
+#define GI_GATE2_SEL(x)			(((x) & 0x1f) << 7)
+#define GI_GATE2_SEL_MASK		(0x1f << 7)
+#define GI_GATE2_POL_INVERT		(1 << 13)
+#define GI_GATE2_SUBSEL			(1 << 14)
+#define GI_SRC_SUBSEL			(1 << 15)
 #define NITIO_SHARED_STATUS_REG(x)	(NITIO_G01_STATUS + ((x) / 2))
 #define NITIO_RESET_REG(x)		(NITIO_G01_RESET + ((x) / 2))
 #define NITIO_STATUS1_REG(x)		(NITIO_G01_STATUS1 + ((x) / 2))
@@ -119,22 +126,6 @@
 #define NITIO_INT_ACK_REG(x)		(NITIO_G0_INT_ACK + (x))
 #define NITIO_STATUS_REG(x)		(NITIO_G0_STATUS + (x))
 #define NITIO_INT_ENA_REG(x)		(NITIO_G0_INT_ENA + (x))
-
-#define Gi_Second_Gate_Select_Shift 7
-/*FIXME: m-series has a second gate subselect bit */
-/*FIXME: m-series second gate sources are undocumented (by NI)*/
-enum Gi_Second_Gate_Bits {
-	Gi_Second_Gate_Mode_Bit = 0x1,
-	Gi_Second_Gate_Select_Mask = 0x1f << Gi_Second_Gate_Select_Shift,
-	Gi_Second_Gate_Polarity_Bit = 0x2000,
-	Gi_Second_Gate_Subselect_Bit = 0x4000,	/* m-series only */
-	Gi_Source_Subselect_Bit = 0x8000	/* m-series only */
-};
-static inline unsigned Gi_Second_Gate_Select_Bits(unsigned second_gate_select)
-{
-	return (second_gate_select << Gi_Second_Gate_Select_Shift) &
-	    Gi_Second_Gate_Select_Mask;
-}
 
 enum Gxx_Status_Bits {
 	G0_Save_Bit = 0x1,
