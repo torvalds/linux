@@ -2980,9 +2980,9 @@ static ssize_t mxt_debug_v2_enable_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct mxt_data *data = dev_get_drvdata(dev);
-	int i;
+	u8 i;
 
-	if (sscanf(buf, "%u", &i) == 1 && i < 2) {
+	if (kstrtou8(buf, 0, &i) == 0 && i < 2) {
 		if (i == 1)
 			mxt_debug_msg_enable(data);
 		else
@@ -2999,9 +2999,9 @@ static ssize_t mxt_debug_enable_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct mxt_data *data = dev_get_drvdata(dev);
-	int i;
+	u8 i;
 
-	if (sscanf(buf, "%u", &i) == 1 && i < 2) {
+	if (kstrtou8(buf, 0, &i) == 0 && i < 2) {
 		data->debug_enabled = (i == 1);
 
 		dev_dbg(dev, "%s\n", i ? "debug enabled" : "debug disabled");
