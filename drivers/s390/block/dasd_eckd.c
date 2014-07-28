@@ -2062,7 +2062,7 @@ dasd_eckd_fill_geometry(struct dasd_block *block, struct hd_geometry *geo)
 static struct dasd_ccw_req *
 dasd_eckd_build_format(struct dasd_device *base,
 		       struct format_data_t *fdata,
-		       int enable_PAV)
+		       int enable_pav)
 {
 	struct dasd_eckd_private *base_priv;
 	struct dasd_eckd_private *start_priv;
@@ -2080,7 +2080,7 @@ dasd_eckd_build_format(struct dasd_device *base,
 	int nr_tracks;
 	int use_prefix;
 
-	if (enable_PAV)
+	if (enable_pav)
 		startdev = dasd_alias_get_start_dev(base);
 
 	if (!startdev)
@@ -2324,7 +2324,7 @@ dasd_eckd_build_format(struct dasd_device *base,
 static int
 dasd_eckd_format_device(struct dasd_device *base,
 			struct format_data_t *fdata,
-			int enable_PAV)
+			int enable_pav)
 {
 	struct dasd_ccw_req *cqr, *n;
 	struct dasd_block *block;
@@ -2370,7 +2370,7 @@ dasd_eckd_format_device(struct dasd_device *base,
 	old_stop = fdata->stop_unit;
 	while (fdata->start_unit <= 1) {
 		fdata->stop_unit = fdata->start_unit;
-		cqr = dasd_eckd_build_format(base, fdata, enable_PAV);
+		cqr = dasd_eckd_build_format(base, fdata, enable_pav);
 		list_add(&cqr->blocklist, &format_queue);
 
 		fdata->stop_unit = old_stop;
@@ -2388,7 +2388,7 @@ retry:
 		if (step > format_step)
 			fdata->stop_unit = fdata->start_unit + format_step - 1;
 
-		cqr = dasd_eckd_build_format(base, fdata, enable_PAV);
+		cqr = dasd_eckd_build_format(base, fdata, enable_pav);
 		if (IS_ERR(cqr)) {
 			if (PTR_ERR(cqr) == -ENOMEM) {
 				/*

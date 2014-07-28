@@ -203,7 +203,7 @@ static int
 dasd_format(struct dasd_block *block, struct format_data_t *fdata)
 {
 	struct dasd_device *base;
-	int enable_PAV = 1;
+	int enable_pav = 1;
 	int rc, retries;
 	int start, stop;
 
@@ -238,12 +238,12 @@ dasd_format(struct dasd_block *block, struct format_data_t *fdata)
 	start = fdata->start_unit;
 	stop = fdata->stop_unit;
 	do {
-		rc = base->discipline->format_device(base, fdata, enable_PAV);
+		rc = base->discipline->format_device(base, fdata, enable_pav);
 		if (rc) {
 			if (rc == -EAGAIN) {
 				retries--;
 				/* disable PAV in case of errors */
-				enable_PAV = 0;
+				enable_pav = 0;
 				fdata->start_unit = start;
 				fdata->stop_unit = stop;
 			} else

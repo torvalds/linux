@@ -322,7 +322,7 @@ struct dasd_discipline {
 	int (*term_IO) (struct dasd_ccw_req *);
 	void (*handle_terminated_request) (struct dasd_ccw_req *);
 	int (*format_device) (struct dasd_device *,
-			      struct format_data_t *, int enable_PAV);
+			      struct format_data_t *, int enable_pav);
 	int (*free_cp) (struct dasd_ccw_req *, struct request *);
 
 	/*
