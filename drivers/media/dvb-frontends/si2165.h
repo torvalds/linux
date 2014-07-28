@@ -22,8 +22,6 @@
 
 #include <linux/dvb/frontend.h>
 
-#if IS_ENABLED(CONFIG_DVB_SI2165)
-
 enum {
 	SI2165_MODE_OFF = 0x00,
 	SI2165_MODE_PLL_EXT = 0x20,
@@ -47,7 +45,7 @@ struct si2165_config {
 	bool inversion;
 };
 
-/* Addresses: 0x64,0x65,0x66,0x67 */
+#if IS_ENABLED(CONFIG_DVB_SI2165)
 struct dvb_frontend *si2165_attach(
 	const struct si2165_config *config,
 	struct i2c_adapter *i2c);
