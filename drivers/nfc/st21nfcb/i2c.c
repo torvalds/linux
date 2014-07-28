@@ -284,8 +284,7 @@ static int st21nfcb_nci_i2c_of_request_resources(struct i2c_client *client)
 	/* IRQ */
 	r = irq_of_parse_and_map(pp, 0);
 	if (r < 0) {
-		nfc_err(&client->dev,
-				"Unable to get irq, error: %d\n", r);
+		nfc_err(&client->dev, "Unable to get irq, error: %d\n", r);
 		return r;
 	}
 
