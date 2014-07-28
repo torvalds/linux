@@ -593,7 +593,7 @@ static struct clk * __init sunxi_factors_clk_setup(struct device_node *node,
 	struct clk_hw *mux_hw = NULL;
 	const char *clk_name = node->name;
 	const char *parents[SUNXI_MAX_PARENTS];
-	void *reg;
+	void __iomem *reg;
 	int i = 0;
 
 	reg = of_iomap(node, 0);
@@ -698,7 +698,7 @@ static void __init sunxi_mux_clk_setup(struct device_node *node,
 	struct clk *clk;
 	const char *clk_name = node->name;
 	const char *parents[SUNXI_MAX_PARENTS];
-	void *reg;
+	void __iomem *reg;
 	int i = 0;
 
 	reg = of_iomap(node, 0);
@@ -780,7 +780,7 @@ static void __init sunxi_divider_clk_setup(struct device_node *node,
 	struct clk *clk;
 	const char *clk_name = node->name;
 	const char *clk_parent;
-	void *reg;
+	void __iomem *reg;
 
 	reg = of_iomap(node, 0);
 
@@ -962,7 +962,7 @@ static void __init sunxi_gates_clk_setup(struct device_node *node,
 	struct gates_reset_data *reset_data;
 	const char *clk_parent;
 	const char *clk_name;
-	void *reg;
+	void __iomem *reg;
 	int qty;
 	int i = 0;
 	int j = 0;
@@ -1084,7 +1084,7 @@ static void __init sunxi_divs_clk_setup(struct device_node *node,
 	struct clk_gate *gate = NULL;
 	struct clk_fixed_factor *fix_factor;
 	struct clk_divider *divider;
-	void *reg;
+	void __iomem *reg;
 	int i = 0;
 	int flags, clkflags;
 
