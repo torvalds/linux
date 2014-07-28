@@ -170,7 +170,7 @@ static long libcfs_ioctl(struct file *file,
 	return rc;
 }
 
-static struct file_operations libcfs_fops = {
+static const struct file_operations libcfs_fops = {
 	.unlocked_ioctl	= libcfs_ioctl,
 	.open		= libcfs_psdev_open,
 	.release	= libcfs_psdev_release,
