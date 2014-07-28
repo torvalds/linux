@@ -409,7 +409,7 @@ void ni_tio_acknowledge_and_confirm(struct ni_gpct *counter, int *gate_error,
 				*stale_data = 1;
 		}
 		if (read_register(counter, NITIO_STATUS2_REG(cidx)) &
-		    Gi_Permanent_Stale_Bit(cidx)) {
+		    GI_PERMANENT_STALE(cidx)) {
 			dev_info(counter->counter_dev->dev->class_dev,
 				 "%s: Gi_Permanent_Stale_Data detected.\n",
 				 __func__);

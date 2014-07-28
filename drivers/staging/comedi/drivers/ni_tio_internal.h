@@ -129,28 +129,15 @@
 #define GI_RESET(x)			(1 << (2 + ((x) % 2)))
 #define NITIO_STATUS1_REG(x)		(NITIO_G01_STATUS1 + ((x) / 2))
 #define NITIO_STATUS2_REG(x)		(NITIO_G01_STATUS2 + ((x) / 2))
+#define GI_OUTPUT(x)			(((x) % 2) ? (1 << 1) : (1 << 0))
+#define GI_HW_SAVE(x)			(((x) % 2) ? (1 << 13) : (1 << 12))
+#define GI_PERMANENT_STALE(x)		(((x) % 2) ? (1 << 15) : (1 << 14))
 #define NITIO_DMA_CFG_REG(x)		(NITIO_G0_DMA_CFG + (x))
 #define NITIO_DMA_STATUS_REG(x)		(NITIO_G0_DMA_STATUS + (x))
 #define NITIO_ABZ_REG(x)		(NITIO_G0_ABZ + (x))
 #define NITIO_INT_ACK_REG(x)		(NITIO_G0_INT_ACK + (x))
 #define NITIO_STATUS_REG(x)		(NITIO_G0_STATUS + (x))
 #define NITIO_INT_ENA_REG(x)		(NITIO_G0_INT_ENA + (x))
-
-enum Gxx_Joint_Status2_Bits {
-	G0_Output_Bit = 0x1,
-	G1_Output_Bit = 0x2,
-	G0_HW_Save_Bit = 0x1000,
-	G1_HW_Save_Bit = 0x2000,
-	G0_Permanent_Stale_Bit = 0x4000,
-	G1_Permanent_Stale_Bit = 0x8000
-};
-static inline enum Gxx_Joint_Status2_Bits Gi_Permanent_Stale_Bit(unsigned
-								 counter_index)
-{
-	if (counter_index % 2)
-		return G1_Permanent_Stale_Bit;
-	return G0_Permanent_Stale_Bit;
-}
 
 enum Gi_DMA_Config_Reg_Bits {
 	Gi_DMA_Enable_Bit = 0x1,
