@@ -235,7 +235,7 @@ static irqreturn_t st21nfcb_nci_irq_thread_fn(int irq, void *phy_id)
 	r = st21nfcb_nci_i2c_read(phy, &skb);
 	if (r == -EREMOTEIO) {
 		phy->hard_fault = r;
-                ndlc_recv(phy->ndlc, NULL);
+		ndlc_recv(phy->ndlc, NULL);
 		return IRQ_HANDLED;
 	} else if (r == -ENOMEM || r == -EBADMSG) {
 		return IRQ_HANDLED;
