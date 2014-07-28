@@ -454,7 +454,7 @@ static const struct attribute_group isl29108_group = {
 static int isl29018_chip_init(struct isl29018_chip *chip)
 {
 	int status;
-	int new_adc_bit;
+	unsigned int new_adc_bit;
 	unsigned int new_range;
 
 	/* Code added per Intersil Application Note 1534:
