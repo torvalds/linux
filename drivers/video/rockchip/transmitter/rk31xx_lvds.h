@@ -88,6 +88,7 @@ struct rk_lvds_device {
 	struct clk              *pd;
 	struct rk_screen	screen;
 	bool			clk_on;
+        bool                    sys_state;
 };
 
 static int inline lvds_writel(struct rk_lvds_device *lvds, u32 offset, u32 val)

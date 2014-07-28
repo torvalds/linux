@@ -76,18 +76,53 @@ static int rk31xx_lvds_clk_disable(struct rk_lvds_device *lvds)
 	return 0;
 }
 
+static int rk31xx_lvds_pwr_on(void)
+{
+        struct rk_lvds_device *lvds = rk31xx_lvds;
+
+        if (lvds->screen.type == SCREEN_LVDS) {
+                /* power up lvds pll and bandgap */
+	        lvds_msk_reg(lvds, MIPIPHY_REGEA,
+	                     m_BG_POWER_DOWN | m_PLL_POWER_DOWN,
+	                     v_BG_POWER_DOWN(0) | v_PLL_POWER_DOWN(0));
+
+	        /* enable lvds */
+	        lvds_msk_reg(lvds, MIPIPHY_REGE3,
+	                     m_MIPI_EN | m_LVDS_EN | m_TTL_EN,
+	                     v_MIPI_EN(0) | v_LVDS_EN(1) | v_TTL_EN(0));
+        } else {
+                lvds_msk_reg(lvds, MIPIPHY_REGE3,
+	                     m_MIPI_EN | m_LVDS_EN | m_TTL_EN,
+	                     v_MIPI_EN(0) | v_LVDS_EN(0) | v_TTL_EN(1));
+        }
+        return 0;
+}
+
+static int rk31xx_lvds_pwr_off(void)
+{
+        struct rk_lvds_device *lvds = rk31xx_lvds;
+
+	/* power down lvds pll and bandgap */
+	lvds_msk_reg(lvds, MIPIPHY_REGEA, m_BG_POWER_DOWN | m_PLL_POWER_DOWN,
+	             v_BG_POWER_DOWN(1) | v_PLL_POWER_DOWN(1));
+	/* disable lvds */
+	lvds_msk_reg(lvds, MIPIPHY_REGE3, m_LVDS_EN | m_TTL_EN,
+	             v_LVDS_EN(0) | v_TTL_EN(0));
+        return 0;
+}
+
 static int rk31xx_lvds_disable(void)
 {
 	struct rk_lvds_device *lvds = rk31xx_lvds;
 
-	grf_writel(v_LVDSMODE_EN(0), RK31XX_GRF_LVDS_CON0);
-	/* power down lvds pll and bandgap */
-	lvds_msk_reg(lvds, MIPIPHY_REGEA, m_BG_POWER_DOWN | m_PLL_POWER_DOWN,
-	             v_BG_POWER_DOWN(0) | v_PLL_POWER_DOWN(0));
-	/* disable lvds */
-	lvds_msk_reg(lvds, MIPIPHY_REGE3, m_LVDS_EN, v_LVDS_EN(0));
-  
+        if (!lvds->sys_state)
+                return 0;
+
+	grf_writel(v_LVDSMODE_EN(0) | v_MIPIPHY_TTL_EN(0), RK31XX_GRF_LVDS_CON0);
+
+        rk31xx_lvds_pwr_off();
 	rk31xx_lvds_clk_disable(lvds);
+        lvds->sys_state = false;
 	return 0;
 }
 
@@ -125,13 +160,7 @@ static void rk31xx_output_lvds(struct rk_lvds_device *lvds,
 	lvds_writel(lvds, MIPIPHY_REGE2, 0xa0); /* timing */
 	lvds_writel(lvds, MIPIPHY_REGE7, 0xfc); /* phase */
 #endif
-        /* power up lvds pll and bandgap */
-	lvds_msk_reg(lvds, MIPIPHY_REGEA, m_BG_POWER_DOWN | m_PLL_POWER_DOWN,
-	             v_BG_POWER_DOWN(0) | v_PLL_POWER_DOWN(0));     /* 0xf8 */
-
-	/* enable lvds */
-	lvds_msk_reg(lvds, MIPIPHY_REGE3, m_MIPI_EN | m_LVDS_EN | m_TTL_EN,
-	             v_MIPI_EN(0) | v_LVDS_EN(1) | v_TTL_EN(0));
+        rk31xx_lvds_pwr_on();
 
 }
 
@@ -148,7 +177,7 @@ static void rk31xx_output_lvttl(struct rk_lvds_device *lvds,
 	lvds_writel(lvds, MIPIPHY_REG3, v_PREDIV(1) | v_FBDIV_MSB(0));
 	lvds_writel(lvds, MIPIPHY_REG4, v_FBDIV_LSB(7));
 
-        /* set lvds mode and reset phy config */
+        /* set ttl mode and reset phy config */
         val = v_LVDS_MODE_EN(0) | v_TTL_MODE_EN(1) | v_MIPI_MODE_EN(0) |
                 v_MSB_SEL(1) | v_DIG_INTER_RST(1);
 	lvds_writel(lvds, MIPIPHY_REGE0, val);
@@ -156,8 +185,7 @@ static void rk31xx_output_lvttl(struct rk_lvds_device *lvds,
         lvds_writel(lvds, MIPIPHY_REGE1, 0x92);
 
         /* enable ttl */
-	lvds_msk_reg(lvds, MIPIPHY_REGE3, m_MIPI_EN | m_LVDS_EN | m_TTL_EN,
-	             v_MIPI_EN(0) | v_LVDS_EN(0) | v_TTL_EN(1));
+	rk31xx_lvds_pwr_on();
 		
 }
 
@@ -165,6 +193,9 @@ static int rk31xx_lvds_en(void)
 {
 	struct rk_lvds_device *lvds = rk31xx_lvds;
 	struct rk_screen *screen = &lvds->screen;
+
+        if (lvds->sys_state)
+                return 0;
 
 	rk_fb_get_prmry_screen(screen);
 
@@ -183,12 +214,15 @@ static int rk31xx_lvds_en(void)
                 break;
 	}
 
+        lvds->sys_state = true;
 	return 0;
 }
 
 static struct rk_fb_trsm_ops trsm_lvds_ops = {
 	.enable = rk31xx_lvds_en,
 	.disable = rk31xx_lvds_disable,
+	.dsp_pwr_on = rk31xx_lvds_pwr_on,
+	.dsp_pwr_off = rk31xx_lvds_pwr_off,
 };
 
 static int rk31xx_lvds_probe(struct platform_device *pdev)
