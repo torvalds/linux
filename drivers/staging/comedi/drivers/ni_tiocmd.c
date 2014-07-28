@@ -377,7 +377,7 @@ void ni_tio_acknowledge_and_confirm(struct ni_gpct *counter, int *gate_error,
 	if (stale_data)
 		*stale_data = 0;
 
-	if (gxx_status & Gi_Gate_Error_Bit(cidx)) {
+	if (gxx_status & GI_GATE_ERROR(cidx)) {
 		ack |= Gi_Gate_Error_Confirm_Bit(cidx);
 		if (gate_error) {
 			/*660x don't support automatic acknowledgement
@@ -389,7 +389,7 @@ void ni_tio_acknowledge_and_confirm(struct ni_gpct *counter, int *gate_error,
 			}
 		}
 	}
-	if (gxx_status & Gi_TC_Error_Bit(cidx)) {
+	if (gxx_status & GI_TC_ERROR(cidx)) {
 		ack |= Gi_TC_Error_Confirm_Bit(cidx);
 		if (tc_error)
 			*tc_error = 1;
@@ -404,7 +404,7 @@ void ni_tio_acknowledge_and_confirm(struct ni_gpct *counter, int *gate_error,
 		write_register(counter, ack, NITIO_INT_ACK_REG(cidx));
 	if (ni_tio_get_soft_copy(counter, NITIO_MODE_REG(cidx)) &
 	    GI_LOADING_ON_GATE) {
-		if (gxx_status & Gi_Stale_Data_Bit(cidx)) {
+		if (gxx_status & GI_STALE_DATA(cidx)) {
 			if (stale_data)
 				*stale_data = 1;
 		}

@@ -1200,9 +1200,9 @@ int ni_tio_insn_config(struct comedi_device *dev,
 	case INSN_CONFIG_GET_COUNTER_STATUS:
 		data[1] = 0;
 		status = read_register(counter, NITIO_SHARED_STATUS_REG(cidx));
-		if (status & Gi_Armed_Bit(cidx)) {
+		if (status & GI_ARMED(cidx)) {
 			data[1] |= COMEDI_COUNTER_ARMED;
-			if (status & Gi_Counting_Bit(cidx))
+			if (status & GI_COUNTING(cidx))
 				data[1] |= COMEDI_COUNTER_COUNTING;
 		}
 		data[2] = COMEDI_COUNTER_ARMED | COMEDI_COUNTER_COUNTING;
@@ -1289,7 +1289,7 @@ static unsigned ni_tio_next_load_register(struct ni_gpct *counter)
 	const unsigned bits =
 		read_register(counter, NITIO_SHARED_STATUS_REG(cidx));
 
-	return (bits & Gi_Next_Load_Source_Bit(cidx))
+	return (bits & GI_NEXT_LOAD_SRC(cidx))
 			? NITIO_LOADB_REG(cidx)
 			: NITIO_LOADA_REG(cidx);
 }

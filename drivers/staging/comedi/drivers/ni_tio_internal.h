@@ -117,6 +117,14 @@
 #define GI_GATE2_SUBSEL			(1 << 14)
 #define GI_SRC_SUBSEL			(1 << 15)
 #define NITIO_SHARED_STATUS_REG(x)	(NITIO_G01_STATUS + ((x) / 2))
+#define GI_SAVE(x)			(((x) % 2) ? (1 << 1) : (1 << 0))
+#define GI_COUNTING(x)			(((x) % 2) ? (1 << 3) : (1 << 2))
+#define GI_NEXT_LOAD_SRC(x)		(((x) % 2) ? (1 << 5) : (1 << 4))
+#define GI_STALE_DATA(x)		(((x) % 2) ? (1 << 7) : (1 << 6))
+#define GI_ARMED(x)			(((x) % 2) ? (1 << 9) : (1 << 8))
+#define GI_NO_LOAD_BETWEEN_GATES(x)	(((x) % 2) ? (1 << 11) : (1 << 10))
+#define GI_TC_ERROR(x)			(((x) % 2) ? (1 << 13) : (1 << 12))
+#define GI_GATE_ERROR(x)		(((x) % 2) ? (1 << 15) : (1 << 14))
 #define NITIO_RESET_REG(x)		(NITIO_G01_RESET + ((x) / 2))
 #define NITIO_STATUS1_REG(x)		(NITIO_G01_STATUS1 + ((x) / 2))
 #define NITIO_STATUS2_REG(x)		(NITIO_G01_STATUS2 + ((x) / 2))
@@ -126,67 +134,6 @@
 #define NITIO_INT_ACK_REG(x)		(NITIO_G0_INT_ACK + (x))
 #define NITIO_STATUS_REG(x)		(NITIO_G0_STATUS + (x))
 #define NITIO_INT_ENA_REG(x)		(NITIO_G0_INT_ENA + (x))
-
-enum Gxx_Status_Bits {
-	G0_Save_Bit = 0x1,
-	G1_Save_Bit = 0x2,
-	G0_Counting_Bit = 0x4,
-	G1_Counting_Bit = 0x8,
-	G0_Next_Load_Source_Bit = 0x10,
-	G1_Next_Load_Source_Bit = 0x20,
-	G0_Stale_Data_Bit = 0x40,
-	G1_Stale_Data_Bit = 0x80,
-	G0_Armed_Bit = 0x100,
-	G1_Armed_Bit = 0x200,
-	G0_No_Load_Between_Gates_Bit = 0x400,
-	G1_No_Load_Between_Gates_Bit = 0x800,
-	G0_TC_Error_Bit = 0x1000,
-	G1_TC_Error_Bit = 0x2000,
-	G0_Gate_Error_Bit = 0x4000,
-	G1_Gate_Error_Bit = 0x8000
-};
-static inline enum Gxx_Status_Bits Gi_Counting_Bit(unsigned counter_index)
-{
-	if (counter_index % 2)
-		return G1_Counting_Bit;
-	return G0_Counting_Bit;
-}
-
-static inline enum Gxx_Status_Bits Gi_Armed_Bit(unsigned counter_index)
-{
-	if (counter_index % 2)
-		return G1_Armed_Bit;
-	return G0_Armed_Bit;
-}
-
-static inline enum Gxx_Status_Bits Gi_Next_Load_Source_Bit(unsigned
-							   counter_index)
-{
-	if (counter_index % 2)
-		return G1_Next_Load_Source_Bit;
-	return G0_Next_Load_Source_Bit;
-}
-
-static inline enum Gxx_Status_Bits Gi_Stale_Data_Bit(unsigned counter_index)
-{
-	if (counter_index % 2)
-		return G1_Stale_Data_Bit;
-	return G0_Stale_Data_Bit;
-}
-
-static inline enum Gxx_Status_Bits Gi_TC_Error_Bit(unsigned counter_index)
-{
-	if (counter_index % 2)
-		return G1_TC_Error_Bit;
-	return G0_TC_Error_Bit;
-}
-
-static inline enum Gxx_Status_Bits Gi_Gate_Error_Bit(unsigned counter_index)
-{
-	if (counter_index % 2)
-		return G1_Gate_Error_Bit;
-	return G0_Gate_Error_Bit;
-}
 
 /* joint reset register bits */
 static inline unsigned Gi_Reset_Bit(unsigned counter_index)
