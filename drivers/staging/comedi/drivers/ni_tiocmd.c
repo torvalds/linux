@@ -92,9 +92,7 @@ static int ni_tio_input_inttrig(struct comedi_device *dev,
 	struct ni_gpct *counter = s->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned long flags;
-	int retval = 0;
-
-	BUG_ON(counter == NULL);
+	int ret = 0;
 
 	if (trig_num != cmd->start_src)
 		return -EINVAL;
@@ -103,14 +101,14 @@ static int ni_tio_input_inttrig(struct comedi_device *dev,
 	if (counter->mite_chan)
 		mite_dma_arm(counter->mite_chan);
 	else
-		retval = -EIO;
+		ret = -EIO;
 	spin_unlock_irqrestore(&counter->lock, flags);
-	if (retval < 0)
-		return retval;
-	retval = ni_tio_arm(counter, 1, NI_GPCT_ARM_IMMEDIATE);
+	if (ret < 0)
+		return ret;
+	ret = ni_tio_arm(counter, 1, NI_GPCT_ARM_IMMEDIATE);
 	s->async->inttrig = NULL;
 
-	return retval;
+	return ret;
 }
 
 static int ni_tio_input_cmd(struct comedi_subdevice *s)
