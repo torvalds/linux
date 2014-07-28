@@ -144,36 +144,12 @@
 #define GI_DRQ_STATUS			(1 << 15)
 #define NITIO_ABZ_REG(x)		(NITIO_G0_ABZ + (x))
 #define NITIO_INT_ACK_REG(x)		(NITIO_G0_INT_ACK + (x))
+#define GI_GATE_ERROR_CONFIRM(x)	(((x) % 2) ? (1 << 1) : (1 << 5))
+#define GI_TC_ERROR_CONFIRM(x)		(((x) % 2) ? (1 << 2) : (1 << 6))
+#define GI_TC_INTERRUPT_ACK		(1 << 14)
+#define GI_GATE_INTERRUPT_ACK		(1 << 15)
 #define NITIO_STATUS_REG(x)		(NITIO_G0_STATUS + (x))
 #define NITIO_INT_ENA_REG(x)		(NITIO_G0_INT_ENA + (x))
-
-enum G02_Interrupt_Acknowledge_Bits {
-	G0_Gate_Error_Confirm_Bit = 0x20,
-	G0_TC_Error_Confirm_Bit = 0x40
-};
-enum G13_Interrupt_Acknowledge_Bits {
-	G1_Gate_Error_Confirm_Bit = 0x2,
-	G1_TC_Error_Confirm_Bit = 0x4
-};
-static inline unsigned Gi_Gate_Error_Confirm_Bit(unsigned counter_index)
-{
-	if (counter_index % 2)
-		return G1_Gate_Error_Confirm_Bit;
-	return G0_Gate_Error_Confirm_Bit;
-}
-
-static inline unsigned Gi_TC_Error_Confirm_Bit(unsigned counter_index)
-{
-	if (counter_index % 2)
-		return G1_TC_Error_Confirm_Bit;
-	return G0_TC_Error_Confirm_Bit;
-}
-
-/* bits that are the same in G0/G2 and G1/G3 interrupt acknowledge registers */
-enum Gxx_Interrupt_Acknowledge_Bits {
-	Gi_TC_Interrupt_Ack_Bit = 0x4000,
-	Gi_Gate_Interrupt_Ack_Bit = 0x8000
-};
 
 enum Gi_Status_Bits {
 	Gi_Gate_Interrupt_Bit = 0x4,

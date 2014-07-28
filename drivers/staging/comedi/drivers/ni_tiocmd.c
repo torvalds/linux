@@ -378,7 +378,7 @@ void ni_tio_acknowledge_and_confirm(struct ni_gpct *counter, int *gate_error,
 		*stale_data = 0;
 
 	if (gxx_status & GI_GATE_ERROR(cidx)) {
-		ack |= Gi_Gate_Error_Confirm_Bit(cidx);
+		ack |= GI_GATE_ERROR_CONFIRM(cidx);
 		if (gate_error) {
 			/*660x don't support automatic acknowledgement
 			  of gate interrupt via dma read/write
@@ -390,15 +390,15 @@ void ni_tio_acknowledge_and_confirm(struct ni_gpct *counter, int *gate_error,
 		}
 	}
 	if (gxx_status & GI_TC_ERROR(cidx)) {
-		ack |= Gi_TC_Error_Confirm_Bit(cidx);
+		ack |= GI_TC_ERROR_CONFIRM(cidx);
 		if (tc_error)
 			*tc_error = 1;
 	}
 	if (gi_status & Gi_TC_Bit)
-		ack |= Gi_TC_Interrupt_Ack_Bit;
+		ack |= GI_TC_INTERRUPT_ACK;
 	if (gi_status & Gi_Gate_Interrupt_Bit) {
 		if (should_ack_gate(counter))
-			ack |= Gi_Gate_Interrupt_Ack_Bit;
+			ack |= GI_GATE_INTERRUPT_ACK;
 	}
 	if (ack)
 		write_register(counter, ack, NITIO_INT_ACK_REG(cidx));
