@@ -198,8 +198,10 @@ static inline unsigned long compute_tlbie_rb(unsigned long v, unsigned long r,
 	return rb;
 }
 
-static inline unsigned long hpte_page_size(unsigned long h, unsigned long l)
+static inline unsigned long __hpte_page_size(unsigned long h, unsigned long l,
+					     bool is_base_size)
 {
+
 	int size, a_psize;
 	/* Look at the 8 bit LP value */
 	unsigned int lp = (l >> LP_SHIFT) & ((1 << LP_BITS) - 1);
@@ -214,12 +216,25 @@ static inline unsigned long hpte_page_size(unsigned long h, unsigned long l)
 				continue;
 
 			a_psize = __hpte_actual_psize(lp, size);
-			if (a_psize != -1)
+			if (a_psize != -1) {
+				if (is_base_size)
+					return 1ul << mmu_psize_defs[size].shift;
 				return 1ul << mmu_psize_defs[a_psize].shift;
+			}
 		}
 
 	}
 	return 0;
+}
+
+static inline unsigned long hpte_page_size(unsigned long h, unsigned long l)
+{
+	return __hpte_page_size(h, l, 0);
+}
+
+static inline unsigned long hpte_base_page_size(unsigned long h, unsigned long l)
+{
+	return __hpte_page_size(h, l, 1);
 }
 
 static inline unsigned long hpte_rpn(unsigned long ptel, unsigned long psize)

@@ -36,7 +36,11 @@
 
 #if defined(CONFIG_PPC_BOOK3S_64)
 
+#if defined(_CALL_ELF) && _CALL_ELF == 2
+#define FUNC(name) 		name
+#else
 #define FUNC(name) 		GLUE(.,name)
+#endif
 
 #elif defined(CONFIG_PPC_BOOK3S_32)
 
@@ -146,7 +150,7 @@ kvmppc_handler_skip_ins:
  * On entry, r4 contains the guest shadow MSR
  * MSR.EE has to be 0 when calling this function
  */
-_GLOBAL(kvmppc_entry_trampoline)
+_GLOBAL_TOC(kvmppc_entry_trampoline)
 	mfmsr	r5
 	LOAD_REG_ADDR(r7, kvmppc_handler_trampoline_enter)
 	toreal(r7)

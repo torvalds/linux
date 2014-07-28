@@ -198,9 +198,8 @@ static inline int dio_refill_pages(struct dio *dio, struct dio_submit *sdio)
  * L1 cache.
  */
 static inline struct page *dio_get_page(struct dio *dio,
-		struct dio_submit *sdio, size_t *from, size_t *to)
+					struct dio_submit *sdio)
 {
-	int n;
 	if (dio_pages_present(sdio) == 0) {
 		int ret;
 
@@ -209,10 +208,7 @@ static inline struct page *dio_get_page(struct dio *dio,
 			return ERR_PTR(ret);
 		BUG_ON(dio_pages_present(sdio) == 0);
 	}
-	n = sdio->head++;
-	*from = n ? 0 : sdio->from;
-	*to = (n == sdio->tail - 1) ? sdio->to : PAGE_SIZE;
-	return dio->pages[n];
+	return dio->pages[sdio->head];
 }
 
 /**
@@ -911,11 +907,15 @@ static int do_direct_IO(struct dio *dio, struct dio_submit *sdio,
 	while (sdio->block_in_file < sdio->final_block_in_request) {
 		struct page *page;
 		size_t from, to;
-		page = dio_get_page(dio, sdio, &from, &to);
+
+		page = dio_get_page(dio, sdio);
 		if (IS_ERR(page)) {
 			ret = PTR_ERR(page);
 			goto out;
 		}
+		from = sdio->head ? 0 : sdio->from;
+		to = (sdio->head == sdio->tail - 1) ? sdio->to : PAGE_SIZE;
+		sdio->head++;
 
 		while (from < to) {
 			unsigned this_chunk_bytes;	/* # of bytes mapped */

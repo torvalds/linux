@@ -128,11 +128,16 @@ int mlx4_en_activate_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq,
 					mlx4_warn(mdev, "Failed assigning an EQ to %s, falling back to legacy EQ's\n",
 						  name);
 				}
+
 			}
 		} else {
 			cq->vector = (cq->ring + 1 + priv->port) %
 				mdev->dev->caps.num_comp_vectors;
 		}
+
+		cq->irq_desc =
+			irq_to_desc(mlx4_eq_get_irq(mdev->dev,
+						    cq->vector));
 	} else {
 		/* For TX we use the same irq per
 		ring we assigned for the RX    */
@@ -187,8 +192,6 @@ void mlx4_en_destroy_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq **pcq)
 	mlx4_en_unmap_buffer(&cq->wqres.buf);
 	mlx4_free_hwq_res(mdev->dev, &cq->wqres, cq->buf_size);
 	if (priv->mdev->dev->caps.comp_pool && cq->vector) {
-		if (!cq->is_tx)
-			irq_set_affinity_hint(cq->mcq.irq, NULL);
 		mlx4_release_eq(priv->mdev->dev, cq->vector);
 	}
 	cq->vector = 0;
@@ -204,6 +207,7 @@ void mlx4_en_deactivate_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq)
 	if (!cq->is_tx) {
 		napi_hash_del(&cq->napi);
 		synchronize_rcu();
+		irq_set_affinity_hint(cq->mcq.irq, NULL);
 	}
 	netif_napi_del(&cq->napi);
 
