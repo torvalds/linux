@@ -1121,7 +1121,6 @@ static struct platform_driver vhci_driver = {
  */
 static void the_pdev_release(struct device *dev)
 {
-	return;
 }
 
 static struct platform_device the_pdev = {
