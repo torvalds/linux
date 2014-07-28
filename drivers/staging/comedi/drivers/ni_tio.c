@@ -1266,9 +1266,7 @@ static unsigned int ni_tio_read_sw_save_reg(struct comedi_device *dev,
 {
 	struct ni_gpct *counter = s->private;
 	unsigned cidx = counter->counter_index;
-	unsigned int first_read;
-	unsigned int second_read;
-	unsigned int correct_read;
+	unsigned int val;
 
 	ni_tio_set_bits(counter, NITIO_CMD_REG(cidx), Gi_Save_Trace_Bit, 0);
 	ni_tio_set_bits(counter, NITIO_CMD_REG(cidx),
@@ -1283,14 +1281,11 @@ static unsigned int ni_tio_read_sw_save_reg(struct comedi_device *dev,
 	 * will be correct since the count value will definitely have latched
 	 * by then.
 	 */
-	first_read = read_register(counter, NITIO_SW_SAVE_REG(cidx));
-	second_read = read_register(counter, NITIO_SW_SAVE_REG(cidx));
-	if (first_read != second_read)
-		correct_read = read_register(counter, NITIO_SW_SAVE_REG(cidx));
-	else
-		correct_read = first_read;
+	val = read_register(counter, NITIO_SW_SAVE_REG(cidx));
+	if (val != read_register(counter, NITIO_SW_SAVE_REG(cidx)))
+		val = read_register(counter, NITIO_SW_SAVE_REG(cidx));
 
-	return correct_read;
+	return val;
 }
 
 int ni_tio_insn_read(struct comedi_device *dev,
