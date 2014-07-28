@@ -18,8 +18,6 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include "core.h"
-
 #define HI3620_SYSCTRL_PHYS_BASE		0xfc802000
 #define HI3620_SYSCTRL_VIRT_BASE		0xfe802000
 
@@ -55,7 +53,6 @@ static const char *hi3xxx_compat[] __initconst = {
 DT_MACHINE_START(HI3620, "Hisilicon Hi3620 (Flattened Device Tree)")
 	.map_io		= hi3620_map_io,
 	.dt_compat	= hi3xxx_compat,
-	.smp		= smp_ops(hi3xxx_smp_ops),
 MACHINE_END
 
 static const char *hix5hd2_compat[] __initconst = {
@@ -65,5 +62,4 @@ static const char *hix5hd2_compat[] __initconst = {
 
 DT_MACHINE_START(HIX5HD2_DT, "Hisilicon HIX5HD2 (Flattened Device Tree)")
 	.dt_compat	= hix5hd2_compat,
-	.smp		= smp_ops(hix5hd2_smp_ops),
 MACHINE_END

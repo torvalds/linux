@@ -131,3 +131,6 @@ struct smp_operations hix5hd2_smp_ops __initdata = {
 	.cpu_die		= hix5hd2_cpu_die,
 #endif
 };
+
+CPU_METHOD_OF_DECLARE(hi3xxx_smp, "hisilicon,hi3620-smp", &hi3xxx_smp_ops);
+CPU_METHOD_OF_DECLARE(hix5hd2_smp, "hisilicon,hix5hd2-smp", &hix5hd2_smp_ops);

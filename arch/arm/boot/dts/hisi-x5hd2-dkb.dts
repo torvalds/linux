@@ -21,6 +21,7 @@
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
+		enable-method = "hisilicon,hix5hd2-smp";
 
 		cpu@0 {
 			compatible = "arm,cortex-a9";
