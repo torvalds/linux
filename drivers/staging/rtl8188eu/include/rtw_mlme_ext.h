@@ -648,7 +648,7 @@ void linked_status_chk(struct adapter *padapter);
 
 void survey_timer_hdl (void *function_context);
 void link_timer_hdl (void *funtion_context);
-void addba_timer_hdl(struct sta_info *psta);
+void addba_timer_hdl(void *function_context);
 
 #define set_survey_timer(mlmeext, ms) \
 	do { \

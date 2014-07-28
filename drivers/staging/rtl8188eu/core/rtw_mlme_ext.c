@@ -4910,8 +4910,9 @@ void link_timer_hdl(void *function_context)
 	return;
 }
 
-void addba_timer_hdl(struct sta_info *psta)
+void addba_timer_hdl(void *function_context)
 {
+	struct sta_info *psta = (struct sta_info *)function_context;
 	struct ht_priv	*phtpriv;
 
 	if (!psta)

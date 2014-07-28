@@ -129,15 +129,9 @@ void rtw_report_sec_ie(struct adapter *adapter, u8 authmode, u8 *sec_ie)
 	}
 }
 
-static void _addba_timer_hdl(void *FunctionContext)
-{
-	struct sta_info *psta = (struct sta_info *)FunctionContext;
-	addba_timer_hdl(psta);
-}
-
 void init_addba_retry_timer(struct adapter *padapter, struct sta_info *psta)
 {
-	_init_timer(&psta->addba_retry_timer, padapter->pnetdev, _addba_timer_hdl, psta);
+	_init_timer(&psta->addba_retry_timer, padapter->pnetdev, addba_timer_hdl, psta);
 }
 
 void init_mlme_ext_timer(struct adapter *padapter)
