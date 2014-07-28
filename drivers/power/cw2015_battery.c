@@ -198,8 +198,7 @@ static int cw_update_config_info(struct cw_battery *cw_bat)
 
         /* update new battery info */
         for (i = 0; i < SIZE_BATINFO; i++) {
-                dev_info(&cw_bat->client->dev, "cw_bat->plat_data.cw_bat_config_info[%d] = 0x%x\n", i, \
-                                cw_bat->plat_data.cw_bat_config_info[i]);
+           //     dev_info(&cw_bat->client->dev, "cw_bat->plat_data.cw_bat_config_info[%d] = 0x%x\n", i, cw_bat->plat_data.cw_bat_config_info[i]);
                 ret = cw_write(cw_bat->client, REG_BATINFO + i, (u8 *)&cw_bat->plat_data.cw_bat_config_info[i]);
 
                 if (ret < 0) 

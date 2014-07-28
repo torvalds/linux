@@ -84,7 +84,7 @@
 				compatible = "rockchip,rk-fixed-clock";
 				#clock-cells = <0>;
 				clock-output-names = "gmac_clkin";
-				clock-frequency = <0>;
+				clock-frequency = <125000000>;
 			};
 
 			clk_hsadc_ext: clk_hsadc_ext {

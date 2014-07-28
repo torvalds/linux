@@ -68,6 +68,18 @@ static int camsys_mrv_iomux_cb(camsys_extdev_t *extdev,void *ptr)
             } else {
                 strcpy(state_str,"isp_mipi_fl");
             }
+            {
+                //mux triggerout as gpio
+            //get gpio index
+                int flash_trigger_io ;
+                enum of_gpio_flags flags;
+                flash_trigger_io = of_get_named_gpio_flags(camsys_dev->pdev->dev.of_node, "rockchip,gpios", 0, &flags);
+                if(gpio_is_valid(flash_trigger_io)){
+                    flash_trigger_io = of_get_named_gpio_flags(camsys_dev->pdev->dev.of_node, "rockchip,gpios", 0, &flags);
+                    gpio_request(flash_trigger_io,"camsys_gpio");
+                    gpio_direction_output(flash_trigger_io, (~(extdev->fl.fl.active) & 0x1));
+                }
+            }			
         } else {
             strcpy(state_str,"default");
         }
@@ -122,7 +134,8 @@ static int camsys_mrv_flash_trigger_cb(void *ptr,unsigned int on)
     char state_str[20] = {0};
     int retval = 0;
     enum of_gpio_flags flags;
-
+    camsys_extdev_t *extdev = NULL;
+	
     if(!on){
         strcpy(state_str,"isp_flash_as_gpio");
         pinctrl = devm_pinctrl_get(dev);
@@ -148,9 +161,15 @@ static int camsys_mrv_flash_trigger_cb(void *ptr,unsigned int on)
         if(gpio_is_valid(flash_trigger_io)){
             flash_trigger_io = of_get_named_gpio_flags(camsys_dev->pdev->dev.of_node, "rockchip,gpios", 0, &flags);
             gpio_request(flash_trigger_io,"camsys_gpio");
-            gpio_direction_output(flash_trigger_io, 1);
-            }
-
+            //get flash io active pol
+            if (!list_empty(&camsys_dev->extdevs.list)) {
+                list_for_each_entry(extdev, &camsys_dev->extdevs.list, list) {
+                    if (extdev->dev_cfg & CAMSYS_DEVCFG_FLASHLIGHT) {
+                        gpio_direction_output(flash_trigger_io, (~(extdev->fl.fl.active) & 0x1));
+                    }
+                }
+            }    
+        }
     }else{
         strcpy(state_str,"isp_flash_as_trigger_out");
         pinctrl = devm_pinctrl_get(dev);
@@ -245,7 +264,6 @@ static int camsys_mrv_clkin_cb(void *ptr, unsigned int on)
     
     return 0;
 }
-
 static int camsys_mrv_clkout_cb(void *ptr, unsigned int on,unsigned int inclk)
 {
     camsys_dev_t *camsys_dev = (camsys_dev_t*)ptr;
@@ -283,14 +301,28 @@ static irqreturn_t camsys_mrv_irq(int irq, void *data)
     camsys_irqstas_t *irqsta;
     camsys_irqpool_t *irqpool;
     unsigned int isp_mis,mipi_mis,mi_mis,*mis;
+	
+	unsigned int mi_ris,mi_imis;
 
     isp_mis = __raw_readl((void volatile *)(camsys_dev->devmems.registermem->vir_base + MRV_ISP_MIS));
     mipi_mis = __raw_readl((void volatile *)(camsys_dev->devmems.registermem->vir_base + MRV_MIPI_MIS));
-    mi_mis = __raw_readl((void volatile *)(camsys_dev->devmems.registermem->vir_base + MRV_MI_MIS));    
+
+	mi_mis = __raw_readl((void volatile *)(camsys_dev->devmems.registermem->vir_base + MRV_MI_MIS));
+#if 1	
+	mi_ris =  __raw_readl((void volatile *)(camsys_dev->devmems.registermem->vir_base + MRV_MI_RIS));
+	mi_imis = __raw_readl((void volatile *)(camsys_dev->devmems.registermem->vir_base + MRV_MI_IMIS));
+	while((mi_ris & mi_imis) != mi_mis){
+		camsys_trace(2,"mi_mis status erro,mi_mis 0x%x,mi_ris 0x%x,imis 0x%x\n",mi_mis,mi_ris,mi_imis);
+		mi_mis = __raw_readl((void volatile *)(camsys_dev->devmems.registermem->vir_base + MRV_MI_MIS));
+		mi_ris =  __raw_readl((void volatile *)(camsys_dev->devmems.registermem->vir_base + MRV_MI_RIS));
+    	mi_imis = __raw_readl((void volatile *)(camsys_dev->devmems.registermem->vir_base + MRV_MI_IMIS));
+	}
+
+#endif
 
     __raw_writel(isp_mis, (void volatile *)(camsys_dev->devmems.registermem->vir_base + MRV_ISP_ICR)); 
     __raw_writel(mipi_mis, (void volatile *)(camsys_dev->devmems.registermem->vir_base + MRV_MIPI_ICR)); 
-    __raw_writel(mi_mis, (void volatile *)(camsys_dev->devmems.registermem->vir_base + MRV_MI_ICR)); 
+	__raw_writel(mi_mis, (void volatile *)(camsys_dev->devmems.registermem->vir_base + MRV_MI_ICR)); 
 
     spin_lock(&camsys_dev->irq.lock);
     if (!list_empty(&camsys_dev->irq.irq_pool)) {

@@ -278,6 +278,14 @@ config CMA_AREAS
 
 	  If unsure, leave the default value "7".
 
+config CMA_ALLOC_RETRY
+	int "Maximum count to retry of the CMA Allocation"
+	depends on ARCH_ROCKCHIP
+	default 20
+	help
+	  CMA allocation range may be busy at this time, we can try again a few
+	  time to make allocate successful.
+
 endif
 
 endmenu

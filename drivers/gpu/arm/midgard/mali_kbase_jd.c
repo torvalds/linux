@@ -31,7 +31,7 @@
 #include <linux/ump.h>
 #endif				/* CONFIG_UMP */
 #include <linux/random.h>
-
+#include <linux/delay.h>
 #define beenthere(kctx,f, a...)  dev_dbg(kctx->kbdev->dev, "%s:" f, __func__, ##a)
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 8, 0)
@@ -1449,7 +1449,7 @@ static enum hrtimer_restart zap_timeout_callback(struct hrtimer *timer)
 void kbase_jd_zap_context(kbase_context *kctx)
 {
 	kbase_jd_atom *katom;
-	struct list_head *entry;
+	struct list_head *entry,*entry1;
 	kbase_device *kbdev;
 	zap_reset_data reset_data;
 	unsigned long flags;
@@ -1457,19 +1457,23 @@ void kbase_jd_zap_context(kbase_context *kctx)
 	KBASE_DEBUG_ASSERT(kctx);
 
 	kbdev = kctx->kbdev;
-
+	
 	KBASE_TRACE_ADD(kbdev, JD_ZAP_CONTEXT, kctx, NULL, 0u, 0u);
 	kbase_job_zap_context(kctx);
 
 	mutex_lock(&kctx->jctx.lock);
-
 	/*
 	 * While holding the kbase_jd_context lock clean up jobs which are known to kbase but are
 	 * queued outside the job scheduler.
 	 */
-
-	list_for_each( entry, &kctx->waiting_soft_jobs) {
+	/*
+	pr_info("%p,%p,%p\n",&kctx->waiting_soft_jobs,kctx->waiting_soft_jobs.next,kctx->waiting_soft_jobs.prev);
+	*/
+	list_for_each_safe(entry, entry1, &kctx->waiting_soft_jobs) {
+		if(entry == (struct list_head *)LIST_POISON1)
+			pr_err("@get to the end of a list, error happened in list somewhere@\n");
 		katom = list_entry(entry, kbase_jd_atom, dep_item[0]);
+			pr_info("katom = %p,&katom->dep_item[0] = %p\n",katom,&katom->dep_item[0]);
 		kbase_cancel_soft_job(katom);
 	}
 	/* kctx->waiting_soft_jobs is not valid after this point */

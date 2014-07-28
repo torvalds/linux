@@ -602,7 +602,7 @@ static const struct i2c_device_id ak8963_mod_id[] = {
 MODULE_DEVICE_TABLE(i2c, ak8963_mod_id);
 
 static const struct of_device_id of_mpu_ak8963_match[] = {
-	{ .compatible = "ak8963" },
+	{ .compatible = "mpu_ak8963" },
 	{ /* Sentinel */ }
 };
 

@@ -223,7 +223,7 @@ static int pm_callback_runtime_on(kbase_device *kbdev)
 	if (platform->dvfs_enabled) {
 		/*if (kbase_platform_dvfs_enable(true, MALI_DVFS_START_FREQ)!= MALI_TRUE)*/
 		/*printk("%s\n",__func__);*/
-		if (kbase_platform_dvfs_enable(true, p_mali_dvfs_infotbl[MALI_DVFS_STEP-1].clock)!= MALI_TRUE)
+		if (kbase_platform_dvfs_enable(true, MALI_DVFS_CURRENT_FREQ)!= MALI_TRUE)
 			return -EPERM;
 	} else {
 		if (kbase_platform_dvfs_enable(false, MALI_DVFS_CURRENT_FREQ)!= MALI_TRUE)

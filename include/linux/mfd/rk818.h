@@ -194,7 +194,7 @@ int rk818_bulk_read(struct rk818 *rk818, u8 reg,
 		     int count, u8 *buf);
 int rk818_bulk_write(struct rk818 *rk818, u8 reg,
 		     int count, u8 *buf);
-int rk818_device_shutdown(void);
+void rk818_device_shutdown(void);
 
 #endif
 

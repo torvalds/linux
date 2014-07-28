@@ -10,6 +10,13 @@ config RK_GMAC_ETH
 	  Rockchip 10/100/1000 Ethernet driver.
 
 if RK_GMAC_ETH
+config GMAC_CLK_IN
+	bool "Clock input from PHY"
+	default y
+
+config GMAC_PHY_RMII
+	bool "GMAC interface set to RMII"
+	default n
 
 config GMAC_DEBUG_FS
 	bool "Enable monitoring via sysFS "

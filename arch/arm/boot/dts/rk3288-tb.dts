@@ -171,6 +171,9 @@
 		rockchip,remote_wakeup;
 		rockchip,usb_irq_wakeup;
 	};
+	chosen {
+                bootargs = "vmalloc=512M";
+        };
 };
 
 &gmac {
@@ -581,6 +584,7 @@
 
 &fb {
 	rockchip,disp-mode = <DUAL>;
+	rockchip,uboot-logo-on = <1>;
 };
 
 &rk_screen {
@@ -807,7 +811,7 @@
 
 		ldo1_reg: regulator@4 {
 			regulator-name= "vccio_sd";
-			regulator-min-microvolt = <3300000>;
+			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <3300000>;
 			
 		};
@@ -1367,4 +1371,7 @@
 &sdmmc0_vdd_domain{
 	regulator-name = "vcc_sd";			
 	};
-	
+
+&ion_cma {
+       reg = <0x40000000 0x28000000>; /* 640MB */
+};

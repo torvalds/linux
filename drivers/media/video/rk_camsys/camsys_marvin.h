@@ -17,6 +17,14 @@
 #define MRV_MIPI_ICR                            (MRV_MIPI_BASE+0x14)
 
 #define MRV_MI_BASE                             (0x1400)
+
+#define MRV_MI_MP_Y_OFFS_CNT_START                   (MRV_MI_BASE+0x14)
+#define MRV_MI_INIT                   (MRV_MI_BASE+0x4)
+#define MRV_MI_MP_Y_BASE_AD                   (MRV_MI_BASE+0x8)
+#define MRV_MI_Y_BASE_AD_SHD                   (MRV_MI_BASE+0x78)
+#define MRV_MI_Y_OFFS_CNT_SHD                   (MRV_MI_BASE+0x80)
+#define MRV_MI_IMIS                              (MRV_MI_BASE+0xf8)
+#define MRV_MI_RIS                              (MRV_MI_BASE+0xfc)
 #define MRV_MI_MIS                              (MRV_MI_BASE+0x100)
 #define MRV_MI_ICR                              (MRV_MI_BASE+0x104)
 
