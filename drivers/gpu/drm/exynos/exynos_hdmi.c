@@ -2521,7 +2521,8 @@ static int hdmi_remove(struct platform_device *pdev)
 	if (hdata->res.reg_hdmi_en)
 		regulator_disable(hdata->res.reg_hdmi_en);
 
-	put_device(&hdata->hdmiphy_port->dev);
+	if (hdata->hdmiphy_port)
+		put_device(&hdata->hdmiphy_port->dev);
 	put_device(&hdata->ddc_adpt->dev);
 
 	pm_runtime_disable(&pdev->dev);
