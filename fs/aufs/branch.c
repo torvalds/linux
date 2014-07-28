@@ -772,12 +772,11 @@ static int test_children_busy(struct dentry *root, aufs_bindex_t bindex,
 	return err;
 }
 
-static int test_dir_busy(struct file *file, aufs_bindex_t bindex, void *to_free,
-			 int *idx)
+static int test_dir_busy(struct file *file, aufs_bindex_t bindex,
+			 struct file **to_free, int *idx)
 {
 	int err, found, i;
 	aufs_bindex_t bstart, bend;
-	struct file **p;
 
 	err = 0;
 	bstart = au_fbstart(file);
@@ -792,9 +791,8 @@ static int test_dir_busy(struct file *file, aufs_bindex_t bindex, void *to_free,
 		if (i != bindex)
 			found = !!au_hf_dir(file, i);
 	if (found) {
-		p = to_free;
 		get_file(file);
-		p[*idx] = file;
+		to_free[*idx] = file;
 		(*idx)++;
 	} else
 		err = -EBUSY;
@@ -804,7 +802,7 @@ out:
 }
 
 static int test_file_busy(struct super_block *sb, aufs_bindex_t bindex,
-			  void *to_free, int opened)
+			  struct file **to_free, int opened)
 {
 	int err, idx;
 	unsigned long long ull, max;
