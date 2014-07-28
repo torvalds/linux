@@ -1056,36 +1056,36 @@ static void radeon_check_arguments(struct radeon_device *rdev)
 	if (!radeon_check_pot_argument(radeon_vm_size)) {
 		dev_warn(rdev->dev, "VM size (%d) must be a power of 2\n",
 			 radeon_vm_size);
-		radeon_vm_size = 4096;
+		radeon_vm_size = 4;
 	}
 
-	if (radeon_vm_size < 4) {
-		dev_warn(rdev->dev, "VM size (%d) to small, min is 4MB\n",
+	if (radeon_vm_size < 1) {
+		dev_warn(rdev->dev, "VM size (%d) to small, min is 1GB\n",
 			 radeon_vm_size);
-		radeon_vm_size = 4096;
+		radeon_vm_size = 4;
 	}
 
        /*
         * Max GPUVM size for Cayman, SI and CI are 40 bits.
         */
-	if (radeon_vm_size > 1024*1024) {
-		dev_warn(rdev->dev, "VM size (%d) to large, max is 1TB\n",
+	if (radeon_vm_size > 1024) {
+		dev_warn(rdev->dev, "VM size (%d) too large, max is 1TB\n",
 			 radeon_vm_size);
-		radeon_vm_size = 4096;
+		radeon_vm_size = 4;
 	}
 
 	/* defines number of bits in page table versus page directory,
 	 * a page is 4KB so we have 12 bits offset, minimum 9 bits in the
 	 * page table and the remaining bits are in the page directory */
 	if (radeon_vm_block_size < 9) {
-		dev_warn(rdev->dev, "VM page table size (%d) to small\n",
+		dev_warn(rdev->dev, "VM page table size (%d) too small\n",
 			 radeon_vm_block_size);
 		radeon_vm_block_size = 9;
 	}
 
 	if (radeon_vm_block_size > 24 ||
-	    radeon_vm_size < (1ull << radeon_vm_block_size)) {
-		dev_warn(rdev->dev, "VM page table size (%d) to large\n",
+	    (radeon_vm_size * 1024) < (1ull << radeon_vm_block_size)) {
+		dev_warn(rdev->dev, "VM page table size (%d) too large\n",
 			 radeon_vm_block_size);
 		radeon_vm_block_size = 9;
 	}
@@ -1238,7 +1238,7 @@ int radeon_device_init(struct radeon_device *rdev,
 	/* Adjust VM size here.
 	 * Max GPUVM size for cayman+ is 40 bits.
 	 */
-	rdev->vm_manager.max_pfn = radeon_vm_size << 8;
+	rdev->vm_manager.max_pfn = radeon_vm_size << 18;
 
 	/* Set asic functions */
 	r = radeon_asic_init(rdev);
