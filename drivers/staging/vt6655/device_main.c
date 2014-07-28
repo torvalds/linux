@@ -736,30 +736,31 @@ static void device_init_registers(PSDevice pDevice)
 	if (pDevice->bHWRadioOff || pDevice->bRadioControlOff)
 		CARDbRadioPowerOff(pDevice);
 
-pMgmt->eScanType = WMAC_SCAN_PASSIVE;
-// get Permanent network address
-SROMvReadEtherAddress(pDevice->PortOffset, pDevice->abyCurrentNetAddr);
-DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Network address = %pM\n",
-	pDevice->abyCurrentNetAddr);
+	pMgmt->eScanType = WMAC_SCAN_PASSIVE;
 
-// reset Tx pointer
-CARDvSafeResetRx(pDevice);
-// reset Rx pointer
-CARDvSafeResetTx(pDevice);
+	/* get Permanent network address */
+	SROMvReadEtherAddress(pDevice->PortOffset, pDevice->abyCurrentNetAddr);
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Network address = %pM\n",
+		pDevice->abyCurrentNetAddr);
 
-if (pDevice->byLocalID <= REV_ID_VT3253_A1)
-	MACvRegBitsOn(pDevice->PortOffset, MAC_REG_RCR, RCR_WPAERR);
+	/* reset Tx pointer */
+	CARDvSafeResetRx(pDevice);
+	/* reset Rx pointer */
+	CARDvSafeResetTx(pDevice);
 
-pDevice->eEncryptionStatus = Ndis802_11EncryptionDisabled;
+	if (pDevice->byLocalID <= REV_ID_VT3253_A1)
+		MACvRegBitsOn(pDevice->PortOffset, MAC_REG_RCR, RCR_WPAERR);
 
-// Turn On Rx DMA
-MACvReceive0(pDevice->PortOffset);
-MACvReceive1(pDevice->PortOffset);
+	pDevice->eEncryptionStatus = Ndis802_11EncryptionDisabled;
 
-// start the adapter
-MACvStart(pDevice->PortOffset);
+	/* Turn On Rx DMA */
+	MACvReceive0(pDevice->PortOffset);
+	MACvReceive1(pDevice->PortOffset);
 
-netif_stop_queue(pDevice->dev);
+	/* start the adapter */
+	MACvStart(pDevice->PortOffset);
+
+	netif_stop_queue(pDevice->dev);
 }
 
 static void device_init_diversity_timer(PSDevice pDevice)
