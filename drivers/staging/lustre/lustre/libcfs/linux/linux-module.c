@@ -99,7 +99,7 @@ int libcfs_ioctl_popdata(void *arg, void *data, int size)
 extern struct cfs_psdev_ops	  libcfs_psdev_ops;
 
 static int
-libcfs_psdev_open(struct inode * inode, struct file * file)
+libcfs_psdev_open(struct inode *inode, struct file *file)
 {
 	struct libcfs_device_userstate **pdu = NULL;
 	int    rc = 0;
@@ -116,7 +116,7 @@ libcfs_psdev_open(struct inode * inode, struct file * file)
 
 /* called when closing /dev/device */
 static int
-libcfs_psdev_release(struct inode * inode, struct file * file)
+libcfs_psdev_release(struct inode *inode, struct file *file)
 {
 	struct libcfs_device_userstate *pdu;
 	int    rc = 0;
