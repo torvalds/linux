@@ -201,8 +201,8 @@ static int ni_tio_cmd_setup(struct comedi_subdevice *s)
 		retval = ni_tio_set_gate_src(counter, 0, gate_source);
 	if (cmd->flags & TRIG_WAKE_EOS) {
 		ni_tio_set_bits(counter, NITIO_INT_ENA_REG(cidx),
-				Gi_Gate_Interrupt_Enable_Bit(cidx),
-				Gi_Gate_Interrupt_Enable_Bit(cidx));
+				GI_GATE_INTERRUPT_ENABLE(cidx),
+				GI_GATE_INTERRUPT_ENABLE(cidx));
 	}
 	return retval;
 }
@@ -322,7 +322,7 @@ int ni_tio_cancel(struct ni_gpct *counter)
 	ni_tio_configure_dma(counter, 0, 0);
 
 	ni_tio_set_bits(counter, NITIO_INT_ENA_REG(cidx),
-			Gi_Gate_Interrupt_Enable_Bit(cidx), 0x0);
+			GI_GATE_INTERRUPT_ENABLE(cidx), 0x0);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ni_tio_cancel);

@@ -153,25 +153,8 @@
 #define GI_TC				(1 << 3)
 #define GI_INTERRUPT			(1 << 15)
 #define NITIO_INT_ENA_REG(x)		(NITIO_G0_INT_ENA + (x))
-
-enum G02_Interrupt_Enable_Bits {
-	G0_TC_Interrupt_Enable_Bit = 0x40,
-	G0_Gate_Interrupt_Enable_Bit = 0x100
-};
-enum G13_Interrupt_Enable_Bits {
-	G1_TC_Interrupt_Enable_Bit = 0x200,
-	G1_Gate_Interrupt_Enable_Bit = 0x400
-};
-static inline unsigned Gi_Gate_Interrupt_Enable_Bit(unsigned counter_index)
-{
-	unsigned bit;
-
-	if (counter_index % 2)
-		bit = G1_Gate_Interrupt_Enable_Bit;
-	else
-		bit = G0_Gate_Interrupt_Enable_Bit;
-	return bit;
-}
+#define GI_TC_INTERRUPT_ENABLE(x)	(((x) % 2) ? (1 << 9) : (1 << 6))
+#define GI_GATE_INTERRUPT_ENABLE(x)	(((x) % 2) ? (1 << 10) : (1 << 8))
 
 static inline void write_register(struct ni_gpct *counter, unsigned bits,
 				  enum ni_gpct_register reg)
