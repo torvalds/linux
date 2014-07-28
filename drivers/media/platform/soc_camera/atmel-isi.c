@@ -25,6 +25,7 @@
 #include <media/atmel-isi.h>
 #include <media/soc_camera.h>
 #include <media/soc_mediabus.h>
+#include <media/v4l2-of.h>
 #include <media/videobuf2-dma-contig.h>
 
 #define MAX_BUFFER_NUM			32
@@ -33,6 +34,7 @@
 #define VID_LIMIT_BYTES			(16 * 1024 * 1024)
 #define MIN_FRAME_RATE			15
 #define FRAME_INTERVAL_MILLI_SEC	(1000 / MIN_FRAME_RATE)
+#define ISI_DEFAULT_MCLK_FREQ		25000000
 
 /* Frame buffer descriptor */
 struct fbd {
@@ -876,6 +878,51 @@ static int atmel_isi_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int atmel_isi_probe_dt(struct atmel_isi *isi,
+			struct platform_device *pdev)
+{
+	struct device_node *np= pdev->dev.of_node;
+	struct v4l2_of_endpoint ep;
+	int err;
+
+	/* Default settings for ISI */
+	isi->pdata.full_mode = 1;
+	isi->pdata.mck_hz = ISI_DEFAULT_MCLK_FREQ;
+	isi->pdata.frate = ISI_CFG1_FRATE_CAPTURE_ALL;
+
+	np = of_graph_get_next_endpoint(np, NULL);
+	if (!np) {
+		dev_err(&pdev->dev, "Could not find the endpoint\n");
+		return -EINVAL;
+	}
+
+	err = v4l2_of_parse_endpoint(np, &ep);
+	if (err) {
+		dev_err(&pdev->dev, "Could not parse the endpoint\n");
+		goto err_probe_dt;
+	}
+
+	switch (ep.bus.parallel.bus_width) {
+	case 8:
+		isi->pdata.data_width_flags = ISI_DATAWIDTH_8;
+		break;
+	case 10:
+		isi->pdata.data_width_flags =
+				ISI_DATAWIDTH_8 | ISI_DATAWIDTH_10;
+		break;
+	default:
+		dev_err(&pdev->dev, "Unsupported bus width: %d\n",
+				ep.bus.parallel.bus_width);
+		err = -EINVAL;
+		goto err_probe_dt;
+	}
+
+err_probe_dt:
+	of_node_put(np);
+
+	return err;
+}
+
 static int atmel_isi_probe(struct platform_device *pdev)
 {
 	unsigned int irq;
@@ -887,7 +934,7 @@ static int atmel_isi_probe(struct platform_device *pdev)
 	struct isi_platform_data *pdata;
 
 	pdata = dev->platform_data;
-	if (!pdata || !pdata->data_width_flags) {
+	if ((!pdata || !pdata->data_width_flags) && !pdev->dev.of_node) {
 		dev_err(&pdev->dev,
 			"No config available for Atmel ISI\n");
 		return -EINVAL;
@@ -903,7 +950,14 @@ static int atmel_isi_probe(struct platform_device *pdev)
 	if (IS_ERR(isi->pclk))
 		return PTR_ERR(isi->pclk);
 
-	memcpy(&isi->pdata, pdata, sizeof(isi->pdata));
+	if (pdata) {
+		memcpy(&isi->pdata, pdata, sizeof(isi->pdata));
+	} else {
+		ret = atmel_isi_probe_dt(isi, pdev);
+		if (ret)
+			return ret;
+	}
+
 	isi->active = NULL;
 	spin_lock_init(&isi->lock);
 	INIT_LIST_HEAD(&isi->video_buffer_list);
@@ -1005,11 +1059,18 @@ err_alloc_ctx:
 	return ret;
 }
 
+static const struct of_device_id atmel_isi_of_match[] = {
+	{ .compatible = "atmel,at91sam9g45-isi" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, atmel_isi_of_match);
+
 static struct platform_driver atmel_isi_driver = {
 	.remove		= atmel_isi_remove,
 	.driver		= {
 		.name = "atmel_isi",
 		.owner = THIS_MODULE,
+		.of_match_table = of_match_ptr(atmel_isi_of_match),
 	},
 };
 
