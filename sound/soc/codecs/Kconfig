@@ -314,6 +314,9 @@ config SND_SOC_OMAP_HDMI_CODEC
 config SND_SOC_PCM3008
        tristate
 
+config SND_SOC_RK3036
+	tristate
+
 #Freescale sgtl5000 codec
 config SND_SOC_SGTL5000
 	tristate

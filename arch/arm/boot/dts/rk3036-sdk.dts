@@ -106,6 +106,22 @@
 			};
 		};
 	};
+
+	rockchip-audio {
+		compatible = "rk3036-audio";
+		dais {
+			dai0 {
+				audio-codec = <&codec>;
+				i2s-controller = <&i2s>;
+				format = "i2s";
+				//continuous-clock;
+				//bitclock-inversion;
+				//frame-inversion;
+				//bitclock-master;
+				//frame-master;
+			};
+		};
+	};
 };
 
 &uart0{

@@ -20,7 +20,7 @@ choice
   bool "Set audio support for HDMI"
   default SND_RK_SOC_HDMI_I2S
 	config SND_RK_SOC_HDMI_I2S
-		depends on !RK616_USE_MCLK_12M || !SND_RK_SOC_RK616
+		depends on (!RK616_USE_MCLK_12M || !SND_RK_SOC_RK616) && !SND_RK_SOC_RK3036
 		select SND_RK_SOC_I2S
 		select SND_SOC_HDMI_I2S
 		tristate  "HDMI use I2S"
@@ -239,6 +239,15 @@ config SND_RK_SOC_RK1000
 	help
 	  Say Y if you want to add support for SoC audio on rockchip
 	  with the RK1000.
+
+config SND_RK_SOC_RK3036
+	tristate "SoC I2S Audio support for rockchip - RK3036"
+	depends on SND_RK_SOC
+	select SND_RK_SOC_I2S
+	select SND_SOC_RK3036
+	help
+	  Say Y if you want to add support for SoC audio on rockchip
+	  with the RK3036 s40.
 
 config SND_RK_SOC_RK610
 	tristate "SoC I2S Audio support for rockchip - RK610"

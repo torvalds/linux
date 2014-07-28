@@ -1,0 +1,36 @@
+* Rockchip Audio controller
+
+Required SoC Specific Properties:
+
+- compatible : "rk3036-audio"
+- reg: physical base address of the controller and length of memory mapped
+  region.
+- clocks: must include clock specifiers corresponding to entries in the
+  clock-names property.
+- clocks-names: list of clock names sorted in the same order as the clocks
+  property. Must contain "rockchip-i2s" and "rk3036-codec".
+- interrupts: interrupt number to the cpu.
+- dmas: list of DMA controller phandle and DMA request line ordered pairs.
+- dma-names: identifier string for each DMA request line in the dmas property.
+  These strings correspond 1:1 with the ordered pairs in dmas.
+- pinctrl-names: must contain a "default" entry.
+- pinctrl-0: pin control group to be used for this controller.
+- pinctrl-1: pin control group to be used for gpio.
+
+Example:
+
+rockchip-audio {
+	compatible = "rk3036-audio";
+	dais {
+		dai0 {
+			audio-codec = <&codec>;
+			i2s-controller = <&i2s>;
+			format = "i2s";
+			//continuous-clock;
+			//bitclock-inversion;
+			//frame-inversion;
+			//bitclock-master;
+			//frame-master;
+		};
+	};
+};
