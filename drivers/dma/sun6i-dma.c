@@ -641,7 +641,7 @@ static struct dma_async_tx_descriptor *sun6i_dma_prep_slave_sg(
 				DMA_CHAN_CFG_DST_DRQ(vchan->port);
 
 			dev_dbg(chan2dev(chan),
-				"%s; chan: %d, dest: %pad, src: %pad, len: %zu. flags: 0x%08lx\n",
+				"%s; chan: %d, dest: %pad, src: %pad, len: %u. flags: 0x%08lx\n",
 				__func__, vchan->vc.chan.chan_id,
 				&sconfig->dst_addr, &sg_dma_address(sg),
 				sg_dma_len(sg), flags);
@@ -659,7 +659,7 @@ static struct dma_async_tx_descriptor *sun6i_dma_prep_slave_sg(
 				DMA_CHAN_CFG_SRC_DRQ(vchan->port);
 
 			dev_dbg(chan2dev(chan),
-				"%s; chan: %d, dest: %pad, src: %pad, len: %zu. flags: 0x%08lx\n",
+				"%s; chan: %d, dest: %pad, src: %pad, len: %u. flags: 0x%08lx\n",
 				__func__, vchan->vc.chan.chan_id,
 				&sg_dma_address(sg), &sconfig->src_addr,
 				sg_dma_len(sg), flags);
