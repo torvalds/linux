@@ -273,16 +273,10 @@ static int st21nfcb_nci_i2c_of_request_resources(struct i2c_client *client)
 	}
 
 	/* GPIO request and configuration */
-	r = devm_gpio_request(&client->dev, gpio, "clf_reset");
+	r = devm_gpio_request_one(&client->dev, gpio,
+				GPIOF_OUT_INIT_HIGH, "clf_reset");
 	if (r) {
 		nfc_err(&client->dev, "Failed to request reset pin\n");
-		return -ENODEV;
-	}
-
-	r = gpio_direction_output(gpio, 1);
-	if (r) {
-		nfc_err(&client->dev,
-			"Failed to set reset pin direction as output\n");
 		return -ENODEV;
 	}
 	phy->gpio_reset = gpio;
@@ -325,29 +319,17 @@ static int st21nfcb_nci_i2c_request_resources(struct i2c_client *client)
 	phy->gpio_reset = pdata->gpio_reset;
 	phy->irq_polarity = pdata->irq_polarity;
 
-	r = devm_gpio_request(&client->dev, phy->gpio_irq, "wake_up");
+	r = devm_gpio_request_one(&client->dev, phy->gpio_irq,
+				GPIOF_IN, "clf_irq");
 	if (r) {
 		pr_err("%s : gpio_request failed\n", __FILE__);
 		return -ENODEV;
 	}
 
-	r = gpio_direction_input(phy->gpio_irq);
-	if (r) {
-		pr_err("%s : gpio_direction_input failed\n", __FILE__);
-		return -ENODEV;
-	}
-
-	r = devm_gpio_request(&client->dev,
-			      phy->gpio_reset, "clf_reset");
+	r = devm_gpio_request_one(&client->dev,
+			phy->gpio_reset, GPIOF_OUT_INIT_HIGH, "clf_reset");
 	if (r) {
 		pr_err("%s : reset gpio_request failed\n", __FILE__);
-		return -ENODEV;
-	}
-
-	r = gpio_direction_output(phy->gpio_reset, 1);
-	if (r) {
-		pr_err("%s : reset gpio_direction_output failed\n",
-			__FILE__);
 		return -ENODEV;
 	}
 
