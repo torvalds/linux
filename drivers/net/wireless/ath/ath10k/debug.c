@@ -531,7 +531,10 @@ static ssize_t ath10k_write_simulate_fw_crash(struct file *file,
 		ret = ath10k_wmi_force_fw_hang(ar, WMI_FORCE_FW_HANG_ASSERT, 0);
 	} else if (!strcmp(buf, "hard")) {
 		ath10k_info("simulating hard firmware crash\n");
-		ret = ath10k_wmi_vdev_set_param(ar, TARGET_NUM_VDEVS + 1,
+		/* 0x7fff is vdev id, and it is always out of range for all
+		 * firmware variants in order to force a firmware crash.
+		 */
+		ret = ath10k_wmi_vdev_set_param(ar, 0x7fff,
 					ar->wmi.vdev_param->rts_threshold, 0);
 	} else {
 		ret = -EINVAL;
