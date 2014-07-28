@@ -56,6 +56,11 @@ bcm47xx_buttons_asus_wl330ge[] __initconst = {
 };
 
 static const struct gpio_keys_button
+bcm47xx_buttons_asus_wl500g[] __initconst = {
+	BCM47XX_GPIO_KEY(6, KEY_RESTART),
+};
+
+static const struct gpio_keys_button
 bcm47xx_buttons_asus_wl500gd[] __initconst = {
 	BCM47XX_GPIO_KEY(6, KEY_RESTART),
 };
@@ -288,6 +293,13 @@ bcm47xx_buttons_linksys_wrtsl54gs[] __initconst = {
 	BCM47XX_GPIO_KEY(6, KEY_RESTART),
 };
 
+/* Microsoft */
+
+static const struct gpio_keys_button
+bcm47xx_buttons_microsoft_nm700[] __initconst = {
+	BCM47XX_GPIO_KEY(7, KEY_RESTART),
+};
+
 /* Motorola */
 
 static const struct gpio_keys_button
@@ -394,6 +406,9 @@ int __init bcm47xx_buttons_register(void)
 		break;
 	case BCM47XX_BOARD_ASUS_WL330GE:
 		err = bcm47xx_copy_bdata(bcm47xx_buttons_asus_wl330ge);
+		break;
+	case BCM47XX_BOARD_ASUS_WL500G:
+		err = bcm47xx_copy_bdata(bcm47xx_buttons_asus_wl500g);
 		break;
 	case BCM47XX_BOARD_ASUS_WL500GD:
 		err = bcm47xx_copy_bdata(bcm47xx_buttons_asus_wl500gd);
@@ -515,6 +530,10 @@ int __init bcm47xx_buttons_register(void)
 		break;
 	case BCM47XX_BOARD_LINKSYS_WRTSL54GS:
 		err = bcm47xx_copy_bdata(bcm47xx_buttons_linksys_wrtsl54gs);
+		break;
+
+	case BCM47XX_BOARD_MICROSOFT_MN700:
+		err = bcm47xx_copy_bdata(bcm47xx_buttons_microsoft_nm700);
 		break;
 
 	case BCM47XX_BOARD_MOTOROLA_WE800G:

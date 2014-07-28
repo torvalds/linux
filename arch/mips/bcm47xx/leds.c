@@ -64,6 +64,11 @@ bcm47xx_leds_asus_wl330ge[] __initconst = {
 };
 
 static const struct gpio_led
+bcm47xx_leds_asus_wl500g[] __initconst = {
+	BCM47XX_GPIO_LED(0, "unk", "power", 1, LEDS_GPIO_DEFSTATE_ON),
+};
+
+static const struct gpio_led
 bcm47xx_leds_asus_wl500gd[] __initconst = {
 	BCM47XX_GPIO_LED(0, "unk", "power", 1, LEDS_GPIO_DEFSTATE_ON),
 };
@@ -332,6 +337,13 @@ bcm47xx_leds_linksys_wrtsl54gs[] __initconst = {
 	BCM47XX_GPIO_LED(7, "unk", "dmz", 1, LEDS_GPIO_DEFSTATE_OFF),
 };
 
+/* Microsoft */
+
+static const struct gpio_led
+bcm47xx_leds_microsoft_nm700[] __initconst = {
+	BCM47XX_GPIO_LED(6, "unk", "power", 0, LEDS_GPIO_DEFSTATE_ON),
+};
+
 /* Motorola */
 
 static const struct gpio_led
@@ -431,6 +443,9 @@ void __init bcm47xx_leds_register(void)
 		break;
 	case BCM47XX_BOARD_ASUS_WL330GE:
 		bcm47xx_set_pdata(bcm47xx_leds_asus_wl330ge);
+		break;
+	case BCM47XX_BOARD_ASUS_WL500G:
+		bcm47xx_set_pdata(bcm47xx_leds_asus_wl500g);
 		break;
 	case BCM47XX_BOARD_ASUS_WL500GD:
 		bcm47xx_set_pdata(bcm47xx_leds_asus_wl500gd);
@@ -552,6 +567,10 @@ void __init bcm47xx_leds_register(void)
 		break;
 	case BCM47XX_BOARD_LINKSYS_WRTSL54GS:
 		bcm47xx_set_pdata(bcm47xx_leds_linksys_wrtsl54gs);
+		break;
+
+	case BCM47XX_BOARD_MICROSOFT_MN700:
+		bcm47xx_set_pdata(bcm47xx_leds_microsoft_nm700);
 		break;
 
 	case BCM47XX_BOARD_MOTOROLA_WE800G:

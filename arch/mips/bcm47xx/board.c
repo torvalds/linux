@@ -80,6 +80,14 @@ struct bcm47xx_board_type_list1 bcm47xx_board_list_hardware_version[] __initcons
 	{ {0}, NULL},
 };
 
+/* hardware_version, boardnum */
+static const
+struct bcm47xx_board_type_list2 bcm47xx_board_list_hw_version_num[] __initconst = {
+	{{BCM47XX_BOARD_MICROSOFT_MN700, "Microsoft MN-700"}, "WL500-", "mn700"},
+	{{BCM47XX_BOARD_ASUS_WL500G, "Asus WL500G"}, "WL500-", "asusX"},
+	{ {0}, NULL},
+};
+
 /* productid */
 static const
 struct bcm47xx_board_type_list1 bcm47xx_board_list_productid[] __initconst = {
@@ -234,6 +242,15 @@ static __init const struct bcm47xx_board_type *bcm47xx_board_get_nvram(void)
 		for (e1 = bcm47xx_board_list_hardware_version; e1->value1; e1++) {
 			if (strstarts(buf1, e1->value1))
 				return &e1->board;
+		}
+	}
+
+	if (bcm47xx_nvram_getenv("hardware_version", buf1, sizeof(buf1)) >= 0 &&
+	    bcm47xx_nvram_getenv("boardtype", buf2, sizeof(buf2)) >= 0) {
+		for (e2 = bcm47xx_board_list_boot_hw; e2->value1; e2++) {
+			if (!strstarts(buf1, e2->value1) &&
+			    !strcmp(buf2, e2->value2))
+				return &e2->board;
 		}
 	}
 
