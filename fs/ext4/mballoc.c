@@ -3075,8 +3075,9 @@ ext4_mb_normalize_request(struct ext4_allocation_context *ac,
 							(23 - bsbits)) << 23;
 		size = 8 * 1024 * 1024;
 	} else {
-		start_off = (loff_t)ac->ac_o_ex.fe_logical << bsbits;
-		size	  = ac->ac_o_ex.fe_len << bsbits;
+		start_off = (loff_t) ac->ac_o_ex.fe_logical << bsbits;
+		size	  = (loff_t) EXT4_C2B(EXT4_SB(ac->ac_sb),
+					      ac->ac_o_ex.fe_len) << bsbits;
 	}
 	size = size >> bsbits;
 	start = start_off >> bsbits;
