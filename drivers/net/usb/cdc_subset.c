@@ -85,9 +85,34 @@ static int always_connected (struct usbnet *dev)
  *
  *-------------------------------------------------------------------------*/
 
+static void m5632_recover(struct usbnet *dev)
+{
+	struct usb_device	*udev = dev->udev;
+	struct usb_interface	*intf = dev->intf;
+	int r;
+
+	r = usb_lock_device_for_reset(udev, intf);
+	if (r < 0)
+		return;
+
+	usb_reset_device(udev);
+	usb_unlock_device(udev);
+}
+
+static int dummy_prereset(struct usb_interface *intf)
+{
+	return 0;
+}
+
+static int dummy_postreset(struct usb_interface *intf)
+{
+	return 0;
+}
+
 static const struct driver_info	ali_m5632_info = {
 	.description =	"ALi M5632",
 	.flags       = FLAG_POINTTOPOINT,
+	.recover     = m5632_recover,
 };
 
 #endif
@@ -332,6 +357,8 @@ static struct usb_driver cdc_subset_driver = {
 	.probe =	usbnet_probe,
 	.suspend =	usbnet_suspend,
 	.resume =	usbnet_resume,
+	.pre_reset =	dummy_prereset,
+	.post_reset =	dummy_postreset,
 	.disconnect =	usbnet_disconnect,
 	.id_table =	products,
 	.disable_hub_initiated_lpm = 1,
