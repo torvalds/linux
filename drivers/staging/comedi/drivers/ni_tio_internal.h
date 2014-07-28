@@ -149,13 +149,10 @@
 #define GI_TC_INTERRUPT_ACK		(1 << 14)
 #define GI_GATE_INTERRUPT_ACK		(1 << 15)
 #define NITIO_STATUS_REG(x)		(NITIO_G0_STATUS + (x))
+#define GI_GATE_INTERRUPT		(1 << 2)
+#define GI_TC				(1 << 3)
+#define GI_INTERRUPT			(1 << 15)
 #define NITIO_INT_ENA_REG(x)		(NITIO_G0_INT_ENA + (x))
-
-enum Gi_Status_Bits {
-	Gi_Gate_Interrupt_Bit = 0x4,
-	Gi_TC_Bit = 0x8,
-	Gi_Interrupt_Bit = 0x8000
-};
 
 enum G02_Interrupt_Enable_Bits {
 	G0_TC_Interrupt_Enable_Bit = 0x40,

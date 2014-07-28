@@ -394,9 +394,9 @@ void ni_tio_acknowledge_and_confirm(struct ni_gpct *counter, int *gate_error,
 		if (tc_error)
 			*tc_error = 1;
 	}
-	if (gi_status & Gi_TC_Bit)
+	if (gi_status & GI_TC)
 		ack |= GI_TC_INTERRUPT_ACK;
-	if (gi_status & Gi_Gate_Interrupt_Bit) {
+	if (gi_status & GI_GATE_INTERRUPT) {
 		if (should_ack_gate(counter))
 			ack |= GI_GATE_INTERRUPT_ACK;
 	}
