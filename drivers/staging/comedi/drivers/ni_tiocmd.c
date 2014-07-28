@@ -343,9 +343,11 @@ static int should_ack_gate(struct ni_gpct *counter)
 	return retval;
 }
 
-void ni_tio_acknowledge_and_confirm(struct ni_gpct *counter, int *gate_error,
-				    int *tc_error, int *perm_stale_data,
-				    int *stale_data)
+static void ni_tio_acknowledge_and_confirm(struct ni_gpct *counter,
+					   int *gate_error,
+					   int *tc_error,
+					   int *perm_stale_data,
+					   int *stale_data)
 {
 	unsigned cidx = counter->counter_index;
 	const unsigned short gxx_status = read_register(counter,
@@ -404,7 +406,12 @@ void ni_tio_acknowledge_and_confirm(struct ni_gpct *counter, int *gate_error,
 		}
 	}
 }
-EXPORT_SYMBOL_GPL(ni_tio_acknowledge_and_confirm);
+
+void ni_tio_acknowledge(struct ni_gpct *counter)
+{
+	ni_tio_acknowledge_and_confirm(counter, NULL, NULL, NULL, NULL);
+}
+EXPORT_SYMBOL_GPL(ni_tio_acknowledge);
 
 void ni_tio_handle_interrupt(struct ni_gpct *counter,
 			     struct comedi_subdevice *s)

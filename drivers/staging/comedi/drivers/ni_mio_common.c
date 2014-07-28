@@ -5252,7 +5252,7 @@ static int ni_gpct_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 			"no dma channel available for use by counter\n");
 		return retval;
 	}
-	ni_tio_acknowledge_and_confirm(counter, NULL, NULL, NULL, NULL);
+	ni_tio_acknowledge(counter);
 	ni_e_series_enable_second_irq(dev, counter->counter_index, 1);
 
 	return ni_tio_cmd(dev, s);

@@ -749,7 +749,7 @@ static int ni_660x_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 			"no dma channel available for use by counter\n");
 		return retval;
 	}
-	ni_tio_acknowledge_and_confirm(counter, NULL, NULL, NULL, NULL);
+	ni_tio_acknowledge(counter);
 
 	return ni_tio_cmd(dev, s);
 }
