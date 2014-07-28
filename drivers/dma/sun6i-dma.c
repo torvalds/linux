@@ -200,7 +200,7 @@ static inline void sun6i_dma_dump_com_regs(struct sun6i_dma_dev *sdev)
 static inline void sun6i_dma_dump_chan_regs(struct sun6i_dma_dev *sdev,
 					    struct sun6i_pchan *pchan)
 {
-	phys_addr_t reg = __virt_to_phys((unsigned long)pchan->base);
+	phys_addr_t reg = virt_to_phys(pchan->base);
 
 	dev_dbg(sdev->slave.dev, "Chan %d reg: %pa\n"
 		"\t___en(%04x): \t0x%08x\n"
@@ -330,7 +330,7 @@ static inline int sun6i_dma_cfg_lli(struct sun6i_dma_lli *lli,
 static inline void sun6i_dma_dump_lli(struct sun6i_vchan *vchan,
 				      struct sun6i_dma_lli *lli)
 {
-	phys_addr_t p_lli = __virt_to_phys((unsigned long)lli);
+	phys_addr_t p_lli = virt_to_phys(lli);
 
 	dev_dbg(chan2dev(&vchan->vc.chan),
 		"\n\tdesc:   p - %pa v - 0x%p\n"
