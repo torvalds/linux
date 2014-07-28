@@ -481,10 +481,8 @@ static int ni_tio_set_counter_mode(struct ni_gpct *counter, unsigned mode)
 		ni_tio_set_sync_mode(counter, 0);
 	}
 
-	ni_tio_set_bits(counter, NITIO_CMD_REG(cidx),
-			Gi_Up_Down_Mask,
-			(mode >> NI_GPCT_COUNTING_DIRECTION_SHIFT) <<
-			Gi_Up_Down_Shift);
+	ni_tio_set_bits(counter, NITIO_CMD_REG(cidx), GI_CNT_DIR_MASK,
+			GI_CNT_DIR(mode >> NI_GPCT_COUNTING_DIRECTION_SHIFT));
 
 	if (mode & NI_GPCT_OR_GATE_BIT)
 		input_select_bits |= Gi_Or_Gate_Bit;
@@ -506,10 +504,10 @@ int ni_tio_arm(struct ni_gpct *counter, int arm, unsigned start_trigger)
 	if (arm) {
 		switch (start_trigger) {
 		case NI_GPCT_ARM_IMMEDIATE:
-			command_transient_bits |= Gi_Arm_Bit;
+			command_transient_bits |= GI_ARM;
 			break;
 		case NI_GPCT_ARM_PAIRED_IMMEDIATE:
-			command_transient_bits |= Gi_Arm_Bit | Gi_Arm_Copy_Bit;
+			command_transient_bits |= GI_ARM | GI_ARM_COPY;
 			break;
 		default:
 			break;
@@ -543,7 +541,7 @@ int ni_tio_arm(struct ni_gpct *counter, int arm, unsigned start_trigger)
 					GI_HW_ARM_ENA | sel_mask, bits);
 		}
 	} else {
-		command_transient_bits |= Gi_Disarm_Bit;
+		command_transient_bits |= GI_DISARM;
 	}
 	ni_tio_set_bits_transient(counter, NITIO_CMD_REG(cidx),
 				  0, 0, command_transient_bits);
@@ -1255,9 +1253,9 @@ static unsigned int ni_tio_read_sw_save_reg(struct comedi_device *dev,
 	unsigned cidx = counter->counter_index;
 	unsigned int val;
 
-	ni_tio_set_bits(counter, NITIO_CMD_REG(cidx), Gi_Save_Trace_Bit, 0);
+	ni_tio_set_bits(counter, NITIO_CMD_REG(cidx), GI_SAVE_TRACE, 0);
 	ni_tio_set_bits(counter, NITIO_CMD_REG(cidx),
-			Gi_Save_Trace_Bit, Gi_Save_Trace_Bit);
+			GI_SAVE_TRACE, GI_SAVE_TRACE);
 
 	/*
 	 * The count doesn't get latched until the next clock edge, so it is
@@ -1341,7 +1339,7 @@ int ni_tio_insn_write(struct comedi_device *dev,
 		load_reg = ni_tio_next_load_register(counter);
 		write_register(counter, data[0], load_reg);
 		ni_tio_set_bits_transient(counter, NITIO_CMD_REG(cidx),
-					  0, 0, Gi_Load_Bit);
+					  0, 0, GI_LOAD);
 		/* restore load reg */
 		write_register(counter, counter_dev->regs[load_reg], load_reg);
 		break;
@@ -1372,7 +1370,7 @@ void ni_tio_init_counter(struct ni_gpct *counter)
 	write_register(counter, 0x0, NITIO_AUTO_INC_REG(cidx));
 
 	ni_tio_set_bits(counter, NITIO_CMD_REG(cidx),
-			~0, Gi_Synchronize_Gate_Bit);
+			~0, GI_SYNC_GATE);
 
 	ni_tio_set_bits(counter, NITIO_MODE_REG(cidx), ~0, 0);
 

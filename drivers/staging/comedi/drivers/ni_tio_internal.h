@@ -23,6 +23,21 @@
 
 #define NITIO_AUTO_INC_REG(x)		(NITIO_G0_AUTO_INC + (x))
 #define NITIO_CMD_REG(x)		(NITIO_G0_CMD + (x))
+#define GI_ARM				(1 << 0)
+#define GI_SAVE_TRACE			(1 << 1)
+#define GI_LOAD				(1 << 2)
+#define GI_DISARM			(1 << 4)
+#define GI_CNT_DIR(x)			(((x) & 0x3) << 5)
+#define GI_CNT_DIR_MASK			(3 << 5)
+#define GI_WRITE_SWITCH			(1 << 7)
+#define GI_SYNC_GATE			(1 << 8)
+#define GI_LITTLE_BIG_ENDIAN		(1 << 9)
+#define GI_BANK_SWITCH_START		(1 << 10)
+#define GI_BANK_SWITCH_MODE		(1 << 11)
+#define GI_BANK_SWITCH_ENABLE		(1 << 12)
+#define GI_ARM_COPY			(1 << 13)
+#define GI_SAVE_TRACE_COPY		(1 << 14)
+#define GI_DISARM_COPY			(1 << 15)
 #define NITIO_HW_SAVE_REG(x)		(NITIO_G0_HW_SAVE + (x))
 #define NITIO_SW_SAVE_REG(x)		(NITIO_G0_SW_SAVE + (x))
 #define NITIO_MODE_REG(x)		(NITIO_G0_MODE + (x))
@@ -65,28 +80,6 @@
 
 enum Gi_Auto_Increment_Reg_Bits {
 	Gi_Auto_Increment_Mask = 0xff
-};
-
-#define Gi_Up_Down_Shift 5
-enum Gi_Command_Reg_Bits {
-	Gi_Arm_Bit = 0x1,
-	Gi_Save_Trace_Bit = 0x2,
-	Gi_Load_Bit = 0x4,
-	Gi_Disarm_Bit = 0x10,
-	Gi_Up_Down_Mask = 0x3 << Gi_Up_Down_Shift,
-	Gi_Always_Down_Bits = 0x0 << Gi_Up_Down_Shift,
-	Gi_Always_Up_Bits = 0x1 << Gi_Up_Down_Shift,
-	Gi_Up_Down_Hardware_IO_Bits = 0x2 << Gi_Up_Down_Shift,
-	Gi_Up_Down_Hardware_Gate_Bits = 0x3 << Gi_Up_Down_Shift,
-	Gi_Write_Switch_Bit = 0x80,
-	Gi_Synchronize_Gate_Bit = 0x100,
-	Gi_Little_Big_Endian_Bit = 0x200,
-	Gi_Bank_Switch_Start_Bit = 0x400,
-	Gi_Bank_Switch_Mode_Bit = 0x800,
-	Gi_Bank_Switch_Enable_Bit = 0x1000,
-	Gi_Arm_Copy_Bit = 0x2000,
-	Gi_Save_Trace_Copy_Bit = 0x4000,
-	Gi_Disarm_Copy_Bit = 0x8000
 };
 
 #define Gi_Source_Select_Shift 2
