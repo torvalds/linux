@@ -1,5 +1,6 @@
 sticompositor-y := \
-	sti_gdp.o
+	sti_gdp.o \
+	sti_vid.o
 
 stihdmi-y := sti_hdmi.o \
 	sti_hdmi_tx3g0c55phy.o \
