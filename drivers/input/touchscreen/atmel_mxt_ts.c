@@ -2616,6 +2616,7 @@ static ssize_t mxt_config_csum_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct mxt_data *data = dev_get_drvdata(dev);
+
 	return scnprintf(buf, PAGE_SIZE, "%06x\n", data->config_crc);
 }
 
