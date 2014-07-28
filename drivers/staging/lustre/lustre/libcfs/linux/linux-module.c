@@ -140,9 +140,9 @@ static long libcfs_ioctl(struct file *file,
 	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;
 
-	if ( _IOC_TYPE(cmd) != IOC_LIBCFS_TYPE ||
+	if (_IOC_TYPE(cmd) != IOC_LIBCFS_TYPE ||
 	     _IOC_NR(cmd) < IOC_LIBCFS_MIN_NR  ||
-	     _IOC_NR(cmd) > IOC_LIBCFS_MAX_NR ) {
+	     _IOC_NR(cmd) > IOC_LIBCFS_MAX_NR) {
 		CDEBUG(D_IOCTL, "invalid ioctl ( type %d, nr %d, size %d )\n",
 		       _IOC_TYPE(cmd), _IOC_NR(cmd), _IOC_SIZE(cmd));
 		return (-EINVAL);
