@@ -328,16 +328,6 @@ typedef struct tagSDeFragControlBlock {
 //for device_set_media_duplex
 #define     DEVICE_LINK_CHANGE           0x00000001UL
 
-//PLICE_DEBUG->
-
-typedef	struct _RxManagementQueue {
-	int	packet_num;
-	int	head, tail;
-	PSRxMgmtPacket	Q[NUM];
-} RxManagementQueue, *PSRxManagementQueue;
-
-//PLICE_DEBUG<-
-
 typedef struct __device_opt {
 	int         nRxDescs0;    //Number of RX descriptors0
 	int         nRxDescs1;    //Number of RX descriptors1
@@ -424,9 +414,7 @@ typedef struct __device_info {
 	unsigned char byRxMode;
 
 	spinlock_t                  lock;
-//PLICE_DEBUG->
-	RxManagementQueue	rxManeQueue;
-//PLICE_DEBUG<-
+
 //PLICE_DEBUG ->
 	pid_t			MLMEThr_pid;
 	struct completion	notify;
@@ -763,41 +751,6 @@ typedef struct __device_info {
 	struct iw_statistics	wstats;		// wireless stats
 	bool bCommit;
 } DEVICE_INFO, *PSDevice;
-
-//PLICE_DEBUG->
-
-inline  static	void   EnQueue(PSDevice pDevice, PSRxMgmtPacket  pRxMgmtPacket)
-{
-	if ((pDevice->rxManeQueue.tail+1) % NUM == pDevice->rxManeQueue.head) {
-		return;
-	} else {
-		pDevice->rxManeQueue.tail = (pDevice->rxManeQueue.tail + 1) % NUM;
-		pDevice->rxManeQueue.Q[pDevice->rxManeQueue.tail] = pRxMgmtPacket;
-		pDevice->rxManeQueue.packet_num++;
-	}
-}
-
-static inline PSRxMgmtPacket DeQueue(PSDevice pDevice)
-{
-	PSRxMgmtPacket  pRxMgmtPacket;
-
-	if (pDevice->rxManeQueue.tail == pDevice->rxManeQueue.head) {
-		printk("Queue is Empty\n");
-		return NULL;
-	} else {
-		int	x;
-		//x=pDevice->rxManeQueue.head = (pDevice->rxManeQueue.head+1)%NUM;
-		pDevice->rxManeQueue.head = (pDevice->rxManeQueue.head+1)%NUM;
-		x = pDevice->rxManeQueue.head;
-		pRxMgmtPacket = pDevice->rxManeQueue.Q[x];
-		pDevice->rxManeQueue.packet_num--;
-		return pRxMgmtPacket;
-	}
-}
-
-void	InitRxManagementQueue(PSDevice   pDevice);
-
-//PLICE_DEBUG<-
 
 static inline bool device_get_ip(PSDevice pInfo) {
 	struct in_device *in_dev = (struct in_device *)pInfo->dev->ip_ptr;

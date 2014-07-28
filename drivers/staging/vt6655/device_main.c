@@ -98,10 +98,6 @@ MODULE_AUTHOR("VIA Networking Technologies, Inc., <lyndonchen@vntek.com.tw>");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("VIA Networking Solomon-A/B/G Wireless LAN Adapter Driver");
 
-#ifdef	THREAD
-static int mlme_kill;
-#endif
-
 #define DEVICE_PARAM(N, D)
 
 #define RX_DESC_MIN0     16
@@ -1630,41 +1626,6 @@ static void device_free_tx_buf(PSDevice pDevice, PSTxDesc pDesc)
 	pTDInfo->byFlags = 0;
 }
 
-//PLICE_DEBUG ->
-void	InitRxManagementQueue(PSDevice  pDevice)
-{
-	pDevice->rxManeQueue.packet_num = 0;
-	pDevice->rxManeQueue.head = pDevice->rxManeQueue.tail = 0;
-}
-//PLICE_DEBUG<-
-
-//PLICE_DEBUG ->
-#ifdef	THREAD
-static int MlmeThread(
-	void *Context)
-{
-	PSDevice	pDevice =  (PSDevice) Context;
-	PSRxMgmtPacket			pRxMgmtPacket;
-
-	while (1) {
-		spin_lock_irq(&pDevice->lock);
-		while (pDevice->rxManeQueue.packet_num != 0) {
-			pRxMgmtPacket = DeQueue(pDevice);
-			vMgrRxManagePacket(pDevice, pDevice->pMgmt, pRxMgmtPacket);
-		}
-		spin_unlock_irq(&pDevice->lock);
-		if (mlme_kill == 0)
-			break;
-
-		schedule();
-		if (mlme_kill == 0)
-			break;
-	}
-
-	return 0;
-}
-#endif
-
 static int  device_open(struct net_device *dev)
 {
 	PSDevice pDevice = (PSDevice)netdev_priv(dev);
@@ -1702,19 +1663,6 @@ static int  device_open(struct net_device *dev)
 
 	vMgrObjectInit(pDevice);
 	vMgrTimerInit(pDevice);
-
-//PLICE_DEBUG->
-#ifdef	THREAD
-	InitRxManagementQueue(pDevice);
-	mlme_kill = 0;
-	mlme_task = kthread_run(MlmeThread, (void *)pDevice, "MLME");
-	if (IS_ERR(mlme_task)) {
-		pr_err("thread create fail\n");
-		return -1;
-	}
-
-	mlme_kill = 1;
-#endif
 
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "call device_init_registers\n");
 	device_init_registers(pDevice, DEVICE_INIT_COLD);
@@ -1766,9 +1714,6 @@ static int  device_close(struct net_device *dev)
 	PSDevice  pDevice = (PSDevice)netdev_priv(dev);
 	PSMgmtObject     pMgmt = pDevice->pMgmt;
 	//PLICE_DEBUG->
-#ifdef	THREAD
-	mlme_kill = 0;
-#endif
 //PLICE_DEBUG<-
 //2007-1121-02<Add>by EinsnLiu
 	if (pDevice->bLinkPass) {
