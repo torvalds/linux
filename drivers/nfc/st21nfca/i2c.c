@@ -711,7 +711,6 @@ static struct i2c_driver st21nfca_hci_i2c_driver = {
 	.driver = {
 		.owner = THIS_MODULE,
 		.name = ST21NFCA_HCI_I2C_DRIVER_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(of_st21nfca_i2c_match),
 	},
 	.probe = st21nfca_hci_i2c_probe,
