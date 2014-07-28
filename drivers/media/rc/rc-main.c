@@ -859,10 +859,9 @@ static ssize_t show_protocols(struct device *device,
 
 	if (fattr->type == RC_FILTER_NORMAL) {
 		enabled = dev->enabled_protocols;
-		if (dev->raw)
+		allowed = dev->allowed_protocols;
+		if (dev->raw && !allowed)
 			allowed = ir_raw_get_allowed_protocols();
-		else
-			allowed = dev->allowed_protocols;
 	} else {
 		enabled = dev->enabled_wakeup_protocols;
 		allowed = dev->allowed_wakeup_protocols;
