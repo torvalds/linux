@@ -82,6 +82,7 @@ enum pc236_bustype { isa_bustype, pci_bustype };
 struct pc236_board {
 	const char *name;
 	enum pc236_bustype bustype;
+	void (*intr_update_cb)(struct comedi_device *dev, bool enable);
 };
 
 struct pc236_private {
@@ -114,8 +115,8 @@ static void pc236_intr_disable(struct comedi_device *dev)
 
 	spin_lock_irqsave(&dev->spinlock, flags);
 	devpriv->enable_irq = 0;
-	if (is_pci_board(thisboard))
-		outl(PCI236_INTR_DISABLE, devpriv->lcr_iobase + PLX9052_INTCSR);
+	if (thisboard->intr_update_cb)
+		thisboard->intr_update_cb(dev, false);
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 }
 
@@ -132,8 +133,8 @@ static void pc236_intr_enable(struct comedi_device *dev)
 
 	spin_lock_irqsave(&dev->spinlock, flags);
 	devpriv->enable_irq = 1;
-	if (is_pci_board(thisboard))
-		outl(PCI236_INTR_ENABLE, devpriv->lcr_iobase + PLX9052_INTCSR);
+	if (thisboard->intr_update_cb)
+		thisboard->intr_update_cb(dev, true);
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 }
 
@@ -330,8 +331,17 @@ static int pc236_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return pc236_common_attach(dev, dev->iobase, it->options[1], 0);
 }
 
+static void pci236_intr_update_cb(struct comedi_device *dev, bool enable)
+{
+	struct pc236_private *devpriv = dev->private;
+
+	outl(enable ? PCI236_INTR_ENABLE : PCI236_INTR_DISABLE,
+	     devpriv->lcr_iobase + PLX9052_INTCSR);
+}
+
 static const struct pc236_board pc236_pci_board = {
 	.name = "pci236",
+	.intr_update_cb = pci236_intr_update_cb,
 	.bustype = pci_bustype,
 };
 
