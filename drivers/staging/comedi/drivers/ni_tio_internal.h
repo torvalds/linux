@@ -22,6 +22,7 @@
 #include "ni_tio.h"
 
 #define NITIO_AUTO_INC_REG(x)		(NITIO_G0_AUTO_INC + (x))
+#define GI_AUTO_INC_MASK		0xff
 #define NITIO_CMD_REG(x)		(NITIO_G0_CMD + (x))
 #define GI_ARM				(1 << 0)
 #define GI_SAVE_TRACE			(1 << 1)
@@ -77,10 +78,6 @@
 #define NITIO_INT_ACK_REG(x)		(NITIO_G0_INT_ACK + (x))
 #define NITIO_STATUS_REG(x)		(NITIO_G0_STATUS + (x))
 #define NITIO_INT_ENA_REG(x)		(NITIO_G0_INT_ENA + (x))
-
-enum Gi_Auto_Increment_Reg_Bits {
-	Gi_Auto_Increment_Mask = 0xff
-};
 
 #define Gi_Source_Select_Shift 2
 #define Gi_Gate_Select_Shift 7
