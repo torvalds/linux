@@ -866,7 +866,7 @@ static void ath10k_htt_rx_amsdu(struct ath10k_htt *htt,
 	enum rx_msdu_decap_format fmt;
 	enum htt_rx_mpdu_encrypt_type enctype;
 	struct ieee80211_hdr *hdr;
-	u8 hdr_buf[64], addr[ETH_ALEN], *qos;
+	u8 hdr_buf[64], da[ETH_ALEN], sa[ETH_ALEN], *qos;
 	unsigned int hdr_len;
 
 	rxd = (void *)skb->data - sizeof(*rxd);
@@ -904,10 +904,11 @@ static void ath10k_htt_rx_amsdu(struct ath10k_htt *htt,
 			skb_trim(skb, skb->len - FCS_LEN);
 			break;
 		case RX_MSDU_DECAP_NATIVE_WIFI:
-			/* pull decapped header and copy DA */
+			/* pull decapped header and copy SA & DA */
 			hdr = (struct ieee80211_hdr *)skb->data;
 			hdr_len = ath10k_htt_rx_nwifi_hdrlen(hdr);
-			memcpy(addr, ieee80211_get_DA(hdr), ETH_ALEN);
+			memcpy(da, ieee80211_get_DA(hdr), ETH_ALEN);
+			memcpy(sa, ieee80211_get_SA(hdr), ETH_ALEN);
 			skb_pull(skb, hdr_len);
 
 			/* push original 802.11 header */
@@ -921,8 +922,11 @@ static void ath10k_htt_rx_amsdu(struct ath10k_htt *htt,
 			qos = ieee80211_get_qos_ctl(hdr);
 			qos[0] &= ~IEEE80211_QOS_CTL_A_MSDU_PRESENT;
 
-			/* original 802.11 header has a different DA */
-			memcpy(ieee80211_get_DA(hdr), addr, ETH_ALEN);
+			/* original 802.11 header has a different DA and in
+			 * case of 4addr it may also have different SA
+			 */
+			memcpy(ieee80211_get_DA(hdr), da, ETH_ALEN);
+			memcpy(ieee80211_get_SA(hdr), sa, ETH_ALEN);
 			break;
 		case RX_MSDU_DECAP_ETHERNET2_DIX:
 			/* strip ethernet header and insert decapped 802.11
