@@ -135,7 +135,9 @@ rcar_du_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 {
 	struct rcar_du_device *rcdu = dev->dev_private;
 	const struct rcar_du_format_info *format;
+	unsigned int max_pitch;
 	unsigned int align;
+	unsigned int bpp;
 
 	format = rcar_du_format_info(mode_cmd->pixel_format);
 	if (format == NULL) {
@@ -144,13 +146,20 @@ rcar_du_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 		return ERR_PTR(-EINVAL);
 	}
 
+	/*
+	 * The pitch and alignment constraints are expressed in pixels on the
+	 * hardware side and in bytes in the DRM API.
+	 */
+	bpp = format->planes == 2 ? 1 : format->bpp / 8;
+	max_pitch =  4096 * bpp;
+
 	if (rcar_du_needs(rcdu, RCAR_DU_QUIRK_ALIGN_128B))
 		align = 128;
 	else
-		align = 16 * format->bpp / 8;
+		align = 16 * bpp;
 
 	if (mode_cmd->pitches[0] & (align - 1) ||
-	    mode_cmd->pitches[0] >= 8192) {
+	    mode_cmd->pitches[0] >= max_pitch) {
 		dev_dbg(dev->dev, "invalid pitch value %u\n",
 			mode_cmd->pitches[0]);
 		return ERR_PTR(-EINVAL);
