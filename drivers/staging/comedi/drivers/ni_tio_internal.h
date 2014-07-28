@@ -42,6 +42,35 @@
 #define NITIO_HW_SAVE_REG(x)		(NITIO_G0_HW_SAVE + (x))
 #define NITIO_SW_SAVE_REG(x)		(NITIO_G0_SW_SAVE + (x))
 #define NITIO_MODE_REG(x)		(NITIO_G0_MODE + (x))
+#define GI_GATING_DISABLED		(0 << 0)
+#define GI_LEVEL_GATING			(1 << 0)
+#define GI_RISING_EDGE_GATING		(2 << 0)
+#define GI_FALLING_EDGE_GATING		(3 << 0)
+#define GI_GATING_MODE_MASK		(3 << 0)
+#define GI_GATE_ON_BOTH_EDGES		(1 << 2)
+#define GI_EDGE_GATE_STARTS_STOPS	(0 << 3)
+#define GI_EDGE_GATE_STOPS_STARTS	(1 << 3)
+#define GI_EDGE_GATE_STARTS		(2 << 3)
+#define GI_EDGE_GATE_NO_STARTS_OR_STOPS	(3 << 3)
+#define GI_EDGE_GATE_MODE_MASK		(3 << 3)
+#define GI_STOP_ON_GATE			(0 << 5)
+#define GI_STOP_ON_GATE_OR_TC		(1 << 5)
+#define GI_STOP_ON_GATE_OR_SECOND_TC	(2 << 5)
+#define GI_STOP_MODE_MASK		(3 << 5)
+#define GI_LOAD_SRC_SEL			(1 << 7)
+#define GI_OUTPUT_TC_PULSE		(1 << 8)
+#define GI_OUTPUT_TC_TOGGLE		(2 << 8)
+#define GI_OUTPUT_TC_OR_GATE_TOGGLE	(3 << 8)
+#define GI_OUTPUT_MODE_MASK		(3 << 8)
+#define GI_NO_HARDWARE_DISARM		(0 << 10)
+#define GI_DISARM_AT_TC			(1 << 10)
+#define GI_DISARM_AT_GATE		(2 << 10)
+#define GI_DISARM_AT_TC_OR_GATE		(3 << 10)
+#define GI_COUNTING_ONCE_MASK		(3 << 10)
+#define GI_LOADING_ON_TC		(1 << 12)
+#define GI_GATE_POL_INVERT		(1 << 13)
+#define GI_LOADING_ON_GATE		(1 << 14)
+#define GI_RELOAD_SRC_SWITCHING		(1 << 15)
 #define NITIO_LOADA_REG(x)		(NITIO_G0_LOADA + (x))
 #define NITIO_LOADB_REG(x)		(NITIO_G0_LOADB + (x))
 #define NITIO_INPUT_SEL_REG(x)		(NITIO_G0_INPUT_SEL + (x))
@@ -90,39 +119,6 @@
 #define NITIO_INT_ACK_REG(x)		(NITIO_G0_INT_ACK + (x))
 #define NITIO_STATUS_REG(x)		(NITIO_G0_STATUS + (x))
 #define NITIO_INT_ENA_REG(x)		(NITIO_G0_INT_ENA + (x))
-
-enum Gi_Mode_Bits {
-	Gi_Gating_Mode_Mask = 0x3,
-	Gi_Gating_Disabled_Bits = 0x0,
-	Gi_Level_Gating_Bits = 0x1,
-	Gi_Rising_Edge_Gating_Bits = 0x2,
-	Gi_Falling_Edge_Gating_Bits = 0x3,
-	Gi_Gate_On_Both_Edges_Bit = 0x4,	/* used in conjunction with
-						 * rising edge gating mode */
-	Gi_Trigger_Mode_for_Edge_Gate_Mask = 0x18,
-	Gi_Edge_Gate_Starts_Stops_Bits = 0x0,
-	Gi_Edge_Gate_Stops_Starts_Bits = 0x8,
-	Gi_Edge_Gate_Starts_Bits = 0x10,
-	Gi_Edge_Gate_No_Starts_or_Stops_Bits = 0x18,
-	Gi_Stop_Mode_Mask = 0x60,
-	Gi_Stop_on_Gate_Bits = 0x00,
-	Gi_Stop_on_Gate_or_TC_Bits = 0x20,
-	Gi_Stop_on_Gate_or_Second_TC_Bits = 0x40,
-	Gi_Load_Source_Select_Bit = 0x80,
-	Gi_Output_Mode_Mask = 0x300,
-	Gi_Output_TC_Pulse_Bits = 0x100,
-	Gi_Output_TC_Toggle_Bits = 0x200,
-	Gi_Output_TC_or_Gate_Toggle_Bits = 0x300,
-	Gi_Counting_Once_Mask = 0xc00,
-	Gi_No_Hardware_Disarm_Bits = 0x000,
-	Gi_Disarm_at_TC_Bits = 0x400,
-	Gi_Disarm_at_Gate_Bits = 0x800,
-	Gi_Disarm_at_TC_or_Gate_Bits = 0xc00,
-	Gi_Loading_On_TC_Bit = 0x1000,
-	Gi_Gate_Polarity_Bit = 0x2000,
-	Gi_Loading_On_Gate_Bit = 0x4000,
-	Gi_Reload_Source_Switching_Bit = 0x8000
-};
 
 #define Gi_Second_Gate_Select_Shift 7
 /*FIXME: m-series has a second gate subselect bit */

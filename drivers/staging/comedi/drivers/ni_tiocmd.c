@@ -403,7 +403,7 @@ void ni_tio_acknowledge_and_confirm(struct ni_gpct *counter, int *gate_error,
 	if (ack)
 		write_register(counter, ack, NITIO_INT_ACK_REG(cidx));
 	if (ni_tio_get_soft_copy(counter, NITIO_MODE_REG(cidx)) &
-	    Gi_Loading_On_Gate_Bit) {
+	    GI_LOADING_ON_GATE) {
 		if (gxx_status & Gi_Stale_Data_Bit(cidx)) {
 			if (stale_data)
 				*stale_data = 1;

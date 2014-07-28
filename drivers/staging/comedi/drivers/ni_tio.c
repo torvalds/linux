@@ -441,18 +441,18 @@ static int ni_tio_set_counter_mode(struct ni_gpct *counter, unsigned mode)
 	    NI_GPCT_HARDWARE_DISARM_MASK | NI_GPCT_LOADING_ON_TC_BIT |
 	    NI_GPCT_LOADING_ON_GATE_BIT | NI_GPCT_LOAD_B_SELECT_BIT;
 
-	mode_reg_mask = mode_reg_direct_mask | Gi_Reload_Source_Switching_Bit;
+	mode_reg_mask = mode_reg_direct_mask | GI_RELOAD_SRC_SWITCHING;
 	mode_reg_values = mode & mode_reg_direct_mask;
 	switch (mode & NI_GPCT_RELOAD_SOURCE_MASK) {
 	case NI_GPCT_RELOAD_SOURCE_FIXED_BITS:
 		break;
 	case NI_GPCT_RELOAD_SOURCE_SWITCHING_BITS:
-		mode_reg_values |= Gi_Reload_Source_Switching_Bit;
+		mode_reg_values |= GI_RELOAD_SRC_SWITCHING;
 		break;
 	case NI_GPCT_RELOAD_SOURCE_GATE_SELECT_BITS:
 		input_select_bits |= GI_GATE_SEL_LOAD_SRC;
-		mode_reg_mask |= Gi_Gating_Mode_Mask;
-		mode_reg_values |= Gi_Level_Gating_Bits;
+		mode_reg_mask |= GI_GATING_MODE_MASK;
+		mode_reg_values |= GI_LEVEL_GATING;
 		break;
 	default:
 		break;
@@ -907,18 +907,18 @@ int ni_tio_set_gate_src(struct ni_gpct *counter, unsigned gate_index,
 	case 0:
 		if (chan == NI_GPCT_DISABLED_GATE_SELECT) {
 			ni_tio_set_bits(counter, NITIO_MODE_REG(cidx),
-					Gi_Gating_Mode_Mask,
-					Gi_Gating_Disabled_Bits);
+					GI_GATING_MODE_MASK,
+					GI_GATING_DISABLED);
 			return 0;
 		}
 		if (gate_source & CR_INVERT)
-			mode |= Gi_Gate_Polarity_Bit;
+			mode |= GI_GATE_POL_INVERT;
 		if (gate_source & CR_EDGE)
-			mode |= Gi_Rising_Edge_Gating_Bits;
+			mode |= GI_RISING_EDGE_GATING;
 		else
-			mode |= Gi_Level_Gating_Bits;
+			mode |= GI_LEVEL_GATING;
 		ni_tio_set_bits(counter, NITIO_MODE_REG(cidx),
-				Gi_Gate_Polarity_Bit | Gi_Gating_Mode_Mask,
+				GI_GATE_POL_INVERT | GI_GATING_MODE_MASK,
 				mode);
 		switch (counter_dev->variant) {
 		case ni_gpct_variant_e_series:
@@ -1132,7 +1132,7 @@ static int ni_tio_get_gate_src(struct ni_gpct *counter, unsigned gate_index,
 
 	switch (gate_index) {
 	case 0:
-		if ((mode & Gi_Gating_Mode_Mask) == Gi_Gating_Disabled_Bits) {
+		if ((mode & GI_GATING_MODE_MASK) == GI_GATING_DISABLED) {
 			*gate_source = NI_GPCT_DISABLED_GATE_SELECT;
 			return 0;
 		}
@@ -1150,13 +1150,13 @@ static int ni_tio_get_gate_src(struct ni_gpct *counter, unsigned gate_index,
 			*gate_source = ni_660x_gate_to_generic_gate(gate);
 			break;
 		}
-		if (mode & Gi_Gate_Polarity_Bit)
+		if (mode & GI_GATE_POL_INVERT)
 			*gate_source |= CR_INVERT;
-		if ((mode & Gi_Gating_Mode_Mask) != Gi_Level_Gating_Bits)
+		if ((mode & GI_GATING_MODE_MASK) != GI_LEVEL_GATING)
 			*gate_source |= CR_EDGE;
 		break;
 	case 1:
-		if ((mode & Gi_Gating_Mode_Mask) == Gi_Gating_Disabled_Bits ||
+		if ((mode & GI_GATING_MODE_MASK) == GI_GATING_DISABLED ||
 		    !(counter_dev->regs[gate2_reg] & Gi_Second_Gate_Mode_Bit)) {
 			*gate_source = NI_GPCT_DISABLED_GATE_SELECT;
 			return 0;
@@ -1179,7 +1179,7 @@ static int ni_tio_get_gate_src(struct ni_gpct *counter, unsigned gate_index,
 		if (counter_dev->regs[gate2_reg] & Gi_Second_Gate_Polarity_Bit)
 			*gate_source |= CR_INVERT;
 		/* second gate can't have edge/level mode set independently */
-		if ((mode & Gi_Gating_Mode_Mask) != Gi_Level_Gating_Bits)
+		if ((mode & GI_GATING_MODE_MASK) != GI_LEVEL_GATING)
 			*gate_source |= CR_EDGE;
 		break;
 	default:
