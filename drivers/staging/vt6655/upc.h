@@ -35,38 +35,6 @@
 /*---------------------  Export Definitions -------------------------*/
 
 //
-//  For IO mapped
-//
-
-#ifdef IO_MAP
-
-#define VNSvInPortB(dwIOAddress, pbyData)	\
-do {						\
-	*(pbyData) = inb(dwIOAddress);		\
-} while (0)
-
-#define VNSvInPortW(dwIOAddress, pwData)	\
-do {						\
-	*(pwData) = inw(dwIOAddress);		\
-} while (0)
-
-#define VNSvInPortD(dwIOAddress, pdwData)	\
-do {						\
-	*(pdwData) = inl(dwIOAddress);		\
-} while (0)
-
-#define VNSvOutPortB(dwIOAddress, byData)	\
-	outb(byData, dwIOAddress)
-
-#define VNSvOutPortW(dwIOAddress, wData)	\
-	outw(wData, dwIOAddress)
-
-#define VNSvOutPortD(dwIOAddress, dwData)	\
-	outl(dwData, dwIOAddress)
-
-#else
-
-//
 //  For memory mapped IO
 //
 
@@ -99,8 +67,6 @@ do {									\
 do {									\
 	writel((unsigned long)dwData, dwIOAddress);			\
 } while (0)
-
-#endif
 
 //
 // ALWAYS IO-Mapped IO when in 16-bit/32-bit environment

@@ -902,10 +902,6 @@ vt6655_probe(struct pci_dev *pcid, const struct pci_device_id *ent)
 	VNSvInPortB(pDevice->PortOffset+0x4F, &value);
 	pr_debug("After write: value is %x\n", value);
 #endif
-
-#ifdef IO_MAP
-	pDevice->PortOffset = pDevice->ioaddr;
-#endif
 	// do reset
 	if (!MACbSoftwareReset(pDevice->PortOffset)) {
 		pr_err(DEVICE_NAME ": Failed to access MAC hardware..\n");
@@ -949,14 +945,10 @@ static void device_print_info(PSDevice pDevice)
 
 	DBG_PRT(MSG_LEVEL_INFO, KERN_INFO "%s: %s\n", dev->name, get_chip_name(pDevice->chip_id));
 	DBG_PRT(MSG_LEVEL_INFO, KERN_INFO "%s: MAC=%pM", dev->name, dev->dev_addr);
-#ifdef IO_MAP
-	DBG_PRT(MSG_LEVEL_INFO, KERN_INFO " IO=0x%lx  ", (unsigned long)pDevice->ioaddr);
-	DBG_PRT(MSG_LEVEL_INFO, KERN_INFO " IRQ=%d\n", pDevice->dev->irq);
-#else
+
 	DBG_PRT(MSG_LEVEL_INFO, KERN_INFO " IO=0x%lx Mem=0x%lx ",
 		(unsigned long)pDevice->ioaddr, (unsigned long)pDevice->PortOffset);
 	DBG_PRT(MSG_LEVEL_INFO, KERN_INFO " IRQ=%d\n", pDevice->dev->irq);
-#endif
 }
 
 static void vt6655_init_info(struct pci_dev *pcid, PSDevice *ppDevice,
