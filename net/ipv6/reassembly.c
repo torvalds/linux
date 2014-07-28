@@ -85,27 +85,23 @@ static int ip6_frag_reasm(struct frag_queue *fq, struct sk_buff *prev,
 static unsigned int inet6_hash_frag(__be32 id, const struct in6_addr *saddr,
 				    const struct in6_addr *daddr)
 {
-	u32 c;
-
 	net_get_random_once(&ip6_frags.rnd, sizeof(ip6_frags.rnd));
-	c = jhash_3words(ipv6_addr_hash(saddr), ipv6_addr_hash(daddr),
-			 (__force u32)id, ip6_frags.rnd);
-
-	return c & (INETFRAGS_HASHSZ - 1);
+	return jhash_3words(ipv6_addr_hash(saddr), ipv6_addr_hash(daddr),
+			    (__force u32)id, ip6_frags.rnd);
 }
 
-static unsigned int ip6_hashfn(struct inet_frag_queue *q)
+static unsigned int ip6_hashfn(const struct inet_frag_queue *q)
 {
-	struct frag_queue *fq;
+	const struct frag_queue *fq;
 
 	fq = container_of(q, struct frag_queue, q);
 	return inet6_hash_frag(fq->id, &fq->saddr, &fq->daddr);
 }
 
-bool ip6_frag_match(struct inet_frag_queue *q, void *a)
+bool ip6_frag_match(const struct inet_frag_queue *q, const void *a)
 {
-	struct frag_queue *fq;
-	struct ip6_create_arg *arg = a;
+	const struct frag_queue *fq;
+	const struct ip6_create_arg *arg = a;
 
 	fq = container_of(q, struct frag_queue, q);
 	return	fq->id == arg->id &&
@@ -115,10 +111,10 @@ bool ip6_frag_match(struct inet_frag_queue *q, void *a)
 }
 EXPORT_SYMBOL(ip6_frag_match);
 
-void ip6_frag_init(struct inet_frag_queue *q, void *a)
+void ip6_frag_init(struct inet_frag_queue *q, const void *a)
 {
 	struct frag_queue *fq = container_of(q, struct frag_queue, q);
-	struct ip6_create_arg *arg = a;
+	const struct ip6_create_arg *arg = a;
 
 	fq->id = arg->id;
 	fq->user = arg->user;
@@ -145,7 +141,9 @@ void ip6_expire_frag_queue(struct net *net, struct frag_queue *fq,
 	if (!dev)
 		goto out_rcu_unlock;
 
-	IP6_INC_STATS_BH(net, __in6_dev_get(dev), IPSTATS_MIB_REASMTIMEOUT);
+	if (!(fq->q.last_in & INET_FRAG_EVICTED))
+		IP6_INC_STATS_BH(net, __in6_dev_get(dev),
+				 IPSTATS_MIB_REASMTIMEOUT);
 	IP6_INC_STATS_BH(net, __in6_dev_get(dev), IPSTATS_MIB_REASMFAILS);
 
 	/* Don't send error if the first segment did not arrive. */
@@ -192,7 +190,6 @@ fq_find(struct net *net, __be32 id, const struct in6_addr *src,
 	arg.dst = dst;
 	arg.ecn = ecn;
 
-	read_lock(&ip6_frags.lock);
 	hash = inet6_hash_frag(id, src, dst);
 
 	q = inet_frag_find(&net->ipv6.frags, &ip6_frags, &arg, hash);
@@ -353,7 +350,6 @@ found:
 	}
 
 	skb_dst_drop(skb);
-	inet_frag_lru_move(&fq->q);
 	return -1;
 
 discard_fq:
@@ -523,7 +519,6 @@ static int ipv6_frag_rcv(struct sk_buff *skb)
 	struct frag_queue *fq;
 	const struct ipv6hdr *hdr = ipv6_hdr(skb);
 	struct net *net = dev_net(skb_dst(skb)->dev);
-	int evicted;
 
 	if (IP6CB(skb)->flags & IP6SKB_FRAGMENTED)
 		goto fail_hdr;
@@ -551,11 +546,6 @@ static int ipv6_frag_rcv(struct sk_buff *skb)
 		IP6CB(skb)->flags |= IP6SKB_FRAGMENTED;
 		return 1;
 	}
-
-	evicted = inet_frag_evictor(&net->ipv6.frags, &ip6_frags, false);
-	if (evicted)
-		IP6_ADD_STATS_BH(net, ip6_dst_idev(skb_dst(skb)),
-				 IPSTATS_MIB_REASMFAILS, evicted);
 
 	fq = fq_find(net, fhdr->identification, &hdr->saddr, &hdr->daddr,
 		     ip6_frag_ecn(hdr));
@@ -588,20 +578,25 @@ static const struct inet6_protocol frag_protocol =
 };
 
 #ifdef CONFIG_SYSCTL
+static int zero;
+
 static struct ctl_table ip6_frags_ns_ctl_table[] = {
 	{
 		.procname	= "ip6frag_high_thresh",
 		.data		= &init_net.ipv6.frags.high_thresh,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= &init_net.ipv6.frags.low_thresh
 	},
 	{
 		.procname	= "ip6frag_low_thresh",
 		.data		= &init_net.ipv6.frags.low_thresh,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= &zero,
+		.extra2		= &init_net.ipv6.frags.high_thresh
 	},
 	{
 		.procname	= "ip6frag_time",
@@ -613,10 +608,12 @@ static struct ctl_table ip6_frags_ns_ctl_table[] = {
 	{ }
 };
 
+/* secret interval has been deprecated */
+static int ip6_frags_secret_interval_unused;
 static struct ctl_table ip6_frags_ctl_table[] = {
 	{
 		.procname	= "ip6frag_secret_interval",
-		.data		= &ip6_frags.secret_interval,
+		.data		= &ip6_frags_secret_interval_unused,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_jiffies,
@@ -636,7 +633,10 @@ static int __net_init ip6_frags_ns_sysctl_register(struct net *net)
 			goto err_alloc;
 
 		table[0].data = &net->ipv6.frags.high_thresh;
+		table[0].extra1 = &net->ipv6.frags.low_thresh;
+		table[0].extra2 = &init_net.ipv6.frags.high_thresh;
 		table[1].data = &net->ipv6.frags.low_thresh;
+		table[1].extra2 = &net->ipv6.frags.high_thresh;
 		table[2].data = &net->ipv6.frags.timeout;
 
 		/* Don't export sysctls to unprivileged users */
@@ -746,7 +746,6 @@ int __init ipv6_frag_init(void)
 	ip6_frags.qsize = sizeof(struct frag_queue);
 	ip6_frags.match = ip6_frag_match;
 	ip6_frags.frag_expire = ip6_frag_expire;
-	ip6_frags.secret_interval = 10 * 60 * HZ;
 	inet_frags_init(&ip6_frags);
 out:
 	return ret;

@@ -299,11 +299,6 @@ static inline bool ipv6_accept_ra(struct inet6_dev *idev)
 }
 
 #if IS_ENABLED(CONFIG_IPV6)
-static inline int ip6_frag_nqueues(struct net *net)
-{
-	return net->ipv6.frags.nqueues;
-}
-
 static inline int ip6_frag_mem(struct net *net)
 {
 	return sum_frag_mem_limit(&net->ipv6.frags);
@@ -496,8 +491,8 @@ struct ip6_create_arg {
 	u8 ecn;
 };
 
-void ip6_frag_init(struct inet_frag_queue *q, void *a);
-bool ip6_frag_match(struct inet_frag_queue *q, void *a);
+void ip6_frag_init(struct inet_frag_queue *q, const void *a);
+bool ip6_frag_match(const struct inet_frag_queue *q, const void *a);
 
 /*
  *	Equivalent of ipv4 struct ip

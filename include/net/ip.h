@@ -495,7 +495,6 @@ static inline struct sk_buff *ip_check_defrag(struct sk_buff *skb, u32 user)
 }
 #endif
 int ip_frag_mem(struct net *net);
-int ip_frag_nqueues(struct net *net);
 
 /*
  *	Functions provided by ip_forward.c

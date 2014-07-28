@@ -50,29 +50,25 @@ static unsigned int lowpan_hash_frag(__be16 tag, u16 d_size,
 				     const struct ieee802154_addr *saddr,
 				     const struct ieee802154_addr *daddr)
 {
-	u32 c;
-
 	net_get_random_once(&lowpan_frags.rnd, sizeof(lowpan_frags.rnd));
-	c = jhash_3words(ieee802154_addr_hash(saddr),
-			 ieee802154_addr_hash(daddr),
-			 (__force u32)(tag + (d_size << 16)),
-			 lowpan_frags.rnd);
-
-	return c & (INETFRAGS_HASHSZ - 1);
+	return jhash_3words(ieee802154_addr_hash(saddr),
+			    ieee802154_addr_hash(daddr),
+			    (__force u32)(tag + (d_size << 16)),
+			    lowpan_frags.rnd);
 }
 
-static unsigned int lowpan_hashfn(struct inet_frag_queue *q)
+static unsigned int lowpan_hashfn(const struct inet_frag_queue *q)
 {
-	struct lowpan_frag_queue *fq;
+	const struct lowpan_frag_queue *fq;
 
 	fq = container_of(q, struct lowpan_frag_queue, q);
 	return lowpan_hash_frag(fq->tag, fq->d_size, &fq->saddr, &fq->daddr);
 }
 
-static bool lowpan_frag_match(struct inet_frag_queue *q, void *a)
+static bool lowpan_frag_match(const struct inet_frag_queue *q, const void *a)
 {
-	struct lowpan_frag_queue *fq;
-	struct lowpan_create_arg *arg = a;
+	const struct lowpan_frag_queue *fq;
+	const struct lowpan_create_arg *arg = a;
 
 	fq = container_of(q, struct lowpan_frag_queue, q);
 	return	fq->tag == arg->tag && fq->d_size == arg->d_size &&
@@ -80,10 +76,10 @@ static bool lowpan_frag_match(struct inet_frag_queue *q, void *a)
 		ieee802154_addr_equal(&fq->daddr, arg->dst);
 }
 
-static void lowpan_frag_init(struct inet_frag_queue *q, void *a)
+static void lowpan_frag_init(struct inet_frag_queue *q, const void *a)
 {
+	const struct lowpan_create_arg *arg = a;
 	struct lowpan_frag_queue *fq;
-	struct lowpan_create_arg *arg = a;
 
 	fq = container_of(q, struct lowpan_frag_queue, q);
 
@@ -128,7 +124,6 @@ fq_find(struct net *net, const struct lowpan_frag_info *frag_info,
 	arg.src = src;
 	arg.dst = dst;
 
-	read_lock(&lowpan_frags.lock);
 	hash = lowpan_hash_frag(frag_info->d_tag, frag_info->d_size, src, dst);
 
 	q = inet_frag_find(&ieee802154_lowpan->frags,
@@ -223,7 +218,6 @@ found:
 		return res;
 	}
 
-	inet_frag_lru_move(&fq->q);
 	return -1;
 err:
 	kfree_skb(skb);
@@ -373,8 +367,6 @@ int lowpan_frag_rcv(struct sk_buff *skb, const u8 frag_type)
 	if (frag_info->d_size > ieee802154_lowpan->max_dsize)
 		goto err;
 
-	inet_frag_evictor(&ieee802154_lowpan->frags, &lowpan_frags, false);
-
 	fq = fq_find(net, frag_info, &source, &dest);
 	if (fq != NULL) {
 		int ret;
@@ -394,20 +386,25 @@ err:
 EXPORT_SYMBOL(lowpan_frag_rcv);
 
 #ifdef CONFIG_SYSCTL
+static int zero;
+
 static struct ctl_table lowpan_frags_ns_ctl_table[] = {
 	{
 		.procname	= "6lowpanfrag_high_thresh",
 		.data		= &init_net.ieee802154_lowpan.frags.high_thresh,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= &init_net.ieee802154_lowpan.frags.low_thresh
 	},
 	{
 		.procname	= "6lowpanfrag_low_thresh",
 		.data		= &init_net.ieee802154_lowpan.frags.low_thresh,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= &zero,
+		.extra2		= &init_net.ieee802154_lowpan.frags.high_thresh
 	},
 	{
 		.procname	= "6lowpanfrag_time",
@@ -426,10 +423,12 @@ static struct ctl_table lowpan_frags_ns_ctl_table[] = {
 	{ }
 };
 
+/* secret interval has been deprecated */
+static int lowpan_frags_secret_interval_unused;
 static struct ctl_table lowpan_frags_ctl_table[] = {
 	{
 		.procname	= "6lowpanfrag_secret_interval",
-		.data		= &lowpan_frags.secret_interval,
+		.data		= &lowpan_frags_secret_interval_unused,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_jiffies,
@@ -452,7 +451,10 @@ static int __net_init lowpan_frags_ns_sysctl_register(struct net *net)
 			goto err_alloc;
 
 		table[0].data = &ieee802154_lowpan->frags.high_thresh;
+		table[0].extra1 = &ieee802154_lowpan->frags.low_thresh;
+		table[0].extra2 = &init_net.ieee802154_lowpan.frags.high_thresh;
 		table[1].data = &ieee802154_lowpan->frags.low_thresh;
+		table[1].extra2 = &ieee802154_lowpan->frags.high_thresh;
 		table[2].data = &ieee802154_lowpan->frags.timeout;
 		table[3].data = &ieee802154_lowpan->max_dsize;
 
@@ -569,7 +571,6 @@ int __init lowpan_net_frag_init(void)
 	lowpan_frags.qsize = sizeof(struct frag_queue);
 	lowpan_frags.match = lowpan_frag_match;
 	lowpan_frags.frag_expire = lowpan_frag_expire;
-	lowpan_frags.secret_interval = 10 * 60 * HZ;
 	inet_frags_init(&lowpan_frags);
 
 	return ret;
