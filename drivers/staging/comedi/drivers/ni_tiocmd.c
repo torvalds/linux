@@ -58,12 +58,12 @@ static void ni_tio_configure_dma(struct ni_gpct *counter, short enable,
 
 	if (enable) {
 		if (read_not_write)
-			input_select_bits |= Gi_Read_Acknowledges_Irq;
+			input_select_bits |= GI_READ_ACKS_IRQ;
 		else
-			input_select_bits |= Gi_Write_Acknowledges_Irq;
+			input_select_bits |= GI_WRITE_ACKS_IRQ;
 	}
 	ni_tio_set_bits(counter, NITIO_INPUT_SEL_REG(cidx),
-			Gi_Read_Acknowledges_Irq | Gi_Write_Acknowledges_Irq,
+			GI_READ_ACKS_IRQ | GI_WRITE_ACKS_IRQ,
 			input_select_bits);
 	switch (counter_dev->variant) {
 	case ni_gpct_variant_e_series:

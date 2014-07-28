@@ -45,6 +45,18 @@
 #define NITIO_LOADA_REG(x)		(NITIO_G0_LOADA + (x))
 #define NITIO_LOADB_REG(x)		(NITIO_G0_LOADB + (x))
 #define NITIO_INPUT_SEL_REG(x)		(NITIO_G0_INPUT_SEL + (x))
+#define GI_READ_ACKS_IRQ		(1 << 0)
+#define GI_WRITE_ACKS_IRQ		(1 << 1)
+#define GI_BITS_TO_SRC(x)		(((x) >> 2) & 0x1f)
+#define GI_SRC_SEL(x)			(((x) & 0x1f) << 2)
+#define GI_SRC_SEL_MASK			(0x1f << 2)
+#define GI_BITS_TO_GATE(x)		(((x) >> 7) & 0x1f)
+#define GI_GATE_SEL(x)			(((x) & 0x1f) << 7)
+#define GI_GATE_SEL_MASK		(0x1f << 7)
+#define GI_GATE_SEL_LOAD_SRC		(1 << 12)
+#define GI_OR_GATE			(1 << 13)
+#define GI_OUTPUT_POL_INVERT		(1 << 14)
+#define GI_SRC_POL_INVERT		(1 << 15)
 #define NITIO_CNT_MODE_REG(x)		(NITIO_G0_CNT_MODE + (x))
 #define GI_CNT_MODE(x)			(((x) & 0x7) << 0)
 #define GI_CNT_MODE_NORMAL		GI_CNT_MODE(0)
@@ -78,19 +90,6 @@
 #define NITIO_INT_ACK_REG(x)		(NITIO_G0_INT_ACK + (x))
 #define NITIO_STATUS_REG(x)		(NITIO_G0_STATUS + (x))
 #define NITIO_INT_ENA_REG(x)		(NITIO_G0_INT_ENA + (x))
-
-#define Gi_Source_Select_Shift 2
-#define Gi_Gate_Select_Shift 7
-enum Gi_Input_Select_Bits {
-	Gi_Read_Acknowledges_Irq = 0x1,	/*  not present on 660x */
-	Gi_Write_Acknowledges_Irq = 0x2,	/*  not present on 660x */
-	Gi_Source_Select_Mask = 0x7c,
-	Gi_Gate_Select_Mask = 0x1f << Gi_Gate_Select_Shift,
-	Gi_Gate_Select_Load_Source_Bit = 0x1000,
-	Gi_Or_Gate_Bit = 0x2000,
-	Gi_Output_Polarity_Bit = 0x4000,	/* set to invert */
-	Gi_Source_Polarity_Bit = 0x8000	/* set to invert */
-};
 
 enum Gi_Mode_Bits {
 	Gi_Gating_Mode_Mask = 0x3,
