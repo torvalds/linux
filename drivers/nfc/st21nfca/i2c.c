@@ -271,6 +271,7 @@ static int st21nfca_hci_i2c_write(void *phy_id, struct sk_buff *skb)
 static int get_frame_size(u8 *buf, int buflen)
 {
 	int len = 0;
+
 	if (buf[len + 1] == ST21NFCA_SOF_EOF)
 		return 0;
 
@@ -311,6 +312,7 @@ static int check_crc(u8 *buf, int buflen)
 static int st21nfca_hci_i2c_repack(struct sk_buff *skb)
 {
 	int i, j, r, size;
+
 	if (skb->len < 1 || (skb->len > 1 && skb->data[1] != 0))
 		return -EBADMSG;
 

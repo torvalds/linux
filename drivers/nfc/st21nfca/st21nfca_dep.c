@@ -121,6 +121,7 @@ static void st21nfca_tx_work(struct work_struct *work)
 
 	struct nfc_dev *dev;
 	struct sk_buff *skb;
+
 	if (info) {
 		dev = info->hdev->ndev;
 		skb = info->dep_info.tx_pending;

@@ -790,6 +790,7 @@ static int st21nfca_hci_check_presence(struct nfc_hci_dev *hdev,
 				       struct nfc_target *target)
 {
 	u8 fwi = 0x11;
+
 	switch (target->hci_reader_gate) {
 	case NFC_HCI_RF_READER_A_GATE:
 	case NFC_HCI_RF_READER_B_GATE:
