@@ -443,7 +443,7 @@ void ni_tio_handle_interrupt(struct ni_gpct *counter,
 	case ni_gpct_variant_m_series:
 	case ni_gpct_variant_660x:
 		if (read_register(counter, NITIO_DMA_STATUS_REG(cidx)) &
-		    Gi_DRQ_Error_Bit) {
+		    GI_DRQ_ERROR) {
 			dev_notice(counter->counter_dev->dev->class_dev,
 				   "%s: Gi_DRQ_Error detected.\n", __func__);
 			s->async->events |= COMEDI_CB_OVERFLOW;

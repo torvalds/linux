@@ -139,16 +139,13 @@
 #define GI_DMA_RESET			(1 << 3)
 #define GI_DMA_BANKSW_ERROR		(1 << 4)
 #define NITIO_DMA_STATUS_REG(x)		(NITIO_G0_DMA_STATUS + (x))
+#define GI_DMA_READBANK			(1 << 13)
+#define GI_DRQ_ERROR			(1 << 14)
+#define GI_DRQ_STATUS			(1 << 15)
 #define NITIO_ABZ_REG(x)		(NITIO_G0_ABZ + (x))
 #define NITIO_INT_ACK_REG(x)		(NITIO_G0_INT_ACK + (x))
 #define NITIO_STATUS_REG(x)		(NITIO_G0_STATUS + (x))
 #define NITIO_INT_ENA_REG(x)		(NITIO_G0_INT_ENA + (x))
-
-enum Gi_DMA_Status_Reg_Bits {
-	Gi_DMA_Readbank_Bit = 0x2000,
-	Gi_DRQ_Error_Bit = 0x4000,
-	Gi_DRQ_Status_Bit = 0x8000
-};
 
 enum G02_Interrupt_Acknowledge_Bits {
 	G0_Gate_Error_Confirm_Bit = 0x20,
