@@ -94,23 +94,18 @@ int st21nfcb_nci_probe(struct llt_ndlc *ndlc, int phy_headroom,
 					phy_headroom, phy_tailroom);
 	if (!ndlc->ndev) {
 		pr_err("Cannot allocate nfc ndev\n");
-		r = -ENOMEM;
-		goto err_alloc_ndev;
+		return -ENOMEM;
 	}
 	info->ndlc = ndlc;
 
 	nci_set_drvdata(ndlc->ndev, info);
 
 	r = nci_register_device(ndlc->ndev);
-	if (r)
-		goto err_regdev;
+	if (r) {
+		pr_err("Cannot register nfc device to nci core\n");
+		nci_free_device(ndlc->ndev);
+	}
 
-	return r;
-err_regdev:
-	nci_free_device(ndlc->ndev);
-
-err_alloc_ndev:
-	kfree(info);
 	return r;
 }
 EXPORT_SYMBOL_GPL(st21nfcb_nci_probe);
