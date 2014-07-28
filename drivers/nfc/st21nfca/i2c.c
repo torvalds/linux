@@ -525,17 +525,13 @@ static int st21nfca_hci_i2c_of_request_resources(struct i2c_client *client)
 	}
 
 	/* GPIO request and configuration */
-	r = devm_gpio_request(&client->dev, gpio, "clf_enable");
+	r = devm_gpio_request_one(&client->dev, gpio, GPIOF_OUT_INIT_HIGH,
+				  "clf_enable");
 	if (r) {
 		nfc_err(&client->dev, "Failed to request enable pin\n");
 		return -ENODEV;
 	}
 
-	r = gpio_direction_output(gpio, 1);
-	if (r) {
-		nfc_err(&client->dev, "Failed to set enable pin direction as output\n");
-		return -ENODEV;
-	}
 	phy->gpio_ena = gpio;
 
 	/* IRQ */
@@ -576,30 +572,18 @@ static int st21nfca_hci_i2c_request_resources(struct i2c_client *client)
 	phy->gpio_ena = pdata->gpio_ena;
 	phy->irq_polarity = pdata->irq_polarity;
 
-	r = devm_gpio_request(&client->dev, phy->gpio_irq, "wake_up");
+	r = devm_gpio_request_one(&client->dev, phy->gpio_irq, GPIOF_IN,
+				  "wake_up");
 	if (r) {
 		pr_err("%s : gpio_request failed\n", __FILE__);
 		return -ENODEV;
 	}
 
-	r = gpio_direction_input(phy->gpio_irq);
-	if (r) {
-		pr_err("%s : gpio_direction_input failed\n", __FILE__);
-		return -ENODEV;
-	}
-
 	if (phy->gpio_ena > 0) {
-		r = devm_gpio_request(&client->dev,
-					phy->gpio_ena, "clf_enable");
+		r = devm_gpio_request_one(&client->dev, phy->gpio_ena,
+					  GPIOF_OUT_INIT_HIGH, "clf_enable");
 		if (r) {
 			pr_err("%s : ena gpio_request failed\n", __FILE__);
-			return -ENODEV;
-		}
-		r = gpio_direction_output(phy->gpio_ena, 1);
-
-		if (r) {
-			pr_err("%s : ena gpio_direction_output failed\n",
-			       __FILE__);
 			return -ENODEV;
 		}
 	}
