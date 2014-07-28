@@ -19,6 +19,22 @@
 	};
 };
 
+&dra7_pmx_core {
+	i2c1_pins: pinmux_i2c1_pins {
+		pinctrl-single,pins = <
+			0x400 (PIN_INPUT | MUX_MODE0) /* i2c1_sda.i2c1_sda */
+			0x404 (PIN_INPUT | MUX_MODE0) /* i2c1_scl.i2c1_scl */
+		>;
+	};
+};
+
+&i2c1 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c1_pins>;
+	clock-frequency = <400000>;
+};
+
 &uart1 {
 	status = "okay";
 };
