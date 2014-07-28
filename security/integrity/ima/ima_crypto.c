@@ -200,7 +200,10 @@ static struct crypto_ahash *ima_alloc_atfm(enum hash_algo algo)
 	struct crypto_ahash *tfm = ima_ahash_tfm;
 	int rc;
 
-	if ((algo != ima_hash_algo && algo < HASH_ALGO__LAST) || !tfm) {
+	if (algo < 0 || algo >= HASH_ALGO__LAST)
+		algo = ima_hash_algo;
+
+	if (algo != ima_hash_algo || !tfm) {
 		tfm = crypto_alloc_ahash(hash_algo_name[algo], 0, 0);
 		if (!IS_ERR(tfm)) {
 			if (algo == ima_hash_algo)
