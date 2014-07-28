@@ -691,19 +691,6 @@ static void device_init_registers(PSDevice pDevice, DEVICE_INIT_TYPE InitType)
 			// Get GPIO
 			MACvGPIOIn(pDevice->PortOffset, &pDevice->byGPIO);
 //2008-4-14 <add> by chester for led issue
-#ifdef FOR_LED_ON_NOTEBOOK
-			if (pDevice->byGPIO & GPIO0_DATA)
-				pDevice->bHWRadioOff = true;
-
-			if (!(pDevice->byGPIO & GPIO0_DATA))
-				pDevice->bHWRadioOff = false;
-		}
-
-		if (pDevice->bRadioControlOff)
-			CARDbRadioPowerOff(pDevice);
-		else
-			CARDbRadioPowerOn(pDevice);
-#else
 		if (((pDevice->byGPIO & GPIO0_DATA) && !(pDevice->byRadioCtl & EEP_RADIOCTL_INV)) ||
 		    (!(pDevice->byGPIO & GPIO0_DATA) && (pDevice->byRadioCtl & EEP_RADIOCTL_INV))) {
 			pDevice->bHWRadioOff = true;
@@ -711,8 +698,6 @@ static void device_init_registers(PSDevice pDevice, DEVICE_INIT_TYPE InitType)
 	}
 	if (pDevice->bHWRadioOff || pDevice->bRadioControlOff)
 		CARDbRadioPowerOff(pDevice);
-
-#endif
 }
 pMgmt->eScanType = WMAC_SCAN_PASSIVE;
 // get Permanent network address

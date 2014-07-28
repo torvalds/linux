@@ -901,11 +901,6 @@ BSSvAddMulticastNode(
  *    none.
  *
  -*/
-/* 2008-4-14 <add> by chester for led issue */
-#ifdef FOR_LED_ON_NOTEBOOK
-bool cc = false;
-unsigned int status;
-#endif
 void
 BSSvSecondCallBack(
 	void *hDeviceContext
@@ -926,54 +921,6 @@ BSSvSecondCallBack(
 
 	pDevice->byERPFlag &=
 		~(WLAN_SET_ERP_BARKER_MODE(1) | WLAN_SET_ERP_NONERP_PRESENT(1));
-	/* 2008-4-14 <add> by chester for led issue */
-#ifdef FOR_LED_ON_NOTEBOOK
-	MACvGPIOIn(pDevice->PortOffset, &pDevice->byGPIO);
-	if (((!(pDevice->byGPIO & GPIO0_DATA) && (!pDevice->bHWRadioOff)) ||
-	     ((pDevice->byGPIO & GPIO0_DATA) && pDevice->bHWRadioOff)) &&
-	    (!cc)) {
-		cc = true;
-	} else if (cc) {
-		if (pDevice->bHWRadioOff) {
-			if (!(pDevice->byGPIO & GPIO0_DATA)) {
-				if (status == 1)
-					goto start;
-				status = 1;
-				CARDbRadioPowerOff(pDevice);
-				pMgmt->sNodeDBTable[0].bActive = false;
-				pMgmt->eCurrMode = WMAC_MODE_STANDBY;
-				pMgmt->eCurrState = WMAC_STATE_IDLE;
-				pDevice->bLinkPass = false;
-
-			}
-			if (pDevice->byGPIO & GPIO0_DATA) {
-				if (status == 2)
-					goto start;
-				status = 2;
-				CARDbRadioPowerOn(pDevice);
-			}
-		} else {
-			if (pDevice->byGPIO & GPIO0_DATA) {
-				if (status == 3)
-					goto start;
-				status = 3;
-				CARDbRadioPowerOff(pDevice);
-				pMgmt->sNodeDBTable[0].bActive = false;
-				pMgmt->eCurrMode = WMAC_MODE_STANDBY;
-				pMgmt->eCurrState = WMAC_STATE_IDLE;
-				pDevice->bLinkPass = false;
-
-			}
-			if (!(pDevice->byGPIO & GPIO0_DATA)) {
-				if (status == 4)
-					goto start;
-				status = 4;
-				CARDbRadioPowerOn(pDevice);
-			}
-		}
-	}
-start:
-#endif
 
 	if (pDevice->wUseProtectCntDown > 0) {
 		pDevice->wUseProtectCntDown--;
