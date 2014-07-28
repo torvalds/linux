@@ -129,12 +129,6 @@ void rtw_report_sec_ie(struct adapter *adapter, u8 authmode, u8 *sec_ie)
 	}
 }
 
-static void _link_timer_hdl(void *FunctionContext)
-{
-	struct adapter *padapter = (struct adapter *)FunctionContext;
-	link_timer_hdl(padapter);
-}
-
 static void _addba_timer_hdl(void *FunctionContext)
 {
 	struct sta_info *psta = (struct sta_info *)FunctionContext;
@@ -151,7 +145,7 @@ void init_mlme_ext_timer(struct adapter *padapter)
 	struct	mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 
 	_init_timer(&pmlmeext->survey_timer, padapter->pnetdev, survey_timer_hdl, padapter);
-	_init_timer(&pmlmeext->link_timer, padapter->pnetdev, _link_timer_hdl, padapter);
+	_init_timer(&pmlmeext->link_timer, padapter->pnetdev, link_timer_hdl, padapter);
 }
 
 #ifdef CONFIG_88EU_AP_MODE
