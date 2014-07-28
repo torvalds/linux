@@ -928,6 +928,16 @@ static int ion_debug_client_show_buffer_map(struct seq_file *s, struct ion_buffe
 
 	return 0;
 }
+#else
+int ion_map_iommu(struct device *iommu_dev, struct ion_client *client,
+                struct ion_handle *handle, unsigned long *iova, unsigned long *size)
+{
+       return 0;
+}
+void ion_unmap_iommu(struct device *iommu_dev, struct ion_client *client,
+                        struct ion_handle *handle)
+{
+}
 #endif
 
 static int ion_debug_client_show_buffer(struct seq_file *s, void *unused)
