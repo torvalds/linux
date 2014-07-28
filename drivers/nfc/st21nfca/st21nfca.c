@@ -355,8 +355,8 @@ static int st21nfca_hci_start_poll(struct nfc_hci_dev *hdev,
 			if (r < 0)
 				return r;
 
-			pol_req =
-			    be32_to_cpu(ST21NFCA_RF_READER_F_POL_REQ_DEFAULT);
+			pol_req = be32_to_cpu((__force __be32)
+					ST21NFCA_RF_READER_F_POL_REQ_DEFAULT);
 			r = nfc_hci_set_param(hdev, ST21NFCA_RF_READER_F_GATE,
 					      ST21NFCA_RF_READER_F_POL_REQ,
 					      (u8 *) &pol_req, 4);
