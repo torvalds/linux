@@ -2366,6 +2366,7 @@ static void gsmld_close(struct tty_struct *tty)
 static int gsmld_open(struct tty_struct *tty)
 {
 	struct gsm_mux *gsm;
+	int ret;
 
 	if (tty->ops->write == NULL)
 		return -EINVAL;
@@ -2380,7 +2381,13 @@ static int gsmld_open(struct tty_struct *tty)
 
 	/* Attach the initial passive connection */
 	gsm->encoding = 1;
-	return gsmld_attach_gsm(tty, gsm);
+
+	ret = gsmld_attach_gsm(tty, gsm);
+	if (ret != 0) {
+		gsm_cleanup_mux(gsm);
+		mux_put(gsm);
+	}
+	return ret;
 }
 
 /**
