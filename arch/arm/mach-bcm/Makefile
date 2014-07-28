@@ -16,6 +16,9 @@ obj-$(CONFIG_ARCH_BCM_281XX)	+= board_bcm281xx.o
 # BCM21664
 obj-$(CONFIG_ARCH_BCM_21664)	+= board_bcm21664.o
 
+# BCM281XX and BCM21664 SMP support
+obj-$(CONFIG_ARCH_BCM_MOBILE_SMP) += kona_smp.o
+
 # BCM281XX and BCM21664 L2 cache control
 obj-$(CONFIG_ARCH_BCM_MOBILE_L2_CACHE) += kona_l2_cache.o
 
@@ -30,3 +33,8 @@ obj-$(CONFIG_ARCH_BCM2835)	+= board_bcm2835.o
 
 # BCM5301X
 obj-$(CONFIG_ARCH_BCM_5301X)	+= bcm_5301x.o
+
+ifeq ($(CONFIG_ARCH_BRCMSTB),y)
+obj-y				+= brcmstb.o
+obj-$(CONFIG_SMP)		+= headsmp-brcmstb.o platsmp-brcmstb.o
+endif
