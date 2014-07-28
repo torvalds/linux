@@ -71,6 +71,7 @@ karo	Ka-Ro electronics GmbH
 keymile	Keymile GmbH
 lacie	LaCie
 lantiq	Lantiq Semiconductor
+lenovo	Lenovo Group Ltd.
 lg	LG Corporation
 linux	Linux-specific binding
 lsi	LSI Corp. (LSI Logic)
