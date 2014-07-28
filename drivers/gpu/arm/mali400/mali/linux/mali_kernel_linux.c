@@ -560,7 +560,7 @@ static int mali_release(struct inode *inode, struct file *filp)
 
 	return 0;
 }
-#ifdef CONFIG_MALI400
+
 int map_errcode( _mali_osk_errcode_t err )
 {
 	switch(err) {
@@ -584,7 +584,6 @@ int map_errcode( _mali_osk_errcode_t err )
 		return -EFAULT;
 	}
 }
-#endif
 
 #ifdef HAVE_UNLOCKED_IOCTL
 static long mali_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
