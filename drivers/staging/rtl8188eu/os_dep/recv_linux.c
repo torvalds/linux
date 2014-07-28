@@ -191,18 +191,6 @@ _recv_indicatepkt_drop:
 	 return _FAIL;
 }
 
-void rtw_os_read_port(struct adapter *padapter, struct recv_buf *precvbuf)
-{
-	struct recv_priv *precvpriv = &padapter->recvpriv;
-
-	/* free skb in recv_buf */
-	dev_kfree_skb_any(precvbuf->pskb);
-	precvbuf->pskb = NULL;
-	precvbuf->reuse = false;
-	usb_read_port(padapter, precvpriv->ff_hwaddr, 0,
-			(unsigned char *)precvbuf);
-}
-
 static void _rtw_reordering_ctrl_timeout_handler(void *func_context)
 {
 	struct recv_reorder_ctrl *preorder_ctrl;

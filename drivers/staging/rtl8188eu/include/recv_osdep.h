@@ -43,8 +43,6 @@ int rtw_os_recv_resource_alloc(struct adapter *adapt,
 
 int rtw_os_recvbuf_resource_alloc(struct adapter *adapt, struct recv_buf *buf);
 
-void rtw_os_read_port(struct adapter *padapter, struct recv_buf *precvbuf);
-
 void rtw_init_recv_timer(struct recv_reorder_ctrl *preorder_ctrl);
 int _netdev_open(struct net_device *pnetdev);
 int netdev_open(struct net_device *pnetdev);
