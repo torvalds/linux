@@ -25,11 +25,8 @@
 
 struct comedi_device;
 
-enum pc236_bustype { isa_bustype, pci_bustype };
-
 struct pc236_board {
 	const char *name;
-	enum pc236_bustype bustype;
 	void (*intr_update_cb)(struct comedi_device *dev, bool enable);
 	bool (*intr_chk_clr_cb)(struct comedi_device *dev);
 };

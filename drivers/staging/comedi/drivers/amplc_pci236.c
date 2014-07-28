@@ -90,7 +90,6 @@ static const struct pc236_board pc236_pci_board = {
 	.name = "pci236",
 	.intr_update_cb = pci236_intr_update_cb,
 	.intr_chk_clr_cb = pci236_intr_chk_clr_cb,
-	.bustype = pci_bustype,
 };
 
 static int pci236_auto_attach(struct comedi_device *dev,

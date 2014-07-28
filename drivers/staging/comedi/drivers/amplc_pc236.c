@@ -65,7 +65,6 @@ static int pc236_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 static const struct pc236_board pc236_boards[] = {
 	{
 		.name = "pc36at",
-		.bustype = isa_bustype,
 	},
 };
 
