@@ -905,7 +905,7 @@ static struct device_attribute *mlx5_class_attributes[] = {
 };
 
 static void mlx5_ib_event(struct mlx5_core_dev *dev, void *context,
-			  enum mlx5_dev_event event, void *data)
+			  enum mlx5_dev_event event, unsigned long param)
 {
 	struct mlx5_ib_dev *ibdev = (struct mlx5_ib_dev *)context;
 	struct ib_event ibev;
@@ -920,12 +920,12 @@ static void mlx5_ib_event(struct mlx5_core_dev *dev, void *context,
 
 	case MLX5_DEV_EVENT_PORT_UP:
 		ibev.event = IB_EVENT_PORT_ACTIVE;
-		port = *(u8 *)data;
+		port = (u8)param;
 		break;
 
 	case MLX5_DEV_EVENT_PORT_DOWN:
 		ibev.event = IB_EVENT_PORT_ERR;
-		port = *(u8 *)data;
+		port = (u8)param;
 		break;
 
 	case MLX5_DEV_EVENT_PORT_INITIALIZED:
@@ -934,22 +934,22 @@ static void mlx5_ib_event(struct mlx5_core_dev *dev, void *context,
 
 	case MLX5_DEV_EVENT_LID_CHANGE:
 		ibev.event = IB_EVENT_LID_CHANGE;
-		port = *(u8 *)data;
+		port = (u8)param;
 		break;
 
 	case MLX5_DEV_EVENT_PKEY_CHANGE:
 		ibev.event = IB_EVENT_PKEY_CHANGE;
-		port = *(u8 *)data;
+		port = (u8)param;
 		break;
 
 	case MLX5_DEV_EVENT_GUID_CHANGE:
 		ibev.event = IB_EVENT_GID_CHANGE;
-		port = *(u8 *)data;
+		port = (u8)param;
 		break;
 
 	case MLX5_DEV_EVENT_CLIENT_REREG:
 		ibev.event = IB_EVENT_CLIENT_REREGISTER;
-		port = *(u8 *)data;
+		port = (u8)param;
 		break;
 	}
 

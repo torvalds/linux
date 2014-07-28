@@ -559,7 +559,7 @@ struct mlx5_core_dev {
 	struct mlx5_init_seg __iomem *iseg;
 	void			(*event) (struct mlx5_core_dev *dev,
 					  enum mlx5_dev_event event,
-					  void *data);
+					  unsigned long param);
 	struct mlx5_priv	priv;
 	struct mlx5_profile	*profile;
 	atomic_t		num_qps;
@@ -817,7 +817,7 @@ struct mlx5_interface {
 	void *			(*add)(struct mlx5_core_dev *dev);
 	void			(*remove)(struct mlx5_core_dev *dev, void *context);
 	void			(*event)(struct mlx5_core_dev *dev, void *context,
-					 enum mlx5_dev_event event, void *data);
+					 enum mlx5_dev_event event, unsigned long param);
 	struct list_head	list;
 };
 
