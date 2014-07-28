@@ -107,6 +107,20 @@
 		};
 	};
 
+	codec_hdmi_spdif: codec-hdmi-spdif {
+		compatible = "hdmi-spdif";
+	};
+
+	rockchip-hdmi-spdif {
+		compatible = "rockchip-hdmi-spdif";
+		dais {
+			dai0 {
+				audio-codec = <&codec_hdmi_spdif>;
+				i2s-controller = <&spdif>;
+			};
+		};
+	};
+
 	rockchip-audio {
 		compatible = "rk3036-audio";
 		dais {

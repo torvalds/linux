@@ -318,7 +318,7 @@
 			};
 		};
 
-		gpio1_spdif {
+		gpio0_spdif {
 			spdif_tx: spdif-tx {
 				rockchip,pins = <SPDIF_TX>;
 				rockchip,pull = <VALUE_PULL_DEFAULT>;

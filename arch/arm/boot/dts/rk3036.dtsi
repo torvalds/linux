@@ -408,8 +408,8 @@
 		dmas = <&pdma 13>;
 		//#dma-cells = <1>;
 		dma-names = "tx";
-		//pinctrl-names = "default";
-		//pinctrl-0 = <&spdif_tx>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&spdif_tx>;
 	};
 
 	pwm0: pwm@20050000 {
@@ -695,8 +695,8 @@
 		reg = <0x10200000 0x4000>;
 		interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "macirq";
-		clocks = <&clk_mac_pll>, <&clk_mac_ref>, 
-			<&clk_mac_pll_div>, <&clk_mac_ref_div>, 
+		clocks = <&clk_mac_pll>, <&clk_mac_ref>,
+			<&clk_mac_pll_div>, <&clk_mac_ref_div>,
 			<&clk_gates2 6>, <&clk_gates3 5>;
                 clock-names = "clk_mac_pll", "clk_mac_ref",
                           "clk_mac_pll_div", "clk_mac_ref_div",
