@@ -815,7 +815,7 @@ config COMEDI_AMPLC_PC236_PCI
 	  Enable support for Amplicon PCI236 DIO board.
 
 	  To compile this driver as a module, choose M here: the module will be
-	  called amplc_pc236.
+	  called amplc_pci236.
 
 config COMEDI_AMPLC_PC263_PCI
 	tristate "Amplicon PCI263 relay board support"
