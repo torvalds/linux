@@ -2613,8 +2613,8 @@ The 'data' member contains, in its first 'len' bytes, the value as it would
 appear if the VCPU performed a load or store of the appropriate width directly
 to the byte array.
 
-NOTE: For KVM_EXIT_IO, KVM_EXIT_MMIO, KVM_EXIT_OSI, KVM_EXIT_DCR,
-      KVM_EXIT_PAPR and KVM_EXIT_EPR the corresponding
+NOTE: For KVM_EXIT_IO, KVM_EXIT_MMIO, KVM_EXIT_OSI KVM_EXIT_PAPR and
+      KVM_EXIT_EPR the corresponding
 operations are complete (and guest state is consistent) only after userspace
 has re-entered the kernel with KVM_RUN.  The kernel side will first finish
 incomplete operations and then check for pending signals.  Userspace
@@ -2685,7 +2685,7 @@ Principles of Operation Book in the Chapter for Dynamic Address Translation
 			__u8  is_write;
 		} dcr;
 
-powerpc specific.
+Deprecated - was used for 440 KVM.
 
 		/* KVM_EXIT_OSI */
 		struct {

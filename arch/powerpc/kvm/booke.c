@@ -51,7 +51,6 @@ unsigned long kvmppc_booke_handlers;
 
 struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ "mmio",       VCPU_STAT(mmio_exits) },
-	{ "dcr",        VCPU_STAT(dcr_exits) },
 	{ "sig",        VCPU_STAT(signal_exits) },
 	{ "itlb_r",     VCPU_STAT(itlb_real_miss_exits) },
 	{ "itlb_v",     VCPU_STAT(itlb_virt_miss_exits) },
@@ -708,10 +707,6 @@ static int emulation_exit(struct kvm_run *run, struct kvm_vcpu *vcpu)
 
 	case EMULATE_AGAIN:
 		return RESUME_GUEST;
-
-	case EMULATE_DO_DCR:
-		run->exit_reason = KVM_EXIT_DCR;
-		return RESUME_HOST;
 
 	case EMULATE_FAIL:
 		printk(KERN_CRIT "%s: emulation at %lx failed (%08x)\n",

@@ -743,12 +743,6 @@ void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
 #endif
 }
 
-static void kvmppc_complete_dcr_load(struct kvm_vcpu *vcpu,
-                                     struct kvm_run *run)
-{
-	kvmppc_set_gpr(vcpu, vcpu->arch.io_gpr, run->dcr.data);
-}
-
 static void kvmppc_complete_mmio_load(struct kvm_vcpu *vcpu,
                                       struct kvm_run *run)
 {
@@ -945,10 +939,6 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 		if (!vcpu->mmio_is_write)
 			kvmppc_complete_mmio_load(vcpu, run);
 		vcpu->mmio_needed = 0;
-	} else if (vcpu->arch.dcr_needed) {
-		if (!vcpu->arch.dcr_is_write)
-			kvmppc_complete_dcr_load(vcpu, run);
-		vcpu->arch.dcr_needed = 0;
 	} else if (vcpu->arch.osi_needed) {
 		u64 *gprs = run->osi.gprs;
 		int i;

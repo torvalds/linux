@@ -94,7 +94,6 @@ struct kvm_vm_stat {
 struct kvm_vcpu_stat {
 	u32 sum_exits;
 	u32 mmio_exits;
-	u32 dcr_exits;
 	u32 signal_exits;
 	u32 light_exits;
 	/* Account for special types of light exits: */
@@ -126,7 +125,6 @@ struct kvm_vcpu_stat {
 
 enum kvm_exit_types {
 	MMIO_EXITS,
-	DCR_EXITS,
 	SIGNAL_EXITS,
 	ITLB_REAL_MISS_EXITS,
 	ITLB_VIRT_MISS_EXITS,
@@ -601,8 +599,6 @@ struct kvm_vcpu_arch {
 	u8 io_gpr; /* GPR used as IO source/target */
 	u8 mmio_is_bigendian;
 	u8 mmio_sign_extend;
-	u8 dcr_needed;
-	u8 dcr_is_write;
 	u8 osi_needed;
 	u8 osi_enabled;
 	u8 papr_enabled;

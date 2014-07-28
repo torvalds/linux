@@ -162,7 +162,7 @@ struct kvm_pit_config {
 #define KVM_EXIT_TPR_ACCESS       12
 #define KVM_EXIT_S390_SIEIC       13
 #define KVM_EXIT_S390_RESET       14
-#define KVM_EXIT_DCR              15
+#define KVM_EXIT_DCR              15 /* deprecated */
 #define KVM_EXIT_NMI              16
 #define KVM_EXIT_INTERNAL_ERROR   17
 #define KVM_EXIT_OSI              18
@@ -268,7 +268,7 @@ struct kvm_run {
 			__u64 trans_exc_code;
 			__u32 pgm_code;
 		} s390_ucontrol;
-		/* KVM_EXIT_DCR */
+		/* KVM_EXIT_DCR (deprecated) */
 		struct {
 			__u32 dcrn;
 			__u32 data;
