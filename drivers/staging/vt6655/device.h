@@ -185,12 +185,6 @@ typedef enum __device_msg_level {
 	MSG_LEVEL_DEBUG = 4           //Only for debug purpose.
 } DEVICE_MSG_LEVEL, *PDEVICE_MSG_LEVEL;
 
-typedef enum __device_init_type {
-	DEVICE_INIT_COLD = 0,         // cold init
-	DEVICE_INIT_RESET,          // reset init or Dx to D0 power remain init
-	DEVICE_INIT_DXPL            // Dx to D0 power lost init
-} DEVICE_INIT_TYPE, *PDEVICE_INIT_TYPE;
-
 //++ NDIS related
 
 #define MAX_BSSIDINFO_4_PMKID   16
