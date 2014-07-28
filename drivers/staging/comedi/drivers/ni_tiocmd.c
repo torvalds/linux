@@ -118,7 +118,7 @@ static int ni_tio_input_cmd(struct comedi_subdevice *s)
 	unsigned cidx = counter->counter_index;
 	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
-	int retval = 0;
+	int ret = 0;
 
 	/* write alloc the entire buffer */
 	comedi_buf_write_alloc(s, async->prealloc_bufsz);
@@ -137,29 +137,19 @@ static int ni_tio_input_cmd(struct comedi_subdevice *s)
 	}
 	ni_tio_set_bits(counter, NITIO_CMD_REG(cidx), GI_SAVE_TRACE, 0);
 	ni_tio_configure_dma(counter, true, true);
-	switch (cmd->start_src) {
-	case TRIG_NOW:
-		async->inttrig = NULL;
-		mite_dma_arm(counter->mite_chan);
-		retval = ni_tio_arm(counter, 1, NI_GPCT_ARM_IMMEDIATE);
-		break;
-	case TRIG_INT:
+
+	if (cmd->start_src == TRIG_INT) {
 		async->inttrig = &ni_tio_input_inttrig;
-		break;
-	case TRIG_EXT:
+	} else {	/* TRIG_NOW || TRIG_EXT || TRIG_OTHER */
 		async->inttrig = NULL;
 		mite_dma_arm(counter->mite_chan);
-		retval = ni_tio_arm(counter, 1, cmd->start_arg);
-		break;
-	case TRIG_OTHER:
-		async->inttrig = NULL;
-		mite_dma_arm(counter->mite_chan);
-		break;
-	default:
-		BUG();
-		break;
+
+		if (cmd->start_src == TRIG_NOW)
+			ret = ni_tio_arm(counter, 1, NI_GPCT_ARM_IMMEDIATE);
+		else if (cmd->start_src == TRIG_EXT)
+			ret = ni_tio_arm(counter, 1, cmd->start_arg);
 	}
-	return retval;
+	return ret;
 }
 
 static int ni_tio_output_cmd(struct comedi_subdevice *s)
