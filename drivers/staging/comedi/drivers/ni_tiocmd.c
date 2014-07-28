@@ -49,40 +49,38 @@ TODO:
 #include "ni_tio_internal.h"
 #include "mite.h"
 
-static void ni_tio_configure_dma(struct ni_gpct *counter, short enable,
-				 short read_not_write)
+static void ni_tio_configure_dma(struct ni_gpct *counter,
+				 bool enable, bool read)
 {
 	struct ni_gpct_device *counter_dev = counter->counter_dev;
 	unsigned cidx = counter->counter_index;
-	unsigned input_select_bits = 0;
+	unsigned mask;
+	unsigned bits;
+
+	mask = GI_READ_ACKS_IRQ | GI_WRITE_ACKS_IRQ;
+	bits = 0;
 
 	if (enable) {
-		if (read_not_write)
-			input_select_bits |= GI_READ_ACKS_IRQ;
+		if (read)
+			bits |= GI_READ_ACKS_IRQ;
 		else
-			input_select_bits |= GI_WRITE_ACKS_IRQ;
+			bits |= GI_WRITE_ACKS_IRQ;
 	}
-	ni_tio_set_bits(counter, NITIO_INPUT_SEL_REG(cidx),
-			GI_READ_ACKS_IRQ | GI_WRITE_ACKS_IRQ,
-			input_select_bits);
+	ni_tio_set_bits(counter, NITIO_INPUT_SEL_REG(cidx), mask, bits);
+
 	switch (counter_dev->variant) {
 	case ni_gpct_variant_e_series:
 		break;
 	case ni_gpct_variant_m_series:
 	case ni_gpct_variant_660x:
-		{
-			unsigned gi_dma_config_bits = 0;
+		mask = GI_DMA_ENABLE | GI_DMA_INT_ENA | GI_DMA_WRITE;
+		bits = 0;
 
-			if (enable) {
-				gi_dma_config_bits |= GI_DMA_ENABLE;
-				gi_dma_config_bits |= GI_DMA_INT_ENA;
-			}
-			if (read_not_write == 0)
-				gi_dma_config_bits |= GI_DMA_WRITE;
-			ni_tio_set_bits(counter, NITIO_DMA_CFG_REG(cidx),
-					GI_DMA_ENABLE | GI_DMA_INT_ENA |
-					GI_DMA_WRITE, gi_dma_config_bits);
-		}
+		if (enable)
+			bits |= GI_DMA_ENABLE | GI_DMA_INT_ENA;
+		if (!read)
+			bits |= GI_DMA_WRITE;
+		ni_tio_set_bits(counter, NITIO_DMA_CFG_REG(cidx), mask, bits);
 		break;
 	}
 }
@@ -140,7 +138,7 @@ static int ni_tio_input_cmd(struct comedi_subdevice *s)
 		break;
 	}
 	ni_tio_set_bits(counter, NITIO_CMD_REG(cidx), GI_SAVE_TRACE, 0);
-	ni_tio_configure_dma(counter, 1, 1);
+	ni_tio_configure_dma(counter, true, true);
 	switch (cmd->start_src) {
 	case TRIG_NOW:
 		async->inttrig = NULL;
@@ -176,7 +174,7 @@ static int ni_tio_output_cmd(struct comedi_subdevice *s)
 
 	counter->mite_chan->dir = COMEDI_OUTPUT;
 	mite_prep_dma(counter->mite_chan, 32, 32);
-	ni_tio_configure_dma(counter, 1, 0);
+	ni_tio_configure_dma(counter, true, false);
 	mite_dma_arm(counter->mite_chan);
 	return ni_tio_arm(counter, 1, NI_GPCT_ARM_IMMEDIATE);
 }
@@ -319,7 +317,7 @@ int ni_tio_cancel(struct ni_gpct *counter)
 	if (counter->mite_chan)
 		mite_dma_disarm(counter->mite_chan);
 	spin_unlock_irqrestore(&counter->lock, flags);
-	ni_tio_configure_dma(counter, 0, 0);
+	ni_tio_configure_dma(counter, false, false);
 
 	ni_tio_set_bits(counter, NITIO_INT_ENA_REG(cidx),
 			GI_GATE_INTERRUPT_ENABLE(cidx), 0x0);
