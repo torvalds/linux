@@ -74,14 +74,14 @@ static void ni_tio_configure_dma(struct ni_gpct *counter, short enable,
 			unsigned gi_dma_config_bits = 0;
 
 			if (enable) {
-				gi_dma_config_bits |= Gi_DMA_Enable_Bit;
-				gi_dma_config_bits |= Gi_DMA_Int_Bit;
+				gi_dma_config_bits |= GI_DMA_ENABLE;
+				gi_dma_config_bits |= GI_DMA_INT_ENA;
 			}
 			if (read_not_write == 0)
-				gi_dma_config_bits |= Gi_DMA_Write_Bit;
+				gi_dma_config_bits |= GI_DMA_WRITE;
 			ni_tio_set_bits(counter, NITIO_DMA_CFG_REG(cidx),
-					Gi_DMA_Enable_Bit | Gi_DMA_Int_Bit |
-					Gi_DMA_Write_Bit, gi_dma_config_bits);
+					GI_DMA_ENABLE | GI_DMA_INT_ENA |
+					GI_DMA_WRITE, gi_dma_config_bits);
 		}
 		break;
 	}

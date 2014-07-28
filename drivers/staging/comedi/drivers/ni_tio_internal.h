@@ -133,17 +133,16 @@
 #define GI_HW_SAVE(x)			(((x) % 2) ? (1 << 13) : (1 << 12))
 #define GI_PERMANENT_STALE(x)		(((x) % 2) ? (1 << 15) : (1 << 14))
 #define NITIO_DMA_CFG_REG(x)		(NITIO_G0_DMA_CFG + (x))
+#define GI_DMA_ENABLE			(1 << 0)
+#define GI_DMA_WRITE			(1 << 1)
+#define GI_DMA_INT_ENA			(1 << 2)
+#define GI_DMA_RESET			(1 << 3)
+#define GI_DMA_BANKSW_ERROR		(1 << 4)
 #define NITIO_DMA_STATUS_REG(x)		(NITIO_G0_DMA_STATUS + (x))
 #define NITIO_ABZ_REG(x)		(NITIO_G0_ABZ + (x))
 #define NITIO_INT_ACK_REG(x)		(NITIO_G0_INT_ACK + (x))
 #define NITIO_STATUS_REG(x)		(NITIO_G0_STATUS + (x))
 #define NITIO_INT_ENA_REG(x)		(NITIO_G0_INT_ENA + (x))
-
-enum Gi_DMA_Config_Reg_Bits {
-	Gi_DMA_Enable_Bit = 0x1,
-	Gi_DMA_Write_Bit = 0x2,
-	Gi_DMA_Int_Bit = 0x4
-};
 
 enum Gi_DMA_Status_Reg_Bits {
 	Gi_DMA_Readbank_Bit = 0x2000,

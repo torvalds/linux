@@ -1285,14 +1285,6 @@ static inline unsigned MSeries_PFI_Output_Select_Source(unsigned channel,
 	return (bits >> ((channel % 3) * 5)) & 0x1f;
 };
 
-enum MSeries_Gi_DMA_Config_Bits {
-	Gi_DMA_BankSW_Error_Bit = 0x10,
-	Gi_DMA_Reset_Bit = 0x8,
-	Gi_DMA_Int_Enable_Bit = 0x4,
-	Gi_DMA_Write_Bit = 0x2,
-	Gi_DMA_Enable_Bit = 0x1,
-};
-
 static inline unsigned MSeries_PFI_Filter_Select_Mask(unsigned channel)
 {
 	return 0x3 << (channel * 2);
