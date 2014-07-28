@@ -84,18 +84,6 @@ struct pc236_board {
 	enum pc236_bustype bustype;
 };
 
-static const struct pc236_board pc236_isa_boards[] = {
-	{
-		.name = "pc36at",
-		.bustype = isa_bustype,
-	},
-};
-
-static const struct pc236_board pc236_pci_board = {
-	.name = "pci236",
-	.bustype = pci_bustype,
-};
-
 struct pc236_private {
 	unsigned long lcr_iobase; /* PLX PCI9052 config registers in PCIBAR1 */
 	int enable_irq;
@@ -342,6 +330,11 @@ static int pc236_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return pc236_common_attach(dev, dev->iobase, it->options[1], 0);
 }
 
+static const struct pc236_board pc236_pci_board = {
+	.name = "pci236",
+	.bustype = pci_bustype,
+};
+
 static int pc236_auto_attach(struct comedi_device *dev,
 				       unsigned long context_unused)
 {
@@ -386,6 +379,13 @@ static void pc236_detach(struct comedi_device *dev)
 		comedi_pci_disable(dev);
 	}
 }
+
+static const struct pc236_board pc236_isa_boards[] = {
+	{
+		.name = "pc36at",
+		.bustype = isa_bustype,
+	},
+};
 
 static struct comedi_driver amplc_pc236_driver = {
 	.driver_name = "amplc_pc236",
