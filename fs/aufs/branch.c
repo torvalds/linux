@@ -849,6 +849,35 @@ out:
 	return err;
 }
 
+static void br_del_file(struct file **to_free, unsigned long long opened,
+			  aufs_bindex_t bindex)
+{
+	unsigned long long ull;
+	aufs_bindex_t bstart, bend;
+	struct file *file;
+
+	for (ull = 0; ull < opened; ull++) {
+		file = to_free[ull];
+		if (unlikely(!file))
+			break;
+
+		/* AuDbg("%.*s\n", AuDLNPair(file->f_dentry)); */
+		AuDebugOn(!S_ISDIR(file_inode(file)->i_mode));
+		fi_write_lock(file);
+		au_set_h_fptr(file, bindex, NULL);
+		bstart = au_fbstart(file);
+		if (bindex == bstart) {
+			bend = au_fbend_dir(file);
+			for (bstart++; bstart <= bend; bstart++)
+				if (au_hf_dir(file, bstart)) {
+					au_set_fbstart(file, bstart);
+					break;
+				}
+		}
+		fi_write_unlock(file);
+	}
+}
+
 static void au_br_do_del_brp(struct au_sbinfo *sbinfo,
 			     const aufs_bindex_t bindex,
 			     const aufs_bindex_t bend)
@@ -952,12 +981,12 @@ int au_br_del(struct super_block *sb, struct au_opt_del *del, int remount)
 	int err, rerr, i;
 	unsigned long long opened;
 	unsigned int mnt_flags;
-	aufs_bindex_t bindex, bend, br_id, bstart;
+	aufs_bindex_t bindex, bend, br_id;
 	unsigned char do_wh, verbose;
 	struct au_branch *br;
 	struct au_wbr *wbr;
 	struct dentry *root;
-	struct file *file, **to_free;
+	struct file **to_free;
 
 	err = 0;
 	opened = 0;
@@ -1023,25 +1052,7 @@ int au_br_del(struct super_block *sb, struct au_opt_del *del, int remount)
 		 * let's free the remaining opened dirs on the branch.
 		 */
 		di_write_unlock(root);
-		for (i = 0; i < opened; i++) {
-			file = to_free[i];
-			if (unlikely(!file))
-				break;
-
-			/* AuDbg("%.*s\n", AuDLNPair(file->f_dentry)); */
-			fi_write_lock(file);
-			au_set_h_fptr(file, bindex, NULL);
-			bstart = au_fbstart(file);
-			if (bindex == bstart) {
-				bend = au_fbend_dir(file);
-				for (bstart++; bstart <= bend; bstart++)
-					if (au_hf_dir(file, bstart)) {
-						au_set_fbstart(file, bstart);
-						break;
-					}
-			}
-			fi_write_unlock(file);
-		}
+		br_del_file(to_free, opened, bindex);
 		di_write_lock_child(root);
 	}
 
