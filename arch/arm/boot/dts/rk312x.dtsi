@@ -1,6 +1,7 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/suspend/rockchip-pm.h>
 #include <dt-bindings/sensor-dev.h>
+#include <dt-bindings/clock/rk_system_status.h>
 
 #include "skeleton.dtsi"
 #include "rk312x-clocks.dtsi"
@@ -601,5 +602,77 @@
 		interrupts = <GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "iep_mmu";
 	  };
+
+	  dvfs {
+		temp-limit-enable = <0>;
+		target-temp = <80>;
+
+		vd_arm: vd_arm {
+			regulator_name = "vdd_arm";
+			pd_core {
+				clk_core_dvfs_table: clk_core {
+					operating-points = <
+						/* KHz    uV */
+						312000 1100000
+						504000 1100000
+						816000 1100000
+						1008000 1100000
+						>;
+					temp-channel = <1>;
+					normal-temp-limit = <
+					/*delta-temp    delta-freq*/
+						3	96000
+						6	144000
+						9	192000
+						15	384000
+						>;
+					performance-temp-limit = <
+						/*temp    freq*/
+						110     816000
+						>;
+					status = "okay";
+					regu-mode-table = <
+						/*freq     mode*/
+						1008000    4
+						0          3
+					>;
+					regu-mode-en = <0>;
+				};
+			};
+		};
+
+		vd_logic: vd_logic {
+			regulator_name = "vdd_logic";
+			pd_ddr {
+				clk_ddr_dvfs_table: clk_ddr {
+					operating-points = <
+						/* KHz    uV */
+						200000 1200000
+						300000 1200000
+						400000 1200000
+						>;
+					status = "disabled";
+				};
+			};
+
+			pd_gpu {
+				clk_gpu_dvfs_table: clk_gpu {
+					operating-points = <
+						/* KHz    uV */
+						200000 1200000
+						300000 1200000
+						400000 1200000
+						>;
+					status = "okay";
+					regu-mode-table = <
+						/*freq     mode*/
+						200000     4
+						0          3
+					>;
+					regu-mode-en = <0>;
+				};
+			};
+		};
+	};
 
 };

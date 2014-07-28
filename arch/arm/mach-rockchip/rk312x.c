@@ -112,6 +112,7 @@ static void __init rk312x_dt_init_timer(void)
 {
 	of_clk_init(NULL);
 	clocksource_of_init();
+	of_dvfs_init();
 }
 
 static void __init rk312x_reserve(void)
