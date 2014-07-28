@@ -87,7 +87,7 @@ struct pc236_board {
 
 struct pc236_private {
 	unsigned long lcr_iobase; /* PLX PCI9052 config registers in PCIBAR1 */
-	int enable_irq;
+	bool enable_irq;
 };
 
 /* test if ISA supported and this is an ISA board */
@@ -102,39 +102,16 @@ static inline bool is_pci_board(const struct pc236_board *board)
 	return DO_PCI && board->bustype == pci_bustype;
 }
 
-/*
- * This function is called to mark the interrupt as disabled (no command
- * configured on subdevice 1) and to physically disable the interrupt
- * (not possible on the PC36AT, except by removing the IRQ jumper!).
- */
-static void pc236_intr_disable(struct comedi_device *dev)
+static void pc236_intr_update(struct comedi_device *dev, bool enable)
 {
 	const struct pc236_board *thisboard = comedi_board(dev);
 	struct pc236_private *devpriv = dev->private;
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev->spinlock, flags);
-	devpriv->enable_irq = 0;
+	devpriv->enable_irq = enable;
 	if (thisboard->intr_update_cb)
-		thisboard->intr_update_cb(dev, false);
-	spin_unlock_irqrestore(&dev->spinlock, flags);
-}
-
-/*
- * This function is called to mark the interrupt as enabled (a command
- * configured on subdevice 1) and to physically enable the interrupt
- * (not possible on the PC36AT, except by (re)connecting the IRQ jumper!).
- */
-static void pc236_intr_enable(struct comedi_device *dev)
-{
-	const struct pc236_board *thisboard = comedi_board(dev);
-	struct pc236_private *devpriv = dev->private;
-	unsigned long flags;
-
-	spin_lock_irqsave(&dev->spinlock, flags);
-	devpriv->enable_irq = 1;
-	if (thisboard->intr_update_cb)
-		thisboard->intr_update_cb(dev, true);
+		thisboard->intr_update_cb(dev, enable);
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 }
 
@@ -235,7 +212,7 @@ static int pc236_intr_cmdtest(struct comedi_device *dev,
  */
 static int pc236_intr_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
-	pc236_intr_enable(dev);
+	pc236_intr_update(dev, true);
 
 	return 0;
 }
@@ -246,7 +223,7 @@ static int pc236_intr_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 static int pc236_intr_cancel(struct comedi_device *dev,
 			     struct comedi_subdevice *s)
 {
-	pc236_intr_disable(dev);
+	pc236_intr_update(dev, false);
 
 	return 0;
 }
@@ -291,7 +268,7 @@ static int pc236_common_attach(struct comedi_device *dev, unsigned long iobase,
 	s = &dev->subdevices[1];
 	dev->read_subdev = s;
 	s->type = COMEDI_SUBD_UNUSED;
-	pc236_intr_disable(dev);
+	pc236_intr_update(dev, false);
 	if (irq) {
 		if (request_irq(irq, pc236_interrupt, req_irq_flags,
 				dev->board_name, dev) >= 0) {
