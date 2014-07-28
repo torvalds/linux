@@ -317,7 +317,7 @@ static void hci_cc_write_scan_enable(struct hci_dev *hdev, struct sk_buff *skb)
 	if (param & SCAN_PAGE)
 		set_bit(HCI_PSCAN, &hdev->flags);
 	else
-		clear_bit(HCI_ISCAN, &hdev->flags);
+		clear_bit(HCI_PSCAN, &hdev->flags);
 
 done:
 	hci_dev_unlock(hdev);
