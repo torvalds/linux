@@ -1881,7 +1881,18 @@ static int set_connectable(struct sock *sk, struct hci_dev *hdev, void *data,
 		if (cp->val) {
 			scan = SCAN_PAGE;
 		} else {
-			scan = 0;
+			/* If we don't have any whitelist entries just
+			 * disable all scanning. If there are entries
+			 * and we had both page and inquiry scanning
+			 * enabled then fall back to only page scanning.
+			 * Otherwise no changes are needed.
+			 */
+			if (list_empty(&hdev->whitelist))
+				scan = SCAN_DISABLED;
+			else if (test_bit(HCI_ISCAN, &hdev->flags))
+				scan = SCAN_PAGE;
+			else
+				goto no_scan_update;
 
 			if (test_bit(HCI_ISCAN, &hdev->flags) &&
 			    hdev->discov_timeout > 0)
@@ -1891,6 +1902,7 @@ static int set_connectable(struct sock *sk, struct hci_dev *hdev, void *data,
 		hci_req_add(&req, HCI_OP_WRITE_SCAN_ENABLE, 1, &scan);
 	}
 
+no_scan_update:
 	/* If we're going from non-connectable to connectable or
 	 * vice-versa when fast connectable is enabled ensure that fast
 	 * connectable gets disabled. write_fast_connectable won't do
