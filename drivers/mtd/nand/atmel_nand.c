@@ -1148,7 +1148,6 @@ static int atmel_pmecc_nand_init_params(struct platform_device *pdev,
 
 	host->ecc = devm_ioremap_resource(&pdev->dev, regs);
 	if (IS_ERR(host->ecc)) {
-		dev_err(host->dev, "ioremap failed\n");
 		err_no = PTR_ERR(host->ecc);
 		goto err;
 	}
@@ -1156,8 +1155,6 @@ static int atmel_pmecc_nand_init_params(struct platform_device *pdev,
 	regs_pmerr = platform_get_resource(pdev, IORESOURCE_MEM, 2);
 	host->pmerrloc_base = devm_ioremap_resource(&pdev->dev, regs_pmerr);
 	if (IS_ERR(host->pmerrloc_base)) {
-		dev_err(host->dev,
-			"Can not get I/O resource for PMECC ERRLOC controller!\n");
 		err_no = PTR_ERR(host->pmerrloc_base);
 		goto err;
 	}
@@ -1165,7 +1162,6 @@ static int atmel_pmecc_nand_init_params(struct platform_device *pdev,
 	regs_rom = platform_get_resource(pdev, IORESOURCE_MEM, 3);
 	host->pmecc_rom_base = devm_ioremap_resource(&pdev->dev, regs_rom);
 	if (IS_ERR(host->pmecc_rom_base)) {
-		dev_err(host->dev, "Can not get I/O resource for ROM!\n");
 		err_no = PTR_ERR(host->pmecc_rom_base);
 		goto err;
 	}
@@ -1536,10 +1532,8 @@ static int atmel_hw_nand_init_params(struct platform_device *pdev,
 	}
 
 	host->ecc = devm_ioremap_resource(&pdev->dev, regs);
-	if (IS_ERR(host->ecc)) {
-		dev_err(host->dev, "ioremap failed\n");
+	if (IS_ERR(host->ecc))
 		return PTR_ERR(host->ecc);
-	}
 
 	/* ECC is calculated for the whole page (1 step) */
 	nand_chip->ecc.size = mtd->writesize;
@@ -2046,7 +2040,6 @@ static int atmel_nand_probe(struct platform_device *pdev)
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	host->io_base = devm_ioremap_resource(&pdev->dev, mem);
 	if (IS_ERR(host->io_base)) {
-		dev_err(&pdev->dev, "atmel_nand: ioremap resource failed\n");
 		res = PTR_ERR(host->io_base);
 		goto err_nand_ioremap;
 	}
