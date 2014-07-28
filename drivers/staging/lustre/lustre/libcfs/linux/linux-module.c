@@ -154,7 +154,7 @@ static long libcfs_ioctl(struct file *file,
 		if (!capable(CFS_CAP_SYS_BOOT))
 			return (-EPERM);
 		panic("debugctl-invoked panic");
-		return (0);
+		return 0;
 	case IOC_LIBCFS_MEMHOG:
 		if (!capable(CFS_CAP_SYS_ADMIN))
 			return -EPERM;
@@ -167,7 +167,7 @@ static long libcfs_ioctl(struct file *file,
 		rc = libcfs_psdev_ops.p_ioctl(&pfile, cmd, (void *)arg);
 	else
 		rc = -EPERM;
-	return (rc);
+	return rc;
 }
 
 static struct file_operations libcfs_fops = {
