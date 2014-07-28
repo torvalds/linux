@@ -424,7 +424,7 @@ static inline unsigned int elapsed_jiffies_msecs(unsigned long start)
 	if (end >= start)
 		return jiffies_to_msecs(end - start);
 
-	return jiffies_to_msecs(end + (MAX_JIFFY_OFFSET - start) + 1);
+	return jiffies_to_msecs(end + (ULONG_MAX - start) + 1);
 }
 
 void
