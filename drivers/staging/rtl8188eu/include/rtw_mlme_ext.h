@@ -646,7 +646,7 @@ void mlmeext_sta_add_event_callback(struct adapter *padapter,
 
 void linked_status_chk(struct adapter *padapter);
 
-void survey_timer_hdl (struct adapter *padapter);
+void survey_timer_hdl (void *function_context);
 void link_timer_hdl (struct adapter *padapter);
 void addba_timer_hdl(struct sta_info *psta);
 

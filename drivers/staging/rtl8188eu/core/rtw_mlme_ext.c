@@ -4833,8 +4833,9 @@ void linked_status_chk(struct adapter *padapter)
 	}
 }
 
-void survey_timer_hdl(struct adapter *padapter)
+void survey_timer_hdl(void *function_context)
 {
+	struct adapter *padapter = (struct adapter *)function_context;
 	struct cmd_obj	*ph2c;
 	struct sitesurvey_parm	*psurveyPara;
 	struct cmd_priv					*pcmdpriv = &padapter->cmdpriv;
