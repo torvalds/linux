@@ -60,7 +60,7 @@ static int si2168_cmd_execute(struct si2168 *s, struct si2168_cmd *cmd)
 				jiffies_to_msecs(jiffies) -
 				(jiffies_to_msecs(timeout) - TIMEOUT));
 
-		if (!(cmd->args[0] >> 7) & 0x01) {
+		if (!((cmd->args[0] >> 7) & 0x01)) {
 			ret = -ETIMEDOUT;
 			goto err_mutex_unlock;
 		}
@@ -481,20 +481,6 @@ static int si2168_init(struct dvb_frontend *fe)
 	cmd.args[0] = 0x02;
 	cmd.wlen = 1;
 	cmd.rlen = 13;
-	ret = si2168_cmd_execute(s, &cmd);
-	if (ret)
-		goto err;
-
-	cmd.args[0] = 0x05;
-	cmd.args[1] = 0x00;
-	cmd.args[2] = 0xaa;
-	cmd.args[3] = 0x4d;
-	cmd.args[4] = 0x56;
-	cmd.args[5] = 0x40;
-	cmd.args[6] = 0x00;
-	cmd.args[7] = 0x00;
-	cmd.wlen = 8;
-	cmd.rlen = 1;
 	ret = si2168_cmd_execute(s, &cmd);
 	if (ret)
 		goto err;

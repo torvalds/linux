@@ -3476,12 +3476,17 @@ sub process {
 			}
 		}
 
-# unnecessary return in a void function? (a single leading tab, then return;)
-		if ($sline =~ /^\+\treturn\s*;\s*$/ &&
-		    $prevline =~ /^\+/) {
+# unnecessary return in a void function
+# at end-of-function, with the previous line a single leading tab, then return;
+# and the line before that not a goto label target like "out:"
+		if ($sline =~ /^[ \+]}\s*$/ &&
+		    $prevline =~ /^\+\treturn\s*;\s*$/ &&
+		    $linenr >= 3 &&
+		    $lines[$linenr - 3] =~ /^[ +]/ &&
+		    $lines[$linenr - 3] !~ /^[ +]\s*$Ident\s*:/) {
 			WARN("RETURN_VOID",
-			     "void function return statements are not generally useful\n" . $herecurr);
-		}
+			     "void function return statements are not generally useful\n" . $hereprev);
+               }
 
 # if statements using unnecessary parentheses - ie: if ((foo == bar))
 		if ($^V && $^V ge 5.10.0 &&

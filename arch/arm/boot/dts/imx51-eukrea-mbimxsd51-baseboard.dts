@@ -107,7 +107,7 @@
 &esdhc1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_esdhc1 &pinctrl_esdhc1_cd>;
-	fsl,cd-controller;
+	cd-gpios = <&gpio1 0 GPIO_ACTIVE_LOW>;
 	status = "okay";
 };
 
@@ -206,7 +206,7 @@
 
 		pinctrl_esdhc1_cd: esdhc1_cd {
 			fsl,pins = <
-				MX51_PAD_GPIO1_0__SD1_CD 0x20d5
+				MX51_PAD_GPIO1_0__GPIO1_0 0xd5
 			>;
 		};
 

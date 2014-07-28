@@ -33,6 +33,7 @@ struct mdp5_kms {
 
 	/* mapper-id used to request GEM buffer mapped for scanout: */
 	int id;
+	struct msm_mmu *mmu;
 
 	/* for tracking smp allocation amongst pipes: */
 	mdp5_smp_state_t smp_state;

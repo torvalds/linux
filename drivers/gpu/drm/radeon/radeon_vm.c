@@ -332,6 +332,7 @@ struct radeon_bo_va *radeon_vm_bo_add(struct radeon_device *rdev,
 	bo_va->ref_count = 1;
 	INIT_LIST_HEAD(&bo_va->bo_list);
 	INIT_LIST_HEAD(&bo_va->vm_list);
+	INIT_LIST_HEAD(&bo_va->vm_status);
 
 	mutex_lock(&vm->mutex);
 	list_add(&bo_va->vm_list, &vm->va);
@@ -468,6 +469,19 @@ int radeon_vm_bo_set_addr(struct radeon_device *rdev,
 		head = &tmp->vm_list;
 	}
 
+	if (bo_va->soffset) {
+		/* add a clone of the bo_va to clear the old address */
+		tmp = kzalloc(sizeof(struct radeon_bo_va), GFP_KERNEL);
+		if (!tmp) {
+			mutex_unlock(&vm->mutex);
+			return -ENOMEM;
+		}
+		tmp->soffset = bo_va->soffset;
+		tmp->eoffset = bo_va->eoffset;
+		tmp->vm = vm;
+		list_add(&tmp->vm_status, &vm->freed);
+	}
+
 	bo_va->soffset = soffset;
 	bo_va->eoffset = eoffset;
 	bo_va->flags = flags;
@@ -495,7 +509,7 @@ int radeon_vm_bo_set_addr(struct radeon_device *rdev,
 		mutex_unlock(&vm->mutex);
 
 		r = radeon_bo_create(rdev, RADEON_VM_PTE_COUNT * 8,
-				     RADEON_GPU_PAGE_SIZE, false, 
+				     RADEON_GPU_PAGE_SIZE, true,
 				     RADEON_GEM_DOMAIN_VRAM, NULL, &pt);
 		if (r)
 			return r;
@@ -823,25 +837,19 @@ static void radeon_vm_update_ptes(struct radeon_device *rdev,
  * Object have to be reserved and mutex must be locked!
  */
 int radeon_vm_bo_update(struct radeon_device *rdev,
-			struct radeon_vm *vm,
-			struct radeon_bo *bo,
+			struct radeon_bo_va *bo_va,
 			struct ttm_mem_reg *mem)
 {
+	struct radeon_vm *vm = bo_va->vm;
 	struct radeon_ib ib;
-	struct radeon_bo_va *bo_va;
 	unsigned nptes, ndw;
 	uint64_t addr;
 	int r;
 
-	bo_va = radeon_vm_bo_find(vm, bo);
-	if (bo_va == NULL) {
-		dev_err(rdev->dev, "bo %p not in vm %p\n", bo, vm);
-		return -EINVAL;
-	}
 
 	if (!bo_va->soffset) {
 		dev_err(rdev->dev, "bo %p don't has a mapping in vm %p\n",
-			bo, vm);
+			bo_va->bo, vm);
 		return -EINVAL;
 	}
 
@@ -868,7 +876,7 @@ int radeon_vm_bo_update(struct radeon_device *rdev,
 
 	trace_radeon_vm_bo_update(bo_va);
 
-	nptes = radeon_bo_ngpu_pages(bo);
+	nptes = (bo_va->eoffset - bo_va->soffset) / RADEON_GPU_PAGE_SIZE;
 
 	/* padding, etc. */
 	ndw = 64;
@@ -911,33 +919,61 @@ int radeon_vm_bo_update(struct radeon_device *rdev,
 }
 
 /**
+ * radeon_vm_clear_freed - clear freed BOs in the PT
+ *
+ * @rdev: radeon_device pointer
+ * @vm: requested vm
+ *
+ * Make sure all freed BOs are cleared in the PT.
+ * Returns 0 for success.
+ *
+ * PTs have to be reserved and mutex must be locked!
+ */
+int radeon_vm_clear_freed(struct radeon_device *rdev,
+			  struct radeon_vm *vm)
+{
+	struct radeon_bo_va *bo_va, *tmp;
+	int r;
+
+	list_for_each_entry_safe(bo_va, tmp, &vm->freed, vm_status) {
+		list_del(&bo_va->vm_status);
+		r = radeon_vm_bo_update(rdev, bo_va, NULL);
+		kfree(bo_va);
+		if (r)
+			return r;
+	}
+	return 0;
+
+}
+
+/**
  * radeon_vm_bo_rmv - remove a bo to a specific vm
  *
  * @rdev: radeon_device pointer
  * @bo_va: requested bo_va
  *
  * Remove @bo_va->bo from the requested vm (cayman+).
- * Remove @bo_va->bo from the list of bos associated with the bo_va->vm and
- * remove the ptes for @bo_va in the page table.
- * Returns 0 for success.
  *
  * Object have to be reserved!
  */
-int radeon_vm_bo_rmv(struct radeon_device *rdev,
-		     struct radeon_bo_va *bo_va)
+void radeon_vm_bo_rmv(struct radeon_device *rdev,
+		      struct radeon_bo_va *bo_va)
 {
-	int r = 0;
+	struct radeon_vm *vm = bo_va->vm;
 
-	mutex_lock(&bo_va->vm->mutex);
-	if (bo_va->soffset)
-		r = radeon_vm_bo_update(rdev, bo_va->vm, bo_va->bo, NULL);
-
-	list_del(&bo_va->vm_list);
-	mutex_unlock(&bo_va->vm->mutex);
 	list_del(&bo_va->bo_list);
 
-	kfree(bo_va);
-	return r;
+	mutex_lock(&vm->mutex);
+	list_del(&bo_va->vm_list);
+
+	if (bo_va->soffset) {
+		bo_va->bo = NULL;
+		list_add(&bo_va->vm_status, &vm->freed);
+	} else {
+		kfree(bo_va);
+	}
+
+	mutex_unlock(&vm->mutex);
 }
 
 /**
@@ -975,11 +1011,13 @@ int radeon_vm_init(struct radeon_device *rdev, struct radeon_vm *vm)
 	int r;
 
 	vm->id = 0;
+	vm->ib_bo_va = NULL;
 	vm->fence = NULL;
 	vm->last_flush = NULL;
 	vm->last_id_use = NULL;
 	mutex_init(&vm->mutex);
 	INIT_LIST_HEAD(&vm->va);
+	INIT_LIST_HEAD(&vm->freed);
 
 	pd_size = radeon_vm_directory_size(rdev);
 	pd_entries = radeon_vm_num_pdes(rdev);
@@ -992,7 +1030,7 @@ int radeon_vm_init(struct radeon_device *rdev, struct radeon_vm *vm)
 		return -ENOMEM;
 	}
 
-	r = radeon_bo_create(rdev, pd_size, align, false,
+	r = radeon_bo_create(rdev, pd_size, align, true,
 			     RADEON_GEM_DOMAIN_VRAM, NULL,
 			     &vm->page_directory);
 	if (r)
@@ -1034,7 +1072,8 @@ void radeon_vm_fini(struct radeon_device *rdev, struct radeon_vm *vm)
 			kfree(bo_va);
 		}
 	}
-
+	list_for_each_entry_safe(bo_va, tmp, &vm->freed, vm_status)
+		kfree(bo_va);
 
 	for (i = 0; i < radeon_vm_num_pdes(rdev); i++)
 		radeon_bo_unref(&vm->page_tables[i].bo);

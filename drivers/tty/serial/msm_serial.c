@@ -991,7 +991,7 @@ static const struct of_device_id msm_uartdm_table[] = {
 	{ }
 };
 
-static int __init msm_serial_probe(struct platform_device *pdev)
+static int msm_serial_probe(struct platform_device *pdev)
 {
 	struct msm_port *msm_port;
 	struct resource *resource;

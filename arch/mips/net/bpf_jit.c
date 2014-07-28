@@ -119,8 +119,6 @@
 /* Arguments used by JIT */
 #define ARGS_USED_BY_JIT	2 /* only applicable to 64-bit */
 
-#define FLAG_NEED_X_RESET	(1 << 0)
-
 #define SBIT(x)			(1 << (x)) /* Signed version of BIT() */
 
 /**
@@ -153,6 +151,8 @@ static inline int optimize_div(u32 *k)
 	return 0;
 }
 
+static inline void emit_jit_reg_move(ptr dst, ptr src, struct jit_ctx *ctx);
+
 /* Simply emit the instruction if the JIT memory space has been allocated */
 #define emit_instr(ctx, func, ...)			\
 do {							\
@@ -166,9 +166,7 @@ do {							\
 /* Determine if immediate is within the 16-bit signed range */
 static inline bool is_range16(s32 imm)
 {
-	if (imm >= SBIT(15) || imm < -SBIT(15))
-		return true;
-	return false;
+	return !(imm >= SBIT(15) || imm < -SBIT(15));
 }
 
 static inline void emit_addu(unsigned int dst, unsigned int src1,
@@ -187,7 +185,7 @@ static inline void emit_load_imm(unsigned int dst, u32 imm, struct jit_ctx *ctx)
 {
 	if (ctx->target != NULL) {
 		/* addiu can only handle s16 */
-		if (is_range16(imm)) {
+		if (!is_range16(imm)) {
 			u32 *p = &ctx->target[ctx->idx];
 			uasm_i_lui(&p, r_tmp_imm, (s32)imm >> 16);
 			p = &ctx->target[ctx->idx + 1];
@@ -199,7 +197,7 @@ static inline void emit_load_imm(unsigned int dst, u32 imm, struct jit_ctx *ctx)
 	}
 	ctx->idx++;
 
-	if (is_range16(imm))
+	if (!is_range16(imm))
 		ctx->idx++;
 }
 
@@ -240,7 +238,7 @@ static inline void emit_daddiu(unsigned int dst, unsigned int src,
 static inline void emit_addiu(unsigned int dst, unsigned int src,
 			      u32 imm, struct jit_ctx *ctx)
 {
-	if (is_range16(imm)) {
+	if (!is_range16(imm)) {
 		emit_load_imm(r_tmp, imm, ctx);
 		emit_addu(dst, r_tmp, src, ctx);
 	} else {
@@ -313,8 +311,11 @@ static inline void emit_sll(unsigned int dst, unsigned int src,
 			    unsigned int sa, struct jit_ctx *ctx)
 {
 	/* sa is 5-bits long */
-	BUG_ON(sa >= BIT(5));
-	emit_instr(ctx, sll, dst, src, sa);
+	if (sa >= BIT(5))
+		/* Shifting >= 32 results in zero */
+		emit_jit_reg_move(dst, r_zero, ctx);
+	else
+		emit_instr(ctx, sll, dst, src, sa);
 }
 
 static inline void emit_srlv(unsigned int dst, unsigned int src,
@@ -327,8 +328,17 @@ static inline void emit_srl(unsigned int dst, unsigned int src,
 			    unsigned int sa, struct jit_ctx *ctx)
 {
 	/* sa is 5-bits long */
-	BUG_ON(sa >= BIT(5));
-	emit_instr(ctx, srl, dst, src, sa);
+	if (sa >= BIT(5))
+		/* Shifting >= 32 results in zero */
+		emit_jit_reg_move(dst, r_zero, ctx);
+	else
+		emit_instr(ctx, srl, dst, src, sa);
+}
+
+static inline void emit_slt(unsigned int dst, unsigned int src1,
+			    unsigned int src2, struct jit_ctx *ctx)
+{
+	emit_instr(ctx, slt, dst, src1, src2);
 }
 
 static inline void emit_sltu(unsigned int dst, unsigned int src1,
@@ -341,7 +351,7 @@ static inline void emit_sltiu(unsigned dst, unsigned int src,
 			      unsigned int imm, struct jit_ctx *ctx)
 {
 	/* 16 bit immediate */
-	if (is_range16((s32)imm)) {
+	if (!is_range16((s32)imm)) {
 		emit_load_imm(r_tmp, imm, ctx);
 		emit_sltu(dst, src, r_tmp, ctx);
 	} else {
@@ -408,7 +418,7 @@ static inline void emit_div(unsigned int dst, unsigned int src,
 		u32 *p = &ctx->target[ctx->idx];
 		uasm_i_divu(&p, dst, src);
 		p = &ctx->target[ctx->idx + 1];
-		uasm_i_mfhi(&p, dst);
+		uasm_i_mflo(&p, dst);
 	}
 	ctx->idx += 2; /* 2 insts */
 }
@@ -441,6 +451,17 @@ static inline void emit_wsbh(unsigned int dst, unsigned int src,
 			     struct jit_ctx *ctx)
 {
 	emit_instr(ctx, wsbh, dst, src);
+}
+
+/* load pointer to register */
+static inline void emit_load_ptr(unsigned int dst, unsigned int src,
+				     int imm, struct jit_ctx *ctx)
+{
+	/* src contains the base addr of the 32/64-pointer */
+	if (config_enabled(CONFIG_64BIT))
+		emit_instr(ctx, ld, dst, imm, src);
+	else
+		emit_instr(ctx, lw, dst, imm, src);
 }
 
 /* load a function pointer to register */
@@ -545,29 +566,13 @@ static inline u16 align_sp(unsigned int num)
 	return num;
 }
 
-static inline void update_on_xread(struct jit_ctx *ctx)
-{
-	if (!(ctx->flags & SEEN_X))
-		ctx->flags |= FLAG_NEED_X_RESET;
-
-	ctx->flags |= SEEN_X;
-}
-
 static bool is_load_to_a(u16 inst)
 {
 	switch (inst) {
-	case BPF_S_LD_W_LEN:
-	case BPF_S_LD_W_ABS:
-	case BPF_S_LD_H_ABS:
-	case BPF_S_LD_B_ABS:
-	case BPF_S_ANC_CPU:
-	case BPF_S_ANC_IFINDEX:
-	case BPF_S_ANC_MARK:
-	case BPF_S_ANC_PROTOCOL:
-	case BPF_S_ANC_RXHASH:
-	case BPF_S_ANC_VLAN_TAG:
-	case BPF_S_ANC_VLAN_TAG_PRESENT:
-	case BPF_S_ANC_QUEUE:
+	case BPF_LD | BPF_W | BPF_LEN:
+	case BPF_LD | BPF_W | BPF_ABS:
+	case BPF_LD | BPF_H | BPF_ABS:
+	case BPF_LD | BPF_B | BPF_ABS:
 		return true;
 	default:
 		return false;
@@ -618,7 +623,10 @@ static void save_bpf_jit_regs(struct jit_ctx *ctx, unsigned offset)
 	if (ctx->flags & SEEN_MEM) {
 		if (real_off % (RSIZE * 2))
 			real_off += RSIZE;
-		emit_addiu(r_M, r_sp, real_off, ctx);
+		if (config_enabled(CONFIG_64BIT))
+			emit_daddiu(r_M, r_sp, real_off, ctx);
+		else
+			emit_addiu(r_M, r_sp, real_off, ctx);
 	}
 }
 
@@ -705,11 +713,11 @@ static void build_prologue(struct jit_ctx *ctx)
 	if (ctx->flags & SEEN_SKB)
 		emit_reg_move(r_skb, MIPS_R_A0, ctx);
 
-	if (ctx->flags & FLAG_NEED_X_RESET)
+	if (ctx->flags & SEEN_X)
 		emit_jit_reg_move(r_X, r_zero, ctx);
 
 	/* Do not leak kernel data to userspace */
-	if ((first_inst != BPF_S_RET_K) && !(is_load_to_a(first_inst)))
+	if ((first_inst != (BPF_RET | BPF_K)) && !(is_load_to_a(first_inst)))
 		emit_jit_reg_move(r_A, r_zero, ctx);
 }
 
@@ -757,13 +765,17 @@ static u64 jit_get_skb_w(struct sk_buff *skb, unsigned offset)
 	return (u64)err << 32 | ntohl(ret);
 }
 
-#define PKT_TYPE_MAX 7
+#ifdef __BIG_ENDIAN_BITFIELD
+#define PKT_TYPE_MAX	(7 << 5)
+#else
+#define PKT_TYPE_MAX	7
+#endif
 static int pkt_type_offset(void)
 {
 	struct sk_buff skb_probe = {
 		.pkt_type = ~0,
 	};
-	char *ct = (char *)&skb_probe;
+	u8 *ct = (u8 *)&skb_probe;
 	unsigned int off;
 
 	for (off = 0; off < sizeof(struct sk_buff); off++) {
@@ -783,46 +795,62 @@ static int build_body(struct jit_ctx *ctx)
 	u32 k, b_off __maybe_unused;
 
 	for (i = 0; i < prog->len; i++) {
+		u16 code;
+
 		inst = &(prog->insns[i]);
 		pr_debug("%s: code->0x%02x, jt->0x%x, jf->0x%x, k->0x%x\n",
 			 __func__, inst->code, inst->jt, inst->jf, inst->k);
 		k = inst->k;
+		code = bpf_anc_helper(inst);
 
 		if (ctx->target == NULL)
 			ctx->offsets[i] = ctx->idx * 4;
 
-		switch (inst->code) {
-		case BPF_S_LD_IMM:
+		switch (code) {
+		case BPF_LD | BPF_IMM:
 			/* A <- k ==> li r_A, k */
 			ctx->flags |= SEEN_A;
 			emit_load_imm(r_A, k, ctx);
 			break;
-		case BPF_S_LD_W_LEN:
+		case BPF_LD | BPF_W | BPF_LEN:
 			BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, len) != 4);
 			/* A <- len ==> lw r_A, offset(skb) */
 			ctx->flags |= SEEN_SKB | SEEN_A;
 			off = offsetof(struct sk_buff, len);
 			emit_load(r_A, r_skb, off, ctx);
 			break;
-		case BPF_S_LD_MEM:
+		case BPF_LD | BPF_MEM:
 			/* A <- M[k] ==> lw r_A, offset(M) */
 			ctx->flags |= SEEN_MEM | SEEN_A;
 			emit_load(r_A, r_M, SCRATCH_OFF(k), ctx);
 			break;
-		case BPF_S_LD_W_ABS:
+		case BPF_LD | BPF_W | BPF_ABS:
 			/* A <- P[k:4] */
 			load_order = 2;
 			goto load;
-		case BPF_S_LD_H_ABS:
+		case BPF_LD | BPF_H | BPF_ABS:
 			/* A <- P[k:2] */
 			load_order = 1;
 			goto load;
-		case BPF_S_LD_B_ABS:
+		case BPF_LD | BPF_B | BPF_ABS:
 			/* A <- P[k:1] */
 			load_order = 0;
 load:
+			/* the interpreter will deal with the negative K */
+			if ((int)k < 0)
+				return -ENOTSUPP;
+
 			emit_load_imm(r_off, k, ctx);
 load_common:
+			/*
+			 * We may got here from the indirect loads so
+			 * return if offset is negative.
+			 */
+			emit_slt(r_s0, r_off, r_zero, ctx);
+			emit_bcond(MIPS_COND_NE, r_s0, r_zero,
+				   b_imm(prog->len, ctx), ctx);
+			emit_reg_move(r_ret, r_zero, ctx);
+
 			ctx->flags |= SEEN_CALL | SEEN_OFF | SEEN_S0 |
 				SEEN_SKB | SEEN_A;
 
@@ -852,39 +880,42 @@ load_common:
 			emit_b(b_imm(prog->len, ctx), ctx);
 			emit_reg_move(r_ret, r_zero, ctx);
 			break;
-		case BPF_S_LD_W_IND:
+		case BPF_LD | BPF_W | BPF_IND:
 			/* A <- P[X + k:4] */
 			load_order = 2;
 			goto load_ind;
-		case BPF_S_LD_H_IND:
+		case BPF_LD | BPF_H | BPF_IND:
 			/* A <- P[X + k:2] */
 			load_order = 1;
 			goto load_ind;
-		case BPF_S_LD_B_IND:
+		case BPF_LD | BPF_B | BPF_IND:
 			/* A <- P[X + k:1] */
 			load_order = 0;
 load_ind:
-			update_on_xread(ctx);
 			ctx->flags |= SEEN_OFF | SEEN_X;
 			emit_addiu(r_off, r_X, k, ctx);
 			goto load_common;
-		case BPF_S_LDX_IMM:
+		case BPF_LDX | BPF_IMM:
 			/* X <- k */
 			ctx->flags |= SEEN_X;
 			emit_load_imm(r_X, k, ctx);
 			break;
-		case BPF_S_LDX_MEM:
+		case BPF_LDX | BPF_MEM:
 			/* X <- M[k] */
 			ctx->flags |= SEEN_X | SEEN_MEM;
 			emit_load(r_X, r_M, SCRATCH_OFF(k), ctx);
 			break;
-		case BPF_S_LDX_W_LEN:
+		case BPF_LDX | BPF_W | BPF_LEN:
 			/* X <- len */
 			ctx->flags |= SEEN_X | SEEN_SKB;
 			off = offsetof(struct sk_buff, len);
 			emit_load(r_X, r_skb, off, ctx);
 			break;
-		case BPF_S_LDX_B_MSH:
+		case BPF_LDX | BPF_B | BPF_MSH:
+			/* the interpreter will deal with the negative K */
+			if ((int)k < 0)
+				return -ENOTSUPP;
+
 			/* X <- 4 * (P[k:1] & 0xf) */
 			ctx->flags |= SEEN_X | SEEN_CALL | SEEN_S0 | SEEN_SKB;
 			/* Load offset to a1 */
@@ -917,50 +948,49 @@ load_ind:
 			emit_b(b_imm(prog->len, ctx), ctx);
 			emit_load_imm(r_ret, 0, ctx); /* delay slot */
 			break;
-		case BPF_S_ST:
+		case BPF_ST:
 			/* M[k] <- A */
 			ctx->flags |= SEEN_MEM | SEEN_A;
 			emit_store(r_A, r_M, SCRATCH_OFF(k), ctx);
 			break;
-		case BPF_S_STX:
+		case BPF_STX:
 			/* M[k] <- X */
 			ctx->flags |= SEEN_MEM | SEEN_X;
 			emit_store(r_X, r_M, SCRATCH_OFF(k), ctx);
 			break;
-		case BPF_S_ALU_ADD_K:
+		case BPF_ALU | BPF_ADD | BPF_K:
 			/* A += K */
 			ctx->flags |= SEEN_A;
 			emit_addiu(r_A, r_A, k, ctx);
 			break;
-		case BPF_S_ALU_ADD_X:
+		case BPF_ALU | BPF_ADD | BPF_X:
 			/* A += X */
 			ctx->flags |= SEEN_A | SEEN_X;
 			emit_addu(r_A, r_A, r_X, ctx);
 			break;
-		case BPF_S_ALU_SUB_K:
+		case BPF_ALU | BPF_SUB | BPF_K:
 			/* A -= K */
 			ctx->flags |= SEEN_A;
 			emit_addiu(r_A, r_A, -k, ctx);
 			break;
-		case BPF_S_ALU_SUB_X:
+		case BPF_ALU | BPF_SUB | BPF_X:
 			/* A -= X */
 			ctx->flags |= SEEN_A | SEEN_X;
 			emit_subu(r_A, r_A, r_X, ctx);
 			break;
-		case BPF_S_ALU_MUL_K:
+		case BPF_ALU | BPF_MUL | BPF_K:
 			/* A *= K */
 			/* Load K to scratch register before MUL */
 			ctx->flags |= SEEN_A | SEEN_S0;
 			emit_load_imm(r_s0, k, ctx);
 			emit_mul(r_A, r_A, r_s0, ctx);
 			break;
-		case BPF_S_ALU_MUL_X:
+		case BPF_ALU | BPF_MUL | BPF_X:
 			/* A *= X */
-			update_on_xread(ctx);
 			ctx->flags |= SEEN_A | SEEN_X;
 			emit_mul(r_A, r_A, r_X, ctx);
 			break;
-		case BPF_S_ALU_DIV_K:
+		case BPF_ALU | BPF_DIV | BPF_K:
 			/* A /= k */
 			if (k == 1)
 				break;
@@ -973,7 +1003,7 @@ load_ind:
 			emit_load_imm(r_s0, k, ctx);
 			emit_div(r_A, r_s0, ctx);
 			break;
-		case BPF_S_ALU_MOD_K:
+		case BPF_ALU | BPF_MOD | BPF_K:
 			/* A %= k */
 			if (k == 1 || optimize_div(&k)) {
 				ctx->flags |= SEEN_A;
@@ -984,9 +1014,8 @@ load_ind:
 				emit_mod(r_A, r_s0, ctx);
 			}
 			break;
-		case BPF_S_ALU_DIV_X:
+		case BPF_ALU | BPF_DIV | BPF_X:
 			/* A /= X */
-			update_on_xread(ctx);
 			ctx->flags |= SEEN_X | SEEN_A;
 			/* Check if r_X is zero */
 			emit_bcond(MIPS_COND_EQ, r_X, r_zero,
@@ -994,9 +1023,8 @@ load_ind:
 			emit_load_imm(r_val, 0, ctx); /* delay slot */
 			emit_div(r_A, r_X, ctx);
 			break;
-		case BPF_S_ALU_MOD_X:
+		case BPF_ALU | BPF_MOD | BPF_X:
 			/* A %= X */
-			update_on_xread(ctx);
 			ctx->flags |= SEEN_X | SEEN_A;
 			/* Check if r_X is zero */
 			emit_bcond(MIPS_COND_EQ, r_X, r_zero,
@@ -1004,94 +1032,89 @@ load_ind:
 			emit_load_imm(r_val, 0, ctx); /* delay slot */
 			emit_mod(r_A, r_X, ctx);
 			break;
-		case BPF_S_ALU_OR_K:
+		case BPF_ALU | BPF_OR | BPF_K:
 			/* A |= K */
 			ctx->flags |= SEEN_A;
 			emit_ori(r_A, r_A, k, ctx);
 			break;
-		case BPF_S_ALU_OR_X:
+		case BPF_ALU | BPF_OR | BPF_X:
 			/* A |= X */
-			update_on_xread(ctx);
 			ctx->flags |= SEEN_A;
 			emit_ori(r_A, r_A, r_X, ctx);
 			break;
-		case BPF_S_ALU_XOR_K:
+		case BPF_ALU | BPF_XOR | BPF_K:
 			/* A ^= k */
 			ctx->flags |= SEEN_A;
 			emit_xori(r_A, r_A, k, ctx);
 			break;
-		case BPF_S_ANC_ALU_XOR_X:
-		case BPF_S_ALU_XOR_X:
+		case BPF_ANC | SKF_AD_ALU_XOR_X:
+		case BPF_ALU | BPF_XOR | BPF_X:
 			/* A ^= X */
-			update_on_xread(ctx);
 			ctx->flags |= SEEN_A;
 			emit_xor(r_A, r_A, r_X, ctx);
 			break;
-		case BPF_S_ALU_AND_K:
+		case BPF_ALU | BPF_AND | BPF_K:
 			/* A &= K */
 			ctx->flags |= SEEN_A;
 			emit_andi(r_A, r_A, k, ctx);
 			break;
-		case BPF_S_ALU_AND_X:
+		case BPF_ALU | BPF_AND | BPF_X:
 			/* A &= X */
-			update_on_xread(ctx);
 			ctx->flags |= SEEN_A | SEEN_X;
 			emit_and(r_A, r_A, r_X, ctx);
 			break;
-		case BPF_S_ALU_LSH_K:
+		case BPF_ALU | BPF_LSH | BPF_K:
 			/* A <<= K */
 			ctx->flags |= SEEN_A;
 			emit_sll(r_A, r_A, k, ctx);
 			break;
-		case BPF_S_ALU_LSH_X:
+		case BPF_ALU | BPF_LSH | BPF_X:
 			/* A <<= X */
 			ctx->flags |= SEEN_A | SEEN_X;
-			update_on_xread(ctx);
 			emit_sllv(r_A, r_A, r_X, ctx);
 			break;
-		case BPF_S_ALU_RSH_K:
+		case BPF_ALU | BPF_RSH | BPF_K:
 			/* A >>= K */
 			ctx->flags |= SEEN_A;
 			emit_srl(r_A, r_A, k, ctx);
 			break;
-		case BPF_S_ALU_RSH_X:
+		case BPF_ALU | BPF_RSH | BPF_X:
 			ctx->flags |= SEEN_A | SEEN_X;
-			update_on_xread(ctx);
 			emit_srlv(r_A, r_A, r_X, ctx);
 			break;
-		case BPF_S_ALU_NEG:
+		case BPF_ALU | BPF_NEG:
 			/* A = -A */
 			ctx->flags |= SEEN_A;
 			emit_neg(r_A, ctx);
 			break;
-		case BPF_S_JMP_JA:
+		case BPF_JMP | BPF_JA:
 			/* pc += K */
 			emit_b(b_imm(i + k + 1, ctx), ctx);
 			emit_nop(ctx);
 			break;
-		case BPF_S_JMP_JEQ_K:
+		case BPF_JMP | BPF_JEQ | BPF_K:
 			/* pc += ( A == K ) ? pc->jt : pc->jf */
 			condt = MIPS_COND_EQ | MIPS_COND_K;
 			goto jmp_cmp;
-		case BPF_S_JMP_JEQ_X:
+		case BPF_JMP | BPF_JEQ | BPF_X:
 			ctx->flags |= SEEN_X;
 			/* pc += ( A == X ) ? pc->jt : pc->jf */
 			condt = MIPS_COND_EQ | MIPS_COND_X;
 			goto jmp_cmp;
-		case BPF_S_JMP_JGE_K:
+		case BPF_JMP | BPF_JGE | BPF_K:
 			/* pc += ( A >= K ) ? pc->jt : pc->jf */
 			condt = MIPS_COND_GE | MIPS_COND_K;
 			goto jmp_cmp;
-		case BPF_S_JMP_JGE_X:
+		case BPF_JMP | BPF_JGE | BPF_X:
 			ctx->flags |= SEEN_X;
 			/* pc += ( A >= X ) ? pc->jt : pc->jf */
 			condt = MIPS_COND_GE | MIPS_COND_X;
 			goto jmp_cmp;
-		case BPF_S_JMP_JGT_K:
+		case BPF_JMP | BPF_JGT | BPF_K:
 			/* pc += ( A > K ) ? pc->jt : pc->jf */
 			condt = MIPS_COND_GT | MIPS_COND_K;
 			goto jmp_cmp;
-		case BPF_S_JMP_JGT_X:
+		case BPF_JMP | BPF_JGT | BPF_X:
 			ctx->flags |= SEEN_X;
 			/* pc += ( A > X ) ? pc->jt : pc->jf */
 			condt = MIPS_COND_GT | MIPS_COND_X;
@@ -1109,7 +1132,7 @@ jmp_cmp:
 				}
 				/* A < (K|X) ? r_scrach = 1 */
 				b_off = b_imm(i + inst->jf + 1, ctx);
-				emit_bcond(MIPS_COND_GT, r_s0, r_zero, b_off,
+				emit_bcond(MIPS_COND_NE, r_s0, r_zero, b_off,
 					   ctx);
 				emit_nop(ctx);
 				/* A > (K|X) ? scratch = 0 */
@@ -1167,7 +1190,7 @@ jmp_cmp:
 				}
 			}
 			break;
-		case BPF_S_JMP_JSET_K:
+		case BPF_JMP | BPF_JSET | BPF_K:
 			ctx->flags |= SEEN_S0 | SEEN_S1 | SEEN_A;
 			/* pc += (A & K) ? pc -> jt : pc -> jf */
 			emit_load_imm(r_s1, k, ctx);
@@ -1181,7 +1204,7 @@ jmp_cmp:
 			emit_b(b_off, ctx);
 			emit_nop(ctx);
 			break;
-		case BPF_S_JMP_JSET_X:
+		case BPF_JMP | BPF_JSET | BPF_X:
 			ctx->flags |= SEEN_S0 | SEEN_X | SEEN_A;
 			/* pc += (A & X) ? pc -> jt : pc -> jf */
 			emit_and(r_s0, r_A, r_X, ctx);
@@ -1194,7 +1217,7 @@ jmp_cmp:
 			emit_b(b_off, ctx);
 			emit_nop(ctx);
 			break;
-		case BPF_S_RET_A:
+		case BPF_RET | BPF_A:
 			ctx->flags |= SEEN_A;
 			if (i != prog->len - 1)
 				/*
@@ -1204,7 +1227,7 @@ jmp_cmp:
 				emit_b(b_imm(prog->len, ctx), ctx);
 			emit_reg_move(r_ret, r_A, ctx); /* delay slot */
 			break;
-		case BPF_S_RET_K:
+		case BPF_RET | BPF_K:
 			/*
 			 * It can emit two instructions so it does not fit on
 			 * the delay slot.
@@ -1219,19 +1242,18 @@ jmp_cmp:
 				emit_nop(ctx);
 			}
 			break;
-		case BPF_S_MISC_TAX:
+		case BPF_MISC | BPF_TAX:
 			/* X = A */
 			ctx->flags |= SEEN_X | SEEN_A;
 			emit_jit_reg_move(r_X, r_A, ctx);
 			break;
-		case BPF_S_MISC_TXA:
+		case BPF_MISC | BPF_TXA:
 			/* A = X */
 			ctx->flags |= SEEN_A | SEEN_X;
-			update_on_xread(ctx);
 			emit_jit_reg_move(r_A, r_X, ctx);
 			break;
 		/* AUX */
-		case BPF_S_ANC_PROTOCOL:
+		case BPF_ANC | SKF_AD_PROTOCOL:
 			/* A = ntohs(skb->protocol */
 			ctx->flags |= SEEN_SKB | SEEN_OFF | SEEN_A;
 			BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff,
@@ -1256,7 +1278,7 @@ jmp_cmp:
 			}
 #endif
 			break;
-		case BPF_S_ANC_CPU:
+		case BPF_ANC | SKF_AD_CPU:
 			ctx->flags |= SEEN_A | SEEN_OFF;
 			/* A = current_thread_info()->cpu */
 			BUILD_BUG_ON(FIELD_SIZEOF(struct thread_info,
@@ -1265,11 +1287,12 @@ jmp_cmp:
 			/* $28/gp points to the thread_info struct */
 			emit_load(r_A, 28, off, ctx);
 			break;
-		case BPF_S_ANC_IFINDEX:
+		case BPF_ANC | SKF_AD_IFINDEX:
 			/* A = skb->dev->ifindex */
 			ctx->flags |= SEEN_SKB | SEEN_A | SEEN_S0;
 			off = offsetof(struct sk_buff, dev);
-			emit_load(r_s0, r_skb, off, ctx);
+			/* Load *dev pointer */
+			emit_load_ptr(r_s0, r_skb, off, ctx);
 			/* error (0) in the delay slot */
 			emit_bcond(MIPS_COND_EQ, r_s0, r_zero,
 				   b_imm(prog->len, ctx), ctx);
@@ -1279,31 +1302,36 @@ jmp_cmp:
 			off = offsetof(struct net_device, ifindex);
 			emit_load(r_A, r_s0, off, ctx);
 			break;
-		case BPF_S_ANC_MARK:
+		case BPF_ANC | SKF_AD_MARK:
 			ctx->flags |= SEEN_SKB | SEEN_A;
 			BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, mark) != 4);
 			off = offsetof(struct sk_buff, mark);
 			emit_load(r_A, r_skb, off, ctx);
 			break;
-		case BPF_S_ANC_RXHASH:
+		case BPF_ANC | SKF_AD_RXHASH:
 			ctx->flags |= SEEN_SKB | SEEN_A;
 			BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, hash) != 4);
 			off = offsetof(struct sk_buff, hash);
 			emit_load(r_A, r_skb, off, ctx);
 			break;
-		case BPF_S_ANC_VLAN_TAG:
-		case BPF_S_ANC_VLAN_TAG_PRESENT:
+		case BPF_ANC | SKF_AD_VLAN_TAG:
+		case BPF_ANC | SKF_AD_VLAN_TAG_PRESENT:
 			ctx->flags |= SEEN_SKB | SEEN_S0 | SEEN_A;
 			BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff,
 						  vlan_tci) != 2);
 			off = offsetof(struct sk_buff, vlan_tci);
 			emit_half_load(r_s0, r_skb, off, ctx);
-			if (inst->code == BPF_S_ANC_VLAN_TAG)
-				emit_and(r_A, r_s0, VLAN_VID_MASK, ctx);
-			else
-				emit_and(r_A, r_s0, VLAN_TAG_PRESENT, ctx);
+			if (code == (BPF_ANC | SKF_AD_VLAN_TAG)) {
+				emit_andi(r_A, r_s0, (u16)~VLAN_TAG_PRESENT, ctx);
+			} else {
+				emit_andi(r_A, r_s0, VLAN_TAG_PRESENT, ctx);
+				/* return 1 if present */
+				emit_sltu(r_A, r_zero, r_A, ctx);
+			}
 			break;
-		case BPF_S_ANC_PKTTYPE:
+		case BPF_ANC | SKF_AD_PKTTYPE:
+			ctx->flags |= SEEN_SKB;
+
 			off = pkt_type_offset();
 
 			if (off < 0)
@@ -1311,8 +1339,12 @@ jmp_cmp:
 			emit_load_byte(r_tmp, r_skb, off, ctx);
 			/* Keep only the last 3 bits */
 			emit_andi(r_A, r_tmp, PKT_TYPE_MAX, ctx);
+#ifdef __BIG_ENDIAN_BITFIELD
+			/* Get the actual packet type to the lower 3 bits */
+			emit_srl(r_A, r_A, 5, ctx);
+#endif
 			break;
-		case BPF_S_ANC_QUEUE:
+		case BPF_ANC | SKF_AD_QUEUE:
 			ctx->flags |= SEEN_SKB | SEEN_A;
 			BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff,
 						  queue_mapping) != 2);
@@ -1322,8 +1354,8 @@ jmp_cmp:
 			emit_half_load(r_A, r_skb, off, ctx);
 			break;
 		default:
-			pr_warn("%s: Unhandled opcode: 0x%02x\n", __FILE__,
-				inst->code);
+			pr_debug("%s: Unhandled opcode: 0x%02x\n", __FILE__,
+				 inst->code);
 			return -1;
 		}
 	}

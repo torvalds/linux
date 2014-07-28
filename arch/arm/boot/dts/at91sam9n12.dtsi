@@ -132,8 +132,8 @@
 								      <595000000 650000000 3 0>,
 								      <545000000 600000000 0 1>,
 								      <495000000 555000000 1 1>,
-								      <445000000 500000000 1 2>,
-								      <400000000 450000000 1 3>;
+								      <445000000 500000000 2 1>,
+								      <400000000 450000000 3 1>;
 				};
 
 				plladiv: plladivck {
@@ -925,7 +925,7 @@
 			compatible = "atmel,at91rm9200-ohci", "usb-ohci";
 			reg = <0x00500000 0x00100000>;
 			interrupts = <22 IRQ_TYPE_LEVEL_HIGH 2>;
-			clocks = <&usb>, <&uhphs_clk>, <&udphs_clk>,
+			clocks = <&usb>, <&uhphs_clk>, <&uhphs_clk>,
 				 <&uhpck>;
 			clock-names = "usb_clk", "ohci_clk", "hclk", "uhpck";
 			status = "disabled";

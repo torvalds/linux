@@ -29,7 +29,7 @@ static int sun6i_a31_apb0_gates_clk_probe(struct platform_device *pdev)
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	reg = devm_ioremap_resource(&pdev->dev, r);
-	if (!reg)
+	if (IS_ERR(reg))
 		return PTR_ERR(reg);
 
 	clk_parent = of_clk_get_parent_name(np, 0);

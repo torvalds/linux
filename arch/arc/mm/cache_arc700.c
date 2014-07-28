@@ -389,7 +389,7 @@ static inline void __dc_line_op(unsigned long paddr, unsigned long vaddr,
 /***********************************************************
  * Machine specific helper for per line I-Cache invalidate.
  */
-static void __ic_line_inv_vaddr(unsigned long paddr, unsigned long vaddr,
+static void __ic_line_inv_vaddr_local(unsigned long paddr, unsigned long vaddr,
 				unsigned long sz)
 {
 	unsigned long flags;
@@ -405,6 +405,23 @@ static inline void __ic_entire_inv(void)
 	read_aux_reg(ARC_REG_IC_CTRL);	/* blocks */
 }
 
+struct ic_line_inv_vaddr_ipi {
+	unsigned long paddr, vaddr;
+	int sz;
+};
+
+static void __ic_line_inv_vaddr_helper(void *info)
+{
+        struct ic_line_inv_vaddr_ipi *ic_inv = (struct ic_line_inv_vaddr_ipi*) info;
+        __ic_line_inv_vaddr_local(ic_inv->paddr, ic_inv->vaddr, ic_inv->sz);
+}
+
+static void __ic_line_inv_vaddr(unsigned long paddr, unsigned long vaddr,
+				unsigned long sz)
+{
+	struct ic_line_inv_vaddr_ipi ic_inv = { paddr, vaddr , sz};
+	on_each_cpu(__ic_line_inv_vaddr_helper, &ic_inv, 1);
+}
 #else
 
 #define __ic_entire_inv()
@@ -553,12 +570,8 @@ void flush_icache_range(unsigned long kstart, unsigned long kend)
  */
 void __sync_icache_dcache(unsigned long paddr, unsigned long vaddr, int len)
 {
-	unsigned long flags;
-
-	local_irq_save(flags);
-	__ic_line_inv_vaddr(paddr, vaddr, len);
 	__dc_line_op(paddr, vaddr, len, OP_FLUSH_N_INV);
-	local_irq_restore(flags);
+	__ic_line_inv_vaddr(paddr, vaddr, len);
 }
 
 /* wrapper to compile time eliminate alignment checks in flush loop */

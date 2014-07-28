@@ -70,7 +70,7 @@ static const char *cko_sels[] = { "cko1", "cko2", };
 static const char *lvds_sels[] = {
 	"dummy", "dummy", "dummy", "dummy", "dummy", "dummy",
 	"pll4_audio", "pll5_video", "pll8_mlb", "enet_ref",
-	"pcie_ref", "sata_ref",
+	"pcie_ref_125m", "sata_ref_100m",
 };
 
 enum mx6q_clks {
@@ -491,7 +491,7 @@ static void __init imx6q_clocks_init(struct device_node *ccm_node)
 
 	/* All existing boards with PCIe use LVDS1 */
 	if (IS_ENABLED(CONFIG_PCI_IMX6))
-		clk_set_parent(clk[lvds1_sel], clk[sata_ref]);
+		clk_set_parent(clk[lvds1_sel], clk[sata_ref_100m]);
 
 	/* Set initial power mode */
 	imx6q_set_lpm(WAIT_CLOCKED);

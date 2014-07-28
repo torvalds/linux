@@ -33,31 +33,41 @@ static DECLARE_BITMAP(backtrace_mask, NR_CPUS) __read_mostly;
 /* "in progress" flag of arch_trigger_all_cpu_backtrace */
 static unsigned long backtrace_flag;
 
-void arch_trigger_all_cpu_backtrace(void)
+void arch_trigger_all_cpu_backtrace(bool include_self)
 {
 	int i;
+	int cpu = get_cpu();
 
-	if (test_and_set_bit(0, &backtrace_flag))
+	if (test_and_set_bit(0, &backtrace_flag)) {
 		/*
 		 * If there is already a trigger_all_cpu_backtrace() in progress
 		 * (backtrace_flag == 1), don't output double cpu dump infos.
 		 */
+		put_cpu();
 		return;
+	}
 
 	cpumask_copy(to_cpumask(backtrace_mask), cpu_online_mask);
+	if (!include_self)
+		cpumask_clear_cpu(cpu, to_cpumask(backtrace_mask));
 
-	printk(KERN_INFO "sending NMI to all CPUs:\n");
-	apic->send_IPI_all(NMI_VECTOR);
+	if (!cpumask_empty(to_cpumask(backtrace_mask))) {
+		pr_info("sending NMI to %s CPUs:\n",
+			(include_self ? "all" : "other"));
+		apic->send_IPI_mask(to_cpumask(backtrace_mask), NMI_VECTOR);
+	}
 
 	/* Wait for up to 10 seconds for all CPUs to do the backtrace */
 	for (i = 0; i < 10 * 1000; i++) {
 		if (cpumask_empty(to_cpumask(backtrace_mask)))
 			break;
 		mdelay(1);
+		touch_softlockup_watchdog();
 	}
 
 	clear_bit(0, &backtrace_flag);
 	smp_mb__after_atomic();
+	put_cpu();
 }
 
 static int
