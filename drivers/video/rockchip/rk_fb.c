@@ -606,6 +606,22 @@ int rk_fb_set_prmry_screen_status(int status)
 	return 0;
 }
 
+static int rk_fb_set_screen_scaler(struct rk_screen *screen, bool enable)
+{
+        struct rk_lcdc_driver *dev_drv = rk_get_prmry_lcdc_drv();
+
+        if(unlikely(!dev_drv) || unlikely(!screen))
+                return -1;
+        if (!enable)
+                return 0;
+
+        rk_fb_set_prmry_screen_status(SCREEN_PREPARE_DDR_CHANGE);
+        if (dev_drv->ops->set_screen_scaler)
+                dev_drv->ops->set_screen_scaler(dev_drv, screen, enable);
+        rk_fb_set_prmry_screen_status(SCREEN_UNPREPARE_DDR_CHANGE);
+        return 0;
+}
+
 static struct rk_lcdc_driver *rk_get_extend_lcdc_drv(void)
 {
 	struct rk_fb *inf = NULL;
@@ -3176,6 +3192,9 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 
 	if (rk_fb->disp_mode != DUAL) {
 		dev_drv = rk_fb->lcdc_dev_drv[0];
+                if (dev_drv->trsm_ops && dev_drv->trsm_ops->disable)
+                        dev_drv->trsm_ops->disable();
+                rk_disp_pwr_disable(dev_drv);
 	} else {
 		for (i = 0; i < rk_fb->num_lcdc; i++) {
 			if (rk_fb->lcdc_dev_drv[i]->prop == EXTEND) {
@@ -3275,19 +3294,27 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 	hdmi_switch_complete = enable;
 	info->fbops->fb_pan_display(hdmi_var, info);
 
-	/* info->fbops->fb_ioctl(info, RK_FBIOSET_CONFIG_DONE, 0); */
 	if (dev_drv->screen1) {
 		if (dev_drv->screen0->sscreen_set) {
+			/*
 			dev_drv->ops->blank(dev_drv, 0, FB_BLANK_NORMAL);
 			msleep(100);
+			*/
 			dev_drv->screen0->sscreen_set(dev_drv->screen0, enable);
+                        /*
 			dev_drv->ops->blank(dev_drv, 0, FB_BLANK_UNBLANK);
+			*/
 		}
 	}
-	/*
-	if (rk_fb->disp_mode != DUAL)
-		rk29_backlight_set(1);
-	*/
+
+        info->fbops->fb_ioctl(info, RK_FBIOSET_CONFIG_DONE, 0);
+
+	if (rk_fb->disp_mode != DUAL) {
+		/* rk29_backlight_set(1); */
+                rk_disp_pwr_enable(dev_drv);
+                if (dev_drv->trsm_ops && dev_drv->trsm_ops->enable)
+                        dev_drv->trsm_ops->enable();
+	}
 	return 0;
 }
 #endif
@@ -3570,6 +3597,7 @@ static int init_lcdc_device_driver(struct rk_fb *rk_fb,
 		screen1->screen_id = 1;
 		screen1->lcdc_id = 1;
 		dev_drv->screen1 = screen1;
+                dev_drv->screen0->sscreen_set = rk_fb_set_screen_scaler;
 	}
 	sprintf(dev_drv->name, "lcdc%d", dev_drv->id);
 	init_lcdc_win(dev_drv, def_win);

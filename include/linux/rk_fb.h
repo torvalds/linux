@@ -434,6 +434,7 @@ struct rk_lcdc_drv_ops {
 	int (*get_dsp_bcsh_hue) (struct rk_lcdc_driver *dev_drv,bcsh_hue_mode mode);
 	int (*get_dsp_bcsh_bcs)(struct rk_lcdc_driver *dev_drv,bcsh_bcs_mode mode);
 	int (*open_bcsh)(struct rk_lcdc_driver *dev_drv, bool open);
+        int (*set_screen_scaler) (struct rk_lcdc_driver *dev_drv, struct rk_screen *screen, bool enable);
 	int (*dump_reg) (struct rk_lcdc_driver * dev_drv);
 	int (*mmu_en) (struct rk_lcdc_driver * dev_drv);
 	int (*cfg_done) (struct rk_lcdc_driver * dev_drv);
