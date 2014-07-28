@@ -355,7 +355,7 @@ int phy_device_register(struct phy_device *phydev)
 	phydev->bus->phy_map[phydev->addr] = phydev;
 
 	/* Run all of the fixups for this PHY */
-	err = phy_init_hw(phydev);
+	err = phy_scan_fixups(phydev);
 	if (err) {
 		pr_err("PHY %d failed to initialize\n", phydev->addr);
 		goto out;
