@@ -1172,6 +1172,18 @@ static int ext4_convert_inline_data_nolock(handle_t *handle,
 	if (error < 0)
 		goto out;
 
+	/*
+	 * Make sure the inline directory entries pass checks before we try to
+	 * convert them, so that we avoid touching stuff that needs fsck.
+	 */
+	if (S_ISDIR(inode->i_mode)) {
+		error = ext4_check_all_de(inode, iloc->bh,
+					buf + EXT4_INLINE_DOTDOT_SIZE,
+					inline_size - EXT4_INLINE_DOTDOT_SIZE);
+		if (error)
+			goto out;
+	}
+
 	error = ext4_destroy_inline_data_nolock(handle, inode);
 	if (error)
 		goto out;
