@@ -40,7 +40,6 @@
 #include "node.h"
 #include "link.h"
 #include <linux/export.h>
-#include "link.h"
 
 #define SS_LISTENING	-1	/* socket is listening */
 #define SS_READY	-2	/* socket is connectionless */
