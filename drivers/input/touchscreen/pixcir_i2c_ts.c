@@ -26,6 +26,9 @@
 #include <linux/input/mt.h>
 #include <linux/input/pixcir_ts.h>
 #include <linux/gpio.h>
+#include <linux/of.h>
+#include <linux/of_gpio.h>
+#include <linux/of_device.h>
 
 #define PIXCIR_MAX_SLOTS       5 /* Max fingers supported by driver */
 
@@ -407,15 +410,68 @@ unlock:
 static SIMPLE_DEV_PM_OPS(pixcir_dev_pm_ops,
 			 pixcir_i2c_ts_suspend, pixcir_i2c_ts_resume);
 
+#ifdef CONFIG_OF
+static const struct of_device_id pixcir_of_match[];
+
+static struct pixcir_ts_platform_data *pixcir_parse_dt(struct device *dev)
+{
+	struct pixcir_ts_platform_data *pdata;
+	struct device_node *np = dev->of_node;
+	const struct of_device_id *match;
+
+	match = of_match_device(of_match_ptr(pixcir_of_match), dev);
+	if (!match)
+		return ERR_PTR(-EINVAL);
+
+	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata)
+		return ERR_PTR(-ENOMEM);
+
+	pdata->chip = *(const struct pixcir_i2c_chip_data *)match->data;
+
+	pdata->gpio_attb = of_get_named_gpio(np, "attb-gpio", 0);
+	/* gpio_attb validity is checked in probe */
+
+	if (of_property_read_u32(np, "touchscreen-size-x", &pdata->x_max)) {
+		dev_err(dev, "Failed to get touchscreen-size-x property\n");
+		return ERR_PTR(-EINVAL);
+	}
+	pdata->x_max -= 1;
+
+	if (of_property_read_u32(np, "touchscreen-size-y", &pdata->y_max)) {
+		dev_err(dev, "Failed to get touchscreen-size-y property\n");
+		return ERR_PTR(-EINVAL);
+	}
+	pdata->y_max -= 1;
+
+	dev_dbg(dev, "%s: x %d, y %d, gpio %d\n", __func__,
+		pdata->x_max + 1, pdata->y_max + 1, pdata->gpio_attb);
+
+	return pdata;
+}
+#else
+static struct pixcir_ts_platform_data *pixcir_parse_dt(struct device *dev)
+{
+	return ERR_PTR(-EINVAL);
+}
+#endif
+
 static int pixcir_i2c_ts_probe(struct i2c_client *client,
 					 const struct i2c_device_id *id)
 {
 	const struct pixcir_ts_platform_data *pdata =
 			dev_get_platdata(&client->dev);
 	struct device *dev = &client->dev;
+	struct device_node *np = dev->of_node;
 	struct pixcir_i2c_ts_data *tsdata;
 	struct input_dev *input;
 	int error;
+
+	if (np && !pdata) {
+		pdata = pixcir_parse_dt(dev);
+		if (IS_ERR(pdata))
+			return PTR_ERR(pdata);
+	}
 
 	if (!pdata) {
 		dev_err(&client->dev, "platform data not defined\n");
@@ -522,15 +578,36 @@ static int pixcir_i2c_ts_remove(struct i2c_client *client)
 
 static const struct i2c_device_id pixcir_i2c_ts_id[] = {
 	{ "pixcir_ts", 0 },
+	{ "pixcir_tangoc", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, pixcir_i2c_ts_id);
+
+#ifdef CONFIG_OF
+static const struct pixcir_i2c_chip_data pixcir_ts_data = {
+	.max_fingers = 2,
+	/* no hw id support */
+};
+
+static const struct pixcir_i2c_chip_data pixcir_tangoc_data = {
+	.max_fingers = 5,
+	.has_hw_ids = true,
+};
+
+static const struct of_device_id pixcir_of_match[] = {
+	{ .compatible = "pixcir,pixcir_ts", .data = &pixcir_ts_data },
+	{ .compatible = "pixcir,pixcir_tangoc", .data = &pixcir_tangoc_data },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, pixcir_of_match);
+#endif
 
 static struct i2c_driver pixcir_i2c_ts_driver = {
 	.driver = {
 		.owner	= THIS_MODULE,
 		.name	= "pixcir_ts",
 		.pm	= &pixcir_dev_pm_ops,
+		.of_match_table = of_match_ptr(pixcir_of_match),
 	},
 	.probe		= pixcir_i2c_ts_probe,
 	.remove		= pixcir_i2c_ts_remove,
