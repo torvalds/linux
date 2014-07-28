@@ -461,7 +461,7 @@ void __mlx5_ib_cq_clean(struct mlx5_ib_cq *cq, u32 qpn, struct mlx5_ib_srq *srq)
 void mlx5_ib_cq_clean(struct mlx5_ib_cq *cq, u32 qpn, struct mlx5_ib_srq *srq);
 void mlx5_ib_free_srq_wqe(struct mlx5_ib_srq *srq, int wqe_index);
 int mlx5_MAD_IFC(struct mlx5_ib_dev *dev, int ignore_mkey, int ignore_bkey,
-		 int port, struct ib_wc *in_wc, struct ib_grh *in_grh,
+		 u8 port, struct ib_wc *in_wc, struct ib_grh *in_grh,
 		 void *in_mad, void *response_mad);
 struct ib_ah *create_ib_ah(struct ib_ah_attr *ah_attr,
 			   struct mlx5_ib_ah *ah);

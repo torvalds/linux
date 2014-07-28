@@ -348,7 +348,7 @@ static void handle_atomic(struct mlx5_ib_qp *qp, struct mlx5_cqe64 *cqe64,
 static void handle_atomics(struct mlx5_ib_qp *qp, struct mlx5_cqe64 *cqe64,
 			   u16 tail, u16 head)
 {
-	int idx;
+	u16 idx;
 
 	do {
 		idx = tail & (qp->sq.wqe_cnt - 1);

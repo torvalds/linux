@@ -41,7 +41,7 @@ enum {
 };
 
 int mlx5_MAD_IFC(struct mlx5_ib_dev *dev, int ignore_mkey, int ignore_bkey,
-		 int port, struct ib_wc *in_wc, struct ib_grh *in_grh,
+		 u8 port, struct ib_wc *in_wc, struct ib_grh *in_grh,
 		 void *in_mad, void *response_mad)
 {
 	u8 op_modifier = 0;

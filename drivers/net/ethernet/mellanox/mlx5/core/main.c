@@ -311,7 +311,7 @@ static int handle_hca_cap(struct mlx5_core_dev *dev)
 
 	copy_rw_fields(&set_ctx->hca_cap, &query_out->hca_cap);
 
-	if (dev->profile->mask & MLX5_PROF_MASK_QP_SIZE)
+	if (dev->profile && dev->profile->mask & MLX5_PROF_MASK_QP_SIZE)
 		set_ctx->hca_cap.log_max_qp = dev->profile->log_max_qp;
 
 	flags = be64_to_cpu(query_out->hca_cap.flags);

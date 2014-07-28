@@ -478,7 +478,7 @@ static struct ib_ucontext *mlx5_ib_alloc_ucontext(struct ib_device *ibdev,
 	int uuarn;
 	int err;
 	int i;
-	int reqlen;
+	size_t reqlen;
 
 	if (!dev->ib_active)
 		return ERR_PTR(-EAGAIN);

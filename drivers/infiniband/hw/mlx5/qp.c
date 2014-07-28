@@ -2539,7 +2539,7 @@ int mlx5_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 			case IB_WR_RDMA_WRITE_WITH_IMM:
 				set_raddr_seg(seg, wr->wr.rdma.remote_addr,
 					      wr->wr.rdma.rkey);
-				seg  += sizeof(struct mlx5_wqe_raddr_seg);
+				seg += sizeof(struct mlx5_wqe_raddr_seg);
 				size += sizeof(struct mlx5_wqe_raddr_seg) / 16;
 				break;
 
@@ -2668,7 +2668,7 @@ int mlx5_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		case IB_QPT_SMI:
 		case IB_QPT_GSI:
 			set_datagram_seg(seg, wr);
-			seg  += sizeof(struct mlx5_wqe_datagram_seg);
+			seg += sizeof(struct mlx5_wqe_datagram_seg);
 			size += sizeof(struct mlx5_wqe_datagram_seg) / 16;
 			if (unlikely((seg == qend)))
 				seg = mlx5_get_send_wqe(qp, 0);
