@@ -275,7 +275,7 @@ static const struct dev_pm_ops micro_batt_dev_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(micro_batt_suspend, micro_batt_resume)
 };
 
-struct platform_driver micro_batt_device_driver = {
+static struct platform_driver micro_batt_device_driver = {
 	.driver		= {
 		.name	= "ipaq-micro-battery",
 		.pm	= &micro_batt_dev_pm_ops,
