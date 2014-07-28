@@ -47,6 +47,9 @@
 #define ADC_V1_INTCLR(x)	((x) + 0x18)
 #define ADC_V1_MUX(x)		((x) + 0x1c)
 
+/* S3C2410 ADC registers definitions */
+#define ADC_S3C2410_MUX(x)	((x) + 0x18)
+
 /* Future ADC_V2 registers definitions */
 #define ADC_V2_CON1(x)		((x) + 0x00)
 #define ADC_V2_CON2(x)		((x) + 0x04)
@@ -63,6 +66,8 @@
 
 /* Bit definitions for S3C2410 ADC */
 #define ADC_S3C2410_CON_SELMUX(x) (((x) & 7) << 3)
+#define ADC_S3C2410_DATX_MASK	0x3FF
+#define ADC_S3C2416_CON_RES_SEL	(1u << 3)
 
 /* Bit definitions for ADC_V2 */
 #define ADC_V2_CON1_SOFT_RESET	(1u << 2)
@@ -80,6 +85,7 @@
 
 /* Bit definitions common for ADC_V1 and ADC_V2 */
 #define ADC_CON_EN_START	(1u << 0)
+#define ADC_CON_EN_START_MASK	(0x3 << 0)
 #define ADC_DATX_MASK		0xFFF
 
 #define EXYNOS_ADC_TIMEOUT	(msecs_to_jiffies(100))
@@ -103,6 +109,8 @@ struct exynos_adc {
 struct exynos_adc_data {
 	int num_channels;
 	bool needs_sclk;
+	bool needs_adc_phy;
+	u32 mask;
 
 	void (*init_hw)(struct exynos_adc *info);
 	void (*exit_hw)(struct exynos_adc *info);
@@ -174,7 +182,8 @@ static void exynos_adc_v1_init_hw(struct exynos_adc *info)
 {
 	u32 con1;
 
-	writel(1, info->enable_reg);
+	if (info->data->needs_adc_phy)
+		writel(1, info->enable_reg);
 
 	/* set default prescaler values and Enable prescaler */
 	con1 =  ADC_V1_CON_PRSCLV(49) | ADC_V1_CON_PRSCEN;
@@ -188,7 +197,8 @@ static void exynos_adc_v1_exit_hw(struct exynos_adc *info)
 {
 	u32 con;
 
-	writel(0, info->enable_reg);
+	if (info->data->needs_adc_phy)
+		writel(0, info->enable_reg);
 
 	con = readl(ADC_V1_CON(info->regs));
 	con |= ADC_V1_CON_STANDBY;
@@ -213,11 +223,60 @@ static void exynos_adc_v1_start_conv(struct exynos_adc *info,
 
 static const struct exynos_adc_data exynos_adc_v1_data = {
 	.num_channels	= MAX_ADC_V1_CHANNELS,
+	.mask		= ADC_DATX_MASK,	/* 12 bit ADC resolution */
+	.needs_adc_phy	= true,
 
 	.init_hw	= exynos_adc_v1_init_hw,
 	.exit_hw	= exynos_adc_v1_exit_hw,
 	.clear_irq	= exynos_adc_v1_clear_irq,
 	.start_conv	= exynos_adc_v1_start_conv,
+};
+
+static void exynos_adc_s3c2416_start_conv(struct exynos_adc *info,
+					  unsigned long addr)
+{
+	u32 con1;
+
+	/* Enable 12 bit ADC resolution */
+	con1 = readl(ADC_V1_CON(info->regs));
+	con1 |= ADC_S3C2416_CON_RES_SEL;
+	writel(con1, ADC_V1_CON(info->regs));
+
+	/* Select channel for S3C2416 */
+	writel(addr, ADC_S3C2410_MUX(info->regs));
+
+	con1 = readl(ADC_V1_CON(info->regs));
+	writel(con1 | ADC_CON_EN_START, ADC_V1_CON(info->regs));
+}
+
+static struct exynos_adc_data const exynos_adc_s3c2416_data = {
+	.num_channels	= MAX_ADC_V1_CHANNELS,
+	.mask		= ADC_DATX_MASK,	/* 12 bit ADC resolution */
+
+	.init_hw	= exynos_adc_v1_init_hw,
+	.exit_hw	= exynos_adc_v1_exit_hw,
+	.start_conv	= exynos_adc_s3c2416_start_conv,
+};
+
+static void exynos_adc_s3c2443_start_conv(struct exynos_adc *info,
+					  unsigned long addr)
+{
+	u32 con1;
+
+	/* Select channel for S3C2433 */
+	writel(addr, ADC_S3C2410_MUX(info->regs));
+
+	con1 = readl(ADC_V1_CON(info->regs));
+	writel(con1 | ADC_CON_EN_START, ADC_V1_CON(info->regs));
+}
+
+static struct exynos_adc_data const exynos_adc_s3c2443_data = {
+	.num_channels	= MAX_ADC_V1_CHANNELS,
+	.mask		= ADC_S3C2410_DATX_MASK, /* 10 bit ADC resolution */
+
+	.init_hw	= exynos_adc_v1_init_hw,
+	.exit_hw	= exynos_adc_v1_exit_hw,
+	.start_conv	= exynos_adc_s3c2443_start_conv,
 };
 
 static void exynos_adc_s3c64xx_start_conv(struct exynos_adc *info,
@@ -231,8 +290,18 @@ static void exynos_adc_s3c64xx_start_conv(struct exynos_adc *info,
 	writel(con1 | ADC_CON_EN_START, ADC_V1_CON(info->regs));
 }
 
+static struct exynos_adc_data const exynos_adc_s3c24xx_data = {
+	.num_channels	= MAX_ADC_V1_CHANNELS,
+	.mask		= ADC_S3C2410_DATX_MASK, /* 10 bit ADC resolution */
+
+	.init_hw	= exynos_adc_v1_init_hw,
+	.exit_hw	= exynos_adc_v1_exit_hw,
+	.start_conv	= exynos_adc_s3c64xx_start_conv,
+};
+
 static struct exynos_adc_data const exynos_adc_s3c64xx_data = {
 	.num_channels	= MAX_ADC_V1_CHANNELS,
+	.mask		= ADC_DATX_MASK,	/* 12 bit ADC resolution */
 
 	.init_hw	= exynos_adc_v1_init_hw,
 	.exit_hw	= exynos_adc_v1_exit_hw,
@@ -244,7 +313,8 @@ static void exynos_adc_v2_init_hw(struct exynos_adc *info)
 {
 	u32 con1, con2;
 
-	writel(1, info->enable_reg);
+	if (info->data->needs_adc_phy)
+		writel(1, info->enable_reg);
 
 	con1 = ADC_V2_CON1_SOFT_RESET;
 	writel(con1, ADC_V2_CON1(info->regs));
@@ -261,7 +331,8 @@ static void exynos_adc_v2_exit_hw(struct exynos_adc *info)
 {
 	u32 con;
 
-	writel(0, info->enable_reg);
+	if (info->data->needs_adc_phy)
+		writel(0, info->enable_reg);
 
 	con = readl(ADC_V2_CON1(info->regs));
 	con &= ~ADC_CON_EN_START;
@@ -289,6 +360,8 @@ static void exynos_adc_v2_start_conv(struct exynos_adc *info,
 
 static const struct exynos_adc_data exynos_adc_v2_data = {
 	.num_channels	= MAX_ADC_V2_CHANNELS,
+	.mask		= ADC_DATX_MASK, /* 12 bit ADC resolution */
+	.needs_adc_phy	= true,
 
 	.init_hw	= exynos_adc_v2_init_hw,
 	.exit_hw	= exynos_adc_v2_exit_hw,
@@ -298,7 +371,9 @@ static const struct exynos_adc_data exynos_adc_v2_data = {
 
 static const struct exynos_adc_data exynos3250_adc_data = {
 	.num_channels	= MAX_EXYNOS3250_ADC_CHANNELS,
+	.mask		= ADC_DATX_MASK, /* 12 bit ADC resolution */
 	.needs_sclk	= true,
+	.needs_adc_phy	= true,
 
 	.init_hw	= exynos_adc_v2_init_hw,
 	.exit_hw	= exynos_adc_v2_exit_hw,
@@ -308,6 +383,18 @@ static const struct exynos_adc_data exynos3250_adc_data = {
 
 static const struct of_device_id exynos_adc_match[] = {
 	{
+		.compatible = "samsung,s3c2410-adc",
+		.data = &exynos_adc_s3c24xx_data,
+	}, {
+		.compatible = "samsung,s3c2416-adc",
+		.data = &exynos_adc_s3c2416_data,
+	}, {
+		.compatible = "samsung,s3c2440-adc",
+		.data = &exynos_adc_s3c24xx_data,
+	}, {
+		.compatible = "samsung,s3c2443-adc",
+		.data = &exynos_adc_s3c2443_data,
+	}, {
 		.compatible = "samsung,s3c6410-adc",
 		.data = &exynos_adc_s3c64xx_data,
 	}, {
@@ -373,9 +460,10 @@ static int exynos_read_raw(struct iio_dev *indio_dev,
 static irqreturn_t exynos_adc_isr(int irq, void *dev_id)
 {
 	struct exynos_adc *info = (struct exynos_adc *)dev_id;
+	u32 mask = info->data->mask;
 
 	/* Read value */
-	info->value = readl(ADC_V1_DATX(info->regs)) & ADC_DATX_MASK;
+	info->value = readl(ADC_V1_DATX(info->regs)) & mask;
 
 	/* clear irq */
 	if (info->data->clear_irq)
@@ -468,10 +556,13 @@ static int exynos_adc_probe(struct platform_device *pdev)
 	if (IS_ERR(info->regs))
 		return PTR_ERR(info->regs);
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	info->enable_reg = devm_ioremap_resource(&pdev->dev, mem);
-	if (IS_ERR(info->enable_reg))
-		return PTR_ERR(info->enable_reg);
+
+	if (info->data->needs_adc_phy) {
+		mem = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+		info->enable_reg = devm_ioremap_resource(&pdev->dev, mem);
+		if (IS_ERR(info->enable_reg))
+			return PTR_ERR(info->enable_reg);
+	}
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {

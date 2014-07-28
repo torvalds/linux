@@ -11,15 +11,25 @@ New driver handles the following
 
 Required properties:
 - compatible:		Must be "samsung,exynos-adc-v1"
-				for exynos4412/5250 controllers.
+				for exynos4412/5250 and s5pv210 controllers.
 			Must be "samsung,exynos-adc-v2" for
 				future controllers.
 			Must be "samsung,exynos3250-adc" for
 				controllers compatible with ADC of Exynos3250.
+			Must be "samsung,s3c2410-adc" for
+				the ADC in s3c2410 and compatibles
+			Must be "samsung,s3c2416-adc" for
+				the ADC in s3c2416 and compatibles
+			Must be "samsung,s3c2440-adc" for
+				the ADC in s3c2440 and compatibles
+			Must be "samsung,s3c2443-adc" for
+				the ADC in s3c2443 and compatibles
 			Must be "samsung,s3c6410-adc" for
 				the ADC in s3c6410 and compatibles
-- reg:			Contains ADC register address range (base address and
-			length) and the address of the phy enable register.
+- reg:			List of ADC register address range
+			- The base address and range of ADC register
+			- The base address and range of ADC_PHY register (every
+			  SoC except for s3c24xx/s3c64xx ADC)
 - interrupts: 		Contains the interrupt information for the timer. The
 			format is being dependent on which interrupt controller
 			the Samsung device uses.
