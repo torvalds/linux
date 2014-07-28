@@ -137,13 +137,23 @@ static void switch_get_position(struct switch_ctx *sctx, unsigned long region_nr
 	*bit *= sctx->region_table_entry_bits;
 }
 
+static unsigned switch_region_table_read(struct switch_ctx *sctx, unsigned long region_nr)
+{
+	unsigned long region_index;
+	unsigned bit;
+
+	switch_get_position(sctx, region_nr, &region_index, &bit);
+
+	return (ACCESS_ONCE(sctx->region_table[region_index]) >> bit) &
+		((1 << sctx->region_table_entry_bits) - 1);
+}
+
 /*
  * Find which path to use at given offset.
  */
 static unsigned switch_get_path_nr(struct switch_ctx *sctx, sector_t offset)
 {
-	unsigned long region_index;
-	unsigned bit, path_nr;
+	unsigned path_nr;
 	sector_t p;
 
 	p = offset;
@@ -152,9 +162,7 @@ static unsigned switch_get_path_nr(struct switch_ctx *sctx, sector_t offset)
 	else
 		sector_div(p, sctx->region_size);
 
-	switch_get_position(sctx, p, &region_index, &bit);
-	path_nr = (ACCESS_ONCE(sctx->region_table[region_index]) >> bit) &
-	       ((1 << sctx->region_table_entry_bits) - 1);
+	path_nr = switch_region_table_read(sctx, p);
 
 	/* This can only happen if the processor uses non-atomic stores. */
 	if (unlikely(path_nr >= sctx->nr_paths))
