@@ -3254,7 +3254,7 @@ out:
 
 fix_extent_len:
 	ex->ee_len = orig_ex.ee_len;
-	ext4_ext_dirty(handle, inode, path + depth);
+	ext4_ext_dirty(handle, inode, path + path->p_depth);
 	return err;
 }
 
