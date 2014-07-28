@@ -1689,7 +1689,7 @@ static int rk32_dsi_enable(void)
 	
 	rk_fb_get_prmry_screen(dsi0->screen.screen);
 	dsi0->screen.lcdc_id = dsi0->screen.screen->lcdc_id;
-	rk_init_phy_mode(dsi0->screen.lcdc_id);
+	rk32_init_phy_mode(dsi0->screen.lcdc_id);
 	
 	dsi_init(0, 0);
 	if (rk_mipi_get_dsi_num() ==2)
@@ -1741,6 +1741,10 @@ static void rk32_init_phy_mode(int lcdc_id)
 	int val0 = 0, val1 = 0;
 
 	MIPI_DBG("rk32_init_phy_mode----------lcdc_id=%d\n",lcdc_id);
+	
+	if(cpu_is_rk312x())
+		return;
+	
 	//D-PHY mode select
 	if( rk_mipi_get_dsi_num() ==1 ){
 	
@@ -1767,12 +1771,6 @@ static void rk32_init_phy_mode(int lcdc_id)
 	}
 }
 
-static void rk_init_phy_mode(int lcdc_id)
-{
-	if(cpu_is_rk3288())
-		rk32_init_phy_mode(lcdc_id);
-	
-}
 #ifdef CONFIG_RK_3288_DSI_UBOOT
 #ifdef CONFIG_OF_LIBFDT
 int rk_dsi_host_parse_dt(const void *blob, struct dsi *dsi)
