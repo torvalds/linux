@@ -1,3 +1,4 @@
+#include <sched.h>
 #include "util.h"
 #include "../perf.h"
 #include "cloexec.h"
@@ -14,9 +15,13 @@ static int perf_flag_probe(void)
 	};
 	int fd;
 	int err;
+	int cpu = sched_getcpu();
+
+	if (cpu < 0)
+		cpu = 0;
 
 	/* check cloexec flag */
-	fd = sys_perf_event_open(&attr, 0, -1, -1,
+	fd = sys_perf_event_open(&attr, -1, cpu, -1,
 				 PERF_FLAG_FD_CLOEXEC);
 	err = errno;
 
@@ -30,7 +35,7 @@ static int perf_flag_probe(void)
 		  err, strerror(err));
 
 	/* not supported, confirm error related to PERF_FLAG_FD_CLOEXEC */
-	fd = sys_perf_event_open(&attr, 0, -1, -1, 0);
+	fd = sys_perf_event_open(&attr, -1, cpu, -1, 0);
 	err = errno;
 
 	if (WARN_ONCE(fd < 0,

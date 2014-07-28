@@ -1994,10 +1994,10 @@ static int perf_evlist__add_pgfault(struct perf_evlist *evlist,
 	struct perf_event_attr attr = {
 		.type = PERF_TYPE_SOFTWARE,
 		.mmap_data = 1,
-		.sample_period = 1,
 	};
 
 	attr.config = config;
+	attr.sample_period = 1;
 
 	event_attr_init(&attr);
 

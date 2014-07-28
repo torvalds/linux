@@ -151,6 +151,8 @@ int perf_event__process_build_id(struct perf_tool *tool,
 				 struct perf_session *session);
 bool is_perf_magic(u64 magic);
 
+int dsos__hit_all(struct perf_session *session);
+
 /*
  * arch specific callback
  */
