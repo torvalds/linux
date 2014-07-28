@@ -69,23 +69,25 @@ static unsigned int ip_tunnel_hash(__be32 key, __be32 remote)
 }
 
 static void __tunnel_dst_set(struct ip_tunnel_dst *idst,
-			     struct dst_entry *dst)
+			     struct dst_entry *dst, __be32 saddr)
 {
 	struct dst_entry *old_dst;
 
 	dst_clone(dst);
 	old_dst = xchg((__force struct dst_entry **)&idst->dst, dst);
 	dst_release(old_dst);
+	idst->saddr = saddr;
 }
 
-static void tunnel_dst_set(struct ip_tunnel *t, struct dst_entry *dst)
+static void tunnel_dst_set(struct ip_tunnel *t,
+			   struct dst_entry *dst, __be32 saddr)
 {
-	__tunnel_dst_set(this_cpu_ptr(t->dst_cache), dst);
+	__tunnel_dst_set(this_cpu_ptr(t->dst_cache), dst, saddr);
 }
 
 static void tunnel_dst_reset(struct ip_tunnel *t)
 {
-	tunnel_dst_set(t, NULL);
+	tunnel_dst_set(t, NULL, 0);
 }
 
 void ip_tunnel_dst_reset_all(struct ip_tunnel *t)
@@ -93,20 +95,25 @@ void ip_tunnel_dst_reset_all(struct ip_tunnel *t)
 	int i;
 
 	for_each_possible_cpu(i)
-		__tunnel_dst_set(per_cpu_ptr(t->dst_cache, i), NULL);
+		__tunnel_dst_set(per_cpu_ptr(t->dst_cache, i), NULL, 0);
 }
 EXPORT_SYMBOL(ip_tunnel_dst_reset_all);
 
-static struct rtable *tunnel_rtable_get(struct ip_tunnel *t, u32 cookie)
+static struct rtable *tunnel_rtable_get(struct ip_tunnel *t,
+					u32 cookie, __be32 *saddr)
 {
+	struct ip_tunnel_dst *idst;
 	struct dst_entry *dst;
 
 	rcu_read_lock();
-	dst = rcu_dereference(this_cpu_ptr(t->dst_cache)->dst);
+	idst = this_cpu_ptr(t->dst_cache);
+	dst = rcu_dereference(idst->dst);
 	if (dst && !atomic_inc_not_zero(&dst->__refcnt))
 		dst = NULL;
 	if (dst) {
-		if (dst->obsolete && dst->ops->check(dst, cookie) == NULL) {
+		if (!dst->obsolete || dst->ops->check(dst, cookie)) {
+			*saddr = idst->saddr;
+		} else {
 			tunnel_dst_reset(t);
 			dst_release(dst);
 			dst = NULL;
@@ -367,7 +374,7 @@ static int ip_tunnel_bind_dev(struct net_device *dev)
 
 		if (!IS_ERR(rt)) {
 			tdev = rt->dst.dev;
-			tunnel_dst_set(tunnel, &rt->dst);
+			tunnel_dst_set(tunnel, &rt->dst, fl4.saddr);
 			ip_rt_put(rt);
 		}
 		if (dev->type != ARPHRD_ETHER)
@@ -610,7 +617,7 @@ void ip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
 	init_tunnel_flow(&fl4, protocol, dst, tnl_params->saddr,
 			 tunnel->parms.o_key, RT_TOS(tos), tunnel->parms.link);
 
-	rt = connected ? tunnel_rtable_get(tunnel, 0) : NULL;
+	rt = connected ? tunnel_rtable_get(tunnel, 0, &fl4.saddr) : NULL;
 
 	if (!rt) {
 		rt = ip_route_output_key(tunnel->net, &fl4);
@@ -620,7 +627,7 @@ void ip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
 			goto tx_error;
 		}
 		if (connected)
-			tunnel_dst_set(tunnel, &rt->dst);
+			tunnel_dst_set(tunnel, &rt->dst, fl4.saddr);
 	}
 
 	if (rt->dst.dev == dev) {
