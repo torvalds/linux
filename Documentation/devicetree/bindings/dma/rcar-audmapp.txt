@@ -1,0 +1,29 @@
+* R-Car Audio DMAC peri peri Device Tree bindings
+
+Required properties:
+- compatible:	should be "renesas,rcar-audmapp"
+- #dma-cells:	should be <1>, see "dmas" property below
+
+Example:
+	audmapp: audio-dma-pp@0xec740000 {
+		compatible = "renesas,rcar-audmapp";
+		#dma-cells = <1>;
+
+		reg = <0 0xec740000 0 0x200>;
+	};
+
+
+* DMA client
+
+Required properties:
+- dmas:		a list of <[DMA multiplexer phandle] [SRS/DRS value]> pairs,
+		where SRS/DRS values are fixed handles, specified in the SoC
+		manual as the value that would be written into the PDMACHCR.
+- dma-names:	a list of DMA channel names, one per "dmas" entry
+
+Example:
+
+	dmas = <&audmapp 0x2d00
+		&audmapp 0x3700>;
+	dma-names =  "src0_ssiu0",
+		     "dvc0_ssiu0";
