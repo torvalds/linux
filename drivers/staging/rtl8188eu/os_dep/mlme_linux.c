@@ -25,23 +25,13 @@
 #include <drv_types.h>
 #include <mlme_osdep.h>
 
-static void _dynamic_check_timer_handlder(void *FunctionContext)
-{
-	struct adapter *adapter = (struct adapter *)FunctionContext;
-
-	if (adapter->registrypriv.mp_mode == 1)
-		return;
-	rtw_dynamic_check_timer_handlder(adapter);
-	_set_timer(&adapter->mlmepriv.dynamic_chk_timer, 2000);
-}
-
 void rtw_init_mlme_timer(struct adapter *padapter)
 {
 	struct	mlme_priv *pmlmepriv = &padapter->mlmepriv;
 
 	_init_timer(&(pmlmepriv->assoc_timer), padapter->pnetdev, _rtw_join_timeout_handler, padapter);
 	_init_timer(&(pmlmepriv->scan_to_timer), padapter->pnetdev, rtw_scan_timeout_handler, padapter);
-	_init_timer(&(pmlmepriv->dynamic_chk_timer), padapter->pnetdev, _dynamic_check_timer_handlder, padapter);
+	_init_timer(&(pmlmepriv->dynamic_chk_timer), padapter->pnetdev, rtw_dynamic_check_timer_handlder, padapter);
 }
 
 void rtw_os_indicate_connect(struct adapter *adapter)

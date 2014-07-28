@@ -1431,24 +1431,27 @@ static void rtw_auto_scan_handler(struct adapter *padapter)
 	}
 }
 
-void rtw_dynamic_check_timer_handlder(struct adapter *adapter)
+void rtw_dynamic_check_timer_handlder(void *function_context)
 {
+	struct adapter *adapter = (struct adapter *)function_context;
 	struct registry_priv *pregistrypriv = &adapter->registrypriv;
 
 	if (!adapter)
-		return;
+		goto exit;
 	if (!adapter->hw_init_completed)
-		return;
+		goto exit;
 	if ((adapter->bDriverStopped) || (adapter->bSurpriseRemoved))
-		return;
+		goto exit;
 	if (adapter->net_closed)
-		return;
+		goto exit;
 	rtw_dynamic_chk_wk_cmd(adapter);
 
 	if (pregistrypriv->wifi_spec == 1) {
 		/* auto site survey */
 		rtw_auto_scan_handler(adapter);
 	}
+exit:
+	_set_timer(&adapter->mlmepriv.dynamic_chk_timer, 2000);
 }
 
 #define RTW_SCAN_RESULT_EXPIRE 2000
