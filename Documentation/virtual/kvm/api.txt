@@ -2861,6 +2861,10 @@ kvm_valid_regs for specific bits. These bits are architecture specific
 and usually define the validity of a groups of registers. (e.g. one bit
  for general purpose registers)
 
+Please note that the kernel is allowed to use the kvm_run structure as the
+primary storage for certain register types. Therefore, the kernel may use the
+values in kvm_run even if the corresponding bit in kvm_dirty_regs is not set.
+
 };
 
 
