@@ -213,8 +213,8 @@ static void page_fault_worker(struct work_struct *data)
 		if (MALI_ERROR_NONE != err) {
 			/* failed to insert pages, handle as a normal PF */
 			mutex_unlock(&faulting_as->transaction_mutex);
-			kbase_gpu_vm_unlock(kctx);
 			kbase_free_phy_pages_helper(region->alloc, new_pages);
+			kbase_gpu_vm_unlock(kctx);
 			/* The locked VA region will be unlocked and the cache invalidated in here */
 			kbase_mmu_report_fault_and_kill(kctx, faulting_as);
 			goto fault_done;

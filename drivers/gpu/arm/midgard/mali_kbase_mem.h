@@ -278,15 +278,14 @@ static INLINE size_t kbase_reg_current_backed_size(struct kbase_va_region * reg)
 
 static INLINE struct kbase_mem_phy_alloc * kbase_alloc_create(size_t nr_pages, enum kbase_memory_type type)
 {
-	struct kbase_mem_phy_alloc * alloc;
-	const size_t extra_pages = (sizeof(*alloc) + (PAGE_SIZE - 1)) >> PAGE_SHIFT;
+	struct kbase_mem_phy_alloc *alloc;
 
 	/* Prevent nr_pages*sizeof + sizeof(*alloc) from wrapping around. */
-	if (nr_pages > (((size_t) -1 / sizeof(*alloc->pages))) - extra_pages)
+	if (nr_pages > ((((size_t) -1) - sizeof(*alloc)) / sizeof(*alloc->pages)))
 		return ERR_PTR(-ENOMEM);
 
 	alloc = vzalloc(sizeof(*alloc) + sizeof(*alloc->pages) * nr_pages);
-	if (!alloc) 
+	if (!alloc)
 		return ERR_PTR(-ENOMEM);
 
 	kref_init(&alloc->kref);

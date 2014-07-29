@@ -401,13 +401,6 @@ void kbase_pm_suspend(struct kbase_device *kbdev)
 	 * reaches zero. */
 	wait_event(kbdev->pm.zero_active_count_wait, kbdev->pm.active_count == 0);
 
-	/* Suspend PM Metric timer on system suspend.
-	 * It is ok if kbase_pm_context_idle() is still running, it is safe
-	 * to still complete the last active time period - the pm stats will
-	 * get reset on resume anyway.
-	 */
-	kbasep_pm_metrics_term(kbdev);
-
 	/* NOTE: We synchronize with anything that was just finishing a
 	 * kbase_pm_context_idle() call by locking the pm.lock below */
 
@@ -427,14 +420,8 @@ void kbase_pm_resume(struct kbase_device *kbdev)
 	/* MUST happen before any pm_context_active calls occur */
 	mutex_lock(&kbdev->pm.lock);
 	kbdev->pm.suspending = MALI_FALSE;
-
 	kbase_pm_do_poweron(kbdev, MALI_TRUE);
-
 	mutex_unlock(&kbdev->pm.lock);
-	
-	/* Restart PM Metric timer on resume */
-	kbasep_pm_metrics_init(kbdev);
-	kbasep_pm_record_gpu_idle(kbdev);
 
 	/* Initial active call, to power on the GPU/cores if needed */
 	kbase_pm_context_active(kbdev);

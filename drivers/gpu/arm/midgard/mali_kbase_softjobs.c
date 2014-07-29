@@ -39,7 +39,7 @@
 static int kbase_dump_cpu_gpu_time(kbase_jd_atom *katom)
 {
 	kbase_va_region *reg;
-	phys_addr_t addr;
+	phys_addr_t addr = 0;
 	u64 pfn;
 	u32 offset;
 	char *page;
@@ -111,19 +111,14 @@ static int kbase_dump_cpu_gpu_time(kbase_jd_atom *katom)
 		return 0;
 	}
 
+	kbase_gpu_vm_lock(kctx);
 	reg = kbase_region_tracker_find_region_enclosing_address(kctx, jc);
-	if (!reg)
-		return 0;
+	if (reg &&
+	    (reg->flags & KBASE_REG_GPU_WR) &&
+	    reg->alloc && reg->alloc->pages)
+		addr = reg->alloc->pages[pfn - reg->start_pfn];
 
-	if (!(reg->flags & KBASE_REG_GPU_WR)) {
-		/* Region is not writable by GPU so we won't write to it either */
-		return 0;
-	}
-
-	if (!reg->alloc->pages)
-		return 0;
-
-	addr = reg->alloc->pages[pfn - reg->start_pfn];
+	kbase_gpu_vm_unlock(kctx);
 	if (!addr)
 		return 0;
 

@@ -46,7 +46,7 @@
 
 #include "mali_kbase_gpuprops_types.h"
 
-#define BASE_UK_VERSION_MAJOR 6
+#define BASE_UK_VERSION_MAJOR 7
 #define BASE_UK_VERSION_MINOR 0
 
 typedef struct kbase_uk_mem_alloc {
@@ -300,9 +300,7 @@ typedef enum kbase_uk_function_id {
 	KBASE_FUNC_MEM_FLAGS_CHANGE,
 	KBASE_FUNC_MEM_ALIAS,
 
-	KBASE_FUNC_JOB_SUBMIT,
-
-	KBASE_FUNC_SYNC,
+	KBASE_FUNC_SYNC  = (UK_FUNC_ID + 8),
 
 	KBASE_FUNC_POST_TERM,
 
@@ -328,9 +326,12 @@ typedef enum kbase_uk_function_id {
 	KBASE_FUNC_FENCE_VALIDATE,
 	KBASE_FUNC_STREAM_CREATE,
 	KBASE_FUNC_GET_PROFILING_CONTROLS,
-	KBASE_FUNC_SET_PROFILING_CONTROLS /* to be used only for testing
+	KBASE_FUNC_SET_PROFILING_CONTROLS, /* to be used only for testing
 					   * purposes, otherwise these controls
 					   * are set through gator API */
+	KBASE_FUNC_JOB_SUBMIT = (UK_FUNC_ID + 27)
+
 } kbase_uk_function_id;
+
 
 #endif				/* _KBASE_UKU_H_ */

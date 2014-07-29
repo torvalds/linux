@@ -651,8 +651,12 @@ void kbase_pm_clock_on(kbase_device *kbdev, mali_bool is_resume)
 	if (is_resume && kbdev->pm.callback_power_resume) {
 		kbdev->pm.callback_power_resume(kbdev);
 	} else if (kbdev->pm.callback_power_on) {
-		if (kbdev->pm.callback_power_on(kbdev))
-			reset_required = MALI_TRUE;
+		kbdev->pm.callback_power_on(kbdev);
+		/* If your platform properly keeps the GPU state you may use the return
+		 * value of the callback_power_on function to conditionally reset the
+		 * GPU on power up. Currently we are conservative and always reset the
+		 * GPU. */
+		reset_required = MALI_TRUE;
 	}
 
 	spin_lock_irqsave(&kbdev->pm.gpu_powered_lock, flags);
@@ -750,8 +754,11 @@ static void kbase_pm_hw_issues(kbase_device *kbdev)
 	u32 value = 0;
 	u32 config_value;
 
-	/* Needed due to MIDBASE-1494: LS_PAUSEBUFFER_DISABLE. See PRLAM-8443. */
-	if (kbase_hw_has_issue(kbdev, BASE_HW_ISSUE_8443))
+	/* Needed due to MIDBASE-1494: LS_PAUSEBUFFER_DISABLE. See PRLAM-8443.
+	 * and
+	 * needed due to MIDGLES-3539. See PRLAM-11035 */
+	if (kbase_hw_has_issue(kbdev, BASE_HW_ISSUE_8443) ||
+			kbase_hw_has_issue(kbdev, BASE_HW_ISSUE_11035))
 		value |= SC_LS_PAUSEBUFFER_DISABLE;
 
 	/* Needed due to MIDBASE-2054: SDC_DISABLE_OQ_DISCARD. See PRLAM-10327. */

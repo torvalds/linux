@@ -137,6 +137,8 @@ kbase_va_region *kbase_region_tracker_find_region_enclosing_address(kbase_contex
 
 	KBASE_DEBUG_ASSERT(NULL != kctx);
 
+	lockdep_assert_held(&kctx->reg_lock);
+
 	rbnode = kctx->reg_rbtree.rb_node;
 	while (rbnode) {
 		u64 tmp_start_pfn, tmp_end_pfn;
@@ -167,6 +169,8 @@ kbase_va_region *kbase_region_tracker_find_region_base_address(kbase_context *kc
 	struct kbase_va_region *reg;
 
 	KBASE_DEBUG_ASSERT(NULL != kctx);
+
+	lockdep_assert_held(&kctx->reg_lock);
 
 	rbnode = kctx->reg_rbtree.rb_node;
 	while (rbnode) {
@@ -347,6 +351,8 @@ mali_error kbase_add_va_region(kbase_context *kctx, struct kbase_va_region *reg,
 
 	KBASE_DEBUG_ASSERT(NULL != kctx);
 	KBASE_DEBUG_ASSERT(NULL != reg);
+
+	lockdep_assert_held(&kctx->reg_lock);
 
 	if (!align)
 		align = 1;

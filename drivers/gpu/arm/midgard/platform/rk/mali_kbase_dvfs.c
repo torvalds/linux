@@ -40,7 +40,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/regulator/driver.h>
 #include <linux/rk_fb.h>
-
+#include <linux/input.h>
 #include <linux/rockchip/common.h>
 
 #include <platform/rk/mali_kbase_platform.h>
@@ -98,6 +98,92 @@ static mali_dvfs_status mali_dvfs_status_current;
 
 #define LIMIT_FPS 60
 #define LIMIT_FPS_POWER_SAVE 50
+
+#ifdef CONFIG_MALI_MIDGARD_DVFS
+static void gpufreq_input_event(struct input_handle *handle, unsigned int type,
+		unsigned int code, int value)
+{
+	mali_dvfs_status *dvfs_status;
+	struct rk_context *platform;
+	unsigned long flags;
+	
+	if (type != EV_ABS)
+		return;
+	
+	dvfs_status = &mali_dvfs_status_current;
+	platform = (struct rk_context *)dvfs_status->kbdev->platform_context;
+	
+	spin_lock_irqsave(&platform->gpu_in_touch_lock, flags);
+	platform->gpu_in_touch = true;
+	spin_unlock_irqrestore(&platform->gpu_in_touch_lock, flags);
+}
+
+static int gpufreq_input_connect(struct input_handler *handler,
+		struct input_dev *dev, const struct input_device_id *id)
+{
+	struct input_handle *handle;
+	int error;
+
+	handle = kzalloc(sizeof(struct input_handle), GFP_KERNEL);
+	if (!handle)
+		return -ENOMEM;
+
+	handle->dev = dev;
+	handle->handler = handler;
+	handle->name = "gpufreq";
+
+	error = input_register_handle(handle);
+	if (error)
+		goto err2;
+
+	error = input_open_device(handle);
+	if (error)
+		goto err1;
+	pr_info("%s\n",__func__);
+	return 0;
+err1:
+	input_unregister_handle(handle);
+err2:
+	kfree(handle);
+	return error;
+}
+
+static void gpufreq_input_disconnect(struct input_handle *handle)
+{
+	input_close_device(handle);
+	input_unregister_handle(handle);
+	kfree(handle);
+	pr_info("%s\n",__func__);
+}
+
+static const struct input_device_id gpufreq_ids[] = {
+	{
+		.flags = INPUT_DEVICE_ID_MATCH_EVBIT |
+			INPUT_DEVICE_ID_MATCH_ABSBIT,
+		.evbit = { BIT_MASK(EV_ABS) },
+		.absbit = { [BIT_WORD(ABS_MT_POSITION_X)] =
+			BIT_MASK(ABS_MT_POSITION_X) |
+			BIT_MASK(ABS_MT_POSITION_Y) },
+	},
+	{
+		.flags = INPUT_DEVICE_ID_MATCH_KEYBIT |
+			INPUT_DEVICE_ID_MATCH_ABSBIT,
+		.keybit = { [BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH) },
+		.absbit = { [BIT_WORD(ABS_X)] =
+			BIT_MASK(ABS_X) | BIT_MASK(ABS_Y) },
+	},
+	{ },
+};
+
+static struct input_handler gpufreq_input_handler = {
+	.event		= gpufreq_input_event,
+	.connect	= gpufreq_input_connect,
+	.disconnect	= gpufreq_input_disconnect,
+	.name		= "gpufreq",
+	.id_table	= gpufreq_ids,
+};
+#endif
+
 static void mali_dvfs_event_proc(struct work_struct *w)
 {
 	unsigned long flags;
@@ -379,6 +465,7 @@ int kbase_platform_dvfs_init(struct kbase_device *kbdev)
 	 */
 	struct rk_context *platform;
 	int i;
+	int rc;
 	
 	platform = (struct rk_context *)kbdev->platform_context;
 	if (NULL == platform)
@@ -418,6 +505,9 @@ not_assigned :
 	mutex_init(&mali_set_clock_lock);
 	mutex_init(&mali_enable_clock_lock);
 
+	spin_lock_init(&platform->gpu_in_touch_lock);
+	rc = input_register_handler(&gpufreq_input_handler);
+
 	/*add a error handling here */
 	spin_lock_irqsave(&mali_dvfs_spinlock, flags);
 	mali_dvfs_status_current.kbdev = kbdev;
@@ -439,6 +529,8 @@ void kbase_platform_dvfs_term(void)
 		destroy_workqueue(mali_dvfs_wq);
 
 	mali_dvfs_wq = NULL;
+	
+	input_unregister_handler(&gpufreq_input_handler);
 }
 #endif /*CONFIG_MALI_MIDGARD_DVFS*/
 
