@@ -271,9 +271,11 @@ rpcrdma_create_chunks(struct rpc_rqst *rqst, struct xdr_buf *target,
 	return (unsigned char *)iptr - (unsigned char *)headerp;
 
 out:
-	for (pos = 0; nchunks--;)
-		pos += rpcrdma_deregister_external(
-				&req->rl_segments[pos], r_xprt);
+	if (r_xprt->rx_ia.ri_memreg_strategy != RPCRDMA_FRMR) {
+		for (pos = 0; nchunks--;)
+			pos += rpcrdma_deregister_external(
+					&req->rl_segments[pos], r_xprt);
+	}
 	return n;
 }
 
