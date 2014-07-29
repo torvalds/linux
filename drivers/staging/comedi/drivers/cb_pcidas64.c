@@ -177,7 +177,7 @@ enum read_write_registers {
 	DAC_FIFO_REG = 0x300,
 };
 
-/* devpriv->dio_counter_iobase registers */
+/* dev->mmio registers */
 enum dio_counter_registers {
 	DIO_8255_OFFSET = 0x0,
 	DO_REG = 0x20,
@@ -1062,7 +1062,6 @@ struct pcidas64_private {
 	/*  base addresses (ioremapped) */
 	void __iomem *plx9080_iobase;
 	void __iomem *main_iobase;
-	void __iomem *dio_counter_iobase;
 	/*  local address (used by dma controller) */
 	uint32_t local0_iobase;
 	uint32_t local1_iobase;
@@ -1797,8 +1796,7 @@ static int ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 			return ret;
 
 		if (thisboard->layout == LAYOUT_4020)
-			data[n] = readl(devpriv->dio_counter_iobase +
-					ADC_FIFO_REG) & 0xffff;
+			data[n] = readl(dev->mmio + ADC_FIFO_REG) & 0xffff;
 		else
 			data[n] = readw(devpriv->main_iobase + PIPE1_READ_REG);
 	}
@@ -2686,7 +2684,7 @@ static void pio_drain_ai_fifo_32(struct comedi_device *dev)
 
 	}
 	for (i = 0; read_code != write_code && i < max_transfer;) {
-		fifo_data = readl(devpriv->dio_counter_iobase + ADC_FIFO_REG);
+		fifo_data = readl(dev->mmio + ADC_FIFO_REG);
 		cfc_write_to_buffer(s, fifo_data & 0xffff);
 		i++;
 		if (i < max_transfer) {
@@ -3396,10 +3394,9 @@ static int dio_callback_4020(int dir, int port, int data, unsigned long arg)
 static int di_rbits(struct comedi_device *dev, struct comedi_subdevice *s,
 		    struct comedi_insn *insn, unsigned int *data)
 {
-	struct pcidas64_private *devpriv = dev->private;
 	unsigned int bits;
 
-	bits = readb(devpriv->dio_counter_iobase + DI_REG);
+	bits = readb(dev->mmio + DI_REG);
 	bits &= 0xf;
 	data[1] = bits;
 	data[0] = 0;
@@ -3412,10 +3409,8 @@ static int do_wbits(struct comedi_device *dev,
 		    struct comedi_insn *insn,
 		    unsigned int *data)
 {
-	struct pcidas64_private *devpriv = dev->private;
-
 	if (comedi_dio_update_state(s, data))
-		writeb(s->state, devpriv->dio_counter_iobase + DO_REG);
+		writeb(s->state, dev->mmio + DO_REG);
 
 	data[1] = s->state;
 
@@ -3427,15 +3422,13 @@ static int dio_60xx_config_insn(struct comedi_device *dev,
 				struct comedi_insn *insn,
 				unsigned int *data)
 {
-	struct pcidas64_private *devpriv = dev->private;
 	int ret;
 
 	ret = comedi_dio_insn_config(dev, s, insn, data, 0);
 	if (ret)
 		return ret;
 
-	writeb(s->io_bits,
-	       devpriv->dio_counter_iobase + DIO_DIRECTION_60XX_REG);
+	writeb(s->io_bits, dev->mmio + DIO_DIRECTION_60XX_REG);
 
 	return insn->n;
 }
@@ -3445,14 +3438,10 @@ static int dio_60xx_wbits(struct comedi_device *dev,
 			  struct comedi_insn *insn,
 			  unsigned int *data)
 {
-	struct pcidas64_private *devpriv = dev->private;
+	if (comedi_dio_update_state(s, data))
+		writeb(s->state, dev->mmio + DIO_DATA_60XX_REG);
 
-	if (comedi_dio_update_state(s, data)) {
-		writeb(s->state,
-		       devpriv->dio_counter_iobase + DIO_DATA_60XX_REG);
-	}
-
-	data[1] = readb(devpriv->dio_counter_iobase + DIO_DATA_60XX_REG);
+	data[1] = readb(dev->mmio + DIO_DATA_60XX_REG);
 
 	return insn->n;
 }
@@ -3855,8 +3844,7 @@ static int setup_subdevices(struct comedi_device *dev)
 			ret = subdev_8255_init(dev, s, dio_callback_4020,
 					       (unsigned long)dio_8255_iobase);
 		} else {
-			dio_8255_iobase =
-				devpriv->dio_counter_iobase + DIO_8255_OFFSET;
+			dio_8255_iobase = dev->mmio + DIO_8255_OFFSET;
 			ret = subdev_8255_init(dev, s, dio_callback,
 					       (unsigned long)dio_8255_iobase);
 		}
@@ -3957,10 +3945,9 @@ static int auto_attach(struct comedi_device *dev,
 
 	devpriv->plx9080_iobase = pci_ioremap_bar(pcidev, 0);
 	devpriv->main_iobase = pci_ioremap_bar(pcidev, 2);
-	devpriv->dio_counter_iobase = pci_ioremap_bar(pcidev, 3);
+	dev->mmio = pci_ioremap_bar(pcidev, 3);
 
-	if (!devpriv->plx9080_iobase || !devpriv->main_iobase
-	    || !devpriv->dio_counter_iobase) {
+	if (!devpriv->plx9080_iobase || !devpriv->main_iobase || !dev->mmio) {
 		dev_warn(dev->class_dev, "failed to remap io memory\n");
 		return -ENOMEM;
 	}
@@ -4024,8 +4011,8 @@ static void detach(struct comedi_device *dev)
 			}
 			if (devpriv->main_iobase)
 				iounmap(devpriv->main_iobase);
-			if (devpriv->dio_counter_iobase)
-				iounmap(devpriv->dio_counter_iobase);
+			if (dev->mmio)
+				iounmap(dev->mmio);
 			/*  free pci dma buffers */
 			for (i = 0; i < ai_dma_ring_count(thisboard); i++) {
 				if (devpriv->ai_buffer[i])
