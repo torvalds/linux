@@ -2781,13 +2781,13 @@ static int pci230_attach_common(struct comedi_device *dev,
 	s->n_chan = thisboard->ai_chans;
 	s->maxdata = (1 << thisboard->ai_bits) - 1;
 	s->range_table = &pci230_ai_range;
-	s->insn_read = &pci230_ai_rinsn;
+	s->insn_read = pci230_ai_rinsn;
 	s->len_chanlist = 256;	/* but there are restrictions. */
 	if (dev->irq) {
 		dev->read_subdev = s;
 		s->subdev_flags |= SDF_CMD_READ;
-		s->do_cmd = &pci230_ai_cmd;
-		s->do_cmdtest = &pci230_ai_cmdtest;
+		s->do_cmd = pci230_ai_cmd;
+		s->do_cmdtest = pci230_ai_cmdtest;
 		s->cancel = pci230_ai_cancel;
 	}
 
@@ -2799,14 +2799,14 @@ static int pci230_attach_common(struct comedi_device *dev,
 		s->n_chan = thisboard->ao_chans;
 		s->maxdata = (1 << thisboard->ao_bits) - 1;
 		s->range_table = &pci230_ao_range;
-		s->insn_write = &pci230_ao_winsn;
-		s->insn_read = &pci230_ao_rinsn;
+		s->insn_write = pci230_ao_winsn;
+		s->insn_read = pci230_ao_rinsn;
 		s->len_chanlist = thisboard->ao_chans;
 		if (dev->irq) {
 			dev->write_subdev = s;
 			s->subdev_flags |= SDF_CMD_WRITE;
-			s->do_cmd = &pci230_ao_cmd;
-			s->do_cmdtest = &pci230_ao_cmdtest;
+			s->do_cmd = pci230_ao_cmd;
+			s->do_cmdtest = pci230_ao_cmdtest;
 			s->cancel = pci230_ao_cancel;
 		}
 	} else {
