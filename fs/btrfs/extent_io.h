@@ -11,8 +11,6 @@
 #define EXTENT_NEW (1 << 4)
 #define EXTENT_DELALLOC (1 << 5)
 #define EXTENT_DEFRAG (1 << 6)
-#define EXTENT_DEFRAG_DONE (1 << 7)
-#define EXTENT_BUFFER_FILLED (1 << 8)
 #define EXTENT_BOUNDARY (1 << 9)
 #define EXTENT_NODATASUM (1 << 10)
 #define EXTENT_DO_ACCOUNTING (1 << 11)
@@ -34,7 +32,6 @@
 
 /* these are bit numbers for test/set bit */
 #define EXTENT_BUFFER_UPTODATE 0
-#define EXTENT_BUFFER_BLOCKING 1
 #define EXTENT_BUFFER_DIRTY 2
 #define EXTENT_BUFFER_CORRUPT 3
 #define EXTENT_BUFFER_READAHEAD 4	/* this got triggered by readahead */
@@ -57,7 +54,6 @@
  * map has page->private set to one.
  */
 #define EXTENT_PAGE_PRIVATE 1
-#define EXTENT_PAGE_PRIVATE_FIRST_PAGE 3
 
 struct extent_state;
 struct btrfs_root;
