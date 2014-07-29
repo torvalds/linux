@@ -581,10 +581,12 @@ static int rk3036_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 
 			lcdc_msk_reg(lcdc_dev, DSP_CTRL0,
 				     m_INTERLACE_DSP_EN |
+				     m_INTERLACE_DSP_POL |
 				     m_WIN1_DIFF_DCLK_EN |
 				     m_WIN0_YRGB_DEFLICK_EN |
 				     m_WIN0_CBR_DEFLICK_EN,
 				     v_INTERLACE_DSP_EN(1) |
+				     v_INTERLACE_DSP_POL(0) |
 				     v_WIN1_DIFF_DCLK_EN(1) |
 				     v_WIN0_YRGB_DEFLICK_EN(1) |
 				     v_WIN0_CBR_DEFLICK_EN(1));
@@ -1066,7 +1068,7 @@ static int rk3036_lcdc_get_bcsh_hue(struct rk_lcdc_driver *dev_drv,
 			break;
 		case H_COS:
 			val &= m_BCSH_COS_HUE;
-			val >>= 16;
+			val >>= 8;
 			break;
 		default:
 			break;
@@ -1109,10 +1111,10 @@ static int rk3036_lcdc_set_bcsh_bcs(struct rk_lcdc_driver *dev_drv,
 		switch (mode) {
 		case BRIGHTNESS:
 		/*from 0 to 255,typical is 128*/
-			if (value < 0x80)
-				value += 0x80;
-			else if (value >= 0x80)
-				value = value - 0x80;
+			if (value < 0x20)
+				value += 0x20;
+			else if (value >= 0x20)
+				value = value - 0x20;
 			mask =  m_BCSH_BRIGHTNESS;
 			val = v_BCSH_BRIGHTNESS(value);
 			break;
@@ -1149,10 +1151,10 @@ static int rk3036_lcdc_get_bcsh_bcs(struct rk_lcdc_driver *dev_drv,
 		switch (mode) {
 		case BRIGHTNESS:
 			val &= m_BCSH_BRIGHTNESS;
-			if (val > 0x80)
-				val -= 0x80;
-			else
-				val += 0x80;
+			if (val > 0x20)
+				val -= 0x20;
+			else if (val == 0x20)
+				val = -32;
 			break;
 		case CONTRAST:
 			val &= m_BCSH_CONTRAST;
@@ -1160,7 +1162,7 @@ static int rk3036_lcdc_get_bcsh_bcs(struct rk_lcdc_driver *dev_drv,
 			break;
 		case SAT_CON:
 			val &= m_BCSH_SAT_CON;
-			val >>= 20;
+			val >>= 16;
 			break;
 		default:
 			break;
@@ -1180,9 +1182,13 @@ static int rk3036_lcdc_open_bcsh(struct rk_lcdc_driver *dev_drv, bool open)
 	spin_lock(&lcdc_dev->reg_lock);
 	if (lcdc_dev->clk_on) {
 		if (open) {
-			lcdc_writel(lcdc_dev, BCSH_CTRL, 0x1);
-			lcdc_writel(lcdc_dev, BCSH_BCS, 0xd0010000);
-			lcdc_writel(lcdc_dev, BCSH_H, 0x01000000);
+			lcdc_writel(lcdc_dev, BCSH_CTRL,
+				    v_BCSH_EN(1) | v_BCSH_OUT_MODE(3));
+			lcdc_writel(lcdc_dev, BCSH_BCS,
+				    v_BCSH_BRIGHTNESS(0x00) |
+				    v_BCSH_CONTRAST(0x80) |
+				    v_BCSH_SAT_CON(0x80));
+			lcdc_writel(lcdc_dev, BCSH_H, v_BCSH_COS_HUE(0x80));
 		} else {
 			mask = m_BCSH_EN;
 			val = v_BCSH_EN(0);
@@ -1199,7 +1205,7 @@ static int rk3036_fb_win_remap(struct rk_lcdc_driver *dev_drv,
 {
 	mutex_lock(&dev_drv->fb_win_id_mutex);
 	if (order == FB_DEFAULT_ORDER)
-		order = FB0_WIN1_FB1_WIN0_FB2_WIN2;
+		order = FB0_WIN0_FB1_WIN1_FB2_WIN2;
 	dev_drv->fb2_win_id = order / 100;
 	dev_drv->fb1_win_id = (order / 10) % 10;
 	dev_drv->fb0_win_id = order % 10;

@@ -40,9 +40,12 @@ static ssize_t show_screen_info(struct device *dev,
 	struct rk_lcdc_driver *dev_drv = (struct rk_lcdc_driver *)fbi->par;
 	struct rk_screen *screen = dev_drv->screen0;
 	int fps;
-	u32 x = (screen->mode.left_margin + screen->mode.right_margin + screen->mode.xres + screen->mode.hsync_len);
-	u32 y = (screen->mode.upper_margin + screen->mode.lower_margin + screen->mode.yres + screen->mode.vsync_len);
-	u64 ft = (u64)x * y * (dev_drv->pixclock);	// one frame time ,(pico seconds)
+	u32 x = screen->mode.left_margin + screen->mode.right_margin +
+		screen->mode.xres + screen->mode.hsync_len;
+	u32 y = screen->mode.upper_margin + screen->mode.lower_margin +
+		screen->mode.yres + screen->mode.vsync_len;
+	u64 ft = (u64)x * y * (dev_drv->pixclock);
+
 	fps = div64_u64(1000000000000llu, ft);
 	return snprintf(buf, PAGE_SIZE, "xres:%d\nyres:%d\nfps:%d\n",
 			screen->mode.xres, screen->mode.yres, fps);
@@ -54,6 +57,7 @@ static ssize_t show_disp_info(struct device *dev,
 	struct fb_info *fbi = dev_get_drvdata(dev);
 	struct rk_lcdc_driver *dev_drv = (struct rk_lcdc_driver *)fbi->par;
 	int win_id = dev_drv->ops->fb_get_win_id(dev_drv, fbi->fix.id);
+
 	if (dev_drv->ops->get_disp_info)
 		return dev_drv->ops->get_disp_info(dev_drv, buf, win_id);
 
@@ -64,6 +68,7 @@ static ssize_t show_phys(struct device *dev,
 			 struct device_attribute *attr, char *buf)
 {
 	struct fb_info *fbi = dev_get_drvdata(dev);
+
 	return snprintf(buf, PAGE_SIZE, "0x%lx-----0x%x\n",
 			fbi->fix.smem_start, fbi->fix.smem_len);
 }
@@ -85,8 +90,8 @@ static ssize_t show_fb_state(struct device *dev,
 	    (struct rk_lcdc_driver *)fbi->par;
 	int win_id = dev_drv->ops->fb_get_win_id(dev_drv, fbi->fix.id);
 	int state = dev_drv->ops->get_win_state(dev_drv, win_id);
-	return snprintf(buf, PAGE_SIZE, "%s\n", state ? "enabled" : "disabled");
 
+	return snprintf(buf, PAGE_SIZE, "%s\n", state ? "enabled" : "disabled");
 }
 
 static ssize_t show_dual_mode(struct device *dev,
@@ -94,9 +99,9 @@ static ssize_t show_dual_mode(struct device *dev,
 {
 	struct fb_info *fbi = dev_get_drvdata(dev);
 	struct rk_fb *rk_fb = dev_get_drvdata(fbi->device);
-	int mode= rk_fb->disp_mode; 
-	return snprintf(buf, PAGE_SIZE, "%d\n", mode);
+	int mode = rk_fb->disp_mode;
 
+	return snprintf(buf, PAGE_SIZE, "%d\n", mode);
 }
 
 static ssize_t set_fb_state(struct device *dev, struct device_attribute *attr,
@@ -108,12 +113,12 @@ static ssize_t set_fb_state(struct device *dev, struct device_attribute *attr,
 	int win_id = dev_drv->ops->fb_get_win_id(dev_drv, fbi->fix.id);
 	int state;
 	int ret;
+
 	ret = kstrtoint(buf, 0, &state);
-	if (ret) {
+	if (ret)
 		return ret;
-	}
 	dev_drv->ops->open(dev_drv, win_id, state);
-	if(state) {
+	if (state) {
 		dev_drv->ops->set_par(dev_drv, win_id);
 		dev_drv->ops->pan_display(dev_drv, win_id);
 		dev_drv->ops->cfg_done(dev_drv);
@@ -129,14 +134,13 @@ static ssize_t show_overlay(struct device *dev,
 	    (struct rk_lcdc_driver *)fbi->par;
 	int ovl;
 	ovl = dev_drv->ops->ovl_mgr(dev_drv, 0, 0);
-	if (ovl < 0) {
+
+	if (ovl < 0)
 		return ovl;
-	}
 
 	return snprintf(buf, PAGE_SIZE, "%s\n",
 			ovl ? "win0 on the top of win1" :
 			"win1 on the top of win0");
-
 }
 
 static ssize_t set_overlay(struct device *dev, struct device_attribute *attr,
@@ -147,14 +151,14 @@ static ssize_t set_overlay(struct device *dev, struct device_attribute *attr,
 	    (struct rk_lcdc_driver *)fbi->par;
 	int ovl;
 	int ret;
+
 	ret = kstrtoint(buf, 0, &ovl);
-	if (ret) {
+	if (ret)
 		return ret;
-	}
+
 	ret = dev_drv->ops->ovl_mgr(dev_drv, ovl, 1);
-	if (ret < 0) {
+	if (ret < 0)
 		return ret;
-	}
 
 	return count;
 }
@@ -166,13 +170,12 @@ static ssize_t show_fps(struct device *dev,
 	struct rk_lcdc_driver *dev_drv =
 	    (struct rk_lcdc_driver *)fbi->par;
 	int fps;
+
 	fps = dev_drv->ops->fps_mgr(dev_drv, 0, 0);
-	if (fps < 0) {
+	if (fps < 0)
 		return fps;
-	}
 
 	return snprintf(buf, PAGE_SIZE, "fps:%d\n", fps);
-
 }
 
 static ssize_t set_fps(struct device *dev, struct device_attribute *attr,
@@ -183,14 +186,13 @@ static ssize_t set_fps(struct device *dev, struct device_attribute *attr,
 	    (struct rk_lcdc_driver *)fbi->par;
 	int fps;
 	int ret;
+
 	ret = kstrtoint(buf, 0, &fps);
-	if (ret) {
+	if (ret)
 		return ret;
-	}
 	ret = dev_drv->ops->fps_mgr(dev_drv, fps, 1);
-	if (ret < 0) {
+	if (ret < 0)
 		return ret;
-	}
 
 	return count;
 }
@@ -211,7 +213,6 @@ static ssize_t show_fb_win_map(struct device *dev,
 	mutex_unlock(&dev_drv->fb_win_id_mutex);
 
 	return ret;
-
 }
 
 static ssize_t set_fb_win_map(struct device *dev, struct device_attribute *attr,
@@ -222,13 +223,14 @@ static ssize_t set_fb_win_map(struct device *dev, struct device_attribute *attr,
 	    (struct rk_lcdc_driver *)fbi->par;
 	int order;
 	int ret;
+
 	ret = kstrtoint(buf, 0, &order);
-	if ((order != FB0_WIN2_FB1_WIN1_FB2_WIN0)
-	    && (order != FB0_WIN1_FB1_WIN2_FB2_WIN0)
-	    && (order != FB0_WIN2_FB1_WIN0_FB2_WIN1)
-	    && (order != FB0_WIN0_FB1_WIN2_FB2_WIN1)
-	    && (order != FB0_WIN0_FB1_WIN1_FB2_WIN2)
-	    && (order != FB0_WIN1_FB1_WIN0_FB2_WIN2)) {
+	if ((order != FB0_WIN2_FB1_WIN1_FB2_WIN0) &&
+	    (order != FB0_WIN1_FB1_WIN2_FB2_WIN0) &&
+	    (order != FB0_WIN2_FB1_WIN0_FB2_WIN1) &&
+	    (order != FB0_WIN0_FB1_WIN2_FB2_WIN1) &&
+	    (order != FB0_WIN0_FB1_WIN1_FB2_WIN2) &&
+	    (order != FB0_WIN1_FB1_WIN0_FB2_WIN2)) {
 		printk(KERN_ERR "un supported map\n"
 		       "you can use the following order:\n" "201:\n"
 		       "fb0-win1\n" "fb1-win0\n" "fb2-win2\n" "210:\n"
@@ -243,13 +245,11 @@ static ssize_t set_fb_win_map(struct device *dev, struct device_attribute *attr,
 	}
 
 	return count;
-
 }
 
 static ssize_t show_dsp_lut(struct device *dev,
 			    struct device_attribute *attr, char *buf)
 {
-
 	return 0;
 }
 
@@ -267,11 +267,12 @@ static ssize_t set_dsp_lut(struct device *dev, struct device_attribute *attr,
 
 	for (i = 0; i < 256; i++) {
 		temp = i;
-		dsp_lut[i] = temp + (temp << 8) + (temp << 16);	//init by default value
+		/*init by default value*/
+		dsp_lut[i] = temp + (temp << 8) + (temp << 16);
 	}
-	//printk("count:%d\n>>%s\n\n",count,start);
+	/*printk("count:%d\n>>%s\n\n",count,start);*/
 	for (i = 0; i < 256; i++) {
-		space_max = 10;	//max space number 10;
+		space_max = 10;	/*max space number 10*/
 		temp = simple_strtoul(start, NULL, 10);
 		dsp_lut[i] = temp;
 		do {
@@ -294,10 +295,10 @@ static ssize_t set_dsp_lut(struct device *dev, struct device_attribute *attr,
 	dev_drv->ops->set_dsp_lut(dev_drv, dsp_lut);
 
 	return count;
-
 }
+
 static ssize_t show_dsp_cabc(struct device *dev,
-			    struct device_attribute *attr, char *buf)
+			     struct device_attribute *attr, char *buf)
 {
 	struct fb_info *fbi = dev_get_drvdata(dev);
 	struct rk_lcdc_driver *dev_drv =
@@ -309,122 +310,140 @@ static ssize_t show_dsp_cabc(struct device *dev,
 }
 
 static ssize_t set_dsp_cabc(struct device *dev, struct device_attribute *attr,
-			   const char *buf, size_t count)
+			    const char *buf, size_t count)
 {
 	struct fb_info *fbi = dev_get_drvdata(dev);
 	struct rk_lcdc_driver *dev_drv =
 	    (struct rk_lcdc_driver *)fbi->par;
-	int ret,mode=0;
-	
+	int ret, mode = 0;
+
 	ret = kstrtoint(buf, 0, &mode);
 	if (ret)
 		return ret;
 
 	ret = dev_drv->ops->set_dsp_cabc(dev_drv, mode);
-	if(ret < 0)
+	if (ret < 0)
 		return ret;
-	
-	return count;
 
-	
+	return count;
 }
+
 static ssize_t show_dsp_bcsh(struct device *dev,
-			    struct device_attribute *attr, char *buf)
+			     struct device_attribute *attr, char *buf)
 {
 	struct fb_info *fbi = dev_get_drvdata(dev);
 	struct rk_lcdc_driver *dev_drv =
 	    (struct rk_lcdc_driver *)fbi->par;
 	int brightness, contrast, sat_con, sin_hue, cos_hue;
-	if(dev_drv->ops->get_dsp_bcsh_bcs) {
-		brightness = dev_drv->ops->get_dsp_bcsh_bcs(dev_drv, BRIGHTNESS);
+
+	if (dev_drv->ops->get_dsp_bcsh_bcs) {
+		brightness = dev_drv->ops->get_dsp_bcsh_bcs(dev_drv,
+							    BRIGHTNESS);
 		contrast = dev_drv->ops->get_dsp_bcsh_bcs(dev_drv, CONTRAST);
 		sat_con = dev_drv->ops->get_dsp_bcsh_bcs(dev_drv, SAT_CON);
 	}
-	if(dev_drv->ops->get_dsp_bcsh_hue) {
-		sin_hue = dev_drv->ops->get_dsp_bcsh_hue(dev_drv,H_SIN);
-		cos_hue = dev_drv->ops->get_dsp_bcsh_hue(dev_drv,H_COS);
+	if (dev_drv->ops->get_dsp_bcsh_hue) {
+		sin_hue = dev_drv->ops->get_dsp_bcsh_hue(dev_drv, H_SIN);
+		cos_hue = dev_drv->ops->get_dsp_bcsh_hue(dev_drv, H_COS);
 	}
-	snprintf(buf, PAGE_SIZE, "brightness:%4d,contrast:%4d,sat_con:%4d,"
-				 "sin_hue:%4d,cos_hue:%4d\n",
-				 brightness, contrast,sat_con,sin_hue,cos_hue);
-	return 0;
+	return snprintf(buf, PAGE_SIZE,
+			"brightness:%4d,contrast:%4d,sat_con:%4d,"
+			"sin_hue:%4d,cos_hue:%4d\n",
+			brightness, contrast, sat_con, sin_hue, cos_hue);
 }
 
 static ssize_t set_dsp_bcsh(struct device *dev, struct device_attribute *attr,
-			   const char *buf, size_t count)
+			    const char *buf, size_t count)
 {
 	struct fb_info *fbi = dev_get_drvdata(dev);
 	struct rk_lcdc_driver *dev_drv =
 	    (struct rk_lcdc_driver *)fbi->par;
 	int brightness, contrast, sat_con, ret, sin_hue, cos_hue;
-	
+
 	if (!strncmp(buf, "open", 4)) {
-		if(dev_drv->ops->open_bcsh)
+		if (dev_drv->ops->open_bcsh)
 			ret = dev_drv->ops->open_bcsh(dev_drv, 1);
 		else
 			ret = -1;
 	} else if (!strncmp(buf, "close", 5)) {
-		if(dev_drv->ops->open_bcsh)
+		if (dev_drv->ops->open_bcsh)
 			ret = dev_drv->ops->open_bcsh(dev_drv, 0);
 		else
 			ret = -1;
 	} else if (!strncmp(buf, "brightness", 10)) {
 		sscanf(buf, "brightness %d", &brightness);
 		if (unlikely(brightness > 255)) {
-			dev_err(fbi->dev,"brightness should be [0:255],now=%d\n\n",brightness);
+			dev_err(fbi->dev,
+				"brightness should be [0:255],now=%d\n\n",
+				brightness);
 			brightness = 255;
 		}
-		if(dev_drv->ops->set_dsp_bcsh_bcs)
-			ret = dev_drv->ops->set_dsp_bcsh_bcs(dev_drv, BRIGHTNESS,brightness);
+		if (dev_drv->ops->set_dsp_bcsh_bcs)
+			ret = dev_drv->ops->set_dsp_bcsh_bcs(dev_drv,
+							     BRIGHTNESS,
+							     brightness);
 		else
 			ret = -1;
 	} else if (!strncmp(buf, "contrast", 8)) {
 		sscanf(buf, "contrast %d", &contrast);
 		if (unlikely(contrast > 510)) {
-			dev_err(fbi->dev,"contrast should be [0:510],now=%d\n",contrast);
+			dev_err(fbi->dev,
+				"contrast should be [0:510],now=%d\n",
+				contrast);
 			contrast = 510;
 		}
-		if(dev_drv->ops->set_dsp_bcsh_bcs)
-			ret = dev_drv->ops->set_dsp_bcsh_bcs(dev_drv, CONTRAST,contrast);
+		if (dev_drv->ops->set_dsp_bcsh_bcs)
+			ret = dev_drv->ops->set_dsp_bcsh_bcs(dev_drv,
+							     CONTRAST,
+							     contrast);
 		else
 			ret = -1;
 	} else if (!strncmp(buf, "sat_con", 7)) {
 		sscanf(buf, "sat_con %d", &sat_con);
 		if (unlikely(sat_con > 1015)) {
-			dev_err(fbi->dev,"sat_con should be [0:1015],now=%d\n",sat_con);
+			dev_err(fbi->dev,
+				"sat_con should be [0:1015],now=%d\n",
+				sat_con);
 			sat_con = 1015;
 		}
-		if(dev_drv->ops->set_dsp_bcsh_bcs)
-			ret = dev_drv->ops->set_dsp_bcsh_bcs(dev_drv, SAT_CON,sat_con);
+		if (dev_drv->ops->set_dsp_bcsh_bcs)
+			ret = dev_drv->ops->set_dsp_bcsh_bcs(dev_drv,
+							     SAT_CON,
+							     sat_con);
 		else
 			ret = -1;
 	} else if (!strncmp(buf, "hue", 3)) {
-		sscanf(buf, "hue %d %d", &sin_hue,&cos_hue);
+		sscanf(buf, "hue %d %d", &sin_hue, &cos_hue);
 		if (unlikely(sin_hue > 511 || cos_hue > 511)) {
-			dev_err(fbi->dev,"sin_hue=%d,cos_hue=%d\n",sin_hue,cos_hue);
+			dev_err(fbi->dev, "sin_hue=%d,cos_hue=%d\n",
+				sin_hue, cos_hue);
 		}
-		if(dev_drv->ops->set_dsp_bcsh_hue)
-			ret = dev_drv->ops->set_dsp_bcsh_hue(dev_drv,sin_hue,cos_hue);
+		if (dev_drv->ops->set_dsp_bcsh_hue)
+			ret = dev_drv->ops->set_dsp_bcsh_hue(dev_drv,
+							     sin_hue,
+							     cos_hue);
 		else
 			ret = -1;
 	} else {
 		printk("format error\n");
 	}
 
-	if(ret < 0)
+	if (ret < 0)
 		return ret;
-	
+
 	return count;
 }
 
 static ssize_t show_scale(struct device *dev,
-			    struct device_attribute *attr, char *buf)
+			  struct device_attribute *attr, char *buf)
 {
 	struct fb_info *fbi = dev_get_drvdata(dev);
 	struct rk_lcdc_driver *dev_drv =
 	    (struct rk_lcdc_driver *)fbi->par;
 	struct rk_screen *screen = dev_drv->cur_screen;
-	return snprintf(buf, PAGE_SIZE, "xscale=%d yscale=%d\nleft=%d top=%d right=%d bottom=%d\n",
+
+	return snprintf(buf, PAGE_SIZE,
+		"xscale=%d yscale=%d\nleft=%d top=%d right=%d bottom=%d\n",
 		(screen->overscan.left + screen->overscan.right)/2,
 		(screen->overscan.top + screen->overscan.bottom)/2,
 		screen->overscan.left, screen->overscan.top,
@@ -432,7 +451,7 @@ static ssize_t show_scale(struct device *dev,
 }
 
 static ssize_t set_scale(struct device *dev, struct device_attribute *attr,
-			   const char *buf, size_t count)
+			 const char *buf, size_t count)
 {
 	struct fb_info *fbi = dev_get_drvdata(dev);
 	struct rk_lcdc_driver *dev_drv =
@@ -441,7 +460,8 @@ static ssize_t set_scale(struct device *dev, struct device_attribute *attr,
 	u32 left, top, right, bottom;
 
 	if (!strncmp(buf, "overscan", 8)) {
-		sscanf(buf, "overscan %d,%d,%d,%d", &left, &top, &right, &bottom);
+		sscanf(buf,
+		       "overscan %d,%d,%d,%d", &left, &top, &right, &bottom);
 		if (left > 0 && left <= 100)
 			screen->overscan.left = left;
 		if (top > 0 && top <= 100)
@@ -487,7 +507,7 @@ static ssize_t set_scale(struct device *dev, struct device_attribute *attr,
 			screen->overscan.bottom = left;
 		}
 	}
-//	printk("%d %d %d %d\n", dev_drv->overscan.left, dev_drv->overscan.top, dev_drv->overscan.right, dev_drv->overscan.bottom);
+
 	dev_drv->ops->load_screen(dev_drv, 1);
 	dev_drv->ops->cfg_done(dev_drv);
 	return count;
@@ -511,8 +531,8 @@ static struct device_attribute rkfb_attrs[] = {
 
 int rkfb_create_sysfs(struct fb_info *fbi)
 {
-	int r;
-	int t;
+	int r, t;
+
 	for (t = 0; t < ARRAY_SIZE(rkfb_attrs); t++) {
 		r = device_create_file(fbi->dev, &rkfb_attrs[t]);
 		if (r) {

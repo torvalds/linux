@@ -60,6 +60,7 @@
 	#define m_WIN0_TOP		(1<<8)
 	#define m_DITHER_UP_EN		(1<<9)
 	#define m_INTERLACE_DSP_EN	(1<<12)
+	#define m_INTERLACE_DSP_POL	(1<<13)
 	#define m_WIN1_INTERLACE_EN	(1<<15)
 	#define m_WIN0_YRGB_DEFLICK_EN	(1<<16)
 	#define m_WIN0_CBR_DEFLICK_EN	(1<<17)
@@ -81,6 +82,7 @@
 	#define v_WIN0_TOP(x)		(((x)&1)<<8)
 	#define v_DITHER_UP_EN(x)	(((x)&1)<<9)
 	#define v_INTERLACE_DSP_EN(x)	(((x)&1)<<12)
+	#define v_INTERLACE_DSP_POL(x)	(((x)&1)<<13)
 	#define v_WIN1_INTERLACE_EN(x)	(((x)&1)<<15)
 	#define v_WIN0_YRGB_DEFLICK_EN(x)	(((x)&1)<<16)
 	#define v_WIN0_CBR_DEFLICK_EN(x)	(((x)&1)<<17)
@@ -280,20 +282,20 @@
 	#define m_BCSH_COLOR_BAR_V		(0xf << 16)
 
 #define BCSH_BCS			(0xD8)
-	#define v_BCSH_BRIGHTNESS(x)		(((x)&0x1f) << 0)
-	#define v_BCSH_CONTRAST(x)		(((x)&0xf) << 8)
-	#define v_BCSH_SAT_CON(x)		(((x)&0xf) << 16)
+	#define v_BCSH_BRIGHTNESS(x)		(((x)&0x3f) << 0)
+	#define v_BCSH_CONTRAST(x)		(((x)&0xff) << 8)
+	#define v_BCSH_SAT_CON(x)		(((x)&0x1ff) << 16)
 
-	#define m_BCSH_BRIGHTNESS		(0x1f << 0)
-	#define m_BCSH_CONTRAST			(0xf << 8)
-	#define m_BCSH_SAT_CON			(0xf << 16)
+	#define m_BCSH_BRIGHTNESS		(0x3f << 0)
+	#define m_BCSH_CONTRAST			(0xff << 8)
+	#define m_BCSH_SAT_CON			(0x1ff << 16)
 
 #define BCSH_H				(0xDC)
-	#define v_BCSH_SIN_HUE(x)		(((x)&0xf) << 0)
-	#define v_BCSH_COS_HUE(x)		(((x)&0xf) << 16)
+	#define v_BCSH_SIN_HUE(x)		(((x)&0xff) << 0)
+	#define v_BCSH_COS_HUE(x)		(((x)&0xff) << 8)
 
-	#define m_BCSH_SIN_HUE			(0xf << 0)
-	#define m_BCSH_COS_HUE			(0xf << 16)
+	#define m_BCSH_SIN_HUE			(0xff << 0)
+	#define m_BCSH_COS_HUE			(0xff << 8)
 
 /* Bus Register */
 #define AXI_BUS_CTRL		(0x2C)
