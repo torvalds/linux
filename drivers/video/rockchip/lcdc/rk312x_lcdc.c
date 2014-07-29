@@ -528,8 +528,8 @@ static u32 calc_sclk(struct rk_screen *src_screen, struct rk_screen *dst_screen)
         dsp_in_htotal = src_screen->mode.left_margin +
                         src_screen->mode.hsync_len +
                         src_screen->mode.xres + src_screen->mode.right_margin;
-        sclk = (dsp_vtotal * dsp_htotal * src_screen->mode.pixclock) /
-               (dsp_in_vtotal * dsp_in_htotal);
+        sclk = dsp_vtotal * dsp_htotal * src_screen->mode.pixclock;
+        do_div(sclk, dsp_in_vtotal * dsp_in_htotal);
 
         return sclk;
 }
@@ -543,10 +543,14 @@ static int calc_dsp_frm_vst_hst(struct rk_screen *src, struct rk_screen *dst)
         double T_BP_in, T_BP_out, T_Delta, Tin;
 #else
         long long  T_frm_st;
-        __u64 T_BP_in, T_BP_out, T_Delta, Tin;
-        __u64 rate = (1 << 16);
+        u64 T_BP_in, T_BP_out, T_Delta, Tin;
+        u64 rate = (1 << 16);
+        u64 temp;
 #endif
         u32 dsp_htotal, src_htotal, src_vtotal;
+
+        if (unlikely(!src) || unlikely(!dst))
+                return -1;
 
         dsp_htotal = dst->mode.left_margin + dst->mode.hsync_len +
                      dst->mode.xres + dst->mode.right_margin;
@@ -569,14 +573,18 @@ static int calc_dsp_frm_vst_hst(struct rk_screen *src, struct rk_screen *dst)
 
         Tin = 1.0 * src_vtotal * src_htotal / src->mode.pixclock;
 #else
-        T_BP_in = rate * BP_in / src->mode.pixclock;
-        T_BP_out = rate * BP_out / dst->mode.pixclock;
+        T_BP_in = rate * BP_in;
+        do_div(T_BP_in, src->mode.pixclock);
+        T_BP_out = rate * BP_out;
+        do_div(T_BP_out, dst->mode.pixclock);
         if (v_scale_ratio < 2)
-                T_Delta = rate * 4 * src_htotal / src->mode.pixclock;
+                T_Delta = rate * 4 * src_htotal;
         else
-                T_Delta = rate * 12 * src_htotal / src->mode.pixclock;
+                T_Delta = rate * 12 * src_htotal;
 
-        Tin = rate * src_vtotal * src_htotal / src->mode.pixclock;
+        do_div(T_Delta, src->mode.pixclock);
+        Tin = rate * src_vtotal * src_htotal;
+        do_div(Tin, src->mode.pixclock);
 #endif
 
         T_frm_st = (T_BP_in + T_Delta - T_BP_out);
@@ -585,11 +593,13 @@ static int calc_dsp_frm_vst_hst(struct rk_screen *src, struct rk_screen *dst)
 
 #if defined(FLOAT_CALC)
         dst->scl_vst = (u16)(T_frm_st * src->mode.pixclock / src_htotal);
-        dst->scl_hst = (u16)((T_frm_st * src->mode.pixclock) % src_htotal);
+        dst->scl_hst = (u32)(T_frm_st * src->mode.pixclock) % src_htotal;
 #else
-        dst->scl_vst = (u16)((T_frm_st * src->mode.pixclock) / (src_htotal * rate));
-        dst->scl_hst = (u16)((T_frm_st * src->mode.pixclock / rate) % src_htotal);
+        temp = T_frm_st * src->mode.pixclock;
+        dst->scl_hst = do_div(temp, src_htotal * rate);
+        dst->scl_vst = temp;
 #endif
+
         return 0;
 }
 
@@ -694,7 +704,7 @@ static int rk312x_lcdc_set_scaler(struct rk_lcdc_driver *dev_drv,
 	lcdc_writel(lcdc_dev, SCALER_DSP_VBOR_TIMING,
                     v_SCALER_VBOR_END(dsp_vbor_end) |
                     v_SCALER_VBOR_ST(dsp_vbor_st));
-	lcdc_writel(lcdc_dev, SCALER_CTRL,
+	lcdc_msk_reg(lcdc_dev, SCALER_CTRL,
                     m_SCALER_EN | m_SCALER_OUT_ZERO | m_SCALER_OUT_EN,
                     v_SCALER_EN(1) | v_SCALER_OUT_ZERO(0) | v_SCALER_OUT_EN(1));
         spin_unlock(&lcdc_dev->reg_lock);
@@ -959,7 +969,7 @@ static int rk312x_lcdc_open(struct rk_lcdc_driver *dev_drv, int win_id,
 			rk312x_lcdc_set_dclk(dev_drv);
 			rk312x_lcdc_enable_irq(dev_drv);
 		} else {
-			rk31xx_load_screen(dev_drv, 1);
+			rk312x_load_screen(dev_drv, 1);
 		}
 
                 /* set screen lut */
@@ -1803,23 +1813,25 @@ static struct rk_lcdc_drv_ops lcdc_drv_ops = {
 	.get_dsp_bcsh_hue = rk312x_lcdc_get_bcsh_hue,
 	.get_dsp_bcsh_bcs = rk312x_lcdc_get_bcsh_bcs,
 	.open_bcsh = rk312x_lcdc_open_bcsh,
-	.set_screen_scaler = rk312x_lcdc_set_scaler;
+	.set_screen_scaler = rk312x_lcdc_set_scaler,
 };
-
+#if 0
 static const struct rk_lcdc_drvdata rk3036_lcdc_drvdata = {
         .soc_type = VOP_RK3036,
 };
-
+#endif
 static const struct rk_lcdc_drvdata rk312x_lcdc_drvdata = {
         .soc_type = VOP_RK312X,
 };
 
 #if defined(CONFIG_OF)
 static const struct of_device_id rk312x_lcdc_dt_ids[] = {
+#if 0
 	{
                 .compatible = "rockchip,rk3036-lcdc",
                 .data = (void *)&rk3036_lcdc_drvdata,
         },
+#endif
 	{
 	        .compatible = "rockchip,rk312x-lcdc",
                 .data = (void *)&rk312x_lcdc_drvdata,

@@ -377,8 +377,8 @@ enum _VOP_SOC_TYPE {
         #define m_SCALER_VTOTAL         BITS(0xfff, 0)
         #define m_SCALER_VS_END         BITS(0xff, 16)
 
-        #define v_SCALER_VTOTAL(x)      BITS_MASK(0xfff, 0)
-        #define v_SCALER_VS_END(x)      BITS_MASK(0xff, 16)
+        #define v_SCALER_VTOTAL(x)      BITS_MASK(x, 0xfff, 0)
+        #define v_SCALER_VS_END(x)      BITS_MASK(x, 0xff, 16)
 
 #define SCALER_DSP_VACT_ST_END  (0xb8)
         #define m_SCALER_VAEP           BITS(0xfff, 0)
