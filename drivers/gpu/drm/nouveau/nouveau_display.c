@@ -404,6 +404,11 @@ nouveau_display_fini(struct drm_device *dev)
 {
 	struct nouveau_display *disp = nouveau_display(dev);
 	struct drm_connector *connector;
+	int head;
+
+	/* Make sure that drm and hw vblank irqs get properly disabled. */
+	for (head = 0; head < dev->mode_config.num_crtc; head++)
+		drm_vblank_off(dev, head);
 
 	/* disable hotplug interrupts */
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
@@ -620,6 +625,8 @@ void
 nouveau_display_resume(struct drm_device *dev)
 {
 	struct drm_crtc *crtc;
+	int head;
+
 	nouveau_display_init(dev);
 
 	/* Force CLUT to get re-loaded during modeset */
@@ -628,6 +635,10 @@ nouveau_display_resume(struct drm_device *dev)
 
 		nv_crtc->lut.depth = 0;
 	}
+
+	/* Make sure that drm and hw vblank irqs get resumed if needed. */
+	for (head = 0; head < dev->mode_config.num_crtc; head++)
+		drm_vblank_on(dev, head);
 
 	drm_helper_resume_force_mode(dev);
 
