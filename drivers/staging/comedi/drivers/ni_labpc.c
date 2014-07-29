@@ -1048,14 +1048,17 @@ static int labpc_ao_insn_read(struct comedi_device *dev,
 	return 1;
 }
 
-static int labpc_8255_mmio(int dir, int port, int data, unsigned long iobase)
+static int labpc_8255_mmio(int dir, int port, int data, unsigned long arg)
 {
+	struct comedi_device *dev = (struct comedi_device *)arg;
+	void __iomem *mmio = (void __iomem *)dev->iobase + DIO_BASE_REG;
+
 	if (dir) {
-		writeb(data, (void __iomem *)(iobase + port));
+		writeb(data, mmio + port);
 		return 0;
 	}
 
-	return readb((void __iomem *)(iobase + port));
+	return readb(mmio + port);
 }
 
 /* lowlevel write to eeprom/dac */
@@ -1413,9 +1416,13 @@ int labpc_common_attach(struct comedi_device *dev,
 
 	/* 8255 dio */
 	s = &dev->subdevices[2];
-	ret = subdev_8255_init(dev, s,
-			       (board->has_mmio) ? labpc_8255_mmio : NULL,
-			       dev->iobase + DIO_BASE_REG);
+	if (board->has_mmio) {
+		ret = subdev_8255_init(dev, s, labpc_8255_mmio,
+				       (unsigned long)dev);
+	} else {
+		ret = subdev_8255_init(dev, s, NULL,
+				       dev->iobase + DIO_BASE_REG);
+	}
 	if (ret)
 		return ret;
 
