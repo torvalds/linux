@@ -897,18 +897,33 @@ static bool EthCSMatchSrcMACAddress(struct bcm_classifier_rule *pstClassifierRul
 	return TRUE;
 }
 
-static bool EthCSMatchDestMACAddress(struct bcm_classifier_rule *pstClassifierRule, PUCHAR Mac)
+static bool EthCSMatchDestMACAddress(struct bcm_classifier_rule *pstClassifierRule,
+				     PUCHAR Mac)
 {
 	UINT i = 0;
 	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
 
 	if (pstClassifierRule->ucEthCSDestMACLen == 0)
 		return TRUE;
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, "%s\n", __func__);
+	BCM_DEBUG_PRINT(Adapter,
+			DBG_TYPE_TX,
+			IPV4_DBG,
+			DBG_LVL_ALL,
+			"%s\n",
+			__func__);
 	for (i = 0; i < MAC_ADDRESS_SIZE; i++) {
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, "SRC MAC[%x] = %x ClassifierRuleSrcMAC = %x Mask : %x\n", i, Mac[i], pstClassifierRule->au8EThCSDestMAC[i], pstClassifierRule->au8EThCSDestMACMask[i]);
-		if ((pstClassifierRule->au8EThCSDestMAC[i] & pstClassifierRule->au8EThCSDestMACMask[i]) !=
-			(Mac[i] & pstClassifierRule->au8EThCSDestMACMask[i]))
+		BCM_DEBUG_PRINT(Adapter,
+				DBG_TYPE_TX,
+				IPV4_DBG,
+				DBG_LVL_ALL,
+				"SRC MAC[%x] = %x ClassifierRuleSrcMAC = %x Mask : %x\n",
+				i,
+				Mac[i],
+				pstClassifierRule->au8EThCSDestMAC[i],
+				pstClassifierRule->au8EThCSDestMACMask[i]);
+		if ((pstClassifierRule->au8EThCSDestMAC[i] &
+					pstClassifierRule->au8EThCSDestMACMask[i]) !=
+				(Mac[i] & pstClassifierRule->au8EThCSDestMACMask[i]))
 			return false;
 	}
 	return TRUE;
