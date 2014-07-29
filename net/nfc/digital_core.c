@@ -201,6 +201,11 @@ static void digital_wq_cmd(struct work_struct *work)
 					       digital_send_cmd_complete, cmd);
 		break;
 
+	case DIGITAL_CMD_TG_LISTEN_MD:
+		rc = ddev->ops->tg_listen_md(ddev, cmd->timeout,
+					       digital_send_cmd_complete, cmd);
+		break;
+
 	default:
 		pr_err("Unknown cmd type %d\n", cmd->type);
 		return;
@@ -293,12 +298,19 @@ static int digital_tg_listen_mdaa(struct nfc_digital_dev *ddev, u8 rf_tech)
 				500, digital_tg_recv_atr_req, NULL);
 }
 
+static int digital_tg_listen_md(struct nfc_digital_dev *ddev, u8 rf_tech)
+{
+	return digital_send_cmd(ddev, DIGITAL_CMD_TG_LISTEN_MD, NULL, NULL, 500,
+				digital_tg_recv_md_req, NULL);
+}
+
 int digital_target_found(struct nfc_digital_dev *ddev,
 			 struct nfc_target *target, u8 protocol)
 {
 	int rc;
 	u8 framing;
 	u8 rf_tech;
+	u8 poll_tech_count;
 	int (*check_crc)(struct sk_buff *skb);
 	void (*add_crc)(struct sk_buff *skb);
 
@@ -375,11 +387,15 @@ int digital_target_found(struct nfc_digital_dev *ddev,
 		return rc;
 
 	target->supported_protocols = (1 << protocol);
-	rc = nfc_targets_found(ddev->nfc_dev, target, 1);
-	if (rc)
-		return rc;
 
+	poll_tech_count = ddev->poll_tech_count;
 	ddev->poll_tech_count = 0;
+
+	rc = nfc_targets_found(ddev->nfc_dev, target, 1);
+	if (rc) {
+		ddev->poll_tech_count = poll_tech_count;
+		return rc;
+	}
 
 	return 0;
 }
@@ -505,6 +521,9 @@ static int digital_start_poll(struct nfc_dev *nfc_dev, __u32 im_protocols,
 		if (ddev->ops->tg_listen_mdaa) {
 			digital_add_poll_tech(ddev, 0,
 					      digital_tg_listen_mdaa);
+		} else if (ddev->ops->tg_listen_md) {
+			digital_add_poll_tech(ddev, 0,
+					      digital_tg_listen_md);
 		} else {
 			digital_add_poll_tech(ddev, NFC_DIGITAL_RF_TECH_106A,
 					      digital_tg_listen_nfca);
@@ -732,7 +751,7 @@ struct nfc_digital_dev *nfc_digital_allocate_device(struct nfc_digital_ops *ops,
 
 	if (!ops->in_configure_hw || !ops->in_send_cmd || !ops->tg_listen ||
 	    !ops->tg_configure_hw || !ops->tg_send_cmd || !ops->abort_cmd ||
-	    !ops->switch_rf)
+	    !ops->switch_rf || (ops->tg_listen_md && !ops->tg_get_rf_tech))
 		return NULL;
 
 	ddev = kzalloc(sizeof(struct nfc_digital_dev), GFP_KERNEL);
