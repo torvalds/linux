@@ -605,10 +605,7 @@ USHORT ClassifyPacket(struct bcm_mini_adapter *Adapter, struct sk_buff *skb)
 
 	}
 
-	if (bClassificationSucceed)
-		return usIndex;
-	else
-		return INVALID_QUEUE_INDEX;
+	return (bClassificationSucceed ? usIndex : INVALID_QUEUE_INDEX);
 }
 
 static bool EthCSMatchSrcMACAddress(struct bcm_classifier_rule *pstClassifierRule, PUCHAR Mac)
