@@ -197,10 +197,13 @@ enum intel_dpll_id {
 #define I915_NUM_PLLS 2
 
 struct intel_dpll_hw_state {
+	/* i9xx, pch plls */
 	uint32_t dpll;
 	uint32_t dpll_md;
 	uint32_t fp0;
 	uint32_t fp1;
+
+	/* hsw, bdw */
 	uint32_t wrpll;
 };
 
