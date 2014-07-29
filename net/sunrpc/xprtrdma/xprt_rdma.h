@@ -146,6 +146,38 @@ struct rpcrdma_rep {
 };
 
 /*
+ * struct rpcrdma_mw - external memory region metadata
+ *
+ * An external memory region is any buffer or page that is registered
+ * on the fly (ie, not pre-registered).
+ *
+ * Each rpcrdma_buffer has a list of these anchored in rb_mws. During
+ * call_allocate, rpcrdma_buffer_get() assigns one to each segment in
+ * an rpcrdma_req. Then rpcrdma_register_external() grabs these to keep
+ * track of registration metadata while each RPC is pending.
+ * rpcrdma_deregister_external() uses this metadata to unmap and
+ * release these resources when an RPC is complete.
+ */
+enum rpcrdma_frmr_state {
+	FRMR_IS_INVALID,	/* ready to be used */
+	FRMR_IS_VALID,		/* in use */
+};
+
+struct rpcrdma_frmr {
+	struct ib_fast_reg_page_list	*fr_pgl;
+	struct ib_mr			*fr_mr;
+	enum rpcrdma_frmr_state		fr_state;
+};
+
+struct rpcrdma_mw {
+	union {
+		struct ib_fmr		*fmr;
+		struct rpcrdma_frmr	frmr;
+	} r;
+	struct list_head	mw_list;
+};
+
+/*
  * struct rpcrdma_req -- structure central to the request/reply sequence.
  *
  * N of these are associated with a transport instance, and stored in
@@ -172,17 +204,7 @@ struct rpcrdma_rep {
 struct rpcrdma_mr_seg {		/* chunk descriptors */
 	union {				/* chunk memory handles */
 		struct ib_mr	*rl_mr;		/* if registered directly */
-		struct rpcrdma_mw {		/* if registered from region */
-			union {
-				struct ib_fmr	*fmr;
-				struct {
-					struct ib_fast_reg_page_list *fr_pgl;
-					struct ib_mr *fr_mr;
-					enum { FRMR_IS_INVALID, FRMR_IS_VALID  } state;
-				} frmr;
-			} r;
-			struct list_head mw_list;
-		} *rl_mw;
+		struct rpcrdma_mw *rl_mw;	/* if registered from region */
 	} mr_chunk;
 	u64		mr_base;	/* registration result */
 	u32		mr_rkey;	/* registration result */

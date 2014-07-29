@@ -156,9 +156,9 @@ rpcrdma_sendcq_process_wc(struct ib_wc *wc)
 		return;
 
 	if (wc->opcode == IB_WC_FAST_REG_MR)
-		frmr->r.frmr.state = FRMR_IS_VALID;
+		frmr->r.frmr.fr_state = FRMR_IS_VALID;
 	else if (wc->opcode == IB_WC_LOCAL_INV)
-		frmr->r.frmr.state = FRMR_IS_INVALID;
+		frmr->r.frmr.fr_state = FRMR_IS_INVALID;
 }
 
 static int
@@ -1496,6 +1496,9 @@ rpcrdma_register_frmr_external(struct rpcrdma_mr_seg *seg,
 			struct rpcrdma_xprt *r_xprt)
 {
 	struct rpcrdma_mr_seg *seg1 = seg;
+	struct rpcrdma_mw *mw = seg1->mr_chunk.rl_mw;
+	struct rpcrdma_frmr *frmr = &mw->r.frmr;
+	struct ib_mr *mr = frmr->fr_mr;
 	struct ib_send_wr invalidate_wr, frmr_wr, *bad_wr, *post_wr;
 
 	u8 key;
@@ -1515,8 +1518,7 @@ rpcrdma_register_frmr_external(struct rpcrdma_mr_seg *seg,
 		rpcrdma_map_one(ia, seg, writing);
 		pa = seg->mr_dma;
 		for (seg_len = seg->mr_len; seg_len > 0; seg_len -= PAGE_SIZE) {
-			seg1->mr_chunk.rl_mw->r.frmr.fr_pgl->
-				page_list[page_no++] = pa;
+			frmr->fr_pgl->page_list[page_no++] = pa;
 			pa += PAGE_SIZE;
 		}
 		len += seg->mr_len;
@@ -1528,20 +1530,18 @@ rpcrdma_register_frmr_external(struct rpcrdma_mr_seg *seg,
 			break;
 	}
 	dprintk("RPC:       %s: Using frmr %p to map %d segments\n",
-		__func__, seg1->mr_chunk.rl_mw, i);
+		__func__, mw, i);
 
-	if (unlikely(seg1->mr_chunk.rl_mw->r.frmr.state == FRMR_IS_VALID)) {
+	if (unlikely(frmr->fr_state == FRMR_IS_VALID)) {
 		dprintk("RPC:       %s: frmr %x left valid, posting invalidate.\n",
-			__func__,
-			seg1->mr_chunk.rl_mw->r.frmr.fr_mr->rkey);
+			__func__, mr->rkey);
 		/* Invalidate before using. */
 		memset(&invalidate_wr, 0, sizeof invalidate_wr);
-		invalidate_wr.wr_id = (unsigned long)(void *)seg1->mr_chunk.rl_mw;
+		invalidate_wr.wr_id = (unsigned long)(void *)mw;
 		invalidate_wr.next = &frmr_wr;
 		invalidate_wr.opcode = IB_WR_LOCAL_INV;
 		invalidate_wr.send_flags = IB_SEND_SIGNALED;
-		invalidate_wr.ex.invalidate_rkey =
-			seg1->mr_chunk.rl_mw->r.frmr.fr_mr->rkey;
+		invalidate_wr.ex.invalidate_rkey = mr->rkey;
 		DECR_CQCOUNT(&r_xprt->rx_ep);
 		post_wr = &invalidate_wr;
 	} else
@@ -1549,11 +1549,11 @@ rpcrdma_register_frmr_external(struct rpcrdma_mr_seg *seg,
 
 	/* Prepare FRMR WR */
 	memset(&frmr_wr, 0, sizeof frmr_wr);
-	frmr_wr.wr_id = (unsigned long)(void *)seg1->mr_chunk.rl_mw;
+	frmr_wr.wr_id = (unsigned long)(void *)mw;
 	frmr_wr.opcode = IB_WR_FAST_REG_MR;
 	frmr_wr.send_flags = IB_SEND_SIGNALED;
 	frmr_wr.wr.fast_reg.iova_start = seg1->mr_dma;
-	frmr_wr.wr.fast_reg.page_list = seg1->mr_chunk.rl_mw->r.frmr.fr_pgl;
+	frmr_wr.wr.fast_reg.page_list = frmr->fr_pgl;
 	frmr_wr.wr.fast_reg.page_list_len = page_no;
 	frmr_wr.wr.fast_reg.page_shift = PAGE_SHIFT;
 	frmr_wr.wr.fast_reg.length = page_no << PAGE_SHIFT;
@@ -1563,13 +1563,13 @@ rpcrdma_register_frmr_external(struct rpcrdma_mr_seg *seg,
 	}
 
 	/* Bump the key */
-	key = (u8)(seg1->mr_chunk.rl_mw->r.frmr.fr_mr->rkey & 0x000000FF);
-	ib_update_fast_reg_key(seg1->mr_chunk.rl_mw->r.frmr.fr_mr, ++key);
+	key = (u8)(mr->rkey & 0x000000FF);
+	ib_update_fast_reg_key(mr, ++key);
 
 	frmr_wr.wr.fast_reg.access_flags = (writing ?
 				IB_ACCESS_REMOTE_WRITE | IB_ACCESS_LOCAL_WRITE :
 				IB_ACCESS_REMOTE_READ);
-	frmr_wr.wr.fast_reg.rkey = seg1->mr_chunk.rl_mw->r.frmr.fr_mr->rkey;
+	frmr_wr.wr.fast_reg.rkey = mr->rkey;
 	DECR_CQCOUNT(&r_xprt->rx_ep);
 
 	rc = ib_post_send(ia->ri_id->qp, post_wr, &bad_wr);
@@ -1579,7 +1579,7 @@ rpcrdma_register_frmr_external(struct rpcrdma_mr_seg *seg,
 			" status %i\n", __func__, rc);
 		goto out_err;
 	} else {
-		seg1->mr_rkey = seg1->mr_chunk.rl_mw->r.frmr.fr_mr->rkey;
+		seg1->mr_rkey = mr->rkey;
 		seg1->mr_base = seg1->mr_dma + pageoff;
 		seg1->mr_nsegs = i;
 		seg1->mr_len = len;
