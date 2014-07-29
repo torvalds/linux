@@ -423,9 +423,6 @@
 /* For PCI230+ hardware version 2 when DAC FIFO enabled. */
 #define PCI230P2_INT_DAC		(1<<4)
 
-/* Assumes bits numbered with zero offset, ie. 0-15 */
-#define PCI230_TEST_BIT(val, n)	((val>>n)&1)
-
 /*
  * (Potentially) shared resources and their owners
  */
