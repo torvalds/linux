@@ -459,8 +459,8 @@ static VOID PruneQueue(struct bcm_mini_adapter *Adapter, INT iIndex)
 	spin_lock_bh(&curr_pack_info->SFQueueLock);
 
 	while (1) {
-	/* while((UINT)Adapter->PackInfo[iIndex].uiCurrentPacketsOnHost > */
-	/* 	SF_MAX_ALLOWED_PACKETS_TO_BACKUP) { */
+/*	while((UINT)curr_pack_info->uiCurrentPacketsOnHost >
+		SF_MAX_ALLOWED_PACKETS_TO_BACKUP) { */
 
 		BCM_DEBUG_PRINT(Adapter,
 				DBG_TYPE_TX,
