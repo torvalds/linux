@@ -1999,11 +1999,11 @@ static int __init init_btrfs_fs(void)
 
 	err = btrfs_prelim_ref_init();
 	if (err)
-		goto free_prelim_ref;
+		goto free_delayed_ref;
 
 	err = btrfs_interface_init();
 	if (err)
-		goto free_delayed_ref;
+		goto free_prelim_ref;
 
 	btrfs_init_lockdep();
 
