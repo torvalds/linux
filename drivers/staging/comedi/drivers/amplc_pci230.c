@@ -484,9 +484,6 @@ static const struct pci230_board pci230_boards[] = {
 		.id		= PCI_DEVICE_ID_PCI260,
 		.ai_chans	= 16,
 		.ai_bits	= 16,
-		.ao_chans	= 0,
-		.ao_bits	= 0,
-		.have_dio	= 0,
 		.min_hwver	= 1,
 	},
 	{
@@ -503,9 +500,6 @@ static const struct pci230_board pci230_boards[] = {
 		.id		= PCI_DEVICE_ID_PCI260,
 		.ai_chans	= 16,
 		.ai_bits	= 12,
-		.ao_chans	= 0,
-		.ao_bits	= 0,
-		.have_dio	= 0,
 	},
 	{
 		/* Wildcard matches any above */
