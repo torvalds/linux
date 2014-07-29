@@ -579,13 +579,16 @@ static struct smp_chan *smp_chan_create(struct l2cap_conn *conn)
 	struct smp_chan *smp;
 
 	smp = kzalloc(sizeof(*smp), GFP_ATOMIC);
-	if (!smp)
+	if (!smp) {
+		clear_bit(HCI_CONN_LE_SMP_PEND, &conn->hcon->flags);
 		return NULL;
+	}
 
 	smp->tfm_aes = crypto_alloc_blkcipher("ecb(aes)", 0, CRYPTO_ALG_ASYNC);
 	if (IS_ERR(smp->tfm_aes)) {
 		BT_ERR("Unable to create ECB crypto context");
 		kfree(smp);
+		clear_bit(HCI_CONN_LE_SMP_PEND, &conn->hcon->flags);
 		return NULL;
 	}
 
@@ -923,13 +926,13 @@ static u8 smp_cmd_security_req(struct l2cap_conn *conn, struct sk_buff *skb)
 	if (test_and_set_bit(HCI_CONN_LE_SMP_PEND, &hcon->flags))
 		return 0;
 
-	if (!test_bit(HCI_PAIRABLE, &hcon->hdev->dev_flags) &&
-	    (rp->auth_req & SMP_AUTH_BONDING))
-		return SMP_PAIRING_NOTSUPP;
-
 	smp = smp_chan_create(conn);
 	if (!smp)
 		return SMP_UNSPECIFIED;
+
+	if (!test_bit(HCI_PAIRABLE, &hcon->hdev->dev_flags) &&
+	    (rp->auth_req & SMP_AUTH_BONDING))
+		return SMP_PAIRING_NOTSUPP;
 
 	skb_pull(skb, sizeof(*rp));
 
