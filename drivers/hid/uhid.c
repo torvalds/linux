@@ -359,71 +359,6 @@ static int uhid_event_from_user(const char __user *buffer, size_t len,
 }
 #endif
 
-static int uhid_dev_create(struct uhid_device *uhid,
-			   const struct uhid_event *ev)
-{
-	struct hid_device *hid;
-	int ret;
-
-	if (uhid->running)
-		return -EALREADY;
-
-	uhid->rd_size = ev->u.create.rd_size;
-	if (uhid->rd_size <= 0 || uhid->rd_size > HID_MAX_DESCRIPTOR_SIZE)
-		return -EINVAL;
-
-	uhid->rd_data = kmalloc(uhid->rd_size, GFP_KERNEL);
-	if (!uhid->rd_data)
-		return -ENOMEM;
-
-	if (copy_from_user(uhid->rd_data, ev->u.create.rd_data,
-			   uhid->rd_size)) {
-		ret = -EFAULT;
-		goto err_free;
-	}
-
-	hid = hid_allocate_device();
-	if (IS_ERR(hid)) {
-		ret = PTR_ERR(hid);
-		goto err_free;
-	}
-
-	strncpy(hid->name, ev->u.create.name, 127);
-	hid->name[127] = 0;
-	strncpy(hid->phys, ev->u.create.phys, 63);
-	hid->phys[63] = 0;
-	strncpy(hid->uniq, ev->u.create.uniq, 63);
-	hid->uniq[63] = 0;
-
-	hid->ll_driver = &uhid_hid_driver;
-	hid->bus = ev->u.create.bus;
-	hid->vendor = ev->u.create.vendor;
-	hid->product = ev->u.create.product;
-	hid->version = ev->u.create.version;
-	hid->country = ev->u.create.country;
-	hid->driver_data = uhid;
-	hid->dev.parent = uhid_misc.this_device;
-
-	uhid->hid = hid;
-	uhid->running = true;
-
-	ret = hid_add_device(hid);
-	if (ret) {
-		hid_err(hid, "Cannot register HID device\n");
-		goto err_hid;
-	}
-
-	return 0;
-
-err_hid:
-	hid_destroy_device(hid);
-	uhid->hid = NULL;
-	uhid->running = false;
-err_free:
-	kfree(uhid->rd_data);
-	return ret;
-}
-
 static int uhid_dev_create2(struct uhid_device *uhid,
 			    const struct uhid_event *ev)
 {
@@ -482,6 +417,31 @@ err_hid:
 err_free:
 	kfree(uhid->rd_data);
 	return ret;
+}
+
+static int uhid_dev_create(struct uhid_device *uhid,
+			   struct uhid_event *ev)
+{
+	struct uhid_create_req orig;
+
+	orig = ev->u.create;
+
+	if (orig.rd_size <= 0 || orig.rd_size > HID_MAX_DESCRIPTOR_SIZE)
+		return -EINVAL;
+	if (copy_from_user(&ev->u.create2.rd_data, orig.rd_data, orig.rd_size))
+		return -EFAULT;
+
+	memcpy(ev->u.create2.name, orig.name, sizeof(orig.name));
+	memcpy(ev->u.create2.phys, orig.phys, sizeof(orig.phys));
+	memcpy(ev->u.create2.uniq, orig.uniq, sizeof(orig.uniq));
+	ev->u.create2.rd_size = orig.rd_size;
+	ev->u.create2.bus = orig.bus;
+	ev->u.create2.vendor = orig.vendor;
+	ev->u.create2.product = orig.product;
+	ev->u.create2.version = orig.version;
+	ev->u.create2.country = orig.country;
+
+	return uhid_dev_create2(uhid, ev);
 }
 
 static int uhid_dev_destroy(struct uhid_device *uhid)
