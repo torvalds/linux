@@ -587,8 +587,8 @@ static int intel_ddi_calc_wrpll_link(struct drm_i915_private *dev_priv,
 	return (refclk * n * 100) / (p * r);
 }
 
-void intel_ddi_clock_get(struct intel_encoder *encoder,
-			 struct intel_crtc_config *pipe_config)
+static void hsw_ddi_clock_get(struct intel_encoder *encoder,
+			      struct intel_crtc_config *pipe_config)
 {
 	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
 	int link_clock = 0;
@@ -641,6 +641,12 @@ void intel_ddi_clock_get(struct intel_encoder *encoder,
 						 &pipe_config->dp_m_n);
 	else
 		pipe_config->adjusted_mode.crtc_clock = pipe_config->port_clock;
+}
+
+void intel_ddi_clock_get(struct intel_encoder *encoder,
+			 struct intel_crtc_config *pipe_config)
+{
+	hsw_ddi_clock_get(encoder, pipe_config);
 }
 
 static void
@@ -1480,7 +1486,7 @@ void intel_ddi_get_config(struct intel_encoder *encoder,
 		dev_priv->vbt.edp_bpp = pipe_config->pipe_bpp;
 	}
 
-	intel_ddi_clock_get(encoder, pipe_config);
+	hsw_ddi_clock_get(encoder, pipe_config);
 }
 
 static void intel_ddi_destroy(struct drm_encoder *encoder)
