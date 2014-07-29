@@ -501,70 +501,67 @@ USHORT ClassifyPacket(struct bcm_mini_adapter *Adapter, struct sk_buff *skb)
 		 * Iterate through all classifiers which are already in order of priority
 		 * to classify the packet until match found
 		 */
-		do {
-			if (false == Adapter->astClassifierTable[uiLoopIndex].bUsed) {
+		if (false == Adapter->astClassifierTable[uiLoopIndex].bUsed) {
+			bClassificationSucceed = false;
+			continue;
+		}
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL,  "Adapter->PackInfo[%d].bvalid=True\n", uiLoopIndex);
+
+		if (0 == Adapter->astClassifierTable[uiLoopIndex].ucDirection) {
+			bClassificationSucceed = false; /* cannot be processed for classification. */
+			continue;	/* it is a down link connection */
+		}
+
+		pstClassifierRule = &Adapter->astClassifierTable[uiLoopIndex];
+
+		uiSfIndex = SearchSfid(Adapter, pstClassifierRule->ulSFID);
+		if (uiSfIndex >= NO_OF_QUEUES) {
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL,  "Queue Not Valid. SearchSfid for this classifier Failed\n");
+			continue;
+		}
+
+		if (Adapter->PackInfo[uiSfIndex].bEthCSSupport) {
+
+			if (eEthUnsupportedFrame == stEthCsPktInfo.eNwpktEthFrameType) {
+				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, " ClassifyPacket : Packet Not a Valid Supported Ethernet Frame\n");
 				bClassificationSucceed = false;
-				break;
-			}
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL,  "Adapter->PackInfo[%d].bvalid=True\n", uiLoopIndex);
-
-			if (0 == Adapter->astClassifierTable[uiLoopIndex].ucDirection) {
-				bClassificationSucceed = false; /* cannot be processed for classification. */
-				break;	/* it is a down link connection */
+				continue;
 			}
 
-			pstClassifierRule = &Adapter->astClassifierTable[uiLoopIndex];
 
-			uiSfIndex = SearchSfid(Adapter, pstClassifierRule->ulSFID);
-			if (uiSfIndex >= NO_OF_QUEUES) {
-				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL,  "Queue Not Valid. SearchSfid for this classifier Failed\n");
-				break;
+
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL,  "Performing ETH CS Classification on Classifier Rule ID : %x Service Flow ID : %lx\n", pstClassifierRule->uiClassifierRuleIndex, Adapter->PackInfo[uiSfIndex].ulSFID);
+			bClassificationSucceed = EThCSClassifyPkt(Adapter, skb, &stEthCsPktInfo, pstClassifierRule, Adapter->PackInfo[uiSfIndex].bEthCSSupport);
+
+			if (!bClassificationSucceed) {
+				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL,  "ClassifyPacket : Ethernet CS Classification Failed\n");
+				continue;
 			}
-
-			if (Adapter->PackInfo[uiSfIndex].bEthCSSupport) {
-
-				if (eEthUnsupportedFrame == stEthCsPktInfo.eNwpktEthFrameType) {
-					BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, " ClassifyPacket : Packet Not a Valid Supported Ethernet Frame\n");
-					bClassificationSucceed = false;
-					break;
-				}
-
-
-
-				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL,  "Performing ETH CS Classification on Classifier Rule ID : %x Service Flow ID : %lx\n", pstClassifierRule->uiClassifierRuleIndex, Adapter->PackInfo[uiSfIndex].ulSFID);
-				bClassificationSucceed = EThCSClassifyPkt(Adapter, skb, &stEthCsPktInfo, pstClassifierRule, Adapter->PackInfo[uiSfIndex].bEthCSSupport);
-
-				if (!bClassificationSucceed) {
-					BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL,  "ClassifyPacket : Ethernet CS Classification Failed\n");
-					break;
-				}
-			} else { /* No ETH Supported on this SF */
-				if (eEthOtherFrame != stEthCsPktInfo.eNwpktEthFrameType) {
-					BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, " ClassifyPacket : Packet Not a 802.3 Ethernet Frame... hence not allowed over non-ETH CS SF\n");
-					bClassificationSucceed = false;
-					break;
-				}
+		} else { /* No ETH Supported on this SF */
+			if (eEthOtherFrame != stEthCsPktInfo.eNwpktEthFrameType) {
+				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, " ClassifyPacket : Packet Not a 802.3 Ethernet Frame... hence not allowed over non-ETH CS SF\n");
+				bClassificationSucceed = false;
+				continue;
 			}
+		}
 
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL,  "Proceeding to IP CS Clasification");
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL,  "Proceeding to IP CS Clasification");
 
-			if (Adapter->PackInfo[uiSfIndex].bIPCSSupport) {
+		if (Adapter->PackInfo[uiSfIndex].bIPCSSupport) {
 
-				if (stEthCsPktInfo.eNwpktIPFrameType == eNonIPPacket) {
-					BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, " ClassifyPacket : Packet is Not an IP Packet\n");
-					bClassificationSucceed = false;
-					break;
-				}
-				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, "Dump IP Header :\n");
-				DumpFullPacket((PUCHAR)pIpHeader, 20);
-
-				if (stEthCsPktInfo.eNwpktIPFrameType == eIPv4Packet)
-					bClassificationSucceed = IpVersion4(Adapter, pIpHeader, pstClassifierRule);
-				else if (stEthCsPktInfo.eNwpktIPFrameType == eIPv6Packet)
-					bClassificationSucceed = IpVersion6(Adapter, pIpHeader, pstClassifierRule);
+			if (stEthCsPktInfo.eNwpktIPFrameType == eNonIPPacket) {
+				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, " ClassifyPacket : Packet is Not an IP Packet\n");
+				bClassificationSucceed = false;
+				continue;
 			}
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, "Dump IP Header :\n");
+			DumpFullPacket((PUCHAR)pIpHeader, 20);
 
-		} while (0);
+			if (stEthCsPktInfo.eNwpktIPFrameType == eIPv4Packet)
+				bClassificationSucceed = IpVersion4(Adapter, pIpHeader, pstClassifierRule);
+			else if (stEthCsPktInfo.eNwpktIPFrameType == eIPv6Packet)
+				bClassificationSucceed = IpVersion6(Adapter, pIpHeader, pstClassifierRule);
+		}
 	}
 
 	if (bClassificationSucceed == TRUE) {
