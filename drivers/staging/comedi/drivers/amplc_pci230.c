@@ -362,12 +362,6 @@
 #define PCI230_ADC_FIFOLEVEL_FULL	4096	/* FIFO size */
 
 /*
- * Value to write to ADCSWTRIG to trigger ADC conversion in software trigger
- * mode.  Can be anything.
- */
-#define PCI230_ADC_CONV			0xffff
-
-/*
  * PCI230+ EXTFUNC values.
  */
 /* Route EXTTRIG pin to external gate inputs. */
