@@ -1074,6 +1074,7 @@ rpcrdma_buffer_create(struct rpcrdma_buffer *buf, struct rpcrdma_ep *ep,
 	p += cdata->padding;
 
 	INIT_LIST_HEAD(&buf->rb_mws);
+	INIT_LIST_HEAD(&buf->rb_all);
 	r = (struct rpcrdma_mw *)p;
 	switch (ia->ri_memreg_strategy) {
 	case RPCRDMA_FRMR:
@@ -1098,6 +1099,7 @@ rpcrdma_buffer_create(struct rpcrdma_buffer *buf, struct rpcrdma_ep *ep,
 				ib_dereg_mr(r->r.frmr.fr_mr);
 				goto out;
 			}
+			list_add(&r->mw_all, &buf->rb_all);
 			list_add(&r->mw_list, &buf->rb_mws);
 			++r;
 		}
@@ -1116,6 +1118,7 @@ rpcrdma_buffer_create(struct rpcrdma_buffer *buf, struct rpcrdma_ep *ep,
 					" failed %i\n", __func__, rc);
 				goto out;
 			}
+			list_add(&r->mw_all, &buf->rb_all);
 			list_add(&r->mw_list, &buf->rb_mws);
 			++r;
 		}
@@ -1225,6 +1228,7 @@ rpcrdma_buffer_destroy(struct rpcrdma_buffer *buf)
 	while (!list_empty(&buf->rb_mws)) {
 		r = list_entry(buf->rb_mws.next,
 			struct rpcrdma_mw, mw_list);
+		list_del(&r->mw_all);
 		list_del(&r->mw_list);
 		switch (ia->ri_memreg_strategy) {
 		case RPCRDMA_FRMR:

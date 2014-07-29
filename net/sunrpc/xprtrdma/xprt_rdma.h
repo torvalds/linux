@@ -151,7 +151,7 @@ struct rpcrdma_rep {
  * An external memory region is any buffer or page that is registered
  * on the fly (ie, not pre-registered).
  *
- * Each rpcrdma_buffer has a list of these anchored in rb_mws. During
+ * Each rpcrdma_buffer has a list of free MWs anchored in rb_mws. During
  * call_allocate, rpcrdma_buffer_get() assigns one to each segment in
  * an rpcrdma_req. Then rpcrdma_register_external() grabs these to keep
  * track of registration metadata while each RPC is pending.
@@ -175,6 +175,7 @@ struct rpcrdma_mw {
 		struct rpcrdma_frmr	frmr;
 	} r;
 	struct list_head	mw_list;
+	struct list_head	mw_all;
 };
 
 /*
@@ -246,6 +247,7 @@ struct rpcrdma_buffer {
 	atomic_t	rb_credits;	/* most recent server credits */
 	int		rb_max_requests;/* client max requests */
 	struct list_head rb_mws;	/* optional memory windows/fmrs/frmrs */
+	struct list_head rb_all;
 	int		rb_send_index;
 	struct rpcrdma_req	**rb_send_bufs;
 	int		rb_recv_index;
