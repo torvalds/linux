@@ -65,8 +65,13 @@ struct mite_struct {
 
 struct mite_struct *mite_alloc(struct pci_dev *pcidev);
 
-int mite_setup(struct mite_struct *mite);
 int mite_setup2(struct mite_struct *mite, unsigned use_iodwbsr_1);
+
+static inline int mite_setup(struct mite_struct *mite)
+{
+	return mite_setup2(mite, 0);
+}
+
 void mite_detach(struct mite_struct *mite);
 struct mite_dma_descriptor_ring *mite_alloc_ring(struct mite_struct *mite);
 void mite_free_ring(struct mite_dma_descriptor_ring *ring);

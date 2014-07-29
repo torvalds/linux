@@ -168,12 +168,6 @@ int mite_setup2(struct mite_struct *mite, unsigned use_iodwbsr_1)
 }
 EXPORT_SYMBOL_GPL(mite_setup2);
 
-int mite_setup(struct mite_struct *mite)
-{
-	return mite_setup2(mite, 0);
-}
-EXPORT_SYMBOL_GPL(mite_setup);
-
 void mite_detach(struct mite_struct *mite)
 {
 	if (!mite)
