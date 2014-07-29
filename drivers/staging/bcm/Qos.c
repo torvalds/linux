@@ -235,7 +235,8 @@ bool MatchSrcPort(struct bcm_classifier_rule *pstClassifierRule,
 *
 * Returns     - TRUE(If address matches) else FAIL.
 ***************************************************************************/
-bool MatchDestPort(struct bcm_classifier_rule *pstClassifierRule, USHORT ushDestPort)
+bool MatchDestPort(struct bcm_classifier_rule *pstClassifierRule,
+		   USHORT ushDestPort)
 {
 	UCHAR ucLoopIndex = 0;
 	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
@@ -243,14 +244,28 @@ bool MatchDestPort(struct bcm_classifier_rule *pstClassifierRule, USHORT ushDest
 	if (0 == pstClassifierRule->ucDestPortRangeLength)
 		return TRUE;
 
-	for (ucLoopIndex = 0; ucLoopIndex < pstClassifierRule->ucDestPortRangeLength; ucLoopIndex++) {
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, "Matching Port:0x%X   0x%X  0x%X", ushDestPort, pstClassifierRule->usDestPortRangeLo[ucLoopIndex], pstClassifierRule->usDestPortRangeHi[ucLoopIndex]);
+	for (ucLoopIndex = 0;
+	     ucLoopIndex < pstClassifierRule->ucDestPortRangeLength;
+	     ucLoopIndex++) {
+		BCM_DEBUG_PRINT(Adapter,
+				DBG_TYPE_TX,
+				IPV4_DBG,
+				DBG_LVL_ALL,
+				"Matching Port:0x%X   0x%X  0x%X",
+				ushDestPort,
+				pstClassifierRule->usDestPortRangeLo[ucLoopIndex],
+				pstClassifierRule->usDestPortRangeHi[ucLoopIndex]);
 
 		if (ushDestPort <= pstClassifierRule->usDestPortRangeHi[ucLoopIndex] &&
 			ushDestPort >= pstClassifierRule->usDestPortRangeLo[ucLoopIndex])
 			return TRUE;
 	}
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, "Dest Port: %x Not Matched", ushDestPort);
+	BCM_DEBUG_PRINT(Adapter,
+			DBG_TYPE_TX,
+			IPV4_DBG,
+			DBG_LVL_ALL,
+			"Dest Port: %x Not Matched",
+			ushDestPort);
 	return false;
 }
 /**
