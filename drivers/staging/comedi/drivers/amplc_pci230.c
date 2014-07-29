@@ -664,10 +664,8 @@ static inline void pci230_ao_write_nofifo(struct comedi_device *dev,
 	devpriv->ao_readback[chan] = datum;
 
 	/* Write mangled datum to appropriate DACOUT register. */
-	outw(pci230_ao_mangle_datum(dev, datum), dev->iobase + (((chan) == 0)
-								? PCI230_DACOUT1
-								:
-								PCI230_DACOUT2));
+	outw(pci230_ao_mangle_datum(dev, datum),
+	     dev->iobase + (((chan) == 0) ? PCI230_DACOUT1 : PCI230_DACOUT2));
 }
 
 static inline void pci230_ao_write_fifo(struct comedi_device *dev,
