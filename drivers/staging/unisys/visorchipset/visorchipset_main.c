@@ -285,6 +285,14 @@ static ssize_t chipsetready_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count);
 static DEVICE_ATTR_WO(chipsetready);
 
+static ssize_t devicedisabled_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count);
+static DEVICE_ATTR_WO(devicedisabled);
+
+static ssize_t deviceenabled_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count);
+static DEVICE_ATTR_WO(deviceenabled);
+
 static struct attribute *visorchipset_install_attrs[] = {
 	&dev_attr_toolaction.attr,
 	&dev_attr_boottotool.attr,
@@ -309,9 +317,21 @@ static struct attribute_group visorchipset_guest_group = {
 	.attrs = visorchipset_guest_attrs
 };
 
+static struct attribute *visorchipset_parahotplug_attrs[] = {
+	&dev_attr_devicedisabled.attr,
+	&dev_attr_deviceenabled.attr,
+	NULL
+};
+
+static struct attribute_group visorchipset_parahotplug_group = {
+	.name = "parahotplug",
+	.attrs = visorchipset_parahotplug_attrs
+};
+
 static const struct attribute_group *visorchipset_dev_groups[] = {
 	&visorchipset_install_group,
 	&visorchipset_guest_group,
+	&visorchipset_parahotplug_group,
 	NULL
 };
 
@@ -2268,6 +2288,38 @@ static ssize_t chipsetready_store(struct device *dev,
 		return count;
 	} else
 		return -EINVAL;
+}
+
+/* The parahotplug/devicedisabled interface gets called by our support script
+ * when an SR-IOV device has been shut down. The ID is passed to the script
+ * and then passed back when the device has been removed.
+ */
+static ssize_t devicedisabled_store(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	uint id;
+
+	if (kstrtouint(buf, 10, &id) != 0)
+		return -EINVAL;
+
+	parahotplug_request_complete(id, 0);
+	return count;
+}
+
+/* The parahotplug/deviceenabled interface gets called by our support script
+ * when an SR-IOV device has been recovered. The ID is passed to the script
+ * and then passed back when the device has been brought back up.
+ */
+static ssize_t deviceenabled_store(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	uint id;
+
+	if (kstrtouint(buf, 10, &id) != 0)
+		return -EINVAL;
+
+	parahotplug_request_complete(id, 1);
+	return count;
 }
 
 static int __init
