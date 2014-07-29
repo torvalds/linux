@@ -327,10 +327,19 @@ static int xgbe_set_settings(struct net_device *netdev,
 	    (cmd->autoneg != AUTONEG_DISABLE))
 		goto unlock;
 
-	if ((cmd->autoneg == AUTONEG_DISABLE) &&
-	    (((speed != SPEED_10000) && (speed != SPEED_1000)) ||
-	     (cmd->duplex != DUPLEX_FULL)))
-		goto unlock;
+	if (cmd->autoneg == AUTONEG_DISABLE) {
+		switch (speed) {
+		case SPEED_10000:
+		case SPEED_2500:
+		case SPEED_1000:
+			break;
+		default:
+			goto unlock;
+		}
+
+		if (cmd->duplex != DUPLEX_FULL)
+			goto unlock;
+	}
 
 	cmd->advertising &= phydev->supported;
 	if ((cmd->autoneg == AUTONEG_ENABLE) && !cmd->advertising)
