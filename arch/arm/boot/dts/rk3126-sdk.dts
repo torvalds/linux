@@ -2,6 +2,7 @@
 
 #include "rk312x.dtsi"
 #include "rk312x-pinctrl.dtsi"
+#include "lcd-b101ew05.dtsi"
 
 / {
 	fiq-debugger {
@@ -77,7 +78,7 @@
 	};
 
 	&rk_screen {
-		//display-timings = <&disp_timings>;
+		display-timings = <&disp_timings>;
 	};
 
 	&lcdc {
