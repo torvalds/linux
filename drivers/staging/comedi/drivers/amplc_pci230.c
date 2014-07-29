@@ -2480,7 +2480,7 @@ static int pci230_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	 * channel gains and scan list _before_ the first FIFO reset also
 	 * helps, though only slightly.
 	 */
-	udelay(25);
+	usleep_range(25, 100);
 
 	/* Reset FIFO again. */
 	outw(adccon | PCI230_ADC_FIFO_RESET, dev->iobase + PCI230_ADCCON);
