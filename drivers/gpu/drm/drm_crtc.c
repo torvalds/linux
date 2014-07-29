@@ -4663,8 +4663,13 @@ out:
 void drm_mode_config_reset(struct drm_device *dev)
 {
 	struct drm_crtc *crtc;
+	struct drm_plane *plane;
 	struct drm_encoder *encoder;
 	struct drm_connector *connector;
+
+	list_for_each_entry(plane, &dev->mode_config.plane_list, head)
+		if (plane->funcs->reset)
+			plane->funcs->reset(plane);
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
 		if (crtc->funcs->reset)
