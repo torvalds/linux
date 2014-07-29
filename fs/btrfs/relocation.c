@@ -2316,7 +2316,7 @@ void free_reloc_roots(struct list_head *list)
 }
 
 static noinline_for_stack
-int merge_reloc_roots(struct reloc_control *rc)
+void merge_reloc_roots(struct reloc_control *rc)
 {
 	struct btrfs_root *root;
 	struct btrfs_root *reloc_root;
@@ -2397,7 +2397,6 @@ out:
 	}
 
 	BUG_ON(!RB_EMPTY_ROOT(&rc->reloc_root_tree.rb_root));
-	return ret;
 }
 
 static void free_block_list(struct rb_root *blocks)
