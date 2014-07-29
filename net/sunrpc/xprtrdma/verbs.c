@@ -1577,6 +1577,7 @@ rpcrdma_register_frmr_external(struct rpcrdma_mr_seg *seg,
 	if (rc) {
 		dprintk("RPC:       %s: failed ib_post_send for register,"
 			" status %i\n", __func__, rc);
+		ib_update_fast_reg_key(mr, --key);
 		goto out_err;
 	} else {
 		seg1->mr_rkey = mr->rkey;
