@@ -65,11 +65,12 @@ struct mite_struct {
 
 struct mite_struct *mite_alloc(struct pci_dev *pcidev);
 
-int mite_setup2(struct mite_struct *mite, unsigned use_iodwbsr_1);
+int mite_setup2(struct comedi_device *, struct mite_struct *, bool use_win1);
 
-static inline int mite_setup(struct mite_struct *mite)
+static inline int mite_setup(struct comedi_device *dev,
+			     struct mite_struct *mite)
 {
-	return mite_setup2(mite, 0);
+	return mite_setup2(dev, mite, false);
 }
 
 void mite_detach(struct mite_struct *mite);

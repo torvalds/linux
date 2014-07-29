@@ -94,7 +94,8 @@ static unsigned mite_fifo_size(struct mite_struct *mite, unsigned channel)
 	return empty_count + full_count;
 }
 
-int mite_setup2(struct mite_struct *mite, unsigned use_iodwbsr_1)
+int mite_setup2(struct comedi_device *dev,
+		struct mite_struct *mite, bool use_win1)
 {
 	unsigned long length;
 	int i;
@@ -105,7 +106,7 @@ int mite_setup2(struct mite_struct *mite, unsigned use_iodwbsr_1)
 
 	mite->mite_io_addr = pci_ioremap_bar(mite->pcidev, 0);
 	if (!mite->mite_io_addr) {
-		dev_err(&mite->pcidev->dev,
+		dev_err(dev->class_dev,
 			"Failed to remap mite io memory address\n");
 		return -ENOMEM;
 	}
@@ -113,16 +114,16 @@ int mite_setup2(struct mite_struct *mite, unsigned use_iodwbsr_1)
 
 	mite->daq_io_addr = pci_ioremap_bar(mite->pcidev, 1);
 	if (!mite->daq_io_addr) {
-		dev_err(&mite->pcidev->dev,
+		dev_err(dev->class_dev,
 			"Failed to remap daq io memory address\n");
 		return -ENOMEM;
 	}
 	mite->daq_phys_addr = pci_resource_start(mite->pcidev, 1);
 	length = pci_resource_len(mite->pcidev, 1);
 
-	if (use_iodwbsr_1) {
+	if (use_win1) {
 		writel(0, mite->mite_io_addr + MITE_IODWBSR);
-		dev_info(&mite->pcidev->dev,
+		dev_info(dev->class_dev,
 			 "using I/O Window Base Size register 1\n");
 		writel(mite->daq_phys_addr | WENAB |
 		       MITE_IODWBSR_1_WSIZE_bits(length),
@@ -148,7 +149,7 @@ int mite_setup2(struct mite_struct *mite, unsigned use_iodwbsr_1)
 	csigr_bits = readl(mite->mite_io_addr + MITE_CSIGR);
 	mite->num_channels = mite_csigr_dmac(csigr_bits);
 	if (mite->num_channels > MAX_MITE_DMA_CHANNELS) {
-		dev_warn(&mite->pcidev->dev,
+		dev_warn(dev->class_dev,
 			 "mite: bug? chip claims to have %i dma channels. Setting to %i.\n",
 			 mite->num_channels, MAX_MITE_DMA_CHANNELS);
 		mite->num_channels = MAX_MITE_DMA_CHANNELS;
@@ -163,7 +164,7 @@ int mite_setup2(struct mite_struct *mite, unsigned use_iodwbsr_1)
 		       mite->mite_io_addr + MITE_CHCR(i));
 	}
 	mite->fifo_size = mite_fifo_size(mite, 0);
-	dev_info(&mite->pcidev->dev, "fifo size is %i.\n", mite->fifo_size);
+	dev_info(dev->class_dev, "fifo size is %i.\n", mite->fifo_size);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mite_setup2);

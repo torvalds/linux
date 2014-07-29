@@ -968,11 +968,9 @@ static int nidio_auto_attach(struct comedi_device *dev,
 	if (!devpriv->mite)
 		return -ENOMEM;
 
-	ret = mite_setup(devpriv->mite);
-	if (ret < 0) {
-		dev_warn(dev->class_dev, "error setting up mite\n");
+	ret = mite_setup(dev, devpriv->mite);
+	if (ret < 0)
 		return ret;
-	}
 
 	devpriv->di_mite_ring = mite_alloc_ring(devpriv->mite);
 	if (devpriv->di_mite_ring == NULL)

@@ -1176,11 +1176,9 @@ static int pcimio_auto_attach(struct comedi_device *dev,
 	if (board->reg_type == ni_reg_6713)
 		devpriv->is_6713 = 1;
 
-	ret = mite_setup(devpriv->mite);
-	if (ret < 0) {
-		dev_warn(dev->class_dev, "error setting up mite\n");
+	ret = mite_setup(dev, devpriv->mite);
+	if (ret < 0)
 		return ret;
-	}
 
 	devpriv->ai_mite_ring = mite_alloc_ring(devpriv->mite);
 	if (devpriv->ai_mite_ring == NULL)
