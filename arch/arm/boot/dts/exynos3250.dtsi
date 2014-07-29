@@ -168,6 +168,15 @@
 			status = "disabled";
 		};
 
+		tmu: tmu@100C0000 {
+			compatible = "samsung,exynos3250-tmu";
+			reg = <0x100C0000 0x100>;
+			interrupts = <0 216 0>;
+			clocks = <&cmu CLK_TMU_APBIF>;
+			clock-names = "tmu_apbif";
+			status = "disabled";
+		};
+
 		gic: interrupt-controller@10481000 {
 			compatible = "arm,cortex-a15-gic";
 			#interrupt-cells = <3>;
