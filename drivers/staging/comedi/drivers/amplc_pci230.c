@@ -1616,10 +1616,10 @@ static int pci230_ai_check_chanlist(struct comedi_device *dev,
 
 			if (subseq_len > 0 &&
 			    cmd->chanlist[i % subseq_len] != chanspec) {
-					dev_dbg(dev->class_dev,
-						"%s: channel numbers must increase or sequence must repeat exactly\n",
-						__func__);
-					return -EINVAL;
+				dev_dbg(dev->class_dev,
+					"%s: channel numbers must increase or sequence must repeat exactly\n",
+					__func__);
+				return -EINVAL;
 			}
 
 			if (aref != prev_aref) {
