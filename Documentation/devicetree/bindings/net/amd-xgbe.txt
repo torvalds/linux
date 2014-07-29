@@ -18,6 +18,7 @@ Required properties:
 Optional properties:
 - mac-address: mac address to be assigned to the device. Can be overridden
   by UEFI.
+- dma-coherent: Present if dma operations are coherent
 
 Example:
 	xgbe@e0700000 {
