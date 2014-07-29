@@ -54,6 +54,16 @@ struct uhid_create2_req {
 	__u8 rd_data[HID_MAX_DESCRIPTOR_SIZE];
 } __attribute__((__packed__));
 
+enum uhid_dev_flag {
+	UHID_DEV_NUMBERED_FEATURE_REPORTS			= (1ULL << 0),
+	UHID_DEV_NUMBERED_OUTPUT_REPORTS			= (1ULL << 1),
+	UHID_DEV_NUMBERED_INPUT_REPORTS				= (1ULL << 2),
+};
+
+struct uhid_start_req {
+	__u64 dev_flags;
+};
+
 #define UHID_DATA_MAX 4096
 
 enum uhid_report_type {
@@ -182,6 +192,7 @@ struct uhid_event {
 		struct uhid_input2_req input2;
 		struct uhid_set_report_req set_report;
 		struct uhid_set_report_reply_req set_report_reply;
+		struct uhid_start_req start;
 	} u;
 } __attribute__((__packed__));
 
