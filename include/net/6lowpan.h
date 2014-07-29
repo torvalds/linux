@@ -155,17 +155,6 @@
 #define LOWPAN_FRAGN_HEAD_SIZE	0x5
 
 /*
- * According IEEE802.15.4 standard:
- *   - MTU is 127 octets
- *   - maximum MHR size is 37 octets
- *   - MFR size is 2 octets
- *
- * so minimal payload size that we may guarantee is:
- *   MTU - MHR - MFR = 88 octets
- */
-#define LOWPAN_FRAG_SIZE	88
-
-/*
  * Values of fields within the IPHC encoding first byte
  * (C stands for compressed and I for inline)
  */
