@@ -98,18 +98,10 @@ static CONTROLVM_MESSAGE_PACKET g_DeviceChangeStatePacket;
 #define is_diagpool_channel(channel_type_guid) \
 	 (uuid_le_cmp(channel_type_guid, UltraDiagPoolChannelProtocolGuid) == 0)
 
-#define VISORCHIPSET_PARAHOTPLUG_PROC_ENTRY_FN "parahotplug"
-static struct proc_dir_entry *parahotplug_proc_dir;
-
 static LIST_HEAD(BusInfoList);
 static LIST_HEAD(DevInfoList);
 
-static struct proc_dir_entry *ProcDir;
 static VISORCHANNEL *ControlVm_channel;
-
-static ssize_t visorchipset_proc_read_writeonly(struct file *file,
-						char __user *buf,
-						size_t len, loff_t *offset);
 
 typedef struct {
 	U8 __iomem *ptr;	/* pointer to base address of payload pool */
@@ -1736,53 +1728,6 @@ parahotplug_process_message(CONTROLVM_MESSAGE *inmsg)
 	}
 }
 
-/*
- * Gets called when the udev script writes to
- * /proc/visorchipset/parahotplug.  Expects input in the form of "<id>
- * <active>" where <id> is the identifier passed to the script that
- * matches a request on the request list, and <active> is 0 or 1
- * indicating whether the device is now enabled or not.
- */
-static ssize_t
-parahotplug_proc_write(struct file *file, const char __user *buffer,
-		       size_t count, loff_t *ppos)
-{
-	char buf[64];
-	uint id;
-	ushort active;
-
-	if (count > sizeof(buf) - 1) {
-		LOGERR("parahotplug_proc_write: count (%d) exceeds size of buffer (%d)",
-		     (int) count, (int) sizeof(buf));
-		return -EINVAL;
-	}
-	if (copy_from_user(buf, buffer, count)) {
-		LOGERR("parahotplug_proc_write: copy_from_user failed");
-		return -EFAULT;
-	}
-	buf[count] = '\0';
-
-	if (sscanf(buf, "%u %hu", &id, &active) != 2) {
-		id = 0;
-		active = 0;
-	}
-
-	if (active != 1 && active != 0) {
-		LOGERR("parahotplug_proc_write: invalid active field");
-		return -EINVAL;
-	}
-
-	parahotplug_request_complete((int) id, (U16) active);
-
-	return count;
-}
-
-static const struct file_operations parahotplug_proc_fops = {
-	.owner = THIS_MODULE,
-	.read = visorchipset_proc_read_writeonly,
-	.write = parahotplug_proc_write,
-};
-
 /* Process a controlvm message.
  * Return result:
  *    FALSE - this function will return FALSE only in the case where the
@@ -2325,13 +2270,6 @@ static ssize_t chipsetready_store(struct device *dev,
 		return -EINVAL;
 }
 
-static ssize_t
-visorchipset_proc_read_writeonly(struct file *file, char __user *buf,
-				 size_t len, loff_t *offset)
-{
-	return 0;
-}
-
 static int __init
 visorchipset_init(void)
 {
@@ -2405,9 +2343,6 @@ visorchipset_init(void)
 
 	memset(&g_ChipSetMsgHdr, 0, sizeof(CONTROLVM_MESSAGE_HEADER));
 
-	parahotplug_proc_dir =
-	    proc_create(VISORCHIPSET_PARAHOTPLUG_PROC_ENTRY_FN, 0200,
-			ProcDir, &parahotplug_proc_fops);
 	memset(&g_DelDumpMsgHdr, 0, sizeof(CONTROLVM_MESSAGE_HEADER));
 
 	Putfile_buffer_list_pool =
@@ -2499,12 +2434,6 @@ visorchipset_exit(void)
 	memset(&g_DiagMsgHdr, 0, sizeof(CONTROLVM_MESSAGE_HEADER));
 
 	memset(&g_ChipSetMsgHdr, 0, sizeof(CONTROLVM_MESSAGE_HEADER));
-
-	if (parahotplug_proc_dir) {
-		remove_proc_entry(VISORCHIPSET_PARAHOTPLUG_PROC_ENTRY_FN,
-				  ProcDir);
-		parahotplug_proc_dir = NULL;
-	}
 
 	memset(&g_DelDumpMsgHdr, 0, sizeof(CONTROLVM_MESSAGE_HEADER));
 
