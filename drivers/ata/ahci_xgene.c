@@ -163,11 +163,11 @@ static void xgene_ahci_set_phy_cfg(struct xgene_ahci_context *ctx, int channel)
 	/* Disable fix rate */
 	writel(0x0001fffe, mmio + PORTPHY1CFG);
 	readl(mmio + PORTPHY1CFG); /* Force a barrier */
-	writel(0x5018461c, mmio + PORTPHY2CFG);
+	writel(0x28183219, mmio + PORTPHY2CFG);
 	readl(mmio + PORTPHY2CFG); /* Force a barrier */
-	writel(0x1c081907, mmio + PORTPHY3CFG);
+	writel(0x13081008, mmio + PORTPHY3CFG);
 	readl(mmio + PORTPHY3CFG); /* Force a barrier */
-	writel(0x1c080815, mmio + PORTPHY4CFG);
+	writel(0x00480815, mmio + PORTPHY4CFG);
 	readl(mmio + PORTPHY4CFG); /* Force a barrier */
 	/* Set window negotiation */
 	val = readl(mmio + PORTPHY5CFG);
