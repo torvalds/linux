@@ -247,19 +247,6 @@
 #define PCI230P2_DACEN		0x06	/* DAC channel enable (FIFO mode) */
 
 /*
- * Convertor related constants.
- */
-/* Analogue output settling time in µs (DAC itself is 1µs nominally). */
-#define PCI230_DAC_SETTLE 5
-/*
- * Analogue input settling time in µs (ADC itself is 1.6µs nominally but we
- * poll anyway).
- */
-#define PCI230_ADC_SETTLE 1
-/* ADC MUX settling time in µS - 10µs for se, 20µs de. */
-#define PCI230_MUX_SETTLE 10
-
-/*
  * DACCON read-write values.
  */
 #define PCI230_DAC_OR_UNI		(0<<0)	/* Output range unipolar */
