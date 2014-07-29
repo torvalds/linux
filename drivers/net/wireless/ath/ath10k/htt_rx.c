@@ -819,19 +819,55 @@ static bool ath10k_htt_rx_h_channel(struct ath10k *ar,
 	return true;
 }
 
+static const char * const tid_to_ac[] = {
+	"BE",
+	"BK",
+	"BK",
+	"BE",
+	"VI",
+	"VI",
+	"VO",
+	"VO",
+};
+
+static char *ath10k_get_tid(struct ieee80211_hdr *hdr, char *out, size_t size)
+{
+	u8 *qc;
+	int tid;
+
+	if (!ieee80211_is_data_qos(hdr->frame_control))
+		return "";
+
+	qc = ieee80211_get_qos_ctl(hdr);
+	tid = *qc & IEEE80211_QOS_CTL_TID_MASK;
+	if (tid < 8)
+		snprintf(out, size, "tid %d (%s)", tid, tid_to_ac[tid]);
+	else
+		snprintf(out, size, "tid %d", tid);
+
+	return out;
+}
+
 static void ath10k_process_rx(struct ath10k *ar,
 			      struct ieee80211_rx_status *rx_status,
 			      struct sk_buff *skb)
 {
 	struct ieee80211_rx_status *status;
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+	char tid[32];
 
 	status = IEEE80211_SKB_RXCB(skb);
 	*status = *rx_status;
 
 	ath10k_dbg(ATH10K_DBG_DATA,
-		   "rx skb %p len %u %s%s%s%s%s %srate_idx %u vht_nss %u freq %u band %u flag 0x%x fcs-err %imic-err %i\n",
+		   "rx skb %p len %u peer %pM %s %s sn %u %s%s%s%s%s %srate_idx %u vht_nss %u freq %u band %u flag 0x%x fcs-err %i mic-err %i amsdu-more %i\n",
 		   skb,
 		   skb->len,
+		   ieee80211_get_SA(hdr),
+		   ath10k_get_tid(hdr, tid, sizeof(tid)),
+		   is_multicast_ether_addr(ieee80211_get_DA(hdr)) ?
+							"mcast" : "ucast",
+		   (__le16_to_cpu(hdr->seq_ctrl) & IEEE80211_SCTL_SEQ) >> 4,
 		   status->flag == 0 ? "legacy" : "",
 		   status->flag & RX_FLAG_HT ? "ht" : "",
 		   status->flag & RX_FLAG_VHT ? "vht" : "",
@@ -843,7 +879,8 @@ static void ath10k_process_rx(struct ath10k *ar,
 		   status->freq,
 		   status->band, status->flag,
 		   !!(status->flag & RX_FLAG_FAILED_FCS_CRC),
-		   !!(status->flag & RX_FLAG_MMIC_ERROR));
+		   !!(status->flag & RX_FLAG_MMIC_ERROR),
+		   !!(status->flag & RX_FLAG_AMSDU_MORE));
 	ath10k_dbg_dump(ATH10K_DBG_HTT_DUMP, NULL, "rx skb: ",
 			skb->data, skb->len);
 
@@ -866,7 +903,7 @@ static void ath10k_htt_rx_amsdu(struct ath10k_htt *htt,
 	enum rx_msdu_decap_format fmt;
 	enum htt_rx_mpdu_encrypt_type enctype;
 	struct ieee80211_hdr *hdr;
-	u8 hdr_buf[64], addr[ETH_ALEN], *qos;
+	u8 hdr_buf[64], da[ETH_ALEN], sa[ETH_ALEN], *qos;
 	unsigned int hdr_len;
 
 	rxd = (void *)skb->data - sizeof(*rxd);
@@ -904,10 +941,11 @@ static void ath10k_htt_rx_amsdu(struct ath10k_htt *htt,
 			skb_trim(skb, skb->len - FCS_LEN);
 			break;
 		case RX_MSDU_DECAP_NATIVE_WIFI:
-			/* pull decapped header and copy DA */
+			/* pull decapped header and copy SA & DA */
 			hdr = (struct ieee80211_hdr *)skb->data;
 			hdr_len = ath10k_htt_rx_nwifi_hdrlen(hdr);
-			memcpy(addr, ieee80211_get_DA(hdr), ETH_ALEN);
+			memcpy(da, ieee80211_get_DA(hdr), ETH_ALEN);
+			memcpy(sa, ieee80211_get_SA(hdr), ETH_ALEN);
 			skb_pull(skb, hdr_len);
 
 			/* push original 802.11 header */
@@ -921,8 +959,11 @@ static void ath10k_htt_rx_amsdu(struct ath10k_htt *htt,
 			qos = ieee80211_get_qos_ctl(hdr);
 			qos[0] &= ~IEEE80211_QOS_CTL_A_MSDU_PRESENT;
 
-			/* original 802.11 header has a different DA */
-			memcpy(ieee80211_get_DA(hdr), addr, ETH_ALEN);
+			/* original 802.11 header has a different DA and in
+			 * case of 4addr it may also have different SA
+			 */
+			memcpy(ieee80211_get_DA(hdr), da, ETH_ALEN);
+			memcpy(ieee80211_get_SA(hdr), sa, ETH_ALEN);
 			break;
 		case RX_MSDU_DECAP_ETHERNET2_DIX:
 			/* strip ethernet header and insert decapped 802.11
