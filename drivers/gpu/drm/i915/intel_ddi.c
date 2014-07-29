@@ -708,23 +708,10 @@ intel_ddi_calculate_wrpll(int clock /* in Hz */,
 	*r2_out = best.r2;
 }
 
-/*
- * Tries to find a *shared* PLL for the CRTC and store it in
- * intel_crtc->ddi_pll_sel.
- *
- * For private DPLLs, compute_config() should do the selection for us. This
- * function should be folded into compute_config() eventually.
- */
-bool intel_ddi_pll_select(struct intel_crtc *intel_crtc)
+static bool
+hsw_ddi_pll_select(struct intel_crtc *intel_crtc, int output, int clock)
 {
-	struct drm_crtc *crtc = &intel_crtc->base;
-	struct intel_encoder *intel_encoder = intel_ddi_get_crtc_encoder(crtc);
-	int type = intel_encoder->type;
-	int clock = intel_crtc->config.port_clock;
-
-	intel_put_shared_dpll(intel_crtc);
-
-	if (type == INTEL_OUTPUT_HDMI) {
+	if (output == INTEL_OUTPUT_HDMI) {
 		struct intel_shared_dpll *pll;
 		uint32_t val;
 		unsigned p, n2, r2;
@@ -748,6 +735,26 @@ bool intel_ddi_pll_select(struct intel_crtc *intel_crtc)
 	}
 
 	return true;
+}
+
+
+/*
+ * Tries to find a *shared* PLL for the CRTC and store it in
+ * intel_crtc->ddi_pll_sel.
+ *
+ * For private DPLLs, compute_config() should do the selection for us. This
+ * function should be folded into compute_config() eventually.
+ */
+bool intel_ddi_pll_select(struct intel_crtc *intel_crtc)
+{
+	struct drm_crtc *crtc = &intel_crtc->base;
+	struct intel_encoder *intel_encoder = intel_ddi_get_crtc_encoder(crtc);
+	int type = intel_encoder->type;
+	int clock = intel_crtc->config.port_clock;
+
+	intel_put_shared_dpll(intel_crtc);
+
+	return hsw_ddi_pll_select(intel_crtc, type, clock);
 }
 
 void intel_ddi_set_pipe_settings(struct drm_crtc *crtc)
