@@ -989,43 +989,70 @@ static bool EthCSMatchEThTypeSAP(struct bcm_classifier_rule *pstClassifierRule,
 
 }
 
-static bool EthCSMatchVLANRules(struct bcm_classifier_rule *pstClassifierRule, struct sk_buff *skb, struct bcm_eth_packet_info *pstEthCsPktInfo)
+static bool EthCSMatchVLANRules(struct bcm_classifier_rule *pstClassifierRule,
+				struct sk_buff *skb,
+				struct bcm_eth_packet_info *pstEthCsPktInfo)
 {
 	bool bClassificationSucceed = false;
 	USHORT usVLANID;
 	B_UINT8 uPriority = 0;
 	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
 
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL,  "%s  CLS UserPrio:%x CLS VLANID:%x\n", __func__, ntohs(*((USHORT *)pstClassifierRule->usUserPriority)), pstClassifierRule->usVLANID);
+	BCM_DEBUG_PRINT(Adapter,
+			DBG_TYPE_TX,
+			IPV4_DBG,
+			DBG_LVL_ALL,
+			"%s  CLS UserPrio:%x CLS VLANID:%x\n",
+			__func__,
+			ntohs(*((USHORT *)pstClassifierRule->usUserPriority)),
+			pstClassifierRule->usVLANID);
 
 	/*
 	 * In case FW didn't receive the TLV,
 	 * the priority field should be ignored
 	 */
-	if (pstClassifierRule->usValidityBitMap & (1<<PKT_CLASSIFICATION_USER_PRIORITY_VALID)) {
+	if (pstClassifierRule->usValidityBitMap &
+			(1<<PKT_CLASSIFICATION_USER_PRIORITY_VALID)) {
 		if (pstEthCsPktInfo->eNwpktEthFrameType != eEth802QVLANFrame)
 				return false;
 
-		uPriority = (ntohs(*(USHORT *)(skb->data + sizeof(struct bcm_eth_header))) & 0xF000) >> 13;
+		uPriority = (ntohs(*(USHORT *)(skb->data +
+				   sizeof(struct bcm_eth_header))) &
+				   0xF000) >> 13;
 
-		if ((uPriority >= pstClassifierRule->usUserPriority[0]) && (uPriority <= pstClassifierRule->usUserPriority[1]))
-				bClassificationSucceed = TRUE;
+		if ((uPriority >= pstClassifierRule->usUserPriority[0]) &&
+				(uPriority <=
+				 pstClassifierRule->usUserPriority[1]))
+			bClassificationSucceed = TRUE;
 
 		if (!bClassificationSucceed)
 			return false;
 	}
 
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL,  "ETH CS 802.1 D  User Priority Rule Matched\n");
+	BCM_DEBUG_PRINT(Adapter,
+			DBG_TYPE_TX,
+			IPV4_DBG,
+			DBG_LVL_ALL,
+			"ETH CS 802.1 D  User Priority Rule Matched\n");
 
 	bClassificationSucceed = false;
 
-	if (pstClassifierRule->usValidityBitMap & (1<<PKT_CLASSIFICATION_VLANID_VALID)) {
+	if (pstClassifierRule->usValidityBitMap &
+			(1<<PKT_CLASSIFICATION_VLANID_VALID)) {
 		if (pstEthCsPktInfo->eNwpktEthFrameType != eEth802QVLANFrame)
 				return false;
 
-		usVLANID = ntohs(*(USHORT *)(skb->data + sizeof(struct bcm_eth_header))) & 0xFFF;
+		usVLANID = ntohs(*(USHORT *)(skb->data +
+					sizeof(struct bcm_eth_header))) & 0xFFF;
 
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL,  "%s  Pkt VLANID %x Priority: %d\n", __func__, usVLANID, uPriority);
+		BCM_DEBUG_PRINT(Adapter,
+				DBG_TYPE_TX,
+				IPV4_DBG,
+				DBG_LVL_ALL,
+				"%s  Pkt VLANID %x Priority: %d\n",
+				__func__,
+				usVLANID,
+				uPriority);
 
 		if (usVLANID == ((pstClassifierRule->usVLANID & 0xFFF0) >> 4))
 			bClassificationSucceed = TRUE;
@@ -1034,7 +1061,11 @@ static bool EthCSMatchVLANRules(struct bcm_classifier_rule *pstClassifierRule, s
 			return false;
 	}
 
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL,  "ETH CS 802.1 Q VLAN ID Rule Matched\n");
+	BCM_DEBUG_PRINT(Adapter,
+			DBG_TYPE_TX,
+			IPV4_DBG,
+			DBG_LVL_ALL,
+			"ETH CS 802.1 Q VLAN ID Rule Matched\n");
 
 	return TRUE;
 }
