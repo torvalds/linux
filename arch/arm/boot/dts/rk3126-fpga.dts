@@ -18,4 +18,17 @@
 	fiq-debugger {
 		status = "okay";
 	};
+
+	&fb {
+		rockchip,disp-mode = <ONE_DUAL>;
+        };
+
+	&rk_screen {
+		display-timings = <&disp_timings>;
+	};
+
+	&lcdc {
+		status = "okay";
+	};
+
 };

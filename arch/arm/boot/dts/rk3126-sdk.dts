@@ -71,6 +71,28 @@
 	};
 };
 
+	&fb {
+		rockchip,disp-mode = <ONE_DUAL>;
+		rockchip,uboot-logo-on = <0>;
+	};
+
+	&rk_screen {
+		//display-timings = <&disp_timings>;
+	};
+
+	&lcdc {
+		status = "okay";
+
+		power_ctr: power_ctr {
+			rockchip,debug = <0>;
+			lcd_en: lcd_en {
+				rockchip,power_type = <GPIO>;
+				gpios = <&gpio1 GPIO_B3 GPIO_ACTIVE_HIGH>;
+				rockchip,delay = <10>;
+			};
+		};
+	};
+
 /include/ "rk818.dtsi"
 &rk818 {
 	gpios =<&gpio1 GPIO_B1 GPIO_ACTIVE_HIGH>,<&gpio1 GPIO_A1 GPIO_ACTIVE_LOW>;

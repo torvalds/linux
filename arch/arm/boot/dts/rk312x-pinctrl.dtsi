@@ -792,6 +792,28 @@
 
 		};
 
+		gpio2_lcdc0 {
+			lcdc0_lcdc:lcdc0-lcdc {
+				rockchip,pins =
+						<LCDC0_DCLK>,
+						<LCDC0_DEN>,
+						<LCDC0_HSYNC>,
+						<LCDC0_VSYNC>;
+				rockchip,pull = <VALUE_PULL_DISABLE>;
+				rockchip,drive = <VALUE_DRV_DEFAULT>;
+			};
+
+			lcdc0_gpio:lcdc0-gpio {
+				rockchip,pins =
+						<FUNC_TO_GPIO(LCDC0_DCLK)>,
+						<FUNC_TO_GPIO(LCDC0_DEN)>,
+						<FUNC_TO_GPIO(LCDC0_HSYNC)>,
+						<FUNC_TO_GPIO(LCDC0_VSYNC)>;
+				rockchip,pull = <VALUE_PULL_DISABLE>;
+				rockchip,drive = <VALUE_DRV_DEFAULT>;
+			};
+
+		};
 
 		//to add 
 

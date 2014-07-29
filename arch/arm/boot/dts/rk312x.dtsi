@@ -2,6 +2,7 @@
 #include <dt-bindings/suspend/rockchip-pm.h>
 #include <dt-bindings/sensor-dev.h>
 #include <dt-bindings/clock/rk_system_status.h>
+#include <dt-bindings/rkfb/rk_fb.h>
 
 #include "skeleton.dtsi"
 #include "rk312x-clocks.dtsi"
@@ -19,6 +20,7 @@
 		i2c1 = &i2c1;
 		i2c2 = &i2c2;
 		i2c3 = &i2c3;
+		lcdc = &lcdc;
 	//	spi0 = &spi0;
 	};
 
@@ -538,6 +540,36 @@
                 clock-names = "pclk_pwm";
                 status = "disabled";
         };
+
+	fb: fb{
+		compatible = "rockchip,rk-fb";
+		rockchip,disp-mode = <ONE_DUAL>;
+	};
+
+	rk_screen: rk_screen{
+		compatible = "rockchip,screen";
+	};
+
+	lvds: lvds@20038000 {
+		compatible = "rockchip,rk31xx-lvds";
+		reg = <0x20038000 0x4000>;
+		clocks = <&clk_gates5 0>;
+		clock-names = "pclk_lvds";
+	};
+
+	lcdc: lcdc@1010e000 {
+		compatible = "rockchip,rk312x-lcdc";
+		rockchip,prop = <PRMRY>;
+		reg = <0x1010e000 0x2000>;
+		interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>;
+		pinctrl-names = "default", "gpio";
+		pinctrl-0 = <&lcdc0_lcdc>;
+		pinctrl-1 = <&lcdc0_gpio>;
+		clocks = <&clk_gates6 0>, <&dclk_lcdc0>, <&clk_gates6 1>, <&sclk_lcdc0>;
+		clock-names = "aclk_lcdc", "dclk_lcdc", "hclk_lcdc", "sclk";
+		rockchip,iommu-enabled = <1>;
+		status = "disabled";
+	};
 
         vpu: vpu_service@10104000 {
 		compatible = "vpu_service";
