@@ -1432,7 +1432,7 @@ static void ath10k_wmi_event_host_swba(struct ath10k *ar, struct sk_buff *skb)
 			continue;
 		}
 
-		ath10k_tx_h_seq_no(bcn);
+		ath10k_tx_h_seq_no(arvif->vif, bcn);
 		ath10k_wmi_update_tim(ar, arvif, bcn, bcn_info);
 		ath10k_wmi_update_noa(ar, arvif, bcn, bcn_info);
 

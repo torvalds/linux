@@ -1291,6 +1291,22 @@ static void smp_notify_keys(struct l2cap_conn *conn)
 		bacpy(&hcon->dst, &smp->remote_irk->bdaddr);
 		hcon->dst_type = smp->remote_irk->addr_type;
 		l2cap_conn_update_id_addr(hcon);
+
+		/* When receiving an indentity resolving key for
+		 * a remote device that does not use a resolvable
+		 * private address, just remove the key so that
+		 * it is possible to use the controller white
+		 * list for scanning.
+		 *
+		 * Userspace will have been told to not store
+		 * this key at this point. So it is safe to
+		 * just remove it.
+		 */
+		if (!bacmp(&smp->remote_irk->rpa, BDADDR_ANY)) {
+			list_del(&smp->remote_irk->list);
+			kfree(smp->remote_irk);
+			smp->remote_irk = NULL;
+		}
 	}
 
 	/* The LTKs and CSRKs should be persistent only if both sides

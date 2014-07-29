@@ -46,3 +46,5 @@ brcmfmac-$(CONFIG_BRCMDBG) += \
 		dhd_dbg.o
 brcmfmac-$(CONFIG_BRCM_TRACING) += \
 		tracepoint.o
+brcmfmac-$(CONFIG_OF) += \
+		of.o
