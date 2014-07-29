@@ -194,9 +194,6 @@ static int __init opal_register_exception_handlers(void)
 	 * fwnmi area at 0x7000 to provide the glue space to OPAL
 	 */
 	glue = 0x7000;
-	opal_register_exception_handler(OPAL_HYPERVISOR_MAINTENANCE_HANDLER,
-					0, glue);
-	glue += 128;
 	opal_register_exception_handler(OPAL_SOFTPATCH_HANDLER, 0, glue);
 #endif
 
@@ -517,15 +514,41 @@ int opal_machine_check(struct pt_regs *regs)
 /* Early hmi handler called in real mode. */
 int opal_hmi_exception_early(struct pt_regs *regs)
 {
-	/* TODO: Call opal hmi handler. */
+	s64 rc;
+
+	/*
+	 * call opal hmi handler. Pass paca address as token.
+	 * The return value OPAL_SUCCESS is an indication that there is
+	 * an HMI event generated waiting to pull by Linux.
+	 */
+	rc = opal_handle_hmi();
+	if (rc == OPAL_SUCCESS) {
+		local_paca->hmi_event_available = 1;
+		return 1;
+	}
 	return 0;
 }
 
 /* HMI exception handler called in virtual mode during check_irq_replay. */
 int opal_handle_hmi_exception(struct pt_regs *regs)
 {
-	/* TODO: Retrive and print HMI event from OPAL. */
-	return 0;
+	s64 rc;
+	__be64 evt = 0;
+
+	/*
+	 * Check if HMI event is available.
+	 * if Yes, then call opal_poll_events to pull opal messages and
+	 * process them.
+	 */
+	if (!local_paca->hmi_event_available)
+		return 0;
+
+	local_paca->hmi_event_available = 0;
+	rc = opal_poll_events(&evt);
+	if (rc == OPAL_SUCCESS && evt)
+		opal_do_notifier(be64_to_cpu(evt));
+
+	return 1;
 }
 
 static uint64_t find_recovery_address(uint64_t nip)

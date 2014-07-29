@@ -167,6 +167,7 @@ struct paca_struct {
 	 * and already using emergency stack.
 	 */
 	u16 in_mce;
+	u8 hmi_event_available;		 /* HMI event is available */
 #endif
 
 	/* Stuff for accurate time accounting */
