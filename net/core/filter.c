@@ -841,6 +841,12 @@ static void sk_release_orig_filter(struct sk_filter *fp)
 	}
 }
 
+static void __sk_filter_release(struct sk_filter *fp)
+{
+	sk_release_orig_filter(fp);
+	sk_filter_free(fp);
+}
+
 /**
  * 	sk_filter_release_rcu - Release a socket filter by rcu_head
  *	@rcu: rcu_head that contains the sk_filter to free
@@ -849,8 +855,7 @@ static void sk_filter_release_rcu(struct rcu_head *rcu)
 {
 	struct sk_filter *fp = container_of(rcu, struct sk_filter, rcu);
 
-	sk_release_orig_filter(fp);
-	sk_filter_free(fp);
+	__sk_filter_release(fp);
 }
 
 /**
@@ -1050,7 +1055,7 @@ EXPORT_SYMBOL_GPL(sk_unattached_filter_create);
 
 void sk_unattached_filter_destroy(struct sk_filter *fp)
 {
-	sk_filter_release(fp);
+	__sk_filter_release(fp);
 }
 EXPORT_SYMBOL_GPL(sk_unattached_filter_destroy);
 

@@ -293,11 +293,15 @@ static int lb_bpf_func_set(struct team *team, struct team_gsetter_ctx *ctx)
 		__fprog_destroy(lb_priv->ex->orig_fprog);
 		orig_fp = rcu_dereference_protected(lb_priv->fp,
 						lockdep_is_held(&team->lock));
-		sk_unattached_filter_destroy(orig_fp);
 	}
 
 	rcu_assign_pointer(lb_priv->fp, fp);
 	lb_priv->ex->orig_fprog = fprog;
+
+	if (orig_fp) {
+		synchronize_rcu();
+		sk_unattached_filter_destroy(orig_fp);
+	}
 	return 0;
 }
 
