@@ -34,12 +34,9 @@ static UCHAR *GetNextIPV6ChainedHeader(UCHAR **ppucPayload,
 
 	switch (*pucNextHeader) {
 	case IPV6HDR_TYPE_HOPBYHOP:
-		{
-
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV6_DBG,
-					DBG_LVL_ALL, "\nIPv6 HopByHop Header");
-			usNextHeaderOffset += sizeof(struct bcm_ipv6_options_hdr);
-		}
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV6_DBG,
+				DBG_LVL_ALL, "\nIPv6 HopByHop Header");
+		usNextHeaderOffset += sizeof(struct bcm_ipv6_options_hdr);
 		break;
 
 	case IPV6HDR_TYPE_ROUTING:
@@ -48,37 +45,41 @@ static UCHAR *GetNextIPV6ChainedHeader(UCHAR **ppucPayload,
 
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV6_DBG,
 					DBG_LVL_ALL, "\nIPv6 Routing Header");
-			pstIpv6RoutingHeader = (struct bcm_ipv6_routing_hdr *)pucPayloadPtr;
+			pstIpv6RoutingHeader =
+				(struct bcm_ipv6_routing_hdr *)pucPayloadPtr;
 			usNextHeaderOffset += sizeof(struct bcm_ipv6_routing_hdr);
-			usNextHeaderOffset += pstIpv6RoutingHeader->ucNumAddresses * IPV6_ADDRESS_SIZEINBYTES;
-
+			usNextHeaderOffset += pstIpv6RoutingHeader->ucNumAddresses *
+					      IPV6_ADDRESS_SIZEINBYTES;
 		}
 		break;
+
 	case IPV6HDR_TYPE_FRAGMENTATION:
-		{
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV6_DBG,
-					DBG_LVL_ALL,
-					"\nIPv6 Fragmentation Header");
-			usNextHeaderOffset += sizeof(struct bcm_ipv6_fragment_hdr);
-
-		}
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV6_DBG,
+				DBG_LVL_ALL,
+				"\nIPv6 Fragmentation Header");
+		usNextHeaderOffset += sizeof(struct bcm_ipv6_fragment_hdr);
 		break;
+
 	case IPV6HDR_TYPE_DESTOPTS:
 		{
-			struct bcm_ipv6_dest_options_hdr *pstIpv6DestOptsHdr = (struct bcm_ipv6_dest_options_hdr *)pucPayloadPtr;
+			struct bcm_ipv6_dest_options_hdr *pstIpv6DestOptsHdr =
+				(struct bcm_ipv6_dest_options_hdr *)pucPayloadPtr;
 			int nTotalOptions = pstIpv6DestOptsHdr->ucHdrExtLen;
 
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV6_DBG,
 					DBG_LVL_ALL,
 					"\nIPv6 DestOpts Header Header");
 			usNextHeaderOffset += sizeof(struct bcm_ipv6_dest_options_hdr);
-			usNextHeaderOffset += nTotalOptions * IPV6_DESTOPTS_HDR_OPTIONSIZE ;
-
+			usNextHeaderOffset += nTotalOptions *
+					      IPV6_DESTOPTS_HDR_OPTIONSIZE ;
 		}
 		break;
+
+
 	case IPV6HDR_TYPE_AUTHENTICATION:
 		{
-			struct bcm_ipv6_authentication_hdr *pstIpv6AuthHdr = (struct bcm_ipv6_authentication_hdr *)pucPayloadPtr;
+			struct bcm_ipv6_authentication_hdr *pstIpv6AuthHdr =
+				(struct bcm_ipv6_authentication_hdr *)pucPayloadPtr;
 			int nHdrLen = pstIpv6AuthHdr->ucLength;
 
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV6_DBG,
@@ -87,44 +88,35 @@ static UCHAR *GetNextIPV6ChainedHeader(UCHAR **ppucPayload,
 			usNextHeaderOffset += nHdrLen * 4;
 		}
 		break;
+
 	case IPV6HDR_TYPE_ENCRYPTEDSECURITYPAYLOAD:
-		{
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV6_DBG,
-					DBG_LVL_ALL,
-					"\nIPv6 Encrypted Security Payload Header");
-			*bParseDone = TRUE;
-
-		}
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV6_DBG,
+				DBG_LVL_ALL,
+				"\nIPv6 Encrypted Security Payload Header");
+		*bParseDone = TRUE;
 		break;
+
 	case IPV6_ICMP_HDR_TYPE:
-		{
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV6_DBG,
-					DBG_LVL_ALL, "\nICMP Header");
-			*bParseDone = TRUE;
-		}
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV6_DBG,
+				DBG_LVL_ALL, "\nICMP Header");
+		*bParseDone = TRUE;
 		break;
+
 	case TCP_HEADER_TYPE:
-		{
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV6_DBG,
-					DBG_LVL_ALL, "\nTCP Header");
-			*bParseDone = TRUE;
-		}
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV6_DBG,
+				DBG_LVL_ALL, "\nTCP Header");
+		*bParseDone = TRUE;
 		break;
+
 	case UDP_HEADER_TYPE:
-		{
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV6_DBG,
-					DBG_LVL_ALL, "\nUDP Header");
-			*bParseDone = TRUE;
-		}
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV6_DBG,
+				DBG_LVL_ALL, "\nUDP Header");
+		*bParseDone = TRUE;
 		break;
+
 	default:
-		{
-			*bParseDone = TRUE;
-
-		}
+		*bParseDone = TRUE;
 		break;
-
-
 	}
 
 	if (*bParseDone == false) {
