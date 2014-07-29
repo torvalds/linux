@@ -296,7 +296,6 @@ xprt_setup_rdma(struct xprt_create *args)
 
 	xprt->resvport = 0;		/* privileged port not needed */
 	xprt->tsh_size = 0;		/* RPC-RDMA handles framing */
-	xprt->max_payload = RPCRDMA_MAX_DATA_SEGS * PAGE_SIZE;
 	xprt->ops = &xprt_rdma_procs;
 
 	/*
@@ -382,6 +381,9 @@ xprt_setup_rdma(struct xprt_create *args)
 	new_ep->rep_xprt = xprt;
 
 	xprt_rdma_format_addresses(xprt);
+	xprt->max_payload = rpcrdma_max_payload(new_xprt);
+	dprintk("RPC:       %s: transport data payload maximum: %zu bytes\n",
+		__func__, xprt->max_payload);
 
 	if (!try_module_get(THIS_MODULE))
 		goto out4;

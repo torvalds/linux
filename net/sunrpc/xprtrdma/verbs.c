@@ -1825,3 +1825,44 @@ rpcrdma_ep_post_recv(struct rpcrdma_ia *ia,
 			rc);
 	return rc;
 }
+
+/* Physical mapping means one Read/Write list entry per-page.
+ * All list entries must fit within an inline buffer
+ *
+ * NB: The server must return a Write list for NFS READ,
+ *     which has the same constraint. Factor in the inline
+ *     rsize as well.
+ */
+static size_t
+rpcrdma_physical_max_payload(struct rpcrdma_xprt *r_xprt)
+{
+	struct rpcrdma_create_data_internal *cdata = &r_xprt->rx_data;
+	unsigned int inline_size, pages;
+
+	inline_size = min_t(unsigned int,
+			    cdata->inline_wsize, cdata->inline_rsize);
+	inline_size -= RPCRDMA_HDRLEN_MIN;
+	pages = inline_size / sizeof(struct rpcrdma_segment);
+	return pages << PAGE_SHIFT;
+}
+
+static size_t
+rpcrdma_mr_max_payload(struct rpcrdma_xprt *r_xprt)
+{
+	return RPCRDMA_MAX_DATA_SEGS << PAGE_SHIFT;
+}
+
+size_t
+rpcrdma_max_payload(struct rpcrdma_xprt *r_xprt)
+{
+	size_t result;
+
+	switch (r_xprt->rx_ia.ri_memreg_strategy) {
+	case RPCRDMA_ALLPHYSICAL:
+		result = rpcrdma_physical_max_payload(r_xprt);
+		break;
+	default:
+		result = rpcrdma_mr_max_payload(r_xprt);
+	}
+	return result;
+}
