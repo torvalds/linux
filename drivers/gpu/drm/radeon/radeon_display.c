@@ -293,6 +293,18 @@ void radeon_crtc_handle_vblank(struct radeon_device *rdev, int crtc_id)
 	if (radeon_crtc == NULL)
 		return;
 
+	/* Skip the pageflip completion check below (based on polling) on
+	 * asics which reliably support hw pageflip completion irqs. pflip
+	 * irqs are a reliable and race-free method of handling pageflip
+	 * completion detection. A use_pflipirq module parameter < 2 allows
+	 * to override this in case of asics with faulty pflip irqs.
+	 * A module parameter of 0 would only use this polling based path,
+	 * a parameter of 1 would use pflip irq only as a backup to this
+	 * path, as in Linux 3.16.
+	 */
+	if ((radeon_use_pflipirq == 2) && ASIC_IS_DCE4(rdev))
+		return;
+
 	spin_lock_irqsave(&rdev->ddev->event_lock, flags);
 	if (radeon_crtc->flip_status != RADEON_FLIP_SUBMITTED) {
 		DRM_DEBUG_DRIVER("radeon_crtc->flip_status = %d != "

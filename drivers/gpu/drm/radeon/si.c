@@ -6531,7 +6531,8 @@ restart_ih:
 		case 16: /* D5 page flip */
 		case 18: /* D6 page flip */
 			DRM_DEBUG("IH: D%d flip\n", ((src_id - 8) >> 1) + 1);
-			radeon_crtc_handle_flip(rdev, (src_id - 8) >> 1);
+			if (radeon_use_pflipirq > 0)
+				radeon_crtc_handle_flip(rdev, (src_id - 8) >> 1);
 			break;
 		case 42: /* HPD hotplug */
 			switch (src_data) {

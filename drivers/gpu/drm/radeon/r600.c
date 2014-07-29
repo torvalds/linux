@@ -3923,11 +3923,13 @@ restart_ih:
 			break;
 		case 9: /* D1 pflip */
 			DRM_DEBUG("IH: D1 flip\n");
-			radeon_crtc_handle_flip(rdev, 0);
+			if (radeon_use_pflipirq > 0)
+				radeon_crtc_handle_flip(rdev, 0);
 			break;
 		case 11: /* D2 pflip */
 			DRM_DEBUG("IH: D2 flip\n");
-			radeon_crtc_handle_flip(rdev, 1);
+			if (radeon_use_pflipirq > 0)
+				radeon_crtc_handle_flip(rdev, 1);
 			break;
 		case 19: /* HPD/DAC hotplug */
 			switch (src_data) {
