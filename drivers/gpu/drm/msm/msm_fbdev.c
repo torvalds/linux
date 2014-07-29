@@ -177,7 +177,7 @@ static void msm_crtc_fb_gamma_get(struct drm_crtc *crtc,
 	DBG("fbdev: get gamma");
 }
 
-static struct drm_fb_helper_funcs msm_fb_helper_funcs = {
+static const struct drm_fb_helper_funcs msm_fb_helper_funcs = {
 	.gamma_set = msm_crtc_fb_gamma_set,
 	.gamma_get = msm_crtc_fb_gamma_get,
 	.fb_probe = msm_fbdev_create,
@@ -197,7 +197,7 @@ struct drm_fb_helper *msm_fbdev_init(struct drm_device *dev)
 
 	helper = &fbdev->base;
 
-	helper->funcs = &msm_fb_helper_funcs;
+	drm_fb_helper_prepare(dev, helper, &msm_fb_helper_funcs);
 
 	ret = drm_fb_helper_init(dev, helper,
 			priv->num_crtcs, priv->num_connectors);

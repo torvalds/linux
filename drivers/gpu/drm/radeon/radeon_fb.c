@@ -331,7 +331,7 @@ static int radeon_fbdev_destroy(struct drm_device *dev, struct radeon_fbdev *rfb
 	return 0;
 }
 
-static struct drm_fb_helper_funcs radeon_fb_helper_funcs = {
+static const struct drm_fb_helper_funcs radeon_fb_helper_funcs = {
 	.gamma_set = radeon_crtc_fb_gamma_set,
 	.gamma_get = radeon_crtc_fb_gamma_get,
 	.fb_probe = radeonfb_create,
@@ -353,7 +353,9 @@ int radeon_fbdev_init(struct radeon_device *rdev)
 
 	rfbdev->rdev = rdev;
 	rdev->mode_info.rfbdev = rfbdev;
-	rfbdev->helper.funcs = &radeon_fb_helper_funcs;
+
+	drm_fb_helper_prepare(rdev->ddev, &rfbdev->helper,
+			      &radeon_fb_helper_funcs);
 
 	ret = drm_fb_helper_init(rdev->ddev, &rfbdev->helper,
 				 rdev->num_crtc,

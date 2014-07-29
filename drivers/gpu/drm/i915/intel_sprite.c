@@ -1126,7 +1126,6 @@ int intel_sprite_set_colorkey(struct drm_device *dev, void *data,
 			      struct drm_file *file_priv)
 {
 	struct drm_intel_sprite_colorkey *set = data;
-	struct drm_mode_object *obj;
 	struct drm_plane *plane;
 	struct intel_plane *intel_plane;
 	int ret = 0;
@@ -1140,13 +1139,12 @@ int intel_sprite_set_colorkey(struct drm_device *dev, void *data,
 
 	drm_modeset_lock_all(dev);
 
-	obj = drm_mode_object_find(dev, set->plane_id, DRM_MODE_OBJECT_PLANE);
-	if (!obj) {
+	plane = drm_plane_find(dev, set->plane_id);
+	if (!plane) {
 		ret = -ENOENT;
 		goto out_unlock;
 	}
 
-	plane = obj_to_plane(obj);
 	intel_plane = to_intel_plane(plane);
 	ret = intel_plane->update_colorkey(plane, set);
 
@@ -1159,7 +1157,6 @@ int intel_sprite_get_colorkey(struct drm_device *dev, void *data,
 			      struct drm_file *file_priv)
 {
 	struct drm_intel_sprite_colorkey *get = data;
-	struct drm_mode_object *obj;
 	struct drm_plane *plane;
 	struct intel_plane *intel_plane;
 	int ret = 0;
@@ -1169,13 +1166,12 @@ int intel_sprite_get_colorkey(struct drm_device *dev, void *data,
 
 	drm_modeset_lock_all(dev);
 
-	obj = drm_mode_object_find(dev, get->plane_id, DRM_MODE_OBJECT_PLANE);
-	if (!obj) {
+	plane = drm_plane_find(dev, get->plane_id);
+	if (!plane) {
 		ret = -ENOENT;
 		goto out_unlock;
 	}
 
-	plane = obj_to_plane(obj);
 	intel_plane = to_intel_plane(plane);
 	intel_plane->get_colorkey(plane, get);
 

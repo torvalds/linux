@@ -520,13 +520,6 @@ static int i915_drm_freeze(struct drm_device *dev)
 			return error;
 		}
 
-		flush_delayed_work(&dev_priv->rps.delayed_resume_work);
-
-		intel_runtime_pm_disable_interrupts(dev);
-		dev_priv->enable_hotplug_processing = false;
-
-		intel_suspend_gt_powersave(dev);
-
 		/*
 		 * Disable CRTCs directly since we want to preserve sw state
 		 * for _thaw. Also, power gate the CRTC power wells.
@@ -535,6 +528,14 @@ static int i915_drm_freeze(struct drm_device *dev)
 		for_each_crtc(dev, crtc)
 			intel_crtc_control(crtc, false);
 		drm_modeset_unlock_all(dev);
+
+		intel_dp_mst_suspend(dev);
+
+		flush_delayed_work(&dev_priv->rps.delayed_resume_work);
+
+		intel_runtime_pm_disable_interrupts(dev);
+
+		intel_suspend_gt_powersave(dev);
 
 		intel_modeset_suspend_hw(dev);
 	}
@@ -650,6 +651,15 @@ static int __i915_drm_thaw(struct drm_device *dev, bool restore_gtt_mappings)
 
 		intel_modeset_init_hw(dev);
 
+		{
+			unsigned long irqflags;
+			spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
+			if (dev_priv->display.hpd_irq_setup)
+				dev_priv->display.hpd_irq_setup(dev);
+			spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
+		}
+
+		intel_dp_mst_resume(dev);
 		drm_modeset_lock_all(dev);
 		intel_modeset_setup_hw_state(dev, true);
 		drm_modeset_unlock_all(dev);
@@ -661,7 +671,6 @@ static int __i915_drm_thaw(struct drm_device *dev, bool restore_gtt_mappings)
 		 * notifications.
 		 * */
 		intel_hpd_init(dev);
-		dev_priv->enable_hotplug_processing = true;
 		/* Config may have changed between suspend and resume */
 		drm_helper_hpd_irq_event(dev);
 	}

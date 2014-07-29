@@ -478,7 +478,7 @@ out:
 	return true;
 }
 
-static struct drm_fb_helper_funcs intel_fb_helper_funcs = {
+static const struct drm_fb_helper_funcs intel_fb_helper_funcs = {
 	.initial_config = intel_fb_initial_config,
 	.gamma_set = intel_crtc_fb_gamma_set,
 	.gamma_get = intel_crtc_fb_gamma_get,
@@ -649,7 +649,8 @@ int intel_fbdev_init(struct drm_device *dev)
 	if (ifbdev == NULL)
 		return -ENOMEM;
 
-	ifbdev->helper.funcs = &intel_fb_helper_funcs;
+	drm_fb_helper_prepare(dev, &ifbdev->helper, &intel_fb_helper_funcs);
+
 	if (!intel_fbdev_init_bios(dev, ifbdev))
 		ifbdev->preferred_bpp = 32;
 

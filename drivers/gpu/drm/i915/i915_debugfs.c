@@ -2216,13 +2216,15 @@ static void intel_connector_info(struct seq_file *m,
 		seq_printf(m, "\tCEA rev: %d\n",
 			   connector->display_info.cea_rev);
 	}
-	if (intel_encoder->type == INTEL_OUTPUT_DISPLAYPORT ||
-	    intel_encoder->type == INTEL_OUTPUT_EDP)
-		intel_dp_info(m, intel_connector);
-	else if (intel_encoder->type == INTEL_OUTPUT_HDMI)
-		intel_hdmi_info(m, intel_connector);
-	else if (intel_encoder->type == INTEL_OUTPUT_LVDS)
-		intel_lvds_info(m, intel_connector);
+	if (intel_encoder) {
+		if (intel_encoder->type == INTEL_OUTPUT_DISPLAYPORT ||
+		    intel_encoder->type == INTEL_OUTPUT_EDP)
+			intel_dp_info(m, intel_connector);
+		else if (intel_encoder->type == INTEL_OUTPUT_HDMI)
+			intel_hdmi_info(m, intel_connector);
+		else if (intel_encoder->type == INTEL_OUTPUT_LVDS)
+			intel_lvds_info(m, intel_connector);
+	}
 
 	seq_printf(m, "\tmodes:\n");
 	list_for_each_entry(mode, &connector->modes, head)
@@ -2409,6 +2411,28 @@ struct pipe_crc_info {
 	struct drm_device *dev;
 	enum pipe pipe;
 };
+
+static int i915_dp_mst_info(struct seq_file *m, void *unused)
+{
+	struct drm_info_node *node = (struct drm_info_node *) m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct drm_encoder *encoder;
+	struct intel_encoder *intel_encoder;
+	struct intel_digital_port *intel_dig_port;
+	drm_modeset_lock_all(dev);
+	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
+		intel_encoder = to_intel_encoder(encoder);
+		if (intel_encoder->type != INTEL_OUTPUT_DISPLAYPORT)
+			continue;
+		intel_dig_port = enc_to_dig_port(encoder);
+		if (!intel_dig_port->dp.can_mst)
+			continue;
+
+		drm_dp_mst_dump_topology(m, &intel_dig_port->dp.mst_mgr);
+	}
+	drm_modeset_unlock_all(dev);
+	return 0;
+}
 
 static int i915_pipe_crc_open(struct inode *inode, struct file *filep)
 {
@@ -3911,6 +3935,7 @@ static const struct drm_info_list i915_debugfs_list[] = {
 	{"i915_display_info", i915_display_info, 0},
 	{"i915_semaphore_status", i915_semaphore_status, 0},
 	{"i915_shared_dplls_info", i915_shared_dplls_info, 0},
+	{"i915_dp_mst_info", i915_dp_mst_info, 0},
 };
 #define I915_DEBUGFS_ENTRIES ARRAY_SIZE(i915_debugfs_list)
 

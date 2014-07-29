@@ -40,6 +40,12 @@ static int tegra_drm_load(struct drm_device *drm, unsigned long flags)
 
 	drm_mode_config_init(drm);
 
+	err = tegra_drm_fb_prepare(drm);
+	if (err < 0)
+		return err;
+
+	drm_kms_helper_poll_init(drm);
+
 	err = host1x_device_init(device);
 	if (err < 0)
 		return err;
@@ -58,8 +64,6 @@ static int tegra_drm_load(struct drm_device *drm, unsigned long flags)
 	err = tegra_drm_fb_init(drm);
 	if (err < 0)
 		return err;
-
-	drm_kms_helper_poll_init(drm);
 
 	return 0;
 }

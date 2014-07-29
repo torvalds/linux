@@ -112,7 +112,7 @@ static void intel_dp_link_down(struct intel_dp *intel_dp);
 static bool _edp_panel_vdd_on(struct intel_dp *intel_dp);
 static void edp_panel_vdd_off(struct intel_dp *intel_dp, bool sync);
 
-static int
+int
 intel_dp_max_link_bw(struct intel_dp *intel_dp)
 {
 	int max_link_bw = intel_dp->dpcd[DP_MAX_LINK_RATE];
@@ -740,8 +740,9 @@ intel_dp_connector_unregister(struct intel_connector *intel_connector)
 {
 	struct intel_dp *intel_dp = intel_attached_dp(&intel_connector->base);
 
-	sysfs_remove_link(&intel_connector->base.kdev->kobj,
-			  intel_dp->aux.ddc.dev.kobj.name);
+	if (!intel_connector->mst_port)
+		sysfs_remove_link(&intel_connector->base.kdev->kobj,
+				  intel_dp->aux.ddc.dev.kobj.name);
 	intel_connector_unregister(intel_connector);
 }
 
@@ -3348,6 +3349,33 @@ intel_dp_probe_oui(struct intel_dp *intel_dp)
 	edp_panel_vdd_off(intel_dp, false);
 }
 
+static bool
+intel_dp_probe_mst(struct intel_dp *intel_dp)
+{
+	u8 buf[1];
+
+	if (!intel_dp->can_mst)
+		return false;
+
+	if (intel_dp->dpcd[DP_DPCD_REV] < 0x12)
+		return false;
+
+	_edp_panel_vdd_on(intel_dp);
+	if (intel_dp_dpcd_read_wake(&intel_dp->aux, DP_MSTM_CAP, buf, 1)) {
+		if (buf[0] & DP_MST_CAP) {
+			DRM_DEBUG_KMS("Sink is MST capable\n");
+			intel_dp->is_mst = true;
+		} else {
+			DRM_DEBUG_KMS("Sink is not MST capable\n");
+			intel_dp->is_mst = false;
+		}
+	}
+	edp_panel_vdd_off(intel_dp, false);
+
+	drm_dp_mst_topology_mgr_set_mst(&intel_dp->mst_mgr, intel_dp->is_mst);
+	return intel_dp->is_mst;
+}
+
 int intel_dp_sink_crc(struct intel_dp *intel_dp, u8 *crc)
 {
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
@@ -3385,11 +3413,82 @@ intel_dp_get_sink_irq(struct intel_dp *intel_dp, u8 *sink_irq_vector)
 				       sink_irq_vector, 1) == 1;
 }
 
+static bool
+intel_dp_get_sink_irq_esi(struct intel_dp *intel_dp, u8 *sink_irq_vector)
+{
+	int ret;
+
+	ret = intel_dp_dpcd_read_wake(&intel_dp->aux,
+					     DP_SINK_COUNT_ESI,
+					     sink_irq_vector, 14);
+	if (ret != 14)
+		return false;
+
+	return true;
+}
+
 static void
 intel_dp_handle_test_request(struct intel_dp *intel_dp)
 {
 	/* NAK by default */
 	drm_dp_dpcd_writeb(&intel_dp->aux, DP_TEST_RESPONSE, DP_TEST_NAK);
+}
+
+static int
+intel_dp_check_mst_status(struct intel_dp *intel_dp)
+{
+	bool bret;
+
+	if (intel_dp->is_mst) {
+		u8 esi[16] = { 0 };
+		int ret = 0;
+		int retry;
+		bool handled;
+		bret = intel_dp_get_sink_irq_esi(intel_dp, esi);
+go_again:
+		if (bret == true) {
+
+			/* check link status - esi[10] = 0x200c */
+			if (intel_dp->active_mst_links && !drm_dp_channel_eq_ok(&esi[10], intel_dp->lane_count)) {
+				DRM_DEBUG_KMS("channel EQ not ok, retraining\n");
+				intel_dp_start_link_train(intel_dp);
+				intel_dp_complete_link_train(intel_dp);
+				intel_dp_stop_link_train(intel_dp);
+			}
+
+			DRM_DEBUG_KMS("got esi %02x %02x %02x\n", esi[0], esi[1], esi[2]);
+			ret = drm_dp_mst_hpd_irq(&intel_dp->mst_mgr, esi, &handled);
+
+			if (handled) {
+				for (retry = 0; retry < 3; retry++) {
+					int wret;
+					wret = drm_dp_dpcd_write(&intel_dp->aux,
+								 DP_SINK_COUNT_ESI+1,
+								 &esi[1], 3);
+					if (wret == 3) {
+						break;
+					}
+				}
+
+				bret = intel_dp_get_sink_irq_esi(intel_dp, esi);
+				if (bret == true) {
+					DRM_DEBUG_KMS("got esi2 %02x %02x %02x\n", esi[0], esi[1], esi[2]);
+					goto go_again;
+				}
+			} else
+				ret = 0;
+
+			return ret;
+		} else {
+			struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
+			DRM_DEBUG_KMS("failed to get ESI - device may have failed\n");
+			intel_dp->is_mst = false;
+			drm_dp_mst_topology_mgr_set_mst(&intel_dp->mst_mgr, intel_dp->is_mst);
+			/* send a hotplug event */
+			drm_kms_helper_hotplug_event(intel_dig_port->base.base.dev);
+		}
+	}
+	return -EINVAL;
 }
 
 /*
@@ -3400,7 +3499,6 @@ intel_dp_handle_test_request(struct intel_dp *intel_dp)
  *  3. Use Link Training from 2.5.3.3 and 3.5.1.3
  *  4. Check link status on receipt of hot-plug interrupt
  */
-
 void
 intel_dp_check_link_status(struct intel_dp *intel_dp)
 {
@@ -3620,12 +3718,21 @@ intel_dp_detect(struct drm_connector *connector, bool force)
 	enum drm_connector_status status;
 	enum intel_display_power_domain power_domain;
 	struct edid *edid = NULL;
+	bool ret;
 
 	power_domain = intel_display_port_power_domain(intel_encoder);
 	intel_display_power_get(dev_priv, power_domain);
 
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
 		      connector->base.id, connector->name);
+
+	if (intel_dp->is_mst) {
+		/* MST devices are disconnected from a monitor POV */
+		if (intel_encoder->type != INTEL_OUTPUT_EDP)
+			intel_encoder->type = INTEL_OUTPUT_DISPLAYPORT;
+		status = connector_status_disconnected;
+		goto out;
+	}
 
 	intel_dp->has_audio = false;
 
@@ -3638,6 +3745,16 @@ intel_dp_detect(struct drm_connector *connector, bool force)
 		goto out;
 
 	intel_dp_probe_oui(intel_dp);
+
+	ret = intel_dp_probe_mst(intel_dp);
+	if (ret) {
+		/* if we are in MST mode then this connector
+		   won't appear connected or have anything with EDID on it */
+		if (intel_encoder->type != INTEL_OUTPUT_EDP)
+			intel_encoder->type = INTEL_OUTPUT_DISPLAYPORT;
+		status = connector_status_disconnected;
+		goto out;
+	}
 
 	if (intel_dp->force_audio != HDMI_AUDIO_AUTO) {
 		intel_dp->has_audio = (intel_dp->force_audio == HDMI_AUDIO_ON);
@@ -3831,6 +3948,7 @@ void intel_dp_encoder_destroy(struct drm_encoder *encoder)
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
 
 	drm_dp_aux_unregister(&intel_dp->aux);
+	intel_dp_mst_encoder_cleanup(intel_dig_port);
 	drm_encoder_cleanup(encoder);
 	if (is_edp(intel_dp)) {
 		cancel_delayed_work_sync(&intel_dp->panel_vdd_work);
@@ -3859,28 +3977,62 @@ static const struct drm_encoder_funcs intel_dp_enc_funcs = {
 	.destroy = intel_dp_encoder_destroy,
 };
 
-static void
+void
 intel_dp_hot_plug(struct intel_encoder *intel_encoder)
 {
-	struct intel_dp *intel_dp = enc_to_intel_dp(&intel_encoder->base);
-
-	intel_dp_check_link_status(intel_dp);
+	return;
 }
 
 bool
 intel_dp_hpd_pulse(struct intel_digital_port *intel_dig_port, bool long_hpd)
 {
 	struct intel_dp *intel_dp = &intel_dig_port->dp;
+	struct drm_device *dev = intel_dig_port->base.base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int ret;
+	if (intel_dig_port->base.type != INTEL_OUTPUT_EDP)
+		intel_dig_port->base.type = INTEL_OUTPUT_DISPLAYPORT;
 
-	if (long_hpd)
-		return true;
+	DRM_DEBUG_KMS("got hpd irq on port %d - %s\n", intel_dig_port->port,
+		      long_hpd ? "long" : "short");
 
-	/*
-	 * we'll check the link status via the normal hot plug path later -
-	 * but for short hpds we should check it now
-	 */
-	intel_dp_check_link_status(intel_dp);
+	if (long_hpd) {
+		if (!ibx_digital_port_connected(dev_priv, intel_dig_port))
+			goto mst_fail;
+
+		if (!intel_dp_get_dpcd(intel_dp)) {
+			goto mst_fail;
+		}
+
+		intel_dp_probe_oui(intel_dp);
+
+		if (!intel_dp_probe_mst(intel_dp))
+			goto mst_fail;
+
+	} else {
+		if (intel_dp->is_mst) {
+			ret = intel_dp_check_mst_status(intel_dp);
+			if (ret == -EINVAL)
+				goto mst_fail;
+		}
+
+		if (!intel_dp->is_mst) {
+			/*
+			 * we'll check the link status via the normal hot plug path later -
+			 * but for short hpds we should check it now
+			 */
+			intel_dp_check_link_status(intel_dp);
+		}
+	}
 	return false;
+mst_fail:
+	/* if we were in MST mode, and device is not there get out of MST mode */
+	if (intel_dp->is_mst) {
+		DRM_DEBUG_KMS("MST device may have disappeared %d vs %d\n", intel_dp->is_mst, intel_dp->mst_mgr.mst_state);
+		intel_dp->is_mst = false;
+		drm_dp_mst_topology_mgr_set_mst(&intel_dp->mst_mgr, intel_dp->is_mst);
+	}
+	return true;
 }
 
 /* Return which DP Port should be selected for Transcoder DP control */
@@ -3931,7 +4083,7 @@ bool intel_dp_is_edp(struct drm_device *dev, enum port port)
 	return false;
 }
 
-static void
+void
 intel_dp_add_properties(struct intel_dp *intel_dp, struct drm_connector *connector)
 {
 	struct intel_connector *intel_connector = to_intel_connector(connector);
@@ -4397,7 +4549,7 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 			  edp_panel_vdd_work);
 
 	intel_connector_attach_encoder(intel_connector, intel_encoder);
-	drm_sysfs_connector_add(connector);
+	drm_connector_register(connector);
 
 	if (HAS_DDI(dev))
 		intel_connector->get_hw_state = intel_ddi_connector_get_hw_state;
@@ -4430,6 +4582,13 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 
 	intel_dp_aux_init(intel_dp, intel_connector);
 
+	/* init MST on ports that can support it */
+	if (IS_HASWELL(dev) || IS_BROADWELL(dev)) {
+		if (port == PORT_B || port == PORT_C || port == PORT_D) {
+			intel_dp_mst_encoder_init(intel_dig_port, intel_connector->base.base.id);
+		}
+	}
+
 	if (!intel_edp_init_connector(intel_dp, intel_connector, &power_seq)) {
 		drm_dp_aux_unregister(&intel_dp->aux);
 		if (is_edp(intel_dp)) {
@@ -4438,7 +4597,7 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 			edp_panel_vdd_off_sync(intel_dp);
 			drm_modeset_unlock(&dev->mode_config.connection_mutex);
 		}
-		drm_sysfs_connector_remove(connector);
+		drm_connector_unregister(connector);
 		drm_connector_cleanup(connector);
 		return false;
 	}
@@ -4524,5 +4683,48 @@ intel_dp_init(struct drm_device *dev, int output_reg, enum port port)
 		drm_encoder_cleanup(encoder);
 		kfree(intel_dig_port);
 		kfree(intel_connector);
+	}
+}
+
+void intel_dp_mst_suspend(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int i;
+
+	/* disable MST */
+	for (i = 0; i < I915_MAX_PORTS; i++) {
+		struct intel_digital_port *intel_dig_port = dev_priv->hpd_irq_port[i];
+		if (!intel_dig_port)
+			continue;
+
+		if (intel_dig_port->base.type == INTEL_OUTPUT_DISPLAYPORT) {
+			if (!intel_dig_port->dp.can_mst)
+				continue;
+			if (intel_dig_port->dp.is_mst)
+				drm_dp_mst_topology_mgr_suspend(&intel_dig_port->dp.mst_mgr);
+		}
+	}
+}
+
+void intel_dp_mst_resume(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int i;
+
+	for (i = 0; i < I915_MAX_PORTS; i++) {
+		struct intel_digital_port *intel_dig_port = dev_priv->hpd_irq_port[i];
+		if (!intel_dig_port)
+			continue;
+		if (intel_dig_port->base.type == INTEL_OUTPUT_DISPLAYPORT) {
+			int ret;
+
+			if (!intel_dig_port->dp.can_mst)
+				continue;
+
+			ret = drm_dp_mst_topology_mgr_resume(&intel_dig_port->dp.mst_mgr);
+			if (ret != 0) {
+				intel_dp_check_mst_status(&intel_dig_port->dp);
+			}
+		}
 	}
 }

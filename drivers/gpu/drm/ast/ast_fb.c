@@ -287,7 +287,7 @@ static void ast_fb_gamma_get(struct drm_crtc *crtc, u16 *red, u16 *green,
 	*blue = ast_crtc->lut_b[regno] << 8;
 }
 
-static struct drm_fb_helper_funcs ast_fb_helper_funcs = {
+static const struct drm_fb_helper_funcs ast_fb_helper_funcs = {
 	.gamma_set = ast_fb_gamma_set,
 	.gamma_get = ast_fb_gamma_get,
 	.fb_probe = astfb_create,
@@ -328,8 +328,10 @@ int ast_fbdev_init(struct drm_device *dev)
 		return -ENOMEM;
 
 	ast->fbdev = afbdev;
-	afbdev->helper.funcs = &ast_fb_helper_funcs;
 	spin_lock_init(&afbdev->dirty_lock);
+
+	drm_fb_helper_prepare(dev, &afbdev->helper, &ast_fb_helper_funcs);
+
 	ret = drm_fb_helper_init(dev, &afbdev->helper,
 				 1, 1);
 	if (ret) {

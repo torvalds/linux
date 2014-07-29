@@ -5821,6 +5821,7 @@ enum punit_power_well {
 #define  TRANS_DDI_EDP_INPUT_A_ONOFF	(4<<12)
 #define  TRANS_DDI_EDP_INPUT_B_ONOFF	(5<<12)
 #define  TRANS_DDI_EDP_INPUT_C_ONOFF	(6<<12)
+#define  TRANS_DDI_DP_VC_PAYLOAD_ALLOC	(1<<8)
 #define  TRANS_DDI_BFI_ENABLE		(1<<4)
 
 /* DisplayPort Transport Control */
@@ -5830,6 +5831,7 @@ enum punit_power_well {
 #define  DP_TP_CTL_ENABLE			(1<<31)
 #define  DP_TP_CTL_MODE_SST			(0<<27)
 #define  DP_TP_CTL_MODE_MST			(1<<27)
+#define  DP_TP_CTL_FORCE_ACT			(1<<25)
 #define  DP_TP_CTL_ENHANCED_FRAME_ENABLE	(1<<18)
 #define  DP_TP_CTL_FDI_AUTOTRAIN		(1<<15)
 #define  DP_TP_CTL_LINK_TRAIN_MASK		(7<<8)
@@ -5844,8 +5846,13 @@ enum punit_power_well {
 #define DP_TP_STATUS_A			0x64044
 #define DP_TP_STATUS_B			0x64144
 #define DP_TP_STATUS(port) _PORT(port, DP_TP_STATUS_A, DP_TP_STATUS_B)
-#define  DP_TP_STATUS_IDLE_DONE		(1<<25)
-#define  DP_TP_STATUS_AUTOTRAIN_DONE	(1<<12)
+#define  DP_TP_STATUS_IDLE_DONE			(1<<25)
+#define  DP_TP_STATUS_ACT_SENT			(1<<24)
+#define  DP_TP_STATUS_MODE_STATUS_MST		(1<<23)
+#define  DP_TP_STATUS_AUTOTRAIN_DONE		(1<<12)
+#define  DP_TP_STATUS_PAYLOAD_MAPPING_VC2	(3 << 8)
+#define  DP_TP_STATUS_PAYLOAD_MAPPING_VC1	(3 << 4)
+#define  DP_TP_STATUS_PAYLOAD_MAPPING_VC0	(3 << 0)
 
 /* DDI Buffer Control */
 #define DDI_BUF_CTL_A				0x64000

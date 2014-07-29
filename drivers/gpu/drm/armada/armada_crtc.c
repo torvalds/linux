@@ -7,6 +7,9 @@
  * published by the Free Software Foundation.
  */
 #include <linux/clk.h>
+#include <linux/component.h>
+#include <linux/of_device.h>
+#include <linux/platform_device.h>
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
 #include "armada_crtc.h"
@@ -332,24 +335,23 @@ static void armada_drm_crtc_commit(struct drm_crtc *crtc)
 static bool armada_drm_crtc_mode_fixup(struct drm_crtc *crtc,
 	const struct drm_display_mode *mode, struct drm_display_mode *adj)
 {
-	struct armada_private *priv = crtc->dev->dev_private;
 	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
 	int ret;
 
 	/* We can't do interlaced modes if we don't have the SPU_ADV_REG */
-	if (!priv->variant->has_spu_adv_reg &&
+	if (!dcrtc->variant->has_spu_adv_reg &&
 	    adj->flags & DRM_MODE_FLAG_INTERLACE)
 		return false;
 
 	/* Check whether the display mode is possible */
-	ret = priv->variant->crtc_compute_clock(dcrtc, adj, NULL);
+	ret = dcrtc->variant->compute_clock(dcrtc, adj, NULL);
 	if (ret)
 		return false;
 
 	return true;
 }
 
-void armada_drm_crtc_irq(struct armada_crtc *dcrtc, u32 stat)
+static void armada_drm_crtc_irq(struct armada_crtc *dcrtc, u32 stat)
 {
 	struct armada_vbl_event *e, *n;
 	void __iomem *base = dcrtc->base;
@@ -408,6 +410,27 @@ void armada_drm_crtc_irq(struct armada_crtc *dcrtc, u32 stat)
 
 		wake_up(&dcrtc->frame_wait);
 	}
+}
+
+static irqreturn_t armada_drm_irq(int irq, void *arg)
+{
+	struct armada_crtc *dcrtc = arg;
+	u32 v, stat = readl_relaxed(dcrtc->base + LCD_SPU_IRQ_ISR);
+
+	/*
+	 * This is rediculous - rather than writing bits to clear, we
+	 * have to set the actual status register value.  This is racy.
+	 */
+	writel_relaxed(0, dcrtc->base + LCD_SPU_IRQ_ISR);
+
+	/* Mask out those interrupts we haven't enabled */
+	v = stat & dcrtc->irq_ena;
+
+	if (v & (VSYNC_IRQ|GRA_FRAME_IRQ|DUMB_FRAMEDONE)) {
+		armada_drm_crtc_irq(dcrtc, stat);
+		return IRQ_HANDLED;
+	}
+	return IRQ_NONE;
 }
 
 /* These are locked by dev->vbl_lock */
@@ -470,7 +493,6 @@ static int armada_drm_crtc_mode_set(struct drm_crtc *crtc,
 	struct drm_display_mode *mode, struct drm_display_mode *adj,
 	int x, int y, struct drm_framebuffer *old_fb)
 {
-	struct armada_private *priv = crtc->dev->dev_private;
 	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
 	struct armada_regs regs[17];
 	uint32_t lm, rm, tm, bm, val, sclk;
@@ -515,7 +537,7 @@ static int armada_drm_crtc_mode_set(struct drm_crtc *crtc,
 	}
 
 	/* Now compute the divider for real */
-	priv->variant->crtc_compute_clock(dcrtc, adj, &sclk);
+	dcrtc->variant->compute_clock(dcrtc, adj, &sclk);
 
 	/* Ensure graphic fifo is enabled */
 	armada_reg_queue_mod(regs, i, 0, CFG_PDWN64x66, LCD_SPU_SRAM_PARA1);
@@ -537,7 +559,7 @@ static int armada_drm_crtc_mode_set(struct drm_crtc *crtc,
 	dcrtc->v[1].spu_v_porch = tm << 16 | bm;
 	val = adj->crtc_hsync_start;
 	dcrtc->v[1].spu_adv_reg = val << 20 | val | ADV_VSYNCOFFEN |
-		priv->variant->spu_adv_reg;
+		dcrtc->variant->spu_adv_reg;
 
 	if (interlaced) {
 		/* Odd interlaced frame */
@@ -546,7 +568,7 @@ static int armada_drm_crtc_mode_set(struct drm_crtc *crtc,
 		dcrtc->v[0].spu_v_porch = dcrtc->v[1].spu_v_porch + 1;
 		val = adj->crtc_hsync_start - adj->crtc_htotal / 2;
 		dcrtc->v[0].spu_adv_reg = val << 20 | val | ADV_VSYNCOFFEN |
-			priv->variant->spu_adv_reg;
+			dcrtc->variant->spu_adv_reg;
 	} else {
 		dcrtc->v[0] = dcrtc->v[1];
 	}
@@ -561,7 +583,7 @@ static int armada_drm_crtc_mode_set(struct drm_crtc *crtc,
 	armada_reg_queue_set(regs, i, dcrtc->v[0].spu_v_h_total,
 			   LCD_SPUT_V_H_TOTAL);
 
-	if (priv->variant->has_spu_adv_reg) {
+	if (dcrtc->variant->has_spu_adv_reg) {
 		armada_reg_queue_mod(regs, i, dcrtc->v[0].spu_adv_reg,
 				     ADV_VSYNC_L_OFF | ADV_VSYNC_H_OFF |
 				     ADV_VSYNCOFFEN, LCD_SPU_ADV_REG);
@@ -805,12 +827,11 @@ static int armada_drm_crtc_cursor_set(struct drm_crtc *crtc,
 {
 	struct drm_device *dev = crtc->dev;
 	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
-	struct armada_private *priv = crtc->dev->dev_private;
 	struct armada_gem_object *obj = NULL;
 	int ret;
 
 	/* If no cursor support, replicate drm's return value */
-	if (!priv->variant->has_spu_adv_reg)
+	if (!dcrtc->variant->has_spu_adv_reg)
 		return -ENXIO;
 
 	if (handle && w > 0 && h > 0) {
@@ -858,11 +879,10 @@ static int armada_drm_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 {
 	struct drm_device *dev = crtc->dev;
 	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
-	struct armada_private *priv = crtc->dev->dev_private;
 	int ret;
 
 	/* If no cursor support, replicate drm's return value */
-	if (!priv->variant->has_spu_adv_reg)
+	if (!dcrtc->variant->has_spu_adv_reg)
 		return -EFAULT;
 
 	mutex_lock(&dev->struct_mutex);
@@ -887,6 +907,10 @@ static void armada_drm_crtc_destroy(struct drm_crtc *crtc)
 
 	if (!IS_ERR(dcrtc->clk))
 		clk_disable_unprepare(dcrtc->clk);
+
+	writel_relaxed(0, dcrtc->base + LCD_SPU_IRQ_ENA);
+
+	of_node_put(dcrtc->crtc.port);
 
 	kfree(dcrtc);
 }
@@ -1027,19 +1051,20 @@ static int armada_drm_crtc_create_properties(struct drm_device *dev)
 	return 0;
 }
 
-int armada_drm_crtc_create(struct drm_device *dev, unsigned num,
-	struct resource *res)
+int armada_drm_crtc_create(struct drm_device *drm, struct device *dev,
+	struct resource *res, int irq, const struct armada_variant *variant,
+	struct device_node *port)
 {
-	struct armada_private *priv = dev->dev_private;
+	struct armada_private *priv = drm->dev_private;
 	struct armada_crtc *dcrtc;
 	void __iomem *base;
 	int ret;
 
-	ret = armada_drm_crtc_create_properties(dev);
+	ret = armada_drm_crtc_create_properties(drm);
 	if (ret)
 		return ret;
 
-	base = devm_request_and_ioremap(dev->dev, res);
+	base = devm_request_and_ioremap(dev, res);
 	if (!base) {
 		DRM_ERROR("failed to ioremap register\n");
 		return -ENOMEM;
@@ -1051,8 +1076,12 @@ int armada_drm_crtc_create(struct drm_device *dev, unsigned num,
 		return -ENOMEM;
 	}
 
+	if (dev != drm->dev)
+		dev_set_drvdata(dev, dcrtc);
+
+	dcrtc->variant = variant;
 	dcrtc->base = base;
-	dcrtc->num = num;
+	dcrtc->num = drm->mode_config.num_crtc;
 	dcrtc->clk = ERR_PTR(-EINVAL);
 	dcrtc->csc_yuv_mode = CSC_AUTO;
 	dcrtc->csc_rgb_mode = CSC_AUTO;
@@ -1074,9 +1103,18 @@ int armada_drm_crtc_create(struct drm_device *dev, unsigned num,
 		       CFG_PDWN64x66, dcrtc->base + LCD_SPU_SRAM_PARA1);
 	writel_relaxed(0x2032ff81, dcrtc->base + LCD_SPU_DMA_CTRL1);
 	writel_relaxed(0x00000000, dcrtc->base + LCD_SPU_GRA_OVSA_HPXL_VLN);
+	writel_relaxed(dcrtc->irq_ena, dcrtc->base + LCD_SPU_IRQ_ENA);
+	writel_relaxed(0, dcrtc->base + LCD_SPU_IRQ_ISR);
 
-	if (priv->variant->crtc_init) {
-		ret = priv->variant->crtc_init(dcrtc);
+	ret = devm_request_irq(dev, irq, armada_drm_irq, 0, "armada_drm_crtc",
+			       dcrtc);
+	if (ret < 0) {
+		kfree(dcrtc);
+		return ret;
+	}
+
+	if (dcrtc->variant->init) {
+		ret = dcrtc->variant->init(dcrtc, dev);
 		if (ret) {
 			kfree(dcrtc);
 			return ret;
@@ -1088,7 +1126,8 @@ int armada_drm_crtc_create(struct drm_device *dev, unsigned num,
 
 	priv->dcrtc[dcrtc->num] = dcrtc;
 
-	drm_crtc_init(dev, &dcrtc->crtc, &armada_crtc_funcs);
+	dcrtc->crtc.port = port;
+	drm_crtc_init(drm, &dcrtc->crtc, &armada_crtc_funcs);
 	drm_crtc_helper_add(&dcrtc->crtc, &armada_crtc_helper_funcs);
 
 	drm_object_attach_property(&dcrtc->crtc.base, priv->csc_yuv_prop,
@@ -1096,5 +1135,107 @@ int armada_drm_crtc_create(struct drm_device *dev, unsigned num,
 	drm_object_attach_property(&dcrtc->crtc.base, priv->csc_rgb_prop,
 				   dcrtc->csc_rgb_mode);
 
-	return armada_overlay_plane_create(dev, 1 << dcrtc->num);
+	return armada_overlay_plane_create(drm, 1 << dcrtc->num);
 }
+
+static int
+armada_lcd_bind(struct device *dev, struct device *master, void *data)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct drm_device *drm = data;
+	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	int irq = platform_get_irq(pdev, 0);
+	const struct armada_variant *variant;
+	struct device_node *port = NULL;
+
+	if (irq < 0)
+		return irq;
+
+	if (!dev->of_node) {
+		const struct platform_device_id *id;
+
+		id = platform_get_device_id(pdev);
+		if (!id)
+			return -ENXIO;
+
+		variant = (const struct armada_variant *)id->driver_data;
+	} else {
+		const struct of_device_id *match;
+		struct device_node *np, *parent = dev->of_node;
+
+		match = of_match_device(dev->driver->of_match_table, dev);
+		if (!match)
+			return -ENXIO;
+
+		np = of_get_child_by_name(parent, "ports");
+		if (np)
+			parent = np;
+		port = of_get_child_by_name(parent, "port");
+		of_node_put(np);
+		if (!port) {
+			dev_err(dev, "no port node found in %s\n",
+				parent->full_name);
+			return -ENXIO;
+		}
+
+		variant = match->data;
+	}
+
+	return armada_drm_crtc_create(drm, dev, res, irq, variant, port);
+}
+
+static void
+armada_lcd_unbind(struct device *dev, struct device *master, void *data)
+{
+	struct armada_crtc *dcrtc = dev_get_drvdata(dev);
+
+	armada_drm_crtc_destroy(&dcrtc->crtc);
+}
+
+static const struct component_ops armada_lcd_ops = {
+	.bind = armada_lcd_bind,
+	.unbind = armada_lcd_unbind,
+};
+
+static int armada_lcd_probe(struct platform_device *pdev)
+{
+	return component_add(&pdev->dev, &armada_lcd_ops);
+}
+
+static int armada_lcd_remove(struct platform_device *pdev)
+{
+	component_del(&pdev->dev, &armada_lcd_ops);
+	return 0;
+}
+
+static struct of_device_id armada_lcd_of_match[] = {
+	{
+		.compatible	= "marvell,dove-lcd",
+		.data		= &armada510_ops,
+	},
+	{}
+};
+MODULE_DEVICE_TABLE(of, armada_lcd_of_match);
+
+static const struct platform_device_id armada_lcd_platform_ids[] = {
+	{
+		.name		= "armada-lcd",
+		.driver_data	= (unsigned long)&armada510_ops,
+	}, {
+		.name		= "armada-510-lcd",
+		.driver_data	= (unsigned long)&armada510_ops,
+	},
+	{ },
+};
+MODULE_DEVICE_TABLE(platform, armada_lcd_platform_ids);
+
+struct platform_driver armada_lcd_platform_driver = {
+	.probe	= armada_lcd_probe,
+	.remove	= armada_lcd_remove,
+	.driver = {
+		.name	= "armada-lcd",
+		.owner	=  THIS_MODULE,
+		.of_match_table = armada_lcd_of_match,
+	},
+	.id_table = armada_lcd_platform_ids,
+};

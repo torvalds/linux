@@ -206,7 +206,7 @@ static int psb_gtt_attach_pages(struct gtt_range *gt)
 
 	WARN_ON(gt->pages);
 
-	pages = drm_gem_get_pages(&gt->gem, 0);
+	pages = drm_gem_get_pages(&gt->gem);
 	if (IS_ERR(pages))
 		return PTR_ERR(pages);
 

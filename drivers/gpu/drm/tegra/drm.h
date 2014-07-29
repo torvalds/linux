@@ -280,6 +280,7 @@ struct tegra_bo *tegra_fb_get_plane(struct drm_framebuffer *framebuffer,
 				    unsigned int index);
 bool tegra_fb_is_bottom_up(struct drm_framebuffer *framebuffer);
 bool tegra_fb_is_tiled(struct drm_framebuffer *framebuffer);
+int tegra_drm_fb_prepare(struct drm_device *drm);
 int tegra_drm_fb_init(struct drm_device *drm);
 void tegra_drm_fb_exit(struct drm_device *drm);
 #ifdef CONFIG_DRM_TEGRA_FBDEV

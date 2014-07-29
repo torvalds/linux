@@ -1395,8 +1395,6 @@ extern void drm_master_put(struct drm_master **master);
 extern void drm_put_dev(struct drm_device *dev);
 extern void drm_unplug_dev(struct drm_device *dev);
 extern unsigned int drm_debug;
-extern unsigned int drm_rnodes;
-extern unsigned int drm_universal_planes;
 
 extern unsigned int drm_vblank_offdelay;
 extern unsigned int drm_timestamp_precision;
@@ -1419,6 +1417,8 @@ extern int drm_debugfs_create_files(const struct drm_info_list *files,
 extern int drm_debugfs_remove_files(const struct drm_info_list *files,
 				    int count, struct drm_minor *minor);
 extern int drm_debugfs_cleanup(struct drm_minor *minor);
+extern int drm_debugfs_connector_add(struct drm_connector *connector);
+extern void drm_debugfs_connector_remove(struct drm_connector *connector);
 #else
 static inline int drm_debugfs_init(struct drm_minor *minor, int minor_id,
 				   struct dentry *root)
@@ -1443,6 +1443,15 @@ static inline int drm_debugfs_cleanup(struct drm_minor *minor)
 {
 	return 0;
 }
+
+static inline int drm_debugfs_connector_add(struct drm_connector *connector)
+{
+	return 0;
+}
+static inline void drm_debugfs_connector_remove(struct drm_connector *connector)
+{
+}
+
 #endif
 
 				/* Info file support */
@@ -1574,7 +1583,7 @@ void drm_gem_free_mmap_offset(struct drm_gem_object *obj);
 int drm_gem_create_mmap_offset(struct drm_gem_object *obj);
 int drm_gem_create_mmap_offset_size(struct drm_gem_object *obj, size_t size);
 
-struct page **drm_gem_get_pages(struct drm_gem_object *obj, gfp_t gfpmask);
+struct page **drm_gem_get_pages(struct drm_gem_object *obj);
 void drm_gem_put_pages(struct drm_gem_object *obj, struct page **pages,
 		bool dirty, bool accessed);
 

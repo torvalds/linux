@@ -318,7 +318,7 @@ static void mdfld_dsi_connector_destroy(struct drm_connector *connector)
 
 	if (!dsi_connector)
 		return;
-	drm_sysfs_connector_remove(connector);
+	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
 	sender = dsi_connector->pkg_sender;
 	mdfld_dsi_pkg_sender_destroy(sender);
@@ -597,7 +597,7 @@ void mdfld_dsi_output_init(struct drm_device *dev,
 	dsi_config->encoder = encoder;
 	encoder->base.type = (pipe == 0) ? INTEL_OUTPUT_MIPI :
 		INTEL_OUTPUT_MIPI2;
-	drm_sysfs_connector_add(connector);
+	drm_connector_register(connector);
 	return;
 
 	/*TODO: add code to destroy outputs on error*/

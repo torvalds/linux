@@ -116,7 +116,10 @@ enum port intel_ddi_get_encoder_port(struct intel_encoder *intel_encoder)
 	struct drm_encoder *encoder = &intel_encoder->base;
 	int type = intel_encoder->type;
 
-	if (type == INTEL_OUTPUT_DISPLAYPORT || type == INTEL_OUTPUT_EDP ||
+	if (type == INTEL_OUTPUT_DP_MST) {
+		struct intel_digital_port *intel_dig_port = enc_to_mst(encoder)->primary;
+		return intel_dig_port->port;
+	} else if (type == INTEL_OUTPUT_DISPLAYPORT || type == INTEL_OUTPUT_EDP ||
 	    type == INTEL_OUTPUT_HDMI || type == INTEL_OUTPUT_UNKNOWN) {
 		struct intel_digital_port *intel_dig_port =
 			enc_to_dig_port(encoder);
@@ -365,6 +368,18 @@ void hsw_fdi_link_train(struct drm_crtc *crtc)
 	DRM_ERROR("FDI link training failed!\n");
 }
 
+void intel_ddi_init_dp_buf_reg(struct intel_encoder *encoder)
+{
+	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
+	struct intel_digital_port *intel_dig_port =
+		enc_to_dig_port(&encoder->base);
+
+	intel_dp->DP = intel_dig_port->saved_port_bits |
+		DDI_BUF_CTL_ENABLE | DDI_BUF_EMP_400MV_0DB_HSW;
+	intel_dp->DP |= DDI_PORT_WIDTH(intel_dp->lane_count);
+
+}
+
 static struct intel_encoder *
 intel_ddi_get_crtc_encoder(struct drm_crtc *crtc)
 {
@@ -572,8 +587,8 @@ static int intel_ddi_calc_wrpll_link(struct drm_i915_private *dev_priv,
 	return (refclk * n * 100) / (p * r);
 }
 
-static void intel_ddi_clock_get(struct intel_encoder *encoder,
-				struct intel_crtc_config *pipe_config)
+void intel_ddi_clock_get(struct intel_encoder *encoder,
+			 struct intel_crtc_config *pipe_config)
 {
 	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
 	int link_clock = 0;
@@ -743,8 +758,7 @@ void intel_ddi_set_pipe_settings(struct drm_crtc *crtc)
 	int type = intel_encoder->type;
 	uint32_t temp;
 
-	if (type == INTEL_OUTPUT_DISPLAYPORT || type == INTEL_OUTPUT_EDP) {
-
+	if (type == INTEL_OUTPUT_DISPLAYPORT || type == INTEL_OUTPUT_EDP || type == INTEL_OUTPUT_DP_MST) {
 		temp = TRANS_MSA_SYNC_CLK;
 		switch (intel_crtc->config.pipe_bpp) {
 		case 18:
@@ -764,6 +778,21 @@ void intel_ddi_set_pipe_settings(struct drm_crtc *crtc)
 		}
 		I915_WRITE(TRANS_MSA_MISC(cpu_transcoder), temp);
 	}
+}
+
+void intel_ddi_set_vc_payload_alloc(struct drm_crtc *crtc, bool state)
+{
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	enum transcoder cpu_transcoder = intel_crtc->config.cpu_transcoder;
+	uint32_t temp;
+	temp = I915_READ(TRANS_DDI_FUNC_CTL(cpu_transcoder));
+	if (state == true)
+		temp |= TRANS_DDI_DP_VC_PAYLOAD_ALLOC;
+	else
+		temp &= ~TRANS_DDI_DP_VC_PAYLOAD_ALLOC;
+	I915_WRITE(TRANS_DDI_FUNC_CTL(cpu_transcoder), temp);
 }
 
 void intel_ddi_enable_transcoder_func(struct drm_crtc *crtc)
@@ -845,7 +874,19 @@ void intel_ddi_enable_transcoder_func(struct drm_crtc *crtc)
 		   type == INTEL_OUTPUT_EDP) {
 		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 
-		temp |= TRANS_DDI_MODE_SELECT_DP_SST;
+		if (intel_dp->is_mst) {
+			temp |= TRANS_DDI_MODE_SELECT_DP_MST;
+		} else
+			temp |= TRANS_DDI_MODE_SELECT_DP_SST;
+
+		temp |= DDI_PORT_WIDTH(intel_dp->lane_count);
+	} else if (type == INTEL_OUTPUT_DP_MST) {
+		struct intel_dp *intel_dp = &enc_to_mst(encoder)->primary->dp;
+
+		if (intel_dp->is_mst) {
+			temp |= TRANS_DDI_MODE_SELECT_DP_MST;
+		} else
+			temp |= TRANS_DDI_MODE_SELECT_DP_SST;
 
 		temp |= DDI_PORT_WIDTH(intel_dp->lane_count);
 	} else {
@@ -862,7 +903,7 @@ void intel_ddi_disable_transcoder_func(struct drm_i915_private *dev_priv,
 	uint32_t reg = TRANS_DDI_FUNC_CTL(cpu_transcoder);
 	uint32_t val = I915_READ(reg);
 
-	val &= ~(TRANS_DDI_FUNC_ENABLE | TRANS_DDI_PORT_MASK);
+	val &= ~(TRANS_DDI_FUNC_ENABLE | TRANS_DDI_PORT_MASK | TRANS_DDI_DP_VC_PAYLOAD_ALLOC);
 	val |= TRANS_DDI_PORT_NONE;
 	I915_WRITE(reg, val);
 }
@@ -901,8 +942,11 @@ bool intel_ddi_connector_get_hw_state(struct intel_connector *intel_connector)
 	case TRANS_DDI_MODE_SELECT_DP_SST:
 		if (type == DRM_MODE_CONNECTOR_eDP)
 			return true;
-	case TRANS_DDI_MODE_SELECT_DP_MST:
 		return (type == DRM_MODE_CONNECTOR_DisplayPort);
+	case TRANS_DDI_MODE_SELECT_DP_MST:
+		/* if the transcoder is in MST state then
+		 * connector isn't connected */
+		return false;
 
 	case TRANS_DDI_MODE_SELECT_FDI:
 		return (type == DRM_MODE_CONNECTOR_VGA);
@@ -954,6 +998,9 @@ bool intel_ddi_get_hw_state(struct intel_encoder *encoder,
 
 			if ((tmp & TRANS_DDI_PORT_MASK)
 			    == TRANS_DDI_SELECT_PORT(port)) {
+				if ((tmp & TRANS_DDI_MODE_SELECT_MASK) == TRANS_DDI_MODE_SELECT_DP_MST)
+					return false;
+
 				*pipe = i;
 				return true;
 			}
@@ -1015,12 +1062,8 @@ static void intel_ddi_pre_enable(struct intel_encoder *intel_encoder)
 
 	if (type == INTEL_OUTPUT_DISPLAYPORT || type == INTEL_OUTPUT_EDP) {
 		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
-		struct intel_digital_port *intel_dig_port =
-			enc_to_dig_port(encoder);
 
-		intel_dp->DP = intel_dig_port->saved_port_bits |
-			       DDI_BUF_CTL_ENABLE | DDI_BUF_EMP_400MV_0DB_HSW;
-		intel_dp->DP |= DDI_PORT_WIDTH(intel_dp->lane_count);
+		intel_ddi_init_dp_buf_reg(intel_encoder);
 
 		intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_ON);
 		intel_dp_start_link_train(intel_dp);
@@ -1264,10 +1307,15 @@ void intel_ddi_prepare_link_retrain(struct drm_encoder *encoder)
 			intel_wait_ddi_buf_idle(dev_priv, port);
 	}
 
-	val = DP_TP_CTL_ENABLE | DP_TP_CTL_MODE_SST |
+	val = DP_TP_CTL_ENABLE |
 	      DP_TP_CTL_LINK_TRAIN_PAT1 | DP_TP_CTL_SCRAMBLE_DISABLE;
-	if (drm_dp_enhanced_frame_cap(intel_dp->dpcd))
-		val |= DP_TP_CTL_ENHANCED_FRAME_ENABLE;
+	if (intel_dp->is_mst)
+		val |= DP_TP_CTL_MODE_MST;
+	else {
+		val |= DP_TP_CTL_MODE_SST;
+		if (drm_dp_enhanced_frame_cap(intel_dp->dpcd))
+			val |= DP_TP_CTL_ENHANCED_FRAME_ENABLE;
+	}
 	I915_WRITE(DP_TP_CTL(port), val);
 	POSTING_READ(DP_TP_CTL(port));
 
@@ -1306,11 +1354,16 @@ void intel_ddi_fdi_disable(struct drm_crtc *crtc)
 
 static void intel_ddi_hot_plug(struct intel_encoder *intel_encoder)
 {
-	struct intel_dp *intel_dp = enc_to_intel_dp(&intel_encoder->base);
-	int type = intel_encoder->type;
+	struct intel_digital_port *intel_dig_port = enc_to_dig_port(&intel_encoder->base);
+	int type = intel_dig_port->base.type;
 
-	if (type == INTEL_OUTPUT_DISPLAYPORT || type == INTEL_OUTPUT_EDP)
-		intel_dp_check_link_status(intel_dp);
+	if (type != INTEL_OUTPUT_DISPLAYPORT &&
+	    type != INTEL_OUTPUT_EDP &&
+	    type != INTEL_OUTPUT_UNKNOWN) {
+		return;
+	}
+
+	intel_dp_hot_plug(intel_encoder);
 }
 
 void intel_ddi_get_config(struct intel_encoder *encoder,

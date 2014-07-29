@@ -216,7 +216,6 @@ radeon_connector_update_scratch_regs(struct drm_connector *connector, enum drm_c
 	struct drm_encoder *best_encoder = NULL;
 	struct drm_encoder *encoder = NULL;
 	struct drm_connector_helper_funcs *connector_funcs = connector->helper_private;
-	struct drm_mode_object *obj;
 	bool connected;
 	int i;
 
@@ -226,13 +225,10 @@ radeon_connector_update_scratch_regs(struct drm_connector *connector, enum drm_c
 		if (connector->encoder_ids[i] == 0)
 			break;
 
-		obj = drm_mode_object_find(connector->dev,
-					   connector->encoder_ids[i],
-					   DRM_MODE_OBJECT_ENCODER);
-		if (!obj)
+		encoder = drm_encoder_find(connector->dev,
+					   connector->encoder_ids[i]);
+		if (!encoder)
 			continue;
-
-		encoder = obj_to_encoder(obj);
 
 		if ((encoder == best_encoder) && (status == connector_status_connected))
 			connected = true;
@@ -249,7 +245,6 @@ radeon_connector_update_scratch_regs(struct drm_connector *connector, enum drm_c
 
 static struct drm_encoder *radeon_find_encoder(struct drm_connector *connector, int encoder_type)
 {
-	struct drm_mode_object *obj;
 	struct drm_encoder *encoder;
 	int i;
 
@@ -257,11 +252,10 @@ static struct drm_encoder *radeon_find_encoder(struct drm_connector *connector, 
 		if (connector->encoder_ids[i] == 0)
 			break;
 
-		obj = drm_mode_object_find(connector->dev, connector->encoder_ids[i], DRM_MODE_OBJECT_ENCODER);
-		if (!obj)
+		encoder = drm_encoder_find(connector->dev, connector->encoder_ids[i]);
+		if (!encoder)
 			continue;
 
-		encoder = obj_to_encoder(obj);
 		if (encoder->encoder_type == encoder_type)
 			return encoder;
 	}
@@ -271,17 +265,9 @@ static struct drm_encoder *radeon_find_encoder(struct drm_connector *connector, 
 static struct drm_encoder *radeon_best_single_encoder(struct drm_connector *connector)
 {
 	int enc_id = connector->encoder_ids[0];
-	struct drm_mode_object *obj;
-	struct drm_encoder *encoder;
-
 	/* pick the encoder ids */
-	if (enc_id) {
-		obj = drm_mode_object_find(connector->dev, enc_id, DRM_MODE_OBJECT_ENCODER);
-		if (!obj)
-			return NULL;
-		encoder = obj_to_encoder(obj);
-		return encoder;
-	}
+	if (enc_id)
+		return drm_encoder_find(connector->dev, enc_id);
 	return NULL;
 }
 
@@ -740,7 +726,7 @@ static void radeon_connector_destroy(struct drm_connector *connector)
 	if (radeon_connector->edid)
 		kfree(radeon_connector->edid);
 	kfree(radeon_connector->con_priv);
-	drm_sysfs_connector_remove(connector);
+	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
 	kfree(connector);
 }
@@ -1048,7 +1034,6 @@ radeon_dvi_detect(struct drm_connector *connector, bool force)
 	struct radeon_connector *radeon_connector = to_radeon_connector(connector);
 	struct drm_encoder *encoder = NULL;
 	struct drm_encoder_helper_funcs *encoder_funcs;
-	struct drm_mode_object *obj;
 	int i, r;
 	enum drm_connector_status ret = connector_status_disconnected;
 	bool dret = false, broken_edid = false;
@@ -1153,13 +1138,10 @@ radeon_dvi_detect(struct drm_connector *connector, bool force)
 			if (connector->encoder_ids[i] == 0)
 				break;
 
-			obj = drm_mode_object_find(connector->dev,
-						   connector->encoder_ids[i],
-						   DRM_MODE_OBJECT_ENCODER);
-			if (!obj)
+			encoder = drm_encoder_find(connector->dev,
+						   connector->encoder_ids[i]);
+			if (!encoder)
 				continue;
-
-			encoder = obj_to_encoder(obj);
 
 			if (encoder->encoder_type != DRM_MODE_ENCODER_DAC &&
 			    encoder->encoder_type != DRM_MODE_ENCODER_TVDAC)
@@ -1225,18 +1207,15 @@ static struct drm_encoder *radeon_dvi_encoder(struct drm_connector *connector)
 {
 	int enc_id = connector->encoder_ids[0];
 	struct radeon_connector *radeon_connector = to_radeon_connector(connector);
-	struct drm_mode_object *obj;
 	struct drm_encoder *encoder;
 	int i;
 	for (i = 0; i < DRM_CONNECTOR_MAX_ENCODER; i++) {
 		if (connector->encoder_ids[i] == 0)
 			break;
 
-		obj = drm_mode_object_find(connector->dev, connector->encoder_ids[i], DRM_MODE_OBJECT_ENCODER);
-		if (!obj)
+		encoder = drm_encoder_find(connector->dev, connector->encoder_ids[i]);
+		if (!encoder)
 			continue;
-
-		encoder = obj_to_encoder(obj);
 
 		if (radeon_connector->use_digital == true) {
 			if (encoder->encoder_type == DRM_MODE_ENCODER_TMDS)
@@ -1252,13 +1231,8 @@ static struct drm_encoder *radeon_dvi_encoder(struct drm_connector *connector)
 
 	/* then check use digitial */
 	/* pick the first one */
-	if (enc_id) {
-		obj = drm_mode_object_find(connector->dev, enc_id, DRM_MODE_OBJECT_ENCODER);
-		if (!obj)
-			return NULL;
-		encoder = obj_to_encoder(obj);
-		return encoder;
-	}
+	if (enc_id)
+		return drm_encoder_find(connector->dev, enc_id);
 	return NULL;
 }
 
@@ -1391,7 +1365,6 @@ static int radeon_dp_get_modes(struct drm_connector *connector)
 
 u16 radeon_connector_encoder_get_dp_bridge_encoder_id(struct drm_connector *connector)
 {
-	struct drm_mode_object *obj;
 	struct drm_encoder *encoder;
 	struct radeon_encoder *radeon_encoder;
 	int i;
@@ -1400,11 +1373,10 @@ u16 radeon_connector_encoder_get_dp_bridge_encoder_id(struct drm_connector *conn
 		if (connector->encoder_ids[i] == 0)
 			break;
 
-		obj = drm_mode_object_find(connector->dev, connector->encoder_ids[i], DRM_MODE_OBJECT_ENCODER);
-		if (!obj)
+		encoder = drm_encoder_find(connector->dev, connector->encoder_ids[i]);
+		if (!encoder)
 			continue;
 
-		encoder = obj_to_encoder(obj);
 		radeon_encoder = to_radeon_encoder(encoder);
 
 		switch (radeon_encoder->encoder_id) {
@@ -1421,7 +1393,6 @@ u16 radeon_connector_encoder_get_dp_bridge_encoder_id(struct drm_connector *conn
 
 bool radeon_connector_encoder_is_hbr2(struct drm_connector *connector)
 {
-	struct drm_mode_object *obj;
 	struct drm_encoder *encoder;
 	struct radeon_encoder *radeon_encoder;
 	int i;
@@ -1431,11 +1402,10 @@ bool radeon_connector_encoder_is_hbr2(struct drm_connector *connector)
 		if (connector->encoder_ids[i] == 0)
 			break;
 
-		obj = drm_mode_object_find(connector->dev, connector->encoder_ids[i], DRM_MODE_OBJECT_ENCODER);
-		if (!obj)
+		encoder = drm_encoder_find(connector->dev, connector->encoder_ids[i]);
+		if (!encoder)
 			continue;
 
-		encoder = obj_to_encoder(obj);
 		radeon_encoder = to_radeon_encoder(encoder);
 		if (radeon_encoder->caps & ATOM_ENCODER_CAP_RECORD_HBR2)
 			found = true;
@@ -2050,7 +2020,7 @@ radeon_add_atom_connector(struct drm_device *dev,
 		connector->polled = DRM_CONNECTOR_POLL_HPD;
 
 	connector->display_info.subpixel_order = subpixel_order;
-	drm_sysfs_connector_add(connector);
+	drm_connector_register(connector);
 
 	if (has_aux)
 		radeon_dp_aux_init(radeon_connector);
@@ -2211,5 +2181,5 @@ radeon_add_legacy_connector(struct drm_device *dev,
 	} else
 		connector->polled = DRM_CONNECTOR_POLL_HPD;
 	connector->display_info.subpixel_order = subpixel_order;
-	drm_sysfs_connector_add(connector);
+	drm_connector_register(connector);
 }

@@ -818,6 +818,7 @@ void drm_helper_mode_fill_fb_struct(struct drm_framebuffer *fb,
 	drm_fb_get_bpp_depth(mode_cmd->pixel_format, &fb->depth,
 				    &fb->bits_per_pixel);
 	fb->pixel_format = mode_cmd->pixel_format;
+	fb->flags = mode_cmd->flags;
 }
 EXPORT_SYMBOL(drm_helper_mode_fill_fb_struct);
 

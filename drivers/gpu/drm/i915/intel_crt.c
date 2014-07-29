@@ -895,7 +895,7 @@ void intel_crt_init(struct drm_device *dev)
 
 	drm_connector_helper_add(connector, &intel_crt_connector_helper_funcs);
 
-	drm_sysfs_connector_add(connector);
+	drm_connector_register(connector);
 
 	if (!I915_HAS_HOTPLUG(dev))
 		intel_connector->polled = DRM_CONNECTOR_POLL_CONNECT;

@@ -64,7 +64,7 @@ static const struct drm_connector_helper_funcs connector_helper_funcs = {
 
 static void rcar_du_lvds_connector_destroy(struct drm_connector *connector)
 {
-	drm_sysfs_connector_remove(connector);
+	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
 }
 
@@ -105,7 +105,7 @@ int rcar_du_lvds_connector_init(struct rcar_du_device *rcdu,
 		return ret;
 
 	drm_connector_helper_add(connector, &connector_helper_funcs);
-	ret = drm_sysfs_connector_add(connector);
+	ret = drm_connector_register(connector);
 	if (ret < 0)
 		return ret;
 

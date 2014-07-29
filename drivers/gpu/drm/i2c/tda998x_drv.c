@@ -1196,8 +1196,7 @@ tda998x_encoder_destroy(struct drm_encoder *encoder)
 	if (priv->hdmi->irq)
 		free_irq(priv->hdmi->irq, priv);
 
-	if (priv->cec)
-		i2c_unregister_device(priv->cec);
+	i2c_unregister_device(priv->cec);
 	drm_i2c_encoder_destroy(encoder);
 	kfree(priv);
 }

@@ -37,18 +37,9 @@
 unsigned int drm_debug = 0;	/* 1 to enable debug output */
 EXPORT_SYMBOL(drm_debug);
 
-unsigned int drm_rnodes = 0;	/* 1 to enable experimental render nodes API */
-EXPORT_SYMBOL(drm_rnodes);
-
-/* 1 to allow user space to request universal planes (experimental) */
-unsigned int drm_universal_planes = 0;
-EXPORT_SYMBOL(drm_universal_planes);
-
 unsigned int drm_vblank_offdelay = 5000;    /* Default to 5000 msecs. */
-EXPORT_SYMBOL(drm_vblank_offdelay);
 
 unsigned int drm_timestamp_precision = 20;  /* Default to 20 usecs. */
-EXPORT_SYMBOL(drm_timestamp_precision);
 
 /*
  * Default to use monotonic timestamps for wait-for-vblank and page-flip
@@ -60,14 +51,11 @@ MODULE_AUTHOR(CORE_AUTHOR);
 MODULE_DESCRIPTION(CORE_DESC);
 MODULE_LICENSE("GPL and additional rights");
 MODULE_PARM_DESC(debug, "Enable debug output");
-MODULE_PARM_DESC(rnodes, "Enable experimental render nodes API");
 MODULE_PARM_DESC(vblankoffdelay, "Delay until vblank irq auto-disable [msecs]");
 MODULE_PARM_DESC(timestamp_precision_usec, "Max. error on timestamps [usecs]");
 MODULE_PARM_DESC(timestamp_monotonic, "Use monotonic timestamps");
 
 module_param_named(debug, drm_debug, int, 0600);
-module_param_named(rnodes, drm_rnodes, int, 0600);
-module_param_named(universal_planes, drm_universal_planes, int, 0600);
 module_param_named(vblankoffdelay, drm_vblank_offdelay, int, 0600);
 module_param_named(timestamp_precision_usec, drm_timestamp_precision, int, 0600);
 module_param_named(timestamp_monotonic, drm_timestamp_monotonic, int, 0600);
@@ -588,7 +576,7 @@ struct drm_device *drm_dev_alloc(struct drm_driver *driver,
 			goto err_minors;
 	}
 
-	if (drm_core_check_feature(dev, DRIVER_RENDER) && drm_rnodes) {
+	if (drm_core_check_feature(dev, DRIVER_RENDER)) {
 		ret = drm_minor_alloc(dev, DRM_MINOR_RENDER);
 		if (ret)
 			goto err_minors;

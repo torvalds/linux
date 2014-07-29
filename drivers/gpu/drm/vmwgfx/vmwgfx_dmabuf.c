@@ -61,7 +61,7 @@ int vmw_dmabuf_to_placement(struct vmw_private *dev_priv,
 
 	vmw_execbuf_release_pinned_bo(dev_priv);
 
-	ret = ttm_bo_reserve(bo, interruptible, false, false, 0);
+	ret = ttm_bo_reserve(bo, interruptible, false, false, NULL);
 	if (unlikely(ret != 0))
 		goto err;
 
@@ -105,7 +105,7 @@ int vmw_dmabuf_to_vram_or_gmr(struct vmw_private *dev_priv,
 	if (pin)
 		vmw_execbuf_release_pinned_bo(dev_priv);
 
-	ret = ttm_bo_reserve(bo, interruptible, false, false, 0);
+	ret = ttm_bo_reserve(bo, interruptible, false, false, NULL);
 	if (unlikely(ret != 0))
 		goto err;
 
@@ -212,7 +212,7 @@ int vmw_dmabuf_to_start_of_vram(struct vmw_private *dev_priv,
 
 	if (pin)
 		vmw_execbuf_release_pinned_bo(dev_priv);
-	ret = ttm_bo_reserve(bo, interruptible, false, false, 0);
+	ret = ttm_bo_reserve(bo, interruptible, false, false, NULL);
 	if (unlikely(ret != 0))
 		goto err_unlock;
 

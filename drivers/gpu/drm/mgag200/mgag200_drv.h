@@ -280,7 +280,7 @@ static inline int mgag200_bo_reserve(struct mgag200_bo *bo, bool no_wait)
 {
 	int ret;
 
-	ret = ttm_bo_reserve(&bo->bo, true, no_wait, false, 0);
+	ret = ttm_bo_reserve(&bo->bo, true, no_wait, false, NULL);
 	if (ret) {
 		if (ret != -ERESTARTSYS && ret != -EBUSY)
 			DRM_ERROR("reserve failed %p\n", bo);

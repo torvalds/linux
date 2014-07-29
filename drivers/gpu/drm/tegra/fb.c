@@ -267,18 +267,13 @@ release:
 	return err;
 }
 
-static struct drm_fb_helper_funcs tegra_fb_helper_funcs = {
+static const struct drm_fb_helper_funcs tegra_fb_helper_funcs = {
 	.fb_probe = tegra_fbdev_probe,
 };
 
-static struct tegra_fbdev *tegra_fbdev_create(struct drm_device *drm,
-					      unsigned int preferred_bpp,
-					      unsigned int num_crtc,
-					      unsigned int max_connectors)
+static struct tegra_fbdev *tegra_fbdev_create(struct drm_device *drm)
 {
-	struct drm_fb_helper *helper;
 	struct tegra_fbdev *fbdev;
-	int err;
 
 	fbdev = kzalloc(sizeof(*fbdev), GFP_KERNEL);
 	if (!fbdev) {
@@ -286,13 +281,23 @@ static struct tegra_fbdev *tegra_fbdev_create(struct drm_device *drm,
 		return ERR_PTR(-ENOMEM);
 	}
 
-	fbdev->base.funcs = &tegra_fb_helper_funcs;
-	helper = &fbdev->base;
+	drm_fb_helper_prepare(drm, &fbdev->base, &tegra_fb_helper_funcs);
+
+	return fbdev;
+}
+
+static int tegra_fbdev_init(struct tegra_fbdev *fbdev,
+			    unsigned int preferred_bpp,
+			    unsigned int num_crtc,
+			    unsigned int max_connectors)
+{
+	struct drm_device *drm = fbdev->base.dev;
+	int err;
 
 	err = drm_fb_helper_init(drm, &fbdev->base, num_crtc, max_connectors);
 	if (err < 0) {
 		dev_err(drm->dev, "failed to initialize DRM FB helper\n");
-		goto free;
+		return err;
 	}
 
 	err = drm_fb_helper_single_add_all_connectors(&fbdev->base);
@@ -301,21 +306,17 @@ static struct tegra_fbdev *tegra_fbdev_create(struct drm_device *drm,
 		goto fini;
 	}
 
-	drm_helper_disable_unused_functions(drm);
-
 	err = drm_fb_helper_initial_config(&fbdev->base, preferred_bpp);
 	if (err < 0) {
 		dev_err(drm->dev, "failed to set initial configuration\n");
 		goto fini;
 	}
 
-	return fbdev;
+	return 0;
 
 fini:
 	drm_fb_helper_fini(&fbdev->base);
-free:
-	kfree(fbdev);
-	return ERR_PTR(err);
+	return err;
 }
 
 static void tegra_fbdev_free(struct tegra_fbdev *fbdev)
@@ -366,7 +367,7 @@ static const struct drm_mode_config_funcs tegra_drm_mode_funcs = {
 #endif
 };
 
-int tegra_drm_fb_init(struct drm_device *drm)
+int tegra_drm_fb_prepare(struct drm_device *drm)
 {
 #ifdef CONFIG_DRM_TEGRA_FBDEV
 	struct tegra_drm *tegra = drm->dev_private;
@@ -381,10 +382,24 @@ int tegra_drm_fb_init(struct drm_device *drm)
 	drm->mode_config.funcs = &tegra_drm_mode_funcs;
 
 #ifdef CONFIG_DRM_TEGRA_FBDEV
-	tegra->fbdev = tegra_fbdev_create(drm, 32, drm->mode_config.num_crtc,
-					  drm->mode_config.num_connector);
+	tegra->fbdev = tegra_fbdev_create(drm);
 	if (IS_ERR(tegra->fbdev))
 		return PTR_ERR(tegra->fbdev);
+#endif
+
+	return 0;
+}
+
+int tegra_drm_fb_init(struct drm_device *drm)
+{
+#ifdef CONFIG_DRM_TEGRA_FBDEV
+	struct tegra_drm *tegra = drm->dev_private;
+	int err;
+
+	err = tegra_fbdev_init(tegra->fbdev, 32, drm->mode_config.num_crtc,
+			       drm->mode_config.num_connector);
+	if (err < 0)
+		return err;
 #endif
 
 	return 0;

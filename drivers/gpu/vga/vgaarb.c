@@ -237,12 +237,10 @@ static struct vga_device *__vga_tryget(struct vga_device *vgadev,
 		if (conflict->locks & lwants)
 			return conflict;
 
-		/* Ok, now check if he owns the resource we want. We don't need
-		 * to check "decodes" since it should be impossible to own
-		 * own legacy resources you don't decode unless I have a bug
-		 * in this code...
+		/* Ok, now check if it owns the resource we want.  We can
+		 * lock resources that are not decoded, therefore a device
+		 * can own resources it doesn't decode.
 		 */
-		WARN_ON(conflict->owns & ~conflict->decodes);
 		match = lwants & conflict->owns;
 		if (!match)
 			continue;
@@ -254,13 +252,19 @@ static struct vga_device *__vga_tryget(struct vga_device *vgadev,
 		flags = 0;
 		pci_bits = 0;
 
+		/* If we can't control legacy resources via the bridge, we
+		 * also need to disable normal decoding.
+		 */
 		if (!conflict->bridge_has_one_vga) {
-			vga_irq_set_state(conflict, false);
-			flags |= PCI_VGA_STATE_CHANGE_DECODES;
-			if (match & (VGA_RSRC_LEGACY_MEM|VGA_RSRC_NORMAL_MEM))
+			if ((match & conflict->decodes) & VGA_RSRC_LEGACY_MEM)
 				pci_bits |= PCI_COMMAND_MEMORY;
-			if (match & (VGA_RSRC_LEGACY_IO|VGA_RSRC_NORMAL_IO))
+			if ((match & conflict->decodes) & VGA_RSRC_LEGACY_IO)
 				pci_bits |= PCI_COMMAND_IO;
+
+			if (pci_bits) {
+				vga_irq_set_state(conflict, false);
+				flags |= PCI_VGA_STATE_CHANGE_DECODES;
+			}
 		}
 
 		if (change_bridge)
@@ -268,18 +272,19 @@ static struct vga_device *__vga_tryget(struct vga_device *vgadev,
 
 		pci_set_vga_state(conflict->pdev, false, pci_bits, flags);
 		conflict->owns &= ~match;
-		/* If he also owned non-legacy, that is no longer the case */
-		if (match & VGA_RSRC_LEGACY_MEM)
+
+		/* If we disabled normal decoding, reflect it in owns */
+		if (pci_bits & PCI_COMMAND_MEMORY)
 			conflict->owns &= ~VGA_RSRC_NORMAL_MEM;
-		if (match & VGA_RSRC_LEGACY_IO)
+		if (pci_bits & PCI_COMMAND_IO)
 			conflict->owns &= ~VGA_RSRC_NORMAL_IO;
 	}
 
 enable_them:
 	/* ok dude, we got it, everybody conflicting has been disabled, let's
-	 * enable us. Make sure we don't mark a bit in "owns" that we don't
-	 * also have in "decodes". We can lock resources we don't decode but
-	 * not own them.
+	 * enable us.  Mark any bits in "owns" regardless of whether we
+	 * decoded them.  We can lock resources we don't decode, therefore
+	 * we must track them via "owns".
 	 */
 	flags = 0;
 	pci_bits = 0;
@@ -291,7 +296,7 @@ enable_them:
 		if (wants & (VGA_RSRC_LEGACY_IO|VGA_RSRC_NORMAL_IO))
 			pci_bits |= PCI_COMMAND_IO;
 	}
-	if (!!(wants & VGA_RSRC_LEGACY_MASK))
+	if (wants & VGA_RSRC_LEGACY_MASK)
 		flags |= PCI_VGA_STATE_CHANGE_BRIDGE;
 
 	pci_set_vga_state(vgadev->pdev, true, pci_bits, flags);
@@ -299,7 +304,7 @@ enable_them:
 	if (!vgadev->bridge_has_one_vga) {
 		vga_irq_set_state(vgadev, true);
 	}
-	vgadev->owns |= (wants & vgadev->decodes);
+	vgadev->owns |= wants;
 lock_them:
 	vgadev->locks |= (rsrc & VGA_RSRC_LEGACY_MASK);
 	if (rsrc & VGA_RSRC_LEGACY_IO)
@@ -649,7 +654,6 @@ static inline void vga_update_device_decodes(struct vga_device *vgadev,
 	old_decodes = vgadev->decodes;
 	decodes_removed = ~new_decodes & old_decodes;
 	decodes_unlocked = vgadev->locks & decodes_removed;
-	vgadev->owns &= ~decodes_removed;
 	vgadev->decodes = new_decodes;
 
 	pr_info("vgaarb: device changed decodes: PCI:%s,olddecodes=%s,decodes=%s:owns=%s\n",

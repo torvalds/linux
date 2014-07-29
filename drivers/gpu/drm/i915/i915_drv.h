@@ -1446,7 +1446,6 @@ struct drm_i915_private {
 	u32 pipestat_irq_mask[I915_MAX_PIPES];
 
 	struct work_struct hotplug_work;
-	bool enable_hotplug_processing;
 	struct {
 		unsigned long hpd_last_jiffies;
 		int hpd_cnt;
@@ -1603,6 +1602,15 @@ struct drm_i915_private {
 	u32 long_hpd_port_mask;
 	u32 short_hpd_port_mask;
 	struct work_struct dig_port_work;
+
+	/*
+	 * if we get a HPD irq from DP and a HPD irq from non-DP
+	 * the non-DP HPD could block the workqueue on a mode config
+	 * mutex getting, that userspace may have taken. However
+	 * userspace is waiting on the DP workqueue to run which is
+	 * blocked behind the non-DP one.
+	 */
+	struct workqueue_struct *dp_wq;
 
 	/* Old dri1 support infrastructure, beware the dragons ya fools entering
 	 * here! */

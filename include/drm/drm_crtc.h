@@ -41,6 +41,7 @@ struct drm_framebuffer;
 struct drm_object_properties;
 struct drm_file;
 struct drm_clip_rect;
+struct device_node;
 
 #define DRM_MODE_OBJECT_CRTC 0xcccccccc
 #define DRM_MODE_OBJECT_CONNECTOR 0xc0c0c0c0
@@ -322,6 +323,7 @@ struct drm_crtc_funcs {
  */
 struct drm_crtc {
 	struct drm_device *dev;
+	struct device_node *port;
 	struct list_head head;
 
 	/**
@@ -536,6 +538,8 @@ struct drm_connector {
 	struct drm_property_blob *edid_blob_ptr;
 	struct drm_object_properties properties;
 
+	struct drm_property_blob *path_blob_ptr;
+
 	uint8_t polled; /* DRM_CONNECTOR_POLL_* */
 
 	/* requested DPMS state */
@@ -545,6 +549,7 @@ struct drm_connector {
 
 	/* forced on connector */
 	enum drm_connector_force force;
+	bool override_edid;
 	uint32_t encoder_ids[DRM_CONNECTOR_MAX_ENCODER];
 	struct drm_encoder *encoder; /* currently active encoder */
 
@@ -557,6 +562,8 @@ struct drm_connector {
 	int audio_latency[2];
 	int null_edid_counter; /* needed to workaround some HW bugs where we get all 0s */
 	unsigned bad_edid_counter;
+
+	struct dentry *debugfs_entry;
 };
 
 /**
@@ -812,6 +819,7 @@ struct drm_mode_config {
 	struct list_head property_blob_list;
 	struct drm_property *edid_property;
 	struct drm_property *dpms_property;
+	struct drm_property *path_property;
 	struct drm_property *plane_type_property;
 
 	/* DVI-I properties */
@@ -891,6 +899,8 @@ extern int drm_connector_init(struct drm_device *dev,
 			      struct drm_connector *connector,
 			      const struct drm_connector_funcs *funcs,
 			      int connector_type);
+int drm_connector_register(struct drm_connector *connector);
+void drm_connector_unregister(struct drm_connector *connector);
 
 extern void drm_connector_cleanup(struct drm_connector *connector);
 /* helper to unplug all connectors from sysfs for device */
@@ -950,6 +960,7 @@ extern const char *drm_get_tv_select_name(int val);
 extern void drm_fb_release(struct drm_file *file_priv);
 extern int drm_mode_group_init_legacy_group(struct drm_device *dev, struct drm_mode_group *group);
 extern void drm_mode_group_destroy(struct drm_mode_group *group);
+extern void drm_reinit_primary_mode_group(struct drm_device *dev);
 extern bool drm_probe_ddc(struct i2c_adapter *adapter);
 extern struct edid *drm_get_edid(struct drm_connector *connector,
 				 struct i2c_adapter *adapter);
@@ -959,6 +970,8 @@ extern void drm_mode_config_init(struct drm_device *dev);
 extern void drm_mode_config_reset(struct drm_device *dev);
 extern void drm_mode_config_cleanup(struct drm_device *dev);
 
+extern int drm_mode_connector_set_path_property(struct drm_connector *connector,
+						char *path);
 extern int drm_mode_connector_update_edid_property(struct drm_connector *connector,
 						struct edid *edid);
 

@@ -1039,7 +1039,7 @@ int intel_overlay_put_image(struct drm_device *dev, void *data,
 	struct drm_intel_overlay_put_image *put_image_rec = data;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_overlay *overlay;
-	struct drm_mode_object *drmmode_obj;
+	struct drm_crtc *drmmode_crtc;
 	struct intel_crtc *crtc;
 	struct drm_i915_gem_object *new_bo;
 	struct put_image_params *params;
@@ -1068,13 +1068,12 @@ int intel_overlay_put_image(struct drm_device *dev, void *data,
 	if (!params)
 		return -ENOMEM;
 
-	drmmode_obj = drm_mode_object_find(dev, put_image_rec->crtc_id,
-					   DRM_MODE_OBJECT_CRTC);
-	if (!drmmode_obj) {
+	drmmode_crtc = drm_crtc_find(dev, put_image_rec->crtc_id);
+	if (!drmmode_crtc) {
 		ret = -ENOENT;
 		goto out_free;
 	}
-	crtc = to_intel_crtc(obj_to_crtc(drmmode_obj));
+	crtc = to_intel_crtc(drmmode_crtc);
 
 	new_bo = to_intel_bo(drm_gem_object_lookup(dev, file_priv,
 						   put_image_rec->bo_handle));

@@ -192,7 +192,7 @@ static void cdv_intel_crt_destroy(struct drm_connector *connector)
 	struct gma_encoder *gma_encoder = gma_attached_encoder(connector);
 
 	psb_intel_i2c_destroy(gma_encoder->ddc_bus);
-	drm_sysfs_connector_remove(connector);
+	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
 	kfree(connector);
 }
@@ -304,7 +304,7 @@ void cdv_intel_crt_init(struct drm_device *dev,
 	drm_connector_helper_add(connector,
 					&cdv_intel_crt_connector_helper_funcs);
 
-	drm_sysfs_connector_add(connector);
+	drm_connector_register(connector);
 
 	return;
 failed_ddc:
