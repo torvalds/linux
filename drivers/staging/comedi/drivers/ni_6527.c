@@ -474,6 +474,8 @@ static void ni6527_detach(struct comedi_device *dev)
 		ni6527_reset(dev);
 	if (dev->irq)
 		free_irq(dev->irq, dev);
+	if (dev->mmio)
+		iounmap(dev->mmio);
 	comedi_pci_disable(dev);
 }
 
