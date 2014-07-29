@@ -112,8 +112,8 @@ int mite_setup2(struct comedi_device *dev,
 	}
 	mite->mite_phys_addr = pci_resource_start(mite->pcidev, 0);
 
-	mite->daq_io_addr = pci_ioremap_bar(mite->pcidev, 1);
-	if (!mite->daq_io_addr) {
+	dev->mmio = pci_ioremap_bar(mite->pcidev, 1);
+	if (!dev->mmio) {
 		dev_err(dev->class_dev,
 			"Failed to remap daq io memory address\n");
 		return -ENOMEM;
@@ -176,8 +176,6 @@ void mite_detach(struct mite_struct *mite)
 
 	if (mite->mite_io_addr)
 		iounmap(mite->mite_io_addr);
-	if (mite->daq_io_addr)
-		iounmap(mite->daq_io_addr);
 
 	kfree(mite);
 }

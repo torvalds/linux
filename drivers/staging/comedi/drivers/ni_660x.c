@@ -587,17 +587,14 @@ static inline void ni_660x_write_register(struct comedi_device *dev,
 					  unsigned chip, unsigned bits,
 					  enum ni_660x_register reg)
 {
-	struct ni_660x_private *devpriv = dev->private;
-	void __iomem *write_address =
-	    devpriv->mite->daq_io_addr + GPCT_OFFSET[chip] +
-	    registerData[reg].offset;
+	unsigned int addr = GPCT_OFFSET[chip] + registerData[reg].offset;
 
 	switch (registerData[reg].size) {
 	case DATA_2B:
-		writew(bits, write_address);
+		writew(bits, dev->mmio + addr);
 		break;
 	case DATA_4B:
-		writel(bits, write_address);
+		writel(bits, dev->mmio + addr);
 		break;
 	default:
 		BUG();
@@ -609,16 +606,13 @@ static inline unsigned ni_660x_read_register(struct comedi_device *dev,
 					     unsigned chip,
 					     enum ni_660x_register reg)
 {
-	struct ni_660x_private *devpriv = dev->private;
-	void __iomem *read_address =
-	    devpriv->mite->daq_io_addr + GPCT_OFFSET[chip] +
-	    registerData[reg].offset;
+	unsigned int addr = GPCT_OFFSET[chip] + registerData[reg].offset;
 
 	switch (registerData[reg].size) {
 	case DATA_2B:
-		return readw(read_address);
+		return readw(dev->mmio + addr);
 	case DATA_4B:
-		return readl(read_address);
+		return readl(dev->mmio + addr);
 	default:
 		BUG();
 		break;
@@ -1190,6 +1184,8 @@ static void ni_660x_detach(struct comedi_device *dev)
 		ni_660x_free_mite_rings(dev);
 		mite_detach(devpriv->mite);
 	}
+	if (dev->mmio)
+		iounmap(dev->mmio);
 	comedi_pci_disable(dev);
 }
 

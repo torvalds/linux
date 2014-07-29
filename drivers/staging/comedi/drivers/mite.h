@@ -55,7 +55,6 @@ struct mite_struct {
 	resource_size_t mite_phys_addr;
 	void __iomem *mite_io_addr;
 	resource_size_t daq_phys_addr;
-	void __iomem *daq_io_addr;
 	struct mite_channel channels[MAX_MITE_DMA_CHANNELS];
 	short channel_allocated[MAX_MITE_DMA_CHANNELS];
 	int num_channels;

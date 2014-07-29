@@ -246,60 +246,48 @@ static const int num_adc_stages_611x = 3;
 
 static void ni_writel(struct comedi_device *dev, uint32_t data, int reg)
 {
-	struct ni_private *devpriv = dev->private;
-
-	if (devpriv->mite)
-		writel(data, devpriv->mite->daq_io_addr + reg);
+	if (dev->mmio)
+		writel(data, dev->mmio + reg);
 
 	outl(data, dev->iobase + reg);
 }
 
 static void ni_writew(struct comedi_device *dev, uint16_t data, int reg)
 {
-	struct ni_private *devpriv = dev->private;
-
-	if (devpriv->mite)
-		writew(data, devpriv->mite->daq_io_addr + reg);
+	if (dev->mmio)
+		writew(data, dev->mmio + reg);
 
 	outw(data, dev->iobase + reg);
 }
 
 static void ni_writeb(struct comedi_device *dev, uint8_t data, int reg)
 {
-	struct ni_private *devpriv = dev->private;
-
-	if (devpriv->mite)
-		writeb(data, devpriv->mite->daq_io_addr + reg);
+	if (dev->mmio)
+		writeb(data, dev->mmio + reg);
 
 	outb(data, dev->iobase + reg);
 }
 
 static uint32_t ni_readl(struct comedi_device *dev, int reg)
 {
-	struct ni_private *devpriv = dev->private;
-
-	if (devpriv->mite)
-		return readl(devpriv->mite->daq_io_addr + reg);
+	if (dev->mmio)
+		return readl(dev->mmio + reg);
 
 	return inl(dev->iobase + reg);
 }
 
 static uint16_t ni_readw(struct comedi_device *dev, int reg)
 {
-	struct ni_private *devpriv = dev->private;
-
-	if (devpriv->mite)
-		return readw(devpriv->mite->daq_io_addr + reg);
+	if (dev->mmio)
+		return readw(dev->mmio + reg);
 
 	return inw(dev->iobase + reg);
 }
 
 static uint8_t ni_readb(struct comedi_device *dev, int reg)
 {
-	struct ni_private *devpriv = dev->private;
-
-	if (devpriv->mite)
-		return readb(devpriv->mite->daq_io_addr + reg);
+	if (dev->mmio)
+		return readb(dev->mmio + reg);
 
 	return inb(dev->iobase + reg);
 }
