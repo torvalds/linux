@@ -565,8 +565,6 @@ static const struct of_device_id platform_of_match[] = {
 		.compatible = "samsung,ltn101nt05",
 		.data = &samsung_ltn101nt05,
 	}, {
-		.compatible = "simple-panel",
-	}, {
 		/* sentinel */
 	}
 };
