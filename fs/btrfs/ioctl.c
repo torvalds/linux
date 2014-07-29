@@ -885,7 +885,7 @@ out_unlock:
  * file you want to defrag, we return 0 to let you know to skip this
  * part of the file
  */
-static int check_defrag_in_cache(struct inode *inode, u64 offset, int thresh)
+static int check_defrag_in_cache(struct inode *inode, u64 offset, u32 thresh)
 {
 	struct extent_io_tree *io_tree = &BTRFS_I(inode)->io_tree;
 	struct extent_map *em = NULL;
@@ -920,7 +920,7 @@ static int check_defrag_in_cache(struct inode *inode, u64 offset, int thresh)
  */
 static int find_new_extents(struct btrfs_root *root,
 			    struct inode *inode, u64 newer_than,
-			    u64 *off, int thresh)
+			    u64 *off, u32 thresh)
 {
 	struct btrfs_path *path;
 	struct btrfs_key min_key;
@@ -1029,7 +1029,7 @@ static bool defrag_check_next_extent(struct inode *inode, struct extent_map *em)
 	return ret;
 }
 
-static int should_defrag_range(struct inode *inode, u64 start, int thresh,
+static int should_defrag_range(struct inode *inode, u64 start, u32 thresh,
 			       u64 *last_len, u64 *skip, u64 *defrag_end,
 			       int compress)
 {
@@ -1259,7 +1259,7 @@ int btrfs_defrag_file(struct inode *inode, struct file *file,
 	int ret;
 	int defrag_count = 0;
 	int compress_type = BTRFS_COMPRESS_ZLIB;
-	int extent_thresh = range->extent_thresh;
+	u32 extent_thresh = range->extent_thresh;
 	unsigned long max_cluster = (256 * 1024) >> PAGE_CACHE_SHIFT;
 	unsigned long cluster = max_cluster;
 	u64 new_align = ~((u64)128 * 1024 - 1);
