@@ -44,10 +44,11 @@ struct uhid_device {
 	__u8 tail;
 	struct uhid_event *outq[UHID_BUFSIZE];
 
+	/* blocking GET_REPORT support; state changes protected by qlock */
 	struct mutex report_lock;
 	wait_queue_head_t report_wait;
 	atomic_t report_done;
-	atomic_t report_id;
+	u32 report_id;
 	struct uhid_event report_buf;
 };
 
@@ -163,7 +164,7 @@ static int uhid_hid_get_raw(struct hid_device *hid, unsigned char rnum,
 
 	spin_lock_irqsave(&uhid->qlock, flags);
 	ev->type = UHID_FEATURE;
-	ev->u.feature.id = atomic_inc_return(&uhid->report_id);
+	ev->u.feature.id = ++uhid->report_id;
 	ev->u.feature.rnum = rnum;
 	ev->u.feature.rtype = report_type;
 
@@ -497,7 +498,7 @@ static int uhid_dev_feature_answer(struct uhid_device *uhid,
 	spin_lock_irqsave(&uhid->qlock, flags);
 
 	/* id for old report; drop it silently */
-	if (atomic_read(&uhid->report_id) != ev->u.feature_answer.id)
+	if (uhid->report_id != ev->u.feature_answer.id)
 		goto unlock;
 	if (atomic_read(&uhid->report_done))
 		goto unlock;
