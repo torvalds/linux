@@ -4510,18 +4510,9 @@ static void selinux_sock_graft(struct sock *sk, struct socket *parent)
 	struct inode_security_struct *isec = SOCK_INODE(parent)->i_security;
 	struct sk_security_struct *sksec = sk->sk_security;
 
-	switch (sk->sk_family) {
-	case PF_INET:
-	case PF_INET6:
-	case PF_UNIX:
+	if (sk->sk_family == PF_INET || sk->sk_family == PF_INET6 ||
+	    sk->sk_family == PF_UNIX)
 		isec->sid = sksec->sid;
-		break;
-	default:
-		/* by default there is no special labeling mechanism for the
-		 * sksec label so inherit the label from the parent socket */
-		BUG_ON(sksec->sid != SECINITSID_UNLABELED);
-		sksec->sid = isec->sid;
-	}
 	sksec->sclass = isec->sclass;
 }
 
