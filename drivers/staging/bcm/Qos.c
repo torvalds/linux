@@ -533,7 +533,11 @@ VOID flush_all_queues(struct bcm_mini_adapter *Adapter)
 	struct sk_buff *PacketToDrop = NULL;
 	struct bcm_packet_info *curr_packet_info;
 
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_INFO, DBG_LVL_ALL, "=====>");
+	BCM_DEBUG_PRINT(Adapter,
+			DBG_TYPE_OTHERS,
+			DUMP_INFO,
+			DBG_LVL_ALL,
+			"=====>");
 
 	/* down(&Adapter->data_packet_queue_lock); */
 	for (iQIndex = LowPriority; iQIndex < HiPriority; iQIndex++) {
@@ -550,7 +554,7 @@ VOID flush_all_queues(struct bcm_mini_adapter *Adapter)
 				uiTotalPacketLength = 0;
 
 			DEQUEUEPACKET(curr_packet_info->FirstTxQueue,
-						curr_packet_info->LastTxQueue);
+				      curr_packet_info->LastTxQueue);
 
 			/* Free the skb */
 			dev_kfree_skb(PacketToDrop);
@@ -563,7 +567,11 @@ VOID flush_all_queues(struct bcm_mini_adapter *Adapter)
 			curr_packet_info->uiDroppedCountBytes += uiTotalPacketLength;
 			curr_packet_info->uiDroppedCountPackets++;
 
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_INFO, DBG_LVL_ALL, "Dropped Bytes:%x Dropped Packets:%x",
+			BCM_DEBUG_PRINT(Adapter,
+					DBG_TYPE_OTHERS,
+					DUMP_INFO,
+					DBG_LVL_ALL,
+					"Dropped Bytes:%x Dropped Packets:%x",
 					curr_packet_info->uiDroppedCountBytes,
 					curr_packet_info->uiDroppedCountPackets);
 			atomic_dec(&Adapter->TotalPacketCount);
@@ -571,7 +579,11 @@ VOID flush_all_queues(struct bcm_mini_adapter *Adapter)
 		spin_unlock_bh(&curr_packet_info->SFQueueLock);
 	}
 	/* up(&Adapter->data_packet_queue_lock); */
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_INFO, DBG_LVL_ALL, "<=====");
+	BCM_DEBUG_PRINT(Adapter,
+			DBG_TYPE_OTHERS,
+			DUMP_INFO,
+			DBG_LVL_ALL,
+			"<=====");
 }
 
 USHORT ClassifyPacket(struct bcm_mini_adapter *Adapter, struct sk_buff *skb)
