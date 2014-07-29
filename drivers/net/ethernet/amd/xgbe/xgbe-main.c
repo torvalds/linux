@@ -355,9 +355,16 @@ static int xgbe_probe(struct platform_device *pdev)
 	/* Set default configuration data */
 	xgbe_default_config(pdata);
 
-	/* Calculate the number of Tx and Rx rings to be created */
+	/* Calculate the number of Tx and Rx rings to be created
+	 *  -Tx (DMA) Channels map 1-to-1 to Tx Queues so set
+	 *   the number of Tx queues to the number of Tx channels
+	 *   enabled
+	 *  -Rx (DMA) Channels do not map 1-to-1 so use the actual
+	 *   number of Rx queues
+	 */
 	pdata->tx_ring_count = min_t(unsigned int, num_online_cpus(),
 				     pdata->hw_feat.tx_ch_cnt);
+	pdata->tx_q_count = pdata->tx_ring_count;
 	ret = netif_set_real_num_tx_queues(netdev, pdata->tx_ring_count);
 	if (ret) {
 		dev_err(dev, "error setting real tx queue count\n");
@@ -367,6 +374,7 @@ static int xgbe_probe(struct platform_device *pdev)
 	pdata->rx_ring_count = min_t(unsigned int,
 				     netif_get_num_default_rss_queues(),
 				     pdata->hw_feat.rx_ch_cnt);
+	pdata->rx_q_count = pdata->hw_feat.rx_q_cnt;
 	ret = netif_set_real_num_rx_queues(netdev, pdata->rx_ring_count);
 	if (ret) {
 		dev_err(dev, "error setting real rx queue count\n");

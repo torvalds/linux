@@ -590,6 +590,9 @@ struct xgbe_prv_data {
 	unsigned int rx_ring_count;
 	unsigned int rx_desc_count;
 
+	unsigned int tx_q_count;
+	unsigned int rx_q_count;
+
 	/* Tx/Rx common settings */
 	unsigned int pblx8;
 
