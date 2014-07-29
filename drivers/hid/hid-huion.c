@@ -115,7 +115,7 @@ static int huion_tablet_enable(struct hid_device *hdev)
 	int rc;
 	struct usb_device *usb_dev = hid_to_usb_dev(hdev);
 	struct huion_drvdata *drvdata = hid_get_drvdata(hdev);
-	u16 buf[6];
+	__le16 buf[6];
 
 	/*
 	 * Read string descriptor containing tablet parameters. The specific
