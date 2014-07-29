@@ -246,8 +246,7 @@ static int rk31xx_lvds_probe(struct platform_device *pdev)
 
 	rk_fb_get_prmry_screen(&lvds->screen);
         if ((lvds->screen.type != SCREEN_RGB) && 
-		(lvds->screen.type != SCREEN_LVDS) &&
-		(lvds->screen.type != SCREEN_DUAL_LVDS)) {
+		(lvds->screen.type != SCREEN_LVDS)) {
 		dev_err(&pdev->dev, "screen is not lvds/rgb!\n");
 		ret = -EINVAL;
                 goto err_screen_type;
