@@ -2001,9 +2001,13 @@ static int __init init_btrfs_fs(void)
 	if (err)
 		goto free_delayed_ref;
 
-	err = btrfs_interface_init();
+	err = btrfs_end_io_wq_init();
 	if (err)
 		goto free_prelim_ref;
+
+	err = btrfs_interface_init();
+	if (err)
+		goto free_end_io_wq;
 
 	btrfs_init_lockdep();
 
@@ -2021,6 +2025,8 @@ static int __init init_btrfs_fs(void)
 
 unregister_ioctl:
 	btrfs_interface_exit();
+free_end_io_wq:
+	btrfs_end_io_wq_exit();
 free_prelim_ref:
 	btrfs_prelim_ref_exit();
 free_delayed_ref:

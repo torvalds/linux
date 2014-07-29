@@ -142,6 +142,8 @@ int btree_lock_page_hook(struct page *page, void *data,
 				void (*flush_fn)(void *));
 int btrfs_calc_num_tolerated_disk_barrier_failures(
 	struct btrfs_fs_info *fs_info);
+int __init btrfs_end_io_wq_init(void);
+void btrfs_end_io_wq_exit(void);
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 void btrfs_init_lockdep(void);
