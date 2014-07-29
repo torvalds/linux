@@ -198,7 +198,8 @@ bool MatchProtocol(struct bcm_classifier_rule *pstClassifierRule,
 *
 * Returns     - TRUE(If address matches) else FAIL.
 ***************************************************************************/
-bool MatchSrcPort(struct bcm_classifier_rule *pstClassifierRule, USHORT ushSrcPort)
+bool MatchSrcPort(struct bcm_classifier_rule *pstClassifierRule,
+		  USHORT ushSrcPort)
 {
 	UCHAR ucLoopIndex = 0;
 
@@ -207,12 +208,19 @@ bool MatchSrcPort(struct bcm_classifier_rule *pstClassifierRule, USHORT ushSrcPo
 
 	if (0 == pstClassifierRule->ucSrcPortRangeLength)
 		return TRUE;
-	for (ucLoopIndex = 0; ucLoopIndex < pstClassifierRule->ucSrcPortRangeLength; ucLoopIndex++) {
+	for (ucLoopIndex = 0;
+	     ucLoopIndex < pstClassifierRule->ucSrcPortRangeLength;
+	     ucLoopIndex++) {
 		if (ushSrcPort <= pstClassifierRule->usSrcPortRangeHi[ucLoopIndex] &&
 			ushSrcPort >= pstClassifierRule->usSrcPortRangeLo[ucLoopIndex])
 			return TRUE;
 	}
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, "Src Port: %x Not Matched ", ushSrcPort);
+	BCM_DEBUG_PRINT(Adapter,
+			DBG_TYPE_TX,
+			IPV4_DBG,
+			DBG_LVL_ALL,
+			"Src Port: %x Not Matched ",
+			ushSrcPort);
 	return false;
 }
 
