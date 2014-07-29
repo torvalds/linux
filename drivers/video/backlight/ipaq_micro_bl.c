@@ -70,7 +70,7 @@ static int micro_backlight_probe(struct platform_device *pdev)
 	return 0;
 }
 
-struct platform_driver micro_backlight_device_driver = {
+static struct platform_driver micro_backlight_device_driver = {
 	.driver = {
 		.name    = "ipaq-micro-backlight",
 	},
