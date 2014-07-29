@@ -388,42 +388,44 @@ VOID flush_all_queues(struct bcm_mini_adapter *Adapter)
 	INT	iQIndex;
 	UINT uiTotalPacketLength;
 	struct sk_buff *PacketToDrop = NULL;
+	struct bcm_packet_info *curr_packet_info;
 
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_INFO, DBG_LVL_ALL, "=====>");
 
 	/* down(&Adapter->data_packet_queue_lock); */
 	for (iQIndex = LowPriority; iQIndex < HiPriority; iQIndex++) {
 		struct net_device_stats *netstats = &Adapter->dev->stats;
+		curr_packet_info = &Adapter->PackInfo[iQIndex];
 
-		spin_lock_bh(&Adapter->PackInfo[iQIndex].SFQueueLock);
-		while (Adapter->PackInfo[iQIndex].FirstTxQueue) {
-			PacketToDrop = Adapter->PackInfo[iQIndex].FirstTxQueue;
+		spin_lock_bh(&curr_packet_info->SFQueueLock);
+		while (curr_packet_info->FirstTxQueue) {
+			PacketToDrop = curr_packet_info->FirstTxQueue;
 			if (PacketToDrop) {
 				uiTotalPacketLength = PacketToDrop->len;
 				netstats->tx_dropped++;
 			} else
 				uiTotalPacketLength = 0;
 
-			DEQUEUEPACKET(Adapter->PackInfo[iQIndex].FirstTxQueue,
-						Adapter->PackInfo[iQIndex].LastTxQueue);
+			DEQUEUEPACKET(curr_packet_info->FirstTxQueue,
+						curr_packet_info->LastTxQueue);
 
 			/* Free the skb */
 			dev_kfree_skb(PacketToDrop);
 
 			/* update current bytes and packets count */
-			Adapter->PackInfo[iQIndex].uiCurrentBytesOnHost -= uiTotalPacketLength;
-			Adapter->PackInfo[iQIndex].uiCurrentPacketsOnHost--;
+			curr_packet_info->uiCurrentBytesOnHost -= uiTotalPacketLength;
+			curr_packet_info->uiCurrentPacketsOnHost--;
 
 			/* update dropped bytes and packets counts */
-			Adapter->PackInfo[iQIndex].uiDroppedCountBytes += uiTotalPacketLength;
-			Adapter->PackInfo[iQIndex].uiDroppedCountPackets++;
+			curr_packet_info->uiDroppedCountBytes += uiTotalPacketLength;
+			curr_packet_info->uiDroppedCountPackets++;
 
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_INFO, DBG_LVL_ALL, "Dropped Bytes:%x Dropped Packets:%x",
-					Adapter->PackInfo[iQIndex].uiDroppedCountBytes,
-					Adapter->PackInfo[iQIndex].uiDroppedCountPackets);
+					curr_packet_info->uiDroppedCountBytes,
+					curr_packet_info->uiDroppedCountPackets);
 			atomic_dec(&Adapter->TotalPacketCount);
 		}
-		spin_unlock_bh(&Adapter->PackInfo[iQIndex].SFQueueLock);
+		spin_unlock_bh(&curr_packet_info->SFQueueLock);
 	}
 	/* up(&Adapter->data_packet_queue_lock); */
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_INFO, DBG_LVL_ALL, "<=====");
