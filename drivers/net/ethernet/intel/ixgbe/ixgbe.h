@@ -728,8 +728,6 @@ struct ixgbe_adapter {
 	u8 __iomem *io_addr; /* Mainly for iounmap use */
 	u32 wol;
 
-	u16 bd_number;
-
 	u16 eeprom_verh;
 	u16 eeprom_verl;
 	u16 eeprom_cap;
