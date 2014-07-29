@@ -195,18 +195,18 @@ static void labpc_counter_load(struct comedi_device *dev,
 }
 
 static void labpc_counter_set_mode(struct comedi_device *dev,
-				   unsigned long base_address,
+				   unsigned long reg,
 				   unsigned int counter_number,
 				   unsigned int mode)
 {
 	const struct labpc_boardinfo *board = comedi_board(dev);
 
 	if (board->has_mmio) {
-		void __iomem *mmio_base = (void __iomem *)base_address;
+		void __iomem *mmio = (void __iomem *)dev->iobase;
 
-		i8254_mm_set_mode(mmio_base, 0, counter_number, mode);
+		i8254_mm_set_mode(mmio + reg, 0, counter_number, mode);
 	} else {
-		i8254_set_mode(base_address, 0, counter_number, mode);
+		i8254_set_mode(dev->iobase + reg, 0, counter_number, mode);
 	}
 }
 
@@ -360,8 +360,7 @@ static int labpc_ai_insn_read(struct comedi_device *dev,
 	devpriv->write_byte(dev, devpriv->cmd4, CMD4_REG);
 
 	/* initialize pacer counter to prevent any problems */
-	labpc_counter_set_mode(dev, dev->iobase + COUNTER_A_BASE_REG,
-			       0, I8254_MODE2);
+	labpc_counter_set_mode(dev, COUNTER_A_BASE_REG, 0, I8254_MODE2);
 
 	labpc_clear_adc_fifo(dev);
 
@@ -759,8 +758,7 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 				   1, 3, I8254_MODE0);
 	} else	{
 		/* just put counter a1 in mode 0 to set its output low */
-		labpc_counter_set_mode(dev, dev->iobase + COUNTER_A_BASE_REG,
-				       1, I8254_MODE0);
+		labpc_counter_set_mode(dev, COUNTER_A_BASE_REG, 1, I8254_MODE0);
 	}
 
 	/* figure out what method we will use to transfer data */
@@ -814,8 +812,7 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 				   0, devpriv->divisor_a0, I8254_MODE2);
 	} else {
 		/* initialize pacer counter to prevent any problems */
-		labpc_counter_set_mode(dev, dev->iobase + COUNTER_A_BASE_REG,
-				       0, I8254_MODE2);
+		labpc_counter_set_mode(dev, COUNTER_A_BASE_REG, 0, I8254_MODE2);
 	}
 
 	/*  set up scan pacing */
