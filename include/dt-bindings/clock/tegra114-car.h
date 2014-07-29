@@ -49,7 +49,7 @@
 #define TEGRA114_CLK_I2S0 30
 /* 31 */
 
-/* 32 */
+#define TEGRA114_CLK_MC 32
 /* 33 */
 #define TEGRA114_CLK_APBDMA 34
 /* 35 */
