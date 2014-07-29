@@ -31,19 +31,30 @@ static VOID PruneQueue(struct bcm_mini_adapter *Adapter, INT iIndex);
 *
 * Returns     - TRUE(If address matches) else FAIL .
 *********************************************************************/
-static bool MatchSrcIpAddress(struct bcm_classifier_rule *pstClassifierRule, ULONG ulSrcIP)
+static bool MatchSrcIpAddress(struct bcm_classifier_rule *pstClassifierRule,
+			      ULONG ulSrcIP)
 {
 	UCHAR ucLoopIndex = 0;
 
 	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
+	union u_ip_address	*src_addr;
 
 	ulSrcIP = ntohl(ulSrcIP);
 	if (0 == pstClassifierRule->ucIPSourceAddressLength)
 		return TRUE;
 	for (ucLoopIndex = 0; ucLoopIndex < (pstClassifierRule->ucIPSourceAddressLength); ucLoopIndex++) {
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, "Src Ip Address Mask:0x%x PacketIp:0x%x and Classification:0x%x", (UINT)pstClassifierRule->stSrcIpAddress.ulIpv4Mask[ucLoopIndex], (UINT)ulSrcIP, (UINT)pstClassifierRule->stSrcIpAddress.ulIpv6Addr[ucLoopIndex]);
-		if ((pstClassifierRule->stSrcIpAddress.ulIpv4Mask[ucLoopIndex] & ulSrcIP) ==
-				(pstClassifierRule->stSrcIpAddress.ulIpv4Addr[ucLoopIndex] & pstClassifierRule->stSrcIpAddress.ulIpv4Mask[ucLoopIndex]))
+		src_addr = &pstClassifierRule->stSrcIpAddress;
+		BCM_DEBUG_PRINT(Adapter,
+				DBG_TYPE_TX,
+				IPV4_DBG,
+				DBG_LVL_ALL,
+				"Src Ip Address Mask:0x%x PacketIp:0x%x and Classification:0x%x",
+				(UINT)src_addr->ulIpv4Mask[ucLoopIndex],
+				(UINT)ulSrcIP,
+				(UINT)src_addr->ulIpv6Addr[ucLoopIndex]);
+
+		if ((src_addr->ulIpv4Mask[ucLoopIndex] & ulSrcIP) ==
+				(src_addr->ulIpv4Addr[ucLoopIndex] & src_addr->ulIpv4Mask[ucLoopIndex]))
 			return TRUE;
 	}
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, "Src Ip Address Not Matched");
