@@ -607,26 +607,51 @@ USHORT ClassifyPacket(struct bcm_mini_adapter *Adapter, struct sk_buff *skb)
 	EThCSGetPktInfo(Adapter, pvEThPayload, &stEthCsPktInfo);
 
 	switch (stEthCsPktInfo.eNwpktEthFrameType) {
-	case eEth802LLCFrame:
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, "ClassifyPacket : 802LLCFrame\n");
-		pIpHeader = pvEThPayload + sizeof(struct bcm_eth_llc_frame);
-		break;
-	case eEth802LLCSNAPFrame:
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, "ClassifyPacket : 802LLC SNAP Frame\n");
-		pIpHeader = pvEThPayload + sizeof(struct bcm_eth_llc_snap_frame);
-		break;
-	case eEth802QVLANFrame:
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, "ClassifyPacket : 802.1Q VLANFrame\n");
-		pIpHeader = pvEThPayload + sizeof(struct bcm_eth_q_frame);
-		break;
-	case eEthOtherFrame:
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, "ClassifyPacket : ETH Other Frame\n");
-		pIpHeader = pvEThPayload + sizeof(struct bcm_ethernet2_frame);
-		break;
-	default:
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, "ClassifyPacket : Unrecognized ETH Frame\n");
-		pIpHeader = pvEThPayload + sizeof(struct bcm_ethernet2_frame);
-		break;
+		case eEth802LLCFrame:
+			BCM_DEBUG_PRINT(Adapter,
+					DBG_TYPE_TX,
+					IPV4_DBG,
+					DBG_LVL_ALL,
+					"ClassifyPacket : 802LLCFrame\n");
+			pIpHeader = pvEThPayload +
+				sizeof(struct bcm_eth_llc_frame);
+			break;
+		case eEth802LLCSNAPFrame:
+			BCM_DEBUG_PRINT(Adapter,
+					DBG_TYPE_TX,
+					IPV4_DBG,
+					DBG_LVL_ALL,
+					"ClassifyPacket : 802LLC SNAP Frame\n");
+			pIpHeader = pvEThPayload +
+				sizeof(struct bcm_eth_llc_snap_frame);
+			break;
+		case eEth802QVLANFrame:
+			BCM_DEBUG_PRINT(Adapter,
+					DBG_TYPE_TX,
+					IPV4_DBG,
+					DBG_LVL_ALL,
+					"ClassifyPacket : 802.1Q VLANFrame\n");
+			pIpHeader = pvEThPayload +
+				sizeof(struct bcm_eth_q_frame);
+			break;
+		case eEthOtherFrame:
+			BCM_DEBUG_PRINT(Adapter,
+					DBG_TYPE_TX,
+					IPV4_DBG,
+					DBG_LVL_ALL,
+					"ClassifyPacket : ETH Other Frame\n");
+			pIpHeader = pvEThPayload +
+				sizeof(struct bcm_ethernet2_frame);
+			break;
+		default:
+			BCM_DEBUG_PRINT(Adapter,
+					DBG_TYPE_TX,
+					IPV4_DBG,
+					DBG_LVL_ALL,
+					"ClassifyPacket : Unrecognized ETH Frame\n");
+			pIpHeader = pvEThPayload +
+				sizeof(struct bcm_ethernet2_frame);
+			break;
 	}
 
 	if (stEthCsPktInfo.eNwpktIPFrameType == eIPv4Packet) {
@@ -636,15 +661,27 @@ USHORT ClassifyPacket(struct bcm_mini_adapter *Adapter, struct sk_buff *skb)
 
 		if (bFragmentedPkt) {
 			/* Fragmented  Packet. Get Frag Classifier Entry. */
-			pstClassifierRule = GetFragIPClsEntry(Adapter, pIpHeader->id, pIpHeader->saddr);
+			pstClassifierRule = GetFragIPClsEntry(Adapter,
+							      pIpHeader->id,
+							      pIpHeader->saddr);
 			if (pstClassifierRule) {
-					BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, "It is next Fragmented pkt");
+					BCM_DEBUG_PRINT(Adapter,
+							DBG_TYPE_TX,
+							IPV4_DBG,
+							DBG_LVL_ALL,
+							"It is next Fragmented pkt");
 					bClassificationSucceed = TRUE;
 			}
 			if (!(ntohs(pIpHeader->frag_off) & IP_MF)) {
 				/* Fragmented Last packet . Remove Frag Classifier Entry */
-				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, "This is the last fragmented Pkt");
-				DelFragIPClsEntry(Adapter, pIpHeader->id, pIpHeader->saddr);
+				BCM_DEBUG_PRINT(Adapter,
+						DBG_TYPE_TX,
+						IPV4_DBG,
+						DBG_LVL_ALL,
+						"This is the last fragmented Pkt");
+				DelFragIPClsEntry(Adapter,
+						  pIpHeader->id,
+						  pIpHeader->saddr);
 			}
 		}
 	}
@@ -660,7 +697,12 @@ USHORT ClassifyPacket(struct bcm_mini_adapter *Adapter, struct sk_buff *skb)
 			bClassificationSucceed = false;
 			continue;
 		}
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL,  "Adapter->PackInfo[%d].bvalid=True\n", uiLoopIndex);
+		BCM_DEBUG_PRINT(Adapter,
+				DBG_TYPE_TX,
+				IPV4_DBG,
+				DBG_LVL_ALL,
+				"Adapter->PackInfo[%d].bvalid=True\n",
+				uiLoopIndex);
 
 		if (0 == Adapter->astClassifierTable[uiLoopIndex].ucDirection) {
 			bClassificationSucceed = false; /* cannot be processed for classification. */
@@ -671,71 +713,131 @@ USHORT ClassifyPacket(struct bcm_mini_adapter *Adapter, struct sk_buff *skb)
 
 		uiSfIndex = SearchSfid(Adapter, pstClassifierRule->ulSFID);
 		if (uiSfIndex >= NO_OF_QUEUES) {
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL,  "Queue Not Valid. SearchSfid for this classifier Failed\n");
+			BCM_DEBUG_PRINT(Adapter,
+					DBG_TYPE_TX,
+					IPV4_DBG,
+					DBG_LVL_ALL,
+					"Queue Not Valid. SearchSfid for this classifier Failed\n");
 			continue;
 		}
 
 		if (Adapter->PackInfo[uiSfIndex].bEthCSSupport) {
 
 			if (eEthUnsupportedFrame == stEthCsPktInfo.eNwpktEthFrameType) {
-				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, " ClassifyPacket : Packet Not a Valid Supported Ethernet Frame\n");
+				BCM_DEBUG_PRINT(Adapter,
+						DBG_TYPE_TX,
+						IPV4_DBG,
+						DBG_LVL_ALL,
+						" ClassifyPacket : Packet Not a Valid Supported Ethernet Frame\n");
 				bClassificationSucceed = false;
 				continue;
 			}
 
 
 
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL,  "Performing ETH CS Classification on Classifier Rule ID : %x Service Flow ID : %lx\n", pstClassifierRule->uiClassifierRuleIndex, Adapter->PackInfo[uiSfIndex].ulSFID);
-			bClassificationSucceed = EThCSClassifyPkt(Adapter, skb, &stEthCsPktInfo, pstClassifierRule, Adapter->PackInfo[uiSfIndex].bEthCSSupport);
+			BCM_DEBUG_PRINT(Adapter,
+					DBG_TYPE_TX,
+					IPV4_DBG,
+					DBG_LVL_ALL,
+					"Performing ETH CS Classification on Classifier Rule ID : %x Service Flow ID : %lx\n",
+					pstClassifierRule->uiClassifierRuleIndex,
+					Adapter->PackInfo[uiSfIndex].ulSFID);
+			bClassificationSucceed = EThCSClassifyPkt(Adapter,
+								  skb,
+								  &stEthCsPktInfo,
+								  pstClassifierRule,
+								  Adapter->PackInfo[uiSfIndex].bEthCSSupport);
 
 			if (!bClassificationSucceed) {
-				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL,  "ClassifyPacket : Ethernet CS Classification Failed\n");
+				BCM_DEBUG_PRINT(Adapter,
+						DBG_TYPE_TX,
+						IPV4_DBG,
+						DBG_LVL_ALL,
+						"ClassifyPacket : Ethernet CS Classification Failed\n");
 				continue;
 			}
 		} else { /* No ETH Supported on this SF */
 			if (eEthOtherFrame != stEthCsPktInfo.eNwpktEthFrameType) {
-				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, " ClassifyPacket : Packet Not a 802.3 Ethernet Frame... hence not allowed over non-ETH CS SF\n");
+				BCM_DEBUG_PRINT(Adapter,
+						DBG_TYPE_TX,
+						IPV4_DBG,
+						DBG_LVL_ALL,
+						" ClassifyPacket : Packet Not a 802.3 Ethernet Frame... hence not allowed over non-ETH CS SF\n");
 				bClassificationSucceed = false;
 				continue;
 			}
 		}
 
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL,  "Proceeding to IP CS Clasification");
+		BCM_DEBUG_PRINT(Adapter,
+				DBG_TYPE_TX,
+				IPV4_DBG,
+				DBG_LVL_ALL,
+				"Proceeding to IP CS Clasification");
 
 		if (Adapter->PackInfo[uiSfIndex].bIPCSSupport) {
 
 			if (stEthCsPktInfo.eNwpktIPFrameType == eNonIPPacket) {
-				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, " ClassifyPacket : Packet is Not an IP Packet\n");
+				BCM_DEBUG_PRINT(Adapter,
+						DBG_TYPE_TX,
+						IPV4_DBG,
+						DBG_LVL_ALL,
+						" ClassifyPacket : Packet is Not an IP Packet\n");
 				bClassificationSucceed = false;
 				continue;
 			}
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, "Dump IP Header :\n");
+			BCM_DEBUG_PRINT(Adapter,
+					DBG_TYPE_TX,
+					IPV4_DBG,
+					DBG_LVL_ALL,
+					"Dump IP Header :\n");
 			DumpFullPacket((PUCHAR)pIpHeader, 20);
 
 			if (stEthCsPktInfo.eNwpktIPFrameType == eIPv4Packet)
-				bClassificationSucceed = IpVersion4(Adapter, pIpHeader, pstClassifierRule);
+				bClassificationSucceed = IpVersion4(Adapter,
+								    pIpHeader,
+								    pstClassifierRule);
 			else if (stEthCsPktInfo.eNwpktIPFrameType == eIPv6Packet)
-				bClassificationSucceed = IpVersion6(Adapter, pIpHeader, pstClassifierRule);
+				bClassificationSucceed = IpVersion6(Adapter,
+								    pIpHeader,
+								    pstClassifierRule);
 		}
 	}
 
 	if (bClassificationSucceed == TRUE) {
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, "CF id : %d, SF ID is =%lu", pstClassifierRule->uiClassifierRuleIndex, pstClassifierRule->ulSFID);
+		BCM_DEBUG_PRINT(Adapter,
+				DBG_TYPE_TX,
+				IPV4_DBG,
+				DBG_LVL_ALL,
+				"CF id : %d, SF ID is =%lu",
+				pstClassifierRule->uiClassifierRuleIndex,
+				pstClassifierRule->ulSFID);
 
 		/* Store The matched Classifier in SKB */
-		*((UINT32 *)(skb->cb)+SKB_CB_CLASSIFICATION_OFFSET) = pstClassifierRule->uiClassifierRuleIndex;
-		if ((TCP == pIpHeader->protocol) && !bFragmentedPkt && (ETH_AND_IP_HEADER_LEN + TCP_HEADER_LEN <= skb->len)) {
+		*((UINT32 *)(skb->cb)+SKB_CB_CLASSIFICATION_OFFSET) =
+			pstClassifierRule->uiClassifierRuleIndex;
+		if ((TCP == pIpHeader->protocol) && !bFragmentedPkt &&
+				(ETH_AND_IP_HEADER_LEN + TCP_HEADER_LEN <=
+					skb->len)) {
 			IpHeaderLength = pIpHeader->ihl;
-			pTcpHeader = (struct bcm_tcp_header *)(((PUCHAR)pIpHeader)+(IpHeaderLength*4));
-			TcpHeaderLength  = GET_TCP_HEADER_LEN(pTcpHeader->HeaderLength);
+			pTcpHeader =
+				(struct bcm_tcp_header *)(((PUCHAR)pIpHeader) +
+						(IpHeaderLength*4));
+			TcpHeaderLength = GET_TCP_HEADER_LEN(pTcpHeader->HeaderLength);
 
 			if ((pTcpHeader->ucFlags & TCP_ACK) &&
-			   (ntohs(pIpHeader->tot_len) == (IpHeaderLength*4)+(TcpHeaderLength*4)))
-				*((UINT32 *) (skb->cb) + SKB_CB_TCPACK_OFFSET) = TCP_ACK;
+				   (ntohs(pIpHeader->tot_len) ==
+				    (IpHeaderLength*4)+(TcpHeaderLength*4)))
+				*((UINT32 *) (skb->cb) + SKB_CB_TCPACK_OFFSET) =
+					TCP_ACK;
 		}
 
 		usIndex = SearchSfid(Adapter, pstClassifierRule->ulSFID);
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, "index is	=%d", usIndex);
+		BCM_DEBUG_PRINT(Adapter,
+				DBG_TYPE_TX,
+				IPV4_DBG,
+				DBG_LVL_ALL,
+				"index is =%d",
+				usIndex);
 
 		/*
 		 * If this is the first fragment of a Fragmented pkt,
@@ -752,7 +854,8 @@ USHORT ClassifyPacket(struct bcm_mini_adapter *Adapter, struct sk_buff *skb)
 			stFragPktInfo.bUsed = TRUE;
 			stFragPktInfo.ulSrcIpAddress = pIpHeader->saddr;
 			stFragPktInfo.usIpIdentification = pIpHeader->id;
-			stFragPktInfo.pstMatchedClassifierEntry = pstClassifierRule;
+			stFragPktInfo.pstMatchedClassifierEntry =
+				pstClassifierRule;
 			stFragPktInfo.bOutOfOrderFragment = false;
 			AddFragIPClsEntry(Adapter, &stFragPktInfo);
 		}
