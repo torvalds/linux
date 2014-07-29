@@ -1319,15 +1319,13 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 
 	vcpu->arch.sie_block->gpsw.mask = kvm_run->psw_mask;
 	vcpu->arch.sie_block->gpsw.addr = kvm_run->psw_addr;
-	if (kvm_run->kvm_dirty_regs & KVM_SYNC_PREFIX) {
-		kvm_run->kvm_dirty_regs &= ~KVM_SYNC_PREFIX;
+	if (kvm_run->kvm_dirty_regs & KVM_SYNC_PREFIX)
 		kvm_s390_set_prefix(vcpu, kvm_run->s.regs.prefix);
-	}
 	if (kvm_run->kvm_dirty_regs & KVM_SYNC_CRS) {
-		kvm_run->kvm_dirty_regs &= ~KVM_SYNC_CRS;
 		memcpy(&vcpu->arch.sie_block->gcr, &kvm_run->s.regs.crs, 128);
 		kvm_s390_set_prefix(vcpu, kvm_run->s.regs.prefix);
 	}
+	kvm_run->kvm_dirty_regs = 0;
 
 	might_fault();
 	rc = __vcpu_run(vcpu);
