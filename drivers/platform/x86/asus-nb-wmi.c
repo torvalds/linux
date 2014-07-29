@@ -87,6 +87,20 @@ static int dmi_matched(const struct dmi_system_id *dmi)
 static const struct dmi_system_id asus_quirks[] = {
 	{
 		.callback = dmi_matched,
+		.ident = "ASUSTeK COMPUTER INC. U32U",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK Computer Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "U32U"),
+		},
+		/*
+		 * Note this machine has a Brazos APU, and most Brazos Asus
+		 * machines need quirk_asus_x55u / wmi_backlight_power but
+		 * here acpi-video seems to work fine for backlight control.
+		 */
+		.driver_data = &quirk_asus_wapf4,
+	},
+	{
+		.callback = dmi_matched,
 		.ident = "ASUSTeK COMPUTER INC. X401U",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
