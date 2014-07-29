@@ -392,7 +392,7 @@ xfs_bmap_check_leaf_extents(
 	pp = XFS_BMAP_BROOT_PTR_ADDR(mp, block, 1, ifp->if_broot_bytes);
 	bno = be64_to_cpu(*pp);
 
-	ASSERT(bno != NULLDFSBNO);
+	ASSERT(bno != NULLFSBLOCK);
 	ASSERT(XFS_FSB_TO_AGNO(mp, bno) < mp->m_sb.sb_agcount);
 	ASSERT(XFS_FSB_TO_AGBNO(mp, bno) < mp->m_sb.sb_agblocks);
 
@@ -1299,7 +1299,7 @@ xfs_bmap_read_extents(
 	ASSERT(level > 0);
 	pp = XFS_BMAP_BROOT_PTR_ADDR(mp, block, 1, ifp->if_broot_bytes);
 	bno = be64_to_cpu(*pp);
-	ASSERT(bno != NULLDFSBNO);
+	ASSERT(bno != NULLFSBLOCK);
 	ASSERT(XFS_FSB_TO_AGNO(mp, bno) < mp->m_sb.sb_agcount);
 	ASSERT(XFS_FSB_TO_AGBNO(mp, bno) < mp->m_sb.sb_agblocks);
 	/*
@@ -1429,11 +1429,7 @@ xfs_bmap_search_multi_extents(
 	gotp->br_startoff = 0xffa5a5a5a5a5a5a5LL;
 	gotp->br_blockcount = 0xa55a5a5a5a5a5a5aLL;
 	gotp->br_state = XFS_EXT_INVALID;
-#if XFS_BIG_BLKNOS
 	gotp->br_startblock = 0xffffa5a5a5a5a5a5LL;
-#else
-	gotp->br_startblock = 0xffffa5a5;
-#endif
 	prevp->br_startoff = NULLFILEOFF;
 
 	ep = xfs_iext_bno_to_ext(ifp, bno, &lastx);

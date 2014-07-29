@@ -21,18 +21,6 @@
 #include <linux/types.h>
 
 /*
- * XFS_BIG_BLKNOS needs block layer disk addresses to be 64 bits.
- * XFS_BIG_INUMS requires XFS_BIG_BLKNOS to be set.
- */
-#if defined(CONFIG_LBDAF) || (BITS_PER_LONG == 64)
-# define XFS_BIG_BLKNOS	1
-# define XFS_BIG_INUMS	1
-#else
-# define XFS_BIG_BLKNOS	0
-# define XFS_BIG_INUMS	0
-#endif
-
-/*
  * Kernel specific type declarations for XFS
  */
 typedef signed char		__int8_t;

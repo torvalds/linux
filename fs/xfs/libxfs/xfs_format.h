@@ -68,11 +68,7 @@ struct xfs_ifork;
 #define	XFS_RTLOBIT(w)	xfs_lowbit32(w)
 #define	XFS_RTHIBIT(w)	xfs_highbit32(w)
 
-#if XFS_BIG_BLKNOS
 #define	XFS_RTBLOCKLOG(b)	xfs_highbit64(b)
-#else
-#define	XFS_RTBLOCKLOG(b)	xfs_highbit32(b)
-#endif
 
 /*
  * Dquot and dquot block format definitions
@@ -304,21 +300,13 @@ typedef struct xfs_bmbt_rec_host {
  * Values and macros for delayed-allocation startblock fields.
  */
 #define STARTBLOCKVALBITS	17
-#define STARTBLOCKMASKBITS	(15 + XFS_BIG_BLKNOS * 20)
-#define DSTARTBLOCKMASKBITS	(15 + 20)
+#define STARTBLOCKMASKBITS	(15 + 20)
 #define STARTBLOCKMASK		\
 	(((((xfs_fsblock_t)1) << STARTBLOCKMASKBITS) - 1) << STARTBLOCKVALBITS)
-#define DSTARTBLOCKMASK		\
-	(((((xfs_dfsbno_t)1) << DSTARTBLOCKMASKBITS) - 1) << STARTBLOCKVALBITS)
 
 static inline int isnullstartblock(xfs_fsblock_t x)
 {
 	return ((x) & STARTBLOCKMASK) == STARTBLOCKMASK;
-}
-
-static inline int isnulldstartblock(xfs_dfsbno_t x)
-{
-	return ((x) & DSTARTBLOCKMASK) == DSTARTBLOCKMASK;
 }
 
 static inline xfs_fsblock_t nullstartblock(int k)
