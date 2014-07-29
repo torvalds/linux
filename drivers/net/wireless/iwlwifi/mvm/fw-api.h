@@ -133,6 +133,7 @@ enum {
 	/* Scan offload */
 	SCAN_OFFLOAD_REQUEST_CMD = 0x51,
 	SCAN_OFFLOAD_ABORT_CMD = 0x52,
+	HOT_SPOT_CMD = 0x53,
 	SCAN_OFFLOAD_COMPLETE = 0x6D,
 	SCAN_OFFLOAD_UPDATE_PROFILES_CMD = 0x6E,
 	SCAN_OFFLOAD_CONFIG_CMD = 0x6f,
@@ -909,6 +910,72 @@ struct iwl_phy_context_cmd {
 	__le32 acquisition_data;
 	__le32 dsp_cfg_flags;
 } __packed; /* PHY_CONTEXT_CMD_API_VER_1 */
+
+/*
+ * Aux ROC command
+ *
+ * Command requests the firmware to create a time event for a certain duration
+ * and remain on the given channel. This is done by using the Aux framework in
+ * the FW.
+ * The command was first used for Hot Spot issues - but can be used regardless
+ * to Hot Spot.
+ *
+ * ( HOT_SPOT_CMD 0x53 )
+ *
+ * @id_and_color: ID and color of the MAC
+ * @action: action to perform, one of FW_CTXT_ACTION_*
+ * @event_unique_id: If the action FW_CTXT_ACTION_REMOVE then the
+ *	event_unique_id should be the id of the time event assigned by ucode.
+ *	Otherwise ignore the event_unique_id.
+ * @sta_id_and_color: station id and color, resumed during "Remain On Channel"
+ *	activity.
+ * @channel_info: channel info
+ * @node_addr: Our MAC Address
+ * @reserved: reserved for alignment
+ * @apply_time: GP2 value to start (should always be the current GP2 value)
+ * @apply_time_max_delay: Maximum apply time delay value in TU. Defines max
+ *	time by which start of the event is allowed to be postponed.
+ * @duration: event duration in TU To calculate event duration:
+ *	timeEventDuration = min(duration, remainingQuota)
+ */
+struct iwl_hs20_roc_req {
+	/* COMMON_INDEX_HDR_API_S_VER_1 hdr */
+	__le32 id_and_color;
+	__le32 action;
+	__le32 event_unique_id;
+	__le32 sta_id_and_color;
+	struct iwl_fw_channel_info channel_info;
+	u8 node_addr[ETH_ALEN];
+	__le16 reserved;
+	__le32 apply_time;
+	__le32 apply_time_max_delay;
+	__le32 duration;
+} __packed; /* HOT_SPOT_CMD_API_S_VER_1 */
+
+/*
+ * values for AUX ROC result values
+ */
+enum iwl_mvm_hot_spot {
+	HOT_SPOT_RSP_STATUS_OK,
+	HOT_SPOT_RSP_STATUS_TOO_MANY_EVENTS,
+	HOT_SPOT_MAX_NUM_OF_SESSIONS,
+};
+
+/*
+ * Aux ROC command response
+ *
+ * In response to iwl_hs20_roc_req the FW sends this command to notify the
+ * driver the uid of the timevent.
+ *
+ * ( HOT_SPOT_CMD 0x53 )
+ *
+ * @event_unique_id: Unique ID of time event assigned by ucode
+ * @status: Return status 0 is success, all the rest used for specific errors
+ */
+struct iwl_hs20_roc_res {
+	__le32 event_unique_id;
+	__le32 status;
+} __packed; /* HOT_SPOT_RSP_API_S_VER_1 */
 
 #define IWL_RX_INFO_PHY_CNT 8
 #define IWL_RX_INFO_ENERGY_ANT_ABC_IDX 1
