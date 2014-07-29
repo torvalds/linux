@@ -280,41 +280,78 @@ static USHORT	IpVersion4(struct bcm_mini_adapter *Adapter,
 	struct bcm_transport_header *xprt_hdr = NULL;
 	bool	bClassificationSucceed = false;
 
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, "========>");
+	BCM_DEBUG_PRINT(Adapter,
+			DBG_TYPE_TX,
+			IPV4_DBG,
+			DBG_LVL_ALL,
+			"========>");
 
 	xprt_hdr = (struct bcm_transport_header *)((PUCHAR)iphd + sizeof(struct iphdr));
 
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, "Trying to see Direction = %d %d",
-		pstClassifierRule->ucDirection,
-		pstClassifierRule->usVCID_Value);
+	BCM_DEBUG_PRINT(Adapter,
+			DBG_TYPE_TX,
+			IPV4_DBG,
+			DBG_LVL_ALL,
+			"Trying to see Direction = %d %d",
+			pstClassifierRule->ucDirection,
+			pstClassifierRule->usVCID_Value);
 
 	/* Checking classifier validity */
-	if (!pstClassifierRule->bUsed || pstClassifierRule->ucDirection == DOWNLINK_DIR)
+	if (!pstClassifierRule->bUsed ||
+			pstClassifierRule->ucDirection == DOWNLINK_DIR)
 		goto out;
 
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, "is IPv6 check!");
+	BCM_DEBUG_PRINT(Adapter,
+			DBG_TYPE_TX,
+			IPV4_DBG,
+			DBG_LVL_ALL,
+			"is IPv6 check!");
 	if (pstClassifierRule->bIpv6Protocol)
 		goto out;
 
 	/* Checking IP header parameter */
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, "Trying to match Source IP Address");
+	BCM_DEBUG_PRINT(Adapter,
+			DBG_TYPE_TX,
+			IPV4_DBG,
+			DBG_LVL_ALL,
+			"Trying to match Source IP Address");
 	if (!MatchSrcIpAddress(pstClassifierRule, iphd->saddr))
 		goto out;
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, "Source IP Address Matched");
+	BCM_DEBUG_PRINT(Adapter,
+			DBG_TYPE_TX,
+			IPV4_DBG,
+			DBG_LVL_ALL,
+			"Source IP Address Matched");
 
 	if (!MatchDestIpAddress(pstClassifierRule, iphd->daddr))
 		goto out;
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, "Destination IP Address Matched");
+	BCM_DEBUG_PRINT(Adapter,
+			DBG_TYPE_TX,
+			IPV4_DBG,
+			DBG_LVL_ALL,
+			"Destination IP Address Matched");
 
 	if (!MatchTos(pstClassifierRule, iphd->tos)) {
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, "TOS Match failed\n");
+		BCM_DEBUG_PRINT(Adapter,
+				DBG_TYPE_TX,
+				IPV4_DBG,
+				DBG_LVL_ALL,
+				"TOS Match failed\n");
 		goto out;
 	}
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, "TOS Matched");
+	BCM_DEBUG_PRINT(Adapter,
+			DBG_TYPE_TX,
+			IPV4_DBG,
+			DBG_LVL_ALL,
+			"TOS Matched");
 
 	if (!MatchProtocol(pstClassifierRule, iphd->protocol))
 		goto out;
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, "Protocol Matched");
+	BCM_DEBUG_PRINT(Adapter,
+			DBG_TYPE_TX,
+			IPV4_DBG,
+			DBG_LVL_ALL,
+			"Protocol Matched");
 
 	/*
 	 * if protocol is not TCP or UDP then no
@@ -325,18 +362,31 @@ static USHORT	IpVersion4(struct bcm_mini_adapter *Adapter,
 		goto out;
 	}
 	/* Checking Transport Layer Header field if present */
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, "Source Port %04x",
-		(iphd->protocol == UDP) ? xprt_hdr->uhdr.source : xprt_hdr->thdr.source);
+	BCM_DEBUG_PRINT(Adapter,
+			DBG_TYPE_TX,
+			IPV4_DBG,
+			DBG_LVL_ALL,
+			"Source Port %04x",
+			(iphd->protocol == UDP) ? xprt_hdr->uhdr.source : xprt_hdr->thdr.source);
 
 	if (!MatchSrcPort(pstClassifierRule,
 			  ntohs((iphd->protocol == UDP) ?
 			  xprt_hdr->uhdr.source : xprt_hdr->thdr.source)))
 		goto out;
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, "Src Port Matched");
+	BCM_DEBUG_PRINT(Adapter,
+			DBG_TYPE_TX,
+			IPV4_DBG,
+			DBG_LVL_ALL,
+			"Src Port Matched");
 
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, "Destination Port %04x",
-		(iphd->protocol == UDP) ? xprt_hdr->uhdr.dest :
-		xprt_hdr->thdr.dest);
+	BCM_DEBUG_PRINT(Adapter,
+			DBG_TYPE_TX,
+			IPV4_DBG,
+			DBG_LVL_ALL,
+			"Destination Port %04x",
+			(iphd->protocol == UDP) ? xprt_hdr->uhdr.dest :
+				xprt_hdr->thdr.dest);
+
 	if (!MatchDestPort(pstClassifierRule,
 			   ntohs((iphd->protocol == UDP) ?
 			   xprt_hdr->uhdr.dest : xprt_hdr->thdr.dest)))
@@ -346,15 +396,19 @@ static USHORT	IpVersion4(struct bcm_mini_adapter *Adapter,
 out:
 	if (TRUE == bClassificationSucceed) {
 		INT iMatchedSFQueueIndex = 0;
-
-		iMatchedSFQueueIndex = SearchSfid(Adapter, pstClassifierRule->ulSFID);
+		iMatchedSFQueueIndex =
+			SearchSfid(Adapter, pstClassifierRule->ulSFID);
 		if (iMatchedSFQueueIndex >= NO_OF_QUEUES)
 			bClassificationSucceed = false;
 		else if (false == Adapter->PackInfo[iMatchedSFQueueIndex].bActive)
 			bClassificationSucceed = false;
 	}
 
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, "IpVersion4 <==========");
+	BCM_DEBUG_PRINT(Adapter,
+			DBG_TYPE_TX,
+			IPV4_DBG,
+			DBG_LVL_ALL,
+			"IpVersion4 <==========");
 
 	return bClassificationSucceed;
 }
