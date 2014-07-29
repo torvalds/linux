@@ -42,7 +42,9 @@ static bool MatchSrcIpAddress(struct bcm_classifier_rule *pstClassifierRule,
 	ulSrcIP = ntohl(ulSrcIP);
 	if (0 == pstClassifierRule->ucIPSourceAddressLength)
 		return TRUE;
-	for (ucLoopIndex = 0; ucLoopIndex < (pstClassifierRule->ucIPSourceAddressLength); ucLoopIndex++) {
+	for (ucLoopIndex = 0;
+	     ucLoopIndex < (pstClassifierRule->ucIPSourceAddressLength);
+	     ucLoopIndex++) {
 		src_addr = &pstClassifierRule->stSrcIpAddress;
 		BCM_DEBUG_PRINT(Adapter,
 				DBG_TYPE_TX,
@@ -54,10 +56,15 @@ static bool MatchSrcIpAddress(struct bcm_classifier_rule *pstClassifierRule,
 				(UINT)src_addr->ulIpv6Addr[ucLoopIndex]);
 
 		if ((src_addr->ulIpv4Mask[ucLoopIndex] & ulSrcIP) ==
-				(src_addr->ulIpv4Addr[ucLoopIndex] & src_addr->ulIpv4Mask[ucLoopIndex]))
+				(src_addr->ulIpv4Addr[ucLoopIndex] &
+				 src_addr->ulIpv4Mask[ucLoopIndex]))
 			return TRUE;
 	}
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, "Src Ip Address Not Matched");
+	BCM_DEBUG_PRINT(Adapter,
+			DBG_TYPE_TX,
+			IPV4_DBG,
+			DBG_LVL_ALL,
+			"Src Ip Address Not Matched");
 	return false;
 }
 
