@@ -124,8 +124,8 @@ static int uhid_hid_parse(struct hid_device *hid)
 	return hid_parse_report(hid, uhid->rd_data, uhid->rd_size);
 }
 
-static int uhid_hid_get_raw(struct hid_device *hid, unsigned char rnum,
-			    __u8 *buf, size_t count, unsigned char rtype)
+static int uhid_hid_get_report(struct hid_device *hid, unsigned char rnum,
+			       __u8 *buf, size_t count, unsigned char rtype)
 {
 	struct uhid_device *uhid = hid->driver_data;
 	__u8 report_type;
@@ -133,7 +133,7 @@ static int uhid_hid_get_raw(struct hid_device *hid, unsigned char rnum,
 	unsigned long flags;
 	int ret;
 	size_t uninitialized_var(len);
-	struct uhid_feature_answer_req *req;
+	struct uhid_get_report_reply_req *req;
 
 	if (!uhid->running)
 		return -EIO;
@@ -163,10 +163,10 @@ static int uhid_hid_get_raw(struct hid_device *hid, unsigned char rnum,
 	}
 
 	spin_lock_irqsave(&uhid->qlock, flags);
-	ev->type = UHID_FEATURE;
-	ev->u.feature.id = ++uhid->report_id;
-	ev->u.feature.rnum = rnum;
-	ev->u.feature.rtype = report_type;
+	ev->type = UHID_GET_REPORT;
+	ev->u.get_report.id = ++uhid->report_id;
+	ev->u.get_report.rnum = rnum;
+	ev->u.get_report.rtype = report_type;
 
 	uhid->report_running = true;
 	uhid_queue(uhid, ev);
@@ -182,7 +182,7 @@ static int uhid_hid_get_raw(struct hid_device *hid, unsigned char rnum,
 		ret = -ERESTARTSYS;
 	} else {
 		spin_lock_irqsave(&uhid->qlock, flags);
-		req = &uhid->report_buf.u.feature_answer;
+		req = &uhid->report_buf.u.get_report_reply;
 
 		if (req->err) {
 			ret = -EIO;
@@ -253,7 +253,7 @@ static int uhid_raw_request(struct hid_device *hid, unsigned char reportnum,
 {
 	switch (reqtype) {
 	case HID_REQ_GET_REPORT:
-		return uhid_hid_get_raw(hid, reportnum, buf, len, rtype);
+		return uhid_hid_get_report(hid, reportnum, buf, len, rtype);
 	case HID_REQ_SET_REPORT:
 		/* TODO: implement proper SET_REPORT functionality */
 		return -ENOSYS;
@@ -487,8 +487,8 @@ static int uhid_dev_input2(struct uhid_device *uhid, struct uhid_event *ev)
 	return 0;
 }
 
-static int uhid_dev_feature_answer(struct uhid_device *uhid,
-				   struct uhid_event *ev)
+static int uhid_dev_get_report_reply(struct uhid_device *uhid,
+				     struct uhid_event *ev)
 {
 	unsigned long flags;
 
@@ -498,7 +498,7 @@ static int uhid_dev_feature_answer(struct uhid_device *uhid,
 	spin_lock_irqsave(&uhid->qlock, flags);
 
 	/* id for old report; drop it silently */
-	if (uhid->report_id != ev->u.feature_answer.id)
+	if (uhid->report_id != ev->u.get_report_reply.id)
 		goto unlock;
 	if (!uhid->report_running)
 		goto unlock;
@@ -634,8 +634,8 @@ static ssize_t uhid_char_write(struct file *file, const char __user *buffer,
 	case UHID_INPUT2:
 		ret = uhid_dev_input2(uhid, &uhid->input_buf);
 		break;
-	case UHID_FEATURE_ANSWER:
-		ret = uhid_dev_feature_answer(uhid, &uhid->input_buf);
+	case UHID_GET_REPORT_REPLY:
+		ret = uhid_dev_get_report_reply(uhid, &uhid->input_buf);
 		break;
 	default:
 		ret = -EOPNOTSUPP;
