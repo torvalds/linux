@@ -11,7 +11,7 @@ static UCHAR *GetNextIPV6ChainedHeader(UCHAR **ppucPayload,
 {
 	UCHAR *pucRetHeaderPtr = NULL;
 	UCHAR *pucPayloadPtr = NULL;
-	USHORT  usNextHeaderOffset = 0 ;
+	USHORT  usNextHeaderOffset = 0;
 	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
 
 	if ((ppucPayload == NULL) || (*pusPayloadLength == 0) ||
@@ -71,7 +71,7 @@ static UCHAR *GetNextIPV6ChainedHeader(UCHAR **ppucPayload,
 					"\nIPv6 DestOpts Header Header");
 			usNextHeaderOffset += sizeof(struct bcm_ipv6_dest_options_hdr);
 			usNextHeaderOffset += nTotalOptions *
-					      IPV6_DESTOPTS_HDR_OPTIONSIZE ;
+					      IPV6_DESTOPTS_HDR_OPTIONSIZE;
 		}
 		break;
 
@@ -282,7 +282,7 @@ USHORT	IpVersion6(struct bcm_mini_adapter *Adapter, PVOID pcIpHeader,
 
 
 static bool MatchSrcIpv6Address(struct bcm_classifier_rule *pstClassifierRule,
-	struct bcm_ipv6_hdr *pstIpv6Header)
+				struct bcm_ipv6_hdr *pstIpv6Header)
 {
 	UINT uiLoopIndex = 0;
 	UINT uiIpv6AddIndex = 0;
@@ -340,7 +340,7 @@ static bool MatchSrcIpv6Address(struct bcm_classifier_rule *pstClassifierRule,
 }
 
 static bool MatchDestIpv6Address(struct bcm_classifier_rule *pstClassifierRule,
-	struct bcm_ipv6_hdr *pstIpv6Header)
+				 struct bcm_ipv6_hdr *pstIpv6Header)
 {
 	UINT uiLoopIndex = 0;
 	UINT uiIpv6AddIndex = 0;
@@ -354,8 +354,7 @@ static bool MatchDestIpv6Address(struct bcm_classifier_rule *pstClassifierRule,
 	 * ie Range of IP Addresses contained in the classifier rule
 	 * for which we need to match
 	 */
-	UINT  uiCountIPDestinationAddresses = (UINT)pstClassifierRule->ucIPDestinationAddressLength;
-
+	UINT uiCountIPDestinationAddresses = (UINT)pstClassifierRule->ucIPDestinationAddressLength;
 
 	if (uiCountIPDestinationAddresses == 0)
 		return TRUE;
