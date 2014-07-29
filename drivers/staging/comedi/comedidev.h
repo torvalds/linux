@@ -253,6 +253,7 @@ struct comedi_device {
 	struct comedi_subdevice *subdevices;
 
 	/* dumb */
+	void __iomem *mmio;
 	unsigned long iobase;
 	unsigned long iolen;
 	unsigned int irq;

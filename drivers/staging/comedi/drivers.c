@@ -121,6 +121,7 @@ static void comedi_device_detach_cleanup(struct comedi_device *dev)
 	dev->driver = NULL;
 	dev->board_name = NULL;
 	dev->board_ptr = NULL;
+	dev->mmio = NULL;
 	dev->iobase = 0;
 	dev->iolen = 0;
 	dev->ioenabled = false;
