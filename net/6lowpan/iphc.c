@@ -611,6 +611,7 @@ int lowpan_header_compress(struct sk_buff *skb, struct net_device *dev,
 	u8 tmp, iphc0, iphc1, *hc_ptr;
 	struct ipv6hdr *hdr;
 	u8 head[100] = {};
+	int addr_type;
 
 	if (type != ETH_P_IPV6)
 		return -EINVAL;
@@ -720,23 +721,27 @@ int lowpan_header_compress(struct sk_buff *skb, struct net_device *dev,
 				    sizeof(hdr->hop_limit));
 	}
 
+	addr_type = ipv6_addr_type(&hdr->saddr);
 	/* source address compression */
-	if (is_addr_unspecified(&hdr->saddr)) {
+	if (addr_type == IPV6_ADDR_ANY) {
 		pr_debug("source address is unspecified, setting SAC\n");
 		iphc1 |= LOWPAN_IPHC_SAC;
-	/* TODO: context lookup */
-	} else if (is_addr_link_local(&hdr->saddr)) {
-		iphc1 |= lowpan_compress_addr_64(&hc_ptr,
-				LOWPAN_IPHC_SAM_BIT, &hdr->saddr, _saddr);
-		pr_debug("source address unicast link-local %pI6c "
-			"iphc1 0x%02x\n", &hdr->saddr, iphc1);
 	} else {
-		pr_debug("send the full source address\n");
-		lowpan_push_hc_data(&hc_ptr, &hdr->saddr.s6_addr[0], 16);
+		if (addr_type & IPV6_ADDR_LINKLOCAL) {
+			iphc1 |= lowpan_compress_addr_64(&hc_ptr,
+							 LOWPAN_IPHC_SAM_BIT,
+							 &hdr->saddr, _saddr);
+			pr_debug("source address unicast link-local %pI6c iphc1 0x%02x\n",
+				 &hdr->saddr, iphc1);
+		} else {
+			pr_debug("send the full source address\n");
+			lowpan_push_hc_data(&hc_ptr, hdr->saddr.s6_addr, 16);
+		}
 	}
 
+	addr_type = ipv6_addr_type(&hdr->daddr);
 	/* destination address compression */
-	if (is_addr_mcast(&hdr->daddr)) {
+	if (addr_type & IPV6_ADDR_MULTICAST) {
 		pr_debug("destination address is multicast: ");
 		iphc1 |= LOWPAN_IPHC_M;
 		if (lowpan_is_mcast_addr_compressable8(&hdr->daddr)) {
@@ -767,8 +772,8 @@ int lowpan_header_compress(struct sk_buff *skb, struct net_device *dev,
 			lowpan_push_hc_data(&hc_ptr, hdr->daddr.s6_addr, 16);
 		}
 	} else {
-		/* TODO: context lookup */
-		if (is_addr_link_local(&hdr->daddr)) {
+		if (addr_type & IPV6_ADDR_LINKLOCAL) {
+			/* TODO: context lookup */
 			iphc1 |= lowpan_compress_addr_64(&hc_ptr,
 				LOWPAN_IPHC_DAM_BIT, &hdr->daddr, _daddr);
 			pr_debug("dest address unicast link-local %pI6c "

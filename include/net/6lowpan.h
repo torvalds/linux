@@ -75,19 +75,9 @@
 	 (((a)->s6_addr[14]) == (m)[6]) &&		\
 	 (((a)->s6_addr[15]) == (m)[7]))
 
-/* ipv6 address is unspecified */
-#define is_addr_unspecified(a)		\
-	((((a)->s6_addr32[0]) == 0) &&	\
-	 (((a)->s6_addr32[1]) == 0) &&	\
-	 (((a)->s6_addr32[2]) == 0) &&	\
-	 (((a)->s6_addr32[3]) == 0))
-
 /* compare ipv6 addresses prefixes */
 #define ipaddr_prefixcmp(addr1, addr2, length) \
 	(memcmp(addr1, addr2, length >> 3) == 0)
-
-/* local link, i.e. FE80::/10 */
-#define is_addr_link_local(a) (((a)->s6_addr16[0]) == htons(0xFE80))
 
 /*
  * check whether we can compress the IID to 16 bits,
@@ -99,9 +89,6 @@
 	 (((a)->s6_addr[11]) == 0xff) &&	\
 	 (((a)->s6_addr[12]) == 0xfe) &&	\
 	 (((a)->s6_addr[13]) == 0))
-
-/* multicast address */
-#define is_addr_mcast(a) (((a)->s6_addr[0]) == 0xFF)
 
 /* check whether the 112-bit gid of the multicast address is mappable to: */
 
