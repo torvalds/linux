@@ -204,7 +204,6 @@
 
 			wakeup-interrupt-controller {
 				compatible = "samsung,exynos4210-wakeup-eint";
-				interrupt-parent = <&gic>;
 				interrupts = <0 48 0>;
 			};
 		};
@@ -243,7 +242,6 @@
 			compatible = "arm,amba-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
-			interrupt-parent = <&gic>;
 			ranges;
 
 			pdma0: pdma@12680000 {
