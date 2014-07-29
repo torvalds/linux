@@ -857,6 +857,7 @@ static void amd_xgbe_an_state_machine(struct work_struct *work)
 	struct phy_device *phydev = priv->phydev;
 	enum amd_xgbe_phy_an cur_state;
 	int sleep;
+	unsigned int an_supported = 0;
 
 	while (1) {
 		mutex_lock(&priv->an_mutex);
@@ -866,6 +867,7 @@ static void amd_xgbe_an_state_machine(struct work_struct *work)
 		switch (priv->an_state) {
 		case AMD_XGBE_AN_START:
 			priv->an_state = amd_xgbe_an_start(phydev);
+			an_supported = 0;
 			break;
 
 		case AMD_XGBE_AN_EVENT:
@@ -874,6 +876,7 @@ static void amd_xgbe_an_state_machine(struct work_struct *work)
 
 		case AMD_XGBE_AN_PAGE_RECEIVED:
 			priv->an_state = amd_xgbe_an_page_received(phydev);
+			an_supported++;
 			break;
 
 		case AMD_XGBE_AN_INCOMPAT_LINK:
@@ -881,6 +884,11 @@ static void amd_xgbe_an_state_machine(struct work_struct *work)
 			break;
 
 		case AMD_XGBE_AN_COMPLETE:
+			netdev_info(phydev->attached_dev, "%s successful\n",
+				    an_supported ? "Auto negotiation"
+						 : "Parallel detection");
+			/* fall through */
+
 		case AMD_XGBE_AN_NO_LINK:
 		case AMD_XGBE_AN_EXIT:
 			goto exit_unlock;
