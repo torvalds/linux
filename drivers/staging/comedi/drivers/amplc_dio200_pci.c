@@ -387,16 +387,14 @@ static int dio200_pci_auto_attach(struct comedi_device *dev,
 		return -EINVAL;
 	}
 	if (pci_resource_flags(pci_dev, bar) & IORESOURCE_MEM) {
-		devpriv->io.u.membase = pci_ioremap_bar(pci_dev, bar);
-		if (!devpriv->io.u.membase) {
+		dev->mmio = pci_ioremap_bar(pci_dev, bar);
+		if (!dev->mmio) {
 			dev_err(dev->class_dev,
 				"error! cannot remap registers\n");
 			return -ENOMEM;
 		}
-		devpriv->io.regtype = mmio_regtype;
 	} else {
-		devpriv->io.u.iobase = pci_resource_start(pci_dev, bar);
-		devpriv->io.regtype = io_regtype;
+		dev->iobase = pci_resource_start(pci_dev, bar);
 	}
 	switch (context_model) {
 	case pcie215_model:
@@ -414,11 +412,9 @@ static int dio200_pci_auto_attach(struct comedi_device *dev,
 
 static void dio200_pci_detach(struct comedi_device *dev)
 {
-	struct dio200_private *devpriv = dev->private;
-
 	amplc_dio200_common_detach(dev);
-	if (devpriv && devpriv->io.regtype == mmio_regtype)
-		iounmap(devpriv->io.u.membase);
+	if (dev->mmio)
+		iounmap(dev->mmio);
 	comedi_pci_disable(dev);
 }
 
