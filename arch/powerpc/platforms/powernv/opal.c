@@ -514,6 +514,20 @@ int opal_machine_check(struct pt_regs *regs)
 	return 0;
 }
 
+/* Early hmi handler called in real mode. */
+int opal_hmi_exception_early(struct pt_regs *regs)
+{
+	/* TODO: Call opal hmi handler. */
+	return 0;
+}
+
+/* HMI exception handler called in virtual mode during check_irq_replay. */
+int opal_handle_hmi_exception(struct pt_regs *regs)
+{
+	/* TODO: Retrive and print HMI event from OPAL. */
+	return 0;
+}
+
 static uint64_t find_recovery_address(uint64_t nip)
 {
 	int i;
