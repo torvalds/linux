@@ -9,6 +9,11 @@
 #include <asm/sections.h>
 #include <asm/system_info.h>
 
+/*
+ * Note: accesses outside of the kernel image and the identity map area
+ * are not supported on any CPU using the idmap tables as its current
+ * page tables.
+ */
 pgd_t *idmap_pgd;
 phys_addr_t (*arch_virt_to_idmap) (unsigned long x);
 
