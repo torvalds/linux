@@ -1778,7 +1778,7 @@ static void intel_enable_shared_dpll(struct intel_crtc *crtc)
 	if (WARN_ON(pll->refcount == 0))
 		return;
 
-	DRM_DEBUG_KMS("enable %s (active %d, on? %d)for crtc %d\n",
+	DRM_DEBUG_KMS("enable %s (active %d, on? %d) for crtc %d\n",
 		      pll->name, pll->active, pll->on,
 		      crtc->base.base.id);
 
