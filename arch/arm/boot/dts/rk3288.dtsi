@@ -130,6 +130,7 @@
 			};
 			vio1_isp_w0 {
 				reg = <0xffad0100 0x20>;
+				rockchip,priority = <2 2>;
 			};
 			vio1_isp_w1 {
 				reg = <0xffad0180 0x20>;
