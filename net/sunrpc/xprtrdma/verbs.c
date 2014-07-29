@@ -310,6 +310,13 @@ rpcrdma_recvcq_upcall(struct ib_cq *cq, void *cq_context)
 	rpcrdma_recvcq_poll(cq, ep);
 }
 
+static void
+rpcrdma_flush_cqs(struct rpcrdma_ep *ep)
+{
+	rpcrdma_recvcq_upcall(ep->rep_attr.recv_cq, ep);
+	rpcrdma_sendcq_upcall(ep->rep_attr.send_cq, ep);
+}
+
 #ifdef RPC_DEBUG
 static const char * const conn[] = {
 	"address resolved",
@@ -872,9 +879,7 @@ retry:
 		if (rc && rc != -ENOTCONN)
 			dprintk("RPC:       %s: rpcrdma_ep_disconnect"
 				" status %i\n", __func__, rc);
-
-		rpcrdma_clean_cq(ep->rep_attr.recv_cq);
-		rpcrdma_clean_cq(ep->rep_attr.send_cq);
+		rpcrdma_flush_cqs(ep);
 
 		xprt = container_of(ia, struct rpcrdma_xprt, rx_ia);
 		id = rpcrdma_create_id(xprt, ia,
@@ -985,8 +990,7 @@ rpcrdma_ep_disconnect(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia)
 {
 	int rc;
 
-	rpcrdma_clean_cq(ep->rep_attr.recv_cq);
-	rpcrdma_clean_cq(ep->rep_attr.send_cq);
+	rpcrdma_flush_cqs(ep);
 	rc = rdma_disconnect(ia->ri_id);
 	if (!rc) {
 		/* returns without wait if not connected */
