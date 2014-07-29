@@ -318,6 +318,7 @@ static VOID PruneQueue(struct bcm_mini_adapter *Adapter, INT iIndex)
 {
 	struct sk_buff *PacketToDrop = NULL;
 	struct net_device_stats *netstats;
+	struct bcm_packet_info	*curr_pack_info = &Adapter->PackInfo[iIndex];
 
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, PRUNE_QUEUE, DBG_LVL_ALL, "=====> Index %d", iIndex);
 
@@ -330,22 +331,22 @@ static VOID PruneQueue(struct bcm_mini_adapter *Adapter, INT iIndex)
 	/* To Store the netdevice statistic */
 	netstats = &Adapter->dev->stats;
 
-	spin_lock_bh(&Adapter->PackInfo[iIndex].SFQueueLock);
+	spin_lock_bh(&curr_pack_info->SFQueueLock);
 
 	while (1) {
 	/* while((UINT)Adapter->PackInfo[iIndex].uiCurrentPacketsOnHost > */
 	/* 	SF_MAX_ALLOWED_PACKETS_TO_BACKUP) { */
 
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, PRUNE_QUEUE, DBG_LVL_ALL, "uiCurrentBytesOnHost:%x uiMaxBucketSize :%x",
-		Adapter->PackInfo[iIndex].uiCurrentBytesOnHost,
-		Adapter->PackInfo[iIndex].uiMaxBucketSize);
+		curr_pack_info->uiCurrentBytesOnHost,
+		curr_pack_info->uiMaxBucketSize);
 
-		PacketToDrop = Adapter->PackInfo[iIndex].FirstTxQueue;
+		PacketToDrop = curr_pack_info->FirstTxQueue;
 
 		if (PacketToDrop == NULL)
 			break;
-		if ((Adapter->PackInfo[iIndex].uiCurrentPacketsOnHost < SF_MAX_ALLOWED_PACKETS_TO_BACKUP) &&
-			((1000*(jiffies - *((B_UINT32 *)(PacketToDrop->cb)+SKB_CB_LATENCY_OFFSET))/HZ) <= Adapter->PackInfo[iIndex].uiMaxLatency))
+		if ((curr_pack_info->uiCurrentPacketsOnHost < SF_MAX_ALLOWED_PACKETS_TO_BACKUP) &&
+			((1000*(jiffies - *((B_UINT32 *)(PacketToDrop->cb)+SKB_CB_LATENCY_OFFSET))/HZ) <= curr_pack_info->uiMaxLatency))
 			break;
 
 		if (PacketToDrop) {
@@ -355,27 +356,27 @@ static VOID PruneQueue(struct bcm_mini_adapter *Adapter, INT iIndex)
 
 			netstats->tx_dropped++;
 
-			DEQUEUEPACKET(Adapter->PackInfo[iIndex].FirstTxQueue,
-						Adapter->PackInfo[iIndex].LastTxQueue);
+			DEQUEUEPACKET(curr_pack_info->FirstTxQueue,
+						curr_pack_info->LastTxQueue);
 			/* update current bytes and packets count */
-			Adapter->PackInfo[iIndex].uiCurrentBytesOnHost -=
+			curr_pack_info->uiCurrentBytesOnHost -=
 				PacketToDrop->len;
-			Adapter->PackInfo[iIndex].uiCurrentPacketsOnHost--;
+			curr_pack_info->uiCurrentPacketsOnHost--;
 			/* update dropped bytes and packets counts */
-			Adapter->PackInfo[iIndex].uiDroppedCountBytes += PacketToDrop->len;
-			Adapter->PackInfo[iIndex].uiDroppedCountPackets++;
+			curr_pack_info->uiDroppedCountBytes += PacketToDrop->len;
+			curr_pack_info->uiDroppedCountPackets++;
 			dev_kfree_skb(PacketToDrop);
 
 		}
 
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, PRUNE_QUEUE, DBG_LVL_ALL, "Dropped Bytes:%x Dropped Packets:%x",
-			Adapter->PackInfo[iIndex].uiDroppedCountBytes,
-			Adapter->PackInfo[iIndex].uiDroppedCountPackets);
+			curr_pack_info->uiDroppedCountBytes,
+			curr_pack_info->uiDroppedCountPackets);
 
 		atomic_dec(&Adapter->TotalPacketCount);
 	}
 
-	spin_unlock_bh(&Adapter->PackInfo[iIndex].SFQueueLock);
+	spin_unlock_bh(&curr_pack_info->SFQueueLock);
 
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, PRUNE_QUEUE, DBG_LVL_ALL, "TotalPacketCount:%x",
 		atomic_read(&Adapter->TotalPacketCount));
