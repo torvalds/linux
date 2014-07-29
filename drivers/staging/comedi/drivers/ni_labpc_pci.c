@@ -48,7 +48,6 @@ static const struct labpc_boardinfo labpc_pci_boards[] = {
 		.ai_scan_up		= 1,
 		.has_ao			= 1,
 		.is_labpc1200		= 1,
-		.has_mmio		= 1,
 	},
 };
 
@@ -81,7 +80,6 @@ static int labpc_pci_auto_attach(struct comedi_device *dev,
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	const struct labpc_boardinfo *board = NULL;
 	struct labpc_private *devpriv;
-	void __iomem *mmio;
 	int ret;
 
 	if (context < ARRAY_SIZE(labpc_pci_boards))
@@ -99,10 +97,9 @@ static int labpc_pci_auto_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	mmio = pci_ioremap_bar(pcidev, 1);
-	if (!mmio)
+	dev->mmio = pci_ioremap_bar(pcidev, 1);
+	if (!dev->mmio)
 		return -ENOMEM;
-	dev->iobase = (unsigned long)mmio;
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
@@ -113,8 +110,8 @@ static int labpc_pci_auto_attach(struct comedi_device *dev,
 
 static void labpc_pci_detach(struct comedi_device *dev)
 {
-	if (dev->iobase)
-		iounmap((void __iomem *)dev->iobase);
+	if (dev->mmio)
+		iounmap(dev->mmio);
 	if (dev->irq)
 		free_irq(dev->irq, dev);
 	comedi_pci_disable(dev);

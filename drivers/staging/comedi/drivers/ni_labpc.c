@@ -141,17 +141,13 @@ static void labpc_outb(struct comedi_device *dev,
 
 static unsigned int labpc_readb(struct comedi_device *dev, unsigned long reg)
 {
-	void __iomem *mmio = (void __iomem *)dev->iobase;
-
-	return readb(mmio + reg);
+	return readb(dev->mmio + reg);
 }
 
 static void labpc_writeb(struct comedi_device *dev,
 			 unsigned int byte, unsigned long reg)
 {
-	void __iomem *mmio = (void __iomem *)dev->iobase;
-
-	writeb(byte, mmio + reg);
+	writeb(byte, dev->mmio + reg);
 }
 
 #if IS_ENABLED(CONFIG_COMEDI_NI_LABPC_ISA)
@@ -181,13 +177,9 @@ static void labpc_counter_load(struct comedi_device *dev,
 			       unsigned int count,
 			       unsigned int mode)
 {
-	const struct labpc_boardinfo *board = comedi_board(dev);
-
-	if (board->has_mmio) {
-		void __iomem *mmio = (void __iomem *)dev->iobase;
-
-		i8254_mm_set_mode(mmio + reg, 0, counter_number, mode);
-		i8254_mm_write(mmio + reg, 0, counter_number, count);
+	if (dev->mmio) {
+		i8254_mm_set_mode(dev->mmio + reg, 0, counter_number, mode);
+		i8254_mm_write(dev->mmio + reg, 0, counter_number, count);
 	} else {
 		i8254_set_mode(dev->iobase + reg, 0, counter_number, mode);
 		i8254_write(dev->iobase + reg, 0, counter_number, count);
@@ -199,15 +191,10 @@ static void labpc_counter_set_mode(struct comedi_device *dev,
 				   unsigned int counter_number,
 				   unsigned int mode)
 {
-	const struct labpc_boardinfo *board = comedi_board(dev);
-
-	if (board->has_mmio) {
-		void __iomem *mmio = (void __iomem *)dev->iobase;
-
-		i8254_mm_set_mode(mmio + reg, 0, counter_number, mode);
-	} else {
+	if (dev->mmio)
+		i8254_mm_set_mode(dev->mmio + reg, 0, counter_number, mode);
+	else
 		i8254_set_mode(dev->iobase + reg, 0, counter_number, mode);
-	}
 }
 
 static int labpc_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
@@ -1051,14 +1038,13 @@ static int labpc_ao_insn_read(struct comedi_device *dev,
 static int labpc_8255_mmio(int dir, int port, int data, unsigned long arg)
 {
 	struct comedi_device *dev = (struct comedi_device *)arg;
-	void __iomem *mmio = (void __iomem *)dev->iobase + DIO_BASE_REG;
 
 	if (dir) {
-		writeb(data, mmio + port);
+		writeb(data, dev->mmio + DIO_BASE_REG + port);
 		return 0;
 	}
 
-	return readb(mmio + port);
+	return readb(dev->mmio + DIO_BASE_REG + port);
 }
 
 /* lowlevel write to eeprom/dac */
@@ -1342,7 +1328,7 @@ int labpc_common_attach(struct comedi_device *dev,
 	int ret;
 	int i;
 
-	if (board->has_mmio) {
+	if (dev->mmio) {
 		devpriv->read_byte = labpc_readb;
 		devpriv->write_byte = labpc_writeb;
 	} else {
@@ -1416,7 +1402,7 @@ int labpc_common_attach(struct comedi_device *dev,
 
 	/* 8255 dio */
 	s = &dev->subdevices[2];
-	if (board->has_mmio) {
+	if (dev->mmio) {
 		ret = subdev_8255_init(dev, s, labpc_8255_mmio,
 				       (unsigned long)dev);
 	} else {
