@@ -82,7 +82,7 @@ struct end_io_wq {
 	void *private;
 	struct btrfs_fs_info *info;
 	int error;
-	int metadata;
+	enum btrfs_wq_endio_type metadata;
 	struct list_head list;
 	struct btrfs_work work;
 };
@@ -733,16 +733,8 @@ static void end_workqueue_bio(struct bio *bio, int err)
 	btrfs_queue_work(wq, &end_io_wq->work);
 }
 
-/*
- * For the metadata arg you want
- *
- * 0 - if data
- * 1 - if normal metadta
- * 2 - if writing to the free space cache area
- * 3 - raid parity work
- */
 int btrfs_bio_wq_end_io(struct btrfs_fs_info *info, struct bio *bio,
-			int metadata)
+			enum btrfs_wq_endio_type metadata)
 {
 	struct end_io_wq *end_io_wq;
 
@@ -930,7 +922,7 @@ static int btree_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
 		 * can happen in the async kernel threads
 		 */
 		ret = btrfs_bio_wq_end_io(BTRFS_I(inode)->root->fs_info,
-					  bio, 1);
+					  bio, BTRFS_WQ_ENDIO_METADATA);
 		if (ret)
 			goto out_w_error;
 		ret = btrfs_map_bio(BTRFS_I(inode)->root, rw, bio,
