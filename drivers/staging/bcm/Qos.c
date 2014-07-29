@@ -1071,35 +1071,58 @@ static bool EthCSMatchVLANRules(struct bcm_classifier_rule *pstClassifierRule,
 }
 
 
-static bool EThCSClassifyPkt(struct bcm_mini_adapter *Adapter, struct sk_buff *skb,
-				struct bcm_eth_packet_info *pstEthCsPktInfo,
-				struct bcm_classifier_rule *pstClassifierRule,
-				B_UINT8 EthCSCupport)
+static bool EThCSClassifyPkt(struct bcm_mini_adapter *Adapter,
+			     struct sk_buff *skb,
+			     struct bcm_eth_packet_info *pstEthCsPktInfo,
+			     struct bcm_classifier_rule *pstClassifierRule,
+			     B_UINT8 EthCSCupport)
 {
 	bool bClassificationSucceed = false;
 
-	bClassificationSucceed = EthCSMatchSrcMACAddress(pstClassifierRule, ((struct bcm_eth_header *)(skb->data))->au8SourceAddress);
+	bClassificationSucceed = EthCSMatchSrcMACAddress(pstClassifierRule,
+			((struct bcm_eth_header *)(skb->data))->au8SourceAddress);
 	if (!bClassificationSucceed)
 		return false;
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL,  "ETH CS SrcMAC Matched\n");
+	BCM_DEBUG_PRINT(Adapter,
+			DBG_TYPE_TX,
+			IPV4_DBG,
+			DBG_LVL_ALL,
+			"ETH CS SrcMAC Matched\n");
 
-	bClassificationSucceed = EthCSMatchDestMACAddress(pstClassifierRule, ((struct bcm_eth_header *)(skb->data))->au8DestinationAddress);
+	bClassificationSucceed = EthCSMatchDestMACAddress(pstClassifierRule,
+			((struct bcm_eth_header *)(skb->data))->au8DestinationAddress);
 	if (!bClassificationSucceed)
 		return false;
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL,  "ETH CS DestMAC Matched\n");
+	BCM_DEBUG_PRINT(Adapter,
+			DBG_TYPE_TX,
+			IPV4_DBG,
+			DBG_LVL_ALL,
+			"ETH CS DestMAC Matched\n");
 
 	/* classify on ETHType/802.2SAP TLV */
-	bClassificationSucceed = EthCSMatchEThTypeSAP(pstClassifierRule, skb, pstEthCsPktInfo);
+	bClassificationSucceed = EthCSMatchEThTypeSAP(pstClassifierRule,
+						      skb,
+						      pstEthCsPktInfo);
 	if (!bClassificationSucceed)
 		return false;
 
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL,  "ETH CS EthType/802.2SAP Matched\n");
+	BCM_DEBUG_PRINT(Adapter,
+			DBG_TYPE_TX,
+			IPV4_DBG,
+			DBG_LVL_ALL,
+			"ETH CS EthType/802.2SAP Matched\n");
 
 	/* classify on 802.1VLAN Header Parameters */
-	bClassificationSucceed = EthCSMatchVLANRules(pstClassifierRule, skb, pstEthCsPktInfo);
+	bClassificationSucceed = EthCSMatchVLANRules(pstClassifierRule,
+						     skb,
+						     pstEthCsPktInfo);
 	if (!bClassificationSucceed)
 		return false;
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL,  "ETH CS 802.1 VLAN Rules Matched\n");
+	BCM_DEBUG_PRINT(Adapter,
+			DBG_TYPE_TX,
+			IPV4_DBG,
+			DBG_LVL_ALL,
+			"ETH CS 802.1 VLAN Rules Matched\n");
 
 	return bClassificationSucceed;
 }
