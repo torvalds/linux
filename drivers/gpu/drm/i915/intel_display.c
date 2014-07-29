@@ -7607,6 +7607,22 @@ static int haswell_crtc_mode_set(struct drm_crtc *crtc,
 	return 0;
 }
 
+static void haswell_get_ddi_pll(struct drm_i915_private *dev_priv,
+				enum port port,
+				struct intel_crtc_config *pipe_config)
+{
+	pipe_config->ddi_pll_sel = I915_READ(PORT_CLK_SEL(port));
+
+	switch (pipe_config->ddi_pll_sel) {
+	case PORT_CLK_SEL_WRPLL1:
+		pipe_config->shared_dpll = DPLL_ID_WRPLL1;
+		break;
+	case PORT_CLK_SEL_WRPLL2:
+		pipe_config->shared_dpll = DPLL_ID_WRPLL2;
+		break;
+	}
+}
+
 static void haswell_get_ddi_port_state(struct intel_crtc *crtc,
 				       struct intel_crtc_config *pipe_config)
 {
@@ -7620,16 +7636,7 @@ static void haswell_get_ddi_port_state(struct intel_crtc *crtc,
 
 	port = (tmp & TRANS_DDI_PORT_MASK) >> TRANS_DDI_PORT_SHIFT;
 
-	pipe_config->ddi_pll_sel = I915_READ(PORT_CLK_SEL(port));
-
-	switch (pipe_config->ddi_pll_sel) {
-	case PORT_CLK_SEL_WRPLL1:
-		pipe_config->shared_dpll = DPLL_ID_WRPLL1;
-		break;
-	case PORT_CLK_SEL_WRPLL2:
-		pipe_config->shared_dpll = DPLL_ID_WRPLL2;
-		break;
-	}
+	haswell_get_ddi_pll(dev_priv, port, pipe_config);
 
 	if (pipe_config->shared_dpll >= 0) {
 		pll = &dev_priv->shared_dplls[pipe_config->shared_dpll];
