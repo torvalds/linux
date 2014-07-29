@@ -1256,6 +1256,67 @@ rpcrdma_buffer_destroy(struct rpcrdma_buffer *buf)
 	kfree(buf->rb_pool);
 }
 
+/* "*mw" can be NULL when rpcrdma_buffer_get_mrs() fails, leaving
+ * some req segments uninitialized.
+ */
+static void
+rpcrdma_buffer_put_mr(struct rpcrdma_mw **mw, struct rpcrdma_buffer *buf)
+{
+	if (*mw) {
+		list_add_tail(&(*mw)->mw_list, &buf->rb_mws);
+		*mw = NULL;
+	}
+}
+
+/* Cycle mw's back in reverse order, and "spin" them.
+ * This delays and scrambles reuse as much as possible.
+ */
+static void
+rpcrdma_buffer_put_mrs(struct rpcrdma_req *req, struct rpcrdma_buffer *buf)
+{
+	struct rpcrdma_mr_seg *seg = req->rl_segments;
+	struct rpcrdma_mr_seg *seg1 = seg;
+	int i;
+
+	for (i = 1, seg++; i < RPCRDMA_MAX_SEGS; seg++, i++)
+		rpcrdma_buffer_put_mr(&seg->mr_chunk.rl_mw, buf);
+	rpcrdma_buffer_put_mr(&seg1->mr_chunk.rl_mw, buf);
+}
+
+static void
+rpcrdma_buffer_put_sendbuf(struct rpcrdma_req *req, struct rpcrdma_buffer *buf)
+{
+	buf->rb_send_bufs[--buf->rb_send_index] = req;
+	req->rl_niovs = 0;
+	if (req->rl_reply) {
+		buf->rb_recv_bufs[--buf->rb_recv_index] = req->rl_reply;
+		req->rl_reply->rr_func = NULL;
+		req->rl_reply = NULL;
+	}
+}
+
+static struct rpcrdma_req *
+rpcrdma_buffer_get_mrs(struct rpcrdma_req *req, struct rpcrdma_buffer *buf)
+{
+	struct rpcrdma_mw *r;
+	int i;
+
+	i = RPCRDMA_MAX_SEGS - 1;
+	while (!list_empty(&buf->rb_mws)) {
+		r = list_entry(buf->rb_mws.next,
+			       struct rpcrdma_mw, mw_list);
+		list_del(&r->mw_list);
+		req->rl_segments[i].mr_chunk.rl_mw = r;
+		if (unlikely(i-- == 0))
+			return req;	/* Success */
+	}
+
+	/* Not enough entries on rb_mws for this req */
+	rpcrdma_buffer_put_sendbuf(req, buf);
+	rpcrdma_buffer_put_mrs(req, buf);
+	return NULL;
+}
+
 /*
  * Get a set of request/reply buffers.
  *
@@ -1268,10 +1329,9 @@ rpcrdma_buffer_destroy(struct rpcrdma_buffer *buf)
 struct rpcrdma_req *
 rpcrdma_buffer_get(struct rpcrdma_buffer *buffers)
 {
+	struct rpcrdma_ia *ia = rdmab_to_ia(buffers);
 	struct rpcrdma_req *req;
 	unsigned long flags;
-	int i;
-	struct rpcrdma_mw *r;
 
 	spin_lock_irqsave(&buffers->rb_lock, flags);
 	if (buffers->rb_send_index == buffers->rb_max_requests) {
@@ -1291,14 +1351,13 @@ rpcrdma_buffer_get(struct rpcrdma_buffer *buffers)
 		buffers->rb_recv_bufs[buffers->rb_recv_index++] = NULL;
 	}
 	buffers->rb_send_bufs[buffers->rb_send_index++] = NULL;
-	if (!list_empty(&buffers->rb_mws)) {
-		i = RPCRDMA_MAX_SEGS - 1;
-		do {
-			r = list_entry(buffers->rb_mws.next,
-					struct rpcrdma_mw, mw_list);
-			list_del(&r->mw_list);
-			req->rl_segments[i].mr_chunk.rl_mw = r;
-		} while (--i >= 0);
+	switch (ia->ri_memreg_strategy) {
+	case RPCRDMA_FRMR:
+	case RPCRDMA_MTHCAFMR:
+		req = rpcrdma_buffer_get_mrs(req, buffers);
+		break;
+	default:
+		break;
 	}
 	spin_unlock_irqrestore(&buffers->rb_lock, flags);
 	return req;
@@ -1313,34 +1372,14 @@ rpcrdma_buffer_put(struct rpcrdma_req *req)
 {
 	struct rpcrdma_buffer *buffers = req->rl_buffer;
 	struct rpcrdma_ia *ia = rdmab_to_ia(buffers);
-	int i;
 	unsigned long flags;
 
 	spin_lock_irqsave(&buffers->rb_lock, flags);
-	buffers->rb_send_bufs[--buffers->rb_send_index] = req;
-	req->rl_niovs = 0;
-	if (req->rl_reply) {
-		buffers->rb_recv_bufs[--buffers->rb_recv_index] = req->rl_reply;
-		req->rl_reply->rr_func = NULL;
-		req->rl_reply = NULL;
-	}
+	rpcrdma_buffer_put_sendbuf(req, buffers);
 	switch (ia->ri_memreg_strategy) {
 	case RPCRDMA_FRMR:
 	case RPCRDMA_MTHCAFMR:
-		/*
-		 * Cycle mw's back in reverse order, and "spin" them.
-		 * This delays and scrambles reuse as much as possible.
-		 */
-		i = 1;
-		do {
-			struct rpcrdma_mw **mw;
-			mw = &req->rl_segments[i].mr_chunk.rl_mw;
-			list_add_tail(&(*mw)->mw_list, &buffers->rb_mws);
-			*mw = NULL;
-		} while (++i < RPCRDMA_MAX_SEGS);
-		list_add_tail(&req->rl_segments[0].mr_chunk.rl_mw->mw_list,
-					&buffers->rb_mws);
-		req->rl_segments[0].mr_chunk.rl_mw = NULL;
+		rpcrdma_buffer_put_mrs(req, buffers);
 		break;
 	default:
 		break;
