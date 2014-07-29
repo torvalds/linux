@@ -1017,12 +1017,11 @@ static int urb_enqueue(struct usb_hcd *hcd,
 
 	if (unlikely(atomic_read(&urb->reject))) {
 		retval = -EPERM;
-		printk
-		    ("%s urb %p submissions will fail, urb->reject %d, use_count %d\n",
-		     __func__, urb, atomic_read(&urb->reject),
-		     atomic_read(&urb->use_count));
+		DWC_DEBUGPL(DBG_HCD,
+			    "%s urb %p submissions will fail,reject %d,count %d\n",
+			    __func__, urb, atomic_read(&urb->reject),
+			    atomic_read(&urb->use_count));
 		return retval;
-
 	}
 
 	if ((usb_pipetype(urb->pipe) == PIPE_ISOCHRONOUS)
