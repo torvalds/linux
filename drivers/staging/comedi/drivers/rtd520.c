@@ -373,7 +373,6 @@ static const struct rtd_boardinfo rtd520Boards[] = {
 
 struct rtd_private {
 	/* memory mapped board structures */
-	void __iomem *las0;
 	void __iomem *las1;
 	void __iomem *lcfg;
 
@@ -490,21 +489,19 @@ static unsigned short rtd_convert_chan_gain(struct comedi_device *dev,
 static void rtd_load_channelgain_list(struct comedi_device *dev,
 				      unsigned int n_chan, unsigned int *list)
 {
-	struct rtd_private *devpriv = dev->private;
-
 	if (n_chan > 1) {	/* setup channel gain table */
 		int ii;
 
-		writel(0, devpriv->las0 + LAS0_CGT_CLEAR);
-		writel(1, devpriv->las0 + LAS0_CGT_ENABLE);
+		writel(0, dev->mmio + LAS0_CGT_CLEAR);
+		writel(1, dev->mmio + LAS0_CGT_ENABLE);
 		for (ii = 0; ii < n_chan; ii++) {
 			writel(rtd_convert_chan_gain(dev, list[ii], ii),
-				devpriv->las0 + LAS0_CGT_WRITE);
+			       dev->mmio + LAS0_CGT_WRITE);
 		}
 	} else {		/* just use the channel gain latch */
-		writel(0, devpriv->las0 + LAS0_CGT_ENABLE);
+		writel(0, dev->mmio + LAS0_CGT_ENABLE);
 		writel(rtd_convert_chan_gain(dev, list[0], 0),
-			devpriv->las0 + LAS0_CGL_WRITE);
+		       dev->mmio + LAS0_CGL_WRITE);
 	}
 }
 
@@ -512,23 +509,22 @@ static void rtd_load_channelgain_list(struct comedi_device *dev,
 empty status flag clears */
 static int rtd520_probe_fifo_depth(struct comedi_device *dev)
 {
-	struct rtd_private *devpriv = dev->private;
 	unsigned int chanspec = CR_PACK(0, 0, AREF_GROUND);
 	unsigned i;
 	static const unsigned limit = 0x2000;
 	unsigned fifo_size = 0;
 
-	writel(0, devpriv->las0 + LAS0_ADC_FIFO_CLEAR);
+	writel(0, dev->mmio + LAS0_ADC_FIFO_CLEAR);
 	rtd_load_channelgain_list(dev, 1, &chanspec);
 	/* ADC conversion trigger source: SOFTWARE */
-	writel(0, devpriv->las0 + LAS0_ADC_CONVERSION);
+	writel(0, dev->mmio + LAS0_ADC_CONVERSION);
 	/* convert  samples */
 	for (i = 0; i < limit; ++i) {
 		unsigned fifo_status;
 		/* trigger conversion */
-		writew(0, devpriv->las0 + LAS0_ADC);
+		writew(0, dev->mmio + LAS0_ADC);
 		udelay(1);
-		fifo_status = readl(devpriv->las0 + LAS0_ADC);
+		fifo_status = readl(dev->mmio + LAS0_ADC);
 		if ((fifo_status & FS_ADC_HEMPTY) == 0) {
 			fifo_size = 2 * i;
 			break;
@@ -538,7 +534,7 @@ static int rtd520_probe_fifo_depth(struct comedi_device *dev)
 		dev_info(dev->class_dev, "failed to probe fifo size.\n");
 		return -EIO;
 	}
-	writel(0, devpriv->las0 + LAS0_ADC_FIFO_CLEAR);
+	writel(0, dev->mmio + LAS0_ADC_FIFO_CLEAR);
 	if (fifo_size != 0x400 && fifo_size != 0x2000) {
 		dev_info(dev->class_dev,
 			 "unexpected fifo size of %i, expected 1024 or 8192.\n",
@@ -553,10 +549,9 @@ static int rtd_ai_eoc(struct comedi_device *dev,
 		      struct comedi_insn *insn,
 		      unsigned long context)
 {
-	struct rtd_private *devpriv = dev->private;
 	unsigned int status;
 
-	status = readl(devpriv->las0 + LAS0_ADC);
+	status = readl(dev->mmio + LAS0_ADC);
 	if (status & FS_ADC_NOT_EMPTY)
 		return 0;
 	return -EBUSY;
@@ -571,19 +566,19 @@ static int rtd_ai_rinsn(struct comedi_device *dev,
 	int n;
 
 	/* clear any old fifo data */
-	writel(0, devpriv->las0 + LAS0_ADC_FIFO_CLEAR);
+	writel(0, dev->mmio + LAS0_ADC_FIFO_CLEAR);
 
 	/* write channel to multiplexer and clear channel gain table */
 	rtd_load_channelgain_list(dev, 1, &insn->chanspec);
 
 	/* ADC conversion trigger source: SOFTWARE */
-	writel(0, devpriv->las0 + LAS0_ADC_CONVERSION);
+	writel(0, dev->mmio + LAS0_ADC_CONVERSION);
 
 	/* convert n samples */
 	for (n = 0; n < insn->n; n++) {
 		unsigned short d;
 		/* trigger conversion */
-		writew(0, devpriv->las0 + LAS0_ADC);
+		writew(0, dev->mmio + LAS0_ADC);
 
 		ret = comedi_timeout(dev, s, insn, rtd_ai_eoc, 0);
 		if (ret)
@@ -645,7 +640,7 @@ static int ai_read_dregs(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct rtd_private *devpriv = dev->private;
 
-	while (readl(devpriv->las0 + LAS0_ADC) & FS_ADC_NOT_EMPTY) {
+	while (readl(dev->mmio + LAS0_ADC) & FS_ADC_NOT_EMPTY) {
 		unsigned short d = readw(devpriv->las1 + LAS1_ADC_FIFO);
 
 		if (0 == devpriv->ai_count) {	/* done */
@@ -685,12 +680,12 @@ static irqreturn_t rtd_interrupt(int irq, void *d)
 	if (!dev->attached)
 		return IRQ_NONE;
 
-	fifo_status = readl(devpriv->las0 + LAS0_ADC);
+	fifo_status = readl(dev->mmio + LAS0_ADC);
 	/* check for FIFO full, this automatically halts the ADC! */
 	if (!(fifo_status & FS_ADC_NOT_FULL))	/* 0 -> full */
 		goto xfer_abort;
 
-	status = readw(devpriv->las0 + LAS0_IT);
+	status = readw(dev->mmio + LAS0_IT);
 	/* if interrupt was not caused by our board, or handled above */
 	if (0 == status)
 		return IRQ_HANDLED;
@@ -725,30 +720,30 @@ static irqreturn_t rtd_interrupt(int irq, void *d)
 		}
 	}
 
-	overrun = readl(devpriv->las0 + LAS0_OVERRUN) & 0xffff;
+	overrun = readl(dev->mmio + LAS0_OVERRUN) & 0xffff;
 	if (overrun)
 		goto xfer_abort;
 
 	/* clear the interrupt */
-	writew(status, devpriv->las0 + LAS0_CLEAR);
-	readw(devpriv->las0 + LAS0_CLEAR);
+	writew(status, dev->mmio + LAS0_CLEAR);
+	readw(dev->mmio + LAS0_CLEAR);
 	return IRQ_HANDLED;
 
 xfer_abort:
-	writel(0, devpriv->las0 + LAS0_ADC_FIFO_CLEAR);
+	writel(0, dev->mmio + LAS0_ADC_FIFO_CLEAR);
 	s->async->events |= COMEDI_CB_ERROR;
 	devpriv->ai_count = 0;	/* stop and don't transfer any more */
 	/* fall into xfer_done */
 
 xfer_done:
 	/* pacer stop source: SOFTWARE */
-	writel(0, devpriv->las0 + LAS0_PACER_STOP);
-	writel(0, devpriv->las0 + LAS0_PACER);	/* stop pacer */
-	writel(0, devpriv->las0 + LAS0_ADC_CONVERSION);
-	writew(0, devpriv->las0 + LAS0_IT);
+	writel(0, dev->mmio + LAS0_PACER_STOP);
+	writel(0, dev->mmio + LAS0_PACER);	/* stop pacer */
+	writel(0, dev->mmio + LAS0_ADC_CONVERSION);
+	writew(0, dev->mmio + LAS0_IT);
 
 	if (devpriv->ai_count > 0) {	/* there shouldn't be anything left */
-		fifo_status = readl(devpriv->las0 + LAS0_ADC);
+		fifo_status = readl(dev->mmio + LAS0_ADC);
 		ai_read_dregs(dev, s);	/* read anything left in FIFO */
 	}
 
@@ -756,12 +751,12 @@ xfer_done:
 	comedi_event(dev, s);
 
 	/* clear the interrupt */
-	status = readw(devpriv->las0 + LAS0_IT);
-	writew(status, devpriv->las0 + LAS0_CLEAR);
-	readw(devpriv->las0 + LAS0_CLEAR);
+	status = readw(dev->mmio + LAS0_IT);
+	writew(status, dev->mmio + LAS0_CLEAR);
+	readw(dev->mmio + LAS0_CLEAR);
 
-	fifo_status = readl(devpriv->las0 + LAS0_ADC);
-	overrun = readl(devpriv->las0 + LAS0_OVERRUN) & 0xffff;
+	fifo_status = readl(dev->mmio + LAS0_ADC);
+	overrun = readl(dev->mmio + LAS0_OVERRUN) & 0xffff;
 
 	return IRQ_HANDLED;
 }
@@ -931,12 +926,12 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	/* stop anything currently running */
 	/* pacer stop source: SOFTWARE */
-	writel(0, devpriv->las0 + LAS0_PACER_STOP);
-	writel(0, devpriv->las0 + LAS0_PACER);	/* stop pacer */
-	writel(0, devpriv->las0 + LAS0_ADC_CONVERSION);
-	writew(0, devpriv->las0 + LAS0_IT);
-	writel(0, devpriv->las0 + LAS0_ADC_FIFO_CLEAR);
-	writel(0, devpriv->las0 + LAS0_OVERRUN);
+	writel(0, dev->mmio + LAS0_PACER_STOP);
+	writel(0, dev->mmio + LAS0_PACER);	/* stop pacer */
+	writel(0, dev->mmio + LAS0_ADC_CONVERSION);
+	writew(0, dev->mmio + LAS0_IT);
+	writel(0, dev->mmio + LAS0_ADC_FIFO_CLEAR);
+	writel(0, dev->mmio + LAS0_OVERRUN);
 
 	/* start configuration */
 	/* load channel list and reset CGT */
@@ -945,18 +940,18 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	/* setup the common case and override if needed */
 	if (cmd->chanlist_len > 1) {
 		/* pacer start source: SOFTWARE */
-		writel(0, devpriv->las0 + LAS0_PACER_START);
+		writel(0, dev->mmio + LAS0_PACER_START);
 		/* burst trigger source: PACER */
-		writel(1, devpriv->las0 + LAS0_BURST_START);
+		writel(1, dev->mmio + LAS0_BURST_START);
 		/* ADC conversion trigger source: BURST */
-		writel(2, devpriv->las0 + LAS0_ADC_CONVERSION);
+		writel(2, dev->mmio + LAS0_ADC_CONVERSION);
 	} else {		/* single channel */
 		/* pacer start source: SOFTWARE */
-		writel(0, devpriv->las0 + LAS0_PACER_START);
+		writel(0, dev->mmio + LAS0_PACER_START);
 		/* ADC conversion trigger source: PACER */
-		writel(1, devpriv->las0 + LAS0_ADC_CONVERSION);
+		writel(1, dev->mmio + LAS0_ADC_CONVERSION);
 	}
-	writel((devpriv->fifosz / 2 - 1) & 0xffff, devpriv->las0 + LAS0_ACNT);
+	writel((devpriv->fifosz / 2 - 1) & 0xffff, dev->mmio + LAS0_ACNT);
 
 	if (TRIG_TIMER == cmd->scan_begin_src) {
 		/* scan_begin_arg is in nanoseconds */
@@ -993,16 +988,16 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		} else {
 			/* interrupt for each transfer */
 			writel((devpriv->xfer_count - 1) & 0xffff,
-				devpriv->las0 + LAS0_ACNT);
+			       dev->mmio + LAS0_ACNT);
 		}
 	} else {		/* unknown timing, just use 1/2 FIFO */
 		devpriv->xfer_count = 0;
 		devpriv->flags &= ~SEND_EOS;
 	}
 	/* pacer clock source: INTERNAL 8MHz */
-	writel(1, devpriv->las0 + LAS0_PACER_SELECT);
+	writel(1, dev->mmio + LAS0_PACER_SELECT);
 	/* just interrupt, don't stop */
-	writel(1, devpriv->las0 + LAS0_ACNT_STOP_ENABLE);
+	writel(1, dev->mmio + LAS0_ACNT_STOP_ENABLE);
 
 	/* BUG??? these look like enumerated values, but they are bit fields */
 
@@ -1027,13 +1022,13 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		timer = rtd_ns_to_timer(&cmd->scan_begin_arg,
 					TRIG_ROUND_NEAREST);
 		/* set PACER clock */
-		writel(timer & 0xffffff, devpriv->las0 + LAS0_PCLK);
+		writel(timer & 0xffffff, dev->mmio + LAS0_PCLK);
 
 		break;
 
 	case TRIG_EXT:
 		/* pacer start source: EXTERNAL */
-		writel(1, devpriv->las0 + LAS0_PACER_START);
+		writel(1, dev->mmio + LAS0_PACER_START);
 		break;
 	}
 
@@ -1045,33 +1040,32 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 			timer = rtd_ns_to_timer(&cmd->convert_arg,
 						TRIG_ROUND_NEAREST);
 			/* setup BURST clock */
-			writel(timer & 0x3ff, devpriv->las0 + LAS0_BCLK);
+			writel(timer & 0x3ff, dev->mmio + LAS0_BCLK);
 		}
 
 		break;
 
 	case TRIG_EXT:		/* external */
 		/* burst trigger source: EXTERNAL */
-		writel(2, devpriv->las0 + LAS0_BURST_START);
+		writel(2, dev->mmio + LAS0_BURST_START);
 		break;
 	}
 	/* end configuration */
 
 	/* This doesn't seem to work.  There is no way to clear an interrupt
 	   that the priority controller has queued! */
-	writew(~0, devpriv->las0 + LAS0_CLEAR);
-	readw(devpriv->las0 + LAS0_CLEAR);
+	writew(~0, dev->mmio + LAS0_CLEAR);
+	readw(dev->mmio + LAS0_CLEAR);
 
 	/* TODO: allow multiple interrupt sources */
-	if (devpriv->xfer_count > 0) {	/* transfer every N samples */
-		writew(IRQM_ADC_ABOUT_CNT, devpriv->las0 + LAS0_IT);
-	} else {		/* 1/2 FIFO transfers */
-		writew(IRQM_ADC_ABOUT_CNT, devpriv->las0 + LAS0_IT);
-	}
+	if (devpriv->xfer_count > 0)	/* transfer every N samples */
+		writew(IRQM_ADC_ABOUT_CNT, dev->mmio + LAS0_IT);
+	else				/* 1/2 FIFO transfers */
+		writew(IRQM_ADC_ABOUT_CNT, dev->mmio + LAS0_IT);
 
 	/* BUG: start_src is ASSUMED to be TRIG_NOW */
 	/* BUG? it seems like things are running before the "start" */
-	readl(devpriv->las0 + LAS0_PACER);	/* start pacer */
+	readl(dev->mmio + LAS0_PACER);	/* start pacer */
 	return 0;
 }
 
@@ -1085,13 +1079,13 @@ static int rtd_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 	u16 status;
 
 	/* pacer stop source: SOFTWARE */
-	writel(0, devpriv->las0 + LAS0_PACER_STOP);
-	writel(0, devpriv->las0 + LAS0_PACER);	/* stop pacer */
-	writel(0, devpriv->las0 + LAS0_ADC_CONVERSION);
-	writew(0, devpriv->las0 + LAS0_IT);
+	writel(0, dev->mmio + LAS0_PACER_STOP);
+	writel(0, dev->mmio + LAS0_PACER);	/* stop pacer */
+	writel(0, dev->mmio + LAS0_ADC_CONVERSION);
+	writew(0, dev->mmio + LAS0_IT);
 	devpriv->ai_count = 0;	/* stop and don't transfer any more */
-	status = readw(devpriv->las0 + LAS0_IT);
-	overrun = readl(devpriv->las0 + LAS0_OVERRUN) & 0xffff;
+	status = readw(dev->mmio + LAS0_IT);
+	overrun = readl(dev->mmio + LAS0_OVERRUN) & 0xffff;
 	return 0;
 }
 
@@ -1100,12 +1094,11 @@ static int rtd_ao_eoc(struct comedi_device *dev,
 		      struct comedi_insn *insn,
 		      unsigned long context)
 {
-	struct rtd_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned int bit = (chan == 0) ? FS_DAC1_NOT_EMPTY : FS_DAC2_NOT_EMPTY;
 	unsigned int status;
 
-	status = readl(devpriv->las0 + LAS0_ADC);
+	status = readl(dev->mmio + LAS0_ADC);
 	if (status & bit)
 		return 0;
 	return -EBUSY;
@@ -1122,8 +1115,8 @@ static int rtd_ao_winsn(struct comedi_device *dev,
 	int ret;
 
 	/* Configure the output range (table index matches the range values) */
-	writew(range & 7, devpriv->las0 +
-		((chan == 0) ? LAS0_DAC1_CTRL : LAS0_DAC2_CTRL));
+	writew(range & 7,
+	       dev->mmio + ((chan == 0) ? LAS0_DAC1_CTRL : LAS0_DAC2_CTRL));
 
 	/* Writing a list of values to an AO channel is probably not
 	 * very useful, but that's how the interface is defined. */
@@ -1143,8 +1136,7 @@ static int rtd_ao_winsn(struct comedi_device *dev,
 		/* a typical programming sequence */
 		writew(val, devpriv->las1 +
 			((chan == 0) ? LAS1_DAC1_FIFO : LAS1_DAC2_FIFO));
-		writew(0, devpriv->las0 +
-			((chan == 0) ? LAS0_DAC1 : LAS0_DAC2));
+		writew(0, dev->mmio + ((chan == 0) ? LAS0_DAC1 : LAS0_DAC2));
 
 		devpriv->ao_readback[chan] = data[i];
 
@@ -1179,12 +1171,10 @@ static int rtd_dio_insn_bits(struct comedi_device *dev,
 			     struct comedi_insn *insn,
 			     unsigned int *data)
 {
-	struct rtd_private *devpriv = dev->private;
-
 	if (comedi_dio_update_state(s, data))
-		writew(s->state & 0xff, devpriv->las0 + LAS0_DIO0);
+		writew(s->state & 0xff, dev->mmio + LAS0_DIO0);
 
-	data[1] = readw(devpriv->las0 + LAS0_DIO0) & 0xff;
+	data[1] = readw(dev->mmio + LAS0_DIO0) & 0xff;
 
 	return insn->n;
 }
@@ -1194,7 +1184,6 @@ static int rtd_dio_insn_config(struct comedi_device *dev,
 			       struct comedi_insn *insn,
 			       unsigned int *data)
 {
-	struct rtd_private *devpriv = dev->private;
 	int ret;
 
 	ret = comedi_dio_insn_config(dev, s, insn, data, 0);
@@ -1204,11 +1193,11 @@ static int rtd_dio_insn_config(struct comedi_device *dev,
 	/* TODO support digital match interrupts and strobes */
 
 	/* set direction */
-	writew(0x01, devpriv->las0 + LAS0_DIO_STATUS);
-	writew(s->io_bits & 0xff, devpriv->las0 + LAS0_DIO0_CTRL);
+	writew(0x01, dev->mmio + LAS0_DIO_STATUS);
+	writew(s->io_bits & 0xff, dev->mmio + LAS0_DIO0_CTRL);
 
 	/* clear interrupts */
-	writew(0x00, devpriv->las0 + LAS0_DIO_STATUS);
+	writew(0x00, dev->mmio + LAS0_DIO_STATUS);
 
 	/* port1 can only be all input or all output */
 
@@ -1221,12 +1210,12 @@ static void rtd_reset(struct comedi_device *dev)
 {
 	struct rtd_private *devpriv = dev->private;
 
-	writel(0, devpriv->las0 + LAS0_BOARD_RESET);
+	writel(0, dev->mmio + LAS0_BOARD_RESET);
 	udelay(100);		/* needed? */
 	writel(0, devpriv->lcfg + PLX_INTRCS_REG);
-	writew(0, devpriv->las0 + LAS0_IT);
-	writew(~0, devpriv->las0 + LAS0_CLEAR);
-	readw(devpriv->las0 + LAS0_CLEAR);
+	writew(0, dev->mmio + LAS0_IT);
+	writew(~0, dev->mmio + LAS0_CLEAR);
+	readw(dev->mmio + LAS0_CLEAR);
 }
 
 /*
@@ -1235,21 +1224,19 @@ static void rtd_reset(struct comedi_device *dev)
  */
 static void rtd_init_board(struct comedi_device *dev)
 {
-	struct rtd_private *devpriv = dev->private;
-
 	rtd_reset(dev);
 
-	writel(0, devpriv->las0 + LAS0_OVERRUN);
-	writel(0, devpriv->las0 + LAS0_CGT_CLEAR);
-	writel(0, devpriv->las0 + LAS0_ADC_FIFO_CLEAR);
-	writel(0, devpriv->las0 + LAS0_DAC1_RESET);
-	writel(0, devpriv->las0 + LAS0_DAC2_RESET);
+	writel(0, dev->mmio + LAS0_OVERRUN);
+	writel(0, dev->mmio + LAS0_CGT_CLEAR);
+	writel(0, dev->mmio + LAS0_ADC_FIFO_CLEAR);
+	writel(0, dev->mmio + LAS0_DAC1_RESET);
+	writel(0, dev->mmio + LAS0_DAC2_RESET);
 	/* clear digital IO fifo */
-	writew(0, devpriv->las0 + LAS0_DIO_STATUS);
-	writeb((0 << 6) | 0x30, devpriv->las0 + LAS0_UTC_CTRL);
-	writeb((1 << 6) | 0x30, devpriv->las0 + LAS0_UTC_CTRL);
-	writeb((2 << 6) | 0x30, devpriv->las0 + LAS0_UTC_CTRL);
-	writeb((3 << 6) | 0x00, devpriv->las0 + LAS0_UTC_CTRL);
+	writew(0, dev->mmio + LAS0_DIO_STATUS);
+	writeb((0 << 6) | 0x30, dev->mmio + LAS0_UTC_CTRL);
+	writeb((1 << 6) | 0x30, dev->mmio + LAS0_UTC_CTRL);
+	writeb((2 << 6) | 0x30, dev->mmio + LAS0_UTC_CTRL);
+	writeb((3 << 6) | 0x00, dev->mmio + LAS0_UTC_CTRL);
 	/* TODO: set user out source ??? */
 }
 
@@ -1292,10 +1279,10 @@ static int rtd_auto_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	devpriv->las0 = pci_ioremap_bar(pcidev, 2);
+	dev->mmio = pci_ioremap_bar(pcidev, 2);
 	devpriv->las1 = pci_ioremap_bar(pcidev, 3);
 	devpriv->lcfg = pci_ioremap_bar(pcidev, 0);
-	if (!devpriv->las0 || !devpriv->las1 || !devpriv->lcfg)
+	if (!dev->mmio || !devpriv->las1 || !devpriv->lcfg)
 		return -ENOMEM;
 
 	rtd_pci_latency_quirk(dev, pcidev);
@@ -1375,7 +1362,7 @@ static void rtd_detach(struct comedi_device *dev)
 
 	if (devpriv) {
 		/* Shut down any board ops by resetting it */
-		if (devpriv->las0 && devpriv->lcfg)
+		if (dev->mmio && devpriv->lcfg)
 			rtd_reset(dev);
 		if (dev->irq) {
 			writel(readl(devpriv->lcfg + PLX_INTRCS_REG) &
@@ -1383,8 +1370,8 @@ static void rtd_detach(struct comedi_device *dev)
 				devpriv->lcfg + PLX_INTRCS_REG);
 			free_irq(dev->irq, dev);
 		}
-		if (devpriv->las0)
-			iounmap(devpriv->las0);
+		if (dev->mmio)
+			iounmap(dev->mmio);
 		if (devpriv->las1)
 			iounmap(devpriv->las1);
 		if (devpriv->lcfg)
