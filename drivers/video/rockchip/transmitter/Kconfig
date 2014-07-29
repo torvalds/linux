@@ -16,6 +16,10 @@ config RK32_LVDS
 	bool "RK32 lvds transmitter support"
 	depends on RK_TRSM
 
+config RK31XX_LVDS
+        bool "RK312x/RK3190 lvds transmitter support"
+        depends on RK_TRSM
+
 config RK610_LVDS
 	bool "RK610(Jetta) lvds transmitter support"
 	depends on MFD_RK610 && RK_TRSM 

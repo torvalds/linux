@@ -37,3 +37,9 @@ config LCDC_RK3036
 	depends on DRM_ROCKCHIP || FB_ROCKCHIP 
         help
           Driver for rk3036 lcdc.
+
+config LCDC_RK312X
+        bool "rk312x lcdc support"
+        depends on DRM_ROCKCHIP || FB_ROCKCHIP
+        help
+          Driver for rk312x lcdc.
