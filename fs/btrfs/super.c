@@ -395,7 +395,6 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 	int ret = 0;
 	char *compress_type;
 	bool compress_force = false;
-	bool compress = false;
 
 	cache_gen = btrfs_super_cache_generation(root->fs_info->super_copy);
 	if (cache_gen)
@@ -473,7 +472,6 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 			/* Fallthrough */
 		case Opt_compress:
 		case Opt_compress_type:
-			compress = true;
 			if (token == Opt_compress ||
 			    token == Opt_compress_force ||
 			    strcmp(args[0].from, "zlib") == 0) {
@@ -503,7 +501,7 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 				btrfs_set_and_info(root, FORCE_COMPRESS,
 						   "force %s compression",
 						   compress_type);
-			} else if (compress) {
+			} else {
 				if (!btrfs_test_opt(root, COMPRESS))
 					btrfs_info(root->fs_info,
 						   "btrfs: use %s compression",
