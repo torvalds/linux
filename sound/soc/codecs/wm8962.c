@@ -14,6 +14,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
+#include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/pm.h>
 #include <linux/gcd.h>
@@ -3541,6 +3542,8 @@ static int wm8962_set_pdata_from_of(struct i2c_client *i2c,
 				pdata->gpio_init[i] = 0x0;
 		}
 
+	pdata->mclk = devm_clk_get(&i2c->dev, NULL);
+
 	return 0;
 }
 
@@ -3570,6 +3573,14 @@ static int wm8962_i2c_probe(struct i2c_client *i2c,
 		ret = wm8962_set_pdata_from_of(i2c, &wm8962->pdata);
 		if (ret != 0)
 			return ret;
+	}
+
+	/* Mark the mclk pointer to NULL if no mclk assigned */
+	if (IS_ERR(wm8962->pdata.mclk)) {
+		/* But do not ignore the request for probe defer */
+		if (PTR_ERR(wm8962->pdata.mclk) == -EPROBE_DEFER)
+			return -EPROBE_DEFER;
+		wm8962->pdata.mclk = NULL;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(wm8962->supplies); i++)
@@ -3780,6 +3791,12 @@ static int wm8962_runtime_resume(struct device *dev)
 	struct wm8962_priv *wm8962 = dev_get_drvdata(dev);
 	int ret;
 
+	ret = clk_prepare_enable(wm8962->pdata.mclk);
+	if (ret) {
+		dev_err(dev, "Failed to enable MCLK: %d\n", ret);
+		return ret;
+	}
+
 	ret = regulator_bulk_enable(ARRAY_SIZE(wm8962->supplies),
 				    wm8962->supplies);
 	if (ret != 0) {
@@ -3838,6 +3855,8 @@ static int wm8962_runtime_suspend(struct device *dev)
 
 	regulator_bulk_disable(ARRAY_SIZE(wm8962->supplies),
 			       wm8962->supplies);
+
+	clk_disable_unprepare(wm8962->pdata.mclk);
 
 	return 0;
 }
