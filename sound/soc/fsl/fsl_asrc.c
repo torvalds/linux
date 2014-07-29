@@ -903,7 +903,7 @@ static int fsl_asrc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-#if CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM_RUNTIME
 static int fsl_asrc_runtime_resume(struct device *dev)
 {
 	struct fsl_asrc *asrc_priv = dev_get_drvdata(dev);
@@ -931,7 +931,7 @@ static int fsl_asrc_runtime_suspend(struct device *dev)
 }
 #endif /* CONFIG_PM_RUNTIME */
 
-#if CONFIG_PM_SLEEP
+#ifdef CONFIG_PM_SLEEP
 static int fsl_asrc_suspend(struct device *dev)
 {
 	struct fsl_asrc *asrc_priv = dev_get_drvdata(dev);
