@@ -47,7 +47,7 @@ struct uhid_device {
 	/* blocking GET_REPORT support; state changes protected by qlock */
 	struct mutex report_lock;
 	wait_queue_head_t report_wait;
-	atomic_t report_done;
+	bool report_running;
 	u32 report_id;
 	struct uhid_event report_buf;
 };
@@ -168,13 +168,13 @@ static int uhid_hid_get_raw(struct hid_device *hid, unsigned char rnum,
 	ev->u.feature.rnum = rnum;
 	ev->u.feature.rtype = report_type;
 
-	atomic_set(&uhid->report_done, 0);
+	uhid->report_running = true;
 	uhid_queue(uhid, ev);
 	spin_unlock_irqrestore(&uhid->qlock, flags);
 
 	ret = wait_event_interruptible_timeout(uhid->report_wait,
-			atomic_read(&uhid->report_done) || !uhid->running,
-			5 * HZ);
+				!uhid->report_running || !uhid->running,
+				5 * HZ);
 
 	if (!ret || !uhid->running) {
 		ret = -EIO;
@@ -196,7 +196,7 @@ static int uhid_hid_get_raw(struct hid_device *hid, unsigned char rnum,
 		spin_unlock_irqrestore(&uhid->qlock, flags);
 	}
 
-	atomic_set(&uhid->report_done, 1);
+	uhid->report_running = false;
 
 unlock:
 	mutex_unlock(&uhid->report_lock);
@@ -500,11 +500,11 @@ static int uhid_dev_feature_answer(struct uhid_device *uhid,
 	/* id for old report; drop it silently */
 	if (uhid->report_id != ev->u.feature_answer.id)
 		goto unlock;
-	if (atomic_read(&uhid->report_done))
+	if (!uhid->report_running)
 		goto unlock;
 
 	memcpy(&uhid->report_buf, ev, sizeof(*ev));
-	atomic_set(&uhid->report_done, 1);
+	uhid->report_running = false;
 	wake_up_interruptible(&uhid->report_wait);
 
 unlock:
@@ -526,7 +526,6 @@ static int uhid_char_open(struct inode *inode, struct file *file)
 	init_waitqueue_head(&uhid->waitq);
 	init_waitqueue_head(&uhid->report_wait);
 	uhid->running = false;
-	atomic_set(&uhid->report_done, 1);
 
 	file->private_data = uhid;
 	nonseekable_open(inode, file);
