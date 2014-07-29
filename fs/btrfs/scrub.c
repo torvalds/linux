@@ -177,16 +177,11 @@ struct scrub_copy_nocow_ctx {
 struct scrub_warning {
 	struct btrfs_path	*path;
 	u64			extent_item_size;
-	char			*scratch_buf;
-	char			*msg_buf;
 	const char		*errstr;
 	sector_t		sector;
 	u64			logical;
 	struct btrfs_device	*dev;
-	int			msg_bufsize;
-	int			scratch_bufsize;
 };
-
 
 static void scrub_pending_bio_inc(struct scrub_ctx *sctx);
 static void scrub_pending_bio_dec(struct scrub_ctx *sctx);
@@ -551,7 +546,6 @@ static void scrub_print_warning(const char *errstr, struct scrub_block *sblock)
 	u64 ref_root;
 	u32 item_size;
 	u8 ref_level;
-	const int bufsize = 4096;
 	int ret;
 
 	WARN_ON(sblock->page_count < 1);
@@ -559,18 +553,13 @@ static void scrub_print_warning(const char *errstr, struct scrub_block *sblock)
 	fs_info = sblock->sctx->dev_root->fs_info;
 
 	path = btrfs_alloc_path();
+	if (!path)
+		return;
 
-	swarn.scratch_buf = kmalloc(bufsize, GFP_NOFS);
-	swarn.msg_buf = kmalloc(bufsize, GFP_NOFS);
 	swarn.sector = (sblock->pagev[0]->physical) >> 9;
 	swarn.logical = sblock->pagev[0]->logical;
 	swarn.errstr = errstr;
 	swarn.dev = NULL;
-	swarn.msg_bufsize = bufsize;
-	swarn.scratch_bufsize = bufsize;
-
-	if (!path || !swarn.scratch_buf || !swarn.msg_buf)
-		goto out;
 
 	ret = extent_from_logical(fs_info, swarn.logical, path, &found_key,
 				  &flags);
@@ -611,8 +600,6 @@ static void scrub_print_warning(const char *errstr, struct scrub_block *sblock)
 
 out:
 	btrfs_free_path(path);
-	kfree(swarn.scratch_buf);
-	kfree(swarn.msg_buf);
 }
 
 static int scrub_fixup_readpage(u64 inum, u64 offset, u64 root, void *fixup_ctx)
