@@ -1248,10 +1248,8 @@ static const char * const hsw_ddi_pll_names[] = {
 	"WRPLL 2",
 };
 
-void intel_ddi_pll_init(struct drm_device *dev)
+static void hsw_shared_dplls_init(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	uint32_t val = I915_READ(LCPLL_CTL);
 	int i;
 
 	dev_priv->num_shared_dpll = 2;
@@ -1264,6 +1262,14 @@ void intel_ddi_pll_init(struct drm_device *dev)
 		dev_priv->shared_dplls[i].get_hw_state =
 			hsw_ddi_pll_get_hw_state;
 	}
+}
+
+void intel_ddi_pll_init(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	uint32_t val = I915_READ(LCPLL_CTL);
+
+	hsw_shared_dplls_init(dev_priv);
 
 	/* The LCPLL register should be turned on by the BIOS. For now let's
 	 * just check its state and print errors in case something is wrong.
