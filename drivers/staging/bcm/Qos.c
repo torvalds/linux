@@ -125,17 +125,25 @@ static bool MatchDestIpAddress(struct bcm_classifier_rule *pstClassifierRule, UL
 *
 * Returns     - TRUE(If address matches) else FAIL.
 **************************************************************************/
-static bool MatchTos(struct bcm_classifier_rule *pstClassifierRule, UCHAR ucTypeOfService)
+static bool MatchTos(struct bcm_classifier_rule *pstClassifierRule,
+		     UCHAR ucTypeOfService)
 {
 	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
 
 	if (3 != pstClassifierRule->ucIPTypeOfServiceLength)
 		return TRUE;
 
-	if (((pstClassifierRule->ucTosMask & ucTypeOfService) <= pstClassifierRule->ucTosHigh) && ((pstClassifierRule->ucTosMask & ucTypeOfService) >= pstClassifierRule->ucTosLow))
+	if (((pstClassifierRule->ucTosMask & ucTypeOfService) <=
+				pstClassifierRule->ucTosHigh) &&
+			((pstClassifierRule->ucTosMask & ucTypeOfService) >=
+				pstClassifierRule->ucTosLow))
 		return TRUE;
 
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, "Type Of Service Not Matched");
+	BCM_DEBUG_PRINT(Adapter,
+			DBG_TYPE_TX,
+			IPV4_DBG,
+			DBG_LVL_ALL,
+			"Type Of Service Not Matched");
 	return false;
 }
 
