@@ -396,6 +396,7 @@ static USHORT	IpVersion4(struct bcm_mini_adapter *Adapter,
 out:
 	if (TRUE == bClassificationSucceed) {
 		INT iMatchedSFQueueIndex = 0;
+
 		iMatchedSFQueueIndex =
 			SearchSfid(Adapter, pstClassifierRule->ulSFID);
 		if (iMatchedSFQueueIndex >= NO_OF_QUEUES)
@@ -542,6 +543,7 @@ VOID flush_all_queues(struct bcm_mini_adapter *Adapter)
 	/* down(&Adapter->data_packet_queue_lock); */
 	for (iQIndex = LowPriority; iQIndex < HiPriority; iQIndex++) {
 		struct net_device_stats *netstats = &Adapter->dev->stats;
+
 		curr_packet_info = &Adapter->PackInfo[iQIndex];
 
 		spin_lock_bh(&curr_packet_info->SFQueueLock);
