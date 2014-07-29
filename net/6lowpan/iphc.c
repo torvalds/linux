@@ -268,9 +268,6 @@ uncompress_udp_header(struct sk_buff *skb, struct udphdr *uh)
 	bool fail;
 	u8 tmp = 0, val = 0;
 
-	if (!uh)
-		goto err;
-
 	fail = lowpan_fetch_skb(skb, &tmp, sizeof(tmp));
 
 	if ((tmp & LOWPAN_NHC_UDP_MASK) == LOWPAN_NHC_UDP_ID) {
