@@ -53,14 +53,6 @@
 # define RPCDBG_FACILITY	RPCDBG_TRANS
 #endif
 
-enum rpcrdma_chunktype {
-	rpcrdma_noch = 0,
-	rpcrdma_readch,
-	rpcrdma_areadch,
-	rpcrdma_writech,
-	rpcrdma_replych
-};
-
 #ifdef RPC_DEBUG
 static const char transfertypes[][12] = {
 	"pure inline",	/* no chunks */
@@ -286,6 +278,28 @@ out:
 }
 
 /*
+ * Marshal chunks. This routine returns the header length
+ * consumed by marshaling.
+ *
+ * Returns positive RPC/RDMA header size, or negative errno.
+ */
+
+ssize_t
+rpcrdma_marshal_chunks(struct rpc_rqst *rqst, ssize_t result)
+{
+	struct rpcrdma_req *req = rpcr_to_rdmar(rqst);
+	struct rpcrdma_msg *headerp = (struct rpcrdma_msg *)req->rl_base;
+
+	if (req->rl_rtype != rpcrdma_noch)
+		result = rpcrdma_create_chunks(rqst, &rqst->rq_snd_buf,
+					       headerp, req->rl_rtype);
+	else if (req->rl_wtype != rpcrdma_noch)
+		result = rpcrdma_create_chunks(rqst, &rqst->rq_rcv_buf,
+					       headerp, req->rl_wtype);
+	return result;
+}
+
+/*
  * Copy write data inline.
  * This function is used for "small" requests. Data which is passed
  * to RPC via iovecs (or page list) is copied directly into the
@@ -377,7 +391,6 @@ rpcrdma_marshal_req(struct rpc_rqst *rqst)
 	char *base;
 	size_t rpclen, padlen;
 	ssize_t hdrlen;
-	enum rpcrdma_chunktype rtype, wtype;
 	struct rpcrdma_msg *headerp;
 
 	/*
@@ -415,13 +428,13 @@ rpcrdma_marshal_req(struct rpc_rqst *rqst)
 	 * into pages; otherwise use reply chunks.
 	 */
 	if (rqst->rq_rcv_buf.buflen <= RPCRDMA_INLINE_READ_THRESHOLD(rqst))
-		wtype = rpcrdma_noch;
+		req->rl_wtype = rpcrdma_noch;
 	else if (rqst->rq_rcv_buf.page_len == 0)
-		wtype = rpcrdma_replych;
+		req->rl_wtype = rpcrdma_replych;
 	else if (rqst->rq_rcv_buf.flags & XDRBUF_READ)
-		wtype = rpcrdma_writech;
+		req->rl_wtype = rpcrdma_writech;
 	else
-		wtype = rpcrdma_replych;
+		req->rl_wtype = rpcrdma_replych;
 
 	/*
 	 * Chunks needed for arguments?
@@ -438,16 +451,16 @@ rpcrdma_marshal_req(struct rpc_rqst *rqst)
 	 * TBD check NFSv4 setacl
 	 */
 	if (rqst->rq_snd_buf.len <= RPCRDMA_INLINE_WRITE_THRESHOLD(rqst))
-		rtype = rpcrdma_noch;
+		req->rl_rtype = rpcrdma_noch;
 	else if (rqst->rq_snd_buf.page_len == 0)
-		rtype = rpcrdma_areadch;
+		req->rl_rtype = rpcrdma_areadch;
 	else
-		rtype = rpcrdma_readch;
+		req->rl_rtype = rpcrdma_readch;
 
 	/* The following simplification is not true forever */
-	if (rtype != rpcrdma_noch && wtype == rpcrdma_replych)
-		wtype = rpcrdma_noch;
-	if (rtype != rpcrdma_noch && wtype != rpcrdma_noch) {
+	if (req->rl_rtype != rpcrdma_noch && req->rl_wtype == rpcrdma_replych)
+		req->rl_wtype = rpcrdma_noch;
+	if (req->rl_rtype != rpcrdma_noch && req->rl_wtype != rpcrdma_noch) {
 		dprintk("RPC:       %s: cannot marshal multiple chunk lists\n",
 			__func__);
 		return -EIO;
@@ -461,7 +474,7 @@ rpcrdma_marshal_req(struct rpc_rqst *rqst)
 	 * When padding is in use and applies to the transfer, insert
 	 * it and change the message type.
 	 */
-	if (rtype == rpcrdma_noch) {
+	if (req->rl_rtype == rpcrdma_noch) {
 
 		padlen = rpcrdma_inline_pullup(rqst,
 						RPCRDMA_INLINE_PAD_VALUE(rqst));
@@ -476,7 +489,7 @@ rpcrdma_marshal_req(struct rpc_rqst *rqst)
 			headerp->rm_body.rm_padded.rm_pempty[1] = xdr_zero;
 			headerp->rm_body.rm_padded.rm_pempty[2] = xdr_zero;
 			hdrlen += 2 * sizeof(u32); /* extra words in padhdr */
-			if (wtype != rpcrdma_noch) {
+			if (req->rl_wtype != rpcrdma_noch) {
 				dprintk("RPC:       %s: invalid chunk list\n",
 					__func__);
 				return -EIO;
@@ -497,30 +510,18 @@ rpcrdma_marshal_req(struct rpc_rqst *rqst)
 			 * on receive. Therefore, we request a reply chunk
 			 * for non-writes wherever feasible and efficient.
 			 */
-			if (wtype == rpcrdma_noch)
-				wtype = rpcrdma_replych;
+			if (req->rl_wtype == rpcrdma_noch)
+				req->rl_wtype = rpcrdma_replych;
 		}
 	}
 
-	/*
-	 * Marshal chunks. This routine will return the header length
-	 * consumed by marshaling.
-	 */
-	if (rtype != rpcrdma_noch) {
-		hdrlen = rpcrdma_create_chunks(rqst,
-					&rqst->rq_snd_buf, headerp, rtype);
-		wtype = rtype;	/* simplify dprintk */
-
-	} else if (wtype != rpcrdma_noch) {
-		hdrlen = rpcrdma_create_chunks(rqst,
-					&rqst->rq_rcv_buf, headerp, wtype);
-	}
+	hdrlen = rpcrdma_marshal_chunks(rqst, hdrlen);
 	if (hdrlen < 0)
 		return hdrlen;
 
 	dprintk("RPC:       %s: %s: hdrlen %zd rpclen %zd padlen %zd"
 		" headerp 0x%p base 0x%p lkey 0x%x\n",
-		__func__, transfertypes[wtype], hdrlen, rpclen, padlen,
+		__func__, transfertypes[req->rl_wtype], hdrlen, rpclen, padlen,
 		headerp, base, req->rl_iov.lkey);
 
 	/*
