@@ -1776,7 +1776,7 @@ EXPORT_SYMBOL(dcb_getapp);
  *
  * Priority 0 is an invalid priority in CEE spec. This routine
  * removes applications from the app list if the priority is
- * set to zero.
+ * set to zero. Priority is expected to be 8-bit 802.1p user priority bitmap
  */
 int dcb_setapp(struct net_device *dev, struct dcb_app *new)
 {
@@ -1837,7 +1837,8 @@ EXPORT_SYMBOL(dcb_ieee_getapp_mask);
  *
  * This adds Application data to the list. Multiple application
  * entries may exists for the same selector and protocol as long
- * as the priorities are different.
+ * as the priorities are different. Priority is expected to be a
+ * 3-bit unsigned integer
  */
 int dcb_ieee_setapp(struct net_device *dev, struct dcb_app *new)
 {
