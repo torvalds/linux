@@ -3030,8 +3030,6 @@ static int mg_report_key(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 	int retval;
 	u8 key_format;
 
-	RTSX_DEBUGP("--%s--\n", __func__);
-
 	rtsx_disable_aspm(chip);
 
 	if (chip->ss_en && (rtsx_get_stat(chip) == RTSX_STAT_SS)) {
@@ -3130,8 +3128,6 @@ static int mg_send_key(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 	unsigned int lun = SCSI_LUN(srb);
 	int retval;
 	u8 key_format;
-
-	RTSX_DEBUGP("--%s--\n", __func__);
 
 	rtsx_disable_aspm(chip);
 

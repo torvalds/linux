@@ -2473,8 +2473,6 @@ void mspro_stop_seq_mode(struct rtsx_chip *chip)
 	struct ms_info *ms_card = &(chip->ms_card);
 	int retval;
 
-	RTSX_DEBUGP("--%s--\n", __func__);
-
 	if (ms_card->seq_mode) {
 		retval = ms_switch_clock(chip);
 		if (retval != STATUS_SUCCESS)
@@ -2492,8 +2490,6 @@ static inline int ms_auto_tune_clock(struct rtsx_chip *chip)
 {
 	struct ms_info *ms_card = &(chip->ms_card);
 	int retval;
-
-	RTSX_DEBUGP("--%s--\n", __func__);
 
 	if (chip->asic_code) {
 		if (ms_card->ms_clock > 30)
@@ -2782,8 +2778,6 @@ int mspro_format(struct scsi_cmnd *srb, struct rtsx_chip *chip,
 	int retval, i;
 	u8 buf[8], tmp;
 	u16 para;
-
-	RTSX_DEBUGP("--%s--\n", __func__);
 
 	retval = ms_switch_clock(chip);
 	if (retval != STATUS_SUCCESS)
@@ -3664,8 +3658,6 @@ static int mg_set_tpc_para_sub(struct rtsx_chip *chip, int type,
 	int retval;
 	u8 buf[6];
 
-	RTSX_DEBUGP("--%s--\n", __func__);
-
 	if (type == 0)
 		retval = ms_set_rw_reg_addr(chip, 0, 0, Pro_TPCParm, 1);
 	else
@@ -3696,8 +3688,6 @@ int mg_set_leaf_id(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 	int i;
 	unsigned int lun = SCSI_LUN(srb);
 	u8 buf1[32], buf2[12];
-
-	RTSX_DEBUGP("--%s--\n", __func__);
 
 	if (scsi_bufflen(srb) < 12) {
 		set_sense_type(chip, lun, SENSE_TYPE_MEDIA_INVALID_CMD_FIELD);
@@ -3742,8 +3732,6 @@ int mg_get_local_EKB(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 	int bufflen;
 	unsigned int lun = SCSI_LUN(srb);
 	u8 *buf = NULL;
-
-	RTSX_DEBUGP("--%s--\n", __func__);
 
 	ms_cleanup_work(chip);
 
@@ -3795,8 +3783,6 @@ int mg_chg(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 	int i;
 	unsigned int lun = SCSI_LUN(srb);
 	u8 buf[32];
-
-	RTSX_DEBUGP("--%s--\n", __func__);
 
 	ms_cleanup_work(chip);
 
@@ -3872,8 +3858,6 @@ int mg_get_rsp_chg(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 	unsigned int lun = SCSI_LUN(srb);
 	u8 buf1[32], buf2[36];
 
-	RTSX_DEBUGP("--%s--\n", __func__);
-
 	ms_cleanup_work(chip);
 
 	retval = ms_switch_clock(chip);
@@ -3929,8 +3913,6 @@ int mg_rsp(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 	unsigned int lun = SCSI_LUN(srb);
 	u8 buf[32];
 
-	RTSX_DEBUGP("--%s--\n", __func__);
-
 	ms_cleanup_work(chip);
 
 	retval = ms_switch_clock(chip);
@@ -3976,8 +3958,6 @@ int mg_get_ICV(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 	int bufflen;
 	unsigned int lun = SCSI_LUN(srb);
 	u8 *buf = NULL;
-
-	RTSX_DEBUGP("--%s--\n", __func__);
 
 	ms_cleanup_work(chip);
 
@@ -4031,8 +4011,6 @@ int mg_set_ICV(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 #endif
 	unsigned int lun = SCSI_LUN(srb);
 	u8 *buf = NULL;
-
-	RTSX_DEBUGP("--%s--\n", __func__);
 
 	ms_cleanup_work(chip);
 
@@ -4181,8 +4159,6 @@ int release_ms_card(struct rtsx_chip *chip)
 {
 	struct ms_info *ms_card = &(chip->ms_card);
 	int retval;
-
-	RTSX_DEBUGP("release_ms_card\n");
 
 #ifdef MS_DELAY_WRITE
 	ms_card->delay_write.delay_write_flag = 0;
