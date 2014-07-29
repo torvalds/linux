@@ -432,6 +432,7 @@
 		};
 	};
 };
+
 &i2c_0 {
 	max77686@09 {
 		compatible = "maxim,max77686";
@@ -575,6 +576,16 @@
 				regulator-always-on;
 			};
 		};
+	};
+};
+
+&i2c_1 {
+	trackpad {
+		reg = <0x67>;
+		compatible = "cypress,cyapa";
+		interrupts = <2 0>;
+		interrupt-parent = <&gpx1>;
+		wakeup-source;
 	};
 };
 
