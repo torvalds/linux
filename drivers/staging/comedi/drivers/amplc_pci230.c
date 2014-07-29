@@ -2872,7 +2872,7 @@ static int pci230_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 }
 
 static int pci230_auto_attach(struct comedi_device *dev,
-					unsigned long context_unused)
+			      unsigned long context_unused)
 {
 	struct pci_dev *pci_dev = comedi_to_pci_dev(dev);
 	int rc;
