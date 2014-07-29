@@ -709,10 +709,11 @@ intel_ddi_calculate_wrpll(int clock /* in Hz */,
 }
 
 /*
- * Tries to find a PLL for the CRTC. If it finds, it increases the refcount and
- * stores it in intel_crtc->ddi_pll_sel, so other mode sets won't be able to
- * steal the selected PLL. You need to call intel_ddi_pll_enable to actually
- * enable the PLL.
+ * Tries to find a *shared* PLL for the CRTC and store it in
+ * intel_crtc->ddi_pll_sel.
+ *
+ * For private DPLLs, compute_config() should do the selection for us. This
+ * function should be folded into compute_config() eventually.
  */
 bool intel_ddi_pll_select(struct intel_crtc *intel_crtc)
 {
