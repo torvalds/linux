@@ -196,7 +196,7 @@ struct virthba_info {
 
 /* Work Data for DARWorkQ */
 struct diskaddremove {
-	U8 add;			/* 0-remove, 1-add */
+	u8 add;			/* 0-remove, 1-add */
 	struct Scsi_Host *shost; /* Scsi Host for this virthba instance */
 	U32 channel, id, lun;	/* Disk Path */
 	struct diskaddremove *next;

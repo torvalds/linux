@@ -66,7 +66,7 @@ static int serverregistered;
 static int clientregistered;
 
 #define MAX_CHIPSET_EVENTS 2
-static U8 chipset_events[MAX_CHIPSET_EVENTS] = { 0, 0 };
+static u8 chipset_events[MAX_CHIPSET_EVENTS] = { 0, 0 };
 
 static struct delayed_work Periodic_controlvm_work;
 static struct workqueue_struct *Periodic_controlvm_workqueue;
@@ -104,7 +104,7 @@ static LIST_HEAD(DevInfoList);
 static VISORCHANNEL *ControlVm_channel;
 
 typedef struct {
-	U8 __iomem *ptr;	/* pointer to base address of payload pool */
+	u8 __iomem *ptr;	/* pointer to base address of payload pool */
 	U64 offset;		/* offset from beginning of controlvm
 				 * channel to beginning of payload * pool */
 	U32 bytes;		/* number of bytes in payload pool */
@@ -565,11 +565,11 @@ devInfo_clear(void *v)
 	memset(p, 0, sizeof(VISORCHIPSET_DEVICE_INFO));
 }
 
-static U8
+static u8
 check_chipset_events(void)
 {
 	int i;
-	U8 send_msg = 1;
+	u8 send_msg = 1;
 	/* Check events to determine if response should be sent */
 	for (i = 0; i < MAX_CHIPSET_EVENTS; i++)
 		send_msg &= chipset_events[i];
@@ -1369,7 +1369,7 @@ static int
 initialize_controlvm_payload_info(HOSTADDRESS phys_addr, U64 offset, U32 bytes,
 				  CONTROLVM_PAYLOAD_INFO *info)
 {
-	U8 __iomem *payload = NULL;
+	u8 __iomem *payload = NULL;
 	int rc = CONTROLVM_RESP_SUCCESS;
 
 	if (info == NULL) {

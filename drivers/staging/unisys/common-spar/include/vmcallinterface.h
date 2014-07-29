@@ -120,7 +120,7 @@ typedef struct _VMCALL_IO_CONTROLVM_ADDR_PARAMS {
 	    /* the size of the ControlVm channel in bytes This VMCall fills this
 	    * in with the appropriate address. */
 	U32 ChannelBytes;	/* contents provided by this VMCALL (OUT) */
-	U8 Unused[4];		/* Unused Bytes in the 64-Bit Aligned Struct */
+	u8 Unused[4];		/* Unused Bytes in the 64-Bit Aligned Struct */
 } VMCALL_IO_CONTROLVM_ADDR_PARAMS;
 
 #pragma pack(pop)
@@ -155,12 +155,12 @@ typedef struct _VMCALL_IO_VISORSERIAL_ADDR_PARAMS {
 
 /* Parameters to VMCALL_CHANNEL_MISMATCH interface */
 typedef struct _VMCALL_CHANNEL_VERSION_MISMATCH_PARAMS {
-	U8 ChannelName[32];	/* Null terminated string giving name of channel
+	u8 ChannelName[32];	/* Null terminated string giving name of channel
 				 * (IN) */
-	U8 ItemName[32];	/* Null terminated string giving name of
+	u8 ItemName[32];	/* Null terminated string giving name of
 				 * mismatched item (IN) */
 	U32 SourceLineNumber;	/* line# where invoked. (IN) */
-	U8 SourceFileName[36];	/* source code where invoked - Null terminated
+	u8 SourceFileName[36];	/* source code where invoked - Null terminated
 				 * string (IN) */
 } VMCALL_CHANNEL_VERSION_MISMATCH_PARAMS;
 

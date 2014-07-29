@@ -66,9 +66,9 @@ static const ULTRA_SEGMENT_STATE SegmentStateStandby = {
 typedef union {
 	U64 Full;
 	struct {
-		U8 Major;	/* will be 1 for the first release and
+		u8 Major;	/* will be 1 for the first release and
 				 * increment thereafter  */
-		U8 Minor;
+		u8 Minor;
 		U16 Maintenance;
 		U32 Revision;	/* Subversion revision */
 	} Part;

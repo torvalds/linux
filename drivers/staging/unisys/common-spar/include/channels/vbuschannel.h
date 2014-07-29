@@ -73,7 +73,7 @@ typedef struct _ULTRA_VBUS_HEADERINFO {
 	/* to the the BusInfo struct (below) */
 	U32 devInfoByteOffset;	/* byte offset from beginning of this struct */
 	/* to the the DevInfo array (below) */
-	U8 reserved[104];
+	u8 reserved[104];
 } ULTRA_VBUS_HEADERINFO;
 
 typedef struct _ULTRA_VBUS_CHANNEL_PROTOCOL {

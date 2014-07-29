@@ -213,7 +213,7 @@ typedef enum { NET_RCV_POST = 0,	/* submit buffer to hold receiving
 #endif				/* MAX_MACADDR_LEN */
 
 #define ETH_IS_LOCALLY_ADMINISTERED(Address) \
-	(((U8 *) (Address))[0] & ((U8) 0x02))
+	(((u8 *) (Address))[0] & ((u8) 0x02))
 #define NIC_VENDOR_ID 0x0008000B
 
 /* various types of scsi task mgmt commands  */
@@ -287,7 +287,7 @@ struct vhba_config_max {	/* 20 bytes */
 struct uiscmdrsp_scsi {
 	void *scsicmd;		/* the handle to the cmd that was received -
 				 * send it back as is in the rsp packet.  */
-	U8 cmnd[MAX_CMND_SIZE];	/* the cdb for the command */
+	u8 cmnd[MAX_CMND_SIZE];	/* the cdb for the command */
 	U32 bufflen;		/* length of data to be transferred out or in */
 	U16 guest_phys_entries;	/* Number of entries in scatter-gather (sg)
 				 * list */
@@ -302,8 +302,8 @@ struct uiscmdrsp_scsi {
 	     * originator */
 	int linuxstat;		/* the original Linux status - for use by linux
 				 * vdisk code */
-	U8 scsistat;		/* the scsi status */
-	U8 addlstat;		/* non-scsi status - covers cases like timeout
+	u8 scsistat;		/* the scsi status */
+	u8 addlstat;		/* non-scsi status - covers cases like timeout
 				 * needed by windows guests */
 #define ADDL_RESET		1
 #define ADDL_TIMEOUT		2
@@ -314,7 +314,7 @@ struct uiscmdrsp_scsi {
 #define ADDL_RETRY		7
 
 	/* the following fields are need to determine the result of command */
-	 U8 sensebuf[MAX_SENSE_SIZE];	/* sense info in case cmd failed; */
+	 u8 sensebuf[MAX_SENSE_SIZE];	/* sense info in case cmd failed; */
 	/* it holds the sense_data struct; */
 	/* see that struct for details. */
 	void *vdisk; /* contains pointer to the vdisk so that we can clean up
@@ -379,13 +379,13 @@ struct uiscmdrsp_scsi {
 		MEMSET(buf, 0,						\
 		       MINNUM(len,					\
 			      (unsigned int) NO_DISK_INQUIRY_RESULT_LEN)); \
-		buf[2] = (U8) SCSI_SPC2_VER;				\
+		buf[2] = (u8) SCSI_SPC2_VER;				\
 		if (lun == 0) {						\
-			buf[0] = (U8) lun0notpresent;			\
-			buf[3] = (U8) DEV_HISUPPORT;			\
+			buf[0] = (u8) lun0notpresent;			\
+			buf[3] = (u8) DEV_HISUPPORT;			\
 		} else							\
-			buf[0] = (U8) notpresent;			\
-		buf[4] = (U8) (						\
+			buf[0] = (u8) notpresent;			\
+		buf[4] = (u8) (						\
 			MINNUM(len,					\
 			       (unsigned int) NO_DISK_INQUIRY_RESULT_LEN) - 5);	\
 		if (len >= NO_DISK_INQUIRY_RESULT_LEN) {		\
@@ -430,21 +430,21 @@ struct uiscmdrsp_scsi {
 * AdditionalSenseLength		contains will be sizeof(sense_data)-8=10.
 */
 struct sense_data {
-	U8 ErrorCode:7;
-	U8 Valid:1;
-	U8 SegmentNumber;
-	U8 SenseKey:4;
-	U8 Reserved:1;
-	U8 IncorrectLength:1;
-	U8 EndOfMedia:1;
-	U8 FileMark:1;
-	U8 Information[4];
-	U8 AdditionalSenseLength;
-	U8 CommandSpecificInformation[4];
-	U8 AdditionalSenseCode;
-	U8 AdditionalSenseCodeQualifier;
-	U8 FieldReplaceableUnitCode;
-	U8 SenseKeySpecific[3];
+	u8 ErrorCode:7;
+	u8 Valid:1;
+	u8 SegmentNumber;
+	u8 SenseKey:4;
+	u8 Reserved:1;
+	u8 IncorrectLength:1;
+	u8 EndOfMedia:1;
+	u8 FileMark:1;
+	u8 Information[4];
+	u8 AdditionalSenseLength;
+	u8 CommandSpecificInformation[4];
+	u8 AdditionalSenseCode;
+	u8 AdditionalSenseCodeQualifier;
+	u8 FieldReplaceableUnitCode;
+	u8 SenseKeySpecific[3];
 };
 
 /* some SCSI ADSENSE codes */
@@ -487,10 +487,10 @@ struct net_pkt_xmt {
 	struct {
 
 		    /* these are needed for csum at uisnic end */
-		U8 valid;	/* 1 = rest of this struct is valid - else
+		u8 valid;	/* 1 = rest of this struct is valid - else
 				 * ignore */
-		U8 hrawoffv;	/* 1 = hwrafoff is valid */
-		U8 nhrawoffv;	/* 1 = nhwrafoff is valid */
+		u8 hrawoffv;	/* 1 = hwrafoff is valid */
+		u8 nhrawoffv;	/* 1 = nhwrafoff is valid */
 		U16 protocol;	/* specifies packet protocol */
 		U32 csum;	/* value used to set skb->csum at IOPart */
 		U32 hrawoff;	/* value used to set skb->h.raw at IOPart */
@@ -539,7 +539,7 @@ struct net_pkt_rcv {
 	/* the number of receive buffers that can be chained  */
 	/* is based on max mtu and size of each rcv buf */
 	U32 rcv_done_len;	/* length of received data */
-	U8 numrcvbufs;		/* number of receive buffers that contain the */
+	u8 numrcvbufs;		/* number of receive buffers that contain the */
 	/* incoming data; guest end MUST chain these together. */
 	void *rcvbuf[MAX_NET_RCV_CHAIN];	/* the list of receive buffers
 						 * that must be chained; */
@@ -556,7 +556,7 @@ struct net_pkt_enbdis {
 
 struct net_pkt_macaddr {
 	void *context;
-	U8 macaddr[MAX_MACADDR_LEN];	/* 6 bytes */
+	u8 macaddr[MAX_MACADDR_LEN];	/* 6 bytes */
 };
 
 /* cmd rsp packet used for VNIC network traffic  */
@@ -615,7 +615,7 @@ struct uiscmdrsp_scsitaskmgmt {
  * Guest */
 /* Note that the vHba pointer is not used by the Client/Guest side. */
 struct uiscmdrsp_disknotify {
-	U8 add;		/* 0-remove, 1-add */
+	u8 add;		/* 0-remove, 1-add */
 	void *vHba;		/* Pointer to vhba_info for channel info to
 				 * route msg */
 	U32 channel, id, lun;	/* SCSI Path of Disk to added or removed */
@@ -695,7 +695,7 @@ typedef struct _ULTRA_IO_CHANNEL_PROTOCOL {
 			struct vhba_config_max max;	/* 20 bytes */
 		} vhba;		/* 28 */
 		struct {
-			U8 macaddr[MAX_MACADDR_LEN];	/* 6 bytes */
+			u8 macaddr[MAX_MACADDR_LEN];	/* 6 bytes */
 			U32 num_rcv_bufs;	/* 4 */
 			U32 mtu;	/* 4 */
 			uuid_le zoneGuid;	/* 16 */
@@ -703,7 +703,7 @@ typedef struct _ULTRA_IO_CHANNEL_PROTOCOL {
 	};
 
 #define MAX_CLIENTSTRING_LEN 1024
-	 U8 clientString[MAX_CLIENTSTRING_LEN];	/* NULL terminated - so holds
+	 u8 clientString[MAX_CLIENTSTRING_LEN];	/* NULL terminated - so holds
 						 * max - 1 bytes */
 } ULTRA_IO_CHANNEL_PROTOCOL;
 

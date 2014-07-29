@@ -242,12 +242,12 @@ visorchannel_write(VISORCHANNEL *channel, ulong offset,
 EXPORT_SYMBOL_GPL(visorchannel_write);
 
 int
-visorchannel_clear(VISORCHANNEL *channel, ulong offset, U8 ch, ulong nbytes)
+visorchannel_clear(VISORCHANNEL *channel, ulong offset, u8 ch, ulong nbytes)
 {
 	int rc = -1;
 	int bufsize = 65536;
 	int written = 0;
-	U8 *buf = vmalloc(bufsize);
+	u8 *buf = vmalloc(bufsize);
 
 	if (buf == NULL) {
 		ERRDRV("%s failed memory allocation", __func__);

@@ -94,7 +94,7 @@ int uisqueue_put_cmdrsp_with_lock_client(struct uisqueue_info *queueinfo,
 					 unsigned char issueInterruptIfEmpty,
 					 U64 interruptHandle,
 					 char oktowait,
-					 U8 *channelId);
+					 u8 *channelId);
 
 /* uisqueue_get_cmdrsp gets the cmdrsp entry at the head of the queue
  * and copies it to the area pointed by cmdrsp param.
@@ -108,7 +108,7 @@ uisqueue_get_cmdrsp(struct uisqueue_info *queueinfo, void *cmdrsp,
 #define MAX_NAME_SIZE_UISQUEUE 64
 
 struct extport_info {
-	U8 valid:1;
+	u8 valid:1;
 	/* if 1, indicates this extport slot is occupied
 	 * if 0, indicates that extport slot is unoccupied */
 
@@ -172,7 +172,7 @@ struct bus_info {
 	char name[25];
 	char partitionName[99];
 	struct bus_info *next;
-	U8 localVnic;		/* 1 if local vnic created internally
+	u8 localVnic;		/* 1 if local vnic created internally
 				 * by IOVM; 0 otherwise... */
 };
 
@@ -182,7 +182,7 @@ struct bus_info {
 struct sn_list_entry {
 	struct uisscsi_dest pdest;	/* scsi bus, target, lun for
 					 * phys disk */
-	U8 sernum[MAX_SERIAL_NUM];	/* serial num of physical
+	u8 sernum[MAX_SERIAL_NUM];	/* serial num of physical
 					 * disk.. The length is always
 					 * MAX_SERIAL_NUM, padded with
 					 * spaces */
@@ -247,9 +247,9 @@ struct add_virt_iopart {
 					 * switch to which the vnic is
 					 * connected */
 
-	U8 useG2GCopy;		/* Used to determine if a virtual HBA
+	u8 useG2GCopy;		/* Used to determine if a virtual HBA
 				 * needs to use G2G copy. */
-	U8 Filler[7];
+	u8 Filler[7];
 
 	U32 busNo;
 	U32 devNo;
@@ -263,7 +263,7 @@ struct add_vdisk_iopart {
 	int implicit;
 	struct uisscsi_dest vdest;    /* scsi bus, target, lun for virt disk */
 	struct uisscsi_dest pdest;    /* scsi bus, target, lun for phys disk */
-	U8 sernum[MAX_SERIAL_NUM];    /* serial num of physical disk */
+	u8 sernum[MAX_SERIAL_NUM];    /* serial num of physical disk */
 	U32 serlen;		      /* length of serial num */
 	U32 busNo;
 	U32 devNo;

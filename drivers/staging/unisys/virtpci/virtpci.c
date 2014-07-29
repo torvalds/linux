@@ -196,7 +196,7 @@ static int write_vbus_chpInfo(ULTRA_VBUS_CHANNEL_PROTOCOL *chan,
 		LOGERR("vbus channel not used, because chpInfoByteOffset == 0");
 		return -1;
 	}
-	memcpy(((U8 *) (chan)) + off, info, sizeof(*info));
+	memcpy(((u8 *) (chan)) + off, info, sizeof(*info));
 	return 0;
 }
 
@@ -214,7 +214,7 @@ static int write_vbus_busInfo(ULTRA_VBUS_CHANNEL_PROTOCOL *chan,
 		LOGERR("vbus channel not used, because busInfoByteOffset == 0");
 		return -1;
 	}
-	memcpy(((U8 *) (chan)) + off, info, sizeof(*info));
+	memcpy(((u8 *) (chan)) + off, info, sizeof(*info));
 	return 0;
 }
 
@@ -238,7 +238,7 @@ write_vbus_devInfo(ULTRA_VBUS_CHANNEL_PROTOCOL *chan,
 		LOGERR("vbus channel not used, because devInfoByteOffset == 0");
 		return -1;
 	}
-	memcpy(((U8 *) (chan)) + off, info, sizeof(*info));
+	memcpy(((u8 *) (chan)) + off, info, sizeof(*info));
 	return 0;
 }
 

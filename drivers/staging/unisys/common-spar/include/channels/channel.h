@@ -70,26 +70,26 @@ typedef enum {
 	CHANNELCLI_OWNED = 5	/* "no worries" state - client can
 				 * access channel anytime */
 } CHANNEL_CLIENTSTATE;
-static inline const U8 *
+static inline const u8 *
 ULTRA_CHANNELCLI_STRING(U32 v)
 {
 	switch (v) {
 	case CHANNELCLI_DETACHED:
-		return (const U8 *) ("DETACHED");
+		return (const u8 *) ("DETACHED");
 	case CHANNELCLI_DISABLED:
-		return (const U8 *) ("DISABLED");
+		return (const u8 *) ("DISABLED");
 	case CHANNELCLI_ATTACHING:
-		return (const U8 *) ("ATTACHING");
+		return (const u8 *) ("ATTACHING");
 	case CHANNELCLI_ATTACHED:
-		return (const U8 *) ("ATTACHED");
+		return (const u8 *) ("ATTACHED");
 	case CHANNELCLI_BUSY:
-		return (const U8 *) ("BUSY");
+		return (const u8 *) ("BUSY");
 	case CHANNELCLI_OWNED:
-		return (const U8 *) ("OWNED");
+		return (const u8 *) ("OWNED");
 	default:
 		break;
 	}
-	return (const U8 *) ("?");
+	return (const u8 *) ("?");
 }
 
 #define ULTRA_CHANNELSRV_IS_READY(x)     ((x) == CHANNELSRV_READY)
@@ -129,7 +129,7 @@ ULTRA_CHANNELCLI_STRING(U32 v)
 				      old,				\
 				      ULTRA_CHANNELCLI_STRING(new),	\
 				      new,				\
-				      PathName_Last_N_Nodes((U8 *)file, 4), \
+				      PathName_Last_N_Nodes((u8 *)file, 4), \
 				      line);				\
 	} while (0)
 
@@ -237,15 +237,15 @@ typedef struct _CHANNEL_HEADER {
 				 * Windows drivers, see ServerStateUp,
 				 * ServerStateDown, etc) */
 	U32 SrvState;		/* CHANNEL_SERVERSTATE */
-	U8 CliErrorBoot;	/* bits to indicate err states for
+	u8 CliErrorBoot;	/* bits to indicate err states for
 				 * boot clients, so err messages can
 				 * be throttled */
-	U8 CliErrorOS;		/* bits to indicate err states for OS
+	u8 CliErrorOS;		/* bits to indicate err states for OS
 				 * clients, so err messages can be
 				 * throttled */
-	U8 Filler[1];		/* Pad out to 128 byte cacheline */
+	u8 Filler[1];		/* Pad out to 128 byte cacheline */
 	/* Please add all new single-byte values below here */
-	U8 RecoverChannel;
+	u8 RecoverChannel;
 } CHANNEL_HEADER, *pCHANNEL_HEADER, ULTRA_CHANNEL_PROTOCOL;
 
 #define ULTRA_CHANNEL_ENABLE_INTS (0x1ULL << 0)
@@ -283,7 +283,7 @@ typedef struct _SIGNAL_QUEUE_HEADER {
 	U32 ErrorFlags;		/* Error bits set during SignalReinit
 				 * to denote trouble with client's
 				 * fields */
-	U8 Filler[12];		/* Pad out to 64 byte cacheline */
+	u8 Filler[12];		/* Pad out to 64 byte cacheline */
 } SIGNAL_QUEUE_HEADER, *pSIGNAL_QUEUE_HEADER;
 
 #pragma pack(pop)
@@ -394,10 +394,10 @@ ULTRA_check_channel_server(uuid_le typeGuid,
  * NOT more than <n>.  Note that if the pathname has less than <n> nodes
  * in it, the return pointer will be to the beginning of the string.
  */
-static inline U8 *
-PathName_Last_N_Nodes(U8 *s, unsigned int n)
+static inline u8 *
+PathName_Last_N_Nodes(u8 *s, unsigned int n)
 {
-	U8 *p = s;
+	u8 *p = s;
 	unsigned int node_count = 0;
 	while (*p != '\0') {
 		if ((*p == '/') || (*p == '\\'))
@@ -419,7 +419,7 @@ PathName_Last_N_Nodes(U8 *s, unsigned int n)
 }
 
 static inline int
-ULTRA_channel_client_acquire_os(void __iomem *pChannel, U8 *chanId,
+ULTRA_channel_client_acquire_os(void __iomem *pChannel, u8 *chanId,
 				void *logCtx, char *file, int line, char *func)
 {
 	CHANNEL_HEADER __iomem *pChan = pChannel;
@@ -439,7 +439,7 @@ ULTRA_channel_client_acquire_os(void __iomem *pChannel, U8 *chanId,
 				      CHANNELSTATE_DIAG_SUBSYS, func, line,
 				      "%s Channel StateTransition INVALID! - acquire failed because OS client DISABLED @%s:%d\n",
 				      chanId, PathName_Last_N_Nodes(
-					      (U8 *) file, 4), line);
+					      (u8 *) file, 4), line);
 		}
 		return 0;
 	}
@@ -456,7 +456,7 @@ ULTRA_channel_client_acquire_os(void __iomem *pChannel, U8 *chanId,
 			      readl(&pChan->CliStateOS),
 			      ULTRA_CHANNELCLI_STRING(CHANNELCLI_OWNED),
 			      CHANNELCLI_OWNED,
-			      PathName_Last_N_Nodes((U8 *) file, 4), line);
+			      PathName_Last_N_Nodes((u8 *) file, 4), line);
 		writel(CHANNELCLI_OWNED, &pChan->CliStateOS);
 		MEMORYBARRIER;
 	}
@@ -469,7 +469,7 @@ ULTRA_channel_client_acquire_os(void __iomem *pChannel, U8 *chanId,
 				      CHANNELSTATE_DIAG_SEVERITY,
 				      CHANNELSTATE_DIAG_SUBSYS, func, line,
 				      "%s Channel OS client acquire now successful @%s:%d\n",
-				      chanId, PathName_Last_N_Nodes((U8 *) file,
+				      chanId, PathName_Last_N_Nodes((u8 *) file,
 								    4), line);
 			writeb(0, &pChan->CliErrorOS);
 		}
@@ -496,7 +496,7 @@ ULTRA_channel_client_acquire_os(void __iomem *pChannel, U8 *chanId,
 				      ULTRA_CHANNELCLI_STRING(
 					      readl(&pChan->CliStateOS)),
 				      readl(&pChan->CliStateOS),
-				      PathName_Last_N_Nodes((U8 *) file, 4),
+				      PathName_Last_N_Nodes((u8 *) file, 4),
 				      line);
 		}
 		return 0;
@@ -516,7 +516,7 @@ ULTRA_channel_client_acquire_os(void __iomem *pChannel, U8 *chanId,
 				      CHANNELSTATE_DIAG_SEVERITY,
 				      CHANNELSTATE_DIAG_SUBSYS, func, line,
 				      "%s Channel StateTransition failed - host OS acquire failed because boot BUSY @%s:%d\n",
-				      chanId, PathName_Last_N_Nodes((U8 *) file,
+				      chanId, PathName_Last_N_Nodes((u8 *) file,
 								    4), line);
 		}
 		/* reset busy */
@@ -530,7 +530,7 @@ ULTRA_channel_client_acquire_os(void __iomem *pChannel, U8 *chanId,
 			      CHANNELSTATE_DIAG_SEVERITY,
 			      CHANNELSTATE_DIAG_SUBSYS, func, line,
 			      "%s Channel OS client acquire now successful @%s:%d\n",
-			      chanId, PathName_Last_N_Nodes((U8 *) file, 4),
+			      chanId, PathName_Last_N_Nodes((u8 *) file, 4),
 			      line);
 		writeb(0, &pChan->CliErrorOS);
 	}
@@ -538,7 +538,7 @@ ULTRA_channel_client_acquire_os(void __iomem *pChannel, U8 *chanId,
 }
 
 static inline void
-ULTRA_channel_client_release_os(void __iomem *pChannel, U8 *chanId,
+ULTRA_channel_client_release_os(void __iomem *pChannel, u8 *chanId,
 				void *logCtx, char *file, int line, char *func)
 {
 	CHANNEL_HEADER __iomem *pChan = pChannel;
@@ -548,7 +548,7 @@ ULTRA_channel_client_release_os(void __iomem *pChannel, U8 *chanId,
 			      CHANNELSTATE_DIAG_SEVERITY,
 			      CHANNELSTATE_DIAG_SUBSYS, func, line,
 			      "%s Channel OS client error state cleared @%s:%d\n",
-			      chanId, PathName_Last_N_Nodes((U8 *) file, 4),
+			      chanId, PathName_Last_N_Nodes((u8 *) file, 4),
 			      line);
 		writeb(0, &pChan->CliErrorOS);
 	}
@@ -563,7 +563,7 @@ ULTRA_channel_client_release_os(void __iomem *pChannel, U8 *chanId,
 			      ULTRA_CHANNELCLI_STRING(
 				      readl(&pChan->CliStateOS)),
 			      readl(&pChan->CliStateOS),
-			      PathName_Last_N_Nodes((U8 *) file, 4), line);
+			      PathName_Last_N_Nodes((u8 *) file, 4), line);
 		/* return; */
 	}
 	writel(CHANNELCLI_ATTACHED, &pChan->CliStateOS); /* release busy */

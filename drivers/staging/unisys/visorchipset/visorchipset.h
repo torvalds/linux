@@ -129,8 +129,8 @@ typedef struct {
 	VISORCHIPSET_CHANNEL_INFO chanInfo;
 	uuid_le partitionGuid;
 	U64 partitionHandle;
-	U8 *name;		/* UTF8 */
-	U8 *description;	/* UTF8 */
+	u8 *name;		/* UTF8 */
+	u8 *description;	/* UTF8 */
 	U64 Reserved1;
 	U32 Reserved2;
 	MYPROCOBJECT *procObject;
@@ -164,10 +164,10 @@ typedef struct {
 	U32 switchNo;
 	VISORCHIPSET_STATE state;
 	uuid_le switchTypeGuid;
-	U8 *authService1;
-	U8 *authService2;
-	U8 *authService3;
-	U8 *securityContext;
+	u8 *authService1;
+	u8 *authService2;
+	u8 *authService3;
+	u8 *securityContext;
 	U64 Reserved;
 	U32 Reserved2;		/* CONTROLVM_ID */
 	struct device dev;
@@ -185,12 +185,12 @@ typedef struct {
 	VISORCHIPSET_STATE state;
 	uuid_le networkZoneGuid;
 	int pdPort;
-	U8 *ip;
-	U8 *ipNetmask;
-	U8 *ipBroadcast;
-	U8 *ipNetwork;
-	U8 *ipGateway;
-	U8 *ipDNS;
+	u8 *ip;
+	u8 *ipNetmask;
+	u8 *ipBroadcast;
+	u8 *ipNetwork;
+	u8 *ipGateway;
+	u8 *ipDNS;
 	U64 Reserved1;
 	U32 Reserved2;		/* CONTROLVM_ID */
 	struct device dev;

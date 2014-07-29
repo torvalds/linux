@@ -142,16 +142,16 @@ struct InterruptInfo {
     /**< specifies if the recvInterrupt is shared.  It, interrupt pin
      *   and vector are used to connect to 0 = not shared; 1 = shared.
      *   the corresponding interrupt.  Used by IOPart-GP only. */
-	U8 recvInterruptShared;
-	U8 reserved[3];	/* Natural alignment purposes */
+	u8 recvInterruptShared;
+	u8 reserved[3];	/* Natural alignment purposes */
 };
 
 struct PciId {
 	U16 Domain;
-	U8 Bus;
-	U8 Slot;
-	U8 Func;
-	U8 Reserved[3];	/* Natural alignment purposes */
+	u8 Bus;
+	u8 Slot;
+	u8 Func;
+	u8 Reserved[3];	/* Natural alignment purposes */
 };
 
 struct PciConfigHdr {
@@ -389,7 +389,7 @@ typedef struct _CONTROLVM_MESSAGE_PACKET  {
 		struct  {
 			U32 busNo;
 			ULTRA_SEGMENT_STATE state;
-			U8 reserved[2];	/* Natural alignment purposes */
+			u8 reserved[2];	/* Natural alignment purposes */
 		} busChangeState;	/* for CONTROLVM_BUS_CHANGESTATE */
 		struct  {
 			U32 busNo;
@@ -400,13 +400,13 @@ typedef struct _CONTROLVM_MESSAGE_PACKET  {
 							 * a physical device */
 			/* remaining bits in this 32-bit word are available */
 			} flags;
-			U8 reserved[2];	/* Natural alignment purposes */
+			u8 reserved[2];	/* Natural alignment purposes */
 		} deviceChangeState;	/* for CONTROLVM_DEVICE_CHANGESTATE */
 		struct  {
 			U32 busNo;
 			U32 devNo;
 			ULTRA_SEGMENT_STATE state;
-			U8 reserved[6];	/* Natural alignment purposes */
+			u8 reserved[6];	/* Natural alignment purposes */
 		} deviceChangeStateEvent; /* for CONTROLVM_DEVICE_CHANGESTATE_EVENT */
 		struct  {
 			U32 busCount; /*< indicates the max number of busses */
@@ -532,13 +532,13 @@ typedef struct _ULTRA_CONTROLVM_CHANNEL_PROTOCOL  {
 	U32 InstallationTextId;	/* Id of string to display */
 	U16 InstallationRemainingSteps;	/* Number of remaining installation
 					 * steps (for progress bars) */
-	U8 ToolAction;		/* ULTRA_TOOL_ACTIONS Installation Action
+	u8 ToolAction;		/* ULTRA_TOOL_ACTIONS Installation Action
 				 * field */
-	U8 Reserved;		/* alignment */
+	u8 Reserved;		/* alignment */
 	ULTRA_EFI_SPAR_INDICATION EfiSparIndication;
 	ULTRA_EFI_SPAR_INDICATION EfiSparIndicationSupported;
 	U32 SPReserved;
-	U8 Reserved2[28];	/* Force signals to begin on 128-byte cache
+	u8 Reserved2[28];	/* Force signals to begin on 128-byte cache
 				 * line */
 	SIGNAL_QUEUE_HEADER RequestQueue;	/* Service or guest partition
 						 * uses this queue to send

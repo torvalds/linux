@@ -55,7 +55,7 @@ int visorchannel_read(VISORCHANNEL *channel, ulong offset,
 int visorchannel_write(VISORCHANNEL *channel, ulong offset,
 		       void *local, ulong nbytes);
 int visorchannel_clear(VISORCHANNEL *channel, ulong offset,
-		       U8 ch, ulong nbytes);
+		       u8 ch, ulong nbytes);
 BOOL visorchannel_signalremove(VISORCHANNEL *channel, U32 queue, void *msg);
 BOOL visorchannel_signalinsert(VISORCHANNEL *channel, U32 queue, void *msg);
 int visorchannel_signalqueue_slots_avail(VISORCHANNEL *channel, U32 queue);
