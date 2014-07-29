@@ -190,7 +190,7 @@ static int pcm20_setfreq(struct pcm20 *dev, unsigned long freq)
 	freql = freq & 0xff;
 	freqh = freq >> 8;
 
-	rds_cmd(aci, RDS_RESET, 0, 0);
+	rds_cmd(aci, RDS_RESET, NULL, 0);
 	return snd_aci_cmd(aci, ACI_WRITE_TUNE, freql, freqh);
 }
 
