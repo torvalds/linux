@@ -119,6 +119,7 @@ void cik_sdma_set_wptr(struct radeon_device *rdev,
 		reg = SDMA0_GFX_RB_WPTR + SDMA1_REGISTER_OFFSET;
 
 	WREG32(reg, (ring->wptr << 2) & 0x3fffc);
+	(void)RREG32(reg);
 }
 
 /**
