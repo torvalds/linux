@@ -24,6 +24,7 @@ void ath10k_txrx_tx_unref(struct ath10k_htt *htt,
 
 struct ath10k_peer *ath10k_peer_find(struct ath10k *ar, int vdev_id,
 				     const u8 *addr);
+struct ath10k_peer *ath10k_peer_find_by_id(struct ath10k *ar, int peer_id);
 int ath10k_wait_for_peer_created(struct ath10k *ar, int vdev_id,
 				 const u8 *addr);
 int ath10k_wait_for_peer_deleted(struct ath10k *ar, int vdev_id,

@@ -546,7 +546,7 @@ static u8 ath10k_htc_get_credit_allocation(struct ath10k_htc *htc,
 
 int ath10k_htc_wait_target(struct ath10k_htc *htc)
 {
-	int status = 0;
+	int i, status = 0;
 	struct ath10k_htc_svc_conn_req conn_req;
 	struct ath10k_htc_svc_conn_resp conn_resp;
 	struct ath10k_htc_msg *msg;
@@ -556,10 +556,26 @@ int ath10k_htc_wait_target(struct ath10k_htc *htc)
 
 	status = wait_for_completion_timeout(&htc->ctl_resp,
 					     ATH10K_HTC_WAIT_TIMEOUT_HZ);
-	if (status <= 0) {
+	if (status == 0) {
+		/* Workaround: In some cases the PCI HIF doesn't
+		 * receive interrupt for the control response message
+		 * even if the buffer was completed. It is suspected
+		 * iomap writes unmasking PCI CE irqs aren't propagated
+		 * properly in KVM PCI-passthrough sometimes.
+		 */
+		ath10k_warn("failed to receive control response completion, polling..\n");
+
+		for (i = 0; i < CE_COUNT; i++)
+			ath10k_hif_send_complete_check(htc->ar, i, 1);
+
+		status = wait_for_completion_timeout(&htc->ctl_resp,
+					ATH10K_HTC_WAIT_TIMEOUT_HZ);
+
 		if (status == 0)
 			status = -ETIMEDOUT;
+	}
 
+	if (status < 0) {
 		ath10k_err("ctl_resp never came in (%d)\n", status);
 		return status;
 	}
