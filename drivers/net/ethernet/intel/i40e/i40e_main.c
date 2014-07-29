@@ -1239,8 +1239,11 @@ struct i40e_mac_filter *i40e_put_mac_in_vlan(struct i40e_vsi *vsi, u8 *macaddr,
  * i40e_rm_default_mac_filter - Remove the default MAC filter set by NVM
  * @vsi: the PF Main VSI - inappropriate for any other VSI
  * @macaddr: the MAC address
+ *
+ * Some older firmware configurations set up a default promiscuous VLAN
+ * filter that needs to be removed.
  **/
-static void i40e_rm_default_mac_filter(struct i40e_vsi *vsi, u8 *macaddr)
+static int i40e_rm_default_mac_filter(struct i40e_vsi *vsi, u8 *macaddr)
 {
 	struct i40e_aqc_remove_macvlan_element_data element;
 	struct i40e_pf *pf = vsi->back;
@@ -1248,15 +1251,18 @@ static void i40e_rm_default_mac_filter(struct i40e_vsi *vsi, u8 *macaddr)
 
 	/* Only appropriate for the PF main VSI */
 	if (vsi->type != I40E_VSI_MAIN)
-		return;
+		return -EINVAL;
 
+	memset(&element, 0, sizeof(element));
 	ether_addr_copy(element.mac_addr, macaddr);
 	element.vlan_tag = 0;
 	element.flags = I40E_AQC_MACVLAN_DEL_PERFECT_MATCH |
 			I40E_AQC_MACVLAN_DEL_IGNORE_VLAN;
 	aq_ret = i40e_aq_remove_macvlan(&pf->hw, vsi->seid, &element, 1, NULL);
 	if (aq_ret)
-		dev_err(&pf->pdev->dev, "Could not remove default MAC-VLAN\n");
+		return -ENOENT;
+
+	return 0;
 }
 
 /**
@@ -1385,17 +1391,29 @@ static int i40e_set_mac(struct net_device *netdev, void *p)
 {
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
 	struct i40e_vsi *vsi = np->vsi;
+	struct i40e_pf *pf = vsi->back;
+	struct i40e_hw *hw = &pf->hw;
 	struct sockaddr *addr = p;
 	struct i40e_mac_filter *f;
 
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	netdev_info(netdev, "set mac address=%pM\n", addr->sa_data);
+	if (ether_addr_equal(netdev->dev_addr, addr->sa_data)) {
+		netdev_info(netdev, "already using mac address %pM\n",
+			    addr->sa_data);
+		return 0;
+	}
 
 	if (test_bit(__I40E_DOWN, &vsi->back->state) ||
 	    test_bit(__I40E_RESET_RECOVERY_PENDING, &vsi->back->state))
 		return -EADDRNOTAVAIL;
+
+	if (ether_addr_equal(hw->mac.addr, addr->sa_data))
+		netdev_info(netdev, "returning to hw mac address %pM\n",
+			    hw->mac.addr);
+	else
+		netdev_info(netdev, "set new mac address %pM\n", addr->sa_data);
 
 	if (vsi->type == I40E_VSI_MAIN) {
 		i40e_status ret;
@@ -1410,25 +1428,34 @@ static int i40e_set_mac(struct net_device *netdev, void *p)
 		}
 	}
 
-	f = i40e_find_mac(vsi, addr->sa_data, false, true);
-	if (!f) {
-		/* In order to be sure to not drop any packets, add the
-		 * new address first then delete the old one.
-		 */
-		f = i40e_add_filter(vsi, addr->sa_data, I40E_VLAN_ANY,
-				    false, false);
-		if (!f)
-			return -ENOMEM;
+	if (ether_addr_equal(netdev->dev_addr, hw->mac.addr)) {
+		struct i40e_aqc_remove_macvlan_element_data element;
 
-		i40e_sync_vsi_filters(vsi);
+		memset(&element, 0, sizeof(element));
+		ether_addr_copy(element.mac_addr, netdev->dev_addr);
+		element.flags = I40E_AQC_MACVLAN_DEL_PERFECT_MATCH;
+		i40e_aq_remove_macvlan(&pf->hw, vsi->seid, &element, 1, NULL);
+	} else {
 		i40e_del_filter(vsi, netdev->dev_addr, I40E_VLAN_ANY,
 				false, false);
-		i40e_sync_vsi_filters(vsi);
 	}
 
-	f->is_laa = true;
-	if (!ether_addr_equal(netdev->dev_addr, addr->sa_data))
-		ether_addr_copy(netdev->dev_addr, addr->sa_data);
+	if (ether_addr_equal(addr->sa_data, hw->mac.addr)) {
+		struct i40e_aqc_add_macvlan_element_data element;
+
+		memset(&element, 0, sizeof(element));
+		ether_addr_copy(element.mac_addr, hw->mac.addr);
+		element.flags = cpu_to_le16(I40E_AQC_MACVLAN_ADD_PERFECT_MATCH);
+		i40e_aq_add_macvlan(&pf->hw, vsi->seid, &element, 1, NULL);
+	} else {
+		f = i40e_add_filter(vsi, addr->sa_data, I40E_VLAN_ANY,
+				    false, false);
+		if (f)
+			f->is_laa = true;
+	}
+
+	i40e_sync_vsi_filters(vsi);
+	ether_addr_copy(netdev->dev_addr, addr->sa_data);
 
 	return 0;
 }
@@ -1796,9 +1823,8 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi)
 		kfree(add_list);
 		add_list = NULL;
 
-		if (add_happened && (!aq_ret)) {
-			/* do nothing */;
-		} else if (add_happened && (aq_ret)) {
+		if (add_happened && aq_ret &&
+		    pf->hw.aq.asq_last_status != I40E_AQ_RC_EINVAL) {
 			dev_info(&pf->pdev->dev,
 				 "add filter failed, err %d, aq_err %d\n",
 				 aq_ret, pf->hw.aq.asq_last_status);
@@ -7512,14 +7538,14 @@ static int i40e_config_netdev(struct i40e_vsi *vsi)
 	if (vsi->type == I40E_VSI_MAIN) {
 		SET_NETDEV_DEV(netdev, &pf->pdev->dev);
 		ether_addr_copy(mac_addr, hw->mac.perm_addr);
-		/* The following two steps are necessary to prevent reception
-		 * of tagged packets - by default the NVM loads a MAC-VLAN
-		 * filter that will accept any tagged packet.  This is to
-		 * prevent that during normal operations until a specific
-		 * VLAN tag filter has been set.
+		/* The following steps are necessary to prevent reception
+		 * of tagged packets - some older NVM configurations load a
+		 * default a MAC-VLAN filter that accepts any tagged packet
+		 * which must be replaced by a normal filter.
 		 */
-		i40e_rm_default_mac_filter(vsi, mac_addr);
-		i40e_add_filter(vsi, mac_addr, I40E_VLAN_ANY, false, true);
+		if (!i40e_rm_default_mac_filter(vsi, mac_addr))
+			i40e_add_filter(vsi, mac_addr,
+					I40E_VLAN_ANY, false, true);
 	} else {
 		/* relate the VSI_VMDQ name to the VSI_MAIN name */
 		snprintf(netdev->name, IFNAMSIZ, "%sv%%d",
@@ -7735,7 +7761,22 @@ static int i40e_add_vsi(struct i40e_vsi *vsi)
 		f_count++;
 
 		if (f->is_laa && vsi->type == I40E_VSI_MAIN) {
-			i40e_aq_mac_address_write(&vsi->back->hw,
+			struct i40e_aqc_remove_macvlan_element_data element;
+
+			memset(&element, 0, sizeof(element));
+			ether_addr_copy(element.mac_addr, f->macaddr);
+			element.flags = I40E_AQC_MACVLAN_DEL_PERFECT_MATCH;
+			ret = i40e_aq_remove_macvlan(hw, vsi->seid,
+						     &element, 1, NULL);
+			if (ret) {
+				/* some older FW has a different default */
+				element.flags |=
+					       I40E_AQC_MACVLAN_DEL_IGNORE_VLAN;
+				i40e_aq_remove_macvlan(hw, vsi->seid,
+						       &element, 1, NULL);
+			}
+
+			i40e_aq_mac_address_write(hw,
 						  I40E_AQC_WRITE_TYPE_LAA_WOL,
 						  f->macaddr, NULL);
 		}
