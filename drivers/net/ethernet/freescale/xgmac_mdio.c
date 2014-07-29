@@ -46,7 +46,7 @@ struct tgec_mdio_controller {
 #define MDIO_DATA_BSY		(1 << 31)
 
 /*
- * Wait untill the MDIO bus is free
+ * Wait until the MDIO bus is free
  */
 static int xgmac_wait_until_free(struct device *dev,
 				 struct tgec_mdio_controller __iomem *regs)
