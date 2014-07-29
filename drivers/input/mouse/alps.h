@@ -174,6 +174,8 @@ struct alps_data {
 	int y_max;
 	int x_bits;
 	int y_bits;
+	unsigned int x_res;
+	unsigned int y_res;
 
 	int (*hw_init)(struct psmouse *psmouse);
 	void (*process_packet)(struct psmouse *psmouse);

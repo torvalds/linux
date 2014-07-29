@@ -1792,6 +1792,45 @@ error:
 	return -1;
 }
 
+static int alps_get_v3_v7_resolution(struct psmouse *psmouse, int reg_pitch)
+{
+	int reg, x_pitch, y_pitch, x_electrode, y_electrode, x_phys, y_phys;
+	struct alps_data *priv = psmouse->private;
+
+	reg = alps_command_mode_read_reg(psmouse, reg_pitch);
+	if (reg < 0)
+		return reg;
+
+	x_pitch = (char)(reg << 4) >> 4; /* sign extend lower 4 bits */
+	x_pitch = 50 + 2 * x_pitch; /* In 0.1 mm units */
+
+	y_pitch = (char)reg >> 4; /* sign extend upper 4 bits */
+	y_pitch = 36 + 2 * y_pitch; /* In 0.1 mm units */
+
+	reg = alps_command_mode_read_reg(psmouse, reg_pitch + 1);
+	if (reg < 0)
+		return reg;
+
+	x_electrode = (char)(reg << 4) >> 4; /* sign extend lower 4 bits */
+	x_electrode = 17 + x_electrode;
+
+	y_electrode = (char)reg >> 4; /* sign extend upper 4 bits */
+	y_electrode = 13 + y_electrode;
+
+	x_phys = x_pitch * (x_electrode - 1); /* In 0.1 mm units */
+	y_phys = y_pitch * (y_electrode - 1); /* In 0.1 mm units */
+
+	priv->x_res = priv->x_max * 10 / x_phys; /* units / mm */
+	priv->y_res = priv->y_max * 10 / y_phys; /* units / mm */
+
+	psmouse_dbg(psmouse,
+		    "pitch %dx%d num-electrodes %dx%d physical size %dx%d mm res %dx%d\n",
+		    x_pitch, y_pitch, x_electrode, y_electrode,
+		    x_phys / 10, y_phys / 10, priv->x_res, priv->y_res);
+
+	return 0;
+}
+
 static int alps_hw_init_rushmore_v3(struct psmouse *psmouse)
 {
 	struct alps_data *priv = psmouse->private;
@@ -1810,6 +1849,9 @@ static int alps_hw_init_rushmore_v3(struct psmouse *psmouse)
 	if (alps_enter_command_mode(psmouse) ||
 	    alps_command_mode_read_reg(psmouse, 0xc2d9) == -1 ||
 	    alps_command_mode_write_reg(psmouse, 0xc2cb, 0x00))
+		goto error;
+
+	if (alps_get_v3_v7_resolution(psmouse, 0xc2da))
 		goto error;
 
 	reg_val = alps_command_mode_read_reg(psmouse, 0xc2c6);
@@ -1995,6 +2037,9 @@ static int alps_hw_init_v7(struct psmouse *psmouse)
 
 	if (alps_enter_command_mode(psmouse) ||
 	    alps_command_mode_read_reg(psmouse, 0xc2d9) == -1)
+		goto error;
+
+	if (alps_get_v3_v7_resolution(psmouse, 0xc397))
 		goto error;
 
 	if (alps_command_mode_write_reg(psmouse, 0xc2c9, 0x64))
@@ -2229,6 +2274,9 @@ static void alps_set_abs_params_mt(struct alps_data *priv,
 {
 	input_set_abs_params(dev1, ABS_MT_POSITION_X, 0, priv->x_max, 0, 0);
 	input_set_abs_params(dev1, ABS_MT_POSITION_Y, 0, priv->y_max, 0, 0);
+
+	input_abs_set_res(dev1, ABS_MT_POSITION_X, priv->x_res);
+	input_abs_set_res(dev1, ABS_MT_POSITION_Y, priv->y_res);
 
 	input_mt_init_slots(dev1, MAX_TOUCHES, INPUT_MT_POINTER |
 		INPUT_MT_DROP_UNUSED | INPUT_MT_TRACK | INPUT_MT_SEMI_MT);
