@@ -984,8 +984,8 @@ int nvme_submit_admin_cmd(struct nvme_dev *dev, struct nvme_command *cmd,
 int nvme_submit_io_cmd(struct nvme_dev *dev, struct nvme_command *cmd,
 								u32 *result)
 {
-	return nvme_submit_sync_cmd(dev, smp_processor_id() + 1, cmd, result,
-							NVME_IO_TIMEOUT);
+	return nvme_submit_sync_cmd(dev, this_cpu_read(*dev->io_queue), cmd,
+						result,	NVME_IO_TIMEOUT);
 }
 
 static int nvme_submit_admin_cmd_async(struct nvme_dev *dev,
