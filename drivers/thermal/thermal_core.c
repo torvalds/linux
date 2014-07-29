@@ -371,6 +371,8 @@ static void handle_critical_trips(struct thermal_zone_device *tz,
 	if (tz->temperature < trip_temp)
 		return;
 
+	trace_thermal_zone_trip(tz, trip, trip_type);
+
 	if (tz->ops->notify)
 		tz->ops->notify(tz, trip, trip_type);
 
