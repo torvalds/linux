@@ -123,6 +123,9 @@
 #include <linux/phy.h>
 #include <linux/if_vlan.h>
 #include <linux/bitops.h>
+#include <linux/ptp_clock_kernel.h>
+#include <linux/clocksource.h>
+#include <linux/net_tstamp.h>
 
 
 #define XGBE_DRV_NAME		"amd-xgbe"
@@ -163,6 +166,16 @@
 /* MDIO bus phy name */
 #define XGBE_PHY_NAME		"amd_xgbe_phy"
 #define XGBE_PRTAD		0
+
+/* Device-tree clock names */
+#define XGBE_DMA_CLOCK		"dma_clk"
+#define XGBE_PTP_CLOCK		"ptp_clk"
+
+/* Timestamp support - values based on 50MHz PTP clock
+ *   50MHz => 20 nsec
+ */
+#define XGBE_TSTAMP_SSINC	20
+#define XGBE_TSTAMP_SNSINC	0
 
 /* Driver PMT macros */
 #define XGMAC_DRIVER_CONTEXT	1
@@ -214,6 +227,8 @@ struct xgbe_packet_data {
 	unsigned short mss;
 
 	unsigned short vlan_ctag;
+
+	u64 rx_tstamp;
 };
 
 /* Common Rx and Tx descriptor mapping */
@@ -242,6 +257,20 @@ struct xgbe_ring_data {
 	unsigned int interrupt;		/* Interrupt indicator */
 
 	unsigned int mapped_as_page;
+
+	/* Incomplete receive save location.  If the budget is exhausted
+	 * or the last descriptor (last normal descriptor or a following
+	 * context descriptor) has not been DMA'd yet the current state
+	 * of the receive processing needs to be saved.
+	 */
+	unsigned int state_saved;
+	struct {
+		unsigned int incomplete;
+		unsigned int context_next;
+		struct sk_buff *skb;
+		unsigned int len;
+		unsigned int error;
+	} state;
 };
 
 struct xgbe_ring {
@@ -467,6 +496,14 @@ struct xgbe_hw_if {
 	void (*rx_mmc_int)(struct xgbe_prv_data *);
 	void (*tx_mmc_int)(struct xgbe_prv_data *);
 	void (*read_mmc_stats)(struct xgbe_prv_data *);
+
+	/* For Timestamp config */
+	int (*config_tstamp)(struct xgbe_prv_data *, unsigned int);
+	void (*update_tstamp_addend)(struct xgbe_prv_data *, unsigned int);
+	void (*set_tstamp_time)(struct xgbe_prv_data *, unsigned int sec,
+				unsigned int nsec);
+	u64 (*get_tstamp_time)(struct xgbe_prv_data *);
+	u64 (*get_tx_tstamp)(struct xgbe_prv_data *);
 };
 
 struct xgbe_desc_if {
@@ -607,8 +644,21 @@ struct xgbe_prv_data {
 	/* Filtering support */
 	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
 
-	/* System clock value used for Rx watchdog */
-	struct clk *sysclock;
+	/* Device clocks */
+	struct clk *sysclk;
+	struct clk *ptpclk;
+
+	/* Timestamp support */
+	spinlock_t tstamp_lock;
+	struct ptp_clock_info ptp_clock_info;
+	struct ptp_clock *ptp_clock;
+	struct hwtstamp_config tstamp_config;
+	struct cyclecounter tstamp_cc;
+	struct timecounter tstamp_tc;
+	unsigned int tstamp_addend;
+	struct work_struct tx_tstamp_work;
+	struct sk_buff *tx_tstamp_skb;
+	u64 tx_tstamp;
 
 	/* Hardware features of the device */
 	struct xgbe_hw_features hw_feat;
@@ -639,6 +689,8 @@ struct ethtool_ops *xgbe_get_ethtool_ops(void);
 int xgbe_mdio_register(struct xgbe_prv_data *);
 void xgbe_mdio_unregister(struct xgbe_prv_data *);
 void xgbe_dump_phy_registers(struct xgbe_prv_data *);
+void xgbe_ptp_register(struct xgbe_prv_data *);
+void xgbe_ptp_unregister(struct xgbe_prv_data *);
 void xgbe_dump_tx_desc(struct xgbe_ring *, unsigned int, unsigned int,
 		       unsigned int);
 void xgbe_dump_rx_desc(struct xgbe_ring *, struct xgbe_ring_desc *,

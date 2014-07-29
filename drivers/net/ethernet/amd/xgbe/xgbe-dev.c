@@ -131,7 +131,7 @@ static unsigned int xgbe_usec_to_riwt(struct xgbe_prv_data *pdata,
 
 	DBGPR("-->xgbe_usec_to_riwt\n");
 
-	rate = clk_get_rate(pdata->sysclock);
+	rate = clk_get_rate(pdata->sysclk);
 
 	/*
 	 * Convert the input usec value to the watchdog timer value. Each
@@ -154,7 +154,7 @@ static unsigned int xgbe_riwt_to_usec(struct xgbe_prv_data *pdata,
 
 	DBGPR("-->xgbe_riwt_to_usec\n");
 
-	rate = clk_get_rate(pdata->sysclock);
+	rate = clk_get_rate(pdata->sysclk);
 
 	/*
 	 * Convert the input watchdog timer value to the usec value. Each
@@ -492,8 +492,12 @@ static void xgbe_enable_mtl_interrupts(struct xgbe_prv_data *pdata)
 
 static void xgbe_enable_mac_interrupts(struct xgbe_prv_data *pdata)
 {
-	/* No MAC interrupts to be enabled */
-	XGMAC_IOWRITE(pdata, MAC_IER, 0);
+	unsigned int mac_ier = 0;
+
+	/* Enable Timestamp interrupt */
+	XGMAC_SET_BITS(mac_ier, MAC_IER, TSIE, 1);
+
+	XGMAC_IOWRITE(pdata, MAC_IER, mac_ier);
 
 	/* Enable all counter interrupts */
 	XGMAC_IOWRITE_BITS(pdata, MMC_RIER, ALL_INTERRUPTS, 0xff);
@@ -1012,6 +1016,107 @@ static void xgbe_rx_desc_init(struct xgbe_channel *channel)
 	DBGPR("<--rx_desc_init\n");
 }
 
+static void xgbe_update_tstamp_addend(struct xgbe_prv_data *pdata,
+				      unsigned int addend)
+{
+	/* Set the addend register value and tell the device */
+	XGMAC_IOWRITE(pdata, MAC_TSAR, addend);
+	XGMAC_IOWRITE_BITS(pdata, MAC_TSCR, TSADDREG, 1);
+
+	/* Wait for addend update to complete */
+	while (XGMAC_IOREAD_BITS(pdata, MAC_TSCR, TSADDREG))
+		udelay(5);
+}
+
+static void xgbe_set_tstamp_time(struct xgbe_prv_data *pdata, unsigned int sec,
+				 unsigned int nsec)
+{
+	/* Set the time values and tell the device */
+	XGMAC_IOWRITE(pdata, MAC_STSUR, sec);
+	XGMAC_IOWRITE(pdata, MAC_STNUR, nsec);
+	XGMAC_IOWRITE_BITS(pdata, MAC_TSCR, TSINIT, 1);
+
+	/* Wait for time update to complete */
+	while (XGMAC_IOREAD_BITS(pdata, MAC_TSCR, TSINIT))
+		udelay(5);
+}
+
+static u64 xgbe_get_tstamp_time(struct xgbe_prv_data *pdata)
+{
+	u64 nsec;
+
+	nsec = XGMAC_IOREAD(pdata, MAC_STSR);
+	nsec *= NSEC_PER_SEC;
+	nsec += XGMAC_IOREAD(pdata, MAC_STNR);
+
+	return nsec;
+}
+
+static u64 xgbe_get_tx_tstamp(struct xgbe_prv_data *pdata)
+{
+	unsigned int tx_snr;
+	u64 nsec;
+
+	tx_snr = XGMAC_IOREAD(pdata, MAC_TXSNR);
+	if (XGMAC_GET_BITS(tx_snr, MAC_TXSNR, TXTSSTSMIS))
+		return 0;
+
+	nsec = XGMAC_IOREAD(pdata, MAC_TXSSR);
+	nsec *= NSEC_PER_SEC;
+	nsec += tx_snr;
+
+	return nsec;
+}
+
+static void xgbe_get_rx_tstamp(struct xgbe_packet_data *packet,
+			       struct xgbe_ring_desc *rdesc)
+{
+	u64 nsec;
+
+	if (XGMAC_GET_BITS_LE(rdesc->desc3, RX_CONTEXT_DESC3, TSA) &&
+	    !XGMAC_GET_BITS_LE(rdesc->desc3, RX_CONTEXT_DESC3, TSD)) {
+		nsec = le32_to_cpu(rdesc->desc1);
+		nsec <<= 32;
+		nsec |= le32_to_cpu(rdesc->desc0);
+		if (nsec != 0xffffffffffffffffULL) {
+			packet->rx_tstamp = nsec;
+			XGMAC_SET_BITS(packet->attributes, RX_PACKET_ATTRIBUTES,
+				       RX_TSTAMP, 1);
+		}
+	}
+}
+
+static int xgbe_config_tstamp(struct xgbe_prv_data *pdata,
+			      unsigned int mac_tscr)
+{
+	/* Set one nano-second accuracy */
+	XGMAC_SET_BITS(mac_tscr, MAC_TSCR, TSCTRLSSR, 1);
+
+	/* Set fine timestamp update */
+	XGMAC_SET_BITS(mac_tscr, MAC_TSCR, TSCFUPDT, 1);
+
+	/* Overwrite earlier timestamps */
+	XGMAC_SET_BITS(mac_tscr, MAC_TSCR, TXTSSTSM, 1);
+
+	XGMAC_IOWRITE(pdata, MAC_TSCR, mac_tscr);
+
+	/* Exit if timestamping is not enabled */
+	if (!XGMAC_GET_BITS(mac_tscr, MAC_TSCR, TSENA))
+		return 0;
+
+	/* Initialize time registers */
+	XGMAC_IOWRITE_BITS(pdata, MAC_SSIR, SSINC, XGBE_TSTAMP_SSINC);
+	XGMAC_IOWRITE_BITS(pdata, MAC_SSIR, SNSINC, XGBE_TSTAMP_SNSINC);
+	xgbe_update_tstamp_addend(pdata, pdata->tstamp_addend);
+	xgbe_set_tstamp_time(pdata, 0, 0);
+
+	/* Initialize the timecounter */
+	timecounter_init(&pdata->tstamp_tc, &pdata->tstamp_cc,
+			 ktime_to_ns(ktime_get_real()));
+
+	return 0;
+}
+
 static void xgbe_pre_xmit(struct xgbe_channel *channel)
 {
 	struct xgbe_prv_data *pdata = channel->pdata;
@@ -1109,6 +1214,10 @@ static void xgbe_pre_xmit(struct xgbe_channel *channel)
 	if (vlan)
 		XGMAC_SET_BITS_LE(rdesc->desc2, TX_NORMAL_DESC2, VTIR,
 				  TX_NORMAL_DESC2_VLAN_INSERT);
+
+	/* Timestamp enablement check */
+	if (XGMAC_GET_BITS(packet->attributes, TX_PACKET_ATTRIBUTES, PTP))
+		XGMAC_SET_BITS_LE(rdesc->desc2, TX_NORMAL_DESC2, TTSE, 1);
 
 	/* Set IC bit based on Tx coalescing settings */
 	XGMAC_SET_BITS_LE(rdesc->desc2, TX_NORMAL_DESC2, IC, 1);
@@ -1244,6 +1353,25 @@ static int xgbe_dev_read(struct xgbe_channel *channel)
 #ifdef XGMAC_ENABLE_RX_DESC_DUMP
 	xgbe_dump_rx_desc(ring, rdesc, ring->cur);
 #endif
+
+	if (XGMAC_GET_BITS_LE(rdesc->desc3, RX_NORMAL_DESC3, CTXT)) {
+		/* Timestamp Context Descriptor */
+		xgbe_get_rx_tstamp(packet, rdesc);
+
+		XGMAC_SET_BITS(packet->attributes, RX_PACKET_ATTRIBUTES,
+			       CONTEXT, 1);
+		XGMAC_SET_BITS(packet->attributes, RX_PACKET_ATTRIBUTES,
+			       CONTEXT_NEXT, 0);
+		return 0;
+	}
+
+	/* Normal Descriptor, be sure Context Descriptor bit is off */
+	XGMAC_SET_BITS(packet->attributes, RX_PACKET_ATTRIBUTES, CONTEXT, 0);
+
+	/* Indicate if a Context Descriptor is next */
+	if (XGMAC_GET_BITS_LE(rdesc->desc3, RX_NORMAL_DESC3, CDA))
+		XGMAC_SET_BITS(packet->attributes, RX_PACKET_ATTRIBUTES,
+			       CONTEXT_NEXT, 1);
 
 	/* Get the packet length */
 	rdata->len = XGMAC_GET_BITS_LE(rdesc->desc3, RX_NORMAL_DESC3, PL);
@@ -2312,6 +2440,13 @@ void xgbe_init_function_ptrs_dev(struct xgbe_hw_if *hw_if)
 	hw_if->tx_mmc_int = xgbe_tx_mmc_int;
 	hw_if->rx_mmc_int = xgbe_rx_mmc_int;
 	hw_if->read_mmc_stats = xgbe_read_mmc_stats;
+
+	/* For PTP config */
+	hw_if->config_tstamp = xgbe_config_tstamp;
+	hw_if->update_tstamp_addend = xgbe_update_tstamp_addend;
+	hw_if->set_tstamp_time = xgbe_set_tstamp_time;
+	hw_if->get_tstamp_time = xgbe_get_tstamp_time;
+	hw_if->get_tx_tstamp = xgbe_get_tx_tstamp;
 
 	DBGPR("<--xgbe_init_function_ptrs\n");
 }

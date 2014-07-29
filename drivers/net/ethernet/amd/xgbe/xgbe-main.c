@@ -245,6 +245,7 @@ static int xgbe_probe(struct platform_device *pdev)
 
 	spin_lock_init(&pdata->lock);
 	mutex_init(&pdata->xpcs_mutex);
+	spin_lock_init(&pdata->tstamp_lock);
 
 	/* Set and validate the number of descriptors for a ring */
 	BUILD_BUG_ON_NOT_POWER_OF_2(XGBE_TX_DESC_CNT);
@@ -265,10 +266,18 @@ static int xgbe_probe(struct platform_device *pdev)
 	}
 
 	/* Obtain the system clock setting */
-	pdata->sysclock = devm_clk_get(dev, NULL);
-	if (IS_ERR(pdata->sysclock)) {
-		dev_err(dev, "devm_clk_get failed\n");
-		ret = PTR_ERR(pdata->sysclock);
+	pdata->sysclk = devm_clk_get(dev, XGBE_DMA_CLOCK);
+	if (IS_ERR(pdata->sysclk)) {
+		dev_err(dev, "dma devm_clk_get failed\n");
+		ret = PTR_ERR(pdata->sysclk);
+		goto err_io;
+	}
+
+	/* Obtain the PTP clock setting */
+	pdata->ptpclk = devm_clk_get(dev, XGBE_PTP_CLOCK);
+	if (IS_ERR(pdata->ptpclk)) {
+		dev_err(dev, "ptp devm_clk_get failed\n");
+		ret = PTR_ERR(pdata->ptpclk);
 		goto err_io;
 	}
 
@@ -420,6 +429,8 @@ static int xgbe_probe(struct platform_device *pdev)
 		goto err_reg_netdev;
 	}
 
+	xgbe_ptp_register(pdata);
+
 	xgbe_debugfs_init(pdata);
 
 	netdev_notice(netdev, "net device enabled\n");
@@ -451,6 +462,8 @@ static int xgbe_remove(struct platform_device *pdev)
 	DBGPR("-->xgbe_remove\n");
 
 	xgbe_debugfs_exit(pdata);
+
+	xgbe_ptp_unregister(pdata);
 
 	unregister_netdev(netdev);
 

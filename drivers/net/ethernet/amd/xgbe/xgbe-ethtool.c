@@ -116,6 +116,7 @@
 
 #include <linux/spinlock.h>
 #include <linux/phy.h>
+#include <linux/net_tstamp.h>
 
 #include "xgbe.h"
 #include "xgbe-common.h"
@@ -480,6 +481,39 @@ static int xgbe_set_coalesce(struct net_device *netdev,
 	return 0;
 }
 
+static int xgbe_get_ts_info(struct net_device *netdev,
+			    struct ethtool_ts_info *ts_info)
+{
+	struct xgbe_prv_data *pdata = netdev_priv(netdev);
+
+	ts_info->so_timestamping = SOF_TIMESTAMPING_TX_SOFTWARE |
+				   SOF_TIMESTAMPING_RX_SOFTWARE |
+				   SOF_TIMESTAMPING_SOFTWARE |
+				   SOF_TIMESTAMPING_TX_HARDWARE |
+				   SOF_TIMESTAMPING_RX_HARDWARE |
+				   SOF_TIMESTAMPING_RAW_HARDWARE;
+
+	if (pdata->ptp_clock)
+		ts_info->phc_index = ptp_clock_index(pdata->ptp_clock);
+	else
+		ts_info->phc_index = -1;
+
+	ts_info->tx_types = (1 << HWTSTAMP_TX_OFF) | (1 << HWTSTAMP_TX_ON);
+	ts_info->rx_filters = (1 << HWTSTAMP_FILTER_NONE) |
+			      (1 << HWTSTAMP_FILTER_PTP_V1_L4_EVENT) |
+			      (1 << HWTSTAMP_FILTER_PTP_V1_L4_SYNC) |
+			      (1 << HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ) |
+			      (1 << HWTSTAMP_FILTER_PTP_V2_L4_EVENT) |
+			      (1 << HWTSTAMP_FILTER_PTP_V2_L4_SYNC) |
+			      (1 << HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ) |
+			      (1 << HWTSTAMP_FILTER_PTP_V2_EVENT) |
+			      (1 << HWTSTAMP_FILTER_PTP_V2_SYNC) |
+			      (1 << HWTSTAMP_FILTER_PTP_V2_DELAY_REQ) |
+			      (1 << HWTSTAMP_FILTER_ALL);
+
+	return 0;
+}
+
 static const struct ethtool_ops xgbe_ethtool_ops = {
 	.get_settings = xgbe_get_settings,
 	.set_settings = xgbe_set_settings,
@@ -492,6 +526,7 @@ static const struct ethtool_ops xgbe_ethtool_ops = {
 	.get_strings = xgbe_get_strings,
 	.get_ethtool_stats = xgbe_get_ethtool_stats,
 	.get_sset_count = xgbe_get_sset_count,
+	.get_ts_info = xgbe_get_ts_info,
 };
 
 struct ethtool_ops *xgbe_get_ethtool_ops(void)
