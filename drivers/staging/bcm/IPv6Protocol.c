@@ -272,12 +272,9 @@ USHORT	IpVersion6(struct bcm_mini_adapter *Adapter, PVOID pcIpHeader,
 		INT iMatchedSFQueueIndex = 0;
 
 		iMatchedSFQueueIndex = SearchSfid(Adapter, pstClassifierRule->ulSFID);
-		if (iMatchedSFQueueIndex >= NO_OF_QUEUES) {
+		if ((iMatchedSFQueueIndex >= NO_OF_QUEUES) ||
+		    (Adapter->PackInfo[iMatchedSFQueueIndex].bActive == false))
 			bClassificationSucceed = false;
-		} else {
-			if (Adapter->PackInfo[iMatchedSFQueueIndex].bActive == false)
-				bClassificationSucceed = false;
-		}
 	}
 
 	return bClassificationSucceed;
