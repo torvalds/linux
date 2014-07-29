@@ -1127,14 +1127,25 @@ static bool EThCSClassifyPkt(struct bcm_mini_adapter *Adapter,
 	return bClassificationSucceed;
 }
 
-static void EThCSGetPktInfo(struct bcm_mini_adapter *Adapter, PVOID pvEthPayload,
+static void EThCSGetPktInfo(struct bcm_mini_adapter *Adapter,
+			    PVOID pvEthPayload,
 			    struct bcm_eth_packet_info *pstEthCsPktInfo)
 {
-	USHORT u16Etype = ntohs(((struct bcm_eth_header *)pvEthPayload)->u16Etype);
+	USHORT u16Etype = ntohs(
+			((struct bcm_eth_header *)pvEthPayload)->u16Etype);
 
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL,  "EthCSGetPktInfo : Eth Hdr Type : %X\n", u16Etype);
+	BCM_DEBUG_PRINT(Adapter,
+			DBG_TYPE_TX,
+			IPV4_DBG,
+			DBG_LVL_ALL,
+			"EthCSGetPktInfo : Eth Hdr Type : %X\n",
+			u16Etype);
 	if (u16Etype > 0x5dc) {
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, "EthCSGetPktInfo : ETH2 Frame\n");
+		BCM_DEBUG_PRINT(Adapter,
+				DBG_TYPE_TX,
+				IPV4_DBG,
+				DBG_LVL_ALL,
+				"EthCSGetPktInfo : ETH2 Frame\n");
 		/* ETH2 Frame */
 		if (u16Etype == ETHERNET_FRAMETYPE_802QVLAN) {
 			/* 802.1Q VLAN Header */
@@ -1147,9 +1158,14 @@ static void EThCSGetPktInfo(struct bcm_mini_adapter *Adapter, PVOID pvEthPayload
 		}
 	} else {
 		/* 802.2 LLC */
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, "802.2 LLC Frame\n");
+		BCM_DEBUG_PRINT(Adapter,
+				DBG_TYPE_TX,
+				IPV4_DBG,
+				DBG_LVL_ALL,
+				"802.2 LLC Frame\n");
 		pstEthCsPktInfo->eNwpktEthFrameType = eEth802LLCFrame;
-		pstEthCsPktInfo->ucDSAP = ((struct bcm_eth_llc_frame *)pvEthPayload)->DSAP;
+		pstEthCsPktInfo->ucDSAP =
+			((struct bcm_eth_llc_frame *)pvEthPayload)->DSAP;
 		if (pstEthCsPktInfo->ucDSAP == 0xAA && ((struct bcm_eth_llc_frame *)pvEthPayload)->SSAP == 0xAA) {
 			/* SNAP Frame */
 			pstEthCsPktInfo->eNwpktEthFrameType = eEth802LLCSNAPFrame;
@@ -1164,10 +1180,23 @@ static void EThCSGetPktInfo(struct bcm_mini_adapter *Adapter, PVOID pvEthPayload
 		pstEthCsPktInfo->eNwpktIPFrameType = eNonIPPacket;
 
 	pstEthCsPktInfo->usEtherType = ((struct bcm_eth_header *)pvEthPayload)->u16Etype;
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL,  "EthCsPktInfo->eNwpktIPFrameType : %x\n", pstEthCsPktInfo->eNwpktIPFrameType);
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL,  "EthCsPktInfo->eNwpktEthFrameType : %x\n", pstEthCsPktInfo->eNwpktEthFrameType);
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL,  "EthCsPktInfo->usEtherType : %x\n", pstEthCsPktInfo->usEtherType);
+	BCM_DEBUG_PRINT(Adapter,
+			DBG_TYPE_TX,
+			IPV4_DBG,
+			DBG_LVL_ALL,
+			"EthCsPktInfo->eNwpktIPFrameType : %x\n",
+			pstEthCsPktInfo->eNwpktIPFrameType);
+	BCM_DEBUG_PRINT(Adapter,
+			DBG_TYPE_TX,
+			IPV4_DBG,
+			DBG_LVL_ALL,
+			"EthCsPktInfo->eNwpktEthFrameType : %x\n",
+			pstEthCsPktInfo->eNwpktEthFrameType);
+	BCM_DEBUG_PRINT(Adapter,
+			DBG_TYPE_TX,
+			IPV4_DBG,
+			DBG_LVL_ALL,
+			"EthCsPktInfo->usEtherType : %x\n",
+			pstEthCsPktInfo->usEtherType);
 }
-
-
 
