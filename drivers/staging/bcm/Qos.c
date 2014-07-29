@@ -929,7 +929,9 @@ static bool EthCSMatchDestMACAddress(struct bcm_classifier_rule *pstClassifierRu
 	return TRUE;
 }
 
-static bool EthCSMatchEThTypeSAP(struct bcm_classifier_rule *pstClassifierRule, struct sk_buff *skb, struct bcm_eth_packet_info *pstEthCsPktInfo)
+static bool EthCSMatchEThTypeSAP(struct bcm_classifier_rule *pstClassifierRule,
+				 struct sk_buff *skb,
+				 struct bcm_eth_packet_info *pstEthCsPktInfo)
 {
 	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
 
@@ -937,11 +939,27 @@ static bool EthCSMatchEThTypeSAP(struct bcm_classifier_rule *pstClassifierRule, 
 		(pstClassifierRule->au8EthCSEtherType[0] == 0))
 		return TRUE;
 
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL,  "%s SrcEtherType:%x CLS EtherType[0]:%x\n", __func__, pstEthCsPktInfo->usEtherType, pstClassifierRule->au8EthCSEtherType[0]);
+	BCM_DEBUG_PRINT(Adapter,
+			DBG_TYPE_TX,
+			IPV4_DBG,
+			DBG_LVL_ALL,
+			"%s SrcEtherType:%x CLS EtherType[0]:%x\n",
+			__func__,
+			pstEthCsPktInfo->usEtherType,
+			pstClassifierRule->au8EthCSEtherType[0]);
 	if (pstClassifierRule->au8EthCSEtherType[0] == 1) {
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL,  "%s  CLS EtherType[1]:%x EtherType[2]:%x\n", __func__, pstClassifierRule->au8EthCSEtherType[1], pstClassifierRule->au8EthCSEtherType[2]);
+		BCM_DEBUG_PRINT(Adapter,
+				DBG_TYPE_TX,
+				IPV4_DBG,
+				DBG_LVL_ALL,
+				"%s  CLS EtherType[1]:%x EtherType[2]:%x\n",
+				__func__,
+				pstClassifierRule->au8EthCSEtherType[1],
+				pstClassifierRule->au8EthCSEtherType[2]);
 
-		if (memcmp(&pstEthCsPktInfo->usEtherType, &pstClassifierRule->au8EthCSEtherType[1], 2) == 0)
+		if (memcmp(&pstEthCsPktInfo->usEtherType,
+			   &pstClassifierRule->au8EthCSEtherType[1],
+			   2) == 0)
 			return TRUE;
 		else
 			return false;
@@ -951,8 +969,16 @@ static bool EthCSMatchEThTypeSAP(struct bcm_classifier_rule *pstClassifierRule, 
 		if (eEth802LLCFrame != pstEthCsPktInfo->eNwpktEthFrameType)
 			return false;
 
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL,  "%s  EthCS DSAP:%x EtherType[2]:%x\n", __func__, pstEthCsPktInfo->ucDSAP, pstClassifierRule->au8EthCSEtherType[2]);
-		if (pstEthCsPktInfo->ucDSAP == pstClassifierRule->au8EthCSEtherType[2])
+		BCM_DEBUG_PRINT(Adapter,
+				DBG_TYPE_TX,
+				IPV4_DBG,
+				DBG_LVL_ALL,
+				"%s  EthCS DSAP:%x EtherType[2]:%x\n",
+				__func__,
+				pstEthCsPktInfo->ucDSAP,
+				pstClassifierRule->au8EthCSEtherType[2]);
+		if (pstEthCsPktInfo->ucDSAP ==
+				pstClassifierRule->au8EthCSEtherType[2])
 			return TRUE;
 		else
 			return false;
