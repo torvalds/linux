@@ -248,12 +248,12 @@ struct mxt_data {
 	u32 config_crc;
 	u32 info_crc;
 	u8 bootloader_addr;
-	struct t7_config t7_cfg;
 	u8 *msg_buf;
 	u8 t6_status;
 	bool update_input;
 	u8 last_message_count;
 	u8 num_touchids;
+	struct t7_config t7_cfg;
 	u8 num_stylusids;
 	unsigned long t15_keystatus;
 	bool use_retrigen_workaround;
@@ -1765,60 +1765,6 @@ release_mem:
 	return ret;
 }
 
-static int mxt_set_t7_power_cfg(struct mxt_data *data, u8 sleep)
-{
-	struct device *dev = &data->client->dev;
-	int error;
-	struct t7_config *new_config;
-	struct t7_config deepsleep = { .active = 0, .idle = 0 };
-
-	if (sleep == MXT_POWER_CFG_DEEPSLEEP)
-		new_config = &deepsleep;
-	else
-		new_config = &data->t7_cfg;
-
-	error = __mxt_write_reg(data->client, data->T7_address,
-				sizeof(data->t7_cfg), new_config);
-	if (error)
-		return error;
-
-	dev_dbg(dev, "Set T7 ACTV:%d IDLE:%d\n",
-		new_config->active, new_config->idle);
-
-	return 0;
-}
-
-static int mxt_init_t7_power_cfg(struct mxt_data *data)
-{
-	struct device *dev = &data->client->dev;
-	int error;
-	bool retry = false;
-
-recheck:
-	error = __mxt_read_reg(data->client, data->T7_address,
-				sizeof(data->t7_cfg), &data->t7_cfg);
-	if (error)
-		return error;
-
-	if (data->t7_cfg.active == 0 || data->t7_cfg.idle == 0) {
-		if (!retry) {
-			dev_dbg(dev, "T7 cfg zero, resetting\n");
-			mxt_soft_reset(data);
-			retry = true;
-			goto recheck;
-		} else {
-			dev_dbg(dev, "T7 cfg zero after reset, overriding\n");
-			data->t7_cfg.active = 20;
-			data->t7_cfg.idle = 100;
-			return mxt_set_t7_power_cfg(data, MXT_POWER_CFG_RUN);
-		}
-	}
-
-	dev_dbg(dev, "Initialized power cfg: ACTV %d, IDLE %d\n",
-		data->t7_cfg.active, data->t7_cfg.idle);
-	return 0;
-}
-
 static int mxt_acquire_irq(struct mxt_data *data)
 {
 	int error;
@@ -2574,6 +2520,60 @@ err_free_object_table:
 	return error;
 }
 
+static int mxt_set_t7_power_cfg(struct mxt_data *data, u8 sleep)
+{
+	struct device *dev = &data->client->dev;
+	int error;
+	struct t7_config *new_config;
+	struct t7_config deepsleep = { .active = 0, .idle = 0 };
+
+	if (sleep == MXT_POWER_CFG_DEEPSLEEP)
+		new_config = &deepsleep;
+	else
+		new_config = &data->t7_cfg;
+
+	error = __mxt_write_reg(data->client, data->T7_address,
+				sizeof(data->t7_cfg), new_config);
+	if (error)
+		return error;
+
+	dev_dbg(dev, "Set T7 ACTV:%d IDLE:%d\n",
+		new_config->active, new_config->idle);
+
+	return 0;
+}
+
+static int mxt_init_t7_power_cfg(struct mxt_data *data)
+{
+	struct device *dev = &data->client->dev;
+	int error;
+	bool retry = false;
+
+recheck:
+	error = __mxt_read_reg(data->client, data->T7_address,
+				sizeof(data->t7_cfg), &data->t7_cfg);
+	if (error)
+		return error;
+
+	if (data->t7_cfg.active == 0 || data->t7_cfg.idle == 0) {
+		if (!retry) {
+			dev_dbg(dev, "T7 cfg zero, resetting\n");
+			mxt_soft_reset(data);
+			retry = true;
+			goto recheck;
+		} else {
+			dev_dbg(dev, "T7 cfg zero after reset, overriding\n");
+			data->t7_cfg.active = 20;
+			data->t7_cfg.idle = 100;
+			return mxt_set_t7_power_cfg(data, MXT_POWER_CFG_RUN);
+		}
+	}
+
+	dev_dbg(dev, "Initialized power cfg: ACTV %d, IDLE %d\n",
+		data->t7_cfg.active, data->t7_cfg.idle);
+	return 0;
+}
+
 static int mxt_configure_objects(struct mxt_data *data,
 				 const struct firmware *cfg)
 {
@@ -3068,12 +3068,12 @@ static DEVICE_ATTR(hw_version, S_IRUGO, mxt_hw_version_show, NULL);
 static DEVICE_ATTR(object, S_IRUGO, mxt_object_show, NULL);
 static DEVICE_ATTR(update_fw, S_IWUSR, NULL, mxt_update_fw_store);
 static DEVICE_ATTR(update_cfg, S_IWUSR, NULL, mxt_update_cfg_store);
+static DEVICE_ATTR(config_csum, S_IRUGO, mxt_config_csum_show, NULL);
+static DEVICE_ATTR(debug_enable, S_IWUSR | S_IRUSR, mxt_debug_enable_show,
+		   mxt_debug_enable_store);
 static DEVICE_ATTR(debug_v2_enable, S_IWUSR | S_IRUSR, NULL,
 		   mxt_debug_v2_enable_store);
 static DEVICE_ATTR(debug_notify, S_IRUGO, mxt_debug_notify_show, NULL);
-static DEVICE_ATTR(debug_enable, S_IWUSR | S_IRUSR, mxt_debug_enable_show,
-		   mxt_debug_enable_store);
-static DEVICE_ATTR(config_csum, S_IRUGO, mxt_config_csum_show, NULL);
 
 static struct attribute *mxt_attrs[] = {
 	&dev_attr_fw_version.attr,
@@ -3081,10 +3081,10 @@ static struct attribute *mxt_attrs[] = {
 	&dev_attr_object.attr,
 	&dev_attr_update_fw.attr,
 	&dev_attr_update_cfg.attr,
+	&dev_attr_config_csum.attr,
 	&dev_attr_debug_enable.attr,
 	&dev_attr_debug_v2_enable.attr,
 	&dev_attr_debug_notify.attr,
-	&dev_attr_config_csum.attr,
 	NULL
 };
 
