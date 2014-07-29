@@ -609,51 +609,47 @@ USHORT ClassifyPacket(struct bcm_mini_adapter *Adapter, struct sk_buff *skb)
 	EThCSGetPktInfo(Adapter, pvEThPayload, &stEthCsPktInfo);
 
 	switch (stEthCsPktInfo.eNwpktEthFrameType) {
-		case eEth802LLCFrame:
-			BCM_DEBUG_PRINT(Adapter,
-					DBG_TYPE_TX,
-					IPV4_DBG,
-					DBG_LVL_ALL,
-					"ClassifyPacket : 802LLCFrame\n");
-			pIpHeader = pvEThPayload +
-				sizeof(struct bcm_eth_llc_frame);
-			break;
-		case eEth802LLCSNAPFrame:
-			BCM_DEBUG_PRINT(Adapter,
-					DBG_TYPE_TX,
-					IPV4_DBG,
-					DBG_LVL_ALL,
-					"ClassifyPacket : 802LLC SNAP Frame\n");
-			pIpHeader = pvEThPayload +
-				sizeof(struct bcm_eth_llc_snap_frame);
-			break;
-		case eEth802QVLANFrame:
-			BCM_DEBUG_PRINT(Adapter,
-					DBG_TYPE_TX,
-					IPV4_DBG,
-					DBG_LVL_ALL,
-					"ClassifyPacket : 802.1Q VLANFrame\n");
-			pIpHeader = pvEThPayload +
-				sizeof(struct bcm_eth_q_frame);
-			break;
-		case eEthOtherFrame:
-			BCM_DEBUG_PRINT(Adapter,
-					DBG_TYPE_TX,
-					IPV4_DBG,
-					DBG_LVL_ALL,
-					"ClassifyPacket : ETH Other Frame\n");
-			pIpHeader = pvEThPayload +
-				sizeof(struct bcm_ethernet2_frame);
-			break;
-		default:
-			BCM_DEBUG_PRINT(Adapter,
-					DBG_TYPE_TX,
-					IPV4_DBG,
-					DBG_LVL_ALL,
-					"ClassifyPacket : Unrecognized ETH Frame\n");
-			pIpHeader = pvEThPayload +
-				sizeof(struct bcm_ethernet2_frame);
-			break;
+	case eEth802LLCFrame:
+		BCM_DEBUG_PRINT(Adapter,
+				DBG_TYPE_TX,
+				IPV4_DBG,
+				DBG_LVL_ALL,
+				"ClassifyPacket : 802LLCFrame\n");
+		pIpHeader = pvEThPayload + sizeof(struct bcm_eth_llc_frame);
+		break;
+	case eEth802LLCSNAPFrame:
+		BCM_DEBUG_PRINT(Adapter,
+				DBG_TYPE_TX,
+				IPV4_DBG,
+				DBG_LVL_ALL,
+				"ClassifyPacket : 802LLC SNAP Frame\n");
+		pIpHeader = pvEThPayload +
+			sizeof(struct bcm_eth_llc_snap_frame);
+		break;
+	case eEth802QVLANFrame:
+		BCM_DEBUG_PRINT(Adapter,
+				DBG_TYPE_TX,
+				IPV4_DBG,
+				DBG_LVL_ALL,
+				"ClassifyPacket : 802.1Q VLANFrame\n");
+		pIpHeader = pvEThPayload + sizeof(struct bcm_eth_q_frame);
+		break;
+	case eEthOtherFrame:
+		BCM_DEBUG_PRINT(Adapter,
+				DBG_TYPE_TX,
+				IPV4_DBG,
+				DBG_LVL_ALL,
+				"ClassifyPacket : ETH Other Frame\n");
+		pIpHeader = pvEThPayload + sizeof(struct bcm_ethernet2_frame);
+		break;
+	default:
+		BCM_DEBUG_PRINT(Adapter,
+				DBG_TYPE_TX,
+				IPV4_DBG,
+				DBG_LVL_ALL,
+				"ClassifyPacket : Unrecognized ETH Frame\n");
+		pIpHeader = pvEThPayload + sizeof(struct bcm_ethernet2_frame);
+		break;
 	}
 
 	if (stEthCsPktInfo.eNwpktIPFrameType == eIPv4Packet) {
