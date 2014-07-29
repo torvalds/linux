@@ -249,47 +249,47 @@
 /*
  * DACCON read-write values.
  */
-#define PCI230_DAC_OR_UNI		(0<<0)	/* Output range unipolar */
-#define PCI230_DAC_OR_BIP		(1<<0)	/* Output range bipolar */
-#define PCI230_DAC_OR_MASK		(1<<0)
+#define PCI230_DAC_OR_UNI		(0 << 0) /* Output range unipolar */
+#define PCI230_DAC_OR_BIP		(1 << 0) /* Output range bipolar */
+#define PCI230_DAC_OR_MASK		(1 << 0)
 /*
  * The following applies only if DAC FIFO support is enabled in the EXTFUNC
  * register (and only for PCI230+ hardware version 2 onwards).
  */
-#define PCI230P2_DAC_FIFO_EN		(1<<8)	/* FIFO enable */
+#define PCI230P2_DAC_FIFO_EN		(1 << 8) /* FIFO enable */
 /*
  * The following apply only if the DAC FIFO is enabled (and only for PCI230+
  * hardware version 2 onwards).
  */
-#define PCI230P2_DAC_TRIG_NONE		(0<<2)	/* No trigger */
-#define PCI230P2_DAC_TRIG_SW		(1<<2)	/* Software trigger trigger */
-#define PCI230P2_DAC_TRIG_EXTP		(2<<2)	/* EXTTRIG +ve edge trigger */
-#define PCI230P2_DAC_TRIG_EXTN		(3<<2)	/* EXTTRIG -ve edge trigger */
-#define PCI230P2_DAC_TRIG_Z2CT0		(4<<2)	/* CT0-OUT +ve edge trigger */
-#define PCI230P2_DAC_TRIG_Z2CT1		(5<<2)	/* CT1-OUT +ve edge trigger */
-#define PCI230P2_DAC_TRIG_Z2CT2		(6<<2)	/* CT2-OUT +ve edge trigger */
-#define PCI230P2_DAC_TRIG_MASK		(7<<2)
-#define PCI230P2_DAC_FIFO_WRAP		(1<<7)	/* FIFO wraparound mode */
-#define PCI230P2_DAC_INT_FIFO_EMPTY	(0<<9)	/* FIFO interrupt empty */
-#define PCI230P2_DAC_INT_FIFO_NEMPTY	(1<<9)
-#define PCI230P2_DAC_INT_FIFO_NHALF	(2<<9)	/* FIFO intr not half full */
-#define PCI230P2_DAC_INT_FIFO_HALF	(3<<9)
-#define PCI230P2_DAC_INT_FIFO_NFULL	(4<<9)	/* FIFO interrupt not full */
-#define PCI230P2_DAC_INT_FIFO_FULL	(5<<9)
-#define PCI230P2_DAC_INT_FIFO_MASK	(7<<9)
+#define PCI230P2_DAC_TRIG_NONE		(0 << 2) /* No trigger */
+#define PCI230P2_DAC_TRIG_SW		(1 << 2) /* Software trigger trigger */
+#define PCI230P2_DAC_TRIG_EXTP		(2 << 2) /* EXTTRIG +ve edge trigger */
+#define PCI230P2_DAC_TRIG_EXTN		(3 << 2) /* EXTTRIG -ve edge trigger */
+#define PCI230P2_DAC_TRIG_Z2CT0		(4 << 2) /* CT0-OUT +ve edge trigger */
+#define PCI230P2_DAC_TRIG_Z2CT1		(5 << 2) /* CT1-OUT +ve edge trigger */
+#define PCI230P2_DAC_TRIG_Z2CT2		(6 << 2) /* CT2-OUT +ve edge trigger */
+#define PCI230P2_DAC_TRIG_MASK		(7 << 2)
+#define PCI230P2_DAC_FIFO_WRAP		(1 << 7) /* FIFO wraparound mode */
+#define PCI230P2_DAC_INT_FIFO_EMPTY	(0 << 9) /* FIFO interrupt empty */
+#define PCI230P2_DAC_INT_FIFO_NEMPTY	(1 << 9)
+#define PCI230P2_DAC_INT_FIFO_NHALF	(2 << 9) /* FIFO intr not half full */
+#define PCI230P2_DAC_INT_FIFO_HALF	(3 << 9)
+#define PCI230P2_DAC_INT_FIFO_NFULL	(4 << 9) /* FIFO interrupt not full */
+#define PCI230P2_DAC_INT_FIFO_FULL	(5 << 9)
+#define PCI230P2_DAC_INT_FIFO_MASK	(7 << 9)
 
 /*
  * DACCON read-only values.
  */
-#define PCI230_DAC_BUSY			(1<<1)	/* DAC busy. */
+#define PCI230_DAC_BUSY			(1 << 1) /* DAC busy. */
 /*
  * The following apply only if the DAC FIFO is enabled (and only for PCI230+
  * hardware version 2 onwards).
  */
-#define PCI230P2_DAC_FIFO_UNDERRUN_LATCHED	(1<<5)	/* Underrun error */
-#define PCI230P2_DAC_FIFO_EMPTY		(1<<13)	/* FIFO empty */
-#define PCI230P2_DAC_FIFO_FULL		(1<<14)	/* FIFO full */
-#define PCI230P2_DAC_FIFO_HALF		(1<<15)	/* FIFO half full */
+#define PCI230P2_DAC_FIFO_UNDERRUN_LATCHED	(1 << 5) /* Underrun error */
+#define PCI230P2_DAC_FIFO_EMPTY		(1 << 13) /* FIFO empty */
+#define PCI230P2_DAC_FIFO_FULL		(1 << 14) /* FIFO full */
+#define PCI230P2_DAC_FIFO_HALF		(1 << 15) /* FIFO half full */
 
 /*
  * DACCON write-only, transient values.
@@ -298,8 +298,8 @@
  * The following apply only if the DAC FIFO is enabled (and only for PCI230+
  * hardware version 2 onwards).
  */
-#define PCI230P2_DAC_FIFO_UNDERRUN_CLEAR	(1<<5)	/* Clear underrun */
-#define PCI230P2_DAC_FIFO_RESET		(1<<12)	/* FIFO reset */
+#define PCI230P2_DAC_FIFO_UNDERRUN_CLEAR	(1 << 5) /* Clear underrun */
+#define PCI230P2_DAC_FIFO_RESET		(1 << 12) /* FIFO reset */
 
 /*
  * PCI230+ hardware version 2 DAC FIFO levels.
@@ -316,44 +316,44 @@
 /*
  * ADCCON read/write values.
  */
-#define PCI230_ADC_TRIG_NONE		(0<<0)	/* No trigger */
-#define PCI230_ADC_TRIG_SW		(1<<0)	/* Software trigger trigger */
-#define PCI230_ADC_TRIG_EXTP		(2<<0)	/* EXTTRIG +ve edge trigger */
-#define PCI230_ADC_TRIG_EXTN		(3<<0)	/* EXTTRIG -ve edge trigger */
-#define PCI230_ADC_TRIG_Z2CT0		(4<<0)	/* CT0-OUT +ve edge trigger */
-#define PCI230_ADC_TRIG_Z2CT1		(5<<0)	/* CT1-OUT +ve edge trigger */
-#define PCI230_ADC_TRIG_Z2CT2		(6<<0)	/* CT2-OUT +ve edge trigger */
-#define PCI230_ADC_TRIG_MASK		(7<<0)
-#define PCI230_ADC_IR_UNI		(0<<3)	/* Input range unipolar */
-#define PCI230_ADC_IR_BIP		(1<<3)	/* Input range bipolar */
-#define PCI230_ADC_IR_MASK		(1<<3)
-#define PCI230_ADC_IM_SE		(0<<4)	/* Input mode single ended */
-#define PCI230_ADC_IM_DIF		(1<<4)	/* Input mode differential */
-#define PCI230_ADC_IM_MASK		(1<<4)
-#define PCI230_ADC_FIFO_EN		(1<<8)	/* FIFO enable */
-#define PCI230_ADC_INT_FIFO_EMPTY	(0<<9)
-#define PCI230_ADC_INT_FIFO_NEMPTY	(1<<9)	/* FIFO interrupt not empty */
-#define PCI230_ADC_INT_FIFO_NHALF	(2<<9)
-#define PCI230_ADC_INT_FIFO_HALF	(3<<9)	/* FIFO interrupt half full */
-#define PCI230_ADC_INT_FIFO_NFULL	(4<<9)
-#define PCI230_ADC_INT_FIFO_FULL	(5<<9)	/* FIFO interrupt full */
-#define PCI230P_ADC_INT_FIFO_THRESH	(7<<9)	/* FIFO interrupt threshold */
-#define PCI230_ADC_INT_FIFO_MASK	(7<<9)
+#define PCI230_ADC_TRIG_NONE		(0 << 0) /* No trigger */
+#define PCI230_ADC_TRIG_SW		(1 << 0) /* Software trigger trigger */
+#define PCI230_ADC_TRIG_EXTP		(2 << 0) /* EXTTRIG +ve edge trigger */
+#define PCI230_ADC_TRIG_EXTN		(3 << 0) /* EXTTRIG -ve edge trigger */
+#define PCI230_ADC_TRIG_Z2CT0		(4 << 0) /* CT0-OUT +ve edge trigger */
+#define PCI230_ADC_TRIG_Z2CT1		(5 << 0) /* CT1-OUT +ve edge trigger */
+#define PCI230_ADC_TRIG_Z2CT2		(6 << 0) /* CT2-OUT +ve edge trigger */
+#define PCI230_ADC_TRIG_MASK		(7 << 0)
+#define PCI230_ADC_IR_UNI		(0 << 3) /* Input range unipolar */
+#define PCI230_ADC_IR_BIP		(1 << 3) /* Input range bipolar */
+#define PCI230_ADC_IR_MASK		(1 << 3)
+#define PCI230_ADC_IM_SE		(0 << 4) /* Input mode single ended */
+#define PCI230_ADC_IM_DIF		(1 << 4) /* Input mode differential */
+#define PCI230_ADC_IM_MASK		(1 << 4)
+#define PCI230_ADC_FIFO_EN		(1 << 8) /* FIFO enable */
+#define PCI230_ADC_INT_FIFO_EMPTY	(0 << 9)
+#define PCI230_ADC_INT_FIFO_NEMPTY	(1 << 9) /* FIFO interrupt not empty */
+#define PCI230_ADC_INT_FIFO_NHALF	(2 << 9)
+#define PCI230_ADC_INT_FIFO_HALF	(3 << 9) /* FIFO interrupt half full */
+#define PCI230_ADC_INT_FIFO_NFULL	(4 << 9)
+#define PCI230_ADC_INT_FIFO_FULL	(5 << 9) /* FIFO interrupt full */
+#define PCI230P_ADC_INT_FIFO_THRESH	(7 << 9) /* FIFO interrupt threshold */
+#define PCI230_ADC_INT_FIFO_MASK	(7 << 9)
 
 /*
  * ADCCON write-only, transient values.
  */
-#define PCI230_ADC_FIFO_RESET		(1<<12)	/* FIFO reset */
-#define PCI230_ADC_GLOB_RESET		(1<<13)	/* Global reset */
+#define PCI230_ADC_FIFO_RESET		(1 << 12) /* FIFO reset */
+#define PCI230_ADC_GLOB_RESET		(1 << 13) /* Global reset */
 
 /*
  * ADCCON read-only values.
  */
-#define PCI230_ADC_BUSY			(1<<15)	/* ADC busy */
-#define PCI230_ADC_FIFO_EMPTY		(1<<12)	/* FIFO empty */
-#define PCI230_ADC_FIFO_FULL		(1<<13)	/* FIFO full */
-#define PCI230_ADC_FIFO_HALF		(1<<14)	/* FIFO half full */
-#define PCI230_ADC_FIFO_FULL_LATCHED	(1<<5)	/* Indicates overrun occurred */
+#define PCI230_ADC_BUSY			(1 << 15) /* ADC busy */
+#define PCI230_ADC_FIFO_EMPTY		(1 << 12) /* FIFO empty */
+#define PCI230_ADC_FIFO_FULL		(1 << 13) /* FIFO full */
+#define PCI230_ADC_FIFO_HALF		(1 << 14) /* FIFO half full */
+#define PCI230_ADC_FIFO_FULL_LATCHED	(1 << 5)  /* FIFO overrun occurred */
 
 /*
  * PCI230 ADC FIFO levels.
@@ -365,10 +365,10 @@
  * PCI230+ EXTFUNC values.
  */
 /* Route EXTTRIG pin to external gate inputs. */
-#define PCI230P_EXTFUNC_GAT_EXTTRIG	(1<<0)
+#define PCI230P_EXTFUNC_GAT_EXTTRIG	(1 << 0)
 /* PCI230+ hardware version 2 values. */
 /* Allow DAC FIFO to be enabled. */
-#define PCI230P2_EXTFUNC_DACFIFO	(1<<1)
+#define PCI230P2_EXTFUNC_DACFIFO	(1 << 1)
 
 /*
  * Counter/timer clock input configuration sources.
@@ -416,12 +416,12 @@
  * Interrupt enables/status register values.
  */
 #define PCI230_INT_DISABLE		0
-#define PCI230_INT_PPI_C0		(1<<0)
-#define PCI230_INT_PPI_C3		(1<<1)
-#define PCI230_INT_ADC			(1<<2)
-#define PCI230_INT_ZCLK_CT1		(1<<5)
+#define PCI230_INT_PPI_C0		(1 << 0)
+#define PCI230_INT_PPI_C3		(1 << 1)
+#define PCI230_INT_ADC			(1 << 2)
+#define PCI230_INT_ZCLK_CT1		(1 << 5)
 /* For PCI230+ hardware version 2 when DAC FIFO enabled. */
-#define PCI230P2_INT_DAC		(1<<4)
+#define PCI230P2_INT_DAC		(1 << 4)
 
 /*
  * (Potentially) shared resources and their owners
