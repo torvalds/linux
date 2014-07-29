@@ -739,7 +739,6 @@ static void put_resources(struct comedi_device *dev, unsigned int res_mask,
 			res_mask &= ~b;
 			if (devpriv->res_owner[i] == owner)
 				devpriv->res_owner[i] = OWNER_NONE;
-
 		}
 	}
 	spin_unlock_irqrestore(&devpriv->res_spinlock, irqflags);
@@ -792,7 +791,6 @@ static unsigned int pci230_choose_clk_count(uint64_t ns, unsigned int *count,
 		cnt = divide_ns(ns, pci230_timebase[clk_src], flags);
 		if ((cnt <= 65536) || (clk_src == CLK_1KHZ))
 			break;
-
 	}
 	*count = cnt;
 	return clk_src;
@@ -1448,7 +1446,6 @@ static void pci230_ao_start(struct comedi_device *dev,
 					   & ~PCI230P2_DAC_TRIG_MASK) |
 			    scantrig;
 			outw(devpriv->daccon, dev->iobase + PCI230_DACCON);
-
 		}
 		switch (cmd->scan_begin_src) {
 		case TRIG_TIMER:
@@ -1512,7 +1509,6 @@ static int pci230_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		/* Claim Z2-CT1. */
 		if (!get_one_resource(dev, RES_Z2CT1, OWNER_AOCMD))
 			return -EBUSY;
-
 	}
 
 	/* Get number of scans required. */
