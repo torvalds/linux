@@ -6248,7 +6248,7 @@ static inline void calculate_imbalance(struct lb_env *env, struct sd_lb_stats *s
 		return fix_small_imbalance(env, sds);
 	}
 
-	if (!busiest->group_imb) {
+	if (busiest->sum_nr_running > busiest->group_capacity_factor) {
 		/*
 		 * Don't want to pull so many tasks that a group would go idle.
 		 * Except of course for the group_imb case, since then we might
