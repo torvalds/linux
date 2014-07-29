@@ -289,6 +289,8 @@ static bool MatchSrcIpv6Address(struct bcm_classifier_rule *pstClassifierRule,
 	UINT uiIpv6AddrNoLongWords = 4;
 	ULONG aulSrcIP[4];
 	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
+	union u_ip_address *src_addr = &pstClassifierRule->stSrcIpAddress;
+
 	/*
 	 * This is the no. of Src Addresses ie Range of IP Addresses contained
 	 * in the classifier rule for which we need to match
@@ -310,14 +312,14 @@ static bool MatchSrcIpv6Address(struct bcm_classifier_rule *pstClassifierRule,
 		DumpIpv6Address(aulSrcIP);
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV6_DBG, DBG_LVL_ALL,
 				"\n Src Ipv6 Mask In Classifier Rule:\n");
-		DumpIpv6Address(&pstClassifierRule->stSrcIpAddress.ulIpv6Mask[uiLoopIndex]);
+		DumpIpv6Address(&src_addr->ulIpv6Mask[uiLoopIndex]);
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV6_DBG, DBG_LVL_ALL,
 				"\n Src Ipv6 Address In Classifier Rule :\n");
-		DumpIpv6Address(&pstClassifierRule->stSrcIpAddress.ulIpv6Addr[uiLoopIndex]);
+		DumpIpv6Address(&src_addr->ulIpv6Addr[uiLoopIndex]);
 
 		for (uiIpv6AddIndex = 0; uiIpv6AddIndex < uiIpv6AddrNoLongWords; uiIpv6AddIndex++) {
-			if ((pstClassifierRule->stSrcIpAddress.ulIpv6Mask[uiLoopIndex+uiIpv6AddIndex] & aulSrcIP[uiIpv6AddIndex])
-				!= pstClassifierRule->stSrcIpAddress.ulIpv6Addr[uiLoopIndex+uiIpv6AddIndex]) {
+			if ((src_addr->ulIpv6Mask[uiLoopIndex+uiIpv6AddIndex] & aulSrcIP[uiIpv6AddIndex])
+				!= src_addr->ulIpv6Addr[uiLoopIndex+uiIpv6AddIndex]) {
 				/*
 				 * Match failed for current Ipv6 Address
 				 * Try next Ipv6 Address
