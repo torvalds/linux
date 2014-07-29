@@ -32,6 +32,25 @@ TRACE_EVENT(thermal_temperature,
 		__entry->temp)
 );
 
+TRACE_EVENT(cdev_update,
+
+	TP_PROTO(struct thermal_cooling_device *cdev, unsigned long target),
+
+	TP_ARGS(cdev, target),
+
+	TP_STRUCT__entry(
+		__string(type, cdev->type)
+		__field(unsigned long, target)
+	),
+
+	TP_fast_assign(
+		__assign_str(type, cdev->type);
+		__entry->target = target;
+	),
+
+	TP_printk("type=%s target=%lu", __get_str(type), __entry->target)
+);
+
 #endif /* _TRACE_THERMAL_H */
 
 /* This part must be outside protection */
