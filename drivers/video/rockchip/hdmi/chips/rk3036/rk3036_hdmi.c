@@ -271,6 +271,7 @@ static int rk3036_hdmi_drv_init(struct hdmi *hdmi_drv)
 	hdmi_sys_init(hdmi_drv);
 	ret = rk3036_hdmi_initial(hdmi_drv);
 
+	hdmi_drv_register(hdmi_drv);
 	return ret;
 }
 
@@ -479,5 +480,5 @@ static void __exit rk3036_hdmi_exit(void)
 	platform_driver_unregister(&rk3036_hdmi_driver);
 }
 
-late_initcall(rk3036_hdmi_init);
+device_initcall_sync(rk3036_hdmi_init);
 module_exit(rk3036_hdmi_exit);
