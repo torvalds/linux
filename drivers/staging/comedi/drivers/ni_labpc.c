@@ -128,24 +128,30 @@ static const struct comedi_lrange range_labpc_ao = {
 
 /* functions that do inb/outb and readb/writeb so we can use
  * function pointers to decide which to use */
-static inline unsigned int labpc_inb(unsigned long address)
+static unsigned int labpc_inb(struct comedi_device *dev, unsigned long reg)
 {
-	return inb(address);
+	return inb(dev->iobase + reg);
 }
 
-static inline void labpc_outb(unsigned int byte, unsigned long address)
+static void labpc_outb(struct comedi_device *dev,
+		       unsigned int byte, unsigned long reg)
 {
-	outb(byte, address);
+	outb(byte, dev->iobase + reg);
 }
 
-static inline unsigned int labpc_readb(unsigned long address)
+static unsigned int labpc_readb(struct comedi_device *dev, unsigned long reg)
 {
-	return readb((void __iomem *)address);
+	void __iomem *mmio = (void __iomem *)dev->iobase;
+
+	return readb(mmio + reg);
 }
 
-static inline void labpc_writeb(unsigned int byte, unsigned long address)
+static void labpc_writeb(struct comedi_device *dev,
+			 unsigned int byte, unsigned long reg)
 {
-	writeb(byte, (void __iomem *)address);
+	void __iomem *mmio = (void __iomem *)dev->iobase;
+
+	writeb(byte, mmio + reg);
 }
 
 #if IS_ENABLED(CONFIG_COMEDI_NI_LABPC_ISA)
@@ -211,11 +217,11 @@ static int labpc_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	spin_lock_irqsave(&dev->spinlock, flags);
 	devpriv->cmd2 &= ~(CMD2_SWTRIG | CMD2_HWTRIG | CMD2_PRETRIG);
-	devpriv->write_byte(devpriv->cmd2, dev->iobase + CMD2_REG);
+	devpriv->write_byte(dev, devpriv->cmd2, CMD2_REG);
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 
 	devpriv->cmd3 = 0;
-	devpriv->write_byte(devpriv->cmd3, dev->iobase + CMD3_REG);
+	devpriv->write_byte(dev, devpriv->cmd3, CMD3_REG);
 
 	return 0;
 }
@@ -245,7 +251,7 @@ static void labpc_ai_set_chan_and_gain(struct comedi_device *dev,
 	devpriv->cmd1 = CMD1_MA(chan);
 	devpriv->cmd1 |= CMD1_GAIN(range);
 
-	devpriv->write_byte(devpriv->cmd1, dev->iobase + CMD1_REG);
+	devpriv->write_byte(dev, devpriv->cmd1, CMD1_REG);
 }
 
 static void labpc_setup_cmd6_reg(struct comedi_device *dev,
@@ -292,14 +298,14 @@ static void labpc_setup_cmd6_reg(struct comedi_device *dev,
 	else
 		devpriv->cmd6 &= ~CMD6_SCANUP;
 
-	devpriv->write_byte(devpriv->cmd6, dev->iobase + CMD6_REG);
+	devpriv->write_byte(dev, devpriv->cmd6, CMD6_REG);
 }
 
 static unsigned int labpc_read_adc_fifo(struct comedi_device *dev)
 {
 	struct labpc_private *devpriv = dev->private;
-	unsigned int lsb = devpriv->read_byte(dev->iobase + ADC_FIFO_REG);
-	unsigned int msb = devpriv->read_byte(dev->iobase + ADC_FIFO_REG);
+	unsigned int lsb = devpriv->read_byte(dev, ADC_FIFO_REG);
+	unsigned int msb = devpriv->read_byte(dev, ADC_FIFO_REG);
 
 	return (msb << 8) | lsb;
 }
@@ -308,7 +314,7 @@ static void labpc_clear_adc_fifo(struct comedi_device *dev)
 {
 	struct labpc_private *devpriv = dev->private;
 
-	devpriv->write_byte(0x1, dev->iobase + ADC_FIFO_CLEAR_REG);
+	devpriv->write_byte(dev, 0x1, ADC_FIFO_CLEAR_REG);
 	labpc_read_adc_fifo(dev);
 }
 
@@ -319,7 +325,7 @@ static int labpc_ai_eoc(struct comedi_device *dev,
 {
 	struct labpc_private *devpriv = dev->private;
 
-	devpriv->stat1 = devpriv->read_byte(dev->iobase + STAT1_REG);
+	devpriv->stat1 = devpriv->read_byte(dev, STAT1_REG);
 	if (devpriv->stat1 & STAT1_DAVAIL)
 		return 0;
 	return -EBUSY;
@@ -351,7 +357,7 @@ static int labpc_ai_insn_read(struct comedi_device *dev,
 	/* single-ended/differential */
 	if (aref == AREF_DIFF)
 		devpriv->cmd4 |= CMD4_SEDIFF;
-	devpriv->write_byte(devpriv->cmd4, dev->iobase + CMD4_REG);
+	devpriv->write_byte(dev, devpriv->cmd4, CMD4_REG);
 
 	/* initialize pacer counter to prevent any problems */
 	labpc_counter_set_mode(dev, dev->iobase + COUNTER_A_BASE_REG,
@@ -361,7 +367,7 @@ static int labpc_ai_insn_read(struct comedi_device *dev,
 
 	for (i = 0; i < insn->n; i++) {
 		/* trigger conversion */
-		devpriv->write_byte(0x1, dev->iobase + ADC_START_CONVERT_REG);
+		devpriv->write_byte(dev, 0x1, ADC_START_CONVERT_REG);
 
 		ret = comedi_timeout(dev, s, insn, labpc_ai_eoc, 0);
 		if (ret)
@@ -786,13 +792,12 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		 * list will get screwed when you switch
 		 * between scan up to scan down mode - dunno why */
 		udelay(1);
-		devpriv->write_byte(devpriv->cmd1, dev->iobase + CMD1_REG);
+		devpriv->write_byte(dev, devpriv->cmd1, CMD1_REG);
 	}
 
-	devpriv->write_byte(cmd->chanlist_len,
-			    dev->iobase + INTERVAL_COUNT_REG);
+	devpriv->write_byte(dev, cmd->chanlist_len, INTERVAL_COUNT_REG);
 	/*  load count */
-	devpriv->write_byte(0x1, dev->iobase + INTERVAL_STROBE_REG);
+	devpriv->write_byte(dev, 0x1, INTERVAL_STROBE_REG);
 
 	if (cmd->convert_src == TRIG_TIMER ||
 	    cmd->scan_begin_src == TRIG_TIMER) {
@@ -830,7 +835,7 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	/*  enable fifo not empty interrupt? */
 	if (xfer == fifo_not_empty_transfer)
 		devpriv->cmd3 |= CMD3_FIFOINTEN;
-	devpriv->write_byte(devpriv->cmd3, dev->iobase + CMD3_REG);
+	devpriv->write_byte(dev, devpriv->cmd3, CMD3_REG);
 
 	/*  setup any external triggering/pacing (cmd4 register) */
 	devpriv->cmd4 = 0;
@@ -846,7 +851,7 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	/*  single-ended/differential */
 	if (aref == AREF_DIFF)
 		devpriv->cmd4 |= CMD4_SEDIFF;
-	devpriv->write_byte(devpriv->cmd4, dev->iobase + CMD4_REG);
+	devpriv->write_byte(dev, devpriv->cmd4, CMD4_REG);
 
 	/*  startup acquisition */
 
@@ -863,7 +868,7 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	if (cmd->stop_src == TRIG_EXT)
 		devpriv->cmd2 |= (CMD2_HWTRIG | CMD2_PRETRIG);
 
-	devpriv->write_byte(devpriv->cmd2, dev->iobase + CMD2_REG);
+	devpriv->write_byte(dev, devpriv->cmd2, CMD2_REG);
 
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 
@@ -880,7 +885,7 @@ static int labpc_drain_fifo(struct comedi_device *dev)
 	const int timeout = 10000;
 	unsigned int i;
 
-	devpriv->stat1 = devpriv->read_byte(dev->iobase + STAT1_REG);
+	devpriv->stat1 = devpriv->read_byte(dev, STAT1_REG);
 
 	for (i = 0; (devpriv->stat1 & STAT1_DAVAIL) && i < timeout;
 	     i++) {
@@ -892,7 +897,7 @@ static int labpc_drain_fifo(struct comedi_device *dev)
 		}
 		data = labpc_read_adc_fifo(dev);
 		cfc_write_to_buffer(dev->read_subdev, data);
-		devpriv->stat1 = devpriv->read_byte(dev->iobase + STAT1_REG);
+		devpriv->stat1 = devpriv->read_byte(dev, STAT1_REG);
 	}
 	if (i == timeout) {
 		dev_err(dev->class_dev, "ai timeout, fifo never empties\n");
@@ -934,9 +939,9 @@ static irqreturn_t labpc_interrupt(int irq, void *d)
 	cmd = &async->cmd;
 
 	/* read board status */
-	devpriv->stat1 = devpriv->read_byte(dev->iobase + STAT1_REG);
+	devpriv->stat1 = devpriv->read_byte(dev, STAT1_REG);
 	if (board->is_labpc1200)
-		devpriv->stat2 = devpriv->read_byte(dev->iobase + STAT2_REG);
+		devpriv->stat2 = devpriv->read_byte(dev, STAT2_REG);
 
 	if ((devpriv->stat1 & (STAT1_GATA0 | STAT1_CNTINT | STAT1_OVERFLOW |
 			       STAT1_OVERRUN | STAT1_DAVAIL)) == 0
@@ -947,7 +952,7 @@ static irqreturn_t labpc_interrupt(int irq, void *d)
 
 	if (devpriv->stat1 & STAT1_OVERRUN) {
 		/* clear error interrupt */
-		devpriv->write_byte(0x1, dev->iobase + ADC_FIFO_CLEAR_REG);
+		devpriv->write_byte(dev, 0x1, ADC_FIFO_CLEAR_REG);
 		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
 		cfc_handle_events(dev, s);
 		dev_err(dev->class_dev, "overrun\n");
@@ -962,12 +967,12 @@ static irqreturn_t labpc_interrupt(int irq, void *d)
 	if (devpriv->stat1 & STAT1_CNTINT) {
 		dev_err(dev->class_dev, "handled timer interrupt?\n");
 		/*  clear it */
-		devpriv->write_byte(0x1, dev->iobase + TIMER_CLEAR_REG);
+		devpriv->write_byte(dev, 0x1, TIMER_CLEAR_REG);
 	}
 
 	if (devpriv->stat1 & STAT1_OVERFLOW) {
 		/*  clear error interrupt */
-		devpriv->write_byte(0x1, dev->iobase + ADC_FIFO_CLEAR_REG);
+		devpriv->write_byte(dev, 0x1, ADC_FIFO_CLEAR_REG);
 		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
 		cfc_handle_events(dev, s);
 		dev_err(dev->class_dev, "overflow\n");
@@ -1009,7 +1014,7 @@ static int labpc_ao_insn_write(struct comedi_device *dev,
 	 * be independently enabled/disabled for its the two channels */
 	spin_lock_irqsave(&dev->spinlock, flags);
 	devpriv->cmd2 &= ~CMD2_LDAC(channel);
-	devpriv->write_byte(devpriv->cmd2, dev->iobase + CMD2_REG);
+	devpriv->write_byte(dev, devpriv->cmd2, CMD2_REG);
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 
 	/* set range */
@@ -1020,13 +1025,13 @@ static int labpc_ao_insn_write(struct comedi_device *dev,
 		else
 			devpriv->cmd6 &= ~CMD6_DACUNI(channel);
 		/*  write to register */
-		devpriv->write_byte(devpriv->cmd6, dev->iobase + CMD6_REG);
+		devpriv->write_byte(dev, devpriv->cmd6, CMD6_REG);
 	}
 	/* send data */
 	lsb = data[0] & 0xff;
 	msb = (data[0] >> 8) & 0xff;
-	devpriv->write_byte(lsb, dev->iobase + DAC_LSB_REG(channel));
-	devpriv->write_byte(msb, dev->iobase + DAC_MSB_REG(channel));
+	devpriv->write_byte(dev, lsb, DAC_LSB_REG(channel));
+	devpriv->write_byte(dev, msb, DAC_MSB_REG(channel));
 
 	/* remember value for readback */
 	devpriv->ao_value[channel] = data[0];
@@ -1072,11 +1077,11 @@ static void labpc_serial_out(struct comedi_device *dev, unsigned int value,
 		else
 			devpriv->cmd5 &= ~CMD5_SDATA;
 		udelay(1);
-		devpriv->write_byte(devpriv->cmd5, dev->iobase + CMD5_REG);
+		devpriv->write_byte(dev, devpriv->cmd5, CMD5_REG);
 		/*  set clock to load bit */
 		devpriv->cmd5 |= CMD5_SCLK;
 		udelay(1);
-		devpriv->write_byte(devpriv->cmd5, dev->iobase + CMD5_REG);
+		devpriv->write_byte(dev, devpriv->cmd5, CMD5_REG);
 	}
 }
 
@@ -1092,14 +1097,14 @@ static unsigned int labpc_serial_in(struct comedi_device *dev)
 		/*  set serial clock */
 		devpriv->cmd5 |= CMD5_SCLK;
 		udelay(1);
-		devpriv->write_byte(devpriv->cmd5, dev->iobase + CMD5_REG);
+		devpriv->write_byte(dev, devpriv->cmd5, CMD5_REG);
 		/*  clear clock bit */
 		devpriv->cmd5 &= ~CMD5_SCLK;
 		udelay(1);
-		devpriv->write_byte(devpriv->cmd5, dev->iobase + CMD5_REG);
+		devpriv->write_byte(dev, devpriv->cmd5, CMD5_REG);
 		/*  read bits most significant bit first */
 		udelay(1);
-		devpriv->stat2 = devpriv->read_byte(dev->iobase + STAT2_REG);
+		devpriv->stat2 = devpriv->read_byte(dev, STAT2_REG);
 		if (devpriv->stat2 & STAT2_PROMOUT)
 			value |= 1 << (value_width - i);
 	}
@@ -1120,10 +1125,10 @@ static unsigned int labpc_eeprom_read(struct comedi_device *dev,
 	/*  enable read/write to eeprom */
 	devpriv->cmd5 &= ~CMD5_EEPROMCS;
 	udelay(1);
-	devpriv->write_byte(devpriv->cmd5, dev->iobase + CMD5_REG);
+	devpriv->write_byte(dev, devpriv->cmd5, CMD5_REG);
 	devpriv->cmd5 |= (CMD5_EEPROMCS | CMD5_WRTPRT);
 	udelay(1);
-	devpriv->write_byte(devpriv->cmd5, dev->iobase + CMD5_REG);
+	devpriv->write_byte(dev, devpriv->cmd5, CMD5_REG);
 
 	/*  send read instruction */
 	labpc_serial_out(dev, read_instruction, write_length);
@@ -1135,7 +1140,7 @@ static unsigned int labpc_eeprom_read(struct comedi_device *dev,
 	/*  disable read/write to eeprom */
 	devpriv->cmd5 &= ~(CMD5_EEPROMCS | CMD5_WRTPRT);
 	udelay(1);
-	devpriv->write_byte(devpriv->cmd5, dev->iobase + CMD5_REG);
+	devpriv->write_byte(dev, devpriv->cmd5, CMD5_REG);
 
 	return value;
 }
@@ -1150,10 +1155,10 @@ static unsigned int labpc_eeprom_read_status(struct comedi_device *dev)
 	/*  enable read/write to eeprom */
 	devpriv->cmd5 &= ~CMD5_EEPROMCS;
 	udelay(1);
-	devpriv->write_byte(devpriv->cmd5, dev->iobase + CMD5_REG);
+	devpriv->write_byte(dev, devpriv->cmd5, CMD5_REG);
 	devpriv->cmd5 |= (CMD5_EEPROMCS | CMD5_WRTPRT);
 	udelay(1);
-	devpriv->write_byte(devpriv->cmd5, dev->iobase + CMD5_REG);
+	devpriv->write_byte(dev, devpriv->cmd5, CMD5_REG);
 
 	/*  send read status instruction */
 	labpc_serial_out(dev, read_status_instruction, write_length);
@@ -1163,7 +1168,7 @@ static unsigned int labpc_eeprom_read_status(struct comedi_device *dev)
 	/*  disable read/write to eeprom */
 	devpriv->cmd5 &= ~(CMD5_EEPROMCS | CMD5_WRTPRT);
 	udelay(1);
-	devpriv->write_byte(devpriv->cmd5, dev->iobase + CMD5_REG);
+	devpriv->write_byte(dev, devpriv->cmd5, CMD5_REG);
 
 	return value;
 }
@@ -1195,21 +1200,21 @@ static int labpc_eeprom_write(struct comedi_device *dev,
 	/*  enable read/write to eeprom */
 	devpriv->cmd5 &= ~CMD5_EEPROMCS;
 	udelay(1);
-	devpriv->write_byte(devpriv->cmd5, dev->iobase + CMD5_REG);
+	devpriv->write_byte(dev, devpriv->cmd5, CMD5_REG);
 	devpriv->cmd5 |= (CMD5_EEPROMCS | CMD5_WRTPRT);
 	udelay(1);
-	devpriv->write_byte(devpriv->cmd5, dev->iobase + CMD5_REG);
+	devpriv->write_byte(dev, devpriv->cmd5, CMD5_REG);
 
 	/*  send write_enable instruction */
 	labpc_serial_out(dev, write_enable_instruction, write_length);
 	devpriv->cmd5 &= ~CMD5_EEPROMCS;
 	udelay(1);
-	devpriv->write_byte(devpriv->cmd5, dev->iobase + CMD5_REG);
+	devpriv->write_byte(dev, devpriv->cmd5, CMD5_REG);
 
 	/*  send write instruction */
 	devpriv->cmd5 |= CMD5_EEPROMCS;
 	udelay(1);
-	devpriv->write_byte(devpriv->cmd5, dev->iobase + CMD5_REG);
+	devpriv->write_byte(dev, devpriv->cmd5, CMD5_REG);
 	labpc_serial_out(dev, write_instruction, write_length);
 	/*  send 8 bit address to write to */
 	labpc_serial_out(dev, address, write_length);
@@ -1217,12 +1222,12 @@ static int labpc_eeprom_write(struct comedi_device *dev,
 	labpc_serial_out(dev, value, write_length);
 	devpriv->cmd5 &= ~CMD5_EEPROMCS;
 	udelay(1);
-	devpriv->write_byte(devpriv->cmd5, dev->iobase + CMD5_REG);
+	devpriv->write_byte(dev, devpriv->cmd5, CMD5_REG);
 
 	/*  disable read/write to eeprom */
 	devpriv->cmd5 &= ~(CMD5_EEPROMCS | CMD5_WRTPRT);
 	udelay(1);
-	devpriv->write_byte(devpriv->cmd5, dev->iobase + CMD5_REG);
+	devpriv->write_byte(dev, devpriv->cmd5, CMD5_REG);
 
 	return 0;
 }
@@ -1240,7 +1245,7 @@ static void write_caldac(struct comedi_device *dev, unsigned int channel,
 	/*  clear caldac load bit and make sure we don't write to eeprom */
 	devpriv->cmd5 &= ~(CMD5_CALDACLD | CMD5_EEPROMCS | CMD5_WRTPRT);
 	udelay(1);
-	devpriv->write_byte(devpriv->cmd5, dev->iobase + CMD5_REG);
+	devpriv->write_byte(dev, devpriv->cmd5, CMD5_REG);
 
 	/*  write 4 bit channel */
 	labpc_serial_out(dev, channel, 4);
@@ -1250,10 +1255,10 @@ static void write_caldac(struct comedi_device *dev, unsigned int channel,
 	/*  set and clear caldac bit to load caldac value */
 	devpriv->cmd5 |= CMD5_CALDACLD;
 	udelay(1);
-	devpriv->write_byte(devpriv->cmd5, dev->iobase + CMD5_REG);
+	devpriv->write_byte(dev, devpriv->cmd5, CMD5_REG);
 	devpriv->cmd5 &= ~CMD5_CALDACLD;
 	udelay(1);
-	devpriv->write_byte(devpriv->cmd5, dev->iobase + CMD5_REG);
+	devpriv->write_byte(dev, devpriv->cmd5, CMD5_REG);
 }
 
 static int labpc_calib_insn_write(struct comedi_device *dev,
@@ -1346,13 +1351,13 @@ int labpc_common_attach(struct comedi_device *dev,
 	}
 
 	/* initialize board's command registers */
-	devpriv->write_byte(devpriv->cmd1, dev->iobase + CMD1_REG);
-	devpriv->write_byte(devpriv->cmd2, dev->iobase + CMD2_REG);
-	devpriv->write_byte(devpriv->cmd3, dev->iobase + CMD3_REG);
-	devpriv->write_byte(devpriv->cmd4, dev->iobase + CMD4_REG);
+	devpriv->write_byte(dev, devpriv->cmd1, CMD1_REG);
+	devpriv->write_byte(dev, devpriv->cmd2, CMD2_REG);
+	devpriv->write_byte(dev, devpriv->cmd3, CMD3_REG);
+	devpriv->write_byte(dev, devpriv->cmd4, CMD4_REG);
 	if (board->is_labpc1200) {
-		devpriv->write_byte(devpriv->cmd5, dev->iobase + CMD5_REG);
-		devpriv->write_byte(devpriv->cmd6, dev->iobase + CMD6_REG);
+		devpriv->write_byte(dev, devpriv->cmd5, CMD5_REG);
+		devpriv->write_byte(dev, devpriv->cmd6, CMD6_REG);
 	}
 
 	if (irq) {
@@ -1402,8 +1407,8 @@ int labpc_common_attach(struct comedi_device *dev,
 			devpriv->ao_value[i] = s->maxdata / 2;
 			lsb = devpriv->ao_value[i] & 0xff;
 			msb = (devpriv->ao_value[i] >> 8) & 0xff;
-			devpriv->write_byte(lsb, dev->iobase + DAC_LSB_REG(i));
-			devpriv->write_byte(msb, dev->iobase + DAC_MSB_REG(i));
+			devpriv->write_byte(dev, lsb, DAC_LSB_REG(i));
+			devpriv->write_byte(dev, msb, DAC_MSB_REG(i));
 		}
 	} else {
 		s->type		= COMEDI_SUBD_UNUSED;
