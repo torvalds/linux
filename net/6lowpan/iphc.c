@@ -271,27 +271,31 @@ uncompress_udp_header(struct sk_buff *skb, struct udphdr *uh)
 	if (!uh)
 		goto err;
 
-	fail = lowpan_fetch_skb(skb, &tmp, 1);
+	fail = lowpan_fetch_skb(skb, &tmp, sizeof(tmp));
 
 	if ((tmp & LOWPAN_NHC_UDP_MASK) == LOWPAN_NHC_UDP_ID) {
 		pr_debug("UDP header uncompression\n");
 		switch (tmp & LOWPAN_NHC_UDP_CS_P_11) {
 		case LOWPAN_NHC_UDP_CS_P_00:
-			fail |= lowpan_fetch_skb(skb, &uh->source, 2);
-			fail |= lowpan_fetch_skb(skb, &uh->dest, 2);
+			fail |= lowpan_fetch_skb(skb, &uh->source,
+						 sizeof(uh->source));
+			fail |= lowpan_fetch_skb(skb, &uh->dest,
+						 sizeof(uh->dest));
 			break;
 		case LOWPAN_NHC_UDP_CS_P_01:
-			fail |= lowpan_fetch_skb(skb, &uh->source, 2);
-			fail |= lowpan_fetch_skb(skb, &val, 1);
+			fail |= lowpan_fetch_skb(skb, &uh->source,
+						 sizeof(uh->source));
+			fail |= lowpan_fetch_skb(skb, &val, sizeof(val));
 			uh->dest = htons(val + LOWPAN_NHC_UDP_8BIT_PORT);
 			break;
 		case LOWPAN_NHC_UDP_CS_P_10:
-			fail |= lowpan_fetch_skb(skb, &val, 1);
+			fail |= lowpan_fetch_skb(skb, &val, sizeof(val));
 			uh->source = htons(val + LOWPAN_NHC_UDP_8BIT_PORT);
-			fail |= lowpan_fetch_skb(skb, &uh->dest, 2);
+			fail |= lowpan_fetch_skb(skb, &uh->dest,
+						 sizeof(uh->dest));
 			break;
 		case LOWPAN_NHC_UDP_CS_P_11:
-			fail |= lowpan_fetch_skb(skb, &val, 1);
+			fail |= lowpan_fetch_skb(skb, &val, sizeof(val));
 			uh->source = htons(LOWPAN_NHC_UDP_4BIT_PORT +
 					   (val >> 4));
 			uh->dest = htons(LOWPAN_NHC_UDP_4BIT_PORT +
@@ -311,7 +315,8 @@ uncompress_udp_header(struct sk_buff *skb, struct udphdr *uh)
 			pr_debug_ratelimited("checksum elided currently not supported\n");
 			goto err;
 		} else {
-			fail |= lowpan_fetch_skb(skb, &uh->check, 2);
+			fail |= lowpan_fetch_skb(skb, &uh->check,
+						 sizeof(uh->check));
 		}
 
 		/*
