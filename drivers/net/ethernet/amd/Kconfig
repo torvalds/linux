@@ -192,4 +192,14 @@ config AMD_XGBE
 	  To compile this driver as a module, choose M here: the module
 	  will be called amd-xgbe.
 
+config AMD_XGBE_DCB
+	bool "Data Center Bridging (DCB) support"
+	default n
+	depends on AMD_XGBE && DCB
+	---help---
+	  Say Y here to enable Data Center Bridging (DCB) support in the
+	  driver.
+
+	  If unsure, say N.
+
 endif # NET_VENDOR_AMD

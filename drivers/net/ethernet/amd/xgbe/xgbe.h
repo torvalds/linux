@@ -126,6 +126,7 @@
 #include <linux/ptp_clock_kernel.h>
 #include <linux/clocksource.h>
 #include <linux/net_tstamp.h>
+#include <net/dcbnl.h>
 
 
 #define XGBE_DRV_NAME		"amd-xgbe"
@@ -144,6 +145,7 @@
 #define XGBE_RX_BUF_ALIGN	64
 
 #define XGBE_MAX_DMA_CHANNELS	16
+#define XGBE_MAX_QUEUES		16
 
 /* DMA cache settings - Outer sharable, write-back, write-allocate */
 #define XGBE_DMA_OS_AXDOMAIN	0x2
@@ -184,7 +186,7 @@
 #define XGBE_FIFO_SIZE_B(x)	(x)
 #define XGBE_FIFO_SIZE_KB(x)	(x * 1024)
 
-#define XGBE_TC_CNT		2
+#define XGBE_TC_MIN_QUANTUM	10
 
 /* Helper macro for descriptor handling
  *  Always use XGBE_GET_DESC_DATA to access the descriptor data
@@ -504,6 +506,10 @@ struct xgbe_hw_if {
 				unsigned int nsec);
 	u64 (*get_tstamp_time)(struct xgbe_prv_data *);
 	u64 (*get_tx_tstamp)(struct xgbe_prv_data *);
+
+	/* For Data Center Bridging config */
+	void (*config_dcb_tc)(struct xgbe_prv_data *);
+	void (*config_dcb_pfc)(struct xgbe_prv_data *);
 };
 
 struct xgbe_desc_if {
@@ -545,6 +551,7 @@ struct xgbe_hw_features {
 	unsigned int tso;		/* TCP Segmentation Offload */
 	unsigned int dma_debug;		/* DMA Debug Registers */
 	unsigned int rss;		/* Receive Side Scaling */
+	unsigned int tc_cnt;		/* Number of Traffic Classes */
 	unsigned int hash_table_size;	/* Hash Table Size */
 	unsigned int l3l4_filter_num;	/* Number of L3-L4 Filters */
 
@@ -663,6 +670,12 @@ struct xgbe_prv_data {
 	struct sk_buff *tx_tstamp_skb;
 	u64 tx_tstamp;
 
+	/* DCB support */
+	struct ieee_ets *ets;
+	struct ieee_pfc *pfc;
+	unsigned int q2tc_map[XGBE_MAX_QUEUES];
+	unsigned int prio2q_map[IEEE_8021QAZ_MAX_TCS];
+
 	/* Hardware features of the device */
 	struct xgbe_hw_features hw_feat;
 
@@ -688,6 +701,9 @@ void xgbe_init_function_ptrs_dev(struct xgbe_hw_if *);
 void xgbe_init_function_ptrs_desc(struct xgbe_desc_if *);
 struct net_device_ops *xgbe_get_netdev_ops(void);
 struct ethtool_ops *xgbe_get_ethtool_ops(void);
+#ifdef CONFIG_AMD_XGBE_DCB
+const struct dcbnl_rtnl_ops *xgbe_get_dcbnl_ops(void);
+#endif
 
 int xgbe_mdio_register(struct xgbe_prv_data *);
 void xgbe_mdio_unregister(struct xgbe_prv_data *);

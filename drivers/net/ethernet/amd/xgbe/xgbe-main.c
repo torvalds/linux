@@ -400,9 +400,12 @@ static int xgbe_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_bus_id;
 
-	/* Set network and ethtool operations */
+	/* Set device operations */
 	netdev->netdev_ops = xgbe_get_netdev_ops();
 	netdev->ethtool_ops = xgbe_get_ethtool_ops();
+#ifdef CONFIG_AMD_XGBE_DCB
+	netdev->dcbnl_ops = xgbe_get_dcbnl_ops();
+#endif
 
 	/* Set device features */
 	netdev->hw_features = NETIF_F_SG |

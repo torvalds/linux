@@ -407,7 +407,9 @@ static int xgbe_enable_rx_flow_control(struct xgbe_prv_data *pdata)
 
 static int xgbe_config_tx_flow_control(struct xgbe_prv_data *pdata)
 {
-	if (pdata->tx_pause)
+	struct ieee_pfc *pfc = pdata->pfc;
+
+	if (pdata->tx_pause || (pfc && pfc->pfc_en))
 		xgbe_enable_tx_flow_control(pdata);
 	else
 		xgbe_disable_tx_flow_control(pdata);
@@ -417,7 +419,9 @@ static int xgbe_config_tx_flow_control(struct xgbe_prv_data *pdata)
 
 static int xgbe_config_rx_flow_control(struct xgbe_prv_data *pdata)
 {
-	if (pdata->rx_pause)
+	struct ieee_pfc *pfc = pdata->pfc;
+
+	if (pdata->rx_pause || (pfc && pfc->pfc_en))
 		xgbe_enable_rx_flow_control(pdata);
 	else
 		xgbe_disable_rx_flow_control(pdata);
@@ -427,8 +431,13 @@ static int xgbe_config_rx_flow_control(struct xgbe_prv_data *pdata)
 
 static void xgbe_config_flow_control(struct xgbe_prv_data *pdata)
 {
+	struct ieee_pfc *pfc = pdata->pfc;
+
 	xgbe_config_tx_flow_control(pdata);
 	xgbe_config_rx_flow_control(pdata);
+
+	XGMAC_IOWRITE_BITS(pdata, MAC_RFCR, PFCE,
+			   (pfc && pfc->pfc_en) ? 1 : 0);
 }
 
 static void xgbe_enable_dma_interrupts(struct xgbe_prv_data *pdata)
@@ -1117,6 +1126,79 @@ static int xgbe_config_tstamp(struct xgbe_prv_data *pdata,
 	return 0;
 }
 
+static void xgbe_config_dcb_tc(struct xgbe_prv_data *pdata)
+{
+	struct ieee_ets *ets = pdata->ets;
+	unsigned int total_weight, min_weight, weight;
+	unsigned int i;
+
+	if (!ets)
+		return;
+
+	/* Set Tx to deficit weighted round robin scheduling algorithm (when
+	 * traffic class is using ETS algorithm)
+	 */
+	XGMAC_IOWRITE_BITS(pdata, MTL_OMR, ETSALG, MTL_ETSALG_DWRR);
+
+	/* Set Traffic Class algorithms */
+	total_weight = pdata->netdev->mtu * pdata->hw_feat.tc_cnt;
+	min_weight = total_weight / 100;
+	if (!min_weight)
+		min_weight = 1;
+
+	for (i = 0; i < pdata->hw_feat.tc_cnt; i++) {
+		switch (ets->tc_tsa[i]) {
+		case IEEE_8021QAZ_TSA_STRICT:
+			DBGPR("  TC%u using SP\n", i);
+			XGMAC_MTL_IOWRITE_BITS(pdata, i, MTL_TC_ETSCR, TSA,
+					       MTL_TSA_SP);
+			break;
+		case IEEE_8021QAZ_TSA_ETS:
+			weight = total_weight * ets->tc_tx_bw[i] / 100;
+			weight = clamp(weight, min_weight, total_weight);
+
+			DBGPR("  TC%u using DWRR (weight %u)\n", i, weight);
+			XGMAC_MTL_IOWRITE_BITS(pdata, i, MTL_TC_ETSCR, TSA,
+					       MTL_TSA_ETS);
+			XGMAC_MTL_IOWRITE_BITS(pdata, i, MTL_TC_QWR, QW,
+					       weight);
+			break;
+		}
+	}
+}
+
+static void xgbe_config_dcb_pfc(struct xgbe_prv_data *pdata)
+{
+	struct ieee_pfc *pfc = pdata->pfc;
+	struct ieee_ets *ets = pdata->ets;
+	unsigned int mask, reg, reg_val;
+	unsigned int tc, prio;
+
+	if (!pfc || !ets)
+		return;
+
+	for (tc = 0; tc < pdata->hw_feat.tc_cnt; tc++) {
+		mask = 0;
+		for (prio = 0; prio < IEEE_8021QAZ_MAX_TCS; prio++) {
+			if ((pfc->pfc_en & (1 << prio)) &&
+			    (ets->prio_tc[prio] == tc))
+				mask |= (1 << prio);
+		}
+		mask &= 0xff;
+
+		DBGPR("  TC%u PFC mask=%#x\n", tc, mask);
+		reg = MTL_TCPM0R + (MTL_TCPM_INC * (tc / MTL_TCPM_TC_PER_REG));
+		reg_val = XGMAC_IOREAD(pdata, reg);
+
+		reg_val &= ~(0xff << ((tc % MTL_TCPM_TC_PER_REG) << 3));
+		reg_val |= (mask << ((tc % MTL_TCPM_TC_PER_REG) << 3));
+
+		XGMAC_IOWRITE(pdata, reg, reg_val);
+	}
+
+	xgbe_config_flow_control(pdata);
+}
+
 static void xgbe_pre_xmit(struct xgbe_channel *channel)
 {
 	struct xgbe_prv_data *pdata = channel->pdata;
@@ -1607,14 +1689,15 @@ static void xgbe_config_mtl_mode(struct xgbe_prv_data *pdata)
 {
 	unsigned int i;
 
-	/* Set Tx to weighted round robin scheduling algorithm (when
-	 * traffic class is using ETS algorithm)
-	 */
+	/* Set Tx to weighted round robin scheduling algorithm */
 	XGMAC_IOWRITE_BITS(pdata, MTL_OMR, ETSALG, MTL_ETSALG_WRR);
 
-	/* Set Tx traffic classes to strict priority algorithm */
-	for (i = 0; i < XGBE_TC_CNT; i++)
-		XGMAC_MTL_IOWRITE_BITS(pdata, i, MTL_TC_ETSCR, TSA, MTL_TSA_SP);
+	/* Set Tx traffic classes to use WRR algorithm with equal weights */
+	for (i = 0; i < pdata->hw_feat.tc_cnt; i++) {
+		XGMAC_MTL_IOWRITE_BITS(pdata, i, MTL_TC_ETSCR, TSA,
+				       MTL_TSA_ETS);
+		XGMAC_MTL_IOWRITE_BITS(pdata, i, MTL_TC_QWR, QW, 1);
+	}
 
 	/* Set Rx to strict priority algorithm */
 	XGMAC_IOWRITE_BITS(pdata, MTL_OMR, RAA, MTL_RAA_SP);
@@ -1724,18 +1807,75 @@ static void xgbe_config_rx_fifo_size(struct xgbe_prv_data *pdata)
 		      pdata->rx_q_count, ((fifo_size + 1) * 256));
 }
 
-static void xgbe_config_rx_queue_mapping(struct xgbe_prv_data *pdata)
+static void xgbe_config_queue_mapping(struct xgbe_prv_data *pdata)
 {
-	unsigned int i, reg, reg_val;
-	unsigned int q_count = pdata->rx_q_count;
+	unsigned int qptc, qptc_extra, queue;
+	unsigned int prio_queues;
+	unsigned int ppq, ppq_extra, prio;
+	unsigned int mask;
+	unsigned int i, j, reg, reg_val;
+
+	/* Map the MTL Tx Queues to Traffic Classes
+	 *   Note: Tx Queues >= Traffic Classes
+	 */
+	qptc = pdata->tx_q_count / pdata->hw_feat.tc_cnt;
+	qptc_extra = pdata->tx_q_count % pdata->hw_feat.tc_cnt;
+
+	for (i = 0, queue = 0; i < pdata->hw_feat.tc_cnt; i++) {
+		for (j = 0; j < qptc; j++) {
+			DBGPR("  TXq%u mapped to TC%u\n", queue, i);
+			XGMAC_MTL_IOWRITE_BITS(pdata, queue, MTL_Q_TQOMR,
+					       Q2TCMAP, i);
+			pdata->q2tc_map[queue++] = i;
+		}
+
+		if (i < qptc_extra) {
+			DBGPR("  TXq%u mapped to TC%u\n", queue, i);
+			XGMAC_MTL_IOWRITE_BITS(pdata, queue, MTL_Q_TQOMR,
+					       Q2TCMAP, i);
+			pdata->q2tc_map[queue++] = i;
+		}
+	}
+
+	/* Map the 8 VLAN priority values to available MTL Rx queues */
+	prio_queues = min_t(unsigned int, IEEE_8021QAZ_MAX_TCS,
+			    pdata->rx_q_count);
+	ppq = IEEE_8021QAZ_MAX_TCS / prio_queues;
+	ppq_extra = IEEE_8021QAZ_MAX_TCS % prio_queues;
+
+	reg = MAC_RQC2R;
+	reg_val = 0;
+	for (i = 0, prio = 0; i < prio_queues;) {
+		mask = 0;
+		for (j = 0; j < ppq; j++) {
+			DBGPR("  PRIO%u mapped to RXq%u\n", prio, i);
+			mask |= (1 << prio);
+			pdata->prio2q_map[prio++] = i;
+		}
+
+		if (i < ppq_extra) {
+			DBGPR("  PRIO%u mapped to RXq%u\n", prio, i);
+			mask |= (1 << prio);
+			pdata->prio2q_map[prio++] = i;
+		}
+
+		reg_val |= (mask << ((i++ % MAC_RQC2_Q_PER_REG) << 3));
+
+		if ((i % MAC_RQC2_Q_PER_REG) && (i != prio_queues))
+			continue;
+
+		XGMAC_IOWRITE(pdata, reg, reg_val);
+		reg += MAC_RQC2_INC;
+		reg_val = 0;
+	}
 
 	/* Select dynamic mapping of MTL Rx queue to DMA Rx channel */
 	reg = MTL_RQDCM0R;
 	reg_val = 0;
-	for (i = 0; i < q_count;) {
+	for (i = 0; i < pdata->rx_q_count;) {
 		reg_val |= (0x80 << ((i++ % MTL_RQDCM_Q_PER_REG) << 3));
 
-		if ((i % MTL_RQDCM_Q_PER_REG) && (i != q_count))
+		if ((i % MTL_RQDCM_Q_PER_REG) && (i != pdata->rx_q_count))
 			continue;
 
 		XGMAC_IOWRITE(pdata, reg, reg_val);
@@ -2321,9 +2461,7 @@ static int xgbe_init(struct xgbe_prv_data *pdata)
 	 * Initialize MTL related features
 	 */
 	xgbe_config_mtl_mode(pdata);
-	xgbe_config_rx_queue_mapping(pdata);
-	/*TODO: Program the priorities mapped to the Selected Traffic Classes
-		in MTL_TC_Prty_Map0-3 registers */
+	xgbe_config_queue_mapping(pdata);
 	xgbe_config_tsf_mode(pdata, pdata->tx_sf_mode);
 	xgbe_config_rsf_mode(pdata, pdata->rx_sf_mode);
 	xgbe_config_tx_threshold(pdata, pdata->tx_threshold);
@@ -2331,14 +2469,12 @@ static int xgbe_init(struct xgbe_prv_data *pdata)
 	xgbe_config_tx_fifo_size(pdata);
 	xgbe_config_rx_fifo_size(pdata);
 	xgbe_config_flow_control_threshold(pdata);
-	/*TODO: Queue to Traffic Class Mapping (Q2TCMAP) */
 	/*TODO: Error Packet and undersized good Packet forwarding enable
 		(FEP and FUP)
 	 */
+	xgbe_config_dcb_tc(pdata);
+	xgbe_config_dcb_pfc(pdata);
 	xgbe_enable_mtl_interrupts(pdata);
-
-	/* Transmit Class Weight */
-	XGMAC_IOWRITE_BITS(pdata, MTL_Q_TCQWR, QW, 0x10);
 
 	/*
 	 * Initialize MAC related features
@@ -2447,6 +2583,10 @@ void xgbe_init_function_ptrs_dev(struct xgbe_hw_if *hw_if)
 	hw_if->set_tstamp_time = xgbe_set_tstamp_time;
 	hw_if->get_tstamp_time = xgbe_get_tstamp_time;
 	hw_if->get_tx_tstamp = xgbe_get_tx_tstamp;
+
+	/* For Data Center Bridging config */
+	hw_if->config_dcb_tc = xgbe_config_dcb_tc;
+	hw_if->config_dcb_pfc = xgbe_config_dcb_pfc;
 
 	DBGPR("<--xgbe_init_function_ptrs\n");
 }

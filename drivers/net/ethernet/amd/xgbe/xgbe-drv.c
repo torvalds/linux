@@ -387,6 +387,7 @@ void xgbe_get_all_hw_features(struct xgbe_prv_data *pdata)
 	hw_feat->sph           = XGMAC_GET_BITS(mac_hfr1, MAC_HWF1R, SPHEN);
 	hw_feat->tso           = XGMAC_GET_BITS(mac_hfr1, MAC_HWF1R, TSOEN);
 	hw_feat->dma_debug     = XGMAC_GET_BITS(mac_hfr1, MAC_HWF1R, DBGMEMA);
+	hw_feat->tc_cnt	       = XGMAC_GET_BITS(mac_hfr1, MAC_HWF1R, NUMTC);
 	hw_feat->hash_table_size = XGMAC_GET_BITS(mac_hfr1, MAC_HWF1R,
 						  HASHTBLSZ);
 	hw_feat->l3l4_filter_num = XGMAC_GET_BITS(mac_hfr1, MAC_HWF1R,
@@ -1312,6 +1313,33 @@ static void xgbe_poll_controller(struct net_device *netdev)
 }
 #endif /* End CONFIG_NET_POLL_CONTROLLER */
 
+static int xgbe_setup_tc(struct net_device *netdev, u8 tc)
+{
+	struct xgbe_prv_data *pdata = netdev_priv(netdev);
+	unsigned int offset, queue;
+	u8 i;
+
+	if (tc && (tc != pdata->hw_feat.tc_cnt))
+		return -EINVAL;
+
+	if (tc) {
+		netdev_set_num_tc(netdev, tc);
+		for (i = 0, queue = 0, offset = 0; i < tc; i++) {
+			while ((queue < pdata->tx_q_count) &&
+			       (pdata->q2tc_map[queue] == i))
+				queue++;
+
+			DBGPR("  TC%u using TXq%u-%u\n", i, offset, queue - 1);
+			netdev_set_tc_queue(netdev, i, queue - offset, offset);
+			offset = queue;
+		}
+	} else {
+		netdev_reset_tc(netdev);
+	}
+
+	return 0;
+}
+
 static int xgbe_set_features(struct net_device *netdev,
 			     netdev_features_t features)
 {
@@ -1360,6 +1388,7 @@ static const struct net_device_ops xgbe_netdev_ops = {
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= xgbe_poll_controller,
 #endif
+	.ndo_setup_tc		= xgbe_setup_tc,
 	.ndo_set_features	= xgbe_set_features,
 };
 

@@ -322,6 +322,9 @@
 #define MAC_MACA_INC			4
 #define MAC_HTR_INC			4
 
+#define MAC_RQC2_INC			4
+#define MAC_RQC2_Q_PER_REG		4
+
 /* MAC register entry bit positions and sizes */
 #define MAC_HWF0R_ADDMACADRSEL_INDEX	18
 #define MAC_HWF0R_ADDMACADRSEL_WIDTH	5
@@ -361,6 +364,8 @@
 #define MAC_HWF1R_HASHTBLSZ_WIDTH	3
 #define MAC_HWF1R_L3L4FNUM_INDEX	27
 #define MAC_HWF1R_L3L4FNUM_WIDTH	4
+#define MAC_HWF1R_NUMTC_INDEX		21
+#define MAC_HWF1R_NUMTC_WIDTH		3
 #define MAC_HWF1R_RSSEN_INDEX		20
 #define MAC_HWF1R_RSSEN_WIDTH		1
 #define MAC_HWF1R_RXFIFOSIZE_INDEX	0
@@ -433,8 +438,12 @@
 #define MAC_RCR_LM_WIDTH		1
 #define MAC_RCR_RE_INDEX		0
 #define MAC_RCR_RE_WIDTH		1
+#define MAC_RFCR_PFCE_INDEX		8
+#define MAC_RFCR_PFCE_WIDTH		1
 #define MAC_RFCR_RFE_INDEX		0
 #define MAC_RFCR_RFE_WIDTH		1
+#define MAC_RFCR_UP_INDEX		1
+#define MAC_RFCR_UP_WIDTH		1
 #define MAC_RQC0R_RXQ0EN_INDEX		0
 #define MAC_RQC0R_RXQ0EN_WIDTH		2
 #define MAC_SSIR_SNSINC_INDEX		8
@@ -704,6 +713,8 @@
 
 #define MTL_RQDCM_INC			4
 #define MTL_RQDCM_Q_PER_REG		4
+#define MTL_TCPM_INC			4
+#define MTL_TCPM_TC_PER_REG		4
 
 /* MTL register entry bit positions and sizes */
 #define MTL_OMR_ETSALG_INDEX		5
@@ -722,9 +733,6 @@
 #define MTL_Q_TQOMR			0x00
 #define MTL_Q_TQUR			0x04
 #define MTL_Q_TQDR			0x08
-#define MTL_Q_TCECR			0x10
-#define MTL_Q_TCESR			0x14
-#define MTL_Q_TCQWR			0x18
 #define MTL_Q_RQOMR			0x40
 #define MTL_Q_RQMPOCR			0x44
 #define MTL_Q_RQDR			0x4c
@@ -732,8 +740,6 @@
 #define MTL_Q_ISR			0x74
 
 /* MTL queue register entry bit positions and sizes */
-#define MTL_Q_TCQWR_QW_INDEX		0
-#define MTL_Q_TCQWR_QW_WIDTH		21
 #define MTL_Q_RQOMR_EHFC_INDEX		7
 #define MTL_Q_RQOMR_EHFC_WIDTH		1
 #define MTL_Q_RQOMR_RFA_INDEX		8
@@ -748,6 +754,8 @@
 #define MTL_Q_RQOMR_RTC_WIDTH		2
 #define MTL_Q_TQOMR_FTQ_INDEX		0
 #define MTL_Q_TQOMR_FTQ_WIDTH		1
+#define MTL_Q_TQOMR_Q2TCMAP_INDEX	8
+#define MTL_Q_TQOMR_Q2TCMAP_WIDTH	3
 #define MTL_Q_TQOMR_TQS_INDEX		16
 #define MTL_Q_TQOMR_TQS_WIDTH		10
 #define MTL_Q_TQOMR_TSF_INDEX		1
@@ -794,10 +802,14 @@
 #define MTL_TC_INC			MTL_Q_INC
 
 #define MTL_TC_ETSCR			0x10
+#define MTL_TC_ETSSR			0x14
+#define MTL_TC_QWR			0x18
 
 /* MTL traffic class register entry bit positions and sizes */
 #define MTL_TC_ETSCR_TSA_INDEX		0
 #define MTL_TC_ETSCR_TSA_WIDTH		2
+#define MTL_TC_QWR_QW_INDEX		0
+#define MTL_TC_QWR_QW_WIDTH		21
 
 /* MTL traffic class register value */
 #define MTL_TSA_SP			0x00
