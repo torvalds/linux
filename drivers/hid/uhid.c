@@ -49,6 +49,7 @@ struct uhid_device {
 	wait_queue_head_t report_wait;
 	bool report_running;
 	u32 report_id;
+	u32 report_type;
 	struct uhid_event report_buf;
 };
 
@@ -124,50 +125,17 @@ static int uhid_hid_parse(struct hid_device *hid)
 	return hid_parse_report(hid, uhid->rd_data, uhid->rd_size);
 }
 
-static int uhid_hid_get_report(struct hid_device *hid, unsigned char rnum,
-			       __u8 *buf, size_t count, unsigned char rtype)
+/* must be called with report_lock held */
+static int __uhid_report_queue_and_wait(struct uhid_device *uhid,
+					struct uhid_event *ev,
+					__u32 *report_id)
 {
-	struct uhid_device *uhid = hid->driver_data;
-	__u8 report_type;
-	struct uhid_event *ev;
 	unsigned long flags;
 	int ret;
-	size_t uninitialized_var(len);
-	struct uhid_get_report_reply_req *req;
-
-	if (!uhid->running)
-		return -EIO;
-
-	switch (rtype) {
-	case HID_FEATURE_REPORT:
-		report_type = UHID_FEATURE_REPORT;
-		break;
-	case HID_OUTPUT_REPORT:
-		report_type = UHID_OUTPUT_REPORT;
-		break;
-	case HID_INPUT_REPORT:
-		report_type = UHID_INPUT_REPORT;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	ret = mutex_lock_interruptible(&uhid->report_lock);
-	if (ret)
-		return ret;
-
-	ev = kzalloc(sizeof(*ev), GFP_KERNEL);
-	if (!ev) {
-		ret = -ENOMEM;
-		goto unlock;
-	}
 
 	spin_lock_irqsave(&uhid->qlock, flags);
-	ev->type = UHID_GET_REPORT;
-	ev->u.get_report.id = ++uhid->report_id;
-	ev->u.get_report.rnum = rnum;
-	ev->u.get_report.rtype = report_type;
-
+	*report_id = ++uhid->report_id;
+	uhid->report_type = ev->type;
 	uhid->report_running = true;
 	uhid_queue(uhid, ev);
 	spin_unlock_irqrestore(&uhid->qlock, flags);
@@ -175,44 +143,148 @@ static int uhid_hid_get_report(struct hid_device *hid, unsigned char rnum,
 	ret = wait_event_interruptible_timeout(uhid->report_wait,
 				!uhid->report_running || !uhid->running,
 				5 * HZ);
-
-	if (!ret || !uhid->running) {
+	if (!ret || !uhid->running || uhid->report_running)
 		ret = -EIO;
-	} else if (ret < 0) {
+	else if (ret < 0)
 		ret = -ERESTARTSYS;
-	} else {
-		spin_lock_irqsave(&uhid->qlock, flags);
-		req = &uhid->report_buf.u.get_report_reply;
-
-		if (req->err) {
-			ret = -EIO;
-		} else {
-			ret = 0;
-			len = min(count,
-				min_t(size_t, req->size, UHID_DATA_MAX));
-			memcpy(buf, req->data, len);
-		}
-
-		spin_unlock_irqrestore(&uhid->qlock, flags);
-	}
+	else
+		ret = 0;
 
 	uhid->report_running = false;
 
+	return ret;
+}
+
+static void uhid_report_wake_up(struct uhid_device *uhid, u32 id,
+				const struct uhid_event *ev)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&uhid->qlock, flags);
+
+	/* id for old report; drop it silently */
+	if (uhid->report_type != ev->type || uhid->report_id != id)
+		goto unlock;
+	if (!uhid->report_running)
+		goto unlock;
+
+	memcpy(&uhid->report_buf, ev, sizeof(*ev));
+	uhid->report_running = false;
+	wake_up_interruptible(&uhid->report_wait);
+
+unlock:
+	spin_unlock_irqrestore(&uhid->qlock, flags);
+}
+
+static int uhid_hid_get_report(struct hid_device *hid, unsigned char rnum,
+			       u8 *buf, size_t count, u8 rtype)
+{
+	struct uhid_device *uhid = hid->driver_data;
+	struct uhid_get_report_reply_req *req;
+	struct uhid_event *ev;
+	int ret;
+
+	if (!uhid->running)
+		return -EIO;
+
+	ev = kzalloc(sizeof(*ev), GFP_KERNEL);
+	if (!ev)
+		return -ENOMEM;
+
+	ev->type = UHID_GET_REPORT;
+	ev->u.get_report.rnum = rnum;
+	ev->u.get_report.rtype = rtype;
+
+	ret = mutex_lock_interruptible(&uhid->report_lock);
+	if (ret) {
+		kfree(ev);
+		return ret;
+	}
+
+	/* this _always_ takes ownership of @ev */
+	ret = __uhid_report_queue_and_wait(uhid, ev, &ev->u.get_report.id);
+	if (ret)
+		goto unlock;
+
+	req = &uhid->report_buf.u.get_report_reply;
+	if (req->err) {
+		ret = -EIO;
+	} else {
+		ret = min3(count, (size_t)req->size, (size_t)UHID_DATA_MAX);
+		memcpy(buf, req->data, ret);
+	}
+
 unlock:
 	mutex_unlock(&uhid->report_lock);
-	return ret ? ret : len;
+	return ret;
+}
+
+static int uhid_hid_set_report(struct hid_device *hid, unsigned char rnum,
+			       const u8 *buf, size_t count, u8 rtype)
+{
+	struct uhid_device *uhid = hid->driver_data;
+	struct uhid_event *ev;
+	int ret;
+
+	if (!uhid->running || count > UHID_DATA_MAX)
+		return -EIO;
+
+	ev = kzalloc(sizeof(*ev), GFP_KERNEL);
+	if (!ev)
+		return -ENOMEM;
+
+	ev->type = UHID_SET_REPORT;
+	ev->u.set_report.rnum = rnum;
+	ev->u.set_report.rtype = rtype;
+	ev->u.set_report.size = count;
+	memcpy(ev->u.set_report.data, buf, count);
+
+	ret = mutex_lock_interruptible(&uhid->report_lock);
+	if (ret) {
+		kfree(ev);
+		return ret;
+	}
+
+	/* this _always_ takes ownership of @ev */
+	ret = __uhid_report_queue_and_wait(uhid, ev, &ev->u.set_report.id);
+	if (ret)
+		goto unlock;
+
+	if (uhid->report_buf.u.set_report_reply.err)
+		ret = -EIO;
+	else
+		ret = count;
+
+unlock:
+	mutex_unlock(&uhid->report_lock);
+	return ret;
 }
 
 static int uhid_hid_raw_request(struct hid_device *hid, unsigned char reportnum,
 				__u8 *buf, size_t len, unsigned char rtype,
 				int reqtype)
 {
+	u8 u_rtype;
+
+	switch (rtype) {
+	case HID_FEATURE_REPORT:
+		u_rtype = UHID_FEATURE_REPORT;
+		break;
+	case HID_OUTPUT_REPORT:
+		u_rtype = UHID_OUTPUT_REPORT;
+		break;
+	case HID_INPUT_REPORT:
+		u_rtype = UHID_INPUT_REPORT;
+		break;
+	default:
+		return -EINVAL;
+	}
+
 	switch (reqtype) {
 	case HID_REQ_GET_REPORT:
-		return uhid_hid_get_report(hid, reportnum, buf, len, rtype);
+		return uhid_hid_get_report(hid, reportnum, buf, len, u_rtype);
 	case HID_REQ_SET_REPORT:
-		/* TODO: implement proper SET_REPORT functionality */
-		return -ENOSYS;
+		return uhid_hid_set_report(hid, reportnum, buf, len, u_rtype);
 	default:
 		return -EIO;
 	}
@@ -490,25 +562,20 @@ static int uhid_dev_input2(struct uhid_device *uhid, struct uhid_event *ev)
 static int uhid_dev_get_report_reply(struct uhid_device *uhid,
 				     struct uhid_event *ev)
 {
-	unsigned long flags;
-
 	if (!uhid->running)
 		return -EINVAL;
 
-	spin_lock_irqsave(&uhid->qlock, flags);
+	uhid_report_wake_up(uhid, ev->u.get_report_reply.id, ev);
+	return 0;
+}
 
-	/* id for old report; drop it silently */
-	if (uhid->report_id != ev->u.get_report_reply.id)
-		goto unlock;
-	if (!uhid->report_running)
-		goto unlock;
+static int uhid_dev_set_report_reply(struct uhid_device *uhid,
+				     struct uhid_event *ev)
+{
+	if (!uhid->running)
+		return -EINVAL;
 
-	memcpy(&uhid->report_buf, ev, sizeof(*ev));
-	uhid->report_running = false;
-	wake_up_interruptible(&uhid->report_wait);
-
-unlock:
-	spin_unlock_irqrestore(&uhid->qlock, flags);
+	uhid_report_wake_up(uhid, ev->u.set_report_reply.id, ev);
 	return 0;
 }
 
@@ -636,6 +703,9 @@ static ssize_t uhid_char_write(struct file *file, const char __user *buffer,
 		break;
 	case UHID_GET_REPORT_REPLY:
 		ret = uhid_dev_get_report_reply(uhid, &uhid->input_buf);
+		break;
+	case UHID_SET_REPORT_REPLY:
+		ret = uhid_dev_set_report_reply(uhid, &uhid->input_buf);
 		break;
 	default:
 		ret = -EOPNOTSUPP;
