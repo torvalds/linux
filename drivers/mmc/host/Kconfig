@@ -14,6 +14,17 @@ config MMC_ARMMMCI
 
 	  If unsure, say N.
 
+config MMC_QCOM_DML
+	tristate "Qualcomm Data Mover for SD Card Controller"
+	depends on MMC_ARMMMCI && QCOM_BAM_DMA
+	default y
+	help
+	  This selects the Qualcomm Data Mover lite/local on SD Card controller.
+	  This option will enable the dma to work correctly, if you are using
+	  Qcom SOCs and MMC, you would probably need this option to get DMA working.
+
+	  if unsure, say N.
+
 config MMC_PXA
 	tristate "Intel PXA25x/26x/27x Multimedia Card Interface support"
 	depends on ARCH_PXA

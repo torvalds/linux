@@ -43,6 +43,7 @@
 #include <asm/sizes.h>
 
 #include "mmci.h"
+#include "mmci_qcom_dml.h"
 
 #define DRIVER_NAME "mmci-pl18x"
 
@@ -74,6 +75,7 @@ static unsigned int fmax = 515633;
  * @pwrreg_nopower: bits in MMCIPOWER don't controls ext. power supply
  * @explicit_mclk_control: enable explicit mclk control in driver.
  * @qcom_fifo: enables qcom specific fifo pio read logic.
+ * @qcom_dml: enables qcom specific dma glue for dma transfers.
  * @reversed_irq_handling: handle data irq before cmd irq.
  */
 struct variant_data {
@@ -98,6 +100,7 @@ struct variant_data {
 	bool			pwrreg_nopower;
 	bool			explicit_mclk_control;
 	bool			qcom_fifo;
+	bool			qcom_dml;
 	bool			reversed_irq_handling;
 };
 
@@ -208,6 +211,7 @@ static struct variant_data variant_qcom = {
 	.f_max			= 208000000,
 	.explicit_mclk_control	= true,
 	.qcom_fifo		= true,
+	.qcom_dml		= true,
 };
 
 static int mmci_card_busy(struct mmc_host *mmc)
@@ -421,6 +425,7 @@ static void mmci_dma_setup(struct mmci_host *host)
 {
 	const char *rxname, *txname;
 	dma_cap_mask_t mask;
+	struct variant_data *variant = host->variant;
 
 	host->dma_rx_channel = dma_request_slave_channel(mmc_dev(host->mmc), "rx");
 	host->dma_tx_channel = dma_request_slave_channel(mmc_dev(host->mmc), "tx");
@@ -471,6 +476,10 @@ static void mmci_dma_setup(struct mmci_host *host)
 		if (max_seg_size < host->mmc->max_seg_size)
 			host->mmc->max_seg_size = max_seg_size;
 	}
+
+	if (variant->qcom_dml && host->dma_rx_channel && host->dma_tx_channel)
+		if (dml_hw_init(host, host->mmc->parent->of_node))
+			variant->qcom_dml = false;
 }
 
 /*
@@ -572,6 +581,7 @@ static int __mmci_dma_prep_data(struct mmci_host *host, struct mmc_data *data,
 	struct dma_async_tx_descriptor *desc;
 	enum dma_data_direction buffer_dirn;
 	int nr_sg;
+	unsigned long flags = DMA_CTRL_ACK;
 
 	if (data->flags & MMC_DATA_READ) {
 		conf.direction = DMA_DEV_TO_MEM;
@@ -596,9 +606,12 @@ static int __mmci_dma_prep_data(struct mmci_host *host, struct mmc_data *data,
 	if (nr_sg == 0)
 		return -EINVAL;
 
+	if (host->variant->qcom_dml)
+		flags |= DMA_PREP_INTERRUPT;
+
 	dmaengine_slave_config(chan, &conf);
 	desc = dmaengine_prep_slave_sg(chan, data->sg, nr_sg,
-					    conf.direction, DMA_CTRL_ACK);
+					    conf.direction, flags);
 	if (!desc)
 		goto unmap_exit;
 
@@ -646,6 +659,9 @@ static int mmci_dma_start_data(struct mmci_host *host, unsigned int datactrl)
 		 data->sg_len, data->blksz, data->blocks, data->flags);
 	dmaengine_submit(host->dma_desc_current);
 	dma_async_issue_pending(host->dma_current);
+
+	if (host->variant->qcom_dml)
+		dml_start_xfer(host, data);
 
 	datactrl |= MCI_DPSM_DMAENABLE;
 
