@@ -91,6 +91,7 @@ struct btmrvl_private {
 
 /* Vendor specific Bluetooth commands */
 #define BT_CMD_PSCAN_WIN_REPORT_ENABLE	0xFC03
+#define BT_CMD_SET_BDADDR		0xFC22
 #define BT_CMD_AUTO_SLEEP_MODE		0xFC23
 #define BT_CMD_HOST_SLEEP_CONFIG	0xFC59
 #define BT_CMD_HOST_SLEEP_ENABLE	0xFC5A

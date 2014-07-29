@@ -134,9 +134,12 @@ struct l2cap_conninfo {
 #define L2CAP_FCS_CRC16		0x01
 
 /* L2CAP fixed channels */
-#define L2CAP_FC_L2CAP		0x02
+#define L2CAP_FC_SIG_BREDR	0x02
 #define L2CAP_FC_CONNLESS	0x04
 #define L2CAP_FC_A2MP		0x08
+#define L2CAP_FC_ATT		0x10
+#define L2CAP_FC_SIG_LE		0x20
+#define L2CAP_FC_SMP_LE		0x40
 
 /* L2CAP Control Field bit masks */
 #define L2CAP_CTRL_SAR			0xC000
@@ -622,11 +625,10 @@ struct l2cap_conn {
 
 	struct delayed_work	info_timer;
 
-	spinlock_t		lock;
-
 	struct sk_buff		*rx_skb;
 	__u32			rx_len;
 	__u8			tx_ident;
+	struct mutex		ident_lock;
 
 	struct sk_buff_head	pending_rx;
 	struct work_struct	pending_rx_work;
@@ -903,7 +905,7 @@ int l2cap_chan_connect(struct l2cap_chan *chan, __le16 psm, u16 cid,
 		       bdaddr_t *dst, u8 dst_type);
 int l2cap_chan_send(struct l2cap_chan *chan, struct msghdr *msg, size_t len);
 void l2cap_chan_busy(struct l2cap_chan *chan, int busy);
-int l2cap_chan_check_security(struct l2cap_chan *chan);
+int l2cap_chan_check_security(struct l2cap_chan *chan, bool initiator);
 void l2cap_chan_set_defaults(struct l2cap_chan *chan);
 int l2cap_ertm_init(struct l2cap_chan *chan);
 void l2cap_chan_add(struct l2cap_conn *conn, struct l2cap_chan *chan);

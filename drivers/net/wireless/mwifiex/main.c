@@ -33,6 +33,7 @@ static void scan_delay_timer_fn(unsigned long data)
 	struct mwifiex_private *priv = (struct mwifiex_private *)data;
 	struct mwifiex_adapter *adapter = priv->adapter;
 	struct cmd_ctrl_node *cmd_node, *tmp_node;
+	spinlock_t *scan_q_lock = &adapter->scan_pending_q_lock;
 	unsigned long flags;
 
 	if (adapter->surprise_removed)
@@ -44,13 +45,13 @@ static void scan_delay_timer_fn(unsigned long data)
 		 * Abort scan operation by cancelling all pending scan
 		 * commands
 		 */
-		spin_lock_irqsave(&adapter->scan_pending_q_lock, flags);
+		spin_lock_irqsave(scan_q_lock, flags);
 		list_for_each_entry_safe(cmd_node, tmp_node,
 					 &adapter->scan_pending_q, list) {
 			list_del(&cmd_node->list);
 			mwifiex_insert_cmd_to_free_q(adapter, cmd_node);
 		}
-		spin_unlock_irqrestore(&adapter->scan_pending_q_lock, flags);
+		spin_unlock_irqrestore(scan_q_lock, flags);
 
 		spin_lock_irqsave(&adapter->mwifiex_cmd_lock, flags);
 		adapter->scan_processing = false;
@@ -79,12 +80,17 @@ static void scan_delay_timer_fn(unsigned long data)
 			 */
 			adapter->scan_delay_cnt = 0;
 			adapter->empty_tx_q_cnt = 0;
-			spin_lock_irqsave(&adapter->scan_pending_q_lock, flags);
+			spin_lock_irqsave(scan_q_lock, flags);
+
+			if (list_empty(&adapter->scan_pending_q)) {
+				spin_unlock_irqrestore(scan_q_lock, flags);
+				goto done;
+			}
+
 			cmd_node = list_first_entry(&adapter->scan_pending_q,
 						    struct cmd_ctrl_node, list);
 			list_del(&cmd_node->list);
-			spin_unlock_irqrestore(&adapter->scan_pending_q_lock,
-					       flags);
+			spin_unlock_irqrestore(scan_q_lock, flags);
 
 			mwifiex_insert_cmd_to_pending_q(adapter, cmd_node,
 							true);

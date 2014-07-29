@@ -649,10 +649,6 @@ int iwl_send_bt_init_conf_old(struct iwl_mvm *mvm)
 	       sizeof(iwl_bt_prio_boost));
 	memcpy(&bt_cmd->bt4_multiprio_lut, iwl_bt_mprio_lut,
 	       sizeof(iwl_bt_mprio_lut));
-	bt_cmd->kill_ack_msk =
-		cpu_to_le32(iwl_bt_ack_kill_msk[BT_KILL_MSK_DEFAULT]);
-	bt_cmd->kill_cts_msk =
-		cpu_to_le32(iwl_bt_cts_kill_msk[BT_KILL_MSK_DEFAULT]);
 
 send_cmd:
 	memset(&mvm->last_bt_notif_old, 0, sizeof(mvm->last_bt_notif_old));
@@ -664,12 +660,13 @@ send_cmd:
 	return ret;
 }
 
-static int iwl_mvm_bt_udpate_ctrl_kill_msk(struct iwl_mvm *mvm,
-					   bool reduced_tx_power)
+static int iwl_mvm_bt_udpate_ctrl_kill_msk(struct iwl_mvm *mvm)
 {
-	enum iwl_bt_kill_msk bt_kill_msk;
-	struct iwl_bt_coex_cmd_old *bt_cmd;
 	struct iwl_bt_coex_profile_notif_old *notif = &mvm->last_bt_notif_old;
+	u32 primary_lut = le32_to_cpu(notif->primary_ch_lut);
+	u32 ag = le32_to_cpu(notif->bt_activity_grading);
+	struct iwl_bt_coex_cmd_old *bt_cmd;
+	u8 ack_kill_msk, cts_kill_msk;
 	struct iwl_host_cmd cmd = {
 		.id = BT_CONFIG,
 		.data[0] = &bt_cmd,
@@ -680,31 +677,15 @@ static int iwl_mvm_bt_udpate_ctrl_kill_msk(struct iwl_mvm *mvm,
 
 	lockdep_assert_held(&mvm->mutex);
 
-	if (reduced_tx_power) {
-		/* Reduced Tx power has precedence on the type of the profile */
-		bt_kill_msk = BT_KILL_MSK_REDUCED_TXPOW;
-	} else {
-		/* Low latency BT profile is active: give higher prio to BT */
-		if (BT_MBOX_MSG(notif, 3, SCO_STATE)  ||
-		    BT_MBOX_MSG(notif, 3, A2DP_STATE) ||
-		    BT_MBOX_MSG(notif, 3, SNIFF_STATE))
-			bt_kill_msk = BT_KILL_MSK_SCO_HID_A2DP;
-		else
-			bt_kill_msk = BT_KILL_MSK_DEFAULT;
-	}
+	ack_kill_msk = iwl_bt_ack_kill_msk[ag][primary_lut];
+	cts_kill_msk = iwl_bt_cts_kill_msk[ag][primary_lut];
 
-	IWL_DEBUG_COEX(mvm,
-		       "Update kill_msk: %d - SCO %sactive A2DP %sactive SNIFF %sactive\n",
-		       bt_kill_msk,
-		       BT_MBOX_MSG(notif, 3, SCO_STATE) ? "" : "in",
-		       BT_MBOX_MSG(notif, 3, A2DP_STATE) ? "" : "in",
-		       BT_MBOX_MSG(notif, 3, SNIFF_STATE) ? "" : "in");
-
-	/* Don't send HCMD if there is no update */
-	if (bt_kill_msk == mvm->bt_kill_msk)
+	if (mvm->bt_ack_kill_msk[0] == ack_kill_msk &&
+	    mvm->bt_cts_kill_msk[0] == cts_kill_msk)
 		return 0;
 
-	mvm->bt_kill_msk = bt_kill_msk;
+	mvm->bt_ack_kill_msk[0] = ack_kill_msk;
+	mvm->bt_cts_kill_msk[0] = cts_kill_msk;
 
 	bt_cmd = kzalloc(sizeof(*bt_cmd), GFP_KERNEL);
 	if (!bt_cmd)
@@ -712,15 +693,11 @@ static int iwl_mvm_bt_udpate_ctrl_kill_msk(struct iwl_mvm *mvm,
 	cmd.data[0] = bt_cmd;
 	bt_cmd->flags = cpu_to_le32(BT_COEX_NW_OLD);
 
-	bt_cmd->kill_ack_msk = cpu_to_le32(iwl_bt_ack_kill_msk[bt_kill_msk]);
-	bt_cmd->kill_cts_msk = cpu_to_le32(iwl_bt_cts_kill_msk[bt_kill_msk]);
+	bt_cmd->kill_ack_msk = cpu_to_le32(iwl_bt_ctl_kill_msk[ack_kill_msk]);
+	bt_cmd->kill_cts_msk = cpu_to_le32(iwl_bt_ctl_kill_msk[cts_kill_msk]);
 	bt_cmd->valid_bit_msk |= cpu_to_le32(BT_VALID_ENABLE |
 					     BT_VALID_KILL_ACK |
 					     BT_VALID_KILL_CTS);
-
-	IWL_DEBUG_COEX(mvm, "ACK Kill msk = 0x%08x, CTS Kill msk = 0x%08x\n",
-		       iwl_bt_ack_kill_msk[bt_kill_msk],
-		       iwl_bt_cts_kill_msk[bt_kill_msk]);
 
 	ret = iwl_mvm_send_cmd(mvm, &cmd);
 
@@ -777,8 +754,6 @@ static int iwl_mvm_bt_coex_reduced_txp(struct iwl_mvm *mvm, u8 sta_id,
 struct iwl_bt_iterator_data {
 	struct iwl_bt_coex_profile_notif_old *notif;
 	struct iwl_mvm *mvm;
-	u32 num_bss_ifaces;
-	bool reduced_tx_power;
 	struct ieee80211_chanctx_conf *primary;
 	struct ieee80211_chanctx_conf *secondary;
 	bool primary_ll;
@@ -814,22 +789,12 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 
 	switch (vif->type) {
 	case NL80211_IFTYPE_STATION:
-		/* Count BSSes vifs */
-		data->num_bss_ifaces++;
 		/* default smps_mode for BSS / P2P client is AUTOMATIC */
 		smps_mode = IEEE80211_SMPS_AUTOMATIC;
 		break;
 	case NL80211_IFTYPE_AP:
-		/* default smps_mode for AP / GO is OFF */
-		smps_mode = IEEE80211_SMPS_OFF;
-		if (!mvmvif->ap_ibss_active) {
-			iwl_mvm_update_smps(mvm, vif, IWL_MVM_SMPS_REQ_BT_COEX,
-					    smps_mode);
+		if (!mvmvif->ap_ibss_active)
 			return;
-		}
-
-		/* the Ack / Cts kill mask must be default if AP / GO */
-		data->reduced_tx_power = false;
 		break;
 	default:
 		return;
@@ -840,11 +805,10 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 	/* If channel context is invalid or not on 2.4GHz .. */
 	if ((!chanctx_conf ||
 	     chanctx_conf->def.chan->band != IEEE80211_BAND_2GHZ)) {
-		/* ... relax constraints and disable rssi events */
-		iwl_mvm_update_smps(mvm, vif, IWL_MVM_SMPS_REQ_BT_COEX,
-				    smps_mode);
-		data->reduced_tx_power = false;
 		if (vif->type == NL80211_IFTYPE_STATION) {
+			/* ... relax constraints and disable rssi events */
+			iwl_mvm_update_smps(mvm, vif, IWL_MVM_SMPS_REQ_BT_COEX,
+					    smps_mode);
 			iwl_mvm_bt_coex_reduced_txp(mvm, mvmvif->ap_sta_id,
 						    false);
 			iwl_mvm_bt_coex_enable_rssi_event(mvm, vif, false, 0);
@@ -869,7 +833,9 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 		       mvmvif->id, data->notif->bt_status, bt_activity_grading,
 		       smps_mode);
 
-	iwl_mvm_update_smps(mvm, vif, IWL_MVM_SMPS_REQ_BT_COEX, smps_mode);
+	if (vif->type == NL80211_IFTYPE_STATION)
+		iwl_mvm_update_smps(mvm, vif, IWL_MVM_SMPS_REQ_BT_COEX,
+				    smps_mode);
 
 	/* low latency is always primary */
 	if (iwl_mvm_vif_low_latency(mvmvif)) {
@@ -920,7 +886,6 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 	if (iwl_get_coex_type(mvm, vif) == BT_COEX_LOOSE_LUT ||
 	    mvm->cfg->bt_shared_single_ant || !vif->bss_conf.assoc ||
 	    !data->notif->bt_status) {
-		data->reduced_tx_power = false;
 		iwl_mvm_bt_coex_reduced_txp(mvm, mvmvif->ap_sta_id, false);
 		iwl_mvm_bt_coex_enable_rssi_event(mvm, vif, false, 0);
 		return;
@@ -935,23 +900,9 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 	if (ave_rssi > -IWL_MVM_BT_COEX_EN_RED_TXP_THRESH) {
 		if (iwl_mvm_bt_coex_reduced_txp(mvm, mvmvif->ap_sta_id, true))
 			IWL_ERR(mvm, "Couldn't send BT_CONFIG cmd\n");
-
-		/*
-		 * bt_kill_msk can be BT_KILL_MSK_REDUCED_TXPOW only if all the
-		 * BSS / P2P clients have rssi above threshold.
-		 * We set the bt_kill_msk to BT_KILL_MSK_REDUCED_TXPOW before
-		 * the iteration, if one interface's rssi isn't good enough,
-		 * bt_kill_msk will be set to default values.
-		 */
 	} else if (ave_rssi < -IWL_MVM_BT_COEX_DIS_RED_TXP_THRESH) {
 		if (iwl_mvm_bt_coex_reduced_txp(mvm, mvmvif->ap_sta_id, false))
 			IWL_ERR(mvm, "Couldn't send BT_CONFIG cmd\n");
-
-		/*
-		 * One interface hasn't rssi above threshold, bt_kill_msk must
-		 * be set to default values.
-		 */
-		data->reduced_tx_power = false;
 	}
 
 	/* Begin to monitor the RSSI: it may influence the reduced Tx power */
@@ -963,7 +914,6 @@ static void iwl_mvm_bt_coex_notif_handle(struct iwl_mvm *mvm)
 	struct iwl_bt_iterator_data data = {
 		.mvm = mvm,
 		.notif = &mvm->last_bt_notif_old,
-		.reduced_tx_power = true,
 	};
 	struct iwl_bt_coex_ci_cmd_old cmd = {};
 	u8 ci_bw_idx;
@@ -1037,14 +987,7 @@ static void iwl_mvm_bt_coex_notif_handle(struct iwl_mvm *mvm)
 		memcpy(&mvm->last_bt_ci_cmd_old, &cmd, sizeof(cmd));
 	}
 
-	/*
-	 * If there are no BSS / P2P client interfaces, reduced Tx Power is
-	 * irrelevant since it is based on the RSSI coming from the beacon.
-	 * Use BT_KILL_MSK_DEFAULT in that case.
-	 */
-	data.reduced_tx_power = data.reduced_tx_power && data.num_bss_ifaces;
-
-	if (iwl_mvm_bt_udpate_ctrl_kill_msk(mvm, data.reduced_tx_power))
+	if (iwl_mvm_bt_udpate_ctrl_kill_msk(mvm))
 		IWL_ERR(mvm, "Failed to update the ctrl_kill_msk\n");
 }
 
@@ -1115,16 +1058,6 @@ static void iwl_mvm_bt_rssi_iterator(void *_data, u8 *mac,
 		return;
 
 	mvmsta = iwl_mvm_sta_from_mac80211(sta);
-
-	data->num_bss_ifaces++;
-
-	/*
-	 * This interface doesn't support reduced Tx power (because of low
-	 * RSSI probably), then set bt_kill_msk to default values.
-	 */
-	if (!mvmsta->bt_reduced_txpower)
-		data->reduced_tx_power = false;
-	/* else - possibly leave it to BT_KILL_MSK_REDUCED_TXPOW */
 }
 
 void iwl_mvm_bt_rssi_event_old(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
@@ -1133,7 +1066,6 @@ void iwl_mvm_bt_rssi_event_old(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	struct iwl_mvm_vif *mvmvif = (void *)vif->drv_priv;
 	struct iwl_bt_iterator_data data = {
 		.mvm = mvm,
-		.reduced_tx_power = true,
 	};
 	int ret;
 
@@ -1175,14 +1107,7 @@ void iwl_mvm_bt_rssi_event_old(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
 		iwl_mvm_bt_rssi_iterator, &data);
 
-	/*
-	 * If there are no BSS / P2P client interfaces, reduced Tx Power is
-	 * irrelevant since it is based on the RSSI coming from the beacon.
-	 * Use BT_KILL_MSK_DEFAULT in that case.
-	 */
-	data.reduced_tx_power = data.reduced_tx_power && data.num_bss_ifaces;
-
-	if (iwl_mvm_bt_udpate_ctrl_kill_msk(mvm, data.reduced_tx_power))
+	if (iwl_mvm_bt_udpate_ctrl_kill_msk(mvm))
 		IWL_ERR(mvm, "Failed to update the ctrl_kill_msk\n");
 }
 

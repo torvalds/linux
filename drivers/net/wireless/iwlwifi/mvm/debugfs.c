@@ -146,17 +146,47 @@ static ssize_t iwl_dbgfs_fw_error_dump_read(struct file *file,
 					    char __user *user_buf,
 					    size_t count, loff_t *ppos)
 {
-	struct iwl_fw_error_dump_file *dump_file = file->private_data;
+	struct iwl_mvm_dump_ptrs *dump_ptrs = (void *)file->private_data;
+	ssize_t bytes_read = 0;
+	ssize_t bytes_read_trans = 0;
 
-	return simple_read_from_buffer(user_buf, count, ppos,
-				       dump_file,
-				       le32_to_cpu(dump_file->file_len));
+	if (*ppos < dump_ptrs->op_mode_len)
+		bytes_read +=
+			simple_read_from_buffer(user_buf, count, ppos,
+						dump_ptrs->op_mode_ptr,
+						dump_ptrs->op_mode_len);
+
+	if (bytes_read < 0 || *ppos < dump_ptrs->op_mode_len)
+		return bytes_read;
+
+	if (dump_ptrs->trans_ptr) {
+		*ppos -= dump_ptrs->op_mode_len;
+		bytes_read_trans =
+			simple_read_from_buffer(user_buf + bytes_read,
+						count - bytes_read, ppos,
+						dump_ptrs->trans_ptr->data,
+						dump_ptrs->trans_ptr->len);
+		*ppos += dump_ptrs->op_mode_len;
+
+		if (bytes_read_trans >= 0)
+			bytes_read += bytes_read_trans;
+		else if (!bytes_read)
+			/* propagate the failure */
+			return bytes_read_trans;
+	}
+
+	return bytes_read;
+
 }
 
 static int iwl_dbgfs_fw_error_dump_release(struct inode *inode,
 					   struct file *file)
 {
-	vfree(file->private_data);
+	struct iwl_mvm_dump_ptrs *dump_ptrs = (void *)file->private_data;
+
+	vfree(dump_ptrs->op_mode_ptr);
+	vfree(dump_ptrs->trans_ptr);
+	kfree(dump_ptrs);
 
 	return 0;
 }
@@ -514,9 +544,9 @@ static ssize_t iwl_dbgfs_bt_cmd_read(struct file *file, char __user *user_buf,
 
 		pos += scnprintf(buf+pos, bufsz-pos, "BT Configuration CMD\n");
 		pos += scnprintf(buf+pos, bufsz-pos, "\tACK Kill Mask 0x%08x\n",
-				 iwl_bt_ack_kill_msk[mvm->bt_kill_msk]);
+				 iwl_bt_ctl_kill_msk[mvm->bt_ack_kill_msk[0]]);
 		pos += scnprintf(buf+pos, bufsz-pos, "\tCTS Kill Mask 0x%08x\n",
-				 iwl_bt_cts_kill_msk[mvm->bt_kill_msk]);
+				 iwl_bt_ctl_kill_msk[mvm->bt_cts_kill_msk[0]]);
 
 	} else {
 		struct iwl_bt_coex_ci_cmd *cmd = &mvm->last_bt_ci_cmd;
@@ -531,10 +561,19 @@ static ssize_t iwl_dbgfs_bt_cmd_read(struct file *file, char __user *user_buf,
 			       le64_to_cpu(cmd->bt_secondary_ci));
 
 		pos += scnprintf(buf+pos, bufsz-pos, "BT Configuration CMD\n");
-		pos += scnprintf(buf+pos, bufsz-pos, "\tACK Kill Mask 0x%08x\n",
-				 iwl_bt_ack_kill_msk[mvm->bt_kill_msk]);
-		pos += scnprintf(buf+pos, bufsz-pos, "\tCTS Kill Mask 0x%08x\n",
-				 iwl_bt_cts_kill_msk[mvm->bt_kill_msk]);
+		pos += scnprintf(buf+pos, bufsz-pos,
+				 "\tPrimary: ACK Kill Mask 0x%08x\n",
+				 iwl_bt_ctl_kill_msk[mvm->bt_ack_kill_msk[0]]);
+		pos += scnprintf(buf+pos, bufsz-pos,
+				 "\tPrimary: CTS Kill Mask 0x%08x\n",
+				 iwl_bt_ctl_kill_msk[mvm->bt_cts_kill_msk[0]]);
+		pos += scnprintf(buf+pos, bufsz-pos,
+				 "\tSecondary: ACK Kill Mask 0x%08x\n",
+				 iwl_bt_ctl_kill_msk[mvm->bt_ack_kill_msk[1]]);
+		pos += scnprintf(buf+pos, bufsz-pos,
+				 "\tSecondary: CTS Kill Mask 0x%08x\n",
+				 iwl_bt_ctl_kill_msk[mvm->bt_cts_kill_msk[1]]);
+
 	}
 
 	mutex_unlock(&mvm->mutex);
@@ -830,7 +869,13 @@ static ssize_t iwl_dbgfs_fw_restart_write(struct iwl_mvm *mvm, char *buf,
 static ssize_t iwl_dbgfs_fw_nmi_write(struct iwl_mvm *mvm, char *buf,
 				      size_t count, loff_t *ppos)
 {
+	int ret = iwl_mvm_ref_sync(mvm, IWL_MVM_REF_NMI);
+	if (ret)
+		return ret;
+
 	iwl_force_nmi(mvm->trans);
+
+	iwl_mvm_unref(mvm, IWL_MVM_REF_NMI);
 
 	return count;
 }
@@ -1115,11 +1160,11 @@ static ssize_t iwl_dbgfs_d3_sram_read(struct file *file, char __user *user_buf,
 }
 #endif
 
-#define PRINT_MVM_REF(ref) do {					\
-	if (test_bit(ref, mvm->ref_bitmap))			\
-		pos += scnprintf(buf + pos, bufsz - pos,	\
-				 "\t(0x%lx) %s\n",		\
-				 BIT(ref), #ref);		\
+#define PRINT_MVM_REF(ref) do {						\
+	if (mvm->refs[ref])						\
+		pos += scnprintf(buf + pos, bufsz - pos,		\
+				 "\t(0x%lx): %d %s\n",			\
+				 BIT(ref), mvm->refs[ref], #ref);	\
 } while (0)
 
 static ssize_t iwl_dbgfs_d0i3_refs_read(struct file *file,
@@ -1127,12 +1172,17 @@ static ssize_t iwl_dbgfs_d0i3_refs_read(struct file *file,
 					size_t count, loff_t *ppos)
 {
 	struct iwl_mvm *mvm = file->private_data;
-	int pos = 0;
+	int i, pos = 0;
 	char buf[256];
 	const size_t bufsz = sizeof(buf);
+	u32 refs = 0;
 
-	pos += scnprintf(buf + pos, bufsz - pos, "taken mvm refs: 0x%lx\n",
-			 mvm->ref_bitmap[0]);
+	for (i = 0; i < IWL_MVM_REF_COUNT; i++)
+		if (mvm->refs[i])
+			refs |= BIT(i);
+
+	pos += scnprintf(buf + pos, bufsz - pos, "taken mvm refs: 0x%x\n",
+			 refs);
 
 	PRINT_MVM_REF(IWL_MVM_REF_UCODE_DOWN);
 	PRINT_MVM_REF(IWL_MVM_REF_SCAN);
@@ -1158,7 +1208,7 @@ static ssize_t iwl_dbgfs_d0i3_refs_write(struct iwl_mvm *mvm, char *buf,
 
 	mutex_lock(&mvm->mutex);
 
-	taken = test_bit(IWL_MVM_REF_USER, mvm->ref_bitmap);
+	taken = mvm->refs[IWL_MVM_REF_USER];
 	if (value == 1 && !taken)
 		iwl_mvm_ref(mvm, IWL_MVM_REF_USER);
 	else if (value == 0 && taken)
@@ -1194,13 +1244,20 @@ iwl_dbgfs_prph_reg_read(struct file *file,
 	int pos = 0;
 	char buf[32];
 	const size_t bufsz = sizeof(buf);
+	int ret;
 
 	if (!mvm->dbgfs_prph_reg_addr)
 		return -EINVAL;
 
+	ret = iwl_mvm_ref_sync(mvm, IWL_MVM_REF_PRPH_READ);
+	if (ret)
+		return ret;
+
 	pos += scnprintf(buf + pos, bufsz - pos, "Reg 0x%x: (0x%x)\n",
 		mvm->dbgfs_prph_reg_addr,
 		iwl_read_prph(mvm->trans, mvm->dbgfs_prph_reg_addr));
+
+	iwl_mvm_unref(mvm, IWL_MVM_REF_PRPH_READ);
 
 	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 }
@@ -1211,6 +1268,7 @@ iwl_dbgfs_prph_reg_write(struct iwl_mvm *mvm, char *buf,
 {
 	u8 args;
 	u32 value;
+	int ret;
 
 	args = sscanf(buf, "%i %i", &mvm->dbgfs_prph_reg_addr, &value);
 	/* if we only want to set the reg address - nothing more to do */
@@ -1221,7 +1279,13 @@ iwl_dbgfs_prph_reg_write(struct iwl_mvm *mvm, char *buf,
 	if (args != 2)
 		return -EINVAL;
 
+	ret = iwl_mvm_ref_sync(mvm, IWL_MVM_REF_PRPH_WRITE);
+	if (ret)
+		return ret;
+
 	iwl_write_prph(mvm->trans, mvm->dbgfs_prph_reg_addr, value);
+
+	iwl_mvm_unref(mvm, IWL_MVM_REF_PRPH_WRITE);
 out:
 	return count;
 }

@@ -227,7 +227,8 @@ static int rfcomm_check_security(struct rfcomm_dlc *d)
 		break;
 	}
 
-	return hci_conn_security(conn->hcon, d->sec_level, auth_type);
+	return hci_conn_security(conn->hcon, d->sec_level, auth_type,
+				 d->out);
 }
 
 static void rfcomm_session_timeout(unsigned long arg)

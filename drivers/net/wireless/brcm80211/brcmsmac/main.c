@@ -4707,41 +4707,6 @@ static int brcms_b_attach(struct brcms_c_info *wlc, struct bcma_device *core,
 	return err;
 }
 
-static void brcms_c_attach_antgain_init(struct brcms_c_info *wlc)
-{
-	uint unit;
-	unit = wlc->pub->unit;
-
-	if ((wlc->band->antgain == -1) && (wlc->pub->sromrev == 1)) {
-		/* default antenna gain for srom rev 1 is 2 dBm (8 qdbm) */
-		wlc->band->antgain = 8;
-	} else if (wlc->band->antgain == -1) {
-		wiphy_err(wlc->wiphy, "wl%d: %s: Invalid antennas available in"
-			  " srom, using 2dB\n", unit, __func__);
-		wlc->band->antgain = 8;
-	} else {
-		s8 gain, fract;
-		/* Older sroms specified gain in whole dbm only.  In order
-		 * be able to specify qdbm granularity and remain backward
-		 * compatible the whole dbms are now encoded in only
-		 * low 6 bits and remaining qdbms are encoded in the hi 2 bits.
-		 * 6 bit signed number ranges from -32 - 31.
-		 *
-		 * Examples:
-		 * 0x1 = 1 db,
-		 * 0xc1 = 1.75 db (1 + 3 quarters),
-		 * 0x3f = -1 (-1 + 0 quarters),
-		 * 0x7f = -.75 (-1 + 1 quarters) = -3 qdbm.
-		 * 0xbf = -.50 (-1 + 2 quarters) = -2 qdbm.
-		 */
-		gain = wlc->band->antgain & 0x3f;
-		gain <<= 2;	/* Sign extend */
-		gain >>= 2;
-		fract = (wlc->band->antgain & 0xc0) >> 6;
-		wlc->band->antgain = 4 * gain + fract;
-	}
-}
-
 static bool brcms_c_attach_stf_ant_init(struct brcms_c_info *wlc)
 {
 	int aa;
@@ -4779,8 +4744,6 @@ static bool brcms_c_attach_stf_ant_init(struct brcms_c_info *wlc)
 		wlc->band->antgain = sprom->antenna_gain.a1;
 	else
 		wlc->band->antgain = sprom->antenna_gain.a0;
-
-	brcms_c_attach_antgain_init(wlc);
 
 	return true;
 }

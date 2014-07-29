@@ -47,6 +47,8 @@
  * @WLAN_STA_TDLS_PEER: Station is a TDLS peer.
  * @WLAN_STA_TDLS_PEER_AUTH: This TDLS peer is authorized to send direct
  *	packets. This means the link is enabled.
+ * @WLAN_STA_TDLS_INITIATOR: We are the initiator of the TDLS link with this
+ *	station.
  * @WLAN_STA_UAPSD: Station requested unscheduled SP while driver was
  *	keeping station in power-save mode, reply when the driver
  *	unblocks the station.
@@ -76,6 +78,7 @@ enum ieee80211_sta_info_flags {
 	WLAN_STA_PSPOLL,
 	WLAN_STA_TDLS_PEER,
 	WLAN_STA_TDLS_PEER_AUTH,
+	WLAN_STA_TDLS_INITIATOR,
 	WLAN_STA_UAPSD,
 	WLAN_STA_SP,
 	WLAN_STA_4ADDR_EVENT,
@@ -152,7 +155,8 @@ struct tid_ampdu_tx {
 /**
  * struct tid_ampdu_rx - TID aggregation information (Rx).
  *
- * @reorder_buf: buffer to reorder incoming aggregated MPDUs
+ * @reorder_buf: buffer to reorder incoming aggregated MPDUs. An MPDU may be an
+ *	A-MSDU with individually reported subframes.
  * @reorder_time: jiffies when skb was added
  * @session_timer: check if peer keeps Tx-ing on the TID (by timeout value)
  * @reorder_timer: releases expired frames from the reorder buffer.
@@ -177,7 +181,7 @@ struct tid_ampdu_tx {
 struct tid_ampdu_rx {
 	struct rcu_head rcu_head;
 	spinlock_t reorder_lock;
-	struct sk_buff **reorder_buf;
+	struct sk_buff_head *reorder_buf;
 	unsigned long *reorder_time;
 	struct timer_list session_timer;
 	struct timer_list reorder_timer;

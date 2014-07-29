@@ -54,6 +54,15 @@ DEFINE_RWLOCK(hci_cb_list_lock);
 /* HCI ID Numbering */
 static DEFINE_IDA(hci_index_ida);
 
+/* ----- HCI requests ----- */
+
+#define HCI_REQ_DONE	  0
+#define HCI_REQ_PEND	  1
+#define HCI_REQ_CANCELED  2
+
+#define hci_req_lock(d)		mutex_lock(&d->req_lock)
+#define hci_req_unlock(d)	mutex_unlock(&d->req_lock)
+
 /* ---- HCI notifications ---- */
 
 static void hci_notify(struct hci_dev *hdev, int event)
@@ -1339,9 +1348,6 @@ static void le_setup(struct hci_request *req)
 	/* Read LE Supported States */
 	hci_req_add(req, HCI_OP_LE_READ_SUPPORTED_STATES, 0, NULL);
 
-	/* Read LE Advertising Channel TX Power */
-	hci_req_add(req, HCI_OP_LE_READ_ADV_TX_POWER, 0, NULL);
-
 	/* Read LE White List Size */
 	hci_req_add(req, HCI_OP_LE_READ_WHITE_LIST_SIZE, 0, NULL);
 
@@ -1416,14 +1422,17 @@ static void hci_setup_event_mask(struct hci_request *req)
 		/* Use a different default for LE-only devices */
 		memset(events, 0, sizeof(events));
 		events[0] |= 0x10; /* Disconnection Complete */
-		events[0] |= 0x80; /* Encryption Change */
 		events[1] |= 0x08; /* Read Remote Version Information Complete */
 		events[1] |= 0x20; /* Command Complete */
 		events[1] |= 0x40; /* Command Status */
 		events[1] |= 0x80; /* Hardware Error */
 		events[2] |= 0x04; /* Number of Completed Packets */
 		events[3] |= 0x02; /* Data Buffer Overflow */
-		events[5] |= 0x80; /* Encryption Key Refresh Complete */
+
+		if (hdev->le_features[0] & HCI_LE_ENCRYPTION) {
+			events[0] |= 0x80; /* Encryption Change */
+			events[5] |= 0x80; /* Encryption Key Refresh Complete */
+		}
 	}
 
 	if (lmp_inq_rssi_capable(hdev))
@@ -1475,8 +1484,6 @@ static void hci_init2_req(struct hci_request *req, unsigned long opt)
 
 	if (lmp_le_capable(hdev))
 		le_setup(req);
-
-	hci_setup_event_mask(req);
 
 	/* AVM Berlin (31), aka "BlueFRITZ!", doesn't support the read
 	 * local supported commands HCI command.
@@ -1605,6 +1612,8 @@ static void hci_init3_req(struct hci_request *req, unsigned long opt)
 	struct hci_dev *hdev = req->hdev;
 	u8 p;
 
+	hci_setup_event_mask(req);
+
 	/* Some Broadcom based Bluetooth controllers do not support the
 	 * Delete Stored Link Key command. They are clearly indicating its
 	 * absence in the bit mask of supported commands.
@@ -1635,7 +1644,10 @@ static void hci_init3_req(struct hci_request *req, unsigned long opt)
 		u8 events[8];
 
 		memset(events, 0, sizeof(events));
-		events[0] = 0x1f;
+		events[0] = 0x0f;
+
+		if (hdev->le_features[0] & HCI_LE_ENCRYPTION)
+			events[0] |= 0x10;	/* LE Long Term Key Request */
 
 		/* If controller supports the Connection Parameters Request
 		 * Link Layer Procedure, enable the corresponding event.
@@ -1647,6 +1659,11 @@ static void hci_init3_req(struct hci_request *req, unsigned long opt)
 
 		hci_req_add(req, HCI_OP_LE_SET_EVENT_MASK, sizeof(events),
 			    events);
+
+		if (hdev->commands[25] & 0x40) {
+			/* Read LE Advertising Channel TX Power */
+			hci_req_add(req, HCI_OP_LE_READ_ADV_TX_POWER, 0, NULL);
+		}
 
 		hci_set_le_support(req);
 	}
@@ -2071,7 +2088,7 @@ u32 hci_inquiry_cache_update(struct hci_dev *hdev, struct inquiry_data *data,
 	}
 
 	/* Entry not in the cache. Add new one. */
-	ie = kzalloc(sizeof(struct inquiry_entry), GFP_ATOMIC);
+	ie = kzalloc(sizeof(*ie), GFP_KERNEL);
 	if (!ie) {
 		flags |= MGMT_DEV_FOUND_CONFIRM_NAME;
 		goto done;
@@ -2435,6 +2452,16 @@ int hci_dev_open(__u16 dev)
 	 */
 	flush_workqueue(hdev->req_workqueue);
 
+	/* For controllers not using the management interface and that
+	 * are brought up using legacy ioctl, set the HCI_PAIRABLE bit
+	 * so that pairing works for them. Once the management interface
+	 * is in use this bit will be cleared again and userspace has
+	 * to explicitly enable it.
+	 */
+	if (!test_bit(HCI_USER_CHANNEL, &hdev->dev_flags) &&
+	    !test_bit(HCI_MGMT, &hdev->dev_flags))
+		set_bit(HCI_PAIRABLE, &hdev->dev_flags);
+
 	err = hci_dev_do_open(hdev);
 
 done:
@@ -2655,6 +2682,42 @@ done:
 	return ret;
 }
 
+static void hci_update_scan_state(struct hci_dev *hdev, u8 scan)
+{
+	bool conn_changed, discov_changed;
+
+	BT_DBG("%s scan 0x%02x", hdev->name, scan);
+
+	if ((scan & SCAN_PAGE))
+		conn_changed = !test_and_set_bit(HCI_CONNECTABLE,
+						 &hdev->dev_flags);
+	else
+		conn_changed = test_and_clear_bit(HCI_CONNECTABLE,
+						  &hdev->dev_flags);
+
+	if ((scan & SCAN_INQUIRY)) {
+		discov_changed = !test_and_set_bit(HCI_DISCOVERABLE,
+						   &hdev->dev_flags);
+	} else {
+		clear_bit(HCI_LIMITED_DISCOVERABLE, &hdev->dev_flags);
+		discov_changed = test_and_clear_bit(HCI_DISCOVERABLE,
+						    &hdev->dev_flags);
+	}
+
+	if (!test_bit(HCI_MGMT, &hdev->dev_flags))
+		return;
+
+	if (conn_changed || discov_changed) {
+		/* In case this was disabled through mgmt */
+		set_bit(HCI_BREDR_ENABLED, &hdev->dev_flags);
+
+		if (test_bit(HCI_LE_ENABLED, &hdev->dev_flags))
+			mgmt_update_adv_data(hdev);
+
+		mgmt_new_settings(hdev);
+	}
+}
+
 int hci_dev_cmd(unsigned int cmd, void __user *arg)
 {
 	struct hci_dev *hdev;
@@ -2716,22 +2779,11 @@ int hci_dev_cmd(unsigned int cmd, void __user *arg)
 		err = hci_req_sync(hdev, hci_scan_req, dr.dev_opt,
 				   HCI_INIT_TIMEOUT);
 
-		/* Ensure that the connectable state gets correctly
-		 * notified if the whitelist is in use.
+		/* Ensure that the connectable and discoverable states
+		 * get correctly modified as this was a non-mgmt change.
 		 */
-		if (!err && !list_empty(&hdev->whitelist)) {
-			bool changed;
-
-			if ((dr.dev_opt & SCAN_PAGE))
-				changed = !test_and_set_bit(HCI_CONNECTABLE,
-							    &hdev->dev_flags);
-			else
-				changed = test_and_set_bit(HCI_CONNECTABLE,
-							   &hdev->dev_flags);
-
-			if (changed)
-				mgmt_new_settings(hdev);
-		}
+		if (!err)
+			hci_update_scan_state(hdev, dr.dev_opt);
 		break;
 
 	case HCISETLINKPOL:
@@ -2792,14 +2844,17 @@ int hci_get_dev_list(void __user *arg)
 
 	read_lock(&hci_dev_list_lock);
 	list_for_each_entry(hdev, &hci_dev_list, list) {
-		if (test_and_clear_bit(HCI_AUTO_OFF, &hdev->dev_flags))
-			cancel_delayed_work(&hdev->power_off);
+		unsigned long flags = hdev->flags;
 
-		if (!test_bit(HCI_MGMT, &hdev->dev_flags))
-			set_bit(HCI_PAIRABLE, &hdev->dev_flags);
+		/* When the auto-off is configured it means the transport
+		 * is running, but in that case still indicate that the
+		 * device is actually down.
+		 */
+		if (test_bit(HCI_AUTO_OFF, &hdev->dev_flags))
+			flags &= ~BIT(HCI_UP);
 
 		(dr + n)->dev_id  = hdev->id;
-		(dr + n)->dev_opt = hdev->flags;
+		(dr + n)->dev_opt = flags;
 
 		if (++n >= dev_num)
 			break;
@@ -2819,6 +2874,7 @@ int hci_get_dev_info(void __user *arg)
 {
 	struct hci_dev *hdev;
 	struct hci_dev_info di;
+	unsigned long flags;
 	int err = 0;
 
 	if (copy_from_user(&di, arg, sizeof(di)))
@@ -2828,16 +2884,19 @@ int hci_get_dev_info(void __user *arg)
 	if (!hdev)
 		return -ENODEV;
 
-	if (test_and_clear_bit(HCI_AUTO_OFF, &hdev->dev_flags))
-		cancel_delayed_work_sync(&hdev->power_off);
-
-	if (!test_bit(HCI_MGMT, &hdev->dev_flags))
-		set_bit(HCI_PAIRABLE, &hdev->dev_flags);
+	/* When the auto-off is configured it means the transport
+	 * is running, but in that case still indicate that the
+	 * device is actually down.
+	 */
+	if (test_bit(HCI_AUTO_OFF, &hdev->dev_flags))
+		flags = hdev->flags & ~BIT(HCI_UP);
+	else
+		flags = hdev->flags;
 
 	strcpy(di.name, hdev->name);
 	di.bdaddr   = hdev->bdaddr;
 	di.type     = (hdev->bus & 0x0f) | ((hdev->dev_type & 0x03) << 4);
-	di.flags    = hdev->flags;
+	di.flags    = flags;
 	di.pkt_type = hdev->pkt_type;
 	if (lmp_bredr_capable(hdev)) {
 		di.acl_mtu  = hdev->acl_mtu;
@@ -3062,13 +3121,16 @@ static bool hci_persistent_key(struct hci_dev *hdev, struct hci_conn *conn,
 	return false;
 }
 
-static bool ltk_type_master(u8 type)
+static u8 ltk_role(u8 type)
 {
-	return (type == SMP_LTK);
+	if (type == SMP_LTK)
+		return HCI_ROLE_MASTER;
+
+	return HCI_ROLE_SLAVE;
 }
 
 struct smp_ltk *hci_find_ltk(struct hci_dev *hdev, __le16 ediv, __le64 rand,
-			     bool master)
+			     u8 role)
 {
 	struct smp_ltk *k;
 
@@ -3076,7 +3138,7 @@ struct smp_ltk *hci_find_ltk(struct hci_dev *hdev, __le16 ediv, __le64 rand,
 		if (k->ediv != ediv || k->rand != rand)
 			continue;
 
-		if (ltk_type_master(k->type) != master)
+		if (ltk_role(k->type) != role)
 			continue;
 
 		return k;
@@ -3086,14 +3148,14 @@ struct smp_ltk *hci_find_ltk(struct hci_dev *hdev, __le16 ediv, __le64 rand,
 }
 
 struct smp_ltk *hci_find_ltk_by_addr(struct hci_dev *hdev, bdaddr_t *bdaddr,
-				     u8 addr_type, bool master)
+				     u8 addr_type, u8 role)
 {
 	struct smp_ltk *k;
 
 	list_for_each_entry(k, &hdev->long_term_keys, list)
 		if (addr_type == k->bdaddr_type &&
 		    bacmp(bdaddr, &k->bdaddr) == 0 &&
-		    ltk_type_master(k->type) == master)
+		    ltk_role(k->type) == role)
 			return k;
 
 	return NULL;
@@ -3188,9 +3250,9 @@ struct smp_ltk *hci_add_ltk(struct hci_dev *hdev, bdaddr_t *bdaddr,
 			    u8 tk[16], u8 enc_size, __le16 ediv, __le64 rand)
 {
 	struct smp_ltk *key, *old_key;
-	bool master = ltk_type_master(type);
+	u8 role = ltk_role(type);
 
-	old_key = hci_find_ltk_by_addr(hdev, bdaddr, addr_type, master);
+	old_key = hci_find_ltk_by_addr(hdev, bdaddr, addr_type, role);
 	if (old_key)
 		key = old_key;
 	else {
@@ -3430,7 +3492,7 @@ int hci_bdaddr_list_add(struct list_head *list, bdaddr_t *bdaddr, u8 type)
 	if (hci_bdaddr_list_lookup(list, bdaddr, type))
 		return -EEXIST;
 
-	entry = kzalloc(sizeof(struct bdaddr_list), GFP_KERNEL);
+	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry)
 		return -ENOMEM;
 
@@ -3835,7 +3897,7 @@ struct hci_dev *hci_alloc_dev(void)
 {
 	struct hci_dev *hdev;
 
-	hdev = kzalloc(sizeof(struct hci_dev), GFP_KERNEL);
+	hdev = kzalloc(sizeof(*hdev), GFP_KERNEL);
 	if (!hdev)
 		return NULL;
 
@@ -4388,6 +4450,11 @@ int hci_req_run(struct hci_request *req, hci_req_complete_t complete)
 	queue_work(hdev->workqueue, &hdev->cmd_work);
 
 	return 0;
+}
+
+bool hci_req_pending(struct hci_dev *hdev)
+{
+	return (hdev->req_status == HCI_REQ_PEND);
 }
 
 static struct sk_buff *hci_prepare_cmd(struct hci_dev *hdev, u16 opcode,
@@ -5398,8 +5465,7 @@ void hci_update_background_scan(struct hci_dev *hdev)
 
 	hci_req_init(&req, hdev);
 
-	if (!test_bit(HCI_CONNECTABLE, &hdev->dev_flags) &&
-	    list_empty(&hdev->pend_le_conns) &&
+	if (list_empty(&hdev->pend_le_conns) &&
 	    list_empty(&hdev->pend_le_reports)) {
 		/* If there is no pending LE connections or devices
 		 * to be scanned for, we should stop the background

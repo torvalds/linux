@@ -385,6 +385,8 @@ enum iwl_bt_activity_grading {
 	BT_ON_NO_CONNECTION	= 1,
 	BT_LOW_TRAFFIC		= 2,
 	BT_HIGH_TRAFFIC		= 3,
+
+	BT_MAX_AG,
 }; /* BT_COEX_BT_ACTIVITY_GRADING_API_E_VER_1 */
 
 enum iwl_bt_ci_compliance {

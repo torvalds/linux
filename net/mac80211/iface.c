@@ -1140,6 +1140,7 @@ static void ieee80211_iface_work(struct work_struct *work)
 	struct sk_buff *skb;
 	struct sta_info *sta;
 	struct ieee80211_ra_tid *ra_tid;
+	struct ieee80211_rx_agg *rx_agg;
 
 	if (!ieee80211_sdata_running(sdata))
 		return;
@@ -1167,6 +1168,34 @@ static void ieee80211_iface_work(struct work_struct *work)
 			ra_tid = (void *)&skb->cb;
 			ieee80211_stop_tx_ba_cb(&sdata->vif, ra_tid->ra,
 						ra_tid->tid);
+		} else if (skb->pkt_type == IEEE80211_SDATA_QUEUE_RX_AGG_START) {
+			rx_agg = (void *)&skb->cb;
+			mutex_lock(&local->sta_mtx);
+			sta = sta_info_get_bss(sdata, rx_agg->addr);
+			if (sta) {
+				u16 last_seq;
+
+				last_seq = le16_to_cpu(
+					sta->last_seq_ctrl[rx_agg->tid]);
+
+				__ieee80211_start_rx_ba_session(sta,
+						0, 0,
+						ieee80211_sn_inc(last_seq),
+						1, rx_agg->tid,
+						IEEE80211_MAX_AMPDU_BUF,
+						false);
+			}
+			mutex_unlock(&local->sta_mtx);
+		} else if (skb->pkt_type == IEEE80211_SDATA_QUEUE_RX_AGG_STOP) {
+			rx_agg = (void *)&skb->cb;
+			mutex_lock(&local->sta_mtx);
+			sta = sta_info_get_bss(sdata, rx_agg->addr);
+			if (sta)
+				__ieee80211_stop_rx_ba_session(sta,
+							rx_agg->tid,
+							WLAN_BACK_RECIPIENT, 0,
+							false);
+			mutex_unlock(&local->sta_mtx);
 		} else if (ieee80211_is_action(mgmt->frame_control) &&
 			   mgmt->u.action.category == WLAN_CATEGORY_BACK) {
 			int len = skb->len;
@@ -1672,8 +1701,6 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 			  ieee80211_dfs_cac_timer_work);
 	INIT_DELAYED_WORK(&sdata->dec_tailroom_needed_wk,
 			  ieee80211_delayed_tailroom_dec);
-	INIT_DELAYED_WORK(&sdata->tdls_peer_del_work,
-			  ieee80211_tdls_peer_del_work);
 
 	for (i = 0; i < IEEE80211_NUM_BANDS; i++) {
 		struct ieee80211_supported_band *sband;

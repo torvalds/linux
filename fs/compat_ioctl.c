@@ -59,7 +59,7 @@
 #include <linux/gfp.h>
 
 #include <net/bluetooth/bluetooth.h>
-#include <net/bluetooth/hci.h>
+#include <net/bluetooth/hci_sock.h>
 #include <net/bluetooth/rfcomm.h>
 
 #include <linux/capi.h>

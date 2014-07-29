@@ -26,6 +26,7 @@
 #define __HCI_CORE_H
 
 #include <net/bluetooth/hci.h>
+#include <net/bluetooth/hci_sock.h>
 
 /* HCI priority */
 #define HCI_PRIO_MAX	7
@@ -82,6 +83,7 @@ struct hci_conn_hash {
 	unsigned int     amp_num;
 	unsigned int     sco_num;
 	unsigned int     le_num;
+	unsigned int     le_num_slave;
 };
 
 struct bdaddr_list {
@@ -370,6 +372,7 @@ struct hci_conn {
 	__u16		state;
 	__u8		mode;
 	__u8		type;
+	__u8		role;
 	bool		out;
 	__u8		attempt;
 	__u8		dev_class[3];
@@ -539,12 +542,12 @@ enum {
 	HCI_CONN_POWER_SAVE,
 	HCI_CONN_REMOTE_OOB,
 	HCI_CONN_FLUSH_KEY,
-	HCI_CONN_MASTER,
 	HCI_CONN_ENCRYPT,
 	HCI_CONN_AUTH,
 	HCI_CONN_SECURE,
 	HCI_CONN_FIPS,
 	HCI_CONN_STK_ENCRYPT,
+	HCI_CONN_AUTH_INITIATOR,
 };
 
 static inline bool hci_conn_ssp_enabled(struct hci_conn *conn)
@@ -574,6 +577,8 @@ static inline void hci_conn_hash_add(struct hci_dev *hdev, struct hci_conn *c)
 		break;
 	case LE_LINK:
 		h->le_num++;
+		if (c->role == HCI_ROLE_SLAVE)
+			h->le_num_slave++;
 		break;
 	case SCO_LINK:
 	case ESCO_LINK:
@@ -598,6 +603,8 @@ static inline void hci_conn_hash_del(struct hci_dev *hdev, struct hci_conn *c)
 		break;
 	case LE_LINK:
 		h->le_num--;
+		if (c->role == HCI_ROLE_SLAVE)
+			h->le_num_slave--;
 		break;
 	case SCO_LINK:
 	case ESCO_LINK:
@@ -694,7 +701,8 @@ void hci_disconnect(struct hci_conn *conn, __u8 reason);
 bool hci_setup_sync(struct hci_conn *conn, __u16 handle);
 void hci_sco_setup(struct hci_conn *conn, __u8 status);
 
-struct hci_conn *hci_conn_add(struct hci_dev *hdev, int type, bdaddr_t *dst);
+struct hci_conn *hci_conn_add(struct hci_dev *hdev, int type, bdaddr_t *dst,
+			      u8 role);
 int hci_conn_del(struct hci_conn *conn);
 void hci_conn_hash_flush(struct hci_dev *hdev);
 void hci_conn_check_pending(struct hci_dev *hdev);
@@ -706,14 +714,15 @@ struct hci_chan *hci_chan_lookup_handle(struct hci_dev *hdev, __u16 handle);
 
 struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
 				u8 dst_type, u8 sec_level, u16 conn_timeout,
-				bool master);
+				u8 role);
 struct hci_conn *hci_connect_acl(struct hci_dev *hdev, bdaddr_t *dst,
 				 u8 sec_level, u8 auth_type);
 struct hci_conn *hci_connect_sco(struct hci_dev *hdev, int type, bdaddr_t *dst,
 				 __u16 setting);
 int hci_conn_check_link_mode(struct hci_conn *conn);
 int hci_conn_check_secure(struct hci_conn *conn, __u8 sec_level);
-int hci_conn_security(struct hci_conn *conn, __u8 sec_level, __u8 auth_type);
+int hci_conn_security(struct hci_conn *conn, __u8 sec_level, __u8 auth_type,
+		      bool initiator);
 int hci_conn_change_link_key(struct hci_conn *conn);
 int hci_conn_switch_role(struct hci_conn *conn, __u8 role);
 
@@ -880,12 +889,12 @@ struct link_key *hci_add_link_key(struct hci_dev *hdev, struct hci_conn *conn,
 				  bdaddr_t *bdaddr, u8 *val, u8 type,
 				  u8 pin_len, bool *persistent);
 struct smp_ltk *hci_find_ltk(struct hci_dev *hdev, __le16 ediv, __le64 rand,
-			     bool master);
+			     u8 role);
 struct smp_ltk *hci_add_ltk(struct hci_dev *hdev, bdaddr_t *bdaddr,
 			    u8 addr_type, u8 type, u8 authenticated,
 			    u8 tk[16], u8 enc_size, __le16 ediv, __le64 rand);
 struct smp_ltk *hci_find_ltk_by_addr(struct hci_dev *hdev, bdaddr_t *bdaddr,
-				     u8 addr_type, bool master);
+				     u8 addr_type, u8 role);
 int hci_remove_ltk(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 bdaddr_type);
 void hci_smp_ltks_clear(struct hci_dev *hdev);
 int hci_remove_link_key(struct hci_dev *hdev, bdaddr_t *bdaddr);
@@ -1239,6 +1248,7 @@ void hci_req_add(struct hci_request *req, u16 opcode, u32 plen,
 void hci_req_add_ev(struct hci_request *req, u16 opcode, u32 plen,
 		    const void *param, u8 event);
 void hci_req_cmd_complete(struct hci_dev *hdev, u16 opcode, u8 status);
+bool hci_req_pending(struct hci_dev *hdev);
 
 void hci_req_add_le_scan_disable(struct hci_request *req);
 void hci_req_add_le_passive_scan(struct hci_request *req);
@@ -1286,10 +1296,8 @@ void mgmt_index_added(struct hci_dev *hdev);
 void mgmt_index_removed(struct hci_dev *hdev);
 void mgmt_set_powered_failed(struct hci_dev *hdev, int err);
 int mgmt_powered(struct hci_dev *hdev, u8 powered);
+int mgmt_update_adv_data(struct hci_dev *hdev);
 void mgmt_discoverable_timeout(struct hci_dev *hdev);
-void mgmt_discoverable(struct hci_dev *hdev, u8 discoverable);
-void mgmt_connectable(struct hci_dev *hdev, u8 connectable);
-void mgmt_write_scan_failed(struct hci_dev *hdev, u8 scan, u8 status);
 void mgmt_new_link_key(struct hci_dev *hdev, struct link_key *key,
 		       bool persistent);
 void mgmt_device_connected(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
@@ -1349,34 +1357,6 @@ void mgmt_new_conn_param(struct hci_dev *hdev, bdaddr_t *bdaddr,
 			 u16 max_interval, u16 latency, u16 timeout);
 void mgmt_reenable_advertising(struct hci_dev *hdev);
 void mgmt_smp_complete(struct hci_conn *conn, bool complete);
-
-/* HCI info for socket */
-#define hci_pi(sk) ((struct hci_pinfo *) sk)
-
-struct hci_pinfo {
-	struct bt_sock    bt;
-	struct hci_dev    *hdev;
-	struct hci_filter filter;
-	__u32             cmsg_mask;
-	unsigned short   channel;
-};
-
-/* HCI security filter */
-#define HCI_SFLT_MAX_OGF  5
-
-struct hci_sec_filter {
-	__u32 type_mask;
-	__u32 event_mask[2];
-	__u32 ocf_mask[HCI_SFLT_MAX_OGF + 1][4];
-};
-
-/* ----- HCI requests ----- */
-#define HCI_REQ_DONE	  0
-#define HCI_REQ_PEND	  1
-#define HCI_REQ_CANCELED  2
-
-#define hci_req_lock(d)		mutex_lock(&d->req_lock)
-#define hci_req_unlock(d)	mutex_unlock(&d->req_lock)
 
 u8 hci_le_conn_update(struct hci_conn *conn, u16 min, u16 max, u16 latency,
 		      u16 to_multiplier);

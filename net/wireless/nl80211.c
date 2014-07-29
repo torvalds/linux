@@ -3814,7 +3814,8 @@ int cfg80211_check_station_change(struct wiphy *wiphy,
 {
 	if (params->listen_interval != -1)
 		return -EINVAL;
-	if (params->aid)
+	if (params->aid &&
+	    !(params->sta_flags_set & BIT(NL80211_STA_FLAG_TDLS_PEER)))
 		return -EINVAL;
 
 	/* When you run into this, adjust the code below for the new flag */

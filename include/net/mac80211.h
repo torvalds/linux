@@ -4552,6 +4552,40 @@ void ieee80211_stop_rx_ba_session(struct ieee80211_vif *vif, u16 ba_rx_bitmap,
  */
 void ieee80211_send_bar(struct ieee80211_vif *vif, u8 *ra, u16 tid, u16 ssn);
 
+/**
+ * ieee80211_start_rx_ba_session_offl - start a Rx BA session
+ *
+ * Some device drivers may offload part of the Rx aggregation flow including
+ * AddBa/DelBa negotiation but may otherwise be incapable of full Rx
+ * reordering.
+ *
+ * Create structures responsible for reordering so device drivers may call here
+ * when they complete AddBa negotiation.
+ *
+ * @vif: &struct ieee80211_vif pointer from the add_interface callback
+ * @addr: station mac address
+ * @tid: the rx tid
+ */
+void ieee80211_start_rx_ba_session_offl(struct ieee80211_vif *vif,
+					const u8 *addr, u16 tid);
+
+/**
+ * ieee80211_stop_rx_ba_session_offl - stop a Rx BA session
+ *
+ * Some device drivers may offload part of the Rx aggregation flow including
+ * AddBa/DelBa negotiation but may otherwise be incapable of full Rx
+ * reordering.
+ *
+ * Destroy structures responsible for reordering so device drivers may call here
+ * when they complete DelBa negotiation.
+ *
+ * @vif: &struct ieee80211_vif pointer from the add_interface callback
+ * @addr: station mac address
+ * @tid: the rx tid
+ */
+void ieee80211_stop_rx_ba_session_offl(struct ieee80211_vif *vif,
+				       const u8 *addr, u16 tid);
+
 /* Rate control API */
 
 /**

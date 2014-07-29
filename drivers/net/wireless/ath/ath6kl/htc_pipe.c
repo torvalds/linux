@@ -1170,8 +1170,12 @@ static int htc_wait_recv_ctrl_message(struct htc_target *target)
 static void htc_rxctrl_complete(struct htc_target *context,
 				struct htc_packet *packet)
 {
-	/* TODO, can't really receive HTC control messages yet.... */
-	ath6kl_dbg(ATH6KL_DBG_HTC, "%s: invalid call function\n", __func__);
+	struct sk_buff *skb = packet->skb;
+
+	if (packet->endpoint == ENDPOINT_0 &&
+	    packet->status == -ECANCELED &&
+	    skb != NULL)
+		dev_kfree_skb(skb);
 }
 
 /* htc pipe initialization */
@@ -1678,7 +1682,29 @@ static void ath6kl_htc_pipe_activity_changed(struct htc_target *target,
 
 static void ath6kl_htc_pipe_flush_rx_buf(struct htc_target *target)
 {
-	/* TODO */
+	struct htc_endpoint *endpoint;
+	struct htc_packet *packet, *tmp_pkt;
+	int i;
+
+	for (i = ENDPOINT_0; i < ENDPOINT_MAX; i++) {
+		endpoint = &target->endpoint[i];
+
+		spin_lock_bh(&target->rx_lock);
+
+		list_for_each_entry_safe(packet, tmp_pkt,
+					 &endpoint->rx_bufq, list) {
+			list_del(&packet->list);
+			spin_unlock_bh(&target->rx_lock);
+			ath6kl_dbg(ATH6KL_DBG_HTC,
+				   "htc rx flush pkt 0x%p len %d ep %d\n",
+				   packet, packet->buf_len,
+				   packet->endpoint);
+			dev_kfree_skb(packet->pkt_cntxt);
+			spin_lock_bh(&target->rx_lock);
+		}
+
+		spin_unlock_bh(&target->rx_lock);
+	}
 }
 
 static int ath6kl_htc_pipe_credit_setup(struct htc_target *target,

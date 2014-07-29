@@ -210,6 +210,9 @@ static struct ieee80211_channel b43_2ghz_chantable[] = {
 	CHAN2G(13, 2472, 0),
 	CHAN2G(14, 2484, 0),
 };
+
+/* No support for the last 3 channels (12, 13, 14) */
+#define b43_2ghz_chantable_limited_size		11
 #undef CHAN2G
 
 #define CHAN4G(_channel, _flags) {				\
@@ -287,6 +290,14 @@ static struct ieee80211_channel b43_5ghz_nphy_chantable[] = {
 	CHAN5G(182, 0),
 };
 
+static struct ieee80211_channel b43_5ghz_nphy_chantable_limited[] = {
+	CHAN5G(36, 0),		CHAN5G(40, 0),
+	CHAN5G(44, 0),		CHAN5G(48, 0),
+	CHAN5G(149, 0),		CHAN5G(153, 0),
+	CHAN5G(157, 0),		CHAN5G(161, 0),
+	CHAN5G(165, 0),
+};
+
 static struct ieee80211_channel b43_5ghz_aphy_chantable[] = {
 	CHAN5G(34, 0),		CHAN5G(36, 0),
 	CHAN5G(38, 0),		CHAN5G(40, 0),
@@ -319,6 +330,14 @@ static struct ieee80211_supported_band b43_band_5GHz_nphy = {
 	.n_bitrates	= b43_a_ratetable_size,
 };
 
+static struct ieee80211_supported_band b43_band_5GHz_nphy_limited = {
+	.band		= IEEE80211_BAND_5GHZ,
+	.channels	= b43_5ghz_nphy_chantable_limited,
+	.n_channels	= ARRAY_SIZE(b43_5ghz_nphy_chantable_limited),
+	.bitrates	= b43_a_ratetable,
+	.n_bitrates	= b43_a_ratetable_size,
+};
+
 static struct ieee80211_supported_band b43_band_5GHz_aphy = {
 	.band		= IEEE80211_BAND_5GHZ,
 	.channels	= b43_5ghz_aphy_chantable,
@@ -331,6 +350,14 @@ static struct ieee80211_supported_band b43_band_2GHz = {
 	.band		= IEEE80211_BAND_2GHZ,
 	.channels	= b43_2ghz_chantable,
 	.n_channels	= ARRAY_SIZE(b43_2ghz_chantable),
+	.bitrates	= b43_g_ratetable,
+	.n_bitrates	= b43_g_ratetable_size,
+};
+
+static struct ieee80211_supported_band b43_band_2ghz_limited = {
+	.band		= IEEE80211_BAND_2GHZ,
+	.channels	= b43_2ghz_chantable,
+	.n_channels	= b43_2ghz_chantable_limited_size,
 	.bitrates	= b43_g_ratetable,
 	.n_bitrates	= b43_g_ratetable_size,
 };
@@ -2953,6 +2980,45 @@ void b43_mac_phy_clock_set(struct b43_wldev *dev, bool on)
 	}
 }
 
+/* brcms_b_switch_macfreq */
+void b43_mac_switch_freq(struct b43_wldev *dev, u8 spurmode)
+{
+	u16 chip_id = dev->dev->chip_id;
+
+	if (chip_id == BCMA_CHIP_ID_BCM43217 ||
+	    chip_id == BCMA_CHIP_ID_BCM43222 ||
+	    chip_id == BCMA_CHIP_ID_BCM43224 ||
+	    chip_id == BCMA_CHIP_ID_BCM43225 ||
+	    chip_id == BCMA_CHIP_ID_BCM43227 ||
+	    chip_id == BCMA_CHIP_ID_BCM43228) {
+		switch (spurmode) {
+		case 2: /* 126 Mhz */
+			b43_write16(dev, B43_MMIO_TSF_CLK_FRAC_LOW, 0x2082);
+			b43_write16(dev, B43_MMIO_TSF_CLK_FRAC_HIGH, 0x8);
+			break;
+		case 1: /* 123 Mhz */
+			b43_write16(dev, B43_MMIO_TSF_CLK_FRAC_LOW, 0x5341);
+			b43_write16(dev, B43_MMIO_TSF_CLK_FRAC_HIGH, 0x8);
+			break;
+		default: /* 120 Mhz */
+			b43_write16(dev, B43_MMIO_TSF_CLK_FRAC_LOW, 0x8889);
+			b43_write16(dev, B43_MMIO_TSF_CLK_FRAC_HIGH, 0x8);
+			break;
+		}
+	} else if (dev->phy.type == B43_PHYTYPE_LCN) {
+		switch (spurmode) {
+		case 1: /* 82 Mhz */
+			b43_write16(dev, B43_MMIO_TSF_CLK_FRAC_LOW, 0x7CE0);
+			b43_write16(dev, B43_MMIO_TSF_CLK_FRAC_HIGH, 0xC);
+			break;
+		default: /* 80 Mhz */
+			b43_write16(dev, B43_MMIO_TSF_CLK_FRAC_LOW, 0xCCCD);
+			b43_write16(dev, B43_MMIO_TSF_CLK_FRAC_HIGH, 0xC);
+			break;
+		}
+	}
+}
+
 static void b43_adjust_opmode(struct b43_wldev *dev)
 {
 	struct b43_wl *wl = dev->wl;
@@ -4335,8 +4401,9 @@ static int b43_phy_versioning(struct b43_wldev *dev)
 	u8 phy_type;
 	u8 phy_rev;
 	u16 radio_manuf;
-	u16 radio_ver;
+	u16 radio_id;
 	u16 radio_rev;
+	u8 radio_ver;
 	int unsupported = 0;
 
 	/* Get PHY versioning */
@@ -4360,7 +4427,7 @@ static int b43_phy_versioning(struct b43_wldev *dev)
 #endif
 #ifdef CONFIG_B43_PHY_N
 	case B43_PHYTYPE_N:
-		if (phy_rev > 9)
+		if (phy_rev >= 19)
 			unsupported = 1;
 		break;
 #endif
@@ -4402,7 +4469,9 @@ static int b43_phy_versioning(struct b43_wldev *dev)
 		radio_rev = b43_read16(dev, B43_MMIO_RADIO24_DATA);
 
 		b43_write16(dev, B43_MMIO_RADIO24_CONTROL, 1);
-		radio_ver = b43_read16(dev, B43_MMIO_RADIO24_DATA);
+		radio_id = b43_read16(dev, B43_MMIO_RADIO24_DATA);
+
+		radio_ver = 0; /* Is there version somewhere? */
 	} else if (core_rev >= 24) {
 		u16 radio24[3];
 
@@ -4411,12 +4480,10 @@ static int b43_phy_versioning(struct b43_wldev *dev)
 			radio24[tmp] = b43_read16(dev, B43_MMIO_RADIO24_DATA);
 		}
 
-		/* Broadcom uses "id" for our "ver" and has separated "ver" */
-		/* radio_ver = (radio24[0] & 0xF0) >> 4; */
-
 		radio_manuf = 0x17F;
-		radio_ver = (radio24[2] << 8) | radio24[1];
+		radio_id = (radio24[2] << 8) | radio24[1];
 		radio_rev = (radio24[0] & 0xF);
+		radio_ver = (radio24[0] & 0xF0) >> 4;
 	} else {
 		if (dev->dev->chip_id == 0x4317) {
 			if (dev->dev->chip_rev == 0)
@@ -4435,15 +4502,16 @@ static int b43_phy_versioning(struct b43_wldev *dev)
 				<< 16;
 		}
 		radio_manuf = (tmp & 0x00000FFF);
-		radio_ver = (tmp & 0x0FFFF000) >> 12;
+		radio_id = (tmp & 0x0FFFF000) >> 12;
 		radio_rev = (tmp & 0xF0000000) >> 28;
+		radio_ver = 0; /* Probably not available on old hw */
 	}
 
 	if (radio_manuf != 0x17F /* Broadcom */)
 		unsupported = 1;
 	switch (phy_type) {
 	case B43_PHYTYPE_A:
-		if (radio_ver != 0x2060)
+		if (radio_id != 0x2060)
 			unsupported = 1;
 		if (radio_rev != 1)
 			unsupported = 1;
@@ -4451,43 +4519,49 @@ static int b43_phy_versioning(struct b43_wldev *dev)
 			unsupported = 1;
 		break;
 	case B43_PHYTYPE_B:
-		if ((radio_ver & 0xFFF0) != 0x2050)
+		if ((radio_id & 0xFFF0) != 0x2050)
 			unsupported = 1;
 		break;
 	case B43_PHYTYPE_G:
-		if (radio_ver != 0x2050)
+		if (radio_id != 0x2050)
 			unsupported = 1;
 		break;
 	case B43_PHYTYPE_N:
-		if (radio_ver != 0x2055 && radio_ver != 0x2056)
+		if (radio_id != 0x2055 && radio_id != 0x2056 &&
+		    radio_id != 0x2057)
+			unsupported = 1;
+		if (radio_id == 0x2057 &&
+		    !(radio_rev == 9 || radio_rev == 14))
 			unsupported = 1;
 		break;
 	case B43_PHYTYPE_LP:
-		if (radio_ver != 0x2062 && radio_ver != 0x2063)
+		if (radio_id != 0x2062 && radio_id != 0x2063)
 			unsupported = 1;
 		break;
 	case B43_PHYTYPE_HT:
-		if (radio_ver != 0x2059)
+		if (radio_id != 0x2059)
 			unsupported = 1;
 		break;
 	case B43_PHYTYPE_LCN:
-		if (radio_ver != 0x2064)
+		if (radio_id != 0x2064)
 			unsupported = 1;
 		break;
 	default:
 		B43_WARN_ON(1);
 	}
 	if (unsupported) {
-		b43err(dev->wl, "FOUND UNSUPPORTED RADIO "
-		       "(Manuf 0x%X, Version 0x%X, Revision %u)\n",
-		       radio_manuf, radio_ver, radio_rev);
+		b43err(dev->wl,
+		       "FOUND UNSUPPORTED RADIO (Manuf 0x%X, ID 0x%X, Revision %u, Version %u)\n",
+		       radio_manuf, radio_id, radio_rev, radio_ver);
 		return -EOPNOTSUPP;
 	}
-	b43dbg(dev->wl, "Found Radio: Manuf 0x%X, Version 0x%X, Revision %u\n",
-	       radio_manuf, radio_ver, radio_rev);
+	b43info(dev->wl,
+		"Found Radio: Manuf 0x%X, ID 0x%X, Revision %u, Version %u\n",
+		radio_manuf, radio_id, radio_rev, radio_ver);
 
+	/* FIXME: b43 treats "id" as "ver" and ignores the real "ver" */
 	phy->radio_manuf = radio_manuf;
-	phy->radio_ver = radio_ver;
+	phy->radio_ver = radio_id;
 	phy->radio_rev = radio_rev;
 
 	phy->analog = analog_type;
@@ -5095,12 +5169,24 @@ static int b43_setup_bands(struct b43_wldev *dev,
 			   bool have_2ghz_phy, bool have_5ghz_phy)
 {
 	struct ieee80211_hw *hw = dev->wl->hw;
+	struct b43_phy *phy = &dev->phy;
+	bool limited_2g;
+	bool limited_5g;
+
+	/* We don't support all 2 GHz channels on some devices */
+	limited_2g = phy->radio_ver == 0x2057 &&
+		     (phy->radio_rev == 9 || phy->radio_rev == 14);
+	limited_5g = phy->radio_ver == 0x2057 &&
+		     phy->radio_rev == 9;
 
 	if (have_2ghz_phy)
-		hw->wiphy->bands[IEEE80211_BAND_2GHZ] = &b43_band_2GHz;
+		hw->wiphy->bands[IEEE80211_BAND_2GHZ] = limited_2g ?
+			&b43_band_2ghz_limited : &b43_band_2GHz;
 	if (dev->phy.type == B43_PHYTYPE_N) {
 		if (have_5ghz_phy)
-			hw->wiphy->bands[IEEE80211_BAND_5GHZ] = &b43_band_5GHz_nphy;
+			hw->wiphy->bands[IEEE80211_BAND_5GHZ] = limited_5g ?
+				&b43_band_5GHz_nphy_limited :
+				&b43_band_5GHz_nphy;
 	} else {
 		if (have_5ghz_phy)
 			hw->wiphy->bands[IEEE80211_BAND_5GHZ] = &b43_band_5GHz_aphy;
@@ -5248,14 +5334,15 @@ static int b43_wireless_core_attach(struct b43_wldev *dev)
 	b43_supported_bands(dev, &have_2ghz_phy, &have_5ghz_phy);
 
 	/* We don't support 5 GHz on some PHYs yet */
-	switch (dev->phy.type) {
-	case B43_PHYTYPE_A:
-	case B43_PHYTYPE_G:
-	case B43_PHYTYPE_N:
-	case B43_PHYTYPE_LP:
-	case B43_PHYTYPE_HT:
-		b43warn(wl, "5 GHz band is unsupported on this PHY\n");
-		have_5ghz_phy = false;
+	if (have_5ghz_phy) {
+		switch (dev->phy.type) {
+		case B43_PHYTYPE_A:
+		case B43_PHYTYPE_G:
+		case B43_PHYTYPE_LP:
+		case B43_PHYTYPE_HT:
+			b43warn(wl, "5 GHz band is unsupported on this PHY\n");
+			have_5ghz_phy = false;
+		}
 	}
 
 	if (!have_2ghz_phy && !have_5ghz_phy) {

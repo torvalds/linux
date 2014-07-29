@@ -98,23 +98,21 @@ int iwl_mvm_sta_send_to_fw(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 			   bool update)
 {
 	struct iwl_mvm_sta *mvm_sta = (void *)sta->drv_priv;
-	struct iwl_mvm_add_sta_cmd add_sta_cmd;
+	struct iwl_mvm_add_sta_cmd add_sta_cmd = {
+		.sta_id = mvm_sta->sta_id,
+		.mac_id_n_color = cpu_to_le32(mvm_sta->mac_id_n_color),
+		.add_modify = update ? 1 : 0,
+		.station_flags_msk = cpu_to_le32(STA_FLG_FAT_EN_MSK |
+						 STA_FLG_MIMO_EN_MSK),
+	};
 	int ret;
 	u32 status;
 	u32 agg_size = 0, mpdu_dens = 0;
 
-	memset(&add_sta_cmd, 0, sizeof(add_sta_cmd));
-
-	add_sta_cmd.sta_id = mvm_sta->sta_id;
-	add_sta_cmd.mac_id_n_color = cpu_to_le32(mvm_sta->mac_id_n_color);
 	if (!update) {
 		add_sta_cmd.tfd_queue_msk = cpu_to_le32(mvm_sta->tfd_queue_msk);
 		memcpy(&add_sta_cmd.addr, sta->addr, ETH_ALEN);
 	}
-	add_sta_cmd.add_modify = update ? 1 : 0;
-
-	add_sta_cmd.station_flags_msk |= cpu_to_le32(STA_FLG_FAT_EN_MSK |
-						     STA_FLG_MIMO_EN_MSK);
 
 	switch (sta->bandwidth) {
 	case IEEE80211_STA_RX_BW_160:
@@ -528,8 +526,12 @@ int iwl_mvm_add_aux_sta(struct iwl_mvm *mvm)
 
 	lockdep_assert_held(&mvm->mutex);
 
-	/* Add the aux station, but without any queues */
-	ret = iwl_mvm_allocate_int_sta(mvm, &mvm->aux_sta, 0,
+	/* Map Aux queue to fifo - needs to happen before adding Aux station */
+	iwl_trans_ac_txq_enable(mvm->trans, mvm->aux_queue,
+				IWL_MVM_TX_FIFO_MCAST);
+
+	/* Allocate aux station and assign to it the aux queue */
+	ret = iwl_mvm_allocate_int_sta(mvm, &mvm->aux_sta, BIT(mvm->aux_queue),
 				       NL80211_IFTYPE_UNSPECIFIED);
 	if (ret)
 		return ret;
