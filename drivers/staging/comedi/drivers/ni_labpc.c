@@ -176,7 +176,7 @@ static const struct labpc_boardinfo labpc_boards[] = {
 #endif
 
 static void labpc_counter_load(struct comedi_device *dev,
-			       unsigned long base_address,
+			       unsigned long reg,
 			       unsigned int counter_number,
 			       unsigned int count,
 			       unsigned int mode)
@@ -184,13 +184,13 @@ static void labpc_counter_load(struct comedi_device *dev,
 	const struct labpc_boardinfo *board = comedi_board(dev);
 
 	if (board->has_mmio) {
-		void __iomem *mmio_base = (void __iomem *)base_address;
+		void __iomem *mmio = (void __iomem *)dev->iobase;
 
-		i8254_mm_set_mode(mmio_base, 0, counter_number, mode);
-		i8254_mm_write(mmio_base, 0, counter_number, count);
+		i8254_mm_set_mode(mmio + reg, 0, counter_number, mode);
+		i8254_mm_write(mmio + reg, 0, counter_number, count);
 	} else {
-		i8254_set_mode(base_address, 0, counter_number, mode);
-		i8254_write(base_address, 0, counter_number, count);
+		i8254_set_mode(dev->iobase + reg, 0, counter_number, mode);
+		i8254_write(dev->iobase + reg, 0, counter_number, count);
 	}
 }
 
@@ -755,7 +755,7 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		 * load counter a1 with count of 3
 		 * (pc+ manual says this is minimum allowed) using mode 0
 		 */
-		labpc_counter_load(dev, dev->iobase + COUNTER_A_BASE_REG,
+		labpc_counter_load(dev, COUNTER_A_BASE_REG,
 				   1, 3, I8254_MODE0);
 	} else	{
 		/* just put counter a1 in mode 0 to set its output low */
@@ -804,13 +804,13 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		/*  set up pacing */
 		labpc_adc_timing(dev, cmd, mode);
 		/*  load counter b0 in mode 3 */
-		labpc_counter_load(dev, dev->iobase + COUNTER_B_BASE_REG,
+		labpc_counter_load(dev, COUNTER_B_BASE_REG,
 				   0, devpriv->divisor_b0, I8254_MODE3);
 	}
 	/*  set up conversion pacing */
 	if (labpc_ai_convert_period(cmd, mode)) {
 		/*  load counter a0 in mode 2 */
-		labpc_counter_load(dev, dev->iobase + COUNTER_A_BASE_REG,
+		labpc_counter_load(dev, COUNTER_A_BASE_REG,
 				   0, devpriv->divisor_a0, I8254_MODE2);
 	} else {
 		/* initialize pacer counter to prevent any problems */
@@ -821,7 +821,7 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	/*  set up scan pacing */
 	if (labpc_ai_scan_period(cmd, mode)) {
 		/*  load counter b1 in mode 2 */
-		labpc_counter_load(dev, dev->iobase + COUNTER_B_BASE_REG,
+		labpc_counter_load(dev, COUNTER_B_BASE_REG,
 				   1, devpriv->divisor_b1, I8254_MODE2);
 	}
 
