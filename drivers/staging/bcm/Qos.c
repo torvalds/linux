@@ -439,7 +439,12 @@ static VOID PruneQueue(struct bcm_mini_adapter *Adapter, INT iIndex)
 	struct net_device_stats *netstats;
 	struct bcm_packet_info	*curr_pack_info = &Adapter->PackInfo[iIndex];
 
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, PRUNE_QUEUE, DBG_LVL_ALL, "=====> Index %d", iIndex);
+	BCM_DEBUG_PRINT(Adapter,
+			DBG_TYPE_TX,
+			PRUNE_QUEUE,
+			DBG_LVL_ALL,
+			"=====> Index %d",
+			iIndex);
 
 	if (iIndex == HiPriority)
 		return;
@@ -456,16 +461,23 @@ static VOID PruneQueue(struct bcm_mini_adapter *Adapter, INT iIndex)
 	/* while((UINT)Adapter->PackInfo[iIndex].uiCurrentPacketsOnHost > */
 	/* 	SF_MAX_ALLOWED_PACKETS_TO_BACKUP) { */
 
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, PRUNE_QUEUE, DBG_LVL_ALL, "uiCurrentBytesOnHost:%x uiMaxBucketSize :%x",
-		curr_pack_info->uiCurrentBytesOnHost,
-		curr_pack_info->uiMaxBucketSize);
+		BCM_DEBUG_PRINT(Adapter,
+				DBG_TYPE_TX,
+				PRUNE_QUEUE,
+				DBG_LVL_ALL,
+				"uiCurrentBytesOnHost:%x uiMaxBucketSize :%x",
+				curr_pack_info->uiCurrentBytesOnHost,
+				curr_pack_info->uiMaxBucketSize);
 
 		PacketToDrop = curr_pack_info->FirstTxQueue;
 
 		if (PacketToDrop == NULL)
 			break;
-		if ((curr_pack_info->uiCurrentPacketsOnHost < SF_MAX_ALLOWED_PACKETS_TO_BACKUP) &&
-			((1000*(jiffies - *((B_UINT32 *)(PacketToDrop->cb)+SKB_CB_LATENCY_OFFSET))/HZ) <= curr_pack_info->uiMaxLatency))
+		if ((curr_pack_info->uiCurrentPacketsOnHost <
+					SF_MAX_ALLOWED_PACKETS_TO_BACKUP) &&
+			((1000*(jiffies - *((B_UINT32 *)(PacketToDrop->cb) +
+					    SKB_CB_LATENCY_OFFSET))/HZ) <=
+				curr_pack_info->uiMaxLatency))
 			break;
 
 		if (PacketToDrop) {
@@ -476,7 +488,7 @@ static VOID PruneQueue(struct bcm_mini_adapter *Adapter, INT iIndex)
 			netstats->tx_dropped++;
 
 			DEQUEUEPACKET(curr_pack_info->FirstTxQueue,
-						curr_pack_info->LastTxQueue);
+				      curr_pack_info->LastTxQueue);
 			/* update current bytes and packets count */
 			curr_pack_info->uiCurrentBytesOnHost -=
 				PacketToDrop->len;
@@ -488,18 +500,30 @@ static VOID PruneQueue(struct bcm_mini_adapter *Adapter, INT iIndex)
 
 		}
 
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, PRUNE_QUEUE, DBG_LVL_ALL, "Dropped Bytes:%x Dropped Packets:%x",
-			curr_pack_info->uiDroppedCountBytes,
-			curr_pack_info->uiDroppedCountPackets);
+		BCM_DEBUG_PRINT(Adapter,
+				DBG_TYPE_TX,
+				PRUNE_QUEUE,
+				DBG_LVL_ALL,
+				"Dropped Bytes:%x Dropped Packets:%x",
+				curr_pack_info->uiDroppedCountBytes,
+				curr_pack_info->uiDroppedCountPackets);
 
 		atomic_dec(&Adapter->TotalPacketCount);
 	}
 
 	spin_unlock_bh(&curr_pack_info->SFQueueLock);
 
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, PRUNE_QUEUE, DBG_LVL_ALL, "TotalPacketCount:%x",
-		atomic_read(&Adapter->TotalPacketCount));
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, PRUNE_QUEUE, DBG_LVL_ALL, "<=====");
+	BCM_DEBUG_PRINT(Adapter,
+			DBG_TYPE_TX,
+			PRUNE_QUEUE,
+			DBG_LVL_ALL,
+			"TotalPacketCount:%x",
+			atomic_read(&Adapter->TotalPacketCount));
+	BCM_DEBUG_PRINT(Adapter,
+			DBG_TYPE_TX,
+			PRUNE_QUEUE,
+			DBG_LVL_ALL,
+			"<=====");
 }
 
 VOID flush_all_queues(struct bcm_mini_adapter *Adapter)
