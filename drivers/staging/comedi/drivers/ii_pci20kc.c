@@ -135,16 +135,10 @@ struct ii20k_ao_private {
 	unsigned int last_data[2];
 };
 
-struct ii20k_private {
-	void __iomem *ioaddr;
-};
-
 static void __iomem *ii20k_module_iobase(struct comedi_device *dev,
 					 struct comedi_subdevice *s)
 {
-	struct ii20k_private *devpriv = dev->private;
-
-	return devpriv->ioaddr + (s->index + 1) * II20K_MOD_OFFSET;
+	return dev->mmio + (s->index + 1) * II20K_MOD_OFFSET;
 }
 
 static int ii20k_ao_insn_read(struct comedi_device *dev,
@@ -281,7 +275,6 @@ static int ii20k_ai_insn_read(struct comedi_device *dev,
 static void ii20k_dio_config(struct comedi_device *dev,
 			     struct comedi_subdevice *s)
 {
-	struct ii20k_private *devpriv = dev->private;
 	unsigned char ctrl01 = 0;
 	unsigned char ctrl23 = 0;
 	unsigned char dir_ena = 0;
@@ -338,9 +331,9 @@ static void ii20k_dio_config(struct comedi_device *dev,
 	ctrl23 |= II20K_CTRL23_SET;
 
 	/* order is important */
-	writeb(ctrl01, devpriv->ioaddr + II20K_CTRL01_REG);
-	writeb(ctrl23, devpriv->ioaddr + II20K_CTRL23_REG);
-	writeb(dir_ena, devpriv->ioaddr + II20K_DIR_ENA_REG);
+	writeb(ctrl01, dev->mmio + II20K_CTRL01_REG);
+	writeb(ctrl23, dev->mmio + II20K_CTRL23_REG);
+	writeb(dir_ena, dev->mmio + II20K_DIR_ENA_REG);
 }
 
 static int ii20k_dio_insn_config(struct comedi_device *dev,
@@ -375,29 +368,28 @@ static int ii20k_dio_insn_bits(struct comedi_device *dev,
 			       struct comedi_insn *insn,
 			       unsigned int *data)
 {
-	struct ii20k_private *devpriv = dev->private;
 	unsigned int mask;
 
 	mask = comedi_dio_update_state(s, data);
 	if (mask) {
 		if (mask & 0x000000ff)
 			writeb((s->state >> 0) & 0xff,
-			       devpriv->ioaddr + II20K_DIO0_REG);
+			       dev->mmio + II20K_DIO0_REG);
 		if (mask & 0x0000ff00)
 			writeb((s->state >> 8) & 0xff,
-			       devpriv->ioaddr + II20K_DIO1_REG);
+			       dev->mmio + II20K_DIO1_REG);
 		if (mask & 0x00ff0000)
 			writeb((s->state >> 16) & 0xff,
-			       devpriv->ioaddr + II20K_DIO2_REG);
+			       dev->mmio + II20K_DIO2_REG);
 		if (mask & 0xff000000)
 			writeb((s->state >> 24) & 0xff,
-			       devpriv->ioaddr + II20K_DIO3_REG);
+			       dev->mmio + II20K_DIO3_REG);
 	}
 
-	data[1] = readb(devpriv->ioaddr + II20K_DIO0_REG);
-	data[1] |= readb(devpriv->ioaddr + II20K_DIO1_REG) << 8;
-	data[1] |= readb(devpriv->ioaddr + II20K_DIO2_REG) << 16;
-	data[1] |= readb(devpriv->ioaddr + II20K_DIO3_REG) << 24;
+	data[1] = readb(dev->mmio + II20K_DIO0_REG);
+	data[1] |= readb(dev->mmio + II20K_DIO1_REG) << 8;
+	data[1] |= readb(dev->mmio + II20K_DIO2_REG) << 16;
+	data[1] |= readb(dev->mmio + II20K_DIO3_REG) << 24;
 
 	return insn->n;
 }
@@ -446,19 +438,15 @@ static int ii20k_init_module(struct comedi_device *dev,
 static int ii20k_attach(struct comedi_device *dev,
 			struct comedi_devconfig *it)
 {
-	struct ii20k_private *devpriv;
 	struct comedi_subdevice *s;
 	unsigned char id;
 	bool has_dio;
 	int ret;
 
-	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
-	if (!devpriv)
-		return -ENOMEM;
+	/* FIXME: this doesn't seem right, should 'mmio' be ioremap'ed? */
+	dev->mmio = (void __iomem *)(unsigned long)it->options[0];
 
-	devpriv->ioaddr = (void __iomem *)(unsigned long)it->options[0];
-
-	id = readb(devpriv->ioaddr + II20K_ID_REG);
+	id = readb(dev->mmio + II20K_ID_REG);
 	switch (id & II20K_ID_MASK) {
 	case II20K_ID_PCI20001C_1A:
 		has_dio = false;
