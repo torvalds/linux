@@ -61,6 +61,8 @@
 # define RPCDBG_FACILITY	RPCDBG_TRANS
 #endif
 
+static void rpcrdma_reset_frmrs(struct rpcrdma_ia *);
+
 /*
  * internal functions
  */
@@ -152,8 +154,10 @@ rpcrdma_sendcq_process_wc(struct ib_wc *wc)
 
 	if (wc->wr_id == 0ULL)
 		return;
-	if (wc->status != IB_WC_SUCCESS)
+	if (wc->status != IB_WC_SUCCESS) {
+		frmr->r.frmr.fr_state = FRMR_IS_STALE;
 		return;
+	}
 
 	if (wc->opcode == IB_WC_FAST_REG_MR)
 		frmr->r.frmr.fr_state = FRMR_IS_VALID;
@@ -881,6 +885,9 @@ retry:
 				" status %i\n", __func__, rc);
 		rpcrdma_flush_cqs(ep);
 
+		if (ia->ri_memreg_strategy == RPCRDMA_FRMR)
+			rpcrdma_reset_frmrs(ia);
+
 		xprt = container_of(ia, struct rpcrdma_xprt, rx_ia);
 		id = rpcrdma_create_id(xprt, ia,
 				(struct sockaddr *)&xprt->rx_data.addr);
@@ -1256,6 +1263,62 @@ rpcrdma_buffer_destroy(struct rpcrdma_buffer *buf)
 	kfree(buf->rb_pool);
 }
 
+/* After a disconnect, a flushed FAST_REG_MR can leave an FRMR in
+ * an unusable state. Find FRMRs in this state and dereg / reg
+ * each.  FRMRs that are VALID and attached to an rpcrdma_req are
+ * also torn down.
+ *
+ * This gives all in-use FRMRs a fresh rkey and leaves them INVALID.
+ *
+ * This is invoked only in the transport connect worker in order
+ * to serialize with rpcrdma_register_frmr_external().
+ */
+static void
+rpcrdma_reset_frmrs(struct rpcrdma_ia *ia)
+{
+	struct rpcrdma_xprt *r_xprt =
+				container_of(ia, struct rpcrdma_xprt, rx_ia);
+	struct rpcrdma_buffer *buf = &r_xprt->rx_buf;
+	struct list_head *pos;
+	struct rpcrdma_mw *r;
+	int rc;
+
+	list_for_each(pos, &buf->rb_all) {
+		r = list_entry(pos, struct rpcrdma_mw, mw_all);
+
+		if (r->r.frmr.fr_state == FRMR_IS_INVALID)
+			continue;
+
+		rc = ib_dereg_mr(r->r.frmr.fr_mr);
+		if (rc)
+			dprintk("RPC:       %s: ib_dereg_mr failed %i\n",
+				__func__, rc);
+		ib_free_fast_reg_page_list(r->r.frmr.fr_pgl);
+
+		r->r.frmr.fr_mr = ib_alloc_fast_reg_mr(ia->ri_pd,
+					ia->ri_max_frmr_depth);
+		if (IS_ERR(r->r.frmr.fr_mr)) {
+			rc = PTR_ERR(r->r.frmr.fr_mr);
+			dprintk("RPC:       %s: ib_alloc_fast_reg_mr"
+				" failed %i\n", __func__, rc);
+			continue;
+		}
+		r->r.frmr.fr_pgl = ib_alloc_fast_reg_page_list(
+					ia->ri_id->device,
+					ia->ri_max_frmr_depth);
+		if (IS_ERR(r->r.frmr.fr_pgl)) {
+			rc = PTR_ERR(r->r.frmr.fr_pgl);
+			dprintk("RPC:       %s: "
+				"ib_alloc_fast_reg_page_list "
+				"failed %i\n", __func__, rc);
+
+			ib_dereg_mr(r->r.frmr.fr_mr);
+			continue;
+		}
+		r->r.frmr.fr_state = FRMR_IS_INVALID;
+	}
+}
+
 /* "*mw" can be NULL when rpcrdma_buffer_get_mrs() fails, leaving
  * some req segments uninitialized.
  */
@@ -1575,7 +1638,7 @@ rpcrdma_register_frmr_external(struct rpcrdma_mr_seg *seg,
 	dprintk("RPC:       %s: Using frmr %p to map %d segments\n",
 		__func__, mw, i);
 
-	if (unlikely(frmr->fr_state == FRMR_IS_VALID)) {
+	if (unlikely(frmr->fr_state != FRMR_IS_INVALID)) {
 		dprintk("RPC:       %s: frmr %x left valid, posting invalidate.\n",
 			__func__, mr->rkey);
 		/* Invalidate before using. */
