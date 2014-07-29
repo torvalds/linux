@@ -257,7 +257,7 @@ static int handle_instruction_and_prog(struct kvm_vcpu *vcpu)
 static int handle_external_interrupt(struct kvm_vcpu *vcpu)
 {
 	u16 eic = vcpu->arch.sie_block->eic;
-	struct kvm_s390_interrupt irq;
+	struct kvm_s390_irq irq;
 	psw_t newpsw;
 	int rc;
 
@@ -282,7 +282,7 @@ static int handle_external_interrupt(struct kvm_vcpu *vcpu)
 		if (kvm_s390_si_ext_call_pending(vcpu))
 			return 0;
 		irq.type = KVM_S390_INT_EXTERNAL_CALL;
-		irq.parm = vcpu->arch.sie_block->extcpuaddr;
+		irq.u.extcall.code = vcpu->arch.sie_block->extcpuaddr;
 		break;
 	default:
 		return -EOPNOTSUPP;

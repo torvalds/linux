@@ -49,13 +49,13 @@ static int __sigp_sense(struct kvm_vcpu *vcpu, struct kvm_vcpu *dst_vcpu,
 static int __inject_sigp_emergency(struct kvm_vcpu *vcpu,
 				    struct kvm_vcpu *dst_vcpu)
 {
-	struct kvm_s390_interrupt s390int = {
+	struct kvm_s390_irq irq = {
 		.type = KVM_S390_INT_EMERGENCY,
-		.parm = vcpu->vcpu_id,
+		.u.emerg.code = vcpu->vcpu_id,
 	};
 	int rc = 0;
 
-	rc = kvm_s390_inject_vcpu(dst_vcpu, &s390int);
+	rc = kvm_s390_inject_vcpu(dst_vcpu, &irq);
 	if (!rc)
 		VCPU_EVENT(vcpu, 4, "sent sigp emerg to cpu %x",
 			   dst_vcpu->vcpu_id);
@@ -98,13 +98,13 @@ static int __sigp_conditional_emergency(struct kvm_vcpu *vcpu,
 static int __sigp_external_call(struct kvm_vcpu *vcpu,
 				struct kvm_vcpu *dst_vcpu)
 {
-	struct kvm_s390_interrupt s390int = {
+	struct kvm_s390_irq irq = {
 		.type = KVM_S390_INT_EXTERNAL_CALL,
-		.parm = vcpu->vcpu_id,
+		.u.extcall.code = vcpu->vcpu_id,
 	};
 	int rc;
 
-	rc = kvm_s390_inject_vcpu(dst_vcpu, &s390int);
+	rc = kvm_s390_inject_vcpu(dst_vcpu, &irq);
 	if (!rc)
 		VCPU_EVENT(vcpu, 4, "sent sigp ext call to cpu %x",
 			   dst_vcpu->vcpu_id);
@@ -115,29 +115,20 @@ static int __sigp_external_call(struct kvm_vcpu *vcpu,
 static int __inject_sigp_stop(struct kvm_vcpu *dst_vcpu, int action)
 {
 	struct kvm_s390_local_interrupt *li = &dst_vcpu->arch.local_int;
-	struct kvm_s390_interrupt_info *inti;
 	int rc = SIGP_CC_ORDER_CODE_ACCEPTED;
-
-	inti = kzalloc(sizeof(*inti), GFP_ATOMIC);
-	if (!inti)
-		return -ENOMEM;
-	inti->type = KVM_S390_SIGP_STOP;
 
 	spin_lock(&li->lock);
 	if (li->action_bits & ACTION_STOP_ON_STOP) {
 		/* another SIGP STOP is pending */
-		kfree(inti);
 		rc = SIGP_CC_BUSY;
 		goto out;
 	}
 	if ((atomic_read(li->cpuflags) & CPUSTAT_STOPPED)) {
-		kfree(inti);
 		if ((action & ACTION_STORE_ON_STOP) != 0)
 			rc = -ESHUTDOWN;
 		goto out;
 	}
-	list_add_tail(&inti->list, &li->list);
-	atomic_set(&li->active, 1);
+	set_bit(IRQ_PEND_SIGP_STOP, &li->pending_irqs);
 	li->action_bits |= action;
 	atomic_set_mask(CPUSTAT_STOP_INT, li->cpuflags);
 	kvm_s390_vcpu_wakeup(dst_vcpu);
@@ -207,7 +198,6 @@ static int __sigp_set_prefix(struct kvm_vcpu *vcpu, struct kvm_vcpu *dst_vcpu,
 			     u32 address, u64 *reg)
 {
 	struct kvm_s390_local_interrupt *li;
-	struct kvm_s390_interrupt_info *inti;
 	int rc;
 
 	li = &dst_vcpu->arch.local_int;
@@ -224,25 +214,17 @@ static int __sigp_set_prefix(struct kvm_vcpu *vcpu, struct kvm_vcpu *dst_vcpu,
 		return SIGP_CC_STATUS_STORED;
 	}
 
-	inti = kzalloc(sizeof(*inti), GFP_KERNEL);
-	if (!inti)
-		return SIGP_CC_BUSY;
-
 	spin_lock(&li->lock);
 	/* cpu must be in stopped state */
 	if (!(atomic_read(li->cpuflags) & CPUSTAT_STOPPED)) {
 		*reg &= 0xffffffff00000000UL;
 		*reg |= SIGP_STATUS_INCORRECT_STATE;
 		rc = SIGP_CC_STATUS_STORED;
-		kfree(inti);
 		goto out_li;
 	}
 
-	inti->type = KVM_S390_SIGP_SET_PREFIX;
-	inti->prefix.address = address;
-
-	list_add_tail(&inti->list, &li->list);
-	atomic_set(&li->active, 1);
+	li->irq.prefix.address = address;
+	set_bit(IRQ_PEND_SET_PREFIX, &li->pending_irqs);
 	kvm_s390_vcpu_wakeup(dst_vcpu);
 	rc = SIGP_CC_ORDER_CODE_ACCEPTED;
 

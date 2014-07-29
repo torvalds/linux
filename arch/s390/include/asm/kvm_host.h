@@ -398,8 +398,6 @@ struct kvm_s390_irq_payload {
 
 struct kvm_s390_local_interrupt {
 	spinlock_t lock;
-	struct list_head list;
-	atomic_t active;
 	struct kvm_s390_float_interrupt *float_int;
 	wait_queue_head_t *wq;
 	atomic_t *cpuflags;
