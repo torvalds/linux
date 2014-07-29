@@ -508,40 +508,29 @@ static const struct pci230_board pci230_boards[] = {
 	},
 };
 
-/*
- * This structure is for data unique to this hardware driver.  If
- * several hardware drivers keep similar information in this structure,
- * feel free to suggest moving the variable to the struct comedi_device struct.
- */
 struct pci230_private {
 	spinlock_t isr_spinlock;	/* Interrupt spin lock */
 	spinlock_t res_spinlock;	/* Shared resources spin lock */
 	spinlock_t ai_stop_spinlock;	/* Spin lock for stopping AI command */
 	spinlock_t ao_stop_spinlock;	/* Spin lock for stopping AO command */
-	unsigned long state;	/* State flags */
-	unsigned long iobase1;	/* PCI230's I/O space 1 */
+	unsigned long state;		/* State flags */
+	unsigned long iobase1;		/* PCI230's I/O space 1 */
 	unsigned int ao_readback[2];	/* Used for AO readback */
-	/* Number of analogue input scans remaining.  */
-	unsigned int ai_scan_count;
-	/* Current position within analogue input scan */
-	unsigned int ai_scan_pos;
-	/* Number of analogue output scans remaining.  */
-	unsigned int ao_scan_count;
-	int intr_cpuid;		/* ID of CPU running interrupt routine. */
-	unsigned short hwver;	/* Hardware version (for '+' models). */
-	unsigned short adccon;	/* ADCCON register value. */
-	unsigned short daccon;	/* DACCON register value. */
-	/* ADC FIFO programmable interrupt level threshold (PCI230+/260+). */
-	unsigned short adcfifothresh;
-	unsigned short adcg;	/* ADCG register value. */
-	unsigned char int_en;	/* Interrupt enables bits. */
-	/* Set if bipolar input range so we know to mangle it. */
-	unsigned char ai_bipolar;
-	/* Set if bipolar output range so we know to mangle it. */
-	unsigned char ao_bipolar;
-	unsigned char ier;	/* Copy of interrupt enables/status register. */
-	unsigned char intr_running;	/* Flag set in interrupt routine. */
-	unsigned char res_owner[NUM_RESOURCES];	/* Shared resource owners. */
+	unsigned int ai_scan_count;	/* Number of AI scans remaining */
+	unsigned int ai_scan_pos;	/* Current position within AI scan */
+	unsigned int ao_scan_count;	/* Number of AO scans remaining.  */
+	int intr_cpuid;			/* ID of CPU running ISR */
+	unsigned short hwver;		/* Hardware version (for '+' models) */
+	unsigned short adccon;		/* ADCCON register value */
+	unsigned short daccon;		/* DACCON register value */
+	unsigned short adcfifothresh;	/* ADC FIFO threshold (PCI230+/260+) */
+	unsigned short adcg;		/* ADCG register value */
+	unsigned char int_en;		/* Interrupt enable bits */
+	unsigned char ai_bipolar;	/* Flag AI range is bipolar */
+	unsigned char ao_bipolar;	/* Flag AO range is bipolar */
+	unsigned char ier;		/* Copy of interrupt enable register */
+	unsigned char intr_running;	/* Flag set in interrupt routine */
+	unsigned char res_owner[NUM_RESOURCES]; /* Shared resource owners */
 };
 
 /* PCI230 clock source periods in ns */
