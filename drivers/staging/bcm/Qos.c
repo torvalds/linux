@@ -89,14 +89,28 @@ static bool MatchDestIpAddress(struct bcm_classifier_rule *pstClassifierRule, UL
 	ulDestIP = ntohl(ulDestIP);
 	if (0 == pstClassifierRule->ucIPDestinationAddressLength)
 		return TRUE;
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, "Destination Ip Address 0x%x 0x%x 0x%x  ", (UINT)ulDestIP, (UINT)dest_addr->ulIpv4Mask[ucLoopIndex], (UINT)dest_addr->ulIpv4Addr[ucLoopIndex]);
+	BCM_DEBUG_PRINT(Adapter,
+			DBG_TYPE_TX,
+			IPV4_DBG,
+			DBG_LVL_ALL,
+			"Destination Ip Address 0x%x 0x%x 0x%x  ",
+			(UINT)ulDestIP,
+			(UINT)dest_addr->ulIpv4Mask[ucLoopIndex],
+			(UINT)dest_addr->ulIpv4Addr[ucLoopIndex]);
 
-	for (ucLoopIndex = 0; ucLoopIndex < (pstClassifierRule->ucIPDestinationAddressLength); ucLoopIndex++) {
+	for (ucLoopIndex = 0;
+	     ucLoopIndex < (pstClassifierRule->ucIPDestinationAddressLength);
+	     ucLoopIndex++) {
 		if ((dest_addr->ulIpv4Mask[ucLoopIndex] & ulDestIP) ==
-				(dest_addr->ulIpv4Addr[ucLoopIndex] & dest_addr->ulIpv4Mask[ucLoopIndex]))
+				(dest_addr->ulIpv4Addr[ucLoopIndex] &
+				 dest_addr->ulIpv4Mask[ucLoopIndex]))
 			return TRUE;
 	}
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, "Destination Ip Address Not Matched");
+	BCM_DEBUG_PRINT(Adapter,
+			DBG_TYPE_TX,
+			IPV4_DBG,
+			DBG_LVL_ALL,
+			"Destination Ip Address Not Matched");
 	return false;
 }
 
