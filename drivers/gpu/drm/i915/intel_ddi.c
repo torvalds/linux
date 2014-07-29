@@ -644,8 +644,8 @@ void intel_ddi_clock_get(struct intel_encoder *encoder,
 }
 
 static void
-intel_ddi_calculate_wrpll(int clock /* in Hz */,
-			  unsigned *r2_out, unsigned *n2_out, unsigned *p_out)
+hsw_ddi_calculate_wrpll(int clock /* in Hz */,
+			unsigned *r2_out, unsigned *n2_out, unsigned *p_out)
 {
 	uint64_t freq2k;
 	unsigned p, n2, r2;
@@ -709,14 +709,16 @@ intel_ddi_calculate_wrpll(int clock /* in Hz */,
 }
 
 static bool
-hsw_ddi_pll_select(struct intel_crtc *intel_crtc, int output, int clock)
+hsw_ddi_pll_select(struct intel_crtc *intel_crtc,
+		   struct intel_encoder *intel_encoder,
+		   int clock)
 {
-	if (output == INTEL_OUTPUT_HDMI) {
+	if (intel_encoder->type == INTEL_OUTPUT_HDMI) {
 		struct intel_shared_dpll *pll;
 		uint32_t val;
 		unsigned p, n2, r2;
 
-		intel_ddi_calculate_wrpll(clock * 1000, &r2, &n2, &p);
+		hsw_ddi_calculate_wrpll(clock * 1000, &r2, &n2, &p);
 
 		val = WRPLL_PLL_ENABLE | WRPLL_PLL_LCPLL |
 		      WRPLL_DIVIDER_REFERENCE(r2) | WRPLL_DIVIDER_FEEDBACK(n2) |
@@ -749,12 +751,11 @@ bool intel_ddi_pll_select(struct intel_crtc *intel_crtc)
 {
 	struct drm_crtc *crtc = &intel_crtc->base;
 	struct intel_encoder *intel_encoder = intel_ddi_get_crtc_encoder(crtc);
-	int type = intel_encoder->type;
 	int clock = intel_crtc->config.port_clock;
 
 	intel_put_shared_dpll(intel_crtc);
 
-	return hsw_ddi_pll_select(intel_crtc, type, clock);
+	return hsw_ddi_pll_select(intel_crtc, intel_encoder, clock);
 }
 
 void intel_ddi_set_pipe_settings(struct drm_crtc *crtc)
