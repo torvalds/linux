@@ -363,19 +363,23 @@ static int uhid_dev_create2(struct uhid_device *uhid,
 			    const struct uhid_event *ev)
 {
 	struct hid_device *hid;
+	size_t rd_size;
+	void *rd_data;
 	int ret;
 
 	if (uhid->running)
 		return -EALREADY;
 
-	uhid->rd_size = ev->u.create2.rd_size;
-	if (uhid->rd_size <= 0 || uhid->rd_size > HID_MAX_DESCRIPTOR_SIZE)
+	rd_size = ev->u.create2.rd_size;
+	if (rd_size <= 0 || rd_size > HID_MAX_DESCRIPTOR_SIZE)
 		return -EINVAL;
 
-	uhid->rd_data = kmemdup(ev->u.create2.rd_data, uhid->rd_size,
-				GFP_KERNEL);
-	if (!uhid->rd_data)
+	rd_data = kmemdup(ev->u.create2.rd_data, rd_size, GFP_KERNEL);
+	if (!rd_data)
 		return -ENOMEM;
+
+	uhid->rd_size = rd_size;
+	uhid->rd_data = rd_data;
 
 	hid = hid_allocate_device();
 	if (IS_ERR(hid)) {
@@ -416,6 +420,8 @@ err_hid:
 	uhid->running = false;
 err_free:
 	kfree(uhid->rd_data);
+	uhid->rd_data = NULL;
+	uhid->rd_size = 0;
 	return ret;
 }
 
