@@ -964,7 +964,7 @@ found:
 				&pipe_config->dp_m2_n2);
 	}
 
-	if (HAS_DDI(dev))
+	if (IS_HASWELL(dev) || IS_BROADWELL(dev))
 		hsw_dp_set_ddi_pll_sel(pipe_config, intel_dp->link_bw);
 	else
 		intel_dp_set_clock(encoder, pipe_config, intel_dp->link_bw);
