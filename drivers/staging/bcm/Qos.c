@@ -158,19 +158,32 @@ static bool MatchTos(struct bcm_classifier_rule *pstClassifierRule,
 *
 * Returns     - TRUE(If address matches) else FAIL.
 ****************************************************************************/
-bool MatchProtocol(struct bcm_classifier_rule *pstClassifierRule, UCHAR ucProtocol)
+bool MatchProtocol(struct bcm_classifier_rule *pstClassifierRule,
+		   UCHAR ucProtocol)
 {
 	UCHAR ucLoopIndex = 0;
 	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
 
 	if (0 == pstClassifierRule->ucProtocolLength)
 		return TRUE;
-	for (ucLoopIndex = 0; ucLoopIndex < pstClassifierRule->ucProtocolLength; ucLoopIndex++) {
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, "Protocol:0x%X Classification Protocol:0x%X", ucProtocol, pstClassifierRule->ucProtocol[ucLoopIndex]);
+	for (ucLoopIndex = 0;
+	     ucLoopIndex < pstClassifierRule->ucProtocolLength;
+	     ucLoopIndex++) {
+		BCM_DEBUG_PRINT(Adapter,
+				DBG_TYPE_TX,
+				IPV4_DBG,
+				DBG_LVL_ALL,
+				"Protocol:0x%X Classification Protocol:0x%X",
+				ucProtocol,
+				pstClassifierRule->ucProtocol[ucLoopIndex]);
 		if (pstClassifierRule->ucProtocol[ucLoopIndex] == ucProtocol)
 			return TRUE;
 	}
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, "Protocol Not Matched");
+	BCM_DEBUG_PRINT(Adapter,
+			DBG_TYPE_TX,
+			IPV4_DBG,
+			DBG_LVL_ALL,
+			"Protocol Not Matched");
 	return false;
 }
 
