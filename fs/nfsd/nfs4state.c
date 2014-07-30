@@ -75,9 +75,6 @@ static void nfs4_free_ol_stateid(struct nfs4_stid *stid);
 
 /* Locking: */
 
-/* Currently used for almost all code touching nfsv4 state: */
-static DEFINE_MUTEX(client_mutex);
-
 /*
  * Currently used for the del_recall_lru and file hash table.  In an
  * effort to decrease the scope of the client_mutex, this spinlock may
@@ -97,12 +94,6 @@ static struct kmem_cache *file_slab;
 static struct kmem_cache *stateid_slab;
 static struct kmem_cache *deleg_slab;
 
-void
-nfs4_lock_state(void)
-{
-	mutex_lock(&client_mutex);
-}
-
 static void free_session(struct nfsd4_session *);
 
 static bool is_session_dead(struct nfsd4_session *ses)
@@ -116,12 +107,6 @@ static __be32 mark_session_dead_locked(struct nfsd4_session *ses, int ref_held_b
 		return nfserr_jukebox;
 	ses->se_flags |= NFS4_SESSION_DEAD;
 	return nfs_ok;
-}
-
-void
-nfs4_unlock_state(void)
-{
-	mutex_unlock(&client_mutex);
 }
 
 static bool is_client_expired(struct nfs4_client *clp)
