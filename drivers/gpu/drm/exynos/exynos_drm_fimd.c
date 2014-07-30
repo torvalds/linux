@@ -174,6 +174,7 @@ static const struct of_device_id fimd_driver_dt_match[] = {
 	  .data = &exynos5_fimd_driver_data },
 	{},
 };
+MODULE_DEVICE_TABLE(of, fimd_driver_dt_match);
 
 static inline struct fimd_driver_data *drm_fimd_get_driver_data(
 	struct platform_device *pdev)
