@@ -368,6 +368,9 @@ static void free_pasid_states(struct device_state *dev_state)
 
 		put_pasid_state_wait(pasid_state); /* Reference taken in
 						      amd_iommu_pasid_bind */
+
+		/* Drop reference taken in amd_iommu_bind_pasid */
+		put_device_state(dev_state);
 	}
 
 	if (dev_state->pasid_levels == 2)
@@ -748,6 +751,10 @@ void amd_iommu_unbind_pasid(struct pci_dev *pdev, int pasid)
 	put_pasid_state_wait(pasid_state); /* Reference taken in
 					      amd_iommu_pasid_bind */
 out:
+	/* Drop reference taken in this function */
+	put_device_state(dev_state);
+
+	/* Drop reference taken in amd_iommu_bind_pasid */
 	put_device_state(dev_state);
 }
 EXPORT_SYMBOL(amd_iommu_unbind_pasid);
