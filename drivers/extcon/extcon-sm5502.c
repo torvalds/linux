@@ -300,7 +300,7 @@ static unsigned int sm5502_muic_get_cable_type(struct sm5502_muic_info *info)
 	 * If ADC is SM5502_MUIC_ADC_GROUND(0x0), external cable hasn't
 	 * connected with to MUIC device.
 	 */
-	cable_type &= SM5502_REG_ADC_MASK;
+	cable_type = adc & SM5502_REG_ADC_MASK;
 	if (cable_type == SM5502_MUIC_ADC_GROUND)
 		return SM5502_MUIC_ADC_GROUND;
 
