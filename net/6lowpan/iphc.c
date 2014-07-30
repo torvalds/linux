@@ -408,9 +408,9 @@ int lowpan_process_data(struct sk_buff *skb, struct net_device *dev,
 	}
 
 	/* Hop Limit */
-	if ((iphc0 & 0x03) != LOWPAN_IPHC_TTL_I)
+	if ((iphc0 & 0x03) != LOWPAN_IPHC_TTL_I) {
 		hdr.hop_limit = lowpan_ttl_values[iphc0 & 0x03];
-	else {
+	} else {
 		if (lowpan_fetch_skb(skb, &hdr.hop_limit,
 				     sizeof(hdr.hop_limit)))
 			goto drop;
