@@ -8354,6 +8354,12 @@ M:	Chris Boot <bootc@bootc.net>
 S:	Maintained
 F:	drivers/leds/leds-net48xx.c
 
+SOFTLOGIC 6x10 MPEG CODEC
+M:	Ismael Luceno <ismael.luceno@corp.bluecherry.net>
+L:	linux-media@vger.kernel.org
+S:	Supported
+F:	drivers/media/pci/solo6x10/
+
 SOFTWARE RAID (Multiple Disks) SUPPORT
 M:	Neil Brown <neilb@suse.de>
 L:	linux-raid@vger.kernel.org
@@ -8656,11 +8662,6 @@ M:	Lior Dotan <liodot@gmail.com>
 M:	Christopher Harrer <charrer@alacritech.com>
 S:	Odd Fixes
 F:	drivers/staging/slicoss/
-
-STAGING - SOFTLOGIC 6x10 MPEG CODEC
-M:	Ismael Luceno <ismael.luceno@corp.bluecherry.net>
-S:	Supported
-F:	drivers/staging/media/solo6x10/
 
 STAGING - SPEAKUP CONSOLE SPEECH DRIVER
 M:	William Hubbs <w.d.hubbs@gmail.com>
