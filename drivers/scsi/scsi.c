@@ -365,8 +365,8 @@ scsi_alloc_host_cmd_pool(struct Scsi_Host *shost)
 	if (!pool)
 		return NULL;
 
-	pool->cmd_name = kasprintf(GFP_KERNEL, "%s_cmd", hostt->name);
-	pool->sense_name = kasprintf(GFP_KERNEL, "%s_sense", hostt->name);
+	pool->cmd_name = kasprintf(GFP_KERNEL, "%s_cmd", hostt->proc_name);
+	pool->sense_name = kasprintf(GFP_KERNEL, "%s_sense", hostt->proc_name);
 	if (!pool->cmd_name || !pool->sense_name) {
 		scsi_free_host_cmd_pool(pool);
 		return NULL;
