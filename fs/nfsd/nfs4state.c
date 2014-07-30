@@ -5811,6 +5811,7 @@ static void nfsd_print_count(struct nfs4_client *clp, unsigned int count,
 }
 
 static u64 nfsd_foreach_client_lock(struct nfs4_client *clp, u64 max,
+				    struct list_head *collect,
 				    void (*func)(struct nfs4_ol_stateid *))
 {
 	struct nfs4_openowner *oop;
@@ -5823,8 +5824,12 @@ static u64 nfsd_foreach_client_lock(struct nfs4_client *clp, u64 max,
 				&oop->oo_owner.so_stateids, st_perstateowner) {
 			list_for_each_entry_safe(lst, lst_next,
 					&stp->st_locks, st_locks) {
-				if (func)
+				if (func) {
 					func(lst);
+					if (collect)
+						list_add(&lst->st_locks,
+							 collect);
+				}
 				if (++count == max)
 					return count;
 			}
@@ -5836,12 +5841,12 @@ static u64 nfsd_foreach_client_lock(struct nfs4_client *clp, u64 max,
 
 u64 nfsd_forget_client_locks(struct nfs4_client *clp, u64 max)
 {
-	return nfsd_foreach_client_lock(clp, max, release_lock_stateid);
+	return nfsd_foreach_client_lock(clp, max, NULL, release_lock_stateid);
 }
 
 u64 nfsd_print_client_locks(struct nfs4_client *clp, u64 max)
 {
-	u64 count = nfsd_foreach_client_lock(clp, max, NULL);
+	u64 count = nfsd_foreach_client_lock(clp, max, NULL, NULL);
 	nfsd_print_count(clp, count, "locked files");
 	return count;
 }
