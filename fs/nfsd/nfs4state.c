@@ -5424,8 +5424,8 @@ nfsd4_release_lockowner(struct svc_rqst *rqstp,
 			struct nfsd4_release_lockowner *rlockowner)
 {
 	clientid_t *clid = &rlockowner->rl_clientid;
-	struct nfs4_stateowner *sop = NULL, *tmp;
-	struct nfs4_lockowner *lo;
+	struct nfs4_stateowner *sop;
+	struct nfs4_lockowner *lo = NULL;
 	struct nfs4_ol_stateid *stp;
 	struct xdr_netobj *owner = &rlockowner->rl_owner;
 	unsigned int hashval = ownerstr_hashval(owner);
@@ -5442,45 +5442,32 @@ nfsd4_release_lockowner(struct svc_rqst *rqstp,
 	if (status)
 		goto out;
 
-	status = nfserr_locks_held;
-
 	clp = cstate->clp;
 	/* Find the matching lock stateowner */
 	spin_lock(&clp->cl_lock);
-	list_for_each_entry(tmp, &clp->cl_ownerstr_hashtbl[hashval],
+	list_for_each_entry(sop, &clp->cl_ownerstr_hashtbl[hashval],
 			    so_strhash) {
-		if (tmp->so_is_open_owner)
+
+		if (sop->so_is_open_owner || !same_owner_str(sop, owner))
 			continue;
-		if (same_owner_str(tmp, owner)) {
-			sop = tmp;
-			atomic_inc(&sop->so_count);
-			break;
-		}
-	}
 
-	/* No matching owner found, maybe a replay? Just declare victory... */
-	if (!sop) {
-		spin_unlock(&clp->cl_lock);
-		status = nfs_ok;
-		goto out;
-	}
-
-	lo = lockowner(sop);
-	/* see if there are still any locks associated with it */
-	list_for_each_entry(stp, &sop->so_stateids, st_perstateowner) {
-		if (check_for_locks(stp->st_stid.sc_file, lo)) {
-			spin_unlock(&clp->cl_lock);
-			goto out;
+		/* see if there are still any locks associated with it */
+		lo = lockowner(sop);
+		list_for_each_entry(stp, &sop->so_stateids, st_perstateowner) {
+			if (check_for_locks(stp->st_stid.sc_file, lo)) {
+				status = nfserr_locks_held;
+				spin_unlock(&clp->cl_lock);
+				goto out;
+			}
 		}
+
+		atomic_inc(&sop->so_count);
+		break;
 	}
 	spin_unlock(&clp->cl_lock);
-
-	status = nfs_ok;
-	sop = NULL;
-	release_lockowner(lo);
+	if (lo)
+		release_lockowner(lo);
 out:
-	if (sop)
-		nfs4_put_stateowner(sop);
 	nfs4_unlock_state();
 	return status;
 }
