@@ -5,4 +5,5 @@ stihdmi-y := sti_hdmi.o \
 obj-$(CONFIG_DRM_STI) = \
 	sti_vtg.o \
 	sti_vtac.o \
-	stihdmi.o
+	stihdmi.o \
+	sti_hda.o
