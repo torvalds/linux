@@ -245,9 +245,7 @@ void radeon_bo_unref(struct radeon_bo **bo)
 		return;
 	rdev = (*bo)->rdev;
 	tbo = &((*bo)->tbo);
-	down_read(&rdev->pm.mclk_lock);
 	ttm_bo_unref(&tbo);
-	up_read(&rdev->pm.mclk_lock);
 	if (tbo == NULL)
 		*bo = NULL;
 }
