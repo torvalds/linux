@@ -456,9 +456,6 @@ struct mlx5_eqe_cq_err {
 	u8	syndrome;
 };
 
-struct mlx5_eqe_dropped_packet {
-};
-
 struct mlx5_eqe_port_state {
 	u8	reserved0[8];
 	u8	port;
@@ -498,7 +495,6 @@ union ev_data {
 	struct mlx5_eqe_comp		comp;
 	struct mlx5_eqe_qp_srq		qp_srq;
 	struct mlx5_eqe_cq_err		cq_err;
-	struct mlx5_eqe_dropped_packet	dp;
 	struct mlx5_eqe_port_state	port;
 	struct mlx5_eqe_gpio		gpio;
 	struct mlx5_eqe_congestion	cong;
