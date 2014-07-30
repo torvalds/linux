@@ -5,6 +5,7 @@ comment "Common SoC Audio options for Freescale CPUs:"
 config SND_SOC_FSL_ASRC
 	tristate "Asynchronous Sample Rate Converter (ASRC) module support"
 	select REGMAP_MMIO
+	select SND_SOC_GENERIC_DMAENGINE_PCM
 	help
 	  Say Y if you want to add Asynchronous Sample Rate Converter (ASRC)
 	  support for the Freescale CPUs.
