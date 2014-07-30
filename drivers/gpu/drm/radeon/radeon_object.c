@@ -236,6 +236,15 @@ void radeon_bo_kunmap(struct radeon_bo *bo)
 	ttm_bo_kunmap(&bo->kmap);
 }
 
+struct radeon_bo *radeon_bo_ref(struct radeon_bo *bo)
+{
+	if (bo == NULL)
+		return NULL;
+
+	ttm_bo_reference(&bo->tbo);
+	return bo;
+}
+
 void radeon_bo_unref(struct radeon_bo **bo)
 {
 	struct ttm_buffer_object *tbo;
