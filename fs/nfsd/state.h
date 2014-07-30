@@ -331,16 +331,24 @@ struct nfs4_replay {
 	char			rp_ibuf[NFSD4_REPLAY_ISIZE];
 };
 
+struct nfs4_stateowner;
+
+struct nfs4_stateowner_operations {
+	void (*so_free)(struct nfs4_stateowner *);
+};
+
 struct nfs4_stateowner {
-	struct list_head        so_strhash;   /* hash by op_name */
-	struct list_head        so_stateids;
-	struct nfs4_client *    so_client;
+	struct list_head			so_strhash;
+	struct list_head			so_stateids;
+	struct nfs4_client			*so_client;
+	const struct nfs4_stateowner_operations	*so_ops;
 	/* after increment in ENCODE_SEQID_OP_TAIL, represents the next
 	 * sequence id expected from the client: */
-	u32                     so_seqid;
-	struct xdr_netobj       so_owner;     /* open owner name */
-	struct nfs4_replay	so_replay;
-	bool			so_is_open_owner;
+	atomic_t				so_count;
+	u32					so_seqid;
+	struct xdr_netobj			so_owner; /* open owner name */
+	struct nfs4_replay			so_replay;
+	bool					so_is_open_owner;
 };
 
 struct nfs4_openowner {

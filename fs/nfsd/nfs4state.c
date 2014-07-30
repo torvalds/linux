@@ -890,6 +890,14 @@ release_all_access(struct nfs4_ol_stateid *stp)
 	}
 }
 
+static void nfs4_put_stateowner(struct nfs4_stateowner *sop)
+{
+	if (!atomic_dec_and_test(&sop->so_count))
+		return;
+	kfree(sop->so_owner.data);
+	sop->so_ops->so_free(sop);
+}
+
 static void unhash_generic_stateid(struct nfs4_ol_stateid *stp)
 {
 	struct nfs4_file *fp = stp->st_stid.sc_file;
@@ -946,16 +954,10 @@ static void unhash_lockowner(struct nfs4_lockowner *lo)
 	}
 }
 
-static void nfs4_free_lockowner(struct nfs4_lockowner *lo)
-{
-	kfree(lo->lo_owner.so_owner.data);
-	kmem_cache_free(lockowner_slab, lo);
-}
-
 static void release_lockowner(struct nfs4_lockowner *lo)
 {
 	unhash_lockowner(lo);
-	nfs4_free_lockowner(lo);
+	nfs4_put_stateowner(&lo->lo_owner);
 }
 
 static void release_lockowner_if_empty(struct nfs4_lockowner *lo)
@@ -1025,18 +1027,12 @@ static void release_last_closed_stateid(struct nfs4_openowner *oo)
 	}
 }
 
-static void nfs4_free_openowner(struct nfs4_openowner *oo)
-{
-	kfree(oo->oo_owner.so_owner.data);
-	kmem_cache_free(openowner_slab, oo);
-}
-
 static void release_openowner(struct nfs4_openowner *oo)
 {
 	unhash_openowner(oo);
 	list_del(&oo->oo_close_lru);
 	release_last_closed_stateid(oo);
-	nfs4_free_openowner(oo);
+	nfs4_put_stateowner(&oo->oo_owner);
 }
 
 static inline int
@@ -2964,6 +2960,7 @@ static inline void *alloc_stateowner(struct kmem_cache *slab, struct xdr_netobj 
 	INIT_LIST_HEAD(&sop->so_stateids);
 	sop->so_client = clp;
 	init_nfs4_replay(&sop->so_replay);
+	atomic_set(&sop->so_count, 1);
 	return sop;
 }
 
@@ -2975,6 +2972,17 @@ static void hash_openowner(struct nfs4_openowner *oo, struct nfs4_client *clp, u
 	list_add(&oo->oo_perclient, &clp->cl_openowners);
 }
 
+static void nfs4_free_openowner(struct nfs4_stateowner *so)
+{
+	struct nfs4_openowner *oo = openowner(so);
+
+	kmem_cache_free(openowner_slab, oo);
+}
+
+static const struct nfs4_stateowner_operations openowner_ops = {
+	.so_free = nfs4_free_openowner,
+};
+
 static struct nfs4_openowner *
 alloc_init_open_stateowner(unsigned int strhashval, struct nfsd4_open *open,
 			   struct nfsd4_compound_state *cstate)
@@ -2985,6 +2993,7 @@ alloc_init_open_stateowner(unsigned int strhashval, struct nfsd4_open *open,
 	oo = alloc_stateowner(openowner_slab, &open->op_owner, clp);
 	if (!oo)
 		return NULL;
+	oo->oo_owner.so_ops = &openowner_ops;
 	oo->oo_owner.so_is_open_owner = 1;
 	oo->oo_owner.so_seqid = open->op_seqid;
 	oo->oo_flags = NFS4_OO_NEW;
@@ -4729,6 +4738,17 @@ find_lockowner_str(clientid_t *clid, struct xdr_netobj *owner,
 	return NULL;
 }
 
+static void nfs4_free_lockowner(struct nfs4_stateowner *sop)
+{
+	struct nfs4_lockowner *lo = lockowner(sop);
+
+	kmem_cache_free(lockowner_slab, lo);
+}
+
+static const struct nfs4_stateowner_operations lockowner_ops = {
+	.so_free = nfs4_free_lockowner,
+};
+
 /*
  * Alloc a lock owner structure.
  * Called in nfsd4_lock - therefore, OPEN and OPEN_CONFIRM (if needed) has 
@@ -4749,6 +4769,7 @@ alloc_init_lock_stateowner(unsigned int strhashval, struct nfs4_client *clp, str
 	/* It is the openowner seqid that will be incremented in encode in the
 	 * case of new lockowners; so increment the lock seqid manually: */
 	lo->lo_owner.so_seqid = lock->lk_new_lock_seqid + 1;
+	lo->lo_owner.so_ops = &lockowner_ops;
 	list_add(&lo->lo_owner.so_strhash, &nn->ownerstr_hashtbl[strhashval]);
 	return lo;
 }
