@@ -2067,11 +2067,12 @@ static void __wake_requests(struct ceph_mds_client *mdsc,
 static void kick_requests(struct ceph_mds_client *mdsc, int mds)
 {
 	struct ceph_mds_request *req;
-	struct rb_node *p;
+	struct rb_node *p = rb_first(&mdsc->request_tree);
 
 	dout("kick_requests mds%d\n", mds);
-	for (p = rb_first(&mdsc->request_tree); p; p = rb_next(p)) {
+	while (p) {
 		req = rb_entry(p, struct ceph_mds_request, r_node);
+		p = rb_next(p);
 		if (req->r_got_unsafe)
 			continue;
 		if (req->r_session &&
