@@ -3451,13 +3451,17 @@ static __be32 lookup_clientid(clientid_t *clid,
 	 * will be false.
 	 */
 	WARN_ON_ONCE(cstate->session);
+	spin_lock(&nn->client_lock);
 	found = find_confirmed_client(clid, false, nn);
-	if (!found)
+	if (!found) {
+		spin_unlock(&nn->client_lock);
 		return nfserr_expired;
+	}
+	atomic_inc(&found->cl_refcount);
+	spin_unlock(&nn->client_lock);
 
 	/* Cache the nfs4_client in cstate! */
 	cstate->clp = found;
-	atomic_inc(&found->cl_refcount);
 	return nfs_ok;
 }
 
