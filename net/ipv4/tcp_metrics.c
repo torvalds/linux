@@ -1093,7 +1093,6 @@ static const struct genl_ops tcp_metrics_nl_ops[] = {
 		.doit = tcp_metrics_nl_cmd_get,
 		.dumpit = tcp_metrics_nl_dump,
 		.policy = tcp_metrics_nl_policy,
-		.flags = GENL_ADMIN_PERM,
 	},
 	{
 		.cmd = TCP_METRICS_CMD_DEL,
