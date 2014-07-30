@@ -4397,17 +4397,6 @@ unlock_state:
 	return status;
 }
 
-static __be32
-nfsd4_free_lock_stateid(struct nfs4_ol_stateid *stp)
-{
-	struct nfs4_lockowner *lo = lockowner(stp->st_stateowner);
-
-	if (check_for_locks(stp->st_stid.sc_file, lo))
-		return nfserr_locks_held;
-	release_lock_stateid(stp);
-	return nfs_ok;
-}
-
 /*
  * Test if the stateid is valid
  */
@@ -4434,6 +4423,7 @@ nfsd4_free_stateid(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	stateid_t *stateid = &free_stateid->fr_stateid;
 	struct nfs4_stid *s;
 	struct nfs4_delegation *dp;
+	struct nfs4_ol_stateid *stp;
 	struct nfs4_client *cl = cstate->session->se_client;
 	__be32 ret = nfserr_bad_stateid;
 
@@ -4456,8 +4446,15 @@ nfsd4_free_stateid(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		ret = check_stateid_generation(stateid, &s->sc_stateid, 1);
 		if (ret)
 			break;
+		stp = openlockstateid(s);
+		ret = nfserr_locks_held;
+		if (check_for_locks(stp->st_stid.sc_file,
+				    lockowner(stp->st_stateowner)))
+			break;
+		unhash_lock_stateid(stp);
 		spin_unlock(&cl->cl_lock);
-		ret = nfsd4_free_lock_stateid(openlockstateid(s));
+		nfs4_put_stid(s);
+		ret = nfs_ok;
 		goto out;
 	case NFS4_REVOKED_DELEG_STID:
 		dp = delegstateid(s);
