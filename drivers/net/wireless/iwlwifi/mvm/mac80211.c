@@ -1481,8 +1481,12 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 
 			iwl_mvm_sf_update(mvm, vif, false);
 			iwl_mvm_power_vif_assoc(mvm, vif);
-			if (vif->p2p)
+			if (vif->p2p) {
 				iwl_mvm_ref(mvm, IWL_MVM_REF_P2P_CLIENT);
+				iwl_mvm_update_smps(mvm, vif,
+						    IWL_MVM_SMPS_REQ_PROT,
+						    IEEE80211_SMPS_DYNAMIC);
+			}
 		} else if (mvmvif->ap_sta_id != IWL_MVM_STATION_COUNT) {
 			/*
 			 * If update fails - SF might be running in associated
