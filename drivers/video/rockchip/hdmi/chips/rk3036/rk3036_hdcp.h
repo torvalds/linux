@@ -34,7 +34,7 @@
 #define HDCP_AUTH_REATT_EVENT	(HDCP_WORKQUEUE_SRC	| 7)
 
 /* Key size */
-#define HDCP_KEY_SIZE			308	
+#define HDCP_KEY_SIZE			308
 
 /* HDCP DDC Clock */
 #define HDCP_DDC_CLK			100000
@@ -52,7 +52,7 @@
 	#define m_ADVANED_ENABLE	(1 << 2)
 	#define m_HDMI_DVI			(1 << 1)
 	#define m_HDCP_RESET		(1 << 0)
-	
+
 	#define v_AUTH_START(n)		(n << 7)
 	#define v_BKSV_VALID(n)		(n << 6)
 	#define v_BKSV_INVALID(n)	(n << 5)
@@ -70,7 +70,7 @@
 	#define m_DELAY_RI_1_CLK				(1 << 3)
 	#define m_USE_PRESET_AN					(1 << 2)
 	#define m_KEY_COMBINATION				(3 << 0)
-	
+
 	#define v_DISABLE_127_CHECK(n)			(n << 7)
 	#define v_SKIP_BKSV_CHECK(n)			(n << 6)
 	#define v_ENABLE_PJ_CHECK(n)			(n << 5)
@@ -88,7 +88,7 @@
 	#define m_NOT_AUTHENTICATED				(1 << 5)
 	#define m_ENCRYPTED						(1 << 4)
 	#define m_ADVANCED_CIPHER				(1 << 3)
-	
+
 #define HDCP_BCAPS_RX			0x58
 #define HDCP_TIMER_100MS		0x63
 #define HDCP_TIMER_5S			0x64
@@ -119,7 +119,7 @@
 	#define m_INT_BKSV_UPDATE	(1 << 5)
 	#define m_INT_AUTH_SUCCESS	(1 << 4)
 	#define m_INT_AUTH_READY	(1 << 3)
-	
+
 #define HDCP_INT_MASK2			0xc4
 #define HDCP_INT_STATUS2		0xc5
 	#define m_INT_SOFT_MODE_READY			(1 << 7)
@@ -146,9 +146,9 @@ enum hdmi_states {
 #define HDCP_PRIVATE_KEY_SIZE	280
 #define HDCP_KEY_SHA_SIZE		20
 
-struct hdcp_keys{
-	u8 KSV[8];
-	u8 DeviceKey[HDCP_PRIVATE_KEY_SIZE];
+struct hdcp_keys {
+	u8 ksv[8];
+	u8 devicekey[HDCP_PRIVATE_KEY_SIZE];
 	u8 sha1[HDCP_KEY_SHA_SIZE];
 };
 
@@ -162,14 +162,14 @@ struct hdcp {
 	int retry_times;
 	struct hdcp_keys *keys;
 	int invalidkey;
-	char *invalidkeys;	
+	char *invalidkeys;
 	struct mutex lock;
 	struct completion	complete;
 	struct workqueue_struct *workqueue;
-	
+
 	enum hdmi_states hdmi_state;
 	enum hdcp_states hdcp_state;
-	
+
 	struct delayed_work *pending_start;
 	struct delayed_work *pending_wq_event;
 	int retry_cnt;
@@ -185,6 +185,12 @@ extern struct hdcp *hdcp;
 #define DBG(format, ...)
 #endif
 
+#if 1
+#define HDCP_WARN(x...) printk(KERN_INFO x)
+#else
+#define I2S_DBG(x...) do { } while (0)
+#endif
+
 extern void rk3036_hdcp_disable(void);
 extern int	rk3036_hdcp_start_authentication(void);
 extern int	rk3036_hdcp_check_bksv(void);
@@ -192,4 +198,5 @@ extern int	rk3036_hdcp_load_key2mem(struct hdcp_keys *key);
 extern void rk3036_hdcp_interrupt(char *status1, char *status2);
 extern void rk3036_set_colorbar(int enable);
 extern int rk3036_hdcp_stop_authentication(void);
+extern int is_1b_03_test(void);
 #endif /* __rk3036_HDCP_H__ */
