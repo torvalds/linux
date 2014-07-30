@@ -1104,13 +1104,16 @@ static int xc_load_fw_and_init_tuner(struct dvb_frontend *fe, int force)
 	dprintk(1, "firmware read %Zu bytes.\n", fw->size);
 
 	if (fw->size != desired_fw->size) {
-		printk(KERN_ERR "xc5000: firmware file with incorrect size\n");
+		printk(KERN_ERR "xc5000: Firmware file with incorrect size\n");
 		ret = -EINVAL;
 		goto err;
 	}
 
 	/* Try up to 5 times to load firmware */
 	for (i = 0; i < 5; i++) {
+		if (i)
+			printk(KERN_CONT " - retrying to upload firmware.\n");
+
 		ret = xc5000_fwupload(fe, desired_fw, fw);
 		if (ret != 0)
 			goto err;
@@ -1119,14 +1122,15 @@ static int xc_load_fw_and_init_tuner(struct dvb_frontend *fe, int force)
 
 		if (priv->fw_checksum_supported) {
 			if (xc5000_readreg(priv, XREG_FW_CHECKSUM, &fw_ck)) {
-				dprintk(1, "%s() FW checksum reading failed.\n",
-					__func__);
+				printk(KERN_ERR
+				       "xc5000: FW checksum reading failed.");
 				continue;
 			}
 
 			if (!fw_ck) {
-				dprintk(1, "%s() FW checksum failed = 0x%04x\n",
-					__func__, fw_ck);
+				printk(KERN_ERR
+				       "xc5000: FW checksum failed = 0x%04x.",
+				       fw_ck);
 				continue;
 			}
 		}
@@ -1134,7 +1138,8 @@ static int xc_load_fw_and_init_tuner(struct dvb_frontend *fe, int force)
 		/* Start the tuner self-calibration process */
 		ret = xc_initialize(priv);
 		if (ret) {
-			dprintk(1, "Can't request Self-callibration. Reloading firmware\n");
+			printk(KERN_ERR
+			       "xc5000: Can't request Self-callibration.");
 			continue;
 		}
 
@@ -1147,13 +1152,15 @@ static int xc_load_fw_and_init_tuner(struct dvb_frontend *fe, int force)
 
 		if (priv->init_status_supported) {
 			if (xc5000_readreg(priv, XREG_INIT_STATUS, &fw_ck)) {
-				dprintk(1, "%s() FW failed reading init status.\n",
-					__func__);
+				printk(KERN_ERR
+				       "xc5000: FW failed reading init status.");
 				continue;
 			}
 
 			if (!fw_ck) {
-				dprintk(1, "%s() FW init status failed = 0x%04x\n", __func__, fw_ck);
+				printk(KERN_ERR
+				       "xc5000: FW init status failed = 0x%04x.",
+				       fw_ck);
 				continue;
 			}
 		}
@@ -1163,19 +1170,26 @@ static int xc_load_fw_and_init_tuner(struct dvb_frontend *fe, int force)
 				       &pll_lock_status);
 			if (pll_lock_status > 63) {
 				/* PLL is unlocked, force reload of the firmware */
-				printk(KERN_ERR "xc5000: PLL not running after fwload.\n");
+				printk(KERN_ERR
+				       "xc5000: PLL not running after fwload.");
 				continue;
 			}
 		}
 
 		/* Default to "CABLE" mode */
 		ret = xc_write_reg(priv, XREG_SIGNALSOURCE, XC_RF_MODE_CABLE);
-		printk(KERN_INFO "xc5000: Firmware %s loaded and running.\n",
-		       desired_fw->name);
-		break;
+		if (!ret)
+			break;
+		printk(KERN_ERR "xc5000: can't set to cable mode.");
 	}
 
 err:
+	if (!ret)
+		printk(KERN_INFO "xc5000: Firmware %s loaded and running.\n",
+		       desired_fw->name);
+	else
+		printk(KERN_CONT " - too many retries. Giving up\n");
+
 	release_firmware(fw);
 	return ret;
 }
