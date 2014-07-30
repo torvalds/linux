@@ -779,6 +779,11 @@ static inline bool iwl_mvm_is_d0i3_supported(struct iwl_mvm *mvm)
 	       (mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_D0I3_SUPPORT);
 }
 
+static inline bool iwl_mvm_is_dqa_supported(struct iwl_mvm *mvm)
+{
+	return mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_DQA_SUPPORT;
+}
+
 extern const u8 iwl_mvm_ac_to_tx_fifo[];
 
 struct iwl_rate_info {
@@ -1139,6 +1144,39 @@ static inline bool iwl_mvm_vif_low_latency(struct iwl_mvm_vif *mvmvif)
 	 */
 
 	return mvmvif->low_latency;
+}
+
+/* hw scheduler queue config */
+void iwl_mvm_enable_txq(struct iwl_mvm *mvm, int queue, u16 ssn,
+			const struct iwl_trans_txq_scd_cfg *cfg);
+void iwl_mvm_disable_txq(struct iwl_mvm *mvm, int queue);
+
+static inline void iwl_mvm_enable_ac_txq(struct iwl_mvm *mvm, int queue,
+					 u8 fifo)
+{
+	struct iwl_trans_txq_scd_cfg cfg = {
+		.fifo = fifo,
+		.tid = IWL_MAX_TID_COUNT,
+		.aggregate = false,
+		.frame_limit = IWL_FRAME_LIMIT,
+	};
+
+	iwl_mvm_enable_txq(mvm, queue, 0, &cfg);
+}
+
+static inline void iwl_mvm_enable_agg_txq(struct iwl_mvm *mvm, int queue,
+					  int fifo, int sta_id, int tid,
+					  int frame_limit, u16 ssn)
+{
+	struct iwl_trans_txq_scd_cfg cfg = {
+		.fifo = fifo,
+		.sta_id = sta_id,
+		.tid = tid,
+		.frame_limit = frame_limit,
+		.aggregate = true,
+	};
+
+	iwl_mvm_enable_txq(mvm, queue, ssn, &cfg);
 }
 
 /* Assoc status */

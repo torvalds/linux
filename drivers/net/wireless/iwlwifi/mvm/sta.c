@@ -535,8 +535,8 @@ int iwl_mvm_add_aux_sta(struct iwl_mvm *mvm)
 	lockdep_assert_held(&mvm->mutex);
 
 	/* Map Aux queue to fifo - needs to happen before adding Aux station */
-	iwl_trans_ac_txq_enable(mvm->trans, mvm->aux_queue,
-				IWL_MVM_TX_FIFO_MCAST);
+	iwl_mvm_enable_ac_txq(mvm, mvm->aux_queue,
+			      IWL_MVM_TX_FIFO_MCAST);
 
 	/* Allocate aux station and assign to it the aux queue */
 	ret = iwl_mvm_allocate_int_sta(mvm, &mvm->aux_sta, BIT(mvm->aux_queue),
@@ -887,8 +887,8 @@ int iwl_mvm_sta_tx_agg_oper(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	if (ret)
 		return -EIO;
 
-	iwl_trans_txq_enable(mvm->trans, queue, fifo, mvmsta->sta_id, tid,
-			     buf_size, ssn);
+	iwl_mvm_enable_agg_txq(mvm, queue, fifo, mvmsta->sta_id, tid,
+			       buf_size, ssn);
 
 	/*
 	 * Even though in theory the peer could have different
@@ -956,7 +956,7 @@ int iwl_mvm_sta_tx_agg_stop(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 		iwl_mvm_sta_tx_agg(mvm, sta, tid, txq_id, false);
 
-		iwl_trans_txq_disable(mvm->trans, txq_id, true);
+		iwl_mvm_disable_txq(mvm, txq_id);
 		return 0;
 	case IWL_AGG_STARTING:
 	case IWL_EMPTYING_HW_QUEUE_ADDBA:
@@ -1013,7 +1013,7 @@ int iwl_mvm_sta_tx_agg_flush(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 		iwl_mvm_sta_tx_agg(mvm, sta, tid, txq_id, false);
 
-		iwl_trans_txq_disable(mvm->trans, tid_data->txq_id, true);
+		iwl_mvm_disable_txq(mvm, tid_data->txq_id);
 	}
 
 	mvm->queue_to_mac80211[tid_data->txq_id] =
