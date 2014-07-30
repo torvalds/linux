@@ -949,7 +949,7 @@ static void nfs4_put_stateowner(struct nfs4_stateowner *sop)
 	sop->so_ops->so_free(sop);
 }
 
-static void unhash_generic_stateid(struct nfs4_ol_stateid *stp)
+static void unhash_ol_stateid(struct nfs4_ol_stateid *stp)
 {
 	struct nfs4_file *fp = stp->st_stid.sc_file;
 
@@ -1014,7 +1014,7 @@ static void unhash_lock_stateid(struct nfs4_ol_stateid *stp)
 	lockdep_assert_held(&oo->oo_owner.so_client->cl_lock);
 
 	list_del_init(&stp->st_locks);
-	unhash_generic_stateid(stp);
+	unhash_ol_stateid(stp);
 	unhash_stid(&stp->st_stid);
 }
 
@@ -1095,7 +1095,7 @@ static void unhash_open_stateid(struct nfs4_ol_stateid *stp,
 {
 	lockdep_assert_held(&stp->st_stid.sc_client->cl_lock);
 
-	unhash_generic_stateid(stp);
+	unhash_ol_stateid(stp);
 	release_open_stateid_locks(stp, reaplist);
 }
 
