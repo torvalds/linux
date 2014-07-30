@@ -969,12 +969,14 @@ static int fsl_spdif_dai_probe(struct snd_soc_dai *dai)
 static struct snd_soc_dai_driver fsl_spdif_dai = {
 	.probe = &fsl_spdif_dai_probe,
 	.playback = {
+		.stream_name = "CPU-Playback",
 		.channels_min = 2,
 		.channels_max = 2,
 		.rates = FSL_SPDIF_RATES_PLAYBACK,
 		.formats = FSL_SPDIF_FORMATS_PLAYBACK,
 	},
 	.capture = {
+		.stream_name = "CPU-Capture",
 		.channels_min = 2,
 		.channels_max = 2,
 		.rates = FSL_SPDIF_RATES_CAPTURE,
