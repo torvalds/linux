@@ -30,6 +30,8 @@ int brcmf_proto_attach(struct brcmf_pub *drvr)
 {
 	struct brcmf_proto *proto;
 
+	brcmf_dbg(TRACE, "Enter\n");
+
 	proto = kzalloc(sizeof(*proto), GFP_ATOMIC);
 	if (!proto)
 		goto fail;
@@ -40,7 +42,9 @@ int brcmf_proto_attach(struct brcmf_pub *drvr)
 		goto fail;
 
 	if ((proto->txdata == NULL) || (proto->hdrpull == NULL) ||
-	    (proto->query_dcmd == NULL) || (proto->set_dcmd == NULL)) {
+	    (proto->query_dcmd == NULL) || (proto->set_dcmd == NULL) ||
+	    (proto->configure_addr_mode == NULL) ||
+	    (proto->delete_peer == NULL)) {
 		brcmf_err("Not all proto handlers have been installed\n");
 		goto fail;
 	}
@@ -54,6 +58,8 @@ fail:
 
 void brcmf_proto_detach(struct brcmf_pub *drvr)
 {
+	brcmf_dbg(TRACE, "Enter\n");
+
 	if (drvr->proto) {
 		brcmf_proto_bcdc_detach(drvr);
 		kfree(drvr->proto);
