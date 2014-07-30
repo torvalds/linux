@@ -779,6 +779,12 @@
 			interrupts = <1 9 0xf04>;
 		};
 
+		rtc: rtc@01f00000 {
+			compatible = "allwinner,sun6i-a31-rtc";
+			reg = <0x01f00000 0x54>;
+			interrupts = <0 40 4>, <0 41 4>;
+		};
+
 		nmi_intc: interrupt-controller@01f00c0c {
 			compatible = "allwinner,sun6i-a31-sc-nmi";
 			interrupt-controller;
