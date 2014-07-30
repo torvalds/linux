@@ -148,14 +148,14 @@ static int __init ssi_debug_add_ctrl(struct hsi_controller *ssi)
 
 	/* SSI controller */
 	omap_ssi->dir = debugfs_create_dir(dev_name(&ssi->device), NULL);
-	if (IS_ERR(omap_ssi->dir))
-		return PTR_ERR(omap_ssi->dir);
+	if (!omap_ssi->dir)
+		return -ENOMEM;
 
 	debugfs_create_file("regs", S_IRUGO, omap_ssi->dir, ssi,
 								&ssi_regs_fops);
 	/* SSI GDD (DMA) */
 	dir = debugfs_create_dir("gdd", omap_ssi->dir);
-	if (IS_ERR(dir))
+	if (!dir)
 		goto rback;
 	debugfs_create_file("regs", S_IRUGO, dir, ssi, &ssi_gdd_regs_fops);
 
@@ -163,7 +163,7 @@ static int __init ssi_debug_add_ctrl(struct hsi_controller *ssi)
 rback:
 	debugfs_remove_recursive(omap_ssi->dir);
 
-	return PTR_ERR(dir);
+	return -ENOMEM;
 }
 
 static void ssi_debug_remove_ctrl(struct hsi_controller *ssi)
