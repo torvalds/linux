@@ -366,6 +366,8 @@ typedef struct vpu_service_info {
 
 	enum vcodec_device_id	dev_id;
 
+	u32			reserved_mode;
+
 	struct delayed_work	simulate_work;
 } vpu_service_info;
 
@@ -399,10 +401,11 @@ static const struct file_operations debug_vcodec_fops = {
 #define VPU_TIMEOUT_DELAY		2*HZ /* 2s */
 #define VPU_SIMULATE_DELAY		msecs_to_jiffies(15)
 
-static void vcodec_enter_mode(enum vcodec_device_id id)
+static void vcodec_enter_mode_nolock(enum vcodec_device_id id, u32 *reserved_mode)
 {
 	if (soc_is_rk3036()) {
-		mutex_lock(&g_mode_mutex);
+		if (reserved_mode)
+			*reserved_mode = readl_relaxed(RK_GRF_VIRT + RK3036_GRF_SOC_CON1);
 #define BIT_VCODEC_SEL		(1<<3)
 		if (id == VCODEC_DEVICE_ID_HEVC) {
 			writel_relaxed(readl_relaxed(RK_GRF_VIRT + RK3036_GRF_SOC_CON1) | (BIT_VCODEC_SEL) | (BIT_VCODEC_SEL << 16), RK_GRF_VIRT + RK3036_GRF_SOC_CON1);
@@ -410,6 +413,18 @@ static void vcodec_enter_mode(enum vcodec_device_id id)
 			writel_relaxed((readl_relaxed(RK_GRF_VIRT + RK3036_GRF_SOC_CON1) & (~BIT_VCODEC_SEL)) | (BIT_VCODEC_SEL << 16), RK_GRF_VIRT + RK3036_GRF_SOC_CON1);
 		}
 	}
+}
+
+static void vcodec_exit_mode_nolock(enum vcodec_device_id id, u32 reserved_mode)
+{
+	writel_relaxed(reserved_mode | (BIT_VCODEC_SEL << 16), RK_GRF_VIRT + RK3036_GRF_SOC_CON1);
+}
+
+static void vcodec_enter_mode(enum vcodec_device_id id)
+{
+	if (soc_is_rk3036())
+		mutex_lock(&g_mode_mutex);
+	vcodec_enter_mode_nolock(id, NULL);
 }
 
 static void vcodec_exit_mode(void)
@@ -2005,7 +2020,7 @@ static irqreturn_t vdpu_irq(int irq, void *dev_id)
 	u32 raw_status;
 	u32 irq_status;
 
-	vcodec_enter_mode(pservice->dev_id);
+	vcodec_enter_mode_nolock(pservice->dev_id, &pservice->reserved_mode);
 
 	irq_status = raw_status = readl(dev->hwregs + DEC_INTERRUPT_REGISTER);
 
@@ -2039,7 +2054,8 @@ static irqreturn_t vdpu_irq(int irq, void *dev_id)
 	}
 
 	pservice->irq_status = raw_status;
-	vcodec_exit_mode();
+
+	vcodec_exit_mode_nolock(pservice->dev_id, pservice->reserved_mode);
 
 	return IRQ_WAKE_THREAD;
 }
@@ -2092,7 +2108,7 @@ static irqreturn_t vepu_irq(int irq, void *dev_id)
 	vpu_device *dev = &pservice->enc_dev;
 	u32 irq_status;
 
-	vcodec_enter_mode(pservice->dev_id);
+	vcodec_enter_mode_nolock(pservice->dev_id,  &pservice->reserved_mode);
 	irq_status= readl(dev->hwregs + ENC_INTERRUPT_REGISTER);
 
 	pr_debug("vepu_irq irq status %x\n", irq_status);
@@ -2110,7 +2126,8 @@ static irqreturn_t vepu_irq(int irq, void *dev_id)
 	}
 
 	pservice->irq_status = irq_status;
-	vcodec_exit_mode();
+
+	vcodec_exit_mode_nolock(pservice->dev_id, pservice->reserved_mode);
 
 	return IRQ_WAKE_THREAD;
 }
