@@ -2267,8 +2267,11 @@ nfsd4_exchange_id(struct svc_rqst *rqstp,
 
 	/* case 1 (normal case) */
 out_new:
-	if (conf)
-		unhash_client_locked(conf);
+	if (conf) {
+		status = mark_client_expired_locked(conf);
+		if (status)
+			goto out;
+	}
 	new->cl_minorversion = cstate->minorversion;
 	new->cl_mach_cred = (exid->spa_how == SP4_MACH_CRED);
 
@@ -2881,6 +2884,9 @@ nfsd4_destroy_clientid(struct svc_rqst *rqstp, struct nfsd4_compound_state *csta
 			status = nfserr_clientid_busy;
 			goto out;
 		}
+		status = mark_client_expired_locked(conf);
+		if (status)
+			goto out;
 		clp = conf;
 	} else if (unconf)
 		clp = unconf;
