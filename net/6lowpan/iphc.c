@@ -643,11 +643,11 @@ int lowpan_header_compress(struct sk_buff *skb, struct net_device *dev,
 	tmp = ((tmp & 0x03) << 6) | (tmp >> 2);
 
 	if (((hdr->flow_lbl[0] & 0x0F) == 0) &&
-	     (hdr->flow_lbl[1] == 0) && (hdr->flow_lbl[2] == 0)) {
+	    (hdr->flow_lbl[1] == 0) && (hdr->flow_lbl[2] == 0)) {
 		/* flow label can be compressed */
 		iphc0 |= LOWPAN_IPHC_FL_C;
 		if ((hdr->priority == 0) &&
-		   ((hdr->flow_lbl[0] & 0xF0) == 0)) {
+		    ((hdr->flow_lbl[0] & 0xF0) == 0)) {
 			/* compress (elide) all */
 			iphc0 |= LOWPAN_IPHC_TC_C;
 		} else {
@@ -658,7 +658,7 @@ int lowpan_header_compress(struct sk_buff *skb, struct net_device *dev,
 	} else {
 		/* Flow label cannot be compressed */
 		if ((hdr->priority == 0) &&
-		   ((hdr->flow_lbl[0] & 0xF0) == 0)) {
+		    ((hdr->flow_lbl[0] & 0xF0) == 0)) {
 			/* compress only traffic class */
 			iphc0 |= LOWPAN_IPHC_TC_C;
 			*hc_ptr = (tmp & 0xc0) | (hdr->flow_lbl[0] & 0x0F);
