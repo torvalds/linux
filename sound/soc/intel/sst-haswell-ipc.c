@@ -1646,7 +1646,7 @@ int sst_hsw_dx_set_state(struct sst_hsw *hsw,
 	enum sst_hsw_dx_state state, struct sst_hsw_ipc_dx_reply *dx)
 {
 	u32 header, state_;
-	int ret;
+	int ret, item;
 
 	header = IPC_GLB_TYPE(IPC_GLB_ENTER_DX_STATE);
 	state_ = state;
@@ -1660,6 +1660,13 @@ int sst_hsw_dx_set_state(struct sst_hsw *hsw,
 		return ret;
 	}
 
+	for (item = 0; item < dx->entries_no; item++) {
+		dev_dbg(hsw->dev,
+			"Item[%d] offset[%x] - size[%x] - source[%x]\n",
+			item, dx->mem_info[item].offset,
+			dx->mem_info[item].size,
+			dx->mem_info[item].source);
+	}
 	dev_dbg(hsw->dev, "ipc: got %d entry numbers for state %d\n",
 		dx->entries_no, state);
 
