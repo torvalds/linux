@@ -129,6 +129,7 @@ nfnl_acct_fill_info(struct sk_buff *skb, u32 portid, u32 seq, u32 type,
 	struct nfgenmsg *nfmsg;
 	unsigned int flags = portid ? NLM_F_MULTI : 0;
 	u64 pkts, bytes;
+	u32 old_flags;
 
 	event |= NFNL_SUBSYS_ACCT << 8;
 	nlh = nlmsg_put(skb, portid, seq, event, sizeof(*nfmsg), flags);
@@ -143,6 +144,7 @@ nfnl_acct_fill_info(struct sk_buff *skb, u32 portid, u32 seq, u32 type,
 	if (nla_put_string(skb, NFACCT_NAME, acct->name))
 		goto nla_put_failure;
 
+	old_flags = acct->flags;
 	if (type == NFNL_MSG_ACCT_GET_CTRZERO) {
 		pkts = atomic64_xchg(&acct->pkts, 0);
 		bytes = atomic64_xchg(&acct->bytes, 0);
@@ -160,7 +162,7 @@ nfnl_acct_fill_info(struct sk_buff *skb, u32 portid, u32 seq, u32 type,
 	if (acct->flags & NFACCT_F_QUOTA) {
 		u64 *quota = (u64 *)acct->data;
 
-		if (nla_put_be32(skb, NFACCT_FLAGS, htonl(acct->flags)) ||
+		if (nla_put_be32(skb, NFACCT_FLAGS, htonl(old_flags)) ||
 		    nla_put_be64(skb, NFACCT_QUOTA, cpu_to_be64(*quota)))
 			goto nla_put_failure;
 	}
