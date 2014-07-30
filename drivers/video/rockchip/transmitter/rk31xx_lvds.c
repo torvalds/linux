@@ -118,7 +118,7 @@ static int rk31xx_lvds_disable(void)
         if (!lvds->sys_state)
                 return 0;
 
-	grf_writel(v_LVDSMODE_EN(0) | v_MIPIPHY_TTL_EN(0), RK31XX_GRF_LVDS_CON0);
+	grf_writel(v_LVDSMODE_EN(0) | v_MIPIPHY_TTL_EN(0), RK312X_GRF_LVDS_CON0);
 
         rk31xx_lvds_pwr_off();
 	rk31xx_lvds_clk_disable(lvds);
@@ -139,7 +139,7 @@ static void rk31xx_output_lvds(struct rk_lvds_device *lvds,
 	val |= v_LVDS_DATA_SEL(LVDS_DATA_FROM_LCDC);    /* config data source */
 	val |= v_LVDS_OUTPUT_FORMAT(screen->lvds_format); /* config lvds_format */
 	val |= v_LVDS_MSBSEL(LVDS_MSB_D7);      /* LSB receive mode */
-	grf_writel(val, RK31XX_GRF_LVDS_CON0);
+	grf_writel(val, RK312X_GRF_LVDS_CON0);
 
         /* enable lvds lane */
         val = v_LANE0_EN(1) | v_LANE1_EN(1) | v_LANE2_EN(1) | v_LANE3_EN(1) |
@@ -169,9 +169,15 @@ static void rk31xx_output_lvttl(struct rk_lvds_device *lvds,
 {
         u32 val = 0;
 
+        /* iomux to lcdc */
+        grf_writel(0xffff5555, RK312X_GRF_GPIO2B_IOMUX);
+        grf_writel(0x00ff0055, RK312X_GRF_GPIO2C_IOMUX);
+        grf_writel(0x77771111, 0x00e8); /* RK312X_GRF_GPIO2C_IOMUX2 */
+        grf_writel(0x700c1008, RK312X_GRF_GPIO2D_IOMUX);
+
 	val |= v_LVDSMODE_EN(0) | v_MIPIPHY_TTL_EN(1);      /* enable lvds mode */
 	val |= v_LVDS_DATA_SEL(LVDS_DATA_FROM_LCDC);    /* config data source */
-	grf_writel(val, RK31XX_GRF_LVDS_CON0);
+	grf_writel(val, RK312X_GRF_LVDS_CON0);
 
         /* set pll prediv and fbdiv */
 	lvds_writel(lvds, MIPIPHY_REG3, v_PREDIV(1) | v_FBDIV_MSB(0));

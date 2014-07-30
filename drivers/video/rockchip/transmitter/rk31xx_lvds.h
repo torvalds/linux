@@ -8,7 +8,7 @@
 #define BITS_MASK(x, mask, bit)  BITS((x) & (mask), bit)
 #define BITS_EN(mask, bit)       BITS(mask, bit + 16)
 
-#define RK31XX_GRF_LVDS_CON0   	0x0150
+/* RK312X_GRF_LVDS_CON0 */
 #define v_LVDS_DATA_SEL(x)      (BITS_MASK(x, 1, 0) | BITS_EN(1, 0))
 #define v_LVDS_OUTPUT_FORMAT(x) (BITS_MASK(x, 3, 1) | BITS_EN(3, 1))
 #define v_LVDS_MSBSEL(x)        (BITS_MASK(x, 1, 3) | BITS_EN(1, 3))
