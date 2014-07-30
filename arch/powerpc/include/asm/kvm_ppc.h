@@ -539,16 +539,16 @@ static inline bool kvmppc_shared_big_endian(struct kvm_vcpu *vcpu)
 #endif
 }
 
-#define SPRNG_WRAPPER_GET(reg, e500hv_spr)				\
+#define SPRNG_WRAPPER_GET(reg, bookehv_spr)				\
 static inline ulong kvmppc_get_##reg(struct kvm_vcpu *vcpu)		\
 {									\
-	return mfspr(e500hv_spr);					\
+	return mfspr(bookehv_spr);					\
 }									\
 
-#define SPRNG_WRAPPER_SET(reg, e500hv_spr)				\
+#define SPRNG_WRAPPER_SET(reg, bookehv_spr)				\
 static inline void kvmppc_set_##reg(struct kvm_vcpu *vcpu, ulong val)	\
 {									\
-	mtspr(e500hv_spr, val);						\
+	mtspr(bookehv_spr, val);						\
 }									\
 
 #define SHARED_WRAPPER_GET(reg, size)					\
@@ -573,18 +573,18 @@ static inline void kvmppc_set_##reg(struct kvm_vcpu *vcpu, u##size val)	\
 	SHARED_WRAPPER_GET(reg, size)					\
 	SHARED_WRAPPER_SET(reg, size)					\
 
-#define SPRNG_WRAPPER(reg, e500hv_spr)					\
-	SPRNG_WRAPPER_GET(reg, e500hv_spr)				\
-	SPRNG_WRAPPER_SET(reg, e500hv_spr)				\
+#define SPRNG_WRAPPER(reg, bookehv_spr)					\
+	SPRNG_WRAPPER_GET(reg, bookehv_spr)				\
+	SPRNG_WRAPPER_SET(reg, bookehv_spr)				\
 
 #ifdef CONFIG_KVM_BOOKE_HV
 
-#define SHARED_SPRNG_WRAPPER(reg, size, e500hv_spr)			\
-	SPRNG_WRAPPER(reg, e500hv_spr)					\
+#define SHARED_SPRNG_WRAPPER(reg, size, bookehv_spr)			\
+	SPRNG_WRAPPER(reg, bookehv_spr)					\
 
 #else
 
-#define SHARED_SPRNG_WRAPPER(reg, size, e500hv_spr)			\
+#define SHARED_SPRNG_WRAPPER(reg, size, bookehv_spr)			\
 	SHARED_WRAPPER(reg, size)					\
 
 #endif
