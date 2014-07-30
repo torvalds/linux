@@ -201,8 +201,7 @@ acpi_ut_read_table(FILE * fp,
 			status = fl_check_for_ascii(fp, NULL, FALSE);
 			if (ACPI_SUCCESS(status)) {
 				acpi_os_printf
-				    ("File appears to be ASCII only, must be binary\n",
-				     table_header.length, file_size);
+				    ("File appears to be ASCII only, must be binary\n");
 			}
 #endif
 			return (AE_BAD_HEADER);
