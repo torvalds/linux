@@ -140,11 +140,9 @@ static struct nfsd_fault_inject_op inject_ops[] = {
 	},
 	{
 		.file     = "forget_locks",
-		.get	  = nfsd_inject_get,
-		.set_val  = nfsd_inject_set,
-		.set_clnt = nfsd_inject_set_client,
-		.forget   = nfsd_forget_client_locks,
-		.print    = nfsd_print_client_locks,
+		.get	  = nfsd_inject_print_locks,
+		.set_val  = nfsd_inject_forget_locks,
+		.set_clnt = nfsd_inject_forget_client_locks,
 	},
 	{
 		.file     = "forget_openowners",

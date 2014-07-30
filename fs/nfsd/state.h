@@ -483,12 +483,15 @@ u64 nfsd_inject_forget_client(struct nfsd_fault_inject_op *,
 			      struct sockaddr_storage *, size_t);
 u64 nfsd_inject_forget_clients(struct nfsd_fault_inject_op *, u64);
 
-u64 nfsd_forget_client_locks(struct nfs4_client*, u64);
+u64 nfsd_inject_print_locks(struct nfsd_fault_inject_op *);
+u64 nfsd_inject_forget_client_locks(struct nfsd_fault_inject_op *,
+				    struct sockaddr_storage *, size_t);
+u64 nfsd_inject_forget_locks(struct nfsd_fault_inject_op *, u64);
+
 u64 nfsd_forget_client_openowners(struct nfs4_client *, u64);
 u64 nfsd_forget_client_delegations(struct nfs4_client *, u64);
 u64 nfsd_recall_client_delegations(struct nfs4_client *, u64);
 
-u64 nfsd_print_client_locks(struct nfs4_client *, u64);
 u64 nfsd_print_client_openowners(struct nfs4_client *, u64);
 u64 nfsd_print_client_delegations(struct nfs4_client *, u64);
 #else /* CONFIG_NFSD_FAULT_INJECTION */
