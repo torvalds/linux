@@ -1496,6 +1496,7 @@ static struct exynos_drm_display exynos_dsi_display = {
 	.type = EXYNOS_DISPLAY_TYPE_LCD,
 	.ops = &exynos_dsi_display_ops,
 };
+MODULE_DEVICE_TABLE(of, exynos_dsi_of_match);
 
 /* of_* functions will be removed after merge of of_graph patches */
 static struct device_node *
