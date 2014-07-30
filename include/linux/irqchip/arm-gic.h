@@ -25,6 +25,7 @@
 #define GICC_INT_PRI_THRESHOLD		0xf0
 #define GICC_IAR_INT_ID_MASK		0x3ff
 #define GICC_INT_SPURIOUS		1023
+#define GICC_DIS_BYPASS_MASK		0x1e0
 
 #define GIC_DIST_CTRL			0x000
 #define GIC_DIST_CTR			0x004
