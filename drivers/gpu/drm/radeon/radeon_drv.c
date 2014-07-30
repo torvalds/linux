@@ -175,6 +175,7 @@ int radeon_runtime_pm = -1;
 int radeon_hard_reset = 0;
 int radeon_vm_size = 4096;
 int radeon_vm_block_size = 9;
+int radeon_deep_color = 0;
 
 MODULE_PARM_DESC(no_wb, "Disable AGP writeback for scratch registers");
 module_param_named(no_wb, radeon_no_wb, int, 0444);
@@ -247,6 +248,9 @@ module_param_named(vm_size, radeon_vm_size, int, 0444);
 
 MODULE_PARM_DESC(vm_block_size, "VM page table size in bits (default 9)");
 module_param_named(vm_block_size, radeon_vm_block_size, int, 0444);
+
+MODULE_PARM_DESC(deep_color, "Deep Color support (1 = enable, 0 = disable (default))");
+module_param_named(deep_color, radeon_deep_color, int, 0444);
 
 static struct pci_device_id pciidlist[] = {
 	radeon_PCI_IDS

@@ -495,7 +495,7 @@ int radeon_vm_bo_set_addr(struct radeon_device *rdev,
 		mutex_unlock(&vm->mutex);
 
 		r = radeon_bo_create(rdev, RADEON_VM_PTE_COUNT * 8,
-				     RADEON_GPU_PAGE_SIZE, false, 
+				     RADEON_GPU_PAGE_SIZE, true,
 				     RADEON_GEM_DOMAIN_VRAM, NULL, &pt);
 		if (r)
 			return r;
@@ -992,7 +992,7 @@ int radeon_vm_init(struct radeon_device *rdev, struct radeon_vm *vm)
 		return -ENOMEM;
 	}
 
-	r = radeon_bo_create(rdev, pd_size, align, false,
+	r = radeon_bo_create(rdev, pd_size, align, true,
 			     RADEON_GEM_DOMAIN_VRAM, NULL,
 			     &vm->page_directory);
 	if (r)

@@ -278,12 +278,18 @@ int msm_gem_get_iova_locked(struct drm_gem_object *obj, int id,
 		uint32_t *iova)
 {
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
+	struct drm_device *dev = obj->dev;
 	int ret = 0;
 
 	if (!msm_obj->domain[id].iova) {
 		struct msm_drm_private *priv = obj->dev->dev_private;
 		struct msm_mmu *mmu = priv->mmus[id];
 		struct page **pages = get_pages(obj);
+
+		if (!mmu) {
+			dev_err(dev->dev, "null MMU pointer\n");
+			return -EINVAL;
+		}
 
 		if (IS_ERR(pages))
 			return PTR_ERR(pages);
