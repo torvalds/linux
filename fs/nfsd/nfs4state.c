@@ -71,6 +71,7 @@ static u64 current_sessionid = 1;
 
 /* forward declarations */
 static bool check_for_locks(struct nfs4_file *fp, struct nfs4_lockowner *lowner);
+static void nfs4_free_ol_stateid(struct nfs4_stid *stid);
 
 /* Locking: */
 
@@ -463,8 +464,8 @@ static void nfs4_file_put_access(struct nfs4_file *fp, u32 access)
 		__nfs4_file_put_access(fp, O_RDONLY);
 }
 
-static struct nfs4_stid *nfs4_alloc_stid(struct nfs4_client *cl, struct
-kmem_cache *slab)
+static struct nfs4_stid *nfs4_alloc_stid(struct nfs4_client *cl,
+					 struct kmem_cache *slab)
 {
 	struct idr *stateids = &cl->cl_stateids;
 	struct nfs4_stid *stid;
@@ -500,7 +501,26 @@ out_free:
 
 static struct nfs4_ol_stateid * nfs4_alloc_stateid(struct nfs4_client *clp)
 {
-	return openlockstateid(nfs4_alloc_stid(clp, stateid_slab));
+	struct nfs4_stid *stid;
+	struct nfs4_ol_stateid *stp;
+
+	stid = nfs4_alloc_stid(clp, stateid_slab);
+	if (!stid)
+		return NULL;
+
+	stp = openlockstateid(stid);
+	stp->st_stid.sc_free = nfs4_free_ol_stateid;
+	return stp;
+}
+
+static void nfs4_free_deleg(struct nfs4_stid *stid)
+{
+	struct nfs4_delegation *dp = delegstateid(stid);
+
+	if (dp->dl_file)
+		put_nfs4_file(dp->dl_file);
+	kmem_cache_free(deleg_slab, stid);
+	atomic_long_dec(&num_delegations);
 }
 
 /*
@@ -594,6 +614,8 @@ alloc_init_deleg(struct nfs4_client *clp, struct svc_fh *current_fh)
 	dp = delegstateid(nfs4_alloc_stid(clp, deleg_slab));
 	if (dp == NULL)
 		goto out_dec;
+
+	dp->dl_stid.sc_free = nfs4_free_deleg;
 	/*
 	 * delegation seqid's are never incremented.  The 4.1 special
 	 * meaning of seqid 0 isn't meaningful, really, but let's avoid
@@ -611,28 +633,15 @@ out_dec:
 	return NULL;
 }
 
-static void remove_stid(struct nfs4_stid *s)
-{
-	struct idr *stateids = &s->sc_client->cl_stateids;
-
-	idr_remove(stateids, s->sc_stateid.si_opaque.so_id);
-}
-
-static void nfs4_free_stid(struct kmem_cache *slab, struct nfs4_stid *s)
-{
-	kmem_cache_free(slab, s);
-}
-
 void
-nfs4_put_delegation(struct nfs4_delegation *dp)
+nfs4_put_stid(struct nfs4_stid *s)
 {
-	if (atomic_dec_and_test(&dp->dl_stid.sc_count)) {
-		if (dp->dl_file)
-			put_nfs4_file(dp->dl_file);
-		remove_stid(&dp->dl_stid);
-		nfs4_free_stid(deleg_slab, &dp->dl_stid);
-		atomic_long_dec(&num_delegations);
-	}
+	struct nfs4_client *clp = s->sc_client;
+
+	if (!atomic_dec_and_test(&s->sc_count))
+		return;
+	idr_remove(&clp->cl_stateids, s->sc_stateid.si_opaque.so_id);
+	s->sc_free(s);
 }
 
 static void nfs4_put_deleg_lease(struct nfs4_file *fp)
@@ -689,7 +698,7 @@ static void destroy_delegation(struct nfs4_delegation *dp)
 	spin_lock(&state_lock);
 	unhash_delegation_locked(dp);
 	spin_unlock(&state_lock);
-	nfs4_put_delegation(dp);
+	nfs4_put_stid(&dp->dl_stid);
 }
 
 static void revoke_delegation(struct nfs4_delegation *dp)
@@ -699,7 +708,7 @@ static void revoke_delegation(struct nfs4_delegation *dp)
 	WARN_ON(!list_empty(&dp->dl_recall_lru));
 
 	if (clp->cl_minorversion == 0)
-		nfs4_put_delegation(dp);
+		nfs4_put_stid(&dp->dl_stid);
 	else {
 		dp->dl_stid.sc_type = NFS4_REVOKED_DELEG_STID;
 		spin_lock(&clp->cl_lock);
@@ -885,17 +894,14 @@ static void unhash_generic_stateid(struct nfs4_ol_stateid *stp)
 	list_del(&stp->st_perstateowner);
 }
 
-static void close_generic_stateid(struct nfs4_ol_stateid *stp)
+static void nfs4_free_ol_stateid(struct nfs4_stid *stid)
 {
-	release_all_access(stp);
-}
+	struct nfs4_ol_stateid *stp = openlockstateid(stid);
 
-static void free_generic_stateid(struct nfs4_ol_stateid *stp)
-{
+	release_all_access(stp);
 	if (stp->st_file)
 		put_nfs4_file(stp->st_file);
-	remove_stid(&stp->st_stid);
-	nfs4_free_stid(stateid_slab, &stp->st_stid);
+	kmem_cache_free(stateid_slab, stid);
 }
 
 static void __release_lock_stateid(struct nfs4_ol_stateid *stp)
@@ -908,8 +914,7 @@ static void __release_lock_stateid(struct nfs4_ol_stateid *stp)
 	file = find_any_file(stp->st_file);
 	if (file)
 		filp_close(file, (fl_owner_t)lockowner(stp->st_stateowner));
-	close_generic_stateid(stp);
-	free_generic_stateid(stp);
+	nfs4_put_stid(&stp->st_stid);
 }
 
 static void unhash_lockowner(struct nfs4_lockowner *lo)
@@ -966,13 +971,12 @@ static void unhash_open_stateid(struct nfs4_ol_stateid *stp)
 {
 	unhash_generic_stateid(stp);
 	release_open_stateid_locks(stp);
-	close_generic_stateid(stp);
 }
 
 static void release_open_stateid(struct nfs4_ol_stateid *stp)
 {
 	unhash_open_stateid(stp);
-	free_generic_stateid(stp);
+	nfs4_put_stid(&stp->st_stid);
 }
 
 static void unhash_openowner(struct nfs4_openowner *oo)
@@ -993,7 +997,7 @@ static void release_last_closed_stateid(struct nfs4_openowner *oo)
 	struct nfs4_ol_stateid *s = oo->oo_last_closed_stid;
 
 	if (s) {
-		free_generic_stateid(s);
+		nfs4_put_stid(&s->st_stid);
 		oo->oo_last_closed_stid = NULL;
 	}
 }
@@ -1467,12 +1471,12 @@ destroy_client(struct nfs4_client *clp)
 	while (!list_empty(&reaplist)) {
 		dp = list_entry(reaplist.next, struct nfs4_delegation, dl_recall_lru);
 		list_del_init(&dp->dl_recall_lru);
-		nfs4_put_delegation(dp);
+		nfs4_put_stid(&dp->dl_stid);
 	}
 	while (!list_empty(&clp->cl_revoked)) {
 		dp = list_entry(reaplist.next, struct nfs4_delegation, dl_recall_lru);
 		list_del_init(&dp->dl_recall_lru);
-		nfs4_put_delegation(dp);
+		nfs4_put_stid(&dp->dl_stid);
 	}
 	while (!list_empty(&clp->cl_openowners)) {
 		oo = list_entry(clp->cl_openowners.next, struct nfs4_openowner, oo_perclient);
@@ -3588,7 +3592,7 @@ out_unlock:
 	spin_unlock(&state_lock);
 out:
 	if (status) {
-		nfs4_put_delegation(dp);
+		nfs4_put_stid(&dp->dl_stid);
 		return ERR_PTR(status);
 	}
 	return dp;
@@ -3818,7 +3822,7 @@ void nfsd4_cleanup_open_state(struct nfsd4_open *open, __be32 status)
 	if (open->op_file)
 		nfsd4_free_file(open->op_file);
 	if (open->op_stp)
-		free_generic_stateid(open->op_stp);
+		nfs4_put_stid(&open->op_stp->st_stid);
 }
 
 __be32
@@ -4266,7 +4270,7 @@ nfsd4_free_stateid(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		spin_lock(&cl->cl_lock);
 		list_del_init(&dp->dl_recall_lru);
 		spin_unlock(&cl->cl_lock);
-		nfs4_put_delegation(dp);
+		nfs4_put_stid(s);
 		ret = nfs_ok;
 		break;
 	default:
@@ -4477,19 +4481,22 @@ static void nfsd4_close_open_stateid(struct nfs4_ol_stateid *s)
 	unhash_open_stateid(s);
 
 	if (clp->cl_minorversion) {
-		free_generic_stateid(s);
 		if (list_empty(&oo->oo_owner.so_stateids))
 			release_openowner(oo);
+		nfs4_put_stid(&s->st_stid);
 	} else {
+		/*
+		 * In the 4.0 case we need to keep the owners around a
+		 * little while to handle CLOSE replay. We still do need
+		 * to release any file access that is held by them
+		 * before returning however.
+		 */
+		release_all_access(s);
 		if (s->st_file) {
 			put_nfs4_file(s->st_file);
 			s->st_file = NULL;
 		}
 		oo->oo_last_closed_stid = s;
-		/*
-		 * In the 4.0 case we need to keep the owners around a
-		 * little while to handle CLOSE replay.
-		 */
 		if (list_empty(&oo->oo_owner.so_stateids))
 			move_to_close_lru(oo, clp->net);
 	}
@@ -5665,7 +5672,7 @@ nfs4_state_shutdown_net(struct net *net)
 	list_for_each_safe(pos, next, &reaplist) {
 		dp = list_entry (pos, struct nfs4_delegation, dl_recall_lru);
 		list_del_init(&dp->dl_recall_lru);
-		nfs4_put_delegation(dp);
+		nfs4_put_stid(&dp->dl_stid);
 	}
 
 	nfsd4_client_tracking_exit(net);

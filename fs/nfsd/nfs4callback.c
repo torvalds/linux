@@ -905,7 +905,7 @@ static void nfsd4_cb_recall_release(void *calldata)
 		spin_lock(&clp->cl_lock);
 		list_del(&cb->cb_per_client);
 		spin_unlock(&clp->cl_lock);
-		nfs4_put_delegation(dp);
+		nfs4_put_stid(&dp->dl_stid);
 	}
 }
 
