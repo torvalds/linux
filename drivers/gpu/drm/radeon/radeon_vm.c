@@ -410,8 +410,7 @@ static int radeon_vm_clear_bo(struct radeon_device *rdev,
 	addr = radeon_bo_gpu_offset(bo);
 	entries = radeon_bo_size(bo) / 8;
 
-	r = radeon_ib_get(rdev, R600_RING_TYPE_DMA_INDEX, &ib,
-			  NULL, entries * 2 + 64);
+	r = radeon_ib_get(rdev, R600_RING_TYPE_DMA_INDEX, &ib, NULL, 256);
 	if (r)
                 goto error;
 
@@ -419,6 +418,7 @@ static int radeon_vm_clear_bo(struct radeon_device *rdev,
 
 	radeon_vm_set_pages(rdev, &ib, addr, 0, entries, 0, 0);
 	radeon_asic_vm_pad_ib(rdev, &ib);
+	WARN_ON(ib.length_dw > 64);
 
 	r = radeon_ib_schedule(rdev, &ib, NULL);
 	if (r)
@@ -642,7 +642,7 @@ int radeon_vm_update_page_directory(struct radeon_device *rdev,
 	ndw = 64;
 
 	/* assume the worst case */
-	ndw += vm->max_pde_used * 16;
+	ndw += vm->max_pde_used * 6;
 
 	/* update too big for an IB */
 	if (ndw > 0xfffff)
@@ -692,6 +692,7 @@ int radeon_vm_update_page_directory(struct radeon_device *rdev,
 		radeon_asic_vm_pad_ib(rdev, &ib);
 		radeon_semaphore_sync_to(ib.semaphore, pd->tbo.sync_obj);
 		radeon_semaphore_sync_to(ib.semaphore, vm->last_id_use);
+		WARN_ON(ib.length_dw > ndw);
 		r = radeon_ib_schedule(rdev, &ib, NULL);
 		if (r) {
 			radeon_ib_free(rdev, &ib);
@@ -871,8 +872,9 @@ int radeon_vm_bo_update(struct radeon_device *rdev,
 {
 	struct radeon_vm *vm = bo_va->vm;
 	struct radeon_ib ib;
-	unsigned nptes, ndw;
+	unsigned nptes, ncmds, ndw;
 	uint64_t addr;
+	uint32_t flags;
 	int r;
 
 	if (!bo_va->it.start) {
@@ -911,19 +913,32 @@ int radeon_vm_bo_update(struct radeon_device *rdev,
 
 	nptes = bo_va->it.last - bo_va->it.start + 1;
 
+	/* reserve space for one command every (1 << BLOCK_SIZE) entries
+	   or 2k dwords (whatever is smaller) */
+	ncmds = (nptes >> min(radeon_vm_block_size, 11)) + 1;
+
 	/* padding, etc. */
 	ndw = 64;
 
-	if (radeon_vm_block_size > 11)
-		/* reserve space for one header for every 2k dwords */
-		ndw += (nptes >> 11) * 4;
-	else
-		/* reserve space for one header for
-		    every (1 << BLOCK_SIZE) entries */
-		ndw += (nptes >> radeon_vm_block_size) * 4;
+	flags = radeon_vm_page_flags(bo_va->flags);
+	if ((flags & R600_PTE_GART_MASK) == R600_PTE_GART_MASK) {
+		/* only copy commands needed */
+		ndw += ncmds * 7;
 
-	/* reserve space for pte addresses */
-	ndw += nptes * 2;
+	} else if (flags & R600_PTE_SYSTEM) {
+		/* header for write data commands */
+		ndw += ncmds * 4;
+
+		/* body of write data command */
+		ndw += nptes * 2;
+
+	} else {
+		/* set page commands needed */
+		ndw += ncmds * 10;
+
+		/* two extra commands for begin/end of fragment */
+		ndw += 2 * 10;
+	}
 
 	/* update too big for an IB */
 	if (ndw > 0xfffff)
@@ -939,6 +954,8 @@ int radeon_vm_bo_update(struct radeon_device *rdev,
 			      radeon_vm_page_flags(bo_va->flags));
 
 	radeon_asic_vm_pad_ib(rdev, &ib);
+	WARN_ON(ib.length_dw > ndw);
+
 	radeon_semaphore_sync_to(ib.semaphore, vm->fence);
 	r = radeon_ib_schedule(rdev, &ib, NULL);
 	if (r) {
