@@ -843,7 +843,7 @@ struct simple_xattr *simple_xattr_alloc(const void *value, size_t size)
 
 	/* wrap around? */
 	len = sizeof(*new_xattr) + size;
-	if (len <= sizeof(*new_xattr))
+	if (len < sizeof(*new_xattr))
 		return NULL;
 
 	new_xattr = kmalloc(len, GFP_KERNEL);

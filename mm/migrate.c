@@ -988,9 +988,10 @@ out:
 	 * it.  Otherwise, putback_lru_page() will drop the reference grabbed
 	 * during isolation.
 	 */
-	if (rc != MIGRATEPAGE_SUCCESS && put_new_page)
+	if (rc != MIGRATEPAGE_SUCCESS && put_new_page) {
+		ClearPageSwapBacked(newpage);
 		put_new_page(newpage, private);
-	else
+	} else
 		putback_lru_page(newpage);
 
 	if (result) {

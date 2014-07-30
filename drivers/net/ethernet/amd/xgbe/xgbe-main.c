@@ -349,7 +349,8 @@ static int xgbe_probe(struct platform_device *pdev)
 	/* Calculate the number of Tx and Rx rings to be created */
 	pdata->tx_ring_count = min_t(unsigned int, num_online_cpus(),
 				     pdata->hw_feat.tx_ch_cnt);
-	if (netif_set_real_num_tx_queues(netdev, pdata->tx_ring_count)) {
+	ret = netif_set_real_num_tx_queues(netdev, pdata->tx_ring_count);
+	if (ret) {
 		dev_err(dev, "error setting real tx queue count\n");
 		goto err_io;
 	}

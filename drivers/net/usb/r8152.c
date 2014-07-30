@@ -287,7 +287,7 @@
 /* USB_DEV_STAT */
 #define STAT_SPEED_MASK		0x0006
 #define STAT_SPEED_HIGH		0x0000
-#define STAT_SPEED_FULL		0x0001
+#define STAT_SPEED_FULL		0x0002
 
 /* USB_TX_AGG */
 #define TX_AGG_MAX_THRESHOLD	0x03
@@ -2300,9 +2300,8 @@ static void r8152b_exit_oob(struct r8152 *tp)
 	/* rx share fifo credit full threshold */
 	ocp_write_dword(tp, MCU_TYPE_PLA, PLA_RXFIFO_CTRL0, RXFIFO_THR1_NORMAL);
 
-	ocp_data = ocp_read_word(tp, MCU_TYPE_USB, USB_DEV_STAT);
-	ocp_data &= STAT_SPEED_MASK;
-	if (ocp_data == STAT_SPEED_FULL) {
+	if (tp->udev->speed == USB_SPEED_FULL ||
+	    tp->udev->speed == USB_SPEED_LOW) {
 		/* rx share fifo credit near full threshold */
 		ocp_write_dword(tp, MCU_TYPE_PLA, PLA_RXFIFO_CTRL1,
 				RXFIFO_THR2_FULL);

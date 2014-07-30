@@ -379,11 +379,11 @@ static int special_clk_ctl_put(struct snd_kcontrol *kctl,
 	struct special_params *params = bebob->maudio_special_quirk;
 	int err, id;
 
-	mutex_lock(&bebob->mutex);
-
 	id = uval->value.enumerated.item[0];
 	if (id >= ARRAY_SIZE(special_clk_labels))
-		return 0;
+		return -EINVAL;
+
+	mutex_lock(&bebob->mutex);
 
 	err = avc_maudio_set_special_clk(bebob, id,
 					 params->dig_in_fmt,
@@ -391,7 +391,10 @@ static int special_clk_ctl_put(struct snd_kcontrol *kctl,
 					 params->clk_lock);
 	mutex_unlock(&bebob->mutex);
 
-	return err >= 0;
+	if (err >= 0)
+		err = 1;
+
+	return err;
 }
 static struct snd_kcontrol_new special_clk_ctl = {
 	.name	= "Clock Source",
@@ -434,8 +437,8 @@ static struct snd_kcontrol_new special_sync_ctl = {
 	.get	= special_sync_ctl_get,
 };
 
-/* Digital interface control for special firmware */
-static char *const special_dig_iface_labels[] = {
+/* Digital input interface control for special firmware */
+static char *const special_dig_in_iface_labels[] = {
 	"S/PDIF Optical", "S/PDIF Coaxial", "ADAT Optical"
 };
 static int special_dig_in_iface_ctl_info(struct snd_kcontrol *kctl,
@@ -443,13 +446,13 @@ static int special_dig_in_iface_ctl_info(struct snd_kcontrol *kctl,
 {
 	einf->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
 	einf->count = 1;
-	einf->value.enumerated.items = ARRAY_SIZE(special_dig_iface_labels);
+	einf->value.enumerated.items = ARRAY_SIZE(special_dig_in_iface_labels);
 
 	if (einf->value.enumerated.item >= einf->value.enumerated.items)
 		einf->value.enumerated.item = einf->value.enumerated.items - 1;
 
 	strcpy(einf->value.enumerated.name,
-	       special_dig_iface_labels[einf->value.enumerated.item]);
+	       special_dig_in_iface_labels[einf->value.enumerated.item]);
 
 	return 0;
 }
@@ -491,26 +494,36 @@ static int special_dig_in_iface_ctl_set(struct snd_kcontrol *kctl,
 	unsigned int id, dig_in_fmt, dig_in_iface;
 	int err;
 
-	mutex_lock(&bebob->mutex);
-
 	id = uval->value.enumerated.item[0];
+	if (id >= ARRAY_SIZE(special_dig_in_iface_labels))
+		return -EINVAL;
 
 	/* decode user value */
 	dig_in_fmt = (id >> 1) & 0x01;
 	dig_in_iface = id & 0x01;
+
+	mutex_lock(&bebob->mutex);
 
 	err = avc_maudio_set_special_clk(bebob,
 					 params->clk_src,
 					 dig_in_fmt,
 					 params->dig_out_fmt,
 					 params->clk_lock);
-	if ((err < 0) || (params->dig_in_fmt > 0)) /* ADAT */
+	if (err < 0)
 		goto end;
 
+	/* For ADAT, optical interface is only available. */
+	if (params->dig_in_fmt > 0) {
+		err = 1;
+		goto end;
+	}
+
+	/* For S/PDIF, optical/coaxial interfaces are selectable. */
 	err = avc_audio_set_selector(bebob->unit, 0x00, 0x04, dig_in_iface);
 	if (err < 0)
 		dev_err(&bebob->unit->device,
 			"fail to set digital input interface: %d\n", err);
+	err = 1;
 end:
 	special_stream_formation_set(bebob);
 	mutex_unlock(&bebob->mutex);
@@ -525,18 +538,22 @@ static struct snd_kcontrol_new special_dig_in_iface_ctl = {
 	.put	= special_dig_in_iface_ctl_set
 };
 
+/* Digital output interface control for special firmware */
+static char *const special_dig_out_iface_labels[] = {
+	"S/PDIF Optical and Coaxial", "ADAT Optical"
+};
 static int special_dig_out_iface_ctl_info(struct snd_kcontrol *kctl,
 					  struct snd_ctl_elem_info *einf)
 {
 	einf->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
 	einf->count = 1;
-	einf->value.enumerated.items = ARRAY_SIZE(special_dig_iface_labels) - 1;
+	einf->value.enumerated.items = ARRAY_SIZE(special_dig_out_iface_labels);
 
 	if (einf->value.enumerated.item >= einf->value.enumerated.items)
 		einf->value.enumerated.item = einf->value.enumerated.items - 1;
 
 	strcpy(einf->value.enumerated.name,
-	       special_dig_iface_labels[einf->value.enumerated.item + 1]);
+	       special_dig_out_iface_labels[einf->value.enumerated.item]);
 
 	return 0;
 }
@@ -558,16 +575,20 @@ static int special_dig_out_iface_ctl_set(struct snd_kcontrol *kctl,
 	unsigned int id;
 	int err;
 
-	mutex_lock(&bebob->mutex);
-
 	id = uval->value.enumerated.item[0];
+	if (id >= ARRAY_SIZE(special_dig_out_iface_labels))
+		return -EINVAL;
+
+	mutex_lock(&bebob->mutex);
 
 	err = avc_maudio_set_special_clk(bebob,
 					 params->clk_src,
 					 params->dig_in_fmt,
 					 id, params->clk_lock);
-	if (err >= 0)
+	if (err >= 0) {
 		special_stream_formation_set(bebob);
+		err = 1;
+	}
 
 	mutex_unlock(&bebob->mutex);
 	return err;
