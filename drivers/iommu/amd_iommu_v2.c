@@ -367,7 +367,7 @@ static void free_pasid_states(struct device_state *dev_state)
 		mmu_notifier_unregister(&pasid_state->mn, pasid_state->mm);
 
 		put_pasid_state_wait(pasid_state); /* Reference taken in
-						      amd_iommu_pasid_bind */
+						      amd_iommu_bind_pasid */
 
 		/* Drop reference taken in amd_iommu_bind_pasid */
 		put_device_state(dev_state);
@@ -749,7 +749,7 @@ void amd_iommu_unbind_pasid(struct pci_dev *pdev, int pasid)
 	mmu_notifier_unregister(&pasid_state->mn, pasid_state->mm);
 
 	put_pasid_state_wait(pasid_state); /* Reference taken in
-					      amd_iommu_pasid_bind */
+					      amd_iommu_bind_pasid */
 out:
 	/* Drop reference taken in this function */
 	put_device_state(dev_state);
