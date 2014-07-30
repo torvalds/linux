@@ -2152,7 +2152,13 @@ static int iwl_mvm_mac_sched_scan_start(struct ieee80211_hw *hw,
 
 	mutex_lock(&mvm->mutex);
 
-	if (!iwl_mvm_is_idle(mvm)) {
+	/* Newest FW fixes sched scan while connected on another interface */
+	if (mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_LMAC_SCAN) {
+		if (!vif->bss_conf.idle) {
+			ret = -EBUSY;
+			goto out;
+		}
+	} else if (!iwl_mvm_is_idle(mvm)) {
 		ret = -EBUSY;
 		goto out;
 	}
