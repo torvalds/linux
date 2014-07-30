@@ -448,7 +448,8 @@ static const char *acpi_gbl_generic_notify[ACPI_NOTIFY_MAX + 1] = {
 	/* 09 */ "Device PLD Check",
 	/* 0A */ "Reserved",
 	/* 0B */ "System Locality Update",
-	/* 0C */ "Shutdown Request"
+	/* 0C */ "Shutdown Request",
+	/* 0D */ "System Resource Affinity Update"
 };
 
 static const char *acpi_gbl_device_notify[4] = {
@@ -475,7 +476,7 @@ static const char *acpi_gbl_thermal_notify[4] = {
 const char *acpi_ut_get_notify_name(u32 notify_value, acpi_object_type type)
 {
 
-	/* 00 - 0C are common to all object types */
+	/* 00 - 0D are common to all object types */
 
 	if (notify_value <= ACPI_NOTIFY_MAX) {
 		return (acpi_gbl_generic_notify[notify_value]);
