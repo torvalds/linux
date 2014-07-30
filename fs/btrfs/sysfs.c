@@ -377,6 +377,9 @@ static ssize_t btrfs_label_store(struct kobject *kobj,
 	int ret;
 	size_t p_len;
 
+	if (fs_info->sb->s_flags & MS_RDONLY)
+		return -EROFS;
+
 	/*
 	 * p_len is the len until the first occurrence of either
 	 * '\n' or '\0'
