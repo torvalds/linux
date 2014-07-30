@@ -1812,26 +1812,24 @@ static bool mach_creds_match(struct nfs4_client *cl, struct svc_rqst *rqstp)
 	return 0 == strcmp(cl->cl_cred.cr_principal, cr->cr_principal);
 }
 
-static void gen_clid(struct nfs4_client *clp, struct nfsd_net *nn)
-{
-	static u32 current_clientid = 1;
-
-	clp->cl_clientid.cl_boot = nn->boot_time;
-	clp->cl_clientid.cl_id = current_clientid++; 
-}
-
-static void gen_confirm(struct nfs4_client *clp)
+static void gen_confirm(struct nfs4_client *clp, struct nfsd_net *nn)
 {
 	__be32 verf[2];
-	static u32 i;
 
 	/*
 	 * This is opaque to client, so no need to byte-swap. Use
 	 * __force to keep sparse happy
 	 */
 	verf[0] = (__force __be32)get_seconds();
-	verf[1] = (__force __be32)i++;
+	verf[1] = (__force __be32)nn->clientid_counter;
 	memcpy(clp->cl_confirm.data, verf, sizeof(clp->cl_confirm.data));
+}
+
+static void gen_clid(struct nfs4_client *clp, struct nfsd_net *nn)
+{
+	clp->cl_clientid.cl_boot = nn->boot_time;
+	clp->cl_clientid.cl_id = nn->clientid_counter++;
+	gen_confirm(clp, nn);
 }
 
 static struct nfs4_stid *
@@ -1884,7 +1882,6 @@ static struct nfs4_client *create_client(struct xdr_netobj name,
 	clear_bit(0, &clp->cl_cb_slot_busy);
 	copy_verf(clp, verf);
 	rpc_copy_addr((struct sockaddr *) &clp->cl_addr, sa);
-	gen_confirm(clp);
 	clp->cl_cb_session = NULL;
 	clp->net = net;
 	return clp;

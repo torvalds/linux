@@ -92,9 +92,7 @@ struct nfsd_net {
 	bool nfsd_net_up;
 	bool lockd_up;
 
-	/*
-	 * Time of server startup
-	 */
+	/* Time of server startup */
 	struct timeval nfssvc_boot;
 
 	/*
@@ -102,6 +100,8 @@ struct nfsd_net {
 	 * to '0' which is means that it bases this on the number of threads.
 	 */
 	unsigned int max_connections;
+
+	u32 clientid_counter;
 
 	struct svc_serv *nfsd_serv;
 };
