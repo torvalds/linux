@@ -1,7 +1,9 @@
 sticompositor-y := \
+	sti_layer.o \
 	sti_mixer.o \
 	sti_gdp.o \
-	sti_vid.o
+	sti_vid.o \
+	sti_compositor.o
 
 stihdmi-y := sti_hdmi.o \
 	sti_hdmi_tx3g0c55phy.o \

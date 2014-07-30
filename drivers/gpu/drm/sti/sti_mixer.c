@@ -6,6 +6,7 @@
  * License terms:  GNU General Public License (GPL), version 2
  */
 
+#include "sti_compositor.h"
 #include "sti_mixer.h"
 #include "sti_vtg.h"
 
@@ -133,6 +134,8 @@ int sti_mixer_set_layer_depth(struct sti_mixer *mixer, struct sti_layer *layer)
 	mask = GAM_DEPTH_MASK_ID << (3 * depth);
 	layer_id = layer_id << (3 * depth);
 
+	DRM_DEBUG_DRIVER("%s %s depth=%d\n", sti_mixer_to_str(mixer),
+			 sti_layer_to_str(layer), depth);
 	dev_dbg(mixer->dev, "GAM_MIXER_CRB val 0x%x mask 0x%x\n",
 		layer_id, mask);
 
@@ -194,6 +197,9 @@ int sti_mixer_set_layer_status(struct sti_mixer *mixer,
 			       struct sti_layer *layer, bool status)
 {
 	u32 mask, val;
+
+	DRM_DEBUG_DRIVER("%s %s %s\n", status ? "enable" : "disable",
+			 sti_mixer_to_str(mixer), sti_layer_to_str(layer));
 
 	mask = sti_mixer_get_layer_mask(layer);
 	if (!mask) {

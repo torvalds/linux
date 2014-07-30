@@ -9,6 +9,7 @@
 #include <linux/clk.h>
 #include <linux/dma-mapping.h>
 
+#include "sti_compositor.h"
 #include "sti_gdp.h"
 #include "sti_layer.h"
 #include "sti_vtg.h"
@@ -182,6 +183,10 @@ static struct sti_gdp_node_list *sti_gdp_get_free_nodes(struct sti_layer *layer)
 		    (virt_nvn != gdp->node_list[i].top_field))
 			return &gdp->node_list[i];
 
+	/* in hazardious cases restart with the first node */
+	DRM_ERROR("inconsistent NVN for %s: 0x%08X\n",
+			sti_layer_to_str(layer), hw_nvn);
+
 end:
 	return &gdp->node_list[0];
 }
@@ -215,6 +220,9 @@ struct sti_gdp_node_list *sti_gdp_get_current_nodes(struct sti_layer *layer)
 			return &gdp->node_list[i];
 
 end:
+	DRM_DEBUG_DRIVER("Warning, NVN 0x%08X for %s does not match any node\n",
+				hw_nvn, sti_layer_to_str(layer));
+
 	return NULL;
 }
 
@@ -235,6 +243,7 @@ static int sti_gdp_prepare_layer(struct sti_layer *layer, bool first_prepare)
 	struct drm_display_mode *mode = layer->mode;
 	struct device *dev = layer->dev;
 	struct sti_gdp *gdp = to_sti_gdp(layer);
+	struct sti_compositor *compo = dev_get_drvdata(dev);
 	int format;
 	unsigned int depth, bpp;
 	int rate = mode->clock * 1000;
@@ -244,6 +253,9 @@ static int sti_gdp_prepare_layer(struct sti_layer *layer, bool first_prepare)
 	list = sti_gdp_get_free_nodes(layer);
 	top_field = list->top_field;
 	btm_field = list->btm_field;
+
+	dev_dbg(dev, "%s %s top_node:0x%p btm_node:0x%p\n", __func__,
+			sti_layer_to_str(layer), top_field, btm_field);
 
 	/* Build the top field from layer params */
 	top_field->gam_gdp_agc = GAM_GDP_AGC_FULL_RANGE;
@@ -289,6 +301,14 @@ static int sti_gdp_prepare_layer(struct sti_layer *layer, bool first_prepare)
 		    layer->pitches[0];
 
 	if (first_prepare) {
+		/* Register gdp callback */
+		if (sti_vtg_register_client(layer->mixer_id == STI_MIXER_MAIN ?
+				compo->vtg_main : compo->vtg_aux,
+				&gdp->vtg_field_nb, layer->mixer_id)) {
+			DRM_ERROR("Cannot register VTG notifier\n");
+			return 1;
+		}
+
 		/* Set and enable gdp clock */
 		if (gdp->clk_pix) {
 			res = clk_set_rate(gdp->clk_pix, rate);
@@ -333,6 +353,9 @@ static int sti_gdp_commit_layer(struct sti_layer *layer)
 	u32 dma_updated_btm = virt_to_dma(layer->dev, updated_btm_node);
 	struct sti_gdp_node_list *curr_list = sti_gdp_get_current_nodes(layer);
 
+	dev_dbg(layer->dev, "%s %s top/btm_node:0x%p/0x%p\n", __func__,
+			sti_layer_to_str(layer),
+			updated_top_node, updated_btm_node);
 	dev_dbg(layer->dev, "Current NVN:0x%X\n",
 		readl(layer->regs + GAM_GDP_NVN_OFFSET));
 	dev_dbg(layer->dev, "Posted buff: %lx current buff: %x\n",
@@ -342,6 +365,9 @@ static int sti_gdp_commit_layer(struct sti_layer *layer)
 	if (curr_list == NULL) {
 		/* First update or invalid node should directly write in the
 		 * hw register */
+		DRM_DEBUG_DRIVER("%s first update (or invalid node)",
+				sti_layer_to_str(layer));
+
 		writel(gdp->is_curr_top == true ?
 				dma_updated_btm : dma_updated_top,
 				layer->regs + GAM_GDP_NVN_OFFSET);
@@ -380,12 +406,19 @@ static int sti_gdp_disable_layer(struct sti_layer *layer)
 {
 	unsigned int i;
 	struct sti_gdp *gdp = to_sti_gdp(layer);
+	struct sti_compositor *compo = dev_get_drvdata(layer->dev);
+
+	DRM_DEBUG_DRIVER("%s\n", sti_layer_to_str(layer));
 
 	/* Set the nodes as 'to be ignored on mixer' */
 	for (i = 0; i < GDP_NODE_NB_BANK; i++) {
 		gdp->node_list[i].top_field->gam_gdp_ppt |= GAM_GDP_PPT_IGNORE;
 		gdp->node_list[i].btm_field->gam_gdp_ppt |= GAM_GDP_PPT_IGNORE;
 	}
+
+	if (sti_vtg_unregister_client(layer->mixer_id == STI_MIXER_MAIN ?
+			compo->vtg_main : compo->vtg_aux, &gdp->vtg_field_nb))
+		DRM_DEBUG_DRIVER("Warning: cannot unregister VTG notifier\n");
 
 	if (gdp->clk_pix)
 		clk_disable_unprepare(gdp->clk_pix);
