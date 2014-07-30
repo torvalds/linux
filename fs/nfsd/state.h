@@ -367,7 +367,6 @@ struct nfs4_openowner {
 	struct nfs4_ol_stateid *oo_last_closed_stid;
 	time_t			oo_time; /* time of placement on so_close_lru */
 #define NFS4_OO_CONFIRMED   1
-#define NFS4_OO_NEW         4
 	unsigned char		oo_flags;
 };
 
