@@ -242,7 +242,7 @@ static ssize_t global_rsv_size_show(struct kobject *kobj,
 	struct btrfs_block_rsv *block_rsv = &fs_info->global_block_rsv;
 	return btrfs_show_u64(&block_rsv->size, &block_rsv->lock, buf);
 }
-BTRFS_ATTR(global_rsv_size, 0444, global_rsv_size_show);
+BTRFS_ATTR(global_rsv_size, global_rsv_size_show);
 
 static ssize_t global_rsv_reserved_show(struct kobject *kobj,
 					struct kobj_attribute *a, char *buf)
@@ -251,7 +251,7 @@ static ssize_t global_rsv_reserved_show(struct kobject *kobj,
 	struct btrfs_block_rsv *block_rsv = &fs_info->global_block_rsv;
 	return btrfs_show_u64(&block_rsv->reserved, &block_rsv->lock, buf);
 }
-BTRFS_ATTR(global_rsv_reserved, 0444, global_rsv_reserved_show);
+BTRFS_ATTR(global_rsv_reserved, global_rsv_reserved_show);
 
 #define to_space_info(_kobj) container_of(_kobj, struct btrfs_space_info, kobj)
 #define to_raid_kobj(_kobj) container_of(_kobj, struct raid_kobject, kobj)
@@ -306,7 +306,7 @@ static ssize_t btrfs_space_info_show_##field(struct kobject *kobj,	\
 	struct btrfs_space_info *sinfo = to_space_info(kobj);		\
 	return btrfs_show_u64(&sinfo->field, &sinfo->lock, buf);	\
 }									\
-BTRFS_ATTR(field, 0444, btrfs_space_info_show_##field)
+BTRFS_ATTR(field, btrfs_space_info_show_##field)
 
 static ssize_t btrfs_space_info_show_total_bytes_pinned(struct kobject *kobj,
 						       struct kobj_attribute *a,
@@ -325,7 +325,7 @@ SPACE_INFO_ATTR(bytes_reserved);
 SPACE_INFO_ATTR(bytes_may_use);
 SPACE_INFO_ATTR(disk_used);
 SPACE_INFO_ATTR(disk_total);
-BTRFS_ATTR(total_bytes_pinned, 0444, btrfs_space_info_show_total_bytes_pinned);
+BTRFS_ATTR(total_bytes_pinned, btrfs_space_info_show_total_bytes_pinned);
 
 static struct attribute *space_info_attrs[] = {
 	BTRFS_ATTR_PTR(flags),
@@ -411,7 +411,7 @@ static ssize_t btrfs_nodesize_show(struct kobject *kobj,
 	return snprintf(buf, PAGE_SIZE, "%u\n", fs_info->super_copy->nodesize);
 }
 
-BTRFS_ATTR(nodesize, 0444, btrfs_nodesize_show);
+BTRFS_ATTR(nodesize, btrfs_nodesize_show);
 
 static ssize_t btrfs_sectorsize_show(struct kobject *kobj,
 				struct kobj_attribute *a, char *buf)
@@ -421,7 +421,7 @@ static ssize_t btrfs_sectorsize_show(struct kobject *kobj,
 	return snprintf(buf, PAGE_SIZE, "%u\n", fs_info->super_copy->sectorsize);
 }
 
-BTRFS_ATTR(sectorsize, 0444, btrfs_sectorsize_show);
+BTRFS_ATTR(sectorsize, btrfs_sectorsize_show);
 
 static ssize_t btrfs_clone_alignment_show(struct kobject *kobj,
 				struct kobj_attribute *a, char *buf)
@@ -431,7 +431,7 @@ static ssize_t btrfs_clone_alignment_show(struct kobject *kobj,
 	return snprintf(buf, PAGE_SIZE, "%u\n", fs_info->super_copy->sectorsize);
 }
 
-BTRFS_ATTR(clone_alignment, 0444, btrfs_clone_alignment_show);
+BTRFS_ATTR(clone_alignment, btrfs_clone_alignment_show);
 
 static struct attribute *btrfs_attrs[] = {
 	BTRFS_ATTR_PTR(label),
