@@ -335,6 +335,7 @@ struct nfs4_replay {
 struct nfs4_stateowner;
 
 struct nfs4_stateowner_operations {
+	void (*so_unhash)(struct nfs4_stateowner *);
 	void (*so_free)(struct nfs4_stateowner *);
 };
 
