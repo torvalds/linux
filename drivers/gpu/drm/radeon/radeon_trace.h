@@ -72,8 +72,8 @@ TRACE_EVENT(radeon_vm_bo_update,
 			     ),
 
 	    TP_fast_assign(
-			   __entry->soffset = bo_va->soffset;
-			   __entry->eoffset = bo_va->eoffset;
+			   __entry->soffset = bo_va->it.start;
+			   __entry->eoffset = bo_va->it.last + 1;
 			   __entry->flags = bo_va->flags;
 			   ),
 	    TP_printk("soffs=%010llx, eoffs=%010llx, flags=%08x",

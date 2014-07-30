@@ -496,9 +496,9 @@ int radeon_gem_va_ioctl(struct drm_device *dev, void *data,
 
 	switch (args->operation) {
 	case RADEON_VA_MAP:
-		if (bo_va->soffset) {
+		if (bo_va->it.start) {
 			args->operation = RADEON_VA_RESULT_VA_EXIST;
-			args->offset = bo_va->soffset;
+			args->offset = bo_va->it.start * RADEON_GPU_PAGE_SIZE;
 			goto out;
 		}
 		r = radeon_vm_bo_set_addr(rdev, bo_va, args->offset, args->flags);

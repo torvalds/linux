@@ -64,6 +64,7 @@
 #include <linux/wait.h>
 #include <linux/list.h>
 #include <linux/kref.h>
+#include <linux/interval_tree.h>
 
 #include <ttm/ttm_bo_api.h>
 #include <ttm/ttm_bo_driver.h>
@@ -447,14 +448,12 @@ struct radeon_mman {
 struct radeon_bo_va {
 	/* protected by bo being reserved */
 	struct list_head		bo_list;
-	uint64_t			soffset;
-	uint64_t			eoffset;
 	uint32_t			flags;
 	uint64_t			addr;
 	unsigned			ref_count;
 
 	/* protected by vm mutex */
-	struct list_head		vm_list;
+	struct interval_tree_node	it;
 	struct list_head		vm_status;
 
 	/* constant after initialization */
@@ -877,7 +876,7 @@ struct radeon_vm_pt {
 };
 
 struct radeon_vm {
-	struct list_head		va;
+	struct rb_root			va;
 	unsigned			id;
 
 	/* BOs moved, but not yet updated in the PT */
