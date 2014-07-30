@@ -505,6 +505,9 @@ struct uncore_event_desc {
 	const char *config;
 };
 
+ssize_t uncore_event_show(struct kobject *kobj,
+			  struct kobj_attribute *attr, char *buf);
+
 #define INTEL_UNCORE_EVENT_DESC(_name, _config)			\
 {								\
 	.attr	= __ATTR(_name, 0444, uncore_event_show, NULL),	\
@@ -521,15 +524,6 @@ static ssize_t __uncore_##_var##_show(struct kobject *kobj,		\
 }									\
 static struct kobj_attribute format_attr_##_var =			\
 	__ATTR(_name, 0444, __uncore_##_var##_show, NULL)
-
-
-static ssize_t uncore_event_show(struct kobject *kobj,
-				struct kobj_attribute *attr, char *buf)
-{
-	struct uncore_event_desc *event =
-		container_of(attr, struct uncore_event_desc, attr);
-	return sprintf(buf, "%s", event->config);
-}
 
 static inline unsigned uncore_pci_box_ctl(struct intel_uncore_box *box)
 {
@@ -694,3 +688,23 @@ static inline bool uncore_box_is_fake(struct intel_uncore_box *box)
 {
 	return (box->phys_id < 0);
 }
+
+struct intel_uncore_pmu *uncore_event_to_pmu(struct perf_event *event);
+struct intel_uncore_box *uncore_pmu_to_box(struct intel_uncore_pmu *pmu, int cpu);
+struct intel_uncore_box *uncore_event_to_box(struct perf_event *event);
+u64 uncore_msr_read_counter(struct intel_uncore_box *box, struct perf_event *event);
+void uncore_pmu_start_hrtimer(struct intel_uncore_box *box);
+void uncore_pmu_cancel_hrtimer(struct intel_uncore_box *box);
+void uncore_pmu_event_read(struct perf_event *event);
+void uncore_perf_event_update(struct intel_uncore_box *box, struct perf_event *event);
+struct event_constraint *
+uncore_get_constraint(struct intel_uncore_box *box, struct perf_event *event);
+void uncore_put_constraint(struct intel_uncore_box *box, struct perf_event *event);
+u64 uncore_shared_reg_config(struct intel_uncore_box *box, int idx);
+
+extern struct intel_uncore_type **uncore_msr_uncores;
+extern struct intel_uncore_type **uncore_pci_uncores;
+extern struct pci_driver *uncore_pci_driver;
+extern int uncore_pcibus_to_physid[256];
+extern struct pci_dev *uncore_extra_pci_dev[UNCORE_SOCKET_MAX][UNCORE_EXTRA_PCI_DEV_MAX];
+extern struct event_constraint uncore_constraint_empty;
