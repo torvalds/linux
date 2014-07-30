@@ -71,6 +71,17 @@
 		status = "okay";
 	};
 };
+&i2c2 {
+	status = "okay";
+	ts@01 {
+		compatible = "ct,vtl_ts";
+		reg = <0x01>;
+		screen_max_x = <1280>;
+		screen_max_y = <800>;
+		irq_gpio_number = <&gpio1 GPIO_B0 IRQ_TYPE_LEVEL_LOW>;
+		rst_gpio_number = <&gpio2 GPIO_C1 GPIO_ACTIVE_HIGH>;
+	};
+};
 
 	&fb {
 		rockchip,disp-mode = <ONE_DUAL>;
