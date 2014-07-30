@@ -17,51 +17,12 @@
 
 struct nfsd_fault_inject_op {
 	char *file;
-	u64 (*get)(struct nfsd_fault_inject_op *);
-	u64 (*set_val)(struct nfsd_fault_inject_op *, u64);
-	u64 (*set_clnt)(struct nfsd_fault_inject_op *,
-			struct sockaddr_storage *, size_t);
-	u64 (*forget)(struct nfs4_client *, u64);
-	u64 (*print)(struct nfs4_client *, u64);
+	u64 (*get)(void);
+	u64 (*set_val)(u64);
+	u64 (*set_clnt)(struct sockaddr_storage *, size_t);
 };
 
 static struct dentry *debug_dir;
-
-static u64 nfsd_inject_set(struct nfsd_fault_inject_op *op, u64 val)
-{
-	u64 count;
-
-	nfs4_lock_state();
-	count = nfsd_for_n_state(val, op->forget);
-	nfs4_unlock_state();
-	return count;
-}
-
-static u64 nfsd_inject_set_client(struct nfsd_fault_inject_op *op,
-				   struct sockaddr_storage *addr,
-				   size_t addr_size)
-{
-	struct nfs4_client *clp;
-	u64 count = 0;
-
-	nfs4_lock_state();
-	clp = nfsd_find_client(addr, addr_size);
-	if (clp)
-		count = op->forget(clp, 0);
-	nfs4_unlock_state();
-	return count;
-}
-
-static u64 nfsd_inject_get(struct nfsd_fault_inject_op *op)
-{
-	u64 count;
-
-	nfs4_lock_state();
-	count = nfsd_for_n_state(0, op->print);
-	nfs4_unlock_state();
-
-	return count;
-}
 
 static ssize_t fault_inject_read(struct file *file, char __user *buf,
 				 size_t len, loff_t *ppos)
@@ -73,7 +34,7 @@ static ssize_t fault_inject_read(struct file *file, char __user *buf,
 	struct nfsd_fault_inject_op *op = file_inode(file)->i_private;
 
 	if (!pos)
-		val = op->get(op);
+		val = op->get();
 	size = scnprintf(read_buf, sizeof(read_buf), "%llu\n", val);
 
 	return simple_read_from_buffer(buf, len, ppos, read_buf, size);
@@ -103,7 +64,7 @@ static ssize_t fault_inject_write(struct file *file, const char __user *buf,
 
 	size = rpc_pton(net, write_buf, size, (struct sockaddr *)&sa, sizeof(sa));
 	if (size > 0) {
-		val = op->set_clnt(op, &sa, size);
+		val = op->set_clnt(&sa, size);
 		if (val)
 			pr_info("NFSD [%s]: Client %s had %llu state object(s)\n",
 				op->file, write_buf, val);
@@ -114,7 +75,7 @@ static ssize_t fault_inject_write(struct file *file, const char __user *buf,
 		else
 			pr_info("NFSD Fault Injection: %s (n = %llu)",
 				op->file, val);
-		val = op->set_val(op, val);
+		val = op->set_val(val);
 		pr_info("NFSD: %s: found %llu", op->file, val);
 	}
 	return len; /* on success, claim we got the whole input */

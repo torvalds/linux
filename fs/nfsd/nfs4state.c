@@ -5729,8 +5729,25 @@ put_client(struct nfs4_client *clp)
 	atomic_dec(&clp->cl_refcount);
 }
 
+static struct nfs4_client *
+nfsd_find_client(struct sockaddr_storage *addr, size_t addr_size)
+{
+	struct nfs4_client *clp;
+	struct nfsd_net *nn = net_generic(current->nsproxy->net_ns,
+					  nfsd_net_id);
+
+	if (!nfsd_netns_ready(nn))
+		return NULL;
+
+	list_for_each_entry(clp, &nn->client_lru, cl_lru) {
+		if (memcmp(&clp->cl_addr, addr, addr_size) == 0)
+			return clp;
+	}
+	return NULL;
+}
+
 u64
-nfsd_inject_print_clients(struct nfsd_fault_inject_op *op)
+nfsd_inject_print_clients(void)
 {
 	struct nfs4_client *clp;
 	u64 count = 0;
@@ -5753,8 +5770,7 @@ nfsd_inject_print_clients(struct nfsd_fault_inject_op *op)
 }
 
 u64
-nfsd_inject_forget_client(struct nfsd_fault_inject_op *op,
-			  struct sockaddr_storage *addr, size_t addr_size)
+nfsd_inject_forget_client(struct sockaddr_storage *addr, size_t addr_size)
 {
 	u64 count = 0;
 	struct nfs4_client *clp;
@@ -5781,7 +5797,7 @@ nfsd_inject_forget_client(struct nfsd_fault_inject_op *op,
 }
 
 u64
-nfsd_inject_forget_clients(struct nfsd_fault_inject_op *op, u64 max)
+nfsd_inject_forget_clients(u64 max)
 {
 	u64 count = 0;
 	struct nfs4_client *clp, *next;
@@ -5888,7 +5904,7 @@ nfsd_print_client_locks(struct nfs4_client *clp)
 }
 
 u64
-nfsd_inject_print_locks(struct nfsd_fault_inject_op *op)
+nfsd_inject_print_locks(void)
 {
 	struct nfs4_client *clp;
 	u64 count = 0;
@@ -5921,8 +5937,7 @@ nfsd_reap_locks(struct list_head *reaplist)
 }
 
 u64
-nfsd_inject_forget_client_locks(struct nfsd_fault_inject_op *op,
-				struct sockaddr_storage *addr, size_t addr_size)
+nfsd_inject_forget_client_locks(struct sockaddr_storage *addr, size_t addr_size)
 {
 	unsigned int count = 0;
 	struct nfs4_client *clp;
@@ -5943,7 +5958,7 @@ nfsd_inject_forget_client_locks(struct nfsd_fault_inject_op *op,
 }
 
 u64
-nfsd_inject_forget_locks(struct nfsd_fault_inject_op *op, u64 max)
+nfsd_inject_forget_locks(u64 max)
 {
 	u64 count = 0;
 	struct nfs4_client *clp;
@@ -6020,7 +6035,7 @@ nfsd_collect_client_openowners(struct nfs4_client *clp,
 }
 
 u64
-nfsd_inject_print_openowners(struct nfsd_fault_inject_op *op)
+nfsd_inject_print_openowners(void)
 {
 	struct nfs4_client *clp;
 	u64 count = 0;
@@ -6053,8 +6068,8 @@ nfsd_reap_openowners(struct list_head *reaplist)
 }
 
 u64
-nfsd_inject_forget_client_openowners(struct nfsd_fault_inject_op *op,
-				struct sockaddr_storage *addr, size_t addr_size)
+nfsd_inject_forget_client_openowners(struct sockaddr_storage *addr,
+				     size_t addr_size)
 {
 	unsigned int count = 0;
 	struct nfs4_client *clp;
@@ -6075,7 +6090,7 @@ nfsd_inject_forget_client_openowners(struct nfsd_fault_inject_op *op,
 }
 
 u64
-nfsd_inject_forget_openowners(struct nfsd_fault_inject_op *op, u64 max)
+nfsd_inject_forget_openowners(u64 max)
 {
 	u64 count = 0;
 	struct nfs4_client *clp;
@@ -6149,7 +6164,7 @@ nfsd_print_client_delegations(struct nfs4_client *clp)
 }
 
 u64
-nfsd_inject_print_delegations(struct nfsd_fault_inject_op *op)
+nfsd_inject_print_delegations(void)
 {
 	struct nfs4_client *clp;
 	u64 count = 0;
@@ -6182,8 +6197,8 @@ nfsd_forget_delegations(struct list_head *reaplist)
 }
 
 u64
-nfsd_inject_forget_client_delegations(struct nfsd_fault_inject_op *op,
-				struct sockaddr_storage *addr, size_t addr_size)
+nfsd_inject_forget_client_delegations(struct sockaddr_storage *addr,
+				      size_t addr_size)
 {
 	u64 count = 0;
 	struct nfs4_client *clp;
@@ -6205,7 +6220,7 @@ nfsd_inject_forget_client_delegations(struct nfsd_fault_inject_op *op,
 }
 
 u64
-nfsd_inject_forget_delegations(struct nfsd_fault_inject_op *op, u64 max)
+nfsd_inject_forget_delegations(u64 max)
 {
 	u64 count = 0;
 	struct nfs4_client *clp;
@@ -6251,8 +6266,7 @@ nfsd_recall_delegations(struct list_head *reaplist)
 }
 
 u64
-nfsd_inject_recall_client_delegations(struct nfsd_fault_inject_op *op,
-				      struct sockaddr_storage *addr,
+nfsd_inject_recall_client_delegations(struct sockaddr_storage *addr,
 				      size_t addr_size)
 {
 	u64 count = 0;
@@ -6275,7 +6289,7 @@ nfsd_inject_recall_client_delegations(struct nfsd_fault_inject_op *op,
 }
 
 u64
-nfsd_inject_recall_delegations(struct nfsd_fault_inject_op *op, u64 max)
+nfsd_inject_recall_delegations(u64 max)
 {
 	u64 count = 0;
 	struct nfs4_client *clp, *next;
@@ -6296,41 +6310,6 @@ nfsd_inject_recall_delegations(struct nfsd_fault_inject_op *op, u64 max)
 	nfsd_recall_delegations(&reaplist);
 	return count;
 }
-
-u64 nfsd_for_n_state(u64 max, u64 (*func)(struct nfs4_client *, u64))
-{
-	struct nfs4_client *clp, *next;
-	u64 count = 0;
-	struct nfsd_net *nn = net_generic(current->nsproxy->net_ns,
-						nfsd_net_id);
-
-	if (!nfsd_netns_ready(nn))
-		return 0;
-
-	list_for_each_entry_safe(clp, next, &nn->client_lru, cl_lru) {
-		count += func(clp, max - count);
-		if ((max != 0) && (count >= max))
-			break;
-	}
-
-	return count;
-}
-
-struct nfs4_client *nfsd_find_client(struct sockaddr_storage *addr, size_t addr_size)
-{
-	struct nfs4_client *clp;
-	struct nfsd_net *nn = net_generic(current->nsproxy->net_ns, nfsd_net_id);
-
-	if (!nfsd_netns_ready(nn))
-		return NULL;
-
-	list_for_each_entry(clp, &nn->client_lru, cl_lru) {
-		if (memcmp(&clp->cl_addr, addr, addr_size) == 0)
-			return clp;
-	}
-	return NULL;
-}
-
 #endif /* CONFIG_NFSD_FAULT_INJECTION */
 
 /*

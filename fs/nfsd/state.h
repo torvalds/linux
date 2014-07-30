@@ -471,35 +471,26 @@ extern void nfsd4_record_grace_done(struct nfsd_net *nn, time_t boot_time);
 
 /* nfs fault injection functions */
 #ifdef CONFIG_NFSD_FAULT_INJECTION
-struct nfsd_fault_inject_op;
-
 int nfsd_fault_inject_init(void);
 void nfsd_fault_inject_cleanup(void);
-u64 nfsd_for_n_state(u64, u64 (*)(struct nfs4_client *, u64));
-struct nfs4_client *nfsd_find_client(struct sockaddr_storage *, size_t);
 
-u64 nfsd_inject_print_clients(struct nfsd_fault_inject_op *op);
-u64 nfsd_inject_forget_client(struct nfsd_fault_inject_op *,
-			      struct sockaddr_storage *, size_t);
-u64 nfsd_inject_forget_clients(struct nfsd_fault_inject_op *, u64);
+u64 nfsd_inject_print_clients(void);
+u64 nfsd_inject_forget_client(struct sockaddr_storage *, size_t);
+u64 nfsd_inject_forget_clients(u64);
 
-u64 nfsd_inject_print_locks(struct nfsd_fault_inject_op *);
-u64 nfsd_inject_forget_client_locks(struct nfsd_fault_inject_op *,
-				    struct sockaddr_storage *, size_t);
-u64 nfsd_inject_forget_locks(struct nfsd_fault_inject_op *, u64);
+u64 nfsd_inject_print_locks(void);
+u64 nfsd_inject_forget_client_locks(struct sockaddr_storage *, size_t);
+u64 nfsd_inject_forget_locks(u64);
 
-u64 nfsd_inject_print_openowners(struct nfsd_fault_inject_op *);
-u64 nfsd_inject_forget_client_openowners(struct nfsd_fault_inject_op *,
-					 struct sockaddr_storage *, size_t);
-u64 nfsd_inject_forget_openowners(struct nfsd_fault_inject_op *, u64);
+u64 nfsd_inject_print_openowners(void);
+u64 nfsd_inject_forget_client_openowners(struct sockaddr_storage *, size_t);
+u64 nfsd_inject_forget_openowners(u64);
 
-u64 nfsd_inject_print_delegations(struct nfsd_fault_inject_op *);
-u64 nfsd_inject_forget_client_delegations(struct nfsd_fault_inject_op *,
-					  struct sockaddr_storage *, size_t);
-u64 nfsd_inject_forget_delegations(struct nfsd_fault_inject_op *, u64);
-u64 nfsd_inject_recall_client_delegations(struct nfsd_fault_inject_op *,
-					  struct sockaddr_storage *, size_t);
-u64 nfsd_inject_recall_delegations(struct nfsd_fault_inject_op *, u64);
+u64 nfsd_inject_print_delegations(void);
+u64 nfsd_inject_forget_client_delegations(struct sockaddr_storage *, size_t);
+u64 nfsd_inject_forget_delegations(u64);
+u64 nfsd_inject_recall_client_delegations(struct sockaddr_storage *, size_t);
+u64 nfsd_inject_recall_delegations(u64);
 #else /* CONFIG_NFSD_FAULT_INJECTION */
 static inline int nfsd_fault_inject_init(void) { return 0; }
 static inline void nfsd_fault_inject_cleanup(void) {}
