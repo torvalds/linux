@@ -5681,7 +5681,8 @@ S:	Maintained
 F:	drivers/net/ethernet/marvell/mvneta.*
 
 MARVELL MWIFIEX WIRELESS DRIVER
-M:	Bing Zhao <bzhao@marvell.com>
+M:	Amitkumar Karwar <akarwar@marvell.com>
+M:	Avinash Patil <patila@marvell.com>
 L:	linux-wireless@vger.kernel.org
 S:	Maintained
 F:	drivers/net/wireless/mwifiex/
