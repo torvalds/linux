@@ -75,10 +75,6 @@
 	 (((a)->s6_addr[14]) == (m)[6]) &&		\
 	 (((a)->s6_addr[15]) == (m)[7]))
 
-/* compare ipv6 addresses prefixes */
-#define ipaddr_prefixcmp(addr1, addr2, length) \
-	(memcmp(addr1, addr2, length >> 3) == 0)
-
 /*
  * check whether we can compress the IID to 16 bits,
  * it's possible for unicast adresses with first 49 bits are zero only.
@@ -91,17 +87,6 @@
 	 (((a)->s6_addr[13]) == 0))
 
 /* check whether the 112-bit gid of the multicast address is mappable to: */
-
-/* 9 bits, for FF02::1 (all nodes) and FF02::2 (all routers) addresses only. */
-#define lowpan_is_mcast_addr_compressable(a)	\
-	((((a)->s6_addr16[1]) == 0) &&		\
-	 (((a)->s6_addr16[2]) == 0) &&		\
-	 (((a)->s6_addr16[3]) == 0) &&		\
-	 (((a)->s6_addr16[4]) == 0) &&		\
-	 (((a)->s6_addr16[5]) == 0) &&		\
-	 (((a)->s6_addr16[6]) == 0) &&		\
-	 (((a)->s6_addr[14])  == 0) &&		\
-	 ((((a)->s6_addr[15]) == 1) || (((a)->s6_addr[15]) == 2)))
 
 /* 48 bits, FFXX::00XX:XXXX:XXXX */
 #define lowpan_is_mcast_addr_compressable48(a)	\
