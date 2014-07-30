@@ -687,7 +687,9 @@ static void hsw_stream_update(struct sst_hsw *hsw, struct ipc_message *msg)
 	switch (stream_msg) {
 	case IPC_STR_STAGE_MESSAGE:
 	case IPC_STR_NOTIFICATION:
+		break;
 	case IPC_STR_RESET:
+		trace_ipc_notification("stream reset", stream->reply.stream_hw_id);
 		break;
 	case IPC_STR_PAUSE:
 		stream->running = false;
