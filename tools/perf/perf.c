@@ -18,7 +18,7 @@
 #include <pthread.h>
 
 const char perf_usage_string[] =
-	"perf [--version] [--debug variable[=VALUE]] [--help] COMMAND [ARGS]";
+	"perf [--version] [--help] [OPTIONS] COMMAND [ARGS]";
 
 const char perf_more_info_string[] =
 	"See 'perf help COMMAND' for more information on a specific command.";
