@@ -401,6 +401,7 @@ acpi_ut_vsnprintf(char *string,
 
 		/* Process width */
 
+		width = -1;
 		if (ACPI_IS_DIGIT(*format)) {
 			format = acpi_ut_scan_number(format, &number);
 			width = (s32) number;
@@ -415,6 +416,7 @@ acpi_ut_vsnprintf(char *string,
 
 		/* Process precision */
 
+		precision = -1;
 		if (*format == '.') {
 			++format;
 			if (ACPI_IS_DIGIT(*format)) {
@@ -431,6 +433,7 @@ acpi_ut_vsnprintf(char *string,
 
 		/* Process qualifier */
 
+		qualifier = -1;
 		if (*format == 'h' || *format == 'l' || *format == 'L') {
 			qualifier = *format;
 			++format;
