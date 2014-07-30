@@ -836,8 +836,8 @@ static inline void sun6i_kill_tasklet(struct sun6i_dma_dev *sdev)
 	/* Prevent spurious interrupts from scheduling the tasklet */
 	atomic_inc(&sdev->tasklet_shutdown);
 
-	/* Make sure all interrupts are handled */
-	synchronize_irq(sdev->irq);
+	/* Make sure we won't have any further interrupts */
+	devm_free_irq(sdev->slave.dev, sdev->irq, sdev);
 
 	/* Actually prevent the tasklet from being scheduled */
 	tasklet_kill(&sdev->task);
