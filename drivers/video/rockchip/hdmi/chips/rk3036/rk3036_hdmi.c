@@ -25,7 +25,7 @@
 #include "rk3036_hdmi.h"
 #include "rk3036_hdmi_hw.h"
 
-static struct rk_hdmi_device *hdmi_dev;
+struct rk_hdmi_device *hdmi_dev;
 
 #if defined(CONFIG_DEBUG_FS)
 static int rk3036_hdmi_reg_show(struct seq_file *s, void *v)

@@ -9,6 +9,8 @@
 #define HDCP_OK			0
 #define HDCP_KEY_ERR	1
 #define HDCP_KSV_ERR	2
+#define HDCP_KEY_VALID		3
+#define HDCP_KEY_INVALID	4
 
 /* Delays */
 #define HDCP_ENABLE_DELAY	300
@@ -171,6 +173,7 @@ struct hdcp {
 	struct delayed_work *pending_start;
 	struct delayed_work *pending_wq_event;
 	int retry_cnt;
+	int auth_state;
 };
 
 extern struct hdcp *hdcp;
@@ -187,4 +190,6 @@ extern int	rk3036_hdcp_start_authentication(void);
 extern int	rk3036_hdcp_check_bksv(void);
 extern int	rk3036_hdcp_load_key2mem(struct hdcp_keys *key);
 extern void rk3036_hdcp_interrupt(char *status1, char *status2);
+extern void rk3036_set_colorbar(int enable);
+extern int rk3036_hdcp_stop_authentication(void);
 #endif /* __rk3036_HDCP_H__ */

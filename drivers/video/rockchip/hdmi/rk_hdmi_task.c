@@ -268,8 +268,9 @@ void hdmi_work(struct work_struct *work)
 			if (hdmi->display != HDMI_ENABLE) {
 				hdmi->control_output(hdmi, HDMI_ENABLE);
 				hdmi->display = HDMI_ENABLE;
-				if (hdmi->hdcp_cb)
+				if (hdmi->hdcp_cb) {
 					hdmi->hdcp_cb();
+				}
 			}
 
 			if (hdmi->wait == 1) {

@@ -5,12 +5,19 @@
 #include <linux/miscdevice.h>
 #include <linux/workqueue.h>
 #include <linux/firmware.h>
+#include <linux/timer.h>
+#include <linux/jiffies.h>
 #include "rk3036_hdmi.h"
 #include "rk3036_hdcp.h"
 
 struct hdcp *hdcp = NULL;
 
 static void hdcp_work_queue(struct work_struct *work);
+
+#define AUTH_TIMEOUT (2*HZ)
+static struct timer_list auth_timer;
+static int timer_state = 0;
+extern int is_1b_03_test(void);
 
 /*-----------------------------------------------------------------------------
  * Function: hdcp_submit_work
@@ -60,6 +67,25 @@ static void hdcp_cancel_work(struct delayed_work **work)
 }
 
 /*-----------------------------------------------------------------------------
+ * Function: auth_timer_func
+ *-----------------------------------------------------------------------------
+ */
+static void auth_timer_func(unsigned long data)
+{
+	printk(KERN_INFO "hdcp auth 2 second timeout\n");
+        if(hdcp->auth_state == 0) {
+                mod_timer(&auth_timer, jiffies + AUTH_TIMEOUT);
+                if ((hdcp->hdcp_state != HDCP_DISABLED) &&
+                        (hdcp->hdcp_state != HDCP_ENABLE_PENDING)) {
+			if (is_1b_03_test())
+				return;
+
+                        hdcp_submit_work(HDCP_FAIL_EVENT, 0);
+                }
+        }
+}
+
+/*-----------------------------------------------------------------------------
  * Function: hdcp_wq_authentication_failure
  *-----------------------------------------------------------------------------
  */
@@ -70,12 +96,15 @@ static void hdcp_wq_authentication_failure(void)
 	}
 
 	rk3036_hdcp_disable();
+/*
 	rk3036_hdmi_control_output(false);
+ */
+        rk3036_set_colorbar(1);
 	
 	hdcp_cancel_work(&hdcp->pending_wq_event);
 	
 	if (hdcp->retry_cnt && (hdcp->hdmi_state != HDMI_STOPPED)) {
-		if (hdcp->retry_cnt < HDCP_INFINITE_REAUTH) {
+		if (hdcp->retry_cnt <= HDCP_INFINITE_REAUTH) {
 			hdcp->retry_cnt--;
 			printk(KERN_INFO "HDCP: authentication failed - "
 					 "retrying, attempts=%d\n",
@@ -86,12 +115,27 @@ static void hdcp_wq_authentication_failure(void)
 
 		hdcp->hdcp_state = HDCP_AUTHENTICATION_START;
 
+		if (hdcp->auth_state == 1 && timer_state == 0) {
+			DBG("add auth timer\n");
+			hdcp->auth_state = 0;
+			hdcp->retry_cnt = HDCP_INFINITE_REAUTH;
+			auth_timer.expires = jiffies + AUTH_TIMEOUT;
+			add_timer(&auth_timer);
+			timer_state = 1;
+		}
+
 		hdcp->pending_wq_event = hdcp_submit_work(HDCP_AUTH_REATT_EVENT,
 							 HDCP_REAUTH_DELAY);
 	} else {
 		printk(KERN_INFO "HDCP: authentication failed - "
 				 "HDCP disabled\n");
 		hdcp->hdcp_state = HDCP_ENABLE_PENDING;
+
+		if (timer_state == 1) {
+			DBG("delete auth timer\n");
+			del_timer_sync(&auth_timer);
+			timer_state = 0;
+		}
 	}
 
 }
@@ -114,11 +158,11 @@ static void hdcp_wq_start_authentication(void)
 		DBG("HDCP: authentication failed");
 		hdcp_wq_authentication_failure();
 	} else {
-		hdcp->hdcp_state = HDCP_WAIT_KSV_LIST;
-//		hdcp->hdcp_state = HDCP_LINK_INTEGRITY_CHECK;
+//		hdcp->hdcp_state = HDCP_WAIT_KSV_LIST;
+		hdcp->hdcp_state = HDCP_LINK_INTEGRITY_CHECK;
 	}
 }
-
+#if 0
 /*-----------------------------------------------------------------------------
  * Function: hdcp_wq_check_bksv
  *-----------------------------------------------------------------------------
@@ -148,14 +192,23 @@ static void hdcp_wq_check_bksv(void)
 			hdcp->retry_cnt = hdcp->retry_times;
 	}
 }
-
+#endif
 /*-----------------------------------------------------------------------------
  * Function: hdcp_wq_authentication_sucess
  *-----------------------------------------------------------------------------
  */
 static void hdcp_wq_authentication_sucess(void)
 {
-	rk3036_hdmi_control_output(true);
+	hdcp->auth_state = 1;
+	if (timer_state == 1) {
+		DBG("delete auth timer\n");
+		timer_state = 0;
+		del_timer_sync(&auth_timer);
+	}
+/*
+	rk616_hdmi_control_output(true);
+ */
+        rk3036_set_colorbar(0);
 	printk(KERN_INFO "HDCP: authentication pass");
 }
 
@@ -171,11 +224,11 @@ static void hdcp_wq_disable(int event)
 	rk3036_hdcp_disable();
 	if(event == HDCP_DISABLE_CTL) {
 		hdcp->hdcp_state = HDCP_DISABLED;
-		if(hdcp->hdmi_state == HDMI_STARTED)
-			rk3036_hdmi_control_output(true);
-	}
-	else if(event == HDCP_STOP_FRAME_EVENT)
+		if (hdcp->hdmi_state == HDMI_STARTED)
+			rk3036_set_colorbar(0);
+	} else if (event == HDCP_STOP_FRAME_EVENT) {
 		hdcp->hdcp_state = HDCP_ENABLE_PENDING;
+	}
 }
 
 /*-----------------------------------------------------------------------------
@@ -221,10 +274,13 @@ static void hdcp_work_queue(struct work_struct *work)
 		case HDCP_DISABLED:
 			/* HDCP enable control or re-authentication event */
 			if (event == HDCP_ENABLE_CTL) {
-				if(hdcp->retry_times == 0)
+/*
+				if (hdcp->retry_times == 0)
 					hdcp->retry_cnt = HDCP_INFINITE_REAUTH;
 				else
 					hdcp->retry_cnt = hdcp->retry_times;
+*/
+				hdcp->retry_cnt = HDCP_INFINITE_REAUTH;
 				if (hdcp->hdmi_state == HDMI_STARTED)
 					hdcp_wq_start_authentication();
 				else
@@ -245,7 +301,7 @@ static void hdcp_work_queue(struct work_struct *work)
 				hdcp_wq_start_authentication();
 	
 			break;
-		
+#if 0
 		case HDCP_WAIT_KSV_LIST:
 			/* KSV failure */
 			if (event == HDCP_FAIL_EVENT) {
@@ -257,9 +313,9 @@ static void hdcp_work_queue(struct work_struct *work)
 			else if (event == HDCP_KSV_LIST_RDY_EVENT)
 				hdcp_wq_check_bksv();
 			break;
-		
+#endif
 		case HDCP_LINK_INTEGRITY_CHECK:
-			/* Ri failure */
+			/* authentication failure */
 			if (event == HDCP_FAIL_EVENT) {
 				printk(KERN_INFO "HDCP: Ri check failure\n");
 				hdcp_wq_authentication_failure();
@@ -294,6 +350,15 @@ static void hdcp_start_frame_cb(void)
 	if (hdcp->pending_wq_event)
 		hdcp_cancel_work(&hdcp->pending_wq_event);
 
+	if (timer_state == 0) {
+		DBG("add auth timer\n");
+		auth_timer.expires = jiffies + AUTH_TIMEOUT;
+		add_timer(&auth_timer);
+		timer_state = 1;
+	}
+
+	hdcp->retry_cnt = HDCP_INFINITE_REAUTH;
+
 	hdcp->pending_start = hdcp_submit_work(HDCP_START_FRAME_EVENT,
 							HDCP_ENABLE_DELAY);
 }
@@ -317,8 +382,10 @@ static void hdcp_irq_cb(int status)
 			hdcp_submit_work(HDCP_FAIL_EVENT, 0);
 		}
 	}
+/*
 	else if(interrupt1 & (m_INT_BKSV_READY | m_INT_BKSV_UPDATE))
 		hdcp_submit_work(HDCP_KSV_LIST_RDY_EVENT, 0);
+ */
 	else if(interrupt1 & m_INT_AUTH_SUCCESS)
 		hdcp_submit_work(HDCP_AUTH_PASS_EVENT, 0);
 }
@@ -330,7 +397,7 @@ static void hdcp_irq_cb(int status)
 static int hdcp_power_on_cb(void)
 {
 	DBG("%s", __FUNCTION__);
-//	return rk3036_hdcp_load_key2mem(hdcp->keys);
+	return rk3036_hdcp_load_key2mem(hdcp->keys);
 	return HDCP_OK;
 }
 
@@ -341,9 +408,16 @@ static int hdcp_power_on_cb(void)
 static void hdcp_power_off_cb(void)
 {
 	DBG("%s", __FUNCTION__);
+	if (timer_state == 1) {
+		DBG("delete auth timer\n");
+		timer_state = 0;
+		del_timer_sync(&auth_timer);
+	}
+	hdcp->auth_state = 0;
+
 	if(!hdcp->enable)
 		return;
-	
+	rk3036_hdcp_stop_authentication();
 	hdcp_cancel_work(&hdcp->pending_start);
 	hdcp_cancel_work(&hdcp->pending_wq_event);
 	init_completion(&hdcp->complete);
@@ -353,7 +427,9 @@ static void hdcp_power_off_cb(void)
 							msecs_to_jiffies(5000));
 }
 
-// Load HDCP key to external HDCP memory
+/*
+ * Load HDCP key to external HDCP memory
+ */
 static void hdcp_load_keys_cb(const struct firmware *fw, void *context)
 {
 	if (!fw) {
@@ -526,7 +602,10 @@ static int __init rk3036_hdcp_init(void)
 										hdcp_irq_cb,
 										hdcp_power_on_cb,
 										hdcp_power_off_cb);
-										
+
+	init_timer(&auth_timer);
+	auth_timer.data = 0;
+	auth_timer.function = auth_timer_func;
 	DBG("%s success %u", __FUNCTION__, jiffies_to_msecs(jiffies));
 	return 0;
 	
@@ -559,5 +638,6 @@ static void __exit rk3036_hdcp_exit(void)
 	kfree(hdcp);
 }
 
-module_init(rk3036_hdcp_init);
+/* module_init(rk3036_hdcp_init); */
+late_initcall_sync(rk3036_hdcp_init);
 module_exit(rk3036_hdcp_exit);
