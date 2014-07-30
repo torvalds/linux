@@ -177,13 +177,13 @@ static int __init ssi_debug_add_port(struct omap_ssi_port *omap_port,
 	struct hsi_port *port = to_hsi_port(omap_port->dev);
 
 	dir = debugfs_create_dir(dev_name(omap_port->dev), dir);
-	if (IS_ERR(dir))
-		return PTR_ERR(dir);
+	if (!dir)
+		return -ENOMEM;
 	omap_port->dir = dir;
 	debugfs_create_file("regs", S_IRUGO, dir, port, &ssi_port_regs_fops);
 	dir = debugfs_create_dir("sst", dir);
-	if (IS_ERR(dir))
-		return PTR_ERR(dir);
+	if (!dir)
+		return -ENOMEM;
 	debugfs_create_file("divisor", S_IRUGO | S_IWUSR, dir, port,
 			    &ssi_sst_div_fops);
 
