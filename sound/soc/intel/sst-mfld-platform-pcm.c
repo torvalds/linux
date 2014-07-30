@@ -570,11 +570,17 @@ static int sst_platform_probe(struct platform_device *pdev)
 {
 	struct sst_data *drv;
 	int ret;
-	struct sst_platform_data *pdata = pdev->dev.platform_data;
+	struct sst_platform_data *pdata;
 
 	drv = devm_kzalloc(&pdev->dev, sizeof(*drv), GFP_KERNEL);
 	if (drv == NULL) {
 		pr_err("kzalloc failed\n");
+		return -ENOMEM;
+	}
+
+	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
+	if (pdata == NULL) {
+		pr_err("kzalloc failed for pdata\n");
 		return -ENOMEM;
 	}
 
