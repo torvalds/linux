@@ -129,14 +129,6 @@ static bool is_client_expired(struct nfs4_client *clp)
 	return clp->cl_time == 0;
 }
 
-static __be32 mark_client_expired_locked(struct nfs4_client *clp)
-{
-	if (atomic_read(&clp->cl_refcount))
-		return nfserr_jukebox;
-	clp->cl_time = 0;
-	return nfs_ok;
-}
-
 static __be32 get_client_locked(struct nfs4_client *clp)
 {
 	struct nfsd_net *nn = net_generic(clp->net, nfsd_net_id);
@@ -1628,6 +1620,14 @@ unhash_client(struct nfs4_client *clp)
 	spin_unlock(&nn->client_lock);
 }
 
+static __be32 mark_client_expired_locked(struct nfs4_client *clp)
+{
+	if (atomic_read(&clp->cl_refcount))
+		return nfserr_jukebox;
+	unhash_client_locked(clp);
+	return nfs_ok;
+}
+
 static void
 __destroy_client(struct nfs4_client *clp)
 {
@@ -2498,7 +2498,6 @@ nfsd4_create_session(struct svc_rqst *rqstp,
 			status = mark_client_expired_locked(old);
 			if (status)
 				goto out_free_conn;
-			unhash_client_locked(old);
 		}
 		move_to_confirmed(unconf);
 		conf = unconf;
@@ -3044,7 +3043,6 @@ nfsd4_setclientid_confirm(struct svc_rqst *rqstp,
 			status = mark_client_expired_locked(old);
 			if (status)
 				goto out;
-			unhash_client_locked(old);
 		}
 		move_to_confirmed(unconf);
 		conf = unconf;
@@ -4183,7 +4181,6 @@ nfs4_laundromat(struct nfsd_net *nn)
 				clp->cl_clientid.cl_id);
 			continue;
 		}
-		unhash_client_locked(clp);
 		list_add(&clp->cl_lru, &reaplist);
 	}
 	spin_unlock(&nn->client_lock);
