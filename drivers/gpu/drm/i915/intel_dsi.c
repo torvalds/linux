@@ -92,6 +92,9 @@ static bool intel_dsi_compute_config(struct intel_encoder *encoder,
 	if (fixed_mode)
 		intel_fixed_panel_mode(fixed_mode, adjusted_mode);
 
+	/* DSI uses short packets for sync events, so clear mode flags for DSI */
+	adjusted_mode->flags = 0;
+
 	if (intel_dsi->dev.dev_ops->mode_fixup)
 		return intel_dsi->dev.dev_ops->mode_fixup(&intel_dsi->dev,
 							  mode, adjusted_mode);
@@ -178,6 +181,10 @@ static void intel_dsi_pre_enable(struct intel_encoder *encoder)
 	tmp = I915_READ(DPLL(pipe));
 	tmp |= DPLL_REFA_CLK_ENABLE_VLV;
 	I915_WRITE(DPLL(pipe), tmp);
+
+	/* update the hw state for DPLL */
+	intel_crtc->config.dpll_hw_state.dpll = DPLL_INTEGRATED_CLOCK_VLV |
+						DPLL_REFA_CLK_ENABLE_VLV;
 
 	tmp = I915_READ(DSPCLK_GATE_D);
 	tmp |= DPOUNIT_CLOCK_GATE_DISABLE;
@@ -359,9 +366,21 @@ static bool intel_dsi_get_hw_state(struct intel_encoder *encoder,
 static void intel_dsi_get_config(struct intel_encoder *encoder,
 				 struct intel_crtc_config *pipe_config)
 {
+	u32 pclk;
 	DRM_DEBUG_KMS("\n");
 
-	/* XXX: read flags, set to adjusted_mode */
+	/*
+	 * DPLL_MD is not used in case of DSI, reading will get some default value
+	 * set dpll_md = 0
+	 */
+	pipe_config->dpll_hw_state.dpll_md = 0;
+
+	pclk = vlv_get_dsi_pclk(encoder, pipe_config->pipe_bpp);
+	if (!pclk)
+		return;
+
+	pipe_config->adjusted_mode.crtc_clock = pclk;
+	pipe_config->port_clock = pclk;
 }
 
 static enum drm_mode_status
