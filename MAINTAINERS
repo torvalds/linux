@@ -3986,6 +3986,12 @@ F:	Documentation/isdn/README.gigaset
 F:	drivers/isdn/gigaset/
 F:	include/uapi/linux/gigaset_dev.h
 
+GO7007 MPEG CODEC
+M:	Hans Verkuil <hans.verkuil@cisco.com>
+L:	linux-media@vger.kernel.org
+S:	Maintained
+F:	drivers/media/usb/go7007/
+
 GPIO SUBSYSTEM
 M:	Linus Walleij <linus.walleij@linaro.org>
 M:	Alexandre Courbot <gnurou@gmail.com>
@@ -8595,11 +8601,6 @@ STAGING - FRONTIER TRANZPORT AND ALPHATRACK
 M:	David Täht <d@teklibre.com>
 S:	Odd Fixes
 F:	drivers/staging/frontier/
-
-STAGING - GO7007 MPEG CODEC
-M:	Hans Verkuil <hans.verkuil@cisco.com>
-S:	Maintained
-F:	drivers/staging/media/go7007/
 
 STAGING - INDUSTRIAL IO
 M:	Jonathan Cameron <jic23@kernel.org>
