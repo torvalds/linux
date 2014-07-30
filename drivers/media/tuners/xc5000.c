@@ -625,48 +625,30 @@ static int xc_set_xtal(struct dvb_frontend *fe)
 	return ret;
 }
 
-static int xc5000_fwupload(struct dvb_frontend *fe)
+static int xc5000_fwupload(struct dvb_frontend *fe,
+			   const struct xc5000_fw_cfg *desired_fw,
+			   const struct firmware *fw)
 {
 	struct xc5000_priv *priv = fe->tuner_priv;
-	const struct firmware *fw;
 	int ret;
-	const struct xc5000_fw_cfg *desired_fw =
-		xc5000_assign_firmware(priv->chip_id);
+
+	/* request the firmware, this will block and timeout */
+	dprintk(1, "waiting for firmware upload (%s)...\n",
+		desired_fw->name);
+
 	priv->pll_register_no = desired_fw->pll_reg;
 	priv->init_status_supported = desired_fw->init_status_supported;
 	priv->fw_checksum_supported = desired_fw->fw_checksum_supported;
 
-	/* request the firmware, this will block and timeout */
-	printk(KERN_INFO "xc5000: waiting for firmware upload (%s)...\n",
-		desired_fw->name);
 
-	ret = request_firmware(&fw, desired_fw->name,
-		priv->i2c_props.adap->dev.parent);
-	if (ret) {
-		printk(KERN_ERR "xc5000: Upload failed. (file not found?)\n");
-		goto out;
-	} else {
-		printk(KERN_DEBUG "xc5000: firmware read %Zu bytes.\n",
-		       fw->size);
-		ret = 0;
-	}
+	dprintk(1, "firmware uploading...\n");
+	ret = xc_load_i2c_sequence(fe,  fw->data);
+	if (!ret) {
+		ret = xc_set_xtal(fe);
+		dprintk(1, "Firmware upload complete...\n");
+	} else
+		printk(KERN_ERR "xc5000: firmware upload failed...\n");
 
-	if (fw->size != desired_fw->size) {
-		printk(KERN_ERR "xc5000: firmware incorrect size\n");
-		ret = -EINVAL;
-	} else {
-		printk(KERN_INFO "xc5000: firmware uploading...\n");
-		ret = xc_load_i2c_sequence(fe,  fw->data);
-		if (0 == ret)
-			ret = xc_set_xtal(fe);
-		if (0 == ret)
-			printk(KERN_INFO "xc5000: firmware upload complete...\n");
-		else
-			printk(KERN_ERR "xc5000: firmware upload failed...\n");
-	}
-
-out:
-	release_firmware(fw);
 	return ret;
 }
 
@@ -1101,6 +1083,8 @@ static int xc5000_get_status(struct dvb_frontend *fe, u32 *status)
 static int xc_load_fw_and_init_tuner(struct dvb_frontend *fe, int force)
 {
 	struct xc5000_priv *priv = fe->tuner_priv;
+	const struct xc5000_fw_cfg *desired_fw = xc5000_assign_firmware(priv->chip_id);
+	const struct firmware *fw;
 	int ret, i;
 	u16 pll_lock_status;
 	u16 fw_ck;
@@ -1110,11 +1094,26 @@ static int xc_load_fw_and_init_tuner(struct dvb_frontend *fe, int force)
 	if (!force && xc5000_is_firmware_loaded(fe) == 0)
 		return 0;
 
+	ret = request_firmware(&fw, desired_fw->name,
+			       priv->i2c_props.adap->dev.parent);
+	if (ret) {
+		printk(KERN_ERR "xc5000: Upload failed. (file not found?)\n");
+		return ret;
+	}
+
+	dprintk(1, "firmware read %Zu bytes.\n", fw->size);
+
+	if (fw->size != desired_fw->size) {
+		printk(KERN_ERR "xc5000: firmware file with incorrect size\n");
+		ret = -EINVAL;
+		goto err;
+	}
+
 	/* Try up to 5 times to load firmware */
 	for (i = 0; i < 5; i++) {
-		ret = xc5000_fwupload(fe);
+		ret = xc5000_fwupload(fe, desired_fw, fw);
 		if (ret != 0)
-			return ret;
+			goto err;
 
 		msleep(20);
 
@@ -1171,9 +1170,13 @@ static int xc_load_fw_and_init_tuner(struct dvb_frontend *fe, int force)
 
 		/* Default to "CABLE" mode */
 		ret = xc_write_reg(priv, XREG_SIGNALSOURCE, XC_RF_MODE_CABLE);
+		printk(KERN_INFO "xc5000: Firmware %s loaded and running.\n",
+		       desired_fw->name);
 		break;
 	}
 
+err:
+	release_firmware(fw);
 	return ret;
 }
 
