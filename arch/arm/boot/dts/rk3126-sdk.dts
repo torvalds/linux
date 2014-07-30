@@ -329,6 +329,15 @@
 			};
 		};
 	};
+	battery {
+                ocv_table = <3350 3677 3693 3719 3752 3770 3775 3778 3785 3796 3812 3839 3881 3907 3933 3958 3978 4033 4087 4123 4174>;
+                design_capacity = <2100>;
+                design_qmax = <2200>;
+                max_overcharge = <100>;
+                max_charge_currentmA = <1500>;
+                max_charge_voltagemV = <4260>;
+                max_bat_voltagemV = <4200>;
+        };
 
 };
 &clk_core_dvfs_table {
