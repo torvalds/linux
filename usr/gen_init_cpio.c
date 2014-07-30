@@ -72,7 +72,7 @@ static void push_hdr(const char *s)
 static void cpio_trailer(void)
 {
 	char s[256];
-	const char name[] = "TRAILER!!!";
+	const char name[] = "TRAILER!!!\n";
 
 	sprintf(s, "%s%08X%08X%08lX%08lX%08X%08lX"
 	       "%08X%08X%08X%08X%08X%08X%08X",
