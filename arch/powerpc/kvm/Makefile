@@ -48,6 +48,7 @@ kvm-book3s_64-builtin-objs-$(CONFIG_KVM_BOOK3S_64_HANDLER) := \
 
 kvm-pr-y := \
 	fpu.o \
+	emulate.o \
 	book3s_paired_singles.o \
 	book3s_pr.o \
 	book3s_pr_papr.o \
@@ -91,7 +92,6 @@ kvm-book3s_64-module-objs += \
 	$(KVM)/kvm_main.o \
 	$(KVM)/eventfd.o \
 	powerpc.o \
-	emulate.o \
 	emulate_loadstore.o \
 	book3s.o \
 	book3s_64_vio.o \

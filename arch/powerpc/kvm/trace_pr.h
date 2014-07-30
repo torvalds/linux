@@ -291,6 +291,26 @@ TRACE_EVENT(kvm_unmap_hva,
 	TP_printk("unmap hva 0x%lx\n", __entry->hva)
 );
 
+TRACE_EVENT(kvm_ppc_instr,
+	TP_PROTO(unsigned int inst, unsigned long _pc, unsigned int emulate),
+	TP_ARGS(inst, _pc, emulate),
+
+	TP_STRUCT__entry(
+		__field(	unsigned int,	inst		)
+		__field(	unsigned long,	pc		)
+		__field(	unsigned int,	emulate		)
+	),
+
+	TP_fast_assign(
+		__entry->inst		= inst;
+		__entry->pc		= _pc;
+		__entry->emulate	= emulate;
+	),
+
+	TP_printk("inst %u pc 0x%lx emulate %u\n",
+		  __entry->inst, __entry->pc, __entry->emulate)
+);
+
 #endif /* _TRACE_KVM_H */
 
 /* This part must be outside protection */
