@@ -679,9 +679,8 @@ EXPORT_SYMBOL_GPL(__ww_mutex_lock_interruptible);
  * Release the lock, slowpath:
  */
 static inline void
-__mutex_unlock_common_slowpath(atomic_t *lock_count, int nested)
+__mutex_unlock_common_slowpath(struct mutex *lock, int nested)
 {
-	struct mutex *lock = container_of(lock_count, struct mutex, count);
 	unsigned long flags;
 
 	/*
@@ -716,7 +715,9 @@ __mutex_unlock_common_slowpath(atomic_t *lock_count, int nested)
 __visible void
 __mutex_unlock_slowpath(atomic_t *lock_count)
 {
-	__mutex_unlock_common_slowpath(lock_count, 1);
+	struct mutex *lock = container_of(lock_count, struct mutex, count);
+
+	__mutex_unlock_common_slowpath(lock, 1);
 }
 
 #ifndef CONFIG_DEBUG_LOCK_ALLOC
