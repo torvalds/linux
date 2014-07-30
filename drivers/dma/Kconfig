@@ -396,6 +396,7 @@ config DMA_ACPI
 config DMA_OF
 	def_bool y
 	depends on OF
+	select DMA_ENGINE
 
 comment "DMA Clients"
 	depends on DMA_ENGINE
