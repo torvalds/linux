@@ -2088,9 +2088,7 @@ static int gsm_activate_mux(struct gsm_mux *gsm)
 	struct gsm_dlci *dlci;
 	int i = 0;
 
-	init_timer(&gsm->t2_timer);
-	gsm->t2_timer.function = gsm_control_retransmit;
-	gsm->t2_timer.data = (unsigned long)gsm;
+	setup_timer(&gsm->t2_timer, gsm_control_retransmit, (unsigned long)gsm);
 	init_waitqueue_head(&gsm->event);
 	spin_lock_init(&gsm->control_lock);
 	spin_lock_init(&gsm->tx_lock);
