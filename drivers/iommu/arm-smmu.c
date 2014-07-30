@@ -868,9 +868,14 @@ static void arm_smmu_init_context_bank(struct arm_smmu_domain *smmu_domain)
 static int arm_smmu_init_domain_context(struct iommu_domain *domain,
 					struct arm_smmu_device *smmu)
 {
-	int irq, ret, start;
+	int irq, start, ret = 0;
+	unsigned long flags;
 	struct arm_smmu_domain *smmu_domain = domain->priv;
 	struct arm_smmu_cfg *cfg = &smmu_domain->cfg;
+
+	spin_lock_irqsave(&smmu_domain->lock, flags);
+	if (smmu_domain->smmu)
+		goto out_unlock;
 
 	if (smmu->features & ARM_SMMU_FEAT_TRANS_NESTED) {
 		/*
@@ -890,7 +895,7 @@ static int arm_smmu_init_domain_context(struct iommu_domain *domain,
 	ret = __arm_smmu_alloc_bitmap(smmu->context_map, start,
 				      smmu->num_context_banks);
 	if (IS_ERR_VALUE(ret))
-		return ret;
+		goto out_unlock;
 
 	cfg->cbndx = ret;
 	if (smmu->version == 1) {
@@ -900,6 +905,10 @@ static int arm_smmu_init_domain_context(struct iommu_domain *domain,
 		cfg->irptndx = cfg->cbndx;
 	}
 
+	ACCESS_ONCE(smmu_domain->smmu) = smmu;
+	arm_smmu_init_context_bank(smmu_domain);
+	spin_unlock_irqrestore(&smmu_domain->lock, flags);
+
 	irq = smmu->irqs[smmu->num_global_irqs + cfg->irptndx];
 	ret = request_irq(irq, arm_smmu_context_fault, IRQF_SHARED,
 			  "arm-smmu-context-fault", domain);
@@ -907,15 +916,12 @@ static int arm_smmu_init_domain_context(struct iommu_domain *domain,
 		dev_err(smmu->dev, "failed to request context IRQ %d (%u)\n",
 			cfg->irptndx, irq);
 		cfg->irptndx = INVALID_IRPTNDX;
-		goto out_free_context;
 	}
 
-	smmu_domain->smmu = smmu;
-	arm_smmu_init_context_bank(smmu_domain);
 	return 0;
 
-out_free_context:
-	__arm_smmu_free_bitmap(smmu->context_map, cfg->cbndx);
+out_unlock:
+	spin_unlock_irqrestore(&smmu_domain->lock, flags);
 	return ret;
 }
 
@@ -1172,11 +1178,10 @@ static void arm_smmu_domain_remove_master(struct arm_smmu_domain *smmu_domain,
 
 static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
 {
-	int ret = -EINVAL;
+	int ret;
 	struct arm_smmu_domain *smmu_domain = domain->priv;
-	struct arm_smmu_device *smmu;
+	struct arm_smmu_device *smmu, *dom_smmu;
 	struct arm_smmu_master_cfg *cfg;
-	unsigned long flags;
 
 	smmu = dev_get_master_dev(dev)->archdata.iommu;
 	if (!smmu) {
@@ -1188,20 +1193,22 @@ static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
 	 * Sanity check the domain. We don't support domains across
 	 * different SMMUs.
 	 */
-	spin_lock_irqsave(&smmu_domain->lock, flags);
-	if (!smmu_domain->smmu) {
+	dom_smmu = ACCESS_ONCE(smmu_domain->smmu);
+	if (!dom_smmu) {
 		/* Now that we have a master, we can finalise the domain */
 		ret = arm_smmu_init_domain_context(domain, smmu);
 		if (IS_ERR_VALUE(ret))
-			goto err_unlock;
-	} else if (smmu_domain->smmu != smmu) {
+			return ret;
+
+		dom_smmu = smmu_domain->smmu;
+	}
+
+	if (dom_smmu != smmu) {
 		dev_err(dev,
 			"cannot attach to SMMU %s whilst already attached to domain on SMMU %s\n",
-			dev_name(smmu_domain->smmu->dev),
-			dev_name(smmu->dev));
-		goto err_unlock;
+			dev_name(smmu_domain->smmu->dev), dev_name(smmu->dev));
+		return -EINVAL;
 	}
-	spin_unlock_irqrestore(&smmu_domain->lock, flags);
 
 	/* Looks ok, so add the device to the domain */
 	cfg = find_smmu_master_cfg(smmu_domain->smmu, dev);
@@ -1209,10 +1216,6 @@ static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
 		return -ENODEV;
 
 	return arm_smmu_domain_add_master(smmu_domain, cfg);
-
-err_unlock:
-	spin_unlock_irqrestore(&smmu_domain->lock, flags);
-	return ret;
 }
 
 static void arm_smmu_detach_dev(struct iommu_domain *domain, struct device *dev)
