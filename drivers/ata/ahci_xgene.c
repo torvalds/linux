@@ -81,6 +81,7 @@
 struct xgene_ahci_context {
 	struct ahci_host_priv *hpriv;
 	struct device *dev;
+	u8 last_cmd[MAX_AHCI_CHN_PERCTR]; /* tracking the last command issued*/
 	void __iomem *csr_core;		/* Core CSR address of IP */
 	void __iomem *csr_diag;		/* Diag CSR address of IP */
 	void __iomem *csr_axi;		/* AXI CSR address of IP */
@@ -101,20 +102,62 @@ static int xgene_ahci_init_memram(struct xgene_ahci_context *ctx)
 }
 
 /**
+ * xgene_ahci_restart_engine - Restart the dma engine.
+ * @ap : ATA port of interest
+ *
+ * Restarts the dma engine inside the controller.
+ */
+static int xgene_ahci_restart_engine(struct ata_port *ap)
+{
+	struct ahci_host_priv *hpriv = ap->host->private_data;
+
+	ahci_stop_engine(ap);
+	ahci_start_fis_rx(ap);
+	hpriv->start_engine(ap);
+
+	return 0;
+}
+
+/**
+ * xgene_ahci_qc_issue - Issue commands to the device
+ * @qc: Command to issue
+ *
+ * Due to Hardware errata for IDENTIFY DEVICE command, the controller cannot
+ * clear the BSY bit after receiving the PIO setup FIS. This results in the dma
+ * state machine goes into the CMFatalErrorUpdate state and locks up. By
+ * restarting the dma engine, it removes the controller out of lock up state.
+ */
+static unsigned int xgene_ahci_qc_issue(struct ata_queued_cmd *qc)
+{
+	struct ata_port *ap = qc->ap;
+	struct ahci_host_priv *hpriv = ap->host->private_data;
+	struct xgene_ahci_context *ctx = hpriv->plat_data;
+	int rc = 0;
+
+	if (unlikely(ctx->last_cmd[ap->port_no] == ATA_CMD_ID_ATA))
+		xgene_ahci_restart_engine(ap);
+
+	rc = ahci_qc_issue(qc);
+
+	/* Save the last command issued */
+	ctx->last_cmd[ap->port_no] = qc->tf.command;
+
+	return rc;
+}
+
+/**
  * xgene_ahci_read_id - Read ID data from the specified device
  * @dev: device
  * @tf: proposed taskfile
  * @id: data buffer
  *
  * This custom read ID function is required due to the fact that the HW
- * does not support DEVSLP and the controller state machine may get stuck
- * after processing the ID query command.
+ * does not support DEVSLP.
  */
 static unsigned int xgene_ahci_read_id(struct ata_device *dev,
 				       struct ata_taskfile *tf, u16 *id)
 {
 	u32 err_mask;
-	void __iomem *port_mmio = ahci_port_base(dev->link->ap);
 
 	err_mask = ata_do_dev_read_id(dev, tf, id);
 	if (err_mask)
@@ -136,16 +179,6 @@ static unsigned int xgene_ahci_read_id(struct ata_device *dev,
 	 */
 	id[ATA_ID_FEATURE_SUPP] &= ~(1 << 8);
 
-	/*
-	 * Due to HW errata, restart the port if no other command active.
-	 * Otherwise the controller may get stuck.
-	 */
-	if (!readl(port_mmio + PORT_CMD_ISSUE)) {
-		writel(PORT_CMD_FIS_RX, port_mmio + PORT_CMD);
-		readl(port_mmio + PORT_CMD);	/* Force a barrier */
-		writel(PORT_CMD_FIS_RX | PORT_CMD_START, port_mmio + PORT_CMD);
-		readl(port_mmio + PORT_CMD);	/* Force a barrier */
-	}
 	return 0;
 }
 
@@ -307,6 +340,7 @@ static struct ata_port_operations xgene_ahci_ops = {
 	.host_stop = xgene_ahci_host_stop,
 	.hardreset = xgene_ahci_hardreset,
 	.read_id = xgene_ahci_read_id,
+	.qc_issue = xgene_ahci_qc_issue,
 };
 
 static const struct ata_port_info xgene_ahci_port_info = {
