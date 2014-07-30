@@ -68,7 +68,7 @@ struct device *rockchip_get_sysmmu_device_by_compatible(const char *compt);
 #define iovmm_unmap(dev, iova)		do { } while (0)
 #define iovmm_map_oto(dev, phys, size)	(-ENOSYS)
 #define iovmm_unmap_oto(dev, phys)	do { } while (0)
-#define rockchip_get_sysmmu_device_by_compatible(compt) do { } while (0)
+#define rockchip_get_sysmmu_device_by_compatible(compt) (NULL)
 
 #endif /* CONFIG_ROCKCHIP_IOVMM */
 
