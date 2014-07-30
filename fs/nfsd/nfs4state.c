@@ -5965,30 +5965,136 @@ nfsd_inject_forget_locks(struct nfsd_fault_inject_op *op, u64 max)
 	return count;
 }
 
-static u64 nfsd_foreach_client_open(struct nfs4_client *clp, u64 max, void (*func)(struct nfs4_openowner *))
+static u64
+nfsd_foreach_client_openowner(struct nfs4_client *clp, u64 max,
+			      struct list_head *collect,
+			      void (*func)(struct nfs4_openowner *))
 {
 	struct nfs4_openowner *oop, *next;
+	struct nfsd_net *nn = net_generic(current->nsproxy->net_ns,
+						nfsd_net_id);
 	u64 count = 0;
 
+	lockdep_assert_held(&nn->client_lock);
+
+	spin_lock(&clp->cl_lock);
 	list_for_each_entry_safe(oop, next, &clp->cl_openowners, oo_perclient) {
-		if (func)
+		if (func) {
 			func(oop);
-		if (++count == max)
+			if (collect) {
+				atomic_inc(&clp->cl_refcount);
+				list_add(&oop->oo_perclient, collect);
+			}
+		}
+		++count;
+		/*
+		 * Despite the fact that these functions deal with
+		 * 64-bit integers for "count", we must ensure that
+		 * it doesn't blow up the clp->cl_refcount. Throw a
+		 * warning if we start to approach INT_MAX here.
+		 */
+		WARN_ON_ONCE(count == (INT_MAX / 2));
+		if (count == max)
 			break;
 	}
+	spin_unlock(&clp->cl_lock);
 
 	return count;
 }
 
-u64 nfsd_forget_client_openowners(struct nfs4_client *clp, u64 max)
+static u64
+nfsd_print_client_openowners(struct nfs4_client *clp)
 {
-	return nfsd_foreach_client_open(clp, max, release_openowner);
+	u64 count = nfsd_foreach_client_openowner(clp, 0, NULL, NULL);
+
+	nfsd_print_count(clp, count, "openowners");
+	return count;
 }
 
-u64 nfsd_print_client_openowners(struct nfs4_client *clp, u64 max)
+static u64
+nfsd_collect_client_openowners(struct nfs4_client *clp,
+			       struct list_head *collect, u64 max)
 {
-	u64 count = nfsd_foreach_client_open(clp, max, NULL);
-	nfsd_print_count(clp, count, "open files");
+	return nfsd_foreach_client_openowner(clp, max, collect,
+						unhash_openowner_locked);
+}
+
+u64
+nfsd_inject_print_openowners(struct nfsd_fault_inject_op *op)
+{
+	struct nfs4_client *clp;
+	u64 count = 0;
+	struct nfsd_net *nn = net_generic(current->nsproxy->net_ns,
+						nfsd_net_id);
+
+	if (!nfsd_netns_ready(nn))
+		return 0;
+
+	spin_lock(&nn->client_lock);
+	list_for_each_entry(clp, &nn->client_lru, cl_lru)
+		count += nfsd_print_client_openowners(clp);
+	spin_unlock(&nn->client_lock);
+
+	return count;
+}
+
+static void
+nfsd_reap_openowners(struct list_head *reaplist)
+{
+	struct nfs4_client *clp;
+	struct nfs4_openowner *oop, *next;
+
+	list_for_each_entry_safe(oop, next, reaplist, oo_perclient) {
+		list_del_init(&oop->oo_perclient);
+		clp = oop->oo_owner.so_client;
+		release_openowner(oop);
+		put_client(clp);
+	}
+}
+
+u64
+nfsd_inject_forget_client_openowners(struct nfsd_fault_inject_op *op,
+				struct sockaddr_storage *addr, size_t addr_size)
+{
+	unsigned int count = 0;
+	struct nfs4_client *clp;
+	struct nfsd_net *nn = net_generic(current->nsproxy->net_ns,
+						nfsd_net_id);
+	LIST_HEAD(reaplist);
+
+	if (!nfsd_netns_ready(nn))
+		return count;
+
+	spin_lock(&nn->client_lock);
+	clp = nfsd_find_client(addr, addr_size);
+	if (clp)
+		count = nfsd_collect_client_openowners(clp, &reaplist, 0);
+	spin_unlock(&nn->client_lock);
+	nfsd_reap_openowners(&reaplist);
+	return count;
+}
+
+u64
+nfsd_inject_forget_openowners(struct nfsd_fault_inject_op *op, u64 max)
+{
+	u64 count = 0;
+	struct nfs4_client *clp;
+	struct nfsd_net *nn = net_generic(current->nsproxy->net_ns,
+						nfsd_net_id);
+	LIST_HEAD(reaplist);
+
+	if (!nfsd_netns_ready(nn))
+		return count;
+
+	spin_lock(&nn->client_lock);
+	list_for_each_entry(clp, &nn->client_lru, cl_lru) {
+		count += nfsd_collect_client_openowners(clp, &reaplist,
+							max - count);
+		if (max != 0 && count >= max)
+			break;
+	}
+	spin_unlock(&nn->client_lock);
+	nfsd_reap_openowners(&reaplist);
 	return count;
 }
 
