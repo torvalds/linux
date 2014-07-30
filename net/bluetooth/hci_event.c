@@ -3671,12 +3671,17 @@ static void hci_io_capa_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 			if (conn->io_capability != HCI_IO_NO_INPUT_OUTPUT &&
 			    conn->auth_type != HCI_AT_NO_BONDING)
 				conn->auth_type |= 0x01;
-
-			cp.authentication = conn->auth_type;
 		} else {
 			conn->auth_type = hci_get_auth_req(conn);
-			cp.authentication = conn->auth_type;
 		}
+
+		/* If we're not bondable, force one of the non-bondable
+		 * authentication requirement values.
+		 */
+		if (!test_bit(HCI_BONDABLE, &hdev->dev_flags))
+			conn->auth_type &= HCI_AT_NO_BONDING_MITM;
+
+		cp.authentication = conn->auth_type;
 
 		if (hci_find_remote_oob_data(hdev, &conn->dst) &&
 		    (conn->out || test_bit(HCI_CONN_REMOTE_OOB, &conn->flags)))
