@@ -581,11 +581,8 @@ static int pm8001_update_flash(struct pm8001_hba_info *pm8001_ha)
 		partitionSizeTmp =
 			*(u32 *)((u8 *)&image_hdr->image_length + sizeRead);
 		partitionSize = be32_to_cpu(partitionSizeTmp);
-		loopcount = (partitionSize + HEADER_LEN)/IOCTL_BUF_SIZE;
-		if (loopcount % IOCTL_BUF_SIZE)
-			loopcount++;
-		if (loopcount == 0)
-			loopcount++;
+		loopcount = DIV_ROUND_UP(partitionSize + HEADER_LEN,
+					IOCTL_BUF_SIZE);
 		for (loopNumber = 0; loopNumber < loopcount; loopNumber++) {
 			payload = (struct pm8001_ioctl_payload *)ioctlbuffer;
 			payload->length = 1024*16;
