@@ -911,8 +911,10 @@ static int hwpoison_user_mappings(struct page *p, unsigned long pfn,
 	if (!page_mapped(hpage))
 		return SWAP_SUCCESS;
 
-	if (PageKsm(p))
+	if (PageKsm(p)) {
+		pr_err("MCE %#lx: can't handle KSM pages.\n", pfn);
 		return SWAP_FAIL;
+	}
 
 	if (PageSwapCache(p)) {
 		printk(KERN_ERR
@@ -1235,7 +1237,7 @@ int memory_failure(unsigned long pfn, int trapno, int flags)
 	 */
 	if (hwpoison_user_mappings(p, pfn, trapno, flags, &hpage)
 	    != SWAP_SUCCESS) {
-		printk(KERN_ERR "MCE %#lx: cannot unmap page, give up\n", pfn);
+		action_result(pfn, "unmapping failed", IGNORED);
 		res = -EBUSY;
 		goto out;
 	}
