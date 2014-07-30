@@ -137,17 +137,6 @@ static __be32 mark_client_expired_locked(struct nfs4_client *clp)
 	return nfs_ok;
 }
 
-static __be32 mark_client_expired(struct nfs4_client *clp)
-{
-	struct nfsd_net *nn = net_generic(clp->net, nfsd_net_id);
-	__be32 ret;
-
-	spin_lock(&nn->client_lock);
-	ret = mark_client_expired_locked(clp);
-	spin_unlock(&nn->client_lock);
-	return ret;
-}
-
 static __be32 get_client_locked(struct nfs4_client *clp)
 {
 	if (is_client_expired(clp))
@@ -1437,12 +1426,10 @@ static void init_session(struct svc_rqst *rqstp, struct nfsd4_session *new, stru
 	new->se_cb_sec = cses->cb_sec;
 	atomic_set(&new->se_ref, 0);
 	idx = hash_sessionid(&new->se_sessionid);
-	spin_lock(&nn->client_lock);
 	list_add(&new->se_hash, &nn->sessionid_hashtbl[idx]);
 	spin_lock(&clp->cl_lock);
 	list_add(&new->se_perclnt, &clp->cl_sessions);
 	spin_unlock(&clp->cl_lock);
-	spin_unlock(&nn->client_lock);
 
 	if (cses->flags & SESSION4_BACK_CHAN) {
 		struct sockaddr *sa = svc_addr(rqstp);
@@ -2411,6 +2398,7 @@ nfsd4_create_session(struct svc_rqst *rqstp,
 {
 	struct sockaddr *sa = svc_addr(rqstp);
 	struct nfs4_client *conf, *unconf;
+	struct nfs4_client *old = NULL;
 	struct nfsd4_session *new;
 	struct nfsd4_conn *conn;
 	struct nfsd4_clid_slot *cs_slot = NULL;
@@ -2437,6 +2425,7 @@ nfsd4_create_session(struct svc_rqst *rqstp,
 		goto out_free_session;
 
 	nfs4_lock_state();
+	spin_lock(&nn->client_lock);
 	unconf = find_unconfirmed_client(&cr_ses->clientid, true, nn);
 	conf = find_confirmed_client(&cr_ses->clientid, true, nn);
 	WARN_ON_ONCE(conf && unconf);
@@ -2455,7 +2444,6 @@ nfsd4_create_session(struct svc_rqst *rqstp,
 			goto out_free_conn;
 		}
 	} else if (unconf) {
-		struct nfs4_client *old;
 		if (!same_creds(&unconf->cl_cred, &rqstp->rq_cred) ||
 		    !rpc_cmp_addr(sa, (struct sockaddr *) &unconf->cl_addr)) {
 			status = nfserr_clid_inuse;
@@ -2473,10 +2461,10 @@ nfsd4_create_session(struct svc_rqst *rqstp,
 		}
 		old = find_confirmed_client_by_name(&unconf->cl_name, nn);
 		if (old) {
-			status = mark_client_expired(old);
+			status = mark_client_expired_locked(old);
 			if (status)
 				goto out_free_conn;
-			expire_client(old);
+			unhash_client_locked(old);
 		}
 		move_to_confirmed(unconf);
 		conf = unconf;
@@ -2492,20 +2480,29 @@ nfsd4_create_session(struct svc_rqst *rqstp,
 	cr_ses->flags &= ~SESSION4_RDMA;
 
 	init_session(rqstp, new, conf, cr_ses);
-	nfsd4_init_conn(rqstp, conn, new);
+	nfsd4_get_session_locked(new);
 
 	memcpy(cr_ses->sessionid.data, new->se_sessionid.data,
 	       NFS4_MAX_SESSIONID_LEN);
 	cs_slot->sl_seqid++;
 	cr_ses->seqid = cs_slot->sl_seqid;
 
-	/* cache solo and embedded create sessions under the state lock */
+	/* cache solo and embedded create sessions under the client_lock */
 	nfsd4_cache_create_session(cr_ses, cs_slot, status);
+	spin_unlock(&nn->client_lock);
+	/* init connection and backchannel */
+	nfsd4_init_conn(rqstp, conn, new);
+	nfsd4_put_session(new);
 	nfs4_unlock_state();
+	if (old)
+		expire_client(old);
 	return status;
 out_free_conn:
+	spin_unlock(&nn->client_lock);
 	nfs4_unlock_state();
 	free_conn(conn);
+	if (old)
+		expire_client(old);
 out_free_session:
 	__free_session(new);
 out_release_drc_mem:
@@ -2965,6 +2962,7 @@ nfsd4_setclientid_confirm(struct svc_rqst *rqstp,
 			 struct nfsd4_setclientid_confirm *setclientid_confirm)
 {
 	struct nfs4_client *conf, *unconf;
+	struct nfs4_client *old = NULL;
 	nfs4_verifier confirm = setclientid_confirm->sc_confirm; 
 	clientid_t * clid = &setclientid_confirm->sc_clientid;
 	__be32 status;
@@ -2974,6 +2972,7 @@ nfsd4_setclientid_confirm(struct svc_rqst *rqstp,
 		return nfserr_stale_clientid;
 	nfs4_lock_state();
 
+	spin_lock(&nn->client_lock);
 	conf = find_confirmed_client(clid, false, nn);
 	unconf = find_unconfirmed_client(clid, false, nn);
 	/*
@@ -2997,21 +2996,29 @@ nfsd4_setclientid_confirm(struct svc_rqst *rqstp,
 	}
 	status = nfs_ok;
 	if (conf) { /* case 1: callback update */
+		old = unconf;
+		unhash_client_locked(old);
 		nfsd4_change_callback(conf, &unconf->cl_cb_conn);
-		nfsd4_probe_callback(conf);
-		expire_client(unconf);
 	} else { /* case 3: normal case; new or rebooted client */
-		conf = find_confirmed_client_by_name(&unconf->cl_name, nn);
-		if (conf) {
-			status = mark_client_expired(conf);
+		old = find_confirmed_client_by_name(&unconf->cl_name, nn);
+		if (old) {
+			status = mark_client_expired_locked(old);
 			if (status)
 				goto out;
-			expire_client(conf);
+			unhash_client_locked(old);
 		}
 		move_to_confirmed(unconf);
-		nfsd4_probe_callback(unconf);
+		conf = unconf;
 	}
+	get_client_locked(conf);
+	spin_unlock(&nn->client_lock);
+	nfsd4_probe_callback(conf);
+	spin_lock(&nn->client_lock);
+	put_client_renew_locked(conf);
 out:
+	spin_unlock(&nn->client_lock);
+	if (old)
+		expire_client(old);
 	nfs4_unlock_state();
 	return status;
 }
@@ -5648,7 +5655,13 @@ nfs4_check_open_reclaim(clientid_t *clid,
 
 u64 nfsd_forget_client(struct nfs4_client *clp, u64 max)
 {
-	if (mark_client_expired(clp))
+	__be32 ret;
+	struct nfsd_net *nn = net_generic(clp->net, nfsd_net_id);
+
+	spin_lock(&nn->client_lock);
+	ret = mark_client_expired_locked(clp);
+	spin_unlock(&nn->client_lock);
+	if (ret != nfs_ok)
 		return 0;
 	expire_client(clp);
 	return 1;
