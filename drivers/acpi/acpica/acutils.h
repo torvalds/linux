@@ -194,6 +194,8 @@ char *acpi_ut_get_event_name(u32 event_id);
 
 char acpi_ut_hex_to_ascii_char(u64 integer, u32 position);
 
+u8 acpi_ut_ascii_char_to_hex(int hex_char);
+
 u8 acpi_ut_valid_object_type(acpi_object_type type);
 
 /*
@@ -759,6 +761,8 @@ const struct ah_predefined_name *acpi_ah_match_predefined_name(char *nameseg);
 
 const struct ah_device_id *acpi_ah_match_hardware_id(char *hid);
 
+const char *acpi_ah_match_uuid(u8 *data);
+
 /*
  * utprint - printf/vprintf output functions
  */
@@ -777,5 +781,10 @@ int acpi_ut_file_vprintf(ACPI_FILE file, const char *format, va_list args);
 
 int acpi_ut_file_printf(ACPI_FILE file, const char *format, ...);
 #endif
+
+/*
+ * utuuid -- UUID support functions
+ */
+void acpi_ut_convert_string_to_uuid(char *in_string, u8 *uuid_buffer);
 
 #endif				/* _ACUTILS_H */

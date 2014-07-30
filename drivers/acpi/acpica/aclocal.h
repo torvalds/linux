@@ -1155,4 +1155,9 @@ struct ah_device_id {
 	char *description;
 };
 
+struct ah_uuid {
+	char *description;
+	char *string;
+};
+
 #endif				/* __ACLOCAL_H__ */

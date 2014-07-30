@@ -88,33 +88,6 @@ const u8 acpi_gbl_ns_properties[ACPI_NUM_NS_TYPES] = {
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_ut_hex_to_ascii_char
- *
- * PARAMETERS:  integer             - Contains the hex digit
- *              position            - bit position of the digit within the
- *                                    integer (multiple of 4)
- *
- * RETURN:      The converted Ascii character
- *
- * DESCRIPTION: Convert a hex digit to an Ascii character
- *
- ******************************************************************************/
-
-/* Hex to ASCII conversion table */
-
-static const char acpi_gbl_hex_to_ascii[] = {
-	'0', '1', '2', '3', '4', '5', '6', '7',
-	'8', '9', 'A', 'B', 'C', 'D', 'E', 'F'
-};
-
-char acpi_ut_hex_to_ascii_char(u64 integer, u32 position)
-{
-
-	return (acpi_gbl_hex_to_ascii[(integer >> position) & 0xF]);
-}
-
-/*******************************************************************************
- *
  * FUNCTION:    acpi_ut_get_region_name
  *
  * PARAMETERS:  Space ID            - ID for the region
