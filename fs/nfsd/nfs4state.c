@@ -928,6 +928,8 @@ static void nfs4_free_lock_stateid(struct nfs4_stid *stid)
 	file = find_any_file(stp->st_stid.sc_file);
 	if (file)
 		filp_close(file, (fl_owner_t)lo);
+	if (stp->st_stateowner)
+		nfs4_put_stateowner(stp->st_stateowner);
 	nfs4_free_ol_stateid(stid);
 }
 
@@ -4831,6 +4833,7 @@ init_lock_stateid(struct nfs4_ol_stateid *stp, struct nfs4_lockowner *lo,
 	atomic_inc(&stp->st_stid.sc_count);
 	stp->st_stid.sc_type = NFS4_LOCK_STID;
 	stp->st_stateowner = &lo->lo_owner;
+	atomic_inc(&lo->lo_owner.so_count);
 	get_nfs4_file(fp);
 	stp->st_stid.sc_file = fp;
 	stp->st_stid.sc_free = nfs4_free_lock_stateid;
