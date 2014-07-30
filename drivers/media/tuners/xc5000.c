@@ -1101,16 +1101,17 @@ static int xc5000_get_status(struct dvb_frontend *fe, u32 *status)
 static int xc_load_fw_and_init_tuner(struct dvb_frontend *fe, int force)
 {
 	struct xc5000_priv *priv = fe->tuner_priv;
-	int ret = 0;
+	int ret, i;
 	u16 pll_lock_status;
 	u16 fw_ck;
 
 	cancel_delayed_work(&priv->timer_sleep);
 
-	if (force || xc5000_is_firmware_loaded(fe) != 0) {
+	if (!force && xc5000_is_firmware_loaded(fe) == 0)
+		return 0;
 
-fw_retry:
-
+	/* Try up to 5 times to load firmware */
+	for (i = 0; i < 5; i++) {
 		ret = xc5000_fwupload(fe);
 		if (ret != 0)
 			return ret;
@@ -1118,25 +1119,25 @@ fw_retry:
 		msleep(20);
 
 		if (priv->fw_checksum_supported) {
-			if (xc5000_readreg(priv, XREG_FW_CHECKSUM, &fw_ck)
-			    != 0) {
+			if (xc5000_readreg(priv, XREG_FW_CHECKSUM, &fw_ck)) {
 				dprintk(1, "%s() FW checksum reading failed.\n",
 					__func__);
-				goto fw_retry;
+				continue;
 			}
 
-			if (fw_ck == 0) {
+			if (!fw_ck) {
 				dprintk(1, "%s() FW checksum failed = 0x%04x\n",
 					__func__, fw_ck);
-				goto fw_retry;
+				continue;
 			}
 		}
 
 		/* Start the tuner self-calibration process */
-		ret |= xc_initialize(priv);
-
-		if (ret != 0)
-			goto fw_retry;
+		ret = xc_initialize(priv);
+		if (ret) {
+			dprintk(1, "Can't request Self-callibration. Reloading firmware\n");
+			continue;
+		}
 
 		/* Wait for calibration to complete.
 		 * We could continue but XC5000 will clock stretch subsequent
@@ -1146,15 +1147,15 @@ fw_retry:
 		msleep(100);
 
 		if (priv->init_status_supported) {
-			if (xc5000_readreg(priv, XREG_INIT_STATUS, &fw_ck) != 0) {
+			if (xc5000_readreg(priv, XREG_INIT_STATUS, &fw_ck)) {
 				dprintk(1, "%s() FW failed reading init status.\n",
 					__func__);
-				goto fw_retry;
+				continue;
 			}
 
-			if (fw_ck == 0) {
+			if (!fw_ck) {
 				dprintk(1, "%s() FW init status failed = 0x%04x\n", __func__, fw_ck);
-				goto fw_retry;
+				continue;
 			}
 		}
 
@@ -1164,12 +1165,13 @@ fw_retry:
 			if (pll_lock_status > 63) {
 				/* PLL is unlocked, force reload of the firmware */
 				printk(KERN_ERR "xc5000: PLL not running after fwload.\n");
-				goto fw_retry;
+				continue;
 			}
 		}
 
 		/* Default to "CABLE" mode */
-		ret |= xc_write_reg(priv, XREG_SIGNALSOURCE, XC_RF_MODE_CABLE);
+		ret = xc_write_reg(priv, XREG_SIGNALSOURCE, XC_RF_MODE_CABLE);
+		break;
 	}
 
 	return ret;
