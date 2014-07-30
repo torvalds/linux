@@ -239,6 +239,53 @@ static void nfsd4_put_session(struct nfsd4_session *ses)
 	spin_unlock(&nn->client_lock);
 }
 
+static int
+same_owner_str(struct nfs4_stateowner *sop, struct xdr_netobj *owner,
+							clientid_t *clid)
+{
+	return (sop->so_owner.len == owner->len) &&
+		0 == memcmp(sop->so_owner.data, owner->data, owner->len) &&
+		(sop->so_client->cl_clientid.cl_id == clid->cl_id);
+}
+
+static struct nfs4_openowner *
+find_openstateowner_str_locked(unsigned int hashval, struct nfsd4_open *open,
+			bool sessions, struct nfsd_net *nn)
+{
+	struct nfs4_stateowner *so;
+	struct nfs4_openowner *oo;
+	struct nfs4_client *clp;
+
+	lockdep_assert_held(&nn->client_lock);
+
+	list_for_each_entry(so, &nn->ownerstr_hashtbl[hashval], so_strhash) {
+		if (!so->so_is_open_owner)
+			continue;
+		if (same_owner_str(so, &open->op_owner, &open->op_clientid)) {
+			oo = openowner(so);
+			clp = oo->oo_owner.so_client;
+			if ((bool)clp->cl_minorversion != sessions)
+				break;
+			renew_client_locked(clp);
+			atomic_inc(&so->so_count);
+			return oo;
+		}
+	}
+	return NULL;
+}
+
+static struct nfs4_openowner *
+find_openstateowner_str(unsigned int hashval, struct nfsd4_open *open,
+			bool sessions, struct nfsd_net *nn)
+{
+	struct nfs4_openowner *oo;
+
+	spin_lock(&nn->client_lock);
+	oo = find_openstateowner_str_locked(hashval, open, sessions, nn);
+	spin_unlock(&nn->client_lock);
+	return oo;
+}
+
 
 static inline u32
 opaque_hashval(const void *ptr, int nbytes)
@@ -1005,8 +1052,13 @@ static void release_open_stateid(struct nfs4_ol_stateid *stp)
 	nfs4_put_stid(&stp->st_stid);
 }
 
-static void unhash_openowner(struct nfs4_openowner *oo)
+static void unhash_openowner_locked(struct nfs4_openowner *oo)
 {
+	struct nfsd_net *nn = net_generic(oo->oo_owner.so_client->net,
+						nfsd_net_id);
+
+	lockdep_assert_held(&nn->client_lock);
+
 	list_del_init(&oo->oo_owner.so_strhash);
 	list_del_init(&oo->oo_perclient);
 }
@@ -1025,18 +1077,29 @@ static void release_last_closed_stateid(struct nfs4_openowner *oo)
 static void release_openowner_stateids(struct nfs4_openowner *oo)
 {
 	struct nfs4_ol_stateid *stp;
+	struct nfsd_net *nn = net_generic(oo->oo_owner.so_client->net,
+						nfsd_net_id);
+
+	lockdep_assert_held(&nn->client_lock);
 
 	while (!list_empty(&oo->oo_owner.so_stateids)) {
 		stp = list_first_entry(&oo->oo_owner.so_stateids,
 				struct nfs4_ol_stateid, st_perstateowner);
+		spin_unlock(&nn->client_lock);
 		release_open_stateid(stp);
+		spin_lock(&nn->client_lock);
 	}
 }
 
 static void release_openowner(struct nfs4_openowner *oo)
 {
-	unhash_openowner(oo);
+	struct nfsd_net *nn = net_generic(oo->oo_owner.so_client->net,
+						nfsd_net_id);
+
+	spin_lock(&nn->client_lock);
+	unhash_openowner_locked(oo);
 	release_openowner_stateids(oo);
+	spin_unlock(&nn->client_lock);
 	release_last_closed_stateid(oo);
 	nfs4_put_stateowner(&oo->oo_owner);
 }
@@ -3004,8 +3067,11 @@ static void hash_openowner(struct nfs4_openowner *oo, struct nfs4_client *clp, u
 static void nfs4_unhash_openowner(struct nfs4_stateowner *so)
 {
 	struct nfs4_openowner *oo = openowner(so);
+	struct nfsd_net *nn = net_generic(so->so_client->net, nfsd_net_id);
 
-	unhash_openowner(oo);
+	spin_lock(&nn->client_lock);
+	unhash_openowner_locked(oo);
+	spin_unlock(&nn->client_lock);
 }
 
 static void nfs4_free_openowner(struct nfs4_stateowner *so)
@@ -3025,7 +3091,8 @@ alloc_init_open_stateowner(unsigned int strhashval, struct nfsd4_open *open,
 			   struct nfsd4_compound_state *cstate)
 {
 	struct nfs4_client *clp = cstate->clp;
-	struct nfs4_openowner *oo;
+	struct nfsd_net *nn = net_generic(clp->net, nfsd_net_id);
+	struct nfs4_openowner *oo, *ret;
 
 	oo = alloc_stateowner(openowner_slab, &open->op_owner, clp);
 	if (!oo)
@@ -3039,7 +3106,15 @@ alloc_init_open_stateowner(unsigned int strhashval, struct nfsd4_open *open,
 	oo->oo_time = 0;
 	oo->oo_last_closed_stid = NULL;
 	INIT_LIST_HEAD(&oo->oo_close_lru);
-	hash_openowner(oo, clp, strhashval);
+	spin_lock(&nn->client_lock);
+	ret = find_openstateowner_str_locked(strhashval,
+			open, clp->cl_minorversion, nn);
+	if (ret == NULL) {
+		hash_openowner(oo, clp, strhashval);
+		ret = oo;
+	} else
+		nfs4_free_openowner(&oo->oo_owner);
+	spin_unlock(&nn->client_lock);
 	return oo;
 }
 
@@ -3098,39 +3173,6 @@ move_to_close_lru(struct nfs4_ol_stateid *s, struct net *net)
 	oo->oo_last_closed_stid = s;
 	list_move_tail(&oo->oo_close_lru, &nn->close_lru);
 	oo->oo_time = get_seconds();
-}
-
-static int
-same_owner_str(struct nfs4_stateowner *sop, struct xdr_netobj *owner,
-							clientid_t *clid)
-{
-	return (sop->so_owner.len == owner->len) &&
-		0 == memcmp(sop->so_owner.data, owner->data, owner->len) &&
-		(sop->so_client->cl_clientid.cl_id == clid->cl_id);
-}
-
-static struct nfs4_openowner *
-find_openstateowner_str(unsigned int hashval, struct nfsd4_open *open,
-			bool sessions, struct nfsd_net *nn)
-{
-	struct nfs4_stateowner *so;
-	struct nfs4_openowner *oo;
-	struct nfs4_client *clp;
-
-	list_for_each_entry(so, &nn->ownerstr_hashtbl[hashval], so_strhash) {
-		if (!so->so_is_open_owner)
-			continue;
-		if (same_owner_str(so, &open->op_owner, &open->op_clientid)) {
-			oo = openowner(so);
-			clp = oo->oo_owner.so_client;
-			if ((bool)clp->cl_minorversion != sessions)
-				return NULL;
-			renew_client(oo->oo_owner.so_client);
-			atomic_inc(&oo->oo_owner.so_count);
-			return oo;
-		}
-	}
-	return NULL;
 }
 
 /* search file_hashtbl[] for file */
