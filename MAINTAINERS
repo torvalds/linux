@@ -7012,6 +7012,7 @@ F:	drivers/scsi/pmcraid.*
 PMC SIERRA PM8001 DRIVER
 M:	xjtuwjp@gmail.com
 M:	lindar_liu@usish.com
+L:	pmchba@pmcs.com
 L:	linux-scsi@vger.kernel.org
 S:	Supported
 F:	drivers/scsi/pm8001/
