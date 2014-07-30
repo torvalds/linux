@@ -1797,11 +1797,21 @@ struct radeon_asic {
 	struct {
 		int (*init)(struct radeon_device *rdev);
 		void (*fini)(struct radeon_device *rdev);
-		void (*set_page)(struct radeon_device *rdev,
-				 struct radeon_ib *ib,
-				 uint64_t pe,
-				 uint64_t addr, unsigned count,
-				 uint32_t incr, uint32_t flags);
+		void (*copy_pages)(struct radeon_device *rdev,
+				   struct radeon_ib *ib,
+				   uint64_t pe, uint64_t src,
+				   unsigned count);
+		void (*write_pages)(struct radeon_device *rdev,
+				    struct radeon_ib *ib,
+				    uint64_t pe,
+				    uint64_t addr, unsigned count,
+				    uint32_t incr, uint32_t flags);
+		void (*set_pages)(struct radeon_device *rdev,
+				  struct radeon_ib *ib,
+				  uint64_t pe,
+				  uint64_t addr, unsigned count,
+				  uint32_t incr, uint32_t flags);
+		void (*pad_ib)(struct radeon_ib *ib);
 	} vm;
 	/* ring specific callbacks */
 	struct radeon_asic_ring *ring[RADEON_NUM_RINGS];
@@ -2761,7 +2771,10 @@ void radeon_ring_write(struct radeon_ring *ring, uint32_t v);
 #define radeon_gart_set_page(rdev, i, p, f) (rdev)->asic->gart.set_page((rdev), (i), (p), (f))
 #define radeon_asic_vm_init(rdev) (rdev)->asic->vm.init((rdev))
 #define radeon_asic_vm_fini(rdev) (rdev)->asic->vm.fini((rdev))
-#define radeon_asic_vm_set_page(rdev, ib, pe, addr, count, incr, flags) ((rdev)->asic->vm.set_page((rdev), (ib), (pe), (addr), (count), (incr), (flags)))
+#define radeon_asic_vm_copy_pages(rdev, ib, pe, src, count) ((rdev)->asic->vm.copy_pages((rdev), (ib), (pe), (src), (count)))
+#define radeon_asic_vm_write_pages(rdev, ib, pe, addr, count, incr, flags) ((rdev)->asic->vm.write_pages((rdev), (ib), (pe), (addr), (count), (incr), (flags)))
+#define radeon_asic_vm_set_pages(rdev, ib, pe, addr, count, incr, flags) ((rdev)->asic->vm.set_pages((rdev), (ib), (pe), (addr), (count), (incr), (flags)))
+#define radeon_asic_vm_pad_ib(rdev, ib) ((rdev)->asic->vm.pad_ib((ib)))
 #define radeon_ring_start(rdev, r, cp) (rdev)->asic->ring[(r)]->ring_start((rdev), (cp))
 #define radeon_ring_test(rdev, r, cp) (rdev)->asic->ring[(r)]->ring_test((rdev), (cp))
 #define radeon_ib_test(rdev, r, cp) (rdev)->asic->ring[(r)]->ib_test((rdev), (cp))

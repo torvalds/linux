@@ -749,7 +749,93 @@ bool cik_sdma_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring)
 }
 
 /**
- * cik_sdma_vm_set_page - update the page tables using sDMA
+ * cik_sdma_vm_copy_pages - update PTEs by copying them from the GART
+ *
+ * @rdev: radeon_device pointer
+ * @ib: indirect buffer to fill with commands
+ * @pe: addr of the page entry
+ * @src: src addr to copy from
+ * @count: number of page entries to update
+ *
+ * Update PTEs by copying them from the GART using sDMA (CIK).
+ */
+void cik_sdma_vm_copy_pages(struct radeon_device *rdev,
+			    struct radeon_ib *ib,
+			    uint64_t pe, uint64_t src,
+			    unsigned count)
+{
+	while (count) {
+		unsigned bytes = count * 8;
+		if (bytes > 0x1FFFF8)
+			bytes = 0x1FFFF8;
+
+		ib->ptr[ib->length_dw++] = SDMA_PACKET(SDMA_OPCODE_COPY,
+			SDMA_WRITE_SUB_OPCODE_LINEAR, 0);
+		ib->ptr[ib->length_dw++] = bytes;
+		ib->ptr[ib->length_dw++] = 0; /* src/dst endian swap */
+		ib->ptr[ib->length_dw++] = lower_32_bits(src);
+		ib->ptr[ib->length_dw++] = upper_32_bits(src);
+		ib->ptr[ib->length_dw++] = lower_32_bits(pe);
+		ib->ptr[ib->length_dw++] = upper_32_bits(pe);
+
+		pe += bytes;
+		src += bytes;
+		count -= bytes / 8;
+	}
+}
+
+/**
+ * cik_sdma_vm_write_pages - update PTEs by writing them manually
+ *
+ * @rdev: radeon_device pointer
+ * @ib: indirect buffer to fill with commands
+ * @pe: addr of the page entry
+ * @addr: dst addr to write into pe
+ * @count: number of page entries to update
+ * @incr: increase next addr by incr bytes
+ * @flags: access flags
+ *
+ * Update PTEs by writing them manually using sDMA (CIK).
+ */
+void cik_sdma_vm_write_pages(struct radeon_device *rdev,
+			     struct radeon_ib *ib,
+			     uint64_t pe,
+			     uint64_t addr, unsigned count,
+			     uint32_t incr, uint32_t flags)
+{
+	uint64_t value;
+	unsigned ndw;
+
+	while (count) {
+		ndw = count * 2;
+		if (ndw > 0xFFFFE)
+			ndw = 0xFFFFE;
+
+		/* for non-physically contiguous pages (system) */
+		ib->ptr[ib->length_dw++] = SDMA_PACKET(SDMA_OPCODE_WRITE,
+			SDMA_WRITE_SUB_OPCODE_LINEAR, 0);
+		ib->ptr[ib->length_dw++] = pe;
+		ib->ptr[ib->length_dw++] = upper_32_bits(pe);
+		ib->ptr[ib->length_dw++] = ndw;
+		for (; ndw > 0; ndw -= 2, --count, pe += 8) {
+			if (flags & R600_PTE_SYSTEM) {
+				value = radeon_vm_map_gart(rdev, addr);
+				value &= 0xFFFFFFFFFFFFF000ULL;
+			} else if (flags & R600_PTE_VALID) {
+				value = addr;
+			} else {
+				value = 0;
+			}
+			addr += incr;
+			value |= flags;
+			ib->ptr[ib->length_dw++] = value;
+			ib->ptr[ib->length_dw++] = upper_32_bits(value);
+		}
+	}
+}
+
+/**
+ * cik_sdma_vm_set_pages - update the page tables using sDMA
  *
  * @rdev: radeon_device pointer
  * @ib: indirect buffer to fill with commands
@@ -761,82 +847,51 @@ bool cik_sdma_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring)
  *
  * Update the page tables using sDMA (CIK).
  */
-void cik_sdma_vm_set_page(struct radeon_device *rdev,
-			  struct radeon_ib *ib,
-			  uint64_t pe,
-			  uint64_t addr, unsigned count,
-			  uint32_t incr, uint32_t flags)
+void cik_sdma_vm_set_pages(struct radeon_device *rdev,
+			   struct radeon_ib *ib,
+			   uint64_t pe,
+			   uint64_t addr, unsigned count,
+			   uint32_t incr, uint32_t flags)
 {
 	uint64_t value;
 	unsigned ndw;
 
-	trace_radeon_vm_set_page(pe, addr, count, incr, flags);
+	while (count) {
+		ndw = count;
+		if (ndw > 0x7FFFF)
+			ndw = 0x7FFFF;
 
-	if ((flags & R600_PTE_GART_MASK) == R600_PTE_GART_MASK) {
-		uint64_t src = rdev->gart.table_addr + (addr >> 12) * 8;
-		while (count) {
-			unsigned bytes = count * 8;
-			if (bytes > 0x1FFFF8)
-				bytes = 0x1FFFF8;
+		if (flags & R600_PTE_VALID)
+			value = addr;
+		else
+			value = 0;
 
-			ib->ptr[ib->length_dw++] = SDMA_PACKET(SDMA_OPCODE_COPY, SDMA_WRITE_SUB_OPCODE_LINEAR, 0);
-			ib->ptr[ib->length_dw++] = bytes;
-			ib->ptr[ib->length_dw++] = 0; /* src/dst endian swap */
-			ib->ptr[ib->length_dw++] = lower_32_bits(src);
-			ib->ptr[ib->length_dw++] = upper_32_bits(src);
-			ib->ptr[ib->length_dw++] = lower_32_bits(pe);
-			ib->ptr[ib->length_dw++] = upper_32_bits(pe);
+		/* for physically contiguous pages (vram) */
+		ib->ptr[ib->length_dw++] = SDMA_PACKET(SDMA_OPCODE_GENERATE_PTE_PDE, 0, 0);
+		ib->ptr[ib->length_dw++] = pe; /* dst addr */
+		ib->ptr[ib->length_dw++] = upper_32_bits(pe);
+		ib->ptr[ib->length_dw++] = flags; /* mask */
+		ib->ptr[ib->length_dw++] = 0;
+		ib->ptr[ib->length_dw++] = value; /* value */
+		ib->ptr[ib->length_dw++] = upper_32_bits(value);
+		ib->ptr[ib->length_dw++] = incr; /* increment size */
+		ib->ptr[ib->length_dw++] = 0;
+		ib->ptr[ib->length_dw++] = ndw; /* number of entries */
 
-			pe += bytes;
-			src += bytes;
-			count -= bytes / 8;
-		}
-	} else if (flags & R600_PTE_SYSTEM) {
-		while (count) {
-			ndw = count * 2;
-			if (ndw > 0xFFFFE)
-				ndw = 0xFFFFE;
-
-			/* for non-physically contiguous pages (system) */
-			ib->ptr[ib->length_dw++] = SDMA_PACKET(SDMA_OPCODE_WRITE, SDMA_WRITE_SUB_OPCODE_LINEAR, 0);
-			ib->ptr[ib->length_dw++] = pe;
-			ib->ptr[ib->length_dw++] = upper_32_bits(pe);
-			ib->ptr[ib->length_dw++] = ndw;
-			for (; ndw > 0; ndw -= 2, --count, pe += 8) {
-				value = radeon_vm_map_gart(rdev, addr);
-				value &= 0xFFFFFFFFFFFFF000ULL;
-				addr += incr;
-				value |= flags;
-				ib->ptr[ib->length_dw++] = value;
-				ib->ptr[ib->length_dw++] = upper_32_bits(value);
-			}
-		}
-	} else {
-		while (count) {
-			ndw = count;
-			if (ndw > 0x7FFFF)
-				ndw = 0x7FFFF;
-
-			if (flags & R600_PTE_VALID)
-				value = addr;
-			else
-				value = 0;
-			/* for physically contiguous pages (vram) */
-			ib->ptr[ib->length_dw++] = SDMA_PACKET(SDMA_OPCODE_GENERATE_PTE_PDE, 0, 0);
-			ib->ptr[ib->length_dw++] = pe; /* dst addr */
-			ib->ptr[ib->length_dw++] = upper_32_bits(pe);
-			ib->ptr[ib->length_dw++] = flags; /* mask */
-			ib->ptr[ib->length_dw++] = 0;
-			ib->ptr[ib->length_dw++] = value; /* value */
-			ib->ptr[ib->length_dw++] = upper_32_bits(value);
-			ib->ptr[ib->length_dw++] = incr; /* increment size */
-			ib->ptr[ib->length_dw++] = 0;
-			ib->ptr[ib->length_dw++] = ndw; /* number of entries */
-			pe += ndw * 8;
-			addr += ndw * incr;
-			count -= ndw;
-		}
+		pe += ndw * 8;
+		addr += ndw * incr;
+		count -= ndw;
 	}
+}
+
+/**
+ * cik_sdma_vm_pad_ib - pad the IB to the required number of dw
+ *
+ * @ib: indirect buffer to fill with padding
+ *
+ */
+void cik_sdma_vm_pad_ib(struct radeon_ib *ib)
+{
 	while (ib->length_dw & 0x7)
 		ib->ptr[ib->length_dw++] = SDMA_PACKET(SDMA_OPCODE_NOP, 0, 0);
 }

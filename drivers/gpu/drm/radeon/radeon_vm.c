@@ -341,6 +341,42 @@ struct radeon_bo_va *radeon_vm_bo_add(struct radeon_device *rdev,
 }
 
 /**
+ * radeon_vm_set_pages - helper to call the right asic function
+ *
+ * @rdev: radeon_device pointer
+ * @ib: indirect buffer to fill with commands
+ * @pe: addr of the page entry
+ * @addr: dst addr to write into pe
+ * @count: number of page entries to update
+ * @incr: increase next addr by incr bytes
+ * @flags: hw access flags
+ *
+ * Traces the parameters and calls the right asic functions
+ * to setup the page table using the DMA.
+ */
+static void radeon_vm_set_pages(struct radeon_device *rdev,
+				struct radeon_ib *ib,
+				uint64_t pe,
+				uint64_t addr, unsigned count,
+				uint32_t incr, uint32_t flags)
+{
+	trace_radeon_vm_set_page(pe, addr, count, incr, flags);
+
+	if ((flags & R600_PTE_GART_MASK) == R600_PTE_GART_MASK) {
+		uint64_t src = rdev->gart.table_addr + (addr >> 12) * 8;
+		radeon_asic_vm_copy_pages(rdev, ib, pe, src, count);
+
+	} else if ((flags & R600_PTE_SYSTEM) || (count < 3)) {
+		radeon_asic_vm_write_pages(rdev, ib, pe, addr,
+					   count, incr, flags);
+
+	} else {
+		radeon_asic_vm_set_pages(rdev, ib, pe, addr,
+					 count, incr, flags);
+	}
+}
+
+/**
  * radeon_vm_clear_bo - initially clear the page dir/table
  *
  * @rdev: radeon_device pointer
@@ -381,7 +417,8 @@ static int radeon_vm_clear_bo(struct radeon_device *rdev,
 
 	ib.length_dw = 0;
 
-	radeon_asic_vm_set_page(rdev, &ib, addr, 0, entries, 0, 0);
+	radeon_vm_set_pages(rdev, &ib, addr, 0, entries, 0, 0);
+	radeon_asic_vm_pad_ib(rdev, &ib);
 
 	r = radeon_ib_schedule(rdev, &ib, NULL);
 	if (r)
@@ -634,9 +671,9 @@ int radeon_vm_update_page_directory(struct radeon_device *rdev,
 		    ((last_pt + incr * count) != pt)) {
 
 			if (count) {
-				radeon_asic_vm_set_page(rdev, &ib, last_pde,
-							last_pt, count, incr,
-							R600_PTE_VALID);
+				radeon_vm_set_pages(rdev, &ib, last_pde,
+						    last_pt, count, incr,
+						    R600_PTE_VALID);
 			}
 
 			count = 1;
@@ -648,10 +685,11 @@ int radeon_vm_update_page_directory(struct radeon_device *rdev,
 	}
 
 	if (count)
-		radeon_asic_vm_set_page(rdev, &ib, last_pde, last_pt, count,
-					incr, R600_PTE_VALID);
+		radeon_vm_set_pages(rdev, &ib, last_pde, last_pt, count,
+				    incr, R600_PTE_VALID);
 
 	if (ib.length_dw != 0) {
+		radeon_asic_vm_pad_ib(rdev, &ib);
 		radeon_semaphore_sync_to(ib.semaphore, pd->tbo.sync_obj);
 		radeon_semaphore_sync_to(ib.semaphore, vm->last_id_use);
 		r = radeon_ib_schedule(rdev, &ib, NULL);
@@ -719,30 +757,30 @@ static void radeon_vm_frag_ptes(struct radeon_device *rdev,
 	    (frag_start >= frag_end)) {
 
 		count = (pe_end - pe_start) / 8;
-		radeon_asic_vm_set_page(rdev, ib, pe_start, addr, count,
-					RADEON_GPU_PAGE_SIZE, flags);
+		radeon_vm_set_pages(rdev, ib, pe_start, addr, count,
+				    RADEON_GPU_PAGE_SIZE, flags);
 		return;
 	}
 
 	/* handle the 4K area at the beginning */
 	if (pe_start != frag_start) {
 		count = (frag_start - pe_start) / 8;
-		radeon_asic_vm_set_page(rdev, ib, pe_start, addr, count,
-					RADEON_GPU_PAGE_SIZE, flags);
+		radeon_vm_set_pages(rdev, ib, pe_start, addr, count,
+				    RADEON_GPU_PAGE_SIZE, flags);
 		addr += RADEON_GPU_PAGE_SIZE * count;
 	}
 
 	/* handle the area in the middle */
 	count = (frag_end - frag_start) / 8;
-	radeon_asic_vm_set_page(rdev, ib, frag_start, addr, count,
-				RADEON_GPU_PAGE_SIZE, flags | frag_flags);
+	radeon_vm_set_pages(rdev, ib, frag_start, addr, count,
+			    RADEON_GPU_PAGE_SIZE, flags | frag_flags);
 
 	/* handle the 4K area at the end */
 	if (frag_end != pe_end) {
 		addr += RADEON_GPU_PAGE_SIZE * count;
 		count = (pe_end - frag_end) / 8;
-		radeon_asic_vm_set_page(rdev, ib, frag_end, addr, count,
-					RADEON_GPU_PAGE_SIZE, flags);
+		radeon_vm_set_pages(rdev, ib, frag_end, addr, count,
+				    RADEON_GPU_PAGE_SIZE, flags);
 	}
 }
 
@@ -900,6 +938,7 @@ int radeon_vm_bo_update(struct radeon_device *rdev,
 			      bo_va->it.last + 1, addr,
 			      radeon_vm_page_flags(bo_va->flags));
 
+	radeon_asic_vm_pad_ib(rdev, &ib);
 	radeon_semaphore_sync_to(ib.semaphore, vm->fence);
 	r = radeon_ib_schedule(rdev, &ib, NULL);
 	if (r) {
