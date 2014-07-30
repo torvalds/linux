@@ -184,7 +184,7 @@ static void intel_dsi_pre_enable(struct intel_encoder *encoder)
 
 	/* update the hw state for DPLL */
 	intel_crtc->config.dpll_hw_state.dpll = DPLL_INTEGRATED_CLOCK_VLV |
-						DPLL_REFA_CLK_ENABLE_VLV;
+		DPLL_REFA_CLK_ENABLE_VLV;
 
 	tmp = I915_READ(DSPCLK_GATE_D);
 	tmp |= DPOUNIT_CLOCK_GATE_DISABLE;
@@ -259,8 +259,8 @@ static void intel_dsi_disable(struct intel_encoder *encoder)
 	temp = I915_READ(MIPI_CTRL(pipe));
 	temp &= ~ESCAPE_CLOCK_DIVIDER_MASK;
 	I915_WRITE(MIPI_CTRL(pipe), temp |
-			intel_dsi->escape_clk_div <<
-			ESCAPE_CLOCK_DIVIDER_SHIFT);
+		   intel_dsi->escape_clk_div <<
+		   ESCAPE_CLOCK_DIVIDER_SHIFT);
 
 	I915_WRITE(MIPI_EOT_DISABLE(pipe), CLOCKSTOP);
 
@@ -297,7 +297,7 @@ static void intel_dsi_clear_device_ready(struct intel_encoder *encoder)
 	usleep_range(2000, 2500);
 
 	if (wait_for(((I915_READ(MIPI_PORT_CTRL(pipe)) & AFE_LATCHOUT)
-					== 0x00000), 30))
+		      == 0x00000), 30))
 		DRM_ERROR("DSI LP not going Low\n");
 
 	val = I915_READ(MIPI_PORT_CTRL(pipe));
@@ -427,7 +427,7 @@ static u16 txbyteclkhs(u16 pixels, int bpp, int lane_count,
 		       u16 burst_mode_ratio)
 {
 	return DIV_ROUND_UP(DIV_ROUND_UP(pixels * bpp * burst_mode_ratio,
-							8 * 100), lane_count);
+					 8 * 100), lane_count);
 }
 
 static void set_dsi_timings(struct drm_encoder *encoder,
@@ -454,10 +454,10 @@ static void set_dsi_timings(struct drm_encoder *encoder,
 
 	/* horizontal values are in terms of high speed byte clock */
 	hactive = txbyteclkhs(hactive, bpp, lane_count,
-						intel_dsi->burst_mode_ratio);
+			      intel_dsi->burst_mode_ratio);
 	hfp = txbyteclkhs(hfp, bpp, lane_count, intel_dsi->burst_mode_ratio);
 	hsync = txbyteclkhs(hsync, bpp, lane_count,
-						intel_dsi->burst_mode_ratio);
+			    intel_dsi->burst_mode_ratio);
 	hbp = txbyteclkhs(hbp, bpp, lane_count, intel_dsi->burst_mode_ratio);
 
 	I915_WRITE(MIPI_HACTIVE_AREA_COUNT(pipe), hactive);
@@ -582,7 +582,7 @@ static void intel_dsi_prepare(struct intel_encoder *intel_encoder)
 	 * XXX: write MIPI_STOP_STATE_STALL?
 	 */
 	I915_WRITE(MIPI_HIGH_LOW_SWITCH_COUNT(pipe),
-						intel_dsi->hs_to_lp_count);
+		   intel_dsi->hs_to_lp_count);
 
 	/* XXX: low power clock equivalence in terms of byte clock. the number
 	 * of byte clocks occupied in one low power clock. based on txbyteclkhs
@@ -607,10 +607,10 @@ static void intel_dsi_prepare(struct intel_encoder *intel_encoder)
 		 * 64 like 1366 x 768. Enable RANDOM resolution support for such
 		 * panels by default */
 		I915_WRITE(MIPI_VIDEO_MODE_FORMAT(pipe),
-				intel_dsi->video_frmt_cfg_bits |
-				intel_dsi->video_mode_format |
-				IP_TG_CONFIG |
-				RANDOM_DPI_DISPLAY_RESOLUTION);
+			   intel_dsi->video_frmt_cfg_bits |
+			   intel_dsi->video_mode_format |
+			   IP_TG_CONFIG |
+			   RANDOM_DPI_DISPLAY_RESOLUTION);
 }
 
 static void intel_dsi_pre_pll_enable(struct intel_encoder *encoder)

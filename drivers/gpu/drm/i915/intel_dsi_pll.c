@@ -190,7 +190,7 @@ static int dsi_calc_mnp(u32 dsi_clk, struct dsi_mnp *dsi_mnp)
 	for (m = 62; m <= 92; m++) {
 		for (p = 2; p <= 6; p++) {
 			/* Find the optimal m and p divisors
-			with minimal error +/- the required clock */
+			   with minimal error +/- the required clock */
 			calc_dsi_clk = (m * ref_clk) / p;
 			if (calc_dsi_clk == target_dsi_clk) {
 				calc_m = m;
@@ -233,7 +233,7 @@ static void vlv_configure_dsi_pll(struct intel_encoder *encoder)
 	u32 dsi_clk;
 
 	dsi_clk = dsi_clk_from_pclk(intel_dsi->pclk, intel_dsi->pixel_format,
-						intel_dsi->lane_count);
+				    intel_dsi->lane_count);
 
 	ret = dsi_calc_mnp(dsi_clk, &dsi_mnp);
 	if (ret) {
@@ -315,8 +315,8 @@ static void assert_bpp_mismatch(int pixel_format, int pipe_bpp)
 	}
 
 	WARN(bpp != pipe_bpp,
-		"bpp match assertion failure (expected %d, current %d)\n",
-		bpp, pipe_bpp);
+	     "bpp match assertion failure (expected %d, current %d)\n",
+	     bpp, pipe_bpp);
 }
 
 u32 vlv_get_dsi_pclk(struct intel_encoder *encoder, int pipe_bpp)
