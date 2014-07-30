@@ -178,8 +178,8 @@ again:
 	}
 
 out:
-	IR_dprintk(1, "RC5(x/sz) decode failed at state %i (%uus %s)\n",
-		   data->state, TO_US(ev.duration), TO_STR(ev.pulse));
+	IR_dprintk(1, "RC5(x/sz) decode failed at state %i count %d (%uus %s)\n",
+		   data->state, data->count, TO_US(ev.duration), TO_STR(ev.pulse));
 	data->state = STATE_INACTIVE;
 	return -EINVAL;
 }
