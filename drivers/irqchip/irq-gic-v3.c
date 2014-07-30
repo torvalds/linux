@@ -104,7 +104,7 @@ static void gic_redist_wait_for_rwp(void)
 }
 
 /* Low level accessors */
-static u64 gic_read_iar(void)
+static u64 __maybe_unused gic_read_iar(void)
 {
 	u64 irqstat;
 
@@ -112,24 +112,24 @@ static u64 gic_read_iar(void)
 	return irqstat;
 }
 
-static void gic_write_pmr(u64 val)
+static void __maybe_unused gic_write_pmr(u64 val)
 {
 	asm volatile("msr_s " __stringify(ICC_PMR_EL1) ", %0" : : "r" (val));
 }
 
-static void gic_write_ctlr(u64 val)
+static void __maybe_unused gic_write_ctlr(u64 val)
 {
 	asm volatile("msr_s " __stringify(ICC_CTLR_EL1) ", %0" : : "r" (val));
 	isb();
 }
 
-static void gic_write_grpen1(u64 val)
+static void __maybe_unused gic_write_grpen1(u64 val)
 {
 	asm volatile("msr_s " __stringify(ICC_GRPEN1_EL1) ", %0" : : "r" (val));
 	isb();
 }
 
-static void gic_write_sgi1r(u64 val)
+static void __maybe_unused gic_write_sgi1r(u64 val)
 {
 	asm volatile("msr_s " __stringify(ICC_SGI1R_EL1) ", %0" : : "r" (val));
 }
