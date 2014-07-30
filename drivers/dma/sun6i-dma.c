@@ -248,20 +248,11 @@ static inline int convert_burst(u32 maxburst, u8 *burst)
 
 static inline int convert_buswidth(enum dma_slave_buswidth addr_width, u8 *width)
 {
-	switch (addr_width) {
-	case DMA_SLAVE_BUSWIDTH_1_BYTE:
-		*width = 0;
-		break;
-	case DMA_SLAVE_BUSWIDTH_2_BYTES:
-		*width = 1;
-		break;
-	case DMA_SLAVE_BUSWIDTH_4_BYTES:
-		*width = 2;
-		break;
-	default:
+	if ((addr_width < DMA_SLAVE_BUSWIDTH_1_BYTE) ||
+	    (addr_width > DMA_SLAVE_BUSWIDTH_4_BYTES))
 		return -EINVAL;
-	}
 
+	*width = addr_width >> 1;
 	return 0;
 }
 
