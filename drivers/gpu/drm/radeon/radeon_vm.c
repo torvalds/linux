@@ -450,6 +450,7 @@ int radeon_vm_bo_set_addr(struct radeon_device *rdev,
 			tmp->it.last = bo_va->it.last;
 			tmp->vm = vm;
 			tmp->addr = bo_va->addr;
+			tmp->bo = radeon_bo_ref(bo_va->bo);
 			list_add(&tmp->vm_status, &vm->freed);
 		}
 
@@ -932,6 +933,7 @@ int radeon_vm_clear_freed(struct radeon_device *rdev,
 
 	list_for_each_entry_safe(bo_va, tmp, &vm->freed, vm_status) {
 		r = radeon_vm_bo_update(rdev, bo_va, NULL);
+		radeon_bo_unref(&bo_va->bo);
 		kfree(bo_va);
 		if (r)
 			return r;
@@ -987,7 +989,7 @@ void radeon_vm_bo_rmv(struct radeon_device *rdev,
 	list_del(&bo_va->vm_status);
 
 	if (bo_va->addr) {
-		bo_va->bo = NULL;
+		bo_va->bo = radeon_bo_ref(bo_va->bo);
 		list_add(&bo_va->vm_status, &vm->freed);
 	} else {
 		kfree(bo_va);
@@ -1098,8 +1100,10 @@ void radeon_vm_fini(struct radeon_device *rdev, struct radeon_vm *vm)
 			kfree(bo_va);
 		}
 	}
-	list_for_each_entry_safe(bo_va, tmp, &vm->freed, vm_status)
+	list_for_each_entry_safe(bo_va, tmp, &vm->freed, vm_status) {
+		radeon_bo_unref(&bo_va->bo);
 		kfree(bo_va);
+	}
 
 	for (i = 0; i < radeon_vm_num_pdes(rdev); i++)
 		radeon_bo_unref(&vm->page_tables[i].bo);
