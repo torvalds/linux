@@ -158,6 +158,51 @@ u8 brcmf_flowring_tid(struct brcmf_flowring *flow, u8 flowid)
 }
 
 
+static void brcmf_flowring_block(struct brcmf_flowring *flow, u8 flowid,
+				 bool blocked)
+{
+	struct brcmf_flowring_ring *ring;
+	struct brcmf_bus *bus_if;
+	struct brcmf_pub *drvr;
+	struct brcmf_if *ifp;
+	bool currently_blocked;
+	int i;
+	u8 ifidx;
+	unsigned long flags;
+
+	spin_lock_irqsave(&flow->block_lock, flags);
+
+	ring = flow->rings[flowid];
+	ifidx = brcmf_flowring_ifidx_get(flow, flowid);
+
+	currently_blocked = false;
+	for (i = 0; i < flow->nrofrings; i++) {
+		if (flow->rings[i]) {
+			ring = flow->rings[i];
+			if ((ring->status == RING_OPEN) &&
+			    (brcmf_flowring_ifidx_get(flow, i) == ifidx)) {
+				if (ring->blocked) {
+					currently_blocked = true;
+					break;
+				}
+			}
+		}
+	}
+	ring->blocked = blocked;
+	if (currently_blocked == blocked) {
+		spin_unlock_irqrestore(&flow->block_lock, flags);
+		return;
+	}
+
+	bus_if = dev_get_drvdata(flow->dev);
+	drvr = bus_if->drvr;
+	ifp = drvr->iflist[ifidx];
+	brcmf_txflowblock_if(ifp, BRCMF_NETIF_STOP_REASON_FLOW, blocked);
+
+	spin_unlock_irqrestore(&flow->block_lock, flags);
+}
+
+
 void brcmf_flowring_delete(struct brcmf_flowring *flow, u8 flowid)
 {
 	struct brcmf_flowring_ring *ring;
@@ -167,6 +212,7 @@ void brcmf_flowring_delete(struct brcmf_flowring *flow, u8 flowid)
 	ring = flow->rings[flowid];
 	if (!ring)
 		return;
+	brcmf_flowring_block(flow, flowid, false);
 	hash_idx = ring->hash_id;
 	flow->hash[hash_idx].ifidx = BRCMF_FLOWRING_INVALID_IFIDX;
 	memset(flow->hash[hash_idx].mac, 0, ETH_ALEN);
@@ -193,9 +239,16 @@ void brcmf_flowring_enqueue(struct brcmf_flowring *flow, u8 flowid,
 
 	if (!ring->blocked &&
 	    (skb_queue_len(&ring->skblist) > BRCMF_FLOWRING_HIGH)) {
-		brcmf_txflowblock(flow->dev, true);
+		brcmf_flowring_block(flow, flowid, true);
 		brcmf_dbg(MSGBUF, "Flowcontrol: BLOCK for ring %d\n", flowid);
-		ring->blocked = 1;
+		/* To prevent (work around) possible race condition, check
+		 * queue len again. It is also possible to use locking to
+		 * protect, but that is undesirable for every enqueue and
+		 * dequeue. This simple check will solve a possible race
+		 * condition if it occurs.
+		 */
+		if (skb_queue_len(&ring->skblist) < BRCMF_FLOWRING_LOW)
+			brcmf_flowring_block(flow, flowid, false);
 	}
 }
 
@@ -213,9 +266,8 @@ struct sk_buff *brcmf_flowring_dequeue(struct brcmf_flowring *flow, u8 flowid)
 
 	if (ring->blocked &&
 	    (skb_queue_len(&ring->skblist) < BRCMF_FLOWRING_LOW)) {
-		brcmf_txflowblock(flow->dev, false);
+		brcmf_flowring_block(flow, flowid, false);
 		brcmf_dbg(MSGBUF, "Flowcontrol: OPEN for ring %d\n", flowid);
-		ring->blocked = 0;
 	}
 
 	return skb;
@@ -283,6 +335,7 @@ struct brcmf_flowring *brcmf_flowring_attach(struct device *dev, u16 nrofrings)
 	if (flow) {
 		flow->dev = dev;
 		flow->nrofrings = nrofrings;
+		spin_lock_init(&flow->block_lock);
 		for (i = 0; i < ARRAY_SIZE(flow->addr_mode); i++)
 			flow->addr_mode[i] = ADDR_INDIRECT;
 		for (i = 0; i < ARRAY_SIZE(flow->hash); i++)

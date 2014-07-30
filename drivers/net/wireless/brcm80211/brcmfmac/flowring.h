@@ -35,7 +35,7 @@ enum ring_status {
 
 struct brcmf_flowring_ring {
 	u8 hash_id;
-	u8 blocked;
+	bool blocked;
 	enum ring_status status;
 	struct sk_buff_head skblist;
 };
@@ -44,6 +44,7 @@ struct brcmf_flowring {
 	struct device *dev;
 	struct brcmf_flowring_hash hash[BRCMF_FLOWRING_HASHSIZE];
 	struct brcmf_flowring_ring **rings;
+	spinlock_t block_lock;
 	enum proto_addr_mode addr_mode[BRCMF_MAX_IFS];
 	u16 nrofrings;
 };

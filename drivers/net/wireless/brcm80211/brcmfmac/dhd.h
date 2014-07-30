@@ -121,12 +121,12 @@ struct brcmf_fws_mac_descriptor;
  *
  * @BRCMF_NETIF_STOP_REASON_FWS_FC:
  *	netif stopped due to firmware signalling flow control.
- * @BRCMF_NETIF_STOP_REASON_BLOCK_BUS:
- *	netif stopped due to bus blocking.
+ * @BRCMF_NETIF_STOP_REASON_FLOW:
+ *	netif stopped due to flowring full.
  */
 enum brcmf_netif_stop_reason {
 	BRCMF_NETIF_STOP_REASON_FWS_FC = 1,
-	BRCMF_NETIF_STOP_REASON_BLOCK_BUS = 2
+	BRCMF_NETIF_STOP_REASON_FLOW = 2
 };
 
 /**
