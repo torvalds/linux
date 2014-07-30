@@ -134,8 +134,7 @@ static u32 dsi_rr_formula(const struct drm_display_mode *mode,
 #else
 
 /* Get DSI clock from pixel clock */
-static u32 dsi_clk_from_pclk(const struct drm_display_mode *mode,
-			  int pixel_format, int lane_count)
+static u32 dsi_clk_from_pclk(u32 pclk, int pixel_format, int lane_count)
 {
 	u32 dsi_clk_khz;
 	u32 bpp;
@@ -156,7 +155,7 @@ static u32 dsi_clk_from_pclk(const struct drm_display_mode *mode,
 
 	/* DSI data rate = pixel clock * bits per pixel / lane count
 	   pixel clock is converted from KHz to Hz */
-	dsi_clk_khz = DIV_ROUND_CLOSEST(mode->clock * bpp, lane_count);
+	dsi_clk_khz = DIV_ROUND_CLOSEST(pclk * bpp, lane_count);
 
 	return dsi_clk_khz;
 }
@@ -228,14 +227,12 @@ static int dsi_calc_mnp(u32 dsi_clk, struct dsi_mnp *dsi_mnp)
 static void vlv_configure_dsi_pll(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
-	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->base.crtc);
-	const struct drm_display_mode *mode = &intel_crtc->config.adjusted_mode;
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
 	int ret;
 	struct dsi_mnp dsi_mnp;
 	u32 dsi_clk;
 
-	dsi_clk = dsi_clk_from_pclk(mode, intel_dsi->pixel_format,
+	dsi_clk = dsi_clk_from_pclk(intel_dsi->pclk, intel_dsi->pixel_format,
 						intel_dsi->lane_count);
 
 	ret = dsi_calc_mnp(dsi_clk, &dsi_mnp);
