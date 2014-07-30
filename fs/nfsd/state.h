@@ -235,6 +235,7 @@ struct nfsd4_sessionid {
 struct nfs4_client {
 	struct list_head	cl_idhash; 	/* hash by cl_clientid.id */
 	struct rb_node		cl_namenode;	/* link into by-name trees */
+	struct list_head	*cl_ownerstr_hashtbl;
 	struct list_head	cl_openowners;
 	struct idr		cl_stateids;	/* stateid lookup */
 	struct list_head	cl_delegations;
