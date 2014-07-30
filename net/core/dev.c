@@ -2326,7 +2326,7 @@ __be16 skb_network_protocol(struct sk_buff *skb, int *depth)
 	 */
 	if (type == htons(ETH_P_8021Q) || type == htons(ETH_P_8021AD)) {
 		if (vlan_depth) {
-			if (unlikely(WARN_ON(vlan_depth < VLAN_HLEN)))
+			if (WARN_ON(vlan_depth < VLAN_HLEN))
 				return 0;
 			vlan_depth -= VLAN_HLEN;
 		} else {
