@@ -562,8 +562,7 @@ static struct dma_async_tx_descriptor *sun6i_dma_prep_dma_memcpy(
 	v_lli = dma_pool_alloc(sdev->pool, GFP_NOWAIT, &p_lli);
 	if (!v_lli) {
 		dev_err(sdev->slave.dev, "Failed to alloc lli memory\n");
-		kfree(txd);
-		return NULL;
+		goto err_txd_free;
 	}
 
 	ret = sun6i_dma_cfg_lli(v_lli, src, dest, len, sconfig);
@@ -583,6 +582,8 @@ static struct dma_async_tx_descriptor *sun6i_dma_prep_dma_memcpy(
 
 err_dma_free:
 	dma_pool_free(sdev->pool, v_lli, p_lli);
+err_txd_free:
+	kfree(txd);
 	return NULL;
 }
 
@@ -614,17 +615,15 @@ static struct dma_async_tx_descriptor *sun6i_dma_prep_slave_sg(
 
 	for_each_sg(sgl, sg, sg_len, i) {
 		v_lli = dma_pool_alloc(sdev->pool, GFP_NOWAIT, &p_lli);
-		if (!v_lli) {
-			kfree(txd);
-			return NULL;
-		}
+		if (!v_lli)
+			goto err_lli_free;
 
 		if (dir == DMA_MEM_TO_DEV) {
 			ret = sun6i_dma_cfg_lli(v_lli, sg_dma_address(sg),
 						sconfig->dst_addr, sg_dma_len(sg),
 						sconfig);
 			if (ret)
-				goto err_dma_free;
+				goto err_cur_lli_free;
 
 			v_lli->cfg |= DMA_CHAN_CFG_DST_IO_MODE |
 				DMA_CHAN_CFG_SRC_LINEAR_MODE |
@@ -642,7 +641,7 @@ static struct dma_async_tx_descriptor *sun6i_dma_prep_slave_sg(
 						sg_dma_address(sg), sg_dma_len(sg),
 						sconfig);
 			if (ret)
-				goto err_dma_free;
+				goto err_cur_lli_free;
 
 			v_lli->cfg |= DMA_CHAN_CFG_DST_LINEAR_MODE |
 				DMA_CHAN_CFG_SRC_IO_MODE |
@@ -665,8 +664,12 @@ static struct dma_async_tx_descriptor *sun6i_dma_prep_slave_sg(
 
 	return vchan_tx_prep(&vchan->vc, &txd->vd, flags);
 
-err_dma_free:
+err_cur_lli_free:
 	dma_pool_free(sdev->pool, v_lli, p_lli);
+err_lli_free:
+	for (prev = txd->v_lli; prev; prev = prev->v_lli_next)
+		dma_pool_free(sdev->pool, prev, virt_to_phys(prev));
+	kfree(txd);
 	return NULL;
 }
 
