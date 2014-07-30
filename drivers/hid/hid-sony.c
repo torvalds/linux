@@ -1349,7 +1349,7 @@ static int sony_leds_init(struct sony_sc *sc)
 	static const char * const ds4_name_str[] = { "red", "green", "blue",
 						  "global" };
 	__u8 initial_values[MAX_LEDS] = { 0 };
-	__u8 max_brightness[MAX_LEDS] = { 1 };
+	__u8 max_brightness[MAX_LEDS] = { [0 ... (MAX_LEDS - 1)] = 1 };
 	__u8 use_hw_blink[MAX_LEDS] = { 0 };
 
 	BUG_ON(!(sc->quirks & SONY_LED_SUPPORT));
