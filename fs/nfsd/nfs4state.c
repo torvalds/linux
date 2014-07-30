@@ -1077,27 +1077,26 @@ static void release_lockowner(struct nfs4_lockowner *lo)
 	nfs4_put_stateowner(&lo->lo_owner);
 }
 
-static void release_open_stateid_locks(struct nfs4_ol_stateid *open_stp)
-	__releases(&open_stp->st_stateowner->so_client->cl_lock)
-	__acquires(&open_stp->st_stateowner->so_client->cl_lock)
+static void release_open_stateid_locks(struct nfs4_ol_stateid *open_stp,
+				       struct list_head *reaplist)
 {
 	struct nfs4_ol_stateid *stp;
 
 	while (!list_empty(&open_stp->st_locks)) {
 		stp = list_entry(open_stp->st_locks.next,
 				struct nfs4_ol_stateid, st_locks);
-		spin_unlock(&open_stp->st_stateowner->so_client->cl_lock);
-		release_lock_stateid(stp);
-		spin_lock(&open_stp->st_stateowner->so_client->cl_lock);
+		unhash_lock_stateid(stp);
+		put_ol_stateid_locked(stp, reaplist);
 	}
 }
 
-static void unhash_open_stateid(struct nfs4_ol_stateid *stp)
+static void unhash_open_stateid(struct nfs4_ol_stateid *stp,
+				struct list_head *reaplist)
 {
 	lockdep_assert_held(&stp->st_stid.sc_client->cl_lock);
 
 	unhash_generic_stateid(stp);
-	release_open_stateid_locks(stp);
+	release_open_stateid_locks(stp, reaplist);
 }
 
 static void release_open_stateid(struct nfs4_ol_stateid *stp)
@@ -1105,7 +1104,7 @@ static void release_open_stateid(struct nfs4_ol_stateid *stp)
 	LIST_HEAD(reaplist);
 
 	spin_lock(&stp->st_stid.sc_client->cl_lock);
-	unhash_open_stateid(stp);
+	unhash_open_stateid(stp, &reaplist);
 	put_ol_stateid_locked(stp, &reaplist);
 	spin_unlock(&stp->st_stid.sc_client->cl_lock);
 	free_ol_stateid_reaplist(&reaplist);
@@ -1145,7 +1144,7 @@ static void release_openowner(struct nfs4_openowner *oo)
 	while (!list_empty(&oo->oo_owner.so_stateids)) {
 		stp = list_first_entry(&oo->oo_owner.so_stateids,
 				struct nfs4_ol_stateid, st_perstateowner);
-		unhash_open_stateid(stp);
+		unhash_open_stateid(stp, &reaplist);
 		put_ol_stateid_locked(stp, &reaplist);
 	}
 	spin_unlock(&clp->cl_lock);
@@ -4701,16 +4700,21 @@ out:
 static void nfsd4_close_open_stateid(struct nfs4_ol_stateid *s)
 {
 	struct nfs4_client *clp = s->st_stid.sc_client;
+	LIST_HEAD(reaplist);
 
 	s->st_stid.sc_type = NFS4_CLOSED_STID;
 	spin_lock(&clp->cl_lock);
-	unhash_open_stateid(s);
-	spin_unlock(&clp->cl_lock);
+	unhash_open_stateid(s, &reaplist);
 
-	if (clp->cl_minorversion)
-		nfs4_put_stid(&s->st_stid);
-	else
+	if (clp->cl_minorversion) {
+		put_ol_stateid_locked(s, &reaplist);
+		spin_unlock(&clp->cl_lock);
+		free_ol_stateid_reaplist(&reaplist);
+	} else {
+		spin_unlock(&clp->cl_lock);
+		free_ol_stateid_reaplist(&reaplist);
 		move_to_close_lru(s, clp->net);
+	}
 }
 
 /*
