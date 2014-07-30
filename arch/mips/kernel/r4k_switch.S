@@ -144,6 +144,11 @@ LEAF(_restore_msa)
 	jr	ra
 	END(_restore_msa)
 
+LEAF(_init_msa_upper)
+	msa_init_all_upper
+	jr	ra
+	END(_init_msa_upper)
+
 #endif
 
 /*

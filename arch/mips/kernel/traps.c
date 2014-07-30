@@ -1089,13 +1089,15 @@ static int default_cu2_call(struct notifier_block *nfb, unsigned long action,
 
 static int enable_restore_fp_context(int msa)
 {
-	int err, was_fpu_owner;
+	int err, was_fpu_owner, prior_msa;
 
 	if (!used_math()) {
 		/* First time FP context user. */
 		err = init_fpu();
-		if (msa && !err)
+		if (msa && !err) {
 			enable_msa();
+			_init_msa_upper();
+		}
 		if (!err)
 			set_used_math();
 		return err;
@@ -1147,18 +1149,37 @@ static int enable_restore_fp_context(int msa)
 	/*
 	 * If this is the first time that the task is using MSA and it has
 	 * previously used scalar FP in this time slice then we already nave
-	 * FP context which we shouldn't clobber.
+	 * FP context which we shouldn't clobber. We do however need to clear
+	 * the upper 64b of each vector register so that this task has no
+	 * opportunity to see data left behind by another.
 	 */
-	if (!test_and_set_thread_flag(TIF_MSA_CTX_LIVE) && was_fpu_owner)
+	prior_msa = test_and_set_thread_flag(TIF_MSA_CTX_LIVE);
+	if (!prior_msa && was_fpu_owner) {
+		_init_msa_upper();
 		return 0;
+	}
 
-	/* We need to restore the vector context. */
-	restore_msa(current);
+	if (!prior_msa) {
+		/*
+		 * Restore the least significant 64b of each vector register
+		 * from the existing scalar FP context.
+		 */
+		_restore_fp(current);
 
-	/* Restore the scalar FP control & status register */
-	if (!was_fpu_owner)
-		asm volatile("ctc1 %0, $31" : : "r"(current->thread.fpu.fcr31));
+		/*
+		 * The task has not formerly used MSA, so clear the upper 64b
+		 * of each vector register such that it cannot see data left
+		 * behind by another task.
+		 */
+		_init_msa_upper();
+	} else {
+		/* We need to restore the vector context. */
+		restore_msa(current);
 
+		/* Restore the scalar FP control & status register */
+		if (!was_fpu_owner)
+			asm volatile("ctc1 %0, $31" : : "r"(current->thread.fpu.fcr31));
+	}
 	return 0;
 }
 

@@ -16,6 +16,7 @@
 
 extern void _save_msa(struct task_struct *);
 extern void _restore_msa(struct task_struct *);
+extern void _init_msa_upper(void);
 
 static inline void enable_msa(void)
 {

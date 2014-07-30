@@ -426,4 +426,24 @@
 	ld_d	31, THREAD_FPR31, \thread
 	.endm
 
+	.macro	msa_init_upper wd
+#ifdef CONFIG_64BIT
+	insert_d \wd, 1
+#else
+	insert_w \wd, 2
+	insert_w \wd, 3
+#endif
+	.if	31-\wd
+	msa_init_upper	(\wd+1)
+	.endif
+	.endm
+
+	.macro	msa_init_all_upper
+	.set	push
+	.set	noat
+	not	$1, zero
+	msa_init_upper	0
+	.set	pop
+	.endm
+
 #endif /* _ASM_ASMMACRO_H */
