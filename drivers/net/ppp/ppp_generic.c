@@ -757,10 +757,15 @@ static long ppp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			};
 
 			ppp_lock(ppp);
-			if (ppp->pass_filter)
+			if (ppp->pass_filter) {
 				sk_unattached_filter_destroy(ppp->pass_filter);
-			err = sk_unattached_filter_create(&ppp->pass_filter,
-							  &fprog);
+				ppp->pass_filter = NULL;
+			}
+			if (fprog.filter != NULL)
+				err = sk_unattached_filter_create(&ppp->pass_filter,
+								  &fprog);
+			else
+				err = 0;
 			kfree(code);
 			ppp_unlock(ppp);
 		}
@@ -778,10 +783,15 @@ static long ppp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			};
 
 			ppp_lock(ppp);
-			if (ppp->active_filter)
+			if (ppp->active_filter) {
 				sk_unattached_filter_destroy(ppp->active_filter);
-			err = sk_unattached_filter_create(&ppp->active_filter,
-							  &fprog);
+				ppp->active_filter = NULL;
+			}
+			if (fprog.filter != NULL)
+				err = sk_unattached_filter_create(&ppp->active_filter,
+								  &fprog);
+			else
+				err = 0;
 			kfree(code);
 			ppp_unlock(ppp);
 		}

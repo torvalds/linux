@@ -1616,22 +1616,6 @@ out:
 	return ret;
 }
 
-void i915_gem_release_all_mmaps(struct drm_i915_private *dev_priv)
-{
-	struct i915_vma *vma;
-
-	/*
-	 * Only the global gtt is relevant for gtt memory mappings, so restrict
-	 * list traversal to objects bound into the global address space. Note
-	 * that the active list should be empty, but better safe than sorry.
-	 */
-	WARN_ON(!list_empty(&dev_priv->gtt.base.active_list));
-	list_for_each_entry(vma, &dev_priv->gtt.base.active_list, mm_list)
-		i915_gem_release_mmap(vma->obj);
-	list_for_each_entry(vma, &dev_priv->gtt.base.inactive_list, mm_list)
-		i915_gem_release_mmap(vma->obj);
-}
-
 /**
  * i915_gem_release_mmap - remove physical page mappings
  * @obj: obj in question
@@ -1655,6 +1639,15 @@ i915_gem_release_mmap(struct drm_i915_gem_object *obj)
 	drm_vma_node_unmap(&obj->base.vma_node,
 			   obj->base.dev->anon_inode->i_mapping);
 	obj->fault_mappable = false;
+}
+
+void
+i915_gem_release_all_mmaps(struct drm_i915_private *dev_priv)
+{
+	struct drm_i915_gem_object *obj;
+
+	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list)
+		i915_gem_release_mmap(obj);
 }
 
 uint32_t
