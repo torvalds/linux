@@ -31,6 +31,9 @@ brcmfmac-objs += \
 		p2p.o \
 		proto.o \
 		bcdc.o \
+		commonring.o \
+		flowring.o \
+		msgbuf.o \
 		dhd_common.o \
 		dhd_linux.o \
 		firmware.o \

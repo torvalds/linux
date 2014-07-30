@@ -1,0 +1,362 @@
+/* Copyright (c) 2014 Broadcom Corporation
+ *
+ * Permission to use, copy, modify, and/or distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+ * SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
+ * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+ * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
+
+
+#include <linux/types.h>
+#include <linux/netdevice.h>
+#include <linux/etherdevice.h>
+#include <brcmu_utils.h>
+
+#include "dhd.h"
+#include "dhd_dbg.h"
+#include "dhd_bus.h"
+#include "proto.h"
+#include "flowring.h"
+#include "msgbuf.h"
+
+
+#define BRCMF_FLOWRING_HIGH		1024
+#define BRCMF_FLOWRING_LOW		(BRCMF_FLOWRING_HIGH - 256)
+#define BRCMF_FLOWRING_INVALID_IFIDX	0xff
+
+#define BRCMF_FLOWRING_HASH_AP(da, fifo, ifidx) (da[5] + fifo + ifidx * 16)
+#define BRCMF_FLOWRING_HASH_STA(fifo, ifidx) (fifo + ifidx * 16)
+
+static const u8 ALLZEROMAC[ETH_ALEN] = { 0, 0, 0, 0, 0, 0 };
+static const u8 ALLFFMAC[ETH_ALEN] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
+
+static const u8 brcmf_flowring_prio2fifo[] = {
+	1,
+	0,
+	0,
+	1,
+	2,
+	2,
+	3,
+	3
+};
+
+
+u32 brcmf_flowring_lookup(struct brcmf_flowring *flow, u8 da[ETH_ALEN],
+			  u8 prio, u8 ifidx)
+{
+	struct brcmf_flowring_hash *hash;
+	u8 hash_idx;
+	u32 i;
+	bool found;
+	bool sta;
+	u8 fifo;
+	u8 *mac;
+
+	fifo = brcmf_flowring_prio2fifo[prio];
+	sta = (flow->addr_mode[ifidx] == ADDR_INDIRECT);
+	mac = da;
+	if ((!sta) && (is_multicast_ether_addr(da))) {
+		mac = (u8 *)ALLFFMAC;
+		fifo = 0;
+	}
+	hash_idx =  sta ? BRCMF_FLOWRING_HASH_STA(fifo, ifidx) :
+			  BRCMF_FLOWRING_HASH_AP(mac, fifo, ifidx);
+	found = false;
+	hash = flow->hash;
+	for (i = 0; i < BRCMF_FLOWRING_HASHSIZE; i++) {
+		if ((sta || (memcmp(hash[hash_idx].mac, mac, ETH_ALEN) == 0)) &&
+		    (hash[hash_idx].fifo == fifo) &&
+		    (hash[hash_idx].ifidx == ifidx)) {
+			found = true;
+			break;
+		}
+		hash_idx++;
+	}
+	if (found)
+		return hash[hash_idx].flowid;
+
+	return BRCMF_FLOWRING_INVALID_ID;
+}
+
+
+u32 brcmf_flowring_create(struct brcmf_flowring *flow, u8 da[ETH_ALEN],
+			  u8 prio, u8 ifidx)
+{
+	struct brcmf_flowring_ring *ring;
+	struct brcmf_flowring_hash *hash;
+	u8 hash_idx;
+	u32 i;
+	bool found;
+	u8 fifo;
+	bool sta;
+	u8 *mac;
+
+	fifo = brcmf_flowring_prio2fifo[prio];
+	sta = (flow->addr_mode[ifidx] == ADDR_INDIRECT);
+	mac = da;
+	if ((!sta) && (is_multicast_ether_addr(da))) {
+		mac = (u8 *)ALLFFMAC;
+		fifo = 0;
+	}
+	hash_idx =  sta ? BRCMF_FLOWRING_HASH_STA(fifo, ifidx) :
+			  BRCMF_FLOWRING_HASH_AP(mac, fifo, ifidx);
+	found = false;
+	hash = flow->hash;
+	for (i = 0; i < BRCMF_FLOWRING_HASHSIZE; i++) {
+		if (((sta) &&
+		     (hash[hash_idx].ifidx == BRCMF_FLOWRING_INVALID_IFIDX)) ||
+		    ((!sta) &&
+		     (memcmp(hash[hash_idx].mac, ALLZEROMAC, ETH_ALEN) == 0))) {
+			found = true;
+			break;
+		}
+		hash_idx++;
+	}
+	if (found) {
+		for (i = 0; i < flow->nrofrings; i++) {
+			if (flow->rings[i] == NULL)
+				break;
+		}
+		if (i == flow->nrofrings)
+			return -ENOMEM;
+
+		ring = kzalloc(sizeof(*ring), GFP_ATOMIC);
+		if (!ring)
+			return -ENOMEM;
+
+		memcpy(hash[hash_idx].mac, mac, ETH_ALEN);
+		hash[hash_idx].fifo = fifo;
+		hash[hash_idx].ifidx = ifidx;
+		hash[hash_idx].flowid = i;
+
+		ring->hash_id = hash_idx;
+		ring->status = RING_CLOSED;
+		skb_queue_head_init(&ring->skblist);
+		flow->rings[i] = ring;
+
+		return i;
+	}
+	return BRCMF_FLOWRING_INVALID_ID;
+}
+
+
+u8 brcmf_flowring_tid(struct brcmf_flowring *flow, u8 flowid)
+{
+	struct brcmf_flowring_ring *ring;
+
+	ring = flow->rings[flowid];
+
+	return flow->hash[ring->hash_id].fifo;
+}
+
+
+void brcmf_flowring_delete(struct brcmf_flowring *flow, u8 flowid)
+{
+	struct brcmf_flowring_ring *ring;
+	u8 hash_idx;
+	struct sk_buff *skb;
+
+	ring = flow->rings[flowid];
+	if (!ring)
+		return;
+	hash_idx = ring->hash_id;
+	flow->hash[hash_idx].ifidx = BRCMF_FLOWRING_INVALID_IFIDX;
+	memset(flow->hash[hash_idx].mac, 0, ETH_ALEN);
+	flow->rings[flowid] = NULL;
+
+	skb = skb_dequeue(&ring->skblist);
+	while (skb) {
+		brcmu_pkt_buf_free_skb(skb);
+		skb = skb_dequeue(&ring->skblist);
+	}
+
+	kfree(ring);
+}
+
+
+void brcmf_flowring_enqueue(struct brcmf_flowring *flow, u8 flowid,
+			    struct sk_buff *skb)
+{
+	struct brcmf_flowring_ring *ring;
+
+	ring = flow->rings[flowid];
+
+	skb_queue_tail(&ring->skblist, skb);
+
+	if (!ring->blocked &&
+	    (skb_queue_len(&ring->skblist) > BRCMF_FLOWRING_HIGH)) {
+		brcmf_txflowblock(flow->dev, true);
+		brcmf_dbg(MSGBUF, "Flowcontrol: BLOCK for ring %d\n", flowid);
+		ring->blocked = 1;
+	}
+}
+
+
+struct sk_buff *brcmf_flowring_dequeue(struct brcmf_flowring *flow, u8 flowid)
+{
+	struct brcmf_flowring_ring *ring;
+	struct sk_buff *skb;
+
+	ring = flow->rings[flowid];
+	if (ring->status != RING_OPEN)
+		return NULL;
+
+	skb = skb_dequeue(&ring->skblist);
+
+	if (ring->blocked &&
+	    (skb_queue_len(&ring->skblist) < BRCMF_FLOWRING_LOW)) {
+		brcmf_txflowblock(flow->dev, false);
+		brcmf_dbg(MSGBUF, "Flowcontrol: OPEN for ring %d\n", flowid);
+		ring->blocked = 0;
+	}
+
+	return skb;
+}
+
+
+void brcmf_flowring_reinsert(struct brcmf_flowring *flow, u8 flowid,
+			     struct sk_buff *skb)
+{
+	struct brcmf_flowring_ring *ring;
+
+	ring = flow->rings[flowid];
+
+	skb_queue_head(&ring->skblist, skb);
+}
+
+
+u32 brcmf_flowring_qlen(struct brcmf_flowring *flow, u8 flowid)
+{
+	struct brcmf_flowring_ring *ring;
+
+	ring = flow->rings[flowid];
+	if (!ring)
+		return 0;
+
+	if (ring->status != RING_OPEN)
+		return 0;
+
+	return skb_queue_len(&ring->skblist);
+}
+
+
+void brcmf_flowring_open(struct brcmf_flowring *flow, u8 flowid)
+{
+	struct brcmf_flowring_ring *ring;
+
+	ring = flow->rings[flowid];
+	if (!ring) {
+		brcmf_err("Ring NULL, for flowid %d\n", flowid);
+		return;
+	}
+
+	ring->status = RING_OPEN;
+}
+
+
+u8 brcmf_flowring_ifidx_get(struct brcmf_flowring *flow, u8 flowid)
+{
+	struct brcmf_flowring_ring *ring;
+	u8 hash_idx;
+
+	ring = flow->rings[flowid];
+	hash_idx = ring->hash_id;
+
+	return flow->hash[hash_idx].ifidx;
+}
+
+
+struct brcmf_flowring *brcmf_flowring_attach(struct device *dev, u16 nrofrings)
+{
+	struct brcmf_flowring *flow;
+	u32 i;
+
+	flow = kzalloc(sizeof(*flow), GFP_ATOMIC);
+	if (flow) {
+		flow->dev = dev;
+		flow->nrofrings = nrofrings;
+		for (i = 0; i < ARRAY_SIZE(flow->addr_mode); i++)
+			flow->addr_mode[i] = ADDR_INDIRECT;
+		for (i = 0; i < ARRAY_SIZE(flow->hash); i++)
+			flow->hash[i].ifidx = BRCMF_FLOWRING_INVALID_IFIDX;
+		flow->rings = kcalloc(nrofrings, sizeof(*flow->rings),
+				      GFP_ATOMIC);
+		if (!flow->rings) {
+			kfree(flow);
+			flow = NULL;
+		}
+	}
+
+	return flow;
+}
+
+
+void brcmf_flowring_detach(struct brcmf_flowring *flow)
+{
+	struct brcmf_bus *bus_if = dev_get_drvdata(flow->dev);
+	struct brcmf_pub *drvr = bus_if->drvr;
+	u8 flowid;
+
+	for (flowid = 0; flowid < flow->nrofrings; flowid++) {
+		if (flow->rings[flowid])
+			brcmf_msgbuf_delete_flowring(drvr, flowid);
+	}
+	kfree(flow->rings);
+	kfree(flow);
+}
+
+
+void brcmf_flowring_configure_addr_mode(struct brcmf_flowring *flow, int ifidx,
+					enum proto_addr_mode addr_mode)
+{
+	struct brcmf_bus *bus_if = dev_get_drvdata(flow->dev);
+	struct brcmf_pub *drvr = bus_if->drvr;
+	u32 i;
+	u8 flowid;
+
+	if (flow->addr_mode[ifidx] != addr_mode) {
+		for (i = 0; i < ARRAY_SIZE(flow->hash); i++) {
+			if (flow->hash[i].ifidx == ifidx) {
+				flowid = flow->hash[i].flowid;
+				if (flow->rings[flowid]->status != RING_OPEN)
+					continue;
+				flow->rings[flowid]->status = RING_CLOSING;
+				brcmf_msgbuf_delete_flowring(drvr, flowid);
+			}
+		}
+		flow->addr_mode[ifidx] = addr_mode;
+	}
+}
+
+
+void brcmf_flowring_delete_peer(struct brcmf_flowring *flow, int ifidx,
+				u8 peer[ETH_ALEN])
+{
+	struct brcmf_bus *bus_if = dev_get_drvdata(flow->dev);
+	struct brcmf_pub *drvr = bus_if->drvr;
+	struct brcmf_flowring_hash *hash;
+	u32 i;
+	u8 flowid;
+	bool sta;
+
+	sta = (flow->addr_mode[ifidx] == ADDR_INDIRECT);
+	hash = flow->hash;
+	for (i = 0; i < BRCMF_FLOWRING_HASHSIZE; i++) {
+		if ((sta || (memcmp(hash[i].mac, peer, ETH_ALEN) == 0)) &&
+		    (hash[i].ifidx == ifidx)) {
+			flowid = flow->hash[i].flowid;
+			if (flow->rings[flowid]->status == RING_OPEN) {
+				flow->rings[flowid]->status = RING_CLOSING;
+				brcmf_msgbuf_delete_flowring(drvr, flowid);
+			}
+		}
+	}
+}
