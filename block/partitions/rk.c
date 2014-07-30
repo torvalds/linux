@@ -1,62 +1,31 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/bootmem.h>
-
 #include "check.h"
-#include "mtdpart.h"
+#include "rk.h"
 
-/* error message prefix */
-#define ERRP "mtd: "
-
-/* debug macro */
-#if 0
-#define dbg(x) do { printk("DEBUG-CMDLINE-PART: "); printk x; } while(0)
-#else
-#define dbg(x)
-#endif
-
-#define SECTOR_1G	0x200000	// 0x200000 * 512 = 1G
-#define FROM_OFFSET	0x2000		// 4MB
-
-/* special size referring to all the remaining space in a partition */
-#define SIZE_REMAINING UINT_MAX
-#define OFFSET_CONTINUOUS UINT_MAX
-
-struct mtd_partition{
-	char *name;
-	sector_t from;
-	sector_t size;
-};
-struct cmdline_mtd_partition {
-	struct cmdline_mtd_partition *next;
-	char *mtd_id;
-	int num_parts;
-	struct mtd_partition *parts;
-};
-
-/* mtdpart_setup() parses into here */
-static struct cmdline_mtd_partition *partitions;
-
+/* rkpart_setup() parses into here */
+static struct cmdline_rk_partition *partitions;
 /* the command line passed to mtdpart_setupd() */
 static char *cmdline;
-static int cmdline_parsed = 0;
+static int cmdline_parsed;
 
 /*
- * Parse one partition definition for an MTD. Since there can be many
+ * Parse one partition definition for an rkpart. Since there can be many
  * comma separated partition definitions, this function calls itself
  * recursively until no more partition definitions are found. Nice side
- * effect: the memory to keep the mtd_partition structs and the names
+ * effect: the memory to keep the rk_partition structs and the names
  * is allocated upon the last definition being found. At that point the
  * syntax has been verified ok.
  */
-static struct mtd_partition * newpart(char *s,
-                                      char **retptr,
-                                      int *num_parts,
-                                      int this_part,
-                                      unsigned char **extra_mem_ptr,
-                                      int extra_mem_size)
+static struct rk_partition *newpart(char *s,
+                                        char **retptr,
+                                        int *num_parts,
+                                        int this_part,
+                                        unsigned char **extra_mem_ptr,
+                                        int extra_mem_size)
 {
-	struct mtd_partition *parts;
+	struct rk_partition *parts;
 	sector_t size;
 	sector_t from = OFFSET_CONTINUOUS;
 	char *name;
@@ -73,7 +42,8 @@ static struct mtd_partition * newpart(char *s,
 	else
 	{
 		size = memparse(s, &s);
-		if (size < (PAGE_SIZE)>>9)
+		/* No sense support partition less than 8B */
+		if (size < ((PAGE_SIZE) >> 9))
 		{
 			printk(KERN_ERR ERRP "partition size too small (%llx)\n", size);
 			return NULL;
@@ -136,7 +106,7 @@ static struct mtd_partition * newpart(char *s,
 		int alloc_size;
 
 		*num_parts = this_part + 1;
-		alloc_size = *num_parts * sizeof(struct mtd_partition) +
+		alloc_size = *num_parts * sizeof(struct rk_partition) +
 			     extra_mem_size;
 		parts = kzalloc(alloc_size, GFP_KERNEL);
 		if (!parts)
@@ -180,28 +150,28 @@ static struct mtd_partition * newpart(char *s,
 /*
  * Parse the command line.
  */
-static int mtdpart_setup_real(char *s)
+static int rkpart_setup_real(char *s)
 {
 	cmdline_parsed = 1;
 
 	for( ; s != NULL; )
 	{
-		struct cmdline_mtd_partition *this_mtd;
-		struct mtd_partition *parts;
-	    	int mtd_id_len;
+		struct cmdline_rk_partition *this_rk;
+		struct rk_partition *parts;
+	    	int rk_id_len;
 		int num_parts;
-		char *p, *mtd_id;
+		char *p, *rk_id;
 
-	    	mtd_id = s;
-		/* fetch <mtd-id> */
+	    	rk_id = s;
+		/* fetch <rk-id> */
 		if (!(p = strchr(s, ':')))
 		{
-			dbg(( "no mtd-id\n"));
+			dbg(( "no rk-id\n"));
 			return 0;
 		}
-		mtd_id_len = p - mtd_id;
+		rk_id_len = p - rk_id;
 
-		dbg(("parsing <%s>\n", p+1));
+		dbg(("parsing <%s>\n", p + 1));
 
 		/*
 		 * parse one mtd. have it reserve memory for the
@@ -211,8 +181,8 @@ static int mtdpart_setup_real(char *s)
 				&s,		/* out: updated cmdline ptr */
 				&num_parts,	/* out: number of parts */
 				0,		/* first partition */
-				(unsigned char**)&this_mtd, /* out: extra mem */
-				mtd_id_len + 1 + sizeof(*this_mtd) +
+				(unsigned char**)&this_rk, /* out: extra mem */
+				rk_id_len + 1 + sizeof(*this_rk) +
 				sizeof(void*)-1 /*alignment*/);
 		if(!parts)
 		{
@@ -226,33 +196,25 @@ static int mtdpart_setup_real(char *s)
 			 return 0;
 		 }
 
-		/* align this_mtd */
-		this_mtd = (struct cmdline_mtd_partition *)
-			ALIGN((unsigned long)this_mtd, sizeof(void*));
+		/* align this_rk */
+		this_rk = (struct cmdline_rk_partition *)
+			ALIGN((unsigned long)this_rk, sizeof(void*));
 		/* enter results */
-		this_mtd->parts = parts;
-		this_mtd->num_parts = num_parts;
-		this_mtd->mtd_id = (char*)(this_mtd + 1);
-		strlcpy(this_mtd->mtd_id, mtd_id, mtd_id_len + 1);
+		this_rk->parts = parts;
+		this_rk->num_parts = num_parts;
+		this_rk->rk_id = (char*)(this_rk + 1);
+		strlcpy(this_rk->rk_id, rk_id, rk_id_len + 1);
 
 		/* link into chain */
-		this_mtd->next = partitions;
-		partitions = this_mtd;
+		this_rk->next = partitions;
+		partitions = this_rk;
 
-		dbg(("mtdid=<%s> num_parts=<%d>\n",
-		     this_mtd->mtd_id, this_mtd->num_parts));
+		dbg(("rkid=<%s> num_parts=<%d>\n",
+		     this_rk->mtd_id, this_rk->num_parts));
 
 		/* EOS - we're done */
 		if (*s == 0)
 			break;
-#if 0
-		/* does another spec follow? */
-		if (*s != ';')
-		{
-			printk(KERN_ERR ERRP "bad character after partition (%c)\n", *s);
-			return 0;
-		}
-#endif
 		s++;
 	}
 	return 1;
@@ -266,21 +228,22 @@ static int mtdpart_setup_real(char *s)
  * the first one in the chain if a NULL mtd_id is passed in.
  */
 static int parse_cmdline_partitions(sector_t n,
-                             	    struct mtd_partition **pparts,
+                             	    struct rk_partition **pparts,
                              	    unsigned long origin)
 {
 	unsigned long from;
 	int i;
-	struct cmdline_mtd_partition *part;
-	const char *mtd_id = "rk29xxnand";
+	struct cmdline_rk_partition *part;
+	/* Fixme: parameter should be coherence with part table id */
+	const char *rk_id = "rk29xxnand";
 
 	/* parse command line */
 	if (!cmdline_parsed)
-		mtdpart_setup_real(cmdline);
+		rkpart_setup_real(cmdline);
 
 	for(part = partitions; part; part = part->next)
 	{
-		if ((!mtd_id) || (!strcmp(part->mtd_id, mtd_id)))
+		if ((!rk_id) || (!strcmp(part->rk_id, rk_id)))
 		{
 			for(i = 0, from = 0; i < part->num_parts; i++)
 			{
@@ -294,7 +257,7 @@ static int parse_cmdline_partitions(sector_t n,
 				{
 					printk(KERN_WARNING ERRP
 					       "%s: partitioning exceeds flash size, truncating\n",
-					       part->mtd_id);
+					       part->rk_id);
 					part->parts[i].size = n - from;
 					part->num_parts = i;
 				}
@@ -311,53 +274,58 @@ static int parse_cmdline_partitions(sector_t n,
 	return 0;
 }
 
-static void rk_emmc_fix(void)
+static void rkpart_bootmode_fixup(void)
 {
-	const char mode_emmc[] = " androidboot.mode=emmc";
-	const char charger_emmc[] = " androidboot.charger.emmc=1";
+	const char mode[] = " androidboot.mode=emmc";
+	const char charger[] = " androidboot.charger.emmc=1";
 	char *new_command_line;
 	size_t saved_command_line_len = strlen(saved_command_line);
 
 	if (strstr(saved_command_line, "androidboot.mode=charger")) {
-		new_command_line = kzalloc(saved_command_line_len + strlen(charger_emmc) + 1, GFP_KERNEL);
-		sprintf(new_command_line, "%s%s", saved_command_line, charger_emmc);
+		new_command_line = kzalloc(saved_command_line_len + strlen(charger) + 1, GFP_KERNEL);
+		sprintf(new_command_line, "%s%s", saved_command_line, charger);
 	} else {
-		new_command_line = kzalloc(saved_command_line_len + strlen(mode_emmc) + 1, GFP_KERNEL);
-		sprintf(new_command_line, "%s%s", saved_command_line, mode_emmc);
+		new_command_line = kzalloc(saved_command_line_len + strlen(mode) + 1, GFP_KERNEL);
+		sprintf(new_command_line, "%s%s", saved_command_line, mode);
 	}
 	saved_command_line = new_command_line;
 }
 
-int mtdpart_partition(struct parsed_partitions *state)
+int rkpart_partition(struct parsed_partitions *state)
 {
 	int num_parts = 0, i;
 	sector_t n = get_capacity(state->bdev->bd_disk);
-	struct mtd_partition *parts = NULL;
+	struct rk_partition *parts = NULL;
 
-	if(n < SECTOR_1G)
+	if (n < SECTOR_1G)
 		return 0;
-	
-        //only used to eMMC-disk
-        if(1 != state->bdev->bd_disk->emmc_disk)
-        	return 0;
 
+        /* ONLY be used by eMMC-disk */
+        if (1 != state->bdev->bd_disk->emmc_disk)
+                return 0;
+
+        /* Fixme: parameter should be coherence with part table */
 	cmdline = strstr(saved_command_line, "mtdparts=") + 9;
-	
+	cmdline_parsed = 0;
+
 	num_parts = parse_cmdline_partitions(n, &parts, 0);
-	if(num_parts < 0)
+	if (num_parts < 0)
 		return num_parts;
 
-	for(i = 0; i < num_parts; i++){
-		put_partition(state, i+1, parts[i].from + FROM_OFFSET, parts[i].size);
+	for (i = 0; i < num_parts; i++) {
+		put_partition(  state,
+		                i+1,
+                                parts[i].from + FROM_OFFSET,
+                                parts[i].size);
 		strcpy(state->parts[i+1].info.volname, parts[i].name);
-		printk(KERN_INFO "%10s: 0x%09llx -- 0x%09llx (%llu MB)\n", 
+                printk(KERN_INFO "%10s: 0x%09llx -- 0x%09llx (%llu MB)\n", 
 				parts[i].name,
 				parts[i].from * 512,
 				(parts[i].from + parts[i].size) * 512,
 				parts[i].size / 2048);
 	}
 
-	rk_emmc_fix();
+	rkpart_bootmode_fixup();
 
 	return 1;
 }
