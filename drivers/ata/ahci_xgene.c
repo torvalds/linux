@@ -422,7 +422,6 @@ static int xgene_ahci_probe(struct platform_device *pdev)
 	struct ahci_host_priv *hpriv;
 	struct xgene_ahci_context *ctx;
 	struct resource *res;
-	unsigned long hflags;
 	int rc;
 
 	hpriv = ahci_platform_get_resources(pdev);
@@ -481,10 +480,9 @@ static int xgene_ahci_probe(struct platform_device *pdev)
 	/* Configure the host controller */
 	xgene_ahci_hw_init(hpriv);
 
-	hflags = AHCI_HFLAG_NO_PMP | AHCI_HFLAG_YES_NCQ;
+	hpriv->flags = AHCI_HFLAG_NO_PMP | AHCI_HFLAG_YES_NCQ;
 
-	rc = ahci_platform_init_host(pdev, hpriv, &xgene_ahci_port_info,
-				     hflags, 0, 0);
+	rc = ahci_platform_init_host(pdev, hpriv, &xgene_ahci_port_info);
 	if (rc)
 		goto disable_resources;
 

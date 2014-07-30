@@ -348,8 +348,7 @@ static int tegra_ahci_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ret = ahci_platform_init_host(pdev, hpriv, &ahci_tegra_port_info,
-				      0, 0, 0);
+	ret = ahci_platform_init_host(pdev, hpriv, &ahci_tegra_port_info);
 	if (ret)
 		goto deinit_controller;
 

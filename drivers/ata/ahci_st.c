@@ -166,7 +166,7 @@ static int st_ahci_probe(struct platform_device *pdev)
 	if (err)
 		return err;
 
-	err = ahci_platform_init_host(pdev, hpriv, &st_ahci_port_info, 0, 0, 0);
+	err = ahci_platform_init_host(pdev, hpriv, &st_ahci_port_info);
 	if (err) {
 		ahci_platform_disable_resources(hpriv);
 		return err;

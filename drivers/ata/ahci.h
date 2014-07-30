@@ -316,8 +316,12 @@ struct ahci_port_priv {
 };
 
 struct ahci_host_priv {
-	void __iomem *		mmio;		/* bus-independent mem map */
+	/* Input fields */
 	unsigned int		flags;		/* AHCI_HFLAG_* */
+	u32			force_port_map;	/* force port map */
+	u32			mask_port_map;	/* mask out particular bits */
+
+	void __iomem *		mmio;		/* bus-independent mem map */
 	u32			cap;		/* cap to use */
 	u32			cap2;		/* cap2 to use */
 	u32			port_map;	/* port map to use */
@@ -361,9 +365,7 @@ unsigned int ahci_dev_classify(struct ata_port *ap);
 void ahci_fill_cmd_slot(struct ahci_port_priv *pp, unsigned int tag,
 			u32 opts);
 void ahci_save_initial_config(struct device *dev,
-			      struct ahci_host_priv *hpriv,
-			      unsigned int force_port_map,
-			      unsigned int mask_port_map);
+			      struct ahci_host_priv *hpriv);
 void ahci_init_controller(struct ata_host *host);
 int ahci_reset_controller(struct ata_host *host);
 

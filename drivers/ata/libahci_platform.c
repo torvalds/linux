@@ -288,9 +288,6 @@ EXPORT_SYMBOL_GPL(ahci_platform_get_resources);
  * @pdev: platform device pointer for the host
  * @hpriv: ahci-host private data for the host
  * @pi_template: template for the ata_port_info to use
- * @host_flags: ahci host flags used in ahci_host_priv
- * @force_port_map: param passed to ahci_save_initial_config
- * @mask_port_map: param passed to ahci_save_initial_config
  *
  * This function does all the usual steps needed to bring up an
  * ahci-platform host, note any necessary resources (ie clks, phy, etc.)
@@ -301,10 +298,7 @@ EXPORT_SYMBOL_GPL(ahci_platform_get_resources);
  */
 int ahci_platform_init_host(struct platform_device *pdev,
 			    struct ahci_host_priv *hpriv,
-			    const struct ata_port_info *pi_template,
-			    unsigned long host_flags,
-			    unsigned int force_port_map,
-			    unsigned int mask_port_map)
+			    const struct ata_port_info *pi_template)
 {
 	struct device *dev = &pdev->dev;
 	struct ata_port_info pi = *pi_template;
@@ -319,10 +313,9 @@ int ahci_platform_init_host(struct platform_device *pdev,
 	}
 
 	/* prepare host */
-	pi.private_data = (void *)host_flags;
-	hpriv->flags |= host_flags;
+	pi.private_data = (void *)hpriv->flags;
 
-	ahci_save_initial_config(dev, hpriv, force_port_map, mask_port_map);
+	ahci_save_initial_config(dev, hpriv);
 
 	if (hpriv->cap & HOST_CAP_NCQ)
 		pi.flags |= ATA_FLAG_NCQ;

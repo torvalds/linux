@@ -512,7 +512,7 @@ static int ahci_highbank_probe(struct platform_device *pdev)
 		return rc;
 
 
-	ahci_save_initial_config(dev, hpriv, 0, 0);
+	ahci_save_initial_config(dev, hpriv);
 
 	/* prepare host */
 	if (hpriv->cap & HOST_CAP_NCQ)
