@@ -1,7 +1,7 @@
 /dts-v1/;
 #include "rk312x.dtsi"
 #include "rk312x-pinctrl.dtsi"
-#include "lcd-b101ew05.dtsi"
+#include "lcd-td043mgeal.dtsi"
 
 / {
 	compatible = "rockchip,rk3126";
@@ -27,6 +27,10 @@
 
 &rk_screen {
 	display-timings = <&disp_timings>;
+};
+
+&lvds {
+	status = "okay";
 };
 
 &lcdc {
