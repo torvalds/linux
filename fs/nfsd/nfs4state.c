@@ -6102,9 +6102,13 @@ static u64 nfsd_find_all_delegations(struct nfs4_client *clp, u64 max,
 				     struct list_head *victims)
 {
 	struct nfs4_delegation *dp, *next;
+	struct nfsd_net *nn = net_generic(current->nsproxy->net_ns,
+						nfsd_net_id);
 	u64 count = 0;
 
-	lockdep_assert_held(&state_lock);
+	lockdep_assert_held(&nn->client_lock);
+
+	spin_lock(&state_lock);
 	list_for_each_entry_safe(dp, next, &clp->cl_delegations, dl_perclnt) {
 		if (victims) {
 			/*
@@ -6116,62 +6120,180 @@ static u64 nfsd_find_all_delegations(struct nfs4_client *clp, u64 max,
 			if (dp->dl_time != 0)
 				continue;
 
+			atomic_inc(&clp->cl_refcount);
 			unhash_delegation_locked(dp);
 			list_add(&dp->dl_recall_lru, victims);
 		}
-		if (++count == max)
+		++count;
+		/*
+		 * Despite the fact that these functions deal with
+		 * 64-bit integers for "count", we must ensure that
+		 * it doesn't blow up the clp->cl_refcount. Throw a
+		 * warning if we start to approach INT_MAX here.
+		 */
+		WARN_ON_ONCE(count == (INT_MAX / 2));
+		if (count == max)
 			break;
 	}
+	spin_unlock(&state_lock);
 	return count;
 }
 
-u64 nfsd_forget_client_delegations(struct nfs4_client *clp, u64 max)
+static u64
+nfsd_print_client_delegations(struct nfs4_client *clp)
 {
-	struct nfs4_delegation *dp, *next;
-	LIST_HEAD(victims);
-	u64 count;
-
-	spin_lock(&state_lock);
-	count = nfsd_find_all_delegations(clp, max, &victims);
-	spin_unlock(&state_lock);
-
-	list_for_each_entry_safe(dp, next, &victims, dl_recall_lru) {
-		list_del_init(&dp->dl_recall_lru);
-		revoke_delegation(dp);
-	}
-
-	return count;
-}
-
-u64 nfsd_recall_client_delegations(struct nfs4_client *clp, u64 max)
-{
-	struct nfs4_delegation *dp;
-	LIST_HEAD(victims);
-	u64 count;
-
-	spin_lock(&state_lock);
-	count = nfsd_find_all_delegations(clp, max, &victims);
-	while (!list_empty(&victims)) {
-		dp = list_first_entry(&victims, struct nfs4_delegation,
-					dl_recall_lru);
-		list_del_init(&dp->dl_recall_lru);
-		dp->dl_time = 0;
-		nfsd_break_one_deleg(dp);
-	}
-	spin_unlock(&state_lock);
-
-	return count;
-}
-
-u64 nfsd_print_client_delegations(struct nfs4_client *clp, u64 max)
-{
-	u64 count = 0;
-
-	spin_lock(&state_lock);
-	count = nfsd_find_all_delegations(clp, max, NULL);
-	spin_unlock(&state_lock);
+	u64 count = nfsd_find_all_delegations(clp, 0, NULL);
 
 	nfsd_print_count(clp, count, "delegations");
+	return count;
+}
+
+u64
+nfsd_inject_print_delegations(struct nfsd_fault_inject_op *op)
+{
+	struct nfs4_client *clp;
+	u64 count = 0;
+	struct nfsd_net *nn = net_generic(current->nsproxy->net_ns,
+						nfsd_net_id);
+
+	if (!nfsd_netns_ready(nn))
+		return 0;
+
+	spin_lock(&nn->client_lock);
+	list_for_each_entry(clp, &nn->client_lru, cl_lru)
+		count += nfsd_print_client_delegations(clp);
+	spin_unlock(&nn->client_lock);
+
+	return count;
+}
+
+static void
+nfsd_forget_delegations(struct list_head *reaplist)
+{
+	struct nfs4_client *clp;
+	struct nfs4_delegation *dp, *next;
+
+	list_for_each_entry_safe(dp, next, reaplist, dl_recall_lru) {
+		list_del_init(&dp->dl_recall_lru);
+		clp = dp->dl_stid.sc_client;
+		revoke_delegation(dp);
+		put_client(clp);
+	}
+}
+
+u64
+nfsd_inject_forget_client_delegations(struct nfsd_fault_inject_op *op,
+				struct sockaddr_storage *addr, size_t addr_size)
+{
+	u64 count = 0;
+	struct nfs4_client *clp;
+	struct nfsd_net *nn = net_generic(current->nsproxy->net_ns,
+						nfsd_net_id);
+	LIST_HEAD(reaplist);
+
+	if (!nfsd_netns_ready(nn))
+		return count;
+
+	spin_lock(&nn->client_lock);
+	clp = nfsd_find_client(addr, addr_size);
+	if (clp)
+		count = nfsd_find_all_delegations(clp, 0, &reaplist);
+	spin_unlock(&nn->client_lock);
+
+	nfsd_forget_delegations(&reaplist);
+	return count;
+}
+
+u64
+nfsd_inject_forget_delegations(struct nfsd_fault_inject_op *op, u64 max)
+{
+	u64 count = 0;
+	struct nfs4_client *clp;
+	struct nfsd_net *nn = net_generic(current->nsproxy->net_ns,
+						nfsd_net_id);
+	LIST_HEAD(reaplist);
+
+	if (!nfsd_netns_ready(nn))
+		return count;
+
+	spin_lock(&nn->client_lock);
+	list_for_each_entry(clp, &nn->client_lru, cl_lru) {
+		count += nfsd_find_all_delegations(clp, max - count, &reaplist);
+		if (max != 0 && count >= max)
+			break;
+	}
+	spin_unlock(&nn->client_lock);
+	nfsd_forget_delegations(&reaplist);
+	return count;
+}
+
+static void
+nfsd_recall_delegations(struct list_head *reaplist)
+{
+	struct nfs4_client *clp;
+	struct nfs4_delegation *dp, *next;
+
+	list_for_each_entry_safe(dp, next, reaplist, dl_recall_lru) {
+		list_del_init(&dp->dl_recall_lru);
+		clp = dp->dl_stid.sc_client;
+		/*
+		 * We skipped all entries that had a zero dl_time before,
+		 * so we can now reset the dl_time back to 0. If a delegation
+		 * break comes in now, then it won't make any difference since
+		 * we're recalling it either way.
+		 */
+		spin_lock(&state_lock);
+		dp->dl_time = 0;
+		spin_unlock(&state_lock);
+		nfsd_break_one_deleg(dp);
+		put_client(clp);
+	}
+}
+
+u64
+nfsd_inject_recall_client_delegations(struct nfsd_fault_inject_op *op,
+				      struct sockaddr_storage *addr,
+				      size_t addr_size)
+{
+	u64 count = 0;
+	struct nfs4_client *clp;
+	struct nfsd_net *nn = net_generic(current->nsproxy->net_ns,
+						nfsd_net_id);
+	LIST_HEAD(reaplist);
+
+	if (!nfsd_netns_ready(nn))
+		return count;
+
+	spin_lock(&nn->client_lock);
+	clp = nfsd_find_client(addr, addr_size);
+	if (clp)
+		count = nfsd_find_all_delegations(clp, 0, &reaplist);
+	spin_unlock(&nn->client_lock);
+
+	nfsd_recall_delegations(&reaplist);
+	return count;
+}
+
+u64
+nfsd_inject_recall_delegations(struct nfsd_fault_inject_op *op, u64 max)
+{
+	u64 count = 0;
+	struct nfs4_client *clp, *next;
+	struct nfsd_net *nn = net_generic(current->nsproxy->net_ns,
+						nfsd_net_id);
+	LIST_HEAD(reaplist);
+
+	if (!nfsd_netns_ready(nn))
+		return count;
+
+	spin_lock(&nn->client_lock);
+	list_for_each_entry_safe(clp, next, &nn->client_lru, cl_lru) {
+		count += nfsd_find_all_delegations(clp, max - count, &reaplist);
+		if (max != 0 && ++count >= max)
+			break;
+	}
+	spin_unlock(&nn->client_lock);
+	nfsd_recall_delegations(&reaplist);
 	return count;
 }
 
@@ -6179,7 +6301,8 @@ u64 nfsd_for_n_state(u64 max, u64 (*func)(struct nfs4_client *, u64))
 {
 	struct nfs4_client *clp, *next;
 	u64 count = 0;
-	struct nfsd_net *nn = net_generic(current->nsproxy->net_ns, nfsd_net_id);
+	struct nfsd_net *nn = net_generic(current->nsproxy->net_ns,
+						nfsd_net_id);
 
 	if (!nfsd_netns_ready(nn))
 		return 0;

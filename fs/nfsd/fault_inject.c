@@ -152,19 +152,15 @@ static struct nfsd_fault_inject_op inject_ops[] = {
 	},
 	{
 		.file     = "forget_delegations",
-		.get	  = nfsd_inject_get,
-		.set_val  = nfsd_inject_set,
-		.set_clnt = nfsd_inject_set_client,
-		.forget   = nfsd_forget_client_delegations,
-		.print    = nfsd_print_client_delegations,
+		.get	  = nfsd_inject_print_delegations,
+		.set_val  = nfsd_inject_forget_delegations,
+		.set_clnt = nfsd_inject_forget_client_delegations,
 	},
 	{
 		.file     = "recall_delegations",
-		.get	  = nfsd_inject_get,
-		.set_val  = nfsd_inject_set,
-		.set_clnt = nfsd_inject_set_client,
-		.forget   = nfsd_recall_client_delegations,
-		.print    = nfsd_print_client_delegations,
+		.get	  = nfsd_inject_print_delegations,
+		.set_val  = nfsd_inject_recall_delegations,
+		.set_clnt = nfsd_inject_recall_client_delegations,
 	},
 };
 
