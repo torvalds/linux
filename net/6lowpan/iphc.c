@@ -462,6 +462,7 @@ int lowpan_process_data(struct sk_buff *skb, struct net_device *dev,
 	if (iphc0 & LOWPAN_IPHC_NH_C) {
 		struct udphdr uh;
 		struct sk_buff *new;
+
 		if (uncompress_udp_header(skb, &uh))
 			goto drop;
 
