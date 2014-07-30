@@ -199,7 +199,7 @@ EXPORT_SYMBOL(drm_modeset_lock_crtc);
 
 /**
  * drm_modeset_legacy_acquire_ctx - find acquire ctx for legacy ioctls
- * crtc: drm crtc
+ * @crtc: drm crtc
  *
  * Legacy ioctl operations like cursor updates or page flips only have per-crtc
  * locking, and store the acquire ctx in the corresponding crtc. All other
