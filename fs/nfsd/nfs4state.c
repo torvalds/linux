@@ -5723,6 +5723,28 @@ nfs4_check_open_reclaim(clientid_t *clid,
 }
 
 #ifdef CONFIG_NFSD_FAULT_INJECTION
+u64
+nfsd_inject_print_clients(struct nfsd_fault_inject_op *op)
+{
+	struct nfs4_client *clp;
+	u64 count = 0;
+	struct nfsd_net *nn = net_generic(current->nsproxy->net_ns,
+					  nfsd_net_id);
+	char buf[INET6_ADDRSTRLEN];
+
+	if (!nfsd_netns_ready(nn))
+		return 0;
+
+	spin_lock(&nn->client_lock);
+	list_for_each_entry(clp, &nn->client_lru, cl_lru) {
+		rpc_ntop((struct sockaddr *)&clp->cl_addr, buf, sizeof(buf));
+		pr_info("NFS Client: %s\n", buf);
+		++count;
+	}
+	spin_unlock(&nn->client_lock);
+
+	return count;
+}
 
 u64 nfsd_forget_client(struct nfs4_client *clp, u64 max)
 {
@@ -5735,14 +5757,6 @@ u64 nfsd_forget_client(struct nfs4_client *clp, u64 max)
 	if (ret != nfs_ok)
 		return 0;
 	expire_client(clp);
-	return 1;
-}
-
-u64 nfsd_print_client(struct nfs4_client *clp, u64 num)
-{
-	char buf[INET6_ADDRSTRLEN];
-	rpc_ntop((struct sockaddr *)&clp->cl_addr, buf, sizeof(buf));
-	printk(KERN_INFO "NFS Client: %s\n", buf);
 	return 1;
 }
 
