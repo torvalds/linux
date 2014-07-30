@@ -20,12 +20,13 @@ enum btrfs_feature_set {
 	.store	= _store,						\
 }
 
-#define BTRFS_ATTR_RW(_name, _mode, _show, _store)			\
+#define BTRFS_ATTR_RW(_name, _show, _store)			\
 	static struct kobj_attribute btrfs_attr_##_name =		\
-			__INIT_KOBJ_ATTR(_name, _mode, _show, _store)
+			__INIT_KOBJ_ATTR(_name, 0644, _show, _store)
 
 #define BTRFS_ATTR(_name, _show)					\
-			BTRFS_ATTR_RW(_name, 0444, _show, NULL)
+	static struct kobj_attribute btrfs_attr_##_name =		\
+			__INIT_KOBJ_ATTR(_name, 0444, _show, NULL)
 
 #define BTRFS_ATTR_PTR(_name)    (&btrfs_attr_##_name.attr)
 

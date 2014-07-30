@@ -401,7 +401,7 @@ static ssize_t btrfs_label_store(struct kobject *kobj,
 
 	return ret;
 }
-BTRFS_ATTR_RW(label, 0644, btrfs_label_show, btrfs_label_store);
+BTRFS_ATTR_RW(label, btrfs_label_show, btrfs_label_store);
 
 static ssize_t btrfs_nodesize_show(struct kobject *kobj,
 				struct kobj_attribute *a, char *buf)
