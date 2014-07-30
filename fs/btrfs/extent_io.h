@@ -279,12 +279,6 @@ static inline unsigned long num_extent_pages(u64 start, u64 len)
 		(start >> PAGE_CACHE_SHIFT);
 }
 
-static inline struct page *extent_buffer_page(struct extent_buffer *eb,
-					      unsigned long i)
-{
-	return eb->pages[i];
-}
-
 static inline void extent_buffer_get(struct extent_buffer *eb)
 {
 	atomic_inc(&eb->refs);

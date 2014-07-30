@@ -2064,7 +2064,7 @@ int repair_eb_io_failure(struct btrfs_root *root, struct extent_buffer *eb,
 		return -EROFS;
 
 	for (i = 0; i < num_pages; i++) {
-		struct page *p = extent_buffer_page(eb, i);
+		struct page *p = eb->pages[i];
 
 		ret = repair_io_failure(root->fs_info->btree_inode, start,
 					PAGE_CACHE_SIZE, start, p,
@@ -3580,7 +3580,7 @@ lock_extent_buffer_for_io(struct extent_buffer *eb,
 
 	num_pages = num_extent_pages(eb->start, eb->len);
 	for (i = 0; i < num_pages; i++) {
-		struct page *p = extent_buffer_page(eb, i);
+		struct page *p = eb->pages[i];
 
 		if (!trylock_page(p)) {
 			if (!flush) {
@@ -3651,7 +3651,7 @@ static noinline_for_stack int write_one_eb(struct extent_buffer *eb,
 		bio_flags = EXTENT_BIO_TREE_LOG;
 
 	for (i = 0; i < num_pages; i++) {
-		struct page *p = extent_buffer_page(eb, i);
+		struct page *p = eb->pages[i];
 
 		clear_page_dirty_for_io(p);
 		set_page_writeback(p);
@@ -3674,10 +3674,8 @@ static noinline_for_stack int write_one_eb(struct extent_buffer *eb,
 	}
 
 	if (unlikely(ret)) {
-		for (; i < num_pages; i++) {
-			struct page *p = extent_buffer_page(eb, i);
-			unlock_page(p);
-		}
+		for (; i < num_pages; i++)
+			unlock_page(eb->pages[i]);
 	}
 
 	return ret;
@@ -4464,7 +4462,7 @@ static void btrfs_release_extent_buffer_page(struct extent_buffer *eb)
 
 	do {
 		index--;
-		page = extent_buffer_page(eb, index);
+		page = eb->pages[index];
 		if (page && mapped) {
 			spin_lock(&page->mapping->private_lock);
 			/*
@@ -4646,7 +4644,8 @@ static void mark_extent_buffer_accessed(struct extent_buffer *eb,
 
 	num_pages = num_extent_pages(eb->start, eb->len);
 	for (i = 0; i < num_pages; i++) {
-		struct page *p = extent_buffer_page(eb, i);
+		struct page *p = eb->pages[i];
+
 		if (p != accessed)
 			mark_page_accessed(p);
 	}
@@ -4815,7 +4814,7 @@ again:
 	 */
 	SetPageChecked(eb->pages[0]);
 	for (i = 1; i < num_pages; i++) {
-		p = extent_buffer_page(eb, i);
+		p = eb->pages[i];
 		ClearPageChecked(p);
 		unlock_page(p);
 	}
@@ -4926,7 +4925,7 @@ void clear_extent_buffer_dirty(struct extent_buffer *eb)
 	num_pages = num_extent_pages(eb->start, eb->len);
 
 	for (i = 0; i < num_pages; i++) {
-		page = extent_buffer_page(eb, i);
+		page = eb->pages[i];
 		if (!PageDirty(page))
 			continue;
 
@@ -4962,7 +4961,7 @@ int set_extent_buffer_dirty(struct extent_buffer *eb)
 	WARN_ON(!test_bit(EXTENT_BUFFER_TREE_REF, &eb->bflags));
 
 	for (i = 0; i < num_pages; i++)
-		set_page_dirty(extent_buffer_page(eb, i));
+		set_page_dirty(eb->pages[i]);
 	return was_dirty;
 }
 
@@ -4975,7 +4974,7 @@ int clear_extent_buffer_uptodate(struct extent_buffer *eb)
 	clear_bit(EXTENT_BUFFER_UPTODATE, &eb->bflags);
 	num_pages = num_extent_pages(eb->start, eb->len);
 	for (i = 0; i < num_pages; i++) {
-		page = extent_buffer_page(eb, i);
+		page = eb->pages[i];
 		if (page)
 			ClearPageUptodate(page);
 	}
@@ -4991,7 +4990,7 @@ int set_extent_buffer_uptodate(struct extent_buffer *eb)
 	set_bit(EXTENT_BUFFER_UPTODATE, &eb->bflags);
 	num_pages = num_extent_pages(eb->start, eb->len);
 	for (i = 0; i < num_pages; i++) {
-		page = extent_buffer_page(eb, i);
+		page = eb->pages[i];
 		SetPageUptodate(page);
 	}
 	return 0;
@@ -5031,7 +5030,7 @@ int read_extent_buffer_pages(struct extent_io_tree *tree,
 
 	num_pages = num_extent_pages(eb->start, eb->len);
 	for (i = start_i; i < num_pages; i++) {
-		page = extent_buffer_page(eb, i);
+		page = eb->pages[i];
 		if (wait == WAIT_NONE) {
 			if (!trylock_page(page))
 				goto unlock_exit;
@@ -5054,7 +5053,7 @@ int read_extent_buffer_pages(struct extent_io_tree *tree,
 	eb->read_mirror = 0;
 	atomic_set(&eb->io_pages, num_reads);
 	for (i = start_i; i < num_pages; i++) {
-		page = extent_buffer_page(eb, i);
+		page = eb->pages[i];
 		if (!PageUptodate(page)) {
 			ClearPageError(page);
 			err = __extent_read_full_page(tree, page,
@@ -5079,7 +5078,7 @@ int read_extent_buffer_pages(struct extent_io_tree *tree,
 		return ret;
 
 	for (i = start_i; i < num_pages; i++) {
-		page = extent_buffer_page(eb, i);
+		page = eb->pages[i];
 		wait_on_page_locked(page);
 		if (!PageUptodate(page))
 			ret = -EIO;
@@ -5090,7 +5089,7 @@ int read_extent_buffer_pages(struct extent_io_tree *tree,
 unlock_exit:
 	i = start_i;
 	while (locked_pages > 0) {
-		page = extent_buffer_page(eb, i);
+		page = eb->pages[i];
 		i++;
 		unlock_page(page);
 		locked_pages--;
@@ -5116,7 +5115,7 @@ void read_extent_buffer(struct extent_buffer *eb, void *dstv,
 	offset = (start_offset + start) & (PAGE_CACHE_SIZE - 1);
 
 	while (len > 0) {
-		page = extent_buffer_page(eb, i);
+		page = eb->pages[i];
 
 		cur = min(len, (PAGE_CACHE_SIZE - offset));
 		kaddr = page_address(page);
@@ -5148,7 +5147,7 @@ int read_extent_buffer_to_user(struct extent_buffer *eb, void __user *dstv,
 	offset = (start_offset + start) & (PAGE_CACHE_SIZE - 1);
 
 	while (len > 0) {
-		page = extent_buffer_page(eb, i);
+		page = eb->pages[i];
 
 		cur = min(len, (PAGE_CACHE_SIZE - offset));
 		kaddr = page_address(page);
@@ -5197,7 +5196,7 @@ int map_private_extent_buffer(struct extent_buffer *eb, unsigned long start,
 		return -EINVAL;
 	}
 
-	p = extent_buffer_page(eb, i);
+	p = eb->pages[i];
 	kaddr = page_address(p);
 	*map = kaddr + offset;
 	*map_len = PAGE_CACHE_SIZE - offset;
@@ -5223,7 +5222,7 @@ int memcmp_extent_buffer(struct extent_buffer *eb, const void *ptrv,
 	offset = (start_offset + start) & (PAGE_CACHE_SIZE - 1);
 
 	while (len > 0) {
-		page = extent_buffer_page(eb, i);
+		page = eb->pages[i];
 
 		cur = min(len, (PAGE_CACHE_SIZE - offset));
 
@@ -5257,7 +5256,7 @@ void write_extent_buffer(struct extent_buffer *eb, const void *srcv,
 	offset = (start_offset + start) & (PAGE_CACHE_SIZE - 1);
 
 	while (len > 0) {
-		page = extent_buffer_page(eb, i);
+		page = eb->pages[i];
 		WARN_ON(!PageUptodate(page));
 
 		cur = min(len, PAGE_CACHE_SIZE - offset);
@@ -5287,7 +5286,7 @@ void memset_extent_buffer(struct extent_buffer *eb, char c,
 	offset = (start_offset + start) & (PAGE_CACHE_SIZE - 1);
 
 	while (len > 0) {
-		page = extent_buffer_page(eb, i);
+		page = eb->pages[i];
 		WARN_ON(!PageUptodate(page));
 
 		cur = min(len, PAGE_CACHE_SIZE - offset);
@@ -5318,7 +5317,7 @@ void copy_extent_buffer(struct extent_buffer *dst, struct extent_buffer *src,
 		(PAGE_CACHE_SIZE - 1);
 
 	while (len > 0) {
-		page = extent_buffer_page(dst, i);
+		page = dst->pages[i];
 		WARN_ON(!PageUptodate(page));
 
 		cur = min(len, (unsigned long)(PAGE_CACHE_SIZE - offset));
@@ -5396,8 +5395,7 @@ void memcpy_extent_buffer(struct extent_buffer *dst, unsigned long dst_offset,
 		cur = min_t(unsigned long, cur,
 			(unsigned long)(PAGE_CACHE_SIZE - dst_off_in_page));
 
-		copy_pages(extent_buffer_page(dst, dst_i),
-			   extent_buffer_page(dst, src_i),
+		copy_pages(dst->pages[dst_i], dst->pages[src_i],
 			   dst_off_in_page, src_off_in_page, cur);
 
 		src_offset += cur;
@@ -5443,8 +5441,7 @@ void memmove_extent_buffer(struct extent_buffer *dst, unsigned long dst_offset,
 
 		cur = min_t(unsigned long, len, src_off_in_page + 1);
 		cur = min(cur, dst_off_in_page + 1);
-		copy_pages(extent_buffer_page(dst, dst_i),
-			   extent_buffer_page(dst, src_i),
+		copy_pages(dst->pages[dst_i], dst->pages[src_i],
 			   dst_off_in_page - cur + 1,
 			   src_off_in_page - cur + 1, cur);
 
