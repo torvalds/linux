@@ -1285,6 +1285,19 @@ static void edp_panel_vdd_work(struct work_struct *__work)
 	drm_modeset_unlock(&dev->mode_config.connection_mutex);
 }
 
+static void edp_panel_vdd_schedule_off(struct intel_dp *intel_dp)
+{
+	unsigned long delay;
+
+	/*
+	 * Queue the timer to fire a long time from now (relative to the power
+	 * down delay) to keep the panel power up across a sequence of
+	 * operations.
+	 */
+	delay = msecs_to_jiffies(intel_dp->panel_power_cycle_delay * 5);
+	schedule_delayed_work(&intel_dp->panel_vdd_work, delay);
+}
+
 static void edp_panel_vdd_off(struct intel_dp *intel_dp, bool sync)
 {
 	if (!is_edp(intel_dp))
@@ -1294,17 +1307,10 @@ static void edp_panel_vdd_off(struct intel_dp *intel_dp, bool sync)
 
 	intel_dp->want_panel_vdd = false;
 
-	if (sync) {
+	if (sync)
 		edp_panel_vdd_off_sync(intel_dp);
-	} else {
-		/*
-		 * Queue the timer to fire a long
-		 * time from now (relative to the power down delay)
-		 * to keep the panel power up across a sequence of operations
-		 */
-		schedule_delayed_work(&intel_dp->panel_vdd_work,
-				      msecs_to_jiffies(intel_dp->panel_power_cycle_delay * 5));
-	}
+	else
+		edp_panel_vdd_schedule_off(intel_dp);
 }
 
 void intel_edp_panel_on(struct intel_dp *intel_dp)
@@ -4441,6 +4447,32 @@ intel_dp_drrs_init(struct intel_digital_port *intel_dig_port,
 	return downclock_mode;
 }
 
+void intel_edp_panel_vdd_sanitize(struct intel_encoder *intel_encoder)
+{
+	struct drm_device *dev = intel_encoder->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_dp *intel_dp;
+	enum intel_display_power_domain power_domain;
+
+	if (intel_encoder->type != INTEL_OUTPUT_EDP)
+		return;
+
+	intel_dp = enc_to_intel_dp(&intel_encoder->base);
+	if (!edp_have_panel_vdd(intel_dp))
+		return;
+	/*
+	 * The VDD bit needs a power domain reference, so if the bit is
+	 * already enabled when we boot or resume, grab this reference and
+	 * schedule a vdd off, so we don't hold on to the reference
+	 * indefinitely.
+	 */
+	DRM_DEBUG_KMS("VDD left on by BIOS, adjusting state tracking\n");
+	power_domain = intel_display_port_power_domain(intel_encoder);
+	intel_display_power_get(dev_priv, power_domain);
+
+	edp_panel_vdd_schedule_off(intel_dp);
+}
+
 static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 				     struct intel_connector *intel_connector,
 				     struct edp_power_seq *power_seq)
@@ -4461,13 +4493,7 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 	if (!is_edp(intel_dp))
 		return true;
 
-	/* The VDD bit needs a power domain reference, so if the bit is already
-	 * enabled when we boot, grab this reference. */
-	if (edp_have_panel_vdd(intel_dp)) {
-		enum intel_display_power_domain power_domain;
-		power_domain = intel_display_port_power_domain(intel_encoder);
-		intel_display_power_get(dev_priv, power_domain);
-	}
+	intel_edp_panel_vdd_sanitize(intel_encoder);
 
 	/* Cache DPCD and EDID for edp. */
 	intel_edp_panel_vdd_on(intel_dp);
