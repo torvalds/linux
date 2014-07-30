@@ -6293,7 +6293,7 @@ static int i40e_vsi_alloc_arrays(struct i40e_vsi *vsi, bool alloc_qvectors)
 
 	if (alloc_qvectors) {
 		/* allocate memory for q_vector pointers */
-		size = sizeof(struct i40e_q_vectors *) * vsi->num_q_vectors;
+		size = sizeof(struct i40e_q_vector *) * vsi->num_q_vectors;
 		vsi->q_vectors = kzalloc(size, GFP_KERNEL);
 		if (!vsi->q_vectors) {
 			ret = -ENOMEM;
