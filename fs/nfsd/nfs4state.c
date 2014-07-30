@@ -1416,9 +1416,6 @@ static void __free_session(struct nfsd4_session *ses)
 
 static void free_session(struct nfsd4_session *ses)
 {
-	struct nfsd_net *nn = net_generic(ses->se_client->net, nfsd_net_id);
-
-	lockdep_assert_held(&nn->client_lock);
 	nfsd4_del_conns(ses);
 	nfsd4_put_drc_mem(&ses->se_fchannel);
 	__free_session(ses);
@@ -1568,9 +1565,6 @@ err_no_name:
 static void
 free_client(struct nfs4_client *clp)
 {
-	struct nfsd_net __maybe_unused *nn = net_generic(clp->net, nfsd_net_id);
-
-	lockdep_assert_held(&nn->client_lock);
 	while (!list_empty(&clp->cl_sessions)) {
 		struct nfsd4_session *ses;
 		ses = list_entry(clp->cl_sessions.next, struct nfsd4_session,
@@ -1627,7 +1621,6 @@ __destroy_client(struct nfs4_client *clp)
 	struct nfs4_openowner *oo;
 	struct nfs4_delegation *dp;
 	struct list_head reaplist;
-	struct nfsd_net *nn = net_generic(clp->net, nfsd_net_id);
 
 	INIT_LIST_HEAD(&reaplist);
 	spin_lock(&state_lock);
@@ -1655,10 +1648,7 @@ __destroy_client(struct nfs4_client *clp)
 	nfsd4_shutdown_callback(clp);
 	if (clp->cl_cb_conn.cb_xprt)
 		svc_xprt_put(clp->cl_cb_conn.cb_xprt);
-	spin_lock(&nn->client_lock);
-	WARN_ON_ONCE(atomic_read(&clp->cl_refcount));
 	free_client(clp);
-	spin_unlock(&nn->client_lock);
 }
 
 static void
@@ -1862,7 +1852,6 @@ static struct nfs4_client *create_client(struct xdr_netobj name,
 	struct sockaddr *sa = svc_addr(rqstp);
 	int ret;
 	struct net *net = SVC_NET(rqstp);
-	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 
 	clp = alloc_client(name);
 	if (clp == NULL)
@@ -1870,9 +1859,7 @@ static struct nfs4_client *create_client(struct xdr_netobj name,
 
 	ret = copy_cred(&clp->cl_cred, &rqstp->rq_cred);
 	if (ret) {
-		spin_lock(&nn->client_lock);
 		free_client(clp);
-		spin_unlock(&nn->client_lock);
 		return NULL;
 	}
 	INIT_WORK(&clp->cl_cb_null.cb_work, nfsd4_run_cb_null);
