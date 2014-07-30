@@ -36,6 +36,8 @@ struct brcmf_proto {
 				    enum proto_addr_mode addr_mode);
 	void (*delete_peer)(struct brcmf_pub *drvr, int ifidx,
 			    u8 peer[ETH_ALEN]);
+	void (*add_tdls_peer)(struct brcmf_pub *drvr, int ifidx,
+			      u8 peer[ETH_ALEN]);
 	void *pd;
 };
 
@@ -73,6 +75,11 @@ static inline void
 brcmf_proto_delete_peer(struct brcmf_pub *drvr, int ifidx, u8 peer[ETH_ALEN])
 {
 	drvr->proto->delete_peer(drvr, ifidx, peer);
+}
+static inline void
+brcmf_proto_add_tdls_peer(struct brcmf_pub *drvr, int ifidx, u8 peer[ETH_ALEN])
+{
+	drvr->proto->add_tdls_peer(drvr, ifidx, peer);
 }
 
 

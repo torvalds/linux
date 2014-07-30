@@ -4155,6 +4155,27 @@ static void brcmf_cfg80211_crit_proto_stop(struct wiphy *wiphy,
 	clear_bit(BRCMF_SCAN_STATUS_SUPPRESS, &cfg->scan_status);
 }
 
+static s32
+brcmf_notify_tdls_peer_event(struct brcmf_if *ifp,
+			     const struct brcmf_event_msg *e, void *data)
+{
+	switch (e->reason) {
+	case BRCMF_E_REASON_TDLS_PEER_DISCOVERED:
+		brcmf_dbg(TRACE, "TDLS Peer Discovered\n");
+		break;
+	case BRCMF_E_REASON_TDLS_PEER_CONNECTED:
+		brcmf_dbg(TRACE, "TDLS Peer Connected\n");
+		brcmf_proto_add_tdls_peer(ifp->drvr, ifp->ifidx, (u8 *)e->addr);
+		break;
+	case BRCMF_E_REASON_TDLS_PEER_DISCONNECTED:
+		brcmf_dbg(TRACE, "TDLS Peer Disconnected\n");
+		brcmf_proto_delete_peer(ifp->drvr, ifp->ifidx, (u8 *)e->addr);
+		break;
+	}
+
+	return 0;
+}
+
 static int brcmf_convert_nl80211_tdls_oper(enum nl80211_tdls_operation oper)
 {
 	int ret;
@@ -5691,6 +5712,9 @@ struct brcmf_cfg80211_info *brcmf_cfg80211_attach(struct brcmf_pub *drvr,
 	if (err) {
 		brcmf_dbg(INFO, "TDLS not enabled (%d)\n", err);
 		wiphy->flags &= ~WIPHY_FLAG_SUPPORTS_TDLS;
+	} else {
+		brcmf_fweh_register(cfg->pub, BRCMF_E_TDLS_PEER_EVENT,
+				    brcmf_notify_tdls_peer_event);
 	}
 
 	return cfg;

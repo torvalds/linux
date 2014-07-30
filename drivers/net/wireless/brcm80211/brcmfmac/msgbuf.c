@@ -752,6 +752,15 @@ brcmf_msgbuf_delete_peer(struct brcmf_pub *drvr, int ifidx, u8 peer[ETH_ALEN])
 
 
 static void
+brcmf_msgbuf_add_tdls_peer(struct brcmf_pub *drvr, int ifidx, u8 peer[ETH_ALEN])
+{
+	struct brcmf_msgbuf *msgbuf = (struct brcmf_msgbuf *)drvr->proto->pd;
+
+	brcmf_flowring_add_tdls_peer(msgbuf->flow, ifidx, peer);
+}
+
+
+static void
 brcmf_msgbuf_process_ioctl_complete(struct brcmf_msgbuf *msgbuf, void *buf)
 {
 	struct msgbuf_ioctl_resp_hdr *ioctl_resp;
@@ -1298,6 +1307,7 @@ int brcmf_proto_msgbuf_attach(struct brcmf_pub *drvr)
 	drvr->proto->txdata = brcmf_msgbuf_txdata;
 	drvr->proto->configure_addr_mode = brcmf_msgbuf_configure_addr_mode;
 	drvr->proto->delete_peer = brcmf_msgbuf_delete_peer;
+	drvr->proto->add_tdls_peer = brcmf_msgbuf_add_tdls_peer;
 	drvr->proto->pd = msgbuf;
 
 	init_waitqueue_head(&msgbuf->ioctl_resp_wait);

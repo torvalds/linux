@@ -49,6 +49,23 @@ static const u8 brcmf_flowring_prio2fifo[] = {
 };
 
 
+static bool
+brcmf_flowring_is_tdls_mac(struct brcmf_flowring *flow, u8 mac[ETH_ALEN])
+{
+	struct brcmf_flowring_tdls_entry *search;
+
+	search = flow->tdls_entry;
+
+	while (search) {
+		if (memcmp(search->mac, mac, ETH_ALEN) == 0)
+			return true;
+		search = search->next;
+	}
+
+	return false;
+}
+
+
 u32 brcmf_flowring_lookup(struct brcmf_flowring *flow, u8 da[ETH_ALEN],
 			  u8 prio, u8 ifidx)
 {
@@ -66,6 +83,10 @@ u32 brcmf_flowring_lookup(struct brcmf_flowring *flow, u8 da[ETH_ALEN],
 	if ((!sta) && (is_multicast_ether_addr(da))) {
 		mac = (u8 *)ALLFFMAC;
 		fifo = 0;
+	}
+	if ((sta) && (flow->tdls_active) &&
+	    (brcmf_flowring_is_tdls_mac(flow, da))) {
+		sta = false;
 	}
 	hash_idx =  sta ? BRCMF_FLOWRING_HASH_STA(fifo, ifidx) :
 			  BRCMF_FLOWRING_HASH_AP(mac, fifo, ifidx);
@@ -106,15 +127,17 @@ u32 brcmf_flowring_create(struct brcmf_flowring *flow, u8 da[ETH_ALEN],
 		mac = (u8 *)ALLFFMAC;
 		fifo = 0;
 	}
+	if ((sta) && (flow->tdls_active) &&
+	    (brcmf_flowring_is_tdls_mac(flow, da))) {
+		sta = false;
+	}
 	hash_idx =  sta ? BRCMF_FLOWRING_HASH_STA(fifo, ifidx) :
 			  BRCMF_FLOWRING_HASH_AP(mac, fifo, ifidx);
 	found = false;
 	hash = flow->hash;
 	for (i = 0; i < BRCMF_FLOWRING_HASHSIZE; i++) {
-		if (((sta) &&
-		     (hash[hash_idx].ifidx == BRCMF_FLOWRING_INVALID_IFIDX)) ||
-		    ((!sta) &&
-		     (memcmp(hash[hash_idx].mac, ALLZEROMAC, ETH_ALEN) == 0))) {
+		if ((hash[hash_idx].ifidx == BRCMF_FLOWRING_INVALID_IFIDX) &&
+		    (memcmp(hash[hash_idx].mac, ALLZEROMAC, ETH_ALEN) == 0)) {
 			found = true;
 			break;
 		}
@@ -356,11 +379,20 @@ void brcmf_flowring_detach(struct brcmf_flowring *flow)
 {
 	struct brcmf_bus *bus_if = dev_get_drvdata(flow->dev);
 	struct brcmf_pub *drvr = bus_if->drvr;
+	struct brcmf_flowring_tdls_entry *search;
+	struct brcmf_flowring_tdls_entry *remove;
 	u8 flowid;
 
 	for (flowid = 0; flowid < flow->nrofrings; flowid++) {
 		if (flow->rings[flowid])
 			brcmf_msgbuf_delete_flowring(drvr, flowid);
+	}
+
+	search = flow->tdls_entry;
+	while (search) {
+		remove = search;
+		search = search->next;
+		kfree(remove);
 	}
 	kfree(flow->rings);
 	kfree(flow);
@@ -396,11 +428,25 @@ void brcmf_flowring_delete_peer(struct brcmf_flowring *flow, int ifidx,
 	struct brcmf_bus *bus_if = dev_get_drvdata(flow->dev);
 	struct brcmf_pub *drvr = bus_if->drvr;
 	struct brcmf_flowring_hash *hash;
+	struct brcmf_flowring_tdls_entry *prev;
+	struct brcmf_flowring_tdls_entry *search;
 	u32 i;
 	u8 flowid;
 	bool sta;
 
 	sta = (flow->addr_mode[ifidx] == ADDR_INDIRECT);
+
+	search = flow->tdls_entry;
+	prev = NULL;
+	while (search) {
+		if (memcmp(search->mac, peer, ETH_ALEN) == 0) {
+			sta = false;
+			break;
+		}
+		prev = search;
+		search = search->next;
+	}
+
 	hash = flow->hash;
 	for (i = 0; i < BRCMF_FLOWRING_HASHSIZE; i++) {
 		if ((sta || (memcmp(hash[i].mac, peer, ETH_ALEN) == 0)) &&
@@ -412,4 +458,44 @@ void brcmf_flowring_delete_peer(struct brcmf_flowring *flow, int ifidx,
 			}
 		}
 	}
+
+	if (search) {
+		if (prev)
+			prev->next = search->next;
+		else
+			flow->tdls_entry = search->next;
+		kfree(search);
+		if (flow->tdls_entry == NULL)
+			flow->tdls_active = false;
+	}
+}
+
+
+void brcmf_flowring_add_tdls_peer(struct brcmf_flowring *flow, int ifidx,
+				  u8 peer[ETH_ALEN])
+{
+	struct brcmf_flowring_tdls_entry *tdls_entry;
+	struct brcmf_flowring_tdls_entry *search;
+
+	tdls_entry = kzalloc(sizeof(*tdls_entry), GFP_ATOMIC);
+	if (tdls_entry == NULL)
+		return;
+
+	memcpy(tdls_entry->mac, peer, ETH_ALEN);
+	tdls_entry->next = NULL;
+	if (flow->tdls_entry == NULL) {
+		flow->tdls_entry = tdls_entry;
+	} else {
+		search = flow->tdls_entry;
+		if (memcmp(search->mac, peer, ETH_ALEN) == 0)
+			return;
+		while (search->next) {
+			search = search->next;
+			if (memcmp(search->mac, peer, ETH_ALEN) == 0)
+				return;
+		}
+		search->next = tdls_entry;
+	}
+
+	flow->tdls_active = true;
 }

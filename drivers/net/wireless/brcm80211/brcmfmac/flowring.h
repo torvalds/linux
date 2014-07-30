@@ -40,6 +40,11 @@ struct brcmf_flowring_ring {
 	struct sk_buff_head skblist;
 };
 
+struct brcmf_flowring_tdls_entry {
+	u8 mac[ETH_ALEN];
+	struct brcmf_flowring_tdls_entry *next;
+};
+
 struct brcmf_flowring {
 	struct device *dev;
 	struct brcmf_flowring_hash hash[BRCMF_FLOWRING_HASHSIZE];
@@ -47,6 +52,8 @@ struct brcmf_flowring {
 	spinlock_t block_lock;
 	enum proto_addr_mode addr_mode[BRCMF_MAX_IFS];
 	u16 nrofrings;
+	bool tdls_active;
+	struct brcmf_flowring_tdls_entry *tdls_entry;
 };
 
 
@@ -70,6 +77,8 @@ void brcmf_flowring_configure_addr_mode(struct brcmf_flowring *flow, int ifidx,
 					enum proto_addr_mode addr_mode);
 void brcmf_flowring_delete_peer(struct brcmf_flowring *flow, int ifidx,
 				u8 peer[ETH_ALEN]);
+void brcmf_flowring_add_tdls_peer(struct brcmf_flowring *flow, int ifidx,
+				  u8 peer[ETH_ALEN]);
 
 
 #endif /* BRCMFMAC_FLOWRING_H */
