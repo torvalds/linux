@@ -35,7 +35,7 @@
  * of extra utility/tracking out of our acquire-ctx.  This is provided
  * by drm_modeset_lock / drm_modeset_acquire_ctx.
  *
- * For basic principles of ww_mutex, see: Documentation/ww-mutex-design.txt
+ * For basic principles of ww_mutex, see: Documentation/locking/ww-mutex-design.txt
  *
  * The basic usage pattern is to:
  *

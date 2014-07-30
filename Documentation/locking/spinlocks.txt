@@ -105,9 +105,9 @@ never used in interrupt handlers, you can use the non-irq versions:
 	spin_unlock(&lock);
 
 (and the equivalent read-write versions too, of course). The spinlock will
-guarantee the same kind of exclusive access, and it will be much faster. 
+guarantee the same kind of exclusive access, and it will be much faster.
 This is useful if you know that the data in question is only ever
-manipulated from a "process context", ie no interrupts involved. 
+manipulated from a "process context", ie no interrupts involved.
 
 The reasons you mustn't use these versions if you have interrupts that
 play with the spinlock is that you can get deadlocks:
@@ -122,21 +122,21 @@ the other interrupt happens on another CPU, but it is _not_ ok if the
 interrupt happens on the same CPU that already holds the lock, because the
 lock will obviously never be released (because the interrupt is waiting
 for the lock, and the lock-holder is interrupted by the interrupt and will
-not continue until the interrupt has been processed). 
+not continue until the interrupt has been processed).
 
 (This is also the reason why the irq-versions of the spinlocks only need
 to disable the _local_ interrupts - it's ok to use spinlocks in interrupts
 on other CPU's, because an interrupt on another CPU doesn't interrupt the
 CPU that holds the lock, so the lock-holder can continue and eventually
-releases the lock). 
+releases the lock).
 
 Note that you can be clever with read-write locks and interrupts. For
 example, if you know that the interrupt only ever gets a read-lock, then
 you can use a non-irq version of read locks everywhere - because they
-don't block on each other (and thus there is no dead-lock wrt interrupts. 
-But when you do the write-lock, you have to use the irq-safe version. 
+don't block on each other (and thus there is no dead-lock wrt interrupts.
+But when you do the write-lock, you have to use the irq-safe version.
 
-For an example of being clever with rw-locks, see the "waitqueue_lock" 
+For an example of being clever with rw-locks, see the "waitqueue_lock"
 handling in kernel/sched/core.c - nothing ever _changes_ a wait-queue from
 within an interrupt, they only read the queue in order to know whom to
 wake up. So read-locks are safe (which is good: they are very common
