@@ -6,4 +6,5 @@ obj-$(CONFIG_DRM_STI) = \
 	sti_vtg.o \
 	sti_vtac.o \
 	stihdmi.o \
-	sti_hda.o
+	sti_hda.o \
+	sti_tvout.o
