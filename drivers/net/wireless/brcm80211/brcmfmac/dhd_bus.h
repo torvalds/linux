@@ -120,6 +120,7 @@ struct brcmf_bus {
 	union {
 		struct brcmf_sdio_dev *sdio;
 		struct brcmf_usbdev *usb;
+		struct brcmf_pciedev *pcie;
 	} bus_priv;
 	enum brcmf_bus_protocol_type proto_type;
 	struct device *dev;

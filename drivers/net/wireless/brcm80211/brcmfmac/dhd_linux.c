@@ -32,6 +32,7 @@
 #include "fwsignal.h"
 #include "feature.h"
 #include "proto.h"
+#include "pcie.h"
 
 MODULE_AUTHOR("Broadcom Corporation");
 MODULE_DESCRIPTION("Broadcom 802.11 wireless LAN fullmac driver.");
@@ -1084,6 +1085,9 @@ static void brcmf_driver_register(struct work_struct *work)
 #ifdef CONFIG_BRCMFMAC_USB
 	brcmf_usb_register();
 #endif
+#ifdef CONFIG_BRCMFMAC_PCIE
+	brcmf_pcie_register();
+#endif
 }
 static DECLARE_WORK(brcmf_driver_work, brcmf_driver_register);
 
@@ -1108,6 +1112,9 @@ static void __exit brcmfmac_module_exit(void)
 #endif
 #ifdef CONFIG_BRCMFMAC_USB
 	brcmf_usb_exit();
+#endif
+#ifdef CONFIG_BRCMFMAC_PCIE
+	brcmf_pcie_exit();
 #endif
 	brcmf_debugfs_exit();
 }

@@ -36,6 +36,7 @@
 #define BRCMF_BCDC_VAL		0x00010000
 #define BRCMF_SDIO_VAL		0x00020000
 #define BRCMF_MSGBUF_VAL	0x00040000
+#define BRCMF_PCIE_VAL		0x00080000
 
 /* set default print format */
 #undef pr_fmt

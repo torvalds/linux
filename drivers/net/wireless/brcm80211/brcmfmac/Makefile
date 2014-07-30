@@ -45,6 +45,8 @@ brcmfmac-$(CONFIG_BRCMFMAC_SDIO) += \
 		bcmsdh.o
 brcmfmac-$(CONFIG_BRCMFMAC_USB) += \
 		usb.o
+brcmfmac-$(CONFIG_BRCMFMAC_PCIE) += \
+		pcie.o
 brcmfmac-$(CONFIG_BRCMDBG) += \
 		dhd_dbg.o
 brcmfmac-$(CONFIG_BRCM_TRACING) += \
