@@ -406,14 +406,6 @@ static int mn_clear_flush_young(struct mmu_notifier *mn,
 	return 0;
 }
 
-static void mn_change_pte(struct mmu_notifier *mn,
-			  struct mm_struct *mm,
-			  unsigned long address,
-			  pte_t pte)
-{
-	__mn_flush_page(mn, address);
-}
-
 static void mn_invalidate_page(struct mmu_notifier *mn,
 			       struct mm_struct *mm,
 			       unsigned long address)
@@ -484,7 +476,6 @@ static void mn_release(struct mmu_notifier *mn, struct mm_struct *mm)
 static struct mmu_notifier_ops iommu_mn = {
 	.release		= mn_release,
 	.clear_flush_young      = mn_clear_flush_young,
-	.change_pte             = mn_change_pte,
 	.invalidate_page        = mn_invalidate_page,
 	.invalidate_range_start = mn_invalidate_range_start,
 	.invalidate_range_end   = mn_invalidate_range_end,
