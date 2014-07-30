@@ -571,6 +571,19 @@
 		status = "disabled";
 	};
 
+	hdmi: hdmi@20034000 {
+		compatible = "rockchip,rk3036-hdmi";
+		reg = <0x20034000 0x4000>;
+		interrupts = <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>;
+		rockchip,hdmi_lcdc_source = <0>;
+		pinctrl-names = "default", "gpio";
+		pinctrl-0 = <&hdmi_cec &hdmi_sda &hdmi_scl &hdmi_hpd>;
+		pinctrl-1 = <&hdmi_gpio>;
+		clocks = <&clk_gates3 8>;
+		clock-names = "pclk_hdmi";
+		status = "disabled";
+	};
+
         vpu: vpu_service@10104000 {
 		compatible = "vpu_service";
 		reg = <0x10104000 0x800>;
