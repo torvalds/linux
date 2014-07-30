@@ -603,7 +603,7 @@ static u32 get_current_settings(struct hci_dev *hdev)
 	if (test_bit(HCI_DISCOVERABLE, &hdev->dev_flags))
 		settings |= MGMT_SETTING_DISCOVERABLE;
 
-	if (test_bit(HCI_PAIRABLE, &hdev->dev_flags))
+	if (test_bit(HCI_BONDABLE, &hdev->dev_flags))
 		settings |= MGMT_SETTING_PAIRABLE;
 
 	if (test_bit(HCI_BREDR_ENABLED, &hdev->dev_flags))
@@ -1152,7 +1152,7 @@ static void mgmt_init_hdev(struct sock *sk, struct hci_dev *hdev)
 	 * for mgmt we require user-space to explicitly enable
 	 * it
 	 */
-	clear_bit(HCI_PAIRABLE, &hdev->dev_flags);
+	clear_bit(HCI_BONDABLE, &hdev->dev_flags);
 }
 
 static int read_controller_info(struct sock *sk, struct hci_dev *hdev,
@@ -1946,9 +1946,9 @@ static int set_pairable(struct sock *sk, struct hci_dev *hdev, void *data,
 	hci_dev_lock(hdev);
 
 	if (cp->val)
-		changed = !test_and_set_bit(HCI_PAIRABLE, &hdev->dev_flags);
+		changed = !test_and_set_bit(HCI_BONDABLE, &hdev->dev_flags);
 	else
-		changed = test_and_clear_bit(HCI_PAIRABLE, &hdev->dev_flags);
+		changed = test_and_clear_bit(HCI_BONDABLE, &hdev->dev_flags);
 
 	err = send_settings_rsp(sk, MGMT_OP_SET_PAIRABLE, hdev);
 	if (err < 0)

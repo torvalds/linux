@@ -307,7 +307,7 @@ static void build_pairing_cmd(struct l2cap_conn *conn,
 	struct hci_dev *hdev = hcon->hdev;
 	u8 local_dist = 0, remote_dist = 0;
 
-	if (test_bit(HCI_PAIRABLE, &conn->hcon->hdev->dev_flags)) {
+	if (test_bit(HCI_BONDABLE, &conn->hcon->hdev->dev_flags)) {
 		local_dist = SMP_DIST_ENC_KEY | SMP_DIST_SIGN;
 		remote_dist = SMP_DIST_ENC_KEY | SMP_DIST_SIGN;
 		authreq |= SMP_AUTH_BONDING;
@@ -704,7 +704,7 @@ static u8 smp_cmd_pairing_req(struct l2cap_conn *conn, struct sk_buff *skb)
 	if (!smp)
 		return SMP_UNSPECIFIED;
 
-	if (!test_bit(HCI_PAIRABLE, &hdev->dev_flags) &&
+	if (!test_bit(HCI_BONDABLE, &hdev->dev_flags) &&
 	    (req->auth_req & SMP_AUTH_BONDING))
 		return SMP_PAIRING_NOTSUPP;
 
@@ -930,7 +930,7 @@ static u8 smp_cmd_security_req(struct l2cap_conn *conn, struct sk_buff *skb)
 	if (!smp)
 		return SMP_UNSPECIFIED;
 
-	if (!test_bit(HCI_PAIRABLE, &hcon->hdev->dev_flags) &&
+	if (!test_bit(HCI_BONDABLE, &hcon->hdev->dev_flags) &&
 	    (rp->auth_req & SMP_AUTH_BONDING))
 		return SMP_PAIRING_NOTSUPP;
 
