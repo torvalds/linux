@@ -2181,6 +2181,10 @@ nfsd4_exchange_id(struct svc_rqst *rqstp,
 		return nfserr_encr_alg_unsupp;
 	}
 
+	new = create_client(exid->clname, rqstp, &verf);
+	if (new == NULL)
+		return nfserr_jukebox;
+
 	/* Cases below refer to rfc 5661 section 18.35.4: */
 	nfs4_lock_state();
 	conf = find_confirmed_client_by_name(&exid->clname, nn);
@@ -2207,7 +2211,6 @@ nfsd4_exchange_id(struct svc_rqst *rqstp,
 			}
 			/* case 6 */
 			exid->flags |= EXCHGID4_FLAG_CONFIRMED_R;
-			new = conf;
 			goto out_copy;
 		}
 		if (!creds_match) { /* case 3 */
@@ -2220,7 +2223,6 @@ nfsd4_exchange_id(struct svc_rqst *rqstp,
 		}
 		if (verfs_match) { /* case 2 */
 			conf->cl_exchange_flags |= EXCHGID4_FLAG_CONFIRMED_R;
-			new = conf;
 			goto out_copy;
 		}
 		/* case 5, client reboot */
@@ -2238,29 +2240,28 @@ nfsd4_exchange_id(struct svc_rqst *rqstp,
 
 	/* case 1 (normal case) */
 out_new:
-	new = create_client(exid->clname, rqstp, &verf);
-	if (new == NULL) {
-		status = nfserr_jukebox;
-		goto out;
-	}
 	new->cl_minorversion = cstate->minorversion;
 	new->cl_mach_cred = (exid->spa_how == SP4_MACH_CRED);
 
 	gen_clid(new, nn);
 	add_to_unconfirmed(new);
+	conf = new;
+	new = NULL;
 out_copy:
-	exid->clientid.cl_boot = new->cl_clientid.cl_boot;
-	exid->clientid.cl_id = new->cl_clientid.cl_id;
+	exid->clientid.cl_boot = conf->cl_clientid.cl_boot;
+	exid->clientid.cl_id = conf->cl_clientid.cl_id;
 
-	exid->seqid = new->cl_cs_slot.sl_seqid + 1;
-	nfsd4_set_ex_flags(new, exid);
+	exid->seqid = conf->cl_cs_slot.sl_seqid + 1;
+	nfsd4_set_ex_flags(conf, exid);
 
 	dprintk("nfsd4_exchange_id seqid %d flags %x\n",
-		new->cl_cs_slot.sl_seqid, new->cl_exchange_flags);
+		conf->cl_cs_slot.sl_seqid, conf->cl_exchange_flags);
 	status = nfs_ok;
 
 out:
 	nfs4_unlock_state();
+	if (new)
+		free_client(new);
 	return status;
 }
 
@@ -2903,6 +2904,9 @@ nfsd4_setclientid(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	__be32 			status;
 	struct nfsd_net		*nn = net_generic(SVC_NET(rqstp), nfsd_net_id);
 
+	new = create_client(clname, rqstp, &clverifier);
+	if (new == NULL)
+		return nfserr_jukebox;
 	/* Cases below refer to rfc 3530 section 14.2.33: */
 	nfs4_lock_state();
 	conf = find_confirmed_client_by_name(&clname, nn);
@@ -2923,10 +2927,6 @@ nfsd4_setclientid(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	unconf = find_unconfirmed_client_by_name(&clname, nn);
 	if (unconf)
 		expire_client(unconf);
-	status = nfserr_jukebox;
-	new = create_client(clname, rqstp, &clverifier);
-	if (new == NULL)
-		goto out;
 	if (conf && same_verf(&conf->cl_verifier, &clverifier))
 		/* case 1: probable callback update */
 		copy_clid(new, conf);
@@ -2938,9 +2938,12 @@ nfsd4_setclientid(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	setclid->se_clientid.cl_boot = new->cl_clientid.cl_boot;
 	setclid->se_clientid.cl_id = new->cl_clientid.cl_id;
 	memcpy(setclid->se_confirm.data, new->cl_confirm.data, sizeof(setclid->se_confirm.data));
+	new = NULL;
 	status = nfs_ok;
 out:
 	nfs4_unlock_state();
+	if (new)
+		free_client(new);
 	return status;
 }
 
