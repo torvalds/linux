@@ -3213,7 +3213,7 @@ static int pair_device(struct sock *sk, struct hci_dev *hdev, void *data,
 	conn->io_capability = cp->io_cap;
 	cmd->user_data = conn;
 
-	if (conn->state == BT_CONNECTED &&
+	if ((conn->state == BT_CONNECTED || conn->state == BT_CONFIG) &&
 	    hci_conn_security(conn, sec_level, auth_type, true))
 		pairing_complete(cmd, 0);
 
