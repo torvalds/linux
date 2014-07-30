@@ -7424,7 +7424,7 @@ S:	Orphan
 F:	drivers/net/wireless/ray*
 
 RCUTORTURE MODULE
-M:	Josh Triplett <josh@freedesktop.org>
+M:	Josh Triplett <josh@joshtriplett.org>
 M:	"Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 L:	linux-kernel@vger.kernel.org
 S:	Supported
