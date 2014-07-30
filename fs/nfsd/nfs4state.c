@@ -2826,22 +2826,23 @@ nfsd4_sequence_done(struct nfsd4_compoundres *resp)
 __be32
 nfsd4_destroy_clientid(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate, struct nfsd4_destroy_clientid *dc)
 {
-	struct nfs4_client *conf, *unconf, *clp;
+	struct nfs4_client *conf, *unconf;
+	struct nfs4_client *clp = NULL;
 	__be32 status = 0;
 	struct nfsd_net *nn = net_generic(SVC_NET(rqstp), nfsd_net_id);
 
 	nfs4_lock_state();
+	spin_lock(&nn->client_lock);
 	unconf = find_unconfirmed_client(&dc->clientid, true, nn);
 	conf = find_confirmed_client(&dc->clientid, true, nn);
 	WARN_ON_ONCE(conf && unconf);
 
 	if (conf) {
-		clp = conf;
-
 		if (client_has_state(conf)) {
 			status = nfserr_clientid_busy;
 			goto out;
 		}
+		clp = conf;
 	} else if (unconf)
 		clp = unconf;
 	else {
@@ -2849,12 +2850,16 @@ nfsd4_destroy_clientid(struct svc_rqst *rqstp, struct nfsd4_compound_state *csta
 		goto out;
 	}
 	if (!mach_creds_match(clp, rqstp)) {
+		clp = NULL;
 		status = nfserr_wrong_cred;
 		goto out;
 	}
-	expire_client(clp);
+	unhash_client_locked(clp);
 out:
+	spin_unlock(&nn->client_lock);
 	nfs4_unlock_state();
+	if (clp)
+		expire_client(clp);
 	return status;
 }
 
