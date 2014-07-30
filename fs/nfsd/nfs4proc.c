@@ -460,7 +460,9 @@ nfsd4_open(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	 * set, (2) sets open->op_stateid, (3) sets open->op_delegation.
 	 */
 	status = nfsd4_process_open2(rqstp, resfh, open);
-	WARN_ON(status && open->op_created);
+	WARN(status && open->op_created,
+	     "nfsd4_process_open2 failed to open newly-created file! status=%u\n",
+	     be32_to_cpu(status));
 out:
 	if (resfh && resfh != &cstate->current_fh) {
 		fh_dup2(&cstate->current_fh, resfh);
