@@ -240,17 +240,6 @@ static inline int lowpan_fetch_skb_u8(struct sk_buff *skb, u8 *val)
 	return 0;
 }
 
-static inline int lowpan_fetch_skb_u16(struct sk_buff *skb, u16 *val)
-{
-	if (unlikely(!pskb_may_pull(skb, 2)))
-		return -EINVAL;
-
-	*val = (skb->data[0] << 8) | skb->data[1];
-	skb_pull(skb, 2);
-
-	return 0;
-}
-
 static inline bool lowpan_fetch_skb(struct sk_buff *skb,
 		void *data, const unsigned int len)
 {
