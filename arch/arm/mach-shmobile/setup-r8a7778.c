@@ -610,8 +610,8 @@ static const char *r8a7778_compat_dt[] __initdata = {
 DT_MACHINE_START(R8A7778_DT, "Generic R8A7778 (Flattened Device Tree)")
 	.init_early	= r8a7778_init_delay,
 	.init_irq	= r8a7778_init_irq_dt,
+	.init_late	= shmobile_init_late,
 	.dt_compat	= r8a7778_compat_dt,
-	.init_late      = r8a7778_init_late,
 MACHINE_END
 
 #endif /* CONFIG_USE_OF */
