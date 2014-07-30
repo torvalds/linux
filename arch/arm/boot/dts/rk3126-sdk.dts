@@ -16,6 +16,14 @@
                 default-brightness-level = <128>;
                 enable-gpios = <&gpio3 GPIO_C1 GPIO_ACTIVE_HIGH>;
         };
+	usb_control {
+		compatible = "rockchip,rk3126-usb-control";
+		host_drv_gpio = <&gpio2 GPIO_B4 GPIO_ACTIVE_LOW>;
+		otg_drv_gpio = <&gpio2 GPIO_B6 GPIO_ACTIVE_LOW>;
+
+		rockchip,remote_wakeup;
+		rockchip,usb_irq_wakeup;
+	};
 };
 
 &nandc {
