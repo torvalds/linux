@@ -203,6 +203,7 @@ enum iwl_dbgfs_pm_mask {
 	MVM_DEBUGFS_PM_LPRX_RSSI_THRESHOLD = BIT(7),
 	MVM_DEBUGFS_PM_SNOOZE_ENABLE = BIT(8),
 	MVM_DEBUGFS_PM_UAPSD_MISBEHAVING = BIT(9),
+	MVM_DEBUGFS_PM_USE_PS_POLL = BIT(10),
 };
 
 struct iwl_dbgfs_pm {
@@ -215,6 +216,7 @@ struct iwl_dbgfs_pm {
 	u32 lprx_rssi_threshold;
 	bool snooze_ena;
 	bool uapsd_misbehaving;
+	bool use_ps_poll;
 	int mask;
 };
 

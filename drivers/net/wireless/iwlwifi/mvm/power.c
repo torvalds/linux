@@ -198,8 +198,15 @@ static void iwl_mvm_power_configure_uapsd(struct iwl_mvm *mvm,
 		}
 	}
 
-	if (!(cmd->flags & cpu_to_le16(POWER_FLAGS_ADVANCE_PM_ENA_MSK)))
+	if (!(cmd->flags & cpu_to_le16(POWER_FLAGS_ADVANCE_PM_ENA_MSK))) {
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+		/* set advanced pm flag with no uapsd ACs to enable ps-poll */
+		if (mvmvif->dbgfs_pm.use_ps_poll)
+			cmd->flags |=
+				cpu_to_le16(POWER_FLAGS_ADVANCE_PM_ENA_MSK);
+#endif
 		return;
+	}
 
 	cmd->flags |= cpu_to_le16(POWER_FLAGS_UAPSD_MISBEHAVING_ENA_MSK);
 
