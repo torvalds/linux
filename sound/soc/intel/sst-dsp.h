@@ -52,7 +52,7 @@
 #define SST_CLKCTL		0x78
 #define SST_CSR2		0x80
 #define SST_LTRC		0xE0
-#define SST_HDMC		0xE8
+#define SST_HMDC		0xE8
 
 #define SST_SHIM_BEGIN		SST_CSR
 #define SST_SHIM_END		SST_HDMC
@@ -122,9 +122,9 @@
 /* LTRC */
 #define SST_LTRC_VAL(x)		(x << 0)
 
-/* HDMC */
-#define SST_HDMC_HDDA0(x)	(x << 0)
-#define SST_HDMC_HDDA1(x)	(x << 7)
+/* HMDC */
+#define SST_HMDC_HDDA0(x)	(x << 0)
+#define SST_HMDC_HDDA1(x)	(x << 7)
 
 
 /* SST Vendor Defined Registers and bits */

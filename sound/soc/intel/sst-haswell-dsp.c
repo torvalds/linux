@@ -269,9 +269,9 @@ static void hsw_boot(struct sst_dsp *sst)
 		SST_CSR2_SDFD_SSP1);
 
 	/* enable DMA engine 0,1 all channels to access host memory */
-	sst_dsp_shim_update_bits_unlocked(sst, SST_HDMC,
-		SST_HDMC_HDDA1(0xff)  | SST_HDMC_HDDA0(0xff),
-		SST_HDMC_HDDA1(0xff) | SST_HDMC_HDDA0(0xff));
+	sst_dsp_shim_update_bits_unlocked(sst, SST_HMDC,
+		SST_HMDC_HDDA1(0xff) | SST_HMDC_HDDA0(0xff),
+		SST_HMDC_HDDA1(0xff) | SST_HMDC_HDDA0(0xff));
 
 	/* disable all clock gating */
 	writel(0x0, sst->addr.pci_cfg + SST_VDRTCTL2);
