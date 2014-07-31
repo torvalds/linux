@@ -759,13 +759,13 @@ pci224_ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 		break;
 	case TRIG_EXT:
 		/* Force to external trigger 0. */
-		if ((cmd->start_arg & ~CR_FLAGS_MASK) != 0) {
+		if (cmd->start_arg & ~CR_FLAGS_MASK) {
 			cmd->start_arg = COMBINE(cmd->start_arg, 0,
 						 ~CR_FLAGS_MASK);
 			err |= -EINVAL;
 		}
 		/* The only flag allowed is CR_EDGE, which is ignored. */
-		if ((cmd->start_arg & CR_FLAGS_MASK & ~CR_EDGE) != 0) {
+		if (cmd->start_arg & CR_FLAGS_MASK & ~CR_EDGE) {
 			cmd->start_arg = COMBINE(cmd->start_arg, 0,
 						 CR_FLAGS_MASK & ~CR_EDGE);
 			err |= -EINVAL;
@@ -785,14 +785,14 @@ pci224_ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 		break;
 	case TRIG_EXT:
 		/* Force to external trigger 0. */
-		if ((cmd->scan_begin_arg & ~CR_FLAGS_MASK) != 0) {
+		if (cmd->scan_begin_arg & ~CR_FLAGS_MASK) {
 			cmd->scan_begin_arg = COMBINE(cmd->scan_begin_arg, 0,
 						      ~CR_FLAGS_MASK);
 			err |= -EINVAL;
 		}
 		/* Only allow flags CR_EDGE and CR_INVERT.  Ignore CR_EDGE. */
-		if ((cmd->scan_begin_arg & CR_FLAGS_MASK &
-		     ~(CR_EDGE | CR_INVERT)) != 0) {
+		if (cmd->scan_begin_arg & CR_FLAGS_MASK &
+		    ~(CR_EDGE | CR_INVERT)) {
 			cmd->scan_begin_arg = COMBINE(cmd->scan_begin_arg, 0,
 						      CR_FLAGS_MASK &
 						      ~(CR_EDGE | CR_INVERT));
@@ -810,13 +810,13 @@ pci224_ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 		break;
 	case TRIG_EXT:
 		/* Force to external trigger 0. */
-		if ((cmd->stop_arg & ~CR_FLAGS_MASK) != 0) {
+		if (cmd->stop_arg & ~CR_FLAGS_MASK) {
 			cmd->stop_arg = COMBINE(cmd->stop_arg, 0,
 						~CR_FLAGS_MASK);
 			err |= -EINVAL;
 		}
 		/* The only flag allowed is CR_EDGE, which is ignored. */
-		if ((cmd->stop_arg & CR_FLAGS_MASK & ~CR_EDGE) != 0) {
+		if (cmd->stop_arg & CR_FLAGS_MASK & ~CR_EDGE) {
 			cmd->stop_arg = COMBINE(cmd->stop_arg, 0,
 						CR_FLAGS_MASK & ~CR_EDGE);
 		}
@@ -1026,7 +1026,7 @@ static irqreturn_t pci224_interrupt(int irq, void *d)
 		devpriv->intr_running = 1;
 		devpriv->intr_cpuid = THISCPU;
 		spin_unlock_irqrestore(&devpriv->ao_spinlock, flags);
-		if (valid_intstat != 0) {
+		if (valid_intstat) {
 			cmd = &s->async->cmd;
 			if (valid_intstat & PCI224_INTR_EXT) {
 				devpriv->intsce &= ~PCI224_INTR_EXT;
