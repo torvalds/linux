@@ -1084,8 +1084,6 @@ pci224_auto_attach(struct comedi_device *dev, unsigned long context_model)
 	if (!devpriv)
 		return -ENOMEM;
 
-	comedi_set_hw_dev(dev, &pci_dev->dev);
-
 	ret = comedi_pci_enable(dev);
 	if (ret)
 		return ret;
