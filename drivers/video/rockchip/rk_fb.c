@@ -3589,7 +3589,7 @@ static int init_lcdc_device_driver(struct rk_fb *rk_fb,
 				devm_kzalloc(dev_drv->dev,
 					     sizeof(struct rk_screen),
 					     GFP_KERNEL);
-		if (screen1) {
+		if (!screen1) {
 			dev_err(dev_drv->dev, "malloc screen1 for lcdc%d fail!",
 				dev_drv->id);
 			return -ENOMEM;
