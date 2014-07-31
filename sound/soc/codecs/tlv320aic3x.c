@@ -873,17 +873,16 @@ static int aic3x_hw_params(struct snd_pcm_substream *substream,
 
 	/* select data word length */
 	data = snd_soc_read(codec, AIC3X_ASD_INTF_CTRLB) & (~(0x3 << 4));
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S16_LE:
+	switch (params_width(params)) {
+	case 16:
 		break;
-	case SNDRV_PCM_FORMAT_S20_3LE:
+	case 20:
 		data |= (0x01 << 4);
 		break;
-	case SNDRV_PCM_FORMAT_S24_3LE:
-	case SNDRV_PCM_FORMAT_S24_LE:
+	case 24:
 		data |= (0x02 << 4);
 		break;
-	case SNDRV_PCM_FORMAT_S32_LE:
+	case 32:
 		data |= (0x03 << 4);
 		break;
 	}
