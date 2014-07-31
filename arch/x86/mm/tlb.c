@@ -158,13 +158,14 @@ void flush_tlb_current_task(void)
 	preempt_enable();
 }
 
+/* in units of pages */
+unsigned long tlb_single_page_flush_ceiling = 1;
+
 void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
 				unsigned long end, unsigned long vmflag)
 {
-	bool need_flush_others_all = true;
+	int need_flush_others_all = 1;
 	unsigned long addr;
-	unsigned act_entries, tlb_entries = 0;
-	unsigned long nr_base_pages;
 
 	preempt_disable();
 	if (current->active_mm != mm)
@@ -175,29 +176,16 @@ void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
 		goto out;
 	}
 
-	if (end == TLB_FLUSH_ALL || tlb_flushall_shift == -1
-					|| vmflag & VM_HUGETLB) {
+	if (end == TLB_FLUSH_ALL || vmflag & VM_HUGETLB) {
 		local_flush_tlb();
 		goto out;
 	}
 
-	/* In modern CPU, last level tlb used for both data/ins */
-	if (vmflag & VM_EXEC)
-		tlb_entries = tlb_lli_4k[ENTRIES];
-	else
-		tlb_entries = tlb_lld_4k[ENTRIES];
-
-	/* Assume all of TLB entries was occupied by this task */
-	act_entries = tlb_entries >> tlb_flushall_shift;
-	act_entries = mm->total_vm > act_entries ? act_entries : mm->total_vm;
-	nr_base_pages = (end - start) >> PAGE_SHIFT;
-
-	/* tlb_flushall_shift is on balance point, details in commit log */
-	if (nr_base_pages > act_entries) {
+	if ((end - start) > tlb_single_page_flush_ceiling * PAGE_SIZE) {
 		count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);
 		local_flush_tlb();
 	} else {
-		need_flush_others_all = false;
+		need_flush_others_all = 0;
 		/* flush range by one by one 'invlpg' */
 		for (addr = start; addr < end;	addr += PAGE_SIZE) {
 			count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ONE);
@@ -259,68 +247,15 @@ static void do_kernel_range_flush(void *info)
 
 void flush_tlb_kernel_range(unsigned long start, unsigned long end)
 {
-	unsigned act_entries;
-	struct flush_tlb_info info;
-
-	/* In modern CPU, last level tlb used for both data/ins */
-	act_entries = tlb_lld_4k[ENTRIES];
 
 	/* Balance as user space task's flush, a bit conservative */
-	if (end == TLB_FLUSH_ALL || tlb_flushall_shift == -1 ||
-		(end - start) >> PAGE_SHIFT > act_entries >> tlb_flushall_shift)
-
+	if (end == TLB_FLUSH_ALL ||
+	    (end - start) > tlb_single_page_flush_ceiling * PAGE_SIZE) {
 		on_each_cpu(do_flush_tlb_all, NULL, 1);
-	else {
+	} else {
+		struct flush_tlb_info info;
 		info.flush_start = start;
 		info.flush_end = end;
 		on_each_cpu(do_kernel_range_flush, &info, 1);
 	}
 }
-
-#ifdef CONFIG_DEBUG_TLBFLUSH
-static ssize_t tlbflush_read_file(struct file *file, char __user *user_buf,
-			     size_t count, loff_t *ppos)
-{
-	char buf[32];
-	unsigned int len;
-
-	len = sprintf(buf, "%hd\n", tlb_flushall_shift);
-	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
-}
-
-static ssize_t tlbflush_write_file(struct file *file,
-		 const char __user *user_buf, size_t count, loff_t *ppos)
-{
-	char buf[32];
-	ssize_t len;
-	s8 shift;
-
-	len = min(count, sizeof(buf) - 1);
-	if (copy_from_user(buf, user_buf, len))
-		return -EFAULT;
-
-	buf[len] = '\0';
-	if (kstrtos8(buf, 0, &shift))
-		return -EINVAL;
-
-	if (shift < -1 || shift >= BITS_PER_LONG)
-		return -EINVAL;
-
-	tlb_flushall_shift = shift;
-	return count;
-}
-
-static const struct file_operations fops_tlbflush = {
-	.read = tlbflush_read_file,
-	.write = tlbflush_write_file,
-	.llseek = default_llseek,
-};
-
-static int __init create_tlb_flushall_shift(void)
-{
-	debugfs_create_file("tlb_flushall_shift", S_IRUSR | S_IWUSR,
-			    arch_debugfs_dir, NULL, &fops_tlbflush);
-	return 0;
-}
-late_initcall(create_tlb_flushall_shift);
-#endif
