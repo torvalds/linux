@@ -67,10 +67,9 @@ static event_word_t *event_array[MAX_EVENT_ARRAY_PAGES] __read_mostly;
 static unsigned event_array_pages __read_mostly;
 
 /*
- * sync_set_bit() and friends must be unsigned long aligned on non-x86
- * platforms.
+ * sync_set_bit() and friends must be unsigned long aligned.
  */
-#if !defined(CONFIG_X86) && BITS_PER_LONG > 32
+#if BITS_PER_LONG > 32
 
 #define BM(w) (unsigned long *)((unsigned long)w & ~0x7UL)
 #define EVTCHN_FIFO_BIT(b, w) \
