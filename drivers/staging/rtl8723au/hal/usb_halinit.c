@@ -517,20 +517,15 @@ enum rt_rf_power_state RfOnOffDetect23a(struct rtw_adapter *pAdapter)
 	u8 val8;
 	enum rt_rf_power_state rfpowerstate = rf_off;
 
-	if (pAdapter->pwrctrlpriv.bHWPowerdown) {
-		val8 = rtl8723au_read8(pAdapter, REG_HSISR);
-		DBG_8723A("pwrdown, 0x5c(BIT7) =%02x\n", val8);
-		rfpowerstate = (val8 & BIT(7)) ? rf_off : rf_on;
-	} else { /*  rf on/off */
-		rtl8723au_write8(pAdapter, REG_MAC_PINMUX_CFG,
-				 rtl8723au_read8(pAdapter, REG_MAC_PINMUX_CFG) &
-				 ~BIT(3));
-		val8 = rtl8723au_read8(pAdapter, REG_GPIO_IO_SEL);
-		DBG_8723A("GPIO_IN =%02x\n", val8);
-		rfpowerstate = (val8 & BIT(3)) ? rf_on : rf_off;
-	}
+	rtl8723au_write8(pAdapter, REG_MAC_PINMUX_CFG,
+			 rtl8723au_read8(pAdapter,
+					 REG_MAC_PINMUX_CFG) & ~BIT(3));
+	val8 = rtl8723au_read8(pAdapter, REG_GPIO_IO_SEL);
+	DBG_8723A("GPIO_IN =%02x\n", val8);
+	rfpowerstate = (val8 & BIT(3)) ? rf_on : rf_off;
+
 	return rfpowerstate;
-}	/*  HalDetectPwrDownMode */
+}
 
 void _ps_open_RF23a(struct rtw_adapter *padapter);
 

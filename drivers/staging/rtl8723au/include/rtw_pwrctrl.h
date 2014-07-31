@@ -198,7 +198,6 @@ struct pwrctrl_priv {
 	enum rt_rf_power_state	rf_pwrstate;/* cur power state */
 	enum rt_rf_power_state	change_rfpwrstate;
 
-	u8	bHWPowerdown;/* if support hw power down */
 	u8	bkeepfwalive;
 	unsigned long PS_BBRegBackup[PSBBREG_TOTALCNT];
 };
