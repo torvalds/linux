@@ -260,7 +260,7 @@ static void stmmac_enable_eee_mode(struct stmmac_priv *priv)
 	/* Check and enter in LPI mode */
 	if ((priv->dirty_tx == priv->cur_tx) &&
 	    (priv->tx_path_in_lpi_mode == false))
-		priv->hw->mac->set_eee_mode(priv->ioaddr);
+		priv->hw->mac->set_eee_mode(priv->hw);
 }
 
 /**
@@ -271,7 +271,7 @@ static void stmmac_enable_eee_mode(struct stmmac_priv *priv)
  */
 void stmmac_disable_eee_mode(struct stmmac_priv *priv)
 {
-	priv->hw->mac->reset_eee_mode(priv->ioaddr);
+	priv->hw->mac->reset_eee_mode(priv->hw);
 	del_timer_sync(&priv->eee_ctrl_timer);
 	priv->tx_path_in_lpi_mode = false;
 }
@@ -325,7 +325,7 @@ bool stmmac_eee_init(struct stmmac_priv *priv)
 			if (priv->eee_active) {
 				pr_debug("stmmac: disable EEE\n");
 				del_timer_sync(&priv->eee_ctrl_timer);
-				priv->hw->mac->set_eee_timer(priv->ioaddr, 0,
+				priv->hw->mac->set_eee_timer(priv->hw, 0,
 							     tx_lpi_timer);
 			}
 			priv->eee_active = 0;
@@ -340,12 +340,12 @@ bool stmmac_eee_init(struct stmmac_priv *priv)
 			priv->eee_ctrl_timer.expires = STMMAC_LPI_T(eee_timer);
 			add_timer(&priv->eee_ctrl_timer);
 
-			priv->hw->mac->set_eee_timer(priv->ioaddr,
+			priv->hw->mac->set_eee_timer(priv->hw,
 						     STMMAC_DEFAULT_LIT_LS,
 						     tx_lpi_timer);
 		} else
 			/* Set HW EEE according to the speed */
-			priv->hw->mac->set_eee_pls(priv->ioaddr,
+			priv->hw->mac->set_eee_pls(priv->hw,
 						   priv->phydev->link);
 
 		pr_debug("stmmac: Energy-Efficient Ethernet initialized\n");
@@ -729,7 +729,7 @@ static void stmmac_adjust_link(struct net_device *dev)
 		}
 		/* Flow Control operation */
 		if (phydev->pause)
-			priv->hw->mac->flow_ctrl(priv->ioaddr, phydev->duplex,
+			priv->hw->mac->flow_ctrl(priv->hw, phydev->duplex,
 						 fc, pause_time);
 
 		if (phydev->speed != priv->speed) {
@@ -1506,8 +1506,7 @@ static int stmmac_get_hw_features(struct stmmac_priv *priv)
 static void stmmac_check_ether_addr(struct stmmac_priv *priv)
 {
 	if (!is_valid_ether_addr(priv->dev->dev_addr)) {
-		priv->hw->mac->get_umac_addr((void __iomem *)
-					     priv->dev->base_addr,
+		priv->hw->mac->get_umac_addr(priv->hw,
 					     priv->dev->dev_addr, 0);
 		if (!is_valid_ether_addr(priv->dev->dev_addr))
 			eth_hw_addr_random(priv->dev);
@@ -1619,14 +1618,14 @@ static int stmmac_open(struct net_device *dev)
 	}
 
 	/* Copy the MAC addr into the HW  */
-	priv->hw->mac->set_umac_addr(priv->ioaddr, dev->dev_addr, 0);
+	priv->hw->mac->set_umac_addr(priv->hw, dev->dev_addr, 0);
 
 	/* If required, perform hw setup of the bus. */
 	if (priv->plat->bus_setup)
 		priv->plat->bus_setup(priv->ioaddr);
 
 	/* Initialize the MAC Core */
-	priv->hw->mac->core_init(priv->ioaddr, dev->mtu);
+	priv->hw->mac->core_init(priv->hw, dev->mtu);
 
 #ifndef CONFIG_STMMAC_SHARED_PHY_IRQ
 	/* Request the IRQ lines */
@@ -1689,7 +1688,7 @@ static int stmmac_open(struct net_device *dev)
 
 	/* Dump DMA/MAC registers */
 	if (netif_msg_hw(priv)) {
-		priv->hw->mac->dump_regs(priv->ioaddr);
+		priv->hw->mac->dump_regs(priv->hw);
 		priv->hw->dma->dump_regs(priv->ioaddr);
 	}
 
@@ -1708,7 +1707,7 @@ static int stmmac_open(struct net_device *dev)
 	}
 
 	if (priv->pcs && priv->hw->mac->ctrl_ane)
-		priv->hw->mac->ctrl_ane(priv->ioaddr, 0);
+		priv->hw->mac->ctrl_ane(priv->hw, 0);
 
 	napi_enable(&priv->napi);
 	netif_start_queue(dev);
@@ -2302,8 +2301,7 @@ static irqreturn_t stmmac_interrupt(int irq, void *dev_id)
 
 	/* To handle GMAC own interrupts */
 	if (priv->plat->has_gmac) {
-		int status = priv->hw->mac->host_irq_status((void __iomem *)
-							    dev->base_addr,
+		int status = priv->hw->mac->host_irq_status(priv->hw,
 							    &priv->xstats);
 		if (unlikely(status)) {
 			/* For LPI we need to save the tx status */
@@ -2636,7 +2634,7 @@ static int stmmac_hw_init(struct stmmac_priv *priv)
 	/* To use alternate (extended) or normal descriptor structures */
 	stmmac_selec_desc_mode(priv);
 
-	ret = priv->hw->mac->rx_ipc(priv->ioaddr);
+	ret = priv->hw->mac->rx_ipc(priv->hw);
 	if (!ret) {
 		pr_warn(" RX IPC Checksum Offload not configured.\n");
 		priv->plat->rx_coe = STMMAC_RX_COE_NONE;
@@ -2836,9 +2834,9 @@ int stmmac_suspend(struct net_device *ndev)
 	stmmac_clear_descriptors(priv);
 
 	/* Enable Power down mode by programming the PMT regs */
-	if (device_may_wakeup(priv->device))
-		priv->hw->mac->pmt(priv->ioaddr, priv->wolopts);
-	else {
+	if (device_may_wakeup(priv->device)) {
+		priv->hw->mac->pmt(priv->hw, priv->wolopts);
+	} else {
 		stmmac_set_mac(priv->ioaddr, false);
 		/* Disable clock in case of PWM is off */
 		clk_disable_unprepare(priv->stmmac_clk);
@@ -2864,7 +2862,7 @@ int stmmac_resume(struct net_device *ndev)
 	 * from another devices (e.g. serial console).
 	 */
 	if (device_may_wakeup(priv->device))
-		priv->hw->mac->pmt(priv->ioaddr, 0);
+		priv->hw->mac->pmt(priv->hw, 0);
 	else
 		/* enable the clk prevously disabled */
 		clk_prepare_enable(priv->stmmac_clk);
