@@ -1508,12 +1508,6 @@ static void conn_wait_active_ee_empty(struct drbd_connection *connection)
 	rcu_read_unlock();
 }
 
-static struct drbd_peer_device *
-conn_peer_device(struct drbd_connection *connection, int volume_number)
-{
-	return idr_find(&connection->peer_devices, volume_number);
-}
-
 static int receive_Barrier(struct drbd_connection *connection, struct packet_info *pi)
 {
 	int rv;

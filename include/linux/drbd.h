@@ -339,6 +339,8 @@ enum drbd_state_rv {
 #define MDF_AL_CLEAN		(1 << 7)
 #define MDF_AL_DISABLED		(1 << 8)
 
+#define MAX_PEERS 32
+
 enum drbd_uuid_index {
 	UI_CURRENT,
 	UI_BITMAP,
@@ -349,10 +351,24 @@ enum drbd_uuid_index {
 	UI_EXTENDED_SIZE   /* Everything. */
 };
 
+#define HISTORY_UUIDS MAX_PEERS
+
 enum drbd_timeout_flag {
 	UT_DEFAULT      = 0,
 	UT_DEGRADED     = 1,
 	UT_PEER_OUTDATED = 2,
+};
+
+enum drbd_notification_type {
+	NOTIFY_EXISTS,
+	NOTIFY_CREATE,
+	NOTIFY_CHANGE,
+	NOTIFY_DESTROY,
+	NOTIFY_CALL,
+	NOTIFY_RESPONSE,
+
+	NOTIFY_CONTINUES = 0x8000,
+	NOTIFY_FLAGS = NOTIFY_CONTINUES,
 };
 
 #define UUID_JUST_CREATED ((__u64)4)
