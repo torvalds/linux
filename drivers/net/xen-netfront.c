@@ -1815,8 +1815,8 @@ static int xennet_create_queues(struct netfront_info *info,
 
 		ret = xennet_init_queue(queue);
 		if (ret < 0) {
-			dev_warn(&info->netdev->dev, "only created %d queues\n",
-				 num_queues);
+			dev_warn(&info->netdev->dev,
+				 "only created %d queues\n", i);
 			num_queues = i;
 			break;
 		}
