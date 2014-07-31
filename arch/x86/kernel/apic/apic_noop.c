@@ -94,11 +94,6 @@ static unsigned long noop_check_apicid_used(physid_mask_t *map, int apicid)
 	return physid_isset(apicid, *map);
 }
 
-static unsigned long noop_check_apicid_present(int bit)
-{
-	return physid_isset(bit, phys_cpu_present_map);
-}
-
 static void noop_vector_allocation_domain(int cpu, struct cpumask *retmask,
 					  const struct cpumask *mask)
 {
@@ -134,7 +129,6 @@ struct apic apic_noop = {
 	.disable_esr			= 0,
 	.dest_logical			= APIC_DEST_LOGICAL,
 	.check_apicid_used		= noop_check_apicid_used,
-	.check_apicid_present		= noop_check_apicid_present,
 
 	.vector_allocation_domain	= noop_vector_allocation_domain,
 	.init_apic_ldr			= noop_init_apic_ldr,
