@@ -139,6 +139,7 @@ static int __inject_sigp_stop(struct kvm_vcpu *dst_vcpu, int action)
 	spin_lock(&li->lock);
 	if (li->action_bits & ACTION_STOP_ON_STOP) {
 		/* another SIGP STOP is pending */
+		kfree(inti);
 		rc = SIGP_CC_BUSY;
 		goto out;
 	}
