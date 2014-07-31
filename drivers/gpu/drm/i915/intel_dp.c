@@ -4002,6 +4002,11 @@ void intel_dp_encoder_destroy(struct drm_encoder *encoder)
 	kfree(intel_dig_port);
 }
 
+static void intel_dp_encoder_reset(struct drm_encoder *encoder)
+{
+	intel_edp_panel_vdd_sanitize(to_intel_encoder(encoder));
+}
+
 static const struct drm_connector_funcs intel_dp_connector_funcs = {
 	.dpms = intel_connector_dpms,
 	.detect = intel_dp_detect,
@@ -4017,6 +4022,7 @@ static const struct drm_connector_helper_funcs intel_dp_connector_helper_funcs =
 };
 
 static const struct drm_encoder_funcs intel_dp_enc_funcs = {
+	.reset = intel_dp_encoder_reset,
 	.destroy = intel_dp_encoder_destroy,
 };
 
