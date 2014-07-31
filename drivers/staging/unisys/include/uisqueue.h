@@ -142,7 +142,7 @@ struct device_info {
 	struct InterruptInfo intr;
 	struct switch_info *swtch;
 	char devid[30];		/* "vbus<busno>:dev<devno>" */
-	U16 polling;
+	u16 polling;
 	struct semaphore interrupt_callback_lock;
 	U32 busNo;
 	U32 devNo;

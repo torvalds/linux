@@ -147,7 +147,7 @@ struct InterruptInfo {
 };
 
 struct PciId {
-	U16 Domain;
+	u16 Domain;
 	u8 Bus;
 	u8 Slot;
 	u8 Func;
@@ -155,10 +155,10 @@ struct PciId {
 };
 
 struct PciConfigHdr {
-	U16 VendorId;
-	U16 SubSysVendor;
-	U16 DeviceId;
-	U16 SubSysDevice;
+	u16 VendorId;
+	u16 SubSysVendor;
+	u16 DeviceId;
+	u16 SubSysDevice;
 	U32 ClassCode;
 	U32 Reserved;		/* Natural alignment purposes */
 };
@@ -181,10 +181,10 @@ struct virtDiskInfo  {
 	U32 externalPortNo;	/* 0 for SAS RAID provided (external)
 				 * virtual disks, 1 for virtual disk
 				 * images, 2 for gold disk images */
-	U16 VirtualDiskIndex;	/* Index of disk descriptor in the
+	u16 VirtualDiskIndex;	/* Index of disk descriptor in the
 				 * VirtualDisk segment associated with
 				 * externalPortNo */
-	U16 Reserved1;
+	u16 Reserved1;
 	U32 Reserved2;
 };
 
@@ -519,18 +519,18 @@ typedef struct _ULTRA_CONTROLVM_CHANNEL_PROTOCOL  {
 	 U64 PrototypeControlChannelOffset;
 	 GUEST_PHYSICAL_ADDRESS VirtualGuestPartitionHandle;
 
-	 U16 RestoreAction;	/* Restore Action field to restore the guest
+	 u16 RestoreAction;	/* Restore Action field to restore the guest
 				 * partition */
-	U16 DumpAction;		/* For Windows guests it shows if the visordisk
+	u16 DumpAction;		/* For Windows guests it shows if the visordisk
 				 * is running in dump mode */
-	U16 NvramFailCount;
-	U16 SavedCrashMsgCount;	/* = CONTROLVM_CRASHMSG_MAX */
+	u16 NvramFailCount;
+	u16 SavedCrashMsgCount;	/* = CONTROLVM_CRASHMSG_MAX */
 	U32 SavedCrashMsgOffset;	/* Offset to request payload area needed
 					 * for crash dump */
 	U32 InstallationError;	/* Type of error encountered during
 				 * installation */
 	U32 InstallationTextId;	/* Id of string to display */
-	U16 InstallationRemainingSteps;	/* Number of remaining installation
+	u16 InstallationRemainingSteps;	/* Number of remaining installation
 					 * steps (for progress bars) */
 	u8 ToolAction;		/* ULTRA_TOOL_ACTIONS Installation Action
 				 * field */

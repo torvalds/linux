@@ -101,8 +101,8 @@ do {									\
 #pragma pack(push, 1)
 struct phys_info {
 	U64 pi_pfn;
-	U16 pi_off;
-	U16 pi_len;
+	u16 pi_off;
+	u16 pi_len;
 };
 
 #pragma pack(pop)

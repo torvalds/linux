@@ -37,19 +37,19 @@
 /* Define Ki scale page to be traditional 4KB page */
 #define ULTRA_MEMORY_PAGE_Ki (ULTRA_MEMORY_PAGE_WORD * ULTRA_MEMORY_COUNT_Ki)
 typedef struct _ULTRA_SEGMENT_STATE  {
-	U16 Enabled:1;		/* Bit 0: May enter other states */
-	U16 Active:1;		/* Bit 1: Assigned to active partition */
-	U16 Alive:1;		/* Bit 2: Configure message sent to
+	u16 Enabled:1;		/* Bit 0: May enter other states */
+	u16 Active:1;		/* Bit 1: Assigned to active partition */
+	u16 Alive:1;		/* Bit 2: Configure message sent to
 				 * service/server */
-	U16 Revoked:1;		/* Bit 3: similar to partition state
+	u16 Revoked:1;		/* Bit 3: similar to partition state
 				 * ShuttingDown */
-	U16 Allocated:1;	/* Bit 4: memory (device/port number)
+	u16 Allocated:1;	/* Bit 4: memory (device/port number)
 				 * has been selected by Command */
-	U16 Known:1;		/* Bit 5: has been introduced to the
+	u16 Known:1;		/* Bit 5: has been introduced to the
 				 * service/guest partition */
-	U16 Ready:1;		/* Bit 6: service/Guest partition has
+	u16 Ready:1;		/* Bit 6: service/Guest partition has
 				 * responded to introduction */
-	U16 Operating:1;	/* Bit 7: resource is configured and
+	u16 Operating:1;	/* Bit 7: resource is configured and
 				 * operating */
 	/* Note: don't use high bit unless we need to switch to ushort
 	 * which is non-compliant */
@@ -69,7 +69,7 @@ typedef union {
 		u8 Major;	/* will be 1 for the first release and
 				 * increment thereafter  */
 		u8 Minor;
-		U16 Maintenance;
+		u16 Maintenance;
 		U32 Revision;	/* Subversion revision */
 	} Part;
 } ULTRA_COMPONENT_VERSION;

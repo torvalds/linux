@@ -757,13 +757,13 @@ void
 visorchipset_save_message(CONTROLVM_MESSAGE *msg, CRASH_OBJ_TYPE type)
 {
 	U32 localSavedCrashMsgOffset;
-	U16 localSavedCrashMsgCount;
+	u16 localSavedCrashMsgCount;
 
 	/* get saved message count */
 	if (visorchannel_read(ControlVm_channel,
 			      offsetof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL,
 				       SavedCrashMsgCount),
-			      &localSavedCrashMsgCount, sizeof(U16)) < 0) {
+			      &localSavedCrashMsgCount, sizeof(u16)) < 0) {
 		LOGERR("failed to get Saved Message Count");
 		POSTCODE_LINUX_2(CRASH_DEV_CTRL_RD_FAILURE_PC,
 				 POSTCODE_SEVERITY_ERR);
@@ -1672,7 +1672,7 @@ parahotplug_process_list(void)
  * respond to the CONTROLVM message with success.
  */
 static int
-parahotplug_request_complete(int id, U16 active)
+parahotplug_request_complete(int id, u16 active)
 {
 	struct list_head *pos = NULL;
 	struct list_head *tmp = NULL;
@@ -2028,7 +2028,7 @@ setup_crash_devices_work_queue(struct work_struct *work)
 	CONTROLVM_MESSAGE localCrashCreateDevMsg;
 	CONTROLVM_MESSAGE msg;
 	U32 localSavedCrashMsgOffset;
-	U16 localSavedCrashMsgCount;
+	u16 localSavedCrashMsgCount;
 
 	/* make sure visorbus server is registered for controlvm callbacks */
 	if (visorchipset_serverregwait && !serverregistered)
@@ -2053,7 +2053,7 @@ setup_crash_devices_work_queue(struct work_struct *work)
 	if (visorchannel_read(ControlVm_channel,
 			      offsetof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL,
 				       SavedCrashMsgCount),
-			      &localSavedCrashMsgCount, sizeof(U16)) < 0) {
+			      &localSavedCrashMsgCount, sizeof(u16)) < 0) {
 		LOGERR("failed to get Saved Message Count");
 		POSTCODE_LINUX_2(CRASH_DEV_CTRL_RD_FAILURE_PC,
 				 POSTCODE_SEVERITY_ERR);

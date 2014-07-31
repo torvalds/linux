@@ -106,7 +106,7 @@ static const uuid_le UltraDiagChannelProtocolGuid =
 * in some of the Supervisor areas, such as Monitor, so it has been "ported" here
 * for use in diagnostic event timestamps... */
 typedef struct _DIAG_EFI_TIME  {
-	U16 Year;		/* 1998 - 20XX */
+	u16 Year;		/* 1998 - 20XX */
 	u8 Month;		/* 1 - 12 */
 	u8 Day;			/* 1 - 31 */
 	u8 Hour;		/* 0 - 23 */
@@ -163,11 +163,11 @@ typedef struct _DIAG_CHANNEL_EVENT  {
 	DIAG_EFI_TIME Timestamp;	/* Size = 16 bytes */
 	U32 PartitionNumber;	/* Filled in by Diag Switch as pool blocks are
 				 * filled */
-	U16 VirtualProcessorNumber;
-	U16 LogicalProcessorNumber;
+	u16 VirtualProcessorNumber;
+	u16 LogicalProcessorNumber;
 	u8 ComponentType;	/* ULTRA_COMPONENT_TYPES */
 	u8 Subsystem;
-	U16 Reserved0;		/* pad to U64 alignment */
+	u16 Reserved0;		/* pad to U64 alignment */
 	U32 BlockNumber;	/* filled in by DiagSwitch as pool blocks are
 				 * filled */
 	U32 BlockNumberHigh;

@@ -289,7 +289,7 @@ struct uiscmdrsp_scsi {
 				 * send it back as is in the rsp packet.  */
 	u8 cmnd[MAX_CMND_SIZE];	/* the cdb for the command */
 	U32 bufflen;		/* length of data to be transferred out or in */
-	U16 guest_phys_entries;	/* Number of entries in scatter-gather (sg)
+	u16 guest_phys_entries;	/* Number of entries in scatter-gather (sg)
 				 * list */
 	struct guest_phys_info gpi_list[MAX_PHYS_INFO];	/* physical address
 							 * information for each
@@ -491,7 +491,7 @@ struct net_pkt_xmt {
 				 * ignore */
 		u8 hrawoffv;	/* 1 = hwrafoff is valid */
 		u8 nhrawoffv;	/* 1 = nhwrafoff is valid */
-		U16 protocol;	/* specifies packet protocol */
+		u16 protocol;	/* specifies packet protocol */
 		U32 csum;	/* value used to set skb->csum at IOPart */
 		U32 hrawoff;	/* value used to set skb->h.raw at IOPart */
 		/* hrawoff points to the start of the TRANSPORT LAYER HEADER */
@@ -551,7 +551,7 @@ struct net_pkt_rcv {
 
 struct net_pkt_enbdis {
 	void *context;
-	U16 enable;		/* 1 = enable, 0 = disable */
+	u16 enable;		/* 1 = enable, 0 = disable */
 };
 
 struct net_pkt_macaddr {
@@ -882,22 +882,22 @@ static inline int ULTRA_VNIC_init_channel(ULTRA_IO_CHANNEL_PROTOCOL *x,
 /* returns next non-zero index on success or zero on failure (i.e. out of
  * room)
  */
-static INLINE  U16
+static INLINE  u16
 add_physinfo_entries(U32 inp_pfn,	/* input - specifies the pfn to be used
 					 * to add entries */
-		     U16 inp_off,	/* input - specifies the off to be used
+		     u16 inp_off,	/* input - specifies the off to be used
 					 * to add entries */
 		     U32 inp_len,	/* input - specifies the len to be used
 					 * to add entries */
-		     U16 index,		/* input - index in array at which new
+		     u16 index,		/* input - index in array at which new
 					 * entries are added */
-		     U16 max_pi_arr_entries,	/* input - specifies the maximum
+		     u16 max_pi_arr_entries,	/* input - specifies the maximum
 						 * entries pi_arr can hold */
 		     struct phys_info pi_arr[]) /* input & output - array to
 						  * which entries are added */
 {
 	U32 len;
-	U16 i, firstlen;
+	u16 i, firstlen;
 
 	firstlen = PI_PAGE_SIZE - inp_off;
 	if (inp_len <= firstlen) {
@@ -906,8 +906,8 @@ add_physinfo_entries(U32 inp_pfn,	/* input - specifies the pfn to be used
 		if (index >= max_pi_arr_entries)
 			return 0;
 		pi_arr[index].pi_pfn = inp_pfn;
-		pi_arr[index].pi_off = (U16) inp_off;
-		pi_arr[index].pi_len = (U16) inp_len;
+		pi_arr[index].pi_off = (u16) inp_off;
+		pi_arr[index].pi_len = (u16) inp_len;
 		    return index + 1;
 	}
 
@@ -925,7 +925,7 @@ add_physinfo_entries(U32 inp_pfn,	/* input - specifies the pfn to be used
 		else {
 			pi_arr[index + i].pi_off = 0;
 			pi_arr[index + i].pi_len =
-			    (U16) MINNUM(len, (U32) PI_PAGE_SIZE);
+			    (u16) MINNUM(len, (U32) PI_PAGE_SIZE);
 		}
 
 	}
