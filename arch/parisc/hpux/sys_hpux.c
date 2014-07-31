@@ -456,7 +456,7 @@ int hpux_sysfs(int opcode, unsigned long arg1, unsigned long arg2)
 		}
 
 		/* String could be altered by userspace after strlen_user() */
-		fsname[len] = '\0';
+		fsname[len - 1] = '\0';
 
 		printk(KERN_DEBUG "that is '%s' as (char *)\n", fsname);
 		if ( !strcmp(fsname, "hfs") ) {
