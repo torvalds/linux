@@ -77,13 +77,6 @@ static int temp_to_code(struct exynos_tmu_data *data, u8 temp)
 	struct exynos_tmu_platform_data *pdata = data->pdata;
 	int temp_code;
 
-	if (data->soc == SOC_ARCH_EXYNOS4210)
-		/* temp should range between 25 and 125 */
-		if (temp < 25 || temp > 125) {
-			temp_code = -EINVAL;
-			goto out;
-		}
-
 	switch (pdata->cal_type) {
 	case TYPE_TWO_POINT_TRIMMING:
 		temp_code = (temp - pdata->first_point_trim) *
@@ -98,7 +91,7 @@ static int temp_to_code(struct exynos_tmu_data *data, u8 temp)
 		temp_code = temp + pdata->default_temp_offset;
 		break;
 	}
-out:
+
 	return temp_code;
 }
 
@@ -110,13 +103,6 @@ static int code_to_temp(struct exynos_tmu_data *data, u8 temp_code)
 {
 	struct exynos_tmu_platform_data *pdata = data->pdata;
 	int temp;
-
-	if (data->soc == SOC_ARCH_EXYNOS4210)
-		/* temp_code should range between 75 and 175 */
-		if (temp_code < 75 || temp_code > 175) {
-			temp = -ENODATA;
-			goto out;
-		}
 
 	switch (pdata->cal_type) {
 	case TYPE_TWO_POINT_TRIMMING:
@@ -132,7 +118,7 @@ static int code_to_temp(struct exynos_tmu_data *data, u8 temp_code)
 		temp = temp_code - pdata->default_temp_offset;
 		break;
 	}
-out:
+
 	return temp;
 }
 
@@ -346,8 +332,16 @@ static int exynos_tmu_read(struct exynos_tmu_data *data)
 	clk_enable(data->clk);
 
 	temp_code = readb(data->base + reg->tmu_cur_temp);
-	temp = code_to_temp(data, temp_code);
 
+	if (data->soc == SOC_ARCH_EXYNOS4210)
+		/* temp_code should range between 75 and 175 */
+		if (temp_code < 75 || temp_code > 175) {
+			temp = -ENODATA;
+			goto out;
+		}
+
+	temp = code_to_temp(data, temp_code);
+out:
 	clk_disable(data->clk);
 	mutex_unlock(&data->lock);
 
