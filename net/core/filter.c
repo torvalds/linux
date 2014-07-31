@@ -18,7 +18,7 @@
  * 2 of the License, or (at your option) any later version.
  *
  * Andi Kleen - Fix a few bad bugs and races.
- * Kris Katterjohn - Added many additional checks in sk_chk_filter()
+ * Kris Katterjohn - Added many additional checks in bpf_check_classic()
  */
 
 #include <linux/module.h>
@@ -721,7 +721,7 @@ static bool chk_code_allowed(u16 code_to_probe)
 }
 
 /**
- *	sk_chk_filter - verify socket filter code
+ *	bpf_check_classic - verify socket filter code
  *	@filter: filter to verify
  *	@flen: length of filter
  *
@@ -734,7 +734,7 @@ static bool chk_code_allowed(u16 code_to_probe)
  *
  * Returns 0 if the rule set is legal or -EINVAL if not.
  */
-int sk_chk_filter(const struct sock_filter *filter, unsigned int flen)
+int bpf_check_classic(const struct sock_filter *filter, unsigned int flen)
 {
 	bool anc_found;
 	int pc;
@@ -808,7 +808,7 @@ int sk_chk_filter(const struct sock_filter *filter, unsigned int flen)
 
 	return -EINVAL;
 }
-EXPORT_SYMBOL(sk_chk_filter);
+EXPORT_SYMBOL(bpf_check_classic);
 
 static int sk_store_orig_filter(struct sk_filter *fp,
 				const struct sock_fprog *fprog)
@@ -968,7 +968,7 @@ static struct sk_filter *__sk_prepare_filter(struct sk_filter *fp)
 	fp->bpf_func = NULL;
 	fp->jited = 0;
 
-	err = sk_chk_filter(fp->insns, fp->len);
+	err = bpf_check_classic(fp->insns, fp->len);
 	if (err) {
 		__sk_filter_release(fp);
 		return ERR_PTR(err);
