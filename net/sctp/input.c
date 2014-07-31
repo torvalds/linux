@@ -575,11 +575,6 @@ void sctp_v4_err(struct sk_buff *skb, __u32 info)
 	int err;
 	struct net *net = dev_net(skb->dev);
 
-	if (skb->len < ihlen + 8) {
-		ICMP_INC_STATS_BH(net, ICMP_MIB_INERRORS);
-		return;
-	}
-
 	/* Fix up skb to look at the embedded net header. */
 	saveip = skb->network_header;
 	savesctp = skb->transport_header;

@@ -533,11 +533,15 @@ void __udp6_lib_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	struct udphdr *uh = (struct udphdr*)(skb->data+offset);
 	struct sock *sk;
 	int err;
+	struct net *net = dev_net(skb->dev);
 
-	sk = __udp6_lib_lookup(dev_net(skb->dev), daddr, uh->dest,
+	sk = __udp6_lib_lookup(net, daddr, uh->dest,
 			       saddr, uh->source, inet6_iif(skb), udptable);
-	if (sk == NULL)
+	if (sk == NULL) {
+		ICMP6_INC_STATS_BH(net, __in6_dev_get(skb->dev),
+				   ICMP6_MIB_INERRORS);
 		return;
+	}
 
 	if (type == ICMPV6_PKT_TOOBIG) {
 		if (!ip6_sk_accept_pmtu(sk))

@@ -344,11 +344,6 @@ void tcp_v4_err(struct sk_buff *icmp_skb, u32 info)
 	int err;
 	struct net *net = dev_net(icmp_skb->dev);
 
-	if (icmp_skb->len < (iph->ihl << 2) + 8) {
-		ICMP_INC_STATS_BH(net, ICMP_MIB_INERRORS);
-		return;
-	}
-
 	sk = inet_lookup(net, &tcp_hashinfo, iph->daddr, th->dest,
 			iph->saddr, th->source, inet_iif(icmp_skb));
 	if (!sk) {
