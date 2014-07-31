@@ -208,6 +208,7 @@ struct perf_hpp_fmt {
 	struct list_head sort_list;
 	bool elide;
 	int len;
+	int user_len;
 };
 
 extern struct list_head perf_hpp__list;
@@ -263,17 +264,18 @@ static inline bool perf_hpp__should_skip(struct perf_hpp_fmt *format)
 
 void perf_hpp__reset_width(struct perf_hpp_fmt *fmt, struct hists *hists);
 void perf_hpp__reset_sort_width(struct perf_hpp_fmt *fmt, struct hists *hists);
+void perf_hpp__set_user_width(const char *width_list_str);
 
 typedef u64 (*hpp_field_fn)(struct hist_entry *he);
 typedef int (*hpp_callback_fn)(struct perf_hpp *hpp, bool front);
 typedef int (*hpp_snprint_fn)(struct perf_hpp *hpp, const char *fmt, ...);
 
-int __hpp__fmt(struct perf_hpp *hpp, struct hist_entry *he,
-	       hpp_field_fn get_field, const char *fmt, int len,
-	       hpp_snprint_fn print_fn, bool fmt_percent);
-int __hpp__fmt_acc(struct perf_hpp *hpp, struct hist_entry *he,
-		   hpp_field_fn get_field, const char *fmt, int len,
-		   hpp_snprint_fn print_fn, bool fmt_percent);
+int hpp__fmt(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
+	     struct hist_entry *he, hpp_field_fn get_field,
+	     const char *fmtstr, hpp_snprint_fn print_fn, bool fmt_percent);
+int hpp__fmt_acc(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
+		 struct hist_entry *he, hpp_field_fn get_field,
+		 const char *fmtstr, hpp_snprint_fn print_fn, bool fmt_percent);
 
 static inline void advance_hpp(struct perf_hpp *hpp, int inc)
 {

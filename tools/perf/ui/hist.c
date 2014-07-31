@@ -15,9 +15,9 @@
 	__ret;							\
 })
 
-int __hpp__fmt(struct perf_hpp *hpp, struct hist_entry *he,
-	       hpp_field_fn get_field, const char *fmt, int len,
-	       hpp_snprint_fn print_fn, bool fmt_percent)
+static int __hpp__fmt(struct perf_hpp *hpp, struct hist_entry *he,
+		      hpp_field_fn get_field, const char *fmt, int len,
+		      hpp_snprint_fn print_fn, bool fmt_percent)
 {
 	int ret;
 	struct hists *hists = he->hists;
@@ -104,16 +104,35 @@ int __hpp__fmt(struct perf_hpp *hpp, struct hist_entry *he,
 	return ret;
 }
 
-int __hpp__fmt_acc(struct perf_hpp *hpp, struct hist_entry *he,
-		   hpp_field_fn get_field, const char *fmt, int len,
-		   hpp_snprint_fn print_fn, bool fmt_percent)
+int hpp__fmt(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
+	     struct hist_entry *he, hpp_field_fn get_field,
+	     const char *fmtstr, hpp_snprint_fn print_fn, bool fmt_percent)
 {
-	if (!symbol_conf.cumulate_callchain) {
-		return snprintf(hpp->buf, hpp->size, "%*s",
-				fmt_percent ? len + 2 : len + 1, "N/A");
+	int len = fmt->user_len ?: fmt->len;
+
+	if (symbol_conf.field_sep) {
+		return __hpp__fmt(hpp, he, get_field, fmtstr, 1,
+				  print_fn, fmt_percent);
 	}
 
-	return __hpp__fmt(hpp, he, get_field, fmt, len, print_fn, fmt_percent);
+	if (fmt_percent)
+		len -= 2; /* 2 for a space and a % sign */
+	else
+		len -= 1;
+
+	return  __hpp__fmt(hpp, he, get_field, fmtstr, len, print_fn, fmt_percent);
+}
+
+int hpp__fmt_acc(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
+		 struct hist_entry *he, hpp_field_fn get_field,
+		 const char *fmtstr, hpp_snprint_fn print_fn, bool fmt_percent)
+{
+	if (!symbol_conf.cumulate_callchain) {
+		int len = fmt->user_len ?: fmt->len;
+		return snprintf(hpp->buf, hpp->size, " %*s", len - 1, "N/A");
+	}
+
+	return hpp__fmt(fmt, hpp, he, get_field, fmtstr, print_fn, fmt_percent);
 }
 
 static int field_cmp(u64 field_a, u64 field_b)
@@ -195,10 +214,10 @@ static int hpp__width_##_type(struct perf_hpp_fmt *fmt,			\
 			      struct perf_hpp *hpp __maybe_unused,	\
 			      struct perf_evsel *evsel)			\
 {									\
-	int len = fmt->len;						\
+	int len = fmt->user_len ?: fmt->len;				\
 									\
 	if (symbol_conf.event_group)					\
-		len = max(len, evsel->nr_members * len);		\
+		len = max(len, evsel->nr_members * fmt->len);		\
 									\
 	if (len < (int)strlen(_str))					\
 		len = strlen(_str);					\
@@ -253,18 +272,16 @@ static u64 he_get_##_field(struct hist_entry *he)				\
 static int hpp__color_##_type(struct perf_hpp_fmt *fmt,				\
 			      struct perf_hpp *hpp, struct hist_entry *he) 	\
 {										\
-	int len = fmt->len - 2;	/* 2 for a space and a % sign */		\
-	return __hpp__fmt(hpp, he, he_get_##_field, " %*.2f%%",	len,		\
-			  hpp_color_scnprintf, true);				\
+	return hpp__fmt(fmt, hpp, he, he_get_##_field, " %*.2f%%",		\
+			hpp_color_scnprintf, true);				\
 }
 
 #define __HPP_ENTRY_PERCENT_FN(_type, _field)					\
 static int hpp__entry_##_type(struct perf_hpp_fmt *fmt,				\
 			      struct perf_hpp *hpp, struct hist_entry *he) 	\
 {										\
-	int len = symbol_conf.field_sep ? 1 : fmt->len - 2;			\
-	return __hpp__fmt(hpp, he, he_get_##_field, " %*.2f%%",	len,		\
-			  hpp_entry_scnprintf, true);				\
+	return hpp__fmt(fmt, hpp, he, he_get_##_field, " %*.2f%%",		\
+			hpp_entry_scnprintf, true);				\
 }
 
 #define __HPP_SORT_FN(_type, _field)						\
@@ -282,18 +299,16 @@ static u64 he_get_acc_##_field(struct hist_entry *he)				\
 static int hpp__color_##_type(struct perf_hpp_fmt *fmt,				\
 			      struct perf_hpp *hpp, struct hist_entry *he) 	\
 {										\
-	int len = fmt->len - 2;	/* 2 for a space and a % sign */		\
-	return __hpp__fmt_acc(hpp, he, he_get_acc_##_field, " %*.2f%%",	len, 	\
-			      hpp_color_scnprintf, true);			\
+	return hpp__fmt_acc(fmt, hpp, he, he_get_acc_##_field, " %*.2f%%", 	\
+			    hpp_color_scnprintf, true);				\
 }
 
 #define __HPP_ENTRY_ACC_PERCENT_FN(_type, _field)				\
 static int hpp__entry_##_type(struct perf_hpp_fmt *fmt,				\
 			      struct perf_hpp *hpp, struct hist_entry *he) 	\
 {										\
-	int len = symbol_conf.field_sep ? 1 : fmt->len - 2;			\
-	return __hpp__fmt_acc(hpp, he, he_get_##_field, " %*.2f%%", len,	\
-			      hpp_entry_scnprintf, true);			\
+	return hpp__fmt_acc(fmt, hpp, he, he_get_##_field, " %*.2f%%",		\
+			    hpp_entry_scnprintf, true);				\
 }
 
 #define __HPP_SORT_ACC_FN(_type, _field)					\
@@ -311,9 +326,8 @@ static u64 he_get_raw_##_field(struct hist_entry *he)				\
 static int hpp__entry_##_type(struct perf_hpp_fmt *fmt,				\
 			      struct perf_hpp *hpp, struct hist_entry *he) 	\
 {										\
-	int len = symbol_conf.field_sep ? 1 : fmt->len - 1;			\
-	return __hpp__fmt(hpp, he, he_get_raw_##_field, " %*"PRIu64, len, 	\
-			  hpp_entry_scnprintf, false);				\
+	return hpp__fmt(fmt, hpp, he, he_get_raw_##_field, " %*"PRIu64, 	\
+			hpp_entry_scnprintf, false);				\
 }
 
 #define __HPP_SORT_RAW_FN(_type, _field)					\
@@ -664,5 +678,23 @@ void perf_hpp__reset_width(struct perf_hpp_fmt *fmt, struct hists *hists)
 
 	default:
 		break;
+	}
+}
+
+void perf_hpp__set_user_width(const char *width_list_str)
+{
+	struct perf_hpp_fmt *fmt;
+	const char *ptr = width_list_str;
+
+	perf_hpp__for_each_format(fmt) {
+		char *p;
+
+		int len = strtol(ptr, &p, 10);
+		fmt->user_len = len;
+
+		if (*p == ',')
+			ptr = p + 1;
+		else
+			break;
 	}
 }

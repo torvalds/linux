@@ -70,8 +70,10 @@ static int hist_entry__thread_snprintf(struct hist_entry *he, char *bf,
 				       size_t size, unsigned int width)
 {
 	const char *comm = thread__comm_str(he->thread);
-	return repsep_snprintf(bf, size, "%5d:%-*s", he->thread->tid,
-			       width - 6, comm ?: "");
+
+	width = max(7U, width) - 6;
+	return repsep_snprintf(bf, size, "%5d:%-*.*s", he->thread->tid,
+			       width, width, comm ?: "");
 }
 
 struct sort_entry sort_thread = {
@@ -106,7 +108,7 @@ sort__comm_sort(struct hist_entry *left, struct hist_entry *right)
 static int hist_entry__comm_snprintf(struct hist_entry *he, char *bf,
 				     size_t size, unsigned int width)
 {
-	return repsep_snprintf(bf, size, "%-*s", width, comm__str(he->comm));
+	return repsep_snprintf(bf, size, "%-*.*s", width, width, comm__str(he->comm));
 }
 
 struct sort_entry sort_comm = {
@@ -152,10 +154,10 @@ static int _hist_entry__dso_snprintf(struct map *map, char *bf,
 	if (map && map->dso) {
 		const char *dso_name = !verbose ? map->dso->short_name :
 			map->dso->long_name;
-		return repsep_snprintf(bf, size, "%-*s", width, dso_name);
+		return repsep_snprintf(bf, size, "%-*.*s", width, width, dso_name);
 	}
 
-	return repsep_snprintf(bf, size, "%-*s", width, "[unknown]");
+	return repsep_snprintf(bf, size, "%-*.*s", width, width, "[unknown]");
 }
 
 static int hist_entry__dso_snprintf(struct hist_entry *he, char *bf,
@@ -257,7 +259,10 @@ static int _hist_entry__sym_snprintf(struct map *map, struct symbol *sym,
 				       width - ret, "");
 	}
 
-	return ret;
+	if (ret > width)
+		bf[width] = '\0';
+
+	return width;
 }
 
 static int hist_entry__sym_snprintf(struct hist_entry *he, char *bf,
@@ -302,10 +307,9 @@ sort__srcline_cmp(struct hist_entry *left, struct hist_entry *right)
 }
 
 static int hist_entry__srcline_snprintf(struct hist_entry *he, char *bf,
-					size_t size,
-					unsigned int width __maybe_unused)
+					size_t size, unsigned int width)
 {
-	return repsep_snprintf(bf, size, "%-s", he->srcline);
+	return repsep_snprintf(bf, size, "%*.*-s", width, width, he->srcline);
 }
 
 struct sort_entry sort_srcline = {
@@ -332,7 +336,7 @@ sort__parent_cmp(struct hist_entry *left, struct hist_entry *right)
 static int hist_entry__parent_snprintf(struct hist_entry *he, char *bf,
 				       size_t size, unsigned int width)
 {
-	return repsep_snprintf(bf, size, "%-*s", width,
+	return repsep_snprintf(bf, size, "%-*.*s", width, width,
 			      he->parent ? he->parent->name : "[other]");
 }
 
@@ -354,7 +358,7 @@ sort__cpu_cmp(struct hist_entry *left, struct hist_entry *right)
 static int hist_entry__cpu_snprintf(struct hist_entry *he, char *bf,
 				    size_t size, unsigned int width)
 {
-	return repsep_snprintf(bf, size, "%*d", width, he->cpu);
+	return repsep_snprintf(bf, size, "%*.*d", width, width, he->cpu);
 }
 
 struct sort_entry sort_cpu = {
@@ -484,7 +488,7 @@ static int hist_entry__mispredict_snprintf(struct hist_entry *he, char *bf,
 	else if (he->branch_info->flags.mispred)
 		out = "Y";
 
-	return repsep_snprintf(bf, size, "%-*s", width, out);
+	return repsep_snprintf(bf, size, "%-*.*s", width, width, out);
 }
 
 /* --sort daddr_sym */
@@ -1210,12 +1214,14 @@ static int __sort__hpp_header(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 			      struct perf_evsel *evsel)
 {
 	struct hpp_sort_entry *hse;
-	size_t len;
+	size_t len = fmt->user_len;
 
 	hse = container_of(fmt, struct hpp_sort_entry, hpp);
-	len = hists__col_len(&evsel->hists, hse->se->se_width_idx);
 
-	return scnprintf(hpp->buf, hpp->size, "%-*s", len, hse->se->se_header);
+	if (!len)
+		len = hists__col_len(&evsel->hists, hse->se->se_width_idx);
+
+	return scnprintf(hpp->buf, hpp->size, "%-*.*s", len, len, hse->se->se_header);
 }
 
 static int __sort__hpp_width(struct perf_hpp_fmt *fmt,
@@ -1223,20 +1229,26 @@ static int __sort__hpp_width(struct perf_hpp_fmt *fmt,
 			     struct perf_evsel *evsel)
 {
 	struct hpp_sort_entry *hse;
+	size_t len = fmt->user_len;
 
 	hse = container_of(fmt, struct hpp_sort_entry, hpp);
 
-	return hists__col_len(&evsel->hists, hse->se->se_width_idx);
+	if (!len)
+		len = hists__col_len(&evsel->hists, hse->se->se_width_idx);
+
+	return len;
 }
 
 static int __sort__hpp_entry(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 			     struct hist_entry *he)
 {
 	struct hpp_sort_entry *hse;
-	size_t len;
+	size_t len = fmt->user_len;
 
 	hse = container_of(fmt, struct hpp_sort_entry, hpp);
-	len = hists__col_len(he->hists, hse->se->se_width_idx);
+
+	if (!len)
+		len = hists__col_len(he->hists, hse->se->se_width_idx);
 
 	return hse->se->se_snprintf(he, hpp->buf, hpp->size, len);
 }
@@ -1266,6 +1278,7 @@ __sort_dimension__alloc_hpp(struct sort_dimension *sd)
 	INIT_LIST_HEAD(&hse->hpp.sort_list);
 	hse->hpp.elide = false;
 	hse->hpp.len = 0;
+	hse->hpp.user_len = 0;
 
 	return hse;
 }
