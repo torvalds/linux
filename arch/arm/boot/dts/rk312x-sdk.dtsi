@@ -8,6 +8,10 @@
 		status = "okay";
 	};
 
+	chosen {
+		bootargs = "vmalloc=512M clk_ignore_unused";
+	};
+
         backlight {
                 compatible = "pwm-backlight";
                 pwms = <&pwm0 0 25000>;
@@ -338,7 +342,7 @@
 		696000 1250000
 		816000 1250000
 		>;
-	status="okay";
+	status="disable";
 };
 
 &clk_gpu_dvfs_table {
