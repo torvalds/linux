@@ -791,6 +791,13 @@ struct b43_firmware {
 	bool pcm_request_failed;
 };
 
+enum b43_band {
+	B43_BAND_2G = 0,
+	B43_BAND_5G_LO = 1,
+	B43_BAND_5G_MI = 2,
+	B43_BAND_5G_HI = 3,
+};
+
 /* Device (802.11 core) initialization status. */
 enum {
 	B43_STAT_UNINIT = 0,	/* Uninitialized. */
