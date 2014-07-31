@@ -17,6 +17,7 @@
 #include <asm/cputype.h>
 
 #define SCU_CTRL		0x00
+#define SCU_ENABLE		(1 << 0)
 #define SCU_CONFIG		0x04
 #define SCU_CPU_STATUS		0x08
 #define SCU_INVALIDATE		0x0c
@@ -50,10 +51,10 @@ void scu_enable(void __iomem *scu_base)
 
 	scu_ctrl = readl_relaxed(scu_base + SCU_CTRL);
 	/* already enabled? */
-	if (scu_ctrl & 1)
+	if (scu_ctrl & SCU_ENABLE)
 		return;
 
-	scu_ctrl |= 1;
+	scu_ctrl |= SCU_ENABLE;
 	writel_relaxed(scu_ctrl, scu_base + SCU_CTRL);
 
 	/*
