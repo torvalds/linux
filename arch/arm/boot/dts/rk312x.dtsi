@@ -630,7 +630,7 @@
 	};
 
 	hdmi: hdmi@20034000 {
-		compatible = "rockchip,rk3036-hdmi";
+		compatible = "rockchip,rk312x-hdmi";
 		reg = <0x20034000 0x4000>;
 		interrupts = <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>;
 		rockchip,hdmi_lcdc_source = <0>;
