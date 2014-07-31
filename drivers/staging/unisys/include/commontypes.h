@@ -27,7 +27,6 @@
 
 typedef u64 GUEST_PHYSICAL_ADDRESS;
 
-#define MEMSET(ptr, val, len) memset(ptr, val, len)
 #define MEMCMP_IO(m1, m2, len) memcmp((void __force *)m1, m2, len)
 
 #define INLINE inline

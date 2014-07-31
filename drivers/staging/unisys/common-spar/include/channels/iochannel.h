@@ -376,7 +376,7 @@ struct uiscmdrsp_scsi {
 
 #define SET_NO_DISK_INQUIRY_RESULT(buf, len, lun, lun0notpresent, notpresent) \
 	do {								\
-		MEMSET(buf, 0,						\
+		memset(buf, 0,						\
 		       MINNUM(len,					\
 			      (unsigned int) NO_DISK_INQUIRY_RESULT_LEN)); \
 		buf[2] = (u8) SCSI_SPC2_VER;				\
@@ -802,7 +802,7 @@ static inline int ULTRA_VHBA_init_channel(ULTRA_IO_CHANNEL_PROTOCOL *x,
 					      struct vhba_config_max *max,
 					      unsigned char *clientStr,
 					      u32 clientStrLen, u64 bytes)  {
-	MEMSET(x, 0, sizeof(ULTRA_IO_CHANNEL_PROTOCOL));
+	memset(x, 0, sizeof(ULTRA_IO_CHANNEL_PROTOCOL));
 	x->ChannelHeader.VersionId = ULTRA_VHBA_CHANNEL_PROTOCOL_VERSIONID;
 	x->ChannelHeader.Signature = ULTRA_VHBA_CHANNEL_PROTOCOL_SIGNATURE;
 	x->ChannelHeader.SrvState = CHANNELSRV_UNINITIALIZED;
@@ -838,7 +838,7 @@ static inline int ULTRA_VNIC_init_channel(ULTRA_IO_CHANNEL_PROTOCOL *x,
 						 unsigned char *clientStr,
 						 u32 clientStrLen,
 						 u64 bytes)  {
-	MEMSET(x, 0, sizeof(ULTRA_IO_CHANNEL_PROTOCOL));
+	memset(x, 0, sizeof(ULTRA_IO_CHANNEL_PROTOCOL));
 	x->ChannelHeader.VersionId = ULTRA_VNIC_CHANNEL_PROTOCOL_VERSIONID;
 	x->ChannelHeader.Signature = ULTRA_VNIC_CHANNEL_PROTOCOL_SIGNATURE;
 	x->ChannelHeader.SrvState = CHANNELSRV_UNINITIALIZED;

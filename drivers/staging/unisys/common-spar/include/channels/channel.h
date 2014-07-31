@@ -290,7 +290,7 @@ typedef struct _SIGNAL_QUEUE_HEADER {
 
 #define SignalInit(chan, QHDRFLD, QDATAFLD, QDATATYPE, ver, typ)	\
 	do {								\
-		MEMSET(&chan->QHDRFLD, 0, sizeof(chan->QHDRFLD));	\
+		memset(&chan->QHDRFLD, 0, sizeof(chan->QHDRFLD));	\
 		chan->QHDRFLD.VersionId = ver;				\
 		chan->QHDRFLD.Type = typ;				\
 		chan->QHDRFLD.Size = sizeof(chan->QDATAFLD);		\
