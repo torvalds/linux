@@ -36,22 +36,21 @@ struct jornada_ts {
 
 static void jornada720_ts_collect_data(struct jornada_ts *jornada_ts)
 {
+	/* 3 low word X samples */
+	jornada_ts->x_data[0] = jornada_ssp_byte(TXDUMMY);
+	jornada_ts->x_data[1] = jornada_ssp_byte(TXDUMMY);
+	jornada_ts->x_data[2] = jornada_ssp_byte(TXDUMMY);
 
-    /* 3 low word X samples */
-    jornada_ts->x_data[0] = jornada_ssp_byte(TXDUMMY);
-    jornada_ts->x_data[1] = jornada_ssp_byte(TXDUMMY);
-    jornada_ts->x_data[2] = jornada_ssp_byte(TXDUMMY);
+	/* 3 low word Y samples */
+	jornada_ts->y_data[0] = jornada_ssp_byte(TXDUMMY);
+	jornada_ts->y_data[1] = jornada_ssp_byte(TXDUMMY);
+	jornada_ts->y_data[2] = jornada_ssp_byte(TXDUMMY);
 
-    /* 3 low word Y samples */
-    jornada_ts->y_data[0] = jornada_ssp_byte(TXDUMMY);
-    jornada_ts->y_data[1] = jornada_ssp_byte(TXDUMMY);
-    jornada_ts->y_data[2] = jornada_ssp_byte(TXDUMMY);
+	/* combined x samples bits */
+	jornada_ts->x_data[3] = jornada_ssp_byte(TXDUMMY);
 
-    /* combined x samples bits */
-    jornada_ts->x_data[3] = jornada_ssp_byte(TXDUMMY);
-
-    /* combined y samples bits */
-    jornada_ts->y_data[3] = jornada_ssp_byte(TXDUMMY);
+	/* combined y samples bits */
+	jornada_ts->y_data[3] = jornada_ssp_byte(TXDUMMY);
 }
 
 static int jornada720_ts_average(int coords[4])
