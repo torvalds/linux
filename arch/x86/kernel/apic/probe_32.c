@@ -102,7 +102,6 @@ static struct apic apic_default = {
 	.check_phys_apicid_present	= default_check_phys_apicid_present,
 	.enable_apic_mode		= NULL,
 	.phys_pkg_id			= default_phys_pkg_id,
-	.mps_oem_check			= NULL,
 
 	.get_apic_id			= default_get_apic_id,
 	.set_apic_id			= NULL,
@@ -210,29 +209,7 @@ void __init generic_apic_probe(void)
 	printk(KERN_INFO "Using APIC driver %s\n", apic->name);
 }
 
-/* These functions can switch the APIC even after the initial ->probe() */
-
-int __init
-generic_mps_oem_check(struct mpc_table *mpc, char *oem, char *productid)
-{
-	struct apic **drv;
-
-	for (drv = __apicdrivers; drv < __apicdrivers_end; drv++) {
-		if (!((*drv)->mps_oem_check))
-			continue;
-		if (!(*drv)->mps_oem_check(mpc, oem, productid))
-			continue;
-
-		if (!cmdline_apic) {
-			apic = *drv;
-			printk(KERN_INFO "Switched to APIC driver `%s'.\n",
-			       apic->name);
-		}
-		return 1;
-	}
-	return 0;
-}
-
+/* This function can switch the APIC even after the initial ->probe() */
 int __init default_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 {
 	struct apic **drv;

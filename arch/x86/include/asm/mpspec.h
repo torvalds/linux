@@ -150,6 +150,4 @@ static inline void physid_set_mask_of_physid(int physid, physid_mask_t *map)
 
 extern physid_mask_t phys_cpu_present_map;
 
-extern int generic_mps_oem_check(struct mpc_table *, char *, char *);
-
 #endif /* _ASM_X86_MPSPEC_H */

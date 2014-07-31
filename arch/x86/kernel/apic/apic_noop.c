@@ -152,8 +152,6 @@ struct apic apic_noop = {
 
 	.phys_pkg_id			= noop_phys_pkg_id,
 
-	.mps_oem_check			= NULL,
-
 	.get_apic_id			= noop_get_apic_id,
 	.set_apic_id			= NULL,
 	.apic_id_mask			= 0x0F << 24,

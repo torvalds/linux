@@ -182,7 +182,6 @@ static struct apic apic_flat =  {
 	.check_phys_apicid_present	= default_check_phys_apicid_present,
 	.enable_apic_mode		= NULL,
 	.phys_pkg_id			= flat_phys_pkg_id,
-	.mps_oem_check			= NULL,
 
 	.get_apic_id			= flat_get_apic_id,
 	.set_apic_id			= set_apic_id,
@@ -295,7 +294,6 @@ static struct apic apic_physflat =  {
 	.check_phys_apicid_present	= default_check_phys_apicid_present,
 	.enable_apic_mode		= NULL,
 	.phys_pkg_id			= flat_phys_pkg_id,
-	.mps_oem_check			= NULL,
 
 	.get_apic_id			= flat_get_apic_id,
 	.set_apic_id			= set_apic_id,

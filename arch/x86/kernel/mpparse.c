@@ -216,9 +216,6 @@ static int __init smp_read_mpc(struct mpc_table *mpc, unsigned early)
 	if (!smp_check_mpc(mpc, oem, str))
 		return 0;
 
-#ifdef CONFIG_X86_32
-	generic_mps_oem_check(mpc, oem, str);
-#endif
 	/* Initialize the lapic mapping */
 	if (!acpi_lapic)
 		register_lapic_address(mpc->lapic);
