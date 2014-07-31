@@ -672,11 +672,12 @@ static struct dma_async_tx_descriptor *shdma_prep_dma_cyclic(
 {
 	struct shdma_chan *schan = to_shdma_chan(chan);
 	struct shdma_dev *sdev = to_shdma_dev(schan->dma_chan.device);
+	struct dma_async_tx_descriptor *desc;
 	const struct shdma_ops *ops = sdev->ops;
 	unsigned int sg_len = buf_len / period_len;
 	int slave_id = schan->slave_id;
 	dma_addr_t slave_addr;
-	struct scatterlist sgl[SHDMA_MAX_SG_LEN];
+	struct scatterlist *sgl;
 	int i;
 
 	if (!chan)
@@ -700,7 +701,16 @@ static struct dma_async_tx_descriptor *shdma_prep_dma_cyclic(
 
 	slave_addr = ops->slave_addr(schan);
 
+	/*
+	 * Allocate the sg list dynamically as it would consumer too much stack
+	 * space.
+	 */
+	sgl = kcalloc(sg_len, sizeof(*sgl), GFP_KERNEL);
+	if (!sgl)
+		return NULL;
+
 	sg_init_table(sgl, sg_len);
+
 	for (i = 0; i < sg_len; i++) {
 		dma_addr_t src = buf_addr + (period_len * i);
 
@@ -710,8 +720,11 @@ static struct dma_async_tx_descriptor *shdma_prep_dma_cyclic(
 		sg_dma_len(&sgl[i]) = period_len;
 	}
 
-	return shdma_prep_sg(schan, sgl, sg_len, &slave_addr,
+	desc = shdma_prep_sg(schan, sgl, sg_len, &slave_addr,
 			     direction, flags, true);
+
+	kfree(sgl);
+	return desc;
 }
 
 static int shdma_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
