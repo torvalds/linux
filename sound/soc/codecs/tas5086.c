@@ -419,14 +419,14 @@ static int tas5086_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	/* ... then add the offset for the sample bit depth. */
-	switch (params_format(params)) {
-        case SNDRV_PCM_FORMAT_S16_LE:
+	switch (params_width(params)) {
+        case 16:
 		val += 0;
                 break;
-	case SNDRV_PCM_FORMAT_S20_3LE:
+	case 20:
 		val += 1;
 		break;
-	case SNDRV_PCM_FORMAT_S24_3LE:
+	case 24:
 		val += 2;
 		break;
 	default:
