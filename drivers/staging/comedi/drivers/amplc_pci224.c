@@ -365,7 +365,7 @@ struct pci224_private {
 	const unsigned short *hwrange;
 	unsigned long iobase1;
 	unsigned long state;
-	spinlock_t ao_spinlock;
+	spinlock_t ao_spinlock;	/* spinlock for AO command handling */
 	unsigned int *ao_readback;
 	unsigned short *ao_scan_vals;
 	unsigned char *ao_scan_order;
