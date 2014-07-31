@@ -1,5 +1,5 @@
 /*
- * drivers/video/rockchip/lcdc/rk31xx_lcdc.c
+ * drivers/video/rockchip/transmitter/rk31xx_lvds.c
  *
  * Copyright (C) 2014 ROCKCHIP, Inc.
  * Author: zhuangwenlong<zwl@rock-chips.com>
@@ -45,19 +45,13 @@ static int rk31xx_lvds_clk_init(struct rk_lvds_device *lvds)
 		dev_err(lvds->dev, "get clk failed\n");
 		return PTR_ERR(lvds->pclk);
 	}
- 
-	lvds->pd = devm_clk_get(lvds->dev,"pd_lvds");
-	if (IS_ERR(lvds->pd)) {
-		dev_err(lvds->dev, "get clk failed\n");
-		return PTR_ERR(lvds->pd);
-	}	
+
 	return 0;	
 }
 
 static int rk31xx_lvds_clk_enable(struct rk_lvds_device *lvds)
 {
 	if (!lvds->clk_on) {
-		clk_prepare_enable(lvds->pd);
 		clk_prepare_enable(lvds->pclk);
 		lvds->clk_on = true;
 	}
@@ -69,7 +63,6 @@ static int rk31xx_lvds_clk_disable(struct rk_lvds_device *lvds)
 {
 	if (lvds->clk_on) {
 		clk_disable_unprepare(lvds->pclk);
-		clk_disable_unprepare(lvds->pd);
 		lvds->clk_on = false;
 	}
 
@@ -138,7 +131,7 @@ static void rk31xx_output_lvds(struct rk_lvds_device *lvds,
          * set iomux in dts pinctrl
          */
 	val = 0;
-	val |= v_LVDSMODE_EN(1) | v_MIPIPHY_TTL_EN(0);      /* enable lvds mode */
+	val |= v_LVDSMODE_EN(1) | v_MIPIPHY_TTL_EN(0);  /* enable lvds mode */
 	val |= v_LVDS_DATA_SEL(LVDS_DATA_FROM_LCDC);    /* config data source */
 	val |= v_LVDS_OUTPUT_FORMAT(screen->lvds_format); /* config lvds_format */
 	val |= v_LVDS_MSBSEL(LVDS_MSB_D7);      /* LSB receive mode */
@@ -184,7 +177,7 @@ static void rk31xx_output_lvttl(struct rk_lvds_device *lvds,
         pinctrl_select_state(lvds->dev->pins->p, lcdc_state);
 #endif
 
-	val |= v_LVDSMODE_EN(0) | v_MIPIPHY_TTL_EN(1);      /* enable lvds mode */
+	val |= v_LVDSMODE_EN(0) | v_MIPIPHY_TTL_EN(1);  /* enable lvds mode */
 	val |= v_LVDS_DATA_SEL(LVDS_DATA_FROM_LCDC);    /* config data source */
 	grf_writel(val, RK312X_GRF_LVDS_CON0);
 

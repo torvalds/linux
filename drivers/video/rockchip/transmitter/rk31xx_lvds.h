@@ -79,7 +79,6 @@ struct rk_lvds_device {
 	struct device 		*dev;
 	void __iomem  		*regbase;
 	struct clk    		*pclk;  /*phb clk*/
-	struct clk              *pd;
 	struct rk_screen	screen;
 	bool			clk_on;
         bool                    sys_state;
@@ -101,7 +100,7 @@ static inline int lvds_msk_reg(struct rk_lvds_device *lvds, u32 offset,
 	return 0;
 }
 
-static inline u32 hdmi_readl(struct rk_lvds_device *lvds, u32 offset)
+static inline u32 lvds_readl(struct rk_lvds_device *lvds, u32 offset)
 {
 	return readl_relaxed(lvds->regbase + offset);
 }
