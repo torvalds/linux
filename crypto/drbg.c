@@ -1500,7 +1500,7 @@ static int drbg_generate_long(struct drbg_state *drbg,
 		if (0 >= tmplen)
 			return tmplen;
 		len += tmplen;
-	} while (slice > 0);
+	} while (slice > 0 && (len < buflen));
 	return len;
 }
 
