@@ -335,6 +335,7 @@ struct iser_conn {
 	char 			     name[ISER_OBJECT_NAME_SIZE];
 	struct work_struct	     release_work;
 	struct completion	     stop_completion;
+	struct mutex		     state_mutex;
 	struct list_head	     conn_list;       /* entry in ig conn list */
 
 	char  			     *login_buf;

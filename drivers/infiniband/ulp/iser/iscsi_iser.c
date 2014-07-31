@@ -632,10 +632,13 @@ iscsi_iser_ep_poll(struct iscsi_endpoint *ep, int timeout_ms)
 			     msecs_to_jiffies(timeout_ms));
 
 	/* if conn establishment failed, return error code to iscsi */
-	if (!rc &&
-	    (ib_conn->state == ISER_CONN_TERMINATING ||
-	     ib_conn->state == ISER_CONN_DOWN))
-		rc = -1;
+	if (rc == 0) {
+		mutex_lock(&ib_conn->state_mutex);
+		if (ib_conn->state == ISER_CONN_TERMINATING ||
+		    ib_conn->state == ISER_CONN_DOWN)
+			rc = -1;
+		mutex_unlock(&ib_conn->state_mutex);
+	}
 
 	iser_info("ib conn %p rc = %d\n", ib_conn, rc);
 
@@ -654,6 +657,7 @@ iscsi_iser_ep_disconnect(struct iscsi_endpoint *ep)
 
 	ib_conn = ep->dd_data;
 	iser_info("ep %p ib conn %p state %d\n", ep, ib_conn, ib_conn->state);
+	mutex_lock(&ib_conn->state_mutex);
 	iser_conn_terminate(ib_conn);
 
 	/*
@@ -664,7 +668,10 @@ iscsi_iser_ep_disconnect(struct iscsi_endpoint *ep)
 	if (ib_conn->iscsi_conn) {
 		INIT_WORK(&ib_conn->release_work, iser_release_work);
 		queue_work(release_wq, &ib_conn->release_work);
+		mutex_unlock(&ib_conn->state_mutex);
 	} else {
+		ib_conn->state = ISER_CONN_DOWN;
+		mutex_unlock(&ib_conn->state_mutex);
 		iser_conn_release(ib_conn);
 	}
 	iscsi_destroy_endpoint(ep);
