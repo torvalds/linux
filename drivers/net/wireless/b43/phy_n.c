@@ -4235,8 +4235,9 @@ static void b43_nphy_tx_gain_table_upload(struct b43_wldev *dev)
 
 	const u32 *table = NULL;
 	u32 rfpwr_offset;
-	u8 pga_gain;
+	u8 pga_gain, pad_gain;
 	int i;
+	const s16 *uninitialized_var(rf_pwr_offset_table);
 
 	table = b43_nphy_get_tx_gain_table(dev);
 	if (!table)
@@ -4252,13 +4253,27 @@ static void b43_nphy_tx_gain_table_upload(struct b43_wldev *dev)
 	nphy->gmval = (table[0] >> 16) & 0x7000;
 #endif
 
+	if (phy->rev >= 19) {
+		return;
+	} else if (phy->rev >= 7) {
+		rf_pwr_offset_table = b43_ntab_get_rf_pwr_offset_table(dev);
+		if (!rf_pwr_offset_table)
+			return;
+		/* TODO: Enable this once we have gains configured */
+		return;
+	}
+
 	for (i = 0; i < 128; i++) {
 		if (phy->rev >= 19) {
 			/* TODO */
 			return;
 		} else if (phy->rev >= 7) {
-			/* TODO */
-			return;
+			pga_gain = (table[i] >> 24) & 0xf;
+			pad_gain = (table[i] >> 19) & 0x1f;
+			if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ)
+				rfpwr_offset = rf_pwr_offset_table[pad_gain];
+			else
+				rfpwr_offset = rf_pwr_offset_table[pga_gain];
 		} else {
 			pga_gain = (table[i] >> 24) & 0xF;
 			if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ)

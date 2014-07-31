@@ -2878,6 +2878,40 @@ const s8 b43_ntab_papd_pga_gain_delta_ipa_2g[] = {
 	-54, -46, -39, -31, -23, -15, -8, 0
 };
 
+/* Extracted from MMIO dump of 6.30.223.248
+ * Entries: 0, 15, 17, 21, 24, 26, 27, 29, 30 were guessed
+ */
+static const s16 b43_ntab_rf_pwr_offset_2057_rev9_2g[] = {
+	-133, -133, -107, -92, -81,
+	-73, -66, -61, -56, -52,
+	-48, -44, -41, -37, -34,
+	-31, -28, -25, -22, -19,
+	-17, -14, -12, -10, -9,
+	-7, -5, -4, -3, -2,
+	-1, 0,
+};
+
+/* Extracted from MMIO dump of 6.30.223.248 */
+static const s16 b43_ntab_rf_pwr_offset_2057_rev9_5g[] = {
+	-101, -94, -86, -79, -72,
+	-65, -57, -50, -42, -35,
+	-28, -21, -16, -9, -4,
+	0,
+};
+
+/* Extracted from MMIO dump of 6.30.223.248
+ * Entries: 0, 26, 28, 29, 30, 31 were guessed
+ */
+static const s16 b43_ntab_rf_pwr_offset_2057_rev14_2g[] = {
+	-111, -111, -111, -84, -70,
+	-59, -52, -45, -40, -36,
+	-32, -29, -26, -23, -21,
+	-18, -16, -15, -13, -11,
+	-10, -8, -7, -6, -5,
+	-4, -4, -3, -3, -2,
+	-2, -1,
+};
+
 const u16 tbl_iqcal_gainparams[2][9][8] = {
 	{
 		{ 0x000, 0, 0, 2, 0x69, 0x69, 0x69, 0x69 },
@@ -3705,6 +3739,39 @@ const u32 *b43_nphy_get_tx_gain_table(struct b43_wldev *dev)
 			       "No 2GHz EPA gain table available for this device\n");
 			return NULL;
 		}
+	}
+}
+
+const s16 *b43_ntab_get_rf_pwr_offset_table(struct b43_wldev *dev)
+{
+	struct b43_phy *phy = &dev->phy;
+
+	if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ) {
+		switch (phy->rev) {
+		case 17:
+			if (phy->radio_rev == 14)
+				return b43_ntab_rf_pwr_offset_2057_rev14_2g;
+			break;
+		case 16:
+			if (phy->radio_rev == 9)
+				return b43_ntab_rf_pwr_offset_2057_rev9_2g;
+			break;
+		}
+
+		b43err(dev->wl,
+		       "No 2GHz RF power table available for this device\n");
+		return NULL;
+	} else {
+		switch (phy->rev) {
+		case 16:
+			if (phy->radio_rev == 9)
+				return b43_ntab_rf_pwr_offset_2057_rev9_5g;
+			break;
+		}
+
+		b43err(dev->wl,
+		       "No 5GHz RF power table available for this device\n");
+		return NULL;
 	}
 }
 
