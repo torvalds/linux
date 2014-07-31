@@ -1,7 +1,6 @@
 /dts-v1/;
 
 #include "rk312x.dtsi"
-#include "rk312x-pinctrl.dtsi"
 #include "lcd-b101ew05.dtsi"
 
 / {

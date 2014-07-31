@@ -6,6 +6,7 @@
 
 #include "skeleton.dtsi"
 #include "rk312x-clocks.dtsi"
+#include "rk312x-pinctrl.dtsi"
 
 / {
 	compatible = "rockchip,rk312x";
@@ -143,14 +144,14 @@
 		reg = <0x20060000 0x100>;
 		interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
 		clock-frequency = <24000000>;
-	//	clocks = <&clk_uart0>, <&clk_gates8 0>;
+		clocks = <&clk_uart0>, <&clk_gates8 0>;
 		clock-names = "sclk_uart", "pclk_uart";
 		reg-shift = <2>;
 		reg-io-width = <4>;
 		dmas = <&pdma 2>, <&pdma 3>;
 		#dma-cells = <2>;
 		pinctrl-names = "default";
-	//	pinctrl-0 = <&uart0_xfer &uart0_cts &uart0_rts>;
+		pinctrl-0 = <&uart0_xfer &uart0_cts &uart0_rts>;
 		status = "disabled";
 	};
 
@@ -159,14 +160,14 @@
 		reg = <0x20064000 0x100>;
 		interrupts = <GIC_SPI 21 IRQ_TYPE_LEVEL_HIGH>;
 		clock-frequency = <24000000>;
-	//	clocks = <&clk_uart1>, <&clk_gates8 1>;
+		clocks = <&clk_uart1>, <&clk_gates8 1>;
 		clock-names = "sclk_uart", "pclk_uart";
 		reg-shift = <2>;
 		reg-io-width = <4>;
 		dmas = <&pdma 4>, <&pdma 5>;
 		#dma-cells = <2>;
 		pinctrl-names = "default";
-	//	pinctrl-0 = <&uart1_xfer &uart1_cts &uart1_rts>;
+		pinctrl-0 = <&uart1_xfer &uart1_cts &uart1_rts>;
 		status = "disabled";
 	};
 
@@ -175,14 +176,14 @@
 		reg = <0x20068000 0x100>;
 		interrupts = <GIC_SPI 22 IRQ_TYPE_LEVEL_HIGH>;
 		clock-frequency = <24000000>;
-	//	clocks = <&clk_uart2>, <&clk_gates8 2>;
+		clocks = <&clk_uart2>, <&clk_gates8 2>;
 		clock-names = "sclk_uart", "pclk_uart";
 		reg-shift = <2>;
 		reg-io-width = <4>;
 		dmas = <&pdma 6>, <&pdma 7>;
 		#dma-cells = <2>;
 		pinctrl-names = "default";
-	//	pinctrl-0 = <&uart2_xfer>;
+		pinctrl-0 = <&uart2_xfer>;
 		status = "disabled";
 	};
 
@@ -337,11 +338,11 @@
 		interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-	//	pinctrl-names = "default", "gpio";
-	//	pinctrl-0 = <&i2c0_sda &i2c0_scl>;
-	//	pinctrl-1 = <&i2c0_gpio>;
-	//	gpios = <&gpio0 GPIO_A1 GPIO_ACTIVE_LOW>, <&gpio0 GPIO_A0 GPIO_ACTIVE_LOW>;
-	//	clocks = <&clk_gates8 4>;
+		pinctrl-names = "default", "gpio";
+		pinctrl-0 = <&i2c0_sda &i2c0_scl>;
+		pinctrl-1 = <&i2c0_gpio>;
+		gpios = <&gpio0 GPIO_A1 GPIO_ACTIVE_LOW>, <&gpio0 GPIO_A0 GPIO_ACTIVE_LOW>;
+		clocks = <&clk_gates8 4>;
 		rockchip,check-idle = <1>;
 		status = "disabled";
 	};
@@ -352,11 +353,11 @@
 		interrupts = <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-	//	pinctrl-names = "default", "gpio";
-	//	pinctrl-0 = <&i2c1_sda &i2c1_scl>;
-	//	pinctrl-1 = <&i2c1_gpio>;
-	//	gpios = <&gpio0 GPIO_A3 GPIO_ACTIVE_LOW>, <&gpio0 GPIO_A2 GPIO_ACTIVE_LOW>;
-	//	clocks = <&clk_gates8 5>;
+		pinctrl-names = "default", "gpio";
+		pinctrl-0 = <&i2c1_sda &i2c1_scl>;
+		pinctrl-1 = <&i2c1_gpio>;
+		gpios = <&gpio0 GPIO_A3 GPIO_ACTIVE_LOW>, <&gpio0 GPIO_A2 GPIO_ACTIVE_LOW>;
+		clocks = <&clk_gates8 5>;
 		rockchip,check-idle = <1>;
 		status = "disabled";
 	};
@@ -367,11 +368,11 @@
 		interrupts = <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-	//	pinctrl-names = "default", "gpio";
-	//	pinctrl-0 = <&i2c2_sda &i2c2_scl>;
-	//	pinctrl-1 = <&i2c2_gpio>;
-	//	gpios = <&gpio2 GPIO_C4 GPIO_ACTIVE_LOW>, <&gpio2 GPIO_C5 GPIO_ACTIVE_LOW>;
-	//	clocks = <&clk_gates8 6>;
+		pinctrl-names = "default", "gpio";
+		pinctrl-0 = <&i2c2_sda &i2c2_scl>;
+		pinctrl-1 = <&i2c2_gpio>;
+		gpios = <&gpio2 GPIO_C4 GPIO_ACTIVE_LOW>, <&gpio2 GPIO_C5 GPIO_ACTIVE_LOW>;
+		clocks = <&clk_gates8 6>;
 		rockchip,check-idle = <1>;
 		status = "disabled";
 	};
@@ -382,11 +383,11 @@
 		interrupts = <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-	//	pinctrl-names = "default", "gpio";
-	//	pinctrl-0 = <&i2c2_sda &i2c2_scl>;
-	//	pinctrl-1 = <&i2c2_gpio>;
-	//	gpios = <&gpio2 GPIO_C4 GPIO_ACTIVE_LOW>, <&gpio2 GPIO_C5 GPIO_ACTIVE_LOW>;
-	//	clocks = <&clk_gates8 6>;
+                pinctrl-names = "default", "gpio";
+		pinctrl-0 = <&i2c3_sda &i2c3_scl>;
+		pinctrl-1 = <&i2c3_gpio>;
+		gpios = <&gpio0 GPIO_A7 GPIO_ACTIVE_LOW>, <&gpio0 GPIO_A6 GPIO_ACTIVE_LOW>;
+		clocks = <&clk_gates8 6>;
 		rockchip,check-idle = <1>;
 		status = "disabled";
 	};
