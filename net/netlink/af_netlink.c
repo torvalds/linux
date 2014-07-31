@@ -374,7 +374,7 @@ static int netlink_set_ring(struct sock *sk, struct nl_mmap_req *req,
 
 		if ((int)req->nm_block_size <= 0)
 			return -EINVAL;
-		if (!IS_ALIGNED(req->nm_block_size, PAGE_SIZE))
+		if (!PAGE_ALIGNED(req->nm_block_size))
 			return -EINVAL;
 		if (req->nm_frame_size < NL_MMAP_HDRLEN)
 			return -EINVAL;
