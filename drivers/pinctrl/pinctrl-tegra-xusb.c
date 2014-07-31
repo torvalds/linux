@@ -680,7 +680,7 @@ static struct phy *tegra_xusb_padctl_xlate(struct device *dev,
 	if (args->args_count <= 0)
 		return ERR_PTR(-EINVAL);
 
-	if (index > ARRAY_SIZE(padctl->phys))
+	if (index >= ARRAY_SIZE(padctl->phys))
 		return ERR_PTR(-EINVAL);
 
 	return padctl->phys[index];
