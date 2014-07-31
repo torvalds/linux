@@ -923,7 +923,7 @@
 						>;
 					performance-temp-limit = <
 						/*temp    freq*/
-						110     816000
+						100     816000
 						>;
 					status = "okay";
 					regu-mode-table = <
