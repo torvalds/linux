@@ -92,6 +92,7 @@ void rsnd_write(struct rsnd_priv *priv,
 void rsnd_bset(struct rsnd_priv *priv, struct rsnd_mod *mod,
 	       enum rsnd_reg reg, u32 mask, u32 data)
 {
+	struct device *dev = rsnd_priv_to_dev(priv);
 	struct rsnd_gen *gen = rsnd_priv_to_gen(priv);
 
 	if (!rsnd_is_accessible_reg(priv, gen, reg))
@@ -99,6 +100,9 @@ void rsnd_bset(struct rsnd_priv *priv, struct rsnd_mod *mod,
 
 	regmap_fields_update_bits(gen->regs[reg], rsnd_mod_id(mod),
 				  mask, data);
+
+	dev_dbg(dev, "b %s - 0x%04d : %08x/%08x\n",
+		rsnd_mod_name(mod), reg, data, mask);
 }
 
 #define rsnd_gen_regmap_init(priv, id_size, reg_id, conf)		\
