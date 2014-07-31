@@ -1097,6 +1097,8 @@ static int enable_restore_fp_context(int msa)
 		if (msa && !err) {
 			enable_msa();
 			_init_msa_upper();
+			set_thread_flag(TIF_USEDMSA);
+			set_thread_flag(TIF_MSA_CTX_LIVE);
 		}
 		if (!err)
 			set_used_math();
