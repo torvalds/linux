@@ -112,7 +112,7 @@ uisctrl_register_req_handler_ex(uuid_le switchTypeGuid,
 							  channelBytes),
 				int (*Server_Channel_Init)
 				 (void *x, unsigned char *clientStr,
-				  u32 clientStrLen, U64 bytes),
+				  u32 clientStrLen, u64 bytes),
 				ULTRA_VBUS_DEVICEINFO *chipset_DriverInfo)
 {
 	ReqHandlerInfo_t *pReqHandlerInfo;
@@ -279,7 +279,7 @@ ReqHandlerAdd(uuid_le switchTypeGuid,
 	      unsigned long min_channel_bytes,
 	      int (*Server_Channel_Ok)(unsigned long channelBytes),
 	      int (*Server_Channel_Init)
-	       (void *x, unsigned char *clientStr, u32 clientStrLen, U64 bytes))
+	       (void *x, unsigned char *clientStr, u32 clientStrLen, u64 bytes))
 {
 	ReqHandlerInfo_t *rc = NULL;
 

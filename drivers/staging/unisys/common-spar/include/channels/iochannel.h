@@ -250,8 +250,8 @@ typedef enum { VDISK_MGMT_ACQUIRE = 1, VDISK_MGMT_RELEASE,
 #pragma pack(push, 1)
 
 struct guest_phys_info {
-	U64 address;
-	U64 length;
+	u64 address;
+	u64 length;
 };
 
 #define GPI_ENTRIES_PER_PAGE (PAGE_SIZE / sizeof(struct guest_phys_info))
@@ -529,7 +529,7 @@ struct net_pkt_rcvpost {
 	    * to be describable */
 	    struct phys_info frag;	/* physical page information for the
 					 * single fragment 2K rcv buf */
-	    U64 UniqueNum;		/* This is used to make sure that
+	    u64 UniqueNum;		/* This is used to make sure that
 					 * receive posts are returned to  */
 	    /* the Adapter which sent them origonally. */
 };
@@ -545,7 +545,7 @@ struct net_pkt_rcv {
 						 * that must be chained; */
 	/* each entry is a receive buffer provided by NET_RCV_POST. */
 	/* NOTE: first rcvbuf in the chain will also be provided in net.buf. */
-	U64 UniqueNum;
+	u64 UniqueNum;
 	u32 RcvsDroppedDelta;
 };
 
@@ -801,7 +801,7 @@ static inline int ULTRA_VHBA_init_channel(ULTRA_IO_CHANNEL_PROTOCOL *x,
 					      struct vhba_wwnn *wwnn,
 					      struct vhba_config_max *max,
 					      unsigned char *clientStr,
-					      u32 clientStrLen, U64 bytes)  {
+					      u32 clientStrLen, u64 bytes)  {
 	MEMSET(x, 0, sizeof(ULTRA_IO_CHANNEL_PROTOCOL));
 	x->ChannelHeader.VersionId = ULTRA_VHBA_CHANNEL_PROTOCOL_VERSIONID;
 	x->ChannelHeader.Signature = ULTRA_VHBA_CHANNEL_PROTOCOL_SIGNATURE;
@@ -837,7 +837,7 @@ static inline int ULTRA_VNIC_init_channel(ULTRA_IO_CHANNEL_PROTOCOL *x,
 						 uuid_le zoneGuid,
 						 unsigned char *clientStr,
 						 u32 clientStrLen,
-						 U64 bytes)  {
+						 u64 bytes)  {
 	MEMSET(x, 0, sizeof(ULTRA_IO_CHANNEL_PROTOCOL));
 	x->ChannelHeader.VersionId = ULTRA_VNIC_CHANNEL_PROTOCOL_VERSIONID;
 	x->ChannelHeader.Signature = ULTRA_VNIC_CHANNEL_PROTOCOL_SIGNATURE;

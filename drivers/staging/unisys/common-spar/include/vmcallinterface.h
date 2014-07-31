@@ -100,7 +100,7 @@ do {									\
 /* ///////////// ONLY STRUCT TYPE SHOULD BE BELOW */
 #pragma pack(push, 1)
 struct phys_info {
-	U64 pi_pfn;
+	u64 pi_pfn;
 	u16 pi_off;
 	u16 pi_len;
 };
@@ -116,7 +116,7 @@ typedef struct phys_info IO_DATA_STRUCTURE;
 typedef struct _VMCALL_IO_CONTROLVM_ADDR_PARAMS {
 	    /* The Guest-relative physical address of the ControlVm channel.
 	    * This VMCall fills this in with the appropriate address. */
-	U64 ChannelAddress;	/* contents provided by this VMCALL (OUT) */
+	u64 ChannelAddress;	/* contents provided by this VMCALL (OUT) */
 	    /* the size of the ControlVm channel in bytes This VMCall fills this
 	    * in with the appropriate address. */
 	u32 ChannelBytes;	/* contents provided by this VMCALL (OUT) */
@@ -133,7 +133,7 @@ typedef struct _VMCALL_IO_CONTROLVM_ADDR_PARAMS {
 typedef struct _VMCALL_IO_DIAG_ADDR_PARAMS {
 	    /* The Guest-relative physical address of the diagnostic channel.
 	    * This VMCall fills this in with the appropriate address. */
-	U64 ChannelAddress;	/* contents provided by this VMCALL (OUT) */
+	u64 ChannelAddress;	/* contents provided by this VMCALL (OUT) */
 } VMCALL_IO_DIAG_ADDR_PARAMS;
 
 #pragma pack(pop)
@@ -147,7 +147,7 @@ typedef struct _VMCALL_IO_VISORSERIAL_ADDR_PARAMS {
 	    /* The Guest-relative physical address of the serial console
 	    * channel.  This VMCall fills this in with the appropriate
 	    * address. */
-	U64 ChannelAddress;	/* contents provided by this VMCALL (OUT) */
+	u64 ChannelAddress;	/* contents provided by this VMCALL (OUT) */
 } VMCALL_IO_VISORSERIAL_ADDR_PARAMS;
 
 #pragma pack(pop)

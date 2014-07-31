@@ -105,7 +105,7 @@ static VISORCHANNEL *ControlVm_channel;
 
 typedef struct {
 	u8 __iomem *ptr;	/* pointer to base address of payload pool */
-	U64 offset;		/* offset from beginning of controlvm
+	u64 offset;		/* offset from beginning of controlvm
 				 * channel to beginning of payload * pool */
 	u32 bytes;		/* number of bytes in payload pool */
 } CONTROLVM_PAYLOAD_INFO;
@@ -1366,7 +1366,7 @@ Away:
  * for failure.
  */
 static int
-initialize_controlvm_payload_info(HOSTADDRESS phys_addr, U64 offset, u32 bytes,
+initialize_controlvm_payload_info(HOSTADDRESS phys_addr, u64 offset, u32 bytes,
 				  CONTROLVM_PAYLOAD_INFO *info)
 {
 	u8 __iomem *payload = NULL;
@@ -1423,7 +1423,7 @@ static void
 initialize_controlvm_payload(void)
 {
 	HOSTADDRESS phys_addr = visorchannel_get_physaddr(ControlVm_channel);
-	U64 payloadOffset = 0;
+	u64 payloadOffset = 0;
 	u32 payloadBytes = 0;
 	if (visorchannel_read(ControlVm_channel,
 			      offsetof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL,
@@ -1763,7 +1763,7 @@ static BOOL
 handle_command(CONTROLVM_MESSAGE inmsg, HOSTADDRESS channel_addr)
 {
 	CONTROLVM_MESSAGE_PACKET *cmd = &inmsg.cmd;
-	U64 parametersAddr = 0;
+	u64 parametersAddr = 0;
 	u32 parametersBytes = 0;
 	PARSER_CONTEXT *parser_ctx = NULL;
 	BOOL isLocalAddr = FALSE;
@@ -1899,7 +1899,7 @@ handle_command(CONTROLVM_MESSAGE inmsg, HOSTADDRESS channel_addr)
 
 HOSTADDRESS controlvm_get_channel_address(void)
 {
-	U64 addr = 0;
+	u64 addr = 0;
 	u32 size = 0;
 
 	if (!VMCALL_SUCCESSFUL(Issue_VMCALL_IO_CONTROLVM_ADDR(&addr, &size))) {
@@ -1918,7 +1918,7 @@ controlvm_periodic_work(struct work_struct *work)
 	CONTROLVM_MESSAGE inmsg;
 	BOOL gotACommand = FALSE;
 	BOOL handle_command_failed = FALSE;
-	static U64 Poll_Count;
+	static u64 Poll_Count;
 
 	/* make sure visorbus server is registered for controlvm callbacks */
 	if (visorchipset_serverregwait && !serverregistered)

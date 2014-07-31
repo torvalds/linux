@@ -167,7 +167,7 @@ typedef struct _DIAG_CHANNEL_EVENT  {
 	u16 LogicalProcessorNumber;
 	u8 ComponentType;	/* ULTRA_COMPONENT_TYPES */
 	u8 Subsystem;
-	u16 Reserved0;		/* pad to U64 alignment */
+	u16 Reserved0;		/* pad to u64 alignment */
 	u32 BlockNumber;	/* filled in by DiagSwitch as pool blocks are
 				 * filled */
 	u32 BlockNumberHigh;

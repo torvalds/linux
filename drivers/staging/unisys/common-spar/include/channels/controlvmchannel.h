@@ -126,13 +126,13 @@ struct InterruptInfo {
 	  *   interrupt.  Currently this is used by IOPart-SP to wake
 	  *   up GP when Data Channel transitions from empty to
 	  *   non-empty.*/
-	U64 sendInterruptHandle;
+	u64 sendInterruptHandle;
 
 	 /**< specifies interrupt handle. It is used to retrieve the
 	  *   corresponding interrupt pin from Monitor; and the
 	  *   interrupt pin is used to connect to the corresponding
 	  *   intrrupt.  Used by IOPart-GP only. */
-	U64 recvInterruptHandle;
+	u64 recvInterruptHandle;
 
 	 /**< specifies interrupt vector. It, interrupt pin, and shared are
 	  *   used to connect to the corresponding interrupt.  Used by
@@ -218,10 +218,10 @@ typedef enum _ULTRA_TOOL_ACTIONS {
 } ULTRA_TOOL_ACTIONS;
 
 typedef struct _ULTRA_EFI_SPAR_INDICATION  {
-	U64 BootToFirmwareUI:1;	/* Bit 0: Stop in uefi ui */
-	U64 ClearNvram:1;	/* Bit 1: Clear NVRAM */
-	U64 ClearCmos:1;	/* Bit 2: Clear CMOS */
-	U64 BootToTool:1;	/* Bit 3: Run install tool */
+	u64 BootToFirmwareUI:1;	/* Bit 0: Stop in uefi ui */
+	u64 ClearNvram:1;	/* Bit 1: Clear NVRAM */
+	u64 ClearCmos:1;	/* Bit 2: Clear CMOS */
+	u64 BootToTool:1;	/* Bit 3: Run install tool */
 	/* remaining bits are available */
 } ULTRA_EFI_SPAR_INDICATION;
 
@@ -272,10 +272,10 @@ typedef struct _CONTROLVM_MESSAGE_HEADER  {
 		    /* remaining bits in this 32-bit word are available */
 	} Flags;
 	u32 Reserved;		/* Natural alignment */
-	U64 MessageHandle;	/* Identifies the particular message instance,
+	u64 MessageHandle;	/* Identifies the particular message instance,
 				 * and is used to match particular */
 	/* request instances with the corresponding response instance. */
-	U64 PayloadVmOffset;	/* Offset of payload area from start of this
+	u64 PayloadVmOffset;	/* Offset of payload area from start of this
 				 * instance of ControlVm segment */
 	u32 PayloadMaxBytes;	/* Maximum bytes allocated in payload
 				 * area of ControlVm segment */
@@ -290,10 +290,10 @@ typedef struct _CONTROLVM_PACKET_DEVICE_CREATE  {
 
 	    /* Control uses header SegmentIndex field to access bus number... */
 	u32 devNo;	   /**< bus-relative (0..n-1) device number */
-	U64 channelAddr;  /**< Guest physical address of the channel, which
+	u64 channelAddr;  /**< Guest physical address of the channel, which
 			*   can be dereferenced by the receiver
 			*   of this ControlVm command */
-	U64 channelBytes; /**< specifies size of the channel in bytes */
+	u64 channelBytes; /**< specifies size of the channel in bytes */
 	uuid_le dataTypeGuid;/**< specifies format of data in channel */
 	uuid_le devInstGuid; /**< instance guid for the device */
 	struct InterruptInfo intr; /**< specifies interrupt information */
@@ -329,11 +329,11 @@ typedef struct _CONTROLVM_MESSAGE_PACKET  {
 	    /* Control uses header SegmentIndex field to access bus number... */
 			u32 deviceCount;      /*< indicates the max number of
 					       * devices on this bus */
-			U64 channelAddr;     /*< Guest physical address of the
+			u64 channelAddr;     /*< Guest physical address of the
 					      *   channel, which can be
 					      *   dereferenced by the receiver
 					      *   of this ControlVm command */
-			U64 channelBytes;    /*< size of the channel in bytes */
+			u64 channelBytes;    /*< size of the channel in bytes */
 			uuid_le busDataTypeGuid;/*< indicates format of data in
 						    bus channel */
 			uuid_le busInstGuid;    /*< instance guid for the bus */
@@ -352,10 +352,10 @@ typedef struct _CONTROLVM_MESSAGE_PACKET  {
 
 	    /* Control uses header SegmentIndex field to access bus number... */
 			u32 reserved1;		    /* for alignment purposes */
-			U64 guestHandle;	    /* This is used to convert
+			u64 guestHandle;	    /* This is used to convert
 					 *  guest physical address to real
 					 *  physical address for DMA, for ex. */
-			U64 recvBusInterruptHandle;/*< specifies interrupt
+			u64 recvBusInterruptHandle;/*< specifies interrupt
 					 *   info. It is used by SP to register
 					 *   to receive interrupts from the CP.
 					 *   This interrupt is used for bus
@@ -434,11 +434,11 @@ typedef struct _CONTROLVM_MESSAGE_PACKET  {
 		    /* BEGIN Ack messages */
 
 		    /* END Ack messages */
-		U64 addr;	    /*< a physical address of something, that
+		u64 addr;	    /*< a physical address of something, that
 				     *   can be dereferenced by the receiver of
 				     *   this ControlVm command (depends on
 				     *   command id) */
-		U64 handle;	    /*< a handle of something (depends on
+		u64 handle;	    /*< a handle of something (depends on
 				     * command id) */
 	};
 } CONTROLVM_MESSAGE_PACKET;
@@ -451,10 +451,10 @@ typedef struct _CONTROLVM_MESSAGE  {
 
 typedef struct _DEVICE_MAP  {
 	GUEST_PHYSICAL_ADDRESS DeviceChannelAddress;
-	U64 DeviceChannelSize;
+	u64 DeviceChannelSize;
 	u32 CA_Index;
 	u32 Reserved;		/* natural alignment */
-	U64 Reserved2;		/* Align structure on 32-byte boundary */
+	u64 Reserved2;		/* Align structure on 32-byte boundary */
 } DEVICE_MAP;
 
 typedef struct _GUEST_DEVICES  {
@@ -487,8 +487,8 @@ typedef struct _ULTRA_CONTROLVM_CHANNEL_PROTOCOL  {
 						 * ROM disk */
 	 GUEST_PHYSICAL_ADDRESS gpNvram;	/* guest phys addr of NVRAM
 						 * channel */
-	 U64 RequestPayloadOffset;	/* Offset to request payload area */
-	 U64 EventPayloadOffset;	/* Offset to event payload area */
+	 u64 RequestPayloadOffset;	/* Offset to request payload area */
+	 u64 EventPayloadOffset;	/* Offset to event payload area */
 	 u32 RequestPayloadBytes;	/* Bytes available in request payload
 					 * area */
 	 u32 EventPayloadBytes;	/* Bytes available in event payload area */
@@ -510,13 +510,13 @@ typedef struct _ULTRA_CONTROLVM_CHANNEL_PROTOCOL  {
 	 GUEST_PHYSICAL_ADDRESS VirtualGuestFirmwareEntryPoint;
 
 	 /* guest EFI firmware image size  */
-	 U64 VirtualGuestFirmwareImageSize;
+	 u64 VirtualGuestFirmwareImageSize;
 
 	 /* GPA = 1MB where EFI firmware image is copied to  */
 	 GUEST_PHYSICAL_ADDRESS VirtualGuestFirmwareBootBase;
 	 GUEST_PHYSICAL_ADDRESS VirtualGuestImageBase;
 	 GUEST_PHYSICAL_ADDRESS VirtualGuestImageSize;
-	 U64 PrototypeControlChannelOffset;
+	 u64 PrototypeControlChannelOffset;
 	 GUEST_PHYSICAL_ADDRESS VirtualGuestPartitionHandle;
 
 	 u16 RestoreAction;	/* Restore Action field to restore the guest

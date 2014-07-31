@@ -60,7 +60,7 @@ typedef struct ReqHandlerInfo_struct {
 	unsigned long min_channel_bytes;
 	int (*Server_Channel_Ok)(unsigned long channelBytes);
 	int (*Server_Channel_Init)
-	 (void *x, unsigned char *clientStr, u32 clientStrLen, U64 bytes);
+	 (void *x, unsigned char *clientStr, u32 clientStrLen, u64 bytes);
 	char switch_type_name[99];
 	struct list_head list_link;	/* links into ReqHandlerInfo_list */
 } ReqHandlerInfo_t;
@@ -73,7 +73,7 @@ ReqHandlerInfo_t *ReqHandlerAdd(uuid_le switchTypeGuid,
 							 channelBytes),
 				int (*Server_Channel_Init)
 				 (void *x, unsigned char *clientStr,
-				  u32 clientStrLen, U64 bytes));
+				  u32 clientStrLen, u64 bytes));
 ReqHandlerInfo_t *ReqHandlerFind(uuid_le switchTypeGuid);
 int ReqHandlerDel(uuid_le switchTypeGuid);
 
@@ -81,7 +81,7 @@ int ReqHandlerDel(uuid_le switchTypeGuid);
 	dbg_ioremap_cache(addr, size, __FILE__, __LINE__)
 
 static inline void __iomem *
-dbg_ioremap_cache(U64 addr, unsigned long size, char *file, int line)
+dbg_ioremap_cache(u64 addr, unsigned long size, char *file, int line)
 {
 	void __iomem *new;
 	new = ioremap_cache(addr, size);
@@ -91,7 +91,7 @@ dbg_ioremap_cache(U64 addr, unsigned long size, char *file, int line)
 #define uislib_ioremap(addr, size) dbg_ioremap(addr, size, __FILE__, __LINE__)
 
 static inline void *
-dbg_ioremap(U64 addr, unsigned long size, char *file, int line)
+dbg_ioremap(u64 addr, unsigned long size, char *file, int line)
 {
 	void *new;
 	new = ioremap(addr, size);
@@ -121,7 +121,7 @@ int uisctrl_register_req_handler_ex(uuid_le switchTypeGuid,
 							     channelBytes),
 				    int (*Server_Channel_Init)
 				    (void *x, unsigned char *clientStr,
-				     u32 clientStrLen, U64 bytes),
+				     u32 clientStrLen, u64 bytes),
 				    ULTRA_VBUS_DEVICEINFO *chipset_DriverInfo);
 
 int uisctrl_unregister_req_handler_ex(uuid_le switchTypeGuid);
@@ -135,25 +135,25 @@ int uislib_server_inject_add_vnic(u32 switchNo, u32 BusNo, u32 numIntPorts,
 void uislib_server_inject_del_vnic(u32 switchNo, u32 busNo, u32 numIntPorts,
 				   u32 numExtPorts);
 int uislib_client_inject_add_bus(u32 busNo, uuid_le instGuid,
-				 U64 channelAddr, ulong nChannelBytes);
+				 u64 channelAddr, ulong nChannelBytes);
 int  uislib_client_inject_del_bus(u32 busNo);
 
 int uislib_client_inject_add_vhba(u32 busNo, u32 devNo,
-				  U64 phys_chan_addr, u32 chan_bytes,
+				  u64 phys_chan_addr, u32 chan_bytes,
 				  int is_test_addr, uuid_le instGuid,
 				  struct InterruptInfo *intr);
 int  uislib_client_inject_pause_vhba(u32 busNo, u32 devNo);
 int  uislib_client_inject_resume_vhba(u32 busNo, u32 devNo);
 int uislib_client_inject_del_vhba(u32 busNo, u32 devNo);
 int uislib_client_inject_add_vnic(u32 busNo, u32 devNo,
-				  U64 phys_chan_addr, u32 chan_bytes,
+				  u64 phys_chan_addr, u32 chan_bytes,
 				  int is_test_addr, uuid_le instGuid,
 				  struct InterruptInfo *intr);
 int uislib_client_inject_pause_vnic(u32 busNo, u32 devNo);
 int uislib_client_inject_resume_vnic(u32 busNo, u32 devNo);
 int uislib_client_inject_del_vnic(u32 busNo, u32 devNo);
 #ifdef STORAGE_CHANNEL
-U64 uislib_storage_channel(int client_id);
+u64 uislib_storage_channel(int client_id);
 #endif
 int uislib_get_owned_pdest(struct uisscsi_dest *pdest);
 
@@ -220,11 +220,11 @@ unsigned int uisutil_copy_fragsinfo_from_skb(unsigned char *calling_ctx,
 					     struct phys_info frags[]);
 
 static inline unsigned int
-Issue_VMCALL_IO_CONTROLVM_ADDR(U64 *ControlAddress, u32 *ControlBytes)
+Issue_VMCALL_IO_CONTROLVM_ADDR(u64 *ControlAddress, u32 *ControlBytes)
 {
 	VMCALL_IO_CONTROLVM_ADDR_PARAMS params;
 	int result = VMCALL_SUCCESS;
-	U64 physaddr;
+	u64 physaddr;
 
 	physaddr = virt_to_phys(&params);
 	ISSUE_IO_VMCALL(VMCALL_IO_CONTROLVM_ADDR, physaddr, result);
@@ -235,11 +235,11 @@ Issue_VMCALL_IO_CONTROLVM_ADDR(U64 *ControlAddress, u32 *ControlBytes)
 	return result;
 }
 
-static inline unsigned int Issue_VMCALL_IO_DIAG_ADDR(U64 *DiagChannelAddress)
+static inline unsigned int Issue_VMCALL_IO_DIAG_ADDR(u64 *DiagChannelAddress)
 {
 	VMCALL_IO_DIAG_ADDR_PARAMS params;
 	int result = VMCALL_SUCCESS;
-	U64 physaddr;
+	u64 physaddr;
 
 	physaddr = virt_to_phys(&params);
 	ISSUE_IO_VMCALL(VMCALL_IO_DIAG_ADDR, physaddr, result);
@@ -249,11 +249,11 @@ static inline unsigned int Issue_VMCALL_IO_DIAG_ADDR(U64 *DiagChannelAddress)
 }
 
 static inline unsigned int
-Issue_VMCALL_IO_VISORSERIAL_ADDR(U64 *DiagChannelAddress)
+Issue_VMCALL_IO_VISORSERIAL_ADDR(u64 *DiagChannelAddress)
 {
 	VMCALL_IO_VISORSERIAL_ADDR_PARAMS params;
 	int result = VMCALL_SUCCESS;
-	U64 physaddr;
+	u64 physaddr;
 
 	physaddr = virt_to_phys(&params);
 	ISSUE_IO_VMCALL(VMCALL_IO_VISORSERIAL_ADDR, physaddr, result);
@@ -264,8 +264,8 @@ Issue_VMCALL_IO_VISORSERIAL_ADDR(U64 *DiagChannelAddress)
 
 static inline S64 Issue_VMCALL_QUERY_GUEST_VIRTUAL_TIME_OFFSET(void)
 {
-	U64 result = VMCALL_SUCCESS;
-	U64 physaddr = 0;
+	u64 result = VMCALL_SUCCESS;
+	u64 physaddr = 0;
 
 	ISSUE_IO_VMCALL(VMCALL_QUERY_GUEST_VIRTUAL_TIME_OFFSET, physaddr,
 			result);
@@ -274,8 +274,8 @@ static inline S64 Issue_VMCALL_QUERY_GUEST_VIRTUAL_TIME_OFFSET(void)
 
 static inline S64 Issue_VMCALL_MEASUREMENT_DO_NOTHING(void)
 {
-	U64 result = VMCALL_SUCCESS;
-	U64 physaddr = 0;
+	u64 result = VMCALL_SUCCESS;
+	u64 physaddr = 0;
 
 	ISSUE_IO_VMCALL(VMCALL_MEASUREMENT_DO_NOTHING, physaddr, result);
 	return result;
@@ -289,7 +289,7 @@ struct log_info_t {
 	unsigned long long min_delta[64];
 };
 
-static inline int Issue_VMCALL_UPDATE_PHYSICAL_TIME(U64 adjustment)
+static inline int Issue_VMCALL_UPDATE_PHYSICAL_TIME(u64 adjustment)
 {
 	int result = VMCALL_SUCCESS;
 
@@ -304,7 +304,7 @@ Issue_VMCALL_CHANNEL_MISMATCH(const char *ChannelName,
 {
 	VMCALL_CHANNEL_VERSION_MISMATCH_PARAMS params;
 	int result = VMCALL_SUCCESS;
-	U64 physaddr;
+	u64 physaddr;
 	char *last_slash = NULL;
 
 	strlcpy(params.ChannelName, ChannelName,
@@ -333,7 +333,7 @@ Issue_VMCALL_CHANNEL_MISMATCH(const char *ChannelName,
 static inline unsigned int Issue_VMCALL_FATAL_BYE_BYE(void)
 {
 	int result = VMCALL_SUCCESS;
-	U64 physaddr = 0;
+	u64 physaddr = 0;
 
 	ISSUE_IO_VMCALL(VMCALL_GENERIC_SURRENDER_QUANTUM_FOREVER, physaddr,
 			result);

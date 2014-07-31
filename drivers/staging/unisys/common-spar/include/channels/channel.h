@@ -36,7 +36,7 @@
 #define SIGNATURE_32(A, B, C, D) \
 	(SIGNATURE_16(A, B) | (SIGNATURE_16(C, D) << 16))
 #define SIGNATURE_64(A, B, C, D, E, F, G, H) \
-	(SIGNATURE_32(A, B, C, D) | ((U64)(SIGNATURE_32(E, F, G, H)) << 32))
+	(SIGNATURE_32(A, B, C, D) | ((u64)(SIGNATURE_32(E, F, G, H)) << 32))
 
 #ifndef lengthof
 #define lengthof(TYPE, MEMBER) (sizeof(((TYPE *)0)->MEMBER))
@@ -209,16 +209,16 @@ ULTRA_CHANNELCLI_STRING(u32 v)
 #pragma pack(push, 1)		/* both GCC and VC now allow this pragma */
 /* Common Channel Header */
 typedef struct _CHANNEL_HEADER {
-	U64 Signature;		/* Signature */
+	u64 Signature;		/* Signature */
 	u32 LegacyState;	/* DEPRECATED - being replaced by */
 	/* /              SrvState, CliStateBoot, and CliStateOS below */
 	u32 HeaderSize;		/* sizeof(CHANNEL_HEADER) */
-	U64 Size;		/* Total size of this channel in bytes */
-	U64 Features;		/* Flags to modify behavior */
+	u64 Size;		/* Total size of this channel in bytes */
+	u64 Features;		/* Flags to modify behavior */
 	uuid_le Type;		/* Channel type: data, bus, control, etc. */
-	U64 PartitionHandle;	/* ID of guest partition */
-	U64 Handle;		/* Device number of this channel in client */
-	U64 oChannelSpace;	/* Offset in bytes to channel specific area */
+	u64 PartitionHandle;	/* ID of guest partition */
+	u64 Handle;		/* Device number of this channel in client */
+	u64 oChannelSpace;	/* Offset in bytes to channel specific area */
 	u32 VersionId;		/* CHANNEL_HEADER Version ID */
 	u32 PartitionIndex;	/* Index of guest partition */
 	uuid_le ZoneGuid;		/* Guid of Channel's zone */
@@ -255,11 +255,11 @@ typedef struct _SIGNAL_QUEUE_HEADER {
 	/* 1st cache line */
 	u32 VersionId;		/* SIGNAL_QUEUE_HEADER Version ID */
 	u32 Type;		/* Queue type: storage, network */
-	U64 Size;		/* Total size of this queue in bytes */
-	U64 oSignalBase;	/* Offset to signal queue area */
-	U64 FeatureFlags;	/* Flags to modify behavior */
-	U64 NumSignalsSent;	/* Total # of signals placed in this queue */
-	U64 NumOverflows;	/* Total # of inserts failed due to
+	u64 Size;		/* Total size of this queue in bytes */
+	u64 oSignalBase;	/* Offset to signal queue area */
+	u64 FeatureFlags;	/* Flags to modify behavior */
+	u64 NumSignalsSent;	/* Total # of signals placed in this queue */
+	u64 NumOverflows;	/* Total # of inserts failed due to
 				 * full queue */
 	u32 SignalSize;		/* Total size of a signal for this queue */
 	u32 MaxSignalSlots;	/* Max # of slots in queue, 1 slot is
@@ -268,16 +268,16 @@ typedef struct _SIGNAL_QUEUE_HEADER {
 				 * (MaxSignalSlots-1) */
 	u32 Head;		/* Queue head signal # */
 	/* 2nd cache line */
-	U64 NumSignalsReceived;	/* Total # of signals removed from this queue */
+	u64 NumSignalsReceived;	/* Total # of signals removed from this queue */
 	u32 Tail;		/* Queue tail signal # (on separate
 				 * cache line) */
 	u32 Reserved1;		/* Reserved field */
-	U64 Reserved2;		/* Resrved field */
-	U64 ClientQueue;
-	U64 NumInterruptsReceived;	/* Total # of Interrupts received.  This
+	u64 Reserved2;		/* Resrved field */
+	u64 ClientQueue;
+	u64 NumInterruptsReceived;	/* Total # of Interrupts received.  This
 					 * is incremented by the ISR in the
 					 * guest windows driver */
-	U64 NumEmptyCnt;	/* Number of times that visor_signal_remove
+	u64 NumEmptyCnt;	/* Number of times that visor_signal_remove
 				 * is called and returned Empty
 				 * Status. */
 	u32 ErrorFlags;		/* Error bits set during SignalReinit
@@ -311,9 +311,9 @@ static inline int
 ULTRA_check_channel_client(void __iomem *pChannel,
 			   uuid_le expectedTypeGuid,
 			   char *channelName,
-			   U64 expectedMinBytes,
+			   u64 expectedMinBytes,
 			   u32 expectedVersionId,
-			   U64 expectedSignature,
+			   u64 expectedSignature,
 			   char *fileName, int lineNumber, void *logCtx)
 {
 	if (uuid_le_cmp(expectedTypeGuid, NULL_UUID_LE) != 0)
@@ -373,8 +373,8 @@ ULTRA_check_channel_client(void __iomem *pChannel,
 static inline int
 ULTRA_check_channel_server(uuid_le typeGuid,
 			   char *channelName,
-			   U64 expectedMinBytes,
-			   U64 actualBytes,
+			   u64 expectedMinBytes,
+			   u64 actualBytes,
 			   char *fileName, int lineNumber, void *logCtx)
 {
 	if (expectedMinBytes > 0)	/* caller wants us to verify

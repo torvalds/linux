@@ -64,7 +64,7 @@ static const ULTRA_SEGMENT_STATE SegmentStateStandby = {
 	1, 1, 0, 0, 1, 1, 1, 0
 };
 typedef union {
-	U64 Full;
+	u64 Full;
 	struct {
 		u8 Major;	/* will be 1 for the first release and
 				 * increment thereafter  */

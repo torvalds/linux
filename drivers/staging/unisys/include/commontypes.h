@@ -30,7 +30,6 @@
 #include <syslog.h>
 #endif
 
-#define U64 uint64_t
 #define S8  int8_t
 #define S16 int16_t
 #define S32 int32_t
@@ -41,7 +40,7 @@
 #ifdef CONFIG_X86_32
 #define UINTN u32
 #else
-#define UINTN U64
+#define UINTN u64
 #endif
 
 #else
@@ -50,14 +49,14 @@
 #if __WORDSIZE == 32
 #define UINTN u32
 #elif __WORDSIZE == 64
-#define UINTN U64
+#define UINTN u64
 #else
 #error Unsupported __WORDSIZE
 #endif
 
 #endif
 
-typedef U64 GUEST_PHYSICAL_ADDRESS;
+typedef u64 GUEST_PHYSICAL_ADDRESS;
 
 #define MEMSET(ptr, val, len) memset(ptr, val, len)
 #define MEMCMP(m1, m2, len) memcmp(m1, m2, len)
@@ -120,7 +119,7 @@ typedef U64 GUEST_PHYSICAL_ADDRESS;
 		       fil, lin);					\
 	} while (0)
 
-#define CHANNEL_u32_MISMATCH(chType, chName, field, expected, actual, fil, \
+#define CHANNEL_U32_MISMATCH(chType, chName, field, expected, actual, fil, \
 			     lin, logCtx)				\
 	do {								\
 		syslog(LOG_USER | LOG_ERR,				\

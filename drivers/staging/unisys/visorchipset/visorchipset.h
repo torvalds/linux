@@ -64,7 +64,7 @@ typedef struct {
 	VISORCHIPSET_ADDRESSTYPE addrType;
 	HOSTADDRESS channelAddr;
 	struct InterruptInfo intr;
-	U64 nChannelBytes;
+	u64 nChannelBytes;
 	uuid_le channelTypeGuid;
 	uuid_le channelInstGuid;
 
@@ -83,7 +83,7 @@ typedef struct {
 	VISORCHIPSET_STATE state;
 	VISORCHIPSET_CHANNEL_INFO chanInfo;
 	u32 Reserved1;		/* CONTROLVM_ID */
-	U64 Reserved2;
+	u64 Reserved2;
 	u32 switchNo;		/* when devState.attached==1 */
 	u32 internalPortNo;	/* when devState.attached==1 */
 	CONTROLVM_MESSAGE_HEADER pendingMsgHdr;	/* CONTROLVM_MESSAGE */
@@ -128,10 +128,10 @@ typedef struct {
 	VISORCHIPSET_STATE state;
 	VISORCHIPSET_CHANNEL_INFO chanInfo;
 	uuid_le partitionGuid;
-	U64 partitionHandle;
+	u64 partitionHandle;
 	u8 *name;		/* UTF8 */
 	u8 *description;	/* UTF8 */
-	U64 Reserved1;
+	u64 Reserved1;
 	u32 Reserved2;
 	MYPROCOBJECT *procObject;
 	struct {
@@ -142,7 +142,7 @@ typedef struct {
 	CONTROLVM_MESSAGE_HEADER pendingMsgHdr;	/* CONTROLVM MsgHdr */
 	/** For private use by the bus driver */
 	void *bus_driver_context;
-	U64 devNo;
+	u64 devNo;
 
 } VISORCHIPSET_BUS_INFO;
 
@@ -168,7 +168,7 @@ typedef struct {
 	u8 *authService2;
 	u8 *authService3;
 	u8 *securityContext;
-	U64 Reserved;
+	u64 Reserved;
 	u32 Reserved2;		/* CONTROLVM_ID */
 	struct device dev;
 	BOOL dev_exists;
@@ -191,7 +191,7 @@ typedef struct {
 	u8 *ipNetwork;
 	u8 *ipGateway;
 	u8 *ipDNS;
-	U64 Reserved1;
+	u64 Reserved1;
 	u32 Reserved2;		/* CONTROLVM_ID */
 	struct device dev;
 	BOOL dev_exists;
@@ -208,7 +208,7 @@ typedef struct {
 	VISORCHIPSET_STATE state;
 	u32 busNo;		/* valid only when state.attached == 1 */
 	u32 devNo;		/* valid only when state.attached == 1 */
-	U64 Reserved1;
+	u64 Reserved1;
 	u32 Reserved2;		/* CONTROLVM_ID */
 	CONTROLVM_MESSAGE_HEADER pendingMsgHdr;
 	MYPROCOBJECT *procObject;

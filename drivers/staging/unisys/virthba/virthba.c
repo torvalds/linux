@@ -188,7 +188,7 @@ struct virthba_info {
 	unsigned long long interrupts_notme;
 	unsigned long long interrupts_disabled;
 	struct work_struct serverdown_completion;
-	U64 __iomem *flags_addr;
+	u64 __iomem *flags_addr;
 	atomic_t interrupt_rcvd;
 	wait_queue_head_t rsp_queue;
 	struct virtdisk_info head;
@@ -422,7 +422,7 @@ virthba_ISR(int irq, void *dev_id)
 	struct virthba_info *virthbainfo = (struct virthba_info *) dev_id;
 	CHANNEL_HEADER __iomem *pChannelHeader;
 	SIGNAL_QUEUE_HEADER __iomem *pqhdr;
-	U64 mask;
+	u64 mask;
 	unsigned long long rc1;
 
 	if (virthbainfo == NULL)
@@ -463,7 +463,7 @@ virthba_probe(struct virtpci_dev *virtpcidev, const struct pci_device_id *id)
 	irq_handler_t handler = virthba_ISR;
 	CHANNEL_HEADER __iomem *pChannelHeader;
 	SIGNAL_QUEUE_HEADER __iomem *pqhdr;
-	U64 mask;
+	u64 mask;
 
 	LOGVER("entering virthba_probe...\n");
 	LOGVER("virtpcidev busNo<<%d>>devNo<<%d>>", virtpcidev->busNo,
@@ -621,7 +621,7 @@ virthba_probe(struct virtpci_dev *virtpcidev, const struct pci_device_id *id)
 		virthbainfo->interrupt_vector = -1;
 		POSTCODE_LINUX_2(VHBA_PROBE_FAILURE_PC, POSTCODE_SEVERITY_ERR);
 	} else {
-		U64 __iomem *Features_addr =
+		u64 __iomem *Features_addr =
 		    &virthbainfo->chinfo.queueinfo->chan->Features;
 		LOGERR("request_irq(%d) uislib_virthba_ISR request succeeded\n",
 		       virthbainfo->interrupt_vector);
@@ -723,7 +723,7 @@ forward_vdiskmgmt_command(VDISK_MGMT_TYPES vdiskcmdtype,
 	uisqueue_put_cmdrsp_with_lock_client(virthbainfo->chinfo.queueinfo,
 					     cmdrsp, IOCHAN_TO_IOPART,
 					     &virthbainfo->chinfo.insertlock,
-					     DONT_ISSUE_INTERRUPT, (U64) NULL,
+					     DONT_ISSUE_INTERRUPT, (u64) NULL,
 					     OK_TO_WAIT, "vhba");
 	LOGINF("VdiskMgmt waiting on event notifyevent=0x%p\n",
 	       cmdrsp->scsitaskmgmt.notify);
@@ -784,7 +784,7 @@ forward_taskmgmt_command(TASK_MGMT_TYPES tasktype, struct scsi_device *scsidev)
 	uisqueue_put_cmdrsp_with_lock_client(virthbainfo->chinfo.queueinfo,
 					     cmdrsp, IOCHAN_TO_IOPART,
 					     &virthbainfo->chinfo.insertlock,
-					     DONT_ISSUE_INTERRUPT, (U64) NULL,
+					     DONT_ISSUE_INTERRUPT, (u64) NULL,
 					     OK_TO_WAIT, "vhba");
 	LOGINF("TaskMgmt waiting on event notifyevent=0x%p\n",
 	       cmdrsp->scsitaskmgmt.notify);
@@ -1022,7 +1022,7 @@ virthba_queue_command_lck(struct scsi_cmnd *scsicmd,
 						 &virthbainfo->chinfo.
 						 insertlock,
 						 DONT_ISSUE_INTERRUPT,
-						 (U64) NULL, DONT_WAIT, "vhba");
+						 (u64) NULL, DONT_WAIT, "vhba");
 	if (i == 0) {
 		/* queue must be full - and we said don't wait - return busy */
 		LOGERR("uisqueue_put_cmdrsp_with_lock ****FAILED\n");
@@ -1335,7 +1335,7 @@ process_incoming_rsps(void *v)
 	struct chaninfo *dc = &virthbainfo->chinfo;
 	struct uiscmdrsp *cmdrsp = NULL;
 	const int SZ = sizeof(struct uiscmdrsp);
-	U64 mask;
+	u64 mask;
 	unsigned long long rc1;
 
 	UIS_DAEMONIZE("vhba_incoming");
@@ -1374,7 +1374,7 @@ static ssize_t info_debugfs_read(struct file *file,
 {
 	ssize_t bytes_read = 0;
 	int str_pos = 0;
-	U64 phys_flags_addr;
+	u64 phys_flags_addr;
 	int i;
 	struct virthba_info *virthbainfo;
 	char *vbuf;
@@ -1428,8 +1428,8 @@ static ssize_t enable_ints_write(struct file *file,
 	int i, new_value;
 	struct virthba_info *virthbainfo;
 
-	U64 __iomem *Features_addr;
-	U64 mask;
+	u64 __iomem *Features_addr;
+	u64 mask;
 
 	if (count >= ARRAY_SIZE(buf))
 		return -EINVAL;

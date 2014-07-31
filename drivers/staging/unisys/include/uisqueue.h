@@ -39,13 +39,13 @@ struct uisqueue_info {
 	/* channel containing queues in which scsi commands &
 	 * responses are queued
 	 */
-	U64 packets_sent;
-	U64 packets_received;
-	U64 interrupts_sent;
-	U64 interrupts_received;
-	U64 max_not_empty_cnt;
-	U64 total_wakeup_cnt;
-	U64 non_empty_wakeup_cnt;
+	u64 packets_sent;
+	u64 packets_received;
+	u64 interrupts_sent;
+	u64 interrupts_received;
+	u64 max_not_empty_cnt;
+	u64 total_wakeup_cnt;
+	u64 non_empty_wakeup_cnt;
 
 	struct {
 		SIGNAL_QUEUE_HEADER Reserved1;	/*  */
@@ -54,7 +54,7 @@ struct uisqueue_info {
 	unsigned int (*send_int_if_needed)(struct uisqueue_info *info,
 					   unsigned int whichcqueue,
 					   unsigned char issueInterruptIfEmpty,
-					   U64 interruptHandle,
+					   u64 interruptHandle,
 					   unsigned char io_termination);
 };
 
@@ -84,7 +84,7 @@ unsigned long long uisqueue_InterlockedAnd(unsigned long long __iomem *Target,
 unsigned int uisqueue_send_int_if_needed(struct uisqueue_info *pqueueinfo,
 					 unsigned int whichqueue,
 					 unsigned char issueInterruptIfEmpty,
-					 U64 interruptHandle,
+					 u64 interruptHandle,
 					 unsigned char io_termination);
 
 int uisqueue_put_cmdrsp_with_lock_client(struct uisqueue_info *queueinfo,
@@ -92,7 +92,7 @@ int uisqueue_put_cmdrsp_with_lock_client(struct uisqueue_info *queueinfo,
 					 unsigned int queue,
 					 void *insertlock,
 					 unsigned char issueInterruptIfEmpty,
-					 U64 interruptHandle,
+					 u64 interruptHandle,
 					 char oktowait,
 					 u8 *channelId);
 
@@ -135,8 +135,8 @@ struct extport_info {
 
 struct device_info {
 	void __iomem *chanptr;
-	U64 channelAddr;
-	U64 channelBytes;
+	u64 channelAddr;
+	u64 channelBytes;
 	uuid_le channelTypeGuid;
 	uuid_le devInstGuid;
 	struct InterruptInfo intr;
@@ -163,7 +163,7 @@ typedef enum {
 struct bus_info {
 	u32 busNo, deviceCount;
 	struct device_info **device;
-	U64 guestHandle, recvBusInterruptHandle;
+	u64 guestHandle, recvBusInterruptHandle;
 	uuid_le busInstGuid;
 	ULTRA_VBUS_CHANNEL_PROTOCOL __iomem *pBusChannel;
 	int busChannelBytes;
@@ -229,10 +229,10 @@ typedef enum {
 
 struct add_virt_iopart {
 	void *chanptr;		/* pointer to data channel */
-	U64 guestHandle;	/* used to convert guest physical
+	u64 guestHandle;	/* used to convert guest physical
 				 * address to real physical address
 				 * for DMA, for ex. */
-	U64 recvBusInterruptHandle;	/* used to register to receive
+	u64 recvBusInterruptHandle;	/* used to register to receive
 					 * bus level interrupts. */
 	struct InterruptInfo intr;	/* contains recv & send
 					 * interrupt info */

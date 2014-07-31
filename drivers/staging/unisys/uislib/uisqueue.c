@@ -77,7 +77,7 @@ do_locked_client_insert(struct uisqueue_info *queueinfo,
 			void *pSignal,
 			spinlock_t *lock,
 			unsigned char issueInterruptIfEmpty,
-			U64 interruptHandle, u8 *channelId)
+			u64 interruptHandle, u8 *channelId)
 {
 	unsigned long flags;
 	unsigned char queueWasEmpty;
@@ -124,7 +124,7 @@ uisqueue_put_cmdrsp_with_lock_client(struct uisqueue_info *queueinfo,
 				     unsigned int whichqueue,
 				     void *insertlock,
 				     unsigned char issueInterruptIfEmpty,
-				     U64 interruptHandle,
+				     u64 interruptHandle,
 				     char oktowait, u8 *channelId)
 {
 	while (!do_locked_client_insert(queueinfo, whichqueue, cmdrsp,

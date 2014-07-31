@@ -74,7 +74,7 @@ static struct bus_info *BusListHead;
 static rwlock_t BusListLock;
 static int BusListCount;	/* number of buses in the list */
 static int MaxBusCount;		/* maximum number of buses expected */
-static U64 PhysicalDataChan;
+static u64 PhysicalDataChan;
 static int PlatformNumber;
 
 static struct uisthread_info Incoming_ThreadInfo;
@@ -129,7 +129,7 @@ init_msg_header(CONTROLVM_MESSAGE *msg, u32 id, uint rsp, uint svr)
 }
 
 static __iomem void *
-init_vbus_channel(U64 channelAddr, u32 channelBytes)
+init_vbus_channel(u64 channelAddr, u32 channelBytes)
 {
 	void __iomem *rc = NULL;
 	void __iomem *pChan = uislib_ioremap_cache(channelAddr, channelBytes);
@@ -343,7 +343,7 @@ create_device(CONTROLVM_MESSAGE *msg, char *buf)
 	struct bus_info *bus;
 	u32 busNo, devNo;
 	int result = CONTROLVM_RESP_SUCCESS;
-	U64 minSize = MIN_IO_CHANNEL_SIZE;
+	u64 minSize = MIN_IO_CHANNEL_SIZE;
 	ReqHandlerInfo_t *pReqHandler;
 
 	busNo = msg->cmd.createDevice.busNo;
@@ -822,7 +822,7 @@ delete_device_glue(u32 busNo, u32 devNo)
 
 int
 uislib_client_inject_add_bus(u32 busNo, uuid_le instGuid,
-			     U64 channelAddr, ulong nChannelBytes)
+			     u64 channelAddr, ulong nChannelBytes)
 {
 	CONTROLVM_MESSAGE msg;
 
@@ -921,7 +921,7 @@ EXPORT_SYMBOL_GPL(uislib_client_inject_resume_vhba);
 
 int
 uislib_client_inject_add_vhba(u32 busNo, u32 devNo,
-			      U64 phys_chan_addr, u32 chan_bytes,
+			      u64 phys_chan_addr, u32 chan_bytes,
 			      int is_test_addr, uuid_le instGuid,
 			      struct InterruptInfo *intr)
 {
@@ -980,7 +980,7 @@ EXPORT_SYMBOL_GPL(uislib_client_inject_del_vhba);
 
 int
 uislib_client_inject_add_vnic(u32 busNo, u32 devNo,
-			      U64 phys_chan_addr, u32 chan_bytes,
+			      u64 phys_chan_addr, u32 chan_bytes,
 			      int is_test_addr, uuid_le instGuid,
 			      struct InterruptInfo *intr)
 {
