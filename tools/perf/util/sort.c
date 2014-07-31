@@ -1194,7 +1194,7 @@ bool perf_hpp__same_sort_entry(struct perf_hpp_fmt *a, struct perf_hpp_fmt *b)
 	return hse_a->se == hse_b->se;
 }
 
-void perf_hpp__reset_width(struct perf_hpp_fmt *fmt, struct hists *hists)
+void perf_hpp__reset_sort_width(struct perf_hpp_fmt *fmt, struct hists *hists)
 {
 	struct hpp_sort_entry *hse;
 
@@ -1265,6 +1265,7 @@ __sort_dimension__alloc_hpp(struct sort_dimension *sd)
 	INIT_LIST_HEAD(&hse->hpp.list);
 	INIT_LIST_HEAD(&hse->hpp.sort_list);
 	hse->hpp.elide = false;
+	hse->hpp.len = 0;
 
 	return hse;
 }

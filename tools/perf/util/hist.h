@@ -207,6 +207,7 @@ struct perf_hpp_fmt {
 	struct list_head list;
 	struct list_head sort_list;
 	bool elide;
+	int len;
 };
 
 extern struct list_head perf_hpp__list;
@@ -261,6 +262,7 @@ static inline bool perf_hpp__should_skip(struct perf_hpp_fmt *format)
 }
 
 void perf_hpp__reset_width(struct perf_hpp_fmt *fmt, struct hists *hists);
+void perf_hpp__reset_sort_width(struct perf_hpp_fmt *fmt, struct hists *hists);
 
 typedef u64 (*hpp_field_fn)(struct hist_entry *he);
 typedef int (*hpp_callback_fn)(struct perf_hpp *hpp, bool front);

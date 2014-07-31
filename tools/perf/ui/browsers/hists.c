@@ -849,7 +849,7 @@ static int hists__scnprintf_headers(char *buf, size_t size, struct hists *hists)
 		if (perf_hpp__should_skip(fmt))
 			continue;
 
-		/* We need to add the length of the columns header. */
+		/* We need to ensure length of the columns header. */
 		perf_hpp__reset_width(fmt, hists);
 
 		ret = fmt->header(fmt, &dummy_hpp, hists_to_evsel(hists));
