@@ -85,7 +85,7 @@ struct mibrec {
 	u16 parm1;
 	u16 parm2;
 	u16 parm3;
-	int (*func) (struct mibrec *mib,
+	int (*func)(struct mibrec *mib,
 		     int isget,
 		     wlandevice_t *wlandev,
 		     hfa384x_t *hw,
@@ -722,6 +722,7 @@ static int prism2mib_priv(struct mibrec *mib,
 	switch (mib->did) {
 	case DIDmib_lnx_lnxConfigTable_lnxRSNAIE:{
 			hfa384x_WPAData_t wpa;
+
 			if (isget) {
 				hfa384x_drvr_getconfig(hw,
 						       HFA384x_RID_CNFWPADATA,
