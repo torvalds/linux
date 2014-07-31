@@ -944,19 +944,17 @@ static struct snd_pcm_ops rsnd_pcm_ops = {
 
 static int rsnd_pcm_new(struct snd_soc_pcm_runtime *rtd)
 {
-	struct rsnd_priv *priv = snd_soc_dai_get_drvdata(rtd->cpu_dai);
-	struct rsnd_dai *rdai;
-	int i, ret;
+	struct snd_soc_dai *dai = rtd->cpu_dai;
+	struct rsnd_dai *rdai = rsnd_dai_to_rdai(dai);
+	int ret;
 
-	for_each_rsnd_dai(rdai, priv, i) {
-		ret = rsnd_dai_call(pcm_new, &rdai->playback, rdai, rtd);
-		if (ret)
-			return ret;
+	ret = rsnd_dai_call(pcm_new, &rdai->playback, rdai, rtd);
+	if (ret)
+		return ret;
 
-		ret = rsnd_dai_call(pcm_new, &rdai->capture, rdai, rtd);
-		if (ret)
-			return ret;
-	}
+	ret = rsnd_dai_call(pcm_new, &rdai->capture, rdai, rtd);
+	if (ret)
+		return ret;
 
 	return snd_pcm_lib_preallocate_pages_for_all(
 		rtd->pcm,
