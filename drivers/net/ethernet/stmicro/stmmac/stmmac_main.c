@@ -2225,7 +2225,7 @@ static void stmmac_set_rx_mode(struct net_device *dev)
 	struct stmmac_priv *priv = netdev_priv(dev);
 
 	spin_lock(&priv->lock);
-	priv->hw->mac->set_filter(dev);
+	priv->hw->mac->set_filter(priv->hw, dev);
 	spin_unlock(&priv->lock);
 }
 
@@ -2598,7 +2598,9 @@ static int stmmac_hw_init(struct stmmac_priv *priv)
 	/* Identify the MAC HW device */
 	if (priv->plat->has_gmac) {
 		priv->dev->priv_flags |= IFF_UNICAST_FLT;
-		mac = dwmac1000_setup(priv->ioaddr);
+		mac = dwmac1000_setup(priv->ioaddr,
+				      priv->plat->multicast_filter_bins,
+				      priv->plat->unicast_filter_entries);
 	} else {
 		mac = dwmac100_setup(priv->ioaddr);
 	}

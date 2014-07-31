@@ -112,6 +112,8 @@ struct plat_stmmacenet_data {
 	int riwt_off;
 	int max_speed;
 	int maxmtu;
+	int multicast_filter_bins;
+	int unicast_filter_entries;
 	void (*fix_mac_speed)(void *priv, unsigned int speed);
 	void (*bus_setup)(void __iomem *ioaddr);
 	void *(*setup)(struct platform_device *pdev);

@@ -381,7 +381,7 @@ struct stmmac_ops {
 	int (*host_irq_status)(struct mac_device_info *hw,
 			       struct stmmac_extra_stats *x);
 	/* Multicast filter setting */
-	void (*set_filter)(struct net_device *dev);
+	void (*set_filter)(struct mac_device_info *hw, struct net_device *dev);
 	/* Flow control setting */
 	void (*flow_ctrl)(struct mac_device_info *hw, unsigned int duplex,
 			  unsigned int fc, unsigned int pause_time);
@@ -442,9 +442,13 @@ struct mac_device_info {
 	struct mac_link link;
 	unsigned int synopsys_uid;
 	void __iomem *pcsr;     /* vpointer to device CSRs */
+	int multicast_filter_bins;
+	int unicast_filter_entries;
+	int mcast_bits_log2;
 };
 
-struct mac_device_info *dwmac1000_setup(void __iomem *ioaddr);
+struct mac_device_info *dwmac1000_setup(void __iomem *ioaddr, int mcbins,
+					int perfect_uc_entries);
 struct mac_device_info *dwmac100_setup(void __iomem *ioaddr);
 
 void stmmac_set_mac_addr(void __iomem *ioaddr, u8 addr[6],
