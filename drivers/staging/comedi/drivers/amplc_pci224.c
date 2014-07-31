@@ -341,24 +341,24 @@ struct pci224_board {
 
 static const struct pci224_board pci224_boards[] = {
 	{
-	 .name = "pci224",
-	 .devid = PCI_DEVICE_ID_AMPLICON_PCI224,
-	 .model = pci224_model,
-	 .ao_chans = 16,
-	 .ao_bits = 12,
-	 },
+		.name		= "pci224",
+		.devid		= PCI_DEVICE_ID_AMPLICON_PCI224,
+		.model		= pci224_model,
+		.ao_chans	= 16,
+		.ao_bits	= 12,
+	},
 	{
-	 .name = "pci234",
-	 .devid = PCI_DEVICE_ID_AMPLICON_PCI234,
-	 .model = pci234_model,
-	 .ao_chans = 4,
-	 .ao_bits = 16,
-	 },
+		.name		= "pci234",
+		.devid		= PCI_DEVICE_ID_AMPLICON_PCI234,
+		.model		= pci234_model,
+		.ao_chans	= 4,
+		.ao_bits	= 16,
+	},
 	{
-	 .name = "amplc_pci224",
-	 .devid = PCI_DEVICE_ID_INVALID,
-	 .model = any_model,	/* wildcard */
-	 },
+		.name		= "amplc_pci224",
+		.devid		= PCI_DEVICE_ID_INVALID,
+		.model		= any_model,	/* wildcard */
+	},
 };
 
 struct pci224_private {
