@@ -216,6 +216,11 @@ static int ld9040_power_off(struct ld9040 *ctx)
 
 static int ld9040_disable(struct drm_panel *panel)
 {
+	return 0;
+}
+
+static int ld9040_unprepare(struct drm_panel *panel)
+{
 	struct ld9040 *ctx = panel_to_ld9040(panel);
 
 	msleep(120);
@@ -228,17 +233,7 @@ static int ld9040_disable(struct drm_panel *panel)
 	return ld9040_power_off(ctx);
 }
 
-static int ld9040_unprepare(struct drm_panel *panel)
-{
-	return 0;
-}
-
 static int ld9040_prepare(struct drm_panel *panel)
-{
-	return 0;
-}
-
-static int ld9040_enable(struct drm_panel *panel)
 {
 	struct ld9040 *ctx = panel_to_ld9040(panel);
 	int ret;
@@ -252,9 +247,14 @@ static int ld9040_enable(struct drm_panel *panel)
 	ret = ld9040_clear_error(ctx);
 
 	if (ret < 0)
-		ld9040_disable(panel);
+		ld9040_unprepare(panel);
 
 	return ret;
+}
+
+static int ld9040_enable(struct drm_panel *panel)
+{
+	return 0;
 }
 
 static int ld9040_get_modes(struct drm_panel *panel)
