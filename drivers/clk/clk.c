@@ -498,7 +498,7 @@ out:
 	return;
 }
 
-static bool clk_ignore_unused = true;
+static bool clk_ignore_unused;
 static int __init clk_ignore_unused_setup(char *__unused)
 {
 	clk_ignore_unused = true;
