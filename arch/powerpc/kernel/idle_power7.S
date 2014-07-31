@@ -135,6 +135,39 @@ _GLOBAL(power7_sleep)
 	b	power7_powersave_common
 	/* No return */
 
+/*
+ * Make opal call in realmode. This is a generic function to be called
+ * from realmode from reset vector. It handles endianess.
+ *
+ * r13 - paca pointer
+ * r1  - stack pointer
+ * r3  - opal token
+ */
+opal_call_realmode:
+	mflr	r12
+	std	r12,_LINK(r1)
+	ld	r2,PACATOC(r13)
+	/* Set opal return address */
+	LOAD_REG_ADDR(r0,return_from_opal_call)
+	mtlr	r0
+	/* Handle endian-ness */
+	li	r0,MSR_LE
+	mfmsr	r12
+	andc	r12,r12,r0
+	mtspr	SPRN_HSRR1,r12
+	mr	r0,r3			/* Move opal token to r0 */
+	LOAD_REG_ADDR(r11,opal)
+	ld	r12,8(r11)
+	ld	r2,0(r11)
+	mtspr	SPRN_HSRR0,r12
+	hrfid
+
+return_from_opal_call:
+	FIXUP_ENDIAN
+	ld	r0,_LINK(r1)
+	mtlr	r0
+	blr
+
 #define CHECK_HMI_INTERRUPT						\
 	mfspr	r0,SPRN_SRR1;						\
 BEGIN_FTR_SECTION_NESTED(66);						\
@@ -148,12 +181,8 @@ ALT_FTR_SECTION_END_NESTED_IFSET(CPU_FTR_ARCH_207S, 66);		\
 	ld	r2,PACATOC(r13);					\
 	ld	r1,PACAR1(r13);						\
 	std	r3,ORIG_GPR3(r1);	/* Save original r3 */		\
-	li	r0,OPAL_HANDLE_HMI;					\
-	LOAD_REG_ADDR(r11,opal);					\
-	ld	r12,8(r11);						\
-	ld	r2,0(r11);						\
-	mtctr	r12;							\
-	bctrl;								\
+	li	r3,OPAL_HANDLE_HMI;	/* Pass opal token argument*/	\
+	bl	opal_call_realmode;					\
 	ld	r3,ORIG_GPR3(r1);	/* Restore original r3 */	\
 20:	nop;
 
@@ -166,12 +195,8 @@ BEGIN_FTR_SECTION
 	CHECK_HMI_INTERRUPT
 END_FTR_SECTION_IFSET(CPU_FTR_HVMODE)
 	/* Time base re-sync */
-	li	r0,OPAL_RESYNC_TIMEBASE
-	LOAD_REG_ADDR(r11,opal);
-	ld	r12,8(r11);
-	ld	r2,0(r11);
-	mtctr	r12
-	bctrl
+	li	r3,OPAL_RESYNC_TIMEBASE
+	bl	opal_call_realmode;
 
 	/* TODO: Check r3 for failure */
 
