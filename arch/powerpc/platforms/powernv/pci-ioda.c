@@ -491,6 +491,7 @@ static int pnv_pci_ioda_dma_set_mask(struct pnv_phb *phb,
 		set_dma_ops(&pdev->dev, &dma_iommu_ops);
 		set_iommu_table_base(&pdev->dev, &pe->tce32_table);
 	}
+	*pdev->dev.dma_mask = dma_mask;
 	return 0;
 }
 
