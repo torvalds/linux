@@ -71,8 +71,8 @@ static int aic26_hw_params(struct snd_pcm_substream *substream,
 
 	dev_dbg(&aic26->spi->dev, "aic26_hw_params(substream=%p, params=%p)\n",
 		substream, params);
-	dev_dbg(&aic26->spi->dev, "rate=%i format=%i\n", params_rate(params),
-		params_format(params));
+	dev_dbg(&aic26->spi->dev, "rate=%i width=%d\n", params_rate(params),
+		params_width(params));
 
 	switch (params_rate(params)) {
 	case 8000:  fsref = 48000; divisor = AIC26_DIV_6; break;
@@ -89,11 +89,11 @@ static int aic26_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	/* select data word length */
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S8:     wlen = AIC26_WLEN_16; break;
-	case SNDRV_PCM_FORMAT_S16_BE: wlen = AIC26_WLEN_16; break;
-	case SNDRV_PCM_FORMAT_S24_BE: wlen = AIC26_WLEN_24; break;
-	case SNDRV_PCM_FORMAT_S32_BE: wlen = AIC26_WLEN_32; break;
+	switch (params_width(params)) {
+	case 8:  wlen = AIC26_WLEN_16; break;
+	case 16: wlen = AIC26_WLEN_16; break;
+	case 24: wlen = AIC26_WLEN_24; break;
+	case 32: wlen = AIC26_WLEN_32; break;
 	default:
 		dev_dbg(&aic26->spi->dev, "bad format\n"); return -EINVAL;
 	}
