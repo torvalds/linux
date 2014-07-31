@@ -736,16 +736,16 @@ static int wm8978_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 
 	/* bit size */
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S16_LE:
+	switch (params_width(params)) {
+	case 16:
 		break;
-	case SNDRV_PCM_FORMAT_S20_3LE:
+	case 20:
 		iface_ctl |= 0x20;
 		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
+	case 24:
 		iface_ctl |= 0x40;
 		break;
-	case SNDRV_PCM_FORMAT_S32_LE:
+	case 32:
 		iface_ctl |= 0x60;
 		break;
 	}
@@ -817,8 +817,8 @@ static int wm8978_hw_params(struct snd_pcm_substream *substream,
 			wm8978->sysclk == WM8978_MCLK ?
 			", consider using PLL" : "");
 
-	dev_dbg(codec->dev, "%s: fmt %d, rate %u, MCLK divisor #%d\n", __func__,
-		params_format(params), params_rate(params), best);
+	dev_dbg(codec->dev, "%s: width %d, rate %u, MCLK divisor #%d\n", __func__,
+		params_width(params), params_rate(params), best);
 
 	/* MCLK divisor mask = 0xe0 */
 	snd_soc_update_bits(codec, WM8978_CLOCKING, 0xe0, best << 5);
