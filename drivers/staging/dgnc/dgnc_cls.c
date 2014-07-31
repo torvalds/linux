@@ -41,7 +41,6 @@
 #include "dgnc_driver.h"	/* Driver main header file */
 #include "dgnc_cls.h"
 #include "dgnc_tty.h"
-#include "dgnc_trace.h"
 
 static inline void cls_parse_isr(struct dgnc_board *brd, uint port);
 static inline void cls_clear_break(struct channel_t *ch, int force);

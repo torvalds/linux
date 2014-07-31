@@ -40,7 +40,6 @@
 #include "dpacompat.h"
 #include "dgnc_mgmt.h"
 #include "dgnc_tty.h"
-#include "dgnc_trace.h"
 #include "dgnc_cls.h"
 #include "dgnc_neo.h"
 #include "dgnc_sysfs.h"

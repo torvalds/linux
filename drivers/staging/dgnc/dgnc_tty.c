@@ -53,7 +53,6 @@
 #include "dgnc_driver.h"
 #include "dgnc_tty.h"
 #include "dgnc_types.h"
-#include "dgnc_trace.h"
 #include "dgnc_neo.h"
 #include "dgnc_cls.h"
 #include "dpacompat.h"
