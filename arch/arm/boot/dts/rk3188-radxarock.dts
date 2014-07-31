@@ -215,11 +215,13 @@
 };
 
 &uart2 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&uart2_xfer>;
 	status = "okay";
 };
 
 &uart3 {
+	status = "okay";
+};
+
+&wdt {
 	status = "okay";
 };

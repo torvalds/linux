@@ -400,3 +400,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart3_xfer>;
 };
+
+&wdt {
+	compatible = "rockchip,rk3188-wdt", "snps,dw-wdt";
+};
