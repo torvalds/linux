@@ -780,8 +780,8 @@ static struct adi_spi3_chip spidev_chip_info = {
 };
 #endif
 
-#if IS_ENABLED(CONFIG_SND_BF5XX_I2S)
-static struct platform_device bfin_i2s_pcm = {
+#if IS_ENABLED(CONFIG_SND_BF6XX_PCM)
+static struct platform_device bfin_pcm = {
 	.name = "bfin-i2s-pcm-audio",
 	.id = -1,
 };
@@ -2023,8 +2023,8 @@ static struct platform_device *ezkit_devices[] __initdata = {
 #if IS_ENABLED(CONFIG_MTD_PHYSMAP)
 	&ezkit_flash_device,
 #endif
-#if IS_ENABLED(CONFIG_SND_BF5XX_I2S)
-	&bfin_i2s_pcm,
+#if IS_ENABLED(CONFIG_SND_BF6XX_PCM)
+	&bfin_pcm,
 #endif
 #if IS_ENABLED(CONFIG_SND_BF6XX_SOC_I2S)
 	&bfin_i2s,
