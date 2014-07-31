@@ -1173,15 +1173,14 @@ static int pci224_attach_common(struct comedi_device *dev,
 	s->subdev_flags = SDF_WRITABLE | SDF_GROUND | SDF_CMD_WRITE;
 	s->n_chan = thisboard->ao_chans;
 	s->maxdata = (1 << thisboard->ao_bits) - 1;
-	s->insn_write = &pci224_ao_insn_write;
-	s->insn_read = &pci224_ao_insn_read;
+	s->insn_write = pci224_ao_insn_write;
+	s->insn_read = pci224_ao_insn_read;
 	s->len_chanlist = s->n_chan;
-
 	dev->write_subdev = s;
-	s->do_cmd = &pci224_ao_cmd;
-	s->do_cmdtest = &pci224_ao_cmdtest;
-	s->cancel = &pci224_ao_cancel;
-	s->munge = &pci224_ao_munge;
+	s->do_cmd = pci224_ao_cmd;
+	s->do_cmdtest = pci224_ao_cmdtest;
+	s->cancel = pci224_ao_cancel;
+	s->munge = pci224_ao_munge;
 
 	/* Sort out channel range options. */
 	if (thisboard->model == pci234_model) {
