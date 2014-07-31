@@ -551,7 +551,7 @@ static int fsl_asrc_dai_probe(struct snd_soc_dai *dai)
 #define FSL_ASRC_RATES		 SNDRV_PCM_RATE_8000_192000
 #define FSL_ASRC_FORMATS	(SNDRV_PCM_FMTBIT_S24_LE | \
 				 SNDRV_PCM_FMTBIT_S16_LE | \
-				 SNDRV_PCM_FORMAT_S20_3LE)
+				 SNDRV_PCM_FMTBIT_S20_3LE)
 
 static struct snd_soc_dai_driver fsl_asrc_dai = {
 	.probe = fsl_asrc_dai_probe,
