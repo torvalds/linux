@@ -184,10 +184,6 @@ static int perf_evsel__check_attr(struct perf_evsel *evsel,
 		if (perf_evsel__check_stype(evsel, PERF_SAMPLE_IP, "IP",
 					    PERF_OUTPUT_IP))
 			return -EINVAL;
-
-		if (!no_callchain &&
-		    !(attr->sample_type & PERF_SAMPLE_CALLCHAIN))
-			symbol_conf.use_callchain = false;
 	}
 
 	if (PRINT_FIELD(ADDR) &&
@@ -288,6 +284,19 @@ static int perf_session__check_output_opt(struct perf_session *session)
 			continue;
 
 		set_print_ip_opts(&evsel->attr);
+	}
+
+	if (!no_callchain) {
+		bool use_callchain = false;
+
+		evlist__for_each(session->evlist, evsel) {
+			if (evsel->attr.sample_type & PERF_SAMPLE_CALLCHAIN) {
+				use_callchain = true;
+				break;
+			}
+		}
+		if (!use_callchain)
+			symbol_conf.use_callchain = false;
 	}
 
 	/*
