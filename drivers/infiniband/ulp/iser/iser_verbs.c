@@ -491,10 +491,9 @@ out_err:
 }
 
 /**
- * releases the QP objects, returns 0 on success,
- * -1 on failure
+ * releases the QP object
  */
-static int iser_free_ib_conn_res(struct iser_conn *ib_conn)
+static void iser_free_ib_conn_res(struct iser_conn *ib_conn)
 {
 	int cq_index;
 	BUG_ON(ib_conn == NULL);
@@ -513,8 +512,6 @@ static int iser_free_ib_conn_res(struct iser_conn *ib_conn)
 	}
 
 	ib_conn->qp	  = NULL;
-
-	return 0;
 }
 
 /**
