@@ -1047,7 +1047,7 @@ static int edma_probe(struct platform_device *pdev)
 	ecc->dummy_slot = edma_alloc_slot(ecc->ctlr, EDMA_SLOT_ANY);
 	if (ecc->dummy_slot < 0) {
 		dev_err(&pdev->dev, "Can't allocate PaRAM dummy slot\n");
-		return -EIO;
+		return ecc->dummy_slot;
 	}
 
 	dma_cap_zero(ecc->dma_slave.cap_mask);
