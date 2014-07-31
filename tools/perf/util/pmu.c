@@ -2,6 +2,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <stdio.h>
+#include <stdbool.h>
 #include <dirent.h>
 #include <api/fs/fs.h>
 #include <locale.h>
@@ -387,6 +388,12 @@ static struct cpu_map *pmu_cpumask(const char *name)
 	return cpus;
 }
 
+struct perf_event_attr *__attribute__((weak))
+perf_pmu__get_default_config(struct perf_pmu *pmu __maybe_unused)
+{
+	return NULL;
+}
+
 static struct perf_pmu *pmu_lookup(const char *name)
 {
 	struct perf_pmu *pmu;
@@ -421,6 +428,9 @@ static struct perf_pmu *pmu_lookup(const char *name)
 	pmu->name = strdup(name);
 	pmu->type = type;
 	list_add_tail(&pmu->list, &pmus);
+
+	pmu->default_config = perf_pmu__get_default_config(pmu);
+
 	return pmu;
 }
 
@@ -479,28 +489,24 @@ pmu_find_format(struct list_head *formats, char *name)
 }
 
 /*
- * Returns value based on the format definition (format parameter)
+ * Sets value based on the format definition (format parameter)
  * and unformated value (value parameter).
- *
- * TODO maybe optimize a little ;)
  */
-static __u64 pmu_format_value(unsigned long *format, __u64 value)
+static void pmu_format_value(unsigned long *format, __u64 value, __u64 *v,
+			     bool zero)
 {
 	unsigned long fbit, vbit;
-	__u64 v = 0;
 
 	for (fbit = 0, vbit = 0; fbit < PERF_PMU_FORMAT_BITS; fbit++) {
 
 		if (!test_bit(fbit, format))
 			continue;
 
-		if (!(value & (1llu << vbit++)))
-			continue;
-
-		v |= (1llu << fbit);
+		if (value & (1llu << vbit++))
+			*v |= (1llu << fbit);
+		else if (zero)
+			*v &= ~(1llu << fbit);
 	}
-
-	return v;
 }
 
 /*
@@ -509,7 +515,8 @@ static __u64 pmu_format_value(unsigned long *format, __u64 value)
  */
 static int pmu_config_term(struct list_head *formats,
 			   struct perf_event_attr *attr,
-			   struct parse_events_term *term)
+			   struct parse_events_term *term,
+			   bool zero)
 {
 	struct perf_pmu_format *format;
 	__u64 *vp;
@@ -548,18 +555,19 @@ static int pmu_config_term(struct list_head *formats,
 	 * non-hardcoded terms, here's the place to translate
 	 * them into value.
 	 */
-	*vp |= pmu_format_value(format->bits, term->val.num);
+	pmu_format_value(format->bits, term->val.num, vp, zero);
 	return 0;
 }
 
 int perf_pmu__config_terms(struct list_head *formats,
 			   struct perf_event_attr *attr,
-			   struct list_head *head_terms)
+			   struct list_head *head_terms,
+			   bool zero)
 {
 	struct parse_events_term *term;
 
 	list_for_each_entry(term, head_terms, list)
-		if (pmu_config_term(formats, attr, term))
+		if (pmu_config_term(formats, attr, term, zero))
 			return -EINVAL;
 
 	return 0;
@@ -573,8 +581,10 @@ int perf_pmu__config_terms(struct list_head *formats,
 int perf_pmu__config(struct perf_pmu *pmu, struct perf_event_attr *attr,
 		     struct list_head *head_terms)
 {
+	bool zero = !!pmu->default_config;
+
 	attr->type = pmu->type;
-	return perf_pmu__config_terms(&pmu->format, attr, head_terms);
+	return perf_pmu__config_terms(&pmu->format, attr, head_terms, zero);
 }
 
 static struct perf_pmu_alias *pmu_find_alias(struct perf_pmu *pmu,
