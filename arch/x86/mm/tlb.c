@@ -164,8 +164,17 @@ void flush_tlb_current_task(void)
 	preempt_enable();
 }
 
-/* in units of pages */
-unsigned long tlb_single_page_flush_ceiling = 1;
+/*
+ * See Documentation/x86/tlb.txt for details.  We choose 33
+ * because it is large enough to cover the vast majority (at
+ * least 95%) of allocations, and is small enough that we are
+ * confident it will not cause too much overhead.  Each single
+ * flush is about 100 ns, so this caps the maximum overhead at
+ * _about_ 3,000 ns.
+ *
+ * This is in units of pages.
+ */
+unsigned long tlb_single_page_flush_ceiling = 33;
 
 void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
 				unsigned long end, unsigned long vmflag)
