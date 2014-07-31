@@ -1,5 +1,5 @@
 #include "rk312x-sdk.dtsi"
 
 / {
-	 compatible = "rockchip,rk3126";
+	 compatible = "rockchip,rk3128";
 };
