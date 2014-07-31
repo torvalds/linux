@@ -317,6 +317,7 @@ static int hdmi_bind(struct device *dev, struct device *master, void *data)
 	config.hpd_gpio      = get_gpio("qcom,hdmi-tx-hpd");
 	config.mux_en_gpio   = get_gpio("qcom,hdmi-tx-mux-en");
 	config.mux_sel_gpio  = get_gpio("qcom,hdmi-tx-mux-sel");
+	config.mux_lpm_gpio  = get_gpio("qcom,hdmi-tx-mux-lpm");
 
 #else
 	static const char *hpd_clk_names[] = {

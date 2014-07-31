@@ -78,6 +78,19 @@ static int gpio_config(struct hdmi *hdmi, bool on)
 			}
 			gpio_set_value_cansleep(config->mux_sel_gpio, 0);
 		}
+
+		if (config->mux_lpm_gpio != -1) {
+			ret = gpio_request(config->mux_lpm_gpio,
+					"HDMI_MUX_LPM");
+			if (ret) {
+				dev_err(dev->dev,
+					"'%s'(%d) gpio_request failed: %d\n",
+					"HDMI_MUX_LPM",
+					config->mux_lpm_gpio, ret);
+				goto error6;
+			}
+			gpio_set_value_cansleep(config->mux_lpm_gpio, 1);
+		}
 		DBG("gpio on");
 	} else {
 		gpio_free(config->ddc_clk_gpio);
@@ -93,11 +106,19 @@ static int gpio_config(struct hdmi *hdmi, bool on)
 			gpio_set_value_cansleep(config->mux_sel_gpio, 1);
 			gpio_free(config->mux_sel_gpio);
 		}
+
+		if (config->mux_lpm_gpio != -1) {
+			gpio_set_value_cansleep(config->mux_lpm_gpio, 0);
+			gpio_free(config->mux_lpm_gpio);
+		}
 		DBG("gpio off");
 	}
 
 	return 0;
 
+error6:
+	if (config->mux_sel_gpio != -1)
+		gpio_free(config->mux_sel_gpio);
 error5:
 	if (config->mux_en_gpio != -1)
 		gpio_free(config->mux_en_gpio);
