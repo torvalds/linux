@@ -123,7 +123,6 @@ static const struct exynos_tmu_registers exynos3250_tmu_registers = {
 	.emul_con = EXYNOS_EMUL_CON,
 	.emul_temp_shift = EXYNOS_EMUL_DATA_SHIFT,
 	.emul_time_shift = EXYNOS_EMUL_TIME_SHIFT,
-	.emul_time_mask = EXYNOS_EMUL_TIME_MASK,
 };
 
 #define EXYNOS3250_TMU_DATA \
@@ -185,7 +184,6 @@ static const struct exynos_tmu_registers exynos4412_tmu_registers = {
 	.triminfo_25_shift = EXYNOS_TRIMINFO_25_SHIFT,
 	.triminfo_85_shift = EXYNOS_TRIMINFO_85_SHIFT,
 	.triminfo_ctrl = EXYNOS_TMU_TRIMINFO_CON,
-	.triminfo_reload_shift = EXYNOS_TRIMINFO_RELOAD_SHIFT,
 	.tmu_ctrl = EXYNOS_TMU_REG_CONTROL,
 	.test_mux_addr_shift = EXYNOS4412_MUX_ADDR_SHIFT,
 	.buf_vref_sel_shift = EXYNOS_TMU_REF_VOLTAGE_SHIFT,
@@ -215,7 +213,6 @@ static const struct exynos_tmu_registers exynos4412_tmu_registers = {
 	.emul_con = EXYNOS_EMUL_CON,
 	.emul_temp_shift = EXYNOS_EMUL_DATA_SHIFT,
 	.emul_time_shift = EXYNOS_EMUL_TIME_SHIFT,
-	.emul_time_mask = EXYNOS_EMUL_TIME_MASK,
 };
 
 #define EXYNOS4412_TMU_DATA \
@@ -317,7 +314,6 @@ static const struct exynos_tmu_registers exynos5260_tmu_registers = {
 	.emul_con = EXYNOS5260_EMUL_CON,
 	.emul_temp_shift = EXYNOS_EMUL_DATA_SHIFT,
 	.emul_time_shift = EXYNOS_EMUL_TIME_SHIFT,
-	.emul_time_mask = EXYNOS_EMUL_TIME_MASK,
 };
 
 #define __EXYNOS5260_TMU_DATA	\
@@ -409,7 +405,6 @@ static const struct exynos_tmu_registers exynos5420_tmu_registers = {
 	.emul_con = EXYNOS_EMUL_CON,
 	.emul_temp_shift = EXYNOS_EMUL_DATA_SHIFT,
 	.emul_time_shift = EXYNOS_EMUL_TIME_SHIFT,
-	.emul_time_mask = EXYNOS_EMUL_TIME_MASK,
 };
 
 #define __EXYNOS5420_TMU_DATA	\

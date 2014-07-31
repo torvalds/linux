@@ -85,8 +85,6 @@ enum soc_type {
  * @triminfo_25_shift: shift bit of the 25 C trim value in triminfo_data reg.
  * @triminfo_85_shift: shift bit of the 85 C trim value in triminfo_data reg.
  * @triminfo_ctrl: trim info controller register.
- * @triminfo_reload_shift: shift of triminfo reload enable bit in triminfo_ctrl
-	reg.
  * @tmu_ctrl: TMU main controller register.
  * @test_mux_addr_shift: shift bits of test mux address.
  * @buf_vref_sel_shift: shift bits of reference voltage in tmu_ctrl register.
@@ -101,27 +99,13 @@ enum soc_type {
 	register.
  * @calib_mode_mask: mask bits of calibration mode value in tmu_ctrl
 	register.
- * @therm_trip_tq_en_shift: shift bits of thermal trip enable by TQ pin in
-	tmu_ctrl register.
  * @core_en_shift: shift bits of TMU core enable bit in tmu_ctrl register.
  * @tmu_status: register drescribing the TMU status.
  * @tmu_cur_temp: register containing the current temperature of the TMU.
- * @tmu_cur_temp_shift: shift bits of current temp value in tmu_cur_temp
-	register.
  * @threshold_temp: register containing the base threshold level.
  * @threshold_th0: Register containing first set of rising levels.
- * @threshold_th0_l0_shift: shift bits of level0 threshold temperature.
- * @threshold_th0_l1_shift: shift bits of level1 threshold temperature.
- * @threshold_th0_l2_shift: shift bits of level2 threshold temperature.
- * @threshold_th0_l3_shift: shift bits of level3 threshold temperature.
  * @threshold_th1: Register containing second set of rising levels.
- * @threshold_th1_l0_shift: shift bits of level0 threshold temperature.
- * @threshold_th1_l1_shift: shift bits of level1 threshold temperature.
- * @threshold_th1_l2_shift: shift bits of level2 threshold temperature.
- * @threshold_th1_l3_shift: shift bits of level3 threshold temperature.
  * @threshold_th2: Register containing third set of rising levels.
- * @threshold_th2_l0_shift: shift bits of level0 threshold temperature.
- * @threshold_th3: Register containing fourth set of rising levels.
  * @threshold_th3_l0_shift: shift bits of level0 threshold temperature.
  * @tmu_inten: register containing the different threshold interrupt
 	enable bits.
@@ -130,9 +114,6 @@ enum soc_type {
  * @inten_rise2_shift: shift bits of rising 2 interrupt bits.
  * @inten_rise3_shift: shift bits of rising 3 interrupt bits.
  * @inten_fall0_shift: shift bits of falling 0 interrupt bits.
- * @inten_fall1_shift: shift bits of falling 1 interrupt bits.
- * @inten_fall2_shift: shift bits of falling 2 interrupt bits.
- * @inten_fall3_shift: shift bits of falling 3 interrupt bits.
  * @tmu_intstat: Register containing the interrupt status values.
  * @tmu_intclear: Register for clearing the raised interrupt status.
  * @intclr_fall_shift: shift bits for interrupt clear fall 0
@@ -142,7 +123,6 @@ enum soc_type {
  * @emul_con: TMU emulation controller register.
  * @emul_temp_shift: shift bits of emulation temperature.
  * @emul_time_shift: shift bits of emulation time.
- * @emul_time_mask: mask bits of emulation time.
  * @tmu_irqstatus: register to find which TMU generated interrupts.
  * @tmu_pmin: register to get/set the Pmin value.
  */
@@ -153,7 +133,6 @@ struct exynos_tmu_registers {
 
 	u32	triminfo_ctrl;
 	u32	triminfo_ctrl1;
-	u32	triminfo_reload_shift;
 
 	u32	tmu_ctrl;
 	u32     test_mux_addr_shift;
@@ -166,32 +145,17 @@ struct exynos_tmu_registers {
 	u32	buf_slope_sel_mask;
 	u32	calib_mode_shift;
 	u32	calib_mode_mask;
-	u32	therm_trip_tq_en_shift;
 	u32	core_en_shift;
 
 	u32	tmu_status;
 
 	u32	tmu_cur_temp;
-	u32	tmu_cur_temp_shift;
 
 	u32	threshold_temp;
 
 	u32	threshold_th0;
-	u32	threshold_th0_l0_shift;
-	u32	threshold_th0_l1_shift;
-	u32	threshold_th0_l2_shift;
-	u32	threshold_th0_l3_shift;
-
 	u32	threshold_th1;
-	u32	threshold_th1_l0_shift;
-	u32	threshold_th1_l1_shift;
-	u32	threshold_th1_l2_shift;
-	u32	threshold_th1_l3_shift;
-
 	u32	threshold_th2;
-	u32	threshold_th2_l0_shift;
-
-	u32	threshold_th3;
 	u32	threshold_th3_l0_shift;
 
 	u32	tmu_inten;
@@ -200,9 +164,6 @@ struct exynos_tmu_registers {
 	u32	inten_rise2_shift;
 	u32	inten_rise3_shift;
 	u32	inten_fall0_shift;
-	u32	inten_fall1_shift;
-	u32	inten_fall2_shift;
-	u32	inten_fall3_shift;
 
 	u32	tmu_intstat;
 
@@ -215,7 +176,6 @@ struct exynos_tmu_registers {
 	u32	emul_con;
 	u32	emul_temp_shift;
 	u32	emul_time_shift;
-	u32	emul_time_mask;
 
 	u32	tmu_irqstatus;
 	u32	tmu_pmin;
