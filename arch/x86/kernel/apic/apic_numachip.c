@@ -247,7 +247,6 @@ static const struct apic apic_numachip __refconst = {
 
 	.wakeup_secondary_cpu		= numachip_wakeup_secondary,
 	.wait_for_init_deassert		= false,
-	.smp_callin_clear_local_apic	= NULL,
 	.inquire_remote_apic		= NULL, /* REMRD not supported */
 
 	.read				= native_apic_mem_read,

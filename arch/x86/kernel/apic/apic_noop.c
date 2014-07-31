@@ -169,7 +169,6 @@ struct apic apic_noop = {
 	.wakeup_secondary_cpu		= noop_wakeup_secondary_cpu,
 
 	.wait_for_init_deassert		= false,
-	.smp_callin_clear_local_apic	= NULL,
 	.inquire_remote_apic		= NULL,
 
 	.read				= noop_apic_read,

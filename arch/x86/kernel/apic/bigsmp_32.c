@@ -197,7 +197,6 @@ static struct apic apic_bigsmp = {
 	.send_IPI_self			= default_send_IPI_self,
 
 	.wait_for_init_deassert		= true,
-	.smp_callin_clear_local_apic	= NULL,
 	.inquire_remote_apic		= default_inquire_remote_apic,
 
 	.read				= native_apic_mem_read,

@@ -336,7 +336,6 @@ struct apic {
 	int (*wakeup_secondary_cpu)(int apicid, unsigned long start_eip);
 
 	bool wait_for_init_deassert;
-	void (*smp_callin_clear_local_apic)(void);
 	void (*inquire_remote_apic)(int apicid);
 
 	/* apic ops */
