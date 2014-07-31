@@ -111,7 +111,6 @@ struct registry_priv {
 	u8	antdiv_cfg;
 	u8	antdiv_type;
 
-	u8	usbss_enable;/* 0:disable,1:enable */
 	u8	hwpdn_mode;/* 0:disable,1:enable,2:decide by EFUSE config */
 	u8	hwpwrp_detect;/* 0:disable,1:enable */
 

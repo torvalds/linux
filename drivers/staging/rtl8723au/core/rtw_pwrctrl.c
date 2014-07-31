@@ -150,33 +150,11 @@ void rtw_ps_processor23a(struct rtw_adapter*padapter)
 {
 	struct pwrctrl_priv *pwrpriv = &padapter->pwrctrlpriv;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
-	enum rt_rf_power_state rfpwrstate;
 
 	pwrpriv->ps_processing = true;
 
 	if (pwrpriv->bips_processing == true)
 		goto exit;
-
-	if (padapter->pwrctrlpriv.bHWPwrPindetect) {
-		rfpwrstate = RfOnOffDetect23a(padapter);
-		DBG_8723A("@@@@- #2  %s ==> rfstate:%s\n", __func__,
-			  (rfpwrstate == rf_on)?"rf_on":"rf_off");
-
-		if (rfpwrstate!= pwrpriv->rf_pwrstate) {
-			if (rfpwrstate == rf_off) {
-				pwrpriv->change_rfpwrstate = rf_off;
-				padapter->bCardDisableWOHSM = true;
-				rtw_hw_suspend23a(padapter);
-			} else {
-				pwrpriv->change_rfpwrstate = rf_on;
-				rtw_hw_resume23a(padapter);
-			}
-			DBG_8723A("current rf_pwrstate(%s)\n",
-				  (pwrpriv->rf_pwrstate == rf_off) ?
-				  "rf_off":"rf_on");
-		}
-		pwrpriv->pwr_state_check_cnts ++;
-	}
 
 	if (pwrpriv->ips_mode_req == IPS_NONE)
 		goto exit;
