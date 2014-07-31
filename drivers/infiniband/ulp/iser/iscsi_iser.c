@@ -596,19 +596,28 @@ iscsi_iser_ep_connect(struct Scsi_Host *shost, struct sockaddr *dst_addr,
 	struct iser_conn *ib_conn;
 	struct iscsi_endpoint *ep;
 
-	ep = iscsi_create_endpoint(sizeof(*ib_conn));
+	ep = iscsi_create_endpoint(0);
 	if (!ep)
 		return ERR_PTR(-ENOMEM);
 
-	ib_conn = ep->dd_data;
+	ib_conn = kzalloc(sizeof(*ib_conn), GFP_KERNEL);
+	if (!ib_conn) {
+		err = -ENOMEM;
+		goto failure;
+	}
+
+	ep->dd_data = ib_conn;
 	ib_conn->ep = ep;
 	iser_conn_init(ib_conn);
 
 	err = iser_connect(ib_conn, NULL, dst_addr, non_blocking);
 	if (err)
-		return ERR_PTR(err);
+		goto failure;
 
 	return ep;
+failure:
+	iscsi_destroy_endpoint(ep);
+	return ERR_PTR(err);
 }
 
 static int
@@ -658,6 +667,7 @@ iscsi_iser_ep_disconnect(struct iscsi_endpoint *ep)
 	} else {
 		iser_conn_release(ib_conn);
 	}
+	iscsi_destroy_endpoint(ep);
 }
 
 static umode_t iser_attr_is_visible(int param_type, int param)

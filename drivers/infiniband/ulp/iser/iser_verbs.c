@@ -620,7 +620,7 @@ void iser_conn_release(struct iser_conn *ib_conn)
 		rdma_destroy_id(ib_conn->cma_id);
 		ib_conn->cma_id = NULL;
 	}
-	iscsi_destroy_endpoint(ib_conn->ep);
+	kfree(ib_conn);
 }
 
 /**
