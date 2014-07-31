@@ -1012,14 +1012,10 @@ static unsigned ni_660x_gate_to_generic_gate(unsigned gate)
 			if (gate == NI_660X_RTSI_GATE_SEL(i))
 				return NI_GPCT_RTSI_GATE_SELECT(i);
 		}
-		if (i <= NI_660X_MAX_RTSI_CHAN)
-			break;
 		for (i = 0; i <= NI_660X_MAX_GATE_PIN; ++i) {
 			if (gate == NI_660X_PIN_GATE_SEL(i))
 				return NI_GPCT_GATE_PIN_GATE_SELECT(i);
 		}
-		if (i <= NI_660X_MAX_GATE_PIN)
-			break;
 		BUG();
 		break;
 	}
@@ -1052,14 +1048,10 @@ static unsigned ni_m_gate_to_generic_gate(unsigned gate)
 			if (gate == NI_M_RTSI_GATE_SEL(i))
 				return NI_GPCT_RTSI_GATE_SELECT(i);
 		}
-		if (i <= NI_M_MAX_RTSI_CHAN)
-			break;
 		for (i = 0; i <= NI_M_MAX_PFI_CHAN; ++i) {
 			if (gate == NI_M_PFI_GATE_SEL(i))
 				return NI_GPCT_PFI_GATE_SELECT(i);
 		}
-		if (i <= NI_M_MAX_PFI_CHAN)
-			break;
 		BUG();
 		break;
 	}
@@ -1088,14 +1080,10 @@ static unsigned ni_660x_gate2_to_generic_gate(unsigned gate)
 			if (gate == NI_660X_RTSI_GATE2_SEL(i))
 				return NI_GPCT_RTSI_GATE_SELECT(i);
 		}
-		if (i <= NI_660X_MAX_RTSI_CHAN)
-			break;
 		for (i = 0; i <= NI_660X_MAX_UP_DOWN_PIN; ++i) {
 			if (gate == NI_660X_UD_PIN_GATE2_SEL(i))
 				return NI_GPCT_UP_DOWN_PIN_GATE_SELECT(i);
 		}
-		if (i <= NI_660X_MAX_UP_DOWN_PIN)
-			break;
 		BUG();
 		break;
 	}
