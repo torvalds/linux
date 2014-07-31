@@ -815,6 +815,49 @@
 
 		};
 
+		gpio2_lcdc0_d {
+			lcdc0_lcdc_d: lcdc0-lcdc_d {
+				rockchip,pins =
+						<LCDC0_D10>,
+						<LCDC0_D11>,
+						<LCDC0_D12>,
+						<LCDC0_D13>,
+						<LCDC0_D14>,
+						<LCDC0_D15>,
+						<LCDC0_D16>,
+						<LCDC0_D17>,
+						<LCDC0_D18>,
+						<LCDC0_D19>,
+						<LCDC0_D20>,
+						<LCDC0_D21>,
+						<LCDC0_D22>,
+						<LCDC0_D23>;
+				rockchip,pull = <VALUE_PULL_DISABLE>;
+				rockchip,drive = <VALUE_DRV_DEFAULT>;
+			};
+
+			lcdc0_lcdc_gpio: lcdc0-lcdc_gpio {
+				rockchip,pins =
+						<FUNC_TO_GPIO(LCDC0_D10)>,
+						<FUNC_TO_GPIO(LCDC0_D11)>,
+						<FUNC_TO_GPIO(LCDC0_D12)>,
+						<FUNC_TO_GPIO(LCDC0_D13)>,
+						<FUNC_TO_GPIO(LCDC0_D14)>,
+						<FUNC_TO_GPIO(LCDC0_D15)>,
+						<FUNC_TO_GPIO(LCDC0_D16)>,
+						<FUNC_TO_GPIO(LCDC0_D17)>,
+						<FUNC_TO_GPIO(LCDC0_D18)>,
+						<FUNC_TO_GPIO(LCDC0_D19)>,
+						<FUNC_TO_GPIO(LCDC0_D20)>,
+						<FUNC_TO_GPIO(LCDC0_D21)>,
+						<FUNC_TO_GPIO(LCDC0_D22)>,
+						<FUNC_TO_GPIO(LCDC0_D23)>;
+				rockchip,pull = <VALUE_PULL_DOWN>;
+				rockchip,drive = <VALUE_DRV_DEFAULT>;
+			};
+
+		};
+
 		//to add 
 
 		

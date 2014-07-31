@@ -610,6 +610,9 @@
 		reg = <0x20038000 0x4000>;
 		clocks = <&clk_gates5 0>;
 		clock-names = "pclk_lvds";
+		pinctrl-names = "lcdc", "sleep";
+		pinctrl-0 = <&lcdc0_lcdc_d>;
+		pinctrl-1 = <&lcdc0_lcdc_gpio>;
 	};
 
 	lcdc: lcdc@1010e000 {
