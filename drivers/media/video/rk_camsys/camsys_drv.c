@@ -381,6 +381,14 @@ static int camsys_sysctl(camsys_sysctrl_t *devctl, camsys_dev_t *camsys_dev)
             case CamSys_Flash_Trigger:
             {
                 camsys_dev->flash_trigger_cb(camsys_dev, devctl->on);
+                break;
+            }
+            case CamSys_IOMMU:
+            {
+                if(camsys_dev->iommu_cb(camsys_dev, devctl) < 0){
+                    err = -1;
+                    }
+                break;
             }
             default:
                 break;
@@ -769,7 +777,16 @@ static long camsys_ioctl(struct file *filp,unsigned int cmd, unsigned long arg)
                 return -EFAULT;
             break;
 	    }
-
+	    case CAMSYS_QUREYIOMMU:
+	    {
+            int iommu_enabled = 0;
+            #ifdef CONFIG_ROCKCHIP_IOMMU
+                of_property_read_u32(camsys_dev->pdev->dev.of_node, "rockchip,isp,iommu_enable", &iommu_enabled);
+            #endif
+            if (copy_to_user((void __user *)arg,(void*)&iommu_enabled, sizeof(iommu_enabled)))
+                return -EFAULT;
+            break;
+	    }
 	    case CAMSYS_I2CRD:
 	    {
 	        camsys_i2c_info_t i2cinfo;
@@ -804,6 +821,10 @@ static long camsys_ioctl(struct file *filp,unsigned int cmd, unsigned long arg)
                 return -EFAULT;
 
             err = camsys_sysctl(&devctl, camsys_dev);
+            if ((err==0) && (devctl.ops == CamSys_IOMMU)){
+                if (copy_to_user((void __user *)arg,(void*)&devctl, sizeof(camsys_sysctrl_t))) 
+                    return -EFAULT;
+            }
             break;
         }
 

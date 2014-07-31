@@ -1261,6 +1261,7 @@
 		rockchip,isp,cifphy = <1>;
 		rockchip,isp,mipiphy1,reg = <0xff968000 0x4000>;
 		rockchip,gpios = <&gpio7 GPIO_B5 GPIO_ACTIVE_HIGH>;
+		rockchip,isp,iommu_enable = <0>;
 		status = "okay";
 	};
 
