@@ -1131,6 +1131,9 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 		     "Don't show entries under that percent", parse_percent_limit),
 	OPT_CALLBACK(0, "percentage", NULL, "relative|absolute",
 		     "How to display percentage of filtered entries", parse_filter_percentage),
+	OPT_STRING('w', "column-widths", &symbol_conf.col_width_list_str,
+		   "width[,width...]",
+		   "don't try to adjust column width, use these fixed values"),
 	OPT_END()
 	};
 	const char * const top_usage[] = {

@@ -147,7 +147,7 @@ OPTIONS
 -w::
 --column-widths=<width[,width...]>::
 	Force each column width to the provided list, for large terminal
-	readability.
+	readability.  0 means no limit (default behavior).
 
 -t::
 --field-separator=::
