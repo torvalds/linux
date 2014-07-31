@@ -396,8 +396,8 @@ pci224_ao_set_data(struct comedi_device *dev, int chan, int range,
 	outw(1 << chan, dev->iobase + PCI224_DACCEN);
 	/* Set range and reset FIFO. */
 	devpriv->daccon = COMBINE(devpriv->daccon, devpriv->hwrange[range],
-				  (PCI224_DACCON_POLAR_MASK |
-				   PCI224_DACCON_VREF_MASK));
+				  PCI224_DACCON_POLAR_MASK |
+				  PCI224_DACCON_VREF_MASK);
 	outw(devpriv->daccon | PCI224_DACCON_FIFORESET,
 	     dev->iobase + PCI224_DACCON);
 	/*
@@ -685,7 +685,7 @@ static int pci224_ao_check_chanlist(struct comedi_device *dev,
 				__func__);
 			return -EINVAL;
 		}
-		chan_mask |= (1 << chan);
+		chan_mask |= 1 << chan;
 
 		if (range != range0) {
 			dev_dbg(dev->class_dev,
@@ -925,13 +925,13 @@ static int pci224_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	 * N.B. DAC FIFO interrupts are currently disabled.
 	 */
 	devpriv->daccon = COMBINE(devpriv->daccon,
-				  (devpriv->
-				   hwrange[range] | PCI224_DACCON_TRIG_NONE |
-				   PCI224_DACCON_FIFOINTR_NHALF),
-				  (PCI224_DACCON_POLAR_MASK |
-				   PCI224_DACCON_VREF_MASK |
-				   PCI224_DACCON_TRIG_MASK |
-				   PCI224_DACCON_FIFOINTR_MASK));
+				  devpriv->hwrange[range] |
+				  PCI224_DACCON_TRIG_NONE |
+				  PCI224_DACCON_FIFOINTR_NHALF,
+				  PCI224_DACCON_POLAR_MASK |
+				  PCI224_DACCON_VREF_MASK |
+				  PCI224_DACCON_TRIG_MASK |
+				  PCI224_DACCON_FIFOINTR_MASK);
 	outw(devpriv->daccon | PCI224_DACCON_FIFORESET,
 	     dev->iobase + PCI224_DACCON);
 
@@ -1161,9 +1161,8 @@ static int pci224_attach_common(struct comedi_device *dev,
 	outw(PCI224_DACCON_GLOBALRESET, dev->iobase + PCI224_DACCON);
 	outw(0, dev->iobase + PCI224_DACCEN);
 	outw(0, dev->iobase + PCI224_FIFOSIZ);
-	devpriv->daccon = (PCI224_DACCON_TRIG_SW | PCI224_DACCON_POLAR_BI |
-			   PCI224_DACCON_FIFOENAB |
-			   PCI224_DACCON_FIFOINTR_EMPTY);
+	devpriv->daccon = PCI224_DACCON_TRIG_SW | PCI224_DACCON_POLAR_BI |
+			  PCI224_DACCON_FIFOENAB | PCI224_DACCON_FIFOINTR_EMPTY;
 	outw(devpriv->daccon | PCI224_DACCON_FIFORESET,
 	     dev->iobase + PCI224_DACCON);
 
