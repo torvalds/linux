@@ -59,44 +59,19 @@ static struct usb_driver rtl8723a_usb_drv = {
 
 static struct usb_driver *usb_drv = &rtl8723a_usb_drv;
 
-static inline int RT_usb_endpoint_dir_in(const struct usb_endpoint_descriptor *epd)
-{
-	return (epd->bEndpointAddress & USB_ENDPOINT_DIR_MASK) == USB_DIR_IN;
-}
-
-static inline int RT_usb_endpoint_dir_out(const struct usb_endpoint_descriptor *epd)
-{
-	return (epd->bEndpointAddress & USB_ENDPOINT_DIR_MASK) == USB_DIR_OUT;
-}
-
-static inline int RT_usb_endpoint_xfer_int(const struct usb_endpoint_descriptor *epd)
-{
-	return (epd->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) == USB_ENDPOINT_XFER_INT;
-}
-
-static inline int RT_usb_endpoint_xfer_bulk(const struct usb_endpoint_descriptor *epd)
-{
-	return (epd->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) == USB_ENDPOINT_XFER_BULK;
-}
-
 static inline int RT_usb_endpoint_is_bulk_in(const struct usb_endpoint_descriptor *epd)
 {
-	return RT_usb_endpoint_xfer_bulk(epd) && RT_usb_endpoint_dir_in(epd);
+	return usb_endpoint_xfer_bulk(epd) && usb_endpoint_dir_in(epd);
 }
 
 static inline int RT_usb_endpoint_is_bulk_out(const struct usb_endpoint_descriptor *epd)
 {
-	return RT_usb_endpoint_xfer_bulk(epd) && RT_usb_endpoint_dir_out(epd);
+	return usb_endpoint_xfer_bulk(epd) && usb_endpoint_dir_out(epd);
 }
 
 static inline int RT_usb_endpoint_is_int_in(const struct usb_endpoint_descriptor *epd)
 {
-	return RT_usb_endpoint_xfer_int(epd) && RT_usb_endpoint_dir_in(epd);
-}
-
-static inline int RT_usb_endpoint_num(const struct usb_endpoint_descriptor *epd)
-{
-	return epd->bEndpointAddress & USB_ENDPOINT_NUMBER_MASK;
+	return usb_endpoint_xfer_int(epd) && usb_endpoint_dir_in(epd);
 }
 
 static int rtw_init_intf_priv(struct dvobj_priv *dvobj)
@@ -173,25 +148,25 @@ static struct dvobj_priv *usb_dvobj_init(struct usb_interface *usb_intf)
 
 			if (RT_usb_endpoint_is_bulk_in(pendp_desc)) {
 				DBG_8723A("RT_usb_endpoint_is_bulk_in = %x\n",
-					  RT_usb_endpoint_num(pendp_desc));
+					  usb_endpoint_num(pendp_desc));
 				pdvobjpriv->RtInPipe[pdvobjpriv->RtNumInPipes] =
-					RT_usb_endpoint_num(pendp_desc);
+					usb_endpoint_num(pendp_desc);
 				pdvobjpriv->RtNumInPipes++;
 			} else if (RT_usb_endpoint_is_int_in(pendp_desc)) {
 				DBG_8723A("RT_usb_endpoint_is_int_in = %x, Interval = %x\n",
-					  RT_usb_endpoint_num(pendp_desc),
+					  usb_endpoint_num(pendp_desc),
 					  pendp_desc->bInterval);
 				pdvobjpriv->RtInPipe[pdvobjpriv->RtNumInPipes] =
-					RT_usb_endpoint_num(pendp_desc);
+					usb_endpoint_num(pendp_desc);
 				pdvobjpriv->RtNumInPipes++;
 			} else if (RT_usb_endpoint_is_bulk_out(pendp_desc)) {
 				DBG_8723A("RT_usb_endpoint_is_bulk_out = %x\n",
-					  RT_usb_endpoint_num(pendp_desc));
+					  usb_endpoint_num(pendp_desc));
 				pdvobjpriv->RtOutPipe[pdvobjpriv->RtNumOutPipes] =
-					RT_usb_endpoint_num(pendp_desc);
+					usb_endpoint_num(pendp_desc);
 				pdvobjpriv->RtNumOutPipes++;
 			}
-			pdvobjpriv->ep_num[i] = RT_usb_endpoint_num(pendp_desc);
+			pdvobjpriv->ep_num[i] = usb_endpoint_num(pendp_desc);
 		}
 	}
 	DBG_8723A("nr_endpoint =%d, in_num =%d, out_num =%d\n\n",
