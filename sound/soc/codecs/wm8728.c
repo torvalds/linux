@@ -94,13 +94,13 @@ static int wm8728_hw_params(struct snd_pcm_substream *substream,
 
 	dac &= ~0x18;
 
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S16_LE:
+	switch (params_width(params)) {
+	case 16:
 		break;
-	case SNDRV_PCM_FORMAT_S20_3LE:
+	case 20:
 		dac |= 0x10;
 		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
+	case 24:
 		dac |= 0x08;
 		break;
 	default:
