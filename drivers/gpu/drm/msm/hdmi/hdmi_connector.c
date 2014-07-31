@@ -63,7 +63,7 @@ static int gpio_config(struct hdmi *hdmi, bool on)
 			ret = gpio_request(config->mux_en_gpio, "HDMI_MUX_EN");
 			if (ret) {
 				dev_err(dev->dev, "'%s'(%d) gpio_request failed: %d\n",
-					"HDMI_MUX_SEL", config->mux_en_gpio, ret);
+					"HDMI_MUX_EN", config->mux_en_gpio, ret);
 				goto error4;
 			}
 			gpio_set_value_cansleep(config->mux_en_gpio, 1);
