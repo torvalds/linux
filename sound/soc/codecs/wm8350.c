@@ -918,16 +918,16 @@ static int wm8350_pcm_hw_params(struct snd_pcm_substream *substream,
 	    ~WM8350_AIF_WL_MASK;
 
 	/* bit size */
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S16_LE:
+	switch (params_width(params)) {
+	case 16:
 		break;
-	case SNDRV_PCM_FORMAT_S20_3LE:
+	case 20:
 		iface |= 0x1 << 10;
 		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
+	case 24:
 		iface |= 0x2 << 10;
 		break;
-	case SNDRV_PCM_FORMAT_S32_LE:
+	case 32:
 		iface |= 0x3 << 10;
 		break;
 	}
