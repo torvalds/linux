@@ -113,13 +113,6 @@
 #include "8253.h"
 
 /*
- * PCI IDs.
- */
-#define PCI_DEVICE_ID_AMPLICON_PCI224 0x0007
-#define PCI_DEVICE_ID_AMPLICON_PCI234 0x0008
-#define PCI_DEVICE_ID_INVALID 0xffff
-
-/*
  * PCI224/234 i/o space 1 (PCIBAR2) registers.
  */
 #define PCI224_Z2_CT0	0x14	/* 82C54 counter/timer 0 */
@@ -1215,8 +1208,8 @@ static int amplc_pci224_pci_probe(struct pci_dev *dev,
 }
 
 static const struct pci_device_id amplc_pci224_pci_table[] = {
-	{ PCI_VDEVICE(AMPLICON, PCI_DEVICE_ID_AMPLICON_PCI224), pci224_model },
-	{ PCI_VDEVICE(AMPLICON, PCI_DEVICE_ID_AMPLICON_PCI234), pci234_model },
+	{ PCI_VDEVICE(AMPLICON, 0x0007), pci224_model },
+	{ PCI_VDEVICE(AMPLICON, 0x0008), pci234_model },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, amplc_pci224_pci_table);
