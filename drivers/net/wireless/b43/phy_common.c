@@ -222,12 +222,18 @@ static inline void assert_mac_suspended(struct b43_wldev *dev)
 u16 b43_radio_read(struct b43_wldev *dev, u16 reg)
 {
 	assert_mac_suspended(dev);
+	dev->phy.writes_counter = 0;
 	return dev->phy.ops->radio_read(dev, reg);
 }
 
 void b43_radio_write(struct b43_wldev *dev, u16 reg, u16 value)
 {
 	assert_mac_suspended(dev);
+	if (b43_bus_host_is_pci(dev->dev) &&
+	    ++dev->phy.writes_counter > B43_MAX_WRITES_IN_ROW) {
+		b43_read32(dev, B43_MMIO_MACCTL);
+		dev->phy.writes_counter = 1;
+	}
 	dev->phy.ops->radio_write(dev, reg, value);
 }
 
@@ -274,11 +280,12 @@ u16 b43_phy_read(struct b43_wldev *dev, u16 reg)
 void b43_phy_write(struct b43_wldev *dev, u16 reg, u16 value)
 {
 	assert_mac_suspended(dev);
-	dev->phy.ops->phy_write(dev, reg, value);
-	if (++dev->phy.writes_counter == B43_MAX_WRITES_IN_ROW) {
+	if (b43_bus_host_is_pci(dev->dev) &&
+	    ++dev->phy.writes_counter > B43_MAX_WRITES_IN_ROW) {
 		b43_read16(dev, B43_MMIO_PHY_VER);
-		dev->phy.writes_counter = 0;
+		dev->phy.writes_counter = 1;
 	}
+	dev->phy.ops->phy_write(dev, reg, value);
 }
 
 void b43_phy_copy(struct b43_wldev *dev, u16 destreg, u16 srcreg)

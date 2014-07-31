@@ -6517,6 +6517,7 @@ static void b43_nphy_op_maskset(struct b43_wldev *dev, u16 reg, u16 mask,
 	check_phyreg(dev, reg);
 	b43_write16(dev, B43_MMIO_PHY_CONTROL, reg);
 	b43_maskset16(dev, B43_MMIO_PHY_DATA, mask, set);
+	dev->phy.writes_counter = 1;
 }
 
 static u16 b43_nphy_op_radio_read(struct b43_wldev *dev, u16 reg)
