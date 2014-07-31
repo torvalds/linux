@@ -70,12 +70,12 @@ static int hist_entry__thread_snprintf(struct hist_entry *he, char *bf,
 				       size_t size, unsigned int width)
 {
 	const char *comm = thread__comm_str(he->thread);
-	return repsep_snprintf(bf, size, "%*s:%5d", width - 6,
-			       comm ?: "", he->thread->tid);
+	return repsep_snprintf(bf, size, "%5d:%-*s", he->thread->tid,
+			       width - 6, comm ?: "");
 }
 
 struct sort_entry sort_thread = {
-	.se_header	= "Command:  Pid",
+	.se_header	= "  Pid:Command",
 	.se_cmp		= sort__thread_cmp,
 	.se_snprintf	= hist_entry__thread_snprintf,
 	.se_width_idx	= HISTC_THREAD,
@@ -106,7 +106,7 @@ sort__comm_sort(struct hist_entry *left, struct hist_entry *right)
 static int hist_entry__comm_snprintf(struct hist_entry *he, char *bf,
 				     size_t size, unsigned int width)
 {
-	return repsep_snprintf(bf, size, "%*s", width, comm__str(he->comm));
+	return repsep_snprintf(bf, size, "%-*s", width, comm__str(he->comm));
 }
 
 struct sort_entry sort_comm = {
@@ -305,7 +305,7 @@ static int hist_entry__srcline_snprintf(struct hist_entry *he, char *bf,
 					size_t size,
 					unsigned int width __maybe_unused)
 {
-	return repsep_snprintf(bf, size, "%s", he->srcline);
+	return repsep_snprintf(bf, size, "%-s", he->srcline);
 }
 
 struct sort_entry sort_srcline = {
