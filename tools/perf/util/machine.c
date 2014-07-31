@@ -31,6 +31,7 @@ int machine__init(struct machine *machine, const char *root_dir, pid_t pid)
 
 	machine->symbol_filter = NULL;
 	machine->id_hdr_size = 0;
+	machine->comm_exec = false;
 
 	machine->root_dir = strdup(root_dir);
 	if (machine->root_dir == NULL)
@@ -176,6 +177,19 @@ void machines__set_symbol_filter(struct machines *machines,
 		struct machine *machine = rb_entry(nd, struct machine, rb_node);
 
 		machine->symbol_filter = symbol_filter;
+	}
+}
+
+void machines__set_comm_exec(struct machines *machines, bool comm_exec)
+{
+	struct rb_node *nd;
+
+	machines->host.comm_exec = comm_exec;
+
+	for (nd = rb_first(&machines->guests); nd; nd = rb_next(nd)) {
+		struct machine *machine = rb_entry(nd, struct machine, rb_node);
+
+		machine->comm_exec = comm_exec;
 	}
 }
 
@@ -398,6 +412,15 @@ struct thread *machine__find_thread(struct machine *machine, pid_t pid,
 	return __machine__findnew_thread(machine, pid, tid, false);
 }
 
+struct comm *machine__thread_exec_comm(struct machine *machine,
+				       struct thread *thread)
+{
+	if (machine->comm_exec)
+		return thread__exec_comm(thread);
+	else
+		return thread__comm(thread);
+}
+
 int machine__process_comm_event(struct machine *machine, union perf_event *event,
 				struct perf_sample *sample)
 {
@@ -405,6 +428,9 @@ int machine__process_comm_event(struct machine *machine, union perf_event *event
 							event->comm.pid,
 							event->comm.tid);
 	bool exec = event->header.misc & PERF_RECORD_MISC_COMM_EXEC;
+
+	if (exec)
+		machine->comm_exec = true;
 
 	if (dump_trace)
 		perf_event__fprintf_comm(event, stdout);
