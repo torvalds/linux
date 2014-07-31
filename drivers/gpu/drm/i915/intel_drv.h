@@ -538,6 +538,8 @@ struct intel_dp {
 	unsigned long last_power_on;
 	unsigned long last_backlight_off;
 	bool psr_setup_done;
+	struct notifier_block edp_notifier;
+
 	bool use_tps3;
 	struct intel_connector *attached_connector;
 

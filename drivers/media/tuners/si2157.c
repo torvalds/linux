@@ -57,7 +57,7 @@ static int si2157_cmd_execute(struct si2157 *s, struct si2157_cmd *cmd)
 			jiffies_to_msecs(jiffies) -
 			(jiffies_to_msecs(timeout) - TIMEOUT));
 
-	if (!(buf[0] >> 7) & 0x01) {
+	if (!((buf[0] >> 7) & 0x01)) {
 		ret = -ETIMEDOUT;
 		goto err_mutex_unlock;
 	} else {

@@ -92,7 +92,7 @@ struct gen_pool *spaace_pool;
  * subwindow count per liodn.
  *
  */
-u32 pamu_get_max_subwin_cnt()
+u32 pamu_get_max_subwin_cnt(void)
 {
 	return max_subwindow_count;
 }
@@ -170,10 +170,10 @@ int pamu_disable_liodn(int liodn)
 static unsigned int map_addrspace_size_to_wse(phys_addr_t addrspace_size)
 {
 	/* Bug if not a power of 2 */
-	BUG_ON(!is_power_of_2(addrspace_size));
+	BUG_ON((addrspace_size & (addrspace_size - 1)));
 
 	/* window size is 2^(WSE+1) bytes */
-	return __ffs(addrspace_size) - 1;
+	return fls64(addrspace_size) - 2;
 }
 
 /* Derive the PAACE window count encoding for the subwindow count */
@@ -351,7 +351,7 @@ int pamu_config_ppaace(int liodn, phys_addr_t win_addr, phys_addr_t win_size,
 	struct paace *ppaace;
 	unsigned long fspi;
 
-	if (!is_power_of_2(win_size) || win_size < PAMU_PAGE_SIZE) {
+	if ((win_size & (win_size - 1)) || win_size < PAMU_PAGE_SIZE) {
 		pr_debug("window size too small or not a power of two %llx\n", win_size);
 		return -EINVAL;
 	}
@@ -464,7 +464,7 @@ int pamu_config_spaace(int liodn, u32 subwin_cnt, u32 subwin,
 		return -ENOENT;
 	}
 
-	if (!is_power_of_2(subwin_size) || subwin_size < PAMU_PAGE_SIZE) {
+	if ((subwin_size & (subwin_size - 1)) || subwin_size < PAMU_PAGE_SIZE) {
 		pr_debug("subwindow size out of range, or not a power of 2\n");
 		return -EINVAL;
 	}

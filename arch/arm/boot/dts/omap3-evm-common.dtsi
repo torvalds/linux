@@ -50,6 +50,13 @@
 	gpios = <&twl_gpio 18 GPIO_ACTIVE_LOW>;
 };
 
+&twl {
+	twl_power: power {
+		compatible = "ti,twl4030-power-omap3-evm", "ti,twl4030-power-idle";
+		ti,use_poweroff;
+	};
+};
+
 &i2c2 {
 	clock-frequency = <400000>;
 };

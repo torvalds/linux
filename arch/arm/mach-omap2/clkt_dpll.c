@@ -76,7 +76,7 @@
  * (assuming that it is counting N upwards), or -2 if the enclosing loop
  * should skip to the next iteration (again assuming N is increasing).
  */
-static int _dpll_test_fint(struct clk_hw_omap *clk, u8 n)
+static int _dpll_test_fint(struct clk_hw_omap *clk, unsigned int n)
 {
 	struct dpll_data *dd;
 	long fint, fint_min, fint_max;

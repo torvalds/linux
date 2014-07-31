@@ -300,7 +300,7 @@ static int check_size(u64 size, dma_addr_t iova)
 	 * Size must be a power of two and at least be equal
 	 * to PAMU page size.
 	 */
-	if (!is_power_of_2(size) || size < PAMU_PAGE_SIZE) {
+	if ((size & (size - 1)) || size < PAMU_PAGE_SIZE) {
 		pr_debug("%s: size too small or not a power of two\n", __func__);
 		return -EINVAL;
 	}
@@ -332,11 +332,6 @@ static struct fsl_dma_domain *iommu_alloc_dma_domain(void)
 	spin_lock_init(&domain->domain_lock);
 
 	return domain;
-}
-
-static inline struct device_domain_info *find_domain(struct device *dev)
-{
-	return dev->archdata.iommu_domain;
 }
 
 static void remove_device_ref(struct device_domain_info *info, u32 win_cnt)
@@ -379,7 +374,7 @@ static void attach_device(struct fsl_dma_domain *dma_domain, int liodn, struct d
 	 * Check here if the device is already attached to domain or not.
 	 * If the device is already attached to a domain detach it.
 	 */
-	old_domain_info = find_domain(dev);
+	old_domain_info = dev->archdata.iommu_domain;
 	if (old_domain_info && old_domain_info->domain != dma_domain) {
 		spin_unlock_irqrestore(&device_domain_lock, flags);
 		detach_device(dev, old_domain_info->domain);
@@ -398,7 +393,7 @@ static void attach_device(struct fsl_dma_domain *dma_domain, int liodn, struct d
 	 * the info for the first LIODN as all
 	 * LIODNs share the same domain
 	 */
-	if (!old_domain_info)
+	if (!dev->archdata.iommu_domain)
 		dev->archdata.iommu_domain = info;
 	spin_unlock_irqrestore(&device_domain_lock, flags);
 
@@ -978,12 +973,15 @@ static struct iommu_group *get_pci_device_group(struct pci_dev *pdev)
 			group = get_shared_pci_device_group(pdev);
 	}
 
+	if (!group)
+		group = ERR_PTR(-ENODEV);
+
 	return group;
 }
 
 static int fsl_pamu_add_device(struct device *dev)
 {
-	struct iommu_group *group = NULL;
+	struct iommu_group *group = ERR_PTR(-ENODEV);
 	struct pci_dev *pdev;
 	const u32 *prop;
 	int ret, len;
@@ -1006,7 +1004,7 @@ static int fsl_pamu_add_device(struct device *dev)
 			group = get_device_iommu_group(dev);
 	}
 
-	if (!group || IS_ERR(group))
+	if (IS_ERR(group))
 		return PTR_ERR(group);
 
 	ret = iommu_group_add_device(group, dev);
@@ -1054,8 +1052,7 @@ static int fsl_pamu_set_windows(struct iommu_domain *domain, u32 w_count)
 	ret = pamu_set_domain_geometry(dma_domain, &domain->geometry,
 				((w_count > 1) ? w_count : 0));
 	if (!ret) {
-		if (dma_domain->win_arr)
-			kfree(dma_domain->win_arr);
+		kfree(dma_domain->win_arr);
 		dma_domain->win_arr = kzalloc(sizeof(struct dma_window) *
 							  w_count, GFP_ATOMIC);
 		if (!dma_domain->win_arr) {
@@ -1093,7 +1090,7 @@ static const struct iommu_ops fsl_pamu_ops = {
 	.remove_device	= fsl_pamu_remove_device,
 };
 
-int pamu_domain_init()
+int pamu_domain_init(void)
 {
 	int ret = 0;
 

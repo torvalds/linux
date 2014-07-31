@@ -77,12 +77,10 @@ static int dra7_apll_enable(struct clk_hw *hw)
 	if (i == MAX_APLL_WAIT_TRIES) {
 		pr_warn("clock: %s failed transition to '%s'\n",
 			clk_name, (state) ? "locked" : "bypassed");
-	} else {
+		r = -EBUSY;
+	} else
 		pr_debug("clock: %s transition to '%s' in %d loops\n",
 			 clk_name, (state) ? "locked" : "bypassed", i);
-
-		r = 0;
-	}
 
 	return r;
 }
@@ -338,7 +336,7 @@ static void __init of_omap2_apll_setup(struct device_node *node)
 	const char *parent_name;
 	u32 val;
 
-	ad = kzalloc(sizeof(*clk_hw), GFP_KERNEL);
+	ad = kzalloc(sizeof(*ad), GFP_KERNEL);
 	clk_hw = kzalloc(sizeof(*clk_hw), GFP_KERNEL);
 	init = kzalloc(sizeof(*init), GFP_KERNEL);
 

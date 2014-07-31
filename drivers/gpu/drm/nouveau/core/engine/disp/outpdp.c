@@ -34,7 +34,7 @@ nvkm_output_dp_train(struct nvkm_output *base, u32 datarate, bool wait)
 	struct nvkm_output_dp *outp = (void *)base;
 	bool retrain = true;
 	u8 link[2], stat[3];
-	u32 rate;
+	u32 linkrate;
 	int ret, i;
 
 	/* check that the link is trained at a high enough rate */
@@ -44,8 +44,10 @@ nvkm_output_dp_train(struct nvkm_output *base, u32 datarate, bool wait)
 		goto done;
 	}
 
-	rate = link[0] * 27000 * (link[1] & DPCD_LC01_LANE_COUNT_SET);
-	if (rate < ((datarate / 8) * 10)) {
+	linkrate = link[0] * 27000 * (link[1] & DPCD_LC01_LANE_COUNT_SET);
+	linkrate = (linkrate * 8) / 10; /* 8B/10B coding overhead */
+	datarate = (datarate + 9) / 10; /* -> decakilobits */
+	if (linkrate < datarate) {
 		DBG("link not trained at sufficient rate\n");
 		goto done;
 	}
