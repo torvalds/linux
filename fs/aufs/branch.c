@@ -772,29 +772,39 @@ static int test_children_busy(struct dentry *root, aufs_bindex_t bindex,
 	return err;
 }
 
-static int test_dir_busy(struct file *file, aufs_bindex_t bindex, void *to_free,
-			 int *idx)
+static int test_dir_busy(struct file *file, aufs_bindex_t br_id,
+			 struct file **to_free, int *idx)
 {
-	int err, found, i;
-	aufs_bindex_t bstart, bend;
-	struct file **p;
+	int err;
+	unsigned char matched, unmatched;
+	aufs_bindex_t bindex, bend;
+	struct au_fidir *fidir;
+	struct au_hfile *hfile;
 
 	err = 0;
-	bstart = au_fbstart(file);
+	matched = 0;
+	unmatched = 0;
+	fidir = au_fi(file)->fi_hdir;
+	AuDebugOn(!fidir);
 	bend = au_fbend_dir(file);
-	if (bindex < bstart
-	    || bend < bindex
-	    || !au_hf_dir(file, bindex))
-		goto out;
+	for (bindex = au_fbstart(file); bindex <= bend; bindex++) {
+		hfile = fidir->fd_hfile + bindex;
+		if (!hfile->hf_file)
+			continue;
 
-	found = 0;
-	for (i = bstart; !found && i <= bend; i++)
-		if (i != bindex)
-			found = !!au_hf_dir(file, i);
-	if (found) {
-		p = to_free;
+		if (hfile->hf_br->br_id == br_id)
+			matched = 1;
+		else
+			unmatched = 1;
+		if (matched && unmatched)
+			break;
+	}
+	if (!matched)
+		goto out; /* success */
+
+	if (unmatched) {
 		get_file(file);
-		p[*idx] = file;
+		to_free[*idx] = file;
 		(*idx)++;
 	} else
 		err = -EBUSY;
@@ -803,8 +813,8 @@ out:
 	return err;
 }
 
-static int test_file_busy(struct super_block *sb, aufs_bindex_t bindex,
-			  void *to_free, int opened)
+static int test_file_busy(struct super_block *sb, aufs_bindex_t br_id,
+			  struct file **to_free, int opened)
 {
 	int err, idx;
 	unsigned long long ull, max;
@@ -812,6 +822,7 @@ static int test_file_busy(struct super_block *sb, aufs_bindex_t bindex,
 	struct file *file, **array;
 	struct inode *inode;
 	struct dentry *root;
+	struct au_hfile *hfile;
 
 	array = au_farray_alloc(sb, &max);
 	err = PTR_ERR(array);
@@ -832,11 +843,11 @@ static int test_file_busy(struct super_block *sb, aufs_bindex_t bindex,
 		bstart = au_fbstart(file);
 		inode = file_inode(file);
 		if (!S_ISDIR(inode->i_mode)) {
-			bstart = au_fbstart(file);
-			if (bstart == bindex)
+			hfile = &au_fi(file)->fi_htop;
+			if (hfile->hf_br->br_id == br_id)
 				err = -EBUSY;
 		} else
-			err = test_dir_busy(file, bindex, to_free, &idx);
+			err = test_dir_busy(file, br_id, to_free, &idx);
 		fi_read_unlock(file);
 		if (unlikely(err))
 			break;
@@ -847,6 +858,51 @@ static int test_file_busy(struct super_block *sb, aufs_bindex_t bindex,
 
 out:
 	return err;
+}
+
+static void br_del_file(struct file **to_free, unsigned long long opened,
+			  aufs_bindex_t br_id)
+{
+	unsigned long long ull;
+	aufs_bindex_t bindex, bstart, bend, bfound;
+	struct file *file;
+	struct au_fidir *fidir;
+	struct au_hfile *hfile;
+
+	for (ull = 0; ull < opened; ull++) {
+		file = to_free[ull];
+		if (unlikely(!file))
+			break;
+
+		/* AuDbg("%.*s\n", AuDLNPair(file->f_dentry)); */
+		AuDebugOn(!S_ISDIR(file_inode(file)->i_mode));
+		bfound = -1;
+		fidir = au_fi(file)->fi_hdir;
+		AuDebugOn(!fidir);
+		fi_write_lock(file);
+		bstart = au_fbstart(file);
+		bend = au_fbend_dir(file);
+		for (bindex = bstart; bindex <= bend; bindex++) {
+			hfile = fidir->fd_hfile + bindex;
+			if (!hfile)
+				continue;
+
+			if (hfile->hf_br->br_id == br_id) {
+				bfound = bindex;
+				break;
+			}
+		}
+		AuDebugOn(bfound < 0);
+		au_set_h_fptr(file, bfound, NULL);
+		if (bfound == bstart) {
+			for (bstart++; bstart <= bend; bstart++)
+				if (au_hf_dir(file, bstart)) {
+					au_set_fbstart(file, bstart);
+					break;
+				}
+		}
+		fi_write_unlock(file);
+	}
 }
 
 static void au_br_do_del_brp(struct au_sbinfo *sbinfo,
@@ -952,12 +1008,12 @@ int au_br_del(struct super_block *sb, struct au_opt_del *del, int remount)
 	int err, rerr, i;
 	unsigned long long opened;
 	unsigned int mnt_flags;
-	aufs_bindex_t bindex, bend, br_id, bstart;
+	aufs_bindex_t bindex, bend, br_id;
 	unsigned char do_wh, verbose;
 	struct au_branch *br;
 	struct au_wbr *wbr;
 	struct dentry *root;
-	struct file *file, **to_free;
+	struct file **to_free;
 
 	err = 0;
 	opened = 0;
@@ -984,6 +1040,7 @@ int au_br_del(struct super_block *sb, struct au_opt_del *del, int remount)
 	br = au_sbr(sb, bindex);
 	AuDebugOn(!path_equal(&br->br_path, &del->h_path));
 
+	br_id = br->br_id;
 	opened = atomic_read(&br->br_count);
 	if (unlikely(opened)) {
 		to_free = au_array_alloc(&opened, empty_cb, NULL);
@@ -991,7 +1048,7 @@ int au_br_del(struct super_block *sb, struct au_opt_del *del, int remount)
 		if (IS_ERR(to_free))
 			goto out;
 
-		err = test_file_busy(sb, bindex, to_free, opened);
+		err = test_file_busy(sb, br_id, to_free, opened);
 		if (unlikely(err)) {
 			AuVerbose(verbose, "%llu file(s) opened\n", opened);
 			goto out;
@@ -1023,29 +1080,10 @@ int au_br_del(struct super_block *sb, struct au_opt_del *del, int remount)
 		 * let's free the remaining opened dirs on the branch.
 		 */
 		di_write_unlock(root);
-		for (i = 0; i < opened; i++) {
-			file = to_free[i];
-			if (unlikely(!file))
-				break;
-
-			/* AuDbg("%.*s\n", AuDLNPair(file->f_dentry)); */
-			fi_write_lock(file);
-			au_set_h_fptr(file, bindex, NULL);
-			bstart = au_fbstart(file);
-			if (bindex == bstart) {
-				bend = au_fbend_dir(file);
-				for (bstart++; bstart <= bend; bstart++)
-					if (au_hf_dir(file, bstart)) {
-						au_set_fbstart(file, bstart);
-						break;
-					}
-			}
-			fi_write_unlock(file);
-		}
+		br_del_file(to_free, opened, br_id);
 		di_write_lock_child(root);
 	}
 
-	br_id = br->br_id;
 	if (!remount)
 		au_br_do_del(sb, bindex, br);
 	else {
