@@ -100,12 +100,41 @@ static void dwmac1000_get_umac_addr(struct mac_device_info *hw,
 			    GMAC_ADDR_LOW(reg_n));
 }
 
-static void dwmac1000_set_filter(struct net_device *dev)
+static void dwmac1000_set_mchash(void __iomem *ioaddr, u32 *mcfilterbits,
+				 int mcbitslog2)
+{
+	int numhashregs, regs;
+
+	switch (mcbitslog2) {
+	case 6:
+		writel(mcfilterbits[0], ioaddr + GMAC_HASH_LOW);
+		writel(mcfilterbits[1], ioaddr + GMAC_HASH_HIGH);
+		return;
+		break;
+	case 7:
+		numhashregs = 4;
+		break;
+	case 8:
+		numhashregs = 8;
+		break;
+	default:
+		pr_debug("STMMAC: err in setting mulitcast filter\n");
+		return;
+		break;
+	}
+	for (regs = 0; regs < numhashregs; regs++)
+		writel(mcfilterbits[regs],
+		       ioaddr + GMAC_EXTHASH_BASE + regs * 4);
+}
+
+static void dwmac1000_set_filter(struct mac_device_info *hw,
+				 struct net_device *dev)
 {
 	void __iomem *ioaddr = (void __iomem *)dev->base_addr;
 	unsigned int value = 0;
-	unsigned int perfect_addr_number;
+	unsigned int perfect_addr_number = hw->unicast_filter_entries;
 	u32 mc_filter[2];
+	int mcbitslog2 = hw->mcast_bits_log2;
 
 	CHIP_DBG(KERN_INFO "%s: # mcasts %d, # unicast %d\n",
 		 __func__, netdev_mc_count(dev), netdev_uc_count(dev));
@@ -123,10 +152,14 @@ static void dwmac1000_set_filter(struct net_device *dev)
 		value = GMAC_FRAME_FILTER_HMC;
 
 		netdev_for_each_mc_addr(ha, dev) {
-			/* The upper 6 bits of the calculated CRC are used to
-			 * index the contens of the hash table
+			/* The upper n bits of the calculated CRC are used to
+			 * index the contents of the hash table. The number of
+			 * bits used depends on the hardware configuration
+			 * selected at core configuration time.
 			 */
-			int bit_nr = bitrev32(~crc32_le(~0, ha->addr, 6)) >> 26;
+			int bit_nr = bitrev32(~crc32_le(~0, ha->addr,
+					      ETH_ALEN)) >>
+					      (32 - mcbitslog2);
 			/* The most significant bit determines the register to
 			 * use (H/L) while the other 5 bits determine the bit
 			 * within the register.
@@ -135,15 +168,12 @@ static void dwmac1000_set_filter(struct net_device *dev)
 		}
 	}
 
-	writel(mc_filter[0], ioaddr + GMAC_HASH_LOW);
-	writel(mc_filter[1], ioaddr + GMAC_HASH_HIGH);
-
-	perfect_addr_number = GMAC_MAX_PERFECT_ADDRESSES;
+	dwmac1000_set_mchash(ioaddr, mc_filter, mcbitslog2);
 
 	/* Handle multiple unicast addresses (perfect filtering) */
 	if (netdev_uc_count(dev) > perfect_addr_number)
-		/* Switch to promiscuous mode if more than 16 addrs
-		 * are required
+		/* Switch to promiscuous mode if more than unicast
+		 * addresses are requested than supported by hardware.
 		 */
 		value |= GMAC_FRAME_FILTER_PR;
 	else {
@@ -163,10 +193,6 @@ static void dwmac1000_set_filter(struct net_device *dev)
 	value |= GMAC_FRAME_FILTER_RA;
 #endif
 	writel(value, ioaddr + GMAC_FRAME_FILTER);
-
-	CHIP_DBG(KERN_INFO "\tFilter: 0x%08x\n\tHash: HI 0x%08x, LO 0x%08x\n",
-		 readl(ioaddr + GMAC_FRAME_FILTER),
-		 readl(ioaddr + GMAC_HASH_HIGH), readl(ioaddr + GMAC_HASH_LOW));
 }
 
 
@@ -411,7 +437,8 @@ static const struct stmmac_ops dwmac1000_ops = {
 	.get_adv = dwmac1000_get_adv,
 };
 
-struct mac_device_info *dwmac1000_setup(void __iomem *ioaddr)
+struct mac_device_info *dwmac1000_setup(void __iomem *ioaddr, int mcbins,
+					int perfect_uc_entries)
 {
 	struct mac_device_info *mac;
 	u32 hwid = readl(ioaddr + GMAC_VERSION);
@@ -421,6 +448,13 @@ struct mac_device_info *dwmac1000_setup(void __iomem *ioaddr)
 		return NULL;
 
 	mac->pcsr = ioaddr;
+	mac->multicast_filter_bins = mcbins;
+	mac->unicast_filter_entries = perfect_uc_entries;
+	mac->mcast_bits_log2 = 0;
+
+	if (mac->multicast_filter_bins)
+		mac->mcast_bits_log2 = ilog2(mac->multicast_filter_bins);
+
 	mac->mac = &dwmac1000_ops;
 	mac->dma = &dwmac1000_dma_ops;
 

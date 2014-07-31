@@ -95,7 +95,8 @@ static void dwmac100_get_umac_addr(struct mac_device_info *hw,
 	stmmac_get_mac_addr(ioaddr, addr, MAC_ADDR_HIGH, MAC_ADDR_LOW);
 }
 
-static void dwmac100_set_filter(struct net_device *dev)
+static void dwmac100_set_filter(struct mac_device_info *hw,
+				struct net_device *dev)
 {
 	void __iomem *ioaddr = (void __iomem *)dev->base_addr;
 	u32 value = readl(ioaddr + MAC_CONTROL);
