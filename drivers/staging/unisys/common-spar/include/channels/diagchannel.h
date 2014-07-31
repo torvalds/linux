@@ -114,7 +114,7 @@ typedef struct _DIAG_EFI_TIME  {
 	u8 Second;		/* 0 - 59 */
 	u8 Pad1;
 	u32 Nanosecond;	/* 0 - 999, 999, 999 */
-	S16 TimeZone;		/* -1440 to 1440 or 2047 */
+	s16 TimeZone;		/* -1440 to 1440 or 2047 */
 	u8 Daylight;
 	u8 Pad2;
 } DIAG_EFI_TIME;

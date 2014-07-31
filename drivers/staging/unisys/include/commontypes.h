@@ -30,7 +30,6 @@
 #include <syslog.h>
 #endif
 
-#define S16 int16_t
 #define S32 int32_t
 #define S64 int64_t
 
