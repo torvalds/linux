@@ -3882,14 +3882,6 @@ int mp_irqdomain_map(struct irq_domain *domain, unsigned int virq,
 	struct mp_pin_info *info = mp_pin_info(ioapic, hwirq);
 	struct io_apic_irq_attr attr;
 
-	/*
-	 * Skip the timer IRQ if there's a quirk handler installed and if it
-	 * returns 1:
-	 */
-	if (apic->multi_timer_check &&
-	    apic->multi_timer_check(ioapic, virq))
-		return 0;
-
 	/* Get default attribute if not set by caller yet */
 	if (!info->set) {
 		u32 gsi = mp_pin_to_gsi(ioapic, hwirq);
@@ -3918,14 +3910,6 @@ void mp_irqdomain_unmap(struct irq_domain *domain, unsigned int virq)
 	struct irq_cfg *cfg = irq_cfg(virq);
 	int ioapic = (int)(long)domain->host_data;
 	int pin = (int)data->hwirq;
-
-	/*
-	 * Skip the timer IRQ if there's a quirk handler installed and if it
-	 * returns 1:
-	 */
-	if (apic->multi_timer_check &&
-	    apic->multi_timer_check(ioapic, virq))
-		return;
 
 	ioapic_mask_entry(ioapic, pin);
 	__remove_pin_from_irq(cfg, ioapic, pin);
