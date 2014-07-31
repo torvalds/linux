@@ -813,7 +813,7 @@ EXPORT_SYMBOL(sk_chk_filter);
 static int sk_store_orig_filter(struct sk_filter *fp,
 				const struct sock_fprog *fprog)
 {
-	unsigned int fsize = sk_filter_proglen(fprog);
+	unsigned int fsize = bpf_classic_proglen(fprog);
 	struct sock_fprog_kern *fkprog;
 
 	fp->orig_prog = kmalloc(sizeof(*fkprog), GFP_KERNEL);
@@ -1001,7 +1001,7 @@ static struct sk_filter *__sk_prepare_filter(struct sk_filter *fp)
 int sk_unattached_filter_create(struct sk_filter **pfp,
 				struct sock_fprog_kern *fprog)
 {
-	unsigned int fsize = sk_filter_proglen(fprog);
+	unsigned int fsize = bpf_classic_proglen(fprog);
 	struct sk_filter *fp;
 
 	/* Make sure new filter is there and in the right amounts. */
@@ -1053,7 +1053,7 @@ EXPORT_SYMBOL_GPL(sk_unattached_filter_destroy);
 int sk_attach_filter(struct sock_fprog *fprog, struct sock *sk)
 {
 	struct sk_filter *fp, *old_fp;
-	unsigned int fsize = sk_filter_proglen(fprog);
+	unsigned int fsize = bpf_classic_proglen(fprog);
 	unsigned int sk_fsize = sk_filter_size(fprog->len);
 	int err;
 
@@ -1154,7 +1154,7 @@ int sk_get_filter(struct sock *sk, struct sock_filter __user *ubuf,
 		goto out;
 
 	ret = -EFAULT;
-	if (copy_to_user(ubuf, fprog->filter, sk_filter_proglen(fprog)))
+	if (copy_to_user(ubuf, fprog->filter, bpf_classic_proglen(fprog)))
 		goto out;
 
 	/* Instead of bytes, the API requests to return the number

@@ -69,7 +69,7 @@ int sock_diag_put_filterinfo(bool may_report_filterinfo, struct sock *sk,
 		goto out;
 
 	fprog = filter->orig_prog;
-	flen = sk_filter_proglen(fprog);
+	flen = bpf_classic_proglen(fprog);
 
 	attr = nla_reserve(skb, attrtype, flen);
 	if (attr == NULL) {
