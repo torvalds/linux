@@ -3236,6 +3236,41 @@ int radeon_atom_get_leakage_vddc_based_on_leakage_params(struct radeon_device *r
 	return 0;
 }
 
+union get_voltage_info {
+	struct  _GET_VOLTAGE_INFO_INPUT_PARAMETER_V1_2 in;
+	struct  _GET_EVV_VOLTAGE_INFO_OUTPUT_PARAMETER_V1_2 evv_out;
+};
+
+int radeon_atom_get_voltage_evv(struct radeon_device *rdev,
+				u16 virtual_voltage_id,
+				u16 *voltage)
+{
+	int index = GetIndexIntoMasterTable(COMMAND, GetVoltageInfo);
+	u32 entry_id;
+	u32 count = rdev->pm.dpm.dyn_state.vddc_dependency_on_sclk.count;
+	union get_voltage_info args;
+
+	for (entry_id = 0; entry_id < count; entry_id++) {
+		if (rdev->pm.dpm.dyn_state.vddc_dependency_on_sclk.entries[entry_id].v ==
+		    virtual_voltage_id)
+			break;
+	}
+
+	if (entry_id >= count)
+		return -EINVAL;
+
+	args.in.ucVoltageType = VOLTAGE_TYPE_VDDC;
+	args.in.ucVoltageMode = ATOM_GET_VOLTAGE_EVV_VOLTAGE;
+	args.in.ulSCLKFreq =
+		cpu_to_le32(rdev->pm.dpm.dyn_state.vddc_dependency_on_sclk.entries[entry_id].clk);
+
+	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
+
+	*voltage = le16_to_cpu(args.evv_out.usVoltageLevel);
+
+	return 0;
+}
+
 int radeon_atom_get_voltage_gpio_settings(struct radeon_device *rdev,
 					  u16 voltage_level, u8 voltage_type,
 					  u32 *gpio_value, u32 *gpio_mask)
