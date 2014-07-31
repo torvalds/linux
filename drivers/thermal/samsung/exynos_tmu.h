@@ -199,6 +199,7 @@ struct exynos_tmu_registers {
  *	1 = enable trigger_level[] interrupt,
  *	0 = disable trigger_level[] interrupt
  * @max_trigger_level: max trigger level supported by the TMU
+ * @non_hw_trigger_levels: number of defined non-hardware trigger levels
  * @gain: gain of amplifier in the positive-TC generator block
  *	0 <= gain <= 15
  * @reference_voltage: reference voltage of amplifier
@@ -232,6 +233,7 @@ struct exynos_tmu_platform_data {
 	enum trigger_type trigger_type[MAX_TRIP_COUNT];
 	bool trigger_enable[MAX_TRIP_COUNT];
 	u8 max_trigger_level;
+	u8 non_hw_trigger_levels;
 	u8 gain;
 	u8 reference_voltage;
 	u8 noise_cancel_mode;

@@ -129,7 +129,7 @@ static int exynos_tmu_initialize(struct platform_device *pdev)
 	const struct exynos_tmu_registers *reg = pdata->registers;
 	unsigned int status, trim_info = 0, con;
 	unsigned int rising_threshold = 0, falling_threshold = 0;
-	int ret = 0, threshold_code, i, trigger_levs = 0;
+	int ret = 0, threshold_code, i;
 
 	mutex_lock(&data->lock);
 	clk_enable(data->clk);
@@ -187,15 +187,6 @@ static int exynos_tmu_initialize(struct platform_device *pdev)
 			(pdata->efuse_value >> reg->triminfo_85_shift) &
 			EXYNOS_TMU_TEMP_MASK;
 
-	for (i = 0; i < pdata->max_trigger_level; i++) {
-		if (!pdata->trigger_levels[i])
-			continue;
-
-		/* Count trigger levels except the HW trip*/
-		if (!(pdata->trigger_type[i] == HW_TRIP))
-			trigger_levs++;
-	}
-
 	rising_threshold = readl(data->base + reg->threshold_th0);
 
 	if (data->soc == SOC_ARCH_EXYNOS4210) {
@@ -203,15 +194,14 @@ static int exynos_tmu_initialize(struct platform_device *pdev)
 		threshold_code = temp_to_code(data, pdata->threshold);
 		writeb(threshold_code,
 			data->base + reg->threshold_temp);
-		for (i = 0; i < trigger_levs; i++)
+		for (i = 0; i < pdata->non_hw_trigger_levels; i++)
 			writeb(pdata->trigger_levels[i], data->base +
 			reg->threshold_th0 + i * sizeof(reg->threshold_th0));
 
 		writel(reg->intclr_rise_mask, data->base + reg->tmu_intclear);
 	} else {
 		/* Write temperature code for rising and falling threshold */
-		for (i = 0;
-		i < trigger_levs && i < EXYNOS_MAX_TRIGGER_PER_REG; i++) {
+		for (i = 0; i < pdata->non_hw_trigger_levels; i++) {
 			threshold_code = temp_to_code(data,
 						pdata->trigger_levels[i]);
 			rising_threshold &= ~(0xff << 8 * i);
