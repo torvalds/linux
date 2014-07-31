@@ -1205,7 +1205,7 @@ static const struct file_operations nfs_server_list_fops = {
 	.open		= nfs_server_list_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.release	= seq_release,
+	.release	= seq_release_net,
 	.owner		= THIS_MODULE,
 };
 
@@ -1226,7 +1226,7 @@ static const struct file_operations nfs_volume_list_fops = {
 	.open		= nfs_volume_list_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.release	= seq_release,
+	.release	= seq_release_net,
 	.owner		= THIS_MODULE,
 };
 
@@ -1236,19 +1236,8 @@ static const struct file_operations nfs_volume_list_fops = {
  */
 static int nfs_server_list_open(struct inode *inode, struct file *file)
 {
-	struct seq_file *m;
-	int ret;
-	struct pid_namespace *pid_ns = file->f_dentry->d_sb->s_fs_info;
-	struct net *net = pid_ns->child_reaper->nsproxy->net_ns;
-
-	ret = seq_open(file, &nfs_server_list_ops);
-	if (ret < 0)
-		return ret;
-
-	m = file->private_data;
-	m->private = net;
-
-	return 0;
+	return seq_open_net(inode, file, &nfs_server_list_ops,
+			   sizeof(struct seq_net_private));
 }
 
 /*
@@ -1256,7 +1245,7 @@ static int nfs_server_list_open(struct inode *inode, struct file *file)
  */
 static void *nfs_server_list_start(struct seq_file *m, loff_t *_pos)
 {
-	struct nfs_net *nn = net_generic(m->private, nfs_net_id);
+	struct nfs_net *nn = net_generic(seq_file_net(m), nfs_net_id);
 
 	/* lock the list against modification */
 	spin_lock(&nn->nfs_client_lock);
@@ -1268,7 +1257,7 @@ static void *nfs_server_list_start(struct seq_file *m, loff_t *_pos)
  */
 static void *nfs_server_list_next(struct seq_file *p, void *v, loff_t *pos)
 {
-	struct nfs_net *nn = net_generic(p->private, nfs_net_id);
+	struct nfs_net *nn = net_generic(seq_file_net(p), nfs_net_id);
 
 	return seq_list_next(v, &nn->nfs_client_list, pos);
 }
@@ -1278,7 +1267,7 @@ static void *nfs_server_list_next(struct seq_file *p, void *v, loff_t *pos)
  */
 static void nfs_server_list_stop(struct seq_file *p, void *v)
 {
-	struct nfs_net *nn = net_generic(p->private, nfs_net_id);
+	struct nfs_net *nn = net_generic(seq_file_net(p), nfs_net_id);
 
 	spin_unlock(&nn->nfs_client_lock);
 }
@@ -1289,7 +1278,7 @@ static void nfs_server_list_stop(struct seq_file *p, void *v)
 static int nfs_server_list_show(struct seq_file *m, void *v)
 {
 	struct nfs_client *clp;
-	struct nfs_net *nn = net_generic(m->private, nfs_net_id);
+	struct nfs_net *nn = net_generic(seq_file_net(m), nfs_net_id);
 
 	/* display header on line 1 */
 	if (v == &nn->nfs_client_list) {
@@ -1321,19 +1310,8 @@ static int nfs_server_list_show(struct seq_file *m, void *v)
  */
 static int nfs_volume_list_open(struct inode *inode, struct file *file)
 {
-	struct seq_file *m;
-	int ret;
-	struct pid_namespace *pid_ns = file->f_dentry->d_sb->s_fs_info;
-	struct net *net = pid_ns->child_reaper->nsproxy->net_ns;
-
-	ret = seq_open(file, &nfs_volume_list_ops);
-	if (ret < 0)
-		return ret;
-
-	m = file->private_data;
-	m->private = net;
-
-	return 0;
+	return seq_open_net(inode, file, &nfs_server_list_ops,
+			   sizeof(struct seq_net_private));
 }
 
 /*
@@ -1341,7 +1319,7 @@ static int nfs_volume_list_open(struct inode *inode, struct file *file)
  */
 static void *nfs_volume_list_start(struct seq_file *m, loff_t *_pos)
 {
-	struct nfs_net *nn = net_generic(m->private, nfs_net_id);
+	struct nfs_net *nn = net_generic(seq_file_net(m), nfs_net_id);
 
 	/* lock the list against modification */
 	spin_lock(&nn->nfs_client_lock);
@@ -1353,7 +1331,7 @@ static void *nfs_volume_list_start(struct seq_file *m, loff_t *_pos)
  */
 static void *nfs_volume_list_next(struct seq_file *p, void *v, loff_t *pos)
 {
-	struct nfs_net *nn = net_generic(p->private, nfs_net_id);
+	struct nfs_net *nn = net_generic(seq_file_net(p), nfs_net_id);
 
 	return seq_list_next(v, &nn->nfs_volume_list, pos);
 }
@@ -1363,7 +1341,7 @@ static void *nfs_volume_list_next(struct seq_file *p, void *v, loff_t *pos)
  */
 static void nfs_volume_list_stop(struct seq_file *p, void *v)
 {
-	struct nfs_net *nn = net_generic(p->private, nfs_net_id);
+	struct nfs_net *nn = net_generic(seq_file_net(p), nfs_net_id);
 
 	spin_unlock(&nn->nfs_client_lock);
 }
@@ -1376,7 +1354,7 @@ static int nfs_volume_list_show(struct seq_file *m, void *v)
 	struct nfs_server *server;
 	struct nfs_client *clp;
 	char dev[8], fsid[17];
-	struct nfs_net *nn = net_generic(m->private, nfs_net_id);
+	struct nfs_net *nn = net_generic(seq_file_net(m), nfs_net_id);
 
 	/* display header on line 1 */
 	if (v == &nn->nfs_volume_list) {
@@ -1407,6 +1385,45 @@ static int nfs_volume_list_show(struct seq_file *m, void *v)
 	return 0;
 }
 
+int nfs_fs_proc_net_init(struct net *net)
+{
+	struct nfs_net *nn = net_generic(net, nfs_net_id);
+	struct proc_dir_entry *p;
+
+	nn->proc_nfsfs = proc_net_mkdir(net, "nfsfs", net->proc_net);
+	if (!nn->proc_nfsfs)
+		goto error_0;
+
+	/* a file of servers with which we're dealing */
+	p = proc_create("servers", S_IFREG|S_IRUGO,
+			nn->proc_nfsfs, &nfs_server_list_fops);
+	if (!p)
+		goto error_1;
+
+	/* a file of volumes that we have mounted */
+	p = proc_create("volumes", S_IFREG|S_IRUGO,
+			nn->proc_nfsfs, &nfs_volume_list_fops);
+	if (!p)
+		goto error_2;
+	return 0;
+
+error_2:
+	remove_proc_entry("servers", nn->proc_nfsfs);
+error_1:
+	remove_proc_entry("fs/nfsfs", NULL);
+error_0:
+	return -ENOMEM;
+}
+
+void nfs_fs_proc_net_exit(struct net *net)
+{
+	struct nfs_net *nn = net_generic(net, nfs_net_id);
+
+	remove_proc_entry("volumes", nn->proc_nfsfs);
+	remove_proc_entry("servers", nn->proc_nfsfs);
+	remove_proc_entry("fs/nfsfs", NULL);
+}
+
 /*
  * initialise the /proc/fs/nfsfs/ directory
  */
@@ -1419,14 +1436,12 @@ int __init nfs_fs_proc_init(void)
 		goto error_0;
 
 	/* a file of servers with which we're dealing */
-	p = proc_create("servers", S_IFREG|S_IRUGO,
-			proc_fs_nfs, &nfs_server_list_fops);
+	p = proc_symlink("servers", proc_fs_nfs, "../../net/nfsfs/servers");
 	if (!p)
 		goto error_1;
 
 	/* a file of volumes that we have mounted */
-	p = proc_create("volumes", S_IFREG|S_IRUGO,
-			proc_fs_nfs, &nfs_volume_list_fops);
+	p = proc_symlink("volumes", proc_fs_nfs, "../../net/nfsfs/volumes");
 	if (!p)
 		goto error_2;
 	return 0;
