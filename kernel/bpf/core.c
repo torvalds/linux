@@ -73,15 +73,13 @@ noinline u64 __bpf_call_base(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5)
 }
 
 /**
- *	__sk_run_filter - run a filter on a given context
- *	@ctx: buffer to run the filter on
- *	@insn: filter to apply
+ *	__bpf_prog_run - run eBPF program on a given context
+ *	@ctx: is the data we are operating on
+ *	@insn: is the array of eBPF instructions
  *
- * Decode and apply filter instructions to the skb->data. Return length to
- * keep, 0 for none. @ctx is the data we are operating on, @insn is the
- * array of filter instructions.
+ * Decode and execute eBPF instructions.
  */
-static unsigned int __sk_run_filter(void *ctx, const struct bpf_insn *insn)
+static unsigned int __bpf_prog_run(void *ctx, const struct bpf_insn *insn)
 {
 	u64 stack[MAX_BPF_STACK / sizeof(u64)];
 	u64 regs[MAX_BPF_REG], tmp;
@@ -508,29 +506,29 @@ load_byte:
 		return 0;
 }
 
-void __weak bpf_int_jit_compile(struct sk_filter *prog)
+void __weak bpf_int_jit_compile(struct bpf_prog *prog)
 {
 }
 
 /**
- *	sk_filter_select_runtime - select execution runtime for BPF program
- *	@fp: sk_filter populated with internal BPF program
+ *	bpf_prog_select_runtime - select execution runtime for BPF program
+ *	@fp: bpf_prog populated with internal BPF program
  *
  * try to JIT internal BPF program, if JIT is not available select interpreter
- * BPF program will be executed via SK_RUN_FILTER() macro
+ * BPF program will be executed via BPF_PROG_RUN() macro
  */
-void sk_filter_select_runtime(struct sk_filter *fp)
+void bpf_prog_select_runtime(struct bpf_prog *fp)
 {
-	fp->bpf_func = (void *) __sk_run_filter;
+	fp->bpf_func = (void *) __bpf_prog_run;
 
 	/* Probe if internal BPF can be JITed */
 	bpf_int_jit_compile(fp);
 }
-EXPORT_SYMBOL_GPL(sk_filter_select_runtime);
+EXPORT_SYMBOL_GPL(bpf_prog_select_runtime);
 
 /* free internal BPF program */
-void sk_filter_free(struct sk_filter *fp)
+void bpf_prog_free(struct bpf_prog *fp)
 {
 	bpf_jit_free(fp);
 }
-EXPORT_SYMBOL_GPL(sk_filter_free);
+EXPORT_SYMBOL_GPL(bpf_prog_free);

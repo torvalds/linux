@@ -810,8 +810,8 @@ int bpf_check_classic(const struct sock_filter *filter, unsigned int flen)
 }
 EXPORT_SYMBOL(bpf_check_classic);
 
-static int sk_store_orig_filter(struct sk_filter *fp,
-				const struct sock_fprog *fprog)
+static int bpf_prog_store_orig_filter(struct bpf_prog *fp,
+				      const struct sock_fprog *fprog)
 {
 	unsigned int fsize = bpf_classic_proglen(fprog);
 	struct sock_fprog_kern *fkprog;
@@ -831,7 +831,7 @@ static int sk_store_orig_filter(struct sk_filter *fp,
 	return 0;
 }
 
-static void sk_release_orig_filter(struct sk_filter *fp)
+static void bpf_release_orig_filter(struct bpf_prog *fp)
 {
 	struct sock_fprog_kern *fprog = fp->orig_prog;
 
@@ -841,10 +841,16 @@ static void sk_release_orig_filter(struct sk_filter *fp)
 	}
 }
 
+static void __bpf_prog_release(struct bpf_prog *prog)
+{
+	bpf_release_orig_filter(prog);
+	bpf_prog_free(prog);
+}
+
 static void __sk_filter_release(struct sk_filter *fp)
 {
-	sk_release_orig_filter(fp);
-	sk_filter_free(fp);
+	__bpf_prog_release(fp->prog);
+	kfree(fp);
 }
 
 /**
@@ -872,7 +878,7 @@ static void sk_filter_release(struct sk_filter *fp)
 
 void sk_filter_uncharge(struct sock *sk, struct sk_filter *fp)
 {
-	u32 filter_size = sk_filter_size(fp->len);
+	u32 filter_size = bpf_prog_size(fp->prog->len);
 
 	atomic_sub(filter_size, &sk->sk_omem_alloc);
 	sk_filter_release(fp);
@@ -883,7 +889,7 @@ void sk_filter_uncharge(struct sock *sk, struct sk_filter *fp)
  */
 bool sk_filter_charge(struct sock *sk, struct sk_filter *fp)
 {
-	u32 filter_size = sk_filter_size(fp->len);
+	u32 filter_size = bpf_prog_size(fp->prog->len);
 
 	/* same check as in sock_kmalloc() */
 	if (filter_size <= sysctl_optmem_max &&
@@ -895,10 +901,10 @@ bool sk_filter_charge(struct sock *sk, struct sk_filter *fp)
 	return false;
 }
 
-static struct sk_filter *__sk_migrate_filter(struct sk_filter *fp)
+static struct bpf_prog *bpf_migrate_filter(struct bpf_prog *fp)
 {
 	struct sock_filter *old_prog;
-	struct sk_filter *old_fp;
+	struct bpf_prog *old_fp;
 	int err, new_len, old_len = fp->len;
 
 	/* We are free to overwrite insns et al right here as it
@@ -927,7 +933,7 @@ static struct sk_filter *__sk_migrate_filter(struct sk_filter *fp)
 
 	/* Expand fp for appending the new filter representation. */
 	old_fp = fp;
-	fp = krealloc(old_fp, sk_filter_size(new_len), GFP_KERNEL);
+	fp = krealloc(old_fp, bpf_prog_size(new_len), GFP_KERNEL);
 	if (!fp) {
 		/* The old_fp is still around in case we couldn't
 		 * allocate new memory, so uncharge on that one.
@@ -949,7 +955,7 @@ static struct sk_filter *__sk_migrate_filter(struct sk_filter *fp)
 		 */
 		goto out_err_free;
 
-	sk_filter_select_runtime(fp);
+	bpf_prog_select_runtime(fp);
 
 	kfree(old_prog);
 	return fp;
@@ -957,11 +963,11 @@ static struct sk_filter *__sk_migrate_filter(struct sk_filter *fp)
 out_err_free:
 	kfree(old_prog);
 out_err:
-	__sk_filter_release(fp);
+	__bpf_prog_release(fp);
 	return ERR_PTR(err);
 }
 
-static struct sk_filter *__sk_prepare_filter(struct sk_filter *fp)
+static struct bpf_prog *bpf_prepare_filter(struct bpf_prog *fp)
 {
 	int err;
 
@@ -970,7 +976,7 @@ static struct sk_filter *__sk_prepare_filter(struct sk_filter *fp)
 
 	err = bpf_check_classic(fp->insns, fp->len);
 	if (err) {
-		__sk_filter_release(fp);
+		__bpf_prog_release(fp);
 		return ERR_PTR(err);
 	}
 
@@ -983,13 +989,13 @@ static struct sk_filter *__sk_prepare_filter(struct sk_filter *fp)
 	 * internal BPF translation for the optimized interpreter.
 	 */
 	if (!fp->jited)
-		fp = __sk_migrate_filter(fp);
+		fp = bpf_migrate_filter(fp);
 
 	return fp;
 }
 
 /**
- *	sk_unattached_filter_create - create an unattached filter
+ *	bpf_prog_create - create an unattached filter
  *	@pfp: the unattached filter that is created
  *	@fprog: the filter program
  *
@@ -998,23 +1004,21 @@ static struct sk_filter *__sk_prepare_filter(struct sk_filter *fp)
  * If an error occurs or there is insufficient memory for the filter
  * a negative errno code is returned. On success the return is zero.
  */
-int sk_unattached_filter_create(struct sk_filter **pfp,
-				struct sock_fprog_kern *fprog)
+int bpf_prog_create(struct bpf_prog **pfp, struct sock_fprog_kern *fprog)
 {
 	unsigned int fsize = bpf_classic_proglen(fprog);
-	struct sk_filter *fp;
+	struct bpf_prog *fp;
 
 	/* Make sure new filter is there and in the right amounts. */
 	if (fprog->filter == NULL)
 		return -EINVAL;
 
-	fp = kmalloc(sk_filter_size(fprog->len), GFP_KERNEL);
+	fp = kmalloc(bpf_prog_size(fprog->len), GFP_KERNEL);
 	if (!fp)
 		return -ENOMEM;
 
 	memcpy(fp->insns, fprog->filter, fsize);
 
-	atomic_set(&fp->refcnt, 1);
 	fp->len = fprog->len;
 	/* Since unattached filters are not copied back to user
 	 * space through sk_get_filter(), we do not need to hold
@@ -1022,23 +1026,23 @@ int sk_unattached_filter_create(struct sk_filter **pfp,
 	 */
 	fp->orig_prog = NULL;
 
-	/* __sk_prepare_filter() already takes care of freeing
+	/* bpf_prepare_filter() already takes care of freeing
 	 * memory in case something goes wrong.
 	 */
-	fp = __sk_prepare_filter(fp);
+	fp = bpf_prepare_filter(fp);
 	if (IS_ERR(fp))
 		return PTR_ERR(fp);
 
 	*pfp = fp;
 	return 0;
 }
-EXPORT_SYMBOL_GPL(sk_unattached_filter_create);
+EXPORT_SYMBOL_GPL(bpf_prog_create);
 
-void sk_unattached_filter_destroy(struct sk_filter *fp)
+void bpf_prog_destroy(struct bpf_prog *fp)
 {
-	__sk_filter_release(fp);
+	__bpf_prog_release(fp);
 }
-EXPORT_SYMBOL_GPL(sk_unattached_filter_destroy);
+EXPORT_SYMBOL_GPL(bpf_prog_destroy);
 
 /**
  *	sk_attach_filter - attach a socket filter
@@ -1054,7 +1058,8 @@ int sk_attach_filter(struct sock_fprog *fprog, struct sock *sk)
 {
 	struct sk_filter *fp, *old_fp;
 	unsigned int fsize = bpf_classic_proglen(fprog);
-	unsigned int sk_fsize = sk_filter_size(fprog->len);
+	unsigned int bpf_fsize = bpf_prog_size(fprog->len);
+	struct bpf_prog *prog;
 	int err;
 
 	if (sock_flag(sk, SOCK_FILTER_LOCKED))
@@ -1064,29 +1069,36 @@ int sk_attach_filter(struct sock_fprog *fprog, struct sock *sk)
 	if (fprog->filter == NULL)
 		return -EINVAL;
 
-	fp = kmalloc(sk_fsize, GFP_KERNEL);
-	if (!fp)
+	prog = kmalloc(bpf_fsize, GFP_KERNEL);
+	if (!prog)
 		return -ENOMEM;
 
-	if (copy_from_user(fp->insns, fprog->filter, fsize)) {
-		kfree(fp);
+	if (copy_from_user(prog->insns, fprog->filter, fsize)) {
+		kfree(prog);
 		return -EFAULT;
 	}
 
-	fp->len = fprog->len;
+	prog->len = fprog->len;
 
-	err = sk_store_orig_filter(fp, fprog);
+	err = bpf_prog_store_orig_filter(prog, fprog);
 	if (err) {
-		kfree(fp);
+		kfree(prog);
 		return -ENOMEM;
 	}
 
-	/* __sk_prepare_filter() already takes care of freeing
+	/* bpf_prepare_filter() already takes care of freeing
 	 * memory in case something goes wrong.
 	 */
-	fp = __sk_prepare_filter(fp);
-	if (IS_ERR(fp))
-		return PTR_ERR(fp);
+	prog = bpf_prepare_filter(prog);
+	if (IS_ERR(prog))
+		return PTR_ERR(prog);
+
+	fp = kmalloc(sizeof(*fp), GFP_KERNEL);
+	if (!fp) {
+		__bpf_prog_release(prog);
+		return -ENOMEM;
+	}
+	fp->prog = prog;
 
 	atomic_set(&fp->refcnt, 0);
 
@@ -1142,7 +1154,7 @@ int sk_get_filter(struct sock *sk, struct sock_filter __user *ubuf,
 	/* We're copying the filter that has been originally attached,
 	 * so no conversion/decode needed anymore.
 	 */
-	fprog = filter->orig_prog;
+	fprog = filter->prog->orig_prog;
 
 	ret = fprog->len;
 	if (!len)

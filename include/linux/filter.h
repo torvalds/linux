@@ -296,7 +296,8 @@ enum {
 })
 
 /* Macro to invoke filter function. */
-#define SK_RUN_FILTER(filter, ctx)  (*filter->bpf_func)(ctx, filter->insnsi)
+#define SK_RUN_FILTER(filter, ctx) \
+	(*filter->prog->bpf_func)(ctx, filter->prog->insnsi)
 
 struct bpf_insn {
 	__u8	code;		/* opcode */
@@ -323,12 +324,10 @@ struct sk_buff;
 struct sock;
 struct seccomp_data;
 
-struct sk_filter {
-	atomic_t		refcnt;
+struct bpf_prog {
 	u32			jited:1,	/* Is our filter JIT'ed? */
 				len:31;		/* Number of filter blocks */
 	struct sock_fprog_kern	*orig_prog;	/* Original BPF program */
-	struct rcu_head		rcu;
 	unsigned int		(*bpf_func)(const struct sk_buff *skb,
 					    const struct bpf_insn *filter);
 	union {
@@ -338,25 +337,32 @@ struct sk_filter {
 	};
 };
 
-static inline unsigned int sk_filter_size(unsigned int proglen)
+struct sk_filter {
+	atomic_t	refcnt;
+	struct rcu_head	rcu;
+	struct bpf_prog	*prog;
+};
+
+#define BPF_PROG_RUN(filter, ctx)  (*filter->bpf_func)(ctx, filter->insnsi)
+
+static inline unsigned int bpf_prog_size(unsigned int proglen)
 {
-	return max(sizeof(struct sk_filter),
-		   offsetof(struct sk_filter, insns[proglen]));
+	return max(sizeof(struct bpf_prog),
+		   offsetof(struct bpf_prog, insns[proglen]));
 }
 
 #define bpf_classic_proglen(fprog) (fprog->len * sizeof(fprog->filter[0]))
 
 int sk_filter(struct sock *sk, struct sk_buff *skb);
 
-void sk_filter_select_runtime(struct sk_filter *fp);
-void sk_filter_free(struct sk_filter *fp);
+void bpf_prog_select_runtime(struct bpf_prog *fp);
+void bpf_prog_free(struct bpf_prog *fp);
 
 int bpf_convert_filter(struct sock_filter *prog, int len,
 		       struct bpf_insn *new_prog, int *new_len);
 
-int sk_unattached_filter_create(struct sk_filter **pfp,
-				struct sock_fprog_kern *fprog);
-void sk_unattached_filter_destroy(struct sk_filter *fp);
+int bpf_prog_create(struct bpf_prog **pfp, struct sock_fprog_kern *fprog);
+void bpf_prog_destroy(struct bpf_prog *fp);
 
 int sk_attach_filter(struct sock_fprog *fprog, struct sock *sk);
 int sk_detach_filter(struct sock *sk);
@@ -369,7 +375,7 @@ bool sk_filter_charge(struct sock *sk, struct sk_filter *fp);
 void sk_filter_uncharge(struct sock *sk, struct sk_filter *fp);
 
 u64 __bpf_call_base(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5);
-void bpf_int_jit_compile(struct sk_filter *fp);
+void bpf_int_jit_compile(struct bpf_prog *fp);
 
 #define BPF_ANC		BIT(15)
 
@@ -423,8 +429,8 @@ static inline void *bpf_load_pointer(const struct sk_buff *skb, int k,
 #include <linux/linkage.h>
 #include <linux/printk.h>
 
-void bpf_jit_compile(struct sk_filter *fp);
-void bpf_jit_free(struct sk_filter *fp);
+void bpf_jit_compile(struct bpf_prog *fp);
+void bpf_jit_free(struct bpf_prog *fp);
 
 static inline void bpf_jit_dump(unsigned int flen, unsigned int proglen,
 				u32 pass, void *image)
@@ -438,11 +444,11 @@ static inline void bpf_jit_dump(unsigned int flen, unsigned int proglen,
 #else
 #include <linux/slab.h>
 
-static inline void bpf_jit_compile(struct sk_filter *fp)
+static inline void bpf_jit_compile(struct bpf_prog *fp)
 {
 }
 
-static inline void bpf_jit_free(struct sk_filter *fp)
+static inline void bpf_jit_free(struct bpf_prog *fp)
 {
 	kfree(fp);
 }
