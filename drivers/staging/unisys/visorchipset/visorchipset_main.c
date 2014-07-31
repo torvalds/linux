@@ -107,7 +107,7 @@ typedef struct {
 	u8 __iomem *ptr;	/* pointer to base address of payload pool */
 	U64 offset;		/* offset from beginning of controlvm
 				 * channel to beginning of payload * pool */
-	U32 bytes;		/* number of bytes in payload pool */
+	u32 bytes;		/* number of bytes in payload pool */
 } CONTROLVM_PAYLOAD_INFO;
 
 /* Manages the request payload in the controlvm channel */
@@ -695,7 +695,7 @@ controlvm_init_response(CONTROLVM_MESSAGE *msg,
 	msg->hdr.PayloadMaxBytes = 0;
 	if (response < 0) {
 		msg->hdr.Flags.failed = 1;
-		msg->hdr.CompletionStatus = (U32) (-response);
+		msg->hdr.CompletionStatus = (u32) (-response);
 	}
 }
 
@@ -756,7 +756,7 @@ controlvm_respond_physdev_changestate(CONTROLVM_MESSAGE_HEADER *msgHdr,
 void
 visorchipset_save_message(CONTROLVM_MESSAGE *msg, CRASH_OBJ_TYPE type)
 {
-	U32 localSavedCrashMsgOffset;
+	u32 localSavedCrashMsgOffset;
 	u16 localSavedCrashMsgCount;
 
 	/* get saved message count */
@@ -783,7 +783,7 @@ visorchipset_save_message(CONTROLVM_MESSAGE *msg, CRASH_OBJ_TYPE type)
 	if (visorchannel_read(ControlVm_channel,
 			      offsetof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL,
 				       SavedCrashMsgOffset),
-			      &localSavedCrashMsgOffset, sizeof(U32)) < 0) {
+			      &localSavedCrashMsgOffset, sizeof(u32)) < 0) {
 		LOGERR("failed to get Saved Message Offset");
 		POSTCODE_LINUX_2(CRASH_DEV_CTRL_RD_FAILURE_PC,
 				 POSTCODE_SEVERITY_ERR);
@@ -840,7 +840,7 @@ bus_responder(CONTROLVM_ID cmdId, ulong busNo, int response)
 		LOGERR("bus_responder no pending msg");
 		return;		/* no controlvm response needed */
 	}
-	if (p->pendingMsgHdr.Id != (U32) cmdId) {
+	if (p->pendingMsgHdr.Id != (u32) cmdId) {
 		LOGERR("expected=%d, found=%d", cmdId, p->pendingMsgHdr.Id);
 		return;
 	}
@@ -911,7 +911,7 @@ device_responder(CONTROLVM_ID cmdId, ulong busNo, ulong devNo, int response)
 		LOGERR("device_responder no pending msg");
 		return;		/* no controlvm response needed */
 	}
-	if (p->pendingMsgHdr.Id != (U32) cmdId) {
+	if (p->pendingMsgHdr.Id != (u32) cmdId) {
 		LOGERR("expected=%d, found=%d", cmdId, p->pendingMsgHdr.Id);
 		return;
 	}
@@ -922,8 +922,8 @@ device_responder(CONTROLVM_ID cmdId, ulong busNo, ulong devNo, int response)
 }
 
 static void
-bus_epilog(U32 busNo,
-	   U32 cmd, CONTROLVM_MESSAGE_HEADER *msgHdr,
+bus_epilog(u32 busNo,
+	   u32 cmd, CONTROLVM_MESSAGE_HEADER *msgHdr,
 	   int response, BOOL needResponse)
 {
 	BOOL notified = FALSE;
@@ -989,7 +989,7 @@ bus_epilog(U32 busNo,
 }
 
 static void
-device_epilog(U32 busNo, U32 devNo, ULTRA_SEGMENT_STATE state, U32 cmd,
+device_epilog(u32 busNo, u32 devNo, ULTRA_SEGMENT_STATE state, u32 cmd,
 	      CONTROLVM_MESSAGE_HEADER *msgHdr, int response,
 	      BOOL needResponse, BOOL for_visorbus)
 {
@@ -1366,7 +1366,7 @@ Away:
  * for failure.
  */
 static int
-initialize_controlvm_payload_info(HOSTADDRESS phys_addr, U64 offset, U32 bytes,
+initialize_controlvm_payload_info(HOSTADDRESS phys_addr, U64 offset, u32 bytes,
 				  CONTROLVM_PAYLOAD_INFO *info)
 {
 	u8 __iomem *payload = NULL;
@@ -1424,7 +1424,7 @@ initialize_controlvm_payload(void)
 {
 	HOSTADDRESS phys_addr = visorchannel_get_physaddr(ControlVm_channel);
 	U64 payloadOffset = 0;
-	U32 payloadBytes = 0;
+	u32 payloadBytes = 0;
 	if (visorchannel_read(ControlVm_channel,
 			      offsetof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL,
 				       RequestPayloadOffset),
@@ -1764,7 +1764,7 @@ handle_command(CONTROLVM_MESSAGE inmsg, HOSTADDRESS channel_addr)
 {
 	CONTROLVM_MESSAGE_PACKET *cmd = &inmsg.cmd;
 	U64 parametersAddr = 0;
-	U32 parametersBytes = 0;
+	u32 parametersBytes = 0;
 	PARSER_CONTEXT *parser_ctx = NULL;
 	BOOL isLocalAddr = FALSE;
 	CONTROLVM_MESSAGE ackmsg;
@@ -1900,7 +1900,7 @@ handle_command(CONTROLVM_MESSAGE inmsg, HOSTADDRESS channel_addr)
 HOSTADDRESS controlvm_get_channel_address(void)
 {
 	U64 addr = 0;
-	U32 size = 0;
+	u32 size = 0;
 
 	if (!VMCALL_SUCCESSFUL(Issue_VMCALL_IO_CONTROLVM_ADDR(&addr, &size))) {
 		ERRDRV("%s - vmcall to determine controlvm channel addr failed",
@@ -2027,7 +2027,7 @@ setup_crash_devices_work_queue(struct work_struct *work)
 	CONTROLVM_MESSAGE localCrashCreateBusMsg;
 	CONTROLVM_MESSAGE localCrashCreateDevMsg;
 	CONTROLVM_MESSAGE msg;
-	U32 localSavedCrashMsgOffset;
+	u32 localSavedCrashMsgOffset;
 	u16 localSavedCrashMsgCount;
 
 	/* make sure visorbus server is registered for controlvm callbacks */
@@ -2073,7 +2073,7 @@ setup_crash_devices_work_queue(struct work_struct *work)
 	if (visorchannel_read(ControlVm_channel,
 			      offsetof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL,
 				       SavedCrashMsgOffset),
-			      &localSavedCrashMsgOffset, sizeof(U32)) < 0) {
+			      &localSavedCrashMsgOffset, sizeof(u32)) < 0) {
 		LOGERR("failed to get Saved Message Offset");
 		POSTCODE_LINUX_2(CRASH_DEV_CTRL_RD_FAILURE_PC,
 				 POSTCODE_SEVERITY_ERR);

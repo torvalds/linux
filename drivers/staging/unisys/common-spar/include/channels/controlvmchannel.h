@@ -137,7 +137,7 @@ struct InterruptInfo {
 	 /**< specifies interrupt vector. It, interrupt pin, and shared are
 	  *   used to connect to the corresponding interrupt.  Used by
 	  *   IOPart-GP only. */
-	U32 recvInterruptVector;
+	u32 recvInterruptVector;
 
     /**< specifies if the recvInterrupt is shared.  It, interrupt pin
      *   and vector are used to connect to 0 = not shared; 1 = shared.
@@ -159,33 +159,33 @@ struct PciConfigHdr {
 	u16 SubSysVendor;
 	u16 DeviceId;
 	u16 SubSysDevice;
-	U32 ClassCode;
-	U32 Reserved;		/* Natural alignment purposes */
+	u32 ClassCode;
+	u32 Reserved;		/* Natural alignment purposes */
 };
 
 struct ScsiId {
-	U32 Bus;
-	U32 Target;
-	U32 Lun;
-	U32 Host; /* Command should ignore this for *
+	u32 Bus;
+	u32 Target;
+	u32 Lun;
+	u32 Host; /* Command should ignore this for *
 		   * DiskArrival/RemovalEvents */
 };
 
 struct WWID {
-	U32 wwid1;
-	U32 wwid2;
+	u32 wwid1;
+	u32 wwid2;
 };
 
 struct virtDiskInfo  {
-	U32 switchNo;		/* defined by SWITCH_CREATE */
-	U32 externalPortNo;	/* 0 for SAS RAID provided (external)
+	u32 switchNo;		/* defined by SWITCH_CREATE */
+	u32 externalPortNo;	/* 0 for SAS RAID provided (external)
 				 * virtual disks, 1 for virtual disk
 				 * images, 2 for gold disk images */
 	u16 VirtualDiskIndex;	/* Index of disk descriptor in the
 				 * VirtualDisk segment associated with
 				 * externalPortNo */
 	u16 Reserved1;
-	U32 Reserved2;
+	u32 Reserved2;
 };
 
 typedef enum {
@@ -237,59 +237,59 @@ typedef enum {
  *  looking at the flags.response field.
  */
 typedef struct _CONTROLVM_MESSAGE_HEADER  {
-	U32 Id;		/* See CONTROLVM_ID. */
+	u32 Id;		/* See CONTROLVM_ID. */
 	/* For requests, indicates the message type. */
 	/* For responses, indicates the type of message we are responding to. */
 
-	U32 MessageSize;	/* Includes size of this struct + size
+	u32 MessageSize;	/* Includes size of this struct + size
 				 * of message */
-	U32 SegmentIndex;	/* Index of segment containing Vm
+	u32 SegmentIndex;	/* Index of segment containing Vm
 				 * message/information */
-	U32 CompletionStatus;	/* Error status code or result of
+	u32 CompletionStatus;	/* Error status code or result of
 				 * message completion */
 	struct  {
-		U32 failed:1;		   /**< =1 in a response to * signify
+		u32 failed:1;		   /**< =1 in a response to * signify
 					    * failure */
-		U32 responseExpected:1;   /**< =1 in all messages that expect a
+		u32 responseExpected:1;   /**< =1 in all messages that expect a
 					   * response (Control ignores this
 					   * bit) */
-		U32 server:1;		   /**< =1 in all bus & device-related
+		u32 server:1;		   /**< =1 in all bus & device-related
 					    * messages where the message
 					    * receiver is to act as the bus or
 					    * device server */
-		U32 testMessage:1;	   /**< =1 for testing use only
+		u32 testMessage:1;	   /**< =1 for testing use only
 					    * (Control and Command ignore this
 					    * bit) */
-		U32 partialCompletion:1;  /**< =1 if there are forthcoming
+		u32 partialCompletion:1;  /**< =1 if there are forthcoming
 					   * responses/acks associated
 					   * with this message */
-		U32 preserve:1;	       /**< =1 this is to let us know to
+		u32 preserve:1;	       /**< =1 this is to let us know to
 					* preserve channel contents
 					* (for running guests)*/
-		U32 writerInDiag:1;	/**< =1 the DiagWriter is active in the
+		u32 writerInDiag:1;	/**< =1 the DiagWriter is active in the
 					 * Diagnostic Partition*/
 
 		    /* remaining bits in this 32-bit word are available */
 	} Flags;
-	U32 Reserved;		/* Natural alignment */
+	u32 Reserved;		/* Natural alignment */
 	U64 MessageHandle;	/* Identifies the particular message instance,
 				 * and is used to match particular */
 	/* request instances with the corresponding response instance. */
 	U64 PayloadVmOffset;	/* Offset of payload area from start of this
 				 * instance of ControlVm segment */
-	U32 PayloadMaxBytes;	/* Maximum bytes allocated in payload
+	u32 PayloadMaxBytes;	/* Maximum bytes allocated in payload
 				 * area of ControlVm segment */
-	U32 PayloadBytes;	/* Actual number of bytes of payload
+	u32 PayloadBytes;	/* Actual number of bytes of payload
 				 * area to copy between IO/Command; */
 	/* if non-zero, there is a payload to copy. */
 } CONTROLVM_MESSAGE_HEADER;
 
 typedef struct _CONTROLVM_PACKET_DEVICE_CREATE  {
-	U32 busNo;	   /**< bus # (0..n-1) from the msg receiver's
+	u32 busNo;	   /**< bus # (0..n-1) from the msg receiver's
 			    * perspective */
 
 	    /* Control uses header SegmentIndex field to access bus number... */
-	U32 devNo;	   /**< bus-relative (0..n-1) device number */
+	u32 devNo;	   /**< bus-relative (0..n-1) device number */
 	U64 channelAddr;  /**< Guest physical address of the channel, which
 			*   can be dereferenced by the receiver
 			*   of this ControlVm command */
@@ -300,11 +300,11 @@ typedef struct _CONTROLVM_PACKET_DEVICE_CREATE  {
 } CONTROLVM_PACKET_DEVICE_CREATE;	/* for CONTROLVM_DEVICE_CREATE */
 
 typedef struct _CONTROLVM_PACKET_DEVICE_CONFIGURE  {
-	U32 busNo;	      /**< bus # (0..n-1) from the msg
+	u32 busNo;	      /**< bus # (0..n-1) from the msg
 			       * receiver's perspective */
 
 	    /* Control uses header SegmentIndex field to access bus number... */
-	U32 devNo;	      /**< bus-relative (0..n-1) device number */
+	u32 devNo;	      /**< bus-relative (0..n-1) device number */
 } CONTROLVM_PACKET_DEVICE_CONFIGURE;	/* for CONTROLVM_DEVICE_CONFIGURE */
 
 typedef struct _CONTROLVM_MESSAGE_DEVICE_CREATE  {
@@ -323,11 +323,11 @@ typedef struct _CONTROLVM_MESSAGE_PACKET  {
 
 		/* BEGIN Request messages */
 		struct  {
-			U32 busNo;	      /*< bus # (0..n-1) from the msg
+			u32 busNo;	      /*< bus # (0..n-1) from the msg
 					       * receiver's perspective */
 
 	    /* Control uses header SegmentIndex field to access bus number... */
-			U32 deviceCount;      /*< indicates the max number of
+			u32 deviceCount;      /*< indicates the max number of
 					       * devices on this bus */
 			U64 channelAddr;     /*< Guest physical address of the
 					      *   channel, which can be
@@ -339,19 +339,19 @@ typedef struct _CONTROLVM_MESSAGE_PACKET  {
 			uuid_le busInstGuid;    /*< instance guid for the bus */
 		} createBus;	/* for CONTROLVM_BUS_CREATE */
 		struct  {
-			U32 busNo;	      /*< bus # (0..n-1) from the msg
+			u32 busNo;	      /*< bus # (0..n-1) from the msg
 					       * receiver's perspective */
 
 	    /* Control uses header SegmentIndex field to access bus number... */
-			U32 reserved;	/* Natural alignment purposes */
+			u32 reserved;	/* Natural alignment purposes */
 		} destroyBus;	/* for CONTROLVM_BUS_DESTROY */
 		struct  {
-			U32 busNo;		    /*< bus # (0..n-1) from the
+			u32 busNo;		    /*< bus # (0..n-1) from the
 						     * msg receiver's
 						     * perspective */
 
 	    /* Control uses header SegmentIndex field to access bus number... */
-			U32 reserved1;		    /* for alignment purposes */
+			u32 reserved1;		    /* for alignment purposes */
 			U64 guestHandle;	    /* This is used to convert
 					 *  guest physical address to real
 					 *  physical address for DMA, for ex. */
@@ -368,57 +368,57 @@ typedef struct _CONTROLVM_MESSAGE_PACKET  {
 		/* for CONTROLVM_DEVICE_CREATE */
 		CONTROLVM_PACKET_DEVICE_CREATE createDevice;
 		struct  {
-			U32 busNo;	      /*< bus # (0..n-1) from the msg
+			u32 busNo;	      /*< bus # (0..n-1) from the msg
 					       * receiver's perspective */
 
 	    /* Control uses header SegmentIndex field to access bus number... */
-			U32 devNo;	      /*< bus-relative (0..n-1) device
+			u32 devNo;	      /*< bus-relative (0..n-1) device
 					       * number */
 		} destroyDevice;	/* for CONTROLVM_DEVICE_DESTROY */
 
 		/* for CONTROLVM_DEVICE_CONFIGURE */
 		CONTROLVM_PACKET_DEVICE_CONFIGURE configureDevice;
 		struct  {
-			U32 busNo;	      /*< bus # (0..n-1) from the msg
+			u32 busNo;	      /*< bus # (0..n-1) from the msg
 					       * receiver's perspective */
 
 	    /* Control uses header SegmentIndex field to access bus number... */
-			U32 devNo;	      /*< bus-relative (0..n-1) device
+			u32 devNo;	      /*< bus-relative (0..n-1) device
 					       * number */
 		} reconfigureDevice;	/* for CONTROLVM_DEVICE_RECONFIGURE */
 		struct  {
-			U32 busNo;
+			u32 busNo;
 			ULTRA_SEGMENT_STATE state;
 			u8 reserved[2];	/* Natural alignment purposes */
 		} busChangeState;	/* for CONTROLVM_BUS_CHANGESTATE */
 		struct  {
-			U32 busNo;
-			U32 devNo;
+			u32 busNo;
+			u32 devNo;
 			ULTRA_SEGMENT_STATE state;
 			struct  {
-				U32 physicalDevice:1;	/* =1 if message is for
+				u32 physicalDevice:1;	/* =1 if message is for
 							 * a physical device */
 			/* remaining bits in this 32-bit word are available */
 			} flags;
 			u8 reserved[2];	/* Natural alignment purposes */
 		} deviceChangeState;	/* for CONTROLVM_DEVICE_CHANGESTATE */
 		struct  {
-			U32 busNo;
-			U32 devNo;
+			u32 busNo;
+			u32 devNo;
 			ULTRA_SEGMENT_STATE state;
 			u8 reserved[6];	/* Natural alignment purposes */
 		} deviceChangeStateEvent; /* for CONTROLVM_DEVICE_CHANGESTATE_EVENT */
 		struct  {
-			U32 busCount; /*< indicates the max number of busses */
-			U32 switchCount; /*< indicates the max number of
+			u32 busCount; /*< indicates the max number of busses */
+			u32 switchCount; /*< indicates the max number of
 					  *   switches (applicable for service
 					  *   partition only) */
 			ULTRA_CHIPSET_FEATURE features;
-			U32 platformNumber;	/* Platform Number */
+			u32 platformNumber;	/* Platform Number */
 		} initChipset;	/* for CONTROLVM_CHIPSET_INIT */
 		struct  {
-			U32 Options; /*< reserved */
-			U32 Test;    /*< bit 0 set to run embedded selftest */
+			u32 Options; /*< reserved */
+			u32 Test;    /*< bit 0 set to run embedded selftest */
 		} chipsetSelftest;	/* for CONTROLVM_CHIPSET_SELFTEST */
 
 		    /* END Request messages */
@@ -452,8 +452,8 @@ typedef struct _CONTROLVM_MESSAGE  {
 typedef struct _DEVICE_MAP  {
 	GUEST_PHYSICAL_ADDRESS DeviceChannelAddress;
 	U64 DeviceChannelSize;
-	U32 CA_Index;
-	U32 Reserved;		/* natural alignment */
+	u32 CA_Index;
+	u32 Reserved;		/* natural alignment */
 	U64 Reserved2;		/* Align structure on 32-byte boundary */
 } DEVICE_MAP;
 
@@ -463,8 +463,8 @@ typedef struct _GUEST_DEVICES  {
 	DEVICE_MAP NetworkChannel;
 	DEVICE_MAP StorageChannel;
 	DEVICE_MAP ConsoleChannel;
-	U32 PartitionIndex;
-	U32 Pad;
+	u32 PartitionIndex;
+	u32 Pad;
 } GUEST_DEVICES;
 
 typedef struct _ULTRA_CONTROLVM_CHANNEL_PROTOCOL  {
@@ -489,13 +489,13 @@ typedef struct _ULTRA_CONTROLVM_CHANNEL_PROTOCOL  {
 						 * channel */
 	 U64 RequestPayloadOffset;	/* Offset to request payload area */
 	 U64 EventPayloadOffset;	/* Offset to event payload area */
-	 U32 RequestPayloadBytes;	/* Bytes available in request payload
+	 u32 RequestPayloadBytes;	/* Bytes available in request payload
 					 * area */
-	 U32 EventPayloadBytes;	/* Bytes available in event payload area */
-	 U32 ControlChannelBytes;
-	 U32 NvramChannelBytes;	/* Bytes in PartitionNvram segment */
-	 U32 MessageBytes;	/* sizeof(CONTROLVM_MESSAGE) */
-	 U32 MessageCount;	/* CONTROLVM_MESSAGE_MAX */
+	 u32 EventPayloadBytes;	/* Bytes available in event payload area */
+	 u32 ControlChannelBytes;
+	 u32 NvramChannelBytes;	/* Bytes in PartitionNvram segment */
+	 u32 MessageBytes;	/* sizeof(CONTROLVM_MESSAGE) */
+	 u32 MessageCount;	/* CONTROLVM_MESSAGE_MAX */
 	 GUEST_PHYSICAL_ADDRESS gpSmbiosTable;	/* guest phys addr of SMBIOS
 						 * tables */
 	 GUEST_PHYSICAL_ADDRESS gpPhysicalSmbiosTable;	/* guest phys addr of
@@ -525,11 +525,11 @@ typedef struct _ULTRA_CONTROLVM_CHANNEL_PROTOCOL  {
 				 * is running in dump mode */
 	u16 NvramFailCount;
 	u16 SavedCrashMsgCount;	/* = CONTROLVM_CRASHMSG_MAX */
-	U32 SavedCrashMsgOffset;	/* Offset to request payload area needed
+	u32 SavedCrashMsgOffset;	/* Offset to request payload area needed
 					 * for crash dump */
-	U32 InstallationError;	/* Type of error encountered during
+	u32 InstallationError;	/* Type of error encountered during
 				 * installation */
-	U32 InstallationTextId;	/* Id of string to display */
+	u32 InstallationTextId;	/* Id of string to display */
 	u16 InstallationRemainingSteps;	/* Number of remaining installation
 					 * steps (for progress bars) */
 	u8 ToolAction;		/* ULTRA_TOOL_ACTIONS Installation Action
@@ -537,7 +537,7 @@ typedef struct _ULTRA_CONTROLVM_CHANNEL_PROTOCOL  {
 	u8 Reserved;		/* alignment */
 	ULTRA_EFI_SPAR_INDICATION EfiSparIndication;
 	ULTRA_EFI_SPAR_INDICATION EfiSparIndicationSupported;
-	U32 SPReserved;
+	u32 SPReserved;
 	u8 Reserved2[28];	/* Force signals to begin on 128-byte cache
 				 * line */
 	SIGNAL_QUEUE_HEADER RequestQueue;	/* Service or guest partition
@@ -600,21 +600,21 @@ typedef struct _ULTRA_CONTROLVM_CHANNEL_PROTOCOL  {
  *  https://ustr-linux-1.na.uis.unisys.com/spar/index.php/ControlVm_Parameters_Area
  */
 typedef struct _ULTRA_CONTROLVM_PARAMETERS_HEADER  {
-	U32 TotalLength;
-	U32 HeaderLength;
-	U32 ConnectionOffset;
-	U32 ConnectionLength;
-	U32 InitiatorOffset;
-	U32 InitiatorLength;
-	U32 TargetOffset;
-	U32 TargetLength;
-	U32 ClientOffset;
-	U32 ClientLength;
-	U32 NameOffset;
-	U32 NameLength;
+	u32 TotalLength;
+	u32 HeaderLength;
+	u32 ConnectionOffset;
+	u32 ConnectionLength;
+	u32 InitiatorOffset;
+	u32 InitiatorLength;
+	u32 TargetOffset;
+	u32 TargetLength;
+	u32 ClientOffset;
+	u32 ClientLength;
+	u32 NameOffset;
+	u32 NameLength;
 	uuid_le Id;
-	U32 Revision;
-	U32 Reserved;		/* Natural alignment */
+	u32 Revision;
+	u32 Reserved;		/* Natural alignment */
 } ULTRA_CONTROLVM_PARAMETERS_HEADER;
 
 #endif				/* __CONTROLVMCHANNEL_H__ */

@@ -112,7 +112,7 @@ struct extport_info {
 	/* if 1, indicates this extport slot is occupied
 	 * if 0, indicates that extport slot is unoccupied */
 
-	U32 num_devs_using;
+	u32 num_devs_using;
 	/* When extport is added, this is set to 0.  For exports
 	* located in NETWORK switches:
 	* Each time a VNIC, i.e., intport, is added to the switch this
@@ -144,8 +144,8 @@ struct device_info {
 	char devid[30];		/* "vbus<busno>:dev<devno>" */
 	u16 polling;
 	struct semaphore interrupt_callback_lock;
-	U32 busNo;
-	U32 devNo;
+	u32 busNo;
+	u32 devNo;
 	int (*interrupt)(void *);
 	void *interrupt_context;
 	void *private_data;
@@ -161,7 +161,7 @@ typedef enum {
 } SWITCH_TYPE;
 
 struct bus_info {
-	U32 busNo, deviceCount;
+	u32 busNo, deviceCount;
 	struct device_info **device;
 	U64 guestHandle, recvBusInterruptHandle;
 	uuid_le busInstGuid;
@@ -190,12 +190,12 @@ struct sn_list_entry {
 };
 
 struct networkPolicy {
-	U32 promiscuous:1;
-	U32 macassign:1;
-	U32 peerforwarding:1;
-	U32 nonotify:1;
-	U32 standby:1;
-	U32 callhome:2;
+	u32 promiscuous:1;
+	u32 macassign:1;
+	u32 peerforwarding:1;
+	u32 nonotify:1;
+	u32 standby:1;
+	u32 callhome:2;
 	char ip_addr[30];
 };
 
@@ -251,8 +251,8 @@ struct add_virt_iopart {
 				 * needs to use G2G copy. */
 	u8 Filler[7];
 
-	U32 busNo;
-	U32 devNo;
+	u32 busNo;
+	u32 devNo;
 	char *params;
 	ulong params_bytes;
 
@@ -264,22 +264,22 @@ struct add_vdisk_iopart {
 	struct uisscsi_dest vdest;    /* scsi bus, target, lun for virt disk */
 	struct uisscsi_dest pdest;    /* scsi bus, target, lun for phys disk */
 	u8 sernum[MAX_SERIAL_NUM];    /* serial num of physical disk */
-	U32 serlen;		      /* length of serial num */
-	U32 busNo;
-	U32 devNo;
+	u32 serlen;		      /* length of serial num */
+	u32 busNo;
+	u32 devNo;
 };
 
 struct del_vdisk_iopart {
 	void *chanptr;		     /* pointer to data channel */
 	struct uisscsi_dest vdest;   /* scsi bus, target, lun for virt disk */
-	U32 busNo;
-	U32 devNo;
+	u32 busNo;
+	u32 devNo;
 };
 
 struct del_virt_iopart {
 	void *chanptr;		     /* pointer to data channel */
-	U32 busNo;
-	U32 devNo;
+	u32 busNo;
+	u32 devNo;
 };
 
 struct det_virt_iopart {	     /* detach internal port */
@@ -355,14 +355,14 @@ typedef enum {
 struct add_vbus_guestpart {
 	void __iomem *chanptr;		/* pointer to data channel for bus -
 					 * NOT YET USED */
-	U32 busNo;		/* bus number to be created/deleted */
-	U32 deviceCount;	/* max num of devices on bus */
+	u32 busNo;		/* bus number to be created/deleted */
+	u32 deviceCount;	/* max num of devices on bus */
 	uuid_le busTypeGuid;	/* indicates type of bus */
 	uuid_le busInstGuid;	/* instance guid for device */
 };
 
 struct del_vbus_guestpart {
-	U32 busNo;		/* bus number to be deleted */
+	u32 busNo;		/* bus number to be deleted */
 	/* once we start using the bus's channel, add can dump busNo
 	* into the channel header and then delete will need only one
 	* parameter, chanptr. */
@@ -370,8 +370,8 @@ struct del_vbus_guestpart {
 
 struct add_virt_guestpart {
 	void __iomem *chanptr;		/* pointer to data channel */
-	U32 busNo;		/* bus number for the operation */
-	U32 deviceNo;		/* number of device on the bus */
+	u32 busNo;		/* bus number for the operation */
+	u32 deviceNo;		/* number of device on the bus */
 	uuid_le devInstGuid;	/* instance guid for device */
 	struct InterruptInfo intr;	/* recv/send interrupt info */
 	/* recvInterruptHandle contains info needed in order to
@@ -395,8 +395,8 @@ struct del_virt_guestpart {
 };
 
 struct init_chipset_guestpart {
-	U32 busCount;		/* indicates the max number of busses */
-	U32 switchCount;	/* indicates the max number of switches */
+	u32 busCount;		/* indicates the max number of busses */
+	u32 switchCount;	/* indicates the max number of switches */
 };
 
 struct guest_msgs {

@@ -30,7 +30,6 @@
 #include <syslog.h>
 #endif
 
-#define U32 uint32_t
 #define U64 uint64_t
 #define S8  int8_t
 #define S16 int16_t
@@ -40,7 +39,7 @@
 #ifdef __KERNEL__
 
 #ifdef CONFIG_X86_32
-#define UINTN U32
+#define UINTN u32
 #else
 #define UINTN U64
 #endif
@@ -49,7 +48,7 @@
 
 #include <stdint.h>
 #if __WORDSIZE == 32
-#define UINTN U32
+#define UINTN u32
 #elif __WORDSIZE == 64
 #define UINTN U64
 #else
@@ -121,7 +120,7 @@ typedef U64 GUEST_PHYSICAL_ADDRESS;
 		       fil, lin);					\
 	} while (0)
 
-#define CHANNEL_U32_MISMATCH(chType, chName, field, expected, actual, fil, \
+#define CHANNEL_u32_MISMATCH(chType, chName, field, expected, actual, fil, \
 			     lin, logCtx)				\
 	do {								\
 		syslog(LOG_USER | LOG_ERR,				\

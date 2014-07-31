@@ -33,8 +33,8 @@ typedef enum {
 
 typedef struct PARSER_CONTEXT_Tag PARSER_CONTEXT;
 
-PARSER_CONTEXT *parser_init(U64 addr, U32 bytes, BOOL isLocal, BOOL *tryAgain);
-PARSER_CONTEXT *parser_init_byteStream(U64 addr, U32 bytes, BOOL isLocal,
+PARSER_CONTEXT *parser_init(U64 addr, u32 bytes, BOOL isLocal, BOOL *tryAgain);
+PARSER_CONTEXT *parser_init_byteStream(U64 addr, u32 bytes, BOOL isLocal,
 				       BOOL *tryAgain);
 void parser_param_start(PARSER_CONTEXT *ctx, PARSER_WHICH_STRING which_string);
 void *parser_param_get(PARSER_CONTEXT *ctx, char *nam, int namesize);

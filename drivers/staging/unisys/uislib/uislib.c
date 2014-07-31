@@ -120,7 +120,7 @@ static const struct file_operations debugfs_info_fops = {
 };
 
 static void
-init_msg_header(CONTROLVM_MESSAGE *msg, U32 id, uint rsp, uint svr)
+init_msg_header(CONTROLVM_MESSAGE *msg, u32 id, uint rsp, uint svr)
 {
 	memset(msg, 0, sizeof(CONTROLVM_MESSAGE));
 	msg->hdr.Id = id;
@@ -129,7 +129,7 @@ init_msg_header(CONTROLVM_MESSAGE *msg, U32 id, uint rsp, uint svr)
 }
 
 static __iomem void *
-init_vbus_channel(U64 channelAddr, U32 channelBytes)
+init_vbus_channel(U64 channelAddr, u32 channelBytes)
 {
 	void __iomem *rc = NULL;
 	void __iomem *pChan = uislib_ioremap_cache(channelAddr, channelBytes);
@@ -154,7 +154,7 @@ Away:
 static int
 create_bus(CONTROLVM_MESSAGE *msg, char *buf)
 {
-	U32 busNo, deviceCount;
+	u32 busNo, deviceCount;
 	struct bus_info *tmp, *bus;
 	size_t size;
 
@@ -273,7 +273,7 @@ destroy_bus(CONTROLVM_MESSAGE *msg, char *buf)
 {
 	int i;
 	struct bus_info *bus, *prev = NULL;
-	U32 busNo;
+	u32 busNo;
 
 	busNo = msg->cmd.destroyBus.busNo;
 
@@ -341,7 +341,7 @@ create_device(CONTROLVM_MESSAGE *msg, char *buf)
 {
 	struct device_info *dev;
 	struct bus_info *bus;
-	U32 busNo, devNo;
+	u32 busNo, devNo;
 	int result = CONTROLVM_RESP_SUCCESS;
 	U64 minSize = MIN_IO_CHANNEL_SIZE;
 	ReqHandlerInfo_t *pReqHandler;
@@ -535,7 +535,7 @@ Away:
 static int
 pause_device(CONTROLVM_MESSAGE *msg)
 {
-	U32 busNo, devNo;
+	u32 busNo, devNo;
 	struct bus_info *bus;
 	struct device_info *dev;
 	struct guest_msgs cmd;
@@ -607,7 +607,7 @@ pause_device(CONTROLVM_MESSAGE *msg)
 static int
 resume_device(CONTROLVM_MESSAGE *msg)
 {
-	U32 busNo, devNo;
+	u32 busNo, devNo;
 	struct bus_info *bus;
 	struct device_info *dev;
 	struct guest_msgs cmd;
@@ -679,7 +679,7 @@ resume_device(CONTROLVM_MESSAGE *msg)
 static int
 destroy_device(CONTROLVM_MESSAGE *msg, char *buf)
 {
-	U32 busNo, devNo;
+	u32 busNo, devNo;
 	struct bus_info *bus;
 	struct device_info *dev;
 	struct guest_msgs cmd;
@@ -791,7 +791,7 @@ init_chipset(CONTROLVM_MESSAGE *msg, char *buf)
 }
 
 static int
-delete_bus_glue(U32 busNo)
+delete_bus_glue(u32 busNo)
 {
 	CONTROLVM_MESSAGE msg;
 
@@ -805,7 +805,7 @@ delete_bus_glue(U32 busNo)
 }
 
 static int
-delete_device_glue(U32 busNo, U32 devNo)
+delete_device_glue(u32 busNo, u32 devNo)
 {
 	CONTROLVM_MESSAGE msg;
 
@@ -821,7 +821,7 @@ delete_device_glue(U32 busNo, U32 devNo)
 }
 
 int
-uislib_client_inject_add_bus(U32 busNo, uuid_le instGuid,
+uislib_client_inject_add_bus(u32 busNo, uuid_le instGuid,
 			     U64 channelAddr, ulong nChannelBytes)
 {
 	CONTROLVM_MESSAGE msg;
@@ -872,14 +872,14 @@ EXPORT_SYMBOL_GPL(uislib_client_inject_add_bus);
 
 
 int
-uislib_client_inject_del_bus(U32 busNo)
+uislib_client_inject_del_bus(u32 busNo)
 {
 	return delete_bus_glue(busNo);
 }
 EXPORT_SYMBOL_GPL(uislib_client_inject_del_bus);
 
 int
-uislib_client_inject_pause_vhba(U32 busNo, U32 devNo)
+uislib_client_inject_pause_vhba(u32 busNo, u32 devNo)
 {
 	CONTROLVM_MESSAGE msg;
 	int rc;
@@ -899,7 +899,7 @@ uislib_client_inject_pause_vhba(U32 busNo, U32 devNo)
 EXPORT_SYMBOL_GPL(uislib_client_inject_pause_vhba);
 
 int
-uislib_client_inject_resume_vhba(U32 busNo, U32 devNo)
+uislib_client_inject_resume_vhba(u32 busNo, u32 devNo)
 {
 	CONTROLVM_MESSAGE msg;
 	int rc;
@@ -920,8 +920,8 @@ uislib_client_inject_resume_vhba(U32 busNo, U32 devNo)
 EXPORT_SYMBOL_GPL(uislib_client_inject_resume_vhba);
 
 int
-uislib_client_inject_add_vhba(U32 busNo, U32 devNo,
-			      U64 phys_chan_addr, U32 chan_bytes,
+uislib_client_inject_add_vhba(u32 busNo, u32 devNo,
+			      U64 phys_chan_addr, u32 chan_bytes,
 			      int is_test_addr, uuid_le instGuid,
 			      struct InterruptInfo *intr)
 {
@@ -972,15 +972,15 @@ uislib_client_inject_add_vhba(U32 busNo, U32 devNo,
 EXPORT_SYMBOL_GPL(uislib_client_inject_add_vhba);
 
 int
-uislib_client_inject_del_vhba(U32 busNo, U32 devNo)
+uislib_client_inject_del_vhba(u32 busNo, u32 devNo)
 {
 	return delete_device_glue(busNo, devNo);
 }
 EXPORT_SYMBOL_GPL(uislib_client_inject_del_vhba);
 
 int
-uislib_client_inject_add_vnic(U32 busNo, U32 devNo,
-			      U64 phys_chan_addr, U32 chan_bytes,
+uislib_client_inject_add_vnic(u32 busNo, u32 devNo,
+			      U64 phys_chan_addr, u32 chan_bytes,
 			      int is_test_addr, uuid_le instGuid,
 			      struct InterruptInfo *intr)
 {
@@ -1032,7 +1032,7 @@ uislib_client_inject_add_vnic(U32 busNo, U32 devNo,
 EXPORT_SYMBOL_GPL(uislib_client_inject_add_vnic);
 
 int
-uislib_client_inject_pause_vnic(U32 busNo, U32 devNo)
+uislib_client_inject_pause_vnic(u32 busNo, u32 devNo)
 {
 	CONTROLVM_MESSAGE msg;
 	int rc;
@@ -1052,7 +1052,7 @@ uislib_client_inject_pause_vnic(U32 busNo, U32 devNo)
 EXPORT_SYMBOL_GPL(uislib_client_inject_pause_vnic);
 
 int
-uislib_client_inject_resume_vnic(U32 busNo, U32 devNo)
+uislib_client_inject_resume_vnic(u32 busNo, u32 devNo)
 {
 	CONTROLVM_MESSAGE msg;
 	int rc;
@@ -1073,14 +1073,14 @@ uislib_client_inject_resume_vnic(U32 busNo, U32 devNo)
 EXPORT_SYMBOL_GPL(uislib_client_inject_resume_vnic);
 
 int
-uislib_client_inject_del_vnic(U32 busNo, U32 devNo)
+uislib_client_inject_del_vnic(u32 busNo, u32 devNo)
 {
 	return delete_device_glue(busNo, devNo);
 }
 EXPORT_SYMBOL_GPL(uislib_client_inject_del_vnic);
 
 static int
-uislib_client_add_vnic(U32 busNo)
+uislib_client_add_vnic(u32 busNo)
 {
 	BOOL busCreated = FALSE;
 	int devNo = 0;		/* Default to 0, since only one device
@@ -1129,7 +1129,7 @@ AwayCleanup:
 EXPORT_SYMBOL_GPL(uislib_client_add_vnic);
 
 static int
-uislib_client_delete_vnic(U32 busNo)
+uislib_client_delete_vnic(u32 busNo)
 {
 	int devNo = 0;		/* Default to 0, since only one device
 				 * will be created for this bus... */
@@ -1285,7 +1285,7 @@ info_debugfs_read(struct file *file, char __user *buf,
 }
 
 static struct device_info *
-find_dev(U32 busNo, U32 devNo)
+find_dev(u32 busNo, u32 devNo)
 {
 	struct bus_info *bus;
 	struct device_info *dev = NULL;
@@ -1458,7 +1458,7 @@ Initialize_incoming_thread(void)
  *                        function.
  */
 void
-uislib_enable_channel_interrupts(U32 busNo, U32 devNo,
+uislib_enable_channel_interrupts(u32 busNo, u32 devNo,
 				 int (*interrupt)(void *),
 				 void *interrupt_context)
 {
@@ -1484,7 +1484,7 @@ EXPORT_SYMBOL_GPL(uislib_enable_channel_interrupts);
  *  Process_Incoming().
  */
 void
-uislib_disable_channel_interrupts(U32 busNo, U32 devNo)
+uislib_disable_channel_interrupts(u32 busNo, u32 devNo)
 {
 	struct device_info *dev;
 	dev = find_dev(busNo, devNo);
@@ -1517,7 +1517,7 @@ static DECLARE_WORK(Work_wakeup_polling_device_channels,
  *  your device might have more requests.
  */
 void
-uislib_force_channel_interrupt(U32 busNo, U32 devNo)
+uislib_force_channel_interrupt(u32 busNo, u32 devNo)
 {
 	if (en_smart_wakeup == 0)
 		return;

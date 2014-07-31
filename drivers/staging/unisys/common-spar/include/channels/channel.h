@@ -71,7 +71,7 @@ typedef enum {
 				 * access channel anytime */
 } CHANNEL_CLIENTSTATE;
 static inline const u8 *
-ULTRA_CHANNELCLI_STRING(U32 v)
+ULTRA_CHANNELCLI_STRING(u32 v)
 {
 	switch (v) {
 	case CHANNELCLI_DETACHED:
@@ -210,33 +210,33 @@ ULTRA_CHANNELCLI_STRING(U32 v)
 /* Common Channel Header */
 typedef struct _CHANNEL_HEADER {
 	U64 Signature;		/* Signature */
-	U32 LegacyState;	/* DEPRECATED - being replaced by */
+	u32 LegacyState;	/* DEPRECATED - being replaced by */
 	/* /              SrvState, CliStateBoot, and CliStateOS below */
-	U32 HeaderSize;		/* sizeof(CHANNEL_HEADER) */
+	u32 HeaderSize;		/* sizeof(CHANNEL_HEADER) */
 	U64 Size;		/* Total size of this channel in bytes */
 	U64 Features;		/* Flags to modify behavior */
 	uuid_le Type;		/* Channel type: data, bus, control, etc. */
 	U64 PartitionHandle;	/* ID of guest partition */
 	U64 Handle;		/* Device number of this channel in client */
 	U64 oChannelSpace;	/* Offset in bytes to channel specific area */
-	U32 VersionId;		/* CHANNEL_HEADER Version ID */
-	U32 PartitionIndex;	/* Index of guest partition */
+	u32 VersionId;		/* CHANNEL_HEADER Version ID */
+	u32 PartitionIndex;	/* Index of guest partition */
 	uuid_le ZoneGuid;		/* Guid of Channel's zone */
-	U32 oClientString;	/* offset from channel header to
+	u32 oClientString;	/* offset from channel header to
 				 * nul-terminated ClientString (0 if
 				 * ClientString not present) */
-	U32 CliStateBoot;	/* CHANNEL_CLIENTSTATE of pre-boot
+	u32 CliStateBoot;	/* CHANNEL_CLIENTSTATE of pre-boot
 				 * EFI client of this channel */
-	U32 CmdStateCli;	/* CHANNEL_COMMANDSTATE (overloaded in
+	u32 CmdStateCli;	/* CHANNEL_COMMANDSTATE (overloaded in
 				 * Windows drivers, see ServerStateUp,
 				 * ServerStateDown, etc) */
-	U32 CliStateOS;		/* CHANNEL_CLIENTSTATE of Guest OS
+	u32 CliStateOS;		/* CHANNEL_CLIENTSTATE of Guest OS
 				 * client of this channel */
-	U32 ChannelCharacteristics;	/* CHANNEL_CHARACTERISTIC_<xxx> */
-	U32 CmdStateSrv;	/* CHANNEL_COMMANDSTATE (overloaded in
+	u32 ChannelCharacteristics;	/* CHANNEL_CHARACTERISTIC_<xxx> */
+	u32 CmdStateSrv;	/* CHANNEL_COMMANDSTATE (overloaded in
 				 * Windows drivers, see ServerStateUp,
 				 * ServerStateDown, etc) */
-	U32 SrvState;		/* CHANNEL_SERVERSTATE */
+	u32 SrvState;		/* CHANNEL_SERVERSTATE */
 	u8 CliErrorBoot;	/* bits to indicate err states for
 				 * boot clients, so err messages can
 				 * be throttled */
@@ -253,25 +253,25 @@ typedef struct _CHANNEL_HEADER {
 /* Subheader for the Signal Type variation of the Common Channel */
 typedef struct _SIGNAL_QUEUE_HEADER {
 	/* 1st cache line */
-	U32 VersionId;		/* SIGNAL_QUEUE_HEADER Version ID */
-	U32 Type;		/* Queue type: storage, network */
+	u32 VersionId;		/* SIGNAL_QUEUE_HEADER Version ID */
+	u32 Type;		/* Queue type: storage, network */
 	U64 Size;		/* Total size of this queue in bytes */
 	U64 oSignalBase;	/* Offset to signal queue area */
 	U64 FeatureFlags;	/* Flags to modify behavior */
 	U64 NumSignalsSent;	/* Total # of signals placed in this queue */
 	U64 NumOverflows;	/* Total # of inserts failed due to
 				 * full queue */
-	U32 SignalSize;		/* Total size of a signal for this queue */
-	U32 MaxSignalSlots;	/* Max # of slots in queue, 1 slot is
+	u32 SignalSize;		/* Total size of a signal for this queue */
+	u32 MaxSignalSlots;	/* Max # of slots in queue, 1 slot is
 				 * always empty */
-	U32 MaxSignals;		/* Max # of signals in queue
+	u32 MaxSignals;		/* Max # of signals in queue
 				 * (MaxSignalSlots-1) */
-	U32 Head;		/* Queue head signal # */
+	u32 Head;		/* Queue head signal # */
 	/* 2nd cache line */
 	U64 NumSignalsReceived;	/* Total # of signals removed from this queue */
-	U32 Tail;		/* Queue tail signal # (on separate
+	u32 Tail;		/* Queue tail signal # (on separate
 				 * cache line) */
-	U32 Reserved1;		/* Reserved field */
+	u32 Reserved1;		/* Reserved field */
 	U64 Reserved2;		/* Resrved field */
 	U64 ClientQueue;
 	U64 NumInterruptsReceived;	/* Total # of Interrupts received.  This
@@ -280,7 +280,7 @@ typedef struct _SIGNAL_QUEUE_HEADER {
 	U64 NumEmptyCnt;	/* Number of times that visor_signal_remove
 				 * is called and returned Empty
 				 * Status. */
-	U32 ErrorFlags;		/* Error bits set during SignalReinit
+	u32 ErrorFlags;		/* Error bits set during SignalReinit
 				 * to denote trouble with client's
 				 * fields */
 	u8 Filler[12];		/* Pad out to 64 byte cacheline */
@@ -312,7 +312,7 @@ ULTRA_check_channel_client(void __iomem *pChannel,
 			   uuid_le expectedTypeGuid,
 			   char *channelName,
 			   U64 expectedMinBytes,
-			   U32 expectedVersionId,
+			   u32 expectedVersionId,
 			   U64 expectedSignature,
 			   char *fileName, int lineNumber, void *logCtx)
 {
@@ -588,7 +588,7 @@ ULTRA_channel_client_release_os(void __iomem *pChannel, u8 *chanId,
 * full.
 */
 
-unsigned char visor_signal_insert(CHANNEL_HEADER __iomem *pChannel, U32 Queue,
+unsigned char visor_signal_insert(CHANNEL_HEADER __iomem *pChannel, u32 Queue,
 				  void *pSignal);
 
 /*
@@ -610,7 +610,7 @@ unsigned char visor_signal_insert(CHANNEL_HEADER __iomem *pChannel, U32 Queue,
 * empty.
 */
 
-unsigned char visor_signal_remove(CHANNEL_HEADER __iomem *pChannel, U32 Queue,
+unsigned char visor_signal_remove(CHANNEL_HEADER __iomem *pChannel, u32 Queue,
 				  void *pSignal);
 
 /*
@@ -632,7 +632,7 @@ unsigned char visor_signal_remove(CHANNEL_HEADER __iomem *pChannel, U32 Queue,
 * Return value:
 * # of signals copied.
 */
-unsigned int SignalRemoveAll(pCHANNEL_HEADER pChannel, U32 Queue,
+unsigned int SignalRemoveAll(pCHANNEL_HEADER pChannel, u32 Queue,
 			     void *pSignal);
 
 /*
@@ -647,6 +647,6 @@ unsigned int SignalRemoveAll(pCHANNEL_HEADER pChannel, U32 Queue,
 * 1 if the signal queue is empty, 0 otherwise.
 */
 unsigned char visor_signalqueue_empty(CHANNEL_HEADER __iomem *pChannel,
-				      U32 Queue);
+				      u32 Queue);
 
 #endif

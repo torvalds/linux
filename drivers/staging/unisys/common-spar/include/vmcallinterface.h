@@ -88,7 +88,7 @@ typedef enum {		/* VMCALL identification tuples  */
      * not used much */
 #define ISSUE_IO_VMCALL_POSTCODE_SEVERITY(postcode, severity)		\
 do {									\
-	U32 _tempresult = VMCALL_SUCCESS;				\
+	u32 _tempresult = VMCALL_SUCCESS;				\
 	ISSUE_IO_EXTENDED_VMCALL(VMCALL_POST_CODE_LOGEVENT, severity,	\
 				 MDS_APPOS, postcode, _tempresult);	\
 } while (0)
@@ -119,7 +119,7 @@ typedef struct _VMCALL_IO_CONTROLVM_ADDR_PARAMS {
 	U64 ChannelAddress;	/* contents provided by this VMCALL (OUT) */
 	    /* the size of the ControlVm channel in bytes This VMCall fills this
 	    * in with the appropriate address. */
-	U32 ChannelBytes;	/* contents provided by this VMCALL (OUT) */
+	u32 ChannelBytes;	/* contents provided by this VMCALL (OUT) */
 	u8 Unused[4];		/* Unused Bytes in the 64-Bit Aligned Struct */
 } VMCALL_IO_CONTROLVM_ADDR_PARAMS;
 
@@ -159,7 +159,7 @@ typedef struct _VMCALL_CHANNEL_VERSION_MISMATCH_PARAMS {
 				 * (IN) */
 	u8 ItemName[32];	/* Null terminated string giving name of
 				 * mismatched item (IN) */
-	U32 SourceLineNumber;	/* line# where invoked. (IN) */
+	u32 SourceLineNumber;	/* line# where invoked. (IN) */
 	u8 SourceFileName[36];	/* source code where invoked - Null terminated
 				 * string (IN) */
 } VMCALL_CHANNEL_VERSION_MISMATCH_PARAMS;

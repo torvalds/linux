@@ -113,7 +113,7 @@ typedef struct _DIAG_EFI_TIME  {
 	u8 Minute;		/* 0 - 59 */
 	u8 Second;		/* 0 - 59 */
 	u8 Pad1;
-	U32 Nanosecond;	/* 0 - 999, 999, 999 */
+	u32 Nanosecond;	/* 0 - 999, 999, 999 */
 	S16 TimeZone;		/* -1440 to 1440 or 2047 */
 	u8 Daylight;
 	u8 Pad2;
@@ -156,24 +156,24 @@ typedef enum  {
  * AdditionalInfo: Array of characters for additional event info (may be
  * empty).  */
 typedef struct _DIAG_CHANNEL_EVENT  {
-	U32 EventId;
-	U32 Severity;
+	u32 EventId;
+	u32 Severity;
 	u8 ModuleName[MAX_MODULE_NAME_SIZE];
-	U32 LineNumber;
+	u32 LineNumber;
 	DIAG_EFI_TIME Timestamp;	/* Size = 16 bytes */
-	U32 PartitionNumber;	/* Filled in by Diag Switch as pool blocks are
+	u32 PartitionNumber;	/* Filled in by Diag Switch as pool blocks are
 				 * filled */
 	u16 VirtualProcessorNumber;
 	u16 LogicalProcessorNumber;
 	u8 ComponentType;	/* ULTRA_COMPONENT_TYPES */
 	u8 Subsystem;
 	u16 Reserved0;		/* pad to U64 alignment */
-	U32 BlockNumber;	/* filled in by DiagSwitch as pool blocks are
+	u32 BlockNumber;	/* filled in by DiagSwitch as pool blocks are
 				 * filled */
-	U32 BlockNumberHigh;
-	U32 EventNumber;	/* filled in by DiagSwitch as pool blocks are
+	u32 BlockNumberHigh;
+	u32 EventNumber;	/* filled in by DiagSwitch as pool blocks are
 				 * filled */
-	U32 EventNumberHigh;
+	u32 EventNumberHigh;
 
 	/* The BlockNumber and EventNumber fields are set only by DiagSwitch
 	 * and referenced only by WinDiagDisplay formatting tool as
@@ -363,7 +363,7 @@ typedef enum  {
  *			particular subsystem below this level will be discarded.
  */
 typedef struct _DIAG_CHANNEL_PROTOCOL_HEADER  {
-	volatile U32 DiagLock;
+	volatile u32 DiagLock;
 	u8 IsChannelInitialized;
 	u8 Reserved[3];
 	u8 SubsystemSeverityFilter[64];

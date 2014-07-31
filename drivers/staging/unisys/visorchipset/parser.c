@@ -41,7 +41,7 @@ struct PARSER_CONTEXT_Tag {
 };
 
 static PARSER_CONTEXT *
-parser_init_guts(U64 addr, U32 bytes, BOOL isLocal,
+parser_init_guts(U64 addr, u32 bytes, BOOL isLocal,
 		 BOOL hasStandardPayloadHeader, BOOL *tryAgain)
 {
 	int allocbytes = sizeof(PARSER_CONTEXT) + bytes;
@@ -152,7 +152,7 @@ Away:
 }
 
 PARSER_CONTEXT *
-parser_init(U64 addr, U32 bytes, BOOL isLocal, BOOL *tryAgain)
+parser_init(U64 addr, u32 bytes, BOOL isLocal, BOOL *tryAgain)
 {
 	return parser_init_guts(addr, bytes, isLocal, TRUE, tryAgain);
 }
@@ -163,7 +163,7 @@ parser_init(U64 addr, U32 bytes, BOOL isLocal, BOOL *tryAgain)
  * parser_byteStream_get() to obtain the data.
  */
 PARSER_CONTEXT *
-parser_init_byteStream(U64 addr, U32 bytes, BOOL isLocal, BOOL *tryAgain)
+parser_init_byteStream(U64 addr, u32 bytes, BOOL isLocal, BOOL *tryAgain)
 {
 	return parser_init_guts(addr, bytes, isLocal, FALSE, tryAgain);
 }

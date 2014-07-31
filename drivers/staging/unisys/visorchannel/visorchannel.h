@@ -56,10 +56,10 @@ int visorchannel_write(VISORCHANNEL *channel, ulong offset,
 		       void *local, ulong nbytes);
 int visorchannel_clear(VISORCHANNEL *channel, ulong offset,
 		       u8 ch, ulong nbytes);
-BOOL visorchannel_signalremove(VISORCHANNEL *channel, U32 queue, void *msg);
-BOOL visorchannel_signalinsert(VISORCHANNEL *channel, U32 queue, void *msg);
-int visorchannel_signalqueue_slots_avail(VISORCHANNEL *channel, U32 queue);
-int visorchannel_signalqueue_max_slots(VISORCHANNEL *channel, U32 queue);
+BOOL visorchannel_signalremove(VISORCHANNEL *channel, u32 queue, void *msg);
+BOOL visorchannel_signalinsert(VISORCHANNEL *channel, u32 queue, void *msg);
+int visorchannel_signalqueue_slots_avail(VISORCHANNEL *channel, u32 queue);
+int visorchannel_signalqueue_max_slots(VISORCHANNEL *channel, u32 queue);
 
 HOSTADDRESS visorchannel_get_physaddr(VISORCHANNEL *channel);
 ulong visorchannel_get_nbytes(VISORCHANNEL *channel);
@@ -70,7 +70,7 @@ uuid_le visorchannel_get_uuid(VISORCHANNEL *channel);
 MEMREGION *visorchannel_get_memregion(VISORCHANNEL *channel);
 char *visorchannel_uuid_id(uuid_le *guid, char *s);
 void visorchannel_debug(VISORCHANNEL *channel, int nQueues,
-			struct seq_file *seq, U32 off);
+			struct seq_file *seq, u32 off);
 void visorchannel_dump_section(VISORCHANNEL *chan, char *s,
 			       int off, int len, struct seq_file *seq);
 void __iomem *visorchannel_get_header(VISORCHANNEL *channel);

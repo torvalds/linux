@@ -160,8 +160,8 @@ struct scsipending {
 #define VIRTHBA_ERROR_COUNT 30
 #define IOS_ERROR_THRESHOLD 1000
 struct virtdisk_info {
-	U32 valid;
-	U32 channel, id, lun;	/* Disk Path */
+	u32 valid;
+	u32 channel, id, lun;	/* Disk Path */
 	atomic_t ios_threshold;
 	atomic_t error_count;
 	struct virtdisk_info *next;
@@ -198,7 +198,7 @@ struct virthba_info {
 struct diskaddremove {
 	u8 add;			/* 0-remove, 1-add */
 	struct Scsi_Host *shost; /* Scsi Host for this virthba instance */
-	U32 channel, id, lun;	/* Disk Path */
+	u32 channel, id, lun;	/* Disk Path */
 	struct diskaddremove *next;
 };
 

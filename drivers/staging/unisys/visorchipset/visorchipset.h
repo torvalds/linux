@@ -32,10 +32,10 @@
  *  been received for a bus or device.
  */
 typedef struct {
-	U32 created:1;
-	U32 attached:1;
-	U32 configured:1;
-	U32 running:1;
+	u32 created:1;
+	u32 attached:1;
+	u32 configured:1;
+	u32 running:1;
 	/* Add new fields above. */
 	/* Remaining bits in this 32-bit word are unused. */
 } VISORCHIPSET_STATE;
@@ -77,15 +77,15 @@ typedef struct {
  */
 typedef struct {
 	struct list_head entry;
-	U32 busNo;
-	U32 devNo;
+	u32 busNo;
+	u32 devNo;
 	uuid_le devInstGuid;
 	VISORCHIPSET_STATE state;
 	VISORCHIPSET_CHANNEL_INFO chanInfo;
-	U32 Reserved1;		/* CONTROLVM_ID */
+	u32 Reserved1;		/* CONTROLVM_ID */
 	U64 Reserved2;
-	U32 switchNo;		/* when devState.attached==1 */
-	U32 internalPortNo;	/* when devState.attached==1 */
+	u32 switchNo;		/* when devState.attached==1 */
+	u32 internalPortNo;	/* when devState.attached==1 */
 	CONTROLVM_MESSAGE_HEADER pendingMsgHdr;	/* CONTROLVM_MESSAGE */
 	/** For private use by the bus driver */
 	void *bus_driver_context;
@@ -93,7 +93,7 @@ typedef struct {
 } VISORCHIPSET_DEVICE_INFO;
 
 static inline VISORCHIPSET_DEVICE_INFO *
-finddevice(struct list_head *list, U32 busNo, U32 devNo)
+finddevice(struct list_head *list, u32 busNo, u32 devNo)
 {
 	VISORCHIPSET_DEVICE_INFO *p;
 
@@ -104,7 +104,7 @@ finddevice(struct list_head *list, U32 busNo, U32 devNo)
 	return NULL;
 }
 
-static inline void delbusdevices(struct list_head *list, U32 busNo)
+static inline void delbusdevices(struct list_head *list, u32 busNo)
 {
 	VISORCHIPSET_DEVICE_INFO *p, *tmp;
 
@@ -124,7 +124,7 @@ static inline void delbusdevices(struct list_head *list, U32 busNo)
  */
 typedef struct {
 	struct list_head entry;
-	U32 busNo;
+	u32 busNo;
 	VISORCHIPSET_STATE state;
 	VISORCHIPSET_CHANNEL_INFO chanInfo;
 	uuid_le partitionGuid;
@@ -132,10 +132,10 @@ typedef struct {
 	u8 *name;		/* UTF8 */
 	u8 *description;	/* UTF8 */
 	U64 Reserved1;
-	U32 Reserved2;
+	u32 Reserved2;
 	MYPROCOBJECT *procObject;
 	struct {
-		U32 server:1;
+		u32 server:1;
 		/* Add new fields above. */
 		/* Remaining bits in this 32-bit word are unused. */
 	} flags;
@@ -147,7 +147,7 @@ typedef struct {
 } VISORCHIPSET_BUS_INFO;
 
 static inline VISORCHIPSET_BUS_INFO *
-findbus(struct list_head *list, U32 busNo)
+findbus(struct list_head *list, u32 busNo)
 {
 	VISORCHIPSET_BUS_INFO *p;
 
@@ -161,7 +161,7 @@ findbus(struct list_head *list, U32 busNo)
 /** Attributes for a particular Supervisor switch.
  */
 typedef struct {
-	U32 switchNo;
+	u32 switchNo;
 	VISORCHIPSET_STATE state;
 	uuid_le switchTypeGuid;
 	u8 *authService1;
@@ -169,7 +169,7 @@ typedef struct {
 	u8 *authService3;
 	u8 *securityContext;
 	U64 Reserved;
-	U32 Reserved2;		/* CONTROLVM_ID */
+	u32 Reserved2;		/* CONTROLVM_ID */
 	struct device dev;
 	BOOL dev_exists;
 	CONTROLVM_MESSAGE_HEADER pendingMsgHdr;
@@ -180,8 +180,8 @@ typedef struct {
  *  to a specific switch.
  */
 typedef struct {
-	U32 switchNo;
-	U32 externalPortNo;
+	u32 switchNo;
+	u32 externalPortNo;
 	VISORCHIPSET_STATE state;
 	uuid_le networkZoneGuid;
 	int pdPort;
@@ -192,7 +192,7 @@ typedef struct {
 	u8 *ipGateway;
 	u8 *ipDNS;
 	U64 Reserved1;
-	U32 Reserved2;		/* CONTROLVM_ID */
+	u32 Reserved2;		/* CONTROLVM_ID */
 	struct device dev;
 	BOOL dev_exists;
 	CONTROLVM_MESSAGE_HEADER pendingMsgHdr;
@@ -203,13 +203,13 @@ typedef struct {
  *  device connects to a particular switch.
  */
 typedef struct {
-	U32 switchNo;
-	U32 internalPortNo;
+	u32 switchNo;
+	u32 internalPortNo;
 	VISORCHIPSET_STATE state;
-	U32 busNo;		/* valid only when state.attached == 1 */
-	U32 devNo;		/* valid only when state.attached == 1 */
+	u32 busNo;		/* valid only when state.attached == 1 */
+	u32 devNo;		/* valid only when state.attached == 1 */
 	U64 Reserved1;
-	U32 Reserved2;		/* CONTROLVM_ID */
+	u32 Reserved2;		/* CONTROLVM_ID */
 	CONTROLVM_MESSAGE_HEADER pendingMsgHdr;
 	MYPROCOBJECT *procObject;
 

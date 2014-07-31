@@ -257,28 +257,28 @@ struct guest_phys_info {
 #define GPI_ENTRIES_PER_PAGE (PAGE_SIZE / sizeof(struct guest_phys_info))
 
 struct uisscsi_dest {
-	U32 channel;		/* channel == bus number */
-	U32 id;			/* id == target number */
-	U32 lun;		/* lun == logical unit number */
+	u32 channel;		/* channel == bus number */
+	u32 id;			/* id == target number */
+	u32 lun;		/* lun == logical unit number */
 };
 
 struct vhba_wwnn {
-	U32 wwnn1;
-	U32 wwnn2;
+	u32 wwnn1;
+	u32 wwnn2;
 };
 
 /* WARNING: Values stired in this structure must contain maximum counts (not
  * maximum values). */
 struct vhba_config_max {	/* 20 bytes */
-	U32 max_channel;	/* maximum channel for devices attached to this
+	u32 max_channel;	/* maximum channel for devices attached to this
 				 * bus */
-	U32 max_id;		/* maximum SCSI ID for devices attached to this
+	u32 max_id;		/* maximum SCSI ID for devices attached to this
 				 * bus */
-	U32 max_lun;		/* maximum SCSI LUN for devices attached to this
+	u32 max_lun;		/* maximum SCSI LUN for devices attached to this
 				 * bus */
-	U32 cmd_per_lun;	/* maximum number of outstanding commands per
+	u32 cmd_per_lun;	/* maximum number of outstanding commands per
 				 * lun that are allowed at one time */
-	U32 max_io_size;	/* maximum io size for devices attached to this
+	u32 max_io_size;	/* maximum io size for devices attached to this
 				 * bus */
 	/* max io size is often determined by the resource of the hba. e.g */
 	/* max scatter gather list length * page size / sector size */
@@ -288,7 +288,7 @@ struct uiscmdrsp_scsi {
 	void *scsicmd;		/* the handle to the cmd that was received -
 				 * send it back as is in the rsp packet.  */
 	u8 cmnd[MAX_CMND_SIZE];	/* the cdb for the command */
-	U32 bufflen;		/* length of data to be transferred out or in */
+	u32 bufflen;		/* length of data to be transferred out or in */
 	u16 guest_phys_entries;	/* Number of entries in scatter-gather (sg)
 				 * list */
 	struct guest_phys_info gpi_list[MAX_PHYS_INFO];	/* physical address
@@ -492,10 +492,10 @@ struct net_pkt_xmt {
 		u8 hrawoffv;	/* 1 = hwrafoff is valid */
 		u8 nhrawoffv;	/* 1 = nhwrafoff is valid */
 		u16 protocol;	/* specifies packet protocol */
-		U32 csum;	/* value used to set skb->csum at IOPart */
-		U32 hrawoff;	/* value used to set skb->h.raw at IOPart */
+		u32 csum;	/* value used to set skb->csum at IOPart */
+		u32 hrawoff;	/* value used to set skb->h.raw at IOPart */
 		/* hrawoff points to the start of the TRANSPORT LAYER HEADER */
-		U32 nhrawoff;	/* value used to set skb->nh.raw at IOPart */
+		u32 nhrawoff;	/* value used to set skb->nh.raw at IOPart */
 		/* nhrawoff points to the start of the NETWORK LAYER HEADER */
 	} lincsum;
 
@@ -508,7 +508,7 @@ struct net_pkt_xmt {
 };
 
 struct net_pkt_xmtdone {
-	U32 xmt_done_result;	/* result of NET_XMIT */
+	u32 xmt_done_result;	/* result of NET_XMIT */
 #define XMIT_SUCCESS 0
 #define XMIT_FAILED 1
 };
@@ -538,7 +538,7 @@ struct net_pkt_rcv {
 
 	/* the number of receive buffers that can be chained  */
 	/* is based on max mtu and size of each rcv buf */
-	U32 rcv_done_len;	/* length of received data */
+	u32 rcv_done_len;	/* length of received data */
 	u8 numrcvbufs;		/* number of receive buffers that contain the */
 	/* incoming data; guest end MUST chain these together. */
 	void *rcvbuf[MAX_NET_RCV_CHAIN];	/* the list of receive buffers
@@ -546,7 +546,7 @@ struct net_pkt_rcv {
 	/* each entry is a receive buffer provided by NET_RCV_POST. */
 	/* NOTE: first rcvbuf in the chain will also be provided in net.buf. */
 	U64 UniqueNum;
-	U32 RcvsDroppedDelta;
+	u32 RcvsDroppedDelta;
 };
 
 struct net_pkt_enbdis {
@@ -618,7 +618,7 @@ struct uiscmdrsp_disknotify {
 	u8 add;		/* 0-remove, 1-add */
 	void *vHba;		/* Pointer to vhba_info for channel info to
 				 * route msg */
-	U32 channel, id, lun;	/* SCSI Path of Disk to added or removed */
+	u32 channel, id, lun;	/* SCSI Path of Disk to added or removed */
 };
 
 /* The following is used by virthba/vSCSI to send the Acquire/Release commands
@@ -696,8 +696,8 @@ typedef struct _ULTRA_IO_CHANNEL_PROTOCOL {
 		} vhba;		/* 28 */
 		struct {
 			u8 macaddr[MAX_MACADDR_LEN];	/* 6 bytes */
-			U32 num_rcv_bufs;	/* 4 */
-			U32 mtu;	/* 4 */
+			u32 num_rcv_bufs;	/* 4 */
+			u32 mtu;	/* 4 */
 			uuid_le zoneGuid;	/* 16 */
 		} vnic;		/* total     30 */
 	};
@@ -777,9 +777,9 @@ typedef struct _ULTRA_IO_CHANNEL_PROTOCOL {
 				OFFSETOF(type, clientString);		\
 			MEMCPY(chan->clientString, clientStr,		\
 			       MINNUM(clientStrLen,			\
-				      (U32) (MAX_CLIENTSTRING_LEN - 1))); \
+				      (u32) (MAX_CLIENTSTRING_LEN - 1))); \
 			chan->clientString[MINNUM(clientStrLen,		\
-						  (U32) (MAX_CLIENTSTRING_LEN \
+						  (u32) (MAX_CLIENTSTRING_LEN \
 							 - 1))]		\
 				= '\0';					\
 		}							\
@@ -801,7 +801,7 @@ static inline int ULTRA_VHBA_init_channel(ULTRA_IO_CHANNEL_PROTOCOL *x,
 					      struct vhba_wwnn *wwnn,
 					      struct vhba_config_max *max,
 					      unsigned char *clientStr,
-					      U32 clientStrLen, U64 bytes)  {
+					      u32 clientStrLen, U64 bytes)  {
 	MEMSET(x, 0, sizeof(ULTRA_IO_CHANNEL_PROTOCOL));
 	x->ChannelHeader.VersionId = ULTRA_VHBA_CHANNEL_PROTOCOL_VERSIONID;
 	x->ChannelHeader.Signature = ULTRA_VHBA_CHANNEL_PROTOCOL_SIGNATURE;
@@ -833,10 +833,10 @@ static inline void ULTRA_VHBA_set_max(ULTRA_IO_CHANNEL_PROTOCOL *x,
 
 static inline int ULTRA_VNIC_init_channel(ULTRA_IO_CHANNEL_PROTOCOL *x,
 						 unsigned char *macaddr,
-						 U32 num_rcv_bufs, U32 mtu,
+						 u32 num_rcv_bufs, u32 mtu,
 						 uuid_le zoneGuid,
 						 unsigned char *clientStr,
-						 U32 clientStrLen,
+						 u32 clientStrLen,
 						 U64 bytes)  {
 	MEMSET(x, 0, sizeof(ULTRA_IO_CHANNEL_PROTOCOL));
 	x->ChannelHeader.VersionId = ULTRA_VNIC_CHANNEL_PROTOCOL_VERSIONID;
@@ -883,11 +883,11 @@ static inline int ULTRA_VNIC_init_channel(ULTRA_IO_CHANNEL_PROTOCOL *x,
  * room)
  */
 static INLINE  u16
-add_physinfo_entries(U32 inp_pfn,	/* input - specifies the pfn to be used
+add_physinfo_entries(u32 inp_pfn,	/* input - specifies the pfn to be used
 					 * to add entries */
 		     u16 inp_off,	/* input - specifies the off to be used
 					 * to add entries */
-		     U32 inp_len,	/* input - specifies the len to be used
+		     u32 inp_len,	/* input - specifies the len to be used
 					 * to add entries */
 		     u16 index,		/* input - index in array at which new
 					 * entries are added */
@@ -896,7 +896,7 @@ add_physinfo_entries(U32 inp_pfn,	/* input - specifies the pfn to be used
 		     struct phys_info pi_arr[]) /* input & output - array to
 						  * which entries are added */
 {
-	U32 len;
+	u32 len;
 	u16 i, firstlen;
 
 	firstlen = PI_PAGE_SIZE - inp_off;
@@ -925,7 +925,7 @@ add_physinfo_entries(U32 inp_pfn,	/* input - specifies the pfn to be used
 		else {
 			pi_arr[index + i].pi_off = 0;
 			pi_arr[index + i].pi_len =
-			    (u16) MINNUM(len, (U32) PI_PAGE_SIZE);
+			    (u16) MINNUM(len, (u32) PI_PAGE_SIZE);
 		}
 
 	}

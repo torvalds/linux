@@ -70,7 +70,7 @@ typedef union {
 				 * increment thereafter  */
 		u8 Minor;
 		u16 Maintenance;
-		U32 Revision;	/* Subversion revision */
+		u32 Revision;	/* Subversion revision */
 	} Part;
 } ULTRA_COMPONENT_VERSION;
 

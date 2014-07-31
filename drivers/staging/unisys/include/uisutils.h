@@ -60,7 +60,7 @@ typedef struct ReqHandlerInfo_struct {
 	unsigned long min_channel_bytes;
 	int (*Server_Channel_Ok)(unsigned long channelBytes);
 	int (*Server_Channel_Init)
-	 (void *x, unsigned char *clientStr, U32 clientStrLen, U64 bytes);
+	 (void *x, unsigned char *clientStr, u32 clientStrLen, U64 bytes);
 	char switch_type_name[99];
 	struct list_head list_link;	/* links into ReqHandlerInfo_list */
 } ReqHandlerInfo_t;
@@ -73,7 +73,7 @@ ReqHandlerInfo_t *ReqHandlerAdd(uuid_le switchTypeGuid,
 							 channelBytes),
 				int (*Server_Channel_Init)
 				 (void *x, unsigned char *clientStr,
-				  U32 clientStrLen, U64 bytes));
+				  u32 clientStrLen, U64 bytes));
 ReqHandlerInfo_t *ReqHandlerFind(uuid_le switchTypeGuid);
 int ReqHandlerDel(uuid_le switchTypeGuid);
 
@@ -121,7 +121,7 @@ int uisctrl_register_req_handler_ex(uuid_le switchTypeGuid,
 							     channelBytes),
 				    int (*Server_Channel_Init)
 				    (void *x, unsigned char *clientStr,
-				     U32 clientStrLen, U64 bytes),
+				     u32 clientStrLen, U64 bytes),
 				    ULTRA_VBUS_DEVICEINFO *chipset_DriverInfo);
 
 int uisctrl_unregister_req_handler_ex(uuid_le switchTypeGuid);
@@ -129,29 +129,29 @@ unsigned char *util_map_virt(struct phys_info *sg);
 void util_unmap_virt(struct phys_info *sg);
 unsigned char *util_map_virt_atomic(struct phys_info *sg);
 void util_unmap_virt_atomic(void *buf);
-int uislib_server_inject_add_vnic(U32 switchNo, U32 BusNo, U32 numIntPorts,
-				  U32 numExtPorts, MACARRAY pmac[],
+int uislib_server_inject_add_vnic(u32 switchNo, u32 BusNo, u32 numIntPorts,
+				  u32 numExtPorts, MACARRAY pmac[],
 				  pCHANNEL_HEADER **chan);
-void uislib_server_inject_del_vnic(U32 switchNo, U32 busNo, U32 numIntPorts,
-				   U32 numExtPorts);
-int uislib_client_inject_add_bus(U32 busNo, uuid_le instGuid,
+void uislib_server_inject_del_vnic(u32 switchNo, u32 busNo, u32 numIntPorts,
+				   u32 numExtPorts);
+int uislib_client_inject_add_bus(u32 busNo, uuid_le instGuid,
 				 U64 channelAddr, ulong nChannelBytes);
-int  uislib_client_inject_del_bus(U32 busNo);
+int  uislib_client_inject_del_bus(u32 busNo);
 
-int uislib_client_inject_add_vhba(U32 busNo, U32 devNo,
-				  U64 phys_chan_addr, U32 chan_bytes,
+int uislib_client_inject_add_vhba(u32 busNo, u32 devNo,
+				  U64 phys_chan_addr, u32 chan_bytes,
 				  int is_test_addr, uuid_le instGuid,
 				  struct InterruptInfo *intr);
-int  uislib_client_inject_pause_vhba(U32 busNo, U32 devNo);
-int  uislib_client_inject_resume_vhba(U32 busNo, U32 devNo);
-int uislib_client_inject_del_vhba(U32 busNo, U32 devNo);
-int uislib_client_inject_add_vnic(U32 busNo, U32 devNo,
-				  U64 phys_chan_addr, U32 chan_bytes,
+int  uislib_client_inject_pause_vhba(u32 busNo, u32 devNo);
+int  uislib_client_inject_resume_vhba(u32 busNo, u32 devNo);
+int uislib_client_inject_del_vhba(u32 busNo, u32 devNo);
+int uislib_client_inject_add_vnic(u32 busNo, u32 devNo,
+				  U64 phys_chan_addr, u32 chan_bytes,
 				  int is_test_addr, uuid_le instGuid,
 				  struct InterruptInfo *intr);
-int uislib_client_inject_pause_vnic(U32 busNo, U32 devNo);
-int uislib_client_inject_resume_vnic(U32 busNo, U32 devNo);
-int uislib_client_inject_del_vnic(U32 busNo, U32 devNo);
+int uislib_client_inject_pause_vnic(u32 busNo, u32 devNo);
+int uislib_client_inject_resume_vnic(u32 busNo, u32 devNo);
+int uislib_client_inject_del_vnic(u32 busNo, u32 devNo);
 #ifdef STORAGE_CHANNEL
 U64 uislib_storage_channel(int client_id);
 #endif
@@ -220,7 +220,7 @@ unsigned int uisutil_copy_fragsinfo_from_skb(unsigned char *calling_ctx,
 					     struct phys_info frags[]);
 
 static inline unsigned int
-Issue_VMCALL_IO_CONTROLVM_ADDR(U64 *ControlAddress, U32 *ControlBytes)
+Issue_VMCALL_IO_CONTROLVM_ADDR(U64 *ControlAddress, u32 *ControlBytes)
 {
 	VMCALL_IO_CONTROLVM_ADDR_PARAMS params;
 	int result = VMCALL_SUCCESS;
@@ -300,7 +300,7 @@ static inline int Issue_VMCALL_UPDATE_PHYSICAL_TIME(U64 adjustment)
 static inline unsigned int
 Issue_VMCALL_CHANNEL_MISMATCH(const char *ChannelName,
 			      const char *ItemName,
-			      U32 SourceLineNumber, const char *path_n_fn)
+			      u32 SourceLineNumber, const char *path_n_fn)
 {
 	VMCALL_CHANNEL_VERSION_MISMATCH_PARAMS params;
 	int result = VMCALL_SUCCESS;
@@ -347,10 +347,10 @@ void uislib_cache_free(struct kmem_cache *cur_pool, void *p, char *fn, int ln);
 #define UISCACHEFREE(cur_pool, p) \
 	uislib_cache_free(cur_pool, p, __FILE__, __LINE__)
 
-void uislib_enable_channel_interrupts(U32 busNo, U32 devNo,
+void uislib_enable_channel_interrupts(u32 busNo, u32 devNo,
 				      int (*interrupt)(void *),
 				      void *interrupt_context);
-void uislib_disable_channel_interrupts(U32 busNo, U32 devNo);
-void uislib_force_channel_interrupt(U32 busNo, U32 devNo);
+void uislib_disable_channel_interrupts(u32 busNo, u32 devNo);
+void uislib_force_channel_interrupt(u32 busNo, u32 devNo);
 
 #endif /* __UISUTILS__H__ */
