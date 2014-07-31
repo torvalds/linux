@@ -43,6 +43,24 @@ struct panel_desc {
 		unsigned int width;
 		unsigned int height;
 	} size;
+
+	/**
+	 * @prepare: the time (in milliseconds) that it takes for the panel to
+	 *           become ready and start receiving video data
+	 * @enable: the time (in milliseconds) that it takes for the panel to
+	 *          display the first valid frame after starting to receive
+	 *          video data
+	 * @disable: the time (in milliseconds) that it takes for the panel to
+	 *           turn the display off (no content is visible)
+	 * @unprepare: the time (in milliseconds) that it takes for the panel
+	 *             to power itself down completely
+	 */
+	struct {
+		unsigned int prepare;
+		unsigned int enable;
+		unsigned int disable;
+		unsigned int unprepare;
+	} delay;
 };
 
 struct panel_simple {
@@ -109,6 +127,9 @@ static int panel_simple_disable(struct drm_panel *panel)
 		backlight_update_status(p->backlight);
 	}
 
+	if (p->desc->delay.disable)
+		msleep(p->desc->delay.disable);
+
 	p->enabled = false;
 
 	return 0;
@@ -125,6 +146,9 @@ static int panel_simple_unprepare(struct drm_panel *panel)
 		gpiod_set_value_cansleep(p->enable_gpio, 0);
 
 	regulator_disable(p->supply);
+
+	if (p->desc->delay.unprepare)
+		msleep(p->desc->delay.unprepare);
 
 	p->prepared = false;
 
@@ -148,6 +172,9 @@ static int panel_simple_prepare(struct drm_panel *panel)
 	if (p->enable_gpio)
 		gpiod_set_value_cansleep(p->enable_gpio, 1);
 
+	if (p->desc->delay.prepare)
+		msleep(p->desc->delay.prepare);
+
 	p->prepared = true;
 
 	return 0;
@@ -159,6 +186,9 @@ static int panel_simple_enable(struct drm_panel *panel)
 
 	if (p->enabled)
 		return 0;
+
+	if (p->desc->delay.enable)
+		msleep(p->desc->delay.enable);
 
 	if (p->backlight) {
 		p->backlight->props.power = FB_BLANK_UNBLANK;
