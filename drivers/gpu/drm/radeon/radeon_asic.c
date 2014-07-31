@@ -185,6 +185,7 @@ static struct radeon_asic_ring r100_gfx_ring = {
 	.get_rptr = &r100_gfx_get_rptr,
 	.get_wptr = &r100_gfx_get_wptr,
 	.set_wptr = &r100_gfx_set_wptr,
+	.hdp_flush = &r100_ring_hdp_flush,
 };
 
 static struct radeon_asic r100_asic = {
@@ -331,6 +332,7 @@ static struct radeon_asic_ring r300_gfx_ring = {
 	.get_rptr = &r100_gfx_get_rptr,
 	.get_wptr = &r100_gfx_get_wptr,
 	.set_wptr = &r100_gfx_set_wptr,
+	.hdp_flush = &r100_ring_hdp_flush,
 };
 
 static struct radeon_asic r300_asic = {
@@ -1987,7 +1989,7 @@ static struct radeon_asic ci_asic = {
 	.resume = &cik_resume,
 	.asic_reset = &cik_asic_reset,
 	.vga_set_state = &r600_vga_set_state,
-	.mmio_hdp_flush = NULL,
+	.mmio_hdp_flush = &r600_mmio_hdp_flush,
 	.gui_idle = &r600_gui_idle,
 	.mc_wait_for_idle = &evergreen_mc_wait_for_idle,
 	.get_xclk = &cik_get_xclk,
@@ -2091,7 +2093,7 @@ static struct radeon_asic kv_asic = {
 	.resume = &cik_resume,
 	.asic_reset = &cik_asic_reset,
 	.vga_set_state = &r600_vga_set_state,
-	.mmio_hdp_flush = NULL,
+	.mmio_hdp_flush = &r600_mmio_hdp_flush,
 	.gui_idle = &r600_gui_idle,
 	.mc_wait_for_idle = &evergreen_mc_wait_for_idle,
 	.get_xclk = &cik_get_xclk,

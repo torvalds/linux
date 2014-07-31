@@ -82,9 +82,11 @@
  *   2.38.0 - RADEON_GEM_OP (GET_INITIAL_DOMAIN, SET_INITIAL_DOMAIN),
  *            CIK: 1D and linear tiling modes contain valid PIPE_CONFIG
  *   2.39.0 - Add INFO query for number of active CUs
+ *   2.40.0 - Add RADEON_GEM_GTT_WC/UC, flush HDP cache before submitting
+ *            CS to GPU
  */
 #define KMS_DRIVER_MAJOR	2
-#define KMS_DRIVER_MINOR	39
+#define KMS_DRIVER_MINOR	40
 #define KMS_DRIVER_PATCHLEVEL	0
 int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags);
 int radeon_driver_unload_kms(struct drm_device *dev);

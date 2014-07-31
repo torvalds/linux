@@ -148,7 +148,8 @@ u32 r100_gfx_get_wptr(struct radeon_device *rdev,
 		      struct radeon_ring *ring);
 void r100_gfx_set_wptr(struct radeon_device *rdev,
 		       struct radeon_ring *ring);
-
+void r100_ring_hdp_flush(struct radeon_device *rdev,
+			 struct radeon_ring *ring);
 /*
  * r200,rv250,rs300,rv280
  */

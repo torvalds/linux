@@ -183,11 +183,21 @@ int radeon_ring_lock(struct radeon_device *rdev, struct radeon_ring *ring, unsig
  */
 void radeon_ring_commit(struct radeon_device *rdev, struct radeon_ring *ring)
 {
+	/* If we are emitting the HDP flush via the ring buffer, we need to
+	 * do it before padding.
+	 */
+	if (rdev->asic->ring[ring->idx]->hdp_flush)
+		rdev->asic->ring[ring->idx]->hdp_flush(rdev, ring);
 	/* We pad to match fetch size */
 	while (ring->wptr & ring->align_mask) {
 		radeon_ring_write(ring, ring->nop);
 	}
 	mb();
+	/* If we are emitting the HDP flush via MMIO, we need to do it after
+	 * all CPU writes to VRAM finished.
+	 */
+	if (rdev->asic->mmio_hdp_flush)
+		rdev->asic->mmio_hdp_flush(rdev);
 	radeon_ring_set_wptr(rdev, ring);
 }
 

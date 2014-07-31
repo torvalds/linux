@@ -3890,8 +3890,6 @@ void cik_fence_gfx_ring_emit(struct radeon_device *rdev,
 	radeon_ring_write(ring, (upper_32_bits(addr) & 0xffff) | DATA_SEL(1) | INT_SEL(2));
 	radeon_ring_write(ring, fence->seq);
 	radeon_ring_write(ring, 0);
-	/* HDP flush */
-	cik_hdp_flush_cp_ring_emit(rdev, fence->ring);
 }
 
 /**
@@ -3920,8 +3918,6 @@ void cik_fence_compute_ring_emit(struct radeon_device *rdev,
 	radeon_ring_write(ring, upper_32_bits(addr));
 	radeon_ring_write(ring, fence->seq);
 	radeon_ring_write(ring, 0);
-	/* HDP flush */
-	cik_hdp_flush_cp_ring_emit(rdev, fence->ring);
 }
 
 bool cik_semaphore_ring_emit(struct radeon_device *rdev,
