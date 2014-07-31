@@ -278,6 +278,7 @@ static int rk3036_hdmi_drv_init(struct hdmi *hdmi_drv)
 #if defined(CONFIG_OF)
 static const struct of_device_id rk3036_hdmi_of_match[] = {
 	{.compatible = "rockchip,rk3036-hdmi",},
+	{.compatible = "rockchip,rk312x-hdmi",},
 	{}
 };
 
