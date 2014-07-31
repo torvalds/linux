@@ -201,10 +201,10 @@ struct exynos_tmu_registers {
  * @max_trigger_level: max trigger level supported by the TMU
  * @non_hw_trigger_levels: number of defined non-hardware trigger levels
  * @gain: gain of amplifier in the positive-TC generator block
- *	0 <= gain <= 15
+ *	0 < gain <= 15
  * @reference_voltage: reference voltage of amplifier
  *	in the positive-TC generator block
- *	0 <= reference_voltage <= 31
+ *	0 < reference_voltage <= 31
  * @noise_cancel_mode: noise cancellation mode
  *	000, 100, 101, 110 and 111 can be different modes
  * @type: determines the type of SOC
