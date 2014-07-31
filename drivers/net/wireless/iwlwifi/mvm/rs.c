@@ -2858,6 +2858,9 @@ static void rs_fill_lq_cmd(struct iwl_mvm *mvm,
 	if (iwl_mvm_vif_low_latency(mvmvif))
 		lq_cmd->agg_frame_cnt_limit--;
 
+	if (mvmsta->vif->p2p)
+		lq_cmd->flags |= LQ_FLAG_USE_RTS_MSK;
+
 	lq_cmd->agg_time_limit =
 			cpu_to_le16(iwl_mvm_coex_agg_time_limit(mvm, sta));
 }
