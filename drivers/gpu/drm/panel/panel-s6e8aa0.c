@@ -892,6 +892,11 @@ static int s6e8aa0_power_off(struct s6e8aa0 *ctx)
 
 static int s6e8aa0_disable(struct drm_panel *panel)
 {
+	return 0;
+}
+
+static int s6e8aa0_unprepare(struct drm_panel *panel)
+{
 	struct s6e8aa0 *ctx = panel_to_s6e8aa0(panel);
 
 	s6e8aa0_dcs_write_seq_static(ctx, MIPI_DCS_ENTER_SLEEP_MODE);
@@ -903,17 +908,7 @@ static int s6e8aa0_disable(struct drm_panel *panel)
 	return s6e8aa0_power_off(ctx);
 }
 
-static int s6e8aa0_unprepare(struct drm_panel *panel)
-{
-	return 0;
-}
-
 static int s6e8aa0_prepare(struct drm_panel *panel)
-{
-	return 0;
-}
-
-static int s6e8aa0_enable(struct drm_panel *panel)
 {
 	struct s6e8aa0 *ctx = panel_to_s6e8aa0(panel);
 	int ret;
@@ -926,9 +921,14 @@ static int s6e8aa0_enable(struct drm_panel *panel)
 	ret = ctx->error;
 
 	if (ret < 0)
-		s6e8aa0_disable(panel);
+		s6e8aa0_unprepare(panel);
 
 	return ret;
+}
+
+static int s6e8aa0_enable(struct drm_panel *panel)
+{
+	return 0;
 }
 
 static int s6e8aa0_get_modes(struct drm_panel *panel)
