@@ -426,16 +426,16 @@ static int wm8770_hw_params(struct snd_pcm_substream *substream,
 	wm8770 = snd_soc_codec_get_drvdata(codec);
 
 	iface = 0;
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S16_LE:
+	switch (params_width(params)) {
+	case 16:
 		break;
-	case SNDRV_PCM_FORMAT_S20_3LE:
+	case 20:
 		iface |= 0x10;
 		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
+	case 24:
 		iface |= 0x20;
 		break;
-	case SNDRV_PCM_FORMAT_S32_LE:
+	case 32:
 		iface |= 0x30;
 		break;
 	}
