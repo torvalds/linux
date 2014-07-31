@@ -115,13 +115,16 @@ static int rk31xx_lvds_disable(void)
 {
 	struct rk_lvds_device *lvds = rk31xx_lvds;
 
-        if (!lvds->sys_state)
+        if (unlikely(!lvds) || !lvds->sys_state)
                 return 0;
 
 	grf_writel(v_LVDSMODE_EN(0) | v_MIPIPHY_TTL_EN(0), RK312X_GRF_LVDS_CON0);
 
         rk31xx_lvds_pwr_off();
 	rk31xx_lvds_clk_disable(lvds);
+        if (lvds->screen.type == SCREEN_RGB)
+                pinctrl_select_state(lvds->dev->pins->p,
+                                     lvds->dev->pins->sleep_state);
         lvds->sys_state = false;
 	return 0;
 }
@@ -168,12 +171,18 @@ static void rk31xx_output_lvttl(struct rk_lvds_device *lvds,
                                 struct rk_screen *screen)
 {
         u32 val = 0;
+        struct pinctrl_state *lcdc_state;
 
         /* iomux to lcdc */
+#if defined(CONFIG_RK_FPGA)
         grf_writel(0xffff5555, RK312X_GRF_GPIO2B_IOMUX);
         grf_writel(0x00ff0055, RK312X_GRF_GPIO2C_IOMUX);
         grf_writel(0x77771111, 0x00e8); /* RK312X_GRF_GPIO2C_IOMUX2 */
         grf_writel(0x700c1008, RK312X_GRF_GPIO2D_IOMUX);
+#else
+        lcdc_state = pinctrl_lookup_state(lvds->dev->pins->p, "lcdc");
+        pinctrl_select_state(lvds->dev->pins->p, lcdc_state);
+#endif
 
 	val |= v_LVDSMODE_EN(0) | v_MIPIPHY_TTL_EN(1);      /* enable lvds mode */
 	val |= v_LVDS_DATA_SEL(LVDS_DATA_FROM_LCDC);    /* config data source */
@@ -198,11 +207,12 @@ static void rk31xx_output_lvttl(struct rk_lvds_device *lvds,
 static int rk31xx_lvds_en(void)
 {
 	struct rk_lvds_device *lvds = rk31xx_lvds;
-	struct rk_screen *screen = &lvds->screen;
+	struct rk_screen *screen;
 
-        if (lvds->sys_state)
+        if (unlikely(!lvds) || lvds->sys_state)
                 return 0;
 
+        screen = &lvds->screen;
 	rk_fb_get_prmry_screen(screen);
 
 	/* enable clk */
