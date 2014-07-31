@@ -2976,9 +2976,9 @@ struct sk_buff *skb_segment(struct sk_buff *head_skb,
 		tail = nskb;
 
 		__copy_skb_header(nskb, head_skb);
-		nskb->mac_len = head_skb->mac_len;
 
 		skb_headers_offset_update(nskb, skb_headroom(nskb) - headroom);
+		skb_reset_mac_len(nskb);
 
 		skb_copy_from_linear_data_offset(head_skb, -tnl_hlen,
 						 nskb->data - tnl_hlen,
