@@ -365,9 +365,9 @@ int radeon_gem_wait_idle_ioctl(struct drm_device *dev, void *data,
 	}
 	robj = gem_to_radeon_bo(gobj);
 	r = radeon_bo_wait(robj, NULL, false);
-	/* callback hw specific functions if any */
-	if (rdev->asic->ioctl_wait_idle)
-		robj->rdev->asic->ioctl_wait_idle(rdev, robj);
+	/* Flush HDP cache via MMIO if necessary */
+	if (rdev->asic->mmio_hdp_flush)
+		robj->rdev->asic->mmio_hdp_flush(rdev);
 	drm_gem_object_unreference_unlocked(gobj);
 	r = radeon_gem_handle_lockup(rdev, r);
 	return r;
