@@ -826,7 +826,7 @@ static int fsl_asrc_probe(struct platform_device *pdev)
 	asrc_priv->mem_clk = devm_clk_get(&pdev->dev, "mem");
 	if (IS_ERR(asrc_priv->mem_clk)) {
 		dev_err(&pdev->dev, "failed to get mem clock\n");
-		return PTR_ERR(asrc_priv->ipg_clk);
+		return PTR_ERR(asrc_priv->mem_clk);
 	}
 
 	asrc_priv->ipg_clk = devm_clk_get(&pdev->dev, "ipg");
