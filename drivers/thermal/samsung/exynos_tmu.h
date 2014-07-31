@@ -34,11 +34,6 @@ enum calibration_type {
 	TYPE_NONE,
 };
 
-enum calibration_mode {
-	SW_MODE,
-	HW_MODE,
-};
-
 enum soc_type {
 	SOC_ARCH_EXYNOS3250 = 1,
 	SOC_ARCH_EXYNOS4210,
@@ -95,10 +90,6 @@ enum soc_type {
  * @buf_slope_sel_shift: shift bits of amplifier gain value in tmu_ctrl
 	register.
  * @buf_slope_sel_mask: mask bits of amplifier gain value in tmu_ctrl register.
- * @calib_mode_shift: shift bits of calibration mode value in tmu_ctrl
-	register.
- * @calib_mode_mask: mask bits of calibration mode value in tmu_ctrl
-	register.
  * @core_en_shift: shift bits of TMU core enable bit in tmu_ctrl register.
  * @tmu_status: register drescribing the TMU status.
  * @tmu_cur_temp: register containing the current temperature of the TMU.
@@ -143,8 +134,6 @@ struct exynos_tmu_registers {
 	u32	therm_trip_en_shift;
 	u32	buf_slope_sel_shift;
 	u32	buf_slope_sel_mask;
-	u32	calib_mode_shift;
-	u32	calib_mode_mask;
 	u32	core_en_shift;
 
 	u32	tmu_status;
@@ -226,7 +215,6 @@ struct exynos_tmu_registers {
  * @default_temp_offset: default temperature offset in case of no trimming
  * @test_mux; information if SoC supports test MUX
  * @cal_type: calibration type for temperature
- * @cal_mode: calibration mode for temperature
  * @freq_clip_table: Table representing frequency reduction percentage.
  * @freq_tab_count: Count of the above table as frequency reduction may
  *	applicable to only some of the trigger levels.
@@ -257,7 +245,6 @@ struct exynos_tmu_platform_data {
 	u8 test_mux;
 
 	enum calibration_type cal_type;
-	enum calibration_mode cal_mode;
 	enum soc_type type;
 	struct freq_clip_table freq_tab[4];
 	unsigned int freq_tab_count;
