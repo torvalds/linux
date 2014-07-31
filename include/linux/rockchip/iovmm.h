@@ -60,16 +60,15 @@ void iovmm_unmap_oto(struct device *dev, phys_addr_t phys);
 
 struct device *rockchip_get_sysmmu_device_by_compatible(const char *compt);
 
-
 #else
-#define iovmm_activate(dev)		(-ENOSYS)
-#define iovmm_deactivate(dev)		do { } while (0)
-#define iovmm_map(dev, sg, offset, size) (-ENOSYS)
-#define iovmm_unmap(dev, iova)		do { } while (0)
-#define iovmm_map_oto(dev, phys, size)	(-ENOSYS)
-#define iovmm_unmap_oto(dev, phys)	do { } while (0)
-#define rockchip_get_sysmmu_device_by_compatible(compt) (NULL)
-
+static inline int iovmm_activate(struct device *dev) {return -ENOSYS; }
+static inline void iovmm_deactivate(struct device *dev) { }
+static inline dma_addr_t iovmm_map(struct device *dev, struct scatterlist *sg, off_t offset,
+				   size_t size) { return -ENOSYS; }
+static inline void iovmm_unmap(struct device *dev, dma_addr_t iova) { }
+static inline int iovmm_map_oto(struct device *dev, phys_addr_t phys, size_t size) {return -ENOSYS; }
+static inline void iovmm_unmap_oto(struct device *dev, phys_addr_t phys) { }
+static inline struct device *rockchip_get_sysmmu_device_by_compatible(const char *compt) {return NULL; }
 #endif /* CONFIG_ROCKCHIP_IOVMM */
 
 #endif /*__ASM_PLAT_IOVMM_H*/
