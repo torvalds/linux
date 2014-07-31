@@ -25,12 +25,6 @@
 #include <linux/io.h>
 #include <linux/uuid.h>
 
-#ifdef CONFIG_X86_32
-#define UINTN u32
-#else
-#define UINTN u64
-#endif
-
 typedef u64 GUEST_PHYSICAL_ADDRESS;
 
 #define MEMSET(ptr, val, len) memset(ptr, val, len)

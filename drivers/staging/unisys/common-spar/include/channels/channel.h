@@ -295,8 +295,8 @@ typedef struct _SIGNAL_QUEUE_HEADER {
 		chan->QHDRFLD.Type = typ;				\
 		chan->QHDRFLD.Size = sizeof(chan->QDATAFLD);		\
 		chan->QHDRFLD.SignalSize = sizeof(QDATATYPE);		\
-		chan->QHDRFLD.oSignalBase = (UINTN)(chan->QDATAFLD)-	\
-			(UINTN)(&chan->QHDRFLD);			\
+		chan->QHDRFLD.oSignalBase = (u64)(chan->QDATAFLD)-	\
+			(u64)(&chan->QHDRFLD);				\
 		chan->QHDRFLD.MaxSignalSlots =				\
 			sizeof(chan->QDATAFLD)/sizeof(QDATATYPE);	\
 		chan->QHDRFLD.MaxSignals = chan->QHDRFLD.MaxSignalSlots-1; \
