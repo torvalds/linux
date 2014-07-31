@@ -207,10 +207,8 @@ static void perf_gtk__show_hists(GtkWidget *window, struct hists *hists,
 		if (perf_hpp__is_sort_entry(fmt))
 			sym_col = col_idx;
 
-		fmt->header(fmt, &hpp, hists_to_evsel(hists));
-
 		gtk_tree_view_insert_column_with_attributes(GTK_TREE_VIEW(view),
-							    -1, ltrim(s),
+							    -1, fmt->name,
 							    renderer, "markup",
 							    col_idx++, NULL);
 	}
