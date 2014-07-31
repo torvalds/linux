@@ -694,13 +694,15 @@ static void iser_route_handler(struct rdma_cm_id *cma_id)
 	struct rdma_conn_param conn_param;
 	int    ret;
 	struct iser_cm_hdr req_hdr;
+	struct iser_conn *ib_conn = (struct iser_conn *)cma_id->context;
+	struct iser_device *device = ib_conn->device;
 
 	ret = iser_create_ib_conn_res((struct iser_conn *)cma_id->context);
 	if (ret)
 		goto failure;
 
 	memset(&conn_param, 0, sizeof conn_param);
-	conn_param.responder_resources = 4;
+	conn_param.responder_resources = device->dev_attr.max_qp_rd_atom;
 	conn_param.initiator_depth     = 1;
 	conn_param.retry_count	       = 7;
 	conn_param.rnr_retry_count     = 6;
