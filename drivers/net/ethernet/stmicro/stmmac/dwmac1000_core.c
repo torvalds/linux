@@ -32,8 +32,9 @@
 #include <asm/io.h>
 #include "dwmac1000.h"
 
-static void dwmac1000_core_init(void __iomem *ioaddr, int mtu)
+static void dwmac1000_core_init(struct mac_device_info *hw, int mtu)
 {
+	void __iomem *ioaddr = hw->pcsr;
 	u32 value = readl(ioaddr + GMAC_CONTROL);
 	value |= GMAC_CORE_INIT;
 	if (mtu > 1500)
@@ -52,8 +53,9 @@ static void dwmac1000_core_init(void __iomem *ioaddr, int mtu)
 #endif
 }
 
-static int dwmac1000_rx_ipc_enable(void __iomem *ioaddr)
+static int dwmac1000_rx_ipc_enable(struct mac_device_info *hw)
 {
+	void __iomem *ioaddr = hw->pcsr;
 	u32 value = readl(ioaddr + GMAC_CONTROL);
 
 	value |= GMAC_CONTROL_IPC;
@@ -64,8 +66,9 @@ static int dwmac1000_rx_ipc_enable(void __iomem *ioaddr)
 	return !!(value & GMAC_CONTROL_IPC);
 }
 
-static void dwmac1000_dump_regs(void __iomem *ioaddr)
+static void dwmac1000_dump_regs(struct mac_device_info *hw)
 {
+	void __iomem *ioaddr = hw->pcsr;
 	int i;
 	pr_info("\tDWMAC1000 regs (base addr = 0x%p)\n", ioaddr);
 
@@ -76,16 +79,20 @@ static void dwmac1000_dump_regs(void __iomem *ioaddr)
 	}
 }
 
-static void dwmac1000_set_umac_addr(void __iomem *ioaddr, unsigned char *addr,
+static void dwmac1000_set_umac_addr(struct mac_device_info *hw,
+				    unsigned char *addr,
 				    unsigned int reg_n)
 {
+	void __iomem *ioaddr = hw->pcsr;
 	stmmac_set_mac_addr(ioaddr, addr, GMAC_ADDR_HIGH(reg_n),
 			    GMAC_ADDR_LOW(reg_n));
 }
 
-static void dwmac1000_get_umac_addr(void __iomem *ioaddr, unsigned char *addr,
+static void dwmac1000_get_umac_addr(struct mac_device_info *hw,
+				    unsigned char *addr,
 				    unsigned int reg_n)
 {
+	void __iomem *ioaddr = hw->pcsr;
 	stmmac_get_mac_addr(ioaddr, addr, GMAC_ADDR_HIGH(reg_n),
 			    GMAC_ADDR_LOW(reg_n));
 }
@@ -146,7 +153,9 @@ static void dwmac1000_set_filter(struct net_device *dev, int id)
 		struct netdev_hw_addr *ha;
 
 		netdev_for_each_uc_addr(ha, dev) {
-			dwmac1000_set_umac_addr(ioaddr, ha->addr, reg);
+			stmmac_get_mac_addr(ioaddr, ha->addr,
+					    GMAC_ADDR_HIGH(reg),
+					    GMAC_ADDR_LOW(reg));
 			reg++;
 		}
 	}
@@ -162,9 +171,11 @@ static void dwmac1000_set_filter(struct net_device *dev, int id)
 		 readl(ioaddr + GMAC_HASH_HIGH), readl(ioaddr + GMAC_HASH_LOW));
 }
 
-static void dwmac1000_flow_ctrl(void __iomem *ioaddr, unsigned int duplex,
+
+static void dwmac1000_flow_ctrl(struct mac_device_info *hw, unsigned int duplex,
 				unsigned int fc, unsigned int pause_time)
 {
+	void __iomem *ioaddr = hw->pcsr;
 	unsigned int flow = 0;
 
 	pr_debug("GMAC Flow-Control:\n");
@@ -185,8 +196,9 @@ static void dwmac1000_flow_ctrl(void __iomem *ioaddr, unsigned int duplex,
 	writel(flow, ioaddr + GMAC_FLOW_CTRL);
 }
 
-static void dwmac1000_pmt(void __iomem *ioaddr, unsigned long mode)
+static void dwmac1000_pmt(struct mac_device_info *hw, unsigned long mode)
 {
+	void __iomem *ioaddr = hw->pcsr;
 	unsigned int pmt = 0;
 
 	if (mode & WAKE_MAGIC) {
@@ -201,9 +213,10 @@ static void dwmac1000_pmt(void __iomem *ioaddr, unsigned long mode)
 	writel(pmt, ioaddr + GMAC_PMT);
 }
 
-static int dwmac1000_irq_status(void __iomem *ioaddr,
+static int dwmac1000_irq_status(struct mac_device_info *hw,
 				struct stmmac_extra_stats *x)
 {
+	void __iomem *ioaddr = hw->pcsr;
 	u32 intr_status = readl(ioaddr + GMAC_INT_STATUS);
 	int ret = 0;
 
@@ -268,8 +281,9 @@ static int dwmac1000_irq_status(void __iomem *ioaddr,
 	return ret;
 }
 
-static void dwmac1000_set_eee_mode(void __iomem *ioaddr)
+static void dwmac1000_set_eee_mode(struct mac_device_info *hw)
 {
+	void __iomem *ioaddr = hw->pcsr;
 	u32 value;
 
 	/* Enable the link status receive on RGMII, SGMII ore SMII
@@ -281,8 +295,9 @@ static void dwmac1000_set_eee_mode(void __iomem *ioaddr)
 	writel(value, ioaddr + LPI_CTRL_STATUS);
 }
 
-static void dwmac1000_reset_eee_mode(void __iomem *ioaddr)
+static void dwmac1000_reset_eee_mode(struct mac_device_info *hw)
 {
+	void __iomem *ioaddr = hw->pcsr;
 	u32 value;
 
 	value = readl(ioaddr + LPI_CTRL_STATUS);
@@ -290,8 +305,9 @@ static void dwmac1000_reset_eee_mode(void __iomem *ioaddr)
 	writel(value, ioaddr + LPI_CTRL_STATUS);
 }
 
-static void dwmac1000_set_eee_pls(void __iomem *ioaddr, int link)
+static void dwmac1000_set_eee_pls(struct mac_device_info *hw, int link)
 {
+	void __iomem *ioaddr = hw->pcsr;
 	u32 value;
 
 	value = readl(ioaddr + LPI_CTRL_STATUS);
@@ -304,8 +320,9 @@ static void dwmac1000_set_eee_pls(void __iomem *ioaddr, int link)
 	writel(value, ioaddr + LPI_CTRL_STATUS);
 }
 
-static void dwmac1000_set_eee_timer(void __iomem *ioaddr, int ls, int tw)
+static void dwmac1000_set_eee_timer(struct mac_device_info *hw, int ls, int tw)
 {
+	void __iomem *ioaddr = hw->pcsr;
 	int value = ((tw & 0xffff)) | ((ls & 0x7ff) << 16);
 
 	/* Program the timers in the LPI timer control register:
@@ -318,8 +335,9 @@ static void dwmac1000_set_eee_timer(void __iomem *ioaddr, int ls, int tw)
 	writel(value, ioaddr + LPI_TIMER_CTRL);
 }
 
-static void dwmac1000_ctrl_ane(void __iomem *ioaddr, bool restart)
+static void dwmac1000_ctrl_ane(struct mac_device_info *hw, bool restart)
 {
+	void __iomem *ioaddr = hw->pcsr;
 	/* auto negotiation enable and External Loopback enable */
 	u32 value = GMAC_AN_CTRL_ANE | GMAC_AN_CTRL_ELE;
 
@@ -329,8 +347,9 @@ static void dwmac1000_ctrl_ane(void __iomem *ioaddr, bool restart)
 	writel(value, ioaddr + GMAC_AN_CTRL);
 }
 
-static void dwmac1000_get_adv(void __iomem *ioaddr, struct rgmii_adv *adv)
+static void dwmac1000_get_adv(struct mac_device_info *hw, struct rgmii_adv *adv)
 {
+	void __iomem *ioaddr = hw->pcsr;
 	u32 value = readl(ioaddr + GMAC_ANE_ADV);
 
 	if (value & GMAC_ANE_FD)
@@ -377,6 +396,7 @@ struct mac_device_info *dwmac1000_setup(void __iomem *ioaddr)
 	if (!mac)
 		return NULL;
 
+	mac->pcsr = ioaddr;
 	mac->mac = &dwmac1000_ops;
 	mac->dma = &dwmac1000_dma_ops;
 
