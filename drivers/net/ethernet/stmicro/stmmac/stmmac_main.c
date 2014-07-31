@@ -2222,7 +2222,7 @@ static void stmmac_set_rx_mode(struct net_device *dev)
 	struct stmmac_priv *priv = netdev_priv(dev);
 
 	spin_lock(&priv->lock);
-	priv->hw->mac->set_filter(dev, priv->synopsys_id);
+	priv->hw->mac->set_filter(dev);
 	spin_unlock(&priv->lock);
 }
 
