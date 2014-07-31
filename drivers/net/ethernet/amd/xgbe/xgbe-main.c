@@ -245,6 +245,7 @@ static int xgbe_probe(struct platform_device *pdev)
 
 	spin_lock_init(&pdata->lock);
 	mutex_init(&pdata->xpcs_mutex);
+	spin_lock_init(&pdata->tstamp_lock);
 
 	/* Set and validate the number of descriptors for a ring */
 	BUILD_BUG_ON_NOT_POWER_OF_2(XGBE_TX_DESC_CNT);
@@ -265,10 +266,18 @@ static int xgbe_probe(struct platform_device *pdev)
 	}
 
 	/* Obtain the system clock setting */
-	pdata->sysclock = devm_clk_get(dev, NULL);
-	if (IS_ERR(pdata->sysclock)) {
-		dev_err(dev, "devm_clk_get failed\n");
-		ret = PTR_ERR(pdata->sysclock);
+	pdata->sysclk = devm_clk_get(dev, XGBE_DMA_CLOCK);
+	if (IS_ERR(pdata->sysclk)) {
+		dev_err(dev, "dma devm_clk_get failed\n");
+		ret = PTR_ERR(pdata->sysclk);
+		goto err_io;
+	}
+
+	/* Obtain the PTP clock setting */
+	pdata->ptpclk = devm_clk_get(dev, XGBE_PTP_CLOCK);
+	if (IS_ERR(pdata->ptpclk)) {
+		dev_err(dev, "ptp devm_clk_get failed\n");
+		ret = PTR_ERR(pdata->ptpclk);
 		goto err_io;
 	}
 
@@ -346,9 +355,16 @@ static int xgbe_probe(struct platform_device *pdev)
 	/* Set default configuration data */
 	xgbe_default_config(pdata);
 
-	/* Calculate the number of Tx and Rx rings to be created */
+	/* Calculate the number of Tx and Rx rings to be created
+	 *  -Tx (DMA) Channels map 1-to-1 to Tx Queues so set
+	 *   the number of Tx queues to the number of Tx channels
+	 *   enabled
+	 *  -Rx (DMA) Channels do not map 1-to-1 so use the actual
+	 *   number of Rx queues
+	 */
 	pdata->tx_ring_count = min_t(unsigned int, num_online_cpus(),
 				     pdata->hw_feat.tx_ch_cnt);
+	pdata->tx_q_count = pdata->tx_ring_count;
 	ret = netif_set_real_num_tx_queues(netdev, pdata->tx_ring_count);
 	if (ret) {
 		dev_err(dev, "error setting real tx queue count\n");
@@ -358,6 +374,7 @@ static int xgbe_probe(struct platform_device *pdev)
 	pdata->rx_ring_count = min_t(unsigned int,
 				     netif_get_num_default_rss_queues(),
 				     pdata->hw_feat.rx_ch_cnt);
+	pdata->rx_q_count = pdata->hw_feat.rx_q_cnt;
 	ret = netif_set_real_num_rx_queues(netdev, pdata->rx_ring_count);
 	if (ret) {
 		dev_err(dev, "error setting real rx queue count\n");
@@ -383,9 +400,12 @@ static int xgbe_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_bus_id;
 
-	/* Set network and ethtool operations */
+	/* Set device operations */
 	netdev->netdev_ops = xgbe_get_netdev_ops();
 	netdev->ethtool_ops = xgbe_get_ethtool_ops();
+#ifdef CONFIG_AMD_XGBE_DCB
+	netdev->dcbnl_ops = xgbe_get_dcbnl_ops();
+#endif
 
 	/* Set device features */
 	netdev->hw_features = NETIF_F_SG |
@@ -420,6 +440,8 @@ static int xgbe_probe(struct platform_device *pdev)
 		goto err_reg_netdev;
 	}
 
+	xgbe_ptp_register(pdata);
+
 	xgbe_debugfs_init(pdata);
 
 	netdev_notice(netdev, "net device enabled\n");
@@ -451,6 +473,8 @@ static int xgbe_remove(struct platform_device *pdev)
 	DBGPR("-->xgbe_remove\n");
 
 	xgbe_debugfs_exit(pdata);
+
+	xgbe_ptp_unregister(pdata);
 
 	unregister_netdev(netdev);
 

@@ -359,6 +359,15 @@ static void xgbe_unmap_skb(struct xgbe_prv_data *pdata,
 	rdata->len = 0;
 	rdata->interrupt = 0;
 	rdata->mapped_as_page = 0;
+
+	if (rdata->state_saved) {
+		rdata->state_saved = 0;
+		rdata->state.incomplete = 0;
+		rdata->state.context_next = 0;
+		rdata->state.skb = NULL;
+		rdata->state.len = 0;
+		rdata->state.error = 0;
+	}
 }
 
 static int xgbe_map_tx_skb(struct xgbe_channel *channel, struct sk_buff *skb)

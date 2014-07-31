@@ -121,6 +121,7 @@
 #include <net/busy_poll.h>
 #include <linux/clk.h>
 #include <linux/if_ether.h>
+#include <linux/net_tstamp.h>
 
 #include "xgbe.h"
 #include "xgbe-common.h"
@@ -202,7 +203,7 @@ static irqreturn_t xgbe_isr(int irq, void *data)
 	struct xgbe_hw_if *hw_if = &pdata->hw_if;
 	struct xgbe_channel *channel;
 	unsigned int dma_isr, dma_ch_isr;
-	unsigned int mac_isr;
+	unsigned int mac_isr, mac_tssr;
 	unsigned int i;
 
 	/* The DMA interrupt status register also reports MAC and MTL
@@ -255,6 +256,17 @@ static irqreturn_t xgbe_isr(int irq, void *data)
 
 		if (XGMAC_GET_BITS(mac_isr, MAC_ISR, MMCRXIS))
 			hw_if->rx_mmc_int(pdata);
+
+		if (XGMAC_GET_BITS(mac_isr, MAC_ISR, TSIS)) {
+			mac_tssr = XGMAC_IOREAD(pdata, MAC_TSSR);
+
+			if (XGMAC_GET_BITS(mac_tssr, MAC_TSSR, TXTSC)) {
+				/* Read Tx Timestamp to clear interrupt */
+				pdata->tx_tstamp =
+					hw_if->get_tx_tstamp(pdata);
+				schedule_work(&pdata->tx_tstamp_work);
+			}
+		}
 	}
 
 	DBGPR("  DMA_ISR = %08x\n", XGMAC_IOREAD(pdata, DMA_ISR));
@@ -375,6 +387,7 @@ void xgbe_get_all_hw_features(struct xgbe_prv_data *pdata)
 	hw_feat->sph           = XGMAC_GET_BITS(mac_hfr1, MAC_HWF1R, SPHEN);
 	hw_feat->tso           = XGMAC_GET_BITS(mac_hfr1, MAC_HWF1R, TSOEN);
 	hw_feat->dma_debug     = XGMAC_GET_BITS(mac_hfr1, MAC_HWF1R, DBGMEMA);
+	hw_feat->tc_cnt	       = XGMAC_GET_BITS(mac_hfr1, MAC_HWF1R, NUMTC);
 	hw_feat->hash_table_size = XGMAC_GET_BITS(mac_hfr1, MAC_HWF1R,
 						  HASHTBLSZ);
 	hw_feat->l3l4_filter_num = XGMAC_GET_BITS(mac_hfr1, MAC_HWF1R,
@@ -668,6 +681,197 @@ static void xgbe_restart(struct work_struct *work)
 	rtnl_unlock();
 }
 
+static void xgbe_tx_tstamp(struct work_struct *work)
+{
+	struct xgbe_prv_data *pdata = container_of(work,
+						   struct xgbe_prv_data,
+						   tx_tstamp_work);
+	struct skb_shared_hwtstamps hwtstamps;
+	u64 nsec;
+	unsigned long flags;
+
+	if (pdata->tx_tstamp) {
+		nsec = timecounter_cyc2time(&pdata->tstamp_tc,
+					    pdata->tx_tstamp);
+
+		memset(&hwtstamps, 0, sizeof(hwtstamps));
+		hwtstamps.hwtstamp = ns_to_ktime(nsec);
+		skb_tstamp_tx(pdata->tx_tstamp_skb, &hwtstamps);
+	}
+
+	dev_kfree_skb_any(pdata->tx_tstamp_skb);
+
+	spin_lock_irqsave(&pdata->tstamp_lock, flags);
+	pdata->tx_tstamp_skb = NULL;
+	spin_unlock_irqrestore(&pdata->tstamp_lock, flags);
+}
+
+static int xgbe_get_hwtstamp_settings(struct xgbe_prv_data *pdata,
+				      struct ifreq *ifreq)
+{
+	if (copy_to_user(ifreq->ifr_data, &pdata->tstamp_config,
+			 sizeof(pdata->tstamp_config)))
+		return -EFAULT;
+
+	return 0;
+}
+
+static int xgbe_set_hwtstamp_settings(struct xgbe_prv_data *pdata,
+				      struct ifreq *ifreq)
+{
+	struct hwtstamp_config config;
+	unsigned int mac_tscr;
+
+	if (copy_from_user(&config, ifreq->ifr_data, sizeof(config)))
+		return -EFAULT;
+
+	if (config.flags)
+		return -EINVAL;
+
+	mac_tscr = 0;
+
+	switch (config.tx_type) {
+	case HWTSTAMP_TX_OFF:
+		break;
+
+	case HWTSTAMP_TX_ON:
+		XGMAC_SET_BITS(mac_tscr, MAC_TSCR, TSENA, 1);
+		break;
+
+	default:
+		return -ERANGE;
+	}
+
+	switch (config.rx_filter) {
+	case HWTSTAMP_FILTER_NONE:
+		break;
+
+	case HWTSTAMP_FILTER_ALL:
+		XGMAC_SET_BITS(mac_tscr, MAC_TSCR, TSENALL, 1);
+		XGMAC_SET_BITS(mac_tscr, MAC_TSCR, TSENA, 1);
+		break;
+
+	/* PTP v2, UDP, any kind of event packet */
+	case HWTSTAMP_FILTER_PTP_V2_L4_EVENT:
+		XGMAC_SET_BITS(mac_tscr, MAC_TSCR, TSVER2ENA, 1);
+	/* PTP v1, UDP, any kind of event packet */
+	case HWTSTAMP_FILTER_PTP_V1_L4_EVENT:
+		XGMAC_SET_BITS(mac_tscr, MAC_TSCR, TSIPV4ENA, 1);
+		XGMAC_SET_BITS(mac_tscr, MAC_TSCR, TSIPV6ENA, 1);
+		XGMAC_SET_BITS(mac_tscr, MAC_TSCR, SNAPTYPSEL, 1);
+		XGMAC_SET_BITS(mac_tscr, MAC_TSCR, TSENA, 1);
+		break;
+
+	/* PTP v2, UDP, Sync packet */
+	case HWTSTAMP_FILTER_PTP_V2_L4_SYNC:
+		XGMAC_SET_BITS(mac_tscr, MAC_TSCR, TSVER2ENA, 1);
+	/* PTP v1, UDP, Sync packet */
+	case HWTSTAMP_FILTER_PTP_V1_L4_SYNC:
+		XGMAC_SET_BITS(mac_tscr, MAC_TSCR, TSIPV4ENA, 1);
+		XGMAC_SET_BITS(mac_tscr, MAC_TSCR, TSIPV6ENA, 1);
+		XGMAC_SET_BITS(mac_tscr, MAC_TSCR, TSEVNTENA, 1);
+		XGMAC_SET_BITS(mac_tscr, MAC_TSCR, TSENA, 1);
+		break;
+
+	/* PTP v2, UDP, Delay_req packet */
+	case HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ:
+		XGMAC_SET_BITS(mac_tscr, MAC_TSCR, TSVER2ENA, 1);
+	/* PTP v1, UDP, Delay_req packet */
+	case HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ:
+		XGMAC_SET_BITS(mac_tscr, MAC_TSCR, TSIPV4ENA, 1);
+		XGMAC_SET_BITS(mac_tscr, MAC_TSCR, TSIPV6ENA, 1);
+		XGMAC_SET_BITS(mac_tscr, MAC_TSCR, TSEVNTENA, 1);
+		XGMAC_SET_BITS(mac_tscr, MAC_TSCR, TSMSTRENA, 1);
+		XGMAC_SET_BITS(mac_tscr, MAC_TSCR, TSENA, 1);
+		break;
+
+	/* 802.AS1, Ethernet, any kind of event packet */
+	case HWTSTAMP_FILTER_PTP_V2_L2_EVENT:
+		XGMAC_SET_BITS(mac_tscr, MAC_TSCR, AV8021ASMEN, 1);
+		XGMAC_SET_BITS(mac_tscr, MAC_TSCR, SNAPTYPSEL, 1);
+		XGMAC_SET_BITS(mac_tscr, MAC_TSCR, TSENA, 1);
+		break;
+
+	/* 802.AS1, Ethernet, Sync packet */
+	case HWTSTAMP_FILTER_PTP_V2_L2_SYNC:
+		XGMAC_SET_BITS(mac_tscr, MAC_TSCR, AV8021ASMEN, 1);
+		XGMAC_SET_BITS(mac_tscr, MAC_TSCR, TSEVNTENA, 1);
+		XGMAC_SET_BITS(mac_tscr, MAC_TSCR, TSENA, 1);
+		break;
+
+	/* 802.AS1, Ethernet, Delay_req packet */
+	case HWTSTAMP_FILTER_PTP_V2_L2_DELAY_REQ:
+		XGMAC_SET_BITS(mac_tscr, MAC_TSCR, AV8021ASMEN, 1);
+		XGMAC_SET_BITS(mac_tscr, MAC_TSCR, TSMSTRENA, 1);
+		XGMAC_SET_BITS(mac_tscr, MAC_TSCR, TSEVNTENA, 1);
+		XGMAC_SET_BITS(mac_tscr, MAC_TSCR, TSENA, 1);
+		break;
+
+	/* PTP v2/802.AS1, any layer, any kind of event packet */
+	case HWTSTAMP_FILTER_PTP_V2_EVENT:
+		XGMAC_SET_BITS(mac_tscr, MAC_TSCR, TSVER2ENA, 1);
+		XGMAC_SET_BITS(mac_tscr, MAC_TSCR, TSIPENA, 1);
+		XGMAC_SET_BITS(mac_tscr, MAC_TSCR, TSIPV4ENA, 1);
+		XGMAC_SET_BITS(mac_tscr, MAC_TSCR, TSIPV6ENA, 1);
+		XGMAC_SET_BITS(mac_tscr, MAC_TSCR, SNAPTYPSEL, 1);
+		XGMAC_SET_BITS(mac_tscr, MAC_TSCR, TSENA, 1);
+		break;
+
+	/* PTP v2/802.AS1, any layer, Sync packet */
+	case HWTSTAMP_FILTER_PTP_V2_SYNC:
+		XGMAC_SET_BITS(mac_tscr, MAC_TSCR, TSVER2ENA, 1);
+		XGMAC_SET_BITS(mac_tscr, MAC_TSCR, TSIPENA, 1);
+		XGMAC_SET_BITS(mac_tscr, MAC_TSCR, TSIPV4ENA, 1);
+		XGMAC_SET_BITS(mac_tscr, MAC_TSCR, TSIPV6ENA, 1);
+		XGMAC_SET_BITS(mac_tscr, MAC_TSCR, TSEVNTENA, 1);
+		XGMAC_SET_BITS(mac_tscr, MAC_TSCR, TSENA, 1);
+		break;
+
+	/* PTP v2/802.AS1, any layer, Delay_req packet */
+	case HWTSTAMP_FILTER_PTP_V2_DELAY_REQ:
+		XGMAC_SET_BITS(mac_tscr, MAC_TSCR, TSVER2ENA, 1);
+		XGMAC_SET_BITS(mac_tscr, MAC_TSCR, TSIPENA, 1);
+		XGMAC_SET_BITS(mac_tscr, MAC_TSCR, TSIPV4ENA, 1);
+		XGMAC_SET_BITS(mac_tscr, MAC_TSCR, TSIPV6ENA, 1);
+		XGMAC_SET_BITS(mac_tscr, MAC_TSCR, TSMSTRENA, 1);
+		XGMAC_SET_BITS(mac_tscr, MAC_TSCR, TSEVNTENA, 1);
+		XGMAC_SET_BITS(mac_tscr, MAC_TSCR, TSENA, 1);
+		break;
+
+	default:
+		return -ERANGE;
+	}
+
+	pdata->hw_if.config_tstamp(pdata, mac_tscr);
+
+	memcpy(&pdata->tstamp_config, &config, sizeof(config));
+
+	return 0;
+}
+
+static void xgbe_prep_tx_tstamp(struct xgbe_prv_data *pdata,
+				struct sk_buff *skb,
+				struct xgbe_packet_data *packet)
+{
+	unsigned long flags;
+
+	if (XGMAC_GET_BITS(packet->attributes, TX_PACKET_ATTRIBUTES, PTP)) {
+		spin_lock_irqsave(&pdata->tstamp_lock, flags);
+		if (pdata->tx_tstamp_skb) {
+			/* Another timestamp in progress, ignore this one */
+			XGMAC_SET_BITS(packet->attributes,
+				       TX_PACKET_ATTRIBUTES, PTP, 0);
+		} else {
+			pdata->tx_tstamp_skb = skb_get(skb);
+			skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
+		}
+		spin_unlock_irqrestore(&pdata->tstamp_lock, flags);
+	}
+
+	if (!XGMAC_GET_BITS(packet->attributes, TX_PACKET_ATTRIBUTES, PTP))
+		skb_tx_timestamp(skb);
+}
+
 static void xgbe_prep_vlan(struct sk_buff *skb, struct xgbe_packet_data *packet)
 {
 	if (vlan_tx_tag_present(skb))
@@ -711,7 +915,8 @@ static int xgbe_is_tso(struct sk_buff *skb)
 	return 1;
 }
 
-static void xgbe_packet_info(struct xgbe_ring *ring, struct sk_buff *skb,
+static void xgbe_packet_info(struct xgbe_prv_data *pdata,
+			     struct xgbe_ring *ring, struct sk_buff *skb,
 			     struct xgbe_packet_data *packet)
 {
 	struct skb_frag_struct *frag;
@@ -753,6 +958,11 @@ static void xgbe_packet_info(struct xgbe_ring *ring, struct sk_buff *skb,
 			       VLAN_CTAG, 1);
 	}
 
+	if ((skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP) &&
+	    (pdata->tstamp_config.tx_type == HWTSTAMP_TX_ON))
+		XGMAC_SET_BITS(packet->attributes, TX_PACKET_ATTRIBUTES,
+			       PTP, 1);
+
 	for (len = skb_headlen(skb); len;) {
 		packet->rdesc_count++;
 		len -= min_t(unsigned int, len, XGBE_TX_MAX_BUF_SIZE);
@@ -776,26 +986,33 @@ static int xgbe_open(struct net_device *netdev)
 
 	DBGPR("-->xgbe_open\n");
 
-	/* Enable the clock */
-	ret = clk_prepare_enable(pdata->sysclock);
+	/* Enable the clocks */
+	ret = clk_prepare_enable(pdata->sysclk);
 	if (ret) {
-		netdev_alert(netdev, "clk_prepare_enable failed\n");
+		netdev_alert(netdev, "dma clk_prepare_enable failed\n");
 		return ret;
+	}
+
+	ret = clk_prepare_enable(pdata->ptpclk);
+	if (ret) {
+		netdev_alert(netdev, "ptp clk_prepare_enable failed\n");
+		goto err_sysclk;
 	}
 
 	/* Calculate the Rx buffer size before allocating rings */
 	ret = xgbe_calc_rx_buf_size(netdev, netdev->mtu);
 	if (ret < 0)
-		goto err_clk;
+		goto err_ptpclk;
 	pdata->rx_buf_size = ret;
 
 	/* Allocate the ring descriptors and buffers */
 	ret = desc_if->alloc_ring_resources(pdata);
 	if (ret)
-		goto err_clk;
+		goto err_ptpclk;
 
-	/* Initialize the device restart work struct */
+	/* Initialize the device restart and Tx timestamp work struct */
 	INIT_WORK(&pdata->restart_work, xgbe_restart);
+	INIT_WORK(&pdata->tx_tstamp_work, xgbe_tx_tstamp);
 
 	/* Request interrupts */
 	ret = devm_request_irq(pdata->dev, netdev->irq, xgbe_isr, 0,
@@ -824,8 +1041,11 @@ err_start:
 err_irq:
 	desc_if->free_ring_resources(pdata);
 
-err_clk:
-	clk_disable_unprepare(pdata->sysclock);
+err_ptpclk:
+	clk_disable_unprepare(pdata->ptpclk);
+
+err_sysclk:
+	clk_disable_unprepare(pdata->sysclk);
 
 	return ret;
 }
@@ -853,8 +1073,9 @@ static int xgbe_close(struct net_device *netdev)
 		pdata->irq_number = 0;
 	}
 
-	/* Disable the clock */
-	clk_disable_unprepare(pdata->sysclock);
+	/* Disable the clocks */
+	clk_disable_unprepare(pdata->ptpclk);
+	clk_disable_unprepare(pdata->sysclk);
 
 	DBGPR("<--xgbe_close\n");
 
@@ -890,7 +1111,7 @@ static int xgbe_xmit(struct sk_buff *skb, struct net_device *netdev)
 
 	/* Calculate preliminary packet info */
 	memset(packet, 0, sizeof(*packet));
-	xgbe_packet_info(ring, skb, packet);
+	xgbe_packet_info(pdata, ring, skb, packet);
 
 	/* Check that there are enough descriptors available */
 	if (packet->rdesc_count > xgbe_tx_avail_desc(ring)) {
@@ -913,6 +1134,8 @@ static int xgbe_xmit(struct sk_buff *skb, struct net_device *netdev)
 		dev_kfree_skb_any(skb);
 		goto tx_netdev_return;
 	}
+
+	xgbe_prep_tx_tstamp(pdata, skb, packet);
 
 	/* Configure required descriptor fields for transmission */
 	hw_if->pre_xmit(channel);
@@ -966,6 +1189,27 @@ static int xgbe_set_mac_address(struct net_device *netdev, void *addr)
 	DBGPR("<--xgbe_set_mac_address\n");
 
 	return 0;
+}
+
+static int xgbe_ioctl(struct net_device *netdev, struct ifreq *ifreq, int cmd)
+{
+	struct xgbe_prv_data *pdata = netdev_priv(netdev);
+	int ret;
+
+	switch (cmd) {
+	case SIOCGHWTSTAMP:
+		ret = xgbe_get_hwtstamp_settings(pdata, ifreq);
+		break;
+
+	case SIOCSHWTSTAMP:
+		ret = xgbe_set_hwtstamp_settings(pdata, ifreq);
+		break;
+
+	default:
+		ret = -EOPNOTSUPP;
+	}
+
+	return ret;
 }
 
 static int xgbe_change_mtu(struct net_device *netdev, int mtu)
@@ -1069,6 +1313,33 @@ static void xgbe_poll_controller(struct net_device *netdev)
 }
 #endif /* End CONFIG_NET_POLL_CONTROLLER */
 
+static int xgbe_setup_tc(struct net_device *netdev, u8 tc)
+{
+	struct xgbe_prv_data *pdata = netdev_priv(netdev);
+	unsigned int offset, queue;
+	u8 i;
+
+	if (tc && (tc != pdata->hw_feat.tc_cnt))
+		return -EINVAL;
+
+	if (tc) {
+		netdev_set_num_tc(netdev, tc);
+		for (i = 0, queue = 0, offset = 0; i < tc; i++) {
+			while ((queue < pdata->tx_q_count) &&
+			       (pdata->q2tc_map[queue] == i))
+				queue++;
+
+			DBGPR("  TC%u using TXq%u-%u\n", i, offset, queue - 1);
+			netdev_set_tc_queue(netdev, i, queue - offset, offset);
+			offset = queue;
+		}
+	} else {
+		netdev_reset_tc(netdev);
+	}
+
+	return 0;
+}
+
 static int xgbe_set_features(struct net_device *netdev,
 			     netdev_features_t features)
 {
@@ -1109,6 +1380,7 @@ static const struct net_device_ops xgbe_netdev_ops = {
 	.ndo_set_rx_mode	= xgbe_set_rx_mode,
 	.ndo_set_mac_address	= xgbe_set_mac_address,
 	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_do_ioctl		= xgbe_ioctl,
 	.ndo_change_mtu		= xgbe_change_mtu,
 	.ndo_get_stats64	= xgbe_get_stats64,
 	.ndo_vlan_rx_add_vid	= xgbe_vlan_rx_add_vid,
@@ -1116,6 +1388,7 @@ static const struct net_device_ops xgbe_netdev_ops = {
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= xgbe_poll_controller,
 #endif
+	.ndo_setup_tc		= xgbe_setup_tc,
 	.ndo_set_features	= xgbe_set_features,
 };
 
@@ -1202,8 +1475,9 @@ static int xgbe_rx_poll(struct xgbe_channel *channel, int budget)
 	struct xgbe_packet_data *packet;
 	struct net_device *netdev = pdata->netdev;
 	struct sk_buff *skb;
-	unsigned int incomplete, error;
-	unsigned int cur_len, put_len, max_len;
+	struct skb_shared_hwtstamps *hwtstamps;
+	unsigned int incomplete, error, context_next, context;
+	unsigned int len, put_len, max_len;
 	int received = 0;
 
 	DBGPR("-->xgbe_rx_poll: budget=%d\n", budget);
@@ -1212,21 +1486,32 @@ static int xgbe_rx_poll(struct xgbe_channel *channel, int budget)
 	if (!ring)
 		return 0;
 
+	rdata = XGBE_GET_DESC_DATA(ring, ring->cur);
 	packet = &ring->packet_data;
 	while (received < budget) {
 		DBGPR("  cur = %d\n", ring->cur);
 
-		/* Clear the packet data information */
-		memset(packet, 0, sizeof(*packet));
-		skb = NULL;
-		error = 0;
-		cur_len = 0;
+		/* First time in loop see if we need to restore state */
+		if (!received && rdata->state_saved) {
+			incomplete = rdata->state.incomplete;
+			context_next = rdata->state.context_next;
+			skb = rdata->state.skb;
+			error = rdata->state.error;
+			len = rdata->state.len;
+		} else {
+			memset(packet, 0, sizeof(*packet));
+			incomplete = 0;
+			context_next = 0;
+			skb = NULL;
+			error = 0;
+			len = 0;
+		}
 
 read_again:
+		rdata = XGBE_GET_DESC_DATA(ring, ring->cur);
+
 		if (ring->dirty > (XGBE_RX_DESC_CNT >> 3))
 			xgbe_rx_refresh(channel);
-
-		rdata = XGBE_GET_DESC_DATA(ring, ring->cur);
 
 		if (hw_if->dev_read(channel))
 			break;
@@ -1242,9 +1527,15 @@ read_again:
 		incomplete = XGMAC_GET_BITS(packet->attributes,
 					    RX_PACKET_ATTRIBUTES,
 					    INCOMPLETE);
+		context_next = XGMAC_GET_BITS(packet->attributes,
+					      RX_PACKET_ATTRIBUTES,
+					      CONTEXT_NEXT);
+		context = XGMAC_GET_BITS(packet->attributes,
+					 RX_PACKET_ATTRIBUTES,
+					 CONTEXT);
 
 		/* Earlier error, just drain the remaining data */
-		if (incomplete && error)
+		if ((incomplete || context_next) && error)
 			goto read_again;
 
 		if (error || packet->errors) {
@@ -1254,29 +1545,36 @@ read_again:
 			continue;
 		}
 
-		put_len = rdata->len - cur_len;
-		if (skb) {
-			if (pskb_expand_head(skb, 0, put_len, GFP_ATOMIC)) {
-				DBGPR("pskb_expand_head error\n");
-				if (incomplete) {
-					error = 1;
-					goto read_again;
+		if (!context) {
+			put_len = rdata->len - len;
+			if (skb) {
+				if (pskb_expand_head(skb, 0, put_len,
+						     GFP_ATOMIC)) {
+					DBGPR("pskb_expand_head error\n");
+					if (incomplete) {
+						error = 1;
+						goto read_again;
+					}
+
+					dev_kfree_skb(skb);
+					continue;
 				}
-
-				dev_kfree_skb(skb);
-				continue;
+				memcpy(skb_tail_pointer(skb), rdata->skb->data,
+				       put_len);
+			} else {
+				skb = rdata->skb;
+				rdata->skb = NULL;
 			}
-			memcpy(skb_tail_pointer(skb), rdata->skb->data,
-			       put_len);
-		} else {
-			skb = rdata->skb;
-			rdata->skb = NULL;
+			skb_put(skb, put_len);
+			len += put_len;
 		}
-		skb_put(skb, put_len);
-		cur_len += put_len;
 
-		if (incomplete)
+		if (incomplete || context_next)
 			goto read_again;
+
+		/* Stray Context Descriptor? */
+		if (!skb)
+			continue;
 
 		/* Be sure we don't exceed the configured MTU */
 		max_len = netdev->mtu + ETH_HLEN;
@@ -1304,6 +1602,16 @@ read_again:
 			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q),
 					       packet->vlan_ctag);
 
+		if (XGMAC_GET_BITS(packet->attributes,
+				   RX_PACKET_ATTRIBUTES, RX_TSTAMP)) {
+			u64 nsec;
+
+			nsec = timecounter_cyc2time(&pdata->tstamp_tc,
+						    packet->rx_tstamp);
+			hwtstamps = skb_hwtstamps(skb);
+			hwtstamps->hwtstamp = ns_to_ktime(nsec);
+		}
+
 		skb->dev = netdev;
 		skb->protocol = eth_type_trans(skb, netdev);
 		skb_record_rx_queue(skb, channel->queue_index);
@@ -1311,6 +1619,17 @@ read_again:
 
 		netdev->last_rx = jiffies;
 		napi_gro_receive(&pdata->napi, skb);
+	}
+
+	/* Check if we need to save state before leaving */
+	if (received && (incomplete || context_next)) {
+		rdata = XGBE_GET_DESC_DATA(ring, ring->cur);
+		rdata->state_saved = 1;
+		rdata->state.incomplete = incomplete;
+		rdata->state.context_next = context_next;
+		rdata->state.skb = skb;
+		rdata->state.len = len;
+		rdata->state.error = error;
 	}
 
 	DBGPR("<--xgbe_rx_poll: received = %d\n", received);

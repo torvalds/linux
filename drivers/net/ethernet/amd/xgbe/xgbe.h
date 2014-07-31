@@ -123,6 +123,10 @@
 #include <linux/phy.h>
 #include <linux/if_vlan.h>
 #include <linux/bitops.h>
+#include <linux/ptp_clock_kernel.h>
+#include <linux/clocksource.h>
+#include <linux/net_tstamp.h>
+#include <net/dcbnl.h>
 
 
 #define XGBE_DRV_NAME		"amd-xgbe"
@@ -141,6 +145,7 @@
 #define XGBE_RX_BUF_ALIGN	64
 
 #define XGBE_MAX_DMA_CHANNELS	16
+#define XGBE_MAX_QUEUES		16
 
 /* DMA cache settings - Outer sharable, write-back, write-allocate */
 #define XGBE_DMA_OS_AXDOMAIN	0x2
@@ -164,6 +169,16 @@
 #define XGBE_PHY_NAME		"amd_xgbe_phy"
 #define XGBE_PRTAD		0
 
+/* Device-tree clock names */
+#define XGBE_DMA_CLOCK		"dma_clk"
+#define XGBE_PTP_CLOCK		"ptp_clk"
+
+/* Timestamp support - values based on 50MHz PTP clock
+ *   50MHz => 20 nsec
+ */
+#define XGBE_TSTAMP_SSINC	20
+#define XGBE_TSTAMP_SNSINC	0
+
 /* Driver PMT macros */
 #define XGMAC_DRIVER_CONTEXT	1
 #define XGMAC_IOCTL_CONTEXT	2
@@ -171,7 +186,7 @@
 #define XGBE_FIFO_SIZE_B(x)	(x)
 #define XGBE_FIFO_SIZE_KB(x)	(x * 1024)
 
-#define XGBE_TC_CNT		2
+#define XGBE_TC_MIN_QUANTUM	10
 
 /* Helper macro for descriptor handling
  *  Always use XGBE_GET_DESC_DATA to access the descriptor data
@@ -214,6 +229,8 @@ struct xgbe_packet_data {
 	unsigned short mss;
 
 	unsigned short vlan_ctag;
+
+	u64 rx_tstamp;
 };
 
 /* Common Rx and Tx descriptor mapping */
@@ -242,6 +259,20 @@ struct xgbe_ring_data {
 	unsigned int interrupt;		/* Interrupt indicator */
 
 	unsigned int mapped_as_page;
+
+	/* Incomplete receive save location.  If the budget is exhausted
+	 * or the last descriptor (last normal descriptor or a following
+	 * context descriptor) has not been DMA'd yet the current state
+	 * of the receive processing needs to be saved.
+	 */
+	unsigned int state_saved;
+	struct {
+		unsigned int incomplete;
+		unsigned int context_next;
+		struct sk_buff *skb;
+		unsigned int len;
+		unsigned int error;
+	} state;
 };
 
 struct xgbe_ring {
@@ -467,6 +498,18 @@ struct xgbe_hw_if {
 	void (*rx_mmc_int)(struct xgbe_prv_data *);
 	void (*tx_mmc_int)(struct xgbe_prv_data *);
 	void (*read_mmc_stats)(struct xgbe_prv_data *);
+
+	/* For Timestamp config */
+	int (*config_tstamp)(struct xgbe_prv_data *, unsigned int);
+	void (*update_tstamp_addend)(struct xgbe_prv_data *, unsigned int);
+	void (*set_tstamp_time)(struct xgbe_prv_data *, unsigned int sec,
+				unsigned int nsec);
+	u64 (*get_tstamp_time)(struct xgbe_prv_data *);
+	u64 (*get_tx_tstamp)(struct xgbe_prv_data *);
+
+	/* For Data Center Bridging config */
+	void (*config_dcb_tc)(struct xgbe_prv_data *);
+	void (*config_dcb_pfc)(struct xgbe_prv_data *);
 };
 
 struct xgbe_desc_if {
@@ -508,6 +551,7 @@ struct xgbe_hw_features {
 	unsigned int tso;		/* TCP Segmentation Offload */
 	unsigned int dma_debug;		/* DMA Debug Registers */
 	unsigned int rss;		/* Receive Side Scaling */
+	unsigned int tc_cnt;		/* Number of Traffic Classes */
 	unsigned int hash_table_size;	/* Hash Table Size */
 	unsigned int l3l4_filter_num;	/* Number of L3-L4 Filters */
 
@@ -552,6 +596,9 @@ struct xgbe_prv_data {
 	unsigned int tx_desc_count;
 	unsigned int rx_ring_count;
 	unsigned int rx_desc_count;
+
+	unsigned int tx_q_count;
+	unsigned int rx_q_count;
 
 	/* Tx/Rx common settings */
 	unsigned int pblx8;
@@ -607,8 +654,27 @@ struct xgbe_prv_data {
 	/* Filtering support */
 	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
 
-	/* System clock value used for Rx watchdog */
-	struct clk *sysclock;
+	/* Device clocks */
+	struct clk *sysclk;
+	struct clk *ptpclk;
+
+	/* Timestamp support */
+	spinlock_t tstamp_lock;
+	struct ptp_clock_info ptp_clock_info;
+	struct ptp_clock *ptp_clock;
+	struct hwtstamp_config tstamp_config;
+	struct cyclecounter tstamp_cc;
+	struct timecounter tstamp_tc;
+	unsigned int tstamp_addend;
+	struct work_struct tx_tstamp_work;
+	struct sk_buff *tx_tstamp_skb;
+	u64 tx_tstamp;
+
+	/* DCB support */
+	struct ieee_ets *ets;
+	struct ieee_pfc *pfc;
+	unsigned int q2tc_map[XGBE_MAX_QUEUES];
+	unsigned int prio2q_map[IEEE_8021QAZ_MAX_TCS];
 
 	/* Hardware features of the device */
 	struct xgbe_hw_features hw_feat;
@@ -635,10 +701,15 @@ void xgbe_init_function_ptrs_dev(struct xgbe_hw_if *);
 void xgbe_init_function_ptrs_desc(struct xgbe_desc_if *);
 struct net_device_ops *xgbe_get_netdev_ops(void);
 struct ethtool_ops *xgbe_get_ethtool_ops(void);
+#ifdef CONFIG_AMD_XGBE_DCB
+const struct dcbnl_rtnl_ops *xgbe_get_dcbnl_ops(void);
+#endif
 
 int xgbe_mdio_register(struct xgbe_prv_data *);
 void xgbe_mdio_unregister(struct xgbe_prv_data *);
 void xgbe_dump_phy_registers(struct xgbe_prv_data *);
+void xgbe_ptp_register(struct xgbe_prv_data *);
+void xgbe_ptp_unregister(struct xgbe_prv_data *);
 void xgbe_dump_tx_desc(struct xgbe_ring *, unsigned int, unsigned int,
 		       unsigned int);
 void xgbe_dump_rx_desc(struct xgbe_ring *, struct xgbe_ring_desc *,
