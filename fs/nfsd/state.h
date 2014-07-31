@@ -345,7 +345,7 @@ struct nfs4_stateowner {
 	struct list_head			so_stateids;
 	struct nfs4_client			*so_client;
 	const struct nfs4_stateowner_operations	*so_ops;
-	/* after increment in ENCODE_SEQID_OP_TAIL, represents the next
+	/* after increment in nfsd4_bump_seqid, represents the next
 	 * sequence id expected from the client: */
 	atomic_t				so_count;
 	u32					so_seqid;
