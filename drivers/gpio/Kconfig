@@ -334,6 +334,15 @@ config GPIO_TZ1090_PDC
 	help
 	  Say yes here to support Toumaz Xenif TZ1090 PDC GPIOs.
 
+config GPIO_XGENE
+	bool "APM X-Gene GPIO controller support"
+	depends on ARM64 && OF_GPIO
+	help
+	  This driver is to support the GPIO block within the APM X-Gene SoC
+	  platform's generic flash controller. The GPIO pins are muxed with
+	  the generic flash controller's address and data pins. Say yes
+	  here to enable the GFC GPIO functionality.
+
 config GPIO_XILINX
 	bool "Xilinx GPIO support"
 	depends on PPC_OF || MICROBLAZE || ARCH_ZYNQ
