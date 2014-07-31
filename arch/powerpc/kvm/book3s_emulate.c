@@ -449,10 +449,10 @@ int kvmppc_core_emulate_mtspr_pr(struct kvm_vcpu *vcpu, int sprn, ulong spr_val)
 	case SPRN_GQR7:
 		to_book3s(vcpu)->gqr[sprn - SPRN_GQR0] = spr_val;
 		break;
-	case SPRN_FSCR:
-		vcpu->arch.fscr = spr_val;
-		break;
 #ifdef CONFIG_PPC_BOOK3S_64
+	case SPRN_FSCR:
+		kvmppc_set_fscr(vcpu, spr_val);
+		break;
 	case SPRN_BESCR:
 		vcpu->arch.bescr = spr_val;
 		break;
@@ -593,10 +593,10 @@ int kvmppc_core_emulate_mfspr_pr(struct kvm_vcpu *vcpu, int sprn, ulong *spr_val
 	case SPRN_GQR7:
 		*spr_val = to_book3s(vcpu)->gqr[sprn - SPRN_GQR0];
 		break;
+#ifdef CONFIG_PPC_BOOK3S_64
 	case SPRN_FSCR:
 		*spr_val = vcpu->arch.fscr;
 		break;
-#ifdef CONFIG_PPC_BOOK3S_64
 	case SPRN_BESCR:
 		*spr_val = vcpu->arch.bescr;
 		break;

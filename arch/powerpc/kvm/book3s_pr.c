@@ -871,6 +871,15 @@ static int kvmppc_handle_fac(struct kvm_vcpu *vcpu, ulong fac)
 
 	return RESUME_GUEST;
 }
+
+void kvmppc_set_fscr(struct kvm_vcpu *vcpu, u64 fscr)
+{
+	if ((vcpu->arch.fscr & FSCR_TAR) && !(fscr & FSCR_TAR)) {
+		/* TAR got dropped, drop it in shadow too */
+		kvmppc_giveup_fac(vcpu, FSCR_TAR_LG);
+	}
+	vcpu->arch.fscr = fscr;
+}
 #endif
 
 int kvmppc_handle_exit_pr(struct kvm_run *run, struct kvm_vcpu *vcpu,
