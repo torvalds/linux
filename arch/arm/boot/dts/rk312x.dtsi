@@ -766,5 +766,18 @@
 			};
 		};
 	};
+	ion {
+		compatible = "rockchip,ion";
+		#address-cells = <1>;
+		#size-cells = <0>;
 
+		ion_cma: rockchip,ion-heap@1 { /* CMA HEAP */
+			compatible = "rockchip,ion-reserve";
+			rockchip,ion_heap = <1>;
+			reg = <0x00000000 0x10000000>; /* 256MB */
+		};
+		rockchip,ion-heap@3 { /* VMALLOC HEAP */
+			rockchip,ion_heap = <3>;
+		};
+	};
 };
