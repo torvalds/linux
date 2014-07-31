@@ -23,6 +23,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
+#include <linux/of.h>
 
 #include <linux/platform_data/edma.h>
 
@@ -1132,7 +1133,7 @@ static int edma_init(void)
 		}
 	}
 
-	if (EDMA_CTLRS == 2) {
+	if (!of_have_populated_dt() && EDMA_CTLRS == 2) {
 		pdev1 = platform_device_register_full(&edma_dev_info1);
 		if (IS_ERR(pdev1)) {
 			platform_driver_unregister(&edma_driver);
