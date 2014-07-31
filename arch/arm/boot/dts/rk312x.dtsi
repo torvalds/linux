@@ -387,7 +387,7 @@
 		pinctrl-0 = <&i2c3_sda &i2c3_scl>;
 		pinctrl-1 = <&i2c3_gpio>;
 		gpios = <&gpio0 GPIO_A7 GPIO_ACTIVE_LOW>, <&gpio0 GPIO_A6 GPIO_ACTIVE_LOW>;
-		clocks = <&clk_gates8 6>;
+		clocks = <&clk_gates8 7>;
 		rockchip,check-idle = <1>;
 		status = "disabled";
 	};
