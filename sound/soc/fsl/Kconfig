@@ -257,6 +257,20 @@ config SND_SOC_IMX_WM8962
 	  Say Y if you want to add support for SoC audio on an i.MX board with
 	  a wm8962 codec.
 
+config SND_SOC_IMX_ES8328
+	tristate "SoC Audio support for i.MX boards with the ES8328 codec"
+	depends on OF && (I2C || SPI)
+	select SND_SOC_ES8328_I2C if I2C
+	select SND_SOC_ES8328_SPI if SPI_MASTER
+	select SND_SOC_IMX_PCM_DMA
+	select SND_SOC_IMX_AUDMUX
+	select SND_SOC_FSL_SSI
+	select SND_SOC_FSL_UTILS
+	select SND_SOC_IMX_PCM_FIQ
+	help
+	  Say Y if you want to add support for the ES8328 audio codec connected
+	  via SSI/I2S over either SPI or I2C.
+
 config SND_SOC_IMX_SGTL5000
 	tristate "SoC Audio support for i.MX boards with sgtl5000"
 	depends on OF && I2C
