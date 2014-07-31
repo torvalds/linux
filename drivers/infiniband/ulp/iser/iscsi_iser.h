@@ -326,7 +326,6 @@ struct iser_conn {
 	struct iser_device           *device;       /* device context          */
 	struct rdma_cm_id            *cma_id;       /* CMA ID		       */
 	struct ib_qp	             *qp;           /* QP 		       */
-	wait_queue_head_t	     wait;          /* waitq for conn/disconn  */
 	unsigned		     qp_max_recv_dtos; /* num of rx buffers */
 	unsigned		     qp_max_recv_dtos_mask; /* above minus 1 */
 	unsigned		     min_posted_rx; /* qp_max_recv_dtos >> 2 */
@@ -336,6 +335,8 @@ struct iser_conn {
 	struct work_struct	     release_work;
 	struct completion	     stop_completion;
 	struct mutex		     state_mutex;
+	struct completion	     flush_completion;
+	struct completion	     up_completion;
 	struct list_head	     conn_list;       /* entry in ig conn list */
 
 	char  			     *login_buf;

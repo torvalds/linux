@@ -627,10 +627,8 @@ iscsi_iser_ep_poll(struct iscsi_endpoint *ep, int timeout_ms)
 	int rc;
 
 	ib_conn = ep->dd_data;
-	rc = wait_event_interruptible_timeout(ib_conn->wait,
-			     ib_conn->state == ISER_CONN_UP,
-			     msecs_to_jiffies(timeout_ms));
-
+	rc = wait_for_completion_interruptible_timeout(&ib_conn->up_completion,
+						       msecs_to_jiffies(timeout_ms));
 	/* if conn establishment failed, return error code to iscsi */
 	if (rc == 0) {
 		mutex_lock(&ib_conn->state_mutex);
@@ -661,9 +659,10 @@ iscsi_iser_ep_disconnect(struct iscsi_endpoint *ep)
 	iser_conn_terminate(ib_conn);
 
 	/*
-	 * if iser_conn and iscsi_conn are bound, we must wait iscsi_conn_stop
-	 * call and ISER_CONN_DOWN state before freeing the iser resources.
-	 * otherwise we are safe to free resources immediately.
+	 * if iser_conn and iscsi_conn are bound, we must wait for
+	 * iscsi_conn_stop and flush errors completion before freeing
+	 * the iser resources. Otherwise we are safe to free resources
+	 * immediately.
 	 */
 	if (ib_conn->iscsi_conn) {
 		INIT_WORK(&ib_conn->release_work, iser_release_work);

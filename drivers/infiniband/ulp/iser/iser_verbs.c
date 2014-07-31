@@ -582,15 +582,19 @@ static int iser_conn_state_comp_exch(struct iser_conn *ib_conn,
 void iser_release_work(struct work_struct *work)
 {
 	struct iser_conn *ib_conn;
+	int rc;
 
 	ib_conn = container_of(work, struct iser_conn, release_work);
 
 	/* wait for .conn_stop callback */
-	wait_for_completion(&ib_conn->stop_completion);
+	rc = wait_for_completion_timeout(&ib_conn->stop_completion, 30 * HZ);
+	WARN_ON(rc == 0);
 
 	/* wait for the qp`s post send and post receive buffers to empty */
-	wait_event_interruptible(ib_conn->wait,
-				 ib_conn->state == ISER_CONN_DOWN);
+	rc = wait_for_completion_timeout(&ib_conn->flush_completion, 30 * HZ);
+	WARN_ON(rc == 0);
+
+	ib_conn->state = ISER_CONN_DOWN;
 
 	mutex_lock(&ib_conn->state_mutex);
 	ib_conn->state = ISER_CONN_DOWN;
@@ -656,9 +660,7 @@ static void iser_connect_error(struct rdma_cm_id *cma_id)
 	struct iser_conn *ib_conn;
 
 	ib_conn = (struct iser_conn *)cma_id->context;
-
 	ib_conn->state = ISER_CONN_DOWN;
-	wake_up_interruptible(&ib_conn->wait);
 }
 
 /**
@@ -761,9 +763,8 @@ static void iser_connected_handler(struct rdma_cm_id *cma_id)
 	(void)ib_query_qp(cma_id->qp, &attr, ~0, &init_attr);
 	iser_info("remote qpn:%x my qpn:%x\n", attr.dest_qp_num, cma_id->qp->qp_num);
 
-	ib_conn = (struct iser_conn *)cma_id->context;
-	if (iser_conn_state_comp_exch(ib_conn, ISER_CONN_PENDING, ISER_CONN_UP))
-		wake_up_interruptible(&ib_conn->wait);
+	ib_conn->state = ISER_CONN_UP;
+	complete(&ib_conn->up_completion);
 }
 
 static void iser_disconnected_handler(struct rdma_cm_id *cma_id)
@@ -785,8 +786,7 @@ static void iser_disconnected_handler(struct rdma_cm_id *cma_id)
 	/* Complete the termination process if no posts are pending */
 	if (ib_conn->post_recv_buf_count == 0 &&
 	    (atomic_read(&ib_conn->post_send_buf_count) == 0)) {
-		ib_conn->state = ISER_CONN_DOWN;
-		wake_up_interruptible(&ib_conn->wait);
+		complete(&ib_conn->flush_completion);
 	}
 }
 
@@ -833,10 +833,11 @@ static int iser_cma_handler(struct rdma_cm_id *cma_id, struct rdma_cm_event *eve
 void iser_conn_init(struct iser_conn *ib_conn)
 {
 	ib_conn->state = ISER_CONN_INIT;
-	init_waitqueue_head(&ib_conn->wait);
 	ib_conn->post_recv_buf_count = 0;
 	atomic_set(&ib_conn->post_send_buf_count, 0);
 	init_completion(&ib_conn->stop_completion);
+	init_completion(&ib_conn->flush_completion);
+	init_completion(&ib_conn->up_completion);
 	INIT_LIST_HEAD(&ib_conn->conn_list);
 	spin_lock_init(&ib_conn->lock);
 	mutex_init(&ib_conn->state_mutex);
@@ -880,8 +881,7 @@ int iser_connect(struct iser_conn   *ib_conn,
 	}
 
 	if (!non_blocking) {
-		wait_event_interruptible(ib_conn->wait,
-					 (ib_conn->state != ISER_CONN_PENDING));
+		wait_for_completion_interruptible(&ib_conn->up_completion);
 
 		if (ib_conn->state != ISER_CONN_UP) {
 			err =  -EIO;
@@ -1097,8 +1097,7 @@ static void iser_handle_comp_error(struct iser_tx_desc *desc,
 
 		/* no more non completed posts to the QP, complete the
 		 * termination process w.o worrying on disconnect event */
-		ib_conn->state = ISER_CONN_DOWN;
-		wake_up_interruptible(&ib_conn->wait);
+		complete(&ib_conn->flush_completion);
 	}
 }
 
