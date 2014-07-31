@@ -38,8 +38,6 @@
 
 #define SPI_NO_RESOURCE		((resource_size_t)-1)
 
-#define SPI_MAX_CHIPSELECT	2
-
 #define CS_DEFAULT	0xFF
 
 #define SPIFMT_PHASE_MASK	BIT(16)
@@ -142,7 +140,7 @@ struct davinci_spi {
 	void			(*get_rx)(u32 rx_data, struct davinci_spi *);
 	u32			(*get_tx)(struct davinci_spi *);
 
-	u8			bytes_per_word[SPI_MAX_CHIPSELECT];
+	u8			*bytes_per_word;
 };
 
 static struct davinci_spi_config davinci_spi_default_cfg;
@@ -875,6 +873,14 @@ static int davinci_spi_probe(struct platform_device *pdev)
 
 	/* pdata in dspi is now updated and point pdata to that */
 	pdata = &dspi->pdata;
+
+	dspi->bytes_per_word = devm_kzalloc(&pdev->dev,
+					    sizeof(*dspi->bytes_per_word) *
+					    pdata->num_chipselect, GFP_KERNEL);
+	if (dspi->bytes_per_word == NULL) {
+		ret = -ENOMEM;
+		goto free_master;
+	}
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (r == NULL) {
