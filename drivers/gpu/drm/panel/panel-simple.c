@@ -117,6 +117,16 @@ static int panel_simple_disable(struct drm_panel *panel)
 	return 0;
 }
 
+static int panel_simple_unprepare(struct drm_panel *panel)
+{
+	return 0;
+}
+
+static int panel_simple_prepare(struct drm_panel *panel)
+{
+	return 0;
+}
+
 static int panel_simple_enable(struct drm_panel *panel)
 {
 	struct panel_simple *p = to_panel_simple(panel);
@@ -167,6 +177,8 @@ static int panel_simple_get_modes(struct drm_panel *panel)
 
 static const struct drm_panel_funcs panel_simple_funcs = {
 	.disable = panel_simple_disable,
+	.unprepare = panel_simple_unprepare,
+	.prepare = panel_simple_prepare,
 	.enable = panel_simple_enable,
 	.get_modes = panel_simple_get_modes,
 };
