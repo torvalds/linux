@@ -604,8 +604,7 @@ iscsi_iser_ep_connect(struct Scsi_Host *shost, struct sockaddr *dst_addr,
 	ib_conn->ep = ep;
 	iser_conn_init(ib_conn);
 
-	err = iser_connect(ib_conn, NULL, (struct sockaddr_in *)dst_addr,
-			   non_blocking);
+	err = iser_connect(ib_conn, NULL, dst_addr, non_blocking);
 	if (err)
 		return ERR_PTR(err);
 

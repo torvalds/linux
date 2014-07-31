@@ -810,21 +810,18 @@ void iser_conn_init(struct iser_conn *ib_conn)
  * sleeps until the connection is established or rejected
  */
 int iser_connect(struct iser_conn   *ib_conn,
-		 struct sockaddr_in *src_addr,
-		 struct sockaddr_in *dst_addr,
+		 struct sockaddr    *src_addr,
+		 struct sockaddr    *dst_addr,
 		 int                 non_blocking)
 {
-	struct sockaddr *src, *dst;
 	int err = 0;
 
-	sprintf(ib_conn->name, "%pI4:%d",
-		&dst_addr->sin_addr.s_addr, dst_addr->sin_port);
+	sprintf(ib_conn->name, "%pISp", dst_addr);
+
+	iser_info("connecting to: %s\n", ib_conn->name);
 
 	/* the device is known only --after-- address resolution */
 	ib_conn->device = NULL;
-
-	iser_info("connecting to: %pI4, port 0x%x\n",
-		  &dst_addr->sin_addr, dst_addr->sin_port);
 
 	ib_conn->state = ISER_CONN_PENDING;
 
@@ -837,9 +834,7 @@ int iser_connect(struct iser_conn   *ib_conn,
 		goto id_failure;
 	}
 
-	src = (struct sockaddr *)src_addr;
-	dst = (struct sockaddr *)dst_addr;
-	err = rdma_resolve_addr(ib_conn->cma_id, src, dst, 1000);
+	err = rdma_resolve_addr(ib_conn->cma_id, src_addr, dst_addr, 1000);
 	if (err) {
 		iser_err("rdma_resolve_addr failed: %d\n", err);
 		goto addr_failure;

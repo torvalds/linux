@@ -448,8 +448,8 @@ int  iser_reg_rdma_mem_fastreg(struct iscsi_iser_task *task,
 			       enum iser_data_dir cmd_dir);
 
 int  iser_connect(struct iser_conn   *ib_conn,
-		  struct sockaddr_in *src_addr,
-		  struct sockaddr_in *dst_addr,
+		  struct sockaddr    *src_addr,
+		  struct sockaddr    *dst_addr,
 		  int                non_blocking);
 
 int  iser_reg_page_vec(struct iser_conn     *ib_conn,
