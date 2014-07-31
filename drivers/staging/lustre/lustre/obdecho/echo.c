@@ -125,7 +125,7 @@ static int echo_create(const struct lu_env *env, struct obd_export *exp,
 		return -EINVAL;
 	}
 
-	if (!(oa->o_mode && S_IFMT)) {
+	if (!(oa->o_mode & S_IFMT)) {
 		CERROR("echo obd: no type!\n");
 		return -ENOENT;
 	}
