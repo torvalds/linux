@@ -11,6 +11,7 @@
 static int __percent_color_snprintf(struct perf_hpp *hpp, const char *fmt, ...)
 {
 	int ret = 0;
+	int len;
 	va_list args;
 	double percent;
 	const char *markup;
@@ -18,6 +19,7 @@ static int __percent_color_snprintf(struct perf_hpp *hpp, const char *fmt, ...)
 	size_t size = hpp->size;
 
 	va_start(args, fmt);
+	len = va_arg(args, int);
 	percent = va_arg(args, double);
 	va_end(args);
 
@@ -25,7 +27,7 @@ static int __percent_color_snprintf(struct perf_hpp *hpp, const char *fmt, ...)
 	if (markup)
 		ret += scnprintf(buf, size, markup);
 
-	ret += scnprintf(buf + ret, size - ret, fmt, percent);
+	ret += scnprintf(buf + ret, size - ret, fmt, len, percent);
 
 	if (markup)
 		ret += scnprintf(buf + ret, size - ret, "</span>");
@@ -43,7 +45,7 @@ static int perf_gtk__hpp_color_##_type(struct perf_hpp_fmt *fmt __maybe_unused,	
 				       struct perf_hpp *hpp,			\
 				       struct hist_entry *he)			\
 {										\
-	return __hpp__fmt(hpp, he, he_get_##_field, " %6.2f%%",			\
+	return __hpp__fmt(hpp, he, he_get_##_field, " %*.2f%%", 6,		\
 			  __percent_color_snprintf, true);			\
 }
 
@@ -57,7 +59,7 @@ static int perf_gtk__hpp_color_##_type(struct perf_hpp_fmt *fmt __maybe_unused,	
 				       struct perf_hpp *hpp,			\
 				       struct hist_entry *he)			\
 {										\
-	return __hpp__fmt_acc(hpp, he, he_get_acc_##_field, " %6.2f%%",		\
+	return __hpp__fmt_acc(hpp, he, he_get_acc_##_field, " %*.2f%%", 6, 	\
 			      __percent_color_snprintf, true);			\
 }
 

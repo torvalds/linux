@@ -653,17 +653,18 @@ struct hpp_arg {
 static int __hpp__slsmg_color_printf(struct perf_hpp *hpp, const char *fmt, ...)
 {
 	struct hpp_arg *arg = hpp->ptr;
-	int ret;
+	int ret, len;
 	va_list args;
 	double percent;
 
 	va_start(args, fmt);
+	len = va_arg(args, int);
 	percent = va_arg(args, double);
 	va_end(args);
 
 	ui_browser__set_percent_color(arg->b, percent, arg->current_entry);
 
-	ret = scnprintf(hpp->buf, hpp->size, fmt, percent);
+	ret = scnprintf(hpp->buf, hpp->size, fmt, len, percent);
 	slsmg_printf("%s", hpp->buf);
 
 	advance_hpp(hpp, ret);
@@ -681,7 +682,7 @@ hist_browser__hpp_color_##_type(struct perf_hpp_fmt *fmt __maybe_unused,\
 				struct perf_hpp *hpp,			\
 				struct hist_entry *he)			\
 {									\
-	return __hpp__fmt(hpp, he, __hpp_get_##_field, " %6.2f%%",	\
+	return __hpp__fmt(hpp, he, __hpp_get_##_field, " %*.2f%%", 6,	\
 			  __hpp__slsmg_color_printf, true);		\
 }
 
@@ -697,13 +698,14 @@ hist_browser__hpp_color_##_type(struct perf_hpp_fmt *fmt __maybe_unused,\
 				struct hist_entry *he)			\
 {									\
 	if (!symbol_conf.cumulate_callchain) {				\
-		int ret = scnprintf(hpp->buf, hpp->size, "%8s", "N/A");	\
+		int ret = scnprintf(hpp->buf, hpp->size,		\
+				    "%*s", 8, "N/A");			\
 		slsmg_printf("%s", hpp->buf);				\
 									\
 		return ret;						\
 	}								\
-	return __hpp__fmt(hpp, he, __hpp_get_acc_##_field, " %6.2f%%",	\
-			  __hpp__slsmg_color_printf, true);		\
+	return __hpp__fmt(hpp, he, __hpp_get_acc_##_field, " %*.2f%%",	\
+			  6, __hpp__slsmg_color_printf, true);	\
 }
 
 __HPP_COLOR_PERCENT_FN(overhead, period)
