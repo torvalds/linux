@@ -736,7 +736,6 @@ struct dm_odm_t {
 	struct false_alarm_stats	FalseAlmCnt;
 	struct false_alarm_stats	FlaseAlmCntBuddyAdapter;
 	struct sw_ant_sw		DM_SWAT_Table;
-	bool		RSSI_test;
 
 	struct edca_turbo		DM_EDCA_Table;
 	u32		WMMEDCA_BE;
