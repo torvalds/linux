@@ -272,7 +272,7 @@ static int lb_bpf_func_set(struct team *team, struct team_gsetter_ctx *ctx)
 {
 	struct lb_priv *lb_priv = get_lb_priv(team);
 	struct sk_filter *fp = NULL;
-	struct sk_filter *orig_fp;
+	struct sk_filter *orig_fp = NULL;
 	struct sock_fprog_kern *fprog = NULL;
 	int err;
 
