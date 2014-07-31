@@ -10,12 +10,14 @@ extensions to the Synopsys Designware Mobile Storage Host Controller.
 Required Properties:
 
 * compatible: should be
-	- "rockchip,rk2928-dw-mshc": for Rockchip RK2928 and following
+	- "rockchip,rk2928-dw-mshc": for Rockchip RK2928 and following,
+							before RK3288
+	- "rockchip,rk3288-dw-mshc": for Rockchip RK3288
 
 Example:
 
 	rkdwmmc0@12200000 {
-		compatible = "rockchip,rk2928-dw-mshc";
+		compatible = "rockchip,rk3288-dw-mshc";
 		reg = <0x12200000 0x1000>;
 		interrupts = <0 75 0>;
 		#address-cells = <1>;
