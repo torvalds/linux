@@ -939,8 +939,11 @@ new_symbol:
 		 * to it...
 		 */
 		if (symbol_conf.demangle) {
-			demangled = bfd_demangle(NULL, elf_name,
-						 DMGL_PARAMS | DMGL_ANSI);
+			int demangle_flags = DMGL_NO_OPTS;
+			if (verbose)
+				demangle_flags = DMGL_PARAMS | DMGL_ANSI;
+
+			demangled = bfd_demangle(NULL, elf_name, demangle_flags);
 			if (demangled != NULL)
 				elf_name = demangled;
 		}
