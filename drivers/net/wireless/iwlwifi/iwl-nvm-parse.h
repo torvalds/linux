@@ -78,7 +78,7 @@ iwl_parse_nvm_data(struct device *dev, const struct iwl_cfg *cfg,
 		   const __le16 *nvm_hw, const __le16 *nvm_sw,
 		   const __le16 *nvm_calib, const __le16 *regulatory,
 		   const __le16 *mac_override, u8 tx_chains, u8 rx_chains,
-		   bool lar_supported);
+		   bool lar_fw_supported);
 
 /**
  * iwl_parse_mcc_info - parse MCC (mobile country code) info coming from FW

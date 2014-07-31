@@ -914,7 +914,17 @@ static inline bool iwl_mvm_is_d0i3_supported(struct iwl_mvm *mvm)
 
 static inline bool iwl_mvm_is_lar_supported(struct iwl_mvm *mvm)
 {
-	return mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_LAR_SUPPORT;
+	bool nvm_lar = mvm->nvm_data->lar_enabled;
+	bool tlv_lar = mvm->fw->ucode_capa.capa[0] &
+		IWL_UCODE_TLV_CAPA_LAR_SUPPORT;
+	/*
+	 * Enable LAR only if it is supported by the FW (TLV) &&
+	 * enabled in the NVM
+	 */
+	if (mvm->cfg->device_family == IWL_DEVICE_FAMILY_8000)
+		return nvm_lar && tlv_lar;
+	else
+		return tlv_lar;
 }
 
 static inline bool iwl_mvm_is_scd_cfg_supported(struct iwl_mvm *mvm)

@@ -303,7 +303,8 @@ iwl_parse_nvm_sections(struct iwl_mvm *mvm)
 				  regulatory, mac_override,
 				  mvm->fw->valid_tx_ant,
 				  mvm->fw->valid_rx_ant,
-				  iwl_mvm_is_lar_supported(mvm));
+				  mvm->fw->ucode_capa.capa[0] &
+				  IWL_UCODE_TLV_CAPA_LAR_SUPPORT);
 }
 
 #define MAX_NVM_FILE_LEN	16384
@@ -659,6 +660,20 @@ exit:
 
 int iwl_mvm_init_mcc(struct iwl_mvm *mvm)
 {
+	bool tlv_lar;
+	bool nvm_lar;
+
+	if (mvm->cfg->device_family == IWL_DEVICE_FAMILY_8000) {
+		tlv_lar = mvm->fw->ucode_capa.capa[0] &
+			IWL_UCODE_TLV_CAPA_LAR_SUPPORT;
+		nvm_lar = mvm->nvm_data->lar_enabled;
+		if (tlv_lar != nvm_lar)
+			IWL_INFO(mvm,
+				 "Conflict between TLV & NVM regarding enabling LAR (TLV = %s NVM =%s)\n",
+				 tlv_lar ? "enabled" : "disabled",
+				 nvm_lar ? "enabled" : "disabled");
+	}
+
 	if (!iwl_mvm_is_lar_supported(mvm))
 		return 0;
 

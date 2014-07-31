@@ -105,6 +105,8 @@ enum family_8000_nvm_offsets {
 
 	/* NVM REGULATORY -Section offset (in words) definitions */
 	NVM_CHANNELS_FAMILY_8000 = 0,
+	NVM_LAR_OFFSET_FAMILY_8000 = 0x4C7,
+	NVM_LAR_ENABLED_FAMILY_8000 = 0x7,
 
 	/* NVM calibration section offset (in words) definitions */
 	NVM_CALIB_SECTION_FAMILY_8000 = 0x2B8,
@@ -597,11 +599,12 @@ iwl_parse_nvm_data(struct device *dev, const struct iwl_cfg *cfg,
 		   const __le16 *nvm_hw, const __le16 *nvm_sw,
 		   const __le16 *nvm_calib, const __le16 *regulatory,
 		   const __le16 *mac_override, u8 tx_chains, u8 rx_chains,
-		   bool lar_supported)
+		   bool lar_fw_supported)
 {
 	struct iwl_nvm_data *data;
 	u32 sku;
 	u32 radio_cfg;
+	u16 lar_config;
 
 	if (cfg->device_family != IWL_DEVICE_FAMILY_8000)
 		data = kzalloc(sizeof(*data) +
@@ -653,15 +656,21 @@ iwl_parse_nvm_data(struct device *dev, const struct iwl_cfg *cfg,
 
 		iwl_init_sbands(dev, cfg, data, nvm_sw,
 				sku & NVM_SKU_CAP_11AC_ENABLE, tx_chains,
-				rx_chains, lar_supported);
+				rx_chains, lar_fw_supported);
 	} else {
+		lar_config = le16_to_cpup(regulatory +
+					  NVM_LAR_OFFSET_FAMILY_8000);
+		data->lar_enabled = !!(lar_config &
+				       NVM_LAR_ENABLED_FAMILY_8000);
+
 		/* MAC address in family 8000 */
 		iwl_set_hw_address_family_8000(dev, cfg, data, mac_override,
 					       nvm_hw);
 
 		iwl_init_sbands(dev, cfg, data, regulatory,
 				sku & NVM_SKU_CAP_11AC_ENABLE, tx_chains,
-				rx_chains, lar_supported);
+				rx_chains, lar_fw_supported &&
+				data->lar_enabled);
 	}
 
 	data->calib_version = 255;
