@@ -487,31 +487,6 @@ nv_device_resource_len(struct nouveau_device *device, unsigned int bar)
 	}
 }
 
-dma_addr_t
-nv_device_map_page(struct nouveau_device *device, struct page *page)
-{
-	dma_addr_t ret;
-
-	if (nv_device_is_pci(device)) {
-		ret = pci_map_page(device->pdev, page, 0, PAGE_SIZE,
-				   PCI_DMA_BIDIRECTIONAL);
-		if (pci_dma_mapping_error(device->pdev, ret))
-			ret = 0;
-	} else {
-		ret = page_to_phys(page);
-	}
-
-	return ret;
-}
-
-void
-nv_device_unmap_page(struct nouveau_device *device, dma_addr_t addr)
-{
-	if (nv_device_is_pci(device))
-		pci_unmap_page(device->pdev, addr, PAGE_SIZE,
-			       PCI_DMA_BIDIRECTIONAL);
-}
-
 int
 nv_device_get_irq(struct nouveau_device *device, bool stall)
 {

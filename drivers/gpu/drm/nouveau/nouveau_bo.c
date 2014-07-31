@@ -1340,6 +1340,7 @@ nouveau_ttm_tt_populate(struct ttm_tt *ttm)
 	struct nouveau_drm *drm;
 	struct nouveau_device *device;
 	struct drm_device *dev;
+	struct device *pdev;
 	unsigned i;
 	int r;
 	bool slave = !!(ttm->page_flags & TTM_PAGE_FLAG_SG);
@@ -1358,6 +1359,7 @@ nouveau_ttm_tt_populate(struct ttm_tt *ttm)
 	drm = nouveau_bdev(ttm->bdev);
 	device = nv_device(drm->device);
 	dev = drm->dev;
+	pdev = nv_device_base(device);
 
 #if __OS_HAS_AGP
 	if (drm->agp.stat == ENABLED) {
@@ -1377,17 +1379,22 @@ nouveau_ttm_tt_populate(struct ttm_tt *ttm)
 	}
 
 	for (i = 0; i < ttm->num_pages; i++) {
-		ttm_dma->dma_address[i] = nv_device_map_page(device,
-							     ttm->pages[i]);
-		if (!ttm_dma->dma_address[i]) {
+		dma_addr_t addr;
+
+		addr = dma_map_page(pdev, ttm->pages[i], 0, PAGE_SIZE,
+				    DMA_BIDIRECTIONAL);
+
+		if (dma_mapping_error(pdev, addr)) {
 			while (--i) {
-				nv_device_unmap_page(device,
-						     ttm_dma->dma_address[i]);
+				dma_unmap_page(pdev, ttm_dma->dma_address[i],
+					       PAGE_SIZE, DMA_BIDIRECTIONAL);
 				ttm_dma->dma_address[i] = 0;
 			}
 			ttm_pool_unpopulate(ttm);
 			return -EFAULT;
 		}
+
+		ttm_dma->dma_address[i] = addr;
 	}
 	return 0;
 }
@@ -1399,6 +1406,7 @@ nouveau_ttm_tt_unpopulate(struct ttm_tt *ttm)
 	struct nouveau_drm *drm;
 	struct nouveau_device *device;
 	struct drm_device *dev;
+	struct device *pdev;
 	unsigned i;
 	bool slave = !!(ttm->page_flags & TTM_PAGE_FLAG_SG);
 
@@ -1408,6 +1416,7 @@ nouveau_ttm_tt_unpopulate(struct ttm_tt *ttm)
 	drm = nouveau_bdev(ttm->bdev);
 	device = nv_device(drm->device);
 	dev = drm->dev;
+	pdev = nv_device_base(device);
 
 #if __OS_HAS_AGP
 	if (drm->agp.stat == ENABLED) {
@@ -1425,7 +1434,8 @@ nouveau_ttm_tt_unpopulate(struct ttm_tt *ttm)
 
 	for (i = 0; i < ttm->num_pages; i++) {
 		if (ttm_dma->dma_address[i]) {
-			nv_device_unmap_page(device, ttm_dma->dma_address[i]);
+			dma_unmap_page(pdev, ttm_dma->dma_address[i], PAGE_SIZE,
+				       DMA_BIDIRECTIONAL);
 		}
 	}
 
