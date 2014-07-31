@@ -87,7 +87,7 @@ enum power_event {
 				(reg * 8))
 #define GMAC_ADDR_LOW(reg)	(((reg > 15) ? 0x00000804 : 0x00000044) + \
 				(reg * 8))
-#define GMAC_MAX_PERFECT_ADDRESSES	32
+#define GMAC_MAX_PERFECT_ADDRESSES	1
 
 /* PCS registers (AN/TBI/SGMII/RGMII) offset */
 #define GMAC_AN_CTRL	0x000000c0	/* AN control */

@@ -381,7 +381,7 @@ struct stmmac_ops {
 	int (*host_irq_status)(struct mac_device_info *hw,
 			       struct stmmac_extra_stats *x);
 	/* Multicast filter setting */
-	void (*set_filter)(struct net_device *dev, int id);
+	void (*set_filter)(struct net_device *dev);
 	/* Flow control setting */
 	void (*flow_ctrl)(struct mac_device_info *hw, unsigned int duplex,
 			  unsigned int fc, unsigned int pause_time);

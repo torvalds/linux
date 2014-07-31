@@ -97,30 +97,28 @@ static void dwmac1000_get_umac_addr(struct mac_device_info *hw,
 			    GMAC_ADDR_LOW(reg_n));
 }
 
-static void dwmac1000_set_filter(struct net_device *dev, int id)
+static void dwmac1000_set_filter(struct net_device *dev)
 {
 	void __iomem *ioaddr = (void __iomem *)dev->base_addr;
 	unsigned int value = 0;
 	unsigned int perfect_addr_number;
+	u32 mc_filter[2];
 
 	pr_debug("%s: # mcasts %d, # unicast %d\n", __func__,
 		 netdev_mc_count(dev), netdev_uc_count(dev));
 
-	if (dev->flags & IFF_PROMISC)
+	memset(mc_filter, 0, sizeof(mc_filter));
+
+	if (dev->flags & IFF_PROMISC) {
 		value = GMAC_FRAME_FILTER_PR;
-	else if ((netdev_mc_count(dev) > HASH_TABLE_SIZE)
-		 || (dev->flags & IFF_ALLMULTI)) {
+	} else if (dev->flags & IFF_ALLMULTI) {
 		value = GMAC_FRAME_FILTER_PM;	/* pass all multi */
-		writel(0xffffffff, ioaddr + GMAC_HASH_HIGH);
-		writel(0xffffffff, ioaddr + GMAC_HASH_LOW);
 	} else if (!netdev_mc_empty(dev)) {
-		u32 mc_filter[2];
 		struct netdev_hw_addr *ha;
 
 		/* Hash filter for multicast */
 		value = GMAC_FRAME_FILTER_HMC;
 
-		memset(mc_filter, 0, sizeof(mc_filter));
 		netdev_for_each_mc_addr(ha, dev) {
 			/* The upper 6 bits of the calculated CRC are used to
 			 * index the contens of the hash table
@@ -132,15 +130,12 @@ static void dwmac1000_set_filter(struct net_device *dev, int id)
 			 */
 			mc_filter[bit_nr >> 5] |= 1 << (bit_nr & 31);
 		}
-		writel(mc_filter[0], ioaddr + GMAC_HASH_LOW);
-		writel(mc_filter[1], ioaddr + GMAC_HASH_HIGH);
 	}
 
-	/* Extra 16 regs are available in cores newer than the 3.40. */
-	if (id > DWMAC_CORE_3_40)
-		perfect_addr_number = GMAC_MAX_PERFECT_ADDRESSES;
-	else
-		perfect_addr_number = GMAC_MAX_PERFECT_ADDRESSES / 2;
+	writel(mc_filter[0], ioaddr + GMAC_HASH_LOW);
+	writel(mc_filter[1], ioaddr + GMAC_HASH_HIGH);
+
+	perfect_addr_number = GMAC_MAX_PERFECT_ADDRESSES;
 
 	/* Handle multiple unicast addresses (perfect filtering) */
 	if (netdev_uc_count(dev) > perfect_addr_number)
