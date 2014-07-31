@@ -759,8 +759,8 @@ static int aic31xx_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_codec *codec = dai->codec;
 	u8 data = 0;
 
-	dev_dbg(codec->dev, "## %s: format %d width %d rate %d\n",
-		__func__, params_format(params), params_width(params),
+	dev_dbg(codec->dev, "## %s: width %d rate %d\n",
+		__func__, params_width(params),
 		params_rate(params));
 
 	switch (params_width(params)) {
@@ -779,8 +779,8 @@ static int aic31xx_hw_params(struct snd_pcm_substream *substream,
 			AIC31XX_IFACE1_DATALEN_SHIFT);
 		break;
 	default:
-		dev_err(codec->dev, "%s: Unsupported format %d\n",
-			__func__, params_format(params));
+		dev_err(codec->dev, "%s: Unsupported width %d\n",
+			__func__, params_width(params));
 		return -EINVAL;
 	}
 
