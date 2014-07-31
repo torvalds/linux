@@ -174,9 +174,9 @@ void iovmm_unmap(struct device *dev, dma_addr_t iova)
 	region->start = round_down(region->start, PAGE_SIZE);
 
 	unmapped_size = iommu_unmap(vmm->domain, region->start, region->size);
-
+	/*
 	rockchip_sysmmu_tlb_invalidate(dev);
-
+	*/
 	gen_pool_free(vmm->vmm_pool, region->start, region->size);
 
 	WARN_ON(unmapped_size != region->size);

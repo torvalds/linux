@@ -12,6 +12,7 @@
 #include <linux/list.h>
 #include <linux/atomic.h>
 #include <linux/spinlock.h>
+#include <linux/device.h>
 
 #define IEP_SYSMMU_COMPATIBLE_NAME "iommu,iep_mmu"
 #define VIP_SYSMMU_COMPATIBLE_NAME "iommu,vip_mmu"
@@ -90,20 +91,36 @@ void rockchip_sysmmu_tlb_invalidate(struct device *owner);
 void rockchip_sysmmu_set_fault_handler(struct device *dev,sysmmu_fault_handler_t handler);
 
 #else /* CONFIG_ROCKCHIP_IOMMU */
-#define rockchip_sysmmu_enable(owner, pgd) do { } while (0)
-#define rockchip_sysmmu_disable(owner) do { } while (0)
-#define rockchip_sysmmu_tlb_invalidate(owner) do { } while (0)
-#define rockchip_sysmmu_set_fault_handler(sysmmu, handler) do { } while (0)
+static inline int rockchip_sysmmu_enable(struct device *owner, unsigned long pgd)
+{
+	return -ENOSYS;
+}
+static inline bool rockchip_sysmmu_disable(struct device *owner)
+{
+	return false;
+}
+static inline void rockchip_sysmmu_tlb_invalidate(struct device *owner)
+{
+}
+static inline void rockchip_sysmmu_set_fault_handler(struct device *dev,sysmmu_fault_handler_t handler)
+{
+}
+static inline void rockchip_sysmmu_set_prefbuf(struct device *owner,
+					       unsigned long base0, unsigned long size0,
+					       unsigned long base1, unsigned long size1)
+{
+}
 #endif
 
 #ifdef CONFIG_IOMMU_API
-#include <linux/device.h>
 static inline void platform_set_sysmmu(struct device *sysmmu, struct device *dev)
 {
 	dev->archdata.iommu = sysmmu;
 }
 #else
-#define platform_set_sysmmu(dev, sysmmu) do { } while (0)
+static inline void platform_set_sysmmu(struct device *sysmmu, struct device *dev)
+{
+}
 #endif
 
 #endif /* _ARM_MACH_RK_SYSMMU_H_ */
