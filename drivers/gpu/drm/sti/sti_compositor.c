@@ -14,6 +14,9 @@
 #include <drm/drmP.h>
 
 #include "sti_compositor.h"
+#include "sti_drm_crtc.h"
+#include "sti_drm_drv.h"
+#include "sti_drm_plane.h"
 #include "sti_gdp.h"
 #include "sti_vtg.h"
 
@@ -87,11 +90,50 @@ static int sti_compositor_bind(struct device *dev, struct device *master,
 	struct sti_compositor *compo = dev_get_drvdata(dev);
 	struct drm_device *drm_dev = data;
 	unsigned int i, crtc = 0, plane = 0;
+	struct sti_drm_private *dev_priv = drm_dev->dev_private;
+	struct drm_plane *cursor = NULL;
+	struct drm_plane *primary = NULL;
+
+	dev_priv->compo = compo;
+
+	for (i = 0; i < compo->nb_layers; i++) {
+		if (compo->layer[i]) {
+			enum sti_layer_desc desc = compo->layer[i]->desc;
+			enum sti_layer_type type = desc & STI_LAYER_TYPE_MASK;
+			enum drm_plane_type plane_type = DRM_PLANE_TYPE_OVERLAY;
+
+			if (compo->mixer[crtc])
+				plane_type = DRM_PLANE_TYPE_PRIMARY;
+
+			switch (type) {
+			case STI_CUR:
+				cursor = sti_drm_plane_init(drm_dev,
+						compo->layer[i],
+						(1 << crtc) - 1,
+						DRM_PLANE_TYPE_CURSOR);
+				break;
+			case STI_GDP:
+			case STI_VID:
+				primary = sti_drm_plane_init(drm_dev,
+						compo->layer[i],
+						(1 << crtc) - 1, plane_type);
+				plane++;
+				break;
+			}
+
+			/* The first planes are reserved for primary planes*/
+			if (compo->mixer[crtc]) {
+				sti_drm_crtc_init(drm_dev, compo->mixer[crtc],
+						primary, cursor);
+				crtc++;
+				cursor = NULL;
+			}
+		}
+	}
 
 	drm_vblank_init(drm_dev, crtc);
 	/* Allow usage of vblank without having to call drm_irq_install */
 	drm_dev->irq_enabled = 1;
-
 
 	DRM_DEBUG_DRIVER("Initialized %d DRM CRTC(s) and %d DRM plane(s)\n",
 			 crtc, plane);
@@ -139,6 +181,7 @@ static int sti_compositor_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 	compo->dev = dev;
+	compo->vtg_vblank_nb.notifier_call = sti_drm_crtc_vblank_cb;
 
 	/* populate data structure depending on compatibility */
 	BUG_ON(!of_match_node(compositor_of_match, np)->data);
