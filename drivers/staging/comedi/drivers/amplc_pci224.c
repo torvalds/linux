@@ -1192,11 +1192,12 @@ static int pci224_attach_common(struct comedi_device *dev,
 		/* PCI234 range options. */
 		const struct comedi_lrange **range_table_list;
 
-		s->range_table_list = range_table_list =
+		range_table_list =
 		    kmalloc(sizeof(struct comedi_lrange *) * s->n_chan,
 			    GFP_KERNEL);
-		if (!s->range_table_list)
+		if (!range_table_list)
 			return -ENOMEM;
+		s->range_table_list = range_table_list;
 
 		if (options) {
 			for (n = 2; n < 3 + s->n_chan; n++) {
