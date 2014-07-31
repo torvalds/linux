@@ -483,7 +483,26 @@ static struct rsnd_mod_ops rsnd_src_gen1_ops = {
 static int rsnd_src_set_convert_rate_gen2(struct rsnd_mod *mod,
 					  struct rsnd_dai *rdai)
 {
+	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
+	struct device *dev = rsnd_priv_to_dev(priv);
+	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
+	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
+	struct rsnd_src *src = rsnd_mod_to_src(mod);
+	uint ratio;
 	int ret;
+
+	/* 6 - 1/6 are very enough ratio for SRC_BSDSR */
+	if (!rsnd_src_convert_rate(src))
+		ratio = 0;
+	else if (rsnd_src_convert_rate(src) > runtime->rate)
+		ratio = 100 * rsnd_src_convert_rate(src) / runtime->rate;
+	else
+		ratio = 100 * runtime->rate / rsnd_src_convert_rate(src);
+
+	if (ratio > 600) {
+		dev_err(dev, "FSO/FSI ratio error\n");
+		return -EINVAL;
+	}
 
 	ret = rsnd_src_set_convert_rate(mod, rdai);
 	if (ret < 0)
@@ -491,7 +510,18 @@ static int rsnd_src_set_convert_rate_gen2(struct rsnd_mod *mod,
 
 	rsnd_mod_write(mod, SRC_SRCCR, 0x00011110);
 
-	rsnd_mod_write(mod, SRC_BSDSR, 0x01800000);
+	switch (rsnd_mod_id(mod)) {
+	case 5:
+	case 6:
+	case 7:
+	case 8:
+		rsnd_mod_write(mod, SRC_BSDSR, 0x02400000);
+		break;
+	default:
+		rsnd_mod_write(mod, SRC_BSDSR, 0x01800000);
+		break;
+	}
+
 	rsnd_mod_write(mod, SRC_BSISR, 0x00100060);
 
 	return 0;
