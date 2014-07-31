@@ -284,6 +284,7 @@ static int rsnd_gen2_probe(struct platform_device *pdev,
 		/* FIXME: it needs SSI_MODE2/3 in the future */
 		RSND_GEN_M_REG(SSI_BUSIF_MODE,	0x0,	0x80),
 		RSND_GEN_M_REG(SSI_BUSIF_ADINR,	0x4,	0x80),
+		RSND_GEN_M_REG(BUSIF_DALIGN,	0x8,	0x80),
 		RSND_GEN_M_REG(SSI_CTRL,	0x10,	0x80),
 		RSND_GEN_M_REG(INT_ENABLE,	0x18,	0x80),
 	};
