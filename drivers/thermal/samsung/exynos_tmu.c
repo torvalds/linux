@@ -174,7 +174,7 @@ static int exynos_tmu_initialize(struct platform_device *pdev)
 			trim_info = readl(data->base + reg->triminfo_data);
 	}
 	data->temp_error1 = trim_info & EXYNOS_TMU_TEMP_MASK;
-	data->temp_error2 = ((trim_info >> reg->triminfo_85_shift) &
+	data->temp_error2 = ((trim_info >> EXYNOS_TRIMINFO_85_SHIFT) &
 				EXYNOS_TMU_TEMP_MASK);
 
 	if (!data->temp_error1 ||
@@ -184,7 +184,7 @@ static int exynos_tmu_initialize(struct platform_device *pdev)
 
 	if (!data->temp_error2)
 		data->temp_error2 =
-			(pdata->efuse_value >> reg->triminfo_85_shift) &
+			(pdata->efuse_value >> EXYNOS_TRIMINFO_85_SHIFT) &
 			EXYNOS_TMU_TEMP_MASK;
 
 	rising_threshold = readl(data->base + reg->threshold_th0);
@@ -274,11 +274,11 @@ static void exynos_tmu_control(struct platform_device *pdev, bool on)
 	if (pdata->test_mux)
 		con |= (pdata->test_mux << reg->test_mux_addr_shift);
 
-	con &= ~(reg->buf_vref_sel_mask << reg->buf_vref_sel_shift);
-	con |= pdata->reference_voltage << reg->buf_vref_sel_shift;
+	con &= ~(EXYNOS_TMU_REF_VOLTAGE_MASK << EXYNOS_TMU_REF_VOLTAGE_SHIFT);
+	con |= pdata->reference_voltage << EXYNOS_TMU_REF_VOLTAGE_SHIFT;
 
-	con &= ~(reg->buf_slope_sel_mask << reg->buf_slope_sel_shift);
-	con |= (pdata->gain << reg->buf_slope_sel_shift);
+	con &= ~(EXYNOS_TMU_BUF_SLOPE_SEL_MASK << EXYNOS_TMU_BUF_SLOPE_SEL_SHIFT);
+	con |= (pdata->gain << EXYNOS_TMU_BUF_SLOPE_SEL_SHIFT);
 
 	if (pdata->noise_cancel_mode) {
 		con &= ~(reg->therm_trip_mode_mask <<
@@ -287,7 +287,7 @@ static void exynos_tmu_control(struct platform_device *pdev, bool on)
 	}
 
 	if (on) {
-		con |= (1 << reg->core_en_shift);
+		con |= (1 << EXYNOS_TMU_CORE_EN_SHIFT);
 		interrupt_en =
 			pdata->trigger_enable[3] << reg->inten_rise3_shift |
 			pdata->trigger_enable[2] << reg->inten_rise2_shift |
@@ -297,7 +297,7 @@ static void exynos_tmu_control(struct platform_device *pdev, bool on)
 			interrupt_en |=
 				interrupt_en << reg->inten_fall0_shift;
 	} else {
-		con &= ~(1 << reg->core_en_shift);
+		con &= ~(1 << EXYNOS_TMU_CORE_EN_SHIFT);
 		interrupt_en = 0; /* Disable all interrupts */
 	}
 	writel(interrupt_en, data->base + reg->tmu_inten);

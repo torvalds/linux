@@ -77,20 +77,12 @@ enum soc_type {
  * bitfields. The register validity, offsets and bitfield values may vary
  * slightly across different exynos SOC's.
  * @triminfo_data: register containing 2 pont trimming data
- * @triminfo_25_shift: shift bit of the 25 C trim value in triminfo_data reg.
- * @triminfo_85_shift: shift bit of the 85 C trim value in triminfo_data reg.
  * @triminfo_ctrl: trim info controller register.
  * @tmu_ctrl: TMU main controller register.
  * @test_mux_addr_shift: shift bits of test mux address.
- * @buf_vref_sel_shift: shift bits of reference voltage in tmu_ctrl register.
- * @buf_vref_sel_mask: mask bits of reference voltage in tmu_ctrl register.
  * @therm_trip_mode_shift: shift bits of tripping mode in tmu_ctrl register.
  * @therm_trip_mode_mask: mask bits of tripping mode in tmu_ctrl register.
  * @therm_trip_en_shift: shift bits of tripping enable in tmu_ctrl register.
- * @buf_slope_sel_shift: shift bits of amplifier gain value in tmu_ctrl
-	register.
- * @buf_slope_sel_mask: mask bits of amplifier gain value in tmu_ctrl register.
- * @core_en_shift: shift bits of TMU core enable bit in tmu_ctrl register.
  * @tmu_status: register drescribing the TMU status.
  * @tmu_cur_temp: register containing the current temperature of the TMU.
  * @threshold_temp: register containing the base threshold level.
@@ -119,22 +111,15 @@ enum soc_type {
  */
 struct exynos_tmu_registers {
 	u32	triminfo_data;
-	u32	triminfo_25_shift;
-	u32	triminfo_85_shift;
 
 	u32	triminfo_ctrl;
 	u32	triminfo_ctrl1;
 
 	u32	tmu_ctrl;
 	u32     test_mux_addr_shift;
-	u32	buf_vref_sel_shift;
-	u32	buf_vref_sel_mask;
 	u32	therm_trip_mode_shift;
 	u32	therm_trip_mode_mask;
 	u32	therm_trip_en_shift;
-	u32	buf_slope_sel_shift;
-	u32	buf_slope_sel_mask;
-	u32	core_en_shift;
 
 	u32	tmu_status;
 
