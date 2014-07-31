@@ -1985,18 +1985,6 @@ static void lpphy_calibration(struct b43_wldev *dev)
 	b43_mac_enable(dev);
 }
 
-static u16 b43_lpphy_op_read(struct b43_wldev *dev, u16 reg)
-{
-	b43_write16(dev, B43_MMIO_PHY_CONTROL, reg);
-	return b43_read16(dev, B43_MMIO_PHY_DATA);
-}
-
-static void b43_lpphy_op_write(struct b43_wldev *dev, u16 reg, u16 value)
-{
-	b43_write16(dev, B43_MMIO_PHY_CONTROL, reg);
-	b43_write16(dev, B43_MMIO_PHY_DATA, value);
-}
-
 static void b43_lpphy_op_maskset(struct b43_wldev *dev, u16 reg, u16 mask,
 				 u16 set)
 {
@@ -2713,8 +2701,6 @@ const struct b43_phy_operations b43_phyops_lp = {
 	.free			= b43_lpphy_op_free,
 	.prepare_structs	= b43_lpphy_op_prepare_structs,
 	.init			= b43_lpphy_op_init,
-	.phy_read		= b43_lpphy_op_read,
-	.phy_write		= b43_lpphy_op_write,
 	.phy_maskset		= b43_lpphy_op_maskset,
 	.radio_read		= b43_lpphy_op_radio_read,
 	.radio_write		= b43_lpphy_op_radio_write,
