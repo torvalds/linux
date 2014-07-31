@@ -1196,20 +1196,12 @@ pci224_auto_attach(struct comedi_device *dev, unsigned long context_unused)
 			"BUG! cannot determine board type!\n");
 		return -EINVAL;
 	}
-	/*
-	 * Need to 'get' the PCI device to match the 'put' in pci224_detach().
-	 * TODO: Remove the pci_dev_get() and matching pci_dev_put() once
-	 * support for manual attachment of PCI devices via pci224_attach()
-	 * has been removed.
-	 */
-	pci_dev_get(pci_dev);
 	return pci224_attach_common(dev, pci_dev);
 }
 
 static void pci224_detach(struct comedi_device *dev)
 {
 	struct pci224_private *devpriv = dev->private;
-	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 
 	if (dev->irq)
 		free_irq(dev->irq, dev);
@@ -1219,8 +1211,6 @@ static void pci224_detach(struct comedi_device *dev)
 		kfree(devpriv->ao_scan_order);
 	}
 	comedi_pci_disable(dev);
-	if (pcidev)
-		pci_dev_put(pcidev);
 }
 
 static struct comedi_driver amplc_pci224_driver = {
