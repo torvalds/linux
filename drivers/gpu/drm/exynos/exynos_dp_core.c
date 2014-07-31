@@ -875,9 +875,17 @@ static irqreturn_t exynos_dp_irq_handler(int irq, void *arg)
 static void exynos_dp_hotplug(struct work_struct *work)
 {
 	struct exynos_dp_device *dp;
-	int ret;
 
 	dp = container_of(work, struct exynos_dp_device, hotplug_work);
+
+	if (dp->drm_dev)
+		drm_helper_hpd_irq_event(dp->drm_dev);
+}
+
+static void exynos_dp_commit(struct exynos_drm_display *display)
+{
+	struct exynos_dp_device *dp = display->ctx;
+	int ret;
 
 	ret = exynos_dp_detect_hpd(dp);
 	if (ret) {
@@ -1050,8 +1058,10 @@ static void exynos_dp_phy_exit(struct exynos_dp_device *dp)
 	}
 }
 
-static void exynos_dp_poweron(struct exynos_dp_device *dp)
+static void exynos_dp_poweron(struct exynos_drm_display *display)
 {
+	struct exynos_dp_device *dp = display->ctx;
+
 	if (dp->dpms_mode == DRM_MODE_DPMS_ON)
 		return;
 
@@ -1059,10 +1069,13 @@ static void exynos_dp_poweron(struct exynos_dp_device *dp)
 	exynos_dp_phy_init(dp);
 	exynos_dp_init_dp(dp);
 	enable_irq(dp->irq);
+	exynos_dp_commit(display);
 }
 
-static void exynos_dp_poweroff(struct exynos_dp_device *dp)
+static void exynos_dp_poweroff(struct exynos_drm_display *display)
 {
+	struct exynos_dp_device *dp = display->ctx;
+
 	if (dp->dpms_mode != DRM_MODE_DPMS_ON)
 		return;
 
@@ -1078,12 +1091,12 @@ static void exynos_dp_dpms(struct exynos_drm_display *display, int mode)
 
 	switch (mode) {
 	case DRM_MODE_DPMS_ON:
-		exynos_dp_poweron(dp);
+		exynos_dp_poweron(display);
 		break;
 	case DRM_MODE_DPMS_STANDBY:
 	case DRM_MODE_DPMS_SUSPEND:
 	case DRM_MODE_DPMS_OFF:
-		exynos_dp_poweroff(dp);
+		exynos_dp_poweroff(display);
 		break;
 	default:
 		break;
@@ -1094,6 +1107,7 @@ static void exynos_dp_dpms(struct exynos_drm_display *display, int mode)
 static struct exynos_drm_display_ops exynos_dp_display_ops = {
 	.create_connector = exynos_dp_create_connector,
 	.dpms = exynos_dp_dpms,
+	.commit = exynos_dp_commit,
 };
 
 static struct exynos_drm_display exynos_dp_display = {
