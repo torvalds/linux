@@ -6217,6 +6217,9 @@ static void b43_nphy_channel_setup(struct b43_wldev *dev,
 	u16 tmp16;
 
 	if (new_channel->band == IEEE80211_BAND_5GHZ) {
+		/* Switch to 2 GHz for a moment to access B43_PHY_B_BBCFG */
+		b43_phy_mask(dev, B43_NPHY_BANDCTL, ~B43_NPHY_BANDCTL_5GHZ);
+
 		tmp16 = b43_read16(dev, B43_MMIO_PSM_PHY_HDR);
 		b43_write16(dev, B43_MMIO_PSM_PHY_HDR, tmp16 | 4);
 		/* Put BPHY in the reset */

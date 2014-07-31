@@ -44,7 +44,7 @@ static const u16 mgmt_commands[] = {
 	MGMT_OP_SET_DISCOVERABLE,
 	MGMT_OP_SET_CONNECTABLE,
 	MGMT_OP_SET_FAST_CONNECTABLE,
-	MGMT_OP_SET_PAIRABLE,
+	MGMT_OP_SET_BONDABLE,
 	MGMT_OP_SET_LINK_SECURITY,
 	MGMT_OP_SET_SSP,
 	MGMT_OP_SET_HS,
@@ -553,7 +553,7 @@ static u32 get_supported_settings(struct hci_dev *hdev)
 	u32 settings = 0;
 
 	settings |= MGMT_SETTING_POWERED;
-	settings |= MGMT_SETTING_PAIRABLE;
+	settings |= MGMT_SETTING_BONDABLE;
 	settings |= MGMT_SETTING_DEBUG_KEYS;
 	settings |= MGMT_SETTING_CONNECTABLE;
 	settings |= MGMT_SETTING_DISCOVERABLE;
@@ -603,8 +603,8 @@ static u32 get_current_settings(struct hci_dev *hdev)
 	if (test_bit(HCI_DISCOVERABLE, &hdev->dev_flags))
 		settings |= MGMT_SETTING_DISCOVERABLE;
 
-	if (test_bit(HCI_PAIRABLE, &hdev->dev_flags))
-		settings |= MGMT_SETTING_PAIRABLE;
+	if (test_bit(HCI_BONDABLE, &hdev->dev_flags))
+		settings |= MGMT_SETTING_BONDABLE;
 
 	if (test_bit(HCI_BREDR_ENABLED, &hdev->dev_flags))
 		settings |= MGMT_SETTING_BREDR;
@@ -1152,7 +1152,7 @@ static void mgmt_init_hdev(struct sock *sk, struct hci_dev *hdev)
 	 * for mgmt we require user-space to explicitly enable
 	 * it
 	 */
-	clear_bit(HCI_PAIRABLE, &hdev->dev_flags);
+	clear_bit(HCI_BONDABLE, &hdev->dev_flags);
 }
 
 static int read_controller_info(struct sock *sk, struct hci_dev *hdev,
@@ -1930,7 +1930,7 @@ failed:
 	return err;
 }
 
-static int set_pairable(struct sock *sk, struct hci_dev *hdev, void *data,
+static int set_bondable(struct sock *sk, struct hci_dev *hdev, void *data,
 			u16 len)
 {
 	struct mgmt_mode *cp = data;
@@ -1940,17 +1940,17 @@ static int set_pairable(struct sock *sk, struct hci_dev *hdev, void *data,
 	BT_DBG("request for %s", hdev->name);
 
 	if (cp->val != 0x00 && cp->val != 0x01)
-		return cmd_status(sk, hdev->id, MGMT_OP_SET_PAIRABLE,
+		return cmd_status(sk, hdev->id, MGMT_OP_SET_BONDABLE,
 				  MGMT_STATUS_INVALID_PARAMS);
 
 	hci_dev_lock(hdev);
 
 	if (cp->val)
-		changed = !test_and_set_bit(HCI_PAIRABLE, &hdev->dev_flags);
+		changed = !test_and_set_bit(HCI_BONDABLE, &hdev->dev_flags);
 	else
-		changed = test_and_clear_bit(HCI_PAIRABLE, &hdev->dev_flags);
+		changed = test_and_clear_bit(HCI_BONDABLE, &hdev->dev_flags);
 
-	err = send_settings_rsp(sk, MGMT_OP_SET_PAIRABLE, hdev);
+	err = send_settings_rsp(sk, MGMT_OP_SET_BONDABLE, hdev);
 	if (err < 0)
 		goto unlock;
 
@@ -3213,7 +3213,7 @@ static int pair_device(struct sock *sk, struct hci_dev *hdev, void *data,
 	conn->io_capability = cp->io_cap;
 	cmd->user_data = conn;
 
-	if (conn->state == BT_CONNECTED &&
+	if ((conn->state == BT_CONNECTED || conn->state == BT_CONFIG) &&
 	    hci_conn_security(conn, sec_level, auth_type, true))
 		pairing_complete(cmd, 0);
 
@@ -5679,7 +5679,7 @@ static const struct mgmt_handler {
 	{ set_discoverable,       false, MGMT_SET_DISCOVERABLE_SIZE },
 	{ set_connectable,        false, MGMT_SETTING_SIZE },
 	{ set_fast_connectable,   false, MGMT_SETTING_SIZE },
-	{ set_pairable,           false, MGMT_SETTING_SIZE },
+	{ set_bondable,           false, MGMT_SETTING_SIZE },
 	{ set_link_security,      false, MGMT_SETTING_SIZE },
 	{ set_ssp,                false, MGMT_SETTING_SIZE },
 	{ set_hs,                 false, MGMT_SETTING_SIZE },

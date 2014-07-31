@@ -75,20 +75,6 @@
 	 (((a)->s6_addr[14]) == (m)[6]) &&		\
 	 (((a)->s6_addr[15]) == (m)[7]))
 
-/* ipv6 address is unspecified */
-#define is_addr_unspecified(a)		\
-	((((a)->s6_addr32[0]) == 0) &&	\
-	 (((a)->s6_addr32[1]) == 0) &&	\
-	 (((a)->s6_addr32[2]) == 0) &&	\
-	 (((a)->s6_addr32[3]) == 0))
-
-/* compare ipv6 addresses prefixes */
-#define ipaddr_prefixcmp(addr1, addr2, length) \
-	(memcmp(addr1, addr2, length >> 3) == 0)
-
-/* local link, i.e. FE80::/10 */
-#define is_addr_link_local(a) (((a)->s6_addr16[0]) == htons(0xFE80))
-
 /*
  * check whether we can compress the IID to 16 bits,
  * it's possible for unicast adresses with first 49 bits are zero only.
@@ -100,21 +86,7 @@
 	 (((a)->s6_addr[12]) == 0xfe) &&	\
 	 (((a)->s6_addr[13]) == 0))
 
-/* multicast address */
-#define is_addr_mcast(a) (((a)->s6_addr[0]) == 0xFF)
-
 /* check whether the 112-bit gid of the multicast address is mappable to: */
-
-/* 9 bits, for FF02::1 (all nodes) and FF02::2 (all routers) addresses only. */
-#define lowpan_is_mcast_addr_compressable(a)	\
-	((((a)->s6_addr16[1]) == 0) &&		\
-	 (((a)->s6_addr16[2]) == 0) &&		\
-	 (((a)->s6_addr16[3]) == 0) &&		\
-	 (((a)->s6_addr16[4]) == 0) &&		\
-	 (((a)->s6_addr16[5]) == 0) &&		\
-	 (((a)->s6_addr16[6]) == 0) &&		\
-	 (((a)->s6_addr[14])  == 0) &&		\
-	 ((((a)->s6_addr[15]) == 1) || (((a)->s6_addr[15]) == 2)))
 
 /* 48 bits, FFXX::00XX:XXXX:XXXX */
 #define lowpan_is_mcast_addr_compressable48(a)	\
@@ -166,17 +138,6 @@
 
 #define LOWPAN_FRAG1_HEAD_SIZE	0x4
 #define LOWPAN_FRAGN_HEAD_SIZE	0x5
-
-/*
- * According IEEE802.15.4 standard:
- *   - MTU is 127 octets
- *   - maximum MHR size is 37 octets
- *   - MFR size is 2 octets
- *
- * so minimal payload size that we may guarantee is:
- *   MTU - MHR - MFR = 88 octets
- */
-#define LOWPAN_FRAG_SIZE	88
 
 /*
  * Values of fields within the IPHC encoding first byte
@@ -275,17 +236,6 @@ static inline int lowpan_fetch_skb_u8(struct sk_buff *skb, u8 *val)
 
 	*val = skb->data[0];
 	skb_pull(skb, 1);
-
-	return 0;
-}
-
-static inline int lowpan_fetch_skb_u16(struct sk_buff *skb, u16 *val)
-{
-	if (unlikely(!pskb_may_pull(skb, 2)))
-		return -EINVAL;
-
-	*val = (skb->data[0] << 8) | skb->data[1];
-	skb_pull(skb, 2);
 
 	return 0;
 }
