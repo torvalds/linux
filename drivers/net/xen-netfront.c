@@ -2001,7 +2001,7 @@ abort_transaction_no_dev_fatal:
 	info->queues = NULL;
 	rtnl_lock();
 	netif_set_real_num_tx_queues(info->netdev, 0);
-	rtnl_lock();
+	rtnl_unlock();
  out:
 	return err;
 }
