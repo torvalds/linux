@@ -1370,16 +1370,16 @@ static int rt5631_hifi_pcm_params(struct snd_pcm_substream *substream,
 		return coeff;
 	}
 
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S16_LE:
+	switch (params_width(params)) {
+	case 16:
 		break;
-	case SNDRV_PCM_FORMAT_S20_3LE:
+	case 20:
 		iface |= RT5631_SDP_I2S_DL_20;
 		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
+	case 24:
 		iface |= RT5631_SDP_I2S_DL_24;
 		break;
-	case SNDRV_PCM_FORMAT_S8:
+	case 8:
 		iface |= RT5631_SDP_I2S_DL_8;
 		break;
 	default:
