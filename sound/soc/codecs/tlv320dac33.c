@@ -832,18 +832,18 @@ static int dac33_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S16_LE:
+	switch (params_width(params)) {
+	case 16:
 		dac33->fifo_size = DAC33_FIFO_SIZE_16BIT;
 		dac33->burst_rate = CALC_BURST_RATE(dac33->burst_bclkdiv, 32);
 		break;
-	case SNDRV_PCM_FORMAT_S32_LE:
+	case 32:
 		dac33->fifo_size = DAC33_FIFO_SIZE_24BIT;
 		dac33->burst_rate = CALC_BURST_RATE(dac33->burst_bclkdiv, 64);
 		break;
 	default:
-		dev_err(codec->dev, "unsupported format %d\n",
-			params_format(params));
+		dev_err(codec->dev, "unsupported width %d\n",
+			params_width(params));
 		return -EINVAL;
 	}
 
