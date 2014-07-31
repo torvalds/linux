@@ -366,7 +366,7 @@ int sk_chk_filter(const struct sock_filter *filter, unsigned int flen);
 int sk_get_filter(struct sock *sk, struct sock_filter __user *filter,
 		  unsigned int len);
 
-void sk_filter_charge(struct sock *sk, struct sk_filter *fp);
+bool sk_filter_charge(struct sock *sk, struct sk_filter *fp);
 void sk_filter_uncharge(struct sock *sk, struct sk_filter *fp);
 
 u64 __bpf_call_base(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5);
