@@ -3,3 +3,16 @@
 / {
 	 compatible = "rockchip,rk3126";
 };
+
+&lcdc {
+	status = "okay";
+
+	power_ctr: power_ctr {
+		rockchip,debug = <0>;
+		lcd_en: lcd_en {
+			rockchip,power_type = <GPIO>;
+			gpios = <&gpio1 GPIO_B3 GPIO_ACTIVE_HIGH>;
+			rockchip,delay = <10>;
+		};
+	};
+};
