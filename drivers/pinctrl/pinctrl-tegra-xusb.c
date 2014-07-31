@@ -930,7 +930,8 @@ static int tegra_xusb_padctl_probe(struct platform_device *pdev)
 
 	padctl->provider = devm_of_phy_provider_register(&pdev->dev,
 							 tegra_xusb_padctl_xlate);
-	if (err < 0) {
+	if (IS_ERR(padctl->provider)) {
+		err = PTR_ERR(padctl->provider);
 		dev_err(&pdev->dev, "failed to register PHYs: %d\n", err);
 		goto unregister;
 	}
