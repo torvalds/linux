@@ -234,6 +234,12 @@ static inline int proc_net_init(void) { return 0; }
 extern int proc_setup_self(struct super_block *);
 
 /*
+ * proc_thread_self.c
+ */
+extern int proc_setup_thread_self(struct super_block *);
+extern void proc_thread_self_init(void);
+
+/*
  * proc_sysctl.c
  */
 #ifdef CONFIG_PROC_SYSCTL
