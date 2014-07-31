@@ -21,7 +21,7 @@ $(error No configuration found for config $(CONFIG). Check that arch-$(CONFIG)/c
 else
 # Link arch to the selected arch-config directory
 $(shell [ -L $(src)/arch ] && rm $(src)/arch)
-$(shell ln -sf arch-$(CONFIG) $(src)/arch)
+$(shell ln -sf $(src)/arch-$(CONFIG) $(src)/arch)
 $(shell touch $(src)/arch/config.h)
 endif
 
