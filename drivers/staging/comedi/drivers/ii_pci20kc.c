@@ -33,6 +33,7 @@
 /*
  * Register I/O map
  */
+#define II20K_SIZE			0x400
 #define II20K_MOD_OFFSET		0x100
 #define II20K_ID_REG			0x00
 #define II20K_ID_MOD1_EMPTY		(1 << 7)
@@ -439,12 +440,29 @@ static int ii20k_attach(struct comedi_device *dev,
 			struct comedi_devconfig *it)
 {
 	struct comedi_subdevice *s;
+	unsigned int membase;
 	unsigned char id;
 	bool has_dio;
 	int ret;
 
-	/* FIXME: this doesn't seem right, should 'mmio' be ioremap'ed? */
-	dev->mmio = (void __iomem *)(unsigned long)it->options[0];
+	membase = it->options[0];
+	if (!membase || (membase & ~(0x100000 - II20K_SIZE))) {
+		dev_warn(dev->class_dev,
+			 "%s: invalid memory address specified\n",
+			 dev->board_name);
+		return -EINVAL;
+	}
+
+	if (!request_mem_region(membase, II20K_SIZE, dev->board_name)) {
+		dev_warn(dev->class_dev, "%s: I/O mem conflict (%#x,%u)\n",
+			 dev->board_name, membase, II20K_SIZE);
+		return -EIO;
+	}
+	dev->iobase = membase;	/* actually, a memory address */
+
+	dev->mmio = ioremap(membase, II20K_SIZE);
+	if (!dev->mmio)
+		return -ENOMEM;
 
 	id = readb(dev->mmio + II20K_ID_REG);
 	switch (id & II20K_ID_MASK) {
@@ -509,11 +527,19 @@ static int ii20k_attach(struct comedi_device *dev,
 	return 0;
 }
 
+static void ii20k_detach(struct comedi_device *dev)
+{
+	if (dev->mmio)
+		iounmap(dev->mmio);
+	if (dev->iobase)	/* actually, a memory address */
+		release_mem_region(dev->iobase, II20K_SIZE);
+}
+
 static struct comedi_driver ii20k_driver = {
 	.driver_name	= "ii_pci20kc",
 	.module		= THIS_MODULE,
 	.attach		= ii20k_attach,
-	.detach		= comedi_legacy_detach,
+	.detach		= ii20k_detach,
 };
 module_comedi_driver(ii20k_driver);
 
