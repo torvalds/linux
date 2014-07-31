@@ -385,8 +385,7 @@ setup_affinity(unsigned int irq, struct irq_desc *desc, struct cpumask *mask)
 void __disable_irq(struct irq_desc *desc, unsigned int irq, bool suspend)
 {
 	if (suspend) {
-		if (!desc->action || (desc->action->flags & IRQF_NO_SUSPEND) ||
-		    irqd_has_set(&desc->irq_data, IRQD_WAKEUP_STATE))
+		if (!desc->action || (desc->action->flags & IRQF_NO_SUSPEND))
 			return;
 		desc->istate |= IRQS_SUSPENDED;
 	}
