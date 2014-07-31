@@ -201,6 +201,7 @@ static int dgap_test_fep(struct board_t *brd);
 static int dgap_tty_register_ports(struct board_t *brd);
 static int dgap_firmware_load(struct pci_dev *pdev, int card_type,
 			      struct board_t *brd);
+static void dgap_cleanup_nodes(void);
 
 static void dgap_cleanup_module(void);
 
@@ -619,6 +620,7 @@ unregister_tty:
 free_flipbuf:
 	dgap_free_flipbuf(brd);
 cleanup_brd:
+	dgap_cleanup_nodes();
 	dgap_release_remap(brd);
 	kfree(brd);
 
@@ -658,6 +660,8 @@ static void dgap_cleanup_module(void)
 		dgap_cleanup_tty(dgap_board[i]);
 		dgap_cleanup_board(dgap_board[i]);
 	}
+
+	dgap_cleanup_nodes();
 
 	if (dgap_numboards)
 		pci_unregister_driver(&dgap_driver);
@@ -6323,6 +6327,54 @@ static void dgap_remove_tty_sysfs(struct device *c)
 	sysfs_remove_group(&c->kobj, &dgap_tty_attribute_group);
 }
 
+static void dgap_cleanup_nodes(void)
+{
+	struct cnode *p;
+
+	p = &dgap_head;
+
+	while (p) {
+		struct cnode *tmp = p->next;
+
+		if (p->type == NULLNODE) {
+			p = tmp;
+			continue;
+		}
+
+		switch (p->type) {
+		case BNODE:
+			kfree(p->u.board.portstr);
+			kfree(p->u.board.addrstr);
+			kfree(p->u.board.pcibusstr);
+			kfree(p->u.board.pcislotstr);
+			kfree(p->u.board.method);
+			break;
+		case CNODE:
+			kfree(p->u.conc.id);
+			kfree(p->u.conc.connect);
+			break;
+		case MNODE:
+			kfree(p->u.module.id);
+			break;
+		case TNODE:
+			kfree(p->u.ttyname);
+			break;
+		case CUNODE:
+			kfree(p->u.cuname);
+			break;
+		case LNODE:
+			kfree(p->u.line.cable);
+			break;
+		case PNODE:
+			kfree(p->u.printname);
+			break;
+		}
+
+		kfree(p->u.board.status);
+		kfree(p);
+		p = tmp;
+	}
+}
 /*
  * Parse a configuration file read into memory as a string.
  */
