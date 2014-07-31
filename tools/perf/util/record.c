@@ -115,7 +115,7 @@ void perf_evlist__config(struct perf_evlist *evlist, struct record_opts *opts)
 
 	evlist__for_each(evlist, evsel) {
 		perf_evsel__config(evsel, opts);
-		if (!evsel->idx && use_comm_exec)
+		if (evsel->tracking && use_comm_exec)
 			evsel->attr.comm_exec = 1;
 	}
 
