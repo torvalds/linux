@@ -330,7 +330,7 @@ static void evtchn_fifo_handle_events(unsigned cpu)
 	ready = xchg(&control_block->ready, 0);
 
 	while (ready) {
-		q = find_first_bit(BM(&ready), EVTCHN_FIFO_MAX_QUEUES);
+		q = find_first_bit(&ready, EVTCHN_FIFO_MAX_QUEUES);
 		consume_one_event(cpu, control_block, q, &ready);
 		ready |= xchg(&control_block->ready, 0);
 	}
