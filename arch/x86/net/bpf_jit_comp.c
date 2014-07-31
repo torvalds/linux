@@ -235,7 +235,7 @@ static int do_jit(struct sk_filter *bpf_prog, int *addrs, u8 *image,
 	/* mov qword ptr [rbp-X],rbx */
 	EMIT3_off32(0x48, 0x89, 0x9D, -stacksize);
 
-	/* sk_convert_filter() maps classic BPF register X to R7 and uses R8
+	/* bpf_convert_filter() maps classic BPF register X to R7 and uses R8
 	 * as temporary, so all tcpdump filters need to spill/fill R7(r13) and
 	 * R8(r14). R9(r15) spill could be made conditional, but there is only
 	 * one 'bpf_error' return path out of helper functions inside bpf_jit.S

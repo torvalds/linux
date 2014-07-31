@@ -312,7 +312,7 @@ static bool convert_bpf_extensions(struct sock_filter *fp,
 }
 
 /**
- *	sk_convert_filter - convert filter program
+ *	bpf_convert_filter - convert filter program
  *	@prog: the user passed filter program
  *	@len: the length of the user passed filter program
  *	@new_prog: buffer where converted program will be stored
@@ -322,12 +322,12 @@ static bool convert_bpf_extensions(struct sock_filter *fp,
  * Conversion workflow:
  *
  * 1) First pass for calculating the new program length:
- *   sk_convert_filter(old_prog, old_len, NULL, &new_len)
+ *   bpf_convert_filter(old_prog, old_len, NULL, &new_len)
  *
  * 2) 2nd pass to remap in two passes: 1st pass finds new
  *    jump offsets, 2nd pass remapping:
  *   new_prog = kmalloc(sizeof(struct bpf_insn) * new_len);
- *   sk_convert_filter(old_prog, old_len, new_prog, &new_len);
+ *   bpf_convert_filter(old_prog, old_len, new_prog, &new_len);
  *
  * User BPF's register A is mapped to our BPF register 6, user BPF
  * register X is mapped to BPF register 7; frame pointer is always
@@ -335,8 +335,8 @@ static bool convert_bpf_extensions(struct sock_filter *fp,
  * for socket filters: ctx == 'struct sk_buff *', for seccomp:
  * ctx == 'struct seccomp_data *'.
  */
-int sk_convert_filter(struct sock_filter *prog, int len,
-		      struct bpf_insn *new_prog, int *new_len)
+int bpf_convert_filter(struct sock_filter *prog, int len,
+		       struct bpf_insn *new_prog, int *new_len)
 {
 	int new_flen = 0, pass = 0, target, i;
 	struct bpf_insn *new_insn;
@@ -921,7 +921,7 @@ static struct sk_filter *__sk_migrate_filter(struct sk_filter *fp)
 	}
 
 	/* 1st pass: calculate the new program length. */
-	err = sk_convert_filter(old_prog, old_len, NULL, &new_len);
+	err = bpf_convert_filter(old_prog, old_len, NULL, &new_len);
 	if (err)
 		goto out_err_free;
 
@@ -940,9 +940,9 @@ static struct sk_filter *__sk_migrate_filter(struct sk_filter *fp)
 	fp->len = new_len;
 
 	/* 2nd pass: remap sock_filter insns into bpf_insn insns. */
-	err = sk_convert_filter(old_prog, old_len, fp->insnsi, &new_len);
+	err = bpf_convert_filter(old_prog, old_len, fp->insnsi, &new_len);
 	if (err)
-		/* 2nd sk_convert_filter() can fail only if it fails
+		/* 2nd bpf_convert_filter() can fail only if it fails
 		 * to allocate memory, remapping must succeed. Note,
 		 * that at this time old_fp has already been released
 		 * by krealloc().

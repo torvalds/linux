@@ -249,7 +249,7 @@ static long seccomp_attach_filter(struct sock_fprog *fprog)
 		goto free_prog;
 
 	/* Convert 'sock_filter' insns to 'bpf_insn' insns */
-	ret = sk_convert_filter(fp, fprog->len, NULL, &new_len);
+	ret = bpf_convert_filter(fp, fprog->len, NULL, &new_len);
 	if (ret)
 		goto free_prog;
 
@@ -265,7 +265,7 @@ static long seccomp_attach_filter(struct sock_fprog *fprog)
 	if (!filter->prog)
 		goto free_filter;
 
-	ret = sk_convert_filter(fp, fprog->len, filter->prog->insnsi, &new_len);
+	ret = bpf_convert_filter(fp, fprog->len, filter->prog->insnsi, &new_len);
 	if (ret)
 		goto free_filter_prog;
 	kfree(fp);

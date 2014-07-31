@@ -446,7 +446,7 @@ load_word:
 		/* BPF_LD + BPD_ABS and BPF_LD + BPF_IND insns are
 		 * only appearing in the programs where ctx ==
 		 * skb. All programs keep 'ctx' in regs[BPF_REG_CTX]
-		 * == BPF_R6, sk_convert_filter() saves it in BPF_R6,
+		 * == BPF_R6, bpf_convert_filter() saves it in BPF_R6,
 		 * internal BPF verifier will check that BPF_R6 ==
 		 * ctx.
 		 *
