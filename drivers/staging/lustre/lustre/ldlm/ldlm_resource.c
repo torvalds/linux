@@ -189,8 +189,9 @@ static int lprocfs_lru_size_seq_show(struct seq_file *m, void *v)
 	return lprocfs_rd_uint(m, nr);
 }
 
-static ssize_t lprocfs_lru_size_seq_write(struct file *file, const char *buffer,
-				      size_t count, loff_t *off)
+static ssize_t lprocfs_lru_size_seq_write(struct file *file,
+					const char __user *buffer,
+					size_t count, loff_t *off)
 {
 	struct ldlm_namespace *ns = ((struct seq_file *)file->private_data)->private;
 	char dummy[MAX_STRING_SIZE + 1];
