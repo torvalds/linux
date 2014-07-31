@@ -565,7 +565,8 @@ static void pci224_ao_handle_fifo(struct comedi_device *dev,
 	switch (dacstat & PCI224_DACCON_FIFOFL_MASK) {
 	case PCI224_DACCON_FIFOFL_EMPTY:
 		room = PCI224_FIFO_ROOM_EMPTY;
-		if (cmd->stop_src == TRIG_COUNT && devpriv->ao_stop_count == 0) {
+		if (cmd->stop_src == TRIG_COUNT &&
+		    devpriv->ao_stop_count == 0) {
 			/* FIFO empty at end of counted acquisition. */
 			s->async->events |= COMEDI_CB_EOA;
 			cfc_handle_events(dev, s);
