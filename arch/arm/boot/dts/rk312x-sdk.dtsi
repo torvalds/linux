@@ -379,3 +379,7 @@
 	auto-freq=<0>;
 	status="disable";
 };
+
+&pwm0 {
+        status = "okay";
+};
