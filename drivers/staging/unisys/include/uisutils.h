@@ -262,7 +262,7 @@ Issue_VMCALL_IO_VISORSERIAL_ADDR(u64 *DiagChannelAddress)
 	return result;
 }
 
-static inline S64 Issue_VMCALL_QUERY_GUEST_VIRTUAL_TIME_OFFSET(void)
+static inline s64 Issue_VMCALL_QUERY_GUEST_VIRTUAL_TIME_OFFSET(void)
 {
 	u64 result = VMCALL_SUCCESS;
 	u64 physaddr = 0;
@@ -272,7 +272,7 @@ static inline S64 Issue_VMCALL_QUERY_GUEST_VIRTUAL_TIME_OFFSET(void)
 	return result;
 }
 
-static inline S64 Issue_VMCALL_MEASUREMENT_DO_NOTHING(void)
+static inline s64 Issue_VMCALL_MEASUREMENT_DO_NOTHING(void)
 {
 	u64 result = VMCALL_SUCCESS;
 	u64 physaddr = 0;

@@ -30,8 +30,6 @@
 #include <syslog.h>
 #endif
 
-#define S64 int64_t
-
 #ifdef __KERNEL__
 
 #ifdef CONFIG_X86_32
