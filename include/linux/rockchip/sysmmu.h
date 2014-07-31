@@ -12,6 +12,7 @@
 #include <linux/list.h>
 #include <linux/atomic.h>
 #include <linux/spinlock.h>
+#include <linux/device.h>
 
 #define IEP_SYSMMU_COMPATIBLE_NAME "iommu,iep_mmu"
 #define VIP_SYSMMU_COMPATIBLE_NAME "iommu,vip_mmu"
@@ -126,7 +127,6 @@ static inline void rockchip_sysmmu_set_prefbuf(struct device *owner,
 #endif
 
 #ifdef CONFIG_IOMMU_API
-#include <linux/device.h>
 static inline void platform_set_sysmmu(struct device *sysmmu, struct device *dev)
 {
 	dev->archdata.iommu = sysmmu;

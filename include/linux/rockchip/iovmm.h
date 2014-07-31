@@ -7,9 +7,9 @@
 #ifndef __ASM_PLAT_IOVMM_H
 #define __ASM_PLAT_IOVMM_H
 
-#ifdef CONFIG_ROCKCHIP_IOVMM
 struct scatterlist;
 struct device;
+#ifdef CONFIG_ROCKCHIP_IOVMM
 
 int iovmm_activate(struct device *dev);
 void iovmm_deactivate(struct device *dev);
