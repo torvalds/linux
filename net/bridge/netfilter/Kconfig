@@ -14,6 +14,12 @@ config NFT_BRIDGE_META
 	help
 	  Add support for bridge dedicated meta key.
 
+config NFT_BRIDGE_REJECT
+	tristate "Netfilter nf_tables bridge reject support"
+	depends on NFT_REJECT && NFT_REJECT_IPV4 && NFT_REJECT_IPV6
+	help
+	  Add support to reject packets.
+
 config NF_LOG_BRIDGE
 	tristate "Bridge packet logging"
 

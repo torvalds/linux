@@ -4,6 +4,7 @@
 
 obj-$(CONFIG_NF_TABLES_BRIDGE) += nf_tables_bridge.o
 obj-$(CONFIG_NFT_BRIDGE_META)  += nft_meta_bridge.o
+obj-$(CONFIG_NFT_BRIDGE_REJECT)  += nft_reject_bridge.o
 
 # packet logging
 obj-$(CONFIG_NF_LOG_BRIDGE) += nf_log_bridge.o
@@ -36,5 +37,4 @@ obj-$(CONFIG_BRIDGE_EBT_SNAT) += ebt_snat.o
 
 # watchers
 obj-$(CONFIG_BRIDGE_EBT_LOG) += ebt_log.o
-obj-$(CONFIG_BRIDGE_EBT_ULOG) += ebt_ulog.o
 obj-$(CONFIG_BRIDGE_EBT_NFLOG) += ebt_nflog.o

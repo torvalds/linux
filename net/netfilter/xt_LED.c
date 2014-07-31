@@ -133,9 +133,7 @@ static int led_tg_check(const struct xt_tgchk_param *par)
 
 	err = led_trigger_register(&ledinternal->netfilter_led_trigger);
 	if (err) {
-		pr_warning("led_trigger_register() failed\n");
-		if (err == -EEXIST)
-			pr_warning("Trigger name is already in use.\n");
+		pr_err("Trigger name is already in use.\n");
 		goto exit_alloc;
 	}
 
