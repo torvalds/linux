@@ -1477,19 +1477,19 @@ static int wm8903_hw_params(struct snd_pcm_substream *substream,
 
 	aif1 &= ~WM8903_AIF_WL_MASK;
 	bclk = 2 * fs;
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S16_LE:
+	switch (params_width(params)) {
+	case 16:
 		bclk *= 16;
 		break;
-	case SNDRV_PCM_FORMAT_S20_3LE:
+	case 20:
 		bclk *= 20;
 		aif1 |= 0x4;
 		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
+	case 24:
 		bclk *= 24;
 		aif1 |= 0x8;
 		break;
-	case SNDRV_PCM_FORMAT_S32_LE:
+	case 32:
 		bclk *= 32;
 		aif1 |= 0xc;
 		break;
