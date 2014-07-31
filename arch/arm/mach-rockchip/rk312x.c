@@ -36,7 +36,7 @@
 #include <asm/mach/map.h>
 #include "cpu_axi.h"
 #include "loader.h"
-#define CPU 312X
+#define CPU 312x
 #include "sram.h"
 #include "pm.h"
 
@@ -146,3 +146,33 @@ DT_MACHINE_START(RK3128_DT, "Rockchip RK3128")
 	.reserve	= rk312x_reserve,
 	.restart	= rk312x_restart,
 MACHINE_END
+
+
+char PIE_DATA(sram_stack)[1024];
+EXPORT_PIE_SYMBOL(DATA(sram_stack));
+
+static int __init rk312x_pie_init(void)
+{
+	int err;
+
+	if (!cpu_is_rk312x())
+		return 0;
+
+	err = rockchip_pie_init();
+	if (err)
+		return err;
+
+	rockchip_pie_chunk = pie_load_sections(rockchip_sram_pool, rk312x);
+	if (IS_ERR(rockchip_pie_chunk)) {
+		err = PTR_ERR(rockchip_pie_chunk);
+		pr_err("%s: failed to load section %d\n", __func__, err);
+		rockchip_pie_chunk = NULL;
+		return err;
+	}
+
+	rockchip_sram_virt = kern_to_pie(rockchip_pie_chunk, &__pie_common_start[0]);
+	rockchip_sram_stack = kern_to_pie(rockchip_pie_chunk, (char *)DATA(sram_stack) + sizeof(DATA(sram_stack)));
+
+	return 0;
+}
+arch_initcall(rk312x_pie_init);
