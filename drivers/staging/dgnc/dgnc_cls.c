@@ -1040,11 +1040,11 @@ static void cls_flush_uart_read(struct channel_t *ch)
 	 * For complete POSIX compatibility, we should be purging the
 	 * read FIFO in the UART here.
 	 *
-	 * However, doing the statement below also incorrectly flushes
-	 * write data as well as just basically trashing the FIFO.
+	 * However, clearing the read FIFO (UART_FCR_CLEAR_RCVR) also
+	 * incorrectly flushes write data as well as just basically trashing the
+	 * FIFO.
 	 *
-	 * I believe this is a BUG in this UART.
-	 * So for now, we will leave the code #ifdef'ed out...
+	 * Presumably, this is a bug in this UART.
 	 */
 
 	udelay(10);
