@@ -161,4 +161,9 @@ static inline void rk3288_cru_set_soft_reset(u32 idx, bool on)
 #define RK3036_CRU_SOFTRSTS_CON_CNT	(9)
 #define RK3036_CRU_SOFTRSTS_CON(i)	(RK3036_CRU_SOFTRST_CON + ((i) * 4))
 
+#define RK312X_CRU_SOFTRST_CON		0x110
+
+#define RK312X_CRU_SOFTRSTS_CON_CNT	(9)
+#define RK312X_CRU_SOFTRSTS_CON(i)	(RK312X_CRU_SOFTRST_CON + ((i) * 4))
+
 #endif

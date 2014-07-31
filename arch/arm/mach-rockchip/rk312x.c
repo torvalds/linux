@@ -108,8 +108,50 @@ static void __init rk3128_dt_map_io(void)
 	rk312x_dt_map_io();
 }
 
+extern void secondary_startup(void);
+static int rk312x_sys_set_power_domain(enum pmu_power_domain pd, bool on)
+{
+	if (on) {
+#ifdef CONFIG_SMP
+		if (pd >= PD_CPU_1 && pd <= PD_CPU_3) {
+			writel_relaxed(0x20000 << (pd - PD_CPU_1),
+				       RK_CRU_VIRT + RK312X_CRU_SOFTRSTS_CON(0));
+			dsb();
+			udelay(10);
+			writel_relaxed(virt_to_phys(secondary_startup),
+				       RK312X_IMEM_VIRT + 8);
+			writel_relaxed(0xDEADBEAF, RK312X_IMEM_VIRT + 4);
+			dsb_sev();
+		}
+#endif
+	} else {
+#ifdef CONFIG_SMP
+		if (pd >= PD_CPU_1 && pd <= PD_CPU_3) {
+			writel_relaxed(0x20002 << (pd - PD_CPU_1),
+				       RK_CRU_VIRT + RK312X_CRU_SOFTRSTS_CON(0));
+			dsb();
+		}
+#endif
+	}
+
+	return 0;
+}
+
+static bool rk312x_pmu_power_domain_is_on(enum pmu_power_domain pd)
+{
+	return 1;
+}
+
+static int rk312x_pmu_set_idle_request(enum pmu_idle_req req, bool idle)
+{
+	return 0;
+}
+
 static void __init rk312x_dt_init_timer(void)
 {
+	rockchip_pmu_ops.set_power_domain = rk312x_sys_set_power_domain;
+	rockchip_pmu_ops.power_domain_is_on = rk312x_pmu_power_domain_is_on;
+	rockchip_pmu_ops.set_idle_request = rk312x_pmu_set_idle_request;
 	of_clk_init(NULL);
 	clocksource_of_init();
 	of_dvfs_init();
