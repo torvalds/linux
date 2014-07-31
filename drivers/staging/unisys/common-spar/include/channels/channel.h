@@ -318,8 +318,8 @@ ULTRA_check_channel_client(void __iomem *pChannel,
 {
 	if (uuid_le_cmp(expectedTypeGuid, NULL_UUID_LE) != 0)
 		/* caller wants us to verify type GUID */
-		if (MEMCMP_IO(&(((CHANNEL_HEADER __iomem *) (pChannel))->Type),
-			   &expectedTypeGuid, sizeof(uuid_le)) != 0) {
+		if (uuid_le_cmp((((CHANNEL_HEADER __iomem *)(pChannel))->Type),
+			   expectedTypeGuid) != 0) {
 			CHANNEL_GUID_MISMATCH(expectedTypeGuid, channelName,
 					      "type", expectedTypeGuid,
 					      ((CHANNEL_HEADER __iomem *)
