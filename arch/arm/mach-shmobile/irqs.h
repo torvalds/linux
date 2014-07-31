@@ -2,7 +2,7 @@
 #define __SHMOBILE_IRQS_H
 
 #include <linux/sh_intc.h>
-#include <mach/irqs.h>
+#include "include/mach/irqs.h"
 
 /* GIC */
 #define gic_spi(nr)		((nr) + 32)
