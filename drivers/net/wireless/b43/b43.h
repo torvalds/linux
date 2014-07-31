@@ -457,6 +457,7 @@ enum {
 #define B43_MACCTL_RADIOLOCK		0x00080000	/* Radio lock */
 #define B43_MACCTL_BEACPROMISC		0x00100000	/* Beacon Promiscuous */
 #define B43_MACCTL_KEEP_BADPLCP		0x00200000	/* Keep frames with bad PLCP */
+#define B43_MACCTL_PHY_LOCK		0x00200000
 #define B43_MACCTL_KEEP_CTL		0x00400000	/* Keep control frames */
 #define B43_MACCTL_KEEP_BAD		0x00800000	/* Keep bad frames (FCS) */
 #define B43_MACCTL_PROMISC		0x01000000	/* Promiscuous mode */

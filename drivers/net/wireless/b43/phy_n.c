@@ -34,6 +34,7 @@
 #include "radio_2056.h"
 #include "radio_2057.h"
 #include "main.h"
+#include "ppr.h"
 
 struct nphy_txgains {
 	u16 tx_lpf[2];
@@ -3606,16 +3607,6 @@ static void b43_nphy_iq_cal_gain_params(struct b43_wldev *dev, u16 core,
  * Tx and Rx
  **************************************************/
 
-static void b43_nphy_op_adjust_txpower(struct b43_wldev *dev)
-{//TODO
-}
-
-static enum b43_txpwr_result b43_nphy_op_recalc_txpower(struct b43_wldev *dev,
-							bool ignore_tssi)
-{//TODO
-	return B43_TXPWR_RES_DONE;
-}
-
 /* http://bcm-v4.sipsolutions.net/802.11/PHY/N/TxPwrCtrlEnable */
 static void b43_nphy_tx_power_ctrl(struct b43_wldev *dev, bool enable)
 {
@@ -4069,6 +4060,7 @@ static void b43_nphy_tx_power_ctl_setup(struct b43_wldev *dev)
 
 	s16 a1[2], b0[2], b1[2];
 	u8 idle[2];
+	u8 ppr_max;
 	s8 target[2];
 	s32 num, den, pwr;
 	u32 regval[64];
@@ -4147,7 +4139,12 @@ static void b43_nphy_tx_power_ctl_setup(struct b43_wldev *dev)
 			b1[0] = b1[1] = -1393;
 		}
 	}
-	/* target[0] = target[1] = nphy->tx_power_max; */
+
+	ppr_max = b43_ppr_get_max(dev, &nphy->tx_pwr_max_ppr);
+	if (ppr_max) {
+		target[0] = ppr_max;
+		target[1] = ppr_max;
+	}
 
 	if (dev->phy.rev >= 3) {
 		if (sprom->fem.ghz2.tssipos)
@@ -5889,6 +5886,69 @@ static void b43_nphy_set_rx_core_state(struct b43_wldev *dev, u8 mask)
 	b43_mac_enable(dev);
 }
 
+static enum b43_txpwr_result b43_nphy_op_recalc_txpower(struct b43_wldev *dev,
+							bool ignore_tssi)
+{
+	struct b43_phy *phy = &dev->phy;
+	struct b43_phy_n *nphy = dev->phy.n;
+	struct ieee80211_channel *channel = dev->wl->hw->conf.chandef.chan;
+	struct b43_ppr *ppr = &nphy->tx_pwr_max_ppr;
+	u8 max; /* qdBm */
+	bool tx_pwr_state;
+
+	if (nphy->tx_pwr_last_recalc_freq == channel->center_freq &&
+	    nphy->tx_pwr_last_recalc_limit == phy->desired_txpower)
+		return B43_TXPWR_RES_DONE;
+
+	/* Make sure we have a clean PPR */
+	b43_ppr_clear(dev, ppr);
+
+	/* HW limitations */
+	b43_ppr_load_max_from_sprom(dev, ppr, B43_BAND_2G);
+
+	/* Regulatory & user settings */
+	max = INT_TO_Q52(phy->chandef->chan->max_power);
+	if (phy->desired_txpower)
+		max = min_t(u8, max, INT_TO_Q52(phy->desired_txpower));
+	b43_ppr_apply_max(dev, ppr, max);
+	if (b43_debug(dev, B43_DBG_XMITPOWER))
+		b43dbg(dev->wl, "Calculated TX power: " Q52_FMT "\n",
+		       Q52_ARG(b43_ppr_get_max(dev, ppr)));
+
+	/* TODO: Enable this once we get gains working */
+#if 0
+	/* Some extra gains */
+	hw_gain = 6; /* N-PHY specific */
+	if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ)
+		hw_gain += sprom->antenna_gain.a0;
+	else
+		hw_gain += sprom->antenna_gain.a1;
+	b43_ppr_add(dev, ppr, -hw_gain);
+#endif
+
+	/* Make sure we didn't go too low */
+	b43_ppr_apply_min(dev, ppr, INT_TO_Q52(8));
+
+	/* Apply */
+	tx_pwr_state = nphy->txpwrctrl;
+	b43_mac_suspend(dev);
+	b43_nphy_tx_power_ctl_setup(dev);
+	if (dev->dev->core_rev == 11 || dev->dev->core_rev == 12) {
+		b43_maskset32(dev, B43_MMIO_MACCTL, ~0, B43_MACCTL_PHY_LOCK);
+		b43_read32(dev, B43_MMIO_MACCTL);
+		udelay(1);
+	}
+	b43_nphy_tx_power_ctrl(dev, nphy->txpwrctrl);
+	if (dev->dev->core_rev == 11 || dev->dev->core_rev == 12)
+		b43_maskset32(dev, B43_MMIO_MACCTL, ~B43_MACCTL_PHY_LOCK, 0);
+	b43_mac_enable(dev);
+
+	nphy->tx_pwr_last_recalc_freq = channel->center_freq;
+	nphy->tx_pwr_last_recalc_limit = phy->desired_txpower;
+
+	return B43_TXPWR_RES_DONE;
+}
+
 /**************************************************
  * N-PHY init
  **************************************************/
@@ -6422,6 +6482,7 @@ static int b43_nphy_op_allocate(struct b43_wldev *dev)
 	nphy = kzalloc(sizeof(*nphy), GFP_KERNEL);
 	if (!nphy)
 		return -ENOMEM;
+
 	dev->phy.n = nphy;
 
 	return 0;
@@ -6662,5 +6723,4 @@ const struct b43_phy_operations b43_phyops_n = {
 	.switch_channel		= b43_nphy_op_switch_channel,
 	.get_default_chan	= b43_nphy_op_get_default_chan,
 	.recalc_txpower		= b43_nphy_op_recalc_txpower,
-	.adjust_txpower		= b43_nphy_op_adjust_txpower,
 };
