@@ -783,7 +783,10 @@ static void iser_disconnected_handler(struct rdma_cm_id *cma_id)
 			iser_err("iscsi_iser connection isn't bound\n");
 	}
 
-	/* Complete the termination process if no posts are pending */
+	/* Complete the termination process if no posts are pending. This code
+	 * block also exists in iser_handle_comp_error(), but it is needed here
+	 * for cases of no flushes at all, e.g. discovery over rdma.
+	 */
 	if (ib_conn->post_recv_buf_count == 0 &&
 	    (atomic_read(&ib_conn->post_send_buf_count) == 0)) {
 		complete(&ib_conn->flush_completion);
