@@ -12,6 +12,10 @@ Required properties:
   property
 - phy-mode: String, operation mode of the PHY interface.
   Supported values are: "mii", "rmii", "gmii", "rgmii".
+- snps,multicast-filter-bins:	Number of multicast filter hash bins
+				supported by this device instance
+- snps,perfect-filter-entries:	Number of perfect filter entries supported
+				by this device instance
 
 Optional properties:
 - mac-address: 6 bytes, mac address
@@ -32,4 +36,6 @@ Examples:
 		mac-address = [000000000000]; /* Filled in by U-Boot */
 		phy-mode = "gmii";
 		snps,max-mtu = <4062>;
+		snps,multicast-filter-bins = <256>;
+		snps,perfect-filter-entries = <128>;
 	};
