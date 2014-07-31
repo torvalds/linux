@@ -30,7 +30,6 @@
 #include <syslog.h>
 #endif
 
-#define S32 int32_t
 #define S64 int64_t
 
 #ifdef __KERNEL__
