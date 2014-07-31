@@ -1057,17 +1057,32 @@ static irqreturn_t pci224_interrupt(int irq, void *d)
 	return IRQ_RETVAL(retval);
 }
 
-/*
- * Common part of attach and auto_attach.
- */
-static int pci224_attach_common(struct comedi_device *dev,
-				struct pci_dev *pci_dev)
+static int
+pci224_auto_attach(struct comedi_device *dev, unsigned long context_model)
 {
-	const struct pci224_board *thisboard = comedi_board(dev);
-	struct pci224_private *devpriv = dev->private;
+	struct pci_dev *pci_dev = comedi_to_pci_dev(dev);
+	const struct pci224_board *thisboard = NULL;
+	struct pci224_private *devpriv;
 	struct comedi_subdevice *s;
 	unsigned int irq;
 	int ret;
+
+	if (context_model < ARRAY_SIZE(pci224_boards))
+		thisboard = &pci224_boards[context_model];
+	if (!thisboard || !thisboard->name) {
+		dev_err(dev->class_dev,
+			"amplc_pci224: BUG! cannot determine board type!\n");
+		return -EINVAL;
+	}
+	dev->board_ptr = thisboard;
+	dev->board_name = thisboard->name;
+
+	dev_info(dev->class_dev, "amplc_pci224: attach pci %s - %s\n",
+		 pci_name(pci_dev), dev->board_name);
+
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
+	if (!devpriv)
+		return -ENOMEM;
 
 	comedi_set_hw_dev(dev, &pci_dev->dev);
 
@@ -1147,33 +1162,6 @@ static int pci224_attach_common(struct comedi_device *dev,
 	}
 
 	return 0;
-}
-
-static int
-pci224_auto_attach(struct comedi_device *dev, unsigned long context_model)
-{
-	struct pci_dev *pci_dev = comedi_to_pci_dev(dev);
-	const struct pci224_board *thisboard = NULL;
-	struct pci224_private *devpriv;
-
-	if (context_model < ARRAY_SIZE(pci224_boards))
-		thisboard = &pci224_boards[context_model];
-	if (!thisboard || !thisboard->name) {
-		dev_err(dev->class_dev,
-			"amplc_pci224: BUG! cannot determine board type!\n");
-		return -EINVAL;
-	}
-	dev->board_ptr = thisboard;
-	dev->board_name = thisboard->name;
-
-	dev_info(dev->class_dev, "amplc_pci224: attach pci %s - %s\n",
-		 pci_name(pci_dev), dev->board_name);
-
-	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
-	if (!devpriv)
-		return -ENOMEM;
-
-	return pci224_attach_common(dev, pci_dev);
 }
 
 static void pci224_detach(struct comedi_device *dev)
