@@ -591,7 +591,7 @@ static int arm_ccn_pmu_event_init(struct perf_event *event)
 	struct arm_ccn *ccn;
 	struct hw_perf_event *hw = &event->hw;
 	u32 node_xp, type, event_id;
-	int valid;
+	int valid, bit;
 	struct arm_ccn_component *source;
 	int i;
 
@@ -713,17 +713,18 @@ static int arm_ccn_pmu_event_init(struct perf_event *event)
 
 	/* Allocate an event source or a watchpoint */
 	if (type == CCN_TYPE_XP && event_id == CCN_EVENT_WATCHPOINT)
-		hw->config_base = arm_ccn_pmu_alloc_bit(source->xp.dt_cmp_mask,
+		bit = arm_ccn_pmu_alloc_bit(source->xp.dt_cmp_mask,
 				CCN_NUM_XP_WATCHPOINTS);
 	else
-		hw->config_base = arm_ccn_pmu_alloc_bit(source->pmu_events_mask,
+		bit = arm_ccn_pmu_alloc_bit(source->pmu_events_mask,
 				CCN_NUM_PMU_EVENTS);
-	if (hw->config_base < 0) {
+	if (bit < 0) {
 		dev_warn(ccn->dev, "No more event sources/watchpoints on node/XP %d!\n",
 				node_xp);
 		clear_bit(hw->idx, ccn->dt.pmu_counters_mask);
 		return -EAGAIN;
 	}
+	hw->config_base = bit;
 
 	ccn->dt.pmu_counters[hw->idx].event = event;
 
