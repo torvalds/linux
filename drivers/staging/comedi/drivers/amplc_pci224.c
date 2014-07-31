@@ -557,7 +557,6 @@ static void pci224_ao_handle_fifo(struct comedi_device *dev,
 		/* Fixed number of scans. */
 		if (num_scans > devpriv->ao_stop_count)
 			num_scans = devpriv->ao_stop_count;
-
 	}
 
 	/* Determine how much room is in the FIFO (in samples). */
@@ -644,7 +643,6 @@ static void pci224_ao_handle_fifo(struct comedi_device *dev,
 				trig = PCI224_DACCON_TRIG_EXTN;
 			else
 				trig = PCI224_DACCON_TRIG_EXTP;
-
 		}
 		devpriv->daccon = COMBINE(devpriv->daccon, trig,
 					  PCI224_DACCON_TRIG_MASK);
@@ -908,7 +906,6 @@ static int pci224_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		for (j = 0; j < cmd->chanlist_len; j++) {
 			if (CR_CHAN(cmd->chanlist[j]) < ch)
 				rank++;
-
 		}
 		devpriv->ao_scan_order[rank] = i;
 	}
@@ -1002,7 +999,6 @@ pci224_ao_munge(struct comedi_device *dev, struct comedi_subdevice *s,
 	/* Munge the data. */
 	for (i = 0; i < length; i++)
 		array[i] = (array[i] << shift) - offset;
-
 }
 
 /*
@@ -1038,11 +1034,9 @@ static irqreturn_t pci224_interrupt(int irq, void *d)
 					pci224_ao_start(dev, s);
 				else if (cmd->stop_src == TRIG_EXT)
 					pci224_ao_stop(dev, s);
-
 			}
 			if (valid_intstat & PCI224_INTR_DAC)
 				pci224_ao_handle_fifo(dev, s);
-
 		}
 		/* Reenable interrupt sources. */
 		spin_lock_irqsave(&devpriv->ao_spinlock, flags);
