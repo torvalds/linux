@@ -20,6 +20,7 @@
 #include <linux/can/dev.h>
 #include <linux/clk.h>
 #include <linux/can/platform/rcar_can.h>
+#include <linux/of.h>
 
 #define RCAR_CAN_DRV_NAME	"rcar_can"
 
@@ -738,16 +739,21 @@ static int rcar_can_probe(struct platform_device *pdev)
 	struct net_device *ndev;
 	struct resource *mem;
 	void __iomem *addr;
-	u32 clock_select;
+	u32 clock_select = CLKR_CLKP1;
 	int err = -ENODEV;
 	int irq;
 
-	pdata = dev_get_platdata(&pdev->dev);
-	if (!pdata) {
-		dev_err(&pdev->dev, "No platform data provided!\n");
-		goto fail;
+	if (pdev->dev.of_node) {
+		of_property_read_u32(pdev->dev.of_node,
+				     "renesas,can-clock-select", &clock_select);
+	} else {
+		pdata = dev_get_platdata(&pdev->dev);
+		if (!pdata) {
+			dev_err(&pdev->dev, "No platform data provided!\n");
+			goto fail;
+		}
+		clock_select = pdata->clock_select;
 	}
-	clock_select = pdata->clock_select;
 
 	irq = platform_get_irq(pdev, 0);
 	if (!irq) {
@@ -888,10 +894,20 @@ static int __maybe_unused rcar_can_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(rcar_can_pm_ops, rcar_can_suspend, rcar_can_resume);
 
+static const struct of_device_id rcar_can_of_table[] __maybe_unused = {
+	{ .compatible = "renesas,can-r8a7778" },
+	{ .compatible = "renesas,can-r8a7779" },
+	{ .compatible = "renesas,can-r8a7790" },
+	{ .compatible = "renesas,can-r8a7791" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, rcar_can_of_table);
+
 static struct platform_driver rcar_can_driver = {
 	.driver = {
 		.name = RCAR_CAN_DRV_NAME,
 		.owner = THIS_MODULE,
+		.of_match_table = of_match_ptr(rcar_can_of_table),
 		.pm = &rcar_can_pm_ops,
 	},
 	.probe = rcar_can_probe,
