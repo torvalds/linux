@@ -89,6 +89,7 @@ struct idle_cpu {
 	 * Indicate which enable bits to clear here.
 	 */
 	unsigned long auto_demotion_disable_flags;
+	bool byt_auto_demotion_disable_flag;
 	bool disable_promotion_to_c1e;
 };
 
@@ -613,6 +614,7 @@ static const struct idle_cpu idle_cpu_snb = {
 static const struct idle_cpu idle_cpu_byt = {
 	.state_table = byt_cstates,
 	.disable_promotion_to_c1e = true,
+	.byt_auto_demotion_disable_flag = true,
 };
 
 static const struct idle_cpu idle_cpu_ivb = {
@@ -813,6 +815,11 @@ static int __init intel_idle_cpuidle_driver_init(void)
 
 	if (icpu->auto_demotion_disable_flags)
 		on_each_cpu(auto_demotion_disable, NULL, 1);
+
+	if (icpu->byt_auto_demotion_disable_flag) {
+		wrmsrl(MSR_CC6_DEMOTION_POLICY_CONFIG, 0);
+		wrmsrl(MSR_MC6_DEMOTION_POLICY_CONFIG, 0);
+	}
 
 	if (icpu->disable_promotion_to_c1e)	/* each-cpu is redundant */
 		on_each_cpu(c1e_promotion_disable, NULL, 1);
