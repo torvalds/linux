@@ -135,7 +135,6 @@ struct apic apic_noop = {
 	.apicid_to_cpu_present		= physid_set_mask_of_physid,
 
 	.check_phys_apicid_present	= default_check_phys_apicid_present,
-	.enable_apic_mode		= NULL,
 
 	.phys_pkg_id			= noop_phys_pkg_id,
 
