@@ -59,13 +59,6 @@ struct dio200_board {
 	unsigned int mainsize;
 };
 
-/*
- * Comedi device private data.
- */
-struct dio200_private {
-	int intr_sd;
-};
-
 int amplc_dio200_common_attach(struct comedi_device *dev, unsigned int irq,
 			       unsigned long req_irq_flags);
 

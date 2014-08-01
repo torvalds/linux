@@ -359,7 +359,6 @@ static int dio200_pci_auto_attach(struct comedi_device *dev,
 {
 	struct pci_dev *pci_dev = comedi_to_pci_dev(dev);
 	const struct dio200_board *thisboard = NULL;
-	struct dio200_private *devpriv;
 	unsigned int bar;
 	int ret;
 
@@ -372,10 +371,6 @@ static int dio200_pci_auto_attach(struct comedi_device *dev,
 
 	dev_info(dev->class_dev, "%s: attach pci %s (%s)\n",
 		 dev->driver->driver_name, pci_name(pci_dev), dev->board_name);
-
-	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
-	if (!devpriv)
-		return -ENOMEM;
 
 	ret = comedi_pci_enable(dev);
 	if (ret)

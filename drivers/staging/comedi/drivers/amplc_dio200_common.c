@@ -574,19 +574,13 @@ dio200_subdev_intr_init(struct comedi_device *dev, struct comedi_subdevice *s,
 static irqreturn_t dio200_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
-	struct dio200_private *devpriv = dev->private;
-	struct comedi_subdevice *s;
+	struct comedi_subdevice *s = dev->read_subdev;
 	int handled;
 
 	if (!dev->attached)
 		return IRQ_NONE;
 
-	if (devpriv->intr_sd >= 0) {
-		s = &dev->subdevices[devpriv->intr_sd];
-		handled = dio200_handle_read_intr(dev, s);
-	} else {
-		handled = 0;
-	}
+	handled = dio200_handle_read_intr(dev, s);
 
 	return IRQ_RETVAL(handled);
 }
@@ -1122,14 +1116,10 @@ int amplc_dio200_common_attach(struct comedi_device *dev, unsigned int irq,
 			       unsigned long req_irq_flags)
 {
 	const struct dio200_board *thisboard = comedi_board(dev);
-	struct dio200_private *devpriv = dev->private;
 	const struct dio200_layout *layout = dio200_board_layout(thisboard);
 	struct comedi_subdevice *s;
-	int sdx;
 	unsigned int n;
 	int ret;
-
-	devpriv->intr_sd = -1;
 
 	ret = comedi_alloc_subdevices(dev, layout->n_subdevs);
 	if (ret)
@@ -1154,14 +1144,14 @@ int amplc_dio200_common_attach(struct comedi_device *dev, unsigned int irq,
 			break;
 		case sd_intr:
 			/* 'INTERRUPT' subdevice */
-			if (irq) {
+			if (irq && !dev->read_subdev) {
 				ret = dio200_subdev_intr_init(dev, s,
 							      DIO200_INT_SCE,
 							      layout->sdinfo[n]
 							     );
 				if (ret < 0)
 					return ret;
-				devpriv->intr_sd = n;
+				dev->read_subdev = s;
 			} else {
 				s->type = COMEDI_SUBD_UNUSED;
 			}
@@ -1176,10 +1166,8 @@ int amplc_dio200_common_attach(struct comedi_device *dev, unsigned int irq,
 			break;
 		}
 	}
-	sdx = devpriv->intr_sd;
-	if (sdx >= 0 && sdx < dev->n_subdevices)
-		dev->read_subdev = &dev->subdevices[sdx];
-	if (irq) {
+
+	if (irq && dev->read_subdev) {
 		if (request_irq(irq, dio200_interrupt, req_irq_flags,
 				dev->board_name, dev) >= 0) {
 			dev->irq = irq;
