@@ -198,7 +198,7 @@ static void inet_frag_schedule_worker(struct inet_frags *f)
 		schedule_work(&f->frags_work);
 }
 
-void inet_frags_init(struct inet_frags *f)
+int inet_frags_init(struct inet_frags *f)
 {
 	int i;
 
@@ -213,6 +213,12 @@ void inet_frags_init(struct inet_frags *f)
 
 	seqlock_init(&f->rnd_seqlock);
 	f->last_rebuild_jiffies = 0;
+	f->frags_cachep = kmem_cache_create(f->frags_cache_name, f->qsize, 0, 0,
+					    NULL);
+	if (!f->frags_cachep)
+		return -ENOMEM;
+
+	return 0;
 }
 EXPORT_SYMBOL(inet_frags_init);
 
@@ -225,6 +231,7 @@ EXPORT_SYMBOL(inet_frags_init_net);
 void inet_frags_fini(struct inet_frags *f)
 {
 	cancel_work_sync(&f->frags_work);
+	kmem_cache_destroy(f->frags_cachep);
 }
 EXPORT_SYMBOL(inet_frags_fini);
 
@@ -327,7 +334,7 @@ void inet_frag_destroy(struct inet_frag_queue *q, struct inet_frags *f)
 
 	if (f->destructor)
 		f->destructor(q);
-	kfree(q);
+	kmem_cache_free(f->frags_cachep, q);
 }
 EXPORT_SYMBOL(inet_frag_destroy);
 
@@ -377,7 +384,7 @@ static struct inet_frag_queue *inet_frag_alloc(struct netns_frags *nf,
 		return NULL;
 	}
 
-	q = kzalloc(f->qsize, GFP_ATOMIC);
+	q = kmem_cache_zalloc(f->frags_cachep, GFP_ATOMIC);
 	if (q == NULL)
 		return NULL;
 

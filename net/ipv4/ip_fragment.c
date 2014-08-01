@@ -55,6 +55,7 @@
  */
 
 static int sysctl_ipfrag_max_dist __read_mostly = 64;
+static const char ip_frag_cache_name[] = "ip4-frags";
 
 struct ipfrag_skb_cb
 {
@@ -860,5 +861,7 @@ void __init ipfrag_init(void)
 	ip4_frags.qsize = sizeof(struct ipq);
 	ip4_frags.match = ip4_frag_match;
 	ip4_frags.frag_expire = ip_expire;
-	inet_frags_init(&ip4_frags);
+	ip4_frags.frags_cache_name = ip_frag_cache_name;
+	if (inet_frags_init(&ip4_frags))
+		panic("IP: failed to allocate ip4_frags cache\n");
 }

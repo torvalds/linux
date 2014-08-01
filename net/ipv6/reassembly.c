@@ -60,6 +60,8 @@
 #include <net/inet_frag.h>
 #include <net/inet_ecn.h>
 
+static const char ip6_frag_cache_name[] = "ip6-frags";
+
 struct ip6frag_skb_cb
 {
 	struct inet6_skb_parm	h;
@@ -748,7 +750,10 @@ int __init ipv6_frag_init(void)
 	ip6_frags.qsize = sizeof(struct frag_queue);
 	ip6_frags.match = ip6_frag_match;
 	ip6_frags.frag_expire = ip6_frag_expire;
-	inet_frags_init(&ip6_frags);
+	ip6_frags.frags_cache_name = ip6_frag_cache_name;
+	ret = inet_frags_init(&ip6_frags);
+	if (ret)
+		goto err_pernet;
 out:
 	return ret;
 

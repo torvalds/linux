@@ -30,6 +30,8 @@
 
 #include "reassembly.h"
 
+static const char lowpan_frags_cache_name[] = "lowpan-frags";
+
 struct lowpan_frag_info {
 	__be16 d_tag;
 	u16 d_size;
@@ -571,7 +573,10 @@ int __init lowpan_net_frag_init(void)
 	lowpan_frags.qsize = sizeof(struct frag_queue);
 	lowpan_frags.match = lowpan_frag_match;
 	lowpan_frags.frag_expire = lowpan_frag_expire;
-	inet_frags_init(&lowpan_frags);
+	lowpan_frags.frags_cache_name = lowpan_frags_cache_name;
+	ret = inet_frags_init(&lowpan_frags);
+	if (ret)
+		goto err_pernet;
 
 	return ret;
 err_pernet:
