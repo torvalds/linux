@@ -2137,8 +2137,6 @@ static void i40evf_init_task(struct work_struct *work)
 	ether_addr_copy(netdev->dev_addr, adapter->hw.mac.addr);
 	ether_addr_copy(netdev->perm_addr, adapter->hw.mac.addr);
 
-	INIT_LIST_HEAD(&adapter->mac_filter_list);
-	INIT_LIST_HEAD(&adapter->vlan_filter_list);
 	f = kzalloc(sizeof(*f), GFP_ATOMIC);
 	if (NULL == f)
 		goto err_sw_init;
@@ -2319,6 +2317,9 @@ static int i40evf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	hw->subsystem_device_id = pdev->subsystem_device;
 	hw->bus.device = PCI_SLOT(pdev->devfn);
 	hw->bus.func = PCI_FUNC(pdev->devfn);
+
+	INIT_LIST_HEAD(&adapter->mac_filter_list);
+	INIT_LIST_HEAD(&adapter->vlan_filter_list);
 
 	INIT_WORK(&adapter->reset_task, i40evf_reset_task);
 	INIT_WORK(&adapter->adminq_task, i40evf_adminq_task);
