@@ -119,6 +119,13 @@ static int cpu_function_call(int cpu, int (*func) (void *info), void *info)
 	return data.ret;
 }
 
+#define EVENT_OWNER_KERNEL ((void *) -1)
+
+static bool is_kernel_event(struct perf_event *event)
+{
+	return event->owner == EVENT_OWNER_KERNEL;
+}
+
 #define PERF_FLAG_ALL (PERF_FLAG_FD_NO_GROUP |\
 		       PERF_FLAG_FD_OUTPUT  |\
 		       PERF_FLAG_PID_CGROUP |\
@@ -3312,15 +3319,11 @@ static void free_event(struct perf_event *event)
 }
 
 /*
- * Called when the last reference to the file is gone.
+ * Remove user event from the owner task.
  */
-static void put_event(struct perf_event *event)
+static void perf_remove_from_owner(struct perf_event *event)
 {
-	struct perf_event_context *ctx = event->ctx;
 	struct task_struct *owner;
-
-	if (!atomic_long_dec_and_test(&event->refcount))
-		return;
 
 	rcu_read_lock();
 	owner = ACCESS_ONCE(event->owner);
@@ -3354,6 +3357,20 @@ static void put_event(struct perf_event *event)
 		mutex_unlock(&owner->perf_event_mutex);
 		put_task_struct(owner);
 	}
+}
+
+/*
+ * Called when the last reference to the file is gone.
+ */
+static void put_event(struct perf_event *event)
+{
+	struct perf_event_context *ctx = event->ctx;
+
+	if (!atomic_long_dec_and_test(&event->refcount))
+		return;
+
+	if (!is_kernel_event(event))
+		perf_remove_from_owner(event);
 
 	WARN_ON_ONCE(ctx->parent_ctx);
 	/*
@@ -7365,6 +7382,9 @@ perf_event_create_kernel_counter(struct perf_event_attr *attr, int cpu,
 		err = PTR_ERR(event);
 		goto err;
 	}
+
+	/* Mark owner so we could distinguish it from user events. */
+	event->owner = EVENT_OWNER_KERNEL;
 
 	account_event(event);
 
