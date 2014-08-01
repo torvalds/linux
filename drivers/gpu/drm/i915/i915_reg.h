@@ -1540,6 +1540,7 @@ enum punit_power_well {
 /* Framebuffer compression for Ironlake */
 #define ILK_DPFC_CB_BASE	0x43200
 #define ILK_DPFC_CONTROL	0x43208
+#define   FBC_CTL_FALSE_COLOR	(1<<10)
 /* The bit 28-8 is reserved */
 #define   DPFC_RESERVED		(0x1FFFFF00)
 #define ILK_DPFC_RECOMP_CTL	0x4320c

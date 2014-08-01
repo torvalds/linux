@@ -309,6 +309,9 @@ static void gen7_enable_fbc(struct drm_crtc *crtc)
 
 	dpfc_ctl |= IVB_DPFC_CTL_FENCE_EN;
 
+	if (dev_priv->fbc.false_color)
+		dpfc_ctl |= FBC_CTL_FALSE_COLOR;
+
 	I915_WRITE(ILK_DPFC_CONTROL, dpfc_ctl | DPFC_CTL_EN);
 
 	if (IS_IVYBRIDGE(dev)) {

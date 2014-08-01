@@ -1433,6 +1433,47 @@ static int i915_fbc_status(struct seq_file *m, void *unused)
 	return 0;
 }
 
+static int i915_fbc_fc_get(void *data, u64 *val)
+{
+	struct drm_device *dev = data;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (INTEL_INFO(dev)->gen < 7 || !HAS_FBC(dev))
+		return -ENODEV;
+
+	drm_modeset_lock_all(dev);
+	*val = dev_priv->fbc.false_color;
+	drm_modeset_unlock_all(dev);
+
+	return 0;
+}
+
+static int i915_fbc_fc_set(void *data, u64 val)
+{
+	struct drm_device *dev = data;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 reg;
+
+	if (INTEL_INFO(dev)->gen < 7 || !HAS_FBC(dev))
+		return -ENODEV;
+
+	drm_modeset_lock_all(dev);
+
+	reg = I915_READ(ILK_DPFC_CONTROL);
+	dev_priv->fbc.false_color = val;
+
+	I915_WRITE(ILK_DPFC_CONTROL, val ?
+		   (reg | FBC_CTL_FALSE_COLOR) :
+		   (reg & ~FBC_CTL_FALSE_COLOR));
+
+	drm_modeset_unlock_all(dev);
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(i915_fbc_fc_fops,
+			i915_fbc_fc_get, i915_fbc_fc_set,
+			"%llu\n");
+
 static int i915_ips_status(struct seq_file *m, void *unused)
 {
 	struct drm_info_node *node = m->private;
@@ -3957,6 +3998,7 @@ static const struct i915_debugfs_files {
 	{"i915_pri_wm_latency", &i915_pri_wm_latency_fops},
 	{"i915_spr_wm_latency", &i915_spr_wm_latency_fops},
 	{"i915_cur_wm_latency", &i915_cur_wm_latency_fops},
+	{"i915_fbc_false_color", &i915_fbc_fc_fops},
 };
 
 void intel_display_crc_init(struct drm_device *dev)

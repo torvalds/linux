@@ -637,6 +637,8 @@ struct i915_fbc {
 	struct drm_mm_node compressed_fb;
 	struct drm_mm_node *compressed_llb;
 
+	bool false_color;
+
 	struct intel_fbc_work {
 		struct delayed_work work;
 		struct drm_crtc *crtc;
