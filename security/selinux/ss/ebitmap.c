@@ -86,7 +86,7 @@ int ebitmap_cpy(struct ebitmap *dst, struct ebitmap *src)
  *
  */
 int ebitmap_netlbl_export(struct ebitmap *ebmap,
-			  struct netlbl_lsm_secattr_catmap **catmap)
+			  struct netlbl_lsm_catmap **catmap)
 {
 	struct ebitmap_node *e_iter = ebmap->node;
 	unsigned long e_map;
@@ -100,7 +100,7 @@ int ebitmap_netlbl_export(struct ebitmap *ebmap,
 	}
 
 	if (*catmap != NULL)
-		netlbl_secattr_catmap_free(*catmap);
+		netlbl_catmap_free(*catmap);
 	*catmap = NULL;
 
 	while (e_iter) {
@@ -108,10 +108,10 @@ int ebitmap_netlbl_export(struct ebitmap *ebmap,
 		for (iter = 0; iter < EBITMAP_UNIT_NUMS; iter++) {
 			e_map = e_iter->maps[iter];
 			if (e_map != 0) {
-				rc = netlbl_secattr_catmap_setlong(catmap,
-								   offset,
-								   e_map,
-								   GFP_ATOMIC);
+				rc = netlbl_catmap_setlong(catmap,
+							   offset,
+							   e_map,
+							   GFP_ATOMIC);
 				if (rc != 0)
 					goto netlbl_export_failure;
 			}
@@ -123,7 +123,7 @@ int ebitmap_netlbl_export(struct ebitmap *ebmap,
 	return 0;
 
 netlbl_export_failure:
-	netlbl_secattr_catmap_free(*catmap);
+	netlbl_catmap_free(*catmap);
 	return -ENOMEM;
 }
 
@@ -138,7 +138,7 @@ netlbl_export_failure:
  *
  */
 int ebitmap_netlbl_import(struct ebitmap *ebmap,
-			  struct netlbl_lsm_secattr_catmap *catmap)
+			  struct netlbl_lsm_catmap *catmap)
 {
 	int rc;
 	struct ebitmap_node *e_iter = NULL;
@@ -147,7 +147,7 @@ int ebitmap_netlbl_import(struct ebitmap *ebmap,
 	unsigned long bitmap;
 
 	for (;;) {
-		rc = netlbl_secattr_catmap_getlong(catmap, &offset, &bitmap);
+		rc = netlbl_catmap_getlong(catmap, &offset, &bitmap);
 		if (rc < 0)
 			goto netlbl_import_failure;
 		if (offset == (u32)-1)

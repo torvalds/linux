@@ -410,7 +410,7 @@ out_entry:
 #define _CM_F_WALK	0x00000002
 
 /**
- * _netlbl_secattr_catmap_getnode - Get a individual node from a catmap
+ * _netlbl_catmap_getnode - Get a individual node from a catmap
  * @catmap: pointer to the category bitmap
  * @offset: the requested offset
  * @cm_flags: catmap flags, see _CM_F_*
@@ -424,36 +424,36 @@ out_entry:
  * be returned.  Returns a pointer to the node on success, NULL on failure.
  *
  */
-static struct netlbl_lsm_secattr_catmap *_netlbl_secattr_catmap_getnode(
-				struct netlbl_lsm_secattr_catmap **catmap,
-				u32 offset,
-				unsigned int cm_flags,
-				gfp_t gfp_flags)
+static struct netlbl_lsm_catmap *_netlbl_catmap_getnode(
+					     struct netlbl_lsm_catmap **catmap,
+					     u32 offset,
+					     unsigned int cm_flags,
+					     gfp_t gfp_flags)
 {
-	struct netlbl_lsm_secattr_catmap *iter = *catmap;
-	struct netlbl_lsm_secattr_catmap *prev = NULL;
+	struct netlbl_lsm_catmap *iter = *catmap;
+	struct netlbl_lsm_catmap *prev = NULL;
 
 	if (iter == NULL)
-		goto secattr_catmap_getnode_alloc;
+		goto catmap_getnode_alloc;
 	if (offset < iter->startbit)
-		goto secattr_catmap_getnode_walk;
+		goto catmap_getnode_walk;
 	while (iter && offset >= (iter->startbit + NETLBL_CATMAP_SIZE)) {
 		prev = iter;
 		iter = iter->next;
 	}
 	if (iter == NULL || offset < iter->startbit)
-		goto secattr_catmap_getnode_walk;
+		goto catmap_getnode_walk;
 
 	return iter;
 
-secattr_catmap_getnode_walk:
+catmap_getnode_walk:
 	if (cm_flags & _CM_F_WALK)
 		return iter;
-secattr_catmap_getnode_alloc:
+catmap_getnode_alloc:
 	if (!(cm_flags & _CM_F_ALLOC))
 		return NULL;
 
-	iter = netlbl_secattr_catmap_alloc(gfp_flags);
+	iter = netlbl_catmap_alloc(gfp_flags);
 	if (iter == NULL)
 		return NULL;
 	iter->startbit = offset & ~(NETLBL_CATMAP_SIZE - 1);
@@ -470,7 +470,7 @@ secattr_catmap_getnode_alloc:
 }
 
 /**
- * netlbl_secattr_catmap_walk - Walk a LSM secattr catmap looking for a bit
+ * netlbl_catmap_walk - Walk a LSM secattr catmap looking for a bit
  * @catmap: the category bitmap
  * @offset: the offset to start searching at, in bits
  *
@@ -479,15 +479,14 @@ secattr_catmap_getnode_alloc:
  * returns the spot of the first set bit or -ENOENT if no bits are set.
  *
  */
-int netlbl_secattr_catmap_walk(struct netlbl_lsm_secattr_catmap *catmap,
-			       u32 offset)
+int netlbl_catmap_walk(struct netlbl_lsm_catmap *catmap, u32 offset)
 {
-	struct netlbl_lsm_secattr_catmap *iter = catmap;
+	struct netlbl_lsm_catmap *iter = catmap;
 	u32 idx;
 	u32 bit;
 	NETLBL_CATMAP_MAPTYPE bitmap;
 
-	iter = _netlbl_secattr_catmap_getnode(&catmap, offset, _CM_F_WALK, 0);
+	iter = _netlbl_catmap_getnode(&catmap, offset, _CM_F_WALK, 0);
 	if (iter == NULL)
 		return -ENOENT;
 	if (offset > iter->startbit) {
@@ -524,7 +523,7 @@ int netlbl_secattr_catmap_walk(struct netlbl_lsm_secattr_catmap *catmap,
 }
 
 /**
- * netlbl_secattr_catmap_walk_rng - Find the end of a string of set bits
+ * netlbl_catmap_walkrng - Find the end of a string of set bits
  * @catmap: the category bitmap
  * @offset: the offset to start searching at, in bits
  *
@@ -534,17 +533,16 @@ int netlbl_secattr_catmap_walk(struct netlbl_lsm_secattr_catmap *catmap,
  * the end of the bitmap.
  *
  */
-int netlbl_secattr_catmap_walk_rng(struct netlbl_lsm_secattr_catmap *catmap,
-				   u32 offset)
+int netlbl_catmap_walkrng(struct netlbl_lsm_catmap *catmap, u32 offset)
 {
-	struct netlbl_lsm_secattr_catmap *iter;
-	struct netlbl_lsm_secattr_catmap *prev = NULL;
+	struct netlbl_lsm_catmap *iter;
+	struct netlbl_lsm_catmap *prev = NULL;
 	u32 idx;
 	u32 bit;
 	NETLBL_CATMAP_MAPTYPE bitmask;
 	NETLBL_CATMAP_MAPTYPE bitmap;
 
-	iter = _netlbl_secattr_catmap_getnode(&catmap, offset, _CM_F_WALK, 0);
+	iter = _netlbl_catmap_getnode(&catmap, offset, _CM_F_WALK, 0);
 	if (iter == NULL)
 		return -ENOENT;
 	if (offset > iter->startbit) {
@@ -584,7 +582,7 @@ int netlbl_secattr_catmap_walk_rng(struct netlbl_lsm_secattr_catmap *catmap,
 }
 
 /**
- * netlbl_secattr_catmap_getlong - Export an unsigned long bitmap
+ * netlbl_catmap_getlong - Export an unsigned long bitmap
  * @catmap: pointer to the category bitmap
  * @offset: pointer to the requested offset
  * @bitmap: the exported bitmap
@@ -597,11 +595,11 @@ int netlbl_secattr_catmap_walk_rng(struct netlbl_lsm_secattr_catmap *catmap,
  * Returns zero on sucess, negative values on failure.
  *
  */
-int netlbl_secattr_catmap_getlong(struct netlbl_lsm_secattr_catmap *catmap,
-				  u32 *offset,
-				  unsigned long *bitmap)
+int netlbl_catmap_getlong(struct netlbl_lsm_catmap *catmap,
+			  u32 *offset,
+			  unsigned long *bitmap)
 {
-	struct netlbl_lsm_secattr_catmap *iter;
+	struct netlbl_lsm_catmap *iter;
 	u32 off = *offset;
 	u32 idx;
 
@@ -613,7 +611,7 @@ int netlbl_secattr_catmap_getlong(struct netlbl_lsm_secattr_catmap *catmap,
 		off = catmap->startbit;
 		*offset = off;
 	}
-	iter = _netlbl_secattr_catmap_getnode(&catmap, off, _CM_F_NONE, 0);
+	iter = _netlbl_catmap_getnode(&catmap, off, _CM_F_NONE, 0);
 	if (iter == NULL) {
 		*offset = (u32)-1;
 		return 0;
@@ -632,7 +630,7 @@ int netlbl_secattr_catmap_getlong(struct netlbl_lsm_secattr_catmap *catmap,
 }
 
 /**
- * netlbl_secattr_catmap_setbit - Set a bit in a LSM secattr catmap
+ * netlbl_catmap_setbit - Set a bit in a LSM secattr catmap
  * @catmap: pointer to the category bitmap
  * @bit: the bit to set
  * @flags: memory allocation flags
@@ -642,14 +640,14 @@ int netlbl_secattr_catmap_getlong(struct netlbl_lsm_secattr_catmap *catmap,
  * negative values on failure.
  *
  */
-int netlbl_secattr_catmap_setbit(struct netlbl_lsm_secattr_catmap **catmap,
-				 u32 bit,
-				 gfp_t flags)
+int netlbl_catmap_setbit(struct netlbl_lsm_catmap **catmap,
+			 u32 bit,
+			 gfp_t flags)
 {
-	struct netlbl_lsm_secattr_catmap *iter;
+	struct netlbl_lsm_catmap *iter;
 	u32 idx;
 
-	iter = _netlbl_secattr_catmap_getnode(catmap, bit, _CM_F_ALLOC, flags);
+	iter = _netlbl_catmap_getnode(catmap, bit, _CM_F_ALLOC, flags);
 	if (iter == NULL)
 		return -ENOMEM;
 
@@ -661,7 +659,7 @@ int netlbl_secattr_catmap_setbit(struct netlbl_lsm_secattr_catmap **catmap,
 }
 
 /**
- * netlbl_secattr_catmap_setrng - Set a range of bits in a LSM secattr catmap
+ * netlbl_catmap_setrng - Set a range of bits in a LSM secattr catmap
  * @catmap: pointer to the category bitmap
  * @start: the starting bit
  * @end: the last bit in the string
@@ -672,10 +670,10 @@ int netlbl_secattr_catmap_setbit(struct netlbl_lsm_secattr_catmap **catmap,
  * on success, negative values on failure.
  *
  */
-int netlbl_secattr_catmap_setrng(struct netlbl_lsm_secattr_catmap **catmap,
-				 u32 start,
-				 u32 end,
-				 gfp_t flags)
+int netlbl_catmap_setrng(struct netlbl_lsm_catmap **catmap,
+			 u32 start,
+			 u32 end,
+			 gfp_t flags)
 {
 	int rc = 0;
 	u32 spot = start;
@@ -683,22 +681,20 @@ int netlbl_secattr_catmap_setrng(struct netlbl_lsm_secattr_catmap **catmap,
 	while (rc == 0 && spot <= end) {
 		if (((spot & (BITS_PER_LONG - 1)) != 0) &&
 		    ((end - spot) > BITS_PER_LONG)) {
-			rc = netlbl_secattr_catmap_setlong(catmap,
-							   spot,
-							   (unsigned long)-1,
-							   flags);
+			rc = netlbl_catmap_setlong(catmap,
+						   spot,
+						   (unsigned long)-1,
+						   flags);
 			spot += BITS_PER_LONG;
 		} else
-			rc = netlbl_secattr_catmap_setbit(catmap,
-							  spot++,
-							  flags);
+			rc = netlbl_catmap_setbit(catmap, spot++, flags);
 	}
 
 	return rc;
 }
 
 /**
- * netlbl_secattr_catmap_setlong - Import an unsigned long bitmap
+ * netlbl_catmap_setlong - Import an unsigned long bitmap
  * @catmap: pointer to the category bitmap
  * @offset: offset to the start of the imported bitmap
  * @bitmap: the bitmap to import
@@ -710,20 +706,19 @@ int netlbl_secattr_catmap_setrng(struct netlbl_lsm_secattr_catmap **catmap,
  * on success, negative values on failure.
  *
  */
-int netlbl_secattr_catmap_setlong(struct netlbl_lsm_secattr_catmap **catmap,
-				  u32 offset,
-				  unsigned long bitmap,
-				  gfp_t flags)
+int netlbl_catmap_setlong(struct netlbl_lsm_catmap **catmap,
+			  u32 offset,
+			  unsigned long bitmap,
+			  gfp_t flags)
 {
-	struct netlbl_lsm_secattr_catmap *iter;
+	struct netlbl_lsm_catmap *iter;
 	u32 idx;
 
 	/* only allow aligned offsets */
 	if ((offset & (BITS_PER_LONG - 1)) != 0)
 		return -EINVAL;
 
-	iter = _netlbl_secattr_catmap_getnode(catmap,
-					      offset, _CM_F_ALLOC, flags);
+	iter = _netlbl_catmap_getnode(catmap, offset, _CM_F_ALLOC, flags);
 	if (iter == NULL)
 		return -ENOMEM;
 
