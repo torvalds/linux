@@ -227,7 +227,7 @@ static int __init create_device_attrs(struct platform_device *pdev)
 	const struct attribute_group **pgroups = pdata->attr_groups;
 	struct device_node *opal, *np;
 	struct sensor_data *sdata;
-	const __be32 *sensor_id;
+	u32 sensor_id;
 	enum sensors type;
 	u32 count = 0;
 	int err = 0;
@@ -252,15 +252,14 @@ static int __init create_device_attrs(struct platform_device *pdev)
 		if (type == MAX_SENSOR_TYPE)
 			continue;
 
-		sensor_id = of_get_property(np, "sensor-id", NULL);
-		if (!sensor_id) {
+		if (of_property_read_u32(np, "sensor-id", &sensor_id)) {
 			dev_info(&pdev->dev,
 				 "'sensor-id' missing in the node '%s'\n",
 				 np->name);
 			continue;
 		}
 
-		sdata[count].id = be32_to_cpup(sensor_id);
+		sdata[count].id = sensor_id;
 		sdata[count].type = type;
 		err = create_hwmon_attr_name(&pdev->dev, type, np->name,
 					     sdata[count].name);
