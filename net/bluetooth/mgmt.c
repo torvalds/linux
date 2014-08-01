@@ -6281,25 +6281,35 @@ static void unpair_device_rsp(struct pending_cmd *cmd, void *data)
 	mgmt_pending_remove(cmd);
 }
 
+bool mgmt_powering_down(struct hci_dev *hdev)
+{
+	struct pending_cmd *cmd;
+	struct mgmt_mode *cp;
+
+	cmd = mgmt_pending_find(MGMT_OP_SET_POWERED, hdev);
+	if (!cmd)
+		return false;
+
+	cp = cmd->param;
+	if (!cp->val)
+		return true;
+
+	return false;
+}
+
 void mgmt_device_disconnected(struct hci_dev *hdev, bdaddr_t *bdaddr,
 			      u8 link_type, u8 addr_type, u8 reason,
 			      bool mgmt_connected)
 {
 	struct mgmt_ev_device_disconnected ev;
-	struct pending_cmd *power_off;
 	struct sock *sk = NULL;
 
-	power_off = mgmt_pending_find(MGMT_OP_SET_POWERED, hdev);
-	if (power_off) {
-		struct mgmt_mode *cp = power_off->param;
-
-		/* The connection is still in hci_conn_hash so test for 1
-		 * instead of 0 to know if this is the last one.
-		 */
-		if (!cp->val && hci_conn_count(hdev) == 1) {
-			cancel_delayed_work(&hdev->power_off);
-			queue_work(hdev->req_workqueue, &hdev->power_off.work);
-		}
+	/* The connection is still in hci_conn_hash so test for 1
+	 * instead of 0 to know if this is the last one.
+	 */
+	if (mgmt_powering_down(hdev) && hci_conn_count(hdev) == 1) {
+		cancel_delayed_work(&hdev->power_off);
+		queue_work(hdev->req_workqueue, &hdev->power_off.work);
 	}
 
 	if (!mgmt_connected)
@@ -6359,19 +6369,13 @@ void mgmt_connect_failed(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 			 u8 addr_type, u8 status)
 {
 	struct mgmt_ev_connect_failed ev;
-	struct pending_cmd *power_off;
 
-	power_off = mgmt_pending_find(MGMT_OP_SET_POWERED, hdev);
-	if (power_off) {
-		struct mgmt_mode *cp = power_off->param;
-
-		/* The connection is still in hci_conn_hash so test for 1
-		 * instead of 0 to know if this is the last one.
-		 */
-		if (!cp->val && hci_conn_count(hdev) == 1) {
-			cancel_delayed_work(&hdev->power_off);
-			queue_work(hdev->req_workqueue, &hdev->power_off.work);
-		}
+	/* The connection is still in hci_conn_hash so test for 1
+	 * instead of 0 to know if this is the last one.
+	 */
+	if (mgmt_powering_down(hdev) && hci_conn_count(hdev) == 1) {
+		cancel_delayed_work(&hdev->power_off);
+		queue_work(hdev->req_workqueue, &hdev->power_off.work);
 	}
 
 	bacpy(&ev.addr.bdaddr, bdaddr);
