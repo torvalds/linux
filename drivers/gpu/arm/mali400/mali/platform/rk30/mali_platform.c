@@ -332,7 +332,7 @@ static mali_bool init_mali_clock(void)
 
 	if (mali_clock != 0 || mali_clock_pd != 0)
 		return ret; 
-#if 0
+#if 1
 	mali_clock_pd = clk_get(NULL,GPUCLK_PD_NAME);
 	if (IS_ERR(mali_clock_pd)) {
 		MALI_PRINT( ("MALI Error : failed to get source mali pd\n"));
@@ -369,7 +369,7 @@ static mali_bool init_mali_clock(void)
 err_gpu_clk:
 	MALI_PRINT(("::clk_put:: %s mali_clock\n", __FUNCTION__));
 	gpu_power_state = 0;
-#if 0
+#if 1
 	clk_disable_unprepare(mali_clock_pd);
 #endif
 	dvfs_clk_disable_unprepare(mali_clock);
@@ -383,7 +383,7 @@ static mali_bool deinit_mali_clock(void)
 	if (mali_clock == 0 && mali_clock_pd == 0)
 		return MALI_TRUE;
 	dvfs_clk_disable_unprepare(mali_clock);
-#if 0
+#if 1
 	clk_disable_unprepare(mali_clock_pd);
 #endif
 	mali_clock = 0;
@@ -477,7 +477,7 @@ _mali_osk_errcode_t mali_power_domain_control(u32 bpower_off)
 			if (cpu_is_rk3036()) {
 				clk_prepare_enable(audis_gpu_clk);
 			} else {
-		#if 0
+		#if 1
 				clk_prepare_enable(mali_clock_pd);
 		#endif
 				dvfs_clk_prepare_enable(mali_clock);
@@ -492,7 +492,7 @@ _mali_osk_errcode_t mali_power_domain_control(u32 bpower_off)
 				clk_disable_unprepare(audis_gpu_clk);
 			} else {
 				dvfs_clk_disable_unprepare(mali_clock);
-		#if 0
+		#if 1
 				clk_disable_unprepare(mali_clock_pd);	
 		#endif
 			}
