@@ -624,40 +624,41 @@ static int rsnd_soc_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		return -EINVAL;
 	}
 
-	/* set clock inversion */
-	switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
-	case SND_SOC_DAIFMT_NB_IF:
-		rdai->bit_clk_inv = 0;
-		rdai->frm_clk_inv = 1;
-		break;
-	case SND_SOC_DAIFMT_IB_NF:
-		rdai->bit_clk_inv = 1;
-		rdai->frm_clk_inv = 0;
-		break;
-	case SND_SOC_DAIFMT_IB_IF:
-		rdai->bit_clk_inv = 1;
-		rdai->frm_clk_inv = 1;
-		break;
-	case SND_SOC_DAIFMT_NB_NF:
-	default:
-		rdai->bit_clk_inv = 0;
-		rdai->frm_clk_inv = 0;
-		break;
-	}
-
 	/* set format */
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_I2S:
 		rdai->sys_delay = 0;
 		rdai->data_alignment = 0;
+		rdai->frm_clk_inv = 0;
 		break;
 	case SND_SOC_DAIFMT_LEFT_J:
 		rdai->sys_delay = 1;
 		rdai->data_alignment = 0;
+		rdai->frm_clk_inv = 1;
 		break;
 	case SND_SOC_DAIFMT_RIGHT_J:
 		rdai->sys_delay = 1;
 		rdai->data_alignment = 1;
+		rdai->frm_clk_inv = 1;
+		break;
+	}
+
+	/* set clock inversion */
+	switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
+	case SND_SOC_DAIFMT_NB_IF:
+		rdai->bit_clk_inv =  rdai->bit_clk_inv;
+		rdai->frm_clk_inv = !rdai->frm_clk_inv;
+		break;
+	case SND_SOC_DAIFMT_IB_NF:
+		rdai->bit_clk_inv = !rdai->bit_clk_inv;
+		rdai->frm_clk_inv =  rdai->frm_clk_inv;
+		break;
+	case SND_SOC_DAIFMT_IB_IF:
+		rdai->bit_clk_inv = !rdai->bit_clk_inv;
+		rdai->frm_clk_inv = !rdai->frm_clk_inv;
+		break;
+	case SND_SOC_DAIFMT_NB_NF:
+	default:
 		break;
 	}
 
