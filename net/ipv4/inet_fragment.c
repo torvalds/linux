@@ -334,8 +334,9 @@ void inet_frag_destroy(struct inet_frag_queue *q, struct inet_frags *f)
 EXPORT_SYMBOL(inet_frag_destroy);
 
 static struct inet_frag_queue *inet_frag_intern(struct netns_frags *nf,
-		struct inet_frag_queue *qp_in, struct inet_frags *f,
-		void *arg)
+						struct inet_frag_queue *qp_in,
+						struct inet_frags *f,
+						void *arg)
 {
 	struct inet_frag_bucket *hb = get_frag_bucket_locked(qp_in, f);
 	struct inet_frag_queue *qp;
@@ -368,7 +369,8 @@ static struct inet_frag_queue *inet_frag_intern(struct netns_frags *nf,
 }
 
 static struct inet_frag_queue *inet_frag_alloc(struct netns_frags *nf,
-		struct inet_frags *f, void *arg)
+					       struct inet_frags *f,
+					       void *arg)
 {
 	struct inet_frag_queue *q;
 
@@ -393,7 +395,8 @@ static struct inet_frag_queue *inet_frag_alloc(struct netns_frags *nf,
 }
 
 static struct inet_frag_queue *inet_frag_create(struct netns_frags *nf,
-		struct inet_frags *f, void *arg)
+						struct inet_frags *f,
+						void *arg)
 {
 	struct inet_frag_queue *q;
 
@@ -405,7 +408,8 @@ static struct inet_frag_queue *inet_frag_create(struct netns_frags *nf,
 }
 
 struct inet_frag_queue *inet_frag_find(struct netns_frags *nf,
-		struct inet_frags *f, void *key, unsigned int hash)
+				       struct inet_frags *f, void *key,
+				       unsigned int hash)
 {
 	struct inet_frag_bucket *hb;
 	struct inet_frag_queue *q;
