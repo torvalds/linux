@@ -185,16 +185,16 @@ static void ip_expire(unsigned long arg)
 
 	spin_lock(&qp->q.lock);
 
-	if (qp->q.last_in & INET_FRAG_COMPLETE)
+	if (qp->q.flags & INET_FRAG_COMPLETE)
 		goto out;
 
 	ipq_kill(qp);
 
-	if (!(qp->q.last_in & INET_FRAG_EVICTED))
+	if (!(qp->q.flags & INET_FRAG_EVICTED))
 		IP_INC_STATS_BH(net, IPSTATS_MIB_REASMTIMEOUT);
 	IP_INC_STATS_BH(net, IPSTATS_MIB_REASMFAILS);
 
-	if ((qp->q.last_in & INET_FRAG_FIRST_IN) && qp->q.fragments != NULL) {
+	if ((qp->q.flags & INET_FRAG_FIRST_IN) && qp->q.fragments != NULL) {
 		struct sk_buff *head = qp->q.fragments;
 		const struct iphdr *iph;
 		int err;
@@ -302,7 +302,7 @@ static int ip_frag_reinit(struct ipq *qp)
 	} while (fp);
 	sub_frag_mem_limit(&qp->q, sum_truesize);
 
-	qp->q.last_in = 0;
+	qp->q.flags = 0;
 	qp->q.len = 0;
 	qp->q.meat = 0;
 	qp->q.fragments = NULL;
@@ -323,7 +323,7 @@ static int ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
 	int err = -ENOENT;
 	u8 ecn;
 
-	if (qp->q.last_in & INET_FRAG_COMPLETE)
+	if (qp->q.flags & INET_FRAG_COMPLETE)
 		goto err;
 
 	if (!(IPCB(skb)->flags & IPSKB_FRAG_COMPLETE) &&
@@ -350,9 +350,9 @@ static int ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
 		 * or have different end, the segment is corrupted.
 		 */
 		if (end < qp->q.len ||
-		    ((qp->q.last_in & INET_FRAG_LAST_IN) && end != qp->q.len))
+		    ((qp->q.flags & INET_FRAG_LAST_IN) && end != qp->q.len))
 			goto err;
-		qp->q.last_in |= INET_FRAG_LAST_IN;
+		qp->q.flags |= INET_FRAG_LAST_IN;
 		qp->q.len = end;
 	} else {
 		if (end&7) {
@@ -362,7 +362,7 @@ static int ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
 		}
 		if (end > qp->q.len) {
 			/* Some bits beyond end -> corruption. */
-			if (qp->q.last_in & INET_FRAG_LAST_IN)
+			if (qp->q.flags & INET_FRAG_LAST_IN)
 				goto err;
 			qp->q.len = end;
 		}
@@ -471,13 +471,13 @@ found:
 	qp->ecn |= ecn;
 	add_frag_mem_limit(&qp->q, skb->truesize);
 	if (offset == 0)
-		qp->q.last_in |= INET_FRAG_FIRST_IN;
+		qp->q.flags |= INET_FRAG_FIRST_IN;
 
 	if (ip_hdr(skb)->frag_off & htons(IP_DF) &&
 	    skb->len + ihl > qp->q.max_size)
 		qp->q.max_size = skb->len + ihl;
 
-	if (qp->q.last_in == (INET_FRAG_FIRST_IN | INET_FRAG_LAST_IN) &&
+	if (qp->q.flags == (INET_FRAG_FIRST_IN | INET_FRAG_LAST_IN) &&
 	    qp->q.meat == qp->q.len) {
 		unsigned long orefdst = skb->_skb_refdst;
 

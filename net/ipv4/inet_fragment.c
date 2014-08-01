@@ -152,8 +152,8 @@ evict_again:
 		}
 
 		/* suppress xmit of (icmp) error packet */
-		fq->last_in &= ~INET_FRAG_FIRST_IN;
-		fq->last_in |= INET_FRAG_EVICTED;
+		fq->flags &= ~INET_FRAG_FIRST_IN;
+		fq->flags |= INET_FRAG_EVICTED;
 		hlist_del(&fq->list);
 		hlist_add_head(&fq->list, &expired);
 		++evicted;
@@ -289,16 +289,16 @@ void inet_frag_kill(struct inet_frag_queue *fq, struct inet_frags *f)
 	if (del_timer(&fq->timer))
 		atomic_dec(&fq->refcnt);
 
-	if (!(fq->last_in & INET_FRAG_COMPLETE)) {
+	if (!(fq->flags & INET_FRAG_COMPLETE)) {
 		fq_unlink(fq, f);
 		atomic_dec(&fq->refcnt);
-		fq->last_in |= INET_FRAG_COMPLETE;
+		fq->flags |= INET_FRAG_COMPLETE;
 	}
 }
 EXPORT_SYMBOL(inet_frag_kill);
 
 static inline void frag_kfree_skb(struct netns_frags *nf, struct inet_frags *f,
-		struct sk_buff *skb)
+				  struct sk_buff *skb)
 {
 	if (f->skb_free)
 		f->skb_free(skb);
@@ -311,7 +311,7 @@ void inet_frag_destroy(struct inet_frag_queue *q, struct inet_frags *f)
 	struct netns_frags *nf;
 	unsigned int sum, sum_truesize = 0;
 
-	WARN_ON(!(q->last_in & INET_FRAG_COMPLETE));
+	WARN_ON(!(q->flags & INET_FRAG_COMPLETE));
 	WARN_ON(del_timer(&q->timer) != 0);
 
 	/* Release all fragment data. */
@@ -349,7 +349,7 @@ static struct inet_frag_queue *inet_frag_intern(struct netns_frags *nf,
 		if (qp->net == nf && f->match(qp, arg)) {
 			atomic_inc(&qp->refcnt);
 			spin_unlock(&hb->chain_lock);
-			qp_in->last_in |= INET_FRAG_COMPLETE;
+			qp_in->flags |= INET_FRAG_COMPLETE;
 			inet_frag_put(qp_in, f);
 			return qp;
 		}

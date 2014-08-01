@@ -25,7 +25,7 @@ struct inet_frag_queue {
 	ktime_t			stamp;
 	int			len;        /* total length of orig datagram */
 	int			meat;
-	__u8			last_in;    /* first/last segment arrived? */
+	__u8			flags;    /* first/last segment arrived? */
 
 #define INET_FRAG_EVICTED	8
 #define INET_FRAG_COMPLETE	4
