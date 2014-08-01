@@ -1298,12 +1298,16 @@ static void i40evf_watchdog_task(struct work_struct *work)
 					  struct i40evf_adapter,
 					  watchdog_task);
 	struct i40e_hw *hw = &adapter->hw;
+	uint32_t rstat_val;
 
 	if (test_and_set_bit(__I40EVF_IN_CRITICAL_TASK, &adapter->crit_section))
 		goto restart_watchdog;
 
 	if (adapter->flags & I40EVF_FLAG_PF_COMMS_FAILED) {
-		if ((rd32(hw, I40E_VFGEN_RSTAT) & 0x3) == I40E_VFR_VFACTIVE) {
+		rstat_val = rd32(hw, I40E_VFGEN_RSTAT) &
+			    I40E_VFGEN_RSTAT_VFR_STATE_MASK;
+		if ((rstat_val == I40E_VFR_VFACTIVE) ||
+		    (rstat_val == I40E_VFR_COMPLETED)) {
 			/* A chance for redemption! */
 			dev_err(&adapter->pdev->dev, "Hardware came out of reset. Attempting reinit.\n");
 			adapter->state = __I40EVF_STARTUP;
@@ -1329,8 +1333,11 @@ static void i40evf_watchdog_task(struct work_struct *work)
 		goto watchdog_done;
 
 	/* check for reset */
+	rstat_val = rd32(hw, I40E_VFGEN_RSTAT) &
+			    I40E_VFGEN_RSTAT_VFR_STATE_MASK;
 	if (!(adapter->flags & I40EVF_FLAG_RESET_PENDING) &&
-	    (rd32(hw, I40E_VFGEN_RSTAT) & 0x3) != I40E_VFR_VFACTIVE) {
+	    (rstat_val != I40E_VFR_VFACTIVE) &&
+	    (rstat_val != I40E_VFR_COMPLETED)) {
 		adapter->state = __I40EVF_RESETTING;
 		adapter->flags |= I40EVF_FLAG_RESET_PENDING;
 		dev_err(&adapter->pdev->dev, "Hardware reset detected\n");
@@ -1496,7 +1503,8 @@ static void i40evf_reset_task(struct work_struct *work)
 	for (i = 0; i < I40EVF_RESET_WAIT_COUNT; i++) {
 		rstat_val = rd32(hw, I40E_VFGEN_RSTAT) &
 			    I40E_VFGEN_RSTAT_VFR_STATE_MASK;
-		if (rstat_val != I40E_VFR_VFACTIVE)
+		if ((rstat_val != I40E_VFR_VFACTIVE) &&
+		    (rstat_val != I40E_VFR_COMPLETED))
 			break;
 		else
 			msleep(I40EVF_RESET_WAIT_MS);
@@ -1510,7 +1518,8 @@ static void i40evf_reset_task(struct work_struct *work)
 	for (i = 0; i < I40EVF_RESET_WAIT_COUNT; i++) {
 		rstat_val = rd32(hw, I40E_VFGEN_RSTAT) &
 			    I40E_VFGEN_RSTAT_VFR_STATE_MASK;
-		if (rstat_val == I40E_VFR_VFACTIVE)
+		if ((rstat_val == I40E_VFR_VFACTIVE) ||
+		    (rstat_val == I40E_VFR_COMPLETED))
 			break;
 		else
 			msleep(I40EVF_RESET_WAIT_MS);
@@ -1947,8 +1956,10 @@ static int i40evf_check_reset_complete(struct i40e_hw *hw)
 	int i;
 
 	for (i = 0; i < 100; i++) {
-		rstat = rd32(hw, I40E_VFGEN_RSTAT);
-		if (rstat == I40E_VFR_VFACTIVE)
+		rstat = rd32(hw, I40E_VFGEN_RSTAT) &
+			    I40E_VFGEN_RSTAT_VFR_STATE_MASK;
+		if ((rstat == I40E_VFR_VFACTIVE) ||
+		    (rstat == I40E_VFR_COMPLETED))
 			return 0;
 		udelay(10);
 	}
