@@ -23,6 +23,8 @@
 #include "mdp/mdp_kms.h"
 #include "mdp4.xml.h"
 
+#include "drm_panel.h"
+
 struct mdp4_kms {
 	struct mdp_kms base;
 
@@ -216,6 +218,22 @@ struct drm_crtc *mdp4_crtc_init(struct drm_device *dev,
 
 long mdp4_dtv_round_pixclk(struct drm_encoder *encoder, unsigned long rate);
 struct drm_encoder *mdp4_dtv_encoder_init(struct drm_device *dev);
+
+long mdp4_lcdc_round_pixclk(struct drm_encoder *encoder, unsigned long rate);
+struct drm_encoder *mdp4_lcdc_encoder_init(struct drm_device *dev,
+		struct drm_panel *panel);
+
+struct drm_connector *mdp4_lvds_connector_init(struct drm_device *dev,
+		struct drm_panel *panel, struct drm_encoder *encoder);
+
+#ifdef CONFIG_COMMON_CLK
+struct clk *mpd4_lvds_pll_init(struct drm_device *dev);
+#else
+static inline struct clk *mpd4_lvds_pll_init(struct drm_device *dev)
+{
+	return ERR_PTR(-ENODEV);
+}
+#endif
 
 #ifdef CONFIG_MSM_BUS_SCALING
 static inline int match_dev_name(struct device *dev, void *data)
