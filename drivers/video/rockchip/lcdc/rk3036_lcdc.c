@@ -960,12 +960,10 @@ static int rk3036_lcdc_early_suspend(struct rk_lcdc_driver *dev_drv)
 		lcdc_msk_reg(lcdc_dev, SYS_CTRL, m_LCDC_STANDBY,
 			     v_LCDC_STANDBY(1));
 		lcdc_cfg_done(lcdc_dev);
-		#if defined(CONFIG_ROCKCHIP_IOMMU)
 		if (dev_drv->iommu_enabled) {
 			if (dev_drv->mmu_dev)
 				iovmm_deactivate(dev_drv->dev);
 		}
-		#endif
 		spin_unlock(&lcdc_dev->reg_lock);
 	} else {
 		spin_unlock(&lcdc_dev->reg_lock);
@@ -999,7 +997,10 @@ static int rk3036_lcdc_early_resume(struct rk_lcdc_driver *dev_drv)
 		lcdc_msk_reg(lcdc_dev, DSP_CTRL1, m_BLANK_EN,
 			     v_BLANK_EN(0));
 		lcdc_cfg_done(lcdc_dev);
-
+		if (dev_drv->iommu_enabled) {
+			if (dev_drv->mmu_dev)
+				iovmm_activate(dev_drv->dev);
+		}
 		spin_unlock(&lcdc_dev->reg_lock);
 	}
 
