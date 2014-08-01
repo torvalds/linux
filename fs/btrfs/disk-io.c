@@ -2690,7 +2690,7 @@ int open_ctree(struct super_block *sb,
 	 * keep the device that is marked to be the target device for the
 	 * dev_replace procedure
 	 */
-	btrfs_close_extra_devices(fs_info, fs_devices, 0);
+	btrfs_close_extra_devices(fs_devices, 0);
 
 	if (!fs_devices->latest_bdev) {
 		printk(KERN_ERR "BTRFS: failed to read devices on %s\n",
@@ -2794,7 +2794,7 @@ retry_root_backup:
 		goto fail_block_groups;
 	}
 
-	btrfs_close_extra_devices(fs_info, fs_devices, 1);
+	btrfs_close_extra_devices(fs_devices, 1);
 
 	ret = btrfs_sysfs_add_one(fs_info);
 	if (ret) {

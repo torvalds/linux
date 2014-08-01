@@ -609,8 +609,7 @@ error:
 	return ERR_PTR(-ENOMEM);
 }
 
-void btrfs_close_extra_devices(struct btrfs_fs_info *fs_info,
-			       struct btrfs_fs_devices *fs_devices, int step)
+void btrfs_close_extra_devices(struct btrfs_fs_devices *fs_devices, int step)
 {
 	struct btrfs_device *device, *next;
 	struct btrfs_device *latest_dev = NULL;
