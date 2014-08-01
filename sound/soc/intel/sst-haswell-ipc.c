@@ -502,6 +502,7 @@ static int tx_wait_done(struct sst_hsw *hsw, struct ipc_message *msg,
 		ipc_shim_dbg(hsw, "message timeout");
 
 		trace_ipc_error("error message timeout for", msg->header);
+		list_del(&msg->list);
 		ret = -ETIMEDOUT;
 	} else {
 
