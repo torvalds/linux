@@ -3218,6 +3218,7 @@ static int nft_del_setelem(struct nft_ctx *ctx, struct nft_set *set,
 	if (set->flags & NFT_SET_MAP)
 		nft_data_uninit(&elem.data, set->dtype);
 
+	return 0;
 err2:
 	nft_data_uninit(&elem.key, desc.type);
 err1:
