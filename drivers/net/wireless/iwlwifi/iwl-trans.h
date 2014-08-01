@@ -405,6 +405,7 @@ struct iwl_trans_txq_scd_cfg {
 	u8 fifo;
 	s8 sta_id;
 	u8 tid;
+	bool aggregate;
 	int frame_limit;
 };
 
@@ -803,6 +804,7 @@ static inline void iwl_trans_txq_enable(struct iwl_trans *trans, int queue,
 		.sta_id = sta_id,
 		.tid = tid,
 		.frame_limit = frame_limit,
+		.aggregate = sta_id >= 0,
 	};
 
 	iwl_trans_txq_enable_cfg(trans, queue, ssn, &cfg);
@@ -816,6 +818,7 @@ static inline void iwl_trans_ac_txq_enable(struct iwl_trans *trans, int queue,
 		.sta_id = -1,
 		.tid = IWL_MAX_TID_COUNT,
 		.frame_limit = IWL_FRAME_LIMIT,
+		.aggregate = false,
 	};
 
 	iwl_trans_txq_enable_cfg(trans, queue, 0, &cfg);
