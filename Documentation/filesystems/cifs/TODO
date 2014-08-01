@@ -1,4 +1,4 @@
-Version 1.53 May 20, 2008
+Version 2.03 August 1, 2014
 
 A Partial List of Missing Features
 ==================================
@@ -7,63 +7,49 @@ Contributions are welcome.  There are plenty of opportunities
 for visible, important contributions to this module.  Here
 is a partial list of the known problems and missing features:
 
-a) Support for SecurityDescriptors(Windows/CIFS ACLs) for chmod/chgrp/chown
-so that these operations can be supported to Windows servers
+a) SMB3 (and SMB3.02) missing optional features:
+   - RDMA
+   - multichannel (started)
+   - directory leases (improved metadata caching)
+   - T10 copy offload (copy chunk is only mechanism supported)
+   - encrypted shares
 
-b) Mapping POSIX ACLs (and eventually NFSv4 ACLs) to CIFS
-SecurityDescriptors
+b) improved sparse file support
 
-c) Better pam/winbind integration (e.g. to handle uid mapping
-better)
-
-d) Cleanup now unneeded SessSetup code in
-fs/cifs/connect.c and add back in NTLMSSP code if any servers
-need it
-
-e) fix NTLMv2 signing when two mounts with different users to same
-server.
-
-f) Directory entry caching relies on a 1 second timer, rather than 
+c) Directory entry caching relies on a 1 second timer, rather than
 using FindNotify or equivalent.  - (started)
 
-g) quota support (needs minor kernel change since quota calls
+d) quota support (needs minor kernel change since quota calls
 to make it to network filesystems or deviceless filesystems)
 
-h) investigate sync behavior (including syncpage) and check  
-for proper behavior of intr/nointr
-
-i) improve support for very old servers (OS/2 and Win9x for example)
+e) improve support for very old servers (OS/2 and Win9x for example)
 Including support for changing the time remotely (utimes command).
 
-j) hook lower into the sockets api (as NFS/SunRPC does) to avoid the
+f) hook lower into the sockets api (as NFS/SunRPC does) to avoid the
 extra copy in/out of the socket buffers in some cases.
 
-k) Better optimize open (and pathbased setfilesize) to reduce the
+g) Better optimize open (and pathbased setfilesize) to reduce the
 oplock breaks coming from windows srv.  Piggyback identical file
 opens on top of each other by incrementing reference count rather
 than resending (helps reduce server resource utilization and avoid
 spurious oplock breaks).
 
-l) Improve performance of readpages by sending more than one read
-at a time when 8 pages or more are requested. In conjuntion
-add support for async_cifs_readpages.
-
-m) Add support for storing symlink info to Windows servers 
+h) Add support for storing symlink info to Windows servers
 in the Extended Attribute format their SFU clients would recognize.
 
-n) Finish fcntl D_NOTIFY support so kde and gnome file list windows
+i) Finish inotify support so kde and gnome file list windows
 will autorefresh (partially complete by Asser). Needs minor kernel
 vfs change to support removing D_NOTIFY on a file.   
 
-o) Add GUI tool to configure /proc/fs/cifs settings and for display of
+j) Add GUI tool to configure /proc/fs/cifs settings and for display of
 the CIFS statistics (started)
 
-p) implement support for security and trusted categories of xattrs
+k) implement support for security and trusted categories of xattrs
 (requires minor protocol extension) to enable better support for SELINUX
 
-q) Implement O_DIRECT flag on open (already supported on mount)
+l) Implement O_DIRECT flag on open (already supported on mount)
 
-r) Create UID mapping facility so server UIDs can be mapped on a per
+m) Create UID mapping facility so server UIDs can be mapped on a per
 mount or a per server basis to client UIDs or nobody if no mapping
 exists.  This is helpful when Unix extensions are negotiated to
 allow better permission checking when UIDs differ on the server
@@ -71,28 +57,29 @@ and client.  Add new protocol request to the CIFS protocol
 standard for asking the server for the corresponding name of a
 particular uid.
 
-s) Add support for CIFS Unix and also the newer POSIX extensions to the
-server side for Samba 4.
+n) DOS attrs - returned as pseudo-xattr in Samba format (check VFAT and NTFS for this too)
 
-t) In support for OS/2 (LANMAN 1.2 and LANMAN2.1 based SMB servers) 
-need to add ability to set time to server (utimes command)
+o) mount check for unmatched uids
 
-u) DOS attrs - returned as pseudo-xattr in Samba format (check VFAT and NTFS for this too)
+p) Add support for new vfs entry point for fallocate
 
-v) mount check for unmatched uids
+q) Add tools to take advantage of cifs/smb3 specific ioctls and features
+such as "CopyChunk" (fast server side file copy)
 
-w) Add support for new vfs entry point for fallocate
+r) encrypted file support
 
-x) Fix Samba 3 server to handle Linux kernel aio so dbench with lots of 
-processes can proceed better in parallel (on the server)
+s) improved stats gathering, tools (perhaps integration with nfsometer?)
 
-y) Fix Samba 3 to handle reads/writes over 127K (and remove the cifs mount
-restriction of wsize max being 127K) 
+t) allow setting more NTFS/SMB3 file attributes remotely (currently limited to compressed
+file attribute via chflags)
 
-KNOWN BUGS (updated April 24, 2007)
+u) mount helper GUI (to simplify the various configuration options on mount)
+
+
+KNOWN BUGS
 ====================================
 See http://bugzilla.samba.org - search on product "CifsVFS" for
-current bug list.
+current bug list.  Also check http://bugzilla.kernel.org (Product = File System, Component = CIFS)
 
 1) existing symbolic links (Windows reparse points) are recognized but
 can not be created remotely. They are implemented for Samba and those that
@@ -100,30 +87,18 @@ support the CIFS Unix extensions, although earlier versions of Samba
 overly restrict the pathnames.
 2) follow_link and readdir code does not follow dfs junctions
 but recognizes them
-3) create of new files to FAT partitions on Windows servers can
-succeed but still return access denied (appears to be Windows 
-server not cifs client problem) and has not been reproduced recently.
-NTFS partitions do not have this problem.
-4) Unix/POSIX capabilities are reset after reconnection, and affect
-a few fields in the tree connection but we do do not know which
-superblocks to apply these changes to.  We should probably walk
-the list of superblocks to set these.  Also need to check the
-flags on the second mount to the same share, and see if we
-can do the same trick that NFS does to remount duplicate shares.
 
 Misc testing to do
 ==================
 1) check out max path names and max path name components against various server
 types. Try nested symlinks (8 deep). Return max path name in stat -f information
 
-2) Modify file portion of ltp so it can run against a mounted network
-share and run it against cifs vfs in automated fashion.
+2) Improve xfstest's cifs enablement and adapt xfstests where needed to test
+cifs better
 
 3) Additional performance testing and optimization using iozone and similar - 
 there are some easy changes that can be done to parallelize sequential writes,
 and when signing is disabled to request larger read sizes (larger than 
 negotiated size) and send larger write sizes to modern servers.
 
-4) More exhaustively test against less common servers.  More testing
-against Windows 9x, Windows ME servers.
-
+4) More exhaustively test against less common servers
