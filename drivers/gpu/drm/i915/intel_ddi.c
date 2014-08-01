@@ -111,6 +111,20 @@ static const u32 bdw_ddi_translations_fdi[] = {
 	0x00FFFFFF, 0x00140006		/* HDMI parameters 800mV 0dB*/
 };
 
+static const u32 bdw_ddi_translations_hdmi[] = {
+				/* Idx	NT mV diff	T mV diff	db  */
+	0x00FFFFFF, 0x0007000E, /* 0:	400		400		0   */
+	0x00D75FFF, 0x000E000A, /* 1:	400		600		3.5 */
+	0x00BEFFFF, 0x00140006, /* 2:	400		800		6   */
+	0x00FFFFFF, 0x0009000D, /* 3:	450		450		0   */
+	0x00FFFFFF, 0x000E000A, /* 4:	600		600		0   */
+	0x00D7FFFF, 0x00140006, /* 5:	600		800		2.5 */
+	0x80CB2FFF, 0x001B0002, /* 6:	600		1000		4.5 */
+	0x00FFFFFF, 0x00140006, /* 7:	800		800		0   */
+	0x80E79FFF, 0x001B0002, /* 8:	800		1000		2   */
+	0x80FFFFFF, 0x001B0002, /* 9:	1000		1000		0   */
+};
+
 enum port intel_ddi_get_encoder_port(struct intel_encoder *intel_encoder)
 {
 	struct drm_encoder *encoder = &intel_encoder->base;
@@ -150,18 +164,21 @@ static void intel_prepare_ddi_buffers(struct drm_device *dev, enum port port)
 	const u32 *ddi_translations_fdi;
 	const u32 *ddi_translations_dp;
 	const u32 *ddi_translations_edp;
+	const u32 *ddi_translations_hdmi;
 	const u32 *ddi_translations;
 
 	if (IS_BROADWELL(dev)) {
 		ddi_translations_fdi = bdw_ddi_translations_fdi;
 		ddi_translations_dp = bdw_ddi_translations_dp;
 		ddi_translations_edp = bdw_ddi_translations_edp;
-		n_hdmi_entries = ARRAY_SIZE(hsw_ddi_translations_hdmi);
-		hdmi_800mV_0dB = 6;
+		ddi_translations_hdmi = bdw_ddi_translations_hdmi;
+		n_hdmi_entries = ARRAY_SIZE(bdw_ddi_translations_hdmi);
+		hdmi_800mV_0dB = 7;
 	} else if (IS_HASWELL(dev)) {
 		ddi_translations_fdi = hsw_ddi_translations_fdi;
 		ddi_translations_dp = hsw_ddi_translations_dp;
 		ddi_translations_edp = hsw_ddi_translations_dp;
+		ddi_translations_hdmi = hsw_ddi_translations_hdmi;
 		n_hdmi_entries = ARRAY_SIZE(hsw_ddi_translations_hdmi);
 		hdmi_800mV_0dB = 6;
 	} else {
@@ -169,8 +186,9 @@ static void intel_prepare_ddi_buffers(struct drm_device *dev, enum port port)
 		ddi_translations_edp = bdw_ddi_translations_dp;
 		ddi_translations_fdi = bdw_ddi_translations_fdi;
 		ddi_translations_dp = bdw_ddi_translations_dp;
-		n_hdmi_entries = ARRAY_SIZE(hsw_ddi_translations_hdmi);
-		hdmi_800mV_0dB = 6;
+		ddi_translations_hdmi = bdw_ddi_translations_hdmi;
+		n_hdmi_entries = ARRAY_SIZE(bdw_ddi_translations_hdmi);
+		hdmi_800mV_0dB = 7;
 	}
 
 	switch (port) {
@@ -207,7 +225,7 @@ static void intel_prepare_ddi_buffers(struct drm_device *dev, enum port port)
 
 	/* Entry 9 is for HDMI: */
 	for (i = 0; i < 2; i++) {
-		I915_WRITE(reg, hsw_ddi_translations_hdmi[hdmi_level * 2 + i]);
+		I915_WRITE(reg, ddi_translations_hdmi[hdmi_level * 2 + i]);
 		reg += 4;
 	}
 }
