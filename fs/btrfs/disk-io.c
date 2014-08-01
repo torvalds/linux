@@ -2209,6 +2209,20 @@ static void btrfs_init_dev_replace_locks(struct btrfs_fs_info *fs_info)
 	init_waitqueue_head(&fs_info->replace_wait);
 }
 
+static void btrfs_init_qgroup(struct btrfs_fs_info *fs_info)
+{
+	spin_lock_init(&fs_info->qgroup_lock);
+	mutex_init(&fs_info->qgroup_ioctl_lock);
+	fs_info->qgroup_tree = RB_ROOT;
+	fs_info->qgroup_op_tree = RB_ROOT;
+	INIT_LIST_HEAD(&fs_info->dirty_qgroups);
+	fs_info->qgroup_seq = 1;
+	fs_info->quota_enabled = 0;
+	fs_info->pending_quota_state = 0;
+	fs_info->qgroup_ulist = NULL;
+	mutex_init(&fs_info->qgroup_rescan_lock);
+}
+
 int open_ctree(struct super_block *sb,
 	       struct btrfs_fs_devices *fs_devices,
 	       char *options)
@@ -2395,17 +2409,7 @@ int open_ctree(struct super_block *sb,
 	sema_init(&fs_info->uuid_tree_rescan_sem, 1);
 
 	btrfs_init_dev_replace_locks(fs_info);
-
-	spin_lock_init(&fs_info->qgroup_lock);
-	mutex_init(&fs_info->qgroup_ioctl_lock);
-	fs_info->qgroup_tree = RB_ROOT;
-	fs_info->qgroup_op_tree = RB_ROOT;
-	INIT_LIST_HEAD(&fs_info->dirty_qgroups);
-	fs_info->qgroup_seq = 1;
-	fs_info->quota_enabled = 0;
-	fs_info->pending_quota_state = 0;
-	fs_info->qgroup_ulist = NULL;
-	mutex_init(&fs_info->qgroup_rescan_lock);
+	btrfs_init_qgroup(fs_info);
 
 	btrfs_init_free_cluster(&fs_info->meta_alloc_cluster);
 	btrfs_init_free_cluster(&fs_info->data_alloc_cluster);
