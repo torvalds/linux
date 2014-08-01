@@ -314,6 +314,7 @@ struct drm_i915_error_state {
 	u32 eir;
 	u32 pgtbl_er;
 	u32 ier;
+	u32 gtier;
 	u32 ccid;
 	u32 derrmr;
 	u32 forcewake;
