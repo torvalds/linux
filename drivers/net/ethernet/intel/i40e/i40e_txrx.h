@@ -290,4 +290,13 @@ int i40e_setup_rx_descriptors(struct i40e_ring *rx_ring);
 void i40e_free_tx_resources(struct i40e_ring *tx_ring);
 void i40e_free_rx_resources(struct i40e_ring *rx_ring);
 int i40e_napi_poll(struct napi_struct *napi, int budget);
+#ifdef I40E_FCOE
+void i40e_tx_map(struct i40e_ring *tx_ring, struct sk_buff *skb,
+		 struct i40e_tx_buffer *first, u32 tx_flags,
+		 const u8 hdr_len, u32 td_cmd, u32 td_offset);
+int i40e_maybe_stop_tx(struct i40e_ring *tx_ring, int size);
+int i40e_xmit_descriptor_count(struct sk_buff *skb, struct i40e_ring *tx_ring);
+int i40e_tx_prepare_vlan_flags(struct sk_buff *skb,
+			       struct i40e_ring *tx_ring, u32 *flags);
+#endif
 #endif /* _I40E_TXRX_H_ */

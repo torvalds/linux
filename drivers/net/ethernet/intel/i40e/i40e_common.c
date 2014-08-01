@@ -709,6 +709,33 @@ void i40e_pre_tx_queue_cfg(struct i40e_hw *hw, u32 queue, bool enable)
 
 	wr32(hw, I40E_GLLAN_TXPRE_QDIS(reg_block), reg_val);
 }
+#ifdef I40E_FCOE
+
+/**
+ * i40e_get_san_mac_addr - get SAN MAC address
+ * @hw: pointer to the HW structure
+ * @mac_addr: pointer to SAN MAC address
+ *
+ * Reads the adapter's SAN MAC address from NVM
+ **/
+i40e_status i40e_get_san_mac_addr(struct i40e_hw *hw, u8 *mac_addr)
+{
+	struct i40e_aqc_mac_address_read_data addrs;
+	i40e_status status;
+	u16 flags = 0;
+
+	status = i40e_aq_mac_address_read(hw, &flags, &addrs, NULL);
+	if (status)
+		return status;
+
+	if (flags & I40E_AQC_SAN_ADDR_VALID)
+		memcpy(mac_addr, &addrs.pf_san_mac, sizeof(addrs.pf_san_mac));
+	else
+		status = I40E_ERR_INVALID_MAC_ADDR;
+
+	return status;
+}
+#endif
 
 /**
  * i40e_get_media_type - Gets media type

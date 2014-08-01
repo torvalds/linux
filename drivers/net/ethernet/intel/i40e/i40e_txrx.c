@@ -896,6 +896,11 @@ static void i40e_clean_programming_status(struct i40e_ring *rx_ring,
 
 	if (id == I40E_RX_PROG_STATUS_DESC_FD_FILTER_STATUS)
 		i40e_fd_handle_status(rx_ring, rx_desc, id);
+#ifdef I40E_FCOE
+	else if ((id == I40E_RX_PROG_STATUS_DESC_FCOE_CTXT_PROG_STATUS) ||
+		 (id == I40E_RX_PROG_STATUS_DESC_FCOE_CTXT_INVL_STATUS))
+		i40e_fcoe_handle_status(rx_ring, rx_desc, id);
+#endif
 }
 
 /**
@@ -1489,6 +1494,12 @@ static int i40e_clean_rx_irq(struct i40e_ring *rx_ring, int budget)
 		vlan_tag = rx_status & (1 << I40E_RX_DESC_STATUS_L2TAG1P_SHIFT)
 			 ? le16_to_cpu(rx_desc->wb.qword0.lo_dword.l2tag1)
 			 : 0;
+#ifdef I40E_FCOE
+		if (!i40e_fcoe_handle_offload(rx_ring, rx_desc, skb)) {
+			dev_kfree_skb_any(skb);
+			goto next_desc;
+		}
+#endif
 		i40e_receive_skb(rx_ring, skb, vlan_tag);
 
 		rx_ring->netdev->last_rx = jiffies;
@@ -1719,9 +1730,15 @@ static void i40e_atr(struct i40e_ring *tx_ring, struct sk_buff *skb,
  * Returns error code indicate the frame should be dropped upon error and the
  * otherwise  returns 0 to indicate the flags has been set properly.
  **/
+#ifdef I40E_FCOE
+int i40e_tx_prepare_vlan_flags(struct sk_buff *skb,
+			       struct i40e_ring *tx_ring,
+			       u32 *flags)
+#else
 static int i40e_tx_prepare_vlan_flags(struct sk_buff *skb,
 				      struct i40e_ring *tx_ring,
 				      u32 *flags)
+#endif
 {
 	__be16 protocol = skb->protocol;
 	u32  tx_flags = 0;
@@ -1743,9 +1760,8 @@ static int i40e_tx_prepare_vlan_flags(struct sk_buff *skb,
 	}
 
 	/* Insert 802.1p priority into VLAN header */
-	if ((tx_ring->vsi->back->flags & I40E_FLAG_DCB_ENABLED) &&
-	    ((tx_flags & (I40E_TX_FLAGS_HW_VLAN | I40E_TX_FLAGS_SW_VLAN)) ||
-	     (skb->priority != TC_PRIO_CONTROL))) {
+	if ((tx_flags & (I40E_TX_FLAGS_HW_VLAN | I40E_TX_FLAGS_SW_VLAN)) ||
+	    (skb->priority != TC_PRIO_CONTROL)) {
 		tx_flags &= ~I40E_TX_FLAGS_VLAN_PRIO_MASK;
 		tx_flags |= (skb->priority & 0x7) <<
 				I40E_TX_FLAGS_VLAN_PRIO_SHIFT;
@@ -2018,9 +2034,15 @@ static void i40e_create_tx_ctx(struct i40e_ring *tx_ring,
  * @td_cmd:   the command field in the descriptor
  * @td_offset: offset for checksum or crc
  **/
+#ifdef I40E_FCOE
+void i40e_tx_map(struct i40e_ring *tx_ring, struct sk_buff *skb,
+		 struct i40e_tx_buffer *first, u32 tx_flags,
+		 const u8 hdr_len, u32 td_cmd, u32 td_offset)
+#else
 static void i40e_tx_map(struct i40e_ring *tx_ring, struct sk_buff *skb,
 			struct i40e_tx_buffer *first, u32 tx_flags,
 			const u8 hdr_len, u32 td_cmd, u32 td_offset)
+#endif
 {
 	unsigned int data_len = skb->data_len;
 	unsigned int size = skb_headlen(skb);
@@ -2197,7 +2219,11 @@ static inline int __i40e_maybe_stop_tx(struct i40e_ring *tx_ring, int size)
  *
  * Returns 0 if stop is not needed
  **/
+#ifdef I40E_FCOE
+int i40e_maybe_stop_tx(struct i40e_ring *tx_ring, int size)
+#else
 static int i40e_maybe_stop_tx(struct i40e_ring *tx_ring, int size)
+#endif
 {
 	if (likely(I40E_DESC_UNUSED(tx_ring) >= size))
 		return 0;
@@ -2213,8 +2239,13 @@ static int i40e_maybe_stop_tx(struct i40e_ring *tx_ring, int size)
  * there is not enough descriptors available in this ring since we need at least
  * one descriptor.
  **/
+#ifdef I40E_FCOE
+int i40e_xmit_descriptor_count(struct sk_buff *skb,
+			       struct i40e_ring *tx_ring)
+#else
 static int i40e_xmit_descriptor_count(struct sk_buff *skb,
 				      struct i40e_ring *tx_ring)
+#endif
 {
 	unsigned int f;
 	int count = 0;
