@@ -55,10 +55,10 @@ static int __set_clk_parents(struct device_node *node, bool clk_supplier)
 			goto err;
 		}
 		clk = of_clk_get_by_clkspec(&clkspec);
-		if (IS_ERR(pclk)) {
+		if (IS_ERR(clk)) {
 			pr_warn("clk: couldn't get parent clock %d for %s\n",
 				index, node->full_name);
-			rc = PTR_ERR(pclk);
+			rc = PTR_ERR(clk);
 			goto err;
 		}
 
