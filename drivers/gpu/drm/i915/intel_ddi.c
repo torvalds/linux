@@ -33,7 +33,7 @@
  * automatically adapt to HDMI connections as well
  */
 static const u32 hsw_ddi_translations_dp[] = {
-	0x00FFFFFF, 0x0006000E,		/* DP parameters */
+	0x00FFFFFF, 0x0006000E,
 	0x00D75FFF, 0x0005000A,
 	0x00C30FFF, 0x00040006,
 	0x80AAAFFF, 0x000B0000,
@@ -45,7 +45,7 @@ static const u32 hsw_ddi_translations_dp[] = {
 };
 
 static const u32 hsw_ddi_translations_fdi[] = {
-	0x00FFFFFF, 0x0007000E,		/* FDI parameters */
+	0x00FFFFFF, 0x0007000E,
 	0x00D75FFF, 0x000F000A,
 	0x00C30FFF, 0x00060006,
 	0x00AAAFFF, 0x001E0000,
@@ -73,7 +73,7 @@ static const u32 hsw_ddi_translations_hdmi[] = {
 };
 
 static const u32 bdw_ddi_translations_edp[] = {
-	0x00FFFFFF, 0x00000012,		/* eDP parameters */
+	0x00FFFFFF, 0x00000012,
 	0x00EBAFFF, 0x00020011,
 	0x00C71FFF, 0x0006000F,
 	0x00AAAFFF, 0x000E000A,
@@ -85,7 +85,7 @@ static const u32 bdw_ddi_translations_edp[] = {
 };
 
 static const u32 bdw_ddi_translations_dp[] = {
-	0x00FFFFFF, 0x0007000E,		/* DP parameters */
+	0x00FFFFFF, 0x0007000E,
 	0x00D75FFF, 0x000E000A,
 	0x00BEFFFF, 0x00140006,
 	0x80B2CFFF, 0x001B0002,
@@ -97,7 +97,7 @@ static const u32 bdw_ddi_translations_dp[] = {
 };
 
 static const u32 bdw_ddi_translations_fdi[] = {
-	0x00FFFFFF, 0x0001000E,		/* FDI parameters */
+	0x00FFFFFF, 0x0001000E,
 	0x00D75FFF, 0x0004000A,
 	0x00C30FFF, 0x00070006,
 	0x00AAAFFF, 0x000C0000,
