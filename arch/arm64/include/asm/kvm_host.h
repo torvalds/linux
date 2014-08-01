@@ -149,9 +149,11 @@ struct kvm_vcpu_arch {
 #define vcpu_cp15(v,r)		((v)->arch.ctxt.copro[(r)])
 
 #ifdef CONFIG_CPU_BIG_ENDIAN
-#define vcpu_cp15_64_low(v,r) ((v)->arch.ctxt.copro[((r) + 1)])
+#define vcpu_cp15_64_high(v,r)	vcpu_cp15((v),(r))
+#define vcpu_cp15_64_low(v,r)	vcpu_cp15((v),(r) + 1)
 #else
-#define vcpu_cp15_64_low(v,r) ((v)->arch.ctxt.copro[((r) + 0)])
+#define vcpu_cp15_64_high(v,r)	vcpu_cp15((v),(r) + 1)
+#define vcpu_cp15_64_low(v,r)	vcpu_cp15((v),(r))
 #endif
 
 struct kvm_vm_stat {

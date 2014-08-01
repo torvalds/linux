@@ -135,10 +135,13 @@ static bool access_vm_reg(struct kvm_vcpu *vcpu,
 	BUG_ON(!p->is_write);
 
 	val = *vcpu_reg(vcpu, p->Rt);
-	if (!p->is_aarch32 || !p->is_32bit)
+	if (!p->is_aarch32) {
 		vcpu_sys_reg(vcpu, r->reg) = val;
-	else
+	} else {
+		if (!p->is_32bit)
+			vcpu_cp15_64_high(vcpu, r->reg) = val >> 32;
 		vcpu_cp15_64_low(vcpu, r->reg) = val & 0xffffffffUL;
+	}
 
 	return true;
 }
