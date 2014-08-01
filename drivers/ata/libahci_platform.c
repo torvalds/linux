@@ -426,7 +426,7 @@ int ahci_platform_init_host(struct platform_device *pdev,
 	}
 
 	/* prepare host */
-	pi.private_data = (void *)hpriv->flags;
+	pi.private_data = (void *)(unsigned long)hpriv->flags;
 
 	ahci_save_initial_config(dev, hpriv);
 
