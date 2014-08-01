@@ -244,7 +244,6 @@ static const struct dio200_board dio200_pci_boards[] = {
 	[pci215_model] = {
 		.name = "pci215",
 		.mainbar = 2,
-		.mainsize = DIO200_IO_SIZE,
 		.layout = {
 			.n_subdevs = 5,
 			.sdtype = {sd_8255, sd_8255, sd_8254, sd_8254, sd_intr},
@@ -256,7 +255,6 @@ static const struct dio200_board dio200_pci_boards[] = {
 	[pci272_model] = {
 		.name = "pci272",
 		.mainbar = 2,
-		.mainsize = DIO200_IO_SIZE,
 		.layout = {
 			.n_subdevs = 4,
 			.sdtype = {sd_8255, sd_8255, sd_8255, sd_intr},
@@ -268,7 +266,6 @@ static const struct dio200_board dio200_pci_boards[] = {
 		.name = "pcie215",
 		.mainbar = 1,
 		.mainshift = 3,
-		.mainsize = DIO200_PCIE_IO_SIZE,
 		.layout = {
 			.n_subdevs = 8,
 			.sdtype = {sd_8255, sd_none, sd_8255, sd_none,
@@ -284,7 +281,6 @@ static const struct dio200_board dio200_pci_boards[] = {
 		.name = "pcie236",
 		.mainbar = 1,
 		.mainshift = 3,
-		.mainsize = DIO200_PCIE_IO_SIZE,
 		.layout = {
 			.n_subdevs = 8,
 			.sdtype = {sd_8255, sd_none, sd_none, sd_none,
@@ -300,7 +296,6 @@ static const struct dio200_board dio200_pci_boards[] = {
 		.name = "pcie296",
 		.mainbar = 1,
 		.mainshift = 3,
-		.mainsize = DIO200_PCIE_IO_SIZE,
 		.layout = {
 			.n_subdevs = 8,
 			.sdtype = {sd_8255, sd_8255, sd_8255, sd_8255,
@@ -372,10 +367,6 @@ static int dio200_pci_auto_attach(struct comedi_device *dev,
 		return ret;
 
 	bar = thisboard->mainbar;
-	if (pci_resource_len(pci_dev, bar) < thisboard->mainsize) {
-		dev_err(dev->class_dev, "error! PCI region size too small!\n");
-		return -EINVAL;
-	}
 	if (pci_resource_flags(pci_dev, bar) & IORESOURCE_MEM) {
 		dev->mmio = pci_ioremap_bar(pci_dev, bar);
 		if (!dev->mmio) {

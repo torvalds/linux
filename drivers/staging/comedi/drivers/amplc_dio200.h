@@ -23,10 +23,6 @@
 #ifndef AMPLC_DIO200_H_INCLUDED
 #define AMPLC_DIO200_H_INCLUDED
 
-/* 200 series register area sizes */
-#define DIO200_IO_SIZE		0x20
-#define DIO200_PCIE_IO_SIZE	0x4000
-
 /*
  * Subdevice types.
  */
