@@ -189,15 +189,17 @@ static void ip_expire(unsigned long arg)
 		goto out;
 
 	ipq_kill(qp);
-
-	if (!(qp->q.flags & INET_FRAG_EVICTED))
-		IP_INC_STATS_BH(net, IPSTATS_MIB_REASMTIMEOUT);
 	IP_INC_STATS_BH(net, IPSTATS_MIB_REASMFAILS);
 
-	if ((qp->q.flags & INET_FRAG_FIRST_IN) && qp->q.fragments != NULL) {
+	if (!(qp->q.flags & INET_FRAG_EVICTED)) {
 		struct sk_buff *head = qp->q.fragments;
 		const struct iphdr *iph;
 		int err;
+
+		IP_INC_STATS_BH(net, IPSTATS_MIB_REASMTIMEOUT);
+
+		if (!(qp->q.flags & INET_FRAG_FIRST_IN) || !qp->q.fragments)
+			goto out;
 
 		rcu_read_lock();
 		head->dev = dev_get_by_index_rcu(net, qp->iif);
@@ -211,8 +213,7 @@ static void ip_expire(unsigned long arg)
 		if (err)
 			goto out_rcu_unlock;
 
-		/*
-		 * Only an end host needs to send an ICMP
+		/* Only an end host needs to send an ICMP
 		 * "Fragment Reassembly Timeout" message, per RFC792.
 		 */
 		if (qp->user == IP_DEFRAG_AF_PACKET ||
@@ -220,7 +221,6 @@ static void ip_expire(unsigned long arg)
 		     (qp->user <= __IP_DEFRAG_CONNTRACK_IN_END) &&
 		     (skb_rtable(head)->rt_type != RTN_LOCAL)))
 			goto out_rcu_unlock;
-
 
 		/* Send an ICMP "Fragment Reassembly Timeout" message. */
 		icmp_send(head, ICMP_TIME_EXCEEDED, ICMP_EXC_FRAGTIME, 0);

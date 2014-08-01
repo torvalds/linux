@@ -151,8 +151,6 @@ evict_again:
 			goto evict_again;
 		}
 
-		/* suppress xmit of (icmp) error packet */
-		fq->flags &= ~INET_FRAG_FIRST_IN;
 		fq->flags |= INET_FRAG_EVICTED;
 		hlist_del(&fq->list);
 		hlist_add_head(&fq->list, &expired);
