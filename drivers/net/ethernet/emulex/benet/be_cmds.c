@@ -2240,6 +2240,34 @@ err_unlock:
 	return status;
 }
 
+int lancer_cmd_delete_object(struct be_adapter *adapter, const char *obj_name)
+{
+	struct lancer_cmd_req_delete_object *req;
+	struct be_mcc_wrb *wrb;
+	int status;
+
+	spin_lock_bh(&adapter->mcc_lock);
+
+	wrb = wrb_from_mccq(adapter);
+	if (!wrb) {
+		status = -EBUSY;
+		goto err;
+	}
+
+	req = embedded_payload(wrb);
+
+	be_wrb_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
+			       OPCODE_COMMON_DELETE_OBJECT,
+			       sizeof(*req), wrb, NULL);
+
+	strcpy(req->object_name, obj_name);
+
+	status = be_mcc_notify_wait(adapter);
+err:
+	spin_unlock_bh(&adapter->mcc_lock);
+	return status;
+}
+
 int lancer_cmd_read_object(struct be_adapter *adapter, struct be_dma_mem *cmd,
 			   u32 data_size, u32 data_offset, const char *obj_name,
 			   u32 *data_read, u32 *eof, u8 *addn_status)
@@ -3805,13 +3833,19 @@ bool dump_present(struct be_adapter *adapter)
 
 int lancer_initiate_dump(struct be_adapter *adapter)
 {
+	struct device *dev = &adapter->pdev->dev;
 	int status;
+
+	if (dump_present(adapter)) {
+		dev_info(dev, "Previous dump not cleared, not forcing dump\n");
+		return -EEXIST;
+	}
 
 	/* give firmware reset and diagnostic dump */
 	status = lancer_physdev_ctrl(adapter, PHYSDEV_CONTROL_FW_RESET_MASK |
 				     PHYSDEV_CONTROL_DD_MASK);
 	if (status < 0) {
-		dev_err(&adapter->pdev->dev, "Firmware reset failed\n");
+		dev_err(dev, "FW reset failed\n");
 		return status;
 	}
 
@@ -3820,11 +3854,19 @@ int lancer_initiate_dump(struct be_adapter *adapter)
 		return status;
 
 	if (!dump_present(adapter)) {
-		dev_err(&adapter->pdev->dev, "Dump image not present\n");
-		return -1;
+		dev_err(dev, "FW dump not generated\n");
+		return -EIO;
 	}
 
 	return 0;
+}
+
+int lancer_delete_dump(struct be_adapter *adapter)
+{
+	int status;
+
+	status = lancer_cmd_delete_object(adapter, LANCER_FW_DUMP_FILE);
+	return be_cmd_status(status);
 }
 
 /* Uses sync mcc */
