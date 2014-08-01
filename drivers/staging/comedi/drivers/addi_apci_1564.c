@@ -157,6 +157,18 @@ static int apci1564_do_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
+static int apci1564_diag_insn_bits(struct comedi_device *dev,
+				   struct comedi_subdevice *s,
+				   struct comedi_insn *insn,
+				   unsigned int *data)
+{
+	struct apci1564_private *devpriv = dev->private;
+
+	data[1] = inl(devpriv->amcc_iobase + APCI1564_DO_INT_STATUS_REG) & 3;
+
+	return insn->n;
+}
+
 /*
  * Change-Of-State (COS) interrupt configuration
  *
@@ -373,7 +385,7 @@ static int apci1564_auto_attach(struct comedi_device *dev,
 			dev->irq = pcidev->irq;
 	}
 
-	ret = comedi_alloc_subdevices(dev, 5);
+	ret = comedi_alloc_subdevices(dev, 6);
 	if (ret)
 		return ret;
 
@@ -433,6 +445,15 @@ static int apci1564_auto_attach(struct comedi_device *dev,
 	ret = addi_watchdog_init(s, devpriv->amcc_iobase + APCI1564_WDOG_REG);
 	if (ret)
 		return ret;
+
+	/* Initialize the diagnostic status subdevice */
+	s = &dev->subdevices[5];
+	s->type = COMEDI_SUBD_DI;
+	s->subdev_flags = SDF_READABLE;
+	s->n_chan = 2;
+	s->maxdata = 1;
+	s->range_table = &range_digital;
+	s->insn_bits = apci1564_diag_insn_bits;
 
 	return 0;
 }
