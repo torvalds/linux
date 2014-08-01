@@ -100,22 +100,6 @@ static void Efuse_PowerSwitch(struct rtw_adapter *padapter,
 	}
 }
 
-/*-----------------------------------------------------------------------------
- * Function:	efuse_GetCurrentSize23a
- *
- * Overview:	Get current efuse size!!!
- *
- * Input:       NONE
- *
- * Output:      NONE
- *
- * Return:      NONE
- *
- * Revised History:
- * When			Who		Remark
- * 11/16/2008	MHC		Create Version 0.
- *
- *---------------------------------------------------------------------------*/
 u16
 Efuse_GetCurrentSize23a(struct rtw_adapter *pAdapter, u8 efuseType)
 {
@@ -574,15 +558,6 @@ u16 efuse_GetMaxSize23a(struct rtw_adapter *padapter)
 				 TYPE_AVAILABLE_EFUSE_BYTES_TOTAL,
 				 (void *)&max_size);
 	return max_size;
-}
-/*  */
-int efuse_GetCurrentSize23a(struct rtw_adapter *padapter, u16 *size)
-{
-	Efuse_PowerSwitch(padapter, false, true);
-	*size = Efuse_GetCurrentSize23a(padapter, EFUSE_WIFI);
-	Efuse_PowerSwitch(padapter, false, false);
-
-	return _SUCCESS;
 }
 /*  */
 int rtw_efuse_map_read23a(struct rtw_adapter *padapter,
