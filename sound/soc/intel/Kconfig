@@ -61,7 +61,7 @@ config SND_SOC_INTEL_BYT_MAX98090_MACH
 
 config SND_SOC_INTEL_BROADWELL_MACH
 	tristate "ASoC Audio DSP support for Intel Broadwell Wildcatpoint"
-	depends on SND_SOC_INTEL_SST && X86_INTEL_LPSS
+	depends on SND_SOC_INTEL_SST && X86_INTEL_LPSS && DW_DMAC
 	select SND_SOC_INTEL_HASWELL
 	select SND_COMPRESS_OFFLOAD
 	select SND_SOC_RT286
