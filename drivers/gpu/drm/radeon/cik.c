@@ -8394,7 +8394,10 @@ static int cik_startup(struct radeon_device *rdev)
 	cik_irq_set(rdev);
 
 	if (rdev->family == CHIP_HAWAII) {
-		nop = RADEON_CP_PACKET2;
+		if (rdev->new_fw)
+			nop = PACKET3(PACKET3_NOP, 0x3FFF);
+		else
+			nop = RADEON_CP_PACKET2;
 	} else {
 		nop = PACKET3(PACKET3_NOP, 0x3FFF);
 	}
