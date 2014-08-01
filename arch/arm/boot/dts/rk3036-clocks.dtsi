@@ -1109,11 +1109,11 @@
 					#address-cells = <1>;
 					#size-cells = <1>;
 
-					clk_gpu_pre_div: clk_gpu_pre_div {
+					clk_gpu_div: clk_gpu_div {
 						compatible = "rockchip,rk3188-div-con";
 						rockchip,bits = <0 5>;
-						clocks = <&clk_gpu_pre>;
-						clock-output-names = "clk_gpu_pre";
+						clocks = <&clk_gpu>;
+						clock-output-names = "clk_gpu";
 						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
 						#clock-cells = <0>;
 						rockchip,clkops-idx =
@@ -1123,11 +1123,11 @@
 
 					/* reg[7:5]: reserved */
 
-					clk_gpu_pre: clk_gpu_pre_mux {
+					clk_gpu: clk_gpu_mux {
 						compatible = "rockchip,rk3188-mux-con";
 						rockchip,bits = <8 2>;
 						clocks = <&dummy>, <&dummy>, <&clk_gpll>;
-						clock-output-names = "clk_gpu_pre";
+						clock-output-names = "clk_gpu";
 						#clock-cells = <0>;
 						#clock-init-cells = <1>;
 					};
@@ -1258,7 +1258,7 @@
 						<&pclk_cpu_pre>,		<&dummy>,
 						<&dummy>,		<&aclk_vcodec_pre>,
 
-						<&aclk_vcodec_pre>,		<&clk_gpu_pre>,
+						<&aclk_vcodec_pre>,		<&clk_gpu>,
 						<&hclk_peri_pre>,		<&dummy>;
 
 					clock-output-names =
@@ -1271,7 +1271,7 @@
 						"g_pclk_hdmi",		"reserved",
 						"reserved",		"aclk_vcodec_pre",
 
-						"hclk_vcodec",		"clk_gpu_pre",
+						"hclk_vcodec",		"clk_gpu",
 						"g_hclk_sfc",		"reserved";
                                        rockchip,suspend-clkgating-setting=<0x0000 0x0000>;
 

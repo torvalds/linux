@@ -205,7 +205,7 @@
 			<&clk_vepu &clk_gpll_div2>, <&clk_vdpu &clk_gpll_div2>,
 			<&clk_hevc_core &clk_gpll>, <&aclk_vio0_pre &clk_gpll_div2>,
 			<&aclk_vio1_pre &clk_gpll_div2>, <&hclk_vio_pre &clk_gpll_div2>,
-			<&sclk_lcdc0 &clk_cpll>, <&clk_gpu_pre &clk_gpll_div2>,
+			<&sclk_lcdc0 &clk_cpll>, <&clk_gpu &clk_gpll_div2>,
 			<&clk_cif_pll &clk_gpll_div2>, <&dclk_ebc &clk_gpll_div2>,
 			<&clk_emmc &clk_gpll_div2>, <&clk_sdio &clk_gpll_div2>,
 			<&clk_sfc &clk_gpll_div2>, <&clk_sdmmc0 &clk_gpll_div2>,
@@ -216,7 +216,7 @@
 	 		<&clk_cpll 400000000>, <&aclk_cpu 300000000>,
 			<&hclk_cpu_pre 150000000>, <&pclk_cpu_pre 75000000>,
 			<&aclk_peri 300000000>, <&hclk_peri_pre 150000000>,
-			<&pclk_peri_pre 75000000>, <&clk_gpu_pre 300000000>,
+			<&pclk_peri_pre 75000000>, <&clk_gpu 300000000>,
 			<&aclk_vio0_pre 300000000>, <&hclk_vio_pre 150000000>,
 			<&aclk_vio1_pre 300000000>, <&clk_vepu 300000000>,
 			<&clk_vdpu 300000000>, <&clk_hevc_core 200000000>,
@@ -323,7 +323,7 @@
 				<&clk_gates1 13>,
 				<&clk_gates8 2>,/*pclk_uart2*/
 
-				<&clk_gpu_pre>,
+				<&clk_gpu>,
 
 				/*jtag*/
 				<&clk_gates1 3>,/*clk_jtag*/

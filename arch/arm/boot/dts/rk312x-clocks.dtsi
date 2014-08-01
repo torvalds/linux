@@ -1470,11 +1470,11 @@
 					#address-cells = <1>;
 					#size-cells = <1>;
 
-					clk_gpu_pre_div: clk_gpu_pre_div {
+					clk_gpu_div: clk_gpu_div {
 						compatible = "rockchip,rk3188-div-con";
 						rockchip,bits = <0 5>;
-						clocks = <&clk_gpu_pre>;
-						clock-output-names = "clk_gpu_pre";
+						clocks = <&clk_gpu>;
+						clock-output-names = "clk_gpu";
 						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
 						#clock-cells = <0>;
 						rockchip,clkops-idx =
@@ -1482,11 +1482,11 @@
 						rockchip,flags = <CLK_SET_RATE_PARENT_IN_ORDER>;
 					};
 
-					clk_gpu_pre: clk_gpu_pre_mux {
+					clk_gpu: clk_gpu_mux {
 						compatible = "rockchip,rk3188-mux-con";
 						rockchip,bits = <5 3>;
 						clocks = <&dummy_cpll>, <&clk_gpll>, <&clk_gpll_div2>, <&clk_gpll_div3>, <&usb480m>;
-						clock-output-names = "clk_gpu_pre";
+						clock-output-names = "clk_gpu";
 						#clock-cells = <0>;
 						#clock-init-cells = <1>;
 					};
@@ -1635,7 +1635,7 @@
 						<&pclk_cpu_pre>,		<&clk_vepu>,
 						<&clk_hevc_core>,		<&clk_vdpu>,
 
-						<&hclk_vdpu>,		<&clk_gpu_pre>,
+						<&hclk_vdpu>,		<&clk_gpu>,
 						<&aclk_peri>,		<&clk_sfc>;
 
 					clock-output-names =
@@ -1648,7 +1648,7 @@
 						"g_pclk_hdmi",		"clk_vepu",
 						"clk_hevc_core",		"clk_vdpu",
 
-						"hclk_vdpu",		"clk_gpu_pre",
+						"hclk_vdpu",		"clk_gpu",
 						"g_hclk_gps",		"clk_sfc";
                                        rockchip,suspend-clkgating-setting=<0x0000 0x0000>;
 
