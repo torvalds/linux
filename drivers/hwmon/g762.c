@@ -649,15 +649,12 @@ static int g762_of_prop_import_one(struct i2c_client *client,
 				   int (*psetter)(struct device *dev,
 						  unsigned long val))
 {
-	const __be32 *prop;
-	int len, ret;
+	int ret;
 	u32 pval;
 
-	prop = of_get_property(client->dev.of_node, pname, &len);
-	if (!prop || len != sizeof(u32))
+	if (of_property_read_u32(client->dev.of_node, pname, &pval))
 		return 0;
 
-	pval = be32_to_cpu(prop[0]);
 	dev_dbg(&client->dev, "found %s (%d)\n", pname, pval);
 	ret = (*psetter)(&client->dev, pval);
 	if (ret)
