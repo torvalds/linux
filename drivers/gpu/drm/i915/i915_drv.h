@@ -1232,6 +1232,12 @@ enum modeset_restore {
 };
 
 struct ddi_vbt_port_info {
+	/*
+	 * This is an index in the HDMI/DVI DDI buffer translation table.
+	 * The special value HDMI_LEVEL_SHIFT_UNKNOWN means the VBT didn't
+	 * populate this field.
+	 */
+#define HDMI_LEVEL_SHIFT_UNKNOWN	0xff
 	uint8_t hdmi_level_shift;
 
 	uint8_t supports_dvi:1;

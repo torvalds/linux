@@ -145,7 +145,7 @@ static void intel_prepare_ddi_buffers(struct drm_device *dev, enum port port)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 reg;
-	int i;
+	int i, n_hdmi_entries, hdmi_800mV_0dB;
 	int hdmi_level = dev_priv->vbt.ddi_port_info[port].hdmi_level_shift;
 	const u32 *ddi_translations_fdi;
 	const u32 *ddi_translations_dp;
@@ -156,15 +156,21 @@ static void intel_prepare_ddi_buffers(struct drm_device *dev, enum port port)
 		ddi_translations_fdi = bdw_ddi_translations_fdi;
 		ddi_translations_dp = bdw_ddi_translations_dp;
 		ddi_translations_edp = bdw_ddi_translations_edp;
+		n_hdmi_entries = ARRAY_SIZE(hsw_ddi_translations_hdmi);
+		hdmi_800mV_0dB = 6;
 	} else if (IS_HASWELL(dev)) {
 		ddi_translations_fdi = hsw_ddi_translations_fdi;
 		ddi_translations_dp = hsw_ddi_translations_dp;
 		ddi_translations_edp = hsw_ddi_translations_dp;
+		n_hdmi_entries = ARRAY_SIZE(hsw_ddi_translations_hdmi);
+		hdmi_800mV_0dB = 6;
 	} else {
 		WARN(1, "ddi translation table missing\n");
 		ddi_translations_edp = bdw_ddi_translations_dp;
 		ddi_translations_fdi = bdw_ddi_translations_fdi;
 		ddi_translations_dp = bdw_ddi_translations_dp;
+		n_hdmi_entries = ARRAY_SIZE(hsw_ddi_translations_hdmi);
+		hdmi_800mV_0dB = 6;
 	}
 
 	switch (port) {
@@ -193,6 +199,12 @@ static void intel_prepare_ddi_buffers(struct drm_device *dev, enum port port)
 		I915_WRITE(reg, ddi_translations[i]);
 		reg += 4;
 	}
+
+	/* Choose a good default if VBT is badly populated */
+	if (hdmi_level == HDMI_LEVEL_SHIFT_UNKNOWN ||
+	    hdmi_level >= n_hdmi_entries)
+		hdmi_level = hdmi_800mV_0dB;
+
 	/* Entry 9 is for HDMI: */
 	for (i = 0; i < 2; i++) {
 		I915_WRITE(reg, hsw_ddi_translations_hdmi[hdmi_level * 2 + i]);
