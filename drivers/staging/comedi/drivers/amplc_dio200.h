@@ -49,7 +49,6 @@ struct dio200_board {
 	struct dio200_layout layout;
 	unsigned char mainbar;
 	unsigned char mainshift;
-	unsigned int mainsize;
 };
 
 int amplc_dio200_common_attach(struct comedi_device *dev, unsigned int irq,
