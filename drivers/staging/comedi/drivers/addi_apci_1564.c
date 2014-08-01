@@ -13,7 +13,6 @@ struct apci1564_private {
 	unsigned int mode1;		/* riding-edge/high level channels */
 	unsigned int mode2;		/* falling-edge/low level channels */
 	unsigned int ctrl;		/* interrupt mode OR (edge) . AND (level) */
-	unsigned int do_int_type;
 	unsigned char timer_select_mode;
 	unsigned char mode_select_register;
 	struct task_struct *tsk_current;
@@ -24,8 +23,6 @@ struct apci1564_private {
 static int apci1564_reset(struct comedi_device *dev)
 {
 	struct apci1564_private *devpriv = dev->private;
-
-	devpriv->do_int_type = 0;
 
 	/* Disable the input interrupts and reset status register */
 	outl(0x0, devpriv->amcc_iobase + APCI1564_DI_IRQ_REG);
@@ -81,20 +78,6 @@ static irqreturn_t apci1564_interrupt(int irq, void *d)
 
 		/* enable the interrupt */
 		outl(status, devpriv->amcc_iobase + APCI1564_DI_IRQ_REG);
-	}
-
-	status = inl(devpriv->amcc_iobase + APCI1564_DO_IRQ_REG);
-	if (status & 0x01) {
-		/* Check for Digital Output interrupt Type */
-		/* 1: VCC interrupt			   */
-		/* 2: CC interrupt			   */
-		devpriv->do_int_type = inl(devpriv->amcc_iobase +
-					  APCI1564_DO_INT_STATUS_REG) & 0x3;
-		/* Disable the  Interrupt */
-		outl(0x0, devpriv->amcc_iobase + APCI1564_DO_INT_CTRL_REG);
-
-		/* Sends signal to user space */
-		send_sig(SIGIO, devpriv->tsk_current, 0);
 	}
 
 	status = inl(devpriv->amcc_iobase + APCI1564_TIMER_IRQ_REG);
@@ -407,7 +390,6 @@ static int apci1564_auto_attach(struct comedi_device *dev,
 	s->range_table = &range_digital;
 	s->insn_config = apci1564_do_config;
 	s->insn_bits = apci1564_do_insn_bits;
-	s->insn_read = apci1564_do_read;
 
 	/* Change-Of-State (COS) interrupt subdevice */
 	s = &dev->subdevices[2];

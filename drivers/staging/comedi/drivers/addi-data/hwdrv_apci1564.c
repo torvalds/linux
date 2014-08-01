@@ -340,17 +340,3 @@ static int apci1564_timer_read(struct comedi_device *dev,
 	}
 	return insn->n;
 }
-
-/*
- * Reads the interrupt status register
- */
-static int apci1564_do_read(struct comedi_device *dev,
-			    struct comedi_subdevice *s,
-			    struct comedi_insn *insn,
-			    unsigned int *data)
-{
-	struct apci1564_private *devpriv = dev->private;
-
-	*data = devpriv->do_int_type;
-	return insn->n;
-}
