@@ -7576,7 +7576,6 @@ static int i40e_add_vsi(struct i40e_vsi *vsi)
 		 * should be set to zero by default.
 		 */
 		ctxt.info.switch_id = 0;
-		ctxt.info.switch_id |= cpu_to_le16(I40E_AQ_VSI_SW_ID_FLAG_LOCAL_LB);
 		ctxt.info.switch_id |= cpu_to_le16(I40E_AQ_VSI_SW_ID_FLAG_ALLOW_LB);
 
 		/* Setup the VSI tx/rx queue map for TC0 only for now */
