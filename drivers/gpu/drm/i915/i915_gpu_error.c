@@ -784,7 +784,8 @@ static void gen8_record_semaphore_state(struct drm_i915_private *dev_priv,
 		if (ring == to)
 			continue;
 
-		signal_offset = (GEN8_SIGNAL_OFFSET(ring, i) & PAGE_MASK) / 4;
+		signal_offset = (GEN8_SIGNAL_OFFSET(ring, i) & (PAGE_SIZE - 1))
+				/ 4;
 		tmp = error->semaphore_obj->pages[0];
 		idx = intel_ring_sync_index(ring, to);
 
