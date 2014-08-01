@@ -74,7 +74,7 @@ static inline uint32_t pipe2flush(enum mdp4_pipe pipe)
 	case VG1:      return MDP4_OVERLAY_FLUSH_VG1;
 	case VG2:      return MDP4_OVERLAY_FLUSH_VG2;
 	case RGB1:     return MDP4_OVERLAY_FLUSH_RGB1;
-	case RGB2:     return MDP4_OVERLAY_FLUSH_RGB1;
+	case RGB2:     return MDP4_OVERLAY_FLUSH_RGB2;
 	default:       return 0;
 	}
 }
