@@ -1070,37 +1070,41 @@ void iwl_trans_pcie_txq_enable(struct iwl_trans *trans, int txq_id, u16 ssn,
 			       const struct iwl_trans_txq_scd_cfg *cfg)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	u8 frame_limit = cfg->frame_limit;
+	int fifo = -1;
 
 	if (test_and_set_bit(txq_id, trans_pcie->queue_used))
 		WARN_ONCE(1, "queue %d already used - expect issues", txq_id);
 
-	/* Stop this Tx queue before configuring it */
-	iwl_scd_txq_set_inactive(trans, txq_id);
+	if (cfg) {
+		fifo = cfg->fifo;
 
-	/* Set this queue as a chain-building queue unless it is CMD queue */
-	if (txq_id != trans_pcie->cmd_queue)
-		iwl_scd_txq_set_chain(trans, txq_id);
+		/* Stop this Tx queue before configuring it */
+		iwl_scd_txq_set_inactive(trans, txq_id);
 
-	/* If this queue is mapped to a certain station: it is an AGG queue */
-	if (cfg->sta_id >= 0) {
-		u16 ra_tid = BUILD_RAxTID(cfg->sta_id, cfg->tid);
+		/* Set this queue as a chain-building queue unless it is CMD */
+		if (txq_id != trans_pcie->cmd_queue)
+			iwl_scd_txq_set_chain(trans, txq_id);
 
-		/* Map receiver-address / traffic-ID to this queue */
-		iwl_pcie_txq_set_ratid_map(trans, ra_tid, txq_id);
+		/* If this queue is mapped to a certain station: it is an AGG */
+		if (cfg->sta_id >= 0) {
+			u16 ra_tid = BUILD_RAxTID(cfg->sta_id, cfg->tid);
 
-		/* enable aggregations for the queue */
-		iwl_scd_txq_enable_agg(trans, txq_id);
-		trans_pcie->txq[txq_id].ampdu = true;
-	} else {
-		/*
-		 * disable aggregations for the queue, this will also make the
-		 * ra_tid mapping configuration irrelevant since it is now a
-		 * non-AGG queue.
-		 */
-		iwl_scd_txq_disable_agg(trans, txq_id);
+			/* Map receiver-address / traffic-ID to this queue */
+			iwl_pcie_txq_set_ratid_map(trans, ra_tid, txq_id);
 
-		ssn = trans_pcie->txq[txq_id].q.read_ptr;
+			/* enable aggregations for the queue */
+			iwl_scd_txq_enable_agg(trans, txq_id);
+			trans_pcie->txq[txq_id].ampdu = true;
+		} else {
+			/*
+			 * disable aggregations for the queue, this will also
+			 * make the ra_tid mapping configuration irrelevant
+			 * since it is now a non-AGG queue.
+			 */
+			iwl_scd_txq_disable_agg(trans, txq_id);
+
+			ssn = trans_pcie->txq[txq_id].q.read_ptr;
+		}
 	}
 
 	/* Place first TFD at index corresponding to start sequence number.
@@ -1108,32 +1112,39 @@ void iwl_trans_pcie_txq_enable(struct iwl_trans *trans, int txq_id, u16 ssn,
 	trans_pcie->txq[txq_id].q.read_ptr = (ssn & 0xff);
 	trans_pcie->txq[txq_id].q.write_ptr = (ssn & 0xff);
 
-	iwl_write_direct32(trans, HBUS_TARG_WRPTR,
-			   (ssn & 0xff) | (txq_id << 8));
-	iwl_write_prph(trans, SCD_QUEUE_RDPTR(txq_id), ssn);
+	if (cfg) {
+		u8 frame_limit = cfg->frame_limit;
 
-	/* Set up Tx window size and frame limit for this queue */
-	iwl_trans_write_mem32(trans, trans_pcie->scd_base_addr +
-			SCD_CONTEXT_QUEUE_OFFSET(txq_id), 0);
-	iwl_trans_write_mem32(trans, trans_pcie->scd_base_addr +
+		iwl_write_direct32(trans, HBUS_TARG_WRPTR,
+				   (ssn & 0xff) | (txq_id << 8));
+		iwl_write_prph(trans, SCD_QUEUE_RDPTR(txq_id), ssn);
+
+		/* Set up Tx window size and frame limit for this queue */
+		iwl_trans_write_mem32(trans, trans_pcie->scd_base_addr +
+				SCD_CONTEXT_QUEUE_OFFSET(txq_id), 0);
+		iwl_trans_write_mem32(trans,
+			trans_pcie->scd_base_addr +
 			SCD_CONTEXT_QUEUE_OFFSET(txq_id) + sizeof(u32),
 			((frame_limit << SCD_QUEUE_CTX_REG2_WIN_SIZE_POS) &
-				SCD_QUEUE_CTX_REG2_WIN_SIZE_MSK) |
+					SCD_QUEUE_CTX_REG2_WIN_SIZE_MSK) |
 			((frame_limit << SCD_QUEUE_CTX_REG2_FRAME_LIMIT_POS) &
-				SCD_QUEUE_CTX_REG2_FRAME_LIMIT_MSK));
+					SCD_QUEUE_CTX_REG2_FRAME_LIMIT_MSK));
 
-	/* Set up Status area in SRAM, map to Tx DMA/FIFO, activate the queue */
-	iwl_write_prph(trans, SCD_QUEUE_STATUS_BITS(txq_id),
-		       (1 << SCD_QUEUE_STTS_REG_POS_ACTIVE) |
-		       (cfg->fifo << SCD_QUEUE_STTS_REG_POS_TXF) |
-		       (1 << SCD_QUEUE_STTS_REG_POS_WSL) |
-		       SCD_QUEUE_STTS_REG_MSK);
+		/* Set up status area in SRAM, map to Tx DMA/FIFO, activate */
+		iwl_write_prph(trans, SCD_QUEUE_STATUS_BITS(txq_id),
+			       (1 << SCD_QUEUE_STTS_REG_POS_ACTIVE) |
+			       (cfg->fifo << SCD_QUEUE_STTS_REG_POS_TXF) |
+			       (1 << SCD_QUEUE_STTS_REG_POS_WSL) |
+			       SCD_QUEUE_STTS_REG_MSK);
+	}
+
 	trans_pcie->txq[txq_id].active = true;
 	IWL_DEBUG_TX_QUEUES(trans, "Activate queue %d on FIFO %d WrPtr: %d\n",
-			    txq_id, cfg->fifo, ssn & 0xff);
+			    txq_id, fifo, ssn & 0xff);
 }
 
-void iwl_trans_pcie_txq_disable(struct iwl_trans *trans, int txq_id)
+void iwl_trans_pcie_txq_disable(struct iwl_trans *trans, int txq_id,
+				bool configure_scd)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	u32 stts_addr = trans_pcie->scd_base_addr +
@@ -1152,10 +1163,12 @@ void iwl_trans_pcie_txq_disable(struct iwl_trans *trans, int txq_id)
 		return;
 	}
 
-	iwl_scd_txq_set_inactive(trans, txq_id);
+	if (configure_scd) {
+		iwl_scd_txq_set_inactive(trans, txq_id);
 
-	iwl_trans_write_mem(trans, stts_addr, (void *)zero_val,
-			    ARRAY_SIZE(zero_val));
+		iwl_trans_write_mem(trans, stts_addr, (void *)zero_val,
+				    ARRAY_SIZE(zero_val));
+	}
 
 	iwl_pcie_txq_unmap(trans, txq_id);
 	trans_pcie->txq[txq_id].ampdu = false;

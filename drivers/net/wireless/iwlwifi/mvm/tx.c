@@ -482,7 +482,7 @@ static void iwl_mvm_check_ratid_empty(struct iwl_mvm *mvm,
 		IWL_DEBUG_TX_QUEUES(mvm,
 				    "Can continue DELBA flow ssn = next_recl = %d\n",
 				    tid_data->next_reclaimed);
-		iwl_trans_txq_disable(mvm->trans, tid_data->txq_id);
+		iwl_trans_txq_disable(mvm->trans, tid_data->txq_id, true);
 		tid_data->state = IWL_AGG_OFF;
 		/*
 		 * we can't hold the mutex - but since we are after a sequence

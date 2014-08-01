@@ -910,7 +910,7 @@ int iwl_mvm_sta_tx_agg_stop(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		}
 
 		tid_data->ssn = 0xffff;
-		iwl_trans_txq_disable(mvm->trans, txq_id);
+		iwl_trans_txq_disable(mvm->trans, txq_id, true);
 		/* fall through */
 	case IWL_AGG_STARTING:
 	case IWL_EMPTYING_HW_QUEUE_ADDBA:
@@ -965,7 +965,7 @@ int iwl_mvm_sta_tx_agg_flush(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		if (iwl_mvm_flush_tx_path(mvm, BIT(txq_id), true))
 			IWL_ERR(mvm, "Couldn't flush the AGG queue\n");
 
-		iwl_trans_txq_disable(mvm->trans, tid_data->txq_id);
+		iwl_trans_txq_disable(mvm->trans, tid_data->txq_id, true);
 	}
 
 	mvm->queue_to_mac80211[tid_data->txq_id] =

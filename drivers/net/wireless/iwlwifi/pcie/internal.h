@@ -366,7 +366,8 @@ int iwl_pcie_tx_stop(struct iwl_trans *trans);
 void iwl_pcie_tx_free(struct iwl_trans *trans);
 void iwl_trans_pcie_txq_enable(struct iwl_trans *trans, int queue, u16 ssn,
 			       const struct iwl_trans_txq_scd_cfg *cfg);
-void iwl_trans_pcie_txq_disable(struct iwl_trans *trans, int queue);
+void iwl_trans_pcie_txq_disable(struct iwl_trans *trans, int queue,
+				bool configure_scd);
 int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 		      struct iwl_device_cmd *dev_cmd, int txq_id);
 void iwl_pcie_txq_check_wrptrs(struct iwl_trans *trans);
