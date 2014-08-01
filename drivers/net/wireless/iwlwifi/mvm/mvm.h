@@ -105,14 +105,6 @@
  */
 #define IWL_MVM_CS_UNBLOCK_TX_TIMEOUT 3
 
-enum iwl_mvm_tx_fifo {
-	IWL_MVM_TX_FIFO_BK = 0,
-	IWL_MVM_TX_FIFO_BE,
-	IWL_MVM_TX_FIFO_VI,
-	IWL_MVM_TX_FIFO_VO,
-	IWL_MVM_TX_FIFO_MCAST = 5,
-};
-
 extern const struct ieee80211_ops iwl_mvm_hw_ops;
 
 /**

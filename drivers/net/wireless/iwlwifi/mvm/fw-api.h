@@ -84,7 +84,14 @@ enum {
 	IWL_MVM_CMD_QUEUE = 9,
 };
 
-#define IWL_MVM_CMD_FIFO	7
+enum iwl_mvm_tx_fifo {
+	IWL_MVM_TX_FIFO_BK = 0,
+	IWL_MVM_TX_FIFO_BE,
+	IWL_MVM_TX_FIFO_VI,
+	IWL_MVM_TX_FIFO_VO,
+	IWL_MVM_TX_FIFO_MCAST = 5,
+	IWL_MVM_TX_FIFO_CMD = 7,
+};
 
 #define IWL_MVM_STATION_COUNT	16
 

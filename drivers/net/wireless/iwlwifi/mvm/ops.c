@@ -459,7 +459,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	trans_cfg.command_names = iwl_mvm_cmd_strings;
 
 	trans_cfg.cmd_queue = IWL_MVM_CMD_QUEUE;
-	trans_cfg.cmd_fifo = IWL_MVM_CMD_FIFO;
+	trans_cfg.cmd_fifo = IWL_MVM_TX_FIFO_CMD;
 
 	snprintf(mvm->hw->wiphy->fw_version,
 		 sizeof(mvm->hw->wiphy->fw_version),
