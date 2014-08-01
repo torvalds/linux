@@ -254,7 +254,14 @@ static int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		}
 		break;
 	case RADEON_INFO_ACCEL_WORKING2:
-		*value = rdev->accel_working;
+		if (rdev->family == CHIP_HAWAII) {
+			if (rdev->accel_working)
+				*value = 2;
+			else
+				*value = 0;
+		} else {
+			*value = rdev->accel_working;
+		}
 		break;
 	case RADEON_INFO_TILING_CONFIG:
 		if (rdev->family >= CHIP_BONAIRE)
