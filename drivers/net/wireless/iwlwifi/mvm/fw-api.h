@@ -75,9 +75,6 @@
 #include "fw-api-coex.h"
 #include "fw-api-scan.h"
 
-/* maximal number of Tx queues in any platform */
-#define IWL_MVM_MAX_QUEUES	20
-
 /* Tx queue numbers */
 enum {
 	IWL_MVM_OFFCHANNEL_QUEUE = 8,

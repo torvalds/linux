@@ -83,7 +83,7 @@ struct iwl_mvm_mac_iface_iterator_data {
 	struct ieee80211_vif *vif;
 	unsigned long available_mac_ids[BITS_TO_LONGS(NUM_MAC_INDEX_DRIVER)];
 	unsigned long available_tsf_ids[BITS_TO_LONGS(NUM_TSF_IDS)];
-	unsigned long used_hw_queues[BITS_TO_LONGS(IWL_MVM_MAX_QUEUES)];
+	u32 used_hw_queues;
 	enum iwl_tsf_id preferred_tsf;
 	bool found_vif;
 };
@@ -194,12 +194,31 @@ static void iwl_mvm_mac_tsf_id_iter(void *_data, u8 *mac,
 		data->preferred_tsf = NUM_TSF_IDS;
 }
 
+/*
+ * Get the mask of the queues used by the vif
+ */
+u32 iwl_mvm_mac_get_queues_mask(struct iwl_mvm *mvm,
+				struct ieee80211_vif *vif)
+{
+	u32 qmask = 0, ac;
+
+	if (vif->type == NL80211_IFTYPE_P2P_DEVICE)
+		return BIT(IWL_MVM_OFFCHANNEL_QUEUE);
+
+	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++)
+		qmask |= BIT(vif->hw_queue[ac]);
+
+	if (vif->type == NL80211_IFTYPE_AP)
+		qmask |= BIT(vif->cab_queue);
+
+	return qmask;
+}
+
 static void iwl_mvm_mac_iface_iterator(void *_data, u8 *mac,
 				       struct ieee80211_vif *vif)
 {
 	struct iwl_mvm_mac_iface_iterator_data *data = _data;
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	u32 ac;
 
 	/* Iterator may already find the interface being added -- skip it */
 	if (vif == data->vif) {
@@ -208,12 +227,7 @@ static void iwl_mvm_mac_iface_iterator(void *_data, u8 *mac,
 	}
 
 	/* Mark the queues used by the vif */
-	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++)
-		if (vif->hw_queue[ac] != IEEE80211_INVAL_HW_QUEUE)
-			__set_bit(vif->hw_queue[ac], data->used_hw_queues);
-
-	if (vif->cab_queue != IEEE80211_INVAL_HW_QUEUE)
-		__set_bit(vif->cab_queue, data->used_hw_queues);
+	data->used_hw_queues |= iwl_mvm_mac_get_queues_mask(data->mvm, vif);
 
 	/* Mark MAC IDs as used by clearing the available bit, and
 	 * (below) mark TSFs as used if their existing use is not
@@ -225,24 +239,6 @@ static void iwl_mvm_mac_iface_iterator(void *_data, u8 *mac,
 
 	/* find a suitable tsf_id */
 	iwl_mvm_mac_tsf_id_iter(_data, mac, vif);
-}
-
-/*
- * Get the mask of the queus used by the vif
- */
-u32 iwl_mvm_mac_get_queues_mask(struct iwl_mvm *mvm,
-				struct ieee80211_vif *vif)
-{
-	u32 qmask = 0, ac;
-
-	if (vif->type == NL80211_IFTYPE_P2P_DEVICE)
-		return BIT(IWL_MVM_OFFCHANNEL_QUEUE);
-
-	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++)
-		if (vif->hw_queue[ac] != IEEE80211_INVAL_HW_QUEUE)
-			qmask |= BIT(vif->hw_queue[ac]);
-
-	return qmask;
 }
 
 void iwl_mvm_mac_ctxt_recalc_tsf_id(struct iwl_mvm *mvm,
@@ -279,15 +275,15 @@ static int iwl_mvm_mac_ctxt_allocate_resources(struct iwl_mvm *mvm,
 		.available_tsf_ids = { (1 << NUM_TSF_IDS) - 1 },
 		/* no preference yet */
 		.preferred_tsf = NUM_TSF_IDS,
-		.used_hw_queues = {
+		.used_hw_queues =
 			BIT(IWL_MVM_OFFCHANNEL_QUEUE) |
 			BIT(mvm->aux_queue) |
-			BIT(IWL_MVM_CMD_QUEUE)
-		},
+			BIT(IWL_MVM_CMD_QUEUE),
 		.found_vif = false,
 	};
 	u32 ac;
 	int ret, i;
+	unsigned long used_hw_queues;
 
 	/*
 	 * Allocate a MAC ID and a TSF for this MAC, along with the queues
@@ -370,9 +366,11 @@ static int iwl_mvm_mac_ctxt_allocate_resources(struct iwl_mvm *mvm,
 		return 0;
 	}
 
+	used_hw_queues = data.used_hw_queues;
+
 	/* Find available queues, and allocate them to the ACs */
 	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
-		u8 queue = find_first_zero_bit(data.used_hw_queues,
+		u8 queue = find_first_zero_bit(&used_hw_queues,
 					       mvm->first_agg_queue);
 
 		if (queue >= mvm->first_agg_queue) {
@@ -381,13 +379,13 @@ static int iwl_mvm_mac_ctxt_allocate_resources(struct iwl_mvm *mvm,
 			goto exit_fail;
 		}
 
-		__set_bit(queue, data.used_hw_queues);
+		__set_bit(queue, &used_hw_queues);
 		vif->hw_queue[ac] = queue;
 	}
 
 	/* Allocate the CAB queue for softAP and GO interfaces */
 	if (vif->type == NL80211_IFTYPE_AP) {
-		u8 queue = find_first_zero_bit(data.used_hw_queues,
+		u8 queue = find_first_zero_bit(&used_hw_queues,
 					       mvm->first_agg_queue);
 
 		if (queue >= mvm->first_agg_queue) {
