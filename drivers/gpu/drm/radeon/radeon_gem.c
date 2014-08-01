@@ -358,15 +358,17 @@ int radeon_gem_wait_idle_ioctl(struct drm_device *dev, void *data,
 	struct drm_gem_object *gobj;
 	struct radeon_bo *robj;
 	int r;
+	uint32_t cur_placement = 0;
 
 	gobj = drm_gem_object_lookup(dev, filp, args->handle);
 	if (gobj == NULL) {
 		return -ENOENT;
 	}
 	robj = gem_to_radeon_bo(gobj);
-	r = radeon_bo_wait(robj, NULL, false);
+	r = radeon_bo_wait(robj, &cur_placement, false);
 	/* Flush HDP cache via MMIO if necessary */
-	if (rdev->asic->mmio_hdp_flush)
+	if (rdev->asic->mmio_hdp_flush &&
+	    radeon_mem_type_to_domain(cur_placement) == RADEON_GEM_DOMAIN_VRAM)
 		robj->rdev->asic->mmio_hdp_flush(rdev);
 	drm_gem_object_unreference_unlocked(gobj);
 	r = radeon_gem_handle_lockup(rdev, r);
