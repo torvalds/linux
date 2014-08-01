@@ -34,7 +34,7 @@
 #include <linux/rockchip/cpu.h>
 #include <linux/rockchip/dvfs.h>
 
-#define GPUCLK_NAME	"clk_gpu_pre"
+#define GPUCLK_NAME	"clk_gpu"
 #define GPUCLK_PD_NAME	"pd_gpu"
 #define GPU_MHZ 	1000000
 
@@ -419,7 +419,7 @@ static struct early_suspend mali_dev_early_suspend = {
 _mali_osk_errcode_t mali_platform_init(void)
 {
 	if (cpu_is_rk3036()) {
-		audis_gpu_clk = clk_get(NULL,"clk_gpu_pre");	
+		audis_gpu_clk = clk_get(NULL,"clk_gpu");	
 
 		if (IS_ERR(audis_gpu_clk)) {
 			 MALI_PRINT( ("MALI Error : failed to get audis mali clk\n"));
