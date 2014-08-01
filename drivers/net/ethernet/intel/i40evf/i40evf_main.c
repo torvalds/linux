@@ -1542,6 +1542,7 @@ static void i40evf_reset_task(struct work_struct *work)
 		i40evf_free_misc_irq(adapter);
 		i40evf_reset_interrupt_capability(adapter);
 		i40evf_free_queues(adapter);
+		i40evf_free_q_vectors(adapter);
 		kfree(adapter->vf_res);
 		i40evf_shutdown_adminq(hw);
 		adapter->netdev->flags &= ~IFF_UP;
@@ -2429,6 +2430,7 @@ static void i40evf_remove(struct pci_dev *pdev)
 		i40evf_misc_irq_disable(adapter);
 		i40evf_free_misc_irq(adapter);
 		i40evf_reset_interrupt_capability(adapter);
+		i40evf_free_q_vectors(adapter);
 	}
 
 	if (adapter->watchdog_timer.function)
