@@ -444,7 +444,7 @@ int smk_netlbl_mls(int level, char *catset, struct netlbl_lsm_secattr *sap,
 		for (m = 0x80; m != 0; m >>= 1, cat++) {
 			if ((m & *cp) == 0)
 				continue;
-			rc = netlbl_secattr_catmap_setbit(sap->attr.mls.cat,
+			rc = netlbl_secattr_catmap_setbit(&sap->attr.mls.cat,
 							  cat, GFP_ATOMIC);
 			if (rc < 0) {
 				netlbl_secattr_catmap_free(sap->attr.mls.cat);

@@ -522,7 +522,7 @@ int netlbl_secattr_catmap_walk_rng(struct netlbl_lsm_secattr_catmap *catmap,
 
 /**
  * netlbl_secattr_catmap_setbit - Set a bit in a LSM secattr catmap
- * @catmap: the category bitmap
+ * @catmap: pointer to the category bitmap
  * @bit: the bit to set
  * @flags: memory allocation flags
  *
@@ -531,18 +531,25 @@ int netlbl_secattr_catmap_walk_rng(struct netlbl_lsm_secattr_catmap *catmap,
  * negative values on failure.
  *
  */
-int netlbl_secattr_catmap_setbit(struct netlbl_lsm_secattr_catmap *catmap,
+int netlbl_secattr_catmap_setbit(struct netlbl_lsm_secattr_catmap **catmap,
 				 u32 bit,
 				 gfp_t flags)
 {
-	struct netlbl_lsm_secattr_catmap *iter = catmap;
+	struct netlbl_lsm_secattr_catmap *iter = *catmap;
 	u32 node_bit;
 	u32 node_idx;
 
 	while (iter->next != NULL &&
 	       bit >= (iter->startbit + NETLBL_CATMAP_SIZE))
 		iter = iter->next;
-	if (bit >= (iter->startbit + NETLBL_CATMAP_SIZE)) {
+	if (bit < iter->startbit) {
+		iter = netlbl_secattr_catmap_alloc(flags);
+		if (iter == NULL)
+			return -ENOMEM;
+		iter->next = *catmap;
+		iter->startbit = bit & ~(NETLBL_CATMAP_SIZE - 1);
+		*catmap = iter;
+	} else if (bit >= (iter->startbit + NETLBL_CATMAP_SIZE)) {
 		iter->next = netlbl_secattr_catmap_alloc(flags);
 		if (iter->next == NULL)
 			return -ENOMEM;
@@ -560,7 +567,7 @@ int netlbl_secattr_catmap_setbit(struct netlbl_lsm_secattr_catmap *catmap,
 
 /**
  * netlbl_secattr_catmap_setrng - Set a range of bits in a LSM secattr catmap
- * @catmap: the category bitmap
+ * @catmap: pointer to the category bitmap
  * @start: the starting bit
  * @end: the last bit in the string
  * @flags: memory allocation flags
@@ -570,15 +577,16 @@ int netlbl_secattr_catmap_setbit(struct netlbl_lsm_secattr_catmap *catmap,
  * on success, negative values on failure.
  *
  */
-int netlbl_secattr_catmap_setrng(struct netlbl_lsm_secattr_catmap *catmap,
+int netlbl_secattr_catmap_setrng(struct netlbl_lsm_secattr_catmap **catmap,
 				 u32 start,
 				 u32 end,
 				 gfp_t flags)
 {
 	int ret_val = 0;
-	struct netlbl_lsm_secattr_catmap *iter = catmap;
+	struct netlbl_lsm_secattr_catmap *iter = *catmap;
 	u32 iter_max_spot;
 	u32 spot;
+	u32 orig_spot = iter->startbit;
 
 	/* XXX - This could probably be made a bit faster by combining writes
 	 * to the catmap instead of setting a single bit each time, but for
@@ -596,7 +604,9 @@ int netlbl_secattr_catmap_setrng(struct netlbl_lsm_secattr_catmap *catmap,
 			iter = iter->next;
 			iter_max_spot = iter->startbit + NETLBL_CATMAP_SIZE;
 		}
-		ret_val = netlbl_secattr_catmap_setbit(iter, spot, flags);
+		ret_val = netlbl_secattr_catmap_setbit(&iter, spot, flags);
+		if (iter->startbit < orig_spot)
+			*catmap = iter;
 	}
 
 	return ret_val;
