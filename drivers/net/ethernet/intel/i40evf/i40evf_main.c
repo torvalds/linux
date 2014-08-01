@@ -1403,6 +1403,8 @@ static void i40evf_watchdog_task(struct work_struct *work)
 watchdog_done:
 	clear_bit(__I40EVF_IN_CRITICAL_TASK, &adapter->crit_section);
 restart_watchdog:
+	if (adapter->state == __I40EVF_REMOVE)
+		return;
 	if (adapter->aq_required)
 		mod_timer(&adapter->watchdog_timer,
 			  jiffies + msecs_to_jiffies(20));
