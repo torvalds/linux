@@ -187,6 +187,8 @@ struct dwc_otg_platform_data usb20otg_pdata_rk3126 = {
 #ifdef CONFIG_USB20_HOST
 static void usb20host_hw_init(void)
 {
+	writel(UOC_HIWORD_UPDATE(1, 1, 3),
+		   RK_GRF_VIRT + RK312X_GRF_SOC_CON2);
 	/* other haredware init,include:
 	 * DRV_VBUS GPIO init */
 	if (gpio_is_valid(control_usb->host_gpios->gpio)) {
