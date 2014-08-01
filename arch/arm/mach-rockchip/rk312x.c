@@ -78,11 +78,33 @@ static struct map_desc rk312x_io_desc[] __initdata = {
 	RK_DEVICE(RK_GIC_VIRT + RK312X_GIC_DIST_SIZE, RK312X_GIC_CPU_PHYS, RK312X_GIC_CPU_SIZE),
 	RK_DEVICE(RK312X_IMEM_VIRT, RK312X_IMEM_PHYS, SZ_4K),
 };
+static void usb_uart_init(void)
+{
+#ifdef CONFIG_RK_USB_UART
+	u32 soc_status0 = readl_relaxed(RK_GRF_VIRT + RK312X_GRF_SOC_STATUS0);
+#endif
+	writel_relaxed(0x34000000, RK_GRF_VIRT + RK312X_GRF_UOC1_CON4);
+#ifdef CONFIG_RK_USB_UART
+	if (!(soc_status0 & (1 << 5)) && (soc_status0 & (1 << 8))) {
+		/* software control usb phy enable */
+		writel_relaxed(0x007f0055, RK_GRF_VIRT + RK312X_GRF_UOC0_CON0);
+		writel_relaxed(0x34003000, RK_GRF_VIRT + RK312X_GRF_UOC1_CON4);
+	}
+#endif
+
+	writel_relaxed(0x07, RK_DEBUG_UART_VIRT + 0x88);
+	writel_relaxed(0x00, RK_DEBUG_UART_VIRT + 0x04);
+	writel_relaxed(0x83, RK_DEBUG_UART_VIRT + 0x0c);
+	writel_relaxed(0x0d, RK_DEBUG_UART_VIRT + 0x00);
+	writel_relaxed(0x00, RK_DEBUG_UART_VIRT + 0x04);
+	writel_relaxed(0x03, RK_DEBUG_UART_VIRT + 0x0c);
+}
 
 static void __init rk312x_dt_map_io(void)
 {
 	iotable_init(rk312x_io_desc, ARRAY_SIZE(rk312x_io_desc));
 	debug_ll_io_init();
+	usb_uart_init();
 
 	/* enable timer5 for core */
 	writel_relaxed(0, RK312X_TIMER5_VIRT + 0x10);

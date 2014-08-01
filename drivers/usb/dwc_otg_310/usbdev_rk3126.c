@@ -111,19 +111,18 @@ static int usb20otg_get_status(int id)
 {
 	int ret = -1;
 	u32 soc_status0 = readl(RK_GRF_VIRT + RK312X_GRF_SOC_STATUS0);
-
 	switch (id) {
 	case USB_STATUS_BVABLID:
 		/* bvalid in grf */
-		ret = soc_status0 & (0x1 << 8);
+		ret = soc_status0 & (0x1 << 5);
 		break;
 	case USB_STATUS_DPDM:
 		/* dpdm in grf */
-		ret = soc_status0 & (0x3 << 9);
+		ret = soc_status0 & (0x3 << 6);
 		break;
 	case USB_STATUS_ID:
 		/* id in grf */
-		ret = soc_status0 & (0x1 << 11);
+		ret = soc_status0 & (0x1 << 8);
 		break;
 	case USB_CHIP_ID:
 		ret = control_usb->chip_id;
