@@ -17,6 +17,18 @@
 	soc {
 		pmx_core: pinmux@1c14120 {
 			status = "okay";
+
+			mcasp0_pins: pinmux_mcasp0_pins {
+				pinctrl-single,bits = <
+					/*
+					 * AHCLKX, ACLKX, AFSX, AHCLKR, ACLKR,
+					 * AFSR, AMUTE
+					 */
+					0x00 0x11111111 0xffffffff
+					/* AXR11, AXR12 */
+					0x04 0x00011000 0x000ff000
+				>;
+			};
 		};
 		serial0: serial@1c42000 {
 			status = "okay";
@@ -169,4 +181,22 @@
 			regulator-boot-on;
 		};
 	};
+};
+
+&mcasp0 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&mcasp0_pins>;
+
+	op-mode = <0>;          /* MCASP_IIS_MODE */
+	tdm-slots = <2>;
+	/* 4 serializer */
+	serial-dir = <  /* 0: INACTIVE, 1: TX, 2: RX */
+		0 0 0 0
+		0 0 0 0
+		0 0 0 1
+		2 0 0 0
+	>;
+	tx-num-evt = <32>;
+	rx-num-evt = <32>;
 };
