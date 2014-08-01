@@ -968,6 +968,9 @@ void hci_conn_del_sysfs(struct hci_conn *conn);
 #define lmp_host_le_capable(dev)   (!!((dev)->features[1][0] & LMP_HOST_LE))
 #define lmp_host_le_br_capable(dev) (!!((dev)->features[1][0] & LMP_HOST_LE_BREDR))
 
+#define hdev_is_powered(hdev) (test_bit(HCI_UP, &hdev->flags) && \
+				!test_bit(HCI_AUTO_OFF, &hdev->dev_flags))
+
 /* ----- HCI protocols ----- */
 #define HCI_PROTO_DEFER             0x01
 
@@ -1255,6 +1258,8 @@ bool hci_req_pending(struct hci_dev *hdev);
 
 void hci_req_add_le_scan_disable(struct hci_request *req);
 void hci_req_add_le_passive_scan(struct hci_request *req);
+
+void hci_update_page_scan(struct hci_dev *hdev, struct hci_request *req);
 
 struct sk_buff *__hci_cmd_sync(struct hci_dev *hdev, u16 opcode, u32 plen,
 			       const void *param, u32 timeout);

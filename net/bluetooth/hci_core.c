@@ -5680,3 +5680,34 @@ void hci_update_background_scan(struct hci_dev *hdev)
 	if (err)
 		BT_ERR("Failed to run HCI request: err %d", err);
 }
+
+void hci_update_page_scan(struct hci_dev *hdev, struct hci_request *req)
+{
+	u8 scan;
+
+	if (!test_bit(HCI_BREDR_ENABLED, &hdev->dev_flags))
+		return;
+
+	if (!hdev_is_powered(hdev))
+		return;
+
+	if (mgmt_powering_down(hdev))
+		return;
+
+	if (test_bit(HCI_CONNECTABLE, &hdev->dev_flags) ||
+	    !list_empty(&hdev->whitelist))
+		scan = SCAN_PAGE;
+	else
+		scan = SCAN_DISABLED;
+
+	if (test_bit(HCI_PSCAN, &hdev->flags) == !!(scan & SCAN_PAGE))
+		return;
+
+	if (test_bit(HCI_DISCOVERABLE, &hdev->dev_flags))
+		scan |= SCAN_INQUIRY;
+
+	if (req)
+		hci_req_add(req, HCI_OP_WRITE_SCAN_ENABLE, 1, &scan);
+	else
+		hci_send_cmd(hdev, HCI_OP_WRITE_SCAN_ENABLE, 1, &scan);
+}

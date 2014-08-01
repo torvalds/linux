@@ -129,9 +129,6 @@ static const u16 mgmt_events[] = {
 
 #define CACHE_TIMEOUT	msecs_to_jiffies(2 * 1000)
 
-#define hdev_is_powered(hdev) (test_bit(HCI_UP, &hdev->flags) && \
-				!test_bit(HCI_AUTO_OFF, &hdev->dev_flags))
-
 struct pending_cmd {
 	struct list_head list;
 	u16 opcode;
@@ -1536,9 +1533,11 @@ static void set_discoverable_complete(struct hci_dev *hdev, u8 status)
 
 	/* When the discoverable mode gets changed, make sure
 	 * that class of device has the limited discoverable
-	 * bit correctly set.
+	 * bit correctly set. Also update page scan based on whitelist
+	 * entries.
 	 */
 	hci_req_init(&req, hdev);
+	hci_update_page_scan(hdev, &req);
 	update_class(&req);
 	hci_req_run(&req, NULL);
 
@@ -1785,6 +1784,7 @@ static void set_connectable_complete(struct hci_dev *hdev, u8 status)
 
 	if (conn_changed || discov_changed) {
 		new_settings(hdev, cmd->sk);
+		hci_update_page_scan(hdev, NULL);
 		if (discov_changed)
 			mgmt_update_adv_data(hdev);
 		hci_update_background_scan(hdev);
@@ -1818,6 +1818,7 @@ static int set_connectable_update_settings(struct hci_dev *hdev,
 		return err;
 
 	if (changed) {
+		hci_update_page_scan(hdev, NULL);
 		hci_update_background_scan(hdev);
 		return new_settings(hdev, sk);
 	}
@@ -4381,27 +4382,6 @@ unlock:
 	return err;
 }
 
-static void set_bredr_scan(struct hci_request *req)
-{
-	struct hci_dev *hdev = req->hdev;
-	u8 scan = 0;
-
-	/* Ensure that fast connectable is disabled. This function will
-	 * not do anything if the page scan parameters are already what
-	 * they should be.
-	 */
-	write_fast_connectable(req, false);
-
-	if (test_bit(HCI_CONNECTABLE, &hdev->dev_flags) ||
-	    !list_empty(&hdev->whitelist))
-		scan |= SCAN_PAGE;
-	if (test_bit(HCI_DISCOVERABLE, &hdev->dev_flags))
-		scan |= SCAN_INQUIRY;
-
-	if (scan)
-		hci_req_add(req, HCI_OP_WRITE_SCAN_ENABLE, 1, &scan);
-}
-
 static void set_bredr_complete(struct hci_dev *hdev, u8 status)
 {
 	struct pending_cmd *cmd;
@@ -4507,9 +4487,8 @@ static int set_bredr(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 
 	hci_req_init(&req, hdev);
 
-	if (test_bit(HCI_CONNECTABLE, &hdev->dev_flags) ||
-	    !list_empty(&hdev->whitelist))
-		set_bredr_scan(&req);
+	write_fast_connectable(&req, false);
+	hci_update_page_scan(hdev, &req);
 
 	/* Since only the advertising data flags will change, there
 	 * is no need to update the scan response data.
@@ -5235,27 +5214,6 @@ unlock:
 	return err;
 }
 
-/* Helper for Add/Remove Device commands */
-static void update_page_scan(struct hci_dev *hdev, u8 scan)
-{
-	if (!test_bit(HCI_BREDR_ENABLED, &hdev->dev_flags))
-		return;
-
-	if (!hdev_is_powered(hdev))
-		return;
-
-	/* If HCI_CONNECTABLE is set then Add/Remove Device should not
-	 * make any changes to page scanning.
-	 */
-	if (test_bit(HCI_CONNECTABLE, &hdev->dev_flags))
-		return;
-
-	if (test_bit(HCI_DISCOVERABLE, &hdev->dev_flags))
-		scan |= SCAN_INQUIRY;
-
-	hci_send_cmd(hdev, HCI_OP_WRITE_SCAN_ENABLE, 1, &scan);
-}
-
 static void device_added(struct sock *sk, struct hci_dev *hdev,
 			 bdaddr_t *bdaddr, u8 type, u8 action)
 {
@@ -5291,8 +5249,6 @@ static int add_device(struct sock *sk, struct hci_dev *hdev,
 	hci_dev_lock(hdev);
 
 	if (cp->addr.type == BDADDR_BREDR) {
-		bool update_scan;
-
 		/* Only incoming connections action is supported for now */
 		if (cp->action != 0x01) {
 			err = cmd_complete(sk, hdev->id, MGMT_OP_ADD_DEVICE,
@@ -5301,15 +5257,12 @@ static int add_device(struct sock *sk, struct hci_dev *hdev,
 			goto unlock;
 		}
 
-		update_scan = list_empty(&hdev->whitelist);
-
 		err = hci_bdaddr_list_add(&hdev->whitelist, &cp->addr.bdaddr,
 					  cp->addr.type);
 		if (err)
 			goto unlock;
 
-		if (update_scan)
-			update_page_scan(hdev, SCAN_PAGE);
+		hci_update_page_scan(hdev, NULL);
 
 		goto added;
 	}
@@ -5392,8 +5345,7 @@ static int remove_device(struct sock *sk, struct hci_dev *hdev,
 				goto unlock;
 			}
 
-			if (list_empty(&hdev->whitelist))
-				update_page_scan(hdev, SCAN_DISABLED);
+			hci_update_page_scan(hdev, NULL);
 
 			device_removed(sk, hdev, &cp->addr.bdaddr,
 				       cp->addr.type);
@@ -5444,7 +5396,7 @@ static int remove_device(struct sock *sk, struct hci_dev *hdev,
 			kfree(b);
 		}
 
-		update_page_scan(hdev, SCAN_DISABLED);
+		hci_update_page_scan(hdev, NULL);
 
 		list_for_each_entry_safe(p, tmp, &hdev->le_conn_params, list) {
 			if (p->auto_connect == HCI_AUTO_CONN_DISABLED)
@@ -5969,8 +5921,8 @@ static int powered_update_hci(struct hci_dev *hdev)
 			    sizeof(link_sec), &link_sec);
 
 	if (lmp_bredr_capable(hdev)) {
-		if (test_bit(HCI_BREDR_ENABLED, &hdev->dev_flags))
-			set_bredr_scan(&req);
+		write_fast_connectable(&req, false);
+		hci_update_page_scan(hdev, &req);
 		update_class(&req);
 		update_name(&req);
 		update_eir(&req);
