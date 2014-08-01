@@ -26,16 +26,6 @@ warning-1 += $(call cc-option, -Wmissing-include-dirs)
 warning-1 += $(call cc-option, -Wunused-but-set-variable)
 warning-1 += $(call cc-disable-warning, missing-field-initializers)
 
-# Clang
-warning-1 += $(call cc-disable-warning, initializer-overrides)
-warning-1 += $(call cc-disable-warning, unused-value)
-warning-1 += $(call cc-disable-warning, format)
-warning-1 += $(call cc-disable-warning, unknown-warning-option)
-warning-1 += $(call cc-disable-warning, sign-compare)
-warning-1 += $(call cc-disable-warning, format-zero-length)
-warning-1 += $(call cc-disable-warning, uninitialized)
-warning-1 += $(call cc-option, -fcatch-undefined-behavior)
-
 warning-2 := -Waggregate-return
 warning-2 += -Wcast-align
 warning-2 += -Wdisabled-optimization
@@ -64,4 +54,15 @@ ifeq ("$(strip $(warning))","")
 endif
 
 KBUILD_CFLAGS += $(warning)
+else
+
+ifeq ($(COMPILER),clang)
+KBUILD_CFLAGS += $(call cc-disable-warning, initializer-overrides)
+KBUILD_CFLAGS += $(call cc-disable-warning, unused-value)
+KBUILD_CFLAGS += $(call cc-disable-warning, format)
+KBUILD_CFLAGS += $(call cc-disable-warning, unknown-warning-option)
+KBUILD_CFLAGS += $(call cc-disable-warning, sign-compare)
+KBUILD_CFLAGS += $(call cc-disable-warning, format-zero-length)
+KBUILD_CFLAGS += $(call cc-disable-warning, uninitialized)
+endif
 endif
