@@ -401,6 +401,13 @@ struct iwl_trans_dump_data {
 
 struct iwl_trans;
 
+struct iwl_trans_txq_scd_cfg {
+	u8 fifo;
+	s8 sta_id;
+	u8 tid;
+	int frame_limit;
+};
+
 /**
  * struct iwl_trans_ops - transport specific operations
  *
@@ -492,8 +499,8 @@ struct iwl_trans_ops {
 	void (*reclaim)(struct iwl_trans *trans, int queue, int ssn,
 			struct sk_buff_head *skbs);
 
-	void (*txq_enable)(struct iwl_trans *trans, int queue, int fifo,
-			   int sta_id, int tid, int frame_limit, u16 ssn);
+	void (*txq_enable)(struct iwl_trans *trans, int queue, u16 ssn,
+			   const struct iwl_trans_txq_scd_cfg *cfg);
 	void (*txq_disable)(struct iwl_trans *trans, int queue);
 
 	int (*dbgfs_register)(struct iwl_trans *trans, struct dentry* dir);
@@ -775,13 +782,19 @@ static inline void iwl_trans_txq_enable(struct iwl_trans *trans, int queue,
 					int fifo, int sta_id, int tid,
 					int frame_limit, u16 ssn)
 {
+	struct iwl_trans_txq_scd_cfg cfg = {
+		.fifo = fifo,
+		.sta_id = sta_id,
+		.tid = tid,
+		.frame_limit = frame_limit,
+	};
+
 	might_sleep();
 
 	if (unlikely((trans->state != IWL_TRANS_FW_ALIVE)))
 		IWL_ERR(trans, "%s bad state = %d\n", __func__, trans->state);
 
-	trans->ops->txq_enable(trans, queue, fifo, sta_id, tid,
-				 frame_limit, ssn);
+	trans->ops->txq_enable(trans, queue, ssn, &cfg);
 }
 
 static inline void iwl_trans_ac_txq_enable(struct iwl_trans *trans, int queue,

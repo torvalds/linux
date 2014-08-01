@@ -1066,10 +1066,11 @@ static int iwl_pcie_txq_set_ratid_map(struct iwl_trans *trans, u16 ra_tid,
  * combined with Traffic ID (QOS priority), in format used by Tx Scheduler */
 #define BUILD_RAxTID(sta_id, tid)	(((sta_id) << 4) + (tid))
 
-void iwl_trans_pcie_txq_enable(struct iwl_trans *trans, int txq_id, int fifo,
-			       int sta_id, int tid, int frame_limit, u16 ssn)
+void iwl_trans_pcie_txq_enable(struct iwl_trans *trans, int txq_id, u16 ssn,
+			       const struct iwl_trans_txq_scd_cfg *cfg)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+	u8 frame_limit = cfg->frame_limit;
 
 	if (test_and_set_bit(txq_id, trans_pcie->queue_used))
 		WARN_ONCE(1, "queue %d already used - expect issues", txq_id);
@@ -1082,8 +1083,8 @@ void iwl_trans_pcie_txq_enable(struct iwl_trans *trans, int txq_id, int fifo,
 		iwl_scd_txq_set_chain(trans, txq_id);
 
 	/* If this queue is mapped to a certain station: it is an AGG queue */
-	if (sta_id >= 0) {
-		u16 ra_tid = BUILD_RAxTID(sta_id, tid);
+	if (cfg->sta_id >= 0) {
+		u16 ra_tid = BUILD_RAxTID(cfg->sta_id, cfg->tid);
 
 		/* Map receiver-address / traffic-ID to this queue */
 		iwl_pcie_txq_set_ratid_map(trans, ra_tid, txq_id);
@@ -1124,12 +1125,12 @@ void iwl_trans_pcie_txq_enable(struct iwl_trans *trans, int txq_id, int fifo,
 	/* Set up Status area in SRAM, map to Tx DMA/FIFO, activate the queue */
 	iwl_write_prph(trans, SCD_QUEUE_STATUS_BITS(txq_id),
 		       (1 << SCD_QUEUE_STTS_REG_POS_ACTIVE) |
-		       (fifo << SCD_QUEUE_STTS_REG_POS_TXF) |
+		       (cfg->fifo << SCD_QUEUE_STTS_REG_POS_TXF) |
 		       (1 << SCD_QUEUE_STTS_REG_POS_WSL) |
 		       SCD_QUEUE_STTS_REG_MSK);
 	trans_pcie->txq[txq_id].active = true;
 	IWL_DEBUG_TX_QUEUES(trans, "Activate queue %d on FIFO %d WrPtr: %d\n",
-			    txq_id, fifo, ssn & 0xff);
+			    txq_id, cfg->fifo, ssn & 0xff);
 }
 
 void iwl_trans_pcie_txq_disable(struct iwl_trans *trans, int txq_id)
