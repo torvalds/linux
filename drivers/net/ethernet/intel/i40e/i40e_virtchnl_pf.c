@@ -669,7 +669,7 @@ void i40e_reset_vf(struct i40e_vf *vf, bool flr)
 	 */
 	for (i = 0; i < 100; i++) {
 		/* vf reset requires driver to first reset the
-		 * vf & than poll the status register to make sure
+		 * vf and then poll the status register to make sure
 		 * that the requested op was completed
 		 * successfully
 		 */
