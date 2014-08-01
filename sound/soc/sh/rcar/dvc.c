@@ -21,6 +21,7 @@ struct rsnd_dvc {
 	struct rsnd_mod mod;
 	struct clk *clk;
 	u8 volume[RSND_DVC_VOLUME_NUM];
+	u8 mute[RSND_DVC_VOLUME_NUM];
 };
 
 #define rsnd_mod_to_dvc(_mod)	\
@@ -37,13 +38,18 @@ static void rsnd_dvc_volume_update(struct rsnd_mod *mod)
 	struct rsnd_dvc *dvc = rsnd_mod_to_dvc(mod);
 	u32 max = (0x00800000 - 1);
 	u32 vol[RSND_DVC_VOLUME_NUM];
+	u32 mute = 0;
 	int i;
 
-	for (i = 0; i < RSND_DVC_VOLUME_NUM; i++)
+	for (i = 0; i < RSND_DVC_VOLUME_NUM; i++) {
 		vol[i] = max / RSND_DVC_VOLUME_MAX * dvc->volume[i];
+		mute |= (!!dvc->mute[i]) << i;
+	}
 
 	rsnd_mod_write(mod, DVC_VOL0R, vol[0]);
 	rsnd_mod_write(mod, DVC_VOL1R, vol[1]);
+
+	rsnd_mod_write(mod, DVC_ZCMCR, mute);
 }
 
 static int rsnd_dvc_probe_gen2(struct rsnd_mod *mod,
@@ -96,8 +102,8 @@ static int rsnd_dvc_init(struct rsnd_mod *dvc_mod,
 
 	rsnd_mod_write(dvc_mod, DVC_ADINR, rsnd_get_adinr(dvc_mod));
 
-	/*  enable Volume  */
-	rsnd_mod_write(dvc_mod, DVC_DVUCR, 0x100);
+	/*  enable Volume / Mute */
+	rsnd_mod_write(dvc_mod, DVC_DVUCR, 0x101);
 
 	/* ch0/ch1 Volume */
 	rsnd_dvc_volume_update(dvc_mod);
@@ -140,10 +146,20 @@ static int rsnd_dvc_stop(struct rsnd_mod *mod,
 static int rsnd_dvc_volume_info(struct snd_kcontrol *kctrl,
 			       struct snd_ctl_elem_info *uinfo)
 {
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
+	struct rsnd_mod *mod = snd_kcontrol_chip(kctrl);
+	struct rsnd_dvc *dvc = rsnd_mod_to_dvc(mod);
+	u8 *val = (u8 *)kctrl->private_value;
+
 	uinfo->count = RSND_DVC_VOLUME_NUM;
 	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = RSND_DVC_VOLUME_MAX;
+
+	if (val == dvc->volume) {
+		uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
+		uinfo->value.integer.max = RSND_DVC_VOLUME_MAX;
+	} else {
+		uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
+		uinfo->value.integer.max = 1;
+	}
 
 	return 0;
 }
@@ -220,6 +236,14 @@ static int rsnd_dvc_pcm_new(struct rsnd_mod *mod,
 			rsnd_dai_is_play(rdai, io) ?
 			"DVC Out Playback Volume" : "DVC In Capture Volume",
 			dvc->volume);
+	if (ret < 0)
+		return ret;
+
+	/* Mute */
+	ret = __rsnd_dvc_pcm_new(mod, rdai, rtd,
+			rsnd_dai_is_play(rdai, io) ?
+			"DVC Out Mute Switch" : "DVC In Mute Switch",
+			dvc->mute);
 	if (ret < 0)
 		return ret;
 
