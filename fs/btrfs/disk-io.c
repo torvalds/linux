@@ -2303,6 +2303,57 @@ static int btrfs_init_workqueues(struct btrfs_fs_info *fs_info,
 	return 0;
 }
 
+static int btrfs_replay_log(struct btrfs_fs_info *fs_info,
+			    struct btrfs_fs_devices *fs_devices)
+{
+	int ret;
+	struct btrfs_root *tree_root = fs_info->tree_root;
+	struct btrfs_root *log_tree_root;
+	struct btrfs_super_block *disk_super = fs_info->super_copy;
+	u64 bytenr = btrfs_super_log_root(disk_super);
+
+	if (fs_devices->rw_devices == 0) {
+		printk(KERN_WARNING "BTRFS: log replay required "
+		       "on RO media\n");
+		return -EIO;
+	}
+
+	log_tree_root = btrfs_alloc_root(fs_info);
+	if (!log_tree_root)
+		return -ENOMEM;
+
+	__setup_root(tree_root->nodesize, tree_root->sectorsize,
+			tree_root->stripesize, log_tree_root, fs_info,
+			BTRFS_TREE_LOG_OBJECTID);
+
+	log_tree_root->node = read_tree_block(tree_root, bytenr,
+			fs_info->generation + 1);
+	if (!log_tree_root->node ||
+	    !extent_buffer_uptodate(log_tree_root->node)) {
+		printk(KERN_ERR "BTRFS: failed to read log tree\n");
+		free_extent_buffer(log_tree_root->node);
+		kfree(log_tree_root);
+		return -EIO;
+	}
+	/* returns with log_tree_root freed on success */
+	ret = btrfs_recover_log_trees(log_tree_root);
+	if (ret) {
+		btrfs_error(tree_root->fs_info, ret,
+			    "Failed to recover log tree");
+		free_extent_buffer(log_tree_root->node);
+		kfree(log_tree_root);
+		return ret;
+	}
+
+	if (fs_info->sb->s_flags & MS_RDONLY) {
+		ret = btrfs_commit_super(tree_root);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 int open_ctree(struct super_block *sb,
 	       struct btrfs_fs_devices *fs_devices,
 	       char *options)
@@ -2323,7 +2374,6 @@ int open_ctree(struct super_block *sb,
 	struct btrfs_root *dev_root;
 	struct btrfs_root *quota_root;
 	struct btrfs_root *uuid_root;
-	struct btrfs_root *log_tree_root;
 	int ret;
 	int err = -EINVAL;
 	int num_backups_tried = 0;
@@ -2904,47 +2954,10 @@ retry_root_backup:
 
 	/* do not make disk changes in broken FS */
 	if (btrfs_super_log_root(disk_super) != 0) {
-		u64 bytenr = btrfs_super_log_root(disk_super);
-
-		if (fs_devices->rw_devices == 0) {
-			printk(KERN_WARNING "BTRFS: log replay required "
-			       "on RO media\n");
-			err = -EIO;
-			goto fail_qgroup;
-		}
-
-		log_tree_root = btrfs_alloc_root(fs_info);
-		if (!log_tree_root) {
-			err = -ENOMEM;
-			goto fail_qgroup;
-		}
-
-		__setup_root(nodesize, sectorsize, stripesize,
-			     log_tree_root, fs_info, BTRFS_TREE_LOG_OBJECTID);
-
-		log_tree_root->node = read_tree_block(tree_root, bytenr,
-						      generation + 1);
-		if (!log_tree_root->node ||
-		    !extent_buffer_uptodate(log_tree_root->node)) {
-			printk(KERN_ERR "BTRFS: failed to read log tree\n");
-			free_extent_buffer(log_tree_root->node);
-			kfree(log_tree_root);
-			goto fail_qgroup;
-		}
-		/* returns with log_tree_root freed on success */
-		ret = btrfs_recover_log_trees(log_tree_root);
+		ret = btrfs_replay_log(fs_info, fs_devices);
 		if (ret) {
-			btrfs_error(tree_root->fs_info, ret,
-				    "Failed to recover log tree");
-			free_extent_buffer(log_tree_root->node);
-			kfree(log_tree_root);
+			err = ret;
 			goto fail_qgroup;
-		}
-
-		if (sb->s_flags & MS_RDONLY) {
-			ret = btrfs_commit_super(tree_root);
-			if (ret)
-				goto fail_qgroup;
 		}
 	}
 
