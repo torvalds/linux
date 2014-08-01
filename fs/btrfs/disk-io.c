@@ -2199,6 +2199,16 @@ static void btrfs_init_btree_inode(struct btrfs_fs_info *fs_info,
 	btrfs_insert_inode_hash(fs_info->btree_inode);
 }
 
+static void btrfs_init_dev_replace_locks(struct btrfs_fs_info *fs_info)
+{
+	fs_info->dev_replace.lock_owner = 0;
+	atomic_set(&fs_info->dev_replace.nesting_level, 0);
+	mutex_init(&fs_info->dev_replace.lock_finishing_cancel_unmount);
+	mutex_init(&fs_info->dev_replace.lock_management_lock);
+	mutex_init(&fs_info->dev_replace.lock);
+	init_waitqueue_head(&fs_info->replace_wait);
+}
+
 int open_ctree(struct super_block *sb,
 	       struct btrfs_fs_devices *fs_devices,
 	       char *options)
@@ -2348,7 +2358,6 @@ int open_ctree(struct super_block *sb,
 	btrfs_init_delayed_root(fs_info->delayed_root);
 
 	btrfs_init_scrub(fs_info);
-	init_waitqueue_head(&fs_info->replace_wait);
 #ifdef CONFIG_BTRFS_FS_CHECK_INTEGRITY
 	fs_info->check_integrity_print_mask = 0;
 #endif
@@ -2384,11 +2393,8 @@ int open_ctree(struct super_block *sb,
 	init_rwsem(&fs_info->cleanup_work_sem);
 	init_rwsem(&fs_info->subvol_sem);
 	sema_init(&fs_info->uuid_tree_rescan_sem, 1);
-	fs_info->dev_replace.lock_owner = 0;
-	atomic_set(&fs_info->dev_replace.nesting_level, 0);
-	mutex_init(&fs_info->dev_replace.lock_finishing_cancel_unmount);
-	mutex_init(&fs_info->dev_replace.lock_management_lock);
-	mutex_init(&fs_info->dev_replace.lock);
+
+	btrfs_init_dev_replace_locks(fs_info);
 
 	spin_lock_init(&fs_info->qgroup_lock);
 	mutex_init(&fs_info->qgroup_ioctl_lock);
