@@ -1263,6 +1263,7 @@ static void tegra114_wait_cpu_in_reset(u32 cpu)
 		cpu_relax();
 	} while (!(reg & (1 << cpu)));  /* check CPU been reset or not */
 }
+
 static void tegra114_disable_cpu_clock(u32 cpu)
 {
 	/* flow controller would take care in the power sequence. */
@@ -1350,7 +1351,6 @@ static void __init tegra114_clock_apply_init_table(void)
 {
 	tegra_init_from_table(init_table, clks, TEGRA114_CLK_CLK_MAX);
 }
-
 
 /**
  * tegra114_car_barrier - wait for pending writes to the CAR to complete
