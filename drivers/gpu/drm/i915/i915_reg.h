@@ -3756,7 +3756,6 @@ enum punit_power_well {
 #define   PIPE_VSYNC_INTERRUPT_STATUS		(1UL<<9)
 #define   PIPE_DISPLAY_LINE_COMPARE_STATUS	(1UL<<8)
 #define   PIPE_DPST_EVENT_STATUS		(1UL<<7)
-#define   PIPE_LEGACY_BLC_EVENT_STATUS		(1UL<<6)
 #define   PIPE_A_PSR_STATUS_VLV			(1UL<<6)
 #define   PIPE_LEGACY_BLC_EVENT_STATUS		(1UL<<6)
 #define   PIPE_ODD_FIELD_INTERRUPT_STATUS	(1UL<<5)
@@ -5431,7 +5430,6 @@ enum punit_power_well {
 #define   VLV_GTLC_ALLOWWAKEERR			(1 << 1)
 #define   VLV_GTLC_PW_MEDIA_STATUS_MASK		(1 << 5)
 #define   VLV_GTLC_PW_RENDER_STATUS_MASK	(1 << 7)
-#define VLV_GTLC_SURVIVABILITY_REG              0x130098
 #define  FORCEWAKE_MT				0xa188 /* multi-threaded */
 #define   FORCEWAKE_KERNEL			0x1
 #define   FORCEWAKE_USER			0x2
