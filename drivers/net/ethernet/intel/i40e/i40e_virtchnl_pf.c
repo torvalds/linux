@@ -1163,8 +1163,8 @@ static int i40e_vc_config_promiscuous_mode_msg(struct i40e_vf *vf,
 	    (struct i40e_virtchnl_promisc_info *)msg;
 	struct i40e_pf *pf = vf->pf;
 	struct i40e_hw *hw = &pf->hw;
+	struct i40e_vsi *vsi;
 	bool allmulti = false;
-	bool promisc = false;
 	i40e_status aq_ret;
 
 	if (!test_bit(I40E_VF_STAT_ACTIVE, &vf->vf_states) ||
@@ -1174,17 +1174,10 @@ static int i40e_vc_config_promiscuous_mode_msg(struct i40e_vf *vf,
 		aq_ret = I40E_ERR_PARAM;
 		goto error_param;
 	}
-
-	if (info->flags & I40E_FLAG_VF_UNICAST_PROMISC)
-		promisc = true;
-	aq_ret = i40e_aq_set_vsi_unicast_promiscuous(hw, info->vsi_id,
-						     promisc, NULL);
-	if (aq_ret)
-		goto error_param;
-
+	vsi = pf->vsi[info->vsi_id];
 	if (info->flags & I40E_FLAG_VF_MULTICAST_PROMISC)
 		allmulti = true;
-	aq_ret = i40e_aq_set_vsi_multicast_promiscuous(hw, info->vsi_id,
+	aq_ret = i40e_aq_set_vsi_multicast_promiscuous(hw, vsi->seid,
 						       allmulti, NULL);
 
 error_param:
