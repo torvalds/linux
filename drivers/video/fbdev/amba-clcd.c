@@ -797,7 +797,7 @@ static struct clcd_board *clcdfb_of_get_board(struct amba_device *dev)
 	return board;
 }
 #else
-static struct clcd_board *clcdfb_of_get_board(struct amba_dev *dev)
+static struct clcd_board *clcdfb_of_get_board(struct amba_device *dev)
 {
 	return NULL;
 }
