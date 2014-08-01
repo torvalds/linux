@@ -2158,6 +2158,17 @@ static void btrfs_init_scrub(struct btrfs_fs_info *fs_info)
 	fs_info->scrub_workers_refcnt = 0;
 }
 
+static void btrfs_init_balance(struct btrfs_fs_info *fs_info)
+{
+	spin_lock_init(&fs_info->balance_lock);
+	mutex_init(&fs_info->balance_mutex);
+	atomic_set(&fs_info->balance_running, 0);
+	atomic_set(&fs_info->balance_pause_req, 0);
+	atomic_set(&fs_info->balance_cancel_req, 0);
+	fs_info->balance_ctl = NULL;
+	init_waitqueue_head(&fs_info->balance_wait_q);
+}
+
 int open_ctree(struct super_block *sb,
 	       struct btrfs_fs_devices *fs_devices,
 	       char *options)
@@ -2311,14 +2322,7 @@ int open_ctree(struct super_block *sb,
 #ifdef CONFIG_BTRFS_FS_CHECK_INTEGRITY
 	fs_info->check_integrity_print_mask = 0;
 #endif
-
-	spin_lock_init(&fs_info->balance_lock);
-	mutex_init(&fs_info->balance_mutex);
-	atomic_set(&fs_info->balance_running, 0);
-	atomic_set(&fs_info->balance_pause_req, 0);
-	atomic_set(&fs_info->balance_cancel_req, 0);
-	fs_info->balance_ctl = NULL;
-	init_waitqueue_head(&fs_info->balance_wait_q);
+	btrfs_init_balance(fs_info);
 	btrfs_init_async_reclaim_work(&fs_info->async_reclaim_work);
 
 	sb->s_blocksize = 4096;
