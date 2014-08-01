@@ -3267,7 +3267,7 @@ static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
                         /* fixup for external dmac setting */
                         mmc->max_segs = 64;
 		        mmc->max_blk_size = 65536; /* BLKSIZ is 16 bits */
-		        mmc->max_blk_count = 512;
+		        mmc->max_blk_count = 65535;
 		        mmc->max_req_size = mmc->max_blk_size * mmc->max_blk_count;
 		        mmc->max_seg_size = mmc->max_req_size; 
                 }
