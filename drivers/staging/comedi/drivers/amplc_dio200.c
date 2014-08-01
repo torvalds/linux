@@ -254,16 +254,13 @@ static const struct dio200_board dio200_isa_boards[] = {
 
 static int dio200_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
-	unsigned int irq;
 	int ret;
-
-	irq = it->options[1];
 
 	ret = comedi_request_region(dev, it->options[0], 0x20);
 	if (ret)
 		return ret;
 
-	return amplc_dio200_common_attach(dev, irq, 0);
+	return amplc_dio200_common_attach(dev, it->options[1], 0);
 }
 
 static void dio200_detach(struct comedi_device *dev)
