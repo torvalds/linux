@@ -203,7 +203,6 @@
 static const struct dio200_board dio200_isa_boards[] = {
 	{
 		.name = "pc212e",
-		.bustype = isa_bustype,
 		.mainsize = DIO200_IO_SIZE,
 		.layout = {
 			.n_subdevs = 6,
@@ -216,7 +215,6 @@ static const struct dio200_board dio200_isa_boards[] = {
 	},
 	{
 		.name = "pc214e",
-		.bustype = isa_bustype,
 		.mainsize = DIO200_IO_SIZE,
 		.layout = {
 			.n_subdevs = 4,
@@ -226,7 +224,6 @@ static const struct dio200_board dio200_isa_boards[] = {
 	},
 	{
 		.name = "pc215e",
-		.bustype = isa_bustype,
 		.mainsize = DIO200_IO_SIZE,
 		.layout = {
 			.n_subdevs = 5,
@@ -238,7 +235,6 @@ static const struct dio200_board dio200_isa_boards[] = {
 	},
 	{
 		.name = "pc218e",
-		.bustype = isa_bustype,
 		.mainsize = DIO200_IO_SIZE,
 		.layout = {
 			.n_subdevs = 7,
@@ -251,7 +247,6 @@ static const struct dio200_board dio200_isa_boards[] = {
 	},
 	{
 		.name = "pc272e",
-		.bustype = isa_bustype,
 		.mainsize = DIO200_IO_SIZE,
 		.layout = {
 			.n_subdevs = 4,

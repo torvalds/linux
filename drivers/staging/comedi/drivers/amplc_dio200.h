@@ -48,12 +48,9 @@ struct dio200_layout {
 	bool has_enhancements:1;	/* has enhanced features */
 };
 
-enum dio200_bustype { isa_bustype, pci_bustype };
-
 struct dio200_board {
 	const char *name;
 	struct dio200_layout layout;
-	enum dio200_bustype bustype;
 	unsigned char mainbar;
 	unsigned char mainshift;
 	unsigned int mainsize;
