@@ -1722,15 +1722,14 @@ static const struct clk_ops clk_pll_ops_3036plus_auto = {
 static long clk_cpll_round_rate_312xplus(struct clk_hw *hw, unsigned long rate,
 		unsigned long *prate)
 {
-	struct clk *parent = __clk_get_parent(hw->clk);
+	unsigned long best;
 
-	if (parent && (rate == __clk_get_rate(parent))) {
-		clk_debug("pll %s round rate=%lu equal to parent rate\n",
-				__clk_get_name(hw->clk), rate);
-		return rate;
+	for (best = rate; best > 0; best--) {
+		if (!pll_clk_get_best_set(*prate, best, NULL, NULL, NULL))
+			return best;
 	}
 
-	return (pll_com_get_best_set(rate, rk312xplus_pll_com_table)->rate);
+	return 0;
 }
 
 static int clk_cpll_set_rate_312xplus(struct clk_hw *hw, unsigned long rate,

@@ -157,6 +157,97 @@
 
 		};
 
+		pd_cons {
+			compatible = "rockchip,rk-pd-cons";
+
+			pd_gpu: pd_gpu {
+				compatible = "rockchip,rk-pd-clock";
+				clock-output-names = "pd_gpu";
+				rockchip,pd-id = <CLK_PD_GPU>;
+				#clock-cells = <0>;
+			};
+
+			pd_video: pd_video {
+				compatible = "rockchip,rk-pd-clock";
+				clock-output-names = "pd_video";
+				rockchip,pd-id = <CLK_PD_VIDEO>;
+				#clock-cells = <0>;
+			};
+
+			pd_vio: pd_vio {
+				compatible = "rockchip,rk-pd-clock";
+				clock-output-names = "pd_vio";
+				rockchip,pd-id = <CLK_PD_VIO>;
+				#clock-cells = <0>;
+			};
+
+			pd_vop0: pd_vop0 {
+				compatible = "rockchip,rk-pd-clock";
+				clocks = <&pd_vio>;
+				clock-output-names = "pd_vop0";
+				rockchip,pd-id = <CLK_PD_VIRT>;
+				#clock-cells = <0>;
+			};
+
+			pd_vop1: pd_vop1 {
+				compatible = "rockchip,rk-pd-clock";
+				clocks = <&pd_vio>;
+				clock-output-names = "pd_vop1";
+				rockchip,pd-id = <CLK_PD_VIRT>;
+				#clock-cells = <0>;
+			};
+
+			pd_vip: pd_vip {
+				compatible = "rockchip,rk-pd-clock";
+				clocks = <&pd_vio>;
+				clock-output-names = "pd_vip";
+				rockchip,pd-id = <CLK_PD_VIRT>;
+				#clock-cells = <0>;
+			};
+
+			pd_iep: pd_iep {
+				compatible = "rockchip,rk-pd-clock";
+				clocks = <&pd_vio>;
+				clock-output-names = "pd_iep";
+				rockchip,pd-id = <CLK_PD_VIRT>;
+				#clock-cells = <0>;
+			};
+
+			pd_rga: pd_rga {
+				compatible = "rockchip,rk-pd-clock";
+				clocks = <&pd_vio>;
+				clock-output-names = "pd_rga";
+				rockchip,pd-id = <CLK_PD_VIRT>;
+				#clock-cells = <0>;
+			};
+
+			pd_ebc: pd_ebc {
+				compatible = "rockchip,rk-pd-clock";
+				clocks = <&pd_vio>;
+				clock-output-names = "pd_ebc";
+				rockchip,pd-id = <CLK_PD_VIRT>;
+				#clock-cells = <0>;
+			};
+
+			pd_mipidsi: pd_mipidsi {
+				compatible = "rockchip,rk-pd-clock";
+				clocks = <&pd_vio>;
+				clock-output-names = "pd_mipidsi";
+				rockchip,pd-id = <CLK_PD_VIRT>;
+				#clock-cells = <0>;
+			};
+
+			pd_hdmi: pd_hdmi {
+				compatible = "rockchip,rk-pd-clock";
+				clocks = <&pd_vio>;
+				clock-output-names = "pd_hdmi";
+				rockchip,pd-id = <CLK_PD_VIRT>;
+				#clock-cells = <0>;
+			};
+
+		};
+
+
 		clock_regs {
 			compatible = "rockchip,rk-clock-regs";
 			#address-cells = <1>;
