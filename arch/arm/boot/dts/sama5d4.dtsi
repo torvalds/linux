@@ -771,7 +771,7 @@
 						reg = <50>;
 					};
 
-					lcd_clk: lcd_clk {
+					lcdc_clk: lcdc_clk {
 						#clock-cells = <0>;
 						reg = <51>;
 					};
