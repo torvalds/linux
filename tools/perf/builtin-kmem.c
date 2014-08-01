@@ -256,6 +256,8 @@ static int process_sample_event(struct perf_tool *tool __maybe_unused,
 static struct perf_tool perf_kmem = {
 	.sample		 = process_sample_event,
 	.comm		 = perf_event__process_comm,
+	.mmap		 = perf_event__process_mmap,
+	.mmap2		 = perf_event__process_mmap2,
 	.ordered_events	 = true,
 };
 
@@ -423,9 +425,6 @@ static int __cmd_kmem(void)
 	session = perf_session__new(&file, false, &perf_kmem);
 	if (session == NULL)
 		return -ENOMEM;
-
-	if (perf_session__create_kernel_maps(session) < 0)
-		goto out_delete;
 
 	if (!perf_session__has_traces(session, "kmem record"))
 		goto out_delete;
