@@ -193,7 +193,7 @@ static void i40evf_set_msglevel(struct net_device *netdev, u32 data)
 }
 
 /**
- * i40evf_get_drvinto - Get driver info
+ * i40evf_get_drvinfo - Get driver info
  * @netdev: network interface device structure
  * @drvinfo: ethool driver info structure
  *
