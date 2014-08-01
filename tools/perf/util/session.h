@@ -9,27 +9,12 @@
 #include "symbol.h"
 #include "thread.h"
 #include "data.h"
+#include "ordered-events.h"
 #include <linux/rbtree.h>
 #include <linux/perf_event.h>
 
-struct ordered_event;
 struct ip_callchain;
 struct thread;
-
-struct ordered_events {
-	u64			last_flush;
-	u64			next_flush;
-	u64			max_timestamp;
-	u64			max_alloc_size;
-	u64			cur_alloc_size;
-	struct list_head	events;
-	struct list_head	cache;
-	struct list_head	to_free;
-	struct ordered_event	*buffer;
-	struct ordered_event	*last;
-	int			buffer_idx;
-	unsigned int		nr_events;
-};
 
 struct perf_session {
 	struct perf_header	header;
