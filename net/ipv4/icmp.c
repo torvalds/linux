@@ -670,11 +670,9 @@ static void icmp_socket_deliver(struct sk_buff *skb, u32 info)
 
 	raw_icmp_error(skb, protocol, info);
 
-	rcu_read_lock();
 	ipprot = rcu_dereference(inet_protos[protocol]);
 	if (ipprot && ipprot->err_handler)
 		ipprot->err_handler(skb, info);
-	rcu_read_unlock();
 }
 
 static bool icmp_tag_validation(int proto)
