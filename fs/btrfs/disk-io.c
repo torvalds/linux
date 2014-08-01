@@ -3670,7 +3670,7 @@ void close_ctree(struct btrfs_root *root)
 	if (!(fs_info->sb->s_flags & MS_RDONLY)) {
 		ret = btrfs_commit_super(root);
 		if (ret)
-			btrfs_err(root->fs_info, "commit super ret %d", ret);
+			btrfs_err(fs_info, "commit super ret %d", ret);
 	}
 
 	if (test_bit(BTRFS_FS_STATE_ERROR, &fs_info->fs_state))
@@ -3682,10 +3682,10 @@ void close_ctree(struct btrfs_root *root)
 	fs_info->closing = 2;
 	smp_mb();
 
-	btrfs_free_qgroup_config(root->fs_info);
+	btrfs_free_qgroup_config(fs_info);
 
 	if (percpu_counter_sum(&fs_info->delalloc_bytes)) {
-		btrfs_info(root->fs_info, "at unmount delalloc count %lld",
+		btrfs_info(fs_info, "at unmount delalloc count %lld",
 		       percpu_counter_sum(&fs_info->delalloc_bytes));
 	}
 
