@@ -1012,7 +1012,7 @@ static int atmel_spi_setup(struct spi_device *spi)
 	csr |= SPI_BF(DLYBCT, 0);
 
 	/* chipselect must have been muxed as GPIO (e.g. in board setup) */
-	npcs_pin = (unsigned int)spi->controller_data;
+	npcs_pin = (unsigned long)spi->controller_data;
 
 	if (gpio_is_valid(spi->cs_gpio))
 		npcs_pin = spi->cs_gpio;
@@ -1247,7 +1247,7 @@ msg_done:
 static void atmel_spi_cleanup(struct spi_device *spi)
 {
 	struct atmel_spi_device	*asd = spi->controller_state;
-	unsigned		gpio = (unsigned) spi->controller_data;
+	unsigned		gpio = (unsigned long) spi->controller_data;
 
 	if (!asd)
 		return;
