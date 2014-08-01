@@ -141,24 +141,25 @@ static void rk3036_hdmi_early_suspend(void)
 
 	flush_delayed_work(&hdmi_drv->delay_work);
 	mutex_lock(&hdmi_drv->enable_mutex);
-	hdmi_drv->suspend = 1;
-	if (!hdmi_drv->enable) {
+	if (!hdmi_drv->suspend) {
+		hdmi_drv->suspend = 1;
+		if (!hdmi_drv->enable) {
+			mutex_unlock(&hdmi_drv->enable_mutex);
+			return;
+		}
+	
+		if (hdmi_drv->irq)
+			disable_irq(hdmi_drv->irq);
+	
 		mutex_unlock(&hdmi_drv->enable_mutex);
-		return;
+		hdmi_drv->command = HDMI_CONFIG_ENABLE;
+		init_completion(&hdmi_drv->complete);
+		hdmi_drv->wait = 1;
+		queue_delayed_work(hdmi_drv->workqueue, &hdmi_drv->delay_work, 0);
+		wait_for_completion_interruptible_timeout(&hdmi_drv->complete,
+							  msecs_to_jiffies(5000));
+		flush_delayed_work(&hdmi_drv->delay_work);
 	}
-
-	if (hdmi_drv->irq)
-		disable_irq(hdmi_drv->irq);
-
-	mutex_unlock(&hdmi_drv->enable_mutex);
-	hdmi_drv->command = HDMI_CONFIG_ENABLE;
-	init_completion(&hdmi_drv->complete);
-	hdmi_drv->wait = 1;
-	queue_delayed_work(hdmi_drv->workqueue, &hdmi_drv->delay_work, 0);
-	wait_for_completion_interruptible_timeout(&hdmi_drv->complete,
-						  msecs_to_jiffies(5000));
-	flush_delayed_work(&hdmi_drv->delay_work);
-
 }
 
 static void rk3036_hdmi_early_resume(void)
@@ -168,16 +169,17 @@ static void rk3036_hdmi_early_resume(void)
 	hdmi_dbg(hdmi_drv->dev, "hdmi exit early resume\n");
 
 	mutex_lock(&hdmi_drv->enable_mutex);
-
-	hdmi_drv->suspend = 0;
-	rk3036_hdmi_initial(hdmi_drv);
-	if (hdmi_drv->enable && hdmi_drv->irq) {
-		enable_irq(hdmi_drv->irq);
-		rk3036_hdmi_irq(hdmi_drv);
+	if (hdmi_drv->suspend) {
+		hdmi_drv->suspend = 0;
+		rk3036_hdmi_initial(hdmi_drv);
+		if (hdmi_drv->enable && hdmi_drv->irq) {
+			enable_irq(hdmi_drv->irq);
+			rk3036_hdmi_irq(hdmi_drv);
+		}
+	
+		queue_delayed_work(hdmi_drv->workqueue, &hdmi_drv->delay_work,
+				   msecs_to_jiffies(10));
 	}
-
-	queue_delayed_work(hdmi_drv->workqueue, &hdmi_drv->delay_work,
-			   msecs_to_jiffies(10));
 	mutex_unlock(&hdmi_drv->enable_mutex);
 }
 
