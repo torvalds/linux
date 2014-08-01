@@ -82,7 +82,6 @@ static const u32 bdw_ddi_translations_edp[] = {
 	0x00BEEFFF, 0x000A000C,
 	0x00FFFFFF, 0x0005000F,
 	0x00DB6FFF, 0x000A000C,
-	0x00FFFFFF, 0x00140006		/* HDMI parameters 800mV 0dB*/
 };
 
 static const u32 bdw_ddi_translations_dp[] = {
@@ -95,7 +94,6 @@ static const u32 bdw_ddi_translations_dp[] = {
 	0x80CB2FFF, 0x001B0002,
 	0x00F7DFFF, 0x00180004,
 	0x80D75FFF, 0x001B0002,
-	0x00FFFFFF, 0x00140006		/* HDMI parameters 800mV 0dB*/
 };
 
 static const u32 bdw_ddi_translations_fdi[] = {
@@ -108,7 +106,6 @@ static const u32 bdw_ddi_translations_fdi[] = {
 	0x00C30FFF, 0x000C0000,
 	0x00FFFFFF, 0x00070006,
 	0x00D75FFF, 0x000C0000,
-	0x00FFFFFF, 0x00140006		/* HDMI parameters 800mV 0dB*/
 };
 
 static const u32 bdw_ddi_translations_hdmi[] = {
