@@ -351,8 +351,9 @@ static void controlvm_respond_physdev_changestate(CONTROLVM_MESSAGE_HEADER *
 						  msgHdr, int response,
 						  ULTRA_SEGMENT_STATE state);
 
-ssize_t toolaction_show(struct device *dev, struct device_attribute *attr,
-		char *buf)
+static ssize_t toolaction_show(struct device *dev,
+			       struct device_attribute *attr,
+			       char *buf)
 {
 	u8 toolAction;
 
@@ -362,8 +363,9 @@ ssize_t toolaction_show(struct device *dev, struct device_attribute *attr,
 	return scnprintf(buf, PAGE_SIZE, "%u\n", toolAction);
 }
 
-ssize_t toolaction_store(struct device *dev, struct device_attribute *attr,
-		const char *buf, size_t count)
+static ssize_t toolaction_store(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
 {
 	u8 toolAction;
 	int ret;
@@ -381,8 +383,9 @@ ssize_t toolaction_store(struct device *dev, struct device_attribute *attr,
 		return count;
 }
 
-ssize_t boottotool_show(struct device *dev, struct device_attribute *attr,
-		char *buf)
+static ssize_t boottotool_show(struct device *dev,
+			       struct device_attribute *attr,
+			       char *buf)
 {
 	ULTRA_EFI_SPAR_INDICATION efiSparIndication;
 
@@ -394,8 +397,9 @@ ssize_t boottotool_show(struct device *dev, struct device_attribute *attr,
 			efiSparIndication.BootToTool);
 }
 
-ssize_t boottotool_store(struct device *dev, struct device_attribute *attr,
-		const char *buf, size_t count)
+static ssize_t boottotool_store(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
 {
 	int val, ret;
 	ULTRA_EFI_SPAR_INDICATION efiSparIndication;
@@ -1897,7 +1901,7 @@ handle_command(CONTROLVM_MESSAGE inmsg, HOSTADDRESS channel_addr)
 	return TRUE;
 }
 
-HOSTADDRESS controlvm_get_channel_address(void)
+static HOSTADDRESS controlvm_get_channel_address(void)
 {
 	u64 addr = 0;
 	u32 size = 0;
