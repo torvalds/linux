@@ -294,14 +294,16 @@ static int atc_get_bytes_left(struct dma_chan *chan)
 			ret = -EINVAL;
 			goto out;
 		}
-		atchan->remain_desc -= (desc_cur->lli.ctrla & ATC_BTSIZE_MAX)
-						<< (desc_first->tx_width);
-		if (atchan->remain_desc < 0) {
+
+		count = (desc_cur->lli.ctrla & ATC_BTSIZE_MAX)
+			<< desc_first->tx_width;
+		if (atchan->remain_desc < count) {
 			ret = -EINVAL;
 			goto out;
-		} else {
-			ret = atchan->remain_desc;
 		}
+
+		atchan->remain_desc -= count;
+		ret = atchan->remain_desc;
 	} else {
 		/*
 		 * Get residual bytes when current
