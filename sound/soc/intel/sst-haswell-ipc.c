@@ -782,7 +782,8 @@ static int hsw_process_reply(struct sst_hsw *hsw, u32 header)
 	}
 
 	/* update any stream states */
-	hsw_stream_update(hsw, msg);
+	if (msg_get_global_type(header) == IPC_GLB_STREAM_MESSAGE)
+		hsw_stream_update(hsw, msg);
 
 	/* wake up and return the error if we have waiters on this message ? */
 	list_del(&msg->list);
