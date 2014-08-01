@@ -562,9 +562,8 @@ struct iwl_mvm {
 
 	struct mvm_statistics_rx rx_stats;
 
-	unsigned long transport_queue_stop;
 	u8 queue_to_mac80211[IWL_MAX_HW_QUEUES];
-	atomic_t queue_stop_count[IWL_MAX_HW_QUEUES];
+	atomic_t mac80211_queue_stop_count[IEEE80211_MAX_QUEUES];
 
 	const char *nvm_file_name;
 	struct iwl_nvm_data *nvm_data;

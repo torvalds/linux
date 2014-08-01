@@ -703,14 +703,13 @@ static void iwl_mvm_stop_sw_queue(struct iwl_op_mode *op_mode, int queue)
 	if (WARN_ON_ONCE(mq == IWL_INVALID_MAC80211_QUEUE))
 		return;
 
-	if (atomic_inc_return(&mvm->queue_stop_count[mq]) > 1) {
+	if (atomic_inc_return(&mvm->mac80211_queue_stop_count[mq]) > 1) {
 		IWL_DEBUG_TX_QUEUES(mvm,
 				    "queue %d (mac80211 %d) already stopped\n",
 				    queue, mq);
 		return;
 	}
 
-	set_bit(mq, &mvm->transport_queue_stop);
 	ieee80211_stop_queue(mvm->hw, mq);
 }
 
@@ -722,14 +721,12 @@ static void iwl_mvm_wake_sw_queue(struct iwl_op_mode *op_mode, int queue)
 	if (WARN_ON_ONCE(mq == IWL_INVALID_MAC80211_QUEUE))
 		return;
 
-	if (atomic_dec_return(&mvm->queue_stop_count[mq]) > 0) {
+	if (atomic_dec_return(&mvm->mac80211_queue_stop_count[mq]) > 0) {
 		IWL_DEBUG_TX_QUEUES(mvm,
-				    "queue %d (mac80211 %d) already awake\n",
+				    "queue %d (mac80211 %d) still stopped\n",
 				    queue, mq);
 		return;
 	}
-
-	clear_bit(mq, &mvm->transport_queue_stop);
 
 	ieee80211_wake_queue(mvm->hw, mq);
 }
