@@ -203,7 +203,6 @@
 static const struct dio200_board dio200_isa_boards[] = {
 	{
 		.name = "pc212e",
-		.mainsize = DIO200_IO_SIZE,
 		.layout = {
 			.n_subdevs = 6,
 			.sdtype = {sd_8255, sd_8254, sd_8254, sd_8254, sd_8254,
@@ -215,7 +214,6 @@ static const struct dio200_board dio200_isa_boards[] = {
 	},
 	{
 		.name = "pc214e",
-		.mainsize = DIO200_IO_SIZE,
 		.layout = {
 			.n_subdevs = 4,
 			.sdtype = {sd_8255, sd_8255, sd_8254, sd_intr},
@@ -224,7 +222,6 @@ static const struct dio200_board dio200_isa_boards[] = {
 	},
 	{
 		.name = "pc215e",
-		.mainsize = DIO200_IO_SIZE,
 		.layout = {
 			.n_subdevs = 5,
 			.sdtype = {sd_8255, sd_8255, sd_8254, sd_8254, sd_intr},
@@ -235,7 +232,6 @@ static const struct dio200_board dio200_isa_boards[] = {
 	},
 	{
 		.name = "pc218e",
-		.mainsize = DIO200_IO_SIZE,
 		.layout = {
 			.n_subdevs = 7,
 			.sdtype = {sd_8254, sd_8254, sd_8255, sd_8254, sd_8254,
@@ -247,7 +243,6 @@ static const struct dio200_board dio200_isa_boards[] = {
 	},
 	{
 		.name = "pc272e",
-		.mainsize = DIO200_IO_SIZE,
 		.layout = {
 			.n_subdevs = 4,
 			.sdtype = {sd_8255, sd_8255, sd_8255, sd_intr},
@@ -259,13 +254,12 @@ static const struct dio200_board dio200_isa_boards[] = {
 
 static int dio200_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
-	const struct dio200_board *thisboard = comedi_board(dev);
 	unsigned int irq;
 	int ret;
 
 	irq = it->options[1];
 
-	ret = comedi_request_region(dev, it->options[0], thisboard->mainsize);
+	ret = comedi_request_region(dev, it->options[0], 0x20);
 	if (ret)
 		return ret;
 
