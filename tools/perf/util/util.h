@@ -346,4 +346,5 @@ void mem_bswap_64(void *src, int byte_size);
 void mem_bswap_32(void *src, int byte_size);
 
 const char *get_filename_for_perf_kvm(void);
+bool find_process(const char *name);
 #endif /* GIT_COMPAT_UTIL_H */
