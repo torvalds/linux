@@ -1040,7 +1040,7 @@ static int pl08x_fill_llis_for_desc(struct pl08x_driver_data *pl08x,
 
 		if (early_bytes) {
 			dev_vdbg(&pl08x->adev->dev,
-				"%s byte width LLIs (remain 0x%08x)\n",
+				"%s byte width LLIs (remain 0x%08zx)\n",
 				__func__, bd.remainder);
 			prep_byte_width_lli(pl08x, &bd, &cctl, early_bytes,
 				num_llis++, &total_bytes);
@@ -1662,7 +1662,7 @@ static struct dma_async_tx_descriptor *pl08x_prep_dma_cyclic(
 	dma_addr_t slave_addr;
 
 	dev_dbg(&pl08x->adev->dev,
-		"%s prepare cyclic transaction of %d/%d bytes %s %s\n",
+		"%s prepare cyclic transaction of %zd/%zd bytes %s %s\n",
 		__func__, period_len, buf_len,
 		direction == DMA_MEM_TO_DEV ? "to" : "from",
 		plchan->name);
