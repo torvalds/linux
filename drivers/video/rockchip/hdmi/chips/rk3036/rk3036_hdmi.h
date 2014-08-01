@@ -19,6 +19,11 @@ extern int rk3036_hdmi_register_hdcp_callbacks(void (*hdcp_cb)(void),
 					      void (*hdcp_irq_cb)(int status),
 					      int (*hdcp_power_on_cb)(void),
 					      void (*hdcp_power_off_cb)(void));
+extern int rk3036_hdmi_register_cec_callbacks(void (*cec_irq)(void),
+						      void (*cec_set_device_pa)(int addr),
+						      int (*cec_enumerate)(void));
+
+
 extern struct rk_hdmi_device *hdmi_dev;
 
 struct rk_hdmi_device {

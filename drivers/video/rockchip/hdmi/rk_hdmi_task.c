@@ -217,6 +217,10 @@ void hdmi_work(struct work_struct *work)
 		case READ_PARSE_EDID:
 			rc = hdmi_sys_parse_edid(hdmi);
 			if (rc == HDMI_ERROR_SUCESS) {
+				if(hdmi->cec_set_device_pa)
+					hdmi->cec_set_device_pa(hdmi->edid.cecaddress);
+				if(hdmi->cec_enumerate)
+					hdmi->cec_enumerate();
 				hdmi->state = SYSTEM_CONFIG;
 				kobject_uevent_env(&hdmi->dev->kobj, KOBJ_ADD,
 						   envp);

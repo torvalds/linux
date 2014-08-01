@@ -532,6 +532,8 @@ void rk3036_hdmi_irq(struct hdmi *hdmi_drv)
 
 	if (hdmi_drv->hdcp_irq_cb)
 		hdmi_drv->hdcp_irq_cb(0);
+	if (hdmi_drv->cec_irq)
+		hdmi_drv->cec_irq();
 }
 
 static void rk3036_hdmi_reset(struct hdmi *hdmi_drv)

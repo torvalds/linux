@@ -284,6 +284,7 @@ struct hdmi_edid {
 	struct hdmi_audio *audio;	/* Device supported audio info */
 	int audio_num;			/* Device supported audio type number */
 	int base_audio_support;		/* Device supported base audio */
+	unsigned int  cecaddress;                       //CEC physical address
 };
 
 /* RK HDMI Video Configure Parameters */
@@ -361,11 +362,16 @@ struct hdmi {
 	int (*set_vif) (struct hdmi *hdmi, struct rk_screen *screen,
 			bool connect);
 
-	/* call back for hdcp operatoion */
+	/* call back for hdcp operation */
 	void (*hdcp_cb) (void);
 	void (*hdcp_irq_cb) (int);
 	int (*hdcp_power_on_cb) (void);
 	void (*hdcp_power_off_cb) (void);
+
+	/*call back for cec operation*/
+	void (*cec_irq) (void);
+	void (*cec_set_device_pa) (int);
+	int (*cec_enumerate) (void);
 };
 
 #define hdmi_err(dev, format, arg...)		\

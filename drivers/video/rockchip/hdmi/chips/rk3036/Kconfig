@@ -11,3 +11,9 @@ config HDCP_RK3036_DEBUG
         default n
 	help
 	  Enableds verbose debugging the the HDCP drivers
+
+config CEC_RK3036
+	bool "RK3036 CEC support"
+        default n
+	help
+	  CEC Interface. This adds the HDMI CEC Interface.

@@ -2,6 +2,8 @@
 #define _RK3036_HDMI_HW_H
 
 #include <linux/rockchip/iomap.h>
+#include <linux/delay.h>
+
 enum PWR_MODE {
 	NORMAL,
 	LOWER_PWR,
@@ -281,6 +283,41 @@ enum {
 
 #define PHY_PRE_DIV_RATIO		0xed
 #define v_PRE_DIV_RATIO(n)	(n & 0x1f)
+
+
+/*-----START----- HDMI CEC CTRL------START------*/
+#define CEC_CTRL		0xd0
+	#define m_ADJUST_FOR_HISENSE	(1 << 6)
+	#define m_REJECT_RX_BROADCAST	(1 << 5)
+	#define m_BUSFREETIME_ENABLE	(1 << 2)
+	#define m_REJECT_RX				(1 << 1)
+	#define m_START_TX				(1 << 0)
+
+#define CEC_DATA		0xd1
+#define CEC_TX_OFFSET	0xd2
+#define CEC_RX_OFFSET	0xd3
+#define CEC_CLK_H		0xd4
+#define CEC_CLK_L		0xd5
+#define CEC_TX_LENGTH	0xd6
+#define CEC_RX_LENGTH	0xd7
+#define CEC_TX_INT_MASK	0xd8
+	#define m_TX_DONE			(1 << 3)
+	#define m_TX_NOACK			(1 << 2)
+	#define m_TX_BROADCAST_REJ	(1 << 1)
+	#define m_TX_BUSNOTFREE		(1 << 0)
+
+#define CEC_RX_INT_MASK 0xd9
+	#define m_RX_LA_ERR			(1 << 4)
+	#define m_RX_GLITCH			(1 << 3)
+	#define m_RX_DONE			(1 << 0)
+
+#define CEC_TX_INT		0xda
+#define CEC_RX_INT		0xdb
+#define CEC_BUSFREETIME_L	0xdc
+#define CEC_BUSFREETIME_H	0xdd
+#define CEC_LOGICADDR		0xde
+/*------END------ HDMI CEC CTRL------END-------*/
+
 
 static inline int hdmi_readl(struct rk_hdmi_device *hdmi_dev, u16 offset,
 			     u32 *val)

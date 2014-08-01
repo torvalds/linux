@@ -132,6 +132,22 @@ int rk3036_hdmi_register_hdcp_callbacks(void (*hdcp_cb)(void),
 	return HDMI_ERROR_SUCESS;
 }
 
+int rk3036_hdmi_register_cec_callbacks(void (*cec_irq)(void),
+					       void (*cec_set_device_pa)(int addr),
+					       int (*cec_enumerate)(void))
+{
+	struct hdmi *hdmi_drv = &hdmi_dev->driver;
+
+	if (hdmi_drv == NULL)
+		return HDMI_ERROR_FALSE;
+
+	hdmi_drv->cec_irq = cec_irq;
+	hdmi_drv->cec_set_device_pa = cec_set_device_pa;
+	hdmi_drv->cec_enumerate = cec_enumerate;
+
+	return HDMI_ERROR_SUCESS;
+}
+
 static void rk3036_hdmi_early_suspend(void)
 {
 	struct hdmi *hdmi_drv = &hdmi_dev->driver;
