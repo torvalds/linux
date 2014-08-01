@@ -70,6 +70,9 @@ i40e_status i40e_aq_get_firmware_version(struct i40e_hw *hw,
 				u16 *fw_major_version, u16 *fw_minor_version,
 				u16 *api_major_version, u16 *api_minor_version,
 				struct i40e_asq_cmd_details *cmd_details);
+i40e_status i40e_aq_debug_write_register(struct i40e_hw *hw,
+					u32 reg_addr, u64 reg_val,
+					struct i40e_asq_cmd_details *cmd_details);
 i40e_status i40e_aq_set_phy_debug(struct i40e_hw *hw, u8 cmd_flags,
 				struct i40e_asq_cmd_details *cmd_details);
 i40e_status i40e_aq_set_default_vsi(struct i40e_hw *hw, u16 vsi_id,

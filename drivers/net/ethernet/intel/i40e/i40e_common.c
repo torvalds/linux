@@ -2002,6 +2002,35 @@ i40e_status i40e_aq_send_msg_to_vf(struct i40e_hw *hw, u16 vfid,
 }
 
 /**
+ * i40e_aq_debug_write_register
+ * @hw: pointer to the hw struct
+ * @reg_addr: register address
+ * @reg_val: register value
+ * @cmd_details: pointer to command details structure or NULL
+ *
+ * Write to a register using the admin queue commands
+ **/
+i40e_status i40e_aq_debug_write_register(struct i40e_hw *hw,
+					u32 reg_addr, u64 reg_val,
+					struct i40e_asq_cmd_details *cmd_details)
+{
+	struct i40e_aq_desc desc;
+	struct i40e_aqc_debug_reg_read_write *cmd =
+		(struct i40e_aqc_debug_reg_read_write *)&desc.params.raw;
+	i40e_status status;
+
+	i40e_fill_default_direct_cmd_desc(&desc, i40e_aqc_opc_debug_write_reg);
+
+	cmd->address = cpu_to_le32(reg_addr);
+	cmd->value_high = cpu_to_le32((u32)(reg_val >> 32));
+	cmd->value_low = cpu_to_le32((u32)(reg_val & 0xFFFFFFFF));
+
+	status = i40e_asq_send_command(hw, &desc, NULL, 0, cmd_details);
+
+	return status;
+}
+
+/**
  * i40e_aq_set_hmc_resource_profile
  * @hw: pointer to the hw struct
  * @profile: type of profile the HMC is to be set as
