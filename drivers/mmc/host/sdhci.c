@@ -3049,7 +3049,7 @@ int sdhci_add_host(struct sdhci_host *host)
 	 */
 	max_current_caps = sdhci_readl(host, SDHCI_MAX_CURRENT);
 	if (!max_current_caps && !IS_ERR(mmc->supply.vmmc)) {
-		u32 curr = regulator_get_current_limit(mmc->supply.vmmc);
+		int curr = regulator_get_current_limit(mmc->supply.vmmc);
 		if (curr > 0) {
 
 			/* convert to SDHCI_MAX_CURRENT format */
