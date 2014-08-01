@@ -5681,6 +5681,24 @@ void hci_update_background_scan(struct hci_dev *hdev)
 		BT_ERR("Failed to run HCI request: err %d", err);
 }
 
+static bool disconnected_whitelist_entries(struct hci_dev *hdev)
+{
+	struct bdaddr_list *b;
+
+	list_for_each_entry(b, &hdev->whitelist, list) {
+		struct hci_conn *conn;
+
+		conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, &b->bdaddr);
+		if (!conn)
+			return true;
+
+		if (conn->state != BT_CONNECTED && conn->state != BT_CONFIG)
+			return true;
+	}
+
+	return false;
+}
+
 void hci_update_page_scan(struct hci_dev *hdev, struct hci_request *req)
 {
 	u8 scan;
@@ -5695,7 +5713,7 @@ void hci_update_page_scan(struct hci_dev *hdev, struct hci_request *req)
 		return;
 
 	if (test_bit(HCI_CONNECTABLE, &hdev->dev_flags) ||
-	    !list_empty(&hdev->whitelist))
+	    disconnected_whitelist_entries(hdev))
 		scan = SCAN_PAGE;
 	else
 		scan = SCAN_DISABLED;
