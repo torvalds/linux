@@ -255,10 +255,14 @@ static int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		break;
 	case RADEON_INFO_ACCEL_WORKING2:
 		if (rdev->family == CHIP_HAWAII) {
-			if (rdev->accel_working)
-				*value = 2;
-			else
+			if (rdev->accel_working) {
+				if (rdev->new_fw)
+					*value = 3;
+				else
+					*value = 2;
+			} else {
 				*value = 0;
+			}
 		} else {
 			*value = rdev->accel_working;
 		}
