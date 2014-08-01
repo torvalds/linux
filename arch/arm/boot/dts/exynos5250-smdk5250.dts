@@ -44,6 +44,8 @@
 		max77686@09 {
 			compatible = "maxim,max77686";
 			reg = <0x09>;
+			interrupt-parent = <&gpx3>;
+			interrupts = <2 0>;
 
 			voltage-regulators {
 				ldo1_reg: LDO1 {

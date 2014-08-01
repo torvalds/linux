@@ -227,6 +227,11 @@
 			interrupts = <0 243 0>;
 		};
 
+		pmu_system_controller: system-controller@10D50000 {
+			compatible = "samsung,exynos5260-pmu", "syscon";
+			reg = <0x10D50000 0x10000>;
+		};
+
 		uart0: serial@12C00000 {
 			compatible = "samsung,exynos4210-uart";
 			reg = <0x12C00000 0x100>;

@@ -91,6 +91,11 @@
 			reg = <0x10000000 0x100>;
 		};
 
+		pmu_system_controller: system-controller@10040000 {
+			compatible = "samsung,exynos5410-pmu", "syscon";
+			reg = <0x10040000 0x5000>;
+		};
+
 		mct: mct@101C0000 {
 			compatible = "samsung,exynos4210-mct";
 			reg = <0x101C0000 0xB00>;

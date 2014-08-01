@@ -168,6 +168,15 @@
 			status = "disabled";
 		};
 
+		tmu: tmu@100C0000 {
+			compatible = "samsung,exynos3250-tmu";
+			reg = <0x100C0000 0x100>;
+			interrupts = <0 216 0>;
+			clocks = <&cmu CLK_TMU_APBIF>;
+			clock-names = "tmu_apbif";
+			status = "disabled";
+		};
+
 		gic: interrupt-controller@10481000 {
 			compatible = "arm,cortex-a15-gic";
 			#interrupt-cells = <3>;
@@ -195,7 +204,6 @@
 
 			wakeup-interrupt-controller {
 				compatible = "samsung,exynos4210-wakeup-eint";
-				interrupt-parent = <&gic>;
 				interrupts = <0 48 0>;
 			};
 		};
@@ -234,7 +242,6 @@
 			compatible = "arm,amba-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
-			interrupt-parent = <&gic>;
 			ranges;
 
 			pdma0: pdma@12680000 {
@@ -277,6 +284,8 @@
 			interrupts = <0 109 0>;
 			clocks = <&cmu CLK_UART0>, <&cmu CLK_SCLK_UART0>;
 			clock-names = "uart", "clk_uart_baud0";
+			pinctrl-names = "default";
+			pinctrl-0 = <&uart0_data &uart0_fctl>;
 			status = "disabled";
 		};
 
@@ -286,6 +295,8 @@
 			interrupts = <0 110 0>;
 			clocks = <&cmu CLK_UART1>, <&cmu CLK_SCLK_UART1>;
 			clock-names = "uart", "clk_uart_baud0";
+			pinctrl-names = "default";
+			pinctrl-0 = <&uart1_data>;
 			status = "disabled";
 		};
 
