@@ -968,7 +968,7 @@ int adau1977_probe(struct device *dev, struct regmap *regmap,
 	if (adau1977->dvdd_reg)
 		power_off_mask = ~0;
 	else
-		power_off_mask = ~ADAU1977_BLOCK_POWER_SAI_LDO_EN;
+		power_off_mask = (unsigned int)~ADAU1977_BLOCK_POWER_SAI_LDO_EN;
 
 	ret = regmap_update_bits(adau1977->regmap, ADAU1977_REG_BLOCK_POWER_SAI,
 				power_off_mask, 0x00);
