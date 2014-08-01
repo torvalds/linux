@@ -20,7 +20,7 @@ struct rsnd_dvc {
 	struct rsnd_dvc_platform_info *info; /* rcar_snd.h */
 	struct rsnd_mod mod;
 	struct clk *clk;
-	long volume[RSND_DVC_VOLUME_NUM];
+	u8 volume[RSND_DVC_VOLUME_NUM];
 };
 
 #define rsnd_mod_to_dvc(_mod)	\
@@ -151,12 +151,11 @@ static int rsnd_dvc_volume_info(struct snd_kcontrol *kctrl,
 static int rsnd_dvc_volume_get(struct snd_kcontrol *kctrl,
 			      struct snd_ctl_elem_value *ucontrol)
 {
-	struct rsnd_mod *mod = snd_kcontrol_chip(kctrl);
-	struct rsnd_dvc *dvc = rsnd_mod_to_dvc(mod);
+	u8 *val = (u8 *)kctrl->private_value;
 	int i;
 
 	for (i = 0; i < RSND_DVC_VOLUME_NUM; i++)
-		ucontrol->value.integer.value[i] = dvc->volume[i];
+		ucontrol->value.integer.value[i] = val[i];
 
 	return 0;
 }
@@ -165,25 +164,47 @@ static int rsnd_dvc_volume_put(struct snd_kcontrol *kctrl,
 			      struct snd_ctl_elem_value *ucontrol)
 {
 	struct rsnd_mod *mod = snd_kcontrol_chip(kctrl);
-	struct rsnd_dvc *dvc = rsnd_mod_to_dvc(mod);
+	u8 *val = (u8 *)kctrl->private_value;
 	int i, change = 0;
 
 	for (i = 0; i < RSND_DVC_VOLUME_NUM; i++) {
-		if (ucontrol->value.integer.value[i] < 0 ||
-		    ucontrol->value.integer.value[i] > RSND_DVC_VOLUME_MAX)
-			return -EINVAL;
-
-		change |= (ucontrol->value.integer.value[i] != dvc->volume[i]);
+		change |= (ucontrol->value.integer.value[i] != val[i]);
+		val[i] = ucontrol->value.integer.value[i];
 	}
 
-	if (change) {
-		for (i = 0; i < RSND_DVC_VOLUME_NUM; i++)
-			dvc->volume[i] = ucontrol->value.integer.value[i];
-
+	if (change)
 		rsnd_dvc_volume_update(mod);
-	}
 
 	return change;
+}
+
+static int __rsnd_dvc_pcm_new(struct rsnd_mod *mod,
+			      struct rsnd_dai *rdai,
+			      struct snd_soc_pcm_runtime *rtd,
+			      const unsigned char *name,
+			      u8 *private)
+{
+	struct snd_card *card = rtd->card->snd_card;
+	struct snd_kcontrol *kctrl;
+	struct snd_kcontrol_new knew = {
+		.iface		= SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name		= name,
+		.info		= rsnd_dvc_volume_info,
+		.get		= rsnd_dvc_volume_get,
+		.put		= rsnd_dvc_volume_put,
+		.private_value	= (unsigned long)private,
+	};
+	int ret;
+
+	kctrl = snd_ctl_new1(&knew, mod);
+	if (!kctrl)
+		return -ENOMEM;
+
+	ret = snd_ctl_add(card, kctrl);
+	if (ret < 0)
+		return ret;
+
+	return 0;
 }
 
 static int rsnd_dvc_pcm_new(struct rsnd_mod *mod,
@@ -191,26 +212,14 @@ static int rsnd_dvc_pcm_new(struct rsnd_mod *mod,
 			    struct snd_soc_pcm_runtime *rtd)
 {
 	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
-	struct snd_card *card = rtd->card->snd_card;
-	struct snd_kcontrol *kctrl;
-	static struct snd_kcontrol_new knew = {
-		.iface		= SNDRV_CTL_ELEM_IFACE_MIXER,
-		.info		= rsnd_dvc_volume_info,
-		.get		= rsnd_dvc_volume_get,
-		.put		= rsnd_dvc_volume_put,
-	};
+	struct rsnd_dvc *dvc = rsnd_mod_to_dvc(mod);
 	int ret;
 
-	if (rsnd_dai_is_play(rdai, io))
-		knew.name = "Playback Volume";
-	else
-		knew.name = "Capture Volume";
-
-	kctrl = snd_ctl_new1(&knew, mod);
-	if (!kctrl)
-		return -ENOMEM;
-
-	ret = snd_ctl_add(card, kctrl);
+	/* Volume */
+	ret = __rsnd_dvc_pcm_new(mod, rdai, rtd,
+			rsnd_dai_is_play(rdai, io) ?
+			"DVC Out Playback Volume" : "DVC In Capture Volume",
+			dvc->volume);
 	if (ret < 0)
 		return ret;
 
