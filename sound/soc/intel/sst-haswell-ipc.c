@@ -457,9 +457,10 @@ static void ipc_tx_msgs(struct kthread_work *work)
 		return;
 	}
 
-	/* if the DSP is busy we will TX messages after IRQ */
+	/* if the DSP is busy, we will TX messages after IRQ.
+	 * also postpone if we are in the middle of procesing completion irq*/
 	ipcx = sst_dsp_shim_read_unlocked(hsw->dsp, SST_IPCX);
-	if (ipcx & SST_IPCX_BUSY) {
+	if (ipcx & (SST_IPCX_BUSY | SST_IPCX_DONE)) {
 		spin_unlock_irqrestore(&hsw->dsp->spinlock, flags);
 		return;
 	}
