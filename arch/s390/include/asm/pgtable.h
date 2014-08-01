@@ -814,29 +814,6 @@ struct gmap {
 };
 
 /**
- * struct gmap_rmap - reverse mapping for segment table entries
- * @gmap: pointer to the gmap_struct
- * @entry: pointer to a segment table entry
- * @vmaddr: virtual address in the guest address space
- */
-struct gmap_rmap {
-	struct list_head list;
-	struct gmap *gmap;
-	unsigned long *entry;
-	unsigned long vmaddr;
-};
-
-/**
- * struct gmap_pgtable - gmap information attached to a page table
- * @vmaddr: address of the 1MB segment in the process virtual memory
- * @mapper: list of segment table entries mapping a page table
- */
-struct gmap_pgtable {
-	unsigned long vmaddr;
-	struct list_head mapper;
-};
-
-/**
  * struct gmap_notifier - notify function block for page invalidation
  * @notifier_call: address of callback function
  */
