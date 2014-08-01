@@ -817,10 +817,12 @@ dm9000_release_board(struct platform_device *pdev, struct board_info *db)
 
 	/* release the resources */
 
-	release_resource(db->data_req);
+	if (db->data_req)
+		release_resource(db->data_req);
 	kfree(db->data_req);
 
-	release_resource(db->addr_req);
+	if (db->addr_req)
+		release_resource(db->addr_req);
 	kfree(db->addr_req);
 }
 
