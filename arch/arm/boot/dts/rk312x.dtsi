@@ -644,7 +644,7 @@
 
 	tve: tve{
 		compatible = "rockchip,rk312x-tve";
-		reg = <0x1011e200 0x100>;
+		reg = <0x1010e200 0x100>;
 		status = "disabled";
 	};
 

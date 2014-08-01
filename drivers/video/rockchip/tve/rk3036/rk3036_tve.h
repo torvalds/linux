@@ -95,6 +95,7 @@ struct rk3036_tve {
 	void __iomem			*regbase;
 	u32				reg_phy_base;
 	u32				len;
+	int				grfreg;
 
 	struct rk_display_device	*ddev;
 	unsigned int			enable;

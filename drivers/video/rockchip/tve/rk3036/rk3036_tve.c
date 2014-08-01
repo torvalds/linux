@@ -52,7 +52,8 @@ static void dac_enable(bool enable)
 		mask = m_VBG_EN | m_DAC_EN;
 		val = 0;
 	}
-	grf_writel(RK3036_GRF_SOC_CON3, (mask << 16) | val);
+	grf_writel(rk3036_tve->grfreg, (mask << 16) | val);
+	grf_writel(RK312X_GRF_TVE_CON, (mask << 16) | val);
 }
 
 static void tve_set_mode(int mode)
@@ -294,10 +295,24 @@ static struct rk_display_driver display_cvbs = {
 	.probe = display_cvbs_probe,
 };
 
+#if defined(CONFIG_OF)
+static const struct of_device_id rk3036_tve_dt_ids[] = {
+	{.compatible = "rockchip,rk3036-tve",},
+	{.compatible = "rockchip,rk312x-tve",},
+	{}
+};
+#endif
+
 static int rk3036_tve_probe(struct platform_device *pdev)
 {
+	struct device_node *np = pdev->dev.of_node;
 	struct resource *res;
+	const struct of_device_id *match;
 	int i;
+
+	match = of_match_node(rk3036_tve_dt_ids, np);
+	if (!match)
+		return PTR_ERR(match);
 
 	rk3036_tve = devm_kzalloc(&pdev->dev,
 				  sizeof(struct rk3036_tve), GFP_KERNEL);
@@ -305,6 +320,17 @@ static int rk3036_tve_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "rk3036 tv encoder device kmalloc fail!");
 		return -ENOMEM;
 	}
+
+	if (!strcmp(match->compatible, "rockchip,rk3036-tve")) {
+		rk3036_tve->grfreg = RK3036_GRF_SOC_CON3;
+	} else if (!strcmp(match->compatible, "rockchip,rk312x-tve")) {
+		rk3036_tve->grfreg = RK312X_GRF_TVE_CON;
+	} else {
+		dev_err(&pdev->dev, "It is not a valid tv encoder!");
+		kfree(rk3036_tve);
+		return -ENOMEM;
+	}
+
 	platform_set_drvdata(pdev, rk3036_tve);
 	rk3036_tve->dev = &pdev->dev;
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -333,14 +359,6 @@ static int rk3036_tve_probe(struct platform_device *pdev)
 static void rk3036_tve_shutdown(struct platform_device *pdev)
 {
 }
-
-#if defined(CONFIG_OF)
-static const struct of_device_id rk3036_tve_dt_ids[] = {
-	{.compatible = "rockchip,rk3036-tve",},
-	{.compatible = "rockchip,rk312x-tve",},
-	{}
-};
-#endif
 
 static struct platform_driver rk3036_tve_driver = {
 	.probe = rk3036_tve_probe,
