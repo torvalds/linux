@@ -2407,7 +2407,7 @@ static int rt5670_resume(struct snd_soc_codec *codec)
 #define RT5670_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE | \
 			SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S8)
 
-struct snd_soc_dai_ops rt5670_aif_dai_ops = {
+static struct snd_soc_dai_ops rt5670_aif_dai_ops = {
 	.hw_params = rt5670_hw_params,
 	.set_fmt = rt5670_set_dai_fmt,
 	.set_sysclk = rt5670_set_dai_sysclk,
@@ -2415,7 +2415,7 @@ struct snd_soc_dai_ops rt5670_aif_dai_ops = {
 	.set_pll = rt5670_set_dai_pll,
 };
 
-struct snd_soc_dai_driver rt5670_dai[] = {
+static struct snd_soc_dai_driver rt5670_dai[] = {
 	{
 		.name = "rt5670-aif1",
 		.id = RT5670_AIF1,
@@ -2675,7 +2675,7 @@ static int rt5670_i2c_remove(struct i2c_client *i2c)
 	return 0;
 }
 
-struct i2c_driver rt5670_i2c_driver = {
+static struct i2c_driver rt5670_i2c_driver = {
 	.driver = {
 		.name = "rt5670",
 		.owner = THIS_MODULE,
