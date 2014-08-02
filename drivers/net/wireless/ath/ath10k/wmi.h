@@ -2247,6 +2247,7 @@ struct wmi_comb_phyerr_rx_event {
 #define PHYERR_TLV_SIG				0xBB
 #define PHYERR_TLV_TAG_SEARCH_FFT_REPORT	0xFB
 #define PHYERR_TLV_TAG_RADAR_PULSE_SUMMARY	0xF8
+#define PHYERR_TLV_TAG_SPECTRAL_SUMMARY_REPORT	0xF9
 
 struct phyerr_radar_report {
 	__le32 reg0; /* RADAR_REPORT_REG0_* */
@@ -3645,6 +3646,98 @@ struct wmi_vdev_simple_event {
 /* unsupported VDEV combination */
 #define WMI_INIFIED_VDEV_START_RESPONSE_NOT_SUPPORTED	0x2
 
+/* TODO: please add more comments if you have in-depth information */
+struct wmi_vdev_spectral_conf_cmd {
+	__le32 vdev_id;
+
+	/* number of fft samples to send (0 for infinite) */
+	__le32 scan_count;
+	__le32 scan_period;
+	__le32 scan_priority;
+
+	/* number of bins in the FFT: 2^(fft_size - bin_scale) */
+	__le32 scan_fft_size;
+	__le32 scan_gc_ena;
+	__le32 scan_restart_ena;
+	__le32 scan_noise_floor_ref;
+	__le32 scan_init_delay;
+	__le32 scan_nb_tone_thr;
+	__le32 scan_str_bin_thr;
+	__le32 scan_wb_rpt_mode;
+	__le32 scan_rssi_rpt_mode;
+	__le32 scan_rssi_thr;
+	__le32 scan_pwr_format;
+
+	/* rpt_mode: Format of FFT report to software for spectral scan
+	 * triggered FFTs:
+	 *	0: No FFT report (only spectral scan summary report)
+	 *	1: 2-dword summary of metrics for each completed FFT + spectral
+	 *	   scan	summary report
+	 *	2: 2-dword summary of metrics for each completed FFT +
+	 *	   1x- oversampled bins(in-band) per FFT + spectral scan summary
+	 *	   report
+	 *	3: 2-dword summary of metrics for each completed FFT +
+	 *	   2x- oversampled bins	(all) per FFT + spectral scan summary
+	 */
+	__le32 scan_rpt_mode;
+	__le32 scan_bin_scale;
+	__le32 scan_dbm_adj;
+	__le32 scan_chn_mask;
+} __packed;
+
+struct wmi_vdev_spectral_conf_arg {
+	u32 vdev_id;
+	u32 scan_count;
+	u32 scan_period;
+	u32 scan_priority;
+	u32 scan_fft_size;
+	u32 scan_gc_ena;
+	u32 scan_restart_ena;
+	u32 scan_noise_floor_ref;
+	u32 scan_init_delay;
+	u32 scan_nb_tone_thr;
+	u32 scan_str_bin_thr;
+	u32 scan_wb_rpt_mode;
+	u32 scan_rssi_rpt_mode;
+	u32 scan_rssi_thr;
+	u32 scan_pwr_format;
+	u32 scan_rpt_mode;
+	u32 scan_bin_scale;
+	u32 scan_dbm_adj;
+	u32 scan_chn_mask;
+};
+
+#define WMI_SPECTRAL_ENABLE_DEFAULT              0
+#define WMI_SPECTRAL_COUNT_DEFAULT               0
+#define WMI_SPECTRAL_PERIOD_DEFAULT             35
+#define WMI_SPECTRAL_PRIORITY_DEFAULT            1
+#define WMI_SPECTRAL_FFT_SIZE_DEFAULT            7
+#define WMI_SPECTRAL_GC_ENA_DEFAULT              1
+#define WMI_SPECTRAL_RESTART_ENA_DEFAULT         0
+#define WMI_SPECTRAL_NOISE_FLOOR_REF_DEFAULT   -96
+#define WMI_SPECTRAL_INIT_DELAY_DEFAULT         80
+#define WMI_SPECTRAL_NB_TONE_THR_DEFAULT        12
+#define WMI_SPECTRAL_STR_BIN_THR_DEFAULT         8
+#define WMI_SPECTRAL_WB_RPT_MODE_DEFAULT         0
+#define WMI_SPECTRAL_RSSI_RPT_MODE_DEFAULT       0
+#define WMI_SPECTRAL_RSSI_THR_DEFAULT         0xf0
+#define WMI_SPECTRAL_PWR_FORMAT_DEFAULT          0
+#define WMI_SPECTRAL_RPT_MODE_DEFAULT            2
+#define WMI_SPECTRAL_BIN_SCALE_DEFAULT           1
+#define WMI_SPECTRAL_DBM_ADJ_DEFAULT             1
+#define WMI_SPECTRAL_CHN_MASK_DEFAULT            1
+
+struct wmi_vdev_spectral_enable_cmd {
+	__le32 vdev_id;
+	__le32 trigger_cmd;
+	__le32 enable_cmd;
+} __packed;
+
+#define WMI_SPECTRAL_TRIGGER_CMD_TRIGGER  1
+#define WMI_SPECTRAL_TRIGGER_CMD_CLEAR    2
+#define WMI_SPECTRAL_ENABLE_CMD_ENABLE    1
+#define WMI_SPECTRAL_ENABLE_CMD_DISABLE   2
+
 /* Beacon processing related command and event structures */
 struct wmi_bcn_tx_hdr {
 	__le32 vdev_id;
@@ -4517,6 +4610,10 @@ int ath10k_wmi_vdev_set_param(struct ath10k *ar, u32 vdev_id,
 			      u32 param_id, u32 param_value);
 int ath10k_wmi_vdev_install_key(struct ath10k *ar,
 				const struct wmi_vdev_install_key_arg *arg);
+int ath10k_wmi_vdev_spectral_conf(struct ath10k *ar,
+				  const struct wmi_vdev_spectral_conf_arg *arg);
+int ath10k_wmi_vdev_spectral_enable(struct ath10k *ar, u32 vdev_id, u32 trigger,
+				    u32 enable);
 int ath10k_wmi_peer_create(struct ath10k *ar, u32 vdev_id,
 		    const u8 peer_addr[ETH_ALEN]);
 int ath10k_wmi_peer_delete(struct ath10k *ar, u32 vdev_id,

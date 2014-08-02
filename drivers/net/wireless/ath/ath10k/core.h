@@ -31,6 +31,7 @@
 #include "../ath.h"
 #include "../regd.h"
 #include "../dfs_pattern_detector.h"
+#include "spectral.h"
 
 #define MS(_v, _f) (((_v) & _f##_MASK) >> _f##_LSB)
 #define SM(_v, _f) (((_v) << _f##_LSB) & _f##_MASK)
@@ -237,6 +238,7 @@ struct ath10k_vif {
 
 	bool is_started;
 	bool is_up;
+	bool spectral_enabled;
 	u32 aid;
 	u8 bssid[ETH_ALEN];
 
@@ -499,6 +501,15 @@ struct ath10k {
 #ifdef CONFIG_ATH10K_DEBUGFS
 	struct ath10k_debug debug;
 #endif
+
+	struct {
+		/* relay(fs) channel for spectral scan */
+		struct rchan *rfs_chan_spec_scan;
+
+		/* spectral_mode and spec_config are protected by conf_mutex */
+		enum ath10k_spectral_mode mode;
+		struct ath10k_spec_scan config;
+	} spectral;
 };
 
 struct ath10k *ath10k_core_create(void *hif_priv, struct device *dev,

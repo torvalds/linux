@@ -2499,6 +2499,8 @@ static int ath10k_start(struct ieee80211_hw *hw)
 	ar->num_started_vdevs = 0;
 	ath10k_regd_update(ar);
 
+	ath10k_spectral_start(ar);
+
 	mutex_unlock(&ar->conf_mutex);
 	return 0;
 
@@ -2909,7 +2911,13 @@ static void ath10k_remove_interface(struct ieee80211_hw *hw,
 		dev_kfree_skb_any(arvif->beacon);
 		arvif->beacon = NULL;
 	}
+
 	spin_unlock_bh(&ar->data_lock);
+
+	ret = ath10k_spectral_vif_stop(arvif);
+	if (ret)
+		ath10k_warn("failed to stop spectral for vdev %i: %d\n",
+			    arvif->vdev_id, ret);
 
 	ar->free_vdev_map |= 1 << (arvif->vdev_id);
 	list_del(&arvif->list);
