@@ -193,8 +193,7 @@ static int netvsc_destroy_buf(struct netvsc_device *net_device)
 	}
 	if (net_device->send_buf) {
 		/* Free up the receive buffer */
-		free_pages((unsigned long)net_device->send_buf,
-			   get_order(net_device->send_buf_size));
+		vfree(net_device->send_buf);
 		net_device->send_buf = NULL;
 	}
 	kfree(net_device->send_section_map);
@@ -303,9 +302,7 @@ static int netvsc_init_buf(struct hv_device *device)
 
 	/* Now setup the send buffer.
 	 */
-	net_device->send_buf =
-		(void *)__get_free_pages(GFP_KERNEL|__GFP_ZERO,
-					 get_order(net_device->send_buf_size));
+	net_device->send_buf = vzalloc(net_device->send_buf_size);
 	if (!net_device->send_buf) {
 		netdev_err(ndev, "unable to allocate send "
 			   "buffer of size %d\n", net_device->send_buf_size);
