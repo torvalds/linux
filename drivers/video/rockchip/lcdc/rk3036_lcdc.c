@@ -255,8 +255,8 @@ static void lcdc_layer_update_regs(struct lcdc_device *lcdc_dev,
 				    v_DSP_STX(win->area[0].dsp_stx) |
 				    v_DSP_STY(win->area[0].dsp_sty));
 			lcdc_writel(lcdc_dev, WIN0_DSP_INFO,
-				    v_DSP_WIDTH(win->area[0].xsize) |
-				    v_DSP_HEIGHT(win->area[0].ysize));
+				    v_DSP_WIDTH(win->post_cfg.xsize) |
+				    v_DSP_HEIGHT(win->post_cfg.ysize));
 
 			lcdc_writel(lcdc_dev, WIN0_YRGB_MST,
 				    win->area[0].y_addr);
@@ -279,8 +279,8 @@ static void lcdc_layer_update_regs(struct lcdc_device *lcdc_dev,
 				    v_ACT_WIDTH(win->area[0].xact) |
 				    v_ACT_HEIGHT(win->area[0].yact));
 			lcdc_writel(lcdc_dev, WIN1_DSP_INFO,
-				    v_DSP_WIDTH(win->area[0].xsize) |
-				    v_DSP_HEIGHT(win->area[0].ysize));
+				    v_DSP_WIDTH(win->post_cfg.xsize) |
+				    v_DSP_HEIGHT(win->post_cfg.ysize));
 			lcdc_writel(lcdc_dev, WIN1_DSP_ST,
 				    v_DSP_STX(win->area[0].dsp_stx) |
 				    v_DSP_STY(win->area[0].dsp_sty));
@@ -719,21 +719,35 @@ static int rk3036_lcdc_set_par(struct rk_lcdc_driver *dev_drv, int win_id)
 	}
 
 	spin_lock(&lcdc_dev->reg_lock);
-	win->area[0].dsp_stx = win->area[0].xpos +
-				screen->mode.left_margin +
+	win->post_cfg.xpos = win->area[0].xpos * (dev_drv->overscan.left +
+		dev_drv->overscan.right)/200 + screen->mode.xres *
+			(100 - dev_drv->overscan.left) / 200;
+
+	win->post_cfg.ypos = win->area[0].ypos * (dev_drv->overscan.top +
+		dev_drv->overscan.bottom)/200 +
+		screen->mode.yres *
+			(100 - dev_drv->overscan.top) / 200;
+	win->post_cfg.xsize = win->area[0].xsize *
+				(dev_drv->overscan.left +
+				dev_drv->overscan.right)/200;
+	win->post_cfg.ysize = win->area[0].ysize *
+				(dev_drv->overscan.top +
+				dev_drv->overscan.bottom)/200;
+
+	win->area[0].dsp_stx = win->post_cfg.xpos + screen->mode.left_margin +
 				screen->mode.hsync_len;
 	if (screen->mode.vmode == FB_VMODE_INTERLACED) {
-		win->area[0].ysize /= 2;
-		win->area[0].dsp_sty = win->area[0].ypos/2 +
+		win->post_cfg.ysize /= 2;
+		win->area[0].dsp_sty = win->post_cfg.ypos/2 +
 					screen->mode.upper_margin +
 					screen->mode.vsync_len;
 	} else {
-		win->area[0].dsp_sty = win->area[0].ypos +
+		win->area[0].dsp_sty = win->post_cfg.ypos +
 					screen->mode.upper_margin +
 					screen->mode.vsync_len;
 	}
-	win->scale_yrgb_x = calscale(win->area[0].xact, win->area[0].xsize);
-	win->scale_yrgb_y = calscale(win->area[0].yact, win->area[0].ysize);
+	win->scale_yrgb_x = calscale(win->area[0].xact, win->post_cfg.xsize);
+	win->scale_yrgb_y = calscale(win->area[0].yact, win->post_cfg.ysize);
 	switch (win->format) {
 	case ARGB888:
 		win->fmt_cfg = VOP_FORMAT_ARGB888;
@@ -759,9 +773,9 @@ static int rk3036_lcdc_set_par(struct rk_lcdc_driver *dev_drv, int win_id)
 		if (win_id == 0) {
 			win->fmt_cfg = VOP_FORMAT_YCBCR444;
 			win->scale_cbcr_x = calscale(win->area[0].xact,
-						     win->area[0].xsize);
+						     win->post_cfg.xsize);
 			win->scale_cbcr_y = calscale(win->area[0].yact,
-						     win->area[0].ysize);
+						     win->post_cfg.ysize);
 			win->swap_rb = 0;
 		} else {
 			dev_err(lcdc_dev->driver.dev,
@@ -773,9 +787,9 @@ static int rk3036_lcdc_set_par(struct rk_lcdc_driver *dev_drv, int win_id)
 		if (win_id == 0) {
 			win->fmt_cfg = VOP_FORMAT_YCBCR422;
 			win->scale_cbcr_x = calscale((win->area[0].xact / 2),
-						     win->area[0].xsize);
+						     win->post_cfg.xsize);
 			win->scale_cbcr_y = calscale(win->area[0].yact,
-						     win->area[0].ysize);
+						     win->post_cfg.ysize);
 			win->swap_rb = 0;
 		} else {
 			dev_err(lcdc_dev->driver.dev,
@@ -787,9 +801,9 @@ static int rk3036_lcdc_set_par(struct rk_lcdc_driver *dev_drv, int win_id)
 		if (win_id == 0) {
 			win->fmt_cfg = VOP_FORMAT_YCBCR420;
 			win->scale_cbcr_x = calscale(win->area[0].xact / 2,
-						     win->area[0].xsize);
+						     win->post_cfg.xsize);
 			win->scale_cbcr_y = calscale(win->area[0].yact / 2,
-						     win->area[0].ysize);
+						     win->post_cfg.ysize);
 			win->swap_rb = 0;
 		} else {
 			dev_err(lcdc_dev->driver.dev,
@@ -804,13 +818,13 @@ static int rk3036_lcdc_set_par(struct rk_lcdc_driver *dev_drv, int win_id)
 	}
 	spin_unlock(&lcdc_dev->reg_lock);
 
-	DBG(1, "lcdc%d>>%s\n"
+	DBG(2, "lcdc%d>>%s\n"
 		">>format:%s>>>xact:%d>>yact:%d>>xsize:%d>>ysize:%d\n"
 		">>xvir:%d>>yvir:%d>>xpos:%d>>ypos:%d>>\n", lcdc_dev->id,
 		__func__, get_format_string(win->format, fmt),
-		win->area[0].xact, win->area[0].yact, win->area[0].xsize,
-		win->area[0].ysize, win->area[0].xvir, win->area[0].yvir,
-		win->area[0].xpos, win->area[0].ypos);
+		win->area[0].xact, win->area[0].yact, win->post_cfg.xsize,
+		win->post_cfg.ysize, win->area[0].xvir, win->area[0].yvir,
+		win->post_cfg.xpos, win->post_cfg.ypos);
 	return 0;
 }
 
@@ -1201,6 +1215,22 @@ static int rk3036_lcdc_open_bcsh(struct rk_lcdc_driver *dev_drv, bool open)
 	return 0;
 }
 
+static int rk3036_lcdc_set_overscan(struct rk_lcdc_driver *dev_drv,
+				    struct overscan *overscan)
+{
+	int i;
+
+	dev_drv->overscan = *overscan;
+	for (i = 0; i < dev_drv->lcdc_win_num; i++) {
+		if (dev_drv->win[i] && dev_drv->win[i]->state) {
+			rk3036_lcdc_set_par(dev_drv, i);
+			rk3036_lcdc_pan_display(dev_drv, i);
+		}
+	}
+	rk3036_lcdc_cfg_done(dev_drv);
+	return 0;
+}
+
 static int rk3036_fb_win_remap(struct rk_lcdc_driver *dev_drv,
 			       enum fb_win_map_order order)
 {
@@ -1368,6 +1398,7 @@ static struct rk_lcdc_drv_ops lcdc_drv_ops = {
 	.get_dsp_bcsh_hue	= rk3036_lcdc_get_bcsh_hue,
 	.get_dsp_bcsh_bcs	= rk3036_lcdc_get_bcsh_bcs,
 	.open_bcsh		= rk3036_lcdc_open_bcsh,
+	.set_overscan		= rk3036_lcdc_set_overscan,
 };
 
 static int rk3036_lcdc_parse_dt(struct lcdc_device *lcdc_dev)

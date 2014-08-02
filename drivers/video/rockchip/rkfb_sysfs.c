@@ -508,8 +508,9 @@ static ssize_t set_scale(struct device *dev, struct device_attribute *attr,
 		}
 	}
 
-	dev_drv->ops->load_screen(dev_drv, 1);
-	dev_drv->ops->cfg_done(dev_drv);
+	if (dev_drv->ops->set_overscan)
+		dev_drv->ops->set_overscan(dev_drv, &screen->overscan);
+
 	return count;
 }
 
