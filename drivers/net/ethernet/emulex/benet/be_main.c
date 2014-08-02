@@ -1270,6 +1270,12 @@ static int be_set_vf_mac(struct net_device *netdev, int vf, u8 *mac)
 	if (!is_valid_ether_addr(mac) || vf >= adapter->num_vfs)
 		return -EINVAL;
 
+	/* Proceed further only if user provided MAC is different
+	 * from active MAC
+	 */
+	if (ether_addr_equal(mac, vf_cfg->mac_addr))
+		return 0;
+
 	if (BEx_chip(adapter)) {
 		be_cmd_pmac_del(adapter, vf_cfg->if_handle, vf_cfg->pmac_id,
 				vf + 1);
@@ -3342,22 +3348,17 @@ static int be_get_sriov_config(struct be_adapter *adapter)
 {
 	struct device *dev = &adapter->pdev->dev;
 	struct be_resources res = {0};
-	int status, max_vfs, old_vfs;
-
-	status = be_cmd_get_profile_config(adapter, &res, 0);
-	if (status)
-		return status;
-
-	adapter->pool_res = res;
+	int max_vfs, old_vfs;
 
 	/* Some old versions of BE3 FW don't report max_vfs value */
+	be_cmd_get_profile_config(adapter, &res, 0);
+
 	if (BE3_chip(adapter) && !res.max_vfs) {
 		max_vfs = pci_sriov_get_totalvfs(adapter->pdev);
 		res.max_vfs = max_vfs > 0 ? min(MAX_VFS, max_vfs) : 0;
 	}
 
-	adapter->pool_res.max_vfs = res.max_vfs;
-	pci_sriov_set_totalvfs(adapter->pdev, be_max_vfs(adapter));
+	adapter->pool_res = res;
 
 	if (!be_max_vfs(adapter)) {
 		if (num_vfs)
@@ -3365,6 +3366,8 @@ static int be_get_sriov_config(struct be_adapter *adapter)
 		adapter->num_vfs = 0;
 		return 0;
 	}
+
+	pci_sriov_set_totalvfs(adapter->pdev, be_max_vfs(adapter));
 
 	/* validate num_vfs module param */
 	old_vfs = pci_num_vf(adapter->pdev);
@@ -3423,6 +3426,35 @@ static int be_get_resources(struct be_adapter *adapter)
 	return 0;
 }
 
+static void be_sriov_config(struct be_adapter *adapter)
+{
+	struct device *dev = &adapter->pdev->dev;
+	int status;
+
+	status = be_get_sriov_config(adapter);
+	if (status) {
+		dev_err(dev, "Failed to query SR-IOV configuration\n");
+		dev_err(dev, "SR-IOV cannot be enabled\n");
+		return;
+	}
+
+	/* When the HW is in SRIOV capable configuration, the PF-pool
+	 * resources are equally distributed across the max-number of
+	 * VFs. The user may request only a subset of the max-vfs to be
+	 * enabled. Based on num_vfs, redistribute the resources across
+	 * num_vfs so that each VF will have access to more number of
+	 * resources. This facility is not available in BE3 FW.
+	 * Also, this is done by FW in Lancer chip.
+	 */
+	if (be_max_vfs(adapter) && !pci_num_vf(adapter->pdev)) {
+		status = be_cmd_set_sriov_config(adapter,
+						 adapter->pool_res,
+						 adapter->num_vfs);
+		if (status)
+			dev_err(dev, "Failed to optimize SR-IOV resources\n");
+	}
+}
+
 static int be_get_config(struct be_adapter *adapter)
 {
 	u16 profile_id;
@@ -3439,27 +3471,8 @@ static int be_get_config(struct be_adapter *adapter)
 				 "Using profile 0x%x\n", profile_id);
 	}
 
-	if (!BE2_chip(adapter) && be_physfn(adapter)) {
-		status = be_get_sriov_config(adapter);
-		if (status)
-			return status;
-
-		/* When the HW is in SRIOV capable configuration, the PF-pool
-		 * resources are equally distributed across the max-number of
-		 * VFs. The user may request only a subset of the max-vfs to be
-		 * enabled. Based on num_vfs, redistribute the resources across
-		 * num_vfs so that each VF will have access to more number of
-		 * resources. This facility is not available in BE3 FW.
-		 * Also, this is done by FW in Lancer chip.
-		 */
-		if (!pci_num_vf(adapter->pdev)) {
-			status = be_cmd_set_sriov_config(adapter,
-							 adapter->pool_res,
-							 adapter->num_vfs);
-			if (status)
-				return status;
-		}
-	}
+	if (!BE2_chip(adapter) && be_physfn(adapter))
+		be_sriov_config(adapter);
 
 	status = be_get_resources(adapter);
 	if (status)

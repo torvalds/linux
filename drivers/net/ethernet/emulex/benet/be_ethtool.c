@@ -681,22 +681,21 @@ static int be_set_dump(struct net_device *netdev, struct ethtool_dump *dump)
 	struct device *dev = &adapter->pdev->dev;
 	int status;
 
-	if (!lancer_chip(adapter)) {
-		dev_err(dev, "FW dump not supported\n");
+	if (!lancer_chip(adapter) ||
+	    !check_privilege(adapter, MAX_PRIVILEGES))
 		return -EOPNOTSUPP;
-	}
-
-	if (dump_present(adapter)) {
-		dev_err(dev, "Previous dump not cleared, not forcing dump\n");
-		return 0;
-	}
 
 	switch (dump->flag) {
 	case LANCER_INITIATE_FW_DUMP:
 		status = lancer_initiate_dump(adapter);
 		if (!status)
-			dev_info(dev, "F/w dump initiated successfully\n");
+			dev_info(dev, "FW dump initiated successfully\n");
 		break;
+	case LANCER_DELETE_FW_DUMP:
+		status = lancer_delete_dump(adapter);
+		if (!status)
+			dev_info(dev, "FW dump deleted successfully\n");
+	break;
 	default:
 		dev_err(dev, "Invalid dump level: 0x%x\n", dump->flag);
 		return -EINVAL;

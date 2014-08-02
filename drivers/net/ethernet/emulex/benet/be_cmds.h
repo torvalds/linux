@@ -231,6 +231,7 @@ struct be_mcc_mailbox {
 #define OPCODE_COMMON_GET_FN_PRIVILEGES			170
 #define OPCODE_COMMON_READ_OBJECT			171
 #define OPCODE_COMMON_WRITE_OBJECT			172
+#define OPCODE_COMMON_DELETE_OBJECT			174
 #define OPCODE_COMMON_MANAGE_IFACE_FILTERS		193
 #define OPCODE_COMMON_GET_IFACE_LIST			194
 #define OPCODE_COMMON_ENABLE_DISABLE_VF			196
@@ -1253,6 +1254,13 @@ struct lancer_cmd_resp_read_object {
 	u32 eof;
 };
 
+struct lancer_cmd_req_delete_object {
+	struct be_cmd_req_hdr hdr;
+	u32 rsvd1;
+	u32 rsvd2;
+	u8 object_name[104];
+};
+
 /************************ WOL *******************************/
 struct be_cmd_req_acpi_wol_magic_config{
 	struct be_cmd_req_hdr hdr;
@@ -2067,6 +2075,7 @@ int lancer_cmd_write_object(struct be_adapter *adapter, struct be_dma_mem *cmd,
 int lancer_cmd_read_object(struct be_adapter *adapter, struct be_dma_mem *cmd,
 			   u32 data_size, u32 data_offset, const char *obj_name,
 			   u32 *data_read, u32 *eof, u8 *addn_status);
+int lancer_cmd_delete_object(struct be_adapter *adapter, const char *obj_name);
 int be_cmd_get_flash_crc(struct be_adapter *adapter, u8 *flashed_crc,
 			  u16 optype, int offset);
 int be_cmd_enable_magic_wol(struct be_adapter *adapter, u8 *mac,
@@ -2120,6 +2129,7 @@ int be_cmd_set_ext_fat_capabilites(struct be_adapter *adapter,
 				   struct be_fat_conf_params *cfgs);
 int lancer_physdev_ctrl(struct be_adapter *adapter, u32 mask);
 int lancer_initiate_dump(struct be_adapter *adapter);
+int lancer_delete_dump(struct be_adapter *adapter);
 bool dump_present(struct be_adapter *adapter);
 int lancer_test_and_set_rdy_state(struct be_adapter *adapter);
 int be_cmd_query_port_name(struct be_adapter *adapter, u8 *port_name);

@@ -383,8 +383,10 @@ enum vf_state {
 
 #define BE_UC_PMAC_COUNT			30
 #define BE_VF_UC_PMAC_COUNT			2
+
 /* Ethtool set_dump flags */
 #define LANCER_INITIATE_FW_DUMP			0x1
+#define LANCER_DELETE_FW_DUMP			0x2
 
 struct phy_info {
 	u8 transceiver;
