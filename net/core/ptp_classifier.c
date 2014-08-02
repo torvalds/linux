@@ -107,11 +107,11 @@
 #include <linux/filter.h>
 #include <linux/ptp_classify.h>
 
-static struct sk_filter *ptp_insns __read_mostly;
+static struct bpf_prog *ptp_insns __read_mostly;
 
 unsigned int ptp_classify_raw(const struct sk_buff *skb)
 {
-	return SK_RUN_FILTER(ptp_insns, skb);
+	return BPF_PROG_RUN(ptp_insns, skb);
 }
 EXPORT_SYMBOL_GPL(ptp_classify_raw);
 
@@ -189,5 +189,5 @@ void __init ptp_classifier_init(void)
 		.len = ARRAY_SIZE(ptp_filter), .filter = ptp_filter,
 	};
 
-	BUG_ON(sk_unattached_filter_create(&ptp_insns, &ptp_prog));
+	BUG_ON(bpf_prog_create(&ptp_insns, &ptp_prog));
 }
