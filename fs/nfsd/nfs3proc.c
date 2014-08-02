@@ -466,6 +466,14 @@ nfsd3_proc_readdirplus(struct svc_rqst *rqstp, struct nfsd3_readdirargs *argp,
 	resp->buflen = resp->count;
 	resp->rqstp = rqstp;
 	offset = argp->cookie;
+
+	nfserr = fh_verify(rqstp, &resp->fh, S_IFDIR, NFSD_MAY_NOP);
+	if (nfserr)
+		RETURN_STATUS(nfserr);
+
+	if (resp->fh.fh_export->ex_flags & NFSEXP_NOREADDIRPLUS)
+		RETURN_STATUS(nfserr_notsupp);
+
 	nfserr = nfsd_readdir(rqstp, &resp->fh,
 				     &offset,
 				     &resp->common,
