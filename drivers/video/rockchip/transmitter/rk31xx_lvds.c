@@ -74,10 +74,10 @@ static int rk31xx_lvds_pwr_on(void)
         struct rk_lvds_device *lvds = rk31xx_lvds;
 
         if (lvds->screen.type == SCREEN_LVDS) {
-                /* power up lvds pll and bandgap */
-	        lvds_msk_reg(lvds, MIPIPHY_REGEA,
-	                     m_BG_POWER_DOWN | m_PLL_POWER_DOWN,
-	                     v_BG_POWER_DOWN(0) | v_PLL_POWER_DOWN(0));
+                /* power up lvds pll and ldo */
+	        lvds_msk_reg(lvds, MIPIPHY_REG1,
+	                     m_SYNC_RST | m_LDO_PWR_DOWN | m_PLL_PWR_DOWN,
+	                     v_SYNC_RST(0) | v_LDO_PWR_DOWN(0) | v_PLL_PWR_DOWN(0));
 
 	        /* enable lvds */
 	        lvds_msk_reg(lvds, MIPIPHY_REGE3,
@@ -96,8 +96,10 @@ static int rk31xx_lvds_pwr_off(void)
         struct rk_lvds_device *lvds = rk31xx_lvds;
 
 	/* power down lvds pll and bandgap */
-	lvds_msk_reg(lvds, MIPIPHY_REGEA, m_BG_POWER_DOWN | m_PLL_POWER_DOWN,
-	             v_BG_POWER_DOWN(1) | v_PLL_POWER_DOWN(1));
+	lvds_msk_reg(lvds, MIPIPHY_REG1,
+	             m_SYNC_RST | m_LDO_PWR_DOWN | m_PLL_PWR_DOWN,
+	             v_SYNC_RST(1) | v_LDO_PWR_DOWN(1) | v_PLL_PWR_DOWN(1));
+
 	/* disable lvds */
 	lvds_msk_reg(lvds, MIPIPHY_REGE3, m_LVDS_EN | m_TTL_EN,
 	             v_LVDS_EN(0) | v_TTL_EN(0));
@@ -135,27 +137,30 @@ static void rk31xx_output_lvds(struct rk_lvds_device *lvds,
 	val |= v_LVDS_DATA_SEL(LVDS_DATA_FROM_LCDC);    /* config data source */
 	val |= v_LVDS_OUTPUT_FORMAT(screen->lvds_format); /* config lvds_format */
 	val |= v_LVDS_MSBSEL(LVDS_MSB_D7);      /* LSB receive mode */
+        val |= v_MIPIPHY_LANE0_EN(1) | v_MIPIDPI_FORCEX_EN(1);
 	grf_writel(val, RK312X_GRF_LVDS_CON0);
 
         /* enable lvds lane */
         val = v_LANE0_EN(1) | v_LANE1_EN(1) | v_LANE2_EN(1) | v_LANE3_EN(1) |
-                v_LANECLK_EN(1);
-	lvds_writel(lvds, MIPIPHY_REG0, val);
+                v_LANECLK_EN(1) | v_PLL_PWR_OFF(0);
+	lvds_writel(lvds, MIPIPHY_REGEB, val);
 
         /* set pll prediv and fbdiv */
-	lvds_writel(lvds, MIPIPHY_REG3, v_PREDIV(1) | v_FBDIV_MSB(0));
-	lvds_writel(lvds, MIPIPHY_REG4, v_FBDIV_LSB(7));
+	lvds_writel(lvds, MIPIPHY_REG3, v_PREDIV(2) | v_FBDIV_MSB(0));
+	lvds_writel(lvds, MIPIPHY_REG4, v_FBDIV_LSB(28));
 
         /* set lvds mode and reset phy config */
-        val = v_LVDS_MODE_EN(1) | v_TTL_MODE_EN(0) | v_MIPI_MODE_EN(0) |
-                v_MSB_SEL(1) | v_DIG_INTER_RST(1);
-	lvds_writel(lvds, MIPIPHY_REGE0, val);
+	lvds_msk_reg(lvds, MIPIPHY_REGE0,
+                     m_MSB_SEL | m_DIG_INTER_RST,
+                     v_MSB_SEL(1) | v_DIG_INTER_RST(1));
 
-        lvds_writel(lvds, MIPIPHY_REGE1, 0x92);
-#if 0        
-	lvds_writel(lvds, MIPIPHY_REGE2, 0xa0); /* timing */
-	lvds_writel(lvds, MIPIPHY_REGE7, 0xfc); /* phase */
+        lvds_msk_reg(lvds, MIPIPHY_REGE1, m_DIG_INTER_EN, v_DIG_INTER_EN(1));
+
+#if 0
+        lvds_writel(lvds, MIPIPHY_REGE2, 0xa0); /* timing */
+        lvds_writel(lvds, MIPIPHY_REGE7, 0xfc); /* phase */
 #endif
+
         rk31xx_lvds_pwr_on();
 
 }
@@ -164,14 +169,14 @@ static void rk31xx_output_lvttl(struct rk_lvds_device *lvds,
                                 struct rk_screen *screen)
 {
         u32 val = 0;
-        struct pinctrl_state *lcdc_state;
+        //struct pinctrl_state *lcdc_state;
 
         /* iomux to lcdc */
-#if defined(CONFIG_RK_FPGA)
+#if 1 /* defined(CONFIG_RK_FPGA) */
         grf_writel(0xffff5555, RK312X_GRF_GPIO2B_IOMUX);
         grf_writel(0x00ff0055, RK312X_GRF_GPIO2C_IOMUX);
         grf_writel(0x77771111, 0x00e8); /* RK312X_GRF_GPIO2C_IOMUX2 */
-        grf_writel(0x700c1008, RK312X_GRF_GPIO2D_IOMUX);
+        grf_writel(0x700c1004, RK312X_GRF_GPIO2D_IOMUX);
 #else
         lcdc_state = pinctrl_lookup_state(lvds->dev->pins->p, "lcdc");
         pinctrl_select_state(lvds->dev->pins->p, lcdc_state);

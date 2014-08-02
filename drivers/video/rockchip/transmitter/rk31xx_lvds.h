@@ -14,6 +14,8 @@
 #define v_LVDS_MSBSEL(x)        (BITS_MASK(x, 1, 3) | BITS_EN(1, 3))
 #define v_LVDSMODE_EN(x)        (BITS_MASK(x, 1, 6) | BITS_EN(1, 6))
 #define v_MIPIPHY_TTL_EN(x)     (BITS_MASK(x, 1, 7) | BITS_EN(1, 7))
+#define v_MIPIPHY_LANE0_EN(x)   (BITS_MASK(x, 1, 8) | BITS_EN(1, 8))
+#define v_MIPIDPI_FORCEX_EN(x)  (BITS_MASK(x, 1, 9) | BITS_EN(1, 9))
 
 enum {
         LVDS_DATA_FROM_LCDC = 0,
@@ -25,12 +27,13 @@ enum {
         LVDS_MSB_D7,
 };
 
-#define MIPIPHY_REG0		0x0000
-#define v_LANE0_EN(x)           BITS_MASK(x, 1, 2)
-#define v_LANE1_EN(x)           BITS_MASK(x, 1, 3)
-#define v_LANE2_EN(x)           BITS_MASK(x, 1, 4)
-#define v_LANE3_EN(x)           BITS_MASK(x, 1, 5)
-#define v_LANECLK_EN(x)         BITS_MASK(x, 1, 6)
+#define MIPIPHY_REG1            0x0004
+#define m_SYNC_RST              BITS(1, 0)
+#define m_LDO_PWR_DOWN          BITS(1, 1)
+#define m_PLL_PWR_DOWN          BITS(1, 2)
+#define v_SYNC_RST(x)           BITS_MASK(x, 1, 0)
+#define v_LDO_PWR_DOWN(x)       BITS_MASK(x, 1, 1)
+#define v_PLL_PWR_DOWN(x)       BITS_MASK(x, 1, 2)
 
 #define MIPIPHY_REG3		0x000c
 #define m_PREDIV                BITS(0x1f, 0)
@@ -65,14 +68,13 @@ enum {
 #define v_LVDS_EN(x)            BITS_MASK(x, 1, 1)
 #define v_TTL_EN(x)             BITS_MASK(x, 1, 2)
 
-#define MIPIPHY_REGEA		0x03A8
-#define m_BG_POWER_DOWN         BITS(1, 0)
-#define m_PLL_POWER_DOWN        BITS(1, 2)
-#define v_BG_POWER_DOWN(x)      BITS_MASK(x, 1, 0)
-#define v_PLL_POWER_DOWN(x)     BITS_MASK(x, 1, 2)
-
-#define MIPIPHY_REGE2		0x0388
-#define MIPIPHY_REGE7		0x039C
+#define MIPIPHY_REGEB           0x03ac
+#define v_PLL_PWR_OFF(x)        BITS_MASK(x, 1, 2)
+#define v_LANECLK_EN(x)         BITS_MASK(x, 1, 3)
+#define v_LANE3_EN(x)           BITS_MASK(x, 1, 4)
+#define v_LANE2_EN(x)           BITS_MASK(x, 1, 5)
+#define v_LANE1_EN(x)           BITS_MASK(x, 1, 6)
+#define v_LANE0_EN(x)           BITS_MASK(x, 1, 7)
 
 
 struct rk_lvds_device {
