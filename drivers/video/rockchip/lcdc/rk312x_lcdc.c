@@ -253,7 +253,7 @@ static void lcdc_layer_update_regs(struct lcdc_device *lcdc_dev,
 			lcdc_msk_reg(lcdc_dev, WIN0_VIR,
 				     m_YRGB_VIR | m_CBBR_VIR,
 				     v_YRGB_VIR(win->area[0].y_vir_stride) |
-				     v_YRGB_VIR(win->area[0].uv_vir_stride));
+				     v_CBCR_VIR(win->area[0].uv_vir_stride));
 			lcdc_writel(lcdc_dev, WIN0_ACT_INFO,
 				    v_ACT_WIDTH(win->area[0].xact) |
 				    v_ACT_HEIGHT(win->area[0].yact));
