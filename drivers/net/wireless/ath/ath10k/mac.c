@@ -796,7 +796,7 @@ static void ath10k_recalc_radar_detection(struct ath10k *ar)
 	}
 }
 
-static int ath10k_vdev_start(struct ath10k_vif *arvif)
+static int ath10k_vdev_start_restart(struct ath10k_vif *arvif, bool restart)
 {
 	struct ath10k *ar = arvif->ar;
 	struct cfg80211_chan_def *chandef = &ar->chandef;
@@ -838,7 +838,11 @@ static int ath10k_vdev_start(struct ath10k_vif *arvif)
 		   arg.vdev_id, arg.channel.freq,
 		   ath10k_wmi_phymode_str(arg.channel.mode));
 
-	ret = ath10k_wmi_vdev_start(ar, &arg);
+	if (restart)
+		ret = ath10k_wmi_vdev_restart(ar, &arg);
+	else
+		ret = ath10k_wmi_vdev_start(ar, &arg);
+
 	if (ret) {
 		ath10k_warn("failed to start WMI vdev %i: %d\n",
 			    arg.vdev_id, ret);
@@ -856,6 +860,16 @@ static int ath10k_vdev_start(struct ath10k_vif *arvif)
 	ath10k_recalc_radar_detection(ar);
 
 	return ret;
+}
+
+static int ath10k_vdev_start(struct ath10k_vif *arvif)
+{
+	return ath10k_vdev_start_restart(arvif, false);
+}
+
+static int ath10k_vdev_restart(struct ath10k_vif *arvif)
+{
+	return ath10k_vdev_start_restart(arvif, true);
 }
 
 static int ath10k_vdev_stop(struct ath10k_vif *arvif)
@@ -2582,18 +2596,21 @@ static void ath10k_config_chan(struct ath10k *ar)
 		if (!arvif->is_started)
 			continue;
 
+		if (!arvif->is_up)
+			continue;
+
 		if (arvif->vdev_type == WMI_VDEV_TYPE_MONITOR)
 			continue;
 
-		ret = ath10k_vdev_stop(arvif);
+		ret = ath10k_wmi_vdev_down(ar, arvif->vdev_id);
 		if (ret) {
-			ath10k_warn("failed to stop vdev %d: %d\n",
+			ath10k_warn("failed to down vdev %d: %d\n",
 				    arvif->vdev_id, ret);
 			continue;
 		}
 	}
 
-	/* all vdevs are now stopped - now attempt to restart them */
+	/* all vdevs are downed now - attempt to restart and re-up them */
 
 	list_for_each_entry(arvif, &ar->arvifs, list) {
 		if (!arvif->is_started)
@@ -2602,9 +2619,9 @@ static void ath10k_config_chan(struct ath10k *ar)
 		if (arvif->vdev_type == WMI_VDEV_TYPE_MONITOR)
 			continue;
 
-		ret = ath10k_vdev_start(arvif);
+		ret = ath10k_vdev_restart(arvif);
 		if (ret) {
-			ath10k_warn("failed to start vdev %d: %d\n",
+			ath10k_warn("failed to restart vdev %d: %d\n",
 				    arvif->vdev_id, ret);
 			continue;
 		}
