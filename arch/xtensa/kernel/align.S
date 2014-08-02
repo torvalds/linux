@@ -277,18 +277,6 @@ ENTRY(fast_unaligned)
 	/* Set target register. */
 
 1:
-
-#if XCHAL_HAVE_LOOPS
-	rsr	a5, lend		# check if we reached LEND
-	bne	a7, a5, 1f
-	rsr	a5, lcount		# and LCOUNT != 0
-	beqz	a5, 1f
-	addi	a5, a5, -1		# decrement LCOUNT and set
-	rsr	a7, lbeg		# set PC to LBEGIN
-	wsr	a5, lcount
-#endif
-
-1:	wsr	a7, epc1		# skip load instruction
 	extui	a4, a4, INSN_T, 4	# extract target register
 	movi	a5, .Lload_table
 	addx8	a4, a4, a5
@@ -358,17 +346,6 @@ ENTRY(fast_unaligned)
 	/* Get memory address */
 
 1:
-#if XCHAL_HAVE_LOOPS
-	rsr	a4, lend		# check if we reached LEND
-	bne	a7, a4, 1f
-	rsr	a4, lcount		# and LCOUNT != 0
-	beqz	a4, 1f
-	addi	a4, a4, -1		# decrement LCOUNT and set
-	rsr	a7, lbeg		# set PC to LBEGIN
-	wsr	a4, lcount
-#endif
-
-1:	wsr	a7, epc1		# skip store instruction
 	movi	a4, ~3
 	and	a4, a4, a8		# align memory address
 
@@ -380,25 +357,25 @@ ENTRY(fast_unaligned)
 #endif
 
 	__ssa8r a8
-	__src_b	a7, a5, a6		# lo-mask  F..F0..0 (BE) 0..0F..F (LE)
+	__src_b	a8, a5, a6		# lo-mask  F..F0..0 (BE) 0..0F..F (LE)
 	__src_b	a6, a6, a5		# hi-mask  0..0F..F (BE) F..F0..0 (LE)
 #ifdef UNALIGNED_USER_EXCEPTION
 	l32e	a5, a4, -8
 #else
 	l32i	a5, a4, 0		# load lower address word
 #endif
-	and	a5, a5, a7		# mask
-	__sh	a7, a3 			# shift value
-	or	a5, a5, a7		# or with original value
+	and	a5, a5, a8		# mask
+	__sh	a8, a3 			# shift value
+	or	a5, a5, a8		# or with original value
 #ifdef UNALIGNED_USER_EXCEPTION
 	s32e	a5, a4, -8
-	l32e	a7, a4, -4
+	l32e	a8, a4, -4
 #else
 	s32i	a5, a4, 0		# store
-	l32i	a7, a4, 4		# same for upper address word
+	l32i	a8, a4, 4		# same for upper address word
 #endif
 	__sl	a5, a3
-	and	a6, a7, a6
+	and	a6, a8, a6
 	or	a6, a6, a5
 #ifdef UNALIGNED_USER_EXCEPTION
 	s32e	a6, a4, -4
@@ -406,9 +383,19 @@ ENTRY(fast_unaligned)
 	s32i	a6, a4, 4
 #endif
 
-	/* Done. restore stack and return */
-
 .Lexit:
+#if XCHAL_HAVE_LOOPS
+	rsr	a4, lend		# check if we reached LEND
+	bne	a7, a4, 1f
+	rsr	a4, lcount		# and LCOUNT != 0
+	beqz	a4, 1f
+	addi	a4, a4, -1		# decrement LCOUNT and set
+	rsr	a7, lbeg		# set PC to LBEGIN
+	wsr	a4, lcount
+#endif
+
+1:	wsr	a7, epc1		# skip emulated instruction
+
 	movi	a4, 0
 	rsr	a3, excsave1
 	s32i	a4, a3, EXC_TABLE_FIXUP
