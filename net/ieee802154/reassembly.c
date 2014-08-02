@@ -30,6 +30,8 @@
 
 #include "reassembly.h"
 
+static const char lowpan_frags_cache_name[] = "lowpan-frags";
+
 struct lowpan_frag_info {
 	__be16 d_tag;
 	u16 d_size;
@@ -99,7 +101,7 @@ static void lowpan_frag_expire(unsigned long data)
 
 	spin_lock(&fq->q.lock);
 
-	if (fq->q.last_in & INET_FRAG_COMPLETE)
+	if (fq->q.flags & INET_FRAG_COMPLETE)
 		goto out;
 
 	inet_frag_kill(&fq->q, &lowpan_frags);
@@ -142,7 +144,7 @@ static int lowpan_frag_queue(struct lowpan_frag_queue *fq,
 	struct net_device *dev;
 	int end, offset;
 
-	if (fq->q.last_in & INET_FRAG_COMPLETE)
+	if (fq->q.flags & INET_FRAG_COMPLETE)
 		goto err;
 
 	offset = lowpan_cb(skb)->d_offset << 3;
@@ -154,14 +156,14 @@ static int lowpan_frag_queue(struct lowpan_frag_queue *fq,
 		 * or have different end, the segment is corrupted.
 		 */
 		if (end < fq->q.len ||
-		    ((fq->q.last_in & INET_FRAG_LAST_IN) && end != fq->q.len))
+		    ((fq->q.flags & INET_FRAG_LAST_IN) && end != fq->q.len))
 			goto err;
-		fq->q.last_in |= INET_FRAG_LAST_IN;
+		fq->q.flags |= INET_FRAG_LAST_IN;
 		fq->q.len = end;
 	} else {
 		if (end > fq->q.len) {
 			/* Some bits beyond end -> corruption. */
-			if (fq->q.last_in & INET_FRAG_LAST_IN)
+			if (fq->q.flags & INET_FRAG_LAST_IN)
 				goto err;
 			fq->q.len = end;
 		}
@@ -201,13 +203,13 @@ found:
 	if (frag_type == LOWPAN_DISPATCH_FRAG1) {
 		/* Calculate uncomp. 6lowpan header to estimate full size */
 		fq->q.meat += lowpan_uncompress_size(skb, NULL);
-		fq->q.last_in |= INET_FRAG_FIRST_IN;
+		fq->q.flags |= INET_FRAG_FIRST_IN;
 	} else {
 		fq->q.meat += skb->len;
 	}
 	add_frag_mem_limit(&fq->q, skb->truesize);
 
-	if (fq->q.last_in == (INET_FRAG_FIRST_IN | INET_FRAG_LAST_IN) &&
+	if (fq->q.flags == (INET_FRAG_FIRST_IN | INET_FRAG_LAST_IN) &&
 	    fq->q.meat == fq->q.len) {
 		int res;
 		unsigned long orefdst = skb->_skb_refdst;
@@ -571,7 +573,10 @@ int __init lowpan_net_frag_init(void)
 	lowpan_frags.qsize = sizeof(struct frag_queue);
 	lowpan_frags.match = lowpan_frag_match;
 	lowpan_frags.frag_expire = lowpan_frag_expire;
-	inet_frags_init(&lowpan_frags);
+	lowpan_frags.frags_cache_name = lowpan_frags_cache_name;
+	ret = inet_frags_init(&lowpan_frags);
+	if (ret)
+		goto err_pernet;
 
 	return ret;
 err_pernet:

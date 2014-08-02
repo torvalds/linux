@@ -55,6 +55,7 @@
  */
 
 static int sysctl_ipfrag_max_dist __read_mostly = 64;
+static const char ip_frag_cache_name[] = "ip4-frags";
 
 struct ipfrag_skb_cb
 {
@@ -185,19 +186,21 @@ static void ip_expire(unsigned long arg)
 
 	spin_lock(&qp->q.lock);
 
-	if (qp->q.last_in & INET_FRAG_COMPLETE)
+	if (qp->q.flags & INET_FRAG_COMPLETE)
 		goto out;
 
 	ipq_kill(qp);
-
-	if (!(qp->q.last_in & INET_FRAG_EVICTED))
-		IP_INC_STATS_BH(net, IPSTATS_MIB_REASMTIMEOUT);
 	IP_INC_STATS_BH(net, IPSTATS_MIB_REASMFAILS);
 
-	if ((qp->q.last_in & INET_FRAG_FIRST_IN) && qp->q.fragments != NULL) {
+	if (!(qp->q.flags & INET_FRAG_EVICTED)) {
 		struct sk_buff *head = qp->q.fragments;
 		const struct iphdr *iph;
 		int err;
+
+		IP_INC_STATS_BH(net, IPSTATS_MIB_REASMTIMEOUT);
+
+		if (!(qp->q.flags & INET_FRAG_FIRST_IN) || !qp->q.fragments)
+			goto out;
 
 		rcu_read_lock();
 		head->dev = dev_get_by_index_rcu(net, qp->iif);
@@ -211,8 +214,7 @@ static void ip_expire(unsigned long arg)
 		if (err)
 			goto out_rcu_unlock;
 
-		/*
-		 * Only an end host needs to send an ICMP
+		/* Only an end host needs to send an ICMP
 		 * "Fragment Reassembly Timeout" message, per RFC792.
 		 */
 		if (qp->user == IP_DEFRAG_AF_PACKET ||
@@ -220,7 +222,6 @@ static void ip_expire(unsigned long arg)
 		     (qp->user <= __IP_DEFRAG_CONNTRACK_IN_END) &&
 		     (skb_rtable(head)->rt_type != RTN_LOCAL)))
 			goto out_rcu_unlock;
-
 
 		/* Send an ICMP "Fragment Reassembly Timeout" message. */
 		icmp_send(head, ICMP_TIME_EXCEEDED, ICMP_EXC_FRAGTIME, 0);
@@ -302,7 +303,7 @@ static int ip_frag_reinit(struct ipq *qp)
 	} while (fp);
 	sub_frag_mem_limit(&qp->q, sum_truesize);
 
-	qp->q.last_in = 0;
+	qp->q.flags = 0;
 	qp->q.len = 0;
 	qp->q.meat = 0;
 	qp->q.fragments = NULL;
@@ -323,7 +324,7 @@ static int ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
 	int err = -ENOENT;
 	u8 ecn;
 
-	if (qp->q.last_in & INET_FRAG_COMPLETE)
+	if (qp->q.flags & INET_FRAG_COMPLETE)
 		goto err;
 
 	if (!(IPCB(skb)->flags & IPSKB_FRAG_COMPLETE) &&
@@ -350,9 +351,9 @@ static int ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
 		 * or have different end, the segment is corrupted.
 		 */
 		if (end < qp->q.len ||
-		    ((qp->q.last_in & INET_FRAG_LAST_IN) && end != qp->q.len))
+		    ((qp->q.flags & INET_FRAG_LAST_IN) && end != qp->q.len))
 			goto err;
-		qp->q.last_in |= INET_FRAG_LAST_IN;
+		qp->q.flags |= INET_FRAG_LAST_IN;
 		qp->q.len = end;
 	} else {
 		if (end&7) {
@@ -362,7 +363,7 @@ static int ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
 		}
 		if (end > qp->q.len) {
 			/* Some bits beyond end -> corruption. */
-			if (qp->q.last_in & INET_FRAG_LAST_IN)
+			if (qp->q.flags & INET_FRAG_LAST_IN)
 				goto err;
 			qp->q.len = end;
 		}
@@ -471,13 +472,13 @@ found:
 	qp->ecn |= ecn;
 	add_frag_mem_limit(&qp->q, skb->truesize);
 	if (offset == 0)
-		qp->q.last_in |= INET_FRAG_FIRST_IN;
+		qp->q.flags |= INET_FRAG_FIRST_IN;
 
 	if (ip_hdr(skb)->frag_off & htons(IP_DF) &&
 	    skb->len + ihl > qp->q.max_size)
 		qp->q.max_size = skb->len + ihl;
 
-	if (qp->q.last_in == (INET_FRAG_FIRST_IN | INET_FRAG_LAST_IN) &&
+	if (qp->q.flags == (INET_FRAG_FIRST_IN | INET_FRAG_LAST_IN) &&
 	    qp->q.meat == qp->q.len) {
 		unsigned long orefdst = skb->_skb_refdst;
 
@@ -860,5 +861,7 @@ void __init ipfrag_init(void)
 	ip4_frags.qsize = sizeof(struct ipq);
 	ip4_frags.match = ip4_frag_match;
 	ip4_frags.frag_expire = ip_expire;
-	inet_frags_init(&ip4_frags);
+	ip4_frags.frags_cache_name = ip_frag_cache_name;
+	if (inet_frags_init(&ip4_frags))
+		panic("IP: failed to allocate ip4_frags cache\n");
 }

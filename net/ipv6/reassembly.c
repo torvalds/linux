@@ -60,6 +60,8 @@
 #include <net/inet_frag.h>
 #include <net/inet_ecn.h>
 
+static const char ip6_frag_cache_name[] = "ip6-frags";
+
 struct ip6frag_skb_cb
 {
 	struct inet6_skb_parm	h;
@@ -131,7 +133,7 @@ void ip6_expire_frag_queue(struct net *net, struct frag_queue *fq,
 
 	spin_lock(&fq->q.lock);
 
-	if (fq->q.last_in & INET_FRAG_COMPLETE)
+	if (fq->q.flags & INET_FRAG_COMPLETE)
 		goto out;
 
 	inet_frag_kill(&fq->q, frags);
@@ -141,19 +143,20 @@ void ip6_expire_frag_queue(struct net *net, struct frag_queue *fq,
 	if (!dev)
 		goto out_rcu_unlock;
 
-	if (!(fq->q.last_in & INET_FRAG_EVICTED))
-		IP6_INC_STATS_BH(net, __in6_dev_get(dev),
-				 IPSTATS_MIB_REASMTIMEOUT);
 	IP6_INC_STATS_BH(net, __in6_dev_get(dev), IPSTATS_MIB_REASMFAILS);
 
-	/* Don't send error if the first segment did not arrive. */
-	if (!(fq->q.last_in & INET_FRAG_FIRST_IN) || !fq->q.fragments)
+	if (fq->q.flags & INET_FRAG_EVICTED)
 		goto out_rcu_unlock;
 
-	/*
-	   But use as source device on which LAST ARRIVED
-	   segment was received. And do not use fq->dev
-	   pointer directly, device might already disappeared.
+	IP6_INC_STATS_BH(net, __in6_dev_get(dev), IPSTATS_MIB_REASMTIMEOUT);
+
+	/* Don't send error if the first segment did not arrive. */
+	if (!(fq->q.flags & INET_FRAG_FIRST_IN) || !fq->q.fragments)
+		goto out_rcu_unlock;
+
+	/* But use as source device on which LAST ARRIVED
+	 * segment was received. And do not use fq->dev
+	 * pointer directly, device might already disappeared.
 	 */
 	fq->q.fragments->dev = dev;
 	icmpv6_send(fq->q.fragments, ICMPV6_TIME_EXCEED, ICMPV6_EXC_FRAGTIME, 0);
@@ -209,7 +212,7 @@ static int ip6_frag_queue(struct frag_queue *fq, struct sk_buff *skb,
 	struct net *net = dev_net(skb_dst(skb)->dev);
 	u8 ecn;
 
-	if (fq->q.last_in & INET_FRAG_COMPLETE)
+	if (fq->q.flags & INET_FRAG_COMPLETE)
 		goto err;
 
 	offset = ntohs(fhdr->frag_off) & ~0x7;
@@ -240,9 +243,9 @@ static int ip6_frag_queue(struct frag_queue *fq, struct sk_buff *skb,
 		 * or have different end, the segment is corrupted.
 		 */
 		if (end < fq->q.len ||
-		    ((fq->q.last_in & INET_FRAG_LAST_IN) && end != fq->q.len))
+		    ((fq->q.flags & INET_FRAG_LAST_IN) && end != fq->q.len))
 			goto err;
-		fq->q.last_in |= INET_FRAG_LAST_IN;
+		fq->q.flags |= INET_FRAG_LAST_IN;
 		fq->q.len = end;
 	} else {
 		/* Check if the fragment is rounded to 8 bytes.
@@ -260,7 +263,7 @@ static int ip6_frag_queue(struct frag_queue *fq, struct sk_buff *skb,
 		}
 		if (end > fq->q.len) {
 			/* Some bits beyond end -> corruption. */
-			if (fq->q.last_in & INET_FRAG_LAST_IN)
+			if (fq->q.flags & INET_FRAG_LAST_IN)
 				goto err;
 			fq->q.len = end;
 		}
@@ -335,10 +338,10 @@ found:
 	 */
 	if (offset == 0) {
 		fq->nhoffset = nhoff;
-		fq->q.last_in |= INET_FRAG_FIRST_IN;
+		fq->q.flags |= INET_FRAG_FIRST_IN;
 	}
 
-	if (fq->q.last_in == (INET_FRAG_FIRST_IN | INET_FRAG_LAST_IN) &&
+	if (fq->q.flags == (INET_FRAG_FIRST_IN | INET_FRAG_LAST_IN) &&
 	    fq->q.meat == fq->q.len) {
 		int res;
 		unsigned long orefdst = skb->_skb_refdst;
@@ -355,8 +358,8 @@ found:
 discard_fq:
 	inet_frag_kill(&fq->q, &ip6_frags);
 err:
-	IP6_INC_STATS(net, ip6_dst_idev(skb_dst(skb)),
-		      IPSTATS_MIB_REASMFAILS);
+	IP6_INC_STATS_BH(net, ip6_dst_idev(skb_dst(skb)),
+			 IPSTATS_MIB_REASMFAILS);
 	kfree_skb(skb);
 	return -1;
 }
@@ -566,7 +569,8 @@ static int ipv6_frag_rcv(struct sk_buff *skb)
 	return -1;
 
 fail_hdr:
-	IP6_INC_STATS(net, ip6_dst_idev(skb_dst(skb)), IPSTATS_MIB_INHDRERRORS);
+	IP6_INC_STATS_BH(net, ip6_dst_idev(skb_dst(skb)),
+			 IPSTATS_MIB_INHDRERRORS);
 	icmpv6_param_prob(skb, ICMPV6_HDR_FIELD, skb_network_header_len(skb));
 	return -1;
 }
@@ -746,7 +750,10 @@ int __init ipv6_frag_init(void)
 	ip6_frags.qsize = sizeof(struct frag_queue);
 	ip6_frags.match = ip6_frag_match;
 	ip6_frags.frag_expire = ip6_frag_expire;
-	inet_frags_init(&ip6_frags);
+	ip6_frags.frags_cache_name = ip6_frag_cache_name;
+	ret = inet_frags_init(&ip6_frags);
+	if (ret)
+		goto err_pernet;
 out:
 	return ret;
 

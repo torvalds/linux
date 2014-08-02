@@ -15,25 +15,49 @@ struct netns_frags {
 	int			low_thresh;
 };
 
+/**
+ * fragment queue flags
+ *
+ * @INET_FRAG_FIRST_IN: first fragment has arrived
+ * @INET_FRAG_LAST_IN: final fragment has arrived
+ * @INET_FRAG_COMPLETE: frag queue has been processed and is due for destruction
+ * @INET_FRAG_EVICTED: frag queue is being evicted
+ */
+enum {
+	INET_FRAG_FIRST_IN	= BIT(0),
+	INET_FRAG_LAST_IN	= BIT(1),
+	INET_FRAG_COMPLETE	= BIT(2),
+	INET_FRAG_EVICTED	= BIT(3)
+};
+
+/**
+ * struct inet_frag_queue - fragment queue
+ *
+ * @lock: spinlock protecting the queue
+ * @timer: queue expiration timer
+ * @list: hash bucket list
+ * @refcnt: reference count of the queue
+ * @fragments: received fragments head
+ * @fragments_tail: received fragments tail
+ * @stamp: timestamp of the last received fragment
+ * @len: total length of the original datagram
+ * @meat: length of received fragments so far
+ * @flags: fragment queue flags
+ * @max_size: (ipv4 only) maximum received fragment size with IP_DF set
+ * @net: namespace that this frag belongs to
+ */
 struct inet_frag_queue {
 	spinlock_t		lock;
-	struct timer_list	timer;      /* when will this queue expire? */
+	struct timer_list	timer;
 	struct hlist_node	list;
 	atomic_t		refcnt;
-	struct sk_buff		*fragments; /* list of received fragments */
+	struct sk_buff		*fragments;
 	struct sk_buff		*fragments_tail;
 	ktime_t			stamp;
-	int			len;        /* total length of orig datagram */
+	int			len;
 	int			meat;
-	__u8			last_in;    /* first/last segment arrived? */
-
-#define INET_FRAG_EVICTED	8
-#define INET_FRAG_COMPLETE	4
-#define INET_FRAG_FIRST_IN	2
-#define INET_FRAG_LAST_IN	1
-
+	__u8			flags;
 	u16			max_size;
-
 	struct netns_frags	*net;
 };
 
@@ -77,9 +101,11 @@ struct inet_frags {
 	void			(*destructor)(struct inet_frag_queue *);
 	void			(*skb_free)(struct sk_buff *);
 	void			(*frag_expire)(unsigned long data);
+	struct kmem_cache	*frags_cachep;
+	const char		*frags_cache_name;
 };
 
-void inet_frags_init(struct inet_frags *);
+int inet_frags_init(struct inet_frags *);
 void inet_frags_fini(struct inet_frags *);
 
 void inet_frags_init_net(struct netns_frags *nf);
