@@ -3119,7 +3119,7 @@ static void hci_pin_code_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		hci_conn_drop(conn);
 	}
 
-	if (!test_bit(HCI_PAIRABLE, &hdev->dev_flags) &&
+	if (!test_bit(HCI_BONDABLE, &hdev->dev_flags) &&
 	    !test_bit(HCI_CONN_AUTH_INITIATOR, &conn->flags)) {
 		hci_send_cmd(hdev, HCI_OP_PIN_CODE_NEG_REPLY,
 			     sizeof(ev->bdaddr), &ev->bdaddr);
@@ -3652,7 +3652,7 @@ static void hci_io_capa_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	/* Allow pairing if we're pairable, the initiators of the
 	 * pairing or if the remote is not requesting bonding.
 	 */
-	if (test_bit(HCI_PAIRABLE, &hdev->dev_flags) ||
+	if (test_bit(HCI_BONDABLE, &hdev->dev_flags) ||
 	    test_bit(HCI_CONN_AUTH_INITIATOR, &conn->flags) ||
 	    (conn->remote_auth & ~0x01) == HCI_AT_NO_BONDING) {
 		struct hci_cp_io_capability_reply cp;
@@ -3671,12 +3671,17 @@ static void hci_io_capa_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 			if (conn->io_capability != HCI_IO_NO_INPUT_OUTPUT &&
 			    conn->auth_type != HCI_AT_NO_BONDING)
 				conn->auth_type |= 0x01;
-
-			cp.authentication = conn->auth_type;
 		} else {
 			conn->auth_type = hci_get_auth_req(conn);
-			cp.authentication = conn->auth_type;
 		}
+
+		/* If we're not bondable, force one of the non-bondable
+		 * authentication requirement values.
+		 */
+		if (!test_bit(HCI_BONDABLE, &hdev->dev_flags))
+			conn->auth_type &= HCI_AT_NO_BONDING_MITM;
+
+		cp.authentication = conn->auth_type;
 
 		if (hci_find_remote_oob_data(hdev, &conn->dst) &&
 		    (conn->out || test_bit(HCI_CONN_REMOTE_OOB, &conn->flags)))

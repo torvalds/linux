@@ -121,12 +121,12 @@ struct brcmf_fws_mac_descriptor;
  *
  * @BRCMF_NETIF_STOP_REASON_FWS_FC:
  *	netif stopped due to firmware signalling flow control.
- * @BRCMF_NETIF_STOP_REASON_BLOCK_BUS:
- *	netif stopped due to bus blocking.
+ * @BRCMF_NETIF_STOP_REASON_FLOW:
+ *	netif stopped due to flowring full.
  */
 enum brcmf_netif_stop_reason {
 	BRCMF_NETIF_STOP_REASON_FWS_FC = 1,
-	BRCMF_NETIF_STOP_REASON_BLOCK_BUS = 2
+	BRCMF_NETIF_STOP_REASON_FLOW = 2
 };
 
 /**
@@ -181,6 +181,7 @@ void brcmf_txflowblock_if(struct brcmf_if *ifp,
 			  enum brcmf_netif_stop_reason reason, bool state);
 void brcmf_txfinalize(struct brcmf_pub *drvr, struct sk_buff *txp, u8 ifidx,
 		      bool success);
+void brcmf_netif_rx(struct brcmf_if *ifp, struct sk_buff *skb);
 
 /* Sets dongle media info (drv_version, mac address). */
 int brcmf_c_preinit_dcmds(struct brcmf_if *ifp);
