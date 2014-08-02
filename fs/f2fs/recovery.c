@@ -300,6 +300,8 @@ static int do_recover_data(struct f2fs_sb_info *sbi, struct inode *inode,
 	struct node_info ni;
 	int err = 0, recovered = 0;
 
+	recover_inline_xattr(inode, page);
+
 	if (recover_inline_data(inode, page))
 		goto out;
 
