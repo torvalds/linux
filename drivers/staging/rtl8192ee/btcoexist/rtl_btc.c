@@ -57,17 +57,14 @@ void rtl92e_btc_init_hal_vars(struct rtl_priv *rtlpriv)
 	u8 bt_exist;
 	u8 bt_type;
 	ant_num = rtl92e_get_hwpg_ant_num(rtlpriv);
-	RT_TRACE(COMP_INIT, DBG_DMESG,
-		 ("%s, antNum is %d\n", __func__, ant_num));
+	RT_TRACE(COMP_INIT, DBG_DMESG, "antNum is %d\n", ant_num);
 
 	bt_exist = rtl92e_get_hwpg_bt_exist(rtlpriv);
-	RT_TRACE(COMP_INIT, DBG_DMESG,
-		 ("%s, bt_exist is %d\n", __func__, bt_exist));
+	RT_TRACE(COMP_INIT, DBG_DMESG, "bt_exist is %d\n", bt_exist);
 	exhalbtc92e_set_bt_exist(bt_exist);
 
 	bt_type = rtl92e_get_hwpg_bt_type(rtlpriv);
-	RT_TRACE(COMP_INIT, DBG_DMESG,
-		 ("%s, bt_type is %d\n", __func__, bt_type));
+	RT_TRACE(COMP_INIT, DBG_DMESG, "bt_type is %d\n", bt_type);
 	exhalbtc92e_set_chip_type(bt_type);
 
 	exhalbtc92e_set_ant_num(BT_COEX_ANT_TYPE_PG, ant_num);

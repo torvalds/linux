@@ -531,9 +531,9 @@ bool rtl92ee_rx_query_desc(struct ieee80211_hw *hw,
 	else
 		status->wake_match = 0;
 	if (status->wake_match)
-		RT_TRACE(COMP_RXDESC , DBG_LOUD,
-			 ("GGGGGGGGGGGGGet Wakeup Packet!! WakeMatch =%d\n",
-			 status->wake_match));
+		RT_TRACE(COMP_RXDESC, DBG_LOUD,
+			 "GGGGGGGGGGGGGet Wakeup Packet!! WakeMatch =%d\n",
+			 status->wake_match);
 	rx_status->freq = hw->conf.chandef.chan->center_freq;
 	rx_status->band = hw->conf.chandef.chan->band;
 
@@ -645,8 +645,8 @@ u16 rtl92ee_rx_desc_buff_remained_cnt(struct ieee80211_hw *hw , u8 queue_index)
 
 	if (write_point != rtlpci->rx_ring[queue_index].next_rx_rp) {
 		RT_TRACE(COMP_RXDESC, DBG_DMESG,
-			 ("!!!write point is 0x%x, reg 0x3B4 value is 0x%x\n",
-			  write_point, tmp_4byte));
+			 "!!!write point is 0x%x, reg 0x3B4 value is 0x%x\n",
+			 write_point, tmp_4byte);
 		tmp_4byte = rtl_read_dword(rtlpriv, REG_RXQ_TXBD_IDX);
 		read_point = (u16)((tmp_4byte>>16) & 0x7ff);
 		write_point = (u16)(tmp_4byte & 0x7ff);
@@ -868,8 +868,7 @@ void rtl92ee_tx_fill_desc(struct ieee80211_hw *hw,
 	mapping = pci_map_single(rtlpci->pdev, skb->data, skb->len,
 				 PCI_DMA_TODEVICE);
 	if (pci_dma_mapping_error(rtlpci->pdev, mapping)) {
-		RT_TRACE(COMP_SEND, DBG_TRACE,
-			 ("DMA mapping error"));
+		RT_TRACE(COMP_SEND, DBG_TRACE, "DMA mapping error\n");
 		return;
 	}
 	if (pbd_desc_tx != NULL)
@@ -887,8 +886,8 @@ void rtl92ee_tx_fill_desc(struct ieee80211_hw *hw,
 					   USB_HWDESC_HEADER_LEN + EM_HDR_LEN);
 			if (ptcb_desc->empkt_num) {
 				RT_TRACE(COMP_SEND, DBG_TRACE,
-					 ("Insert 8 byte.pTcb->EMPktNum:%d\n",
-					  ptcb_desc->empkt_num));
+					 "Insert 8 byte.pTcb->EMPktNum:%d\n",
+					 ptcb_desc->empkt_num);
 				_rtl92ee_insert_emcontent(ptcb_desc,
 							  (u8 *)(skb->data));
 			}
@@ -990,7 +989,7 @@ void rtl92ee_tx_fill_desc(struct ieee80211_hw *hw,
 		if (ieee80211_is_data_qos(fc)) {
 			if (mac->rdg_en) {
 				RT_TRACE(COMP_SEND, DBG_TRACE,
-					 ("Enable RDG function.\n"));
+					 "Enable RDG function\n");
 				SET_TX_DESC_RDG_ENABLE(pdesc, 1);
 				SET_TX_DESC_HTC(pdesc, 1);
 			}
@@ -1013,7 +1012,7 @@ void rtl92ee_tx_fill_desc(struct ieee80211_hw *hw,
 	    is_broadcast_ether_addr(ieee80211_get_DA(hdr))) {
 		SET_TX_DESC_BMC(pdesc, 1);
 	}
-	RT_TRACE(COMP_SEND, DBG_TRACE, ("\n"));
+	RT_TRACE(COMP_SEND, DBG_TRACE, "\n");
 }
 
 void rtl92ee_tx_fill_cmddesc(struct ieee80211_hw *hw,
@@ -1032,8 +1031,7 @@ void rtl92ee_tx_fill_cmddesc(struct ieee80211_hw *hw,
 	u8 txdesc_len = 40;
 
 	if (pci_dma_mapping_error(rtlpci->pdev, mapping)) {
-		RT_TRACE(COMP_SEND, DBG_TRACE,
-			 ("DMA mapping error"));
+		RT_TRACE(COMP_SEND, DBG_TRACE, "DMA mapping error\n");
 		return;
 	}
 	CLEAR_PCI_TX_DESC_CONTENT(pdesc, txdesc_len);
@@ -1278,7 +1276,7 @@ u32 rtl92ee_rx_command_packet(struct ieee80211_hw *hw,
 		result = 1;
 		break;
 	default:
-		RT_TRACE(COMP_RECV, DBG_TRACE, ("No this packet type!!\n"));
+		RT_TRACE(COMP_RECV, DBG_TRACE, "No this packet type!!\n");
 		break;
 	}
 

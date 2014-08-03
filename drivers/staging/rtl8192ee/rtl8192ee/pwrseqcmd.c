@@ -51,15 +51,15 @@ bool rtl92e_hal_pwrseqcmdparsing(struct rtl_priv *rtlpriv, u8 cut_version,
 	do {
 		pwr_cfg_cmd = pwrcfgcmd[ary_idx];
 		RT_TRACE(COMP_INIT, DBG_TRACE,
-			 ("offset(%#x), cut_msk(%#x), fab_msk(%#x), interface_msk(%#x), base(%#x), cmd(%#x), msk(%#x), value(%#x)\n",
-			  GET_PWR_CFG_OFFSET(pwr_cfg_cmd),
-			  GET_PWR_CFG_CUT_MASK(pwr_cfg_cmd),
-			  GET_PWR_CFG_FAB_MASK(pwr_cfg_cmd),
-			  GET_PWR_CFG_INTF_MASK(pwr_cfg_cmd),
-			  GET_PWR_CFG_BASE(pwr_cfg_cmd),
-			  GET_PWR_CFG_CMD(pwr_cfg_cmd),
-			  GET_PWR_CFG_MASK(pwr_cfg_cmd),
-			  GET_PWR_CFG_VALUE(pwr_cfg_cmd)));
+			 "offset(%#x), cut_msk(%#x), fab_msk(%#x), interface_msk(%#x), base(%#x), cmd(%#x), msk(%#x), value(%#x)\n",
+			 GET_PWR_CFG_OFFSET(pwr_cfg_cmd),
+			 GET_PWR_CFG_CUT_MASK(pwr_cfg_cmd),
+			 GET_PWR_CFG_FAB_MASK(pwr_cfg_cmd),
+			 GET_PWR_CFG_INTF_MASK(pwr_cfg_cmd),
+			 GET_PWR_CFG_BASE(pwr_cfg_cmd),
+			 GET_PWR_CFG_CMD(pwr_cfg_cmd),
+			 GET_PWR_CFG_MASK(pwr_cfg_cmd),
+			 GET_PWR_CFG_VALUE(pwr_cfg_cmd));
 
 		if ((GET_PWR_CFG_FAB_MASK(pwr_cfg_cmd)&fab_version) &&
 		    (GET_PWR_CFG_CUT_MASK(pwr_cfg_cmd)&cut_version) &&
@@ -67,12 +67,12 @@ bool rtl92e_hal_pwrseqcmdparsing(struct rtl_priv *rtlpriv, u8 cut_version,
 			switch (GET_PWR_CFG_CMD(pwr_cfg_cmd)) {
 			case PWR_CMD_READ:
 				RT_TRACE(COMP_INIT, DBG_TRACE,
-					 ("PWR_CMD_READ\n"));
+					 "PWR_CMD_READ\n");
 				break;
 
 			case PWR_CMD_WRITE:
 				RT_TRACE(COMP_INIT, DBG_TRACE,
-					 ("PWR_CMD_WRITE\n"));
+					 "PWR_CMD_WRITE\n");
 				offset = GET_PWR_CFG_OFFSET(pwr_cfg_cmd);
 
 				/*Read the value from system register*/
@@ -87,7 +87,7 @@ bool rtl92e_hal_pwrseqcmdparsing(struct rtl_priv *rtlpriv, u8 cut_version,
 
 			case PWR_CMD_POLLING:
 				RT_TRACE(COMP_INIT, DBG_TRACE,
-					 ("PWR_CMD_POLLING\n"));
+					 "PWR_CMD_POLLING\n");
 				b_polling_bit = false;
 				offset = GET_PWR_CFG_OFFSET(pwr_cfg_cmd);
 
@@ -104,7 +104,7 @@ bool rtl92e_hal_pwrseqcmdparsing(struct rtl_priv *rtlpriv, u8 cut_version,
 
 					if (polling_count++ > max_polling_cnt) {
 						RT_TRACE(COMP_INIT, DBG_LOUD,
-							 ("polling fail\n"));
+							 "polling fail\n");
 						return false;
 					}
 				} while (!b_polling_bit);
@@ -113,7 +113,7 @@ bool rtl92e_hal_pwrseqcmdparsing(struct rtl_priv *rtlpriv, u8 cut_version,
 
 			case PWR_CMD_DELAY:
 				RT_TRACE(COMP_INIT, DBG_TRACE,
-					 ("PWR_CMD_DELAY\n"));
+					 "PWR_CMD_DELAY\n");
 				if (GET_PWR_CFG_VALUE(pwr_cfg_cmd) ==
 				    PWRSEQ_DELAY_US)
 					udelay(GET_PWR_CFG_OFFSET(pwr_cfg_cmd));
@@ -122,8 +122,7 @@ bool rtl92e_hal_pwrseqcmdparsing(struct rtl_priv *rtlpriv, u8 cut_version,
 				break;
 
 			case PWR_CMD_END:
-				RT_TRACE(COMP_INIT, DBG_TRACE,
-					 ("PWR_CMD_END\n"));
+				RT_TRACE(COMP_INIT, DBG_TRACE, "PWR_CMD_END\n");
 				return true;
 				break;
 

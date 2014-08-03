@@ -407,12 +407,12 @@ int rtl92e_regd_init(struct ieee80211_hw *hw,
 	rtlpriv->regd.country_code = rtlpriv->efuse.channel_plan;
 
 	RT_TRACE(COMP_REGD, DBG_TRACE,
-		 (KERN_DEBUG "rtl: EEPROM regdomain: 0x%0x\n",
-		  rtlpriv->regd.country_code));
+		 KERN_DEBUG "rtl: EEPROM regdomain: 0x%0x\n",
+		  rtlpriv->regd.country_code);
 
 	if (rtlpriv->regd.country_code >= COUNTRY_CODE_MAX) {
 		RT_TRACE(COMP_REGD, DBG_DMESG,
-			 ("rtl: EEPROM indicates invalid contry code world wide 13 should be used\n"));
+			 "rtl: EEPROM indicates invalid contry code world wide 13 should be used\n");
 
 		rtlpriv->regd.country_code = COUNTRY_CODE_WORLD_WIDE_13;
 	}
@@ -428,8 +428,8 @@ int rtl92e_regd_init(struct ieee80211_hw *hw,
 	}
 
 	RT_TRACE(COMP_REGD, DBG_TRACE,
-		 (KERN_DEBUG "rtl: Country alpha2 being used: %c%c\n",
-		  rtlpriv->regd.alpha2[0], rtlpriv->regd.alpha2[1]));
+		 KERN_DEBUG "rtl: Country alpha2 being used: %c%c\n",
+		  rtlpriv->regd.alpha2[0], rtlpriv->regd.alpha2[1]);
 
 	_rtl92e_regd_init_wiphy(&rtlpriv->regd, wiphy, reg_notifier);
 
@@ -442,7 +442,7 @@ void rtl92e_reg_notifier(struct wiphy *wiphy,
 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
-	RT_TRACE(COMP_REGD, DBG_LOUD, ("\n"));
+	RT_TRACE(COMP_REGD, DBG_LOUD, "\n");
 
 	_rtl92e_reg_notifier_apply(wiphy, request, &rtlpriv->regd);
 }

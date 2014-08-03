@@ -171,17 +171,15 @@ enum dbgp_flag_e {
 		} \
 	} while (0)
 
-#define RT_TRACE(comp, level, fmt)\
-	do { \
-		if (unlikely(((comp) & rtlpriv->dbg.global_debugcomponents) && \
-			((level) <= rtlpriv->dbg.global_debuglevel))) {\
-			pr_debug("%s-%d:%s():<%lx> ", \
-			KBUILD_MODNAME, \
-			rtlpriv->rtlhal.interfaceindex, __func__, \
-			in_interrupt());	\
-			pr_cont fmt;			\
-		} \
-	} while (0)
+#define RT_TRACE(comp, level, fmt, ...)					\
+do {									\
+	if (unlikely(((comp) & rtlpriv->dbg.global_debugcomponents) &&	\
+		     ((level) <= rtlpriv->dbg.global_debuglevel))) {	\
+		pr_debug("%d:<%lx> " fmt,				\
+			 rtlpriv->rtlhal.interfaceindex,		\
+			 in_interrupt(), ##__VA_ARGS__);		\
+	}								\
+} while (0)
 
 #define RTPRINT(rtlpriv, dbgtype, dbgflag, fmt, ...)			\
 do {									\

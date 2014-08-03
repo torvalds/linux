@@ -250,7 +250,7 @@ static void *rtl_rate_alloc_sta(void *ppriv,
 	rate_priv = kzalloc(sizeof(*rate_priv), gfp);
 	if (!rate_priv) {
 		RT_TRACE(COMP_ERR, DBG_EMERG,
-			 ("Unable to allocate private rc structure\n"));
+			 "Unable to allocate private rc structure\n");
 		return NULL;
 	}
 
