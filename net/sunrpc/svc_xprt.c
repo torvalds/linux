@@ -632,7 +632,7 @@ static struct svc_xprt *svc_get_next_xprt(struct svc_rqst *rqstp, long timeout)
 {
 	struct svc_xprt *xprt;
 	struct svc_pool		*pool = rqstp->rq_pool;
-	long			time_left;
+	long			time_left = 0;
 
 	/* Normally we will wait up to 5 seconds for any required
 	 * cache information to be provided.
@@ -665,30 +665,19 @@ static struct svc_xprt *svc_get_next_xprt(struct svc_rqst *rqstp, long timeout)
 
 		/* No data pending. Go to sleep */
 		svc_thread_enqueue(pool, rqstp);
-
-		/*
-		 * checking kthread_should_stop() here allows us to avoid
-		 * locking and signalling when stopping kthreads that call
-		 * svc_recv. If the thread has already been woken up, then
-		 * we can exit here without sleeping. If not, then it
-		 * it'll be woken up quickly during the schedule_timeout
-		 */
-		if (kthread_should_stop()) {
-			set_current_state(TASK_RUNNING);
-			xprt = ERR_PTR(-EINTR);
-			goto out;
-		}
-
 		spin_unlock_bh(&pool->sp_lock);
 
-		time_left = schedule_timeout(timeout);
-		__set_current_state(TASK_RUNNING);
+		if (!(signalled() || kthread_should_stop())) {
+			time_left = schedule_timeout(timeout);
+			__set_current_state(TASK_RUNNING);
 
-		try_to_freeze();
+			try_to_freeze();
 
-		xprt = rqstp->rq_xprt;
-		if (xprt != NULL)
-			return xprt;
+			xprt = rqstp->rq_xprt;
+			if (xprt != NULL)
+				return xprt;
+		} else
+			__set_current_state(TASK_RUNNING);
 
 		spin_lock_bh(&pool->sp_lock);
 		if (!time_left)
