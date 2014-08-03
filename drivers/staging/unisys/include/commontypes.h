@@ -25,36 +25,5 @@
 #include <linux/io.h>
 #include <linux/uuid.h>
 
-#define CHANNEL_GUID_MISMATCH(chType, chName, field, expected, actual, fil, \
-			      lin, logCtx)				\
-	do {								\
-		pr_err("Channel mismatch on channel=%s(%pUL) field=%s expected=%pUL actual=%pUL @%s:%d\n", \
-		       chName, &chType, field,	\
-		       &expected, &actual, \
-		       fil, lin);					\
-	} while (0)
-#define CHANNEL_U32_MISMATCH(chType, chName, field, expected, actual, fil, \
-			     lin, logCtx)				\
-	do {								\
-		pr_err("Channel mismatch on channel=%s(%pUL) field=%s expected=0x%-8.8lx actual=0x%-8.8lx @%s:%d\n", \
-		       chName, &chType, field,	\
-		       (unsigned long)expected, (unsigned long)actual,	\
-		       fil, lin);					\
-	} while (0)
-
-#define CHANNEL_U64_MISMATCH(chType, chName, field, expected, actual, fil, \
-			     lin, logCtx)				\
-	do {								\
-		pr_err("Channel mismatch on channel=%s(%pUL) field=%s expected=0x%-8.8Lx actual=0x%-8.8Lx @%s:%d\n", \
-		       chName, &chType, field,	\
-		       (unsigned long long)expected,			\
-		       (unsigned long long)actual,			\
-		       fil, lin);					\
-	} while (0)
-
-#define UltraLogEvent(logCtx, EventId, Severity, SubsystemMask, pFunctionName, \
-		      LineNumber, Str, args...)				\
-	pr_info(Str, ## args)
-
 #endif
 
