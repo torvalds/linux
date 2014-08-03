@@ -20,6 +20,9 @@
 #include "commontypes.h"
 #include "channel.h"
 #include "controlframework.h"
+
+typedef u64 GUEST_PHYSICAL_ADDRESS;
+
 enum { INVALID_GUEST_FIRMWARE, SAMPLE_GUEST_FIRMWARE,
 	    TIANO32_GUEST_FIRMWARE, TIANO64_GUEST_FIRMWARE
 };

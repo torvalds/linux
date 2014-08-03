@@ -28,6 +28,8 @@
 
 #define CURRENT_FILE_PC VISOR_CHIPSET_PC_file_c
 
+typedef u64 GUEST_PHYSICAL_ADDRESS;
+
 static struct cdev Cdev;
 static VISORCHANNEL **PControlVm_channel;
 static dev_t MajorDev = -1; /**< indicates major num for device */
