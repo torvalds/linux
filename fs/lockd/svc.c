@@ -313,6 +313,8 @@ static int lockd_start_svc(struct svc_serv *serv)
 			"lockd_up: kthread_run failed, error=%d\n", error);
 		goto out_task;
 	}
+	nlmsvc_rqst->rq_task = nlmsvc_task;
+
 	dprintk("lockd_up: service started\n");
 	return 0;
 
