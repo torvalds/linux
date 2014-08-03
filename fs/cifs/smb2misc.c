@@ -437,7 +437,7 @@ smb2_tcon_has_lease(struct cifs_tcon *tcon, struct smb2_lease_break *rsp,
 			continue;
 
 		cifs_dbg(FYI, "found in the open list\n");
-		cifs_dbg(FYI, "lease key match, lease break 0x%d\n",
+		cifs_dbg(FYI, "lease key match, lease break 0x%x\n",
 			 le32_to_cpu(rsp->NewLeaseState));
 
 		server->ops->set_oplock_level(cinode, lease_state, 0, NULL);
@@ -467,7 +467,7 @@ smb2_tcon_has_lease(struct cifs_tcon *tcon, struct smb2_lease_break *rsp,
 		}
 
 		cifs_dbg(FYI, "found in the pending open list\n");
-		cifs_dbg(FYI, "lease key match, lease break 0x%d\n",
+		cifs_dbg(FYI, "lease key match, lease break 0x%x\n",
 			 le32_to_cpu(rsp->NewLeaseState));
 
 		open->oplock = lease_state;
@@ -546,7 +546,7 @@ smb2_is_valid_oplock_break(char *buffer, struct TCP_Server_Info *server)
 			return false;
 	}
 
-	cifs_dbg(FYI, "oplock level 0x%d\n", rsp->OplockLevel);
+	cifs_dbg(FYI, "oplock level 0x%x\n", rsp->OplockLevel);
 
 	/* look up tcon based on tid & uid */
 	spin_lock(&cifs_tcp_ses_lock);
