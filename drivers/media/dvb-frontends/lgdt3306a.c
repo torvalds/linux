@@ -77,34 +77,33 @@ struct lgdt3306a_state {
  3000 -> 30FF FEC control and status
  ---------------------------------------------- */
 
-typedef enum{
-	LG3306_UNLOCK	    = 0x00,
-	LG3306_LOCK	        = 0x01,
-	LG3306_UNKNOWN_LOCK	= 0xFF
-}LG3306_LOCK_STATUS;
+enum lgdt3306a_lock_status {
+	LG3306_UNLOCK       = 0x00,
+	LG3306_LOCK         = 0x01,
+	LG3306_UNKNOWN_LOCK = 0xFF
+};
 
-typedef enum{
+enum lgdt3306a_neverlock_status {
 	LG3306_NL_INIT    = 0x00,
 	LG3306_NL_PROCESS = 0x01,
 	LG3306_NL_LOCK    = 0x02,
 	LG3306_NL_FAIL    = 0x03,
 	LG3306_NL_UNKNOWN = 0xFF
-}LG3306_NEVERLOCK_STATUS;
+};
 
-typedef enum{
-	LG3306_VSB	        = 0x00,
-	LG3306_QAM64	    = 0x01,
-	LG3306_QAM256	    = 0x02,
-	LG3306_UNKNOWN_MODE	= 0xFF
-}LG3306_MODULATION;
+enum lgdt3306a_modulation {
+	LG3306_VSB          = 0x00,
+	LG3306_QAM64        = 0x01,
+	LG3306_QAM256       = 0x02,
+	LG3306_UNKNOWN_MODE = 0xFF
+};
 
-typedef enum
-{
+enum lgdt3306a_lock_check {
 	LG3306_SYNC_LOCK,
 	LG3306_FEC_LOCK,
 	LG3306_TR_LOCK,
 	LG3306_AGC_LOCK,
-} LG3306_LOCK_CHECK;
+};
 
 
 #ifdef DBG_DUMP
@@ -1077,7 +1076,7 @@ static void lgdt3306a_monitor_vsb(struct lgdt3306a_state *state)
 	ret = lgdt3306a_write_reg(state, 0x103D, val);
 }
 
-static LG3306_MODULATION lgdt3306a_check_oper_mode(struct lgdt3306a_state *state)
+static enum lgdt3306a_modulation lgdt3306a_check_oper_mode(struct lgdt3306a_state *state)
 {
 	u8 val = 0;
 	int ret;
@@ -1103,13 +1102,13 @@ static LG3306_MODULATION lgdt3306a_check_oper_mode(struct lgdt3306a_state *state
 	return LG3306_UNKNOWN_MODE;
 }
 
-static LG3306_LOCK_STATUS lgdt3306a_check_lock_status(struct lgdt3306a_state *state,
-			LG3306_LOCK_CHECK whatLock)
+static enum lgdt3306a_lock_status lgdt3306a_check_lock_status(struct lgdt3306a_state *state,
+			enum lgdt3306a_lock_check whatLock)
 {
 	u8 val = 0;
 	int ret;
-	LG3306_MODULATION	modeOper;
-	LG3306_LOCK_STATUS lockStatus;
+	enum lgdt3306a_modulation	modeOper;
+	enum lgdt3306a_lock_status lockStatus;
 
 	modeOper = LG3306_UNKNOWN_MODE;
 
@@ -1180,14 +1179,14 @@ static LG3306_LOCK_STATUS lgdt3306a_check_lock_status(struct lgdt3306a_state *st
 	return lockStatus;
 }
 
-static LG3306_NEVERLOCK_STATUS lgdt3306a_check_neverlock_status(struct lgdt3306a_state *state)
+static enum lgdt3306a_neverlock_status lgdt3306a_check_neverlock_status(struct lgdt3306a_state *state)
 {
 	u8 val = 0;
 	int ret;
-	LG3306_NEVERLOCK_STATUS lockStatus;
+	enum lgdt3306a_neverlock_status lockStatus;
 
 	ret = lgdt3306a_read_reg(state, 0x0080, &val);
-	lockStatus = (LG3306_NEVERLOCK_STATUS)(val & 0x03);
+	lockStatus = (enum lgdt3306a_neverlock_status)(val & 0x03);
 
 	lg_dbg("NeverLock=%d", lockStatus);
 
@@ -1248,9 +1247,9 @@ static void lgdt3306a_pre_monitoring(struct lgdt3306a_state *state)
 
 }
 
-static LG3306_LOCK_STATUS lgdt3306a_sync_lock_poll(struct lgdt3306a_state *state)
+static enum lgdt3306a_lock_status lgdt3306a_sync_lock_poll(struct lgdt3306a_state *state)
 {
-	LG3306_LOCK_STATUS syncLockStatus = LG3306_UNLOCK;
+	enum lgdt3306a_lock_status syncLockStatus = LG3306_UNLOCK;
 	int	i;
 
 	for (i = 0; i < 2; i++)	{
@@ -1267,9 +1266,9 @@ static LG3306_LOCK_STATUS lgdt3306a_sync_lock_poll(struct lgdt3306a_state *state
 	return LG3306_UNLOCK;
 }
 
-static LG3306_LOCK_STATUS lgdt3306a_fec_lock_poll(struct lgdt3306a_state *state)
+static enum lgdt3306a_lock_status lgdt3306a_fec_lock_poll(struct lgdt3306a_state *state)
 {
-	LG3306_LOCK_STATUS FECLockStatus = LG3306_UNLOCK;
+	enum lgdt3306a_lock_status FECLockStatus = LG3306_UNLOCK;
 	int	i;
 
 	for (i = 0; i < 2; i++)	{
@@ -1286,9 +1285,9 @@ static LG3306_LOCK_STATUS lgdt3306a_fec_lock_poll(struct lgdt3306a_state *state)
 	return FECLockStatus;
 }
 
-static LG3306_NEVERLOCK_STATUS lgdt3306a_neverlock_poll(struct lgdt3306a_state *state)
+static enum lgdt3306a_neverlock_status lgdt3306a_neverlock_poll(struct lgdt3306a_state *state)
 {
-	LG3306_NEVERLOCK_STATUS NLLockStatus = LG3306_NL_FAIL;
+	enum lgdt3306a_neverlock_status NLLockStatus = LG3306_NL_FAIL;
 	int	i;
 
 	for (i = 0; i < 5; i++) {
@@ -1380,7 +1379,7 @@ static u32 lgdt3306a_calculate_snr_x100(struct lgdt3306a_state *state)
 	return snr_x100;
 }
 
-static LG3306_LOCK_STATUS lgdt3306a_vsb_lock_poll(struct lgdt3306a_state *state)
+static enum lgdt3306a_lock_status lgdt3306a_vsb_lock_poll(struct lgdt3306a_state *state)
 {
 	u8 cnt = 0;
 	u8 packet_error;
@@ -1413,7 +1412,7 @@ static LG3306_LOCK_STATUS lgdt3306a_vsb_lock_poll(struct lgdt3306a_state *state)
 	return LG3306_UNLOCK;
 }
 
-static LG3306_LOCK_STATUS lgdt3306a_qam_lock_poll(struct lgdt3306a_state *state)
+static enum lgdt3306a_lock_status lgdt3306a_qam_lock_poll(struct lgdt3306a_state *state)
 {
 	u8 cnt = 0;
 	u8 packet_error;
