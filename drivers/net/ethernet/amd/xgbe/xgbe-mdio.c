@@ -163,7 +163,6 @@ static void xgbe_adjust_link(struct net_device *netdev)
 	struct xgbe_prv_data *pdata = netdev_priv(netdev);
 	struct xgbe_hw_if *hw_if = &pdata->hw_if;
 	struct phy_device *phydev = pdata->phydev;
-	unsigned long flags;
 	int new_state = 0;
 
 	if (phydev == NULL)
@@ -171,8 +170,6 @@ static void xgbe_adjust_link(struct net_device *netdev)
 
 	DBGPR_MDIO("-->xgbe_adjust_link: address=%d, newlink=%d, curlink=%d\n",
 		   phydev->addr, phydev->link, pdata->phy_link);
-
-	spin_lock_irqsave(&pdata->lock, flags);
 
 	if (phydev->link) {
 		/* Flow control support */
@@ -228,8 +225,6 @@ static void xgbe_adjust_link(struct net_device *netdev)
 
 	if (new_state)
 		phy_print_status(phydev);
-
-	spin_unlock_irqrestore(&pdata->lock, flags);
 
 	DBGPR_MDIO("<--xgbe_adjust_link\n");
 }

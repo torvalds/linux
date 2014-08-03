@@ -95,7 +95,7 @@ MODULE_DESCRIPTION("AMD 10GbE (amd-xgbe) PHY driver");
 #define XNP_MP_FORMATTED		(1 << 13)
 #define XNP_NP_EXCHANGE			(1 << 15)
 
-#define XGBE_PHY_RATECHANGE_COUNT	100
+#define XGBE_PHY_RATECHANGE_COUNT	500
 
 #ifndef MDIO_PMA_10GBR_PMD_CTRL
 #define MDIO_PMA_10GBR_PMD_CTRL		0x0096
@@ -411,7 +411,7 @@ static void amd_xgbe_phy_serdes_complete_ratechange(struct phy_device *phydev)
 	/* Wait for Rx and Tx ready */
 	wait = XGBE_PHY_RATECHANGE_COUNT;
 	while (wait--) {
-		usleep_range(10, 20);
+		usleep_range(50, 75);
 
 		status = XSIR0_IOREAD(priv, SIR0_STATUS);
 		if (XSIR_GET_BITS(status, SIR0_STATUS, RX_READY) &&
@@ -419,7 +419,7 @@ static void amd_xgbe_phy_serdes_complete_ratechange(struct phy_device *phydev)
 			return;
 	}
 
-	netdev_err(phydev->attached_dev, "SerDes rx/tx not ready (%#hx)\n",
+	netdev_dbg(phydev->attached_dev, "SerDes rx/tx not ready (%#hx)\n",
 		   status);
 }
 

@@ -290,12 +290,8 @@ static int xgbe_get_settings(struct net_device *netdev,
 	if (!pdata->phydev)
 		return -ENODEV;
 
-	spin_lock_irq(&pdata->lock);
-
 	ret = phy_ethtool_gset(pdata->phydev, cmd);
 	cmd->transceiver = XCVR_EXTERNAL;
-
-	spin_unlock_irq(&pdata->lock);
 
 	DBGPR("<--xgbe_get_settings\n");
 
@@ -315,17 +311,14 @@ static int xgbe_set_settings(struct net_device *netdev,
 	if (!pdata->phydev)
 		return -ENODEV;
 
-	spin_lock_irq(&pdata->lock);
-
 	speed = ethtool_cmd_speed(cmd);
 
-	ret = -EINVAL;
 	if (cmd->phy_address != phydev->addr)
-		goto unlock;
+		return -EINVAL;
 
 	if ((cmd->autoneg != AUTONEG_ENABLE) &&
 	    (cmd->autoneg != AUTONEG_DISABLE))
-		goto unlock;
+		return -EINVAL;
 
 	if (cmd->autoneg == AUTONEG_DISABLE) {
 		switch (speed) {
@@ -334,16 +327,16 @@ static int xgbe_set_settings(struct net_device *netdev,
 		case SPEED_1000:
 			break;
 		default:
-			goto unlock;
+			return -EINVAL;
 		}
 
 		if (cmd->duplex != DUPLEX_FULL)
-			goto unlock;
+			return -EINVAL;
 	}
 
 	cmd->advertising &= phydev->supported;
 	if ((cmd->autoneg == AUTONEG_ENABLE) && !cmd->advertising)
-		goto unlock;
+		return -EINVAL;
 
 	ret = 0;
 	phydev->autoneg = cmd->autoneg;
@@ -358,9 +351,6 @@ static int xgbe_set_settings(struct net_device *netdev,
 
 	if (netif_running(netdev))
 		ret = phy_start_aneg(phydev);
-
-unlock:
-	spin_unlock_irq(&pdata->lock);
 
 	DBGPR("<--xgbe_set_settings\n");
 
