@@ -197,6 +197,7 @@ struct nbpf_desc_page {
  */
 struct nbpf_channel {
 	struct dma_chan dma_chan;
+	struct tasklet_struct tasklet;
 	void __iomem *base;
 	struct nbpf_device *nbpf;
 	char name[16];
@@ -1111,9 +1112,9 @@ static struct dma_chan *nbpf_of_xlate(struct of_phandle_args *dma_spec,
 	return dchan;
 }
 
-static irqreturn_t nbpf_chan_irqt(int irq, void *dev)
+static void nbpf_chan_tasklet(unsigned long data)
 {
-	struct nbpf_channel *chan = dev;
+	struct nbpf_channel *chan = (struct nbpf_channel *)data;
 	struct nbpf_desc *desc, *tmp;
 	dma_async_tx_callback callback;
 	void *param;
@@ -1176,8 +1177,6 @@ static irqreturn_t nbpf_chan_irqt(int irq, void *dev)
 		if (must_put)
 			nbpf_desc_put(desc);
 	}
-
-	return IRQ_HANDLED;
 }
 
 static irqreturn_t nbpf_chan_irq(int irq, void *dev)
@@ -1186,6 +1185,7 @@ static irqreturn_t nbpf_chan_irq(int irq, void *dev)
 	bool done = nbpf_status_get(chan);
 	struct nbpf_desc *desc;
 	irqreturn_t ret;
+	bool bh = false;
 
 	if (!done)
 		return IRQ_NONE;
@@ -1200,7 +1200,8 @@ static irqreturn_t nbpf_chan_irq(int irq, void *dev)
 		ret = IRQ_NONE;
 		goto unlock;
 	} else {
-		ret = IRQ_WAKE_THREAD;
+		ret = IRQ_HANDLED;
+		bh = true;
 	}
 
 	list_move_tail(&desc->node, &chan->done);
@@ -1215,6 +1216,9 @@ static irqreturn_t nbpf_chan_irq(int irq, void *dev)
 
 unlock:
 	spin_unlock(&chan->lock);
+
+	if (bh)
+		tasklet_schedule(&chan->tasklet);
 
 	return ret;
 }
@@ -1258,8 +1262,9 @@ static int nbpf_chan_probe(struct nbpf_device *nbpf, int n)
 
 	snprintf(chan->name, sizeof(chan->name), "nbpf %d", n);
 
-	ret = devm_request_threaded_irq(dma_dev->dev, chan->irq,
-			nbpf_chan_irq, nbpf_chan_irqt, IRQF_SHARED,
+	tasklet_init(&chan->tasklet, nbpf_chan_tasklet, (unsigned long)chan);
+	ret = devm_request_irq(dma_dev->dev, chan->irq,
+			nbpf_chan_irq, IRQF_SHARED,
 			chan->name, chan);
 	if (ret < 0)
 		return ret;
