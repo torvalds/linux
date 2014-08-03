@@ -96,6 +96,7 @@ struct key *x509_request_asymmetric_key(struct key *keyring,
 		 key_serial(key_ref_to_ptr(key)));
 	return key_ref_to_ptr(key);
 }
+EXPORT_SYMBOL_GPL(x509_request_asymmetric_key);
 
 /*
  * Set up the signature parameters in an X.509 certificate.  This involves
