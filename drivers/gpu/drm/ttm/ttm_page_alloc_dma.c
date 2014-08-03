@@ -1016,6 +1016,8 @@ static int ttm_dma_pool_mm_shrink(struct shrinker *shrink,
 		return 0;
 
 	mutex_lock(&_manager->lock);
+	if (!_manager->npools)
+		goto out;
 	pool_offset = pool_offset % _manager->npools;
 	list_for_each_entry(p, &_manager->pools, pools) {
 		unsigned nr_free;
@@ -1033,6 +1035,7 @@ static int ttm_dma_pool_mm_shrink(struct shrinker *shrink,
 			 p->pool->dev_name, p->pool->name, current->pid,
 			 nr_free, shrink_pages);
 	}
+out:
 	mutex_unlock(&_manager->lock);
 	/* return estimated number of unused pages in pool */
 	return ttm_dma_pool_get_num_unused_pages();
