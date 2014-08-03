@@ -31,7 +31,6 @@
 
 #include <linux/uuid.h>
 
-#include "commontypes.h"
 #include "vmcallinterface.h"
 
 #define _ULTRA_CONTROLVM_CHANNEL_INLINE_

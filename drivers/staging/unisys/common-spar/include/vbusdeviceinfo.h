@@ -16,7 +16,7 @@
 #ifndef __VBUSDEVICEINFO_H__
 #define __VBUSDEVICEINFO_H__
 
-#include "commontypes.h"
+#include <linux/types.h>
 
 #pragma pack(push, 1)		/* both GCC and VC now allow this pragma */
 

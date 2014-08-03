@@ -24,9 +24,11 @@
 #include "uniklog.h"
 #include "diagnostics/appos_subsystems.h"
 #include "uisutils.h"
-#include "commontypes.h"
 #include "vbuschannel.h"
 #include "vbushelper.h"
+#include <linux/types.h>
+#include <linux/io.h>
+#include <linux/uuid.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/pci.h>

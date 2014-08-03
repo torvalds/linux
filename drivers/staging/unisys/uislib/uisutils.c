@@ -17,7 +17,8 @@
 
 #include <linux/string.h>
 #include <linux/slab.h>
-#include <commontypes.h>
+#include <linux/types.h>
+#include <linux/uuid.h>
 #include <linux/spinlock.h>
 #include <linux/list.h>
 #include "uniklog.h"

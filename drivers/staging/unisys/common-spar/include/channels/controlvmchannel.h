@@ -17,7 +17,6 @@
 #define __CONTROLVMCHANNEL_H__
 
 #include <linux/uuid.h>
-#include "commontypes.h"
 #include "channel.h"
 #include "controlframework.h"
 

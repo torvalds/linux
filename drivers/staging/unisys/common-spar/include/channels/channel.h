@@ -16,6 +16,8 @@
 #ifndef __CHANNEL_H__
 #define __CHANNEL_H__
 
+#include <linux/types.h>
+#include <linux/io.h>
 #include <linux/uuid.h>
 
 /*
@@ -29,8 +31,6 @@
  * files of similar abbreviated content
  */
 #define __SUPERVISOR_CHANNEL_H__
-
-#include "commontypes.h"
 
 #define SIGNATURE_16(A, B) ((A) | (B<<8))
 #define SIGNATURE_32(A, B, C, D) \

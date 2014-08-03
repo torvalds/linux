@@ -25,7 +25,8 @@
 #include <linux/module.h>
 #include <linux/debugfs.h>
 
-#include "commontypes.h"
+#include <linux/types.h>
+#include <linux/uuid.h>
 
 #include <linux/version.h>
 #include "uniklog.h"
