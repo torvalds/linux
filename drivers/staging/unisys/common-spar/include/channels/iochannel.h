@@ -775,7 +775,7 @@ typedef struct _ULTRA_IO_CHANNEL_PROTOCOL {
 		if (clientStr) {					\
 			chan->ChannelHeader.oClientString =		\
 				OFFSETOF(type, clientString);		\
-			MEMCPY(chan->clientString, clientStr,		\
+			memcpy(chan->clientString, clientStr,		\
 			       MINNUM(clientStrLen,			\
 				      (u32) (MAX_CLIENTSTRING_LEN - 1))); \
 			chan->clientString[MINNUM(clientStrLen,		\
@@ -846,7 +846,7 @@ static inline int ULTRA_VNIC_init_channel(ULTRA_IO_CHANNEL_PROTOCOL *x,
 	x->ChannelHeader.Size = COVER(bytes, 4096);
 	x->ChannelHeader.Type = UltraVnicChannelProtocolGuid;
 	x->ChannelHeader.ZoneGuid = NULL_UUID_LE;
-	MEMCPY(x->vnic.macaddr, macaddr, MAX_MACADDR_LEN);
+	memcpy(x->vnic.macaddr, macaddr, MAX_MACADDR_LEN);
 	x->vnic.num_rcv_bufs = num_rcv_bufs;
 	x->vnic.mtu = mtu;
 	x->vnic.zoneGuid = zoneGuid;

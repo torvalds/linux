@@ -31,9 +31,6 @@ typedef u64 GUEST_PHYSICAL_ADDRESS;
 #define OFFSETOF offsetof
 
 #define MEMORYBARRIER mb()
-#define MEMCPY(dest, src, len) memcpy(dest, src, len)
-#define MEMCPY_TOIO(dest, src, len) memcpy_toio(dest, src, len)
-#define MEMCPY_FROMIO(dest, src, len) memcpy_fromio(dest, src, len)
 
 #define CHANNEL_GUID_MISMATCH(chType, chName, field, expected, actual, fil, \
 			      lin, logCtx)				\
