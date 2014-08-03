@@ -9,7 +9,7 @@ static int perf_flag_probe(void)
 {
 	/* use 'safest' configuration as used in perf_evsel__fallback() */
 	struct perf_event_attr attr = {
-		.type = PERF_COUNT_SW_CPU_CLOCK,
+		.type = PERF_TYPE_SOFTWARE,
 		.config = PERF_COUNT_SW_CPU_CLOCK,
 	};
 	int fd;
