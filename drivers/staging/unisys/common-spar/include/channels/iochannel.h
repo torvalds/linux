@@ -882,7 +882,7 @@ static inline int ULTRA_VNIC_init_channel(ULTRA_IO_CHANNEL_PROTOCOL *x,
 /* returns next non-zero index on success or zero on failure (i.e. out of
  * room)
  */
-static INLINE  u16
+static inline  u16
 add_physinfo_entries(u32 inp_pfn,	/* input - specifies the pfn to be used
 					 * to add entries */
 		     u16 inp_off,	/* input - specifies the off to be used
