@@ -346,18 +346,6 @@ static void svc_xprt_do_enqueue(struct svc_xprt *xprt)
 	if (!svc_xprt_has_something_to_do(xprt))
 		return;
 
-	cpu = get_cpu();
-	pool = svc_pool_for_cpu(xprt->xpt_server, cpu);
-	spin_lock_bh(&pool->sp_lock);
-
-	if (!list_empty(&pool->sp_threads) &&
-	    !list_empty(&pool->sp_sockets))
-		printk(KERN_ERR
-		       "svc_xprt_enqueue: "
-		       "threads and transports both waiting??\n");
-
-	pool->sp_stats.packets++;
-
 	/* Mark transport as busy. It will remain in this state until
 	 * the provider calls svc_xprt_received. We update XPT_BUSY
 	 * atomically because it also guards against trying to enqueue
@@ -366,8 +354,14 @@ static void svc_xprt_do_enqueue(struct svc_xprt *xprt)
 	if (test_and_set_bit(XPT_BUSY, &xprt->xpt_flags)) {
 		/* Don't enqueue transport while already enqueued */
 		dprintk("svc: transport %p busy, not enqueued\n", xprt);
-		goto out_unlock;
+		return;
 	}
+
+	cpu = get_cpu();
+	pool = svc_pool_for_cpu(xprt->xpt_server, cpu);
+	spin_lock_bh(&pool->sp_lock);
+
+	pool->sp_stats.packets++;
 
 	if (!list_empty(&pool->sp_threads)) {
 		rqstp = list_entry(pool->sp_threads.next,
@@ -395,7 +389,6 @@ static void svc_xprt_do_enqueue(struct svc_xprt *xprt)
 		pool->sp_stats.sockets_queued++;
 	}
 
-out_unlock:
 	spin_unlock_bh(&pool->sp_lock);
 	put_cpu();
 }
