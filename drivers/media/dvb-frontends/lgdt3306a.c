@@ -1600,7 +1600,8 @@ static int lgdt3306a_tune(struct dvb_frontend *fe, bool re_tune, unsigned int mo
 
 	if (re_tune) {
 		state->current_frequency = -1; /* force re-tune */
-		if ((ret = lgdt3306a_set_parameters(fe)) != 0)
+		ret = lgdt3306a_set_parameters(fe);
+		if (ret != 0)
 			return ret;
 	}
 	*delay = 125;
