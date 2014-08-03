@@ -411,8 +411,10 @@ static void ttm_dma_page_put(struct dma_pool *pool, struct dma_page *d_page)
  *
  * @pool: to free the pages from
  * @nr_free: If set to true will free all pages in pool
+ * @gfp: GFP flags.
  **/
-static unsigned ttm_dma_page_pool_free(struct dma_pool *pool, unsigned nr_free)
+static unsigned ttm_dma_page_pool_free(struct dma_pool *pool, unsigned nr_free,
+				       gfp_t gfp)
 {
 	unsigned long irq_flags;
 	struct dma_page *dma_p, *tmp;
@@ -430,8 +432,7 @@ static unsigned ttm_dma_page_pool_free(struct dma_pool *pool, unsigned nr_free)
 			 npages_to_free, nr_free);
 	}
 #endif
-	pages_to_free = kmalloc(npages_to_free * sizeof(struct page *),
-			GFP_KERNEL);
+	pages_to_free = kmalloc(npages_to_free * sizeof(struct page *), gfp);
 
 	if (!pages_to_free) {
 		pr_err("%s: Failed to allocate memory for pool free operation\n",
@@ -530,7 +531,7 @@ static void ttm_dma_free_pool(struct device *dev, enum pool_type type)
 		if (pool->type != type)
 			continue;
 		/* Takes a spinlock.. */
-		ttm_dma_page_pool_free(pool, FREE_ALL_PAGES);
+		ttm_dma_page_pool_free(pool, FREE_ALL_PAGES, GFP_KERNEL);
 		WARN_ON(((pool->npages_in_use + pool->npages_free) != 0));
 		/* This code path is called after _all_ references to the
 		 * struct device has been dropped - so nobody should be
@@ -983,7 +984,7 @@ void ttm_dma_unpopulate(struct ttm_dma_tt *ttm_dma, struct device *dev)
 
 	/* shrink pool if necessary (only on !is_cached pools)*/
 	if (npages)
-		ttm_dma_page_pool_free(pool, npages);
+		ttm_dma_page_pool_free(pool, npages, GFP_KERNEL);
 	ttm->state = tt_unpopulated;
 }
 EXPORT_SYMBOL_GPL(ttm_dma_unpopulate);
@@ -993,10 +994,7 @@ EXPORT_SYMBOL_GPL(ttm_dma_unpopulate);
  *
  * XXX: (dchinner) Deadlock warning!
  *
- * ttm_dma_page_pool_free() does GFP_KERNEL memory allocation, and so attention
- * needs to be paid to sc->gfp_mask to determine if this can be done or not.
- * GFP_KERNEL memory allocation in a GFP_ATOMIC reclaim context woul dbe really
- * bad.
+ * We need to pass sc->gfp_mask to ttm_dma_page_pool_free().
  *
  * I'm getting sadder as I hear more pathetical whimpers about needing per-pool
  * shrinkers
@@ -1030,7 +1028,8 @@ ttm_dma_pool_shrink_scan(struct shrinker *shrink, struct shrink_control *sc)
 		if (++idx < pool_offset)
 			continue;
 		nr_free = shrink_pages;
-		shrink_pages = ttm_dma_page_pool_free(p->pool, nr_free);
+		shrink_pages = ttm_dma_page_pool_free(p->pool, nr_free,
+						      sc->gfp_mask);
 		freed += nr_free - shrink_pages;
 
 		pr_debug("%s: (%s:%d) Asked to shrink %d, have %d more to go\n",
