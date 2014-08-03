@@ -1726,6 +1726,7 @@ fail:
 	kfree(state);
 	return NULL;
 }
+EXPORT_SYMBOL(lgdt3306a_attach);
 
 #ifdef DBG_DUMP
 
@@ -1990,8 +1991,6 @@ static void lgdt3306a_DumpRegs(struct lgdt3306a_state *state)
 #endif /* DBG_DUMP */
 
 
-
-EXPORT_SYMBOL(lgdt3306a_attach);
 
 static struct dvb_frontend_ops lgdt3306a_ops = {
 	.delsys = { SYS_ATSC, SYS_DVBC_ANNEX_B },
