@@ -697,6 +697,25 @@ static void i40e_dbg_dump_vsi_seid(struct i40e_pf *pf, int seid)
 			 vsi->bw_ets_limit_credits[i],
 			 vsi->bw_ets_max_quanta[i]);
 	}
+#ifdef I40E_FCOE
+	if (vsi->type == I40E_VSI_FCOE) {
+		dev_info(&pf->pdev->dev,
+			 "    fcoe_stats: rx_packets = %llu, rx_dwords = %llu, rx_dropped = %llu\n",
+			 vsi->fcoe_stats.rx_fcoe_packets,
+			 vsi->fcoe_stats.rx_fcoe_dwords,
+			 vsi->fcoe_stats.rx_fcoe_dropped);
+		dev_info(&pf->pdev->dev,
+			 "    fcoe_stats: tx_packets = %llu, tx_dwords = %llu\n",
+			 vsi->fcoe_stats.tx_fcoe_packets,
+			 vsi->fcoe_stats.tx_fcoe_dwords);
+		dev_info(&pf->pdev->dev,
+			 "    fcoe_stats: bad_crc = %llu, last_error = %llu\n",
+			 vsi->fcoe_stats.fcoe_bad_fccrc,
+			 vsi->fcoe_stats.fcoe_last_error);
+		dev_info(&pf->pdev->dev, "    fcoe_stats: ddp_count = %llu\n",
+			 vsi->fcoe_stats.fcoe_ddp_count);
+	}
+#endif
 }
 
 /**
