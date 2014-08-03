@@ -2090,6 +2090,11 @@ out:
 
 static void hdmi_dpms(struct exynos_drm_display *display, int mode)
 {
+	struct hdmi_context *hdata = display->ctx;
+	struct drm_encoder *encoder = hdata->encoder;
+	struct drm_crtc *crtc = encoder->crtc;
+	struct drm_crtc_helper_funcs *funcs = NULL;
+
 	DRM_DEBUG_KMS("mode %d\n", mode);
 
 	switch (mode) {
@@ -2099,6 +2104,20 @@ static void hdmi_dpms(struct exynos_drm_display *display, int mode)
 	case DRM_MODE_DPMS_STANDBY:
 	case DRM_MODE_DPMS_SUSPEND:
 	case DRM_MODE_DPMS_OFF:
+		/*
+		 * The SFRs of VP and Mixer are updated by Vertical Sync of
+		 * Timing generator which is a part of HDMI so the sequence
+		 * to disable TV Subsystem should be as following,
+		 *	VP -> Mixer -> HDMI
+		 *
+		 * Below codes will try to disable Mixer and VP(if used)
+		 * prior to disabling HDMI.
+		 */
+		if (crtc)
+			funcs = crtc->helper_private;
+		if (funcs && funcs->dpms)
+			(*funcs->dpms)(crtc, mode);
+
 		hdmi_poweroff(display);
 		break;
 	default:

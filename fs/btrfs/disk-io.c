@@ -369,7 +369,8 @@ static int verify_parent_transid(struct extent_io_tree *io_tree,
 out:
 	unlock_extent_cached(io_tree, eb->start, eb->start + eb->len - 1,
 			     &cached_state, GFP_NOFS);
-	btrfs_tree_read_unlock_blocking(eb);
+	if (need_lock)
+		btrfs_tree_read_unlock_blocking(eb);
 	return ret;
 }
 
@@ -2904,7 +2905,9 @@ retry_root_backup:
 		if (ret)
 			goto fail_qgroup;
 
+		mutex_lock(&fs_info->cleaner_mutex);
 		ret = btrfs_recover_relocation(tree_root);
+		mutex_unlock(&fs_info->cleaner_mutex);
 		if (ret < 0) {
 			printk(KERN_WARNING
 			       "BTRFS: failed to recover relocation\n");

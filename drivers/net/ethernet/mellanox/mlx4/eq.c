@@ -53,11 +53,6 @@ enum {
 	MLX4_EQ_ENTRY_SIZE	= 0x20
 };
 
-struct mlx4_irq_notify {
-	void *arg;
-	struct irq_affinity_notify notify;
-};
-
 #define MLX4_EQ_STATUS_OK	   ( 0 << 28)
 #define MLX4_EQ_STATUS_WRITE_FAIL  (10 << 28)
 #define MLX4_EQ_OWNER_SW	   ( 0 << 24)
@@ -1088,57 +1083,6 @@ static void mlx4_unmap_clr_int(struct mlx4_dev *dev)
 	iounmap(priv->clr_base);
 }
 
-static void mlx4_irq_notifier_notify(struct irq_affinity_notify *notify,
-				     const cpumask_t *mask)
-{
-	struct mlx4_irq_notify *n = container_of(notify,
-						 struct mlx4_irq_notify,
-						 notify);
-	struct mlx4_priv *priv = (struct mlx4_priv *)n->arg;
-	struct radix_tree_iter iter;
-	void **slot;
-
-	radix_tree_for_each_slot(slot, &priv->cq_table.tree, &iter, 0) {
-		struct mlx4_cq *cq = (struct mlx4_cq *)(*slot);
-
-		if (cq->irq == notify->irq)
-			cq->irq_affinity_change = true;
-	}
-}
-
-static void mlx4_release_irq_notifier(struct kref *ref)
-{
-	struct mlx4_irq_notify *n = container_of(ref, struct mlx4_irq_notify,
-						 notify.kref);
-	kfree(n);
-}
-
-static void mlx4_assign_irq_notifier(struct mlx4_priv *priv,
-				     struct mlx4_dev *dev, int irq)
-{
-	struct mlx4_irq_notify *irq_notifier = NULL;
-	int err = 0;
-
-	irq_notifier = kzalloc(sizeof(*irq_notifier), GFP_KERNEL);
-	if (!irq_notifier) {
-		mlx4_warn(dev, "Failed to allocate irq notifier. irq %d\n",
-			  irq);
-		return;
-	}
-
-	irq_notifier->notify.irq = irq;
-	irq_notifier->notify.notify = mlx4_irq_notifier_notify;
-	irq_notifier->notify.release = mlx4_release_irq_notifier;
-	irq_notifier->arg = priv;
-	err = irq_set_affinity_notifier(irq, &irq_notifier->notify);
-	if (err) {
-		kfree(irq_notifier);
-		irq_notifier = NULL;
-		mlx4_warn(dev, "Failed to set irq notifier. irq %d\n", irq);
-	}
-}
-
-
 int mlx4_alloc_eq_table(struct mlx4_dev *dev)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
@@ -1409,8 +1353,6 @@ int mlx4_assign_eq(struct mlx4_dev *dev, char *name, struct cpu_rmap *rmap,
 				continue;
 				/*we dont want to break here*/
 			}
-			mlx4_assign_irq_notifier(priv, dev,
-						 priv->eq_table.eq[vec].irq);
 
 			eq_set_ci(&priv->eq_table.eq[vec], 1);
 		}
@@ -1427,6 +1369,14 @@ int mlx4_assign_eq(struct mlx4_dev *dev, char *name, struct cpu_rmap *rmap,
 }
 EXPORT_SYMBOL(mlx4_assign_eq);
 
+int mlx4_eq_get_irq(struct mlx4_dev *dev, int vec)
+{
+	struct mlx4_priv *priv = mlx4_priv(dev);
+
+	return priv->eq_table.eq[vec].irq;
+}
+EXPORT_SYMBOL(mlx4_eq_get_irq);
+
 void mlx4_release_eq(struct mlx4_dev *dev, int vec)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
@@ -1438,9 +1388,6 @@ void mlx4_release_eq(struct mlx4_dev *dev, int vec)
 		  Belonging to a legacy EQ*/
 		mutex_lock(&priv->msix_ctl.pool_lock);
 		if (priv->msix_ctl.pool_bm & 1ULL << i) {
-			irq_set_affinity_notifier(
-				priv->eq_table.eq[vec].irq,
-				NULL);
 			free_irq(priv->eq_table.eq[vec].irq,
 				 &priv->eq_table.eq[vec]);
 			priv->msix_ctl.pool_bm &= ~(1ULL << i);
