@@ -3468,7 +3468,7 @@ iscsi_get_host_stats(struct iscsi_transport *transport, struct nlmsghdr *nlh)
 
 		err = transport->get_host_stats(shost, buf, host_stats_size);
 		if (err) {
-			kfree(skbhost_stats);
+			kfree_skb(skbhost_stats);
 			goto exit_host_stats;
 		}
 
