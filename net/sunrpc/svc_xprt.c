@@ -651,8 +651,8 @@ static struct svc_xprt *svc_get_next_xprt(struct svc_rqst *rqstp, long timeout)
 	} else {
 		if (pool->sp_task_pending) {
 			pool->sp_task_pending = 0;
-			spin_unlock_bh(&pool->sp_lock);
-			return ERR_PTR(-EAGAIN);
+			xprt = ERR_PTR(-EAGAIN);
+			goto out;
 		}
 		/* No data pending. Go to sleep */
 		svc_thread_enqueue(pool, rqstp);
@@ -672,8 +672,8 @@ static struct svc_xprt *svc_get_next_xprt(struct svc_rqst *rqstp, long timeout)
 		 */
 		if (kthread_should_stop()) {
 			set_current_state(TASK_RUNNING);
-			spin_unlock_bh(&pool->sp_lock);
-			return ERR_PTR(-EINTR);
+			xprt = ERR_PTR(-EINTR);
+			goto out;
 		}
 
 		add_wait_queue(&rqstp->rq_wait, &wait);
@@ -683,8 +683,12 @@ static struct svc_xprt *svc_get_next_xprt(struct svc_rqst *rqstp, long timeout)
 
 		try_to_freeze();
 
-		spin_lock_bh(&pool->sp_lock);
 		remove_wait_queue(&rqstp->rq_wait, &wait);
+		xprt = rqstp->rq_xprt;
+		if (xprt != NULL)
+			return xprt;
+
+		spin_lock_bh(&pool->sp_lock);
 		if (!time_left)
 			pool->sp_stats.threads_timedout++;
 
@@ -699,6 +703,7 @@ static struct svc_xprt *svc_get_next_xprt(struct svc_rqst *rqstp, long timeout)
 				return ERR_PTR(-EAGAIN);
 		}
 	}
+out:
 	spin_unlock_bh(&pool->sp_lock);
 	return xprt;
 }
