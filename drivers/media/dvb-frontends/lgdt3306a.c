@@ -1088,7 +1088,7 @@ static LG3306_MODULATION lgdt3306a_check_oper_mode(struct lgdt3306a_state *state
 		lg_dbg("VSB\n");
 		return LG3306_VSB;
 	}
-	else if (val & 0x08) {
+	if (val & 0x08) {
 		ret = lgdt3306a_read_reg(state, 0x00A6, &val);
 		val = val >> 2;
 		if (val & 0x01) {
