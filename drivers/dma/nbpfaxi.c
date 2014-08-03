@@ -1054,6 +1054,7 @@ static void nbpf_free_chan_resources(struct dma_chan *dchan)
 	dev_dbg(dchan->device->dev, "Entry %s()\n", __func__);
 
 	nbpf_chan_halt(chan);
+	nbpf_chan_idle(chan);
 	/* Clean up for if a channel is re-used for MEMCPY after slave DMA */
 	nbpf_chan_prepare_default(chan);
 
