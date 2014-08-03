@@ -25,8 +25,6 @@
 #include <linux/io.h>
 #include <linux/uuid.h>
 
-#define OFFSETOF offsetof
-
 #define CHANNEL_GUID_MISMATCH(chType, chName, field, expected, actual, fil, \
 			      lin, logCtx)				\
 	do {								\

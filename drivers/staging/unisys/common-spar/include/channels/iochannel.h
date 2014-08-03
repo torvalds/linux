@@ -711,24 +711,24 @@ typedef struct _ULTRA_IO_CHANNEL_PROTOCOL {
 /* ///////////// END PRAGMA PACK PUSH 1 /////////////////////////// */
 
 /* define offsets to members of struct uiscmdrsp */
-#define OFFSET_CMDTYPE OFFSETOF(struct uiscmdrsp, cmdtype)
-#define OFFSET_SCSI OFFSETOF(struct uiscmdrsp, scsi)
-#define OFFSET_NET OFFSETOF(struct uiscmdrsp, net)
-#define OFFSET_SCSITASKMGMT OFFSETOF(struct uiscmdrsp, scsitaskmgmt)
-#define OFFSET_NEXT OFFSETOF(struct uiscmdrsp, next)
+#define OFFSET_CMDTYPE offsetof(struct uiscmdrsp, cmdtype)
+#define OFFSET_SCSI offsetof(struct uiscmdrsp, scsi)
+#define OFFSET_NET offsetof(struct uiscmdrsp, net)
+#define OFFSET_SCSITASKMGMT offsetof(struct uiscmdrsp, scsitaskmgmt)
+#define OFFSET_NEXT offsetof(struct uiscmdrsp, next)
 
 /* define offsets to members of struct uiscmdrsp_net */
-#define OFFSET_TYPE OFFSETOF(struct uiscmdrsp_net, type)
-#define OFFSET_BUF OFFSETOF(struct uiscmdrsp_net, buf)
-#define OFFSET_XMT OFFSETOF(struct uiscmdrsp_net, xmt)
-#define OFFSET_XMT_DONE_RESULT OFFSETOF(struct uiscmdrsp_net, xmtdone)
-#define OFFSET_RCVPOST OFFSETOF(struct uiscmdrsp_net, rcvpost)
-#define OFFSET_RCV_DONE_LEN OFFSETOF(struct uiscmdrsp_net, rcv)
-#define OFFSET_ENBDIS OFFSETOF(struct uiscmdrsp_net, enbdis)
+#define OFFSET_TYPE offsetof(struct uiscmdrsp_net, type)
+#define OFFSET_BUF offsetof(struct uiscmdrsp_net, buf)
+#define OFFSET_XMT offsetof(struct uiscmdrsp_net, xmt)
+#define OFFSET_XMT_DONE_RESULT offsetof(struct uiscmdrsp_net, xmtdone)
+#define OFFSET_RCVPOST offsetof(struct uiscmdrsp_net, rcvpost)
+#define OFFSET_RCV_DONE_LEN offsetof(struct uiscmdrsp_net, rcv)
+#define OFFSET_ENBDIS offsetof(struct uiscmdrsp_net, enbdis)
 
 /* define offsets to members of struct net_pkt_rcvpost */
-#define OFFSET_TOTALLEN OFFSETOF(struct net_pkt_rcvpost, totallen)
-#define	OFFSET_FRAG OFFSETOF(struct net_pkt_rcvpost, frag)
+#define OFFSET_TOTALLEN offsetof(struct net_pkt_rcvpost, totallen)
+#define	OFFSET_FRAG offsetof(struct net_pkt_rcvpost, frag)
 
 /*
 * INLINE functions for initializing and accessing I/O data channels
@@ -753,7 +753,7 @@ typedef struct _ULTRA_IO_CHANNEL_PROTOCOL {
 	do {							\
 		x->cmdQ.Size = QSIZEFROMBYTES(x->ChannelHeader.Size);	\
 		x->cmdQ.oSignalBase = SIZEOF_PROTOCOL -			\
-			OFFSETOF(ULTRA_IO_CHANNEL_PROTOCOL, cmdQ);	\
+			offsetof(ULTRA_IO_CHANNEL_PROTOCOL, cmdQ);	\
 		x->cmdQ.SignalSize = SIZEOF_CMDRSP;			\
 		x->cmdQ.MaxSignalSlots =				\
 			QSLOTSFROMBYTES(x->ChannelHeader.Size);		\
@@ -761,20 +761,20 @@ typedef struct _ULTRA_IO_CHANNEL_PROTOCOL {
 		x->rspQ.Size = QSIZEFROMBYTES(x->ChannelHeader.Size);	\
 		x->rspQ.oSignalBase =					\
 			(SIZEOF_PROTOCOL + x->cmdQ.Size) -		\
-			OFFSETOF(ULTRA_IO_CHANNEL_PROTOCOL, rspQ);	\
+			offsetof(ULTRA_IO_CHANNEL_PROTOCOL, rspQ);	\
 		x->rspQ.SignalSize = SIZEOF_CMDRSP;			\
 		x->rspQ.MaxSignalSlots =				\
 			QSLOTSFROMBYTES(x->ChannelHeader.Size);		\
 		x->rspQ.MaxSignals = x->rspQ.MaxSignalSlots - 1;	\
 		x->ChannelHeader.oChannelSpace =			\
-			OFFSETOF(ULTRA_IO_CHANNEL_PROTOCOL, cmdQ);	\
+			offsetof(ULTRA_IO_CHANNEL_PROTOCOL, cmdQ);	\
 	} while (0)
 
 #define INIT_CLIENTSTRING(chan, type, clientStr, clientStrLen)	\
 	do {								\
 		if (clientStr) {					\
 			chan->ChannelHeader.oClientString =		\
-				OFFSETOF(type, clientString);		\
+				offsetof(type, clientString);		\
 			memcpy(chan->clientString, clientStr,		\
 			       MINNUM(clientStrLen,			\
 				      (u32) (MAX_CLIENTSTRING_LEN - 1))); \
