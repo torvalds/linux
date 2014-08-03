@@ -30,8 +30,6 @@ typedef u64 GUEST_PHYSICAL_ADDRESS;
 #define INLINE inline
 #define OFFSETOF offsetof
 
-#define MEMORYBARRIER mb()
-
 #define CHANNEL_GUID_MISMATCH(chType, chName, field, expected, actual, fil, \
 			      lin, logCtx)				\
 	do {								\
@@ -62,8 +60,6 @@ typedef u64 GUEST_PHYSICAL_ADDRESS;
 #define UltraLogEvent(logCtx, EventId, Severity, SubsystemMask, pFunctionName, \
 		      LineNumber, Str, args...)				\
 	pr_info(Str, ## args)
-
-#define VolatileBarrier() MEMORYBARRIER
 
 #endif
 

@@ -75,7 +75,7 @@ visor_signal_insert(CHANNEL_HEADER __iomem *pChannel, u32 Queue, void *pSignal)
 		(head * readl(&pqhdr->SignalSize));
 	memcpy_toio(psignal, pSignal, readl(&pqhdr->SignalSize));
 
-	VolatileBarrier();
+	mb(); /* channel synch */
 	writel(head, &pqhdr->Head);
 
 	writeq(readq(&pqhdr->NumSignalsSent) + 1, &pqhdr->NumSignalsSent);
@@ -128,7 +128,7 @@ visor_signal_remove(CHANNEL_HEADER __iomem *pChannel, u32 Queue, void *pSignal)
 		(tail * readl(&pqhdr->SignalSize));
 	memcpy_fromio(pSignal, psource, readl(&pqhdr->SignalSize));
 
-	VolatileBarrier();
+	mb(); /* channel synch */
 	writel(tail, &pqhdr->Tail);
 
 	writeq(readq(&pqhdr->NumSignalsReceived) + 1,
@@ -186,7 +186,7 @@ SignalRemoveAll(pCHANNEL_HEADER pChannel, u32 Queue, void *pSignal)
 		memcpy((char *) pSignal + (pqhdr->SignalSize * signalCount),
 		       psource, pqhdr->SignalSize);
 
-		VolatileBarrier();
+		mb(); /* channel synch */
 		pqhdr->Tail = tail;
 
 		signalCount++;

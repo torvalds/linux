@@ -424,7 +424,7 @@ visorchannel_signalremove(VISORCHANNEL *channel, u32 queue, void *msg)
 	/* For each data field in SIGNAL_QUEUE_HEADER that was modified,
 	 * update host memory.
 	 */
-	MEMORYBARRIER;
+	mb(); /* required for channel synch */
 	if (!SIG_WRITE_FIELD(channel, queue, &sig_hdr, Tail)) {
 		ERRDRV("visor_memregion_write of Tail failed: (status=%d)\n",
 		       rc);
@@ -477,7 +477,7 @@ visorchannel_signalinsert(VISORCHANNEL *channel, u32 queue, void *msg)
 	/* For each data field in SIGNAL_QUEUE_HEADER that was modified,
 	 * update host memory.
 	 */
-	MEMORYBARRIER;
+	mb(); /* required for channel synch */
 	if (!SIG_WRITE_FIELD(channel, queue, &sig_hdr, Head)) {
 		ERRDRV("visor_memregion_write of Head failed: (status=%d)\n",
 		       rc);

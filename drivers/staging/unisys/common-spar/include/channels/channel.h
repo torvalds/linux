@@ -157,7 +157,7 @@ ULTRA_CHANNELCLI_STRING(u32 v)
 			      PathName_Last_N_Nodes(__FILE__, 4), __LINE__); \
 		writel(newstate, &((CHANNEL_HEADER __iomem *) \
 				   (pChan))->CliStateOS);		\
-		MEMORYBARRIER;						\
+		mb(); /* required for channel synch */			\
 	} while (0)
 
 #define ULTRA_CHANNEL_CLIENT_ACQUIRE_OS(pChan, chanId, logCtx)	\
@@ -458,7 +458,7 @@ ULTRA_channel_client_acquire_os(void __iomem *pChannel, u8 *chanId,
 			      CHANNELCLI_OWNED,
 			      PathName_Last_N_Nodes((u8 *) file, 4), line);
 		writel(CHANNELCLI_OWNED, &pChan->CliStateOS);
-		MEMORYBARRIER;
+		mb(); /* required for channel synch */
 	}
 	if (readl(&pChan->CliStateOS) == CHANNELCLI_OWNED) {
 		if (readb(&pChan->CliErrorOS) != 0) {
@@ -502,7 +502,7 @@ ULTRA_channel_client_acquire_os(void __iomem *pChannel, u8 *chanId,
 		return 0;
 	}
 	writel(CHANNELCLI_BUSY, &pChan->CliStateOS);
-	MEMORYBARRIER;
+	mb(); /* required for channel synch */
 	if (readl(&pChan->CliStateBoot) == CHANNELCLI_BUSY) {
 		if ((readb(&pChan->CliErrorOS)
 		     & ULTRA_CLIERROROS_THROTTLEMSG_BUSY) == 0) {
@@ -521,7 +521,7 @@ ULTRA_channel_client_acquire_os(void __iomem *pChannel, u8 *chanId,
 		}
 		/* reset busy */
 		writel(CHANNELCLI_ATTACHED, &pChan->CliStateOS);
-		MEMORYBARRIER;
+		mb(); /* required for channel synch */
 		return 0;
 	}
 	if (readb(&pChan->CliErrorOS) != 0) {
