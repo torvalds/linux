@@ -373,7 +373,7 @@ static ssize_t  pinctrl_show_regs(struct file *file, char __user *user_buf,
 	len += snprintf(buf + len, PINCTRL_REGS_BUFSIZE - len,
 			"=================================\n\n");
 
-	if(bank0)
+	if(bank0 && bank0->reg_mux_bank0 && bank0->reg_pull_bank0 && bank0->reg_drv_bank0)
 	{
 		len += snprintf(buf + len, PINCTRL_REGS_BUFSIZE - len,
 				"BANK0 GRF registers:\n");
