@@ -47,6 +47,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_CS42L52 if I2C && INPUT
 	select SND_SOC_CS42L56 if I2C && INPUT
 	select SND_SOC_CS42L73 if I2C
+	select SND_SOC_CS4265 if I2C
 	select SND_SOC_CS4270 if I2C
 	select SND_SOC_CS4271 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_CS42XX8_I2C if I2C
@@ -337,6 +338,11 @@ config SND_SOC_CS42L56
 config SND_SOC_CS42L73
 	tristate "Cirrus Logic CS42L73 CODEC"
 	depends on I2C
+
+config SND_SOC_CS4265
+	tristate "Cirrus Logic CS4265 CODEC"
+	depends on I2C
+	select REGMAP_I2C
 
 # Cirrus Logic CS4270 Codec
 config SND_SOC_CS4270
