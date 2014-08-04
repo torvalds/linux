@@ -958,7 +958,7 @@ static void nhmex_rbox_alter_er(struct intel_uncore_box *box, struct perf_event 
 		/* shift the 0~7 bits to the 8~15 bits */
 		reg1->config <<= 8;
 		break;
-	};
+	}
 }
 
 /*
@@ -1097,7 +1097,7 @@ static int nhmex_rbox_hw_config(struct intel_uncore_box *box, struct perf_event 
 		hwc->config |= event->attr.config & (~0ULL << 32);
 		reg2->config = event->attr.config2;
 		break;
-	};
+	}
 	return 0;
 }
 
@@ -1135,7 +1135,7 @@ static void nhmex_rbox_msr_enable_event(struct intel_uncore_box *box, struct per
 		wrmsrl(NHMEX_R_MSR_PORTN_XBR_SET2_MATCH(port), reg1->config);
 		wrmsrl(NHMEX_R_MSR_PORTN_XBR_SET2_MASK(port), reg2->config);
 		break;
-	};
+	}
 
 	wrmsrl(hwc->config_base, NHMEX_PMON_CTL_EN_BIT0 |
 		(hwc->config & NHMEX_R_PMON_CTL_EV_SEL_MASK));
