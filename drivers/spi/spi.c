@@ -345,14 +345,12 @@ static DEFINE_MUTEX(board_lock);
 struct spi_device *spi_alloc_device(struct spi_master *master)
 {
 	struct spi_device	*spi;
-	struct device		*dev = master->dev.parent;
 
 	if (!spi_master_get(master))
 		return NULL;
 
 	spi = kzalloc(sizeof(*spi), GFP_KERNEL);
 	if (!spi) {
-		dev_err(dev, "cannot alloc spi_device\n");
 		spi_master_put(master);
 		return NULL;
 	}
