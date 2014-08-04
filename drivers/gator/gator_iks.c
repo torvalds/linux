@@ -150,7 +150,7 @@ static void gator_send_iks_core_names(void)
 	preempt_disable();
 	for (cpu = 0; cpu < nr_cpu_ids; ++cpu) {
 		if (mpidr_cpus[cpu] != NULL) {
-			gator_send_core_name(cpu, mpidr_cpus[cpu]->cpuid, mpidr_cpus[cpu]);
+			gator_send_core_name(cpu, mpidr_cpus[cpu]->cpuid);
 		}
 	}
 	preempt_enable();

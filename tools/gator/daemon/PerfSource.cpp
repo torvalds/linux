@@ -37,7 +37,7 @@ static bool sendTracepointFormat(Buffer *const buffer, const char *const name, D
 	return true;
 }
 
-PerfSource::PerfSource(sem_t *senderSem, sem_t *startProfile) : mSummary(0, FRAME_SUMMARY, 1024, senderSem), mBuffer(0, FRAME_PERF_ATTRS, 1024*1024, senderSem), mCountersBuf(), mCountersGroup(&mCountersBuf), mMonitor(), mUEvent(), mSenderSem(senderSem), mStartProfile(startProfile), mInterruptFd(-1), mIsDone(false) {
+PerfSource::PerfSource(sem_t *senderSem, sem_t *startProfile) : mSummary(0, FRAME_SUMMARY, 1024, senderSem), mBuffer(0, FRAME_PERF_ATTRS, 4*1024*1024, senderSem), mCountersBuf(), mCountersGroup(&mCountersBuf), mMonitor(), mUEvent(), mSenderSem(senderSem), mStartProfile(startProfile), mInterruptFd(-1), mIsDone(false) {
 	long l = sysconf(_SC_PAGE_SIZE);
 	if (l < 0) {
 		logg->logError(__FILE__, __LINE__, "Unable to obtain the page size");
@@ -74,6 +74,9 @@ bool PerfSource::prepare() {
 	DynBuf b3;
 	long long schedSwitchId;
 
+	// Reread cpuinfo since cores may have changed since startup
+	gSessionData->readCpuInfo();
+
 	if (0
 			|| !mMonitor.init()
 			|| !mUEvent.init()
@@ -83,14 +86,14 @@ bool PerfSource::prepare() {
 			|| !sendTracepointFormat(&mBuffer, SCHED_SWITCH, &printb, &b1)
 
 			// Only want RAW but not IP on sched_switch and don't want TID on SAMPLE_ID
-			|| !mCountersGroup.add(&mBuffer, 100/**/, PERF_TYPE_TRACEPOINT, schedSwitchId, 1, PERF_SAMPLE_RAW, PERF_GROUP_MMAP | PERF_GROUP_COMM | PERF_GROUP_TASK | PERF_GROUP_SAMPLE_ID_ALL)
+			|| !mCountersGroup.add(&mBuffer, 100/**/, PERF_TYPE_TRACEPOINT, schedSwitchId, 1, PERF_SAMPLE_RAW, PERF_GROUP_MMAP | PERF_GROUP_COMM | PERF_GROUP_TASK | PERF_GROUP_SAMPLE_ID_ALL | PERF_GROUP_PER_CPU)
 
 			// Only want TID and IP but not RAW on timer
-			|| (gSessionData->mSampleRate > 0 && !gSessionData->mIsEBS && !mCountersGroup.add(&mBuffer, 99/**/, PERF_TYPE_SOFTWARE, PERF_COUNT_SW_CPU_CLOCK, 1000000000UL / gSessionData->mSampleRate, PERF_SAMPLE_TID | PERF_SAMPLE_IP, 0))
+			|| (gSessionData->mSampleRate > 0 && !gSessionData->mIsEBS && !mCountersGroup.add(&mBuffer, 99/**/, PERF_TYPE_SOFTWARE, PERF_COUNT_SW_CPU_CLOCK, 1000000000UL / gSessionData->mSampleRate, PERF_SAMPLE_TID | PERF_SAMPLE_IP, PERF_GROUP_PER_CPU))
 
 			|| !gSessionData->perf.enable(&mCountersGroup, &mBuffer)
 			|| 0) {
-		logg->logMessage("%s(%s:%i): perf setup failed, are you running Linux 3.12 or later?", __FUNCTION__, __FILE__, __LINE__);
+		logg->logMessage("%s(%s:%i): perf setup failed, are you running Linux 3.4 or later?", __FUNCTION__, __FILE__, __LINE__);
 		return false;
 	}
 
@@ -134,7 +137,7 @@ bool PerfSource::prepare() {
 		return false;
 	}
 
-	if (!readProc(&mBuffer, &printb, &b1, &b2, &b3)) {
+	if (!readProc(&mBuffer, true, &printb, &b1, &b2, &b3)) {
 		logg->logMessage("%s(%s:%i): readProc failed", __FUNCTION__, __FILE__, __LINE__);
 		return false;
 	}
@@ -260,6 +263,7 @@ bool PerfSource::isDone () {
 void PerfSource::write (Sender *sender) {
 	if (!mSummary.isDone()) {
 		mSummary.write(sender);
+		gSessionData->mSentSummary = true;
 	}
 	if (!mBuffer.isDone()) {
 		mBuffer.write(sender);

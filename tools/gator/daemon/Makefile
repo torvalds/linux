@@ -8,14 +8,14 @@
 # targets run 'make SOFTFLOAT=1 SYSROOT=/path/to/sysroot', see
 # README_Streamline.txt for more details
 
-CPP = $(CROSS_COMPILE)g++
-GCC = $(CROSS_COMPILE)gcc
+CC = $(CROSS_COMPILE)gcc
+CXX = $(CROSS_COMPILE)g++
 
 # -mthumb-interwork is required for interworking to ARM or Thumb stdlibc
-CFLAGS += -mthumb-interwork
+CPPFLAGS += -mthumb-interwork
 
 ifeq ($(SOFTFLOAT),1)
-	CFLAGS += -marm -march=armv4t -mfloat-abi=soft
+	CPPFLAGS += -marm -march=armv4t -mfloat-abi=soft
 	LDFLAGS += -marm -march=armv4t -mfloat-abi=soft
 endif
 ifneq ($(SYSROOT),)

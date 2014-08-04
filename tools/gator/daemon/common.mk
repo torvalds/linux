@@ -5,16 +5,17 @@
 # -Werror treats warnings as errors
 # -std=c++0x is the planned new c++ standard
 # -std=c++98 is the 1998 c++ standard
-CFLAGS += -O3 -Wall -fno-exceptions -pthread -MMD -DETCDIR=\"/etc\" -Ilibsensors
+CPPFLAGS += -O3 -Wall -fno-exceptions -pthread -MMD -DETCDIR=\"/etc\" -Ilibsensors
 CXXFLAGS += -fno-rtti -Wextra # -Weffc++
 ifeq ($(WERROR),1)
-	CFLAGS += -Werror
+	CPPFLAGS += -Werror
 endif
 # -s strips the binary of debug info
 LDFLAGS += -s
+LDLIBS += -lrt -lm -pthread
 TARGET = gatord
 C_SRC = $(wildcard mxml/*.c) $(wildcard libsensors/*.c)
-CPP_SRC = $(wildcard *.cpp)
+CXX_SRC = $(wildcard *.cpp)
 
 all: $(TARGET)
 
@@ -35,14 +36,15 @@ libsensors/conf-parse.c: ;
 	./escape $< > $@
 
 %.o: %.c
-	$(GCC) -c $(CFLAGS) -o $@ $<
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c -o $@ $<
 
 %.o: %.cpp
-	$(CPP) -c $(CFLAGS) $(CXXFLAGS) -o $@ $<
+	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c -o $@ $<
 
-$(TARGET): $(CPP_SRC:%.cpp=%.o) $(C_SRC:%.c=%.o)
-	$(CPP) $(LDFLAGS) -o $@ $^ -lrt -pthread
+$(TARGET): $(CXX_SRC:%.cpp=%.o) $(C_SRC:%.c=%.o)
+	$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@
 
+# Intentionally ignore CC as a native binary is required
 escape: escape.c
 	gcc $^ -o $@
 

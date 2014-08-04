@@ -18,17 +18,27 @@
 #include "gator_events_mali_4xx.h"
 
 /*
- * There are (currently) four different variants of the comms between gator and Mali:
- * 1 (deprecated): No software counter support
- * 2 (deprecated): Tracepoint called for each separate s/w counter value as it appears
- * 3 (default): Single tracepoint for all s/w counters in a bundle.
- * Interface style 3 is the default if no other is specified.  1 and 2 will be eliminated when
- * existing Mali DDKs are upgraded.
- * 4. As above, but for the Utgard (Mali-450) driver.
- */
+* There have been four different variants of the comms between gator and Mali depending on driver version:
+* # | DDK vsn range             | Support                                                             | Notes
+*
+* 1 | (obsolete)                | No software counter support                                         | Obsolete patches
+* 2 | (obsolete)                | Tracepoint called for each separate s/w counter value as it appears | Obsolete patches
+* 3 | r3p0-04rel0 - r3p2-01rel2 | Single tracepoint for all s/w counters in a bundle.                 |
+* 4 | r3p2-01rel3 - date        | As above but with extensions for MP devices (Mali-450)              | At least r4p0-00rel1
+*/
 
 #if !defined(GATOR_MALI_INTERFACE_STYLE)
-#define GATOR_MALI_INTERFACE_STYLE (3)
+#define GATOR_MALI_INTERFACE_STYLE (4)
+#endif
+
+#if GATOR_MALI_INTERFACE_STYLE == 1
+#error GATOR_MALI_INTERFACE_STYLE 1 is obsolete
+#elif GATOR_MALI_INTERFACE_STYLE == 2
+#error GATOR_MALI_INTERFACE_STYLE 2 is obsolete
+#elif GATOR_MALI_INTERFACE_STYLE >= 3
+// Valid GATOR_MALI_INTERFACE_STYLE
+#else
+#error Unknown GATOR_MALI_INTERFACE_STYLE option.
 #endif
 
 #if GATOR_MALI_INTERFACE_STYLE < 4
@@ -43,6 +53,8 @@
 #if (MALI_SUPPORT != MALI_4xx)
 #error MALI_SUPPORT set to an invalid device code: expecting MALI_4xx
 #endif
+
+static const char mali_name[] = "Mali-4xx";
 
 /* gatorfs variables for counter enable state,
  * the event the counter should count and the
@@ -63,6 +75,7 @@ static u32 *counter_address[NUMBER_OF_EVENTS];
  */
 static unsigned long counter_dump[NUMBER_OF_EVENTS * 2];
 static unsigned long counter_prev[NUMBER_OF_EVENTS];
+static bool prev_set[NUMBER_OF_EVENTS];
 
 /* Note whether tracepoints have been registered */
 static int trace_registered;
@@ -76,18 +89,11 @@ static unsigned int n_vp_cores = MAX_NUM_VP_CORES;
 static unsigned int n_l2_cores = MAX_NUM_L2_CACHE_CORES;
 static unsigned int n_fp_cores = MAX_NUM_FP_CORES;
 
-/**
- * Calculate the difference and handle the overflow.
- */
-static u32 get_difference(u32 start, u32 end)
-{
-	if (start - end >= 0) {
-		return start - end;
-	}
-
-	// Mali counters are unsigned 32 bit values that wrap.
-	return (4294967295u - end) + start;
-}
+extern mali_counter mali_activity[2];
+static const char* const mali_activity_names[] = {
+	"fragment",
+	"vertex",
+};
 
 /**
  * Returns non-zero if the given counter ID is an activity counter.
@@ -111,40 +117,6 @@ static inline int is_hw_counter(unsigned int event_id)
  */
 typedef void _mali_profiling_get_mali_version_type(struct _mali_profiling_mali_version *values);
 typedef u32 _mali_profiling_get_l2_counters_type(_mali_profiling_l2_counter_values *values);
-
-#if GATOR_MALI_INTERFACE_STYLE == 2
-/**
- * Returns non-zero if the given counter ID is a software counter.
- */
-static inline int is_sw_counter(unsigned int event_id)
-{
-	return (event_id >= FIRST_SW_COUNTER && event_id <= LAST_SW_COUNTER);
-}
-#endif
-
-#if GATOR_MALI_INTERFACE_STYLE == 2
-/*
- * The Mali DDK uses s64 types to contain software counter values, but gator
- * can only use a maximum of 32 bits. This function scales a software counter
- * to an appropriate range.
- */
-static u32 scale_sw_counter_value(unsigned int event_id, signed long long value)
-{
-	u32 scaled_value;
-
-	switch (event_id) {
-	case COUNTER_GLES_UPLOAD_TEXTURE_TIME:
-	case COUNTER_GLES_UPLOAD_VBO_TIME:
-		scaled_value = (u32)div_s64(value, 1000000);
-		break;
-	default:
-		scaled_value = (u32)value;
-		break;
-	}
-
-	return scaled_value;
-}
-#endif
 
 /* Probe for continuously sampled counter */
 #if 0				//WE_DONT_CURRENTLY_USE_THIS_SO_SUPPRESS_WARNING
@@ -172,16 +144,6 @@ GATOR_DEFINE_PROBE(mali_hw_counter, TP_PROTO(unsigned int event_id, unsigned int
 	}
 }
 
-#if GATOR_MALI_INTERFACE_STYLE == 2
-GATOR_DEFINE_PROBE(mali_sw_counter, TP_PROTO(unsigned int event_id, signed long long value))
-{
-	if (is_sw_counter(event_id)) {
-		counter_data[event_id] = scale_sw_counter_value(event_id, value);
-	}
-}
-#endif /* GATOR_MALI_INTERFACE_STYLE == 2 */
-
-#if GATOR_MALI_INTERFACE_STYLE >= 3
 GATOR_DEFINE_PROBE(mali_sw_counters, TP_PROTO(pid_t pid, pid_t tid, void *surface_id, unsigned int *counters))
 {
 	u32 i;
@@ -193,7 +155,6 @@ GATOR_DEFINE_PROBE(mali_sw_counters, TP_PROTO(pid_t pid, pid_t tid, void *surfac
 		}
 	}
 }
-#endif /* GATOR_MALI_INTERFACE_STYLE >= 3 */
 
 /**
  * Create a single filesystem entry for a specified event.
@@ -254,6 +215,7 @@ static void initialise_version_info(void)
 		symbol_put(_mali_profiling_get_mali_version);
 	} else {
 		printk("gator: mali online _mali_profiling_get_mali_version symbol not found\n");
+		printk("gator:  check your Mali DDK version versus the GATOR_MALI_INTERFACE_STYLE setting\n");
 	}
 }
 #endif
@@ -261,7 +223,6 @@ static void initialise_version_info(void)
 static int create_files(struct super_block *sb, struct dentry *root)
 {
 	int event;
-	const char *mali_name = gator_mali_get_mali_name();
 
 	char buf[40];
 	int core_id;
@@ -277,6 +238,14 @@ static int create_files(struct super_block *sb, struct dentry *root)
 	 */
 	initialise_version_info();
 #endif
+
+	mali_activity[0].cores = n_fp_cores;
+	mali_activity[1].cores = n_vp_cores;
+	for (event = 0; event < ARRAY_SIZE(mali_activity); event++) {
+		if (gator_mali_create_file_system(mali_name, mali_activity_names[event], sb, root, &mali_activity[event], NULL) != 0) {
+			return -1;
+		}
+	}
 
 	/* Vertex processor counters */
 	for (core_id = 0; core_id < n_vp_cores; core_id++) {
@@ -413,7 +382,6 @@ static void init_counters(unsigned int from_counter, unsigned int to_counter)
 static void mali_counter_initialize(void)
 {
 	int i;
-	int core_id;
 
 	mali_profiling_control_type *mali_control;
 
@@ -463,15 +431,10 @@ static void mali_counter_initialize(void)
 		n_l2_cores = 0;
 	}
 
-	for (core_id = 0; core_id < n_l2_cores; core_id++) {
-		int counter_id = COUNTER_L2_0_C0 + (2 * core_id);
-		counter_prev[counter_id] = 0;
-		counter_prev[counter_id + 1] = 0;
-	}
-
 	/* Clear counters in the start */
 	for (i = 0; i < NUMBER_OF_EVENTS; i++) {
 		counter_data[i] = 0;
+		prev_set[i] = false;
 	}
 }
 
@@ -528,23 +491,11 @@ static int start(void)
 		return -1;
 	}
 
-#if GATOR_MALI_INTERFACE_STYLE == 1
-	/* None. */
-#elif GATOR_MALI_INTERFACE_STYLE == 2
-	/* For patched Mali driver. */
-	if (GATOR_REGISTER_TRACE(mali_sw_counter)) {
-		printk("gator: mali_sw_counter tracepoint failed to activate\n");
-		return -1;
-	}
-#elif GATOR_MALI_INTERFACE_STYLE >= 3
 	/* For Mali drivers with built-in support. */
 	if (GATOR_REGISTER_TRACE(mali_sw_counters)) {
 		printk("gator: mali_sw_counters tracepoint failed to activate\n");
 		return -1;
 	}
-#else
-#error Unknown GATOR_MALI_INTERFACE_STYLE option.
-#endif
 
 	trace_registered = 1;
 
@@ -561,17 +512,8 @@ static void stop(void)
 	if (trace_registered) {
 		GATOR_UNREGISTER_TRACE(mali_hw_counter);
 
-#if GATOR_MALI_INTERFACE_STYLE == 1
-		/* None. */
-#elif GATOR_MALI_INTERFACE_STYLE == 2
-		/* For patched Mali driver. */
-		GATOR_UNREGISTER_TRACE(mali_sw_counter);
-#elif GATOR_MALI_INTERFACE_STYLE >= 3
 		/* For Mali drivers with built-in support. */
 		GATOR_UNREGISTER_TRACE(mali_sw_counters);
-#else
-#error Unknown GATOR_MALI_INTERFACE_STYLE option.
-#endif
 
 		pr_debug("gator: mali timeline tracepoint deactivated\n");
 
@@ -636,21 +578,23 @@ static int read(int **buffer)
 
 			per_core = &cache_values.cores[cache_id];
 
-			if (counter_enabled[counter_id_0]) {
+			if (counter_enabled[counter_id_0] && prev_set[counter_id_0]) {
 				// Calculate and save src0's counter val0
 				counter_dump[len++] = counter_key[counter_id_0];
-				counter_dump[len++] = get_difference(per_core->value0, counter_prev[counter_id_0]);
+				counter_dump[len++] = per_core->value0 - counter_prev[counter_id_0];
 			}
 
-			if (counter_enabled[counter_id_1]) {
+			if (counter_enabled[counter_id_1] && prev_set[counter_id_1]) {
 				// Calculate and save src1's counter val1
 				counter_dump[len++] = counter_key[counter_id_1];
-				counter_dump[len++] = get_difference(per_core->value1, counter_prev[counter_id_1]);
+				counter_dump[len++] = per_core->value1 - counter_prev[counter_id_1];
 			}
 
 			// Save the previous values for the counters.
 			counter_prev[counter_id_0] = per_core->value0;
+			prev_set[counter_id_0] = true;
 			counter_prev[counter_id_1] = per_core->value1;
+			prev_set[counter_id_1] = true;
 		}
 	}
 
@@ -708,6 +652,8 @@ int gator_events_mali_init(void)
 	unsigned int cnt;
 
 	pr_debug("gator: mali init\n");
+
+	gator_mali_initialise_counters(mali_activity, ARRAY_SIZE(mali_activity));
 
 	for (cnt = 0; cnt < NUMBER_OF_EVENTS; cnt++) {
 		counter_enabled[cnt] = 0;

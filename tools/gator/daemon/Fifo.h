@@ -45,4 +45,4 @@ private:
   Fifo &operator=(const Fifo &);
 };
 
-#endif 	//__FIFO_H__
+#endif //__FIFO_H__

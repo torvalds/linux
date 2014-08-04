@@ -12,19 +12,24 @@
 
 #include <fcntl.h>
 #include <inttypes.h>
+#include <sys/prctl.h>
 #include <unistd.h>
 
+#include "Buffer.h"
 #include "Child.h"
+#include "DynBuf.h"
 #include "Fifo.h"
 #include "Logging.h"
+#include "Proc.h"
 #include "Sender.h"
 #include "SessionData.h"
 
 extern Child *child;
 
-DriverSource::DriverSource(sem_t *senderSem, sem_t *startProfile) : mFifo(NULL), mSenderSem(senderSem), mStartProfile(startProfile), mBufferSize(0), mBufferFD(0), mLength(1) {
+DriverSource::DriverSource(sem_t *senderSem, sem_t *startProfile) : mBuffer(NULL), mFifo(NULL), mSenderSem(senderSem), mStartProfile(startProfile), mBufferSize(0), mBufferFD(0), mLength(1) {
 	int driver_version = 0;
 
+	mBuffer = new Buffer(0, FRAME_PERF_ATTRS, 4*1024*1024, senderSem);
 	if (readIntDriver("/dev/gator/version", &driver_version) == -1) {
 		logg->logError(__FILE__, __LINE__, "Error reading gator driver version");
 		handleException();
@@ -43,7 +48,7 @@ DriverSource::DriverSource(sem_t *senderSem, sem_t *startProfile) : mFifo(NULL),
 			handleException();
 		} else {
 			// Release version mismatch
-			logg->logError(__FILE__, __LINE__, 
+			logg->logError(__FILE__, __LINE__,
 				"gator driver version \"%d\" is different than gator daemon version \"%d\".\n"
 				">> Please upgrade the driver and daemon to the latest versions.", driver_version, PROTOCOL_VERSION);
 			handleException();
@@ -85,6 +90,28 @@ bool DriverSource::prepare() {
 	mFifo = new Fifo(mBufferSize + 5, gSessionData->mTotalBufferSize*1024*1024, mSenderSem);
 
 	return true;
+}
+
+void DriverSource::bootstrapThread() {
+	prctl(PR_SET_NAME, (unsigned long)&"gatord-bootstrap", 0, 0, 0);
+
+	DynBuf printb;
+	DynBuf b1;
+	DynBuf b2;
+	DynBuf b3;
+
+	if (!readProc(mBuffer, false, &printb, &b1, &b2, &b3)) {
+		logg->logMessage("%s(%s:%i): readProc failed", __FUNCTION__, __FILE__, __LINE__);
+		handleException();
+	}
+
+	mBuffer->commit(1);
+	mBuffer->setDone();
+}
+
+void *DriverSource::bootstrapThreadStatic(void *arg) {
+	static_cast<DriverSource *>(arg)->bootstrapThread();
+	return NULL;
 }
 
 void DriverSource::run() {
@@ -138,6 +165,12 @@ void DriverSource::run() {
 
 	sem_post(mStartProfile);
 
+	pthread_t bootstrapThreadID;
+	if (pthread_create(&bootstrapThreadID, NULL, bootstrapThreadStatic, this) != 0) {
+		logg->logError(__FILE__, __LINE__, "Unable to start the gator_bootstrap thread");
+		handleException();
+	}
+
 	// Collect Data
 	do {
 		// This command will stall until data is received from the driver
@@ -164,6 +197,8 @@ void DriverSource::run() {
 	} while (bytesCollected > 0);
 
 	logg->logMessage("Exit collect data loop");
+
+	pthread_join(bootstrapThreadID, NULL);
 }
 
 void DriverSource::interrupt() {
@@ -174,7 +209,7 @@ void DriverSource::interrupt() {
 }
 
 bool DriverSource::isDone() {
-	return mLength <= 0;
+	return mLength <= 0 && (mBuffer == NULL || mBuffer->isDone());
 }
 
 void DriverSource::write(Sender *sender) {
@@ -182,6 +217,16 @@ void DriverSource::write(Sender *sender) {
 	if (data != NULL) {
 		sender->writeData(data, mLength, RESPONSE_APC_DATA);
 		mFifo->release();
+		// Assume the summary packet is in the first block received from the driver
+		gSessionData->mSentSummary = true;
+	}
+	if (mBuffer != NULL && !mBuffer->isDone()) {
+		mBuffer->write(sender);
+		if (mBuffer->isDone()) {
+			Buffer *buf = mBuffer;
+			mBuffer = NULL;
+			delete buf;
+		}
 	}
 }
 
@@ -227,7 +272,7 @@ int DriverSource::readInt64Driver(const char *fullpath, int64_t *value) {
 	char *endptr;
 	errno = 0;
 	*value = strtoll(data, &endptr, 10);
-	if (errno != 0 || *endptr != '\n') {
+	if (errno != 0 || (*endptr != '\n' && *endptr != '\0')) {
 		logg->logMessage("Invalid value in file %s", fullpath);
 		return -1;
 	}

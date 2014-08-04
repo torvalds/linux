@@ -18,10 +18,6 @@
 #include <linux/slab.h>
 #include <asm/io.h>
 
-/* Device codes for each known GPU */
-#define MALI_4xx     (0x0b07)
-#define MALI_T6xx    (0x0056)
-
 /* Ensure that MALI_SUPPORT has been defined to something. */
 #ifndef MALI_SUPPORT
 #error MALI_SUPPORT not defined!
@@ -35,8 +31,12 @@
  * Runtime state information for a counter.
  */
 typedef struct {
-	unsigned long key;	/* 'key' (a unique id set by gatord and returned by gator.ko) */
-	unsigned long enabled;	/* counter enable state */
+	// 'key' (a unique id set by gatord and returned by gator.ko)
+	unsigned long key;
+	// counter enable state
+	unsigned long enabled;
+	// for activity counters, the number of cores, otherwise -1
+	unsigned long cores;
 } mali_counter;
 
 /*
@@ -54,17 +54,9 @@ extern void _mali_profiling_control(unsigned int, unsigned int);
 extern void _mali_profiling_get_counters(unsigned int *, unsigned int *, unsigned int *, unsigned int *);
 
 /**
- * Returns a name which identifies the GPU type (eg Mali-4xx, Mali-T6xx).
- *
- * @return The name as a constant string.
- */
-extern const char *gator_mali_get_mali_name(void);
-
-/**
  * Creates a filesystem entry under /dev/gator relating to the specified event name and key, and
  * associate the key/enable values with this entry point.
  *
- * @param mali_name A name related to the type of GPU, obtained from a call to gator_mali_get_mali_name()
  * @param event_name The name of the event.
  * @param sb Linux super block
  * @param root Directory under which the entry will be created.

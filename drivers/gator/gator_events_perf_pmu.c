@@ -470,10 +470,10 @@ static void gator_events_perf_pmu_cci_init(const int type)
 
 	switch (probe_cci_revision()) {
 	case 0:
-		cci_name = "cci-400";
+		cci_name = "CCI_400";
 		break;
 	case 1:
-		cci_name = "cci-400-r1";
+		cci_name = "CCI_400-r1";
 		break;
 	default:
 		pr_debug("gator: unrecognized cci-400 revision\n");
@@ -549,7 +549,7 @@ int gator_events_perf_pmu_init(void)
 		}
 
 		if (pe->pmu != NULL && type == pe->pmu->type) {
-			if (strcmp("CCI", pe->pmu->name) == 0 || strcmp("CCI_400", pe->pmu->name) == 0) {
+			if (strcmp("CCI", pe->pmu->name) == 0 || strcmp("CCI_400", pe->pmu->name) == 0 || strcmp("CCI_400-r1", pe->pmu->name) == 0) {
 				gator_events_perf_pmu_cci_init(type);
 			} else if ((gator_cpu = gator_find_cpu_by_pmu_name(pe->pmu->name)) != NULL) {
 				found_cpu = true;

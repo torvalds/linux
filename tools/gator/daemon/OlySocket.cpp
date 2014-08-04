@@ -9,6 +9,7 @@
 #include "OlySocket.h"
 
 #include <stdio.h>
+#include <string.h>
 #ifdef WIN32
 #include <Winsock2.h>
 #include <ws2tcpip.h>
@@ -43,16 +44,18 @@ OlyServerSocket::OlyServerSocket(int port) {
   createServerSocket(port);
 }
 
-OlySocket::OlySocket(int port, const char* host) {
-  createClientSocket(host, port);
-}
-
 OlySocket::OlySocket(int socketID) : mSocketID(socketID) {
 }
 
 #ifndef WIN32
 
-OlyServerSocket::OlyServerSocket(const char* path) {
+#define MIN(A, B) ({ \
+  const __typeof__(A) __a = A; \
+  const __typeof__(B) __b = B; \
+  __a > __b ? __b : __a; \
+})
+
+OlyServerSocket::OlyServerSocket(const char* path, const size_t pathSize) {
   // Create socket
   mFDServer = socket(PF_UNIX, SOCK_STREAM, 0);
   if (mFDServer < 0) {
@@ -60,13 +63,11 @@ OlyServerSocket::OlyServerSocket(const char* path) {
     handleException();
   }
 
-  unlink(path);
-
   // Create sockaddr_in structure, ensuring non-populated fields are zero
   struct sockaddr_un sockaddr;
   memset((void*)&sockaddr, 0, sizeof(sockaddr));
   sockaddr.sun_family = AF_UNIX;
-  strncpy(sockaddr.sun_path, path, sizeof(sockaddr.sun_path) - 1);
+  memcpy(sockaddr.sun_path, path, MIN(pathSize, sizeof(sockaddr.sun_path)));
   sockaddr.sun_path[sizeof(sockaddr.sun_path) - 1] = '\0';
 
   // Bind the socket to an address
@@ -82,24 +83,25 @@ OlyServerSocket::OlyServerSocket(const char* path) {
   }
 }
 
-OlySocket::OlySocket(const char* path) {
-  mSocketID = socket(PF_UNIX, SOCK_STREAM, 0);
-  if (mSocketID < 0) {
-    return;
+int OlySocket::connect(const char* path, const size_t pathSize) {
+  int fd = socket(PF_UNIX, SOCK_STREAM, 0);
+  if (fd < 0) {
+    return -1;
   }
 
   // Create sockaddr_in structure, ensuring non-populated fields are zero
   struct sockaddr_un sockaddr;
   memset((void*)&sockaddr, 0, sizeof(sockaddr));
   sockaddr.sun_family = AF_UNIX;
-  strncpy(sockaddr.sun_path, path, sizeof(sockaddr.sun_path) - 1);
+  memcpy(sockaddr.sun_path, path, MIN(pathSize, sizeof(sockaddr.sun_path)));
   sockaddr.sun_path[sizeof(sockaddr.sun_path) - 1] = '\0';
 
-  if (connect(mSocketID, (const struct sockaddr*)&sockaddr, sizeof(sockaddr)) < 0) {
-    close(mSocketID);
-    mSocketID = -1;
-    return;
+  if (::connect(fd, (const struct sockaddr*)&sockaddr, sizeof(sockaddr)) < 0) {
+    close(fd);
+    return -1;
   }
+
+  return fd;
 }
 
 #endif
@@ -135,47 +137,6 @@ void OlyServerSocket::closeServerSocket() {
     handleException();
   }
   mFDServer = 0;
-}
-
-void OlySocket::createClientSocket(const char* hostname, int portno) {
-#ifdef WIN32
-  // TODO: Implement for Windows
-#else
-  char buf[32];
-  struct addrinfo hints, *res, *res0;
-
-  snprintf(buf, sizeof(buf), "%d", portno);
-  mSocketID = -1;
-  memset((void*)&hints, 0, sizeof(hints));
-  hints.ai_family = PF_UNSPEC;
-  hints.ai_socktype = SOCK_STREAM;
-
-  if (getaddrinfo(hostname, buf, &hints, &res0)) {
-    logg->logError(__FILE__, __LINE__, "Client socket failed to get address info for %s", hostname);
-    handleException();
-  }
-  for (res=res0; res!=NULL; res = res->ai_next) {
-    if ( res->ai_family != PF_INET || res->ai_socktype != SOCK_STREAM ) {
-      continue;
-    }
-    mSocketID = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
-    if (mSocketID < 0) {
-      continue;
-    }
-    if (connect(mSocketID, res->ai_addr, res->ai_addrlen) < 0) {
-      close(mSocketID);
-      mSocketID = -1;
-    }
-    if (mSocketID > 0) {
-      break;
-    }
-  }
-  freeaddrinfo(res0);
-  if (mSocketID <= 0) {
-    logg->logError(__FILE__, __LINE__, "Could not connect to client socket. Ensure ARM Streamline is running.");
-    handleException();
-  }
-#endif
 }
 
 void OlyServerSocket::createServerSocket(int port) {

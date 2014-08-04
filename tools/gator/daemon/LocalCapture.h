@@ -23,4 +23,4 @@ private:
 	int removeDirAndAllContents(char* path);
 };
 
-#endif 	//__LOCAL_CAPTURE_H__
+#endif //__LOCAL_CAPTURE_H__

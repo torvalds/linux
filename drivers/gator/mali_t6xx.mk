@@ -21,6 +21,10 @@ OSK_DIR = $(DDK_DIR)/drivers/gpu/arm/midgard/osk
 EXTRA_CFLAGS += -DMALI_DIR_MIDGARD=1
 endif
 
+ifneq ($(wildcard $(DDK_DIR)/drivers/gpu/arm/midgard/mali_dd_gator_api.h),)
+EXTRA_CFLAGS += -DMALI_SIMPLE_API=1
+endif
+
 UMP_DIR = $(DDK_DIR)/include/linux
 
 # Include directories in the DDK

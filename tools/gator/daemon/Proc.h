@@ -12,6 +12,6 @@
 class Buffer;
 class DynBuf;
 
-bool readProc(Buffer *const buffer, DynBuf *const printb, DynBuf *const b1, DynBuf *const b2, DynBuf *const b3);
+bool readProc(Buffer *const buffer, bool sendMaps, DynBuf *const printb, DynBuf *const b1, DynBuf *const b2, DynBuf *const b3);
 
 #endif // PROC_H

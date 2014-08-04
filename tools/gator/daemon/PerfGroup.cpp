@@ -23,7 +23,9 @@
 #define DEFAULT_PEA_ARGS(pea, additionalSampleType) \
 	pea.size = sizeof(pea); \
 	/* Emit time, read_format below, group leader id, and raw tracepoint info */ \
-	pea.sample_type = PERF_SAMPLE_TIME | PERF_SAMPLE_READ | PERF_SAMPLE_IDENTIFIER | additionalSampleType; \
+	pea.sample_type = (gSessionData->perf.getLegacySupport() \
+										 ? PERF_SAMPLE_TID | PERF_SAMPLE_IP | PERF_SAMPLE_TIME | PERF_SAMPLE_READ | PERF_SAMPLE_ID \
+										 : PERF_SAMPLE_TIME | PERF_SAMPLE_READ | PERF_SAMPLE_IDENTIFIER ) | additionalSampleType; \
 	/* Emit emit value in group format */ \
 	pea.read_format = PERF_FORMAT_ID | PERF_FORMAT_GROUP; \
 	/* start out disabled */ \
@@ -39,6 +41,7 @@ static int sys_perf_event_open(struct perf_event_attr *const attr, const pid_t p
 
 PerfGroup::PerfGroup(PerfBuffer *const pb) : mPb(pb) {
 	memset(&mAttrs, 0, sizeof(mAttrs));
+	memset(&mPerCpu, 0, sizeof(mPerCpu));
 	memset(&mKeys, -1, sizeof(mKeys));
 	memset(&mFds, -1, sizeof(mFds));
 }
@@ -75,6 +78,7 @@ bool PerfGroup::add(Buffer *const buffer, const int key, const __u32 type, const
 	mAttrs[i].freq = (flags & PERF_GROUP_FREQ ? 1 : 0);
 	mAttrs[i].task = (flags & PERF_GROUP_TASK ? 1 : 0);
 	mAttrs[i].sample_id_all = (flags & PERF_GROUP_SAMPLE_ID_ALL ? 1 : 0);
+	mPerCpu[i] = (flags & PERF_GROUP_PER_CPU);
 
 	mKeys[i] = key;
 
@@ -91,13 +95,17 @@ bool PerfGroup::prepareCPU(const int cpu) {
 			continue;
 		}
 
+		if ((cpu != 0) && !mPerCpu[i]) {
+			continue;
+		}
+
 		const int offset = i * gSessionData->mCores;
 		if (mFds[cpu + offset] >= 0) {
 			logg->logMessage("%s(%s:%i): cpu already online or not correctly cleaned up", __FUNCTION__, __FILE__, __LINE__);
 			return false;
 		}
 
-		logg->logMessage("%s(%s:%i): perf_event_open cpu: %i type: %lli config: %lli sample: %lli sample_type: %lli", __FUNCTION__, __FILE__, __LINE__, cpu, (long long)mAttrs[i].type, (long long)mAttrs[i].config, (long long)mAttrs[i].sample_period, (long long)mAttrs[i].sample_type);
+		logg->logMessage("%s(%s:%i): perf_event_open cpu: %i type: %lli config: %lli sample: %lli sample_type: 0x%llx pinned: %i mmap: %i comm: %i freq: %i task: %i sample_id_all: %i", __FUNCTION__, __FILE__, __LINE__, cpu, (long long)mAttrs[i].type, (long long)mAttrs[i].config, (long long)mAttrs[i].sample_period, (long long)mAttrs[i].sample_type, mAttrs[i].pinned, mAttrs[i].mmap, mAttrs[i].comm, mAttrs[i].freq, mAttrs[i].task, mAttrs[i].sample_id_all);
 		mFds[cpu + offset] = sys_perf_event_open(&mAttrs[i], -1, cpu, i == 0 ? -1 : mFds[cpu], i == 0 ? 0 : PERF_FLAG_FD_OUTPUT);
 		if (mFds[cpu + offset] < 0) {
 			logg->logMessage("%s(%s:%i): failed %s", __FUNCTION__, __FILE__, __LINE__, strerror(errno));
@@ -125,7 +133,9 @@ int PerfGroup::onlineCPU(const int cpu, const bool start, Buffer *const buffer, 
 		}
 
 		coreKeys[idCount] = mKeys[i];
-		if (ioctl(fd, PERF_EVENT_IOC_ID, &ids[idCount]) != 0) {
+		if (!gSessionData->perf.getLegacySupport() && ioctl(fd, PERF_EVENT_IOC_ID, &ids[idCount]) != 0 &&
+				// Workaround for running 32-bit gatord on 64-bit systems, kernel patch in the works
+				ioctl(fd, (PERF_EVENT_IOC_ID & ~IOCSIZE_MASK) | (8 << _IOC_SIZESHIFT), &ids[idCount]) != 0) {
 			logg->logMessage("%s(%s:%i): ioctl failed", __FUNCTION__, __FILE__, __LINE__);
 			return false;
 		}
@@ -137,7 +147,17 @@ int PerfGroup::onlineCPU(const int cpu, const bool start, Buffer *const buffer, 
 		return false;
 	}
 
-	buffer->keys(idCount, ids, coreKeys);
+	if (!gSessionData->perf.getLegacySupport()) {
+		buffer->keys(idCount, ids, coreKeys);
+	} else {
+		char buf[1024];
+		ssize_t bytes = read(mFds[cpu], buf, sizeof(buf));
+		if (bytes < 0) {
+			logg->logMessage("read failed");
+			return false;
+		}
+		buffer->keysOld(idCount, coreKeys, bytes, buf);
+	}
 
 	if (start) {
 		for (int i = 0; i < ARRAY_LENGTH(mKeys); ++i) {

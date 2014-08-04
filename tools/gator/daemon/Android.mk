@@ -3,7 +3,7 @@ include $(CLEAR_VARS)
 
 XML_H := $(shell cd $(LOCAL_PATH) && make events_xml.h defaults_xml.h)
 
-LOCAL_CFLAGS += -Wall -O3 -mthumb-interwork -fno-exceptions -DETCDIR=\"/etc\" -Ilibsensors
+LOCAL_CFLAGS += -Wall -O3 -mthumb-interwork -fno-exceptions -pthread -DETCDIR=\"/etc\" -Ilibsensors
 
 LOCAL_SRC_FILES := \
 	Buffer.cpp \
@@ -15,12 +15,14 @@ LOCAL_SRC_FILES := \
 	DynBuf.cpp \
 	EventsXML.cpp \
 	ExternalSource.cpp \
+	FSDriver.cpp \
 	Fifo.cpp \
 	Hwmon.cpp \
 	KMod.cpp \
 	LocalCapture.cpp \
 	Logging.cpp \
 	main.cpp \
+	MaliVideoDriver.cpp \
 	Monitor.cpp \
 	OlySocket.cpp \
 	OlyUtility.cpp \
@@ -55,7 +57,7 @@ LOCAL_SRC_FILES := \
 	mxml/mxml-set.c \
 	mxml/mxml-string.c
 
-LOCAL_C_INCLUDES := $(LOCAL_PATH) 
+LOCAL_C_INCLUDES := $(LOCAL_PATH)
 
 LOCAL_MODULE := gatord
 LOCAL_MODULE_TAGS := optional

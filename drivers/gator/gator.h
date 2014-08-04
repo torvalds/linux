@@ -42,6 +42,10 @@
 #define AARCH64     0xd0f
 #define OTHER       0xfff
 
+// gpu enums
+#define MALI_4xx     1
+#define MALI_T6xx    2
+
 #define MAXSIZE_CORE_NAME 32
 
 struct gator_cpu {
@@ -82,13 +86,21 @@ int gatorfs_create_ro_ulong(struct super_block *sb, struct dentry *root,
 		register_trace_##probe_name(probe_##probe_name)
 #	define GATOR_UNREGISTER_TRACE(probe_name) \
 		unregister_trace_##probe_name(probe_##probe_name)
-#else
+#elif LINUX_VERSION_CODE < KERNEL_VERSION(3, 15, 0)
 #	define GATOR_DEFINE_PROBE(probe_name, proto) \
 		static void probe_##probe_name(void *data, PARAMS(proto))
 #	define GATOR_REGISTER_TRACE(probe_name) \
 		register_trace_##probe_name(probe_##probe_name, NULL)
 #	define GATOR_UNREGISTER_TRACE(probe_name) \
 		unregister_trace_##probe_name(probe_##probe_name, NULL)
+#else
+#	define GATOR_DEFINE_PROBE(probe_name, proto) \
+		extern struct tracepoint *gator_tracepoint_##probe_name; \
+		static void probe_##probe_name(void *data, PARAMS(proto))
+#	define GATOR_REGISTER_TRACE(probe_name) \
+		tracepoint_probe_register(gator_tracepoint_##probe_name, probe_##probe_name, NULL)
+#	define GATOR_UNREGISTER_TRACE(probe_name) \
+		tracepoint_probe_unregister(gator_tracepoint_##probe_name, probe_##probe_name, NULL)
 #endif
 
 /******************************************************************************
@@ -114,6 +126,8 @@ int gator_events_get_key(void);
 u32 gator_cpuid(void);
 
 void gator_backtrace_handler(struct pt_regs *const regs);
+
+void gator_marshal_activity_switch(int core, int key, int activity, int pid);
 
 #if !GATOR_IKS_SUPPORT
 

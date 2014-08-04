@@ -9,9 +9,12 @@
 #ifndef EVENTS_XML
 #define EVENTS_XML
 
+#include "mxml/mxml.h"
+
 class EventsXML {
 public:
-	char* getXML();
+	mxml_node_t *getTree();
+	char *getXML();
 	void write(const char* path);
 };
 

@@ -16,7 +16,10 @@
 #include <asm/io.h>
 
 /* Mali T6xx DDK includes */
-#ifdef MALI_DIR_MIDGARD
+#if defined(MALI_SIMPLE_API)
+/* Header with wrapper functions to kbase structures and functions */
+#include "mali/mali_dd_gator_api.h"
+#elif defined(MALI_DIR_MIDGARD)
 /* New DDK Directory structure with kernel/drivers/gpu/arm/midgard*/
 #include "mali_linux_trace.h"
 #include "mali_kbase.h"
@@ -28,37 +31,49 @@
 #include "kbase/src/linux/mali_kbase_mem_linux.h"
 #endif
 
-#include "gator_events_mali_common.h"
-
 /* If API version is not specified then assume API version 1. */
 #ifndef MALI_DDK_GATOR_API_VERSION
 #define MALI_DDK_GATOR_API_VERSION 1
 #endif
 
-#if (MALI_DDK_GATOR_API_VERSION != 1) && (MALI_DDK_GATOR_API_VERSION != 2)
-#error MALI_DDK_GATOR_API_VERSION is invalid (must be 1 for r1/r2 DDK, or 2 for r3 DDK).
+#if (MALI_DDK_GATOR_API_VERSION != 1) && (MALI_DDK_GATOR_API_VERSION != 2) && (MALI_DDK_GATOR_API_VERSION != 3)
+#error MALI_DDK_GATOR_API_VERSION is invalid (must be 1 for r1/r2 DDK, or 2 for r3 DDK, or 3 for r? DDK).
 #endif
+
+#include "gator_events_mali_common.h"
 
 /*
  * Mali-T6xx
  */
+#if MALI_DDK_GATOR_API_VERSION == 3
+typedef uint32_t kbase_dd_instr_hwcnt_dump_irq_type(struct mali_dd_hwcnt_handles *);
+typedef uint32_t kbase_dd_instr_hwcnt_dump_complete_type(struct mali_dd_hwcnt_handles *, uint32_t *);
+typedef struct mali_dd_hwcnt_handles* mali_dd_hwcnt_init_type(struct mali_dd_hwcnt_info *);
+typedef void mali_dd_hwcnt_clear_type(struct mali_dd_hwcnt_info *, struct mali_dd_hwcnt_handles *);
+
+static kbase_dd_instr_hwcnt_dump_irq_type *kbase_dd_instr_hwcnt_dump_irq_symbol;
+static kbase_dd_instr_hwcnt_dump_complete_type *kbase_dd_instr_hwcnt_dump_complete_symbol;
+static mali_dd_hwcnt_init_type *mali_dd_hwcnt_init_symbol;
+static mali_dd_hwcnt_clear_type *mali_dd_hwcnt_clear_symbol;
+
+#else
 typedef struct kbase_device *kbase_find_device_type(int);
-typedef kbase_context *kbase_create_context_type(kbase_device *);
-typedef void kbase_destroy_context_type(kbase_context *);
+typedef struct kbase_context *kbase_create_context_type(struct kbase_device *);
+typedef void kbase_destroy_context_type(struct kbase_context *);
 
 #if MALI_DDK_GATOR_API_VERSION == 1
-typedef void *kbase_va_alloc_type(kbase_context *, u32);
-typedef void kbase_va_free_type(kbase_context *, void *);
+typedef void *kbase_va_alloc_type(struct kbase_context *, u32);
+typedef void kbase_va_free_type(struct kbase_context *, void *);
 #elif MALI_DDK_GATOR_API_VERSION == 2
-typedef void *kbase_va_alloc_type(kbase_context *, u32, kbase_hwc_dma_mapping * handle);
-typedef void kbase_va_free_type(kbase_context *, kbase_hwc_dma_mapping * handle);
+typedef void *kbase_va_alloc_type(struct kbase_context *, u32, kbase_hwc_dma_mapping * handle);
+typedef void kbase_va_free_type(struct kbase_context *, kbase_hwc_dma_mapping * handle);
 #endif
 
-typedef mali_error kbase_instr_hwcnt_enable_type(kbase_context *, kbase_uk_hwcnt_setup *);
-typedef mali_error kbase_instr_hwcnt_disable_type(kbase_context *);
-typedef mali_error kbase_instr_hwcnt_clear_type(kbase_context *);
-typedef mali_error kbase_instr_hwcnt_dump_irq_type(kbase_context *);
-typedef mali_bool kbase_instr_hwcnt_dump_complete_type(kbase_context *, mali_bool *);
+typedef mali_error kbase_instr_hwcnt_enable_type(struct kbase_context *, struct kbase_uk_hwcnt_setup *);
+typedef mali_error kbase_instr_hwcnt_disable_type(struct kbase_context *);
+typedef mali_error kbase_instr_hwcnt_clear_type(struct kbase_context *);
+typedef mali_error kbase_instr_hwcnt_dump_irq_type(struct kbase_context *);
+typedef mali_bool kbase_instr_hwcnt_dump_complete_type(struct kbase_context *, mali_bool *);
 
 static kbase_find_device_type *kbase_find_device_symbol;
 static kbase_create_context_type *kbase_create_context_symbol;
@@ -70,6 +85,7 @@ static kbase_instr_hwcnt_dump_complete_type *kbase_instr_hwcnt_dump_complete_sym
 static kbase_instr_hwcnt_disable_type *kbase_instr_hwcnt_disable_symbol;
 static kbase_va_free_type *kbase_va_free_symbol;
 static kbase_destroy_context_type *kbase_destroy_context_symbol;
+#endif
 
 static long shader_present_low = 0;
 
@@ -98,6 +114,8 @@ enum {
 	SHADER_BLOCK,
 	MMU_BLOCK
 };
+
+static const char mali_name[] = "Mali-T6xx";
 
 /* Counters for Mali-T6xx:
  *
@@ -381,6 +399,14 @@ static const char *const hardware_counter_names[] = {
 #define GET_HW_BLOCK(c) (((c) >> 6) & 0x3)
 #define GET_COUNTER_OFFSET(c) ((c) & 0x3f)
 
+#if MALI_DDK_GATOR_API_VERSION == 3
+/* Opaque handles for kbase_context and kbase_hwc_dma_mapping */
+static struct mali_dd_hwcnt_handles *handles;
+
+/* Information about hardware counters */
+static struct mali_dd_hwcnt_info *in_out_info;
+
+#else
 /* Memory to dump hardware counters into */
 static void *kernel_dump_buffer;
 
@@ -390,14 +416,9 @@ kbase_hwc_dma_mapping kernel_dump_buffer_handle;
 #endif
 
 /* kbase context and device */
-static kbase_context *kbcontext = NULL;
+static struct kbase_context *kbcontext = NULL;
 static struct kbase_device *kbdevice = NULL;
-
-/*
- * The following function has no external prototype in older DDK revisions.  When the DDK
- * is updated then this should be removed.
- */
-struct kbase_device *kbase_find_device(int minor);
+#endif
 
 static volatile bool kbase_device_busy = false;
 static unsigned int num_hardware_counters_enabled;
@@ -411,6 +432,13 @@ static mali_counter counters[NUMBER_OF_HARDWARE_COUNTERS];
  * as key,value pairs hence the *2
  */
 static unsigned long counter_dump[NUMBER_OF_HARDWARE_COUNTERS * 2];
+
+extern mali_counter mali_activity[3];
+static const char* const mali_activity_names[] = {
+	"fragment",
+	"vertex",
+	"opencl",
+};
 
 #define SYMBOL_GET(FUNCTION, ERROR_COUNT) \
 	if(FUNCTION ## _symbol) \
@@ -431,8 +459,8 @@ static unsigned long counter_dump[NUMBER_OF_HARDWARE_COUNTERS * 2];
 #define SYMBOL_CLEANUP(FUNCTION) \
 	if(FUNCTION ## _symbol) \
 	{ \
-        symbol_put(FUNCTION); \
-        FUNCTION ## _symbol = NULL; \
+		symbol_put(FUNCTION); \
+		FUNCTION ## _symbol = NULL; \
 	}
 
 /**
@@ -442,6 +470,12 @@ static unsigned long counter_dump[NUMBER_OF_HARDWARE_COUNTERS * 2];
 static int init_symbols(void)
 {
 	int error_count = 0;
+#if MALI_DDK_GATOR_API_VERSION == 3
+	SYMBOL_GET(kbase_dd_instr_hwcnt_dump_irq, error_count);
+	SYMBOL_GET(kbase_dd_instr_hwcnt_dump_complete, error_count);
+	SYMBOL_GET(mali_dd_hwcnt_init, error_count);
+	SYMBOL_GET(mali_dd_hwcnt_clear, error_count);
+#else
 	SYMBOL_GET(kbase_find_device, error_count);
 	SYMBOL_GET(kbase_create_context, error_count);
 	SYMBOL_GET(kbase_va_alloc, error_count);
@@ -452,6 +486,7 @@ static int init_symbols(void)
 	SYMBOL_GET(kbase_instr_hwcnt_disable, error_count);
 	SYMBOL_GET(kbase_va_free, error_count);
 	SYMBOL_GET(kbase_destroy_context, error_count);
+#endif
 
 	return error_count;
 }
@@ -461,6 +496,12 @@ static int init_symbols(void)
  */
 static void clean_symbols(void)
 {
+#if MALI_DDK_GATOR_API_VERSION == 3
+	SYMBOL_CLEANUP(kbase_dd_instr_hwcnt_dump_irq);
+	SYMBOL_CLEANUP(kbase_dd_instr_hwcnt_dump_complete);
+	SYMBOL_CLEANUP(mali_dd_hwcnt_init);
+	SYMBOL_CLEANUP(mali_dd_hwcnt_clear);
+#else
 	SYMBOL_CLEANUP(kbase_find_device);
 	SYMBOL_CLEANUP(kbase_create_context);
 	SYMBOL_CLEANUP(kbase_va_alloc);
@@ -471,6 +512,7 @@ static void clean_symbols(void)
 	SYMBOL_CLEANUP(kbase_instr_hwcnt_disable);
 	SYMBOL_CLEANUP(kbase_va_free);
 	SYMBOL_CLEANUP(kbase_destroy_context);
+#endif
 }
 
 /**
@@ -502,11 +544,13 @@ static int is_read_scheduled(const struct timespec *current_time, u32 *prev_time
 
 static int start(void)
 {
-	kbase_uk_hwcnt_setup setup;
-	mali_error err;
-	int cnt;
-	u16 bitmask[] = { 0, 0, 0, 0 };
+#if MALI_DDK_GATOR_API_VERSION < 3
+	struct kbase_uk_hwcnt_setup setup;
 	unsigned long long shadersPresent = 0;
+	u16 bitmask[] = { 0, 0, 0, 0 };
+	mali_error err;
+#endif
+	int cnt;
 
 	/* Setup HW counters */
 	num_hardware_counters_enabled = 0;
@@ -515,18 +559,52 @@ static int start(void)
 		pr_debug("Unexpected number of hardware counters defined: expecting 256, got %d\n", NUMBER_OF_HARDWARE_COUNTERS);
 	}
 
+#if MALI_DDK_GATOR_API_VERSION == 3
+	/* Declare and initialise mali_dd_hwcnt_info structure */
+	in_out_info = kmalloc(sizeof(struct mali_dd_hwcnt_info), GFP_KERNEL);
+	for (cnt = 0; cnt < 4; cnt++){
+		in_out_info->bitmask[cnt] = 0;
+	}
+#endif
 	/* Calculate enable bitmasks based on counters_enabled array */
 	for (cnt = 0; cnt < NUMBER_OF_HARDWARE_COUNTERS; cnt++) {
 		const mali_counter *counter = &counters[cnt];
 		if (counter->enabled) {
 			int block = GET_HW_BLOCK(cnt);
 			int enable_bit = GET_COUNTER_OFFSET(cnt) / 4;
+#if MALI_DDK_GATOR_API_VERSION == 3
+			in_out_info->bitmask[block] |= (1 << enable_bit);
+#else
 			bitmask[block] |= (1 << enable_bit);
+#endif
 			pr_debug("gator: Mali-T6xx: hardware counter %s selected [%d]\n", hardware_counter_names[cnt], cnt);
 			num_hardware_counters_enabled++;
 		}
 	}
 
+#if MALI_DDK_GATOR_API_VERSION == 3
+	/* Create a kbase context for HW counters */
+	if (num_hardware_counters_enabled > 0) {
+		if (init_symbols() > 0) {
+			clean_symbols();
+			/* No Mali driver code entrypoints found - not a fault. */
+			return 0;
+		}
+
+		handles = mali_dd_hwcnt_init_symbol(in_out_info);
+
+		if(handles == NULL) {
+			goto out;
+		}
+
+		/* See if we can get the number of shader cores */
+		shader_present_low = (unsigned long)in_out_info->shader_present_bitmap;
+
+		kbase_device_busy = false;
+	}
+
+	return 0;
+#else
 	/* Create a kbase context for HW counters */
 	if (num_hardware_counters_enabled > 0) {
 		if (init_symbols() > 0) {
@@ -606,6 +684,7 @@ free_buffer:
 
 destroy_context:
 	kbase_destroy_context_symbol(kbcontext);
+#endif
 
 out:
 	clean_symbols();
@@ -615,7 +694,11 @@ out:
 static void stop(void)
 {
 	unsigned int cnt;
-	kbase_context *temp_kbcontext;
+#if MALI_DDK_GATOR_API_VERSION == 3
+	struct mali_dd_hwcnt_handles *temp_hand;
+#else
+	struct kbase_context *temp_kbcontext;
+#endif
 
 	pr_debug("gator: Mali-T6xx: stop\n");
 
@@ -625,6 +708,20 @@ static void stop(void)
 	}
 
 	/* Destroy the context for HW counters */
+#if MALI_DDK_GATOR_API_VERSION == 3
+	if (num_hardware_counters_enabled > 0 && handles != NULL) {
+		/*
+		 * Set the global variable to NULL before destroying it, because
+		 * other function will check this before using it.
+		 */
+		temp_hand = handles;
+		handles = NULL;
+
+		mali_dd_hwcnt_clear_symbol(in_out_info, temp_hand);
+
+		kfree(in_out_info);
+
+#else
 	if (num_hardware_counters_enabled > 0 && kbcontext != NULL) {
 		/*
 		 * Set the global variable to NULL before destroying it, because
@@ -642,6 +739,7 @@ static void stop(void)
 #endif
 
 		kbase_destroy_context_symbol(temp_kbcontext);
+#endif
 
 		pr_debug("gator: Mali-T6xx: hardware counters stopped\n");
 
@@ -654,7 +752,7 @@ static int read(int **buffer)
 	int cnt;
 	int len = 0;
 	u32 value = 0;
-	mali_bool success;
+	uint32_t success;
 
 	struct timespec current_time;
 	static u32 prev_time_s = 0;
@@ -686,12 +784,21 @@ static int read(int **buffer)
 			0x500	/* VITHAR_MEMORY_SYSTEM,   Block 3 */
 		};
 
+#if MALI_DDK_GATOR_API_VERSION == 3
+		if (!handles) {
+			return -1;
+		}
+
+		/* Mali symbols can be called safely since a kbcontext is valid */
+		if (kbase_dd_instr_hwcnt_dump_complete_symbol(handles, &success) == MALI_TRUE) {
+#else
 		if (!kbcontext) {
 			return -1;
 		}
 
 		/* Mali symbols can be called safely since a kbcontext is valid */
 		if (kbase_instr_hwcnt_dump_complete_symbol(kbcontext, &success) == MALI_TRUE) {
+#endif
 			kbase_device_busy = false;
 
 			if (success == MALI_TRUE) {
@@ -702,7 +809,11 @@ static int read(int **buffer)
 						const int block = GET_HW_BLOCK(cnt);
 						const int counter_offset = GET_COUNTER_OFFSET(cnt);
 
+#if MALI_DDK_GATOR_API_VERSION == 3
+						const char* block_base_address = (char*)in_out_info->kernel_dump_buffer + vithar_blocks[block];
+#else
 						const char* block_base_address = (char*)kernel_dump_buffer + vithar_blocks[block];
+#endif
 
 						/* If counter belongs to shader block need to take into account all cores */
 						if (block == SHADER_BLOCK) {
@@ -741,7 +852,11 @@ static int read(int **buffer)
 
 		if (!kbase_device_busy) {
 			kbase_device_busy = true;
+#if MALI_DDK_GATOR_API_VERSION == 3
+			kbase_dd_instr_hwcnt_dump_irq_symbol(handles);
+#else
 			kbase_instr_hwcnt_dump_irq_symbol(kbcontext);
+#endif
 		}
 	}
 
@@ -760,7 +875,12 @@ static int create_files(struct super_block *sb, struct dentry *root)
 	 * Create the filesystem for all events
 	 */
 	int counter_index = 0;
-	const char *mali_name = gator_mali_get_mali_name();
+
+	for (event = 0; event < ARRAY_SIZE(mali_activity); event++) {
+		if (gator_mali_create_file_system(mali_name, mali_activity_names[event], sb, root, &mali_activity[event], NULL) != 0) {
+			return -1;
+		}
+	}
 
 	for (event = 0; event < NUMBER_OF_HARDWARE_COUNTERS; event++) {
 		if (gator_mali_create_file_system(mali_name, hardware_counter_names[counter_index], sb, root, &counters[event], NULL) != 0)
@@ -786,6 +906,7 @@ int gator_events_mali_t6xx_hw_init(void)
 	test_all_is_read_scheduled();
 #endif
 
+	gator_mali_initialise_counters(mali_activity, ARRAY_SIZE(mali_activity));
 	gator_mali_initialise_counters(counters, NUMBER_OF_HARDWARE_COUNTERS);
 
 	return gator_events_install(&gator_events_mali_t6xx_interface);

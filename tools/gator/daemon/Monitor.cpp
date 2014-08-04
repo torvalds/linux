@@ -18,8 +18,15 @@ Monitor::Monitor() : mFd(-1) {
 }
 
 Monitor::~Monitor() {
-	if (mFd >= -1) {
-		close(mFd);
+	if (mFd >= 0) {
+		::close(mFd);
+	}
+}
+
+void Monitor::close() {
+	if (mFd >= 0) {
+		::close(mFd);
+		mFd = -1;
 	}
 }
 
