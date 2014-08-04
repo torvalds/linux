@@ -439,17 +439,12 @@ static void add_discard_addrs(struct f2fs_sb_info *sbi,
 static void set_prefree_as_free_segments(struct f2fs_sb_info *sbi)
 {
 	struct dirty_seglist_info *dirty_i = DIRTY_I(sbi);
-	unsigned int segno = -1;
+	unsigned int segno;
 	unsigned int total_segs = TOTAL_SEGS(sbi);
 
 	mutex_lock(&dirty_i->seglist_lock);
-	while (1) {
-		segno = find_next_bit(dirty_i->dirty_segmap[PRE], total_segs,
-				segno + 1);
-		if (segno >= total_segs)
-			break;
+	for_each_set_bit(segno, dirty_i->dirty_segmap[PRE], total_segs)
 		__set_test_and_free(sbi, segno);
-	}
 	mutex_unlock(&dirty_i->seglist_lock);
 }
 
@@ -1531,7 +1526,7 @@ void flush_sit_entries(struct f2fs_sb_info *sbi)
 	struct page *page = NULL;
 	struct f2fs_sit_block *raw_sit = NULL;
 	unsigned int start = 0, end = 0;
-	unsigned int segno = -1;
+	unsigned int segno;
 	bool flushed;
 
 	mutex_lock(&curseg->curseg_mutex);
@@ -1543,7 +1538,7 @@ void flush_sit_entries(struct f2fs_sb_info *sbi)
 	 */
 	flushed = flush_sits_in_journal(sbi);
 
-	while ((segno = find_next_bit(bitmap, nsegs, segno + 1)) < nsegs) {
+	for_each_set_bit(segno, bitmap, nsegs) {
 		struct seg_entry *se = get_seg_entry(sbi, segno);
 		int sit_offset, offset;
 
