@@ -282,7 +282,7 @@
 /* USB_DEV_STAT */
 #define STAT_SPEED_MASK		0x0006
 #define STAT_SPEED_HIGH		0x0000
-#define STAT_SPEED_FULL		0x0001
+#define STAT_SPEED_FULL		0x0002
 
 /* USB_TX_AGG */
 #define TX_AGG_MAX_THRESHOLD	0x03
@@ -1359,7 +1359,7 @@ static void r8152_csum_workaround(struct r8152 *tp, struct sk_buff *skb,
 		struct sk_buff_head seg_list;
 		struct sk_buff *segs, *nskb;
 
-		features &= ~(NETIF_F_IP_CSUM | NETIF_F_SG | NETIF_F_TSO);
+		features &= ~(NETIF_F_SG | NETIF_F_IPV6_CSUM | NETIF_F_TSO6);
 		segs = skb_gso_segment(skb, features);
 		if (IS_ERR(segs) || !segs)
 			goto drop;
@@ -2292,9 +2292,8 @@ static void r8152b_exit_oob(struct r8152 *tp)
 	/* rx share fifo credit full threshold */
 	ocp_write_dword(tp, MCU_TYPE_PLA, PLA_RXFIFO_CTRL0, RXFIFO_THR1_NORMAL);
 
-	ocp_data = ocp_read_word(tp, MCU_TYPE_USB, USB_DEV_STAT);
-	ocp_data &= STAT_SPEED_MASK;
-	if (ocp_data == STAT_SPEED_FULL) {
+	if (tp->udev->speed == USB_SPEED_FULL ||
+	    tp->udev->speed == USB_SPEED_LOW) {
 		/* rx share fifo credit near full threshold */
 		ocp_write_dword(tp, MCU_TYPE_PLA, PLA_RXFIFO_CTRL1,
 				RXFIFO_THR2_FULL);
@@ -3204,7 +3203,12 @@ static void rtl8152_get_ethtool_stats(struct net_device *dev,
 	struct r8152 *tp = netdev_priv(dev);
 	struct tally_counter tally;
 
+	if (usb_autopm_get_interface(tp->intf) < 0)
+		return;
+
 	generic_ocp_read(tp, PLA_TALLYCNT, sizeof(tally), &tally, MCU_TYPE_PLA);
+
+	usb_autopm_put_interface(tp->intf);
 
 	data[0] = le64_to_cpu(tally.tx_packets);
 	data[1] = le64_to_cpu(tally.rx_packets);

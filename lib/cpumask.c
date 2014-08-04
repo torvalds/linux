@@ -191,7 +191,7 @@ int cpumask_set_cpu_local_first(int i, int numa_node, cpumask_t *dstp)
 
 	i %= num_online_cpus();
 
-	if (!cpumask_of_node(numa_node)) {
+	if (numa_node == -1 || !cpumask_of_node(numa_node)) {
 		/* Use all online cpu's for non numa aware system */
 		cpumask_copy(mask, cpu_online_mask);
 	} else {

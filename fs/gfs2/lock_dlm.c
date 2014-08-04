@@ -1036,8 +1036,8 @@ static int set_recover_size(struct gfs2_sbd *sdp, struct dlm_slot *slots,
 
 	new_size = old_size + RECOVER_SIZE_INC;
 
-	submit = kzalloc(new_size * sizeof(uint32_t), GFP_NOFS);
-	result = kzalloc(new_size * sizeof(uint32_t), GFP_NOFS);
+	submit = kcalloc(new_size, sizeof(uint32_t), GFP_NOFS);
+	result = kcalloc(new_size, sizeof(uint32_t), GFP_NOFS);
 	if (!submit || !result) {
 		kfree(submit);
 		kfree(result);

@@ -1469,12 +1469,13 @@ static int i915_kick_out_vgacon(struct drm_i915_private *dev_priv)
 #else
 static int i915_kick_out_vgacon(struct drm_i915_private *dev_priv)
 {
-	int ret;
+	int ret = 0;
 
 	DRM_INFO("Replacing VGA console driver\n");
 
 	console_lock();
-	ret = do_take_over_console(&dummy_con, 0, MAX_NR_CONSOLES - 1, 1);
+	if (con_is_bound(&vga_con))
+		ret = do_take_over_console(&dummy_con, 0, MAX_NR_CONSOLES - 1, 1);
 	if (ret == 0) {
 		ret = do_unregister_con_driver(&vga_con);
 

@@ -12404,6 +12404,14 @@ static void quirk_invert_brightness(struct drm_device *dev)
 	DRM_INFO("applying inverted panel brightness quirk\n");
 }
 
+/* Some VBT's incorrectly indicate no backlight is present */
+static void quirk_backlight_present(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	dev_priv->quirks |= QUIRK_BACKLIGHT_PRESENT;
+	DRM_INFO("applying backlight present quirk\n");
+}
+
 struct intel_quirk {
 	int device;
 	int subsystem_vendor;
@@ -12472,6 +12480,15 @@ static struct intel_quirk intel_quirks[] = {
 
 	/* Acer Aspire 5336 */
 	{ 0x2a42, 0x1025, 0x048a, quirk_invert_brightness },
+
+	/* Acer C720 and C720P Chromebooks (Celeron 2955U) have backlights */
+	{ 0x0a06, 0x1025, 0x0a11, quirk_backlight_present },
+
+	/* Toshiba CB35 Chromebook (Celeron 2955U) */
+	{ 0x0a06, 0x1179, 0x0a88, quirk_backlight_present },
+
+	/* HP Chromebook 14 (Celeron 2955U) */
+	{ 0x0a06, 0x103c, 0x21ed, quirk_backlight_present },
 };
 
 static void intel_init_quirks(struct drm_device *dev)
@@ -12712,6 +12729,7 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc)
 		 * ...  */
 		plane = crtc->plane;
 		crtc->plane = !plane;
+		crtc->primary_enabled = true;
 		dev_priv->display.crtc_disable(&crtc->base);
 		crtc->plane = plane;
 

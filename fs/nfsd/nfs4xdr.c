@@ -2641,7 +2641,7 @@ nfsd4_encode_rdattr_error(struct xdr_stream *xdr, __be32 nfserr)
 {
 	__be32 *p;
 
-	p = xdr_reserve_space(xdr, 6);
+	p = xdr_reserve_space(xdr, 20);
 	if (!p)
 		return NULL;
 	*p++ = htonl(2);
@@ -2879,6 +2879,7 @@ again:
 		 * return the conflicting open:
 		 */
 		if (conf->len) {
+			kfree(conf->data);
 			conf->len = 0;
 			conf->data = NULL;
 			goto again;
@@ -2891,6 +2892,7 @@ again:
 	if (conf->len) {
 		p = xdr_encode_opaque_fixed(p, &ld->ld_clientid, 8);
 		p = xdr_encode_opaque(p, conf->data, conf->len);
+		kfree(conf->data);
 	}  else {  /* non - nfsv4 lock in conflict, no clientid nor owner */
 		p = xdr_encode_hyper(p, (u64)0); /* clientid */
 		*p++ = cpu_to_be32(0); /* length of owner name */
@@ -2907,7 +2909,7 @@ nfsd4_encode_lock(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4_lo
 		nfserr = nfsd4_encode_stateid(xdr, &lock->lk_resp_stateid);
 	else if (nfserr == nfserr_denied)
 		nfserr = nfsd4_encode_lock_denied(xdr, &lock->lk_denied);
-	kfree(lock->lk_denied.ld_owner.data);
+
 	return nfserr;
 }
 

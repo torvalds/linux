@@ -532,17 +532,10 @@ nouveau_fbcon_set_suspend(struct drm_device *dev, int state)
 		if (state == 1)
 			nouveau_fbcon_save_disable_accel(dev);
 		fb_set_suspend(drm->fbcon->helper.fbdev, state);
-		if (state == 0)
+		if (state == 0) {
 			nouveau_fbcon_restore_accel(dev);
+			nouveau_fbcon_zfill(dev, drm->fbcon);
+		}
 		console_unlock();
-	}
-}
-
-void
-nouveau_fbcon_zfill_all(struct drm_device *dev)
-{
-	struct nouveau_drm *drm = nouveau_drm(dev);
-	if (drm->fbcon) {
-		nouveau_fbcon_zfill(dev, drm->fbcon);
 	}
 }

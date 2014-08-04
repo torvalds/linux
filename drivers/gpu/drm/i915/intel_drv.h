@@ -556,6 +556,9 @@ struct intel_dp {
 	unsigned long last_power_cycle;
 	unsigned long last_power_on;
 	unsigned long last_backlight_off;
+
+	struct notifier_block edp_notifier;
+
 	bool use_tps3;
 	bool can_mst; /* this port supports mst */
 	bool is_mst;

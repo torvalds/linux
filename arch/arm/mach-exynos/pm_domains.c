@@ -17,12 +17,15 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/pm_domain.h>
+#include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <linux/sched.h>
 
 #include "regs-pmu.h"
+
+#define MAX_CLK_PER_DOMAIN	4
 
 /*
  * Exynos specific wrapper around the generic power domain
@@ -32,6 +35,9 @@ struct exynos_pm_domain {
 	char const *name;
 	bool is_off;
 	struct generic_pm_domain pd;
+	struct clk *oscclk;
+	struct clk *clk[MAX_CLK_PER_DOMAIN];
+	struct clk *pclk[MAX_CLK_PER_DOMAIN];
 };
 
 static int exynos_pd_power(struct generic_pm_domain *domain, bool power_on)
@@ -43,6 +49,19 @@ static int exynos_pd_power(struct generic_pm_domain *domain, bool power_on)
 
 	pd = container_of(domain, struct exynos_pm_domain, pd);
 	base = pd->base;
+
+	/* Set oscclk before powering off a domain*/
+	if (!power_on) {
+		int i;
+
+		for (i = 0; i < MAX_CLK_PER_DOMAIN; i++) {
+			if (IS_ERR(pd->clk[i]))
+				break;
+			if (clk_set_parent(pd->clk[i], pd->oscclk))
+				pr_err("%s: error setting oscclk as parent to clock %d\n",
+						pd->name, i);
+		}
+	}
 
 	pwr = power_on ? S5P_INT_LOCAL_PWR_EN : 0;
 	__raw_writel(pwr, base);
@@ -60,6 +79,20 @@ static int exynos_pd_power(struct generic_pm_domain *domain, bool power_on)
 		cpu_relax();
 		usleep_range(80, 100);
 	}
+
+	/* Restore clocks after powering on a domain*/
+	if (power_on) {
+		int i;
+
+		for (i = 0; i < MAX_CLK_PER_DOMAIN; i++) {
+			if (IS_ERR(pd->clk[i]))
+				break;
+			if (clk_set_parent(pd->clk[i], pd->pclk[i]))
+				pr_err("%s: error setting parent to clock%d\n",
+						pd->name, i);
+		}
+	}
+
 	return 0;
 }
 
@@ -152,9 +185,11 @@ static __init int exynos4_pm_init_power_domain(void)
 
 	for_each_compatible_node(np, NULL, "samsung,exynos4210-pd") {
 		struct exynos_pm_domain *pd;
-		int on;
+		int on, i;
+		struct device *dev;
 
 		pdev = of_find_device_by_node(np);
+		dev = &pdev->dev;
 
 		pd = kzalloc(sizeof(*pd), GFP_KERNEL);
 		if (!pd) {
@@ -170,6 +205,30 @@ static __init int exynos4_pm_init_power_domain(void)
 		pd->pd.power_on = exynos_pd_power_on;
 		pd->pd.of_node = np;
 
+		pd->oscclk = clk_get(dev, "oscclk");
+		if (IS_ERR(pd->oscclk))
+			goto no_clk;
+
+		for (i = 0; i < MAX_CLK_PER_DOMAIN; i++) {
+			char clk_name[8];
+
+			snprintf(clk_name, sizeof(clk_name), "clk%d", i);
+			pd->clk[i] = clk_get(dev, clk_name);
+			if (IS_ERR(pd->clk[i]))
+				break;
+			snprintf(clk_name, sizeof(clk_name), "pclk%d", i);
+			pd->pclk[i] = clk_get(dev, clk_name);
+			if (IS_ERR(pd->pclk[i])) {
+				clk_put(pd->clk[i]);
+				pd->clk[i] = ERR_PTR(-EINVAL);
+				break;
+			}
+		}
+
+		if (IS_ERR(pd->clk[0]))
+			clk_put(pd->oscclk);
+
+no_clk:
 		platform_set_drvdata(pdev, pd);
 
 		on = __raw_readl(pd->base + 0x4) & S5P_INT_LOCAL_PWR_EN;

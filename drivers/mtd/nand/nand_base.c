@@ -4047,8 +4047,10 @@ int nand_scan_tail(struct mtd_info *mtd)
 		ecc->layout->oobavail += ecc->layout->oobfree[i].length;
 	mtd->oobavail = ecc->layout->oobavail;
 
-	/* ECC sanity check: warn noisily if it's too weak */
-	WARN_ON(!nand_ecc_strength_good(mtd));
+	/* ECC sanity check: warn if it's too weak */
+	if (!nand_ecc_strength_good(mtd))
+		pr_warn("WARNING: %s: the ECC used on your system is too weak compared to the one required by the NAND chip\n",
+			mtd->name);
 
 	/*
 	 * Set the number of read / write steps for one page depending on ECC
