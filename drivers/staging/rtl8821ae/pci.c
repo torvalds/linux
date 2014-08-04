@@ -662,7 +662,7 @@ static void _rtl_pci_tx_isr(struct ieee80211_hw *hw, int prio)
 			RT_TRACE(COMP_ERR, DBG_LOUD,
 					("more desc left, wake"
 					 "skb_queue@%d,ring->idx = %d,"
-					 "skb_queue_len = 0x%d\n",
+					 "skb_queue_len = 0x%x\n",
 					 prio, ring->idx,
 					 skb_queue_len(&ring->queue)));
 
@@ -1650,7 +1650,7 @@ static int rtl_pci_tx(struct ieee80211_hw *hw,
 		if ((own == 1) && (hw_queue != BEACON_QUEUE)) {
 			RT_TRACE(COMP_ERR, DBG_WARNING,
 				 ("No more TX desc@%d, ring->idx = %d,"
-				  "idx = %d, skb_queue_len = 0x%d\n",
+				  "idx = %d, skb_queue_len = 0x%x\n",
 				  hw_queue, ring->idx, idx,
 				  skb_queue_len(&ring->queue)));
 
@@ -1695,7 +1695,7 @@ static int rtl_pci_tx(struct ieee80211_hw *hw,
 		RT_TRACE(COMP_ERR, DBG_LOUD,
 			 ("less desc left, stop skb_queue@%d, "
 			  "ring->idx = %d,"
-			  "idx = %d, skb_queue_len = 0x%d\n",
+			  "idx = %d, skb_queue_len = 0x%x\n",
 			  hw_queue, ring->idx, idx,
 			  skb_queue_len(&ring->queue)));
 
