@@ -375,7 +375,12 @@ DEFINE_SRCU(tasks_rcu_exit_srcu);
 static int rcu_task_stall_timeout __read_mostly = HZ * 60 * 10;
 module_param(rcu_task_stall_timeout, int, 0644);
 
-/* Post an RCU-tasks callback. */
+static void rcu_spawn_tasks_kthread(void);
+
+/*
+ * Post an RCU-tasks callback.  First call must be from process context
+ * after the scheduler if fully operational.
+ */
 void call_rcu_tasks(struct rcu_head *rhp, void (*func)(struct rcu_head *rhp))
 {
 	unsigned long flags;
@@ -388,8 +393,10 @@ void call_rcu_tasks(struct rcu_head *rhp, void (*func)(struct rcu_head *rhp))
 	*rcu_tasks_cbs_tail = rhp;
 	rcu_tasks_cbs_tail = &rhp->next;
 	raw_spin_unlock_irqrestore(&rcu_tasks_cbs_lock, flags);
-	if (needwake)
+	if (needwake) {
+		rcu_spawn_tasks_kthread();
 		wake_up(&rcu_tasks_cbs_wq);
+	}
 }
 EXPORT_SYMBOL_GPL(call_rcu_tasks);
 
@@ -615,15 +622,27 @@ static int __noreturn rcu_tasks_kthread(void *arg)
 	}
 }
 
-/* Spawn rcu_tasks_kthread() at boot time. */
-static int __init rcu_spawn_tasks_kthread(void)
+/* Spawn rcu_tasks_kthread() at first call to call_rcu_tasks(). */
+static void rcu_spawn_tasks_kthread(void)
 {
-	struct task_struct __maybe_unused *t;
+	static DEFINE_MUTEX(rcu_tasks_kthread_mutex);
+	static struct task_struct *rcu_tasks_kthread_ptr;
+	struct task_struct *t;
 
+	if (ACCESS_ONCE(rcu_tasks_kthread_ptr)) {
+		smp_mb(); /* Ensure caller sees full kthread. */
+		return;
+	}
+	mutex_lock(&rcu_tasks_kthread_mutex);
+	if (rcu_tasks_kthread_ptr) {
+		mutex_unlock(&rcu_tasks_kthread_mutex);
+		return;
+	}
 	t = kthread_run(rcu_tasks_kthread, NULL, "rcu_tasks_kthread");
 	BUG_ON(IS_ERR(t));
-	return 0;
+	smp_mb(); /* Ensure others see full kthread. */
+	ACCESS_ONCE(rcu_tasks_kthread_ptr) = t;
+	mutex_unlock(&rcu_tasks_kthread_mutex);
 }
-early_initcall(rcu_spawn_tasks_kthread);
 
 #endif /* #ifdef CONFIG_TASKS_RCU */
