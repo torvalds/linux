@@ -104,6 +104,7 @@ enum {
 	STAC_92HD83XXX_HP,
 	STAC_HP_ENVY_BASS,
 	STAC_HP_BNB13_EQ,
+	STAC_HP_ENVY_TS_BASS,
 	STAC_92HD83XXX_MODELS
 };
 
@@ -1018,7 +1019,7 @@ static int stac_create_spdif_mux_ctls(struct hda_codec *codec)
 	for (i = 0; i < num_cons; i++) {
 		if (snd_BUG_ON(!labels[i]))
 			return -EINVAL;
-		snd_hda_add_imux_item(&spec->spdif_mux, labels[i], i, NULL);
+		snd_hda_add_imux_item(codec, &spec->spdif_mux, labels[i], i, NULL);
 	}
 
 	kctl = snd_hda_gen_add_kctl(&spec->gen, NULL, &stac_smux_mixer);
@@ -2680,6 +2681,13 @@ static const struct hda_fixup stac92hd83xxx_fixups[] = {
 		.chained = true,
 		.chain_id = STAC_92HD83XXX_HP_MIC_LED,
 	},
+	[STAC_HP_ENVY_TS_BASS] = {
+		.type = HDA_FIXUP_PINS,
+		.v.pins = (const struct hda_pintbl[]) {
+			{ 0x10, 0x92170111 },
+			{}
+		},
+	},
 };
 
 static const struct hda_model_fixup stac92hd83xxx_models[] = {
@@ -2696,6 +2704,7 @@ static const struct hda_model_fixup stac92hd83xxx_models[] = {
 	{ .id = STAC_92HD83XXX_HEADSET_JACK, .name = "headset-jack" },
 	{ .id = STAC_HP_ENVY_BASS, .name = "hp-envy-bass" },
 	{ .id = STAC_HP_BNB13_EQ, .name = "hp-bnb13-eq" },
+	{ .id = STAC_HP_ENVY_TS_BASS, .name = "hp-envy-ts-bass" },
 	{}
 };
 
@@ -2751,6 +2760,8 @@ static const struct snd_pci_quirk stac92hd83xxx_fixup_tbl[] = {
 			  "HP bNB13", STAC_HP_BNB13_EQ),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_HP, 0x190A,
 			  "HP bNB13", STAC_HP_BNB13_EQ),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_HP, 0x190e,
+			  "HP ENVY TS", STAC_HP_ENVY_TS_BASS),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_HP, 0x1940,
 			  "HP bNB13", STAC_HP_BNB13_EQ),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_HP, 0x1941,
@@ -3450,9 +3461,11 @@ static void stac922x_fixup_intel_mac_auto(struct hda_codec *codec,
 {
 	if (action != HDA_FIXUP_ACT_PRE_PROBE)
 		return;
+
+	codec->fixup_id = HDA_FIXUP_ID_NOT_SET;
 	snd_hda_pick_fixup(codec, NULL, stac922x_intel_mac_fixup_tbl,
 			   stac922x_fixups);
-	if (codec->fixup_id != STAC_INTEL_MAC_AUTO)
+	if (codec->fixup_id != HDA_FIXUP_ID_NOT_SET)
 		snd_hda_apply_fixup(codec, action);
 }
 

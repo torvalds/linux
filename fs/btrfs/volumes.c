@@ -40,6 +40,7 @@
 #include "rcu-string.h"
 #include "math.h"
 #include "dev-replace.h"
+#include "sysfs.h"
 
 static int init_first_rw_device(struct btrfs_trans_handle *trans,
 				struct btrfs_root *root,
@@ -554,12 +555,14 @@ static struct btrfs_fs_devices *clone_fs_devices(struct btrfs_fs_devices *orig)
 		 * This is ok to do without rcu read locked because we hold the
 		 * uuid mutex so nothing we touch in here is going to disappear.
 		 */
-		name = rcu_string_strdup(orig_dev->name->str, GFP_NOFS);
-		if (!name) {
-			kfree(device);
-			goto error;
+		if (orig_dev->name) {
+			name = rcu_string_strdup(orig_dev->name->str, GFP_NOFS);
+			if (!name) {
+				kfree(device);
+				goto error;
+			}
+			rcu_assign_pointer(device->name, name);
 		}
-		rcu_assign_pointer(device->name, name);
 
 		list_add(&device->dev_list, &fs_devices->devices);
 		device->fs_devices = fs_devices;
@@ -1680,6 +1683,9 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path)
 	if (device->bdev)
 		device->fs_devices->open_devices--;
 
+	/* remove sysfs entry */
+	btrfs_kobj_rm_device(root->fs_info, device);
+
 	call_rcu(&device->rcu, free_device);
 
 	num_devices = btrfs_super_num_devices(root->fs_info->super_copy) - 1;
@@ -2143,9 +2149,14 @@ int btrfs_init_new_device(struct btrfs_root *root, char *device_path)
 	total_bytes = btrfs_super_num_devices(root->fs_info->super_copy);
 	btrfs_set_super_num_devices(root->fs_info->super_copy,
 				    total_bytes + 1);
+
+	/* add sysfs device entry */
+	btrfs_kobj_add_device(root->fs_info, device);
+
 	mutex_unlock(&root->fs_info->fs_devices->device_list_mutex);
 
 	if (seeding_dev) {
+		char fsid_buf[BTRFS_UUID_UNPARSED_SIZE];
 		ret = init_first_rw_device(trans, root, device);
 		if (ret) {
 			btrfs_abort_transaction(trans, root, ret);
@@ -2156,6 +2167,14 @@ int btrfs_init_new_device(struct btrfs_root *root, char *device_path)
 			btrfs_abort_transaction(trans, root, ret);
 			goto error_trans;
 		}
+
+		/* Sprouting would change fsid of the mounted root,
+		 * so rename the fsid on the sysfs
+		 */
+		snprintf(fsid_buf, BTRFS_UUID_UNPARSED_SIZE, "%pU",
+						root->fs_info->fsid);
+		if (kobject_rename(&root->fs_info->super_kobj, fsid_buf))
+			goto error_trans;
 	} else {
 		ret = btrfs_add_device(trans, root, device);
 		if (ret) {
@@ -2205,6 +2224,7 @@ error_trans:
 	unlock_chunks(root);
 	btrfs_end_transaction(trans, root);
 	rcu_string_free(device->name);
+	btrfs_kobj_rm_device(root->fs_info, device);
 	kfree(device);
 error:
 	blkdev_put(bdev, FMODE_EXCL);
@@ -2542,9 +2562,6 @@ static int btrfs_relocate_chunk(struct btrfs_root *root,
 	write_lock(&em_tree->lock);
 	remove_extent_mapping(em_tree, em);
 	write_unlock(&em_tree->lock);
-
-	kfree(map);
-	em->bdev = NULL;
 
 	/* once for the tree */
 	free_extent_map(em);
@@ -4301,9 +4318,11 @@ static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 
 	em = alloc_extent_map();
 	if (!em) {
+		kfree(map);
 		ret = -ENOMEM;
 		goto error;
 	}
+	set_bit(EXTENT_FLAG_FS_MAPPING, &em->flags);
 	em->bdev = (struct block_device *)map;
 	em->start = start;
 	em->len = num_bytes;
@@ -4346,7 +4365,6 @@ error_del_extent:
 	/* One for the tree reference */
 	free_extent_map(em);
 error:
-	kfree(map);
 	kfree(devices_info);
 	return ret;
 }
@@ -4558,7 +4576,6 @@ void btrfs_mapping_tree_free(struct btrfs_mapping_tree *tree)
 		write_unlock(&tree->map_tree.lock);
 		if (!em)
 			break;
-		kfree(em->bdev);
 		/* once for us */
 		free_extent_map(em);
 		/* once for the tree */
@@ -5362,6 +5379,15 @@ int btrfs_rmap_block(struct btrfs_mapping_tree *map_tree,
 	return 0;
 }
 
+static inline void btrfs_end_bbio(struct btrfs_bio *bbio, struct bio *bio, int err)
+{
+	if (likely(bbio->flags & BTRFS_BIO_ORIG_BIO_SUBMITTED))
+		bio_endio_nodec(bio, err);
+	else
+		bio_endio(bio, err);
+	kfree(bbio);
+}
+
 static void btrfs_end_bio(struct bio *bio, int err)
 {
 	struct btrfs_bio *bbio = bio->bi_private;
@@ -5402,12 +5428,6 @@ static void btrfs_end_bio(struct bio *bio, int err)
 			bio = bbio->orig_bio;
 		}
 
- 		/*
-		 * We have original bio now. So increment bi_remaining to
-		 * account for it in endio
-		 */
-		atomic_inc(&bio->bi_remaining);
-
 		bio->bi_private = bbio->private;
 		bio->bi_end_io = bbio->end_io;
 		btrfs_io_bio(bio)->mirror_num = bbio->mirror_num;
@@ -5424,9 +5444,8 @@ static void btrfs_end_bio(struct bio *bio, int err)
 			set_bit(BIO_UPTODATE, &bio->bi_flags);
 			err = 0;
 		}
-		kfree(bbio);
 
-		bio_endio(bio, err);
+		btrfs_end_bbio(bbio, bio, err);
 	} else if (!is_orig_bio) {
 		bio_put(bio);
 	}
@@ -5589,12 +5608,15 @@ static void bbio_error(struct btrfs_bio *bbio, struct bio *bio, u64 logical)
 {
 	atomic_inc(&bbio->error);
 	if (atomic_dec_and_test(&bbio->stripes_pending)) {
+		/* Shoud be the original bio. */
+		WARN_ON(bio != bbio->orig_bio);
+
 		bio->bi_private = bbio->private;
 		bio->bi_end_io = bbio->end_io;
 		btrfs_io_bio(bio)->mirror_num = bbio->mirror_num;
 		bio->bi_iter.bi_sector = logical >> 9;
-		kfree(bbio);
-		bio_endio(bio, -EIO);
+
+		btrfs_end_bbio(bbio, bio, -EIO);
 	}
 }
 
@@ -5681,6 +5703,7 @@ int btrfs_map_bio(struct btrfs_root *root, int rw, struct bio *bio,
 			BUG_ON(!bio); /* -ENOMEM */
 		} else {
 			bio = first_bio;
+			bbio->flags |= BTRFS_BIO_ORIG_BIO_SUBMITTED;
 		}
 
 		submit_stripe_bio(root, bbio, bio,
@@ -5822,6 +5845,7 @@ static int read_one_chunk(struct btrfs_root *root, struct btrfs_key *key,
 		return -ENOMEM;
 	}
 
+	set_bit(EXTENT_FLAG_FS_MAPPING, &em->flags);
 	em->bdev = (struct block_device *)map;
 	em->start = logical;
 	em->len = length;
@@ -5846,7 +5870,6 @@ static int read_one_chunk(struct btrfs_root *root, struct btrfs_key *key,
 		map->stripes[i].dev = btrfs_find_device(root->fs_info, devid,
 							uuid, NULL);
 		if (!map->stripes[i].dev && !btrfs_test_opt(root, DEGRADED)) {
-			kfree(map);
 			free_extent_map(em);
 			return -EIO;
 		}
@@ -5854,7 +5877,6 @@ static int read_one_chunk(struct btrfs_root *root, struct btrfs_key *key,
 			map->stripes[i].dev =
 				add_missing_dev(root, devid, uuid);
 			if (!map->stripes[i].dev) {
-				kfree(map);
 				free_extent_map(em);
 				return -EIO;
 			}

@@ -184,6 +184,28 @@ void __init exynos_cpufreq_init(void)
 	platform_device_register_simple("exynos-cpufreq", -1, NULL, 0);
 }
 
+void __iomem *sysram_base_addr;
+void __iomem *sysram_ns_base_addr;
+
+void __init exynos_sysram_init(void)
+{
+	struct device_node *node;
+
+	for_each_compatible_node(node, NULL, "samsung,exynos4210-sysram") {
+		if (!of_device_is_available(node))
+			continue;
+		sysram_base_addr = of_iomap(node, 0);
+		break;
+	}
+
+	for_each_compatible_node(node, NULL, "samsung,exynos4210-sysram-ns") {
+		if (!of_device_is_available(node))
+			continue;
+		sysram_ns_base_addr = of_iomap(node, 0);
+		break;
+	}
+}
+
 void __init exynos_init_late(void)
 {
 	if (of_machine_is_compatible("samsung,exynos5440"))
@@ -198,7 +220,7 @@ static int __init exynos_fdt_map_chipid(unsigned long node, const char *uname,
 					int depth, void *data)
 {
 	struct map_desc iodesc;
-	__be32 *reg;
+	const __be32 *reg;
 	int len;
 
 	if (!of_flat_dt_is_compatible(node, "samsung,exynos4210-chipid") &&
@@ -270,6 +292,13 @@ static void __init exynos_dt_machine_init(void)
 			}
 		}
 	}
+
+	/*
+	 * This is called from smp_prepare_cpus if we've built for SMP, but
+	 * we still need to set it up for PM and firmware ops if not.
+	 */
+	if (!IS_ENABLED(SMP))
+		exynos_sysram_init();
 
 	exynos_cpuidle_init();
 	exynos_cpufreq_init();

@@ -159,7 +159,7 @@ static int msm_unload(struct drm_device *dev)
 static int get_mdp_ver(struct platform_device *pdev)
 {
 #ifdef CONFIG_OF
-	const static struct of_device_id match_types[] = { {
+	static const struct of_device_id match_types[] = { {
 		.compatible = "qcom,mdss_mdp",
 		.data	= (void	*)5,
 	}, {

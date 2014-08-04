@@ -433,6 +433,7 @@ static struct regulator_ops as3722_ldo3_extcntrl_ops = {
 };
 
 static const struct regulator_linear_range as3722_ldo_ranges[] = {
+	REGULATOR_LINEAR_RANGE(0, 0x00, 0x00, 0),
 	REGULATOR_LINEAR_RANGE(825000, 0x01, 0x24, 25000),
 	REGULATOR_LINEAR_RANGE(1725000, 0x40, 0x7F, 25000),
 };
@@ -609,6 +610,7 @@ static bool as3722_sd0_is_low_voltage(struct as3722_regulators *as3722_regs)
 }
 
 static const struct regulator_linear_range as3722_sd2345_ranges[] = {
+	REGULATOR_LINEAR_RANGE(0, 0x00, 0x00, 0),
 	REGULATOR_LINEAR_RANGE(612500, 0x01, 0x40, 12500),
 	REGULATOR_LINEAR_RANGE(1425000, 0x41, 0x70, 25000),
 	REGULATOR_LINEAR_RANGE(2650000, 0x71, 0x7F, 50000),

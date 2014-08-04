@@ -255,7 +255,7 @@ static int ltc3589_parse_regulators_dt(struct ltc3589 *ltc3589)
 	struct device_node *node;
 	int i, ret;
 
-	node = of_find_node_by_name(dev->of_node, "regulators");
+	node = of_get_child_by_name(dev->of_node, "regulators");
 	if (!node) {
 		dev_err(dev, "regulators node not found\n");
 		return -EINVAL;

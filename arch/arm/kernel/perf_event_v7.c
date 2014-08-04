@@ -1924,7 +1924,7 @@ static int krait_pmu_get_event_idx(struct pmu_hw_events *cpuc,
 				   struct perf_event *event)
 {
 	int idx;
-	int bit;
+	int bit = -1;
 	unsigned int prefix;
 	unsigned int region;
 	unsigned int code;
@@ -1953,7 +1953,7 @@ static int krait_pmu_get_event_idx(struct pmu_hw_events *cpuc,
 	}
 
 	idx = armv7pmu_get_event_idx(cpuc, event);
-	if (idx < 0 && krait_event)
+	if (idx < 0 && bit >= 0)
 		clear_bit(bit, cpuc->used_mask);
 
 	return idx;

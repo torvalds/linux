@@ -1092,7 +1092,7 @@ static void pmz_convert_to_zs(struct uart_pmac_port *uap, unsigned int cflag,
 	uap->port.read_status_mask = Rx_OVR;
 	if (iflag & INPCK)
 		uap->port.read_status_mask |= CRC_ERR | PAR_ERR;
-	if (iflag & (BRKINT | PARMRK))
+	if (iflag & (IGNBRK | BRKINT | PARMRK))
 		uap->port.read_status_mask |= BRK_ABRT;
 
 	uap->port.ignore_status_mask = 0;

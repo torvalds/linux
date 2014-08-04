@@ -87,16 +87,16 @@ extern pgprot_t pgprot_kernel;
 
 #define PAGE_NONE		pgprot_user
 #define PAGE_SHARED		__pgprot(pgprot_val(pgprot_user | PTE_READ \
-								| PTE_WRITE)
+								| PTE_WRITE))
 #define PAGE_SHARED_EXEC	__pgprot(pgprot_val(pgprot_user | PTE_READ \
 								| PTE_WRITE \
-								| PTE_EXEC)
+								| PTE_EXEC))
 #define PAGE_COPY		__pgprot(pgprot_val(pgprot_user | PTE_READ)
 #define PAGE_COPY_EXEC		__pgprot(pgprot_val(pgprot_user | PTE_READ \
-								| PTE_EXEC)
-#define PAGE_READONLY		__pgprot(pgprot_val(pgprot_user | PTE_READ)
+								| PTE_EXEC))
+#define PAGE_READONLY		__pgprot(pgprot_val(pgprot_user | PTE_READ))
 #define PAGE_READONLY_EXEC	__pgprot(pgprot_val(pgprot_user | PTE_READ \
-								| PTE_EXEC)
+								| PTE_EXEC))
 #define PAGE_KERNEL		pgprot_kernel
 #define PAGE_KERNEL_EXEC	__pgprot(pgprot_val(pgprot_kernel | PTE_EXEC))
 

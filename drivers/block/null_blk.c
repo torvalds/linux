@@ -79,7 +79,7 @@ MODULE_PARM_DESC(home_node, "Home node for the device");
 
 static int queue_mode = NULL_Q_MQ;
 module_param(queue_mode, int, S_IRUGO);
-MODULE_PARM_DESC(use_mq, "Use blk-mq interface (0=bio,1=rq,2=multiqueue)");
+MODULE_PARM_DESC(queue_mode, "Block interface to use (0=bio,1=rq,2=multiqueue)");
 
 static int gb = 250;
 module_param(gb, int, S_IRUGO);
@@ -227,7 +227,10 @@ static void null_cmd_end_timer(struct nullb_cmd *cmd)
 
 static void null_softirq_done_fn(struct request *rq)
 {
-	end_cmd(blk_mq_rq_to_pdu(rq));
+	if (queue_mode == NULL_Q_MQ)
+		end_cmd(blk_mq_rq_to_pdu(rq));
+	else
+		end_cmd(rq->special);
 }
 
 static inline void null_handle_cmd(struct nullb_cmd *cmd)

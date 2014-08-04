@@ -1052,7 +1052,7 @@ static void atombios_crtc_set_pll(struct drm_crtc *crtc, struct drm_display_mode
 	int encoder_mode = atombios_get_encoder_mode(radeon_crtc->encoder);
 
 	/* pass the actual clock to atombios_crtc_program_pll for DCE5,6 for HDMI */
-	if (ASIC_IS_DCE5(rdev) && !ASIC_IS_DCE8(rdev) &&
+	if (ASIC_IS_DCE5(rdev) &&
 	    (encoder_mode == ATOM_ENCODER_MODE_HDMI) &&
 	    (radeon_crtc->bpc > 8))
 		clock = radeon_crtc->adjusted_clock;
@@ -1136,6 +1136,7 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 	u32 fb_swap = EVERGREEN_GRPH_ENDIAN_SWAP(EVERGREEN_GRPH_ENDIAN_NONE);
 	u32 tmp, viewport_w, viewport_h;
 	int r;
+	bool bypass_lut = false;
 
 	/* no fb bound */
 	if (!atomic && !crtc->primary->fb) {
@@ -1174,33 +1175,73 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 	radeon_bo_get_tiling_flags(rbo, &tiling_flags, NULL);
 	radeon_bo_unreserve(rbo);
 
-	switch (target_fb->bits_per_pixel) {
-	case 8:
+	switch (target_fb->pixel_format) {
+	case DRM_FORMAT_C8:
 		fb_format = (EVERGREEN_GRPH_DEPTH(EVERGREEN_GRPH_DEPTH_8BPP) |
 			     EVERGREEN_GRPH_FORMAT(EVERGREEN_GRPH_FORMAT_INDEXED));
 		break;
-	case 15:
+	case DRM_FORMAT_XRGB4444:
+	case DRM_FORMAT_ARGB4444:
+		fb_format = (EVERGREEN_GRPH_DEPTH(EVERGREEN_GRPH_DEPTH_16BPP) |
+			     EVERGREEN_GRPH_FORMAT(EVERGREEN_GRPH_FORMAT_ARGB4444));
+#ifdef __BIG_ENDIAN
+		fb_swap = EVERGREEN_GRPH_ENDIAN_SWAP(EVERGREEN_GRPH_ENDIAN_8IN16);
+#endif
+		break;
+	case DRM_FORMAT_XRGB1555:
+	case DRM_FORMAT_ARGB1555:
 		fb_format = (EVERGREEN_GRPH_DEPTH(EVERGREEN_GRPH_DEPTH_16BPP) |
 			     EVERGREEN_GRPH_FORMAT(EVERGREEN_GRPH_FORMAT_ARGB1555));
+#ifdef __BIG_ENDIAN
+		fb_swap = EVERGREEN_GRPH_ENDIAN_SWAP(EVERGREEN_GRPH_ENDIAN_8IN16);
+#endif
 		break;
-	case 16:
+	case DRM_FORMAT_BGRX5551:
+	case DRM_FORMAT_BGRA5551:
+		fb_format = (EVERGREEN_GRPH_DEPTH(EVERGREEN_GRPH_DEPTH_16BPP) |
+			     EVERGREEN_GRPH_FORMAT(EVERGREEN_GRPH_FORMAT_BGRA5551));
+#ifdef __BIG_ENDIAN
+		fb_swap = EVERGREEN_GRPH_ENDIAN_SWAP(EVERGREEN_GRPH_ENDIAN_8IN16);
+#endif
+		break;
+	case DRM_FORMAT_RGB565:
 		fb_format = (EVERGREEN_GRPH_DEPTH(EVERGREEN_GRPH_DEPTH_16BPP) |
 			     EVERGREEN_GRPH_FORMAT(EVERGREEN_GRPH_FORMAT_ARGB565));
 #ifdef __BIG_ENDIAN
 		fb_swap = EVERGREEN_GRPH_ENDIAN_SWAP(EVERGREEN_GRPH_ENDIAN_8IN16);
 #endif
 		break;
-	case 24:
-	case 32:
+	case DRM_FORMAT_XRGB8888:
+	case DRM_FORMAT_ARGB8888:
 		fb_format = (EVERGREEN_GRPH_DEPTH(EVERGREEN_GRPH_DEPTH_32BPP) |
 			     EVERGREEN_GRPH_FORMAT(EVERGREEN_GRPH_FORMAT_ARGB8888));
 #ifdef __BIG_ENDIAN
 		fb_swap = EVERGREEN_GRPH_ENDIAN_SWAP(EVERGREEN_GRPH_ENDIAN_8IN32);
 #endif
 		break;
+	case DRM_FORMAT_XRGB2101010:
+	case DRM_FORMAT_ARGB2101010:
+		fb_format = (EVERGREEN_GRPH_DEPTH(EVERGREEN_GRPH_DEPTH_32BPP) |
+			     EVERGREEN_GRPH_FORMAT(EVERGREEN_GRPH_FORMAT_ARGB2101010));
+#ifdef __BIG_ENDIAN
+		fb_swap = EVERGREEN_GRPH_ENDIAN_SWAP(EVERGREEN_GRPH_ENDIAN_8IN32);
+#endif
+		/* Greater 8 bpc fb needs to bypass hw-lut to retain precision */
+		bypass_lut = true;
+		break;
+	case DRM_FORMAT_BGRX1010102:
+	case DRM_FORMAT_BGRA1010102:
+		fb_format = (EVERGREEN_GRPH_DEPTH(EVERGREEN_GRPH_DEPTH_32BPP) |
+			     EVERGREEN_GRPH_FORMAT(EVERGREEN_GRPH_FORMAT_BGRA1010102));
+#ifdef __BIG_ENDIAN
+		fb_swap = EVERGREEN_GRPH_ENDIAN_SWAP(EVERGREEN_GRPH_ENDIAN_8IN32);
+#endif
+		/* Greater 8 bpc fb needs to bypass hw-lut to retain precision */
+		bypass_lut = true;
+		break;
 	default:
-		DRM_ERROR("Unsupported screen depth %d\n",
-			  target_fb->bits_per_pixel);
+		DRM_ERROR("Unsupported screen format %s\n",
+			  drm_get_format_name(target_fb->pixel_format));
 		return -EINVAL;
 	}
 
@@ -1329,6 +1370,18 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 	WREG32(EVERGREEN_GRPH_CONTROL + radeon_crtc->crtc_offset, fb_format);
 	WREG32(EVERGREEN_GRPH_SWAP_CONTROL + radeon_crtc->crtc_offset, fb_swap);
 
+	/*
+	 * The LUT only has 256 slots for indexing by a 8 bpc fb. Bypass the LUT
+	 * for > 8 bpc scanout to avoid truncation of fb indices to 8 msb's, to
+	 * retain the full precision throughout the pipeline.
+	 */
+	WREG32_P(EVERGREEN_GRPH_LUT_10BIT_BYPASS_CONTROL + radeon_crtc->crtc_offset,
+		 (bypass_lut ? EVERGREEN_LUT_10BIT_BYPASS_EN : 0),
+		 ~EVERGREEN_LUT_10BIT_BYPASS_EN);
+
+	if (bypass_lut)
+		DRM_DEBUG_KMS("Bypassing hardware LUT due to 10 bit fb scanout.\n");
+
 	WREG32(EVERGREEN_GRPH_SURFACE_OFFSET_X + radeon_crtc->crtc_offset, 0);
 	WREG32(EVERGREEN_GRPH_SURFACE_OFFSET_Y + radeon_crtc->crtc_offset, 0);
 	WREG32(EVERGREEN_GRPH_X_START + radeon_crtc->crtc_offset, 0);
@@ -1396,6 +1449,7 @@ static int avivo_crtc_do_set_base(struct drm_crtc *crtc,
 	u32 fb_swap = R600_D1GRPH_SWAP_ENDIAN_NONE;
 	u32 tmp, viewport_w, viewport_h;
 	int r;
+	bool bypass_lut = false;
 
 	/* no fb bound */
 	if (!atomic && !crtc->primary->fb) {
@@ -1433,18 +1487,30 @@ static int avivo_crtc_do_set_base(struct drm_crtc *crtc,
 	radeon_bo_get_tiling_flags(rbo, &tiling_flags, NULL);
 	radeon_bo_unreserve(rbo);
 
-	switch (target_fb->bits_per_pixel) {
-	case 8:
+	switch (target_fb->pixel_format) {
+	case DRM_FORMAT_C8:
 		fb_format =
 		    AVIVO_D1GRPH_CONTROL_DEPTH_8BPP |
 		    AVIVO_D1GRPH_CONTROL_8BPP_INDEXED;
 		break;
-	case 15:
+	case DRM_FORMAT_XRGB4444:
+	case DRM_FORMAT_ARGB4444:
+		fb_format =
+		    AVIVO_D1GRPH_CONTROL_DEPTH_16BPP |
+		    AVIVO_D1GRPH_CONTROL_16BPP_ARGB4444;
+#ifdef __BIG_ENDIAN
+		fb_swap = R600_D1GRPH_SWAP_ENDIAN_16BIT;
+#endif
+		break;
+	case DRM_FORMAT_XRGB1555:
 		fb_format =
 		    AVIVO_D1GRPH_CONTROL_DEPTH_16BPP |
 		    AVIVO_D1GRPH_CONTROL_16BPP_ARGB1555;
+#ifdef __BIG_ENDIAN
+		fb_swap = R600_D1GRPH_SWAP_ENDIAN_16BIT;
+#endif
 		break;
-	case 16:
+	case DRM_FORMAT_RGB565:
 		fb_format =
 		    AVIVO_D1GRPH_CONTROL_DEPTH_16BPP |
 		    AVIVO_D1GRPH_CONTROL_16BPP_RGB565;
@@ -1452,8 +1518,8 @@ static int avivo_crtc_do_set_base(struct drm_crtc *crtc,
 		fb_swap = R600_D1GRPH_SWAP_ENDIAN_16BIT;
 #endif
 		break;
-	case 24:
-	case 32:
+	case DRM_FORMAT_XRGB8888:
+	case DRM_FORMAT_ARGB8888:
 		fb_format =
 		    AVIVO_D1GRPH_CONTROL_DEPTH_32BPP |
 		    AVIVO_D1GRPH_CONTROL_32BPP_ARGB8888;
@@ -1461,9 +1527,20 @@ static int avivo_crtc_do_set_base(struct drm_crtc *crtc,
 		fb_swap = R600_D1GRPH_SWAP_ENDIAN_32BIT;
 #endif
 		break;
+	case DRM_FORMAT_XRGB2101010:
+	case DRM_FORMAT_ARGB2101010:
+		fb_format =
+		    AVIVO_D1GRPH_CONTROL_DEPTH_32BPP |
+		    AVIVO_D1GRPH_CONTROL_32BPP_ARGB2101010;
+#ifdef __BIG_ENDIAN
+		fb_swap = R600_D1GRPH_SWAP_ENDIAN_32BIT;
+#endif
+		/* Greater 8 bpc fb needs to bypass hw-lut to retain precision */
+		bypass_lut = true;
+		break;
 	default:
-		DRM_ERROR("Unsupported screen depth %d\n",
-			  target_fb->bits_per_pixel);
+		DRM_ERROR("Unsupported screen format %s\n",
+			  drm_get_format_name(target_fb->pixel_format));
 		return -EINVAL;
 	}
 
@@ -1501,6 +1578,13 @@ static int avivo_crtc_do_set_base(struct drm_crtc *crtc,
 	WREG32(AVIVO_D1GRPH_CONTROL + radeon_crtc->crtc_offset, fb_format);
 	if (rdev->family >= CHIP_R600)
 		WREG32(R600_D1GRPH_SWAP_CONTROL + radeon_crtc->crtc_offset, fb_swap);
+
+	/* LUT only has 256 slots for 8 bpc fb. Bypass for > 8 bpc scanout for precision */
+	WREG32_P(AVIVO_D1GRPH_LUT_SEL + radeon_crtc->crtc_offset,
+		 (bypass_lut ? AVIVO_LUT_10BIT_BYPASS_EN : 0), ~AVIVO_LUT_10BIT_BYPASS_EN);
+
+	if (bypass_lut)
+		DRM_DEBUG_KMS("Bypassing hardware LUT due to 10 bit fb scanout.\n");
 
 	WREG32(AVIVO_D1GRPH_SURFACE_OFFSET_X + radeon_crtc->crtc_offset, 0);
 	WREG32(AVIVO_D1GRPH_SURFACE_OFFSET_Y + radeon_crtc->crtc_offset, 0);

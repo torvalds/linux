@@ -298,7 +298,7 @@ int rtl8723a_FirmwareDownload(struct rtw_adapter *padapter)
 	RT_TRACE(_module_hal_init_c_, _drv_info_, ("+%s\n", __func__));
 
 	if (IS_8723A_A_CUT(pHalData->VersionID)) {
-		fw_name = "rtlwifi/rtl8723aufw.bin";
+		fw_name = "rtlwifi/rtl8723aufw_A.bin";
 		RT_TRACE(_module_hal_init_c_, _drv_info_,
 			 ("rtl8723a_FirmwareDownload: R8723FwImageArray_UMC "
 			  "for RTL8723A A CUT\n"));

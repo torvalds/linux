@@ -91,7 +91,14 @@ extern void omap3_sync32k_timer_init(void);
 extern void omap3_secure_sync32k_timer_init(void);
 extern void omap3_gptimer_timer_init(void);
 extern void omap4_local_timer_init(void);
+#ifdef CONFIG_CACHE_L2X0
 int omap_l2_cache_init(void);
+#else
+static inline int omap_l2_cache_init(void)
+{
+	return 0;
+}
+#endif
 extern void omap5_realtime_timer_init(void);
 
 void omap2420_init_early(void);
@@ -241,7 +248,6 @@ static inline void __iomem *omap4_get_scu_base(void)
 }
 #endif
 
-extern void __init gic_init_irq(void);
 extern void gic_dist_disable(void);
 extern void gic_dist_enable(void);
 extern bool gic_dist_disabled(void);

@@ -210,9 +210,9 @@ static inline bool kern_addr_valid(unsigned long addr)
 
 #ifndef __ASSEMBLY__
 
-extern pte_t mk_pte_io(unsigned long, pgprot_t, int, unsigned long);
+pte_t mk_pte_io(unsigned long, pgprot_t, int, unsigned long);
 
-extern unsigned long pte_sz_bits(unsigned long size);
+unsigned long pte_sz_bits(unsigned long size);
 
 extern pgprot_t PAGE_KERNEL;
 extern pgprot_t PAGE_KERNEL_LOCKED;
@@ -780,8 +780,8 @@ static inline int pmd_present(pmd_t pmd)
 					 !__kern_addr_valid(pud_val(pud)))
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
-extern void set_pmd_at(struct mm_struct *mm, unsigned long addr,
-		       pmd_t *pmdp, pmd_t pmd);
+void set_pmd_at(struct mm_struct *mm, unsigned long addr,
+		pmd_t *pmdp, pmd_t pmd);
 #else
 static inline void set_pmd_at(struct mm_struct *mm, unsigned long addr,
 			      pmd_t *pmdp, pmd_t pmd)
@@ -840,8 +840,8 @@ static inline unsigned long __pmd_page(pmd_t pmd)
 #define pte_unmap(pte)			do { } while (0)
 
 /* Actual page table PTE updates.  */
-extern void tlb_batch_add(struct mm_struct *mm, unsigned long vaddr,
-			  pte_t *ptep, pte_t orig, int fullmm);
+void tlb_batch_add(struct mm_struct *mm, unsigned long vaddr,
+		   pte_t *ptep, pte_t orig, int fullmm);
 
 #define __HAVE_ARCH_PMDP_GET_AND_CLEAR
 static inline pmd_t pmdp_get_and_clear(struct mm_struct *mm,
@@ -900,28 +900,28 @@ static inline void __set_pte_at(struct mm_struct *mm, unsigned long addr,
 extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
 extern pmd_t swapper_low_pmd_dir[PTRS_PER_PMD];
 
-extern void paging_init(void);
-extern unsigned long find_ecache_flush_span(unsigned long size);
+void paging_init(void);
+unsigned long find_ecache_flush_span(unsigned long size);
 
 struct seq_file;
-extern void mmu_info(struct seq_file *);
+void mmu_info(struct seq_file *);
 
 struct vm_area_struct;
-extern void update_mmu_cache(struct vm_area_struct *, unsigned long, pte_t *);
+void update_mmu_cache(struct vm_area_struct *, unsigned long, pte_t *);
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
-extern void update_mmu_cache_pmd(struct vm_area_struct *vma, unsigned long addr,
-				 pmd_t *pmd);
+void update_mmu_cache_pmd(struct vm_area_struct *vma, unsigned long addr,
+			  pmd_t *pmd);
 
 #define __HAVE_ARCH_PMDP_INVALIDATE
 extern void pmdp_invalidate(struct vm_area_struct *vma, unsigned long address,
 			    pmd_t *pmdp);
 
 #define __HAVE_ARCH_PGTABLE_DEPOSIT
-extern void pgtable_trans_huge_deposit(struct mm_struct *mm, pmd_t *pmdp,
-				       pgtable_t pgtable);
+void pgtable_trans_huge_deposit(struct mm_struct *mm, pmd_t *pmdp,
+				pgtable_t pgtable);
 
 #define __HAVE_ARCH_PGTABLE_WITHDRAW
-extern pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm, pmd_t *pmdp);
+pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm, pmd_t *pmdp);
 #endif
 
 /* Encode and de-code a swap entry */
@@ -937,12 +937,12 @@ extern pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm, pmd_t *pmdp);
 #define __swp_entry_to_pte(x)		((pte_t) { (x).val })
 
 /* File offset in PTE support. */
-extern unsigned long pte_file(pte_t);
+unsigned long pte_file(pte_t);
 #define pte_to_pgoff(pte)	(pte_val(pte) >> PAGE_SHIFT)
-extern pte_t pgoff_to_pte(unsigned long);
+pte_t pgoff_to_pte(unsigned long);
 #define PTE_FILE_MAX_BITS	(64UL - PAGE_SHIFT - 1UL)
 
-extern int page_in_phys_avail(unsigned long paddr);
+int page_in_phys_avail(unsigned long paddr);
 
 /*
  * For sparc32&64, the pfn in io_remap_pfn_range() carries <iospace> in
@@ -952,8 +952,8 @@ extern int page_in_phys_avail(unsigned long paddr);
 #define GET_IOSPACE(pfn)		(pfn >> (BITS_PER_LONG - 4))
 #define GET_PFN(pfn)			(pfn & 0x0fffffffffffffffUL)
 
-extern int remap_pfn_range(struct vm_area_struct *, unsigned long, unsigned long,
-			   unsigned long, pgprot_t);
+int remap_pfn_range(struct vm_area_struct *, unsigned long, unsigned long,
+		    unsigned long, pgprot_t);
 
 static inline int io_remap_pfn_range(struct vm_area_struct *vma,
 				     unsigned long from, unsigned long pfn,
@@ -981,20 +981,20 @@ static inline int io_remap_pfn_range(struct vm_area_struct *vma,
 /* We provide a special get_unmapped_area for framebuffer mmaps to try and use
  * the largest alignment possible such that larget PTEs can be used.
  */
-extern unsigned long get_fb_unmapped_area(struct file *filp, unsigned long,
-					  unsigned long, unsigned long,
-					  unsigned long);
+unsigned long get_fb_unmapped_area(struct file *filp, unsigned long,
+				   unsigned long, unsigned long,
+				   unsigned long);
 #define HAVE_ARCH_FB_UNMAPPED_AREA
 
-extern void pgtable_cache_init(void);
-extern void sun4v_register_fault_status(void);
-extern void sun4v_ktsb_register(void);
-extern void __init cheetah_ecache_flush_init(void);
-extern void sun4v_patch_tlb_handlers(void);
+void pgtable_cache_init(void);
+void sun4v_register_fault_status(void);
+void sun4v_ktsb_register(void);
+void __init cheetah_ecache_flush_init(void);
+void sun4v_patch_tlb_handlers(void);
 
 extern unsigned long cmdline_memory_size;
 
-extern asmlinkage void do_sparc64_fault(struct pt_regs *regs);
+asmlinkage void do_sparc64_fault(struct pt_regs *regs);
 
 #endif /* !(__ASSEMBLY__) */
 

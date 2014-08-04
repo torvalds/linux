@@ -896,7 +896,7 @@ static void sirfsoc_uart_set_termios(struct uart_port *port,
 		if (termios->c_iflag & INPCK)
 			port->read_status_mask |= uint_en->sirfsoc_frm_err_en;
 	}
-	if (termios->c_iflag & (BRKINT | PARMRK))
+	if (termios->c_iflag & (IGNBRK | BRKINT | PARMRK))
 			port->read_status_mask |= uint_en->sirfsoc_rxd_brk_en;
 	if (sirfport->uart_reg->uart_type == SIRF_REAL_UART) {
 		if (termios->c_iflag & IGNPAR)
