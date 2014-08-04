@@ -191,6 +191,12 @@ enum port intel_ddi_get_encoder_port(struct intel_encoder *intel_encoder)
 	}
 }
 
+static bool
+intel_dig_port_supports_hdmi(const struct intel_digital_port *intel_dig_port)
+{
+	return intel_dig_port->hdmi.hdmi_reg;
+}
+
 /*
  * Starting with Haswell, DDI port buffers must be programmed with correct
  * values in advance. The buffer values are different for FDI and DP modes,
@@ -293,6 +299,9 @@ static void intel_prepare_ddi_buffers(struct drm_device *dev,
 		I915_WRITE(reg, ddi_translations[i].trans2);
 		reg += 4;
 	}
+
+	if (!intel_dig_port_supports_hdmi(intel_dig_port))
+		return;
 
 	/* Choose a good default if VBT is badly populated */
 	if (hdmi_level == HDMI_LEVEL_SHIFT_UNKNOWN ||
