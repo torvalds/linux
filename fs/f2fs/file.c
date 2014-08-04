@@ -672,6 +672,8 @@ static int expand_inode_data(struct inode *inode, loff_t offset,
 	loff_t off_start, off_end;
 	int ret = 0;
 
+	f2fs_balance_fs(sbi);
+
 	ret = inode_newsize_ok(inode, (len + offset));
 	if (ret)
 		return ret;
