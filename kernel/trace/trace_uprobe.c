@@ -265,7 +265,6 @@ alloc_trace_uprobe(const char *group, const char *event, int nargs, bool is_ret)
 	if (is_ret)
 		tu->consumer.ret_handler = uretprobe_dispatcher;
 	init_trace_uprobe_filter(&tu->filter);
-	tu->tp.call.flags |= TRACE_EVENT_FL_USE_CALL_FILTER;
 	return tu;
 
 error:
@@ -1292,7 +1291,7 @@ static int register_uprobe_event(struct trace_uprobe *tu)
 		kfree(call->print_fmt);
 		return -ENODEV;
 	}
-	call->flags = 0;
+
 	call->class->reg = trace_uprobe_register;
 	call->data = tu;
 	ret = trace_add_event_call(call);
