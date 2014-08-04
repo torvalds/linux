@@ -2399,8 +2399,11 @@ xlog_recover_do_reg_buffer(
  * Simple algorithm: if we have found a QUOTAOFF log item of the same type
  * (ie. USR or GRP), then just toss this buffer away; don't recover it.
  * Else, treat it as a regular buffer and do recovery.
+ *
+ * Return false if the buffer was tossed and true if we recovered the buffer to
+ * indicate to the caller if the buffer needs writing.
  */
-STATIC void
+STATIC bool
 xlog_recover_do_dquot_buffer(
 	struct xfs_mount		*mp,
 	struct xlog			*log,
@@ -2415,9 +2418,8 @@ xlog_recover_do_dquot_buffer(
 	/*
 	 * Filesystems are required to send in quota flags at mount time.
 	 */
-	if (mp->m_qflags == 0) {
-		return;
-	}
+	if (!mp->m_qflags)
+		return false;
 
 	type = 0;
 	if (buf_f->blf_flags & XFS_BLF_UDQUOT_BUF)
@@ -2430,9 +2432,10 @@ xlog_recover_do_dquot_buffer(
 	 * This type of quotas was turned off, so ignore this buffer
 	 */
 	if (log->l_quotaoffs_flag & type)
-		return;
+		return false;
 
 	xlog_recover_do_reg_buffer(mp, item, bp, buf_f);
+	return true;
 }
 
 /*
@@ -2525,14 +2528,18 @@ xlog_recover_buffer_pass2(
 
 	if (buf_f->blf_flags & XFS_BLF_INODE_BUF) {
 		error = xlog_recover_do_inode_buffer(mp, item, bp, buf_f);
+		if (error)
+			goto out_release;
 	} else if (buf_f->blf_flags &
 		  (XFS_BLF_UDQUOT_BUF|XFS_BLF_PDQUOT_BUF|XFS_BLF_GDQUOT_BUF)) {
-		xlog_recover_do_dquot_buffer(mp, log, item, bp, buf_f);
+		bool	dirty;
+
+		dirty = xlog_recover_do_dquot_buffer(mp, log, item, bp, buf_f);
+		if (!dirty)
+			goto out_release;
 	} else {
 		xlog_recover_do_reg_buffer(mp, item, bp, buf_f);
 	}
-	if (error)
-		goto out_release;
 
 	/*
 	 * Perform delayed write on the buffer.  Asynchronous writes will be
@@ -3022,26 +3029,21 @@ xlog_recover_dquot_pass2(
 		return -EIO;
 	ASSERT(dq_f->qlf_len == 1);
 
+	/*
+	 * At this point we are assuming that the dquots have been allocated
+	 * and hence the buffer has valid dquots stamped in it. It should,
+	 * therefore, pass verifier validation. If the dquot is bad, then the
+	 * we'll return an error here, so we don't need to specifically check
+	 * the dquot in the buffer after the verifier has run.
+	 */
 	error = xfs_trans_read_buf(mp, NULL, mp->m_ddev_targp, dq_f->qlf_blkno,
 				   XFS_FSB_TO_BB(mp, dq_f->qlf_len), 0, &bp,
-				   NULL);
+				   &xfs_dquot_buf_ops);
 	if (error)
 		return error;
 
 	ASSERT(bp);
 	ddq = (xfs_disk_dquot_t *)xfs_buf_offset(bp, dq_f->qlf_boffset);
-
-	/*
-	 * At least the magic num portion should be on disk because this
-	 * was among a chunk of dquots created earlier, and we did some
-	 * minimal initialization then.
-	 */
-	error = xfs_dqcheck(mp, ddq, dq_f->qlf_id, 0, XFS_QMOPT_DOWARN,
-			   "xlog_recover_dquot_pass2");
-	if (error) {
-		xfs_buf_relse(bp);
-		return -EIO;
-	}
 
 	/*
 	 * If the dquot has an LSN in it, recover the dquot only if it's less
