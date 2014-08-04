@@ -308,6 +308,10 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t *
 	tsb_index = MM_TSB_BASE;
 	tsb_hash_shift = PAGE_SHIFT;
 
+	/* Don't insert a non-valid PTE into the TSB, we'll deadlock.  */
+	if (!(pte_val(pte) & _PAGE_VALID))
+		return;
+
 	spin_lock_irqsave(&mm->context.lock, flags);
 
 #ifdef CONFIG_HUGETLB_PAGE
