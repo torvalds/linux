@@ -1806,7 +1806,6 @@ static bool intel_edp_psr_match_conditions(struct intel_dp *intel_dp)
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 
 	lockdep_assert_held(&dev_priv->psr.lock);
-	lockdep_assert_held(&dev->struct_mutex);
 	WARN_ON(!drm_modeset_is_locked(&dev->mode_config.connection_mutex));
 	WARN_ON(!drm_modeset_is_locked(&crtc->mutex));
 
