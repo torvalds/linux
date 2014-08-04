@@ -879,7 +879,7 @@ static int aic3x_hw_params(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_FORMAT_S20_3LE:
 		data |= (0x01 << 4);
 		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
+	case SNDRV_PCM_FORMAT_S24_3LE:
 		data |= (0x02 << 4);
 		break;
 	case SNDRV_PCM_FORMAT_S32_LE:

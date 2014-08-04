@@ -1277,7 +1277,7 @@ static int sgtl5000_enable_regulators(struct snd_soc_codec *codec)
 			return ret;
 	}
 
-	ret = devm_regulator_bulk_get(codec->dev, ARRAY_SIZE(sgtl5000->supplies),
+	ret = regulator_bulk_get(codec->dev, ARRAY_SIZE(sgtl5000->supplies),
 				 sgtl5000->supplies);
 	if (ret)
 		goto err_ldo_remove;
@@ -1285,13 +1285,16 @@ static int sgtl5000_enable_regulators(struct snd_soc_codec *codec)
 	ret = regulator_bulk_enable(ARRAY_SIZE(sgtl5000->supplies),
 					sgtl5000->supplies);
 	if (ret)
-		goto err_ldo_remove;
+		goto err_regulator_free;
 
 	/* wait for all power rails bring up */
 	udelay(10);
 
 	return 0;
 
+err_regulator_free:
+	regulator_bulk_free(ARRAY_SIZE(sgtl5000->supplies),
+				sgtl5000->supplies);
 err_ldo_remove:
 	if (!external_vddd)
 		ldo_regulator_remove(codec);
@@ -1361,6 +1364,8 @@ static int sgtl5000_probe(struct snd_soc_codec *codec)
 err:
 	regulator_bulk_disable(ARRAY_SIZE(sgtl5000->supplies),
 						sgtl5000->supplies);
+	regulator_bulk_free(ARRAY_SIZE(sgtl5000->supplies),
+				sgtl5000->supplies);
 	ldo_regulator_remove(codec);
 
 	return ret;
@@ -1374,6 +1379,8 @@ static int sgtl5000_remove(struct snd_soc_codec *codec)
 
 	regulator_bulk_disable(ARRAY_SIZE(sgtl5000->supplies),
 						sgtl5000->supplies);
+	regulator_bulk_free(ARRAY_SIZE(sgtl5000->supplies),
+				sgtl5000->supplies);
 	ldo_regulator_remove(codec);
 
 	return 0;
