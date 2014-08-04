@@ -198,10 +198,12 @@ enum port intel_ddi_get_encoder_port(struct intel_encoder *intel_encoder)
  * in either FDI or DP modes only, as HDMI connections will work with both
  * of those
  */
-static void intel_prepare_ddi_buffers(struct drm_device *dev, enum port port)
+static void intel_prepare_ddi_buffers(struct drm_device *dev,
+				      struct intel_digital_port *intel_dig_port)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 reg;
+	int port = intel_dig_port->port;
 	int i, n_hdmi_entries, n_dp_entries, n_edp_entries, hdmi_default_entry,
 	    size;
 	int hdmi_level = dev_priv->vbt.ddi_port_info[port].hdmi_level_shift;
@@ -309,13 +311,19 @@ static void intel_prepare_ddi_buffers(struct drm_device *dev, enum port port)
  */
 void intel_prepare_ddi(struct drm_device *dev)
 {
-	int port;
+	struct intel_digital_port *intel_dig_port;
+	bool visited[I915_MAX_PORTS] = { 0, };
 
 	if (!HAS_DDI(dev))
 		return;
 
-	for (port = PORT_A; port <= PORT_E; port++)
-		intel_prepare_ddi_buffers(dev, port);
+	for_each_digital_port(dev, intel_dig_port) {
+		if (visited[intel_dig_port->port])
+			continue;
+
+		intel_prepare_ddi_buffers(dev, intel_dig_port);
+		visited[intel_dig_port->port] = true;
+	}
 }
 
 static void intel_wait_ddi_buf_idle(struct drm_i915_private *dev_priv,
