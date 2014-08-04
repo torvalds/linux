@@ -72,27 +72,54 @@ The decompressed kernel image contains a 64-byte header as follows:
 
   u32 code0;			/* Executable code */
   u32 code1;			/* Executable code */
-  u64 text_offset;		/* Image load offset */
-  u64 res0	= 0;		/* reserved */
-  u64 res1	= 0;		/* reserved */
+  u64 text_offset;		/* Image load offset, little endian */
+  u64 image_size;		/* Effective Image size, little endian */
+  u64 flags;			/* kernel flags, little endian */
   u64 res2	= 0;		/* reserved */
   u64 res3	= 0;		/* reserved */
   u64 res4	= 0;		/* reserved */
   u32 magic	= 0x644d5241;	/* Magic number, little endian, "ARM\x64" */
-  u32 res5 = 0;      		/* reserved */
+  u32 res5;      		/* reserved (used for PE COFF offset) */
 
 
 Header notes:
 
+- As of v3.17, all fields are little endian unless stated otherwise.
+
 - code0/code1 are responsible for branching to stext.
+
 - when booting through EFI, code0/code1 are initially skipped.
   res5 is an offset to the PE header and the PE header has the EFI
-  entry point (efi_stub_entry). When the stub has done its work, it
+  entry point (efi_stub_entry).  When the stub has done its work, it
   jumps to code0 to resume the normal boot process.
 
-The image must be placed at the specified offset (currently 0x80000)
-from the start of the system RAM and called there. The start of the
-system RAM must be aligned to 2MB.
+- Prior to v3.17, the endianness of text_offset was not specified.  In
+  these cases image_size is zero and text_offset is 0x80000 in the
+  endianness of the kernel.  Where image_size is non-zero image_size is
+  little-endian and must be respected.  Where image_size is zero,
+  text_offset can be assumed to be 0x80000.
+
+- The flags field (introduced in v3.17) is a little-endian 64-bit field
+  composed as follows:
+  Bit 0: 	Kernel endianness.  1 if BE, 0 if LE.
+  Bits 1-63:	Reserved.
+
+- When image_size is zero, a bootloader should attempt to keep as much
+  memory as possible free for use by the kernel immediately after the
+  end of the kernel image. The amount of space required will vary
+  depending on selected features, and is effectively unbound.
+
+The Image must be placed text_offset bytes from a 2MB aligned base
+address near the start of usable system RAM and called there. Memory
+below that base address is currently unusable by Linux, and therefore it
+is strongly recommended that this location is the start of system RAM.
+At least image_size bytes from the start of the image must be free for
+use by the kernel.
+
+Any memory described to the kernel (even that below the 2MB aligned base
+address) which is not marked as reserved from the kernel e.g. with a
+memreserve region in the device tree) will be considered as available to
+the kernel.
 
 Before jumping into the kernel, the following conditions must be met:
 

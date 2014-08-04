@@ -315,20 +315,20 @@ static int brk_handler(unsigned long addr, unsigned int esr,
 {
 	siginfo_t info;
 
-	if (call_break_hook(regs, esr) == DBG_HOOK_HANDLED)
-		return 0;
+	if (user_mode(regs)) {
+		info = (siginfo_t) {
+			.si_signo = SIGTRAP,
+			.si_errno = 0,
+			.si_code  = TRAP_BRKPT,
+			.si_addr  = (void __user *)instruction_pointer(regs),
+		};
 
-	if (!user_mode(regs))
+		force_sig_info(SIGTRAP, &info, current);
+	} else if (call_break_hook(regs, esr) != DBG_HOOK_HANDLED) {
+		pr_warning("Unexpected kernel BRK exception at EL1\n");
 		return -EFAULT;
+	}
 
-	info = (siginfo_t) {
-		.si_signo = SIGTRAP,
-		.si_errno = 0,
-		.si_code  = TRAP_BRKPT,
-		.si_addr  = (void __user *)instruction_pointer(regs),
-	};
-
-	force_sig_info(SIGTRAP, &info, current);
 	return 0;
 }
 

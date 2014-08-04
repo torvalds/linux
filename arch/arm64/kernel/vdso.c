@@ -88,21 +88,28 @@ int aarch32_setup_vectors_page(struct linux_binprm *bprm, int uses_interp)
 {
 	struct mm_struct *mm = current->mm;
 	unsigned long addr = AARCH32_VECTORS_BASE;
-	int ret;
+	static struct vm_special_mapping spec = {
+		.name	= "[vectors]",
+		.pages	= vectors_page,
+
+	};
+	void *ret;
 
 	down_write(&mm->mmap_sem);
 	current->mm->context.vdso = (void *)addr;
 
 	/* Map vectors page at the high address. */
-	ret = install_special_mapping(mm, addr, PAGE_SIZE,
-				      VM_READ|VM_EXEC|VM_MAYREAD|VM_MAYEXEC,
-				      vectors_page);
+	ret = _install_special_mapping(mm, addr, PAGE_SIZE,
+				       VM_READ|VM_EXEC|VM_MAYREAD|VM_MAYEXEC,
+				       &spec);
 
 	up_write(&mm->mmap_sem);
 
-	return ret;
+	return PTR_ERR_OR_ZERO(ret);
 }
 #endif /* CONFIG_COMPAT */
+
+static struct vm_special_mapping vdso_spec[2];
 
 static int __init vdso_init(void)
 {
@@ -114,8 +121,8 @@ static int __init vdso_init(void)
 	}
 
 	vdso_pages = (&vdso_end - &vdso_start) >> PAGE_SHIFT;
-	pr_info("vdso: %ld pages (%ld code, %ld data) at base %p\n",
-		vdso_pages + 1, vdso_pages, 1L, &vdso_start);
+	pr_info("vdso: %ld pages (%ld code @ %p, %ld data @ %p)\n",
+		vdso_pages + 1, vdso_pages, &vdso_start, 1L, vdso_data);
 
 	/* Allocate the vDSO pagelist, plus a page for the data. */
 	vdso_pagelist = kcalloc(vdso_pages + 1, sizeof(struct page *),
@@ -123,12 +130,23 @@ static int __init vdso_init(void)
 	if (vdso_pagelist == NULL)
 		return -ENOMEM;
 
+	/* Grab the vDSO data page. */
+	vdso_pagelist[0] = virt_to_page(vdso_data);
+
 	/* Grab the vDSO code pages. */
 	for (i = 0; i < vdso_pages; i++)
-		vdso_pagelist[i] = virt_to_page(&vdso_start + i * PAGE_SIZE);
+		vdso_pagelist[i + 1] = virt_to_page(&vdso_start + i * PAGE_SIZE);
 
-	/* Grab the vDSO data page. */
-	vdso_pagelist[i] = virt_to_page(vdso_data);
+	/* Populate the special mapping structures */
+	vdso_spec[0] = (struct vm_special_mapping) {
+		.name	= "[vvar]",
+		.pages	= vdso_pagelist,
+	};
+
+	vdso_spec[1] = (struct vm_special_mapping) {
+		.name	= "[vdso]",
+		.pages	= &vdso_pagelist[1],
+	};
 
 	return 0;
 }
@@ -138,52 +156,42 @@ int arch_setup_additional_pages(struct linux_binprm *bprm,
 				int uses_interp)
 {
 	struct mm_struct *mm = current->mm;
-	unsigned long vdso_base, vdso_mapping_len;
-	int ret;
+	unsigned long vdso_base, vdso_text_len, vdso_mapping_len;
+	void *ret;
 
+	vdso_text_len = vdso_pages << PAGE_SHIFT;
 	/* Be sure to map the data page */
-	vdso_mapping_len = (vdso_pages + 1) << PAGE_SHIFT;
+	vdso_mapping_len = vdso_text_len + PAGE_SIZE;
 
 	down_write(&mm->mmap_sem);
 	vdso_base = get_unmapped_area(NULL, 0, vdso_mapping_len, 0, 0);
 	if (IS_ERR_VALUE(vdso_base)) {
-		ret = vdso_base;
+		ret = ERR_PTR(vdso_base);
 		goto up_fail;
 	}
-	mm->context.vdso = (void *)vdso_base;
+	ret = _install_special_mapping(mm, vdso_base, PAGE_SIZE,
+				       VM_READ|VM_MAYREAD,
+				       &vdso_spec[0]);
+	if (IS_ERR(ret))
+		goto up_fail;
 
-	ret = install_special_mapping(mm, vdso_base, vdso_mapping_len,
-				      VM_READ|VM_EXEC|
-				      VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC,
-				      vdso_pagelist);
-	if (ret) {
-		mm->context.vdso = NULL;
+	vdso_base += PAGE_SIZE;
+	mm->context.vdso = (void *)vdso_base;
+	ret = _install_special_mapping(mm, vdso_base, vdso_text_len,
+				       VM_READ|VM_EXEC|
+				       VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC,
+				       &vdso_spec[1]);
+	if (IS_ERR(ret))
 		goto up_fail;
-	}
+
+
+	up_write(&mm->mmap_sem);
+	return 0;
 
 up_fail:
+	mm->context.vdso = NULL;
 	up_write(&mm->mmap_sem);
-
-	return ret;
-}
-
-const char *arch_vma_name(struct vm_area_struct *vma)
-{
-	/*
-	 * We can re-use the vdso pointer in mm_context_t for identifying
-	 * the vectors page for compat applications. The vDSO will always
-	 * sit above TASK_UNMAPPED_BASE and so we don't need to worry about
-	 * it conflicting with the vectors base.
-	 */
-	if (vma->vm_mm && vma->vm_start == (long)vma->vm_mm->context.vdso) {
-#ifdef CONFIG_COMPAT
-		if (vma->vm_start == AARCH32_VECTORS_BASE)
-			return "[vectors]";
-#endif
-		return "[vdso]";
-	}
-
-	return NULL;
+	return PTR_ERR(ret);
 }
 
 /*
