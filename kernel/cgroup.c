@@ -149,12 +149,14 @@ struct cgroup_root cgrp_dfl_root;
  */
 static bool cgrp_dfl_root_visible;
 
+/*
+ * Set by the boot param of the same name and makes subsystems with NULL
+ * ->dfl_files to use ->legacy_files on the default hierarchy.
+ */
+static bool cgroup_legacy_files_on_dfl;
+
 /* some controllers are not supported in the default hierarchy */
-static const unsigned int cgrp_dfl_root_inhibit_ss_mask = 0
-#ifdef CONFIG_CGROUP_DEBUG
-	| (1 << debug_cgrp_id)
-#endif
-	;
+static unsigned int cgrp_dfl_root_inhibit_ss_mask;
 
 /* The list of hierarchy roots */
 
@@ -180,13 +182,15 @@ static u64 css_serial_nr_next = 1;
  */
 static int need_forkexit_callback __read_mostly;
 
-static struct cftype cgroup_base_files[];
+static struct cftype cgroup_dfl_base_files[];
+static struct cftype cgroup_legacy_base_files[];
 
 static void cgroup_put(struct cgroup *cgrp);
 static int rebind_subsystems(struct cgroup_root *dst_root,
 			     unsigned int ss_mask);
 static int cgroup_destroy_locked(struct cgroup *cgrp);
-static int create_css(struct cgroup *cgrp, struct cgroup_subsys *ss);
+static int create_css(struct cgroup *cgrp, struct cgroup_subsys *ss,
+		      bool visible);
 static void css_release(struct percpu_ref *ref);
 static void kill_css(struct cgroup_subsys_state *css);
 static int cgroup_addrm_files(struct cgroup *cgrp, struct cftype cfts[],
@@ -1037,6 +1041,58 @@ static void cgroup_put(struct cgroup *cgrp)
 }
 
 /**
+ * cgroup_refresh_child_subsys_mask - update child_subsys_mask
+ * @cgrp: the target cgroup
+ *
+ * On the default hierarchy, a subsystem may request other subsystems to be
+ * enabled together through its ->depends_on mask.  In such cases, more
+ * subsystems than specified in "cgroup.subtree_control" may be enabled.
+ *
+ * This function determines which subsystems need to be enabled given the
+ * current @cgrp->subtree_control and records it in
+ * @cgrp->child_subsys_mask.  The resulting mask is always a superset of
+ * @cgrp->subtree_control and follows the usual hierarchy rules.
+ */
+static void cgroup_refresh_child_subsys_mask(struct cgroup *cgrp)
+{
+	struct cgroup *parent = cgroup_parent(cgrp);
+	unsigned int cur_ss_mask = cgrp->subtree_control;
+	struct cgroup_subsys *ss;
+	int ssid;
+
+	lockdep_assert_held(&cgroup_mutex);
+
+	if (!cgroup_on_dfl(cgrp)) {
+		cgrp->child_subsys_mask = cur_ss_mask;
+		return;
+	}
+
+	while (true) {
+		unsigned int new_ss_mask = cur_ss_mask;
+
+		for_each_subsys(ss, ssid)
+			if (cur_ss_mask & (1 << ssid))
+				new_ss_mask |= ss->depends_on;
+
+		/*
+		 * Mask out subsystems which aren't available.  This can
+		 * happen only if some depended-upon subsystems were bound
+		 * to non-default hierarchies.
+		 */
+		if (parent)
+			new_ss_mask &= parent->child_subsys_mask;
+		else
+			new_ss_mask &= cgrp->root->subsys_mask;
+
+		if (new_ss_mask == cur_ss_mask)
+			break;
+		cur_ss_mask = new_ss_mask;
+	}
+
+	cgrp->child_subsys_mask = cur_ss_mask;
+}
+
+/**
  * cgroup_kn_unlock - unlocking helper for cgroup kernfs methods
  * @kn: the kernfs_node being serviced
  *
@@ -1208,12 +1264,15 @@ static int rebind_subsystems(struct cgroup_root *dst_root, unsigned int ss_mask)
 		up_write(&css_set_rwsem);
 
 		src_root->subsys_mask &= ~(1 << ssid);
-		src_root->cgrp.child_subsys_mask &= ~(1 << ssid);
+		src_root->cgrp.subtree_control &= ~(1 << ssid);
+		cgroup_refresh_child_subsys_mask(&src_root->cgrp);
 
 		/* default hierarchy doesn't enable controllers by default */
 		dst_root->subsys_mask |= 1 << ssid;
-		if (dst_root != &cgrp_dfl_root)
-			dst_root->cgrp.child_subsys_mask |= 1 << ssid;
+		if (dst_root != &cgrp_dfl_root) {
+			dst_root->cgrp.subtree_control |= 1 << ssid;
+			cgroup_refresh_child_subsys_mask(&dst_root->cgrp);
+		}
 
 		if (ss->bind)
 			ss->bind(css);
@@ -1233,8 +1292,6 @@ static int cgroup_show_options(struct seq_file *seq,
 	for_each_subsys(ss, ssid)
 		if (root->subsys_mask & (1 << ssid))
 			seq_printf(seq, ",%s", ss->name);
-	if (root->flags & CGRP_ROOT_SANE_BEHAVIOR)
-		seq_puts(seq, ",sane_behavior");
 	if (root->flags & CGRP_ROOT_NOPREFIX)
 		seq_puts(seq, ",noprefix");
 	if (root->flags & CGRP_ROOT_XATTR)
@@ -1268,6 +1325,7 @@ static int parse_cgroupfs_options(char *data, struct cgroup_sb_opts *opts)
 	bool all_ss = false, one_ss = false;
 	unsigned int mask = -1U;
 	struct cgroup_subsys *ss;
+	int nr_opts = 0;
 	int i;
 
 #ifdef CONFIG_CPUSETS
@@ -1277,6 +1335,8 @@ static int parse_cgroupfs_options(char *data, struct cgroup_sb_opts *opts)
 	memset(opts, 0, sizeof(*opts));
 
 	while ((token = strsep(&o, ",")) != NULL) {
+		nr_opts++;
+
 		if (!*token)
 			return -EINVAL;
 		if (!strcmp(token, "none")) {
@@ -1361,35 +1421,31 @@ static int parse_cgroupfs_options(char *data, struct cgroup_sb_opts *opts)
 			return -ENOENT;
 	}
 
-	/* Consistency checks */
-
 	if (opts->flags & CGRP_ROOT_SANE_BEHAVIOR) {
 		pr_warn("sane_behavior: this is still under development and its behaviors will change, proceed at your own risk\n");
-
-		if ((opts->flags & (CGRP_ROOT_NOPREFIX | CGRP_ROOT_XATTR)) ||
-		    opts->cpuset_clone_children || opts->release_agent ||
-		    opts->name) {
-			pr_err("sane_behavior: noprefix, xattr, clone_children, release_agent and name are not allowed\n");
+		if (nr_opts != 1) {
+			pr_err("sane_behavior: no other mount options allowed\n");
 			return -EINVAL;
 		}
-	} else {
-		/*
-		 * If the 'all' option was specified select all the
-		 * subsystems, otherwise if 'none', 'name=' and a subsystem
-		 * name options were not specified, let's default to 'all'
-		 */
-		if (all_ss || (!one_ss && !opts->none && !opts->name))
-			for_each_subsys(ss, i)
-				if (!ss->disabled)
-					opts->subsys_mask |= (1 << i);
-
-		/*
-		 * We either have to specify by name or by subsystems. (So
-		 * all empty hierarchies must have a name).
-		 */
-		if (!opts->subsys_mask && !opts->name)
-			return -EINVAL;
+		return 0;
 	}
+
+	/*
+	 * If the 'all' option was specified select all the subsystems,
+	 * otherwise if 'none', 'name=' and a subsystem name options were
+	 * not specified, let's default to 'all'
+	 */
+	if (all_ss || (!one_ss && !opts->none && !opts->name))
+		for_each_subsys(ss, i)
+			if (!ss->disabled)
+				opts->subsys_mask |= (1 << i);
+
+	/*
+	 * We either have to specify by name or by subsystems. (So all
+	 * empty hierarchies must have a name).
+	 */
+	if (!opts->subsys_mask && !opts->name)
+		return -EINVAL;
 
 	/*
 	 * Option noprefix was introduced just for backward compatibility
@@ -1398,7 +1454,6 @@ static int parse_cgroupfs_options(char *data, struct cgroup_sb_opts *opts)
 	 */
 	if ((opts->flags & CGRP_ROOT_NOPREFIX) && (opts->subsys_mask & mask))
 		return -EINVAL;
-
 
 	/* Can't specify "none" and some subsystems */
 	if (opts->subsys_mask && opts->none)
@@ -1414,8 +1469,8 @@ static int cgroup_remount(struct kernfs_root *kf_root, int *flags, char *data)
 	struct cgroup_sb_opts opts;
 	unsigned int added_mask, removed_mask;
 
-	if (root->flags & CGRP_ROOT_SANE_BEHAVIOR) {
-		pr_err("sane_behavior: remount is not allowed\n");
+	if (root == &cgrp_dfl_root) {
+		pr_err("remount is not allowed\n");
 		return -EINVAL;
 	}
 
@@ -1434,11 +1489,10 @@ static int cgroup_remount(struct kernfs_root *kf_root, int *flags, char *data)
 	removed_mask = root->subsys_mask & ~opts.subsys_mask;
 
 	/* Don't allow flags or name to change at remount */
-	if (((opts.flags ^ root->flags) & CGRP_ROOT_OPTION_MASK) ||
+	if ((opts.flags ^ root->flags) ||
 	    (opts.name && strcmp(opts.name, root->name))) {
 		pr_err("option or name mismatch, new: 0x%x \"%s\", old: 0x%x \"%s\"\n",
-		       opts.flags & CGRP_ROOT_OPTION_MASK, opts.name ?: "",
-		       root->flags & CGRP_ROOT_OPTION_MASK, root->name);
+		       opts.flags, opts.name ?: "", root->flags, root->name);
 		ret = -EINVAL;
 		goto out_unlock;
 	}
@@ -1563,6 +1617,7 @@ static int cgroup_setup_root(struct cgroup_root *root, unsigned int ss_mask)
 {
 	LIST_HEAD(tmp_links);
 	struct cgroup *root_cgrp = &root->cgrp;
+	struct cftype *base_files;
 	struct css_set *cset;
 	int i, ret;
 
@@ -1600,7 +1655,12 @@ static int cgroup_setup_root(struct cgroup_root *root, unsigned int ss_mask)
 	}
 	root_cgrp->kn = root->kf_root->kn;
 
-	ret = cgroup_addrm_files(root_cgrp, cgroup_base_files, true);
+	if (root == &cgrp_dfl_root)
+		base_files = cgroup_dfl_base_files;
+	else
+		base_files = cgroup_legacy_base_files;
+
+	ret = cgroup_addrm_files(root_cgrp, base_files, true);
 	if (ret)
 		goto destroy_root;
 
@@ -1672,7 +1732,7 @@ static struct dentry *cgroup_mount(struct file_system_type *fs_type,
 		goto out_unlock;
 
 	/* look for a matching existing root */
-	if (!opts.subsys_mask && !opts.none && !opts.name) {
+	if (opts.flags & CGRP_ROOT_SANE_BEHAVIOR) {
 		cgrp_dfl_root_visible = true;
 		root = &cgrp_dfl_root;
 		cgroup_get(&root->cgrp);
@@ -1730,15 +1790,8 @@ static struct dentry *cgroup_mount(struct file_system_type *fs_type,
 			goto out_unlock;
 		}
 
-		if ((root->flags ^ opts.flags) & CGRP_ROOT_OPTION_MASK) {
-			if ((root->flags | opts.flags) & CGRP_ROOT_SANE_BEHAVIOR) {
-				pr_err("sane_behavior: new mount options should match the existing superblock\n");
-				ret = -EINVAL;
-				goto out_unlock;
-			} else {
-				pr_warn("new mount options do not match the existing superblock, will be ignored\n");
-			}
-		}
+		if (root->flags ^ opts.flags)
+			pr_warn("new mount options do not match the existing superblock, will be ignored\n");
 
 		/*
 		 * We want to reuse @root whose lifetime is governed by its
@@ -2457,9 +2510,7 @@ static int cgroup_release_agent_show(struct seq_file *seq, void *v)
 
 static int cgroup_sane_behavior_show(struct seq_file *seq, void *v)
 {
-	struct cgroup *cgrp = seq_css(seq)->cgroup;
-
-	seq_printf(seq, "%d\n", cgroup_sane_behavior(cgrp));
+	seq_puts(seq, "0\n");
 	return 0;
 }
 
@@ -2496,7 +2547,7 @@ static int cgroup_controllers_show(struct seq_file *seq, void *v)
 {
 	struct cgroup *cgrp = seq_css(seq)->cgroup;
 
-	cgroup_print_ss_mask(seq, cgroup_parent(cgrp)->child_subsys_mask);
+	cgroup_print_ss_mask(seq, cgroup_parent(cgrp)->subtree_control);
 	return 0;
 }
 
@@ -2505,7 +2556,7 @@ static int cgroup_subtree_control_show(struct seq_file *seq, void *v)
 {
 	struct cgroup *cgrp = seq_css(seq)->cgroup;
 
-	cgroup_print_ss_mask(seq, cgrp->child_subsys_mask);
+	cgroup_print_ss_mask(seq, cgrp->subtree_control);
 	return 0;
 }
 
@@ -2611,6 +2662,7 @@ static ssize_t cgroup_subtree_control_write(struct kernfs_open_file *of,
 					    loff_t off)
 {
 	unsigned int enable = 0, disable = 0;
+	unsigned int css_enable, css_disable, old_ctrl, new_ctrl;
 	struct cgroup *cgrp, *child;
 	struct cgroup_subsys *ss;
 	char *tok;
@@ -2650,10 +2702,25 @@ static ssize_t cgroup_subtree_control_write(struct kernfs_open_file *of,
 
 	for_each_subsys(ss, ssid) {
 		if (enable & (1 << ssid)) {
-			if (cgrp->child_subsys_mask & (1 << ssid)) {
+			if (cgrp->subtree_control & (1 << ssid)) {
 				enable &= ~(1 << ssid);
 				continue;
 			}
+
+			/* unavailable or not enabled on the parent? */
+			if (!(cgrp_dfl_root.subsys_mask & (1 << ssid)) ||
+			    (cgroup_parent(cgrp) &&
+			     !(cgroup_parent(cgrp)->subtree_control & (1 << ssid)))) {
+				ret = -ENOENT;
+				goto out_unlock;
+			}
+
+			/*
+			 * @ss is already enabled through dependency and
+			 * we'll just make it visible.  Skip draining.
+			 */
+			if (cgrp->child_subsys_mask & (1 << ssid))
+				continue;
 
 			/*
 			 * Because css offlining is asynchronous, userland
@@ -2677,23 +2744,15 @@ static ssize_t cgroup_subtree_control_write(struct kernfs_open_file *of,
 
 				return restart_syscall();
 			}
-
-			/* unavailable or not enabled on the parent? */
-			if (!(cgrp_dfl_root.subsys_mask & (1 << ssid)) ||
-			    (cgroup_parent(cgrp) &&
-			     !(cgroup_parent(cgrp)->child_subsys_mask & (1 << ssid)))) {
-				ret = -ENOENT;
-				goto out_unlock;
-			}
 		} else if (disable & (1 << ssid)) {
-			if (!(cgrp->child_subsys_mask & (1 << ssid))) {
+			if (!(cgrp->subtree_control & (1 << ssid))) {
 				disable &= ~(1 << ssid);
 				continue;
 			}
 
 			/* a child has it enabled? */
 			cgroup_for_each_live_child(child, cgrp) {
-				if (child->child_subsys_mask & (1 << ssid)) {
+				if (child->subtree_control & (1 << ssid)) {
 					ret = -EBUSY;
 					goto out_unlock;
 				}
@@ -2707,7 +2766,7 @@ static ssize_t cgroup_subtree_control_write(struct kernfs_open_file *of,
 	}
 
 	/*
-	 * Except for the root, child_subsys_mask must be zero for a cgroup
+	 * Except for the root, subtree_control must be zero for a cgroup
 	 * with tasks so that child cgroups don't compete against tasks.
 	 */
 	if (enable && cgroup_parent(cgrp) && !list_empty(&cgrp->cset_links)) {
@@ -2716,36 +2775,75 @@ static ssize_t cgroup_subtree_control_write(struct kernfs_open_file *of,
 	}
 
 	/*
-	 * Create csses for enables and update child_subsys_mask.  This
-	 * changes cgroup_e_css() results which in turn makes the
-	 * subsequent cgroup_update_dfl_csses() associate all tasks in the
-	 * subtree to the updated csses.
+	 * Update subsys masks and calculate what needs to be done.  More
+	 * subsystems than specified may need to be enabled or disabled
+	 * depending on subsystem dependencies.
+	 */
+	cgrp->subtree_control |= enable;
+	cgrp->subtree_control &= ~disable;
+
+	old_ctrl = cgrp->child_subsys_mask;
+	cgroup_refresh_child_subsys_mask(cgrp);
+	new_ctrl = cgrp->child_subsys_mask;
+
+	css_enable = ~old_ctrl & new_ctrl;
+	css_disable = old_ctrl & ~new_ctrl;
+	enable |= css_enable;
+	disable |= css_disable;
+
+	/*
+	 * Create new csses or make the existing ones visible.  A css is
+	 * created invisible if it's being implicitly enabled through
+	 * dependency.  An invisible css is made visible when the userland
+	 * explicitly enables it.
 	 */
 	for_each_subsys(ss, ssid) {
 		if (!(enable & (1 << ssid)))
 			continue;
 
 		cgroup_for_each_live_child(child, cgrp) {
-			ret = create_css(child, ss);
+			if (css_enable & (1 << ssid))
+				ret = create_css(child, ss,
+					cgrp->subtree_control & (1 << ssid));
+			else
+				ret = cgroup_populate_dir(child, 1 << ssid);
 			if (ret)
 				goto err_undo_css;
 		}
 	}
 
-	cgrp->child_subsys_mask |= enable;
-	cgrp->child_subsys_mask &= ~disable;
-
+	/*
+	 * At this point, cgroup_e_css() results reflect the new csses
+	 * making the following cgroup_update_dfl_csses() properly update
+	 * css associations of all tasks in the subtree.
+	 */
 	ret = cgroup_update_dfl_csses(cgrp);
 	if (ret)
 		goto err_undo_css;
 
-	/* all tasks are now migrated away from the old csses, kill them */
+	/*
+	 * All tasks are migrated out of disabled csses.  Kill or hide
+	 * them.  A css is hidden when the userland requests it to be
+	 * disabled while other subsystems are still depending on it.  The
+	 * css must not actively control resources and be in the vanilla
+	 * state if it's made visible again later.  Controllers which may
+	 * be depended upon should provide ->css_reset() for this purpose.
+	 */
 	for_each_subsys(ss, ssid) {
 		if (!(disable & (1 << ssid)))
 			continue;
 
-		cgroup_for_each_live_child(child, cgrp)
-			kill_css(cgroup_css(child, ss));
+		cgroup_for_each_live_child(child, cgrp) {
+			struct cgroup_subsys_state *css = cgroup_css(child, ss);
+
+			if (css_disable & (1 << ssid)) {
+				kill_css(css);
+			} else {
+				cgroup_clear_dir(child, 1 << ssid);
+				if (ss->css_reset)
+					ss->css_reset(css);
+			}
+		}
 	}
 
 	kernfs_activate(cgrp->kn);
@@ -2755,8 +2853,9 @@ out_unlock:
 	return ret ?: nbytes;
 
 err_undo_css:
-	cgrp->child_subsys_mask &= ~enable;
-	cgrp->child_subsys_mask |= disable;
+	cgrp->subtree_control &= ~enable;
+	cgrp->subtree_control |= disable;
+	cgroup_refresh_child_subsys_mask(cgrp);
 
 	for_each_subsys(ss, ssid) {
 		if (!(enable & (1 << ssid)))
@@ -2764,8 +2863,14 @@ err_undo_css:
 
 		cgroup_for_each_live_child(child, cgrp) {
 			struct cgroup_subsys_state *css = cgroup_css(child, ss);
-			if (css)
+
+			if (!css)
+				continue;
+
+			if (css_enable & (1 << ssid))
 				kill_css(css);
+			else
+				cgroup_clear_dir(child, 1 << ssid);
 		}
 	}
 	goto out_unlock;
@@ -2878,9 +2983,9 @@ static int cgroup_rename(struct kernfs_node *kn, struct kernfs_node *new_parent,
 
 	/*
 	 * This isn't a proper migration and its usefulness is very
-	 * limited.  Disallow if sane_behavior.
+	 * limited.  Disallow on the default hierarchy.
 	 */
-	if (cgroup_sane_behavior(cgrp))
+	if (cgroup_on_dfl(cgrp))
 		return -EPERM;
 
 	/*
@@ -2964,9 +3069,9 @@ static int cgroup_addrm_files(struct cgroup *cgrp, struct cftype cfts[],
 
 	for (cft = cfts; cft->name[0] != '\0'; cft++) {
 		/* does cft->flags tell us to skip this file on @cgrp? */
-		if ((cft->flags & CFTYPE_ONLY_ON_DFL) && !cgroup_on_dfl(cgrp))
+		if ((cft->flags & __CFTYPE_ONLY_ON_DFL) && !cgroup_on_dfl(cgrp))
 			continue;
-		if ((cft->flags & CFTYPE_INSANE) && cgroup_sane_behavior(cgrp))
+		if ((cft->flags & __CFTYPE_NOT_ON_DFL) && cgroup_on_dfl(cgrp))
 			continue;
 		if ((cft->flags & CFTYPE_NOT_ON_ROOT) && !cgroup_parent(cgrp))
 			continue;
@@ -3024,6 +3129,9 @@ static void cgroup_exit_cftypes(struct cftype *cfts)
 			kfree(cft->kf_ops);
 		cft->kf_ops = NULL;
 		cft->ss = NULL;
+
+		/* revert flags set by cgroup core while adding @cfts */
+		cft->flags &= ~(__CFTYPE_ONLY_ON_DFL | __CFTYPE_NOT_ON_DFL);
 	}
 }
 
@@ -3109,7 +3217,7 @@ int cgroup_rm_cftypes(struct cftype *cfts)
  * function currently returns 0 as long as @cfts registration is successful
  * even if some file creation attempts on existing cgroups fail.
  */
-int cgroup_add_cftypes(struct cgroup_subsys *ss, struct cftype *cfts)
+static int cgroup_add_cftypes(struct cgroup_subsys *ss, struct cftype *cfts)
 {
 	int ret;
 
@@ -3132,6 +3240,40 @@ int cgroup_add_cftypes(struct cgroup_subsys *ss, struct cftype *cfts)
 
 	mutex_unlock(&cgroup_mutex);
 	return ret;
+}
+
+/**
+ * cgroup_add_dfl_cftypes - add an array of cftypes for default hierarchy
+ * @ss: target cgroup subsystem
+ * @cfts: zero-length name terminated array of cftypes
+ *
+ * Similar to cgroup_add_cftypes() but the added files are only used for
+ * the default hierarchy.
+ */
+int cgroup_add_dfl_cftypes(struct cgroup_subsys *ss, struct cftype *cfts)
+{
+	struct cftype *cft;
+
+	for (cft = cfts; cft && cft->name[0] != '\0'; cft++)
+		cft->flags |= __CFTYPE_ONLY_ON_DFL;
+	return cgroup_add_cftypes(ss, cfts);
+}
+
+/**
+ * cgroup_add_legacy_cftypes - add an array of cftypes for legacy hierarchies
+ * @ss: target cgroup subsystem
+ * @cfts: zero-length name terminated array of cftypes
+ *
+ * Similar to cgroup_add_cftypes() but the added files are only used for
+ * the legacy hierarchies.
+ */
+int cgroup_add_legacy_cftypes(struct cgroup_subsys *ss, struct cftype *cfts)
+{
+	struct cftype *cft;
+
+	for (cft = cfts; cft && cft->name[0] != '\0'; cft++)
+		cft->flags |= __CFTYPE_NOT_ON_DFL;
+	return cgroup_add_cftypes(ss, cfts);
 }
 
 /**
@@ -3699,8 +3841,9 @@ after:
  *
  * All this extra complexity was caused by the original implementation
  * committing to an entirely unnecessary property.  In the long term, we
- * want to do away with it.  Explicitly scramble sort order if
- * sane_behavior so that no such expectation exists in the new interface.
+ * want to do away with it.  Explicitly scramble sort order if on the
+ * default hierarchy so that no such expectation exists in the new
+ * interface.
  *
  * Scrambling is done by swapping every two consecutive bits, which is
  * non-identity one-to-one mapping which disturbs sort order sufficiently.
@@ -3715,7 +3858,7 @@ static pid_t pid_fry(pid_t pid)
 
 static pid_t cgroup_pid_fry(struct cgroup *cgrp, pid_t pid)
 {
-	if (cgroup_sane_behavior(cgrp))
+	if (cgroup_on_dfl(cgrp))
 		return pid_fry(pid);
 	else
 		return pid;
@@ -3818,7 +3961,7 @@ static int pidlist_array_load(struct cgroup *cgrp, enum cgroup_filetype type,
 	css_task_iter_end(&it);
 	length = n;
 	/* now sort & (if procs) strip out duplicates */
-	if (cgroup_sane_behavior(cgrp))
+	if (cgroup_on_dfl(cgrp))
 		sort(array, length, sizeof(pid_t), fried_cmppid, NULL);
 	else
 		sort(array, length, sizeof(pid_t), cmppid, NULL);
@@ -4040,7 +4183,43 @@ static int cgroup_clone_children_write(struct cgroup_subsys_state *css,
 	return 0;
 }
 
-static struct cftype cgroup_base_files[] = {
+/* cgroup core interface files for the default hierarchy */
+static struct cftype cgroup_dfl_base_files[] = {
+	{
+		.name = "cgroup.procs",
+		.seq_start = cgroup_pidlist_start,
+		.seq_next = cgroup_pidlist_next,
+		.seq_stop = cgroup_pidlist_stop,
+		.seq_show = cgroup_pidlist_show,
+		.private = CGROUP_FILE_PROCS,
+		.write = cgroup_procs_write,
+		.mode = S_IRUGO | S_IWUSR,
+	},
+	{
+		.name = "cgroup.controllers",
+		.flags = CFTYPE_ONLY_ON_ROOT,
+		.seq_show = cgroup_root_controllers_show,
+	},
+	{
+		.name = "cgroup.controllers",
+		.flags = CFTYPE_NOT_ON_ROOT,
+		.seq_show = cgroup_controllers_show,
+	},
+	{
+		.name = "cgroup.subtree_control",
+		.seq_show = cgroup_subtree_control_show,
+		.write = cgroup_subtree_control_write,
+	},
+	{
+		.name = "cgroup.populated",
+		.flags = CFTYPE_NOT_ON_ROOT,
+		.seq_show = cgroup_populated_show,
+	},
+	{ }	/* terminate */
+};
+
+/* cgroup core interface files for the legacy hierarchies */
+static struct cftype cgroup_legacy_base_files[] = {
 	{
 		.name = "cgroup.procs",
 		.seq_start = cgroup_pidlist_start,
@@ -4053,7 +4232,6 @@ static struct cftype cgroup_base_files[] = {
 	},
 	{
 		.name = "cgroup.clone_children",
-		.flags = CFTYPE_INSANE,
 		.read_u64 = cgroup_clone_children_read,
 		.write_u64 = cgroup_clone_children_write,
 	},
@@ -4063,35 +4241,7 @@ static struct cftype cgroup_base_files[] = {
 		.seq_show = cgroup_sane_behavior_show,
 	},
 	{
-		.name = "cgroup.controllers",
-		.flags = CFTYPE_ONLY_ON_DFL | CFTYPE_ONLY_ON_ROOT,
-		.seq_show = cgroup_root_controllers_show,
-	},
-	{
-		.name = "cgroup.controllers",
-		.flags = CFTYPE_ONLY_ON_DFL | CFTYPE_NOT_ON_ROOT,
-		.seq_show = cgroup_controllers_show,
-	},
-	{
-		.name = "cgroup.subtree_control",
-		.flags = CFTYPE_ONLY_ON_DFL,
-		.seq_show = cgroup_subtree_control_show,
-		.write = cgroup_subtree_control_write,
-	},
-	{
-		.name = "cgroup.populated",
-		.flags = CFTYPE_ONLY_ON_DFL | CFTYPE_NOT_ON_ROOT,
-		.seq_show = cgroup_populated_show,
-	},
-
-	/*
-	 * Historical crazy stuff.  These don't have "cgroup."  prefix and
-	 * don't exist if sane_behavior.  If you're depending on these, be
-	 * prepared to be burned.
-	 */
-	{
 		.name = "tasks",
-		.flags = CFTYPE_INSANE,		/* use "procs" instead */
 		.seq_start = cgroup_pidlist_start,
 		.seq_next = cgroup_pidlist_next,
 		.seq_stop = cgroup_pidlist_stop,
@@ -4102,13 +4252,12 @@ static struct cftype cgroup_base_files[] = {
 	},
 	{
 		.name = "notify_on_release",
-		.flags = CFTYPE_INSANE,
 		.read_u64 = cgroup_read_notify_on_release,
 		.write_u64 = cgroup_write_notify_on_release,
 	},
 	{
 		.name = "release_agent",
-		.flags = CFTYPE_INSANE | CFTYPE_ONLY_ON_ROOT,
+		.flags = CFTYPE_ONLY_ON_ROOT,
 		.seq_show = cgroup_release_agent_show,
 		.write = cgroup_release_agent_write,
 		.max_write_len = PATH_MAX - 1,
@@ -4316,12 +4465,14 @@ static void offline_css(struct cgroup_subsys_state *css)
  * create_css - create a cgroup_subsys_state
  * @cgrp: the cgroup new css will be associated with
  * @ss: the subsys of new css
+ * @visible: whether to create control knobs for the new css or not
  *
  * Create a new css associated with @cgrp - @ss pair.  On success, the new
- * css is online and installed in @cgrp with all interface files created.
- * Returns 0 on success, -errno on failure.
+ * css is online and installed in @cgrp with all interface files created if
+ * @visible.  Returns 0 on success, -errno on failure.
  */
-static int create_css(struct cgroup *cgrp, struct cgroup_subsys *ss)
+static int create_css(struct cgroup *cgrp, struct cgroup_subsys *ss,
+		      bool visible)
 {
 	struct cgroup *parent = cgroup_parent(cgrp);
 	struct cgroup_subsys_state *parent_css = cgroup_css(parent, ss);
@@ -4345,9 +4496,11 @@ static int create_css(struct cgroup *cgrp, struct cgroup_subsys *ss)
 		goto err_free_percpu_ref;
 	css->id = err;
 
-	err = cgroup_populate_dir(cgrp, 1 << ss->id);
-	if (err)
-		goto err_free_id;
+	if (visible) {
+		err = cgroup_populate_dir(cgrp, 1 << ss->id);
+		if (err)
+			goto err_free_id;
+	}
 
 	/* @css is ready to be brought online now, make it visible */
 	list_add_tail_rcu(&css->sibling, &parent_css->children);
@@ -4387,6 +4540,7 @@ static int cgroup_mkdir(struct kernfs_node *parent_kn, const char *name,
 	struct cgroup_root *root;
 	struct cgroup_subsys *ss;
 	struct kernfs_node *kn;
+	struct cftype *base_files;
 	int ssid, ret;
 
 	parent = cgroup_kn_lock_live(parent_kn);
@@ -4457,14 +4611,20 @@ static int cgroup_mkdir(struct kernfs_node *parent_kn, const char *name,
 	if (ret)
 		goto out_destroy;
 
-	ret = cgroup_addrm_files(cgrp, cgroup_base_files, true);
+	if (cgroup_on_dfl(cgrp))
+		base_files = cgroup_dfl_base_files;
+	else
+		base_files = cgroup_legacy_base_files;
+
+	ret = cgroup_addrm_files(cgrp, base_files, true);
 	if (ret)
 		goto out_destroy;
 
 	/* let's create and online css's */
 	for_each_subsys(ss, ssid) {
 		if (parent->child_subsys_mask & (1 << ssid)) {
-			ret = create_css(cgrp, ss);
+			ret = create_css(cgrp, ss,
+					 parent->subtree_control & (1 << ssid));
 			if (ret)
 				goto out_destroy;
 		}
@@ -4472,10 +4632,12 @@ static int cgroup_mkdir(struct kernfs_node *parent_kn, const char *name,
 
 	/*
 	 * On the default hierarchy, a child doesn't automatically inherit
-	 * child_subsys_mask from the parent.  Each is configured manually.
+	 * subtree_control from the parent.  Each is configured manually.
 	 */
-	if (!cgroup_on_dfl(cgrp))
-		cgrp->child_subsys_mask = parent->child_subsys_mask;
+	if (!cgroup_on_dfl(cgrp)) {
+		cgrp->subtree_control = parent->subtree_control;
+		cgroup_refresh_child_subsys_mask(cgrp);
+	}
 
 	kernfs_activate(kn);
 
@@ -4738,8 +4900,7 @@ static void __init cgroup_init_subsys(struct cgroup_subsys *ss, bool early)
  */
 int __init cgroup_init_early(void)
 {
-	static struct cgroup_sb_opts __initdata opts =
-		{ .flags = CGRP_ROOT_SANE_BEHAVIOR };
+	static struct cgroup_sb_opts __initdata opts;
 	struct cgroup_subsys *ss;
 	int i;
 
@@ -4777,7 +4938,8 @@ int __init cgroup_init(void)
 	unsigned long key;
 	int ssid, err;
 
-	BUG_ON(cgroup_init_cftypes(NULL, cgroup_base_files));
+	BUG_ON(cgroup_init_cftypes(NULL, cgroup_dfl_base_files));
+	BUG_ON(cgroup_init_cftypes(NULL, cgroup_legacy_base_files));
 
 	mutex_lock(&cgroup_mutex);
 
@@ -4809,9 +4971,22 @@ int __init cgroup_init(void)
 		 * disabled flag and cftype registration needs kmalloc,
 		 * both of which aren't available during early_init.
 		 */
-		if (!ss->disabled) {
-			cgrp_dfl_root.subsys_mask |= 1 << ss->id;
-			WARN_ON(cgroup_add_cftypes(ss, ss->base_cftypes));
+		if (ss->disabled)
+			continue;
+
+		cgrp_dfl_root.subsys_mask |= 1 << ss->id;
+
+		if (cgroup_legacy_files_on_dfl && !ss->dfl_cftypes)
+			ss->dfl_cftypes = ss->legacy_cftypes;
+
+		if (!ss->dfl_cftypes)
+			cgrp_dfl_root_inhibit_ss_mask |= 1 << ss->id;
+
+		if (ss->dfl_cftypes == ss->legacy_cftypes) {
+			WARN_ON(cgroup_add_cftypes(ss, ss->dfl_cftypes));
+		} else {
+			WARN_ON(cgroup_add_dfl_cftypes(ss, ss->dfl_cftypes));
+			WARN_ON(cgroup_add_legacy_cftypes(ss, ss->legacy_cftypes));
 		}
 	}
 
@@ -5207,6 +5382,14 @@ static int __init cgroup_disable(char *str)
 }
 __setup("cgroup_disable=", cgroup_disable);
 
+static int __init cgroup_set_legacy_files_on_dfl(char *str)
+{
+	printk("cgroup: using legacy files on the default hierarchy\n");
+	cgroup_legacy_files_on_dfl = true;
+	return 0;
+}
+__setup("cgroup__DEVEL__legacy_files_on_dfl", cgroup_set_legacy_files_on_dfl);
+
 /**
  * css_tryget_online_from_dir - get corresponding css from a cgroup dentry
  * @dentry: directory dentry of interest
@@ -5401,6 +5584,6 @@ static struct cftype debug_files[] =  {
 struct cgroup_subsys debug_cgrp_subsys = {
 	.css_alloc = debug_css_alloc,
 	.css_free = debug_css_free,
-	.base_cftypes = debug_files,
+	.legacy_cftypes = debug_files,
 };
 #endif /* CONFIG_CGROUP_DEBUG */
