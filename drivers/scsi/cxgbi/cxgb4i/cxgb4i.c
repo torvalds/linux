@@ -1384,8 +1384,6 @@ rel_resource:
 	return -EINVAL;
 }
 
-#define CPL_ISCSI_DATA		0xB2
-#define CPL_RX_ISCSI_DDP	0x49
 cxgb4i_cplhandler_func cxgb4i_cplhandlers[NUM_CPL_CMDS] = {
 	[CPL_ACT_ESTABLISH] = do_act_establish,
 	[CPL_ACT_OPEN_RPL] = do_act_open_rpl,

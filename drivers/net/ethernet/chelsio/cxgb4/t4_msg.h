@@ -75,6 +75,7 @@ enum {
 	CPL_RX_DATA_DDP       = 0x42,
 	CPL_PASS_ACCEPT_REQ   = 0x44,
 	CPL_TRACE_PKT_T5      = 0x48,
+	CPL_RX_ISCSI_DDP      = 0x49,
 
 	CPL_RDMA_READ_REQ     = 0x60,
 
@@ -86,6 +87,7 @@ enum {
 	CPL_SGE_EGR_UPDATE    = 0xA5,
 
 	CPL_TRACE_PKT         = 0xB0,
+	CPL_ISCSI_DATA	      = 0xB2,
 
 	CPL_FW4_MSG           = 0xC0,
 	CPL_FW4_PLD           = 0xC1,
