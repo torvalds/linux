@@ -230,10 +230,6 @@ ENTRY(fast_unaligned)
 	addx8	a5, a6, a5
 	jx	a5			# jump into table
 
-	/* Invalid instruction, CRITICAL! */
-.Linvalid_instruction_load:
-	j	.Linvalid_instruction
-
 	/* Load: Load memory address. */
 
 .Lload: movi	a3, ~3
@@ -318,6 +314,35 @@ ENTRY(fast_unaligned)
 	mov	a3, a13		;	_j 1f;	.align 8
 	mov	a3, a14		;	_j 1f;	.align 8
 	mov	a3, a15		;	_j 1f;	.align 8
+
+	/* We cannot handle this exception. */
+
+	.extern _kernel_exception
+.Linvalid_instruction_load:
+.Linvalid_instruction_store:
+
+	movi	a4, 0
+	rsr	a3, excsave1
+	s32i	a4, a3, EXC_TABLE_FIXUP
+
+	/* Restore a4...a8 and SAR, set SP, and jump to default exception. */
+
+	l32i	a8, a2, PT_AREG8
+	l32i	a7, a2, PT_AREG7
+	l32i	a6, a2, PT_AREG6
+	l32i	a5, a2, PT_AREG5
+	l32i	a4, a2, PT_AREG4
+	wsr	a0, sar
+	mov	a1, a2
+
+	rsr	a0, ps
+	bbsi.l  a0, PS_UM_BIT, 2f     # jump if user mode
+
+	movi	a0, _kernel_exception
+	jx	a0
+
+2:	movi	a0, _user_exception
+	jx	a0
 
 1: 	# a7: instruction pointer, a4: instruction, a3: value
 
@@ -415,35 +440,6 @@ ENTRY(fast_unaligned)
 	l32i	a0, a2, PT_AREG0
 	l32i	a2, a2, PT_AREG2
 	rfe
-
-	/* We cannot handle this exception. */
-
-	.extern _kernel_exception
-.Linvalid_instruction_store:
-.Linvalid_instruction:
-
-	movi	a4, 0
-	rsr	a3, excsave1
-	s32i	a4, a3, EXC_TABLE_FIXUP
-
-	/* Restore a4...a8 and SAR, set SP, and jump to default exception. */
-
-	l32i	a8, a2, PT_AREG8
-	l32i	a7, a2, PT_AREG7
-	l32i	a6, a2, PT_AREG6
-	l32i	a5, a2, PT_AREG5
-	l32i	a4, a2, PT_AREG4
-	wsr	a0, sar
-	mov	a1, a2
-
-	rsr	a0, ps
-	bbsi.l  a0, PS_UM_BIT, 1f     # jump if user mode
-
-	movi	a0, _kernel_exception
-	jx	a0
-
-1:	movi	a0, _user_exception
-	jx	a0
 
 ENDPROC(fast_unaligned)
 
