@@ -731,10 +731,10 @@ static void pump_transfers(unsigned long data)
 
         dw_writew(dws, SPIM_CTRLR1, dws->len-1);
 		
-		if (txint_level)
+		if (txint_level != dw_readl(dws, SPIM_TXFTLR))
 			dw_writew(dws, SPIM_TXFTLR, txint_level);
 			
-		if (rxint_level)
+		if (rxint_level != dw_readl(dws, SPIM_RXFTLR))
 		{
 			dw_writew(dws, SPIM_RXFTLR, rxint_level);
 			DBG_SPI("%s:rxint_level=%d\n",__func__,rxint_level);
