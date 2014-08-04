@@ -1615,8 +1615,10 @@ int au_opts_verify(struct super_block *sb, unsigned long sb_flags,
 		if (wbr)
 			wbr_wh_read_unlock(wbr);
 
-		if (au_br_fhsm(br->br_perm))
+		if (au_br_fhsm(br->br_perm)) {
 			fhsm++;
+			AuDebugOn(!br->br_fhsm);
+		}
 
 		if (skip)
 			continue;
