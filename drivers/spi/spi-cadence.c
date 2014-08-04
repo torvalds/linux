@@ -205,18 +205,30 @@ static void cdns_spi_chipselect(struct spi_device *spi, bool is_high)
 static void cdns_spi_config_clock_mode(struct spi_device *spi)
 {
 	struct cdns_spi *xspi = spi_master_get_devdata(spi->master);
-	u32 ctrl_reg;
+	u32 ctrl_reg, new_ctrl_reg;
 
-	ctrl_reg = cdns_spi_read(xspi, CDNS_SPI_CR_OFFSET);
+	new_ctrl_reg = ctrl_reg = cdns_spi_read(xspi, CDNS_SPI_CR_OFFSET);
 
 	/* Set the SPI clock phase and clock polarity */
-	ctrl_reg &= ~(CDNS_SPI_CR_CPHA_MASK | CDNS_SPI_CR_CPOL_MASK);
+	new_ctrl_reg &= ~(CDNS_SPI_CR_CPHA_MASK | CDNS_SPI_CR_CPOL_MASK);
 	if (spi->mode & SPI_CPHA)
-		ctrl_reg |= CDNS_SPI_CR_CPHA_MASK;
+		new_ctrl_reg |= CDNS_SPI_CR_CPHA_MASK;
 	if (spi->mode & SPI_CPOL)
-		ctrl_reg |= CDNS_SPI_CR_CPOL_MASK;
+		new_ctrl_reg |= CDNS_SPI_CR_CPOL_MASK;
 
-	cdns_spi_write(xspi, CDNS_SPI_CR_OFFSET, ctrl_reg);
+	if (new_ctrl_reg != ctrl_reg) {
+		/*
+		 * Just writing the CR register does not seem to apply the clock
+		 * setting changes. This is problematic when changing the clock
+		 * polarity as it will cause the SPI slave to see spurious clock
+		 * transitions. To workaround the issue toggle the ER register.
+		 */
+		cdns_spi_write(xspi, CDNS_SPI_ER_OFFSET,
+				   CDNS_SPI_ER_DISABLE_MASK);
+		cdns_spi_write(xspi, CDNS_SPI_CR_OFFSET, new_ctrl_reg);
+		cdns_spi_write(xspi, CDNS_SPI_ER_OFFSET,
+				   CDNS_SPI_ER_ENABLE_MASK);
+	}
 }
 
 /**
@@ -370,6 +382,12 @@ static irqreturn_t cdns_spi_irq(int irq, void *dev_id)
 
 	return status;
 }
+static int cdns_prepare_message(struct spi_master *master,
+				struct spi_message *msg)
+{
+	cdns_spi_config_clock_mode(msg->spi);
+	return 0;
+}
 
 /**
  * cdns_transfer_one - Initiates the SPI transfer
@@ -415,8 +433,6 @@ static int cdns_transfer_one(struct spi_master *master,
 static int cdns_prepare_transfer_hardware(struct spi_master *master)
 {
 	struct cdns_spi *xspi = spi_master_get_devdata(master);
-
-	cdns_spi_config_clock_mode(master->cur_msg->spi);
 
 	cdns_spi_write(xspi, CDNS_SPI_ER_OFFSET,
 		       CDNS_SPI_ER_ENABLE_MASK);
@@ -532,6 +548,7 @@ static int cdns_spi_probe(struct platform_device *pdev)
 		xspi->is_decoded_cs = 0;
 
 	master->prepare_transfer_hardware = cdns_prepare_transfer_hardware;
+	master->prepare_message = cdns_prepare_message;
 	master->transfer_one = cdns_transfer_one;
 	master->unprepare_transfer_hardware = cdns_unprepare_transfer_hardware;
 	master->set_cs = cdns_spi_chipselect;
