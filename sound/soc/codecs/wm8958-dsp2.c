@@ -934,12 +934,8 @@ void wm8958_dsp2_init(struct snd_soc_codec *codec)
 		/* We need an array of texts for the enum API */
 		wm8994->mbc_texts = kmalloc(sizeof(char *)
 					    * pdata->num_mbc_cfgs, GFP_KERNEL);
-		if (!wm8994->mbc_texts) {
-			dev_err(wm8994->hubs.codec->dev,
-				"Failed to allocate %d MBC config texts\n",
-				pdata->num_mbc_cfgs);
+		if (!wm8994->mbc_texts)
 			return;
-		}
 
 		for (i = 0; i < pdata->num_mbc_cfgs; i++)
 			wm8994->mbc_texts[i] = pdata->mbc_cfgs[i].name;
@@ -963,12 +959,8 @@ void wm8958_dsp2_init(struct snd_soc_codec *codec)
 		/* We need an array of texts for the enum API */
 		wm8994->vss_texts = kmalloc(sizeof(char *)
 					    * pdata->num_vss_cfgs, GFP_KERNEL);
-		if (!wm8994->vss_texts) {
-			dev_err(wm8994->hubs.codec->dev,
-				"Failed to allocate %d VSS config texts\n",
-				pdata->num_vss_cfgs);
+		if (!wm8994->vss_texts)
 			return;
-		}
 
 		for (i = 0; i < pdata->num_vss_cfgs; i++)
 			wm8994->vss_texts[i] = pdata->vss_cfgs[i].name;
@@ -993,12 +985,8 @@ void wm8958_dsp2_init(struct snd_soc_codec *codec)
 		/* We need an array of texts for the enum API */
 		wm8994->vss_hpf_texts = kmalloc(sizeof(char *)
 						* pdata->num_vss_hpf_cfgs, GFP_KERNEL);
-		if (!wm8994->vss_hpf_texts) {
-			dev_err(wm8994->hubs.codec->dev,
-				"Failed to allocate %d VSS HPF config texts\n",
-				pdata->num_vss_hpf_cfgs);
+		if (!wm8994->vss_hpf_texts)
 			return;
-		}
 
 		for (i = 0; i < pdata->num_vss_hpf_cfgs; i++)
 			wm8994->vss_hpf_texts[i] = pdata->vss_hpf_cfgs[i].name;
@@ -1024,12 +1012,8 @@ void wm8958_dsp2_init(struct snd_soc_codec *codec)
 		/* We need an array of texts for the enum API */
 		wm8994->enh_eq_texts = kmalloc(sizeof(char *)
 						* pdata->num_enh_eq_cfgs, GFP_KERNEL);
-		if (!wm8994->enh_eq_texts) {
-			dev_err(wm8994->hubs.codec->dev,
-				"Failed to allocate %d enhanced EQ config texts\n",
-				pdata->num_enh_eq_cfgs);
+		if (!wm8994->enh_eq_texts)
 			return;
-		}
 
 		for (i = 0; i < pdata->num_enh_eq_cfgs; i++)
 			wm8994->enh_eq_texts[i] = pdata->enh_eq_cfgs[i].name;

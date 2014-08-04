@@ -1408,10 +1408,8 @@ static int cs42l73_i2c_probe(struct i2c_client *i2c_client,
 
 	cs42l73 = devm_kzalloc(&i2c_client->dev, sizeof(struct cs42l73_private),
 			       GFP_KERNEL);
-	if (!cs42l73) {
-		dev_err(&i2c_client->dev, "could not allocate codec\n");
+	if (!cs42l73)
 		return -ENOMEM;
-	}
 
 	cs42l73->regmap = devm_regmap_init_i2c(i2c_client, &cs42l73_regmap);
 	if (IS_ERR(cs42l73->regmap)) {

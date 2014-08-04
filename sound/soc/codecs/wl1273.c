@@ -461,10 +461,8 @@ static int wl1273_probe(struct snd_soc_codec *codec)
 	}
 
 	wl1273 = kzalloc(sizeof(struct wl1273_priv), GFP_KERNEL);
-	if (wl1273 == NULL) {
-		dev_err(codec->dev, "Cannot allocate memory.\n");
+	if (!wl1273)
 		return -ENOMEM;
-	}
 
 	wl1273->mode = WL1273_MODE_BT;
 	wl1273->core = *core;

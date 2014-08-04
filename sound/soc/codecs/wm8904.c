@@ -2013,12 +2013,8 @@ static void wm8904_handle_pdata(struct snd_soc_codec *codec)
 		/* We need an array of texts for the enum API */
 		wm8904->drc_texts = kmalloc(sizeof(char *)
 					    * pdata->num_drc_cfgs, GFP_KERNEL);
-		if (!wm8904->drc_texts) {
-			dev_err(codec->dev,
-				"Failed to allocate %d DRC config texts\n",
-				pdata->num_drc_cfgs);
+		if (!wm8904->drc_texts)
 			return;
-		}
 
 		for (i = 0; i < pdata->num_drc_cfgs; i++)
 			wm8904->drc_texts[i] = pdata->drc_cfgs[i].name;
