@@ -27,24 +27,12 @@ void oz_elt_buf_init(struct oz_elt_buf *buf)
  */
 void oz_elt_buf_term(struct oz_elt_buf *buf)
 {
-	struct list_head *e;
-	int i;
+	struct oz_elt_info *ei, *n;
 
-	/* Free any elements in the order or isoc lists. */
-	for (i = 0; i < 2; i++) {
-		struct list_head *list;
-		if (i)
-			list = &buf->order_list;
-		else
-			list = &buf->isoc_list;
-		e = list->next;
-		while (e != list) {
-			struct oz_elt_info *ei =
-				container_of(e, struct oz_elt_info, link_order);
-			e = e->next;
-			kfree(ei);
-		}
-	}
+	list_for_each_entry_safe(ei, n, &buf->isoc_list, link_order)
+		kfree(ei);
+	list_for_each_entry_safe(ei, n, &buf->order_list, link_order)
+		kfree(ei);
 }
 
 /*
@@ -77,16 +65,11 @@ void oz_elt_info_free(struct oz_elt_buf *buf, struct oz_elt_info *ei)
  */
 void oz_elt_info_free_chain(struct oz_elt_buf *buf, struct list_head *list)
 {
-	struct list_head *e;
+	struct oz_elt_info *ei, *n;
 
-	e = list->next;
 	spin_lock_bh(&buf->lock);
-	while (e != list) {
-		struct oz_elt_info *ei;
-		ei = container_of(e, struct oz_elt_info, link);
-		e = e->next;
+	list_for_each_entry_safe(ei, n, list->next, link)
 		oz_elt_info_free(buf, ei);
-	}
 	spin_unlock_bh(&buf->lock);
 }
 
@@ -111,14 +94,13 @@ int oz_elt_stream_create(struct oz_elt_buf *buf, u8 id, int max_buf_count)
 
 int oz_elt_stream_delete(struct oz_elt_buf *buf, u8 id)
 {
-	struct list_head *e;
+	struct list_head *e, *n;
 	struct oz_elt_stream *st = NULL;
 
 	oz_dbg(ON, "%s: (0x%x)\n", __func__, id);
 	spin_lock_bh(&buf->lock);
-	e = buf->stream_list.next;
-	while (e != &buf->stream_list) {
-		st = container_of(e, struct oz_elt_stream, link);
+	list_for_each(e, &buf->stream_list) {
+		st = list_entry(e, struct oz_elt_stream, link);
 		if (st->id == id) {
 			list_del(e);
 			break;
@@ -129,11 +111,9 @@ int oz_elt_stream_delete(struct oz_elt_buf *buf, u8 id)
 		spin_unlock_bh(&buf->lock);
 		return -1;
 	}
-	e = st->elt_list.next;
-	while (e != &st->elt_list) {
+	list_for_each_safe(e, n, &st->elt_list) {
 		struct oz_elt_info *ei =
-			container_of(e, struct oz_elt_info, link);
-		e = e->next;
+			list_entry(e, struct oz_elt_info, link);
 		list_del_init(&ei->link);
 		list_del_init(&ei->link_order);
 		st->buf_count -= ei->length;
@@ -173,7 +153,7 @@ int oz_queue_elt_info(struct oz_elt_buf *buf, u8 isoc, u8 id,
 
 	if (id) {
 		list_for_each(e, &buf->stream_list) {
-			st = container_of(e, struct oz_elt_stream, link);
+			st = list_entry(e, struct oz_elt_stream, link);
 			if (st->id == id)
 				break;
 		}
@@ -228,22 +208,18 @@ int oz_select_elts_for_tx(struct oz_elt_buf *buf, u8 isoc, unsigned *len,
 		unsigned max_len, struct list_head *list)
 {
 	int count = 0;
-	struct list_head *e;
 	struct list_head *el;
-	struct oz_elt_info *ei;
+	struct oz_elt_info *ei, *n;
 
 	spin_lock_bh(&buf->lock);
 	if (isoc)
 		el = &buf->isoc_list;
 	else
 		el = &buf->order_list;
-	e = el->next;
-	while (e != el) {
-		struct oz_app_hdr *app_hdr;
-		ei = container_of(e, struct oz_elt_info, link_order);
-		e = e->next;
+
+	list_for_each_entry_safe(ei, n, el, link_order) {
 		if ((*len + ei->length) <= max_len) {
-			app_hdr = (struct oz_app_hdr *)
+			struct oz_app_hdr *app_hdr = (struct oz_app_hdr *)
 				&ei->data[sizeof(struct oz_elt)];
 			app_hdr->elt_seq_num = buf->tx_seq_num[ei->app_id]++;
 			if (buf->tx_seq_num[ei->app_id] == 0)
@@ -271,5 +247,5 @@ int oz_select_elts_for_tx(struct oz_elt_buf *buf, u8 isoc, unsigned *len,
 
 int oz_are_elts_available(struct oz_elt_buf *buf)
 {
-	return buf->order_list.next != &buf->order_list;
+	return !list_empty(&buf->order_list);
 }

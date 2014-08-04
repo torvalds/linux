@@ -137,10 +137,7 @@ struct oz_pd *oz_pd_alloc(const u8 *mac_addr)
  */
 static void oz_pd_free(struct work_struct *work)
 {
-	struct list_head *e;
-	struct oz_tx_frame *f;
-	struct oz_isoc_stream *st;
-	struct oz_farewell *fwell;
+	struct list_head *e, *n;
 	struct oz_pd *pd;
 
 	oz_pd_dbg(pd, ON, "Destroying PD\n");
@@ -148,33 +145,24 @@ static void oz_pd_free(struct work_struct *work)
 	/*Disable timer tasklets*/
 	tasklet_kill(&pd->heartbeat_tasklet);
 	tasklet_kill(&pd->timeout_tasklet);
-	/* Delete any streams.
-	 */
-	e = pd->stream_list.next;
-	while (e != &pd->stream_list) {
-		st = container_of(e, struct oz_isoc_stream, link);
-		e = e->next;
-		oz_isoc_stream_free(st);
-	}
-	/* Free any queued tx frames.
-	 */
-	e = pd->tx_queue.next;
-	while (e != &pd->tx_queue) {
-		f = container_of(e, struct oz_tx_frame, link);
-		e = e->next;
+
+	/* Free streams, queued tx frames and farewells. */
+
+	list_for_each_safe(e, n, &pd->stream_list)
+		oz_isoc_stream_free(list_entry(e, struct oz_isoc_stream, link));
+
+	list_for_each_safe(e, n, &pd->tx_queue) {
+		struct oz_tx_frame *f = list_entry(e, struct oz_tx_frame, link);
 		if (f->skb != NULL)
 			kfree_skb(f->skb);
 		oz_retire_frame(pd, f);
 	}
+
 	oz_elt_buf_term(&pd->elt_buff);
-	/* Free any farewells.
-	 */
-	e = pd->farewell_list.next;
-	while (e != &pd->farewell_list) {
-		fwell = container_of(e, struct oz_farewell, link);
-		e = e->next;
-		kfree(fwell);
-	}
+
+	list_for_each_safe(e, n, &pd->farewell_list)
+		kfree(list_entry(e, struct oz_farewell, link));
+
 	if (pd->net_dev)
 		dev_put(pd->net_dev);
 	kfree(pd);
@@ -418,7 +406,7 @@ static struct sk_buff *oz_build_frame(struct oz_pd *pd, struct oz_tx_frame *f)
 	struct net_device *dev = pd->net_dev;
 	struct oz_hdr *oz_hdr;
 	struct oz_elt *elt;
-	struct list_head *e;
+	struct oz_elt_info *ei;
 
 	/* Allocate skb with enough space for the lower layers as well
 	 * as the space we need.
@@ -443,9 +431,7 @@ static struct sk_buff *oz_build_frame(struct oz_pd *pd, struct oz_tx_frame *f)
 	/* Copy the elements into the frame body.
 	 */
 	elt = (struct oz_elt *)(oz_hdr+1);
-	for (e = f->elt_list.next; e != &f->elt_list; e = e->next) {
-		struct oz_elt_info *ei;
-		ei = container_of(e, struct oz_elt_info, link);
+	list_for_each_entry(ei, &f->elt_list, link) {
 		memcpy(elt, ei->data, ei->length);
 		elt = oz_next_elt(elt);
 	}
@@ -460,13 +446,9 @@ fail:
  */
 static void oz_retire_frame(struct oz_pd *pd, struct oz_tx_frame *f)
 {
-	struct list_head *e;
-	struct oz_elt_info *ei;
+	struct oz_elt_info *ei, *n;
 
-	e = f->elt_list.next;
-	while (e != &f->elt_list) {
-		ei = container_of(e, struct oz_elt_info, link);
-		e = e->next;
+	list_for_each_entry_safe(ei, n, &f->elt_list, link) {
 		list_del_init(&ei->link);
 		if (ei->callback)
 			ei->callback(pd, ei->context);
@@ -492,7 +474,7 @@ static int oz_send_next_queued_frame(struct oz_pd *pd, int more_data)
 		spin_unlock(&pd->tx_frame_lock);
 		return -1;
 	}
-	f = container_of(e, struct oz_tx_frame, link);
+	f = list_entry(e, struct oz_tx_frame, link);
 
 	if (f->skb != NULL) {
 		skb = f->skb;
@@ -580,15 +562,13 @@ static int oz_send_isoc_frame(struct oz_pd *pd)
 	struct net_device *dev = pd->net_dev;
 	struct oz_hdr *oz_hdr;
 	struct oz_elt *elt;
-	struct list_head *e;
-	struct list_head list;
+	struct oz_elt_info *ei;
+	LIST_HEAD(list);
 	int total_size = sizeof(struct oz_hdr);
-
-	INIT_LIST_HEAD(&list);
 
 	oz_select_elts_for_tx(&pd->elt_buff, 1, &total_size,
 		pd->max_tx_size, &list);
-	if (list.next == &list)
+	if (list_empty(&list))
 		return 0;
 	skb = alloc_skb(total_size + OZ_ALLOCATED_SPACE(dev), GFP_ATOMIC);
 	if (skb == NULL) {
@@ -610,9 +590,7 @@ static int oz_send_isoc_frame(struct oz_pd *pd)
 	oz_hdr->last_pkt_num = pd->trigger_pkt_num & OZ_LAST_PN_MASK;
 	elt = (struct oz_elt *)(oz_hdr+1);
 
-	for (e = list.next; e != &list; e = e->next) {
-		struct oz_elt_info *ei;
-		ei = container_of(e, struct oz_elt_info, link);
+	list_for_each_entry(ei, &list, link) {
 		memcpy(elt, ei->data, ei->length);
 		elt = oz_next_elt(elt);
 	}
@@ -626,41 +604,30 @@ static int oz_send_isoc_frame(struct oz_pd *pd)
  */
 void oz_retire_tx_frames(struct oz_pd *pd, u8 lpn)
 {
-	struct list_head *e;
-	struct oz_tx_frame *f;
-	struct list_head *first = NULL;
-	struct list_head *last = NULL;
+	struct oz_tx_frame *f, *tmp = NULL;
 	u8 diff;
 	u32 pkt_num;
 
+	LIST_HEAD(list);
+
 	spin_lock(&pd->tx_frame_lock);
-	e = pd->tx_queue.next;
-	while (e != &pd->tx_queue) {
-		f = container_of(e, struct oz_tx_frame, link);
+	list_for_each_entry(f, &pd->tx_queue, link) {
 		pkt_num = le32_to_cpu(get_unaligned(&f->hdr.pkt_num));
 		diff = (lpn - (pkt_num & OZ_LAST_PN_MASK)) & OZ_LAST_PN_MASK;
 		if ((diff > OZ_LAST_PN_HALF_CYCLE) || (pkt_num == 0))
 			break;
 		oz_dbg(TX_FRAMES, "Releasing pkt_num= %u, nb= %d\n",
 		       pkt_num, pd->nb_queued_frames);
-		if (first == NULL)
-			first = e;
-		last = e;
-		e = e->next;
+		tmp = f;
 		pd->nb_queued_frames--;
 	}
-	if (first) {
-		last->next->prev = &pd->tx_queue;
-		pd->tx_queue.next = last->next;
-		last->next = NULL;
-	}
+	if (tmp)
+		list_cut_position(&list, &pd->tx_queue, &tmp->link);
 	pd->last_sent_frame = &pd->tx_queue;
 	spin_unlock(&pd->tx_frame_lock);
-	while (first) {
-		f = container_of(first, struct oz_tx_frame, link);
-		first = first->next;
+
+	list_for_each_entry_safe(f, tmp, &list, link)
 		oz_retire_frame(pd, f);
-	}
 }
 
 /*
@@ -669,11 +636,9 @@ void oz_retire_tx_frames(struct oz_pd *pd, u8 lpn)
  */
 static struct oz_isoc_stream *pd_stream_find(struct oz_pd *pd, u8 ep_num)
 {
-	struct list_head *e;
 	struct oz_isoc_stream *st;
 
-	list_for_each(e, &pd->stream_list) {
-		st = container_of(e, struct oz_isoc_stream, link);
+	list_for_each_entry(st, &pd->stream_list, link) {
 		if (st->ep_num == ep_num)
 			return st;
 	}
@@ -810,14 +775,11 @@ int oz_send_isoc_unit(struct oz_pd *pd, u8 ep_num, const u8 *data, int len)
 			struct oz_tx_frame *isoc_unit = NULL;
 			int nb = pd->nb_queued_isoc_frames;
 			if (nb >= pd->isoc_latency) {
-				struct list_head *e;
 				struct oz_tx_frame *f;
 				oz_dbg(TX_FRAMES, "Dropping ISOC Unit nb= %d\n",
 				       nb);
 				spin_lock(&pd->tx_frame_lock);
-				list_for_each(e, &pd->tx_queue) {
-					f = container_of(e, struct oz_tx_frame,
-									link);
+				list_for_each_entry(f, &pd->tx_queue, link) {
 					if (f->skb != NULL) {
 						oz_tx_isoc_free(pd, f);
 						break;

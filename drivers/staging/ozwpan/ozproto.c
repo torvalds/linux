@@ -185,7 +185,7 @@ static struct oz_pd *oz_connect_req(struct oz_pd *cur_pd, struct oz_elt *elt,
 		getnstimeofday(&pd->last_rx_timestamp);
 		spin_lock_bh(&g_polling_lock);
 		list_for_each(e, &g_pd_list) {
-			pd2 = container_of(e, struct oz_pd, link);
+			pd2 = list_entry(e, struct oz_pd, link);
 			if (ether_addr_equal(pd2->mac_addr, pd_addr)) {
 				free_pd = pd;
 				pd = pd2;
@@ -601,13 +601,11 @@ void oz_pd_request_heartbeat(struct oz_pd *pd)
 struct oz_pd *oz_pd_find(const u8 *mac_addr)
 {
 	struct oz_pd *pd;
-	struct list_head *e;
 
 	spin_lock_bh(&g_polling_lock);
-	list_for_each(e, &g_pd_list) {
-		pd = container_of(e, struct oz_pd, link);
+	list_for_each_entry(pd, &g_pd_list, link) {
 		if (ether_addr_equal(pd->mac_addr, mac_addr)) {
-			atomic_inc(&pd->ref_count);
+			oz_pd_get(pd);
 			spin_unlock_bh(&g_polling_lock);
 			return pd;
 		}
@@ -700,11 +698,10 @@ void oz_binding_add(const char *net_dev)
  */
 static void pd_stop_all_for_device(struct net_device *net_dev)
 {
-	struct list_head h;
+	LIST_HEAD(h);
 	struct oz_pd *pd;
 	struct oz_pd *n;
 
-	INIT_LIST_HEAD(&h);
 	spin_lock_bh(&g_polling_lock);
 	list_for_each_entry_safe(pd, n, &g_pd_list, link) {
 		if (pd->net_dev == net_dev) {
@@ -799,14 +796,12 @@ int oz_protocol_init(char *devs)
 int oz_get_pd_list(struct oz_mac_addr *addr, int max_count)
 {
 	struct oz_pd *pd;
-	struct list_head *e;
 	int count = 0;
 
 	spin_lock_bh(&g_polling_lock);
-	list_for_each(e, &g_pd_list) {
+	list_for_each_entry(pd, &g_pd_list, link) {
 		if (count >= max_count)
 			break;
-		pd = container_of(e, struct oz_pd, link);
 		ether_addr_copy((u8 *)&addr[count++], pd->mac_addr);
 	}
 	spin_unlock_bh(&g_polling_lock);
