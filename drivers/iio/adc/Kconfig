@@ -118,7 +118,7 @@ config AT91_ADC
 
 config EXYNOS_ADC
 	bool "Exynos ADC driver support"
-	depends on OF
+	depends on ARCH_EXYNOS || (OF && COMPILE_TEST)
 	help
 	  Core support for the ADC block found in the Samsung EXYNOS series
 	  of SoCs for drivers such as the touchscreen and hwmon to use to share
