@@ -113,7 +113,7 @@ typedef __uint64_t __psunsigned_t;
 #include <asm/byteorder.h>
 #include <asm/unaligned.h>
 
-#include "xfs_vnode.h"
+#include "xfs_fs.h"
 #include "xfs_stats.h"
 #include "xfs_sysctl.h"
 #include "xfs_iops.h"

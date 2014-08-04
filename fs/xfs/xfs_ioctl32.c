@@ -28,7 +28,6 @@
 #include "xfs_sb.h"
 #include "xfs_ag.h"
 #include "xfs_mount.h"
-#include "xfs_vnode.h"
 #include "xfs_inode.h"
 #include "xfs_itable.h"
 #include "xfs_error.h"
@@ -537,7 +536,7 @@ xfs_file_compat_ioctl(
 	int			error;
 
 	if (filp->f_mode & FMODE_NOCMTIME)
-		ioflags |= IO_INVIS;
+		ioflags |= XFS_IO_INVIS;
 
 	trace_xfs_file_compat_ioctl(ip);
 
