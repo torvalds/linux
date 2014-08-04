@@ -252,10 +252,14 @@ int iwl_mvm_add_sta(struct iwl_mvm *mvm,
 	if (ret)
 		return ret;
 
-	/* The first station added is the AP, the others are TDLS STAs */
-	if (vif->type == NL80211_IFTYPE_STATION &&
-	    mvmvif->ap_sta_id == IWL_MVM_STATION_COUNT)
-		mvmvif->ap_sta_id = sta_id;
+	if (vif->type == NL80211_IFTYPE_STATION) {
+		if (!sta->tdls) {
+			WARN_ON(mvmvif->ap_sta_id != IWL_MVM_STATION_COUNT);
+			mvmvif->ap_sta_id = sta_id;
+		} else {
+			WARN_ON(mvmvif->ap_sta_id == IWL_MVM_STATION_COUNT);
+		}
+	}
 
 	rcu_assign_pointer(mvm->fw_id_to_mac_id[sta_id], sta);
 
