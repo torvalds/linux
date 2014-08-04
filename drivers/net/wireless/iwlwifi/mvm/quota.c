@@ -161,6 +161,9 @@ static void iwl_mvm_adjust_quota_for_noa(struct iwl_mvm *mvm,
 		quota *= (beacon_int - mvm->noa_duration);
 		quota /= beacon_int;
 
+		IWL_DEBUG_QUOTA(mvm, "quota: adjust for NoA from %d to %d\n",
+				le32_to_cpu(cmd->quotas[i].quota), quota);
+
 		cmd->quotas[i].quota = cpu_to_le32(quota);
 	}
 #endif
@@ -222,6 +225,9 @@ int iwl_mvm_update_quotas(struct iwl_mvm *mvm,
 		quota = (QUOTA_100 - QUOTA_LOWLAT_MIN) / n_non_lowlat;
 		quota_rem = QUOTA_100 - n_non_lowlat * quota -
 			    QUOTA_LOWLAT_MIN;
+		IWL_DEBUG_QUOTA(mvm,
+				"quota: low-latency binding active, remaining quota per other binding: %d\n",
+				quota);
 	} else if (num_active_macs) {
 		/*
 		 * There are 0 or more than 1 low latency bindings, or all the
@@ -230,6 +236,9 @@ int iwl_mvm_update_quotas(struct iwl_mvm *mvm,
 		 */
 		quota = QUOTA_100 / num_active_macs;
 		quota_rem = QUOTA_100 % num_active_macs;
+		IWL_DEBUG_QUOTA(mvm,
+				"quota: splitting evenly per binding: %d\n",
+				quota);
 	} else {
 		/* values don't really matter - won't be used */
 		quota = 0;
@@ -271,6 +280,9 @@ int iwl_mvm_update_quotas(struct iwl_mvm *mvm,
 	for (i = 0; i < MAX_BINDINGS; i++) {
 		if (le32_to_cpu(cmd.quotas[i].quota) != 0) {
 			le32_add_cpu(&cmd.quotas[i].quota, quota_rem);
+			IWL_DEBUG_QUOTA(mvm,
+					"quota: giving remainder of %d to binding %d\n",
+					quota_rem, i);
 			break;
 		}
 	}
