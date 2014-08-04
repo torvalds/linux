@@ -295,7 +295,7 @@ struct vb2_buffer {
  *			can return an error if hardware fails, in that case all
  *			buffers that have been already given by the @buf_queue
  *			callback are to be returned by the driver by calling
- *			@vb2_buffer_done(VB2_BUF_STATE_DEQUEUED).
+ *			@vb2_buffer_done(VB2_BUF_STATE_QUEUED).
  *			If you need a minimum number of buffers before you can
  *			start streaming, then set @min_buffers_needed in the
  *			vb2_queue structure. If that is non-zero then
