@@ -1637,9 +1637,9 @@ int au_opts_verify(struct super_block *sb, unsigned long sb_flags,
 	}
 
 	if (fhsm >= 2)
-		au_fset_si(au_sbi(sb), FHSM);
+		au_fset_si(sbinfo, FHSM);
 	else
-		au_fclr_si(au_sbi(sb), FHSM);
+		au_fclr_si(sbinfo, FHSM);
 
 	return err;
 }
