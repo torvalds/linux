@@ -872,7 +872,9 @@ static int lcd_proc_open(struct inode *inode, struct file *file)
 
 static int set_lcd_brightness(struct toshiba_acpi_dev *dev, int value)
 {
-	u32 hci_result;
+	u32 in[HCI_WORDS] = { HCI_SET, HCI_LCD_BRIGHTNESS, 0, 0, 0, 0 };
+	u32 out[HCI_WORDS];
+	acpi_status status;
 
 	if (dev->tr_backlight_supported) {
 		bool enable = !value;
@@ -883,9 +885,20 @@ static int set_lcd_brightness(struct toshiba_acpi_dev *dev, int value)
 			value--;
 	}
 
-	value = value << HCI_LCD_BRIGHTNESS_SHIFT;
-	hci_write1(dev, HCI_LCD_BRIGHTNESS, value, &hci_result);
-	return hci_result == HCI_SUCCESS ? 0 : -EIO;
+	in[2] = value << HCI_LCD_BRIGHTNESS_SHIFT;
+	status = hci_raw(dev, in, out);
+	if (ACPI_FAILURE(status) || out[0] == HCI_FAILURE) {
+		pr_err("ACPI call to set brightness failed");
+		return -EIO;
+	}
+	/* Extra check for "incomplete" backlight method, where the AML code
+	 * doesn't check for HCI_SET or HCI_GET and returns HCI_SUCCESS,
+	 * the actual brightness, and in some cases the max brightness.
+	 */
+	if (out[2] > 0  || out[3] == 0xE000)
+		return -ENODEV;
+
+	return out[0] == HCI_SUCCESS ? 0 : -EIO;
 }
 
 static int set_lcd_status(struct backlight_device *bd)
