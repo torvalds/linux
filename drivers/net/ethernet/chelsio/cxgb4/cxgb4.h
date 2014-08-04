@@ -866,6 +866,7 @@ void t4_os_link_changed(struct adapter *adap, int port_id, int link_stat);
 void *t4_alloc_mem(size_t size);
 
 void t4_free_sge_resources(struct adapter *adap);
+void t4_free_ofld_rxqs(struct adapter *adap, int n, struct sge_ofld_rxq *q);
 irq_handler_t t4_intr_handler(struct adapter *adap);
 netdev_tx_t t4_eth_xmit(struct sk_buff *skb, struct net_device *dev);
 int t4_ethrx_handler(struct sge_rspq *q, const __be64 *rsp,
