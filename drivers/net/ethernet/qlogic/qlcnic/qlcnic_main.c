@@ -2323,13 +2323,13 @@ qlcnic_setup_netdev(struct qlcnic_adapter *adapter, struct net_device *netdev,
 	if (err)
 		return err;
 
+	qlcnic_dcb_init_dcbnl_ops(adapter->dcb);
+
 	err = register_netdev(netdev);
 	if (err) {
 		dev_err(&pdev->dev, "failed to register net device\n");
 		return err;
 	}
-
-	qlcnic_dcb_init_dcbnl_ops(adapter->dcb);
 
 	return 0;
 }
