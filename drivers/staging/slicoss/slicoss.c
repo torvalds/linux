@@ -2455,6 +2455,7 @@ static void slic_entry_remove(struct pci_dev *pcidev)
 	adapter->allocated = 0;
 	if (!card->adapters_allocated) {
 		struct sliccard *curr_card = slic_global.slic_card;
+
 		if (curr_card == card) {
 			slic_global.slic_card = card->next;
 		} else {
@@ -2551,6 +2552,7 @@ static int slic_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	case SIOCSLICTRACEDUMP:
 		{
 			u32 value;
+
 			DBG_IOCTL("slic_ioctl  SIOCSLIC_TRACE_DUMP\n");
 
 			if (copy_from_user(data, rq->ifr_data, 28)) {
