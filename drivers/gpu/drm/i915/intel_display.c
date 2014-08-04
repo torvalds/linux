@@ -9082,6 +9082,9 @@ void intel_frontbuffer_flush(struct drm_device *dev,
 	intel_mark_fb_busy(dev, frontbuffer_bits, NULL);
 
 	intel_edp_psr_flush(dev, frontbuffer_bits);
+
+	if (IS_GEN8(dev))
+		gen8_fbc_sw_flush(dev, FBC_REND_CACHE_CLEAN);
 }
 
 /**

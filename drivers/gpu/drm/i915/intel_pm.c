@@ -345,6 +345,16 @@ bool intel_fbc_enabled(struct drm_device *dev)
 	return dev_priv->display.fbc_enabled(dev);
 }
 
+void gen8_fbc_sw_flush(struct drm_device *dev, u32 value)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (!IS_GEN8(dev))
+		return;
+
+	I915_WRITE(MSG_FBC_REND_STATE, value);
+}
+
 static void intel_fbc_work_fn(struct work_struct *__work)
 {
 	struct intel_fbc_work *work =

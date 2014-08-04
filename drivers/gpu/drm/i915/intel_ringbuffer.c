@@ -444,7 +444,14 @@ gen8_render_ring_flush(struct intel_engine_cs *ring,
 			return ret;
 	}
 
-	return gen8_emit_pipe_control(ring, flags, scratch_addr);
+	ret = gen8_emit_pipe_control(ring, flags, scratch_addr);
+	if (ret)
+		return ret;
+
+	if (!invalidate_domains && flush_domains)
+		return gen7_ring_fbc_flush(ring, FBC_REND_NUKE);
+
+	return 0;
 }
 
 static void ring_write_tail(struct intel_engine_cs *ring,

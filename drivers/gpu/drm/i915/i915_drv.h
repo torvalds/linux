@@ -2772,6 +2772,7 @@ extern void intel_modeset_setup_hw_state(struct drm_device *dev,
 extern void i915_redisable_vga(struct drm_device *dev);
 extern void i915_redisable_vga_power_on(struct drm_device *dev);
 extern bool intel_fbc_enabled(struct drm_device *dev);
+extern void gen8_fbc_sw_flush(struct drm_device *dev, u32 value);
 extern void intel_disable_fbc(struct drm_device *dev);
 extern bool ironlake_set_drps(struct drm_device *dev, u8 val);
 extern void intel_init_pch_refclk(struct drm_device *dev);
