@@ -164,8 +164,6 @@ static inline unsigned read_seqcount_begin(const seqcount_t *s)
 static inline unsigned raw_seqcount_begin(const seqcount_t *s)
 {
 	unsigned ret = ACCESS_ONCE(s->sequence);
-
-	seqcount_lockdep_reader_access(s);
 	smp_rmb();
 	return ret & ~1;
 }

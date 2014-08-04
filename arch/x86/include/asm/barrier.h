@@ -99,7 +99,7 @@
 #if defined(CONFIG_X86_PPRO_FENCE)
 
 /*
- * For either of these options x86 doesn't have a strong TSO memory
+ * For this option x86 doesn't have a strong TSO memory
  * model and we should fall back to full barriers.
  */
 

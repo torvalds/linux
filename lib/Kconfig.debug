@@ -835,7 +835,7 @@ config DEBUG_RT_MUTEXES
 
 config RT_MUTEX_TESTER
 	bool "Built-in scriptable tester for rt-mutexes"
-	depends on DEBUG_KERNEL && RT_MUTEXES
+	depends on DEBUG_KERNEL && RT_MUTEXES && BROKEN
 	help
 	  This option enables a rt-mutex tester.
 

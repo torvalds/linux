@@ -3,7 +3,7 @@
 
 #include <asm-generic/qrwlock_types.h>
 
-#if !defined(CONFIG_X86_OOSTORE) && !defined(CONFIG_X86_PPRO_FENCE)
+#ifndef CONFIG_X86_PPRO_FENCE
 #define queue_write_unlock queue_write_unlock
 static inline void queue_write_unlock(struct qrwlock *lock)
 {
