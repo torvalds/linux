@@ -28,9 +28,6 @@
 #include <linux/firmware.h>
 #include <linux/pm_runtime.h>
 
-#include <linux/acpi.h>
-#include <acpi/acpi_bus.h>
-
 #include "sst-dsp.h"
 #include "sst-dsp-priv.h"
 #include "sst-haswell-ipc.h"
@@ -272,9 +269,9 @@ static void hsw_boot(struct sst_dsp *sst)
 		SST_CSR2_SDFD_SSP1);
 
 	/* enable DMA engine 0,1 all channels to access host memory */
-	sst_dsp_shim_update_bits_unlocked(sst, SST_HDMC,
-		SST_HDMC_HDDA1(0xff)  | SST_HDMC_HDDA0(0xff),
-		SST_HDMC_HDDA1(0xff) | SST_HDMC_HDDA0(0xff));
+	sst_dsp_shim_update_bits_unlocked(sst, SST_HMDC,
+		SST_HMDC_HDDA1(0xff) | SST_HMDC_HDDA0(0xff),
+		SST_HMDC_HDDA1(0xff) | SST_HMDC_HDDA0(0xff));
 
 	/* disable all clock gating */
 	writel(0x0, sst->addr.pci_cfg + SST_VDRTCTL2);
@@ -313,9 +310,7 @@ static const struct sst_adsp_memregion lp_region[] = {
 
 /* wild cat point ADSP mem regions */
 static const struct sst_adsp_memregion wpt_region[] = {
-	{0x00000, 0x40000, 8, SST_MEM_DRAM}, /* D-SRAM0 - 8 * 32kB */
-	{0x40000, 0x80000, 8, SST_MEM_DRAM}, /* D-SRAM1 - 8 * 32kB */
-	{0x80000, 0xA0000, 4, SST_MEM_DRAM}, /* D-SRAM2 - 4 * 32kB */
+	{0x00000, 0xA0000, 20, SST_MEM_DRAM}, /* D-SRAM0,D-SRAM1,D-SRAM2 - 20 * 32kB */
 	{0xA0000, 0xF0000, 10, SST_MEM_IRAM}, /* I-SRAM - 10 * 32kB */
 };
 
@@ -339,20 +334,39 @@ static int hsw_acpi_resource_map(struct sst_dsp *sst, struct sst_pdata *pdata)
 	return 0;
 }
 
+struct sst_sram_shift {
+	u32 dev_id;	/* SST Device IDs  */
+	u32 iram_shift;
+	u32 dram_shift;
+};
+
+static const struct sst_sram_shift sram_shift[] = {
+	{SST_DEV_ID_LYNX_POINT, 6, 16}, /* lp */
+	{SST_DEV_ID_WILDCAT_POINT, 2, 12}, /* wpt */
+};
 static u32 hsw_block_get_bit(struct sst_mem_block *block)
 {
-	u32 bit = 0, shift = 0;
+	u32 bit = 0, shift = 0, index;
+	struct sst_dsp *sst = block->dsp;
 
-	switch (block->type) {
-	case SST_MEM_DRAM:
-		shift = 16;
-		break;
-	case SST_MEM_IRAM:
-		shift = 6;
-		break;
-	default:
-		return 0;
+	for (index = 0; index < ARRAY_SIZE(sram_shift); index++) {
+		if (sram_shift[index].dev_id == sst->id)
+			break;
 	}
+
+	if (index < ARRAY_SIZE(sram_shift)) {
+		switch (block->type) {
+		case SST_MEM_DRAM:
+			shift = sram_shift[index].dram_shift;
+			break;
+		case SST_MEM_IRAM:
+			shift = sram_shift[index].iram_shift;
+			break;
+		default:
+			shift = 0;
+		}
+	} else
+		shift = 0;
 
 	bit = 1 << (block->index + shift);
 
@@ -501,8 +515,9 @@ static int hsw_init(struct sst_dsp *sst, struct sst_pdata *pdata)
 		}
 	}
 
-	/* set default power gating mask */
-	writel(0x0, sst->addr.pci_cfg + SST_VDRTCTL0);
+	/* set default power gating control, enable power gating control for all blocks. that is,
+	can't be accessed, please enable each block before accessing. */
+	writel(0xffffffff, sst->addr.pci_cfg + SST_VDRTCTL0);
 
 	return 0;
 }

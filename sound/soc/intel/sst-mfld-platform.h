@@ -39,9 +39,10 @@ extern struct sst_device *sst;
 
 struct pcm_stream_info {
 	int str_id;
-	void *mad_substream;
-	void (*period_elapsed) (void *mad_substream);
+	void *arg;
+	void (*period_elapsed) (void *arg);
 	unsigned long long buffer_ptr;
+	unsigned long long pcm_delay;
 	int sfreq;
 };
 
@@ -62,7 +63,9 @@ enum sst_controls {
 	SST_SND_BUFFER_POINTER =	0x05,
 	SST_SND_STREAM_INIT =		0x06,
 	SST_SND_START	 =		0x07,
-	SST_MAX_CONTROLS =		0x07,
+	SST_SET_BYTE_STREAM =           0x100A,
+	SST_GET_BYTE_STREAM =           0x100B,
+	SST_MAX_CONTROLS = SST_GET_BYTE_STREAM,
 };
 
 enum sst_stream_ops {
@@ -124,8 +127,9 @@ struct compress_sst_ops {
 };
 
 struct sst_ops {
-	int (*open) (struct sst_stream_params *str_param);
+	int (*open) (struct snd_sst_params *str_param);
 	int (*device_control) (int cmd, void *arg);
+	int (*set_generic_params)(enum sst_controls cmd, void *arg);
 	int (*close) (unsigned int str_id);
 };
 
@@ -143,10 +147,27 @@ struct sst_device {
 	char *name;
 	struct device *dev;
 	struct sst_ops *ops;
+	struct platform_device *pdev;
 	struct compress_sst_ops *compr_ops;
 };
 
+struct sst_data;
 void sst_set_stream_status(struct sst_runtime_stream *stream, int state);
+int sst_fill_stream_params(void *substream, const struct sst_data *ctx,
+			   struct snd_sst_params *str_params, bool is_compress);
+
+struct sst_algo_int_control_v2 {
+	struct soc_mixer_control mc;
+	u16 module_id; /* module identifieer */
+	u16 pipe_id; /* location info: pipe_id + instance_id */
+	u16 instance_id;
+	unsigned int value; /* Value received is stored here */
+};
+struct sst_data {
+	struct platform_device *pdev;
+	struct sst_platform_data *pdata;
+	struct mutex lock;
+};
 int sst_register_dsp(struct sst_device *sst);
 int sst_unregister_dsp(struct sst_device *sst);
 #endif

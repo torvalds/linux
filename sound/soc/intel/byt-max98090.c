@@ -63,14 +63,6 @@ static struct snd_soc_jack_pin hs_jack_pins[] = {
 		.pin	= "Headset Mic",
 		.mask	= SND_JACK_MICROPHONE,
 	},
-	{
-		.pin	= "Ext Spk",
-		.mask	= SND_JACK_LINEOUT,
-	},
-	{
-		.pin	= "Int Mic",
-		.mask	= SND_JACK_LINEIN,
-	},
 };
 
 static struct snd_soc_jack_gpio hs_jack_gpios[] = {
