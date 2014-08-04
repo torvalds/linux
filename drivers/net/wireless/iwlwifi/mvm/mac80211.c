@@ -971,19 +971,7 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 	 */
 	if (vif->type == NL80211_IFTYPE_AP ||
 	    vif->type == NL80211_IFTYPE_ADHOC) {
-		u32 qmask = iwl_mvm_mac_get_queues_mask(mvm, vif);
-
-		/*
-		 * The firmware defines the TFD queue mask to only be relevant
-		 * for *unicast* queues, so the multicast (CAB) queue should
-		 * be excluded.
-		 */
-		if (vif->type == NL80211_IFTYPE_AP)
-			qmask &= ~BIT(vif->cab_queue);
-
-		ret = iwl_mvm_allocate_int_sta(mvm, &mvmvif->bcast_sta,
-					       qmask,
-					       ieee80211_vif_type_p2p(vif));
+		ret = iwl_mvm_alloc_bcast_sta(mvm, vif);
 		if (ret) {
 			IWL_ERR(mvm, "Failed to allocate bcast sta\n");
 			goto out_release;
@@ -1031,7 +1019,7 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 		if (ret)
 			goto out_unref_phy;
 
-		ret = iwl_mvm_add_bcast_sta(mvm, vif, &mvmvif->bcast_sta);
+		ret = iwl_mvm_add_bcast_sta(mvm, vif);
 		if (ret)
 			goto out_unbind;
 
@@ -1128,13 +1116,13 @@ static void iwl_mvm_mac_remove_interface(struct ieee80211_hw *hw,
 			mvm->noa_duration = 0;
 		}
 #endif
-		iwl_mvm_dealloc_int_sta(mvm, &mvmvif->bcast_sta);
+		iwl_mvm_dealloc_bcast_sta(mvm, vif);
 		goto out_release;
 	}
 
 	if (vif->type == NL80211_IFTYPE_P2P_DEVICE) {
 		mvm->p2p_device_vif = NULL;
-		iwl_mvm_rm_bcast_sta(mvm, &mvmvif->bcast_sta);
+		iwl_mvm_rm_bcast_sta(mvm, vif);
 		iwl_mvm_binding_remove_vif(mvm, vif);
 		iwl_mvm_phy_ctxt_unref(mvm, mvmvif->phy_ctxt);
 		mvmvif->phy_ctxt = NULL;
@@ -1633,7 +1621,7 @@ static int iwl_mvm_start_ap_ibss(struct ieee80211_hw *hw,
 
 	/* Send the bcast station. At this stage the TBTT and DTIM time events
 	 * are added and applied to the scheduler */
-	ret = iwl_mvm_send_bcast_sta(mvm, vif, &mvmvif->bcast_sta);
+	ret = iwl_mvm_send_add_bcast_sta(mvm, vif);
 	if (ret)
 		goto out_unbind;
 
@@ -1665,7 +1653,7 @@ static int iwl_mvm_start_ap_ibss(struct ieee80211_hw *hw,
 out_quota_failed:
 	iwl_mvm_power_update_mac(mvm);
 	mvmvif->ap_ibss_active = false;
-	iwl_mvm_send_rm_bcast_sta(mvm, &mvmvif->bcast_sta);
+	iwl_mvm_send_rm_bcast_sta(mvm, vif);
 out_unbind:
 	iwl_mvm_binding_remove_vif(mvm, vif);
 out_remove:
@@ -1710,7 +1698,7 @@ static void iwl_mvm_stop_ap_ibss(struct ieee80211_hw *hw,
 		iwl_mvm_mac_ctxt_changed(mvm, mvm->p2p_device_vif, false, NULL);
 
 	iwl_mvm_update_quotas(mvm, NULL);
-	iwl_mvm_send_rm_bcast_sta(mvm, &mvmvif->bcast_sta);
+	iwl_mvm_send_rm_bcast_sta(mvm, vif);
 	iwl_mvm_binding_remove_vif(mvm, vif);
 
 	iwl_mvm_power_update_mac(mvm);
