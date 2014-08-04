@@ -7250,6 +7250,12 @@ M:	Robert Jarzmik <robert.jarzmik@free.fr>
 L:	rtc-linux@googlegroups.com
 S:	Maintained
 
+QAT DRIVER
+M:      Tadeusz Struk <tadeusz.struk@intel.com>
+L:      qat-linux@intel.com
+S:      Supported
+F:      drivers/crypto/qat/
+
 QIB DRIVER
 M:	Mike Marciniszyn <infinipath@intel.com>
 L:	linux-rdma@vger.kernel.org

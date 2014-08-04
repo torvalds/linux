@@ -84,6 +84,7 @@
 #endif
 
 #ifndef CONFIG_64BIT
+#ifdef __BIG_ENDIAN
 static inline void wr_reg64(u64 __iomem *reg, u64 data)
 {
 	wr_reg32((u32 __iomem *)reg, (data & 0xffffffff00000000ull) >> 32);
@@ -95,6 +96,21 @@ static inline u64 rd_reg64(u64 __iomem *reg)
 	return (((u64)rd_reg32((u32 __iomem *)reg)) << 32) |
 		((u64)rd_reg32((u32 __iomem *)reg + 1));
 }
+#else
+#ifdef __LITTLE_ENDIAN
+static inline void wr_reg64(u64 __iomem *reg, u64 data)
+{
+	wr_reg32((u32 __iomem *)reg + 1, (data & 0xffffffff00000000ull) >> 32);
+	wr_reg32((u32 __iomem *)reg, data & 0x00000000ffffffffull);
+}
+
+static inline u64 rd_reg64(u64 __iomem *reg)
+{
+	return (((u64)rd_reg32((u32 __iomem *)reg + 1)) << 32) |
+		((u64)rd_reg32((u32 __iomem *)reg));
+}
+#endif
+#endif
 #endif
 
 /*
@@ -114,45 +130,45 @@ struct jr_outentry {
  */
 
 /* Number of DECOs */
-#define CHA_NUM_DECONUM_SHIFT	56
-#define CHA_NUM_DECONUM_MASK	(0xfull << CHA_NUM_DECONUM_SHIFT)
+#define CHA_NUM_MS_DECONUM_SHIFT	24
+#define CHA_NUM_MS_DECONUM_MASK	(0xfull << CHA_NUM_MS_DECONUM_SHIFT)
 
 /* CHA Version IDs */
-#define CHA_ID_AES_SHIFT	0
-#define CHA_ID_AES_MASK		(0xfull << CHA_ID_AES_SHIFT)
+#define CHA_ID_LS_AES_SHIFT	0
+#define CHA_ID_LS_AES_MASK		(0xfull << CHA_ID_LS_AES_SHIFT)
 
-#define CHA_ID_DES_SHIFT	4
-#define CHA_ID_DES_MASK		(0xfull << CHA_ID_DES_SHIFT)
+#define CHA_ID_LS_DES_SHIFT	4
+#define CHA_ID_LS_DES_MASK		(0xfull << CHA_ID_LS_DES_SHIFT)
 
-#define CHA_ID_ARC4_SHIFT	8
-#define CHA_ID_ARC4_MASK	(0xfull << CHA_ID_ARC4_SHIFT)
+#define CHA_ID_LS_ARC4_SHIFT	8
+#define CHA_ID_LS_ARC4_MASK	(0xfull << CHA_ID_LS_ARC4_SHIFT)
 
-#define CHA_ID_MD_SHIFT		12
-#define CHA_ID_MD_MASK		(0xfull << CHA_ID_MD_SHIFT)
+#define CHA_ID_LS_MD_SHIFT	12
+#define CHA_ID_LS_MD_MASK	(0xfull << CHA_ID_LS_MD_SHIFT)
 
-#define CHA_ID_RNG_SHIFT	16
-#define CHA_ID_RNG_MASK		(0xfull << CHA_ID_RNG_SHIFT)
+#define CHA_ID_LS_RNG_SHIFT	16
+#define CHA_ID_LS_RNG_MASK	(0xfull << CHA_ID_LS_RNG_SHIFT)
 
-#define CHA_ID_SNW8_SHIFT	20
-#define CHA_ID_SNW8_MASK	(0xfull << CHA_ID_SNW8_SHIFT)
+#define CHA_ID_LS_SNW8_SHIFT	20
+#define CHA_ID_LS_SNW8_MASK	(0xfull << CHA_ID_LS_SNW8_SHIFT)
 
-#define CHA_ID_KAS_SHIFT	24
-#define CHA_ID_KAS_MASK		(0xfull << CHA_ID_KAS_SHIFT)
+#define CHA_ID_LS_KAS_SHIFT	24
+#define CHA_ID_LS_KAS_MASK	(0xfull << CHA_ID_LS_KAS_SHIFT)
 
-#define CHA_ID_PK_SHIFT		28
-#define CHA_ID_PK_MASK		(0xfull << CHA_ID_PK_SHIFT)
+#define CHA_ID_LS_PK_SHIFT	28
+#define CHA_ID_LS_PK_MASK	(0xfull << CHA_ID_LS_PK_SHIFT)
 
-#define CHA_ID_CRC_SHIFT	32
-#define CHA_ID_CRC_MASK		(0xfull << CHA_ID_CRC_SHIFT)
+#define CHA_ID_MS_CRC_SHIFT	0
+#define CHA_ID_MS_CRC_MASK	(0xfull << CHA_ID_MS_CRC_SHIFT)
 
-#define CHA_ID_SNW9_SHIFT	36
-#define CHA_ID_SNW9_MASK	(0xfull << CHA_ID_SNW9_SHIFT)
+#define CHA_ID_MS_SNW9_SHIFT	4
+#define CHA_ID_MS_SNW9_MASK	(0xfull << CHA_ID_MS_SNW9_SHIFT)
 
-#define CHA_ID_DECO_SHIFT	56
-#define CHA_ID_DECO_MASK	(0xfull << CHA_ID_DECO_SHIFT)
+#define CHA_ID_MS_DECO_SHIFT	24
+#define CHA_ID_MS_DECO_MASK	(0xfull << CHA_ID_MS_DECO_SHIFT)
 
-#define CHA_ID_JR_SHIFT		60
-#define CHA_ID_JR_MASK		(0xfull << CHA_ID_JR_SHIFT)
+#define CHA_ID_MS_JR_SHIFT	28
+#define CHA_ID_MS_JR_MASK	(0xfull << CHA_ID_MS_JR_SHIFT)
 
 struct sec_vid {
 	u16 ip_id;
@@ -172,10 +188,14 @@ struct caam_perfmon {
 	u64 rsvd[13];
 
 	/* CAAM Hardware Instantiation Parameters		fa0-fbf */
-	u64 cha_rev;		/* CRNR - CHA Revision Number		*/
-#define CTPR_QI_SHIFT		57
-#define CTPR_QI_MASK		(0x1ull << CTPR_QI_SHIFT)
-	u64 comp_parms;	/* CTPR - Compile Parameters Register	*/
+	u32 cha_rev_ms;		/* CRNR - CHA Rev No. Most significant half*/
+	u32 cha_rev_ls;		/* CRNR - CHA Rev No. Least significant half*/
+#define CTPR_MS_QI_SHIFT	25
+#define CTPR_MS_QI_MASK		(0x1ull << CTPR_MS_QI_SHIFT)
+#define CTPR_MS_VIRT_EN_INCL	0x00000001
+#define CTPR_MS_VIRT_EN_POR	0x00000002
+	u32 comp_parms_ms;	/* CTPR - Compile Parameters Register	*/
+	u32 comp_parms_ls;	/* CTPR - Compile Parameters Register	*/
 	u64 rsvd1[2];
 
 	/* CAAM Global Status					fc0-fdf */
@@ -189,9 +209,12 @@ struct caam_perfmon {
 	/* Component Instantiation Parameters			fe0-fff */
 	u32 rtic_id;		/* RVID - RTIC Version ID	*/
 	u32 ccb_id;		/* CCBVID - CCB Version ID	*/
-	u64 cha_id;		/* CHAVID - CHA Version ID	*/
-	u64 cha_num;		/* CHANUM - CHA Number		*/
-	u64 caam_id;		/* CAAMVID - CAAM Version ID	*/
+	u32 cha_id_ms;		/* CHAVID - CHA Version ID Most Significant*/
+	u32 cha_id_ls;		/* CHAVID - CHA Version ID Least Significant*/
+	u32 cha_num_ms;		/* CHANUM - CHA Number Most Significant	*/
+	u32 cha_num_ls;		/* CHANUM - CHA Number Least Significant*/
+	u32 caam_id_ms;		/* CAAMVID - CAAM Version ID MS	*/
+	u32 caam_id_ls;		/* CAAMVID - CAAM Version ID LS	*/
 };
 
 /* LIODN programming for DMA configuration */
@@ -304,9 +327,12 @@ struct caam_ctrl {
 	/* Bus Access Configuration Section			010-11f */
 	/* Read/Writable                                                */
 	struct masterid jr_mid[4];	/* JRxLIODNR - JobR LIODN setup */
-	u32 rsvd3[12];
+	u32 rsvd3[11];
+	u32 jrstart;			/* JRSTART - Job Ring Start Register */
 	struct masterid rtic_mid[4];	/* RTICxLIODNR - RTIC LIODN setup */
-	u32 rsvd4[7];
+	u32 rsvd4[5];
+	u32 deco_rsr;			/* DECORSR - Deco Request Source */
+	u32 rsvd11;
 	u32 deco_rq;			/* DECORR - DECO Request */
 	struct partid deco_mid[5];	/* DECOxLIODNR - 1 per DECO */
 	u32 rsvd5[22];
@@ -347,7 +373,10 @@ struct caam_ctrl {
 #define MCFGR_DMA_RESET		0x10000000
 #define MCFGR_LONG_PTR		0x00010000 /* Use >32-bit desc addressing */
 #define SCFGR_RDBENABLE		0x00000400
+#define SCFGR_VIRT_EN		0x00008000
 #define DECORR_RQD0ENABLE	0x00000001 /* Enable DECO0 for direct access */
+#define DECORSR_JR0		0x00000001 /* JR to supply TZ, SDID, ICID */
+#define DECORSR_VALID		0x80000000
 #define DECORR_DEN0		0x00010000 /* DECO0 available for access*/
 
 /* AXI read cache control */
@@ -364,6 +393,12 @@ struct caam_ctrl {
 
 #define MCFGR_AXIPRI		0x00000008 /* Assert AXI priority sideband */
 #define MCFGR_BURST_64		0x00000001 /* Max burst size */
+
+/* JRSTART register offsets */
+#define JRSTART_JR0_START       0x00000001 /* Start Job ring 0 */
+#define JRSTART_JR1_START       0x00000002 /* Start Job ring 1 */
+#define JRSTART_JR2_START       0x00000004 /* Start Job ring 2 */
+#define JRSTART_JR3_START       0x00000008 /* Start Job ring 3 */
 
 /*
  * caam_job_ring - direct job ring setup
