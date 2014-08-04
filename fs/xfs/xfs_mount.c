@@ -863,7 +863,7 @@ xfs_mountfs(
 	     !mp->m_sb.sb_inprogress) {
 		error = xfs_initialize_perag_data(mp, sbp->sb_agcount);
 		if (error)
-			goto out_log_dealloc;;
+			goto out_log_dealloc;
 	}
 
 	/*
