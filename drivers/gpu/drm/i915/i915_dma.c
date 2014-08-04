@@ -1340,6 +1340,8 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	if (ret)
 		goto cleanup_gem_stolen;
 
+	dev_priv->pm._irqs_disabled = false;
+
 	/* Important: The output setup functions called by modeset_init need
 	 * working irqs for e.g. gmbus and dp aux transfers. */
 	intel_modeset_init(dev);
@@ -1424,15 +1426,16 @@ void i915_master_destroy(struct drm_device *dev, struct drm_master *master)
 }
 
 #if IS_ENABLED(CONFIG_FB)
-static void i915_kick_out_firmware_fb(struct drm_i915_private *dev_priv)
+static int i915_kick_out_firmware_fb(struct drm_i915_private *dev_priv)
 {
 	struct apertures_struct *ap;
 	struct pci_dev *pdev = dev_priv->dev->pdev;
 	bool primary;
+	int ret;
 
 	ap = alloc_apertures(1);
 	if (!ap)
-		return;
+		return -ENOMEM;
 
 	ap->ranges[0].base = dev_priv->gtt.mappable_base;
 	ap->ranges[0].size = dev_priv->gtt.mappable_end;
@@ -1440,13 +1443,16 @@ static void i915_kick_out_firmware_fb(struct drm_i915_private *dev_priv)
 	primary =
 		pdev->resource[PCI_ROM_RESOURCE].flags & IORESOURCE_ROM_SHADOW;
 
-	remove_conflicting_framebuffers(ap, "inteldrmfb", primary);
+	ret = remove_conflicting_framebuffers(ap, "inteldrmfb", primary);
 
 	kfree(ap);
+
+	return ret;
 }
 #else
-static void i915_kick_out_firmware_fb(struct drm_i915_private *dev_priv)
+static int i915_kick_out_firmware_fb(struct drm_i915_private *dev_priv)
 {
+	return 0;
 }
 #endif
 
@@ -1664,7 +1670,11 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 			goto out_gtt;
 		}
 
-		i915_kick_out_firmware_fb(dev_priv);
+		ret = i915_kick_out_firmware_fb(dev_priv);
+		if (ret) {
+			DRM_ERROR("failed to remove conflicting framebuffer drivers\n");
+			goto out_gtt;
+		}
 	}
 
 	pci_set_master(dev->pdev);

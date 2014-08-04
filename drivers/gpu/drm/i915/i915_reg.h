@@ -2281,7 +2281,7 @@ enum punit_power_well {
 /* Same as Haswell, but 72064 bytes now. */
 #define GEN8_CXT_TOTAL_SIZE		(18 * PAGE_SIZE)
 
-
+#define CHV_CLK_CTL1			0x101100
 #define VLV_CLK_CTL2			0x101104
 #define   CLK_CTL2_CZCOUNT_30NS_SHIFT	28
 
@@ -5537,6 +5537,12 @@ enum punit_power_well {
 #define  GEN6_PM_RPS_EVENTS			(GEN6_PM_RP_UP_THRESHOLD | \
 						 GEN6_PM_RP_DOWN_THRESHOLD | \
 						 GEN6_PM_RP_DOWN_TIMEOUT)
+
+#define CHV_CZ_CLOCK_FREQ_MODE_200			200
+#define CHV_CZ_CLOCK_FREQ_MODE_267			267
+#define CHV_CZ_CLOCK_FREQ_MODE_320			320
+#define CHV_CZ_CLOCK_FREQ_MODE_333			333
+#define CHV_CZ_CLOCK_FREQ_MODE_400			400
 
 #define GEN7_GT_SCRATCH_BASE			0x4F100
 #define GEN7_GT_SCRATCH_REG_NUM			8

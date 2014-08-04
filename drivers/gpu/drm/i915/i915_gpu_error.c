@@ -764,7 +764,7 @@ static void gen8_record_semaphore_state(struct drm_i915_private *dev_priv,
 					struct intel_engine_cs *ring,
 					struct drm_i915_error_ring *ering)
 {
-	struct intel_engine_cs *useless;
+	struct intel_engine_cs *to;
 	int i;
 
 	if (!i915_semaphore_is_enabled(dev_priv->dev))
@@ -776,13 +776,20 @@ static void gen8_record_semaphore_state(struct drm_i915_private *dev_priv,
 						 dev_priv->semaphore_obj,
 						 &dev_priv->gtt.base);
 
-	for_each_ring(useless, dev_priv, i) {
-		u16 signal_offset =
-			(GEN8_SIGNAL_OFFSET(ring, i) & PAGE_MASK) / 4;
-		u32 *tmp = error->semaphore_obj->pages[0];
+	for_each_ring(to, dev_priv, i) {
+		int idx;
+		u16 signal_offset;
+		u32 *tmp;
 
-		ering->semaphore_mboxes[i] = tmp[signal_offset];
-		ering->semaphore_seqno[i] = ring->semaphore.sync_seqno[i];
+		if (ring == to)
+			continue;
+
+		signal_offset = (GEN8_SIGNAL_OFFSET(ring, i) & PAGE_MASK) / 4;
+		tmp = error->semaphore_obj->pages[0];
+		idx = intel_ring_sync_index(ring, to);
+
+		ering->semaphore_mboxes[idx] = tmp[signal_offset];
+		ering->semaphore_seqno[idx] = ring->semaphore.sync_seqno[idx];
 	}
 }
 
@@ -920,6 +927,9 @@ static void i915_gem_record_active_context(struct intel_engine_cs *ring,
 		return;
 
 	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list) {
+		if (!i915_gem_obj_ggtt_bound(obj))
+			continue;
+
 		if ((error->ccid & PAGE_MASK) == i915_gem_obj_ggtt_offset(obj)) {
 			ering->ctx = i915_error_ggtt_object_create(dev_priv, obj);
 			break;

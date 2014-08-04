@@ -1161,7 +1161,7 @@ static int __wait_seqno(struct intel_engine_cs *ring, u32 seqno,
 	unsigned long timeout_expire;
 	int ret;
 
-	WARN(dev_priv->pm.irqs_disabled, "IRQs disabled\n");
+	WARN(!intel_irqs_enabled(dev_priv), "IRQs disabled");
 
 	if (i915_seqno_passed(ring->get_seqno(ring, true), seqno))
 		return 0;
@@ -2927,8 +2927,6 @@ int i915_vma_unbind(struct i915_vma *vma)
 
 	vma->unbind_vma(vma);
 
-	i915_gem_gtt_finish_object(obj);
-
 	list_del_init(&vma->mm_list);
 	/* Avoid an unnecessary call to unbind on rebind. */
 	if (i915_is_ggtt(vma->vm))
@@ -2939,8 +2937,10 @@ int i915_vma_unbind(struct i915_vma *vma)
 
 	/* Since the unbound list is global, only move to that list if
 	 * no more VMAs exist. */
-	if (list_empty(&obj->vma_list))
+	if (list_empty(&obj->vma_list)) {
+		i915_gem_gtt_finish_object(obj);
 		list_move_tail(&obj->global_list, &dev_priv->mm.unbound_list);
+	}
 
 	/* And finally now the object is completely decoupled from this vma,
 	 * we can drop its hold on the backing storage and allow it to be
@@ -5194,8 +5194,11 @@ i915_gem_shrinker_oom(struct notifier_block *nb, unsigned long event, void *ptr)
 	bool was_interruptible;
 	bool unlock;
 
-	while (!i915_gem_shrinker_lock(dev, &unlock) && --timeout)
+	while (!i915_gem_shrinker_lock(dev, &unlock) && --timeout) {
 		schedule_timeout_killable(1);
+		if (fatal_signal_pending(current))
+			return NOTIFY_DONE;
+	}
 	if (timeout == 0) {
 		pr_err("Unable to purge GPU memory due lock contention.\n");
 		return NOTIFY_DONE;

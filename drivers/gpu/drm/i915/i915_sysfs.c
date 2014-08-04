@@ -47,22 +47,45 @@ static u32 calc_residency(struct drm_device *dev, const u32 reg)
 
 	intel_runtime_pm_get(dev_priv);
 
-	/* On VLV, residency time is in CZ units rather than 1.28us */
+	/* On VLV and CHV, residency time is in CZ units rather than 1.28us */
 	if (IS_VALLEYVIEW(dev)) {
-		u32 clkctl2;
+		u32 reg, czcount_30ns;
 
-		clkctl2 = I915_READ(VLV_CLK_CTL2) >>
-			CLK_CTL2_CZCOUNT_30NS_SHIFT;
-		if (!clkctl2) {
-			WARN(!clkctl2, "bogus CZ count value");
+		if (IS_CHERRYVIEW(dev))
+			reg = CHV_CLK_CTL1;
+		else
+			reg = VLV_CLK_CTL2;
+
+		czcount_30ns = I915_READ(reg) >> CLK_CTL2_CZCOUNT_30NS_SHIFT;
+
+		if (!czcount_30ns) {
+			WARN(!czcount_30ns, "bogus CZ count value");
 			ret = 0;
 			goto out;
 		}
-		units = DIV_ROUND_UP_ULL(30ULL * bias, (u64)clkctl2);
+
+		units = 0;
+		div = 1000000ULL;
+
+		if (IS_CHERRYVIEW(dev)) {
+			/* Special case for 320Mhz */
+			if (czcount_30ns == 1) {
+				div = 10000000ULL;
+				units = 3125ULL;
+			} else {
+				/* chv counts are one less */
+				czcount_30ns += 1;
+			}
+		}
+
+		if (units == 0)
+			units = DIV_ROUND_UP_ULL(30ULL * bias,
+						 (u64)czcount_30ns);
+
 		if (I915_READ(VLV_COUNTER_CONTROL) & VLV_COUNT_RANGE_HIGH)
 			units <<= 8;
 
-		div = 1000000ULL * bias;
+		div = div * bias;
 	}
 
 	raw_time = I915_READ(reg) * units;
@@ -461,11 +484,20 @@ static ssize_t gt_rp_mhz_show(struct device *kdev, struct device_attribute *attr
 	mutex_unlock(&dev->struct_mutex);
 
 	if (attr == &dev_attr_gt_RP0_freq_mhz) {
-		val = ((rp_state_cap & 0x0000ff) >> 0) * GT_FREQUENCY_MULTIPLIER;
+		if (IS_VALLEYVIEW(dev))
+			val = vlv_gpu_freq(dev_priv, dev_priv->rps.rp0_freq);
+		else
+			val = ((rp_state_cap & 0x0000ff) >> 0) * GT_FREQUENCY_MULTIPLIER;
 	} else if (attr == &dev_attr_gt_RP1_freq_mhz) {
-		val = ((rp_state_cap & 0x00ff00) >> 8) * GT_FREQUENCY_MULTIPLIER;
+		if (IS_VALLEYVIEW(dev))
+			val = vlv_gpu_freq(dev_priv, dev_priv->rps.rp1_freq);
+		else
+			val = ((rp_state_cap & 0x00ff00) >> 8) * GT_FREQUENCY_MULTIPLIER;
 	} else if (attr == &dev_attr_gt_RPn_freq_mhz) {
-		val = ((rp_state_cap & 0xff0000) >> 16) * GT_FREQUENCY_MULTIPLIER;
+		if (IS_VALLEYVIEW(dev))
+			val = vlv_gpu_freq(dev_priv, dev_priv->rps.min_freq);
+		else
+			val = ((rp_state_cap & 0xff0000) >> 16) * GT_FREQUENCY_MULTIPLIER;
 	} else {
 		BUG();
 	}
@@ -486,6 +518,9 @@ static const struct attribute *vlv_attrs[] = {
 	&dev_attr_gt_cur_freq_mhz.attr,
 	&dev_attr_gt_max_freq_mhz.attr,
 	&dev_attr_gt_min_freq_mhz.attr,
+	&dev_attr_gt_RP0_freq_mhz.attr,
+	&dev_attr_gt_RP1_freq_mhz.attr,
+	&dev_attr_gt_RPn_freq_mhz.attr,
 	&dev_attr_vlv_rpe_freq_mhz.attr,
 	NULL,
 };

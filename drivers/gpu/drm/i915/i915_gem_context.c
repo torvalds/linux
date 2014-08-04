@@ -186,14 +186,12 @@ void i915_gem_context_free(struct kref *ctx_ref)
 		/* We refcount even the aliasing PPGTT to keep the code symmetric */
 		if (USES_PPGTT(ctx->legacy_hw_ctx.rcs_state->base.dev))
 			ppgtt = ctx_to_ppgtt(ctx);
-
-		/* XXX: Free up the object before tearing down the address space, in
-		 * case we're bound in the PPGTT */
-		drm_gem_object_unreference(&ctx->legacy_hw_ctx.rcs_state->base);
 	}
 
 	if (ppgtt)
 		kref_put(&ppgtt->ref, ppgtt_release);
+	if (ctx->legacy_hw_ctx.rcs_state)
+		drm_gem_object_unreference(&ctx->legacy_hw_ctx.rcs_state->base);
 	list_del(&ctx->link);
 	kfree(ctx);
 }

@@ -367,6 +367,9 @@ static void intel_hdmi_set_avi_infoframe(struct drm_encoder *encoder,
 	union hdmi_infoframe frame;
 	int ret;
 
+	/* Set user selected PAR to incoming mode's member */
+	adjusted_mode->picture_aspect_ratio = intel_hdmi->aspect_ratio;
+
 	ret = drm_hdmi_avi_infoframe_from_display_mode(&frame.avi,
 						       adjusted_mode);
 	if (ret < 0) {
@@ -879,7 +882,7 @@ static bool hdmi_12bpc_possible(struct intel_crtc *crtc)
 	struct intel_encoder *encoder;
 	int count = 0, count_hdmi = 0;
 
-	if (!HAS_PCH_SPLIT(dev))
+	if (HAS_GMCH_DISPLAY(dev))
 		return false;
 
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, base.head) {
@@ -1121,6 +1124,23 @@ intel_hdmi_set_property(struct drm_connector *connector,
 		    old_range == intel_hdmi->color_range)
 			return 0;
 
+		goto done;
+	}
+
+	if (property == connector->dev->mode_config.aspect_ratio_property) {
+		switch (val) {
+		case DRM_MODE_PICTURE_ASPECT_NONE:
+			intel_hdmi->aspect_ratio = HDMI_PICTURE_ASPECT_NONE;
+			break;
+		case DRM_MODE_PICTURE_ASPECT_4_3:
+			intel_hdmi->aspect_ratio = HDMI_PICTURE_ASPECT_4_3;
+			break;
+		case DRM_MODE_PICTURE_ASPECT_16_9:
+			intel_hdmi->aspect_ratio = HDMI_PICTURE_ASPECT_16_9;
+			break;
+		default:
+			return -EINVAL;
+		}
 		goto done;
 	}
 
@@ -1480,11 +1500,22 @@ static const struct drm_encoder_funcs intel_hdmi_enc_funcs = {
 };
 
 static void
+intel_attach_aspect_ratio_property(struct drm_connector *connector)
+{
+	if (!drm_mode_create_aspect_ratio_property(connector->dev))
+		drm_object_attach_property(&connector->base,
+			connector->dev->mode_config.aspect_ratio_property,
+			DRM_MODE_PICTURE_ASPECT_NONE);
+}
+
+static void
 intel_hdmi_add_properties(struct intel_hdmi *intel_hdmi, struct drm_connector *connector)
 {
 	intel_attach_force_audio_property(connector);
 	intel_attach_broadcast_rgb_property(connector);
 	intel_hdmi->color_range_auto = true;
+	intel_attach_aspect_ratio_property(connector);
+	intel_hdmi->aspect_ratio = HDMI_PICTURE_ASPECT_NONE;
 }
 
 void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,
@@ -1531,7 +1562,7 @@ void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,
 	if (IS_VALLEYVIEW(dev)) {
 		intel_hdmi->write_infoframe = vlv_write_infoframe;
 		intel_hdmi->set_infoframes = vlv_set_infoframes;
-	} else if (!HAS_PCH_SPLIT(dev)) {
+	} else if (IS_G4X(dev)) {
 		intel_hdmi->write_infoframe = g4x_write_infoframe;
 		intel_hdmi->set_infoframes = g4x_set_infoframes;
 	} else if (HAS_DDI(dev)) {

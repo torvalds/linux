@@ -1108,20 +1108,21 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 		seq_printf(m, "Max overclocked frequency: %dMHz\n",
 			   dev_priv->rps.max_freq * GT_FREQUENCY_MULTIPLIER);
 	} else if (IS_VALLEYVIEW(dev)) {
-		u32 freq_sts, val;
+		u32 freq_sts;
 
 		mutex_lock(&dev_priv->rps.hw_lock);
 		freq_sts = vlv_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS);
 		seq_printf(m, "PUNIT_REG_GPU_FREQ_STS: 0x%08x\n", freq_sts);
 		seq_printf(m, "DDR freq: %d MHz\n", dev_priv->mem_freq);
 
-		val = valleyview_rps_max_freq(dev_priv);
 		seq_printf(m, "max GPU freq: %d MHz\n",
-			   vlv_gpu_freq(dev_priv, val));
+			   vlv_gpu_freq(dev_priv, dev_priv->rps.max_freq));
 
-		val = valleyview_rps_min_freq(dev_priv);
 		seq_printf(m, "min GPU freq: %d MHz\n",
-			   vlv_gpu_freq(dev_priv, val));
+			   vlv_gpu_freq(dev_priv, dev_priv->rps.min_freq));
+
+		seq_printf(m, "efficient (RPe) frequency: %d MHz\n",
+			   vlv_gpu_freq(dev_priv, dev_priv->rps.efficient_freq));
 
 		seq_printf(m, "current GPU freq: %d MHz\n",
 			   vlv_gpu_freq(dev_priv, (freq_sts >> 8) & 0xff));
@@ -1891,10 +1892,15 @@ static int i915_edp_psr_status(struct seq_file *m, void *data)
 
 	intel_runtime_pm_get(dev_priv);
 
+	mutex_lock(&dev_priv->psr.lock);
 	seq_printf(m, "Sink_Support: %s\n", yesno(dev_priv->psr.sink_support));
 	seq_printf(m, "Source_OK: %s\n", yesno(dev_priv->psr.source_ok));
-	seq_printf(m, "Enabled: %s\n", yesno(dev_priv->psr.enabled));
+	seq_printf(m, "Enabled: %s\n", yesno((bool)dev_priv->psr.enabled));
 	seq_printf(m, "Active: %s\n", yesno(dev_priv->psr.active));
+	seq_printf(m, "Busy frontbuffer bits: 0x%03x\n",
+		   dev_priv->psr.busy_frontbuffer_bits);
+	seq_printf(m, "Re-enable work scheduled: %s\n",
+		   yesno(work_busy(&dev_priv->psr.work.work)));
 
 	enabled = HAS_PSR(dev) &&
 		I915_READ(EDP_PSR_CTL(dev)) & EDP_PSR_ENABLE;
@@ -1904,6 +1910,7 @@ static int i915_edp_psr_status(struct seq_file *m, void *data)
 		psrperf = I915_READ(EDP_PSR_PERF_CNT(dev)) &
 			EDP_PSR_PERF_CNT_MASK;
 	seq_printf(m, "Performance_Counter: %u\n", psrperf);
+	mutex_unlock(&dev_priv->psr.lock);
 
 	intel_runtime_pm_put(dev_priv);
 	return 0;
@@ -1989,7 +1996,7 @@ static int i915_pc8_status(struct seq_file *m, void *unused)
 
 	seq_printf(m, "GPU idle: %s\n", yesno(!dev_priv->mm.busy));
 	seq_printf(m, "IRQs disabled: %s\n",
-		   yesno(dev_priv->pm.irqs_disabled));
+		   yesno(!intel_irqs_enabled(dev_priv)));
 
 	return 0;
 }
@@ -3284,7 +3291,7 @@ static int pri_wm_latency_open(struct inode *inode, struct file *file)
 {
 	struct drm_device *dev = inode->i_private;
 
-	if (!HAS_PCH_SPLIT(dev))
+	if (HAS_GMCH_DISPLAY(dev))
 		return -ENODEV;
 
 	return single_open(file, pri_wm_latency_show, dev);
@@ -3294,7 +3301,7 @@ static int spr_wm_latency_open(struct inode *inode, struct file *file)
 {
 	struct drm_device *dev = inode->i_private;
 
-	if (!HAS_PCH_SPLIT(dev))
+	if (HAS_GMCH_DISPLAY(dev))
 		return -ENODEV;
 
 	return single_open(file, spr_wm_latency_show, dev);
@@ -3304,7 +3311,7 @@ static int cur_wm_latency_open(struct inode *inode, struct file *file)
 {
 	struct drm_device *dev = inode->i_private;
 
-	if (!HAS_PCH_SPLIT(dev))
+	if (HAS_GMCH_DISPLAY(dev))
 		return -ENODEV;
 
 	return single_open(file, cur_wm_latency_show, dev);
@@ -3656,8 +3663,8 @@ i915_max_freq_set(void *data, u64 val)
 	if (IS_VALLEYVIEW(dev)) {
 		val = vlv_freq_opcode(dev_priv, val);
 
-		hw_max = valleyview_rps_max_freq(dev_priv);
-		hw_min = valleyview_rps_min_freq(dev_priv);
+		hw_max = dev_priv->rps.max_freq;
+		hw_min = dev_priv->rps.min_freq;
 	} else {
 		do_div(val, GT_FREQUENCY_MULTIPLIER);
 
@@ -3737,8 +3744,8 @@ i915_min_freq_set(void *data, u64 val)
 	if (IS_VALLEYVIEW(dev)) {
 		val = vlv_freq_opcode(dev_priv, val);
 
-		hw_max = valleyview_rps_max_freq(dev_priv);
-		hw_min = valleyview_rps_min_freq(dev_priv);
+		hw_max = dev_priv->rps.max_freq;
+		hw_min = dev_priv->rps.min_freq;
 	} else {
 		do_div(val, GT_FREQUENCY_MULTIPLIER);
 

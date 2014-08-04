@@ -303,6 +303,7 @@ static const struct intel_device_info intel_broadwell_d_info = {
 	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING,
 	.has_llc = 1,
 	.has_ddi = 1,
+	.has_fpga_dbg = 1,
 	.has_fbc = 1,
 	GEN_DEFAULT_PIPEOFFSETS,
 	IVB_CURSOR_OFFSETS,
@@ -314,6 +315,7 @@ static const struct intel_device_info intel_broadwell_m_info = {
 	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING,
 	.has_llc = 1,
 	.has_ddi = 1,
+	.has_fpga_dbg = 1,
 	.has_fbc = 1,
 	GEN_DEFAULT_PIPEOFFSETS,
 	IVB_CURSOR_OFFSETS,
@@ -325,6 +327,7 @@ static const struct intel_device_info intel_broadwell_gt3d_info = {
 	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING | BSD2_RING,
 	.has_llc = 1,
 	.has_ddi = 1,
+	.has_fpga_dbg = 1,
 	.has_fbc = 1,
 	GEN_DEFAULT_PIPEOFFSETS,
 	IVB_CURSOR_OFFSETS,
@@ -336,6 +339,7 @@ static const struct intel_device_info intel_broadwell_gt3m_info = {
 	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING | BSD2_RING,
 	.has_llc = 1,
 	.has_ddi = 1,
+	.has_fpga_dbg = 1,
 	.has_fbc = 1,
 	GEN_DEFAULT_PIPEOFFSETS,
 	IVB_CURSOR_OFFSETS,
@@ -518,12 +522,11 @@ static int i915_drm_freeze(struct drm_device *dev)
 
 		/*
 		 * Disable CRTCs directly since we want to preserve sw state
-		 * for _thaw.
+		 * for _thaw. Also, power gate the CRTC power wells.
 		 */
 		drm_modeset_lock_all(dev);
-		for_each_crtc(dev, crtc) {
-			dev_priv->display.crtc_disable(crtc);
-		}
+		for_each_crtc(dev, crtc)
+			intel_crtc_control(crtc, false);
 		drm_modeset_unlock_all(dev);
 
 		intel_dp_mst_suspend(dev);

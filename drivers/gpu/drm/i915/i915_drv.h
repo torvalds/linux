@@ -179,6 +179,10 @@ enum hpd_pin {
 	list_for_each_entry((intel_connector), &(dev)->mode_config.connector_list, base.head) \
 		if ((intel_connector)->base.encoder == (__encoder))
 
+#define for_each_power_domain(domain, mask)				\
+	for ((domain) = 0; (domain) < POWER_DOMAIN_NUM; (domain)++)	\
+		if ((1 << (domain)) & (mask))
+
 struct drm_i915_private;
 struct i915_mmu_object;
 
@@ -436,8 +440,8 @@ struct drm_i915_display_funcs {
 	void (*update_wm)(struct drm_crtc *crtc);
 	void (*update_sprite_wm)(struct drm_plane *plane,
 				 struct drm_crtc *crtc,
-				 uint32_t sprite_width, int pixel_size,
-				 bool enable, bool scaled);
+				 uint32_t sprite_width, uint32_t sprite_height,
+				 int pixel_size, bool enable, bool scaled);
 	void (*modeset_global_resources)(struct drm_device *dev);
 	/* Returns the active state of the crtc, and if the crtc is active,
 	 * fills out the pipe-config with the hw state. */
@@ -654,13 +658,15 @@ struct i915_drrs {
 	struct intel_connector *connector;
 };
 
+struct intel_dp;
 struct i915_psr {
+	struct mutex lock;
 	bool sink_support;
 	bool source_ok;
-	bool setup_done;
-	bool enabled;
+	struct intel_dp *enabled;
 	bool active;
 	struct delayed_work work;
+	unsigned busy_frontbuffer_bits;
 };
 
 enum intel_pch {
@@ -931,6 +937,7 @@ struct intel_gen6_power_mgmt {
 	u8 efficient_freq;	/* AKA RPe. Pre-determined balanced frequency */
 	u8 rp1_freq;		/* "less than" RP0 power/freqency */
 	u8 rp0_freq;		/* Non-overclocked max frequency. */
+	u32 cz_freq;
 
 	u32 ei_interrupt_count;
 
@@ -1263,6 +1270,7 @@ struct intel_vbt_data {
 		u16 pwm_freq_hz;
 		bool present;
 		bool active_low_pwm;
+		u8 min_brightness;	/* min_brightness/255 of max */
 	} backlight;
 
 	/* MIPI DSI */
@@ -1332,7 +1340,7 @@ struct ilk_wm_values {
  */
 struct i915_runtime_pm {
 	bool suspended;
-	bool irqs_disabled;
+	bool _irqs_disabled;
 };
 
 enum intel_pipe_crc_source {
@@ -2093,6 +2101,8 @@ struct drm_i915_cmd_table {
 #define HAS_PCH_NOP(dev) (INTEL_PCH_TYPE(dev) == PCH_NOP)
 #define HAS_PCH_SPLIT(dev) (INTEL_PCH_TYPE(dev) != PCH_NONE)
 
+#define HAS_GMCH_DISPLAY(dev) (INTEL_INFO(dev)->gen < 5 || IS_VALLEYVIEW(dev))
+
 /* DPF == dynamic parity feature */
 #define HAS_L3_DPF(dev) (IS_IVYBRIDGE(dev) || IS_HASWELL(dev))
 #define NUM_L3_SLICES(dev) (IS_HSW_GT3(dev) ? 2 : HAS_L3_DPF(dev))
@@ -2136,6 +2146,7 @@ struct i915_params {
 	bool disable_display;
 	bool disable_vtd_wa;
 	int use_mmio_flip;
+	bool mmio_debug;
 };
 extern struct i915_params i915 __read_mostly;
 
@@ -2692,8 +2703,6 @@ extern bool ironlake_set_drps(struct drm_device *dev, u8 val);
 extern void intel_init_pch_refclk(struct drm_device *dev);
 extern void gen6_set_rps(struct drm_device *dev, u8 val);
 extern void valleyview_set_rps(struct drm_device *dev, u8 val);
-extern int valleyview_rps_max_freq(struct drm_i915_private *dev_priv);
-extern int valleyview_rps_min_freq(struct drm_i915_private *dev_priv);
 extern void intel_set_memory_cxsr(struct drm_i915_private *dev_priv,
 				  bool enable);
 extern void intel_detect_pch(struct drm_device *dev);
@@ -2803,10 +2812,10 @@ int vlv_freq_opcode(struct drm_i915_private *dev_priv, int val);
 
 static inline uint32_t i915_vgacntrl_reg(struct drm_device *dev)
 {
-	if (HAS_PCH_SPLIT(dev))
-		return CPU_VGACNTRL;
-	else if (IS_VALLEYVIEW(dev))
+	if (IS_VALLEYVIEW(dev))
 		return VLV_VGACNTRL;
+	else if (INTEL_INFO(dev)->gen >= 5)
+		return CPU_VGACNTRL;
 	else
 		return VGACNTRL;
 }

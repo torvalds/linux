@@ -3776,8 +3776,14 @@ drm_hdmi_avi_infoframe_from_display_mode(struct hdmi_avi_infoframe *frame,
 
 	frame->picture_aspect = HDMI_PICTURE_ASPECT_NONE;
 
-	/* Populate picture aspect ratio from CEA mode list */
-	if (frame->video_code > 0)
+	/*
+	 * Populate picture aspect ratio from either
+	 * user input (if specified) or from the CEA mode list.
+	 */
+	if (mode->picture_aspect_ratio == HDMI_PICTURE_ASPECT_4_3 ||
+		mode->picture_aspect_ratio == HDMI_PICTURE_ASPECT_16_9)
+		frame->picture_aspect = mode->picture_aspect_ratio;
+	else if (frame->video_code > 0)
 		frame->picture_aspect = drm_get_cea_aspect_ratio(
 						frame->video_code);
 

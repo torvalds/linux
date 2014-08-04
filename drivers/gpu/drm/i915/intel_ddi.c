@@ -1243,7 +1243,7 @@ static bool hsw_ddi_pll_get_hw_state(struct drm_i915_private *dev_priv,
 	return val & WRPLL_PLL_ENABLE;
 }
 
-static char *hsw_ddi_pll_names[] = {
+static const char * const hsw_ddi_pll_names[] = {
 	"WRPLL 1",
 	"WRPLL 2",
 };

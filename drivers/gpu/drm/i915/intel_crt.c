@@ -660,8 +660,6 @@ intel_crt_detect(struct drm_connector *connector, bool force)
 	struct intel_load_detect_pipe tmp;
 	struct drm_modeset_acquire_ctx ctx;
 
-	intel_runtime_pm_get(dev_priv);
-
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s] force=%d\n",
 		      connector->base.id, connector->name,
 		      force);
@@ -713,8 +711,6 @@ intel_crt_detect(struct drm_connector *connector, bool force)
 
 out:
 	intel_display_power_put(dev_priv, power_domain);
-	intel_runtime_pm_put(dev_priv);
-
 	return status;
 }
 

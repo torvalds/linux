@@ -514,20 +514,30 @@ ilk_dummy_write(struct drm_i915_private *dev_priv)
 }
 
 static void
-hsw_unclaimed_reg_clear(struct drm_i915_private *dev_priv, u32 reg)
+hsw_unclaimed_reg_debug(struct drm_i915_private *dev_priv, u32 reg, bool read,
+			bool before)
 {
+	const char *op = read ? "reading" : "writing to";
+	const char *when = before ? "before" : "after";
+
+	if (!i915.mmio_debug)
+		return;
+
 	if (__raw_i915_read32(dev_priv, FPGA_DBG) & FPGA_DBG_RM_NOCLAIM) {
-		DRM_ERROR("Unknown unclaimed register before writing to %x\n",
-			  reg);
+		WARN(1, "Unclaimed register detected %s %s register 0x%x\n",
+		     when, op, reg);
 		__raw_i915_write32(dev_priv, FPGA_DBG, FPGA_DBG_RM_NOCLAIM);
 	}
 }
 
 static void
-hsw_unclaimed_reg_check(struct drm_i915_private *dev_priv, u32 reg)
+hsw_unclaimed_reg_detect(struct drm_i915_private *dev_priv)
 {
+	if (i915.mmio_debug)
+		return;
+
 	if (__raw_i915_read32(dev_priv, FPGA_DBG) & FPGA_DBG_RM_NOCLAIM) {
-		DRM_ERROR("Unclaimed write to %x\n", reg);
+		DRM_ERROR("Unclaimed register detected. Please use the i915.mmio_debug=1 to debug this problem.");
 		__raw_i915_write32(dev_priv, FPGA_DBG, FPGA_DBG_RM_NOCLAIM);
 	}
 }
@@ -564,6 +574,7 @@ gen5_read##x(struct drm_i915_private *dev_priv, off_t reg, bool trace) { \
 static u##x \
 gen6_read##x(struct drm_i915_private *dev_priv, off_t reg, bool trace) { \
 	REG_READ_HEADER(x); \
+	hsw_unclaimed_reg_debug(dev_priv, reg, true, true); \
 	if (dev_priv->uncore.forcewake_count == 0 && \
 	    NEEDS_FORCE_WAKE((dev_priv), (reg))) { \
 		dev_priv->uncore.funcs.force_wake_get(dev_priv, \
@@ -574,6 +585,7 @@ gen6_read##x(struct drm_i915_private *dev_priv, off_t reg, bool trace) { \
 	} else { \
 		val = __raw_i915_read##x(dev_priv, reg); \
 	} \
+	hsw_unclaimed_reg_debug(dev_priv, reg, true, false); \
 	REG_READ_FOOTER; \
 }
 
@@ -700,12 +712,13 @@ hsw_write##x(struct drm_i915_private *dev_priv, off_t reg, u##x val, bool trace)
 	if (NEEDS_FORCE_WAKE((dev_priv), (reg))) { \
 		__fifo_ret = __gen6_gt_wait_for_fifo(dev_priv); \
 	} \
-	hsw_unclaimed_reg_clear(dev_priv, reg); \
+	hsw_unclaimed_reg_debug(dev_priv, reg, false, true); \
 	__raw_i915_write##x(dev_priv, reg, val); \
 	if (unlikely(__fifo_ret)) { \
 		gen6_gt_check_fifodbg(dev_priv); \
 	} \
-	hsw_unclaimed_reg_check(dev_priv, reg); \
+	hsw_unclaimed_reg_debug(dev_priv, reg, false, false); \
+	hsw_unclaimed_reg_detect(dev_priv); \
 	REG_WRITE_FOOTER; \
 }
 
@@ -734,6 +747,7 @@ static bool is_gen8_shadowed(struct drm_i915_private *dev_priv, u32 reg)
 static void \
 gen8_write##x(struct drm_i915_private *dev_priv, off_t reg, u##x val, bool trace) { \
 	REG_WRITE_HEADER; \
+	hsw_unclaimed_reg_debug(dev_priv, reg, false, true); \
 	if (reg < 0x40000 && !is_gen8_shadowed(dev_priv, reg)) { \
 		if (dev_priv->uncore.forcewake_count == 0) \
 			dev_priv->uncore.funcs.force_wake_get(dev_priv,	\
@@ -745,6 +759,8 @@ gen8_write##x(struct drm_i915_private *dev_priv, off_t reg, u##x val, bool trace
 	} else { \
 		__raw_i915_write##x(dev_priv, reg, val); \
 	} \
+	hsw_unclaimed_reg_debug(dev_priv, reg, false, false); \
+	hsw_unclaimed_reg_detect(dev_priv); \
 	REG_WRITE_FOOTER; \
 }
 

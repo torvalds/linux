@@ -166,6 +166,7 @@ struct intel_panel {
 	struct {
 		bool present;
 		u32 level;
+		u32 min;
 		u32 max;
 		bool enabled;
 		bool combination_mode;	/* gen 2/4 only */
@@ -431,6 +432,7 @@ struct intel_crtc {
 
 struct intel_plane_wm_parameters {
 	uint32_t horiz_pixels;
+	uint32_t vert_pixels;
 	uint8_t bytes_per_pixel;
 	bool enabled;
 	bool scaled;
@@ -506,6 +508,7 @@ struct intel_hdmi {
 	bool has_audio;
 	enum hdmi_force_audio force_audio;
 	bool rgb_quant_range_selectable;
+	enum hdmi_picture_aspect aspect_ratio;
 	void (*write_infoframe)(struct drm_encoder *encoder,
 				enum hdmi_infoframe_type type,
 				const void *frame, ssize_t len);
@@ -711,17 +714,26 @@ bool intel_set_cpu_fifo_underrun_reporting(struct drm_device *dev,
 bool intel_set_pch_fifo_underrun_reporting(struct drm_device *dev,
 					   enum transcoder pch_transcoder,
 					   bool enable);
-void ilk_enable_gt_irq(struct drm_i915_private *dev_priv, uint32_t mask);
-void ilk_disable_gt_irq(struct drm_i915_private *dev_priv, uint32_t mask);
-void snb_enable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask);
-void snb_disable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask);
-void bdw_enable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask);
-void bdw_disable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask);
+void gen5_enable_gt_irq(struct drm_i915_private *dev_priv, uint32_t mask);
+void gen5_disable_gt_irq(struct drm_i915_private *dev_priv, uint32_t mask);
+void gen6_enable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask);
+void gen6_disable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask);
+void gen8_enable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask);
+void gen8_disable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask);
 void intel_runtime_pm_disable_interrupts(struct drm_device *dev);
 void intel_runtime_pm_restore_interrupts(struct drm_device *dev);
+static inline bool intel_irqs_enabled(struct drm_i915_private *dev_priv)
+{
+	/*
+	 * We only use drm_irq_uninstall() at unload and VT switch, so
+	 * this is the only thing we need to check.
+	 */
+	return !dev_priv->pm._irqs_disabled;
+}
+
 int intel_get_crtc_scanline(struct intel_crtc *crtc);
 void i9xx_check_fifo_underruns(struct drm_device *dev);
-
+void gen8_irq_power_well_post_enable(struct drm_i915_private *dev_priv);
 
 /* intel_crt.c */
 void intel_crt_init(struct drm_device *dev);
@@ -787,6 +799,7 @@ void intel_frontbuffer_flip(struct drm_device *dev,
 void intel_fb_obj_flush(struct drm_i915_gem_object *obj, bool retire);
 void intel_mark_idle(struct drm_device *dev);
 void intel_crtc_restore_mode(struct drm_crtc *crtc);
+void intel_crtc_control(struct drm_crtc *crtc, bool enable);
 void intel_crtc_update_dpms(struct drm_crtc *crtc);
 void intel_encoder_destroy(struct drm_encoder *encoder);
 void intel_connector_dpms(struct drm_connector *, int mode);
@@ -901,7 +914,10 @@ void intel_edp_panel_off(struct intel_dp *intel_dp);
 void intel_edp_psr_enable(struct intel_dp *intel_dp);
 void intel_edp_psr_disable(struct intel_dp *intel_dp);
 void intel_dp_set_drrs_state(struct drm_device *dev, int refresh_rate);
-void intel_edp_psr_exit(struct drm_device *dev);
+void intel_edp_psr_invalidate(struct drm_device *dev,
+			      unsigned frontbuffer_bits);
+void intel_edp_psr_flush(struct drm_device *dev,
+			 unsigned frontbuffer_bits);
 void intel_edp_psr_init(struct drm_device *dev);
 
 int intel_dp_handle_hpd_irq(struct intel_digital_port *digport, bool long_hpd);
@@ -997,8 +1013,8 @@ void intel_pch_panel_fitting(struct intel_crtc *crtc,
 void intel_gmch_panel_fitting(struct intel_crtc *crtc,
 			      struct intel_crtc_config *pipe_config,
 			      int fitting_mode);
-void intel_panel_set_backlight(struct intel_connector *connector, u32 level,
-			       u32 max);
+void intel_panel_set_backlight_acpi(struct intel_connector *connector,
+				    u32 level, u32 max);
 int intel_panel_setup_backlight(struct drm_connector *connector);
 void intel_panel_enable_backlight(struct intel_connector *connector);
 void intel_panel_disable_backlight(struct intel_connector *connector);
@@ -1017,7 +1033,9 @@ int ilk_wm_max_level(const struct drm_device *dev);
 void intel_update_watermarks(struct drm_crtc *crtc);
 void intel_update_sprite_watermarks(struct drm_plane *plane,
 				    struct drm_crtc *crtc,
-				    uint32_t sprite_width, int pixel_size,
+				    uint32_t sprite_width,
+				    uint32_t sprite_height,
+				    int pixel_size,
 				    bool enabled, bool scaled);
 void intel_init_pm(struct drm_device *dev);
 void intel_pm_setup(struct drm_device *dev);
