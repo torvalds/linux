@@ -715,6 +715,22 @@ static inline int usb_make_path(struct usb_device *dev, char *buf, size_t size)
 	.bcdDevice_hi = (hi)
 
 /**
+ * USB_DEVICE_INTERFACE_CLASS - describe a usb device with a specific interface class
+ * @vend: the 16 bit USB Vendor ID
+ * @prod: the 16 bit USB Product ID
+ * @cl: bInterfaceClass value
+ *
+ * This macro is used to create a struct usb_device_id that matches a
+ * specific interface class of devices.
+ */
+#define USB_DEVICE_INTERFACE_CLASS(vend, prod, cl) \
+	.match_flags = USB_DEVICE_ID_MATCH_DEVICE | \
+		       USB_DEVICE_ID_MATCH_INT_CLASS, \
+	.idVendor = (vend), \
+	.idProduct = (prod), \
+	.bInterfaceClass = (cl)
+
+/**
  * USB_DEVICE_INTERFACE_PROTOCOL - describe a usb device with a specific interface protocol
  * @vend: the 16 bit USB Vendor ID
  * @prod: the 16 bit USB Product ID

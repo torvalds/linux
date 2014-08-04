@@ -93,10 +93,10 @@
 
 /* macros for registers read/write */
 #define nand_writel(info, off, val)	\
-	__raw_writel((val), (info)->mmio_base + (off))
+	writel_relaxed((val), (info)->mmio_base + (off))
 
 #define nand_readl(info, off)		\
-	__raw_readl((info)->mmio_base + (off))
+	readl_relaxed((info)->mmio_base + (off))
 
 /* error code and state */
 enum {
