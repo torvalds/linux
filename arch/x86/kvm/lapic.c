@@ -1451,7 +1451,7 @@ void kvm_lapic_reset(struct kvm_vcpu *vcpu)
 	vcpu->arch.apic_arb_prio = 0;
 	vcpu->arch.apic_attention = 0;
 
-	apic_debug(KERN_INFO "%s: vcpu=%p, id=%d, base_msr="
+	apic_debug("%s: vcpu=%p, id=%d, base_msr="
 		   "0x%016" PRIx64 ", base_address=0x%0lx.\n", __func__,
 		   vcpu, kvm_apic_id(apic),
 		   vcpu->arch.apic_base, apic->base_address);
@@ -1895,7 +1895,7 @@ void kvm_apic_accept_events(struct kvm_vcpu *vcpu)
 		/* evaluate pending_events before reading the vector */
 		smp_rmb();
 		sipi_vector = apic->sipi_vector;
-		pr_debug("vcpu %d received sipi with vector # %x\n",
+		apic_debug("vcpu %d received sipi with vector # %x\n",
 			 vcpu->vcpu_id, sipi_vector);
 		kvm_vcpu_deliver_sipi_vector(vcpu, sipi_vector);
 		vcpu->arch.mp_state = KVM_MP_STATE_RUNNABLE;

@@ -297,6 +297,15 @@ struct kvm_regs {
 	__u64 rip, rflags;
 };
 
+/* mips */
+struct kvm_regs {
+	/* out (KVM_GET_REGS) / in (KVM_SET_REGS) */
+	__u64 gpr[32];
+	__u64 hi;
+	__u64 lo;
+	__u64 pc;
+};
+
 
 4.12 KVM_SET_REGS
 
@@ -378,7 +387,7 @@ struct kvm_translation {
 4.16 KVM_INTERRUPT
 
 Capability: basic
-Architectures: x86, ppc
+Architectures: x86, ppc, mips
 Type: vcpu ioctl
 Parameters: struct kvm_interrupt (in)
 Returns: 0 on success, -1 on error
@@ -422,6 +431,11 @@ c) KVM_INTERRUPT_SET_LEVEL
 
 Note that any value for 'irq' other than the ones stated above is invalid
 and incurs unexpected behavior.
+
+MIPS:
+
+Queues an external interrupt to be injected into the virtual CPU. A negative
+interrupt number dequeues the interrupt.
 
 
 4.17 KVM_DEBUG_GUEST
@@ -512,7 +526,7 @@ struct kvm_cpuid {
 4.21 KVM_SET_SIGNAL_MASK
 
 Capability: basic
-Architectures: x86
+Architectures: all
 Type: vcpu ioctl
 Parameters: struct kvm_signal_mask (in)
 Returns: 0 on success, -1 on error
@@ -974,7 +988,7 @@ for vm-wide capabilities.
 4.38 KVM_GET_MP_STATE
 
 Capability: KVM_CAP_MP_STATE
-Architectures: x86, ia64
+Architectures: x86, ia64, s390
 Type: vcpu ioctl
 Parameters: struct kvm_mp_state (out)
 Returns: 0 on success; -1 on error
@@ -988,24 +1002,32 @@ uniprocessor guests).
 
 Possible values are:
 
- - KVM_MP_STATE_RUNNABLE:        the vcpu is currently running
+ - KVM_MP_STATE_RUNNABLE:        the vcpu is currently running [x86, ia64]
  - KVM_MP_STATE_UNINITIALIZED:   the vcpu is an application processor (AP)
-                                 which has not yet received an INIT signal
+                                 which has not yet received an INIT signal [x86,
+                                 ia64]
  - KVM_MP_STATE_INIT_RECEIVED:   the vcpu has received an INIT signal, and is
-                                 now ready for a SIPI
+                                 now ready for a SIPI [x86, ia64]
  - KVM_MP_STATE_HALTED:          the vcpu has executed a HLT instruction and
-                                 is waiting for an interrupt
+                                 is waiting for an interrupt [x86, ia64]
  - KVM_MP_STATE_SIPI_RECEIVED:   the vcpu has just received a SIPI (vector
-                                 accessible via KVM_GET_VCPU_EVENTS)
+                                 accessible via KVM_GET_VCPU_EVENTS) [x86, ia64]
+ - KVM_MP_STATE_STOPPED:         the vcpu is stopped [s390]
+ - KVM_MP_STATE_CHECK_STOP:      the vcpu is in a special error state [s390]
+ - KVM_MP_STATE_OPERATING:       the vcpu is operating (running or halted)
+                                 [s390]
+ - KVM_MP_STATE_LOAD:            the vcpu is in a special load/startup state
+                                 [s390]
 
-This ioctl is only useful after KVM_CREATE_IRQCHIP.  Without an in-kernel
-irqchip, the multiprocessing state must be maintained by userspace.
+On x86 and ia64, this ioctl is only useful after KVM_CREATE_IRQCHIP. Without an
+in-kernel irqchip, the multiprocessing state must be maintained by userspace on
+these architectures.
 
 
 4.39 KVM_SET_MP_STATE
 
 Capability: KVM_CAP_MP_STATE
-Architectures: x86, ia64
+Architectures: x86, ia64, s390
 Type: vcpu ioctl
 Parameters: struct kvm_mp_state (in)
 Returns: 0 on success; -1 on error
@@ -1013,8 +1035,9 @@ Returns: 0 on success; -1 on error
 Sets the vcpu's current "multiprocessing state"; see KVM_GET_MP_STATE for
 arguments.
 
-This ioctl is only useful after KVM_CREATE_IRQCHIP.  Without an in-kernel
-irqchip, the multiprocessing state must be maintained by userspace.
+On x86 and ia64, this ioctl is only useful after KVM_CREATE_IRQCHIP. Without an
+in-kernel irqchip, the multiprocessing state must be maintained by userspace on
+these architectures.
 
 
 4.40 KVM_SET_IDENTITY_MAP_ADDR
@@ -1774,122 +1797,151 @@ and architecture specific registers. Each have their own range of operation
 and their own constants and width. To keep track of the implemented
 registers, find a list below:
 
-  Arch  |       Register        | Width (bits)
-        |                       |
-  PPC   | KVM_REG_PPC_HIOR      | 64
-  PPC   | KVM_REG_PPC_IAC1      | 64
-  PPC   | KVM_REG_PPC_IAC2      | 64
-  PPC   | KVM_REG_PPC_IAC3      | 64
-  PPC   | KVM_REG_PPC_IAC4      | 64
-  PPC   | KVM_REG_PPC_DAC1      | 64
-  PPC   | KVM_REG_PPC_DAC2      | 64
-  PPC   | KVM_REG_PPC_DABR      | 64
-  PPC   | KVM_REG_PPC_DSCR      | 64
-  PPC   | KVM_REG_PPC_PURR      | 64
-  PPC   | KVM_REG_PPC_SPURR     | 64
-  PPC   | KVM_REG_PPC_DAR       | 64
-  PPC   | KVM_REG_PPC_DSISR     | 32
-  PPC   | KVM_REG_PPC_AMR       | 64
-  PPC   | KVM_REG_PPC_UAMOR     | 64
-  PPC   | KVM_REG_PPC_MMCR0     | 64
-  PPC   | KVM_REG_PPC_MMCR1     | 64
-  PPC   | KVM_REG_PPC_MMCRA     | 64
-  PPC   | KVM_REG_PPC_MMCR2     | 64
-  PPC   | KVM_REG_PPC_MMCRS     | 64
-  PPC   | KVM_REG_PPC_SIAR      | 64
-  PPC   | KVM_REG_PPC_SDAR      | 64
-  PPC   | KVM_REG_PPC_SIER      | 64
-  PPC   | KVM_REG_PPC_PMC1      | 32
-  PPC   | KVM_REG_PPC_PMC2      | 32
-  PPC   | KVM_REG_PPC_PMC3      | 32
-  PPC   | KVM_REG_PPC_PMC4      | 32
-  PPC   | KVM_REG_PPC_PMC5      | 32
-  PPC   | KVM_REG_PPC_PMC6      | 32
-  PPC   | KVM_REG_PPC_PMC7      | 32
-  PPC   | KVM_REG_PPC_PMC8      | 32
-  PPC   | KVM_REG_PPC_FPR0      | 64
+  Arch  |           Register            | Width (bits)
+        |                               |
+  PPC   | KVM_REG_PPC_HIOR              | 64
+  PPC   | KVM_REG_PPC_IAC1              | 64
+  PPC   | KVM_REG_PPC_IAC2              | 64
+  PPC   | KVM_REG_PPC_IAC3              | 64
+  PPC   | KVM_REG_PPC_IAC4              | 64
+  PPC   | KVM_REG_PPC_DAC1              | 64
+  PPC   | KVM_REG_PPC_DAC2              | 64
+  PPC   | KVM_REG_PPC_DABR              | 64
+  PPC   | KVM_REG_PPC_DSCR              | 64
+  PPC   | KVM_REG_PPC_PURR              | 64
+  PPC   | KVM_REG_PPC_SPURR             | 64
+  PPC   | KVM_REG_PPC_DAR               | 64
+  PPC   | KVM_REG_PPC_DSISR             | 32
+  PPC   | KVM_REG_PPC_AMR               | 64
+  PPC   | KVM_REG_PPC_UAMOR             | 64
+  PPC   | KVM_REG_PPC_MMCR0             | 64
+  PPC   | KVM_REG_PPC_MMCR1             | 64
+  PPC   | KVM_REG_PPC_MMCRA             | 64
+  PPC   | KVM_REG_PPC_MMCR2             | 64
+  PPC   | KVM_REG_PPC_MMCRS             | 64
+  PPC   | KVM_REG_PPC_SIAR              | 64
+  PPC   | KVM_REG_PPC_SDAR              | 64
+  PPC   | KVM_REG_PPC_SIER              | 64
+  PPC   | KVM_REG_PPC_PMC1              | 32
+  PPC   | KVM_REG_PPC_PMC2              | 32
+  PPC   | KVM_REG_PPC_PMC3              | 32
+  PPC   | KVM_REG_PPC_PMC4              | 32
+  PPC   | KVM_REG_PPC_PMC5              | 32
+  PPC   | KVM_REG_PPC_PMC6              | 32
+  PPC   | KVM_REG_PPC_PMC7              | 32
+  PPC   | KVM_REG_PPC_PMC8              | 32
+  PPC   | KVM_REG_PPC_FPR0              | 64
           ...
-  PPC   | KVM_REG_PPC_FPR31     | 64
-  PPC   | KVM_REG_PPC_VR0       | 128
+  PPC   | KVM_REG_PPC_FPR31             | 64
+  PPC   | KVM_REG_PPC_VR0               | 128
           ...
-  PPC   | KVM_REG_PPC_VR31      | 128
-  PPC   | KVM_REG_PPC_VSR0      | 128
+  PPC   | KVM_REG_PPC_VR31              | 128
+  PPC   | KVM_REG_PPC_VSR0              | 128
           ...
-  PPC   | KVM_REG_PPC_VSR31     | 128
-  PPC   | KVM_REG_PPC_FPSCR     | 64
-  PPC   | KVM_REG_PPC_VSCR      | 32
-  PPC   | KVM_REG_PPC_VPA_ADDR  | 64
-  PPC   | KVM_REG_PPC_VPA_SLB   | 128
-  PPC   | KVM_REG_PPC_VPA_DTL   | 128
-  PPC   | KVM_REG_PPC_EPCR	| 32
-  PPC   | KVM_REG_PPC_EPR	| 32
-  PPC   | KVM_REG_PPC_TCR	| 32
-  PPC   | KVM_REG_PPC_TSR	| 32
-  PPC   | KVM_REG_PPC_OR_TSR	| 32
-  PPC   | KVM_REG_PPC_CLEAR_TSR	| 32
-  PPC   | KVM_REG_PPC_MAS0	| 32
-  PPC   | KVM_REG_PPC_MAS1	| 32
-  PPC   | KVM_REG_PPC_MAS2	| 64
-  PPC   | KVM_REG_PPC_MAS7_3	| 64
-  PPC   | KVM_REG_PPC_MAS4	| 32
-  PPC   | KVM_REG_PPC_MAS6	| 32
-  PPC   | KVM_REG_PPC_MMUCFG	| 32
-  PPC   | KVM_REG_PPC_TLB0CFG	| 32
-  PPC   | KVM_REG_PPC_TLB1CFG	| 32
-  PPC   | KVM_REG_PPC_TLB2CFG	| 32
-  PPC   | KVM_REG_PPC_TLB3CFG	| 32
-  PPC   | KVM_REG_PPC_TLB0PS	| 32
-  PPC   | KVM_REG_PPC_TLB1PS	| 32
-  PPC   | KVM_REG_PPC_TLB2PS	| 32
-  PPC   | KVM_REG_PPC_TLB3PS	| 32
-  PPC   | KVM_REG_PPC_EPTCFG	| 32
-  PPC   | KVM_REG_PPC_ICP_STATE | 64
-  PPC   | KVM_REG_PPC_TB_OFFSET	| 64
-  PPC   | KVM_REG_PPC_SPMC1	| 32
-  PPC   | KVM_REG_PPC_SPMC2	| 32
-  PPC   | KVM_REG_PPC_IAMR	| 64
-  PPC   | KVM_REG_PPC_TFHAR	| 64
-  PPC   | KVM_REG_PPC_TFIAR	| 64
-  PPC   | KVM_REG_PPC_TEXASR	| 64
-  PPC   | KVM_REG_PPC_FSCR	| 64
-  PPC   | KVM_REG_PPC_PSPB	| 32
-  PPC   | KVM_REG_PPC_EBBHR	| 64
-  PPC   | KVM_REG_PPC_EBBRR	| 64
-  PPC   | KVM_REG_PPC_BESCR	| 64
-  PPC   | KVM_REG_PPC_TAR	| 64
-  PPC   | KVM_REG_PPC_DPDES	| 64
-  PPC   | KVM_REG_PPC_DAWR	| 64
-  PPC   | KVM_REG_PPC_DAWRX	| 64
-  PPC   | KVM_REG_PPC_CIABR	| 64
-  PPC   | KVM_REG_PPC_IC	| 64
-  PPC   | KVM_REG_PPC_VTB	| 64
-  PPC   | KVM_REG_PPC_CSIGR	| 64
-  PPC   | KVM_REG_PPC_TACR	| 64
-  PPC   | KVM_REG_PPC_TCSCR	| 64
-  PPC   | KVM_REG_PPC_PID	| 64
-  PPC   | KVM_REG_PPC_ACOP	| 64
-  PPC   | KVM_REG_PPC_VRSAVE	| 32
-  PPC   | KVM_REG_PPC_LPCR	| 64
-  PPC   | KVM_REG_PPC_PPR	| 64
-  PPC   | KVM_REG_PPC_ARCH_COMPAT 32
-  PPC   | KVM_REG_PPC_DABRX     | 32
-  PPC   | KVM_REG_PPC_WORT      | 64
-  PPC   | KVM_REG_PPC_TM_GPR0	| 64
+  PPC   | KVM_REG_PPC_VSR31             | 128
+  PPC   | KVM_REG_PPC_FPSCR             | 64
+  PPC   | KVM_REG_PPC_VSCR              | 32
+  PPC   | KVM_REG_PPC_VPA_ADDR          | 64
+  PPC   | KVM_REG_PPC_VPA_SLB           | 128
+  PPC   | KVM_REG_PPC_VPA_DTL           | 128
+  PPC   | KVM_REG_PPC_EPCR              | 32
+  PPC   | KVM_REG_PPC_EPR               | 32
+  PPC   | KVM_REG_PPC_TCR               | 32
+  PPC   | KVM_REG_PPC_TSR               | 32
+  PPC   | KVM_REG_PPC_OR_TSR            | 32
+  PPC   | KVM_REG_PPC_CLEAR_TSR         | 32
+  PPC   | KVM_REG_PPC_MAS0              | 32
+  PPC   | KVM_REG_PPC_MAS1              | 32
+  PPC   | KVM_REG_PPC_MAS2              | 64
+  PPC   | KVM_REG_PPC_MAS7_3            | 64
+  PPC   | KVM_REG_PPC_MAS4              | 32
+  PPC   | KVM_REG_PPC_MAS6              | 32
+  PPC   | KVM_REG_PPC_MMUCFG            | 32
+  PPC   | KVM_REG_PPC_TLB0CFG           | 32
+  PPC   | KVM_REG_PPC_TLB1CFG           | 32
+  PPC   | KVM_REG_PPC_TLB2CFG           | 32
+  PPC   | KVM_REG_PPC_TLB3CFG           | 32
+  PPC   | KVM_REG_PPC_TLB0PS            | 32
+  PPC   | KVM_REG_PPC_TLB1PS            | 32
+  PPC   | KVM_REG_PPC_TLB2PS            | 32
+  PPC   | KVM_REG_PPC_TLB3PS            | 32
+  PPC   | KVM_REG_PPC_EPTCFG            | 32
+  PPC   | KVM_REG_PPC_ICP_STATE         | 64
+  PPC   | KVM_REG_PPC_TB_OFFSET         | 64
+  PPC   | KVM_REG_PPC_SPMC1             | 32
+  PPC   | KVM_REG_PPC_SPMC2             | 32
+  PPC   | KVM_REG_PPC_IAMR              | 64
+  PPC   | KVM_REG_PPC_TFHAR             | 64
+  PPC   | KVM_REG_PPC_TFIAR             | 64
+  PPC   | KVM_REG_PPC_TEXASR            | 64
+  PPC   | KVM_REG_PPC_FSCR              | 64
+  PPC   | KVM_REG_PPC_PSPB              | 32
+  PPC   | KVM_REG_PPC_EBBHR             | 64
+  PPC   | KVM_REG_PPC_EBBRR             | 64
+  PPC   | KVM_REG_PPC_BESCR             | 64
+  PPC   | KVM_REG_PPC_TAR               | 64
+  PPC   | KVM_REG_PPC_DPDES             | 64
+  PPC   | KVM_REG_PPC_DAWR              | 64
+  PPC   | KVM_REG_PPC_DAWRX             | 64
+  PPC   | KVM_REG_PPC_CIABR             | 64
+  PPC   | KVM_REG_PPC_IC                | 64
+  PPC   | KVM_REG_PPC_VTB               | 64
+  PPC   | KVM_REG_PPC_CSIGR             | 64
+  PPC   | KVM_REG_PPC_TACR              | 64
+  PPC   | KVM_REG_PPC_TCSCR             | 64
+  PPC   | KVM_REG_PPC_PID               | 64
+  PPC   | KVM_REG_PPC_ACOP              | 64
+  PPC   | KVM_REG_PPC_VRSAVE            | 32
+  PPC   | KVM_REG_PPC_LPCR              | 64
+  PPC   | KVM_REG_PPC_PPR               | 64
+  PPC   | KVM_REG_PPC_ARCH_COMPAT       | 32
+  PPC   | KVM_REG_PPC_DABRX             | 32
+  PPC   | KVM_REG_PPC_WORT              | 64
+  PPC   | KVM_REG_PPC_TM_GPR0           | 64
           ...
-  PPC   | KVM_REG_PPC_TM_GPR31	| 64
-  PPC   | KVM_REG_PPC_TM_VSR0	| 128
+  PPC   | KVM_REG_PPC_TM_GPR31          | 64
+  PPC   | KVM_REG_PPC_TM_VSR0           | 128
           ...
-  PPC   | KVM_REG_PPC_TM_VSR63	| 128
-  PPC   | KVM_REG_PPC_TM_CR	| 64
-  PPC   | KVM_REG_PPC_TM_LR	| 64
-  PPC   | KVM_REG_PPC_TM_CTR	| 64
-  PPC   | KVM_REG_PPC_TM_FPSCR	| 64
-  PPC   | KVM_REG_PPC_TM_AMR	| 64
-  PPC   | KVM_REG_PPC_TM_PPR	| 64
-  PPC   | KVM_REG_PPC_TM_VRSAVE	| 64
-  PPC   | KVM_REG_PPC_TM_VSCR	| 32
-  PPC   | KVM_REG_PPC_TM_DSCR	| 64
-  PPC   | KVM_REG_PPC_TM_TAR	| 64
+  PPC   | KVM_REG_PPC_TM_VSR63          | 128
+  PPC   | KVM_REG_PPC_TM_CR             | 64
+  PPC   | KVM_REG_PPC_TM_LR             | 64
+  PPC   | KVM_REG_PPC_TM_CTR            | 64
+  PPC   | KVM_REG_PPC_TM_FPSCR          | 64
+  PPC   | KVM_REG_PPC_TM_AMR            | 64
+  PPC   | KVM_REG_PPC_TM_PPR            | 64
+  PPC   | KVM_REG_PPC_TM_VRSAVE         | 64
+  PPC   | KVM_REG_PPC_TM_VSCR           | 32
+  PPC   | KVM_REG_PPC_TM_DSCR           | 64
+  PPC   | KVM_REG_PPC_TM_TAR            | 64
+        |                               |
+  MIPS  | KVM_REG_MIPS_R0               | 64
+          ...
+  MIPS  | KVM_REG_MIPS_R31              | 64
+  MIPS  | KVM_REG_MIPS_HI               | 64
+  MIPS  | KVM_REG_MIPS_LO               | 64
+  MIPS  | KVM_REG_MIPS_PC               | 64
+  MIPS  | KVM_REG_MIPS_CP0_INDEX        | 32
+  MIPS  | KVM_REG_MIPS_CP0_CONTEXT      | 64
+  MIPS  | KVM_REG_MIPS_CP0_USERLOCAL    | 64
+  MIPS  | KVM_REG_MIPS_CP0_PAGEMASK     | 32
+  MIPS  | KVM_REG_MIPS_CP0_WIRED        | 32
+  MIPS  | KVM_REG_MIPS_CP0_HWRENA       | 32
+  MIPS  | KVM_REG_MIPS_CP0_BADVADDR     | 64
+  MIPS  | KVM_REG_MIPS_CP0_COUNT        | 32
+  MIPS  | KVM_REG_MIPS_CP0_ENTRYHI      | 64
+  MIPS  | KVM_REG_MIPS_CP0_COMPARE      | 32
+  MIPS  | KVM_REG_MIPS_CP0_STATUS       | 32
+  MIPS  | KVM_REG_MIPS_CP0_CAUSE        | 32
+  MIPS  | KVM_REG_MIPS_CP0_EPC          | 64
+  MIPS  | KVM_REG_MIPS_CP0_CONFIG       | 32
+  MIPS  | KVM_REG_MIPS_CP0_CONFIG1      | 32
+  MIPS  | KVM_REG_MIPS_CP0_CONFIG2      | 32
+  MIPS  | KVM_REG_MIPS_CP0_CONFIG3      | 32
+  MIPS  | KVM_REG_MIPS_CP0_CONFIG7      | 32
+  MIPS  | KVM_REG_MIPS_CP0_ERROREPC     | 64
+  MIPS  | KVM_REG_MIPS_COUNT_CTL        | 64
+  MIPS  | KVM_REG_MIPS_COUNT_RESUME     | 64
+  MIPS  | KVM_REG_MIPS_COUNT_HZ         | 64
 
 ARM registers are mapped using the lower 32 bits.  The upper 16 of that
 is the register group type, or coprocessor number:
@@ -1927,6 +1979,22 @@ arm64 CCSIDR registers are demultiplexed by CSSELR value:
 
 arm64 system registers have the following id bit patterns:
   0x6030 0000 0013 <op0:2> <op1:3> <crn:4> <crm:4> <op2:3>
+
+
+MIPS registers are mapped using the lower 32 bits.  The upper 16 of that is
+the register group type:
+
+MIPS core registers (see above) have the following id bit patterns:
+  0x7030 0000 0000 <reg:16>
+
+MIPS CP0 registers (see KVM_REG_MIPS_CP0_* above) have the following id bit
+patterns depending on whether they're 32-bit or 64-bit registers:
+  0x7020 0000 0001 00 <reg:5> <sel:3>   (32-bit)
+  0x7030 0000 0001 00 <reg:5> <sel:3>   (64-bit)
+
+MIPS KVM control registers (see above) have the following id bit patterns:
+  0x7030 0000 0002 <reg:16>
+
 
 4.69 KVM_GET_ONE_REG
 
@@ -2415,7 +2483,7 @@ in VCPU matching underlying host.
 4.84 KVM_GET_REG_LIST
 
 Capability: basic
-Architectures: arm, arm64
+Architectures: arm, arm64, mips
 Type: vcpu ioctl
 Parameters: struct kvm_reg_list (in/out)
 Returns: 0 on success; -1 on error
@@ -2866,14 +2934,17 @@ The fields in each entry are defined as follows:
 6. Capabilities that can be enabled
 -----------------------------------
 
-There are certain capabilities that change the behavior of the virtual CPU when
-enabled. To enable them, please see section 4.37. Below you can find a list of
-capabilities and what their effect on the vCPU is when enabling them.
+There are certain capabilities that change the behavior of the virtual CPU or
+the virtual machine when enabled. To enable them, please see section 4.37.
+Below you can find a list of capabilities and what their effect on the vCPU or
+the virtual machine is when enabling them.
 
 The following information is provided along with the description:
 
   Architectures: which instruction set architectures provide this ioctl.
       x86 includes both i386 and x86_64.
+
+  Target: whether this is a per-vcpu or per-vm capability.
 
   Parameters: what parameters are accepted by the capability.
 
@@ -2884,6 +2955,7 @@ The following information is provided along with the description:
 6.1 KVM_CAP_PPC_OSI
 
 Architectures: ppc
+Target: vcpu
 Parameters: none
 Returns: 0 on success; -1 on error
 
@@ -2898,6 +2970,7 @@ When this capability is enabled, KVM_EXIT_OSI can occur.
 6.2 KVM_CAP_PPC_PAPR
 
 Architectures: ppc
+Target: vcpu
 Parameters: none
 Returns: 0 on success; -1 on error
 
@@ -2917,6 +2990,7 @@ When this capability is enabled, KVM_EXIT_PAPR_HCALL can occur.
 6.3 KVM_CAP_SW_TLB
 
 Architectures: ppc
+Target: vcpu
 Parameters: args[0] is the address of a struct kvm_config_tlb
 Returns: 0 on success; -1 on error
 
@@ -2959,6 +3033,7 @@ For mmu types KVM_MMU_FSL_BOOKE_NOHV and KVM_MMU_FSL_BOOKE_HV:
 6.4 KVM_CAP_S390_CSS_SUPPORT
 
 Architectures: s390
+Target: vcpu
 Parameters: none
 Returns: 0 on success; -1 on error
 
@@ -2970,9 +3045,13 @@ handled in-kernel, while the other I/O instructions are passed to userspace.
 When this capability is enabled, KVM_EXIT_S390_TSCH will occur on TEST
 SUBCHANNEL intercepts.
 
+Note that even though this capability is enabled per-vcpu, the complete
+virtual machine is affected.
+
 6.5 KVM_CAP_PPC_EPR
 
 Architectures: ppc
+Target: vcpu
 Parameters: args[0] defines whether the proxy facility is active
 Returns: 0 on success; -1 on error
 
@@ -2998,7 +3077,17 @@ This capability connects the vcpu to an in-kernel MPIC device.
 6.7 KVM_CAP_IRQ_XICS
 
 Architectures: ppc
+Target: vcpu
 Parameters: args[0] is the XICS device fd
             args[1] is the XICS CPU number (server ID) for this vcpu
 
 This capability connects the vcpu to an in-kernel XICS device.
+
+6.8 KVM_CAP_S390_IRQCHIP
+
+Architectures: s390
+Target: vm
+Parameters: none
+
+This capability enables the in-kernel irqchip for s390. Please refer to
+"4.24 KVM_CREATE_IRQCHIP" for details.

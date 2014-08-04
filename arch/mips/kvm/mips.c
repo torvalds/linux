@@ -7,7 +7,7 @@
  *
  * Copyright (C) 2012  MIPS Technologies, Inc.  All rights reserved.
  * Authors: Sanjay Lal <sanjayl@kymasys.com>
-*/
+ */
 
 #include <linux/errno.h>
 #include <linux/err.h>
@@ -21,8 +21,8 @@
 
 #include <linux/kvm_host.h>
 
-#include "kvm_mips_int.h"
-#include "kvm_mips_comm.h"
+#include "interrupt.h"
+#include "commpage.h"
 
 #define CREATE_TRACE_POINTS
 #include "trace.h"
@@ -31,38 +31,41 @@
 #define VECTORSPACING 0x100	/* for EI/VI mode */
 #endif
 
-#define VCPU_STAT(x) offsetof(struct kvm_vcpu, stat.x), KVM_STAT_VCPU
+#define VCPU_STAT(x) offsetof(struct kvm_vcpu, stat.x)
 struct kvm_stats_debugfs_item debugfs_entries[] = {
-	{ "wait", VCPU_STAT(wait_exits) },
-	{ "cache", VCPU_STAT(cache_exits) },
-	{ "signal", VCPU_STAT(signal_exits) },
-	{ "interrupt", VCPU_STAT(int_exits) },
-	{ "cop_unsuable", VCPU_STAT(cop_unusable_exits) },
-	{ "tlbmod", VCPU_STAT(tlbmod_exits) },
-	{ "tlbmiss_ld", VCPU_STAT(tlbmiss_ld_exits) },
-	{ "tlbmiss_st", VCPU_STAT(tlbmiss_st_exits) },
-	{ "addrerr_st", VCPU_STAT(addrerr_st_exits) },
-	{ "addrerr_ld", VCPU_STAT(addrerr_ld_exits) },
-	{ "syscall", VCPU_STAT(syscall_exits) },
-	{ "resvd_inst", VCPU_STAT(resvd_inst_exits) },
-	{ "break_inst", VCPU_STAT(break_inst_exits) },
-	{ "flush_dcache", VCPU_STAT(flush_dcache_exits) },
-	{ "halt_wakeup", VCPU_STAT(halt_wakeup) },
+	{ "wait",	  VCPU_STAT(wait_exits),	 KVM_STAT_VCPU },
+	{ "cache",	  VCPU_STAT(cache_exits),	 KVM_STAT_VCPU },
+	{ "signal",	  VCPU_STAT(signal_exits),	 KVM_STAT_VCPU },
+	{ "interrupt",	  VCPU_STAT(int_exits),		 KVM_STAT_VCPU },
+	{ "cop_unsuable", VCPU_STAT(cop_unusable_exits), KVM_STAT_VCPU },
+	{ "tlbmod",	  VCPU_STAT(tlbmod_exits),	 KVM_STAT_VCPU },
+	{ "tlbmiss_ld",	  VCPU_STAT(tlbmiss_ld_exits),	 KVM_STAT_VCPU },
+	{ "tlbmiss_st",	  VCPU_STAT(tlbmiss_st_exits),	 KVM_STAT_VCPU },
+	{ "addrerr_st",	  VCPU_STAT(addrerr_st_exits),	 KVM_STAT_VCPU },
+	{ "addrerr_ld",	  VCPU_STAT(addrerr_ld_exits),	 KVM_STAT_VCPU },
+	{ "syscall",	  VCPU_STAT(syscall_exits),	 KVM_STAT_VCPU },
+	{ "resvd_inst",	  VCPU_STAT(resvd_inst_exits),	 KVM_STAT_VCPU },
+	{ "break_inst",	  VCPU_STAT(break_inst_exits),	 KVM_STAT_VCPU },
+	{ "flush_dcache", VCPU_STAT(flush_dcache_exits), KVM_STAT_VCPU },
+	{ "halt_wakeup",  VCPU_STAT(halt_wakeup),	 KVM_STAT_VCPU },
 	{NULL}
 };
 
 static int kvm_mips_reset_vcpu(struct kvm_vcpu *vcpu)
 {
 	int i;
+
 	for_each_possible_cpu(i) {
 		vcpu->arch.guest_kernel_asid[i] = 0;
 		vcpu->arch.guest_user_asid[i] = 0;
 	}
+
 	return 0;
 }
 
-/* XXXKYMA: We are simulatoring a processor that has the WII bit set in Config7, so we
- * are "runnable" if interrupts are pending
+/*
+ * XXXKYMA: We are simulatoring a processor that has the WII bit set in
+ * Config7, so we are "runnable" if interrupts are pending
  */
 int kvm_arch_vcpu_runnable(struct kvm_vcpu *vcpu)
 {
@@ -94,16 +97,17 @@ void kvm_arch_hardware_unsetup(void)
 
 void kvm_arch_check_processor_compat(void *rtn)
 {
-	int *r = (int *)rtn;
-	*r = 0;
-	return;
+	*(int *)rtn = 0;
 }
 
 static void kvm_mips_init_tlbs(struct kvm *kvm)
 {
 	unsigned long wired;
 
-	/* Add a wired entry to the TLB, it is used to map the commpage to the Guest kernel */
+	/*
+	 * Add a wired entry to the TLB, it is used to map the commpage to
+	 * the Guest kernel
+	 */
 	wired = read_c0_wired();
 	write_c0_wired(wired + 1);
 	mtc0_tlbw_hazard();
@@ -129,7 +133,6 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 			  __func__);
 		on_each_cpu(kvm_mips_init_vm_percpu, kvm, 1);
 	}
-
 
 	return 0;
 }
@@ -185,8 +188,8 @@ void kvm_arch_destroy_vm(struct kvm *kvm)
 	}
 }
 
-long
-kvm_arch_dev_ioctl(struct file *filp, unsigned int ioctl, unsigned long arg)
+long kvm_arch_dev_ioctl(struct file *filp, unsigned int ioctl,
+			unsigned long arg)
 {
 	return -ENOIOCTLCMD;
 }
@@ -207,20 +210,20 @@ void kvm_arch_memslots_updated(struct kvm *kvm)
 }
 
 int kvm_arch_prepare_memory_region(struct kvm *kvm,
-                                struct kvm_memory_slot *memslot,
-                                struct kvm_userspace_memory_region *mem,
-                                enum kvm_mr_change change)
+				   struct kvm_memory_slot *memslot,
+				   struct kvm_userspace_memory_region *mem,
+				   enum kvm_mr_change change)
 {
 	return 0;
 }
 
 void kvm_arch_commit_memory_region(struct kvm *kvm,
-                                struct kvm_userspace_memory_region *mem,
-                                const struct kvm_memory_slot *old,
-                                enum kvm_mr_change change)
+				   struct kvm_userspace_memory_region *mem,
+				   const struct kvm_memory_slot *old,
+				   enum kvm_mr_change change)
 {
 	unsigned long npages = 0;
-	int i, err = 0;
+	int i;
 
 	kvm_debug("%s: kvm: %p slot: %d, GPA: %llx, size: %llx, QVA: %llx\n",
 		  __func__, kvm, mem->slot, mem->guest_phys_addr,
@@ -238,21 +241,17 @@ void kvm_arch_commit_memory_region(struct kvm *kvm,
 
 			if (!kvm->arch.guest_pmap) {
 				kvm_err("Failed to allocate guest PMAP");
-				err = -ENOMEM;
-				goto out;
+				return;
 			}
 
 			kvm_debug("Allocated space for Guest PMAP Table (%ld pages) @ %p\n",
 				  npages, kvm->arch.guest_pmap);
 
 			/* Now setup the page table */
-			for (i = 0; i < npages; i++) {
+			for (i = 0; i < npages; i++)
 				kvm->arch.guest_pmap[i] = KVM_INVALID_PAGE;
-			}
 		}
 	}
-out:
-	return;
 }
 
 void kvm_arch_flush_shadow_all(struct kvm *kvm)
@@ -270,8 +269,6 @@ void kvm_arch_flush_shadow(struct kvm *kvm)
 
 struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm, unsigned int id)
 {
-	extern char mips32_exception[], mips32_exceptionEnd[];
-	extern char mips32_GuestException[], mips32_GuestExceptionEnd[];
 	int err, size, offset;
 	void *gebase;
 	int i;
@@ -290,14 +287,14 @@ struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm, unsigned int id)
 
 	kvm_debug("kvm @ %p: create cpu %d at %p\n", kvm, id, vcpu);
 
-	/* Allocate space for host mode exception handlers that handle
+	/*
+	 * Allocate space for host mode exception handlers that handle
 	 * guest mode exits
 	 */
-	if (cpu_has_veic || cpu_has_vint) {
+	if (cpu_has_veic || cpu_has_vint)
 		size = 0x200 + VECTORSPACING * 64;
-	} else {
+	else
 		size = 0x4000;
-	}
 
 	/* Save Linux EBASE */
 	vcpu->arch.host_ebase = (void *)read_c0_ebase();
@@ -345,7 +342,10 @@ struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm, unsigned int id)
 	local_flush_icache_range((unsigned long)gebase,
 				(unsigned long)gebase + ALIGN(size, PAGE_SIZE));
 
-	/* Allocate comm page for guest kernel, a TLB will be reserved for mapping GVA @ 0xFFFF8000 to this page */
+	/*
+	 * Allocate comm page for guest kernel, a TLB will be reserved for
+	 * mapping GVA @ 0xFFFF8000 to this page
+	 */
 	vcpu->arch.kseg0_commpage = kzalloc(PAGE_SIZE << 1, GFP_KERNEL);
 
 	if (!vcpu->arch.kseg0_commpage) {
@@ -392,9 +392,8 @@ void kvm_arch_vcpu_destroy(struct kvm_vcpu *vcpu)
 	kvm_arch_vcpu_free(vcpu);
 }
 
-int
-kvm_arch_vcpu_ioctl_set_guest_debug(struct kvm_vcpu *vcpu,
-				    struct kvm_guest_debug *dbg)
+int kvm_arch_vcpu_ioctl_set_guest_debug(struct kvm_vcpu *vcpu,
+					struct kvm_guest_debug *dbg)
 {
 	return -ENOIOCTLCMD;
 }
@@ -431,8 +430,8 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 	return r;
 }
 
-int
-kvm_vcpu_ioctl_interrupt(struct kvm_vcpu *vcpu, struct kvm_mips_interrupt *irq)
+int kvm_vcpu_ioctl_interrupt(struct kvm_vcpu *vcpu,
+			     struct kvm_mips_interrupt *irq)
 {
 	int intr = (int)irq->irq;
 	struct kvm_vcpu *dvcpu = NULL;
@@ -459,23 +458,20 @@ kvm_vcpu_ioctl_interrupt(struct kvm_vcpu *vcpu, struct kvm_mips_interrupt *irq)
 
 	dvcpu->arch.wait = 0;
 
-	if (waitqueue_active(&dvcpu->wq)) {
+	if (waitqueue_active(&dvcpu->wq))
 		wake_up_interruptible(&dvcpu->wq);
-	}
 
 	return 0;
 }
 
-int
-kvm_arch_vcpu_ioctl_get_mpstate(struct kvm_vcpu *vcpu,
-				struct kvm_mp_state *mp_state)
+int kvm_arch_vcpu_ioctl_get_mpstate(struct kvm_vcpu *vcpu,
+				    struct kvm_mp_state *mp_state)
 {
 	return -ENOIOCTLCMD;
 }
 
-int
-kvm_arch_vcpu_ioctl_set_mpstate(struct kvm_vcpu *vcpu,
-				struct kvm_mp_state *mp_state)
+int kvm_arch_vcpu_ioctl_set_mpstate(struct kvm_vcpu *vcpu,
+				    struct kvm_mp_state *mp_state)
 {
 	return -ENOIOCTLCMD;
 }
@@ -632,10 +628,12 @@ static int kvm_mips_get_reg(struct kvm_vcpu *vcpu,
 	}
 	if ((reg->id & KVM_REG_SIZE_MASK) == KVM_REG_SIZE_U64) {
 		u64 __user *uaddr64 = (u64 __user *)(long)reg->addr;
+
 		return put_user(v, uaddr64);
 	} else if ((reg->id & KVM_REG_SIZE_MASK) == KVM_REG_SIZE_U32) {
 		u32 __user *uaddr32 = (u32 __user *)(long)reg->addr;
 		u32 v32 = (u32)v;
+
 		return put_user(v32, uaddr32);
 	} else {
 		return -EINVAL;
@@ -728,8 +726,8 @@ static int kvm_mips_set_reg(struct kvm_vcpu *vcpu,
 	return 0;
 }
 
-long
-kvm_arch_vcpu_ioctl(struct file *filp, unsigned int ioctl, unsigned long arg)
+long kvm_arch_vcpu_ioctl(struct file *filp, unsigned int ioctl,
+			 unsigned long arg)
 {
 	struct kvm_vcpu *vcpu = filp->private_data;
 	void __user *argp = (void __user *)arg;
@@ -739,6 +737,7 @@ kvm_arch_vcpu_ioctl(struct file *filp, unsigned int ioctl, unsigned long arg)
 	case KVM_SET_ONE_REG:
 	case KVM_GET_ONE_REG: {
 		struct kvm_one_reg reg;
+
 		if (copy_from_user(&reg, argp, sizeof(reg)))
 			return -EFAULT;
 		if (ioctl == KVM_SET_ONE_REG)
@@ -773,6 +772,7 @@ kvm_arch_vcpu_ioctl(struct file *filp, unsigned int ioctl, unsigned long arg)
 	case KVM_INTERRUPT:
 		{
 			struct kvm_mips_interrupt irq;
+
 			r = -EFAULT;
 			if (copy_from_user(&irq, argp, sizeof(irq)))
 				goto out;
@@ -791,9 +791,7 @@ out:
 	return r;
 }
 
-/*
- * Get (and clear) the dirty memory log for a memory slot.
- */
+/* Get (and clear) the dirty memory log for a memory slot. */
 int kvm_vm_ioctl_get_dirty_log(struct kvm *kvm, struct kvm_dirty_log *log)
 {
 	struct kvm_memory_slot *memslot;
@@ -815,8 +813,8 @@ int kvm_vm_ioctl_get_dirty_log(struct kvm *kvm, struct kvm_dirty_log *log)
 		ga = memslot->base_gfn << PAGE_SHIFT;
 		ga_end = ga + (memslot->npages << PAGE_SHIFT);
 
-		printk("%s: dirty, ga: %#lx, ga_end %#lx\n", __func__, ga,
-		       ga_end);
+		kvm_info("%s: dirty, ga: %#lx, ga_end %#lx\n", __func__, ga,
+			 ga_end);
 
 		n = kvm_dirty_bitmap_bytes(memslot);
 		memset(memslot->dirty_bitmap, 0, n);
@@ -843,16 +841,12 @@ long kvm_arch_vm_ioctl(struct file *filp, unsigned int ioctl, unsigned long arg)
 
 int kvm_arch_init(void *opaque)
 {
-	int ret;
-
 	if (kvm_mips_callbacks) {
 		kvm_err("kvm: module already exists\n");
 		return -EEXIST;
 	}
 
-	ret = kvm_mips_emulation_init(&kvm_mips_callbacks);
-
-	return ret;
+	return kvm_mips_emulation_init(&kvm_mips_callbacks);
 }
 
 void kvm_arch_exit(void)
@@ -860,14 +854,14 @@ void kvm_arch_exit(void)
 	kvm_mips_callbacks = NULL;
 }
 
-int
-kvm_arch_vcpu_ioctl_get_sregs(struct kvm_vcpu *vcpu, struct kvm_sregs *sregs)
+int kvm_arch_vcpu_ioctl_get_sregs(struct kvm_vcpu *vcpu,
+				  struct kvm_sregs *sregs)
 {
 	return -ENOIOCTLCMD;
 }
 
-int
-kvm_arch_vcpu_ioctl_set_sregs(struct kvm_vcpu *vcpu, struct kvm_sregs *sregs)
+int kvm_arch_vcpu_ioctl_set_sregs(struct kvm_vcpu *vcpu,
+				  struct kvm_sregs *sregs)
 {
 	return -ENOIOCTLCMD;
 }
@@ -923,24 +917,25 @@ int kvm_arch_vcpu_dump_regs(struct kvm_vcpu *vcpu)
 	if (!vcpu)
 		return -1;
 
-	printk("VCPU Register Dump:\n");
-	printk("\tpc = 0x%08lx\n", vcpu->arch.pc);
-	printk("\texceptions: %08lx\n", vcpu->arch.pending_exceptions);
+	kvm_debug("VCPU Register Dump:\n");
+	kvm_debug("\tpc = 0x%08lx\n", vcpu->arch.pc);
+	kvm_debug("\texceptions: %08lx\n", vcpu->arch.pending_exceptions);
 
 	for (i = 0; i < 32; i += 4) {
-		printk("\tgpr%02d: %08lx %08lx %08lx %08lx\n", i,
+		kvm_debug("\tgpr%02d: %08lx %08lx %08lx %08lx\n", i,
 		       vcpu->arch.gprs[i],
 		       vcpu->arch.gprs[i + 1],
 		       vcpu->arch.gprs[i + 2], vcpu->arch.gprs[i + 3]);
 	}
-	printk("\thi: 0x%08lx\n", vcpu->arch.hi);
-	printk("\tlo: 0x%08lx\n", vcpu->arch.lo);
+	kvm_debug("\thi: 0x%08lx\n", vcpu->arch.hi);
+	kvm_debug("\tlo: 0x%08lx\n", vcpu->arch.lo);
 
 	cop0 = vcpu->arch.cop0;
-	printk("\tStatus: 0x%08lx, Cause: 0x%08lx\n",
-	       kvm_read_c0_guest_status(cop0), kvm_read_c0_guest_cause(cop0));
+	kvm_debug("\tStatus: 0x%08lx, Cause: 0x%08lx\n",
+		  kvm_read_c0_guest_status(cop0),
+		  kvm_read_c0_guest_cause(cop0));
 
-	printk("\tEPC: 0x%08lx\n", kvm_read_c0_guest_epc(cop0));
+	kvm_debug("\tEPC: 0x%08lx\n", kvm_read_c0_guest_epc(cop0));
 
 	return 0;
 }
@@ -980,14 +975,11 @@ static void kvm_mips_comparecount_func(unsigned long data)
 	kvm_mips_callbacks->queue_timer_int(vcpu);
 
 	vcpu->arch.wait = 0;
-	if (waitqueue_active(&vcpu->wq)) {
+	if (waitqueue_active(&vcpu->wq))
 		wake_up_interruptible(&vcpu->wq);
-	}
 }
 
-/*
- * low level hrtimer wake routine.
- */
+/* low level hrtimer wake routine */
 static enum hrtimer_restart kvm_mips_comparecount_wakeup(struct hrtimer *timer)
 {
 	struct kvm_vcpu *vcpu;
@@ -1008,11 +1000,10 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 
 void kvm_arch_vcpu_uninit(struct kvm_vcpu *vcpu)
 {
-	return;
 }
 
-int
-kvm_arch_vcpu_ioctl_translate(struct kvm_vcpu *vcpu, struct kvm_translation *tr)
+int kvm_arch_vcpu_ioctl_translate(struct kvm_vcpu *vcpu,
+				  struct kvm_translation *tr)
 {
 	return 0;
 }
@@ -1023,8 +1014,7 @@ int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 	return kvm_mips_callbacks->vcpu_setup(vcpu);
 }
 
-static
-void kvm_mips_set_c0_status(void)
+static void kvm_mips_set_c0_status(void)
 {
 	uint32_t status = read_c0_status();
 
@@ -1054,7 +1044,10 @@ int kvm_mips_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	run->exit_reason = KVM_EXIT_UNKNOWN;
 	run->ready_for_interrupt_injection = 1;
 
-	/* Set the appropriate status bits based on host CPU features, before we hit the scheduler */
+	/*
+	 * Set the appropriate status bits based on host CPU features,
+	 * before we hit the scheduler
+	 */
 	kvm_mips_set_c0_status();
 
 	local_irq_enable();
@@ -1062,7 +1055,8 @@ int kvm_mips_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	kvm_debug("kvm_mips_handle_exit: cause: %#x, PC: %p, kvm_run: %p, kvm_vcpu: %p\n",
 			cause, opc, run, vcpu);
 
-	/* Do a privilege check, if in UM most of these exit conditions end up
+	/*
+	 * Do a privilege check, if in UM most of these exit conditions end up
 	 * causing an exception to be delivered to the Guest Kernel
 	 */
 	er = kvm_mips_check_privilege(cause, opc, run, vcpu);
@@ -1081,9 +1075,8 @@ int kvm_mips_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu)
 		++vcpu->stat.int_exits;
 		trace_kvm_exit(vcpu, INT_EXITS);
 
-		if (need_resched()) {
+		if (need_resched())
 			cond_resched();
-		}
 
 		ret = RESUME_GUEST;
 		break;
@@ -1095,9 +1088,8 @@ int kvm_mips_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu)
 		trace_kvm_exit(vcpu, COP_UNUSABLE_EXITS);
 		ret = kvm_mips_callbacks->handle_cop_unusable(vcpu);
 		/* XXXKYMA: Might need to return to user space */
-		if (run->exit_reason == KVM_EXIT_IRQ_WINDOW_OPEN) {
+		if (run->exit_reason == KVM_EXIT_IRQ_WINDOW_OPEN)
 			ret = RESUME_HOST;
-		}
 		break;
 
 	case T_TLB_MOD:
@@ -1107,10 +1099,9 @@ int kvm_mips_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu)
 		break;
 
 	case T_TLB_ST_MISS:
-		kvm_debug
-		    ("TLB ST fault:  cause %#x, status %#lx, PC: %p, BadVaddr: %#lx\n",
-		     cause, kvm_read_c0_guest_status(vcpu->arch.cop0), opc,
-		     badvaddr);
+		kvm_debug("TLB ST fault:  cause %#x, status %#lx, PC: %p, BadVaddr: %#lx\n",
+			  cause, kvm_read_c0_guest_status(vcpu->arch.cop0), opc,
+			  badvaddr);
 
 		++vcpu->stat.tlbmiss_st_exits;
 		trace_kvm_exit(vcpu, TLBMISS_ST_EXITS);
@@ -1157,10 +1148,9 @@ int kvm_mips_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu)
 		break;
 
 	default:
-		kvm_err
-		    ("Exception Code: %d, not yet handled, @ PC: %p, inst: 0x%08x  BadVaddr: %#lx Status: %#lx\n",
-		     exccode, opc, kvm_get_inst(opc, vcpu), badvaddr,
-		     kvm_read_c0_guest_status(vcpu->arch.cop0));
+		kvm_err("Exception Code: %d, not yet handled, @ PC: %p, inst: 0x%08x  BadVaddr: %#lx Status: %#lx\n",
+			exccode, opc, kvm_get_inst(opc, vcpu), badvaddr,
+			kvm_read_c0_guest_status(vcpu->arch.cop0));
 		kvm_arch_vcpu_dump_regs(vcpu);
 		run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
 		ret = RESUME_HOST;
@@ -1175,7 +1165,7 @@ skip_emul:
 		kvm_mips_deliver_interrupts(vcpu, cause);
 
 	if (!(ret & RESUME_HOST)) {
-		/* Only check for signals if not already exiting to userspace  */
+		/* Only check for signals if not already exiting to userspace */
 		if (signal_pending(current)) {
 			run->exit_reason = KVM_EXIT_INTR;
 			ret = (-EINTR << 2) | RESUME_HOST;
@@ -1196,11 +1186,13 @@ int __init kvm_mips_init(void)
 	if (ret)
 		return ret;
 
-	/* On MIPS, kernel modules are executed from "mapped space", which requires TLBs.
-	 * The TLB handling code is statically linked with the rest of the kernel (kvm_tlb.c)
-	 * to avoid the possibility of double faulting. The issue is that the TLB code
-	 * references routines that are part of the the KVM module,
-	 * which are only available once the module is loaded.
+	/*
+	 * On MIPS, kernel modules are executed from "mapped space", which
+	 * requires TLBs. The TLB handling code is statically linked with
+	 * the rest of the kernel (tlb.c) to avoid the possibility of
+	 * double faulting. The issue is that the TLB code references
+	 * routines that are part of the the KVM module, which are only
+	 * available once the module is loaded.
 	 */
 	kvm_mips_gfn_to_pfn = gfn_to_pfn;
 	kvm_mips_release_pfn_clean = kvm_release_pfn_clean;

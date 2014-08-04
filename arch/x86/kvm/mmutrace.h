@@ -22,7 +22,7 @@
 	__entry->unsync = sp->unsync;
 
 #define KVM_MMU_PAGE_PRINTK() ({				        \
-	const char *ret = trace_seq_buffer_ptr(p);			\
+	const u32 saved_len = p->len;					\
 	static const char *access_str[] = {			        \
 		"---", "--x", "w--", "w-x", "-u-", "-ux", "wu-", "wux"  \
 	};							        \
@@ -41,7 +41,7 @@
 			 role.nxe ? "" : "!",				\
 			 __entry->root_count,				\
 			 __entry->unsync ? "unsync" : "sync", 0);	\
-	ret;								\
+	p->buffer + saved_len;						\
 		})
 
 #define kvm_mmu_trace_pferr_flags       \

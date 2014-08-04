@@ -1,13 +1,13 @@
 /*
-* This file is subject to the terms and conditions of the GNU General Public
-* License.  See the file "COPYING" in the main directory of this archive
-* for more details.
-*
-* KVM/MIPS: Binary Patching for privileged instructions, reduces traps.
-*
-* Copyright (C) 2012  MIPS Technologies, Inc.  All rights reserved.
-* Authors: Sanjay Lal <sanjayl@kymasys.com>
-*/
+ * This file is subject to the terms and conditions of the GNU General Public
+ * License.  See the file "COPYING" in the main directory of this archive
+ * for more details.
+ *
+ * KVM/MIPS: Binary Patching for privileged instructions, reduces traps.
+ *
+ * Copyright (C) 2012  MIPS Technologies, Inc.  All rights reserved.
+ * Authors: Sanjay Lal <sanjayl@kymasys.com>
+ */
 
 #include <linux/errno.h>
 #include <linux/err.h>
@@ -18,7 +18,7 @@
 #include <linux/bootmem.h>
 #include <asm/cacheflush.h>
 
-#include "kvm_mips_comm.h"
+#include "commpage.h"
 
 #define SYNCI_TEMPLATE  0x041f0000
 #define SYNCI_BASE(x)   (((x) >> 21) & 0x1f)
@@ -28,9 +28,8 @@
 #define CLEAR_TEMPLATE  0x00000020
 #define SW_TEMPLATE     0xac000000
 
-int
-kvm_mips_trans_cache_index(uint32_t inst, uint32_t *opc,
-			   struct kvm_vcpu *vcpu)
+int kvm_mips_trans_cache_index(uint32_t inst, uint32_t *opc,
+			       struct kvm_vcpu *vcpu)
 {
 	int result = 0;
 	unsigned long kseg0_opc;
@@ -47,12 +46,11 @@ kvm_mips_trans_cache_index(uint32_t inst, uint32_t *opc,
 }
 
 /*
- *  Address based CACHE instructions are transformed into synci(s). A little heavy
- * for just D-cache invalidates, but avoids an expensive trap
+ * Address based CACHE instructions are transformed into synci(s). A little
+ * heavy for just D-cache invalidates, but avoids an expensive trap
  */
-int
-kvm_mips_trans_cache_va(uint32_t inst, uint32_t *opc,
-			struct kvm_vcpu *vcpu)
+int kvm_mips_trans_cache_va(uint32_t inst, uint32_t *opc,
+			    struct kvm_vcpu *vcpu)
 {
 	int result = 0;
 	unsigned long kseg0_opc;
@@ -72,8 +70,7 @@ kvm_mips_trans_cache_va(uint32_t inst, uint32_t *opc,
 	return result;
 }
 
-int
-kvm_mips_trans_mfc0(uint32_t inst, uint32_t *opc, struct kvm_vcpu *vcpu)
+int kvm_mips_trans_mfc0(uint32_t inst, uint32_t *opc, struct kvm_vcpu *vcpu)
 {
 	int32_t rt, rd, sel;
 	uint32_t mfc0_inst;
@@ -115,8 +112,7 @@ kvm_mips_trans_mfc0(uint32_t inst, uint32_t *opc, struct kvm_vcpu *vcpu)
 	return 0;
 }
 
-int
-kvm_mips_trans_mtc0(uint32_t inst, uint32_t *opc, struct kvm_vcpu *vcpu)
+int kvm_mips_trans_mtc0(uint32_t inst, uint32_t *opc, struct kvm_vcpu *vcpu)
 {
 	int32_t rt, rd, sel;
 	uint32_t mtc0_inst = SW_TEMPLATE;
