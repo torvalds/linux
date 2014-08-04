@@ -421,6 +421,14 @@ ENTRY(fast_unaligned)
 
 1:	wsr	a7, epc1		# skip emulated instruction
 
+	/* Update icount if we're single-stepping in userspace. */
+	rsr	a4, icountlevel
+	beqz	a4, 1f
+	bgeui	a4, LOCKLEVEL + 1, 1f
+	rsr	a4, icount
+	addi	a4, a4, 1
+	wsr	a4, icount
+1:
 	movi	a4, 0
 	rsr	a3, excsave1
 	s32i	a4, a3, EXC_TABLE_FIXUP
