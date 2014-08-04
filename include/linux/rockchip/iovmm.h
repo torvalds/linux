@@ -60,7 +60,6 @@ void iovmm_unmap_oto(struct device *dev, phys_addr_t phys);
 
 struct device *rockchip_get_sysmmu_device_by_compatible(const char *compt);
 
-
 #else
 static inline int iovmm_activate(struct device *dev) {return -ENOSYS; }
 static inline void iovmm_deactivate(struct device *dev) { }

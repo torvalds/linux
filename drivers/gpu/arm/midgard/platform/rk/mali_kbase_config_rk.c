@@ -215,16 +215,28 @@ static int pm_callback_runtime_on(kbase_device *kbdev)
 {
 #ifdef CONFIG_MALI_MIDGARD_DVFS	
 	struct rk_context *platform = (struct rk_context *)kbdev->platform_context;
+	unsigned long flags;
+	unsigned int clock;
 #endif
 	kbase_platform_power_on(kbdev);
 
 	kbase_platform_clock_on(kbdev);
 #ifdef CONFIG_MALI_MIDGARD_DVFS
 	if (platform->dvfs_enabled) {
-		/*if (kbase_platform_dvfs_enable(true, MALI_DVFS_START_FREQ)!= MALI_TRUE)*/
-		/*printk("%s\n",__func__);*/
-		if (kbase_platform_dvfs_enable(true, MALI_DVFS_CURRENT_FREQ)!= MALI_TRUE)
+		if(platform->gpu_in_touch) {
+			clock = p_mali_dvfs_infotbl[MALI_DVFS_STEP-1].clock;
+			spin_lock_irqsave(&platform->gpu_in_touch_lock, flags);
+			platform->gpu_in_touch = false;
+			spin_unlock_irqrestore(&platform->gpu_in_touch_lock, flags);
+		} else {
+			clock = MALI_DVFS_CURRENT_FREQ;
+		}
+		/*
+		pr_info("%s,clock = %d\n",__func__,clock);
+		*/
+		if (kbase_platform_dvfs_enable(true, clock)!= MALI_TRUE)
 			return -EPERM;
+
 	} else {
 		if (kbase_platform_dvfs_enable(false, MALI_DVFS_CURRENT_FREQ)!= MALI_TRUE)
 			return -EPERM;
@@ -237,6 +249,7 @@ static void pm_callback_runtime_off(kbase_device *kbdev)
 {
 #ifdef CONFIG_MALI_MIDGARD_DVFS	
 	struct rk_context *platform = (struct rk_context *)kbdev->platform_context;
+	unsigned long flags;
 #endif
 
 	kbase_platform_clock_off(kbdev);
@@ -247,6 +260,9 @@ static void pm_callback_runtime_off(kbase_device *kbdev)
 		/*printk("%s\n",__func__);*/
 		if (kbase_platform_dvfs_enable(false, p_mali_dvfs_infotbl[0].clock)!= MALI_TRUE)
 			printk("[err] disabling dvfs is faled\n");
+		spin_lock_irqsave(&platform->gpu_in_touch_lock, flags);
+		platform->gpu_in_touch = false;
+		spin_unlock_irqrestore(&platform->gpu_in_touch_lock, flags);
 	}
 #endif
 }

@@ -38,7 +38,6 @@
 #include <linux/syscalls.h>
 #endif /* CONFIG_KDS */
 
-#include <linux/delay.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/poll.h>
@@ -86,7 +85,7 @@ EXPORT_SYMBOL(shared_kernel_test_data);
 #endif /* MALI_UNIT_TEST */
 
 #define KBASE_DRV_NAME "mali"
-#define ROCKCHIP_VERSION 7
+#define ROCKCHIP_VERSION 9
 static const char kbase_drv_name[] = KBASE_DRV_NAME;
 
 static int kbase_dev_nr;
@@ -155,6 +154,7 @@ mali_error kbasep_kds_allocate_resource_list_data(kbase_context *kctx, base_exte
 		return MALI_ERROR_OUT_OF_MEMORY;
 	}
 
+	kbase_gpu_vm_lock(kctx);
 	for (res_id = 0; res_id < num_elems; res_id++, res++) {
 		int exclusive;
 		kbase_va_region *reg;
@@ -189,6 +189,7 @@ mali_error kbasep_kds_allocate_resource_list_data(kbase_context *kctx, base_exte
 		if (exclusive)
 			set_bit(res_id, resources_list->kds_access_bitmap);
 	}
+	kbase_gpu_vm_unlock(kctx);
 
 	/* did the loop run to completion? */
 	if (res_id == num_elems)
@@ -924,8 +925,6 @@ static int kbase_release(struct inode *inode, struct file *filp)
 	kbasep_kctx_list_element *element, *tmp;
 	mali_bool found_element = MALI_FALSE;
 	
-	msleep(500);
-
 	mutex_lock(&kbdev->kctx_list_lock);
 	list_for_each_entry_safe(element, tmp, &kbdev->kctx_list, link) {
 		if (element->kctx == kctx) {

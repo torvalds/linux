@@ -21,8 +21,10 @@
 *        2) add support io domain and mclk driver strength configuration;
 *v0.7.0:
 		 1) add flash_trigger_out control
+*v0.8.0:
+		 1) support isp iommu
 */
-#define CAMSYS_HEAD_VERSION           KERNEL_VERSION(0,7,0)
+#define CAMSYS_HEAD_VERSION           KERNEL_VERSION(0,8,0)
 
 #define CAMSYS_MARVIN_DEVNAME         "camsys_marvin"           
 #define CAMSYS_CIF0_DEVNAME           "camsys_cif0"
@@ -41,9 +43,9 @@
 #define CAMSYS_DEVID_EXTERNAL         0xFF000000
 #define CAMSYS_DEVID_EXTERNAL_NUM     8
 
-#define CAMSYS_DEVCFG_FLASHLIGHT          0x00000001
-#define CAMSYS_DEVCFG_PREFLASHLIGHT       0x00000002
-#define CAMSYS_DEVCFG_SHUTTER             0x00000004
+#define CAMSYS_DEVCFG_FLASHLIGHT      0x00000001
+#define CAMSYS_DEVCFG_PREFLASHLIGHT   0x00000002
+#define CAMSYS_DEVCFG_SHUTTER         0x00000004
 
 typedef struct camsys_irqsta_s {
     unsigned int ris;                 //Raw interrupt status
@@ -116,7 +118,8 @@ typedef enum camsys_sysctrl_ops_e {
     CamSys_Phy_End_Tag,
     CamSys_Flash_Trigger_Start_Tag, 
     CamSys_Flash_Trigger,
-    CamSys_Flash_Trigger_End_Tag
+    CamSys_Flash_Trigger_End_Tag,
+    CamSys_IOMMU
     
 } camsys_sysctrl_ops_t;
 
@@ -130,6 +133,13 @@ typedef struct camsys_gpio_info_s {
     unsigned char     name[CAMSYS_NAME_LEN];
     unsigned int      active;
 } camsys_gpio_info_t;
+
+typedef struct camsys_iommu_s{
+    int client_fd;
+    int map_fd;
+    unsigned long linear_addr;
+    unsigned long len;
+}camsys_iommu_t;
 
 typedef struct camsys_sysctrl_s {
     unsigned int              dev_mask;
@@ -248,4 +258,5 @@ typedef struct camsys_version_s {
 #define CAMSYS_IRQDISCONNECT     _IOW(CAMSYS_IOC_MAGIC,   10, camsys_irqcnnt_t)
 
 #define CAMSYS_QUREYMEM          _IOR(CAMSYS_IOC_MAGIC,  11, camsys_querymem_t)
+#define CAMSYS_QUREYIOMMU        _IOW(CAMSYS_IOC_MAGIC,  12, int)
 #endif

@@ -681,7 +681,7 @@ static void kbasep_replay_reset_softjob(kbase_jd_atom *katom,
 						       kbase_jd_atom *dep_atom)
 {
 	katom->status = KBASE_JD_ATOM_STATE_QUEUED;
-	katom->dep_atom[0] = dep_atom;
+	kbase_jd_katom_dep_set(&katom->dep[0],dep_atom, BASE_JD_DEP_TYPE_DATA);
 	list_add_tail(&katom->dep_item[0], &dep_atom->dep_head[0]);
 }
 
@@ -752,8 +752,8 @@ static void kbasep_replay_create_atom(kbase_context *kctx,
 	atom->prio = ((prio << 16) / ((20 << 16) / 128)) - 128;
 	atom->atom_number = atom_nr;
 
-	atom->pre_dep[0] = 0;
-	atom->pre_dep[1] = 0;
+	base_jd_atom_dep_set(&atom->pre_dep[0], 0 , BASE_JD_DEP_TYPE_INVALID);
+	base_jd_atom_dep_set(&atom->pre_dep[1], 0 , BASE_JD_DEP_TYPE_INVALID);
 
 	atom->udata.blob[0] = 0;
 	atom->udata.blob[1] = 0;
@@ -801,7 +801,7 @@ static mali_error kbasep_replay_create_atoms(kbase_context *kctx,
 	kbasep_replay_create_atom(kctx, t_atom, t_atom_nr, prio);
 	kbasep_replay_create_atom(kctx, f_atom, f_atom_nr, prio);
 
-	f_atom->pre_dep[0] = t_atom_nr;
+	base_jd_atom_dep_set(&f_atom->pre_dep[0], t_atom_nr , BASE_JD_DEP_TYPE_DATA);
 
 	return MALI_ERROR_NONE;
 }

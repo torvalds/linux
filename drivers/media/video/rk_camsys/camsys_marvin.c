@@ -4,6 +4,8 @@
 
 #include <linux/rockchip/common.h> 
 #include <dt-bindings/clock/rk_system_status.h>
+#include <linux/rockchip_ion.h>
+#include <linux/file.h>
 
 extern int rockchip_set_system_status(unsigned long status);
 extern int rockchip_clear_system_status(unsigned long status);
@@ -193,7 +195,70 @@ static int camsys_mrv_flash_trigger_cb(void *ptr,unsigned int on)
     return retval;
 }
 
+static int camsys_mrv_iommu_cb(void *ptr,camsys_sysctrl_t *devctl)
+{
+    struct device *iommu_dev = NULL,*dev = NULL;
+    struct file *file = NULL;
+    struct ion_client *client = NULL;
+    struct ion_handle *handle = NULL;
+    camsys_iommu_t *iommu = NULL;
+    int ret = 0,iommu_enabled = 0;
+    camsys_dev_t * camsys_dev = (camsys_dev_t *)ptr;
 
+    of_property_read_u32(camsys_dev->pdev->dev.of_node, "rockchip,isp,iommu_enable", &iommu_enabled);
+    if(iommu_enabled != 1){
+        camsys_err("isp iommu have not been enabled!\n");
+        ret = -1;
+        goto iommu_end;
+    }
+    
+    iommu_dev = rockchip_get_sysmmu_device_by_compatible("iommu,isp_mmu");
+    if(!iommu_dev){
+        camsys_err("get iommu device erro!\n");
+        ret = -1;
+        goto iommu_end;
+    }
+    dev = &(camsys_dev->pdev->dev);
+    iommu = (camsys_iommu_t *)(devctl->rev);
+    file = fget(iommu->client_fd);
+    if(!file){
+        camsys_err("get client_fd file erro!\n");
+        ret = -1;
+        goto iommu_end;
+    }
+    
+    client = file->private_data;
+    
+    if(!client){
+        camsys_err("get ion_client erro!\n");
+        ret = -1;
+        goto iommu_end;
+    }
+    
+    fput(file);
+
+    handle = ion_import_dma_buf(client,iommu->map_fd);
+
+    camsys_trace(1,"map fd %d ,client fd %d\n",iommu->map_fd,iommu->client_fd);
+    if(!handle){
+        camsys_err("get ion_handle erro!\n");
+        ret = -1;
+        goto iommu_end;
+    }
+    if(devctl->on){
+        platform_set_sysmmu(iommu_dev,dev);
+        ret = iovmm_activate(dev);
+        
+        ret = ion_map_iommu(dev,client,handle,&(iommu->linear_addr),&(iommu->len));
+        
+    }else{
+        ion_unmap_iommu(dev,client,handle);
+        platform_set_sysmmu(iommu_dev,dev);
+        iovmm_deactivate(dev);
+    }
+iommu_end:
+    return ret;
+}
 static int camsys_mrv_reset_cb(void *ptr,unsigned int on)
 {
     camsys_dev_t *camsys_dev = (camsys_dev_t*)ptr;
@@ -419,7 +484,7 @@ int camsys_mrv_probe_cb(struct platform_device *pdev, camsys_dev_t *camsys_dev)
     int err = 0;   
     camsys_mrv_clk_t *mrv_clk=NULL;
     
-	err = request_irq(camsys_dev->irq.irq_id, camsys_mrv_irq, 0, CAMSYS_MARVIN_IRQNAME,camsys_dev);
+	err = request_irq(camsys_dev->irq.irq_id, camsys_mrv_irq, IRQF_SHARED, CAMSYS_MARVIN_IRQNAME,camsys_dev);
     if (err) {
         camsys_err("request irq for %s failed",CAMSYS_MARVIN_IRQNAME);
         goto end;
@@ -465,6 +530,7 @@ int camsys_mrv_probe_cb(struct platform_device *pdev, camsys_dev_t *camsys_dev)
     camsys_dev->reset_cb = camsys_mrv_reset_cb;
     camsys_dev->iomux = camsys_mrv_iomux_cb;
     camsys_dev->flash_trigger_cb = camsys_mrv_flash_trigger_cb;
+    camsys_dev->iommu_cb = camsys_mrv_iommu_cb;
     
     camsys_dev->miscdev.minor = MISC_DYNAMIC_MINOR;
     camsys_dev->miscdev.name = miscdev_name;

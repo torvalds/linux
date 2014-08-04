@@ -44,9 +44,12 @@ int kbasep_10969_workaround_clamp_coordinates(kbase_jd_atom *katom)
 {
 	struct device *dev = katom->kctx->kbdev->dev;
 	u32   clamped = 0;
-	dev_warn(dev,"Called TILE_RANGE_FAULT workaround clamping function. \n");
+	dev_warn(dev, "Called TILE_RANGE_FAULT workaround clamping function.\n");
 	if (katom->core_req & BASE_JD_REQ_FS){
-		kbase_va_region * region = kbase_region_tracker_find_region_enclosing_address(katom->kctx, katom->jc );
+		kbase_va_region *region;
+
+		kbase_gpu_vm_lock(katom->kctx);
+		region = kbase_region_tracker_find_region_enclosing_address(katom->kctx, katom->jc);
 
 		if (region){
 			phys_addr_t * page_array = kbase_get_phy_pages(region);
@@ -171,6 +174,7 @@ int kbasep_10969_workaround_clamp_coordinates(kbase_jd_atom *katom)
 				kunmap_atomic(page_1);
 			}
 		}
+		kbase_gpu_vm_unlock(katom->kctx);
 	}
 	return clamped;
 }

@@ -217,6 +217,82 @@ typedef enum {
 
 typedef struct kbase_jd_atom kbase_jd_atom;
 
+struct kbase_jd_atom_dependency
+{
+	struct kbase_jd_atom *atom;
+	u8 dep_type;
+};
+
+/**
+ * @brief The function retrieves a read-only reference to the atom field from 
+ * the  kbase_jd_atom_dependency structure
+ *
+ * @param[in] dep kbase jd atom dependency.
+ *
+ * @return readonly reference to dependent ATOM.
+ */
+static INLINE const struct kbase_jd_atom* const kbase_jd_katom_dep_atom(const struct kbase_jd_atom_dependency* dep)
+{
+	LOCAL_ASSERT(dep != NULL);
+	
+	return (const struct kbase_jd_atom* const )(dep->atom);
+}
+ 
+/**
+ * @brief The function retrieves a read-only reference to the dependency type field from 
+ * the  kbase_jd_atom_dependency structure
+ *
+ * @param[in] dep kbase jd atom dependency.
+ *
+ * @return A dependency type value.
+ */
+static INLINE const u8 kbase_jd_katom_dep_type(const struct kbase_jd_atom_dependency* dep)
+{
+	LOCAL_ASSERT(dep != NULL);
+
+	return dep->dep_type;
+}
+
+/**
+ * @brief Setter macro for dep_atom array entry in kbase_jd_atom
+ *
+ * @param[in] dep    The kbase jd atom dependency.
+ * @param[in] a      The ATOM to be set as a dependency.
+ * @param     type   The ATOM dependency type to be set.
+ *
+ */
+static INLINE void kbase_jd_katom_dep_set(const struct kbase_jd_atom_dependency* const_dep, 
+	struct kbase_jd_atom * a,
+	u8 type)
+{
+	struct kbase_jd_atom_dependency* dep;
+	
+	LOCAL_ASSERT(const_dep != NULL);
+
+	dep = (REINTERPRET_CAST(struct kbase_jd_atom_dependency* )const_dep);
+
+	dep->atom = a;
+	dep->dep_type = type; 
+}
+
+/**
+ * @brief Setter macro for dep_atom array entry in kbase_jd_atom
+ *
+ * @param[in] dep    The kbase jd atom dependency to be cleared.
+ *
+ */
+static INLINE void kbase_jd_katom_dep_clear(const struct kbase_jd_atom_dependency* const_dep)
+{
+	struct kbase_jd_atom_dependency* dep;
+
+	LOCAL_ASSERT(const_dep != NULL);
+
+	dep = (REINTERPRET_CAST(struct kbase_jd_atom_dependency* )const_dep);
+
+	dep->atom = NULL;
+	dep->dep_type = BASE_JD_DEP_TYPE_INVALID; 
+}
+
 struct kbase_ext_res
 {
 	mali_addr64 gpu_address;
@@ -232,7 +308,7 @@ struct kbase_jd_atom {
 
 	struct list_head dep_head[2];
 	struct list_head dep_item[2];
-	struct kbase_jd_atom *dep_atom[2];
+	const struct kbase_jd_atom_dependency dep[2];
 
 	u16 nr_extres;
 	struct kbase_ext_res * extres;

@@ -276,6 +276,9 @@ typedef enum base_hw_issue {
 	/* Write buffer can cause tile list corruption */
 	BASE_HW_ISSUE_11024,
 
+	/* Pause buffer can cause a fragment job hang */
+	BASE_HW_ISSUE_11035,
+
 	/* T76X hw issues */
 
 	/* Partial 16xMSAA support */
@@ -367,6 +370,7 @@ static const base_hw_issue base_hw_issues_t60x_r0p0_15dev0[] = {
 	BASE_HW_ISSUE_10995,
 	BASE_HW_ISSUE_11012,
 	BASE_HW_ISSUE_11020,
+	BASE_HW_ISSUE_11035,
 	/* List of hardware issues must end with BASE_HW_ISSUE_END */
 	BASE_HW_ISSUE_END
 };
@@ -403,6 +407,7 @@ static const base_hw_issue base_hw_issues_t60x_r0p0_eac[] = {
 	BASE_HW_ISSUE_10969,
 	BASE_HW_ISSUE_11012,
 	BASE_HW_ISSUE_11020,
+	BASE_HW_ISSUE_11035,
 	/* List of hardware issues must end with BASE_HW_ISSUE_END */
 	BASE_HW_ISSUE_END
 };
@@ -436,6 +441,7 @@ static const base_hw_issue base_hw_issues_t60x_r0p1[] = {
 	BASE_HW_ISSUE_10946,
 	BASE_HW_ISSUE_11012,
 	BASE_HW_ISSUE_11020,
+	BASE_HW_ISSUE_11035,
 	/* List of hardware issues must end with BASE_HW_ISSUE_END */
 	BASE_HW_ISSUE_END
 };
@@ -466,6 +472,7 @@ static const base_hw_issue base_hw_issues_t62x_r0p1[] = {
 	BASE_HW_ISSUE_11012,
 	BASE_HW_ISSUE_11020,
 	BASE_HW_ISSUE_11024,
+	BASE_HW_ISSUE_11035,
 	/* List of hardware issues must end with BASE_HW_ISSUE_END */
 	BASE_HW_ISSUE_END
 };

@@ -884,7 +884,7 @@ int kbase_mem_commit(kbase_context * kctx, mali_addr64 gpu_addr, u64 new_pages, 
 						(first_bad << PAGE_SHIFT),
 						mapping->vm_end);
 				WARN(zap_res,
-				     "Failed to zap VA range (0x%lx -0x%lx);\n",
+				     "Failed to zap VA range (0x%lx - 0x%lx);\n",
 				     mapping->vm_start +
 				     (first_bad << PAGE_SHIFT),
 				     mapping->vm_end
@@ -1002,7 +1002,7 @@ static const struct vm_operations_struct kbase_vm_ops = {
 	.fault = kbase_cpu_vm_fault
 };
 
-static int kbase_cpu_mmap(struct kbase_va_region *reg, struct vm_area_struct *vma, void *kaddr, size_t nr_pages, int free_on_close)
+static int kbase_cpu_mmap(struct kbase_va_region *reg, struct vm_area_struct *vma, void *kaddr, size_t nr_pages, unsigned long aligned_offset, int free_on_close)
 {
 	struct kbase_cpu_mapping *map;
 	u64 start_off = vma->vm_pgoff - reg->start_pfn;
@@ -1077,8 +1077,13 @@ static int kbase_cpu_mmap(struct kbase_va_region *reg, struct vm_area_struct *vm
 	map->page_off = start_off;
 	map->region = free_on_close ? reg : NULL;
 	map->kctx = reg->kctx;
-	map->vm_start = vma->vm_start;
-	map->vm_end = vma->vm_end;
+	map->vm_start = vma->vm_start + aligned_offset;
+	if (aligned_offset) {
+		KBASE_DEBUG_ASSERT(!start_off);
+		map->vm_end = map->vm_start + (reg->nr_pages << PAGE_SHIFT);
+	} else {
+		map->vm_end = vma->vm_end;
+	}
 	map->alloc = kbase_mem_phy_alloc_get(reg->alloc);
 	map->count = 1; /* start with one ref */
 
@@ -1250,6 +1255,7 @@ int kbase_mmap(struct file *file, struct vm_area_struct *vma)
 	int err = 0;
 	int free_on_close = 0;
 	struct device *dev = kctx->kbdev->dev;
+	size_t aligned_offset = 0;
 
 	dev_dbg(dev, "kbase_mmap\n");
 	nr_pages = (vma->vm_end - vma->vm_start) >> PAGE_SHIFT;
@@ -1316,7 +1322,6 @@ int kbase_mmap(struct file *file, struct vm_area_struct *vma)
 		gpu_pc_bits = kctx->kbdev->gpu_props.props.core_props.log2_program_counter_size;
 		reg = kctx->pending_regions[cookie];
 		if (NULL != reg) {
-			size_t aligned_offset = 0;
 
 			if (reg->flags & KBASE_REG_ALIGNED) {
 				/* nr_pages must be able to hold alignment pages
@@ -1431,7 +1436,7 @@ overflow:
 	} /* default */
 	} /* switch */
 map:
-	err = kbase_cpu_mmap(reg, vma, kaddr, nr_pages, free_on_close);
+	err = kbase_cpu_mmap(reg, vma, kaddr, nr_pages, aligned_offset, free_on_close);
 
 	if (vma->vm_pgoff == PFN_DOWN(BASE_MEM_MMU_DUMP_HANDLE)) {
 		/* MMU dump - userspace should now have a reference on

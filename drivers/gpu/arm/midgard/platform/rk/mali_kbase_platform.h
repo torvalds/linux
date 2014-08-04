@@ -28,6 +28,8 @@ struct rk_context {
 	u32 time_busy;
 	u32 time_idle;
 	bool dvfs_enabled;
+	bool gpu_in_touch;
+	spinlock_t gpu_in_touch_lock;
 #endif
 };
 int mali_dvfs_clk_set(struct dvfs_node * node,unsigned long rate);

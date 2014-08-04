@@ -44,11 +44,10 @@ struct sysmmu_drvdata;
  *			   translated. This is 0 if @itype is SYSMMU_BUSERROR.
  */
 typedef int (*sysmmu_fault_handler_t)(struct device *dev,
-					  enum rk_sysmmu_inttype itype,
-					  unsigned long pgtable_base,
-					  unsigned long fault_addr,
-					  unsigned int statu
-					  );
+				      enum rk_sysmmu_inttype itype,
+				      unsigned long pgtable_base,
+				      unsigned long fault_addr,
+				      unsigned int statu);
 	
 #ifdef CONFIG_ROCKCHIP_IOMMU
 /**

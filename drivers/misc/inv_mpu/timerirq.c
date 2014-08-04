@@ -102,7 +102,6 @@ static int start_timerirq(struct timerirq_data *data)
 	data->data_ready = false;
 
 	init_completion(&data->timer_done);
-	setup_timer(&data->timer, timerirq_handler, (unsigned long)data);
 
 	return mod_timer(&data->timer,
 			 jiffies + msecs_to_jiffies(data->period));
@@ -138,6 +137,7 @@ static int timerirq_open(struct inode *inode, struct file *file)
 	data->pid = current->pid;
 	init_waitqueue_head(&data->timerirq_wait);
 
+	setup_timer(&data->timer, timerirq_handler, (unsigned long)data);
 	dev_dbg(data->dev->this_device,
 		"%s current->pid %d\n", __func__, current->pid);
 	return 0;

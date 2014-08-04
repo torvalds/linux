@@ -130,6 +130,7 @@
 			};
 			vio1_isp_w0 {
 				reg = <0xffad0100 0x20>;
+				rockchip,priority = <2 2>;
 			};
 			vio1_isp_w1 {
 				reg = <0xffad0180 0x20>;
@@ -922,7 +923,7 @@
 						>;
 					performance-temp-limit = <
 						/*temp    freq*/
-						110     816000
+						100     816000
 						>;
 					status = "okay";
 					regu-mode-table = <
@@ -1260,6 +1261,7 @@
 		rockchip,isp,cifphy = <1>;
 		rockchip,isp,mipiphy1,reg = <0xff968000 0x4000>;
 		rockchip,gpios = <&gpio7 GPIO_B5 GPIO_ACTIVE_HIGH>;
+		rockchip,isp,iommu_enable = <0>;
 		status = "okay";
 	};
 

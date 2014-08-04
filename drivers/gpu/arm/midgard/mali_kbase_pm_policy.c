@@ -375,17 +375,18 @@ void kbase_pm_update_cores_state_nolock(kbase_device *kbdev)
 	/* Are any cores being powered on? */
 	if (~kbdev->pm.desired_shader_state & desired_bitmap ||
 	    kbdev->pm.ca_in_transition != MALI_FALSE) {
+
+		/* Check if we are powering off any cores before updating shader state */
+		if (kbdev->pm.desired_shader_state & ~desired_bitmap) {
+			/* Start timer to power off cores */
+			kbdev->pm.shader_poweroff_pending |= (kbdev->pm.desired_shader_state & ~desired_bitmap);
+			kbdev->pm.shader_poweroff_pending_time = kbdev->pm.poweroff_shader_ticks;
+		}
+
 		kbdev->pm.desired_shader_state = desired_bitmap;
 
 		/* If any cores are being powered on, transition immediately */
 		cores_are_available = kbase_pm_check_transitions_nolock(kbdev);
-
-		/* Ensure timer does not power off wanted cores */
-		if (kbdev->pm.shader_poweroff_pending != 0) {
-			kbdev->pm.shader_poweroff_pending &= ~kbdev->pm.desired_shader_state;
-			if (kbdev->pm.shader_poweroff_pending == 0)
-				kbdev->pm.shader_poweroff_pending_time = 0;
-		}
 	} else if (kbdev->pm.desired_shader_state & ~desired_bitmap) {
 		/* Start timer to power off cores */
 		kbdev->pm.shader_poweroff_pending |= (kbdev->pm.desired_shader_state & ~desired_bitmap);
@@ -395,6 +396,13 @@ void kbase_pm_update_cores_state_nolock(kbase_device *kbdev)
 		 * then disable poweroff timer as it isn't required */
 		kbdev->pm.poweroff_timer_running = MALI_FALSE;
 		hrtimer_cancel(&kbdev->pm.gpu_poweroff_timer);
+	}
+
+	/* Ensure timer does not power off wanted cores and make sure to power off unwanted cores */
+	if (kbdev->pm.shader_poweroff_pending != 0) {
+		kbdev->pm.shader_poweroff_pending &= ~(kbdev->pm.desired_shader_state & desired_bitmap);
+		if (kbdev->pm.shader_poweroff_pending == 0)
+			kbdev->pm.shader_poweroff_pending_time = 0;
 	}
 
 	/* Don't need 'cores_are_available', because we don't return anything */

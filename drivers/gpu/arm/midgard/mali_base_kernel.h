@@ -316,6 +316,22 @@ struct base_mem_aliasing_info {
 };
 
 /**
+ * @brief Job dependency type.
+ *
+ * A flags field will be inserted into the atom structure to specify whether a dependency is a data or 
+ * ordering dependency (by putting it before/after 'core_req' in the structure it should be possible to add without 
+ * changing the structure size).
+ * When the flag is set for a particular dependency to signal that it is an ordering only dependency then 
+ * errors will not be propagated.
+ */
+typedef u8 base_jd_dep_type;
+
+
+#define BASE_JD_DEP_TYPE_INVALID  (0) 	/**< Invalid dependency */
+#define BASE_JD_DEP_TYPE_DATA     (1U << 0) 	/**< Data dependency */
+#define BASE_JD_DEP_TYPE_ORDER    (1U << 1) 	/**< Order dependency */
+
+/**
  * @brief Job chain hardware requirements.
  *
  * A job chain must specify what GPU features it needs to allow the
@@ -542,17 +558,23 @@ typedef struct base_jd_atom {
 
 typedef u8 base_atom_id; /**< Type big enough to store an atom number in */
 
+struct base_dependency {
+	base_atom_id  atom_id;               /**< An atom number */
+	base_jd_dep_type dependency_type;    /**< Dependency type */
+}; 
+
 typedef struct base_jd_atom_v2 {
 	mali_addr64 jc;			    /**< job-chain GPU address */
 	base_jd_udata udata;		    /**< user data */
 	kbase_pointer extres_list;	    /**< list of external resources */
 	u16 nr_extres;			    /**< nr of external resources */
 	base_jd_core_req core_req;	    /**< core requirements */
-	base_atom_id pre_dep[2];	    /**< pre-dependencies */
+	const struct base_dependency pre_dep[2]; /**< pre-dependencies, one need to use SETTER function to assign this field,
+	this is done in order to reduce possibility of improper assigment of a dependency field */
 	base_atom_id atom_number;	    /**< unique number to identify the atom */
 	s8 prio;			    /**< priority - smaller is higher priority */
 	u8 device_nr;			    /**< coregroup when BASE_JD_REQ_SPECIFIC_COHERENT_GROUP specified */
-	u8 padding[7];
+	u8 padding[5];
 } base_jd_atom_v2;
 
 #if BASE_LEGACY_JD_API
@@ -625,6 +647,44 @@ static INLINE base_syncset *base_jd_get_atom_syncset(base_jd_atom *atom, u16 n)
 	return &((basep_jd_atom_ss *) atom)->syncsets[n];
 }
 #endif				/* BASE_LEGACY_JD_API */
+
+
+/**
+ * @brief Setter for a dependency structure
+ *
+ * @param[in] dep          The kbase jd atom dependency to be initialized.
+ * @param     id           The atom_id to be assigned.
+ * @param     dep_type     The dep_type to be assigned.
+ *
+ */
+static INLINE void base_jd_atom_dep_set(const struct base_dependency* const_dep, base_atom_id id, base_jd_dep_type dep_type)
+{
+	struct base_dependency* dep;
+	
+	LOCAL_ASSERT(const_dep != NULL);
+	/* make sure we don't set not allowed combinations of atom_id/dependency_type */
+	LOCAL_ASSERT( ( id == 0 && dep_type == BASE_JD_DEP_TYPE_INVALID) || 
+				(id > 0 && dep_type != BASE_JD_DEP_TYPE_INVALID) );
+
+	dep = REINTERPRET_CAST(struct base_dependency*)const_dep;
+
+	dep->atom_id = id;
+	dep->dependency_type = dep_type;
+}
+
+/**
+ * @brief Make a copy of a dependency structure
+ *
+ * @param[in,out] dep          The kbase jd atom dependency to be written.
+ * @param[in]     from         The dependency to make a copy from.
+ *
+ */
+static INLINE void base_jd_atom_dep_copy(const struct base_dependency* const_dep, const struct base_dependency* from)
+{
+	LOCAL_ASSERT(const_dep != NULL);
+
+	base_jd_atom_dep_set(const_dep, from->atom_id, from->dependency_type);
+}
 
 /**
  * @brief Soft-atom fence trigger setup.

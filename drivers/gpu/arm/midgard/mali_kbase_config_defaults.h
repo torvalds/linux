@@ -164,7 +164,7 @@
 /*** Begin Power Manager defaults */
 
 /* Milliseconds */
-#define DEFAULT_PM_DVFS_FREQ 50
+#define DEFAULT_PM_DVFS_FREQ 20
 
 /**
  * Default poweroff tick granuality, in nanoseconds
