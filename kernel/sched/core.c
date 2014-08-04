@@ -90,22 +90,6 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/sched.h>
 
-#ifdef smp_mb__before_atomic
-void __smp_mb__before_atomic(void)
-{
-	smp_mb__before_atomic();
-}
-EXPORT_SYMBOL(__smp_mb__before_atomic);
-#endif
-
-#ifdef smp_mb__after_atomic
-void __smp_mb__after_atomic(void)
-{
-	smp_mb__after_atomic();
-}
-EXPORT_SYMBOL(__smp_mb__after_atomic);
-#endif
-
 void start_bandwidth_timer(struct hrtimer *period_timer, ktime_t period)
 {
 	unsigned long delta;
