@@ -281,8 +281,7 @@ static int wm8903_dcs_event(struct snd_soc_dapm_widget *w,
 static void wm8903_seq_notifier(struct snd_soc_dapm_context *dapm,
 				enum snd_soc_dapm_type event, int subseq)
 {
-	struct snd_soc_codec *codec = container_of(dapm,
-						   struct snd_soc_codec, dapm);
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(dapm);
 	struct wm8903_priv *wm8903 = snd_soc_codec_get_drvdata(codec);
 	int dcs_mode = WM8903_DCS_MODE_WRITE_STOP;
 	int i, val;

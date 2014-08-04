@@ -735,8 +735,7 @@ WM5100_MIXER_CONTROLS("LHPF4", WM5100_HPLP4MIX_INPUT_1_SOURCE),
 static void wm5100_seq_notifier(struct snd_soc_dapm_context *dapm,
 				enum snd_soc_dapm_type event, int subseq)
 {
-	struct snd_soc_codec *codec = container_of(dapm,
-						   struct snd_soc_codec, dapm);
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(dapm);
 	struct wm5100_priv *wm5100 = snd_soc_codec_get_drvdata(codec);
 	u16 val, expect, i;
 

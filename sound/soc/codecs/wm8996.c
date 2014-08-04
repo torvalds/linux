@@ -690,8 +690,7 @@ static void wait_for_dc_servo(struct snd_soc_codec *codec, u16 mask)
 static void wm8996_seq_notifier(struct snd_soc_dapm_context *dapm,
 				enum snd_soc_dapm_type event, int subseq)
 {
-	struct snd_soc_codec *codec = container_of(dapm,
-						   struct snd_soc_codec, dapm);
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(dapm);
 	struct wm8996_priv *wm8996 = snd_soc_codec_get_drvdata(codec);
 	u16 val, mask;
 
