@@ -679,12 +679,15 @@ equal to zero, in which case the compiler is within its rights to
 transform the above code into the following:
 
 	q = ACCESS_ONCE(a);
+	barrier();
 	ACCESS_ONCE(b) = p;
 	do_something_else();
 
-This transformation loses the ordering between the load from variable 'a'
-and the store to variable 'b'.  If you are relying on this ordering, you
-should do something like the following:
+This transformation fails to require that the CPU respect the ordering
+between the load from variable 'a' and the store to variable 'b'.
+Yes, the barrier() is still there, but it affects only the compiler,
+not the CPU.  Therefore, if you are relying on this ordering, you should
+do something like the following:
 
 	q = ACCESS_ONCE(a);
 	BUILD_BUG_ON(MAX <= 1); /* Order load from a with store to b. */
