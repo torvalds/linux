@@ -260,12 +260,12 @@ struct fsi_priv {
 	u32 fmt;
 
 	int chan_num:16;
-	int clk_master:1;
-	int clk_cpg:1;
-	int spdif:1;
-	int enable_stream:1;
-	int bit_clk_inv:1;
-	int lr_clk_inv:1;
+	unsigned int clk_master:1;
+	unsigned int clk_cpg:1;
+	unsigned int spdif:1;
+	unsigned int enable_stream:1;
+	unsigned int bit_clk_inv:1;
+	unsigned int lr_clk_inv:1;
 };
 
 struct fsi_stream_handler {

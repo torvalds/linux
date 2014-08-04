@@ -14,17 +14,10 @@
 
 #include <sound/dmaengine_pcm.h>
 
-struct s3c_dma_client {
-	char *name;
-};
-
 struct s3c_dma_params {
-	struct s3c_dma_client *client;	/* stream identifier */
 	int channel;				/* Channel ID */
 	dma_addr_t dma_addr;
 	int dma_size;			/* Size of the DMA transfer */
-	unsigned ch;
-	struct samsung_dma_ops *ops;
 	char *ch_name;
 	struct snd_dmaengine_dai_dma_data dma_data;
 };
