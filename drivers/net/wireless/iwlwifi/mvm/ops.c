@@ -495,7 +495,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 		goto out_free;
 
 	/*
-	 * Even if nvm exists in the nvm_file driver should read agin the nvm
+	 * Even if nvm exists in the nvm_file driver should read again the nvm
 	 * from the nic because there might be entries that exist in the OTP
 	 * and not in the file.
 	 * for nics with no_power_up_nic_in_init: rely completley on nvm_file
