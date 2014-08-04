@@ -32,11 +32,6 @@ static void oz_retire_frame(struct oz_pd *pd, struct oz_tx_frame *f);
 static void oz_isoc_stream_free(struct oz_isoc_stream *st);
 static int oz_send_next_queued_frame(struct oz_pd *pd, int more_data);
 static void oz_isoc_destructor(struct sk_buff *skb);
-static int oz_def_app_init(void);
-static void oz_def_app_term(void);
-static int oz_def_app_start(struct oz_pd *pd, int resume);
-static void oz_def_app_stop(struct oz_pd *pd, int pause);
-static void oz_def_app_rx(struct oz_pd *pd, struct oz_elt *elt);
 
 /*
  * Counts the uncompleted isoc frames submitted to netcard.
@@ -45,80 +40,25 @@ static atomic_t g_submitted_isoc = ATOMIC_INIT(0);
 
 /* Application handler functions.
  */
-static const struct oz_app_if g_app_if[OZ_APPID_MAX] = {
-	{oz_usb_init,
-	oz_usb_term,
-	oz_usb_start,
-	oz_usb_stop,
-	oz_usb_rx,
-	oz_usb_heartbeat,
-	oz_usb_farewell,
-	OZ_APPID_USB},
-
-	{oz_def_app_init,
-	oz_def_app_term,
-	oz_def_app_start,
-	oz_def_app_stop,
-	oz_def_app_rx,
-	NULL,
-	NULL,
-	OZ_APPID_UNUSED1},
-
-	{oz_def_app_init,
-	oz_def_app_term,
-	oz_def_app_start,
-	oz_def_app_stop,
-	oz_def_app_rx,
-	NULL,
-	NULL,
-	OZ_APPID_UNUSED2},
-
-	{oz_cdev_init,
-	oz_cdev_term,
-	oz_cdev_start,
-	oz_cdev_stop,
-	oz_cdev_rx,
-	NULL,
-	NULL,
-	OZ_APPID_SERIAL},
+static const struct oz_app_if g_app_if[OZ_NB_APPS] = {
+	[OZ_APPID_USB] = {
+		.init      = oz_usb_init,
+		.term      = oz_usb_term,
+		.start     = oz_usb_start,
+		.stop      = oz_usb_stop,
+		.rx        = oz_usb_rx,
+		.heartbeat = oz_usb_heartbeat,
+		.farewell  = oz_usb_farewell,
+	},
+	[OZ_APPID_SERIAL] = {
+		.init      = oz_cdev_init,
+		.term      = oz_cdev_term,
+		.start     = oz_cdev_start,
+		.stop      = oz_cdev_stop,
+		.rx        = oz_cdev_rx,
+	},
 };
 
-/*
- * Context: process
- */
-static int oz_def_app_init(void)
-{
-	return 0;
-}
-
-/*
- * Context: process
- */
-static void oz_def_app_term(void)
-{
-}
-
-/*
- * Context: softirq
- */
-static int oz_def_app_start(struct oz_pd *pd, int resume)
-{
-	return 0;
-}
-
-/*
- * Context: softirq
- */
-static void oz_def_app_stop(struct oz_pd *pd, int pause)
-{
-}
-
-/*
- * Context: softirq
- */
-static void oz_def_app_rx(struct oz_pd *pd, struct oz_elt *elt)
-{
-}
 
 /*
  * Context: softirq or process
@@ -169,7 +109,7 @@ struct oz_pd *oz_pd_alloc(const u8 *mac_addr)
 	if (pd) {
 		int i;
 		atomic_set(&pd->ref_count, 2);
-		for (i = 0; i < OZ_APPID_MAX; i++)
+		for (i = 0; i < OZ_NB_APPS; i++)
 			spin_lock_init(&pd->app_lock[i]);
 		pd->last_rx_pkt_num = 0xffffffff;
 		oz_pd_set_state(pd, OZ_PD_S_IDLE);
@@ -269,23 +209,21 @@ void oz_pd_destroy(struct oz_pd *pd)
  */
 int oz_services_start(struct oz_pd *pd, u16 apps, int resume)
 {
-	const struct oz_app_if *ai;
-	int rc = 0;
+	int i, rc = 0;
 
 	oz_pd_dbg(pd, ON, "%s: (0x%x) resume(%d)\n", __func__, apps, resume);
-	for (ai = g_app_if; ai < &g_app_if[OZ_APPID_MAX]; ai++) {
-		if (apps & (1<<ai->app_id)) {
-			if (ai->start(pd, resume)) {
+	for (i = 0; i < OZ_NB_APPS; i++) {
+		if (g_app_if[i].start && (apps & (1 << i))) {
+			if (g_app_if[i].start(pd, resume)) {
 				rc = -1;
 				oz_pd_dbg(pd, ON,
-					  "Unable to start service %d\n",
-					  ai->app_id);
+					  "Unable to start service %d\n", i);
 				break;
 			}
 			spin_lock_bh(&g_polling_lock);
-			pd->total_apps |= (1<<ai->app_id);
+			pd->total_apps |= (1 << i);
 			if (resume)
-				pd->paused_apps &= ~(1<<ai->app_id);
+				pd->paused_apps &= ~(1 << i);
 			spin_unlock_bh(&g_polling_lock);
 		}
 	}
@@ -297,20 +235,20 @@ int oz_services_start(struct oz_pd *pd, u16 apps, int resume)
  */
 void oz_services_stop(struct oz_pd *pd, u16 apps, int pause)
 {
-	const struct oz_app_if *ai;
+	int i;
 
 	oz_pd_dbg(pd, ON, "%s: (0x%x) pause(%d)\n", __func__, apps, pause);
-	for (ai = g_app_if; ai < &g_app_if[OZ_APPID_MAX]; ai++) {
-		if (apps & (1<<ai->app_id)) {
+	for (i = 0; i < OZ_NB_APPS; i++) {
+		if (g_app_if[i].stop && (apps & (1 << i))) {
 			spin_lock_bh(&g_polling_lock);
 			if (pause) {
-				pd->paused_apps |= (1<<ai->app_id);
+				pd->paused_apps |=  (1 << i);
 			} else {
-				pd->total_apps &= ~(1<<ai->app_id);
-				pd->paused_apps &= ~(1<<ai->app_id);
+				pd->total_apps  &= ~(1 << i);
+				pd->paused_apps &= ~(1 << i);
 			}
 			spin_unlock_bh(&g_polling_lock);
-			ai->stop(pd, pause);
+			g_app_if[i].stop(pd, pause);
 		}
 	}
 }
@@ -320,12 +258,11 @@ void oz_services_stop(struct oz_pd *pd, u16 apps, int pause)
  */
 void oz_pd_heartbeat(struct oz_pd *pd, u16 apps)
 {
-	const struct oz_app_if *ai;
-	int more = 0;
+	int i, more = 0;
 
-	for (ai = g_app_if; ai < &g_app_if[OZ_APPID_MAX]; ai++) {
-		if (ai->heartbeat && (apps & (1<<ai->app_id))) {
-			if (ai->heartbeat(pd))
+	for (i = 0; i < OZ_NB_APPS; i++) {
+		if (g_app_if[i].heartbeat && (apps & (1 << i))) {
+			if (g_app_if[i].heartbeat(pd))
 				more = 1;
 		}
 	}
@@ -957,9 +894,10 @@ void oz_apps_init(void)
 {
 	int i;
 
-	for (i = 0; i < OZ_APPID_MAX; i++)
+	for (i = 0; i < OZ_NB_APPS; i++) {
 		if (g_app_if[i].init)
 			g_app_if[i].init();
+	}
 }
 
 /*
@@ -970,9 +908,10 @@ void oz_apps_term(void)
 	int i;
 
 	/* Terminate all the apps. */
-	for (i = 0; i < OZ_APPID_MAX; i++)
+	for (i = 0; i < OZ_NB_APPS; i++) {
 		if (g_app_if[i].term)
 			g_app_if[i].term();
+	}
 }
 
 /*
@@ -980,12 +919,8 @@ void oz_apps_term(void)
  */
 void oz_handle_app_elt(struct oz_pd *pd, u8 app_id, struct oz_elt *elt)
 {
-	const struct oz_app_if *ai;
-
-	if (app_id == 0 || app_id > OZ_APPID_MAX)
-		return;
-	ai = &g_app_if[app_id-1];
-	ai->rx(pd, elt);
+	if (app_id < OZ_NB_APPS && g_app_if[app_id].rx)
+		g_app_if[app_id].rx(pd, elt);
 }
 
 /*
@@ -994,7 +929,7 @@ void oz_handle_app_elt(struct oz_pd *pd, u8 app_id, struct oz_elt *elt)
 void oz_pd_indicate_farewells(struct oz_pd *pd)
 {
 	struct oz_farewell *f;
-	const struct oz_app_if *ai = &g_app_if[OZ_APPID_USB-1];
+	const struct oz_app_if *ai = &g_app_if[OZ_APPID_USB];
 
 	while (1) {
 		spin_lock_bh(&g_polling_lock);

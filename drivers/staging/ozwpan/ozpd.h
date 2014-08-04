@@ -81,8 +81,8 @@ struct oz_pd {
 	unsigned long	presleep;
 	unsigned long	keep_alive;
 	struct oz_elt_buf elt_buff;
-	void		*app_ctx[OZ_APPID_MAX];
-	spinlock_t	app_lock[OZ_APPID_MAX];
+	void		*app_ctx[OZ_NB_APPS];
+	spinlock_t	app_lock[OZ_NB_APPS];
 	int		max_tx_size;
 	u8		mode;
 	u8		ms_per_isoc;

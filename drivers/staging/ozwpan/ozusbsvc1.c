@@ -364,11 +364,11 @@ void oz_usb_rx(struct oz_pd *pd, struct oz_elt *elt)
 	struct oz_usb_hdr *usb_hdr = (struct oz_usb_hdr *)(elt + 1);
 	struct oz_usb_ctx *usb_ctx;
 
-	spin_lock_bh(&pd->app_lock[OZ_APPID_USB-1]);
-	usb_ctx = (struct oz_usb_ctx *)pd->app_ctx[OZ_APPID_USB-1];
+	spin_lock_bh(&pd->app_lock[OZ_APPID_USB]);
+	usb_ctx = (struct oz_usb_ctx *)pd->app_ctx[OZ_APPID_USB];
 	if (usb_ctx)
 		oz_usb_get(usb_ctx);
-	spin_unlock_bh(&pd->app_lock[OZ_APPID_USB-1]);
+	spin_unlock_bh(&pd->app_lock[OZ_APPID_USB]);
 	if (usb_ctx == NULL)
 		return; /* Context has gone so nothing to do. */
 	if (usb_ctx->stopped)
@@ -434,11 +434,11 @@ void oz_usb_farewell(struct oz_pd *pd, u8 ep_num, u8 *data, u8 len)
 {
 	struct oz_usb_ctx *usb_ctx;
 
-	spin_lock_bh(&pd->app_lock[OZ_APPID_USB-1]);
-	usb_ctx = (struct oz_usb_ctx *)pd->app_ctx[OZ_APPID_USB-1];
+	spin_lock_bh(&pd->app_lock[OZ_APPID_USB]);
+	usb_ctx = (struct oz_usb_ctx *)pd->app_ctx[OZ_APPID_USB];
 	if (usb_ctx)
 		oz_usb_get(usb_ctx);
-	spin_unlock_bh(&pd->app_lock[OZ_APPID_USB-1]);
+	spin_unlock_bh(&pd->app_lock[OZ_APPID_USB]);
 	if (usb_ctx == NULL)
 		return; /* Context has gone so nothing to do. */
 	if (!usb_ctx->stopped) {

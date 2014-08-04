@@ -614,7 +614,7 @@ struct oz_pd *oz_pd_find(const u8 *mac_addr)
  */
 void oz_app_enable(int app_id, int enable)
 {
-	if (app_id <= OZ_APPID_MAX) {
+	if (app_id < OZ_NB_APPS) {
 		spin_lock_bh(&g_polling_lock);
 		if (enable)
 			g_apps |= (1<<app_id);

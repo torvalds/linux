@@ -46,7 +46,6 @@ struct oz_app_if {
 	oz_app_rx_fn_t		rx;
 	oz_app_heartbeat_fn_t	heartbeat;
 	oz_app_farewell_fn_t	farewell;
-	int			app_id;
 };
 
 int oz_protocol_init(char *devs);
