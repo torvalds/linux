@@ -314,8 +314,7 @@ static int sst_platform_init_stream(struct snd_pcm_substream *substream)
 	stream->stream_info.arg = substream;
 	stream->stream_info.buffer_ptr = 0;
 	stream->stream_info.sfreq = substream->runtime->rate;
-	ret_val = stream->ops->device_control(
-			SST_SND_STREAM_INIT, &stream->stream_info);
+	ret_val = stream->ops->stream_init(&stream->stream_info);
 	if (ret_val)
 		pr_err("control_set ret error %d\n", ret_val);
 	return ret_val;
@@ -403,8 +402,7 @@ static int sst_media_prepare(struct snd_pcm_substream *substream,
 	stream = substream->runtime->private_data;
 	str_id = stream->stream_info.str_id;
 	if (stream->stream_info.str_id) {
-		ret_val = stream->ops->device_control(
-				SST_SND_DROP, &str_id);
+		ret_val = stream->ops->stream_drop(str_id);
 		return ret_val;
 	}
 
@@ -461,7 +459,7 @@ static int sst_platform_pcm_trigger(struct snd_pcm_substream *substream,
 {
 	int ret_val = 0, str_id;
 	struct sst_runtime_stream *stream;
-	int str_cmd, status;
+	int status;
 
 	pr_debug("sst_platform_pcm_trigger called\n");
 	stream = substream->runtime->private_data;
@@ -469,29 +467,29 @@ static int sst_platform_pcm_trigger(struct snd_pcm_substream *substream,
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 		pr_debug("sst: Trigger Start\n");
-		str_cmd = SST_SND_START;
 		status = SST_PLATFORM_RUNNING;
 		stream->stream_info.arg = substream;
+		ret_val = stream->ops->stream_start(str_id);
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 		pr_debug("sst: in stop\n");
-		str_cmd = SST_SND_DROP;
 		status = SST_PLATFORM_DROPPED;
+		ret_val = stream->ops->stream_drop(str_id);
 		break;
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		pr_debug("sst: in pause\n");
-		str_cmd = SST_SND_PAUSE;
 		status = SST_PLATFORM_PAUSED;
+		ret_val = stream->ops->stream_pause(str_id);
 		break;
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		pr_debug("sst: in pause release\n");
-		str_cmd = SST_SND_RESUME;
 		status = SST_PLATFORM_RUNNING;
+		ret_val = stream->ops->stream_pause_release(str_id);
 		break;
 	default:
 		return -EINVAL;
 	}
-	ret_val = stream->ops->device_control(str_cmd, &str_id);
+
 	if (!ret_val)
 		sst_set_stream_status(stream, status);
 
@@ -511,8 +509,7 @@ static snd_pcm_uframes_t sst_platform_pcm_pointer
 	if (status == SST_PLATFORM_INIT)
 		return 0;
 	str_info = &stream->stream_info;
-	ret_val = stream->ops->device_control(
-				SST_SND_BUFFER_POINTER, str_info);
+	ret_val = stream->ops->stream_read_tstamp(str_info);
 	if (ret_val) {
 		pr_err("sst: error code = %d\n", ret_val);
 		return ret_val;

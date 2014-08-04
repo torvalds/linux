@@ -54,18 +54,6 @@ enum sst_drv_status {
 	SST_PLATFORM_DROPPED,
 };
 
-enum sst_controls {
-	SST_SND_ALLOC =			0x00,
-	SST_SND_PAUSE =			0x01,
-	SST_SND_RESUME =		0x02,
-	SST_SND_DROP =			0x03,
-	SST_SND_FREE =			0x04,
-	SST_SND_BUFFER_POINTER =	0x05,
-	SST_SND_STREAM_INIT =		0x06,
-	SST_SND_START	 =		0x07,
-	SST_MAX_CONTROLS = 		0x07,
-};
-
 enum sst_stream_ops {
 	STREAM_OPS_PLAYBACK = 0,
 	STREAM_OPS_CAPTURE,
@@ -126,7 +114,12 @@ struct compress_sst_ops {
 
 struct sst_ops {
 	int (*open) (struct snd_sst_params *str_param);
-	int (*device_control) (int cmd, void *arg);
+	int (*stream_init) (struct pcm_stream_info *str_info);
+	int (*stream_start) (int str_id);
+	int (*stream_drop) (int str_id);
+	int (*stream_pause) (int str_id);
+	int (*stream_pause_release) (int str_id);
+	int (*stream_read_tstamp) (struct pcm_stream_info *str_info);
 	int (*send_byte_stream)(struct snd_sst_bytes_v2 *bytes);
 	int (*close) (unsigned int str_id);
 };
