@@ -318,24 +318,32 @@ static const struct soc_enum adca_swap_enum =
 			      ARRAY_SIZE(left_swap_text),
 			      left_swap_text,
 			      swap_values);
+static const struct snd_kcontrol_new adca_swap_mux =
+	SOC_DAPM_ENUM("Route", adca_swap_enum);
 
 static const struct soc_enum pcma_swap_enum =
 	SOC_VALUE_ENUM_SINGLE(CS42L56_CHAN_MIX_SWAP, 4, 3,
 			      ARRAY_SIZE(left_swap_text),
 			      left_swap_text,
 			      swap_values);
+static const struct snd_kcontrol_new pcma_swap_mux =
+	SOC_DAPM_ENUM("Route", pcma_swap_enum);
 
 static const struct soc_enum adcb_swap_enum =
 	SOC_VALUE_ENUM_SINGLE(CS42L56_CHAN_MIX_SWAP, 2, 3,
 			      ARRAY_SIZE(right_swap_text),
 			      right_swap_text,
 			      swap_values);
+static const struct snd_kcontrol_new adcb_swap_mux =
+	SOC_DAPM_ENUM("Route", adcb_swap_enum);
 
 static const struct soc_enum pcmb_swap_enum =
 	SOC_VALUE_ENUM_SINGLE(CS42L56_CHAN_MIX_SWAP, 6, 3,
 			      ARRAY_SIZE(right_swap_text),
 			      right_swap_text,
 			      swap_values);
+static const struct snd_kcontrol_new pcmb_swap_mux =
+	SOC_DAPM_ENUM("Route", pcmb_swap_enum);
 
 static const struct snd_kcontrol_new hpa_switch =
 	SOC_DAPM_SINGLE("Switch", CS42L56_PWRCTL_2, 6, 1, 1);
@@ -421,15 +429,15 @@ static const struct soc_enum ng_delay_enum =
 static const struct snd_kcontrol_new cs42l56_snd_controls[] = {
 
 	SOC_DOUBLE_R_SX_TLV("Master Volume", CS42L56_MASTER_A_VOLUME,
-			      CS42L56_MASTER_B_VOLUME, 0, 0x34, 0xfd, adv_tlv),
+			      CS42L56_MASTER_B_VOLUME, 0, 0x34, 0xE4, adv_tlv),
 	SOC_DOUBLE("Master Mute Switch", CS42L56_DSP_MUTE_CTL, 0, 1, 1, 1),
 
 	SOC_DOUBLE_R_SX_TLV("ADC Mixer Volume", CS42L56_ADCA_MIX_VOLUME,
-			      CS42L56_ADCB_MIX_VOLUME, 0, 0x88, 0xa9, hl_tlv),
+			      CS42L56_ADCB_MIX_VOLUME, 0, 0x88, 0x90, hl_tlv),
 	SOC_DOUBLE("ADC Mixer Mute Switch", CS42L56_DSP_MUTE_CTL, 6, 7, 1, 1),
 
 	SOC_DOUBLE_R_SX_TLV("PCM Mixer Volume", CS42L56_PCMA_MIX_VOLUME,
-			      CS42L56_PCMB_MIX_VOLUME, 0, 0x88, 0xa9, hl_tlv),
+			      CS42L56_PCMB_MIX_VOLUME, 0, 0x88, 0x90, hl_tlv),
 	SOC_DOUBLE("PCM Mixer Mute Switch", CS42L56_DSP_MUTE_CTL, 4, 5, 1, 1),
 
 	SOC_SINGLE_TLV("Analog Advisory Volume",
@@ -438,16 +446,16 @@ static const struct snd_kcontrol_new cs42l56_snd_controls[] = {
 			  CS42L56_DIGINPUT_ADV_VOLUME, 0, 0x00, 1, adv_tlv),
 
 	SOC_DOUBLE_R_SX_TLV("PGA Volume", CS42L56_PGAA_MUX_VOLUME,
-			      CS42L56_PGAB_MUX_VOLUME, 0, 0x34, 0xfd, pga_tlv),
+			      CS42L56_PGAB_MUX_VOLUME, 0, 0x34, 0x24, pga_tlv),
 	SOC_DOUBLE_R_TLV("ADC Volume", CS42L56_ADCA_ATTENUATOR,
 			      CS42L56_ADCB_ATTENUATOR, 0, 0x00, 1, adc_tlv),
 	SOC_DOUBLE("ADC Mute Switch", CS42L56_MISC_ADC_CTL, 2, 3, 1, 1),
 	SOC_DOUBLE("ADC Boost Switch", CS42L56_GAIN_BIAS_CTL, 3, 2, 1, 1),
 
 	SOC_DOUBLE_R_SX_TLV("Headphone Volume", CS42L56_HPA_VOLUME,
-			      CS42L56_HPA_VOLUME, 0, 0x44, 0x55, hl_tlv),
+			      CS42L56_HPB_VOLUME, 0, 0x84, 0x48, hl_tlv),
 	SOC_DOUBLE_R_SX_TLV("LineOut Volume", CS42L56_LOA_VOLUME,
-			      CS42L56_LOA_VOLUME, 0, 0x44, 0x55, hl_tlv),
+			      CS42L56_LOB_VOLUME, 0, 0x84, 0x48, hl_tlv),
 
 	SOC_SINGLE_TLV("Bass Shelving Volume", CS42L56_TONE_CTL,
 			0, 0x00, 1, tone_tlv),
@@ -466,11 +474,6 @@ static const struct snd_kcontrol_new cs42l56_snd_controls[] = {
 	SOC_SINGLE("PCMB Invert", CS42L56_PLAYBACK_CTL, 3, 1, 1),
 	SOC_SINGLE("ADCA Invert", CS42L56_MISC_ADC_CTL, 2, 1, 1),
 	SOC_SINGLE("ADCB Invert", CS42L56_MISC_ADC_CTL, 3, 1, 1),
-
-	SOC_ENUM("PCMA Swap", pcma_swap_enum),
-	SOC_ENUM("PCMB Swap", pcmb_swap_enum),
-	SOC_ENUM("ADCA Swap", adca_swap_enum),
-	SOC_ENUM("ADCB Swap", adcb_swap_enum),
 
 	SOC_DOUBLE("HPF Switch", CS42L56_HPF_CTL, 5, 7, 1, 1),
 	SOC_DOUBLE("HPF Freeze Switch", CS42L56_HPF_CTL, 4, 6, 1, 1),
@@ -570,6 +573,16 @@ static const struct snd_soc_dapm_widget cs42l56_dapm_widgets[] = {
 	SND_SOC_DAPM_ADC("ADCA", NULL, CS42L56_PWRCTL_1, 1, 1),
 	SND_SOC_DAPM_ADC("ADCB", NULL, CS42L56_PWRCTL_1, 2, 1),
 
+	SND_SOC_DAPM_MUX("ADCA Swap Mux", SND_SOC_NOPM, 0, 0,
+		&adca_swap_mux),
+	SND_SOC_DAPM_MUX("ADCB Swap Mux", SND_SOC_NOPM, 0, 0,
+		&adcb_swap_mux),
+
+	SND_SOC_DAPM_MUX("PCMA Swap Mux", SND_SOC_NOPM, 0, 0,
+		&pcma_swap_mux),
+	SND_SOC_DAPM_MUX("PCMB Swap Mux", SND_SOC_NOPM, 0, 0,
+		&pcmb_swap_mux),
+
 	SND_SOC_DAPM_DAC("DACA", NULL, SND_SOC_NOPM, 0, 0),
 	SND_SOC_DAPM_DAC("DACB", NULL, SND_SOC_NOPM, 0, 0),
 
@@ -607,8 +620,19 @@ static const struct snd_soc_dapm_route cs42l56_audio_map[] = {
 	{"Digital Output Mux", NULL, "ADCA"},
 	{"Digital Output Mux", NULL, "ADCB"},
 
-	{"ADCB", NULL, "ADCB Mux"},
-	{"ADCA", NULL, "ADCA Mux"},
+	{"ADCB", NULL, "ADCB Swap Mux"},
+	{"ADCA", NULL, "ADCA Swap Mux"},
+
+	{"ADCA Swap Mux", NULL, "ADCA"},
+	{"ADCB Swap Mux", NULL, "ADCB"},
+
+	{"DACA", "Left", "ADCA Swap Mux"},
+	{"DACA", "LR 2", "ADCA Swap Mux"},
+	{"DACA", "Right", "ADCA Swap Mux"},
+
+	{"DACB", "Left", "ADCB Swap Mux"},
+	{"DACB", "LR 2", "ADCB Swap Mux"},
+	{"DACB", "Right", "ADCB Swap Mux"},
 
 	{"ADCA Mux", NULL, "AIN3A"},
 	{"ADCA Mux", NULL, "AIN2A"},
@@ -633,30 +657,32 @@ static const struct snd_soc_dapm_route cs42l56_audio_map[] = {
 	{"PGAB Input Mux", NULL, "AIN2B"},
 	{"PGAB Input Mux", NULL, "AIN3B"},
 
-	{"LOB", NULL, "Lineout Right"},
-	{"LOA", NULL, "Lineout Left"},
-
-	{"Lineout Right", "Switch", "LINEOUTB Input Mux"},
-	{"Lineout Left", "Switch", "LINEOUTA Input Mux"},
+	{"LOB", "Switch", "LINEOUTB Input Mux"},
+	{"LOA", "Switch", "LINEOUTA Input Mux"},
 
 	{"LINEOUTA Input Mux", "PGAA", "PGAA"},
 	{"LINEOUTB Input Mux", "PGAB", "PGAB"},
 	{"LINEOUTA Input Mux", "DACA", "DACA"},
 	{"LINEOUTB Input Mux", "DACB", "DACB"},
 
-	{"HPA", NULL, "Headphone Left"},
-	{"HPB", NULL, "Headphone Right"},
-
-	{"Headphone Right", "Switch", "HPB Input Mux"},
-	{"Headphone Left", "Switch", "HPA Input Mux"},
+	{"HPA", "Switch", "HPB Input Mux"},
+	{"HPB", "Switch", "HPA Input Mux"},
 
 	{"HPA Input Mux", "PGAA", "PGAA"},
 	{"HPB Input Mux", "PGAB", "PGAB"},
 	{"HPA Input Mux", "DACA", "DACA"},
 	{"HPB Input Mux", "DACB", "DACB"},
 
-	{"DACB", NULL, "HiFi Playback"},
-	{"DACA", NULL, "HiFi Playback"},
+	{"DACA", NULL, "PCMA Swap Mux"},
+	{"DACB", NULL, "PCMB Swap Mux"},
+
+	{"PCMB Swap Mux", "Left", "HiFi Playback"},
+	{"PCMB Swap Mux", "LR 2", "HiFi Playback"},
+	{"PCMB Swap Mux", "Right", "HiFi Playback"},
+
+	{"PCMA Swap Mux", "Left", "HiFi Playback"},
+	{"PCMA Swap Mux", "LR 2", "HiFi Playback"},
+	{"PCMA Swap Mux", "Right", "HiFi Playback"},
 
 };
 

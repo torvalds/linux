@@ -401,7 +401,7 @@ static const struct snd_kcontrol_new cs42l73_snd_controls[] = {
 			CS42L73_LOBAVOL, 0, 0x41, 0x4B, hpaloa_tlv),
 
 	SOC_DOUBLE_R_SX_TLV("Input PGA Analog Volume", CS42L73_MICAPREPGAAVOL,
-			CS42L73_MICBPREPGABVOL, 5, 0x34,
+			CS42L73_MICBPREPGABVOL, 0, 0x34,
 			0x24, micpga_tlv),
 
 	SOC_DOUBLE_R("MIC Preamp Switch", CS42L73_MICAPREPGAAVOL,
@@ -1408,10 +1408,8 @@ static int cs42l73_i2c_probe(struct i2c_client *i2c_client,
 
 	cs42l73 = devm_kzalloc(&i2c_client->dev, sizeof(struct cs42l73_private),
 			       GFP_KERNEL);
-	if (!cs42l73) {
-		dev_err(&i2c_client->dev, "could not allocate codec\n");
+	if (!cs42l73)
 		return -ENOMEM;
-	}
 
 	cs42l73->regmap = devm_regmap_init_i2c(i2c_client, &cs42l73_regmap);
 	if (IS_ERR(cs42l73->regmap)) {

@@ -826,10 +826,8 @@ static int wm2000_i2c_probe(struct i2c_client *i2c,
 
 	wm2000 = devm_kzalloc(&i2c->dev, sizeof(struct wm2000_priv),
 			      GFP_KERNEL);
-	if (wm2000 == NULL) {
-		dev_err(&i2c->dev, "Unable to allocate private data\n");
+	if (!wm2000)
 		return -ENOMEM;
-	}
 
 	mutex_init(&wm2000->lock);
 

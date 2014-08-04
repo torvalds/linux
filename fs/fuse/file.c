@@ -1687,7 +1687,7 @@ static int fuse_writepage_locked(struct page *page)
 	error = -EIO;
 	req->ff = fuse_write_file_get(fc, fi);
 	if (!req->ff)
-		goto err_free;
+		goto err_nofile;
 
 	fuse_write_fill(req, req->ff, page_offset(page), 0);
 
@@ -1715,6 +1715,8 @@ static int fuse_writepage_locked(struct page *page)
 
 	return 0;
 
+err_nofile:
+	__free_page(tmp_page);
 err_free:
 	fuse_request_free(req);
 err:
@@ -1955,8 +1957,8 @@ static int fuse_writepages(struct address_space *mapping,
 	data.ff = NULL;
 
 	err = -ENOMEM;
-	data.orig_pages = kzalloc(sizeof(struct page *) *
-				  FUSE_MAX_PAGES_PER_REQ,
+	data.orig_pages = kcalloc(FUSE_MAX_PAGES_PER_REQ,
+				  sizeof(struct page *),
 				  GFP_NOFS);
 	if (!data.orig_pages)
 		goto out;

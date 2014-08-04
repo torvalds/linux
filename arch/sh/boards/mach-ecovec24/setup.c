@@ -874,6 +874,8 @@ static struct platform_device fsi_da7210_device = {
 	.name	= "asoc-simple-card",
 	.dev	= {
 		.platform_data	= &fsi_da7210_info,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
+		.dma_mask = &fsi_da7210_device.dev.coherent_dma_mask,
 	},
 };
 

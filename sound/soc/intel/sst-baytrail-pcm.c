@@ -32,7 +32,7 @@ static const struct snd_pcm_hardware sst_byt_pcm_hardware = {
 				  SNDRV_PCM_INFO_PAUSE |
 				  SNDRV_PCM_INFO_RESUME,
 	.formats		= SNDRV_PCM_FMTBIT_S16_LE |
-				  SNDRV_PCM_FORMAT_S24_LE,
+				  SNDRV_PCM_FMTBIT_S24_LE,
 	.period_bytes_min	= 384,
 	.period_bytes_max	= 48000,
 	.periods_min		= 2,

@@ -87,6 +87,7 @@ nv50_sor_mthd(struct nouveau_object *object, u32 mthd, void *args, u32 size)
 			struct nvkm_output_dp *outpdp = (void *)outp;
 			switch (data) {
 			case NV94_DISP_SOR_DP_PWR_STATE_OFF:
+				nouveau_event_put(outpdp->irq);
 				((struct nvkm_output_dp_impl *)nv_oclass(outp))
 					->lnk_pwr(outpdp, 0);
 				atomic_set(&outpdp->lt.done, 0);

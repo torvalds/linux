@@ -34,6 +34,7 @@
  * B : SSI direction
  */
 #define RSND_SSI_CLK_PIN_SHARE		(1 << 31)
+#define RSND_SSI_NO_BUSIF		(1 << 30) /* SSI+DMA without BUSIF */
 
 #define RSND_SSI(_dma_id, _pio_irq, _flags)		\
 { .dma_id = _dma_id, .pio_irq = _pio_irq, .flags = _flags }

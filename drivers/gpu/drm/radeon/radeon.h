@@ -449,6 +449,7 @@ struct radeon_bo_va {
 
 	/* protected by vm mutex */
 	struct list_head		vm_list;
+	struct list_head		vm_status;
 
 	/* constant after initialization */
 	struct radeon_vm		*vm;
@@ -684,10 +685,9 @@ struct radeon_flip_work {
 	struct work_struct		unpin_work;
 	struct radeon_device		*rdev;
 	int				crtc_id;
-	struct drm_framebuffer		*fb;
+	uint64_t			base;
 	struct drm_pending_vblank_event *event;
 	struct radeon_bo		*old_rbo;
-	struct radeon_bo		*new_rbo;
 	struct radeon_fence		*fence;
 };
 
@@ -868,6 +868,9 @@ struct radeon_vm {
 	struct list_head		va;
 	unsigned			id;
 
+	/* BOs freed, but not yet updated in the PT */
+	struct list_head		freed;
+
 	/* contains the page directory */
 	struct radeon_bo		*page_directory;
 	uint64_t			pd_gpu_addr;
@@ -875,6 +878,8 @@ struct radeon_vm {
 
 	/* array of page tables, one for each page directory entry */
 	struct radeon_vm_pt		*page_tables;
+
+	struct radeon_bo_va		*ib_bo_va;
 
 	struct mutex			mutex;
 	/* last fence for cs using this vm */
@@ -2833,9 +2838,10 @@ void radeon_vm_fence(struct radeon_device *rdev,
 uint64_t radeon_vm_map_gart(struct radeon_device *rdev, uint64_t addr);
 int radeon_vm_update_page_directory(struct radeon_device *rdev,
 				    struct radeon_vm *vm);
+int radeon_vm_clear_freed(struct radeon_device *rdev,
+			  struct radeon_vm *vm);
 int radeon_vm_bo_update(struct radeon_device *rdev,
-			struct radeon_vm *vm,
-			struct radeon_bo *bo,
+			struct radeon_bo_va *bo_va,
 			struct ttm_mem_reg *mem);
 void radeon_vm_bo_invalidate(struct radeon_device *rdev,
 			     struct radeon_bo *bo);
@@ -2848,8 +2854,8 @@ int radeon_vm_bo_set_addr(struct radeon_device *rdev,
 			  struct radeon_bo_va *bo_va,
 			  uint64_t offset,
 			  uint32_t flags);
-int radeon_vm_bo_rmv(struct radeon_device *rdev,
-		     struct radeon_bo_va *bo_va);
+void radeon_vm_bo_rmv(struct radeon_device *rdev,
+		      struct radeon_bo_va *bo_va);
 
 /* audio */
 void r600_audio_update_hdmi(struct work_struct *work);

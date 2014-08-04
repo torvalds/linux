@@ -603,6 +603,8 @@ static struct platform_device fsi_ak4648_device = {
 	.name	= "asoc-simple-card",
 	.dev	= {
 		.platform_data	= &fsi2_ak4648_info,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
+		.dma_mask = &fsi_ak4648_device.dev.coherent_dma_mask,
 	},
 };
 

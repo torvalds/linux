@@ -187,6 +187,50 @@ struct mii_bus *of_mdio_find_bus(struct device_node *mdio_bus_np)
 	return d ? to_mii_bus(d) : NULL;
 }
 EXPORT_SYMBOL(of_mdio_find_bus);
+
+/* Walk the list of subnodes of a mdio bus and look for a node that matches the
+ * phy's address with its 'reg' property. If found, set the of_node pointer for
+ * the phy. This allows auto-probed pyh devices to be supplied with information
+ * passed in via DT.
+ */
+static void of_mdiobus_link_phydev(struct mii_bus *mdio,
+				   struct phy_device *phydev)
+{
+	struct device *dev = &phydev->dev;
+	struct device_node *child;
+
+	if (dev->of_node || !mdio->dev.of_node)
+		return;
+
+	for_each_available_child_of_node(mdio->dev.of_node, child) {
+		int addr;
+		int ret;
+
+		ret = of_property_read_u32(child, "reg", &addr);
+		if (ret < 0) {
+			dev_err(dev, "%s has invalid PHY address\n",
+				child->full_name);
+			continue;
+		}
+
+		/* A PHY must have a reg property in the range [0-31] */
+		if (addr >= PHY_MAX_ADDR) {
+			dev_err(dev, "%s PHY address %i is too large\n",
+				child->full_name, addr);
+			continue;
+		}
+
+		if (addr == phydev->addr) {
+			dev->of_node = child;
+			return;
+		}
+	}
+}
+#else /* !IS_ENABLED(CONFIG_OF_MDIO) */
+static inline void of_mdiobus_link_phydev(struct mii_bus *mdio,
+					  struct phy_device *phydev)
+{
+}
 #endif
 
 /**
@@ -211,6 +255,7 @@ int mdiobus_register(struct mii_bus *bus)
 
 	bus->dev.parent = bus->parent;
 	bus->dev.class = &mdio_bus_class;
+	bus->dev.driver = bus->parent->driver;
 	bus->dev.groups = NULL;
 	dev_set_name(&bus->dev, "%s", bus->id);
 

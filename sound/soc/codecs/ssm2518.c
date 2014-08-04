@@ -361,11 +361,11 @@ static int ssm2518_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 
 	if (ssm2518->right_j) {
-		switch (params_format(params)) {
-		case SNDRV_PCM_FORMAT_S16_LE:
+		switch (params_width(params)) {
+		case 16:
 			ctrl1 |= SSM2518_SAI_CTRL1_FMT_RJ_16BIT;
 			break;
-		case SNDRV_PCM_FORMAT_S24_LE:
+		case 24:
 			ctrl1 |= SSM2518_SAI_CTRL1_FMT_RJ_24BIT;
 			break;
 		default:
