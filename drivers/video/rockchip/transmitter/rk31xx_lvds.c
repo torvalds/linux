@@ -149,6 +149,8 @@ static void rk31xx_output_lvds(struct rk_lvds_device *lvds,
 	lvds_writel(lvds, MIPIPHY_REG3, v_PREDIV(2) | v_FBDIV_MSB(0));
 	lvds_writel(lvds, MIPIPHY_REG4, v_FBDIV_LSB(28));
 
+        lvds_writel(lvds, MIPIPHY_REGE8, 0xfc);
+
         /* set lvds mode and reset phy config */
 	lvds_msk_reg(lvds, MIPIPHY_REGE0,
                      m_MSB_SEL | m_DIG_INTER_RST,
