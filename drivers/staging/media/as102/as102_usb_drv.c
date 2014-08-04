@@ -104,21 +104,22 @@ static int as102_usb_xfer_cmd(struct as10x_bus_adapter_t *bus_adap,
 				      send_buf, send_buf_len,
 				      USB_CTRL_SET_TIMEOUT /* 200 */);
 		if (ret < 0) {
-			dprintk(debug, "usb_control_msg(send) failed, err %i\n",
-					ret);
+			dev_dbg(&bus_adap->usb_dev->dev,
+				"usb_control_msg(send) failed, err %i\n", ret);
 			return ret;
 		}
 
 		if (ret != send_buf_len) {
-			dprintk(debug, "only wrote %d of %d bytes\n",
-					ret, send_buf_len);
+			dev_dbg(&bus_adap->usb_dev->dev,
+			"only wrote %d of %d bytes\n", ret, send_buf_len);
 			return -1;
 		}
 	}
 
 	if (recv_buf != NULL) {
 #ifdef TRACE
-		dprintk(debug, "want to read: %d bytes\n", recv_buf_len);
+		dev_dbg(bus_adap->usb_dev->dev,
+			"want to read: %d bytes\n", recv_buf_len);
 #endif
 		ret = usb_control_msg(bus_adap->usb_dev,
 				      usb_rcvctrlpipe(bus_adap->usb_dev, 0),
@@ -130,12 +131,13 @@ static int as102_usb_xfer_cmd(struct as10x_bus_adapter_t *bus_adap,
 				      recv_buf, recv_buf_len,
 				      USB_CTRL_GET_TIMEOUT /* 200 */);
 		if (ret < 0) {
-			dprintk(debug, "usb_control_msg(recv) failed, err %i\n",
-					ret);
+			dev_dbg(&bus_adap->usb_dev->dev,
+				"usb_control_msg(recv) failed, err %i\n", ret);
 			return ret;
 		}
 #ifdef TRACE
-		dprintk(debug, "read %d bytes\n", recv_buf_len);
+		dev_dbg(bus_adap->usb_dev->dev,
+			"read %d bytes\n", recv_buf_len);
 #endif
 	}
 
@@ -153,13 +155,14 @@ static int as102_send_ep1(struct as10x_bus_adapter_t *bus_adap,
 			   usb_sndbulkpipe(bus_adap->usb_dev, 1),
 			   send_buf, send_buf_len, &actual_len, 200);
 	if (ret) {
-		dprintk(debug, "usb_bulk_msg(send) failed, err %i\n", ret);
+		dev_dbg(&bus_adap->usb_dev->dev,
+			"usb_bulk_msg(send) failed, err %i\n", ret);
 		return ret;
 	}
 
 	if (actual_len != send_buf_len) {
-		dprintk(debug, "only wrote %d of %d bytes\n",
-				actual_len, send_buf_len);
+		dev_dbg(&bus_adap->usb_dev->dev, "only wrote %d of %d bytes\n",
+			actual_len, send_buf_len);
 		return -1;
 	}
 	return ret ? ret : actual_len;
@@ -177,13 +180,14 @@ static int as102_read_ep2(struct as10x_bus_adapter_t *bus_adap,
 			   usb_rcvbulkpipe(bus_adap->usb_dev, 2),
 			   recv_buf, recv_buf_len, &actual_len, 200);
 	if (ret) {
-		dprintk(debug, "usb_bulk_msg(recv) failed, err %i\n", ret);
+		dev_dbg(&bus_adap->usb_dev->dev,
+			"usb_bulk_msg(recv) failed, err %i\n", ret);
 		return ret;
 	}
 
 	if (actual_len != recv_buf_len) {
-		dprintk(debug, "only read %d of %d bytes\n",
-				actual_len, recv_buf_len);
+		dev_dbg(&bus_adap->usb_dev->dev, "only read %d of %d bytes\n",
+			actual_len, recv_buf_len);
 		return -1;
 	}
 	return ret ? ret : actual_len;
@@ -211,7 +215,8 @@ static int as102_submit_urb_stream(struct as102_dev_t *dev, struct urb *urb)
 
 	err = usb_submit_urb(urb, GFP_ATOMIC);
 	if (err)
-		dprintk(debug, "%s: usb_submit_urb failed\n", __func__);
+		dev_dbg(&urb->dev->dev,
+			"%s: usb_submit_urb failed\n", __func__);
 
 	return err;
 }
@@ -256,7 +261,8 @@ static int as102_alloc_usb_stream_buffer(struct as102_dev_t *dev)
 				       GFP_KERNEL,
 				       &dev->dma_addr);
 	if (!dev->stream) {
-		dprintk(debug, "%s: usb_buffer_alloc failed\n", __func__);
+		dev_dbg(&dev->bus_adap.usb_dev->dev,
+			"%s: usb_buffer_alloc failed\n", __func__);
 		return -ENOMEM;
 	}
 
@@ -268,7 +274,8 @@ static int as102_alloc_usb_stream_buffer(struct as102_dev_t *dev)
 
 		urb = usb_alloc_urb(0, GFP_ATOMIC);
 		if (urb == NULL) {
-			dprintk(debug, "%s: usb_alloc_urb failed\n", __func__);
+			dev_dbg(&dev->bus_adap.usb_dev->dev,
+				"%s: usb_alloc_urb failed\n", __func__);
 			as102_free_usb_stream_buffer(dev);
 			return -ENOMEM;
 		}

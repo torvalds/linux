@@ -31,10 +31,6 @@
 #include "as102_fw.h"
 #include "dvbdev.h"
 
-int as102_debug;
-module_param_named(debug, as102_debug, int, 0644);
-MODULE_PARM_DESC(debug, "Turn on/off debugging (default: off)");
-
 int dual_tuner;
 module_param_named(dual_tuner, dual_tuner, int, 0644);
 MODULE_PARM_DESC(dual_tuner, "Activate Dual-Tuner config (default: off)");
@@ -74,7 +70,8 @@ static void as102_stop_stream(struct as102_dev_t *dev)
 			return;
 
 		if (as10x_cmd_stop_streaming(bus_adap) < 0)
-			dprintk(debug, "as10x_cmd_stop_streaming failed\n");
+			dev_dbg(&dev->bus_adap.usb_dev->dev,
+				"as10x_cmd_stop_streaming failed\n");
 
 		mutex_unlock(&dev->bus_adap.lock);
 	}
@@ -112,14 +109,16 @@ static int as10x_pid_filter(struct as102_dev_t *dev,
 	int ret = -EFAULT;
 
 	if (mutex_lock_interruptible(&dev->bus_adap.lock)) {
-		dprintk(debug, "mutex_lock_interruptible(lock) failed !\n");
+		dev_dbg(&dev->bus_adap.usb_dev->dev,
+			"amutex_lock_interruptible(lock) failed !\n");
 		return -EBUSY;
 	}
 
 	switch (onoff) {
 	case 0:
 		ret = as10x_cmd_del_PID_filter(bus_adap, (uint16_t) pid);
-		dprintk(debug, "DEL_PID_FILTER([%02d] 0x%04x) ret = %d\n",
+		dev_dbg(&dev->bus_adap.usb_dev->dev,
+			"DEL_PID_FILTER([%02d] 0x%04x) ret = %d\n",
 			index, pid, ret);
 		break;
 	case 1:
@@ -131,7 +130,7 @@ static int as10x_pid_filter(struct as102_dev_t *dev,
 		filter.pid = pid;
 
 		ret = as10x_cmd_add_PID_filter(bus_adap, &filter);
-		dprintk(debug,
+		dev_dbg(&dev->bus_adap.usb_dev->dev,
 			"ADD_PID_FILTER([%02d -> %02d], 0x%04x) ret = %d\n",
 			index, filter.idx, filter.pid, ret);
 		break;

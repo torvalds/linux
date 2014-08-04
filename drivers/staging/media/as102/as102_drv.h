@@ -27,16 +27,9 @@
 #define DRIVER_FULL_NAME "Abilis Systems as10x usb driver"
 #define DRIVER_NAME "as10x_usb"
 
-extern int as102_debug;
 #define debug	as102_debug
 extern struct usb_driver as102_usb_driver;
 extern int elna_enable;
-
-#define dprintk(debug, args...) \
-	do { if (debug) {	\
-		pr_debug("%s: ", __func__);	\
-		printk(args);	\
-	} } while (0)
 
 #define AS102_DEVICE_MAJOR	192
 

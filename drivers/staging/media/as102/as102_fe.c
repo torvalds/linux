@@ -46,7 +46,8 @@ static int as102_fe_set_frontend(struct dvb_frontend *fe)
 	/* send abilis command: SET_TUNE */
 	ret =  as10x_cmd_set_tune(&dev->bus_adap, &tune_args);
 	if (ret != 0)
-		dprintk(debug, "as10x_cmd_set_tune failed. (err = %d)\n", ret);
+		dev_dbg(&dev->bus_adap.usb_dev->dev,
+			"as10x_cmd_set_tune failed. (err = %d)\n", ret);
 
 	mutex_unlock(&dev->bus_adap.lock);
 
@@ -81,13 +82,6 @@ static int as102_fe_get_frontend(struct dvb_frontend *fe)
 static int as102_fe_get_tune_settings(struct dvb_frontend *fe,
 			struct dvb_frontend_tune_settings *settings) {
 
-#if 0
-	dprintk(debug, "step_size    = %d\n", settings->step_size);
-	dprintk(debug, "max_drift    = %d\n", settings->max_drift);
-	dprintk(debug, "min_delay_ms = %d -> %d\n", settings->min_delay_ms,
-		1000);
-#endif
-
 	settings->min_delay_ms = 1000;
 
 	return 0;
@@ -110,7 +104,8 @@ static int as102_fe_read_status(struct dvb_frontend *fe, fe_status_t *status)
 	/* send abilis command: GET_TUNE_STATUS */
 	ret = as10x_cmd_get_tune_status(&dev->bus_adap, &tstate);
 	if (ret < 0) {
-		dprintk(debug, "as10x_cmd_get_tune_status failed (err = %d)\n",
+		dev_dbg(&dev->bus_adap.usb_dev->dev,
+			"as10x_cmd_get_tune_status failed (err = %d)\n",
 			ret);
 		goto out;
 	}
@@ -133,7 +128,8 @@ static int as102_fe_read_status(struct dvb_frontend *fe, fe_status_t *status)
 		*status = TUNE_STATUS_NOT_TUNED;
 	}
 
-	dprintk(debug, "tuner status: 0x%02x, strength %d, per: %d, ber: %d\n",
+	dev_dbg(&dev->bus_adap.usb_dev->dev,
+			"tuner status: 0x%02x, strength %d, per: %d, ber: %d\n",
 			tstate.tune_state, tstate.signal_strength,
 			tstate.PER, tstate.BER);
 
@@ -141,10 +137,10 @@ static int as102_fe_read_status(struct dvb_frontend *fe, fe_status_t *status)
 		if (as10x_cmd_get_demod_stats(&dev->bus_adap,
 			(struct as10x_demod_stats *) &dev->demod_stats) < 0) {
 			memset(&dev->demod_stats, 0, sizeof(dev->demod_stats));
-			dprintk(debug,
+			dev_dbg(&dev->bus_adap.usb_dev->dev,
 				"as10x_cmd_get_demod_stats failed (probably not tuned)\n");
 		} else {
-			dprintk(debug,
+			dev_dbg(&dev->bus_adap.usb_dev->dev,
 				"demod status: fc: 0x%08x, bad fc: 0x%08x, "
 				"bytes corrected: 0x%08x , MER: 0x%04x\n",
 				dev->demod_stats.frame_count,
@@ -531,7 +527,7 @@ static void as102_fe_copy_tune_parameters(struct as10x_tune_args *tune_args,
 		break;
 	}
 
-	dprintk(debug, "tuner parameters: freq: %d  bw: 0x%02x  gi: 0x%02x\n",
+	pr_debug("as102: tuner parameters: freq: %d  bw: 0x%02x  gi: 0x%02x\n",
 			params->frequency,
 			tune_args->bandwidth,
 			tune_args->guard_interval);
@@ -556,8 +552,7 @@ static void as102_fe_copy_tune_parameters(struct as10x_tune_args *tune_args,
 			   as102_fe_get_code_rate(params->code_rate_LP);
 		}
 
-		dprintk(debug,
-			"\thierarchy: 0x%02x  selected: %s  code_rate_%s: 0x%02x\n",
+		pr_debug("as102: \thierarchy: 0x%02x  selected: %s  code_rate_%s: 0x%02x\n",
 			tune_args->hierarchy,
 			tune_args->hier_select == HIER_HIGH_PRIORITY ?
 			"HP" : "LP",
