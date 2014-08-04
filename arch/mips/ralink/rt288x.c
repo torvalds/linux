@@ -76,7 +76,7 @@ struct ralink_pinmux rt_gpio_pinmux = {
 
 void __init ralink_clk_init(void)
 {
-	unsigned long cpu_rate;
+	unsigned long cpu_rate, wmac_rate = 40000000;
 	u32 t = rt_sysc_r32(SYSC_REG_SYSTEM_CONFIG);
 	t = ((t >> SYSTEM_CONFIG_CPUCLK_SHIFT) & SYSTEM_CONFIG_CPUCLK_MASK);
 
@@ -101,6 +101,7 @@ void __init ralink_clk_init(void)
 	ralink_clk_add("300500.uart", cpu_rate / 2);
 	ralink_clk_add("300c00.uartlite", cpu_rate / 2);
 	ralink_clk_add("400000.ethernet", cpu_rate / 2);
+	ralink_clk_add("480000.wmac", wmac_rate);
 }
 
 void __init ralink_of_remap(void)
