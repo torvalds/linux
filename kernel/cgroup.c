@@ -289,7 +289,7 @@ static void check_for_release(struct cgroup *cgrp);
 
 /*
  * A queue for waiters to do rmdir() cgroup. A tasks will sleep when
- * cgroup->count == 0 && list_empty(&cgroup->children) && subsys has some
+ * list_empty(&cgroup->children) && subsys has some
  * reference to css->refcnt. In general, this refcnt is expected to goes down
  * to zero, soon.
  *
@@ -3928,6 +3928,10 @@ static int cgroup_clear_css_refs(struct cgroup *cgrp)
 	struct cgroup_subsys *ss;
 	unsigned long flags;
 	bool failed = false;
+
+	if (atomic_read(&cgrp->count) != 0)
+		return false;
+
 	local_irq_save(flags);
 	for_each_subsys(cgrp->root, ss) {
 		struct cgroup_subsys_state *css = cgrp->subsys[ss->subsys_id];
@@ -3970,19 +3974,23 @@ static int cgroup_clear_css_refs(struct cgroup *cgrp)
 	return !failed;
 }
 
-/* checks if all of the css_sets attached to a cgroup have a refcount of 0.
- * Must be called with css_set_lock held */
+/* Checks if all of the css_sets attached to a cgroup have a refcount of 0. */
 static int cgroup_css_sets_empty(struct cgroup *cgrp)
 {
 	struct cg_cgroup_link *link;
+	int retval = 1;
 
+	read_lock(&css_set_lock);
 	list_for_each_entry(link, &cgrp->css_sets, cgrp_link_list) {
 		struct css_set *cg = link->cg;
-		if (atomic_read(&cg->refcount) > 0)
-			return 0;
+		if (atomic_read(&cg->refcount) > 0) {
+			retval = 0;
+			break;
+		}
 	}
+	read_unlock(&css_set_lock);
 
-	return 1;
+	return retval;
 }
 
 static int cgroup_rmdir(struct inode *unused_dir, struct dentry *dentry)

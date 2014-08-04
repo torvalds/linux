@@ -1089,6 +1089,7 @@ do_udp_sendmsg:
 		fl6.flowi6_oif = np->sticky_pktinfo.ipi6_ifindex;
 
 	fl6.flowi6_mark = sk->sk_mark;
+	fl6.flowi6_uid = sock_i_uid(sk);
 
 	if (msg->msg_controllen) {
 		opt = &opt_space;
