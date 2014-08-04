@@ -3350,6 +3350,13 @@ W:	bluesmoke.sourceforge.net
 S:	Maintained
 F:	drivers/edac/i82975x_edac.c
 
+EDAC-IE31200
+M:	Jason Baron <jbaron@akamai.com>
+L:	linux-edac@vger.kernel.org
+W:	bluesmoke.sourceforge.net
+S:	Maintained
+F:	drivers/edac/ie31200_edac.c
+
 EDAC-MPC85XX
 M:	Johannes Thumshirn <johannes.thumshirn@men.de>
 L:	linux-edac@vger.kernel.org
