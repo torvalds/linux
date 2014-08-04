@@ -175,8 +175,8 @@
 
 		rk818_dcdc2_reg: regulator@1 {
 			regulator-name= "vdd_logic";
-			regulator-min-microvolt = <700000>;
-			regulator-max-microvolt = <1500000>;
+			regulator-min-microvolt = <1200000>;
+			regulator-max-microvolt = <1200000>;
 			regulator-initial-mode = <0x2>;
 			regulator-initial-state = <3>;
 			regulator-state-mem {
