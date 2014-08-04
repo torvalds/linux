@@ -39,8 +39,6 @@ struct attrlist_cursor_kern;
  */
 #define VN_MAPPED(vp)	mapping_mapped(vp->i_mapping)
 #define VN_CACHED(vp)	(vp->i_mapping->nrpages)
-#define VN_DIRTY(vp)	mapping_tagged(vp->i_mapping, \
-					PAGECACHE_TAG_DIRTY)
 
 
 #endif	/* __XFS_VNODE_H__ */
