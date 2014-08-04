@@ -1165,13 +1165,10 @@ void vb2_buffer_done(struct vb2_buffer *vb, enum vb2_buffer_state state)
 	if (WARN_ON(vb->state != VB2_BUF_STATE_ACTIVE))
 		return;
 
-	if (!q->start_streaming_called) {
-		if (WARN_ON(state != VB2_BUF_STATE_QUEUED))
-			state = VB2_BUF_STATE_QUEUED;
-	} else if (WARN_ON(state != VB2_BUF_STATE_DONE &&
-			   state != VB2_BUF_STATE_ERROR)) {
-			state = VB2_BUF_STATE_ERROR;
-	}
+	if (WARN_ON(state != VB2_BUF_STATE_DONE &&
+		    state != VB2_BUF_STATE_ERROR &&
+		    state != VB2_BUF_STATE_QUEUED))
+		state = VB2_BUF_STATE_ERROR;
 
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	/*
@@ -1783,6 +1780,12 @@ static int vb2_start_streaming(struct vb2_queue *q)
 		/* Must be zero now */
 		WARN_ON(atomic_read(&q->owned_by_drv_count));
 	}
+	/*
+	 * If done_list is not empty, then start_streaming() didn't call
+	 * vb2_buffer_done(vb, VB2_BUF_STATE_QUEUED) but STATE_ERROR or
+	 * STATE_DONE.
+	 */
+	WARN_ON(!list_empty(&q->done_list));
 	return ret;
 }
 
