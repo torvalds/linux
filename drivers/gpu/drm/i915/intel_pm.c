@@ -5230,11 +5230,9 @@ static void gen6_check_mch_setup(struct drm_device *dev)
 	uint32_t tmp;
 
 	tmp = I915_READ(MCH_SSKPD);
-	if ((tmp & MCH_SSKPD_WM0_MASK) != MCH_SSKPD_WM0_VAL) {
-		DRM_INFO("Wrong MCH_SSKPD value: 0x%08x\n", tmp);
-		DRM_INFO("This can cause pipe underruns and display issues.\n");
-		DRM_INFO("Please upgrade your BIOS to fix this.\n");
-	}
+	if ((tmp & MCH_SSKPD_WM0_MASK) != MCH_SSKPD_WM0_VAL)
+		DRM_DEBUG_KMS("Wrong MCH_SSKPD value: 0x%08x This can cause underruns.\n",
+			      tmp);
 }
 
 static void gen6_init_clock_gating(struct drm_device *dev)
