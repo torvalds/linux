@@ -55,7 +55,8 @@ static inline void xenvif_stop_queue(struct xenvif_queue *queue)
 
 int xenvif_schedulable(struct xenvif *vif)
 {
-	return netif_running(vif->dev) && netif_carrier_ok(vif->dev);
+	return netif_running(vif->dev) &&
+		test_bit(VIF_STATUS_CONNECTED, &vif->status);
 }
 
 static irqreturn_t xenvif_tx_interrupt(int irq, void *dev_id)
@@ -267,7 +268,7 @@ static void xenvif_down(struct xenvif *vif)
 static int xenvif_open(struct net_device *dev)
 {
 	struct xenvif *vif = netdev_priv(dev);
-	if (netif_carrier_ok(dev))
+	if (test_bit(VIF_STATUS_CONNECTED, &vif->status))
 		xenvif_up(vif);
 	netif_tx_start_all_queues(dev);
 	return 0;
@@ -276,7 +277,7 @@ static int xenvif_open(struct net_device *dev)
 static int xenvif_close(struct net_device *dev)
 {
 	struct xenvif *vif = netdev_priv(dev);
-	if (netif_carrier_ok(dev))
+	if (test_bit(VIF_STATUS_CONNECTED, &vif->status))
 		xenvif_down(vif);
 	netif_tx_stop_all_queues(dev);
 	return 0;
@@ -528,6 +529,7 @@ void xenvif_carrier_on(struct xenvif *vif)
 	if (!vif->can_sg && vif->dev->mtu > ETH_DATA_LEN)
 		dev_set_mtu(vif->dev, ETH_DATA_LEN);
 	netdev_update_features(vif->dev);
+	set_bit(VIF_STATUS_CONNECTED, &vif->status);
 	netif_carrier_on(vif->dev);
 	if (netif_running(vif->dev))
 		xenvif_up(vif);
@@ -625,9 +627,11 @@ void xenvif_carrier_off(struct xenvif *vif)
 	struct net_device *dev = vif->dev;
 
 	rtnl_lock();
-	netif_carrier_off(dev); /* discard queued packets */
-	if (netif_running(dev))
-		xenvif_down(vif);
+	if (test_and_clear_bit(VIF_STATUS_CONNECTED, &vif->status)) {
+		netif_carrier_off(dev); /* discard queued packets */
+		if (netif_running(dev))
+			xenvif_down(vif);
+	}
 	rtnl_unlock();
 }
 
@@ -656,8 +660,7 @@ void xenvif_disconnect(struct xenvif *vif)
 	unsigned int num_queues = vif->num_queues;
 	unsigned int queue_index;
 
-	if (netif_carrier_ok(vif->dev))
-		xenvif_carrier_off(vif);
+	xenvif_carrier_off(vif);
 
 	for (queue_index = 0; queue_index < num_queues; ++queue_index) {
 		queue = &vif->queues[queue_index];

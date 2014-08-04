@@ -198,6 +198,11 @@ struct xenvif_queue { /* Per-queue data for xenvif */
 	struct xenvif_stats stats;
 };
 
+enum state_bit_shift {
+	/* This bit marks that the vif is connected */
+	VIF_STATUS_CONNECTED
+};
+
 struct xenvif {
 	/* Unique identifier for this interface. */
 	domid_t          domid;
@@ -220,6 +225,7 @@ struct xenvif {
 	 * frontend is rogue.
 	 */
 	bool disabled;
+	unsigned long status;
 
 	/* Queues */
 	struct xenvif_queue *queues;

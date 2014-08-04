@@ -1953,7 +1953,7 @@ int xenvif_kthread_guest_rx(void *data)
 		 * context so we defer it here, if this thread is
 		 * associated with queue 0.
 		 */
-		if (unlikely(queue->vif->disabled && netif_carrier_ok(queue->vif->dev) && queue->id == 0))
+		if (unlikely(queue->vif->disabled && queue->id == 0))
 			xenvif_carrier_off(queue->vif);
 
 		if (kthread_should_stop())
