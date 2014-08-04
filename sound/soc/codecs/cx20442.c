@@ -253,7 +253,7 @@ static void v253_close(struct tty_struct *tty)
 	/* Prevent the codec driver from further accessing the modem */
 	codec->hw_write = NULL;
 	cx20442->control_data = NULL;
-	codec->card->pop_time = 0;
+	codec->component.card->pop_time = 0;
 }
 
 /* Line discipline .hangup() */
@@ -281,7 +281,7 @@ static void v253_receive(struct tty_struct *tty,
 		/* Set up codec driver access to modem controls */
 		cx20442->control_data = tty;
 		codec->hw_write = (hw_write_t)tty->ops->write;
-		codec->card->pop_time = 1;
+		codec->component.card->pop_time = 1;
 	}
 }
 
@@ -372,7 +372,7 @@ static int cx20442_codec_probe(struct snd_soc_codec *codec)
 
 	snd_soc_codec_set_drvdata(codec, cx20442);
 	codec->hw_write = NULL;
-	codec->card->pop_time = 0;
+	codec->component.card->pop_time = 0;
 
 	return 0;
 }
