@@ -980,9 +980,6 @@ static int wm8985_resume(struct snd_soc_codec *codec)
 
 static int wm8985_remove(struct snd_soc_codec *codec)
 {
-	struct wm8985_priv *wm8985;
-
-	wm8985 = snd_soc_codec_get_drvdata(codec);
 	wm8985_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	return 0;
 }
