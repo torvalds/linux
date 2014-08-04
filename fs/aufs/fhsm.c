@@ -111,8 +111,7 @@ void au_fhsm_wrote(struct super_block *sb, aufs_bindex_t bindex, int force)
 
 	sbinfo = au_sbi(sb);
 	fhsm = &sbinfo->si_fhsm;
-	if (!au_ftest_si(sbinfo, FHSM)
-	    || !au_fhsm_pid(fhsm))
+	if (!au_ftest_si(sbinfo, FHSM))
 		return;
 
 	do_notify = 0;
@@ -131,7 +130,9 @@ void au_fhsm_wrote(struct super_block *sb, aufs_bindex_t bindex, int force)
 	bf = br->br_fhsm;
 	AuDebugOn(!bf);
 	mutex_lock(&bf->bf_lock);
-	if (force || au_fhsm_test_jiffy(sbinfo, br))
+	if (force
+	    || au_fhsm_pid(fhsm)
+	    || au_fhsm_test_jiffy(sbinfo, br))
 		err = au_fhsm_stfs(sb, bindex, /*rstfs*/NULL, /*do_lock*/0,
 				  /*do_notify*/1);
 	mutex_unlock(&bf->bf_lock);
