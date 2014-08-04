@@ -8,7 +8,8 @@ Required properties:
 	- "ti,dm6441-spi" for SPI used similar to that on DM644x SoC family
 	- "ti,da830-spi" for SPI used similar to that on DA8xx SoC family
 - reg: Offset and length of SPI controller register space
-- num-cs: Number of chip selects
+- num-cs: Number of chip selects. This includes internal as well as
+	GPIO chip selects.
 - ti,davinci-spi-intr-line: interrupt line used to connect the SPI
 	IP to the interrupt controller within the SoC. Possible values
 	are 0 and 1. Manual says one of the two possible interrupt
@@ -16,6 +17,12 @@ Required properties:
 	based on a specifc SoC configuration.
 - interrupts: interrupt number mapped to CPU.
 - clocks: spi clk phandle
+
+Optional:
+- cs-gpios: gpio chip selects
+	For example to have 3 internal CS and 2 GPIO CS, user could define
+	cs-gpios = <0>, <0>, <0>, <&gpio1 30 0>, <&gpio1 31 0>;
+	where first three are internal CS and last two are GPIO CS.
 
 Example of a NOR flash slave device (n25q032) connected to DaVinci
 SPI controller device over the SPI bus.
