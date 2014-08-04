@@ -3405,6 +3405,8 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_ASMEDIA, 0x1080,
 DECLARE_PCI_FIXUP_HEADER(0x10e3, 0x8113, quirk_use_pcie_bridge_dma_alias);
 /* ITE 8892, https://bugzilla.kernel.org/show_bug.cgi?id=73551 */
 DECLARE_PCI_FIXUP_HEADER(0x1283, 0x8892, quirk_use_pcie_bridge_dma_alias);
+/* Intel 82801, https://bugzilla.kernel.org/show_bug.cgi?id=44881#c49 */
+DECLARE_PCI_FIXUP_HEADER(0x8086, 0x244e, quirk_use_pcie_bridge_dma_alias);
 
 static struct pci_dev *pci_func_0_dma_source(struct pci_dev *dev)
 {

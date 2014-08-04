@@ -978,6 +978,8 @@ int pci_try_reset_slot(struct pci_slot *slot);
 int pci_probe_reset_bus(struct pci_bus *bus);
 int pci_reset_bus(struct pci_bus *bus);
 int pci_try_reset_bus(struct pci_bus *bus);
+void pci_reset_secondary_bus(struct pci_dev *dev);
+void pcibios_reset_secondary_bus(struct pci_dev *dev);
 void pci_reset_bridge_secondary_bus(struct pci_dev *dev);
 void pci_update_resource(struct pci_dev *dev, int resno);
 int __must_check pci_assign_resource(struct pci_dev *dev, int i);
@@ -1186,7 +1188,6 @@ int pci_msix_vec_count(struct pci_dev *dev);
 int pci_enable_msix(struct pci_dev *dev, struct msix_entry *entries, int nvec);
 void pci_msix_shutdown(struct pci_dev *dev);
 void pci_disable_msix(struct pci_dev *dev);
-void msi_remove_pci_irq_vectors(struct pci_dev *dev);
 void pci_restore_msi_state(struct pci_dev *dev);
 int pci_msi_enabled(void);
 int pci_enable_msi_range(struct pci_dev *dev, int minvec, int maxvec);
@@ -1217,7 +1218,6 @@ static inline int pci_enable_msix(struct pci_dev *dev,
 { return -ENOSYS; }
 static inline void pci_msix_shutdown(struct pci_dev *dev) { }
 static inline void pci_disable_msix(struct pci_dev *dev) { }
-static inline void msi_remove_pci_irq_vectors(struct pci_dev *dev) { }
 static inline void pci_restore_msi_state(struct pci_dev *dev) { }
 static inline int pci_msi_enabled(void) { return 0; }
 static inline int pci_enable_msi_range(struct pci_dev *dev, int minvec,
