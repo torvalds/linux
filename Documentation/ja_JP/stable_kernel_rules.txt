@@ -50,16 +50,16 @@ linux-2.6.29/Documentation/stable_kernel_rules.txt
 
 -stable ツリーにパッチを送付する手続き-
 
- - 上記の規則に従っているかを確認した後に、stable@kernel.org にパッチ
+ - 上記の規則に従っているかを確認した後に、stable@vger.kernel.org にパッチ
    を送る。
  - 送信者はパッチがキューに受け付けられた際には ACK を、却下された場合
    には NAK を受け取る。この反応は開発者たちのスケジュールによって、数
    日かかる場合がある。
  - もし受け取られたら、パッチは他の開発者たちと関連するサブシステムの
    メンテナーによるレビューのために -stable キューに追加される。
- - パッチに stable@kernel.org のアドレスが付加されているときには、それ
+ - パッチに stable@vger.kernel.org のアドレスが付加されているときには、それ
    が Linus のツリーに入る時に自動的に stable チームに email される。
- - セキュリティパッチはこのエイリアス (stable@kernel.org) に送られるべ
+ - セキュリティパッチはこのエイリアス (stable@vger.kernel.org) に送られるべ
    きではなく、代わりに security@kernel.org のアドレスに送られる。
 
 レビューサイクル-

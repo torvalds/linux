@@ -530,7 +530,7 @@ void r600_hdmi_enable(struct drm_encoder *encoder)
 		WREG32_P(radeon_encoder->hdmi_config_offset + 0x4, 0x1, ~0x1);
 	} else if (ASIC_IS_DCE3(rdev)) {
 		/* TODO */
-	} else if (rdev->family >= CHIP_R600) {
+	} else if (ASIC_IS_DCE2(rdev)) {
 		switch (radeon_encoder->encoder_id) {
 		case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_TMDS1:
 			WREG32_P(AVIVO_TMDSA_CNTL, AVIVO_TMDSA_CNTL_HDMI_EN,
@@ -602,7 +602,7 @@ void r600_hdmi_disable(struct drm_encoder *encoder)
 		WREG32_P(radeon_encoder->hdmi_config_offset + 0xc, 0, ~0x1);
 	} else if (ASIC_IS_DCE32(rdev)) {
 		WREG32_P(radeon_encoder->hdmi_config_offset + 0x4, 0, ~0x1);
-	} else if (rdev->family >= CHIP_R600 && !ASIC_IS_DCE3(rdev)) {
+	} else if (ASIC_IS_DCE2(rdev) && !ASIC_IS_DCE3(rdev)) {
 		switch (radeon_encoder->encoder_id) {
 		case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_TMDS1:
 			WREG32_P(AVIVO_TMDSA_CNTL, 0,
