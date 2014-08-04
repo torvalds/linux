@@ -1869,8 +1869,7 @@ void xenvif_idx_unmap(struct xenvif_queue *queue, u16 pending_idx)
 static inline int rx_work_todo(struct xenvif_queue *queue)
 {
 	return (!skb_queue_empty(&queue->rx_queue) &&
-	       xenvif_rx_ring_slots_available(queue, queue->rx_last_skb_slots)) ||
-	       queue->rx_queue_purge;
+	       xenvif_rx_ring_slots_available(queue, queue->rx_last_skb_slots));
 }
 
 static inline int tx_work_todo(struct xenvif_queue *queue)
@@ -1935,6 +1934,75 @@ static void xenvif_start_queue(struct xenvif_queue *queue)
 		xenvif_wake_queue(queue);
 }
 
+/* Only called from the queue's thread, it handles the situation when the guest
+ * doesn't post enough requests on the receiving ring.
+ * First xenvif_start_xmit disables QDisc and start a timer, and then either the
+ * timer fires, or the guest send an interrupt after posting new request. If it
+ * is the timer, the carrier is turned off here.
+ * */
+static void xenvif_rx_purge_event(struct xenvif_queue *queue)
+{
+	/* Either the last unsuccesful skb or at least 1 slot should fit */
+	int needed = queue->rx_last_skb_slots ?
+		     queue->rx_last_skb_slots : 1;
+
+	/* It is assumed that if the guest post new slots after this, the RX
+	 * interrupt will set the QUEUE_STATUS_RX_PURGE_EVENT bit and wake up
+	 * the thread again
+	 */
+	set_bit(QUEUE_STATUS_RX_STALLED, &queue->status);
+	if (!xenvif_rx_ring_slots_available(queue, needed)) {
+		rtnl_lock();
+		if (netif_carrier_ok(queue->vif->dev)) {
+			/* Timer fired and there are still no slots. Turn off
+			 * everything except the interrupts
+			 */
+			netif_carrier_off(queue->vif->dev);
+			skb_queue_purge(&queue->rx_queue);
+			queue->rx_last_skb_slots = 0;
+			if (net_ratelimit())
+				netdev_err(queue->vif->dev, "Carrier off due to lack of guest response on queue %d\n", queue->id);
+		} else {
+			/* Probably an another queue already turned the carrier
+			 * off, make sure nothing is stucked in the internal
+			 * queue of this queue
+			 */
+			skb_queue_purge(&queue->rx_queue);
+			queue->rx_last_skb_slots = 0;
+		}
+		rtnl_unlock();
+	} else if (!netif_carrier_ok(queue->vif->dev)) {
+		unsigned int num_queues = queue->vif->num_queues;
+		unsigned int i;
+		/* The carrier was down, but an interrupt kicked
+		 * the thread again after new requests were
+		 * posted
+		 */
+		clear_bit(QUEUE_STATUS_RX_STALLED,
+			  &queue->status);
+		rtnl_lock();
+		netif_carrier_on(queue->vif->dev);
+		netif_tx_wake_all_queues(queue->vif->dev);
+		rtnl_unlock();
+
+		for (i = 0; i < num_queues; i++) {
+			struct xenvif_queue *temp = &queue->vif->queues[i];
+
+			xenvif_napi_schedule_or_enable_events(temp);
+		}
+		if (net_ratelimit())
+			netdev_err(queue->vif->dev, "Carrier on again\n");
+	} else {
+		/* Queuing were stopped, but the guest posted
+		 * new requests and sent an interrupt
+		 */
+		clear_bit(QUEUE_STATUS_RX_STALLED,
+			  &queue->status);
+		del_timer_sync(&queue->rx_stalled);
+		xenvif_start_queue(queue);
+	}
+}
+
 int xenvif_kthread_guest_rx(void *data)
 {
 	struct xenvif_queue *queue = data;
@@ -1944,7 +2012,11 @@ int xenvif_kthread_guest_rx(void *data)
 		wait_event_interruptible(queue->wq,
 					 rx_work_todo(queue) ||
 					 queue->vif->disabled ||
+					 test_bit(QUEUE_STATUS_RX_PURGE_EVENT, &queue->status) ||
 					 kthread_should_stop());
+
+		if (kthread_should_stop())
+			break;
 
 		/* This frontend is found to be rogue, disable it in
 		 * kthread context. Currently this is only set when
@@ -1955,23 +2027,20 @@ int xenvif_kthread_guest_rx(void *data)
 		 */
 		if (unlikely(queue->vif->disabled && queue->id == 0))
 			xenvif_carrier_off(queue->vif);
-
-		if (kthread_should_stop())
-			break;
-
-		if (queue->rx_queue_purge) {
+		else if (unlikely(test_and_clear_bit(QUEUE_STATUS_RX_PURGE_EVENT,
+						     &queue->status))) {
+			xenvif_rx_purge_event(queue);
+		} else if (!netif_carrier_ok(queue->vif->dev)) {
+			/* Another queue stalled and turned the carrier off, so
+			 * purge the internal queue of queues which were not
+			 * blocked
+			 */
 			skb_queue_purge(&queue->rx_queue);
-			queue->rx_queue_purge = false;
+			queue->rx_last_skb_slots = 0;
 		}
 
 		if (!skb_queue_empty(&queue->rx_queue))
 			xenvif_rx_action(queue);
-
-		if (skb_queue_empty(&queue->rx_queue) &&
-		    xenvif_queue_stopped(queue)) {
-			del_timer_sync(&queue->wake_queue);
-			xenvif_start_queue(queue);
-		}
 
 		cond_resched();
 	}

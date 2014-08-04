@@ -176,9 +176,9 @@ struct xenvif_queue { /* Per-queue data for xenvif */
 	struct xen_netif_rx_back_ring rx;
 	struct sk_buff_head rx_queue;
 	RING_IDX rx_last_skb_slots;
-	bool rx_queue_purge;
+	unsigned long status;
 
-	struct timer_list wake_queue;
+	struct timer_list rx_stalled;
 
 	struct gnttab_copy grant_copy_op[MAX_GRANT_COPY_OPS];
 
@@ -200,7 +200,16 @@ struct xenvif_queue { /* Per-queue data for xenvif */
 
 enum state_bit_shift {
 	/* This bit marks that the vif is connected */
-	VIF_STATUS_CONNECTED
+	VIF_STATUS_CONNECTED,
+	/* This bit signals the RX thread that queuing was stopped (in
+	 * start_xmit), and either the timer fired or an RX interrupt came
+	 */
+	QUEUE_STATUS_RX_PURGE_EVENT,
+	/* This bit tells the interrupt handler that this queue was the reason
+	 * for the carrier off, so it should kick the thread. Only queues which
+	 * brought it down can turn on the carrier.
+	 */
+	QUEUE_STATUS_RX_STALLED
 };
 
 struct xenvif {

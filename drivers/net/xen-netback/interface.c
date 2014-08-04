@@ -78,8 +78,12 @@ int xenvif_poll(struct napi_struct *napi, int budget)
 	/* This vif is rogue, we pretend we've there is nothing to do
 	 * for this vif to deschedule it from NAPI. But this interface
 	 * will be turned off in thread context later.
+	 * Also, if a guest doesn't post enough slots to receive data on one of
+	 * its queues, the carrier goes down and NAPI is descheduled here so
+	 * the guest can't send more packets until it's ready to receive.
 	 */
-	if (unlikely(queue->vif->disabled)) {
+	if (unlikely(queue->vif->disabled ||
+		     !netif_carrier_ok(queue->vif->dev))) {
 		napi_complete(napi);
 		return 0;
 	}
@@ -97,7 +101,16 @@ int xenvif_poll(struct napi_struct *napi, int budget)
 static irqreturn_t xenvif_rx_interrupt(int irq, void *dev_id)
 {
 	struct xenvif_queue *queue = dev_id;
+	struct netdev_queue *net_queue =
+		netdev_get_tx_queue(queue->vif->dev, queue->id);
 
+	/* QUEUE_STATUS_RX_PURGE_EVENT is only set if either QDisc was off OR
+	 * the carrier went down and this queue was previously blocked
+	 */
+	if (unlikely(netif_tx_queue_stopped(net_queue) ||
+		     (!netif_carrier_ok(queue->vif->dev) &&
+		      test_bit(QUEUE_STATUS_RX_STALLED, &queue->status))))
+		set_bit(QUEUE_STATUS_RX_PURGE_EVENT, &queue->status);
 	xenvif_kick_thread(queue);
 
 	return IRQ_HANDLED;
@@ -125,16 +138,14 @@ void xenvif_wake_queue(struct xenvif_queue *queue)
 	netif_tx_wake_queue(netdev_get_tx_queue(dev, id));
 }
 
-/* Callback to wake the queue and drain it on timeout */
-static void xenvif_wake_queue_callback(unsigned long data)
+/* Callback to wake the queue's thread and turn the carrier off on timeout */
+static void xenvif_rx_stalled(unsigned long data)
 {
 	struct xenvif_queue *queue = (struct xenvif_queue *)data;
 
 	if (xenvif_queue_stopped(queue)) {
-		netdev_err(queue->vif->dev, "draining TX queue\n");
-		queue->rx_queue_purge = true;
+		set_bit(QUEUE_STATUS_RX_PURGE_EVENT, &queue->status);
 		xenvif_kick_thread(queue);
-		xenvif_wake_queue(queue);
 	}
 }
 
@@ -183,11 +194,11 @@ static int xenvif_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	 * drain.
 	 */
 	if (!xenvif_rx_ring_slots_available(queue, min_slots_needed)) {
-		queue->wake_queue.function = xenvif_wake_queue_callback;
-		queue->wake_queue.data = (unsigned long)queue;
+		queue->rx_stalled.function = xenvif_rx_stalled;
+		queue->rx_stalled.data = (unsigned long)queue;
 		xenvif_stop_queue(queue);
-		mod_timer(&queue->wake_queue,
-			jiffies + rx_drain_timeout_jiffies);
+		mod_timer(&queue->rx_stalled,
+			  jiffies + rx_drain_timeout_jiffies);
 	}
 
 	skb_queue_tail(&queue->rx_queue, skb);
@@ -515,7 +526,7 @@ int xenvif_init_queue(struct xenvif_queue *queue)
 		queue->grant_tx_handle[i] = NETBACK_INVALID_HANDLE;
 	}
 
-	init_timer(&queue->wake_queue);
+	init_timer(&queue->rx_stalled);
 
 	netif_napi_add(queue->vif->dev, &queue->napi, xenvif_poll,
 			XENVIF_NAPI_WEIGHT);
@@ -666,7 +677,7 @@ void xenvif_disconnect(struct xenvif *vif)
 		queue = &vif->queues[queue_index];
 
 		if (queue->task) {
-			del_timer_sync(&queue->wake_queue);
+			del_timer_sync(&queue->rx_stalled);
 			kthread_stop(queue->task);
 			queue->task = NULL;
 		}
@@ -708,16 +719,12 @@ void xenvif_free(struct xenvif *vif)
 	/* Here we want to avoid timeout messages if an skb can be legitimately
 	 * stuck somewhere else. Realistically this could be an another vif's
 	 * internal or QDisc queue. That another vif also has this
-	 * rx_drain_timeout_msecs timeout, but the timer only ditches the
-	 * internal queue. After that, the QDisc queue can put in worst case
-	 * XEN_NETIF_RX_RING_SIZE / MAX_SKB_FRAGS skbs into that another vif's
-	 * internal queue, so we need several rounds of such timeouts until we
-	 * can be sure that no another vif should have skb's from us. We are
-	 * not sending more skb's, so newly stuck packets are not interesting
-	 * for us here.
+	 * rx_drain_timeout_msecs timeout, so give it time to drain out.
+	 * Although if that other guest wakes up just before its timeout happens
+	 * and takes only one skb from QDisc, it can hold onto other skbs for a
+	 * longer period.
 	 */
-	unsigned int worst_case_skb_lifetime = (rx_drain_timeout_msecs/1000) *
-		DIV_ROUND_UP(XENVIF_QUEUE_LENGTH, (XEN_NETIF_RX_RING_SIZE / MAX_SKB_FRAGS));
+	unsigned int worst_case_skb_lifetime = (rx_drain_timeout_msecs/1000);
 
 	unregister_netdev(vif->dev);
 
