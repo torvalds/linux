@@ -3420,10 +3420,10 @@ static void intel_print_rc6_info(struct drm_device *dev, u32 mode)
 		else
 			mode = 0;
 	}
-	DRM_INFO("Enabling RC6 states: RC6 %s, RC6p %s, RC6pp %s\n",
-		 (mode & GEN6_RC_CTL_RC6_ENABLE) ? "on" : "off",
-		 (mode & GEN6_RC_CTL_RC6p_ENABLE) ? "on" : "off",
-		 (mode & GEN6_RC_CTL_RC6pp_ENABLE) ? "on" : "off");
+	DRM_DEBUG_KMS("Enabling RC6 states: RC6 %s, RC6p %s, RC6pp %s\n",
+		      (mode & GEN6_RC_CTL_RC6_ENABLE) ? "on" : "off",
+		      (mode & GEN6_RC_CTL_RC6p_ENABLE) ? "on" : "off",
+		      (mode & GEN6_RC_CTL_RC6pp_ENABLE) ? "on" : "off");
 }
 
 static int sanitize_rc6_option(const struct drm_device *dev, int enable_rc6)
@@ -3447,8 +3447,8 @@ static int sanitize_rc6_option(const struct drm_device *dev, int enable_rc6)
 			mask = INTEL_RC6_ENABLE;
 
 		if ((enable_rc6 & mask) != enable_rc6)
-			DRM_INFO("Adjusting RC6 mask to %d (requested %d, valid %d)\n",
-				 enable_rc6 & mask, enable_rc6, mask);
+			DRM_DEBUG_KMS("Adjusting RC6 mask to %d (requested %d, valid %d)\n",
+				      enable_rc6 & mask, enable_rc6, mask);
 
 		return enable_rc6 & mask;
 	}
