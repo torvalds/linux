@@ -113,15 +113,15 @@ struct compress_sst_ops {
 };
 
 struct sst_ops {
-	int (*open) (struct snd_sst_params *str_param);
-	int (*stream_init) (struct pcm_stream_info *str_info);
-	int (*stream_start) (int str_id);
-	int (*stream_drop) (int str_id);
-	int (*stream_pause) (int str_id);
-	int (*stream_pause_release) (int str_id);
-	int (*stream_read_tstamp) (struct pcm_stream_info *str_info);
-	int (*send_byte_stream)(struct snd_sst_bytes_v2 *bytes);
-	int (*close) (unsigned int str_id);
+	int (*open) (struct device *dev, struct snd_sst_params *str_param);
+	int (*stream_init) (struct device *dev, struct pcm_stream_info *str_info);
+	int (*stream_start) (struct device *dev, int str_id);
+	int (*stream_drop) (struct device *dev, int str_id);
+	int (*stream_pause) (struct device *dev, int str_id);
+	int (*stream_pause_release) (struct device *dev, int str_id);
+	int (*stream_read_tstamp) (struct device *dev, struct pcm_stream_info *str_info);
+	int (*send_byte_stream)(struct device *dev, struct snd_sst_bytes_v2 *bytes);
+	int (*close) (struct device *dev, unsigned int str_id);
 };
 
 struct sst_runtime_stream {

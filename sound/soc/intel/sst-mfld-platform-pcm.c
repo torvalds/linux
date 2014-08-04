@@ -277,7 +277,7 @@ static int sst_platform_alloc_stream(struct snd_pcm_substream *substream,
 
 	stream->stream_info.str_id = str_params.stream_id;
 
-	ret_val = stream->ops->open(&str_params);
+	ret_val = stream->ops->open(sst->dev, &str_params);
 	if (ret_val <= 0)
 		return ret_val;
 
@@ -314,13 +314,12 @@ static int sst_platform_init_stream(struct snd_pcm_substream *substream)
 	stream->stream_info.arg = substream;
 	stream->stream_info.buffer_ptr = 0;
 	stream->stream_info.sfreq = substream->runtime->rate;
-	ret_val = stream->ops->stream_init(&stream->stream_info);
+	ret_val = stream->ops->stream_init(sst->dev, &stream->stream_info);
 	if (ret_val)
 		pr_err("control_set ret error %d\n", ret_val);
 	return ret_val;
 
 }
-/* end -- helper functions */
 
 static int sst_media_open(struct snd_pcm_substream *substream,
 		struct snd_soc_dai *dai)
@@ -372,7 +371,7 @@ static void sst_media_close(struct snd_pcm_substream *substream,
 	stream = substream->runtime->private_data;
 	str_id = stream->stream_info.str_id;
 	if (str_id)
-		ret_val = stream->ops->close(str_id);
+		ret_val = stream->ops->close(sst->dev, str_id);
 	module_put(sst->dev->driver->owner);
 	kfree(stream);
 }
@@ -402,7 +401,7 @@ static int sst_media_prepare(struct snd_pcm_substream *substream,
 	stream = substream->runtime->private_data;
 	str_id = stream->stream_info.str_id;
 	if (stream->stream_info.str_id) {
-		ret_val = stream->ops->stream_drop(str_id);
+		ret_val = stream->ops->stream_drop(sst->dev, str_id);
 		return ret_val;
 	}
 
@@ -469,22 +468,22 @@ static int sst_platform_pcm_trigger(struct snd_pcm_substream *substream,
 		pr_debug("sst: Trigger Start\n");
 		status = SST_PLATFORM_RUNNING;
 		stream->stream_info.arg = substream;
-		ret_val = stream->ops->stream_start(str_id);
+		ret_val = stream->ops->stream_start(sst->dev, str_id);
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 		pr_debug("sst: in stop\n");
 		status = SST_PLATFORM_DROPPED;
-		ret_val = stream->ops->stream_drop(str_id);
+		ret_val = stream->ops->stream_drop(sst->dev, str_id);
 		break;
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		pr_debug("sst: in pause\n");
 		status = SST_PLATFORM_PAUSED;
-		ret_val = stream->ops->stream_pause(str_id);
+		ret_val = stream->ops->stream_pause(sst->dev, str_id);
 		break;
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		pr_debug("sst: in pause release\n");
 		status = SST_PLATFORM_RUNNING;
-		ret_val = stream->ops->stream_pause_release(str_id);
+		ret_val = stream->ops->stream_pause_release(sst->dev, str_id);
 		break;
 	default:
 		return -EINVAL;
@@ -509,7 +508,7 @@ static snd_pcm_uframes_t sst_platform_pcm_pointer
 	if (status == SST_PLATFORM_INIT)
 		return 0;
 	str_info = &stream->stream_info;
-	ret_val = stream->ops->stream_read_tstamp(str_info);
+	ret_val = stream->ops->stream_read_tstamp(sst->dev, str_info);
 	if (ret_val) {
 		pr_err("sst: error code = %d\n", ret_val);
 		return ret_val;
