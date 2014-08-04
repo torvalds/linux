@@ -1000,9 +1000,17 @@ static void ath10k_core_register_work(struct work_struct *work)
 		goto err_unregister_mac;
 	}
 
+	status = ath10k_spectral_create(ar);
+	if (status) {
+		ath10k_err("failed to initialize spectral\n");
+		goto err_debug_destroy;
+	}
+
 	set_bit(ATH10K_FLAG_CORE_REGISTERED, &ar->dev_flags);
 	return;
 
+err_debug_destroy:
+	ath10k_debug_destroy(ar);
 err_unregister_mac:
 	ath10k_mac_unregister(ar);
 err_release_fw:
@@ -1045,6 +1053,8 @@ void ath10k_core_unregister(struct ath10k *ar)
 	ath10k_mac_unregister(ar);
 
 	ath10k_core_free_firmware_files(ar);
+
+	ath10k_spectral_destroy(ar);
 
 	ath10k_debug_destroy(ar);
 }

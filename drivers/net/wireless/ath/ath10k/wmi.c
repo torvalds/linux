@@ -1780,7 +1780,54 @@ static void ath10k_wmi_event_spectral_scan(struct ath10k *ar,
 				struct wmi_single_phyerr_rx_event *event,
 				u64 tsf)
 {
-	ath10k_dbg(ATH10K_DBG_WMI, "wmi event spectral scan\n");
+	int buf_len, tlv_len, res, i = 0;
+	struct phyerr_tlv *tlv;
+	u8 *tlv_buf;
+	struct phyerr_fft_report *fftr;
+	size_t fftr_len;
+
+	buf_len = __le32_to_cpu(event->hdr.buf_len);
+
+	while (i < buf_len) {
+		if (i + sizeof(*tlv) > buf_len) {
+			ath10k_warn("failed to parse phyerr tlv header at byte %d\n",
+				    i);
+			return;
+		}
+
+		tlv = (struct phyerr_tlv *)&event->bufp[i];
+		tlv_len = __le16_to_cpu(tlv->len);
+		tlv_buf = &event->bufp[i + sizeof(*tlv)];
+
+		if (i + sizeof(*tlv) + tlv_len > buf_len) {
+			ath10k_warn("failed to parse phyerr tlv payload at byte %d\n",
+				    i);
+			return;
+		}
+
+		switch (tlv->tag) {
+		case PHYERR_TLV_TAG_SEARCH_FFT_REPORT:
+			if (sizeof(*fftr) > tlv_len) {
+				ath10k_warn("failed to parse fft report at byte %d\n",
+					    i);
+				return;
+			}
+
+			fftr_len = tlv_len - sizeof(*fftr);
+			fftr = (struct phyerr_fft_report *)tlv_buf;
+			res = ath10k_spectral_process_fft(ar, event,
+							  fftr, fftr_len,
+							  tsf);
+			if (res < 0) {
+				ath10k_warn("failed to process fft report: %d\n",
+					    res);
+				return;
+			}
+			break;
+		}
+
+		i += sizeof(*tlv) + tlv_len;
+	}
 }
 
 static void ath10k_wmi_event_phyerr(struct ath10k *ar, struct sk_buff *skb)
@@ -3574,6 +3621,62 @@ int ath10k_wmi_vdev_install_key(struct ath10k *ar,
 		   arg->key_idx, arg->key_cipher, arg->key_len);
 	return ath10k_wmi_cmd_send(ar, skb,
 				   ar->wmi.cmd->vdev_install_key_cmdid);
+}
+
+int ath10k_wmi_vdev_spectral_conf(struct ath10k *ar,
+				  const struct wmi_vdev_spectral_conf_arg *arg)
+{
+	struct wmi_vdev_spectral_conf_cmd *cmd;
+	struct sk_buff *skb;
+	u32 cmdid;
+
+	skb = ath10k_wmi_alloc_skb(sizeof(*cmd));
+	if (!skb)
+		return -ENOMEM;
+
+	cmd = (struct wmi_vdev_spectral_conf_cmd *)skb->data;
+	cmd->vdev_id = __cpu_to_le32(arg->vdev_id);
+	cmd->scan_count = __cpu_to_le32(arg->scan_count);
+	cmd->scan_period = __cpu_to_le32(arg->scan_period);
+	cmd->scan_priority = __cpu_to_le32(arg->scan_priority);
+	cmd->scan_fft_size = __cpu_to_le32(arg->scan_fft_size);
+	cmd->scan_gc_ena = __cpu_to_le32(arg->scan_gc_ena);
+	cmd->scan_restart_ena = __cpu_to_le32(arg->scan_restart_ena);
+	cmd->scan_noise_floor_ref = __cpu_to_le32(arg->scan_noise_floor_ref);
+	cmd->scan_init_delay = __cpu_to_le32(arg->scan_init_delay);
+	cmd->scan_nb_tone_thr = __cpu_to_le32(arg->scan_nb_tone_thr);
+	cmd->scan_str_bin_thr = __cpu_to_le32(arg->scan_str_bin_thr);
+	cmd->scan_wb_rpt_mode = __cpu_to_le32(arg->scan_wb_rpt_mode);
+	cmd->scan_rssi_rpt_mode = __cpu_to_le32(arg->scan_rssi_rpt_mode);
+	cmd->scan_rssi_thr = __cpu_to_le32(arg->scan_rssi_thr);
+	cmd->scan_pwr_format = __cpu_to_le32(arg->scan_pwr_format);
+	cmd->scan_rpt_mode = __cpu_to_le32(arg->scan_rpt_mode);
+	cmd->scan_bin_scale = __cpu_to_le32(arg->scan_bin_scale);
+	cmd->scan_dbm_adj = __cpu_to_le32(arg->scan_dbm_adj);
+	cmd->scan_chn_mask = __cpu_to_le32(arg->scan_chn_mask);
+
+	cmdid = ar->wmi.cmd->vdev_spectral_scan_configure_cmdid;
+	return ath10k_wmi_cmd_send(ar, skb, cmdid);
+}
+
+int ath10k_wmi_vdev_spectral_enable(struct ath10k *ar, u32 vdev_id, u32 trigger,
+				    u32 enable)
+{
+	struct wmi_vdev_spectral_enable_cmd *cmd;
+	struct sk_buff *skb;
+	u32 cmdid;
+
+	skb = ath10k_wmi_alloc_skb(sizeof(*cmd));
+	if (!skb)
+		return -ENOMEM;
+
+	cmd = (struct wmi_vdev_spectral_enable_cmd *)skb->data;
+	cmd->vdev_id = __cpu_to_le32(vdev_id);
+	cmd->trigger_cmd = __cpu_to_le32(trigger);
+	cmd->enable_cmd = __cpu_to_le32(enable);
+
+	cmdid = ar->wmi.cmd->vdev_spectral_scan_enable_cmdid;
+	return ath10k_wmi_cmd_send(ar, skb, cmdid);
 }
 
 int ath10k_wmi_peer_create(struct ath10k *ar, u32 vdev_id,
