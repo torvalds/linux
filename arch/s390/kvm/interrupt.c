@@ -721,62 +721,6 @@ void kvm_s390_deliver_pending_interrupts(struct kvm_vcpu *vcpu)
 	}
 }
 
-void kvm_s390_deliver_pending_machine_checks(struct kvm_vcpu *vcpu)
-{
-	struct kvm_s390_local_interrupt *li = &vcpu->arch.local_int;
-	struct kvm_s390_float_interrupt *fi = vcpu->arch.local_int.float_int;
-	struct kvm_s390_interrupt_info  *n, *inti = NULL;
-	int deliver;
-
-	__reset_intercept_indicators(vcpu);
-	if (atomic_read(&li->active)) {
-		do {
-			deliver = 0;
-			spin_lock(&li->lock);
-			list_for_each_entry_safe(inti, n, &li->list, list) {
-				if ((inti->type == KVM_S390_MCHK) &&
-				    __interrupt_is_deliverable(vcpu, inti)) {
-					list_del(&inti->list);
-					deliver = 1;
-					break;
-				}
-				__set_intercept_indicator(vcpu, inti);
-			}
-			if (list_empty(&li->list))
-				atomic_set(&li->active, 0);
-			spin_unlock(&li->lock);
-			if (deliver) {
-				__do_deliver_interrupt(vcpu, inti);
-				kfree(inti);
-			}
-		} while (deliver);
-	}
-
-	if (atomic_read(&fi->active)) {
-		do {
-			deliver = 0;
-			spin_lock(&fi->lock);
-			list_for_each_entry_safe(inti, n, &fi->list, list) {
-				if ((inti->type == KVM_S390_MCHK) &&
-				    __interrupt_is_deliverable(vcpu, inti)) {
-					list_del(&inti->list);
-					fi->irq_count--;
-					deliver = 1;
-					break;
-				}
-				__set_intercept_indicator(vcpu, inti);
-			}
-			if (list_empty(&fi->list))
-				atomic_set(&fi->active, 0);
-			spin_unlock(&fi->lock);
-			if (deliver) {
-				__do_deliver_interrupt(vcpu, inti);
-				kfree(inti);
-			}
-		} while (deliver);
-	}
-}
-
 int kvm_s390_inject_program_int(struct kvm_vcpu *vcpu, u16 code)
 {
 	struct kvm_s390_local_interrupt *li = &vcpu->arch.local_int;
