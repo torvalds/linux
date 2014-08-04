@@ -367,6 +367,13 @@ static struct rcu_head *rcu_tasks_cbs_head;
 static struct rcu_head **rcu_tasks_cbs_tail = &rcu_tasks_cbs_head;
 static DEFINE_RAW_SPINLOCK(rcu_tasks_cbs_lock);
 
+/* Track exiting tasks in order to allow them to be waited for. */
+DEFINE_SRCU(tasks_rcu_exit_srcu);
+
+/* Control stall timeouts.  Disable with <= 0, otherwise jiffies till stall. */
+static int rcu_task_stall_timeout __read_mostly = HZ * 60 * 3;
+module_param(rcu_task_stall_timeout, int, 0644);
+
 /* Post an RCU-tasks callback. */
 void call_rcu_tasks(struct rcu_head *rhp, void (*func)(struct rcu_head *rhp))
 {
@@ -518,6 +525,15 @@ static int __noreturn rcu_tasks_kthread(void *arg)
 		rcu_read_unlock();
 
 		/*
+		 * Wait for tasks that are in the process of exiting.
+		 * This does only part of the job, ensuring that all
+		 * tasks that were previously exiting reach the point
+		 * where they have disabled preemption, allowing the
+		 * later synchronize_sched() to finish the job.
+		 */
+		synchronize_srcu(&tasks_rcu_exit_srcu);
+
+		/*
 		 * Each pass through the following loop scans the list
 		 * of holdout tasks, removing any that are no longer
 		 * holdouts.  When the list is empty, we are done.
@@ -546,6 +562,11 @@ static int __noreturn rcu_tasks_kthread(void *arg)
 		 * ->rcu_tasks_holdout accesses to be within the grace
 		 * period, avoiding the need for memory barriers for
 		 * ->rcu_tasks_holdout accesses.
+		 *
+		 * In addition, this synchronize_sched() waits for exiting
+		 * tasks to complete their final preempt_disable() region
+		 * of execution, cleaning up after the synchronize_srcu()
+		 * above.
 		 */
 		synchronize_sched();
 

@@ -321,6 +321,8 @@ static inline void rcu_user_hooks_switch(struct task_struct *prev,
  * macro rather than an inline function to avoid #include hell.
  */
 #ifdef CONFIG_TASKS_RCU
+#define TASKS_RCU(x) x
+extern struct srcu_struct tasks_rcu_exit_srcu;
 #define rcu_note_voluntary_context_switch(t) \
 	do { \
 		preempt_disable(); /* Exclude synchronize_sched(); */ \
@@ -329,6 +331,7 @@ static inline void rcu_user_hooks_switch(struct task_struct *prev,
 		preempt_enable(); \
 	} while (0)
 #else /* #ifdef CONFIG_TASKS_RCU */
+#define TASKS_RCU(x) do { } while (0)
 #define rcu_note_voluntary_context_switch(t)	do { } while (0)
 #endif /* #else #ifdef CONFIG_TASKS_RCU */
 
