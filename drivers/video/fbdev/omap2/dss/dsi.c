@@ -1514,6 +1514,20 @@ static void dsi_pll_calc_dsi_fck(struct dsi_clock_info *cinfo)
 	cinfo->dsi_pll_hsdiv_dsi_clk = cinfo->clkin4ddr / cinfo->regm_dsi;
 }
 
+static int dsi_wait_hsdiv_ack(struct platform_device *dsidev, u32 hsdiv_ack_mask)
+{
+	int t = 100;
+
+	while (t-- > 0) {
+		u32 v = dsi_read_reg(dsidev, DSI_PLL_STATUS);
+		v &= hsdiv_ack_mask;
+		if (v == hsdiv_ack_mask)
+			return 0;
+	}
+
+	return -ETIMEDOUT;
+}
+
 int dsi_pll_set_clock_div(struct platform_device *dsidev,
 		struct dsi_clock_info *cinfo)
 {
@@ -1645,6 +1659,13 @@ int dsi_pll_set_clock_div(struct platform_device *dsidev,
 	l = FLD_MOD(l, 0, 19, 19);	/* DSI_PROTO_CLOCK_PWDN */
 	l = FLD_MOD(l, 0, 20, 20);	/* DSI_HSDIVBYPASS */
 	dsi_write_reg(dsidev, DSI_PLL_CONFIGURATION2, l);
+
+	r = dsi_wait_hsdiv_ack(dsidev, BIT(7) | BIT(8));
+	if (r) {
+		DSSERR("failed to enable HSDIV clocks: %d\n", r);
+		goto err;
+	}
+
 
 	DSSDBG("PLL config done\n");
 err:
