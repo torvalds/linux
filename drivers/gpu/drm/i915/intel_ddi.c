@@ -1515,15 +1515,13 @@ void intel_ddi_init(struct drm_device *dev, enum port port)
 	struct intel_digital_port *intel_dig_port;
 	struct intel_encoder *intel_encoder;
 	struct drm_encoder *encoder;
-	struct intel_connector *hdmi_connector = NULL;
-	struct intel_connector *dp_connector = NULL;
 	bool init_hdmi, init_dp;
 
 	init_hdmi = (dev_priv->vbt.ddi_port_info[port].supports_dvi ||
 		     dev_priv->vbt.ddi_port_info[port].supports_hdmi);
 	init_dp = dev_priv->vbt.ddi_port_info[port].supports_dp;
 	if (!init_dp && !init_hdmi) {
-		DRM_DEBUG_KMS("VBT says port %c is not DVI/HDMI/DP compatible\n",
+		DRM_DEBUG_KMS("VBT says port %c is not DVI/HDMI/DP compatible, assuming it is\n",
 			      port_name(port));
 		init_hdmi = true;
 		init_dp = true;
@@ -1553,23 +1551,28 @@ void intel_ddi_init(struct drm_device *dev, enum port port)
 					   DDI_A_4_LANES);
 
 	intel_encoder->type = INTEL_OUTPUT_UNKNOWN;
-	intel_encoder->crtc_mask =  (1 << 0) | (1 << 1) | (1 << 2);
+	intel_encoder->crtc_mask = (1 << 0) | (1 << 1) | (1 << 2);
 	intel_encoder->cloneable = 0;
 	intel_encoder->hot_plug = intel_ddi_hot_plug;
 
-	intel_dig_port->hpd_pulse = intel_dp_hpd_pulse;
-	dev_priv->hpd_irq_port[port] = intel_dig_port;
+	if (init_dp) {
+		if (!intel_ddi_init_dp_connector(intel_dig_port))
+			goto err;
 
-	if (init_dp)
-		dp_connector = intel_ddi_init_dp_connector(intel_dig_port);
+		intel_dig_port->hpd_pulse = intel_dp_hpd_pulse;
+		dev_priv->hpd_irq_port[port] = intel_dig_port;
+	}
 
 	/* In theory we don't need the encoder->type check, but leave it just in
 	 * case we have some really bad VBTs... */
-	if (intel_encoder->type != INTEL_OUTPUT_EDP && init_hdmi)
-		hdmi_connector = intel_ddi_init_hdmi_connector(intel_dig_port);
-
-	if (!dp_connector && !hdmi_connector) {
-		drm_encoder_cleanup(encoder);
-		kfree(intel_dig_port);
+	if (intel_encoder->type != INTEL_OUTPUT_EDP && init_hdmi) {
+		if (!intel_ddi_init_hdmi_connector(intel_dig_port))
+			goto err;
 	}
+
+	return;
+
+err:
+	drm_encoder_cleanup(encoder);
+	kfree(intel_dig_port);
 }
