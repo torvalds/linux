@@ -259,6 +259,11 @@ static bool fsl_ssi_is_i2s_master(struct fsl_ssi_private *ssi_private)
 		SND_SOC_DAIFMT_CBS_CFS;
 }
 
+static bool fsl_ssi_is_i2s_cbm_cfs(struct fsl_ssi_private *ssi_private)
+{
+	return (ssi_private->dai_fmt & SND_SOC_DAIFMT_MASTER_MASK) ==
+		SND_SOC_DAIFMT_CBM_CFS;
+}
 /**
  * fsl_ssi_isr: SSI interrupt handler
  *
@@ -705,6 +710,23 @@ static int fsl_ssi_hw_params(struct snd_pcm_substream *substream,
 		}
 	}
 
+	if (!fsl_ssi_is_ac97(ssi_private)) {
+		u8 i2smode;
+		/*
+		 * Switch to normal net mode in order to have a frame sync
+		 * signal every 32 bits instead of 16 bits
+		 */
+		if (fsl_ssi_is_i2s_cbm_cfs(ssi_private) && sample_size == 16)
+			i2smode = CCSR_SSI_SCR_I2S_MODE_NORMAL |
+				CCSR_SSI_SCR_NET;
+		else
+			i2smode = ssi_private->i2s_mode;
+
+		regmap_update_bits(regs, CCSR_SSI_SCR,
+				CCSR_SSI_SCR_NET | CCSR_SSI_SCR_I2S_MODE_MASK,
+				channels == 1 ? 0 : i2smode);
+	}
+
 	/*
 	 * FIXME: The documentation says that SxCCR[WL] should not be
 	 * modified while the SSI is enabled.  The only time this can
@@ -723,11 +745,6 @@ static int fsl_ssi_hw_params(struct snd_pcm_substream *substream,
 	else
 		regmap_update_bits(regs, CCSR_SSI_SRCCR, CCSR_SSI_SxCCR_WL_MASK,
 				wl);
-
-	if (!fsl_ssi_is_ac97(ssi_private))
-		regmap_update_bits(regs, CCSR_SSI_SCR,
-				CCSR_SSI_SCR_NET | CCSR_SSI_SCR_I2S_MODE_MASK,
-				channels == 1 ? 0 : ssi_private->i2s_mode);
 
 	return 0;
 }
@@ -780,6 +797,7 @@ static int _fsl_ssi_set_dai_fmt(struct fsl_ssi_private *ssi_private,
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_I2S:
 		switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
+		case SND_SOC_DAIFMT_CBM_CFS:
 		case SND_SOC_DAIFMT_CBS_CFS:
 			ssi_private->i2s_mode |= CCSR_SSI_SCR_I2S_MODE_MASTER;
 			regmap_update_bits(regs, CCSR_SSI_STCCR,
@@ -851,6 +869,11 @@ static int _fsl_ssi_set_dai_fmt(struct fsl_ssi_private *ssi_private,
 		scr |= CCSR_SSI_SCR_SYS_CLK_EN;
 		break;
 	case SND_SOC_DAIFMT_CBM_CFM:
+		scr &= ~CCSR_SSI_SCR_SYS_CLK_EN;
+		break;
+	case SND_SOC_DAIFMT_CBM_CFS:
+		strcr &= ~CCSR_SSI_STCR_TXDIR;
+		strcr |= CCSR_SSI_STCR_TFDIR;
 		scr &= ~CCSR_SSI_SCR_SYS_CLK_EN;
 		break;
 	default:
