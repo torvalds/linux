@@ -38,6 +38,7 @@
 #include "xfs_trace.h"
 #include "xfs_log.h"
 #include "xfs_dinode.h"
+#include "xfs_icache.h"
 
 #include <linux/aio.h>
 #include <linux/dcache.h>
@@ -689,14 +690,28 @@ write_retry:
 	ret = generic_perform_write(file, from, pos);
 	if (likely(ret >= 0))
 		iocb->ki_pos = pos + ret;
+
 	/*
-	 * If we just got an ENOSPC, try to write back all dirty inodes to
-	 * convert delalloc space to free up some of the excess reserved
-	 * metadata space.
+	 * If we hit a space limit, try to free up some lingering preallocated
+	 * space before returning an error. In the case of ENOSPC, first try to
+	 * write back all dirty inodes to free up some of the excess reserved
+	 * metadata space. This reduces the chances that the eofblocks scan
+	 * waits on dirty mappings. Since xfs_flush_inodes() is serialized, this
+	 * also behaves as a filter to prevent too many eofblocks scans from
+	 * running at the same time.
 	 */
-	if (ret == -ENOSPC && !enospc) {
+	if (ret == -EDQUOT && !enospc) {
+		enospc = xfs_inode_free_quota_eofblocks(ip);
+		if (enospc)
+			goto write_retry;
+	} else if (ret == -ENOSPC && !enospc) {
+		struct xfs_eofblocks eofb = {0};
+
 		enospc = 1;
 		xfs_flush_inodes(ip->i_mount);
+		eofb.eof_scan_owner = ip->i_ino; /* for locking */
+		eofb.eof_flags = XFS_EOF_FLAGS_SYNC;
+		xfs_icache_free_eofblocks(ip->i_mount, &eofb);
 		goto write_retry;
 	}
 

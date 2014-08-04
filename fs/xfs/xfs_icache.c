@@ -33,6 +33,9 @@
 #include "xfs_trace.h"
 #include "xfs_icache.h"
 #include "xfs_bmap_util.h"
+#include "xfs_quota.h"
+#include "xfs_dquot_item.h"
+#include "xfs_dquot.h"
 
 #include <linux/kthread.h>
 #include <linux/freezer.h>
@@ -1203,6 +1206,30 @@ xfs_inode_match_id(
 	return 1;
 }
 
+/*
+ * A union-based inode filtering algorithm. Process the inode if any of the
+ * criteria match. This is for global/internal scans only.
+ */
+STATIC int
+xfs_inode_match_id_union(
+	struct xfs_inode	*ip,
+	struct xfs_eofblocks	*eofb)
+{
+	if ((eofb->eof_flags & XFS_EOF_FLAGS_UID) &&
+	    uid_eq(VFS_I(ip)->i_uid, eofb->eof_uid))
+		return 1;
+
+	if ((eofb->eof_flags & XFS_EOF_FLAGS_GID) &&
+	    gid_eq(VFS_I(ip)->i_gid, eofb->eof_gid))
+		return 1;
+
+	if ((eofb->eof_flags & XFS_EOF_FLAGS_PRID) &&
+	    xfs_get_projid(ip) == eofb->eof_prid)
+		return 1;
+
+	return 0;
+}
+
 STATIC int
 xfs_inode_free_eofblocks(
 	struct xfs_inode	*ip,
@@ -1211,6 +1238,10 @@ xfs_inode_free_eofblocks(
 {
 	int ret;
 	struct xfs_eofblocks *eofb = args;
+	bool need_iolock = true;
+	int match;
+
+	ASSERT(!eofb || (eofb && eofb->eof_scan_owner != 0));
 
 	if (!xfs_can_free_eofblocks(ip, false)) {
 		/* inode could be preallocated or append-only */
@@ -1228,16 +1259,28 @@ xfs_inode_free_eofblocks(
 		return 0;
 
 	if (eofb) {
-		if (!xfs_inode_match_id(ip, eofb))
+		if (eofb->eof_flags & XFS_EOF_FLAGS_UNION)
+			match = xfs_inode_match_id_union(ip, eofb);
+		else
+			match = xfs_inode_match_id(ip, eofb);
+		if (!match)
 			return 0;
 
 		/* skip the inode if the file size is too small */
 		if (eofb->eof_flags & XFS_EOF_FLAGS_MINFILESIZE &&
 		    XFS_ISIZE(ip) < eofb->eof_min_file_size)
 			return 0;
+
+		/*
+		 * A scan owner implies we already hold the iolock. Skip it in
+		 * xfs_free_eofblocks() to avoid deadlock. This also eliminates
+		 * the possibility of EAGAIN being returned.
+		 */
+		if (eofb->eof_scan_owner == ip->i_ino)
+			need_iolock = false;
 	}
 
-	ret = xfs_free_eofblocks(ip->i_mount, ip, true);
+	ret = xfs_free_eofblocks(ip->i_mount, ip, need_iolock);
 
 	/* don't revisit the inode if we're not waiting */
 	if (ret == -EAGAIN && !(flags & SYNC_WAIT))
@@ -1258,6 +1301,55 @@ xfs_icache_free_eofblocks(
 
 	return xfs_inode_ag_iterator_tag(mp, xfs_inode_free_eofblocks, flags,
 					 eofb, XFS_ICI_EOFBLOCKS_TAG);
+}
+
+/*
+ * Run eofblocks scans on the quotas applicable to the inode. For inodes with
+ * multiple quotas, we don't know exactly which quota caused an allocation
+ * failure. We make a best effort by including each quota under low free space
+ * conditions (less than 1% free space) in the scan.
+ */
+int
+xfs_inode_free_quota_eofblocks(
+	struct xfs_inode *ip)
+{
+	int scan = 0;
+	struct xfs_eofblocks eofb = {0};
+	struct xfs_dquot *dq;
+
+	ASSERT(xfs_isilocked(ip, XFS_IOLOCK_EXCL));
+
+	/*
+	 * Set the scan owner to avoid a potential livelock. Otherwise, the scan
+	 * can repeatedly trylock on the inode we're currently processing. We
+	 * run a sync scan to increase effectiveness and use the union filter to
+	 * cover all applicable quotas in a single scan.
+	 */
+	eofb.eof_scan_owner = ip->i_ino;
+	eofb.eof_flags = XFS_EOF_FLAGS_UNION|XFS_EOF_FLAGS_SYNC;
+
+	if (XFS_IS_UQUOTA_ENFORCED(ip->i_mount)) {
+		dq = xfs_inode_dquot(ip, XFS_DQ_USER);
+		if (dq && xfs_dquot_lowsp(dq)) {
+			eofb.eof_uid = VFS_I(ip)->i_uid;
+			eofb.eof_flags |= XFS_EOF_FLAGS_UID;
+			scan = 1;
+		}
+	}
+
+	if (XFS_IS_GQUOTA_ENFORCED(ip->i_mount)) {
+		dq = xfs_inode_dquot(ip, XFS_DQ_GROUP);
+		if (dq && xfs_dquot_lowsp(dq)) {
+			eofb.eof_gid = VFS_I(ip)->i_gid;
+			eofb.eof_flags |= XFS_EOF_FLAGS_GID;
+			scan = 1;
+		}
+	}
+
+	if (scan)
+		xfs_icache_free_eofblocks(ip->i_mount, &eofb);
+
+	return scan;
 }
 
 void
