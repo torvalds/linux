@@ -7,6 +7,7 @@
 
 struct atmel_ssc_platform_data {
 	int			use_dma;
+	int			has_fslen_ext;
 };
 
 struct ssc_device {
@@ -71,6 +72,12 @@ void ssc_free(struct ssc_device *ssc);
 #define SSC_RFMR_DATNB_OFFSET			 8
 #define SSC_RFMR_FSEDGE_SIZE			 1
 #define SSC_RFMR_FSEDGE_OFFSET			24
+/*
+ * The FSLEN_EXT exist on at91sam9rl, at91sam9g10,
+ * at91sam9g20, and at91sam9g45 and newer SoCs
+ */
+#define SSC_RFMR_FSLEN_EXT_SIZE			 4
+#define SSC_RFMR_FSLEN_EXT_OFFSET		28
 #define SSC_RFMR_FSLEN_SIZE			 4
 #define SSC_RFMR_FSLEN_OFFSET			16
 #define SSC_RFMR_FSOS_SIZE			 4
@@ -109,6 +116,12 @@ void ssc_free(struct ssc_device *ssc);
 #define SSC_TFMR_FSDEN_OFFSET			23
 #define SSC_TFMR_FSEDGE_SIZE			 1
 #define SSC_TFMR_FSEDGE_OFFSET			24
+/*
+ * The FSLEN_EXT exist on at91sam9rl, at91sam9g10,
+ * at91sam9g20, and at91sam9g45 and newer SoCs
+ */
+#define SSC_TFMR_FSLEN_EXT_SIZE			 4
+#define SSC_TFMR_FSLEN_EXT_OFFSET		28
 #define SSC_TFMR_FSLEN_SIZE			 4
 #define SSC_TFMR_FSLEN_OFFSET			16
 #define SSC_TFMR_FSOS_SIZE			 3
