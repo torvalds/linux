@@ -1200,14 +1200,15 @@ static u64 iwl_mvm_prepare_multicast(struct ieee80211_hw *hw,
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	struct iwl_mcast_filter_cmd *cmd;
 	struct netdev_hw_addr *addr;
-	int addr_count = netdev_hw_addr_list_count(mc_list);
-	bool pass_all = false;
+	int addr_count;
+	bool pass_all;
 	int len;
 
-	if (addr_count > MAX_MCAST_FILTERING_ADDRESSES) {
-		pass_all = true;
+	addr_count = netdev_hw_addr_list_count(mc_list);
+	pass_all = addr_count > MAX_MCAST_FILTERING_ADDRESSES ||
+		   IWL_MVM_FW_MCAST_FILTER_PASS_ALL;
+	if (pass_all)
 		addr_count = 0;
-	}
 
 	len = roundup(sizeof(*cmd) + addr_count * ETH_ALEN, 4);
 	cmd = kzalloc(len, GFP_ATOMIC);
