@@ -248,6 +248,8 @@
 	.info = snd_soc_info_enum_double, \
 	.get = xhandler_get, .put = xhandler_put, \
 	.private_value = (unsigned long)&xenum }
+#define SOC_VALUE_ENUM_EXT(xname, xenum, xhandler_get, xhandler_put) \
+	SOC_ENUM_EXT(xname, xenum, xhandler_get, xhandler_put)
 
 #define SND_SOC_BYTES(xname, xbase, xregs)		      \
 {	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname,   \
