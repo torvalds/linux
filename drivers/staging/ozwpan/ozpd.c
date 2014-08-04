@@ -175,10 +175,7 @@ struct oz_pd *oz_pd_alloc(const u8 *mac_addr)
 		oz_pd_set_state(pd, OZ_PD_S_IDLE);
 		pd->max_tx_size = OZ_MAX_TX_SIZE;
 		ether_addr_copy(pd->mac_addr, mac_addr);
-		if (0 != oz_elt_buf_init(&pd->elt_buff)) {
-			kfree(pd);
-			pd = NULL;
-		}
+		oz_elt_buf_init(&pd->elt_buff);
 		spin_lock_init(&pd->tx_frame_lock);
 		INIT_LIST_HEAD(&pd->tx_queue);
 		INIT_LIST_HEAD(&pd->farewell_list);

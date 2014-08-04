@@ -50,7 +50,7 @@ struct oz_elt_buf {
 	u8 tx_seq_num[OZ_NB_APPS];
 };
 
-int oz_elt_buf_init(struct oz_elt_buf *buf);
+void oz_elt_buf_init(struct oz_elt_buf *buf);
 void oz_elt_buf_term(struct oz_elt_buf *buf);
 struct oz_elt_info *oz_elt_info_alloc(struct oz_elt_buf *buf);
 void oz_elt_info_free(struct oz_elt_buf *buf, struct oz_elt_info *ei);

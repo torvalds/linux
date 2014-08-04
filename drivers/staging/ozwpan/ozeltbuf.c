@@ -16,7 +16,7 @@
 /*
  * Context: softirq-serialized
  */
-int oz_elt_buf_init(struct oz_elt_buf *buf)
+void oz_elt_buf_init(struct oz_elt_buf *buf)
 {
 	memset(buf, 0, sizeof(struct oz_elt_buf));
 	INIT_LIST_HEAD(&buf->stream_list);
@@ -24,7 +24,6 @@ int oz_elt_buf_init(struct oz_elt_buf *buf)
 	INIT_LIST_HEAD(&buf->isoc_list);
 	buf->max_free_elts = 32;
 	spin_lock_init(&buf->lock);
-	return 0;
 }
 
 /*
