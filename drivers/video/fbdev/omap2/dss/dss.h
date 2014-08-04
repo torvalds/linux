@@ -299,8 +299,6 @@ int dsi_pll_set_clock_div(struct platform_device *dsidev,
 int dsi_pll_init(struct platform_device *dsidev, bool enable_hsclk,
 		bool enable_hsdiv);
 void dsi_pll_uninit(struct platform_device *dsidev, bool disconnect_lanes);
-void dsi_wait_pll_hsdiv_dispc_active(struct platform_device *dsidev);
-void dsi_wait_pll_hsdiv_dsi_active(struct platform_device *dsidev);
 struct platform_device *dsi_get_dsidev_from_id(int module);
 #else
 static inline int dsi_runtime_get(struct platform_device *dsidev)
@@ -334,12 +332,6 @@ static inline int dsi_pll_init(struct platform_device *dsidev,
 }
 static inline void dsi_pll_uninit(struct platform_device *dsidev,
 		bool disconnect_lanes)
-{
-}
-static inline void dsi_wait_pll_hsdiv_dispc_active(struct platform_device *dsidev)
-{
-}
-static inline void dsi_wait_pll_hsdiv_dsi_active(struct platform_device *dsidev)
 {
 }
 static inline struct platform_device *dsi_get_dsidev_from_id(int module)

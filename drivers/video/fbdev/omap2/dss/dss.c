@@ -296,7 +296,6 @@ static void dss_dump_regs(struct seq_file *s)
 
 static void dss_select_dispc_clk_source(enum omap_dss_clk_source clk_src)
 {
-	struct platform_device *dsidev;
 	int b;
 	u8 start, end;
 
@@ -306,13 +305,9 @@ static void dss_select_dispc_clk_source(enum omap_dss_clk_source clk_src)
 		break;
 	case OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC:
 		b = 1;
-		dsidev = dsi_get_dsidev_from_id(0);
-		dsi_wait_pll_hsdiv_dispc_active(dsidev);
 		break;
 	case OMAP_DSS_CLK_SRC_DSI2_PLL_HSDIV_DISPC:
 		b = 2;
-		dsidev = dsi_get_dsidev_from_id(1);
-		dsi_wait_pll_hsdiv_dispc_active(dsidev);
 		break;
 	default:
 		BUG();
@@ -329,7 +324,6 @@ static void dss_select_dispc_clk_source(enum omap_dss_clk_source clk_src)
 void dss_select_dsi_clk_source(int dsi_module,
 		enum omap_dss_clk_source clk_src)
 {
-	struct platform_device *dsidev;
 	int b, pos;
 
 	switch (clk_src) {
@@ -339,14 +333,10 @@ void dss_select_dsi_clk_source(int dsi_module,
 	case OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DSI:
 		BUG_ON(dsi_module != 0);
 		b = 1;
-		dsidev = dsi_get_dsidev_from_id(0);
-		dsi_wait_pll_hsdiv_dsi_active(dsidev);
 		break;
 	case OMAP_DSS_CLK_SRC_DSI2_PLL_HSDIV_DSI:
 		BUG_ON(dsi_module != 1);
 		b = 1;
-		dsidev = dsi_get_dsidev_from_id(1);
-		dsi_wait_pll_hsdiv_dsi_active(dsidev);
 		break;
 	default:
 		BUG();
@@ -362,7 +352,6 @@ void dss_select_dsi_clk_source(int dsi_module,
 void dss_select_lcd_clk_source(enum omap_channel channel,
 		enum omap_dss_clk_source clk_src)
 {
-	struct platform_device *dsidev;
 	int b, ix, pos;
 
 	if (!dss_has_feature(FEAT_LCD_CLK_SRC)) {
@@ -377,15 +366,11 @@ void dss_select_lcd_clk_source(enum omap_channel channel,
 	case OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC:
 		BUG_ON(channel != OMAP_DSS_CHANNEL_LCD);
 		b = 1;
-		dsidev = dsi_get_dsidev_from_id(0);
-		dsi_wait_pll_hsdiv_dispc_active(dsidev);
 		break;
 	case OMAP_DSS_CLK_SRC_DSI2_PLL_HSDIV_DISPC:
 		BUG_ON(channel != OMAP_DSS_CHANNEL_LCD2 &&
 		       channel != OMAP_DSS_CHANNEL_LCD3);
 		b = 1;
-		dsidev = dsi_get_dsidev_from_id(1);
-		dsi_wait_pll_hsdiv_dispc_active(dsidev);
 		break;
 	default:
 		BUG();
