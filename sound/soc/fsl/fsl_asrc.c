@@ -240,12 +240,11 @@ static int fsl_asrc_config_pair(struct fsl_asrc_pair *pair)
 	struct asrc_config *config = pair->config;
 	struct fsl_asrc *asrc_priv = pair->asrc_priv;
 	enum asrc_pair_index index = pair->index;
-	u32 inrate = config->input_sample_rate, indiv;
-	u32 outrate = config->output_sample_rate, outdiv;
-	bool ideal = config->inclk == INCLK_NONE;
+	u32 inrate, outrate, indiv, outdiv;
 	u32 clk_index[2], div[2];
 	int in, out, channels;
 	struct clk *clk;
+	bool ideal;
 
 	if (!config) {
 		pair_err("invalid pair config\n");
@@ -263,6 +262,10 @@ static int fsl_asrc_config_pair(struct fsl_asrc_pair *pair)
 		pair_err("does not support 8bit width output\n");
 		return -EINVAL;
 	}
+
+	inrate = config->input_sample_rate;
+	outrate = config->output_sample_rate;
+	ideal = config->inclk == INCLK_NONE;
 
 	/* Validate input and output sample rates */
 	for (in = 0; in < ARRAY_SIZE(supported_input_rate); in++)
