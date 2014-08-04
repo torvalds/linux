@@ -550,7 +550,13 @@ static int sst_pcm_new(struct snd_soc_pcm_runtime *rtd)
 	return retval;
 }
 
-static struct snd_soc_platform_driver sst_soc_platform_drv = {
+static int sst_soc_probe(struct snd_soc_platform *platform)
+{
+	return sst_dsp_init_v2_dpcm(platform);
+}
+
+static struct snd_soc_platform_driver sst_soc_platform_drv  = {
+	.probe		= sst_soc_probe,
 	.ops		= &sst_platform_ops,
 	.compr_ops	= &sst_platform_compr_ops,
 	.pcm_new	= sst_pcm_new,

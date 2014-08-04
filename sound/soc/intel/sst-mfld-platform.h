@@ -143,6 +143,8 @@ struct sst_device {
 };
 
 struct sst_data;
+
+int sst_dsp_init_v2_dpcm(struct snd_soc_platform *platform);
 void sst_set_stream_status(struct sst_runtime_stream *stream, int state);
 int sst_fill_stream_params(void *substream, const struct sst_data *ctx,
 			   struct snd_sst_params *str_params, bool is_compress);
@@ -157,6 +159,7 @@ struct sst_algo_int_control_v2 {
 struct sst_data {
 	struct platform_device *pdev;
 	struct sst_platform_data *pdata;
+	char *byte_stream;
 	struct mutex lock;
 };
 int sst_register_dsp(struct sst_device *sst);
