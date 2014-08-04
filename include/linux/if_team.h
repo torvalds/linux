@@ -113,6 +113,7 @@ struct team {
 
 	const struct team_mode *mode;
 	struct team_mode_ops ops;
+	bool port_mtu_change_allowed;
 	long mode_priv[TEAM_MODE_PRIV_LONGS];
 };
 
