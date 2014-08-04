@@ -1,0 +1,25 @@
+Freescale i.MX audio complex with CS42888 codec
+
+Required properties:
+- compatible : "fsl,imx-audio-cs42888"
+- model : The user-visible name of this sound complex
+- esai-controller : The phandle of the i.MX SSI controller
+- audio-codec : The phandle of the CS42888 audio codec
+
+Optional properties:
+- asrc-controller : The phandle of the i.MX ASRC controller
+- audio-routing : A list of the connections between audio components.
+  Each entry is a pair of strings, the first being the connection's sink,
+  the second being the connection's source. Valid names could be power
+  supplies, CS42888 pins, and the jacks on the board:
+
+Example:
+
+sound {
+	compatible = "fsl,imx6q-sabresd-wm8962",
+		     "fsl,imx-audio-wm8962";
+	model = "cs42888-audio";
+	esai-controller = <&esai>;
+	asrc-controller = <&asrc_p2p>;
+	audio-codec = <&codec>;
+};

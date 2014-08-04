@@ -256,6 +256,19 @@ config SND_SOC_IMX_WM8958
 	 Say Y if you want to add support for SoC audio on an i.MX board with
 	 a wm8958 codec.
 
+config SND_SOC_IMX_CS42888
+	tristate "SoC Audio support for i.MX boards with cs42888"
+	depends on OF && I2C
+	select SND_SOC_CS42XX8_I2C
+	select SND_SOC_IMX_PCM_DMA
+	select SND_SOC_FSL_ESAI
+	select SND_SOC_FSL_ASRC
+	select SND_SOC_FSL_UTILS
+	help
+	 SoC Audio support for i.MX boards with cs42888
+	 Say Y if you want to add support for SoC audio on an i.MX board with
+	 a cs42888 codec.
+
 config SND_SOC_IMX_WM8962
 	tristate "SoC Audio support for i.MX boards with wm8962"
 	depends on OF && I2C && INPUT
