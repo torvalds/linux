@@ -34,7 +34,7 @@ typedef void (*oz_app_term_fn_t)(void);
 typedef int (*oz_app_start_fn_t)(struct oz_pd *pd, int resume);
 typedef void (*oz_app_stop_fn_t)(struct oz_pd *pd, int pause);
 typedef void (*oz_app_rx_fn_t)(struct oz_pd *pd, struct oz_elt *elt);
-typedef int (*oz_app_hearbeat_fn_t)(struct oz_pd *pd);
+typedef int (*oz_app_heartbeat_fn_t)(struct oz_pd *pd);
 typedef void (*oz_app_farewell_fn_t)(struct oz_pd *pd, u8 ep_num,
 			u8 *data, u8 len);
 
@@ -44,7 +44,7 @@ struct oz_app_if {
 	oz_app_start_fn_t	start;
 	oz_app_stop_fn_t	stop;
 	oz_app_rx_fn_t		rx;
-	oz_app_hearbeat_fn_t	heartbeat;
+	oz_app_heartbeat_fn_t	heartbeat;
 	oz_app_farewell_fn_t	farewell;
 	int			app_id;
 };
