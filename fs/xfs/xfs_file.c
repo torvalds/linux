@@ -247,11 +247,11 @@ xfs_file_read_iter(
 	XFS_STATS_INC(xs_read_calls);
 
 	if (unlikely(file->f_flags & O_DIRECT))
-		ioflags |= IO_ISDIRECT;
+		ioflags |= XFS_IO_ISDIRECT;
 	if (file->f_mode & FMODE_NOCMTIME)
-		ioflags |= IO_INVIS;
+		ioflags |= XFS_IO_INVIS;
 
-	if (unlikely(ioflags & IO_ISDIRECT)) {
+	if (unlikely(ioflags & XFS_IO_ISDIRECT)) {
 		xfs_buftarg_t	*target =
 			XFS_IS_REALTIME_INODE(ip) ?
 				mp->m_rtdev_targp : mp->m_ddev_targp;
@@ -284,7 +284,7 @@ xfs_file_read_iter(
 	 * proceeed concurrently without serialisation.
 	 */
 	xfs_rw_ilock(ip, XFS_IOLOCK_SHARED);
-	if ((ioflags & IO_ISDIRECT) && inode->i_mapping->nrpages) {
+	if ((ioflags & XFS_IO_ISDIRECT) && inode->i_mapping->nrpages) {
 		xfs_rw_iunlock(ip, XFS_IOLOCK_SHARED);
 		xfs_rw_ilock(ip, XFS_IOLOCK_EXCL);
 
@@ -326,7 +326,7 @@ xfs_file_splice_read(
 	XFS_STATS_INC(xs_read_calls);
 
 	if (infilp->f_mode & FMODE_NOCMTIME)
-		ioflags |= IO_INVIS;
+		ioflags |= XFS_IO_INVIS;
 
 	if (XFS_FORCED_SHUTDOWN(ip->i_mount))
 		return -EIO;

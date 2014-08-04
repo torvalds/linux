@@ -1055,12 +1055,12 @@ xfs_vn_fiemap(
 		return error;
 
 	/* Set up bmap header for xfs internal routine */
-	bm.bmv_offset = BTOBB(start);
+	bm.bmv_offset = BTOBBT(start);
 	/* Special case for whole file */
 	if (length == FIEMAP_MAX_OFFSET)
 		bm.bmv_length = -1LL;
 	else
-		bm.bmv_length = BTOBB(length);
+		bm.bmv_length = BTOBB(start + length) - bm.bmv_offset;
 
 	/* We add one because in getbmap world count includes the header */
 	bm.bmv_count = !fieinfo->fi_extents_max ? MAXEXTNUM :

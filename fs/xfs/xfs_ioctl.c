@@ -736,7 +736,7 @@ xfs_ioc_space(
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
 	xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
 
-	if (!(ioflags & IO_INVIS)) {
+	if (!(ioflags & XFS_IO_INVIS)) {
 		ip->i_d.di_mode &= ~S_ISUID;
 		if (ip->i_d.di_mode & S_IXGRP)
 			ip->i_d.di_mode &= ~S_ISGID;
@@ -1376,7 +1376,7 @@ xfs_ioc_getbmap(
 		return -EINVAL;
 
 	bmx.bmv_iflags = (cmd == XFS_IOC_GETBMAPA ? BMV_IF_ATTRFORK : 0);
-	if (ioflags & IO_INVIS)
+	if (ioflags & XFS_IO_INVIS)
 		bmx.bmv_iflags |= BMV_IF_NO_DMAPI_READ;
 
 	error = xfs_getbmap(ip, &bmx, xfs_getbmap_format,
@@ -1520,7 +1520,7 @@ xfs_file_ioctl(
 	int			error;
 
 	if (filp->f_mode & FMODE_NOCMTIME)
-		ioflags |= IO_INVIS;
+		ioflags |= XFS_IO_INVIS;
 
 	trace_xfs_file_ioctl(ip);
 

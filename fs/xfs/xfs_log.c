@@ -1378,8 +1378,14 @@ xlog_alloc_log(
 
 	xlog_get_iclog_buffer_size(mp, log);
 
+	/*
+	 * Use a NULL block for the extra log buffer used during splits so that
+	 * it will trigger errors if we ever try to do IO on it without first
+	 * having set it up properly.
+	 */
 	error = -ENOMEM;
-	bp = xfs_buf_alloc(mp->m_logdev_targp, 0, BTOBB(log->l_iclog_size), 0);
+	bp = xfs_buf_alloc(mp->m_logdev_targp, XFS_BUF_DADDR_NULL,
+			   BTOBB(log->l_iclog_size), 0);
 	if (!bp)
 		goto out_free_log;
 

@@ -323,7 +323,6 @@ reread:
 	 * Initialize the mount structure from the superblock.
 	 */
 	xfs_sb_from_disk(sbp, XFS_BUF_TO_SBP(bp));
-	xfs_sb_quota_from_disk(sbp);
 
 	/*
 	 * If we haven't validated the superblock, do so now before we try
