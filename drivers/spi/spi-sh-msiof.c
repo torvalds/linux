@@ -2,6 +2,7 @@
  * SuperH MSIOF SPI Master Interface
  *
  * Copyright (c) 2009 Magnus Damm
+ * Copyright (C) 2014 Glider bvba
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -13,6 +14,8 @@
 #include <linux/clk.h>
 #include <linux/completion.h>
 #include <linux/delay.h>
+#include <linux/dma-mapping.h>
+#include <linux/dmaengine.h>
 #include <linux/err.h>
 #include <linux/gpio.h>
 #include <linux/interrupt.h>
@@ -23,6 +26,7 @@
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/sh_dma.h>
 
 #include <linux/spi/sh_msiof.h>
 #include <linux/spi/spi.h>
@@ -37,6 +41,7 @@ struct sh_msiof_chipdata {
 };
 
 struct sh_msiof_spi_priv {
+	struct spi_master *master;
 	void __iomem *mapbase;
 	struct clk *clk;
 	struct platform_device *pdev;
@@ -45,6 +50,10 @@ struct sh_msiof_spi_priv {
 	struct completion done;
 	int tx_fifo_size;
 	int rx_fifo_size;
+	void *tx_dma_page;
+	void *rx_dma_page;
+	dma_addr_t tx_dma_addr;
+	dma_addr_t rx_dma_addr;
 };
 
 #define TMDR1	0x00	/* Transmit Mode Register 1 */
@@ -84,6 +93,8 @@ struct sh_msiof_spi_priv {
 #define MDR2_WDLEN1(i)	(((i) - 1) << 16) /* Word Count (1-64/256 (SH, A1))) */
 #define MDR2_GRPMASK1	0x00000001 /* Group Output Mask 1 (SH, A1) */
 
+#define MAX_WDLEN	256U
+
 /* TSCR and RSCR */
 #define SCR_BRPS_MASK	    0x1f00 /* Prescaler Setting (1-32) */
 #define SCR_BRPS(i)	(((i) - 1) << 8)
@@ -113,9 +124,61 @@ struct sh_msiof_spi_priv {
 #define CTR_TXE		0x00000200 /* Transmit Enable */
 #define CTR_RXE		0x00000100 /* Receive Enable */
 
-/* STR and IER */
+/* FCTR */
+#define FCTR_TFWM_MASK	0xe0000000 /* Transmit FIFO Watermark */
+#define FCTR_TFWM_64	0x00000000 /*  Transfer Request when 64 empty stages */
+#define FCTR_TFWM_32	0x20000000 /*  Transfer Request when 32 empty stages */
+#define FCTR_TFWM_24	0x40000000 /*  Transfer Request when 24 empty stages */
+#define FCTR_TFWM_16	0x60000000 /*  Transfer Request when 16 empty stages */
+#define FCTR_TFWM_12	0x80000000 /*  Transfer Request when 12 empty stages */
+#define FCTR_TFWM_8	0xa0000000 /*  Transfer Request when 8 empty stages */
+#define FCTR_TFWM_4	0xc0000000 /*  Transfer Request when 4 empty stages */
+#define FCTR_TFWM_1	0xe0000000 /*  Transfer Request when 1 empty stage */
+#define FCTR_TFUA_MASK	0x07f00000 /* Transmit FIFO Usable Area */
+#define FCTR_TFUA_SHIFT		20
+#define FCTR_TFUA(i)	((i) << FCTR_TFUA_SHIFT)
+#define FCTR_RFWM_MASK	0x0000e000 /* Receive FIFO Watermark */
+#define FCTR_RFWM_1	0x00000000 /*  Transfer Request when 1 valid stages */
+#define FCTR_RFWM_4	0x00002000 /*  Transfer Request when 4 valid stages */
+#define FCTR_RFWM_8	0x00004000 /*  Transfer Request when 8 valid stages */
+#define FCTR_RFWM_16	0x00006000 /*  Transfer Request when 16 valid stages */
+#define FCTR_RFWM_32	0x00008000 /*  Transfer Request when 32 valid stages */
+#define FCTR_RFWM_64	0x0000a000 /*  Transfer Request when 64 valid stages */
+#define FCTR_RFWM_128	0x0000c000 /*  Transfer Request when 128 valid stages */
+#define FCTR_RFWM_256	0x0000e000 /*  Transfer Request when 256 valid stages */
+#define FCTR_RFUA_MASK	0x00001ff0 /* Receive FIFO Usable Area (0x40 = full) */
+#define FCTR_RFUA_SHIFT		 4
+#define FCTR_RFUA(i)	((i) << FCTR_RFUA_SHIFT)
+
+/* STR */
+#define STR_TFEMP	0x20000000 /* Transmit FIFO Empty */
+#define STR_TDREQ	0x10000000 /* Transmit Data Transfer Request */
 #define STR_TEOF	0x00800000 /* Frame Transmission End */
+#define STR_TFSERR	0x00200000 /* Transmit Frame Synchronization Error */
+#define STR_TFOVF	0x00100000 /* Transmit FIFO Overflow */
+#define STR_TFUDF	0x00080000 /* Transmit FIFO Underflow */
+#define STR_RFFUL	0x00002000 /* Receive FIFO Full */
+#define STR_RDREQ	0x00001000 /* Receive Data Transfer Request */
 #define STR_REOF	0x00000080 /* Frame Reception End */
+#define STR_RFSERR	0x00000020 /* Receive Frame Synchronization Error */
+#define STR_RFUDF	0x00000010 /* Receive FIFO Underflow */
+#define STR_RFOVF	0x00000008 /* Receive FIFO Overflow */
+
+/* IER */
+#define IER_TDMAE	0x80000000 /* Transmit Data DMA Transfer Req. Enable */
+#define IER_TFEMPE	0x20000000 /* Transmit FIFO Empty Enable */
+#define IER_TDREQE	0x10000000 /* Transmit Data Transfer Request Enable */
+#define IER_TEOFE	0x00800000 /* Frame Transmission End Enable */
+#define IER_TFSERRE	0x00200000 /* Transmit Frame Sync Error Enable */
+#define IER_TFOVFE	0x00100000 /* Transmit FIFO Overflow Enable */
+#define IER_TFUDFE	0x00080000 /* Transmit FIFO Underflow Enable */
+#define IER_RDMAE	0x00008000 /* Receive Data DMA Transfer Req. Enable */
+#define IER_RFFULE	0x00002000 /* Receive FIFO Full Enable */
+#define IER_RDREQE	0x00001000 /* Receive Data Transfer Request Enable */
+#define IER_REOFE	0x00000080 /* Frame Reception End Enable */
+#define IER_RFSERRE	0x00000020 /* Receive Frame Sync Error Enable */
+#define IER_RFUDFE	0x00000010 /* Receive FIFO Underflow Enable */
+#define IER_RFOVFE	0x00000008 /* Receive FIFO Overflow Enable */
 
 
 static u32 sh_msiof_read(struct sh_msiof_spi_priv *p, int reg_offs)
@@ -230,8 +293,6 @@ static void sh_msiof_spi_set_pin_regs(struct sh_msiof_spi_priv *p,
 	 *    1    0         11     11    0    0
 	 *    1    1         11     11    1    1
 	 */
-	sh_msiof_write(p, FCTR, 0);
-
 	tmp = MDR1_SYNCMD_SPI | 1 << MDR1_FLD_SHIFT | MDR1_XXSTP;
 	tmp |= !cs_high << MDR1_SYNCAC_SHIFT;
 	tmp |= lsb_first << MDR1_BITLSB_SHIFT;
@@ -267,8 +328,6 @@ static void sh_msiof_spi_set_mode_regs(struct sh_msiof_spi_priv *p,
 
 	if (rx_buf)
 		sh_msiof_write(p, RMDR2, dr2);
-
-	sh_msiof_write(p, IER, STR_TEOF | STR_REOF);
 }
 
 static void sh_msiof_reset_str(struct sh_msiof_spi_priv *p)
@@ -457,6 +516,40 @@ static int sh_msiof_prepare_message(struct spi_master *master,
 	return 0;
 }
 
+static int sh_msiof_spi_start(struct sh_msiof_spi_priv *p, void *rx_buf)
+{
+	int ret;
+
+	/* setup clock and rx/tx signals */
+	ret = sh_msiof_modify_ctr_wait(p, 0, CTR_TSCKE);
+	if (rx_buf && !ret)
+		ret = sh_msiof_modify_ctr_wait(p, 0, CTR_RXE);
+	if (!ret)
+		ret = sh_msiof_modify_ctr_wait(p, 0, CTR_TXE);
+
+	/* start by setting frame bit */
+	if (!ret)
+		ret = sh_msiof_modify_ctr_wait(p, 0, CTR_TFSE);
+
+	return ret;
+}
+
+static int sh_msiof_spi_stop(struct sh_msiof_spi_priv *p, void *rx_buf)
+{
+	int ret;
+
+	/* shut down frame, rx/tx and clock signals */
+	ret = sh_msiof_modify_ctr_wait(p, CTR_TFSE, 0);
+	if (!ret)
+		ret = sh_msiof_modify_ctr_wait(p, CTR_TXE, 0);
+	if (rx_buf && !ret)
+		ret = sh_msiof_modify_ctr_wait(p, CTR_RXE, 0);
+	if (!ret)
+		ret = sh_msiof_modify_ctr_wait(p, CTR_TSCKE, 0);
+
+	return ret;
+}
+
 static int sh_msiof_spi_txrx_once(struct sh_msiof_spi_priv *p,
 				  void (*tx_fifo)(struct sh_msiof_spi_priv *,
 						  const void *, int, int),
@@ -477,29 +570,32 @@ static int sh_msiof_spi_txrx_once(struct sh_msiof_spi_priv *p,
 	/* the fifo contents need shifting */
 	fifo_shift = 32 - bits;
 
+	/* default FIFO watermarks for PIO */
+	sh_msiof_write(p, FCTR, 0);
+
 	/* setup msiof transfer mode registers */
 	sh_msiof_spi_set_mode_regs(p, tx_buf, rx_buf, bits, words);
+	sh_msiof_write(p, IER, IER_TEOFE | IER_REOFE);
 
 	/* write tx fifo */
 	if (tx_buf)
 		tx_fifo(p, tx_buf, words, fifo_shift);
 
-	/* setup clock and rx/tx signals */
-	ret = sh_msiof_modify_ctr_wait(p, 0, CTR_TSCKE);
-	if (rx_buf)
-		ret = ret ? ret : sh_msiof_modify_ctr_wait(p, 0, CTR_RXE);
-	ret = ret ? ret : sh_msiof_modify_ctr_wait(p, 0, CTR_TXE);
-
-	/* start by setting frame bit */
 	reinit_completion(&p->done);
-	ret = ret ? ret : sh_msiof_modify_ctr_wait(p, 0, CTR_TFSE);
+
+	ret = sh_msiof_spi_start(p, rx_buf);
 	if (ret) {
 		dev_err(&p->pdev->dev, "failed to start hardware\n");
-		goto err;
+		goto stop_ier;
 	}
 
 	/* wait for tx fifo to be emptied / rx fifo to be filled */
-	wait_for_completion(&p->done);
+	ret = wait_for_completion_timeout(&p->done, HZ);
+	if (!ret) {
+		dev_err(&p->pdev->dev, "PIO timeout\n");
+		ret = -ETIMEDOUT;
+		goto stop_reset;
+	}
 
 	/* read rx fifo */
 	if (rx_buf)
@@ -508,22 +604,180 @@ static int sh_msiof_spi_txrx_once(struct sh_msiof_spi_priv *p,
 	/* clear status bits */
 	sh_msiof_reset_str(p);
 
-	/* shut down frame, rx/tx and clock signals */
-	ret = sh_msiof_modify_ctr_wait(p, CTR_TFSE, 0);
-	ret = ret ? ret : sh_msiof_modify_ctr_wait(p, CTR_TXE, 0);
-	if (rx_buf)
-		ret = ret ? ret : sh_msiof_modify_ctr_wait(p, CTR_RXE, 0);
-	ret = ret ? ret : sh_msiof_modify_ctr_wait(p, CTR_TSCKE, 0);
+	ret = sh_msiof_spi_stop(p, rx_buf);
 	if (ret) {
 		dev_err(&p->pdev->dev, "failed to shut down hardware\n");
-		goto err;
+		return ret;
 	}
 
 	return words;
 
- err:
+stop_reset:
+	sh_msiof_reset_str(p);
+	sh_msiof_spi_stop(p, rx_buf);
+stop_ier:
 	sh_msiof_write(p, IER, 0);
 	return ret;
+}
+
+static void sh_msiof_dma_complete(void *arg)
+{
+	struct sh_msiof_spi_priv *p = arg;
+
+	sh_msiof_write(p, IER, 0);
+	complete(&p->done);
+}
+
+static int sh_msiof_dma_once(struct sh_msiof_spi_priv *p, const void *tx,
+			     void *rx, unsigned int len)
+{
+	u32 ier_bits = 0;
+	struct dma_async_tx_descriptor *desc_tx = NULL, *desc_rx = NULL;
+	dma_cookie_t cookie;
+	int ret;
+
+	if (tx) {
+		ier_bits |= IER_TDREQE | IER_TDMAE;
+		dma_sync_single_for_device(p->master->dma_tx->device->dev,
+					   p->tx_dma_addr, len, DMA_TO_DEVICE);
+		desc_tx = dmaengine_prep_slave_single(p->master->dma_tx,
+					p->tx_dma_addr, len, DMA_TO_DEVICE,
+					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
+		if (!desc_tx)
+			return -EAGAIN;
+	}
+
+	if (rx) {
+		ier_bits |= IER_RDREQE | IER_RDMAE;
+		desc_rx = dmaengine_prep_slave_single(p->master->dma_rx,
+					p->rx_dma_addr, len, DMA_FROM_DEVICE,
+					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
+		if (!desc_rx)
+			return -EAGAIN;
+	}
+
+	/* 1 stage FIFO watermarks for DMA */
+	sh_msiof_write(p, FCTR, FCTR_TFWM_1 | FCTR_RFWM_1);
+
+	/* setup msiof transfer mode registers (32-bit words) */
+	sh_msiof_spi_set_mode_regs(p, tx, rx, 32, len / 4);
+
+	sh_msiof_write(p, IER, ier_bits);
+
+	reinit_completion(&p->done);
+
+	if (rx) {
+		desc_rx->callback = sh_msiof_dma_complete;
+		desc_rx->callback_param = p;
+		cookie = dmaengine_submit(desc_rx);
+		if (dma_submit_error(cookie)) {
+			ret = cookie;
+			goto stop_ier;
+		}
+		dma_async_issue_pending(p->master->dma_rx);
+	}
+
+	if (tx) {
+		if (rx) {
+			/* No callback */
+			desc_tx->callback = NULL;
+		} else {
+			desc_tx->callback = sh_msiof_dma_complete;
+			desc_tx->callback_param = p;
+		}
+		cookie = dmaengine_submit(desc_tx);
+		if (dma_submit_error(cookie)) {
+			ret = cookie;
+			goto stop_rx;
+		}
+		dma_async_issue_pending(p->master->dma_tx);
+	}
+
+	ret = sh_msiof_spi_start(p, rx);
+	if (ret) {
+		dev_err(&p->pdev->dev, "failed to start hardware\n");
+		goto stop_tx;
+	}
+
+	/* wait for tx fifo to be emptied / rx fifo to be filled */
+	ret = wait_for_completion_timeout(&p->done, HZ);
+	if (!ret) {
+		dev_err(&p->pdev->dev, "DMA timeout\n");
+		ret = -ETIMEDOUT;
+		goto stop_reset;
+	}
+
+	/* clear status bits */
+	sh_msiof_reset_str(p);
+
+	ret = sh_msiof_spi_stop(p, rx);
+	if (ret) {
+		dev_err(&p->pdev->dev, "failed to shut down hardware\n");
+		return ret;
+	}
+
+	if (rx)
+		dma_sync_single_for_cpu(p->master->dma_rx->device->dev,
+					p->rx_dma_addr, len,
+					DMA_FROM_DEVICE);
+
+	return 0;
+
+stop_reset:
+	sh_msiof_reset_str(p);
+	sh_msiof_spi_stop(p, rx);
+stop_tx:
+	if (tx)
+		dmaengine_terminate_all(p->master->dma_tx);
+stop_rx:
+	if (rx)
+		dmaengine_terminate_all(p->master->dma_rx);
+stop_ier:
+	sh_msiof_write(p, IER, 0);
+	return ret;
+}
+
+static void copy_bswap32(u32 *dst, const u32 *src, unsigned int words)
+{
+	/* src or dst can be unaligned, but not both */
+	if ((unsigned long)src & 3) {
+		while (words--) {
+			*dst++ = swab32(get_unaligned(src));
+			src++;
+		}
+	} else if ((unsigned long)dst & 3) {
+		while (words--) {
+			put_unaligned(swab32(*src++), dst);
+			dst++;
+		}
+	} else {
+		while (words--)
+			*dst++ = swab32(*src++);
+	}
+}
+
+static void copy_wswap32(u32 *dst, const u32 *src, unsigned int words)
+{
+	/* src or dst can be unaligned, but not both */
+	if ((unsigned long)src & 3) {
+		while (words--) {
+			*dst++ = swahw32(get_unaligned(src));
+			src++;
+		}
+	} else if ((unsigned long)dst & 3) {
+		while (words--) {
+			put_unaligned(swahw32(*src++), dst);
+			dst++;
+		}
+	} else {
+		while (words--)
+			*dst++ = swahw32(*src++);
+	}
+}
+
+static void copy_plain32(u32 *dst, const u32 *src, unsigned int words)
+{
+	memcpy(dst, src, words * 4);
 }
 
 static int sh_msiof_transfer_one(struct spi_master *master,
@@ -531,18 +785,67 @@ static int sh_msiof_transfer_one(struct spi_master *master,
 				 struct spi_transfer *t)
 {
 	struct sh_msiof_spi_priv *p = spi_master_get_devdata(master);
+	void (*copy32)(u32 *, const u32 *, unsigned int);
 	void (*tx_fifo)(struct sh_msiof_spi_priv *, const void *, int, int);
 	void (*rx_fifo)(struct sh_msiof_spi_priv *, void *, int, int);
-	int bits;
-	int bytes_per_word;
-	int bytes_done;
-	int words;
+	const void *tx_buf = t->tx_buf;
+	void *rx_buf = t->rx_buf;
+	unsigned int len = t->len;
+	unsigned int bits = t->bits_per_word;
+	unsigned int bytes_per_word;
+	unsigned int words;
 	int n;
 	bool swab;
+	int ret;
 
-	bits = t->bits_per_word;
+	/* setup clocks (clock already enabled in chipselect()) */
+	sh_msiof_spi_set_clk_regs(p, clk_get_rate(p->clk), t->speed_hz);
 
-	if (bits <= 8 && t->len > 15 && !(t->len & 3)) {
+	while (master->dma_tx && len > 15) {
+		/*
+		 *  DMA supports 32-bit words only, hence pack 8-bit and 16-bit
+		 *  words, with byte resp. word swapping.
+		 */
+		unsigned int l = min(len, MAX_WDLEN * 4);
+
+		if (bits <= 8) {
+			if (l & 3)
+				break;
+			copy32 = copy_bswap32;
+		} else if (bits <= 16) {
+			if (l & 1)
+				break;
+			copy32 = copy_wswap32;
+		} else {
+			copy32 = copy_plain32;
+		}
+
+		if (tx_buf)
+			copy32(p->tx_dma_page, tx_buf, l / 4);
+
+		ret = sh_msiof_dma_once(p, tx_buf, rx_buf, l);
+		if (ret == -EAGAIN) {
+			pr_warn_once("%s %s: DMA not available, falling back to PIO\n",
+				     dev_driver_string(&p->pdev->dev),
+				     dev_name(&p->pdev->dev));
+			break;
+		}
+		if (ret)
+			return ret;
+
+		if (rx_buf) {
+			copy32(rx_buf, p->rx_dma_page, l / 4);
+			rx_buf += l;
+		}
+		if (tx_buf)
+			tx_buf += l;
+
+		len -= l;
+		if (!len)
+			return 0;
+	}
+
+	if (bits <= 8 && len > 15 && !(len & 3)) {
 		bits = 32;
 		swab = true;
 	} else {
@@ -556,57 +859,52 @@ static int sh_msiof_transfer_one(struct spi_master *master,
 		rx_fifo = sh_msiof_spi_read_fifo_8;
 	} else if (bits <= 16) {
 		bytes_per_word = 2;
-		if ((unsigned long)t->tx_buf & 0x01)
+		if ((unsigned long)tx_buf & 0x01)
 			tx_fifo = sh_msiof_spi_write_fifo_16u;
 		else
 			tx_fifo = sh_msiof_spi_write_fifo_16;
 
-		if ((unsigned long)t->rx_buf & 0x01)
+		if ((unsigned long)rx_buf & 0x01)
 			rx_fifo = sh_msiof_spi_read_fifo_16u;
 		else
 			rx_fifo = sh_msiof_spi_read_fifo_16;
 	} else if (swab) {
 		bytes_per_word = 4;
-		if ((unsigned long)t->tx_buf & 0x03)
+		if ((unsigned long)tx_buf & 0x03)
 			tx_fifo = sh_msiof_spi_write_fifo_s32u;
 		else
 			tx_fifo = sh_msiof_spi_write_fifo_s32;
 
-		if ((unsigned long)t->rx_buf & 0x03)
+		if ((unsigned long)rx_buf & 0x03)
 			rx_fifo = sh_msiof_spi_read_fifo_s32u;
 		else
 			rx_fifo = sh_msiof_spi_read_fifo_s32;
 	} else {
 		bytes_per_word = 4;
-		if ((unsigned long)t->tx_buf & 0x03)
+		if ((unsigned long)tx_buf & 0x03)
 			tx_fifo = sh_msiof_spi_write_fifo_32u;
 		else
 			tx_fifo = sh_msiof_spi_write_fifo_32;
 
-		if ((unsigned long)t->rx_buf & 0x03)
+		if ((unsigned long)rx_buf & 0x03)
 			rx_fifo = sh_msiof_spi_read_fifo_32u;
 		else
 			rx_fifo = sh_msiof_spi_read_fifo_32;
 	}
 
-	/* setup clocks (clock already enabled in chipselect()) */
-	sh_msiof_spi_set_clk_regs(p, clk_get_rate(p->clk), t->speed_hz);
-
 	/* transfer in fifo sized chunks */
-	words = t->len / bytes_per_word;
-	bytes_done = 0;
+	words = len / bytes_per_word;
 
-	while (bytes_done < t->len) {
-		void *rx_buf = t->rx_buf ? t->rx_buf + bytes_done : NULL;
-		const void *tx_buf = t->tx_buf ? t->tx_buf + bytes_done : NULL;
-		n = sh_msiof_spi_txrx_once(p, tx_fifo, rx_fifo,
-					   tx_buf,
-					   rx_buf,
+	while (words > 0) {
+		n = sh_msiof_spi_txrx_once(p, tx_fifo, rx_fifo, tx_buf, rx_buf,
 					   words, bits);
 		if (n < 0)
-			break;
+			return n;
 
-		bytes_done += n * bytes_per_word;
+		if (tx_buf)
+			tx_buf += n * bytes_per_word;
+		if (rx_buf)
+			rx_buf += n * bytes_per_word;
 		words -= n;
 	}
 
@@ -663,6 +961,128 @@ static struct sh_msiof_spi_info *sh_msiof_spi_parse_dt(struct device *dev)
 }
 #endif
 
+static struct dma_chan *sh_msiof_request_dma_chan(struct device *dev,
+	enum dma_transfer_direction dir, unsigned int id, dma_addr_t port_addr)
+{
+	dma_cap_mask_t mask;
+	struct dma_chan *chan;
+	struct dma_slave_config cfg;
+	int ret;
+
+	dma_cap_zero(mask);
+	dma_cap_set(DMA_SLAVE, mask);
+
+	chan = dma_request_channel(mask, shdma_chan_filter,
+				  (void *)(unsigned long)id);
+	if (!chan) {
+		dev_warn(dev, "dma_request_channel failed\n");
+		return NULL;
+	}
+
+	memset(&cfg, 0, sizeof(cfg));
+	cfg.slave_id = id;
+	cfg.direction = dir;
+	if (dir == DMA_MEM_TO_DEV)
+		cfg.dst_addr = port_addr;
+	else
+		cfg.src_addr = port_addr;
+
+	ret = dmaengine_slave_config(chan, &cfg);
+	if (ret) {
+		dev_warn(dev, "dmaengine_slave_config failed %d\n", ret);
+		dma_release_channel(chan);
+		return NULL;
+	}
+
+	return chan;
+}
+
+static int sh_msiof_request_dma(struct sh_msiof_spi_priv *p)
+{
+	struct platform_device *pdev = p->pdev;
+	struct device *dev = &pdev->dev;
+	const struct sh_msiof_spi_info *info = dev_get_platdata(dev);
+	const struct resource *res;
+	struct spi_master *master;
+	struct device *tx_dev, *rx_dev;
+
+	if (!info || !info->dma_tx_id || !info->dma_rx_id)
+		return 0;	/* The driver assumes no error */
+
+	/* The DMA engine uses the second register set, if present */
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	if (!res)
+		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+
+	master = p->master;
+	master->dma_tx = sh_msiof_request_dma_chan(dev, DMA_MEM_TO_DEV,
+						   info->dma_tx_id,
+						   res->start + TFDR);
+	if (!master->dma_tx)
+		return -ENODEV;
+
+	master->dma_rx = sh_msiof_request_dma_chan(dev, DMA_DEV_TO_MEM,
+						   info->dma_rx_id,
+						   res->start + RFDR);
+	if (!master->dma_rx)
+		goto free_tx_chan;
+
+	p->tx_dma_page = (void *)__get_free_page(GFP_KERNEL | GFP_DMA);
+	if (!p->tx_dma_page)
+		goto free_rx_chan;
+
+	p->rx_dma_page = (void *)__get_free_page(GFP_KERNEL | GFP_DMA);
+	if (!p->rx_dma_page)
+		goto free_tx_page;
+
+	tx_dev = master->dma_tx->device->dev;
+	p->tx_dma_addr = dma_map_single(tx_dev, p->tx_dma_page, PAGE_SIZE,
+					DMA_TO_DEVICE);
+	if (dma_mapping_error(tx_dev, p->tx_dma_addr))
+		goto free_rx_page;
+
+	rx_dev = master->dma_rx->device->dev;
+	p->rx_dma_addr = dma_map_single(rx_dev, p->rx_dma_page, PAGE_SIZE,
+					DMA_FROM_DEVICE);
+	if (dma_mapping_error(rx_dev, p->rx_dma_addr))
+		goto unmap_tx_page;
+
+	dev_info(dev, "DMA available");
+	return 0;
+
+unmap_tx_page:
+	dma_unmap_single(tx_dev, p->tx_dma_addr, PAGE_SIZE, DMA_TO_DEVICE);
+free_rx_page:
+	free_page((unsigned long)p->rx_dma_page);
+free_tx_page:
+	free_page((unsigned long)p->tx_dma_page);
+free_rx_chan:
+	dma_release_channel(master->dma_rx);
+free_tx_chan:
+	dma_release_channel(master->dma_tx);
+	master->dma_tx = NULL;
+	return -ENODEV;
+}
+
+static void sh_msiof_release_dma(struct sh_msiof_spi_priv *p)
+{
+	struct spi_master *master = p->master;
+	struct device *dev;
+
+	if (!master->dma_tx)
+		return;
+
+	dev = &p->pdev->dev;
+	dma_unmap_single(master->dma_rx->device->dev, p->rx_dma_addr,
+			 PAGE_SIZE, DMA_FROM_DEVICE);
+	dma_unmap_single(master->dma_tx->device->dev, p->tx_dma_addr,
+			 PAGE_SIZE, DMA_TO_DEVICE);
+	free_page((unsigned long)p->rx_dma_page);
+	free_page((unsigned long)p->tx_dma_page);
+	dma_release_channel(master->dma_rx);
+	dma_release_channel(master->dma_tx);
+}
+
 static int sh_msiof_spi_probe(struct platform_device *pdev)
 {
 	struct resource	*r;
@@ -679,6 +1099,9 @@ static int sh_msiof_spi_probe(struct platform_device *pdev)
 	}
 
 	p = spi_master_get_devdata(master);
+
+	platform_set_drvdata(pdev, p);
+	p->master = master;
 
 	of_id = of_match_device(sh_msiof_match, &pdev->dev);
 	if (of_id) {
@@ -749,6 +1172,10 @@ static int sh_msiof_spi_probe(struct platform_device *pdev)
 	master->auto_runtime_pm = true;
 	master->transfer_one = sh_msiof_transfer_one;
 
+	ret = sh_msiof_request_dma(p);
+	if (ret < 0)
+		dev_warn(&pdev->dev, "DMA not available, using PIO\n");
+
 	ret = devm_spi_register_master(&pdev->dev, master);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "spi_register_master error.\n");
@@ -758,6 +1185,7 @@ static int sh_msiof_spi_probe(struct platform_device *pdev)
 	return 0;
 
  err2:
+	sh_msiof_release_dma(p);
 	pm_runtime_disable(&pdev->dev);
  err1:
 	spi_master_put(master);
@@ -766,6 +1194,9 @@ static int sh_msiof_spi_probe(struct platform_device *pdev)
 
 static int sh_msiof_spi_remove(struct platform_device *pdev)
 {
+	struct sh_msiof_spi_priv *p = platform_get_drvdata(pdev);
+
+	sh_msiof_release_dma(p);
 	pm_runtime_disable(&pdev->dev);
 	return 0;
 }
