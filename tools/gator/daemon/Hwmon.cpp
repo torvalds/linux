@@ -28,6 +28,7 @@ public:
 	const char *getTitle() const { return title; }
 	bool isDuplicate() const { return duplicate; }
 	const char *getDisplay() const { return display; }
+	const char *getCounterClass() const { return counter_class; }
 	const char *getUnit() const { return unit; }
 	int getModifier() const { return modifier; }
 
@@ -58,6 +59,7 @@ private:
 	char *label;
 	const char *title;
 	const char *display;
+	const char *counter_class;
 	const char *unit;
 	int modifier;
 	double previous_value;
@@ -87,7 +89,8 @@ HwmonCounter::HwmonCounter(HwmonCounter *next, const sensors_chip_name *chip, co
 	case SENSORS_FEATURE_IN:
 		title = "Voltage";
 		input = SENSORS_SUBFEATURE_IN_INPUT;
-		display = "average";
+		display = "maximum";
+		counter_class = "absolute";
 		unit = "V";
 		modifier = 1000;
 		monotonic = false;
@@ -96,6 +99,7 @@ HwmonCounter::HwmonCounter(HwmonCounter *next, const sensors_chip_name *chip, co
 		title = "Fan";
 		input = SENSORS_SUBFEATURE_FAN_INPUT;
 		display = "average";
+		counter_class = "absolute";
 		unit = "RPM";
 		modifier = 1;
 		monotonic = false;
@@ -104,6 +108,7 @@ HwmonCounter::HwmonCounter(HwmonCounter *next, const sensors_chip_name *chip, co
 		title = "Temperature";
 		input = SENSORS_SUBFEATURE_TEMP_INPUT;
 		display = "maximum";
+		counter_class = "absolute";
 		unit = "°C";
 		modifier = 1000;
 		monotonic = false;
@@ -111,7 +116,8 @@ HwmonCounter::HwmonCounter(HwmonCounter *next, const sensors_chip_name *chip, co
 	case SENSORS_FEATURE_POWER:
 		title = "Power";
 		input = SENSORS_SUBFEATURE_POWER_INPUT;
-		display = "average";
+		display = "maximum";
+		counter_class = "absolute";
 		unit = "W";
 		modifier = 1000000;
 		monotonic = false;
@@ -120,6 +126,7 @@ HwmonCounter::HwmonCounter(HwmonCounter *next, const sensors_chip_name *chip, co
 		title = "Energy";
 		input = SENSORS_SUBFEATURE_ENERGY_INPUT;
 		display = "accumulate";
+		counter_class = "delta";
 		unit = "J";
 		modifier = 1000000;
 		monotonic = true;
@@ -127,7 +134,8 @@ HwmonCounter::HwmonCounter(HwmonCounter *next, const sensors_chip_name *chip, co
 	case SENSORS_FEATURE_CURR:
 		title = "Current";
 		input = SENSORS_SUBFEATURE_CURR_INPUT;
-		display = "average";
+		display = "maximum";
+		counter_class = "absolute";
 		unit = "A";
 		modifier = 1000;
 		monotonic = false;
@@ -136,6 +144,7 @@ HwmonCounter::HwmonCounter(HwmonCounter *next, const sensors_chip_name *chip, co
 		title = "Humidity";
 		input = SENSORS_SUBFEATURE_HUMIDITY_INPUT;
 		display = "average";
+		counter_class = "absolute";
 		unit = "%";
 		modifier = 1000;
 		monotonic = false;
@@ -311,6 +320,7 @@ void Hwmon::writeEvents(mxml_node_t *root) const {
 			mxmlElementSetAttr(node, "name", counter->getLabel());
 		}
 		mxmlElementSetAttr(node, "display", counter->getDisplay());
+		mxmlElementSetAttr(node, "class", counter->getCounterClass());
 		mxmlElementSetAttr(node, "units", counter->getUnit());
 		if (counter->getModifier() != 1) {
 			mxmlElementSetAttrf(node, "modifier", "%d", counter->getModifier());

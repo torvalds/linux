@@ -58,5 +58,10 @@
   <configuration counter="Linux_meminfo_memused"/>
   <configuration counter="Linux_meminfo_memfree"/>
   <configuration counter="Linux_power_cpu_freq"/>
+  <configuration counter="ARM_Mali-4xx_fragment"/>
+  <configuration counter="ARM_Mali-4xx_vertex"/>
+  <configuration counter="ARM_Mali-T6xx_fragment" cores="1"/>
+  <configuration counter="ARM_Mali-T6xx_vertex" cores="1"/>
+  <configuration counter="ARM_Mali-T6xx_opencl" cores="1"/>
   <configuration counter="L2C-310_cnt0" event="0x1"/>
 </configurations>

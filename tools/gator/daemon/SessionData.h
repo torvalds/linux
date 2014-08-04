@@ -13,11 +13,15 @@
 
 #include "Config.h"
 #include "Counter.h"
+#include "FSDriver.h"
 #include "Hwmon.h"
+#include "MaliVideoDriver.h"
 #include "PerfDriver.h"
 
-#define PROTOCOL_VERSION	18
+#define PROTOCOL_VERSION	19
 #define PROTOCOL_DEV		1000	// Differentiates development versions (timestamp) from release versions
+
+#define NS_PER_S ((uint64_t)1000000000)
 
 struct ImageLinkList {
 	char* path;
@@ -32,9 +36,12 @@ public:
 	~SessionData();
 	void initialize();
 	void parseSessionXML(char* xmlString);
+	void readCpuInfo();
 
 	Hwmon hwmon;
+	FSDriver fsDriver;
 	PerfDriver perf;
+	MaliVideoDriver maliVideo;
 
 	char mCoreName[MAX_STRING_LEN];
 	struct ImageLinkList *mImages;
@@ -49,7 +56,8 @@ public:
 	bool mLocalCapture;
 	bool mOneShot;		// halt processing of the driver data until profiling is complete or the buffer is filled
 	bool mIsEBS;
-	
+	bool mSentSummary;
+
 	int mBacktraceDepth;
 	int mTotalBufferSize;	// number of MB to use for the entire collection buffer
 	int mSampleRate;
@@ -57,7 +65,7 @@ public:
 	int mDuration;
 	int mCores;
 	int mPageSize;
-	int mCpuIds[NR_CPUS];
+	int *mCpuIds;
 	int mMaxCpuId;
 
 	// PMU Counters
@@ -65,8 +73,6 @@ public:
 	Counter mCounters[MAX_PERFORMANCE_COUNTERS];
 
 private:
-	void readCpuInfo();
-
 	// Intentionally unimplemented
 	SessionData(const SessionData &);
 	SessionData &operator=(const SessionData &);
@@ -74,6 +80,7 @@ private:
 
 extern SessionData* gSessionData;
 
+uint64_t getTime();
 int getEventKey();
 
 #endif // SESSION_DATA_H

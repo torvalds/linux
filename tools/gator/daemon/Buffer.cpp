@@ -15,11 +15,12 @@
 #define mask (mSize - 1)
 
 enum {
-	CODE_PEA    = 1,
-	CODE_KEYS   = 2,
-	CODE_FORMAT = 3,
-	CODE_MAPS   = 4,
-	CODE_COMM   = 5,
+	CODE_PEA      = 1,
+	CODE_KEYS     = 2,
+	CODE_FORMAT   = 3,
+	CODE_MAPS     = 4,
+	CODE_COMM     = 5,
+	CODE_KEYS_OLD = 6,
 };
 
 // Summary Frame Messages
@@ -167,7 +168,7 @@ void Buffer::check(const uint64_t time) {
 	}
 }
 
-void Buffer::packInt(int32_t x) {
+void Buffer::packInt(char *const buf, const int size, int &writePos, int32_t x) {
 	int packedBytes = 0;
 	int more = true;
 	while (more) {
@@ -181,11 +182,15 @@ void Buffer::packInt(int32_t x) {
 			b |= 0x80;
 		}
 
-		mBuf[(mWritePos + packedBytes) & mask] = b;
+		buf[(writePos + packedBytes) & /*mask*/(size - 1)] = b;
 		packedBytes++;
 	}
 
-	mWritePos = (mWritePos + packedBytes) & mask;
+	writePos = (writePos + packedBytes) & /*mask*/(size - 1);
+}
+
+void Buffer::packInt(int32_t x) {
+	packInt(mBuf, mSize, mWritePos, x);
 }
 
 void Buffer::packInt64(int64_t x) {
@@ -313,6 +318,21 @@ void Buffer::keys(const int count, const __u64 *const ids, const int *const keys
 			packInt64(ids[i]);
 			packInt(keys[i]);
 		}
+	} else {
+		logg->logError(__FILE__, __LINE__, "Ran out of buffer space for perf attrs");
+		handleException();
+	}
+	check(1);
+}
+
+void Buffer::keysOld(const int keyCount, const int *const keys, const int bytes, const char *const buf) {
+	if (checkSpace((2 + keyCount) * MAXSIZE_PACK32 + bytes)) {
+		packInt(CODE_KEYS_OLD);
+		packInt(keyCount);
+		for (int i = 0; i < keyCount; ++i) {
+			packInt(keys[i]);
+		}
+		writeBytes(buf, bytes);
 	} else {
 		logg->logError(__FILE__, __LINE__, "Ran out of buffer space for perf attrs");
 		handleException();

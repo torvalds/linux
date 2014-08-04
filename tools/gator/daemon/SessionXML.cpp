@@ -17,15 +17,15 @@
 #include "SessionData.h"
 
 static const char*	TAG_SESSION = "session";
-static const char*	TAG_IMAGE	= "image";
+static const char*	TAG_IMAGE   = "image";
 
-static const char*	ATTR_VERSION            = "version";		
+static const char*	ATTR_VERSION            = "version";
 static const char*	ATTR_CALL_STACK_UNWINDING = "call_stack_unwinding";
 static const char*	ATTR_BUFFER_MODE        = "buffer_mode";
-static const char*	ATTR_SAMPLE_RATE        = "sample_rate";	
+static const char*	ATTR_SAMPLE_RATE        = "sample_rate";
 static const char*	ATTR_DURATION           = "duration";
 static const char*	ATTR_PATH               = "path";
-static const char*	ATTR_LIVE_RATE      = "live_rate";
+static const char*	ATTR_LIVE_RATE          = "live_rate";
 
 SessionXML::SessionXML(const char *str) {
 	parameters.buffer_mode[0] = 0;

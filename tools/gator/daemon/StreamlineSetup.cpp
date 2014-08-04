@@ -266,7 +266,7 @@ void StreamlineSetup::writeConfiguration(char* xml) {
 	{ ConfigurationXML configuration; }
 
 	if (gSessionData->mCounterOverflow > 0) {
-		logg->logError(__FILE__, __LINE__, "Only %i performance counters counters are permitted, %i are selected", MAX_PERFORMANCE_COUNTERS, gSessionData->mCounterOverflow);
+		logg->logError(__FILE__, __LINE__, "Only %i performance counters are permitted, %i are selected", MAX_PERFORMANCE_COUNTERS, gSessionData->mCounterOverflow);
 		handleException();
 	}
 }

@@ -32,6 +32,8 @@
 #error MALI_SUPPORT set to an invalid device code: expecting MALI_T6xx
 #endif
 
+static const char mali_name[] = "Mali-T6xx";
+
 /* Counters for Mali-T6xx:
  *
  *  - Timeline events
@@ -292,7 +294,6 @@ static int create_files(struct super_block *sb, struct dentry *root)
 	 * Create the filesystem for all events
 	 */
 	int counter_index = 0;
-	const char *mali_name = gator_mali_get_mali_name();
 	mali_profiling_control_type *mali_control;
 
 	for (event = FIRST_TIMELINE_EVENT; event < FIRST_TIMELINE_EVENT + NUMBER_OF_TIMELINE_EVENTS; event++) {
@@ -317,7 +318,7 @@ static int create_files(struct super_block *sb, struct dentry *root)
 	}
 
 	mali_control = symbol_get(_mali_profiling_control);
-	if (mali_control) {	
+	if (mali_control) {
 		if (gator_mali_create_file_system(mali_name, "Filmstrip_cnt0", sb, root, &counters[FILMSTRIP], &filmstrip_event) != 0) {
 			return -1;
 		}

@@ -27,6 +27,8 @@ public:
 	PerfDriver();
 	~PerfDriver();
 
+	bool getLegacySupport() const { return mLegacySupport; }
+
 	bool setup();
 	bool summary(Buffer *const buffer);
 	bool isSetup() const { return mIsSetup; }
@@ -37,16 +39,18 @@ public:
 
 	int writeCounters(mxml_node_t *root) const;
 
-	bool enable(PerfGroup *group, Buffer *const buffer) const;
+	bool enable(PerfGroup *const group, Buffer *const buffer) const;
 
 	static long long getTracepointId(const char *const name, DynBuf *const printb);
 
 private:
 	PerfCounter *findCounter(const Counter &counter) const;
 	void addCpuCounters(const char *const counterName, const int type, const int numCounters);
+	void addUncoreCounters(const char *const counterName, const int type, const int numCounters);
 
 	PerfCounter *mCounters;
 	bool mIsSetup;
+	bool mLegacySupport;
 
 	// Intentionally undefined
 	PerfDriver(const PerfDriver &);

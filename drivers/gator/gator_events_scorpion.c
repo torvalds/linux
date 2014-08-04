@@ -26,9 +26,9 @@ static int pmnc_counters;
 // ccnt reg
 #define CCNT_REG	(1 << 31)
 
-#define CCNT 		0
+#define CCNT		0
 #define CNT0		1
-#define CNTMAX 		(4+1)
+#define CNTMAX		(4+1)
 
 static unsigned long pmnc_enabled[CNTMAX];
 static unsigned long pmnc_event[CNTMAX];
