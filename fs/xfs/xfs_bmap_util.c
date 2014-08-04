@@ -1766,7 +1766,7 @@ xfs_swap_extents(
 	 * vop_read (or write in the case of autogrow) they block on the iolock
 	 * until we have switched the extents.
 	 */
-	if (VN_MAPPED(VFS_I(ip))) {
+	if (mapping_mapped(VFS_I(ip)->i_mapping)) {
 		error = -EBUSY;
 		goto out_unlock;
 	}

@@ -34,10 +34,4 @@ struct attrlist_cursor_kern;
 	{ IO_ISDIRECT,	"DIRECT" }, \
 	{ IO_INVIS,	"INVIS"}
 
-/*
- * Some useful predicates.
- */
-#define VN_MAPPED(vp)	mapping_mapped(vp->i_mapping)
-
-
 #endif	/* __XFS_VNODE_H__ */
