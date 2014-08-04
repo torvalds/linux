@@ -477,7 +477,7 @@ static int rspi_dma_transfer(struct rspi_data *rspi, struct sg_table *tx,
 					tx->sgl, tx->nents, DMA_TO_DEVICE,
 					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 		if (!desc_tx)
-			return -EIO;
+			goto no_dma;
 
 		irq_mask |= SPCR_SPTIE;
 	}
@@ -486,7 +486,7 @@ static int rspi_dma_transfer(struct rspi_data *rspi, struct sg_table *tx,
 					rx->sgl, rx->nents, DMA_FROM_DEVICE,
 					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 		if (!desc_rx)
-			return -EIO;
+			goto no_dma;
 
 		irq_mask |= SPCR_SPRIE;
 	}
@@ -540,6 +540,12 @@ static int rspi_dma_transfer(struct rspi_data *rspi, struct sg_table *tx,
 		enable_irq(rspi->rx_irq);
 
 	return ret;
+
+no_dma:
+	pr_warn_once("%s %s: DMA not available, falling back to PIO\n",
+		     dev_driver_string(&rspi->master->dev),
+		     dev_name(&rspi->master->dev));
+	return -EAGAIN;
 }
 
 static void rspi_receive_init(const struct rspi_data *rspi)
@@ -593,8 +599,10 @@ static int rspi_common_transfer(struct rspi_data *rspi,
 
 	if (rspi->master->can_dma && __rspi_can_dma(rspi, xfer)) {
 		/* rx_buf can be NULL on RSPI on SH in TX-only Mode */
-		return rspi_dma_transfer(rspi, &xfer->tx_sg,
-					 xfer->rx_buf ? &xfer->rx_sg : NULL);
+		ret = rspi_dma_transfer(rspi, &xfer->tx_sg,
+					xfer->rx_buf ? &xfer->rx_sg : NULL);
+		if (ret != -EAGAIN)
+			return ret;
 	}
 
 	ret = rspi_pio_transfer(rspi, xfer->tx_buf, xfer->rx_buf, xfer->len);
@@ -630,7 +638,6 @@ static int rspi_rz_transfer_one(struct spi_master *master,
 				struct spi_transfer *xfer)
 {
 	struct rspi_data *rspi = spi_master_get_devdata(master);
-	int ret;
 
 	rspi_rz_receive_init(rspi);
 
@@ -649,8 +656,11 @@ static int qspi_transfer_out(struct rspi_data *rspi, struct spi_transfer *xfer)
 {
 	int ret;
 
-	if (rspi->master->can_dma && __rspi_can_dma(rspi, xfer))
-		return rspi_dma_transfer(rspi, &xfer->tx_sg, NULL);
+	if (rspi->master->can_dma && __rspi_can_dma(rspi, xfer)) {
+		ret = rspi_dma_transfer(rspi, &xfer->tx_sg, NULL);
+		if (ret != -EAGAIN)
+			return ret;
+	}
 
 	ret = rspi_pio_transfer(rspi, xfer->tx_buf, NULL, xfer->len);
 	if (ret < 0)
@@ -664,8 +674,11 @@ static int qspi_transfer_out(struct rspi_data *rspi, struct spi_transfer *xfer)
 
 static int qspi_transfer_in(struct rspi_data *rspi, struct spi_transfer *xfer)
 {
-	if (rspi->master->can_dma && __rspi_can_dma(rspi, xfer))
-		return rspi_dma_transfer(rspi, NULL, &xfer->rx_sg);
+	if (rspi->master->can_dma && __rspi_can_dma(rspi, xfer)) {
+		int ret = rspi_dma_transfer(rspi, NULL, &xfer->rx_sg);
+		if (ret != -EAGAIN)
+			return ret;
+	}
 
 	return rspi_pio_transfer(rspi, NULL, xfer->rx_buf, xfer->len);
 }
@@ -927,19 +940,19 @@ static int rspi_request_dma(struct device *dev, struct spi_master *master,
 	return 0;
 }
 
-static void rspi_release_dma(struct rspi_data *rspi)
+static void rspi_release_dma(struct spi_master *master)
 {
-	if (rspi->master->dma_tx)
-		dma_release_channel(rspi->master->dma_tx);
-	if (rspi->master->dma_rx)
-		dma_release_channel(rspi->master->dma_rx);
+	if (master->dma_tx)
+		dma_release_channel(master->dma_tx);
+	if (master->dma_rx)
+		dma_release_channel(master->dma_rx);
 }
 
 static int rspi_remove(struct platform_device *pdev)
 {
 	struct rspi_data *rspi = platform_get_drvdata(pdev);
 
-	rspi_release_dma(rspi);
+	rspi_release_dma(rspi->master);
 	pm_runtime_disable(&pdev->dev);
 
 	return 0;
@@ -1141,7 +1154,7 @@ static int rspi_probe(struct platform_device *pdev)
 	return 0;
 
 error3:
-	rspi_release_dma(rspi);
+	rspi_release_dma(master);
 error2:
 	pm_runtime_disable(&pdev->dev);
 error1:
