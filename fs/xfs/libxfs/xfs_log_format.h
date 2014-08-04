@@ -380,7 +380,7 @@ typedef struct xfs_icdinode {
 	xfs_ictimestamp_t di_mtime;	/* time last modified */
 	xfs_ictimestamp_t di_ctime;	/* time created/inode modified */
 	xfs_fsize_t	di_size;	/* number of bytes in file */
-	xfs_drfsbno_t	di_nblocks;	/* # of direct & btree blocks used */
+	xfs_rfsblock_t	di_nblocks;	/* # of direct & btree blocks used */
 	xfs_extlen_t	di_extsize;	/* basic/minimum extent size for file */
 	xfs_extnum_t	di_nextents;	/* number of extents in data fork */
 	xfs_aextnum_t	di_anextents;	/* number of extents in attribute fork*/
@@ -516,7 +516,7 @@ xfs_blft_from_flags(struct xfs_buf_log_format *blf)
  * EFI/EFD log format definitions
  */
 typedef struct xfs_extent {
-	xfs_dfsbno_t	ext_start;
+	xfs_fsblock_t	ext_start;
 	xfs_extlen_t	ext_len;
 } xfs_extent_t;
 

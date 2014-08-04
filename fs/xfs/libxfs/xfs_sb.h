@@ -87,11 +87,11 @@ struct xfs_trans;
 typedef struct xfs_sb {
 	__uint32_t	sb_magicnum;	/* magic number == XFS_SB_MAGIC */
 	__uint32_t	sb_blocksize;	/* logical block size, bytes */
-	xfs_drfsbno_t	sb_dblocks;	/* number of data blocks */
-	xfs_drfsbno_t	sb_rblocks;	/* number of realtime blocks */
-	xfs_drtbno_t	sb_rextents;	/* number of realtime extents */
+	xfs_rfsblock_t	sb_dblocks;	/* number of data blocks */
+	xfs_rfsblock_t	sb_rblocks;	/* number of realtime blocks */
+	xfs_rtblock_t	sb_rextents;	/* number of realtime extents */
 	uuid_t		sb_uuid;	/* file system unique id */
-	xfs_dfsbno_t	sb_logstart;	/* starting block of log if internal */
+	xfs_fsblock_t	sb_logstart;	/* starting block of log if internal */
 	xfs_ino_t	sb_rootino;	/* root inode number */
 	xfs_ino_t	sb_rbmino;	/* bitmap inode for realtime extents */
 	xfs_ino_t	sb_rsumino;	/* summary inode for rt bitmap */

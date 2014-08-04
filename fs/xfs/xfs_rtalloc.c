@@ -944,9 +944,9 @@ xfs_growfs_rt(
 	xfs_buf_t	*bp;		/* temporary buffer */
 	int		error;		/* error return value */
 	xfs_mount_t	*nmp;		/* new (fake) mount structure */
-	xfs_drfsbno_t	nrblocks;	/* new number of realtime blocks */
+	xfs_rfsblock_t	nrblocks;	/* new number of realtime blocks */
 	xfs_extlen_t	nrbmblocks;	/* new number of rt bitmap blocks */
-	xfs_drtbno_t	nrextents;	/* new number of realtime extents */
+	xfs_rtblock_t	nrextents;	/* new number of realtime extents */
 	uint8_t		nrextslog;	/* new log2 of sb_rextents */
 	xfs_extlen_t	nrsumblocks;	/* new number of summary blocks */
 	uint		nrsumlevels;	/* new rt summary levels */

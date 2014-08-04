@@ -258,7 +258,7 @@ xfs_btree_check_block(
 int					/* error (0 or EFSCORRUPTED) */
 xfs_btree_check_lptr(
 	struct xfs_btree_cur	*cur,	/* btree cursor */
-	xfs_dfsbno_t		ptr,	/* btree block disk address */
+	xfs_fsblock_t		ptr,	/* btree block disk address */
 	int			level);	/* btree block level */
 
 /*

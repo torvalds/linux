@@ -255,8 +255,8 @@ typedef struct xfs_fsop_resblks {
 	((2 * 1024 * 1024 * 1024ULL) - XFS_MIN_LOG_BYTES)
 
 /* Used for sanity checks on superblock */
-#define XFS_MAX_DBLOCKS(s) ((xfs_drfsbno_t)(s)->sb_agcount * (s)->sb_agblocks)
-#define XFS_MIN_DBLOCKS(s) ((xfs_drfsbno_t)((s)->sb_agcount - 1) *	\
+#define XFS_MAX_DBLOCKS(s) ((xfs_rfsblock_t)(s)->sb_agcount * (s)->sb_agblocks)
+#define XFS_MIN_DBLOCKS(s) ((xfs_rfsblock_t)((s)->sb_agcount - 1) *	\
 			 (s)->sb_agblocks + XFS_MIN_AG_BLOCKS)
 
 /*

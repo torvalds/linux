@@ -123,7 +123,7 @@ xfs_fs_rm_xquota(
 		flags |= XFS_DQ_USER;
 	if (uflags & FS_GROUP_QUOTA)
 		flags |= XFS_DQ_GROUP;
-	if (uflags & FS_USER_QUOTA)
+	if (uflags & FS_PROJ_QUOTA)
 		flags |= XFS_DQ_PROJ;
 
 	return xfs_qm_scall_trunc_qfiles(mp, flags);

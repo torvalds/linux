@@ -176,13 +176,9 @@ xfs_sb_validate_fsb_count(
 	ASSERT(PAGE_SHIFT >= sbp->sb_blocklog);
 	ASSERT(sbp->sb_blocklog >= BBSHIFT);
 
-#if XFS_BIG_BLKNOS     /* Limited by ULONG_MAX of page cache index */
+	/* Limited by ULONG_MAX of page cache index */
 	if (nblocks >> (PAGE_CACHE_SHIFT - sbp->sb_blocklog) > ULONG_MAX)
 		return -EFBIG;
-#else                  /* Limited by UINT_MAX of sectors */
-	if (nblocks << (sbp->sb_blocklog - BBSHIFT) > UINT_MAX)
-		return -EFBIG;
-#endif
 	return 0;
 }
 
@@ -253,9 +249,9 @@ xfs_initialize_perag(
 		mp->m_flags &= ~XFS_MOUNT_32BITINODES;
 
 	if (mp->m_flags & XFS_MOUNT_32BITINODES)
-		index = xfs_set_inode32(mp);
+		index = xfs_set_inode32(mp, agcount);
 	else
-		index = xfs_set_inode64(mp);
+		index = xfs_set_inode64(mp, agcount);
 
 	if (maxagi)
 		*maxagi = index;
