@@ -1962,6 +1962,7 @@ __acquires(&pool->lock)
 
 	lockdep_copy_map(&lockdep_map, &work->lockdep_map);
 #endif
+	/* ensure we're on the correct CPU */
 	WARN_ON_ONCE(!(pool->flags & POOL_DISASSOCIATED) &&
 		     raw_smp_processor_id() != pool->cpu);
 
@@ -4574,11 +4575,10 @@ static int workqueue_cpu_up_callback(struct notifier_block *nfb,
 		for_each_pool(pool, pi) {
 			mutex_lock(&pool->attach_mutex);
 
-			if (pool->cpu == cpu) {
+			if (pool->cpu == cpu)
 				rebind_workers(pool);
-			} else if (pool->cpu < 0) {
+			else if (pool->cpu < 0)
 				restore_unbound_workers_cpumask(pool, cpu);
-			}
 
 			mutex_unlock(&pool->attach_mutex);
 		}
