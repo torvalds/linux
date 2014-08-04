@@ -11,6 +11,7 @@
 #include "util/parse-options.h"
 #include "util/run-command.h"
 #include "util/help.h"
+#include "util/debug.h"
 
 static struct man_viewer_list {
 	struct man_viewer_list *next;
