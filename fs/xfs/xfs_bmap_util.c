@@ -862,7 +862,7 @@ xfs_can_free_eofblocks(struct xfs_inode *ip, bool force)
 	 * have speculative prealloc/delalloc blocks to remove.
 	 */
 	if (VFS_I(ip)->i_size == 0 &&
-	    VN_CACHED(VFS_I(ip)) == 0 &&
+	    VFS_I(ip)->i_mapping->nrpages == 0 &&
 	    ip->i_delayed_blks == 0)
 		return false;
 
@@ -1720,7 +1720,7 @@ xfs_swap_extents(
 	truncate_pagecache_range(VFS_I(tip), 0, -1);
 
 	/* Verify O_DIRECT for ftmp */
-	if (VN_CACHED(VFS_I(tip)) != 0) {
+	if (VFS_I(tip)->i_mapping->nrpages) {
 		error = -EINVAL;
 		goto out_unlock;
 	}

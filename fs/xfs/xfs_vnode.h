@@ -38,7 +38,6 @@ struct attrlist_cursor_kern;
  * Some useful predicates.
  */
 #define VN_MAPPED(vp)	mapping_mapped(vp->i_mapping)
-#define VN_CACHED(vp)	(vp->i_mapping->nrpages)
 
 
 #endif	/* __XFS_VNODE_H__ */
