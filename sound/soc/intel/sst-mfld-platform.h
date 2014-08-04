@@ -63,9 +63,7 @@ enum sst_controls {
 	SST_SND_BUFFER_POINTER =	0x05,
 	SST_SND_STREAM_INIT =		0x06,
 	SST_SND_START	 =		0x07,
-	SST_SET_BYTE_STREAM =           0x100A,
-	SST_GET_BYTE_STREAM =           0x100B,
-	SST_MAX_CONTROLS = SST_GET_BYTE_STREAM,
+	SST_MAX_CONTROLS = 		0x07,
 };
 
 enum sst_stream_ops {
@@ -129,7 +127,7 @@ struct compress_sst_ops {
 struct sst_ops {
 	int (*open) (struct snd_sst_params *str_param);
 	int (*device_control) (int cmd, void *arg);
-	int (*set_generic_params)(enum sst_controls cmd, void *arg);
+	int (*send_byte_stream)(struct snd_sst_bytes_v2 *bytes);
 	int (*close) (unsigned int str_id);
 };
 
