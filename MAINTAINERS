@@ -3958,7 +3958,8 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/linusw/linux-gpio.git
 S:	Maintained
 F:	Documentation/gpio/
 F:	drivers/gpio/
-F:	include/linux/gpio*
+F:	include/linux/gpio/
+F:	include/linux/gpio.h
 F:	include/asm-generic/gpio.h
 
 GRE DEMULTIPLEXER DRIVER
