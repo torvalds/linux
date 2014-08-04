@@ -464,8 +464,9 @@ int iwl_mvm_rm_sta_id(struct iwl_mvm *mvm,
 	return ret;
 }
 
-int iwl_mvm_allocate_int_sta(struct iwl_mvm *mvm, struct iwl_mvm_int_sta *sta,
-			     u32 qmask, enum nl80211_iftype iftype)
+static int iwl_mvm_allocate_int_sta(struct iwl_mvm *mvm,
+				    struct iwl_mvm_int_sta *sta,
+				    u32 qmask, enum nl80211_iftype iftype)
 {
 	if (!test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status)) {
 		sta->sta_id = iwl_mvm_find_free_sta_id(mvm, iftype);
@@ -480,7 +481,8 @@ int iwl_mvm_allocate_int_sta(struct iwl_mvm *mvm, struct iwl_mvm_int_sta *sta,
 	return 0;
 }
 
-void iwl_mvm_dealloc_int_sta(struct iwl_mvm *mvm, struct iwl_mvm_int_sta *sta)
+static void iwl_mvm_dealloc_int_sta(struct iwl_mvm *mvm,
+				    struct iwl_mvm_int_sta *sta)
 {
 	RCU_INIT_POINTER(mvm->fw_id_to_mac_id[sta->sta_id], NULL);
 	memset(sta, 0, sizeof(struct iwl_mvm_int_sta));
@@ -548,6 +550,13 @@ int iwl_mvm_add_aux_sta(struct iwl_mvm *mvm)
 	if (ret)
 		iwl_mvm_dealloc_int_sta(mvm, &mvm->aux_sta);
 	return ret;
+}
+
+void iwl_mvm_del_aux_sta(struct iwl_mvm *mvm)
+{
+	lockdep_assert_held(&mvm->mutex);
+
+	iwl_mvm_dealloc_int_sta(mvm, &mvm->aux_sta);
 }
 
 /*

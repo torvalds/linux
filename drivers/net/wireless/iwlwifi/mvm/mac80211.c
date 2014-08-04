@@ -886,7 +886,7 @@ static void iwl_mvm_mac_stop(struct ieee80211_hw *hw)
 	/* async_handlers_list is empty and will stay empty: HW is stopped */
 
 	/* the fw is stopped, the aux sta is dead: clean up driver state */
-	iwl_mvm_dealloc_int_sta(mvm, &mvm->aux_sta);
+	iwl_mvm_del_aux_sta(mvm);
 
 	mutex_unlock(&mvm->mutex);
 
