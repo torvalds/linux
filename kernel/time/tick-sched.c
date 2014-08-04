@@ -154,6 +154,7 @@ static void tick_sched_handle(struct tick_sched *ts, struct pt_regs *regs)
 
 #ifdef CONFIG_NO_HZ_FULL
 cpumask_var_t tick_nohz_full_mask;
+cpumask_var_t housekeeping_mask;
 bool tick_nohz_full_running;
 
 static bool can_stop_full_tick(void)
@@ -281,6 +282,7 @@ static int __init tick_nohz_full_setup(char *str)
 	int cpu;
 
 	alloc_bootmem_cpumask_var(&tick_nohz_full_mask);
+	alloc_bootmem_cpumask_var(&housekeeping_mask);
 	if (cpulist_parse(str, tick_nohz_full_mask) < 0) {
 		pr_warning("NOHZ: Incorrect nohz_full cpumask\n");
 		return 1;
@@ -291,6 +293,8 @@ static int __init tick_nohz_full_setup(char *str)
 		pr_warning("NO_HZ: Clearing %d from nohz_full range for timekeeping\n", cpu);
 		cpumask_clear_cpu(cpu, tick_nohz_full_mask);
 	}
+	cpumask_andnot(housekeeping_mask,
+		       cpu_possible_mask, tick_nohz_full_mask);
 	tick_nohz_full_running = true;
 
 	return 1;
@@ -332,9 +336,15 @@ static int tick_nohz_init_all(void)
 		pr_err("NO_HZ: Can't allocate full dynticks cpumask\n");
 		return err;
 	}
+	if (!alloc_cpumask_var(&housekeeping_mask, GFP_KERNEL)) {
+		pr_err("NO_HZ: Can't allocate not-full dynticks cpumask\n");
+		return err;
+	}
 	err = 0;
 	cpumask_setall(tick_nohz_full_mask);
 	cpumask_clear_cpu(smp_processor_id(), tick_nohz_full_mask);
+	cpumask_clear(housekeeping_mask);
+	cpumask_set_cpu(smp_processor_id(), housekeeping_mask);
 	tick_nohz_full_running = true;
 #endif
 	return err;
