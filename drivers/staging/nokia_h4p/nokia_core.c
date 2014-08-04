@@ -1113,7 +1113,7 @@ static int hci_h4p_probe(struct platform_device *pdev)
 				    GPIOF_OUT_INIT_LOW, "bt_wakeup");
 
 	if (err < 0) {
-		dev_err(info->dev, "Cannot get GPIO line 0x%d",
+		dev_err(info->dev, "Cannot get GPIO line 0x%x",
 			info->bt_wakeup_gpio);
 		return err;
 	}
