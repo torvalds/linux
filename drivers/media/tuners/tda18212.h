@@ -37,6 +37,11 @@ struct tda18212_config {
 	u16 if_dvbc;
 	u16 if_atsc_vsb;
 	u16 if_atsc_qam;
+
+	/*
+	 * pointer to DVB frontend
+	 */
+	struct dvb_frontend *fe;
 };
 
 #if IS_ENABLED(CONFIG_MEDIA_TUNER_TDA18212)
