@@ -5144,8 +5144,9 @@ int btrfs_search_forward(struct btrfs_root *root, struct btrfs_key *min_key,
 	u32 nritems;
 	int level;
 	int ret = 1;
+	int keep_locks = path->keep_locks;
 
-	WARN_ON(!path->keep_locks);
+	path->keep_locks = 1;
 again:
 	cur = btrfs_read_lock_root_node(root);
 	level = btrfs_header_level(cur);
@@ -5209,7 +5210,6 @@ find_next_key:
 		path->slots[level] = slot;
 		if (level == path->lowest_level) {
 			ret = 0;
-			unlock_up(path, level, 1, 0, NULL);
 			goto out;
 		}
 		btrfs_set_path_blocking(path);
@@ -5224,9 +5224,12 @@ find_next_key:
 		btrfs_clear_path_blocking(path, NULL, 0);
 	}
 out:
-	if (ret == 0)
+	path->keep_locks = keep_locks;
+	if (ret == 0) {
+		btrfs_unlock_up_safe(path, path->lowest_level + 1);
+		btrfs_set_path_blocking(path);
 		memcpy(min_key, &found_key, sizeof(found_key));
-	btrfs_set_path_blocking(path);
+	}
 	return ret;
 }
 

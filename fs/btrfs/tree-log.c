@@ -2983,8 +2983,6 @@ static noinline int log_dir_items(struct btrfs_trans_handle *trans,
 	min_key.type = key_type;
 	min_key.offset = min_offset;
 
-	path->keep_locks = 1;
-
 	ret = btrfs_search_forward(root, &min_key, path, trans->transid);
 
 	/*
@@ -3964,7 +3962,6 @@ static int btrfs_log_inode(struct btrfs_trans_handle *trans,
 		err = ret;
 		goto out_unlock;
 	}
-	path->keep_locks = 1;
 
 	while (1) {
 		ins_nr = 0;

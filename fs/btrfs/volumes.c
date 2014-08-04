@@ -3625,8 +3625,6 @@ static int btrfs_uuid_scan_kthread(void *data)
 	max_key.type = BTRFS_ROOT_ITEM_KEY;
 	max_key.offset = (u64)-1;
 
-	path->keep_locks = 1;
-
 	while (1) {
 		ret = btrfs_search_forward(root, &key, path, 0);
 		if (ret) {
