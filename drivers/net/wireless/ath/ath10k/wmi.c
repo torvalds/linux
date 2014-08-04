@@ -2080,6 +2080,7 @@ static void ath10k_wmi_service_ready_event_rx(struct ath10k *ar,
 					      struct sk_buff *skb)
 {
 	struct wmi_service_ready_event *ev = (void *)skb->data;
+	DECLARE_BITMAP(svc_bmap, WMI_SERVICE_BM_SIZE) = {};
 
 	if (skb->len < sizeof(*ev)) {
 		ath10k_warn("Service ready event was %d B but expected %zu B. Wrong firmware version?\n",
@@ -2113,8 +2114,10 @@ static void ath10k_wmi_service_ready_event_rx(struct ath10k *ar,
 	ar->ath_common.regulatory.current_rd =
 		__le32_to_cpu(ev->hal_reg_capabilities.eeprom_rd);
 
-	ath10k_debug_read_service_map(ar, ev->wmi_service_bitmap,
-				      sizeof(ev->wmi_service_bitmap));
+	wmi_10x_svc_map(ev->wmi_service_bitmap, svc_bmap);
+	ath10k_debug_read_service_map(ar, svc_bmap, sizeof(svc_bmap));
+	ath10k_dbg_dump(ATH10K_DBG_WMI, NULL, "ath10k: wmi svc: ",
+			ev->wmi_service_bitmap, sizeof(ev->wmi_service_bitmap));
 
 	if (strlen(ar->hw->wiphy->fw_version) == 0) {
 		snprintf(ar->hw->wiphy->fw_version,
@@ -2154,6 +2157,7 @@ static void ath10k_wmi_10x_service_ready_event_rx(struct ath10k *ar,
 	u32 num_units, req_id, unit_size, num_mem_reqs, num_unit_info, i;
 	int ret;
 	struct wmi_service_ready_event_10x *ev = (void *)skb->data;
+	DECLARE_BITMAP(svc_bmap, WMI_SERVICE_BM_SIZE) = {};
 
 	if (skb->len < sizeof(*ev)) {
 		ath10k_warn("Service ready event was %d B but expected %zu B. Wrong firmware version?\n",
@@ -2180,8 +2184,10 @@ static void ath10k_wmi_10x_service_ready_event_rx(struct ath10k *ar,
 	ar->ath_common.regulatory.current_rd =
 		__le32_to_cpu(ev->hal_reg_capabilities.eeprom_rd);
 
-	ath10k_debug_read_service_map(ar, ev->wmi_service_bitmap,
-				      sizeof(ev->wmi_service_bitmap));
+	wmi_main_svc_map(ev->wmi_service_bitmap, svc_bmap);
+	ath10k_debug_read_service_map(ar, svc_bmap, sizeof(svc_bmap));
+	ath10k_dbg_dump(ATH10K_DBG_WMI, NULL, "ath10k: wmi svc: ",
+			ev->wmi_service_bitmap, sizeof(ev->wmi_service_bitmap));
 
 	if (strlen(ar->hw->wiphy->fw_version) == 0) {
 		snprintf(ar->hw->wiphy->fw_version,

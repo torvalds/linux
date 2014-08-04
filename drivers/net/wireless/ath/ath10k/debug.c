@@ -115,9 +115,10 @@ static ssize_t ath10k_read_wmi_services(struct file *file,
 {
 	struct ath10k *ar = file->private_data;
 	char *buf;
-	unsigned int len = 0, buf_len = 1500;
-	const char *status;
+	unsigned int len = 0, buf_len = 4096;
+	const char *name;
 	ssize_t ret_cnt;
+	bool enabled;
 	int i;
 
 	buf = kzalloc(buf_len, GFP_KERNEL);
@@ -129,15 +130,22 @@ static ssize_t ath10k_read_wmi_services(struct file *file,
 	if (len > buf_len)
 		len = buf_len;
 
-	for (i = 0; i < WMI_SERVICE_LAST; i++) {
-		if (WMI_SERVICE_IS_ENABLED(ar->debug.wmi_service_bitmap, i))
-			status = "enabled";
-		else
-			status = "disabled";
+	for (i = 0; i < WMI_MAX_SERVICE; i++) {
+		enabled = test_bit(i, ar->debug.wmi_service_bitmap);
+		name = wmi_service_name(i);
+
+		if (!name) {
+			if (enabled)
+				len += scnprintf(buf + len, buf_len - len,
+						 "%-40s %s (bit %d)\n",
+						 "unknown", "enabled", i);
+
+			continue;
+		}
 
 		len += scnprintf(buf + len, buf_len - len,
-				 "0x%02x - %20s - %s\n",
-				 i, wmi_service_name(i), status);
+				 "%-40s %s\n",
+				 name, enabled ? "enabled" : "-");
 	}
 
 	ret_cnt = simple_read_from_buffer(user_buf, count, ppos, buf, len);

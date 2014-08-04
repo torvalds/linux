@@ -282,7 +282,7 @@ struct ath10k_debug {
 	struct dentry *debugfs_phy;
 
 	struct ath10k_target_stats target_stats;
-	u32 wmi_service_bitmap[WMI_SERVICE_BM_SIZE];
+	DECLARE_BITMAP(wmi_service_bitmap, WMI_SERVICE_BM_SIZE);
 
 	struct completion event_stats_compl;
 
