@@ -30,6 +30,22 @@ typedef int (*bulkstat_one_pf)(struct xfs_mount	*mp,
 			       int		*ubused,
 			       int		*stat);
 
+struct xfs_bulkstat_agichunk {
+	xfs_ino_t	ac_lastino;	/* last inode returned */
+	char		__user **ac_ubuffer;/* pointer into user's buffer */
+	int		ac_ubleft;	/* bytes left in user's buffer */
+	int		ac_ubelem;	/* spaces used in user's buffer */
+};
+
+int
+xfs_bulkstat_ag_ichunk(
+	struct xfs_mount		*mp,
+	xfs_agnumber_t			agno,
+	struct xfs_inobt_rec_incore	*irbp,
+	bulkstat_one_pf			formatter,
+	size_t				statstruct_size,
+	struct xfs_bulkstat_agichunk	*acp);
+
 /*
  * Values for stat return value.
  */

@@ -263,6 +263,79 @@ xfs_bulkstat_grab_ichunk(
 #define XFS_BULKSTAT_UBLEFT(ubleft)	((ubleft) >= statstruct_size)
 
 /*
+ * Process inodes in chunk with a pointer to a formatter function
+ * that will iget the inode and fill in the appropriate structure.
+ */
+int
+xfs_bulkstat_ag_ichunk(
+	struct xfs_mount		*mp,
+	xfs_agnumber_t			agno,
+	struct xfs_inobt_rec_incore	*irbp,
+	bulkstat_one_pf			formatter,
+	size_t				statstruct_size,
+	struct xfs_bulkstat_agichunk	*acp)
+{
+	xfs_ino_t			lastino = acp->ac_lastino;
+	char				__user **ubufp = acp->ac_ubuffer;
+	int				ubleft = acp->ac_ubleft;
+	int				ubelem = acp->ac_ubelem;
+	int				chunkidx, clustidx;
+	int				error = 0;
+	xfs_agino_t			agino;
+
+	for (agino = irbp->ir_startino, chunkidx = clustidx = 0;
+	     XFS_BULKSTAT_UBLEFT(ubleft) &&
+	     irbp->ir_freecount < XFS_INODES_PER_CHUNK;
+	     chunkidx++, clustidx++, agino++) {
+		int		fmterror;	/* bulkstat formatter result */
+		int		ubused;
+		xfs_ino_t	ino = XFS_AGINO_TO_INO(mp, agno, agino);
+
+		ASSERT(chunkidx < XFS_INODES_PER_CHUNK);
+
+		/* Skip if this inode is free */
+		if (XFS_INOBT_MASK(chunkidx) & irbp->ir_free) {
+			lastino = ino;
+			continue;
+		}
+
+		/*
+		 * Count used inodes as free so we can tell when the
+		 * chunk is used up.
+		 */
+		irbp->ir_freecount++;
+
+		/* Get the inode and fill in a single buffer */
+		ubused = statstruct_size;
+		error = formatter(mp, ino, *ubufp, ubleft, &ubused, &fmterror);
+		if (fmterror == BULKSTAT_RV_NOTHING) {
+			if (error && error != -ENOENT && error != -EINVAL) {
+				ubleft = 0;
+				break;
+			}
+			lastino = ino;
+			continue;
+		}
+		if (fmterror == BULKSTAT_RV_GIVEUP) {
+			ubleft = 0;
+			ASSERT(error);
+			break;
+		}
+		if (*ubufp)
+			*ubufp += ubused;
+		ubleft -= ubused;
+		ubelem++;
+		lastino = ino;
+	}
+
+	acp->ac_lastino = lastino;
+	acp->ac_ubleft = ubleft;
+	acp->ac_ubelem = ubelem;
+
+	return error;
+}
+
+/*
  * Return stat information in bulk (by-inode) for the filesystem.
  */
 int					/* error status */
@@ -279,8 +352,6 @@ xfs_bulkstat(
 	xfs_agi_t		*agi;	/* agi header data */
 	xfs_agino_t		agino;	/* inode # in allocation group */
 	xfs_agnumber_t		agno;	/* allocation group number */
-	int			chunkidx; /* current index into inode chunk */
-	int			clustidx; /* current index into inode cluster */
 	xfs_btree_cur_t		*cur;	/* btree cursor for ialloc btree */
 	int			end_of_ag; /* set if we've seen the ag end */
 	int			error;	/* error code */
@@ -300,7 +371,6 @@ xfs_bulkstat(
 	int			ubleft;	/* bytes left in user's buffer */
 	char			__user *ubufp;	/* pointer into user's buffer */
 	int			ubelem;	/* spaces used in user's buffer */
-	int			ubused;	/* bytes used by formatter */
 
 	/*
 	 * Get the last inode value, see if there's nothing to do.
@@ -419,57 +489,20 @@ xfs_bulkstat(
 		irbufend = irbp;
 		for (irbp = irbuf;
 		     irbp < irbufend && XFS_BULKSTAT_UBLEFT(ubleft); irbp++) {
-			/*
-			 * Now process this chunk of inodes.
-			 */
-			for (agino = irbp->ir_startino, chunkidx = clustidx = 0;
-			     XFS_BULKSTAT_UBLEFT(ubleft) &&
-				irbp->ir_freecount < XFS_INODES_PER_CHUNK;
-			     chunkidx++, clustidx++, agino++) {
-				ASSERT(chunkidx < XFS_INODES_PER_CHUNK);
+			struct xfs_bulkstat_agichunk ac;
 
-				ino = XFS_AGINO_TO_INO(mp, agno, agino);
-				/*
-				 * Skip if this inode is free.
-				 */
-				if (XFS_INOBT_MASK(chunkidx) & irbp->ir_free) {
-					lastino = ino;
-					continue;
-				}
-				/*
-				 * Count used inodes as free so we can tell
-				 * when the chunk is used up.
-				 */
-				irbp->ir_freecount++;
+			ac.ac_lastino = lastino;
+			ac.ac_ubuffer = &ubuffer;
+			ac.ac_ubleft = ubleft;
+			ac.ac_ubelem = ubelem;
+			error = xfs_bulkstat_ag_ichunk(mp, agno, irbp,
+					formatter, statstruct_size, &ac);
+			if (error)
+				rval = error;
 
-				/*
-				 * Get the inode and fill in a single buffer.
-				 */
-				ubused = statstruct_size;
-				error = formatter(mp, ino, ubufp, ubleft,
-						  &ubused, &fmterror);
-				if (fmterror == BULKSTAT_RV_NOTHING) {
-					if (error && error != -ENOENT &&
-						error != -EINVAL) {
-						ubleft = 0;
-						rval = error;
-						break;
-					}
-					lastino = ino;
-					continue;
-				}
-				if (fmterror == BULKSTAT_RV_GIVEUP) {
-					ubleft = 0;
-					ASSERT(error);
-					rval = error;
-					break;
-				}
-				if (ubufp)
-					ubufp += ubused;
-				ubleft -= ubused;
-				ubelem++;
-				lastino = ino;
-			}
+			lastino = ac.ac_lastino;
+			ubleft = ac.ac_ubleft;
+			ubelem = ac.ac_ubelem;
 
 			cond_resched();
 		}
