@@ -141,3 +141,4 @@ int of_clk_set_defaults(struct device_node *node, bool clk_supplier)
 
 	return __set_clk_rates(node, clk_supplier);
 }
+EXPORT_SYMBOL_GPL(of_clk_set_defaults);
