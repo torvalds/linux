@@ -475,6 +475,10 @@ static irqreturn_t tsi721_irqhandler(int irq, void *ptr)
 	u32 intval;
 	u32 ch_inte;
 
+	/* For MSI mode disable all device-level interrupts */
+	if (priv->flags & TSI721_USING_MSI)
+		iowrite32(0, priv->regs + TSI721_DEV_INTE);
+
 	dev_int = ioread32(priv->regs + TSI721_DEV_INT);
 	if (!dev_int)
 		return IRQ_NONE;
@@ -546,6 +550,13 @@ static irqreturn_t tsi721_irqhandler(int irq, void *ptr)
 		intval = ioread32(priv->regs + TSI721_RIO_EM_INT_STAT);
 		if (intval & TSI721_RIO_EM_INT_STAT_PW_RX)
 			tsi721_pw_handler(mport);
+	}
+
+	/* For MSI mode re-enable device-level interrupts */
+	if (priv->flags & TSI721_USING_MSI) {
+		dev_int = TSI721_DEV_INT_SR2PC_CH | TSI721_DEV_INT_SRIO |
+			TSI721_DEV_INT_SMSG_CH;
+		iowrite32(dev_int, priv->regs + TSI721_DEV_INTE);
 	}
 
 	return IRQ_HANDLED;
