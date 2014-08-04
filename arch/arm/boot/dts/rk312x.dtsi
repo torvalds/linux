@@ -332,9 +332,9 @@
 				<&clk_gates1 0>;/*pclk_pmu_pre*/
 	};
 
-	i2c0: i2c@20070000 {
+	i2c0: i2c@20072000 {
 		compatible = "rockchip,rk30-i2c";
-		reg = <0x20070000 0x1000>;
+		reg = <0x20072000 0x1000>;
 		interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -347,9 +347,9 @@
 		status = "disabled";
 	};
 
-	i2c1: i2c@20054000 {
+	i2c1: i2c@20056000 {
 		compatible = "rockchip,rk30-i2c";
-		reg = <0x20054000 0x1000>;
+		reg = <0x20056000 0x1000>;
 		interrupts = <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -362,9 +362,9 @@
 		status = "disabled";
 	};
 
-	i2c2: i2c@20058000 {
+	i2c2: i2c@2005a000 {
 		compatible = "rockchip,rk30-i2c";
-		reg = <0x20058000 0x1000>;
+		reg = <0x2005a000 0x1000>;
 		interrupts = <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -377,9 +377,9 @@
 		status = "disabled";
 	};
 
-	i2c3: i2c@2005c000 {
+	i2c3: i2c@2005e000 {
 		compatible = "rockchip,rk30-i2c";
-		reg = <0x2005C000 0x1000>;
+		reg = <0x2005e000 0x1000>;
 		interrupts = <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
