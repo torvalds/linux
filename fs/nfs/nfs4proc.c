@@ -5942,8 +5942,10 @@ struct nfs_release_lockowner_data {
 static void nfs4_release_lockowner_prepare(struct rpc_task *task, void *calldata)
 {
 	struct nfs_release_lockowner_data *data = calldata;
-	nfs40_setup_sequence(data->server,
-				&data->args.seq_args, &data->res.seq_res, task);
+	struct nfs_server *server = data->server;
+	nfs40_setup_sequence(server, &data->args.seq_args,
+				&data->res.seq_res, task);
+	data->args.lock_owner.clientid = server->nfs_client->cl_clientid;
 	data->timestamp = jiffies;
 }
 
@@ -5960,6 +5962,8 @@ static void nfs4_release_lockowner_done(struct rpc_task *task, void *calldata)
 		break;
 	case -NFS4ERR_STALE_CLIENTID:
 	case -NFS4ERR_EXPIRED:
+		nfs4_schedule_lease_recovery(server->nfs_client);
+		break;
 	case -NFS4ERR_LEASE_MOVED:
 	case -NFS4ERR_DELAY:
 		if (nfs4_async_handle_error(task, server, NULL) == -EAGAIN)
