@@ -119,6 +119,8 @@ static int sti_compositor_bind(struct device *dev, struct device *master,
 						(1 << crtc) - 1, plane_type);
 				plane++;
 				break;
+			case STI_BCK:
+				break;
 			}
 
 			/* The first planes are reserved for primary planes*/

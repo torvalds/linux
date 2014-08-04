@@ -151,8 +151,6 @@ static int sti_drm_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 				      struct drm_framebuffer *old_fb)
 {
 	struct sti_mixer *mixer = to_sti_mixer(crtc);
-	struct device *dev = mixer->dev;
-	struct sti_compositor *compo = dev_get_drvdata(dev);
 	struct sti_layer *layer;
 	unsigned int w, h;
 	int ret;
