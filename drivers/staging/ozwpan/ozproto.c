@@ -29,8 +29,6 @@
 #define OZ_DO_STOP		1
 #define OZ_DO_SLEEP		2
 
-#define OZ_MAX_TIMER_POOL_SIZE	16
-
 struct oz_binding {
 	struct packet_type ptype;
 	char name[OZ_MAX_BINDING_LEN];
