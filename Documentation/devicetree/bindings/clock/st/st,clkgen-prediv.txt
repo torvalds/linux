@@ -20,17 +20,17 @@ Required properties:
 
 Example:
 
-	clockgenA@fd345000 {
+	clockgen-a@fd345000 {
 		reg = <0xfd345000 0xb50>;
 
-		CLK_M_A2_OSC_PREDIV: CLK_M_A2_OSC_PREDIV {
+		clk_m_a2_osc_prediv: clk-m-a2-osc-prediv {
 			#clock-cells = <0>;
 			compatible = "st,clkgena-prediv-c32",
 				     "st,clkgena-prediv";
 
-			clocks = <&CLK_SYSIN>;
+			clocks = <&clk_sysin>;
 
-			clock-output-names = "CLK_M_A2_OSC_PREDIV";
+			clock-output-names = "clk-m-a2-osc-prediv";
 		};
 	};
 

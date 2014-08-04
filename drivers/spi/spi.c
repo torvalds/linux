@@ -29,6 +29,7 @@
 #include <linux/mutex.h>
 #include <linux/of_device.h>
 #include <linux/of_irq.h>
+#include <linux/clk/clk-conf.h>
 #include <linux/slab.h>
 #include <linux/mod_devicetable.h>
 #include <linux/spi/spi.h>
@@ -258,6 +259,10 @@ static int spi_drv_probe(struct device *dev)
 {
 	const struct spi_driver		*sdrv = to_spi_driver(dev->driver);
 	int ret;
+
+	ret = of_clk_set_defaults(dev->of_node, false);
+	if (ret)
+		return ret;
 
 	acpi_dev_pm_attach(dev, true);
 	ret = sdrv->probe(to_spi_device(dev));

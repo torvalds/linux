@@ -9057,6 +9057,13 @@ L:	linux-pm@vger.kernel.org
 S:	Supported
 F:	drivers/thermal/ti-soc-thermal/
 
+TI CLOCK DRIVER
+M:	Tero Kristo <t-kristo@ti.com>
+L:	linux-omap@vger.kernel.org
+S:	Maintained
+F:	drivers/clk/ti/
+F:	include/linux/clk/ti.h
+
 TI FLASH MEDIA INTERFACE DRIVER
 M:	Alex Dubov <oakad@yahoo.com>
 S:	Maintained

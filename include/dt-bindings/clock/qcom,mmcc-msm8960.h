@@ -133,5 +133,13 @@
 #define CSIPHY0_TIMER_CLK				116
 #define PLL1						117
 #define PLL2						118
+#define RGB_TV_CLK					119
+#define NPL_TV_CLK					120
+#define VCAP_AHB_CLK					121
+#define VCAP_AXI_CLK					122
+#define VCAP_SRC					123
+#define VCAP_CLK					124
+#define VCAP_NPL_CLK					125
+#define PLL15						126
 
 #endif
