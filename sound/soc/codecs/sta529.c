@@ -197,16 +197,16 @@ static int sta529_hw_params(struct snd_pcm_substream *substream,
 	int pdata, play_freq_val, record_freq_val;
 	int bclk_to_fs_ratio;
 
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S16_LE:
+	switch (params_width(params)) {
+	case 16:
 		pdata = 1;
 		bclk_to_fs_ratio = 0;
 		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
+	case 24:
 		pdata = 2;
 		bclk_to_fs_ratio = 1;
 		break;
-	case SNDRV_PCM_FORMAT_S32_LE:
+	case 32:
 		pdata = 3;
 		bclk_to_fs_ratio = 2;
 		break;

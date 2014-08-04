@@ -243,14 +243,14 @@ static int uda134x_hw_params(struct snd_pcm_substream *substream,
 	case SND_SOC_DAIFMT_I2S:
 		break;
 	case SND_SOC_DAIFMT_RIGHT_J:
-		switch (params_format(params)) {
-		case SNDRV_PCM_FORMAT_S16_LE:
+		switch (params_width(params)) {
+		case 16:
 			hw_params |= (1<<1);
 			break;
-		case SNDRV_PCM_FORMAT_S18_3LE:
+		case 18:
 			hw_params |= (1<<2);
 			break;
-		case SNDRV_PCM_FORMAT_S20_3LE:
+		case 20:
 			hw_params |= ((1<<2) | (1<<1));
 			break;
 		default:

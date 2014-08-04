@@ -430,19 +430,19 @@ static int wm8940_i2s_hw_params(struct snd_pcm_substream *substream,
 	if (ret)
 		goto error_ret;
 
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S8:
+	switch (params_width(params)) {
+	case 8:
 		companding = companding | (1 << 5);
 		break;
-	case SNDRV_PCM_FORMAT_S16_LE:
+	case 16:
 		break;
-	case SNDRV_PCM_FORMAT_S20_3LE:
+	case 20:
 		iface |= (1 << 5);
 		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
+	case 24:
 		iface |= (2 << 5);
 		break;
-	case SNDRV_PCM_FORMAT_S32_LE:
+	case 32:
 		iface |= (3 << 5);
 		break;
 	}
