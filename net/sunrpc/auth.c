@@ -630,14 +630,8 @@ rpcauth_lookupcred(struct rpc_auth *auth, int flags)
 	memset(&acred, 0, sizeof(acred));
 	acred.uid = cred->fsuid;
 	acred.gid = cred->fsgid;
-	if (flags & RPCAUTH_LOOKUP_RCU)
-		acred.group_info = rcu_dereference(cred->group_info);
-	else
-		acred.group_info = get_group_info(((struct cred *)cred)->group_info);
-
+	acred.group_info = cred->group_info;
 	ret = auth->au_ops->lookup_cred(auth, &acred, flags);
-	if (!(flags & RPCAUTH_LOOKUP_RCU))
-		put_group_info(acred.group_info);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(rpcauth_lookupcred);
