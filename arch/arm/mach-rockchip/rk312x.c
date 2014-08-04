@@ -181,6 +181,8 @@ static void __init rk312x_dt_init_timer(void)
 
 static void __init rk312x_reserve(void)
 {
+	/* reserve memory for ION */
+	rockchip_ion_reserve();
 }
 
 static void __init rk312x_init_late(void)
