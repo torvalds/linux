@@ -54,6 +54,7 @@ vbuschannel_sanitize_buffer(char *p, int remain, char *src, int srcmax)
 {
 	int chars = 0;
 	int nonprintable_streak = 0;
+
 	while (srcmax > 0) {
 		if ((*src >= ' ') && (*src < 0x7f)) {
 			if (nonprintable_streak) {
