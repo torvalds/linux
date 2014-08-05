@@ -1580,8 +1580,6 @@ static void coda_finish_decode(struct coda_ctx *ctx)
 	u32 err_mb;
 	u32 val;
 
-	dst_buf = v4l2_m2m_next_dst_buf(ctx->fh.m2m_ctx);
-
 	/* Update kfifo out pointer from coda bitstream read pointer */
 	coda_kfifo_sync_from_device(ctx);
 
