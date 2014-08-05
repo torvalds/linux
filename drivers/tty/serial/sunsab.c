@@ -476,12 +476,6 @@ static void sunsab_stop_rx(struct uart_port *port)
 	writeb(up->interrupt_mask1, &up->regs->w.imr0);
 }
 
-/* port->lock held by caller.  */
-static void sunsab_enable_ms(struct uart_port *port)
-{
-	/* For now we always receive these interrupts.  */
-}
-
 /* port->lock is not held.  */
 static void sunsab_break_ctl(struct uart_port *port, int break_state)
 {
@@ -810,7 +804,6 @@ static struct uart_ops sunsab_pops = {
 	.start_tx	= sunsab_start_tx,
 	.send_xchar	= sunsab_send_xchar,
 	.stop_rx	= sunsab_stop_rx,
-	.enable_ms	= sunsab_enable_ms,
 	.break_ctl	= sunsab_break_ctl,
 	.startup	= sunsab_startup,
 	.shutdown	= sunsab_shutdown,

@@ -18,6 +18,8 @@
 	interrupt-parent = <&gic>;
 
 	aliases {
+		serial0 = &serial_0;
+		serial1 = &serial_1;
 		spi0 = &spi_0;
 		tmuctrl0 = &tmuctrl_0;
 		tmuctrl1 = &tmuctrl_1;
@@ -102,7 +104,7 @@
 		>;
 	};
 
-	serial@B0000 {
+	serial_0: serial@B0000 {
 		compatible = "samsung,exynos4210-uart";
 		reg = <0xB0000 0x1000>;
 		interrupts = <0 2 0>;
@@ -110,7 +112,7 @@
 		clock-names = "uart", "clk_uart_baud0";
 	};
 
-	serial@C0000 {
+	serial_1: serial@C0000 {
 		compatible = "samsung,exynos4210-uart";
 		reg = <0xC0000 0x1000>;
 		interrupts = <0 3 0>;

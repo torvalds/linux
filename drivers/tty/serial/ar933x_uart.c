@@ -176,10 +176,6 @@ static void ar933x_uart_break_ctl(struct uart_port *port, int break_state)
 	spin_unlock_irqrestore(&up->port.lock, flags);
 }
 
-static void ar933x_uart_enable_ms(struct uart_port *port)
-{
-}
-
 /*
  * baudrate = (clk / (scale + 1)) * (step * (1 / 2^17))
  */
@@ -495,7 +491,6 @@ static struct uart_ops ar933x_uart_ops = {
 	.stop_tx	= ar933x_uart_stop_tx,
 	.start_tx	= ar933x_uart_start_tx,
 	.stop_rx	= ar933x_uart_stop_rx,
-	.enable_ms	= ar933x_uart_enable_ms,
 	.break_ctl	= ar933x_uart_break_ctl,
 	.startup	= ar933x_uart_startup,
 	.shutdown	= ar933x_uart_shutdown,

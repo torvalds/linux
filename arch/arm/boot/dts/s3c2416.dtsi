@@ -16,6 +16,10 @@
 	model = "Samsung S3C2416 SoC";
 	compatible = "samsung,s3c2416";
 
+	aliases {
+		serial3 = &uart3;
+	};
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -68,7 +72,7 @@
 				<&clocks SCLK_UART>;
 	};
 
-	serial@5000C000 {
+	uart3: serial@5000C000 {
 		compatible = "samsung,s3c2440-uart";
 		reg = <0x5000C000 0x4000>;
 		interrupts = <1 18 24 4>, <1 18 25 4>;

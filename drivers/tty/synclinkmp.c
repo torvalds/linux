@@ -753,7 +753,7 @@ static int open(struct tty_struct *tty, struct file *filp)
 			 __FILE__,__LINE__,tty->driver->name, info->port.count);
 
 	/* If port is closing, signal caller to try again */
-	if (tty_hung_up_p(filp) || info->port.flags & ASYNC_CLOSING){
+	if (info->port.flags & ASYNC_CLOSING){
 		wait_event_interruptible_tty(tty, info->port.close_wait,
 					     !(info->port.flags & ASYNC_CLOSING));
 		retval = ((info->port.flags & ASYNC_HUP_NOTIFY) ?
@@ -3288,7 +3288,6 @@ static int block_til_ready(struct tty_struct *tty, struct file *filp,
 	DECLARE_WAITQUEUE(wait, current);
 	int		retval;
 	bool		do_clocal = false;
-	bool		extra_count = false;
 	unsigned long	flags;
 	int		cd;
 	struct tty_port *port = &info->port;
@@ -3322,10 +3321,7 @@ static int block_til_ready(struct tty_struct *tty, struct file *filp,
 			 __FILE__,__LINE__, tty->driver->name, port->count );
 
 	spin_lock_irqsave(&info->lock, flags);
-	if (!tty_hung_up_p(filp)) {
-		extra_count = true;
-		port->count--;
-	}
+	port->count--;
 	spin_unlock_irqrestore(&info->lock, flags);
 	port->blocked_open++;
 
@@ -3362,8 +3358,7 @@ static int block_til_ready(struct tty_struct *tty, struct file *filp,
 
 	set_current_state(TASK_RUNNING);
 	remove_wait_queue(&port->open_wait, &wait);
-
-	if (extra_count)
+	if (!tty_hung_up_p(filp))
 		port->count++;
 	port->blocked_open--;
 
