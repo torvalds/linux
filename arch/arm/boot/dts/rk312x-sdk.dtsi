@@ -175,8 +175,8 @@
 
 		rk818_dcdc2_reg: regulator@1 {
 			regulator-name= "vdd_logic";
-			regulator-min-microvolt = <1200000>;
-			regulator-max-microvolt = <1200000>;
+			regulator-min-microvolt = <700000>;
+			regulator-max-microvolt = <1500000>;
 			regulator-initial-mode = <0x2>;
 			regulator-initial-state = <3>;
 			regulator-state-mem {
@@ -334,15 +334,16 @@
 		600000 1250000
 		696000 1250000
 		816000 1250000
+		1008000 1250000
 		>;
-	status="disable";
+	status="okay";
 };
 
 &clk_gpu_dvfs_table {
 	operating-points = <
 		/* KHz    uV */
-		200000 125000
-		300000 125000
+		200000 1250000
+		300000 1250000
 		>;
 	status="okay";
 };
