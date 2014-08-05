@@ -2899,7 +2899,7 @@ static struct sock *netlink_seq_socket_idx(struct seq_file *seq, loff_t pos)
 
 	for (i = 0; i < MAX_LINKS; i++) {
 		struct rhashtable *ht = &nl_table[i].hash;
-		const struct bucket_table *tbl = rht_dereference(ht->tbl, ht);
+		const struct bucket_table *tbl = rht_dereference_rcu(ht->tbl, ht);
 
 		for (j = 0; j < tbl->size; j++) {
 			rht_for_each_entry_rcu(nlk, tbl->buckets[j], node) {
@@ -2950,7 +2950,7 @@ static void *netlink_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 
 	do {
 		struct rhashtable *ht = &nl_table[i].hash;
-		const struct bucket_table *tbl = rht_dereference(ht->tbl, ht);
+		const struct bucket_table *tbl = rht_dereference_rcu(ht->tbl, ht);
 
 		for (; j < tbl->size; j++) {
 			rht_for_each_entry_rcu(nlk, tbl->buckets[j], node) {
