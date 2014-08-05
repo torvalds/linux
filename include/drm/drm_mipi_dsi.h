@@ -192,6 +192,7 @@ ssize_t mipi_dsi_dcs_write(struct mipi_dsi_device *dsi, u8 cmd,
 ssize_t mipi_dsi_dcs_read(struct mipi_dsi_device *dsi, u8 cmd, void *data,
 			  size_t len);
 int mipi_dsi_dcs_nop(struct mipi_dsi_device *dsi);
+int mipi_dsi_dcs_soft_reset(struct mipi_dsi_device *dsi);
 int mipi_dsi_dcs_enter_sleep_mode(struct mipi_dsi_device *dsi);
 int mipi_dsi_dcs_exit_sleep_mode(struct mipi_dsi_device *dsi);
 int mipi_dsi_dcs_set_display_off(struct mipi_dsi_device *dsi);
