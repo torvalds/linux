@@ -58,7 +58,7 @@
 
 int coda_debug;
 module_param(coda_debug, int, 0644);
-MODULE_PARM_DESC(coda_debug, "Debug level (0-1)");
+MODULE_PARM_DESC(coda_debug, "Debug level (0-2)");
 
 struct coda_fmt {
 	char *name;
@@ -67,7 +67,7 @@ struct coda_fmt {
 
 void coda_write(struct coda_dev *dev, u32 data, u32 reg)
 {
-	v4l2_dbg(1, coda_debug, &dev->v4l2_dev,
+	v4l2_dbg(2, coda_debug, &dev->v4l2_dev,
 		 "%s: data=0x%x, reg=0x%x\n", __func__, data, reg);
 	writel(data, dev->regs_base + reg);
 }
@@ -76,7 +76,7 @@ unsigned int coda_read(struct coda_dev *dev, u32 reg)
 {
 	u32 data;
 	data = readl(dev->regs_base + reg);
-	v4l2_dbg(1, coda_debug, &dev->v4l2_dev,
+	v4l2_dbg(2, coda_debug, &dev->v4l2_dev,
 		 "%s: data=0x%x, reg=0x%x\n", __func__, data, reg);
 	return data;
 }
