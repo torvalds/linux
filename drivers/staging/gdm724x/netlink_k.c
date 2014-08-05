@@ -54,7 +54,7 @@ static void netlink_rcv_cb(struct sk_buff *skb)
 		return;
 	}
 
-	if (skb->len < NLMSG_SPACE(0)) {
+	if (skb->len < NLMSG_HDRLEN) {
 		pr_err("nl cb - invalid skb length\n");
 		return;
 	}

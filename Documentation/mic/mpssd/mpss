@@ -48,18 +48,18 @@ start()
 	fi
 
 	echo -e $"Starting MPSS Stack"
-	echo -e $"Loading MIC_HOST Module"
+	echo -e $"Loading MIC_X100_DMA & MIC_HOST Modules"
 
-	# Ensure the driver is loaded
-	if [ ! -d "$sysfs" ]; then
-		modprobe mic_host
+	for f in "mic_host" "mic_x100_dma"
+	do
+		modprobe $f
 		RETVAL=$?
 		if [ $RETVAL -ne 0 ]; then
 			failure
 			echo
 			return $RETVAL
 		fi
-	fi
+	done
 
 	# Start the daemon
 	echo -n $"Starting MPSSD "
@@ -170,8 +170,8 @@ unload()
 	stop
 
 	sleep 5
-	echo -n $"Removing MIC_HOST Module: "
-	modprobe -r mic_host
+	echo -n $"Removing MIC_HOST & MIC_X100_DMA Modules: "
+	modprobe -r mic_host mic_x100_dma
 	RETVAL=$?
 	[ $RETVAL -ne 0 ] && failure || success
 	echo

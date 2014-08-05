@@ -28,7 +28,7 @@
  * Code originally extracted from quota directory
  */
 
-#include <obd_ost.h>
+#include "../include/obd_ost.h"
 #include "osc_internal.h"
 
 static inline struct osc_quota_info *osc_oqi_alloc(obd_uid id)

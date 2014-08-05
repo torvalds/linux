@@ -87,7 +87,7 @@ static int exynos_ohci_get_phy(struct device *dev,
 			return -EINVAL;
 		}
 
-		phy = devm_of_phy_get(dev, child, 0);
+		phy = devm_of_phy_get(dev, child, NULL);
 		of_node_put(child);
 		if (IS_ERR(phy)) {
 			ret = PTR_ERR(phy);

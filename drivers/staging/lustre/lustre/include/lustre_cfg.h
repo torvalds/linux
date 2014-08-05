@@ -222,7 +222,7 @@ static inline int lustre_cfg_len(__u32 bufcount, __u32 *buflens)
 }
 
 
-#include <obd_support.h>
+#include "obd_support.h"
 
 static inline struct lustre_cfg *lustre_cfg_new(int cmd,
 						struct lustre_cfg_bufs *bufs)
@@ -286,7 +286,7 @@ static inline int lustre_cfg_sanity_check(void *buf, int len)
 	return 0;
 }
 
-#include <lustre/lustre_user.h>
+#include "lustre/lustre_user.h"
 
 /** @} cfg */
 

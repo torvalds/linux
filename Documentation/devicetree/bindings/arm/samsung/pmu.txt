@@ -12,8 +12,38 @@ Properties:
 
  - reg : offset and length of the register set.
 
+ - #clock-cells : must be <1>, since PMU requires once cell as clock specifier.
+		The single specifier cell is used as index to list of clocks
+		provided by PMU, which is currently:
+			0 : SoC clock output (CLKOUT pin)
+
+ - clock-names : list of clock names for particular CLKOUT mux inputs in
+		following format:
+			"clkoutN", where N is a decimal number corresponding to
+			CLKOUT mux control bits value for given input, e.g.
+				"clkout0", "clkout7", "clkout15".
+
+ - clocks : list of phandles and specifiers to all input clocks listed in
+		clock-names property.
+
 Example :
 pmu_system_controller: system-controller@10040000 {
 	compatible = "samsung,exynos5250-pmu", "syscon";
 	reg = <0x10040000 0x5000>;
+	#clock-cells = <1>;
+	clock-names = "clkout0", "clkout1", "clkout2", "clkout3",
+			"clkout4", "clkout8", "clkout9";
+	clocks = <&clock CLK_OUT_DMC>, <&clock CLK_OUT_TOP>,
+		<&clock CLK_OUT_LEFTBUS>, <&clock CLK_OUT_RIGHTBUS>,
+		<&clock CLK_OUT_CPU>, <&clock CLK_XXTI>,
+		<&clock CLK_XUSBXTI>;
+};
+
+Example of clock consumer :
+
+usb3503: usb3503@08 {
+	/* ... */
+	clock-names = "refclk";
+	clocks = <&pmu_system_controller 0>;
+	/* ... */
 };

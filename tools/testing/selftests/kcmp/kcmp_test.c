@@ -81,7 +81,7 @@ int main(int argc, char **argv)
 		/* Compare with self */
 		ret = sys_kcmp(pid1, pid1, KCMP_VM, 0, 0);
 		if (ret) {
-			printf("FAIL: 0 expected but %li returned (%s)\n",
+			printf("FAIL: 0 expected but %d returned (%s)\n",
 				ret, strerror(errno));
 			ret = -1;
 		} else

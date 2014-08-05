@@ -102,9 +102,8 @@ static int subdev_8255_io(int dir, int port, int data, unsigned long iobase)
 	if (dir) {
 		outb(data, iobase + port);
 		return 0;
-	} else {
-		return inb(iobase + port);
 	}
+	return inb(iobase + port);
 }
 
 void subdev_8255_interrupt(struct comedi_device *dev,

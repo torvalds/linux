@@ -1718,6 +1718,8 @@ asmlinkage __visible void __init xen_start_kernel(void)
 
 	xen_setup_runstate_info(0);
 
+	xen_efi_init();
+
 	/* Start the world */
 #ifdef CONFIG_X86_32
 	i386_start_kernel();

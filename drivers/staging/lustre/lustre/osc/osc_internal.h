@@ -97,7 +97,7 @@ void osc_update_next_shrink(struct client_obd *cli);
 /*
  * cl integration.
  */
-#include <cl_object.h>
+#include "../include/cl_object.h"
 
 extern struct ptlrpc_request_set *PTLRPCD_SET;
 
@@ -112,7 +112,7 @@ int osc_cancel_base(struct lustre_handle *lockh, __u32 mode);
 
 int osc_match_base(struct obd_export *exp, struct ldlm_res_id *res_id,
 		   __u32 type, ldlm_policy_data_t *policy, __u32 mode,
-		   int *flags, void *data, struct lustre_handle *lockh,
+		   __u64 *flags, void *data, struct lustre_handle *lockh,
 		   int unref);
 
 int osc_setattr_async_base(struct obd_export *exp, struct obd_info *oinfo,
@@ -136,7 +136,7 @@ extern spinlock_t osc_ast_guard;
 int osc_cleanup(struct obd_device *obd);
 int osc_setup(struct obd_device *obd, struct lustre_cfg *lcfg);
 
-#ifdef LPROCFS
+#if defined (CONFIG_PROC_FS)
 int lproc_osc_attach_seqstat(struct obd_device *dev);
 void lprocfs_osc_init_vars(struct lprocfs_static_vars *lvars);
 #else

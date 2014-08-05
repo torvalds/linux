@@ -96,7 +96,7 @@ static void iio_sysfs_trigger_work(struct irq_work *work)
 	struct iio_sysfs_trig *trig = container_of(work, struct iio_sysfs_trig,
 							work);
 
-	iio_trigger_poll(trig->trig, 0);
+	iio_trigger_poll(trig->trig);
 }
 
 static ssize_t iio_sysfs_trigger_poll(struct device *dev,

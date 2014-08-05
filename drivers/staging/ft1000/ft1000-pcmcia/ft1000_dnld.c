@@ -15,8 +15,8 @@
    Suite 330, Boston, MA 02111-1307, USA.
   --------------------------------------------------------------------------
 
-   Description:  This module will handshake with the DSP bootloader to
-                 download the DSP runtime image.
+   Description: This module will handshake with the DSP bootloader to
+		download the DSP runtime image.
 
 ---------------------------------------------------------------------------*/
 

@@ -6,6 +6,5 @@ config R8821AE
 	select WEXT_PRIV
 	select EEPROM_93CX6
 	select CRYPTO
-	default N
 	---help---
 	  If built as a module, it will be called r8821ae.ko.

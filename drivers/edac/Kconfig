@@ -72,6 +72,7 @@ config EDAC_MCE_INJ
 
 config EDAC_MM_EDAC
 	tristate "Main Memory EDAC (Error Detection And Correction) reporting"
+	select RAS
 	help
 	  Some systems are able to detect and correct errors in main
 	  memory.  EDAC can report statistics on memory error
@@ -185,6 +186,13 @@ config EDAC_I3200
 	help
 	  Support for error detection and correction on the Intel
 	  3200 and 3210 server chipsets.
+
+config EDAC_IE31200
+	tristate "Intel e312xx"
+	depends on EDAC_MM_EDAC && PCI && X86
+	help
+	  Support for error detection and correction on the Intel
+	  E3-1200 based DRAM controllers.
 
 config EDAC_X38
 	tristate "Intel X38"

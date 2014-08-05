@@ -41,7 +41,6 @@
 #include "dgnc_driver.h"	/* Driver main header file */
 #include "dgnc_neo.h"		/* Our header file */
 #include "dgnc_tty.h"
-#include "dgnc_trace.h"
 
 static inline void neo_parse_lsr(struct dgnc_board *brd, uint port);
 static inline void neo_parse_isr(struct dgnc_board *brd, uint port);

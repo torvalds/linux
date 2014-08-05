@@ -153,6 +153,7 @@ static inline void cfs_race(__u32 id)
 	if (CFS_FAIL_PRECHECK(id)) {
 		if (unlikely(__cfs_fail_check_set(id, 0, CFS_FAIL_LOC_NOSET))) {
 			int rc;
+
 			cfs_race_state = 0;
 			CERROR("cfs_race id %x sleeping\n", id);
 			cfs_wait_event_interruptible(cfs_race_waitq,
@@ -165,6 +166,7 @@ static inline void cfs_race(__u32 id)
 		}
 	}
 }
+
 #define CFS_RACE(id) cfs_race(id)
 
 #endif /* _LIBCFS_FAIL_H */

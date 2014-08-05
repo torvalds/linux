@@ -47,9 +47,9 @@
 
 #define DEBUG_SUBSYSTEM S_LLITE
 
-#include <lustre_lite.h>
+#include "../include/lustre_lite.h"
 #include "llite_internal.h"
-#include <linux/lustre_compat25.h>
+#include "../include/linux/lustre_compat25.h"
 
 static const struct vm_operations_struct ll_file_vm_ops;
 
@@ -449,7 +449,7 @@ int ll_teardown_mmaps(struct address_space *mapping, __u64 first, __u64 last)
 {
 	int rc = -ENOENT;
 
-	LASSERTF(last > first, "last "LPU64" first "LPU64"\n", last, first);
+	LASSERTF(last > first, "last %llu first %llu\n", last, first);
 	if (mapping_mapped(mapping)) {
 		rc = 0;
 		unmap_mapping_range(mapping, first + PAGE_CACHE_SIZE - 1,

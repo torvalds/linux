@@ -89,6 +89,13 @@ enum mem_type {
 	DIRTY_DENTS	/* indicates dirty dentry pages */
 };
 
+struct nat_entry_set {
+	struct list_head set_list;	/* link with all nat sets */
+	struct list_head entry_list;	/* link with dirty nat entries */
+	nid_t start_nid;		/* start nid of nats in set */
+	unsigned int entry_cnt;		/* the # of nat entries in set */
+};
+
 /*
  * For free nid mangement
  */

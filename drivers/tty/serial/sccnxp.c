@@ -533,11 +533,6 @@ static unsigned int sccnxp_tx_empty(struct uart_port *port)
 	return (val & SR_TXEMT) ? TIOCSER_TEMT : 0;
 }
 
-static void sccnxp_enable_ms(struct uart_port *port)
-{
-	/* Do nothing */
-}
-
 static void sccnxp_set_mctrl(struct uart_port *port, unsigned int mctrl)
 {
 	struct sccnxp_port *s = dev_get_drvdata(port->dev);
@@ -790,7 +785,6 @@ static const struct uart_ops sccnxp_ops = {
 	.stop_tx	= sccnxp_stop_tx,
 	.start_tx	= sccnxp_start_tx,
 	.stop_rx	= sccnxp_stop_rx,
-	.enable_ms	= sccnxp_enable_ms,
 	.break_ctl	= sccnxp_break_ctl,
 	.startup	= sccnxp_startup,
 	.shutdown	= sccnxp_shutdown,

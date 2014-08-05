@@ -47,7 +47,7 @@
  * @{
  */
 
-#include <linux/libcfs/libcfs.h>
+#include "../../include/linux/libcfs/libcfs.h"
 
 #define CFS_NGROUPS_PER_BLOCK   ((int)(PAGE_CACHE_SIZE / sizeof(gid_t)))
 

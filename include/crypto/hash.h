@@ -238,10 +238,10 @@ static inline struct ahash_request *ahash_request_cast(
 
 static inline void ahash_request_set_callback(struct ahash_request *req,
 					      u32 flags,
-					      crypto_completion_t complete,
+					      crypto_completion_t compl,
 					      void *data)
 {
-	req->base.complete = complete;
+	req->base.complete = compl;
 	req->base.data = data;
 	req->base.flags = flags;
 }

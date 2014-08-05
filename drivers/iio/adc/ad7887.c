@@ -15,6 +15,7 @@
 #include <linux/err.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
+#include <linux/bitops.h>
 
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
@@ -25,22 +26,20 @@
 
 #include <linux/platform_data/ad7887.h>
 
-#define AD7887_REF_DIS		(1 << 5) /* on-chip reference disable */
-#define AD7887_DUAL		(1 << 4) /* dual-channel mode */
-#define AD7887_CH_AIN1		(1 << 3) /* convert on channel 1, DUAL=1 */
-#define AD7887_CH_AIN0		(0 << 3) /* convert on channel 0, DUAL=0,1 */
-#define AD7887_PM_MODE1		(0)	 /* CS based shutdown */
-#define AD7887_PM_MODE2		(1)	 /* full on */
-#define AD7887_PM_MODE3		(2)	 /* auto shutdown after conversion */
-#define AD7887_PM_MODE4		(3)	 /* standby mode */
+#define AD7887_REF_DIS		BIT(5)	/* on-chip reference disable */
+#define AD7887_DUAL		BIT(4)	/* dual-channel mode */
+#define AD7887_CH_AIN1		BIT(3)	/* convert on channel 1, DUAL=1 */
+#define AD7887_CH_AIN0		0	/* convert on channel 0, DUAL=0,1 */
+#define AD7887_PM_MODE1		0	/* CS based shutdown */
+#define AD7887_PM_MODE2		1	/* full on */
+#define AD7887_PM_MODE3		2	/* auto shutdown after conversion */
+#define AD7887_PM_MODE4		3	/* standby mode */
 
 enum ad7887_channels {
 	AD7887_CH0,
 	AD7887_CH0_CH1,
 	AD7887_CH1,
 };
-
-#define RES_MASK(bits)	((1 << (bits)) - 1)
 
 /**
  * struct ad7887_chip_info - chip specifc information
@@ -167,7 +166,7 @@ static int ad7887_read_raw(struct iio_dev *indio_dev,
 		if (ret < 0)
 			return ret;
 		*val = ret >> chan->scan_type.shift;
-		*val &= RES_MASK(chan->scan_type.realbits);
+		*val &= GENMASK(chan->scan_type.realbits - 1, 0);
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
 		if (st->reg) {

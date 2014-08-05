@@ -363,6 +363,4 @@ struct ft1000_info {
 		u16 Rec[MAX_DSP_SESS_REC];
 		u32 MagRec[MAX_DSP_SESS_REC/2];
 	} DSPSess;
-	struct proc_dir_entry *ft1000_proc_dir;
-	char netdevname[IFNAMSIZ];
 };

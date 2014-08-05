@@ -40,17 +40,17 @@
 
 #define DEBUG_SUBSYSTEM S_SEC
 
-#include <linux/libcfs/libcfs.h>
+#include "../../include/linux/libcfs/libcfs.h"
 #include <linux/crypto.h>
 #include <linux/key.h>
 
-#include <obd.h>
-#include <obd_class.h>
-#include <obd_support.h>
-#include <lustre_net.h>
-#include <lustre_import.h>
-#include <lustre_dlm.h>
-#include <lustre_sec.h>
+#include "../include/obd.h"
+#include "../include/obd_class.h"
+#include "../include/obd_support.h"
+#include "../include/lustre_net.h"
+#include "../include/lustre_import.h"
+#include "../include/lustre_dlm.h"
+#include "../include/lustre_sec.h"
 
 #include "ptlrpc_internal.h"
 
@@ -305,8 +305,8 @@ EXPORT_SYMBOL(sptlrpc_cli_ctx_put);
  */
 void sptlrpc_cli_ctx_expire(struct ptlrpc_cli_ctx *ctx)
 {
-	LASSERT(ctx->cc_ops->die);
-	ctx->cc_ops->die(ctx, 0);
+	LASSERT(ctx->cc_ops->force_die);
+	ctx->cc_ops->force_die(ctx, 0);
 }
 EXPORT_SYMBOL(sptlrpc_cli_ctx_expire);
 
@@ -344,7 +344,7 @@ static int import_sec_check_expire(struct obd_import *imp)
 
 	spin_lock(&imp->imp_lock);
 	if (imp->imp_sec_expire &&
-	    imp->imp_sec_expire < cfs_time_current_sec()) {
+	    imp->imp_sec_expire < get_seconds()) {
 		adapt = 1;
 		imp->imp_sec_expire = 0;
 	}
@@ -591,7 +591,7 @@ int ctx_refresh_timeout(void *data)
 	 * later than the context refresh expire time.
 	 */
 	if (rc == 0)
-		req->rq_cli_ctx->cc_ops->die(req->rq_cli_ctx, 0);
+		req->rq_cli_ctx->cc_ops->force_die(req->rq_cli_ctx, 0);
 	return rc;
 }
 
@@ -992,7 +992,7 @@ static int do_cli_unwrap_reply(struct ptlrpc_request *req)
 	case 0:
 		break;
 	default:
-		CERROR("failed unpack reply: x"LPU64"\n", req->rq_xid);
+		CERROR("failed unpack reply: x%llu\n", req->rq_xid);
 		return -EPROTO;
 	}
 
@@ -1774,7 +1774,7 @@ int sptlrpc_target_export_check(struct obd_export *exp,
 		exp->exp_flvr_old[1] = exp->exp_flvr_old[0];
 		exp->exp_flvr_expire[1] = exp->exp_flvr_expire[0];
 		exp->exp_flvr_old[0] = exp->exp_flvr;
-		exp->exp_flvr_expire[0] = cfs_time_current_sec() +
+		exp->exp_flvr_expire[0] = get_seconds() +
 					  EXP_FLVR_UPDATE_EXPIRE;
 		exp->exp_flvr = flavor;
 
@@ -1848,7 +1848,7 @@ int sptlrpc_target_export_check(struct obd_export *exp,
 	}
 
 	if (exp->exp_flvr_expire[0]) {
-		if (exp->exp_flvr_expire[0] >= cfs_time_current_sec()) {
+		if (exp->exp_flvr_expire[0] >= get_seconds()) {
 			if (flavor_allowed(&exp->exp_flvr_old[0], req)) {
 				CDEBUG(D_SEC, "exp %p (%x|%x|%x): match the "
 				       "middle one ("CFS_DURATION_T")\n", exp,
@@ -1856,7 +1856,7 @@ int sptlrpc_target_export_check(struct obd_export *exp,
 				       exp->exp_flvr_old[0].sf_rpc,
 				       exp->exp_flvr_old[1].sf_rpc,
 				       exp->exp_flvr_expire[0] -
-						cfs_time_current_sec());
+						get_seconds());
 				spin_unlock(&exp->exp_lock);
 				return 0;
 			}
@@ -1873,7 +1873,7 @@ int sptlrpc_target_export_check(struct obd_export *exp,
 	/* now it doesn't match the current flavor, the only chance we can
 	 * accept it is match the old flavors which is not expired. */
 	if (exp->exp_flvr_changed == 0 && exp->exp_flvr_expire[1]) {
-		if (exp->exp_flvr_expire[1] >= cfs_time_current_sec()) {
+		if (exp->exp_flvr_expire[1] >= get_seconds()) {
 			if (flavor_allowed(&exp->exp_flvr_old[1], req)) {
 				CDEBUG(D_SEC, "exp %p (%x|%x|%x): match the "
 				       "oldest one ("CFS_DURATION_T")\n", exp,
@@ -1881,7 +1881,7 @@ int sptlrpc_target_export_check(struct obd_export *exp,
 				       exp->exp_flvr_old[0].sf_rpc,
 				       exp->exp_flvr_old[1].sf_rpc,
 				       exp->exp_flvr_expire[1] -
-						cfs_time_current_sec());
+						get_seconds());
 				spin_unlock(&exp->exp_lock);
 				return 0;
 			}
@@ -1911,11 +1911,11 @@ int sptlrpc_target_export_check(struct obd_export *exp,
 	      exp->exp_flvr_old[0].sf_rpc,
 	      exp->exp_flvr_expire[0] ?
 	      (unsigned long) (exp->exp_flvr_expire[0] -
-			       cfs_time_current_sec()) : 0,
+			       get_seconds()) : 0,
 	      exp->exp_flvr_old[1].sf_rpc,
 	      exp->exp_flvr_expire[1] ?
 	      (unsigned long) (exp->exp_flvr_expire[1] -
-			       cfs_time_current_sec()) : 0);
+			       get_seconds()) : 0);
 	return -EACCES;
 }
 EXPORT_SYMBOL(sptlrpc_target_export_check);
@@ -2033,7 +2033,7 @@ int sptlrpc_svc_unwrap_request(struct ptlrpc_request *req)
 	case 0:
 		break;
 	default:
-		CERROR("error unpacking request from %s x"LPU64"\n",
+		CERROR("error unpacking request from %s x%llu\n",
 		       libcfs_id2str(req->rq_peer), req->rq_xid);
 		return SECSVC_DROP;
 	}

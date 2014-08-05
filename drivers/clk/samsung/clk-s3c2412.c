@@ -265,6 +265,8 @@ void __init s3c2412_common_clk_init(struct device_node *np, unsigned long xti_f,
 				   ARRAY_SIZE(s3c2412_aliases));
 
 	s3c2412_clk_sleep_init();
+
+	samsung_clk_of_add_provider(np, ctx);
 }
 
 static void __init s3c2412_clk_init(struct device_node *np)

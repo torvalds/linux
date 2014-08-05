@@ -1,0 +1,23 @@
+config CRYPTO_DEV_QAT
+	tristate
+	select CRYPTO_AEAD
+	select CRYPTO_AUTHENC
+	select CRYPTO_ALGAPI
+	select CRYPTO_AES
+	select CRYPTO_CBC
+	select CRYPTO_SHA1
+	select CRYPTO_SHA256
+	select CRYPTO_SHA512
+	select FW_LOADER
+
+config CRYPTO_DEV_QAT_DH895xCC
+	tristate "Support for Intel(R) DH895xCC"
+	depends on X86 && PCI
+	default n
+	select CRYPTO_DEV_QAT
+	help
+	  Support for Intel(R) DH895xcc with Intel(R) QuickAssist Technology
+	  for accelerating crypto and compression workloads.
+
+	  To compile this as a module, choose M here: the module
+	  will be called qat_dh895xcc.

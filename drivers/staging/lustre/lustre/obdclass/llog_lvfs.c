@@ -46,20 +46,20 @@
 #define DEBUG_SUBSYSTEM S_LOG
 
 
-#include <obd.h>
-#include <obd_class.h>
-#include <lustre_log.h>
-#include <obd_ost.h>
+#include "../include/obd.h"
+#include "../include/obd_class.h"
+#include "../include/lustre_log.h"
+#include "../include/obd_ost.h"
 #include <linux/list.h>
-#include <lvfs.h>
-#include <lustre_fsfilt.h>
-#include <lustre_disk.h>
+#include "../include/lvfs.h"
+#include "../include/lustre_fsfilt.h"
+#include "../include/lustre_disk.h"
 #include "llog_internal.h"
 
 #if  defined(LLOG_LVFS)
 
-static int llog_lvfs_pad(struct obd_device *obd, struct l_file *file,
-				int len, int index)
+static int llog_lvfs_pad(struct obd_device *obd, struct file *file, int len,
+			 int index)
 {
 	struct llog_rec_hdr rec = { 0 };
 	struct llog_rec_tail tail;
@@ -88,7 +88,7 @@ static int llog_lvfs_pad(struct obd_device *obd, struct l_file *file,
 	return rc;
 }
 
-static int llog_lvfs_write_blob(struct obd_device *obd, struct l_file *file,
+static int llog_lvfs_write_blob(struct obd_device *obd, struct file *file,
 				struct llog_rec_hdr *rec, void *buf, loff_t off)
 {
 	int rc;
@@ -140,7 +140,7 @@ static int llog_lvfs_write_blob(struct obd_device *obd, struct l_file *file,
 	return rc;
 }
 
-static int llog_lvfs_read_blob(struct obd_device *obd, struct l_file *file,
+static int llog_lvfs_read_blob(struct obd_device *obd, struct file *file,
 				void *buf, int size, loff_t off)
 {
 	loff_t offset = off;
@@ -389,7 +389,7 @@ static int llog_lvfs_next_block(const struct lu_env *env,
 	if (len == 0 || len & (LLOG_CHUNK_SIZE - 1))
 		return -EINVAL;
 
-	CDEBUG(D_OTHER, "looking for log index %u (cur idx %u off "LPU64")\n",
+	CDEBUG(D_OTHER, "looking for log index %u (cur idx %u off %llu)\n",
 	       next_idx, *cur_idx, *cur_offset);
 
 	while (*cur_offset < i_size_read(loghandle->lgh_file->f_dentry->d_inode)) {
@@ -408,7 +408,7 @@ static int llog_lvfs_next_block(const struct lu_env *env,
 					cur_offset);
 		if (rc < 0) {
 			CERROR("Cant read llog block at log id "DOSTID
-			       "/%u offset "LPU64"\n",
+			       "/%u offset %llu\n",
 			       POSTID(&loghandle->lgh_id.lgl_oi),
 			       loghandle->lgh_id.lgl_ogen,
 			       *cur_offset);
@@ -426,8 +426,8 @@ static int llog_lvfs_next_block(const struct lu_env *env,
 			return 0;
 
 		if (rc < sizeof(*tail)) {
-			CERROR("Invalid llog block at log id "DOSTID"/%u offset"
-			       LPU64"\n", POSTID(&loghandle->lgh_id.lgl_oi),
+			CERROR("Invalid llog block at log id "DOSTID"/%u offset%llu\n",
+			       POSTID(&loghandle->lgh_id.lgl_oi),
 			       loghandle->lgh_id.lgl_ogen, *cur_offset);
 			return -EINVAL;
 		}
@@ -451,8 +451,8 @@ static int llog_lvfs_next_block(const struct lu_env *env,
 
 		/* this shouldn't happen */
 		if (tail->lrt_index == 0) {
-			CERROR("Invalid llog tail at log id "DOSTID"/%u offset "
-			       LPU64"\n", POSTID(&loghandle->lgh_id.lgl_oi),
+			CERROR("Invalid llog tail at log id "DOSTID"/%u offset %llu\n",
+			       POSTID(&loghandle->lgh_id.lgl_oi),
 			       loghandle->lgh_id.lgl_ogen, *cur_offset);
 			return -EINVAL;
 		}
@@ -496,7 +496,7 @@ static int llog_lvfs_prev_block(const struct lu_env *env,
 					&cur_offset);
 		if (rc < 0) {
 			CERROR("Cant read llog block at log id "DOSTID
-			       "/%u offset "LPU64"\n",
+			       "/%u offset %llu\n",
 			       POSTID(&loghandle->lgh_id.lgl_oi),
 			       loghandle->lgh_id.lgl_ogen,
 			       cur_offset);
@@ -510,8 +510,8 @@ static int llog_lvfs_prev_block(const struct lu_env *env,
 			return 0;
 
 		if (rc < sizeof(*tail)) {
-			CERROR("Invalid llog block at log id "DOSTID"/%u offset"
-			       LPU64"\n", POSTID(&loghandle->lgh_id.lgl_oi),
+			CERROR("Invalid llog block at log id "DOSTID"/%u offset%llu\n",
+			       POSTID(&loghandle->lgh_id.lgl_oi),
 			       loghandle->lgh_id.lgl_ogen, cur_offset);
 			return -EINVAL;
 		}
@@ -533,8 +533,8 @@ static int llog_lvfs_prev_block(const struct lu_env *env,
 
 		/* this shouldn't happen */
 		if (tail->lrt_index == 0) {
-			CERROR("Invalid llog tail at log id "DOSTID"/%u offset"
-			       LPU64"\n", POSTID(&loghandle->lgh_id.lgl_oi),
+			CERROR("Invalid llog tail at log id "DOSTID"/%u offset%llu\n",
+			       POSTID(&loghandle->lgh_id.lgl_oi),
 			       loghandle->lgh_id.lgl_ogen, cur_offset);
 			return -EINVAL;
 		}
@@ -567,7 +567,7 @@ static struct file *llog_filp_open(char *dir, char *name, int flags, int mode)
 	if (len >= PATH_MAX - 1) {
 		filp = ERR_PTR(-ENAMETOOLONG);
 	} else {
-		filp = l_filp_open(logname, flags, mode);
+		filp = filp_open(logname, flags, mode);
 		if (IS_ERR(filp) && PTR_ERR(filp) != -ENOENT)
 			CERROR("logfile creation %s: %ld\n", logname,
 			       PTR_ERR(filp));
@@ -581,7 +581,7 @@ static int llog_lvfs_open(const struct lu_env *env,  struct llog_handle *handle,
 			  enum llog_open_param open_param)
 {
 	struct llog_ctxt	*ctxt = handle->lgh_ctxt;
-	struct l_dentry		*dchild = NULL;
+	struct dentry		*dchild = NULL;
 	struct obd_device	*obd;
 	int			 rc = 0;
 
@@ -672,7 +672,7 @@ static int llog_lvfs_create(const struct lu_env *env,
 {
 	struct llog_ctxt	*ctxt = handle->lgh_ctxt;
 	struct obd_device	*obd;
-	struct l_dentry		*dchild = NULL;
+	struct dentry		*dchild = NULL;
 	struct file		*file;
 	struct obdo		*oa = NULL;
 	int			 rc = 0;

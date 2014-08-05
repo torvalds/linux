@@ -35,7 +35,7 @@
 
 #include <linux/cpu.h>
 #include <linux/sched.h>
-#include <linux/libcfs/libcfs.h>
+#include "../../../include/linux/libcfs/libcfs.h"
 
 #ifdef CONFIG_SMP
 

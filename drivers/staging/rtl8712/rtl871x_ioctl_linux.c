@@ -1078,14 +1078,14 @@ static int r8711_wx_set_wap(struct net_device *dev,
 		return -EINVAL;
 	authmode = padapter->securitypriv.ndisauthtype;
 	spin_lock_irqsave(&queue->lock, irqL);
-	phead = get_list_head(queue);
-	pmlmepriv->pscanned = get_next(phead);
+	phead = &queue->queue;
+	pmlmepriv->pscanned = phead->next;
 	while (1) {
 		if (end_of_queue_search(phead, pmlmepriv->pscanned) == true)
 			break;
 		pnetwork = LIST_CONTAINOR(pmlmepriv->pscanned,
 			   struct wlan_network, list);
-		pmlmepriv->pscanned = get_next(pmlmepriv->pscanned);
+		pmlmepriv->pscanned = pmlmepriv->pscanned->next;
 		dst_bssid = pnetwork->network.MacAddress;
 		if (!memcmp(dst_bssid, temp->sa_data, ETH_ALEN)) {
 			r8712_set_802_11_infrastructure_mode(padapter,
@@ -1227,8 +1227,8 @@ static int r8711_wx_get_scan(struct net_device *dev,
 			break;
 	}
 	spin_lock_irqsave(&queue->lock, irqL);
-	phead = get_list_head(queue);
-	plist = get_next(phead);
+	phead = &queue->queue;
+	plist = phead->next;
 	while (1) {
 		if (end_of_queue_search(phead, plist) == true)
 			break;
@@ -1238,7 +1238,7 @@ static int r8711_wx_get_scan(struct net_device *dev,
 		}
 		pnetwork = LIST_CONTAINOR(plist, struct wlan_network, list);
 		ev = translate_scan(padapter, a, pnetwork, ev, stop);
-		plist = get_next(plist);
+		plist = plist->next;
 	}
 	spin_unlock_irqrestore(&queue->lock, irqL);
 	wrqu->data.length = ev - extra;
@@ -1286,14 +1286,14 @@ static int r8711_wx_set_essid(struct net_device *dev,
 		ndis_ssid.SsidLength = len;
 		memcpy(ndis_ssid.Ssid, extra, len);
 		src_ssid = ndis_ssid.Ssid;
-		phead = get_list_head(queue);
-		pmlmepriv->pscanned = get_next(phead);
+		phead = &queue->queue;
+		pmlmepriv->pscanned = phead->next;
 		while (1) {
 			if (end_of_queue_search(phead, pmlmepriv->pscanned))
 				break;
 			pnetwork = LIST_CONTAINOR(pmlmepriv->pscanned,
 				   struct wlan_network, list);
-			pmlmepriv->pscanned = get_next(pmlmepriv->pscanned);
+			pmlmepriv->pscanned = pmlmepriv->pscanned->next;
 			dst_ssid = pnetwork->network.Ssid.Ssid;
 			if ((!memcmp(dst_ssid, src_ssid, ndis_ssid.SsidLength))
 			    && (pnetwork->network.Ssid.SsidLength ==
@@ -1459,17 +1459,12 @@ static int r8711_wx_get_rate(struct net_device *dev,
 				RTL8712_RF_2T2R == rf_type)
 				max_rate = (bw_40MHz) ? ((short_GI) ? 300 :
 					    270) : ((short_GI) ? 144 : 130);
-			else if (mcs_rate & 0x0080) /* MCS7 */
-				max_rate = (bw_40MHz) ? ((short_GI) ? 150 :
-					    135) : ((short_GI) ? 72 : 65);
 			else /* default MCS7 */
 				max_rate = (bw_40MHz) ? ((short_GI) ? 150 :
 					    135) : ((short_GI) ? 72 : 65);
 			max_rate *= 2; /* Mbps/2 */
-			wrqu->bitrate.value = max_rate * 500000;
-		} else {
-			wrqu->bitrate.value = max_rate * 500000;
 		}
+		wrqu->bitrate.value = max_rate * 500000;
 	} else
 		return -ENOLINK;
 	return 0;
@@ -2007,8 +2002,8 @@ static int r871x_get_ap_info(struct net_device *dev,
 	} else
 		 return -EINVAL;
 	spin_lock_irqsave(&(pmlmepriv->scanned_queue.lock), irqL);
-	phead = get_list_head(queue);
-	plist = get_next(phead);
+	phead = &queue->queue;
+	plist = phead->next;
 	while (1) {
 		if (end_of_queue_search(phead, plist) == true)
 			break;
@@ -2036,7 +2031,7 @@ static int r871x_get_ap_info(struct net_device *dev,
 				break;
 			}
 		}
-		plist = get_next(plist);
+		plist = plist->next;
 	}
 	spin_unlock_irqrestore(&(pmlmepriv->scanned_queue.lock), irqL);
 	if (pdata->length >= 34) {

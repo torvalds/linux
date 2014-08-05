@@ -1185,7 +1185,7 @@ static int validate_recv_ctrl_frame(struct rtw_adapter *padapter,
 
 					/* DBG_8723A("after handling ps-poll, tim =%x\n", pstapriv->tim_bitmap); */
 
-					/* upate BCN for TIM IE */
+					/* update BCN for TIM IE */
 					/* update_BCNTIM(padapter); */
 					update_beacon23a(padapter, WLAN_EID_TIM,
 							 NULL, false);
@@ -1217,7 +1217,7 @@ static int validate_recv_ctrl_frame(struct rtw_adapter *padapter,
 
 					pstapriv->tim_bitmap &= ~CHKBIT(psta->aid);
 
-					/* upate BCN for TIM IE */
+					/* update BCN for TIM IE */
 					/* update_BCNTIM(padapter); */
 					update_beacon23a(padapter, WLAN_EID_TIM,
 							 NULL, false);
@@ -2363,7 +2363,7 @@ void rtw_signal_stat_timer_hdl23a(unsigned long data)
 				recvpriv->signal_strength_data.avg_val;
 			num_signal_strength =
 				recvpriv->signal_strength_data.total_num;
-			/*  after avg_vals are accquired, we can re-stat */
+			/*  after avg_vals are acquired, we can re-stat */
 			/* the signal values */
 			recvpriv->signal_strength_data.update_req = 1;
 		}
@@ -2372,7 +2372,7 @@ void rtw_signal_stat_timer_hdl23a(unsigned long data)
 			/*  update_req is clear, means we got rx */
 			avg_signal_qual = recvpriv->signal_qual_data.avg_val;
 			num_signal_qual = recvpriv->signal_qual_data.total_num;
-			/*  after avg_vals are accquired, we can re-stat */
+			/*  after avg_vals are acquired, we can re-stat */
 			/*the signal values */
 			recvpriv->signal_qual_data.update_req = 1;
 		}

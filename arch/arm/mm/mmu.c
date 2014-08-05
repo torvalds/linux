@@ -1406,8 +1406,8 @@ void __init early_paging_init(const struct machine_desc *mdesc,
 		return;
 
 	/* remap kernel code and data */
-	map_start = init_mm.start_code;
-	map_end   = init_mm.brk;
+	map_start = init_mm.start_code & PMD_MASK;
+	map_end   = ALIGN(init_mm.brk, PMD_SIZE);
 
 	/* get a handle on things... */
 	pgd0 = pgd_offset_k(0);
@@ -1442,7 +1442,7 @@ void __init early_paging_init(const struct machine_desc *mdesc,
 	}
 
 	/* remap pmds for kernel mapping */
-	phys = __pa(map_start) & PMD_MASK;
+	phys = __pa(map_start);
 	do {
 		*pmdk++ = __pmd(phys | pmdprot);
 		phys += PMD_SIZE;

@@ -76,7 +76,7 @@ config ANDROID_LOW_MEMORY_KILLER
 	  Registers processes to be killed when memory is low
 
 config ANDROID_INTF_ALARM_DEV
-	bool "Android alarm driver"
+	tristate "Android alarm driver"
 	depends on RTC_CLASS
 	default n
 	---help---
@@ -88,6 +88,7 @@ config SYNC
 	bool "Synchronization framework"
 	default n
 	select ANON_INODES
+	select DMA_SHARED_BUFFER
 	---help---
 	  This option enables the framework for synchronization between multiple
 	  drivers.  Sync implementations can take advantage of hardware

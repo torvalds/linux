@@ -54,7 +54,6 @@ config X86
 	select HAVE_FUNCTION_TRACER
 	select HAVE_FUNCTION_GRAPH_TRACER
 	select HAVE_FUNCTION_GRAPH_FP_TEST
-	select HAVE_FUNCTION_TRACE_MCOUNT_TEST
 	select HAVE_SYSCALL_TRACEPOINTS
 	select SYSCTL_EXCEPTION_TRACE
 	select HAVE_KVM
@@ -132,6 +131,8 @@ config X86
 	select GENERIC_CPU_AUTOPROBE
 	select HAVE_ARCH_AUDITSYSCALL
 	select ARCH_SUPPORTS_ATOMIC_RMW
+	select HAVE_ACPI_APEI if ACPI
+	select HAVE_ACPI_APEI_NMI if ACPI
 
 config INSTRUCTION_DECODER
 	def_bool y
@@ -1523,6 +1524,7 @@ config EFI
 	bool "EFI runtime service support"
 	depends on ACPI
 	select UCS2_STRING
+	select EFI_RUNTIME_WRAPPERS
 	---help---
 	  This enables the kernel to use EFI runtime services that are
 	  available (such as the EFI variable services).
@@ -2403,6 +2405,10 @@ config IOSF_MBI
 	tristate
 	default m
 	depends on PCI
+
+config PMC_ATOM
+	def_bool y
+        depends on PCI
 
 source "net/Kconfig"
 

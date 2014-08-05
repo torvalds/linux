@@ -21,9 +21,6 @@
 
 #define DRV_NAME "ad9850"
 
-#define value_mask (u16)0xf000
-#define addr_shift 12
-
 /* Register format: 4 bits addr + 12 bits value */
 struct ad9850_config {
 	u8 control[5];
@@ -50,9 +47,6 @@ static ssize_t ad9850_set_parameter(struct device *dev,
 	mutex_lock(&st->lock);
 
 	ret = spi_sync_transfer(st->sdev, &xfer, 1);
-	if (ret)
-		goto error_ret;
-error_ret:
 	mutex_unlock(&st->lock);
 
 	return ret ? ret : len;

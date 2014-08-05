@@ -42,28 +42,57 @@
 #endif
 
 
-
-#include <stdarg.h>
-#include <linux/libcfs/linux/linux-cpu.h>
-#include <linux/libcfs/linux/linux-time.h>
-#include <linux/libcfs/linux/linux-mem.h>
-#include <linux/libcfs/linux/linux-prim.h>
-#include <linux/libcfs/linux/linux-lock.h>
-#include <linux/libcfs/linux/linux-tcpip.h>
-#include <linux/libcfs/linux/linux-bitops.h>
-#include <linux/libcfs/linux/linux-types.h>
-#include <linux/libcfs/linux/kp30.h>
-
-#include <asm/types.h>
-#include <linux/types.h>
-#include <asm/timex.h>
-#include <linux/sched.h> /* THREAD_SIZE */
+#include <linux/bitops.h>
+#include <linux/compiler.h>
+#include <linux/ctype.h>
+#include <linux/errno.h>
+#include <linux/file.h>
+#include <linux/fs.h>
+#include <linux/highmem.h>
+#include <linux/interrupt.h>
+#include <linux/kallsyms.h>
+#include <linux/kernel.h>
+#include <linux/kmod.h>
+#include <linux/kthread.h>
+#include <linux/miscdevice.h>
+#include <linux/mm.h>
+#include <linux/mm_inline.h>
+#include <linux/module.h>
+#include <linux/moduleparam.h>
+#include <linux/mutex.h>
+#include <linux/notifier.h>
+#include <linux/proc_fs.h>
+#include <linux/random.h>
 #include <linux/rbtree.h>
+#include <linux/rwsem.h>
+#include <linux/scatterlist.h>
+#include <linux/sched.h>
+#include <linux/signal.h>
+#include <linux/slab.h>
+#include <linux/smp.h>
+#include <linux/stat.h>
+#include <linux/string.h>
+#include <linux/time.h>
+#include <linux/timer.h>
+#include <linux/types.h>
+#include <linux/unistd.h>
+#include <linux/vmalloc.h>
+#include <net/sock.h>
+#include <asm/atomic.h>
+#include <asm/div64.h>
+#include <asm/timex.h>
+#include <asm/uaccess.h>
+#include <stdarg.h>
+#include "linux-cpu.h"
+#include "linux-time.h"
+#include "linux-mem.h"
+#include "portals_compat25.h"
+
 
 #define LUSTRE_TRACE_SIZE (THREAD_SIZE >> 5)
 
 #if !defined(__x86_64__)
-# ifdef  __ia64__
+# ifdef __ia64__
 #  define CDEBUG_STACK() (THREAD_SIZE -				 \
 			  ((unsigned long)__builtin_dwarf_cfa() &       \
 			   (THREAD_SIZE - 1)))
@@ -89,7 +118,7 @@ do {								    \
 } while (0)
 #define CFS_CHECK_STACK(msgdata, mask, cdls)  __CHECK_STACK(msgdata, mask, cdls)
 #else /* __x86_64__ */
-#define CFS_CHECK_STACK(msgdata, mask, cdls) do {} while(0)
+#define CFS_CHECK_STACK(msgdata, mask, cdls) do {} while (0)
 #define CDEBUG_STACK() (0L)
 #endif /* __x86_64__ */
 
@@ -103,7 +132,7 @@ do {								    \
  *
  * Implementation is in linux-curproc.c
  */
-#define CFS_CURPROC_COMM_MAX (sizeof ((struct task_struct *)0)->comm)
+#define CFS_CURPROC_COMM_MAX (sizeof((struct task_struct *)0)->comm)
 
 #include <linux/capability.h>
 
@@ -114,8 +143,6 @@ typedef long long_ptr_t;
 #ifndef WITH_WATCHDOG
 #define WITH_WATCHDOG
 #endif
-
-
 
 
 #endif /* _LINUX_LIBCFS_H */

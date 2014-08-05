@@ -37,7 +37,7 @@
 #ifndef _LUCACHE_H
 #define _LUCACHE_H
 
-#include <linux/libcfs/libcfs.h>
+#include "libcfs.h"
 
 /** \defgroup ucache ucache
  *
@@ -88,8 +88,8 @@ struct upcall_cache_entry {
 	atomic_t	    ue_refcount;
 	int		     ue_flags;
 	wait_queue_head_t	     ue_waitq;
-	cfs_time_t	      ue_acquire_expire;
-	cfs_time_t	      ue_expire;
+	unsigned long	      ue_acquire_expire;
+	unsigned long	      ue_expire;
 	union {
 		struct md_identity     identity;
 	} u;
@@ -104,17 +104,17 @@ struct upcall_cache;
 struct upcall_cache_ops {
 	void	    (*init_entry)(struct upcall_cache_entry *, void *args);
 	void	    (*free_entry)(struct upcall_cache *,
-				      struct upcall_cache_entry *);
+				  struct upcall_cache_entry *);
 	int	     (*upcall_compare)(struct upcall_cache *,
-					  struct upcall_cache_entry *,
+				       struct upcall_cache_entry *,
 					  __u64 key, void *args);
 	int	     (*downcall_compare)(struct upcall_cache *,
-					    struct upcall_cache_entry *,
+					 struct upcall_cache_entry *,
 					    __u64 key, void *args);
 	int	     (*do_upcall)(struct upcall_cache *,
-				     struct upcall_cache_entry *);
+				  struct upcall_cache_entry *);
 	int	     (*parse_downcall)(struct upcall_cache *,
-					  struct upcall_cache_entry *, void *);
+				       struct upcall_cache_entry *, void *);
 };
 
 struct upcall_cache {

@@ -166,12 +166,12 @@ static struct xmit_frame *dequeue_one_xmitframe(struct xmit_priv *pxmitpriv,
 	struct list_head *xmitframe_plist, *xmitframe_phead;
 	struct	xmit_frame *pxmitframe = NULL;
 
-	xmitframe_phead = get_list_head(pframe_queue);
-	xmitframe_plist = get_next(xmitframe_phead);
+	xmitframe_phead = &pframe_queue->queue;
+	xmitframe_plist = xmitframe_phead->next;
 	if ((end_of_queue_search(xmitframe_phead, xmitframe_plist)) == false) {
 		pxmitframe = LIST_CONTAINOR(xmitframe_plist,
 			     struct xmit_frame, list);
-		list_delete(&pxmitframe->list);
+		list_del_init(&pxmitframe->list);
 		ptxservq->qcnt--;
 		phwxmit->txcmdcnt++;
 	}
@@ -210,8 +210,8 @@ static struct xmit_frame *dequeue_xframe_ex(struct xmit_priv *pxmitpriv,
 	spin_lock_irqsave(&pxmitpriv->lock, irqL0);
 	for (i = 0; i < entry; i++) {
 		phwxmit = phwxmit_i + inx[i];
-		sta_phead = get_list_head(phwxmit->sta_queue);
-		sta_plist = get_next(sta_phead);
+		sta_phead = &phwxmit->sta_queue->queue;
+		sta_plist = sta_phead->next;
 		while ((end_of_queue_search(sta_phead, sta_plist)) == false) {
 			ptxservq = LIST_CONTAINOR(sta_plist, struct tx_servq,
 				  tx_pending);
@@ -222,11 +222,13 @@ static struct xmit_frame *dequeue_xframe_ex(struct xmit_priv *pxmitpriv,
 				phwxmit->accnt--;
 				goto exit_dequeue_xframe_ex;
 			}
-			sta_plist = get_next(sta_plist);
+			sta_plist = sta_plist->next;
 			/*Remove sta node when there are no pending packets.*/
-			if (_queue_empty(pframe_queue)) {
-				/*must be done after get_next and before break*/
-				list_delete(&ptxservq->tx_pending);
+			if (list_empty(&pframe_queue->queue)) {
+				/* must be done after sta_plist->next
+				 * and before break
+				 */
+				list_del_init(&ptxservq->tx_pending);
 			}
 		}
 	}

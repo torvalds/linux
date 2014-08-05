@@ -25,7 +25,7 @@
 MODULE_LICENSE("GPL");
 
 /* PCI core routines */
-static DEFINE_PCI_DEVICE_TABLE(i82092aa_pci_ids) = {
+static const struct pci_device_id i82092aa_pci_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82092AA_0) },
 	{ }
 };

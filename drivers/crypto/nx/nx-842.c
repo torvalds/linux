@@ -1247,7 +1247,7 @@ static struct vio_device_id nx842_driver_ids[] = {
 static struct vio_driver nx842_driver = {
 	.name = MODULE_NAME,
 	.probe = nx842_probe,
-	.remove = nx842_remove,
+	.remove = __exit_p(nx842_remove),
 	.get_desired_dma = nx842_get_desired_dma,
 	.id_table = nx842_driver_ids,
 };

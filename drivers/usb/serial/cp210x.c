@@ -856,9 +856,6 @@ static int cp210x_startup(struct usb_serial *serial)
 	struct usb_host_interface *cur_altsetting;
 	struct cp210x_serial_private *spriv;
 
-	/* cp210x buffers behave strangely unless device is reset */
-	usb_reset_device(serial->dev);
-
 	spriv = kzalloc(sizeof(*spriv), GFP_KERNEL);
 	if (!spriv)
 		return -ENOMEM;

@@ -1648,7 +1648,7 @@ static int bcm_char_ioctl_flash2x_section_read(void __user *argp,
 
 	ReadOffset = sFlash2xRead.offset;
 	OutPutBuff = IoBuffer.OutputBuffer;
-	pReadBuff = (PCHAR)kzalloc(BuffSize , GFP_KERNEL);
+	pReadBuff = kzalloc(BuffSize , GFP_KERNEL);
 
 	if (pReadBuff == NULL) {
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0,

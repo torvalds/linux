@@ -3,6 +3,7 @@
 #include "evsel.h"
 #include "thread_map.h"
 #include "tests.h"
+#include "debug.h"
 
 int test__syscall_open_tp_fields(void)
 {

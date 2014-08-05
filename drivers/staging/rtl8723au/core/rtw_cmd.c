@@ -203,21 +203,8 @@ void rtw_free_evt_priv23a(struct evt_priv *pevtpriv)
 
 static int rtw_cmd_filter(struct cmd_priv *pcmdpriv, struct cmd_obj *cmd_obj)
 {
-	struct drvextra_cmd_parm *pdrvextra_cmd_parm;
 	/* set to true to allow enqueuing cmd when hw_init_completed is false */
 	u8 bAllow = false;
-
-	/* To decide allow or not */
-	if (pcmdpriv->padapter->pwrctrlpriv.bHWPwrPindetect &&
-	    !pcmdpriv->padapter->registrypriv.usbss_enable) {
-		if (cmd_obj->cmdcode == GEN_CMD_CODE(_Set_Drv_Extra)) {
-			pdrvextra_cmd_parm =
-				(struct drvextra_cmd_parm *)cmd_obj->parmbuf;
-			if (pdrvextra_cmd_parm->ec_id ==
-			    POWER_SAVING_CTRL_WK_CID)
-				bAllow = true;
-		}
-	}
 
 	if (cmd_obj->cmdcode == GEN_CMD_CODE(_SetChannelPlan))
 		bAllow = true;
@@ -322,7 +309,7 @@ post_process:
 				  pcmd_callback, pcmd->cmdcode));
 			rtw_free_cmd_obj23a(pcmd);
 		} else {
-			/* need conider that free cmd_obj in
+			/* need consider that free cmd_obj in
 			   rtw_cmd_callback */
 			pcmd_callback(pcmd->padapter, pcmd);
 		}
@@ -464,7 +451,6 @@ exit:
 int rtw_joinbss_cmd23a(struct rtw_adapter *padapter,
 		       struct wlan_network *pnetwork)
 {
-	u8 *auth;
 	int res = _SUCCESS;
 	struct wlan_bssid_ex *psecnetwork;
 	struct cmd_obj *pcmd;
@@ -516,9 +502,7 @@ int rtw_joinbss_cmd23a(struct rtw_adapter *padapter,
 
 	psecnetwork = &psecuritypriv->sec_bss;
 	if (!psecnetwork) {
-		if (pcmd)
-			kfree(pcmd);
-
+		kfree(pcmd);
 		res = _FAIL;
 
 		RT_TRACE(_module_rtl871x_cmd_c_, _drv_err_,
@@ -531,18 +515,6 @@ int rtw_joinbss_cmd23a(struct rtw_adapter *padapter,
 
 	memcpy(psecnetwork, &pnetwork->network,
 	       get_wlan_bssid_ex_sz(&pnetwork->network));
-
-	auth = &psecuritypriv->authenticator_ie[0];
-	psecuritypriv->authenticator_ie[0] =
-		(unsigned char)psecnetwork->IELength;
-
-	if ((psecnetwork->IELength-12) < (256-1)) {
-		memcpy(&psecuritypriv->authenticator_ie[1],
-		       &psecnetwork->IEs[12], psecnetwork->IELength - 12);
-	} else {
-		memcpy(&psecuritypriv->authenticator_ie[1],
-		       &psecnetwork->IEs[12], 256 - 1);
-	}
 
 	psecnetwork->IELength = 0;
 	/*  Added by Albert 2009/02/18 */
@@ -751,7 +723,7 @@ int rtw_setstakey_cmd23a(struct rtw_adapter *padapter, u8 *psta, u8 unicast_key)
 		       &psecuritypriv->dot118021XGrpKey[idx].skey, 16);
         }
 
-	/* jeff: set this becasue at least sw key is ready */
+	/* jeff: set this because at least sw key is ready */
 	padapter->securitypriv.busetkipkey = 1;
 
 	res = rtw_enqueue_cmd23a(pcmdpriv, ph2c);
@@ -1126,11 +1098,6 @@ exit:
 	return res;
 }
 
-static void power_saving_wk_hdl(struct rtw_adapter *padapter, u8 *pbuf, int sz)
-{
-	 rtw_ps_processor23a(padapter);
-}
-
 int rtw_ps_cmd23a(struct rtw_adapter*padapter)
 {
 	struct cmd_obj *ppscmd;
@@ -1345,8 +1312,7 @@ int rtw_drvextra_cmd_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 				   pdrvextra_cmd->type_size);
 		break;
 	case POWER_SAVING_CTRL_WK_CID:
-		power_saving_wk_hdl(padapter, pdrvextra_cmd->pbuf,
-				    pdrvextra_cmd->type_size);
+		rtw_ps_processor23a(padapter);
 		break;
 	case LPS_CTRL_WK_CID:
 		lps_ctrl_wk_hdl(padapter, (u8)pdrvextra_cmd->type_size);

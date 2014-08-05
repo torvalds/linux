@@ -166,7 +166,9 @@ int kvm_dev_ioctl_check_extension(long ext)
 	case KVM_CAP_IOEVENTFD:
 	case KVM_CAP_DEVICE_CTRL:
 	case KVM_CAP_ENABLE_CAP_VM:
+	case KVM_CAP_S390_IRQCHIP:
 	case KVM_CAP_VM_ATTRIBUTES:
+	case KVM_CAP_MP_STATE:
 		r = 1;
 		break;
 	case KVM_CAP_NR_VCPUS:
@@ -595,7 +597,8 @@ static void kvm_s390_vcpu_initial_reset(struct kvm_vcpu *vcpu)
 	vcpu->arch.sie_block->pp = 0;
 	vcpu->arch.pfault_token = KVM_S390_PFAULT_TOKEN_INVALID;
 	kvm_clear_async_pf_completion_queue(vcpu);
-	kvm_s390_vcpu_stop(vcpu);
+	if (!kvm_s390_user_cpu_state_ctrl(vcpu->kvm))
+		kvm_s390_vcpu_stop(vcpu);
 	kvm_s390_clear_local_irqs(vcpu);
 }
 
@@ -647,8 +650,6 @@ int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 			return rc;
 	}
 	hrtimer_init(&vcpu->arch.ckc_timer, CLOCK_REALTIME, HRTIMER_MODE_ABS);
-	tasklet_init(&vcpu->arch.tasklet, kvm_s390_tasklet,
-		     (unsigned long) vcpu);
 	vcpu->arch.ckc_timer.function = kvm_s390_idle_wakeup;
 	get_cpu_id(&vcpu->arch.cpu_id);
 	vcpu->arch.cpu_id.version = 0xff;
@@ -926,7 +927,7 @@ static int kvm_arch_vcpu_ioctl_set_initial_psw(struct kvm_vcpu *vcpu, psw_t psw)
 {
 	int rc = 0;
 
-	if (!(atomic_read(&vcpu->arch.sie_block->cpuflags) & CPUSTAT_STOPPED))
+	if (!is_vcpu_stopped(vcpu))
 		rc = -EBUSY;
 	else {
 		vcpu->run->psw_mask = psw.mask;
@@ -980,13 +981,34 @@ int kvm_arch_vcpu_ioctl_set_guest_debug(struct kvm_vcpu *vcpu,
 int kvm_arch_vcpu_ioctl_get_mpstate(struct kvm_vcpu *vcpu,
 				    struct kvm_mp_state *mp_state)
 {
-	return -EINVAL; /* not implemented yet */
+	/* CHECK_STOP and LOAD are not supported yet */
+	return is_vcpu_stopped(vcpu) ? KVM_MP_STATE_STOPPED :
+				       KVM_MP_STATE_OPERATING;
 }
 
 int kvm_arch_vcpu_ioctl_set_mpstate(struct kvm_vcpu *vcpu,
 				    struct kvm_mp_state *mp_state)
 {
-	return -EINVAL; /* not implemented yet */
+	int rc = 0;
+
+	/* user space knows about this interface - let it control the state */
+	vcpu->kvm->arch.user_cpu_state_ctrl = 1;
+
+	switch (mp_state->mp_state) {
+	case KVM_MP_STATE_STOPPED:
+		kvm_s390_vcpu_stop(vcpu);
+		break;
+	case KVM_MP_STATE_OPERATING:
+		kvm_s390_vcpu_start(vcpu);
+		break;
+	case KVM_MP_STATE_LOAD:
+	case KVM_MP_STATE_CHECK_STOP:
+		/* fall through - CHECK_STOP and LOAD are not supported yet */
+	default:
+		rc = -ENXIO;
+	}
+
+	return rc;
 }
 
 bool kvm_s390_cmma_enabled(struct kvm *kvm)
@@ -1044,6 +1066,9 @@ retry:
 		}
 		goto retry;
 	}
+
+	/* nothing to do, just clear the request */
+	clear_bit(KVM_REQ_UNHALT, &vcpu->requests);
 
 	return 0;
 }
@@ -1284,7 +1309,13 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	if (vcpu->sigset_active)
 		sigprocmask(SIG_SETMASK, &vcpu->sigset, &sigsaved);
 
-	kvm_s390_vcpu_start(vcpu);
+	if (!kvm_s390_user_cpu_state_ctrl(vcpu->kvm)) {
+		kvm_s390_vcpu_start(vcpu);
+	} else if (is_vcpu_stopped(vcpu)) {
+		pr_err_ratelimited("kvm-s390: can't run stopped vcpu %d\n",
+				   vcpu->vcpu_id);
+		return -EINVAL;
+	}
 
 	switch (kvm_run->exit_reason) {
 	case KVM_EXIT_S390_SIEIC:
@@ -1413,11 +1444,6 @@ int kvm_s390_vcpu_store_status(struct kvm_vcpu *vcpu, unsigned long addr)
 	return kvm_s390_store_status_unloaded(vcpu, addr);
 }
 
-static inline int is_vcpu_stopped(struct kvm_vcpu *vcpu)
-{
-	return atomic_read(&(vcpu)->arch.sie_block->cpuflags) & CPUSTAT_STOPPED;
-}
-
 static void __disable_ibs_on_vcpu(struct kvm_vcpu *vcpu)
 {
 	kvm_check_request(KVM_REQ_ENABLE_IBS, vcpu);
@@ -1451,7 +1477,7 @@ void kvm_s390_vcpu_start(struct kvm_vcpu *vcpu)
 
 	trace_kvm_s390_vcpu_start_stop(vcpu->vcpu_id, 1);
 	/* Only one cpu at a time may enter/leave the STOPPED state. */
-	spin_lock_bh(&vcpu->kvm->arch.start_stop_lock);
+	spin_lock(&vcpu->kvm->arch.start_stop_lock);
 	online_vcpus = atomic_read(&vcpu->kvm->online_vcpus);
 
 	for (i = 0; i < online_vcpus; i++) {
@@ -1477,7 +1503,7 @@ void kvm_s390_vcpu_start(struct kvm_vcpu *vcpu)
 	 * Let's play safe and flush the VCPU at startup.
 	 */
 	vcpu->arch.sie_block->ihcpu  = 0xffff;
-	spin_unlock_bh(&vcpu->kvm->arch.start_stop_lock);
+	spin_unlock(&vcpu->kvm->arch.start_stop_lock);
 	return;
 }
 
@@ -1491,10 +1517,18 @@ void kvm_s390_vcpu_stop(struct kvm_vcpu *vcpu)
 
 	trace_kvm_s390_vcpu_start_stop(vcpu->vcpu_id, 0);
 	/* Only one cpu at a time may enter/leave the STOPPED state. */
-	spin_lock_bh(&vcpu->kvm->arch.start_stop_lock);
+	spin_lock(&vcpu->kvm->arch.start_stop_lock);
 	online_vcpus = atomic_read(&vcpu->kvm->online_vcpus);
 
+	/* Need to lock access to action_bits to avoid a SIGP race condition */
+	spin_lock(&vcpu->arch.local_int.lock);
 	atomic_set_mask(CPUSTAT_STOPPED, &vcpu->arch.sie_block->cpuflags);
+
+	/* SIGP STOP and SIGP STOP AND STORE STATUS has been fully processed */
+	vcpu->arch.local_int.action_bits &=
+				 ~(ACTION_STOP_ON_STOP | ACTION_STORE_ON_STOP);
+	spin_unlock(&vcpu->arch.local_int.lock);
+
 	__disable_ibs_on_vcpu(vcpu);
 
 	for (i = 0; i < online_vcpus; i++) {
@@ -1512,7 +1546,7 @@ void kvm_s390_vcpu_stop(struct kvm_vcpu *vcpu)
 		__enable_ibs_on_vcpu(started_vcpu);
 	}
 
-	spin_unlock_bh(&vcpu->kvm->arch.start_stop_lock);
+	spin_unlock(&vcpu->kvm->arch.start_stop_lock);
 	return;
 }
 

@@ -52,6 +52,8 @@ struct usb_hub {
 	unsigned long		power_bits[1]; /* ports that are powered */
 	unsigned long		child_usage_bits[1]; /* ports powered on for
 							children */
+	unsigned long		warm_reset_bits[1]; /* ports requesting warm
+							reset recovery */
 #if USB_MAXCHILDREN > 31 /* 8*sizeof(unsigned long) - 1 */
 #error event_bits[] is too short!
 #endif

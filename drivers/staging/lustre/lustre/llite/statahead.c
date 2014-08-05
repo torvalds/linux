@@ -42,9 +42,9 @@
 
 #define DEBUG_SUBSYSTEM S_LLITE
 
-#include <obd_support.h>
-#include <lustre_lite.h>
-#include <lustre_dlm.h>
+#include "../include/obd_support.h"
+#include "../include/lustre_lite.h"
+#include "../include/lustre_dlm.h"
 #include "llite_internal.h"
 
 #define SA_OMITTED_ENTRY_MAX 8ULL
@@ -206,7 +206,7 @@ ll_sa_entry_alloc(struct ll_statahead_info *sai, __u64 index,
 	if (unlikely(entry == NULL))
 		return ERR_PTR(-ENOMEM);
 
-	CDEBUG(D_READA, "alloc sa entry %.*s(%p) index "LPU64"\n",
+	CDEBUG(D_READA, "alloc sa entry %.*s(%p) index %llu\n",
 	       len, name, entry, index);
 
 	entry->se_index = index;
@@ -325,7 +325,7 @@ static void ll_sa_entry_put(struct ll_statahead_info *sai,
 			     struct ll_sa_entry *entry)
 {
 	if (atomic_dec_and_test(&entry->se_refcount)) {
-		CDEBUG(D_READA, "free sa entry %.*s(%p) index "LPU64"\n",
+		CDEBUG(D_READA, "free sa entry %.*s(%p) index %llu\n",
 		       entry->se_qstr.len, entry->se_qstr.name, entry,
 		       entry->se_index);
 
@@ -528,8 +528,8 @@ static void ll_sai_put(struct ll_statahead_info *sai)
 		spin_unlock(&lli->lli_sa_lock);
 
 		if (sai->sai_sent > sai->sai_replied)
-			CDEBUG(D_READA,"statahead for dir "DFID" does not "
-			      "finish: [sent:"LPU64"] [replied:"LPU64"]\n",
+			CDEBUG(D_READA,"statahead for dir "DFID
+			      " does not finish: [sent:%llu] [replied:%llu]\n",
 			      PFID(&lli->lli_fid),
 			      sai->sai_sent, sai->sai_replied);
 
@@ -587,7 +587,7 @@ static void ll_agl_trigger(struct inode *inode, struct ll_statahead_info *sai)
 	 *    affect the performance.
 	 */
 	if (lli->lli_glimpse_time != 0 &&
-	    cfs_time_before(cfs_time_shift(-1), lli->lli_glimpse_time)) {
+	    time_before(cfs_time_shift(-1), lli->lli_glimpse_time)) {
 		up_write(&lli->lli_glimpse_sem);
 		lli->lli_agl_index = 0;
 		iput(inode);
@@ -595,7 +595,7 @@ static void ll_agl_trigger(struct inode *inode, struct ll_statahead_info *sai)
 	}
 
 	CDEBUG(D_READA, "Handling (init) async glimpse: inode = "
-	       DFID", idx = "LPU64"\n", PFID(&lli->lli_fid), index);
+	       DFID", idx = %llu\n", PFID(&lli->lli_fid), index);
 
 	cl_agl(inode);
 	lli->lli_agl_index = 0;
@@ -603,7 +603,7 @@ static void ll_agl_trigger(struct inode *inode, struct ll_statahead_info *sai)
 	up_write(&lli->lli_glimpse_sem);
 
 	CDEBUG(D_READA, "Handled (init) async glimpse: inode= "
-	       DFID", idx = "LPU64", rc = %d\n",
+	       DFID", idx = %llu, rc = %d\n",
 	       PFID(&lli->lli_fid), index, rc);
 
 	iput(inode);
@@ -1081,8 +1081,7 @@ static int ll_statahead_thread(void *arg)
 
 		if (IS_ERR(page)) {
 			rc = PTR_ERR(page);
-			CDEBUG(D_READA, "error reading dir "DFID" at "LPU64
-			       "/"LPU64": [rc %d] [parent %u]\n",
+			CDEBUG(D_READA, "error reading dir "DFID" at %llu/%llu: [rc %d] [parent %u]\n",
 			       PFID(ll_inode2fid(dir)), pos, sai->sai_index,
 			       rc, plli->lli_opendir_pid);
 			GOTO(out, rc);
@@ -1362,8 +1361,7 @@ static int is_first_dirent(struct inode *dir, struct dentry *dentry)
 			struct ll_inode_info *lli = ll_i2info(dir);
 
 			rc = PTR_ERR(page);
-			CERROR("error reading dir "DFID" at "LPU64": "
-			       "[rc %d] [parent %u]\n",
+			CERROR("error reading dir "DFID" at %llu: [rc %d] [parent %u]\n",
 			       PFID(ll_inode2fid(dir)), pos,
 			       rc, lli->lli_opendir_pid);
 			break;
@@ -1479,8 +1477,8 @@ ll_sai_unplug(struct ll_statahead_info *sai, struct ll_sa_entry *entry)
 		if (sa_low_hit(sai) && thread_is_running(thread)) {
 			atomic_inc(&sbi->ll_sa_wrong);
 			CDEBUG(D_READA, "Statahead for dir "DFID" hit "
-			       "ratio too low: hit/miss "LPU64"/"LPU64
-			       ", sent/replied "LPU64"/"LPU64", stopping "
+			       "ratio too low: hit/miss %llu/%llu"
+			       ", sent/replied %llu/%llu, stopping "
 			       "statahead thread\n",
 			       PFID(&lli->lli_fid), sai->sai_hit,
 			       sai->sai_miss, sai->sai_sent,

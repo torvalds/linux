@@ -424,7 +424,7 @@ static const unsigned long dwAL7230ChannelTable2[CB_MAX_CHANNEL] = {
  * Return Value: true if succeeded; false if failed.
  *
  */
-static bool s_bAL7230Init(unsigned long dwIoBase)
+static bool s_bAL7230Init(void __iomem *dwIoBase)
 {
 	int     ii;
 	bool bResult;
@@ -467,7 +467,7 @@ static bool s_bAL7230Init(unsigned long dwIoBase)
 }
 
 // Need to Pull PLLON low when writing channel registers through 3-wire interface
-static bool s_bAL7230SelectChannel(unsigned long dwIoBase, unsigned char byChannel)
+static bool s_bAL7230SelectChannel(void __iomem *dwIoBase, unsigned char byChannel)
 {
 	bool bResult;
 
@@ -567,7 +567,7 @@ static bool s_bAL7230SelectChannel(unsigned long dwIoBase, unsigned char byChann
  * Return Value: true if succeeded; false if failed.
  *
  */
-bool IFRFbWriteEmbedded(unsigned long dwIoBase, unsigned long dwData)
+bool IFRFbWriteEmbedded(void __iomem *dwIoBase, unsigned long dwData)
 {
 	unsigned short ww;
 	unsigned long dwValue;
@@ -626,7 +626,7 @@ bool IFRFbWriteEmbedded(unsigned long dwIoBase, unsigned long dwData)
  * Return Value: true if succeeded; false if failed.
  *
  */
-static bool RFbAL2230Init(unsigned long dwIoBase)
+static bool RFbAL2230Init(void __iomem *dwIoBase)
 {
 	int     ii;
 	bool bResult;
@@ -673,7 +673,7 @@ static bool RFbAL2230Init(unsigned long dwIoBase)
 	return bResult;
 }
 
-static bool RFbAL2230SelectChannel(unsigned long dwIoBase, unsigned char byChannel)
+static bool RFbAL2230SelectChannel(void __iomem *dwIoBase, unsigned char byChannel)
 {
 	bool bResult;
 
@@ -750,6 +750,7 @@ bool RFbInit(
 )
 {
 	bool bResult = true;
+
 	switch (pDevice->byRFType) {
 	case RF_AIROHA:
 	case RF_AL2230S:
@@ -783,9 +784,10 @@ bool RFbInit(
  * Return Value: true if succeeded; false if failed.
  *
  */
-bool RFbSelectChannel(unsigned long dwIoBase, unsigned char byRFType, unsigned char byChannel)
+bool RFbSelectChannel(void __iomem *dwIoBase, unsigned char byRFType, unsigned char byChannel)
 {
 	bool bResult = true;
+
 	switch (byRFType) {
 	case RF_AIROHA:
 	case RF_AL2230S:
@@ -818,7 +820,7 @@ bool RFbSelectChannel(unsigned long dwIoBase, unsigned char byRFType, unsigned c
  * Return Value: None.
  *
  */
-bool RFvWriteWakeProgSyn(unsigned long dwIoBase, unsigned char byRFType, unsigned int uChannel)
+bool RFvWriteWakeProgSyn(void __iomem *dwIoBase, unsigned char byRFType, unsigned int uChannel)
 {
 	int   ii;
 	unsigned char byInitCount = 0;
@@ -871,11 +873,9 @@ bool RFvWriteWakeProgSyn(unsigned long dwIoBase, unsigned char byRFType, unsigne
 
 	case RF_NOTHING:
 		return true;
-		break;
 
 	default:
 		return false;
-		break;
 	}
 
 	MACvSetMISCFifo(dwIoBase, MISCFIFO_SYNINFO_IDX, (unsigned long)MAKEWORD(bySleepCount, byInitCount));
@@ -1070,7 +1070,7 @@ RFvRSSITodBm(
 
 // Post processing for the 11b/g and 11a.
 // for save time on changing Reg2,3,5,7,10,12,15
-bool RFbAL7230SelectChannelPostProcess(unsigned long dwIoBase, unsigned char byOldChannel, unsigned char byNewChannel)
+bool RFbAL7230SelectChannelPostProcess(void __iomem *dwIoBase, unsigned char byOldChannel, unsigned char byNewChannel)
 {
 	bool bResult;
 

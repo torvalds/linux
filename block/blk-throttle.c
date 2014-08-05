@@ -412,13 +412,13 @@ static void throtl_pd_init(struct blkcg_gq *blkg)
 	int rw;
 
 	/*
-	 * If sane_hierarchy is enabled, we switch to properly hierarchical
+	 * If on the default hierarchy, we switch to properly hierarchical
 	 * behavior where limits on a given throtl_grp are applied to the
 	 * whole subtree rather than just the group itself.  e.g. If 16M
 	 * read_bps limit is set on the root group, the whole system can't
 	 * exceed 16M for the device.
 	 *
-	 * If sane_hierarchy is not enabled, the broken flat hierarchy
+	 * If not on the default hierarchy, the broken flat hierarchy
 	 * behavior is retained where all throtl_grps are treated as if
 	 * they're all separate root groups right below throtl_data.
 	 * Limits of a group don't interact with limits of other groups
@@ -426,7 +426,7 @@ static void throtl_pd_init(struct blkcg_gq *blkg)
 	 */
 	parent_sq = &td->service_queue;
 
-	if (cgroup_sane_behavior(blkg->blkcg->css.cgroup) && blkg->parent)
+	if (cgroup_on_dfl(blkg->blkcg->css.cgroup) && blkg->parent)
 		parent_sq = &blkg_to_tg(blkg->parent)->service_queue;
 
 	throtl_service_queue_init(&tg->service_queue, parent_sq);

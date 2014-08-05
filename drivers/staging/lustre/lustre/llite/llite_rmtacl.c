@@ -44,8 +44,8 @@
 
 #ifdef CONFIG_FS_POSIX_ACL
 
-#include <lustre_lite.h>
-#include <lustre_eacl.h>
+#include "../include/lustre_lite.h"
+#include "../include/lustre_eacl.h"
 #include "llite_internal.h"
 
 static inline __u32 rce_hashfunc(uid_t id)

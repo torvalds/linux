@@ -695,7 +695,7 @@ int ttm_prime_handle_to_fd(struct ttm_object_file *tfile,
 		}
 
 		dma_buf = dma_buf_export(prime, &tdev->ops,
-					 prime->size, flags);
+					 prime->size, flags, NULL);
 		if (IS_ERR(dma_buf)) {
 			ret = PTR_ERR(dma_buf);
 			ttm_mem_global_free(tdev->mem_glob,

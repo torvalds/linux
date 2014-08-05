@@ -6,21 +6,29 @@ menuconfig WIMAX_GDM72XX
 	tristate "GCT GDM72xx WiMAX support"
 	depends on NET && (USB || MMC)
 	help
-	  Support for the GCT GDM72xx WiMAX chip
+	  Support a WiMAX module based on the GCT GDM72xx WiMAX chip.
 
 if WIMAX_GDM72XX
 
 config WIMAX_GDM72XX_QOS
 	bool "Enable QoS support"
 	default n
+	help
+	  Enable Quality of Service support based on the data protocol of
+	  transmitting packets.
 
 config WIMAX_GDM72XX_K_MODE
 	bool "Enable K mode"
 	default n
+	help
+	  Enable support for proprietary functions for KT (Korea Telecom).
 
 config WIMAX_GDM72XX_WIMAX2
 	bool "Enable WiMAX2 support"
 	default n
+	help
+	  Enable support for transmitting multiple packets (packet
+	  aggregation) from the WiMAX module to the host processor.
 
 choice
 	prompt "Select interface"
@@ -28,10 +36,16 @@ choice
 config WIMAX_GDM72XX_USB
 	bool "USB interface"
 	depends on (USB = y || USB = WIMAX_GDM72XX)
+	help
+	  Select this option if the WiMAX module interfaces with the host
+	  processor via USB.
 
 config WIMAX_GDM72XX_SDIO
 	bool "SDIO interface"
 	depends on (MMC = y || MMC = WIMAX_GDM72XX)
+	help
+	  Select this option if the WiMAX module interfaces with the host
+	  processor via SDIO.
 
 endchoice
 
@@ -40,6 +54,9 @@ if WIMAX_GDM72XX_USB
 config WIMAX_GDM72XX_USB_PM
 	bool "Enable power management support"
 	depends on PM_RUNTIME
+	help
+	  Enable USB power management in order to reduce power consumption
+	  while the interface is not in use.
 
 endif # WIMAX_GDM72XX_USB
 

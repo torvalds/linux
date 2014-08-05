@@ -182,7 +182,7 @@ void rtl8723a_set_slot_time(struct rtw_adapter *padapter, u8 slottime);
 void rtl8723a_ack_preamble(struct rtw_adapter *padapter, u8 bShortPreamble);
 void rtl8723a_set_sec_cfg(struct rtw_adapter *padapter, u8 sec);
 void rtl8723a_cam_empty_entry(struct rtw_adapter *padapter, u8 ucIndex);
-void rtl8723a_cam_invalid_all(struct rtw_adapter *padapter);
+void rtl8723a_cam_invalidate_all(struct rtw_adapter *padapter);
 void rtl8723a_cam_write(struct rtw_adapter *padapter,
 			u8 entry, u16 ctrl, const u8 *mac, const u8 *key);
 void rtl8723a_fifo_cleanup(struct rtw_adapter *padapter);
@@ -197,7 +197,6 @@ void rtl8723a_set_ac_param_vi(struct rtw_adapter *padapter, u32 vi);
 void rtl8723a_set_ac_param_be(struct rtw_adapter *padapter, u32 be);
 void rtl8723a_set_ac_param_bk(struct rtw_adapter *padapter, u32 bk);
 void rtl8723a_set_rxdma_agg_pg_th(struct rtw_adapter *padapter, u8 val);
-void rtl8723a_set_nav_upper(struct rtw_adapter *padapter, u32 usNavUpper);
 void rtl8723a_set_initial_gain(struct rtw_adapter *padapter, u32 rx_gain);
 
 void rtl8723a_odm_support_ability_write(struct rtw_adapter *padapter, u32 val);

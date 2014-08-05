@@ -38,16 +38,16 @@
 
 #define DEBUG_SUBSYSTEM S_SEC
 
-#include <linux/libcfs/libcfs.h>
+#include "../../include/linux/libcfs/libcfs.h"
 #include <linux/crypto.h>
 
-#include <obd.h>
-#include <obd_class.h>
-#include <obd_support.h>
-#include <lustre_net.h>
-#include <lustre_import.h>
-#include <lustre_dlm.h>
-#include <lustre_sec.h>
+#include "../include/obd.h"
+#include "../include/obd_class.h"
+#include "../include/obd_support.h"
+#include "../include/lustre_net.h"
+#include "../include/lustre_import.h"
+#include "../include/lustre_dlm.h"
+#include "../include/lustre_sec.h"
 
 #include "ptlrpc_internal.h"
 
@@ -55,7 +55,7 @@
 struct proc_dir_entry *sptlrpc_proc_root = NULL;
 EXPORT_SYMBOL(sptlrpc_proc_root);
 
-char *sec_flags2str(unsigned long flags, char *buf, int bufsize)
+static char *sec_flags2str(unsigned long flags, char *buf, int bufsize)
 {
 	buf[0] = '\0';
 
@@ -104,7 +104,7 @@ static int sptlrpc_info_lprocfs_seq_show(struct seq_file *seq, void *v)
 	seq_printf(seq, "gc internal    %ld\n", sec->ps_gc_interval);
 	seq_printf(seq, "gc next	%ld\n",
 		   sec->ps_gc_interval ?
-		   sec->ps_gc_next - cfs_time_current_sec() : 0);
+		   sec->ps_gc_next - get_seconds() : 0);
 
 	sptlrpc_sec_put(sec);
 out:

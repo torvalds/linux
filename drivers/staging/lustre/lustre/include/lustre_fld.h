@@ -42,8 +42,8 @@
  * @{
  */
 
-#include <lustre/lustre_idl.h>
-#include <linux/libcfs/libcfs.h>
+#include "lustre/lustre_idl.h"
+#include "../../include/linux/libcfs/libcfs.h"
 
 struct lu_client_fld;
 struct lu_server_fld;

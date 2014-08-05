@@ -111,8 +111,6 @@ static void vhci_recv_ret_submit(struct vhci_device *vdev,
 	usb_hcd_giveback_urb(vhci_to_hcd(the_controller), urb, urb->status);
 
 	usbip_dbg_vhci_rx("Leave\n");
-
-	return;
 }
 
 static struct vhci_unlink *dequeue_pending_unlink(struct vhci_device *vdev,

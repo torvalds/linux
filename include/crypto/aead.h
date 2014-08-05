@@ -75,9 +75,9 @@ static inline void aead_givcrypt_free(struct aead_givcrypt_request *req)
 
 static inline void aead_givcrypt_set_callback(
 	struct aead_givcrypt_request *req, u32 flags,
-	crypto_completion_t complete, void *data)
+	crypto_completion_t compl, void *data)
 {
-	aead_request_set_callback(&req->areq, flags, complete, data);
+	aead_request_set_callback(&req->areq, flags, compl, data);
 }
 
 static inline void aead_givcrypt_set_crypt(struct aead_givcrypt_request *req,

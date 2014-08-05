@@ -291,7 +291,7 @@ static const struct of_device_id ppc_clk_ids[] __initconst = {
 	{}
 };
 
-static struct platform_driver ppc_corenet_clk_driver = {
+static struct platform_driver ppc_corenet_clk_driver __initdata = {
 	.driver = {
 		.name = "ppc_corenet_clock",
 		.owner = THIS_MODULE,
