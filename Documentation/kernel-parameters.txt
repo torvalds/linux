@@ -992,10 +992,13 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			Format: {"off" | "on" | "skip[mbr]"}
 
 	efi=		[EFI]
-			Format: { "old_map" }
+			Format: { "old_map", "nochunk" }
 			old_map [X86-64]: switch to the old ioremap-based EFI
 			runtime services mapping. 32-bit still uses this one by
 			default.
+			nochunk: disable reading files in "chunks" in the EFI
+			boot stub, as chunking can cause problems with some
+			firmware implementations.
 
 	efi_no_storage_paranoia [EFI; X86]
 			Using this parameter you can use more than 50% of

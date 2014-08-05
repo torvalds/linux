@@ -943,8 +943,23 @@ static int __init parse_efi_cmdline(char *str)
 	if (*str == '=')
 		str++;
 
-	if (!strncmp(str, "old_map", 7))
-		set_bit(EFI_OLD_MEMMAP, &efi.flags);
+	while (*str) {
+		if (!strncmp(str, "old_map", 7)) {
+			set_bit(EFI_OLD_MEMMAP, &efi.flags);
+			str += strlen("old_map");
+		}
+
+		/*
+		 * Skip any options we don't understand. Presumably
+		 * they apply to the EFI boot stub.
+		 */
+		while (*str && *str != ',')
+			str++;
+
+		/* If we hit a delimiter, skip it */
+		if (*str == ',')
+			str++;
+	}
 
 	return 0;
 }
