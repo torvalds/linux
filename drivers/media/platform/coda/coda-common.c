@@ -1661,6 +1661,11 @@ static int coda_register_device(struct coda_dev *dev, struct video_device *vfd)
 	vfd->vfl_dir	= VFL_DIR_M2M;
 	video_set_drvdata(vfd, dev);
 
+	/* Not applicable, use the selection API instead */
+	v4l2_disable_ioctl(vfd, VIDIOC_CROPCAP);
+	v4l2_disable_ioctl(vfd, VIDIOC_G_CROP);
+	v4l2_disable_ioctl(vfd, VIDIOC_S_CROP);
+
 	return video_register_device(vfd, VFL_TYPE_GRABBER, 0);
 }
 
