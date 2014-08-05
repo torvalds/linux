@@ -463,7 +463,9 @@ static void check_holdout_task(struct task_struct *t,
 {
 	if (!ACCESS_ONCE(t->rcu_tasks_holdout) ||
 	    t->rcu_tasks_nvcsw != ACCESS_ONCE(t->nvcsw) ||
-	    !ACCESS_ONCE(t->on_rq)) {
+	    !ACCESS_ONCE(t->on_rq) ||
+	    (IS_ENABLED(CONFIG_NO_HZ_FULL) &&
+	     !is_idle_task(t) && t->rcu_tasks_idle_cpu >= 0)) {
 		ACCESS_ONCE(t->rcu_tasks_holdout) = false;
 		list_del_rcu(&t->rcu_tasks_holdout_list);
 		put_task_struct(t);

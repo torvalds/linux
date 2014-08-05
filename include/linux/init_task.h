@@ -121,7 +121,8 @@ extern struct group_info init_groups;
 #define INIT_TASK_RCU_TASKS(tsk)					\
 	.rcu_tasks_holdout = false,					\
 	.rcu_tasks_holdout_list =					\
-		LIST_HEAD_INIT(tsk.rcu_tasks_holdout_list),
+		LIST_HEAD_INIT(tsk.rcu_tasks_holdout_list),		\
+	.rcu_tasks_idle_cpu = -1,
 #else
 #define INIT_TASK_RCU_TASKS(tsk)
 #endif
