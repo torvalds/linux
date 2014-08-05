@@ -3522,8 +3522,11 @@ void __skb_tstamp_tx(struct sk_buff *orig_skb,
 	serr->ee.ee_errno = ENOMSG;
 	serr->ee.ee_origin = SO_EE_ORIGIN_TIMESTAMPING;
 	serr->ee.ee_info = tstype;
-	if (sk->sk_tsflags & SOF_TIMESTAMPING_OPT_ID)
+	if (sk->sk_tsflags & SOF_TIMESTAMPING_OPT_ID) {
 		serr->ee.ee_data = skb_shinfo(skb)->tskey;
+		if (sk->sk_protocol == IPPROTO_TCP)
+			serr->ee.ee_data -= sk->sk_tskey;
+	}
 
 	err = sock_queue_err_skb(sk, skb);
 
