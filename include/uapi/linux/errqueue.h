@@ -22,5 +22,23 @@ struct sock_extended_err {
 
 #define SO_EE_OFFENDER(ee)	((struct sockaddr*)((ee)+1))
 
+/**
+ *	struct scm_timestamping - timestamps exposed through cmsg
+ *
+ *	The timestamping interfaces SO_TIMESTAMPING, MSG_TSTAMP_*
+ *	communicate network timestamps by passing this struct in a cmsg with
+ *	recvmsg(). See Documentation/networking/timestamping.txt for details.
+ */
+struct scm_timestamping {
+	struct timespec ts[3];
+};
+
+/* The type of scm_timestamping, passed in sock_extended_err ee_info.
+ * This defines the type of ts[0]. For SCM_TSTAMP_SND only, if ts[0]
+ * is zero, then this is a hardware timestamp and recorded in ts[2].
+ */
+enum {
+	SCM_TSTAMP_SND,		/* driver passed skb to NIC, or HW */
+};
 
 #endif /* _UAPI_LINUX_ERRQUEUE_H */
