@@ -553,8 +553,11 @@ static void hci_stop_poll(struct nfc_dev *nfc_dev)
 {
 	struct nfc_hci_dev *hdev = nfc_get_drvdata(nfc_dev);
 
-	nfc_hci_send_event(hdev, NFC_HCI_RF_READER_A_GATE,
-			   NFC_HCI_EVT_END_OPERATION, NULL, 0);
+	if (hdev->ops->stop_poll)
+		hdev->ops->stop_poll(hdev);
+	else
+		nfc_hci_send_event(hdev, NFC_HCI_RF_READER_A_GATE,
+				   NFC_HCI_EVT_END_OPERATION, NULL, 0);
 }
 
 static int hci_dep_link_up(struct nfc_dev *nfc_dev, struct nfc_target *target,

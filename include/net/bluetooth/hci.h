@@ -167,7 +167,7 @@ enum {
 	HCI_AUTO_OFF,
 	HCI_RFKILLED,
 	HCI_MGMT,
-	HCI_PAIRABLE,
+	HCI_BONDABLE,
 	HCI_SERVICE_CACHE,
 	HCI_KEEP_DEBUG_KEYS,
 	HCI_USE_DEBUG_KEYS,
@@ -1074,6 +1074,8 @@ struct hci_rp_read_data_block_size {
 	__le16   num_blocks;
 } __packed;
 
+#define HCI_OP_READ_LOCAL_CODECS	0x100b
+
 #define HCI_OP_READ_PAGE_SCAN_ACTIVITY	0x0c1b
 struct hci_rp_read_page_scan_activity {
 	__u8     status;
@@ -1169,6 +1171,8 @@ struct hci_rp_write_remote_amp_assoc {
 	__u8     status;
 	__u8     phy_handle;
 } __packed;
+
+#define HCI_OP_GET_MWS_TRANSPORT_CONFIG	0x140c
 
 #define HCI_OP_ENABLE_DUT_MODE		0x1803
 

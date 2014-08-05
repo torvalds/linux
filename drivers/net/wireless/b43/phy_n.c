@@ -4982,7 +4982,8 @@ static void b43_nphy_int_pa_set_tx_dig_filters(struct b43_wldev *dev)
 	if (dev->phy.rev == 16)
 		b43_nphy_pa_set_tx_dig_filter(dev, 0x186, dig_filter_phy_rev16);
 
-	if (dev->dev->chip_id == BCMA_CHIP_ID_BCM43217) {
+	/* Verified with BCM43131 and BCM43217 */
+	if (dev->phy.rev == 17) {
 		b43_nphy_pa_set_tx_dig_filter(dev, 0x186, dig_filter_phy_rev16);
 		b43_nphy_pa_set_tx_dig_filter(dev, 0x195,
 					      tbl_tx_filter_coef_rev4[1]);
@@ -6216,6 +6217,9 @@ static void b43_nphy_channel_setup(struct b43_wldev *dev,
 	u16 tmp16;
 
 	if (new_channel->band == IEEE80211_BAND_5GHZ) {
+		/* Switch to 2 GHz for a moment to access B43_PHY_B_BBCFG */
+		b43_phy_mask(dev, B43_NPHY_BANDCTL, ~B43_NPHY_BANDCTL_5GHZ);
+
 		tmp16 = b43_read16(dev, B43_MMIO_PSM_PHY_HDR);
 		b43_write16(dev, B43_MMIO_PSM_PHY_HDR, tmp16 | 4);
 		/* Put BPHY in the reset */

@@ -1865,15 +1865,13 @@ static u8 ath10k_tx_h_get_vdev_id(struct ath10k *ar,
 	return 0;
 }
 
-/*
- * Frames sent to the FW have to be in "Native Wifi" format.
- * Strip the QoS field from the 802.11 header.
+/* HTT Tx uses Native Wifi tx mode which expects 802.11 frames without QoS
+ * Control in the header.
  */
-static void ath10k_tx_h_qos_workaround(struct ieee80211_hw *hw,
-				       struct ieee80211_tx_control *control,
-				       struct sk_buff *skb)
+static void ath10k_tx_h_nwifi(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr = (void *)skb->data;
+	struct ath10k_skb_cb *cb = ATH10K_SKB_CB(skb);
 	u8 *qos_ctl;
 
 	if (!ieee80211_is_data_qos(hdr->frame_control))
@@ -1883,6 +1881,16 @@ static void ath10k_tx_h_qos_workaround(struct ieee80211_hw *hw,
 	memmove(skb->data + IEEE80211_QOS_CTL_LEN,
 		skb->data, (void *)qos_ctl - (void *)skb->data);
 	skb_pull(skb, IEEE80211_QOS_CTL_LEN);
+
+	/* Fw/Hw generates a corrupted QoS Control Field for QoS NullFunc
+	 * frames. Powersave is handled by the fw/hw so QoS NyllFunc frames are
+	 * used only for CQM purposes (e.g. hostapd station keepalive ping) so
+	 * it is safe to downgrade to NullFunc.
+	 */
+	if (ieee80211_is_qos_nullfunc(hdr->frame_control)) {
+		hdr->frame_control &= ~__cpu_to_le16(IEEE80211_STYPE_QOS_DATA);
+		cb->htt.tid = HTT_DATA_TX_EXT_TID_NON_QOS_MCAST_BCAST;
+	}
 }
 
 static void ath10k_tx_wep_key_work(struct work_struct *work)
@@ -1919,14 +1927,13 @@ unlock:
 	mutex_unlock(&arvif->ar->conf_mutex);
 }
 
-static void ath10k_tx_h_update_wep_key(struct sk_buff *skb)
+static void ath10k_tx_h_update_wep_key(struct ieee80211_vif *vif,
+				       struct ieee80211_key_conf *key,
+				       struct sk_buff *skb)
 {
-	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-	struct ieee80211_vif *vif = info->control.vif;
 	struct ath10k_vif *arvif = ath10k_vif_to_arvif(vif);
 	struct ath10k *ar = arvif->ar;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
-	struct ieee80211_key_conf *key = info->control.hw_key;
 
 	if (!ieee80211_has_protected(hdr->frame_control))
 		return;
@@ -1948,11 +1955,11 @@ static void ath10k_tx_h_update_wep_key(struct sk_buff *skb)
 	ieee80211_queue_work(ar->hw, &arvif->wep_key_work);
 }
 
-static void ath10k_tx_h_add_p2p_noa_ie(struct ath10k *ar, struct sk_buff *skb)
+static void ath10k_tx_h_add_p2p_noa_ie(struct ath10k *ar,
+				       struct ieee80211_vif *vif,
+				       struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
-	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-	struct ieee80211_vif *vif = info->control.vif;
 	struct ath10k_vif *arvif = ath10k_vif_to_arvif(vif);
 
 	/* This is case only for P2P_GO */
@@ -2254,32 +2261,27 @@ static void ath10k_tx(struct ieee80211_hw *hw,
 		      struct ieee80211_tx_control *control,
 		      struct sk_buff *skb)
 {
-	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct ath10k *ar = hw->priv;
-	u8 tid, vdev_id;
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	struct ieee80211_vif *vif = info->control.vif;
+	struct ieee80211_key_conf *key = info->control.hw_key;
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 
 	/* We should disable CCK RATE due to P2P */
 	if (info->flags & IEEE80211_TX_CTL_NO_CCK_RATE)
 		ath10k_dbg(ATH10K_DBG_MAC, "IEEE80211_TX_CTL_NO_CCK_RATE\n");
 
-	/* we must calculate tid before we apply qos workaround
-	 * as we'd lose the qos control field */
-	tid = ath10k_tx_h_get_tid(hdr);
-	vdev_id = ath10k_tx_h_get_vdev_id(ar, info);
+	ATH10K_SKB_CB(skb)->htt.is_offchan = false;
+	ATH10K_SKB_CB(skb)->htt.tid = ath10k_tx_h_get_tid(hdr);
+	ATH10K_SKB_CB(skb)->vdev_id = ath10k_tx_h_get_vdev_id(ar, info);
 
 	/* it makes no sense to process injected frames like that */
-	if (info->control.vif &&
-	    info->control.vif->type != NL80211_IFTYPE_MONITOR) {
-		ath10k_tx_h_qos_workaround(hw, control, skb);
-		ath10k_tx_h_update_wep_key(skb);
-		ath10k_tx_h_add_p2p_noa_ie(ar, skb);
-		ath10k_tx_h_seq_no(skb);
+	if (vif && vif->type != NL80211_IFTYPE_MONITOR) {
+		ath10k_tx_h_nwifi(hw, skb);
+		ath10k_tx_h_update_wep_key(vif, key, skb);
+		ath10k_tx_h_add_p2p_noa_ie(ar, vif, skb);
+		ath10k_tx_h_seq_no(vif, skb);
 	}
-
-	ATH10K_SKB_CB(skb)->vdev_id = vdev_id;
-	ATH10K_SKB_CB(skb)->htt.is_offchan = false;
-	ATH10K_SKB_CB(skb)->htt.tid = tid;
 
 	if (info->flags & IEEE80211_TX_CTL_TX_OFFCHAN) {
 		spin_lock_bh(&ar->data_lock);
@@ -4331,6 +4333,38 @@ static u64 ath10k_get_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	return 0;
 }
 
+static int ath10k_ampdu_action(struct ieee80211_hw *hw,
+			       struct ieee80211_vif *vif,
+			       enum ieee80211_ampdu_mlme_action action,
+			       struct ieee80211_sta *sta, u16 tid, u16 *ssn,
+			       u8 buf_size)
+{
+	struct ath10k_vif *arvif = ath10k_vif_to_arvif(vif);
+
+	ath10k_dbg(ATH10K_DBG_MAC, "mac ampdu vdev_id %i sta %pM tid %hu action %d\n",
+		   arvif->vdev_id, sta->addr, tid, action);
+
+	switch (action) {
+	case IEEE80211_AMPDU_RX_START:
+	case IEEE80211_AMPDU_RX_STOP:
+		/* HTT AddBa/DelBa events trigger mac80211 Rx BA session
+		 * creation/removal. Do we need to verify this?
+		 */
+		return 0;
+	case IEEE80211_AMPDU_TX_START:
+	case IEEE80211_AMPDU_TX_STOP_CONT:
+	case IEEE80211_AMPDU_TX_STOP_FLUSH:
+	case IEEE80211_AMPDU_TX_STOP_FLUSH_CONT:
+	case IEEE80211_AMPDU_TX_OPERATIONAL:
+		/* Firmware offloads Tx aggregation entirely so deny mac80211
+		 * Tx aggregation requests.
+		 */
+		return -EOPNOTSUPP;
+	}
+
+	return -EINVAL;
+}
+
 static const struct ieee80211_ops ath10k_ops = {
 	.tx				= ath10k_tx,
 	.start				= ath10k_start,
@@ -4358,6 +4392,7 @@ static const struct ieee80211_ops ath10k_ops = {
 	.set_bitrate_mask		= ath10k_set_bitrate_mask,
 	.sta_rc_update			= ath10k_sta_rc_update,
 	.get_tsf			= ath10k_get_tsf,
+	.ampdu_action			= ath10k_ampdu_action,
 #ifdef CONFIG_PM
 	.suspend			= ath10k_suspend,
 	.resume				= ath10k_resume,
@@ -4698,7 +4733,6 @@ int ath10k_mac_register(struct ath10k *ar)
 
 	ar->hw->wiphy->interface_modes =
 		BIT(NL80211_IFTYPE_STATION) |
-		BIT(NL80211_IFTYPE_ADHOC) |
 		BIT(NL80211_IFTYPE_AP);
 
 	if (test_bit(ATH10K_FW_FEATURE_WMI_10X, ar->fw_features)) {
@@ -4768,6 +4802,8 @@ int ath10k_mac_register(struct ath10k *ar)
 		ar->hw->wiphy->iface_combinations = ath10k_if_comb;
 		ar->hw->wiphy->n_iface_combinations =
 			ARRAY_SIZE(ath10k_if_comb);
+
+		ar->hw->wiphy->interface_modes |= BIT(NL80211_IFTYPE_ADHOC);
 	}
 
 	ar->hw->netdev_features = NETIF_F_HW_CSUM;

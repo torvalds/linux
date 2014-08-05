@@ -970,6 +970,62 @@ static int adv_channel_map_get(void *data, u64 *val)
 DEFINE_SIMPLE_ATTRIBUTE(adv_channel_map_fops, adv_channel_map_get,
 			adv_channel_map_set, "%llu\n");
 
+static int adv_min_interval_set(void *data, u64 val)
+{
+	struct hci_dev *hdev = data;
+
+	if (val < 0x0020 || val > 0x4000 || val > hdev->le_adv_max_interval)
+		return -EINVAL;
+
+	hci_dev_lock(hdev);
+	hdev->le_adv_min_interval = val;
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+static int adv_min_interval_get(void *data, u64 *val)
+{
+	struct hci_dev *hdev = data;
+
+	hci_dev_lock(hdev);
+	*val = hdev->le_adv_min_interval;
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(adv_min_interval_fops, adv_min_interval_get,
+			adv_min_interval_set, "%llu\n");
+
+static int adv_max_interval_set(void *data, u64 val)
+{
+	struct hci_dev *hdev = data;
+
+	if (val < 0x0020 || val > 0x4000 || val < hdev->le_adv_min_interval)
+		return -EINVAL;
+
+	hci_dev_lock(hdev);
+	hdev->le_adv_max_interval = val;
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+static int adv_max_interval_get(void *data, u64 *val)
+{
+	struct hci_dev *hdev = data;
+
+	hci_dev_lock(hdev);
+	*val = hdev->le_adv_max_interval;
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(adv_max_interval_fops, adv_max_interval_get,
+			adv_max_interval_set, "%llu\n");
+
 static int device_list_show(struct seq_file *f, void *ptr)
 {
 	struct hci_dev *hdev = f->private;
@@ -1567,7 +1623,7 @@ static void hci_set_le_support(struct hci_request *req)
 
 	if (test_bit(HCI_LE_ENABLED, &hdev->dev_flags)) {
 		cp.le = 0x01;
-		cp.simul = lmp_le_br_capable(hdev);
+		cp.simul = 0x00;
 	}
 
 	if (cp.le != lmp_host_le_capable(hdev))
@@ -1685,6 +1741,14 @@ static void hci_init4_req(struct hci_request *req, unsigned long opt)
 	/* Set event mask page 2 if the HCI command for it is supported */
 	if (hdev->commands[22] & 0x04)
 		hci_set_event_mask_page_2(req);
+
+	/* Read local codec list if the HCI command is supported */
+	if (hdev->commands[29] & 0x20)
+		hci_req_add(req, HCI_OP_READ_LOCAL_CODECS, 0, NULL);
+
+	/* Get MWS transport configuration if the HCI command is supported */
+	if (hdev->commands[30] & 0x08)
+		hci_req_add(req, HCI_OP_GET_MWS_TRANSPORT_CONFIG, 0, NULL);
 
 	/* Check for Synchronization Train support */
 	if (lmp_sync_train_capable(hdev))
@@ -1825,6 +1889,10 @@ static int __hci_init(struct hci_dev *hdev)
 				    hdev, &supervision_timeout_fops);
 		debugfs_create_file("adv_channel_map", 0644, hdev->debugfs,
 				    hdev, &adv_channel_map_fops);
+		debugfs_create_file("adv_min_interval", 0644, hdev->debugfs,
+				    hdev, &adv_min_interval_fops);
+		debugfs_create_file("adv_max_interval", 0644, hdev->debugfs,
+				    hdev, &adv_max_interval_fops);
 		debugfs_create_file("device_list", 0444, hdev->debugfs, hdev,
 				    &device_list_fops);
 		debugfs_create_u16("discov_interleaved_timeout", 0644,
@@ -2453,14 +2521,14 @@ int hci_dev_open(__u16 dev)
 	flush_workqueue(hdev->req_workqueue);
 
 	/* For controllers not using the management interface and that
-	 * are brought up using legacy ioctl, set the HCI_PAIRABLE bit
+	 * are brought up using legacy ioctl, set the HCI_BONDABLE bit
 	 * so that pairing works for them. Once the management interface
 	 * is in use this bit will be cleared again and userspace has
 	 * to explicitly enable it.
 	 */
 	if (!test_bit(HCI_USER_CHANNEL, &hdev->dev_flags) &&
 	    !test_bit(HCI_MGMT, &hdev->dev_flags))
-		set_bit(HCI_PAIRABLE, &hdev->dev_flags);
+		set_bit(HCI_BONDABLE, &hdev->dev_flags);
 
 	err = hci_dev_do_open(hdev);
 
@@ -3639,6 +3707,7 @@ int hci_conn_params_set(struct hci_dev *hdev, bdaddr_t *addr, u8 addr_type,
 		list_add(&params->action, &hdev->pend_le_reports);
 		hci_update_background_scan(hdev);
 		break;
+	case HCI_AUTO_CONN_DIRECT:
 	case HCI_AUTO_CONN_ALWAYS:
 		if (!is_connected(hdev, addr, addr_type)) {
 			list_add(&params->action, &hdev->pend_le_conns);
@@ -3914,6 +3983,8 @@ struct hci_dev *hci_alloc_dev(void)
 	hdev->sniff_min_interval = 80;
 
 	hdev->le_adv_channel_map = 0x07;
+	hdev->le_adv_min_interval = 0x0800;
+	hdev->le_adv_max_interval = 0x0800;
 	hdev->le_scan_interval = 0x0060;
 	hdev->le_scan_window = 0x0030;
 	hdev->le_conn_min_interval = 0x0028;
@@ -5397,12 +5468,113 @@ void hci_req_add_le_scan_disable(struct hci_request *req)
 	hci_req_add(req, HCI_OP_LE_SET_SCAN_ENABLE, sizeof(cp), &cp);
 }
 
+static void add_to_white_list(struct hci_request *req,
+			      struct hci_conn_params *params)
+{
+	struct hci_cp_le_add_to_white_list cp;
+
+	cp.bdaddr_type = params->addr_type;
+	bacpy(&cp.bdaddr, &params->addr);
+
+	hci_req_add(req, HCI_OP_LE_ADD_TO_WHITE_LIST, sizeof(cp), &cp);
+}
+
+static u8 update_white_list(struct hci_request *req)
+{
+	struct hci_dev *hdev = req->hdev;
+	struct hci_conn_params *params;
+	struct bdaddr_list *b;
+	uint8_t white_list_entries = 0;
+
+	/* Go through the current white list programmed into the
+	 * controller one by one and check if that address is still
+	 * in the list of pending connections or list of devices to
+	 * report. If not present in either list, then queue the
+	 * command to remove it from the controller.
+	 */
+	list_for_each_entry(b, &hdev->le_white_list, list) {
+		struct hci_cp_le_del_from_white_list cp;
+
+		if (hci_pend_le_action_lookup(&hdev->pend_le_conns,
+					      &b->bdaddr, b->bdaddr_type) ||
+		    hci_pend_le_action_lookup(&hdev->pend_le_reports,
+					      &b->bdaddr, b->bdaddr_type)) {
+			white_list_entries++;
+			continue;
+		}
+
+		cp.bdaddr_type = b->bdaddr_type;
+		bacpy(&cp.bdaddr, &b->bdaddr);
+
+		hci_req_add(req, HCI_OP_LE_DEL_FROM_WHITE_LIST,
+			    sizeof(cp), &cp);
+	}
+
+	/* Since all no longer valid white list entries have been
+	 * removed, walk through the list of pending connections
+	 * and ensure that any new device gets programmed into
+	 * the controller.
+	 *
+	 * If the list of the devices is larger than the list of
+	 * available white list entries in the controller, then
+	 * just abort and return filer policy value to not use the
+	 * white list.
+	 */
+	list_for_each_entry(params, &hdev->pend_le_conns, action) {
+		if (hci_bdaddr_list_lookup(&hdev->le_white_list,
+					   &params->addr, params->addr_type))
+			continue;
+
+		if (white_list_entries >= hdev->le_white_list_size) {
+			/* Select filter policy to accept all advertising */
+			return 0x00;
+		}
+
+		if (hci_find_irk_by_addr(hdev, &params->addr,
+					 params->addr_type)) {
+			/* White list can not be used with RPAs */
+			return 0x00;
+		}
+
+		white_list_entries++;
+		add_to_white_list(req, params);
+	}
+
+	/* After adding all new pending connections, walk through
+	 * the list of pending reports and also add these to the
+	 * white list if there is still space.
+	 */
+	list_for_each_entry(params, &hdev->pend_le_reports, action) {
+		if (hci_bdaddr_list_lookup(&hdev->le_white_list,
+					   &params->addr, params->addr_type))
+			continue;
+
+		if (white_list_entries >= hdev->le_white_list_size) {
+			/* Select filter policy to accept all advertising */
+			return 0x00;
+		}
+
+		if (hci_find_irk_by_addr(hdev, &params->addr,
+					 params->addr_type)) {
+			/* White list can not be used with RPAs */
+			return 0x00;
+		}
+
+		white_list_entries++;
+		add_to_white_list(req, params);
+	}
+
+	/* Select filter policy to use white list */
+	return 0x01;
+}
+
 void hci_req_add_le_passive_scan(struct hci_request *req)
 {
 	struct hci_cp_le_set_scan_param param_cp;
 	struct hci_cp_le_set_scan_enable enable_cp;
 	struct hci_dev *hdev = req->hdev;
 	u8 own_addr_type;
+	u8 filter_policy;
 
 	/* Set require_privacy to false since no SCAN_REQ are send
 	 * during passive scanning. Not using an unresolvable address
@@ -5413,11 +5585,18 @@ void hci_req_add_le_passive_scan(struct hci_request *req)
 	if (hci_update_random_address(req, false, &own_addr_type))
 		return;
 
+	/* Adding or removing entries from the white list must
+	 * happen before enabling scanning. The controller does
+	 * not allow white list modification while scanning.
+	 */
+	filter_policy = update_white_list(req);
+
 	memset(&param_cp, 0, sizeof(param_cp));
 	param_cp.type = LE_SCAN_PASSIVE;
 	param_cp.interval = cpu_to_le16(hdev->le_scan_interval);
 	param_cp.window = cpu_to_le16(hdev->le_scan_window);
 	param_cp.own_address_type = own_addr_type;
+	param_cp.filter_policy = filter_policy;
 	hci_req_add(req, HCI_OP_LE_SET_SCAN_PARAM, sizeof(param_cp),
 		    &param_cp);
 

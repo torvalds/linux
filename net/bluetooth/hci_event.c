@@ -317,7 +317,7 @@ static void hci_cc_write_scan_enable(struct hci_dev *hdev, struct sk_buff *skb)
 	if (param & SCAN_PAGE)
 		set_bit(HCI_PSCAN, &hdev->flags);
 	else
-		clear_bit(HCI_ISCAN, &hdev->flags);
+		clear_bit(HCI_PSCAN, &hdev->flags);
 
 done:
 	hci_dev_unlock(hdev);
@@ -2259,6 +2259,7 @@ static void hci_disconn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 				break;
 			/* Fall through */
 
+		case HCI_AUTO_CONN_DIRECT:
 		case HCI_AUTO_CONN_ALWAYS:
 			list_del_init(&params->action);
 			list_add(&params->action, &hdev->pend_le_conns);
@@ -3118,7 +3119,7 @@ static void hci_pin_code_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		hci_conn_drop(conn);
 	}
 
-	if (!test_bit(HCI_PAIRABLE, &hdev->dev_flags) &&
+	if (!test_bit(HCI_BONDABLE, &hdev->dev_flags) &&
 	    !test_bit(HCI_CONN_AUTH_INITIATOR, &conn->flags)) {
 		hci_send_cmd(hdev, HCI_OP_PIN_CODE_NEG_REPLY,
 			     sizeof(ev->bdaddr), &ev->bdaddr);
@@ -3651,7 +3652,7 @@ static void hci_io_capa_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	/* Allow pairing if we're pairable, the initiators of the
 	 * pairing or if the remote is not requesting bonding.
 	 */
-	if (test_bit(HCI_PAIRABLE, &hdev->dev_flags) ||
+	if (test_bit(HCI_BONDABLE, &hdev->dev_flags) ||
 	    test_bit(HCI_CONN_AUTH_INITIATOR, &conn->flags) ||
 	    (conn->remote_auth & ~0x01) == HCI_AT_NO_BONDING) {
 		struct hci_cp_io_capability_reply cp;
@@ -3670,12 +3671,17 @@ static void hci_io_capa_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 			if (conn->io_capability != HCI_IO_NO_INPUT_OUTPUT &&
 			    conn->auth_type != HCI_AT_NO_BONDING)
 				conn->auth_type |= 0x01;
-
-			cp.authentication = conn->auth_type;
 		} else {
 			conn->auth_type = hci_get_auth_req(conn);
-			cp.authentication = conn->auth_type;
 		}
+
+		/* If we're not bondable, force one of the non-bondable
+		 * authentication requirement values.
+		 */
+		if (!test_bit(HCI_BONDABLE, &hdev->dev_flags))
+			conn->auth_type &= HCI_AT_NO_BONDING_MITM;
+
+		cp.authentication = conn->auth_type;
 
 		if (hci_find_remote_oob_data(hdev, &conn->dst) &&
 		    (conn->out || test_bit(HCI_CONN_REMOTE_OOB, &conn->flags)))
@@ -4251,6 +4257,7 @@ static void check_pending_le_conn(struct hci_dev *hdev, bdaddr_t *addr,
 				  u8 addr_type, u8 adv_type)
 {
 	struct hci_conn *conn;
+	struct hci_conn_params *params;
 
 	/* If the event is not connectable don't proceed further */
 	if (adv_type != LE_ADV_IND && adv_type != LE_ADV_DIRECT_IND)
@@ -4266,18 +4273,35 @@ static void check_pending_le_conn(struct hci_dev *hdev, bdaddr_t *addr,
 	if (hdev->conn_hash.le_num_slave > 0)
 		return;
 
-	/* If we're connectable, always connect any ADV_DIRECT_IND event */
-	if (test_bit(HCI_CONNECTABLE, &hdev->dev_flags) &&
-	    adv_type == LE_ADV_DIRECT_IND)
-		goto connect;
-
 	/* If we're not connectable only connect devices that we have in
 	 * our pend_le_conns list.
 	 */
-	if (!hci_pend_le_action_lookup(&hdev->pend_le_conns, addr, addr_type))
+	params = hci_pend_le_action_lookup(&hdev->pend_le_conns,
+					   addr, addr_type);
+	if (!params)
 		return;
 
-connect:
+	switch (params->auto_connect) {
+	case HCI_AUTO_CONN_DIRECT:
+		/* Only devices advertising with ADV_DIRECT_IND are
+		 * triggering a connection attempt. This is allowing
+		 * incoming connections from slave devices.
+		 */
+		if (adv_type != LE_ADV_DIRECT_IND)
+			return;
+		break;
+	case HCI_AUTO_CONN_ALWAYS:
+		/* Devices advertising with ADV_IND or ADV_DIRECT_IND
+		 * are triggering a connection attempt. This means
+		 * that incoming connectioms from slave device are
+		 * accepted and also outgoing connections to slave
+		 * devices are established when found.
+		 */
+		break;
+	default:
+		return;
+	}
+
 	conn = hci_connect_le(hdev, addr, addr_type, BT_SECURITY_LOW,
 			      HCI_LE_AUTOCONN_TIMEOUT, HCI_ROLE_MASTER);
 	if (!IS_ERR(conn))

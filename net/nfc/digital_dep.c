@@ -671,6 +671,7 @@ void digital_tg_recv_atr_req(struct nfc_digital_dev *ddev, void *arg,
 	int rc;
 	struct digital_atr_req *atr_req;
 	size_t gb_len, min_size;
+	u8 poll_tech_count;
 
 	if (IS_ERR(resp)) {
 		rc = PTR_ERR(resp);
@@ -728,12 +729,16 @@ void digital_tg_recv_atr_req(struct nfc_digital_dev *ddev, void *arg,
 		goto exit;
 
 	gb_len = resp->len - sizeof(struct digital_atr_req);
+
+	poll_tech_count = ddev->poll_tech_count;
+	ddev->poll_tech_count = 0;
+
 	rc = nfc_tm_activated(ddev->nfc_dev, NFC_PROTO_NFC_DEP_MASK,
 			      NFC_COMM_PASSIVE, atr_req->gb, gb_len);
-	if (rc)
+	if (rc) {
+		ddev->poll_tech_count = poll_tech_count;
 		goto exit;
-
-	ddev->poll_tech_count = 0;
+	}
 
 	rc = 0;
 exit:
