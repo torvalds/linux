@@ -23,3 +23,7 @@
 		};
 	};
 };
+
+&key {
+		io-channels = <&adc 2>;
+};
