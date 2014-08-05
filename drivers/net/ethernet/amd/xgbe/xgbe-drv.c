@@ -122,6 +122,7 @@
 #include <linux/clk.h>
 #include <linux/if_ether.h>
 #include <linux/net_tstamp.h>
+#include <linux/phy.h>
 
 #include "xgbe.h"
 #include "xgbe-common.h"
@@ -519,6 +520,114 @@ static void xgbe_free_rx_skbuff(struct xgbe_prv_data *pdata)
 	}
 
 	DBGPR("<--xgbe_free_rx_skbuff\n");
+}
+
+static void xgbe_adjust_link(struct net_device *netdev)
+{
+	struct xgbe_prv_data *pdata = netdev_priv(netdev);
+	struct xgbe_hw_if *hw_if = &pdata->hw_if;
+	struct phy_device *phydev = pdata->phydev;
+	int new_state = 0;
+
+	if (phydev == NULL)
+		return;
+
+	if (phydev->link) {
+		/* Flow control support */
+		if (pdata->pause_autoneg) {
+			if (phydev->pause || phydev->asym_pause) {
+				pdata->tx_pause = 1;
+				pdata->rx_pause = 1;
+			} else {
+				pdata->tx_pause = 0;
+				pdata->rx_pause = 0;
+			}
+		}
+
+		if (pdata->tx_pause != pdata->phy_tx_pause) {
+			hw_if->config_tx_flow_control(pdata);
+			pdata->phy_tx_pause = pdata->tx_pause;
+		}
+
+		if (pdata->rx_pause != pdata->phy_rx_pause) {
+			hw_if->config_rx_flow_control(pdata);
+			pdata->phy_rx_pause = pdata->rx_pause;
+		}
+
+		/* Speed support */
+		if (phydev->speed != pdata->phy_speed) {
+			new_state = 1;
+
+			switch (phydev->speed) {
+			case SPEED_10000:
+				hw_if->set_xgmii_speed(pdata);
+				break;
+
+			case SPEED_2500:
+				hw_if->set_gmii_2500_speed(pdata);
+				break;
+
+			case SPEED_1000:
+				hw_if->set_gmii_speed(pdata);
+				break;
+			}
+			pdata->phy_speed = phydev->speed;
+		}
+
+		if (phydev->link != pdata->phy_link) {
+			new_state = 1;
+			pdata->phy_link = 1;
+		}
+	} else if (pdata->phy_link) {
+		new_state = 1;
+		pdata->phy_link = 0;
+		pdata->phy_speed = SPEED_UNKNOWN;
+	}
+
+	if (new_state)
+		phy_print_status(phydev);
+}
+
+static int xgbe_phy_init(struct xgbe_prv_data *pdata)
+{
+	struct net_device *netdev = pdata->netdev;
+	struct phy_device *phydev = pdata->phydev;
+	int ret;
+
+	pdata->phy_link = -1;
+	pdata->phy_speed = SPEED_UNKNOWN;
+	pdata->phy_tx_pause = pdata->tx_pause;
+	pdata->phy_rx_pause = pdata->rx_pause;
+
+	ret = phy_connect_direct(netdev, phydev, &xgbe_adjust_link,
+				 pdata->phy_mode);
+	if (ret) {
+		netdev_err(netdev, "phy_connect_direct failed\n");
+		return ret;
+	}
+
+	if (!phydev->drv || (phydev->drv->phy_id == 0)) {
+		netdev_err(netdev, "phy_id not valid\n");
+		ret = -ENODEV;
+		goto err_phy_connect;
+	}
+	DBGPR("  phy_connect_direct succeeded for PHY %s, link=%d\n",
+	      dev_name(&phydev->dev), phydev->link);
+
+	return 0;
+
+err_phy_connect:
+	phy_disconnect(phydev);
+
+	return ret;
+}
+
+static void xgbe_phy_exit(struct xgbe_prv_data *pdata)
+{
+	if (!pdata->phydev)
+		return;
+
+	phy_disconnect(pdata->phydev);
 }
 
 int xgbe_powerdown(struct net_device *netdev, unsigned int caller)
@@ -986,11 +1095,16 @@ static int xgbe_open(struct net_device *netdev)
 
 	DBGPR("-->xgbe_open\n");
 
+	/* Initialize the phy */
+	ret = xgbe_phy_init(pdata);
+	if (ret)
+		return ret;
+
 	/* Enable the clocks */
 	ret = clk_prepare_enable(pdata->sysclk);
 	if (ret) {
 		netdev_alert(netdev, "dma clk_prepare_enable failed\n");
-		return ret;
+		goto err_phy_init;
 	}
 
 	ret = clk_prepare_enable(pdata->ptpclk);
@@ -1047,6 +1161,9 @@ err_ptpclk:
 err_sysclk:
 	clk_disable_unprepare(pdata->sysclk);
 
+err_phy_init:
+	xgbe_phy_exit(pdata);
+
 	return ret;
 }
 
@@ -1076,6 +1193,9 @@ static int xgbe_close(struct net_device *netdev)
 	/* Disable the clocks */
 	clk_disable_unprepare(pdata->ptpclk);
 	clk_disable_unprepare(pdata->sysclk);
+
+	/* Release the phy */
+	xgbe_phy_exit(pdata);
 
 	DBGPR("<--xgbe_close\n");
 
