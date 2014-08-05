@@ -1645,12 +1645,19 @@ static int sdma_remove(struct platform_device *pdev)
 	struct sdma_engine *sdma = platform_get_drvdata(pdev);
 	struct resource *iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	int irq = platform_get_irq(pdev, 0);
+	int i;
 
 	dma_async_device_unregister(&sdma->dma_device);
 	kfree(sdma->script_addrs);
 	free_irq(irq, sdma);
 	iounmap(sdma->regs);
 	release_mem_region(iores->start, resource_size(iores));
+	/* Kill the tasklet */
+	for (i = 0; i < MAX_DMA_CHANNELS; i++) {
+		struct sdma_channel *sdmac = &sdma->channel[i];
+
+		tasklet_kill(&sdmac->tasklet);
+	}
 	kfree(sdma);
 
 	platform_set_drvdata(pdev, NULL);
