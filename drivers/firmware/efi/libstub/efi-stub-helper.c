@@ -9,18 +9,20 @@
  * under the terms of the GNU General Public License version 2.
  *
  */
+
+#include <linux/efi.h>
+#include <asm/efi.h>
+
+#include "efistub.h"
+
 #define EFI_READ_CHUNK_SIZE	(1024 * 1024)
-
-/* error code which can't be mistaken for valid address */
-#define EFI_ERROR	(~0UL)
-
 
 struct file_info {
 	efi_file_handle_t *handle;
 	u64 size;
 };
 
-static void efi_printk(efi_system_table_t *sys_table_arg, char *str)
+void efi_printk(efi_system_table_t *sys_table_arg, char *str)
 {
 	char *s8;
 
@@ -37,16 +39,12 @@ static void efi_printk(efi_system_table_t *sys_table_arg, char *str)
 	}
 }
 
-#define pr_efi(sys_table, msg)     efi_printk(sys_table, "EFI stub: "msg)
-#define pr_efi_err(sys_table, msg) efi_printk(sys_table, "EFI stub: ERROR: "msg)
-
-
-static efi_status_t efi_get_memory_map(efi_system_table_t *sys_table_arg,
-				       efi_memory_desc_t **map,
-				       unsigned long *map_size,
-				       unsigned long *desc_size,
-				       u32 *desc_ver,
-				       unsigned long *key_ptr)
+efi_status_t efi_get_memory_map(efi_system_table_t *sys_table_arg,
+				efi_memory_desc_t **map,
+				unsigned long *map_size,
+				unsigned long *desc_size,
+				u32 *desc_ver,
+				unsigned long *key_ptr)
 {
 	efi_memory_desc_t *m = NULL;
 	efi_status_t status;
@@ -88,7 +86,7 @@ fail:
 }
 
 
-static unsigned long __init get_dram_base(efi_system_table_t *sys_table_arg)
+unsigned long __init get_dram_base(efi_system_table_t *sys_table_arg)
 {
 	efi_status_t status;
 	unsigned long map_size;
@@ -116,9 +114,9 @@ static unsigned long __init get_dram_base(efi_system_table_t *sys_table_arg)
 /*
  * Allocate at the highest possible address that is not above 'max'.
  */
-static efi_status_t efi_high_alloc(efi_system_table_t *sys_table_arg,
-			       unsigned long size, unsigned long align,
-			       unsigned long *addr, unsigned long max)
+efi_status_t efi_high_alloc(efi_system_table_t *sys_table_arg,
+			    unsigned long size, unsigned long align,
+			    unsigned long *addr, unsigned long max)
 {
 	unsigned long map_size, desc_size;
 	efi_memory_desc_t *map;
@@ -202,9 +200,9 @@ fail:
 /*
  * Allocate at the lowest possible address.
  */
-static efi_status_t efi_low_alloc(efi_system_table_t *sys_table_arg,
-			      unsigned long size, unsigned long align,
-			      unsigned long *addr)
+efi_status_t efi_low_alloc(efi_system_table_t *sys_table_arg,
+			   unsigned long size, unsigned long align,
+			   unsigned long *addr)
 {
 	unsigned long map_size, desc_size;
 	efi_memory_desc_t *map;
@@ -271,8 +269,8 @@ fail:
 	return status;
 }
 
-static void efi_free(efi_system_table_t *sys_table_arg, unsigned long size,
-		     unsigned long addr)
+void efi_free(efi_system_table_t *sys_table_arg, unsigned long size,
+	      unsigned long addr)
 {
 	unsigned long nr_pages;
 
@@ -290,12 +288,12 @@ static void efi_free(efi_system_table_t *sys_table_arg, unsigned long size,
  * We only support loading a file from the same filesystem as
  * the kernel image.
  */
-static efi_status_t handle_cmdline_files(efi_system_table_t *sys_table_arg,
-					 efi_loaded_image_t *image,
-					 char *cmd_line, char *option_string,
-					 unsigned long max_addr,
-					 unsigned long *load_addr,
-					 unsigned long *load_size)
+efi_status_t handle_cmdline_files(efi_system_table_t *sys_table_arg,
+				  efi_loaded_image_t *image,
+				  char *cmd_line, char *option_string,
+				  unsigned long max_addr,
+				  unsigned long *load_addr,
+				  unsigned long *load_size)
 {
 	struct file_info *files;
 	unsigned long file_addr;
@@ -477,12 +475,12 @@ fail:
  * address is not available the lowest available address will
  * be used.
  */
-static efi_status_t efi_relocate_kernel(efi_system_table_t *sys_table_arg,
-					unsigned long *image_addr,
-					unsigned long image_size,
-					unsigned long alloc_size,
-					unsigned long preferred_addr,
-					unsigned long alignment)
+efi_status_t efi_relocate_kernel(efi_system_table_t *sys_table_arg,
+				 unsigned long *image_addr,
+				 unsigned long image_size,
+				 unsigned long alloc_size,
+				 unsigned long preferred_addr,
+				 unsigned long alignment)
 {
 	unsigned long cur_image_addr;
 	unsigned long new_addr = 0;
@@ -589,9 +587,9 @@ static u8 *efi_utf16_to_utf8(u8 *dst, const u16 *src, int n)
  * Size of memory allocated return in *cmd_line_len.
  * Returns NULL on error.
  */
-static char *efi_convert_cmdline(efi_system_table_t *sys_table_arg,
-				 efi_loaded_image_t *image,
-				 int *cmd_line_len)
+char *efi_convert_cmdline(efi_system_table_t *sys_table_arg,
+			  efi_loaded_image_t *image,
+			  int *cmd_line_len)
 {
 	const u16 *s2;
 	u8 *s1 = NULL;
