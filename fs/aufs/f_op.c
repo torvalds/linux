@@ -209,13 +209,12 @@ static ssize_t aufs_write(struct file *file, const char __user *ubuf,
 	fi_write_unlock(file);
 
 	err = vfsub_write_u(h_file, buf, count, ppos);
-	AuDbg("blks %llu, %llu\n", (u64)blks, (u64)h_inode->i_blocks);
-	if (err > 0)
-		au_fhsm_wrote(sb, bstart, /*force*/h_inode->i_blocks > blks);
-
 	ii_write_lock_child(inode);
 	au_cpup_attr_timesizes(inode);
 	inode->i_mode = file_inode(h_file)->i_mode;
+	AuDbg("blks %llu, %llu\n", (u64)blks, (u64)h_inode->i_blocks);
+	if (err > 0)
+		au_fhsm_wrote(sb, bstart, /*force*/h_inode->i_blocks > blks);
 	ii_write_unlock(inode);
 	fput(h_file);
 
@@ -331,13 +330,12 @@ static ssize_t aufs_aio_write(struct kiocb *kio, const struct iovec *iov,
 	fi_write_unlock(file);
 
 	err = au_do_aio(h_file, MAY_WRITE, kio, iov, nv, pos);
-	AuDbg("blks %llu, %llu\n", (u64)blks, (u64)h_inode->i_blocks);
-	if (err > 0)
-		au_fhsm_wrote(sb, bstart, /*force*/h_inode->i_blocks > blks);
-
 	ii_write_lock_child(inode);
 	au_cpup_attr_timesizes(inode);
 	inode->i_mode = file_inode(h_file)->i_mode;
+	AuDbg("blks %llu, %llu\n", (u64)blks, (u64)h_inode->i_blocks);
+	if (err > 0)
+		au_fhsm_wrote(sb, bstart, /*force*/h_inode->i_blocks > blks);
 	ii_write_unlock(inode);
 	fput(h_file);
 
@@ -428,13 +426,12 @@ aufs_splice_write(struct pipe_inode_info *pipe, struct file *file, loff_t *ppos,
 	fi_write_unlock(file);
 
 	err = vfsub_splice_from(pipe, h_file, ppos, len, flags);
-	AuDbg("blks %llu, %llu\n", (u64)blks, (u64)h_inode->i_blocks);
-	if (err > 0)
-		au_fhsm_wrote(sb, bstart, /*force*/h_inode->i_blocks > blks);
-
 	ii_write_lock_child(inode);
 	au_cpup_attr_timesizes(inode);
 	inode->i_mode = file_inode(h_file)->i_mode;
+	AuDbg("blks %llu, %llu\n", (u64)blks, (u64)h_inode->i_blocks);
+	if (err > 0)
+		au_fhsm_wrote(sb, bstart, /*force*/h_inode->i_blocks > blks);
 	ii_write_unlock(inode);
 	fput(h_file);
 

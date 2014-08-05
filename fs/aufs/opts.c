@@ -1615,8 +1615,10 @@ int au_opts_verify(struct super_block *sb, unsigned long sb_flags,
 		if (wbr)
 			wbr_wh_read_unlock(wbr);
 
-		if (au_br_fhsm(br->br_perm))
+		if (au_br_fhsm(br->br_perm)) {
 			fhsm++;
+			AuDebugOn(!br->br_fhsm);
+		}
 
 		if (skip)
 			continue;
@@ -1637,9 +1639,9 @@ int au_opts_verify(struct super_block *sb, unsigned long sb_flags,
 	}
 
 	if (fhsm >= 2)
-		au_fset_si(au_sbi(sb), FHSM);
+		au_fset_si(sbinfo, FHSM);
 	else
-		au_fclr_si(au_sbi(sb), FHSM);
+		au_fclr_si(sbinfo, FHSM);
 
 	return err;
 }
