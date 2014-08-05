@@ -314,7 +314,6 @@ static unsigned int msm_get_mctrl(struct uart_port *port)
 	return TIOCM_CAR | TIOCM_CTS | TIOCM_DSR | TIOCM_RTS;
 }
 
-
 static void msm_reset(struct uart_port *port)
 {
 	struct msm_port *msm_port = UART_TO_MSM(port);
@@ -335,6 +334,7 @@ static void msm_reset(struct uart_port *port)
 static void msm_set_mctrl(struct uart_port *port, unsigned int mctrl)
 {
 	unsigned int mr;
+
 	mr = msm_read(port, UART_MR1);
 
 	if (!(mctrl & TIOCM_RTS)) {
@@ -429,7 +429,6 @@ static int msm_set_baud_rate(struct uart_port *port, unsigned int baud)
 
 	return baud;
 }
-
 
 static void msm_init_clock(struct uart_port *port)
 {
@@ -645,6 +644,7 @@ fail_release_port:
 static void msm_config_port(struct uart_port *port, int flags)
 {
 	int ret;
+
 	if (flags & UART_CONFIG_TYPE) {
 		port->type = PORT_MSM;
 		ret = msm_request_port(port);
