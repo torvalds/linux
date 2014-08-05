@@ -125,14 +125,13 @@ DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 #define TUNER_RS2000	0x4
 
 struct lme2510_state {
+	unsigned long int_urb_due;
 	u8 id;
 	u8 tuner_config;
 	u8 signal_lock;
 	u8 signal_level;
 	u8 signal_sn;
 	u8 time_key;
-	u8 last_key;
-	u8 key_timeout;
 	u8 i2c_talk_onoff;
 	u8 i2c_gate;
 	u8 i2c_tuner_gate_w;
@@ -287,14 +286,13 @@ static void lme2510_int_response(struct urb *lme_urb)
 		case 0xaa:
 			debug_data_snipet(1, "INT Remote data snipet", ibuf);
 			if ((ibuf[4] + ibuf[5]) == 0xff) {
-				key = ibuf[5];
-				key += (ibuf[3] > 0)
-					? (ibuf[3] ^ 0xff) << 8 : 0;
-				key += (ibuf[2] ^ 0xff) << 16;
+				key = RC_SCANCODE_NECX((ibuf[2] ^ 0xff) << 8 |
+						       (ibuf[3] > 0) ? (ibuf[3] ^ 0xff) : 0,
+						       ibuf[5]);
 				deb_info(1, "INT Key =%08x", key);
 				if (adap_to_d(adap)->rc_dev != NULL)
 					rc_keydown(adap_to_d(adap)->rc_dev,
-						key, 0);
+						   RC_TYPE_NEC, key, 0);
 			}
 			break;
 		case 0xbb:
@@ -323,7 +321,7 @@ static void lme2510_int_response(struct urb *lme_urb)
 				}
 				break;
 			case TUNER_RS2000:
-				if (ibuf[1] == 0x3 &&  ibuf[6] == 0xff)
+				if (ibuf[2] & 0x1)
 					st->signal_lock = 0xff;
 				else
 					st->signal_lock = 0x00;
@@ -343,7 +341,12 @@ static void lme2510_int_response(struct urb *lme_urb)
 		break;
 		}
 	}
+
 	usb_submit_urb(lme_urb, GFP_ATOMIC);
+
+	/* interrupt urb is due every 48 msecs while streaming
+	 *	add 12msecs for system lag */
+	st->int_urb_due = jiffies + msecs_to_jiffies(60);
 }
 
 static int lme2510_int_read(struct dvb_usb_adapter *adap)
@@ -584,14 +587,13 @@ static int lme2510_msg(struct dvb_usb_device *d,
 			switch (wbuf[3]) {
 			case 0x8c:
 				rbuf[0] = 0x55;
-				rbuf[1] = 0xff;
-				if (st->last_key == st->time_key) {
-					st->key_timeout++;
-					if (st->key_timeout > 5)
-						rbuf[1] = 0;
-				} else
-					st->key_timeout = 0;
-				st->last_key = st->time_key;
+				rbuf[1] = st->signal_lock;
+
+				/* If int_urb_due overdue
+				 *  set rbuf[1] to 0 to clear lock */
+				if (time_after(jiffies,	st->int_urb_due))
+					rbuf[1] = 0;
+
 				break;
 			default:
 				lme2510_usb_talk(d, wbuf, wlen, rbuf, rlen);

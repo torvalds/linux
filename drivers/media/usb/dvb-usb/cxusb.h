@@ -30,6 +30,8 @@
 
 struct cxusb_state {
 	u8 gpio_write_state[3];
+	struct i2c_client *i2c_client_demod;
+	struct i2c_client *i2c_client_tuner;
 };
 
 #endif

@@ -52,6 +52,12 @@ struct cxd2820r_config {
 	 */
 	u8 ts_mode;
 
+	/* TS clock inverted.
+	 * Default: 0
+	 * Values: 0, 1
+	 */
+	bool ts_clock_inv;
+
 	/* IF AGC polarity.
 	 * Default: 0
 	 * Values: 0, 1

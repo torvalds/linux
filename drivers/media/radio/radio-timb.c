@@ -126,7 +126,6 @@ static int timbradio_probe(struct platform_device *pdev)
 	tr->video_dev.release = video_device_release_empty;
 	tr->video_dev.minor = -1;
 	tr->video_dev.lock = &tr->lock;
-	set_bit(V4L2_FL_USE_FH_PRIO, &tr->video_dev.flags);
 
 	strlcpy(tr->v4l2_dev.name, DRIVER_NAME, sizeof(tr->v4l2_dev.name));
 	err = v4l2_device_register(NULL, &tr->v4l2_dev);

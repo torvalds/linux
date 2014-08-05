@@ -951,15 +951,9 @@ static long pvr2_v4l2_ioctl(struct file *file,
 	if (ret < 0) {
 		if (pvrusb2_debug & PVR2_TRACE_V4LIOCTL) {
 			pvr2_trace(PVR2_TRACE_V4LIOCTL,
-				   "pvr2_v4l2_do_ioctl failure, ret=%ld", ret);
-		} else {
-			if (pvrusb2_debug & PVR2_TRACE_V4LIOCTL) {
-				pvr2_trace(PVR2_TRACE_V4LIOCTL,
-					   "pvr2_v4l2_do_ioctl failure, ret=%ld"
-					   " command was:", ret);
-				v4l_printk_ioctl(pvr2_hdw_get_driver_name(hdw),
-						cmd);
-			}
+				   "pvr2_v4l2_do_ioctl failure, ret=%ld"
+				   " command was:", ret);
+			v4l_printk_ioctl(pvr2_hdw_get_driver_name(hdw), cmd);
 		}
 	} else {
 		pvr2_trace(PVR2_TRACE_V4LIOCTL,

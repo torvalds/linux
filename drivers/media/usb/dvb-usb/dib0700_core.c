@@ -658,13 +658,8 @@ out:
 struct dib0700_rc_response {
 	u8 report_id;
 	u8 data_state;
-	union {
-		u16 system16;
-		struct {
-			u8 not_system;
-			u8 system;
-		};
-	};
+	u8 system;
+	u8 not_system;
 	u8 data;
 	u8 not_data;
 };
@@ -674,6 +669,7 @@ static void dib0700_rc_urb_completion(struct urb *purb)
 {
 	struct dvb_usb_device *d = purb->context;
 	struct dib0700_rc_response *poll_reply;
+	enum rc_type protocol;
 	u32 uninitialized_var(keycode);
 	u8 toggle;
 
@@ -707,44 +703,55 @@ static void dib0700_rc_urb_completion(struct urb *purb)
 
 	switch (d->props.rc.core.protocol) {
 	case RC_BIT_NEC:
+		protocol = RC_TYPE_NEC;
 		toggle = 0;
 
 		/* NEC protocol sends repeat code as 0 0 0 FF */
-		if ((poll_reply->system == 0x00) && (poll_reply->data == 0x00)
-		    && (poll_reply->not_data == 0xff)) {
+		if (poll_reply->system     == 0x00 &&
+		    poll_reply->not_system == 0x00 &&
+		    poll_reply->data       == 0x00 &&
+		    poll_reply->not_data   == 0xff) {
 			poll_reply->data_state = 2;
 			break;
 		}
 
-		if ((poll_reply->system ^ poll_reply->not_system) != 0xff) {
+		if ((poll_reply->data ^ poll_reply->not_data) != 0xff) {
+			deb_data("NEC32 protocol\n");
+			keycode = RC_SCANCODE_NEC32(poll_reply->system     << 24 |
+						     poll_reply->not_system << 16 |
+						     poll_reply->data       << 8  |
+						     poll_reply->not_data);
+		} else if ((poll_reply->system ^ poll_reply->not_system) != 0xff) {
 			deb_data("NEC extended protocol\n");
-			/* NEC extended code - 24 bits */
-			keycode = be16_to_cpu(poll_reply->system16) << 8 | poll_reply->data;
+			keycode = RC_SCANCODE_NECX(poll_reply->system << 8 |
+						    poll_reply->not_system,
+						    poll_reply->data);
+
 		} else {
 			deb_data("NEC normal protocol\n");
-			/* normal NEC code - 16 bits */
-			keycode = poll_reply->system << 8 | poll_reply->data;
+			keycode = RC_SCANCODE_NEC(poll_reply->system,
+						   poll_reply->data);
 		}
 
 		break;
 	default:
 		deb_data("RC5 protocol\n");
-		/* RC5 Protocol */
+		protocol = RC_TYPE_RC5;
 		toggle = poll_reply->report_id;
-		keycode = poll_reply->system << 8 | poll_reply->data;
+		keycode = RC_SCANCODE_RC5(poll_reply->system, poll_reply->data);
 
 		break;
 	}
 
 	if ((poll_reply->data + poll_reply->not_data) != 0xff) {
 		/* Key failed integrity check */
-		err("key failed integrity check: %04x %02x %02x",
-		    poll_reply->system,
+		err("key failed integrity check: %02x %02x %02x %02x",
+		    poll_reply->system,  poll_reply->not_system,
 		    poll_reply->data, poll_reply->not_data);
 		goto resubmit;
 	}
 
-	rc_keydown(d->rc_dev, keycode, toggle);
+	rc_keydown(d->rc_dev, protocol, keycode, toggle);
 
 resubmit:
 	/* Clean the buffer before we requeue */

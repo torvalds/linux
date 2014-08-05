@@ -46,7 +46,7 @@ struct au0828_board au0828_boards[] = {
 		.name	= "Hauppauge HVR850",
 		.tuner_type = TUNER_XC5000,
 		.tuner_addr = 0x61,
-		.i2c_clk_divider = AU0828_I2C_CLK_20KHZ,
+		.i2c_clk_divider = AU0828_I2C_CLK_250KHZ,
 		.input = {
 			{
 				.type = AU0828_VMUX_TELEVISION,
@@ -71,13 +71,14 @@ struct au0828_board au0828_boards[] = {
 		.name	= "Hauppauge HVR950Q",
 		.tuner_type = TUNER_XC5000,
 		.tuner_addr = 0x61,
+		.has_ir_i2c = 1,
 		/* The au0828 hardware i2c implementation does not properly
 		   support the xc5000's i2c clock stretching.  So we need to
 		   lower the clock frequency enough where the 15us clock
 		   stretch fits inside of a normal clock cycle, or else the
 		   au0828 fails to set the STOP bit.  A 30 KHz clock puts the
 		   clock pulse width at 18us */
-		.i2c_clk_divider = AU0828_I2C_CLK_20KHZ,
+		.i2c_clk_divider = AU0828_I2C_CLK_250KHZ,
 		.input = {
 			{
 				.type = AU0828_VMUX_TELEVISION,
@@ -108,7 +109,7 @@ struct au0828_board au0828_boards[] = {
 		.name	= "DViCO FusionHDTV USB",
 		.tuner_type = UNSET,
 		.tuner_addr = ADDR_UNSET,
-		.i2c_clk_divider = AU0828_I2C_CLK_20KHZ,
+		.i2c_clk_divider = AU0828_I2C_CLK_250KHZ,
 	},
 	[AU0828_BOARD_HAUPPAUGE_WOODBURY] = {
 		.name = "Hauppauge Woodbury",

@@ -187,6 +187,7 @@
 #define VENDOR_CONEXANT		0x0572
 #define VENDOR_TWISTEDMELON	0x2596
 #define VENDOR_HAUPPAUGE	0x2040
+#define VENDOR_PCTV		0x2013
 
 enum mceusb_model_type {
 	MCE_GEN2 = 0,		/* Most boards */
@@ -240,7 +241,6 @@ static const struct mceusb_model mceusb_model[] = {
 		 * remotes, but we should have something handy,
 		 * to allow testing it
 		 */
-		.rc_map = RC_MAP_HAUPPAUGE,
 		.name = "Conexant Hybrid TV (cx231xx) MCE IR",
 	},
 	[CX_HYBRID_TV] = {
@@ -248,7 +248,6 @@ static const struct mceusb_model mceusb_model[] = {
 		.name = "Conexant Hybrid TV (cx231xx) MCE IR",
 	},
 	[HAUPPAUGE_CX_HYBRID_TV] = {
-		.rc_map = RC_MAP_HAUPPAUGE,
 		.no_tx = 1, /* eeprom says it has no tx */
 		.name = "Conexant Hybrid TV (cx231xx) MCE IR no TX",
 	},
@@ -396,6 +395,13 @@ static struct usb_device_id mceusb_dev_table[] = {
 	/* Hauppauge WINTV-HVR-HVR 930C-HD - based on cx231xx */
 	{ USB_DEVICE(VENDOR_HAUPPAUGE, 0xb130),
 	  .driver_info = HAUPPAUGE_CX_HYBRID_TV },
+	{ USB_DEVICE(VENDOR_HAUPPAUGE, 0xb131),
+	  .driver_info = HAUPPAUGE_CX_HYBRID_TV },
+	{ USB_DEVICE(VENDOR_PCTV, 0x0259),
+	  .driver_info = HAUPPAUGE_CX_HYBRID_TV },
+	{ USB_DEVICE(VENDOR_PCTV, 0x025e),
+	  .driver_info = HAUPPAUGE_CX_HYBRID_TV },
+
 	/* Terminating entry */
 	{ }
 };
@@ -1192,8 +1198,10 @@ static void mceusb_flash_led(struct mceusb_dev *ir)
 	mce_async_out(ir, FLASH_LED, sizeof(FLASH_LED));
 }
 
-static struct rc_dev *mceusb_init_rc_dev(struct mceusb_dev *ir)
+static struct rc_dev *mceusb_init_rc_dev(struct mceusb_dev *ir,
+					 struct usb_interface *intf)
 {
+	struct usb_device *udev = usb_get_dev(interface_to_usbdev(intf));
 	struct device *dev = ir->dev;
 	struct rc_dev *rc;
 	int ret;
@@ -1219,7 +1227,7 @@ static struct rc_dev *mceusb_init_rc_dev(struct mceusb_dev *ir)
 	rc->dev.parent = dev;
 	rc->priv = ir;
 	rc->driver_type = RC_DRIVER_IR_RAW;
-	rc_set_allowed_protocols(rc, RC_BIT_ALL);
+	rc->allowed_protocols = RC_BIT_ALL;
 	rc->timeout = MS_TO_NS(100);
 	if (!ir->flags.no_tx) {
 		rc->s_tx_mask = mceusb_set_tx_mask;
@@ -1227,8 +1235,19 @@ static struct rc_dev *mceusb_init_rc_dev(struct mceusb_dev *ir)
 		rc->tx_ir = mceusb_tx_ir;
 	}
 	rc->driver_name = DRIVER_NAME;
-	rc->map_name = mceusb_model[ir->model].rc_map ?
-			mceusb_model[ir->model].rc_map : RC_MAP_RC6_MCE;
+
+	switch (le16_to_cpu(udev->descriptor.idVendor)) {
+	case VENDOR_HAUPPAUGE:
+		rc->map_name = RC_MAP_HAUPPAUGE;
+		break;
+	case VENDOR_PCTV:
+		rc->map_name = RC_MAP_PINNACLE_PCTV_HD;
+		break;
+	default:
+		rc->map_name = RC_MAP_RC6_MCE;
+	}
+	if (mceusb_model[ir->model].rc_map)
+		rc->map_name = mceusb_model[ir->model].rc_map;
 
 	ret = rc_register_device(rc);
 	if (ret < 0) {
@@ -1343,7 +1362,7 @@ static int mceusb_dev_probe(struct usb_interface *intf,
 		snprintf(name + strlen(name), sizeof(name) - strlen(name),
 			 " %s", buf);
 
-	ir->rc = mceusb_init_rc_dev(ir);
+	ir->rc = mceusb_init_rc_dev(ir, intf);
 	if (!ir->rc)
 		goto rc_dev_fail;
 

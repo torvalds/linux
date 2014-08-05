@@ -649,7 +649,6 @@ static int vpif_try_fmt_vid_out(struct file *file, void *priv,
 	pixfmt->width = common->fmt.fmt.pix.width;
 	pixfmt->height = common->fmt.fmt.pix.height;
 	pixfmt->sizeimage = pixfmt->bytesperline * pixfmt->height * 2;
-	pixfmt->priv = 0;
 
 	return 0;
 }
@@ -1224,7 +1223,6 @@ static int vpif_probe_complete(void)
 		vdev->vfl_dir = VFL_DIR_TX;
 		vdev->queue = q;
 		vdev->lock = &common->lock;
-		set_bit(V4L2_FL_USE_FH_PRIO, &vdev->flags);
 		video_set_drvdata(ch->video_dev, ch);
 		err = video_register_device(vdev, VFL_TYPE_GRABBER,
 					    (j ? 3 : 2));
@@ -1388,7 +1386,7 @@ static int vpif_remove(struct platform_device *device)
 	for (i = 0; i < VPIF_DISPLAY_MAX_DEVICES; i++) {
 		/* Get the pointer to the channel object */
 		ch = vpif_obj.dev[i];
-		common = &ch->common[i];
+		common = &ch->common[VPIF_VIDEO_INDEX];
 		vb2_dma_contig_cleanup_ctx(common->alloc_ctx);
 		/* Unregister video device */
 		video_unregister_device(ch->video_dev);

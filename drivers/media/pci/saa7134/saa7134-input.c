@@ -83,14 +83,14 @@ static int build_key(struct saa7134_dev *dev)
 		if (data == ir->mask_keycode)
 			rc_keyup(ir->dev);
 		else
-			rc_keydown_notimeout(ir->dev, data, 0);
+			rc_keydown_notimeout(ir->dev, RC_TYPE_UNKNOWN, data, 0);
 		return 0;
 	}
 
 	if (ir->polling) {
 		if ((ir->mask_keydown  &&  (0 != (gpio & ir->mask_keydown))) ||
 		    (ir->mask_keyup    &&  (0 == (gpio & ir->mask_keyup)))) {
-			rc_keydown_notimeout(ir->dev, data, 0);
+			rc_keydown_notimeout(ir->dev, RC_TYPE_UNKNOWN, data, 0);
 		} else {
 			rc_keyup(ir->dev);
 		}
@@ -98,7 +98,7 @@ static int build_key(struct saa7134_dev *dev)
 	else {	/* IRQ driven mode - handle key press and release in one go */
 		if ((ir->mask_keydown  &&  (0 != (gpio & ir->mask_keydown))) ||
 		    (ir->mask_keyup    &&  (0 == (gpio & ir->mask_keyup)))) {
-			rc_keydown_notimeout(ir->dev, data, 0);
+			rc_keydown_notimeout(ir->dev, RC_TYPE_UNKNOWN, data, 0);
 			rc_keyup(ir->dev);
 		}
 	}
@@ -108,7 +108,8 @@ static int build_key(struct saa7134_dev *dev)
 
 /* --------------------- Chip specific I2C key builders ----------------- */
 
-static int get_key_flydvb_trio(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
+static int get_key_flydvb_trio(struct IR_i2c *ir, enum rc_type *protocol,
+			       u32 *scancode, u8 *toggle)
 {
 	int gpio;
 	int attempt = 0;
@@ -132,10 +133,6 @@ static int get_key_flydvb_trio(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 	if (0x40000 & ~gpio)
 		return 0; /* No button press */
 
-	/* No button press - only before first key pressed */
-	if (b == 0xFF)
-		return 0;
-
 	/* poll IR chip */
 	/* weak up the IR chip */
 	b = 0;
@@ -158,13 +155,14 @@ static int get_key_flydvb_trio(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 		return -EIO;
 	}
 
-	*ir_key = b;
-	*ir_raw = b;
+	*protocol = RC_TYPE_UNKNOWN;
+	*scancode = b;
+	*toggle = 0;
 	return 1;
 }
 
-static int get_key_msi_tvanywhere_plus(struct IR_i2c *ir, u32 *ir_key,
-				       u32 *ir_raw)
+static int get_key_msi_tvanywhere_plus(struct IR_i2c *ir, enum rc_type *protocol,
+				       u32 *scancode, u8 *toggle)
 {
 	unsigned char b;
 	int gpio;
@@ -205,14 +203,15 @@ static int get_key_msi_tvanywhere_plus(struct IR_i2c *ir, u32 *ir_key,
 	/* Button pressed */
 
 	dprintk("get_key_msi_tvanywhere_plus: Key = 0x%02X\n", b);
-	*ir_key = b;
-	*ir_raw = b;
+	*protocol = RC_TYPE_UNKNOWN;
+	*scancode = b;
+	*toggle = 0;
 	return 1;
 }
 
 /* copied and modified from get_key_msi_tvanywhere_plus() */
-static int get_key_kworld_pc150u(struct IR_i2c *ir, u32 *ir_key,
-					u32 *ir_raw)
+static int get_key_kworld_pc150u(struct IR_i2c *ir, enum rc_type *protocol,
+				 u32 *scancode, u8 *toggle)
 {
 	unsigned char b;
 	unsigned int gpio;
@@ -253,12 +252,14 @@ static int get_key_kworld_pc150u(struct IR_i2c *ir, u32 *ir_key,
 	/* Button pressed */
 
 	dprintk("get_key_kworld_pc150u: Key = 0x%02X\n", b);
-	*ir_key = b;
-	*ir_raw = b;
+	*protocol = RC_TYPE_UNKNOWN;
+	*scancode = b;
+	*toggle = 0;
 	return 1;
 }
 
-static int get_key_purpletv(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
+static int get_key_purpletv(struct IR_i2c *ir, enum rc_type *protocol,
+			    u32 *scancode, u8 *toggle)
 {
 	unsigned char b;
 
@@ -276,12 +277,14 @@ static int get_key_purpletv(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 	if (b & 0x80)
 		return 1;
 
-	*ir_key = b;
-	*ir_raw = b;
+	*protocol = RC_TYPE_UNKNOWN;
+	*scancode = b;
+	*toggle = 0;
 	return 1;
 }
 
-static int get_key_hvr1110(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
+static int get_key_hvr1110(struct IR_i2c *ir, enum rc_type *protocol,
+			   u32 *scancode, u8 *toggle)
 {
 	unsigned char buf[5];
 
@@ -299,14 +302,20 @@ static int get_key_hvr1110(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 	 * by preserving it into two separate readings
 	 * buf[4] bits 0 and 1, and buf[1] and buf[2] are always
 	 * zero.
+	 *
+	 * Note that the keymap which the hvr1110 uses is RC5.
+	 *
+	 * FIXME: start bits could maybe be used...?
 	 */
-	*ir_key = 0x1fff & ((buf[3] << 8) | (buf[4] >> 2));
-	*ir_raw = *ir_key;
+	*protocol = RC_TYPE_RC5;
+	*scancode = RC_SCANCODE_RC5(buf[3] & 0x1f, buf[4] >> 2);
+	*toggle = !!(buf[3] & 0x40);
 	return 1;
 }
 
 
-static int get_key_beholdm6xx(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
+static int get_key_beholdm6xx(struct IR_i2c *ir, enum rc_type *protocol,
+			      u32 *scancode, u8 *toggle)
 {
 	unsigned char data[12];
 	u32 gpio;
@@ -332,17 +341,18 @@ static int get_key_beholdm6xx(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 	if (data[9] != (unsigned char)(~data[8]))
 		return 0;
 
-	*ir_raw = ((data[10] << 16) | (data[11] << 8) | (data[9] << 0));
-	*ir_key = *ir_raw;
-
+	*protocol = RC_TYPE_NEC;
+	*scancode = RC_SCANCODE_NECX(data[11] << 8 | data[10], data[9]);
+	*toggle = 0;
 	return 1;
 }
 
 /* Common (grey or coloured) pinnacle PCTV remote handling
  *
  */
-static int get_key_pinnacle(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw,
-			    int parity_offset, int marker, int code_modulo)
+static int get_key_pinnacle(struct IR_i2c *ir, enum rc_type *protocol,
+			    u32 *scancode, u8 *toggle, int parity_offset,
+			    int marker, int code_modulo)
 {
 	unsigned char b[4];
 	unsigned int start = 0,parity = 0,code = 0;
@@ -377,11 +387,11 @@ static int get_key_pinnacle(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw,
 
 	code %= code_modulo;
 
-	*ir_raw = code;
-	*ir_key = code;
+	*protocol = RC_TYPE_UNKNOWN;
+	*scancode = code;
+	*toggle = 0;
 
 	i2cdprintk("Pinnacle PCTV key %02x\n", code);
-
 	return 1;
 }
 
@@ -394,10 +404,11 @@ static int get_key_pinnacle(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw,
  *
  * Sylvain Pasche <sylvain.pasche@gmail.com>
  */
-static int get_key_pinnacle_grey(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
+static int get_key_pinnacle_grey(struct IR_i2c *ir, enum rc_type *protocol,
+				 u32 *scancode, u8 *toggle)
 {
 
-	return get_key_pinnacle(ir, ir_key, ir_raw, 1, 0xfe, 0xff);
+	return get_key_pinnacle(ir, protocol, scancode, toggle, 1, 0xfe, 0xff);
 }
 
 
@@ -405,7 +416,8 @@ static int get_key_pinnacle_grey(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
  *
  * Ricardo Cerqueira <v4l@cerqueira.org>
  */
-static int get_key_pinnacle_color(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
+static int get_key_pinnacle_color(struct IR_i2c *ir, enum rc_type *protocol,
+				  u32 *scancode, u8 *toggle)
 {
 	/* code_modulo parameter (0x88) is used to reduce code value to fit inside IR_KEYTAB_SIZE
 	 *
@@ -413,7 +425,7 @@ static int get_key_pinnacle_color(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 	 * codes < 128
 	 */
 
-	return get_key_pinnacle(ir, ir_key, ir_raw, 2, 0x80, 0x88);
+	return get_key_pinnacle(ir, protocol, scancode, toggle, 2, 0x80, 0x88);
 }
 
 void saa7134_input_irq(struct saa7134_dev *dev)

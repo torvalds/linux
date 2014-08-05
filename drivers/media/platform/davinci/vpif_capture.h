@@ -119,15 +119,4 @@ struct vpif_device {
 	struct vpif_capture_config *config;
 };
 
-struct vpif_config_params {
-	u8 min_numbuffers;
-	u8 numbuffers[VPIF_CAPTURE_NUM_CHANNELS];
-	s8 device_type;
-	u32 min_bufsize[VPIF_CAPTURE_NUM_CHANNELS];
-	u32 channel_bufsize[VPIF_CAPTURE_NUM_CHANNELS];
-	u8 default_device[VPIF_CAPTURE_NUM_CHANNELS];
-	u32 video_limit[VPIF_CAPTURE_NUM_CHANNELS];
-	u8 max_device_type;
-};
-
 #endif				/* VPIF_CAPTURE_H */

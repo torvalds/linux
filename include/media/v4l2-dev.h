@@ -44,8 +44,6 @@ struct v4l2_ctrl_handler;
 #define V4L2_FL_REGISTERED	(0)
 /* file->private_data points to struct v4l2_fh */
 #define V4L2_FL_USES_V4L2_FH	(1)
-/* Use the prio field of v4l2_fh for core priority checking */
-#define V4L2_FL_USE_FH_PRIO	(2)
 
 /* Priority helper functions */
 

@@ -361,7 +361,6 @@ static int usb_raremono_probe(struct usb_interface *intf,
 	usb_set_intfdata(intf, &radio->v4l2_dev);
 
 	video_set_drvdata(&radio->vdev, radio);
-	set_bit(V4L2_FL_USE_FH_PRIO, &radio->vdev.flags);
 
 	raremono_cmd_main(radio, BAND_FM, 95160);
 

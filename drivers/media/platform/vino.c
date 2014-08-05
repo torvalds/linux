@@ -3147,7 +3147,6 @@ static int vino_try_fmt_vid_cap(struct file *file, void *__fh,
 	pf->colorspace =
 		vino_data_formats[tempvcs.data_format].colorspace;
 
-	pf->priv = 0;
 	return 0;
 }
 
@@ -3174,8 +3173,6 @@ static int vino_g_fmt_vid_cap(struct file *file, void *__fh,
 		vcs->decimation;
 	pf->colorspace =
 		vino_data_formats[vcs->data_format].colorspace;
-
-	pf->priv = 0;
 
 	spin_unlock_irqrestore(&vino_drvdata->input_lock, flags);
 	return 0;
@@ -3218,8 +3215,6 @@ static int vino_s_fmt_vid_cap(struct file *file, void *__fh,
 		vcs->decimation;
 	pf->colorspace =
 		vino_data_formats[vcs->data_format].colorspace;
-
-	pf->priv = 0;
 
 	spin_unlock_irqrestore(&vino_drvdata->input_lock, flags);
 	return 0;

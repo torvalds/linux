@@ -1489,7 +1489,6 @@ struct dvb_frontend *xc2028_attach(struct dvb_frontend *fe,
 	case 0:
 		/* memory allocation failure */
 		goto fail;
-		break;
 	case 1:
 		/* new tuner instance */
 		priv->ctrl.max_len = 13;

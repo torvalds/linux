@@ -196,7 +196,6 @@ static int radio_si4713_pdriver_probe(struct platform_device *pdev)
 	rsdev->radio_dev = radio_si4713_vdev_template;
 	rsdev->radio_dev.v4l2_dev = &rsdev->v4l2_dev;
 	rsdev->radio_dev.ctrl_handler = sd->ctrl_handler;
-	set_bit(V4L2_FL_USE_FH_PRIO, &rsdev->radio_dev.flags);
 	/* Serialize all access to the si4713 */
 	rsdev->radio_dev.lock = &rsdev->lock;
 	video_set_drvdata(&rsdev->radio_dev, rsdev);

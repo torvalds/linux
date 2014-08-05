@@ -2280,6 +2280,8 @@ struct usb_device_id em28xx_id_table[] = {
 			.driver_info = EM2820_BOARD_UNKNOWN },
 	{ USB_DEVICE(0xeb1a, 0x2875),
 			.driver_info = EM2820_BOARD_UNKNOWN },
+	{ USB_DEVICE(0xeb1a, 0x2885), /* MSI Digivox Trio */
+			.driver_info = EM2884_BOARD_TERRATEC_H5 },
 	{ USB_DEVICE(0xeb1a, 0xe300),
 			.driver_info = EM2861_BOARD_KWORLD_PVRTV_300U },
 	{ USB_DEVICE(0xeb1a, 0xe303),
@@ -3522,7 +3524,6 @@ static struct usb_driver em28xx_usb_driver = {
 	.disconnect = em28xx_usb_disconnect,
 	.suspend = em28xx_usb_suspend,
 	.resume = em28xx_usb_resume,
-	.reset_resume = em28xx_usb_resume,
 	.id_table = em28xx_id_table,
 };
 

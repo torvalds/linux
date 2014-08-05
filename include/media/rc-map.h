@@ -31,6 +31,7 @@ enum rc_type {
 	RC_TYPE_RC6_6A_32	= 16,	/* Philips RC6-6A-32 protocol */
 	RC_TYPE_RC6_MCE		= 17,	/* MCE (Philips RC6-6A-32 subtype) protocol */
 	RC_TYPE_SHARP		= 18,	/* Sharp protocol */
+	RC_TYPE_XMP		= 19,	/* XMP protocol */
 };
 
 #define RC_BIT_NONE		0
@@ -53,6 +54,7 @@ enum rc_type {
 #define RC_BIT_RC6_6A_32	(1 << RC_TYPE_RC6_6A_32)
 #define RC_BIT_RC6_MCE		(1 << RC_TYPE_RC6_MCE)
 #define RC_BIT_SHARP		(1 << RC_TYPE_SHARP)
+#define RC_BIT_XMP		(1 << RC_TYPE_XMP)
 
 #define RC_BIT_ALL	(RC_BIT_UNKNOWN | RC_BIT_OTHER | RC_BIT_LIRC | \
 			 RC_BIT_RC5 | RC_BIT_RC5X | RC_BIT_RC5_SZ | \
@@ -60,7 +62,19 @@ enum rc_type {
 			 RC_BIT_SONY12 | RC_BIT_SONY15 | RC_BIT_SONY20 | \
 			 RC_BIT_NEC | RC_BIT_SANYO | RC_BIT_MCE_KBD | \
 			 RC_BIT_RC6_0 | RC_BIT_RC6_6A_20 | RC_BIT_RC6_6A_24 | \
-			 RC_BIT_RC6_6A_32 | RC_BIT_RC6_MCE | RC_BIT_SHARP)
+			 RC_BIT_RC6_6A_32 | RC_BIT_RC6_MCE | RC_BIT_SHARP | \
+			 RC_BIT_XMP)
+
+
+#define RC_SCANCODE_UNKNOWN(x)			(x)
+#define RC_SCANCODE_OTHER(x)			(x)
+#define RC_SCANCODE_NEC(addr, cmd)		(((addr) << 8) | (cmd))
+#define RC_SCANCODE_NECX(addr, cmd)		(((addr) << 8) | (cmd))
+#define RC_SCANCODE_NEC32(data)			((data) & 0xffffffff)
+#define RC_SCANCODE_RC5(sys, cmd)		(((sys) << 8) | (cmd))
+#define RC_SCANCODE_RC5_SZ(sys, cmd)		(((sys) << 8) | (cmd))
+#define RC_SCANCODE_RC6_0(sys, cmd)		(((sys) << 8) | (cmd))
+#define RC_SCANCODE_RC6_6A(vendor, sys, cmd)	(((vendor) << 16) | ((sys) << 8) | (cmd))
 
 struct rc_map_table {
 	u32	scancode;

@@ -205,6 +205,7 @@ struct gspca_dev {
 	char memory;			/* memory type (V4L2_MEMORY_xxx) */
 	__u8 iface;			/* USB interface number */
 	__u8 alt;			/* USB alternate setting */
+	int xfer_ep;			/* USB transfer endpoint address */
 	u8 audio;			/* presence of audio device */
 
 	/* (*) These variables are proteced by both usb_lock and queue_lock,
