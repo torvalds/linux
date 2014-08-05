@@ -118,6 +118,7 @@ static int __init xlated_setup_gnttab_pages(void)
 {
 	struct page **pages;
 	xen_pfn_t *pfns;
+	void *vaddr;
 	int rc;
 	unsigned int i;
 	unsigned long nr_grant_frames = gnttab_max_grant_frames();
@@ -143,21 +144,20 @@ static int __init xlated_setup_gnttab_pages(void)
 	for (i = 0; i < nr_grant_frames; i++)
 		pfns[i] = page_to_pfn(pages[i]);
 
-	rc = arch_gnttab_map_shared(pfns, nr_grant_frames, nr_grant_frames,
-				    &xen_auto_xlat_grant_frames.vaddr);
-
-	if (rc) {
+	vaddr = vmap(pages, nr_grant_frames, 0, PAGE_KERNEL);
+	if (!vaddr) {
 		pr_warn("%s Couldn't map %ld pfns rc:%d\n", __func__,
 			nr_grant_frames, rc);
 		free_xenballooned_pages(nr_grant_frames, pages);
 		kfree(pages);
 		kfree(pfns);
-		return rc;
+		return -ENOMEM;
 	}
 	kfree(pages);
 
 	xen_auto_xlat_grant_frames.pfn = pfns;
 	xen_auto_xlat_grant_frames.count = nr_grant_frames;
+	xen_auto_xlat_grant_frames.vaddr = vaddr;
 
 	return 0;
 }
