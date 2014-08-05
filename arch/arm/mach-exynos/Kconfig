@@ -119,6 +119,7 @@ config EXYNOS5420_MCPM
 	bool "Exynos5420 Multi-Cluster PM support"
 	depends on MCPM && SOC_EXYNOS5420
 	select ARM_CCI
+	select ARM_CPU_SUSPEND
 	help
 	  This is needed to provide CPU and cluster power management
 	  on Exynos5420 implementing big.LITTLE.

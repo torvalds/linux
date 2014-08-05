@@ -107,10 +107,7 @@ static void arm_backtrace(struct pt_regs * const regs, unsigned int depth)
 
 	if (!user_mode(regs)) {
 		struct stackframe frame;
-		frame.fp = regs->ARM_fp;
-		frame.sp = regs->ARM_sp;
-		frame.lr = regs->ARM_lr;
-		frame.pc = regs->ARM_pc;
+		arm_get_current_stackframe(regs, &frame);
 		walk_stackframe(&frame, report_trace, &depth);
 		return;
 	}

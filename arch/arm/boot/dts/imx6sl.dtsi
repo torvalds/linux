@@ -686,7 +686,7 @@
 				compatible = "fsl,imx6sl-fec", "fsl,imx25-fec";
 				reg = <0x02188000 0x4000>;
 				interrupts = <0 114 IRQ_TYPE_LEVEL_HIGH>;
-				clocks = <&clks IMX6SL_CLK_ENET_REF>,
+				clocks = <&clks IMX6SL_CLK_ENET>,
 					 <&clks IMX6SL_CLK_ENET_REF>;
 				clock-names = "ipg", "ahb";
 				status = "disabled";

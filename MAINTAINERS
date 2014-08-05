@@ -2917,6 +2917,9 @@ L:	linux-doc@vger.kernel.org
 T:	quilt http://www.infradead.org/~rdunlap/Doc/patches/
 S:	Maintained
 F:	Documentation/
+X:	Documentation/ABI/
+X:	Documentation/devicetree/
+X:	Documentation/[a-z][a-z]_[A-Z][A-Z]/
 
 DOUBLETALK DRIVER
 M:	"James R. Van Zandt" <jrv@vanzandt.mv.com>
@@ -3188,14 +3191,6 @@ L:	linux-eata@i-connect.net
 L:	linux-scsi@vger.kernel.org
 S:	Maintained
 F:	drivers/scsi/eata_pio.*
-
-EBTABLES
-L:	netfilter-devel@vger.kernel.org
-W:	http://ebtables.sourceforge.net/
-S:	Orphan
-F:	include/linux/netfilter_bridge/ebt_*.h
-F:	include/uapi/linux/netfilter_bridge/ebt_*.h
-F:	net/bridge/netfilter/ebt*.c
 
 EC100 MEDIA DRIVER
 M:	Antti Palosaari <crope@iki.fi>
@@ -6105,12 +6100,11 @@ F:	Documentation/networking/s2io.txt
 F:	Documentation/networking/vxge.txt
 F:	drivers/net/ethernet/neterion/
 
-NETFILTER/IPTABLES
+NETFILTER ({IP,IP6,ARP,EB,NF}TABLES)
 M:	Pablo Neira Ayuso <pablo@netfilter.org>
 M:	Patrick McHardy <kaber@trash.net>
 M:	Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>
 L:	netfilter-devel@vger.kernel.org
-L:	netfilter@vger.kernel.org
 L:	coreteam@netfilter.org
 W:	http://www.netfilter.org/
 W:	http://www.iptables.org/
@@ -8196,13 +8190,15 @@ S:	Maintained
 F:	drivers/usb/misc/sisusbvga/
 
 SLAB ALLOCATOR
-M:	Christoph Lameter <cl@linux-foundation.org>
+M:	Christoph Lameter <cl@linux.com>
 M:	Pekka Enberg <penberg@kernel.org>
-M:	Matt Mackall <mpm@selenic.com>
+M:	David Rientjes <rientjes@google.com>
+M:	Joonsoo Kim <iamjoonsoo.kim@lge.com>
+M:	Andrew Morton <akpm@linux-foundation.org>
 L:	linux-mm@kvack.org
 S:	Maintained
 F:	include/linux/sl?b*.h
-F:	mm/sl?b.c
+F:	mm/sl?b*
 
 SLEEPABLE READ-COPY UPDATE (SRCU)
 M:	Lai Jiangshan <laijs@cn.fujitsu.com>

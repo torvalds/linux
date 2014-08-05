@@ -700,14 +700,6 @@ static void handle_rx_net(struct vhost_work *work)
 	handle_rx(net);
 }
 
-static void vhost_net_free(void *addr)
-{
-	if (is_vmalloc_addr(addr))
-		vfree(addr);
-	else
-		kfree(addr);
-}
-
 static int vhost_net_open(struct inode *inode, struct file *f)
 {
 	struct vhost_net *n;
@@ -723,7 +715,7 @@ static int vhost_net_open(struct inode *inode, struct file *f)
 	}
 	vqs = kmalloc(VHOST_NET_VQ_MAX * sizeof(*vqs), GFP_KERNEL);
 	if (!vqs) {
-		vhost_net_free(n);
+		kvfree(n);
 		return -ENOMEM;
 	}
 
@@ -840,7 +832,7 @@ static int vhost_net_release(struct inode *inode, struct file *f)
 	 * since jobs can re-queue themselves. */
 	vhost_net_flush(n);
 	kfree(n->dev.vqs);
-	vhost_net_free(n);
+	kvfree(n);
 	return 0;
 }
 

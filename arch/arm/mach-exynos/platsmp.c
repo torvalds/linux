@@ -188,7 +188,7 @@ static void __init exynos_smp_init_cpus(void)
 	void __iomem *scu_base = scu_base_addr();
 	unsigned int i, ncores;
 
-	if (read_cpuid_part_number() == ARM_CPU_PART_CORTEX_A9)
+	if (read_cpuid_part() == ARM_CPU_PART_CORTEX_A9)
 		ncores = scu_base ? scu_get_core_count(scu_base) : 1;
 	else
 		/*
@@ -214,7 +214,7 @@ static void __init exynos_smp_prepare_cpus(unsigned int max_cpus)
 
 	exynos_sysram_init();
 
-	if (read_cpuid_part_number() == ARM_CPU_PART_CORTEX_A9)
+	if (read_cpuid_part() == ARM_CPU_PART_CORTEX_A9)
 		scu_enable(scu_base_addr());
 
 	/*

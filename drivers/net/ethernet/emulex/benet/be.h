@@ -557,9 +557,7 @@ static inline u16 be_max_qs(struct be_adapter *adapter)
 #define be_pvid_tagging_enabled(adapter)	(adapter->pvid)
 
 /* Is BE in QNQ multi-channel mode */
-#define be_is_qnq_mode(adapter)		(adapter->mc_type == FLEX10 ||  \
-					 adapter->mc_type == vNIC1 ||	\
-					 adapter->mc_type == UFP)
+#define be_is_qnq_mode(adapter)		(adapter->function_mode & QNQ_MODE)
 
 #define lancer_chip(adapter)	(adapter->pdev->device == OC_DEVICE_ID3 || \
 				 adapter->pdev->device == OC_DEVICE_ID4)

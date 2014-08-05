@@ -907,8 +907,8 @@ config PL310_ERRATA_588369
 	   They are architecturally defined to behave as the execution of a
 	   clean operation followed immediately by an invalidate operation,
 	   both performing to the same memory location. This functionality
-	   is not correctly implemented in PL310 as clean lines are not
-	   invalidated as a result of these operations.
+	   is not correctly implemented in PL310 prior to r2p0 (fixed in r2p0)
+	   as clean lines are not invalidated as a result of these operations.
 
 config PL310_ERRATA_727915
 	bool "PL310 errata: Background Clean & Invalidate by Way operation can cause data corruption"
@@ -918,7 +918,8 @@ config PL310_ERRATA_727915
 	  PL310 can handle normal accesses while it is in progress. Under very
 	  rare circumstances, due to this erratum, write data can be lost when
 	  PL310 treats a cacheable write transaction during a Clean &
-	  Invalidate by Way operation.
+	  Invalidate by Way operation.  Revisions prior to r3p1 are affected by
+	  this errata (fixed in r3p1).
 
 config PL310_ERRATA_753970
 	bool "PL310 errata: cache sync operation may be faulty"

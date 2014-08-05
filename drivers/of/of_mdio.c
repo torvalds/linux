@@ -323,11 +323,13 @@ int of_phy_register_fixed_link(struct device_node *np)
 	fixed_link_node = of_get_child_by_name(np, "fixed-link");
 	if (fixed_link_node) {
 		status.link = 1;
-		status.duplex = of_property_read_bool(np, "full-duplex");
+		status.duplex = of_property_read_bool(fixed_link_node,
+						      "full-duplex");
 		if (of_property_read_u32(fixed_link_node, "speed", &status.speed))
 			return -EINVAL;
-		status.pause = of_property_read_bool(np, "pause");
-		status.asym_pause = of_property_read_bool(np, "asym-pause");
+		status.pause = of_property_read_bool(fixed_link_node, "pause");
+		status.asym_pause = of_property_read_bool(fixed_link_node,
+							  "asym-pause");
 		of_node_put(fixed_link_node);
 		return fixed_phy_register(PHY_POLL, &status, np);
 	}

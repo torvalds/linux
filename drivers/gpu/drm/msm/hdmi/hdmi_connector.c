@@ -127,6 +127,14 @@ static int hpd_enable(struct hdmi_connector *hdmi_connector)
 	}
 
 	for (i = 0; i < config->hpd_clk_cnt; i++) {
+		if (config->hpd_freq && config->hpd_freq[i]) {
+			ret = clk_set_rate(hdmi->hpd_clks[i],
+					config->hpd_freq[i]);
+			if (ret)
+				dev_warn(dev->dev, "failed to set clk %s (%d)\n",
+						config->hpd_clk_names[i], ret);
+		}
+
 		ret = clk_prepare_enable(hdmi->hpd_clks[i]);
 		if (ret) {
 			dev_err(dev->dev, "failed to enable hpd clk: %s (%d)\n",

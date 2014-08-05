@@ -183,7 +183,7 @@ vfp_hw_state_valid:
 					@ always subtract 4 from the following
 					@ instruction address.
 	dec_preempt_count_ti r10, r4
-	mov	pc, r9			@ we think we have handled things
+	ret	r9			@ we think we have handled things
 
 
 look_for_VFP_exceptions:
@@ -202,7 +202,7 @@ look_for_VFP_exceptions:
 
 	DBGSTR	"not VFP"
 	dec_preempt_count_ti r10, r4
-	mov	pc, lr
+	ret	lr
 
 process_exception:
 	DBGSTR	"bounce"
@@ -234,7 +234,7 @@ ENTRY(vfp_save_state)
 	VFPFMRX	r12, FPINST2		@ FPINST2 if needed (and present)
 1:
 	stmia	r0, {r1, r2, r3, r12}	@ save FPEXC, FPSCR, FPINST, FPINST2
-	mov	pc, lr
+	ret	lr
 ENDPROC(vfp_save_state)
 
 	.align
@@ -245,7 +245,7 @@ vfp_current_hw_state_address:
 #ifdef CONFIG_THUMB2_KERNEL
 	adr	\tmp, 1f
 	add	\tmp, \tmp, \base, lsl \shift
-	mov	pc, \tmp
+	ret	\tmp
 #else
 	add	pc, pc, \base, lsl \shift
 	mov	r0, r0
@@ -257,10 +257,10 @@ ENTRY(vfp_get_float)
 	tbl_branch r0, r3, #3
 	.irp	dr,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15
 1:	mrc	p10, 0, r0, c\dr, c0, 0	@ fmrs	r0, s0
-	mov	pc, lr
+	ret	lr
 	.org	1b + 8
 1:	mrc	p10, 0, r0, c\dr, c0, 4	@ fmrs	r0, s1
-	mov	pc, lr
+	ret	lr
 	.org	1b + 8
 	.endr
 ENDPROC(vfp_get_float)
@@ -269,10 +269,10 @@ ENTRY(vfp_put_float)
 	tbl_branch r1, r3, #3
 	.irp	dr,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15
 1:	mcr	p10, 0, r0, c\dr, c0, 0	@ fmsr	r0, s0
-	mov	pc, lr
+	ret	lr
 	.org	1b + 8
 1:	mcr	p10, 0, r0, c\dr, c0, 4	@ fmsr	r0, s1
-	mov	pc, lr
+	ret	lr
 	.org	1b + 8
 	.endr
 ENDPROC(vfp_put_float)
@@ -281,14 +281,14 @@ ENTRY(vfp_get_double)
 	tbl_branch r0, r3, #3
 	.irp	dr,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15
 1:	fmrrd	r0, r1, d\dr
-	mov	pc, lr
+	ret	lr
 	.org	1b + 8
 	.endr
 #ifdef CONFIG_VFPv3
 	@ d16 - d31 registers
 	.irp	dr,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15
 1:	mrrc	p11, 3, r0, r1, c\dr	@ fmrrd	r0, r1, d\dr
-	mov	pc, lr
+	ret	lr
 	.org	1b + 8
 	.endr
 #endif
@@ -296,21 +296,21 @@ ENTRY(vfp_get_double)
 	@ virtual register 16 (or 32 if VFPv3) for compare with zero
 	mov	r0, #0
 	mov	r1, #0
-	mov	pc, lr
+	ret	lr
 ENDPROC(vfp_get_double)
 
 ENTRY(vfp_put_double)
 	tbl_branch r2, r3, #3
 	.irp	dr,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15
 1:	fmdrr	d\dr, r0, r1
-	mov	pc, lr
+	ret	lr
 	.org	1b + 8
 	.endr
 #ifdef CONFIG_VFPv3
 	@ d16 - d31 registers
 	.irp	dr,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15
 1:	mcrr	p11, 3, r0, r1, c\dr	@ fmdrr	r0, r1, d\dr
-	mov	pc, lr
+	ret	lr
 	.org	1b + 8
 	.endr
 #endif

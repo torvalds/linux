@@ -50,7 +50,7 @@ mwifiex_map_pci_memory(struct mwifiex_adapter *adapter, struct sk_buff *skb,
 		return -1;
 	}
 	mapping.len = size;
-	memcpy(skb->cb, &mapping, sizeof(mapping));
+	mwifiex_store_mapping(skb, &mapping);
 	return 0;
 }
 
@@ -60,7 +60,7 @@ static void mwifiex_unmap_pci_memory(struct mwifiex_adapter *adapter,
 	struct pcie_service_card *card = adapter->card;
 	struct mwifiex_dma_mapping mapping;
 
-	MWIFIEX_SKB_PACB(skb, &mapping);
+	mwifiex_get_mapping(skb, &mapping);
 	pci_unmap_single(card->dev, mapping.addr, mapping.len, flags);
 }
 

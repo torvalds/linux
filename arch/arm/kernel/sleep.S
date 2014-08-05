@@ -107,7 +107,7 @@ ENTRY(cpu_resume_mmu)
 	instr_sync
 	mov	r0, r0
 	mov	r0, r0
-	mov	pc, r3			@ jump to virtual address
+	ret	r3			@ jump to virtual address
 ENDPROC(cpu_resume_mmu)
 	.popsection
 cpu_resume_after_mmu:

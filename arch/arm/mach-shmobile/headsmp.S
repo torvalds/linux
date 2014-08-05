@@ -12,6 +12,7 @@
  */
 #include <linux/linkage.h>
 #include <linux/init.h>
+#include <asm/assembler.h>
 #include <asm/memory.h>
 
 ENTRY(shmobile_invalidate_start)
@@ -75,7 +76,7 @@ shmobile_smp_boot_next:
 
 shmobile_smp_boot_found:
 	ldr	r0, [r7, r1, lsl #2]
-	mov	pc, r9
+	ret	r9
 ENDPROC(shmobile_smp_boot)
 
 ENTRY(shmobile_smp_sleep)

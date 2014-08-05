@@ -73,7 +73,7 @@
  * cpu_arm1020e_proc_init()
  */
 ENTRY(cpu_arm1020e_proc_init)
-	mov	pc, lr
+	ret	lr
 
 /*
  * cpu_arm1020e_proc_fin()
@@ -83,7 +83,7 @@ ENTRY(cpu_arm1020e_proc_fin)
 	bic	r0, r0, #0x1000 		@ ...i............
 	bic	r0, r0, #0x000e 		@ ............wca.
 	mcr	p15, 0, r0, c1, c0, 0		@ disable caches
-	mov	pc, lr
+	ret	lr
 
 /*
  * cpu_arm1020e_reset(loc)
@@ -107,7 +107,7 @@ ENTRY(cpu_arm1020e_reset)
 	bic	ip, ip, #0x000f 		@ ............wcam
 	bic	ip, ip, #0x1100 		@ ...i...s........
 	mcr	p15, 0, ip, c1, c0, 0		@ ctrl register
-	mov	pc, r0
+	ret	r0
 ENDPROC(cpu_arm1020e_reset)
 	.popsection
 
@@ -117,7 +117,7 @@ ENDPROC(cpu_arm1020e_reset)
 	.align	5
 ENTRY(cpu_arm1020e_do_idle)
 	mcr	p15, 0, r0, c7, c0, 4		@ Wait for interrupt
-	mov	pc, lr
+	ret	lr
 
 /* ================================= CACHE ================================ */
 
@@ -133,7 +133,7 @@ ENTRY(arm1020e_flush_icache_all)
 	mov	r0, #0
 	mcr	p15, 0, r0, c7, c5, 0		@ invalidate I cache
 #endif
-	mov	pc, lr
+	ret	lr
 ENDPROC(arm1020e_flush_icache_all)
 
 /*
@@ -168,7 +168,7 @@ __flush_whole_cache:
 	mcrne	p15, 0, ip, c7, c5, 0		@ invalidate I cache
 #endif
 	mcrne	p15, 0, ip, c7, c10, 4		@ drain WB
-	mov	pc, lr
+	ret	lr
 
 /*
  *	flush_user_cache_range(start, end, flags)
@@ -197,7 +197,7 @@ ENTRY(arm1020e_flush_user_cache_range)
 	mcrne	p15, 0, ip, c7, c5, 0		@ invalidate I cache
 #endif
 	mcrne	p15, 0, ip, c7, c10, 4		@ drain WB
-	mov	pc, lr
+	ret	lr
 
 /*
  *	coherent_kern_range(start, end)
@@ -236,7 +236,7 @@ ENTRY(arm1020e_coherent_user_range)
 	blo	1b
 	mcr	p15, 0, ip, c7, c10, 4		@ drain WB
 	mov	r0, #0
-	mov	pc, lr
+	ret	lr
 
 /*
  *	flush_kern_dcache_area(void *addr, size_t size)
@@ -257,7 +257,7 @@ ENTRY(arm1020e_flush_kern_dcache_area)
 	blo	1b
 #endif
 	mcr	p15, 0, ip, c7, c10, 4		@ drain WB
-	mov	pc, lr
+	ret	lr
 
 /*
  *	dma_inv_range(start, end)
@@ -286,7 +286,7 @@ arm1020e_dma_inv_range:
 	blo	1b
 #endif
 	mcr	p15, 0, ip, c7, c10, 4		@ drain WB
-	mov	pc, lr
+	ret	lr
 
 /*
  *	dma_clean_range(start, end)
@@ -308,7 +308,7 @@ arm1020e_dma_clean_range:
 	blo	1b
 #endif
 	mcr	p15, 0, ip, c7, c10, 4		@ drain WB
-	mov	pc, lr
+	ret	lr
 
 /*
  *	dma_flush_range(start, end)
@@ -328,7 +328,7 @@ ENTRY(arm1020e_dma_flush_range)
 	blo	1b
 #endif
 	mcr	p15, 0, ip, c7, c10, 4		@ drain WB
-	mov	pc, lr
+	ret	lr
 
 /*
  *	dma_map_area(start, size, dir)
@@ -351,7 +351,7 @@ ENDPROC(arm1020e_dma_map_area)
  *	- dir	- DMA direction
  */
 ENTRY(arm1020e_dma_unmap_area)
-	mov	pc, lr
+	ret	lr
 ENDPROC(arm1020e_dma_unmap_area)
 
 	.globl	arm1020e_flush_kern_cache_louis
@@ -369,7 +369,7 @@ ENTRY(cpu_arm1020e_dcache_clean_area)
 	subs	r1, r1, #CACHE_DLINESIZE
 	bhi	1b
 #endif
-	mov	pc, lr
+	ret	lr
 
 /* =============================== PageTable ============================== */
 
@@ -407,7 +407,7 @@ ENTRY(cpu_arm1020e_switch_mm)
 	mcr	p15, 0, r0, c2, c0, 0		@ load page table pointer
 	mcr	p15, 0, r1, c8, c7, 0		@ invalidate I & D TLBs
 #endif
-	mov	pc, lr
+	ret	lr
         
 /*
  * cpu_arm1020e_set_pte(ptep, pte)
@@ -423,7 +423,7 @@ ENTRY(cpu_arm1020e_set_pte_ext)
 	mcr	p15, 0, r0, c7, c10, 1		@ clean D entry
 #endif
 #endif /* CONFIG_MMU */
-	mov	pc, lr
+	ret	lr
 
 	.type	__arm1020e_setup, #function
 __arm1020e_setup:
@@ -441,7 +441,7 @@ __arm1020e_setup:
 #ifdef CONFIG_CPU_CACHE_ROUND_ROBIN
 	orr	r0, r0, #0x4000 		@ .R.. .... .... ....
 #endif
-	mov	pc, lr
+	ret	lr
 	.size	__arm1020e_setup, . - __arm1020e_setup
 
 	/*

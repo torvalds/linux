@@ -5603,8 +5603,8 @@ static bool hsw_power_well_enabled(struct drm_i915_private *dev_priv,
 		     (HSW_PWR_WELL_ENABLE_REQUEST | HSW_PWR_WELL_STATE_ENABLED);
 }
 
-bool intel_display_power_enabled_sw(struct drm_i915_private *dev_priv,
-				    enum intel_display_power_domain domain)
+bool intel_display_power_enabled_unlocked(struct drm_i915_private *dev_priv,
+					  enum intel_display_power_domain domain)
 {
 	struct i915_power_domains *power_domains;
 	struct i915_power_well *power_well;
@@ -5615,16 +5615,19 @@ bool intel_display_power_enabled_sw(struct drm_i915_private *dev_priv,
 		return false;
 
 	power_domains = &dev_priv->power_domains;
+
 	is_enabled = true;
+
 	for_each_power_well_rev(i, power_well, BIT(domain), power_domains) {
 		if (power_well->always_on)
 			continue;
 
-		if (!power_well->count) {
+		if (!power_well->hw_enabled) {
 			is_enabled = false;
 			break;
 		}
 	}
+
 	return is_enabled;
 }
 
@@ -5632,30 +5635,15 @@ bool intel_display_power_enabled(struct drm_i915_private *dev_priv,
 				 enum intel_display_power_domain domain)
 {
 	struct i915_power_domains *power_domains;
-	struct i915_power_well *power_well;
-	bool is_enabled;
-	int i;
-
-	if (dev_priv->pm.suspended)
-		return false;
+	bool ret;
 
 	power_domains = &dev_priv->power_domains;
 
-	is_enabled = true;
-
 	mutex_lock(&power_domains->lock);
-	for_each_power_well_rev(i, power_well, BIT(domain), power_domains) {
-		if (power_well->always_on)
-			continue;
-
-		if (!power_well->ops->is_enabled(dev_priv, power_well)) {
-			is_enabled = false;
-			break;
-		}
-	}
+	ret = intel_display_power_enabled_unlocked(dev_priv, domain);
 	mutex_unlock(&power_domains->lock);
 
-	return is_enabled;
+	return ret;
 }
 
 /*
@@ -5976,6 +5964,7 @@ void intel_display_power_get(struct drm_i915_private *dev_priv,
 		if (!power_well->count++) {
 			DRM_DEBUG_KMS("enabling %s\n", power_well->name);
 			power_well->ops->enable(dev_priv, power_well);
+			power_well->hw_enabled = true;
 		}
 
 		check_power_well_state(dev_priv, power_well);
@@ -6005,6 +5994,7 @@ void intel_display_power_put(struct drm_i915_private *dev_priv,
 
 		if (!--power_well->count && i915.disable_power_well) {
 			DRM_DEBUG_KMS("disabling %s\n", power_well->name);
+			power_well->hw_enabled = false;
 			power_well->ops->disable(dev_priv, power_well);
 		}
 
@@ -6267,8 +6257,11 @@ static void intel_power_domains_resume(struct drm_i915_private *dev_priv)
 	int i;
 
 	mutex_lock(&power_domains->lock);
-	for_each_power_well(i, power_well, POWER_DOMAIN_MASK, power_domains)
+	for_each_power_well(i, power_well, POWER_DOMAIN_MASK, power_domains) {
 		power_well->ops->sync_hw(dev_priv, power_well);
+		power_well->hw_enabled = power_well->ops->is_enabled(dev_priv,
+								     power_well);
+	}
 	mutex_unlock(&power_domains->lock);
 }
 
