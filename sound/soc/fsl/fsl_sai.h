@@ -136,9 +136,13 @@ struct fsl_sai {
 	bool big_endian_data;
 	bool is_dsp_mode;
 	bool sai_on_imx;
+	bool synchronous[2];
 
 	struct snd_dmaengine_dai_dma_data dma_params_rx;
 	struct snd_dmaengine_dai_dma_data dma_params_tx;
 };
+
+#define TX 1
+#define RX 0
 
 #endif /* __FSL_SAI_H */
