@@ -190,14 +190,12 @@ static int pkcs7_verify_sig_chain(struct pkcs7_message *pkcs7,
 		if (ret < 0)
 			return ret;
 
-		if (x509->issuer)
-			pr_debug("- issuer %s\n", x509->issuer);
+		pr_debug("- issuer %s\n", x509->issuer);
 		if (x509->authority)
 			pr_debug("- authkeyid %s\n", x509->authority);
 
 		if (!x509->authority ||
-		    (x509->subject &&
-		     strcmp(x509->subject, x509->issuer) == 0)) {
+		    strcmp(x509->subject, x509->issuer) == 0) {
 			/* If there's no authority certificate specified, then
 			 * the certificate must be self-signed and is the root
 			 * of the chain.  Likewise if the cert is its own

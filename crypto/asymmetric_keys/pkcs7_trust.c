@@ -20,55 +20,6 @@
 #include "public_key.h"
 #include "pkcs7_parser.h"
 
-/*
- * Request an asymmetric key.
- */
-static struct key *pkcs7_request_asymmetric_key(
-	struct key *keyring,
-	const char *signer, size_t signer_len,
-	const char *authority, size_t auth_len)
-{
-	key_ref_t key;
-	char *id;
-
-	kenter(",%zu,,%zu", signer_len, auth_len);
-
-	/* Construct an identifier. */
-	id = kmalloc(signer_len + 2 + auth_len + 1, GFP_KERNEL);
-	if (!id)
-		return ERR_PTR(-ENOMEM);
-
-	memcpy(id, signer, signer_len);
-	id[signer_len + 0] = ':';
-	id[signer_len + 1] = ' ';
-	memcpy(id + signer_len + 2, authority, auth_len);
-	id[signer_len + 2 + auth_len] = 0;
-
-	pr_debug("Look up: \"%s\"\n", id);
-
-	key = keyring_search(make_key_ref(keyring, 1),
-			     &key_type_asymmetric, id);
-	if (IS_ERR(key))
-		pr_debug("Request for module key '%s' err %ld\n",
-			 id, PTR_ERR(key));
-	kfree(id);
-
-	if (IS_ERR(key)) {
-		switch (PTR_ERR(key)) {
-			/* Hide some search errors */
-		case -EACCES:
-		case -ENOTDIR:
-		case -EAGAIN:
-			return ERR_PTR(-ENOKEY);
-		default:
-			return ERR_CAST(key);
-		}
-	}
-
-	pr_devel("<==%s() = 0 [%x]\n", __func__, key_serial(key_ref_to_ptr(key)));
-	return key_ref_to_ptr(key);
-}
-
 /**
  * Check the trust on one PKCS#7 SignedInfo block.
  */
@@ -98,10 +49,8 @@ int pkcs7_validate_trust_one(struct pkcs7_message *pkcs7,
 		/* Look to see if this certificate is present in the trusted
 		 * keys.
 		 */
-		key = pkcs7_request_asymmetric_key(
-			trust_keyring,
-			x509->subject, strlen(x509->subject),
-			x509->fingerprint, strlen(x509->fingerprint));
+		key = x509_request_asymmetric_key(trust_keyring, x509->subject,
+						  x509->fingerprint);
 		if (!IS_ERR(key))
 			/* One of the X.509 certificates in the PKCS#7 message
 			 * is apparently the same as one we already trust.
@@ -133,10 +82,8 @@ int pkcs7_validate_trust_one(struct pkcs7_message *pkcs7,
 		return -ENOKEY;
 	}
 
-	key = pkcs7_request_asymmetric_key(
-		trust_keyring,
-		last->issuer, strlen(last->issuer),
-		last->authority, strlen(last->authority));
+	key = x509_request_asymmetric_key(trust_keyring, last->issuer,
+					  last->authority);
 	if (IS_ERR(key))
 		return PTR_ERR(key) == -ENOMEM ? -ENOMEM : -ENOKEY;
 	x509 = last;

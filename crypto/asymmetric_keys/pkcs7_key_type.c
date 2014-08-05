@@ -70,7 +70,7 @@ error:
  * user defined keys take an arbitrary string as the description and an
  * arbitrary blob of data as the payload
  */
-struct key_type key_type_pkcs7 = {
+static struct key_type key_type_pkcs7 = {
 	.name			= "pkcs7_test",
 	.def_lookup_type	= KEYRING_SEARCH_LOOKUP_DIRECT,
 	.preparse		= pkcs7_preparse,
