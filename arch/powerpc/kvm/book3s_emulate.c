@@ -439,12 +439,6 @@ int kvmppc_core_emulate_mtspr_pr(struct kvm_vcpu *vcpu, int sprn, ulong spr_val)
 		    (mfmsr() & MSR_HV))
 			vcpu->arch.hflags |= BOOK3S_HFLAG_DCBZ32;
 		break;
-	case SPRN_PURR:
-		to_book3s(vcpu)->purr_offset = spr_val - get_tb();
-		break;
-	case SPRN_SPURR:
-		to_book3s(vcpu)->spurr_offset = spr_val - get_tb();
-		break;
 	case SPRN_GQR0:
 	case SPRN_GQR1:
 	case SPRN_GQR2:
@@ -455,10 +449,10 @@ int kvmppc_core_emulate_mtspr_pr(struct kvm_vcpu *vcpu, int sprn, ulong spr_val)
 	case SPRN_GQR7:
 		to_book3s(vcpu)->gqr[sprn - SPRN_GQR0] = spr_val;
 		break;
-	case SPRN_FSCR:
-		vcpu->arch.fscr = spr_val;
-		break;
 #ifdef CONFIG_PPC_BOOK3S_64
+	case SPRN_FSCR:
+		kvmppc_set_fscr(vcpu, spr_val);
+		break;
 	case SPRN_BESCR:
 		vcpu->arch.bescr = spr_val;
 		break;
@@ -572,10 +566,22 @@ int kvmppc_core_emulate_mfspr_pr(struct kvm_vcpu *vcpu, int sprn, ulong *spr_val
 		*spr_val = 0;
 		break;
 	case SPRN_PURR:
-		*spr_val = get_tb() + to_book3s(vcpu)->purr_offset;
+		/*
+		 * On exit we would have updated purr
+		 */
+		*spr_val = vcpu->arch.purr;
 		break;
 	case SPRN_SPURR:
-		*spr_val = get_tb() + to_book3s(vcpu)->purr_offset;
+		/*
+		 * On exit we would have updated spurr
+		 */
+		*spr_val = vcpu->arch.spurr;
+		break;
+	case SPRN_VTB:
+		*spr_val = vcpu->arch.vtb;
+		break;
+	case SPRN_IC:
+		*spr_val = vcpu->arch.ic;
 		break;
 	case SPRN_GQR0:
 	case SPRN_GQR1:
@@ -587,10 +593,10 @@ int kvmppc_core_emulate_mfspr_pr(struct kvm_vcpu *vcpu, int sprn, ulong *spr_val
 	case SPRN_GQR7:
 		*spr_val = to_book3s(vcpu)->gqr[sprn - SPRN_GQR0];
 		break;
+#ifdef CONFIG_PPC_BOOK3S_64
 	case SPRN_FSCR:
 		*spr_val = vcpu->arch.fscr;
 		break;
-#ifdef CONFIG_PPC_BOOK3S_64
 	case SPRN_BESCR:
 		*spr_val = vcpu->arch.bescr;
 		break;

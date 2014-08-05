@@ -225,6 +225,7 @@
 #define   CTRL_TE	0x00c00000	/* thread enable */
 #define   CTRL_RUNLATCH	0x1
 #define SPRN_DAWR	0xB4
+#define SPRN_MPPR	0xB8	/* Micro Partition Prefetch Register */
 #define SPRN_RPR	0xBA	/* Relative Priority Register */
 #define SPRN_CIABR	0xBB
 #define   CIABR_PRIV		0x3
@@ -944,9 +945,6 @@
  *      readable variant for reads, which can avoid a fault
  *      with KVM type virtualization.
  *
- *      (*) Under KVM, the host SPRG1 is used to point to
- *      the current VCPU data structure
- *
  * 32-bit 8xx:
  *	- SPRG0 scratch for exception vectors
  *	- SPRG1 scratch for exception vectors
@@ -1202,6 +1200,15 @@
 #define mtspr(rn, v)	asm volatile("mtspr " __stringify(rn) ",%0" : \
 				     : "r" ((unsigned long)(v)) \
 				     : "memory")
+
+static inline unsigned long mfvtb (void)
+{
+#ifdef CONFIG_PPC_BOOK3S_64
+	if (cpu_has_feature(CPU_FTR_ARCH_207S))
+		return mfspr(SPRN_VTB);
+#endif
+	return 0;
+}
 
 #ifdef __powerpc64__
 #if defined(CONFIG_PPC_CELL) || defined(CONFIG_PPC_FSL_BOOK3E)

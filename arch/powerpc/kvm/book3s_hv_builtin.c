@@ -212,3 +212,16 @@ bool kvm_hv_mode_active(void)
 {
 	return atomic_read(&hv_vm_count) != 0;
 }
+
+extern int hcall_real_table[], hcall_real_table_end[];
+
+int kvmppc_hcall_impl_hv_realmode(unsigned long cmd)
+{
+	cmd /= 4;
+	if (cmd < hcall_real_table_end - hcall_real_table &&
+	    hcall_real_table[cmd])
+		return 1;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(kvmppc_hcall_impl_hv_realmode);

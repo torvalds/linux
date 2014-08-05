@@ -24,12 +24,10 @@
 #include <asm/ppc_asm.h>
 #include <asm/kvm_asm.h>
 #include <asm/reg.h>
-#include <asm/mmu-44x.h>
 #include <asm/page.h>
 #include <asm/asm-compat.h>
 #include <asm/asm-offsets.h>
 #include <asm/bitsperlong.h>
-#include <asm/thread_info.h>
 
 #ifdef CONFIG_64BIT
 #include <asm/exception-64e.h>
@@ -122,38 +120,14 @@
 1:
 
 	.if	\flags & NEED_EMU
-	/*
-	 * This assumes you have external PID support.
-	 * To support a bookehv CPU without external PID, you'll
-	 * need to look up the TLB entry and create a temporary mapping.
-	 *
-	 * FIXME: we don't currently handle if the lwepx faults.  PR-mode
-	 * booke doesn't handle it either.  Since Linux doesn't use
-	 * broadcast tlbivax anymore, the only way this should happen is
-	 * if the guest maps its memory execute-but-not-read, or if we
-	 * somehow take a TLB miss in the middle of this entry code and
-	 * evict the relevant entry.  On e500mc, all kernel lowmem is
-	 * bolted into TLB1 large page mappings, and we don't use
-	 * broadcast invalidates, so we should not take a TLB miss here.
-	 *
-	 * Later we'll need to deal with faults here.  Disallowing guest
-	 * mappings that are execute-but-not-read could be an option on
-	 * e500mc, but not on chips with an LRAT if it is used.
-	 */
-
-	mfspr	r3, SPRN_EPLC	/* will already have correct ELPID and EGS */
 	PPC_STL	r15, VCPU_GPR(R15)(r4)
 	PPC_STL	r16, VCPU_GPR(R16)(r4)
 	PPC_STL	r17, VCPU_GPR(R17)(r4)
 	PPC_STL	r18, VCPU_GPR(R18)(r4)
 	PPC_STL	r19, VCPU_GPR(R19)(r4)
-	mr	r8, r3
 	PPC_STL	r20, VCPU_GPR(R20)(r4)
-	rlwimi	r8, r6, EPC_EAS_SHIFT - MSR_IR_LG, EPC_EAS
 	PPC_STL	r21, VCPU_GPR(R21)(r4)
-	rlwimi	r8, r6, EPC_EPR_SHIFT - MSR_PR_LG, EPC_EPR
 	PPC_STL	r22, VCPU_GPR(R22)(r4)
-	rlwimi	r8, r10, EPC_EPID_SHIFT, EPC_EPID
 	PPC_STL	r23, VCPU_GPR(R23)(r4)
 	PPC_STL	r24, VCPU_GPR(R24)(r4)
 	PPC_STL	r25, VCPU_GPR(R25)(r4)
@@ -163,33 +137,15 @@
 	PPC_STL	r29, VCPU_GPR(R29)(r4)
 	PPC_STL	r30, VCPU_GPR(R30)(r4)
 	PPC_STL	r31, VCPU_GPR(R31)(r4)
-	mtspr	SPRN_EPLC, r8
-
-	/* disable preemption, so we are sure we hit the fixup handler */
-	CURRENT_THREAD_INFO(r8, r1)
-	li	r7, 1
-	stw	r7, TI_PREEMPT(r8)
-
-	isync
 
 	/*
-	 * In case the read goes wrong, we catch it and write an invalid value
-	 * in LAST_INST instead.
+	 * We don't use external PID support. lwepx faults would need to be
+	 * handled by KVM and this implies aditional code in DO_KVM (for
+	 * DTB_MISS, DSI and LRAT) to check ESR[EPID] and EPLC[EGS] which
+	 * is too intrusive for the host. Get last instuction in
+	 * kvmppc_get_last_inst().
 	 */
-1:	lwepx	r9, 0, r5
-2:
-.section .fixup, "ax"
-3:	li	r9, KVM_INST_FETCH_FAILED
-	b	2b
-.previous
-.section __ex_table,"a"
-	PPC_LONG_ALIGN
-	PPC_LONG 1b,3b
-.previous
-
-	mtspr	SPRN_EPLC, r3
-	li	r7, 0
-	stw	r7, TI_PREEMPT(r8)
+	li	r9, KVM_INST_FETCH_FAILED
 	stw	r9, VCPU_LAST_INST(r4)
 	.endif
 
@@ -441,6 +397,7 @@ _GLOBAL(kvmppc_resume_host)
 #ifdef CONFIG_64BIT
 	PPC_LL	r3, PACA_SPRG_VDSO(r13)
 #endif
+	mfspr	r5, SPRN_SPRG9
 	PPC_STD(r6, VCPU_SHARED_SPRG4, r11)
 	mfspr	r8, SPRN_SPRG6
 	PPC_STD(r7, VCPU_SHARED_SPRG5, r11)
@@ -448,6 +405,7 @@ _GLOBAL(kvmppc_resume_host)
 #ifdef CONFIG_64BIT
 	mtspr	SPRN_SPRG_VDSO_WRITE, r3
 #endif
+	PPC_STD(r5, VCPU_SPRG9, r4)
 	PPC_STD(r8, VCPU_SHARED_SPRG6, r11)
 	mfxer	r3
 	PPC_STD(r9, VCPU_SHARED_SPRG7, r11)
@@ -682,7 +640,9 @@ lightweight_exit:
 	mtspr	SPRN_SPRG5W, r6
 	PPC_LD(r8, VCPU_SHARED_SPRG7, r11)
 	mtspr	SPRN_SPRG6W, r7
+	PPC_LD(r5, VCPU_SPRG9, r4)
 	mtspr	SPRN_SPRG7W, r8
+	mtspr	SPRN_SPRG9, r5
 
 	/* Load some guest volatiles. */
 	PPC_LL	r3, VCPU_LR(r4)
