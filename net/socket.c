@@ -613,9 +613,9 @@ EXPORT_SYMBOL(sock_release);
 void sock_tx_timestamp(struct sock *sk, __u8 *tx_flags)
 {
 	*tx_flags = 0;
-	if (sock_flag(sk, SOCK_TIMESTAMPING_TX_HARDWARE))
+	if (sk->sk_tsflags & SOF_TIMESTAMPING_TX_HARDWARE)
 		*tx_flags |= SKBTX_HW_TSTAMP;
-	if (sock_flag(sk, SOCK_TIMESTAMPING_TX_SOFTWARE))
+	if (sk->sk_tsflags & SOF_TIMESTAMPING_TX_SOFTWARE)
 		*tx_flags |= SKBTX_SW_TSTAMP;
 	if (sock_flag(sk, SOCK_WIFI_STATUS))
 		*tx_flags |= SKBTX_WIFI_STATUS;
@@ -723,12 +723,12 @@ void __sock_recv_timestamp(struct msghdr *msg, struct sock *sk,
 	}
 
 	memset(&tss, 0, sizeof(tss));
-	if ((sock_flag(sk, SOCK_TIMESTAMPING_SOFTWARE) ||
+	if ((sk->sk_tsflags & SOF_TIMESTAMPING_SOFTWARE ||
 	     skb_shinfo(skb)->tx_flags & SKBTX_ANY_SW_TSTAMP) &&
 	    ktime_to_timespec_cond(skb->tstamp, tss.ts + 0))
 		empty = 0;
 	if (shhwtstamps &&
-	    sock_flag(sk, SOCK_TIMESTAMPING_RAW_HARDWARE) &&
+	    (sk->sk_tsflags & SOF_TIMESTAMPING_RAW_HARDWARE) &&
 	    ktime_to_timespec_cond(shhwtstamps->hwtstamp, tss.ts + 2))
 		empty = 0;
 	if (!empty)
