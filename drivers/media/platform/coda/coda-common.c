@@ -1116,12 +1116,14 @@ static void coda_stop_streaming(struct vb2_queue *q)
 	if (!ctx->streamon_out && !ctx->streamon_cap) {
 		struct coda_timestamp *ts;
 
+		mutex_lock(&ctx->bitstream_mutex);
 		while (!list_empty(&ctx->timestamp_list)) {
 			ts = list_first_entry(&ctx->timestamp_list,
 					      struct coda_timestamp, list);
 			list_del(&ts->list);
 			kfree(ts);
 		}
+		mutex_unlock(&ctx->bitstream_mutex);
 		kfifo_init(&ctx->bitstream_fifo,
 			ctx->bitstream.vaddr, ctx->bitstream.size);
 		ctx->runcounter = 0;

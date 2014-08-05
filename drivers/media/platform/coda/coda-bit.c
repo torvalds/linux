@@ -1699,18 +1699,28 @@ static void coda_finish_decode(struct coda_ctx *ctx)
 		v4l2_err(&dev->v4l2_dev,
 			 "decoded frame index out of range: %d\n", decoded_idx);
 	} else {
-		ts = list_first_entry(&ctx->timestamp_list,
-				      struct coda_timestamp, list);
-		list_del(&ts->list);
 		val = coda_read(dev, CODA_RET_DEC_PIC_FRAME_NUM) - 1;
 		val -= ctx->sequence_offset;
-		if (val != (ts->sequence & 0xffff)) {
-			v4l2_err(&dev->v4l2_dev,
-				 "sequence number mismatch (%d(%d) != %d)\n",
-				 val, ctx->sequence_offset, ts->sequence);
+		mutex_lock(&ctx->bitstream_mutex);
+		if (!list_empty(&ctx->timestamp_list)) {
+			ts = list_first_entry(&ctx->timestamp_list,
+					      struct coda_timestamp, list);
+			list_del(&ts->list);
+			if (val != (ts->sequence & 0xffff)) {
+				v4l2_err(&dev->v4l2_dev,
+					 "sequence number mismatch (%d(%d) != %d)\n",
+					 val, ctx->sequence_offset,
+					 ts->sequence);
+			}
+			ctx->frame_timestamps[decoded_idx] = *ts;
+			kfree(ts);
+		} else {
+			v4l2_err(&dev->v4l2_dev, "empty timestamp list!\n");
+			memset(&ctx->frame_timestamps[decoded_idx], 0,
+			       sizeof(struct coda_timestamp));
+			ctx->frame_timestamps[decoded_idx].sequence = val;
 		}
-		ctx->frame_timestamps[decoded_idx] = *ts;
-		kfree(ts);
+		mutex_unlock(&ctx->bitstream_mutex);
 
 		val = coda_read(dev, CODA_RET_DEC_PIC_TYPE) & 0x7;
 		if (val == 0)
