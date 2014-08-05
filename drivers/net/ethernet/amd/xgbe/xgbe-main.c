@@ -303,8 +303,11 @@ static int xgbe_probe(struct platform_device *pdev)
 	/* Set the DMA mask */
 	if (!dev->dma_mask)
 		dev->dma_mask = &dev->coherent_dma_mask;
-	*(dev->dma_mask) = DMA_BIT_MASK(40);
-	dev->coherent_dma_mask = DMA_BIT_MASK(40);
+	ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(40));
+	if (ret) {
+		dev_err(dev, "dma_set_mask_and_coherent failed\n");
+		goto err_io;
+	}
 
 	if (of_property_read_bool(dev->of_node, "dma-coherent")) {
 		pdata->axdomain = XGBE_DMA_OS_AXDOMAIN;
