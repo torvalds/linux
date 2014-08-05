@@ -2521,8 +2521,8 @@ F:	arch/x86/kernel/cpuid.c
 F:	arch/x86/kernel/msr.c
 
 CPU POWER MONITORING SUBSYSTEM
-M:	Dominik Brodowski <linux@dominikbrodowski.net>
 M:	Thomas Renninger <trenn@suse.de>
+L:	linux-pm@vger.kernel.org
 S:	Maintained
 F:	tools/power/cpupower/
 
