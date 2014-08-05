@@ -846,7 +846,9 @@ static int machine_constraints_voltage(struct regulator_dev *rdev,
 	    rdev->constraints->min_uV == rdev->constraints->max_uV) {
 		int current_uV = _regulator_get_voltage(rdev);
 		if (current_uV < 0) {
-			rdev_err(rdev, "failed to get the current voltage\n");
+			rdev_err(rdev,
+				 "failed to get the current voltage(%d)\n",
+				 current_uV);
 			return current_uV;
 		}
 		if (current_uV < rdev->constraints->min_uV ||
@@ -856,8 +858,8 @@ static int machine_constraints_voltage(struct regulator_dev *rdev,
 				rdev->constraints->max_uV);
 			if (ret < 0) {
 				rdev_err(rdev,
-					"failed to apply %duV constraint\n",
-					rdev->constraints->min_uV);
+					"failed to apply %duV constraint(%d)\n",
+					rdev->constraints->min_uV, ret);
 				return ret;
 			}
 		}
@@ -2180,7 +2182,13 @@ int regulator_count_voltages(struct regulator *regulator)
 {
 	struct regulator_dev	*rdev = regulator->rdev;
 
-	return rdev->desc->n_voltages ? : -EINVAL;
+	if (rdev->desc->n_voltages)
+		return rdev->desc->n_voltages;
+
+	if (!rdev->supply)
+		return -EINVAL;
+
+	return regulator_count_voltages(rdev->supply);
 }
 EXPORT_SYMBOL_GPL(regulator_count_voltages);
 
@@ -2203,12 +2211,17 @@ int regulator_list_voltage(struct regulator *regulator, unsigned selector)
 	if (rdev->desc->fixed_uV && rdev->desc->n_voltages == 1 && !selector)
 		return rdev->desc->fixed_uV;
 
-	if (!ops->list_voltage || selector >= rdev->desc->n_voltages)
+	if (ops->list_voltage) {
+		if (selector >= rdev->desc->n_voltages)
+			return -EINVAL;
+		mutex_lock(&rdev->mutex);
+		ret = ops->list_voltage(rdev, selector);
+		mutex_unlock(&rdev->mutex);
+	} else if (rdev->supply) {
+		ret = regulator_list_voltage(rdev->supply, selector);
+	} else {
 		return -EINVAL;
-
-	mutex_lock(&rdev->mutex);
-	ret = ops->list_voltage(rdev, selector);
-	mutex_unlock(&rdev->mutex);
+	}
 
 	if (ret > 0) {
 		if (ret < rdev->constraints->min_uV)
@@ -2618,6 +2631,8 @@ static int _regulator_get_voltage(struct regulator_dev *rdev)
 		ret = rdev->desc->ops->list_voltage(rdev, 0);
 	} else if (rdev->desc->fixed_uV && (rdev->desc->n_voltages == 1)) {
 		ret = rdev->desc->fixed_uV;
+	} else if (rdev->supply) {
+		ret = regulator_get_voltage(rdev->supply);
 	} else {
 		return -EINVAL;
 	}
