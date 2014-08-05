@@ -423,19 +423,4 @@ struct guest_msgs {
 
 };
 
-#ifndef __xg
-#define __xg(x) ((volatile long *)(x))
-#endif
-
-/*
-*  Below code is a copy of Linux kernel's cmpxchg function located at
-*  this place
-*  http://tcsxeon:8080/source/xref/00trunk-AppOS-linux/include/asm-x86/cmpxchg_64.h#84
-*  Reason for creating our own version of cmpxchg along with
-*  UISLIB_LOCK_PREFIX is to make the operation atomic even for non SMP
-*  guests.
-*/
-
-#define uislibcmpxchg64(p, o, n, s) cmpxchg(p, o, n)
-
 #endif				/* __UISQUEUE_H__ */

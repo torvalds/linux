@@ -43,8 +43,7 @@ uisqueue_InterlockedOr(unsigned long long __iomem *Target,
 	j = readq(Target);
 	do {
 		i = j;
-		j = uislibcmpxchg64((__force unsigned long long *)Target,
-				    i, i | Set, sizeof(*(Target)));
+		j = cmpxchg((__force unsigned long long *)Target, i, i | Set);
 
 	} while (i != j);
 
@@ -62,8 +61,7 @@ uisqueue_InterlockedAnd(unsigned long long __iomem *Target,
 	j = readq(Target);
 	do {
 		i = j;
-		j = uislibcmpxchg64((__force unsigned long long *)Target,
-				    i, i & Set, sizeof(*(Target)));
+		j = cmpxchg((__force unsigned long long *)Target, i, i & Set);
 
 	} while (i != j);
 
