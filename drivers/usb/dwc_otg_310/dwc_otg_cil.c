@@ -4686,7 +4686,7 @@ void dwc_otg_ep0_start_transfer(dwc_otg_core_if_t *core_if, dwc_ep_t *ep)
 		deptsiz.b.xfersize = ep->maxpacket;
 		deptsiz.b.pktcnt = 1;
 		if (core_if->snpsid >= OTG_CORE_REV_3_00a)
-			deptsiz.b.supcnt = 3;
+			deptsiz.b.supcnt = 1;
 
 		DWC_DEBUGPL(DBG_PCDV, "len=%d  xfersize=%d pktcnt=%d\n",
 			    ep->xfer_len, deptsiz.b.xfersize, deptsiz.b.pktcnt);
