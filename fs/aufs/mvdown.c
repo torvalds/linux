@@ -57,13 +57,20 @@ static int find_lower_writable(struct au_mvd_args *a)
 	sb = a->sb;
 	bindex = a->mvd_bsrc;
 	bend = au_sbend(sb);
-	if (!(a->mvdown.flags & AUFS_MVDOWN_ROLOWER)) {
+	if (a->mvdown.flags & AUFS_MVDOWN_FHSM_LOWER)
+		for (bindex++; bindex <= bend; bindex++) {
+			br = au_sbr(sb, bindex);
+			if (au_br_fhsm(br->br_perm)
+			    && (!(au_br_sb(br)->s_flags & MS_RDONLY)))
+				return bindex;
+		}
+	else if (!(a->mvdown.flags & AUFS_MVDOWN_ROLOWER))
 		for (bindex++; bindex <= bend; bindex++) {
 			br = au_sbr(sb, bindex);
 			if (!au_br_rdonly(br))
 				return bindex;
 		}
-	} else {
+	else
 		for (bindex++; bindex <= bend; bindex++) {
 			br = au_sbr(sb, bindex);
 			if (!(au_br_sb(br)->s_flags & MS_RDONLY)) {
@@ -73,7 +80,6 @@ static int find_lower_writable(struct au_mvd_args *a)
 				return bindex;
 			}
 		}
-	}
 
 	return -1;
 }
@@ -551,8 +557,6 @@ int au_mvdown(struct dentry *dentry, struct aufs_mvdown __user *uarg)
 	err = -EPERM;
 	if (unlikely(!capable(CAP_SYS_ADMIN)))
 		goto out;
-
-	WARN_ONCE(1, "move-down is still testing...\n");
 
 	err = -ENOMEM;
 	args = kmalloc(sizeof(*args), GFP_NOFS);
