@@ -205,6 +205,10 @@ int mipi_dsi_dcs_enter_sleep_mode(struct mipi_dsi_device *dsi);
 int mipi_dsi_dcs_exit_sleep_mode(struct mipi_dsi_device *dsi);
 int mipi_dsi_dcs_set_display_off(struct mipi_dsi_device *dsi);
 int mipi_dsi_dcs_set_display_on(struct mipi_dsi_device *dsi);
+int mipi_dsi_dcs_set_column_address(struct mipi_dsi_device *dsi, u16 start,
+				    u16 end);
+int mipi_dsi_dcs_set_page_address(struct mipi_dsi_device *dsi, u16 start,
+				  u16 end);
 int mipi_dsi_dcs_set_tear_off(struct mipi_dsi_device *dsi);
 int mipi_dsi_dcs_set_tear_on(struct mipi_dsi_device *dsi,
 			     enum mipi_dsi_dcs_tear_mode mode);

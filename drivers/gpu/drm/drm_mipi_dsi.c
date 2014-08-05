@@ -729,6 +729,54 @@ int mipi_dsi_dcs_set_display_on(struct mipi_dsi_device *dsi)
 EXPORT_SYMBOL(mipi_dsi_dcs_set_display_on);
 
 /**
+ * mipi_dsi_dcs_set_column_address() - define the column extent of the frame
+ *    memory accessed by the host processor
+ * @dsi: DSI peripheral device
+ * @start: first column of frame memory
+ * @end: last column of frame memory
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int mipi_dsi_dcs_set_column_address(struct mipi_dsi_device *dsi, u16 start,
+				    u16 end)
+{
+	u8 payload[4] = { start >> 8, start & 0xff, end >> 8, end & 0xff };
+	ssize_t err;
+
+	err = mipi_dsi_dcs_write(dsi, MIPI_DCS_SET_COLUMN_ADDRESS, payload,
+				 sizeof(payload));
+	if (err < 0)
+		return err;
+
+	return 0;
+}
+EXPORT_SYMBOL(mipi_dsi_dcs_set_column_address);
+
+/**
+ * mipi_dsi_dcs_set_page_address() - define the page extent of the frame
+ *    memory accessed by the host processor
+ * @dsi: DSI peripheral device
+ * @start: first page of frame memory
+ * @end: last page of frame memory
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int mipi_dsi_dcs_set_page_address(struct mipi_dsi_device *dsi, u16 start,
+				  u16 end)
+{
+	u8 payload[4] = { start >> 8, start & 0xff, end >> 8, end & 0xff };
+	ssize_t err;
+
+	err = mipi_dsi_dcs_write(dsi, MIPI_DCS_SET_PAGE_ADDRESS, payload,
+				 sizeof(payload));
+	if (err < 0)
+		return err;
+
+	return 0;
+}
+EXPORT_SYMBOL(mipi_dsi_dcs_set_page_address);
+
+/**
  * mipi_dsi_dcs_set_tear_off() - turn off the display module's Tearing Effect
  *    output signal on the TE signal line
  * @dsi: DSI peripheral device
