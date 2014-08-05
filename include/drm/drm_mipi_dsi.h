@@ -200,6 +200,7 @@ ssize_t mipi_dsi_dcs_read(struct mipi_dsi_device *dsi, u8 cmd, void *data,
 int mipi_dsi_dcs_nop(struct mipi_dsi_device *dsi);
 int mipi_dsi_dcs_soft_reset(struct mipi_dsi_device *dsi);
 int mipi_dsi_dcs_get_power_mode(struct mipi_dsi_device *dsi, u8 *mode);
+int mipi_dsi_dcs_get_pixel_format(struct mipi_dsi_device *dsi, u8 *format);
 int mipi_dsi_dcs_enter_sleep_mode(struct mipi_dsi_device *dsi);
 int mipi_dsi_dcs_exit_sleep_mode(struct mipi_dsi_device *dsi);
 int mipi_dsi_dcs_set_display_off(struct mipi_dsi_device *dsi);
@@ -207,6 +208,7 @@ int mipi_dsi_dcs_set_display_on(struct mipi_dsi_device *dsi);
 int mipi_dsi_dcs_set_tear_off(struct mipi_dsi_device *dsi);
 int mipi_dsi_dcs_set_tear_on(struct mipi_dsi_device *dsi,
 			     enum mipi_dsi_dcs_tear_mode mode);
+int mipi_dsi_dcs_set_pixel_format(struct mipi_dsi_device *dsi, u8 format);
 
 /**
  * struct mipi_dsi_driver - DSI driver
