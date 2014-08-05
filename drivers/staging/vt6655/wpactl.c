@@ -556,7 +556,7 @@ static int wpa_get_scan(PSDevice pDevice,
 	ptempBSS = kmalloc(sizeof(KnownBSS), GFP_ATOMIC);
 
 	if (ptempBSS == NULL) {
-		printk(KERN_ERR "bubble sort kmalloc memory fail@@@\n");
+		pr_err("bubble sort kmalloc memory fail@@@\n");
 
 		ret = -ENOMEM;
 
@@ -766,6 +766,7 @@ static int wpa_set_associate(PSDevice pDevice,
 /*******search if ap_scan=2 ,which is associating request in hidden ssid mode ****/
 	{
 		PKnownBSS       pCurr = NULL;
+
 		pCurr = BSSpSearchBSSList(pDevice,
 					  pMgmt->abyDesireBSSID,
 					  pMgmt->abyDesireSSID,
@@ -773,7 +774,7 @@ static int wpa_set_associate(PSDevice pDevice,
 );
 
 		if (pCurr == NULL) {
-			printk("wpa_set_associate---->hidden mode site survey before associate.......\n");
+			pr_debug("wpa_set_associate---->hidden mode site survey before associate.......\n");
 			bScheduleCommand((void *)pDevice, WLAN_CMD_BSSID_SCAN, pMgmt->abyDesireSSID);
 		}
 	}

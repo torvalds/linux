@@ -44,13 +44,13 @@
 
 #define DEBUG_SUBSYSTEM S_RPC
 
-#include <linux/libcfs/libcfs.h>
+#include "../../include/linux/libcfs/libcfs.h"
 
-#include <obd_support.h>
-#include <obd_class.h>
-#include <lustre_net.h>
-#include <obd_cksum.h>
-#include <lustre/ll_fiemap.h>
+#include "../include/obd_support.h"
+#include "../include/obd_class.h"
+#include "../include/lustre_net.h"
+#include "../include/obd_cksum.h"
+#include "../include/lustre/ll_fiemap.h"
 
 static inline int lustre_msg_hdr_size_v2(int count)
 {
@@ -2140,8 +2140,8 @@ static void print_lum(struct lov_user_md *lum)
 	CDEBUG(D_OTHER, "lov_user_md %p:\n", lum);
 	CDEBUG(D_OTHER, "\tlmm_magic: %#x\n", lum->lmm_magic);
 	CDEBUG(D_OTHER, "\tlmm_pattern: %#x\n", lum->lmm_pattern);
-	CDEBUG(D_OTHER, "\tlmm_object_id: "LPU64"\n", lmm_oi_id(&lum->lmm_oi));
-	CDEBUG(D_OTHER, "\tlmm_object_gr: "LPU64"\n", lmm_oi_seq(&lum->lmm_oi));
+	CDEBUG(D_OTHER, "\tlmm_object_id: %llu\n", lmm_oi_id(&lum->lmm_oi));
+	CDEBUG(D_OTHER, "\tlmm_object_gr: %llu\n", lmm_oi_seq(&lum->lmm_oi));
 	CDEBUG(D_OTHER, "\tlmm_stripe_size: %#x\n", lum->lmm_stripe_size);
 	CDEBUG(D_OTHER, "\tlmm_stripe_count: %#x\n", lum->lmm_stripe_count);
 	CDEBUG(D_OTHER, "\tlmm_stripe_offset/lmm_layout_gen: %#x\n",
@@ -2292,7 +2292,7 @@ EXPORT_SYMBOL(dump_ioo);
 
 void dump_rniobuf(struct niobuf_remote *nb)
 {
-	CDEBUG(D_RPCTRACE, "niobuf_remote: offset="LPU64", len=%d, flags=%x\n",
+	CDEBUG(D_RPCTRACE, "niobuf_remote: offset=%llu, len=%d, flags=%x\n",
 	       nb->offset, nb->len, nb->flags);
 }
 EXPORT_SYMBOL(dump_rniobuf);
@@ -2305,20 +2305,20 @@ void dump_obdo(struct obdo *oa)
 	if (valid & OBD_MD_FLID)
 		CDEBUG(D_RPCTRACE, "obdo: id = "DOSTID"\n", POSTID(&oa->o_oi));
 	if (valid & OBD_MD_FLFID)
-		CDEBUG(D_RPCTRACE, "obdo: o_parent_seq = "LPX64"\n",
+		CDEBUG(D_RPCTRACE, "obdo: o_parent_seq = %#llx\n",
 		       oa->o_parent_seq);
 	if (valid & OBD_MD_FLSIZE)
-		CDEBUG(D_RPCTRACE, "obdo: o_size = "LPD64"\n", oa->o_size);
+		CDEBUG(D_RPCTRACE, "obdo: o_size = %lld\n", oa->o_size);
 	if (valid & OBD_MD_FLMTIME)
-		CDEBUG(D_RPCTRACE, "obdo: o_mtime = "LPD64"\n", oa->o_mtime);
+		CDEBUG(D_RPCTRACE, "obdo: o_mtime = %lld\n", oa->o_mtime);
 	if (valid & OBD_MD_FLATIME)
-		CDEBUG(D_RPCTRACE, "obdo: o_atime = "LPD64"\n", oa->o_atime);
+		CDEBUG(D_RPCTRACE, "obdo: o_atime = %lld\n", oa->o_atime);
 	if (valid & OBD_MD_FLCTIME)
-		CDEBUG(D_RPCTRACE, "obdo: o_ctime = "LPD64"\n", oa->o_ctime);
+		CDEBUG(D_RPCTRACE, "obdo: o_ctime = %lld\n", oa->o_ctime);
 	if (valid & OBD_MD_FLBLOCKS)   /* allocation of space */
-		CDEBUG(D_RPCTRACE, "obdo: o_blocks = "LPD64"\n", oa->o_blocks);
+		CDEBUG(D_RPCTRACE, "obdo: o_blocks = %lld\n", oa->o_blocks);
 	if (valid & OBD_MD_FLGRANT)
-		CDEBUG(D_RPCTRACE, "obdo: o_grant = "LPD64"\n", oa->o_grant);
+		CDEBUG(D_RPCTRACE, "obdo: o_grant = %lld\n", oa->o_grant);
 	if (valid & OBD_MD_FLBLKSZ)
 		CDEBUG(D_RPCTRACE, "obdo: o_blksize = %d\n", oa->o_blksize);
 	if (valid & (OBD_MD_FLTYPE | OBD_MD_FLMODE))
@@ -2344,7 +2344,7 @@ void dump_obdo(struct obdo *oa)
 		CDEBUG(D_RPCTRACE, "obdo: o_parent_oid = %x\n",
 		       oa->o_parent_oid);
 	if (valid & OBD_MD_FLEPOCH)
-		CDEBUG(D_RPCTRACE, "obdo: o_ioepoch = "LPD64"\n",
+		CDEBUG(D_RPCTRACE, "obdo: o_ioepoch = %lld\n",
 		       oa->o_ioepoch);
 	if (valid & OBD_MD_FLFID) {
 		CDEBUG(D_RPCTRACE, "obdo: o_stripe_idx = %u\n",
@@ -2353,7 +2353,7 @@ void dump_obdo(struct obdo *oa)
 		       oa->o_parent_ver);
 	}
 	if (valid & OBD_MD_FLHANDLE)
-		CDEBUG(D_RPCTRACE, "obdo: o_handle = "LPD64"\n",
+		CDEBUG(D_RPCTRACE, "obdo: o_handle = %lld\n",
 		       oa->o_handle.cookie);
 	if (valid & OBD_MD_FLCOOKIE)
 		CDEBUG(D_RPCTRACE, "obdo: o_lcookie = "
@@ -2421,7 +2421,7 @@ void _debug_req(struct ptlrpc_request *req,
 
 	va_start(args, fmt);
 	libcfs_debug_vmsg2(msgdata, fmt, args,
-			   " req@%p x"LPU64"/t"LPD64"("LPD64") o%d->%s@%s:%d/%d"
+			   " req@%p x%llu/t%lld(%lld) o%d->%s@%s:%d/%d"
 			   " lens %d/%d e %d to %d dl "CFS_TIME_T" ref %d "
 			   "fl "REQ_FLAGS_FMT"/%x/%x rc %d/%d\n",
 			   req, req->rq_xid, req->rq_transno,

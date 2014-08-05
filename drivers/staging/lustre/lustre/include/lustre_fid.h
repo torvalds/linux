@@ -152,8 +152,8 @@
  *  Even so, the MDT and OST resources are also in different LDLM namespaces.
  */
 
-#include <linux/libcfs/libcfs.h>
-#include <lustre/lustre_idl.h>
+#include "../../include/linux/libcfs/libcfs.h"
+#include "lustre/lustre_idl.h"
 
 struct lu_env;
 struct lu_site;
@@ -312,7 +312,7 @@ static inline void lu_last_id_fid(struct lu_fid *fid, __u64 seq)
 		fid->f_seq = fid_idif_seq(0, 0);
 	} else {
 		LASSERTF(fid_seq_is_norm(seq) || fid_seq_is_echo(seq) ||
-			 fid_seq_is_idif(seq), LPX64"\n", seq);
+			 fid_seq_is_idif(seq), "%#llx\n", seq);
 		fid->f_seq = seq;
 	}
 	fid->f_oid = 0;

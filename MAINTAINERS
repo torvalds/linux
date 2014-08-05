@@ -1796,6 +1796,13 @@ W:	http://bcache.evilpiepirate.org
 S:	Maintained:
 F:	drivers/md/bcache/
 
+BECEEM BCS200/BCS220-3/BCSM250 WIMAX SUPPORT
+M: Kevin McKinney <klmckinney1@gmail.com>
+M: Matthias Beyer <mail@beyermatthias.de>
+L: devel@driverdev.osuosl.org
+S: Maintained
+F: drivers/staging/bcm*
+
 BEFS FILE SYSTEM
 S:	Orphan
 F:	Documentation/filesystems/befs.txt
@@ -2859,6 +2866,7 @@ F:	drivers/staging/dgnc/
 DIGI EPCA PCI PRODUCTS
 M:	Lidza Louina <lidza.louina@gmail.com>
 M:	Mark Hounschell <markh@compro.net>
+M:	Daeseok Youn <daeseok.youn@gmail.com>
 L:	driverdev-devel@linuxdriverproject.org
 S:	Maintained
 F:	drivers/staging/dgap/
@@ -5074,13 +5082,6 @@ L:	lm-sensors@lm-sensors.org
 S:	Maintained
 F:	Documentation/hwmon/k8temp
 F:	drivers/hwmon/k8temp.c
-
-KTAP
-M:	Jovi Zhangwei <jovi.zhangwei@gmail.com>
-W:	http://www.ktap.org
-L:	ktap@freelists.org
-S:	Maintained
-F:	drivers/staging/ktap/
 
 KCONFIG
 M:	"Yann E. MORIN" <yann.morin.1998@free.fr>
@@ -8569,36 +8570,11 @@ L:	devel@driverdev.osuosl.org
 S:	Supported
 F:	drivers/staging/
 
-STAGING - AGERE HERMES II and II.5 WIRELESS DRIVERS
-M:	Henk de Groot <pe1dnn@amsat.org>
-S:	Odd Fixes
-F:	drivers/staging/wlags49_h2/
-F:	drivers/staging/wlags49_h25/
-
-STAGING - ASUS OLED
-M:	Jakub Schmidtke <sjakub@gmail.com>
-S:	Odd Fixes
-F:	drivers/staging/asus_oled/
-
 STAGING - COMEDI
 M:	Ian Abbott <abbotti@mev.co.uk>
 M:	H Hartley Sweeten <hsweeten@visionengravers.com>
 S:	Odd Fixes
 F:	drivers/staging/comedi/
-
-STAGING - CRYSTAL HD VIDEO DECODER
-M:	Naren Sankar <nsankar@broadcom.com>
-M:	Jarod Wilson <jarod@wilsonet.com>
-M:	Scott Davilla <davilla@4pi.com>
-M:	Manu Abraham <abraham.manu@gmail.com>
-S:	Odd Fixes
-F:	drivers/staging/crystalhd/
-
-STAGING - ECHO CANCELLER
-M:	Steve Underwood <steveu@coppice.org>
-M:	David Rowe <david@rowetel.com>
-S:	Odd Fixes
-F:	drivers/staging/echo/
 
 STAGING - ET131X NETWORK DRIVER
 M:	Mark Einon <mark.einon@gmail.com>
@@ -8609,11 +8585,6 @@ STAGING - FLARION FT1000 DRIVERS
 M:	Marek Belisko <marek.belisko@gmail.com>
 S:	Odd Fixes
 F:	drivers/staging/ft1000/
-
-STAGING - FRONTIER TRANZPORT AND ALPHATRACK
-M:	David Täht <d@teklibre.com>
-S:	Odd Fixes
-F:	drivers/staging/frontier/
 
 STAGING - GO7007 MPEG CODEC
 M:	Hans Verkuil <hans.verkuil@cisco.com>
@@ -8671,11 +8642,6 @@ L:	linux-wireless@vger.kernel.org
 S:	Maintained
 F:	drivers/staging/rtl8723au/
 
-STAGING - SILICON MOTION SM7XX FRAME BUFFER DRIVER
-M:	Teddy Wang <teddy.wang@siliconmotion.com.cn>
-S:	Odd Fixes
-F:	drivers/staging/sm7xxfb/
-
 STAGING - SLICOSS
 M:	Lior Dotan <liodot@gmail.com>
 M:	Christopher Harrer <charrer@alacritech.com>
@@ -8692,30 +8658,15 @@ M:	William Hubbs <w.d.hubbs@gmail.com>
 M:	Chris Brannon <chris@the-brannons.com>
 M:	Kirk Reiser <kirk@reisers.ca>
 M:	Samuel Thibault <samuel.thibault@ens-lyon.org>
-L:	speakup@braille.uwo.ca
+L:	speakup@linux-speakup.org
 W:	http://www.linux-speakup.org/
 S:	Odd Fixes
 F:	drivers/staging/speakup/
-
-STAGING - TI DSP BRIDGE DRIVERS
-M:	Omar Ramirez Luna <omar.ramirez@copitl.com>
-S:	Odd Fixes
-F:	drivers/staging/tidspbridge/
-
-STAGING - USB ENE SM/MS CARD READER DRIVER
-M:	Al Cho <acho@novell.com>
-S:	Odd Fixes
-F:	drivers/staging/keucr/
 
 STAGING - VIA VT665X DRIVERS
 M:	Forest Bond <forest@alittletooquiet.net>
 S:	Odd Fixes
 F:	drivers/staging/vt665?/
-
-STAGING - WINBOND IS89C35 WLAN USB DRIVER
-M:	Pavel Machek <pavel@ucw.cz>
-S:	Odd Fixes
-F:	drivers/staging/winbond/
 
 STAGING - XGI Z7,Z9,Z11 PCI DISPLAY DRIVER
 M:	Arnaud Patard <arnaud.patard@rtp-net.org>

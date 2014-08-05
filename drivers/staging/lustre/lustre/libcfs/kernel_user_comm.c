@@ -42,7 +42,7 @@
 #define DEBUG_SUBSYSTEM S_CLASS
 #define D_KUC D_OTHER
 
-#include <linux/libcfs/libcfs.h>
+#include "../../include/linux/libcfs/libcfs.h"
 
 /* This is the kernel side (liblustre as well). */
 

@@ -827,7 +827,7 @@ static void gp2ap020a00f_iio_trigger_work(struct irq_work *work)
 	struct gp2ap020a00f_data *data =
 		container_of(work, struct gp2ap020a00f_data, work);
 
-	iio_trigger_poll(data->trig, 0);
+	iio_trigger_poll(data->trig);
 }
 
 static irqreturn_t gp2ap020a00f_prox_sensing_handler(int irq, void *data)

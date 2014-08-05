@@ -24,8 +24,7 @@ struct iio_interrupt_trigger_info {
 
 static irqreturn_t iio_interrupt_trigger_poll(int irq, void *private)
 {
-	/* Timestamp not currently provided */
-	iio_trigger_poll(private, 0);
+	iio_trigger_poll(private);
 	return IRQ_HANDLED;
 }
 

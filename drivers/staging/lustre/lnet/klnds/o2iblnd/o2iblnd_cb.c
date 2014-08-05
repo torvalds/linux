@@ -247,7 +247,7 @@ kiblnd_handle_completion(kib_conn_t *conn, int txtype, int status, __u64 cookie)
 	if (tx == NULL) {
 		spin_unlock(&conn->ibc_lock);
 
-		CWARN("Unmatched completion type %x cookie "LPX64" from %s\n",
+		CWARN("Unmatched completion type %x cookie %#llx from %s\n",
 		      txtype, cookie, libcfs_nid2str(conn->ibc_peer->ibp_nid));
 		kiblnd_close_conn(conn, -EPROTO);
 		return;
@@ -1005,8 +1005,7 @@ kiblnd_tx_complete (kib_tx_t *tx, int status)
 
 	if (failed) {
 		if (conn->ibc_state == IBLND_CONN_ESTABLISHED)
-			CNETERR("Tx -> %s cookie "LPX64
-				" sending %d waiting %d: failed %d\n",
+			CNETERR("Tx -> %s cookie %#llx sending %d waiting %d: failed %d\n",
 				libcfs_nid2str(conn->ibc_peer->ibp_nid),
 				tx->tx_cookie, tx->tx_sending, tx->tx_waiting,
 				status);
@@ -1830,7 +1829,7 @@ static void
 kiblnd_peer_notify (kib_peer_t *peer)
 {
 	int	   error = 0;
-	cfs_time_t    last_alive = 0;
+	unsigned long    last_alive = 0;
 	unsigned long flags;
 
 	read_lock_irqsave(&kiblnd_data.kib_global_lock, flags);
@@ -3465,8 +3464,8 @@ kiblnd_failover_thread(void *arg)
 
 		list_for_each_entry(dev, &kiblnd_data.kib_failed_devs,
 				    ibd_fail_list) {
-			if (cfs_time_before(cfs_time_current(),
-					    dev->ibd_next_failover))
+			if (time_before(cfs_time_current(),
+					dev->ibd_next_failover))
 				continue;
 			do_failover = 1;
 			break;

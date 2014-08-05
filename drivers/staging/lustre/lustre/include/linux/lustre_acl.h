@@ -56,7 +56,7 @@
 	(sizeof(posix_acl_xattr_header) +				\
 	 LUSTRE_POSIX_ACL_MAX_ENTRIES * sizeof(posix_acl_xattr_entry))
 
-#include <linux/lustre_intent.h>
+#include "lustre_intent.h"
 #include <linux/xattr.h> /* XATTR_{REPLACE,CREATE} */
 
 #ifndef LUSTRE_POSIX_ACL_MAX_SIZE

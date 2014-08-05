@@ -46,9 +46,9 @@
  * @{
  */
 
-#include <lprocfs_status.h>
-#include <lustre/lustre_idl.h>
-#include <lustre_dlm.h>
+#include "lprocfs_status.h"
+#include "lustre/lustre_idl.h"
+#include "lustre_dlm.h"
 
 struct mds_client_data;
 struct mdt_client_data;
@@ -209,7 +209,7 @@ struct obd_export {
 	/** Last committed transno for this export */
 	__u64		     exp_last_committed;
 	/** When was last request received */
-	cfs_time_t		exp_last_request_time;
+	unsigned long		exp_last_request_time;
 	/** On replay all requests waiting for replay are linked here */
 	struct list_head		exp_req_replay_queue;
 	/**
@@ -245,7 +245,7 @@ struct obd_export {
 	enum lustre_sec_part      exp_sp_peer;
 	struct sptlrpc_flavor     exp_flvr;	     /* current */
 	struct sptlrpc_flavor     exp_flvr_old[2];      /* about-to-expire */
-	cfs_time_t		exp_flvr_expire[2];   /* seconds */
+	unsigned long		exp_flvr_expire[2];   /* seconds */
 
 	/** protects exp_hp_rpcs */
 	spinlock_t		  exp_rpc_lock;
@@ -294,11 +294,11 @@ static inline int exp_connect_multibulk(struct obd_export *exp)
 	return exp_max_brw_size(exp) > ONE_MB_BRW_SIZE;
 }
 
-static inline int exp_expired(struct obd_export *exp, cfs_duration_t age)
+static inline int exp_expired(struct obd_export *exp, long age)
 {
 	LASSERT(exp->exp_delayed);
-	return cfs_time_before(cfs_time_add(exp->exp_last_request_time, age),
-			       cfs_time_current_sec());
+	return time_before(cfs_time_add(exp->exp_last_request_time, age),
+			   get_seconds());
 }
 
 static inline int exp_connect_cancelset(struct obd_export *exp)

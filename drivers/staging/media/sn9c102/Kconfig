@@ -1,6 +1,6 @@
 config USB_SN9C102
 	tristate "USB SN9C1xx PC Camera Controller support (DEPRECATED)"
-	depends on VIDEO_V4L2 && MEDIA_USB_SUPPORT
+	depends on VIDEO_V4L2 && MEDIA_USB_SUPPORT && USB
 	---help---
 	  This driver is DEPRECATED, please use the gspca sonixb and
 	  sonixj modules instead.

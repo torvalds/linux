@@ -447,6 +447,7 @@ static int gdm_lte_tx(struct sk_buff *skb, struct net_device *dev)
 	 */
 	if (nic_type & NIC_TYPE_F_VLAN) {
 		struct vlan_ethhdr *vlan_eth = (struct vlan_ethhdr *)skb->data;
+
 		nic->vlan_id = ntohs(vlan_eth->h_vlan_TCI) & VLAN_VID_MASK;
 		data_buf = skb->data + (VLAN_ETH_HLEN - ETH_HLEN);
 		data_len = skb->len - (VLAN_ETH_HLEN - ETH_HLEN);
@@ -505,6 +506,7 @@ static int gdm_lte_tx(struct sk_buff *skb, struct net_device *dev)
 static struct net_device_stats *gdm_lte_stats(struct net_device *dev)
 {
 	struct nic *nic = netdev_priv(dev);
+
 	return &nic->stats;
 }
 

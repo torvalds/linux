@@ -861,7 +861,7 @@ static void _rtl_pci_rx_interrupt(struct ieee80211_hw *hw)
 			break;
 		}
 
-		rtlpriv->cfg->ops->rx_command_packet_handler(hw, status, skb);
+		rtlpriv->cfg->ops->rx_command_packet_handler(hw, &status, skb);
 
 		/*
 		 *NOTICE This can not be use for mac80211,

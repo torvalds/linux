@@ -273,7 +273,7 @@ static int das08_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 			else
 				data[n] = (1 << 15) - (lsb | (msb & 0x7f) << 8);
 		} else {
-			comedi_error(dev, "bug! unknown ai encoding");
+			dev_err(dev->class_dev, "bug! unknown ai encoding\n");
 			return -1;
 		}
 	}
@@ -452,7 +452,6 @@ static int das08_counter_config(struct comedi_device *dev,
 		break;
 	default:
 		return -EINVAL;
-		break;
 	}
 	return 2;
 }

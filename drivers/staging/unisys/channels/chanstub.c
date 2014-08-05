@@ -42,7 +42,7 @@ channel_mod_exit(void)
 }
 
 unsigned char
-SignalInsert_withLock(CHANNEL_HEADER __iomem *pChannel, U32 Queue,
+SignalInsert_withLock(CHANNEL_HEADER __iomem *pChannel, u32 Queue,
 		      void *pSignal, spinlock_t *lock)
 {
 	unsigned char result;
@@ -54,7 +54,7 @@ SignalInsert_withLock(CHANNEL_HEADER __iomem *pChannel, U32 Queue,
 }
 
 unsigned char
-SignalRemove_withLock(CHANNEL_HEADER __iomem *pChannel, U32 Queue,
+SignalRemove_withLock(CHANNEL_HEADER __iomem *pChannel, u32 Queue,
 		      void *pSignal, spinlock_t *lock)
 {
 	unsigned char result;

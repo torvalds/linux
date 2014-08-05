@@ -230,7 +230,7 @@ void ODM_ReadAndConfig_RadioA_1T_8723A(struct dm_odm_t *pDM_Odm)
 
 		/*  This (offset, data) pair meets the condition. */
 		if (v1 < 0xCDCDCDCD) {
-			odm_ConfigRF_RadioA_8723A(pDM_Odm, v1, v2);
+			odm_ConfigRFReg_8723A(pDM_Odm, v1, v2, RF_PATH_A, v1);
 			continue;
 		} else {
 			if (!CheckCondition(Array[i], hex)) {
@@ -247,7 +247,8 @@ void ODM_ReadAndConfig_RadioA_1T_8723A(struct dm_odm_t *pDM_Odm)
 				while (v2 != 0xDEAD &&
 				       v2 != 0xCDEF &&
 				       v2 != 0xCDCD && i < ArrayLen - 2) {
-					odm_ConfigRF_RadioA_8723A(pDM_Odm, v1, v2);
+					odm_ConfigRFReg_8723A(pDM_Odm, v1, v2,
+							      RF_PATH_A, v1);
 					READ_NEXT_PAIR(v1, v2, i);
 				}
 

@@ -41,15 +41,10 @@
 #include <linux/namei.h>
 #include <linux/sched.h>
 
-#include <lvfs.h>
-
-#define l_file file
-#define l_dentry dentry
-
-#define l_filp_open filp_open
+#include "../lvfs.h"
 
 struct lvfs_run_ctxt;
-struct l_file *l_dentry_open(struct lvfs_run_ctxt *, struct l_dentry *,
+struct file *l_dentry_open(struct lvfs_run_ctxt *, struct dentry *,
 			     int flags);
 
 struct l_linux_dirent {

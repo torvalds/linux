@@ -36,14 +36,14 @@
 
 #define DEBUG_SUBSYSTEM S_RPC
 
-# include <linux/libcfs/libcfs.h>
+#include "../../include/linux/libcfs/libcfs.h"
 # ifdef __mips64__
 #  include <linux/kernel.h>
 # endif
 
-#include <obd_class.h>
-#include <lustre_net.h>
-#include <lustre_sec.h>
+#include "../include/obd_class.h"
+#include "../include/lustre_net.h"
+#include "../include/lustre_sec.h"
 #include "ptlrpc_internal.h"
 
 lnet_handle_eq_t   ptlrpc_eq_h;
@@ -63,19 +63,20 @@ void request_out_callback(lnet_event_t *ev)
 	DEBUG_REQ(D_NET, req, "type %d, status %d", ev->type, ev->status);
 
 	sptlrpc_request_out_callback(req);
-	req->rq_real_sent = cfs_time_current_sec();
+	spin_lock(&req->rq_lock);
+	req->rq_real_sent = get_seconds();
+	if (ev->unlinked)
+		req->rq_req_unlink = 0;
 
 	if (ev->type == LNET_EVENT_UNLINK || ev->status != 0) {
 
 		/* Failed send: make it seem like the reply timed out, just
 		 * like failing sends in client.c does currently...  */
 
-		spin_lock(&req->rq_lock);
 		req->rq_net_err = 1;
-		spin_unlock(&req->rq_lock);
-
 		ptlrpc_client_wake_req(req);
 	}
+	spin_unlock(&req->rq_lock);
 
 	ptlrpc_req_finished(req);
 }
@@ -102,7 +103,7 @@ void reply_in_callback(lnet_event_t *ev)
 	req->rq_receiving_reply = 0;
 	req->rq_early = 0;
 	if (ev->unlinked)
-		req->rq_must_unlink = 0;
+		req->rq_reply_unlink = 0;
 
 	if (ev->status)
 		goto out_wake;
@@ -145,6 +146,8 @@ void reply_in_callback(lnet_event_t *ev)
 		/* Real reply */
 		req->rq_rep_swab_mask = 0;
 		req->rq_replied = 1;
+		/* Got reply, no resend required */
+		req->rq_resend = 0;
 		req->rq_reply_off = ev->offset;
 		req->rq_nob_received = ev->mlength;
 		/* LNetMDUnlink can't be called under the LNET_LOCK,
@@ -155,7 +158,7 @@ void reply_in_callback(lnet_event_t *ev)
 			  ev->mlength, ev->offset, req->rq_replen);
 	}
 
-	req->rq_import->imp_last_reply_time = cfs_time_current_sec();
+	req->rq_import->imp_last_reply_time = get_seconds();
 
 out_wake:
 	/* NB don't unlock till after wakeup; req can disappear under us
@@ -307,7 +310,7 @@ void request_in_callback(lnet_event_t *ev)
 			/* We moaned above already... */
 			return;
 		}
-		req = ptlrpc_request_cache_alloc(ALLOC_ATOMIC_TRY);
+		req = ptlrpc_request_cache_alloc(GFP_ATOMIC);
 		if (req == NULL) {
 			CERROR("Can't allocate incoming request descriptor: "
 			       "Dropping %s RPC from %s\n",
@@ -334,7 +337,7 @@ void request_in_callback(lnet_event_t *ev)
 	INIT_LIST_HEAD(&req->rq_exp_list);
 	atomic_set(&req->rq_refcount, 1);
 	if (ev->type == LNET_EVENT_PUT)
-		CDEBUG(D_INFO, "incoming req@%p x"LPU64" msgsize %u\n",
+		CDEBUG(D_INFO, "incoming req@%p x%llu msgsize %u\n",
 		       req, req->rq_xid, ev->mlength);
 
 	CDEBUG(D_RPCTRACE, "peer: %s\n", libcfs_id2str(req->rq_peer));

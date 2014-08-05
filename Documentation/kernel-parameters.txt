@@ -1422,10 +1422,6 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	ip=		[IP_PNP]
 			See Documentation/filesystems/nfs/nfsroot.txt.
 
-	ip2=		[HW] Set IO/IRQ pairs for up to 4 IntelliPort boards
-			See comment before ip2_setup() in
-			drivers/char/ip2/ip2base.c.
-
 	irqfixup	[HW]
 			When an interrupt is not handled search all handlers
 			for it. Intended to get systems with badly broken

@@ -143,7 +143,8 @@ static int wait_for_dac_idle(struct comedi_device *dev)
 		udelay(1);
 	}
 	if (i == timeout) {
-		comedi_error(dev, "Timed out waiting for dac to become idle.");
+		dev_err(dev->class_dev,
+			"Timed out waiting for dac to become idle\n");
 		return -EIO;
 	}
 	return 0;
@@ -195,8 +196,8 @@ static int ao_readback_insn(struct comedi_device *dev,
 	int i;
 
 	if (devpriv->ao_value[channel] < 0) {
-		comedi_error(dev,
-			     "Cannot read back channels which have not yet been written to.");
+		dev_err(dev->class_dev,
+			"Cannot read back channels which have not yet been written to\n");
 		return -EIO;
 	}
 	for (i = 0; i < insn->n; i++)
@@ -236,8 +237,8 @@ static int offset_read_insn(struct comedi_device *dev,
 	int i;
 
 	if (devpriv->offset_value[channel] < 0) {
-		comedi_error(dev,
-			     "Cannot read back channels which have not yet been written to.");
+		dev_err(dev->class_dev,
+			"Cannot read back channels which have not yet been written to\n");
 		return -EIO;
 	}
 	for (i = 0; i < insn->n; i++)
@@ -277,8 +278,8 @@ static int gain_read_insn(struct comedi_device *dev,
 	int i;
 
 	if (devpriv->gain_value[channel] < 0) {
-		comedi_error(dev,
-			     "Cannot read back channels which have not yet been written to.");
+		dev_err(dev->class_dev,
+			"Cannot read back channels which have not yet been written to\n");
 		return -EIO;
 	}
 	for (i = 0; i < insn->n; i++)

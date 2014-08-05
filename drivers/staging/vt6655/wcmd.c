@@ -216,9 +216,9 @@ s_vProbeChannel(
 	if (pTxPacket != NULL) {
 		for (ii = 0; ii < 2; ii++) {
 			if (csMgmt_xmit(pDevice, pTxPacket) != CMD_STATUS_PENDING)
-				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Probe request sending fail.. \n");
+				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Probe request sending fail..\n");
 			else
-				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Probe request is sending.. \n");
+				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Probe request is sending..\n");
 		}
 	}
 }
@@ -234,7 +234,7 @@ s_vProbeChannel(
  *
  -*/
 
-PSTxMgmtPacket
+static PSTxMgmtPacket
 s_MgrMakeProbeRequest(
 	PSDevice pDevice,
 	PSMgmtObject pMgmt,
@@ -295,7 +295,6 @@ vCommandTimerWait(
 	// RUN_AT :1 msec ~= (HZ/1024)
 	pDevice->sTimerCommand.expires = (unsigned int)RUN_AT((MSecond * HZ) >> 10);
 	add_timer(&pDevice->sTimerCommand);
-	return;
 }
 
 void
@@ -368,7 +367,7 @@ vCommandTimer(
 		} else {
 //2008-8-4 <add> by chester
 			if (!is_channel_valid(pMgmt->uScanChannel)) {
-				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Invalid channel pMgmt->uScanChannel = %d \n", pMgmt->uScanChannel);
+				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Invalid channel pMgmt->uScanChannel = %d\n", pMgmt->uScanChannel);
 				s_bCommandComplete(pDevice);
 				spin_unlock_irq(&pDevice->lock);
 				return;
@@ -433,9 +432,10 @@ vCommandTimer(
 		vAdHocBeaconRestart(pDevice);
 //2008-0409-07, <Add> by Einsn Liu
 #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
-		if (pMgmt->eScanType == WMAC_SCAN_PASSIVE)
-		{//send scan event to wpa_Supplicant
+		if (pMgmt->eScanType == WMAC_SCAN_PASSIVE) {
+			//send scan event to wpa_Supplicant
 			union iwreq_data wrqu;
+
 			memset(&wrqu, 0, sizeof(wrqu));
 			wireless_send_event(pDevice->dev, SIOCGIWSCAN, &wrqu, NULL);
 		}
@@ -493,7 +493,7 @@ vCommandTimer(
 			spin_unlock_irq(&pDevice->lock);
 			return;
 		}
-		printk("chester-abyDesireSSID=%s\n", ((PWLAN_IE_SSID)pMgmt->abyDesireSSID)->abySSID);
+		pr_debug("chester-abyDesireSSID=%s\n", ((PWLAN_IE_SSID)pMgmt->abyDesireSSID)->abySSID);
 		pItemSSID = (PWLAN_IE_SSID)pMgmt->abyDesireSSID;
 		pItemSSIDCurr = (PWLAN_IE_SSID)pMgmt->abyCurrSSID;
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " cmd: desire ssid = %s\n", pItemSSID->abySSID);
@@ -560,7 +560,7 @@ vCommandTimer(
 				// start own IBSS
 				vMgrCreateOwnIBSS((void *)pDevice, &Status);
 				if (Status != CMD_STATUS_SUCCESS)
-					DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " WLAN_CMD_IBSS_CREATE fail ! \n");
+					DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " WLAN_CMD_IBSS_CREATE fail !\n");
 
 				BSSvAddMulticastNode(pDevice);
 			}
@@ -572,7 +572,7 @@ vCommandTimer(
 				// start own IBSS
 				vMgrCreateOwnIBSS((void *)pDevice, &Status);
 				if (Status != CMD_STATUS_SUCCESS)
-					DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " WLAN_CMD_IBSS_CREATE fail ! \n");
+					DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " WLAN_CMD_IBSS_CREATE fail !\n");
 
 				BSSvAddMulticastNode(pDevice);
 				if (netif_queue_stopped(pDevice->dev))
@@ -584,9 +584,10 @@ vCommandTimer(
 #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
 				{
 					union iwreq_data  wrqu;
+
 					memset(&wrqu, 0, sizeof(wrqu));
 					wrqu.ap_addr.sa_family = ARPHRD_ETHER;
-					printk("wireless_send_event--->SIOCGIWAP(disassociated:vMgrJoinBSSBegin Fail !!)\n");
+					pr_debug("wireless_send_event--->SIOCGIWAP(disassociated:vMgrJoinBSSBegin Fail !!)\n");
 					wireless_send_event(pDevice->dev, SIOCGIWAP, &wrqu, NULL);
 				}
 #endif
@@ -614,10 +615,10 @@ vCommandTimer(
 		}
 
 		else if (pMgmt->eCurrState < WMAC_STATE_AUTHPENDING) {
-			printk("WLAN_AUTHENTICATE_WAIT:Authen Fail???\n");
+			pr_debug("WLAN_AUTHENTICATE_WAIT:Authen Fail???\n");
 		} else if (pDevice->byLinkWaitCount <= 4) {    //mike add:wait another 2 sec if authenticated_frame delay!
 			pDevice->byLinkWaitCount++;
-			printk("WLAN_AUTHENTICATE_WAIT:wait %d times!!\n", pDevice->byLinkWaitCount);
+			pr_debug("WLAN_AUTHENTICATE_WAIT:wait %d times!!\n", pDevice->byLinkWaitCount);
 			spin_unlock_irq(&pDevice->lock);
 			vCommandTimerWait((void *)pDevice, AUTHENTICATE_TIMEOUT/2);
 			return;
@@ -664,7 +665,7 @@ vCommandTimer(
 			printk("WLAN_ASSOCIATE_WAIT:Association Fail???\n");
 		} else if (pDevice->byLinkWaitCount <= 4) {    //mike add:wait another 2 sec if associated_frame delay!
 			pDevice->byLinkWaitCount++;
-			printk("WLAN_ASSOCIATE_WAIT:wait %d times!!\n", pDevice->byLinkWaitCount);
+			pr_debug("WLAN_ASSOCIATE_WAIT:wait %d times!!\n", pDevice->byLinkWaitCount);
 			spin_unlock_irq(&pDevice->lock);
 			vCommandTimerWait((void *)pDevice, ASSOCIATE_TIMEOUT/2);
 			return;
@@ -692,7 +693,7 @@ vCommandTimer(
 
 			vMgrCreateOwnIBSS((void *)pDevice, &Status);
 			if (Status != CMD_STATUS_SUCCESS)
-				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " vMgrCreateOwnIBSS fail ! \n");
+				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " vMgrCreateOwnIBSS fail !\n");
 
 			// alway turn off unicast bit
 			MACvRegBitsOff(pDevice->PortOffset, MAC_REG_RCR, RCR_UNICAST);
@@ -719,7 +720,7 @@ vCommandTimer(
 					pDevice->bMoreData = true;
 				}
 				if (!device_dma0_xmit(pDevice, skb, 0))
-					DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Multicast ps tx fail \n");
+					DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Multicast ps tx fail\n");
 
 				pMgmt->sNodeDBTable[0].wEnQueueCnt--;
 			}
@@ -741,7 +742,7 @@ vCommandTimer(
 						pDevice->bMoreData = true;
 					}
 					if (!device_dma0_xmit(pDevice, skb, ii))
-						DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "sta ps tx fail \n");
+						DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "sta ps tx fail\n");
 
 					pMgmt->sNodeDBTable[ii].wEnQueueCnt--;
 					// check if sta ps enabled, and wait next pspoll.
@@ -753,7 +754,7 @@ vCommandTimer(
 					// clear tx map
 					pMgmt->abyPSTxMap[pMgmt->sNodeDBTable[ii].wAID >> 3] &=
 						~byMask[pMgmt->sNodeDBTable[ii].wAID & 7];
-					DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Index=%d PS queue clear \n", ii);
+					DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Index=%d PS queue clear\n", ii);
 				}
 				pMgmt->sNodeDBTable[ii].bRxPSPoll = false;
 			}
@@ -796,7 +797,6 @@ vCommandTimer(
 
 	} //switch
 	spin_unlock_irq(&pDevice->lock);
-	return;
 }
 
 static
@@ -992,6 +992,7 @@ BSSvSecondTxData(
 {
 	PSDevice        pDevice = (PSDevice)hDeviceContext;
 	PSMgmtObject  pMgmt = &(pDevice->sMgmtObj);
+
 	pDevice->nTxDataTimeCout++;
 
 	if (pDevice->nTxDataTimeCout < 4)     //don't tx data if timer less than 40s

@@ -32,11 +32,9 @@ struct labpc_boardinfo {
 	unsigned ai_scan_up:1;		/* can auto scan up in ai channels */
 	unsigned has_ao:1;		/* has analog outputs */
 	unsigned is_labpc1200:1;	/* has extra regs compared to pc+ */
-	unsigned has_mmio:1;		/* uses memory mapped io */
 };
 
 struct labpc_private {
-	struct mite_struct *mite;	/*  for mite chip on pci-1200 */
 	/*  number of data points left to be taken */
 	unsigned long long count;
 	/*  software copy of analog output values */
@@ -80,8 +78,9 @@ struct labpc_private {
 	 * function pointers so we can use inb/outb or readb/writeb as
 	 * appropriate
 	 */
-	unsigned int (*read_byte) (unsigned long address);
-	void (*write_byte) (unsigned int byte, unsigned long address);
+	unsigned int (*read_byte)(struct comedi_device *, unsigned long reg);
+	void (*write_byte)(struct comedi_device *,
+			   unsigned int byte, unsigned long reg);
 };
 
 int labpc_common_attach(struct comedi_device *dev,

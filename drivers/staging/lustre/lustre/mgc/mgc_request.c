@@ -42,12 +42,12 @@
 #define D_MGC D_CONFIG /*|D_WARNING*/
 
 #include <linux/module.h>
-#include <obd_class.h>
-#include <lustre_dlm.h>
-#include <lprocfs_status.h>
-#include <lustre_log.h>
-#include <lustre_disk.h>
-#include <dt_object.h>
+#include "../include/obd_class.h"
+#include "../include/lustre_dlm.h"
+#include "../include/lprocfs_status.h"
+#include "../include/lustre_log.h"
+#include "../include/lustre_disk.h"
+#include "../include/dt_object.h"
 
 #include "mgc_internal.h"
 
@@ -83,7 +83,7 @@ static int mgc_name2resid(char *name, int len, struct ldlm_res_id *res_id,
 		LBUG();
 	}
 	res_id->name[1] = cpu_to_le64(resname);
-	CDEBUG(D_MGC, "log %s to resid "LPX64"/"LPX64" (%.8s)\n", name,
+	CDEBUG(D_MGC, "log %s to resid %#llx/%#llx (%.8s)\n", name,
 	       res_id->name[0], res_id->name[1], (char *)&res_id->name[0]);
 	return 0;
 }
@@ -197,7 +197,7 @@ struct config_llog_data *do_config_log_add(struct obd_device *obd,
 	int		      rc;
 
 	CDEBUG(D_MGC, "do adding config log %s:%p\n", logname,
-	       cfg ? cfg->cfg_instance : 0);
+	       cfg ? cfg->cfg_instance : NULL);
 
 	OBD_ALLOC(cld, sizeof(*cld) + strlen(logname) + 1);
 	if (!cld)
@@ -445,7 +445,7 @@ static int config_log_end(char *logname, struct config_llog_instance *cfg)
 	return rc;
 }
 
-#ifdef LPROCFS
+#if defined (CONFIG_PROC_FS)
 int lprocfs_mgc_rd_ir_state(struct seq_file *m, void *data)
 {
 	struct obd_device       *obd = data;
@@ -950,7 +950,10 @@ static int mgc_blocking_ast(struct ldlm_lock *lock, struct ldlm_lock_desc *desc,
 }
 
 /* Not sure where this should go... */
-#define  MGC_ENQUEUE_LIMIT 50
+/* This is the timeout value for MGS_CONNECT request plus a ping interval, such
+ * that we can have a chance to try the secondary MGS if any. */
+#define  MGC_ENQUEUE_LIMIT (INITIAL_CONNECT_TIMEOUT + (AT_OFF ? 0 : at_min) \
+				+ PING_INTERVAL)
 #define  MGC_TARGET_REG_LIMIT 10
 #define  MGC_SEND_PARAM_LIMIT 10
 
@@ -1008,7 +1011,7 @@ static int mgc_enqueue(struct obd_export *exp, struct lov_stripe_md *lsm,
 	int short_limit = cld_is_sptlrpc(cld);
 	int rc;
 
-	CDEBUG(D_MGC, "Enqueue for %s (res "LPX64")\n", cld->cld_logname,
+	CDEBUG(D_MGC, "Enqueue for %s (res %#llx)\n", cld->cld_logname,
 	       cld->cld_resid.name[0]);
 
 	/* We need a callback for every lockholder, so don't try to
@@ -1454,7 +1457,7 @@ static int mgc_apply_recover_logs(struct obd_device *mgc,
 			break;
 		}
 
-		CDEBUG(D_INFO, "ir apply logs "LPD64"/"LPD64" for %s -> %s\n",
+		CDEBUG(D_INFO, "ir apply logs %lld/%lld for %s -> %s\n",
 		       prev_version, max_version, obdname, params);
 
 		rc = class_process_config(lcfg);
@@ -1557,7 +1560,7 @@ again:
 	cfg->cfg_last_idx = res->mcr_offset;
 	eof = res->mcr_offset == res->mcr_size;
 
-	CDEBUG(D_INFO, "Latest version "LPD64", more %d.\n",
+	CDEBUG(D_INFO, "Latest version %lld, more %d.\n",
 	       res->mcr_offset, eof == false);
 
 	ealen = sptlrpc_cli_unwrap_bulk_read(req, req->rq_bulk, 0);

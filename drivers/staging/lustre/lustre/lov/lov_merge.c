@@ -36,9 +36,9 @@
 
 #define DEBUG_SUBSYSTEM S_LOV
 
-#include <linux/libcfs/libcfs.h>
+#include "../../include/linux/libcfs/libcfs.h"
 
-#include <obd_class.h>
+#include "../include/obd_class.h"
 #include "lov_internal.h"
 
 /** Merge the lock value block(&lvb) attributes and KMS from each of the
@@ -61,10 +61,9 @@ int lov_merge_lvb_kms(struct lov_stripe_md *lsm,
 	assert_spin_locked(&lsm->lsm_lock);
 	LASSERT(lsm->lsm_lock_owner == current_pid());
 
-	CDEBUG(D_INODE, "MDT ID "DOSTID" initial value: s="LPU64" m="LPU64
-	       " a="LPU64" c="LPU64" b="LPU64"\n", POSTID(&lsm->lsm_oi),
-	       lvb->lvb_size, lvb->lvb_mtime, lvb->lvb_atime, lvb->lvb_ctime,
-	       lvb->lvb_blocks);
+	CDEBUG(D_INODE, "MDT ID "DOSTID" initial value: s=%llu m=%llu a=%llu c=%llu b=%llu\n",
+	       POSTID(&lsm->lsm_oi), lvb->lvb_size, lvb->lvb_mtime,
+	       lvb->lvb_atime, lvb->lvb_ctime, lvb->lvb_blocks);
 	for (i = 0; i < lsm->lsm_stripe_count; i++) {
 		struct lov_oinfo *loi = lsm->lsm_oinfo[i];
 		obd_size lov_size, tmpsize;
@@ -94,11 +93,11 @@ int lov_merge_lvb_kms(struct lov_stripe_md *lsm,
 		if (loi->loi_lvb.lvb_ctime > current_ctime)
 			current_ctime = loi->loi_lvb.lvb_ctime;
 
-		CDEBUG(D_INODE, "MDT ID "DOSTID" on OST[%u]: s="LPU64" m="LPU64
-		       " a="LPU64" c="LPU64" b="LPU64"\n", POSTID(&lsm->lsm_oi),
-		       loi->loi_ost_idx, loi->loi_lvb.lvb_size,
-		       loi->loi_lvb.lvb_mtime, loi->loi_lvb.lvb_atime,
-		       loi->loi_lvb.lvb_ctime, loi->loi_lvb.lvb_blocks);
+		CDEBUG(D_INODE, "MDT ID "DOSTID" on OST[%u]: s=%llu m=%llu a=%llu c=%llu b=%llu\n",
+		       POSTID(&lsm->lsm_oi), loi->loi_ost_idx,
+		       loi->loi_lvb.lvb_size, loi->loi_lvb.lvb_mtime,
+		       loi->loi_lvb.lvb_atime, loi->loi_lvb.lvb_ctime,
+		       loi->loi_lvb.lvb_blocks);
 	}
 
 	*kms_place = kms;
@@ -131,9 +130,9 @@ int lov_merge_lvb(struct obd_export *exp,
 	if (kms_only)
 		lvb->lvb_size = kms;
 
-	CDEBUG(D_INODE, "merged for ID "DOSTID" s="LPU64" m="LPU64" a="LPU64
-	       " c="LPU64" b="LPU64"\n", POSTID(&lsm->lsm_oi), lvb->lvb_size,
-	       lvb->lvb_mtime, lvb->lvb_atime, lvb->lvb_ctime, lvb->lvb_blocks);
+	CDEBUG(D_INODE, "merged for ID "DOSTID" s=%llu m=%llu a=%llu c=%llu b=%llu\n",
+	       POSTID(&lsm->lsm_oi), lvb->lvb_size, lvb->lvb_mtime,
+	       lvb->lvb_atime, lvb->lvb_ctime, lvb->lvb_blocks);
 	return rc;
 }
 
@@ -153,7 +152,7 @@ int lov_adjust_kms(struct obd_export *exp, struct lov_stripe_md *lsm,
 			struct lov_oinfo *loi = lsm->lsm_oinfo[stripe];
 			kms = lov_size_to_stripe(lsm, size, stripe);
 			CDEBUG(D_INODE,
-			       "stripe %d KMS %sing "LPU64"->"LPU64"\n",
+			       "stripe %d KMS %sing %llu->%llu\n",
 			       stripe, kms > loi->loi_kms ? "increase":"shrink",
 			       loi->loi_kms, kms);
 			loi_kms_set(loi, loi->loi_lvb.lvb_size = kms);
@@ -166,7 +165,7 @@ int lov_adjust_kms(struct obd_export *exp, struct lov_stripe_md *lsm,
 	kms = lov_size_to_stripe(lsm, size, stripe);
 	loi = lsm->lsm_oinfo[stripe];
 
-	CDEBUG(D_INODE, "stripe %d KMS %sincreasing "LPU64"->"LPU64"\n",
+	CDEBUG(D_INODE, "stripe %d KMS %sincreasing %llu->%llu\n",
 	       stripe, kms > loi->loi_kms ? "" : "not ", loi->loi_kms, kms);
 	if (kms > loi->loi_kms)
 		loi_kms_set(loi, kms);

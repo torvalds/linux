@@ -41,7 +41,6 @@
 #include "dgnc_driver.h"	/* Driver main header file */
 #include "dgnc_cls.h"
 #include "dgnc_tty.h"
-#include "dgnc_trace.h"
 
 static inline void cls_parse_isr(struct dgnc_board *brd, uint port);
 static inline void cls_clear_break(struct channel_t *ch, int force);
@@ -1040,16 +1039,13 @@ static void cls_flush_uart_read(struct channel_t *ch)
 	 * For complete POSIX compatibility, we should be purging the
 	 * read FIFO in the UART here.
 	 *
-	 * However, doing the statement below also incorrectly flushes
-	 * write data as well as just basically trashing the FIFO.
+	 * However, clearing the read FIFO (UART_FCR_CLEAR_RCVR) also
+	 * incorrectly flushes write data as well as just basically trashing the
+	 * FIFO.
 	 *
-	 * I believe this is a BUG in this UART.
-	 * So for now, we will leave the code #ifdef'ed out...
+	 * Presumably, this is a bug in this UART.
 	 */
-#if 0
-	writeb((UART_FCR_ENABLE_FIFO | UART_FCR_CLEAR_RCVR),
-					 &ch->ch_cls_uart->isr_fcr);
-#endif
+
 	udelay(10);
 }
 

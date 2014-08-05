@@ -257,11 +257,16 @@ static int adis16480_debugfs_init(struct iio_dev *indio_dev)
 
 #endif
 
-static int adis16480_set_freq(struct adis16480 *st, unsigned int freq)
+static int adis16480_set_freq(struct iio_dev *indio_dev, int val, int val2)
 {
+	struct adis16480 *st = iio_priv(indio_dev);
 	unsigned int t;
 
-	t = 2460000 / freq;
+	t =  val * 1000 + val2 / 1000;
+	if (t <= 0)
+		return -EINVAL;
+
+	t = 2460000 / t;
 	if (t > 2048)
 		t = 2048;
 
@@ -271,64 +276,23 @@ static int adis16480_set_freq(struct adis16480 *st, unsigned int freq)
 	return adis_write_reg_16(&st->adis, ADIS16480_REG_DEC_RATE, t);
 }
 
-static int adis16480_get_freq(struct adis16480 *st, unsigned int *freq)
+static int adis16480_get_freq(struct iio_dev *indio_dev, int *val, int *val2)
 {
+	struct adis16480 *st = iio_priv(indio_dev);
 	uint16_t t;
 	int ret;
+	unsigned freq;
 
 	ret = adis_read_reg_16(&st->adis, ADIS16480_REG_DEC_RATE, &t);
 	if (ret < 0)
 		return ret;
 
-	*freq = 2460000 / (t + 1);
+	freq = 2460000 / (t + 1);
+	*val = freq / 1000;
+	*val2 = (freq % 1000) * 1000;
 
-	return 0;
+	return IIO_VAL_INT_PLUS_MICRO;
 }
-
-static ssize_t adis16480_read_frequency(struct device *dev,
-		struct device_attribute *attr,
-		char *buf)
-{
-	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
-	struct adis16480 *st = iio_priv(indio_dev);
-	unsigned int freq;
-	int ret;
-
-	ret = adis16480_get_freq(st, &freq);
-	if (ret < 0)
-		return ret;
-
-	return sprintf(buf, "%d.%.3d\n", freq / 1000, freq % 1000);
-}
-
-static ssize_t adis16480_write_frequency(struct device *dev,
-		struct device_attribute *attr,
-		const char *buf,
-		size_t len)
-{
-	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
-	struct adis16480 *st = iio_priv(indio_dev);
-	int freq_int, freq_fract;
-	long val;
-	int ret;
-
-	ret = iio_str_to_fixpoint(buf, 100, &freq_int, &freq_fract);
-	if (ret)
-		return ret;
-
-	val = freq_int * 1000 + freq_fract;
-
-	if (val <= 0)
-		return -EINVAL;
-
-	ret = adis16480_set_freq(st, val);
-
-	return ret ? ret : len;
-}
-
-static IIO_DEV_ATTR_SAMP_FREQ(S_IWUSR | S_IRUGO,
-			      adis16480_read_frequency,
-			      adis16480_write_frequency);
 
 enum {
 	ADIS16480_SCAN_GYRO_X,
@@ -571,6 +535,8 @@ static int adis16480_read_raw(struct iio_dev *indio_dev,
 		return adis16480_get_calibscale(indio_dev, chan, val);
 	case IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY:
 		return adis16480_get_filter_freq(indio_dev, chan, val);
+	case IIO_CHAN_INFO_SAMP_FREQ:
+		return adis16480_get_freq(indio_dev, val, val2);
 	default:
 		return -EINVAL;
 	}
@@ -586,6 +552,9 @@ static int adis16480_write_raw(struct iio_dev *indio_dev,
 		return adis16480_set_calibscale(indio_dev, chan, val);
 	case IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY:
 		return adis16480_set_filter_freq(indio_dev, chan, val);
+	case IIO_CHAN_INFO_SAMP_FREQ:
+		return adis16480_set_freq(indio_dev, val, val2);
+
 	default:
 		return -EINVAL;
 	}
@@ -600,6 +569,7 @@ static int adis16480_write_raw(struct iio_dev *indio_dev,
 			BIT(IIO_CHAN_INFO_CALIBBIAS) | \
 			_info_sep, \
 		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE), \
+		.info_mask_shared_by_all = BIT(IIO_CHAN_INFO_SAMP_FREQ), \
 		.address = (_address), \
 		.scan_index = (_si), \
 		.scan_type = { \
@@ -638,6 +608,7 @@ static int adis16480_write_raw(struct iio_dev *indio_dev,
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) | \
 			BIT(IIO_CHAN_INFO_CALIBBIAS) | \
 			BIT(IIO_CHAN_INFO_SCALE), \
+		.info_mask_shared_by_all = BIT(IIO_CHAN_INFO_SAMP_FREQ), \
 		.address = ADIS16480_REG_BAROM_OUT, \
 		.scan_index = ADIS16480_SCAN_BARO, \
 		.scan_type = { \
@@ -655,6 +626,7 @@ static int adis16480_write_raw(struct iio_dev *indio_dev,
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) | \
 			BIT(IIO_CHAN_INFO_SCALE) | \
 			BIT(IIO_CHAN_INFO_OFFSET), \
+		.info_mask_shared_by_all = BIT(IIO_CHAN_INFO_SAMP_FREQ), \
 		.address = ADIS16480_REG_TEMP_OUT, \
 		.scan_index = ADIS16480_SCAN_TEMP, \
 		.scan_type = { \
@@ -717,17 +689,7 @@ static const struct adis16480_chip_info adis16480_chip_info[] = {
 	},
 };
 
-static struct attribute *adis16480_attributes[] = {
-	&iio_dev_attr_sampling_frequency.dev_attr.attr,
-	NULL
-};
-
-static const struct attribute_group adis16480_attribute_group = {
-	.attrs = adis16480_attributes,
-};
-
 static const struct iio_info adis16480_info = {
-	.attrs = &adis16480_attribute_group,
 	.read_raw = &adis16480_read_raw,
 	.write_raw = &adis16480_write_raw,
 	.update_scan_mode = adis_update_scan_mode,

@@ -40,9 +40,6 @@ Configuration options:
 
 #define DT2801_MAX_DMA_SIZE (64 * 1024)
 
-/* Ports */
-#define DT2801_IOSIZE 2
-
 /* define's */
 /* ====================== */
 
@@ -552,7 +549,7 @@ static int dt2801_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	int ret = 0;
 	int n_ai_chans;
 
-	ret = comedi_request_region(dev, it->options[0], DT2801_IOSIZE);
+	ret = comedi_request_region(dev, it->options[0], 0x2);
 	if (ret)
 		return ret;
 

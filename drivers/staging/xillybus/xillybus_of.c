@@ -62,44 +62,53 @@ static void xilly_dma_sync_single_nop(struct xilly_endpoint *ep,
 {
 }
 
-static dma_addr_t xilly_map_single_of(struct xilly_cleanup *mem,
-				      struct xilly_endpoint *ep,
-				      void *ptr,
-				      size_t size,
-				      int direction
+static void xilly_of_unmap(void *ptr)
+{
+	struct xilly_mapping *data = ptr;
+
+	dma_unmap_single(data->device, data->dma_addr,
+			 data->size, data->direction);
+
+	kfree(ptr);
+}
+
+static int xilly_map_single_of(struct xilly_endpoint *ep,
+			       void *ptr,
+			       size_t size,
+			       int direction,
+			       dma_addr_t *ret_dma_handle
 	)
 {
+	dma_addr_t addr;
+	struct xilly_mapping *this;
+	int rc;
 
-	dma_addr_t addr = 0;
-	struct xilly_dma *this;
-
-	this = kmalloc(sizeof(struct xilly_dma), GFP_KERNEL);
+	this = kzalloc(sizeof(*this), GFP_KERNEL);
 	if (!this)
-		return 0;
+		return -ENOMEM;
 
 	addr = dma_map_single(ep->dev, ptr, size, direction);
-	this->direction = direction;
 
 	if (dma_mapping_error(ep->dev, addr)) {
 		kfree(this);
-		return 0;
+		return -ENODEV;
 	}
 
+	this->device = ep->dev;
 	this->dma_addr = addr;
-	this->dev = ep->dev;
 	this->size = size;
+	this->direction = direction;
 
-	list_add_tail(&this->node, &mem->to_unmap);
+	*ret_dma_handle = addr;
 
-	return addr;
-}
+	rc = devm_add_action(ep->dev, xilly_of_unmap, this);
 
-static void xilly_unmap_single_of(struct xilly_dma *entry)
-{
-	dma_unmap_single(entry->dev,
-			 entry->dma_addr,
-			 entry->size,
-			 entry->direction);
+	if (rc) {
+		dma_unmap_single(ep->dev, addr, size, direction);
+		kfree(this);
+	}
+
+	return rc;
 }
 
 static struct xilly_endpoint_hardware of_hw = {
@@ -107,7 +116,6 @@ static struct xilly_endpoint_hardware of_hw = {
 	.hw_sync_sgl_for_cpu = xilly_dma_sync_single_for_cpu_of,
 	.hw_sync_sgl_for_device = xilly_dma_sync_single_for_device_of,
 	.map_single = xilly_map_single_of,
-	.unmap_single = xilly_unmap_single_of
 };
 
 static struct xilly_endpoint_hardware of_hw_coherent = {
@@ -115,7 +123,6 @@ static struct xilly_endpoint_hardware of_hw_coherent = {
 	.hw_sync_sgl_for_cpu = xilly_dma_sync_single_nop,
 	.hw_sync_sgl_for_device = xilly_dma_sync_single_nop,
 	.map_single = xilly_map_single_of,
-	.unmap_single = xilly_unmap_single_of
 };
 
 static int xilly_drv_probe(struct platform_device *op)
@@ -138,12 +145,6 @@ static int xilly_drv_probe(struct platform_device *op)
 	dev_set_drvdata(dev, endpoint);
 
 	rc = of_address_to_resource(dev->of_node, 0, &res);
-	if (rc) {
-		dev_warn(endpoint->dev,
-			 "Failed to obtain device tree resource\n");
-		return rc;
-	}
-
 	endpoint->registers = devm_ioremap_resource(dev, &res);
 
 	if (IS_ERR(endpoint->registers))
@@ -159,14 +160,7 @@ static int xilly_drv_probe(struct platform_device *op)
 		return -ENODEV;
 	}
 
-	rc = xillybus_endpoint_discovery(endpoint);
-
-	if (!rc)
-		return 0;
-
-	xillybus_do_cleanup(&endpoint->cleanup, endpoint);
-
-	return rc;
+	return xillybus_endpoint_discovery(endpoint);
 }
 
 static int xilly_drv_remove(struct platform_device *op)
@@ -175,8 +169,6 @@ static int xilly_drv_remove(struct platform_device *op)
 	struct xilly_endpoint *endpoint = dev_get_drvdata(dev);
 
 	xillybus_endpoint_remove(endpoint);
-
-	xillybus_do_cleanup(&endpoint->cleanup, endpoint);
 
 	return 0;
 }

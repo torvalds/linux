@@ -42,9 +42,9 @@
 
 #define DEBUG_SUBSYSTEM S_SEC
 
-#include <lustre_idmap.h>
-#include <md_object.h>
-#include <obd_support.h>
+#include "../include/lustre_idmap.h"
+#include "../include/md_object.h"
+#include "../include/obd_support.h"
 
 #define lustre_get_group_info(group_info) do {	     \
 	atomic_inc(&(group_info)->usage);	      \

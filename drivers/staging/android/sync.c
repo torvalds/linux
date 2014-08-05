@@ -555,8 +555,7 @@ static unsigned int sync_fence_poll(struct file *file, poll_table *wait)
 		return POLLIN;
 	else if (status < 0)
 		return POLLERR;
-	else
-		return 0;
+	return 0;
 }
 
 static long sync_fence_ioctl_wait(struct sync_fence *fence, unsigned long arg)

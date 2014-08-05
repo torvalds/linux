@@ -182,21 +182,6 @@ struct sta_info {
 	unsigned int sleepq_ac_len;
 #endif	/*  CONFIG_88EU_AP_MODE */
 
-#ifdef CONFIG_88EU_P2P
-	/* p2p priv data */
-	u8 is_p2p_device;
-	u8 p2p_status_code;
-
-	/* p2p client info */
-	u8 dev_addr[ETH_ALEN];
-	u8 dev_cap;
-	u16 config_methods;
-	u8 primary_dev_type[8];
-	u8 num_of_secdev_type;
-	u8 secdev_types_list[32];/*  32/8 == 4; */
-	u16 dev_name_len;
-	u8 dev_name[32];
-#endif /* CONFIG_88EU_P2P */
 	u8 under_exist_checking;
 	u8 keep_alive_trycnt;
 

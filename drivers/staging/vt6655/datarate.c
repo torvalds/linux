@@ -47,11 +47,12 @@
 
 /*---------------------  Static Classes  ----------------------------*/
 
-extern unsigned short TxRate_iwconfig; //2008-5-8 <add> by chester
+extern unsigned short TxRate_iwconfig; /* 2008-5-8 <add> by chester */
 /*---------------------  Static Variables  --------------------------*/
 static int msglevel = MSG_LEVEL_INFO;
-static const unsigned char acbyIERate[MAX_RATE] =
-{0x02, 0x04, 0x0B, 0x16, 0x0C, 0x12, 0x18, 0x24, 0x30, 0x48, 0x60, 0x6C};
+static const unsigned char acbyIERate[MAX_RATE] = {
+0x02, 0x04, 0x0B, 0x16, 0x0C, 0x12, 0x18, 0x24, 0x30, 0x48, 0x60, 0x6C
+};
 
 #define AUTORATE_TXOK_CNT       0x0400
 #define AUTORATE_TXFAIL_CNT     0x0064
@@ -70,7 +71,7 @@ s_vResetCounter(
 {
 	unsigned char ii;
 
-	// clear statistic counter for auto_rate
+	/* clear statistic counter for auto_rate */
 	for (ii = 0; ii <= MAX_RATE; ii++) {
 		psNodeDBTable->uTxOk[ii] = 0;
 		psNodeDBTable->uTxFail[ii] = 0;
@@ -102,8 +103,8 @@ DATARATEbyGetRateIdx(
 {
 	unsigned char ii;
 
-	//Erase basicRate flag.
-	byRate = byRate & 0x7F;//0111 1111
+	/* Erase basicRate flag. */
+	byRate = byRate & 0x7F;/* 0111 1111 */
 
 	for (ii = 0; ii < MAX_RATE; ii++) {
 		if (acbyIERate[ii] == byRate)
@@ -151,13 +152,14 @@ wGetRateIdx(
 {
 	unsigned short ii;
 
-	//Erase basicRate flag.
-	byRate = byRate & 0x7F;//0111 1111
+	/* Erase basicRate flag. */
+	byRate = byRate & 0x7F;/* 0111 1111 */
 
 	for (ii = 0; ii < MAX_RATE; ii++) {
 		if (acbyIERate[ii] == byRate)
 			return ii;
 	}
+
 	return 0;
 }
 
@@ -218,7 +220,7 @@ RATEvParseMaxRate(
 	for (ii = 0; ii < uRateLen; ii++) {
 		byRate = (unsigned char)(pItemRates->abyRates[ii]);
 		if (WLAN_MGMT_IS_BASICRATE(byRate) && bUpdateBasicRate)  {
-			// Add to basic rate set, update pDevice->byTopCCKBasicRate and pDevice->byTopOFDMBasicRate
+			/* Add to basic rate set, update pDevice->byTopCCKBasicRate and pDevice->byTopOFDMBasicRate */
 			CARDbAddBasicRate((void *)pDevice, wGetRateIdx(byRate));
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "ParseMaxRate AddBasicRate: %d\n", wGetRateIdx(byRate));
 		}
@@ -238,9 +240,9 @@ RATEvParseMaxRate(
 
 		for (ii = 0; ii < uExtRateLen; ii++) {
 			byRate = (unsigned char)(pItemExtRates->abyRates[ii]);
-			// select highest basic rate
+			/* select highest basic rate */
 			if (WLAN_MGMT_IS_BASICRATE(pItemExtRates->abyRates[ii])) {
-				// Add to basic rate set, update pDevice->byTopCCKBasicRate and pDevice->byTopOFDMBasicRate
+				/* Add to basic rate set, update pDevice->byTopCCKBasicRate and pDevice->byTopOFDMBasicRate */
 				CARDbAddBasicRate((void *)pDevice, wGetRateIdx(byRate));
 				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "ParseMaxRate AddBasicRate: %d\n", wGetRateIdx(byRate));
 			}
@@ -302,10 +304,9 @@ RATEvTxRateFallBack(
 	unsigned short wIdxUpRate = 0;
 	unsigned long dwTxDiff = 0;
 
-	if (pDevice->pMgmt->eScanState != WMAC_NO_SCANNING) {
-		// Don't do Fallback when scanning Channel
+	if (pDevice->pMgmt->eScanState != WMAC_NO_SCANNING)
+		/* Don't do Fallback when scanning Channel */
 		return;
-	}
 
 	psNodeDBTable->uTimeCount++;
 
@@ -357,15 +358,15 @@ RATEvTxRateFallBack(
 		    (psNodeDBTable->uTxFail[MAX_RATE] * 4)) {
 			psNodeDBTable->wTxDataRate = wIdxUpRate;
 		}
-	} else { // adhoc, if uTxOk =0 & uTxFail = 0
+	} else {
+		/* adhoc, if uTxOk =0 & uTxFail = 0 */
 		if (psNodeDBTable->uTxFail[MAX_RATE] == 0)
 			psNodeDBTable->wTxDataRate = wIdxUpRate;
 	}
-//2008-5-8 <add> by chester
+
+	/* 2008-5-8 <add> by chester */
 	TxRate_iwconfig = psNodeDBTable->wTxDataRate;
 	s_vResetCounter(psNodeDBTable);
-
-	return;
 }
 
 /*+

@@ -46,8 +46,8 @@
 #endif
 
 
-#include <obd.h>
-#include <obd_class.h>
+#include "../obd.h"
+#include "../obd_class.h"
 
 typedef void (*fsfilt_cb_t)(struct obd_device *obd, __u64 last_rcvd,
 			    void *data, int error);
@@ -90,12 +90,12 @@ static inline char *fsfilt_get_label(struct obd_device *obd,
 
 #define __fsfilt_check_slow(obd, start, msg)			      \
 do {								      \
-	if (cfs_time_before(jiffies, start + 15 * HZ))		\
+	if (time_before(jiffies, start + 15 * HZ))		\
 		break;						    \
-	else if (cfs_time_before(jiffies, start + 30 * HZ))	   \
+	else if (time_before(jiffies, start + 30 * HZ))	   \
 		CDEBUG(D_VFSTRACE, "%s: slow %s %lus\n", obd->obd_name,   \
 		       msg, (jiffies-start) / HZ);		    \
-	else if (cfs_time_before(jiffies, start + DISK_TIMEOUT * HZ)) \
+	else if (time_before(jiffies, start + DISK_TIMEOUT * HZ)) \
 		CWARN("%s: slow %s %lus\n", obd->obd_name, msg,	   \
 		      (jiffies - start) / HZ);			\
 	else							      \

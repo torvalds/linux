@@ -77,4 +77,16 @@ config MMA8452
 	  To compile this driver as a module, choose M here: the module
 	  will be called mma8452.
 
+config KXCJK1013
+	tristate "Kionix 3-Axis Accelerometer Driver"
+	depends on I2C
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say Y here if you want to build a driver for the Kionix KXCJK-1013
+	  triaxial acceleration sensor.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called kxcjk-1013.
+
 endmenu
