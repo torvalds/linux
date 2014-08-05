@@ -56,13 +56,7 @@ static void radeon_do_test_moves(struct radeon_device *rdev, int flag)
 	/* Number of tests =
 	 * (Total GTT - IB pool - writeback page - ring buffers) / test size
 	 */
-	n = rdev->mc.gtt_size - RADEON_IB_POOL_SIZE*64*1024;
-	for (i = 0; i < RADEON_NUM_RINGS; ++i)
-		n -= rdev->ring[i].ring_size;
-	if (rdev->wb.wb_obj)
-		n -= RADEON_GPU_PAGE_SIZE;
-	if (rdev->ih.ring_obj)
-		n -= rdev->ih.ring_size;
+	n = rdev->mc.gtt_size - rdev->gart_pin_size;
 	n /= size;
 
 	gtt_obj = kzalloc(n * sizeof(*gtt_obj), GFP_KERNEL);
@@ -73,7 +67,7 @@ static void radeon_do_test_moves(struct radeon_device *rdev, int flag)
 	}
 
 	r = radeon_bo_create(rdev, size, PAGE_SIZE, true, RADEON_GEM_DOMAIN_VRAM,
-			     NULL, &vram_obj);
+			     0, NULL, &vram_obj);
 	if (r) {
 		DRM_ERROR("Failed to create VRAM object\n");
 		goto out_cleanup;
@@ -93,7 +87,7 @@ static void radeon_do_test_moves(struct radeon_device *rdev, int flag)
 		struct radeon_fence *fence = NULL;
 
 		r = radeon_bo_create(rdev, size, PAGE_SIZE, true,
-				     RADEON_GEM_DOMAIN_GTT, NULL, gtt_obj + i);
+				     RADEON_GEM_DOMAIN_GTT, 0, NULL, gtt_obj + i);
 		if (r) {
 			DRM_ERROR("Failed to create GTT object %d\n", i);
 			goto out_lclean;

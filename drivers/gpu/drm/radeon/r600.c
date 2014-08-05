@@ -968,7 +968,6 @@ static int r600_pcie_gart_enable(struct radeon_device *rdev)
 	r = radeon_gart_table_vram_pin(rdev);
 	if (r)
 		return r;
-	radeon_gart_restore(rdev);
 
 	/* Setup L2 cache */
 	WREG32(VM_L2_CNTL, ENABLE_L2_CACHE | ENABLE_L2_FRAGMENT_PROCESSING |
@@ -1339,7 +1338,7 @@ int r600_vram_scratch_init(struct radeon_device *rdev)
 	if (rdev->vram_scratch.robj == NULL) {
 		r = radeon_bo_create(rdev, RADEON_GPU_PAGE_SIZE,
 				     PAGE_SIZE, true, RADEON_GEM_DOMAIN_VRAM,
-				     NULL, &rdev->vram_scratch.robj);
+				     0, NULL, &rdev->vram_scratch.robj);
 		if (r) {
 			return r;
 		}
@@ -3227,7 +3226,7 @@ int r600_ih_ring_alloc(struct radeon_device *rdev)
 	if (rdev->ih.ring_obj == NULL) {
 		r = radeon_bo_create(rdev, rdev->ih.ring_size,
 				     PAGE_SIZE, true,
-				     RADEON_GEM_DOMAIN_GTT,
+				     RADEON_GEM_DOMAIN_GTT, 0,
 				     NULL, &rdev->ih.ring_obj);
 		if (r) {
 			DRM_ERROR("radeon: failed to create ih ring buffer (%d).\n", r);
@@ -3924,11 +3923,13 @@ restart_ih:
 			break;
 		case 9: /* D1 pflip */
 			DRM_DEBUG("IH: D1 flip\n");
-			radeon_crtc_handle_flip(rdev, 0);
+			if (radeon_use_pflipirq > 0)
+				radeon_crtc_handle_flip(rdev, 0);
 			break;
 		case 11: /* D2 pflip */
 			DRM_DEBUG("IH: D2 flip\n");
-			radeon_crtc_handle_flip(rdev, 1);
+			if (radeon_use_pflipirq > 0)
+				radeon_crtc_handle_flip(rdev, 1);
 			break;
 		case 19: /* HPD/DAC hotplug */
 			switch (src_data) {
@@ -4089,16 +4090,15 @@ int r600_debugfs_mc_info_init(struct radeon_device *rdev)
 }
 
 /**
- * r600_ioctl_wait_idle - flush host path cache on wait idle ioctl
+ * r600_mmio_hdp_flush - flush Host Data Path cache via MMIO
  * rdev: radeon device structure
- * bo: buffer object struct which userspace is waiting for idle
  *
- * Some R6XX/R7XX doesn't seems to take into account HDP flush performed
- * through ring buffer, this leads to corruption in rendering, see
- * http://bugzilla.kernel.org/show_bug.cgi?id=15186 to avoid this we
- * directly perform HDP flush by writing register through MMIO.
+ * Some R6XX/R7XX don't seem to take into account HDP flushes performed
+ * through the ring buffer. This leads to corruption in rendering, see
+ * http://bugzilla.kernel.org/show_bug.cgi?id=15186 . To avoid this, we
+ * directly perform the HDP flush by writing the register through MMIO.
  */
-void r600_ioctl_wait_idle(struct radeon_device *rdev, struct radeon_bo *bo)
+void r600_mmio_hdp_flush(struct radeon_device *rdev)
 {
 	/* r7xx hw bug.  write to HDP_DEBUG1 followed by fb read
 	 * rather than write to HDP_REG_COHERENCY_FLUSH_CNTL.
