@@ -84,6 +84,7 @@ static inline void __iomem *
 dbg_ioremap_cache(u64 addr, unsigned long size, char *file, int line)
 {
 	void __iomem *new;
+
 	new = ioremap_cache(addr, size);
 	return new;
 }
@@ -94,6 +95,7 @@ static inline void *
 dbg_ioremap(u64 addr, unsigned long size, char *file, int line)
 {
 	void *new;
+
 	new = ioremap(addr, size);
 	return new;
 }
