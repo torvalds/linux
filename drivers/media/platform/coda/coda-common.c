@@ -504,7 +504,9 @@ static int coda_s_fmt_vid_out(struct file *file, void *priv,
 
 	ret = coda_s_fmt(ctx, f);
 	if (ret)
-		ctx->colorspace = f->fmt.pix.colorspace;
+		return ret;
+
+	ctx->colorspace = f->fmt.pix.colorspace;
 
 	return ret;
 }
