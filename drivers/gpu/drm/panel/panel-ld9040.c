@@ -110,7 +110,10 @@ struct ld9040 {
 	int error;
 };
 
-#define panel_to_ld9040(p) container_of(p, struct ld9040, panel)
+static inline struct ld9040 *panel_to_ld9040(struct drm_panel *panel)
+{
+	return container_of(panel, struct ld9040, panel);
+}
 
 static int ld9040_clear_error(struct ld9040 *ctx)
 {
