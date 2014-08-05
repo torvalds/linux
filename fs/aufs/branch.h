@@ -30,6 +30,16 @@ struct au_xino_file {
 #endif
 };
 
+/* File-based Hierarchical Storage Management */
+struct au_br_fhsm {
+#ifdef CONFIG_AUFS_FHSM
+	struct mutex		bf_lock;
+	unsigned long		bf_jiffy;
+	struct aufs_stfs	bf_stfs;
+	int			bf_readable;
+#endif
+};
+
 /* members for writable branch only */
 enum {AuBrWh_BASE, AuBrWh_PLINK, AuBrWh_ORPH, AuBrWh_Last};
 struct au_wbr {
@@ -42,16 +52,6 @@ struct au_wbr {
 
 	/* mfs mode */
 	unsigned long long	wbr_bytes;
-
-	/* File-based Hierarchical Storage Management */
-#ifdef CONFIG_AUFS_FHSM
-	struct {
-		struct mutex		lock;
-		unsigned long		jiffy;
-		struct aufs_stfs	stfs;
-		int			readable;
-	} wbr_fhsm_notify;
-#endif
 };
 
 /* ext2 has 3 types of operations at least, ext3 has 4 */
@@ -90,6 +90,7 @@ struct au_branch {
 	atomic_t		br_count;
 
 	struct au_wbr		*br_wbr;
+	struct au_br_fhsm	*br_fhsm;
 
 	/* xino truncation */
 	atomic_t		br_xino_running;
@@ -234,20 +235,20 @@ AuSimpleRwsemFuncs(wbr_wh, struct au_wbr *wbr, &wbr->wbr_wh_rwsem);
 /* ---------------------------------------------------------------------- */
 
 #ifdef CONFIG_AUFS_FHSM
-static inline void au_wbr_init_fhsm(struct au_wbr *wbr)
+static inline void au_br_fhsm_init(struct au_br_fhsm *brfhsm)
 {
-	mutex_init(&wbr->wbr_fhsm_notify.lock);
-	wbr->wbr_fhsm_notify.jiffy = 0;
-	wbr->wbr_fhsm_notify.readable = 0;
+	mutex_init(&brfhsm->bf_lock);
+	brfhsm->bf_jiffy = 0;
+	brfhsm->bf_readable = 0;
 }
 
-static inline void au_wbr_fin_fhsm(struct au_wbr *wbr)
+static inline void au_br_fhsm_fin(struct au_br_fhsm *brfhsm)
 {
-	mutex_destroy(&wbr->wbr_fhsm_notify.lock);
+	mutex_destroy(&brfhsm->bf_lock);
 }
 #else
-AuStubVoid(au_wbr_init_fhsm, struct au_wbr *wbr)
-AuStubVoid(au_wbr_fin_fhsm, struct au_wbr *wbr)
+AuStubVoid(au_br_fhsm_init, struct au_br_fhsm *brfhsm)
+AuStubVoid(au_br_fhsm_fin, struct au_br_fhsm *brfhsm)
 #endif
 
 #endif /* __KERNEL__ */
