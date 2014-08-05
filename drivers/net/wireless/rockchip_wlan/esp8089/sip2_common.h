@@ -79,6 +79,7 @@ enum {
 	SIP_EVT_RESETTING,
 	SIP_EVT_SLEEP,
 	SIP_EVT_TXIDLE,
+        SIP_EVT_NOISEFLOOR,
         SIP_EVT_MAX
 };
 
@@ -414,6 +415,10 @@ struct sip_evt_txidle {
 	u32	last_seq;
 } __packed;
 
+struct sip_evt_noisefloor {
+     s16 noise_floor;
+     u16    pad;
+} __packed;
 /*
  *  for mblk direct memory access, no need for sip_hdr. tx: first 2k for contrl msg,
  *  rest of 14k for data.  rx, same.

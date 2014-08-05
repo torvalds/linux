@@ -34,8 +34,8 @@
 #include "esp_ext.h"
 #endif /* USE_EXT_GPIO */
 
-static int /*__init*/ esp_sdio_init(void);
-static void  /*__exit*/ esp_sdio_exit(void);
+static int  esp_sdio_init(void);
+static void  esp_sdio_exit(void);
 
 
 #define ESP_DMA_IBUFSZ   2048
@@ -615,6 +615,10 @@ static int esp_sdio_probe(struct sdio_func *func, const struct sdio_device_id *i
 
         if (err) {
                 esp_dbg(ESP_DBG_ERROR, "esp_init_all failed: %d\n", err);
+                if(sif_sdio_state == ESP_SDIO_STATE_FIRST_INIT){
+			err = 0;
+			goto _err_first_init;
+		}
                 if(sif_sdio_state == ESP_SDIO_STATE_SECOND_INIT)
 			goto _err_second_init;
         }
@@ -637,8 +641,9 @@ _err_dma:
         kfree(sctrl->dma_buffer);
 _err_last:
         kfree(sctrl);
-
+_err_first_init:
 	if(sif_sdio_state == ESP_SDIO_STATE_FIRST_INIT){
+		esp_dbg(ESP_DBG_ERROR, "first error exit\n");
 		sif_sdio_state = ESP_SDIO_STATE_FIRST_ERROR_EXIT;
 		up(&esp_powerup_sem);
 	}
@@ -807,7 +812,7 @@ static struct sdio_driver esp_sdio_dummy_driver = {
                 .remove = esp_sdio_dummy_remove,
 };
 
-static int /*__init*/ esp_sdio_init(void) 
+static int  esp_sdio_init(void) 
 {
 #define ESP_WAIT_UP_TIME_MS 11000
         int err;
@@ -912,7 +917,7 @@ _fail:
         return err;
 }
 
-static void  /*__exit*/ esp_sdio_exit(void) 
+static void  esp_sdio_exit(void) 
 {
 	esp_dbg(ESP_DBG_TRACE, "%s \n", __func__);
 
@@ -930,6 +935,7 @@ static void  /*__exit*/ esp_sdio_exit(void)
 
         esp_wakelock_destroy();
 }
+
 
 MODULE_AUTHOR("Espressif System");
 MODULE_DESCRIPTION("Driver for SDIO interconnected eagle low-power WLAN devices");

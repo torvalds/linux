@@ -93,7 +93,8 @@ struct esp_sip {
         bool rxabort_fixed;
         bool support_bgscan;
         u8 credit_to_reserve;
-	s16 noise_floor;
+	
+	atomic_t noise_floor;
 
         u32 tx_tot_len; /* total len for one transaction */
         u32 rx_tot_len;

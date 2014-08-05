@@ -108,9 +108,9 @@ int esp_pub_init_all(struct esp_pub *epub)
 	sif_enable_irq(epub);
 	
 	if(epub->sdio_state == ESP_SDIO_STATE_SECOND_INIT){
-		sip_poll_bootup_event(epub->sip);
+		ret = sip_poll_bootup_event(epub->sip);
 	} else {
-		sip_poll_resetting_event(epub->sip);
+		ret = sip_poll_resetting_event(epub->sip);
 	}
 
 	gl_bootup_cplx = NULL;

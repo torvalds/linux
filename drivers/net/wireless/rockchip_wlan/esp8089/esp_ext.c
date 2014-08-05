@@ -81,19 +81,19 @@ int ext_gpio_request(int gpio_no)
 	if (atomic_read(&ext_epub->sip->state) != SIP_RUN) {
 		mutex_unlock(&ext_mutex_lock);
 		esp_dbg(ESP_DBG_ERROR, "%s esp state is not ok\n", __func__);
-		return -3;
+		return -ENOTRECOVERABLE;
 	}
 
 	if (gpio_no >= EXT_GPIO_MAX_NUM || gpio_no < 0) {
 		mutex_unlock(&ext_mutex_lock);
 		esp_dbg(ESP_DBG_ERROR, "%s unkown gpio num\n", __func__);
-		return -1;
+		return -ERANGE;
 	}
 
 	if (gpio_list[gpio_no].gpio_mode != EXT_GPIO_MODE_DISABLE) {
 		mutex_unlock(&ext_mutex_lock);
 		esp_dbg(ESP_DBG_ERROR, "%s gpio is already in used by other\n", __func__);
-		return -2;
+		return -EPERM;
 	} else {
 		gpio_list[gpio_no].gpio_mode = EXT_GPIO_MODE_MAX;
 		mutex_unlock(&ext_mutex_lock);
@@ -113,13 +113,13 @@ int ext_gpio_release(int gpio_no)
 	if (atomic_read(&ext_epub->sip->state) != SIP_RUN) {
 		mutex_unlock(&ext_mutex_lock);
 		esp_dbg(ESP_DBG_ERROR, "%s esp state is not ok\n", __func__);
-		return -3;
+		return -ENOTRECOVERABLE;
 	}
 
 	if (gpio_no >= EXT_GPIO_MAX_NUM || gpio_no < 0) {
 		mutex_unlock(&ext_mutex_lock);
 		esp_dbg(ESP_DBG_ERROR, "%s unkown gpio num\n", __func__);
-		return -1;
+		return -ERANGE;
 	}
 	sif_lock_bus(ext_epub);
 	sif_raw_dummy_read(ext_epub);
@@ -155,19 +155,19 @@ int ext_gpio_set_mode(int gpio_no, int mode, void *data)
 	if (gpio_no >= EXT_GPIO_MAX_NUM || gpio_no < 0) {
 		mutex_unlock(&ext_mutex_lock);
 		esp_dbg(ESP_DBG_ERROR, "%s unkown gpio num\n", __func__);
-		return -1;
+		return -ERANGE;
 	}
 
 	if (gpio_list[gpio_no].gpio_mode == EXT_GPIO_MODE_DISABLE) {
 		mutex_unlock(&ext_mutex_lock);
 		esp_dbg(ESP_DBG_ERROR, "%s gpio is not in occupy, please request gpio\n", __func__);
-		return -2;
+		return -ENOTRECOVERABLE;
 	}
 
 	if (mode <= EXT_GPIO_MODE_OOB || mode >= EXT_GPIO_MODE_MAX) {
 		mutex_unlock(&ext_mutex_lock);
 		esp_dbg(ESP_DBG_ERROR, "%s gpio mode unknown\n", __func__);
-		return -3;
+		return -EOPNOTSUPP;
 	}
 
 	memcpy(&backup_info, &gpio_list[gpio_no], sizeof(struct ext_gpio_info));
@@ -184,7 +184,7 @@ int ext_gpio_set_mode(int gpio_no, int mode, void *data)
 				memcpy(&gpio_list[gpio_no], &backup_info, sizeof(struct ext_gpio_info));
 				esp_dbg(ESP_DBG_ERROR, "%s irq_handler is NULL\n", __func__);
 				mutex_unlock(&ext_mutex_lock);
-				return -4;
+				return -EINVAL;
 			}
 			gpio_list[gpio_no].irq_handler = (ext_irq_handler_t)data;
 			intr_mask_reg |= (1<<gpio_no);
@@ -194,7 +194,7 @@ int ext_gpio_set_mode(int gpio_no, int mode, void *data)
 				memcpy(&gpio_list[gpio_no], &backup_info, sizeof(struct ext_gpio_info));
 				esp_dbg(ESP_DBG_ERROR, "%s output default value is NULL\n", __func__);
 				mutex_unlock(&ext_mutex_lock);
-				return -4;
+				return -EINVAL;
 			}
 			*(int *)data = (*(int *)data == 0 ? 0 : 1);
 			gpio_mode = (u8)(((*(int *)data)<<4) | gpio_mode);
@@ -229,7 +229,7 @@ int ext_gpio_get_mode(int gpio_no)
 	if (gpio_no >= EXT_GPIO_MAX_NUM || gpio_no < 0) {
 		esp_dbg(ESP_DBG_ERROR, "%s unkown gpio num\n", __func__);
 		mutex_unlock(&ext_mutex_lock);
-		return -1;
+		return -ERANGE;
 	}
 
 	gpio_mode = gpio_list[gpio_no].gpio_mode;
@@ -250,19 +250,19 @@ int ext_gpio_set_output_state(int gpio_no, int state)
 	if (gpio_no >= EXT_GPIO_MAX_NUM || gpio_no < 0) {
 		mutex_unlock(&ext_mutex_lock);
 		esp_dbg(ESP_DBG_ERROR, "%s unkown gpio num\n", __func__);
-		return -1;
+		return -ERANGE;
 	}
 
 	if (gpio_list[gpio_no].gpio_mode != EXT_GPIO_MODE_OUTPUT) {
 		mutex_unlock(&ext_mutex_lock);
 		esp_dbg(ESP_DBG_ERROR, "%s gpio is not in output state, please request gpio or set output state\n", __func__);
-		return -2;
+		return -EOPNOTSUPP;
 	}
 
 	if (state != EXT_GPIO_STATE_LOW && state != EXT_GPIO_STATE_HIGH) {
 		mutex_unlock(&ext_mutex_lock);
 		esp_dbg(ESP_DBG_ERROR, "%s gpio state unknown\n", __func__);
-		return -3;
+		return -ENOTRECOVERABLE;
 	}
 
 	sif_lock_bus(ext_epub);
@@ -292,7 +292,7 @@ int ext_gpio_get_state(int gpio_no)
 	if (gpio_no >= EXT_GPIO_MAX_NUM || gpio_no < 0) {
 		esp_dbg(ESP_DBG_ERROR, "%s unkown gpio num\n", __func__);
 		mutex_unlock(&ext_mutex_lock);
-		return -1;
+		return -ERANGE;
 	}
 
 	if (gpio_list[gpio_no].gpio_mode == EXT_GPIO_MODE_OUTPUT) {
@@ -310,7 +310,7 @@ int ext_gpio_get_state(int gpio_no)
 	 } else {
 		esp_dbg(ESP_DBG_ERROR, "%s gpio_state is not input or output\n", __func__);
 		mutex_unlock(&ext_mutex_lock);
-		return -2;
+		return -EOPNOTSUPP;
 	}
 	mutex_unlock(&ext_mutex_lock);
 
@@ -326,7 +326,7 @@ int ext_irq_ack(int gpio_no)
 	if (gpio_no >= EXT_GPIO_MAX_NUM || gpio_no < 0) {
 		esp_dbg(ESP_DBG_ERROR, "%s unkown gpio num\n", __func__);
 		mutex_unlock(&ext_mutex_lock);
-		return -1;
+		return -ERANGE;
 	}
 
 	if (gpio_list[gpio_no].gpio_mode != EXT_GPIO_MODE_INTR_POSEDGE 
@@ -335,7 +335,7 @@ int ext_irq_ack(int gpio_no)
 			&& gpio_list[gpio_no].gpio_mode != EXT_GPIO_MODE_INTR_HILEVEL) {
 		esp_dbg(ESP_DBG_ERROR, "%s gpio mode is not intr mode\n", __func__);
 		mutex_unlock(&ext_mutex_lock);
-		return -2;
+		return -ENOTRECOVERABLE;
 	}
 
 	sif_lock_bus(ext_epub);
@@ -429,7 +429,7 @@ int ext_gpio_init(struct esp_pub *epub)
 	ext_irq_wkq = create_singlethread_workqueue("esp_ext_irq_wkq");
 	if (ext_irq_wkq == NULL) {
 		esp_dbg(ESP_DBG_ERROR, "%s create workqueue error\n", __func__);
-		return -2;
+		return -EACCES;
 	}
 
 #ifdef EXT_GPIO_OPS

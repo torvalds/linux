@@ -1491,8 +1491,23 @@ void sif_enable_irq(struct esp_pub *epub)
 		return;
 	}
 
-	err = request_irq(sif_platform_get_irq_no(), sif_irq_handler, IRQF_TRIGGER_LOW, "esp_spi_irq", spi);
-	//err = request_irq(sif_platform_get_irq_no(), sif_irq_handler, IRQF_TRIGGER_FALLING, "esp_spi_irq", spi);
+/******************compat with other device in some shared irq system ********************/
+
+#ifdef  REQUEST_IRQ_SHARED
+#if   defined(REQUEST_IRQ_RISING)
+        err = request_irq(sif_platform_get_irq_no(), sif_irq_handler, IRQF_TRIGGER_RISING | IRQF_SHARED, "esp_spi_irq", spi);
+#elif defined(REQUEST_IRQ_FALLING)
+        err = request_irq(sif_platform_get_irq_no(), sif_irq_handler, IRQF_TRIGGER_FALLING | IRQF_SHARED, "esp_spi_irq", spi);
+#elif defined(REQUEST_IRQ_LOWLEVEL)
+        err = request_irq(sif_platform_get_irq_no(), sif_irq_handler, IRQF_TRIGGER_LOW | IRQF_SHARED, "esp_spi_irq", spi);
+#elif defined(REQUEST_IRQ_HIGHLEVEL)
+        err = request_irq(sif_platform_get_irq_no(), sif_irq_handler, IRQF_TRIGGER_HIGH | IRQF_SHARED, "esp_spi_irq", spi);
+#else   /* default */
+        err = request_irq(sif_platform_get_irq_no(), sif_irq_handler, IRQF_TRIGGER_LOW | IRQF_SHARED, "esp_spi_irq", spi);
+#endif /* TRIGGER MODE */
+#else
+        err = request_irq(sif_platform_get_irq_no(), sif_irq_handler, IRQF_TRIGGER_LOW, "esp_spi_irq", spi);
+#endif /* ESP_IRQ_SHARED */
 
         if (err) {
                 esp_dbg(ESP_DBG_ERROR, "sif %s failed\n", __func__);
@@ -1642,6 +1657,10 @@ static int esp_spi_probe(struct spi_device *spi)
 
         if (err) {
                 esp_dbg(ESP_DBG_ERROR, "esp_init_all failed: %d\n", err);
+                if(sif_sdio_state == ESP_SDIO_STATE_FIRST_INIT){
+			err = 0;
+			goto _err_first_init;
+		}
                 if(sif_sdio_state == ESP_SDIO_STATE_SECOND_INIT)
 			goto _err_second_init;
         }
@@ -1662,21 +1681,6 @@ _err_dma:
         kfree(sctrl->dma_buffer);
 _err_last:
         kfree(sctrl);
-	if (buf_addr) {
-		kfree(buf_addr);
-		buf_addr = NULL;
-		tx_cmd = NULL;
-		rx_cmd = NULL;
-	}
-	if(sif_sdio_state == ESP_SDIO_STATE_FIRST_INIT){
-		sif_sdio_state = ESP_SDIO_STATE_FIRST_ERROR_EXIT;
-		up(&esp_powerup_sem);
-	}
-        return err;
-_err_second_init:
-	sif_sdio_state = ESP_SDIO_STATE_SECOND_ERROR_EXIT;
-	esp_spi_remove(spi);
-	return err;
 _err_spi:
 	if (buf_addr) {
 		kfree(buf_addr);
@@ -1684,6 +1688,16 @@ _err_spi:
 		tx_cmd = NULL;
 		rx_cmd = NULL;
 	}
+_err_first_init:
+	if(sif_sdio_state == ESP_SDIO_STATE_FIRST_INIT){
+		esp_dbg(ESP_DBG_ERROR, "first error exit\n");
+		sif_sdio_state = ESP_SDIO_STATE_FIRST_ERROR_EXIT;
+		up(&esp_powerup_sem);
+	}
+        return err;
+_err_second_init:
+	sif_sdio_state = ESP_SDIO_STATE_SECOND_ERROR_EXIT;
+	esp_spi_remove(spi);
 	return err;
 }
 
@@ -1695,7 +1709,7 @@ static int esp_spi_remove(struct spi_device *spi)
 
         if (sctrl == NULL) {
                 esp_dbg(ESP_DBG_ERROR, "%s no sctrl\n", __func__);
-                return -1;
+                return -EINVAL;
         }
 
         do {

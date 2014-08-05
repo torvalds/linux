@@ -208,7 +208,7 @@ struct dentry *esp_debugfs_add_sub_dir(const char *name) {
 
 inline int esp_debugfs_init(void)
 {
-        return -1;
+        return -EPERM;
 }
 
 inline void esp_debugfs_exit(void)

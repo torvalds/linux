@@ -92,15 +92,19 @@ static int esp_test_cmd_reply(struct genl_info *info, u32 cmd_type, char *reply_
         if (skb == NULL)
                 goto out;
 
-        //hdr = genlmsg_put(skb,  info->snd_pid, info->snd_seq, &test_genl_family, 0, cmd_type);libing
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0))
         hdr = genlmsg_put(skb,  info->snd_portid, info->snd_seq, &test_genl_family, 0, cmd_type);
+#else
+        hdr = genlmsg_put(skb,  info->snd_pid, info->snd_seq, &test_genl_family, 0, cmd_type);
+#endif
         if (hdr == NULL)
                 goto nla_put_failure;
 
-        //NLA_PUT_STRING(skb, TEST_ATTR_STR, reply_info); libing
-
-        nla_put_string(skb, TEST_ATTR_STR, reply_info); 
-
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0))
+        nla_put_string(skb, TEST_ATTR_STR, reply_info);
+#else
+        NLA_PUT_STRING(skb, TEST_ATTR_STR, reply_info);
+#endif
         genlmsg_end(skb, hdr);
         genlmsg_reply(skb, info);
         return 0;
@@ -121,14 +125,16 @@ static int esp_test_echo(struct sk_buff *skb_2,
         if (info == NULL)
                 goto out;
 
-       // connected_nl = info->snd_pid;
-        //printk(KERN_DEBUG "esp_sdio: received a echo, "
-        //       "from pid %d\n", info->snd_pid);  libing
-        
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0))
         connected_nl = info->snd_portid;
+	printk(KERN_DEBUG "esp_sdio: received a echo, "
+               "from portid %d\n", info->snd_portid);
+#else
+        connected_nl = info->snd_pid;
         printk(KERN_DEBUG "esp_sdio: received a echo, "
-               "from pid %d\n", info->snd_portid);
-	    sip_debug_show(SIP);
+               "from pid %d\n", info->snd_pid);
+#endif
+	sip_debug_show(SIP);
 	
         /*get echo info*/
         echo_info = nla_data(info->attrs[TEST_ATTR_STR]);
@@ -149,17 +155,21 @@ static int esp_test_sdiospeed(struct sk_buff *skb_2,
         if (info == NULL)
                 goto out;
 
-        //connected_nl = info->snd_pid; add libing
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0))
         connected_nl = info->snd_portid;
-
+#else
+        connected_nl = info->snd_pid;
+#endif
         /*get echo info*/
         speed_info = nla_data(info->attrs[TEST_ATTR_STR]);
 
-       // printk(KERN_DEBUG "esp_sdio: received a sdio speed %s, "
-        //       "from pid %d\n", speed_info, info->snd_pid); libing
-                printk(KERN_DEBUG "esp_sdio: received a sdio speed %s, "
-               "from pid %d\n", speed_info, info->snd_portid);
-
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0))
+        printk(KERN_DEBUG "esp_sdio: received a sdio speed %s, "
+               "from portid %d\n", speed_info, info->snd_portid);
+#else
+        printk(KERN_DEBUG "esp_sdio: received a sdio speed %s, "
+               "from pid %d\n", speed_info, info->snd_pid);
+#endif
         if (!strcmp(speed_info, "high")) {
                 sif_platform_target_speed(1);
         } else if (!strcmp(speed_info, "low")) {
@@ -513,12 +523,11 @@ static int esp_test_netlink_notify(struct notifier_block *nb,
         if (state != NETLINK_URELEASE)
                 return NOTIFY_DONE;
 
-        /*if (notify->pid == connected_nl) {
-                printk(KERN_INFO "esp_sdio: user released netlink"
-                       " socket \n");
-                connected_nl = 0;
-        }*/ // libing
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0))
         if (notify->portid == connected_nl) {
+#else
+        if (notify->pid == connected_nl) {
+#endif
                 printk(KERN_INFO "esp_sdio: user released netlink"
                        " socket \n");
                 connected_nl = 0;
@@ -615,8 +624,8 @@ void test_exit_netlink(void)
 
         kfree(sdio_buff);
 	sdio_buff = NULL;
-	sip_copy = NULL;
-	
+        sip_copy = NULL;
+
         printk(KERN_INFO "esp_sdio: closing netlink\n");
         /* unregister the notifier */
         netlink_unregister_notifier(&test_netlink_notifier);

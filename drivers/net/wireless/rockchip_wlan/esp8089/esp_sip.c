@@ -37,6 +37,12 @@ extern struct completion *gl_bootup_cplx;
 static u32 bcn_counter = 0;
 static u32 probe_rsp_counter = 0;
 
+static int old_signal = -35;
+static int avg_signal = 0;
+static int signal_loop = 0;
+
+#define SIGNAL_COUNT  300
+
 #define TID_TO_AC(_tid) ((_tid)== 0||((_tid)==3)?WME_AC_BE:((_tid)<3)?WME_AC_BK:((_tid)<6)?WME_AC_VI:WME_AC_VO)
 
 #ifdef SIP_DEBUG
@@ -627,6 +633,7 @@ int sip_rx(struct esp_pub *epub)
                 esp_sip_dbg(ESP_DBG_ERROR, "%s first no memory \n", __func__);
                 goto _err;
         }
+
         rx_buf = skb_put(first_skb, first_sz);
         esp_sip_dbg(ESP_DBG_LOG, "%s rx_buf ptr %p, first_sz %d\n", __func__, rx_buf, first_sz);
 
@@ -826,7 +833,7 @@ int sip_get_raw_credits(struct esp_sip *sip)
 
         if (!sip->boot_credits) {
                 esp_dbg(ESP_DBG_ERROR, "read credits timeout\n");
-                return -1;
+                return -ETIMEDOUT;
         }
 
         esp_dbg(ESP_DBG_TRACE, "%s got credits: %d\n", __func__, sip->boot_credits);
@@ -897,7 +904,7 @@ int sip_post_init(struct esp_sip *sip, struct sip_evt_bootup2 *bevt)
 
         /* print out MAC addr... */
         memcpy(epub->mac_addr, bevt->mac_addr, ETH_ALEN);
-	sip->noise_floor = bevt->noise_floor;
+	atomic_set(&sip->noise_floor, bevt->noise_floor);
 
         esp_sip_dbg(ESP_DBG_TRACE, "%s tx_blksz %d rx_blksz %d mac addr %pM\n", __func__, sip->tx_blksz, sip->rx_blksz, epub->mac_addr);
 
@@ -1000,7 +1007,7 @@ static int sip_pack_pkt(struct esp_sip *sip, struct sk_buff *skb, int *pm_state)
 #else
 			sip_tx_status_report(sip, skb, itx_info, false);
 			atomic_dec(&sip->tx_data_pkt_queued);
-			return -1;
+			return -EINVAL;
 #endif /* FAST_TX_STATUS */
 		}
 
@@ -1030,12 +1037,14 @@ static int sip_pack_pkt(struct esp_sip *sip, struct sk_buff *skb, int *pm_state)
                 }
 
                 /* update sip tx info */
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 28))
-               /* if(itx_info->control.sta == NULL){
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0))
+                node = esp_get_node_by_addr(sip->epub, wh->addr1);
+#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 28))
+                if(itx_info->control.sta == NULL){
                         node = NULL;
                 } else {
                         node = esp_get_node_by_addr(sip->epub, itx_info->control.sta->addr);
-                }*/
+                }
 #else
 		
                 node = esp_get_node_by_addr(sip->epub, wh->addr1);
@@ -1321,12 +1330,14 @@ static void sip_tx_status_report(struct esp_sip *sip, struct sk_buff *skb, struc
         if(tx_info->flags & IEEE80211_TX_STAT_AMPDU)
                 esp_sip_dbg(ESP_DBG_TRACE, "%s ampdu status! \n", __func__);
 
-        if (!mod_support_no_txampdu() /*&&
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 29))
+        if (!mod_support_no_txampdu() &&
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 0))
+                cfg80211_get_chandef_type(&sip->epub->hw->conf.chandef) != NL80211_CHAN_NO_HT
+#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 29))
                 sip->epub->hw->conf.channel_type != NL80211_CHAN_NO_HT
 #else
                 !(sip->epub->hw->conf.flags&IEEE80211_CONF_SUPPORT_HT_MODE)
-#endif*/ //add libing
+#endif
                 ) {
                 struct ieee80211_tx_info * tx_info = IEEE80211_SKB_CB(skb);
                 struct ieee80211_hdr * wh = (struct ieee80211_hdr *)skb->data;
@@ -1335,15 +1346,24 @@ static void sip_tx_status_report(struct esp_sip *sip, struct sk_buff *skb, struc
                                 u8 tidno = ieee80211_get_qos_ctl(wh)[0] & IEEE80211_QOS_CTL_TID_MASK;
                                 struct esp_node * node;
                                 struct esp_tx_tid *tid;
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 28))
- /*                               struct ieee80211_sta *sta;
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0)) 
+                                struct ieee80211_sta *sta;
+
+				node = esp_get_node_by_addr(sip->epub, wh->addr1);
+                                if(node == NULL)
+                                        goto _exit;
+                                if(node->sta == NULL)
+                                        goto _exit;
+				sta = node->sta;
+#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 28))
+                                struct ieee80211_sta *sta;
                                 sta = tx_info->control.sta;
                                 if(sta == NULL)
                                         goto _exit;
                                 node = (struct esp_node *)sta->drv_priv;
                                 ASSERT(node != NULL);
-                                if(node->sta == NULL) 
-                                        goto _exit;*/ //add libing
+                                if(node->sta == NULL)
+                                        goto _exit;
 #else
                                 node = esp_get_node_by_addr(sip->epub, wh->addr1);
                                 if(node == NULL)
@@ -1365,7 +1385,7 @@ static void sip_tx_status_report(struct esp_sip *sip, struct sk_buff *skb, struc
 #elif (LINUX_VERSION_CODE <= KERNEL_VERSION(2, 6, 37))
                                         ieee80211_start_tx_ba_session(sta, tidno);
 #else
-                                       // ieee80211_start_tx_ba_session(sta, tidno, 0);
+                                        ieee80211_start_tx_ba_session(sta, tidno, 0);
 #endif
                                 } else {
 					if(tid->state == ESP_TID_STATE_INIT)
@@ -1377,12 +1397,12 @@ static void sip_tx_status_report(struct esp_sip *sip, struct sk_buff *skb, struc
                         }
                 }
         }
-/*_exit:
+_exit:
 #ifndef FAST_TX_NOWAIT 
         skb_queue_tail(&sip->epub->txdoneq, skb);
 #else
         ieee80211_tx_status(sip->epub->hw, skb);
-#endif*/ //add libing
+#endif
 }
 #endif /* FAST_TX_STATUS */
 
@@ -1596,6 +1616,7 @@ int sip_channel_value_inconsistency(u8 *start, size_t len, unsigned channel)
 static int sip_parse_mac_rx_info(struct esp_sip *sip, struct esp_mac_rx_ctrl * mac_ctrl, struct sk_buff *skb)
 {
         struct ieee80211_rx_status *rx_status = NULL;
+	struct ieee80211_hdr *hdr;
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 32))
         rx_status = IEEE80211_SKB_RXCB(skb);
@@ -1605,10 +1626,25 @@ static int sip_parse_mac_rx_info(struct esp_sip *sip, struct esp_mac_rx_ctrl * m
         rx_status->freq = esp_ieee2mhz(mac_ctrl->channel);
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 39))
-        rx_status->signal = mac_ctrl->rssi + sip->noise_floor;  /* snr actually, need to offset noise floor e.g. -85 */
+        rx_status->signal = mac_ctrl->rssi + atomic_read(&sip->noise_floor);  /* snr actually, need to offset noise floor e.g. -85 */
 #else
         rx_status->signal = mac_ctrl->rssi;  /* snr actually, need to offset noise floor e.g. -85 */
 #endif /* NEW_KERNEL */
+
+	hdr = (struct ieee80211_hdr *)skb->data;
+	if (mac_ctrl->damatch0 == 1 && mac_ctrl->bssidmatch0 == 1        /*match bssid and da, but beacon package contain other bssid*/
+			 && strncmp(hdr->addr2, sip->epub->wl.bssid, ETH_ALEN) == 0) { /* force match addr2 */
+		if (++signal_loop >= SIGNAL_COUNT) {
+			avg_signal += rx_status->signal;
+			avg_signal /= SIGNAL_COUNT;
+			old_signal = rx_status->signal = (avg_signal + 5);
+			signal_loop = 0;
+			avg_signal = 0;
+		} else {
+			avg_signal += rx_status->signal;
+			rx_status->signal = old_signal;
+		}
+	}
 
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 35))
 #define ESP_RSSI_MIN_RSSI (-90)
@@ -1845,7 +1881,7 @@ struct esp_sip * sip_attach(struct esp_pub *epub)
 #endif/* RX_SYNC */
 
         sip->epub = epub;
-	sip->noise_floor = -96;
+	atomic_set(&sip->noise_floor, -96);
 
         atomic_set(&sip->state, SIP_INIT);
 	atomic_set(&sip->tx_credits, 0);
@@ -1954,7 +1990,7 @@ int sip_prepare_boot(struct esp_sip *sip)
 {
         if (atomic_read(&sip->state) != SIP_INIT) {
                 esp_dbg(ESP_DBG_ERROR, "%s wrong state %d\n", __func__, atomic_read(&sip->state));
-                return -1;
+                return -ENOTRECOVERABLE;
         }
 
         if (sip->rawbuf == NULL) {
@@ -2176,7 +2212,7 @@ sip_poll_bootup_event(struct esp_sip *sip)
 	esp_dbg(ESP_DBG_TRACE, "******time remain****** = [%d]\n", ret);
 	if (ret <= 0) {
 		esp_dbg(ESP_DBG_ERROR, "bootup event timeout\n");
-		return ret;
+		return -ETIMEDOUT;
 	}	
 
 #ifndef FPGA_LOOPBACK
@@ -2207,15 +2243,15 @@ sip_poll_resetting_event(struct esp_sip *sip)
 	if (gl_bootup_cplx)
 		ret = wait_for_completion_timeout(gl_bootup_cplx, 10 * HZ);
 
-	esp_dbg(ESP_DBG_TRACE, "******time remain****** = [%d]\n", ret);
+	esp_dbg(ESP_DBG_ERROR, "******time remain****** = [%d]\n", ret);
 	if (ret <= 0) {
 		esp_dbg(ESP_DBG_ERROR, "resetting event timeout\n");
-		return ret;
+		return -ETIMEDOUT;
 	}	
       
         esp_dbg(ESP_DBG_TRACE, "target resetting %d %p\n", ret, gl_bootup_cplx);
 
-	return ret;
+	return 0;
 }
 
 
@@ -2275,12 +2311,12 @@ sip_cmd_enqueue(struct esp_sip *sip, struct sk_buff *skb)
 {
 	if (!sip || !sip->epub) {
 		esp_dbg(ESP_DBG_ERROR, "func %s, sip->epub->txq is NULL\n", __func__);
-		return -1;
+		return -EINVAL;
 	}
 	
 	if (!skb) {
 		esp_dbg(ESP_DBG_ERROR, "func %s, skb is NULL\n", __func__);
-		return -2;
+		return -EINVAL;
 	}
 
         skb_queue_tail(&sip->epub->txq, skb);
@@ -2326,7 +2362,7 @@ int sip_send_tx_data(struct esp_sip *sip)
 
         skb = sip_alloc_ctrl_skbuf(epub->sip, sizeof(struct sip_cmd_bss_info_update), SIP_CMD_BSS_INFO_UPDATE);
         if (!skb)
-                return -1;
+                return -EINVAL;
 
         bsscmd = (struct sip_cmd_bss_info_update *)(skb->data + sizeof(struct sip_tx_info));
         bsscmd->isassoc= (assoc==true)? 1: 0;

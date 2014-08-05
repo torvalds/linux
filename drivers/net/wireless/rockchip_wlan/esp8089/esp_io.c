@@ -196,7 +196,7 @@ int sif_config_gpio_mode(struct esp_pub *epub, u8 gpio_num, u8 gpio_mode)
 	int err;
     
 	if((BIT(gpio_num) & gpio_forbidden) || gpio_num > 15)
-		return 1;    
+		return -EINVAL;    
 
 	p_tbuf = kzalloc(sizeof(u32), GFP_KERNEL);
 	ASSERT(p_tbuf != NULL);
@@ -236,7 +236,7 @@ int sif_get_gpio_intr(struct esp_pub *epub, u16 intr_mask, u16 *value)
 	p_tbuf = kzalloc(sizeof(u32), GFP_KERNEL);
 	ASSERT(p_tbuf != NULL);
 	*p_tbuf = 0;
-	err = esp_common_write_with_addr(epub, SLC_HOST_CONF_W3, (u8*)p_tbuf, sizeof(u32), ESP_SIF_NOSYNC);
+	err = esp_common_read_with_addr(epub, SLC_HOST_CONF_W3, (u8*)p_tbuf, sizeof(u32), ESP_SIF_NOSYNC);
 	if (err)
 		return err;
 
@@ -260,7 +260,7 @@ int sif_get_gpio_input(struct esp_pub *epub, u16 *mask, u16 *value)
 	p_tbuf = kzalloc(sizeof(u32), GFP_KERNEL);
 	ASSERT(p_tbuf != NULL);
 	*p_tbuf = 0;
-	err = esp_common_write_with_addr(epub, SLC_HOST_CONF_W3, (u8*)p_tbuf, sizeof(u32), ESP_SIF_NOSYNC);
+	err = esp_common_read_with_addr(epub, SLC_HOST_CONF_W3, (u8*)p_tbuf, sizeof(u32), ESP_SIF_NOSYNC);
 	if (err)
 		return err;
 
@@ -319,14 +319,14 @@ void sif_raw_dummy_read(struct esp_pub *epub)
 				continue;
 		}else if(*p_tbuf == 0x000001ff){
 			write_err_cnt++;
-			ext_cnt = 3;
+			ext_cnt = 5;
 		}else if(*p_tbuf == 0xffffffff){
 			read_err_cnt++;
 			write_err_cnt++;
-			ext_cnt = 3;
+			ext_cnt = 5;
 		}else {
 			unknow_err_cnt++;
-			ext_cnt = 3;
+			ext_cnt = 5;
 		}
 
 		*p_tbuf = 0x010001ff;

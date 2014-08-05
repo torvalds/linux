@@ -12,6 +12,10 @@
 extern int rockchip_wifi_power(int on);
 //extern int rk29sdk_wifi_set_carddetect(int val); libing
 extern int rockchip_wifi_set_carddetect(int val);
+extern int esp_sdio_init(void);
+extern void esp_sdio_exit(void)  ;
+
+#if 1
 int rockchip_wifi_init_module(void)
 {
 		
@@ -23,6 +27,7 @@ void rockchip_wifi_exit_module(void)
 	esp_sdio_exit(); 
 		 
 }
+#endif
 void sif_platform_rescan_card(unsigned insert)
 {
 		//rk29sdk_wifi_set_carddetect(insert); libing
@@ -108,8 +113,8 @@ void sif_platform_ack_interrupt(struct esp_pub *epub)
 
 }
 #endif //ESP_ACK_INTERRUPT
- EXPORT_SYMBOL(rockchip_wifi_init_module);
- EXPORT_SYMBOL(rockchip_wifi_exit_module);
+EXPORT_SYMBOL(rockchip_wifi_init_module);
+EXPORT_SYMBOL(rockchip_wifi_exit_module);
 
-//late_initcall(esp_sdio_init);
+//module_init(esp_sdio_init);
 //module_exit(esp_sdio_exit);

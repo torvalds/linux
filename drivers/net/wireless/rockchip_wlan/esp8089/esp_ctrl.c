@@ -264,7 +264,11 @@ int sip_parse_events(struct esp_sip *sip, u8 *buf)
 #endif
                 break;
         }
-
+	case SIP_EVT_NOISEFLOOR:{
+				        struct sip_evt_noisefloor *ep = (struct sip_evt_noisefloor *)(buf + SIP_CTRL_HDR_LEN);	                                      
+					atomic_set(&sip->noise_floor, ep->noise_floor);
+					break;
+				}
         default:
                 break;
         }
@@ -335,10 +339,18 @@ int sip_send_config(struct esp_pub *epub, struct ieee80211_conf * conf)
 
         skb = sip_alloc_ctrl_skbuf(epub->sip, sizeof(struct sip_cmd_config) + sizeof(struct sip_hdr), SIP_CMD_CONFIG);
         if (!skb)
-                return -1;
-       // esp_dbg(ESP_DBG_TRACE, "%s config center freq %d\n", __func__, conf->channel->center_freq); add libing
+                return -EINVAL;
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 0))
+        esp_dbg(ESP_DBG_TRACE, "%s config center freq %d\n", __func__, conf->chandef.chan->center_freq);
+#else
+        esp_dbg(ESP_DBG_TRACE, "%s config center freq %d\n", __func__, conf->channel->center_freq);
+#endif
         configcmd = (struct sip_cmd_config *)(skb->data + sizeof(struct sip_hdr));
-       // configcmd->center_freq= conf->chandef.chan->center_freq; //add libing
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 0))
+        configcmd->center_freq= conf->chandef.chan->center_freq;
+#else
+        configcmd->center_freq= conf->channel->center_freq;
+#endif
 		configcmd->duration= 0;
         return sip_cmd_enqueue(epub->sip, skb);
 }
@@ -350,7 +362,7 @@ int  sip_send_bss_info_update(struct esp_pub *epub, struct esp_vif *evif, u8 *bs
 
         skb = sip_alloc_ctrl_skbuf(epub->sip, sizeof(struct sip_cmd_bss_info_update) + sizeof(struct sip_hdr), SIP_CMD_BSS_INFO_UPDATE);
         if (!skb)
-                return -1;
+                return -EINVAL;
 
         bsscmd = (struct sip_cmd_bss_info_update *)(skb->data + sizeof(struct sip_hdr));
         if (assoc == 2) { //hack for softAP mode
@@ -372,7 +384,7 @@ int  sip_send_wmm_params(struct esp_pub *epub, u8 aci, const struct ieee80211_tx
         struct sip_cmd_set_wmm_params* bsscmd;
         skb = sip_alloc_ctrl_skbuf(epub->sip, sizeof(struct sip_cmd_set_wmm_params) + sizeof(struct sip_hdr), SIP_CMD_SET_WMM_PARAM);
         if (!skb)
-                return -1;
+                return -EINVAL;
 
         bsscmd = (struct sip_cmd_set_wmm_params *)(skb->data + sizeof(struct sip_hdr));
         bsscmd->aci= aci;
@@ -385,22 +397,21 @@ int  sip_send_wmm_params(struct esp_pub *epub, u8 aci, const struct ieee80211_tx
         return sip_cmd_enqueue(epub->sip, skb);
 }
 
-//since we only support ba for only one ta for each tid, so index = tid
-static u8 find_empty_index(struct esp_pub *epub)
-{
-        return 0;
-}
-
 int sip_send_ampdu_action(struct esp_pub *epub, u8 action_num, const u8 * addr, u16 tid, u16 ssn, u8 buf_size)
 {
-        u8 index = find_empty_index(epub);
+        int index = 0;
         struct sk_buff *skb = NULL;
         struct sip_cmd_ampdu_action * action;
+	if(action_num == SIP_AMPDU_RX_START){
+		index = esp_get_empty_rxampdu(epub, addr, tid);
+	} else if(action_num == SIP_AMPDU_RX_STOP){
+		index = esp_get_exist_rxampdu(epub, addr, tid);
+	}
         if(index < 0)
-                return -1;
+                return -EACCES;
         skb = sip_alloc_ctrl_skbuf(epub->sip, sizeof(struct sip_cmd_ampdu_action) + sizeof(struct sip_hdr), SIP_CMD_AMPDU_ACTION);
         if(!skb)
-                return -1;
+                return -EINVAL;
 
         action = (struct sip_cmd_ampdu_action *)(skb->data + sizeof(struct sip_hdr));
         action->action = action_num;
@@ -411,7 +422,7 @@ int sip_send_ampdu_action(struct esp_pub *epub, u8 action_num, const u8 * addr, 
         case SIP_AMPDU_RX_START:
                 action->ssn = ssn;
         case SIP_AMPDU_RX_STOP:
-                action->index = tid;
+                action->index = index;
         case SIP_AMPDU_TX_OPERATIONAL:
         case SIP_AMPDU_TX_STOP:
                 action->win_size = buf_size;
@@ -444,7 +455,7 @@ int sip_send_scan(struct esp_pub *epub)
         skb = sip_alloc_ctrl_skbuf(epub->sip, sizeof(struct sip_cmd_scan) + sizeof(struct sip_hdr) + append_len, SIP_CMD_SCAN);
 
         if (!skb)
-                return -1;
+                return -EINVAL;
 
         ptr = skb->data;
         scancmd = (struct sip_cmd_scan *)(ptr + sizeof(struct sip_hdr));
@@ -494,7 +505,7 @@ int sip_send_suspend_config(struct esp_pub *epub, u8 suspend)
         skb = sip_alloc_ctrl_skbuf(epub->sip, sizeof(struct sip_cmd_suspend) + sizeof(struct sip_hdr), SIP_CMD_SUSPEND);
 
         if (!skb)
-                return -1;
+                return -EINVAL;
 
         cmd = (struct sip_cmd_suspend *)(skb->data + sizeof(struct sip_hdr));
 	cmd->suspend = suspend;
@@ -510,7 +521,8 @@ int sip_send_ps_config(struct esp_pub *epub, struct esp_ps *ps)
         skb = sip_alloc_ctrl_skbuf(epub->sip, sizeof(struct sip_cmd_ps) + sizeof(struct sip_hdr), SIP_CMD_PS);
 
         if (!skb)
-		return -1;
+		return -EINVAL;
+
 
         shdr = (struct sip_hdr *)skb->data;
         pscmd = (struct sip_cmd_ps *)(skb->data + sizeof(struct sip_hdr));
@@ -553,7 +565,7 @@ int sip_send_setkey(struct esp_pub *epub, u8 bssid_no, u8 *peer_addr, struct iee
         skb = sip_alloc_ctrl_skbuf(epub->sip, sizeof(struct sip_cmd_setkey) + sizeof(struct sip_hdr), SIP_CMD_SETKEY);
 
         if (!skb)
-                return -1;
+                return -EINVAL;
 
         setkeycmd = (struct sip_cmd_setkey *)(skb->data + sizeof(struct sip_hdr));
 
@@ -653,7 +665,7 @@ int sip_send_roc(struct esp_pub *epub, u16 center_freq, u16 duration)
 
         skb = sip_alloc_ctrl_skbuf(epub->sip, sizeof(struct sip_cmd_config) + sizeof(struct sip_hdr), SIP_CMD_CONFIG);
         if (!skb)
-                return -1;
+                return -EINVAL;
 
         configcmd = (struct sip_cmd_config *)(skb->data + sizeof(struct sip_hdr));
         configcmd->center_freq= center_freq;
@@ -674,7 +686,7 @@ int sip_send_set_sta(struct esp_pub *epub, u8 ifidx, u8 set, struct esp_node *no
 #endif
 	skb = sip_alloc_ctrl_skbuf(epub->sip, sizeof(struct sip_cmd_setsta) + sizeof(struct sip_hdr), SIP_CMD_SETSTA);
 	if (!skb)
-	return -1;
+	return -EINVAL;
 
 	setstacmd = (struct sip_cmd_setsta *)(skb->data + sizeof(struct sip_hdr));
 	setstacmd->ifidx = ifidx;
@@ -732,7 +744,7 @@ int sip_cmd(struct esp_pub *epub, enum sip_cmd_id cmd_id, u8 *cmd_buf, u8 cmd_le
 
 	skb = sip_alloc_ctrl_skbuf(epub->sip, cmd_len + sizeof(struct sip_hdr), cmd_id);
 	if (!skb)
-		return -1;
+		return -ENOMEM;
 
 	memcpy(skb->data + sizeof(struct sip_hdr), cmd_buf, cmd_len);
 
