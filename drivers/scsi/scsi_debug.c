@@ -3006,7 +3006,7 @@ schedule_resp(struct scsi_cmnd *cmnd, struct sdebug_dev_info *devip,
 	      int scsi_result, int delta_jiff)
 {
 	unsigned long iflags;
-	int k, num_in_q, tsf, qdepth, inject;
+	int k, num_in_q, qdepth, inject;
 	struct sdebug_queued_cmd *sqcp = NULL;
 	struct scsi_device *sdp = cmnd->device;
 
@@ -3019,55 +3019,48 @@ schedule_resp(struct scsi_cmnd *cmnd, struct sdebug_dev_info *devip,
 	if ((scsi_result) && (SCSI_DEBUG_OPT_NOISE & scsi_debug_opts))
 		sdev_printk(KERN_INFO, sdp, "%s: non-zero result=0x%x\n",
 			    __func__, scsi_result);
-	if (delta_jiff == 0) {
-		/* using same thread to call back mid-layer */
-		cmnd->result = scsi_result;
-		cmnd->scsi_done(cmnd);
-		return 0;
-	}
+	if (delta_jiff == 0)
+		goto respond_in_thread;
 
-	/* deferred response cases */
+	/* schedule the response at a later time if resources permit */
 	spin_lock_irqsave(&queued_arr_lock, iflags);
 	num_in_q = atomic_read(&devip->num_in_q);
 	qdepth = cmnd->device->queue_depth;
-	k = find_first_zero_bit(queued_in_use_bm, scsi_debug_max_queue);
-	tsf = 0;
 	inject = 0;
-	if ((qdepth > 0) && (num_in_q >= qdepth))
-		tsf = 1;
-	else if ((scsi_debug_every_nth != 0) &&
-		 (SCSI_DEBUG_OPT_RARE_TSF & scsi_debug_opts)) {
+	if ((qdepth > 0) && (num_in_q >= qdepth)) {
+		if (scsi_result) {
+			spin_unlock_irqrestore(&queued_arr_lock, iflags);
+			goto respond_in_thread;
+		} else
+			scsi_result = device_qfull_result;
+	} else if ((scsi_debug_every_nth != 0) &&
+		   (SCSI_DEBUG_OPT_RARE_TSF & scsi_debug_opts) &&
+		   (scsi_result == 0)) {
 		if ((num_in_q == (qdepth - 1)) &&
 		    (atomic_inc_return(&sdebug_a_tsf) >=
 		     abs(scsi_debug_every_nth))) {
 			atomic_set(&sdebug_a_tsf, 0);
 			inject = 1;
-			tsf = 1;
+			scsi_result = device_qfull_result;
 		}
 	}
 
-	/* if (tsf) simulate device reporting SCSI status of TASK SET FULL.
-	 * Might override existing CHECK CONDITION. */
-	if (tsf)
-		scsi_result = device_qfull_result;
+	k = find_first_zero_bit(queued_in_use_bm, scsi_debug_max_queue);
 	if (k >= scsi_debug_max_queue) {
-		if (SCSI_DEBUG_OPT_ALL_TSF & scsi_debug_opts)
-			tsf = 1;
 		spin_unlock_irqrestore(&queued_arr_lock, iflags);
+		if (scsi_result)
+			goto respond_in_thread;
+		else if (SCSI_DEBUG_OPT_ALL_TSF & scsi_debug_opts)
+			scsi_result = device_qfull_result;
 		if (SCSI_DEBUG_OPT_Q_NOISE & scsi_debug_opts)
 			sdev_printk(KERN_INFO, sdp,
-				    "%s: num_in_q=%d, bypass q, %s%s\n",
-				    __func__, num_in_q,
-				    (inject ? "<inject> " : ""),
-				    (tsf ?  "status: TASK SET FULL" :
-					    "report: host busy"));
-		if (tsf) {
-			/* queued_arr full so respond in same thread */
-			cmnd->result = scsi_result;
-			cmnd->scsi_done(cmnd);
-			/* As scsi_done() is called "inline" must return 0 */
-			return 0;
-		} else
+				    "%s: max_queue=%d exceeded, %s\n",
+				    __func__, scsi_debug_max_queue,
+				    (scsi_result ?  "status: TASK SET FULL" :
+						    "report: host busy"));
+		if (scsi_result)
+			goto respond_in_thread;
+		else
 			return SCSI_MLQUEUE_HOST_BUSY;
 	}
 	__set_bit(k, queued_in_use_bm);
@@ -3117,11 +3110,17 @@ schedule_resp(struct scsi_cmnd *cmnd, struct sdebug_dev_info *devip,
 		else
 			tasklet_schedule(sqcp->tletp);
 	}
-	if (tsf && (SCSI_DEBUG_OPT_Q_NOISE & scsi_debug_opts))
+	if ((SCSI_DEBUG_OPT_Q_NOISE & scsi_debug_opts) &&
+	    (scsi_result == device_qfull_result))
 		sdev_printk(KERN_INFO, sdp,
 			    "%s: num_in_q=%d +1, %s%s\n", __func__,
 			    num_in_q, (inject ? "<inject> " : ""),
 			    "status: TASK SET FULL");
+	return 0;
+
+respond_in_thread:	/* call back to mid-layer using invocation thread */
+	cmnd->result = scsi_result;
+	cmnd->scsi_done(cmnd);
 	return 0;
 }
 
