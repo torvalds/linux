@@ -8,7 +8,7 @@
  */
 
 // This version must match the gator daemon version
-#define PROTOCOL_VERSION 18
+#define PROTOCOL_VERSION 19
 static unsigned long gator_protocol_version = PROTOCOL_VERSION;
 
 #include <linux/slab.h>
@@ -71,8 +71,8 @@ static unsigned long gator_protocol_version = PROTOCOL_VERSION;
 #define BLOCK_COUNTER_BUFFER_SIZE (128*1024)
 #define ANNOTATE_BUFFER_SIZE      (128*1024)	// annotate counters have the core as part of the data and the core value in the frame header may be discarded
 #define SCHED_TRACE_BUFFER_SIZE   (128*1024)
-#define GPU_TRACE_BUFFER_SIZE     (64*1024)	// gpu trace counters have the core as part of the data and the core value in the frame header may be discarded
 #define IDLE_BUFFER_SIZE          (32*1024)	// idle counters have the core as part of the data and the core value in the frame header may be discarded
+#define ACTIVITY_BUFFER_SIZE      (128*1024)
 
 #define NO_COOKIE      0U
 #define UNRESOLVED_COOKIE ~0U
@@ -84,8 +84,8 @@ static unsigned long gator_protocol_version = PROTOCOL_VERSION;
 #define FRAME_BLOCK_COUNTER 5
 #define FRAME_ANNOTATE      6
 #define FRAME_SCHED_TRACE   7
-#define FRAME_GPU_TRACE     8
 #define FRAME_IDLE          9
+#define FRAME_ACTIVITY     13
 
 #define MESSAGE_END_BACKTRACE 1
 
@@ -94,14 +94,9 @@ static unsigned long gator_protocol_version = PROTOCOL_VERSION;
 #define MESSAGE_THREAD_NAME 2
 #define MESSAGE_LINK        4
 
-// GPU Trace Frame Messages
-#define MESSAGE_GPU_START 1
-#define MESSAGE_GPU_STOP  2
-
 // Scheduler Trace Frame Messages
 #define MESSAGE_SCHED_SWITCH 1
 #define MESSAGE_SCHED_EXIT   2
-#define MESSAGE_SCHED_START  3
 
 // Idle Frame Messages
 #define MESSAGE_IDLE_ENTER 1
@@ -110,6 +105,10 @@ static unsigned long gator_protocol_version = PROTOCOL_VERSION;
 // Summary Frame Messages
 #define MESSAGE_SUMMARY   1
 #define MESSAGE_CORE_NAME 3
+
+// Activity Frame Messages
+#define MESSAGE_SWITCH 2
+#define MESSAGE_EXIT   3
 
 #define MAXSIZE_PACK32     5
 #define MAXSIZE_PACK64    10
@@ -132,8 +131,8 @@ enum {
 	BLOCK_COUNTER_BUF,
 	ANNOTATE_BUF,
 	SCHED_TRACE_BUF,
-	GPU_TRACE_BUF,
 	IDLE_BUF,
+	ACTIVITY_BUF,
 	NUM_GATOR_BUFS
 };
 
@@ -175,6 +174,7 @@ static DEFINE_PER_CPU(u64, last_timestamp);
 
 static bool printed_monotonic_warning;
 
+static u32 gator_cpuids[NR_CPUS];
 static bool sent_core_name[NR_CPUS];
 
 static DEFINE_PER_CPU(bool, in_scheduler_context);
@@ -226,6 +226,7 @@ static DEFINE_PER_CPU(u64, gator_buffer_commit_time);
 	GATOR_EVENT(gator_events_perf_pmu_init) \
 	GATOR_EVENT(gator_events_sched_init) \
 	GATOR_EVENT(gator_events_scorpion_init) \
+	GATOR_EVENT(gator_events_threads_init) \
 
 #define GATOR_EVENT(EVENT_INIT) __weak int EVENT_INIT(void);
 GATOR_EVENTS_LIST
@@ -570,25 +571,37 @@ static void gator_timer_stop(void)
 	}
 }
 
-#if defined(__arm__) || defined(__aarch64__)
-static void gator_send_core_name(int cpu, const u32 cpuid, const struct gator_cpu *const gator_cpu)
+static void gator_send_core_name(const int cpu, const u32 cpuid)
 {
-	const char *core_name = NULL;
-	char core_name_buf[32];
+#if defined(__arm__) || defined(__aarch64__)
+	if (!sent_core_name[cpu] || (cpuid != gator_cpuids[cpu])) {
+		const struct gator_cpu *const gator_cpu = gator_find_cpu_by_cpuid(cpuid);
+		const char *core_name = NULL;
+		char core_name_buf[32];
 
-	if (!sent_core_name[cpu]) {
+		// Save off this cpuid
+		gator_cpuids[cpu] = cpuid;
 		if (gator_cpu != NULL) {
 			core_name = gator_cpu->core_name;
 		} else {
-			snprintf(core_name_buf, sizeof(core_name_buf), "Unknown (0x%.3x)", cpuid);
+			if (cpuid == -1) {
+				snprintf(core_name_buf, sizeof(core_name_buf), "Unknown");
+			} else {
+				snprintf(core_name_buf, sizeof(core_name_buf), "Unknown (0x%.3x)", cpuid);
+			}
 			core_name = core_name_buf;
 		}
 
 		marshal_core_name(cpu, cpuid, core_name);
 		sent_core_name[cpu] = true;
 	}
-}
 #endif
+}
+
+static void gator_read_cpuid(void * arg)
+{
+	gator_cpuids[get_physical_cpu()] = gator_cpuid();
+}
 
 // This function runs in interrupt context and on the appropriate core
 static void gator_timer_online(void *migrate)
@@ -597,6 +610,9 @@ static void gator_timer_online(void *migrate)
 	int len, cpu = get_physical_cpu();
 	int *buffer;
 	u64 time;
+
+	// Send what is currently running on this core
+	marshal_sched_trace_switch(current->pid, 0);
 
 	gator_trace_power_online();
 
@@ -617,12 +633,7 @@ static void gator_timer_online(void *migrate)
 		gator_hrtimer_online();
 	}
 
-#if defined(__arm__) || defined(__aarch64__)
-	if (!sent_core_name[cpu]) {
-		const u32 cpuid = gator_cpuid();
-		gator_send_core_name(cpu, cpuid, gator_find_cpu_by_cpuid(cpuid));
-	}
-#endif
+	gator_send_core_name(cpu, gator_cpuid());
 }
 
 // This function runs in interrupt context and may be running on a core other than core 'cpu'
@@ -657,6 +668,13 @@ static int gator_timer_start(unsigned long sample_rate)
 
 	if (gator_hrtimer_init(sample_rate, gator_timer_interrupt) == -1)
 		return -1;
+
+	// Send off the previously saved cpuids
+	for_each_present_cpu(cpu) {
+		preempt_disable();
+		gator_send_core_name(cpu, gator_cpuids[cpu]);
+		preempt_enable();
+	}
 
 	gator_send_iks_core_names();
 	for_each_online_cpu(cpu) {
@@ -1009,11 +1027,11 @@ static int gator_op_setup(void)
 	gator_buffer_size[SCHED_TRACE_BUF] = SCHED_TRACE_BUFFER_SIZE;
 	gator_buffer_mask[SCHED_TRACE_BUF] = SCHED_TRACE_BUFFER_SIZE - 1;
 
-	gator_buffer_size[GPU_TRACE_BUF] = GPU_TRACE_BUFFER_SIZE;
-	gator_buffer_mask[GPU_TRACE_BUF] = GPU_TRACE_BUFFER_SIZE - 1;
-
 	gator_buffer_size[IDLE_BUF] = IDLE_BUFFER_SIZE;
 	gator_buffer_mask[IDLE_BUF] = IDLE_BUFFER_SIZE - 1;
+
+	gator_buffer_size[ACTIVITY_BUF] = ACTIVITY_BUFFER_SIZE;
+	gator_buffer_mask[ACTIVITY_BUF] = ACTIVITY_BUFFER_SIZE - 1;
 
 	// Initialize percpu per buffer variables
 	for (i = 0; i < NUM_GATOR_BUFS; i++) {
@@ -1349,8 +1367,62 @@ static void gator_op_create_files(struct super_block *sb, struct dentry *root)
 /******************************************************************************
  * Module
  ******************************************************************************/
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 15, 0)
+
+#define GATOR_TRACEPOINTS \
+	GATOR_HANDLE_TRACEPOINT(block_rq_complete); \
+	GATOR_HANDLE_TRACEPOINT(cpu_frequency); \
+	GATOR_HANDLE_TRACEPOINT(cpu_idle); \
+	GATOR_HANDLE_TRACEPOINT(cpu_migrate_begin); \
+	GATOR_HANDLE_TRACEPOINT(cpu_migrate_current); \
+	GATOR_HANDLE_TRACEPOINT(cpu_migrate_finish); \
+	GATOR_HANDLE_TRACEPOINT(irq_handler_exit); \
+	GATOR_HANDLE_TRACEPOINT(mali_hw_counter); \
+	GATOR_HANDLE_TRACEPOINT(mali_job_slots_event); \
+	GATOR_HANDLE_TRACEPOINT(mali_mmu_as_in_use); \
+	GATOR_HANDLE_TRACEPOINT(mali_mmu_as_released); \
+	GATOR_HANDLE_TRACEPOINT(mali_page_fault_insert_pages); \
+	GATOR_HANDLE_TRACEPOINT(mali_pm_status); \
+	GATOR_HANDLE_TRACEPOINT(mali_sw_counter); \
+	GATOR_HANDLE_TRACEPOINT(mali_sw_counters); \
+	GATOR_HANDLE_TRACEPOINT(mali_timeline_event); \
+	GATOR_HANDLE_TRACEPOINT(mali_total_alloc_pages_change); \
+	GATOR_HANDLE_TRACEPOINT(mm_page_alloc); \
+	GATOR_HANDLE_TRACEPOINT(mm_page_free); \
+	GATOR_HANDLE_TRACEPOINT(mm_page_free_batched); \
+	GATOR_HANDLE_TRACEPOINT(sched_process_exec); \
+	GATOR_HANDLE_TRACEPOINT(sched_process_fork); \
+	GATOR_HANDLE_TRACEPOINT(sched_process_free); \
+	GATOR_HANDLE_TRACEPOINT(sched_switch); \
+	GATOR_HANDLE_TRACEPOINT(softirq_exit); \
+
+#define GATOR_HANDLE_TRACEPOINT(probe_name) \
+	struct tracepoint *gator_tracepoint_##probe_name
+GATOR_TRACEPOINTS;
+#undef GATOR_HANDLE_TRACEPOINT
+
+static void gator_fct(struct tracepoint *tp, void *priv)
+{
+#define GATOR_HANDLE_TRACEPOINT(probe_name) \
+	if (strcmp(tp->name, #probe_name) == 0) { \
+		gator_tracepoint_##probe_name = tp; \
+		return; \
+	}
+GATOR_TRACEPOINTS;
+#undef GATOR_HANDLE_TRACEPOINT
+}
+
+#else
+
+#define for_each_kernel_tracepoint(fct, priv)
+
+#endif
+
 static int __init gator_module_init(void)
 {
+	for_each_kernel_tracepoint(gator_fct, NULL);
+
 	if (gatorfs_register()) {
 		return -1;
 	}
@@ -1361,6 +1433,10 @@ static int __init gator_module_init(void)
 	}
 
 	setup_timer(&gator_buffer_wake_up_timer, gator_buffer_wake_up, 0);
+
+	// Initialize the list of cpuids
+	memset(gator_cpuids, -1, sizeof(gator_cpuids));
+	on_each_cpu(gator_read_cpuid, NULL, 1);
 
 	return 0;
 }

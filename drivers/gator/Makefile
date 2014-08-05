@@ -7,13 +7,14 @@ CONFIG_GATOR ?= m
 obj-$(CONFIG_GATOR) := gator.o
 
 gator-y :=	gator_main.o \
-		gator_events_irq.o \
-		gator_events_sched.o \
-		gator_events_net.o \
 		gator_events_block.o \
+		gator_events_irq.o \
 		gator_events_meminfo.o \
-		gator_events_perf_pmu.o \
 		gator_events_mmapped.o \
+		gator_events_net.o \
+		gator_events_perf_pmu.o \
+		gator_events_sched.o \
+		gator_events_threads.o \
 
 # Convert the old GATOR_WITH_MALI_SUPPORT to the new kernel flags
 ifneq ($(GATOR_WITH_MALI_SUPPORT),)
@@ -48,9 +49,13 @@ ifeq ($(CONFIG_GATOR_WITH_MALI_SUPPORT),y)
   ccflags-$(CONFIG_GATOR_MALI_T6XX) += -DMALI_SUPPORT=MALI_T6xx
 endif
 
-# GATOR_TEST controls whether to include (=1) or exclude (=0) test code. 
+# GATOR_TEST controls whether to include (=1) or exclude (=0) test code.
 GATOR_TEST ?= 0
 EXTRA_CFLAGS +=	-DGATOR_TEST=$(GATOR_TEST)
+
+# Should the original or new block_rq_complete API be used?
+OLD_BLOCK_RQ_COMPLETE := $(shell grep -A3 block_rq_complete include/trace/events/block.h | grep nr_bytes > /dev/null; echo $$?)
+EXTRA_CFLAGS += -DOLD_BLOCK_RQ_COMPLETE=$(OLD_BLOCK_RQ_COMPLETE)
 
 gator-$(CONFIG_ARM) +=	gator_events_armv6.o \
 			gator_events_armv7.o \

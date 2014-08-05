@@ -21,12 +21,13 @@ static const char* ATTR_COUNTER            = "counter";
 static const char* ATTR_REVISION           = "revision";
 static const char* ATTR_EVENT              = "event";
 static const char* ATTR_COUNT              = "count";
+static const char* ATTR_CORES              = "cores";
 
 ConfigurationXML::ConfigurationXML() {
 	const char * configuration_xml;
 	unsigned int configuration_xml_len;
 	getDefaultConfigurationXml(configuration_xml, configuration_xml_len);
-	
+
 	char path[PATH_MAX];
 
 	getPath(path);
@@ -53,7 +54,7 @@ ConfigurationXML::ConfigurationXML() {
 
 		break;
 	}
-	
+
 	validate();
 }
 
@@ -82,7 +83,7 @@ int ConfigurationXML::parse(const char* configurationXML) {
 	node = mxmlGetFirstChild(tree);
 	while (node && mxmlGetType(node) != MXML_ELEMENT)
 		node = mxmlWalkNext(node, tree, MXML_NO_DESCEND);
-	
+
 	ret = configurationsTag(node);
 
 	node = mxmlGetFirstChild(node);
@@ -127,7 +128,7 @@ void ConfigurationXML::validate(void) {
 #define CONFIGURATION_REVISION 3
 int ConfigurationXML::configurationsTag(mxml_node_t *node) {
 	const char* revision_string;
-	
+
 	revision_string = mxmlElementGetAttr(node, ATTR_REVISION);
 	if (!revision_string) {
 		return 1; //revision issue;
@@ -158,6 +159,7 @@ void ConfigurationXML::configurationTag(mxml_node_t *node) {
 	if (mxmlElementGetAttr(node, ATTR_COUNTER)) counter.setType(mxmlElementGetAttr(node, ATTR_COUNTER));
 	if (mxmlElementGetAttr(node, ATTR_EVENT)) counter.setEvent(strtol(mxmlElementGetAttr(node, ATTR_EVENT), NULL, 16));
 	if (mxmlElementGetAttr(node, ATTR_COUNT)) counter.setCount(strtol(mxmlElementGetAttr(node, ATTR_COUNT), NULL, 10));
+	if (mxmlElementGetAttr(node, ATTR_CORES)) counter.setCores(strtol(mxmlElementGetAttr(node, ATTR_CORES), NULL, 10));
 	if (counter.getCount() > 0) {
 		gSessionData->mIsEBS = true;
 	}

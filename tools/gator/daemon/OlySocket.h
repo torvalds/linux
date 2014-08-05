@@ -9,13 +9,15 @@
 #ifndef __OLY_SOCKET_H__
 #define __OLY_SOCKET_H__
 
+#include <stddef.h>
+
 class OlySocket {
 public:
-  OlySocket(int port, const char* hostname);
-  OlySocket(int socketID);
 #ifndef WIN32
-  OlySocket(const char* path);
+  static int connect(const char* path, const size_t pathSize);
 #endif
+
+  OlySocket(int socketID);
   ~OlySocket();
 
   void closeSocket();
@@ -29,20 +31,20 @@ public:
 
 private:
   int mSocketID;
-
-  void createClientSocket(const char* hostname, int port);
 };
 
 class OlyServerSocket {
 public:
   OlyServerSocket(int port);
 #ifndef WIN32
-  OlyServerSocket(const char* path);
+  OlyServerSocket(const char* path, const size_t pathSize);
 #endif
   ~OlyServerSocket();
 
   int acceptConnection();
   void closeServerSocket();
+
+  int getFd() { return mFDServer; }
 
 private:
   int mFDServer;

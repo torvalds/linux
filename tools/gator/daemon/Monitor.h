@@ -16,6 +16,7 @@ public:
 	Monitor();
 	~Monitor();
 
+	void close();
 	bool init();
 	bool add(const int fd);
 	int wait(struct epoll_event *const events, int maxevents, int timeout);

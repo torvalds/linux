@@ -231,75 +231,28 @@ static void marshal_event_single(int core, int key, int value)
 	// Check and commit; commit is set to occur once buffer is 3/4 full
 	buffer_check(cpu, COUNTER_BUF, time);
 }
+
+static void marshal_event_single64(int core, int key, long long value)
+{
+	unsigned long flags, cpu;
+	u64 time;
+
+	local_irq_save(flags);
+	cpu = get_physical_cpu();
+	time = gator_get_time();
+	if (buffer_check_space(cpu, COUNTER_BUF, 2 * MAXSIZE_PACK64 + 2 * MAXSIZE_PACK32)) {
+		gator_buffer_write_packed_int64(cpu, COUNTER_BUF, time);
+		gator_buffer_write_packed_int(cpu, COUNTER_BUF, core);
+		gator_buffer_write_packed_int(cpu, COUNTER_BUF, key);
+		gator_buffer_write_packed_int64(cpu, COUNTER_BUF, value);
+	}
+	local_irq_restore(flags);
+	// Check and commit; commit is set to occur once buffer is 3/4 full
+	buffer_check(cpu, COUNTER_BUF, time);
+}
 #endif
 
-static void marshal_sched_gpu_start(int unit, int core, int tgid, int pid)
-{
-	unsigned long cpu = get_physical_cpu(), flags;
-	u64 time;
-
-	if (!per_cpu(gator_buffer, cpu)[GPU_TRACE_BUF])
-		return;
-
-	local_irq_save(flags);
-	time = gator_get_time();
-	if (buffer_check_space(cpu, GPU_TRACE_BUF, MAXSIZE_PACK64 + 5 * MAXSIZE_PACK32)) {
-		gator_buffer_write_packed_int(cpu, GPU_TRACE_BUF, MESSAGE_GPU_START);
-		gator_buffer_write_packed_int64(cpu, GPU_TRACE_BUF, time);
-		gator_buffer_write_packed_int(cpu, GPU_TRACE_BUF, unit);
-		gator_buffer_write_packed_int(cpu, GPU_TRACE_BUF, core);
-		gator_buffer_write_packed_int(cpu, GPU_TRACE_BUF, tgid);
-		gator_buffer_write_packed_int(cpu, GPU_TRACE_BUF, pid);
-	}
-	local_irq_restore(flags);
-	// Check and commit; commit is set to occur once buffer is 3/4 full
-	buffer_check(cpu, GPU_TRACE_BUF, time);
-}
-
-static void marshal_sched_gpu_stop(int unit, int core)
-{
-	unsigned long cpu = get_physical_cpu(), flags;
-	u64 time;
-
-	if (!per_cpu(gator_buffer, cpu)[GPU_TRACE_BUF])
-		return;
-
-	local_irq_save(flags);
-	time = gator_get_time();
-	if (buffer_check_space(cpu, GPU_TRACE_BUF, MAXSIZE_PACK64 + 3 * MAXSIZE_PACK32)) {
-		gator_buffer_write_packed_int(cpu, GPU_TRACE_BUF, MESSAGE_GPU_STOP);
-		gator_buffer_write_packed_int64(cpu, GPU_TRACE_BUF, time);
-		gator_buffer_write_packed_int(cpu, GPU_TRACE_BUF, unit);
-		gator_buffer_write_packed_int(cpu, GPU_TRACE_BUF, core);
-	}
-	local_irq_restore(flags);
-	// Check and commit; commit is set to occur once buffer is 3/4 full
-	buffer_check(cpu, GPU_TRACE_BUF, time);
-}
-
-static void marshal_sched_trace_start(int tgid, int pid, int cookie)
-{
-	unsigned long cpu = get_physical_cpu(), flags;
-	u64 time;
-
-	if (!per_cpu(gator_buffer, cpu)[SCHED_TRACE_BUF])
-		return;
-
-	local_irq_save(flags);
-	time = gator_get_time();
-	if (buffer_check_space(cpu, SCHED_TRACE_BUF, MAXSIZE_PACK64 + 5 * MAXSIZE_PACK32)) {
-		gator_buffer_write_packed_int(cpu, SCHED_TRACE_BUF, MESSAGE_SCHED_START);
-		gator_buffer_write_packed_int64(cpu, SCHED_TRACE_BUF, time);
-		gator_buffer_write_packed_int(cpu, SCHED_TRACE_BUF, tgid);
-		gator_buffer_write_packed_int(cpu, SCHED_TRACE_BUF, pid);
-		gator_buffer_write_packed_int(cpu, SCHED_TRACE_BUF, cookie);
-	}
-	local_irq_restore(flags);
-	// Check and commit; commit is set to occur once buffer is 3/4 full
-	buffer_check(cpu, SCHED_TRACE_BUF, time);
-}
-
-static void marshal_sched_trace_switch(int tgid, int pid, int cookie, int state)
+static void marshal_sched_trace_switch(int pid, int state)
 {
 	unsigned long cpu = get_physical_cpu(), flags;
 	u64 time;
@@ -312,9 +265,7 @@ static void marshal_sched_trace_switch(int tgid, int pid, int cookie, int state)
 	if (buffer_check_space(cpu, SCHED_TRACE_BUF, MAXSIZE_PACK64 + 5 * MAXSIZE_PACK32)) {
 		gator_buffer_write_packed_int(cpu, SCHED_TRACE_BUF, MESSAGE_SCHED_SWITCH);
 		gator_buffer_write_packed_int64(cpu, SCHED_TRACE_BUF, time);
-		gator_buffer_write_packed_int(cpu, SCHED_TRACE_BUF, tgid);
 		gator_buffer_write_packed_int(cpu, SCHED_TRACE_BUF, pid);
-		gator_buffer_write_packed_int(cpu, SCHED_TRACE_BUF, cookie);
 		gator_buffer_write_packed_int(cpu, SCHED_TRACE_BUF, state);
 	}
 	local_irq_restore(flags);
@@ -379,3 +330,33 @@ static void marshal_core_name(const int core, const int cpuid, const char *name)
 	gator_commit_buffer(cpu, SUMMARY_BUF, gator_get_time());
 }
 #endif
+
+static void marshal_activity_switch(int core, int key, int activity, int pid, int state)
+{
+	unsigned long cpu = get_physical_cpu(), flags;
+	u64 time;
+
+	if (!per_cpu(gator_buffer, cpu)[ACTIVITY_BUF])
+		return;
+
+	local_irq_save(flags);
+	time = gator_get_time();
+	if (buffer_check_space(cpu, ACTIVITY_BUF, MAXSIZE_PACK64 + 5 * MAXSIZE_PACK32)) {
+		gator_buffer_write_packed_int(cpu, ACTIVITY_BUF, MESSAGE_SWITCH);
+		gator_buffer_write_packed_int64(cpu, ACTIVITY_BUF, time);
+		gator_buffer_write_packed_int(cpu, ACTIVITY_BUF, core);
+		gator_buffer_write_packed_int(cpu, ACTIVITY_BUF, key);
+		gator_buffer_write_packed_int(cpu, ACTIVITY_BUF, activity);
+		gator_buffer_write_packed_int(cpu, ACTIVITY_BUF, pid);
+		gator_buffer_write_packed_int(cpu, ACTIVITY_BUF, state);
+	}
+	local_irq_restore(flags);
+	// Check and commit; commit is set to occur once buffer is 3/4 full
+	buffer_check(cpu, ACTIVITY_BUF, time);
+}
+
+void gator_marshal_activity_switch(int core, int key, int activity, int pid)
+{
+	// state is reserved for cpu use only
+	marshal_activity_switch(core, key, activity, pid, 0);
+}

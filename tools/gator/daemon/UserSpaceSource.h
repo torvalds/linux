@@ -14,7 +14,7 @@
 #include "Buffer.h"
 #include "Source.h"
 
-// User space counters - currently just hwmon
+// User space counters
 class UserSpaceSource : public Source {
 public:
 	UserSpaceSource(sem_t *senderSem);
