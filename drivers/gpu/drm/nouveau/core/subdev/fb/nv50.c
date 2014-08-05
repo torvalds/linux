@@ -253,8 +253,8 @@ nv50_fb_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		priv->r100c08 = dma_map_page(nv_device_base(device),
 					     priv->r100c08_page, 0, PAGE_SIZE,
 					     DMA_BIDIRECTIONAL);
-		if (!priv->r100c08)
-			nv_warn(priv, "failed 0x100c08 page map\n");
+		if (dma_mapping_error(nv_device_base(device), priv->r100c08))
+			return -EFAULT;
 	} else {
 		nv_warn(priv, "failed 0x100c08 page alloc\n");
 	}

@@ -97,7 +97,7 @@ nvc0_fb_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		priv->r100c10 = dma_map_page(nv_device_base(device),
 					     priv->r100c10_page, 0, PAGE_SIZE,
 					     DMA_BIDIRECTIONAL);
-		if (!priv->r100c10)
+		if (dma_mapping_error(nv_device_base(device), priv->r100c10))
 			return -EFAULT;
 	}
 
