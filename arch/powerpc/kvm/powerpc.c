@@ -1347,3 +1347,5 @@ void kvm_arch_exit(void)
 {
 
 }
+
+EXPORT_TRACEPOINT_SYMBOL_GPL(kvm_ppc_instr);
