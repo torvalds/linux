@@ -594,7 +594,7 @@ visorchipset_register_busdev_server(VISORCHIPSET_BUSDEV_NOTIFIERS *notifiers,
 				    VISORCHIPSET_BUSDEV_RESPONDERS *responders,
 				    ULTRA_VBUS_DEVICEINFO *driverInfo)
 {
-	LOCKSEM_UNINTERRUPTIBLE(&NotifierLock);
+	down(&NotifierLock);
 	if (notifiers == NULL) {
 		memset(&BusDev_Server_Notifiers, 0,
 		       sizeof(BusDev_Server_Notifiers));
@@ -609,7 +609,7 @@ visorchipset_register_busdev_server(VISORCHIPSET_BUSDEV_NOTIFIERS *notifiers,
 		BusDeviceInfo_Init(driverInfo, "chipset", "visorchipset",
 				   VERSION, NULL);
 
-	UNLOCKSEM(&NotifierLock);
+	up(&NotifierLock);
 }
 EXPORT_SYMBOL_GPL(visorchipset_register_busdev_server);
 
@@ -618,7 +618,7 @@ visorchipset_register_busdev_client(VISORCHIPSET_BUSDEV_NOTIFIERS *notifiers,
 				    VISORCHIPSET_BUSDEV_RESPONDERS *responders,
 				    ULTRA_VBUS_DEVICEINFO *driverInfo)
 {
-	LOCKSEM_UNINTERRUPTIBLE(&NotifierLock);
+	down(&NotifierLock);
 	if (notifiers == NULL) {
 		memset(&BusDev_Client_Notifiers, 0,
 		       sizeof(BusDev_Client_Notifiers));
@@ -632,7 +632,7 @@ visorchipset_register_busdev_client(VISORCHIPSET_BUSDEV_NOTIFIERS *notifiers,
 	if (driverInfo)
 		BusDeviceInfo_Init(driverInfo, "chipset(bolts)", "visorchipset",
 				   VERSION, NULL);
-	UNLOCKSEM(&NotifierLock);
+	up(&NotifierLock);
 }
 EXPORT_SYMBOL_GPL(visorchipset_register_busdev_client);
 
@@ -944,7 +944,7 @@ bus_epilog(u32 busNo,
 	} else
 		pBusInfo->pendingMsgHdr.Id = CONTROLVM_INVALID;
 
-	LOCKSEM_UNINTERRUPTIBLE(&NotifierLock);
+	down(&NotifierLock);
 	if (response == CONTROLVM_RESP_SUCCESS) {
 		switch (cmd) {
 		case CONTROLVM_BUS_CREATE:
@@ -989,7 +989,7 @@ bus_epilog(u32 busNo,
 		;
 	else
 		bus_responder(cmd, busNo, response);
-	UNLOCKSEM(&NotifierLock);
+	up(&NotifierLock);
 }
 
 static void
@@ -1021,7 +1021,7 @@ device_epilog(u32 busNo, u32 devNo, ULTRA_SEGMENT_STATE state, u32 cmd,
 	} else
 		pDevInfo->pendingMsgHdr.Id = CONTROLVM_INVALID;
 
-	LOCKSEM_UNINTERRUPTIBLE(&NotifierLock);
+	down(&NotifierLock);
 	if (response >= 0) {
 		switch (cmd) {
 		case CONTROLVM_DEVICE_CREATE:
@@ -1087,7 +1087,7 @@ device_epilog(u32 busNo, u32 devNo, ULTRA_SEGMENT_STATE state, u32 cmd,
 		;
 	else
 		device_responder(cmd, busNo, devNo, response);
-	UNLOCKSEM(&NotifierLock);
+	up(&NotifierLock);
 }
 
 static void

@@ -1362,18 +1362,18 @@ Process_Incoming(void *v)
 		struct device_info *dev = NULL;
 
 		/* poll each channel for input */
-		LOCKSEM_UNINTERRUPTIBLE(&Lock_Polling_Device_Channels);
+		down(&Lock_Polling_Device_Channels);
 		new_tail = NULL;
 		list_for_each_safe(lelt, tmp, &List_Polling_Device_Channels) {
 			int rc = 0;
 			dev = list_entry(lelt, struct device_info,
 					 list_polling_device_channels);
-			LOCKSEM_UNINTERRUPTIBLE(&dev->interrupt_callback_lock);
+			down(&dev->interrupt_callback_lock);
 			if (dev->interrupt)
 				rc = dev->interrupt(dev->interrupt_context);
 			else
 				continue;
-			UNLOCKSEM(&dev->interrupt_callback_lock);
+			up(&dev->interrupt_callback_lock);
 			if (rc) {
 				/* dev->interrupt returned, but there
 				* is still more work to do.
@@ -1400,7 +1400,7 @@ Process_Incoming(void *v)
 			tot_moved_to_tail_cnt++;
 			list_move_tail(new_tail, &List_Polling_Device_Channels);
 		}
-		UNLOCKSEM(&Lock_Polling_Device_Channels);
+		up(&Lock_Polling_Device_Channels);
 		cur_cycles = get_cycles();
 		delta_cycles = cur_cycles - old_cycles;
 		old_cycles = cur_cycles;
@@ -1470,14 +1470,14 @@ uislib_enable_channel_interrupts(u32 busNo, u32 devNo,
 		       (int) (devNo));
 		return;
 	}
-	LOCKSEM_UNINTERRUPTIBLE(&Lock_Polling_Device_Channels);
+	down(&Lock_Polling_Device_Channels);
 	Initialize_incoming_thread();
 	dev->interrupt = interrupt;
 	dev->interrupt_context = interrupt_context;
 	dev->polling = TRUE;
 	list_add_tail(&(dev->list_polling_device_channels),
 		      &List_Polling_Device_Channels);
-	UNLOCKSEM(&Lock_Polling_Device_Channels);
+	up(&Lock_Polling_Device_Channels);
 }
 EXPORT_SYMBOL_GPL(uislib_enable_channel_interrupts);
 
@@ -1494,11 +1494,11 @@ uislib_disable_channel_interrupts(u32 busNo, u32 devNo)
 		       (int) (devNo));
 		return;
 	}
-	LOCKSEM_UNINTERRUPTIBLE(&Lock_Polling_Device_Channels);
+	down(&Lock_Polling_Device_Channels);
 	list_del(&dev->list_polling_device_channels);
 	dev->polling = FALSE;
 	dev->interrupt = NULL;
-	UNLOCKSEM(&Lock_Polling_Device_Channels);
+	up(&Lock_Polling_Device_Channels);
 }
 EXPORT_SYMBOL_GPL(uislib_disable_channel_interrupts);
 

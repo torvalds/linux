@@ -71,34 +71,6 @@
 #define HOSTADDRESS unsigned long long
 #endif
 
-#define LOCKSEM(sem)                   down_interruptible(sem)
-#define LOCKSEM_UNINTERRUPTIBLE(sem)   down(sem)
-#define UNLOCKSEM(sem)                 up(sem)
-
-/** lock read/write semaphore for reading.
-    Note that all read/write semaphores are of the "uninterruptible" variety.
-    @param sem (rw_semaphore *) points to semaphore to lock
- */
-#define LOCKREADSEM(sem)               down_read(sem)
-
-/** unlock read/write semaphore for reading.
-    Note that all read/write semaphores are of the "uninterruptible" variety.
-    @param sem (rw_semaphore *) points to semaphore to unlock
- */
-#define UNLOCKREADSEM(sem)             up_read(sem)
-
-/** lock read/write semaphore for writing.
-    Note that all read/write semaphores are of the "uninterruptible" variety.
-    @param sem (rw_semaphore *) points to semaphore to lock
- */
-#define LOCKWRITESEM(sem)              down_write(sem)
-
-/** unlock read/write semaphore for writing.
-    Note that all read/write semaphores are of the "uninterruptible" variety.
-    @param sem (rw_semaphore *) points to semaphore to unlock
- */
-#define UNLOCKWRITESEM(sem)            up_write(sem)
-
 #ifdef ENABLE_RETURN_TRACE
 #define RETTRACE(x)                                            \
 	do {						       \
