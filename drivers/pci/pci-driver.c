@@ -582,7 +582,7 @@ static int pci_legacy_suspend_late(struct device *dev, pm_message_t state)
 			WARN_ONCE(pci_dev->current_state != prev,
 				"PCI PM: Device state not saved by %pF\n",
 				drv->suspend_late);
-			return 0;
+			goto Fixup;
 		}
 	}
 
@@ -590,6 +590,9 @@ static int pci_legacy_suspend_late(struct device *dev, pm_message_t state)
 		pci_save_state(pci_dev);
 
 	pci_pm_set_unknown_state(pci_dev);
+
+Fixup:
+	pci_fixup_device(pci_fixup_suspend_late, pci_dev);
 
 	return 0;
 }
@@ -734,7 +737,7 @@ static int pci_pm_suspend_noirq(struct device *dev)
 
 	if (!pm) {
 		pci_save_state(pci_dev);
-		return 0;
+		goto Fixup;
 	}
 
 	if (pm->suspend_noirq) {
@@ -751,7 +754,7 @@ static int pci_pm_suspend_noirq(struct device *dev)
 			WARN_ONCE(pci_dev->current_state != prev,
 				"PCI PM: State of device not saved by %pF\n",
 				pm->suspend_noirq);
-			return 0;
+			goto Fixup;
 		}
 	}
 
@@ -774,6 +777,9 @@ static int pci_pm_suspend_noirq(struct device *dev)
 	 */
 	if (pci_dev->class == PCI_CLASS_SERIAL_USB_EHCI)
 		pci_write_config_word(pci_dev, PCI_COMMAND, 0);
+
+Fixup:
+	pci_fixup_device(pci_fixup_suspend_late, pci_dev);
 
 	return 0;
 }
@@ -999,8 +1005,10 @@ static int pci_pm_poweroff_noirq(struct device *dev)
 	if (pci_has_legacy_pm_support(to_pci_dev(dev)))
 		return pci_legacy_suspend_late(dev, PMSG_HIBERNATE);
 
-	if (!drv || !drv->pm)
+	if (!drv || !drv->pm) {
+		pci_fixup_device(pci_fixup_suspend_late, pci_dev);
 		return 0;
+	}
 
 	if (drv->pm->poweroff_noirq) {
 		int error;
@@ -1020,6 +1028,8 @@ static int pci_pm_poweroff_noirq(struct device *dev)
 	 */
 	if (pci_dev->class == PCI_CLASS_SERIAL_USB_EHCI)
 		pci_write_config_word(pci_dev, PCI_COMMAND, 0);
+
+	pci_fixup_device(pci_fixup_suspend_late, pci_dev);
 
 	if (pcibios_pm_ops.poweroff_noirq)
 		return pcibios_pm_ops.poweroff_noirq(dev);

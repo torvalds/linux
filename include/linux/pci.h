@@ -1477,8 +1477,9 @@ enum pci_fixup_pass {
 	pci_fixup_final,	/* Final phase of device fixups */
 	pci_fixup_enable,	/* pci_enable_device() time */
 	pci_fixup_resume,	/* pci_device_resume() */
-	pci_fixup_suspend,	/* pci_device_suspend */
+	pci_fixup_suspend,	/* pci_device_suspend() */
 	pci_fixup_resume_early, /* pci_device_resume_early() */
+	pci_fixup_suspend_late,	/* pci_device_suspend_late() */
 };
 
 /* Anonymous variables would be nice... */
@@ -1519,6 +1520,11 @@ enum pci_fixup_pass {
 	DECLARE_PCI_FIXUP_SECTION(.pci_fixup_suspend,			\
 		suspend##hook, vendor, device, class,	\
 		class_shift, hook)
+#define DECLARE_PCI_FIXUP_CLASS_SUSPEND_LATE(vendor, device, class,	\
+					 class_shift, hook)		\
+	DECLARE_PCI_FIXUP_SECTION(.pci_fixup_suspend_late,		\
+		suspend_late##hook, vendor, device,	\
+		class, class_shift, hook)
 
 #define DECLARE_PCI_FIXUP_EARLY(vendor, device, hook)			\
 	DECLARE_PCI_FIXUP_SECTION(.pci_fixup_early,			\
@@ -1543,6 +1549,10 @@ enum pci_fixup_pass {
 #define DECLARE_PCI_FIXUP_SUSPEND(vendor, device, hook)			\
 	DECLARE_PCI_FIXUP_SECTION(.pci_fixup_suspend,			\
 		suspend##hook, vendor, device,		\
+		PCI_ANY_ID, 0, hook)
+#define DECLARE_PCI_FIXUP_SUSPEND_LATE(vendor, device, hook)		\
+	DECLARE_PCI_FIXUP_SECTION(.pci_fixup_suspend_late,		\
+		suspend_late##hook, vendor, device,	\
 		PCI_ANY_ID, 0, hook)
 
 #ifdef CONFIG_PCI_QUIRKS
