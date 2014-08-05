@@ -91,11 +91,11 @@ static int intel_framebuffer_init(struct drm_device *dev,
 				  struct intel_framebuffer *ifb,
 				  struct drm_mode_fb_cmd2 *mode_cmd,
 				  struct drm_i915_gem_object *obj);
-static void intel_dp_set_m_n(struct intel_crtc *crtc);
 static void i9xx_set_pipeconf(struct intel_crtc *intel_crtc);
 static void intel_set_pipe_timings(struct intel_crtc *intel_crtc);
 static void intel_cpu_transcoder_set_m_n(struct intel_crtc *crtc,
-					 struct intel_link_m_n *m_n);
+					 struct intel_link_m_n *m_n,
+					 struct intel_link_m_n *m2_n2);
 static void ironlake_set_pipeconf(struct drm_crtc *crtc);
 static void haswell_set_pipeconf(struct drm_crtc *crtc);
 static void intel_set_pipe_csc(struct drm_crtc *crtc);
@@ -3980,7 +3980,7 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 
 	if (intel_crtc->config.has_pch_encoder) {
 		intel_cpu_transcoder_set_m_n(intel_crtc,
-					     &intel_crtc->config.fdi_m_n);
+				     &intel_crtc->config.fdi_m_n, NULL);
 	}
 
 	ironlake_set_pipeconf(crtc);
@@ -4093,7 +4093,7 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 
 	if (intel_crtc->config.has_pch_encoder) {
 		intel_cpu_transcoder_set_m_n(intel_crtc,
-					     &intel_crtc->config.fdi_m_n);
+				     &intel_crtc->config.fdi_m_n, NULL);
 	}
 
 	haswell_set_pipeconf(crtc);
@@ -5509,7 +5509,8 @@ static void intel_pch_transcoder_set_m_n(struct intel_crtc *crtc,
 }
 
 static void intel_cpu_transcoder_set_m_n(struct intel_crtc *crtc,
-					 struct intel_link_m_n *m_n)
+					 struct intel_link_m_n *m_n,
+					 struct intel_link_m_n *m2_n2)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -5521,6 +5522,18 @@ static void intel_cpu_transcoder_set_m_n(struct intel_crtc *crtc,
 		I915_WRITE(PIPE_DATA_N1(transcoder), m_n->gmch_n);
 		I915_WRITE(PIPE_LINK_M1(transcoder), m_n->link_m);
 		I915_WRITE(PIPE_LINK_N1(transcoder), m_n->link_n);
+		/* M2_N2 registers to be set only for gen < 8 (M2_N2 available
+		 * for gen < 8) and if DRRS is supported (to make sure the
+		 * registers are not unnecessarily accessed).
+		 */
+		if (m2_n2 && INTEL_INFO(dev)->gen < 8 &&
+			crtc->config.has_drrs) {
+			I915_WRITE(PIPE_DATA_M2(transcoder),
+					TU_SIZE(m2_n2->tu) | m2_n2->gmch_m);
+			I915_WRITE(PIPE_DATA_N2(transcoder), m2_n2->gmch_n);
+			I915_WRITE(PIPE_LINK_M2(transcoder), m2_n2->link_m);
+			I915_WRITE(PIPE_LINK_N2(transcoder), m2_n2->link_n);
+		}
 	} else {
 		I915_WRITE(PIPE_DATA_M_G4X(pipe), TU_SIZE(m_n->tu) | m_n->gmch_m);
 		I915_WRITE(PIPE_DATA_N_G4X(pipe), m_n->gmch_n);
@@ -5529,12 +5542,13 @@ static void intel_cpu_transcoder_set_m_n(struct intel_crtc *crtc,
 	}
 }
 
-static void intel_dp_set_m_n(struct intel_crtc *crtc)
+void intel_dp_set_m_n(struct intel_crtc *crtc)
 {
 	if (crtc->config.has_pch_encoder)
 		intel_pch_transcoder_set_m_n(crtc, &crtc->config.dp_m_n);
 	else
-		intel_cpu_transcoder_set_m_n(crtc, &crtc->config.dp_m_n);
+		intel_cpu_transcoder_set_m_n(crtc, &crtc->config.dp_m_n,
+						   &crtc->config.dp_m2_n2);
 }
 
 static void vlv_update_pll(struct intel_crtc *crtc)

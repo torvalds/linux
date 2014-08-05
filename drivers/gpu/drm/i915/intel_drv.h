@@ -324,6 +324,7 @@ struct intel_crtc_config {
 
 	/* m2_n2 for eDP downclock */
 	struct intel_link_m_n dp_m2_n2;
+	bool has_drrs;
 
 	/*
 	 * Frequence the dpll for the port should run at. Differs from the
@@ -877,6 +878,7 @@ void hsw_enable_pc8(struct drm_i915_private *dev_priv);
 void hsw_disable_pc8(struct drm_i915_private *dev_priv);
 void intel_dp_get_m_n(struct intel_crtc *crtc,
 		      struct intel_crtc_config *pipe_config);
+void intel_dp_set_m_n(struct intel_crtc *crtc);
 int intel_dotclock_calculate(int link_freq, const struct intel_link_m_n *m_n);
 void
 ironlake_check_encoder_dotclock(const struct intel_crtc_config *pipe_config,
@@ -891,7 +893,6 @@ void intel_mode_from_pipe_config(struct drm_display_mode *mode,
 				 struct intel_crtc_config *pipe_config);
 int intel_format_to_fourcc(int format);
 void intel_crtc_wait_for_pending_flips(struct drm_crtc *crtc);
-
 
 /* intel_dp.c */
 void intel_dp_init(struct drm_device *dev, int output_reg, enum port port);

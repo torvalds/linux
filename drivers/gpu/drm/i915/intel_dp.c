@@ -828,20 +828,6 @@ intel_dp_set_clock(struct intel_encoder *encoder,
 	}
 }
 
-static void
-intel_dp_set_m2_n2(struct intel_crtc *crtc, struct intel_link_m_n *m_n)
-{
-	struct drm_device *dev = crtc->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	enum transcoder transcoder = crtc->config.cpu_transcoder;
-
-	I915_WRITE(PIPE_DATA_M2(transcoder),
-		TU_SIZE(m_n->tu) | m_n->gmch_m);
-	I915_WRITE(PIPE_DATA_N2(transcoder), m_n->gmch_n);
-	I915_WRITE(PIPE_LINK_M2(transcoder), m_n->link_m);
-	I915_WRITE(PIPE_LINK_N2(transcoder), m_n->link_n);
-}
-
 bool
 intel_dp_compute_config(struct intel_encoder *encoder,
 			struct intel_crtc_config *pipe_config)
@@ -867,6 +853,7 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 		pipe_config->has_pch_encoder = true;
 
 	pipe_config->has_dp_encoder = true;
+	pipe_config->has_drrs = false;
 	pipe_config->has_audio = intel_dp->has_audio;
 
 	if (is_edp(intel_dp) && intel_connector->panel.fixed_mode) {
@@ -970,6 +957,7 @@ found:
 
 	if (intel_connector->panel.downclock_mode != NULL &&
 		intel_dp->drrs_state.type == SEAMLESS_DRRS_SUPPORT) {
+			pipe_config->has_drrs = true;
 			intel_link_compute_m_n(bpp, lane_count,
 				intel_connector->panel.downclock_mode->clock,
 				pipe_config->port_clock,
@@ -4389,7 +4377,7 @@ void intel_dp_set_drrs_state(struct drm_device *dev, int refresh_rate)
 		val = I915_READ(reg);
 		if (index > DRRS_HIGH_RR) {
 			val |= PIPECONF_EDP_RR_MODE_SWITCH;
-			intel_dp_set_m2_n2(intel_crtc, &config->dp_m2_n2);
+			intel_dp_set_m_n(intel_crtc);
 		} else {
 			val &= ~PIPECONF_EDP_RR_MODE_SWITCH;
 		}
