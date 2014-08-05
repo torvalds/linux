@@ -78,7 +78,7 @@ static s32 e1000_mng_enable_host_if(struct e1000_hw *hw)
 	}
 
 	if (i == E1000_MNG_DHCP_COMMAND_TIMEOUT) {
-		e_dbg("Previous command timeout failed .\n");
+		e_dbg("Previous command timeout failed.\n");
 		return -E1000_ERR_HOST_INTERFACE_COMMAND;
 	}
 
