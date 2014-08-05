@@ -603,6 +603,31 @@ int mipi_dsi_dcs_soft_reset(struct mipi_dsi_device *dsi)
 EXPORT_SYMBOL(mipi_dsi_dcs_soft_reset);
 
 /**
+ * mipi_dsi_dcs_get_power_mode() - query the display module's current power
+ *    mode
+ * @dsi: DSI peripheral device
+ * @mode: return location for the current power mode
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int mipi_dsi_dcs_get_power_mode(struct mipi_dsi_device *dsi, u8 *mode)
+{
+	ssize_t err;
+
+	err = mipi_dsi_dcs_read(dsi, MIPI_DCS_GET_POWER_MODE, mode,
+				sizeof(*mode));
+	if (err <= 0) {
+		if (err == 0)
+			err = -ENODATA;
+
+		return err;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(mipi_dsi_dcs_get_power_mode);
+
+/**
  * mipi_dsi_dcs_enter_sleep_mode() - disable all unnecessary blocks inside the
  *    display module except interface communication
  * @dsi: DSI peripheral device
