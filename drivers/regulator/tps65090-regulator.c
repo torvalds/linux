@@ -192,12 +192,14 @@ static struct regulator_ops tps65090_fet_control_ops = {
 static struct regulator_ops tps65090_ldo_ops = {
 };
 
-#define tps65090_REG_DESC(_id, _sname, _en_reg, _en_bits, _ops)	\
+#define tps65090_REG_DESC(_id, _sname, _en_reg, _en_bits, _nvolt, _volt, _ops) \
 {							\
 	.name = "TPS65090_RAILS"#_id,			\
 	.supply_name = _sname,				\
 	.id = TPS65090_REGULATOR_##_id,			\
+	.n_voltages = _nvolt,				\
 	.ops = &_ops,					\
+	.fixed_uV = _volt,				\
 	.enable_reg = _en_reg,				\
 	.enable_val = _en_bits,				\
 	.enable_mask = _en_bits,			\
@@ -205,40 +207,46 @@ static struct regulator_ops tps65090_ldo_ops = {
 	.owner = THIS_MODULE,				\
 }
 
+#define tps65090_REG_FIXEDV(_id, _sname, en_reg, _en_bits, _volt, _ops) \
+	tps65090_REG_DESC(_id, _sname, en_reg, _en_bits, 1, _volt, _ops)
+
+#define tps65090_REG_SWITCH(_id, _sname, en_reg, _en_bits, _ops) \
+	tps65090_REG_DESC(_id, _sname, en_reg, _en_bits, 0, 0, _ops)
+
 static struct regulator_desc tps65090_regulator_desc[] = {
-	tps65090_REG_DESC(DCDC1, "vsys1",   0x0C, BIT(CTRL_EN_BIT),
-			  tps65090_reg_control_ops),
-	tps65090_REG_DESC(DCDC2, "vsys2",   0x0D, BIT(CTRL_EN_BIT),
-			  tps65090_reg_control_ops),
-	tps65090_REG_DESC(DCDC3, "vsys3",   0x0E, BIT(CTRL_EN_BIT),
-			  tps65090_reg_control_ops),
+	tps65090_REG_FIXEDV(DCDC1, "vsys1",   0x0C, BIT(CTRL_EN_BIT), 5000000,
+			    tps65090_reg_control_ops),
+	tps65090_REG_FIXEDV(DCDC2, "vsys2",   0x0D, BIT(CTRL_EN_BIT), 3300000,
+			    tps65090_reg_control_ops),
+	tps65090_REG_SWITCH(DCDC3, "vsys3",   0x0E, BIT(CTRL_EN_BIT),
+			    tps65090_reg_control_ops),
 
-	tps65090_REG_DESC(FET1,  "infet1",  0x0F,
-			  BIT(CTRL_EN_BIT) | BIT(CTRL_PG_BIT),
-			  tps65090_fet_control_ops),
-	tps65090_REG_DESC(FET2,  "infet2",  0x10,
-			  BIT(CTRL_EN_BIT) | BIT(CTRL_PG_BIT),
-			  tps65090_fet_control_ops),
-	tps65090_REG_DESC(FET3,  "infet3",  0x11,
-			  BIT(CTRL_EN_BIT) | BIT(CTRL_PG_BIT),
-			  tps65090_fet_control_ops),
-	tps65090_REG_DESC(FET4,  "infet4",  0x12,
-			  BIT(CTRL_EN_BIT) | BIT(CTRL_PG_BIT),
-			  tps65090_fet_control_ops),
-	tps65090_REG_DESC(FET5,  "infet5",  0x13,
-			  BIT(CTRL_EN_BIT) | BIT(CTRL_PG_BIT),
-			  tps65090_fet_control_ops),
-	tps65090_REG_DESC(FET6,  "infet6",  0x14,
-			  BIT(CTRL_EN_BIT) | BIT(CTRL_PG_BIT),
-			  tps65090_fet_control_ops),
-	tps65090_REG_DESC(FET7,  "infet7",  0x15,
-			  BIT(CTRL_EN_BIT) | BIT(CTRL_PG_BIT),
-			  tps65090_fet_control_ops),
+	tps65090_REG_SWITCH(FET1,  "infet1",  0x0F,
+			    BIT(CTRL_EN_BIT) | BIT(CTRL_PG_BIT),
+			    tps65090_fet_control_ops),
+	tps65090_REG_SWITCH(FET2,  "infet2",  0x10,
+			    BIT(CTRL_EN_BIT) | BIT(CTRL_PG_BIT),
+			    tps65090_fet_control_ops),
+	tps65090_REG_SWITCH(FET3,  "infet3",  0x11,
+			    BIT(CTRL_EN_BIT) | BIT(CTRL_PG_BIT),
+			    tps65090_fet_control_ops),
+	tps65090_REG_SWITCH(FET4,  "infet4",  0x12,
+			    BIT(CTRL_EN_BIT) | BIT(CTRL_PG_BIT),
+			    tps65090_fet_control_ops),
+	tps65090_REG_SWITCH(FET5,  "infet5",  0x13,
+			    BIT(CTRL_EN_BIT) | BIT(CTRL_PG_BIT),
+			    tps65090_fet_control_ops),
+	tps65090_REG_SWITCH(FET6,  "infet6",  0x14,
+			    BIT(CTRL_EN_BIT) | BIT(CTRL_PG_BIT),
+			    tps65090_fet_control_ops),
+	tps65090_REG_SWITCH(FET7,  "infet7",  0x15,
+			    BIT(CTRL_EN_BIT) | BIT(CTRL_PG_BIT),
+			    tps65090_fet_control_ops),
 
-	tps65090_REG_DESC(LDO1,  "vsys-l1", 0, 0,
-			  tps65090_ldo_ops),
-	tps65090_REG_DESC(LDO2,  "vsys-l2", 0, 0,
-			  tps65090_ldo_ops),
+	tps65090_REG_FIXEDV(LDO1,  "vsys-l1", 0, 0, 5000000,
+			    tps65090_ldo_ops),
+	tps65090_REG_FIXEDV(LDO2,  "vsys-l2", 0, 0, 3300000,
+			    tps65090_ldo_ops),
 };
 
 static inline bool is_dcdc(int id)
