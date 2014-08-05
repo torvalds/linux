@@ -1084,6 +1084,7 @@ static void coda_stop_streaming(struct vb2_queue *q)
 {
 	struct coda_ctx *ctx = vb2_get_drv_priv(q);
 	struct coda_dev *dev = ctx->dev;
+	struct vb2_buffer *buf;
 
 	if (q->type == V4L2_BUF_TYPE_VIDEO_OUTPUT) {
 		v4l2_dbg(1, coda_debug, &dev->v4l2_dev,
@@ -1091,7 +1092,11 @@ static void coda_stop_streaming(struct vb2_queue *q)
 		ctx->streamon_out = 0;
 
 		coda_bit_stream_end_flag(ctx);
+
 		ctx->isequence = 0;
+
+		while ((buf = v4l2_m2m_src_buf_remove(ctx->fh.m2m_ctx)))
+			v4l2_m2m_buf_done(buf, VB2_BUF_STATE_ERROR);
 	} else {
 		v4l2_dbg(1, coda_debug, &dev->v4l2_dev,
 			 "%s: capture\n", __func__);
@@ -1099,6 +1104,9 @@ static void coda_stop_streaming(struct vb2_queue *q)
 
 		ctx->osequence = 0;
 		ctx->sequence_offset = 0;
+
+		while ((buf = v4l2_m2m_dst_buf_remove(ctx->fh.m2m_ctx)))
+			v4l2_m2m_buf_done(buf, VB2_BUF_STATE_ERROR);
 	}
 
 	if (!ctx->streamon_out && !ctx->streamon_cap) {
