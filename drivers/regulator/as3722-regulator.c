@@ -219,7 +219,7 @@ static const struct as3722_register_mapping as3722_reg_lookup[] = {
 	{
 		.regulator_id = AS3722_REGULATOR_ID_LDO3,
 		.name = "as3722-ldo3",
-		.name = "vin-ldo3-4",
+		.sname = "vin-ldo3-4",
 		.vsel_reg = AS3722_LDO3_VOLTAGE_REG,
 		.vsel_mask = AS3722_LDO3_VSEL_MASK,
 		.enable_reg = AS3722_LDOCONTROL0_REG,
@@ -231,7 +231,7 @@ static const struct as3722_register_mapping as3722_reg_lookup[] = {
 	{
 		.regulator_id = AS3722_REGULATOR_ID_LDO4,
 		.name = "as3722-ldo4",
-		.name = "vin-ldo3-4",
+		.sname = "vin-ldo3-4",
 		.vsel_reg = AS3722_LDO4_VOLTAGE_REG,
 		.vsel_mask = AS3722_LDO_VSEL_MASK,
 		.enable_reg = AS3722_LDOCONTROL0_REG,

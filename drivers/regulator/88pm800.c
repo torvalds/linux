@@ -52,7 +52,6 @@
 #define PM800_BUCK1_3		(0x3F)
 #define PM800_BUCK2		(0x40)
 #define PM800_BUCK3		(0x41)
-#define PM800_BUCK3		(0x41)
 #define PM800_BUCK4		(0x42)
 #define PM800_BUCK4_1		(0x43)
 #define PM800_BUCK4_2		(0x44)
