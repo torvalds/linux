@@ -53,10 +53,12 @@ unregister the PHY.
 The PHY driver should create the PHY in order for other peripheral controllers
 to make use of it. The PHY framework provides 2 APIs to create the PHY.
 
-struct phy *phy_create(struct device *dev, const struct phy_ops *ops,
-        struct phy_init_data *init_data);
-struct phy *devm_phy_create(struct device *dev, const struct phy_ops *ops,
-	struct phy_init_data *init_data);
+struct phy *phy_create(struct device *dev, struct device_node *node,
+		       const struct phy_ops *ops,
+		       struct phy_init_data *init_data);
+struct phy *devm_phy_create(struct device *dev, struct device_node *node,
+			    const struct phy_ops *ops,
+			    struct phy_init_data *init_data);
 
 The PHY drivers can use one of the above 2 APIs to create the PHY by passing
 the device pointer, phy ops and init_data.

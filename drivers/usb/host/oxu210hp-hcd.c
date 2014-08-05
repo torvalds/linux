@@ -3826,49 +3826,36 @@ static int oxu_drv_probe(struct platform_device *pdev)
 	dev_dbg(&pdev->dev, "IRQ resource %d\n", irq);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "no registers address! Check %s setup!\n",
-			dev_name(&pdev->dev));
-		return -ENODEV;
+	base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(base)) {
+		ret = PTR_ERR(base);
+		goto error;
 	}
 	memstart = res->start;
 	memlen = resource_size(res);
-	dev_dbg(&pdev->dev, "MEM resource %lx-%lx\n", memstart, memlen);
-	if (!request_mem_region(memstart, memlen,
-				oxu_hc_driver.description)) {
-		dev_dbg(&pdev->dev, "memory area already in use\n");
-		return -EBUSY;
-	}
 
 	ret = irq_set_irq_type(irq, IRQF_TRIGGER_FALLING);
 	if (ret) {
 		dev_err(&pdev->dev, "error setting irq type\n");
 		ret = -EFAULT;
-		goto error_set_irq_type;
-	}
-
-	base = ioremap(memstart, memlen);
-	if (!base) {
-		dev_dbg(&pdev->dev, "error mapping memory\n");
-		ret = -EFAULT;
-		goto error_ioremap;
+		goto error;
 	}
 
 	/* Allocate a driver data struct to hold useful info for both
 	 * SPH & OTG devices
 	 */
-	info = kzalloc(sizeof(struct oxu_info), GFP_KERNEL);
+	info = devm_kzalloc(&pdev->dev, sizeof(struct oxu_info), GFP_KERNEL);
 	if (!info) {
 		dev_dbg(&pdev->dev, "error allocating memory\n");
 		ret = -EFAULT;
-		goto error_alloc;
+		goto error;
 	}
 	platform_set_drvdata(pdev, info);
 
 	ret = oxu_init(pdev, memstart, memlen, base, irq);
 	if (ret < 0) {
 		dev_dbg(&pdev->dev, "cannot init USB devices\n");
-		goto error_init;
+		goto error;
 	}
 
 	dev_info(&pdev->dev, "devices enabled and running\n");
@@ -3876,16 +3863,7 @@ static int oxu_drv_probe(struct platform_device *pdev)
 
 	return 0;
 
-error_init:
-	kfree(info);
-
-error_alloc:
-	iounmap(base);
-
-error_set_irq_type:
-error_ioremap:
-	release_mem_region(memstart, memlen);
-
+error:
 	dev_err(&pdev->dev, "init %s fail, %d\n", dev_name(&pdev->dev), ret);
 	return ret;
 }
@@ -3899,17 +3877,9 @@ static void oxu_remove(struct platform_device *pdev, struct usb_hcd *hcd)
 static int oxu_drv_remove(struct platform_device *pdev)
 {
 	struct oxu_info *info = platform_get_drvdata(pdev);
-	unsigned long memstart = info->hcd[0]->rsrc_start,
-			memlen = info->hcd[0]->rsrc_len;
-	void *base = info->hcd[0]->regs;
 
 	oxu_remove(pdev, info->hcd[0]);
 	oxu_remove(pdev, info->hcd[1]);
-
-	iounmap(base);
-	release_mem_region(memstart, memlen);
-
-	kfree(info);
 
 	return 0;
 }

@@ -630,6 +630,8 @@
 			 <&tegra_car TEGRA20_CLK_CLK_M>,
 			 <&tegra_car TEGRA20_CLK_USBD>;
 		clock-names = "reg", "pll_u", "timer", "utmi-pads";
+		resets = <&tegra_car 22>, <&tegra_car 22>;
+		reset-names = "usb", "utmi-pads";
 		nvidia,has-legacy-mode;
 		nvidia,hssync-start-delay = <9>;
 		nvidia,idle-wait-delay = <17>;
@@ -638,6 +640,7 @@
 		nvidia,xcvr-setup = <9>;
 		nvidia,xcvr-lsfslew = <1>;
 		nvidia,xcvr-lsrslew = <1>;
+		nvidia,has-utmi-pad-registers;
 		status = "disabled";
 	};
 
@@ -661,6 +664,8 @@
 			 <&tegra_car TEGRA20_CLK_PLL_U>,
 			 <&tegra_car TEGRA20_CLK_CDEV2>;
 		clock-names = "reg", "pll_u", "ulpi-link";
+		resets = <&tegra_car 58>, <&tegra_car 22>;
+		reset-names = "usb", "utmi-pads";
 		status = "disabled";
 	};
 
@@ -685,6 +690,8 @@
 			 <&tegra_car TEGRA20_CLK_CLK_M>,
 			 <&tegra_car TEGRA20_CLK_USBD>;
 		clock-names = "reg", "pll_u", "timer", "utmi-pads";
+		resets = <&tegra_car 59>, <&tegra_car 22>;
+		reset-names = "usb", "utmi-pads";
 		nvidia,hssync-start-delay = <9>;
 		nvidia,idle-wait-delay = <17>;
 		nvidia,elastic-limit = <16>;

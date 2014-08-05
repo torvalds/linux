@@ -455,7 +455,7 @@ static int bfin_probe(struct platform_device *pdev)
 
 	int				ret = -ENOMEM;
 
-	glue = kzalloc(sizeof(*glue), GFP_KERNEL);
+	glue = devm_kzalloc(&pdev->dev, sizeof(*glue), GFP_KERNEL);
 	if (!glue) {
 		dev_err(&pdev->dev, "failed to allocate glue context\n");
 		goto err0;
@@ -464,7 +464,7 @@ static int bfin_probe(struct platform_device *pdev)
 	musb = platform_device_alloc("musb-hdrc", PLATFORM_DEVID_AUTO);
 	if (!musb) {
 		dev_err(&pdev->dev, "failed to allocate musb device\n");
-		goto err1;
+		goto err0;
 	}
 
 	musb->dev.parent		= &pdev->dev;
@@ -478,7 +478,7 @@ static int bfin_probe(struct platform_device *pdev)
 
 	glue->phy = usb_phy_generic_register();
 	if (IS_ERR(glue->phy))
-		goto err2;
+		goto err1;
 	platform_set_drvdata(pdev, glue);
 
 	memset(musb_resources, 0x00, sizeof(*musb_resources) *
@@ -498,31 +498,28 @@ static int bfin_probe(struct platform_device *pdev)
 			ARRAY_SIZE(musb_resources));
 	if (ret) {
 		dev_err(&pdev->dev, "failed to add resources\n");
-		goto err3;
+		goto err2;
 	}
 
 	ret = platform_device_add_data(musb, pdata, sizeof(*pdata));
 	if (ret) {
 		dev_err(&pdev->dev, "failed to add platform_data\n");
-		goto err3;
+		goto err2;
 	}
 
 	ret = platform_device_add(musb);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register musb device\n");
-		goto err3;
+		goto err2;
 	}
 
 	return 0;
 
-err3:
+err2:
 	usb_phy_generic_unregister(glue->phy);
 
-err2:
-	platform_device_put(musb);
-
 err1:
-	kfree(glue);
+	platform_device_put(musb);
 
 err0:
 	return ret;
@@ -534,7 +531,6 @@ static int bfin_remove(struct platform_device *pdev)
 
 	platform_device_unregister(glue->musb);
 	usb_phy_generic_unregister(glue->phy);
-	kfree(glue);
 
 	return 0;
 }

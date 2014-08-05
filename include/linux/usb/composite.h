@@ -386,6 +386,21 @@ struct usb_composite_driver {
 
 extern int usb_composite_probe(struct usb_composite_driver *driver);
 extern void usb_composite_unregister(struct usb_composite_driver *driver);
+
+/**
+ * module_usb_composite_driver() - Helper macro for registering a USB gadget
+ * composite driver
+ * @__usb_composite_driver: usb_composite_driver struct
+ *
+ * Helper macro for USB gadget composite drivers which do not do anything
+ * special in module init/exit. This eliminates a lot of boilerplate. Each
+ * module may only use this macro once, and calling it replaces module_init()
+ * and module_exit()
+ */
+#define module_usb_composite_driver(__usb_composite_driver) \
+	module_driver(__usb_composite_driver, usb_composite_probe, \
+		       usb_composite_unregister)
+
 extern void usb_composite_setup_continue(struct usb_composite_dev *cdev);
 extern int composite_dev_prepare(struct usb_composite_driver *composite,
 		struct usb_composite_dev *cdev);
