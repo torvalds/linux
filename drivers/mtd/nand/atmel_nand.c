@@ -1907,15 +1907,7 @@ static int nfc_sram_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 	if (offset || (data_len < mtd->writesize))
 		return -EINVAL;
 
-	cfg = nfc_readl(host->nfc->hsmc_regs, CFG);
 	len = mtd->writesize;
-
-	if (unlikely(raw)) {
-		len += mtd->oobsize;
-		nfc_writel(host->nfc->hsmc_regs, CFG, cfg | NFC_CFG_WSPARE);
-	} else
-		nfc_writel(host->nfc->hsmc_regs, CFG, cfg & ~NFC_CFG_WSPARE);
-
 	/* Copy page data to sram that will write to nand via NFC */
 	if (use_dma) {
 		if (atmel_nand_dma_op(mtd, (void *)buf, len, 0) != 0)
@@ -1923,6 +1915,15 @@ static int nfc_sram_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 			memcpy32_toio(sram, buf, len);
 	} else {
 		memcpy32_toio(sram, buf, len);
+	}
+
+	cfg = nfc_readl(host->nfc->hsmc_regs, CFG);
+	if (unlikely(raw) && oob_required) {
+		memcpy32_toio(sram + len, chip->oob_poi, mtd->oobsize);
+		len += mtd->oobsize;
+		nfc_writel(host->nfc->hsmc_regs, CFG, cfg | NFC_CFG_WSPARE);
+	} else {
+		nfc_writel(host->nfc->hsmc_regs, CFG, cfg & ~NFC_CFG_WSPARE);
 	}
 
 	if (chip->ecc.mode == NAND_ECC_HW && host->has_pmecc)
