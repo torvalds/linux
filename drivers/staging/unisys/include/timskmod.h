@@ -62,25 +62,11 @@
 #if !defined SUCCESS
 #define SUCCESS 0
 #endif
-#define FAILURE (-1)
-#define DRIVERNAMEMAX 50
 #define MIN(a, b)     (((a) < (b)) ? (a) : (b))
 #define MAX(a, b)     (((a) > (b)) ? (a) : (b))
 #define STRUCTSEQUAL(x, y) (memcmp(&x, &y, sizeof(x)) == 0)
 #ifndef HOSTADDRESS
 #define HOSTADDRESS unsigned long long
-#endif
-
-#ifdef ENABLE_RETURN_TRACE
-#define RETTRACE(x)                                            \
-	do {						       \
-		if (1) {				       \
-			INFODRV("RET 0x%lx in %s",	       \
-				(ulong)(x), __func__);     \
-		}					   \
-	} while (0)
-#else
-#define RETTRACE(x)
 #endif
 
 /** Try to evaulate the provided expression, and do a RETINT(x) iff
