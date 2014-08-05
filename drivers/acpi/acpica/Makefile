@@ -157,6 +157,7 @@ acpi-y +=		\
 	uterror.o	\
 	uteval.o	\
 	utglobal.o	\
+	uthex.o		\
 	utids.o		\
 	utinit.o	\
 	utlock.o	\
@@ -175,5 +176,10 @@ acpi-y +=		\
 	utxferror.o	\
 	utxfmutex.o
 
-acpi-$(ACPI_FUTURE_USAGE) += utfileio.o utprint.o uttrack.o utcache.o
+acpi-$(ACPI_FUTURE_USAGE) +=	\
+	utcache.o		\
+	utfileio.o		\
+	utprint.o		\
+	uttrack.o		\
+	utuuid.o
 

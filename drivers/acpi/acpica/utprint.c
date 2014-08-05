@@ -242,6 +242,7 @@ static char *acpi_ut_format_number(char *string,
 				   u64 number,
 				   u8 base, s32 width, s32 precision, u8 type)
 {
+	char *pos;
 	char sign;
 	char zero;
 	u8 need_prefix;
@@ -289,9 +290,8 @@ static char *acpi_ut_format_number(char *string,
 
 	/* Generate full string in reverse order */
 
-	i = ACPI_PTR_DIFF(acpi_ut_put_number
-			  (reversed_string, number, base, upper),
-			  reversed_string);
+	pos = acpi_ut_put_number(reversed_string, number, base, upper);
+	i = ACPI_PTR_DIFF(pos, reversed_string);
 
 	/* Printing 100 using %2d gives "100", not "00" */
 
@@ -401,6 +401,7 @@ acpi_ut_vsnprintf(char *string,
 
 		/* Process width */
 
+		width = -1;
 		if (ACPI_IS_DIGIT(*format)) {
 			format = acpi_ut_scan_number(format, &number);
 			width = (s32) number;
@@ -415,6 +416,7 @@ acpi_ut_vsnprintf(char *string,
 
 		/* Process precision */
 
+		precision = -1;
 		if (*format == '.') {
 			++format;
 			if (ACPI_IS_DIGIT(*format)) {
@@ -431,6 +433,7 @@ acpi_ut_vsnprintf(char *string,
 
 		/* Process qualifier */
 
+		qualifier = -1;
 		if (*format == 'h' || *format == 'l' || *format == 'L') {
 			qualifier = *format;
 			++format;
