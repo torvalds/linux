@@ -158,6 +158,7 @@
 &rk818 {
 	gpios =<&gpio1 GPIO_B1 GPIO_ACTIVE_HIGH>,<&gpio1 GPIO_A1 GPIO_ACTIVE_LOW>;
 	rk818,system-power-controller;
+	rk818,support_dc_chg = <1>;/*1: dc chg; 0:usb chg*/
 
 	regulators {
 
