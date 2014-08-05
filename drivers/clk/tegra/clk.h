@@ -548,7 +548,7 @@ struct clk *tegra_clk_register_super_mux(const char *name,
 		u8 width, u8 pllx_index, u8 div2_index, spinlock_t *lock);
 
 /**
- * struct clk_init_tabel - clock initialization table
+ * struct clk_init_table - clock initialization table
  * @clk_id:	clock id as mentioned in device tree bindings
  * @parent_id:	parent clock id as mentioned in device tree bindings
  * @rate:	rate to set
