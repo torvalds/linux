@@ -873,18 +873,46 @@ static void rockchip_set_mux(struct rockchip_pin_bank *bank, int pin, int mux)
 		return;
 	}
 
-	/* get basic quadrupel of mux registers and the correct reg inside */
-	reg += bank->bank_num * 0x10;
-	reg += (pin / 8) * 4;
-	bit = (pin % 8) * 2;
+	if((info->ctrl->type == RK312X) && (bank->bank_num == 2) && (pin >= 20) && (pin <= 24))
+	{
+		/*RK321X GPIO2C_IOMUX2 and GPIO2D_IOMUX are special */
+		if((pin >= 20) && (pin <= 23))
+		{
+			reg -= info->ctrl->mux_offset;
+			reg += 0xe8;
+			bit = (pin % 4) * 4;
+		}
+		else
+		{
+			reg -= info->ctrl->mux_offset;
+			reg += 0xd4;
+			bit = 12;
+		}
+		spin_lock_irqsave(&bank->slock, flags);
 
-	spin_lock_irqsave(&bank->slock, flags);
+		data = (0x0f << (bit + 16));
+		data |= (mux & 0x0f) << bit;
+		writel(data, reg);
 
-	data = (3 << (bit + 16));
-	data |= (mux & 3) << bit;
-	writel(data, reg);
+		spin_unlock_irqrestore(&bank->slock, flags);
 
-	spin_unlock_irqrestore(&bank->slock, flags);
+	}
+
+	else
+	{
+		/* get basic quadrupel of mux registers and the correct reg inside */
+		reg += bank->bank_num * 0x10;
+		reg += (pin / 8) * 4;
+		bit = (pin % 8) * 2;
+
+		spin_lock_irqsave(&bank->slock, flags);
+
+		data = (3 << (bit + 16));
+		data |= (mux & 3) << bit;
+		writel(data, reg);
+
+		spin_unlock_irqrestore(&bank->slock, flags);
+	}
 
 	DBG_PINCTRL("%s:setting GPIO%d-%d to mux:0x%x\n", __func__, m.mux.bank, ((m.mux.goff - 0x0A) * 8 + m.mux.off ), mux);
 		
