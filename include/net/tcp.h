@@ -220,8 +220,6 @@ void tcp_time_wait(struct sock *sk, int state, int timeo);
 #define	TFO_SERVER_ENABLE	2
 #define	TFO_CLIENT_NO_COOKIE	4	/* Data in SYN w/o cookie option */
 
-/* Process SYN data but skip cookie validation */
-#define	TFO_SERVER_COOKIE_NOT_CHKED	0x100
 /* Accept SYN data w/o any cookie option */
 #define	TFO_SERVER_COOKIE_NOT_REQD	0x200
 
@@ -230,10 +228,6 @@ void tcp_time_wait(struct sock *sk, int state, int timeo);
  */
 #define	TFO_SERVER_WO_SOCKOPT1	0x400
 #define	TFO_SERVER_WO_SOCKOPT2	0x800
-/* Always create TFO child sockets on a TFO listener even when
- * cookie/data not present. (For testing purpose!)
- */
-#define	TFO_SERVER_ALWAYS	0x1000
 
 extern struct inet_timewait_death_row tcp_death_row;
 
@@ -541,7 +535,7 @@ void tcp_retransmit_timer(struct sock *sk);
 void tcp_xmit_retransmit_queue(struct sock *);
 void tcp_simple_retransmit(struct sock *);
 int tcp_trim_head(struct sock *, struct sk_buff *, u32);
-int tcp_fragment(struct sock *, struct sk_buff *, u32, unsigned int);
+int tcp_fragment(struct sock *, struct sk_buff *, u32, unsigned int, gfp_t);
 
 void tcp_send_probe0(struct sock *);
 void tcp_send_partial(struct sock *);
@@ -558,7 +552,6 @@ void tcp_send_loss_probe(struct sock *sk);
 bool tcp_schedule_loss_probe(struct sock *sk);
 
 /* tcp_input.c */
-void tcp_cwnd_application_limited(struct sock *sk);
 void tcp_resume_early_retransmit(struct sock *sk);
 void tcp_rearm_rto(struct sock *sk);
 void tcp_reset(struct sock *sk);
@@ -797,7 +790,7 @@ struct tcp_congestion_ops {
 	/* return slow start threshold (required) */
 	u32 (*ssthresh)(struct sock *sk);
 	/* do new cwnd calculation (required) */
-	void (*cong_avoid)(struct sock *sk, u32 ack, u32 acked, u32 in_flight);
+	void (*cong_avoid)(struct sock *sk, u32 ack, u32 acked);
 	/* call before changing ca_state (optional) */
 	void (*set_state)(struct sock *sk, u8 new_state);
 	/* call when cwnd event occurs (optional) */
@@ -829,7 +822,7 @@ void tcp_cong_avoid_ai(struct tcp_sock *tp, u32 w);
 
 extern struct tcp_congestion_ops tcp_init_congestion_ops;
 u32 tcp_reno_ssthresh(struct sock *sk);
-void tcp_reno_cong_avoid(struct sock *sk, u32 ack, u32 acked, u32 in_flight);
+void tcp_reno_cong_avoid(struct sock *sk, u32 ack, u32 acked);
 extern struct tcp_congestion_ops tcp_reno;
 
 static inline void tcp_set_ca_state(struct sock *sk, const u8 ca_state)
@@ -975,7 +968,30 @@ static inline u32 tcp_wnd_end(const struct tcp_sock *tp)
 {
 	return tp->snd_una + tp->snd_wnd;
 }
-bool tcp_is_cwnd_limited(const struct sock *sk, u32 in_flight);
+
+/* We follow the spirit of RFC2861 to validate cwnd but implement a more
+ * flexible approach. The RFC suggests cwnd should not be raised unless
+ * it was fully used previously. And that's exactly what we do in
+ * congestion avoidance mode. But in slow start we allow cwnd to grow
+ * as long as the application has used half the cwnd.
+ * Example :
+ *    cwnd is 10 (IW10), but application sends 9 frames.
+ *    We allow cwnd to reach 18 when all frames are ACKed.
+ * This check is safe because it's as aggressive as slow start which already
+ * risks 100% overshoot. The advantage is that we discourage application to
+ * either send more filler packets or data to artificially blow up the cwnd
+ * usage, and allow application-limited process to probe bw more aggressively.
+ */
+static inline bool tcp_is_cwnd_limited(const struct sock *sk)
+{
+	const struct tcp_sock *tp = tcp_sk(sk);
+
+	/* If in slow start, ensure cwnd grows to twice what was ACKed. */
+	if (tp->snd_cwnd <= tp->snd_ssthresh)
+		return tp->snd_cwnd < 2 * tp->max_packets_out;
+
+	return tp->is_cwnd_limited;
+}
 
 static inline void tcp_check_probe_timer(struct sock *sk)
 {
@@ -1102,6 +1118,9 @@ static inline void tcp_openreq_init(struct request_sock *req,
 	ireq->ir_rmt_port = tcp_hdr(skb)->source;
 	ireq->ir_num = ntohs(tcp_hdr(skb)->dest);
 }
+
+extern void tcp_openreq_init_rwin(struct request_sock *req,
+				  struct sock *sk, struct dst_entry *dst);
 
 void tcp_enter_memory_pressure(struct sock *sk);
 
@@ -1312,8 +1331,10 @@ void tcp_free_fastopen_req(struct tcp_sock *tp);
 
 extern struct tcp_fastopen_context __rcu *tcp_fastopen_ctx;
 int tcp_fastopen_reset_cipher(void *key, unsigned int len);
-void tcp_fastopen_cookie_gen(__be32 src, __be32 dst,
-			     struct tcp_fastopen_cookie *foc);
+bool tcp_try_fastopen(struct sock *sk, struct sk_buff *skb,
+		      struct request_sock *req,
+		      struct tcp_fastopen_cookie *foc,
+		      struct dst_entry *dst);
 void tcp_fastopen_init_key_once(bool publish);
 #define TCP_FASTOPEN_KEY_LENGTH 16
 

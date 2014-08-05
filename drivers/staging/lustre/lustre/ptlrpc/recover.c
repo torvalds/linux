@@ -49,7 +49,6 @@
 #include <obd.h>
 #include <obd_ost.h>
 #include <obd_class.h>
-#include <obd_lov.h> /* for IOC_LOV_SET_OSC_ACTIVE */
 #include <linux/list.h>
 
 #include "ptlrpc_internal.h"
@@ -369,11 +368,14 @@ EXPORT_SYMBOL(ptlrpc_recover_import);
 int ptlrpc_import_in_recovery(struct obd_import *imp)
 {
 	int in_recovery = 1;
+
 	spin_lock(&imp->imp_lock);
 	if (imp->imp_state == LUSTRE_IMP_FULL ||
 	    imp->imp_state == LUSTRE_IMP_CLOSED ||
-	    imp->imp_state == LUSTRE_IMP_DISCON)
+	    imp->imp_state == LUSTRE_IMP_DISCON ||
+	    imp->imp_obd->obd_no_recov)
 		in_recovery = 0;
 	spin_unlock(&imp->imp_lock);
+
 	return in_recovery;
 }

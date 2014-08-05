@@ -83,7 +83,7 @@ static int efivarfs_d_hash(const struct dentry *dentry, struct qstr *qstr)
 	return 0;
 }
 
-static struct dentry_operations efivarfs_d_ops = {
+static const struct dentry_operations efivarfs_d_ops = {
 	.d_compare = efivarfs_d_compare,
 	.d_hash = efivarfs_d_hash,
 	.d_delete = always_delete_dentry,

@@ -10,6 +10,12 @@ Required properties:
 
 - interrupts : The CODEC's interrupt output.
 
+Optional properties:
+
+- clocks: The phandle of the master clock to the CODEC
+
+- clock-names: Should be "mclk"
+
 Pins on the device (for linking into audio routes):
 
   * MIC1

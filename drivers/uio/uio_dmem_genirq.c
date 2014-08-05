@@ -204,7 +204,7 @@ static int uio_dmem_genirq_probe(struct platform_device *pdev)
 		ret = platform_get_irq(pdev, 0);
 		if (ret < 0) {
 			dev_err(&pdev->dev, "failed to get IRQ\n");
-			goto bad0;
+			goto bad1;
 		}
 		uioinfo->irq = ret;
 	}
@@ -275,6 +275,7 @@ static int uio_dmem_genirq_probe(struct platform_device *pdev)
 	ret = uio_register_device(&pdev->dev, priv->uioinfo);
 	if (ret) {
 		dev_err(&pdev->dev, "unable to register uio device\n");
+		pm_runtime_disable(&pdev->dev);
 		goto bad1;
 	}
 
@@ -282,7 +283,6 @@ static int uio_dmem_genirq_probe(struct platform_device *pdev)
 	return 0;
  bad1:
 	kfree(priv);
-	pm_runtime_disable(&pdev->dev);
  bad0:
 	/* kfree uioinfo for OF */
 	if (pdev->dev.of_node)

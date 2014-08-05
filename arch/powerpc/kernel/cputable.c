@@ -109,7 +109,8 @@ extern void __restore_cpu_e6500(void);
 				 PPC_FEATURE_PSERIES_PERFMON_COMPAT)
 #define COMMON_USER2_POWER8	(PPC_FEATURE2_ARCH_2_07 | \
 				 PPC_FEATURE2_HTM_COMP | PPC_FEATURE2_DSCR | \
-				 PPC_FEATURE2_ISEL | PPC_FEATURE2_TAR)
+				 PPC_FEATURE2_ISEL | PPC_FEATURE2_TAR | \
+				 PPC_FEATURE2_VEC_CRYPTO)
 #define COMMON_USER_PA6T	(COMMON_USER_PPC64 | PPC_FEATURE_PA6T |\
 				 PPC_FEATURE_TRUE_LE | \
 				 PPC_FEATURE_HAS_ALTIVEC_COMP)
@@ -511,6 +512,26 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.pvr_value		= 0x004b0000,
 		.cpu_name		= "POWER8E (raw)",
 		.cpu_features		= CPU_FTRS_POWER8E,
+		.cpu_user_features	= COMMON_USER_POWER8,
+		.cpu_user_features2	= COMMON_USER2_POWER8,
+		.mmu_features		= MMU_FTRS_POWER8,
+		.icache_bsize		= 128,
+		.dcache_bsize		= 128,
+		.num_pmcs		= 6,
+		.pmc_type		= PPC_PMC_IBM,
+		.oprofile_cpu_type	= "ppc64/power8",
+		.oprofile_type		= PPC_OPROFILE_INVALID,
+		.cpu_setup		= __setup_cpu_power8,
+		.cpu_restore		= __restore_cpu_power8,
+		.flush_tlb		= __flush_tlb_power8,
+		.machine_check_early	= __machine_check_early_realmode_p8,
+		.platform		= "power8",
+	},
+	{	/* Power8 DD1: Does not support doorbell IPIs */
+		.pvr_mask		= 0xffffff00,
+		.pvr_value		= 0x004d0100,
+		.cpu_name		= "POWER8 (raw)",
+		.cpu_features		= CPU_FTRS_POWER8_DD1,
 		.cpu_user_features	= COMMON_USER_POWER8,
 		.cpu_user_features2	= COMMON_USER2_POWER8,
 		.mmu_features		= MMU_FTRS_POWER8,
@@ -2148,44 +2169,6 @@ static struct cpu_spec __initdata cpu_specs[] = {
 	}
 #endif /* CONFIG_PPC32 */
 #endif /* CONFIG_E500 */
-
-#ifdef CONFIG_PPC_A2
-	{	/* Standard A2 (>= DD2) + FPU core */
-		.pvr_mask		= 0xffff0000,
-		.pvr_value		= 0x00480000,
-		.cpu_name		= "A2 (>= DD2)",
-		.cpu_features		= CPU_FTRS_A2,
-		.cpu_user_features	= COMMON_USER_PPC64,
-		.mmu_features		= MMU_FTRS_A2,
-		.icache_bsize		= 64,
-		.dcache_bsize		= 64,
-		.num_pmcs		= 0,
-		.cpu_setup		= __setup_cpu_a2,
-		.cpu_restore		= __restore_cpu_a2,
-		.machine_check		= machine_check_generic,
-		.platform		= "ppca2",
-	},
-	{	/* This is a default entry to get going, to be replaced by
-		 * a real one at some stage
-		 */
-#define CPU_FTRS_BASE_BOOK3E	(CPU_FTR_USE_TB | \
-	    CPU_FTR_PPCAS_ARCH_V2 | CPU_FTR_SMT | \
-	    CPU_FTR_NODSISRALIGN | CPU_FTR_NOEXECUTE)
-		.pvr_mask		= 0x00000000,
-		.pvr_value		= 0x00000000,
-		.cpu_name		= "Book3E",
-		.cpu_features		= CPU_FTRS_BASE_BOOK3E,
-		.cpu_user_features	= COMMON_USER_PPC64,
-		.mmu_features		= MMU_FTR_TYPE_3E | MMU_FTR_USE_TLBILX |
-					  MMU_FTR_USE_TLBIVAX_BCAST |
-					  MMU_FTR_LOCK_BCAST_INVAL,
-		.icache_bsize		= 64,
-		.dcache_bsize		= 64,
-		.num_pmcs		= 0,
-		.machine_check		= machine_check_generic,
-		.platform		= "power6",
-	},
-#endif /* CONFIG_PPC_A2 */
 };
 
 static struct cpu_spec the_cpu_spec;

@@ -38,6 +38,15 @@ config C293_PCIE
 	  help
 	  This option enables support for the C293PCIE board
 
+config BSC9132_QDS
+	bool "Freescale BSC9132QDS"
+	select DEFAULT_UIMAGE
+	help
+	  This option enables support for the Freescale BSC9132 QDS board.
+	  BSC9132 is a heterogeneous SoC containing dual e500v2 powerpc cores
+	  and dual StarCore SC3850 DSP cores.
+	  Manufacturer : Freescale Semiconductor, Inc
+
 config MPC8540_ADS
 	bool "Freescale MPC8540 ADS"
 	select DEFAULT_UIMAGE
@@ -117,11 +126,11 @@ config P1022_RDK
 	  This option enables support for the Freescale / iVeia P1022RDK
 	  reference board.
 
-config P1023_RDS
-	bool "Freescale P1023 RDS/RDB"
+config P1023_RDB
+	bool "Freescale P1023 RDB"
 	select DEFAULT_UIMAGE
 	help
-	  This option enables support for the P1023 RDS and RDB boards
+	  This option enables support for the P1023 RDB board.
 
 config TWR_P102x
 	bool "Freescale TWR-P102x"
@@ -263,11 +272,11 @@ config CORENET_GENERIC
 	help
 	  This option enables support for the FSL CoreNet based boards.
 	  For 32bit kernel, the following boards are supported:
-	    P2041 RDB, P3041 DS and P4080 DS
+	    P2041 RDB, P3041 DS, P4080 DS, kmcoge4, and OCA4080
 	  For 64bit kernel, the following boards are supported:
 	    T4240 QDS and B4 QDS
 	  The following boards are supported for both 32bit and 64bit kernel:
-	    P5020 DS and P5040 DS
+	    P5020 DS, P5040 DS and T104xQDS
 
 endif # FSL_SOC_BOOKE
 

@@ -10,6 +10,7 @@ TARGETS += timers
 TARGETS += vm
 TARGETS += powerpc
 TARGETS += user
+TARGETS += sysctl
 
 all:
 	for TARGET in $(TARGETS); do \

@@ -147,7 +147,7 @@ static void linkwatch_do_dev(struct net_device *dev)
 	 * Make sure the above read is complete since it can be
 	 * rewritten as soon as we clear the bit below.
 	 */
-	smp_mb__before_clear_bit();
+	smp_mb__before_atomic();
 
 	/* We are about to handle this device,
 	 * so new events can be accepted

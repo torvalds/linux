@@ -69,17 +69,17 @@ static void __init parse_memsize_param(void)
 	if (!memsize)
 		return;
 
-	offset = fdt_path_offset(&__dtb_start, "/memory");
+	offset = fdt_path_offset(__dtb_start, "/memory");
 	if (offset > 0) {
 		uint64_t new_value;
 		/*
 		 * reg contains 2 32-bits BE values, offset and size. We just
 		 * want to replace the size value without affecting the offset
 		 */
-		prop_value = fdt_getprop(&__dtb_start, offset, "reg", &prop_len);
+		prop_value = fdt_getprop(__dtb_start, offset, "reg", &prop_len);
 		new_value = be64_to_cpu(*prop_value);
 		new_value =  (new_value & ~0xffffffffllu) | memsize;
-		fdt_setprop_inplace_u64(&__dtb_start, offset, "reg", new_value);
+		fdt_setprop_inplace_u64(__dtb_start, offset, "reg", new_value);
 	}
 }
 
@@ -92,7 +92,7 @@ void __init plat_mem_setup(void)
 	 * Load the builtin devicetree. This causes the chosen node to be
 	 * parsed resulting in our memory appearing
 	 */
-	__dt_setup_arch(&__dtb_start);
+	__dt_setup_arch(__dtb_start);
 }
 
 void __init device_tree_init(void)

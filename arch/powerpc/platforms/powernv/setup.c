@@ -27,6 +27,7 @@
 #include <linux/interrupt.h>
 #include <linux/bug.h>
 #include <linux/pci.h>
+#include <linux/cpufreq.h>
 
 #include <asm/machdep.h>
 #include <asm/firmware.h>
@@ -34,11 +35,14 @@
 #include <asm/rtas.h>
 #include <asm/opal.h>
 #include <asm/kexec.h>
+#include <asm/smp.h>
 
 #include "powernv.h"
 
 static void __init pnv_setup_arch(void)
 {
+	set_arch_panic_timeout(10, ARCH_PANIC_TIMEOUT);
+
 	/* Initialize SMP */
 	pnv_smp_init();
 
@@ -98,11 +102,32 @@ static void pnv_show_cpuinfo(struct seq_file *m)
 	of_node_put(root);
 }
 
+static void pnv_prepare_going_down(void)
+{
+	/*
+	 * Disable all notifiers from OPAL, we can't
+	 * service interrupts anymore anyway
+	 */
+	opal_notifier_disable();
+
+	/* Soft disable interrupts */
+	local_irq_disable();
+
+	/*
+	 * Return secondary CPUs to firwmare if a flash update
+	 * is pending otherwise we will get all sort of error
+	 * messages about CPU being stuck etc.. This will also
+	 * have the side effect of hard disabling interrupts so
+	 * past this point, the kernel is effectively dead.
+	 */
+	opal_flash_term_callback();
+}
+
 static void  __noreturn pnv_restart(char *cmd)
 {
 	long rc = OPAL_BUSY;
 
-	opal_notifier_disable();
+	pnv_prepare_going_down();
 
 	while (rc == OPAL_BUSY || rc == OPAL_BUSY_EVENT) {
 		rc = opal_cec_reboot();
@@ -119,7 +144,7 @@ static void __noreturn pnv_power_off(void)
 {
 	long rc = OPAL_BUSY;
 
-	opal_notifier_disable();
+	pnv_prepare_going_down();
 
 	while (rc == OPAL_BUSY || rc == OPAL_BUSY_EVENT) {
 		rc = opal_cec_power_down(0);
@@ -222,6 +247,13 @@ static void pnv_kexec_cpu_down(int crash_shutdown, int secondary)
 }
 #endif /* CONFIG_KEXEC */
 
+#ifdef CONFIG_MEMORY_HOTPLUG_SPARSE
+static unsigned long pnv_memory_block_size(void)
+{
+	return 256UL * 1024 * 1024;
+}
+#endif
+
 static void __init pnv_setup_machdep_opal(void)
 {
 	ppc_md.get_boot_time = opal_get_boot_time;
@@ -269,6 +301,25 @@ static int __init pnv_probe(void)
 	return 1;
 }
 
+/*
+ * Returns the cpu frequency for 'cpu' in Hz. This is used by
+ * /proc/cpuinfo
+ */
+unsigned long pnv_get_proc_freq(unsigned int cpu)
+{
+	unsigned long ret_freq;
+
+	ret_freq = cpufreq_quick_get(cpu) * 1000ul;
+
+	/*
+	 * If the backend cpufreq driver does not exist,
+         * then fallback to old way of reporting the clockrate.
+	 */
+	if (!ret_freq)
+		ret_freq = ppc_proc_freq;
+	return ret_freq;
+}
+
 define_machine(powernv) {
 	.name			= "PowerNV",
 	.probe			= pnv_probe,
@@ -276,6 +327,7 @@ define_machine(powernv) {
 	.setup_arch		= pnv_setup_arch,
 	.init_IRQ		= pnv_init_IRQ,
 	.show_cpuinfo		= pnv_show_cpuinfo,
+	.get_proc_freq          = pnv_get_proc_freq,
 	.progress		= pnv_progress,
 	.machine_shutdown	= pnv_shutdown,
 	.power_save             = power7_idle,
@@ -283,5 +335,8 @@ define_machine(powernv) {
 	.dma_set_mask		= pnv_dma_set_mask,
 #ifdef CONFIG_KEXEC
 	.kexec_cpu_down		= pnv_kexec_cpu_down,
+#endif
+#ifdef CONFIG_MEMORY_HOTPLUG_SPARSE
+	.memory_block_size	= pnv_memory_block_size,
 #endif
 };

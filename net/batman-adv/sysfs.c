@@ -29,12 +29,14 @@
 static struct net_device *batadv_kobj_to_netdev(struct kobject *obj)
 {
 	struct device *dev = container_of(obj->parent, struct device, kobj);
+
 	return to_net_dev(dev);
 }
 
 static struct batadv_priv *batadv_kobj_to_batpriv(struct kobject *obj)
 {
 	struct net_device *net_dev = batadv_kobj_to_netdev(obj);
+
 	return netdev_priv(net_dev);
 }
 
@@ -106,7 +108,7 @@ struct batadv_attribute batadv_attr_vlan_##_name = {	\
 		 .mode = _mode },			\
 	.show   = _show,				\
 	.store  = _store,				\
-};
+}
 
 /* Use this, if you have customized show and store functions */
 #define BATADV_ATTR(_name, _mode, _show, _store)	\
@@ -115,7 +117,7 @@ struct batadv_attribute batadv_attr_##_name = {		\
 		 .mode = _mode },			\
 	.show   = _show,				\
 	.store  = _store,				\
-};
+}
 
 #define BATADV_ATTR_SIF_STORE_BOOL(_name, _post_func)			\
 ssize_t batadv_store_##_name(struct kobject *kobj,			\
@@ -124,6 +126,7 @@ ssize_t batadv_store_##_name(struct kobject *kobj,			\
 {									\
 	struct net_device *net_dev = batadv_kobj_to_netdev(kobj);	\
 	struct batadv_priv *bat_priv = netdev_priv(net_dev);		\
+									\
 	return __batadv_store_bool_attr(buff, count, _post_func, attr,	\
 					&bat_priv->_name, net_dev);	\
 }
@@ -133,6 +136,7 @@ ssize_t batadv_show_##_name(struct kobject *kobj,			\
 			    struct attribute *attr, char *buff)		\
 {									\
 	struct batadv_priv *bat_priv = batadv_kobj_to_batpriv(kobj);	\
+									\
 	return sprintf(buff, "%s\n",					\
 		       atomic_read(&bat_priv->_name) == 0 ?		\
 		       "disabled" : "enabled");				\
@@ -155,6 +159,7 @@ ssize_t batadv_store_##_name(struct kobject *kobj,			\
 {									\
 	struct net_device *net_dev = batadv_kobj_to_netdev(kobj);	\
 	struct batadv_priv *bat_priv = netdev_priv(net_dev);		\
+									\
 	return __batadv_store_uint_attr(buff, count, _min, _max,	\
 					_post_func, attr,		\
 					&bat_priv->_name, net_dev);	\
@@ -165,6 +170,7 @@ ssize_t batadv_show_##_name(struct kobject *kobj,			\
 			    struct attribute *attr, char *buff)		\
 {									\
 	struct batadv_priv *bat_priv = batadv_kobj_to_batpriv(kobj);	\
+									\
 	return sprintf(buff, "%i\n", atomic_read(&bat_priv->_name));	\
 }									\
 
@@ -188,6 +194,7 @@ ssize_t batadv_store_vlan_##_name(struct kobject *kobj,			\
 	size_t res = __batadv_store_bool_attr(buff, count, _post_func,	\
 					      attr, &vlan->_name,	\
 					      bat_priv->soft_iface);	\
+									\
 	batadv_softif_vlan_free_ref(vlan);				\
 	return res;							\
 }
@@ -202,6 +209,7 @@ ssize_t batadv_show_vlan_##_name(struct kobject *kobj,			\
 	size_t res = sprintf(buff, "%s\n",				\
 			     atomic_read(&vlan->_name) == 0 ?		\
 			     "disabled" : "enabled");			\
+									\
 	batadv_softif_vlan_free_ref(vlan);				\
 	return res;							\
 }
@@ -324,12 +332,14 @@ static ssize_t batadv_show_bat_algo(struct kobject *kobj,
 				    struct attribute *attr, char *buff)
 {
 	struct batadv_priv *bat_priv = batadv_kobj_to_batpriv(kobj);
+
 	return sprintf(buff, "%s\n", bat_priv->bat_algo_ops->name);
 }
 
 static void batadv_post_gw_reselect(struct net_device *net_dev)
 {
 	struct batadv_priv *bat_priv = netdev_priv(net_dev);
+
 	batadv_gw_reselect(bat_priv);
 }
 

@@ -136,6 +136,7 @@ of the following host1x client modules:
   - compatible: "nvidia,tegra<chip>-hdmi"
   - reg: Physical base address and length of the controller's registers.
   - interrupts: The interrupt outputs from the controller.
+  - hdmi-supply: supply for the +5V HDMI connector pin
   - vdd-supply: regulator for supply voltage
   - pll-supply: regulator for PLL
   - clocks: Must contain an entry for each entry in clock-names.
@@ -180,6 +181,7 @@ of the following host1x client modules:
     See ../reset/reset.txt for details.
   - reset-names: Must include the following entries:
     - dsi
+  - avdd-dsi-supply: phandle of a supply that powers the DSI controller
   - nvidia,mipi-calibrate: Should contain a phandle and a specifier specifying
     which pads are used by this DSI output and need to be calibrated. See also
     ../mipi/nvidia,tegra114-mipi.txt.

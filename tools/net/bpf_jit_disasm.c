@@ -43,8 +43,7 @@ static void get_exec_path(char *tpath, size_t size)
 	free(path);
 }
 
-static void get_asm_insns(uint8_t *image, size_t len, unsigned long base,
-			  int opcodes)
+static void get_asm_insns(uint8_t *image, size_t len, int opcodes)
 {
 	int count, i, pc = 0;
 	char tpath[256];
@@ -107,13 +106,13 @@ static void put_klog_buff(char *buff)
 }
 
 static int get_last_jit_image(char *haystack, size_t hlen,
-			      uint8_t *image, size_t ilen,
-			      unsigned long *base)
+			      uint8_t *image, size_t ilen)
 {
 	char *ptr, *pptr, *tmp;
 	off_t off = 0;
 	int ret, flen, proglen, pass, ulen = 0;
 	regmatch_t pmatch[1];
+	unsigned long base;
 	regex_t regex;
 
 	if (hlen == 0)
@@ -136,7 +135,7 @@ static int get_last_jit_image(char *haystack, size_t hlen,
 
 	ptr = haystack + off - (pmatch[0].rm_eo - pmatch[0].rm_so);
 	ret = sscanf(ptr, "flen=%d proglen=%d pass=%d image=%lx",
-		     &flen, &proglen, &pass, base);
+		     &flen, &proglen, &pass, &base);
 	if (ret != 4)
 		return 0;
 
@@ -162,7 +161,7 @@ static int get_last_jit_image(char *haystack, size_t hlen,
 	assert(ulen == proglen);
 	printf("%d bytes emitted from JIT compiler (pass:%d, flen:%d)\n",
 	       proglen, pass, flen);
-	printf("%lx + <x>:\n", *base);
+	printf("%lx + <x>:\n", base);
 
 	regfree(&regex);
 	return ulen;
@@ -172,8 +171,7 @@ int main(int argc, char **argv)
 {
 	int len, klen, opcodes = 0;
 	char *kbuff;
-	unsigned long base;
-	uint8_t image[4096];
+	static uint8_t image[32768];
 
 	if (argc > 1) {
 		if (!strncmp("-o", argv[argc - 1], 2)) {
@@ -189,9 +187,9 @@ int main(int argc, char **argv)
 
 	kbuff = get_klog_buff(&klen);
 
-	len = get_last_jit_image(kbuff, klen, image, sizeof(image), &base);
-	if (len > 0 && base > 0)
-		get_asm_insns(image, len, base, opcodes);
+	len = get_last_jit_image(kbuff, klen, image, sizeof(image));
+	if (len > 0)
+		get_asm_insns(image, len, opcodes);
 
 	put_klog_buff(kbuff);
 

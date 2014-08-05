@@ -158,7 +158,7 @@ static bool mei_txe_aliveness_set(struct mei_device *dev, u32 req)
 	dev_dbg(&dev->pdev->dev, "Aliveness current=%d request=%d\n",
 				hw->aliveness, req);
 	if (do_req) {
-		hw->recvd_aliveness = false;
+		dev->pg_event = MEI_PG_EVENT_WAIT;
 		mei_txe_br_reg_write(hw, SICR_HOST_ALIVENESS_REQ_REG, req);
 	}
 	return do_req;
@@ -213,6 +213,7 @@ static int mei_txe_aliveness_poll(struct mei_device *dev, u32 expected)
 	do {
 		hw->aliveness = mei_txe_aliveness_get(dev);
 		if (hw->aliveness == expected) {
+			dev->pg_event = MEI_PG_EVENT_IDLE;
 			dev_dbg(&dev->pdev->dev,
 				"aliveness settled after %d msecs\n", t);
 			return t;
@@ -223,6 +224,7 @@ static int mei_txe_aliveness_poll(struct mei_device *dev, u32 expected)
 		t += MSEC_PER_SEC / 5;
 	} while (t < SEC_ALIVENESS_WAIT_TIMEOUT);
 
+	dev->pg_event = MEI_PG_EVENT_IDLE;
 	dev_err(&dev->pdev->dev, "aliveness timed out\n");
 	return -ETIME;
 }
@@ -249,19 +251,22 @@ static int mei_txe_aliveness_wait(struct mei_device *dev, u32 expected)
 		return 0;
 
 	mutex_unlock(&dev->device_lock);
-	err = wait_event_timeout(hw->wait_aliveness,
-			hw->recvd_aliveness, timeout);
+	err = wait_event_timeout(hw->wait_aliveness_resp,
+			dev->pg_event == MEI_PG_EVENT_RECEIVED, timeout);
 	mutex_lock(&dev->device_lock);
 
 	hw->aliveness = mei_txe_aliveness_get(dev);
 	ret = hw->aliveness == expected ? 0 : -ETIME;
 
 	if (ret)
-		dev_err(&dev->pdev->dev, "aliveness timed out");
+		dev_warn(&dev->pdev->dev, "aliveness timed out = %ld aliveness = %d event = %d\n",
+			err, hw->aliveness, dev->pg_event);
 	else
-		dev_dbg(&dev->pdev->dev, "aliveness settled after %d msecs\n",
-				jiffies_to_msecs(timeout - err));
-	hw->recvd_aliveness = false;
+		dev_dbg(&dev->pdev->dev, "aliveness settled after = %d msec aliveness = %d event = %d\n",
+			jiffies_to_msecs(timeout - err),
+			hw->aliveness, dev->pg_event);
+
+	dev->pg_event = MEI_PG_EVENT_IDLE;
 	return ret;
 }
 
@@ -277,6 +282,32 @@ int mei_txe_aliveness_set_sync(struct mei_device *dev, u32 req)
 	if (mei_txe_aliveness_set(dev, req))
 		return mei_txe_aliveness_wait(dev, req);
 	return 0;
+}
+
+/**
+ * mei_txe_pg_is_enabled - detect if PG is supported by HW
+ *
+ * @dev: the device structure
+ *
+ * returns: true is pg supported, false otherwise
+ */
+static bool mei_txe_pg_is_enabled(struct mei_device *dev)
+{
+	return true;
+}
+
+/**
+ * mei_txe_pg_state  - translate aliveness register value
+ *   to the mei power gating state
+ *
+ * @dev: the device structure
+ *
+ * returns: MEI_PG_OFF if aliveness is on and MEI_PG_ON otherwise
+ */
+static inline enum mei_pg_state mei_txe_pg_state(struct mei_device *dev)
+{
+	struct mei_txe_hw *hw = to_txe_hw(dev);
+	return hw->aliveness ? MEI_PG_OFF : MEI_PG_ON;
 }
 
 /**
@@ -589,7 +620,10 @@ static int mei_txe_write(struct mei_device *dev,
 	mei_txe_input_ready_interrupt_enable(dev);
 
 	if (!mei_txe_is_input_ready(dev)) {
-		dev_err(&dev->pdev->dev, "Input is not ready");
+		struct mei_fw_status fw_status;
+		mei_fw_status(dev, &fw_status);
+		dev_err(&dev->pdev->dev, "Input is not ready " FW_STS_FMT "\n",
+			FW_STS_PRM(fw_status));
 		return -EAGAIN;
 	}
 
@@ -960,9 +994,9 @@ irqreturn_t mei_txe_irq_thread_handler(int irq, void *dev_id)
 		/* Clear the interrupt cause */
 		dev_dbg(&dev->pdev->dev,
 			"Aliveness Interrupt: Status: %d\n", hw->aliveness);
-		hw->recvd_aliveness = true;
-		if (waitqueue_active(&hw->wait_aliveness))
-			wake_up(&hw->wait_aliveness);
+		dev->pg_event = MEI_PG_EVENT_RECEIVED;
+		if (waitqueue_active(&hw->wait_aliveness_resp))
+			wake_up(&hw->wait_aliveness_resp);
 	}
 
 
@@ -1008,14 +1042,50 @@ end:
 	return IRQ_HANDLED;
 }
 
+
+/**
+ * mei_txe_fw_status - retrieve fw status from the pci config space
+ *
+ * @dev: the device structure
+ * @fw_status: fw status registers storage
+ *
+ * returns: 0 on success an error code otherwise
+ */
+static int mei_txe_fw_status(struct mei_device *dev,
+			     struct mei_fw_status *fw_status)
+{
+	const u32 pci_cfg_reg[] = {PCI_CFG_TXE_FW_STS0, PCI_CFG_TXE_FW_STS1};
+	int i;
+
+	if (!fw_status)
+		return -EINVAL;
+
+	fw_status->count = 2;
+
+	for (i = 0; i < fw_status->count && i < MEI_FW_STATUS_MAX; i++) {
+		int ret;
+		ret = pci_read_config_dword(dev->pdev,
+				pci_cfg_reg[i], &fw_status->status[i]);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 static const struct mei_hw_ops mei_txe_hw_ops = {
 
+	.fw_status = mei_txe_fw_status,
 	.host_is_ready = mei_txe_host_is_ready,
+
+	.pg_state = mei_txe_pg_state,
 
 	.hw_is_ready = mei_txe_hw_is_ready,
 	.hw_reset = mei_txe_hw_reset,
 	.hw_config = mei_txe_hw_config,
 	.hw_start = mei_txe_hw_start,
+
+	.pg_is_enabled = mei_txe_pg_is_enabled,
 
 	.intr_clear = mei_txe_intr_clear,
 	.intr_enable = mei_txe_intr_enable,
@@ -1034,14 +1104,27 @@ static const struct mei_hw_ops mei_txe_hw_ops = {
 
 };
 
+#define MEI_CFG_TXE_FW_STS                            \
+	.fw_status.count = 2,                         \
+	.fw_status.status[0] = PCI_CFG_TXE_FW_STS0,   \
+	.fw_status.status[1] = PCI_CFG_TXE_FW_STS1
+
+const struct mei_cfg mei_txe_cfg = {
+	MEI_CFG_TXE_FW_STS,
+};
+
+
 /**
  * mei_txe_dev_init - allocates and initializes txe hardware specific structure
  *
  * @pdev - pci device
+ * @cfg - per device generation config
+ *
  * returns struct mei_device * on success or NULL;
  *
  */
-struct mei_device *mei_txe_dev_init(struct pci_dev *pdev)
+struct mei_device *mei_txe_dev_init(struct pci_dev *pdev,
+				    const struct mei_cfg *cfg)
 {
 	struct mei_device *dev;
 	struct mei_txe_hw *hw;
@@ -1051,11 +1134,11 @@ struct mei_device *mei_txe_dev_init(struct pci_dev *pdev)
 	if (!dev)
 		return NULL;
 
-	mei_device_init(dev);
+	mei_device_init(dev, cfg);
 
 	hw = to_txe_hw(dev);
 
-	init_waitqueue_head(&hw->wait_aliveness);
+	init_waitqueue_head(&hw->wait_aliveness_resp);
 
 	dev->ops = &mei_txe_hw_ops;
 

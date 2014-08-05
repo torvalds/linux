@@ -50,6 +50,16 @@ config USB_GSPCA_CPIA1
 	  To compile this driver as a module, choose M here: the
 	  module will be called gspca_cpia1.
 
+config USB_GSPCA_DTCS033
+	tristate "DTCS033 (Scopium) USB Astro-Camera Driver"
+	depends on VIDEO_V4L2 && USB_GSPCA
+	help
+	  Say Y here if you want support for the Scopium camera
+	  for planetary astrophotography.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called gspca_dtcs033.
+
 config USB_GSPCA_ETOMS
 	tristate "Etoms USB Camera Driver"
 	depends on VIDEO_V4L2 && USB_GSPCA

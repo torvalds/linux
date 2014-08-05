@@ -1958,6 +1958,9 @@ static void r600_gpu_init(struct radeon_device *rdev)
 	if (tmp < rdev->config.r600.max_simds) {
 		rdev->config.r600.max_simds = tmp;
 	}
+	tmp = rdev->config.r600.max_simds -
+		r600_count_pipe_bits((cc_gc_shader_pipe_config >> 16) & R6XX_MAX_SIMDS_MASK);
+	rdev->config.r600.active_simds = tmp;
 
 	disabled_rb_mask = (RREG32(CC_RB_BACKEND_DISABLE) >> 16) & R6XX_MAX_BACKENDS_MASK;
 	tmp = (tiling_config & PIPE_TILING__MASK) >> PIPE_TILING__SHIFT;
@@ -2724,7 +2727,7 @@ void r600_fence_ring_emit(struct radeon_device *rdev,
 		/* EVENT_WRITE_EOP - flush caches, send int */
 		radeon_ring_write(ring, PACKET3(PACKET3_EVENT_WRITE_EOP, 4));
 		radeon_ring_write(ring, EVENT_TYPE(CACHE_FLUSH_AND_INV_EVENT_TS) | EVENT_INDEX(5));
-		radeon_ring_write(ring, addr & 0xffffffff);
+		radeon_ring_write(ring, lower_32_bits(addr));
 		radeon_ring_write(ring, (upper_32_bits(addr) & 0xff) | DATA_SEL(1) | INT_SEL(2));
 		radeon_ring_write(ring, fence->seq);
 		radeon_ring_write(ring, 0);
@@ -2763,7 +2766,7 @@ bool r600_semaphore_ring_emit(struct radeon_device *rdev,
 		sel |= PACKET3_SEM_WAIT_ON_SIGNAL;
 
 	radeon_ring_write(ring, PACKET3(PACKET3_MEM_SEMAPHORE, 1));
-	radeon_ring_write(ring, addr & 0xffffffff);
+	radeon_ring_write(ring, lower_32_bits(addr));
 	radeon_ring_write(ring, (upper_32_bits(addr) & 0xff) | sel);
 
 	return true;
@@ -2824,9 +2827,9 @@ int r600_copy_cpdma(struct radeon_device *rdev,
 		if (size_in_bytes == 0)
 			tmp |= PACKET3_CP_DMA_CP_SYNC;
 		radeon_ring_write(ring, PACKET3(PACKET3_CP_DMA, 4));
-		radeon_ring_write(ring, src_offset & 0xffffffff);
+		radeon_ring_write(ring, lower_32_bits(src_offset));
 		radeon_ring_write(ring, tmp);
-		radeon_ring_write(ring, dst_offset & 0xffffffff);
+		radeon_ring_write(ring, lower_32_bits(dst_offset));
 		radeon_ring_write(ring, upper_32_bits(dst_offset) & 0xff);
 		radeon_ring_write(ring, cur_size_in_bytes);
 		src_offset += cur_size_in_bytes;
@@ -3792,6 +3795,7 @@ static u32 r600_get_ih_wptr(struct radeon_device *rdev)
 		tmp = RREG32(IH_RB_CNTL);
 		tmp |= IH_WPTR_OVERFLOW_CLEAR;
 		WREG32(IH_RB_CNTL, tmp);
+		wptr &= ~RB_OVERFLOW;
 	}
 	return (wptr & rdev->ih.ptr_mask);
 }
@@ -3876,7 +3880,7 @@ restart_ih:
 						wake_up(&rdev->irq.vblank_queue);
 					}
 					if (atomic_read(&rdev->irq.pflip[0]))
-						radeon_crtc_handle_flip(rdev, 0);
+						radeon_crtc_handle_vblank(rdev, 0);
 					rdev->irq.stat_regs.r600.disp_int &= ~LB_D1_VBLANK_INTERRUPT;
 					DRM_DEBUG("IH: D1 vblank\n");
 				}
@@ -3902,7 +3906,7 @@ restart_ih:
 						wake_up(&rdev->irq.vblank_queue);
 					}
 					if (atomic_read(&rdev->irq.pflip[1]))
-						radeon_crtc_handle_flip(rdev, 1);
+						radeon_crtc_handle_vblank(rdev, 1);
 					rdev->irq.stat_regs.r600.disp_int &= ~LB_D2_VBLANK_INTERRUPT;
 					DRM_DEBUG("IH: D2 vblank\n");
 				}

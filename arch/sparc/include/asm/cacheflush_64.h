@@ -10,7 +10,7 @@
 /* Cache flush operations. */
 #define flushw_all()	__asm__ __volatile__("flushw")
 
-extern void __flushw_user(void);
+void __flushw_user(void);
 #define flushw_user() __flushw_user()
 
 #define flush_user_windows flushw_user
@@ -30,29 +30,29 @@ extern void __flushw_user(void);
  * use block commit stores (which invalidate icache lines) during
  * module load, so we need this.
  */
-extern void flush_icache_range(unsigned long start, unsigned long end);
-extern void __flush_icache_page(unsigned long);
+void flush_icache_range(unsigned long start, unsigned long end);
+void __flush_icache_page(unsigned long);
 
-extern void __flush_dcache_page(void *addr, int flush_icache);
-extern void flush_dcache_page_impl(struct page *page);
+void __flush_dcache_page(void *addr, int flush_icache);
+void flush_dcache_page_impl(struct page *page);
 #ifdef CONFIG_SMP
-extern void smp_flush_dcache_page_impl(struct page *page, int cpu);
-extern void flush_dcache_page_all(struct mm_struct *mm, struct page *page);
+void smp_flush_dcache_page_impl(struct page *page, int cpu);
+void flush_dcache_page_all(struct mm_struct *mm, struct page *page);
 #else
 #define smp_flush_dcache_page_impl(page,cpu) flush_dcache_page_impl(page)
 #define flush_dcache_page_all(mm,page) flush_dcache_page_impl(page)
 #endif
 
-extern void __flush_dcache_range(unsigned long start, unsigned long end);
+void __flush_dcache_range(unsigned long start, unsigned long end);
 #define ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE 1
-extern void flush_dcache_page(struct page *page);
+void flush_dcache_page(struct page *page);
 
 #define flush_icache_page(vma, pg)	do { } while(0)
 #define flush_icache_user_range(vma,pg,adr,len)	do { } while (0)
 
-extern void flush_ptrace_access(struct vm_area_struct *, struct page *,
-				unsigned long uaddr, void *kaddr,
-				unsigned long len, int write);
+void flush_ptrace_access(struct vm_area_struct *, struct page *,
+			 unsigned long uaddr, void *kaddr,
+			 unsigned long len, int write);
 
 #define copy_to_user_page(vma, page, vaddr, dst, src, len)		\
 	do {								\

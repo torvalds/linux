@@ -1,27 +1,37 @@
                           Kernel Parameters
                           ~~~~~~~~~~~~~~~~~
 
-The following is a consolidated list of the kernel parameters as implemented
-(mostly) by the __setup() macro and sorted into English Dictionary order
-(defined as ignoring all punctuation and sorting digits before letters in a
-case insensitive manner), and with descriptions where known.
+The following is a consolidated list of the kernel parameters as
+implemented by the __setup(), core_param() and module_param() macros
+and sorted into English Dictionary order (defined as ignoring all
+punctuation and sorting digits before letters in a case insensitive
+manner), and with descriptions where known.
 
-Module parameters for loadable modules are specified only as the
-parameter name with optional '=' and value as appropriate, such as:
+The kernel parses parameters from the kernel command line up to "--";
+if it doesn't recognize a parameter and it doesn't contain a '.', the
+parameter gets passed to init: parameters with '=' go into init's
+environment, others are passed as command line arguments to init.
+Everything after "--" is passed as an argument to init.
 
-	modprobe usbcore blinkenlights=1
+Module parameters can be specified in two ways: via the kernel command
+line with a module name prefix, or via modprobe, e.g.:
 
-Module parameters for modules that are built into the kernel image
-are specified on the kernel command line with the module name plus
-'.' plus parameter name, with '=' and value if appropriate, such as:
+	(kernel command line) usbcore.blinkenlights=1
+	(modprobe command line) modprobe usbcore blinkenlights=1
 
-	usbcore.blinkenlights=1
+Parameters for modules which are built into the kernel need to be
+specified on the kernel command line.  modprobe looks through the
+kernel command line (/proc/cmdline) and collects module parameters
+when it loads a module, so the kernel command line can be used for
+loadable modules too.
 
 Hyphens (dashes) and underscores are equivalent in parameter names, so
 	log_buf_len=1M print-fatal-signals=1
 can also be entered as
 	log-buf-len=1M print_fatal_signals=1
 
+Double-quotes can be used to protect spaces in values, e.g.:
+	param="spaces in here"
 
 This document may not be entirely up to date and comprehensive. The command
 "modinfo -p ${modulename}" shows a current list of all parameters of a loadable
@@ -214,6 +224,11 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			unusable.  The "log_buf_len" parameter may be useful
 			if you need to capture more output.
 
+	acpi_force_table_verification	[HW,ACPI]
+			Enable table checksum verification during early stage.
+			By default, this is disabled due to x86 early mapping
+			size limitation.
+
 	acpi_irq_balance [HW,ACPI]
 			ACPI will balance active IRQs
 			default in APIC mode
@@ -237,7 +252,15 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			This feature is enabled by default.
 			This option allows to turn off the feature.
 
-	acpi_no_auto_ssdt	[HW,ACPI] Disable automatic loading of SSDT
+	acpi_no_static_ssdt	[HW,ACPI]
+			Disable installation of static SSDTs at early boot time
+			By default, SSDTs contained in the RSDT/XSDT will be
+			installed automatically and they will appear under
+			/sys/firmware/acpi/tables.
+			This option turns off this feature.
+			Note that specifying this option does not affect
+			dynamic table installation which will install SSDT
+			tables to /sys/firmware/acpi/tables/dynamic.
 
 	acpica_no_return_repair [HW, ACPI]
 			Disable AML predefined validation mechanism
@@ -617,8 +640,11 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			Also note the kernel might malfunction if you disable
 			some critical bits.
 
-	cma=nn[MG]	[ARM,KNL]
-			Sets the size of kernel global memory area for contiguous
+	cma=nn[MG]@[start[MG][-end[MG]]]
+			[ARM,X86,KNL]
+			Sets the size of kernel global memory area for
+			contiguous memory allocations and optionally the
+			placement constraint by the physical address range of
 			memory allocations. For more information, see
 			include/linux/dma-contiguous.h
 
@@ -883,6 +909,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			which are not unmapped.
 
 	earlycon=	[KNL] Output early console device and options.
+
 		uart[8250],io,<addr>[,options]
 		uart[8250],mmio,<addr>[,options]
 		uart[8250],mmio32,<addr>[,options]
@@ -892,7 +919,15 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			(mmio) or 32-bit (mmio32).
 			The options are the same as for ttyS, above.
 
-	earlyprintk=	[X86,SH,BLACKFIN,ARM]
+		pl011,<addr>
+			Start an early, polled-mode console on a pl011 serial
+			port at the specified address. The pl011 serial port
+			must already be setup and configured. Options are not
+			yet supported.
+
+		smh	Use ARM semihosting calls for early console.
+
+	earlyprintk=	[X86,SH,BLACKFIN,ARM,M68k]
 			earlyprintk=vga
 			earlyprintk=efi
 			earlyprintk=xen
@@ -1287,6 +1322,10 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			for working out where the kernel is dying during
 			startup.
 
+	initcall_blacklist=  [KNL] Do not execute a comma-separated list of
+			initcall functions.  Useful for debugging built-in
+			modules and initcalls.
+
 	initrd=		[BOOT] Specify the location of the initial ramdisk
 
 	inport.irq=	[HW] Inport (ATI XL and Microsoft) busmouse driver
@@ -1434,6 +1473,13 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	js=		[HW,JOY] Analog joystick
 			See Documentation/input/joystick.txt.
+
+	kaslr/nokaslr	[X86]
+			Enable/disable kernel and module base offset ASLR
+			(Address Space Layout Randomization) if built into
+			the kernel. When CONFIG_HIBERNATION is selected,
+			kASLR is disabled by default. When kASLR is enabled,
+			hibernation will be disabled.
 
 	keepinitrd	[HW,ARM]
 
@@ -2071,10 +2117,6 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	noapic		[SMP,APIC] Tells the kernel to not make use of any
 			IOAPICs that may be present in the system.
 
-	nokaslr		[X86]
-			Disable kernel and module base offset ASLR (Address
-			Space Layout Randomization) if built into the kernel.
-
 	noautogroup	Disable scheduler automatic task group creation.
 
 	nobats		[PPC] Do not use BATs for mapping kernel lowmem
@@ -2144,6 +2186,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			interrupt wake-up latency, which may improve performance
 			in certain environments such as networked servers or
 			real-time systems.
+
+	nohibernate	[HIBERNATION] Disable hibernation and resume.
 
 	nohz=		[KNL] Boottime enable/disable dynamic ticks
 			Valid arguments: on, off
@@ -2331,6 +2375,14 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			timeout = 0: wait forever
 			timeout < 0: reboot immediately
 			Format: <timeout>
+
+	crash_kexec_post_notifiers
+			Run kdump after running panic-notifiers and dumping
+			kmsg. This only for the users who doubt kdump always
+			succeeds in any situation.
+			Note that this also increases risks of kdump failure,
+			because some panic notifiers can make the crashed
+			kernel more unstable.
 
 	parkbd.port=	[HW] Parallel port number the keyboard adapter is
 			connected to, default is 0.
@@ -2738,6 +2790,12 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			leaf rcu_node structure.  Useful for very large
 			systems.
 
+	rcutree.jiffies_till_sched_qs= [KNL]
+			Set required age in jiffies for a
+			given grace period before RCU starts
+			soliciting quiescent-state help from
+			rcu_note_context_switch().
+
 	rcutree.jiffies_till_first_fqs= [KNL]
 			Set delay from grace-period initialization to
 			first attempt to force quiescent states.
@@ -2889,6 +2947,13 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			[KNL, SMP] Set scheduler's default relax_domain_level.
 			See Documentation/cgroups/cpusets.txt.
 
+	relative_sleep_states=
+			[SUSPEND] Use sleep state labeling where the deepest
+			state available other than hibernation is always "mem".
+			Format: { "0" | "1" }
+			0 -- Traditional sleep state labels.
+			1 -- Relative sleep state labels.
+
 	reserve=	[KNL,BUGS] Force the kernel to ignore some iomem area
 
 	reservetop=	[X86-32]
@@ -2926,6 +2991,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 		noresume	Don't check if there's a hibernation image
 				present during boot.
 		nocompress	Don't compress/decompress hibernation images.
+		no		Disable hibernation and resume.
 
 	retain_initrd	[RAM] Keep initrd memory after extraction
 
@@ -3068,6 +3134,11 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	softlockup_panic=
 			[KNL] Should the soft-lockup detector generate panics.
+			Format: <integer>
+
+	softlockup_all_cpu_backtrace=
+			[KNL] Should the soft-lockup detector generate
+			backtraces on all cpus.
 			Format: <integer>
 
 	sonypi.*=	[HW] Sony Programmable I/O Control Device driver

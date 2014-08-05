@@ -33,7 +33,6 @@
 #include "trx.h"
 #include "led.h"
 #include "dm.h"
-#include "phy.h"
 
 static u8 _rtl8723be_map_hwqueue_to_fwqueue(struct sk_buff *skb, u8 hw_queue)
 {

@@ -164,13 +164,17 @@ enum pci_dev_flags {
 	/* INTX_DISABLE in PCI_COMMAND register disables MSI
 	 * generation too.
 	 */
-	PCI_DEV_FLAGS_MSI_INTX_DISABLE_BUG = (__force pci_dev_flags_t) 1,
+	PCI_DEV_FLAGS_MSI_INTX_DISABLE_BUG = (__force pci_dev_flags_t) (1 << 0),
 	/* Device configuration is irrevocably lost if disabled into D3 */
-	PCI_DEV_FLAGS_NO_D3 = (__force pci_dev_flags_t) 2,
+	PCI_DEV_FLAGS_NO_D3 = (__force pci_dev_flags_t) (1 << 1),
 	/* Provide indication device is assigned by a Virtual Machine Manager */
-	PCI_DEV_FLAGS_ASSIGNED = (__force pci_dev_flags_t) 4,
+	PCI_DEV_FLAGS_ASSIGNED = (__force pci_dev_flags_t) (1 << 2),
 	/* Flag for quirk use to store if quirk-specific ACS is enabled */
-	PCI_DEV_FLAGS_ACS_ENABLED_QUIRK = (__force pci_dev_flags_t) 8,
+	PCI_DEV_FLAGS_ACS_ENABLED_QUIRK = (__force pci_dev_flags_t) (1 << 3),
+	/* Flag to indicate the device uses dma_alias_devfn */
+	PCI_DEV_FLAGS_DMA_ALIAS_DEVFN = (__force pci_dev_flags_t) (1 << 4),
+	/* Use a PCIe-to-PCI bridge alias even if !pci_is_pcie */
+	PCI_DEV_FLAG_PCIE_BRIDGE_ALIAS = (__force pci_dev_flags_t) (1 << 5),
 };
 
 enum pci_irq_reroute_variant {
@@ -268,6 +272,7 @@ struct pci_dev {
 	u8		rom_base_reg;	/* which config register controls the ROM */
 	u8		pin;		/* which interrupt pin this device uses */
 	u16		pcie_flags_reg;	/* cached PCIe Capabilities Register */
+	u8		dma_alias_devfn;/* devfn of DMA alias, if any */
 
 	struct pci_driver *driver;	/* which driver has allocated this device */
 	u64		dma_mask;	/* Mask of the bits of bus address this
@@ -365,6 +370,7 @@ struct pci_dev {
 #endif
 	phys_addr_t rom; /* Physical address of ROM if it's not from the BAR */
 	size_t romlen; /* Length of ROM if it's not from the BAR */
+	char *driver_override; /* Driver name to force a match */
 };
 
 static inline struct pci_dev *pci_physfn(struct pci_dev *dev)
@@ -477,6 +483,19 @@ static inline bool pci_is_root_bus(struct pci_bus *pbus)
 	return !(pbus->parent);
 }
 
+/**
+ * pci_is_bridge - check if the PCI device is a bridge
+ * @dev: PCI device
+ *
+ * Return true if the PCI device is bridge whether it has subordinate
+ * or not.
+ */
+static inline bool pci_is_bridge(struct pci_dev *dev)
+{
+	return dev->hdr_type == PCI_HEADER_TYPE_BRIDGE ||
+		dev->hdr_type == PCI_HEADER_TYPE_CARDBUS;
+}
+
 static inline struct pci_dev *pci_upstream_bridge(struct pci_dev *dev)
 {
 	dev = pci_physfn(dev);
@@ -518,7 +537,7 @@ static inline int pcibios_err_to_errno(int err)
 	case PCIBIOS_FUNC_NOT_SUPPORTED:
 		return -ENOENT;
 	case PCIBIOS_BAD_VENDOR_ID:
-		return -EINVAL;
+		return -ENOTTY;
 	case PCIBIOS_DEVICE_NOT_FOUND:
 		return -ENODEV;
 	case PCIBIOS_BAD_REGISTER_NUMBER:
@@ -529,7 +548,7 @@ static inline int pcibios_err_to_errno(int err)
 		return -ENOSPC;
 	}
 
-	return -ENOTTY;
+	return -ERANGE;
 }
 
 /* Low-level architecture-dependent routines */
@@ -602,6 +621,9 @@ struct pci_error_handlers {
 
 	/* PCI slot has been reset */
 	pci_ers_result_t (*slot_reset)(struct pci_dev *dev);
+
+	/* PCI function reset prepare or completed */
+	void (*reset_notify)(struct pci_dev *dev, bool prepare);
 
 	/* Device driver may resume normal operations */
 	void (*resume)(struct pci_dev *dev);
@@ -680,8 +702,8 @@ struct pci_driver {
 
 /**
  * PCI_VDEVICE - macro used to describe a specific pci device in short form
- * @vendor: the vendor name
- * @device: the 16 bit PCI Device ID
+ * @vend: the vendor name
+ * @dev: the 16 bit PCI Device ID
  *
  * This macro is used to create a struct pci_device_id that matches a
  * specific PCI device.  The subvendor, and subdevice fields will be set
@@ -689,9 +711,9 @@ struct pci_driver {
  * private data.
  */
 
-#define PCI_VDEVICE(vendor, device)		\
-	PCI_VENDOR_ID_##vendor, (device),	\
-	PCI_ANY_ID, PCI_ANY_ID, 0, 0
+#define PCI_VDEVICE(vend, dev) \
+	.vendor = PCI_VENDOR_ID_##vend, .device = (dev), \
+	.subvendor = PCI_ANY_ID, .subdevice = PCI_ANY_ID, 0, 0
 
 /* these external functions are only available when PCI support is enabled */
 #ifdef CONFIG_PCI
@@ -764,7 +786,7 @@ int pci_scan_slot(struct pci_bus *bus, int devfn);
 struct pci_dev *pci_scan_single_device(struct pci_bus *bus, int devfn);
 void pci_device_add(struct pci_dev *dev, struct pci_bus *bus);
 unsigned int pci_scan_child_bus(struct pci_bus *bus);
-int __must_check pci_bus_add_device(struct pci_dev *dev);
+void pci_bus_add_device(struct pci_dev *dev);
 void pci_read_bridge_bases(struct pci_bus *child);
 struct resource *pci_find_parent_resource(const struct pci_dev *dev,
 					  struct resource *res);
@@ -1158,7 +1180,6 @@ struct msix_entry {
 
 #ifdef CONFIG_PCI_MSI
 int pci_msi_vec_count(struct pci_dev *dev);
-int pci_enable_msi_block(struct pci_dev *dev, int nvec);
 void pci_msi_shutdown(struct pci_dev *dev);
 void pci_disable_msi(struct pci_dev *dev);
 int pci_msix_vec_count(struct pci_dev *dev);
@@ -1188,8 +1209,6 @@ static inline int pci_enable_msix_exact(struct pci_dev *dev,
 }
 #else
 static inline int pci_msi_vec_count(struct pci_dev *dev) { return -ENOSYS; }
-static inline int pci_enable_msi_block(struct pci_dev *dev, int nvec)
-{ return -ENOSYS; }
 static inline void pci_msi_shutdown(struct pci_dev *dev) { }
 static inline void pci_disable_msi(struct pci_dev *dev) { }
 static inline int pci_msix_vec_count(struct pci_dev *dev) { return -ENOSYS; }
@@ -1244,7 +1263,7 @@ static inline void pcie_set_ecrc_checking(struct pci_dev *dev) { }
 static inline void pcie_ecrc_get_policy(char *str) { }
 #endif
 
-#define pci_enable_msi(pdev)	pci_enable_msi_block(pdev, 1)
+#define pci_enable_msi(pdev)	pci_enable_msi_exact(pdev, 1)
 
 #ifdef CONFIG_HT_IRQ
 /* The functions a driver should call */
@@ -1572,13 +1591,13 @@ extern unsigned long pci_hotplug_io_size;
 extern unsigned long pci_hotplug_mem_size;
 
 /* Architecture-specific versions may override these (weak) */
-int pcibios_add_platform_entries(struct pci_dev *dev);
 void pcibios_disable_device(struct pci_dev *dev);
 void pcibios_set_master(struct pci_dev *dev);
 int pcibios_set_pcie_reset_state(struct pci_dev *dev,
 				 enum pcie_reset_state state);
 int pcibios_add_device(struct pci_dev *dev);
 void pcibios_release_device(struct pci_dev *dev);
+void pcibios_penalize_isa_irq(int irq, int active);
 
 #ifdef CONFIG_HIBERNATE_CALLBACKS
 extern struct dev_pm_ops pcibios_pm_ops;
@@ -1794,6 +1813,10 @@ static inline struct eeh_dev *pci_dev_to_eeh_dev(struct pci_dev *pdev)
 	return pdev->dev.archdata.edev;
 }
 #endif
+
+int pci_for_each_dma_alias(struct pci_dev *pdev,
+			   int (*fn)(struct pci_dev *pdev,
+				     u16 alias, void *data), void *data);
 
 /**
  * pci_find_upstream_pcie_bridge - find upstream PCIe-to-PCI bridge of a device

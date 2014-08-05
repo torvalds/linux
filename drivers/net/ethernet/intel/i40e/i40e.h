@@ -72,6 +72,7 @@
 #define I40E_MIN_NUM_DESCRIPTORS      64
 #define I40E_MIN_MSIX                 2
 #define I40E_DEFAULT_NUM_VMDQ_VSI     8 /* max 256 VSIs */
+#define I40E_MIN_VSI_ALLOC            51 /* LAN, ATR, FCOE, 32 VF, 16 VMDQ */
 #define I40E_DEFAULT_QUEUES_PER_VMDQ  2 /* max 16 qps */
 #define I40E_DEFAULT_QUEUES_PER_VF    4
 #define I40E_DEFAULT_QUEUES_PER_TC    1 /* should be a power of 2 */
@@ -96,10 +97,6 @@
 /* magic for getting defines into strings */
 #define STRINGIFY(foo)  #foo
 #define XSTRINGIFY(bar) STRINGIFY(bar)
-
-#ifndef ARCH_HAS_PREFETCH
-#define prefetch(X)
-#endif
 
 #define I40E_RX_DESC(R, i)			\
 	((ring_is_16byte_desc_enabled(R))	\
@@ -157,11 +154,23 @@ struct i40e_lump_tracking {
 #define I40E_FDIR_BUFFER_FULL_MARGIN	10
 #define I40E_FDIR_BUFFER_HEAD_ROOM	200
 
+enum i40e_fd_stat_idx {
+	I40E_FD_STAT_ATR,
+	I40E_FD_STAT_SB,
+	I40E_FD_STAT_PF_COUNT
+};
+#define I40E_FD_STAT_PF_IDX(pf_id) ((pf_id) * I40E_FD_STAT_PF_COUNT)
+#define I40E_FD_ATR_STAT_IDX(pf_id) \
+			(I40E_FD_STAT_PF_IDX(pf_id) + I40E_FD_STAT_ATR)
+#define I40E_FD_SB_STAT_IDX(pf_id)  \
+			(I40E_FD_STAT_PF_IDX(pf_id) + I40E_FD_STAT_SB)
+
 struct i40e_fdir_filter {
 	struct hlist_node fdir_node;
 	/* filter ipnut set */
 	u8 flow_type;
 	u8 ip4_proto;
+	/* TX packet view of src and dst */
 	__be32 dst_ip[4];
 	__be32 src_ip[4];
 	__be16 src_port;
@@ -205,7 +214,6 @@ struct i40e_pf {
 	unsigned long state;
 	unsigned long link_check_timeout;
 	struct msix_entry *msix_entries;
-	u16 num_msix_entries;
 	bool fc_autoneg_status;
 
 	u16 eeprom_version;
@@ -220,11 +228,14 @@ struct i40e_pf {
 	u16 rss_size;              /* num queues in the RSS array */
 	u16 rss_size_max;          /* HW defined max RSS queues */
 	u16 fdir_pf_filter_count;  /* num of guaranteed filters for this PF */
+	u16 num_alloc_vsi;         /* num VSIs this driver supports */
 	u8 atr_sample_rate;
 	bool wol_en;
 
 	struct hlist_head fdir_filter_list;
 	u16 fdir_pf_active_filters;
+	u16 fd_sb_cnt_idx;
+	u16 fd_atr_cnt_idx;
 
 #ifdef CONFIG_I40E_VXLAN
 	__be16  vxlan_ports[I40E_MAX_PF_UDP_OFFLOAD_PORTS];
@@ -266,6 +277,7 @@ struct i40e_pf {
 #ifdef CONFIG_I40E_VXLAN
 #define I40E_FLAG_VXLAN_FILTER_SYNC            (u64)(1 << 27)
 #endif
+#define I40E_FLAG_DCB_CAPABLE                  (u64)(1 << 29)
 
 	/* tracks features that get auto disabled by errors */
 	u64 auto_disable_flags;
@@ -300,7 +312,6 @@ struct i40e_pf {
 	u16 pf_seid;
 	u16 main_vsi_seid;
 	u16 mac_seid;
-	struct i40e_aqc_get_switch_config_data *sw_config;
 	struct kobject *switch_kobj;
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *i40e_dbg_pf;
@@ -329,9 +340,7 @@ struct i40e_pf {
 	struct ptp_clock *ptp_clock;
 	struct ptp_clock_info ptp_caps;
 	struct sk_buff *ptp_tx_skb;
-	struct work_struct ptp_tx_work;
 	struct hwtstamp_config tstamp_config;
-	unsigned long ptp_tx_start;
 	unsigned long last_rx_ptp_check;
 	spinlock_t tmreg_lock; /* Used to protect the device time registers. */
 	u64 ptp_base_adj;
@@ -420,6 +429,7 @@ struct i40e_vsi {
 	struct i40e_q_vector **q_vectors;
 	int num_q_vectors;
 	int base_vector;
+	bool irqs_ready;
 
 	u16 seid;            /* HW index of this VSI (absolute index) */
 	u16 id;              /* VSI number */
@@ -538,6 +548,15 @@ static inline bool i40e_rx_is_programming_status(u64 qw)
 {
 	return I40E_RX_PROG_STATUS_DESC_LENGTH ==
 		(qw >> I40E_RX_PROG_STATUS_DESC_LENGTH_SHIFT);
+}
+
+/**
+ * i40e_get_fd_cnt_all - get the total FD filter space available
+ * @pf: pointer to the pf struct
+ **/
+static inline int i40e_get_fd_cnt_all(struct i40e_pf *pf)
+{
+	return pf->hw.fdir_shared_filter_count + pf->fdir_pf_filter_count;
 }
 
 /* needed by i40e_ethtool.c */

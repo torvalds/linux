@@ -68,7 +68,6 @@
 			};
 
 			serial@12000 {
-				clock-frequency = <200000000>;
 				status = "okay";
 			};
 
@@ -92,6 +91,8 @@
 				marvell,nand-keep-config;
 				marvell,nand-enable-arbiter;
 				nand-on-flash-bbt;
+				nand-ecc-strength = <4>;
+				nand-ecc-step-size = <512>;
 
 				partition@0 {
 					label = "U-Boot";
@@ -105,6 +106,14 @@
 					label = "Filesystem";
 					reg = <0x1000000 0x3f000000>;
 				};
+			};
+
+			usb@54000 {
+				status = "okay";
+			};
+
+			usb3@58000 {
+				status = "okay";
 			};
 
 			mvsdio@d4000 {

@@ -58,36 +58,6 @@ static void ath10k_send_suspend_complete(struct ath10k *ar)
 	complete(&ar->target_suspend);
 }
 
-static int ath10k_init_connect_htc(struct ath10k *ar)
-{
-	int status;
-
-	status = ath10k_wmi_connect_htc_service(ar);
-	if (status)
-		goto conn_fail;
-
-	/* Start HTC */
-	status = ath10k_htc_start(&ar->htc);
-	if (status)
-		goto conn_fail;
-
-	/* Wait for WMI event to be ready */
-	status = ath10k_wmi_wait_for_service_ready(ar);
-	if (status <= 0) {
-		ath10k_warn("wmi service ready event not received");
-		status = -ETIMEDOUT;
-		goto timeout;
-	}
-
-	ath10k_dbg(ATH10K_DBG_BOOT, "boot wmi ready\n");
-	return 0;
-
-timeout:
-	ath10k_htc_stop(&ar->htc);
-conn_fail:
-	return status;
-}
-
 static int ath10k_init_configure_target(struct ath10k *ar)
 {
 	u32 param_host;
@@ -249,30 +219,40 @@ exit:
 
 static int ath10k_download_and_run_otp(struct ath10k *ar)
 {
-	u32 address = ar->hw_params.patch_load_addr;
-	u32 exec_param;
+	u32 result, address = ar->hw_params.patch_load_addr;
 	int ret;
 
 	/* OTP is optional */
 
-	if (!ar->otp_data || !ar->otp_len)
+	if (!ar->otp_data || !ar->otp_len) {
+		ath10k_warn("Not running otp, calibration will be incorrect (otp-data %p otp_len %zd)!\n",
+			    ar->otp_data, ar->otp_len);
 		return 0;
+	}
+
+	ath10k_dbg(ATH10K_DBG_BOOT, "boot upload otp to 0x%x len %zd\n",
+		   address, ar->otp_len);
 
 	ret = ath10k_bmi_fast_download(ar, address, ar->otp_data, ar->otp_len);
 	if (ret) {
 		ath10k_err("could not write otp (%d)\n", ret);
-		goto exit;
+		return ret;
 	}
 
-	exec_param = 0;
-	ret = ath10k_bmi_execute(ar, address, &exec_param);
+	ret = ath10k_bmi_execute(ar, address, 0, &result);
 	if (ret) {
 		ath10k_err("could not execute otp (%d)\n", ret);
-		goto exit;
+		return ret;
 	}
 
-exit:
-	return ret;
+	ath10k_dbg(ATH10K_DBG_BOOT, "boot otp execute result %d\n", result);
+
+	if (result != 0) {
+		ath10k_err("otp calibration failed: %d", result);
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 static int ath10k_download_fw(struct ath10k *ar)
@@ -389,8 +369,8 @@ static int ath10k_core_fetch_firmware_api_n(struct ath10k *ar, const char *name)
 	/* first fetch the firmware file (firmware-*.bin) */
 	ar->firmware = ath10k_fetch_fw_file(ar, ar->hw_params.fw.dir, name);
 	if (IS_ERR(ar->firmware)) {
-		ath10k_err("Could not fetch firmware file '%s': %ld\n",
-			   name, PTR_ERR(ar->firmware));
+		ath10k_err("could not fetch firmware file '%s/%s': %ld\n",
+			   ar->hw_params.fw.dir, name, PTR_ERR(ar->firmware));
 		return PTR_ERR(ar->firmware);
 	}
 
@@ -401,14 +381,14 @@ static int ath10k_core_fetch_firmware_api_n(struct ath10k *ar, const char *name)
 	magic_len = strlen(ATH10K_FIRMWARE_MAGIC) + 1;
 
 	if (len < magic_len) {
-		ath10k_err("firmware image too small to contain magic: %zu\n",
-			   len);
+		ath10k_err("firmware file '%s/%s' too small to contain magic: %zu\n",
+			   ar->hw_params.fw.dir, name, len);
 		ret = -EINVAL;
 		goto err;
 	}
 
 	if (memcmp(data, ATH10K_FIRMWARE_MAGIC, magic_len) != 0) {
-		ath10k_err("Invalid firmware magic\n");
+		ath10k_err("invalid firmware magic\n");
 		ret = -EINVAL;
 		goto err;
 	}
@@ -430,7 +410,7 @@ static int ath10k_core_fetch_firmware_api_n(struct ath10k *ar, const char *name)
 		data += sizeof(*hdr);
 
 		if (len < ie_len) {
-			ath10k_err("Invalid length for FW IE %d (%zu < %zu)\n",
+			ath10k_err("invalid length for FW IE %d (%zu < %zu)\n",
 				   ie_id, len, ie_len);
 			ret = -EINVAL;
 			goto err;
@@ -513,8 +493,8 @@ static int ath10k_core_fetch_firmware_api_n(struct ath10k *ar, const char *name)
 	}
 
 	if (!ar->firmware_data || !ar->firmware_len) {
-		ath10k_warn("No ATH10K_FW_IE_FW_IMAGE found from %s, skipping\n",
-			    name);
+		ath10k_warn("No ATH10K_FW_IE_FW_IMAGE found from '%s/%s', skipping\n",
+			    ar->hw_params.fw.dir, name);
 		ret = -ENOMEDIUM;
 		goto err;
 	}
@@ -531,7 +511,9 @@ static int ath10k_core_fetch_firmware_api_n(struct ath10k *ar, const char *name)
 					 ar->hw_params.fw.board);
 	if (IS_ERR(ar->board)) {
 		ret = PTR_ERR(ar->board);
-		ath10k_err("could not fetch board data (%d)\n", ret);
+		ath10k_err("could not fetch board data '%s/%s' (%d)\n",
+			   ar->hw_params.fw.dir, ar->hw_params.fw.board,
+			   ret);
 		goto err;
 	}
 
@@ -549,19 +531,21 @@ static int ath10k_core_fetch_firmware_files(struct ath10k *ar)
 {
 	int ret;
 
+	ar->fw_api = 2;
+	ath10k_dbg(ATH10K_DBG_BOOT, "trying fw api %d\n", ar->fw_api);
+
 	ret = ath10k_core_fetch_firmware_api_n(ar, ATH10K_FW_API2_FILE);
-	if (ret == 0) {
-		ar->fw_api = 2;
-		goto out;
-	}
+	if (ret == 0)
+		goto success;
+
+	ar->fw_api = 1;
+	ath10k_dbg(ATH10K_DBG_BOOT, "trying fw api %d\n", ar->fw_api);
 
 	ret = ath10k_core_fetch_firmware_api_1(ar);
 	if (ret)
 		return ret;
 
-	ar->fw_api = 1;
-
-out:
+success:
 	ath10k_dbg(ATH10K_DBG_BOOT, "using fw api %d\n", ar->fw_api);
 
 	return 0;
@@ -572,16 +556,22 @@ static int ath10k_init_download_firmware(struct ath10k *ar)
 	int ret;
 
 	ret = ath10k_download_board_data(ar);
-	if (ret)
+	if (ret) {
+		ath10k_err("failed to download board data: %d\n", ret);
 		return ret;
+	}
 
 	ret = ath10k_download_and_run_otp(ar);
-	if (ret)
+	if (ret) {
+		ath10k_err("failed to run otp: %d\n", ret);
 		return ret;
+	}
 
 	ret = ath10k_download_fw(ar);
-	if (ret)
+	if (ret) {
+		ath10k_err("failed to download firmware: %d\n", ret);
 		return ret;
+	}
 
 	return ret;
 }
@@ -660,8 +650,9 @@ static void ath10k_core_restart(struct work_struct *work)
 
 	switch (ar->state) {
 	case ATH10K_STATE_ON:
-		ath10k_halt(ar);
 		ar->state = ATH10K_STATE_RESTARTING;
+		del_timer_sync(&ar->scan.timeout);
+		ath10k_reset_scan((unsigned long)ar);
 		ieee80211_restart_hw(ar->hw);
 		break;
 	case ATH10K_STATE_OFF:
@@ -670,6 +661,8 @@ static void ath10k_core_restart(struct work_struct *work)
 		ath10k_warn("cannot restart a device that hasn't been started\n");
 		break;
 	case ATH10K_STATE_RESTARTING:
+		/* hw restart might be requested from multiple places */
+		break;
 	case ATH10K_STATE_RESTARTED:
 		ar->state = ATH10K_STATE_WEDGED;
 		/* fall through */
@@ -680,70 +673,6 @@ static void ath10k_core_restart(struct work_struct *work)
 
 	mutex_unlock(&ar->conf_mutex);
 }
-
-struct ath10k *ath10k_core_create(void *hif_priv, struct device *dev,
-				  const struct ath10k_hif_ops *hif_ops)
-{
-	struct ath10k *ar;
-
-	ar = ath10k_mac_create();
-	if (!ar)
-		return NULL;
-
-	ar->ath_common.priv = ar;
-	ar->ath_common.hw = ar->hw;
-
-	ar->p2p = !!ath10k_p2p;
-	ar->dev = dev;
-
-	ar->hif.priv = hif_priv;
-	ar->hif.ops = hif_ops;
-
-	init_completion(&ar->scan.started);
-	init_completion(&ar->scan.completed);
-	init_completion(&ar->scan.on_channel);
-	init_completion(&ar->target_suspend);
-
-	init_completion(&ar->install_key_done);
-	init_completion(&ar->vdev_setup_done);
-
-	setup_timer(&ar->scan.timeout, ath10k_reset_scan, (unsigned long)ar);
-
-	ar->workqueue = create_singlethread_workqueue("ath10k_wq");
-	if (!ar->workqueue)
-		goto err_wq;
-
-	mutex_init(&ar->conf_mutex);
-	spin_lock_init(&ar->data_lock);
-
-	INIT_LIST_HEAD(&ar->peers);
-	init_waitqueue_head(&ar->peer_mapping_wq);
-
-	init_completion(&ar->offchan_tx_completed);
-	INIT_WORK(&ar->offchan_tx_work, ath10k_offchan_tx_work);
-	skb_queue_head_init(&ar->offchan_tx_queue);
-
-	INIT_WORK(&ar->wmi_mgmt_tx_work, ath10k_mgmt_over_wmi_tx_work);
-	skb_queue_head_init(&ar->wmi_mgmt_tx_queue);
-
-	INIT_WORK(&ar->restart_work, ath10k_core_restart);
-
-	return ar;
-
-err_wq:
-	ath10k_mac_destroy(ar);
-	return NULL;
-}
-EXPORT_SYMBOL(ath10k_core_create);
-
-void ath10k_core_destroy(struct ath10k *ar)
-{
-	flush_workqueue(ar->workqueue);
-	destroy_workqueue(ar->workqueue);
-
-	ath10k_mac_destroy(ar);
-}
-EXPORT_SYMBOL(ath10k_core_destroy);
 
 int ath10k_core_start(struct ath10k *ar)
 {
@@ -785,10 +714,28 @@ int ath10k_core_start(struct ath10k *ar)
 		goto err;
 	}
 
+	status = ath10k_htt_init(ar);
+	if (status) {
+		ath10k_err("failed to init htt: %d\n", status);
+		goto err_wmi_detach;
+	}
+
+	status = ath10k_htt_tx_alloc(&ar->htt);
+	if (status) {
+		ath10k_err("failed to alloc htt tx: %d\n", status);
+		goto err_wmi_detach;
+	}
+
+	status = ath10k_htt_rx_alloc(&ar->htt);
+	if (status) {
+		ath10k_err("failed to alloc htt rx: %d\n", status);
+		goto err_htt_tx_detach;
+	}
+
 	status = ath10k_hif_start(ar);
 	if (status) {
 		ath10k_err("could not start HIF: %d\n", status);
-		goto err_wmi_detach;
+		goto err_htt_rx_detach;
 	}
 
 	status = ath10k_htc_wait_target(&ar->htc);
@@ -797,15 +744,30 @@ int ath10k_core_start(struct ath10k *ar)
 		goto err_hif_stop;
 	}
 
-	status = ath10k_htt_attach(ar);
+	status = ath10k_htt_connect(&ar->htt);
 	if (status) {
-		ath10k_err("could not attach htt (%d)\n", status);
+		ath10k_err("failed to connect htt (%d)\n", status);
 		goto err_hif_stop;
 	}
 
-	status = ath10k_init_connect_htc(ar);
-	if (status)
-		goto err_htt_detach;
+	status = ath10k_wmi_connect(ar);
+	if (status) {
+		ath10k_err("could not connect wmi: %d\n", status);
+		goto err_hif_stop;
+	}
+
+	status = ath10k_htc_start(&ar->htc);
+	if (status) {
+		ath10k_err("failed to start htc: %d\n", status);
+		goto err_hif_stop;
+	}
+
+	status = ath10k_wmi_wait_for_service_ready(ar);
+	if (status <= 0) {
+		ath10k_warn("wmi service ready event not received");
+		status = -ETIMEDOUT;
+		goto err_htc_stop;
+	}
 
 	ath10k_dbg(ATH10K_DBG_BOOT, "firmware %s booted\n",
 		   ar->hw->wiphy->fw_version);
@@ -813,31 +775,40 @@ int ath10k_core_start(struct ath10k *ar)
 	status = ath10k_wmi_cmd_init(ar);
 	if (status) {
 		ath10k_err("could not send WMI init command (%d)\n", status);
-		goto err_disconnect_htc;
+		goto err_htc_stop;
 	}
 
 	status = ath10k_wmi_wait_for_unified_ready(ar);
 	if (status <= 0) {
 		ath10k_err("wmi unified ready event not received\n");
 		status = -ETIMEDOUT;
-		goto err_disconnect_htc;
+		goto err_htc_stop;
 	}
 
-	status = ath10k_htt_attach_target(&ar->htt);
-	if (status)
-		goto err_disconnect_htc;
+	status = ath10k_htt_setup(&ar->htt);
+	if (status) {
+		ath10k_err("failed to setup htt: %d\n", status);
+		goto err_htc_stop;
+	}
 
 	status = ath10k_debug_start(ar);
 	if (status)
-		goto err_disconnect_htc;
+		goto err_htc_stop;
 
-	ar->free_vdev_map = (1 << TARGET_NUM_VDEVS) - 1;
+	if (test_bit(ATH10K_FW_FEATURE_WMI_10X, ar->fw_features))
+		ar->free_vdev_map = (1 << TARGET_10X_NUM_VDEVS) - 1;
+	else
+		ar->free_vdev_map = (1 << TARGET_NUM_VDEVS) - 1;
+
 	INIT_LIST_HEAD(&ar->arvifs);
 
 	if (!test_bit(ATH10K_FLAG_FIRST_BOOT_DONE, &ar->dev_flags))
-		ath10k_info("%s (0x%x) fw %s api %d htt %d.%d\n",
-			    ar->hw_params.name, ar->target_version,
-			    ar->hw->wiphy->fw_version, ar->fw_api,
+		ath10k_info("%s (0x%08x, 0x%08x) fw %s api %d htt %d.%d\n",
+			    ar->hw_params.name,
+			    ar->target_version,
+			    ar->chip_id,
+			    ar->hw->wiphy->fw_version,
+			    ar->fw_api,
 			    ar->htt.target_version_major,
 			    ar->htt.target_version_minor);
 
@@ -845,12 +816,14 @@ int ath10k_core_start(struct ath10k *ar)
 
 	return 0;
 
-err_disconnect_htc:
+err_htc_stop:
 	ath10k_htc_stop(&ar->htc);
-err_htt_detach:
-	ath10k_htt_detach(&ar->htt);
 err_hif_stop:
 	ath10k_hif_stop(ar);
+err_htt_rx_detach:
+	ath10k_htt_rx_free(&ar->htt);
+err_htt_tx_detach:
+	ath10k_htt_tx_free(&ar->htt);
 err_wmi_detach:
 	ath10k_wmi_detach(ar);
 err:
@@ -885,10 +858,14 @@ void ath10k_core_stop(struct ath10k *ar)
 	lockdep_assert_held(&ar->conf_mutex);
 
 	/* try to suspend target */
-	ath10k_wait_for_suspend(ar, WMI_PDEV_SUSPEND_AND_DISABLE_INTR);
+	if (ar->state != ATH10K_STATE_RESTARTING)
+		ath10k_wait_for_suspend(ar, WMI_PDEV_SUSPEND_AND_DISABLE_INTR);
+
 	ath10k_debug_stop(ar);
 	ath10k_htc_stop(&ar->htc);
-	ath10k_htt_detach(&ar->htt);
+	ath10k_hif_stop(ar);
+	ath10k_htt_tx_free(&ar->htt);
+	ath10k_htt_rx_free(&ar->htt);
 	ath10k_wmi_detach(ar);
 }
 EXPORT_SYMBOL(ath10k_core_stop);
@@ -980,22 +957,15 @@ static int ath10k_core_check_chip_id(struct ath10k *ar)
 	return 0;
 }
 
-int ath10k_core_register(struct ath10k *ar, u32 chip_id)
+static void ath10k_core_register_work(struct work_struct *work)
 {
+	struct ath10k *ar = container_of(work, struct ath10k, register_work);
 	int status;
-
-	ar->chip_id = chip_id;
-
-	status = ath10k_core_check_chip_id(ar);
-	if (status) {
-		ath10k_err("Unsupported chip id 0x%08x\n", ar->chip_id);
-		return status;
-	}
 
 	status = ath10k_core_probe_fw(ar);
 	if (status) {
 		ath10k_err("could not probe fw (%d)\n", status);
-		return status;
+		goto err;
 	}
 
 	status = ath10k_mac_register(ar);
@@ -1010,18 +980,43 @@ int ath10k_core_register(struct ath10k *ar, u32 chip_id)
 		goto err_unregister_mac;
 	}
 
-	return 0;
+	set_bit(ATH10K_FLAG_CORE_REGISTERED, &ar->dev_flags);
+	return;
 
 err_unregister_mac:
 	ath10k_mac_unregister(ar);
 err_release_fw:
 	ath10k_core_free_firmware_files(ar);
-	return status;
+err:
+	device_release_driver(ar->dev);
+	return;
+}
+
+int ath10k_core_register(struct ath10k *ar, u32 chip_id)
+{
+	int status;
+
+	ar->chip_id = chip_id;
+
+	status = ath10k_core_check_chip_id(ar);
+	if (status) {
+		ath10k_err("Unsupported chip id 0x%08x\n", ar->chip_id);
+		return status;
+	}
+
+	queue_work(ar->workqueue, &ar->register_work);
+
+	return 0;
 }
 EXPORT_SYMBOL(ath10k_core_register);
 
 void ath10k_core_unregister(struct ath10k *ar)
 {
+	cancel_work_sync(&ar->register_work);
+
+	if (!test_bit(ATH10K_FLAG_CORE_REGISTERED, &ar->dev_flags))
+		return;
+
 	/* We must unregister from mac80211 before we stop HTC and HIF.
 	 * Otherwise we will fail to submit commands to FW and mac80211 will be
 	 * unhappy about callback failures. */
@@ -1032,6 +1027,71 @@ void ath10k_core_unregister(struct ath10k *ar)
 	ath10k_debug_destroy(ar);
 }
 EXPORT_SYMBOL(ath10k_core_unregister);
+
+struct ath10k *ath10k_core_create(void *hif_priv, struct device *dev,
+				  const struct ath10k_hif_ops *hif_ops)
+{
+	struct ath10k *ar;
+
+	ar = ath10k_mac_create();
+	if (!ar)
+		return NULL;
+
+	ar->ath_common.priv = ar;
+	ar->ath_common.hw = ar->hw;
+
+	ar->p2p = !!ath10k_p2p;
+	ar->dev = dev;
+
+	ar->hif.priv = hif_priv;
+	ar->hif.ops = hif_ops;
+
+	init_completion(&ar->scan.started);
+	init_completion(&ar->scan.completed);
+	init_completion(&ar->scan.on_channel);
+	init_completion(&ar->target_suspend);
+
+	init_completion(&ar->install_key_done);
+	init_completion(&ar->vdev_setup_done);
+
+	setup_timer(&ar->scan.timeout, ath10k_reset_scan, (unsigned long)ar);
+
+	ar->workqueue = create_singlethread_workqueue("ath10k_wq");
+	if (!ar->workqueue)
+		goto err_wq;
+
+	mutex_init(&ar->conf_mutex);
+	spin_lock_init(&ar->data_lock);
+
+	INIT_LIST_HEAD(&ar->peers);
+	init_waitqueue_head(&ar->peer_mapping_wq);
+
+	init_completion(&ar->offchan_tx_completed);
+	INIT_WORK(&ar->offchan_tx_work, ath10k_offchan_tx_work);
+	skb_queue_head_init(&ar->offchan_tx_queue);
+
+	INIT_WORK(&ar->wmi_mgmt_tx_work, ath10k_mgmt_over_wmi_tx_work);
+	skb_queue_head_init(&ar->wmi_mgmt_tx_queue);
+
+	INIT_WORK(&ar->register_work, ath10k_core_register_work);
+	INIT_WORK(&ar->restart_work, ath10k_core_restart);
+
+	return ar;
+
+err_wq:
+	ath10k_mac_destroy(ar);
+	return NULL;
+}
+EXPORT_SYMBOL(ath10k_core_create);
+
+void ath10k_core_destroy(struct ath10k *ar)
+{
+	flush_workqueue(ar->workqueue);
+	destroy_workqueue(ar->workqueue);
+
+	ath10k_mac_destroy(ar);
+}
+EXPORT_SYMBOL(ath10k_core_destroy);
 
 MODULE_AUTHOR("Qualcomm Atheros");
 MODULE_DESCRIPTION("Core module for QCA988X PCIe devices.");

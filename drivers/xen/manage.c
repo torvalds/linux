@@ -41,9 +41,6 @@ static enum shutdown_state shutting_down = SHUTDOWN_INVALID;
 
 struct suspend_info {
 	int cancelled;
-	unsigned long arg; /* extra hypercall argument */
-	void (*pre)(void);
-	void (*post)(int cancelled);
 };
 
 static RAW_NOTIFIER_HEAD(xen_resume_notifier);
@@ -61,26 +58,6 @@ void xen_resume_notifier_unregister(struct notifier_block *nb)
 EXPORT_SYMBOL_GPL(xen_resume_notifier_unregister);
 
 #ifdef CONFIG_HIBERNATE_CALLBACKS
-static void xen_hvm_post_suspend(int cancelled)
-{
-	xen_arch_hvm_post_suspend(cancelled);
-	gnttab_resume();
-}
-
-static void xen_pre_suspend(void)
-{
-	xen_mm_pin_all();
-	gnttab_suspend();
-	xen_arch_pre_suspend();
-}
-
-static void xen_post_suspend(int cancelled)
-{
-	xen_arch_post_suspend(cancelled);
-	gnttab_resume();
-	xen_mm_unpin_all();
-}
-
 static int xen_suspend(void *data)
 {
 	struct suspend_info *si = data;
@@ -94,22 +71,23 @@ static int xen_suspend(void *data)
 		return err;
 	}
 
-	if (si->pre)
-		si->pre();
+	gnttab_suspend();
+	xen_arch_pre_suspend();
 
 	/*
 	 * This hypercall returns 1 if suspend was cancelled
 	 * or the domain was merely checkpointed, and 0 if it
 	 * is resuming in a new domain.
 	 */
-	si->cancelled = HYPERVISOR_suspend(si->arg);
+	si->cancelled = HYPERVISOR_suspend(xen_pv_domain()
+                                           ? virt_to_mfn(xen_start_info)
+                                           : 0);
 
-	if (si->post)
-		si->post(si->cancelled);
+	xen_arch_post_suspend(si->cancelled);
+	gnttab_resume();
 
 	if (!si->cancelled) {
 		xen_irq_resume();
-		xen_console_resume();
 		xen_timer_resume();
 	}
 
@@ -154,17 +132,11 @@ static void do_suspend(void)
 
 	si.cancelled = 1;
 
-	if (xen_hvm_domain()) {
-		si.arg = 0UL;
-		si.pre = NULL;
-		si.post = &xen_hvm_post_suspend;
-	} else {
-		si.arg = virt_to_mfn(xen_start_info);
-		si.pre = &xen_pre_suspend;
-		si.post = &xen_post_suspend;
-	}
-
 	err = stop_machine(xen_suspend, &si, cpumask_of(0));
+
+	/* Resume console as early as possible. */
+	if (!si.cancelled)
+		xen_console_resume();
 
 	raw_notifier_call_chain(&xen_resume_notifier, 0, NULL);
 

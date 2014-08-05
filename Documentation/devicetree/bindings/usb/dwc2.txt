@@ -13,7 +13,7 @@ Refer to clk/clock-bindings.txt for generic clock consumer properties
 
 Optional properties:
 - phys: phy provider specifier
-- phy-names: shall be "device"
+- phy-names: shall be "usb2-phy"
 Refer to phy/phy-bindings.txt for generic phy consumer properties
 
 Example:

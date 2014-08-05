@@ -40,6 +40,7 @@ cacheit=
 binary=
 gzip=.gz
 pie=
+format=
 
 # cross-compilation prefix
 CROSS=
@@ -136,6 +137,14 @@ if [ -z "$kernel" ]; then
     kernel=vmlinux
 fi
 
+elfformat="`${CROSS}objdump -p "$kernel" | grep 'file format' | awk '{print $4}'`"
+case "$elfformat" in
+    elf64-powerpcle)	format=elf64lppc	;;
+    elf64-powerpc)	format=elf32ppc	;;
+    elf32-powerpc)	format=elf32ppc	;;
+esac
+
+
 platformo=$object/"$platform".o
 lds=$object/zImage.lds
 ext=strip
@@ -152,8 +161,12 @@ of)
     make_space=n
     ;;
 pseries)
-    platformo="$object/of.o $object/epapr.o"
+    platformo="$object/pseries-head.o $object/of.o $object/epapr.o"
     link_address='0x4000000'
+    if [ "$format" != "elf32ppc" ]; then
+	link_address=
+	pie=-pie
+    fi
     make_space=n
     ;;
 maple)
@@ -255,6 +268,9 @@ gamecube|wii)
     platformo="$object/$platform-head.o $object/$platform.o"
     ;;
 treeboot-currituck)
+    link_address='0x1000000'
+    ;;
+treeboot-akebono)
     link_address='0x1000000'
     ;;
 treeboot-iss4xx-mpic)
@@ -379,7 +395,7 @@ if [ "$platform" != "miboot" ]; then
     if [ -n "$link_address" ] ; then
         text_start="-Ttext $link_address"
     fi
-    ${CROSS}ld -m elf32ppc -T $lds $text_start $pie -o "$ofile" \
+    ${CROSS}ld -m $format -T $lds $text_start $pie -o "$ofile" \
 	$platformo $tmp $object/wrapper.a
     rm $tmp
 fi

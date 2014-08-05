@@ -196,35 +196,31 @@ void ip_send_unicast_reply(struct net *net, struct sk_buff *skb, __be32 daddr,
 #define NET_ADD_STATS_BH(net, field, adnd) SNMP_ADD_STATS_BH((net)->mib.net_statistics, field, adnd)
 #define NET_ADD_STATS_USER(net, field, adnd) SNMP_ADD_STATS_USER((net)->mib.net_statistics, field, adnd)
 
-unsigned long snmp_fold_field(void __percpu *mib[], int offt);
+unsigned long snmp_fold_field(void __percpu *mib, int offt);
 #if BITS_PER_LONG==32
-u64 snmp_fold_field64(void __percpu *mib[], int offt, size_t sync_off);
+u64 snmp_fold_field64(void __percpu *mib, int offt, size_t sync_off);
 #else
-static inline u64 snmp_fold_field64(void __percpu *mib[], int offt, size_t syncp_off)
+static inline u64 snmp_fold_field64(void __percpu *mib, int offt, size_t syncp_off)
 {
 	return snmp_fold_field(mib, offt);
 }
 #endif
-int snmp_mib_init(void __percpu *ptr[2], size_t mibsize, size_t align);
-
-static inline void snmp_mib_free(void __percpu *ptr[SNMP_ARRAY_SZ])
-{
-	int i;
-
-	BUG_ON(ptr == NULL);
-	for (i = 0; i < SNMP_ARRAY_SZ; i++) {
-		free_percpu(ptr[i]);
-		ptr[i] = NULL;
-	}
-}
 
 void inet_get_local_port_range(struct net *net, int *low, int *high);
 
-extern unsigned long *sysctl_local_reserved_ports;
-static inline int inet_is_reserved_local_port(int port)
+#ifdef CONFIG_SYSCTL
+static inline int inet_is_local_reserved_port(struct net *net, int port)
 {
-	return test_bit(port, sysctl_local_reserved_ports);
+	if (!net->ipv4.sysctl_local_reserved_ports)
+		return 0;
+	return test_bit(port, net->ipv4.sysctl_local_reserved_ports);
 }
+#else
+static inline int inet_is_local_reserved_port(struct net *net, int port)
+{
+	return 0;
+}
+#endif
 
 extern int sysctl_ip_nonlocal_bind;
 
@@ -242,6 +238,9 @@ extern int sysctl_ip_dynaddr;
 void ipfrag_init(void);
 
 void ip_static_sysctl_init(void);
+
+#define IP4_REPLY_MARK(net, mark) \
+	((net)->ipv4.sysctl_fwmark_reflect ? (mark) : 0)
 
 static inline bool ip_is_fragment(const struct iphdr *iph)
 {
@@ -281,7 +280,7 @@ static inline bool ip_sk_use_pmtu(const struct sock *sk)
 	return inet_sk(sk)->pmtudisc < IP_PMTUDISC_PROBE;
 }
 
-static inline bool ip_sk_local_df(const struct sock *sk)
+static inline bool ip_sk_ignore_df(const struct sock *sk)
 {
 	return inet_sk(sk)->pmtudisc < IP_PMTUDISC_DO ||
 	       inet_sk(sk)->pmtudisc == IP_PMTUDISC_OMIT;
@@ -310,36 +309,39 @@ static inline unsigned int ip_skb_dst_mtu(const struct sk_buff *skb)
 	}
 }
 
-void __ip_select_ident(struct iphdr *iph, struct dst_entry *dst, int more);
+u32 ip_idents_reserve(u32 hash, int segs);
+void __ip_select_ident(struct iphdr *iph, int segs);
 
-static inline void ip_select_ident(struct sk_buff *skb, struct dst_entry *dst, struct sock *sk)
+static inline void ip_select_ident_segs(struct sk_buff *skb, struct sock *sk, int segs)
 {
 	struct iphdr *iph = ip_hdr(skb);
 
-	if ((iph->frag_off & htons(IP_DF)) && !skb->local_df) {
+	if ((iph->frag_off & htons(IP_DF)) && !skb->ignore_df) {
 		/* This is only to work around buggy Windows95/2000
 		 * VJ compression implementations.  If the ID field
 		 * does not change, they drop every other packet in
 		 * a TCP stream using header compression.
 		 */
-		iph->id = (sk && inet_sk(sk)->inet_daddr) ?
-					htons(inet_sk(sk)->inet_id++) : 0;
-	} else
-		__ip_select_ident(iph, dst, 0);
-}
-
-static inline void ip_select_ident_more(struct sk_buff *skb, struct dst_entry *dst, struct sock *sk, int more)
-{
-	struct iphdr *iph = ip_hdr(skb);
-
-	if ((iph->frag_off & htons(IP_DF)) && !skb->local_df) {
 		if (sk && inet_sk(sk)->inet_daddr) {
 			iph->id = htons(inet_sk(sk)->inet_id);
-			inet_sk(sk)->inet_id += 1 + more;
-		} else
+			inet_sk(sk)->inet_id += segs;
+		} else {
 			iph->id = 0;
-	} else
-		__ip_select_ident(iph, dst, more);
+		}
+	} else {
+		__ip_select_ident(iph, segs);
+	}
+}
+
+static inline void ip_select_ident(struct sk_buff *skb, struct sock *sk)
+{
+	ip_select_ident_segs(skb, sk, 1);
+}
+
+static inline __wsum inet_compute_pseudo(struct sk_buff *skb, int proto)
+{
+	return csum_tcpudp_nofold(ip_hdr(skb)->saddr, ip_hdr(skb)->daddr,
+				  skb->len, proto, 0);
 }
 
 /*

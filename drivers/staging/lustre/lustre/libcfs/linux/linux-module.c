@@ -44,14 +44,13 @@ int libcfs_ioctl_getdata(char *buf, char *end, void *arg)
 {
 	struct libcfs_ioctl_hdr   *hdr;
 	struct libcfs_ioctl_data  *data;
-	int err;
+	int orig_len;
 
 	hdr = (struct libcfs_ioctl_hdr *)buf;
 	data = (struct libcfs_ioctl_data *)buf;
 
-	err = copy_from_user(buf, (void *)arg, sizeof(*hdr));
-	if (err)
-		return err;
+	if (copy_from_user(buf, (void *)arg, sizeof(*hdr)))
+		return -EFAULT;
 
 	if (hdr->ioc_version != LIBCFS_IOCTL_VERSION) {
 		CERROR("PORTALS: version mismatch kernel vs application\n");
@@ -69,9 +68,11 @@ int libcfs_ioctl_getdata(char *buf, char *end, void *arg)
 		return -EINVAL;
 	}
 
-	err = copy_from_user(buf, (void *)arg, hdr->ioc_len);
-	if (err)
-		return err;
+	orig_len = hdr->ioc_len;
+	if (copy_from_user(buf, (void *)arg, hdr->ioc_len))
+		return -EFAULT;
+	if (orig_len != data->ioc_len)
+		return -EINVAL;
 
 	if (libcfs_ioctl_is_invalid(data)) {
 		CERROR("PORTALS: ioctl not correctly formatted\n");

@@ -1055,6 +1055,8 @@ pscsi_execute_cmd(struct se_cmd *cmd)
 			ret = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 			goto fail;
 		}
+
+		blk_rq_set_block_pc(req);
 	} else {
 		BUG_ON(!cmd->data_length);
 
@@ -1071,7 +1073,6 @@ pscsi_execute_cmd(struct se_cmd *cmd)
 		}
 	}
 
-	req->cmd_type = REQ_TYPE_BLOCK_PC;
 	req->end_io = pscsi_req_done;
 	req->end_io_data = cmd;
 	req->cmd_len = scsi_command_size(pt->pscsi_cdb);

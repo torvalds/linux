@@ -3709,8 +3709,8 @@ ath5k_hw_txpower(struct ath5k_hw *ah, struct ieee80211_channel *channel,
 			AR5K_REG_MS(AR5K_TUNE_MAX_TXPOWER, AR5K_TPC_CHIRP),
 			AR5K_TPC);
 	} else {
-		ath5k_hw_reg_write(ah, AR5K_PHY_TXPOWER_RATE_MAX |
-			AR5K_TUNE_MAX_TXPOWER, AR5K_PHY_TXPOWER_RATE_MAX);
+		ath5k_hw_reg_write(ah, AR5K_TUNE_MAX_TXPOWER,
+			AR5K_PHY_TXPOWER_RATE_MAX);
 	}
 
 	return 0;

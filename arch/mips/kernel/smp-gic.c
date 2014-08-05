@@ -15,12 +15,14 @@
 #include <linux/printk.h>
 
 #include <asm/gic.h>
+#include <asm/mips-cpc.h>
 #include <asm/smp-ops.h>
 
 void gic_send_ipi_single(int cpu, unsigned int action)
 {
 	unsigned long flags;
 	unsigned int intr;
+	unsigned int core = cpu_data[cpu].core;
 
 	pr_debug("CPU%d: %s cpu %d action %u status %08x\n",
 		 smp_processor_id(), __func__, cpu, action, read_c0_status());
@@ -41,6 +43,15 @@ void gic_send_ipi_single(int cpu, unsigned int action)
 	}
 
 	gic_send_ipi(intr);
+
+	if (mips_cpc_present() && (core != current_cpu_data.core)) {
+		while (!cpumask_test_cpu(cpu, &cpu_coherent_mask)) {
+			mips_cpc_lock_other(core);
+			write_cpc_co_cmd(CPC_Cx_CMD_PWRUP);
+			mips_cpc_unlock_other();
+		}
+	}
+
 	local_irq_restore(flags);
 }
 

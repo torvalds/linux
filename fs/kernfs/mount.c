@@ -68,6 +68,7 @@ static int kernfs_fill_super(struct super_block *sb, unsigned long magic)
 	struct inode *inode;
 	struct dentry *root;
 
+	info->sb = sb;
 	sb->s_blocksize = PAGE_CACHE_SIZE;
 	sb->s_blocksize_bits = PAGE_CACHE_SHIFT;
 	sb->s_magic = magic;
@@ -167,12 +168,18 @@ struct dentry *kernfs_mount_ns(struct file_system_type *fs_type, int flags,
 		*new_sb_created = !sb->s_root;
 
 	if (!sb->s_root) {
+		struct kernfs_super_info *info = kernfs_info(sb);
+
 		error = kernfs_fill_super(sb, magic);
 		if (error) {
 			deactivate_locked_super(sb);
 			return ERR_PTR(error);
 		}
 		sb->s_flags |= MS_ACTIVE;
+
+		mutex_lock(&kernfs_mutex);
+		list_add(&info->node, &root->supers);
+		mutex_unlock(&kernfs_mutex);
 	}
 
 	return dget(sb->s_root);
@@ -191,6 +198,10 @@ void kernfs_kill_sb(struct super_block *sb)
 	struct kernfs_super_info *info = kernfs_info(sb);
 	struct kernfs_node *root_kn = sb->s_root->d_fsdata;
 
+	mutex_lock(&kernfs_mutex);
+	list_del(&info->node);
+	mutex_unlock(&kernfs_mutex);
+
 	/*
 	 * Remove the superblock from fs_supers/s_instances
 	 * so we can't find it, before freeing kernfs_super_info.
@@ -198,6 +209,36 @@ void kernfs_kill_sb(struct super_block *sb)
 	kill_anon_super(sb);
 	kfree(info);
 	kernfs_put(root_kn);
+}
+
+/**
+ * kernfs_pin_sb: try to pin the superblock associated with a kernfs_root
+ * @kernfs_root: the kernfs_root in question
+ * @ns: the namespace tag
+ *
+ * Pin the superblock so the superblock won't be destroyed in subsequent
+ * operations.  This can be used to block ->kill_sb() which may be useful
+ * for kernfs users which dynamically manage superblocks.
+ *
+ * Returns NULL if there's no superblock associated to this kernfs_root, or
+ * -EINVAL if the superblock is being freed.
+ */
+struct super_block *kernfs_pin_sb(struct kernfs_root *root, const void *ns)
+{
+	struct kernfs_super_info *info;
+	struct super_block *sb = NULL;
+
+	mutex_lock(&kernfs_mutex);
+	list_for_each_entry(info, &root->supers, node) {
+		if (info->ns == ns) {
+			sb = info->sb;
+			if (!atomic_inc_not_zero(&info->sb->s_active))
+				sb = ERR_PTR(-EINVAL);
+			break;
+		}
+	}
+	mutex_unlock(&kernfs_mutex);
+	return sb;
 }
 
 void __init kernfs_init(void)

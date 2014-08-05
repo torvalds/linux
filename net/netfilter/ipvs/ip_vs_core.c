@@ -97,7 +97,7 @@ const char *ip_vs_proto_name(unsigned int proto)
 		return "ICMPv6";
 #endif
 	default:
-		sprintf(buf, "IP_%d", proto);
+		sprintf(buf, "IP_%u", proto);
 		return buf;
 	}
 }

@@ -390,7 +390,7 @@ static int __init atomic_pool_init(void)
 	if (!pages)
 		goto no_pages;
 
-	if (IS_ENABLED(CONFIG_DMA_CMA))
+	if (dev_get_cma_area(NULL))
 		ptr = __alloc_from_contiguous(NULL, pool->size, prot, &page,
 					      atomic_pool_init);
 	else
@@ -461,11 +461,20 @@ void __init dma_contiguous_remap(void)
 		map.type = MT_MEMORY_DMA_READY;
 
 		/*
-		 * Clear previous low-memory mapping
+		 * Clear previous low-memory mapping to ensure that the
+		 * TLB does not see any conflicting entries, then flush
+		 * the TLB of the old entries before creating new mappings.
+		 *
+		 * This ensures that any speculatively loaded TLB entries
+		 * (even though they may be rare) can not cause any problems,
+		 * and ensures that this code is architecturally compliant.
 		 */
 		for (addr = __phys_to_virt(start); addr < __phys_to_virt(end);
 		     addr += PMD_SIZE)
 			pmd_clear(pmd_off_k(addr));
+
+		flush_tlb_kernel_range(__phys_to_virt(start),
+				       __phys_to_virt(end));
 
 		iotable_init(&map, 1);
 	}
@@ -701,7 +710,7 @@ static void *__dma_alloc(struct device *dev, size_t size, dma_addr_t *handle,
 		addr = __alloc_simple_buffer(dev, size, gfp, &page);
 	else if (!(gfp & __GFP_WAIT))
 		addr = __alloc_from_pool(size, &page);
-	else if (!IS_ENABLED(CONFIG_DMA_CMA))
+	else if (!dev_get_cma_area(dev))
 		addr = __alloc_remap_buffer(dev, size, gfp, prot, &page, caller);
 	else
 		addr = __alloc_from_contiguous(dev, size, prot, &page, caller);
@@ -790,7 +799,7 @@ static void __arm_dma_free(struct device *dev, size_t size, void *cpu_addr,
 		__dma_free_buffer(page, size);
 	} else if (__free_from_pool(cpu_addr, size)) {
 		return;
-	} else if (!IS_ENABLED(CONFIG_DMA_CMA)) {
+	} else if (!dev_get_cma_area(dev)) {
 		__dma_free_remap(cpu_addr, size);
 		__dma_free_buffer(page, size);
 	} else {
@@ -885,7 +894,7 @@ static void dma_cache_maint_page(struct page *page, unsigned long offset,
 static void __dma_page_cpu_to_dev(struct page *page, unsigned long off,
 	size_t size, enum dma_data_direction dir)
 {
-	unsigned long paddr;
+	phys_addr_t paddr;
 
 	dma_cache_maint_page(page, off, size, dir, dmac_map_area);
 
@@ -901,14 +910,15 @@ static void __dma_page_cpu_to_dev(struct page *page, unsigned long off,
 static void __dma_page_dev_to_cpu(struct page *page, unsigned long off,
 	size_t size, enum dma_data_direction dir)
 {
-	unsigned long paddr = page_to_phys(page) + off;
+	phys_addr_t paddr = page_to_phys(page) + off;
 
 	/* FIXME: non-speculating: not required */
-	/* don't bother invalidating if DMA to device */
-	if (dir != DMA_TO_DEVICE)
+	/* in any case, don't bother invalidating if DMA to device */
+	if (dir != DMA_TO_DEVICE) {
 		outer_inv_range(paddr, paddr + size);
 
-	dma_cache_maint_page(page, off, size, dir, dmac_unmap_area);
+		dma_cache_maint_page(page, off, size, dir, dmac_unmap_area);
+	}
 
 	/*
 	 * Mark the D-cache clean for these pages to avoid extra flushing.
@@ -1074,6 +1084,7 @@ static inline dma_addr_t __alloc_iova(struct dma_iommu_mapping *mapping,
 	unsigned int order = get_order(size);
 	unsigned int align = 0;
 	unsigned int count, start;
+	size_t mapping_size = mapping->bits << PAGE_SHIFT;
 	unsigned long flags;
 	dma_addr_t iova;
 	int i;
@@ -1119,7 +1130,7 @@ static inline dma_addr_t __alloc_iova(struct dma_iommu_mapping *mapping,
 	}
 	spin_unlock_irqrestore(&mapping->lock, flags);
 
-	iova = mapping->base + (mapping->size * i);
+	iova = mapping->base + (mapping_size * i);
 	iova += start << PAGE_SHIFT;
 
 	return iova;
@@ -1129,6 +1140,7 @@ static inline void __free_iova(struct dma_iommu_mapping *mapping,
 			       dma_addr_t addr, size_t size)
 {
 	unsigned int start, count;
+	size_t mapping_size = mapping->bits << PAGE_SHIFT;
 	unsigned long flags;
 	dma_addr_t bitmap_base;
 	u32 bitmap_index;
@@ -1136,14 +1148,14 @@ static inline void __free_iova(struct dma_iommu_mapping *mapping,
 	if (!size)
 		return;
 
-	bitmap_index = (u32) (addr - mapping->base) / (u32) mapping->size;
+	bitmap_index = (u32) (addr - mapping->base) / (u32) mapping_size;
 	BUG_ON(addr < mapping->base || bitmap_index > mapping->extensions);
 
-	bitmap_base = mapping->base + mapping->size * bitmap_index;
+	bitmap_base = mapping->base + mapping_size * bitmap_index;
 
 	start = (addr - bitmap_base) >>	PAGE_SHIFT;
 
-	if (addr + size > bitmap_base + mapping->size) {
+	if (addr + size > bitmap_base + mapping_size) {
 		/*
 		 * The address range to be freed reaches into the iova
 		 * range of the next bitmap. This should not happen as
@@ -1964,7 +1976,6 @@ arm_iommu_create_mapping(struct bus_type *bus, dma_addr_t base, size_t size)
 	mapping->extensions = extensions;
 	mapping->base = base;
 	mapping->bits = BITS_PER_BYTE * bitmap_size;
-	mapping->size = mapping->bits << PAGE_SHIFT;
 
 	spin_lock_init(&mapping->lock);
 

@@ -795,7 +795,7 @@ repeat:
 	}
 
 	pf_cmd = rq_data_dir(pf_req);
-	pf_buf = pf_req->buffer;
+	pf_buf = bio_data(pf_req->bio);
 	pf_retries = 0;
 
 	pf_busy = 1;
@@ -827,7 +827,7 @@ static int pf_next_buf(void)
 		if (!pf_req)
 			return 1;
 		pf_count = blk_rq_cur_sectors(pf_req);
-		pf_buf = pf_req->buffer;
+		pf_buf = bio_data(pf_req->bio);
 	}
 	return 0;
 }

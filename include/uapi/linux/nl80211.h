@@ -503,6 +503,9 @@
  *	TX status event pertaining to the TX request.
  *	%NL80211_ATTR_TX_NO_CCK_RATE is used to decide whether to send the
  *	management frames at CCK rate or not in 2GHz band.
+ *	%NL80211_ATTR_CSA_C_OFFSETS_TX is an array of offsets to CSA
+ *	counters which will be updated to the current value. This attribute
+ *	is used during CSA period.
  * @NL80211_CMD_FRAME_WAIT_CANCEL: When an off-channel TX was requested, this
  *	command may be used with the corresponding cookie to cancel the wait
  *	time if it is known that it is no longer necessary.
@@ -1525,10 +1528,10 @@ enum nl80211_commands {
  *	operation).
  * @NL80211_ATTR_CSA_IES: Nested set of attributes containing the IE information
  *	for the time while performing a channel switch.
- * @NL80211_ATTR_CSA_C_OFF_BEACON: Offset of the channel switch counter
- *	field in the beacons tail (%NL80211_ATTR_BEACON_TAIL).
- * @NL80211_ATTR_CSA_C_OFF_PRESP: Offset of the channel switch counter
- *	field in the probe response (%NL80211_ATTR_PROBE_RESP).
+ * @NL80211_ATTR_CSA_C_OFF_BEACON: An array of offsets (u16) to the channel
+ *	switch counters in the beacons tail (%NL80211_ATTR_BEACON_TAIL).
+ * @NL80211_ATTR_CSA_C_OFF_PRESP: An array of offsets (u16) to the channel
+ *	switch counters in the probe response (%NL80211_ATTR_PROBE_RESP).
  *
  * @NL80211_ATTR_RXMGMT_FLAGS: flags for nl80211_send_mgmt(), u32.
  *	As specified in the &enum nl80211_rxmgmt_flags.
@@ -1576,8 +1579,17 @@ enum nl80211_commands {
  *	advertise values that cannot always be met. In such cases, an attempt
  *	to add a new station entry with @NL80211_CMD_NEW_STATION may fail.
  *
+ * @NL80211_ATTR_CSA_C_OFFSETS_TX: An array of csa counter offsets (u16) which
+ *	should be updated when the frame is transmitted.
+ * @NL80211_ATTR_MAX_CSA_COUNTERS: U8 attribute used to advertise the maximum
+ *	supported number of csa counters.
+ *
  * @NL80211_ATTR_TDLS_PEER_CAPABILITY: flags for TDLS peer capabilities, u32.
  *	As specified in the &enum nl80211_tdls_peer_capability.
+ *
+ * @NL80211_ATTR_IFACE_SOCKET_OWNER: flag attribute, if set during interface
+ *	creation then the new interface will be owned by the netlink socket
+ *	that created it and will be destroyed when the socket is closed
  *
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
@@ -1914,6 +1926,11 @@ enum nl80211_attrs {
 
 	NL80211_ATTR_TDLS_PEER_CAPABILITY,
 
+	NL80211_ATTR_IFACE_SOCKET_OWNER,
+
+	NL80211_ATTR_CSA_C_OFFSETS_TX,
+	NL80211_ATTR_MAX_CSA_COUNTERS,
+
 	/* add attributes here, update the policy in nl80211.c */
 
 	__NL80211_ATTR_AFTER_LAST,
@@ -2182,6 +2199,8 @@ enum nl80211_sta_bss_param {
  *	Contains a nested array of signal strength attributes (u8, dBm)
  * @NL80211_STA_INFO_CHAIN_SIGNAL_AVG: per-chain signal strength average
  *	Same format as NL80211_STA_INFO_CHAIN_SIGNAL.
+ * @NL80211_STA_EXPECTED_THROUGHPUT: expected throughput considering also the
+ *	802.11 header (u32, kbps)
  * @__NL80211_STA_INFO_AFTER_LAST: internal
  * @NL80211_STA_INFO_MAX: highest possible station info attribute
  */
@@ -2213,6 +2232,7 @@ enum nl80211_sta_info {
 	NL80211_STA_INFO_TX_BYTES64,
 	NL80211_STA_INFO_CHAIN_SIGNAL,
 	NL80211_STA_INFO_CHAIN_SIGNAL_AVG,
+	NL80211_STA_INFO_EXPECTED_THROUGHPUT,
 
 	/* keep last */
 	__NL80211_STA_INFO_AFTER_LAST,
@@ -2336,9 +2356,34 @@ enum nl80211_band_attr {
  *	using this channel as the primary or any of the secondary channels
  *	isn't possible
  * @NL80211_FREQUENCY_ATTR_DFS_CAC_TIME: DFS CAC time in milliseconds.
+ * @NL80211_FREQUENCY_ATTR_INDOOR_ONLY: Only indoor use is permitted on this
+ *	channel. A channel that has the INDOOR_ONLY attribute can only be
+ *	used when there is a clear assessment that the device is operating in
+ *	an indoor surroundings, i.e., it is connected to AC power (and not
+ *	through portable DC inverters) or is under the control of a master
+ *	that is acting as an AP and is connected to AC power.
+ * @NL80211_FREQUENCY_ATTR_GO_CONCURRENT: GO operation is allowed on this
+ *	channel if it's connected concurrently to a BSS on the same channel on
+ *	the 2 GHz band or to a channel in the same UNII band (on the 5 GHz
+ *	band), and IEEE80211_CHAN_RADAR is not set. Instantiating a GO on a
+ *	channel that has the GO_CONCURRENT attribute set can be done when there
+ *	is a clear assessment that the device is operating under the guidance of
+ *	an authorized master, i.e., setting up a GO while the device is also
+ *	connected to an AP with DFS and radar detection on the UNII band (it is
+ *	up to user-space, i.e., wpa_supplicant to perform the required
+ *	verifications)
+ * @NL80211_FREQUENCY_ATTR_NO_20MHZ: 20 MHz operation is not allowed
+ *	on this channel in current regulatory domain.
+ * @NL80211_FREQUENCY_ATTR_NO_10MHZ: 10 MHz operation is not allowed
+ *	on this channel in current regulatory domain.
  * @NL80211_FREQUENCY_ATTR_MAX: highest frequency attribute number
  *	currently defined
  * @__NL80211_FREQUENCY_ATTR_AFTER_LAST: internal use
+ *
+ * See https://apps.fcc.gov/eas/comments/GetPublishedDocument.html?id=327&tn=528122
+ * for more information on the FCC description of the relaxations allowed
+ * by NL80211_FREQUENCY_ATTR_INDOOR_ONLY and
+ * NL80211_FREQUENCY_ATTR_GO_CONCURRENT.
  */
 enum nl80211_frequency_attr {
 	__NL80211_FREQUENCY_ATTR_INVALID,
@@ -2355,6 +2400,10 @@ enum nl80211_frequency_attr {
 	NL80211_FREQUENCY_ATTR_NO_80MHZ,
 	NL80211_FREQUENCY_ATTR_NO_160MHZ,
 	NL80211_FREQUENCY_ATTR_DFS_CAC_TIME,
+	NL80211_FREQUENCY_ATTR_INDOOR_ONLY,
+	NL80211_FREQUENCY_ATTR_GO_CONCURRENT,
+	NL80211_FREQUENCY_ATTR_NO_20MHZ,
+	NL80211_FREQUENCY_ATTR_NO_10MHZ,
 
 	/* keep last */
 	__NL80211_FREQUENCY_ATTR_AFTER_LAST,
@@ -2573,10 +2622,13 @@ enum nl80211_dfs_regions {
  *	present has been registered with the wireless core that
  *	has listed NL80211_FEATURE_CELL_BASE_REG_HINTS as a
  *	supported feature.
+ * @NL80211_USER_REG_HINT_INDOOR: a user sent an hint indicating that the
+ *	platform is operating in an indoor environment.
  */
 enum nl80211_user_reg_hint_type {
 	NL80211_USER_REG_HINT_USER	= 0,
 	NL80211_USER_REG_HINT_CELL_BASE = 1,
+	NL80211_USER_REG_HINT_INDOOR    = 2,
 };
 
 /**
@@ -3650,6 +3702,8 @@ enum nl80211_iface_limit_attrs {
  *	different channels may be used within this group.
  * @NL80211_IFACE_COMB_RADAR_DETECT_WIDTHS: u32 attribute containing the bitmap
  *	of supported channel widths for radar detection.
+ * @NL80211_IFACE_COMB_RADAR_DETECT_REGIONS: u32 attribute containing the bitmap
+ *	of supported regulatory regions for radar detection.
  * @NUM_NL80211_IFACE_COMB: number of attributes
  * @MAX_NL80211_IFACE_COMB: highest attribute number
  *
@@ -3683,6 +3737,7 @@ enum nl80211_if_combination_attrs {
 	NL80211_IFACE_COMB_STA_AP_BI_MATCH,
 	NL80211_IFACE_COMB_NUM_CHANNELS,
 	NL80211_IFACE_COMB_RADAR_DETECT_WIDTHS,
+	NL80211_IFACE_COMB_RADAR_DETECT_REGIONS,
 
 	/* keep last */
 	NUM_NL80211_IFACE_COMB,
@@ -3893,6 +3948,9 @@ enum nl80211_ap_sme_features {
  *	interface. An active monitor interface behaves like a normal monitor
  *	interface, but gets added to the driver. It ensures that incoming
  *	unicast packets directed at the configured interface address get ACKed.
+ * @NL80211_FEATURE_AP_MODE_CHAN_WIDTH_CHANGE: This driver supports dynamic
+ *	channel bandwidth change (e.g., HT 20 <-> 40 MHz channel) during the
+ *	lifetime of a BSS.
  */
 enum nl80211_feature_flags {
 	NL80211_FEATURE_SK_TX_STATUS			= 1 << 0,
@@ -3913,6 +3971,7 @@ enum nl80211_feature_flags {
 	NL80211_FEATURE_FULL_AP_CLIENT_STATE		= 1 << 15,
 	NL80211_FEATURE_USERSPACE_MPM			= 1 << 16,
 	NL80211_FEATURE_ACTIVE_MONITOR			= 1 << 17,
+	NL80211_FEATURE_AP_MODE_CHAN_WIDTH_CHANGE	= 1 << 18,
 };
 
 /**

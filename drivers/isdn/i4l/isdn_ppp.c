@@ -442,7 +442,7 @@ static int get_filter(void __user *arg, struct sock_filter **p)
 {
 	struct sock_fprog uprog;
 	struct sock_filter *code = NULL;
-	int len, err;
+	int len;
 
 	if (copy_from_user(&uprog, arg, sizeof(uprog)))
 		return -EFAULT;
@@ -457,12 +457,6 @@ static int get_filter(void __user *arg, struct sock_filter **p)
 	code = memdup_user(uprog.filter, len);
 	if (IS_ERR(code))
 		return PTR_ERR(code);
-
-	err = sk_chk_filter(code, uprog.len);
-	if (err) {
-		kfree(code);
-		return err;
-	}
 
 	*p = code;
 	return uprog.len;
@@ -634,7 +628,7 @@ isdn_ppp_ioctl(int min, struct file *file, unsigned int cmd, unsigned long arg)
 #ifdef CONFIG_IPPP_FILTER
 	case PPPIOCSPASS:
 	{
-		struct sock_fprog fprog;
+		struct sock_fprog_kern fprog;
 		struct sock_filter *code;
 		int err, len = get_filter(argp, &code);
 
@@ -644,16 +638,22 @@ isdn_ppp_ioctl(int min, struct file *file, unsigned int cmd, unsigned long arg)
 		fprog.len = len;
 		fprog.filter = code;
 
-		if (is->pass_filter)
+		if (is->pass_filter) {
 			sk_unattached_filter_destroy(is->pass_filter);
-		err = sk_unattached_filter_create(&is->pass_filter, &fprog);
+			is->pass_filter = NULL;
+		}
+		if (fprog.filter != NULL)
+			err = sk_unattached_filter_create(&is->pass_filter,
+							  &fprog);
+		else
+			err = 0;
 		kfree(code);
 
 		return err;
 	}
 	case PPPIOCSACTIVE:
 	{
-		struct sock_fprog fprog;
+		struct sock_fprog_kern fprog;
 		struct sock_filter *code;
 		int err, len = get_filter(argp, &code);
 
@@ -663,9 +663,15 @@ isdn_ppp_ioctl(int min, struct file *file, unsigned int cmd, unsigned long arg)
 		fprog.len = len;
 		fprog.filter = code;
 
-		if (is->active_filter)
+		if (is->active_filter) {
 			sk_unattached_filter_destroy(is->active_filter);
-		err = sk_unattached_filter_create(&is->active_filter, &fprog);
+			is->active_filter = NULL;
+		}
+		if (fprog.filter != NULL)
+			err = sk_unattached_filter_create(&is->active_filter,
+							  &fprog);
+		else
+			err = 0;
 		kfree(code);
 
 		return err;

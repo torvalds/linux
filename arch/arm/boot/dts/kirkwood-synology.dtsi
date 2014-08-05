@@ -25,7 +25,7 @@
 	};
 
 	ocp@f1000000 {
-		pinctrl: pinctrl@10000 {
+		pinctrl: pin-controller@10000 {
 			pmx_alarmled_12: pmx-alarmled-12 {
 				marvell,pins = "mpp12";
 				marvell,function = "gpio";
@@ -213,8 +213,6 @@
 
 		spi@10600 {
 			status = "okay";
-			pinctrl-0 = <&pmx_spi>;
-			pinctrl-names = "default";
 
 			m25p80@0 {
 				#address-cells = <1>;
@@ -259,8 +257,6 @@
 		i2c@11000 {
 			status = "okay";
 			clock-frequency = <400000>;
-			pinctrl-0 = <&pmx_twsi0>;
-			pinctrl-names = "default";
 
 			rs5c372: rs5c372@32 {
 				status = "disabled";
@@ -277,14 +273,10 @@
 
 		serial@12000 {
 			status = "okay";
-			pinctrl-0 = <&pmx_uart0>;
-			pinctrl-names = "default";
 		};
 
 		serial@12100 {
 			status = "okay";
-			pinctrl-0 = <&pmx_uart1>;
-			pinctrl-names = "default";
 		};
 
 		poweroff@12100 {

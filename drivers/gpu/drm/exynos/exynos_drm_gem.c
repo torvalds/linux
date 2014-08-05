@@ -612,22 +612,20 @@ int exynos_drm_gem_dumb_create(struct drm_file *file_priv,
 	args->pitch = args->width * ((args->bpp + 7) / 8);
 	args->size = args->pitch * args->height;
 
-	exynos_gem_obj = exynos_drm_gem_create(dev, EXYNOS_BO_CONTIG |
-						EXYNOS_BO_WC, args->size);
-	/*
-	 * If physically contiguous memory allocation fails and if IOMMU is
-	 * supported then try to get buffer from non physically contiguous
-	 * memory area.
-	 */
-	if (IS_ERR(exynos_gem_obj) && is_drm_iommu_supported(dev)) {
-		dev_warn(dev->dev, "contiguous FB allocation failed, falling back to non-contiguous\n");
+	if (is_drm_iommu_supported(dev)) {
 		exynos_gem_obj = exynos_drm_gem_create(dev,
-					EXYNOS_BO_NONCONTIG | EXYNOS_BO_WC,
-					args->size);
+			EXYNOS_BO_NONCONTIG | EXYNOS_BO_WC,
+			args->size);
+	} else {
+		exynos_gem_obj = exynos_drm_gem_create(dev,
+			EXYNOS_BO_CONTIG | EXYNOS_BO_WC,
+			args->size);
 	}
 
-	if (IS_ERR(exynos_gem_obj))
+	if (IS_ERR(exynos_gem_obj)) {
+		dev_warn(dev->dev, "FB allocation failed.\n");
 		return PTR_ERR(exynos_gem_obj);
+	}
 
 	ret = exynos_drm_gem_handle_create(&exynos_gem_obj->base, file_priv,
 			&args->handle);

@@ -74,7 +74,7 @@ struct nouveau_crtc {
 
 static inline struct nouveau_crtc *nouveau_crtc(struct drm_crtc *crtc)
 {
-	return container_of(crtc, struct nouveau_crtc, base);
+	return crtc ? container_of(crtc, struct nouveau_crtc, base) : NULL;
 }
 
 static inline struct drm_crtc *to_drm_crtc(struct nouveau_crtc *crtc)

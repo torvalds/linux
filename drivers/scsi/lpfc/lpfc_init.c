@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2013 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2014 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
@@ -820,7 +820,139 @@ lpfc_hba_down_prep(struct lpfc_hba *phba)
 }
 
 /**
+ * lpfc_sli4_free_sp_events - Cleanup sp_queue_events to free
+ * rspiocb which got deferred
+ *
+ * @phba: pointer to lpfc HBA data structure.
+ *
+ * This routine will cleanup completed slow path events after HBA is reset
+ * when bringing down the SLI Layer.
+ *
+ *
+ * Return codes
+ *   void.
+ **/
+static void
+lpfc_sli4_free_sp_events(struct lpfc_hba *phba)
+{
+	struct lpfc_iocbq *rspiocbq;
+	struct hbq_dmabuf *dmabuf;
+	struct lpfc_cq_event *cq_event;
+
+	spin_lock_irq(&phba->hbalock);
+	phba->hba_flag &= ~HBA_SP_QUEUE_EVT;
+	spin_unlock_irq(&phba->hbalock);
+
+	while (!list_empty(&phba->sli4_hba.sp_queue_event)) {
+		/* Get the response iocb from the head of work queue */
+		spin_lock_irq(&phba->hbalock);
+		list_remove_head(&phba->sli4_hba.sp_queue_event,
+				 cq_event, struct lpfc_cq_event, list);
+		spin_unlock_irq(&phba->hbalock);
+
+		switch (bf_get(lpfc_wcqe_c_code, &cq_event->cqe.wcqe_cmpl)) {
+		case CQE_CODE_COMPL_WQE:
+			rspiocbq = container_of(cq_event, struct lpfc_iocbq,
+						 cq_event);
+			lpfc_sli_release_iocbq(phba, rspiocbq);
+			break;
+		case CQE_CODE_RECEIVE:
+		case CQE_CODE_RECEIVE_V1:
+			dmabuf = container_of(cq_event, struct hbq_dmabuf,
+					      cq_event);
+			lpfc_in_buf_free(phba, &dmabuf->dbuf);
+		}
+	}
+}
+
+/**
+ * lpfc_hba_free_post_buf - Perform lpfc uninitialization after HBA reset
+ * @phba: pointer to lpfc HBA data structure.
+ *
+ * This routine will cleanup posted ELS buffers after the HBA is reset
+ * when bringing down the SLI Layer.
+ *
+ *
+ * Return codes
+ *   void.
+ **/
+static void
+lpfc_hba_free_post_buf(struct lpfc_hba *phba)
+{
+	struct lpfc_sli *psli = &phba->sli;
+	struct lpfc_sli_ring *pring;
+	struct lpfc_dmabuf *mp, *next_mp;
+	LIST_HEAD(buflist);
+	int count;
+
+	if (phba->sli3_options & LPFC_SLI3_HBQ_ENABLED)
+		lpfc_sli_hbqbuf_free_all(phba);
+	else {
+		/* Cleanup preposted buffers on the ELS ring */
+		pring = &psli->ring[LPFC_ELS_RING];
+		spin_lock_irq(&phba->hbalock);
+		list_splice_init(&pring->postbufq, &buflist);
+		spin_unlock_irq(&phba->hbalock);
+
+		count = 0;
+		list_for_each_entry_safe(mp, next_mp, &buflist, list) {
+			list_del(&mp->list);
+			count++;
+			lpfc_mbuf_free(phba, mp->virt, mp->phys);
+			kfree(mp);
+		}
+
+		spin_lock_irq(&phba->hbalock);
+		pring->postbufq_cnt -= count;
+		spin_unlock_irq(&phba->hbalock);
+	}
+}
+
+/**
+ * lpfc_hba_clean_txcmplq - Perform lpfc uninitialization after HBA reset
+ * @phba: pointer to lpfc HBA data structure.
+ *
+ * This routine will cleanup the txcmplq after the HBA is reset when bringing
+ * down the SLI Layer.
+ *
+ * Return codes
+ *   void
+ **/
+static void
+lpfc_hba_clean_txcmplq(struct lpfc_hba *phba)
+{
+	struct lpfc_sli *psli = &phba->sli;
+	struct lpfc_sli_ring *pring;
+	LIST_HEAD(completions);
+	int i;
+
+	for (i = 0; i < psli->num_rings; i++) {
+		pring = &psli->ring[i];
+		if (phba->sli_rev >= LPFC_SLI_REV4)
+			spin_lock_irq(&pring->ring_lock);
+		else
+			spin_lock_irq(&phba->hbalock);
+		/* At this point in time the HBA is either reset or DOA. Either
+		 * way, nothing should be on txcmplq as it will NEVER complete.
+		 */
+		list_splice_init(&pring->txcmplq, &completions);
+		pring->txcmplq_cnt = 0;
+
+		if (phba->sli_rev >= LPFC_SLI_REV4)
+			spin_unlock_irq(&pring->ring_lock);
+		else
+			spin_unlock_irq(&phba->hbalock);
+
+		/* Cancel all the IOCBs from the completions list */
+		lpfc_sli_cancel_iocbs(phba, &completions, IOSTAT_LOCAL_REJECT,
+				      IOERR_SLI_ABORTED);
+		lpfc_sli_abort_iocb_ring(phba, pring);
+	}
+}
+
+/**
  * lpfc_hba_down_post_s3 - Perform lpfc uninitialization after HBA reset
+	int i;
  * @phba: pointer to lpfc HBA data structure.
  *
  * This routine will do uninitialization after the HBA is reset when bring
@@ -833,44 +965,8 @@ lpfc_hba_down_prep(struct lpfc_hba *phba)
 static int
 lpfc_hba_down_post_s3(struct lpfc_hba *phba)
 {
-	struct lpfc_sli *psli = &phba->sli;
-	struct lpfc_sli_ring *pring;
-	struct lpfc_dmabuf *mp, *next_mp;
-	LIST_HEAD(completions);
-	int i;
-
-	if (phba->sli3_options & LPFC_SLI3_HBQ_ENABLED)
-		lpfc_sli_hbqbuf_free_all(phba);
-	else {
-		/* Cleanup preposted buffers on the ELS ring */
-		pring = &psli->ring[LPFC_ELS_RING];
-		list_for_each_entry_safe(mp, next_mp, &pring->postbufq, list) {
-			list_del(&mp->list);
-			pring->postbufq_cnt--;
-			lpfc_mbuf_free(phba, mp->virt, mp->phys);
-			kfree(mp);
-		}
-	}
-
-	spin_lock_irq(&phba->hbalock);
-	for (i = 0; i < psli->num_rings; i++) {
-		pring = &psli->ring[i];
-
-		/* At this point in time the HBA is either reset or DOA. Either
-		 * way, nothing should be on txcmplq as it will NEVER complete.
-		 */
-		list_splice_init(&pring->txcmplq, &completions);
-		spin_unlock_irq(&phba->hbalock);
-
-		/* Cancel all the IOCBs from the completions list */
-		lpfc_sli_cancel_iocbs(phba, &completions, IOSTAT_LOCAL_REJECT,
-				      IOERR_SLI_ABORTED);
-
-		lpfc_sli_abort_iocb_ring(phba, pring);
-		spin_lock_irq(&phba->hbalock);
-	}
-	spin_unlock_irq(&phba->hbalock);
-
+	lpfc_hba_free_post_buf(phba);
+	lpfc_hba_clean_txcmplq(phba);
 	return 0;
 }
 
@@ -890,13 +986,12 @@ lpfc_hba_down_post_s4(struct lpfc_hba *phba)
 {
 	struct lpfc_scsi_buf *psb, *psb_next;
 	LIST_HEAD(aborts);
-	int ret;
 	unsigned long iflag = 0;
 	struct lpfc_sglq *sglq_entry = NULL;
 
-	ret = lpfc_hba_down_post_s3(phba);
-	if (ret)
-		return ret;
+	lpfc_hba_free_post_buf(phba);
+	lpfc_hba_clean_txcmplq(phba);
+
 	/* At this point in time the HBA is either reset or DOA. Either
 	 * way, nothing should be on lpfc_abts_els_sgl_list, it needs to be
 	 * on the lpfc_sgl_list so that it can either be freed if the
@@ -932,6 +1027,8 @@ lpfc_hba_down_post_s4(struct lpfc_hba *phba)
 	spin_lock_irqsave(&phba->scsi_buf_list_put_lock, iflag);
 	list_splice(&aborts, &phba->lpfc_scsi_buf_list_put);
 	spin_unlock_irqrestore(&phba->scsi_buf_list_put_lock, iflag);
+
+	lpfc_sli4_free_sp_events(phba);
 	return 0;
 }
 
@@ -1250,7 +1347,6 @@ static void
 lpfc_handle_deferred_eratt(struct lpfc_hba *phba)
 {
 	uint32_t old_host_status = phba->work_hs;
-	struct lpfc_sli_ring  *pring;
 	struct lpfc_sli *psli = &phba->sli;
 
 	/* If the pci channel is offline, ignore possible errors,
@@ -1279,8 +1375,7 @@ lpfc_handle_deferred_eratt(struct lpfc_hba *phba)
 	 * dropped by the firmware. Error iocb (I/O) on txcmplq and let the
 	 * SCSI layer retry it after re-establishing link.
 	 */
-	pring = &psli->ring[psli->fcp_ring];
-	lpfc_sli_abort_iocb_ring(phba, pring);
+	lpfc_sli_abort_fcp_rings(phba);
 
 	/*
 	 * There was a firmware error. Take the hba offline and then
@@ -1348,7 +1443,6 @@ lpfc_handle_eratt_s3(struct lpfc_hba *phba)
 {
 	struct lpfc_vport *vport = phba->pport;
 	struct lpfc_sli   *psli = &phba->sli;
-	struct lpfc_sli_ring  *pring;
 	uint32_t event_data;
 	unsigned long temperature;
 	struct temp_event temp_event_data;
@@ -1400,8 +1494,7 @@ lpfc_handle_eratt_s3(struct lpfc_hba *phba)
 		* Error iocb (I/O) on txcmplq and let the SCSI layer
 		* retry it after re-establishing link.
 		*/
-		pring = &psli->ring[psli->fcp_ring];
-		lpfc_sli_abort_iocb_ring(phba, pring);
+		lpfc_sli_abort_fcp_rings(phba);
 
 		/*
 		 * There was a firmware error.  Take the hba offline and then
@@ -1940,78 +2033,81 @@ lpfc_get_hba_model_desc(struct lpfc_hba *phba, uint8_t *mdp, uint8_t *descp)
 
 	switch (dev_id) {
 	case PCI_DEVICE_ID_FIREFLY:
-		m = (typeof(m)){"LP6000", "PCI", "Fibre Channel Adapter"};
+		m = (typeof(m)){"LP6000", "PCI",
+				"Obsolete, Unsupported Fibre Channel Adapter"};
 		break;
 	case PCI_DEVICE_ID_SUPERFLY:
 		if (vp->rev.biuRev >= 1 && vp->rev.biuRev <= 3)
-			m = (typeof(m)){"LP7000", "PCI",
-					"Fibre Channel Adapter"};
+			m = (typeof(m)){"LP7000", "PCI", ""};
 		else
-			m = (typeof(m)){"LP7000E", "PCI",
-					"Fibre Channel Adapter"};
+			m = (typeof(m)){"LP7000E", "PCI", ""};
+		m.function = "Obsolete, Unsupported Fibre Channel Adapter";
 		break;
 	case PCI_DEVICE_ID_DRAGONFLY:
 		m = (typeof(m)){"LP8000", "PCI",
-				"Fibre Channel Adapter"};
+				"Obsolete, Unsupported Fibre Channel Adapter"};
 		break;
 	case PCI_DEVICE_ID_CENTAUR:
 		if (FC_JEDEC_ID(vp->rev.biuRev) == CENTAUR_2G_JEDEC_ID)
-			m = (typeof(m)){"LP9002", "PCI",
-					"Fibre Channel Adapter"};
+			m = (typeof(m)){"LP9002", "PCI", ""};
 		else
-			m = (typeof(m)){"LP9000", "PCI",
-					"Fibre Channel Adapter"};
+			m = (typeof(m)){"LP9000", "PCI", ""};
+		m.function = "Obsolete, Unsupported Fibre Channel Adapter";
 		break;
 	case PCI_DEVICE_ID_RFLY:
 		m = (typeof(m)){"LP952", "PCI",
-				"Fibre Channel Adapter"};
+				"Obsolete, Unsupported Fibre Channel Adapter"};
 		break;
 	case PCI_DEVICE_ID_PEGASUS:
 		m = (typeof(m)){"LP9802", "PCI-X",
-				"Fibre Channel Adapter"};
+				"Obsolete, Unsupported Fibre Channel Adapter"};
 		break;
 	case PCI_DEVICE_ID_THOR:
 		m = (typeof(m)){"LP10000", "PCI-X",
-				"Fibre Channel Adapter"};
+				"Obsolete, Unsupported Fibre Channel Adapter"};
 		break;
 	case PCI_DEVICE_ID_VIPER:
 		m = (typeof(m)){"LPX1000",  "PCI-X",
-				"Fibre Channel Adapter"};
+				"Obsolete, Unsupported Fibre Channel Adapter"};
 		break;
 	case PCI_DEVICE_ID_PFLY:
 		m = (typeof(m)){"LP982", "PCI-X",
-				"Fibre Channel Adapter"};
+				"Obsolete, Unsupported Fibre Channel Adapter"};
 		break;
 	case PCI_DEVICE_ID_TFLY:
 		m = (typeof(m)){"LP1050", "PCI-X",
-				"Fibre Channel Adapter"};
+				"Obsolete, Unsupported Fibre Channel Adapter"};
 		break;
 	case PCI_DEVICE_ID_HELIOS:
 		m = (typeof(m)){"LP11000", "PCI-X2",
-				"Fibre Channel Adapter"};
+				"Obsolete, Unsupported Fibre Channel Adapter"};
 		break;
 	case PCI_DEVICE_ID_HELIOS_SCSP:
 		m = (typeof(m)){"LP11000-SP", "PCI-X2",
-				"Fibre Channel Adapter"};
+				"Obsolete, Unsupported Fibre Channel Adapter"};
 		break;
 	case PCI_DEVICE_ID_HELIOS_DCSP:
 		m = (typeof(m)){"LP11002-SP",  "PCI-X2",
-				"Fibre Channel Adapter"};
+				"Obsolete, Unsupported Fibre Channel Adapter"};
 		break;
 	case PCI_DEVICE_ID_NEPTUNE:
-		m = (typeof(m)){"LPe1000", "PCIe", "Fibre Channel Adapter"};
+		m = (typeof(m)){"LPe1000", "PCIe",
+				"Obsolete, Unsupported Fibre Channel Adapter"};
 		break;
 	case PCI_DEVICE_ID_NEPTUNE_SCSP:
-		m = (typeof(m)){"LPe1000-SP", "PCIe", "Fibre Channel Adapter"};
+		m = (typeof(m)){"LPe1000-SP", "PCIe",
+				"Obsolete, Unsupported Fibre Channel Adapter"};
 		break;
 	case PCI_DEVICE_ID_NEPTUNE_DCSP:
-		m = (typeof(m)){"LPe1002-SP", "PCIe", "Fibre Channel Adapter"};
+		m = (typeof(m)){"LPe1002-SP", "PCIe",
+				"Obsolete, Unsupported Fibre Channel Adapter"};
 		break;
 	case PCI_DEVICE_ID_BMID:
 		m = (typeof(m)){"LP1150", "PCI-X2", "Fibre Channel Adapter"};
 		break;
 	case PCI_DEVICE_ID_BSMB:
-		m = (typeof(m)){"LP111", "PCI-X2", "Fibre Channel Adapter"};
+		m = (typeof(m)){"LP111", "PCI-X2",
+				"Obsolete, Unsupported Fibre Channel Adapter"};
 		break;
 	case PCI_DEVICE_ID_ZEPHYR:
 		m = (typeof(m)){"LPe11000", "PCIe", "Fibre Channel Adapter"};
@@ -2030,16 +2126,20 @@ lpfc_get_hba_model_desc(struct lpfc_hba *phba, uint8_t *mdp, uint8_t *descp)
 		m = (typeof(m)){"LPe111", "PCIe", "Fibre Channel Adapter"};
 		break;
 	case PCI_DEVICE_ID_LP101:
-		m = (typeof(m)){"LP101", "PCI-X", "Fibre Channel Adapter"};
+		m = (typeof(m)){"LP101", "PCI-X",
+				"Obsolete, Unsupported Fibre Channel Adapter"};
 		break;
 	case PCI_DEVICE_ID_LP10000S:
-		m = (typeof(m)){"LP10000-S", "PCI", "Fibre Channel Adapter"};
+		m = (typeof(m)){"LP10000-S", "PCI",
+				"Obsolete, Unsupported Fibre Channel Adapter"};
 		break;
 	case PCI_DEVICE_ID_LP11000S:
-		m = (typeof(m)){"LP11000-S", "PCI-X2", "Fibre Channel Adapter"};
+		m = (typeof(m)){"LP11000-S", "PCI-X2",
+				"Obsolete, Unsupported Fibre Channel Adapter"};
 		break;
 	case PCI_DEVICE_ID_LPE11000S:
-		m = (typeof(m)){"LPe11000-S", "PCIe", "Fibre Channel Adapter"};
+		m = (typeof(m)){"LPe11000-S", "PCIe",
+				"Obsolete, Unsupported Fibre Channel Adapter"};
 		break;
 	case PCI_DEVICE_ID_SAT:
 		m = (typeof(m)){"LPe12000", "PCIe", "Fibre Channel Adapter"};
@@ -2060,20 +2160,21 @@ lpfc_get_hba_model_desc(struct lpfc_hba *phba, uint8_t *mdp, uint8_t *descp)
 		m = (typeof(m)){"LPe12000-S", "PCIe", "Fibre Channel Adapter"};
 		break;
 	case PCI_DEVICE_ID_HORNET:
-		m = (typeof(m)){"LP21000", "PCIe", "FCoE Adapter"};
+		m = (typeof(m)){"LP21000", "PCIe",
+				"Obsolete, Unsupported FCoE Adapter"};
 		GE = 1;
 		break;
 	case PCI_DEVICE_ID_PROTEUS_VF:
 		m = (typeof(m)){"LPev12000", "PCIe IOV",
-				"Fibre Channel Adapter"};
+				"Obsolete, Unsupported Fibre Channel Adapter"};
 		break;
 	case PCI_DEVICE_ID_PROTEUS_PF:
 		m = (typeof(m)){"LPev12000", "PCIe IOV",
-				"Fibre Channel Adapter"};
+				"Obsolete, Unsupported Fibre Channel Adapter"};
 		break;
 	case PCI_DEVICE_ID_PROTEUS_S:
 		m = (typeof(m)){"LPemv12002-S", "PCIe IOV",
-				"Fibre Channel Adapter"};
+				"Obsolete, Unsupported Fibre Channel Adapter"};
 		break;
 	case PCI_DEVICE_ID_TIGERSHARK:
 		oneConnect = 1;
@@ -2089,16 +2190,23 @@ lpfc_get_hba_model_desc(struct lpfc_hba *phba, uint8_t *mdp, uint8_t *descp)
 		break;
 	case PCI_DEVICE_ID_BALIUS:
 		m = (typeof(m)){"LPVe12002", "PCIe Shared I/O",
-				"Fibre Channel Adapter"};
+				"Obsolete, Unsupported Fibre Channel Adapter"};
 		break;
 	case PCI_DEVICE_ID_LANCER_FC:
-	case PCI_DEVICE_ID_LANCER_FC_VF:
 		m = (typeof(m)){"LPe16000", "PCIe", "Fibre Channel Adapter"};
 		break;
+	case PCI_DEVICE_ID_LANCER_FC_VF:
+		m = (typeof(m)){"LPe16000", "PCIe",
+				"Obsolete, Unsupported Fibre Channel Adapter"};
+		break;
 	case PCI_DEVICE_ID_LANCER_FCOE:
-	case PCI_DEVICE_ID_LANCER_FCOE_VF:
 		oneConnect = 1;
 		m = (typeof(m)){"OCe15100", "PCIe", "FCoE"};
+		break;
+	case PCI_DEVICE_ID_LANCER_FCOE_VF:
+		oneConnect = 1;
+		m = (typeof(m)){"OCe15100", "PCIe",
+				"Obsolete, Unsupported FCoE"};
 		break;
 	case PCI_DEVICE_ID_SKYHAWK:
 	case PCI_DEVICE_ID_SKYHAWK_VF:
@@ -4614,7 +4722,10 @@ lpfc_reset_hba(struct lpfc_hba *phba)
 		phba->link_state = LPFC_HBA_ERROR;
 		return;
 	}
-	lpfc_offline_prep(phba, LPFC_MBX_WAIT);
+	if (phba->sli.sli_flag & LPFC_SLI_ACTIVE)
+		lpfc_offline_prep(phba, LPFC_MBX_WAIT);
+	else
+		lpfc_offline_prep(phba, LPFC_MBX_NO_WAIT);
 	lpfc_offline(phba);
 	lpfc_sli_brdrestart(phba);
 	lpfc_online(phba);
@@ -9663,9 +9774,6 @@ lpfc_pci_resume_one_s3(struct pci_dev *pdev)
 static void
 lpfc_sli_prep_dev_for_recover(struct lpfc_hba *phba)
 {
-	struct lpfc_sli *psli = &phba->sli;
-	struct lpfc_sli_ring  *pring;
-
 	lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 			"2723 PCI channel I/O abort preparing for recovery\n");
 
@@ -9673,8 +9781,7 @@ lpfc_sli_prep_dev_for_recover(struct lpfc_hba *phba)
 	 * There may be errored I/Os through HBA, abort all I/Os on txcmplq
 	 * and let the SCSI mid-layer to retry them to recover.
 	 */
-	pring = &psli->ring[psli->fcp_ring];
-	lpfc_sli_abort_iocb_ring(phba, pring);
+	lpfc_sli_abort_fcp_rings(phba);
 }
 
 /**
@@ -10417,17 +10524,13 @@ lpfc_pci_resume_one_s4(struct pci_dev *pdev)
 static void
 lpfc_sli4_prep_dev_for_recover(struct lpfc_hba *phba)
 {
-	struct lpfc_sli *psli = &phba->sli;
-	struct lpfc_sli_ring  *pring;
-
 	lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 			"2828 PCI channel I/O abort preparing for recovery\n");
 	/*
 	 * There may be errored I/Os through HBA, abort all I/Os on txcmplq
 	 * and let the SCSI mid-layer to retry them to recover.
 	 */
-	pring = &psli->ring[psli->fcp_ring];
-	lpfc_sli_abort_iocb_ring(phba, pring);
+	lpfc_sli_abort_fcp_rings(phba);
 }
 
 /**
@@ -10898,7 +11001,7 @@ lpfc_sli4_oas_verify(struct lpfc_hba *phba)
 	if (phba->sli4_hba.pc_sli4_params.oas_supported) {
 		phba->cfg_fof = 1;
 	} else {
-		phba->cfg_EnableXLane = 0;
+		phba->cfg_fof = 0;
 		if (phba->device_data_mem_pool)
 			mempool_destroy(phba->device_data_mem_pool);
 		phba->device_data_mem_pool = NULL;
@@ -10928,7 +11031,7 @@ lpfc_fof_queue_setup(struct lpfc_hba *phba)
 	if (rc)
 		return -ENOMEM;
 
-	if (phba->cfg_EnableXLane) {
+	if (phba->cfg_fof) {
 
 		rc = lpfc_cq_create(phba, phba->sli4_hba.oas_cq,
 				    phba->sli4_hba.fof_eq, LPFC_WCQ, LPFC_FCP);
@@ -10947,8 +11050,7 @@ lpfc_fof_queue_setup(struct lpfc_hba *phba)
 	return 0;
 
 out_oas_wq:
-	if (phba->cfg_EnableXLane)
-		lpfc_cq_destroy(phba, phba->sli4_hba.oas_cq);
+	lpfc_cq_destroy(phba, phba->sli4_hba.oas_cq);
 out_oas_cq:
 	lpfc_eq_destroy(phba, phba->sli4_hba.fof_eq);
 	return rc;
@@ -10982,7 +11084,7 @@ lpfc_fof_queue_create(struct lpfc_hba *phba)
 
 	phba->sli4_hba.fof_eq = qdesc;
 
-	if (phba->cfg_EnableXLane) {
+	if (phba->cfg_fof) {
 
 		/* Create OAS CQ */
 		qdesc = lpfc_sli4_queue_alloc(phba, phba->sli4_hba.cq_esize,

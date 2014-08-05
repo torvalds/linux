@@ -183,14 +183,14 @@ EXPORT_SYMBOL_GPL(mcb_device_register);
  *
  * Allocate a new @mcb_bus.
  */
-struct mcb_bus *mcb_alloc_bus(void)
+struct mcb_bus *mcb_alloc_bus(struct device *carrier)
 {
 	struct mcb_bus *bus;
 	int bus_nr;
 
 	bus = kzalloc(sizeof(struct mcb_bus), GFP_KERNEL);
 	if (!bus)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	bus_nr = ida_simple_get(&mcb_ida, 0, 0, GFP_KERNEL);
 	if (bus_nr < 0) {
@@ -200,7 +200,7 @@ struct mcb_bus *mcb_alloc_bus(void)
 
 	INIT_LIST_HEAD(&bus->children);
 	bus->bus_nr = bus_nr;
-
+	bus->carrier = carrier;
 	return bus;
 }
 EXPORT_SYMBOL_GPL(mcb_alloc_bus);
@@ -378,6 +378,13 @@ void mcb_release_mem(struct resource *mem)
 }
 EXPORT_SYMBOL_GPL(mcb_release_mem);
 
+static int __mcb_get_irq(struct mcb_device *dev)
+{
+	struct resource *irq = &dev->irq;
+
+	return irq->start;
+}
+
 /**
  * mcb_get_irq() - Get device's IRQ number
  * @dev: The @mcb_device the IRQ is for
@@ -386,9 +393,12 @@ EXPORT_SYMBOL_GPL(mcb_release_mem);
  */
 int mcb_get_irq(struct mcb_device *dev)
 {
-	struct resource *irq = &dev->irq;
+	struct mcb_bus *bus = dev->bus;
 
-	return irq->start;
+	if (bus->get_irq)
+		return bus->get_irq(dev);
+
+	return __mcb_get_irq(dev);
 }
 EXPORT_SYMBOL_GPL(mcb_get_irq);
 

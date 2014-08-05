@@ -25,7 +25,7 @@
 
 	memory {
 		device_type = "memory";
-		reg = <0 0x00000000 0 0xC0000000>; /* 3 GB */
+		reg = <0 0x00000000 0 0x40000000>; /* 1 GB soldered on */
 	};
 
 	soc {
@@ -72,11 +72,9 @@
 
 		internal-regs {
 			serial@12000 {
-				clock-frequency = <250000000>;
 				status = "okay";
 			};
 			serial@12100 {
-				clock-frequency = <250000000>;
 				status = "okay";
 			};
 			pinctrl {

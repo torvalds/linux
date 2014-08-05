@@ -81,9 +81,15 @@ static inline void zevio_gpio_port_set(struct zevio_gpio *c, unsigned pin,
 static int zevio_gpio_get(struct gpio_chip *chip, unsigned pin)
 {
 	struct zevio_gpio *controller = to_zevio_gpio(chip);
+	u32 val, dir;
 
-	/* Only reading allowed, so no spinlock needed */
-	u32 val = zevio_gpio_port_get(controller, pin, ZEVIO_GPIO_INPUT);
+	spin_lock(&controller->lock);
+	dir = zevio_gpio_port_get(controller, pin, ZEVIO_GPIO_DIRECTION);
+	if (dir & BIT(ZEVIO_GPIO_BIT(pin)))
+		val = zevio_gpio_port_get(controller, pin, ZEVIO_GPIO_INPUT);
+	else
+		val = zevio_gpio_port_get(controller, pin, ZEVIO_GPIO_OUTPUT);
+	spin_unlock(&controller->lock);
 
 	return (val >> ZEVIO_GPIO_BIT(pin)) & 0x1;
 }
@@ -172,10 +178,8 @@ static int zevio_gpio_probe(struct platform_device *pdev)
 	int status, i;
 
 	controller = devm_kzalloc(&pdev->dev, sizeof(*controller), GFP_KERNEL);
-	if (!controller) {
-		dev_err(&pdev->dev, "not enough free memory\n");
+	if (!controller)
 		return -ENOMEM;
-	}
 
 	/* Copy our reference */
 	controller->chip.gc = zevio_gpio_chip;
@@ -198,7 +202,7 @@ static int zevio_gpio_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id zevio_gpio_of_match[] = {
+static const struct of_device_id zevio_gpio_of_match[] = {
 	{ .compatible = "lsi,zevio-gpio", },
 	{ },
 };
@@ -209,7 +213,7 @@ static struct platform_driver zevio_gpio_driver = {
 	.driver		= {
 		.name	= "gpio-zevio",
 		.owner	= THIS_MODULE,
-		.of_match_table = of_match_ptr(zevio_gpio_of_match),
+		.of_match_table = zevio_gpio_of_match,
 	},
 	.probe		= zevio_gpio_probe,
 };

@@ -1,6 +1,6 @@
 /* controlvm_direct.c
  *
- * Copyright © 2010 - 2013 UNISYS CORPORATION
+ * Copyright (C) 2010 - 2013 UNISYS CORPORATION
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify

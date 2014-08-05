@@ -69,6 +69,73 @@ struct mii_bus *mdiobus_alloc_size(size_t size)
 }
 EXPORT_SYMBOL(mdiobus_alloc_size);
 
+static void _devm_mdiobus_free(struct device *dev, void *res)
+{
+	mdiobus_free(*(struct mii_bus **)res);
+}
+
+static int devm_mdiobus_match(struct device *dev, void *res, void *data)
+{
+	struct mii_bus **r = res;
+
+	if (WARN_ON(!r || !*r))
+		return 0;
+
+	return *r == data;
+}
+
+/**
+ * devm_mdiobus_alloc_size - Resource-managed mdiobus_alloc_size()
+ * @dev:		Device to allocate mii_bus for
+ * @sizeof_priv:	Space to allocate for private structure.
+ *
+ * Managed mdiobus_alloc_size. mii_bus allocated with this function is
+ * automatically freed on driver detach.
+ *
+ * If an mii_bus allocated with this function needs to be freed separately,
+ * devm_mdiobus_free() must be used.
+ *
+ * RETURNS:
+ * Pointer to allocated mii_bus on success, NULL on failure.
+ */
+struct mii_bus *devm_mdiobus_alloc_size(struct device *dev, int sizeof_priv)
+{
+	struct mii_bus **ptr, *bus;
+
+	ptr = devres_alloc(_devm_mdiobus_free, sizeof(*ptr), GFP_KERNEL);
+	if (!ptr)
+		return NULL;
+
+	/* use raw alloc_dr for kmalloc caller tracing */
+	bus = mdiobus_alloc_size(sizeof_priv);
+	if (bus) {
+		*ptr = bus;
+		devres_add(dev, ptr);
+	} else {
+		devres_free(ptr);
+	}
+
+	return bus;
+}
+EXPORT_SYMBOL_GPL(devm_mdiobus_alloc_size);
+
+/**
+ * devm_mdiobus_free - Resource-managed mdiobus_free()
+ * @dev:		Device this mii_bus belongs to
+ * @bus:		the mii_bus associated with the device
+ *
+ * Free mii_bus allocated with devm_mdiobus_alloc_size().
+ */
+void devm_mdiobus_free(struct device *dev, struct mii_bus *bus)
+{
+	int rc;
+
+	rc = devres_release(dev, _devm_mdiobus_free,
+			    devm_mdiobus_match, bus);
+	WARN_ON(rc);
+}
+EXPORT_SYMBOL_GPL(devm_mdiobus_free);
+
 /**
  * mdiobus_release - mii_bus device release callback
  * @d: the target struct device that contains the mii_bus
@@ -120,6 +187,50 @@ struct mii_bus *of_mdio_find_bus(struct device_node *mdio_bus_np)
 	return d ? to_mii_bus(d) : NULL;
 }
 EXPORT_SYMBOL(of_mdio_find_bus);
+
+/* Walk the list of subnodes of a mdio bus and look for a node that matches the
+ * phy's address with its 'reg' property. If found, set the of_node pointer for
+ * the phy. This allows auto-probed pyh devices to be supplied with information
+ * passed in via DT.
+ */
+static void of_mdiobus_link_phydev(struct mii_bus *mdio,
+				   struct phy_device *phydev)
+{
+	struct device *dev = &phydev->dev;
+	struct device_node *child;
+
+	if (dev->of_node || !mdio->dev.of_node)
+		return;
+
+	for_each_available_child_of_node(mdio->dev.of_node, child) {
+		int addr;
+		int ret;
+
+		ret = of_property_read_u32(child, "reg", &addr);
+		if (ret < 0) {
+			dev_err(dev, "%s has invalid PHY address\n",
+				child->full_name);
+			continue;
+		}
+
+		/* A PHY must have a reg property in the range [0-31] */
+		if (addr >= PHY_MAX_ADDR) {
+			dev_err(dev, "%s PHY address %i is too large\n",
+				child->full_name, addr);
+			continue;
+		}
+
+		if (addr == phydev->addr) {
+			dev->of_node = child;
+			return;
+		}
+	}
+}
+#else /* !IS_ENABLED(CONFIG_OF_MDIO) */
+static inline void of_mdiobus_link_phydev(struct mii_bus *mdio,
+					  struct phy_device *phydev)
+{
+}
 #endif
 
 /**
@@ -144,6 +255,7 @@ int mdiobus_register(struct mii_bus *bus)
 
 	bus->dev.parent = bus->parent;
 	bus->dev.class = &mdio_bus_class;
+	bus->dev.driver = bus->parent->driver;
 	bus->dev.groups = NULL;
 	dev_set_name(&bus->dev, "%s", bus->id);
 
@@ -232,6 +344,12 @@ struct phy_device *mdiobus_scan(struct mii_bus *bus, int addr)
 	phydev = get_phy_device(bus, addr, false);
 	if (IS_ERR(phydev) || phydev == NULL)
 		return phydev;
+
+	/*
+	 * For DT, see if the auto-probed phy has a correspoding child
+	 * in the bus node, and set the of_node pointer in this case.
+	 */
+	of_mdiobus_link_phydev(bus, phydev);
 
 	err = phy_device_register(phydev);
 	if (err) {

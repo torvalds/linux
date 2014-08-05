@@ -404,7 +404,7 @@ void ppc_enable_pmcs(void)
 }
 EXPORT_SYMBOL(ppc_enable_pmcs);
 
-#define __SYSFS_SPRSETUP(NAME, ADDRESS, EXTRA) \
+#define __SYSFS_SPRSETUP_READ_WRITE(NAME, ADDRESS, EXTRA) \
 static void read_##NAME(void *val) \
 { \
 	*(unsigned long *)val = mfspr(ADDRESS);	\
@@ -413,7 +413,9 @@ static void write_##NAME(void *val) \
 { \
 	EXTRA; \
 	mtspr(ADDRESS, *(unsigned long *)val);	\
-} \
+}
+
+#define __SYSFS_SPRSETUP_SHOW_STORE(NAME) \
 static ssize_t show_##NAME(struct device *dev, \
 			struct device_attribute *attr, \
 			char *buf) \
@@ -436,10 +438,15 @@ static ssize_t __used \
 	return count; \
 }
 
-#define SYSFS_PMCSETUP(NAME, ADDRESS)	\
-	__SYSFS_SPRSETUP(NAME, ADDRESS, ppc_enable_pmcs())
-#define SYSFS_SPRSETUP(NAME, ADDRESS)	\
-	__SYSFS_SPRSETUP(NAME, ADDRESS, )
+#define SYSFS_PMCSETUP(NAME, ADDRESS) \
+	__SYSFS_SPRSETUP_READ_WRITE(NAME, ADDRESS, ppc_enable_pmcs()) \
+	__SYSFS_SPRSETUP_SHOW_STORE(NAME)
+#define SYSFS_SPRSETUP(NAME, ADDRESS) \
+	__SYSFS_SPRSETUP_READ_WRITE(NAME, ADDRESS, ) \
+	__SYSFS_SPRSETUP_SHOW_STORE(NAME)
+
+#define SYSFS_SPRSETUP_SHOW_STORE(NAME) \
+	__SYSFS_SPRSETUP_SHOW_STORE(NAME)
 
 /* Let's define all possible registers, we'll only hook up the ones
  * that are implemented on the current processor
@@ -477,7 +484,6 @@ SYSFS_PMCSETUP(pmc8, SPRN_PMC8);
 SYSFS_PMCSETUP(mmcra, SPRN_MMCRA);
 SYSFS_SPRSETUP(purr, SPRN_PURR);
 SYSFS_SPRSETUP(spurr, SPRN_SPURR);
-SYSFS_SPRSETUP(dscr, SPRN_DSCR);
 SYSFS_SPRSETUP(pir, SPRN_PIR);
 
 /*
@@ -487,12 +493,27 @@ SYSFS_SPRSETUP(pir, SPRN_PIR);
 */
 static DEVICE_ATTR(mmcra, 0600, show_mmcra, store_mmcra);
 static DEVICE_ATTR(spurr, 0400, show_spurr, NULL);
-static DEVICE_ATTR(dscr, 0600, show_dscr, store_dscr);
 static DEVICE_ATTR(purr, 0400, show_purr, store_purr);
 static DEVICE_ATTR(pir, 0400, show_pir, NULL);
 
-unsigned long dscr_default = 0;
-EXPORT_SYMBOL(dscr_default);
+static unsigned long dscr_default;
+
+static void read_dscr(void *val)
+{
+	*(unsigned long *)val = get_paca()->dscr_default;
+}
+
+static void write_dscr(void *val)
+{
+	get_paca()->dscr_default = *(unsigned long *)val;
+	if (!current->thread.dscr_inherit) {
+		current->thread.dscr = *(unsigned long *)val;
+		mtspr(SPRN_DSCR, *(unsigned long *)val);
+	}
+}
+
+SYSFS_SPRSETUP_SHOW_STORE(dscr);
+static DEVICE_ATTR(dscr, 0600, show_dscr, store_dscr);
 
 static void add_write_permission_dev_attr(struct device_attribute *attr)
 {
@@ -503,14 +524,6 @@ static ssize_t show_dscr_default(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%lx\n", dscr_default);
-}
-
-static void update_dscr(void *dummy)
-{
-	if (!current->thread.dscr_inherit) {
-		current->thread.dscr = dscr_default;
-		mtspr(SPRN_DSCR, dscr_default);
-	}
 }
 
 static ssize_t __used store_dscr_default(struct device *dev,
@@ -525,7 +538,7 @@ static ssize_t __used store_dscr_default(struct device *dev,
 		return -EINVAL;
 	dscr_default = val;
 
-	on_each_cpu(update_dscr, NULL, 1);
+	on_each_cpu(write_dscr, &val, 1);
 
 	return count;
 }

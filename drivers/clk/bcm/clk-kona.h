@@ -43,7 +43,13 @@
 #define FLAG_FLIP(obj, type, flag)	((obj)->flags ^= FLAG(type, flag))
 #define FLAG_TEST(obj, type, flag)	(!!((obj)->flags & FLAG(type, flag)))
 
+/* CCU field state tests */
+
+#define ccu_policy_exists(ccu_policy)	((ccu_policy)->enable.offset != 0)
+
 /* Clock field state tests */
+
+#define policy_exists(policy)		((policy)->offset != 0)
 
 #define gate_exists(gate)		FLAG_TEST(gate, GATE, EXISTS)
 #define gate_is_enabled(gate)		FLAG_TEST(gate, GATE, ENABLED)
@@ -54,6 +60,8 @@
 
 #define gate_flip_enabled(gate)		FLAG_FLIP(gate, GATE, ENABLED)
 
+#define hyst_exists(hyst)		((hyst)->offset != 0)
+
 #define divider_exists(div)		FLAG_TEST(div, DIV, EXISTS)
 #define divider_is_fixed(div)		FLAG_TEST(div, DIV, FIXED)
 #define divider_has_fraction(div)	(!divider_is_fixed(div) && \
@@ -61,6 +69,9 @@
 
 #define selector_exists(sel)		((sel)->width != 0)
 #define trigger_exists(trig)		FLAG_TEST(trig, TRIG, EXISTS)
+
+#define policy_lvm_en_exists(enable)	((enable)->offset != 0)
+#define policy_ctl_exists(control)	((control)->offset != 0)
 
 /* Clock type, used to tell common block what it's part of */
 enum bcm_clk_type {
@@ -71,24 +82,25 @@ enum bcm_clk_type {
 };
 
 /*
- * Each CCU defines a mapped area of memory containing registers
- * used to manage clocks implemented by the CCU.  Access to memory
- * within the CCU's space is serialized by a spinlock.  Before any
- * (other) address can be written, a special access "password" value
- * must be written to its WR_ACCESS register (located at the base
- * address of the range).  We keep track of the name of each CCU as
- * it is set up, and maintain them in a list.
+ * CCU policy control for clocks.  Clocks can be enabled or disabled
+ * based on the CCU policy in effect.  One bit in each policy mask
+ * register (one per CCU policy) represents whether the clock is
+ * enabled when that policy is effect or not.  The CCU policy engine
+ * must be stopped to update these bits, and must be restarted again
+ * afterward.
  */
-struct ccu_data {
-	void __iomem *base;	/* base of mapped address space */
-	spinlock_t lock;	/* serialization lock */
-	bool write_enabled;	/* write access is currently enabled */
-	struct list_head links;	/* for ccu_list */
-	struct device_node *node;
-	struct clk_onecell_data data;
-	const char *name;
-	u32 range;		/* byte range of address space */
+struct bcm_clk_policy {
+	u32 offset;		/* first policy mask register offset */
+	u32 bit;		/* bit used in all mask registers */
 };
+
+/* Policy initialization macro */
+
+#define POLICY(_offset, _bit)						\
+	{								\
+		.offset = (_offset),					\
+		.bit = (_bit),						\
+	}
 
 /*
  * Gating control and status is managed by a 32-bit gate register.
@@ -193,6 +205,22 @@ struct bcm_clk_gate {
 		.offset = (_offset),					\
 		.status_bit = (_status_bit),				\
 		.flags = FLAG(GATE, HW)|FLAG(GATE, EXISTS),		\
+	}
+
+/* Gate hysteresis for clocks */
+struct bcm_clk_hyst {
+	u32 offset;		/* hyst register offset (normally CLKGATE) */
+	u32 en_bit;		/* bit used to enable hysteresis */
+	u32 val_bit;		/* if enabled: 0 = low delay; 1 = high delay */
+};
+
+/* Hysteresis initialization macro */
+
+#define HYST(_offset, _en_bit, _val_bit)				\
+	{								\
+		.offset = (_offset),					\
+		.en_bit = (_en_bit),					\
+		.val_bit = (_val_bit),					\
 	}
 
 /*
@@ -360,7 +388,9 @@ struct bcm_clk_trig {
 	}
 
 struct peri_clk_data {
+	struct bcm_clk_policy policy;
 	struct bcm_clk_gate gate;
+	struct bcm_clk_hyst hyst;
 	struct bcm_clk_trig pre_trig;
 	struct bcm_clk_div pre_div;
 	struct bcm_clk_trig trig;
@@ -373,8 +403,7 @@ struct peri_clk_data {
 
 struct kona_clk {
 	struct clk_hw hw;
-	struct clk_init_data init_data;
-	const char *name;	/* name of this clock */
+	struct clk_init_data init_data;	/* includes name of this clock */
 	struct ccu_data *ccu;	/* ccu this clock is associated with */
 	enum bcm_clk_type type;
 	union {
@@ -385,14 +414,92 @@ struct kona_clk {
 #define to_kona_clk(_hw) \
 	container_of(_hw, struct kona_clk, hw)
 
+/* Initialization macro for an entry in a CCU's kona_clks[] array. */
+#define KONA_CLK(_ccu_name, _clk_name, _type)				\
+	{								\
+		.init_data	= {					\
+			.name = #_clk_name,				\
+			.ops = &kona_ ## _type ## _clk_ops,		\
+		},							\
+		.ccu		= &_ccu_name ## _ccu_data,		\
+		.type		= bcm_clk_ ## _type,			\
+		.u.data		= &_clk_name ## _data,			\
+	}
+#define LAST_KONA_CLK	{ .type = bcm_clk_none }
+
+/*
+ * CCU policy control.  To enable software update of the policy
+ * tables the CCU policy engine must be stopped by setting the
+ * software update enable bit (LVM_EN).  After an update the engine
+ * is restarted using the GO bit and either the GO_ATL or GO_AC bit.
+ */
+struct bcm_lvm_en {
+	u32 offset;		/* LVM_EN register offset */
+	u32 bit;		/* POLICY_CONFIG_EN bit in register */
+};
+
+/* Policy enable initialization macro */
+#define CCU_LVM_EN(_offset, _bit)					\
+	{								\
+		.offset = (_offset),					\
+		.bit = (_bit),						\
+	}
+
+struct bcm_policy_ctl {
+	u32 offset;		/* POLICY_CTL register offset */
+	u32 go_bit;
+	u32 atl_bit;		/* GO, GO_ATL, and GO_AC bits */
+	u32 ac_bit;
+};
+
+/* Policy control initialization macro */
+#define CCU_POLICY_CTL(_offset, _go_bit, _ac_bit, _atl_bit)		\
+	{								\
+		.offset = (_offset),					\
+		.go_bit = (_go_bit),					\
+		.ac_bit = (_ac_bit),					\
+		.atl_bit = (_atl_bit),					\
+	}
+
+struct ccu_policy {
+	struct bcm_lvm_en enable;
+	struct bcm_policy_ctl control;
+};
+
+/*
+ * Each CCU defines a mapped area of memory containing registers
+ * used to manage clocks implemented by the CCU.  Access to memory
+ * within the CCU's space is serialized by a spinlock.  Before any
+ * (other) address can be written, a special access "password" value
+ * must be written to its WR_ACCESS register (located at the base
+ * address of the range).  We keep track of the name of each CCU as
+ * it is set up, and maintain them in a list.
+ */
+struct ccu_data {
+	void __iomem *base;	/* base of mapped address space */
+	spinlock_t lock;	/* serialization lock */
+	bool write_enabled;	/* write access is currently enabled */
+	struct ccu_policy policy;
+	struct list_head links;	/* for ccu_list */
+	struct device_node *node;
+	struct clk_onecell_data clk_data;
+	const char *name;
+	u32 range;		/* byte range of address space */
+	struct kona_clk kona_clks[];	/* must be last */
+};
+
+/* Initialization for common fields in a Kona ccu_data structure */
+#define KONA_CCU_COMMON(_prefix, _name, _ccuname)			    \
+	.name		= #_name "_ccu",				    \
+	.lock		= __SPIN_LOCK_UNLOCKED(_name ## _ccu_data.lock),    \
+	.links		= LIST_HEAD_INIT(_name ## _ccu_data.links),	    \
+	.clk_data	= {						    \
+		.clk_num = _prefix ## _ ## _ccuname ## _CCU_CLOCK_COUNT,    \
+	}
+
 /* Exported globals */
 
 extern struct clk_ops kona_peri_clk_ops;
-
-/* Help functions */
-
-#define PERI_CLK_SETUP(clks, ccu, id, name) \
-	clks[id] = kona_clk_setup(ccu, #name, bcm_clk_peri, &name ## _data)
 
 /* Externally visible functions */
 
@@ -401,10 +508,9 @@ extern u64 scaled_div_max(struct bcm_clk_div *div);
 extern u64 scaled_div_build(struct bcm_clk_div *div, u32 div_value,
 				u32 billionths);
 
-extern struct clk *kona_clk_setup(struct ccu_data *ccu, const char *name,
-			enum bcm_clk_type type, void *data);
-extern void __init kona_dt_ccu_setup(struct device_node *node,
-			int (*ccu_clks_setup)(struct ccu_data *));
+extern struct clk *kona_clk_setup(struct kona_clk *bcm_clk);
+extern void __init kona_dt_ccu_setup(struct ccu_data *ccu,
+				struct device_node *node);
 extern bool __init kona_ccu_init(struct ccu_data *ccu);
 
 #endif /* _CLK_KONA_H */

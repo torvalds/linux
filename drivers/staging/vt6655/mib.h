@@ -61,10 +61,6 @@ typedef struct tagSDot11Counters {
 	unsigned long long   CCMPReplays;
 	unsigned long long   CCMPDecryptErrors;
 	unsigned long long   FourWayHandshakeFailures;
-//    unsigned long long   WEPUndecryptableCount;
-//    unsigned long long   WEPICVErrorCount;
-//    unsigned long long   DecryptSuccessCount;
-//    unsigned long long   DecryptFailureCount;
 } SDot11Counters, *PSDot11Counters;
 
 //
@@ -304,10 +300,6 @@ typedef struct tagSStatCounter {
 	unsigned long long   ullTxMulticastBytes[TYPE_MAXTD];
 	unsigned long long   ullTxDirectedBytes[TYPE_MAXTD];
 
-//    unsigned long dwTxRetryCount[8];
-	//
-	// ISR status count
-	//
 	SISRCounters ISRStat;
 
 	SCustomCounters CustomStat;

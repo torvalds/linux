@@ -554,7 +554,7 @@ void ieee80211_flush_queues(struct ieee80211_local *local,
 	ieee80211_stop_queues_by_reason(&local->hw, IEEE80211_MAX_QUEUE_MAP,
 					IEEE80211_QUEUE_STOP_REASON_FLUSH);
 
-	drv_flush(local, queues, false);
+	drv_flush(local, sdata, queues, false);
 
 	ieee80211_wake_queues_by_reason(&local->hw, IEEE80211_MAX_QUEUE_MAP,
 					IEEE80211_QUEUE_STOP_REASON_FLUSH);
@@ -1096,11 +1096,12 @@ void ieee80211_send_auth(struct ieee80211_sub_if_data *sdata,
 	int err;
 
 	/* 24 + 6 = header + auth_algo + auth_transaction + status_code */
-	skb = dev_alloc_skb(local->hw.extra_tx_headroom + 24 + 6 + extra_len);
+	skb = dev_alloc_skb(local->hw.extra_tx_headroom + IEEE80211_WEP_IV_LEN +
+			    24 + 6 + extra_len + IEEE80211_WEP_ICV_LEN);
 	if (!skb)
 		return;
 
-	skb_reserve(skb, local->hw.extra_tx_headroom);
+	skb_reserve(skb, local->hw.extra_tx_headroom + IEEE80211_WEP_IV_LEN);
 
 	mgmt = (struct ieee80211_mgmt *) skb_put(skb, 24 + 6);
 	memset(mgmt, 0, 24 + 6);
@@ -1457,6 +1458,44 @@ void ieee80211_stop_device(struct ieee80211_local *local)
 	drv_stop(local);
 }
 
+static void ieee80211_handle_reconfig_failure(struct ieee80211_local *local)
+{
+	struct ieee80211_sub_if_data *sdata;
+	struct ieee80211_chanctx *ctx;
+
+	/*
+	 * We get here if during resume the device can't be restarted properly.
+	 * We might also get here if this happens during HW reset, which is a
+	 * slightly different situation and we need to drop all connections in
+	 * the latter case.
+	 *
+	 * Ask cfg80211 to turn off all interfaces, this will result in more
+	 * warnings but at least we'll then get into a clean stopped state.
+	 */
+
+	local->resuming = false;
+	local->suspended = false;
+	local->started = false;
+
+	/* scheduled scan clearly can't be running any more, but tell
+	 * cfg80211 and clear local state
+	 */
+	ieee80211_sched_scan_end(local);
+
+	list_for_each_entry(sdata, &local->interfaces, list)
+		sdata->flags &= ~IEEE80211_SDATA_IN_DRIVER;
+
+	/* Mark channel contexts as not being in the driver any more to avoid
+	 * removing them from the driver during the shutdown process...
+	 */
+	mutex_lock(&local->chanctx_mtx);
+	list_for_each_entry(ctx, &local->chanctx_list, list)
+		ctx->driver_present = false;
+	mutex_unlock(&local->chanctx_mtx);
+
+	cfg80211_shutdown_all_interfaces(local->hw.wiphy);
+}
+
 static void ieee80211_assign_chanctx(struct ieee80211_local *local,
 				     struct ieee80211_sub_if_data *sdata)
 {
@@ -1520,9 +1559,11 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	 */
 	res = drv_start(local);
 	if (res) {
-		WARN(local->suspended, "Hardware became unavailable "
-		     "upon resume. This could be a software issue "
-		     "prior to suspend or a hardware issue.\n");
+		if (local->suspended)
+			WARN(1, "Hardware became unavailable upon resume. This could be a software issue prior to suspend or a hardware issue.\n");
+		else
+			WARN(1, "Hardware became unavailable during restart.\n");
+		ieee80211_handle_reconfig_failure(local);
 		return res;
 	}
 
@@ -1546,7 +1587,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 		WARN_ON(local->resuming);
 		res = drv_add_interface(local, sdata);
 		if (WARN_ON(res)) {
-			rcu_assign_pointer(local->monitor_sdata, NULL);
+			RCU_INIT_POINTER(local->monitor_sdata, NULL);
 			synchronize_net();
 			kfree(sdata);
 		}
@@ -1565,17 +1606,17 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 		list_for_each_entry(ctx, &local->chanctx_list, list)
 			WARN_ON(drv_add_chanctx(local, ctx));
 		mutex_unlock(&local->chanctx_mtx);
-	}
 
-	list_for_each_entry(sdata, &local->interfaces, list) {
-		if (!ieee80211_sdata_running(sdata))
-			continue;
-		ieee80211_assign_chanctx(local, sdata);
-	}
+		list_for_each_entry(sdata, &local->interfaces, list) {
+			if (!ieee80211_sdata_running(sdata))
+				continue;
+			ieee80211_assign_chanctx(local, sdata);
+		}
 
-	sdata = rtnl_dereference(local->monitor_sdata);
-	if (sdata && ieee80211_sdata_running(sdata))
-		ieee80211_assign_chanctx(local, sdata);
+		sdata = rtnl_dereference(local->monitor_sdata);
+		if (sdata && ieee80211_sdata_running(sdata))
+			ieee80211_assign_chanctx(local, sdata);
+	}
 
 	/* add STAs back */
 	mutex_lock(&local->sta_mtx);
@@ -1671,13 +1712,10 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 			}
 			break;
 		case NL80211_IFTYPE_WDS:
-			break;
 		case NL80211_IFTYPE_AP_VLAN:
 		case NL80211_IFTYPE_MONITOR:
-			/* ignore virtual */
-			break;
 		case NL80211_IFTYPE_P2P_DEVICE:
-			changed = BSS_CHANGED_IDLE;
+			/* nothing to do */
 			break;
 		case NL80211_IFTYPE_UNSPECIFIED:
 		case NUM_NL80211_IFTYPES:
@@ -2796,4 +2834,122 @@ void ieee80211_recalc_dtim(struct ieee80211_local *local,
 		dtim_count = dtim_period - bcns_from_dtim;
 
 	ps->dtim_count = dtim_count;
+}
+
+int ieee80211_check_combinations(struct ieee80211_sub_if_data *sdata,
+				 const struct cfg80211_chan_def *chandef,
+				 enum ieee80211_chanctx_mode chanmode,
+				 u8 radar_detect)
+{
+	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_sub_if_data *sdata_iter;
+	enum nl80211_iftype iftype = sdata->wdev.iftype;
+	int num[NUM_NL80211_IFTYPES];
+	struct ieee80211_chanctx *ctx;
+	int num_different_channels = 0;
+	int total = 1;
+
+	lockdep_assert_held(&local->chanctx_mtx);
+
+	if (WARN_ON(hweight32(radar_detect) > 1))
+		return -EINVAL;
+
+	if (WARN_ON(chandef && chanmode == IEEE80211_CHANCTX_SHARED &&
+		    !chandef->chan))
+		return -EINVAL;
+
+	if (chandef)
+		num_different_channels = 1;
+
+	if (WARN_ON(iftype >= NUM_NL80211_IFTYPES))
+		return -EINVAL;
+
+	/* Always allow software iftypes */
+	if (local->hw.wiphy->software_iftypes & BIT(iftype)) {
+		if (radar_detect)
+			return -EINVAL;
+		return 0;
+	}
+
+	memset(num, 0, sizeof(num));
+
+	if (iftype != NL80211_IFTYPE_UNSPECIFIED)
+		num[iftype] = 1;
+
+	list_for_each_entry(ctx, &local->chanctx_list, list) {
+		if (ctx->conf.radar_enabled)
+			radar_detect |= BIT(ctx->conf.def.width);
+		if (ctx->mode == IEEE80211_CHANCTX_EXCLUSIVE) {
+			num_different_channels++;
+			continue;
+		}
+		if (chandef && chanmode == IEEE80211_CHANCTX_SHARED &&
+		    cfg80211_chandef_compatible(chandef,
+						&ctx->conf.def))
+			continue;
+		num_different_channels++;
+	}
+
+	list_for_each_entry_rcu(sdata_iter, &local->interfaces, list) {
+		struct wireless_dev *wdev_iter;
+
+		wdev_iter = &sdata_iter->wdev;
+
+		if (sdata_iter == sdata ||
+		    rcu_access_pointer(sdata_iter->vif.chanctx_conf) == NULL ||
+		    local->hw.wiphy->software_iftypes & BIT(wdev_iter->iftype))
+			continue;
+
+		num[wdev_iter->iftype]++;
+		total++;
+	}
+
+	if (total == 1 && !radar_detect)
+		return 0;
+
+	return cfg80211_check_combinations(local->hw.wiphy,
+					   num_different_channels,
+					   radar_detect, num);
+}
+
+static void
+ieee80211_iter_max_chans(const struct ieee80211_iface_combination *c,
+			 void *data)
+{
+	u32 *max_num_different_channels = data;
+
+	*max_num_different_channels = max(*max_num_different_channels,
+					  c->num_different_channels);
+}
+
+int ieee80211_max_num_channels(struct ieee80211_local *local)
+{
+	struct ieee80211_sub_if_data *sdata;
+	int num[NUM_NL80211_IFTYPES] = {};
+	struct ieee80211_chanctx *ctx;
+	int num_different_channels = 0;
+	u8 radar_detect = 0;
+	u32 max_num_different_channels = 1;
+	int err;
+
+	lockdep_assert_held(&local->chanctx_mtx);
+
+	list_for_each_entry(ctx, &local->chanctx_list, list) {
+		num_different_channels++;
+
+		if (ctx->conf.radar_enabled)
+			radar_detect |= BIT(ctx->conf.def.width);
+	}
+
+	list_for_each_entry_rcu(sdata, &local->interfaces, list)
+		num[sdata->wdev.iftype]++;
+
+	err = cfg80211_iter_combinations(local->hw.wiphy,
+					 num_different_channels, radar_detect,
+					 num, ieee80211_iter_max_chans,
+					 &max_num_different_channels);
+	if (err < 0)
+		return err;
+
+	return max_num_different_channels;
 }

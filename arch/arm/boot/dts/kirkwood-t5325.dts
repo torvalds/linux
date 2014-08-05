@@ -27,6 +27,7 @@
 
 	chosen {
 		bootargs = "console=ttyS0,115200n8";
+		stdout-path = &uart0;
 	};
 
 	mbus {
@@ -40,7 +41,7 @@
 	};
 
 	ocp@f1000000 {
-		pinctrl: pinctrl@10000 {
+		pinctrl: pin-controller@10000 {
 			pinctrl-0 = <&pmx_i2s &pmx_sysrst>;
 			pinctrl-names = "default";
 
@@ -64,10 +65,6 @@
 				marvell,function = "gpio";
 			};
 
-			/*
-			 * Redefined from kirkwood-6281.dtsi, because
-			 * we don't use SPI CS on MPP0, but on MPP7.
-			 */
 			pmx_spi: pmx-spi {
 				marvell,pins = "mpp1", "mpp2", "mpp3", "mpp7";
 				marvell,function = "spi";
@@ -86,8 +83,6 @@
 		};
 
 		spi@10600 {
-			pinctrl-0 = <&pmx_spi>;
-			pinctrl-names = "default";
 			status = "okay";
 
 			flash@0 {
@@ -127,6 +122,14 @@
 
 		i2c@11000 {
 			status = "okay";
+
+			alc5621: alc5621@1a {
+				compatible = "realtek,alc5621";
+				reg = <0x1a>;
+				#sound-dai-cells = <0>;
+				add-ctrl = <0x3700>;
+				jack-det-ctrl = <0x4810>;
+			};
 		};
 
 		serial@12000 {
@@ -184,6 +187,31 @@
 		gpios = <&gpio1 17 GPIO_ACTIVE_HIGH>;
 	};
 
+	sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,routing =
+			"Headphone Jack", "HPL",
+			"Headphone Jack", "HPR",
+			"Speaker", "SPKOUT",
+			"Speaker", "SPKOUTN",
+			"MIC1", "Mic Jack",
+			"MIC2", "Mic Jack";
+		simple-audio-card,widgets =
+			"Headphone", "Headphone Jack",
+			"Speaker", "Speaker",
+			"Microphone", "Mic Jack";
+
+		simple-audio-card,mclk-fs = <256>;
+
+		simple-audio-card,cpu {
+			sound-dai = <&audio>;
+		};
+
+		simple-audio-card,codec {
+			sound-dai = <&alc5621>;
+		};
+	};
 };
 
 &mdio {

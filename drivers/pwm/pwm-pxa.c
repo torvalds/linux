@@ -179,10 +179,8 @@ static int pwm_probe(struct platform_device *pdev)
 		return -EINVAL;
 
 	pwm = devm_kzalloc(&pdev->dev, sizeof(*pwm), GFP_KERNEL);
-	if (pwm == NULL) {
-		dev_err(&pdev->dev, "failed to allocate memory\n");
+	if (pwm == NULL)
 		return -ENOMEM;
-	}
 
 	pwm->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(pwm->clk))

@@ -125,6 +125,8 @@ config HVC_TILE
 
 config TILEGX
 	bool "Building for TILE-Gx (64-bit) processor"
+	select SPARSE_IRQ
+	select GENERIC_IRQ_LEGACY_ALLOC_HWIRQ
 	select HAVE_FUNCTION_TRACER
 	select HAVE_FUNCTION_TRACE_MCOUNT_TEST
 	select HAVE_FUNCTION_GRAPH_TRACER

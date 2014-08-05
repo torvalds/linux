@@ -1727,15 +1727,13 @@ int rtw_set_key(struct adapter *adapter, struct security_priv *psecuritypriv, in
 	int	res = _SUCCESS;
 
 	pcmd = (struct	cmd_obj *)rtw_zmalloc(sizeof(struct	cmd_obj));
-	if (pcmd == NULL) {
-		res = _FAIL;  /* try again */
-		goto exit;
-	}
+	if (pcmd == NULL)
+		return _FAIL;  /* try again */
+
 	psetkeyparm = (struct setkey_parm *)rtw_zmalloc(sizeof(struct setkey_parm));
 	if (psetkeyparm == NULL) {
-		kfree(pcmd);
 		res = _FAIL;
-		goto exit;
+		goto err_free_cmd;
 	}
 
 	_rtw_memset(psetkeyparm, 0, sizeof(struct setkey_parm));
@@ -1784,7 +1782,7 @@ int rtw_set_key(struct adapter *adapter, struct security_priv *psecuritypriv, in
 			 ("\n rtw_set_key:psecuritypriv->dot11PrivacyAlgrthm=%x (must be 1 or 2 or 4 or 5)\n",
 			 psecuritypriv->dot11PrivacyAlgrthm));
 		res = _FAIL;
-		goto exit;
+		goto err_free_parm;
 	}
 	pcmd->cmdcode = _SetKey_CMD_;
 	pcmd->parmbuf = (u8 *)psetkeyparm;
@@ -1793,7 +1791,12 @@ int rtw_set_key(struct adapter *adapter, struct security_priv *psecuritypriv, in
 	pcmd->rspsz = 0;
 	_rtw_init_listhead(&pcmd->list);
 	res = rtw_enqueue_cmd(pcmdpriv, pcmd);
-exit:
+	return res;
+
+err_free_parm:
+	kfree(psetkeyparm);
+err_free_cmd:
+	kfree(pcmd);
 	return res;
 }
 

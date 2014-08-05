@@ -36,7 +36,7 @@
 		ranges = <0x40000000 0x40000000 0xa0000000>;
 
 		l2-cache-controller@c0030000 {
-			compatible = "sirf,marco-pl310-cache", "arm,pl310-cache";
+			compatible = "arm,pl310-cache";
 			reg = <0xc0030000 0x1000>;
 			interrupts = <0 59 0>;
 			arm,tag-latency = <1 1 1>;

@@ -1353,7 +1353,7 @@ static int ipx_create(struct net *net, struct socket *sock, int protocol,
 
 	sk_refcnt_debug_inc(sk);
 	sock_init_data(sock, sk);
-	sk->sk_no_check = 1;		/* Checksum off by default */
+	sk->sk_no_check_tx = 1;		/* Checksum off by default */
 	sock->ops = &ipx_dgram_ops;
 	rc = 0;
 out:

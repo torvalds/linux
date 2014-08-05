@@ -641,7 +641,7 @@ retry:
 		} while (unlikely(entropy_count < pool_size-2 && pnfrac));
 	}
 
-	if (entropy_count < 0) {
+	if (unlikely(entropy_count < 0)) {
 		pr_warn("random: negative entropy/overflow: pool %s count %d\n",
 			r->name, entropy_count);
 		WARN_ON(1);
@@ -902,6 +902,7 @@ void add_disk_randomness(struct gendisk *disk)
 	add_timer_randomness(disk->random, 0x100 + disk_devt(disk));
 	trace_add_disk_randomness(disk_devt(disk), ENTROPY_BITS(&input_pool));
 }
+EXPORT_SYMBOL_GPL(add_disk_randomness);
 #endif
 
 /*********************************************************************
@@ -979,26 +980,37 @@ static void push_to_pool(struct work_struct *work)
 static size_t account(struct entropy_store *r, size_t nbytes, int min,
 		      int reserved)
 {
-	int have_bytes;
 	int entropy_count, orig;
-	size_t ibytes;
+	size_t ibytes, nfrac;
 
 	BUG_ON(r->entropy_count > r->poolinfo->poolfracbits);
 
 	/* Can we pull enough? */
 retry:
 	entropy_count = orig = ACCESS_ONCE(r->entropy_count);
-	have_bytes = entropy_count >> (ENTROPY_SHIFT + 3);
 	ibytes = nbytes;
 	/* If limited, never pull more than available */
-	if (r->limit)
-		ibytes = min_t(size_t, ibytes, have_bytes - reserved);
+	if (r->limit) {
+		int have_bytes = entropy_count >> (ENTROPY_SHIFT + 3);
+
+		if ((have_bytes -= reserved) < 0)
+			have_bytes = 0;
+		ibytes = min_t(size_t, ibytes, have_bytes);
+	}
 	if (ibytes < min)
 		ibytes = 0;
-	if (have_bytes >= ibytes + reserved)
-		entropy_count -= ibytes << (ENTROPY_SHIFT + 3);
+
+	if (unlikely(entropy_count < 0)) {
+		pr_warn("random: negative entropy count: pool %s count %d\n",
+			r->name, entropy_count);
+		WARN_ON(1);
+		entropy_count = 0;
+	}
+	nfrac = ibytes << (ENTROPY_SHIFT + 3);
+	if ((size_t) entropy_count > nfrac)
+		entropy_count -= nfrac;
 	else
-		entropy_count = reserved << (ENTROPY_SHIFT + 3);
+		entropy_count = 0;
 
 	if (cmpxchg(&r->entropy_count, orig, entropy_count) != orig)
 		goto retry;
@@ -1374,6 +1386,7 @@ urandom_read(struct file *file, char __user *buf, size_t nbytes, loff_t *ppos)
 			    "with %d bits of entropy available\n",
 			    current->comm, nonblocking_pool.entropy_total);
 
+	nbytes = min_t(size_t, nbytes, INT_MAX >> (ENTROPY_SHIFT + 3));
 	ret = extract_entropy_user(&nonblocking_pool, buf, nbytes);
 
 	trace_urandom_read(8 * nbytes, ENTROPY_BITS(&nonblocking_pool),
@@ -1581,10 +1594,10 @@ static int proc_do_uuid(struct ctl_table *table, int write,
 /*
  * Return entropy available scaled to integral bits
  */
-static int proc_do_entropy(ctl_table *table, int write,
+static int proc_do_entropy(struct ctl_table *table, int write,
 			   void __user *buffer, size_t *lenp, loff_t *ppos)
 {
-	ctl_table fake_table;
+	struct ctl_table fake_table;
 	int entropy_count;
 
 	entropy_count = *(int *)table->data >> ENTROPY_SHIFT;

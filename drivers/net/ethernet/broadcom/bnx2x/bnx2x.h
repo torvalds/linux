@@ -6,7 +6,7 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation.
  *
- * Maintained by: Eilon Greenstein <eilong@broadcom.com>
+ * Maintained by: Ariel Elior <ariel.elior@qlogic.com>
  * Written by: Eliezer Tamir
  * Based on code from Michael Chan's bnx2 driver
  */
@@ -346,6 +346,7 @@ struct sw_tx_bd {
 	u8		flags;
 /* Set on the first BD descriptor when there is a split BD */
 #define BNX2X_TSO_SPLIT_BD		(1<<0)
+#define BNX2X_HAS_SECOND_PBD		(1<<1)
 };
 
 struct sw_rx_page {

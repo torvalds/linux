@@ -18,6 +18,7 @@
 #include <asm/ptrace.h>
 #include <asm/thread_info.h>
 #include <asm/asm-offsets.h>
+#include <asm/assembler.h>
 
 #if defined(CONFIG_CPU_PJ4) || defined(CONFIG_CPU_PJ4B)
 #define PJ4(code...)		code
@@ -65,17 +66,18 @@
  * r9  = ret_from_exception
  * lr  = undefined instr exit
  *
- * called from prefetch exception handler with interrupts disabled
+ * called from prefetch exception handler with interrupts enabled
  */
 
 ENTRY(iwmmxt_task_enable)
+	inc_preempt_count r10, r3
 
 	XSC(mrc	p15, 0, r2, c15, c1, 0)
 	PJ4(mrc p15, 0, r2, c1, c0, 2)
 	@ CP0 and CP1 accessible?
 	XSC(tst	r2, #0x3)
 	PJ4(tst	r2, #0xf)
-	movne	pc, lr				@ if so no business here
+	bne	4f				@ if so no business here
 	@ enable access to CP0 and CP1
 	XSC(orr	r2, r2, #0x3)
 	XSC(mcr	p15, 0, r2, c15, c1, 0)
@@ -92,12 +94,18 @@ ENTRY(iwmmxt_task_enable)
 
 	mrc	p15, 0, r2, c2, c0, 0
 	mov	r2, r2				@ cpwait
+	bl	concan_save
 
-	teq	r1, #0				@ test for last ownership
-	mov	lr, r9				@ normal exit from exception
-	beq	concan_load			@ no owner, skip save
+#ifdef CONFIG_PREEMPT_COUNT
+	get_thread_info r10
+#endif
+4:	dec_preempt_count r10, r3
+	mov	pc, r9				@ normal exit from exception
 
 concan_save:
+
+	teq	r1, #0				@ test for last ownership
+	beq	concan_load			@ no owner, skip save
 
 	tmrc	r2, wCon
 
@@ -136,7 +144,7 @@ concan_dump:
 	wstrd	wR15, [r1, #MMX_WR15]
 
 2:	teq	r0, #0				@ anything to load?
-	moveq	pc, lr
+	moveq	pc, lr				@ if not, return
 
 concan_load:
 
@@ -170,6 +178,7 @@ concan_load:
 	teq	r1, #0
 	mov 	r2, #0
 	moveq	pc, lr
+
 	tmcr	wCon, r2
 	mov	pc, lr
 

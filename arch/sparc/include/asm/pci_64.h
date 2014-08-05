@@ -16,11 +16,6 @@
 
 #define PCI_IRQ_NONE		0xffffffff
 
-static inline void pcibios_penalize_isa_irq(int irq, int active)
-{
-	/* We don't do dynamic PCI IRQ allocation */
-}
-
 /* The PCI address space does not equal the physical memory
  * address space.  The networking and block device layers use
  * this boolean for bounce buffer decisions.
@@ -57,7 +52,7 @@ static inline void pci_dma_burst_advice(struct pci_dev *pdev,
 
 /* Return the index of the PCI controller for device PDEV. */
 
-extern int pci_domain_nr(struct pci_bus *bus);
+int pci_domain_nr(struct pci_bus *bus);
 static inline int pci_proc_domain(struct pci_bus *bus)
 {
 	return 1;
@@ -69,9 +64,9 @@ static inline int pci_proc_domain(struct pci_bus *bus)
 #define HAVE_ARCH_PCI_GET_UNMAPPED_AREA
 #define get_pci_unmapped_area get_fb_unmapped_area
 
-extern int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
-			       enum pci_mmap_state mmap_state,
-			       int write_combine);
+int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
+			enum pci_mmap_state mmap_state,
+			int write_combine);
 
 static inline int pci_get_legacy_ide_irq(struct pci_dev *dev, int channel)
 {
@@ -79,9 +74,9 @@ static inline int pci_get_legacy_ide_irq(struct pci_dev *dev, int channel)
 }
 
 #define HAVE_ARCH_PCI_RESOURCE_TO_USER
-extern void pci_resource_to_user(const struct pci_dev *dev, int bar,
-				 const struct resource *rsrc,
-				 resource_size_t *start, resource_size_t *end);
+void pci_resource_to_user(const struct pci_dev *dev, int bar,
+			  const struct resource *rsrc,
+			  resource_size_t *start, resource_size_t *end);
 #endif /* __KERNEL__ */
 
 #endif /* __SPARC64_PCI_H */

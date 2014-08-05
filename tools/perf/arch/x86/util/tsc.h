@@ -1,7 +1,7 @@
 #ifndef TOOLS_PERF_ARCH_X86_UTIL_TSC_H__
 #define TOOLS_PERF_ARCH_X86_UTIL_TSC_H__
 
-#include "../../util/types.h"
+#include <linux/types.h>
 
 struct perf_tsc_conversion {
 	u16 time_shift;

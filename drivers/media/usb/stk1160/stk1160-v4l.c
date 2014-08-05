@@ -406,7 +406,7 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id norm)
 
 	stk1160_set_std(dev);
 
-	v4l2_device_call_all(&dev->v4l2_dev, 0, core, s_std,
+	v4l2_device_call_all(&dev->v4l2_dev, 0, video, s_std,
 			dev->norm);
 
 	return 0;
@@ -583,10 +583,10 @@ static int start_streaming(struct vb2_queue *vq, unsigned int count)
 }
 
 /* abort streaming and wait for last buffer */
-static int stop_streaming(struct vb2_queue *vq)
+static void stop_streaming(struct vb2_queue *vq)
 {
 	struct stk1160 *dev = vb2_get_drv_priv(vq);
-	return stk1160_stop_streaming(dev);
+	stk1160_stop_streaming(dev);
 }
 
 static struct vb2_ops stk1160_video_qops = {
@@ -682,7 +682,7 @@ int stk1160_video_register(struct stk1160 *dev)
 	dev->fmt = &format[0];
 	stk1160_set_std(dev);
 
-	v4l2_device_call_all(&dev->v4l2_dev, 0, core, s_std,
+	v4l2_device_call_all(&dev->v4l2_dev, 0, video, s_std,
 			dev->norm);
 
 	video_set_drvdata(&dev->vdev, dev);

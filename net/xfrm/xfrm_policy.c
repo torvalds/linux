@@ -769,7 +769,7 @@ EXPORT_SYMBOL(xfrm_policy_byid);
 
 #ifdef CONFIG_SECURITY_NETWORK_XFRM
 static inline int
-xfrm_policy_flush_secctx_check(struct net *net, u8 type, struct xfrm_audit *audit_info)
+xfrm_policy_flush_secctx_check(struct net *net, u8 type, bool task_valid)
 {
 	int dir, err = 0;
 
@@ -783,10 +783,7 @@ xfrm_policy_flush_secctx_check(struct net *net, u8 type, struct xfrm_audit *audi
 				continue;
 			err = security_xfrm_policy_delete(pol->security);
 			if (err) {
-				xfrm_audit_policy_delete(pol, 0,
-							 audit_info->loginuid,
-							 audit_info->sessionid,
-							 audit_info->secid);
+				xfrm_audit_policy_delete(pol, 0, task_valid);
 				return err;
 			}
 		}
@@ -800,9 +797,7 @@ xfrm_policy_flush_secctx_check(struct net *net, u8 type, struct xfrm_audit *audi
 								pol->security);
 				if (err) {
 					xfrm_audit_policy_delete(pol, 0,
-							audit_info->loginuid,
-							audit_info->sessionid,
-							audit_info->secid);
+								 task_valid);
 					return err;
 				}
 			}
@@ -812,19 +807,19 @@ xfrm_policy_flush_secctx_check(struct net *net, u8 type, struct xfrm_audit *audi
 }
 #else
 static inline int
-xfrm_policy_flush_secctx_check(struct net *net, u8 type, struct xfrm_audit *audit_info)
+xfrm_policy_flush_secctx_check(struct net *net, u8 type, bool task_valid)
 {
 	return 0;
 }
 #endif
 
-int xfrm_policy_flush(struct net *net, u8 type, struct xfrm_audit *audit_info)
+int xfrm_policy_flush(struct net *net, u8 type, bool task_valid)
 {
 	int dir, err = 0, cnt = 0;
 
 	write_lock_bh(&net->xfrm.xfrm_policy_lock);
 
-	err = xfrm_policy_flush_secctx_check(net, type, audit_info);
+	err = xfrm_policy_flush_secctx_check(net, type, task_valid);
 	if (err)
 		goto out;
 
@@ -841,9 +836,7 @@ int xfrm_policy_flush(struct net *net, u8 type, struct xfrm_audit *audit_info)
 			write_unlock_bh(&net->xfrm.xfrm_policy_lock);
 			cnt++;
 
-			xfrm_audit_policy_delete(pol, 1, audit_info->loginuid,
-						 audit_info->sessionid,
-						 audit_info->secid);
+			xfrm_audit_policy_delete(pol, 1, task_valid);
 
 			xfrm_policy_kill(pol);
 
@@ -862,10 +855,7 @@ int xfrm_policy_flush(struct net *net, u8 type, struct xfrm_audit *audit_info)
 				write_unlock_bh(&net->xfrm.xfrm_policy_lock);
 				cnt++;
 
-				xfrm_audit_policy_delete(pol, 1,
-							 audit_info->loginuid,
-							 audit_info->sessionid,
-							 audit_info->secid);
+				xfrm_audit_policy_delete(pol, 1, task_valid);
 				xfrm_policy_kill(pol);
 
 				write_lock_bh(&net->xfrm.xfrm_policy_lock);
@@ -2107,6 +2097,8 @@ struct dst_entry *xfrm_lookup(struct net *net, struct dst_entry *dst_orig,
 				goto no_transform;
 			}
 
+			dst_hold(&xdst->u.dst);
+			xdst->u.dst.flags |= DST_NOCACHE;
 			route = xdst->route;
 		}
 	}
@@ -2783,21 +2775,19 @@ static struct notifier_block xfrm_dev_notifier = {
 static int __net_init xfrm_statistics_init(struct net *net)
 {
 	int rv;
-
-	if (snmp_mib_init((void __percpu **)net->mib.xfrm_statistics,
-			  sizeof(struct linux_xfrm_mib),
-			  __alignof__(struct linux_xfrm_mib)) < 0)
+	net->mib.xfrm_statistics = alloc_percpu(struct linux_xfrm_mib);
+	if (!net->mib.xfrm_statistics)
 		return -ENOMEM;
 	rv = xfrm_proc_init(net);
 	if (rv < 0)
-		snmp_mib_free((void __percpu **)net->mib.xfrm_statistics);
+		free_percpu(net->mib.xfrm_statistics);
 	return rv;
 }
 
 static void xfrm_statistics_fini(struct net *net)
 {
 	xfrm_proc_fini(net);
-	snmp_mib_free((void __percpu **)net->mib.xfrm_statistics);
+	free_percpu(net->mib.xfrm_statistics);
 }
 #else
 static int __net_init xfrm_statistics_init(struct net *net)
@@ -2862,21 +2852,14 @@ out_byidx:
 
 static void xfrm_policy_fini(struct net *net)
 {
-	struct xfrm_audit audit_info;
 	unsigned int sz;
 	int dir;
 
 	flush_work(&net->xfrm.policy_hash_work);
 #ifdef CONFIG_XFRM_SUB_POLICY
-	audit_info.loginuid = INVALID_UID;
-	audit_info.sessionid = (unsigned int)-1;
-	audit_info.secid = 0;
-	xfrm_policy_flush(net, XFRM_POLICY_TYPE_SUB, &audit_info);
+	xfrm_policy_flush(net, XFRM_POLICY_TYPE_SUB, false);
 #endif
-	audit_info.loginuid = INVALID_UID;
-	audit_info.sessionid = (unsigned int)-1;
-	audit_info.secid = 0;
-	xfrm_policy_flush(net, XFRM_POLICY_TYPE_MAIN, &audit_info);
+	xfrm_policy_flush(net, XFRM_POLICY_TYPE_MAIN, false);
 
 	WARN_ON(!list_empty(&net->xfrm.policy_all));
 
@@ -2991,15 +2974,14 @@ static void xfrm_audit_common_policyinfo(struct xfrm_policy *xp,
 	}
 }
 
-void xfrm_audit_policy_add(struct xfrm_policy *xp, int result,
-			   kuid_t auid, unsigned int sessionid, u32 secid)
+void xfrm_audit_policy_add(struct xfrm_policy *xp, int result, bool task_valid)
 {
 	struct audit_buffer *audit_buf;
 
 	audit_buf = xfrm_audit_start("SPD-add");
 	if (audit_buf == NULL)
 		return;
-	xfrm_audit_helper_usrinfo(auid, sessionid, secid, audit_buf);
+	xfrm_audit_helper_usrinfo(task_valid, audit_buf);
 	audit_log_format(audit_buf, " res=%u", result);
 	xfrm_audit_common_policyinfo(xp, audit_buf);
 	audit_log_end(audit_buf);
@@ -3007,14 +2989,14 @@ void xfrm_audit_policy_add(struct xfrm_policy *xp, int result,
 EXPORT_SYMBOL_GPL(xfrm_audit_policy_add);
 
 void xfrm_audit_policy_delete(struct xfrm_policy *xp, int result,
-			      kuid_t auid, unsigned int sessionid, u32 secid)
+			      bool task_valid)
 {
 	struct audit_buffer *audit_buf;
 
 	audit_buf = xfrm_audit_start("SPD-delete");
 	if (audit_buf == NULL)
 		return;
-	xfrm_audit_helper_usrinfo(auid, sessionid, secid, audit_buf);
+	xfrm_audit_helper_usrinfo(task_valid, audit_buf);
 	audit_log_format(audit_buf, " res=%u", result);
 	xfrm_audit_common_policyinfo(xp, audit_buf);
 	audit_log_end(audit_buf);

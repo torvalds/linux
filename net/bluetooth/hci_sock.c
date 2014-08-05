@@ -143,7 +143,7 @@ void hci_send_to_sock(struct hci_dev *hdev, struct sk_buff *skb)
 
 		if (!skb_copy) {
 			/* Create a private copy with headroom */
-			skb_copy = __pskb_copy(skb, 1, GFP_ATOMIC);
+			skb_copy = __pskb_copy_fclone(skb, 1, GFP_ATOMIC, true);
 			if (!skb_copy)
 				continue;
 
@@ -247,8 +247,8 @@ void hci_send_to_monitor(struct hci_dev *hdev, struct sk_buff *skb)
 			struct hci_mon_hdr *hdr;
 
 			/* Create a private copy with headroom */
-			skb_copy = __pskb_copy(skb, HCI_MON_HDR_SIZE,
-					       GFP_ATOMIC);
+			skb_copy = __pskb_copy_fclone(skb, HCI_MON_HDR_SIZE,
+						      GFP_ATOMIC, true);
 			if (!skb_copy)
 				continue;
 
@@ -524,16 +524,7 @@ static int hci_sock_bound_ioctl(struct sock *sk, unsigned int cmd,
 	case HCISETRAW:
 		if (!capable(CAP_NET_ADMIN))
 			return -EPERM;
-
-		if (test_bit(HCI_QUIRK_RAW_DEVICE, &hdev->quirks))
-			return -EPERM;
-
-		if (arg)
-			set_bit(HCI_RAW, &hdev->flags);
-		else
-			clear_bit(HCI_RAW, &hdev->flags);
-
-		return 0;
+		return -EOPNOTSUPP;
 
 	case HCIGETCONNINFO:
 		return hci_get_conn_info(hdev, (void __user *) arg);

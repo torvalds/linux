@@ -1,6 +1,6 @@
 /* uisutils.h
  *
- * Copyright © 2010 - 2013 UNISYS CORPORATION
+ * Copyright (C) 2010 - 2013 UNISYS CORPORATION
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -25,6 +25,7 @@
 #include <linux/io.h>
 #include <linux/sched.h>
 #include <linux/gfp.h>
+#include <linux/uuid.h>
 
 #include "vmcallinterface.h"
 #include "channel.h"
@@ -54,7 +55,7 @@ extern atomic_t UisUtils_Registered_Services;
 
 typedef unsigned int MACARRAY[MAX_MACADDR_LEN];
 typedef struct ReqHandlerInfo_struct {
-	GUID switchTypeGuid;
+	uuid_le switchTypeGuid;
 	int (*controlfunc)(struct io_msgs *);
 	unsigned long min_channel_bytes;
 	int (*Server_Channel_Ok)(unsigned long channelBytes);
@@ -64,7 +65,7 @@ typedef struct ReqHandlerInfo_struct {
 	struct list_head list_link;	/* links into ReqHandlerInfo_list */
 } ReqHandlerInfo_t;
 
-ReqHandlerInfo_t *ReqHandlerAdd(GUID switchTypeGuid,
+ReqHandlerInfo_t *ReqHandlerAdd(uuid_le switchTypeGuid,
 				const char *switch_type_name,
 				int (*controlfunc)(struct io_msgs *),
 				unsigned long min_channel_bytes,
@@ -73,8 +74,8 @@ ReqHandlerInfo_t *ReqHandlerAdd(GUID switchTypeGuid,
 				int (*Server_Channel_Init)
 				 (void *x, unsigned char *clientStr,
 				  U32 clientStrLen, U64 bytes));
-ReqHandlerInfo_t *ReqHandlerFind(GUID switchTypeGuid);
-int ReqHandlerDel(GUID switchTypeGuid);
+ReqHandlerInfo_t *ReqHandlerFind(uuid_le switchTypeGuid);
+int ReqHandlerDel(uuid_le switchTypeGuid);
 
 #define uislib_ioremap_cache(addr, size) \
 	dbg_ioremap_cache(addr, size, __FILE__, __LINE__)
@@ -112,7 +113,7 @@ int uisutil_add_proc_line_ex(int *total, char **buffer, int *buffer_remaining,
 
 int uisctrl_register_req_handler(int type, void *fptr,
 				 ULTRA_VBUS_DEVICEINFO *chipset_DriverInfo);
-int uisctrl_register_req_handler_ex(GUID switchTypeGuid,
+int uisctrl_register_req_handler_ex(uuid_le switchTypeGuid,
 				    const char *switch_type_name,
 				    int (*fptr)(struct io_msgs *),
 				    unsigned long min_channel_bytes,
@@ -123,7 +124,7 @@ int uisctrl_register_req_handler_ex(GUID switchTypeGuid,
 				     U32 clientStrLen, U64 bytes),
 				    ULTRA_VBUS_DEVICEINFO *chipset_DriverInfo);
 
-int uisctrl_unregister_req_handler_ex(GUID switchTypeGuid);
+int uisctrl_unregister_req_handler_ex(uuid_le switchTypeGuid);
 unsigned char *util_map_virt(struct phys_info *sg);
 void util_unmap_virt(struct phys_info *sg);
 unsigned char *util_map_virt_atomic(struct phys_info *sg);
@@ -133,20 +134,20 @@ int uislib_server_inject_add_vnic(U32 switchNo, U32 BusNo, U32 numIntPorts,
 				  pCHANNEL_HEADER **chan);
 void uislib_server_inject_del_vnic(U32 switchNo, U32 busNo, U32 numIntPorts,
 				   U32 numExtPorts);
-int uislib_client_inject_add_bus(U32 busNo, GUID instGuid,
+int uislib_client_inject_add_bus(U32 busNo, uuid_le instGuid,
 				 U64 channelAddr, ulong nChannelBytes);
 int  uislib_client_inject_del_bus(U32 busNo);
 
 int uislib_client_inject_add_vhba(U32 busNo, U32 devNo,
 				  U64 phys_chan_addr, U32 chan_bytes,
-				  int is_test_addr, GUID instGuid,
+				  int is_test_addr, uuid_le instGuid,
 				  struct InterruptInfo *intr);
 int  uislib_client_inject_pause_vhba(U32 busNo, U32 devNo);
 int  uislib_client_inject_resume_vhba(U32 busNo, U32 devNo);
 int uislib_client_inject_del_vhba(U32 busNo, U32 devNo);
 int uislib_client_inject_add_vnic(U32 busNo, U32 devNo,
 				  U64 phys_chan_addr, U32 chan_bytes,
-				  int is_test_addr, GUID instGuid,
+				  int is_test_addr, uuid_le instGuid,
 				  struct InterruptInfo *intr);
 int uislib_client_inject_pause_vnic(U32 busNo, U32 devNo);
 int uislib_client_inject_resume_vnic(U32 busNo, U32 devNo);
@@ -193,14 +194,21 @@ struct chaninfo {
  * correctly at DEVICE_CREATE time, INSTEAD OF waiting until
  * DEVICE_CONFIGURE time.
  */
-#define WAIT_FOR_VALID_GUID(guid) \
-	do {						   \
-		while (MEMCMP_IO(&guid, &Guid0, sizeof(Guid0)) == 0) {	\
-			LOGERR("Waiting for non-0 GUID (why???)...\n"); \
-			UIS_THREAD_WAIT_SEC(5);				\
-		}							\
-		LOGERR("OK... GUID is non-0 now\n");			\
-	} while (0)
+static inline void
+wait_for_valid_guid(uuid_le __iomem *guid)
+{
+	uuid_le tmpguid;
+
+	while (1) {
+		memcpy_fromio((void *)&tmpguid,
+			      (void __iomem *)guid, sizeof(uuid_le));
+		if (uuid_le_cmp(tmpguid, NULL_UUID_LE) != 0)
+			break;
+		LOGERR("Waiting for non-0 GUID (why???)...\n");
+		UIS_THREAD_WAIT_SEC(5);
+	}
+	LOGERR("OK... GUID is non-0 now\n");
+}
 
 /* CopyFragsInfoFromSkb returns the number of entries added to frags array
  * Returns -1 on failure.

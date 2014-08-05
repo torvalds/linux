@@ -62,6 +62,7 @@ union xfs_btree_rec {
 #define	XFS_BTNUM_CNT	((xfs_btnum_t)XFS_BTNUM_CNTi)
 #define	XFS_BTNUM_BMAP	((xfs_btnum_t)XFS_BTNUM_BMAPi)
 #define	XFS_BTNUM_INO	((xfs_btnum_t)XFS_BTNUM_INOi)
+#define	XFS_BTNUM_FINO	((xfs_btnum_t)XFS_BTNUM_FINOi)
 
 /*
  * For logging record fields.
@@ -92,6 +93,7 @@ do {    \
 	case XFS_BTNUM_CNT: __XFS_BTREE_STATS_INC(abtc, stat); break;	\
 	case XFS_BTNUM_BMAP: __XFS_BTREE_STATS_INC(bmbt, stat); break;	\
 	case XFS_BTNUM_INO: __XFS_BTREE_STATS_INC(ibt, stat); break;	\
+	case XFS_BTNUM_FINO: __XFS_BTREE_STATS_INC(fibt, stat); break;	\
 	case XFS_BTNUM_MAX: ASSERT(0); /* fucking gcc */ ; break;	\
 	}       \
 } while (0)
@@ -105,6 +107,7 @@ do {    \
 	case XFS_BTNUM_CNT: __XFS_BTREE_STATS_ADD(abtc, stat, val); break; \
 	case XFS_BTNUM_BMAP: __XFS_BTREE_STATS_ADD(bmbt, stat, val); break; \
 	case XFS_BTNUM_INO: __XFS_BTREE_STATS_ADD(ibt, stat, val); break; \
+	case XFS_BTNUM_FINO: __XFS_BTREE_STATS_ADD(fibt, stat, val); break; \
 	case XFS_BTNUM_MAX: ASSERT(0); /* fucking gcc */ ; break;	\
 	}       \
 } while (0)
@@ -129,7 +132,7 @@ struct xfs_btree_ops {
 	int	(*alloc_block)(struct xfs_btree_cur *cur,
 			       union xfs_btree_ptr *start_bno,
 			       union xfs_btree_ptr *new_bno,
-			       int length, int *stat);
+			       int *stat);
 	int	(*free_block)(struct xfs_btree_cur *cur, struct xfs_buf *bp);
 
 	/* update last record information */

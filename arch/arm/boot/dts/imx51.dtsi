@@ -19,6 +19,7 @@
 
 / {
 	aliases {
+		ethernet0 = &fec;
 		gpio0 = &gpio1;
 		gpio1 = &gpio2;
 		gpio2 = &gpio3;
@@ -537,6 +538,8 @@
 			};
 
 			nfc: nand@83fdb000 {
+				#address-cells = <1>;
+				#size-cells = <1>;
 				compatible = "fsl,imx51-nand";
 				reg = <0x83fdb000 0x1000 0xcfff0000 0x10000>;
 				interrupts = <8>;

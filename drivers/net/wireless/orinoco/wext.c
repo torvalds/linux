@@ -52,9 +52,9 @@ static int orinoco_set_key(struct orinoco_private *priv, int index,
 	priv->keys[index].seq_len = seq_len;
 
 	if (key_len)
-		memcpy(priv->keys[index].key, key, key_len);
+		memcpy((void *)priv->keys[index].key, key, key_len);
 	if (seq_len)
-		memcpy(priv->keys[index].seq, seq, seq_len);
+		memcpy((void *)priv->keys[index].seq, seq, seq_len);
 
 	switch (alg) {
 	case ORINOCO_ALG_TKIP:

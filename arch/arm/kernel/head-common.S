@@ -99,8 +99,7 @@ __mmap_switched:
 	str	r1, [r5]			@ Save machine type
 	str	r2, [r6]			@ Save atags pointer
 	cmp	r7, #0
-	bicne	r4, r0, #CR_A			@ Clear 'A' bit
-	stmneia	r7, {r0, r4}			@ Save control register values
+	strne	r0, [r7]			@ Save control register values
 	b	start_kernel
 ENDPROC(__mmap_switched)
 

@@ -232,8 +232,6 @@ int ldlm_lock_remove_from_lru_nolock(struct ldlm_lock *lock)
 
 		LASSERT(lock->l_resource->lr_type != LDLM_FLOCK);
 		list_del_init(&lock->l_lru);
-		if (lock->l_flags & LDLM_FL_SKIPPED)
-			lock->l_flags &= ~LDLM_FL_SKIPPED;
 		LASSERT(ns->ns_nr_unused > 0);
 		ns->ns_nr_unused--;
 		rc = 1;
@@ -271,6 +269,8 @@ void ldlm_lock_add_to_lru_nolock(struct ldlm_lock *lock)
 	LASSERT(list_empty(&lock->l_lru));
 	LASSERT(lock->l_resource->lr_type != LDLM_FLOCK);
 	list_add_tail(&lock->l_lru, &ns->ns_unused_list);
+	if (lock->l_flags & LDLM_FL_SKIPPED)
+		lock->l_flags &= ~LDLM_FL_SKIPPED;
 	LASSERT(ns->ns_nr_unused >= 0);
 	ns->ns_nr_unused++;
 }
@@ -437,7 +437,7 @@ static struct ldlm_lock *ldlm_lock_new(struct ldlm_resource *resource)
 	if (resource == NULL)
 		LBUG();
 
-	OBD_SLAB_ALLOC_PTR_GFP(lock, ldlm_lock_slab, __GFP_IO);
+	OBD_SLAB_ALLOC_PTR_GFP(lock, ldlm_lock_slab, GFP_NOFS);
 	if (lock == NULL)
 		return NULL;
 
@@ -1624,7 +1624,7 @@ ldlm_error_t ldlm_lock_enqueue(struct ldlm_namespace *ns,
 	 * have to allocate the interval node early otherwise we can't regrant
 	 * this lock in the future. - jay */
 	if (!local && (*flags & LDLM_FL_REPLAY) && res->lr_type == LDLM_EXTENT)
-		OBD_SLAB_ALLOC_PTR_GFP(node, ldlm_interval_slab, __GFP_IO);
+		OBD_SLAB_ALLOC_PTR_GFP(node, ldlm_interval_slab, GFP_NOFS);
 
 	lock_res_and_lock(lock);
 	if (local && lock->l_req_mode == lock->l_granted_mode) {
@@ -2146,7 +2146,7 @@ struct ldlm_resource *ldlm_lock_convert(struct ldlm_lock *lock, int new_mode,
 
 	/* I can't check the type of lock here because the bitlock of lock
 	 * is not held here, so do the allocation blindly. -jay */
-	OBD_SLAB_ALLOC_PTR_GFP(node, ldlm_interval_slab, __GFP_IO);
+	OBD_SLAB_ALLOC_PTR_GFP(node, ldlm_interval_slab, GFP_NOFS);
 	if (node == NULL)
 		/* Actually, this causes EDEADLOCK to be returned */
 		return NULL;

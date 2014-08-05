@@ -62,6 +62,7 @@ struct hisi_mux_clock {
 	u8			shift;
 	u8			width;
 	u8			mux_flags;
+	u32			*table;
 	const char		*alias;
 };
 
@@ -103,6 +104,8 @@ void __init hisi_clk_register_mux(struct hisi_mux_clock *, int,
 				struct hisi_clock_data *);
 void __init hisi_clk_register_divider(struct hisi_divider_clock *,
 				int, struct hisi_clock_data *);
+void __init hisi_clk_register_gate(struct hisi_gate_clock *,
+					int, struct hisi_clock_data *);
 void __init hisi_clk_register_gate_sep(struct hisi_gate_clock *,
 					int, struct hisi_clock_data *);
 #endif	/* __HISI_CLK_H */

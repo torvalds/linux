@@ -209,13 +209,11 @@ static void init_all_cpu_buffers(void)
 	}
 }
 
-static int prepare_cpu_buffers(void)
+static void prepare_cpu_buffers(void)
 {
-	int cpu;
-	int rc;
 	struct hws_cpu_buffer *cb;
+	int cpu;
 
-	rc = 0;
 	for_each_online_cpu(cpu) {
 		cb = &per_cpu(sampler_cpu_buffer, cpu);
 		atomic_set(&cb->ext_params, 0);
@@ -230,8 +228,6 @@ static int prepare_cpu_buffers(void)
 		cb->oom = 0;
 		cb->stop_mode = 0;
 	}
-
-	return rc;
 }
 
 /*
@@ -1107,9 +1103,7 @@ int hwsampler_start_all(unsigned long rate)
 	if (rc)
 		goto start_all_exit;
 
-	rc = prepare_cpu_buffers();
-	if (rc)
-		goto start_all_exit;
+	prepare_cpu_buffers();
 
 	for_each_online_cpu(cpu) {
 		rc = start_sampling(cpu);
@@ -1156,7 +1150,7 @@ int hwsampler_stop_all(void)
 	rc = 0;
 	if (hws_state == HWS_INIT) {
 		mutex_unlock(&hws_sem);
-		return rc;
+		return 0;
 	}
 	hws_state = HWS_STOPPING;
 	mutex_unlock(&hws_sem);

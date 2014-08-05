@@ -39,17 +39,6 @@
 
 /*---------------------  Export Functions  --------------------------*/
 
-/*
-  void
-  vGenerateMACHeader(PSDevice pDevice, unsigned long dwTxBufferAddr, unsigned char *pbySkbData,
-  unsigned int cbPacketSize, bool bDMA0Used, unsigned int *pcbHeadSize,
-  unsigned int *pcbAppendPayload);
-
-  void
-  vProcessRxMACHeader(PSDevice pDevice, unsigned long dwRxBufferAddr, unsigned int cbPacketSize,
-  bool bIsWEP, unsigned int *pcbHeadSize);
-*/
-
 void
 vGenerateMACHeader(
 	PSDevice         pDevice,

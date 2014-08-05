@@ -81,7 +81,7 @@ void crash_ipi_callback(struct pt_regs *regs)
 	}
 
 	atomic_inc(&cpus_in_crash);
-	smp_mb__after_atomic_inc();
+	smp_mb__after_atomic();
 
 	/*
 	 * Starting the kdump boot.

@@ -77,7 +77,7 @@ static inline void free_ll_remote_perm(struct ll_remote_perm *lrp)
 	OBD_SLAB_FREE(lrp, ll_remote_perm_cachep, sizeof(*lrp));
 }
 
-struct hlist_head *alloc_rmtperm_hash(void)
+static struct hlist_head *alloc_rmtperm_hash(void)
 {
 	struct hlist_head *hash;
 	int i;

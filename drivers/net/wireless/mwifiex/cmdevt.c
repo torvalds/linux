@@ -453,6 +453,7 @@ int mwifiex_process_event(struct mwifiex_adapter *adapter)
 
 	if (skb) {
 		rx_info = MWIFIEX_SKB_RXCB(skb);
+		memset(rx_info, 0, sizeof(*rx_info));
 		rx_info->bss_num = priv->bss_num;
 		rx_info->bss_type = priv->bss_type;
 	}
@@ -955,8 +956,6 @@ mwifiex_cmd_timeout_func(unsigned long function_context)
 			adapter->cmd_wait_q.status = -ETIMEDOUT;
 			wake_up_interruptible(&adapter->cmd_wait_q.wait);
 			mwifiex_cancel_pending_ioctl(adapter);
-			/* reset cmd_sent flag to unblock new commands */
-			adapter->cmd_sent = false;
 		}
 	}
 	if (adapter->hw_status == MWIFIEX_HW_STATUS_INITIALIZING)

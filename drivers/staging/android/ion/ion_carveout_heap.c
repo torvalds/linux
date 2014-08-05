@@ -81,7 +81,7 @@ static int ion_carveout_heap_allocate(struct ion_heap *heap,
 	if (align > PAGE_SIZE)
 		return -EINVAL;
 
-	table = kzalloc(sizeof(struct sg_table), GFP_KERNEL);
+	table = kmalloc(sizeof(struct sg_table), GFP_KERNEL);
 	if (!table)
 		return -ENOMEM;
 	ret = sg_alloc_table(table, 1, GFP_KERNEL);

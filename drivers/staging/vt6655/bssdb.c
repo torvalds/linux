@@ -497,9 +497,8 @@ BSSbInsertToBSSList(
 		}
 	}
 
-	if (bParsingQuiet && (pQuiet != NULL)) {
+	if (bParsingQuiet && (pQuiet != NULL))
 		CARDbStartQuiet(pMgmt->pAdapter);
-	}
 
 	pBSSList->uIELength = uIELength;
 	if (pBSSList->uIELength > WLAN_BEACON_FR_MAXLEN)
@@ -662,9 +661,8 @@ BSSbUpdateToBSSList(
 		}
 	}
 
-	if (bParsingQuiet && (pQuiet != NULL)) {
+	if (bParsingQuiet && (pQuiet != NULL))
 		CARDbStartQuiet(pMgmt->pAdapter);
-	}
 
 	pBSSList->uIELength = uIELength;
 	if (pBSSList->uIELength > WLAN_BEACON_FR_MAXLEN)
@@ -983,7 +981,7 @@ start:
 		pDevice->byERPFlag &= ~(WLAN_SET_ERP_USE_PROTECTION(1));
 	}
 
-	{
+	if (pDevice->eCommandState == WLAN_ASSOCIATE_WAIT) {
 		pDevice->byReAssocCount++;
 		/* 10 sec timeout */
 		if ((pDevice->byReAssocCount > 10) && (!pDevice->bLinkPass)) {

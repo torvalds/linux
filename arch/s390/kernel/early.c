@@ -258,13 +258,19 @@ static __init void setup_topology(void)
 static void early_pgm_check_handler(void)
 {
 	const struct exception_table_entry *fixup;
+	unsigned long cr0, cr0_new;
 	unsigned long addr;
 
 	addr = S390_lowcore.program_old_psw.addr;
 	fixup = search_exception_tables(addr & PSW_ADDR_INSN);
 	if (!fixup)
 		disabled_wait(0);
+	/* Disable low address protection before storing into lowcore. */
+	__ctl_store(cr0, 0, 0);
+	cr0_new = cr0 & ~(1UL << 28);
+	__ctl_load(cr0_new, 0, 0);
 	S390_lowcore.program_old_psw.addr = extable_fixup(fixup)|PSW_ADDR_AMODE;
+	__ctl_load(cr0, 0, 0);
 }
 
 static noinline __init void setup_lowcore_early(void)

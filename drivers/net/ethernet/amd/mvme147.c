@@ -26,9 +26,9 @@
 #include <asm/pgtable.h>
 #include <asm/mvme147hw.h>
 
-/* We have 16834 bytes of RAM for the init block and buffers. This places
+/* We have 32K of RAM for the init block and buffers. This places
  * an upper limit on the number of buffers we can use. NetBSD uses 8 Rx
- * buffers and 2 Tx buffers.
+ * buffers and 2 Tx buffers, it takes (8 + 2) * 1544 bytes.
  */
 #define LANCE_LOG_TX_BUFFERS 1
 #define LANCE_LOG_RX_BUFFERS 3
@@ -111,7 +111,7 @@ struct net_device * __init mvme147lance_probe(int unit)
 	       dev->dev_addr);
 
 	lp = netdev_priv(dev);
-	lp->ram = __get_dma_pages(GFP_ATOMIC, 3);	/* 16K */
+	lp->ram = __get_dma_pages(GFP_ATOMIC, 3);	/* 32K */
 	if (!lp->ram) {
 		printk("%s: No memory for LANCE buffers\n", dev->name);
 		free_netdev(dev);

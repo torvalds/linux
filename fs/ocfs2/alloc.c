@@ -6046,7 +6046,8 @@ static void ocfs2_truncate_log_worker(struct work_struct *work)
 void ocfs2_schedule_truncate_log_flush(struct ocfs2_super *osb,
 				       int cancel)
 {
-	if (osb->osb_tl_inode) {
+	if (osb->osb_tl_inode &&
+			atomic_read(&osb->osb_tl_disable) == 0) {
 		/* We want to push off log flushes while truncates are
 		 * still running. */
 		if (cancel)
@@ -6223,6 +6224,8 @@ void ocfs2_truncate_log_shutdown(struct ocfs2_super *osb)
 	int status;
 	struct inode *tl_inode = osb->osb_tl_inode;
 
+	atomic_set(&osb->osb_tl_disable, 1);
+
 	if (tl_inode) {
 		cancel_delayed_work(&osb->osb_truncate_log_wq);
 		flush_workqueue(ocfs2_wq);
@@ -6254,6 +6257,7 @@ int ocfs2_truncate_log_init(struct ocfs2_super *osb)
 	 * until we're sure all is well. */
 	INIT_DELAYED_WORK(&osb->osb_truncate_log_wq,
 			  ocfs2_truncate_log_worker);
+	atomic_set(&osb->osb_tl_disable, 0);
 	osb->osb_tl_bh    = tl_bh;
 	osb->osb_tl_inode = tl_inode;
 

@@ -339,6 +339,14 @@ static int __init xen_pm_init(void)
 }
 late_initcall(xen_pm_init);
 
+
+/* empty stubs */
+void xen_arch_pre_suspend(void) { }
+void xen_arch_post_suspend(int suspend_cancelled) { }
+void xen_timer_resume(void) { }
+void xen_arch_resume(void) { }
+
+
 /* In the hypervisor.S file. */
 EXPORT_SYMBOL_GPL(HYPERVISOR_event_channel_op);
 EXPORT_SYMBOL_GPL(HYPERVISOR_grant_table_op);
@@ -350,4 +358,5 @@ EXPORT_SYMBOL_GPL(HYPERVISOR_memory_op);
 EXPORT_SYMBOL_GPL(HYPERVISOR_physdev_op);
 EXPORT_SYMBOL_GPL(HYPERVISOR_vcpu_op);
 EXPORT_SYMBOL_GPL(HYPERVISOR_tmem_op);
+EXPORT_SYMBOL_GPL(HYPERVISOR_multicall);
 EXPORT_SYMBOL_GPL(privcmd_call);

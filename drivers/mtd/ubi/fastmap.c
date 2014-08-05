@@ -127,7 +127,7 @@ static struct ubi_ainf_volume *add_vol(struct ubi_attach_info *ai, int vol_id,
 
 		if (vol_id > av->vol_id)
 			p = &(*p)->rb_left;
-		else if (vol_id > av->vol_id)
+		else
 			p = &(*p)->rb_right;
 	}
 
@@ -423,7 +423,7 @@ static int scan_pool(struct ubi_device *ubi, struct ubi_attach_info *ai,
 				pnum, err);
 			ret = err > 0 ? UBI_BAD_FASTMAP : err;
 			goto out;
-		} else if (ret == UBI_IO_BITFLIPS)
+		} else if (err == UBI_IO_BITFLIPS)
 			scrub = 1;
 
 		/*

@@ -22,6 +22,8 @@
 #define DIGITAL_PROTO_NFCA_RF_TECH \
 	(NFC_PROTO_JEWEL_MASK | NFC_PROTO_MIFARE_MASK | NFC_PROTO_NFC_DEP_MASK)
 
+#define DIGITAL_PROTO_NFCB_RF_TECH	NFC_PROTO_ISO14443_B_MASK
+
 #define DIGITAL_PROTO_NFCF_RF_TECH \
 	(NFC_PROTO_FELICA_MASK | NFC_PROTO_NFC_DEP_MASK)
 
@@ -345,6 +347,12 @@ int digital_target_found(struct nfc_digital_dev *ddev,
 		add_crc = digital_skb_add_crc_a;
 		break;
 
+	case NFC_PROTO_ISO14443_B:
+		framing = NFC_DIGITAL_FRAMING_NFCB_T4T;
+		check_crc = digital_skb_check_crc_b;
+		add_crc = digital_skb_add_crc_b;
+		break;
+
 	default:
 		pr_err("Invalid protocol %d\n", protocol);
 		return -EINVAL;
@@ -378,6 +386,8 @@ int digital_target_found(struct nfc_digital_dev *ddev,
 
 void digital_poll_next_tech(struct nfc_digital_dev *ddev)
 {
+	u8 rand_mod;
+
 	digital_switch_rf(ddev, 0);
 
 	mutex_lock(&ddev->poll_lock);
@@ -387,8 +397,8 @@ void digital_poll_next_tech(struct nfc_digital_dev *ddev)
 		return;
 	}
 
-	ddev->poll_tech_index = (ddev->poll_tech_index + 1) %
-				ddev->poll_tech_count;
+	get_random_bytes(&rand_mod, sizeof(rand_mod));
+	ddev->poll_tech_index = rand_mod % ddev->poll_tech_count;
 
 	mutex_unlock(&ddev->poll_lock);
 
@@ -474,6 +484,10 @@ static int digital_start_poll(struct nfc_dev *nfc_dev, __u32 im_protocols,
 	if (matching_im_protocols & DIGITAL_PROTO_NFCA_RF_TECH)
 		digital_add_poll_tech(ddev, NFC_DIGITAL_RF_TECH_106A,
 				      digital_in_send_sens_req);
+
+	if (matching_im_protocols & DIGITAL_PROTO_NFCB_RF_TECH)
+		digital_add_poll_tech(ddev, NFC_DIGITAL_RF_TECH_106B,
+				      digital_in_send_sensb_req);
 
 	if (matching_im_protocols & DIGITAL_PROTO_NFCF_RF_TECH) {
 		digital_add_poll_tech(ddev, NFC_DIGITAL_RF_TECH_212F,
@@ -635,7 +649,8 @@ static void digital_in_send_complete(struct nfc_digital_dev *ddev, void *arg,
 		goto done;
 	}
 
-	if (ddev->curr_protocol == NFC_PROTO_ISO14443) {
+	if ((ddev->curr_protocol == NFC_PROTO_ISO14443) ||
+	    (ddev->curr_protocol == NFC_PROTO_ISO14443_B)) {
 		rc = digital_in_iso_dep_pull_sod(ddev, resp);
 		if (rc)
 			goto done;
@@ -676,7 +691,8 @@ static int digital_in_send(struct nfc_dev *nfc_dev, struct nfc_target *target,
 		goto exit;
 	}
 
-	if (ddev->curr_protocol == NFC_PROTO_ISO14443) {
+	if ((ddev->curr_protocol == NFC_PROTO_ISO14443) ||
+	    (ddev->curr_protocol == NFC_PROTO_ISO14443_B)) {
 		rc = digital_in_iso_dep_push_sod(ddev, skb);
 		if (rc)
 			goto exit;
@@ -747,6 +763,8 @@ struct nfc_digital_dev *nfc_digital_allocate_device(struct nfc_digital_ops *ops,
 		ddev->protocols |= NFC_PROTO_ISO15693_MASK;
 	if (supported_protocols & NFC_PROTO_ISO14443_MASK)
 		ddev->protocols |= NFC_PROTO_ISO14443_MASK;
+	if (supported_protocols & NFC_PROTO_ISO14443_B_MASK)
+		ddev->protocols |= NFC_PROTO_ISO14443_B_MASK;
 
 	ddev->tx_headroom = tx_headroom + DIGITAL_MAX_HEADER_LEN;
 	ddev->tx_tailroom = tx_tailroom + DIGITAL_CRC_LEN;

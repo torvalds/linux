@@ -77,6 +77,8 @@ struct nouveau_clock {
 	int tstate; /* thermal adjustment (max-) */
 	int dstate; /* display adjustment (min+) */
 
+	bool allow_reclock;
+
 	int  (*read)(struct nouveau_clock *, enum nv_clk_src);
 	int  (*calc)(struct nouveau_clock *, struct nouveau_cstate *);
 	int  (*prog)(struct nouveau_clock *);
@@ -106,8 +108,8 @@ struct nouveau_clocks {
 	int mdiv;
 };
 
-#define nouveau_clock_create(p,e,o,i,d)                                        \
-	nouveau_clock_create_((p), (e), (o), (i), sizeof(**d), (void **)d)
+#define nouveau_clock_create(p,e,o,i,r,d)                                      \
+	nouveau_clock_create_((p), (e), (o), (i), (r), sizeof(**d), (void **)d)
 #define nouveau_clock_destroy(p) ({                                            \
 	struct nouveau_clock *clk = (p);                                       \
 	_nouveau_clock_dtor(nv_object(clk));                                   \
@@ -121,7 +123,7 @@ struct nouveau_clocks {
 
 int  nouveau_clock_create_(struct nouveau_object *, struct nouveau_object *,
 			   struct nouveau_oclass *,
-			   struct nouveau_clocks *, int, void **);
+			   struct nouveau_clocks *, bool, int, void **);
 void _nouveau_clock_dtor(struct nouveau_object *);
 int _nouveau_clock_init(struct nouveau_object *);
 #define _nouveau_clock_fini _nouveau_subdev_fini

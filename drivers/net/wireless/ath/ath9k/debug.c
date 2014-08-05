@@ -948,150 +948,10 @@ static const struct file_operations fops_reset = {
 	.llseek = default_llseek,
 };
 
-static ssize_t read_file_recv(struct file *file, char __user *user_buf,
-			      size_t count, loff_t *ppos)
-{
-#define RXS_ERR(s, e)					    \
-	do {						    \
-		len += scnprintf(buf + len, size - len,	    \
-				 "%18s : %10u\n", s,	    \
-				 sc->debug.stats.rxstats.e);\
-	} while (0)
-
-	struct ath_softc *sc = file->private_data;
-	char *buf;
-	unsigned int len = 0, size = 1600;
-	ssize_t retval = 0;
-
-	buf = kzalloc(size, GFP_KERNEL);
-	if (buf == NULL)
-		return -ENOMEM;
-
-	RXS_ERR("PKTS-ALL", rx_pkts_all);
-	RXS_ERR("BYTES-ALL", rx_bytes_all);
-	RXS_ERR("BEACONS", rx_beacons);
-	RXS_ERR("FRAGS", rx_frags);
-	RXS_ERR("SPECTRAL", rx_spectral);
-
-	RXS_ERR("CRC ERR", crc_err);
-	RXS_ERR("DECRYPT CRC ERR", decrypt_crc_err);
-	RXS_ERR("PHY ERR", phy_err);
-	RXS_ERR("MIC ERR", mic_err);
-	RXS_ERR("PRE-DELIM CRC ERR", pre_delim_crc_err);
-	RXS_ERR("POST-DELIM CRC ERR", post_delim_crc_err);
-	RXS_ERR("DECRYPT BUSY ERR", decrypt_busy_err);
-	RXS_ERR("LENGTH-ERR", rx_len_err);
-	RXS_ERR("OOM-ERR", rx_oom_err);
-	RXS_ERR("RATE-ERR", rx_rate_err);
-	RXS_ERR("TOO-MANY-FRAGS", rx_too_many_frags_err);
-
-	if (len > size)
-		len = size;
-
-	retval = simple_read_from_buffer(user_buf, count, ppos, buf, len);
-	kfree(buf);
-
-	return retval;
-
-#undef RXS_ERR
-}
-
 void ath_debug_stat_rx(struct ath_softc *sc, struct ath_rx_status *rs)
 {
-#define RX_PHY_ERR_INC(c) sc->debug.stats.rxstats.phy_err_stats[c]++
-
-	RX_STAT_INC(rx_pkts_all);
-	sc->debug.stats.rxstats.rx_bytes_all += rs->rs_datalen;
-
-	if (rs->rs_status & ATH9K_RXERR_CRC)
-		RX_STAT_INC(crc_err);
-	if (rs->rs_status & ATH9K_RXERR_DECRYPT)
-		RX_STAT_INC(decrypt_crc_err);
-	if (rs->rs_status & ATH9K_RXERR_MIC)
-		RX_STAT_INC(mic_err);
-	if (rs->rs_status & ATH9K_RX_DELIM_CRC_PRE)
-		RX_STAT_INC(pre_delim_crc_err);
-	if (rs->rs_status & ATH9K_RX_DELIM_CRC_POST)
-		RX_STAT_INC(post_delim_crc_err);
-	if (rs->rs_status & ATH9K_RX_DECRYPT_BUSY)
-		RX_STAT_INC(decrypt_busy_err);
-
-	if (rs->rs_status & ATH9K_RXERR_PHY) {
-		RX_STAT_INC(phy_err);
-		if (rs->rs_phyerr < ATH9K_PHYERR_MAX)
-			RX_PHY_ERR_INC(rs->rs_phyerr);
-	}
-
-#undef RX_PHY_ERR_INC
+	ath9k_cmn_debug_stat_rx(&sc->debug.stats.rxstats, rs);
 }
-
-static const struct file_operations fops_recv = {
-	.read = read_file_recv,
-	.open = simple_open,
-	.owner = THIS_MODULE,
-	.llseek = default_llseek,
-};
-
-static ssize_t read_file_phy_err(struct file *file, char __user *user_buf,
-				 size_t count, loff_t *ppos)
-{
-#define PHY_ERR(s, p) \
-	len += scnprintf(buf + len, size - len, "%22s : %10u\n", s, \
-			 sc->debug.stats.rxstats.phy_err_stats[p]);
-
-	struct ath_softc *sc = file->private_data;
-	char *buf;
-	unsigned int len = 0, size = 1600;
-	ssize_t retval = 0;
-
-	buf = kzalloc(size, GFP_KERNEL);
-	if (buf == NULL)
-		return -ENOMEM;
-
-	PHY_ERR("UNDERRUN ERR", ATH9K_PHYERR_UNDERRUN);
-	PHY_ERR("TIMING ERR", ATH9K_PHYERR_TIMING);
-	PHY_ERR("PARITY ERR", ATH9K_PHYERR_PARITY);
-	PHY_ERR("RATE ERR", ATH9K_PHYERR_RATE);
-	PHY_ERR("LENGTH ERR", ATH9K_PHYERR_LENGTH);
-	PHY_ERR("RADAR ERR", ATH9K_PHYERR_RADAR);
-	PHY_ERR("SERVICE ERR", ATH9K_PHYERR_SERVICE);
-	PHY_ERR("TOR ERR", ATH9K_PHYERR_TOR);
-	PHY_ERR("OFDM-TIMING ERR", ATH9K_PHYERR_OFDM_TIMING);
-	PHY_ERR("OFDM-SIGNAL-PARITY ERR", ATH9K_PHYERR_OFDM_SIGNAL_PARITY);
-	PHY_ERR("OFDM-RATE ERR", ATH9K_PHYERR_OFDM_RATE_ILLEGAL);
-	PHY_ERR("OFDM-LENGTH ERR", ATH9K_PHYERR_OFDM_LENGTH_ILLEGAL);
-	PHY_ERR("OFDM-POWER-DROP ERR", ATH9K_PHYERR_OFDM_POWER_DROP);
-	PHY_ERR("OFDM-SERVICE ERR", ATH9K_PHYERR_OFDM_SERVICE);
-	PHY_ERR("OFDM-RESTART ERR", ATH9K_PHYERR_OFDM_RESTART);
-	PHY_ERR("FALSE-RADAR-EXT ERR", ATH9K_PHYERR_FALSE_RADAR_EXT);
-	PHY_ERR("CCK-TIMING ERR", ATH9K_PHYERR_CCK_TIMING);
-	PHY_ERR("CCK-HEADER-CRC ERR", ATH9K_PHYERR_CCK_HEADER_CRC);
-	PHY_ERR("CCK-RATE ERR", ATH9K_PHYERR_CCK_RATE_ILLEGAL);
-	PHY_ERR("CCK-SERVICE ERR", ATH9K_PHYERR_CCK_SERVICE);
-	PHY_ERR("CCK-RESTART ERR", ATH9K_PHYERR_CCK_RESTART);
-	PHY_ERR("CCK-LENGTH ERR", ATH9K_PHYERR_CCK_LENGTH_ILLEGAL);
-	PHY_ERR("CCK-POWER-DROP ERR", ATH9K_PHYERR_CCK_POWER_DROP);
-	PHY_ERR("HT-CRC ERR", ATH9K_PHYERR_HT_CRC_ERROR);
-	PHY_ERR("HT-LENGTH ERR", ATH9K_PHYERR_HT_LENGTH_ILLEGAL);
-	PHY_ERR("HT-RATE ERR", ATH9K_PHYERR_HT_RATE_ILLEGAL);
-
-	if (len > size)
-		len = size;
-
-	retval = simple_read_from_buffer(user_buf, count, ppos, buf, len);
-	kfree(buf);
-
-	return retval;
-
-#undef PHY_ERR
-}
-
-static const struct file_operations fops_phy_err = {
-	.read = read_file_phy_err,
-	.open = simple_open,
-	.owner = THIS_MODULE,
-	.llseek = default_llseek,
-};
 
 static ssize_t read_file_regidx(struct file *file, char __user *user_buf,
                                 size_t count, loff_t *ppos)
@@ -1263,62 +1123,6 @@ static ssize_t read_file_dump_nfcal(struct file *file, char __user *user_buf,
 
 static const struct file_operations fops_dump_nfcal = {
 	.read = read_file_dump_nfcal,
-	.open = simple_open,
-	.owner = THIS_MODULE,
-	.llseek = default_llseek,
-};
-
-static ssize_t read_file_base_eeprom(struct file *file, char __user *user_buf,
-				     size_t count, loff_t *ppos)
-{
-	struct ath_softc *sc = file->private_data;
-	struct ath_hw *ah = sc->sc_ah;
-	u32 len = 0, size = 1500;
-	ssize_t retval = 0;
-	char *buf;
-
-	buf = kzalloc(size, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
-
-	len = ah->eep_ops->dump_eeprom(ah, true, buf, len, size);
-
-	retval = simple_read_from_buffer(user_buf, count, ppos, buf, len);
-	kfree(buf);
-
-	return retval;
-}
-
-static const struct file_operations fops_base_eeprom = {
-	.read = read_file_base_eeprom,
-	.open = simple_open,
-	.owner = THIS_MODULE,
-	.llseek = default_llseek,
-};
-
-static ssize_t read_file_modal_eeprom(struct file *file, char __user *user_buf,
-				      size_t count, loff_t *ppos)
-{
-	struct ath_softc *sc = file->private_data;
-	struct ath_hw *ah = sc->sc_ah;
-	u32 len = 0, size = 6000;
-	char *buf;
-	size_t retval;
-
-	buf = kzalloc(size, GFP_KERNEL);
-	if (buf == NULL)
-		return -ENOMEM;
-
-	len = ah->eep_ops->dump_eeprom(ah, false, buf, len, size);
-
-	retval = simple_read_from_buffer(user_buf, count, ppos, buf, len);
-	kfree(buf);
-
-	return retval;
-}
-
-static const struct file_operations fops_modal_eeprom = {
-	.read = read_file_modal_eeprom,
 	.open = simple_open,
 	.owner = THIS_MODULE,
 	.llseek = default_llseek,
@@ -1524,10 +1328,10 @@ int ath9k_init_debug(struct ath_hw *ah)
 			    &fops_misc);
 	debugfs_create_file("reset", S_IRUSR, sc->debug.debugfs_phy, sc,
 			    &fops_reset);
-	debugfs_create_file("recv", S_IRUSR, sc->debug.debugfs_phy, sc,
-			    &fops_recv);
-	debugfs_create_file("phy_err", S_IRUSR, sc->debug.debugfs_phy, sc,
-			    &fops_phy_err);
+
+	ath9k_cmn_debug_recv(sc->debug.debugfs_phy, &sc->debug.stats.rxstats);
+	ath9k_cmn_debug_phy_err(sc->debug.debugfs_phy, &sc->debug.stats.rxstats);
+
 	debugfs_create_u8("rx_chainmask", S_IRUSR, sc->debug.debugfs_phy,
 			  &ah->rxchainmask);
 	debugfs_create_u8("tx_chainmask", S_IRUSR, sc->debug.debugfs_phy,
@@ -1547,10 +1351,10 @@ int ath9k_init_debug(struct ath_hw *ah)
 			    &fops_regdump);
 	debugfs_create_file("dump_nfcal", S_IRUSR, sc->debug.debugfs_phy, sc,
 			    &fops_dump_nfcal);
-	debugfs_create_file("base_eeprom", S_IRUSR, sc->debug.debugfs_phy, sc,
-			    &fops_base_eeprom);
-	debugfs_create_file("modal_eeprom", S_IRUSR, sc->debug.debugfs_phy, sc,
-			    &fops_modal_eeprom);
+
+	ath9k_cmn_debug_base_eeprom(sc->debug.debugfs_phy, sc->sc_ah);
+	ath9k_cmn_debug_modal_eeprom(sc->debug.debugfs_phy, sc->sc_ah);
+
 	debugfs_create_u32("gpio_mask", S_IRUSR | S_IWUSR,
 			   sc->debug.debugfs_phy, &sc->sc_ah->gpio_mask);
 	debugfs_create_u32("gpio_val", S_IRUSR | S_IWUSR,

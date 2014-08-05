@@ -550,7 +550,7 @@ installs itself as:
 	/sys/devices/systm/edac/test-instance
 
 in this directory are various controls, a symlink and one or more 'instance'
-directorys.
+directories.
 
 The standard default controls are:
 

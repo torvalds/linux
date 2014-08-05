@@ -419,7 +419,7 @@ static size_t __init gen6_stolen_size(int num, int slot, int func)
 	return gmch_ctrl << 25; /* 32 MB units */
 }
 
-static size_t gen8_stolen_size(int num, int slot, int func)
+static size_t __init gen8_stolen_size(int num, int slot, int func)
 {
 	u16 gmch_ctrl;
 
@@ -429,48 +429,73 @@ static size_t gen8_stolen_size(int num, int slot, int func)
 	return gmch_ctrl << 25; /* 32 MB units */
 }
 
+static size_t __init chv_stolen_size(int num, int slot, int func)
+{
+	u16 gmch_ctrl;
+
+	gmch_ctrl = read_pci_config_16(num, slot, func, SNB_GMCH_CTRL);
+	gmch_ctrl >>= SNB_GMCH_GMS_SHIFT;
+	gmch_ctrl &= SNB_GMCH_GMS_MASK;
+
+	/*
+	 * 0x0  to 0x10: 32MB increments starting at 0MB
+	 * 0x11 to 0x16: 4MB increments starting at 8MB
+	 * 0x17 to 0x1d: 4MB increments start at 36MB
+	 */
+	if (gmch_ctrl < 0x11)
+		return gmch_ctrl << 25;
+	else if (gmch_ctrl < 0x17)
+		return (gmch_ctrl - 0x11 + 2) << 22;
+	else
+		return (gmch_ctrl - 0x17 + 9) << 22;
+}
 
 struct intel_stolen_funcs {
 	size_t (*size)(int num, int slot, int func);
 	u32 (*base)(int num, int slot, int func, size_t size);
 };
 
-static const struct intel_stolen_funcs i830_stolen_funcs = {
+static const struct intel_stolen_funcs i830_stolen_funcs __initconst = {
 	.base = i830_stolen_base,
 	.size = i830_stolen_size,
 };
 
-static const struct intel_stolen_funcs i845_stolen_funcs = {
+static const struct intel_stolen_funcs i845_stolen_funcs __initconst = {
 	.base = i845_stolen_base,
 	.size = i830_stolen_size,
 };
 
-static const struct intel_stolen_funcs i85x_stolen_funcs = {
+static const struct intel_stolen_funcs i85x_stolen_funcs __initconst = {
 	.base = i85x_stolen_base,
 	.size = gen3_stolen_size,
 };
 
-static const struct intel_stolen_funcs i865_stolen_funcs = {
+static const struct intel_stolen_funcs i865_stolen_funcs __initconst = {
 	.base = i865_stolen_base,
 	.size = gen3_stolen_size,
 };
 
-static const struct intel_stolen_funcs gen3_stolen_funcs = {
+static const struct intel_stolen_funcs gen3_stolen_funcs __initconst = {
 	.base = intel_stolen_base,
 	.size = gen3_stolen_size,
 };
 
-static const struct intel_stolen_funcs gen6_stolen_funcs = {
+static const struct intel_stolen_funcs gen6_stolen_funcs __initconst = {
 	.base = intel_stolen_base,
 	.size = gen6_stolen_size,
 };
 
-static const struct intel_stolen_funcs gen8_stolen_funcs = {
+static const struct intel_stolen_funcs gen8_stolen_funcs __initconst = {
 	.base = intel_stolen_base,
 	.size = gen8_stolen_size,
 };
 
-static struct pci_device_id intel_stolen_ids[] __initdata = {
+static const struct intel_stolen_funcs chv_stolen_funcs __initconst = {
+	.base = intel_stolen_base,
+	.size = chv_stolen_size,
+};
+
+static const struct pci_device_id intel_stolen_ids[] __initconst = {
 	INTEL_I830_IDS(&i830_stolen_funcs),
 	INTEL_I845G_IDS(&i845_stolen_funcs),
 	INTEL_I85X_IDS(&i85x_stolen_funcs),
@@ -496,7 +521,8 @@ static struct pci_device_id intel_stolen_ids[] __initdata = {
 	INTEL_HSW_D_IDS(&gen6_stolen_funcs),
 	INTEL_HSW_M_IDS(&gen6_stolen_funcs),
 	INTEL_BDW_M_IDS(&gen8_stolen_funcs),
-	INTEL_BDW_D_IDS(&gen8_stolen_funcs)
+	INTEL_BDW_D_IDS(&gen8_stolen_funcs),
+	INTEL_CHV_IDS(&chv_stolen_funcs),
 };
 
 static void __init intel_graphics_stolen(int num, int slot, int func)

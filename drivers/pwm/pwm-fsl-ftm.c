@@ -454,6 +454,7 @@ static int fsl_pwm_probe(struct platform_device *pdev)
 	fpc->chip.of_pwm_n_cells = 3;
 	fpc->chip.base = -1;
 	fpc->chip.npwm = 8;
+	fpc->chip.can_sleep = true;
 
 	ret = pwmchip_add(&fpc->chip);
 	if (ret < 0) {

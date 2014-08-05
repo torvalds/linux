@@ -203,7 +203,7 @@ static int apbps2_of_remove(struct platform_device *of_dev)
 	return 0;
 }
 
-static struct of_device_id apbps2_of_match[] = {
+static const struct of_device_id apbps2_of_match[] = {
 	{ .name = "GAISLER_APBPS2", },
 	{ .name = "01_060", },
 	{}

@@ -232,7 +232,7 @@ static void i40e_dcbnl_del_app(struct i40e_pf *pf,
 			      struct i40e_ieee_app_priority_table *app)
 {
 	int v, err;
-	for (v = 0; v < pf->hw.func_caps.num_vsis; v++) {
+	for (v = 0; v < pf->num_alloc_vsi; v++) {
 		if (pf->vsi[v] && pf->vsi[v]->netdev) {
 			err = i40e_dcbnl_vsi_del_app(pf->vsi[v], app);
 			if (err)
@@ -302,8 +302,8 @@ void i40e_dcbnl_setup(struct i40e_vsi *vsi)
 	struct net_device *dev = vsi->netdev;
 	struct i40e_pf *pf = i40e_netdev_to_pf(dev);
 
-	/* DCB not enabled */
-	if (!(pf->flags & I40E_FLAG_DCB_ENABLED))
+	/* Not DCB capable */
+	if (!(pf->flags & I40E_FLAG_DCB_CAPABLE))
 		return;
 
 	/* Do not setup DCB NL ops for MFP mode */

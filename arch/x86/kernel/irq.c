@@ -365,6 +365,7 @@ void fixup_irqs(void)
 	struct irq_desc *desc;
 	struct irq_data *data;
 	struct irq_chip *chip;
+	int ret;
 
 	for_each_irq_desc(irq, desc) {
 		int break_affinity = 0;
@@ -403,10 +404,14 @@ void fixup_irqs(void)
 		if (!irqd_can_move_in_process_context(data) && chip->irq_mask)
 			chip->irq_mask(data);
 
-		if (chip->irq_set_affinity)
-			chip->irq_set_affinity(data, affinity, true);
-		else if (!(warned++))
-			set_affinity = 0;
+		if (chip->irq_set_affinity) {
+			ret = chip->irq_set_affinity(data, affinity, true);
+			if (ret == -ENOSPC)
+				pr_crit("IRQ %d set affinity failed because there are no available vectors.  The device assigned to this IRQ is unstable.\n", irq);
+		} else {
+			if (!(warned++))
+				set_affinity = 0;
+		}
 
 		/*
 		 * We unmask if the irq was not marked masked by the

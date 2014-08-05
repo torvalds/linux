@@ -109,9 +109,9 @@ static struct sk_buff *rtllib_ADDBA(struct rtllib_device *ieee, u8 *Dst,
 	BAReq->frame_ctl = cpu_to_le16(RTLLIB_STYPE_MANAGE_ACT);
 
 	tag = (u8 *)skb_put(skb, 9);
-	*tag ++= ACT_CAT_BA;
-	*tag ++= type;
-	*tag ++= pBA->DialogToken;
+	*tag++ = ACT_CAT_BA;
+	*tag++ = type;
+	*tag++ = pBA->DialogToken;
 
 	if (ACT_ADDBARSP == type) {
 		RT_TRACE(COMP_DBG, "====>to send ADDBARSP\n");
@@ -175,8 +175,8 @@ static struct sk_buff *rtllib_DELBA(struct rtllib_device *ieee, u8 *dst,
 
 	tag = (u8 *)skb_put(skb, 6);
 
-	*tag ++= ACT_CAT_BA;
-	*tag ++= ACT_DELBA;
+	*tag++ = ACT_CAT_BA;
+	*tag++ = ACT_DELBA;
 
 	tmp = DelbaParamSet.shortData;
 	memcpy(tag, (u8 *)&tmp, 2);
@@ -230,8 +230,8 @@ static void rtllib_send_DELBA(struct rtllib_device *ieee, u8 *dst,
 	if (skb)
 		softmac_mgmt_xmit(skb, ieee);
 	else
-		RTLLIB_DEBUG(RTLLIB_DL_ERR, "alloc skb error in func"
-			     "tion %s()\n", __func__);
+		RTLLIB_DEBUG(RTLLIB_DL_ERR, "alloc skb error in function"
+			     " %s()\n", __func__);
 	return ;
 }
 

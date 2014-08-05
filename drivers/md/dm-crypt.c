@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003 Christophe Saout <christophe@saout.de>
+ * Copyright (C) 2003 Jana Saout <jana@saout.de>
  * Copyright (C) 2004 Clemens Fruhwirth <clemens@endorphin.org>
  * Copyright (C) 2006-2009 Red Hat, Inc. All rights reserved.
  * Copyright (C) 2013 Milan Broz <gmazyland@gmail.com>
@@ -1996,6 +1996,6 @@ static void __exit dm_crypt_exit(void)
 module_init(dm_crypt_init);
 module_exit(dm_crypt_exit);
 
-MODULE_AUTHOR("Christophe Saout <christophe@saout.de>");
+MODULE_AUTHOR("Jana Saout <jana@saout.de>");
 MODULE_DESCRIPTION(DM_NAME " target for transparent encryption / decryption");
 MODULE_LICENSE("GPL");

@@ -574,6 +574,10 @@ static int create_user_qp(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 	uar_index = uuarn_to_uar_index(&context->uuari, uuarn);
 	mlx5_ib_dbg(dev, "uuarn 0x%x, uar_index 0x%x\n", uuarn, uar_index);
 
+	qp->rq.offset = 0;
+	qp->sq.wqe_shift = ilog2(MLX5_SEND_WQE_BB);
+	qp->sq.offset = qp->rq.wqe_cnt << qp->rq.wqe_shift;
+
 	err = set_user_buf_size(dev, qp, &ucmd);
 	if (err)
 		goto err_uuar;
@@ -671,7 +675,7 @@ static int create_kernel_qp(struct mlx5_ib_dev *dev,
 	int err;
 
 	uuari = &dev->mdev.priv.uuari;
-	if (init_attr->create_flags & ~IB_QP_CREATE_SIGNATURE_EN)
+	if (init_attr->create_flags & ~(IB_QP_CREATE_SIGNATURE_EN | IB_QP_CREATE_BLOCK_MULTICAST_LOOPBACK))
 		return -EINVAL;
 
 	if (init_attr->qp_type == MLX5_IB_QPT_REG_UMR)
@@ -2078,6 +2082,7 @@ static int mlx5_set_bsf(struct ib_mr *sig_mr,
 	struct ib_sig_domain *wire = &sig_attrs->wire;
 	int ret, selector;
 
+	memset(bsf, 0, sizeof(*bsf));
 	switch (sig_attrs->mem.sig_type) {
 	case IB_SIG_TYPE_T10_DIF:
 		if (sig_attrs->wire.sig_type != IB_SIG_TYPE_T10_DIF)
@@ -2090,9 +2095,11 @@ static int mlx5_set_bsf(struct ib_mr *sig_mr,
 			/* Same block structure */
 			basic->bsf_size_sbs = 1 << 4;
 			if (mem->sig.dif.bg_type == wire->sig.dif.bg_type)
-				basic->wire.copy_byte_mask = 0xff;
-			else
-				basic->wire.copy_byte_mask = 0x3f;
+				basic->wire.copy_byte_mask |= 0xc0;
+			if (mem->sig.dif.app_tag == wire->sig.dif.app_tag)
+				basic->wire.copy_byte_mask |= 0x30;
+			if (mem->sig.dif.ref_tag == wire->sig.dif.ref_tag)
+				basic->wire.copy_byte_mask |= 0x0f;
 		} else
 			basic->wire.bs_selector = bs_selector(wire->sig.dif.pi_interval);
 
@@ -2131,9 +2138,13 @@ static int set_sig_data_segment(struct ib_send_wr *wr, struct mlx5_ib_qp *qp,
 	int ret;
 	int wqe_size;
 
-	if (!wr->wr.sig_handover.prot) {
+	if (!wr->wr.sig_handover.prot ||
+	    (data_key == wr->wr.sig_handover.prot->lkey &&
+	     data_va == wr->wr.sig_handover.prot->addr &&
+	     data_len == wr->wr.sig_handover.prot->length)) {
 		/**
 		 * Source domain doesn't contain signature information
+		 * or data and protection are interleaved in memory.
 		 * So need construct:
 		 *                  ------------------
 		 *                 |     data_klm     |
@@ -2187,23 +2198,13 @@ static int set_sig_data_segment(struct ib_send_wr *wr, struct mlx5_ib_qp *qp,
 		data_sentry->bcount = cpu_to_be16(block_size);
 		data_sentry->key = cpu_to_be32(data_key);
 		data_sentry->va = cpu_to_be64(data_va);
+		data_sentry->stride = cpu_to_be16(block_size);
+
 		prot_sentry->bcount = cpu_to_be16(prot_size);
 		prot_sentry->key = cpu_to_be32(prot_key);
+		prot_sentry->va = cpu_to_be64(prot_va);
+		prot_sentry->stride = cpu_to_be16(prot_size);
 
-		if (prot_key == data_key && prot_va == data_va) {
-			/**
-			 * The data and protection are interleaved
-			 * in a single memory region
-			 **/
-			prot_sentry->va = cpu_to_be64(data_va + block_size);
-			prot_sentry->stride = cpu_to_be16(block_size + prot_size);
-			data_sentry->stride = prot_sentry->stride;
-		} else {
-			/* The data and protection are two different buffers */
-			prot_sentry->va = cpu_to_be64(prot_va);
-			data_sentry->stride = cpu_to_be16(block_size);
-			prot_sentry->stride = cpu_to_be16(prot_size);
-		}
 		wqe_size = ALIGN(sizeof(*sblock_ctrl) + sizeof(*data_sentry) +
 				 sizeof(*prot_sentry), 64);
 	}
@@ -2275,7 +2276,10 @@ static int set_sig_umr_wr(struct ib_send_wr *wr, struct mlx5_ib_qp *qp,
 
 	/* length of the protected region, data + protection */
 	region_len = wr->sg_list->length;
-	if (wr->wr.sig_handover.prot)
+	if (wr->wr.sig_handover.prot &&
+	    (wr->wr.sig_handover.prot->lkey != wr->sg_list->lkey  ||
+	     wr->wr.sig_handover.prot->addr != wr->sg_list->addr  ||
+	     wr->wr.sig_handover.prot->length != wr->sg_list->length))
 		region_len += wr->wr.sig_handover.prot->length;
 
 	/**

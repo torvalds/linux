@@ -373,6 +373,14 @@ static inline void rt_genid_bump_ipv6(struct net *net)
 }
 #endif
 
+#if IS_ENABLED(CONFIG_IEEE802154_6LOWPAN)
+static inline struct netns_ieee802154_lowpan *
+net_ieee802154_lowpan(struct net *net)
+{
+	return &net->ieee802154_lowpan;
+}
+#endif
+
 /* For callers who don't really care about whether it's IPv4 or IPv6 */
 static inline void rt_genid_bump_all(struct net *net)
 {

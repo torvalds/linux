@@ -829,13 +829,13 @@ nv50_disp_base_scanoutpos(struct nouveau_object *object, u32 mthd,
 }
 
 static void
-nv50_disp_base_vblank_enable(struct nouveau_event *event, int head)
+nv50_disp_base_vblank_enable(struct nouveau_event *event, int type, int head)
 {
 	nv_mask(event->priv, 0x61002c, (4 << head), (4 << head));
 }
 
 static void
-nv50_disp_base_vblank_disable(struct nouveau_event *event, int head)
+nv50_disp_base_vblank_disable(struct nouveau_event *event, int type, int head)
 {
 	nv_mask(event->priv, 0x61002c, (4 << head), 0);
 }
@@ -1114,19 +1114,20 @@ nv50_disp_intr_error(struct nv50_disp_priv *priv, int chid)
 	nv_wr32(priv, 0x610080 + (chid * 0x08), 0x90000000);
 }
 
-static u16
-exec_lookup(struct nv50_disp_priv *priv, int head, int outp, u32 ctrl,
-	    struct dcb_output *dcb, u8 *ver, u8 *hdr, u8 *cnt, u8 *len,
+static struct nvkm_output *
+exec_lookup(struct nv50_disp_priv *priv, int head, int or, u32 ctrl,
+	    u32 *data, u8 *ver, u8 *hdr, u8 *cnt, u8 *len,
 	    struct nvbios_outp *info)
 {
 	struct nouveau_bios *bios = nouveau_bios(priv);
-	u16 mask, type, data;
+	struct nvkm_output *outp;
+	u16 mask, type;
 
-	if (outp < 4) {
+	if (or < 4) {
 		type = DCB_OUTPUT_ANALOG;
 		mask = 0;
 	} else
-	if (outp < 8) {
+	if (or < 8) {
 		switch (ctrl & 0x00000f00) {
 		case 0x00000000: type = DCB_OUTPUT_LVDS; mask = 1; break;
 		case 0x00000100: type = DCB_OUTPUT_TMDS; mask = 1; break;
@@ -1136,45 +1137,48 @@ exec_lookup(struct nv50_disp_priv *priv, int head, int outp, u32 ctrl,
 		case 0x00000900: type = DCB_OUTPUT_DP; mask = 2; break;
 		default:
 			nv_error(priv, "unknown SOR mc 0x%08x\n", ctrl);
-			return 0x0000;
+			return NULL;
 		}
-		outp -= 4;
+		or  -= 4;
 	} else {
-		outp = outp - 8;
+		or   = or - 8;
 		type = 0x0010;
 		mask = 0;
 		switch (ctrl & 0x00000f00) {
-		case 0x00000000: type |= priv->pior.type[outp]; break;
+		case 0x00000000: type |= priv->pior.type[or]; break;
 		default:
 			nv_error(priv, "unknown PIOR mc 0x%08x\n", ctrl);
-			return 0x0000;
+			return NULL;
 		}
 	}
 
 	mask  = 0x00c0 & (mask << 6);
-	mask |= 0x0001 << outp;
+	mask |= 0x0001 << or;
 	mask |= 0x0100 << head;
 
-	data = dcb_outp_match(bios, type, mask, ver, hdr, dcb);
-	if (!data)
-		return 0x0000;
+	list_for_each_entry(outp, &priv->base.outp, head) {
+		if ((outp->info.hasht & 0xff) == type &&
+		    (outp->info.hashm & mask) == mask) {
+			*data = nvbios_outp_match(bios, outp->info.hasht,
+							outp->info.hashm,
+						  ver, hdr, cnt, len, info);
+			if (!*data)
+				return NULL;
+			return outp;
+		}
+	}
 
-	/* off-chip encoders require matching the exact encoder type */
-	if (dcb->location != 0)
-		type |= dcb->extdev << 8;
-
-	return nvbios_outp_match(bios, type, mask, ver, hdr, cnt, len, info);
+	return NULL;
 }
 
-static bool
+static struct nvkm_output *
 exec_script(struct nv50_disp_priv *priv, int head, int id)
 {
 	struct nouveau_bios *bios = nouveau_bios(priv);
+	struct nvkm_output *outp;
 	struct nvbios_outp info;
-	struct dcb_output dcb;
 	u8  ver, hdr, cnt, len;
-	u16 data;
-	u32 ctrl = 0x00000000;
+	u32 data, ctrl = 0;
 	u32 reg;
 	int i;
 
@@ -1204,36 +1208,35 @@ exec_script(struct nv50_disp_priv *priv, int head, int id)
 	}
 
 	if (!(ctrl & (1 << head)))
-		return false;
+		return NULL;
 	i--;
 
-	data = exec_lookup(priv, head, i, ctrl, &dcb, &ver, &hdr, &cnt, &len, &info);
-	if (data) {
+	outp = exec_lookup(priv, head, i, ctrl, &data, &ver, &hdr, &cnt, &len, &info);
+	if (outp) {
 		struct nvbios_init init = {
 			.subdev = nv_subdev(priv),
 			.bios = bios,
 			.offset = info.script[id],
-			.outp = &dcb,
+			.outp = &outp->info,
 			.crtc = head,
 			.execute = 1,
 		};
 
-		return nvbios_exec(&init) == 0;
+		nvbios_exec(&init);
 	}
 
-	return false;
+	return outp;
 }
 
-static u32
-exec_clkcmp(struct nv50_disp_priv *priv, int head, int id, u32 pclk,
-	    struct dcb_output *outp)
+static struct nvkm_output *
+exec_clkcmp(struct nv50_disp_priv *priv, int head, int id, u32 pclk, u32 *conf)
 {
 	struct nouveau_bios *bios = nouveau_bios(priv);
+	struct nvkm_output *outp;
 	struct nvbios_outp info1;
 	struct nvbios_ocfg info2;
 	u8  ver, hdr, cnt, len;
-	u32 ctrl = 0x00000000;
-	u32 data, conf = ~0;
+	u32 data, ctrl = 0;
 	u32 reg;
 	int i;
 
@@ -1263,37 +1266,37 @@ exec_clkcmp(struct nv50_disp_priv *priv, int head, int id, u32 pclk,
 	}
 
 	if (!(ctrl & (1 << head)))
-		return conf;
+		return NULL;
 	i--;
 
-	data = exec_lookup(priv, head, i, ctrl, outp, &ver, &hdr, &cnt, &len, &info1);
-	if (!data)
-		return conf;
+	outp = exec_lookup(priv, head, i, ctrl, &data, &ver, &hdr, &cnt, &len, &info1);
+	if (!outp)
+		return NULL;
 
-	if (outp->location == 0) {
-		switch (outp->type) {
+	if (outp->info.location == 0) {
+		switch (outp->info.type) {
 		case DCB_OUTPUT_TMDS:
-			conf = (ctrl & 0x00000f00) >> 8;
+			*conf = (ctrl & 0x00000f00) >> 8;
 			if (pclk >= 165000)
-				conf |= 0x0100;
+				*conf |= 0x0100;
 			break;
 		case DCB_OUTPUT_LVDS:
-			conf = priv->sor.lvdsconf;
+			*conf = priv->sor.lvdsconf;
 			break;
 		case DCB_OUTPUT_DP:
-			conf = (ctrl & 0x00000f00) >> 8;
+			*conf = (ctrl & 0x00000f00) >> 8;
 			break;
 		case DCB_OUTPUT_ANALOG:
 		default:
-			conf = 0x00ff;
+			*conf = 0x00ff;
 			break;
 		}
 	} else {
-		conf = (ctrl & 0x00000f00) >> 8;
+		*conf = (ctrl & 0x00000f00) >> 8;
 		pclk = pclk / 2;
 	}
 
-	data = nvbios_ocfg_match(bios, data, conf, &ver, &hdr, &cnt, &len, &info2);
+	data = nvbios_ocfg_match(bios, data, *conf, &ver, &hdr, &cnt, &len, &info2);
 	if (data && id < 0xff) {
 		data = nvbios_oclk_match(bios, info2.clkcmp[id], pclk);
 		if (data) {
@@ -1301,7 +1304,7 @@ exec_clkcmp(struct nv50_disp_priv *priv, int head, int id, u32 pclk,
 				.subdev = nv_subdev(priv),
 				.bios = bios,
 				.offset = data,
-				.outp = outp,
+				.outp = &outp->info,
 				.crtc = head,
 				.execute = 1,
 			};
@@ -1310,7 +1313,7 @@ exec_clkcmp(struct nv50_disp_priv *priv, int head, int id, u32 pclk,
 		}
 	}
 
-	return conf;
+	return outp;
 }
 
 static void
@@ -1322,7 +1325,35 @@ nv50_disp_intr_unk10_0(struct nv50_disp_priv *priv, int head)
 static void
 nv50_disp_intr_unk20_0(struct nv50_disp_priv *priv, int head)
 {
-	exec_script(priv, head, 2);
+	struct nvkm_output *outp = exec_script(priv, head, 2);
+
+	/* the binary driver does this outside of the supervisor handling
+	 * (after the third supervisor from a detach).  we (currently?)
+	 * allow both detach/attach to happen in the same set of
+	 * supervisor interrupts, so it would make sense to execute this
+	 * (full power down?) script after all the detach phases of the
+	 * supervisor handling.  like with training if needed from the
+	 * second supervisor, nvidia doesn't do this, so who knows if it's
+	 * entirely safe, but it does appear to work..
+	 *
+	 * without this script being run, on some configurations i've
+	 * seen, switching from DP to TMDS on a DP connector may result
+	 * in a blank screen (SOR_PWR off/on can restore it)
+	 */
+	if (outp && outp->info.type == DCB_OUTPUT_DP) {
+		struct nvkm_output_dp *outpdp = (void *)outp;
+		struct nvbios_init init = {
+			.subdev = nv_subdev(priv),
+			.bios = nouveau_bios(priv),
+			.outp = &outp->info,
+			.crtc = head,
+			.offset = outpdp->info.script[4],
+			.execute = 1,
+		};
+
+		nvbios_exec(&init);
+		atomic_set(&outpdp->lt.done, 0);
+	}
 }
 
 static void
@@ -1444,56 +1475,83 @@ nv50_disp_intr_unk20_2_dp(struct nv50_disp_priv *priv,
 static void
 nv50_disp_intr_unk20_2(struct nv50_disp_priv *priv, int head)
 {
-	struct dcb_output outp;
+	struct nvkm_output *outp;
 	u32 pclk = nv_rd32(priv, 0x610ad0 + (head * 0x540)) & 0x3fffff;
 	u32 hval, hreg = 0x614200 + (head * 0x800);
 	u32 oval, oreg;
-	u32 mask;
-	u32 conf = exec_clkcmp(priv, head, 0xff, pclk, &outp);
-	if (conf != ~0) {
-		if (outp.location == 0 && outp.type == DCB_OUTPUT_DP) {
-			u32 soff = (ffs(outp.or) - 1) * 0x08;
-			u32 ctrl = nv_rd32(priv, 0x610794 + soff);
-			u32 datarate;
+	u32 mask, conf;
 
-			switch ((ctrl & 0x000f0000) >> 16) {
-			case 6: datarate = pclk * 30 / 8; break;
-			case 5: datarate = pclk * 24 / 8; break;
-			case 2:
-			default:
-				datarate = pclk * 18 / 8;
-				break;
-			}
+	outp = exec_clkcmp(priv, head, 0xff, pclk, &conf);
+	if (!outp)
+		return;
 
-			nouveau_dp_train(&priv->base, priv->sor.dp,
-					 &outp, head, datarate);
-		}
+	/* we allow both encoder attach and detach operations to occur
+	 * within a single supervisor (ie. modeset) sequence.  the
+	 * encoder detach scripts quite often switch off power to the
+	 * lanes, which requires the link to be re-trained.
+	 *
+	 * this is not generally an issue as the sink "must" (heh)
+	 * signal an irq when it's lost sync so the driver can
+	 * re-train.
+	 *
+	 * however, on some boards, if one does not configure at least
+	 * the gpu side of the link *before* attaching, then various
+	 * things can go horribly wrong (PDISP disappearing from mmio,
+	 * third supervisor never happens, etc).
+	 *
+	 * the solution is simply to retrain here, if necessary.  last
+	 * i checked, the binary driver userspace does not appear to
+	 * trigger this situation (it forces an UPDATE between steps).
+	 */
+	if (outp->info.type == DCB_OUTPUT_DP) {
+		u32 soff = (ffs(outp->info.or) - 1) * 0x08;
+		u32 ctrl, datarate;
 
-		exec_clkcmp(priv, head, 0, pclk, &outp);
-
-		if (!outp.location && outp.type == DCB_OUTPUT_ANALOG) {
-			oreg = 0x614280 + (ffs(outp.or) - 1) * 0x800;
-			oval = 0x00000000;
-			hval = 0x00000000;
-			mask = 0xffffffff;
-		} else
-		if (!outp.location) {
-			if (outp.type == DCB_OUTPUT_DP)
-				nv50_disp_intr_unk20_2_dp(priv, &outp, pclk);
-			oreg = 0x614300 + (ffs(outp.or) - 1) * 0x800;
-			oval = (conf & 0x0100) ? 0x00000101 : 0x00000000;
-			hval = 0x00000000;
-			mask = 0x00000707;
+		if (outp->info.location == 0) {
+			ctrl = nv_rd32(priv, 0x610794 + soff);
+			soff = 1;
 		} else {
-			oreg = 0x614380 + (ffs(outp.or) - 1) * 0x800;
-			oval = 0x00000001;
-			hval = 0x00000001;
-			mask = 0x00000707;
+			ctrl = nv_rd32(priv, 0x610b80 + soff);
+			soff = 2;
 		}
 
-		nv_mask(priv, hreg, 0x0000000f, hval);
-		nv_mask(priv, oreg, mask, oval);
+		switch ((ctrl & 0x000f0000) >> 16) {
+		case 6: datarate = pclk * 30; break;
+		case 5: datarate = pclk * 24; break;
+		case 2:
+		default:
+			datarate = pclk * 18;
+			break;
+		}
+
+		if (nvkm_output_dp_train(outp, datarate / soff, true))
+			ERR("link not trained before attach\n");
 	}
+
+	exec_clkcmp(priv, head, 0, pclk, &conf);
+
+	if (!outp->info.location && outp->info.type == DCB_OUTPUT_ANALOG) {
+		oreg = 0x614280 + (ffs(outp->info.or) - 1) * 0x800;
+		oval = 0x00000000;
+		hval = 0x00000000;
+		mask = 0xffffffff;
+	} else
+	if (!outp->info.location) {
+		if (outp->info.type == DCB_OUTPUT_DP)
+			nv50_disp_intr_unk20_2_dp(priv, &outp->info, pclk);
+		oreg = 0x614300 + (ffs(outp->info.or) - 1) * 0x800;
+		oval = (conf & 0x0100) ? 0x00000101 : 0x00000000;
+		hval = 0x00000000;
+		mask = 0x00000707;
+	} else {
+		oreg = 0x614380 + (ffs(outp->info.or) - 1) * 0x800;
+		oval = 0x00000001;
+		hval = 0x00000001;
+		mask = 0x00000707;
+	}
+
+	nv_mask(priv, hreg, 0x0000000f, hval);
+	nv_mask(priv, oreg, mask, oval);
 }
 
 /* If programming a TMDS output on a SOR that can also be configured for
@@ -1521,30 +1579,16 @@ nv50_disp_intr_unk40_0_tmds(struct nv50_disp_priv *priv, struct dcb_output *outp
 static void
 nv50_disp_intr_unk40_0(struct nv50_disp_priv *priv, int head)
 {
-	struct dcb_output outp;
+	struct nvkm_output *outp;
 	u32 pclk = nv_rd32(priv, 0x610ad0 + (head * 0x540)) & 0x3fffff;
-	if (exec_clkcmp(priv, head, 1, pclk, &outp) != ~0) {
-		if (outp.location == 0 && outp.type == DCB_OUTPUT_TMDS)
-			nv50_disp_intr_unk40_0_tmds(priv, &outp);
-		else
-		if (outp.location == 1 && outp.type == DCB_OUTPUT_DP) {
-			u32 soff = (ffs(outp.or) - 1) * 0x08;
-			u32 ctrl = nv_rd32(priv, 0x610b84 + soff);
-			u32 datarate;
+	u32 conf;
 
-			switch ((ctrl & 0x000f0000) >> 16) {
-			case 6: datarate = pclk * 30 / 8; break;
-			case 5: datarate = pclk * 24 / 8; break;
-			case 2:
-			default:
-				datarate = pclk * 18 / 8;
-				break;
-			}
+	outp = exec_clkcmp(priv, head, 1, pclk, &conf);
+	if (!outp)
+		return;
 
-			nouveau_dp_train(&priv->base, priv->pior.dp,
-					 &outp, head, datarate);
-		}
-	}
+	if (outp->info.location == 0 && outp->info.type == DCB_OUTPUT_TMDS)
+		nv50_disp_intr_unk40_0_tmds(priv, &outp->info);
 }
 
 void
@@ -1610,13 +1654,13 @@ nv50_disp_intr(struct nouveau_subdev *subdev)
 	}
 
 	if (intr1 & 0x00000004) {
-		nouveau_event_trigger(priv->base.vblank, 0);
+		nouveau_event_trigger(priv->base.vblank, 1, 0);
 		nv_wr32(priv, 0x610024, 0x00000004);
 		intr1 &= ~0x00000004;
 	}
 
 	if (intr1 & 0x00000008) {
-		nouveau_event_trigger(priv->base.vblank, 1);
+		nouveau_event_trigger(priv->base.vblank, 1, 1);
 		nv_wr32(priv, 0x610024, 0x00000008);
 		intr1 &= ~0x00000008;
 	}
@@ -1656,9 +1700,14 @@ nv50_disp_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	priv->dac.sense = nv50_dac_sense;
 	priv->sor.power = nv50_sor_power;
 	priv->pior.power = nv50_pior_power;
-	priv->pior.dp = &nv50_pior_dp_func;
 	return 0;
 }
+
+struct nouveau_oclass *
+nv50_disp_outp_sclass[] = {
+	&nv50_pior_dp_impl.base.base,
+	NULL
+};
 
 struct nouveau_oclass *
 nv50_disp_oclass = &(struct nv50_disp_impl) {
@@ -1669,6 +1718,7 @@ nv50_disp_oclass = &(struct nv50_disp_impl) {
 		.init = _nouveau_disp_init,
 		.fini = _nouveau_disp_fini,
 	},
+	.base.outp =  nv50_disp_outp_sclass,
 	.mthd.core = &nv50_disp_mast_mthd_chan,
 	.mthd.base = &nv50_disp_sync_mthd_chan,
 	.mthd.ovly = &nv50_disp_ovly_mthd_chan,

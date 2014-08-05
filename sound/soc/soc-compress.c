@@ -203,7 +203,6 @@ static int soc_compr_free(struct snd_compr_stream *cstream)
 
 	if (platform->driver->compr_ops && platform->driver->compr_ops->free)
 		platform->driver->compr_ops->free(cstream);
-	cpu_dai->runtime = NULL;
 
 	if (cstream->direction == SND_COMPRESS_PLAYBACK) {
 		if (snd_soc_runtime_ignore_pmdown_time(rtd)) {
@@ -317,8 +316,9 @@ static int soc_compr_trigger_fe(struct snd_compr_stream *cstream, int cmd)
 		cmd == SND_COMPR_TRIGGER_DRAIN) {
 
 		if (platform->driver->compr_ops &&
-			platform->driver->compr_ops->trigger)
-		return platform->driver->compr_ops->trigger(cstream, cmd);
+		    platform->driver->compr_ops->trigger)
+			return platform->driver->compr_ops->trigger(cstream,
+								    cmd);
 	}
 
 	if (cstream->direction == SND_COMPRESS_PLAYBACK)

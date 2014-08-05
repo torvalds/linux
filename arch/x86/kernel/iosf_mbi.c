@@ -25,6 +25,9 @@
 
 #include <asm/iosf_mbi.h>
 
+#define PCI_DEVICE_ID_BAYTRAIL		0x0F00
+#define PCI_DEVICE_ID_QUARK_X1000	0x0958
+
 static DEFINE_SPINLOCK(iosf_mbi_lock);
 
 static inline u32 iosf_mbi_form_mcr(u8 op, u8 port, u8 offset)
@@ -177,6 +180,13 @@ int iosf_mbi_modify(u8 port, u8 opcode, u32 offset, u32 mdr, u32 mask)
 }
 EXPORT_SYMBOL(iosf_mbi_modify);
 
+bool iosf_mbi_available(void)
+{
+	/* Mbi isn't hot-pluggable. No remove routine is provided */
+	return mbi_pdev;
+}
+EXPORT_SYMBOL(iosf_mbi_available);
+
 static int iosf_mbi_probe(struct pci_dev *pdev,
 			  const struct pci_device_id *unused)
 {
@@ -193,7 +203,8 @@ static int iosf_mbi_probe(struct pci_dev *pdev,
 }
 
 static DEFINE_PCI_DEVICE_TABLE(iosf_mbi_pci_ids) = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x0F00) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_BAYTRAIL) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_QUARK_X1000) },
 	{ 0, },
 };
 MODULE_DEVICE_TABLE(pci, iosf_mbi_pci_ids);

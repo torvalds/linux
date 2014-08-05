@@ -206,9 +206,13 @@ static void sdhci_bcm_kona_init_74_clocks(struct sdhci_host *host,
 }
 
 static struct sdhci_ops sdhci_bcm_kona_ops = {
+	.set_clock = sdhci_set_clock,
 	.get_max_clock = sdhci_bcm_kona_get_max_clk,
 	.get_timeout_clock = sdhci_bcm_kona_get_timeout_clock,
 	.platform_send_init_74_clocks = sdhci_bcm_kona_init_74_clocks,
+	.set_bus_width = sdhci_set_bus_width,
+	.reset = sdhci_reset,
+	.set_uhs_signaling = sdhci_set_uhs_signaling,
 	.card_event = sdhci_bcm_kona_card_event,
 };
 

@@ -62,6 +62,10 @@ Optional properties for dp-controller:
 	-hsync-active-high:
 		HSYNC polarity configuration.
 			High if defined, Low if not defined
+	-samsung,hpd-gpio:
+		Hotplug detect GPIO.
+			Indicates which GPIO should be used for hotplug
+			detection
 
 Example:
 

@@ -152,62 +152,24 @@ static struct platform_device eth_device = {
 	.resource = eth_resources,
 };
 
-static struct sh_timer_config cmt0_platform_data = {
-	.channel_offset = 0x02,
-	.timer_bit = 0,
-	.clockevent_rating = 125,
-	.clocksource_rating = 0, /* disabled due to code generation issues */
+static struct sh_timer_config cmt_platform_data = {
+	.channels_mask = 3,
 };
 
-static struct resource cmt0_resources[] = {
-	[0] = {
-		.start	= 0xf84a0072,
-		.end	= 0xf84a0077,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= 86,
-		.flags	= IORESOURCE_IRQ,
-	},
+static struct resource cmt_resources[] = {
+	DEFINE_RES_MEM(0xf84a0070, 0x10),
+	DEFINE_RES_IRQ(86),
+	DEFINE_RES_IRQ(87),
 };
 
-static struct platform_device cmt0_device = {
-	.name		= "sh_cmt",
+static struct platform_device cmt_device = {
+	.name		= "sh-cmt-16",
 	.id		= 0,
 	.dev = {
-		.platform_data	= &cmt0_platform_data,
+		.platform_data	= &cmt_platform_data,
 	},
-	.resource	= cmt0_resources,
-	.num_resources	= ARRAY_SIZE(cmt0_resources),
-};
-
-static struct sh_timer_config cmt1_platform_data = {
-	.channel_offset = 0x08,
-	.timer_bit = 1,
-	.clockevent_rating = 125,
-	.clocksource_rating = 0, /* disabled due to code generation issues */
-};
-
-static struct resource cmt1_resources[] = {
-	[0] = {
-		.start	= 0xf84a0078,
-		.end	= 0xf84a007d,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= 87,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device cmt1_device = {
-	.name		= "sh_cmt",
-	.id		= 1,
-	.dev = {
-		.platform_data	= &cmt1_platform_data,
-	},
-	.resource	= cmt1_resources,
-	.num_resources	= ARRAY_SIZE(cmt1_resources),
+	.resource	= cmt_resources,
+	.num_resources	= ARRAY_SIZE(cmt_resources),
 };
 
 static struct platform_device *sh7619_devices[] __initdata = {
@@ -215,8 +177,7 @@ static struct platform_device *sh7619_devices[] __initdata = {
 	&scif1_device,
 	&scif2_device,
 	&eth_device,
-	&cmt0_device,
-	&cmt1_device,
+	&cmt_device,
 };
 
 static int __init sh7619_devices_setup(void)
@@ -235,8 +196,7 @@ static struct platform_device *sh7619_early_devices[] __initdata = {
 	&scif0_device,
 	&scif1_device,
 	&scif2_device,
-	&cmt0_device,
-	&cmt1_device,
+	&cmt_device,
 };
 
 #define STBCR3 0xf80a0000

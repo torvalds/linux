@@ -78,3 +78,5 @@ DIAGNOSE function code 'X'501 - KVM breakpoint
 
 If the function code specifies 0x501, breakpoint functions may be performed.
 This function code is handled by userspace.
+
+This diagnose function code has no subfunctions and uses no parameters.

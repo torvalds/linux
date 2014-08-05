@@ -132,7 +132,8 @@ static const struct min_max_quirk min_max_pnpid_table[] = {
 		1232, 5710, 1156, 4696
 	},
 	{
-		(const char * const []){"LEN0034", "LEN0036", "LEN2004", NULL},
+		(const char * const []){"LEN0034", "LEN0036", "LEN2002",
+					"LEN2004", NULL},
 		1024, 5112, 2024, 4832
 	},
 	{
@@ -168,7 +169,7 @@ static const char * const topbuttonpad_pnp_ids[] = {
 	"LEN0049",
 	"LEN2000",
 	"LEN2001", /* Edge E431 */
-	"LEN2002",
+	"LEN2002", /* Edge E531 */
 	"LEN2003",
 	"LEN2004", /* L440 */
 	"LEN2005",
@@ -347,15 +348,6 @@ static int synaptics_resolution(struct psmouse *psmouse)
 	unsigned char resp[3];
 	int i;
 
-	for (i = 0; min_max_pnpid_table[i].pnp_ids; i++)
-		if (matches_pnp_id(psmouse, min_max_pnpid_table[i].pnp_ids)) {
-			priv->x_min = min_max_pnpid_table[i].x_min;
-			priv->x_max = min_max_pnpid_table[i].x_max;
-			priv->y_min = min_max_pnpid_table[i].y_min;
-			priv->y_max = min_max_pnpid_table[i].y_max;
-			return 0;
-		}
-
 	if (SYN_ID_MAJOR(priv->identity) < 4)
 		return 0;
 
@@ -363,6 +355,16 @@ static int synaptics_resolution(struct psmouse *psmouse)
 		if (resp[0] != 0 && (resp[1] & 0x80) && resp[2] != 0) {
 			priv->x_res = resp[0]; /* x resolution in units/mm */
 			priv->y_res = resp[2]; /* y resolution in units/mm */
+		}
+	}
+
+	for (i = 0; min_max_pnpid_table[i].pnp_ids; i++) {
+		if (matches_pnp_id(psmouse, min_max_pnpid_table[i].pnp_ids)) {
+			priv->x_min = min_max_pnpid_table[i].x_min;
+			priv->x_max = min_max_pnpid_table[i].x_max;
+			priv->y_min = min_max_pnpid_table[i].y_min;
+			priv->y_max = min_max_pnpid_table[i].y_max;
+			return 0;
 		}
 	}
 

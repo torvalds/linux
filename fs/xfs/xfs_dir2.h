@@ -80,7 +80,7 @@ struct xfs_dir_ops {
 				    struct xfs_dir3_icleaf_hdr *from);
 	void	(*leaf_hdr_from_disk)(struct xfs_dir3_icleaf_hdr *to,
 				      struct xfs_dir2_leaf *from);
-	int	(*leaf_max_ents)(struct xfs_mount *mp);
+	int	(*leaf_max_ents)(struct xfs_da_geometry *geo);
 	struct xfs_dir2_leaf_entry *
 		(*leaf_ents_p)(struct xfs_dir2_leaf *lp);
 
@@ -97,10 +97,12 @@ struct xfs_dir_ops {
 				    struct xfs_dir3_icfree_hdr *from);
 	void	(*free_hdr_from_disk)(struct xfs_dir3_icfree_hdr *to,
 				      struct xfs_dir2_free *from);
-	int	(*free_max_bests)(struct xfs_mount *mp);
+	int	(*free_max_bests)(struct xfs_da_geometry *geo);
 	__be16 * (*free_bests_p)(struct xfs_dir2_free *free);
-	xfs_dir2_db_t (*db_to_fdb)(struct xfs_mount *mp, xfs_dir2_db_t db);
-	int	(*db_to_fdindex)(struct xfs_mount *mp, xfs_dir2_db_t db);
+	xfs_dir2_db_t (*db_to_fdb)(struct xfs_da_geometry *geo,
+				   xfs_dir2_db_t db);
+	int	(*db_to_fdindex)(struct xfs_da_geometry *geo,
+				 xfs_dir2_db_t db);
 };
 
 extern const struct xfs_dir_ops *
@@ -112,7 +114,9 @@ extern const struct xfs_dir_ops *
  * Generic directory interface routines
  */
 extern void xfs_dir_startup(void);
-extern void xfs_dir_mount(struct xfs_mount *mp);
+extern int xfs_da_mount(struct xfs_mount *mp);
+extern void xfs_da_unmount(struct xfs_mount *mp);
+
 extern int xfs_dir_isempty(struct xfs_inode *dp);
 extern int xfs_dir_init(struct xfs_trans *tp, struct xfs_inode *dp,
 				struct xfs_inode *pdp);
@@ -142,23 +146,23 @@ extern int xfs_dir2_sf_to_block(struct xfs_da_args *args);
 /*
  * Interface routines used by userspace utilities
  */
-extern int xfs_dir2_isblock(struct xfs_trans *tp, struct xfs_inode *dp, int *r);
-extern int xfs_dir2_isleaf(struct xfs_trans *tp, struct xfs_inode *dp, int *r);
+extern int xfs_dir2_isblock(struct xfs_da_args *args, int *r);
+extern int xfs_dir2_isleaf(struct xfs_da_args *args, int *r);
 extern int xfs_dir2_shrink_inode(struct xfs_da_args *args, xfs_dir2_db_t db,
 				struct xfs_buf *bp);
 
 extern void xfs_dir2_data_freescan(struct xfs_inode *dp,
 		struct xfs_dir2_data_hdr *hdr, int *loghead);
-extern void xfs_dir2_data_log_entry(struct xfs_trans *tp, struct xfs_inode *dp,
+extern void xfs_dir2_data_log_entry(struct xfs_da_args *args,
 		struct xfs_buf *bp, struct xfs_dir2_data_entry *dep);
-extern void xfs_dir2_data_log_header(struct xfs_trans *tp, struct xfs_inode *dp,
+extern void xfs_dir2_data_log_header(struct xfs_da_args *args,
 		struct xfs_buf *bp);
-extern void xfs_dir2_data_log_unused(struct xfs_trans *tp, struct xfs_buf *bp,
-		struct xfs_dir2_data_unused *dup);
-extern void xfs_dir2_data_make_free(struct xfs_trans *tp, struct xfs_inode *dp,
+extern void xfs_dir2_data_log_unused(struct xfs_da_args *args,
+		struct xfs_buf *bp, struct xfs_dir2_data_unused *dup);
+extern void xfs_dir2_data_make_free(struct xfs_da_args *args,
 		struct xfs_buf *bp, xfs_dir2_data_aoff_t offset,
 		xfs_dir2_data_aoff_t len, int *needlogp, int *needscanp);
-extern void xfs_dir2_data_use_free(struct xfs_trans *tp, struct xfs_inode *dp,
+extern void xfs_dir2_data_use_free(struct xfs_da_args *args,
 		struct xfs_buf *bp, struct xfs_dir2_data_unused *dup,
 		xfs_dir2_data_aoff_t offset, xfs_dir2_data_aoff_t len,
 		int *needlogp, int *needscanp);

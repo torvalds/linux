@@ -5736,7 +5736,7 @@ static void selinux_key_free(struct key *k)
 
 static int selinux_key_permission(key_ref_t key_ref,
 				  const struct cred *cred,
-				  key_perm_t perm)
+				  unsigned perm)
 {
 	struct key *key;
 	struct key_security_struct *ksec;

@@ -119,6 +119,7 @@ struct s3c_plltab {
 struct s3c_cpufreq_config {
 	struct s3c_freq		freq;
 	struct s3c_freq		max;
+	struct clk		*mpll;
 	struct cpufreq_frequency_table pll;
 	struct s3c_clkdivs	divs;
 	struct s3c_cpufreq_info *info;	/* for core, not drivers */

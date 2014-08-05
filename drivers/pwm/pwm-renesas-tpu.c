@@ -21,12 +21,13 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/of.h>
-#include <linux/platform_data/pwm-renesas-tpu.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/pwm.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
+
+#define TPU_CHANNEL_MAX		4
 
 #define TPU_TSTR		0x00	/* Timer start register (shared) */
 
@@ -87,7 +88,6 @@ struct tpu_pwm_device {
 
 struct tpu_device {
 	struct platform_device *pdev;
-	enum pwm_polarity polarities[TPU_CHANNEL_MAX];
 	struct pwm_chip chip;
 	spinlock_t lock;
 
@@ -229,7 +229,7 @@ static int tpu_pwm_request(struct pwm_chip *chip, struct pwm_device *_pwm)
 
 	pwm->tpu = tpu;
 	pwm->channel = _pwm->hwpwm;
-	pwm->polarity = tpu->polarities[pwm->channel];
+	pwm->polarity = PWM_POLARITY_NORMAL;
 	pwm->prescaler = 0;
 	pwm->period = 0;
 	pwm->duty = 0;
@@ -388,16 +388,6 @@ static const struct pwm_ops tpu_pwm_ops = {
  * Probe and remove
  */
 
-static void tpu_parse_pdata(struct tpu_device *tpu)
-{
-	struct tpu_pwm_platform_data *pdata = tpu->pdev->dev.platform_data;
-	unsigned int i;
-
-	for (i = 0; i < ARRAY_SIZE(tpu->polarities); ++i)
-		tpu->polarities[i] = pdata ? pdata->channels[i].polarity
-				   : PWM_POLARITY_NORMAL;
-}
-
 static int tpu_probe(struct platform_device *pdev)
 {
 	struct tpu_device *tpu;
@@ -405,16 +395,11 @@ static int tpu_probe(struct platform_device *pdev)
 	int ret;
 
 	tpu = devm_kzalloc(&pdev->dev, sizeof(*tpu), GFP_KERNEL);
-	if (tpu == NULL) {
-		dev_err(&pdev->dev, "failed to allocate driver data\n");
+	if (tpu == NULL)
 		return -ENOMEM;
-	}
 
 	spin_lock_init(&tpu->lock);
 	tpu->pdev = pdev;
-
-	/* Initialize device configuration from platform data. */
-	tpu_parse_pdata(tpu);
 
 	/* Map memory, get clock and pin control. */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);

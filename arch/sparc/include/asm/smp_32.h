@@ -93,15 +93,15 @@ static inline void xc4(smpfunc_t func, unsigned long arg1, unsigned long arg2,
 				    arg1, arg2, arg3, arg4);
 }
 
-extern void arch_send_call_function_single_ipi(int cpu);
-extern void arch_send_call_function_ipi_mask(const struct cpumask *mask);
+void arch_send_call_function_single_ipi(int cpu);
+void arch_send_call_function_ipi_mask(const struct cpumask *mask);
 
 static inline int cpu_logical_map(int cpu)
 {
 	return cpu;
 }
 
-extern int hard_smp_processor_id(void);
+int hard_smp_processor_id(void);
 
 #define raw_smp_processor_id()		(current_thread_info()->cpu)
 

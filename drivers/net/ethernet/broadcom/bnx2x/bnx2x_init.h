@@ -7,9 +7,9 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation.
  *
- * Maintained by: Eilon Greenstein <eilong@broadcom.com>
+ * Maintained by: Ariel Elior <ariel.elior@qlogic.com>
  * Written by: Eliezer Tamir
- * Modified by: Vladislav Zolotarov <vladz@broadcom.com>
+ * Modified by: Vladislav Zolotarov
  */
 
 #ifndef BNX2X_INIT_H

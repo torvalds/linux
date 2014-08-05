@@ -672,7 +672,7 @@ static int prism2mib_fragmentationthreshold(struct mibrec *mib,
 
 	if (!isget)
 		if ((*uint32) % 2) {
-			printk(KERN_WARNING "Attempt to set odd number "
+			netdev_warn(wlandev->netdev, "Attempt to set odd number "
 			       "FragmentationThreshold\n");
 			msg->resultcode.data =
 			    P80211ENUM_resultcode_not_supported;
@@ -742,7 +742,7 @@ static int prism2mib_priv(struct mibrec *mib,
 			break;
 		}
 	default:
-		printk(KERN_ERR "Unhandled DID 0x%08x\n", mib->did);
+		netdev_err(wlandev->netdev, "Unhandled DID 0x%08x\n", mib->did);
 	}
 
 	return 0;

@@ -37,6 +37,7 @@ struct machine_desc;
 
 extern struct platform_device realview_flash_device;
 extern struct platform_device realview_cf_device;
+extern struct platform_device realview_leds_device;
 extern struct platform_device realview_i2c_device;
 extern struct mmci_platform_data realview_mmc0_plat_data;
 extern struct mmci_platform_data realview_mmc1_plat_data;
@@ -51,8 +52,7 @@ extern int realview_flash_register(struct resource *res, u32 num);
 extern int realview_eth_register(const char *name, struct resource *res);
 extern int realview_usb_register(struct resource *res);
 extern void realview_init_early(void);
-extern void realview_fixup(struct tag *tags, char **from,
-			   struct meminfo *meminfo);
+extern void realview_fixup(struct tag *tags, char **from);
 
 extern struct smp_operations realview_smp_ops;
 extern void realview_cpu_die(unsigned int cpu);

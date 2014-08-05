@@ -2747,10 +2747,8 @@ static int lm93_probe(struct i2c_client *client,
 	}
 
 	data = devm_kzalloc(&client->dev, sizeof(struct lm93_data), GFP_KERNEL);
-	if (!data) {
-		dev_dbg(&client->dev, "out of memory!\n");
+	if (!data)
 		return -ENOMEM;
-	}
 	i2c_set_clientdata(client, data);
 
 	/* housekeeping */

@@ -28,6 +28,7 @@
 #include <asm/apb.h>
 
 #include "pci_impl.h"
+#include "kernel.h"
 
 /* List of all PCI controllers found in the system. */
 struct pci_pbm_info *pci_pbm_root = NULL;
@@ -543,8 +544,7 @@ static void pci_of_scan_bus(struct pci_pbm_info *pbm,
 			printk("PCI: dev header type: %x\n",
 			       dev->hdr_type);
 
-		if (dev->hdr_type == PCI_HEADER_TYPE_BRIDGE ||
-		    dev->hdr_type == PCI_HEADER_TYPE_CARDBUS)
+		if (pci_is_bridge(dev))
 			of_scan_pci_bridge(pbm, child, dev);
 	}
 }

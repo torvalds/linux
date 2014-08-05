@@ -29,6 +29,7 @@
 #define CH_UPPER_SB			0x01
 #define CH_LOWER_SB			0x02
 #define CH_EWA_VALID			0x04
+#define CH_30MHZ_APART			6
 #define CH_20MHZ_APART			4
 #define CH_10MHZ_APART			2
 #define CH_5MHZ_APART			1 /* 2G band channels are 5 Mhz apart */

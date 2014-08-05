@@ -93,8 +93,8 @@ int dns_query(const char *type, const char *name, size_t namelen,
 	}
 
 	if (!namelen)
-		namelen = strlen(name);
-	if (namelen < 3)
+		namelen = strnlen(name, 256);
+	if (namelen < 3 || namelen > 255)
 		return -EINVAL;
 	desclen += namelen + 1;
 
@@ -149,7 +149,9 @@ int dns_query(const char *type, const char *name, size_t namelen,
 	if (!*_result)
 		goto put;
 
-	memcpy(*_result, upayload->data, len + 1);
+	memcpy(*_result, upayload->data, len);
+	(*_result)[len] = '\0';
+
 	if (_expiry)
 		*_expiry = rkey->expiry;
 

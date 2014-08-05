@@ -81,7 +81,7 @@ static s32 ixgbe_setup_mac_link_X540(struct ixgbe_hw *hw,
 				     bool autoneg_wait_to_complete)
 {
 	return hw->phy.ops.setup_link_speed(hw, speed,
-	                                    autoneg_wait_to_complete);
+					    autoneg_wait_to_complete);
 }
 
 /**
@@ -155,7 +155,7 @@ mac_reset_top:
 	/* Add the SAN MAC address to the RAR only if it's a valid address */
 	if (is_valid_ether_addr(hw->mac.san_addr)) {
 		hw->mac.ops.set_rar(hw, hw->mac.num_rar_entries - 1,
-		                    hw->mac.san_addr, 0, IXGBE_RAH_AV);
+				    hw->mac.san_addr, 0, IXGBE_RAH_AV);
 
 		/* Save the SAN MAC RAR index */
 		hw->mac.san_mac_rar_index = hw->mac.num_rar_entries - 1;
@@ -166,7 +166,7 @@ mac_reset_top:
 
 	/* Store the alternative WWNN/WWPN prefix */
 	hw->mac.ops.get_wwn_prefix(hw, &hw->mac.wwnn_prefix,
-	                           &hw->mac.wwpn_prefix);
+				   &hw->mac.wwpn_prefix);
 
 reset_hw_out:
 	return status;
@@ -237,9 +237,9 @@ static s32 ixgbe_init_eeprom_params_X540(struct ixgbe_hw *hw)
 
 		eec = IXGBE_READ_REG(hw, IXGBE_EEC);
 		eeprom_size = (u16)((eec & IXGBE_EEC_SIZE) >>
-		                    IXGBE_EEC_SIZE_SHIFT);
+				    IXGBE_EEC_SIZE_SHIFT);
 		eeprom->word_size = 1 << (eeprom_size +
-		                          IXGBE_EEPROM_WORD_SIZE_SHIFT);
+					  IXGBE_EEPROM_WORD_SIZE_SHIFT);
 
 		hw_dbg(hw, "Eeprom params: type = %d, size = %d\n",
 		       eeprom->type, eeprom->word_size);
@@ -712,8 +712,7 @@ static s32 ixgbe_get_swfw_sync_semaphore(struct ixgbe_hw *hw)
 			udelay(50);
 		}
 	} else {
-		hw_dbg(hw, "Software semaphore SMBI between device drivers "
-		           "not granted.\n");
+		hw_dbg(hw, "Software semaphore SMBI between device drivers not granted.\n");
 	}
 
 	return status;
@@ -813,7 +812,7 @@ static struct ixgbe_mac_operations mac_ops_X540 = {
 	.clear_hw_cntrs         = &ixgbe_clear_hw_cntrs_generic,
 	.get_media_type         = &ixgbe_get_media_type_X540,
 	.get_supported_physical_layer =
-                                  &ixgbe_get_supported_physical_layer_X540,
+				  &ixgbe_get_supported_physical_layer_X540,
 	.enable_rx_dma          = &ixgbe_enable_rx_dma_generic,
 	.get_mac_addr           = &ixgbe_get_mac_addr_generic,
 	.get_san_mac_addr       = &ixgbe_get_san_mac_addr_generic,

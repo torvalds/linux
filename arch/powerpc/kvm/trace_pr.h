@@ -255,7 +255,7 @@ TRACE_EVENT(kvm_exit,
 		__entry->exit_nr	= exit_nr;
 		__entry->pc		= kvmppc_get_pc(vcpu);
 		__entry->dar		= kvmppc_get_fault_dar(vcpu);
-		__entry->msr		= vcpu->arch.shared->msr;
+		__entry->msr		= kvmppc_get_msr(vcpu);
 		__entry->srr1		= vcpu->arch.shadow_srr1;
 		__entry->last_inst	= vcpu->arch.last_inst;
 	),

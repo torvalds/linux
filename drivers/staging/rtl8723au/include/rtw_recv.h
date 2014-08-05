@@ -99,7 +99,6 @@ struct rx_pkt_attrib	{
 	u8	drvinfo_sz;
 	u8	shift_sz;
 	u8	hdrlen; /* the WLAN Header Len */
-	u8	to_fr_ds;
 	u8	amsdu;
 	u8	qos;
 	u8	priority;
@@ -112,7 +111,7 @@ struct rx_pkt_attrib	{
 	u8	privacy; /* in frame_ctrl field */
 	u8	bdecrypted;
 	/* when 0 indicate no encrypt. when non-zero, indicate the algorith */
-	u8	encrypt;
+	u32	encrypt;
 	u8	iv_len;
 	u8	icv_len;
 	u8	crc_err;
@@ -152,12 +151,12 @@ struct rx_pkt_attrib	{
 #define RXDESC_OFFSET RXDESC_SIZE
 
 struct recv_stat {
-	unsigned int rxdw0;
-	unsigned int rxdw1;
-	unsigned int rxdw2;
-	unsigned int rxdw3;
-	unsigned int rxdw4;
-	unsigned int rxdw5;
+	__le32 rxdw0;
+	__le32 rxdw1;
+	__le32 rxdw2;
+	__le32 rxdw3;
+	__le32 rxdw4;
+	__le32 rxdw5;
 };
 
 /* accesser of recv_priv: rtw_recv_entry23a(dispatch / passive level);	\
@@ -172,9 +171,7 @@ struct recv_priv {
 	struct rtw_queue	recv_pending_queue;
 	struct rtw_queue	uc_swdec_pending_queue;
 
-	void *pallocated_frame_buf;
-
-	uint free_recvframe_cnt;
+	int free_recvframe_cnt;
 
 	struct rtw_adapter	*adapter;
 
@@ -190,8 +187,6 @@ struct recv_priv {
 	uint  rx_middlepacket_crcerr;
 
 	/* u8 *pallocated_urb_buf; */
-	struct semaphore allrxreturnevt;
-	uint	ff_hwaddr;
 	u8	rx_pending_cnt;
 
 	struct urb *int_in_urb;
@@ -203,8 +198,6 @@ struct recv_priv {
 	struct sk_buff_head free_recv_skb_queue;
 	struct sk_buff_head rx_skb_queue;
 	u8 *precv_buf;
-	struct rtw_queue	free_recv_buf_queue;
-	u32	free_recv_buf_queue_cnt;
 
 	/* For display the phy informatiom */
 	u8 is_signal_dbg;	/*  for debug */
@@ -283,11 +276,10 @@ struct recv_frame {
 
 /* get a free recv_frame from pfree_recv_queue */
 struct recv_frame *rtw_alloc_recvframe23a(struct rtw_queue *pfree_recv_queue);
-int rtw_free_recvframe23a(struct recv_frame *precvframe, struct rtw_queue *pfree_recv_queue);
+int rtw_free_recvframe23a(struct recv_frame *precvframe);
 
 int rtw_enqueue_recvframe23a(struct recv_frame *precvframe, struct rtw_queue *queue);
 
-void rtw_free_recvframe23a_queue(struct rtw_queue *pframequeue, struct rtw_queue *pfree_recv_queue);
 u32 rtw_free_uc_swdec_pending_queue23a(struct rtw_adapter *adapter);
 
 int rtw_enqueue_recvbuf23a_to_head(struct recv_buf *precvbuf, struct rtw_queue *queue);

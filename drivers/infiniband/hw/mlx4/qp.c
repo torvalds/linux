@@ -608,9 +608,20 @@ static int qp_has_rq(struct ib_qp_init_attr *attr)
 	return !attr->srq;
 }
 
+static int qp0_enabled_vf(struct mlx4_dev *dev, int qpn)
+{
+	int i;
+	for (i = 0; i < dev->caps.num_ports; i++) {
+		if (qpn == dev->caps.qp0_proxy[i])
+			return !!dev->caps.qp0_qkey[i];
+	}
+	return 0;
+}
+
 static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 			    struct ib_qp_init_attr *init_attr,
-			    struct ib_udata *udata, int sqpn, struct mlx4_ib_qp **caller_qp)
+			    struct ib_udata *udata, int sqpn, struct mlx4_ib_qp **caller_qp,
+			    gfp_t gfp)
 {
 	int qpn;
 	int err;
@@ -625,10 +636,13 @@ static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 		     !(init_attr->create_flags & MLX4_IB_SRIOV_SQP))) {
 			if (init_attr->qp_type == IB_QPT_GSI)
 				qp_type = MLX4_IB_QPT_PROXY_GSI;
-			else if (mlx4_is_master(dev->dev))
-				qp_type = MLX4_IB_QPT_PROXY_SMI_OWNER;
-			else
-				qp_type = MLX4_IB_QPT_PROXY_SMI;
+			else {
+				if (mlx4_is_master(dev->dev) ||
+				    qp0_enabled_vf(dev->dev, sqpn))
+					qp_type = MLX4_IB_QPT_PROXY_SMI_OWNER;
+				else
+					qp_type = MLX4_IB_QPT_PROXY_SMI;
+			}
 		}
 		qpn = sqpn;
 		/* add extra sg entry for tunneling */
@@ -643,7 +657,9 @@ static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 			return -EINVAL;
 		if (tnl_init->proxy_qp_type == IB_QPT_GSI)
 			qp_type = MLX4_IB_QPT_TUN_GSI;
-		else if (tnl_init->slave == mlx4_master_func_num(dev->dev))
+		else if (tnl_init->slave == mlx4_master_func_num(dev->dev) ||
+			 mlx4_vf_smi_enabled(dev->dev, tnl_init->slave,
+					     tnl_init->port))
 			qp_type = MLX4_IB_QPT_TUN_SMI_OWNER;
 		else
 			qp_type = MLX4_IB_QPT_TUN_SMI;
@@ -658,14 +674,14 @@ static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 		if (qp_type == MLX4_IB_QPT_SMI || qp_type == MLX4_IB_QPT_GSI ||
 		    (qp_type & (MLX4_IB_QPT_PROXY_SMI | MLX4_IB_QPT_PROXY_SMI_OWNER |
 				MLX4_IB_QPT_PROXY_GSI | MLX4_IB_QPT_TUN_SMI_OWNER))) {
-			sqp = kzalloc(sizeof (struct mlx4_ib_sqp), GFP_KERNEL);
+			sqp = kzalloc(sizeof (struct mlx4_ib_sqp), gfp);
 			if (!sqp)
 				return -ENOMEM;
 			qp = &sqp->qp;
 			qp->pri.vid = 0xFFFF;
 			qp->alt.vid = 0xFFFF;
 		} else {
-			qp = kzalloc(sizeof (struct mlx4_ib_qp), GFP_KERNEL);
+			qp = kzalloc(sizeof (struct mlx4_ib_qp), gfp);
 			if (!qp)
 				return -ENOMEM;
 			qp->pri.vid = 0xFFFF;
@@ -748,14 +764,14 @@ static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 			goto err;
 
 		if (qp_has_rq(init_attr)) {
-			err = mlx4_db_alloc(dev->dev, &qp->db, 0);
+			err = mlx4_db_alloc(dev->dev, &qp->db, 0, gfp);
 			if (err)
 				goto err;
 
 			*qp->db.db = 0;
 		}
 
-		if (mlx4_buf_alloc(dev->dev, qp->buf_size, PAGE_SIZE * 2, &qp->buf)) {
+		if (mlx4_buf_alloc(dev->dev, qp->buf_size, PAGE_SIZE * 2, &qp->buf, gfp)) {
 			err = -ENOMEM;
 			goto err_db;
 		}
@@ -765,13 +781,12 @@ static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 		if (err)
 			goto err_buf;
 
-		err = mlx4_buf_write_mtt(dev->dev, &qp->mtt, &qp->buf);
+		err = mlx4_buf_write_mtt(dev->dev, &qp->mtt, &qp->buf, gfp);
 		if (err)
 			goto err_mtt;
 
-		qp->sq.wrid  = kmalloc(qp->sq.wqe_cnt * sizeof (u64), GFP_KERNEL);
-		qp->rq.wrid  = kmalloc(qp->rq.wqe_cnt * sizeof (u64), GFP_KERNEL);
-
+		qp->sq.wrid  = kmalloc(qp->sq.wqe_cnt * sizeof (u64), gfp);
+		qp->rq.wrid  = kmalloc(qp->rq.wqe_cnt * sizeof (u64), gfp);
 		if (!qp->sq.wrid || !qp->rq.wrid) {
 			err = -ENOMEM;
 			goto err_wrid;
@@ -801,7 +816,7 @@ static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 			goto err_proxy;
 	}
 
-	err = mlx4_qp_alloc(dev->dev, qpn, &qp->mqp);
+	err = mlx4_qp_alloc(dev->dev, qpn, &qp->mqp, gfp);
 	if (err)
 		goto err_qpn;
 
@@ -1040,7 +1055,10 @@ struct ib_qp *mlx4_ib_create_qp(struct ib_pd *pd,
 	struct mlx4_ib_qp *qp = NULL;
 	int err;
 	u16 xrcdn = 0;
+	gfp_t gfp;
 
+	gfp = (init_attr->create_flags & MLX4_IB_QP_CREATE_USE_GFP_NOIO) ?
+		GFP_NOIO : GFP_KERNEL;
 	/*
 	 * We only support LSO, vendor flag1, and multicast loopback blocking,
 	 * and only for kernel UD QPs.
@@ -1049,7 +1067,8 @@ struct ib_qp *mlx4_ib_create_qp(struct ib_pd *pd,
 					MLX4_IB_QP_BLOCK_MULTICAST_LOOPBACK |
 					MLX4_IB_SRIOV_TUNNEL_QP |
 					MLX4_IB_SRIOV_SQP |
-					MLX4_IB_QP_NETIF))
+					MLX4_IB_QP_NETIF |
+					MLX4_IB_QP_CREATE_USE_GFP_NOIO))
 		return ERR_PTR(-EINVAL);
 
 	if (init_attr->create_flags & IB_QP_CREATE_NETIF_QP) {
@@ -1059,7 +1078,7 @@ struct ib_qp *mlx4_ib_create_qp(struct ib_pd *pd,
 
 	if (init_attr->create_flags &&
 	    (udata ||
-	     ((init_attr->create_flags & ~MLX4_IB_SRIOV_SQP) &&
+	     ((init_attr->create_flags & ~(MLX4_IB_SRIOV_SQP | MLX4_IB_QP_CREATE_USE_GFP_NOIO)) &&
 	      init_attr->qp_type != IB_QPT_UD) ||
 	     ((init_attr->create_flags & MLX4_IB_SRIOV_SQP) &&
 	      init_attr->qp_type > IB_QPT_GSI)))
@@ -1079,7 +1098,7 @@ struct ib_qp *mlx4_ib_create_qp(struct ib_pd *pd,
 	case IB_QPT_RC:
 	case IB_QPT_UC:
 	case IB_QPT_RAW_PACKET:
-		qp = kzalloc(sizeof *qp, GFP_KERNEL);
+		qp = kzalloc(sizeof *qp, gfp);
 		if (!qp)
 			return ERR_PTR(-ENOMEM);
 		qp->pri.vid = 0xFFFF;
@@ -1088,7 +1107,7 @@ struct ib_qp *mlx4_ib_create_qp(struct ib_pd *pd,
 	case IB_QPT_UD:
 	{
 		err = create_qp_common(to_mdev(pd->device), pd, init_attr,
-				       udata, 0, &qp);
+				       udata, 0, &qp, gfp);
 		if (err)
 			return ERR_PTR(err);
 
@@ -1106,7 +1125,7 @@ struct ib_qp *mlx4_ib_create_qp(struct ib_pd *pd,
 
 		err = create_qp_common(to_mdev(pd->device), pd, init_attr, udata,
 				       get_sqp_num(to_mdev(pd->device), init_attr),
-				       &qp);
+				       &qp, gfp);
 		if (err)
 			return ERR_PTR(err);
 
@@ -1938,6 +1957,19 @@ out:
 	return err;
 }
 
+static int vf_get_qp0_qkey(struct mlx4_dev *dev, int qpn, u32 *qkey)
+{
+	int i;
+	for (i = 0; i < dev->caps.num_ports; i++) {
+		if (qpn == dev->caps.qp0_proxy[i] ||
+		    qpn == dev->caps.qp0_tunnel[i]) {
+			*qkey = dev->caps.qp0_qkey[i];
+			return 0;
+		}
+	}
+	return -EINVAL;
+}
+
 static int build_sriov_qp0_header(struct mlx4_ib_sqp *sqp,
 				  struct ib_send_wr *wr,
 				  void *wqe, unsigned *mlx_seg_len)
@@ -1995,8 +2027,13 @@ static int build_sriov_qp0_header(struct mlx4_ib_sqp *sqp,
 			cpu_to_be32(mdev->dev->caps.qp0_tunnel[sqp->qp.port - 1]);
 
 	sqp->ud_header.bth.psn = cpu_to_be32((sqp->send_psn++) & ((1 << 24) - 1));
-	if (mlx4_get_parav_qkey(mdev->dev, sqp->qp.mqp.qpn, &qkey))
-		return -EINVAL;
+	if (mlx4_is_master(mdev->dev)) {
+		if (mlx4_get_parav_qkey(mdev->dev, sqp->qp.mqp.qpn, &qkey))
+			return -EINVAL;
+	} else {
+		if (vf_get_qp0_qkey(mdev->dev, sqp->qp.mqp.qpn, &qkey))
+			return -EINVAL;
+	}
 	sqp->ud_header.deth.qkey = cpu_to_be32(qkey);
 	sqp->ud_header.deth.source_qpn = cpu_to_be32(sqp->qp.mqp.qpn);
 
@@ -2378,7 +2415,8 @@ static void set_datagram_seg(struct mlx4_wqe_datagram_seg *dseg,
 
 static void set_tunnel_datagram_seg(struct mlx4_ib_dev *dev,
 				    struct mlx4_wqe_datagram_seg *dseg,
-				    struct ib_send_wr *wr, enum ib_qp_type qpt)
+				    struct ib_send_wr *wr,
+				    enum mlx4_ib_qp_type qpt)
 {
 	union mlx4_ext_av *av = &to_mah(wr->wr.ud.ah)->av;
 	struct mlx4_av sqp_av = {0};
@@ -2391,8 +2429,10 @@ static void set_tunnel_datagram_seg(struct mlx4_ib_dev *dev,
 			cpu_to_be32(0xf0000000);
 
 	memcpy(dseg->av, &sqp_av, sizeof (struct mlx4_av));
-	/* This function used only for sending on QP1 proxies */
-	dseg->dqpn = cpu_to_be32(dev->dev->caps.qp1_tunnel[port - 1]);
+	if (qpt == MLX4_IB_QPT_PROXY_GSI)
+		dseg->dqpn = cpu_to_be32(dev->dev->caps.qp1_tunnel[port - 1]);
+	else
+		dseg->dqpn = cpu_to_be32(dev->dev->caps.qp0_tunnel[port - 1]);
 	/* Use QKEY from the QP context, which is set by master */
 	dseg->qkey = cpu_to_be32(IB_QP_SET_QKEY);
 }
@@ -2687,11 +2727,6 @@ int mlx4_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 			break;
 
 		case MLX4_IB_QPT_PROXY_SMI_OWNER:
-			if (unlikely(!mlx4_is_master(to_mdev(ibqp->device)->dev))) {
-				err = -ENOSYS;
-				*bad_wr = wr;
-				goto out;
-			}
 			err = build_sriov_qp0_header(to_msqp(qp), wr, ctrl, &seglen);
 			if (unlikely(err)) {
 				*bad_wr = wr;
@@ -2708,16 +2743,13 @@ int mlx4_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 			size += seglen / 16;
 			break;
 		case MLX4_IB_QPT_PROXY_SMI:
-			/* don't allow QP0 sends on guests */
-			err = -ENOSYS;
-			*bad_wr = wr;
-			goto out;
 		case MLX4_IB_QPT_PROXY_GSI:
 			/* If we are tunneling special qps, this is a UD qp.
 			 * In this case we first add a UD segment targeting
 			 * the tunnel qp, and then add a header with address
 			 * information */
-			set_tunnel_datagram_seg(to_mdev(ibqp->device), wqe, wr, ibqp->qp_type);
+			set_tunnel_datagram_seg(to_mdev(ibqp->device), wqe, wr,
+						qp->mlx4_ib_qp_type);
 			wqe  += sizeof (struct mlx4_wqe_datagram_seg);
 			size += sizeof (struct mlx4_wqe_datagram_seg) / 16;
 			build_tunnel_header(wr, wqe, &seglen);

@@ -140,10 +140,10 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 		if (p->ring == R600_RING_TYPE_UVD_INDEX &&
 		    (i == 0 || drm_pci_device_is_agp(p->rdev->ddev))) {
 			/* TODO: is this still needed for NI+ ? */
-			p->relocs[i].domain =
+			p->relocs[i].prefered_domains =
 				RADEON_GEM_DOMAIN_VRAM;
 
-			p->relocs[i].alt_domain =
+			p->relocs[i].allowed_domains =
 				RADEON_GEM_DOMAIN_VRAM;
 
 			/* prioritize this over any other relocation */
@@ -158,10 +158,10 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 				return -EINVAL;
 			}
 
-			p->relocs[i].domain = domain;
+			p->relocs[i].prefered_domains = domain;
 			if (domain == RADEON_GEM_DOMAIN_VRAM)
 				domain |= RADEON_GEM_DOMAIN_GTT;
-			p->relocs[i].alt_domain = domain;
+			p->relocs[i].allowed_domains = domain;
 		}
 
 		p->relocs[i].tv.bo = &p->relocs[i].robj->tbo;
@@ -461,13 +461,23 @@ static int radeon_bo_vm_update_pte(struct radeon_cs_parser *p,
 				   struct radeon_vm *vm)
 {
 	struct radeon_device *rdev = p->rdev;
+	struct radeon_bo_va *bo_va;
 	int i, r;
 
 	r = radeon_vm_update_page_directory(rdev, vm);
 	if (r)
 		return r;
 
-	r = radeon_vm_bo_update(rdev, vm, rdev->ring_tmp_bo.bo,
+	r = radeon_vm_clear_freed(rdev, vm);
+	if (r)
+		return r;
+
+	if (vm->ib_bo_va == NULL) {
+		DRM_ERROR("Tmp BO not in VM!\n");
+		return -EINVAL;
+	}
+
+	r = radeon_vm_bo_update(rdev, vm->ib_bo_va,
 				&rdev->ring_tmp_bo.bo->tbo.mem);
 	if (r)
 		return r;
@@ -480,7 +490,13 @@ static int radeon_bo_vm_update_pte(struct radeon_cs_parser *p,
 			continue;
 
 		bo = p->relocs[i].robj;
-		r = radeon_vm_bo_update(rdev, vm, bo, &bo->tbo.mem);
+		bo_va = radeon_vm_bo_find(vm, bo);
+		if (bo_va == NULL) {
+			dev_err(rdev->dev, "bo %p not in vm %p\n", bo, vm);
+			return -EINVAL;
+		}
+
+		r = radeon_vm_bo_update(rdev, bo_va, &bo->tbo.mem);
 		if (r)
 			return r;
 	}

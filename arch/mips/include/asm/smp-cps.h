@@ -13,17 +13,28 @@
 
 #ifndef __ASSEMBLY__
 
-struct boot_config {
-	unsigned int core;
-	unsigned int vpe;
+struct vpe_boot_config {
 	unsigned long pc;
 	unsigned long sp;
 	unsigned long gp;
 };
 
-extern struct boot_config mips_cps_bootcfg;
+struct core_boot_config {
+	atomic_t vpe_mask;
+	struct vpe_boot_config *vpe_config;
+};
+
+extern struct core_boot_config *mips_cps_core_bootcfg;
 
 extern void mips_cps_core_entry(void);
+extern void mips_cps_core_init(void);
+
+extern struct vpe_boot_config *mips_cps_boot_vpes(void);
+
+extern bool mips_cps_smp_in_use(void);
+
+extern void mips_cps_pm_save(void);
+extern void mips_cps_pm_restore(void);
 
 #else /* __ASSEMBLY__ */
 

@@ -31,7 +31,8 @@ Configuration Options:
 
 Developed from cb_pcidas and skel by Richard Bytheway (mocelet@sucs.org).
 Only supports DIO, AO and simple AI in it's present form.
-No interrupts, multi channel or FIFO AI, although the card looks like it could support this.
+No interrupts, multi channel or FIFO AI,
+although the card looks like it could support this.
 See http://www.mccdaq.com/PDFs/Manuals/pcim-das1602-16.pdf for more details.
 */
 
@@ -128,8 +129,12 @@ static int cb_pcimdas_ai_rinsn(struct comedi_device *dev,
 		d = d & 0xfd;
 		outb(d, devpriv->BADR3 + 5);
 	}
-	outb(0x01, devpriv->BADR3 + 6);	/* set bursting off, conversions on */
-	outb(0x00, devpriv->BADR3 + 7);	/* set range to 10V. UP/BP is controlled by a switch on the board */
+
+	/* set bursting off, conversions on */
+	outb(0x01, devpriv->BADR3 + 6);
+
+	/* set range to 10V. UP/BP is controlled by a switch on the board */
+	outb(0x00, devpriv->BADR3 + 7);
 
 	/*
 	 * write channel limits to multiplexer, set Low (bits 0-3) and

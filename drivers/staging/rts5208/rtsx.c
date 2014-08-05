@@ -1030,7 +1030,7 @@ static void rtsx_remove(struct pci_dev *pci)
 }
 
 /* PCI IDs */
-static DEFINE_PCI_DEVICE_TABLE(rtsx_ids) = {
+static const struct pci_device_id rtsx_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_REALTEK, 0x5208),
 		PCI_CLASS_OTHERS << 16, 0xFF0000 },
 	{ PCI_DEVICE(PCI_VENDOR_ID_REALTEK, 0x5288),

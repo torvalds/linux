@@ -249,7 +249,7 @@ static void as102_free_usb_stream_buffer(struct as102_dev_t *dev)
 
 static int as102_alloc_usb_stream_buffer(struct as102_dev_t *dev)
 {
-	int i, ret = 0;
+	int i;
 
 	dev->stream = usb_alloc_coherent(dev->bus_adap.usb_dev,
 				       MAX_STREAM_URB * AS102_USB_BUF_SIZE,
@@ -280,7 +280,7 @@ static int as102_alloc_usb_stream_buffer(struct as102_dev_t *dev)
 
 		dev->stream_urb[i] = urb;
 	}
-	return ret;
+	return 0;
 }
 
 static void as102_usb_stop_stream(struct as102_dev_t *dev)
@@ -458,7 +458,6 @@ exit:
 
 static int as102_release(struct inode *inode, struct file *file)
 {
-	int ret = 0;
 	struct as102_dev_t *dev = NULL;
 
 	dev = file->private_data;
@@ -467,7 +466,7 @@ static int as102_release(struct inode *inode, struct file *file)
 		kref_put(&dev->kref, as102_usb_release);
 	}
 
-	return ret;
+	return 0;
 }
 
 MODULE_DEVICE_TABLE(usb, as102_usb_id_table);

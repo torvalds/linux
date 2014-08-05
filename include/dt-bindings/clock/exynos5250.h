@@ -150,11 +150,30 @@
 #define CLK_G2D			345
 #define CLK_MDMA0		346
 #define CLK_SMMU_MDMA0		347
+#define CLK_SSS			348
+#define CLK_G3D			349
+#define CLK_SMMU_TV		350
+#define CLK_SMMU_FIMD1		351
+#define CLK_SMMU_2D		352
+#define CLK_SMMU_FIMC_ISP	353
+#define CLK_SMMU_FIMC_DRC	354
+#define CLK_SMMU_FIMC_SCC	355
+#define CLK_SMMU_FIMC_SCP	356
+#define CLK_SMMU_FIMC_FD	357
+#define CLK_SMMU_FIMC_MCU	358
+#define CLK_SMMU_FIMC_ODC	359
+#define CLK_SMMU_FIMC_DIS0	360
+#define CLK_SMMU_FIMC_DIS1	361
+#define CLK_SMMU_FIMC_3DNR	362
+#define CLK_SMMU_FIMC_LITE0	363
+#define CLK_SMMU_FIMC_LITE1	364
+#define CLK_CAMIF_TOP		365
 
 /* mux clocks */
 #define CLK_MOUT_HDMI		1024
+#define CLK_MOUT_GPLL		1025
 
 /* must be greater than maximal clock id */
-#define CLK_NR_CLKS		1025
+#define CLK_NR_CLKS		1026
 
 #endif /* _DT_BINDINGS_CLOCK_EXYNOS_5250_H */

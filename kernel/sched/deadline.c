@@ -57,8 +57,6 @@ void init_dl_bandwidth(struct dl_bandwidth *dl_b, u64 period, u64 runtime)
 	dl_b->dl_runtime = runtime;
 }
 
-extern unsigned long to_ratio(u64 period, u64 runtime);
-
 void init_dl_bw(struct dl_bw *dl_b)
 {
 	raw_spin_lock_init(&dl_b->lock);
@@ -348,12 +346,7 @@ static void replenish_dl_entity(struct sched_dl_entity *dl_se,
 	 * entity.
 	 */
 	if (dl_time_before(dl_se->deadline, rq_clock(rq))) {
-		static bool lag_once = false;
-
-		if (!lag_once) {
-			lag_once = true;
-			printk_sched("sched: DL replenish lagged to much\n");
-		}
+		printk_deferred_once("sched: DL replenish lagged to much\n");
 		dl_se->deadline = rq_clock(rq) + pi_se->dl_deadline;
 		dl_se->runtime = pi_se->dl_runtime;
 	}
@@ -528,7 +521,7 @@ again:
 	 * We need to take care of a possible races here. In fact, the
 	 * task might have changed its scheduling policy to something
 	 * different from SCHED_DEADLINE or changed its reservation
-	 * parameters (through sched_setscheduler()).
+	 * parameters (through sched_setattr()).
 	 */
 	if (!dl_task(p) || dl_se->dl_new)
 		goto unlock;
@@ -749,7 +742,7 @@ void inc_dl_tasks(struct sched_dl_entity *dl_se, struct dl_rq *dl_rq)
 
 	WARN_ON(!dl_prio(prio));
 	dl_rq->dl_nr_running++;
-	inc_nr_running(rq_of_dl_rq(dl_rq));
+	add_nr_running(rq_of_dl_rq(dl_rq), 1);
 
 	inc_dl_deadline(dl_rq, deadline);
 	inc_dl_migration(dl_se, dl_rq);
@@ -763,7 +756,7 @@ void dec_dl_tasks(struct sched_dl_entity *dl_se, struct dl_rq *dl_rq)
 	WARN_ON(!dl_prio(prio));
 	WARN_ON(!dl_rq->dl_nr_running);
 	dl_rq->dl_nr_running--;
-	dec_nr_running(rq_of_dl_rq(dl_rq));
+	sub_nr_running(rq_of_dl_rq(dl_rq), 1);
 
 	dec_dl_deadline(dl_rq, dl_se->deadline);
 	dec_dl_migration(dl_se, dl_rq);

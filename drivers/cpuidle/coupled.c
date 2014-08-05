@@ -159,7 +159,7 @@ void cpuidle_coupled_parallel_barrier(struct cpuidle_device *dev, atomic_t *a)
 {
 	int n = dev->coupled->online_count;
 
-	smp_mb__before_atomic_inc();
+	smp_mb__before_atomic();
 	atomic_inc(a);
 
 	while (atomic_read(a) < n)

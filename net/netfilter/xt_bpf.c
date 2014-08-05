@@ -23,10 +23,11 @@ MODULE_ALIAS("ip6t_bpf");
 static int bpf_mt_check(const struct xt_mtchk_param *par)
 {
 	struct xt_bpf_info *info = par->matchinfo;
-	struct sock_fprog program;
+	struct sock_fprog_kern program;
 
 	program.len = info->bpf_program_num_elem;
-	program.filter = (struct sock_filter __user *) info->bpf_program;
+	program.filter = info->bpf_program;
+
 	if (sk_unattached_filter_create(&info->filter, &program)) {
 		pr_info("bpf: check failed: parse error\n");
 		return -EINVAL;

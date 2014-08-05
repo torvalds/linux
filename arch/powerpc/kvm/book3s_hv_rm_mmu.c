@@ -42,13 +42,14 @@ static int global_invalidates(struct kvm *kvm, unsigned long flags)
 
 	/*
 	 * If there is only one vcore, and it's currently running,
+	 * as indicated by local_paca->kvm_hstate.kvm_vcpu being set,
 	 * we can use tlbiel as long as we mark all other physical
 	 * cores as potentially having stale TLB entries for this lpid.
 	 * If we're not using MMU notifiers, we never take pages away
 	 * from the guest, so we can use tlbiel if requested.
 	 * Otherwise, don't use tlbiel.
 	 */
-	if (kvm->arch.online_vcores == 1 && local_paca->kvm_hstate.kvm_vcore)
+	if (kvm->arch.online_vcores == 1 && local_paca->kvm_hstate.kvm_vcpu)
 		global = 0;
 	else if (kvm->arch.using_mmu_notifiers)
 		global = 1;
@@ -813,13 +814,10 @@ long kvmppc_hv_find_lock_hpte(struct kvm *kvm, gva_t eaddr, unsigned long slb_v,
 			r = hpte[i+1];
 
 			/*
-			 * Check the HPTE again, including large page size
-			 * Since we don't currently allow any MPSS (mixed
-			 * page-size segment) page sizes, it is sufficient
-			 * to check against the actual page size.
+			 * Check the HPTE again, including base page size
 			 */
 			if ((v & valid) && (v & mask) == val &&
-			    hpte_page_size(v, r) == (1ul << pshift))
+			    hpte_base_page_size(v, r) == (1ul << pshift))
 				/* Return with the HPTE still locked */
 				return (hash << 3) + (i >> 1);
 

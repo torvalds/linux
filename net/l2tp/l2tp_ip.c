@@ -606,7 +606,6 @@ static struct inet_protosw l2tp_ip_protosw = {
 	.protocol	= IPPROTO_L2TP,
 	.prot		= &l2tp_ip_prot,
 	.ops		= &l2tp_ip_ops,
-	.no_check	= 0,
 };
 
 static struct net_protocol l2tp_ip_protocol __read_mostly = {

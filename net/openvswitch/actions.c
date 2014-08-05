@@ -134,8 +134,8 @@ static int set_eth_addr(struct sk_buff *skb,
 
 	skb_postpull_rcsum(skb, eth_hdr(skb), ETH_ALEN * 2);
 
-	memcpy(eth_hdr(skb)->h_source, eth_key->eth_src, ETH_ALEN);
-	memcpy(eth_hdr(skb)->h_dest, eth_key->eth_dst, ETH_ALEN);
+	ether_addr_copy(eth_hdr(skb)->h_source, eth_key->eth_src);
+	ether_addr_copy(eth_hdr(skb)->h_dest, eth_key->eth_dst);
 
 	ovs_skb_postpush_rcsum(skb, eth_hdr(skb), ETH_ALEN * 2);
 
@@ -551,6 +551,8 @@ static int do_execute_actions(struct datapath *dp, struct sk_buff *skb,
 
 		case OVS_ACTION_ATTR_SAMPLE:
 			err = sample(dp, skb, a);
+			if (unlikely(err)) /* skb already freed. */
+				return err;
 			break;
 		}
 

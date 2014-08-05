@@ -56,6 +56,7 @@ struct i40e_hmc_obj_rxq {
 	u8  tphdata_ena;
 	u8  tphhead_ena;
 	u8  lrxqthresh;
+	u8  prefena;	/* NOTE: normally must be set to 1 at init */
 };
 
 /* Tx queue context data */

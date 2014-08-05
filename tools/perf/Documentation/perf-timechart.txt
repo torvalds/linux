@@ -43,27 +43,6 @@ TIMECHART OPTIONS
 
 --symfs=<directory>::
         Look for files with symbols relative to this directory.
-
-EXAMPLES
---------
-
-$ perf timechart record git pull
-
-  [ perf record: Woken up 13 times to write data ]
-  [ perf record: Captured and wrote 4.253 MB perf.data (~185801 samples) ]
-
-$ perf timechart
-
-  Written 10.2 seconds of trace to output.svg.
-
-Record system-wide timechart:
-
-  $ perf timechart record
-
-  then generate timechart and highlight 'gcc' tasks:
-
-  $ perf timechart --highlight gcc
-
 -n::
 --proc-num::
         Print task info for at least given number of tasks.
@@ -87,6 +66,26 @@ RECORD OPTIONS
 -g::
 --callchain::
         Do call-graph (stack chain/backtrace) recording
+
+EXAMPLES
+--------
+
+$ perf timechart record git pull
+
+  [ perf record: Woken up 13 times to write data ]
+  [ perf record: Captured and wrote 4.253 MB perf.data (~185801 samples) ]
+
+$ perf timechart
+
+  Written 10.2 seconds of trace to output.svg.
+
+Record system-wide timechart:
+
+  $ perf timechart record
+
+  then generate timechart and highlight 'gcc' tasks:
+
+  $ perf timechart --highlight gcc
 
 SEE ALSO
 --------

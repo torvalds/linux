@@ -390,22 +390,7 @@ static void xen_irq_init(unsigned irq)
 
 static int __must_check xen_allocate_irqs_dynamic(int nvec)
 {
-	int first = 0;
-	int i, irq;
-
-#ifdef CONFIG_X86_IO_APIC
-	/*
-	 * For an HVM guest or domain 0 which see "real" (emulated or
-	 * actual respectively) GSIs we allocate dynamic IRQs
-	 * e.g. those corresponding to event channels or MSIs
-	 * etc. from the range above those "real" GSIs to avoid
-	 * collisions.
-	 */
-	if (xen_initial_domain() || xen_hvm_domain())
-		first = get_nr_irqs_gsi();
-#endif
-
-	irq = irq_alloc_descs_from(first, nvec, -1);
+	int i, irq = irq_alloc_descs(-1, 0, nvec, -1);
 
 	if (irq >= 0) {
 		for (i = 0; i < nvec; i++)

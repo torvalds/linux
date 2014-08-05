@@ -13,6 +13,7 @@
 
 #include <asm/irqflags.h>
 #include <asm/cmpxchg.h>
+#include <asm/barrier.h>
 
 #ifndef CONFIG_SMP
 #include <asm-generic/atomic.h>
@@ -233,12 +234,6 @@ static inline void atomic_set_mask(unsigned long mask, unsigned long *addr)
 	arch_local_irq_restore(flags);
 #endif
 }
-
-/* Atomic operations are already serializing on MN10300??? */
-#define smp_mb__before_atomic_dec()	barrier()
-#define smp_mb__after_atomic_dec()	barrier()
-#define smp_mb__before_atomic_inc()	barrier()
-#define smp_mb__after_atomic_inc()	barrier()
 
 #endif /* __KERNEL__ */
 #endif /* CONFIG_SMP */

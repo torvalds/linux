@@ -46,6 +46,9 @@ extern int trace_seq_putmem_hex(struct trace_seq *s, const void *mem,
 extern void *trace_seq_reserve(struct trace_seq *s, size_t len);
 extern int trace_seq_path(struct trace_seq *s, const struct path *path);
 
+extern int trace_seq_bitmask(struct trace_seq *s, const unsigned long *maskp,
+			     int nmaskbits);
+
 #else /* CONFIG_TRACING */
 static inline int trace_seq_printf(struct trace_seq *s, const char *fmt, ...)
 {
@@ -53,6 +56,13 @@ static inline int trace_seq_printf(struct trace_seq *s, const char *fmt, ...)
 }
 static inline int
 trace_seq_bprintf(struct trace_seq *s, const char *fmt, const u32 *binary)
+{
+	return 0;
+}
+
+static inline int
+trace_seq_bitmask(struct trace_seq *s, const unsigned long *maskp,
+		  int nmaskbits)
 {
 	return 0;
 }

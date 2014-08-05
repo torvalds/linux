@@ -59,7 +59,7 @@
  */
 static unsigned radeon_vm_num_pdes(struct radeon_device *rdev)
 {
-	return rdev->vm_manager.max_pfn >> RADEON_VM_BLOCK_SIZE;
+	return rdev->vm_manager.max_pfn >> radeon_vm_block_size;
 }
 
 /**
@@ -140,8 +140,8 @@ struct radeon_cs_reloc *radeon_vm_get_bos(struct radeon_device *rdev,
 	/* add the vm page table to the list */
 	list[0].gobj = NULL;
 	list[0].robj = vm->page_directory;
-	list[0].domain = RADEON_GEM_DOMAIN_VRAM;
-	list[0].alt_domain = RADEON_GEM_DOMAIN_VRAM;
+	list[0].prefered_domains = RADEON_GEM_DOMAIN_VRAM;
+	list[0].allowed_domains = RADEON_GEM_DOMAIN_VRAM;
 	list[0].tv.bo = &vm->page_directory->tbo;
 	list[0].tiling_flags = 0;
 	list[0].handle = 0;
@@ -153,8 +153,8 @@ struct radeon_cs_reloc *radeon_vm_get_bos(struct radeon_device *rdev,
 
 		list[idx].gobj = NULL;
 		list[idx].robj = vm->page_tables[i].bo;
-		list[idx].domain = RADEON_GEM_DOMAIN_VRAM;
-		list[idx].alt_domain = RADEON_GEM_DOMAIN_VRAM;
+		list[idx].prefered_domains = RADEON_GEM_DOMAIN_VRAM;
+		list[idx].allowed_domains = RADEON_GEM_DOMAIN_VRAM;
 		list[idx].tv.bo = &list[idx].robj->tbo;
 		list[idx].tiling_flags = 0;
 		list[idx].handle = 0;
@@ -332,6 +332,7 @@ struct radeon_bo_va *radeon_vm_bo_add(struct radeon_device *rdev,
 	bo_va->ref_count = 1;
 	INIT_LIST_HEAD(&bo_va->bo_list);
 	INIT_LIST_HEAD(&bo_va->vm_list);
+	INIT_LIST_HEAD(&bo_va->vm_status);
 
 	mutex_lock(&vm->mutex);
 	list_add(&bo_va->vm_list, &vm->va);
@@ -468,14 +469,29 @@ int radeon_vm_bo_set_addr(struct radeon_device *rdev,
 		head = &tmp->vm_list;
 	}
 
+	if (bo_va->soffset) {
+		/* add a clone of the bo_va to clear the old address */
+		tmp = kzalloc(sizeof(struct radeon_bo_va), GFP_KERNEL);
+		if (!tmp) {
+			mutex_unlock(&vm->mutex);
+			return -ENOMEM;
+		}
+		tmp->soffset = bo_va->soffset;
+		tmp->eoffset = bo_va->eoffset;
+		tmp->vm = vm;
+		list_add(&tmp->vm_status, &vm->freed);
+	}
+
 	bo_va->soffset = soffset;
 	bo_va->eoffset = eoffset;
 	bo_va->flags = flags;
 	bo_va->valid = false;
 	list_move(&bo_va->vm_list, head);
 
-	soffset = (soffset / RADEON_GPU_PAGE_SIZE) >> RADEON_VM_BLOCK_SIZE;
-	eoffset = (eoffset / RADEON_GPU_PAGE_SIZE) >> RADEON_VM_BLOCK_SIZE;
+	soffset = (soffset / RADEON_GPU_PAGE_SIZE) >> radeon_vm_block_size;
+	eoffset = (eoffset / RADEON_GPU_PAGE_SIZE) >> radeon_vm_block_size;
+
+	BUG_ON(eoffset >= radeon_vm_num_pdes(rdev));
 
 	if (eoffset > vm->max_pde_used)
 		vm->max_pde_used = eoffset;
@@ -493,7 +509,7 @@ int radeon_vm_bo_set_addr(struct radeon_device *rdev,
 		mutex_unlock(&vm->mutex);
 
 		r = radeon_bo_create(rdev, RADEON_VM_PTE_COUNT * 8,
-				     RADEON_GPU_PAGE_SIZE, false, 
+				     RADEON_GPU_PAGE_SIZE, true,
 				     RADEON_GEM_DOMAIN_VRAM, NULL, &pt);
 		if (r)
 			return r;
@@ -583,10 +599,9 @@ static uint32_t radeon_vm_page_flags(uint32_t flags)
 int radeon_vm_update_page_directory(struct radeon_device *rdev,
 				    struct radeon_vm *vm)
 {
-	static const uint32_t incr = RADEON_VM_PTE_COUNT * 8;
-
 	struct radeon_bo *pd = vm->page_directory;
 	uint64_t pd_addr = radeon_bo_gpu_offset(pd);
+	uint32_t incr = RADEON_VM_PTE_COUNT * 8;
 	uint64_t last_pde = ~0, last_pt = ~0;
 	unsigned count = 0, pt_idx, ndw;
 	struct radeon_ib ib;
@@ -660,6 +675,84 @@ int radeon_vm_update_page_directory(struct radeon_device *rdev,
 }
 
 /**
+ * radeon_vm_frag_ptes - add fragment information to PTEs
+ *
+ * @rdev: radeon_device pointer
+ * @ib: IB for the update
+ * @pe_start: first PTE to handle
+ * @pe_end: last PTE to handle
+ * @addr: addr those PTEs should point to
+ * @flags: hw mapping flags
+ *
+ * Global and local mutex must be locked!
+ */
+static void radeon_vm_frag_ptes(struct radeon_device *rdev,
+				struct radeon_ib *ib,
+				uint64_t pe_start, uint64_t pe_end,
+				uint64_t addr, uint32_t flags)
+{
+	/**
+	 * The MC L1 TLB supports variable sized pages, based on a fragment
+	 * field in the PTE. When this field is set to a non-zero value, page
+	 * granularity is increased from 4KB to (1 << (12 + frag)). The PTE
+	 * flags are considered valid for all PTEs within the fragment range
+	 * and corresponding mappings are assumed to be physically contiguous.
+	 *
+	 * The L1 TLB can store a single PTE for the whole fragment,
+	 * significantly increasing the space available for translation
+	 * caching. This leads to large improvements in throughput when the
+	 * TLB is under pressure.
+	 *
+	 * The L2 TLB distributes small and large fragments into two
+	 * asymmetric partitions. The large fragment cache is significantly
+	 * larger. Thus, we try to use large fragments wherever possible.
+	 * Userspace can support this by aligning virtual base address and
+	 * allocation size to the fragment size.
+	 */
+
+	/* NI is optimized for 256KB fragments, SI and newer for 64KB */
+	uint64_t frag_flags = rdev->family == CHIP_CAYMAN ?
+			R600_PTE_FRAG_256KB : R600_PTE_FRAG_64KB;
+	uint64_t frag_align = rdev->family == CHIP_CAYMAN ? 0x200 : 0x80;
+
+	uint64_t frag_start = ALIGN(pe_start, frag_align);
+	uint64_t frag_end = pe_end & ~(frag_align - 1);
+
+	unsigned count;
+
+	/* system pages are non continuously */
+	if ((flags & R600_PTE_SYSTEM) || !(flags & R600_PTE_VALID) ||
+	    (frag_start >= frag_end)) {
+
+		count = (pe_end - pe_start) / 8;
+		radeon_asic_vm_set_page(rdev, ib, pe_start, addr, count,
+					RADEON_GPU_PAGE_SIZE, flags);
+		return;
+	}
+
+	/* handle the 4K area at the beginning */
+	if (pe_start != frag_start) {
+		count = (frag_start - pe_start) / 8;
+		radeon_asic_vm_set_page(rdev, ib, pe_start, addr, count,
+					RADEON_GPU_PAGE_SIZE, flags);
+		addr += RADEON_GPU_PAGE_SIZE * count;
+	}
+
+	/* handle the area in the middle */
+	count = (frag_end - frag_start) / 8;
+	radeon_asic_vm_set_page(rdev, ib, frag_start, addr, count,
+				RADEON_GPU_PAGE_SIZE, flags | frag_flags);
+
+	/* handle the 4K area at the end */
+	if (frag_end != pe_end) {
+		addr += RADEON_GPU_PAGE_SIZE * count;
+		count = (pe_end - frag_end) / 8;
+		radeon_asic_vm_set_page(rdev, ib, frag_end, addr, count,
+					RADEON_GPU_PAGE_SIZE, flags);
+	}
+}
+
+/**
  * radeon_vm_update_ptes - make sure that page tables are valid
  *
  * @rdev: radeon_device pointer
@@ -679,8 +772,7 @@ static void radeon_vm_update_ptes(struct radeon_device *rdev,
 				  uint64_t start, uint64_t end,
 				  uint64_t dst, uint32_t flags)
 {
-	static const uint64_t mask = RADEON_VM_PTE_COUNT - 1;
-
+	uint64_t mask = RADEON_VM_PTE_COUNT - 1;
 	uint64_t last_pte = ~0, last_dst = ~0;
 	unsigned count = 0;
 	uint64_t addr;
@@ -690,7 +782,7 @@ static void radeon_vm_update_ptes(struct radeon_device *rdev,
 
 	/* walk over the address space and update the page tables */
 	for (addr = start; addr < end; ) {
-		uint64_t pt_idx = addr >> RADEON_VM_BLOCK_SIZE;
+		uint64_t pt_idx = addr >> radeon_vm_block_size;
 		struct radeon_bo *pt = vm->page_tables[pt_idx].bo;
 		unsigned nptes;
 		uint64_t pte;
@@ -708,10 +800,9 @@ static void radeon_vm_update_ptes(struct radeon_device *rdev,
 		if ((last_pte + 8 * count) != pte) {
 
 			if (count) {
-				radeon_asic_vm_set_page(rdev, ib, last_pte,
-							last_dst, count,
-							RADEON_GPU_PAGE_SIZE,
-							flags);
+				radeon_vm_frag_ptes(rdev, ib, last_pte,
+						    last_pte + 8 * count,
+						    last_dst, flags);
 			}
 
 			count = nptes;
@@ -726,9 +817,9 @@ static void radeon_vm_update_ptes(struct radeon_device *rdev,
 	}
 
 	if (count) {
-		radeon_asic_vm_set_page(rdev, ib, last_pte,
-					last_dst, count,
-					RADEON_GPU_PAGE_SIZE, flags);
+		radeon_vm_frag_ptes(rdev, ib, last_pte,
+				    last_pte + 8 * count,
+				    last_dst, flags);
 	}
 }
 
@@ -746,25 +837,19 @@ static void radeon_vm_update_ptes(struct radeon_device *rdev,
  * Object have to be reserved and mutex must be locked!
  */
 int radeon_vm_bo_update(struct radeon_device *rdev,
-			struct radeon_vm *vm,
-			struct radeon_bo *bo,
+			struct radeon_bo_va *bo_va,
 			struct ttm_mem_reg *mem)
 {
+	struct radeon_vm *vm = bo_va->vm;
 	struct radeon_ib ib;
-	struct radeon_bo_va *bo_va;
 	unsigned nptes, ndw;
 	uint64_t addr;
 	int r;
 
-	bo_va = radeon_vm_bo_find(vm, bo);
-	if (bo_va == NULL) {
-		dev_err(rdev->dev, "bo %p not in vm %p\n", bo, vm);
-		return -EINVAL;
-	}
 
 	if (!bo_va->soffset) {
 		dev_err(rdev->dev, "bo %p don't has a mapping in vm %p\n",
-			bo, vm);
+			bo_va->bo, vm);
 		return -EINVAL;
 	}
 
@@ -791,18 +876,18 @@ int radeon_vm_bo_update(struct radeon_device *rdev,
 
 	trace_radeon_vm_bo_update(bo_va);
 
-	nptes = radeon_bo_ngpu_pages(bo);
+	nptes = (bo_va->eoffset - bo_va->soffset) / RADEON_GPU_PAGE_SIZE;
 
 	/* padding, etc. */
 	ndw = 64;
 
-	if (RADEON_VM_BLOCK_SIZE > 11)
+	if (radeon_vm_block_size > 11)
 		/* reserve space for one header for every 2k dwords */
 		ndw += (nptes >> 11) * 4;
 	else
 		/* reserve space for one header for
 		    every (1 << BLOCK_SIZE) entries */
-		ndw += (nptes >> RADEON_VM_BLOCK_SIZE) * 4;
+		ndw += (nptes >> radeon_vm_block_size) * 4;
 
 	/* reserve space for pte addresses */
 	ndw += nptes * 2;
@@ -834,33 +919,61 @@ int radeon_vm_bo_update(struct radeon_device *rdev,
 }
 
 /**
+ * radeon_vm_clear_freed - clear freed BOs in the PT
+ *
+ * @rdev: radeon_device pointer
+ * @vm: requested vm
+ *
+ * Make sure all freed BOs are cleared in the PT.
+ * Returns 0 for success.
+ *
+ * PTs have to be reserved and mutex must be locked!
+ */
+int radeon_vm_clear_freed(struct radeon_device *rdev,
+			  struct radeon_vm *vm)
+{
+	struct radeon_bo_va *bo_va, *tmp;
+	int r;
+
+	list_for_each_entry_safe(bo_va, tmp, &vm->freed, vm_status) {
+		list_del(&bo_va->vm_status);
+		r = radeon_vm_bo_update(rdev, bo_va, NULL);
+		kfree(bo_va);
+		if (r)
+			return r;
+	}
+	return 0;
+
+}
+
+/**
  * radeon_vm_bo_rmv - remove a bo to a specific vm
  *
  * @rdev: radeon_device pointer
  * @bo_va: requested bo_va
  *
  * Remove @bo_va->bo from the requested vm (cayman+).
- * Remove @bo_va->bo from the list of bos associated with the bo_va->vm and
- * remove the ptes for @bo_va in the page table.
- * Returns 0 for success.
  *
  * Object have to be reserved!
  */
-int radeon_vm_bo_rmv(struct radeon_device *rdev,
-		     struct radeon_bo_va *bo_va)
+void radeon_vm_bo_rmv(struct radeon_device *rdev,
+		      struct radeon_bo_va *bo_va)
 {
-	int r = 0;
+	struct radeon_vm *vm = bo_va->vm;
 
-	mutex_lock(&bo_va->vm->mutex);
-	if (bo_va->soffset)
-		r = radeon_vm_bo_update(rdev, bo_va->vm, bo_va->bo, NULL);
-
-	list_del(&bo_va->vm_list);
-	mutex_unlock(&bo_va->vm->mutex);
 	list_del(&bo_va->bo_list);
 
-	kfree(bo_va);
-	return r;
+	mutex_lock(&vm->mutex);
+	list_del(&bo_va->vm_list);
+
+	if (bo_va->soffset) {
+		bo_va->bo = NULL;
+		list_add(&bo_va->vm_status, &vm->freed);
+	} else {
+		kfree(bo_va);
+	}
+
+	mutex_unlock(&vm->mutex);
 }
 
 /**
@@ -892,15 +1005,19 @@ void radeon_vm_bo_invalidate(struct radeon_device *rdev,
  */
 int radeon_vm_init(struct radeon_device *rdev, struct radeon_vm *vm)
 {
+	const unsigned align = min(RADEON_VM_PTB_ALIGN_SIZE,
+		RADEON_VM_PTE_COUNT * 8);
 	unsigned pd_size, pd_entries, pts_size;
 	int r;
 
 	vm->id = 0;
+	vm->ib_bo_va = NULL;
 	vm->fence = NULL;
 	vm->last_flush = NULL;
 	vm->last_id_use = NULL;
 	mutex_init(&vm->mutex);
 	INIT_LIST_HEAD(&vm->va);
+	INIT_LIST_HEAD(&vm->freed);
 
 	pd_size = radeon_vm_directory_size(rdev);
 	pd_entries = radeon_vm_num_pdes(rdev);
@@ -913,7 +1030,7 @@ int radeon_vm_init(struct radeon_device *rdev, struct radeon_vm *vm)
 		return -ENOMEM;
 	}
 
-	r = radeon_bo_create(rdev, pd_size, RADEON_VM_PTB_ALIGN_SIZE, false,
+	r = radeon_bo_create(rdev, pd_size, align, true,
 			     RADEON_GEM_DOMAIN_VRAM, NULL,
 			     &vm->page_directory);
 	if (r)
@@ -955,7 +1072,8 @@ void radeon_vm_fini(struct radeon_device *rdev, struct radeon_vm *vm)
 			kfree(bo_va);
 		}
 	}
-
+	list_for_each_entry_safe(bo_va, tmp, &vm->freed, vm_status)
+		kfree(bo_va);
 
 	for (i = 0; i < radeon_vm_num_pdes(rdev); i++)
 		radeon_bo_unref(&vm->page_tables[i].bo);

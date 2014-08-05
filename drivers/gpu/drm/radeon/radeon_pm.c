@@ -73,8 +73,10 @@ void radeon_pm_acpi_event_handler(struct radeon_device *rdev)
 			rdev->pm.dpm.ac_power = true;
 		else
 			rdev->pm.dpm.ac_power = false;
-		if (rdev->asic->dpm.enable_bapm)
-			radeon_dpm_enable_bapm(rdev, rdev->pm.dpm.ac_power);
+		if (rdev->family == CHIP_ARUBA) {
+			if (rdev->asic->dpm.enable_bapm)
+				radeon_dpm_enable_bapm(rdev, rdev->pm.dpm.ac_power);
+		}
 		mutex_unlock(&rdev->pm.mutex);
         } else if (rdev->pm.pm_method == PM_METHOD_PROFILE) {
 		if (rdev->pm.profile == PM_PROFILE_AUTO) {
@@ -984,6 +986,8 @@ void radeon_dpm_enable_uvd(struct radeon_device *rdev, bool enable)
 		if (enable) {
 			mutex_lock(&rdev->pm.mutex);
 			rdev->pm.dpm.uvd_active = true;
+			/* disable this for now */
+#if 0
 			if ((rdev->pm.dpm.sd == 1) && (rdev->pm.dpm.hd == 0))
 				dpm_state = POWER_STATE_TYPE_INTERNAL_UVD_SD;
 			else if ((rdev->pm.dpm.sd == 2) && (rdev->pm.dpm.hd == 0))
@@ -993,6 +997,7 @@ void radeon_dpm_enable_uvd(struct radeon_device *rdev, bool enable)
 			else if ((rdev->pm.dpm.sd == 0) && (rdev->pm.dpm.hd == 2))
 				dpm_state = POWER_STATE_TYPE_INTERNAL_UVD_HD2;
 			else
+#endif
 				dpm_state = POWER_STATE_TYPE_INTERNAL_UVD;
 			rdev->pm.dpm.state = dpm_state;
 			mutex_unlock(&rdev->pm.mutex);

@@ -356,7 +356,7 @@ static int n2_hash_async_finup(struct ahash_request *req)
 
 static int n2_hash_cra_init(struct crypto_tfm *tfm)
 {
-	const char *fallback_driver_name = tfm->__crt_alg->cra_name;
+	const char *fallback_driver_name = crypto_tfm_alg_name(tfm);
 	struct crypto_ahash *ahash = __crypto_ahash_cast(tfm);
 	struct n2_hash_ctx *ctx = crypto_ahash_ctx(ahash);
 	struct crypto_ahash *fallback_tfm;
@@ -391,7 +391,7 @@ static void n2_hash_cra_exit(struct crypto_tfm *tfm)
 
 static int n2_hmac_cra_init(struct crypto_tfm *tfm)
 {
-	const char *fallback_driver_name = tfm->__crt_alg->cra_name;
+	const char *fallback_driver_name = crypto_tfm_alg_name(tfm);
 	struct crypto_ahash *ahash = __crypto_ahash_cast(tfm);
 	struct n2_hmac_ctx *ctx = crypto_ahash_ctx(ahash);
 	struct n2_hmac_alg *n2alg = n2_hmac_alg(tfm);

@@ -13,10 +13,10 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		interrupts = <1 9 0xf04>;
-		compatible = "qcom,krait";
-		enable-method = "qcom,kpss-acc-v2";
 
 		cpu@0 {
+			compatible = "qcom,krait";
+			enable-method = "qcom,kpss-acc-v2";
 			device_type = "cpu";
 			reg = <0>;
 			next-level-cache = <&L2>;
@@ -24,6 +24,8 @@
 		};
 
 		cpu@1 {
+			compatible = "qcom,krait";
+			enable-method = "qcom,kpss-acc-v2";
 			device_type = "cpu";
 			reg = <1>;
 			next-level-cache = <&L2>;
@@ -31,6 +33,8 @@
 		};
 
 		cpu@2 {
+			compatible = "qcom,krait";
+			enable-method = "qcom,kpss-acc-v2";
 			device_type = "cpu";
 			reg = <2>;
 			next-level-cache = <&L2>;
@@ -38,6 +42,8 @@
 		};
 
 		cpu@3 {
+			compatible = "qcom,krait";
+			enable-method = "qcom,kpss-acc-v2";
 			device_type = "cpu";
 			reg = <3>;
 			next-level-cache = <&L2>;
@@ -47,7 +53,6 @@
 		L2: l2-cache {
 			compatible = "cache";
 			cache-level = <2>;
-			interrupts = <0 2 0x4>;
 			qcom,saw = <&saw_l2>;
 		};
 	};
@@ -55,6 +60,15 @@
 	cpu-pmu {
 		compatible = "qcom,krait-pmu";
 		interrupts = <1 7 0xf04>;
+	};
+
+	timer {
+		compatible = "arm,armv7-timer";
+		interrupts = <1 2 0xf08>,
+			     <1 3 0xf08>,
+			     <1 4 0xf08>,
+			     <1 1 0xf08>;
+		clock-frequency = <19200000>;
 	};
 
 	soc: soc {
@@ -69,15 +83,6 @@
 			#interrupt-cells = <3>;
 			reg = <0xf9000000 0x1000>,
 			      <0xf9002000 0x1000>;
-		};
-
-		timer {
-			compatible = "arm,armv7-timer";
-			interrupts = <1 2 0xf08>,
-				     <1 3 0xf08>,
-				     <1 4 0xf08>,
-				     <1 1 0xf08>;
-			clock-frequency = <19200000>;
 		};
 
 		timer@f9020000 {
@@ -190,6 +195,29 @@
 			interrupts = <0 108 0x0>;
 			clocks = <&gcc GCC_BLSP1_UART2_APPS_CLK>, <&gcc GCC_BLSP1_AHB_CLK>;
 			clock-names = "core", "iface";
+			status = "disabled";
+		};
+
+		sdhci@f9824900 {
+			compatible = "qcom,sdhci-msm-v4";
+			reg = <0xf9824900 0x11c>, <0xf9824000 0x800>;
+			reg-names = "hc_mem", "core_mem";
+			interrupts = <0 123 0>, <0 138 0>;
+			interrupt-names = "hc_irq", "pwr_irq";
+			clocks = <&gcc GCC_SDCC1_APPS_CLK>, <&gcc GCC_SDCC1_AHB_CLK>;
+			clock-names = "core", "iface";
+			status = "disabled";
+		};
+
+		sdhci@f98a4900 {
+			compatible = "qcom,sdhci-msm-v4";
+			reg = <0xf98a4900 0x11c>, <0xf98a4000 0x800>;
+			reg-names = "hc_mem", "core_mem";
+			interrupts = <0 125 0>, <0 221 0>;
+			interrupt-names = "hc_irq", "pwr_irq";
+			clocks = <&gcc GCC_SDCC2_APPS_CLK>, <&gcc GCC_SDCC2_AHB_CLK>;
+			clock-names = "core", "iface";
+			status = "disabled";
 		};
 
 		rng@f9bff000 {
@@ -197,6 +225,16 @@
 			reg = <0xf9bff000 0x200>;
 			clocks = <&gcc GCC_PRNG_AHB_CLK>;
 			clock-names = "core";
+		};
+
+		msmgpio: pinctrl@fd510000 {
+			compatible = "qcom,msm8974-pinctrl";
+			reg = <0xfd510000 0x4000>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			interrupts = <0 208 0>;
 		};
 	};
 };

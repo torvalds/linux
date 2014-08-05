@@ -54,8 +54,9 @@
 	.set	noat
 	.set	arch=xlr		/* for mfcr/mtcr, XLR is sufficient */
 
-FEXPORT(xlp_boot_core0_siblings)	/* "Master" cpu starts from here */
-	dmtc0	sp, $4, 2		/* SP saved in UserLocal */
+/* Called by the boot cpu to wake up its sibling threads */
+NESTED(xlp_boot_core0_siblings, PT_SIZE, sp)
+	/* CPU register contents lost when enabling threads, save them first */
 	SAVE_ALL
 	sync
 	/* find the location to which nlm_boot_siblings was relocated */
@@ -65,9 +66,12 @@ FEXPORT(xlp_boot_core0_siblings)	/* "Master" cpu starts from here */
 	dsubu	t2, t1
 	daddu	t2, t0
 	/* call it */
-	jr	t2
+	jalr	t2
 	nop
-	/* not reached */
+	RESTORE_ALL
+	jr	ra
+	nop
+END(xlp_boot_core0_siblings)
 
 NESTED(nlm_boot_secondary_cpus, 16, sp)
 	/* Initialize CP0 Status */

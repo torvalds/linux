@@ -68,6 +68,7 @@ static void malta_piix_func0_fixup(struct pci_dev *pdev)
 {
 	unsigned char reg_val;
 	u32 reg_val32;
+	u16 reg_val16;
 	/* PIIX PIRQC[A:D] irq mappings */
 	static int piixirqmap[PIIX4_FUNC0_PIRQRC_IRQ_ROUTING_MAX] = {
 		0,  0,	0,  3,
@@ -107,6 +108,11 @@ static void malta_piix_func0_fixup(struct pci_dev *pdev)
 	pci_read_config_byte(pdev, PIIX4_FUNC0_SERIRQC, &reg_val);
 	reg_val |= PIIX4_FUNC0_SERIRQC_EN | PIIX4_FUNC0_SERIRQC_CONT;
 	pci_write_config_byte(pdev, PIIX4_FUNC0_SERIRQC, reg_val);
+
+	/* Enable response to special cycles */
+	pci_read_config_word(pdev, PCI_COMMAND, &reg_val16);
+	pci_write_config_word(pdev, PCI_COMMAND,
+			      reg_val16 | PCI_COMMAND_SPECIAL);
 }
 
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82371AB_0,

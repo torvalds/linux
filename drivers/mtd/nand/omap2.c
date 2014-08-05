@@ -137,6 +137,10 @@
 #define BADBLOCK_MARKER_LENGTH		2
 
 #ifdef CONFIG_MTD_NAND_OMAP_BCH
+static u_char bch16_vector[] = {0xf5, 0x24, 0x1c, 0xd0, 0x61, 0xb3, 0xf1, 0x55,
+				0x2e, 0x2c, 0x86, 0xa3, 0xed, 0x36, 0x1b, 0x78,
+				0x48, 0x76, 0xa9, 0x3b, 0x97, 0xd1, 0x7a, 0x93,
+				0x07, 0x0e};
 static u_char bch8_vector[] = {0xf3, 0xdb, 0x14, 0x16, 0x8b, 0xd2, 0xbe, 0xcc,
 	0xac, 0x6b, 0xff, 0x99, 0x7b};
 static u_char bch4_vector[] = {0x00, 0x6b, 0x31, 0xdd, 0x41, 0xbc, 0x10};
@@ -1114,6 +1118,19 @@ static void __maybe_unused omap_enable_hwecc_bch(struct mtd_info *mtd, int mode)
 			ecc_size1 = BCH_ECC_SIZE1;
 		}
 		break;
+	case OMAP_ECC_BCH16_CODE_HW:
+		bch_type = 0x2;
+		nsectors = chip->ecc.steps;
+		if (mode == NAND_ECC_READ) {
+			wr_mode	  = 0x01;
+			ecc_size0 = 52; /* ECC bits in nibbles per sector */
+			ecc_size1 = 0;  /* non-ECC bits in nibbles per sector */
+		} else {
+			wr_mode	  = 0x01;
+			ecc_size0 = 0;  /* extra bits in nibbles per sector */
+			ecc_size1 = 52; /* OOB bits in nibbles per sector */
+		}
+		break;
 	default:
 		return;
 	}
@@ -1162,7 +1179,8 @@ static int __maybe_unused omap_calculate_ecc_bch(struct mtd_info *mtd,
 	struct gpmc_nand_regs	*gpmc_regs = &info->reg;
 	u8 *ecc_code;
 	unsigned long nsectors, bch_val1, bch_val2, bch_val3, bch_val4;
-	int i;
+	u32 val;
+	int i, j;
 
 	nsectors = ((readl(info->reg.gpmc_ecc_config) >> 4) & 0x7) + 1;
 	for (i = 0; i < nsectors; i++) {
@@ -1201,6 +1219,41 @@ static int __maybe_unused omap_calculate_ecc_bch(struct mtd_info *mtd,
 			*ecc_code++ = ((bch_val1 >> 4) & 0xFF);
 			*ecc_code++ = ((bch_val1 & 0xF) << 4);
 			break;
+		case OMAP_ECC_BCH16_CODE_HW:
+			val = readl(gpmc_regs->gpmc_bch_result6[i]);
+			ecc_code[0]  = ((val >>  8) & 0xFF);
+			ecc_code[1]  = ((val >>  0) & 0xFF);
+			val = readl(gpmc_regs->gpmc_bch_result5[i]);
+			ecc_code[2]  = ((val >> 24) & 0xFF);
+			ecc_code[3]  = ((val >> 16) & 0xFF);
+			ecc_code[4]  = ((val >>  8) & 0xFF);
+			ecc_code[5]  = ((val >>  0) & 0xFF);
+			val = readl(gpmc_regs->gpmc_bch_result4[i]);
+			ecc_code[6]  = ((val >> 24) & 0xFF);
+			ecc_code[7]  = ((val >> 16) & 0xFF);
+			ecc_code[8]  = ((val >>  8) & 0xFF);
+			ecc_code[9]  = ((val >>  0) & 0xFF);
+			val = readl(gpmc_regs->gpmc_bch_result3[i]);
+			ecc_code[10] = ((val >> 24) & 0xFF);
+			ecc_code[11] = ((val >> 16) & 0xFF);
+			ecc_code[12] = ((val >>  8) & 0xFF);
+			ecc_code[13] = ((val >>  0) & 0xFF);
+			val = readl(gpmc_regs->gpmc_bch_result2[i]);
+			ecc_code[14] = ((val >> 24) & 0xFF);
+			ecc_code[15] = ((val >> 16) & 0xFF);
+			ecc_code[16] = ((val >>  8) & 0xFF);
+			ecc_code[17] = ((val >>  0) & 0xFF);
+			val = readl(gpmc_regs->gpmc_bch_result1[i]);
+			ecc_code[18] = ((val >> 24) & 0xFF);
+			ecc_code[19] = ((val >> 16) & 0xFF);
+			ecc_code[20] = ((val >>  8) & 0xFF);
+			ecc_code[21] = ((val >>  0) & 0xFF);
+			val = readl(gpmc_regs->gpmc_bch_result0[i]);
+			ecc_code[22] = ((val >> 24) & 0xFF);
+			ecc_code[23] = ((val >> 16) & 0xFF);
+			ecc_code[24] = ((val >>  8) & 0xFF);
+			ecc_code[25] = ((val >>  0) & 0xFF);
+			break;
 		default:
 			return -EINVAL;
 		}
@@ -1210,8 +1263,8 @@ static int __maybe_unused omap_calculate_ecc_bch(struct mtd_info *mtd,
 		case OMAP_ECC_BCH4_CODE_HW_DETECTION_SW:
 			/* Add constant polynomial to remainder, so that
 			 * ECC of blank pages results in 0x0 on reading back */
-			for (i = 0; i < eccbytes; i++)
-				ecc_calc[i] ^= bch4_polynomial[i];
+			for (j = 0; j < eccbytes; j++)
+				ecc_calc[j] ^= bch4_polynomial[j];
 			break;
 		case OMAP_ECC_BCH4_CODE_HW:
 			/* Set  8th ECC byte as 0x0 for ROM compatibility */
@@ -1220,12 +1273,14 @@ static int __maybe_unused omap_calculate_ecc_bch(struct mtd_info *mtd,
 		case OMAP_ECC_BCH8_CODE_HW_DETECTION_SW:
 			/* Add constant polynomial to remainder, so that
 			 * ECC of blank pages results in 0x0 on reading back */
-			for (i = 0; i < eccbytes; i++)
-				ecc_calc[i] ^= bch8_polynomial[i];
+			for (j = 0; j < eccbytes; j++)
+				ecc_calc[j] ^= bch8_polynomial[j];
 			break;
 		case OMAP_ECC_BCH8_CODE_HW:
 			/* Set 14th ECC byte as 0x0 for ROM compatibility */
 			ecc_calc[eccbytes - 1] = 0x0;
+			break;
+		case OMAP_ECC_BCH16_CODE_HW:
 			break;
 		default:
 			return -EINVAL;
@@ -1237,6 +1292,7 @@ static int __maybe_unused omap_calculate_ecc_bch(struct mtd_info *mtd,
 	return 0;
 }
 
+#ifdef CONFIG_MTD_NAND_OMAP_BCH
 /**
  * erased_sector_bitflips - count bit flips
  * @data:	data sector buffer
@@ -1276,7 +1332,6 @@ static int erased_sector_bitflips(u_char *data, u_char *oob,
 	return flip_bits;
 }
 
-#ifdef CONFIG_MTD_NAND_OMAP_BCH
 /**
  * omap_elm_correct_data - corrects page data area in case error reported
  * @mtd:	MTD device structure
@@ -1317,6 +1372,10 @@ static int omap_elm_correct_data(struct mtd_info *mtd, u_char *data,
 		/* omit 14th ECC byte reserved for ROM code compatibility */
 		actual_eccbytes = ecc->bytes - 1;
 		erased_ecc_vec = bch8_vector;
+		break;
+	case OMAP_ECC_BCH16_CODE_HW:
+		actual_eccbytes = ecc->bytes;
+		erased_ecc_vec = bch16_vector;
 		break;
 	default:
 		pr_err("invalid driver configuration\n");
@@ -1382,7 +1441,7 @@ static int omap_elm_correct_data(struct mtd_info *mtd, u_char *data,
 
 	/* Check if any error reported */
 	if (!is_error_reported)
-		return 0;
+		return stat;
 
 	/* Decode BCH error using ELM module */
 	elm_decode_bch_error_page(info->elm_dev, ecc_vec, err_vec);
@@ -1401,6 +1460,7 @@ static int omap_elm_correct_data(struct mtd_info *mtd, u_char *data,
 						BCH4_BIT_PAD;
 					break;
 				case OMAP_ECC_BCH8_CODE_HW:
+				case OMAP_ECC_BCH16_CODE_HW:
 					pos = err_vec[i].error_loc[j];
 					break;
 				default:
@@ -1912,6 +1972,40 @@ static int omap_nand_probe(struct platform_device *pdev)
 		goto return_error;
 #endif
 
+	case OMAP_ECC_BCH16_CODE_HW:
+#ifdef CONFIG_MTD_NAND_OMAP_BCH
+		pr_info("using OMAP_ECC_BCH16_CODE_HW ECC scheme\n");
+		nand_chip->ecc.mode		= NAND_ECC_HW;
+		nand_chip->ecc.size		= 512;
+		nand_chip->ecc.bytes		= 26;
+		nand_chip->ecc.strength		= 16;
+		nand_chip->ecc.hwctl		= omap_enable_hwecc_bch;
+		nand_chip->ecc.correct		= omap_elm_correct_data;
+		nand_chip->ecc.calculate	= omap_calculate_ecc_bch;
+		nand_chip->ecc.read_page	= omap_read_page_bch;
+		nand_chip->ecc.write_page	= omap_write_page_bch;
+		/* This ECC scheme requires ELM H/W block */
+		err = is_elm_present(info, pdata->elm_of_node, BCH16_ECC);
+		if (err < 0) {
+			pr_err("ELM is required for this ECC scheme\n");
+			goto return_error;
+		}
+		/* define ECC layout */
+		ecclayout->eccbytes		= nand_chip->ecc.bytes *
+							(mtd->writesize /
+							nand_chip->ecc.size);
+		oob_index			= BADBLOCK_MARKER_LENGTH;
+		for (i = 0; i < ecclayout->eccbytes; i++, oob_index++)
+			ecclayout->eccpos[i]	= oob_index;
+		/* reserved marker already included in ecclayout->eccbytes */
+		ecclayout->oobfree->offset	=
+				ecclayout->eccpos[ecclayout->eccbytes - 1] + 1;
+		break;
+#else
+		pr_err("nand: error: CONFIG_MTD_NAND_OMAP_BCH not enabled\n");
+		err = -EINVAL;
+		goto return_error;
+#endif
 	default:
 		pr_err("nand: error: invalid or unsupported ECC scheme\n");
 		err = -EINVAL;

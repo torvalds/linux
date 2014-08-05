@@ -32,6 +32,9 @@
 #define BRCMF_DEFAULT_SCAN_UNASSOC_TIME	40
 #define BRCMF_DEFAULT_PACKET_FILTER	"100 0 0 0 0x01 0x00"
 
+/* boost value for RSSI_DELTA in preferred join selection */
+#define BRCMF_JOIN_PREF_RSSI_BOOST	8
+
 
 bool brcmf_c_prec_enq(struct device *dev, struct pktq *q,
 		      struct sk_buff *pkt, int prec)
@@ -246,6 +249,7 @@ int brcmf_c_preinit_dcmds(struct brcmf_if *ifp)
 {
 	s8 eventmask[BRCMF_EVENTING_MASK_LEN];
 	u8 buf[BRCMF_DCMD_SMLEN];
+	struct brcmf_join_pref_params join_pref_params[2];
 	char *ptr;
 	s32 err;
 
@@ -297,6 +301,20 @@ int brcmf_c_preinit_dcmds(struct brcmf_if *ifp)
 		brcmf_err("roam_off error (%d)\n", err);
 		goto done;
 	}
+
+	/* Setup join_pref to select target by RSSI(with boost on 5GHz) */
+	join_pref_params[0].type = BRCMF_JOIN_PREF_RSSI_DELTA;
+	join_pref_params[0].len = 2;
+	join_pref_params[0].rssi_gain = BRCMF_JOIN_PREF_RSSI_BOOST;
+	join_pref_params[0].band = WLC_BAND_5G;
+	join_pref_params[1].type = BRCMF_JOIN_PREF_RSSI;
+	join_pref_params[1].len = 2;
+	join_pref_params[1].rssi_gain = 0;
+	join_pref_params[1].band = 0;
+	err = brcmf_fil_iovar_data_set(ifp, "join_pref", join_pref_params,
+				       sizeof(join_pref_params));
+	if (err)
+		brcmf_err("Set join_pref error (%d)\n", err);
 
 	/* Setup event_msgs, enable E_IF */
 	err = brcmf_fil_iovar_data_get(ifp, "event_msgs", eventmask,

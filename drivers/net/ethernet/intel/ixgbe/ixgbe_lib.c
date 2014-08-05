@@ -1113,8 +1113,8 @@ static void ixgbe_set_interrupt_capability(struct ixgbe_adapter *adapter)
 	err = pci_enable_msi(adapter->pdev);
 	if (err) {
 		netif_printk(adapter, hw, KERN_DEBUG, adapter->netdev,
-			     "Unable to allocate MSI interrupt, "
-			     "falling back to legacy.  Error: %d\n", err);
+			     "Unable to allocate MSI interrupt, falling back to legacy.  Error: %d\n",
+			     err);
 		return;
 	}
 	adapter->flags |= IXGBE_FLAG_MSI_ENABLED;

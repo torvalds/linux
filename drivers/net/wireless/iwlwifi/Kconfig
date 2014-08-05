@@ -2,10 +2,6 @@ config IWLWIFI
 	tristate "Intel Wireless WiFi Next Gen AGN - Wireless-N/Advanced-N/Ultimate-N (iwlwifi) "
 	depends on PCI && MAC80211 && HAS_IOMEM
 	select FW_LOADER
-	select NEW_LEDS
-	select LEDS_CLASS
-	select LEDS_TRIGGERS
-	select MAC80211_LEDS
 	---help---
 	  Select to build the driver supporting the:
 
@@ -42,6 +38,14 @@ config IWLWIFI
 	  inserted in and removed from the running kernel whenever you want),
 	  say M here and read <file:Documentation/kbuild/modules.txt>.  The
 	  module will be called iwlwifi.
+
+config IWLWIFI_LEDS
+	bool
+	depends on IWLWIFI
+	depends on LEDS_CLASS=y || LEDS_CLASS=IWLWIFI
+	select LEDS_TRIGGERS
+	select MAC80211_LEDS
+	default y
 
 config IWLDVM
 	tristate "Intel Wireless WiFi DVM Firmware support"
@@ -124,7 +128,6 @@ config IWLWIFI_DEBUG_EXPERIMENTAL_UCODE
 	  Enable use of experimental ucode for testing and debugging.
 
 config IWLWIFI_DEVICE_TRACING
-
 	bool "iwlwifi device access tracing"
 	depends on IWLWIFI
 	depends on EVENT_TRACING

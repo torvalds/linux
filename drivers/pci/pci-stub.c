@@ -55,7 +55,7 @@ static int __init pci_stub_init(void)
 	p = ids;
 	while ((id = strsep(&p, ","))) {
 		unsigned int vendor, device, subvendor = PCI_ANY_ID,
-			subdevice = PCI_ANY_ID, class=0, class_mask=0;
+			subdevice = PCI_ANY_ID, class = 0, class_mask = 0;
 		int fields;
 
 		if (!strlen(id))

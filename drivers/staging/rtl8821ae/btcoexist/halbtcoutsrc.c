@@ -25,7 +25,7 @@
 /***********************************************
  *		Global variables
  ***********************************************/
-const char *const bt_profile_string[]={
+static const char *const bt_profile_string[] = {
 	"NONE",
 	"A2DP",
 	"PAN",
@@ -33,7 +33,7 @@ const char *const bt_profile_string[]={
 	"SCO",
 };
 
-const char *const bt_spec_string[]={
+static const char *const bt_spec_string[] = {
 	"1.0b",
 	"1.1",
 	"1.2",
@@ -43,19 +43,19 @@ const char *const bt_spec_string[]={
 	"4.0",
 };
 
-const char *const bt_link_role_string[]={
+static const char *const bt_link_role_string[] = {
 	"Master",
 	"Slave",
 };
 
-const char *const h2c_state_string[]={
+static const char *const h2c_state_string[] = {
 	"successful",
 	"h2c busy",
 	"rf off",
 	"fw not read",
 };
 
-const char *const io_state_string[]={
+static const char *const io_state_string[] = {
 	"IO_STATUS_SUCCESS",
 	"IO_STATUS_FAIL_CANNOT_IO",
 	"IO_STATUS_FAIL_RF_OFF",
@@ -72,12 +72,12 @@ const char *const io_state_string[]={
 struct btc_coexist gl_bt_coexist;
 
 u32 btc_dbg_type[BTC_MSG_MAX];
-u8 btc_dbg_buf[100];
+static u8 btc_dbg_buf[100];
 
 /***************************************************
  *		Debug related function
  ***************************************************/
-bool halbtc_is_bt_coexist_available(struct btc_coexist *btcoexist)
+static bool halbtc_is_bt_coexist_available(struct btc_coexist *btcoexist)
 {
 	if (!btcoexist->binded || NULL == btcoexist->adapter)
 		return false;
@@ -85,7 +85,7 @@ bool halbtc_is_bt_coexist_available(struct btc_coexist *btcoexist)
 	return true;
 }
 
-bool halbtc_is_wifi_busy(struct rtl_priv *rtlpriv)
+static bool halbtc_is_wifi_busy(struct rtl_priv *rtlpriv)
 {
 
 	if (rtlpriv->link_info.b_busytraffic)
@@ -95,7 +95,7 @@ bool halbtc_is_wifi_busy(struct rtl_priv *rtlpriv)
 }
 
 
-void halbtc_dbg_init(void)
+static void halbtc_dbg_init(void)
 {
 	u8 i;
 
@@ -121,12 +121,7 @@ void halbtc_dbg_init(void)
 			0;
 }
 
-bool halbtc_is_hw_mailbox_exist(struct btc_coexist *btcoexist)
-{
-	return true;
-}
-
-bool halbtc_is_bt40(struct rtl_priv *adapter)
+static bool halbtc_is_bt40(struct rtl_priv *adapter)
 {
 	struct rtl_priv *rtlpriv = adapter;
 	struct rtl_phy *rtlphy = &(rtlpriv->phy);
@@ -142,7 +137,7 @@ bool halbtc_is_bt40(struct rtl_priv *adapter)
 	return is_ht40;
 }
 
-bool halbtc_legacy(struct rtl_priv *adapter)
+static bool halbtc_legacy(struct rtl_priv *adapter)
 {
 	struct rtl_priv *rtlpriv = adapter;
 	struct rtl_mac *mac = rtl_mac(rtlpriv);
@@ -165,7 +160,7 @@ bool halbtc_is_wifi_uplink(struct rtl_priv *adapter)
 		return false;
 }
 
-u32 halbtc_get_wifi_bw(struct btc_coexist *btcoexist)
+static u32 halbtc_get_wifi_bw(struct btc_coexist *btcoexist)
 {
 	struct rtl_priv *rtlpriv = 
 		(struct rtl_priv *)btcoexist->adapter;
@@ -182,7 +177,7 @@ u32 halbtc_get_wifi_bw(struct btc_coexist *btcoexist)
 	return wifi_bw;
 }
 
-u8 halbtc_get_wifi_central_chnl(struct btc_coexist *btcoexist)
+static u8 halbtc_get_wifi_central_chnl(struct btc_coexist *btcoexist)
 {
 	struct rtl_priv *rtlpriv = btcoexist->adapter;
 	struct rtl_phy 	*rtlphy = &(rtlpriv->phy);
@@ -196,7 +191,7 @@ u8 halbtc_get_wifi_central_chnl(struct btc_coexist *btcoexist)
 	return chnl;
 }
 
-void halbtc_leave_lps(struct btc_coexist *btcoexist)
+static void halbtc_leave_lps(struct btc_coexist *btcoexist)
 {
 	struct rtl_priv *rtlpriv;
 	struct rtl_ps_ctl *ppsc;
@@ -217,7 +212,7 @@ void halbtc_leave_lps(struct btc_coexist *btcoexist)
 	btcoexist->bt_info.bt_lps_on = false;
 }
 
-void halbtc_enter_lps(struct btc_coexist *btcoexist)
+static void halbtc_enter_lps(struct btc_coexist *btcoexist)
 {
 	struct rtl_priv *rtlpriv;
 	struct rtl_ps_ctl *ppsc;
@@ -238,7 +233,7 @@ void halbtc_enter_lps(struct btc_coexist *btcoexist)
 	btcoexist->bt_info.bt_lps_on = false;
 }
 
-void halbtc_normal_lps(struct btc_coexist *btcoexist)
+static void halbtc_normal_lps(struct btc_coexist *btcoexist)
 {
 	if (btcoexist->bt_info.bt_ctrl_lps) {
 		btcoexist->bt_info.bt_lps_on = false;
@@ -247,29 +242,29 @@ void halbtc_normal_lps(struct btc_coexist *btcoexist)
 		
 }
 
-void halbtc_leave_low_power(void)
+static void halbtc_leave_low_power(void)
 {
 }
 
-void halbtc_nomal_low_power(void)
+static void halbtc_nomal_low_power(void)
 {
 }
 
-void halbtc_disable_low_power(void)
+static void halbtc_disable_low_power(void)
 {
 }
 
-void halbtc_aggregation_check(void)
+static void halbtc_aggregation_check(void)
 {
 }
 
 
-u32 halbtc_get_bt_patch_version(struct btc_coexist *btcoexist)
+static u32 halbtc_get_bt_patch_version(struct btc_coexist *btcoexist)
 {
 	return 0;
 }
 
-s32 halbtc_get_wifi_rssi(struct rtl_priv *adapter)
+static s32 halbtc_get_wifi_rssi(struct rtl_priv *adapter)
 {
 	struct rtl_priv *rtlpriv = adapter;
 	s32	undecorated_smoothed_pwdb = 0;
@@ -283,7 +278,7 @@ s32 halbtc_get_wifi_rssi(struct rtl_priv *adapter)
 	return undecorated_smoothed_pwdb;
 }
 
-bool halbtc_get(void *void_btcoexist, u8 get_type, void *out_buf)
+static bool halbtc_get(void *void_btcoexist, u8 get_type, void *out_buf)
 {
 	struct btc_coexist *btcoexist = (struct btc_coexist *)void_btcoexist;
 	struct rtl_priv *rtlpriv = btcoexist->adapter;
@@ -422,7 +417,7 @@ bool halbtc_get(void *void_btcoexist, u8 get_type, void *out_buf)
 	return true;
 }
 
-bool halbtc_set(void *void_btcoexist, u8 set_type, void *in_buf)
+static bool halbtc_set(void *void_btcoexist, u8 set_type, void *in_buf)
 {
 	struct btc_coexist *btcoexist = (struct btc_coexist *)void_btcoexist;
 	bool *bool_tmp = (bool *)in_buf;
@@ -516,26 +511,26 @@ bool halbtc_set(void *void_btcoexist, u8 set_type, void *in_buf)
 	return true;
 }
 
-void halbtc_display_coex_statistics(struct btc_coexist *btcoexist)
+static void halbtc_display_coex_statistics(struct btc_coexist *btcoexist)
 {
 }
 
-void halbtc_display_bt_link_info(struct btc_coexist *btcoexist)
+static void halbtc_display_bt_link_info(struct btc_coexist *btcoexist)
 {
 }
 
-void halbtc_display_bt_fw_info(struct btc_coexist *btcoexist)
+static void halbtc_display_bt_fw_info(struct btc_coexist *btcoexist)
 {
 }
 
-void halbtc_display_fw_pwr_mode_cmd(struct btc_coexist *btcoexist)
+static void halbtc_display_fw_pwr_mode_cmd(struct btc_coexist *btcoexist)
 {
 }
 
 /************************************************************
  *		IO related function
  ************************************************************/
-u8 halbtc_read_1byte(void *bt_context, u32 reg_addr)
+static u8 halbtc_read_1byte(void *bt_context, u32 reg_addr)
 {
 	struct btc_coexist *btcoexist = (struct btc_coexist *)bt_context;
 	struct rtl_priv *rtlpriv = btcoexist->adapter;
@@ -544,7 +539,7 @@ u8 halbtc_read_1byte(void *bt_context, u32 reg_addr)
 }
 
 
-u16 halbtc_read_2byte(void *bt_context, u32 reg_addr)
+static u16 halbtc_read_2byte(void *bt_context, u32 reg_addr)
 {
 	struct btc_coexist *btcoexist = (struct btc_coexist *)bt_context;
 	struct rtl_priv *rtlpriv = btcoexist->adapter;
@@ -553,7 +548,7 @@ u16 halbtc_read_2byte(void *bt_context, u32 reg_addr)
 }
 
 
-u32 halbtc_read_4byte(void *bt_context, u32 reg_addr)
+static u32 halbtc_read_4byte(void *bt_context, u32 reg_addr)
 {
 	struct btc_coexist *btcoexist = (struct btc_coexist *)bt_context;
 	struct rtl_priv *rtlpriv = btcoexist->adapter;
@@ -562,7 +557,7 @@ u32 halbtc_read_4byte(void *bt_context, u32 reg_addr)
 }
 
 
-void halbtc_write_1byte(void *bt_context, u32 reg_addr, u8 data)
+static void halbtc_write_1byte(void *bt_context, u32 reg_addr, u8 data)
 {
 	struct btc_coexist *btcoexist = (struct btc_coexist *)bt_context;
 	struct rtl_priv *rtlpriv = btcoexist->adapter;
@@ -570,7 +565,7 @@ void halbtc_write_1byte(void *bt_context, u32 reg_addr, u8 data)
 	rtl_write_byte(rtlpriv, reg_addr, data);
 }
 
-void halbtc_bitmask_write_1byte(void *bt_context, u32 reg_addr, 
+static void halbtc_bitmask_write_1byte(void *bt_context, u32 reg_addr,
 				u8 bit_mask, u8 data)
 {
 	struct btc_coexist *btcoexist = (struct btc_coexist *)bt_context;
@@ -592,7 +587,7 @@ void halbtc_bitmask_write_1byte(void *bt_context, u32 reg_addr,
 }
 
 
-void halbtc_write_2byte(void *bt_context, u32 reg_addr, u16 data)
+static void halbtc_write_2byte(void *bt_context, u32 reg_addr, u16 data)
 {
 	struct btc_coexist *btcoexist = (struct btc_coexist *)bt_context;
 	struct rtl_priv *rtlpriv = btcoexist->adapter;
@@ -601,7 +596,7 @@ void halbtc_write_2byte(void *bt_context, u32 reg_addr, u16 data)
 }
 
 
-void halbtc_write_4byte(void *bt_context, u32 reg_addr, u32 data)
+static void halbtc_write_4byte(void *bt_context, u32 reg_addr, u32 data)
 {
 	struct btc_coexist *btcoexist = 
 		(struct btc_coexist *)bt_context;
@@ -610,8 +605,8 @@ void halbtc_write_4byte(void *bt_context, u32 reg_addr, u32 data)
 	rtl_write_dword(rtlpriv, reg_addr, data);
 }
 
-
-void halbtc_set_macreg(void *bt_context, u32 reg_addr, u32 bit_mask, u32 data)
+static void halbtc_set_bbreg(void *bt_context, u32 reg_addr,
+				u32 bit_mask, u32 data)
 {
 	struct btc_coexist *btcoexist = (struct btc_coexist *)bt_context;
 	struct rtl_priv *rtlpriv = btcoexist->adapter;
@@ -620,25 +615,7 @@ void halbtc_set_macreg(void *bt_context, u32 reg_addr, u32 bit_mask, u32 data)
 }
 
 
-u32 halbtc_get_macreg(void *bt_context, u32 reg_addr, u32 bit_mask)
-{
-	struct btc_coexist *btcoexist = (struct btc_coexist *)bt_context;
-	struct rtl_priv *rtlpriv = btcoexist->adapter;
-
-	return rtl_get_bbreg(rtlpriv->mac80211.hw, reg_addr, bit_mask);
-}
-
-
-void halbtc_set_bbreg(void *bt_context, u32 reg_addr, u32 bit_mask, u32 data)
-{
-	struct btc_coexist *btcoexist = (struct btc_coexist *)bt_context;
-	struct rtl_priv *rtlpriv = btcoexist->adapter;
-
-	rtl_set_bbreg(rtlpriv->mac80211.hw, reg_addr, bit_mask, data);
-}
-
-
-u32 halbtc_get_bbreg(void *bt_context, u32 reg_addr, u32 bit_mask)
+static u32 halbtc_get_bbreg(void *bt_context, u32 reg_addr, u32 bit_mask)
 {
 	struct btc_coexist *btcoexist = (struct btc_coexist *)bt_context;
 	struct rtl_priv *rtlpriv = btcoexist->adapter;
@@ -647,7 +624,7 @@ u32 halbtc_get_bbreg(void *bt_context, u32 reg_addr, u32 bit_mask)
 }
 
 
-void halbtc_set_rfreg(void *bt_context, u8 rf_path, u32 reg_addr, 
+static void halbtc_set_rfreg(void *bt_context, u8 rf_path, u32 reg_addr,
 		      u32 bit_mask, u32 data)
 {
 	struct btc_coexist *btcoexist = (struct btc_coexist *)bt_context;
@@ -657,7 +634,8 @@ void halbtc_set_rfreg(void *bt_context, u8 rf_path, u32 reg_addr,
 }
 
 
-u32 halbtc_get_rfreg(void *bt_context, u8 rf_path, u32 reg_addr, u32 bit_mask)
+static u32 halbtc_get_rfreg(void *bt_context, u8 rf_path,
+			u32 reg_addr, u32 bit_mask)
 {
 	struct btc_coexist *btcoexist = (struct btc_coexist *)bt_context;
 	struct rtl_priv *rtlpriv = btcoexist->adapter;
@@ -666,7 +644,7 @@ u32 halbtc_get_rfreg(void *bt_context, u8 rf_path, u32 reg_addr, u32 bit_mask)
 }
 
 
-void halbtc_fill_h2c_cmd(void *bt_context, u8 element_id, 
+static void halbtc_fill_h2c_cmd(void *bt_context, u8 element_id,
 			 u32 cmd_len, u8 *cmd_buf)
 {
 	struct btc_coexist *btcoexist = (struct btc_coexist *)bt_context;
@@ -676,7 +654,7 @@ void halbtc_fill_h2c_cmd(void *bt_context, u8 element_id,
 					cmd_len, cmd_buf);
 }
 
-void halbtc_display_dbg_msg(void *bt_context, u8 disp_type)
+static void halbtc_display_dbg_msg(void *bt_context, u8 disp_type)
 {
 	struct btc_coexist *btcoexist =	(struct btc_coexist *)bt_context;
 	switch (disp_type) {
@@ -695,25 +673,6 @@ void halbtc_display_dbg_msg(void *bt_context, u8 disp_type)
 	default:
 		break;
 	}
-}
-
-bool halbtc_under_ips(struct btc_coexist *btcoexist)
-{
-	struct rtl_priv *rtlpriv = btcoexist->adapter;
-	struct rtl_ps_ctl *ppsc = rtl_psc(rtlpriv);
-	enum rf_pwrstate rtstate;
-	
-	if (ppsc->b_inactiveps) {
-		rtstate = ppsc->rfpwr_state;
-
-		if (rtstate != ERFON &&
-		    ppsc->rfoff_reason == RF_CHANGE_BY_IPS) {
-
-			return true;
-		}
-	}
-
-	return false;
 }
 
 /*****************************************************************

@@ -121,7 +121,7 @@ static bool ns2501_readb(struct intel_dvo_device *dvo, int addr, uint8_t * ch)
 	if (i2c_transfer(adapter, msgs, 2) == 2) {
 		*ch = in_buf[0];
 		return true;
-	};
+	}
 
 	if (!ns->quiet) {
 		DRM_DEBUG_KMS
@@ -233,9 +233,8 @@ static enum drm_mode_status ns2501_mode_valid(struct intel_dvo_device *dvo,
 					      struct drm_display_mode *mode)
 {
 	DRM_DEBUG_KMS
-	    ("%s: is mode valid (hdisplay=%d,htotal=%d,vdisplay=%d,vtotal=%d)\n",
-	     __FUNCTION__, mode->hdisplay, mode->htotal, mode->vdisplay,
-	     mode->vtotal);
+	    ("is mode valid (hdisplay=%d,htotal=%d,vdisplay=%d,vtotal=%d)\n",
+	     mode->hdisplay, mode->htotal, mode->vdisplay, mode->vtotal);
 
 	/*
 	 * Currently, these are all the modes I have data from.
@@ -261,9 +260,8 @@ static void ns2501_mode_set(struct intel_dvo_device *dvo,
 	struct ns2501_priv *ns = (struct ns2501_priv *)(dvo->dev_priv);
 
 	DRM_DEBUG_KMS
-	    ("%s: set mode (hdisplay=%d,htotal=%d,vdisplay=%d,vtotal=%d).\n",
-	     __FUNCTION__, mode->hdisplay, mode->htotal, mode->vdisplay,
-	     mode->vtotal);
+	    ("set mode (hdisplay=%d,htotal=%d,vdisplay=%d,vtotal=%d).\n",
+	     mode->hdisplay, mode->htotal, mode->vdisplay, mode->vtotal);
 
 	/*
 	 * Where do I find the native resolution for which scaling is not required???
@@ -277,8 +275,7 @@ static void ns2501_mode_set(struct intel_dvo_device *dvo,
 		if (mode->hdisplay == 800 && mode->vdisplay == 600) {
 			/* mode 277 */
 			ns->reg_8_shadow &= ~NS2501_8_BPAS;
-			DRM_DEBUG_KMS("%s: switching to 800x600\n",
-				      __FUNCTION__);
+			DRM_DEBUG_KMS("switching to 800x600\n");
 
 			/*
 			 * No, I do not know where this data comes from.
@@ -341,8 +338,7 @@ static void ns2501_mode_set(struct intel_dvo_device *dvo,
 
 		} else if (mode->hdisplay == 640 && mode->vdisplay == 480) {
 			/* mode 274 */
-			DRM_DEBUG_KMS("%s: switching to 640x480\n",
-				      __FUNCTION__);
+			DRM_DEBUG_KMS("switching to 640x480\n");
 			/*
 			 * No, I do not know where this data comes from.
 			 * It is just what the video bios left in the DVO, so
@@ -406,8 +402,7 @@ static void ns2501_mode_set(struct intel_dvo_device *dvo,
 
 		} else if (mode->hdisplay == 1024 && mode->vdisplay == 768) {
 			/* mode 280 */
-			DRM_DEBUG_KMS("%s: switching to 1024x768\n",
-				      __FUNCTION__);
+			DRM_DEBUG_KMS("switching to 1024x768\n");
 			/*
 			 * This might or might not work, actually. I'm silently
 			 * assuming here that the native panel resolution is
@@ -458,8 +453,7 @@ static void ns2501_dpms(struct intel_dvo_device *dvo, bool enable)
 	struct ns2501_priv *ns = (struct ns2501_priv *)(dvo->dev_priv);
 	unsigned char ch;
 
-	DRM_DEBUG_KMS("%s: Trying set the dpms of the DVO to %i\n",
-		      __FUNCTION__, enable);
+	DRM_DEBUG_KMS("Trying set the dpms of the DVO to %i\n", enable);
 
 	ch = ns->reg_8_shadow;
 

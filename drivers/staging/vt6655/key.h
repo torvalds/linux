@@ -76,8 +76,6 @@ typedef struct tagSKeyTable
 	unsigned long dwGTKeyIndex;            // GroupTransmitKey Index
 	bool bInUse;
 	//2006-1116-01,<Modify> by NomadZhao
-	//unsigned short wKeyCtl;
-	//bool bSoftWEP;
 	bool bSoftWEP;
 	unsigned short wKeyCtl;      // for address of wKeyCtl at align 4
 

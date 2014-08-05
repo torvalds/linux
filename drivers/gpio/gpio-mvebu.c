@@ -535,7 +535,7 @@ static void mvebu_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 #define mvebu_gpio_dbg_show NULL
 #endif
 
-static struct of_device_id mvebu_gpio_of_match[] = {
+static const struct of_device_id mvebu_gpio_of_match[] = {
 	{
 		.compatible = "marvell,orion-gpio",
 		.data       = (void *) MVEBU_GPIO_SOC_VARIANT_ORION,
@@ -574,10 +574,8 @@ static int mvebu_gpio_probe(struct platform_device *pdev)
 		soc_variant = MVEBU_GPIO_SOC_VARIANT_ORION;
 
 	mvchip = devm_kzalloc(&pdev->dev, sizeof(struct mvebu_gpio_chip), GFP_KERNEL);
-	if (!mvchip) {
-		dev_err(&pdev->dev, "Cannot allocate memory\n");
+	if (!mvchip)
 		return -ENOMEM;
-	}
 
 	if (of_property_read_u32(pdev->dev.of_node, "ngpios", &ngpios)) {
 		dev_err(&pdev->dev, "Missing ngpios OF property\n");
@@ -738,9 +736,4 @@ static struct platform_driver mvebu_gpio_driver = {
 	},
 	.probe		= mvebu_gpio_probe,
 };
-
-static int __init mvebu_gpio_init(void)
-{
-	return platform_driver_register(&mvebu_gpio_driver);
-}
-postcore_initcall(mvebu_gpio_init);
+module_platform_driver(mvebu_gpio_driver);

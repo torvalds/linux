@@ -33,6 +33,7 @@
 #include <linux/mdio.h>
 #include <linux/io.h>
 #include <linux/uaccess.h>
+#include <linux/of.h>
 
 #include <asm/irq.h>
 
@@ -354,7 +355,7 @@ int phy_device_register(struct phy_device *phydev)
 	phydev->bus->phy_map[phydev->addr] = phydev;
 
 	/* Run all of the fixups for this PHY */
-	err = phy_init_hw(phydev);
+	err = phy_scan_fixups(phydev);
 	if (err) {
 		pr_err("PHY %d failed to initialize\n", phydev->addr);
 		goto out;
@@ -574,6 +575,7 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 		      u32 flags, phy_interface_t interface)
 {
 	struct device *d = &phydev->dev;
+	struct module *bus_module;
 	int err;
 
 	/* Assume that if there is no driver, that it doesn't
@@ -596,6 +598,14 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 	if (phydev->attached_dev) {
 		dev_err(&dev->dev, "PHY already attached\n");
 		return -EBUSY;
+	}
+
+	/* Increment the bus module reference count */
+	bus_module = phydev->bus->dev.driver ?
+		     phydev->bus->dev.driver->owner : NULL;
+	if (!try_module_get(bus_module)) {
+		dev_err(&dev->dev, "failed to get the bus module\n");
+		return -EIO;
 	}
 
 	phydev->attached_dev = dev;
@@ -663,6 +673,10 @@ EXPORT_SYMBOL(phy_attach);
 void phy_detach(struct phy_device *phydev)
 {
 	int i;
+
+	if (phydev->bus->dev.driver)
+		module_put(phydev->bus->dev.driver->owner);
+
 	phydev->attached_dev->phydev = NULL;
 	phydev->attached_dev = NULL;
 	phy_suspend(phydev);
@@ -1067,14 +1081,11 @@ int genphy_soft_reset(struct phy_device *phydev)
 }
 EXPORT_SYMBOL(genphy_soft_reset);
 
-static int genphy_config_init(struct phy_device *phydev)
+int genphy_config_init(struct phy_device *phydev)
 {
 	int val;
 	u32 features;
 
-	/* For now, I'll claim that the generic driver supports
-	 * all possible port types
-	 */
 	features = (SUPPORTED_TP | SUPPORTED_MII
 			| SUPPORTED_AUI | SUPPORTED_FIBRE |
 			SUPPORTED_BNC);
@@ -1107,8 +1118,8 @@ static int genphy_config_init(struct phy_device *phydev)
 			features |= SUPPORTED_1000baseT_Half;
 	}
 
-	phydev->supported = features;
-	phydev->advertising = features;
+	phydev->supported &= features;
+	phydev->advertising &= features;
 
 	return 0;
 }
@@ -1118,6 +1129,7 @@ static int gen10g_soft_reset(struct phy_device *phydev)
 	/* Do nothing for now */
 	return 0;
 }
+EXPORT_SYMBOL(genphy_config_init);
 
 static int gen10g_config_init(struct phy_device *phydev)
 {
@@ -1168,6 +1180,38 @@ static int gen10g_resume(struct phy_device *phydev)
 	return 0;
 }
 
+static void of_set_phy_supported(struct phy_device *phydev)
+{
+	struct device_node *node = phydev->dev.of_node;
+	u32 max_speed;
+
+	if (!IS_ENABLED(CONFIG_OF_MDIO))
+		return;
+
+	if (!node)
+		return;
+
+	if (!of_property_read_u32(node, "max-speed", &max_speed)) {
+		/* The default values for phydev->supported are provided by the PHY
+		 * driver "features" member, we want to reset to sane defaults fist
+		 * before supporting higher speeds.
+		 */
+		phydev->supported &= PHY_DEFAULT_FEATURES;
+
+		switch (max_speed) {
+		default:
+			return;
+
+		case SPEED_1000:
+			phydev->supported |= PHY_1000BT_FEATURES;
+		case SPEED_100:
+			phydev->supported |= PHY_100BT_FEATURES;
+		case SPEED_10:
+			phydev->supported |= PHY_10BT_FEATURES;
+		}
+	}
+}
+
 /**
  * phy_probe - probe and init a PHY device
  * @dev: device to probe and init
@@ -1202,7 +1246,8 @@ static int phy_probe(struct device *dev)
 	 * or both of these values
 	 */
 	phydev->supported = phydrv->features;
-	phydev->advertising = phydrv->features;
+	of_set_phy_supported(phydev);
+	phydev->advertising = phydev->supported;
 
 	/* Set the state to READY by default */
 	phydev->state = PHY_READY;
@@ -1295,7 +1340,9 @@ static struct phy_driver genphy_driver[] = {
 	.name		= "Generic PHY",
 	.soft_reset	= genphy_soft_reset,
 	.config_init	= genphy_config_init,
-	.features	= 0,
+	.features	= PHY_GBIT_FEATURES | SUPPORTED_MII |
+			  SUPPORTED_AUI | SUPPORTED_FIBRE |
+			  SUPPORTED_BNC,
 	.config_aneg	= genphy_config_aneg,
 	.aneg_done	= genphy_aneg_done,
 	.read_status	= genphy_read_status,

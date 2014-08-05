@@ -104,7 +104,7 @@ static int cpu0_cpufreq_init(struct cpufreq_policy *policy)
 }
 
 static struct cpufreq_driver cpu0_cpufreq_driver = {
-	.flags = CPUFREQ_STICKY,
+	.flags = CPUFREQ_STICKY | CPUFREQ_NEED_INITIAL_FREQ_CHECK,
 	.verify = cpufreq_generic_frequency_table_verify,
 	.target_index = cpu0_set_target,
 	.get = cpufreq_generic_get,
@@ -152,11 +152,8 @@ static int cpu0_cpufreq_probe(struct platform_device *pdev)
 		goto out_put_reg;
 	}
 
-	ret = of_init_opp_table(cpu_dev);
-	if (ret) {
-		pr_err("failed to init OPP table: %d\n", ret);
-		goto out_put_clk;
-	}
+	/* OPPs might be populated at runtime, don't check for error here */
+	of_init_opp_table(cpu_dev);
 
 	ret = dev_pm_opp_init_cpufreq_table(cpu_dev, &freq_table);
 	if (ret) {

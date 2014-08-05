@@ -28,6 +28,7 @@
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
+#include <net/bluetooth/l2cap.h>
 
 #include "smp.h"
 #include "a2mp.h"
@@ -288,10 +289,20 @@ static void hci_conn_timeout(struct work_struct *work)
 {
 	struct hci_conn *conn = container_of(work, struct hci_conn,
 					     disc_work.work);
+	int refcnt = atomic_read(&conn->refcnt);
 
 	BT_DBG("hcon %p state %s", conn, state_to_string(conn->state));
 
-	if (atomic_read(&conn->refcnt))
+	WARN_ON(refcnt < 0);
+
+	/* FIXME: It was observed that in pairing failed scenario, refcnt
+	 * drops below 0. Probably this is because l2cap_conn_del calls
+	 * l2cap_chan_del for each channel, and inside l2cap_chan_del conn is
+	 * dropped. After that loop hci_chan_del is called which also drops
+	 * conn. For now make sure that ACL is alive if refcnt is higher then 0,
+	 * otherwise drop it.
+	 */
+	if (refcnt > 0)
 		return;
 
 	switch (conn->state) {
@@ -367,8 +378,22 @@ static void le_conn_timeout(struct work_struct *work)
 {
 	struct hci_conn *conn = container_of(work, struct hci_conn,
 					     le_conn_timeout.work);
+	struct hci_dev *hdev = conn->hdev;
 
 	BT_DBG("");
+
+	/* We could end up here due to having done directed advertising,
+	 * so clean up the state if necessary. This should however only
+	 * happen with broken hardware or if low duty cycle was used
+	 * (which doesn't have a timeout of its own).
+	 */
+	if (test_bit(HCI_ADVERTISING, &hdev->dev_flags)) {
+		u8 enable = 0x00;
+		hci_send_cmd(hdev, HCI_OP_LE_SET_ADV_ENABLE, sizeof(enable),
+			     &enable);
+		hci_le_conn_failed(conn, HCI_ERROR_ADVERTISING_TIMEOUT);
+		return;
+	}
 
 	hci_le_create_connection_cancel(conn);
 }
@@ -393,6 +418,8 @@ struct hci_conn *hci_conn_add(struct hci_dev *hdev, int type, bdaddr_t *dst)
 	conn->io_capability = hdev->io_capability;
 	conn->remote_auth = 0xff;
 	conn->key_type = 0xff;
+	conn->tx_power = HCI_TX_POWER_INVALID;
+	conn->max_tx_power = HCI_TX_POWER_INVALID;
 
 	set_bit(HCI_CONN_POWER_SAVE, &conn->flags);
 	conn->disc_timeout = HCI_DISCONN_TIMEOUT;
@@ -400,6 +427,10 @@ struct hci_conn *hci_conn_add(struct hci_dev *hdev, int type, bdaddr_t *dst)
 	switch (type) {
 	case ACL_LINK:
 		conn->pkt_type = hdev->pkt_type & ACL_PTYPE_MASK;
+		break;
+	case LE_LINK:
+		/* conn->src should reflect the local identity address */
+		hci_copy_identity_address(hdev, &conn->src, &conn->src_type);
 		break;
 	case SCO_LINK:
 		if (lmp_esco_capable(hdev))
@@ -545,6 +576,11 @@ void hci_le_conn_failed(struct hci_conn *conn, u8 status)
 	 * favor of connection establishment, we should restart it.
 	 */
 	hci_update_background_scan(hdev);
+
+	/* Re-enable advertising in case this was a failed connection
+	 * attempt as a peripheral.
+	 */
+	mgmt_reenable_advertising(hdev);
 }
 
 static void create_le_conn_complete(struct hci_dev *hdev, u8 status)
@@ -584,11 +620,6 @@ static void hci_req_add_le_create_conn(struct hci_request *req,
 	if (hci_update_random_address(req, false, &own_addr_type))
 		return;
 
-	/* Save the address type used for this connnection attempt so we able
-	 * to retrieve this information if we need it.
-	 */
-	conn->src_type = own_addr_type;
-
 	cp.scan_interval = cpu_to_le16(hdev->le_scan_interval);
 	cp.scan_window = cpu_to_le16(hdev->le_scan_window);
 	bacpy(&cp.peer_addr, &conn->dst);
@@ -605,6 +636,45 @@ static void hci_req_add_le_create_conn(struct hci_request *req,
 	conn->state = BT_CONNECT;
 }
 
+static void hci_req_directed_advertising(struct hci_request *req,
+					 struct hci_conn *conn)
+{
+	struct hci_dev *hdev = req->hdev;
+	struct hci_cp_le_set_adv_param cp;
+	u8 own_addr_type;
+	u8 enable;
+
+	enable = 0x00;
+	hci_req_add(req, HCI_OP_LE_SET_ADV_ENABLE, sizeof(enable), &enable);
+
+	/* Clear the HCI_ADVERTISING bit temporarily so that the
+	 * hci_update_random_address knows that it's safe to go ahead
+	 * and write a new random address. The flag will be set back on
+	 * as soon as the SET_ADV_ENABLE HCI command completes.
+	 */
+	clear_bit(HCI_ADVERTISING, &hdev->dev_flags);
+
+	/* Set require_privacy to false so that the remote device has a
+	 * chance of identifying us.
+	 */
+	if (hci_update_random_address(req, false, &own_addr_type) < 0)
+		return;
+
+	memset(&cp, 0, sizeof(cp));
+	cp.type = LE_ADV_DIRECT_IND;
+	cp.own_address_type = own_addr_type;
+	cp.direct_addr_type = conn->dst_type;
+	bacpy(&cp.direct_addr, &conn->dst);
+	cp.channel_map = hdev->le_adv_channel_map;
+
+	hci_req_add(req, HCI_OP_LE_SET_ADV_PARAM, sizeof(cp), &cp);
+
+	enable = 0x01;
+	hci_req_add(req, HCI_OP_LE_SET_ADV_ENABLE, sizeof(enable), &enable);
+
+	conn->state = BT_CONNECT;
+}
+
 struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
 				u8 dst_type, u8 sec_level, u8 auth_type)
 {
@@ -613,9 +683,6 @@ struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
 	struct smp_irk *irk;
 	struct hci_request req;
 	int err;
-
-	if (test_bit(HCI_ADVERTISING, &hdev->flags))
-		return ERR_PTR(-ENOTSUPP);
 
 	/* Some devices send ATT messages as soon as the physical link is
 	 * established. To be able to handle these ATT messages, the user-
@@ -664,12 +731,19 @@ struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
 		return ERR_PTR(-ENOMEM);
 
 	conn->dst_type = dst_type;
-
-	conn->out = true;
-	conn->link_mode |= HCI_LM_MASTER;
 	conn->sec_level = BT_SECURITY_LOW;
 	conn->pending_sec_level = sec_level;
 	conn->auth_type = auth_type;
+
+	hci_req_init(&req, hdev);
+
+	if (test_bit(HCI_ADVERTISING, &hdev->dev_flags)) {
+		hci_req_directed_advertising(&req, conn);
+		goto create_conn;
+	}
+
+	conn->out = true;
+	conn->link_mode |= HCI_LM_MASTER;
 
 	params = hci_conn_params_lookup(hdev, &conn->dst, conn->dst_type);
 	if (params) {
@@ -679,8 +753,6 @@ struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
 		conn->le_conn_min_interval = hdev->le_conn_min_interval;
 		conn->le_conn_max_interval = hdev->le_conn_max_interval;
 	}
-
-	hci_req_init(&req, hdev);
 
 	/* If controller is scanning, we stop it since some controllers are
 	 * not able to scan and connect at the same time. Also set the
@@ -695,6 +767,7 @@ struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
 
 	hci_req_add_le_create_conn(&req, conn);
 
+create_conn:
 	err = hci_req_run(&req, create_le_conn_complete);
 	if (err) {
 		hci_conn_del(conn);
@@ -826,7 +899,7 @@ static int hci_conn_auth(struct hci_conn *conn, __u8 sec_level, __u8 auth_type)
 		/* If we're already encrypted set the REAUTH_PEND flag,
 		 * otherwise set the ENCRYPT_PEND.
 		 */
-		if (conn->key_type != 0xff)
+		if (conn->link_mode & HCI_LM_ENCRYPT)
 			set_bit(HCI_CONN_REAUTH_PEND, &conn->flags);
 		else
 			set_bit(HCI_CONN_ENCRYPT_PEND, &conn->flags);

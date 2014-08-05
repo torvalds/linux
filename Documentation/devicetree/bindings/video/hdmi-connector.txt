@@ -7,6 +7,7 @@ Required properties:
 
 Optional properties:
 - label: a symbolic name for the connector
+- hpd-gpios: HPD GPIO number
 
 Required nodes:
 - Video port for HDMI input

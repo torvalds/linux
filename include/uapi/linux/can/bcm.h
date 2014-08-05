@@ -41,8 +41,8 @@
  * DAMAGE.
  */
 
-#ifndef CAN_BCM_H
-#define CAN_BCM_H
+#ifndef _UAPI_CAN_BCM_H
+#define _UAPI_CAN_BCM_H
 
 #include <linux/types.h>
 #include <linux/can.h>
@@ -95,4 +95,4 @@ enum {
 #define TX_RESET_MULTI_IDX  0x0200
 #define RX_RTR_FRAME        0x0400
 
-#endif /* CAN_BCM_H */
+#endif /* !_UAPI_CAN_BCM_H */

@@ -1391,7 +1391,8 @@ static int era_is_congested(struct dm_target_callbacks *cb, int bdi_bits)
 
 static void era_destroy(struct era *era)
 {
-	metadata_close(era->md);
+	if (era->md)
+		metadata_close(era->md);
 
 	if (era->wq)
 		destroy_workqueue(era->wq);

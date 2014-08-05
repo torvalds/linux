@@ -38,6 +38,7 @@
 #include <linux/errno.h>
 #include <linux/rtnetlink.h>
 #include <linux/skbuff.h>
+#include <linux/bitmap.h>
 #include <net/netlink.h>
 #include <net/act_api.h>
 #include <net/pkt_cls.h>
@@ -460,17 +461,25 @@ static int u32_delete(struct tcf_proto *tp, unsigned long arg)
 	return 0;
 }
 
+#define NR_U32_NODE (1<<12)
 static u32 gen_new_kid(struct tc_u_hnode *ht, u32 handle)
 {
 	struct tc_u_knode *n;
-	unsigned int i = 0x7FF;
+	unsigned long i;
+	unsigned long *bitmap = kzalloc(BITS_TO_LONGS(NR_U32_NODE) * sizeof(unsigned long),
+					GFP_KERNEL);
+	if (!bitmap)
+		return handle | 0xFFF;
 
 	for (n = ht->ht[TC_U32_HASH(handle)]; n; n = n->next)
-		if (i < TC_U32_NODE(n->handle))
-			i = TC_U32_NODE(n->handle);
-	i++;
+		set_bit(TC_U32_NODE(n->handle), bitmap);
 
-	return handle | (i > 0xFFF ? 0xFFF : i);
+	i = find_next_zero_bit(bitmap, NR_U32_NODE, 0x800);
+	if (i >= NR_U32_NODE)
+		i = find_next_zero_bit(bitmap, NR_U32_NODE, 1);
+
+	kfree(bitmap);
+	return handle | (i >= NR_U32_NODE ? 0xFFF : i);
 }
 
 static const struct nla_policy u32_policy[TCA_U32_MAX + 1] = {
@@ -486,13 +495,13 @@ static const struct nla_policy u32_policy[TCA_U32_MAX + 1] = {
 static int u32_set_parms(struct net *net, struct tcf_proto *tp,
 			 unsigned long base, struct tc_u_hnode *ht,
 			 struct tc_u_knode *n, struct nlattr **tb,
-			 struct nlattr *est)
+			 struct nlattr *est, bool ovr)
 {
 	int err;
 	struct tcf_exts e;
 
 	tcf_exts_init(&e, TCA_U32_ACT, TCA_U32_POLICE);
-	err = tcf_exts_validate(net, tp, tb, est, &e);
+	err = tcf_exts_validate(net, tp, tb, est, &e, ovr);
 	if (err < 0)
 		return err;
 
@@ -545,7 +554,7 @@ errout:
 static int u32_change(struct net *net, struct sk_buff *in_skb,
 		      struct tcf_proto *tp, unsigned long base, u32 handle,
 		      struct nlattr **tca,
-		      unsigned long *arg)
+		      unsigned long *arg, bool ovr)
 {
 	struct tc_u_common *tp_c = tp->data;
 	struct tc_u_hnode *ht;
@@ -569,7 +578,7 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 			return -EINVAL;
 
 		return u32_set_parms(net, tp, base, n->ht_up, n, tb,
-				     tca[TCA_RATE]);
+				     tca[TCA_RATE], ovr);
 	}
 
 	if (tb[TCA_U32_DIVISOR]) {
@@ -656,7 +665,7 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 	}
 #endif
 
-	err = u32_set_parms(net, tp, base, ht, n, tb, tca[TCA_RATE]);
+	err = u32_set_parms(net, tp, base, ht, n, tb, tca[TCA_RATE], ovr);
 	if (err == 0) {
 		struct tc_u_knode **ins;
 		for (ins = &ht->ht[TC_U32_HASH(handle)]; *ins; ins = &(*ins)->next)

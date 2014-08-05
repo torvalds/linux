@@ -1,7 +1,7 @@
 #ifndef __UNWIND_H
 #define __UNWIND_H
 
-#include "types.h"
+#include <linux/types.h>
 #include "event.h"
 #include "symbol.h"
 

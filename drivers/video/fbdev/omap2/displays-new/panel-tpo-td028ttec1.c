@@ -206,7 +206,8 @@ static int td028ttec1_panel_enable(struct omap_dss_device *dssdev)
 	if (omapdss_device_is_enabled(dssdev))
 		return 0;
 
-	in->ops.dpi->set_data_lines(in, ddata->data_lines);
+	if (ddata->data_lines)
+		in->ops.dpi->set_data_lines(in, ddata->data_lines);
 	in->ops.dpi->set_timings(in, &ddata->videomode);
 
 	r = in->ops.dpi->enable(in);
@@ -389,6 +390,23 @@ static int td028ttec1_panel_probe_pdata(struct spi_device *spi)
 	return 0;
 }
 
+static int td028ttec1_probe_of(struct spi_device *spi)
+{
+	struct device_node *node = spi->dev.of_node;
+	struct panel_drv_data *ddata = dev_get_drvdata(&spi->dev);
+	struct omap_dss_device *in;
+
+	in = omapdss_of_find_source_for_first_ep(node);
+	if (IS_ERR(in)) {
+		dev_err(&spi->dev, "failed to find video source\n");
+		return PTR_ERR(in);
+	}
+
+	ddata->in = in;
+
+	return 0;
+}
+
 static int td028ttec1_panel_probe(struct spi_device *spi)
 {
 	struct panel_drv_data *ddata;
@@ -416,6 +434,10 @@ static int td028ttec1_panel_probe(struct spi_device *spi)
 
 	if (dev_get_platdata(&spi->dev)) {
 		r = td028ttec1_panel_probe_pdata(spi);
+		if (r)
+			return r;
+	} else if (spi->dev.of_node) {
+		r = td028ttec1_probe_of(spi);
 		if (r)
 			return r;
 	} else {
@@ -463,6 +485,13 @@ static int td028ttec1_panel_remove(struct spi_device *spi)
 	return 0;
 }
 
+static const struct of_device_id td028ttec1_of_match[] = {
+	{ .compatible = "omapdss,toppoly,td028ttec1", },
+	{},
+};
+
+MODULE_DEVICE_TABLE(of, td028ttec1_of_match);
+
 static struct spi_driver td028ttec1_spi_driver = {
 	.probe		= td028ttec1_panel_probe,
 	.remove		= td028ttec1_panel_remove,
@@ -470,11 +499,13 @@ static struct spi_driver td028ttec1_spi_driver = {
 	.driver         = {
 		.name   = "panel-tpo-td028ttec1",
 		.owner  = THIS_MODULE,
+		.of_match_table = td028ttec1_of_match,
 	},
 };
 
 module_spi_driver(td028ttec1_spi_driver);
 
+MODULE_ALIAS("spi:toppoly,td028ttec1");
 MODULE_AUTHOR("H. Nikolaus Schaller <hns@goldelico.com>");
 MODULE_DESCRIPTION("Toppoly TD028TTEC1 panel driver");
 MODULE_LICENSE("GPL");

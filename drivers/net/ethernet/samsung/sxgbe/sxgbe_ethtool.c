@@ -520,5 +520,5 @@ static const struct ethtool_ops sxgbe_ethtool_ops = {
 
 void sxgbe_set_ethtool_ops(struct net_device *netdev)
 {
-	SET_ETHTOOL_OPS(netdev, &sxgbe_ethtool_ops);
+	netdev->ethtool_ops = &sxgbe_ethtool_ops;
 }

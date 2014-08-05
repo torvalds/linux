@@ -477,7 +477,7 @@ void kiocb_set_cancel_fn(struct kiocb *req, kiocb_cancel_fn *cancel)
 }
 EXPORT_SYMBOL(kiocb_set_cancel_fn);
 
-static int kiocb_cancel(struct kioctx *ctx, struct kiocb *kiocb)
+static int kiocb_cancel(struct kiocb *kiocb)
 {
 	kiocb_cancel_fn *old, *cancel;
 
@@ -538,7 +538,7 @@ static void free_ioctx_users(struct percpu_ref *ref)
 				       struct kiocb, ki_list);
 
 		list_del_init(&req->ki_list);
-		kiocb_cancel(ctx, req);
+		kiocb_cancel(req);
 	}
 
 	spin_unlock_irq(&ctx->ctx_lock);
@@ -727,42 +727,42 @@ err:
  *	when the processes owning a context have all exited to encourage
  *	the rapid destruction of the kioctx.
  */
-static void kill_ioctx(struct mm_struct *mm, struct kioctx *ctx,
+static int kill_ioctx(struct mm_struct *mm, struct kioctx *ctx,
 		struct completion *requests_done)
 {
-	if (!atomic_xchg(&ctx->dead, 1)) {
-		struct kioctx_table *table;
+	struct kioctx_table *table;
 
-		spin_lock(&mm->ioctx_lock);
-		rcu_read_lock();
-		table = rcu_dereference(mm->ioctx_table);
+	if (atomic_xchg(&ctx->dead, 1))
+		return -EINVAL;
 
-		WARN_ON(ctx != table->table[ctx->id]);
-		table->table[ctx->id] = NULL;
-		rcu_read_unlock();
-		spin_unlock(&mm->ioctx_lock);
 
-		/* percpu_ref_kill() will do the necessary call_rcu() */
-		wake_up_all(&ctx->wait);
+	spin_lock(&mm->ioctx_lock);
+	rcu_read_lock();
+	table = rcu_dereference(mm->ioctx_table);
 
-		/*
-		 * It'd be more correct to do this in free_ioctx(), after all
-		 * the outstanding kiocbs have finished - but by then io_destroy
-		 * has already returned, so io_setup() could potentially return
-		 * -EAGAIN with no ioctxs actually in use (as far as userspace
-		 *  could tell).
-		 */
-		aio_nr_sub(ctx->max_reqs);
+	WARN_ON(ctx != table->table[ctx->id]);
+	table->table[ctx->id] = NULL;
+	rcu_read_unlock();
+	spin_unlock(&mm->ioctx_lock);
 
-		if (ctx->mmap_size)
-			vm_munmap(ctx->mmap_base, ctx->mmap_size);
+	/* percpu_ref_kill() will do the necessary call_rcu() */
+	wake_up_all(&ctx->wait);
 
-		ctx->requests_done = requests_done;
-		percpu_ref_kill(&ctx->users);
-	} else {
-		if (requests_done)
-			complete(requests_done);
-	}
+	/*
+	 * It'd be more correct to do this in free_ioctx(), after all
+	 * the outstanding kiocbs have finished - but by then io_destroy
+	 * has already returned, so io_setup() could potentially return
+	 * -EAGAIN with no ioctxs actually in use (as far as userspace
+	 *  could tell).
+	 */
+	aio_nr_sub(ctx->max_reqs);
+
+	if (ctx->mmap_size)
+		vm_munmap(ctx->mmap_base, ctx->mmap_size);
+
+	ctx->requests_done = requests_done;
+	percpu_ref_kill(&ctx->users);
+	return 0;
 }
 
 /* wait_on_sync_kiocb:
@@ -830,16 +830,20 @@ void exit_aio(struct mm_struct *mm)
 static void put_reqs_available(struct kioctx *ctx, unsigned nr)
 {
 	struct kioctx_cpu *kcpu;
+	unsigned long flags;
 
 	preempt_disable();
 	kcpu = this_cpu_ptr(ctx->cpu);
 
+	local_irq_save(flags);
 	kcpu->reqs_available += nr;
+
 	while (kcpu->reqs_available >= ctx->req_batch * 2) {
 		kcpu->reqs_available -= ctx->req_batch;
 		atomic_add(ctx->req_batch, &ctx->reqs_available);
 	}
 
+	local_irq_restore(flags);
 	preempt_enable();
 }
 
@@ -847,10 +851,12 @@ static bool get_reqs_available(struct kioctx *ctx)
 {
 	struct kioctx_cpu *kcpu;
 	bool ret = false;
+	unsigned long flags;
 
 	preempt_disable();
 	kcpu = this_cpu_ptr(ctx->cpu);
 
+	local_irq_save(flags);
 	if (!kcpu->reqs_available) {
 		int old, avail = atomic_read(&ctx->reqs_available);
 
@@ -869,6 +875,7 @@ static bool get_reqs_available(struct kioctx *ctx)
 	ret = true;
 	kcpu->reqs_available--;
 out:
+	local_irq_restore(flags);
 	preempt_enable();
 	return ret;
 }
@@ -1021,6 +1028,7 @@ void aio_complete(struct kiocb *iocb, long res, long res2)
 
 	/* everything turned out well, dispose of the aiocb. */
 	kiocb_free(iocb);
+	put_reqs_available(ctx, 1);
 
 	/*
 	 * We have to order our ring_info tail store above and test
@@ -1062,6 +1070,9 @@ static long aio_read_events_ring(struct kioctx *ctx,
 	if (head == tail)
 		goto out;
 
+	head %= ctx->nr_events;
+	tail %= ctx->nr_events;
+
 	while (ret < nr) {
 		long avail;
 		struct io_event *ev;
@@ -1100,8 +1111,6 @@ static long aio_read_events_ring(struct kioctx *ctx,
 	flush_dcache_page(ctx->ring_pages[0]);
 
 	pr_debug("%li  h%u t%u\n", ret, head, tail);
-
-	put_reqs_available(ctx, ret);
 out:
 	mutex_unlock(&ctx->ring_lock);
 
@@ -1219,21 +1228,23 @@ SYSCALL_DEFINE1(io_destroy, aio_context_t, ctx)
 	if (likely(NULL != ioctx)) {
 		struct completion requests_done =
 			COMPLETION_INITIALIZER_ONSTACK(requests_done);
+		int ret;
 
 		/* Pass requests_done to kill_ioctx() where it can be set
 		 * in a thread-safe way. If we try to set it here then we have
 		 * a race condition if two io_destroy() called simultaneously.
 		 */
-		kill_ioctx(current->mm, ioctx, &requests_done);
+		ret = kill_ioctx(current->mm, ioctx, &requests_done);
 		percpu_ref_put(&ioctx->users);
 
 		/* Wait until all IO for the context are done. Otherwise kernel
 		 * keep using user-space buffers even if user thinks the context
 		 * is destroyed.
 		 */
-		wait_for_completion(&requests_done);
+		if (!ret)
+			wait_for_completion(&requests_done);
 
-		return 0;
+		return ret;
 	}
 	pr_debug("EINVAL: io_destroy: invalid context id\n");
 	return -EINVAL;
@@ -1241,6 +1252,7 @@ SYSCALL_DEFINE1(io_destroy, aio_context_t, ctx)
 
 typedef ssize_t (aio_rw_op)(struct kiocb *, const struct iovec *,
 			    unsigned long, loff_t);
+typedef ssize_t (rw_iter_op)(struct kiocb *, struct iov_iter *);
 
 static ssize_t aio_setup_vectored_rw(struct kiocb *kiocb,
 				     int rw, char __user *buf,
@@ -1298,7 +1310,9 @@ static ssize_t aio_run_iocb(struct kiocb *req, unsigned opcode,
 	int rw;
 	fmode_t mode;
 	aio_rw_op *rw_op;
+	rw_iter_op *iter_op;
 	struct iovec inline_vec, *iovec = &inline_vec;
+	struct iov_iter iter;
 
 	switch (opcode) {
 	case IOCB_CMD_PREAD:
@@ -1306,6 +1320,7 @@ static ssize_t aio_run_iocb(struct kiocb *req, unsigned opcode,
 		mode	= FMODE_READ;
 		rw	= READ;
 		rw_op	= file->f_op->aio_read;
+		iter_op	= file->f_op->read_iter;
 		goto rw_common;
 
 	case IOCB_CMD_PWRITE:
@@ -1313,12 +1328,13 @@ static ssize_t aio_run_iocb(struct kiocb *req, unsigned opcode,
 		mode	= FMODE_WRITE;
 		rw	= WRITE;
 		rw_op	= file->f_op->aio_write;
+		iter_op	= file->f_op->write_iter;
 		goto rw_common;
 rw_common:
 		if (unlikely(!(file->f_mode & mode)))
 			return -EBADF;
 
-		if (!rw_op)
+		if (!rw_op && !iter_op)
 			return -EINVAL;
 
 		ret = (opcode == IOCB_CMD_PREADV ||
@@ -1347,7 +1363,12 @@ rw_common:
 		if (rw == WRITE)
 			file_start_write(file);
 
-		ret = rw_op(req, iovec, nr_segs, req->ki_pos);
+		if (iter_op) {
+			iov_iter_init(&iter, rw, iovec, nr_segs, req->ki_nbytes);
+			ret = iter_op(req, &iter);
+		} else {
+			ret = rw_op(req, iovec, nr_segs, req->ki_pos);
+		}
 
 		if (rw == WRITE)
 			file_end_write(file);
@@ -1585,7 +1606,7 @@ SYSCALL_DEFINE3(io_cancel, aio_context_t, ctx_id, struct iocb __user *, iocb,
 
 	kiocb = lookup_kiocb(ctx, iocb, key);
 	if (kiocb)
-		ret = kiocb_cancel(ctx, kiocb);
+		ret = kiocb_cancel(kiocb);
 	else
 		ret = -EINVAL;
 

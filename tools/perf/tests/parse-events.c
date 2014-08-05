@@ -1174,188 +1174,240 @@ static int test__all_tracepoints(struct perf_evlist *evlist)
 struct evlist_test {
 	const char *name;
 	__u32 type;
+	const int id;
 	int (*check)(struct perf_evlist *evlist);
 };
 
 static struct evlist_test test__events[] = {
-	[0] = {
+	{
 		.name  = "syscalls:sys_enter_open",
 		.check = test__checkevent_tracepoint,
+		.id    = 0,
 	},
-	[1] = {
+	{
 		.name  = "syscalls:*",
 		.check = test__checkevent_tracepoint_multi,
+		.id    = 1,
 	},
-	[2] = {
+	{
 		.name  = "r1a",
 		.check = test__checkevent_raw,
+		.id    = 2,
 	},
-	[3] = {
+	{
 		.name  = "1:1",
 		.check = test__checkevent_numeric,
+		.id    = 3,
 	},
-	[4] = {
+	{
 		.name  = "instructions",
 		.check = test__checkevent_symbolic_name,
+		.id    = 4,
 	},
-	[5] = {
+	{
 		.name  = "cycles/period=100000,config2/",
 		.check = test__checkevent_symbolic_name_config,
+		.id    = 5,
 	},
-	[6] = {
+	{
 		.name  = "faults",
 		.check = test__checkevent_symbolic_alias,
+		.id    = 6,
 	},
-	[7] = {
+	{
 		.name  = "L1-dcache-load-miss",
 		.check = test__checkevent_genhw,
+		.id    = 7,
 	},
-	[8] = {
+	{
 		.name  = "mem:0",
 		.check = test__checkevent_breakpoint,
+		.id    = 8,
 	},
-	[9] = {
+	{
 		.name  = "mem:0:x",
 		.check = test__checkevent_breakpoint_x,
+		.id    = 9,
 	},
-	[10] = {
+	{
 		.name  = "mem:0:r",
 		.check = test__checkevent_breakpoint_r,
+		.id    = 10,
 	},
-	[11] = {
+	{
 		.name  = "mem:0:w",
 		.check = test__checkevent_breakpoint_w,
+		.id    = 11,
 	},
-	[12] = {
+	{
 		.name  = "syscalls:sys_enter_open:k",
 		.check = test__checkevent_tracepoint_modifier,
+		.id    = 12,
 	},
-	[13] = {
+	{
 		.name  = "syscalls:*:u",
 		.check = test__checkevent_tracepoint_multi_modifier,
+		.id    = 13,
 	},
-	[14] = {
+	{
 		.name  = "r1a:kp",
 		.check = test__checkevent_raw_modifier,
+		.id    = 14,
 	},
-	[15] = {
+	{
 		.name  = "1:1:hp",
 		.check = test__checkevent_numeric_modifier,
+		.id    = 15,
 	},
-	[16] = {
+	{
 		.name  = "instructions:h",
 		.check = test__checkevent_symbolic_name_modifier,
+		.id    = 16,
 	},
-	[17] = {
+	{
 		.name  = "faults:u",
 		.check = test__checkevent_symbolic_alias_modifier,
+		.id    = 17,
 	},
-	[18] = {
+	{
 		.name  = "L1-dcache-load-miss:kp",
 		.check = test__checkevent_genhw_modifier,
+		.id    = 18,
 	},
-	[19] = {
+	{
 		.name  = "mem:0:u",
 		.check = test__checkevent_breakpoint_modifier,
+		.id    = 19,
 	},
-	[20] = {
+	{
 		.name  = "mem:0:x:k",
 		.check = test__checkevent_breakpoint_x_modifier,
+		.id    = 20,
 	},
-	[21] = {
+	{
 		.name  = "mem:0:r:hp",
 		.check = test__checkevent_breakpoint_r_modifier,
+		.id    = 21,
 	},
-	[22] = {
+	{
 		.name  = "mem:0:w:up",
 		.check = test__checkevent_breakpoint_w_modifier,
+		.id    = 22,
 	},
-	[23] = {
+	{
 		.name  = "r1,syscalls:sys_enter_open:k,1:1:hp",
 		.check = test__checkevent_list,
+		.id    = 23,
 	},
-	[24] = {
+	{
 		.name  = "instructions:G",
 		.check = test__checkevent_exclude_host_modifier,
+		.id    = 24,
 	},
-	[25] = {
+	{
 		.name  = "instructions:H",
 		.check = test__checkevent_exclude_guest_modifier,
+		.id    = 25,
 	},
-	[26] = {
+	{
 		.name  = "mem:0:rw",
 		.check = test__checkevent_breakpoint_rw,
+		.id    = 26,
 	},
-	[27] = {
+	{
 		.name  = "mem:0:rw:kp",
 		.check = test__checkevent_breakpoint_rw_modifier,
+		.id    = 27,
 	},
-	[28] = {
+	{
 		.name  = "{instructions:k,cycles:upp}",
 		.check = test__group1,
+		.id    = 28,
 	},
-	[29] = {
+	{
 		.name  = "{faults:k,cache-references}:u,cycles:k",
 		.check = test__group2,
+		.id    = 29,
 	},
-	[30] = {
+	{
 		.name  = "group1{syscalls:sys_enter_open:H,cycles:kppp},group2{cycles,1:3}:G,instructions:u",
 		.check = test__group3,
+		.id    = 30,
 	},
-	[31] = {
+	{
 		.name  = "{cycles:u,instructions:kp}:p",
 		.check = test__group4,
+		.id    = 31,
 	},
-	[32] = {
+	{
 		.name  = "{cycles,instructions}:G,{cycles:G,instructions:G},cycles",
 		.check = test__group5,
+		.id    = 32,
 	},
-	[33] = {
+	{
 		.name  = "*:*",
 		.check = test__all_tracepoints,
+		.id    = 33,
 	},
-	[34] = {
+	{
 		.name  = "{cycles,cache-misses:G}:H",
 		.check = test__group_gh1,
+		.id    = 34,
 	},
-	[35] = {
+	{
 		.name  = "{cycles,cache-misses:H}:G",
 		.check = test__group_gh2,
+		.id    = 35,
 	},
-	[36] = {
+	{
 		.name  = "{cycles:G,cache-misses:H}:u",
 		.check = test__group_gh3,
+		.id    = 36,
 	},
-	[37] = {
+	{
 		.name  = "{cycles:G,cache-misses:H}:uG",
 		.check = test__group_gh4,
+		.id    = 37,
 	},
-	[38] = {
+	{
 		.name  = "{cycles,cache-misses,branch-misses}:S",
 		.check = test__leader_sample1,
+		.id    = 38,
 	},
-	[39] = {
+	{
 		.name  = "{instructions,branch-misses}:Su",
 		.check = test__leader_sample2,
+		.id    = 39,
 	},
-	[40] = {
+	{
 		.name  = "instructions:uDp",
 		.check = test__checkevent_pinned_modifier,
+		.id    = 40,
 	},
-	[41] = {
+	{
 		.name  = "{cycles,cache-misses,branch-misses}:D",
 		.check = test__pinned_group,
+		.id    = 41,
 	},
+#if defined(__s390x__)
+	{
+		.name  = "kvm-s390:kvm_s390_create_vm",
+		.check = test__checkevent_tracepoint,
+		.id    = 100,
+	},
+#endif
 };
 
 static struct evlist_test test__events_pmu[] = {
-	[0] = {
+	{
 		.name  = "cpu/config=10,config1,config2=3,period=1000/u",
 		.check = test__checkevent_pmu,
+		.id    = 0,
 	},
-	[1] = {
+	{
 		.name  = "cpu/config=1,name=krava/u,cpu/config=2/u",
 		.check = test__checkevent_pmu_name,
+		.id    = 1,
 	},
 };
 
@@ -1402,7 +1454,7 @@ static int test_events(struct evlist_test *events, unsigned cnt)
 	for (i = 0; i < cnt; i++) {
 		struct evlist_test *e = &events[i];
 
-		pr_debug("running test %d '%s'\n", i, e->name);
+		pr_debug("running test %d '%s'\n", e->id, e->name);
 		ret1 = test_event(e);
 		if (ret1)
 			ret2 = ret1;

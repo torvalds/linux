@@ -12,7 +12,6 @@ Required properties:
 Optional properties:
 - clock-accuracy : accuracy of clock in ppb (parts per billion).
 		   Should be a single cell.
-- gpios : From common gpio binding; gpio connection to clock enable pin.
 - clock-output-names : From common clock binding.
 
 Example:

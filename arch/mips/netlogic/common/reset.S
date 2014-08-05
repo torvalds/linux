@@ -35,6 +35,7 @@
 
 #include <asm/asm.h>
 #include <asm/asm-offsets.h>
+#include <asm/cpu.h>
 #include <asm/cacheops.h>
 #include <asm/regdef.h>
 #include <asm/mipsregs.h>
@@ -74,13 +75,25 @@
 .endm
 
 /*
+ * Allow access to physical mem >64G by enabling ELPA in PAGEGRAIN
+ * register. This is needed before going to C code since the SP can
+ * in this region. Called from all HW threads.
+ */
+.macro xlp_early_mmu_init
+	mfc0	t0, CP0_PAGEMASK, 1
+	li	t1, (1 << 29)		/* ELPA bit */
+	or	t0, t1
+	mtc0	t0, CP0_PAGEMASK, 1
+.endm
+
+/*
  * L1D cache has to be flushed before enabling threads in XLP.
  * On XLP8xx/XLP3xx, we do a low level flush using processor control
  * registers. On XLPII CPUs, usual cache instructions work.
  */
 .macro	xlp_flush_l1_dcache
 	mfc0	t0, CP0_EBASE, 0
-	andi	t0, t0, 0xff00
+	andi	t0, t0, PRID_IMP_MASK
 	slt	t1, t0, 0x1200
 	beqz	t1, 15f
 	nop
@@ -159,8 +172,12 @@ FEXPORT(nlm_reset_entry)
 
 1:	/* Entry point on core wakeup */
 	mfc0	t0, CP0_EBASE, 0	/* processor ID */
-	andi	t0, 0xff00
+	andi	t0, PRID_IMP_MASK
 	li	t1, 0x1500		/* XLP 9xx */
+	beq	t0, t1, 2f		/* does not need to set coherent */
+	nop
+
+	li	t1, 0x1300		/* XLP 5xx */
 	beq	t0, t1, 2f		/* does not need to set coherent */
 	nop
 
@@ -197,6 +214,9 @@ FEXPORT(nlm_reset_entry)
 EXPORT(nlm_boot_siblings)
 	/* core L1D flush before enable threads */
 	xlp_flush_l1_dcache
+	/* save ra and sp, will be used later (only for boot cpu) */
+	dmtc0	ra, $22, 6
+	dmtc0	sp, $22, 7
 	/* Enable hw threads by writing to MAP_THREADMODE of the core */
 	li	t0, CKSEG1ADDR(RESET_DATA_PHYS)
 	lw	t1, BOOT_THREAD_MODE(t0)	/* t1 <- thread mode */
@@ -225,6 +245,8 @@ EXPORT(nlm_boot_siblings)
 #endif
 	mtc0	t1, CP0_STATUS
 
+	xlp_early_mmu_init
+
 	/* mark CPU ready */
 	li	t3, CKSEG1ADDR(RESET_DATA_PHYS)
 	ADDIU	t1, t3, BOOT_CPU_READY
@@ -238,14 +260,12 @@ EXPORT(nlm_boot_siblings)
 	nop
 
 	/*
-	 * For the boot CPU, we have to restore registers and
-	 * return
+	 * For the boot CPU, we have to restore ra and sp and return, rest
+	 * of the registers will be restored by the caller
 	 */
-4:	dmfc0	t0, $4, 2	/* restore SP from UserLocal */
-	li	t1, 0xfadebeef
-	dmtc0	t1, $4, 2	/* restore SP from UserLocal */
-	PTR_SUBU sp, t0, PT_SIZE
-	RESTORE_ALL
+4:
+	dmfc0	ra, $22, 6
+	dmfc0	sp, $22, 7
 	jr	ra
 	nop
 EXPORT(nlm_reset_entry_end)
@@ -253,6 +273,7 @@ EXPORT(nlm_reset_entry_end)
 LEAF(nlm_init_boot_cpu)
 #ifdef CONFIG_CPU_XLP
 	xlp_config_lsu
+	xlp_early_mmu_init
 #endif
 	jr	ra
 	nop

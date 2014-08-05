@@ -270,7 +270,7 @@ static ssize_t iio_ev_value_show(struct device *dev,
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
-	int val, val2;
+	int val, val2, val_arr[2];
 	int ret;
 
 	ret = indio_dev->info->read_event_value(indio_dev,
@@ -279,7 +279,9 @@ static ssize_t iio_ev_value_show(struct device *dev,
 		&val, &val2);
 	if (ret < 0)
 		return ret;
-	return iio_format_value(buf, ret, val, val2);
+	val_arr[0] = val;
+	val_arr[1] = val2;
+	return iio_format_value(buf, ret, 2, val_arr);
 }
 
 static ssize_t iio_ev_value_store(struct device *dev,
@@ -321,7 +323,9 @@ static int iio_device_add_event(struct iio_dev *indio_dev,
 	char *postfix;
 	int ret;
 
-	for_each_set_bit(i, mask, sizeof(*mask)) {
+	for_each_set_bit(i, mask, sizeof(*mask)*8) {
+		if (i >= ARRAY_SIZE(iio_ev_info_text))
+			return -EINVAL;
 		postfix = kasprintf(GFP_KERNEL, "%s_%s_%s",
 				iio_ev_type_text[type], iio_ev_dir_text[dir],
 				iio_ev_info_text[i]);
@@ -340,6 +344,9 @@ static int iio_device_add_event(struct iio_dev *indio_dev,
 			 (i << 16) | spec_index, shared_by, &indio_dev->dev,
 			&indio_dev->event_interface->dev_attr_list);
 		kfree(postfix);
+
+		if ((ret == -EBUSY) && (shared_by != IIO_SEPARATE))
+			continue;
 
 		if (ret)
 			return ret;

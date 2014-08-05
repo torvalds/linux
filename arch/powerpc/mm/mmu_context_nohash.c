@@ -410,17 +410,7 @@ void __init mmu_context_init(void)
 	} else if (mmu_has_feature(MMU_FTR_TYPE_47x)) {
 		first_context = 1;
 		last_context = 65535;
-	} else
-#ifdef CONFIG_PPC_BOOK3E_MMU
-	if (mmu_has_feature(MMU_FTR_TYPE_3E)) {
-		u32 mmucfg = mfspr(SPRN_MMUCFG);
-		u32 pid_bits = (mmucfg & MMUCFG_PIDSIZE_MASK)
-				>> MMUCFG_PIDSIZE_SHIFT;
-		first_context = 1;
-		last_context = (1UL << (pid_bits + 1)) - 1;
-	} else
-#endif
-	{
+	} else {
 		first_context = 1;
 		last_context = 255;
 	}

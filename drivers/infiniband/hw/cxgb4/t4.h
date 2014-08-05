@@ -542,6 +542,7 @@ struct t4_cq {
 	size_t memsize;
 	__be64 bits_type_ts;
 	u32 cqid;
+	int vector;
 	u16 size; /* including status page */
 	u16 cidx;
 	u16 sw_pidx;

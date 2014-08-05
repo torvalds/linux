@@ -157,6 +157,9 @@ int ath10k_htc_send(struct ath10k_htc *htc,
 			goto err_pull;
 		}
 		ep->tx_credits -= credits;
+		ath10k_dbg(ATH10K_DBG_HTC,
+			   "htc ep %d consumed %d credits (total %d)\n",
+			   eid, credits, ep->tx_credits);
 		spin_unlock_bh(&htc->tx_lock);
 	}
 
@@ -185,6 +188,9 @@ err_credits:
 	if (ep->tx_credit_flow_enabled) {
 		spin_lock_bh(&htc->tx_lock);
 		ep->tx_credits += credits;
+		ath10k_dbg(ATH10K_DBG_HTC,
+			   "htc ep %d reverted %d credits back (total %d)\n",
+			   eid, credits, ep->tx_credits);
 		spin_unlock_bh(&htc->tx_lock);
 
 		if (ep->ep_ops.ep_tx_credits)
@@ -234,11 +240,11 @@ ath10k_htc_process_credit_report(struct ath10k_htc *htc,
 		if (report->eid >= ATH10K_HTC_EP_COUNT)
 			break;
 
-		ath10k_dbg(ATH10K_DBG_HTC, "ep %d got %d credits\n",
-			   report->eid, report->credits);
-
 		ep = &htc->endpoint[report->eid];
 		ep->tx_credits += report->credits;
+
+		ath10k_dbg(ATH10K_DBG_HTC, "htc ep %d got %d credits (total %d)\n",
+			   report->eid, report->credits, ep->tx_credits);
 
 		if (ep->ep_ops.ep_tx_credits) {
 			spin_unlock_bh(&htc->tx_lock);
@@ -824,17 +830,11 @@ int ath10k_htc_start(struct ath10k_htc *htc)
 	return 0;
 }
 
-/*
- * stop HTC communications, i.e. stop interrupt reception, and flush all
- * queued buffers
- */
 void ath10k_htc_stop(struct ath10k_htc *htc)
 {
 	spin_lock_bh(&htc->tx_lock);
 	htc->stopped = true;
 	spin_unlock_bh(&htc->tx_lock);
-
-	ath10k_hif_stop(htc->ar);
 }
 
 /* registered target arrival callback from the HIF layer */

@@ -208,7 +208,8 @@ static int mlx5_eq_int(struct mlx5_core_dev *dev, struct mlx5_eq *eq)
 		 */
 		rmb();
 
-		mlx5_core_dbg(eq->dev, "eqn %d, eqe type %s\n", eq->eqn, eqe_type_str(eqe->type));
+		mlx5_core_dbg(eq->dev, "eqn %d, eqe type %s\n",
+			      eq->eqn, eqe_type_str(eqe->type));
 		switch (eqe->type) {
 		case MLX5_EVENT_TYPE_COMP:
 			cqn = be32_to_cpu(eqe->data.comp.cqn) & 0xffffff;
@@ -270,14 +271,16 @@ static int mlx5_eq_int(struct mlx5_core_dev *dev, struct mlx5_eq *eq)
 				u16 func_id = be16_to_cpu(eqe->data.req_pages.func_id);
 				s32 npages = be32_to_cpu(eqe->data.req_pages.num_pages);
 
-				mlx5_core_dbg(dev, "page request for func 0x%x, napges %d\n", func_id, npages);
+				mlx5_core_dbg(dev, "page request for func 0x%x, npages %d\n",
+					      func_id, npages);
 				mlx5_core_req_pages_handler(dev, func_id, npages);
 			}
 			break;
 
 
 		default:
-			mlx5_core_warn(dev, "Unhandled event 0x%x on EQ 0x%x\n", eqe->type, eq->eqn);
+			mlx5_core_warn(dev, "Unhandled event 0x%x on EQ 0x%x\n",
+				       eqe->type, eq->eqn);
 			break;
 		}
 

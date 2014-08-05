@@ -67,11 +67,15 @@
 	};
 
 	ocp {
-		compatible = "simple-bus";
+		compatible = "ti,am4372-l3-noc", "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges;
 		ti,hwmods = "l3_main";
+		reg = <0x44000000 0x400000
+		       0x44800000 0x400000>;
+		interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
 
 		prcm: prcm@44df0000 {
 			compatible = "ti,am4-prcm";
@@ -108,9 +112,6 @@
 					<GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>,
 					<GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
 			#dma-cells = <1>;
-			dma-channels = <64>;
-			ti,edma-regions = <4>;
-			ti,edma-slots = <256>;
 		};
 
 		uart0: serial@44e09000 {
@@ -489,6 +490,8 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ti,hwmods = "cpgmac0";
+			clocks = <&cpsw_125mhz_gclk>, <&cpsw_cpts_rft_clk>;
+			clock-names = "fck", "cpts";
 			status = "disabled";
 			cpdma_channels = <8>;
 			ale_entries = <1024>;
@@ -520,6 +523,12 @@
 			cpsw_emac1: slave@4a100300 {
 				/* Filled in by U-Boot */
 				mac-address = [ 00 00 00 00 00 00 ];
+			};
+
+			phy_sel: cpsw-phy-sel@44e10650 {
+				compatible = "ti,am43xx-cpsw-phy-sel";
+				reg= <0x44e10650 0x4>;
+				reg-names = "gmii-sel";
 			};
 		};
 
@@ -734,6 +743,150 @@
 			#address-cells = <2>;
 			#size-cells = <1>;
 			status = "disabled";
+		};
+
+		am43xx_control_usb2phy1: control-phy@44e10620 {
+			compatible = "ti,control-phy-usb2-am437";
+			reg = <0x44e10620 0x4>;
+			reg-names = "power";
+		};
+
+		am43xx_control_usb2phy2: control-phy@0x44e10628 {
+			compatible = "ti,control-phy-usb2-am437";
+			reg = <0x44e10628 0x4>;
+			reg-names = "power";
+		};
+
+		ocp2scp0: ocp2scp@483a8000 {
+			compatible = "ti,omap-ocp2scp";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+			ti,hwmods = "ocp2scp0";
+
+			usb2_phy1: phy@483a8000 {
+				compatible = "ti,am437x-usb2";
+				reg = <0x483a8000 0x8000>;
+				ctrl-module = <&am43xx_control_usb2phy1>;
+				clocks = <&usb_phy0_always_on_clk32k>,
+					 <&usb_otg_ss0_refclk960m>;
+				clock-names = "wkupclk", "refclk";
+				#phy-cells = <0>;
+				status = "disabled";
+			};
+		};
+
+		ocp2scp1: ocp2scp@483e8000 {
+			compatible = "ti,omap-ocp2scp";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+			ti,hwmods = "ocp2scp1";
+
+			usb2_phy2: phy@483e8000 {
+				compatible = "ti,am437x-usb2";
+				reg = <0x483e8000 0x8000>;
+				ctrl-module = <&am43xx_control_usb2phy2>;
+				clocks = <&usb_phy1_always_on_clk32k>,
+					 <&usb_otg_ss1_refclk960m>;
+				clock-names = "wkupclk", "refclk";
+				#phy-cells = <0>;
+				status = "disabled";
+			};
+		};
+
+		dwc3_1: omap_dwc3@48380000 {
+			compatible = "ti,am437x-dwc3";
+			ti,hwmods = "usb_otg_ss0";
+			reg = <0x48380000 0x10000>;
+			interrupts = <GIC_SPI 172 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			utmi-mode = <1>;
+			ranges;
+
+			usb1: usb@48390000 {
+				compatible = "synopsys,dwc3";
+				reg = <0x48390000 0x17000>;
+				interrupts = <GIC_SPI 168 IRQ_TYPE_LEVEL_HIGH>;
+				phys = <&usb2_phy1>;
+				phy-names = "usb2-phy";
+				maximum-speed = "high-speed";
+				dr_mode = "otg";
+				status = "disabled";
+			};
+		};
+
+		dwc3_2: omap_dwc3@483c0000 {
+			compatible = "ti,am437x-dwc3";
+			ti,hwmods = "usb_otg_ss1";
+			reg = <0x483c0000 0x10000>;
+			interrupts = <GIC_SPI 178 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			utmi-mode = <1>;
+			ranges;
+
+			usb2: usb@483d0000 {
+				compatible = "synopsys,dwc3";
+				reg = <0x483d0000 0x17000>;
+				interrupts = <GIC_SPI 174 IRQ_TYPE_LEVEL_HIGH>;
+				phys = <&usb2_phy2>;
+				phy-names = "usb2-phy";
+				maximum-speed = "high-speed";
+				dr_mode = "otg";
+				status = "disabled";
+			};
+		};
+
+		qspi: qspi@47900000 {
+			compatible = "ti,am4372-qspi";
+			reg = <0x47900000 0x100>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			ti,hwmods = "qspi";
+			interrupts = <0 138 0x4>;
+			num-cs = <4>;
+			status = "disabled";
+		};
+
+		hdq: hdq@48347000 {
+			compatible = "ti,am43xx-hdq";
+			reg = <0x48347000 0x1000>;
+			interrupts = <GIC_SPI 139 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&func_12m_clk>;
+			clock-names = "fck";
+			ti,hwmods = "hdq1w";
+			status = "disabled";
+		};
+
+		dss: dss@4832a000 {
+			compatible = "ti,omap3-dss";
+			reg = <0x4832a000 0x200>;
+			status = "disabled";
+			ti,hwmods = "dss_core";
+			clocks = <&disp_clk>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+
+			dispc@4832a400 {
+				compatible = "ti,omap3-dispc";
+				reg = <0x4832a400 0x400>;
+				interrupts = <GIC_SPI 127 IRQ_TYPE_LEVEL_HIGH>;
+				ti,hwmods = "dss_dispc";
+				clocks = <&disp_clk>;
+				clock-names = "fck";
+			};
+
+			rfbi: rfbi@4832a800 {
+				compatible = "ti,omap3-rfbi";
+				reg = <0x4832a800 0x100>;
+				ti,hwmods = "dss_rfbi";
+				clocks = <&disp_clk>;
+				clock-names = "fck";
+			};
 		};
 	};
 };

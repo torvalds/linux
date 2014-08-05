@@ -607,9 +607,9 @@ static void write_endio(struct bio *bio, int error)
 
 	BUG_ON(!test_bit(B_WRITING, &b->state));
 
-	smp_mb__before_clear_bit();
+	smp_mb__before_atomic();
 	clear_bit(B_WRITING, &b->state);
-	smp_mb__after_clear_bit();
+	smp_mb__after_atomic();
 
 	wake_up_bit(&b->state, B_WRITING);
 }
@@ -997,9 +997,9 @@ static void read_endio(struct bio *bio, int error)
 
 	BUG_ON(!test_bit(B_READING, &b->state));
 
-	smp_mb__before_clear_bit();
+	smp_mb__before_atomic();
 	clear_bit(B_READING, &b->state);
-	smp_mb__after_clear_bit();
+	smp_mb__after_atomic();
 
 	wake_up_bit(&b->state, B_READING);
 }
@@ -1541,7 +1541,7 @@ struct dm_bufio_client *dm_bufio_client_create(struct block_device *bdev, unsign
 	BUG_ON(block_size < 1 << SECTOR_SHIFT ||
 	       (block_size & (block_size - 1)));
 
-	c = kmalloc(sizeof(*c), GFP_KERNEL);
+	c = kzalloc(sizeof(*c), GFP_KERNEL);
 	if (!c) {
 		r = -ENOMEM;
 		goto bad_client;

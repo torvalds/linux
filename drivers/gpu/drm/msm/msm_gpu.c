@@ -320,6 +320,101 @@ static void hangcheck_handler(unsigned long data)
 }
 
 /*
+ * Performance Counters:
+ */
+
+/* called under perf_lock */
+static int update_hw_cntrs(struct msm_gpu *gpu, uint32_t ncntrs, uint32_t *cntrs)
+{
+	uint32_t current_cntrs[ARRAY_SIZE(gpu->last_cntrs)];
+	int i, n = min(ncntrs, gpu->num_perfcntrs);
+
+	/* read current values: */
+	for (i = 0; i < gpu->num_perfcntrs; i++)
+		current_cntrs[i] = gpu_read(gpu, gpu->perfcntrs[i].sample_reg);
+
+	/* update cntrs: */
+	for (i = 0; i < n; i++)
+		cntrs[i] = current_cntrs[i] - gpu->last_cntrs[i];
+
+	/* save current values: */
+	for (i = 0; i < gpu->num_perfcntrs; i++)
+		gpu->last_cntrs[i] = current_cntrs[i];
+
+	return n;
+}
+
+static void update_sw_cntrs(struct msm_gpu *gpu)
+{
+	ktime_t time;
+	uint32_t elapsed;
+	unsigned long flags;
+
+	spin_lock_irqsave(&gpu->perf_lock, flags);
+	if (!gpu->perfcntr_active)
+		goto out;
+
+	time = ktime_get();
+	elapsed = ktime_to_us(ktime_sub(time, gpu->last_sample.time));
+
+	gpu->totaltime += elapsed;
+	if (gpu->last_sample.active)
+		gpu->activetime += elapsed;
+
+	gpu->last_sample.active = msm_gpu_active(gpu);
+	gpu->last_sample.time = time;
+
+out:
+	spin_unlock_irqrestore(&gpu->perf_lock, flags);
+}
+
+void msm_gpu_perfcntr_start(struct msm_gpu *gpu)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&gpu->perf_lock, flags);
+	/* we could dynamically enable/disable perfcntr registers too.. */
+	gpu->last_sample.active = msm_gpu_active(gpu);
+	gpu->last_sample.time = ktime_get();
+	gpu->activetime = gpu->totaltime = 0;
+	gpu->perfcntr_active = true;
+	update_hw_cntrs(gpu, 0, NULL);
+	spin_unlock_irqrestore(&gpu->perf_lock, flags);
+}
+
+void msm_gpu_perfcntr_stop(struct msm_gpu *gpu)
+{
+	gpu->perfcntr_active = false;
+}
+
+/* returns -errno or # of cntrs sampled */
+int msm_gpu_perfcntr_sample(struct msm_gpu *gpu, uint32_t *activetime,
+		uint32_t *totaltime, uint32_t ncntrs, uint32_t *cntrs)
+{
+	unsigned long flags;
+	int ret;
+
+	spin_lock_irqsave(&gpu->perf_lock, flags);
+
+	if (!gpu->perfcntr_active) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	*activetime = gpu->activetime;
+	*totaltime = gpu->totaltime;
+
+	gpu->activetime = gpu->totaltime = 0;
+
+	ret = update_hw_cntrs(gpu, ncntrs, cntrs);
+
+out:
+	spin_unlock_irqrestore(&gpu->perf_lock, flags);
+
+	return ret;
+}
+
+/*
  * Cmdstream submission/retirement:
  */
 
@@ -361,6 +456,7 @@ void msm_gpu_retire(struct msm_gpu *gpu)
 {
 	struct msm_drm_private *priv = gpu->dev->dev_private;
 	queue_work(priv->wq, &gpu->retire_work);
+	update_sw_cntrs(gpu);
 }
 
 /* add bo's to gpu's ring, and kick gpu: */
@@ -376,6 +472,12 @@ int msm_gpu_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 	gpu->submitted_fence = submit->fence;
 
 	inactive_cancel(gpu);
+
+	msm_rd_dump_submit(submit);
+
+	gpu->submitted_fence = submit->fence;
+
+	update_sw_cntrs(gpu);
 
 	ret = gpu->funcs->submit(gpu, submit, ctx);
 	priv->lastctx = ctx;
@@ -429,6 +531,9 @@ int msm_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 	struct iommu_domain *iommu;
 	int i, ret;
 
+	if (WARN_ON(gpu->num_perfcntrs > ARRAY_SIZE(gpu->last_cntrs)))
+		gpu->num_perfcntrs = ARRAY_SIZE(gpu->last_cntrs);
+
 	gpu->dev = drm;
 	gpu->funcs = funcs;
 	gpu->name = name;
@@ -443,6 +548,8 @@ int msm_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 			(unsigned long)gpu);
 	setup_timer(&gpu->hangcheck_timer, hangcheck_handler,
 			(unsigned long)gpu);
+
+	spin_lock_init(&gpu->perf_lock);
 
 	BUG_ON(ARRAY_SIZE(clk_names) != ARRAY_SIZE(gpu->grp_clks));
 

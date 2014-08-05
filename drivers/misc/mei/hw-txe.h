@@ -22,6 +22,8 @@
 #include "hw.h"
 #include "hw-txe-regs.h"
 
+#define MEI_TXI_RPM_TIMEOUT    500 /* ms */
+
 /* Flatten Hierarchy interrupt cause */
 #define TXE_INTR_READINESS_BIT  0 /* HISR_INT_0_STS */
 #define TXE_INTR_READINESS      HISR_INT_0_STS
@@ -35,12 +37,11 @@
 /**
  * struct mei_txe_hw - txe hardware specifics
  *
- * @mem_addr:        SeC and BRIDGE bars
- * @aliveness:       aliveness (power gating) state of the hardware
- * @readiness:       readiness state of the hardware
- * @wait_aliveness:  aliveness wait queue
- * @recvd_aliveness: aliveness interrupt was recived
- * @intr_cause:      translated interrupt cause
+ * @mem_addr:            SeC and BRIDGE bars
+ * @aliveness:           aliveness (power gating) state of the hardware
+ * @readiness:           readiness state of the hardware
+ * @wait_aliveness_resp: aliveness wait queue
+ * @intr_cause:          translated interrupt cause
  */
 struct mei_txe_hw {
 	void __iomem *mem_addr[NUM_OF_MEM_BARS];
@@ -48,8 +49,7 @@ struct mei_txe_hw {
 	u32 readiness;
 	u32 slots;
 
-	wait_queue_head_t wait_aliveness;
-	bool recvd_aliveness;
+	wait_queue_head_t wait_aliveness_resp;
 
 	unsigned long intr_cause;
 };
@@ -61,7 +61,10 @@ static inline struct mei_device *hw_txe_to_mei(struct mei_txe_hw *hw)
 	return container_of((void *)hw, struct mei_device, hw);
 }
 
-struct mei_device *mei_txe_dev_init(struct pci_dev *pdev);
+extern const struct mei_cfg mei_txe_cfg;
+
+struct mei_device *mei_txe_dev_init(struct pci_dev *pdev,
+	const struct mei_cfg *cfg);
 
 irqreturn_t mei_txe_irq_quick_handler(int irq, void *dev_id);
 irqreturn_t mei_txe_irq_thread_handler(int irq, void *dev_id);

@@ -162,7 +162,7 @@ u8 shpchp_handle_power_fault(u8 hp_slot, struct controller *ctrl)
 
 	p_slot = shpchp_find_slot(ctrl, hp_slot + ctrl->slot_device_offset);
 
-	if ( !(p_slot->hpc_ops->query_power_fault(p_slot))) {
+	if (!(p_slot->hpc_ops->query_power_fault(p_slot))) {
 		/*
 		 * Power fault Cleared
 		 */
@@ -196,8 +196,8 @@ static int change_bus_speed(struct controller *ctrl, struct slot *p_slot,
 
 	ctrl_dbg(ctrl, "Change speed to %d\n", speed);
 	if ((rc = p_slot->hpc_ops->set_bus_speed_mode(p_slot, speed))) {
-		ctrl_err(ctrl, "%s: Issue of set bus speed mode command "
-			 "failed\n", __func__);
+		ctrl_err(ctrl, "%s: Issue of set bus speed mode command failed\n",
+			 __func__);
 		return WRONG_BUS_FREQUENCY;
 	}
 	return rc;
@@ -215,8 +215,8 @@ static int fix_bus_speed(struct controller *ctrl, struct slot *pslot,
 	 */
 	if (flag) {
 		if (asp < bsp) {
-			ctrl_err(ctrl, "Speed of bus %x and adapter %x "
-				 "mismatch\n", bsp, asp);
+			ctrl_err(ctrl, "Speed of bus %x and adapter %x mismatch\n",
+				 bsp, asp);
 			rc = WRONG_BUS_FREQUENCY;
 		}
 		return rc;
@@ -250,8 +250,7 @@ static int board_added(struct slot *p_slot)
 
 	hp_slot = p_slot->device - ctrl->slot_device_offset;
 
-	ctrl_dbg(ctrl,
-		 "%s: p_slot->device, slot_offset, hp_slot = %d, %d ,%d\n",
+	ctrl_dbg(ctrl, "%s: p_slot->device, slot_offset, hp_slot = %d, %d ,%d\n",
 		 __func__, p_slot->device, ctrl->slot_device_offset, hp_slot);
 
 	/* Power on slot without connecting to bus */
@@ -263,8 +262,8 @@ static int board_added(struct slot *p_slot)
 
 	if ((ctrl->pci_dev->vendor == 0x8086) && (ctrl->pci_dev->device == 0x0332)) {
 		if ((rc = p_slot->hpc_ops->set_bus_speed_mode(p_slot, PCI_SPEED_33MHz))) {
-			ctrl_err(ctrl, "%s: Issue of set bus speed mode command"
-				 " failed\n", __func__);
+			ctrl_err(ctrl, "%s: Issue of set bus speed mode command failed\n",
+				 __func__);
 			return WRONG_BUS_FREQUENCY;
 		}
 
@@ -277,8 +276,7 @@ static int board_added(struct slot *p_slot)
 
 	rc = p_slot->hpc_ops->get_adapter_speed(p_slot, &asp);
 	if (rc) {
-		ctrl_err(ctrl, "Can't get adapter speed or "
-			 "bus mode mismatch\n");
+		ctrl_err(ctrl, "Can't get adapter speed or bus mode mismatch\n");
 		return WRONG_BUS_FREQUENCY;
 	}
 
@@ -289,8 +287,8 @@ static int board_added(struct slot *p_slot)
 	if (!list_empty(&ctrl->pci_dev->subordinate->devices))
 		slots_not_empty = 1;
 
-	ctrl_dbg(ctrl, "%s: slots_not_empty %d, adapter_speed %d, bus_speed %d,"
-		 " max_bus_speed %d\n", __func__, slots_not_empty, asp,
+	ctrl_dbg(ctrl, "%s: slots_not_empty %d, adapter_speed %d, bus_speed %d, max_bus_speed %d\n",
+		 __func__, slots_not_empty, asp,
 		 bsp, msp);
 
 	rc = fix_bus_speed(ctrl, p_slot, slots_not_empty, asp, bsp, msp);
@@ -490,12 +488,12 @@ static void handle_button_press_event(struct slot *p_slot)
 		p_slot->hpc_ops->get_power_status(p_slot, &getstatus);
 		if (getstatus) {
 			p_slot->state = BLINKINGOFF_STATE;
-			ctrl_info(ctrl, "PCI slot #%s - powering off due to "
-				  "button press.\n", slot_name(p_slot));
+			ctrl_info(ctrl, "PCI slot #%s - powering off due to button press\n",
+				  slot_name(p_slot));
 		} else {
 			p_slot->state = BLINKINGON_STATE;
-			ctrl_info(ctrl, "PCI slot #%s - powering on due to "
-				  "button press.\n", slot_name(p_slot));
+			ctrl_info(ctrl, "PCI slot #%s - powering on due to button press\n",
+				  slot_name(p_slot));
 		}
 		/* blink green LED and turn off amber */
 		p_slot->hpc_ops->green_led_blink(p_slot);
@@ -518,8 +516,8 @@ static void handle_button_press_event(struct slot *p_slot)
 		else
 			p_slot->hpc_ops->green_led_off(p_slot);
 		p_slot->hpc_ops->set_attention_status(p_slot, 0);
-		ctrl_info(ctrl, "PCI slot #%s - action canceled due to "
-			  "button press\n", slot_name(p_slot));
+		ctrl_info(ctrl, "PCI slot #%s - action canceled due to button press\n",
+			  slot_name(p_slot));
 		p_slot->state = STATIC_STATE;
 		break;
 	case POWEROFF_STATE:

@@ -318,7 +318,7 @@ inline int build_channel_array(const char *device_dir,
 				free(filename);
 				goto error_close_dir;
 			}
-			fscanf(sysfsfp, "%u", &ret);
+			fscanf(sysfsfp, "%i", &ret);
 			if (ret == 1)
 				(*counter)++;
 			fclose(sysfsfp);
@@ -350,7 +350,7 @@ inline int build_channel_array(const char *device_dir,
 				ret = -errno;
 				goto error_cleanup_array;
 			}
-			fscanf(sysfsfp, "%u", &current_enabled);
+			fscanf(sysfsfp, "%i", &current_enabled);
 			fclose(sysfsfp);
 
 			if (!current_enabled) {

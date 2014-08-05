@@ -73,29 +73,34 @@ __init int ptlrpc_init(void)
 		return rc;
 
 	cleanup_phase = 1;
+	rc = ptlrpc_request_cache_init();
+	if (rc)
+		GOTO(cleanup, rc);
 
+	cleanup_phase = 2;
 	rc = ptlrpc_init_portals();
 	if (rc)
 		GOTO(cleanup, rc);
-	cleanup_phase = 2;
+
+	cleanup_phase = 3;
 
 	rc = ptlrpc_connection_init();
 	if (rc)
 		GOTO(cleanup, rc);
-	cleanup_phase = 3;
 
+	cleanup_phase = 4;
 	ptlrpc_put_connection_superhack = ptlrpc_connection_put;
 
 	rc = ptlrpc_start_pinger();
 	if (rc)
 		GOTO(cleanup, rc);
-	cleanup_phase = 4;
 
+	cleanup_phase = 5;
 	rc = ldlm_init();
 	if (rc)
 		GOTO(cleanup, rc);
-	cleanup_phase = 5;
 
+	cleanup_phase = 6;
 	rc = sptlrpc_init();
 	if (rc)
 		GOTO(cleanup, rc);
@@ -115,19 +120,29 @@ cleanup:
 	switch (cleanup_phase) {
 	case 8:
 		ptlrpc_nrs_fini();
+		/* Fall through */
 	case 7:
 		sptlrpc_fini();
-	case 5:
+		/* Fall through */
+	case 6:
 		ldlm_exit();
-	case 4:
+		/* Fall through */
+	case 5:
 		ptlrpc_stop_pinger();
-	case 3:
+		/* Fall through */
+	case 4:
 		ptlrpc_connection_fini();
-	case 2:
+		/* Fall through */
+	case 3:
 		ptlrpc_exit_portals();
+		/* Fall through */
+	case 2:
+		ptlrpc_request_cache_fini();
+		/* Fall through */
 	case 1:
 		ptlrpc_hr_fini();
 		req_layout_fini();
+		/* Fall through */
 	default: ;
 	}
 
@@ -142,6 +157,7 @@ static void __exit ptlrpc_exit(void)
 	ldlm_exit();
 	ptlrpc_stop_pinger();
 	ptlrpc_exit_portals();
+	ptlrpc_request_cache_fini();
 	ptlrpc_hr_fini();
 	ptlrpc_connection_fini();
 }

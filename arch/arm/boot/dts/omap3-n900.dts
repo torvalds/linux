@@ -10,6 +10,7 @@
 /dts-v1/;
 
 #include "omap34xx-hs.dtsi"
+#include <dt-bindings/input/input.h>
 
 / {
 	model = "Nokia N900";
@@ -18,6 +19,17 @@
 	cpus {
 		cpu@0 {
 			cpu0-supply = <&vcc>;
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		heartbeat {
+			label = "debug::sleep";
+			gpios = <&gpio6 2 GPIO_ACTIVE_HIGH>;  /* gpio162 */
+			linux,default-trigger = "default-on";
+			pinctrl-names = "default";
+			pinctrl-0 = <&debug_leds>;
 		};
 	};
 
@@ -90,6 +102,19 @@
 			};
 		};
 	};
+
+	sound: n900-audio {
+		compatible = "nokia,n900-audio";
+
+		nokia,cpu-dai = <&mcbsp2>;
+		nokia,audio-codec = <&tlv320aic3x>, <&tlv320aic3x_aux>;
+		nokia,headphone-amplifier = <&tpa6130a2>;
+
+		tvout-selection-gpios = <&gpio2 8 GPIO_ACTIVE_HIGH>; /* 40 */
+		jack-detection-gpios = <&gpio6 17 GPIO_ACTIVE_HIGH>; /* 177 */
+		eci-switch-gpios = <&gpio6 22 GPIO_ACTIVE_HIGH>; /* 182 */
+		speaker-amplifier-gpios = <&twl_gpio 7 GPIO_ACTIVE_HIGH>;
+	};
 };
 
 &omap3_pmx_core {
@@ -127,6 +152,21 @@
 		pinctrl-single,pins = <
 			0x192 (PIN_INPUT_PULLUP | MUX_MODE0)	/* i2c3_scl */
 			0x194 (PIN_INPUT_PULLUP | MUX_MODE0)	/* i2c3_sda */
+		>;
+	};
+
+	debug_leds: pinmux_debug_led_pins {
+		pinctrl-single,pins = <
+			OMAP3_CORE1_IOPAD(0x2198, PIN_OUTPUT | MUX_MODE4)	/* mcbsp1_clkx.gpio_162 */
+		>;
+	};
+
+	mcspi4_pins: pinmux_mcspi4_pins {
+		pinctrl-single,pins = <
+			0x15c (PIN_INPUT_PULLDOWN | MUX_MODE1) /* mcspi4_clk */
+			0x162 (PIN_INPUT_PULLDOWN | MUX_MODE1) /* mcspi4_somi */
+			0x160 (PIN_OUTPUT | MUX_MODE1) /* mcspi4_simo */
+			0x166 (PIN_OUTPUT | MUX_MODE1) /* mcspi4_cs0 */
 		>;
 	};
 
@@ -171,6 +211,37 @@
 
 			0x0d8 (PIN_OUTPUT | MUX_MODE1)   /* dss_data22.sdi_clkp */
 			0x0da (PIN_OUTPUT | MUX_MODE1)   /* dss_data23.sdi_clkn */
+		>;
+	};
+
+	wl1251_pins: pinmux_wl1251 {
+		pinctrl-single,pins = <
+			0x0ce (PIN_OUTPUT | MUX_MODE4)		/* gpio 87 => wl1251 enable */
+			0x05a (PIN_INPUT | MUX_MODE4)		/* gpio 42 => wl1251 irq */
+		>;
+	};
+
+	ssi_pins: pinmux_ssi {
+		pinctrl-single,pins = <
+			0x150 (PIN_INPUT_PULLUP | MUX_MODE1)	/* ssi1_rdy_tx */
+			0x14e (PIN_OUTPUT | MUX_MODE1)		/* ssi1_flag_tx */
+			0x152 (PIN_INPUT | WAKEUP_EN | MUX_MODE4) /* ssi1_wake_tx (cawake) */
+			0x14c (PIN_OUTPUT | MUX_MODE1)		/* ssi1_dat_tx */
+			0x154 (PIN_INPUT | MUX_MODE1)		/* ssi1_dat_rx */
+			0x156 (PIN_INPUT | MUX_MODE1)		/* ssi1_flag_rx */
+			0x158 (PIN_OUTPUT | MUX_MODE1)		/* ssi1_rdy_rx */
+			0x15a (PIN_OUTPUT | MUX_MODE1)		/* ssi1_wake */
+		>;
+	};
+
+	modem_pins: pinmux_modem {
+		pinctrl-single,pins = <
+			0x0ac (PIN_OUTPUT | MUX_MODE4)		/* gpio 70 => cmt_apeslpx */
+			0x0b0 (PIN_INPUT | WAKEUP_EN | MUX_MODE4) /* gpio 72 => ape_rst_rq */
+			0x0b2 (PIN_OUTPUT | MUX_MODE4)		/* gpio 73 => cmt_rst_rq */
+			0x0b4 (PIN_OUTPUT | MUX_MODE4)		/* gpio 74 => cmt_en */
+			0x0b6 (PIN_OUTPUT | MUX_MODE4)		/* gpio 75 => cmt_rst */
+			0x15e (PIN_OUTPUT | MUX_MODE4)		/* gpio 157 => cmt_bsi */
 		>;
 	};
 };
@@ -280,60 +351,65 @@
 		compatible = "ti,twl4030-audio";
 		ti,enable-vibra = <1>;
 	};
+
+	twl_power: power {
+		compatible = "ti,twl4030-power-n900";
+		ti,use_poweroff;
+	};
 };
 
 &twl_keypad {
-	linux,keymap = < 0x00000010 /* KEY_Q */
-			 0x00010018 /* KEY_O */
-			 0x00020019 /* KEY_P */
-			 0x00030033 /* KEY_COMMA */
-			 0x0004000e /* KEY_BACKSPACE */
-			 0x0006001e /* KEY_A */
-			 0x0007001f /* KEY_S */
+	linux,keymap = < MATRIX_KEY(0x00, 0x00, KEY_Q)
+			 MATRIX_KEY(0x00, 0x01, KEY_O)
+			 MATRIX_KEY(0x00, 0x02, KEY_P)
+			 MATRIX_KEY(0x00, 0x03, KEY_COMMA)
+			 MATRIX_KEY(0x00, 0x04, KEY_BACKSPACE)
+			 MATRIX_KEY(0x00, 0x06, KEY_A)
+			 MATRIX_KEY(0x00, 0x07, KEY_S)
 
-			 0x01000011 /* KEY_W */
-			 0x01010020 /* KEY_D */
-			 0x01020021 /* KEY_F */
-			 0x01030022 /* KEY_G */
-			 0x01040023 /* KEY_H */
-			 0x01050024 /* KEY_J */
-			 0x01060025 /* KEY_K */
-			 0x01070026 /* KEY_L */
+			 MATRIX_KEY(0x01, 0x00, KEY_W)
+			 MATRIX_KEY(0x01, 0x01, KEY_D)
+			 MATRIX_KEY(0x01, 0x02, KEY_F)
+			 MATRIX_KEY(0x01, 0x03, KEY_G)
+			 MATRIX_KEY(0x01, 0x04, KEY_H)
+			 MATRIX_KEY(0x01, 0x05, KEY_J)
+			 MATRIX_KEY(0x01, 0x06, KEY_K)
+			 MATRIX_KEY(0x01, 0x07, KEY_L)
 
-			 0x02000012 /* KEY_E */
-			 0x02010034 /* KEY_DOT */
-			 0x02020067 /* KEY_UP */
-			 0x0203001c /* KEY_ENTER */
-			 0x0205002c /* KEY_Z */
-			 0x0206002d /* KEY_X */
-			 0x0207002e /* KEY_C */
-			 0x02080043 /* KEY_F9 */
+			 MATRIX_KEY(0x02, 0x00, KEY_E)
+			 MATRIX_KEY(0x02, 0x01, KEY_DOT)
+			 MATRIX_KEY(0x02, 0x02, KEY_UP)
+			 MATRIX_KEY(0x02, 0x03, KEY_ENTER)
+			 MATRIX_KEY(0x02, 0x05, KEY_Z)
+			 MATRIX_KEY(0x02, 0x06, KEY_X)
+			 MATRIX_KEY(0x02, 0x07, KEY_C)
+			 MATRIX_KEY(0x02, 0x08, KEY_F9)
 
-			 0x03000013 /* KEY_R */
-			 0x0301002f /* KEY_V */
-			 0x03020030 /* KEY_B */
-			 0x03030031 /* KEY_N */
-			 0x03040032 /* KEY_M */
-			 0x03050039 /* KEY_SPACE */
-			 0x03060039 /* KEY_SPACE */
-			 0x03070069 /* KEY_LEFT */
+			 MATRIX_KEY(0x03, 0x00, KEY_R)
+			 MATRIX_KEY(0x03, 0x01, KEY_V)
+			 MATRIX_KEY(0x03, 0x02, KEY_B)
+			 MATRIX_KEY(0x03, 0x03, KEY_N)
+			 MATRIX_KEY(0x03, 0x04, KEY_M)
+			 MATRIX_KEY(0x03, 0x05, KEY_SPACE)
+			 MATRIX_KEY(0x03, 0x06, KEY_SPACE)
+			 MATRIX_KEY(0x03, 0x07, KEY_LEFT)
 
-			 0x04000014 /* KEY_T */
-			 0x0401006c /* KEY_DOWN */
-			 0x0402006a /* KEY_RIGHT */
-			 0x0404001d /* KEY_LEFTCTRL */
-			 0x04050064 /* KEY_RIGHTALT */
-			 0x0406002a /* KEY_LEFTSHIFT */
-			 0x04080044 /* KEY_F10 */
+			 MATRIX_KEY(0x04, 0x00, KEY_T)
+			 MATRIX_KEY(0x04, 0x01, KEY_DOWN)
+			 MATRIX_KEY(0x04, 0x02, KEY_RIGHT)
+			 MATRIX_KEY(0x04, 0x04, KEY_LEFTCTRL)
+			 MATRIX_KEY(0x04, 0x05, KEY_RIGHTALT)
+			 MATRIX_KEY(0x04, 0x06, KEY_LEFTSHIFT)
+			 MATRIX_KEY(0x04, 0x08, KEY_F10)
 
-			 0x05000015 /* KEY_Y */
-			 0x05080057 /* KEY_F11 */
+			 MATRIX_KEY(0x05, 0x00, KEY_Y)
+			 MATRIX_KEY(0x05, 0x08, KEY_F11)
 
-			 0x06000016 /* KEY_U */
+			 MATRIX_KEY(0x06, 0x00, KEY_U)
 
-			 0x07000017 /* KEY_I */
-			 0x07010041 /* KEY_F7 */
-			 0x07020042 /* KEY_F8 */
+			 MATRIX_KEY(0x07, 0x00, KEY_I)
+			 MATRIX_KEY(0x07, 0x01, KEY_F7)
+			 MATRIX_KEY(0x07, 0x02, KEY_F8)
 			 >;
 };
 
@@ -580,9 +656,24 @@
 	 * Also... order in the device tree actually matters here.
 	 */
 	tsc2005@0 {
-		compatible = "tsc2005";
+		compatible = "ti,tsc2005";
 		spi-max-frequency = <6000000>;
 		reg = <0>;
+
+		vio-supply = <&vio>;
+
+		reset-gpios = <&gpio4 8 GPIO_ACTIVE_HIGH>; /* 104 */
+		interrupts-extended = <&gpio4 4 IRQ_TYPE_EDGE_RISING>; /* 100 */
+
+		touchscreen-fuzz-x = <4>;
+		touchscreen-fuzz-y = <7>;
+		touchscreen-fuzz-pressure = <2>;
+		touchscreen-max-x = <4096>;
+		touchscreen-max-y = <4096>;
+		touchscreen-max-pressure = <2048>;
+
+		ti,x-plate-ohms = <280>;
+		ti,esd-recovery-timeout-ms = <8000>;
 	};
 
 	acx565akm@2 {
@@ -604,6 +695,30 @@
 	};
 };
 
+&mcspi4 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mcspi4_pins>;
+
+	wl1251@0 {
+		pinctrl-names = "default";
+		pinctrl-0 = <&wl1251_pins>;
+
+		vio-supply = <&vio>;
+
+		compatible = "ti,wl1251";
+		reg = <0>;
+		spi-max-frequency = <48000000>;
+
+		spi-cpol;
+		spi-cpha;
+
+		ti,power-gpio = <&gpio3 23 GPIO_ACTIVE_HIGH>; /* 87 */
+
+		interrupt-parent = <&gpio2>;
+		interrupts = <10 IRQ_TYPE_NONE>; /* gpio line 42 */
+	};
+};
+
 &usb_otg_hs {
 	interface-type = <0>;
 	usb-phy = <&usb2_phy>;
@@ -618,11 +733,13 @@
 };
 
 &uart2 {
+	interrupts-extended = <&intc 73 &omap3_pmx_core OMAP3_UART2_RX>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart2_pins>;
 };
 
 &uart3 {
+	interrupts-extended = <&intc 74 &omap3_pmx_core OMAP3_UART3_RX>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart3_pins>;
 };
@@ -661,4 +778,49 @@
 			ti,channels = <1>;
 		};
 	};
+};
+
+&mcbsp2 {
+	status = "ok";
+};
+
+&ssi_port1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&ssi_pins>;
+
+	ti,ssi-cawake-gpio = <&gpio5 23 GPIO_ACTIVE_HIGH>; /* 151 */
+
+	modem: hsi-client {
+		compatible = "nokia,n900-modem";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&modem_pins>;
+
+		hsi-channel-ids = <0>, <1>, <2>, <3>;
+		hsi-channel-names = "mcsaab-control",
+				    "speech-control",
+				    "speech-data",
+				    "mcsaab-data";
+		hsi-speed-kbps = <55000>;
+		hsi-mode = "frame";
+		hsi-flow = "synchronized";
+		hsi-arb-mode = "round-robin";
+
+		interrupts-extended = <&gpio3 8 IRQ_TYPE_EDGE_FALLING>; /* 72 */
+
+		gpios = <&gpio3  6 GPIO_ACTIVE_HIGH>, /* 70 */
+			<&gpio3  9 GPIO_ACTIVE_HIGH>, /* 73 */
+			<&gpio3 10 GPIO_ACTIVE_HIGH>, /* 74 */
+			<&gpio3 11 GPIO_ACTIVE_HIGH>, /* 75 */
+			<&gpio5 29 GPIO_ACTIVE_HIGH>; /* 157 */
+		gpio-names = "cmt_apeslpx",
+			     "cmt_rst_rq",
+			     "cmt_en",
+			     "cmt_rst",
+			     "cmt_bsi";
+	};
+};
+
+&ssi_port2 {
+	status = "disabled";
 };

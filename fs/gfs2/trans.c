@@ -48,6 +48,7 @@ int gfs2_trans_begin(struct gfs2_sbd *sdp, unsigned int blocks,
 	tr->tr_blocks = blocks;
 	tr->tr_revokes = revokes;
 	tr->tr_reserved = 1;
+	tr->tr_alloced = 1;
 	if (blocks)
 		tr->tr_reserved += 6 + blocks;
 	if (revokes)
@@ -57,46 +58,20 @@ int gfs2_trans_begin(struct gfs2_sbd *sdp, unsigned int blocks,
 	INIT_LIST_HEAD(&tr->tr_buf);
 
 	sb_start_intwrite(sdp->sd_vfs);
-	gfs2_holder_init(sdp->sd_trans_gl, LM_ST_SHARED, 0, &tr->tr_t_gh);
-
-	error = gfs2_glock_nq(&tr->tr_t_gh);
-	if (error)
-		goto fail_holder_uninit;
 
 	error = gfs2_log_reserve(sdp, tr->tr_reserved);
 	if (error)
-		goto fail_gunlock;
+		goto fail;
 
 	current->journal_info = tr;
 
 	return 0;
 
-fail_gunlock:
-	gfs2_glock_dq(&tr->tr_t_gh);
-
-fail_holder_uninit:
+fail:
 	sb_end_intwrite(sdp->sd_vfs);
-	gfs2_holder_uninit(&tr->tr_t_gh);
 	kfree(tr);
 
 	return error;
-}
-
-/**
- * gfs2_log_release - Release a given number of log blocks
- * @sdp: The GFS2 superblock
- * @blks: The number of blocks
- *
- */
-
-static void gfs2_log_release(struct gfs2_sbd *sdp, unsigned int blks)
-{
-
-	atomic_add(blks, &sdp->sd_log_blks_free);
-	trace_gfs2_log_blocks(sdp, blks);
-	gfs2_assert_withdraw(sdp, atomic_read(&sdp->sd_log_blks_free) <=
-				  sdp->sd_jdesc->jd_blocks);
-	up_read(&sdp->sd_log_flush_lock);
 }
 
 static void gfs2_print_trans(const struct gfs2_trans *tr)
@@ -119,11 +94,8 @@ void gfs2_trans_end(struct gfs2_sbd *sdp)
 
 	if (!tr->tr_touched) {
 		gfs2_log_release(sdp, tr->tr_reserved);
-		if (tr->tr_t_gh.gh_gl) {
-			gfs2_glock_dq(&tr->tr_t_gh);
-			gfs2_holder_uninit(&tr->tr_t_gh);
+		if (tr->tr_alloced)
 			kfree(tr);
-		}
 		sb_end_intwrite(sdp->sd_vfs);
 		return;
 	}
@@ -137,16 +109,12 @@ void gfs2_trans_end(struct gfs2_sbd *sdp)
 		gfs2_print_trans(tr);
 
 	gfs2_log_commit(sdp, tr);
-	if (tr->tr_t_gh.gh_gl) {
-		gfs2_glock_dq(&tr->tr_t_gh);
-		gfs2_holder_uninit(&tr->tr_t_gh);
-		if (!tr->tr_attached)
+	if (tr->tr_alloced && !tr->tr_attached)
 			kfree(tr);
-	}
 	up_read(&sdp->sd_log_flush_lock);
 
 	if (sdp->sd_vfs->s_flags & MS_SYNCHRONOUS)
-		gfs2_log_flush(sdp, NULL);
+		gfs2_log_flush(sdp, NULL, NORMAL_FLUSH);
 	sb_end_intwrite(sdp->sd_vfs);
 }
 

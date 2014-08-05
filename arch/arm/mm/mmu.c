@@ -35,6 +35,7 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/pci.h>
+#include <asm/fixmap.h>
 
 #include "mm.h"
 #include "tcm.h"
@@ -117,28 +118,54 @@ static struct cachepolicy cache_policies[] __initdata = {
 };
 
 #ifdef CONFIG_CPU_CP15
+static unsigned long initial_pmd_value __initdata = 0;
+
 /*
- * These are useful for identifying cache coherency
- * problems by allowing the cache or the cache and
- * writebuffer to be turned off.  (Note: the write
- * buffer should not be on and the cache off).
+ * Initialise the cache_policy variable with the initial state specified
+ * via the "pmd" value.  This is used to ensure that on ARMv6 and later,
+ * the C code sets the page tables up with the same policy as the head
+ * assembly code, which avoids an illegal state where the TLBs can get
+ * confused.  See comments in early_cachepolicy() for more information.
+ */
+void __init init_default_cache_policy(unsigned long pmd)
+{
+	int i;
+
+	initial_pmd_value = pmd;
+
+	pmd &= PMD_SECT_TEX(1) | PMD_SECT_BUFFERABLE | PMD_SECT_CACHEABLE;
+
+	for (i = 0; i < ARRAY_SIZE(cache_policies); i++)
+		if (cache_policies[i].pmd == pmd) {
+			cachepolicy = i;
+			break;
+		}
+
+	if (i == ARRAY_SIZE(cache_policies))
+		pr_err("ERROR: could not find cache policy\n");
+}
+
+/*
+ * These are useful for identifying cache coherency problems by allowing
+ * the cache or the cache and writebuffer to be turned off.  (Note: the
+ * write buffer should not be on and the cache off).
  */
 static int __init early_cachepolicy(char *p)
 {
-	int i;
+	int i, selected = -1;
 
 	for (i = 0; i < ARRAY_SIZE(cache_policies); i++) {
 		int len = strlen(cache_policies[i].policy);
 
 		if (memcmp(p, cache_policies[i].policy, len) == 0) {
-			cachepolicy = i;
-			cr_alignment &= ~cache_policies[i].cr_mask;
-			cr_no_alignment &= ~cache_policies[i].cr_mask;
+			selected = i;
 			break;
 		}
 	}
-	if (i == ARRAY_SIZE(cache_policies))
-		printk(KERN_ERR "ERROR: unknown or unsupported cache policy\n");
+
+	if (selected == -1)
+		pr_err("ERROR: unknown or unsupported cache policy\n");
+
 	/*
 	 * This restriction is partly to do with the way we boot; it is
 	 * unpredictable to have memory mapped using two different sets of
@@ -146,12 +173,18 @@ static int __init early_cachepolicy(char *p)
 	 * change these attributes once the initial assembly has setup the
 	 * page tables.
 	 */
-	if (cpu_architecture() >= CPU_ARCH_ARMv6) {
-		printk(KERN_WARNING "Only cachepolicy=writeback supported on ARMv6 and later\n");
-		cachepolicy = CPOLICY_WRITEBACK;
+	if (cpu_architecture() >= CPU_ARCH_ARMv6 && selected != cachepolicy) {
+		pr_warn("Only cachepolicy=%s supported on ARMv6 and later\n",
+			cache_policies[cachepolicy].policy);
+		return 0;
 	}
-	flush_cache_all();
-	set_cr(cr_alignment);
+
+	if (selected != cachepolicy) {
+		unsigned long cr = __clear_cr(cache_policies[selected].cr_mask);
+		cachepolicy = selected;
+		flush_cache_all();
+		set_cr(cr);
+	}
 	return 0;
 }
 early_param("cachepolicy", early_cachepolicy);
@@ -184,35 +217,6 @@ static int __init early_ecc(char *p)
 	return 0;
 }
 early_param("ecc", early_ecc);
-#endif
-
-static int __init noalign_setup(char *__unused)
-{
-	cr_alignment &= ~CR_A;
-	cr_no_alignment &= ~CR_A;
-	set_cr(cr_alignment);
-	return 1;
-}
-__setup("noalign", noalign_setup);
-
-#ifndef CONFIG_SMP
-void adjust_cr(unsigned long mask, unsigned long set)
-{
-	unsigned long flags;
-
-	mask &= ~CR_A;
-
-	set &= mask;
-
-	local_irq_save(flags);
-
-	cr_no_alignment = (cr_no_alignment & ~mask) | set;
-	cr_alignment = (cr_alignment & ~mask) | set;
-
-	set_cr((get_cr() & ~mask) | set);
-
-	local_irq_restore(flags);
-}
 #endif
 
 #else /* ifdef CONFIG_CPU_CP15 */
@@ -414,8 +418,17 @@ static void __init build_mem_type_table(void)
 			cachepolicy = CPOLICY_WRITEBACK;
 		ecc_mask = 0;
 	}
-	if (is_smp())
-		cachepolicy = CPOLICY_WRITEALLOC;
+
+	if (is_smp()) {
+		if (cachepolicy != CPOLICY_WRITEALLOC) {
+			pr_warn("Forcing write-allocate cache policy for SMP\n");
+			cachepolicy = CPOLICY_WRITEALLOC;
+		}
+		if (!(initial_pmd_value & PMD_SECT_S)) {
+			pr_warn("Forcing shared mappings for SMP\n");
+			initial_pmd_value |= PMD_SECT_S;
+		}
+	}
 
 	/*
 	 * Strip out features not present on earlier architectures.
@@ -539,11 +552,12 @@ static void __init build_mem_type_table(void)
 		mem_types[MT_CACHECLEAN].prot_sect |= PMD_SECT_APX|PMD_SECT_AP_WRITE;
 #endif
 
-		if (is_smp()) {
-			/*
-			 * Mark memory with the "shared" attribute
-			 * for SMP systems
-			 */
+		/*
+		 * If the initial page tables were created with the S bit
+		 * set, then we need to do the same here for the same
+		 * reasons given in early_cachepolicy().
+		 */
+		if (initial_pmd_value & PMD_SECT_S) {
 			user_pgprot |= L_PTE_SHARED;
 			kern_pgprot |= L_PTE_SHARED;
 			vecs_pgprot |= L_PTE_SHARED;
@@ -1061,74 +1075,47 @@ phys_addr_t arm_lowmem_limit __initdata = 0;
 void __init sanity_check_meminfo(void)
 {
 	phys_addr_t memblock_limit = 0;
-	int i, j, highmem = 0;
+	int highmem = 0;
 	phys_addr_t vmalloc_limit = __pa(vmalloc_min - 1) + 1;
+	struct memblock_region *reg;
 
-	for (i = 0, j = 0; i < meminfo.nr_banks; i++) {
-		struct membank *bank = &meminfo.bank[j];
-		phys_addr_t size_limit;
+	for_each_memblock(memory, reg) {
+		phys_addr_t block_start = reg->base;
+		phys_addr_t block_end = reg->base + reg->size;
+		phys_addr_t size_limit = reg->size;
 
-		*bank = meminfo.bank[i];
-		size_limit = bank->size;
-
-		if (bank->start >= vmalloc_limit)
+		if (reg->base >= vmalloc_limit)
 			highmem = 1;
 		else
-			size_limit = vmalloc_limit - bank->start;
+			size_limit = vmalloc_limit - reg->base;
 
-		bank->highmem = highmem;
 
-#ifdef CONFIG_HIGHMEM
-		/*
-		 * Split those memory banks which are partially overlapping
-		 * the vmalloc area greatly simplifying things later.
-		 */
-		if (!highmem && bank->size > size_limit) {
-			if (meminfo.nr_banks >= NR_BANKS) {
-				printk(KERN_CRIT "NR_BANKS too low, "
-						 "ignoring high memory\n");
-			} else {
-				memmove(bank + 1, bank,
-					(meminfo.nr_banks - i) * sizeof(*bank));
-				meminfo.nr_banks++;
-				i++;
-				bank[1].size -= size_limit;
-				bank[1].start = vmalloc_limit;
-				bank[1].highmem = highmem = 1;
-				j++;
+		if (!IS_ENABLED(CONFIG_HIGHMEM) || cache_is_vipt_aliasing()) {
+
+			if (highmem) {
+				pr_notice("Ignoring RAM at %pa-%pa (!CONFIG_HIGHMEM)\n",
+					&block_start, &block_end);
+				memblock_remove(reg->base, reg->size);
+				continue;
 			}
-			bank->size = size_limit;
-		}
-#else
-		/*
-		 * Highmem banks not allowed with !CONFIG_HIGHMEM.
-		 */
-		if (highmem) {
-			printk(KERN_NOTICE "Ignoring RAM at %.8llx-%.8llx "
-			       "(!CONFIG_HIGHMEM).\n",
-			       (unsigned long long)bank->start,
-			       (unsigned long long)bank->start + bank->size - 1);
-			continue;
+
+			if (reg->size > size_limit) {
+				phys_addr_t overlap_size = reg->size - size_limit;
+
+				pr_notice("Truncating RAM at %pa-%pa to -%pa",
+				      &block_start, &block_end, &vmalloc_limit);
+				memblock_remove(vmalloc_limit, overlap_size);
+				block_end = vmalloc_limit;
+			}
 		}
 
-		/*
-		 * Check whether this memory bank would partially overlap
-		 * the vmalloc area.
-		 */
-		if (bank->size > size_limit) {
-			printk(KERN_NOTICE "Truncating RAM at %.8llx-%.8llx "
-			       "to -%.8llx (vmalloc region overlap).\n",
-			       (unsigned long long)bank->start,
-			       (unsigned long long)bank->start + bank->size - 1,
-			       (unsigned long long)bank->start + size_limit - 1);
-			bank->size = size_limit;
-		}
-#endif
-		if (!bank->highmem) {
-			phys_addr_t bank_end = bank->start + bank->size;
-
-			if (bank_end > arm_lowmem_limit)
-				arm_lowmem_limit = bank_end;
+		if (!highmem) {
+			if (block_end > arm_lowmem_limit) {
+				if (reg->size > size_limit)
+					arm_lowmem_limit = vmalloc_limit;
+				else
+					arm_lowmem_limit = block_end;
+			}
 
 			/*
 			 * Find the first non-section-aligned page, and point
@@ -1144,35 +1131,15 @@ void __init sanity_check_meminfo(void)
 			 * occurs before any free memory is mapped.
 			 */
 			if (!memblock_limit) {
-				if (!IS_ALIGNED(bank->start, SECTION_SIZE))
-					memblock_limit = bank->start;
-				else if (!IS_ALIGNED(bank_end, SECTION_SIZE))
-					memblock_limit = bank_end;
+				if (!IS_ALIGNED(block_start, SECTION_SIZE))
+					memblock_limit = block_start;
+				else if (!IS_ALIGNED(block_end, SECTION_SIZE))
+					memblock_limit = arm_lowmem_limit;
 			}
-		}
-		j++;
-	}
-#ifdef CONFIG_HIGHMEM
-	if (highmem) {
-		const char *reason = NULL;
 
-		if (cache_is_vipt_aliasing()) {
-			/*
-			 * Interactions between kmap and other mappings
-			 * make highmem support with aliasing VIPT caches
-			 * rather difficult.
-			 */
-			reason = "with VIPT aliasing cache";
-		}
-		if (reason) {
-			printk(KERN_CRIT "HIGHMEM is not supported %s, ignoring high memory\n",
-				reason);
-			while (j > 0 && meminfo.bank[j - 1].highmem)
-				j--;
 		}
 	}
-#endif
-	meminfo.nr_banks = j;
+
 	high_memory = __va(arm_lowmem_limit - 1) + 1;
 
 	/*
@@ -1359,6 +1326,9 @@ static void __init kmap_init(void)
 #ifdef CONFIG_HIGHMEM
 	pkmap_page_table = early_pte_alloc(pmd_off_k(PKMAP_BASE),
 		PKMAP_BASE, _PAGE_KERNEL_TABLE);
+
+	fixmap_page_table = early_pte_alloc(pmd_off_k(FIXADDR_START),
+		FIXADDR_START, _PAGE_KERNEL_TABLE);
 #endif
 }
 
@@ -1436,8 +1406,8 @@ void __init early_paging_init(const struct machine_desc *mdesc,
 		return;
 
 	/* remap kernel code and data */
-	map_start = init_mm.start_code;
-	map_end   = init_mm.brk;
+	map_start = init_mm.start_code & PMD_MASK;
+	map_end   = ALIGN(init_mm.brk, PMD_SIZE);
 
 	/* get a handle on things... */
 	pgd0 = pgd_offset_k(0);
@@ -1461,7 +1431,7 @@ void __init early_paging_init(const struct machine_desc *mdesc,
 	 * just complicate the code.
 	 */
 	flush_cache_louis();
-	dsb();
+	dsb(ishst);
 	isb();
 
 	/* remap level 1 table */
@@ -1472,7 +1442,7 @@ void __init early_paging_init(const struct machine_desc *mdesc,
 	}
 
 	/* remap pmds for kernel mapping */
-	phys = __pa(map_start) & PMD_MASK;
+	phys = __pa(map_start);
 	do {
 		*pmdk++ = __pmd(phys | pmdprot);
 		phys += PMD_SIZE;

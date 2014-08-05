@@ -126,6 +126,7 @@ static int powernv_eeh_dev_probe(struct pci_dev *dev, void *flag)
 	edev->mode	&= 0xFFFFFF00;
 	if (dev->hdr_type == PCI_HEADER_TYPE_BRIDGE)
 		edev->mode |= EEH_DEV_BRIDGE;
+	edev->pcix_cap = pci_find_capability(dev, PCI_CAP_ID_PCIX);
 	if (pci_is_pcie(dev)) {
 		edev->pcie_cap = pci_pcie_cap(dev);
 
@@ -133,6 +134,9 @@ static int powernv_eeh_dev_probe(struct pci_dev *dev, void *flag)
 			edev->mode |= EEH_DEV_ROOT_PORT;
 		else if (pci_pcie_type(dev) == PCI_EXP_TYPE_DOWNSTREAM)
 			edev->mode |= EEH_DEV_DS_PORT;
+
+		edev->aer_cap = pci_find_ext_capability(dev,
+							PCI_EXT_CAP_ID_ERR);
 	}
 
 	edev->config_addr	= ((dev->bus->number << 8) | dev->devfn);

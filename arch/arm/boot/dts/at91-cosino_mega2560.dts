@@ -32,11 +32,6 @@
 				status = "okay";
 			};
 
-
-			tsadcc: tsadcc@f804c000 {
-				status = "okay";
-			};
-
 			rtc@fffffeb0 {
 				status = "okay";
 			};

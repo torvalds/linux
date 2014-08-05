@@ -166,10 +166,10 @@ enum {
 #define COMPACT_CLUSTER_MAX SWAP_CLUSTER_MAX
 
 /*
- * Ratio between the present memory in the zone and the "gap" that
- * we're allowing kswapd to shrink in addition to the per-zone high
- * wmark, even for zones that already have the high wmark satisfied,
- * in order to provide better per-zone lru behavior. We are ok to
+ * Ratio between zone->managed_pages and the "gap" that above the per-zone
+ * "high_wmark". While balancing nodes, We allow kswapd to shrink zones that
+ * do not meet the (high_wmark + gap) watermark, even which already met the
+ * high_wmark, in order to provide better per-zone lru behavior. We are ok to
  * spend not more than 1% of the memory for this zone balancing "gap".
  */
 #define KSWAPD_ZONE_BALANCE_GAP_RATIO 100
@@ -214,8 +214,9 @@ struct percpu_cluster {
 struct swap_info_struct {
 	unsigned long	flags;		/* SWP_USED etc: see above */
 	signed short	prio;		/* swap priority of this type */
+	struct plist_node list;		/* entry in swap_active_head */
+	struct plist_node avail_list;	/* entry in swap_avail_head */
 	signed char	type;		/* strange name for an index */
-	signed char	next;		/* next type on the swap list */
 	unsigned int	max;		/* extent of the swap_map */
 	unsigned char *swap_map;	/* vmalloc'ed array of usage counts */
 	struct swap_cluster_info *cluster_info; /* cluster info. Only for SSD */
@@ -253,11 +254,6 @@ struct swap_info_struct {
 	struct work_struct discard_work; /* discard worker */
 	struct swap_cluster_info discard_cluster_head; /* list head of discard clusters */
 	struct swap_cluster_info discard_cluster_tail; /* list tail of discard clusters */
-};
-
-struct swap_list_t {
-	int head;	/* head of priority-ordered swapfile list */
-	int next;	/* swapfile to be used next */
 };
 
 /* linux/mm/workingset.c */
@@ -308,12 +304,14 @@ extern unsigned long nr_free_pagecache_pages(void);
 
 
 /* linux/mm/swap.c */
-extern void __lru_cache_add(struct page *);
 extern void lru_cache_add(struct page *);
+extern void lru_cache_add_anon(struct page *page);
+extern void lru_cache_add_file(struct page *page);
 extern void lru_add_page_tail(struct page *page, struct page *page_tail,
 			 struct lruvec *lruvec, struct list_head *head);
 extern void activate_page(struct page *);
 extern void mark_page_accessed(struct page *);
+extern void init_page_accessed(struct page *page);
 extern void lru_add_drain(void);
 extern void lru_add_drain_cpu(int cpu);
 extern void lru_add_drain_all(void);
@@ -322,22 +320,6 @@ extern void deactivate_page(struct page *page);
 extern void swap_setup(void);
 
 extern void add_page_to_unevictable_list(struct page *page);
-
-/**
- * lru_cache_add: add a page to the page lists
- * @page: the page to add
- */
-static inline void lru_cache_add_anon(struct page *page)
-{
-	ClearPageActive(page);
-	__lru_cache_add(page);
-}
-
-static inline void lru_cache_add_file(struct page *page)
-{
-	ClearPageActive(page);
-	__lru_cache_add(page);
-}
 
 /* linux/mm/vmscan.c */
 extern unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
@@ -496,7 +478,7 @@ mem_cgroup_uncharge_swapcache(struct page *page, swp_entry_t ent, bool swapout)
 #define free_page_and_swap_cache(page) \
 	page_cache_release(page)
 #define free_pages_and_swap_cache(pages, nr) \
-	release_pages((pages), (nr), 0);
+	release_pages((pages), (nr), false);
 
 static inline void show_swap_cache_info(void)
 {

@@ -519,14 +519,6 @@ struct pci230_private {
 					 * level threshold (PCI230+/260+). */
 	unsigned short adcg;	/* ADCG register value. */
 	unsigned char int_en;	/* Interrupt enables bits. */
-	unsigned char ai_continuous;	/* Flag set when cmd->stop_src ==
-					 * TRIG_NONE - user chooses to stop
-					 * continuous conversion by
-					 * cancelation. */
-	unsigned char ao_continuous;	/* Flag set when cmd->stop_src ==
-					 * TRIG_NONE - user chooses to stop
-					 * continuous conversion by
-					 * cancelation. */
 	unsigned char ai_bipolar;	/* Set if bipolar input range so we
 					 * know to mangle it. */
 	unsigned char ao_bipolar;	/* Set if bipolar output range so we
@@ -953,6 +945,38 @@ static int pci230_ao_rinsn(struct comedi_device *dev,
 	return i;
 }
 
+static int pci230_ao_check_chanlist(struct comedi_device *dev,
+				    struct comedi_subdevice *s,
+				    struct comedi_cmd *cmd)
+{
+	unsigned int prev_chan = CR_CHAN(cmd->chanlist[0]);
+	unsigned int range0 = CR_RANGE(cmd->chanlist[0]);
+	int i;
+
+	for (i = 1; i < cmd->chanlist_len; i++) {
+		unsigned int chan = CR_CHAN(cmd->chanlist[i]);
+		unsigned int range = CR_RANGE(cmd->chanlist[i]);
+
+		if (chan < prev_chan) {
+			dev_dbg(dev->class_dev,
+				"%s: channel numbers must increase\n",
+				__func__);
+			return -EINVAL;
+		}
+
+		if (range != range0) {
+			dev_dbg(dev->class_dev,
+				"%s: channels must have the same range\n",
+				__func__);
+			return -EINVAL;
+		}
+
+		prev_chan = chan;
+	}
+
+	return 0;
+}
+
 static int pci230_ao_cmdtest(struct comedi_device *dev,
 			     struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
@@ -1065,48 +1089,9 @@ static int pci230_ao_cmdtest(struct comedi_device *dev,
 	if (err)
 		return 4;
 
-	/* Step 5: check channel list if it exists. */
-
-	if (cmd->chanlist && cmd->chanlist_len > 0) {
-		enum {
-			seq_err = (1 << 0),
-			range_err = (1 << 1)
-		};
-		unsigned int errors;
-		unsigned int n;
-		unsigned int chan, prev_chan;
-		unsigned int range, first_range;
-
-		prev_chan = CR_CHAN(cmd->chanlist[0]);
-		first_range = CR_RANGE(cmd->chanlist[0]);
-		errors = 0;
-		for (n = 1; n < cmd->chanlist_len; n++) {
-			chan = CR_CHAN(cmd->chanlist[n]);
-			range = CR_RANGE(cmd->chanlist[n]);
-			/* Channel numbers must strictly increase. */
-			if (chan < prev_chan)
-				errors |= seq_err;
-
-			/* Ranges must be the same. */
-			if (range != first_range)
-				errors |= range_err;
-
-			prev_chan = chan;
-		}
-		if (errors != 0) {
-			err++;
-			if ((errors & seq_err) != 0) {
-				dev_dbg(dev->class_dev,
-					"%s: channel numbers must increase\n",
-					__func__);
-			}
-			if ((errors & range_err) != 0) {
-				dev_dbg(dev->class_dev,
-					"%s: channels must have the same range\n",
-					__func__);
-			}
-		}
-	}
+	/* Step 5: check channel list if it exists */
+	if (cmd->chanlist && cmd->chanlist_len > 0)
+		err |= pci230_ao_check_chanlist(dev, s, cmd);
 
 	if (err)
 		return 5;
@@ -1175,11 +1160,11 @@ static void pci230_handle_ao_nofifo(struct comedi_device *dev,
 	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
 
-	if (!devpriv->ao_continuous && (devpriv->ao_scan_count == 0))
+	if (cmd->stop_src == TRIG_COUNT && devpriv->ao_scan_count == 0)
 		return;
 	for (i = 0; i < cmd->chanlist_len; i++) {
 		/* Read sample from Comedi's circular buffer. */
-		ret = comedi_buf_get(s->async, &data);
+		ret = comedi_buf_get(s, &data);
 		if (ret == 0) {
 			s->async->events |= COMEDI_CB_OVERFLOW;
 			pci230_ao_stop(dev, s);
@@ -1190,7 +1175,7 @@ static void pci230_handle_ao_nofifo(struct comedi_device *dev,
 		pci230_ao_write_nofifo(dev, data, CR_CHAN(cmd->chanlist[i]));
 	}
 	async->events |= COMEDI_CB_BLOCK | COMEDI_CB_EOS;
-	if (!devpriv->ao_continuous) {
+	if (cmd->stop_src == TRIG_COUNT) {
 		devpriv->ao_scan_count--;
 		if (devpriv->ao_scan_count == 0) {
 			/* End of acquisition. */
@@ -1212,16 +1197,14 @@ static int pci230_handle_ao_fifo(struct comedi_device *dev,
 	unsigned int room;
 	unsigned short dacstat;
 	unsigned int i, n;
-	unsigned int bytes_per_scan;
 	unsigned int events = 0;
 	int running;
 
 	/* Get DAC FIFO status. */
 	dacstat = inw(dev->iobase + PCI230_DACCON);
 	/* Determine number of scans available in buffer. */
-	bytes_per_scan = cmd->chanlist_len * sizeof(short);
-	num_scans = comedi_buf_read_n_available(async) / bytes_per_scan;
-	if (!devpriv->ao_continuous) {
+	num_scans = comedi_buf_read_n_available(s) / cfc_bytes_per_scan(s);
+	if (cmd->stop_src == TRIG_COUNT) {
 		/* Fixed number of scans. */
 		if (num_scans > devpriv->ao_scan_count)
 			num_scans = devpriv->ao_scan_count;
@@ -1265,13 +1248,13 @@ static int pci230_handle_ao_fifo(struct comedi_device *dev,
 			for (i = 0; i < cmd->chanlist_len; i++) {
 				unsigned short datum;
 
-				comedi_buf_get(async, &datum);
+				comedi_buf_get(s, &datum);
 				pci230_ao_write_fifo(dev, datum,
 						     CR_CHAN(cmd->chanlist[i]));
 			}
 		}
 		events |= COMEDI_CB_EOS | COMEDI_CB_BLOCK;
-		if (!devpriv->ao_continuous) {
+		if (cmd->stop_src == TRIG_COUNT) {
 			devpriv->ao_scan_count -= num_scans;
 			if (devpriv->ao_scan_count == 0) {
 				/* All data for the command has been written
@@ -1349,7 +1332,7 @@ static void pci230_ao_start(struct comedi_device *dev,
 	unsigned long irqflags;
 
 	set_bit(AO_CMD_STARTED, &devpriv->state);
-	if (!devpriv->ao_continuous && (devpriv->ao_scan_count == 0)) {
+	if (cmd->stop_src == TRIG_COUNT && devpriv->ao_scan_count == 0) {
 		/* An empty acquisition! */
 		async->events |= COMEDI_CB_EOA;
 		pci230_ao_stop(dev, s);
@@ -1434,7 +1417,9 @@ static int pci230_ao_inttrig_start(struct comedi_device *dev,
 				   struct comedi_subdevice *s,
 				   unsigned int trig_num)
 {
-	if (trig_num != 0)
+	struct comedi_cmd *cmd = &s->async->cmd;
+
+	if (trig_num != cmd->start_src)
 		return -EINVAL;
 
 	s->async->inttrig = NULL;
@@ -1460,14 +1445,10 @@ static int pci230_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	}
 
 	/* Get number of scans required. */
-	if (cmd->stop_src == TRIG_COUNT) {
+	if (cmd->stop_src == TRIG_COUNT)
 		devpriv->ao_scan_count = cmd->stop_arg;
-		devpriv->ao_continuous = 0;
-	} else {
-		/* TRIG_NONE, user calls cancel. */
+	else	/* TRIG_NONE, user calls cancel */
 		devpriv->ao_scan_count = 0;
-		devpriv->ao_continuous = 1;
-	}
 
 	/* Set range - see analogue output range table; 0 => unipolar 10V,
 	 * 1 => bipolar +/-10V range scale */
@@ -1550,6 +1531,109 @@ static int pci230_ai_check_scan_period(struct comedi_cmd *cmd)
 	}
 
 	return !err;
+}
+
+static int pci230_ai_check_chanlist(struct comedi_device *dev,
+				    struct comedi_subdevice *s,
+				    struct comedi_cmd *cmd)
+{
+	struct pci230_private *devpriv = dev->private;
+	unsigned int max_diff_chan = (s->n_chan / 2) - 1;
+	unsigned int prev_chan = 0;
+	unsigned int prev_range = 0;
+	unsigned int prev_aref = 0;
+	unsigned int prev_polarity = 0;
+	unsigned int subseq_len = 0;
+	int i;
+
+	for (i = 0; i < cmd->chanlist_len; i++) {
+		unsigned int chanspec = cmd->chanlist[i];
+		unsigned int chan = CR_CHAN(chanspec);
+		unsigned int range = CR_RANGE(chanspec);
+		unsigned int aref = CR_AREF(chanspec);
+		unsigned int polarity = pci230_ai_bipolar[range];
+
+		if (aref == AREF_DIFF && chan >= max_diff_chan) {
+			dev_dbg(dev->class_dev,
+				"%s: differential channel number out of range 0 to %u\n",
+				__func__, max_diff_chan);
+			return -EINVAL;
+		}
+
+		if (i > 0) {
+			/*
+			 * Channel numbers must strictly increase or
+			 * subsequence must repeat exactly.
+			 */
+			if (chan <= prev_chan && subseq_len == 0)
+				subseq_len = i;
+
+			if (subseq_len > 0 &&
+			    cmd->chanlist[i % subseq_len] != chanspec) {
+					dev_dbg(dev->class_dev,
+						"%s: channel numbers must increase or sequence must repeat exactly\n",
+						__func__);
+					return -EINVAL;
+			}
+
+			if (aref != prev_aref) {
+				dev_dbg(dev->class_dev,
+					"%s: channel sequence analogue references must be all the same (single-ended or differential)\n",
+					__func__);
+				return -EINVAL;
+			}
+
+			if (polarity != prev_polarity) {
+				dev_dbg(dev->class_dev,
+					"%s: channel sequence ranges must be all bipolar or all unipolar\n",
+					__func__);
+				return -EINVAL;
+			}
+
+			if (aref != AREF_DIFF && range != prev_range &&
+			    ((chan ^ prev_chan) & ~1) == 0) {
+				dev_dbg(dev->class_dev,
+					"%s: single-ended channel pairs must have the same range\n",
+					__func__);
+				return -EINVAL;
+			}
+		}
+		prev_chan = chan;
+		prev_range = range;
+		prev_aref = aref;
+		prev_polarity = polarity;
+	}
+
+	if (subseq_len == 0)
+		subseq_len = cmd->chanlist_len;
+
+	if ((cmd->chanlist_len % subseq_len) != 0) {
+		dev_dbg(dev->class_dev,
+			"%s: sequence must repeat exactly\n", __func__);
+		return -EINVAL;
+	}
+
+	/*
+	 * Buggy PCI230+ or PCI260+ requires channel 0 to be (first) in the
+	 * sequence if the sequence contains more than one channel. Hardware
+	 * versions 1 and 2 have the bug. There is no hardware version 3.
+	 *
+	 * Actually, there are two firmwares that report themselves as
+	 * hardware version 1 (the boards have different ADC chips with
+	 * slightly different timing requirements, which was supposed to
+	 * be invisible to software). The first one doesn't seem to have
+	 * the bug, but the second one does, and we can't tell them apart!
+	 */
+	if (devpriv->hwver > 0 && devpriv->hwver < 4) {
+		if (subseq_len > 1 && CR_CHAN(cmd->chanlist[0]) != 0) {
+			dev_info(dev->class_dev,
+				 "amplc_pci230: ai_cmdtest: Buggy PCI230+/260+ h/w version %u requires first channel of multi-channel sequence to be 0 (corrected in h/w version 4)\n",
+				 devpriv->hwver);
+			return -EINVAL;
+		}
+	}
+
+	return 0;
 }
 
 static int pci230_ai_cmdtest(struct comedi_device *dev,
@@ -1740,136 +1824,9 @@ static int pci230_ai_cmdtest(struct comedi_device *dev,
 	if (err)
 		return 4;
 
-	/* Step 5: check channel list if it exists. */
-
-	if (cmd->chanlist && cmd->chanlist_len > 0) {
-		enum {
-			seq_err = 1 << 0,
-			rangepair_err = 1 << 1,
-			polarity_err = 1 << 2,
-			aref_err = 1 << 3,
-			diffchan_err = 1 << 4,
-			buggy_chan0_err = 1 << 5
-		};
-		unsigned int errors;
-		unsigned int chan, prev_chan;
-		unsigned int range, prev_range;
-		unsigned int polarity, prev_polarity;
-		unsigned int aref, prev_aref;
-		unsigned int subseq_len;
-		unsigned int n;
-
-		subseq_len = 0;
-		errors = 0;
-		prev_chan = prev_aref = prev_range = prev_polarity = 0;
-		for (n = 0; n < cmd->chanlist_len; n++) {
-			chan = CR_CHAN(cmd->chanlist[n]);
-			range = CR_RANGE(cmd->chanlist[n]);
-			aref = CR_AREF(cmd->chanlist[n]);
-			polarity = pci230_ai_bipolar[range];
-			/* Only the first half of the channels are available if
-			 * differential.  (These are remapped in software.  In
-			 * hardware, only the even channels are available.) */
-			if ((aref == AREF_DIFF)
-			    && (chan >= (s->n_chan / 2))) {
-				errors |= diffchan_err;
-			}
-			if (n > 0) {
-				/* Channel numbers must strictly increase or
-				 * subsequence must repeat exactly. */
-				if ((chan <= prev_chan)
-				    && (subseq_len == 0)) {
-					subseq_len = n;
-				}
-				if ((subseq_len > 0)
-				    && (cmd->chanlist[n] !=
-					cmd->chanlist[n % subseq_len])) {
-					errors |= seq_err;
-				}
-				/* Channels must have same AREF. */
-				if (aref != prev_aref)
-					errors |= aref_err;
-
-				/* Channel ranges must have same polarity. */
-				if (polarity != prev_polarity)
-					errors |= polarity_err;
-
-				/* Single-ended channel pairs must have same
-				 * range.  */
-				if ((aref != AREF_DIFF)
-				    && (((chan ^ prev_chan) & ~1) == 0)
-				    && (range != prev_range)) {
-					errors |= rangepair_err;
-				}
-			}
-			prev_chan = chan;
-			prev_range = range;
-			prev_aref = aref;
-			prev_polarity = polarity;
-		}
-		if (subseq_len == 0) {
-			/* Subsequence is whole sequence. */
-			subseq_len = n;
-		}
-		/* If channel list is a repeating subsequence, need a whole
-		 * number of repeats. */
-		if ((n % subseq_len) != 0)
-			errors |= seq_err;
-
-		if ((devpriv->hwver > 0) && (devpriv->hwver < 4)) {
-			/*
-			 * Buggy PCI230+ or PCI260+ requires channel 0 to be
-			 * (first) in the sequence if the sequence contains
-			 * more than one channel.  Hardware versions 1 and 2
-			 * have the bug.  There is no hardware version 3.
-			 *
-			 * Actually, there are two firmwares that report
-			 * themselves as hardware version 1 (the boards
-			 * have different ADC chips with slightly different
-			 * timing requirements, which was supposed to be
-			 * invisible to software).  The first one doesn't
-			 * seem to have the bug, but the second one
-			 * does, and we can't tell them apart!
-			 */
-			if ((subseq_len > 1)
-			    && (CR_CHAN(cmd->chanlist[0]) != 0)) {
-				errors |= buggy_chan0_err;
-			}
-		}
-		if (errors != 0) {
-			err++;
-			if ((errors & seq_err) != 0) {
-				dev_dbg(dev->class_dev,
-					"%s: channel numbers must increase or sequence must repeat exactly\n",
-					__func__);
-			}
-			if ((errors & rangepair_err) != 0) {
-				dev_dbg(dev->class_dev,
-					"%s: single-ended channel pairs must have the same range\n",
-					__func__);
-			}
-			if ((errors & polarity_err) != 0) {
-				dev_dbg(dev->class_dev,
-					"%s: channel sequence ranges must be all bipolar or all unipolar\n",
-					__func__);
-			}
-			if ((errors & aref_err) != 0) {
-				dev_dbg(dev->class_dev,
-					"%s: channel sequence analogue references must be all the same (single-ended or differential)\n",
-					__func__);
-			}
-			if ((errors & diffchan_err) != 0) {
-				dev_dbg(dev->class_dev,
-					"%s: differential channel number out of range 0 to %u\n",
-					__func__, (s->n_chan / 2) - 1);
-			}
-			if ((errors & buggy_chan0_err) != 0) {
-				dev_info(dev->class_dev,
-					 "amplc_pci230: ai_cmdtest: Buggy PCI230+/260+ h/w version %u requires first channel of multi-channel sequence to be 0 (corrected in h/w version 4)\n",
-					 devpriv->hwver);
-			}
-		}
-	}
+	/* Step 5: check channel list if it exists */
+	if (cmd->chanlist && cmd->chanlist_len > 0)
+		err |= pci230_ai_check_chanlist(dev, s, cmd);
 
 	if (err)
 		return 5;
@@ -1891,9 +1848,9 @@ static void pci230_ai_update_fifo_trigger_level(struct comedi_device *dev,
 		/* Wake at end of scan. */
 		wake = scanlen - devpriv->ai_scan_pos;
 	} else {
-		if (devpriv->ai_continuous
-		    || (devpriv->ai_scan_count >= PCI230_ADC_FIFOLEVEL_HALFFULL)
-		    || (scanlen >= PCI230_ADC_FIFOLEVEL_HALFFULL)) {
+		if (cmd->stop_src != TRIG_COUNT ||
+		    devpriv->ai_scan_count >= PCI230_ADC_FIFOLEVEL_HALFFULL ||
+		    scanlen >= PCI230_ADC_FIFOLEVEL_HALFFULL) {
 			wake = PCI230_ADC_FIFOLEVEL_HALFFULL;
 		} else {
 			wake = (devpriv->ai_scan_count * scanlen)
@@ -2044,7 +2001,7 @@ static void pci230_ai_start(struct comedi_device *dev,
 	struct comedi_cmd *cmd = &async->cmd;
 
 	set_bit(AI_CMD_STARTED, &devpriv->state);
-	if (!devpriv->ai_continuous && (devpriv->ai_scan_count == 0)) {
+	if (cmd->stop_src == TRIG_COUNT && devpriv->ai_scan_count == 0) {
 		/* An empty acquisition! */
 		async->events |= COMEDI_CB_EOA;
 		pci230_ai_stop(dev, s);
@@ -2177,7 +2134,9 @@ static int pci230_ai_inttrig_start(struct comedi_device *dev,
 				   struct comedi_subdevice *s,
 				   unsigned int trig_num)
 {
-	if (trig_num != 0)
+	struct comedi_cmd *cmd = &s->async->cmd;
+
+	if (trig_num != cmd->start_arg)
 		return -EINVAL;
 
 	s->async->inttrig = NULL;
@@ -2190,16 +2149,17 @@ static void pci230_handle_ai(struct comedi_device *dev,
 			     struct comedi_subdevice *s)
 {
 	struct pci230_private *devpriv = dev->private;
+	struct comedi_async *async = s->async;
+	struct comedi_cmd *cmd = &async->cmd;
+	unsigned int scanlen = cmd->scan_end_arg;
 	unsigned int events = 0;
 	unsigned int status_fifo;
 	unsigned int i;
 	unsigned int todo;
 	unsigned int fifoamount;
-	struct comedi_async *async = s->async;
-	unsigned int scanlen = async->cmd.scan_end_arg;
 
 	/* Determine number of samples to read. */
-	if (devpriv->ai_continuous) {
+	if (cmd->stop_src != TRIG_COUNT) {
 		todo = PCI230_ADC_FIFOLEVEL_HALFFULL;
 	} else if (devpriv->ai_scan_count == 0) {
 		todo = 0;
@@ -2247,7 +2207,7 @@ static void pci230_handle_ai(struct comedi_device *dev,
 			}
 		}
 		/* Read sample and store in Comedi's circular buffer. */
-		if (comedi_buf_put(async, pci230_ai_read(dev)) == 0) {
+		if (comedi_buf_put(s, pci230_ai_read(dev)) == 0) {
 			events |= COMEDI_CB_ERROR | COMEDI_CB_OVERFLOW;
 			comedi_error(dev, "AI buffer overflow");
 			break;
@@ -2261,7 +2221,7 @@ static void pci230_handle_ai(struct comedi_device *dev,
 			async->events |= COMEDI_CB_EOS;
 		}
 	}
-	if (!devpriv->ai_continuous && (devpriv->ai_scan_count == 0)) {
+	if (cmd->stop_src == TRIG_COUNT && devpriv->ai_scan_count == 0) {
 		/* End of acquisition. */
 		events |= COMEDI_CB_EOA;
 	} else {
@@ -2312,14 +2272,10 @@ static int pci230_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 
 	/* Get number of scans required. */
-	if (cmd->stop_src == TRIG_COUNT) {
+	if (cmd->stop_src == TRIG_COUNT)
 		devpriv->ai_scan_count = cmd->stop_arg;
-		devpriv->ai_continuous = 0;
-	} else {
-		/* TRIG_NONE, user calls cancel. */
+	else	/* TRIG_NONE, user calls cancel */
 		devpriv->ai_scan_count = 0;
-		devpriv->ai_continuous = 1;
-	}
 	devpriv->ai_scan_pos = 0;	/* Position within scan. */
 
 	/* Steps;
@@ -2463,12 +2419,10 @@ static int pci230_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		}
 	}
 
-	if (cmd->start_src == TRIG_INT) {
+	if (cmd->start_src == TRIG_INT)
 		s->async->inttrig = pci230_ai_inttrig_start;
-	} else {
-		/* TRIG_NOW */
+	else	/* TRIG_NOW */
 		pci230_ai_start(dev, s);
-	}
 
 	return 0;
 }

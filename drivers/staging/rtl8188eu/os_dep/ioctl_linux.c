@@ -2097,7 +2097,8 @@ static int rtw_wx_set_enc_ext(struct net_device *dev,
 		alg_name = "CCMP";
 		break;
 	default:
-		return -1;
+		ret = -1;
+		goto exit;
 	}
 
 	strncpy((char *)param->u.crypt.alg, alg_name, IEEE_CRYPT_ALG_NAME_LEN);
@@ -2124,6 +2125,7 @@ static int rtw_wx_set_enc_ext(struct net_device *dev,
 
 	ret =  wpa_set_encryption(dev, param, param_len);
 
+exit:
 	kfree(param);
 	return ret;
 }
@@ -2154,6 +2156,7 @@ static int rtw_wx_read32(struct net_device *dev,
 	u32 bytes;
 	u8 *ptmp;
 	int rv;
+	int ret = 0;
 
 	padapter = (struct adapter *)rtw_netdev_priv(dev);
 	p = &wrqu->data;
@@ -2163,16 +2166,16 @@ static int rtw_wx_read32(struct net_device *dev,
 		return -ENOMEM;
 
 	if (copy_from_user(ptmp, p->pointer, len)) {
-		kfree(ptmp);
-		return -EFAULT;
+		ret = -EFAULT;
+		goto exit;
 	}
 
 	bytes = 0;
 	addr = 0;
 	rv = sscanf(ptmp, "%d,%x", &bytes, &addr);
 	if (rv != 2) {
-		kfree(ptmp);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto exit;
 	}
 
 	switch (bytes) {
@@ -2190,12 +2193,14 @@ static int rtw_wx_read32(struct net_device *dev,
 		break;
 	default:
 		DBG_88E(KERN_INFO "%s: usage> read [bytes],[address(hex)]\n", __func__);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto exit;
 	}
 	DBG_88E(KERN_INFO "%s: addr = 0x%08X data =%s\n", __func__, addr, extra);
 
+exit:
 	kfree(ptmp);
-	return 0;
+	return ret;
 }
 
 static int rtw_wx_write32(struct net_device *dev,
@@ -7114,15 +7119,15 @@ static int rtw_mp_pwrtrk(struct net_device *dev,
 {
 	u8 enable;
 	u32 thermal;
-	s32 ret;
 	struct adapter *padapter = rtw_netdev_priv(dev);
 	char	*input = kmalloc(wrqu->length, GFP_KERNEL);
+	int ret = 0;
 
 	if (!input)
 		return -ENOMEM;
 	if (copy_from_user(input, wrqu->pointer, wrqu->length)) {
-		kfree(input);
-		return -EFAULT;
+		ret = -EFAULT;
+		goto exit;
 	}
 	_rtw_memset(extra, 0, wrqu->length);
 
@@ -7133,22 +7138,28 @@ static int rtw_mp_pwrtrk(struct net_device *dev,
 			sprintf(extra, "mp tx power tracking stop");
 		} else if (sscanf(input, "ther =%d", &thermal)) {
 				ret = Hal_SetThermalMeter(padapter, (u8)thermal);
-				if (ret == _FAIL)
-					return -EPERM;
+				if (ret == _FAIL) {
+					ret = -EPERM;
+					goto exit;
+				}
 				sprintf(extra, "mp tx power tracking start, target value =%d ok ", thermal);
 		} else {
-			kfree(input);
-			return -EINVAL;
+			ret = -EINVAL;
+			goto exit;
 		}
 	}
 
-	kfree(input);
 	ret = Hal_SetPowerTracking(padapter, enable);
-	if (ret == _FAIL)
-		return -EPERM;
+	if (ret == _FAIL) {
+		ret = -EPERM;
+		goto exit;
+	}
 
 	wrqu->length = strlen(extra);
-	return 0;
+
+exit:
+	kfree(input);
+	return ret;
 }
 
 static int rtw_mp_psd(struct net_device *dev,
@@ -7316,11 +7327,14 @@ static int rtw_mp_SetRFPath(struct net_device *dev,
 	struct adapter *padapter = rtw_netdev_priv(dev);
 	char	*input = kmalloc(wrqu->data.length, GFP_KERNEL);
 	u8 bMain = 1, bTurnoff = 1;
+	int ret = 0;
 
 	if (!input)
 		return -ENOMEM;
-	if (copy_from_user(input, wrqu->data.pointer, wrqu->data.length))
-			return -EFAULT;
+	if (copy_from_user(input, wrqu->data.pointer, wrqu->data.length)) {
+		ret = -EFAULT;
+		goto exit;
+	}
 	DBG_88E("%s:iwpriv in =%s\n", __func__, input);
 
 	bMain = strncmp(input, "1", 2); /*  strncmp true is 0 */
@@ -7333,8 +7347,10 @@ static int rtw_mp_SetRFPath(struct net_device *dev,
 		MP_PHY_SetRFPathSwitch(padapter, false);
 		DBG_88E("%s:PHY_SetRFPathSwitch = false\n", __func__);
 	}
+
+exit:
 	kfree(input);
-	return 0;
+	return ret;
 }
 
 static int rtw_mp_QueryDrv(struct net_device *dev,
@@ -7345,12 +7361,15 @@ static int rtw_mp_QueryDrv(struct net_device *dev,
 	char	*input = kmalloc(wrqu->data.length, GFP_KERNEL);
 	u8 qAutoLoad = 1;
 	struct eeprom_priv *pEEPROM = GET_EEPROM_EFUSE_PRIV(padapter);
+	int ret = 0;
 
 	if (!input)
 		return -ENOMEM;
 
-	if (copy_from_user(input, wrqu->data.pointer, wrqu->data.length))
-			return -EFAULT;
+	if (copy_from_user(input, wrqu->data.pointer, wrqu->data.length)) {
+		ret = -EFAULT;
+		goto exit;
+	}
 	DBG_88E("%s:iwpriv in =%s\n", __func__, input);
 
 	qAutoLoad = strncmp(input, "autoload", 8); /*  strncmp true is 0 */
@@ -7364,8 +7383,10 @@ static int rtw_mp_QueryDrv(struct net_device *dev,
 		sprintf(extra, "ok");
 	}
 	wrqu->data.length = strlen(extra) + 1;
+
+exit:
 	kfree(input);
-	return 0;
+	return ret;
 }
 
 static int rtw_mp_set(struct net_device *dev,

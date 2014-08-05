@@ -1,6 +1,6 @@
 /* uisqueue.h
  *
- * Copyright © 2010 - 2013 UNISYS CORPORATION
+ * Copyright (C) 2010 - 2013 UNISYS CORPORATION
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -28,6 +28,7 @@
 #include "uniklog.h"
 #include <linux/atomic.h>
 #include <linux/semaphore.h>
+#include <linux/uuid.h>
 
 #include "controlvmchannel.h"
 #include "controlvmcompletionstatus.h"
@@ -136,8 +137,8 @@ struct device_info {
 	void __iomem *chanptr;
 	U64 channelAddr;
 	U64 channelBytes;
-	GUID channelTypeGuid;
-	GUID devInstGuid;
+	uuid_le channelTypeGuid;
+	uuid_le devInstGuid;
 	struct InterruptInfo intr;
 	struct switch_info *swtch;
 	char devid[30];		/* "vbus<busno>:dev<devno>" */
@@ -163,7 +164,7 @@ struct bus_info {
 	U32 busNo, deviceCount;
 	struct device_info **device;
 	U64 guestHandle, recvBusInterruptHandle;
-	GUID busInstGuid;
+	uuid_le busInstGuid;
 	ULTRA_VBUS_CHANNEL_PROTOCOL __iomem *pBusChannel;
 	int busChannelBytes;
 	struct proc_dir_entry *proc_dir;	/* proc/uislib/vbus/<x> */
@@ -356,8 +357,8 @@ struct add_vbus_guestpart {
 					 * NOT YET USED */
 	U32 busNo;		/* bus number to be created/deleted */
 	U32 deviceCount;	/* max num of devices on bus */
-	GUID busTypeGuid;	/* indicates type of bus */
-	GUID busInstGuid;	/* instance guid for device */
+	uuid_le busTypeGuid;	/* indicates type of bus */
+	uuid_le busInstGuid;	/* instance guid for device */
 };
 
 struct del_vbus_guestpart {
@@ -371,7 +372,7 @@ struct add_virt_guestpart {
 	void __iomem *chanptr;		/* pointer to data channel */
 	U32 busNo;		/* bus number for the operation */
 	U32 deviceNo;		/* number of device on the bus */
-	GUID devInstGuid;	/* instance guid for device */
+	uuid_le devInstGuid;	/* instance guid for device */
 	struct InterruptInfo intr;	/* recv/send interrupt info */
 	/* recvInterruptHandle contains info needed in order to
 	 * register to receive interrupts on the data channel.

@@ -20,7 +20,7 @@
 #include <linux/pinctrl/machine.h>
 #include <linux/pinctrl/pinconf-generic.h>
 #include <linux/platform_data/pinctrl-adi2.h>
-#include <asm/bfin_spi3.h>
+#include <linux/spi/adi_spi3.h>
 #include <asm/dma.h>
 #include <asm/gpio.h>
 #include <asm/nand.h>
@@ -698,8 +698,6 @@ int bf609_nor_flash_init(struct platform_device *pdev)
 {
 #define CONFIG_SMC_GCTL_VAL     0x00000010
 
-	if (!devm_pinctrl_get_select_default(&pdev->dev))
-		return -EBUSY;
 	bfin_write32(SMC_GCTL, CONFIG_SMC_GCTL_VAL);
 	bfin_write32(SMC_B0CTL, 0x01002011);
 	bfin_write32(SMC_B0TIM, 0x08170977);
@@ -709,7 +707,6 @@ int bf609_nor_flash_init(struct platform_device *pdev)
 
 void bf609_nor_flash_exit(struct platform_device *pdev)
 {
-	devm_pinctrl_put(pdev->dev.pins->p);
 	bfin_write32(SMC_GCTL, 0);
 }
 
@@ -767,13 +764,13 @@ static struct flash_platform_data bfin_spi_flash_data = {
 	.type = "w25q32",
 };
 
-static struct bfin_spi3_chip spi_flash_chip_info = {
+static struct adi_spi3_chip spi_flash_chip_info = {
 	.enable_dma = true,         /* use dma transfer with this chip*/
 };
 #endif
 
 #if IS_ENABLED(CONFIG_SPI_SPIDEV)
-static struct bfin_spi3_chip spidev_chip_info = {
+static struct adi_spi3_chip spidev_chip_info = {
 	.enable_dma = true,
 };
 #endif
@@ -1736,7 +1733,7 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 	},
 #endif
 };
-#if IS_ENABLED(CONFIG_SPI_BFIN_V3)
+#if IS_ENABLED(CONFIG_SPI_ADI_V3)
 /* SPI (0) */
 static struct resource bfin_spi0_resource[] = {
 	{
@@ -1777,13 +1774,13 @@ static struct resource bfin_spi1_resource[] = {
 };
 
 /* SPI controller data */
-static struct bfin_spi3_master bf60x_spi_master_info0 = {
+static struct adi_spi3_master bf60x_spi_master_info0 = {
 	.num_chipselect = MAX_CTRL_CS + MAX_BLACKFIN_GPIOS,
 	.pin_req = {P_SPI0_SCK, P_SPI0_MISO, P_SPI0_MOSI, 0},
 };
 
 static struct platform_device bf60x_spi_master0 = {
-	.name = "bfin-spi3",
+	.name = "adi-spi3",
 	.id = 0, /* Bus number */
 	.num_resources = ARRAY_SIZE(bfin_spi0_resource),
 	.resource = bfin_spi0_resource,
@@ -1792,13 +1789,13 @@ static struct platform_device bf60x_spi_master0 = {
 	},
 };
 
-static struct bfin_spi3_master bf60x_spi_master_info1 = {
+static struct adi_spi3_master bf60x_spi_master_info1 = {
 	.num_chipselect = MAX_CTRL_CS + MAX_BLACKFIN_GPIOS,
 	.pin_req = {P_SPI1_SCK, P_SPI1_MISO, P_SPI1_MOSI, 0},
 };
 
 static struct platform_device bf60x_spi_master1 = {
-	.name = "bfin-spi3",
+	.name = "adi-spi3",
 	.id = 1, /* Bus number */
 	.num_resources = ARRAY_SIZE(bfin_spi1_resource),
 	.resource = bfin_spi1_resource,
@@ -1990,7 +1987,7 @@ static struct platform_device *ezkit_devices[] __initdata = {
 	&bfin_sdh_device,
 #endif
 
-#if IS_ENABLED(CONFIG_SPI_BFIN_V3)
+#if IS_ENABLED(CONFIG_SPI_ADI_V3)
 	&bf60x_spi_master0,
 	&bf60x_spi_master1,
 #endif
@@ -2051,22 +2048,21 @@ static struct pinctrl_map __initdata bfin_pinmux_map[] = {
 	PIN_MAP_MUX_GROUP_DEFAULT("bfin_sir.1",  "pinctrl-adi2.0", NULL, "uart1"),
 	PIN_MAP_MUX_GROUP_DEFAULT("bfin-sdh.0",  "pinctrl-adi2.0", NULL, "rsi0"),
 	PIN_MAP_MUX_GROUP_DEFAULT("stmmaceth.0",  "pinctrl-adi2.0", NULL, "eth0"),
-	PIN_MAP_MUX_GROUP_DEFAULT("bfin-spi3.0",  "pinctrl-adi2.0", NULL, "spi0"),
-	PIN_MAP_MUX_GROUP_DEFAULT("bfin-spi3.1",  "pinctrl-adi2.0", NULL, "spi1"),
+	PIN_MAP_MUX_GROUP_DEFAULT("adi-spi3.0",  "pinctrl-adi2.0", NULL, "spi0"),
+	PIN_MAP_MUX_GROUP_DEFAULT("adi-spi3.1",  "pinctrl-adi2.0", NULL, "spi1"),
 	PIN_MAP_MUX_GROUP_DEFAULT("i2c-bfin-twi.0",  "pinctrl-adi2.0", NULL, "twi0"),
 	PIN_MAP_MUX_GROUP_DEFAULT("i2c-bfin-twi.1",  "pinctrl-adi2.0", NULL, "twi1"),
 	PIN_MAP_MUX_GROUP_DEFAULT("bfin-rotary",  "pinctrl-adi2.0", NULL, "rotary"),
 	PIN_MAP_MUX_GROUP_DEFAULT("bfin_can.0",  "pinctrl-adi2.0", NULL, "can0"),
 	PIN_MAP_MUX_GROUP_DEFAULT("physmap-flash.0",  "pinctrl-adi2.0", NULL, "smc0"),
-	PIN_MAP_MUX_GROUP_DEFAULT("bf609_nl8048.2",  "pinctrl-adi2.0", NULL, "ppi2_16b"),
-	PIN_MAP_MUX_GROUP_DEFAULT("bfin_display.0",  "pinctrl-adi2.0", NULL, "ppi0_16b"),
-#if IS_ENABLED(CONFIG_VIDEO_MT9M114)
-	PIN_MAP_MUX_GROUP_DEFAULT("bfin_capture.0",  "pinctrl-adi2.0", NULL, "ppi0_8b"),
-#elif IS_ENABLED(CONFIG_VIDEO_VS6624)
-	PIN_MAP_MUX_GROUP_DEFAULT("bfin_capture.0",  "pinctrl-adi2.0", NULL, "ppi0_16b"),
-#else
-	PIN_MAP_MUX_GROUP_DEFAULT("bfin_capture.0",  "pinctrl-adi2.0", NULL, "ppi0_24b"),
-#endif
+	PIN_MAP_MUX_GROUP_DEFAULT("bf609_nl8048.2",  "pinctrl-adi2.0", "ppi2_16bgrp", "ppi2"),
+	PIN_MAP_MUX_GROUP("bfin_display.0", "8bit",  "pinctrl-adi2.0", "ppi2_8bgrp", "ppi2"),
+	PIN_MAP_MUX_GROUP_DEFAULT("bfin_display.0",  "pinctrl-adi2.0", "ppi2_16bgrp", "ppi2"),
+	PIN_MAP_MUX_GROUP("bfin_display.0", "16bit",  "pinctrl-adi2.0", "ppi2_16bgrp", "ppi2"),
+	PIN_MAP_MUX_GROUP("bfin_capture.0", "8bit",  "pinctrl-adi2.0", "ppi0_8bgrp", "ppi0"),
+	PIN_MAP_MUX_GROUP_DEFAULT("bfin_capture.0",  "pinctrl-adi2.0", "ppi0_16bgrp", "ppi0"),
+	PIN_MAP_MUX_GROUP("bfin_capture.0", "16bit",  "pinctrl-adi2.0", "ppi0_16bgrp", "ppi0"),
+	PIN_MAP_MUX_GROUP("bfin_capture.0", "24bit",  "pinctrl-adi2.0", "ppi0_24bgrp", "ppi0"),
 	PIN_MAP_MUX_GROUP_DEFAULT("bfin-i2s.0",  "pinctrl-adi2.0", NULL, "sport0"),
 	PIN_MAP_MUX_GROUP_DEFAULT("bfin-tdm.0",  "pinctrl-adi2.0", NULL, "sport0"),
 	PIN_MAP_MUX_GROUP_DEFAULT("bfin-i2s.1",  "pinctrl-adi2.0", NULL, "sport1"),

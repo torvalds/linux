@@ -215,13 +215,13 @@ static int kobil_open(struct tty_struct *tty, struct usb_serial_port *port)
 			priv->device_type == KOBIL_ADAPTER_K_PRODUCT_ID) {
 		/* Setting Baudrate, Parity and Stopbits */
 		result = usb_control_msg(port->serial->dev,
-			  usb_rcvctrlpipe(port->serial->dev, 0),
+			  usb_sndctrlpipe(port->serial->dev, 0),
 			  SUSBCRequest_SetBaudRateParityAndStopBits,
 			  USB_TYPE_VENDOR | USB_RECIP_ENDPOINT | USB_DIR_OUT,
 			  SUSBCR_SBR_9600 | SUSBCR_SPASB_EvenParity |
 							SUSBCR_SPASB_1StopBit,
 			  0,
-			  transfer_buffer,
+			  NULL,
 			  0,
 			  KOBIL_TIMEOUT
 		);
@@ -229,12 +229,12 @@ static int kobil_open(struct tty_struct *tty, struct usb_serial_port *port)
 
 		/* reset all queues */
 		result = usb_control_msg(port->serial->dev,
-			  usb_rcvctrlpipe(port->serial->dev, 0),
+			  usb_sndctrlpipe(port->serial->dev, 0),
 			  SUSBCRequest_Misc,
 			  USB_TYPE_VENDOR | USB_RECIP_ENDPOINT | USB_DIR_OUT,
 			  SUSBCR_MSC_ResetAllQueues,
 			  0,
-			  transfer_buffer,
+			  NULL,
 			  0,
 			  KOBIL_TIMEOUT
 		);
@@ -445,12 +445,12 @@ static int kobil_tiocmset(struct tty_struct *tty,
 		else
 			dev_dbg(dev, "%s - Clearing DTR\n", __func__);
 		result = usb_control_msg(port->serial->dev,
-			  usb_rcvctrlpipe(port->serial->dev, 0),
+			  usb_sndctrlpipe(port->serial->dev, 0),
 			  SUSBCRequest_SetStatusLinesOrQueues,
 			  USB_TYPE_VENDOR | USB_RECIP_ENDPOINT | USB_DIR_OUT,
 			  ((dtr != 0) ? SUSBCR_SSL_SETDTR : SUSBCR_SSL_CLRDTR),
 			  0,
-			  transfer_buffer,
+			  NULL,
 			  0,
 			  KOBIL_TIMEOUT);
 	} else {
@@ -459,12 +459,12 @@ static int kobil_tiocmset(struct tty_struct *tty,
 		else
 			dev_dbg(dev, "%s - Clearing RTS\n", __func__);
 		result = usb_control_msg(port->serial->dev,
-			usb_rcvctrlpipe(port->serial->dev, 0),
+			usb_sndctrlpipe(port->serial->dev, 0),
 			SUSBCRequest_SetStatusLinesOrQueues,
 			USB_TYPE_VENDOR | USB_RECIP_ENDPOINT | USB_DIR_OUT,
 			((rts != 0) ? SUSBCR_SSL_SETRTS : SUSBCR_SSL_CLRRTS),
 			0,
-			transfer_buffer,
+			NULL,
 			0,
 			KOBIL_TIMEOUT);
 	}
@@ -514,7 +514,7 @@ static void kobil_set_termios(struct tty_struct *tty,
 	tty_encode_baud_rate(tty, speed, speed);
 
 	result = usb_control_msg(port->serial->dev,
-		  usb_rcvctrlpipe(port->serial->dev, 0),
+		  usb_sndctrlpipe(port->serial->dev, 0),
 		  SUSBCRequest_SetBaudRateParityAndStopBits,
 		  USB_TYPE_VENDOR | USB_RECIP_ENDPOINT | USB_DIR_OUT,
 		  urb_val,
@@ -546,12 +546,12 @@ static int kobil_ioctl(struct tty_struct *tty,
 			return -ENOBUFS;
 
 		result = usb_control_msg(port->serial->dev,
-			  usb_rcvctrlpipe(port->serial->dev, 0),
+			  usb_sndctrlpipe(port->serial->dev, 0),
 			  SUSBCRequest_Misc,
 			  USB_TYPE_VENDOR | USB_RECIP_ENDPOINT | USB_DIR_OUT,
 			  SUSBCR_MSC_ResetAllQueues,
 			  0,
-			  NULL, /* transfer_buffer, */
+			  NULL,
 			  0,
 			  KOBIL_TIMEOUT
 			);

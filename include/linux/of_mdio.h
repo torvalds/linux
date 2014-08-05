@@ -22,9 +22,6 @@ extern struct phy_device *of_phy_connect(struct net_device *dev,
 struct phy_device *of_phy_attach(struct net_device *dev,
 				 struct device_node *phy_np, u32 flags,
 				 phy_interface_t iface);
-extern struct phy_device *of_phy_connect_fixed_link(struct net_device *dev,
-					 void (*hndlr)(struct net_device *),
-					 phy_interface_t iface);
 
 extern struct mii_bus *of_mdio_find_bus(struct device_node *mdio_np);
 
@@ -59,17 +56,25 @@ static inline struct phy_device *of_phy_attach(struct net_device *dev,
 	return NULL;
 }
 
-static inline struct phy_device *of_phy_connect_fixed_link(struct net_device *dev,
-							   void (*hndlr)(struct net_device *),
-							   phy_interface_t iface)
-{
-	return NULL;
-}
-
 static inline struct mii_bus *of_mdio_find_bus(struct device_node *mdio_np)
 {
 	return NULL;
 }
 #endif /* CONFIG_OF */
+
+#if defined(CONFIG_OF) && defined(CONFIG_FIXED_PHY)
+extern int of_phy_register_fixed_link(struct device_node *np);
+extern bool of_phy_is_fixed_link(struct device_node *np);
+#else
+static inline int of_phy_register_fixed_link(struct device_node *np)
+{
+	return -ENOSYS;
+}
+static inline bool of_phy_is_fixed_link(struct device_node *np)
+{
+	return false;
+}
+#endif
+
 
 #endif /* __LINUX_OF_MDIO_H */

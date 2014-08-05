@@ -16,6 +16,7 @@
 #include <linux/init.h>
 #include <linux/suspend.h>
 #include <linux/syscore_ops.h>
+#include <linux/cpu_pm.h>
 #include <linux/io.h>
 #include <linux/irqchip/arm-gic.h>
 #include <linux/err.h>
@@ -26,7 +27,6 @@
 #include <asm/smp_scu.h>
 #include <asm/suspend.h>
 
-#include <plat/cpu.h>
 #include <plat/pm-common.h>
 #include <plat/pll.h>
 #include <plat/regs-srom.h>
@@ -100,8 +100,140 @@ static int exynos_irq_set_wake(struct irq_data *data, unsigned int state)
 	return -ENOENT;
 }
 
+/**
+ * exynos_core_power_down : power down the specified cpu
+ * @cpu : the cpu to power down
+ *
+ * Power down the specified cpu. The sequence must be finished by a
+ * call to cpu_do_idle()
+ *
+ */
+void exynos_cpu_power_down(int cpu)
+{
+	__raw_writel(0, EXYNOS_ARM_CORE_CONFIGURATION(cpu));
+}
+
+/**
+ * exynos_cpu_power_up : power up the specified cpu
+ * @cpu : the cpu to power up
+ *
+ * Power up the specified cpu
+ */
+void exynos_cpu_power_up(int cpu)
+{
+	__raw_writel(S5P_CORE_LOCAL_PWR_EN,
+		     EXYNOS_ARM_CORE_CONFIGURATION(cpu));
+}
+
+/**
+ * exynos_cpu_power_state : returns the power state of the cpu
+ * @cpu : the cpu to retrieve the power state from
+ *
+ */
+int exynos_cpu_power_state(int cpu)
+{
+	return (__raw_readl(EXYNOS_ARM_CORE_STATUS(cpu)) &
+			S5P_CORE_LOCAL_PWR_EN);
+}
+
+/**
+ * exynos_cluster_power_down : power down the specified cluster
+ * @cluster : the cluster to power down
+ */
+void exynos_cluster_power_down(int cluster)
+{
+	__raw_writel(0, EXYNOS_COMMON_CONFIGURATION(cluster));
+}
+
+/**
+ * exynos_cluster_power_up : power up the specified cluster
+ * @cluster : the cluster to power up
+ */
+void exynos_cluster_power_up(int cluster)
+{
+	__raw_writel(S5P_CORE_LOCAL_PWR_EN,
+		     EXYNOS_COMMON_CONFIGURATION(cluster));
+}
+
+/**
+ * exynos_cluster_power_state : returns the power state of the cluster
+ * @cluster : the cluster to retrieve the power state from
+ *
+ */
+int exynos_cluster_power_state(int cluster)
+{
+	return (__raw_readl(EXYNOS_COMMON_STATUS(cluster)) &
+			S5P_CORE_LOCAL_PWR_EN);
+}
+
+#define EXYNOS_BOOT_VECTOR_ADDR	(samsung_rev() == EXYNOS4210_REV_1_1 ? \
+			S5P_INFORM7 : (samsung_rev() == EXYNOS4210_REV_1_0 ? \
+			(sysram_base_addr + 0x24) : S5P_INFORM0))
+#define EXYNOS_BOOT_VECTOR_FLAG	(samsung_rev() == EXYNOS4210_REV_1_1 ? \
+			S5P_INFORM6 : (samsung_rev() == EXYNOS4210_REV_1_0 ? \
+			(sysram_base_addr + 0x20) : S5P_INFORM1))
+
+#define S5P_CHECK_AFTR  0xFCBA0D10
+#define S5P_CHECK_SLEEP 0x00000BAD
+
+/* Ext-GIC nIRQ/nFIQ is the only wakeup source in AFTR */
+static void exynos_set_wakeupmask(long mask)
+{
+	__raw_writel(mask, S5P_WAKEUP_MASK);
+}
+
+static void exynos_cpu_set_boot_vector(long flags)
+{
+	__raw_writel(virt_to_phys(exynos_cpu_resume), EXYNOS_BOOT_VECTOR_ADDR);
+	__raw_writel(flags, EXYNOS_BOOT_VECTOR_FLAG);
+}
+
+void exynos_enter_aftr(void)
+{
+	exynos_set_wakeupmask(0x0000ff3e);
+	exynos_cpu_set_boot_vector(S5P_CHECK_AFTR);
+	/* Set value of power down register for aftr mode */
+	exynos_sys_powerdown_conf(SYS_AFTR);
+}
+
 /* For Cortex-A9 Diagnostic and Power control register */
 static unsigned int save_arm_register[2];
+
+static void exynos_cpu_save_register(void)
+{
+	unsigned long tmp;
+
+	/* Save Power control register */
+	asm ("mrc p15, 0, %0, c15, c0, 0"
+	     : "=r" (tmp) : : "cc");
+
+	save_arm_register[0] = tmp;
+
+	/* Save Diagnostic register */
+	asm ("mrc p15, 0, %0, c15, c0, 1"
+	     : "=r" (tmp) : : "cc");
+
+	save_arm_register[1] = tmp;
+}
+
+static void exynos_cpu_restore_register(void)
+{
+	unsigned long tmp;
+
+	/* Restore Power control register */
+	tmp = save_arm_register[0];
+
+	asm volatile ("mcr p15, 0, %0, c15, c0, 0"
+		      : : "r" (tmp)
+		      : "cc");
+
+	/* Restore Diagnostic register */
+	tmp = save_arm_register[1];
+
+	asm volatile ("mcr p15, 0, %0, c15, c0, 1"
+		      : : "r" (tmp)
+		      : "cc");
+}
 
 static int exynos_cpu_suspend(unsigned long arg)
 {
@@ -147,37 +279,34 @@ static void exynos_pm_prepare(void)
 	__raw_writel(virt_to_phys(exynos_cpu_resume), S5P_INFORM0);
 }
 
-static int exynos_pm_suspend(void)
+static void exynos_pm_central_suspend(void)
 {
 	unsigned long tmp;
 
 	/* Setting Central Sequence Register for power down mode */
-
 	tmp = __raw_readl(S5P_CENTRAL_SEQ_CONFIGURATION);
 	tmp &= ~S5P_CENTRAL_LOWPWR_CFG;
 	__raw_writel(tmp, S5P_CENTRAL_SEQ_CONFIGURATION);
+}
+
+static int exynos_pm_suspend(void)
+{
+	unsigned long tmp;
+
+	exynos_pm_central_suspend();
 
 	/* Setting SEQ_OPTION register */
 
 	tmp = (S5P_USE_STANDBY_WFI0 | S5P_USE_STANDBY_WFE0);
 	__raw_writel(tmp, S5P_CENTRAL_SEQ_OPTION);
 
-	if (!soc_is_exynos5250()) {
-		/* Save Power control register */
-		asm ("mrc p15, 0, %0, c15, c0, 0"
-		     : "=r" (tmp) : : "cc");
-		save_arm_register[0] = tmp;
-
-		/* Save Diagnostic register */
-		asm ("mrc p15, 0, %0, c15, c0, 1"
-		     : "=r" (tmp) : : "cc");
-		save_arm_register[1] = tmp;
-	}
+	if (read_cpuid_part_number() == ARM_CPU_PART_CORTEX_A9)
+		exynos_cpu_save_register();
 
 	return 0;
 }
 
-static void exynos_pm_resume(void)
+static int exynos_pm_central_resume(void)
 {
 	unsigned long tmp;
 
@@ -194,21 +323,19 @@ static void exynos_pm_resume(void)
 		/* clear the wakeup state register */
 		__raw_writel(0x0, S5P_WAKEUP_STAT);
 		/* No need to perform below restore code */
-		goto early_wakeup;
+		return -1;
 	}
-	if (!soc_is_exynos5250()) {
-		/* Restore Power control register */
-		tmp = save_arm_register[0];
-		asm volatile ("mcr p15, 0, %0, c15, c0, 0"
-			      : : "r" (tmp)
-			      : "cc");
 
-		/* Restore Diagnostic register */
-		tmp = save_arm_register[1];
-		asm volatile ("mcr p15, 0, %0, c15, c0, 1"
-			      : : "r" (tmp)
-			      : "cc");
-	}
+	return 0;
+}
+
+static void exynos_pm_resume(void)
+{
+	if (exynos_pm_central_resume())
+		goto early_wakeup;
+
+	if (read_cpuid_part_number() == ARM_CPU_PART_CORTEX_A9)
+		exynos_cpu_restore_register();
 
 	/* For release retention */
 
@@ -226,7 +353,7 @@ static void exynos_pm_resume(void)
 
 	s3c_pm_do_restore_core(exynos_core_save, ARRAY_SIZE(exynos_core_save));
 
-	if (IS_ENABLED(CONFIG_SMP) && !soc_is_exynos5250())
+	if (read_cpuid_part_number() == ARM_CPU_PART_CORTEX_A9)
 		scu_enable(S5P_VA_SCU);
 
 early_wakeup:
@@ -304,9 +431,44 @@ static const struct platform_suspend_ops exynos_suspend_ops = {
 	.valid		= suspend_valid_only_mem,
 };
 
+static int exynos_cpu_pm_notifier(struct notifier_block *self,
+				  unsigned long cmd, void *v)
+{
+	int cpu = smp_processor_id();
+
+	switch (cmd) {
+	case CPU_PM_ENTER:
+		if (cpu == 0) {
+			exynos_pm_central_suspend();
+			if (read_cpuid_part_number() == ARM_CPU_PART_CORTEX_A9)
+				exynos_cpu_save_register();
+		}
+		break;
+
+	case CPU_PM_EXIT:
+		if (cpu == 0) {
+			if (read_cpuid_part_number() ==
+					ARM_CPU_PART_CORTEX_A9) {
+				scu_enable(S5P_VA_SCU);
+				exynos_cpu_restore_register();
+			}
+			exynos_pm_central_resume();
+		}
+		break;
+	}
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block exynos_cpu_pm_notifier_block = {
+	.notifier_call = exynos_cpu_pm_notifier,
+};
+
 void __init exynos_pm_init(void)
 {
 	u32 tmp;
+
+	cpu_pm_register_notifier(&exynos_cpu_pm_notifier_block);
 
 	/* Platform-specific GIC callback */
 	gic_arch_extn.irq_set_wake = exynos_irq_set_wake;

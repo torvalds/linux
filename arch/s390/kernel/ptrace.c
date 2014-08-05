@@ -136,7 +136,7 @@ void ptrace_disable(struct task_struct *task)
 	memset(&task->thread.per_user, 0, sizeof(task->thread.per_user));
 	memset(&task->thread.per_event, 0, sizeof(task->thread.per_event));
 	clear_tsk_thread_flag(task, TIF_SINGLE_STEP);
-	clear_tsk_thread_flag(task, TIF_PER_TRAP);
+	clear_pt_regs_flag(task_pt_regs(task), PIF_PER_TRAP);
 	task->thread.per_flags = 0;
 }
 
@@ -334,9 +334,14 @@ static int __poke_user(struct task_struct *child, addr_t addr, addr_t data)
 			unsigned long mask = PSW_MASK_USER;
 
 			mask |= is_ri_task(child) ? PSW_MASK_RI : 0;
-			if ((data & ~mask) != PSW_USER_BITS)
+			if ((data ^ PSW_USER_BITS) & ~mask)
+				/* Invalid psw mask. */
+				return -EINVAL;
+			if ((data & PSW_MASK_ASC) == PSW_ASC_HOME)
+				/* Invalid address-space-control bits */
 				return -EINVAL;
 			if ((data & PSW_MASK_EA) && !(data & PSW_MASK_BA))
+				/* Invalid addressing mode bits */
 				return -EINVAL;
 		}
 		*(addr_t *)((addr_t) &task_pt_regs(child)->psw + addr) = data;
@@ -672,8 +677,11 @@ static int __poke_user_compat(struct task_struct *child,
 
 			mask |= is_ri_task(child) ? PSW32_MASK_RI : 0;
 			/* Build a 64 bit psw mask from 31 bit mask. */
-			if ((tmp & ~mask) != PSW32_USER_BITS)
+			if ((tmp ^ PSW32_USER_BITS) & ~mask)
 				/* Invalid psw mask. */
+				return -EINVAL;
+			if ((data & PSW32_MASK_ASC) == PSW32_ASC_HOME)
+				/* Invalid address-space-control bits */
 				return -EINVAL;
 			regs->psw.mask = (regs->psw.mask & ~PSW_MASK_USER) |
 				(regs->psw.mask & PSW_MASK_BA) |
@@ -813,7 +821,7 @@ asmlinkage long do_syscall_trace_enter(struct pt_regs *regs)
 		 * debugger stored an invalid system call number. Skip
 		 * the system call and the system call restart handling.
 		 */
-		clear_thread_flag(TIF_SYSCALL);
+		clear_pt_regs_flag(regs, PIF_SYSCALL);
 		ret = -1;
 	}
 

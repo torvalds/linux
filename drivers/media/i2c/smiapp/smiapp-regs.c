@@ -114,14 +114,14 @@ static int ____smiapp_read(struct smiapp_sensor *sensor, u16 reg,
 	*val = 0;
 	/* high byte comes first */
 	switch (len) {
-	case SMIA_REG_32BIT:
+	case SMIAPP_REG_32BIT:
 		*val = (data[0] << 24) + (data[1] << 16) + (data[2] << 8) +
 			data[3];
 		break;
-	case SMIA_REG_16BIT:
+	case SMIAPP_REG_16BIT:
 		*val = (data[0] << 8) + data[1];
 		break;
-	case SMIA_REG_8BIT:
+	case SMIAPP_REG_8BIT:
 		*val = data[0];
 		break;
 	default:
@@ -165,31 +165,28 @@ static int __smiapp_read(struct smiapp_sensor *sensor, u32 reg, u32 *val,
 			 bool only8)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&sensor->src->sd);
-	unsigned int len = (u8)(reg >> 16);
+	u8 len = SMIAPP_REG_WIDTH(reg);
 	int rval;
 
-	if (len != SMIA_REG_8BIT && len != SMIA_REG_16BIT
-	    && len != SMIA_REG_32BIT)
+	if (len != SMIAPP_REG_8BIT && len != SMIAPP_REG_16BIT
+	    && len != SMIAPP_REG_32BIT)
 		return -EINVAL;
 
-	if (smiapp_quirk_reg(sensor, reg, val))
-		goto found_quirk;
-
-	if (len == SMIA_REG_8BIT && !only8)
-		rval = ____smiapp_read(sensor, (u16)reg, len, val);
+	if (len == SMIAPP_REG_8BIT || !only8)
+		rval = ____smiapp_read(sensor, SMIAPP_REG_ADDR(reg), len, val);
 	else
-		rval = ____smiapp_read_8only(sensor, (u16)reg, len, val);
+		rval = ____smiapp_read_8only(sensor, SMIAPP_REG_ADDR(reg), len,
+					     val);
 	if (rval < 0)
 		return rval;
 
-found_quirk:
-	if (reg & SMIA_REG_FLAG_FLOAT)
+	if (reg & SMIAPP_REG_FLAG_FLOAT)
 		*val = float_to_u32_mul_1000000(client, *val);
 
 	return 0;
 }
 
-int smiapp_read(struct smiapp_sensor *sensor, u32 reg, u32 *val)
+int smiapp_read_no_quirk(struct smiapp_sensor *sensor, u32 reg, u32 *val)
 {
 	return __smiapp_read(
 		sensor, reg, val,
@@ -197,28 +194,47 @@ int smiapp_read(struct smiapp_sensor *sensor, u32 reg, u32 *val)
 				   SMIAPP_QUIRK_FLAG_8BIT_READ_ONLY));
 }
 
+int smiapp_read(struct smiapp_sensor *sensor, u32 reg, u32 *val)
+{
+	int rval;
+
+	*val = 0;
+	rval = smiapp_call_quirk(sensor, reg_access, false, &reg, val);
+	if (rval == -ENOIOCTLCMD)
+		return 0;
+	if (rval < 0)
+		return rval;
+
+	return smiapp_read_no_quirk(sensor, reg, val);
+}
+
 int smiapp_read_8only(struct smiapp_sensor *sensor, u32 reg, u32 *val)
 {
+	int rval;
+
+	*val = 0;
+	rval = smiapp_call_quirk(sensor, reg_access, false, &reg, val);
+	if (rval == -ENOIOCTLCMD)
+		return 0;
+	if (rval < 0)
+		return rval;
+
 	return __smiapp_read(sensor, reg, val, true);
 }
 
-/*
- * Write to a 8/16-bit register.
- * Returns zero if successful, or non-zero otherwise.
- */
-int smiapp_write(struct smiapp_sensor *sensor, u32 reg, u32 val)
+int smiapp_write_no_quirk(struct smiapp_sensor *sensor, u32 reg, u32 val)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&sensor->src->sd);
 	struct i2c_msg msg;
 	unsigned char data[6];
 	unsigned int retries;
-	unsigned int flags = reg >> 24;
-	unsigned int len = (u8)(reg >> 16);
-	u16 offset = reg;
+	u8 flags = SMIAPP_REG_FLAGS(reg);
+	u8 len = SMIAPP_REG_WIDTH(reg);
+	u16 offset = SMIAPP_REG_ADDR(reg);
 	int r;
 
-	if ((len != SMIA_REG_8BIT && len != SMIA_REG_16BIT &&
-	     len != SMIA_REG_32BIT) || flags)
+	if ((len != SMIAPP_REG_8BIT && len != SMIAPP_REG_16BIT &&
+	     len != SMIAPP_REG_32BIT) || flags)
 		return -EINVAL;
 
 	msg.addr = client->addr;
@@ -231,14 +247,14 @@ int smiapp_write(struct smiapp_sensor *sensor, u32 reg, u32 val)
 	data[1] = (u8) (reg & 0xff);
 
 	switch (len) {
-	case SMIA_REG_8BIT:
+	case SMIAPP_REG_8BIT:
 		data[2] = val;
 		break;
-	case SMIA_REG_16BIT:
+	case SMIAPP_REG_16BIT:
 		data[2] = val >> 8;
 		data[3] = val;
 		break;
-	case SMIA_REG_32BIT:
+	case SMIAPP_REG_32BIT:
 		data[2] = val >> 24;
 		data[3] = val >> 16;
 		data[4] = val >> 8;
@@ -270,4 +286,21 @@ int smiapp_write(struct smiapp_sensor *sensor, u32 reg, u32 val)
 		"wrote 0x%x to offset 0x%x error %d\n", val, offset, r);
 
 	return r;
+}
+
+/*
+ * Write to a 8/16-bit register.
+ * Returns zero if successful, or non-zero otherwise.
+ */
+int smiapp_write(struct smiapp_sensor *sensor, u32 reg, u32 val)
+{
+	int rval;
+
+	rval = smiapp_call_quirk(sensor, reg_access, true, &reg, &val);
+	if (rval == -ENOIOCTLCMD)
+		return 0;
+	if (rval < 0)
+		return rval;
+
+	return smiapp_write_no_quirk(sensor, reg, val);
 }

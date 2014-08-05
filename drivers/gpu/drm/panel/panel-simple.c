@@ -262,6 +262,13 @@ static int panel_simple_remove(struct device *dev)
 	return 0;
 }
 
+static void panel_simple_shutdown(struct device *dev)
+{
+	struct panel_simple *panel = dev_get_drvdata(dev);
+
+	panel_simple_disable(&panel->base);
+}
+
 static const struct drm_display_mode auo_b101aw03_mode = {
 	.clock = 51450,
 	.hdisplay = 1024,
@@ -281,6 +288,28 @@ static const struct panel_desc auo_b101aw03 = {
 	.size = {
 		.width = 223,
 		.height = 125,
+	},
+};
+
+static const struct drm_display_mode auo_b133xtn01_mode = {
+	.clock = 69500,
+	.hdisplay = 1366,
+	.hsync_start = 1366 + 48,
+	.hsync_end = 1366 + 48 + 32,
+	.htotal = 1366 + 48 + 32 + 20,
+	.vdisplay = 768,
+	.vsync_start = 768 + 3,
+	.vsync_end = 768 + 3 + 6,
+	.vtotal = 768 + 3 + 6 + 13,
+	.vrefresh = 60,
+};
+
+static const struct panel_desc auo_b133xtn01 = {
+	.modes = &auo_b133xtn01_mode,
+	.num_modes = 1,
+	.size = {
+		.width = 293,
+		.height = 165,
 	},
 };
 
@@ -325,6 +354,52 @@ static const struct panel_desc chunghwa_claa101wb01 = {
 	.size = {
 		.width = 223,
 		.height = 125,
+	},
+};
+
+static const struct drm_display_mode edt_et057090dhu_mode = {
+	.clock = 25175,
+	.hdisplay = 640,
+	.hsync_start = 640 + 16,
+	.hsync_end = 640 + 16 + 30,
+	.htotal = 640 + 16 + 30 + 114,
+	.vdisplay = 480,
+	.vsync_start = 480 + 10,
+	.vsync_end = 480 + 10 + 3,
+	.vtotal = 480 + 10 + 3 + 32,
+	.vrefresh = 60,
+	.flags = DRM_MODE_FLAG_NVSYNC | DRM_MODE_FLAG_NHSYNC,
+};
+
+static const struct panel_desc edt_et057090dhu = {
+	.modes = &edt_et057090dhu_mode,
+	.num_modes = 1,
+	.size = {
+		.width = 115,
+		.height = 86,
+	},
+};
+
+static const struct drm_display_mode edt_etm0700g0dh6_mode = {
+	.clock = 33260,
+	.hdisplay = 800,
+	.hsync_start = 800 + 40,
+	.hsync_end = 800 + 40 + 128,
+	.htotal = 800 + 40 + 128 + 88,
+	.vdisplay = 480,
+	.vsync_start = 480 + 10,
+	.vsync_end = 480 + 10 + 2,
+	.vtotal = 480 + 10 + 2 + 33,
+	.vrefresh = 60,
+	.flags = DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC,
+};
+
+static const struct panel_desc edt_etm0700g0dh6 = {
+	.modes = &edt_etm0700g0dh6_mode,
+	.num_modes = 1,
+	.size = {
+		.width = 152,
+		.height = 91,
 	},
 };
 
@@ -377,11 +452,23 @@ static const struct of_device_id platform_of_match[] = {
 		.compatible = "auo,b101aw03",
 		.data = &auo_b101aw03,
 	}, {
+		.compatible = "auo,b133xtn01",
+		.data = &auo_b133xtn01,
+	}, {
 		.compatible = "chunghwa,claa101wa01a",
 		.data = &chunghwa_claa101wa01a
 	}, {
 		.compatible = "chunghwa,claa101wb01",
 		.data = &chunghwa_claa101wb01
+	}, {
+		.compatible = "edt,et057090dhu",
+		.data = &edt_et057090dhu,
+	}, {
+		.compatible = "edt,et070080dh6",
+		.data = &edt_etm0700g0dh6,
+	}, {
+		.compatible = "edt,etm0700g0dh6",
+		.data = &edt_etm0700g0dh6,
 	}, {
 		.compatible = "lg,lp129qe",
 		.data = &lg_lp129qe,
@@ -412,6 +499,11 @@ static int panel_simple_platform_remove(struct platform_device *pdev)
 	return panel_simple_remove(&pdev->dev);
 }
 
+static void panel_simple_platform_shutdown(struct platform_device *pdev)
+{
+	panel_simple_shutdown(&pdev->dev);
+}
+
 static struct platform_driver panel_simple_platform_driver = {
 	.driver = {
 		.name = "panel-simple",
@@ -420,6 +512,7 @@ static struct platform_driver panel_simple_platform_driver = {
 	},
 	.probe = panel_simple_platform_probe,
 	.remove = panel_simple_platform_remove,
+	.shutdown = panel_simple_platform_shutdown,
 };
 
 struct panel_desc_dsi {
@@ -561,6 +654,11 @@ static int panel_simple_dsi_remove(struct mipi_dsi_device *dsi)
 	return panel_simple_remove(&dsi->dev);
 }
 
+static void panel_simple_dsi_shutdown(struct mipi_dsi_device *dsi)
+{
+	panel_simple_shutdown(&dsi->dev);
+}
+
 static struct mipi_dsi_driver panel_simple_dsi_driver = {
 	.driver = {
 		.name = "panel-simple-dsi",
@@ -569,6 +667,7 @@ static struct mipi_dsi_driver panel_simple_dsi_driver = {
 	},
 	.probe = panel_simple_dsi_probe,
 	.remove = panel_simple_dsi_remove,
+	.shutdown = panel_simple_dsi_shutdown,
 };
 
 static int __init panel_simple_init(void)

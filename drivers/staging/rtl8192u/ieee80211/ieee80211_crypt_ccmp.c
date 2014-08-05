@@ -444,7 +444,7 @@ static char *ieee80211_ccmp_print_stats(char *p, void *priv)
 
 void ieee80211_ccmp_null(void)
 {
-//    printk("============>%s()\n", __FUNCTION__);
+//    printk("============>%s()\n", __func__);
 	return;
 }
 

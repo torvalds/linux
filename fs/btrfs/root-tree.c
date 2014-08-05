@@ -306,7 +306,7 @@ int btrfs_find_orphan_roots(struct btrfs_root *tree_root)
 			break;
 		}
 
-		root->orphan_item_inserted = 1;
+		set_bit(BTRFS_ROOT_ORPHAN_ITEM_INSERTED, &root->state);
 
 		err = btrfs_insert_fs_root(root->fs_info, root);
 		if (err) {

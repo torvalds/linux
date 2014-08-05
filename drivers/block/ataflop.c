@@ -1484,7 +1484,7 @@ repeat:
 	ReqCnt = 0;
 	ReqCmd = rq_data_dir(fd_request);
 	ReqBlock = blk_rq_pos(fd_request);
-	ReqBuffer = fd_request->buffer;
+	ReqBuffer = bio_data(fd_request->bio);
 	setup_req_params( drive );
 	do_fd_action( drive );
 
@@ -1952,7 +1952,7 @@ static int __init atari_floppy_init (void)
 		goto Enomem;
 	}
 	TrackBuffer = DMABuffer + 512;
-	PhysDMABuffer = virt_to_phys(DMABuffer);
+	PhysDMABuffer = atari_stram_to_phys(DMABuffer);
 	PhysTrackBuffer = virt_to_phys(TrackBuffer);
 	BufferDrive = BufferSide = BufferTrack = -1;
 

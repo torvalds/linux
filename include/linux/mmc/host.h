@@ -17,6 +17,7 @@
 #include <linux/fault-inject.h>
 
 #include <linux/mmc/core.h>
+#include <linux/mmc/card.h>
 #include <linux/mmc/pm.h>
 
 struct mmc_ios {
@@ -58,13 +59,9 @@ struct mmc_ios {
 #define MMC_TIMING_UHS_SDR50	5
 #define MMC_TIMING_UHS_SDR104	6
 #define MMC_TIMING_UHS_DDR50	7
-#define MMC_TIMING_MMC_HS200	8
-
-#define MMC_SDR_MODE		0
-#define MMC_1_2V_DDR_MODE	1
-#define MMC_1_8V_DDR_MODE	2
-#define MMC_1_2V_SDR_MODE	3
-#define MMC_1_8V_SDR_MODE	4
+#define MMC_TIMING_MMC_DDR52	8
+#define MMC_TIMING_MMC_HS200	9
+#define MMC_TIMING_MMC_HS400	10
 
 	unsigned char	signal_voltage;		/* signalling voltage (1.8V or 3.3V) */
 
@@ -136,6 +133,9 @@ struct mmc_host_ops {
 
 	/* The tuning command opcode value is different for SD and eMMC cards */
 	int	(*execute_tuning)(struct mmc_host *host, u32 opcode);
+
+	/* Prepare HS400 target operating frequency depending host driver */
+	int	(*prepare_hs400_tuning)(struct mmc_host *host, struct mmc_ios *ios);
 	int	(*select_drive_strength)(unsigned int max_dtr, int host_drv, int card_drv);
 	void	(*hw_reset)(struct mmc_host *host);
 	void	(*card_event)(struct mmc_host *host);
@@ -278,6 +278,11 @@ struct mmc_host {
 #define MMC_CAP2_PACKED_CMD	(MMC_CAP2_PACKED_RD | \
 				 MMC_CAP2_PACKED_WR)
 #define MMC_CAP2_NO_PRESCAN_POWERUP (1 << 14)	/* Don't power up before scan */
+#define MMC_CAP2_HS400_1_8V	(1 << 15)	/* Can support HS400 1.8V */
+#define MMC_CAP2_HS400_1_2V	(1 << 16)	/* Can support HS400 1.2V */
+#define MMC_CAP2_HS400		(MMC_CAP2_HS400_1_8V | \
+				 MMC_CAP2_HS400_1_2V)
+#define MMC_CAP2_SDIO_IRQ_NOTHREAD (1 << 17)
 
 	mmc_pm_flag_t		pm_caps;	/* supported pm features */
 
@@ -317,6 +322,8 @@ struct mmc_host {
 
 	int			rescan_disable;	/* disable card detection */
 	int			rescan_entered;	/* used with nonremovable devices */
+
+	bool			trigger_card_event; /* card_event necessary */
 
 	struct mmc_card		*card;		/* device attached to this host */
 
@@ -391,12 +398,13 @@ static inline void mmc_signal_sdio_irq(struct mmc_host *host)
 	wake_up_process(host->sdio_irq_thread);
 }
 
+void sdio_run_irqs(struct mmc_host *host);
+
 #ifdef CONFIG_REGULATOR
 int mmc_regulator_get_ocrmask(struct regulator *supply);
 int mmc_regulator_set_ocr(struct mmc_host *mmc,
 			struct regulator *supply,
 			unsigned short vdd_bit);
-int mmc_regulator_get_supply(struct mmc_host *mmc);
 #else
 static inline int mmc_regulator_get_ocrmask(struct regulator *supply)
 {
@@ -409,12 +417,9 @@ static inline int mmc_regulator_set_ocr(struct mmc_host *mmc,
 {
 	return 0;
 }
-
-static inline int mmc_regulator_get_supply(struct mmc_host *mmc)
-{
-	return 0;
-}
 #endif
+
+int mmc_regulator_get_supply(struct mmc_host *mmc);
 
 int mmc_pm_notify(struct notifier_block *notify_block, unsigned long, void *);
 
@@ -475,4 +480,32 @@ static inline unsigned int mmc_host_clk_rate(struct mmc_host *host)
 	return host->ios.clock;
 }
 #endif
+
+static inline int mmc_card_hs(struct mmc_card *card)
+{
+	return card->host->ios.timing == MMC_TIMING_SD_HS ||
+		card->host->ios.timing == MMC_TIMING_MMC_HS;
+}
+
+static inline int mmc_card_uhs(struct mmc_card *card)
+{
+	return card->host->ios.timing >= MMC_TIMING_UHS_SDR12 &&
+		card->host->ios.timing <= MMC_TIMING_UHS_DDR50;
+}
+
+static inline bool mmc_card_hs200(struct mmc_card *card)
+{
+	return card->host->ios.timing == MMC_TIMING_MMC_HS200;
+}
+
+static inline bool mmc_card_ddr52(struct mmc_card *card)
+{
+	return card->host->ios.timing == MMC_TIMING_MMC_DDR52;
+}
+
+static inline bool mmc_card_hs400(struct mmc_card *card)
+{
+	return card->host->ios.timing == MMC_TIMING_MMC_HS400;
+}
+
 #endif /* LINUX_MMC_HOST_H */
