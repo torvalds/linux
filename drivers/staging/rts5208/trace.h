@@ -84,12 +84,4 @@ static inline char *filename(char *path)
 #define TRACE_GOTO(chip, label)	goto label
 #endif
 
-#ifdef CONFIG_RTS5208_DEBUG
-#define RTSX_DUMP(buf, buf_len)					\
-	print_hex_dump(KERN_DEBUG, KBUILD_MODNAME ": ",		\
-		       DUMP_PREFIX_NONE, 16, 1, (buf), (buf_len), false)
-#else
-#define RTSX_DUMP(buf, buf_len)
-#endif
-
 #endif  /* __REALTEK_RTSX_TRACE_H */

@@ -39,7 +39,7 @@ void scsi_show_command(struct rtsx_chip *chip)
 {
 	struct scsi_cmnd *srb = chip->srb;
 	char *what = NULL;
-	int i, unknown_cmd = 0;
+	int unknown_cmd = 0, len;
 
 	switch (srb->cmnd[0]) {
 	case TEST_UNIT_READY:
@@ -319,9 +319,8 @@ void scsi_show_command(struct rtsx_chip *chip)
 			what, srb->cmd_len);
 
 	if (unknown_cmd) {
-		for (i = 0; i < srb->cmd_len && i < 16; i++)
-			dev_dbg(rtsx_dev(chip), " %02x", srb->cmnd[i]);
-		dev_dbg(rtsx_dev(chip), "\n");
+		len = min_t(unsigned short, srb->cmd_len, 16);
+		dev_dbg(rtsx_dev(chip), "%*ph\n", len, srb->cmnd);
 	}
 }
 

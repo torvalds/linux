@@ -305,7 +305,8 @@ static int ms_read_bytes(struct rtsx_chip *chip,
 
 	if ((tpc == PRO_READ_SHORT_DATA) && (data_len == 8)) {
 		dev_dbg(rtsx_dev(chip), "Read format progress:\n");
-		RTSX_DUMP(ptr, cnt);
+		print_hex_dump_bytes(KBUILD_MODNAME ": ", DUMP_PREFIX_NONE, ptr,
+				     cnt);
 	}
 
 	return STATUS_SUCCESS;
@@ -1913,7 +1914,7 @@ RE_SEARCH:
 	ptr = rtsx_get_cmd_data(chip);
 
 	dev_dbg(rtsx_dev(chip), "Boot block data:\n");
-	RTSX_DUMP(ptr, 16);
+	dev_dbg(rtsx_dev(chip), "%*ph\n", 16, ptr);
 
 	/* Block ID error
 	 * HEADER_ID0, HEADER_ID1

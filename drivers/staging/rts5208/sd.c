@@ -427,7 +427,7 @@ static int sd_check_csd(struct rtsx_chip *chip, char check_wp)
 	memcpy(sd_card->raw_csd, rsp + 1, 15);
 
 	dev_dbg(rtsx_dev(chip), "CSD Response:\n");
-	RTSX_DUMP(sd_card->raw_csd, 16);
+	dev_dbg(rtsx_dev(chip), "%*ph\n", 16, sd_card->raw_csd);
 
 	csd_ver = (rsp[1] & 0xc0) >> 6;
 	dev_dbg(rtsx_dev(chip), "csd_ver = %d\n", csd_ver);
@@ -1060,7 +1060,7 @@ static int sd_check_switch_mode(struct rtsx_chip *chip, u8 mode,
 		TRACE_RET(chip, STATUS_FAIL);
 	}
 
-	RTSX_DUMP(buf, 64);
+	dev_dbg(rtsx_dev(chip), "%*ph\n", 64, buf);
 
 	if (func_group == NO_ARGUMENT) {
 		sd_card->func_group1_mask = buf[0x0D];
@@ -2119,7 +2119,7 @@ static int sd_check_wp_state(struct rtsx_chip *chip)
 	}
 
 	dev_dbg(rtsx_dev(chip), "ACMD13:\n");
-	RTSX_DUMP(buf, 64);
+	dev_dbg(rtsx_dev(chip), "%*ph\n", 64, buf);
 
 	sd_card_type = ((u16)buf[2] << 8) | buf[3];
 	dev_dbg(rtsx_dev(chip), "sd_card_type = 0x%04x\n", sd_card_type);
