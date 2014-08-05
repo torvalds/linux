@@ -168,7 +168,7 @@
 		};
 
 		pinctrl_esdhc1: esdhc1grp {
-			fsl,fsl,pins = <
+			fsl,pins = <
 				VF610_PAD_PTA24__ESDHC1_CLK	0x31ef
 				VF610_PAD_PTA25__ESDHC1_CMD	0x31ef
 				VF610_PAD_PTA26__ESDHC1_DAT0	0x31ef
