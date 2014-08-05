@@ -2187,6 +2187,34 @@ void snd_usbmidi_input_start(struct list_head* p)
 EXPORT_SYMBOL(snd_usbmidi_input_start);
 
 /*
+ * Prepare for suspend. Typically called from the USB suspend callback.
+ */
+void snd_usbmidi_suspend(struct list_head *p)
+{
+	struct snd_usb_midi *umidi;
+
+	umidi = list_entry(p, struct snd_usb_midi, list);
+	mutex_lock(&umidi->mutex);
+	snd_usbmidi_input_stop(p);
+	mutex_unlock(&umidi->mutex);
+}
+EXPORT_SYMBOL(snd_usbmidi_suspend);
+
+/*
+ * Resume. Typically called from the USB resume callback.
+ */
+void snd_usbmidi_resume(struct list_head *p)
+{
+	struct snd_usb_midi *umidi;
+
+	umidi = list_entry(p, struct snd_usb_midi, list);
+	mutex_lock(&umidi->mutex);
+	snd_usbmidi_input_start(p);
+	mutex_unlock(&umidi->mutex);
+}
+EXPORT_SYMBOL(snd_usbmidi_resume);
+
+/*
  * Creates and registers everything needed for a MIDI streaming interface.
  */
 int snd_usbmidi_create(struct snd_card *card,
