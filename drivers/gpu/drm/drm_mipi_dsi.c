@@ -332,6 +332,30 @@ int mipi_dsi_create_packet(struct mipi_dsi_packet *packet,
 }
 EXPORT_SYMBOL(mipi_dsi_create_packet);
 
+/*
+ * mipi_dsi_set_maximum_return_packet_size() - specify the maximum size of the
+ *    the payload in a long packet transmitted from the peripheral back to the
+ *    host processor
+ * @dsi: DSI peripheral device
+ * @value: the maximum size of the payload
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int mipi_dsi_set_maximum_return_packet_size(struct mipi_dsi_device *dsi,
+					    u16 value)
+{
+	u8 tx[2] = { value & 0xff, value >> 8 };
+	struct mipi_dsi_msg msg = {
+		.channel = dsi->channel,
+		.type = MIPI_DSI_SET_MAXIMUM_RETURN_PACKET_SIZE,
+		.tx_len = sizeof(tx),
+		.tx_buf = tx,
+	};
+
+	return mipi_dsi_device_transfer(dsi, &msg);
+}
+EXPORT_SYMBOL(mipi_dsi_set_maximum_return_packet_size);
+
 /**
  * mipi_dsi_dcs_write_buffer() - transmit a DCS command with payload
  * @dsi: DSI peripheral device
