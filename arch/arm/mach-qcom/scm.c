@@ -27,9 +27,6 @@
 
 #include "scm.h"
 
-/* Cache line size for msm8x60 */
-#define CACHELINESIZE 32
-
 #define SCM_ENOMEM		-5
 #define SCM_EOPNOTSUPP		-4
 #define SCM_EINVAL_ADDR		-3
@@ -214,13 +211,18 @@ static int __scm_call(const struct scm_command *cmd)
 
 static void scm_inv_range(unsigned long start, unsigned long end)
 {
-	start = round_down(start, CACHELINESIZE);
-	end = round_up(end, CACHELINESIZE);
+	u32 cacheline_size, ctr;
+
+	asm volatile("mrc p15, 0, %0, c0, c0, 1" : "=r" (ctr));
+	cacheline_size = 4 << ((ctr >> 16) & 0xf);
+
+	start = round_down(start, cacheline_size);
+	end = round_up(end, cacheline_size);
 	outer_inv_range(start, end);
 	while (start < end) {
 		asm ("mcr p15, 0, %0, c7, c6, 1" : : "r" (start)
 		     : "memory");
-		start += CACHELINESIZE;
+		start += cacheline_size;
 	}
 	dsb();
 	isb();
