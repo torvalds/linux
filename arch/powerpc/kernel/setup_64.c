@@ -511,7 +511,11 @@ void __init setup_system(void)
 	check_smt_enabled();
 	setup_tlb_core_data();
 
-#ifdef CONFIG_SMP
+	/*
+	 * Freescale Book3e parts spin in a loop provided by firmware,
+	 * so smp_release_cpus() does nothing for them
+	 */
+#if defined(CONFIG_SMP) && !defined(CONFIG_PPC_FSL_BOOK3E)
 	/* Release secondary cpus out of their spinloops at 0x60 now that
 	 * we can map physical -> logical CPU ids
 	 */

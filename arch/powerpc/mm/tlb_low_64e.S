@@ -299,7 +299,9 @@ itlb_miss_fault_bolted:
  * r10 = crap (free to use)
  */
 tlb_miss_common_e6500:
-BEGIN_FTR_SECTION
+	crmove	cr2*4+2,cr0*4+2		/* cr2.eq != 0 if kernel address */
+
+BEGIN_FTR_SECTION		/* CPU_FTR_SMT */
 	/*
 	 * Search if we already have an indirect entry for that virtual
 	 * address, and if we do, bail out.
@@ -324,17 +326,62 @@ BEGIN_FTR_SECTION
 	b	1b
 	.previous
 
+	/*
+	 * Erratum A-008139 says that we can't use tlbwe to change
+	 * an indirect entry in any way (including replacing or
+	 * invalidating) if the other thread could be in the process
+	 * of a lookup.  The workaround is to invalidate the entry
+	 * with tlbilx before overwriting.
+	 */
+
+	lbz	r15,TCD_ESEL_NEXT(r11)
+	rlwinm	r10,r15,16,0xff0000
+	oris	r10,r10,MAS0_TLBSEL(1)@h
+	mtspr	SPRN_MAS0,r10
+	isync
+	tlbre
 	mfspr	r15,SPRN_MAS1
-	mfspr	r10,SPRN_MAS2
+	andis.	r15,r15,MAS1_VALID@h
+	beq	5f
+
+BEGIN_FTR_SECTION_NESTED(532)
+	mfspr	r10,SPRN_MAS8
+	rlwinm	r10,r10,0,0x80000fff  /* tgs,tlpid -> sgs,slpid */
+	mtspr	SPRN_MAS5,r10
+END_FTR_SECTION_NESTED(CPU_FTR_EMB_HV,CPU_FTR_EMB_HV,532)
+
+	mfspr	r10,SPRN_MAS1
+	rlwinm	r15,r10,0,0x3fff0000  /* tid -> spid */
+	rlwimi	r15,r10,20,0x00000003 /* ind,ts -> sind,sas */
+	mfspr	r10,SPRN_MAS6
+	mtspr	SPRN_MAS6,r15
+
+	mfspr	r15,SPRN_MAS2
+	isync
+	tlbilxva 0,r15
+	isync
+
+	mtspr	SPRN_MAS6,r10
+
+5:
+BEGIN_FTR_SECTION_NESTED(532)
+	li	r10,0
+	mtspr	SPRN_MAS8,r10
+	mtspr	SPRN_MAS5,r10
+END_FTR_SECTION_NESTED(CPU_FTR_EMB_HV,CPU_FTR_EMB_HV,532)
 
 	tlbsx	0,r16
-	mtspr	SPRN_MAS2,r10
 	mfspr	r10,SPRN_MAS1
-	mtspr	SPRN_MAS1,r15
-
-	andis.	r10,r10,MAS1_VALID@h
+	andis.	r15,r10,MAS1_VALID@h
 	bne	tlb_miss_done_e6500
-END_FTR_SECTION_IFSET(CPU_FTR_SMT)
+FTR_SECTION_ELSE
+	mfspr	r10,SPRN_MAS1
+ALT_FTR_SECTION_END_IFSET(CPU_FTR_SMT)
+
+	oris	r10,r10,MAS1_VALID@h
+	beq	cr2,4f
+	rlwinm	r10,r10,0,16,1		/* Clear TID */
+4:	mtspr	SPRN_MAS1,r10
 
 	/* Now, we need to walk the page tables. First check if we are in
 	 * range.
@@ -410,12 +457,9 @@ END_FTR_SECTION_IFSET(CPU_FTR_SMT)
 	rfi
 
 tlb_miss_kernel_e6500:
-	mfspr	r10,SPRN_MAS1
 	ld	r14,PACA_KERNELPGD(r13)
-	cmpldi	cr0,r15,8		/* Check for vmalloc region */
-	rlwinm	r10,r10,0,16,1		/* Clear TID */
-	mtspr	SPRN_MAS1,r10
-	beq+	tlb_miss_common_e6500
+	cmpldi	cr1,r15,8		/* Check for vmalloc region */
+	beq+	cr1,tlb_miss_common_e6500
 
 tlb_miss_fault_e6500:
 	tlb_unlock_e6500

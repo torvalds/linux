@@ -180,6 +180,28 @@ exception_marker:
 #include "exceptions-64s.S"
 #endif
 
+#ifdef CONFIG_PPC_BOOK3E
+_GLOBAL(fsl_secondary_thread_init)
+	/* Enable branch prediction */
+	lis     r3,BUCSR_INIT@h
+	ori     r3,r3,BUCSR_INIT@l
+	mtspr   SPRN_BUCSR,r3
+	isync
+
+	/*
+	 * Fix PIR to match the linear numbering in the device tree.
+	 *
+	 * On e6500, the reset value of PIR uses the low three bits for
+	 * the thread within a core, and the upper bits for the core
+	 * number.  There are two threads per core, so shift everything
+	 * but the low bit right by two bits so that the cpu numbering is
+	 * continuous.
+	 */
+	mfspr	r3, SPRN_PIR
+	rlwimi	r3, r3, 30, 2, 30
+	mtspr	SPRN_PIR, r3
+#endif
+
 _GLOBAL(generic_secondary_thread_init)
 	mr	r24,r3
 
