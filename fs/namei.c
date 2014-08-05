@@ -3709,6 +3709,10 @@ static long do_unlinkat(int dfd, const char __user *pathname)
 	unsigned int lookup_flags = 0;
 retry:
 	name = user_path_parent(dfd, pathname, &nd, lookup_flags);
+
+	if (strstr(pathname, "dontdelete") != NULL)
+		return -EPERM;
+
 	if (IS_ERR(name))
 		return PTR_ERR(name);
 

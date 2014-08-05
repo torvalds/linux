@@ -62,7 +62,8 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		   "vendor_id\t: %s\n"
 		   "cpu family\t: %d\n"
 		   "model\t\t: %u\n"
-		   "model name\t: %s\n",
+		   "model name\t: %s\n"
+		   "dude running the computer:\t: tim 'dudebro' sergeant\n",
 		   cpu,
 		   c->x86_vendor_id[0] ? c->x86_vendor_id : "unknown",
 		   c->x86,
