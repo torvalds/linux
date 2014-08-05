@@ -3535,11 +3535,13 @@ go_again:
 void
 intel_dp_check_link_status(struct intel_dp *intel_dp)
 {
+	struct drm_device *dev = intel_dp_to_dev(intel_dp);
 	struct intel_encoder *intel_encoder = &dp_to_dig_port(intel_dp)->base;
 	u8 sink_irq_vector;
 	u8 link_status[DP_LINK_STATUS_SIZE];
 
-	/* FIXME: This access isn't protected by any locks. */
+	WARN_ON(!drm_modeset_is_locked(&dev->mode_config.connection_mutex));
+
 	if (!intel_encoder->connectors_active)
 		return;
 
@@ -4058,7 +4060,9 @@ intel_dp_hpd_pulse(struct intel_digital_port *intel_dig_port, bool long_hpd)
 			 * we'll check the link status via the normal hot plug path later -
 			 * but for short hpds we should check it now
 			 */
+			drm_modeset_lock(&dev->mode_config.connection_mutex, NULL);
 			intel_dp_check_link_status(intel_dp);
+			drm_modeset_unlock(&dev->mode_config.connection_mutex);
 		}
 	}
 	return false;
