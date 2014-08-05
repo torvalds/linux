@@ -597,7 +597,9 @@ init_list_set(struct net *net, struct ip_set *set, u32 size)
 	struct set_elem *e;
 	u32 i;
 
-	map = kzalloc(sizeof(*map) + size * set->dsize, GFP_KERNEL);
+	map = kzalloc(sizeof(*map) +
+		      min_t(u32, size, IP_SET_LIST_MAX_SIZE) * set->dsize,
+		      GFP_KERNEL);
 	if (!map)
 		return false;
 
