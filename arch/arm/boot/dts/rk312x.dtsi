@@ -685,7 +685,7 @@
 		interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clk_gates0 11>, <&clk_gates1 4>;
 		clock-names = "hclk_rga", "aclk_rga";
-		status = "disabled"
+		status = "disabled";
 	};
 
   vop_mmu {
