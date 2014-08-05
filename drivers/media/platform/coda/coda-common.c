@@ -1005,6 +1005,7 @@ static int coda_start_streaming(struct vb2_queue *q, unsigned int count)
 	struct coda_ctx *ctx = vb2_get_drv_priv(q);
 	struct v4l2_device *v4l2_dev = &ctx->dev->v4l2_dev;
 	struct coda_q_data *q_data_src, *q_data_dst;
+	struct vb2_buffer *buf;
 	u32 dst_fourcc;
 	int ret = 0;
 
@@ -1016,17 +1017,23 @@ static int coda_start_streaming(struct vb2_queue *q, unsigned int count)
 			coda_fill_bitstream(ctx);
 			mutex_unlock(&ctx->bitstream_mutex);
 
-			if (coda_get_bitstream_payload(ctx) < 512)
-				return -EINVAL;
+			if (coda_get_bitstream_payload(ctx) < 512) {
+				ret = -EINVAL;
+				goto err;
+			}
 		} else {
-			if (count < 1)
-				return -EINVAL;
+			if (count < 1) {
+				ret = -EINVAL;
+				goto err;
+			}
 		}
 
 		ctx->streamon_out = 1;
 	} else {
-		if (count < 1)
-			return -EINVAL;
+		if (count < 1) {
+			ret = -EINVAL;
+			goto err;
+		}
 
 		ctx->streamon_cap = 1;
 	}
@@ -1047,7 +1054,8 @@ static int coda_start_streaming(struct vb2_queue *q, unsigned int count)
 				     q_data_dst->fourcc);
 	if (!ctx->codec) {
 		v4l2_err(v4l2_dev, "couldn't tell instance type.\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto err;
 	}
 
 	ret = ctx->ops->start_streaming(ctx);
@@ -1055,10 +1063,20 @@ static int coda_start_streaming(struct vb2_queue *q, unsigned int count)
 		if (ret == -EAGAIN)
 			return 0;
 		else if (ret < 0)
-			return ret;
+			goto err;
 	}
 
 	ctx->initialized = 1;
+	return ret;
+
+err:
+	if (q->type == V4L2_BUF_TYPE_VIDEO_OUTPUT) {
+		while ((buf = v4l2_m2m_src_buf_remove(ctx->fh.m2m_ctx)))
+			v4l2_m2m_buf_done(buf, VB2_BUF_STATE_DEQUEUED);
+	} else {
+		while ((buf = v4l2_m2m_dst_buf_remove(ctx->fh.m2m_ctx)))
+			v4l2_m2m_buf_done(buf, VB2_BUF_STATE_DEQUEUED);
+	}
 	return ret;
 }
 
