@@ -114,26 +114,6 @@ static int exynos_irq_set_wake(struct irq_data *data, unsigned int state)
 #define S5P_CHECK_AFTR  0xFCBA0D10
 #define S5P_CHECK_SLEEP 0x00000BAD
 
-/* Ext-GIC nIRQ/nFIQ is the only wakeup source in AFTR */
-static void exynos_set_wakeupmask(long mask)
-{
-	pmu_raw_writel(mask, S5P_WAKEUP_MASK);
-}
-
-static void exynos_cpu_set_boot_vector(long flags)
-{
-	__raw_writel(virt_to_phys(exynos_cpu_resume), EXYNOS_BOOT_VECTOR_ADDR);
-	__raw_writel(flags, EXYNOS_BOOT_VECTOR_FLAG);
-}
-
-void exynos_enter_aftr(void)
-{
-	exynos_set_wakeupmask(0x0000ff3e);
-	exynos_cpu_set_boot_vector(S5P_CHECK_AFTR);
-	/* Set value of power down register for aftr mode */
-	exynos_sys_powerdown_conf(SYS_AFTR);
-}
-
 /* For Cortex-A9 Diagnostic and Power control register */
 static unsigned int save_arm_register[2];
 
@@ -171,6 +151,82 @@ static void exynos_cpu_restore_register(void)
 	asm volatile ("mcr p15, 0, %0, c15, c0, 1"
 		      : : "r" (tmp)
 		      : "cc");
+}
+
+static void exynos_pm_central_suspend(void)
+{
+	unsigned long tmp;
+
+	/* Setting Central Sequence Register for power down mode */
+	tmp = pmu_raw_readl(S5P_CENTRAL_SEQ_CONFIGURATION);
+	tmp &= ~S5P_CENTRAL_LOWPWR_CFG;
+	pmu_raw_writel(tmp, S5P_CENTRAL_SEQ_CONFIGURATION);
+}
+
+static int exynos_pm_central_resume(void)
+{
+	unsigned long tmp;
+
+	/*
+	 * If PMU failed while entering sleep mode, WFI will be
+	 * ignored by PMU and then exiting cpu_do_idle().
+	 * S5P_CENTRAL_LOWPWR_CFG bit will not be set automatically
+	 * in this situation.
+	 */
+	tmp = pmu_raw_readl(S5P_CENTRAL_SEQ_CONFIGURATION);
+	if (!(tmp & S5P_CENTRAL_LOWPWR_CFG)) {
+		tmp |= S5P_CENTRAL_LOWPWR_CFG;
+		pmu_raw_writel(tmp, S5P_CENTRAL_SEQ_CONFIGURATION);
+		/* clear the wakeup state register */
+		pmu_raw_writel(0x0, S5P_WAKEUP_STAT);
+		/* No need to perform below restore code */
+		return -1;
+	}
+
+	return 0;
+}
+
+/* Ext-GIC nIRQ/nFIQ is the only wakeup source in AFTR */
+static void exynos_set_wakeupmask(long mask)
+{
+	pmu_raw_writel(mask, S5P_WAKEUP_MASK);
+}
+
+static void exynos_cpu_set_boot_vector(long flags)
+{
+	__raw_writel(virt_to_phys(exynos_cpu_resume), EXYNOS_BOOT_VECTOR_ADDR);
+	__raw_writel(flags, EXYNOS_BOOT_VECTOR_FLAG);
+}
+
+static int exynos_aftr_finisher(unsigned long flags)
+{
+	exynos_set_wakeupmask(0x0000ff3e);
+	exynos_cpu_set_boot_vector(S5P_CHECK_AFTR);
+	/* Set value of power down register for aftr mode */
+	exynos_sys_powerdown_conf(SYS_AFTR);
+	cpu_do_idle();
+
+	return 1;
+}
+
+void exynos_enter_aftr(void)
+{
+	cpu_pm_enter();
+
+	exynos_pm_central_suspend();
+	if (read_cpuid_part() == ARM_CPU_PART_CORTEX_A9)
+		exynos_cpu_save_register();
+
+	cpu_suspend(0, exynos_aftr_finisher);
+
+	if (read_cpuid_part() == ARM_CPU_PART_CORTEX_A9) {
+		scu_enable(S5P_VA_SCU);
+		exynos_cpu_restore_register();
+	}
+
+	exynos_pm_central_resume();
+
+	cpu_pm_exit();
 }
 
 static int exynos_cpu_suspend(unsigned long arg)
@@ -217,16 +273,6 @@ static void exynos_pm_prepare(void)
 	pmu_raw_writel(virt_to_phys(exynos_cpu_resume), S5P_INFORM0);
 }
 
-static void exynos_pm_central_suspend(void)
-{
-	unsigned long tmp;
-
-	/* Setting Central Sequence Register for power down mode */
-	tmp = pmu_raw_readl(S5P_CENTRAL_SEQ_CONFIGURATION);
-	tmp &= ~S5P_CENTRAL_LOWPWR_CFG;
-	pmu_raw_writel(tmp, S5P_CENTRAL_SEQ_CONFIGURATION);
-}
-
 static int exynos_pm_suspend(void)
 {
 	unsigned long tmp;
@@ -240,29 +286,6 @@ static int exynos_pm_suspend(void)
 
 	if (read_cpuid_part() == ARM_CPU_PART_CORTEX_A9)
 		exynos_cpu_save_register();
-
-	return 0;
-}
-
-static int exynos_pm_central_resume(void)
-{
-	unsigned long tmp;
-
-	/*
-	 * If PMU failed while entering sleep mode, WFI will be
-	 * ignored by PMU and then exiting cpu_do_idle().
-	 * S5P_CENTRAL_LOWPWR_CFG bit will not be set automatically
-	 * in this situation.
-	 */
-	tmp = pmu_raw_readl(S5P_CENTRAL_SEQ_CONFIGURATION);
-	if (!(tmp & S5P_CENTRAL_LOWPWR_CFG)) {
-		tmp |= S5P_CENTRAL_LOWPWR_CFG;
-		pmu_raw_writel(tmp, S5P_CENTRAL_SEQ_CONFIGURATION);
-		/* clear the wakeup state register */
-		pmu_raw_writel(0x0, S5P_WAKEUP_STAT);
-		/* No need to perform below restore code */
-		return -1;
-	}
 
 	return 0;
 }
@@ -369,43 +392,9 @@ static const struct platform_suspend_ops exynos_suspend_ops = {
 	.valid		= suspend_valid_only_mem,
 };
 
-static int exynos_cpu_pm_notifier(struct notifier_block *self,
-				  unsigned long cmd, void *v)
-{
-	int cpu = smp_processor_id();
-
-	switch (cmd) {
-	case CPU_PM_ENTER:
-		if (cpu == 0) {
-			exynos_pm_central_suspend();
-			if (read_cpuid_part() == ARM_CPU_PART_CORTEX_A9)
-				exynos_cpu_save_register();
-		}
-		break;
-
-	case CPU_PM_EXIT:
-		if (cpu == 0) {
-			if (read_cpuid_part() == ARM_CPU_PART_CORTEX_A9) {
-				scu_enable(S5P_VA_SCU);
-				exynos_cpu_restore_register();
-			}
-			exynos_pm_central_resume();
-		}
-		break;
-	}
-
-	return NOTIFY_OK;
-}
-
-static struct notifier_block exynos_cpu_pm_notifier_block = {
-	.notifier_call = exynos_cpu_pm_notifier,
-};
-
 void __init exynos_pm_init(void)
 {
 	u32 tmp;
-
-	cpu_pm_register_notifier(&exynos_cpu_pm_notifier_block);
 
 	/* Platform-specific GIC callback */
 	gic_arch_extn.irq_set_wake = exynos_irq_set_wake;
