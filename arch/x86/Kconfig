@@ -2404,6 +2404,10 @@ config IOSF_MBI
 	default m
 	depends on PCI
 
+config PMC_ATOM
+	def_bool y
+        depends on PCI
+
 source "net/Kconfig"
 
 source "drivers/Kconfig"
