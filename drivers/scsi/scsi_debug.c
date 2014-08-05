@@ -123,7 +123,7 @@ static const char *scsi_debug_version_date = "20140706";
 #define DEF_PHYSBLK_EXP 0
 #define DEF_PTYPE   0
 #define DEF_REMOVABLE false
-#define DEF_SCSI_LEVEL   5    /* INQUIRY, byte2 [5->SPC-3] */
+#define DEF_SCSI_LEVEL   6    /* INQUIRY, byte2 [6->SPC-4] */
 #define DEF_SECTOR_SIZE 512
 #define DEF_TAGGED_QUEUING 0 /* 0 | MSG_SIMPLE_TAG | MSG_ORDERED_TAG */
 #define DEF_UNMAP_ALIGNMENT 0
@@ -1056,15 +1056,15 @@ static int resp_inquiry(struct scsi_cmnd *scp, int target,
 	memcpy(&arr[16], inq_product_id, 16);
 	memcpy(&arr[32], inq_product_rev, 4);
 	/* version descriptors (2 bytes each) follow */
-	arr[58] = 0x0; arr[59] = 0x77; /* SAM-3 ANSI */
-	arr[60] = 0x3; arr[61] = 0x14;  /* SPC-3 ANSI */
+	arr[58] = 0x0; arr[59] = 0xa2;  /* SAM-5 rev 4 */
+	arr[60] = 0x4; arr[61] = 0x68;  /* SPC-4 rev 37 */
 	n = 62;
 	if (scsi_debug_ptype == 0) {
-		arr[n++] = 0x3; arr[n++] = 0x3d; /* SBC-2 ANSI */
+		arr[n++] = 0x4; arr[n++] = 0xc5; /* SBC-4 rev 36 */
 	} else if (scsi_debug_ptype == 1) {
-		arr[n++] = 0x3; arr[n++] = 0x60; /* SSC-2 no version */
+		arr[n++] = 0x5; arr[n++] = 0x25; /* SSC-4 rev 3 */
 	}
-	arr[n++] = 0xc; arr[n++] = 0xf;  /* SAS-1.1 rev 10 */
+	arr[n++] = 0x20; arr[n++] = 0xe6;  /* SPL-3 rev 7 */
 	ret = fill_from_dev_buffer(scp, arr,
 			    min(alloc_len, SDEBUG_LONG_INQ_SZ));
 	kfree(arr);
@@ -3205,7 +3205,7 @@ MODULE_PARM_DESC(opts, "1->noise, 2->medium_err, 4->timeout, 8->recovered_err...
 MODULE_PARM_DESC(physblk_exp, "physical block exponent (def=0)");
 MODULE_PARM_DESC(ptype, "SCSI peripheral type(def=0[disk])");
 MODULE_PARM_DESC(removable, "claim to have removable media (def=0)");
-MODULE_PARM_DESC(scsi_level, "SCSI level to simulate(def=5[SPC-3])");
+MODULE_PARM_DESC(scsi_level, "SCSI level to simulate(def=6[SPC-4])");
 MODULE_PARM_DESC(sector_size, "logical block size in bytes (def=512)");
 MODULE_PARM_DESC(unmap_alignment, "lowest aligned thin provisioning lba (def=0)");
 MODULE_PARM_DESC(unmap_granularity, "thin provisioning granularity in blocks (def=1)");
