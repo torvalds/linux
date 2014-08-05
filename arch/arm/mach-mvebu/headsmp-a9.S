@@ -29,7 +29,7 @@ ARM_BE8(setend	be)
 	ldr	r0, [r0]
 	ldr     r1, [r0]
 ARM_BE8(rev	r1, r1)
-	mov     pc, r1
+	ret     r1
 1:
 	.word   CPU_RESUME_ADDR_REG
 armada_375_smp_cpu1_enable_code_end:

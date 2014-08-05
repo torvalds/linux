@@ -107,6 +107,8 @@ static inline void set_fs(mm_segment_t fs)
 extern int __get_user_1(void *);
 extern int __get_user_2(void *);
 extern int __get_user_4(void *);
+extern int __get_user_lo8(void *);
+extern int __get_user_8(void *);
 
 #define __GUP_CLOBBER_1	"lr", "cc"
 #ifdef CONFIG_CPU_USE_DOMAINS
@@ -115,6 +117,8 @@ extern int __get_user_4(void *);
 #define __GUP_CLOBBER_2 "lr", "cc"
 #endif
 #define __GUP_CLOBBER_4	"lr", "cc"
+#define __GUP_CLOBBER_lo8 "lr", "cc"
+#define __GUP_CLOBBER_8	"lr", "cc"
 
 #define __get_user_x(__r2,__p,__e,__l,__s)				\
 	   __asm__ __volatile__ (					\
@@ -125,11 +129,19 @@ extern int __get_user_4(void *);
 		: "0" (__p), "r" (__l)					\
 		: __GUP_CLOBBER_##__s)
 
+/* narrowing a double-word get into a single 32bit word register: */
+#ifdef __ARMEB__
+#define __get_user_xb(__r2, __p, __e, __l, __s)				\
+	__get_user_x(__r2, __p, __e, __l, lo8)
+#else
+#define __get_user_xb __get_user_x
+#endif
+
 #define __get_user_check(x,p)							\
 	({								\
 		unsigned long __limit = current_thread_info()->addr_limit - 1; \
 		register const typeof(*(p)) __user *__p asm("r0") = (p);\
-		register unsigned long __r2 asm("r2");			\
+		register typeof(x) __r2 asm("r2");			\
 		register unsigned long __l asm("r1") = __limit;		\
 		register int __e asm("r0");				\
 		switch (sizeof(*(__p))) {				\
@@ -141,6 +153,12 @@ extern int __get_user_4(void *);
 			break;						\
 		case 4:							\
 			__get_user_x(__r2, __p, __e, __l, 4);		\
+			break;						\
+		case 8:							\
+			if (sizeof((x)) < 8)				\
+				__get_user_xb(__r2, __p, __e, __l, 4);	\
+			else						\
+				__get_user_x(__r2, __p, __e, __l, 8);	\
 			break;						\
 		default: __e = __get_user_bad(); break;			\
 		}							\
@@ -224,7 +242,7 @@ static inline void set_fs(mm_segment_t fs)
 #define access_ok(type,addr,size)	(__range_ok(addr,size) == 0)
 
 #define user_addr_max() \
-	(segment_eq(get_fs(), USER_DS) ? TASK_SIZE : ~0UL)
+	(segment_eq(get_fs(), KERNEL_DS) ? ~0UL : get_fs())
 
 /*
  * The "__xxx" versions of the user access functions do not verify the

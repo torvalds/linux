@@ -125,9 +125,11 @@ start:
  THUMB(		adr	r12, BSYM(1f)	)
  THUMB(		bx	r12		)
 
-		.word	0x016f2818		@ Magic numbers to help the loader
-		.word	start			@ absolute load/run zImage address
-		.word	_edata			@ zImage end address
+		.word	_magic_sig	@ Magic numbers to help the loader
+		.word	_magic_start	@ absolute load/run zImage address
+		.word	_magic_end	@ zImage end address
+		.word	0x04030201	@ endianness flag
+
  THUMB(		.thumb			)
 1:
  ARM_BE8(	setend	be )			@ go BE8 if compiled for BE8

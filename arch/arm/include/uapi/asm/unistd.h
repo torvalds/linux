@@ -411,11 +411,6 @@
 #define __NR_renameat2			(__NR_SYSCALL_BASE+382)
 
 /*
- * This may need to be greater than __NR_last_syscall+1 in order to
- * account for the padding in the syscall table
- */
-
-/*
  * The following SWIs are ARM private.
  */
 #define __ARM_NR_BASE			(__NR_SYSCALL_BASE+0x0f0000)
@@ -424,12 +419,6 @@
 #define __ARM_NR_usr26			(__ARM_NR_BASE+3)
 #define __ARM_NR_usr32			(__ARM_NR_BASE+4)
 #define __ARM_NR_set_tls		(__ARM_NR_BASE+5)
-
-/*
- * *NOTE*: This is a ghost syscall private to the kernel.  Only the
- * __kuser_cmpxchg code in entry-armv.S should be aware of its
- * existence.  Don't ever use this from user code.
- */
 
 /*
  * The following syscalls are obsolete and no longer available for EABI.
