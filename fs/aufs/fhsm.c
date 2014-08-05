@@ -14,15 +14,14 @@
 
 static int au_fhsm_test_jiffy(struct au_sbinfo *sbinfo, struct au_branch *br)
 {
-	struct au_wbr *wbr;
+	struct au_br_fhsm *bf;
 
-	wbr = br->br_wbr;
-	MtxMustLock(&wbr->wbr_fhsm_notify.lock);
+	bf = br->br_fhsm;
+	MtxMustLock(&bf->bf_lock);
 
-	return !wbr->wbr_fhsm_notify.readable
+	return !bf->bf_readable
 		|| time_after(jiffies,
-			      wbr->wbr_fhsm_notify.jiffy
-			      + sbinfo->si_fhsm.fhsm_expire);
+			      bf->bf_jiffy + sbinfo->si_fhsm.fhsm_expire);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -49,35 +48,35 @@ static int au_fhsm_stfs(struct super_block *sb, aufs_bindex_t bindex,
 {
 	int err;
 	struct au_branch *br;
-	struct au_wbr *wbr;
+	struct au_br_fhsm *bf;
 
 	br = au_sbr(sb, bindex);
 	AuDebugOn(au_br_rdonly(br));
-	wbr = br->br_wbr;
-	AuDebugOn(!wbr);
+	bf = br->br_fhsm;
+	AuDebugOn(!bf);
 
 	if (do_lock)
-		mutex_lock(&wbr->wbr_fhsm_notify.lock);
+		mutex_lock(&bf->bf_lock);
 	else
-		MtxMustLock(&wbr->wbr_fhsm_notify.lock);
+		MtxMustLock(&bf->bf_lock);
 
 	/* sb->s_root for NFS is unreliable */
-	err = au_br_stfs(br, &wbr->wbr_fhsm_notify.stfs);
+	err = au_br_stfs(br, &bf->bf_stfs);
 	if (unlikely(err)) {
 		AuErr1("FHSM failed (%d), b%d, ignored.\n", bindex, err);
 		goto out;
 	}
 
-	wbr->wbr_fhsm_notify.jiffy = jiffies;
-	wbr->wbr_fhsm_notify.readable = 1;
+	bf->bf_jiffy = jiffies;
+	bf->bf_readable = 1;
 	if (do_notify)
 		au_fhsm_notify(sb, /*val*/1);
 	if (rstfs)
-		*rstfs = wbr->wbr_fhsm_notify.stfs;
+		*rstfs = bf->bf_stfs;
 
 out:
 	if (do_lock)
-		mutex_unlock(&wbr->wbr_fhsm_notify.lock);
+		mutex_unlock(&bf->bf_lock);
 	au_fhsm_notify(sb, /*val*/1);
 
 	return err;
@@ -91,15 +90,14 @@ void au_fhsm_wrote(struct super_block *sb, aufs_bindex_t bindex, int force)
 	struct au_sbinfo *sbinfo;
 	struct au_fhsm *fhsm;
 	struct au_branch *br;
-	struct au_wbr *wbr;
+	struct au_br_fhsm *bf;
 
 	AuDbg("b%d, force %d\n", bindex, force);
 	SiMustAnyLock(sb);
 
 	sbinfo = au_sbi(sb);
 	fhsm = &sbinfo->si_fhsm;
-	if (!au_ftest_si(sbinfo, FHSM)
-	    || !au_fhsm_pid(fhsm))
+	if (!au_ftest_si(sbinfo, FHSM))
 		return;
 
 	do_notify = 0;
@@ -115,13 +113,15 @@ void au_fhsm_wrote(struct super_block *sb, aufs_bindex_t bindex, int force)
 		return;
 
 	br = au_sbr(sb, bindex);
-	wbr = br->br_wbr;
-	AuDebugOn(!wbr);
-	mutex_lock(&wbr->wbr_fhsm_notify.lock);
-	if (force || au_fhsm_test_jiffy(sbinfo, br))
+	bf = br->br_fhsm;
+	AuDebugOn(!bf);
+	mutex_lock(&bf->bf_lock);
+	if (force
+	    || au_fhsm_pid(fhsm)
+	    || au_fhsm_test_jiffy(sbinfo, br))
 		err = au_fhsm_stfs(sb, bindex, /*rstfs*/NULL, /*do_lock*/0,
 				  /*do_notify*/1);
-	mutex_unlock(&wbr->wbr_fhsm_notify.lock);
+	mutex_unlock(&bf->bf_lock);
 }
 
 void au_fhsm_wrote_all(struct super_block *sb, int force)
@@ -179,7 +179,7 @@ static ssize_t au_fhsm_do_read(struct super_block *sb,
 	int nstbr;
 	aufs_bindex_t bindex, bend;
 	struct au_branch *br;
-	struct au_wbr *wbr;
+	struct au_br_fhsm *bf;
 
 	/* except the bottom branch */
 	err = 0;
@@ -190,21 +190,20 @@ static ssize_t au_fhsm_do_read(struct super_block *sb,
 		if (!au_br_fhsm(br->br_perm))
 			continue;
 
-		wbr = br->br_wbr;
-		mutex_lock(&wbr->wbr_fhsm_notify.lock);
-		if (wbr->wbr_fhsm_notify.readable) {
+		bf = br->br_fhsm;
+		mutex_lock(&bf->bf_lock);
+		if (bf->bf_readable) {
 			err = -EFAULT;
 			if (count >= sizeof(*stbr))
-				err = au_fhsm_do_read_one
-					(stbr++, &wbr->wbr_fhsm_notify.stfs,
-					 br->br_id);
+				err = au_fhsm_do_read_one(stbr++, &bf->bf_stfs,
+							  br->br_id);
 			if (!err) {
-				wbr->wbr_fhsm_notify.readable = 0;
+				bf->bf_readable = 0;
 				count -= sizeof(*stbr);
 				nstbr++;
 			}
 		}
-		mutex_unlock(&wbr->wbr_fhsm_notify.lock);
+		mutex_unlock(&bf->bf_lock);
 	}
 	if (!err)
 		err = sizeof(*stbr) * nstbr;
@@ -340,6 +339,22 @@ out_pid:
 	spin_unlock(&fhsm->fhsm_spin);
 out:
 	AuTraceErr(err);
+	return err;
+}
+
+/* ---------------------------------------------------------------------- */
+
+int au_fhsm_br_alloc(struct au_branch *br)
+{
+	int err;
+
+	err = 0;
+	br->br_fhsm = kmalloc(sizeof(*br->br_fhsm), GFP_NOFS);
+	if (br->br_fhsm)
+		au_br_fhsm_init(br->br_fhsm);
+	else
+		err = -ENOMEM;
+
 	return err;
 }
 
