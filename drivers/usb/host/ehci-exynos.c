@@ -62,18 +62,6 @@ static int exynos_ehci_get_phy(struct device *dev,
 	int phy_number;
 	int ret = 0;
 
-	exynos_ehci->phy = devm_usb_get_phy(dev, USB_PHY_TYPE_USB2);
-	if (IS_ERR(exynos_ehci->phy)) {
-		ret = PTR_ERR(exynos_ehci->phy);
-		if (ret != -ENXIO && ret != -ENODEV) {
-			dev_err(dev, "no usb2 phy configured\n");
-			return ret;
-		}
-		dev_dbg(dev, "Failed to get usb2 phy\n");
-	} else {
-		exynos_ehci->otg = exynos_ehci->phy->otg;
-	}
-
 	for_each_available_child_of_node(dev->of_node, child) {
 		ret = of_property_read_u32(child, "reg", &phy_number);
 		if (ret) {
@@ -90,15 +78,27 @@ static int exynos_ehci_get_phy(struct device *dev,
 
 		phy = devm_of_phy_get(dev, child, NULL);
 		of_node_put(child);
-		if (IS_ERR(phy)) {
-			ret = PTR_ERR(phy);
-			if (ret != -ENOSYS && ret != -ENODEV) {
-				dev_err(dev, "no usb2 phy configured\n");
-				return ret;
-			}
-			dev_dbg(dev, "Failed to get usb2 phy\n");
-		}
+		if (IS_ERR(phy))
+			/* Lets fallback to older USB-PHYs */
+			goto usb_phy_old;
 		exynos_ehci->phy_g[phy_number] = phy;
+		/* Make the older PHYs unavailable */
+		exynos_ehci->phy = ERR_PTR(-ENXIO);
+	}
+
+	return 0;
+
+usb_phy_old:
+	exynos_ehci->phy = devm_usb_get_phy(dev, USB_PHY_TYPE_USB2);
+	if (IS_ERR(exynos_ehci->phy)) {
+		ret = PTR_ERR(exynos_ehci->phy);
+		if (ret != -ENXIO && ret != -ENODEV) {
+			dev_err(dev, "no usb2 phy configured\n");
+			return ret;
+		}
+		dev_dbg(dev, "Failed to get usb2 phy\n");
+	} else {
+		exynos_ehci->otg = exynos_ehci->phy->otg;
 	}
 
 	return ret;

@@ -51,27 +51,12 @@ static int exynos_ohci_get_phy(struct device *dev,
 	int phy_number;
 	int ret = 0;
 
-	exynos_ohci->phy = devm_usb_get_phy(dev, USB_PHY_TYPE_USB2);
-	if (IS_ERR(exynos_ohci->phy)) {
-		ret = PTR_ERR(exynos_ohci->phy);
-		if (ret != -ENXIO && ret != -ENODEV) {
-			dev_err(dev, "no usb2 phy configured\n");
-			return ret;
-		}
-		dev_dbg(dev, "Failed to get usb2 phy\n");
-	} else {
-		exynos_ohci->otg = exynos_ohci->phy->otg;
-	}
-
 	/*
 	 * Getting generic phy:
 	 * We are keeping both types of phys as a part of transiting OHCI
 	 * to generic phy framework, so as to maintain backward compatibilty
-	 * with old DTB.
-	 * If there are existing devices using DTB files built from them,
-	 * to remove the support for old bindings in this driver,
-	 * we need to make sure that such devices have their DTBs
-	 * updated to ones built from new DTS.
+	 * with old DTB too.
+	 * We fallback to older USB-PHYs when we fail to get generic PHYs.
 	 */
 	for_each_available_child_of_node(dev->of_node, child) {
 		ret = of_property_read_u32(child, "reg", &phy_number);
@@ -89,15 +74,27 @@ static int exynos_ohci_get_phy(struct device *dev,
 
 		phy = devm_of_phy_get(dev, child, NULL);
 		of_node_put(child);
-		if (IS_ERR(phy)) {
-			ret = PTR_ERR(phy);
-			if (ret != -ENOSYS && ret != -ENODEV) {
-				dev_err(dev, "no usb2 phy configured\n");
-				return ret;
-			}
-			dev_dbg(dev, "Failed to get usb2 phy\n");
-		}
+		if (IS_ERR(phy))
+			/* Lets fallback to older USB-PHYs */
+			goto usb_phy_old;
 		exynos_ohci->phy_g[phy_number] = phy;
+		/* Make the older PHYs unavailable */
+		exynos_ohci->phy = ERR_PTR(-ENXIO);
+	}
+
+	return 0;
+
+usb_phy_old:
+	exynos_ohci->phy = devm_usb_get_phy(dev, USB_PHY_TYPE_USB2);
+	if (IS_ERR(exynos_ohci->phy)) {
+		ret = PTR_ERR(exynos_ohci->phy);
+		if (ret != -ENXIO && ret != -ENODEV) {
+			dev_err(dev, "no usb2 phy configured\n");
+			return ret;
+		}
+		dev_dbg(dev, "Failed to get usb2 phy\n");
+	} else {
+		exynos_ohci->otg = exynos_ohci->phy->otg;
 	}
 
 	return ret;
