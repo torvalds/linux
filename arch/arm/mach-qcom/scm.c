@@ -22,6 +22,7 @@
 #include <linux/errno.h>
 #include <linux/err.h>
 
+#include <asm/outercache.h>
 #include <asm/cacheflush.h>
 
 #include "scm.h"
@@ -203,11 +204,26 @@ static int __scm_call(const struct scm_command *cmd)
 	 * side in the buffer.
 	 */
 	flush_cache_all();
+	outer_flush_all();
 	ret = smc(cmd_addr);
 	if (ret < 0)
 		ret = scm_remap_error(ret);
 
 	return ret;
+}
+
+static void scm_inv_range(unsigned long start, unsigned long end)
+{
+	start = round_down(start, CACHELINESIZE);
+	end = round_up(end, CACHELINESIZE);
+	outer_inv_range(start, end);
+	while (start < end) {
+		asm ("mcr p15, 0, %0, c7, c6, 1" : : "r" (start)
+		     : "memory");
+		start += CACHELINESIZE;
+	}
+	dsb();
+	isb();
 }
 
 /**
@@ -227,6 +243,7 @@ int scm_call(u32 svc_id, u32 cmd_id, const void *cmd_buf, size_t cmd_len,
 	int ret;
 	struct scm_command *cmd;
 	struct scm_response *rsp;
+	unsigned long start, end;
 
 	cmd = alloc_scm_command(cmd_len, resp_len);
 	if (!cmd)
@@ -243,16 +260,14 @@ int scm_call(u32 svc_id, u32 cmd_id, const void *cmd_buf, size_t cmd_len,
 		goto out;
 
 	rsp = scm_command_to_response(cmd);
+	start = (unsigned long)rsp;
+
 	do {
-		u32 start = (u32)rsp;
-		u32 end = (u32)scm_get_response_buffer(rsp) + resp_len;
-		start &= ~(CACHELINESIZE - 1);
-		while (start < end) {
-			asm ("mcr p15, 0, %0, c7, c6, 1" : : "r" (start)
-			     : "memory");
-			start += CACHELINESIZE;
-		}
+		scm_inv_range(start, start + sizeof(*rsp));
 	} while (!rsp->is_complete);
+
+	end = (unsigned long)scm_get_response_buffer(rsp) + resp_len;
+	scm_inv_range(start, end);
 
 	if (resp_buf)
 		memcpy(resp_buf, scm_get_response_buffer(rsp), resp_len);
