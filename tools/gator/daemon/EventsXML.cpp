@@ -13,7 +13,7 @@
 #include "OlyUtility.h"
 #include "SessionData.h"
 
-char* EventsXML::getXML() {
+mxml_node_t *EventsXML::getTree() {
 #include "events_xml.h" // defines and initializes char events_xml[] and int events_xml_len
 	char path[PATH_MAX];
 	mxml_node_t *xml;
@@ -38,6 +38,12 @@ char* EventsXML::getXML() {
 		xml = mxmlLoadString(NULL, (const char *)events_xml, MXML_NO_CALLBACK);
 	}
 
+	return xml;
+}
+
+char *EventsXML::getXML() {
+	mxml_node_t *xml = getTree();
+
 	// Add dynamic events from the drivers
 	mxml_node_t *events = mxmlFindElement(xml, xml, "events", NULL, NULL, MXML_DESCEND);
 	if (!events) {
@@ -48,19 +54,19 @@ char* EventsXML::getXML() {
 		driver->writeEvents(events);
 	}
 
-	char* string = mxmlSaveAllocString(xml, mxmlWhitespaceCB);
+	char *string = mxmlSaveAllocString(xml, mxmlWhitespaceCB);
 	mxmlDelete(xml);
 
 	return string;
 }
 
-void EventsXML::write(const char* path) {
+void EventsXML::write(const char *path) {
 	char file[PATH_MAX];
 
 	// Set full path
 	snprintf(file, PATH_MAX, "%s/events.xml", path);
-	
-	char* buf = getXML();
+
+	char *buf = getXML();
 	if (util->writeToDisk(file, buf) < 0) {
 		logg->logError(__FILE__, __LINE__, "Error writing %s\nPlease verify the path.", file);
 		handleException();

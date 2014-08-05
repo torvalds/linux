@@ -75,7 +75,7 @@ static int gator_trace_power_create_files(struct super_block *sb, struct dentry 
 GATOR_DEFINE_PROBE(cpu_frequency, TP_PROTO(unsigned int frequency, unsigned int cpu))
 {
 	cpu = lcpu_to_pcpu(cpu);
-	marshal_event_single(cpu, power_cpu_key[POWER_CPU_FREQ], frequency * 1000);
+	marshal_event_single64(cpu, power_cpu_key[POWER_CPU_FREQ], frequency * 1000L);
 }
 
 GATOR_DEFINE_PROBE(cpu_idle, TP_PROTO(unsigned int state, unsigned int cpu))
@@ -109,7 +109,7 @@ static void gator_trace_power_online(void)
 	int pcpu = get_physical_cpu();
 	int lcpu = get_logical_cpu();
 	if (power_cpu_enabled[POWER_CPU_FREQ]) {
-		marshal_event_single(pcpu, power_cpu_key[POWER_CPU_FREQ], cpufreq_quick_get(lcpu) * 1000);
+		marshal_event_single64(pcpu, power_cpu_key[POWER_CPU_FREQ], cpufreq_quick_get(lcpu) * 1000L);
 	}
 }
 

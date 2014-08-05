@@ -33,4 +33,4 @@ extern Logging* logg;
 
 extern void handleException() __attribute__ ((noreturn));
 
-#endif 	//__LOGGING_H__
+#endif //__LOGGING_H__

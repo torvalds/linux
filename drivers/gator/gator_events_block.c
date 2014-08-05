@@ -28,25 +28,36 @@ static ulong block_rq_rd_key;
 static atomic_t blockCnt[BLOCK_TOTAL];
 static int blockGet[BLOCK_TOTAL * 4];
 
+// Tracepoint changed in 3.15 backported to older kernels. The Makefile tries to autodetect the correct value, but if it fails change the #if below
+#if OLD_BLOCK_RQ_COMPLETE
+GATOR_DEFINE_PROBE(block_rq_complete, TP_PROTO(struct request_queue *q, struct request *rq))
+#else
 GATOR_DEFINE_PROBE(block_rq_complete, TP_PROTO(struct request_queue *q, struct request *rq, unsigned int nr_bytes))
+#endif
 {
 	int write;
+	unsigned int size;
 
 	if (!rq)
 		return;
 
 	write = rq->cmd_flags & EVENTWRITE;
+#if OLD_BLOCK_RQ_COMPLETE
+	size = rq->resid_len;
+#else
+	size = nr_bytes;
+#endif
 
-	if (!nr_bytes)
+	if (!size)
 		return;
 
 	if (write) {
 		if (block_rq_wr_enabled) {
-			atomic_add(nr_bytes, &blockCnt[BLOCK_RQ_WR]);
+			atomic_add(size, &blockCnt[BLOCK_RQ_WR]);
 		}
 	} else {
 		if (block_rq_rd_enabled) {
-			atomic_add(nr_bytes, &blockCnt[BLOCK_RQ_RD]);
+			atomic_add(size, &blockCnt[BLOCK_RQ_RD]);
 		}
 	}
 }

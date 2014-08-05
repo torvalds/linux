@@ -1,0 +1,11 @@
+  <category name="Filesystem">
+    <!-- counter attributes must be unique -->
+    <!-- regex item in () is the value shown -->
+    <!-- these counters are not compatible with userspace gator, i.e. gator.ko must be loaded -->
+    <!--
+    <event counter="/sys/devices/system/cpu/cpu1/online" title="online" name="cpu 1" class="absolute" description="If cpu 1 is online"/>
+    <event counter="/proc/self/loginuid" title="loginuid" name="loginuid" class="absolute" description="loginuid"/>
+    <event counter="/proc/self/stat" title="stat" name="rss" class="absolute" regex="-?[0-9]+ \(.*\) . -?[0-9]+ -?[0-9]+ -?[0-9]+ -?[0-9]+ -?[0-9]+ -?[0-9]+ -?[0-9]+ -?[0-9]+ -?[0-9]+ -?[0-9]+ -?[0-9]+ -?[0-9]+ -?[0-9]+ -?[0-9]+ -?[0-9]+ -?[0-9]+ -?[0-9]+ -?[0-9]+ -?[0-9]+ -?[0-9]+ (-?[0-9]+)" units="pages" description="resident set size"/>
+    <event counter="/proc/stat" title="proc-stat" name="processes" class="absolute" regex="processes ([0-9]+)" description="Number of processes and threads created"/>
+    -->
+  </category>

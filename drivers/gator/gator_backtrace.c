@@ -178,7 +178,7 @@ static void kernel_backtrace(int cpu, struct pt_regs *const regs)
 	marshal_backtrace(PC_REG & ~1, NO_COOKIE, 1);
 #endif
 }
- 
+
 static void gator_add_sample(int cpu, struct pt_regs *const regs, u64 time)
 {
 	bool in_kernel;

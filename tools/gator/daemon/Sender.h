@@ -39,4 +39,4 @@ private:
 	Sender &operator=(const Sender &);
 };
 
-#endif 	//__SENDER_H__
+#endif //__SENDER_H__

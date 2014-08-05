@@ -24,6 +24,7 @@ enum PerfGroupFlags {
 	PERF_GROUP_FREQ          = 1 << 2,
 	PERF_GROUP_TASK          = 1 << 3,
 	PERF_GROUP_SAMPLE_ID_ALL = 1 << 4,
+	PERF_GROUP_PER_CPU       = 1 << 5,
 };
 
 class PerfGroup {
@@ -43,6 +44,7 @@ public:
 private:
 	// +1 for the group leader
 	struct perf_event_attr mAttrs[MAX_PERFORMANCE_COUNTERS + 1];
+	bool mPerCpu[MAX_PERFORMANCE_COUNTERS + 1];
 	int mKeys[MAX_PERFORMANCE_COUNTERS + 1];
 	int mFds[NR_CPUS * (MAX_PERFORMANCE_COUNTERS + 1)];
 	PerfBuffer *const mPb;

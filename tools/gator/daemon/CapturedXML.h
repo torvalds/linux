@@ -23,4 +23,4 @@ private:
 
 const char * mxmlWhitespaceCB(mxml_node_t *node, int where);
 
-#endif 	//__CAPTURED_XML_H__
+#endif //__CAPTURED_XML_H__
