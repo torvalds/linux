@@ -633,8 +633,10 @@ static void emac_rx(struct net_device *dev)
 		}
 
 		/* Move data from EMAC */
-		skb = dev_alloc_skb(rxlen + 4);
-		if (good_packet && skb) {
+		if (good_packet) {
+			skb = netdev_alloc_skb(dev, rxlen + 4);
+			if (!skb)
+				continue;
 			skb_reserve(skb, 2);
 			rdptr = (u8 *) skb_put(skb, rxlen - 4);
 
