@@ -29,8 +29,8 @@
 
 enum tps65218_regulators { DCDC1, DCDC2, DCDC3, DCDC4, DCDC5, DCDC6, LDO1 };
 
-#define TPS65218_REGULATOR(_name, _id, _ops, _n, _vr, _vm, _er, _em, _t, \
-			    _lr, _nlr, _delay)			\
+#define TPS65218_REGULATOR(_name, _id, _ops, _n, _vr, _vm, _er, _em, \
+			    _lr, _nlr, _delay, _fuv)		\
 	{							\
 		.name			= _name,		\
 		.id			= _id,			\
@@ -42,14 +42,15 @@ enum tps65218_regulators { DCDC1, DCDC2, DCDC3, DCDC4, DCDC5, DCDC6, LDO1 };
 		.vsel_mask		= _vm,			\
 		.enable_reg		= _er,			\
 		.enable_mask		= _em,			\
-		.volt_table		= _t,			\
+		.volt_table		= NULL,			\
 		.linear_ranges		= _lr,			\
 		.n_linear_ranges	= _nlr,			\
 		.ramp_delay		= _delay,		\
+		.fixed_uV		= _fuv			\
 	}							\
 
 #define TPS65218_INFO(_id, _nm, _min, _max)	\
-	{						\
+	[_id] = {					\
 		.id		= _id,			\
 		.name		= _nm,			\
 		.min_uV		= _min,			\
@@ -72,13 +73,13 @@ static const struct regulator_linear_range dcdc4_ranges[] = {
 };
 
 static struct tps_info tps65218_pmic_regs[] = {
-	TPS65218_INFO(0, "DCDC1", 850000, 167500),
-	TPS65218_INFO(1, "DCDC2", 850000, 1675000),
-	TPS65218_INFO(2, "DCDC3", 900000, 3400000),
-	TPS65218_INFO(3, "DCDC4", 1175000, 3400000),
-	TPS65218_INFO(4, "DCDC5", 1000000, 1000000),
-	TPS65218_INFO(5, "DCDC6", 1800000, 1800000),
-	TPS65218_INFO(6, "LDO1", 900000, 3400000),
+	TPS65218_INFO(DCDC1, "DCDC1", 850000, 167500),
+	TPS65218_INFO(DCDC2, "DCDC2", 850000, 1675000),
+	TPS65218_INFO(DCDC3, "DCDC3", 900000, 3400000),
+	TPS65218_INFO(DCDC4, "DCDC4", 1175000, 3400000),
+	TPS65218_INFO(DCDC5, "DCDC5", 1000000, 1000000),
+	TPS65218_INFO(DCDC6, "DCDC6", 1800000, 1800000),
+	TPS65218_INFO(LDO1, "LDO1", 900000, 3400000),
 };
 
 #define TPS65218_OF_MATCH(comp, label) \
@@ -127,7 +128,7 @@ static int tps65218_pmic_set_voltage_sel(struct regulator_dev *dev,
 static int tps65218_pmic_enable(struct regulator_dev *dev)
 {
 	struct tps65218 *tps = rdev_get_drvdata(dev);
-	unsigned int rid = rdev_get_id(dev);
+	int rid = rdev_get_id(dev);
 
 	if (rid < TPS65218_DCDC_1 || rid > TPS65218_LDO_1)
 		return -EINVAL;
@@ -141,7 +142,7 @@ static int tps65218_pmic_enable(struct regulator_dev *dev)
 static int tps65218_pmic_disable(struct regulator_dev *dev)
 {
 	struct tps65218 *tps = rdev_get_drvdata(dev);
-	unsigned int rid = rdev_get_id(dev);
+	int rid = rdev_get_id(dev);
 
 	if (rid < TPS65218_DCDC_1 || rid > TPS65218_LDO_1)
 		return -EINVAL;
@@ -185,34 +186,33 @@ static const struct regulator_desc regulators[] = {
 	TPS65218_REGULATOR("DCDC1", TPS65218_DCDC_1, tps65218_dcdc12_ops, 64,
 			   TPS65218_REG_CONTROL_DCDC1,
 			   TPS65218_CONTROL_DCDC1_MASK,
-			   TPS65218_REG_ENABLE1, TPS65218_ENABLE1_DC1_EN, NULL,
-			   dcdc1_dcdc2_ranges, 2, 4000),
+			   TPS65218_REG_ENABLE1, TPS65218_ENABLE1_DC1_EN,
+			   dcdc1_dcdc2_ranges, 2, 4000, 0),
 	TPS65218_REGULATOR("DCDC2", TPS65218_DCDC_2, tps65218_dcdc12_ops, 64,
 			   TPS65218_REG_CONTROL_DCDC2,
 			   TPS65218_CONTROL_DCDC2_MASK,
-			   TPS65218_REG_ENABLE1, TPS65218_ENABLE1_DC2_EN, NULL,
-			   dcdc1_dcdc2_ranges, 2, 4000),
+			   TPS65218_REG_ENABLE1, TPS65218_ENABLE1_DC2_EN,
+			   dcdc1_dcdc2_ranges, 2, 4000, 0),
 	TPS65218_REGULATOR("DCDC3", TPS65218_DCDC_3, tps65218_ldo1_dcdc34_ops,
 			   64, TPS65218_REG_CONTROL_DCDC3,
 			   TPS65218_CONTROL_DCDC3_MASK, TPS65218_REG_ENABLE1,
-			   TPS65218_ENABLE1_DC3_EN, NULL,
-			   ldo1_dcdc3_ranges, 2, 0),
+			   TPS65218_ENABLE1_DC3_EN, ldo1_dcdc3_ranges, 2, 0, 0),
 	TPS65218_REGULATOR("DCDC4", TPS65218_DCDC_4, tps65218_ldo1_dcdc34_ops,
 			   53, TPS65218_REG_CONTROL_DCDC4,
 			   TPS65218_CONTROL_DCDC4_MASK,
-			   TPS65218_REG_ENABLE1, TPS65218_ENABLE1_DC4_EN, NULL,
-			   dcdc4_ranges, 2, 0),
+			   TPS65218_REG_ENABLE1, TPS65218_ENABLE1_DC4_EN,
+			   dcdc4_ranges, 2, 0, 0),
 	TPS65218_REGULATOR("DCDC5", TPS65218_DCDC_5, tps65218_dcdc56_pmic_ops,
 			   1, -1, -1, TPS65218_REG_ENABLE1,
-			   TPS65218_ENABLE1_DC5_EN, NULL, NULL, 0, 0),
+			   TPS65218_ENABLE1_DC5_EN, NULL, 0, 0, 1000000),
 	TPS65218_REGULATOR("DCDC6", TPS65218_DCDC_6, tps65218_dcdc56_pmic_ops,
 			   1, -1, -1, TPS65218_REG_ENABLE1,
-			   TPS65218_ENABLE1_DC6_EN, NULL, NULL, 0, 0),
+			   TPS65218_ENABLE1_DC6_EN, NULL, 0, 0, 1800000),
 	TPS65218_REGULATOR("LDO1", TPS65218_LDO_1, tps65218_ldo1_dcdc34_ops, 64,
 			   TPS65218_REG_CONTROL_LDO1,
 			   TPS65218_CONTROL_LDO1_MASK, TPS65218_REG_ENABLE2,
-			   TPS65218_ENABLE2_LDO1_EN, NULL, ldo1_dcdc3_ranges,
-			   2, 0),
+			   TPS65218_ENABLE2_LDO1_EN, ldo1_dcdc3_ranges,
+			   2, 0, 0),
 };
 
 static int tps65218_regulator_probe(struct platform_device *pdev)
