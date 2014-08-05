@@ -293,6 +293,7 @@ static inline struct cdev *cdev_alloc_init(struct module *owner,
 					   const struct file_operations *fops)
 {
 	struct cdev *cdev = NULL;
+
 	cdev = cdev_alloc();
 	if (!cdev)
 		return NULL;
