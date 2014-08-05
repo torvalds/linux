@@ -3558,7 +3558,7 @@ int t4_enable_vi_params(struct adapter *adap, unsigned int mbox,
 	c.ien_to_len16 = htonl(FW_VI_ENABLE_CMD_IEN(rx_en) |
 			       FW_VI_ENABLE_CMD_EEN(tx_en) | FW_LEN16(c) |
 			       FW_VI_ENABLE_CMD_DCB_INFO(dcb_en));
-	return t4_wr_mbox(adap, mbox, &c, sizeof(c), NULL);
+	return t4_wr_mbox_ns(adap, mbox, &c, sizeof(c), NULL);
 }
 
 /**
