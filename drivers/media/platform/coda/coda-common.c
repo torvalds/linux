@@ -1947,14 +1947,14 @@ static int coda_probe(struct platform_device *pdev)
 	dev->iram.vaddr = gen_pool_dma_alloc(dev->iram_pool, dev->iram.size,
 					     &dev->iram.paddr);
 	if (!dev->iram.vaddr) {
-		dev_err(&pdev->dev, "unable to alloc iram\n");
-		return -ENOMEM;
+		dev_warn(&pdev->dev, "unable to alloc iram\n");
+	} else {
+		dev->iram.blob.data = dev->iram.vaddr;
+		dev->iram.blob.size = dev->iram.size;
+		dev->iram.dentry = debugfs_create_blob("iram", 0644,
+						       dev->debugfs_root,
+						       &dev->iram.blob);
 	}
-
-	dev->iram.blob.data = dev->iram.vaddr;
-	dev->iram.blob.size = dev->iram.size;
-	dev->iram.dentry = debugfs_create_blob("iram", 0644, dev->debugfs_root,
-					       &dev->iram.blob);
 
 	dev->workqueue = alloc_workqueue("coda", WQ_UNBOUND | WQ_MEM_RECLAIM, 1);
 	if (!dev->workqueue) {
