@@ -506,8 +506,8 @@
 		io-channel-ranges;
 		rockchip,adc-vref = <1800>;
 		clock-frequency = <1000000>;
-		//clocks = <&clk_saradc>, <&clk_gates7 1>;
-		//clock-names = "saradc", "pclk_saradc";
+		clocks = <&clk_saradc>, <&clk_gates7 14>;
+		clock-names = "saradc", "pclk_saradc";
 		status = "disabled";
 	};
 
