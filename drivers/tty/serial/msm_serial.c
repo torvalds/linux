@@ -190,11 +190,10 @@ static void handle_rx(struct uart_port *port)
 		/* Mask conditions we're ignorning. */
 		sr &= port->read_status_mask;
 
-		if (sr & UART_SR_RX_BREAK) {
+		if (sr & UART_SR_RX_BREAK)
 			flag = TTY_BREAK;
-		} else if (sr & UART_SR_PAR_FRAME_ERR) {
+		else if (sr & UART_SR_PAR_FRAME_ERR)
 			flag = TTY_FRAME;
-		}
 
 		if (!uart_handle_sysrq_char(port, c))
 			tty_insert_flip_char(tport, c, flag);
