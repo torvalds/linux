@@ -567,6 +567,24 @@ ssize_t mipi_dsi_dcs_read(struct mipi_dsi_device *dsi, u8 cmd, void *data,
 EXPORT_SYMBOL(mipi_dsi_dcs_read);
 
 /**
+ * mipi_dsi_dcs_nop() - send DCS nop packet
+ * @dsi: DSI peripheral device
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int mipi_dsi_dcs_nop(struct mipi_dsi_device *dsi)
+{
+	ssize_t err;
+
+	err = mipi_dsi_dcs_write(dsi, MIPI_DCS_NOP, NULL, 0);
+	if (err < 0)
+		return err;
+
+	return 0;
+}
+EXPORT_SYMBOL(mipi_dsi_dcs_nop);
+
+/**
  * mipi_dsi_dcs_enter_sleep_mode() - disable all unnecessary blocks inside the
  *    display module except interface communication
  * @dsi: DSI peripheral device
