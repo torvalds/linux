@@ -700,8 +700,8 @@ static int msm_poll_get_char_single(struct uart_port *port)
 
 	if (!(msm_read(port, UART_SR) & UART_SR_RX_READY))
 		return NO_POLL_CHAR;
-	else
-		return msm_read(port, rf_reg) & 0xff;
+
+	return msm_read(port, rf_reg) & 0xff;
 }
 
 static int msm_poll_get_char_dm_1p3(struct uart_port *port)
