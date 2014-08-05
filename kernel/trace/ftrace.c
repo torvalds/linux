@@ -1057,6 +1057,12 @@ static struct pid * const ftrace_swapper_pid = &init_struct_pid;
 
 static struct ftrace_ops *removed_ops;
 
+/*
+ * Set when doing a global update, like enabling all recs or disabling them.
+ * It is not set when just updating a single ftrace_ops.
+ */
+static bool update_all_ops;
+
 #ifndef CONFIG_FTRACE_MCOUNT_RECORD
 # error Dynamic ftrace depends on MCOUNT_RECORD
 #endif
@@ -2366,6 +2372,13 @@ static void ftrace_run_update_code(int command)
 	FTRACE_WARN_ON(ret);
 }
 
+static void ftrace_run_modify_code(struct ftrace_ops *ops, int command)
+{
+	ops->flags |= FTRACE_OPS_FL_MODIFYING;
+	ftrace_run_update_code(command);
+	ops->flags &= ~FTRACE_OPS_FL_MODIFYING;
+}
+
 static ftrace_func_t saved_ftrace_func;
 static int ftrace_start_up;
 
@@ -2387,6 +2400,13 @@ static void ftrace_startup_enable(int command)
 	ftrace_run_update_code(command);
 }
 
+static void ftrace_startup_all(int command)
+{
+	update_all_ops = true;
+	ftrace_startup_enable(command);
+	update_all_ops = false;
+}
+
 static int ftrace_startup(struct ftrace_ops *ops, int command)
 {
 	int ret;
@@ -2401,11 +2421,21 @@ static int ftrace_startup(struct ftrace_ops *ops, int command)
 	ftrace_start_up++;
 	command |= FTRACE_UPDATE_CALLS;
 
-	ops->flags |= FTRACE_OPS_FL_ENABLED;
+	/*
+	 * Note that ftrace probes uses this to start up
+	 * and modify functions it will probe. But we still
+	 * set the ADDING flag for modification, as probes
+	 * do not have trampolines. If they add them in the
+	 * future, then the probes will need to distinguish
+	 * between adding and updating probes.
+	 */
+	ops->flags |= FTRACE_OPS_FL_ENABLED | FTRACE_OPS_FL_ADDING;
 
 	ftrace_hash_rec_enable(ops, 1);
 
 	ftrace_startup_enable(command);
+
+	ops->flags &= ~FTRACE_OPS_FL_ADDING;
 
 	return 0;
 }
@@ -2456,11 +2486,12 @@ static int ftrace_shutdown(struct ftrace_ops *ops, int command)
 	 * If the ops uses a trampoline, then it needs to be
 	 * tested first on update.
 	 */
+	ops->flags |= FTRACE_OPS_FL_REMOVING;
 	removed_ops = ops;
 
 	ftrace_run_update_code(command);
 
-	removed_ops = NULL;
+	ops->flags &= ~FTRACE_OPS_FL_REMOVING;
 
 	/*
 	 * Dynamic ops may be freed, we must make sure that all
@@ -3373,7 +3404,7 @@ static void __enable_ftrace_function_probe(void)
 	if (ftrace_probe_registered) {
 		/* still need to update the function call sites */
 		if (ftrace_enabled)
-			ftrace_run_update_code(FTRACE_UPDATE_CALLS);
+			ftrace_run_modify_code(&trace_probe_ops, FTRACE_UPDATE_CALLS);
 		return;
 	}
 
@@ -3792,7 +3823,7 @@ ftrace_match_addr(struct ftrace_hash *hash, unsigned long ip, int remove)
 static void ftrace_ops_update_code(struct ftrace_ops *ops)
 {
 	if (ops->flags & FTRACE_OPS_FL_ENABLED && ftrace_enabled)
-		ftrace_run_update_code(FTRACE_UPDATE_CALLS);
+		ftrace_run_modify_code(ops, FTRACE_UPDATE_CALLS);
 }
 
 static int
@@ -4717,6 +4748,7 @@ core_initcall(ftrace_nodyn_init);
 
 static inline int ftrace_init_dyn_debugfs(struct dentry *d_tracer) { return 0; }
 static inline void ftrace_startup_enable(int command) { }
+static inline void ftrace_startup_all(int command) { }
 /* Keep as macros so we do not need to define the commands */
 # define ftrace_startup(ops, command)					\
 	({								\
@@ -5016,7 +5048,8 @@ static int ftrace_pid_add(int p)
 	set_ftrace_pid_task(pid);
 
 	ftrace_update_pid_func();
-	ftrace_startup_enable(0);
+
+	ftrace_startup_all(0);
 
 	mutex_unlock(&ftrace_lock);
 	return 0;
@@ -5045,7 +5078,7 @@ static void ftrace_pid_reset(void)
 	}
 
 	ftrace_update_pid_func();
-	ftrace_startup_enable(0);
+	ftrace_startup_all(0);
 
 	mutex_unlock(&ftrace_lock);
 }
