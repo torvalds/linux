@@ -361,8 +361,12 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 	err_printf(m, "PCI ID: 0x%04x\n", dev->pdev->device);
 	err_printf(m, "EIR: 0x%08x\n", error->eir);
 	err_printf(m, "IER: 0x%08x\n", error->ier);
-	if (HAS_PCH_SPLIT(dev) || IS_VALLEYVIEW(dev))
-		err_printf(m, "GTIER: 0x%08x\n", error->gtier);
+	if (INTEL_INFO(dev)->gen >= 8) {
+		for (i = 0; i < 4; i++)
+			err_printf(m, "GTIER gt %d: 0x%08x\n", i,
+				   error->gtier[i]);
+	} else if (HAS_PCH_SPLIT(dev) || IS_VALLEYVIEW(dev))
+		err_printf(m, "GTIER: 0x%08x\n", error->gtier[0]);
 	err_printf(m, "PGTBL_ER: 0x%08x\n", error->pgtbl_er);
 	err_printf(m, "FORCEWAKE: 0x%08x\n", error->forcewake);
 	err_printf(m, "DERRMR: 0x%08x\n", error->derrmr);
@@ -1096,6 +1100,7 @@ static void i915_capture_reg_state(struct drm_i915_private *dev_priv,
 				   struct drm_i915_error_state *error)
 {
 	struct drm_device *dev = dev_priv->dev;
+	int i;
 
 	/* General organization
 	 * 1. Registers specific to a single generation
@@ -1107,7 +1112,7 @@ static void i915_capture_reg_state(struct drm_i915_private *dev_priv,
 
 	/* 1: Registers specific to a single generation */
 	if (IS_VALLEYVIEW(dev)) {
-		error->gtier = I915_READ(GTIER);
+		error->gtier[0] = I915_READ(GTIER);
 		error->ier = I915_READ(VLV_IER);
 		error->forcewake = I915_READ(FORCEWAKE_VLV);
 	}
@@ -1141,9 +1146,13 @@ static void i915_capture_reg_state(struct drm_i915_private *dev_priv,
 	if (HAS_HW_CONTEXTS(dev))
 		error->ccid = I915_READ(CCID);
 
-	if (HAS_PCH_SPLIT(dev)) {
+	if (INTEL_INFO(dev)->gen >= 8) {
+		error->ier = I915_READ(GEN8_DE_MISC_IER);
+		for (i = 0; i < 4; i++)
+			error->gtier[i] = I915_READ(GEN8_GT_IER(i));
+	} else if (HAS_PCH_SPLIT(dev)) {
 		error->ier = I915_READ(DEIER);
-		error->gtier = I915_READ(GTIER);
+		error->gtier[0] = I915_READ(GTIER);
 	} else if (IS_GEN2(dev)) {
 		error->ier = I915_READ16(IER);
 	} else if (!IS_VALLEYVIEW(dev)) {
