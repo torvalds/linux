@@ -250,9 +250,14 @@ enum {
 
 	/* generate software time stamp when entering packet scheduling */
 	SKBTX_SCHED_TSTAMP = 1 << 6,
+
+	/* generate software timestamp on peer data acknowledgment */
+	SKBTX_ACK_TSTAMP = 1 << 7,
 };
 
-#define SKBTX_ANY_SW_TSTAMP	(SKBTX_SW_TSTAMP | SKBTX_SCHED_TSTAMP)
+#define SKBTX_ANY_SW_TSTAMP	(SKBTX_SW_TSTAMP    | \
+				 SKBTX_SCHED_TSTAMP | \
+				 SKBTX_ACK_TSTAMP)
 #define SKBTX_ANY_TSTAMP	(SKBTX_HW_TSTAMP | SKBTX_ANY_SW_TSTAMP)
 
 /*

@@ -74,6 +74,7 @@
 #include <linux/ipsec.h>
 #include <asm/unaligned.h>
 #include <net/netdma.h>
+#include <linux/errqueue.h>
 
 int sysctl_tcp_timestamps __read_mostly = 1;
 int sysctl_tcp_window_scaling __read_mostly = 1;
@@ -3105,6 +3106,11 @@ static int tcp_clean_rtx_queue(struct sock *sk, int prior_fackets,
 			flag |= FLAG_SYN_ACKED;
 			tp->retrans_stamp = 0;
 		}
+
+		if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_ACK_TSTAMP) &&
+		    between(skb_shinfo(skb)->tskey, prior_snd_una,
+			    tp->snd_una + 1))
+			__skb_tstamp_tx(skb, NULL, sk, SCM_TSTAMP_ACK);
 
 		if (!fully_acked)
 			break;

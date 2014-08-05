@@ -619,6 +619,8 @@ void sock_tx_timestamp(struct sock *sk, __u8 *tx_flags)
 		*tx_flags |= SKBTX_SW_TSTAMP;
 	if (sk->sk_tsflags & SOF_TIMESTAMPING_TX_SCHED)
 		*tx_flags |= SKBTX_SCHED_TSTAMP;
+	if (sk->sk_tsflags & SOF_TIMESTAMPING_TX_ACK)
+		*tx_flags |= SKBTX_ACK_TSTAMP;
 
 	if (sock_flag(sk, SOCK_WIFI_STATUS))
 		*tx_flags |= SKBTX_WIFI_STATUS;
