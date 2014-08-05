@@ -749,7 +749,7 @@ int kvm_s390_si_ext_call_pending(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
-int kvm_cpu_has_interrupt(struct kvm_vcpu *vcpu)
+int kvm_s390_vcpu_has_irq(struct kvm_vcpu *vcpu, int exclude_stop)
 {
 	struct kvm_s390_float_interrupt *fi = vcpu->arch.local_int.float_int;
 	struct kvm_s390_interrupt_info  *inti;
@@ -773,7 +773,7 @@ int kvm_cpu_has_interrupt(struct kvm_vcpu *vcpu)
 	if (!rc && kvm_s390_si_ext_call_pending(vcpu))
 		rc = 1;
 
-	if (!rc && kvm_s390_is_stop_irq_pending(vcpu))
+	if (!rc && !exclude_stop && kvm_s390_is_stop_irq_pending(vcpu))
 		rc = 1;
 
 	return rc;

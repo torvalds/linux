@@ -806,7 +806,7 @@ out:
 
 int kvm_arch_vcpu_runnable(struct kvm_vcpu *vcpu)
 {
-	return kvm_cpu_has_interrupt(vcpu);
+	return kvm_s390_vcpu_has_irq(vcpu, 0);
 }
 
 void s390_vcpu_block(struct kvm_vcpu *vcpu)
@@ -1241,7 +1241,7 @@ static int kvm_arch_setup_async_pf(struct kvm_vcpu *vcpu)
 		return 0;
 	if (psw_extint_disabled(vcpu))
 		return 0;
-	if (kvm_cpu_has_interrupt(vcpu))
+	if (kvm_s390_vcpu_has_irq(vcpu, 0))
 		return 0;
 	if (!(vcpu->arch.sie_block->gcr[0] & 0x200ul))
 		return 0;

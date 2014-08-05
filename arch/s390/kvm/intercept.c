@@ -74,6 +74,10 @@ static int handle_stop(struct kvm_vcpu *vcpu)
 
 	vcpu->stat.exit_stop_request++;
 
+	/* delay the stop if any non-stop irq is pending */
+	if (kvm_s390_vcpu_has_irq(vcpu, 1))
+		return 0;
+
 	/* avoid races with the injection/SIGP STOP code */
 	spin_lock(&li->lock);
 	flags = li->irq.stop.flags;
