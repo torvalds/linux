@@ -4429,7 +4429,7 @@ intel_dp_drrs_init(struct intel_digital_port *intel_dig_port,
 	}
 
 	if (dev_priv->vbt.drrs_type != SEAMLESS_DRRS_SUPPORT) {
-		DRM_INFO("VBT doesn't support DRRS\n");
+		DRM_DEBUG_KMS("VBT doesn't support DRRS\n");
 		return NULL;
 	}
 
@@ -4437,7 +4437,7 @@ intel_dp_drrs_init(struct intel_digital_port *intel_dig_port,
 					(dev, fixed_mode, connector);
 
 	if (!downclock_mode) {
-		DRM_INFO("DRRS not supported\n");
+		DRM_DEBUG_KMS("DRRS not supported\n");
 		return NULL;
 	}
 
@@ -4448,7 +4448,7 @@ intel_dp_drrs_init(struct intel_digital_port *intel_dig_port,
 	intel_dp->drrs_state.type = dev_priv->vbt.drrs_type;
 
 	intel_dp->drrs_state.refresh_rate_type = DRRS_HIGH_RR;
-	DRM_INFO("seamless DRRS supported for eDP panel.\n");
+	DRM_DEBUG_KMS("seamless DRRS supported for eDP panel.\n");
 	return downclock_mode;
 }
 
