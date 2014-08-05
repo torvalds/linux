@@ -566,6 +566,10 @@
 
 			};
 
+			sdmmc0_pwren: sdmmc0-pwren{
+				rockchip,pins = <MMC0_PWREN>;
+				rockchip,pull = <VALUE_PULL_UP>;
+			};
 
 			sdmmc0_bus1: sdmmc0-bus-width1 {
 				rockchip,pins = <MMC0_D0>;
@@ -589,6 +593,7 @@
 					<GPIO1_B7>,  //CMD
 					<GPIO1_C0>,  //CLK
 					<GPIO1_C1>,  //DET
+					<GPIO1_B6>,  //PWREN
 					<GPIO1_C2>,  //D0
 					<GPIO1_C3>,  //D1
 					<GPIO1_C4>,  //D2
