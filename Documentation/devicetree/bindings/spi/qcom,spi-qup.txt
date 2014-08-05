@@ -7,7 +7,11 @@ SPI in master mode supports up to 50MHz, up to four chip selects, programmable
 data path from 4 bits to 32 bits and numerous protocol variants.
 
 Required properties:
-- compatible:     Should contain "qcom,spi-qup-v2.1.1" or "qcom,spi-qup-v2.2.1"
+- compatible:     Should contain:
+		  "qcom,spi-qup-v1.1.1" for 8660, 8960 and 8064.
+		  "qcom,spi-qup-v2.1.1" for 8974 and later
+		  "qcom,spi-qup-v2.2.1" for 8974 v2 and later.
+
 - reg:            Should contain base register location and length
 - interrupts:     Interrupt number used by this controller
 

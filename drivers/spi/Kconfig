@@ -382,9 +382,21 @@ config SPI_PXA2XX
 config SPI_PXA2XX_PCI
 	def_tristate SPI_PXA2XX && PCI
 
+config SPI_ROCKCHIP
+	tristate "Rockchip SPI controller driver"
+	depends on ARM || ARM64 || AVR32 || HEXAGON || MIPS || SUPERH
+	help
+	  This selects a driver for Rockchip SPI controller.
+
+	  If you say yes to this option, support will be included for
+	  RK3066, RK3188 and RK3288 families of SPI controller.
+	  Rockchip SPI controller support DMA transport and PIO mode.
+	  The main usecase of this controller is to use spi flash as boot
+	  device.
+
 config SPI_RSPI
 	tristate "Renesas RSPI/QSPI controller"
-	depends on (SUPERH && SH_DMAE_BASE) || ARCH_SHMOBILE
+	depends on SUPERH || ARCH_SHMOBILE || COMPILE_TEST
 	help
 	  SPI driver for Renesas RSPI and QSPI blocks.
 
@@ -434,7 +446,7 @@ config SPI_SC18IS602
 
 config SPI_SH_MSIOF
 	tristate "SuperH MSIOF SPI controller"
-	depends on HAVE_CLK
+	depends on HAVE_CLK && HAS_DMA
 	depends on SUPERH || ARCH_SHMOBILE || COMPILE_TEST
 	help
 	  SPI driver for SuperH and SH Mobile MSIOF blocks.
