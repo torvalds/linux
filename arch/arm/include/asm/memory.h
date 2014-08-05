@@ -91,9 +91,7 @@
  * of this define that was meant to.
  * Fortunately, there is no reference for this in noMMU mode, for now.
  */
-#ifndef TASK_SIZE
-#define TASK_SIZE		(CONFIG_DRAM_SIZE)
-#endif
+#define TASK_SIZE		UL(0xffffffff)
 
 #ifndef TASK_UNMAPPED_BASE
 #define TASK_UNMAPPED_BASE	UL(0x00000000)

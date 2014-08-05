@@ -233,14 +233,17 @@ static struct of_device_id cpu_pmu_of_device_ids[] = {
 	{.compatible = "arm,cortex-a7-pmu",	.data = armv7_a7_pmu_init},
 	{.compatible = "arm,cortex-a5-pmu",	.data = armv7_a5_pmu_init},
 	{.compatible = "arm,arm11mpcore-pmu",	.data = armv6mpcore_pmu_init},
-	{.compatible = "arm,arm1176-pmu",	.data = armv6pmu_init},
-	{.compatible = "arm,arm1136-pmu",	.data = armv6pmu_init},
+	{.compatible = "arm,arm1176-pmu",	.data = armv6_1176_pmu_init},
+	{.compatible = "arm,arm1136-pmu",	.data = armv6_1136_pmu_init},
 	{.compatible = "qcom,krait-pmu",	.data = krait_pmu_init},
 	{},
 };
 
 static struct platform_device_id cpu_pmu_plat_device_ids[] = {
 	{.name = "arm-pmu"},
+	{.name = "armv6-pmu"},
+	{.name = "armv7-pmu"},
+	{.name = "xscale-pmu"},
 	{},
 };
 
@@ -257,9 +260,13 @@ static int probe_current_pmu(struct arm_pmu *pmu)
 	switch (read_cpuid_part()) {
 	/* ARM Ltd CPUs. */
 	case ARM_CPU_PART_ARM1136:
+		ret = armv6_1136_pmu_init(pmu);
+		break;
 	case ARM_CPU_PART_ARM1156:
+		ret = armv6_1156_pmu_init(pmu);
+		break;
 	case ARM_CPU_PART_ARM1176:
-		ret = armv6pmu_init(pmu);
+		ret = armv6_1176_pmu_init(pmu);
 		break;
 	case ARM_CPU_PART_ARM11MPCORE:
 		ret = armv6mpcore_pmu_init(pmu);

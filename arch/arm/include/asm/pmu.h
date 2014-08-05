@@ -42,6 +42,25 @@ struct arm_pmu_platdata {
 
 #ifdef CONFIG_HW_PERF_EVENTS
 
+/*
+ * The ARMv7 CPU PMU supports up to 32 event counters.
+ */
+#define ARMPMU_MAX_HWEVENTS		32
+
+#define HW_OP_UNSUPPORTED		0xFFFF
+#define C(_x)				PERF_COUNT_HW_CACHE_##_x
+#define CACHE_OP_UNSUPPORTED		0xFFFF
+
+#define PERF_MAP_ALL_UNSUPPORTED					\
+	[0 ... PERF_COUNT_HW_MAX - 1] = HW_OP_UNSUPPORTED
+
+#define PERF_CACHE_MAP_ALL_UNSUPPORTED					\
+[0 ... C(MAX) - 1] = {							\
+	[0 ... C(OP_MAX) - 1] = {					\
+		[0 ... C(RESULT_MAX) - 1] = CACHE_OP_UNSUPPORTED,	\
+	},								\
+}
+
 /* The events for a given PMU register set. */
 struct pmu_hw_events {
 	/*
