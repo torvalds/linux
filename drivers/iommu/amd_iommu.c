@@ -93,6 +93,7 @@ static struct dma_map_ops amd_iommu_dma_ops;
 struct iommu_dev_data {
 	struct list_head list;		  /* For domain->dev_list */
 	struct list_head dev_data_list;	  /* For global dev_data_list */
+	struct list_head alias_list;      /* Link alias-groups together */
 	struct iommu_dev_data *alias_data;/* The alias dev_data */
 	struct protection_domain *domain; /* Domain the device is bound to */
 	atomic_t bind;			  /* Domain attach reference count */
@@ -134,6 +135,8 @@ static struct iommu_dev_data *alloc_dev_data(u16 devid)
 	dev_data = kzalloc(sizeof(*dev_data), GFP_KERNEL);
 	if (!dev_data)
 		return NULL;
+
+	INIT_LIST_HEAD(&dev_data->alias_list);
 
 	dev_data->devid = devid;
 	atomic_set(&dev_data->bind, 0);
@@ -383,6 +386,9 @@ static int iommu_init_device(struct device *dev)
 			return -ENOTSUPP;
 		}
 		dev_data->alias_data = alias_data;
+
+		/* Add device to the alias_list */
+		list_add(&dev_data->alias_list, &alias_data->alias_list);
 	}
 
 	ret = init_iommu_group(dev);
