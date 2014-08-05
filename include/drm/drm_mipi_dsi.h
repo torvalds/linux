@@ -77,7 +77,7 @@ struct mipi_dsi_host_ops {
 	int (*detach)(struct mipi_dsi_host *host,
 		      struct mipi_dsi_device *dsi);
 	ssize_t (*transfer)(struct mipi_dsi_host *host,
-			    struct mipi_dsi_msg *msg);
+			    const struct mipi_dsi_msg *msg);
 };
 
 /**
