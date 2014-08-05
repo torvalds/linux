@@ -1157,6 +1157,7 @@ int ip6_append_data(struct sock *sk, int getfrag(void *from, char *to,
 	int err;
 	int offset = 0;
 	__u8 tx_flags = 0;
+	u32 tskey = 0;
 
 	if (flags&MSG_PROBE)
 		return 0;
@@ -1272,8 +1273,12 @@ emsgsize:
 		}
 	}
 
-	if (sk->sk_type == SOCK_DGRAM || sk->sk_type == SOCK_RAW)
+	if (sk->sk_type == SOCK_DGRAM || sk->sk_type == SOCK_RAW) {
 		sock_tx_timestamp(sk, &tx_flags);
+		if (tx_flags & SKBTX_ANY_SW_TSTAMP &&
+		    sk->sk_tsflags & SOF_TIMESTAMPING_OPT_ID)
+			tskey = sk->sk_tskey++;
+	}
 
 	/*
 	 * Let's try using as much space as possible.
@@ -1397,6 +1402,8 @@ alloc_new_skb:
 			/* Only the initial fragment is time stamped */
 			skb_shinfo(skb)->tx_flags = tx_flags;
 			tx_flags = 0;
+			skb_shinfo(skb)->tskey = tskey;
+			tskey = 0;
 
 			/*
 			 *	Find where to start putting bytes
