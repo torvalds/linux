@@ -929,7 +929,7 @@ static int resp_inquiry(struct scsi_cmnd *scp, int target,
 {
 	unsigned char pq_pdt;
 	unsigned char * arr;
-	unsigned char *cmd = (unsigned char *)scp->cmnd;
+	unsigned char *cmd = scp->cmnd;
 	int alloc_len, n, ret;
 
 	alloc_len = (cmd[3] << 8) + cmd[4];
@@ -1075,7 +1075,7 @@ static int resp_requests(struct scsi_cmnd * scp,
 			 struct sdebug_dev_info * devip)
 {
 	unsigned char * sbuff;
-	unsigned char *cmd = (unsigned char *)scp->cmnd;
+	unsigned char *cmd = scp->cmnd;
 	unsigned char arr[SCSI_SENSE_BUFFERSIZE];
 	int want_dsense;
 	int len = 18;
@@ -1115,7 +1115,7 @@ static int resp_requests(struct scsi_cmnd * scp,
 static int resp_start_stop(struct scsi_cmnd * scp,
 			   struct sdebug_dev_info * devip)
 {
-	unsigned char *cmd = (unsigned char *)scp->cmnd;
+	unsigned char *cmd = scp->cmnd;
 	int power_cond, errsts, start;
 
 	errsts = check_readiness(scp, UAS_ONLY, devip);
@@ -1177,7 +1177,7 @@ static int resp_readcap(struct scsi_cmnd * scp,
 static int resp_readcap16(struct scsi_cmnd * scp,
 			  struct sdebug_dev_info * devip)
 {
-	unsigned char *cmd = (unsigned char *)scp->cmnd;
+	unsigned char *cmd = scp->cmnd;
 	unsigned char arr[SDEBUG_READCAP16_ARR_SZ];
 	unsigned long long capac;
 	int errsts, k, alloc_len;
@@ -1222,7 +1222,7 @@ static int resp_readcap16(struct scsi_cmnd * scp,
 static int resp_report_tgtpgs(struct scsi_cmnd * scp,
 			      struct sdebug_dev_info * devip)
 {
-	unsigned char *cmd = (unsigned char *)scp->cmnd;
+	unsigned char *cmd = scp->cmnd;
 	unsigned char * arr;
 	int host_no = devip->sdbg_host->shost->host_no;
 	int n, ret, alen, rlen;
@@ -1468,7 +1468,7 @@ static int resp_mode_sense(struct scsi_cmnd * scp, int target,
 	int k, alloc_len, msense_6, offset, len, errsts, target_dev_id;
 	unsigned char * ap;
 	unsigned char arr[SDEBUG_MAX_MSENSE_SZ];
-	unsigned char *cmd = (unsigned char *)scp->cmnd;
+	unsigned char *cmd = scp->cmnd;
 
 	errsts = check_readiness(scp, UAS_ONLY, devip);
 	if (errsts)
@@ -1630,7 +1630,7 @@ static int resp_mode_select(struct scsi_cmnd * scp, int mselect6,
 	int pf, sp, ps, md_len, bd_len, off, spf, pg_len;
 	int param_len, res, errsts, mpage;
 	unsigned char arr[SDEBUG_MAX_MSELECT_SZ];
-	unsigned char *cmd = (unsigned char *)scp->cmnd;
+	unsigned char *cmd = scp->cmnd;
 
 	errsts = check_readiness(scp, UAS_ONLY, devip);
 	if (errsts)
@@ -1739,7 +1739,7 @@ static int resp_log_sense(struct scsi_cmnd * scp,
 {
 	int ppc, sp, pcontrol, pcode, subpcode, alloc_len, errsts, len, n;
 	unsigned char arr[SDEBUG_MAX_LSENSE_SZ];
-	unsigned char *cmd = (unsigned char *)scp->cmnd;
+	unsigned char *cmd = scp->cmnd;
 
 	errsts = check_readiness(scp, UAS_ONLY, devip);
 	if (errsts)
@@ -2414,7 +2414,7 @@ static int resp_report_luns(struct scsi_cmnd * scp,
 	unsigned int alloc_len;
 	int lun_cnt, i, upper, num, n;
 	u64 wlun, lun;
-	unsigned char *cmd = (unsigned char *)scp->cmnd;
+	unsigned char *cmd = scp->cmnd;
 	int select_report = (int)cmd[2];
 	struct scsi_lun *one_lun;
 	unsigned char arr[SDEBUG_RLUN_ARR_SZ];
@@ -4085,7 +4085,7 @@ static void sdebug_remove_adapter(void)
 static int
 scsi_debug_queuecommand(struct scsi_cmnd *SCpnt)
 {
-	unsigned char *cmd = (unsigned char *) SCpnt->cmnd;
+	unsigned char *cmd = SCpnt->cmnd;
 	int len, k;
 	unsigned int num;
 	unsigned long long lba;
@@ -4103,7 +4103,7 @@ scsi_debug_queuecommand(struct scsi_cmnd *SCpnt)
 
 	scsi_set_resid(SCpnt, 0);
 	if ((SCSI_DEBUG_OPT_NOISE & scsi_debug_opts) &&
-	    !(SCSI_DEBUG_OPT_NO_CDB_NOISE & scsi_debug_opts) && cmd) {
+	    !(SCSI_DEBUG_OPT_NO_CDB_NOISE & scsi_debug_opts)) {
 		char b[120];
 		int n;
 
