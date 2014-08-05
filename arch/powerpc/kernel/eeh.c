@@ -1207,6 +1207,8 @@ out:
 }
 EXPORT_SYMBOL(eeh_dev_release);
 
+#ifdef CONFIG_IOMMU_API
+
 static int dev_has_iommu_table(struct device *dev, void *data)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
@@ -1252,6 +1254,8 @@ struct eeh_pe *eeh_iommu_group_to_pe(struct iommu_group *group)
 
 	return edev->pe;
 }
+
+#endif /* CONFIG_IOMMU_API */
 
 /**
  * eeh_pe_set_option - Set options for the indicated PE
