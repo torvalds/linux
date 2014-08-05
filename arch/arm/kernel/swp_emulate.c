@@ -27,6 +27,7 @@
 #include <linux/perf_event.h>
 
 #include <asm/opcodes.h>
+#include <asm/system_info.h>
 #include <asm/traps.h>
 #include <asm/uaccess.h>
 
@@ -266,6 +267,9 @@ static struct undef_hook swp_hook = {
  */
 static int __init swp_emulation_init(void)
 {
+	if (cpu_architecture() < CPU_ARCH_ARMv7)
+		return 0;
+
 #ifdef CONFIG_PROC_FS
 	if (!proc_create("cpu/swp_emulation", S_IRUGO, NULL, &proc_status_fops))
 		return -ENOMEM;

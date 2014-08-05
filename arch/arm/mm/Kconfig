@@ -669,7 +669,7 @@ config ARM_VIRT_EXT
 	  details.
 
 config SWP_EMULATE
-	bool "Emulate SWP/SWPB instructions"
+	bool "Emulate SWP/SWPB instructions" if !SMP
 	depends on CPU_V7
 	default y if SMP
 	select HAVE_PROC_CPU if PROC_FS
