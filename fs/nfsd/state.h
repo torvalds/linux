@@ -72,6 +72,11 @@ struct nfsd4_callback {
 	bool cb_done;
 };
 
+/*
+ * A core object that represents a "common" stateid. These are generally
+ * embedded within the different (more specific) stateid objects and contain
+ * fields that are of general use to any stateid.
+ */
 struct nfs4_stid {
 	atomic_t sc_count;
 #define NFS4_OPEN_STID 1
@@ -89,6 +94,27 @@ struct nfs4_stid {
 	void (*sc_free)(struct nfs4_stid *);
 };
 
+/*
+ * Represents a delegation stateid. The nfs4_client holds references to these
+ * and they are put when it is being destroyed or when the delegation is
+ * returned by the client:
+ *
+ * o 1 reference as long as a delegation is still in force (taken when it's
+ *   alloc'd, put when it's returned or revoked)
+ *
+ * o 1 reference as long as a recall rpc is in progress (taken when the lease
+ *   is broken, put when the rpc exits)
+ *
+ * o 1 more ephemeral reference for each nfsd thread currently doing something
+ *   with that delegation without holding the cl_lock
+ *
+ * If the server attempts to recall a delegation and the client doesn't do so
+ * before a timeout, the server may also revoke the delegation. In that case,
+ * the object will either be destroyed (v4.0) or moved to a per-client list of
+ * revoked delegations (v4.1+).
+ *
+ * This object is a superset of the nfs4_stid.
+ */
 struct nfs4_delegation {
 	struct nfs4_stid	dl_stid; /* must be first field */
 	struct list_head	dl_perfile;
@@ -195,6 +221,11 @@ struct nfsd4_conn {
 	unsigned char cn_flags;
 };
 
+/*
+ * Representation of a v4.1+ session. These are refcounted in a similar fashion
+ * to the nfs4_client. References are only taken when the server is actively
+ * working on the object (primarily during the processing of compounds).
+ */
 struct nfsd4_session {
 	atomic_t		se_ref;
 	struct list_head	se_hash;	/* hash by sessionid */
@@ -224,13 +255,30 @@ struct nfsd4_sessionid {
 
 /*
  * struct nfs4_client - one per client.  Clientids live here.
- * 	o Each nfs4_client is hashed by clientid.
  *
- * 	o Each nfs4_clients is also hashed by name 
- * 	  (the opaque quantity initially sent by the client to identify itself).
+ * The initial object created by an NFS client using SETCLIENTID (for NFSv4.0)
+ * or EXCHANGE_ID (for NFSv4.1+). These objects are refcounted and timestamped.
+ * Each nfsd_net_ns object contains a set of these and they are tracked via
+ * short and long form clientid. They are hashed and searched for under the
+ * per-nfsd_net client_lock spinlock.
+ *
+ * References to it are only held during the processing of compounds, and in
+ * certain other operations. In their "resting state" they have a refcount of
+ * 0. If they are not renewed within a lease period, they become eligible for
+ * destruction by the laundromat.
+ *
+ * These objects can also be destroyed prematurely by the fault injection code,
+ * or if the client sends certain forms of SETCLIENTID or EXCHANGE_ID updates.
+ * Care is taken *not* to do this however when the objects have an elevated
+ * refcount.
+ *
+ * o Each nfs4_client is hashed by clientid
+ *
+ * o Each nfs4_clients is also hashed by name (the opaque quantity initially
+ *   sent by the client to identify itself).
  * 	  
- *	o cl_perclient list is used to ensure no dangling stateowner references
- *	  when we expire the nfs4_client
+ * o cl_perclient list is used to ensure no dangling stateowner references
+ *   when we expire the nfs4_client
  */
 struct nfs4_client {
 	struct list_head	cl_idhash; 	/* hash by cl_clientid.id */
@@ -340,6 +388,12 @@ struct nfs4_stateowner_operations {
 	void (*so_free)(struct nfs4_stateowner *);
 };
 
+/*
+ * A core object that represents either an open or lock owner. The object and
+ * lock owner objects have one of these embedded within them. Refcounts and
+ * other fields common to both owner types are contained within these
+ * structures.
+ */
 struct nfs4_stateowner {
 	struct list_head			so_strhash;
 	struct list_head			so_stateids;
@@ -354,6 +408,12 @@ struct nfs4_stateowner {
 	bool					so_is_open_owner;
 };
 
+/*
+ * When a file is opened, the client provides an open state owner opaque string
+ * that indicates the "owner" of that open. These objects are refcounted.
+ * References to it are held by each open state associated with it. This object
+ * is a superset of the nfs4_stateowner struct.
+ */
 struct nfs4_openowner {
 	struct nfs4_stateowner	oo_owner; /* must be first field */
 	struct list_head        oo_perclient;
@@ -371,6 +431,12 @@ struct nfs4_openowner {
 	unsigned char		oo_flags;
 };
 
+/*
+ * Represents a generic "lockowner". Similar to an openowner. References to it
+ * are held by the lock stateids that are created on its behalf. This object is
+ * a superset of the nfs4_stateowner struct (or would be if it needed any extra
+ * fields).
+ */
 struct nfs4_lockowner {
 	struct nfs4_stateowner	lo_owner; /* must be first element */
 };
@@ -385,7 +451,14 @@ static inline struct nfs4_lockowner * lockowner(struct nfs4_stateowner *so)
 	return container_of(so, struct nfs4_lockowner, lo_owner);
 }
 
-/* nfs4_file: a file opened by some number of (open) nfs4_stateowners. */
+/*
+ * nfs4_file: a file opened by some number of (open) nfs4_stateowners.
+ *
+ * These objects are global. nfsd only keeps one instance of a nfs4_file per
+ * inode (though it may keep multiple file descriptors open per inode). These
+ * are tracked in the file_hashtbl which is protected by the state_lock
+ * spinlock.
+ */
 struct nfs4_file {
 	atomic_t		fi_ref;
 	spinlock_t		fi_lock;
@@ -410,7 +483,20 @@ struct nfs4_file {
 	bool			fi_had_conflict;
 };
 
-/* "ol" stands for "Open or Lock".  Better suggestions welcome. */
+/*
+ * A generic struct representing either a open or lock stateid. The nfs4_client
+ * holds a reference to each of these objects, and they in turn hold a
+ * reference to their respective stateowners. The client's reference is
+ * released in response to a close or unlock (depending on whether it's an open
+ * or lock stateid) or when the client is being destroyed.
+ *
+ * In the case of v4.0 open stateids, these objects are preserved for a little
+ * while after close in order to handle CLOSE replays. Those are eventually
+ * reclaimed via a LRU scheme by the laundromat.
+ *
+ * This object is a superset of the nfs4_stid. "ol" stands for "Open or Lock".
+ * Better suggestions welcome.
+ */
 struct nfs4_ol_stateid {
 	struct nfs4_stid    st_stid; /* must be first field */
 	struct list_head              st_perfile;

@@ -34,6 +34,14 @@
 struct cld_net;
 struct nfsd4_client_tracking_ops;
 
+/*
+ * Represents a nfsd "container". With respect to nfsv4 state tracking, the
+ * fields of interest are the *_id_hashtbls and the *_name_tree. These track
+ * the nfs4_client objects by either short or long form clientid.
+ *
+ * Each nfsd_net runs a nfs4_laundromat workqueue job when necessary to clean
+ * up expired clients and delegations within the container.
+ */
 struct nfsd_net {
 	struct cld_net *cld_net;
 
