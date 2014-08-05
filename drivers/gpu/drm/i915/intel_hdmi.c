@@ -885,7 +885,7 @@ static bool hdmi_12bpc_possible(struct intel_crtc *crtc)
 	if (HAS_GMCH_DISPLAY(dev))
 		return false;
 
-	list_for_each_entry(encoder, &dev->mode_config.encoder_list, base.head) {
+	for_each_intel_encoder(dev, encoder) {
 		if (encoder->new_crtc != crtc)
 			continue;
 
