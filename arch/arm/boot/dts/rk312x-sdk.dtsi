@@ -131,6 +131,16 @@
 };
 &i2c2 {
 	status = "okay";
+	ts@55 {
+		compatible = "goodix,gt8xx";
+		reg = <0x55>;
+		touch-gpio = <&gpio1 GPIO_B0 IRQ_TYPE_LEVEL_LOW>;
+		reset-gpio = <&gpio2 GPIO_C1 GPIO_ACTIVE_LOW>;
+		//power-gpio = <&gpio0 GPIO_C5 GPIO_ACTIVE_LOW>;
+		max-x = <1280>;
+		max-y = <800>;
+	};
+	/*
 	ts@01 {
 		compatible = "ct,vtl_ts";
 		reg = <0x01>;
@@ -139,6 +149,7 @@
 		irq_gpio_number = <&gpio1 GPIO_B0 IRQ_TYPE_LEVEL_LOW>;
 		rst_gpio_number = <&gpio2 GPIO_C1 GPIO_ACTIVE_HIGH>;
 	};
+	*/
 };
 
 &fb {
