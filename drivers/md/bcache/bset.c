@@ -1182,7 +1182,7 @@ static void __btree_sort(struct btree_keys *b, struct btree_iter *iter,
 {
 	uint64_t start_time;
 	bool used_mempool = false;
-	struct bset *out = (void *) __get_free_pages(__GFP_NOWARN|GFP_NOIO,
+	struct bset *out = (void *) __get_free_pages(__GFP_NOWARN|GFP_NOWAIT,
 						     order);
 	if (!out) {
 		struct page *outp;

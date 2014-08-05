@@ -477,9 +477,13 @@ struct gc_stat {
  * CACHE_SET_STOPPING always gets set first when we're closing down a cache set;
  * we'll continue to run normally for awhile with CACHE_SET_STOPPING set (i.e.
  * flushing dirty data).
+ *
+ * CACHE_SET_RUNNING means all cache devices have been registered and journal
+ * replay is complete.
  */
 #define CACHE_SET_UNREGISTERING		0
 #define	CACHE_SET_STOPPING		1
+#define	CACHE_SET_RUNNING		2
 
 struct cache_set {
 	struct closure		cl;
