@@ -1285,10 +1285,13 @@ static bool vlv_compute_drain_latency(struct drm_crtc *crtc,
 	if (WARN(pixel_size == 0, "Pixel size is zero!\n"))
 		return false;
 
-	entries = (clock / 1000) * pixel_size;
+	entries = DIV_ROUND_UP(clock, 1000) * pixel_size;
 	*prec_mult = (entries > 128) ? DRAIN_LATENCY_PRECISION_64 :
 				       DRAIN_LATENCY_PRECISION_32;
 	*drain_latency = (64 * (*prec_mult) * 4) / entries;
+
+	if (*drain_latency > DRAIN_LATENCY_MASK)
+		*drain_latency = DRAIN_LATENCY_MASK;
 
 	return true;
 }
