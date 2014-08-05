@@ -348,6 +348,29 @@ enum ath10k_dev_flags {
 	ATH10K_FLAG_CORE_REGISTERED,
 };
 
+enum ath10k_scan_state {
+	ATH10K_SCAN_IDLE,
+	ATH10K_SCAN_STARTING,
+	ATH10K_SCAN_RUNNING,
+	ATH10K_SCAN_ABORTING,
+};
+
+static inline const char *ath10k_scan_state_str(enum ath10k_scan_state state)
+{
+	switch (state) {
+	case ATH10K_SCAN_IDLE:
+		return "idle";
+	case ATH10K_SCAN_STARTING:
+		return "starting";
+	case ATH10K_SCAN_RUNNING:
+		return "running";
+	case ATH10K_SCAN_ABORTING:
+		return "aborting";
+	}
+
+	return "unknown";
+}
+
 struct ath10k {
 	struct ath_common ath_common;
 	struct ieee80211_hw *hw;
@@ -417,10 +440,9 @@ struct ath10k {
 		struct completion started;
 		struct completion completed;
 		struct completion on_channel;
-		struct timer_list timeout;
+		struct delayed_work timeout;
+		enum ath10k_scan_state state;
 		bool is_roc;
-		bool in_progress;
-		bool aborting;
 		int vdev_id;
 		int roc_freq;
 	} scan;

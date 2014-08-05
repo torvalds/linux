@@ -665,8 +665,7 @@ static void ath10k_core_restart(struct work_struct *work)
 	switch (ar->state) {
 	case ATH10K_STATE_ON:
 		ar->state = ATH10K_STATE_RESTARTING;
-		del_timer_sync(&ar->scan.timeout);
-		ath10k_reset_scan((unsigned long)ar);
+		ath10k_scan_finish(ar);
 		ieee80211_restart_hw(ar->hw);
 		break;
 	case ATH10K_STATE_OFF:
@@ -1086,7 +1085,7 @@ struct ath10k *ath10k_core_create(void *hif_priv, struct device *dev,
 	init_completion(&ar->install_key_done);
 	init_completion(&ar->vdev_setup_done);
 
-	setup_timer(&ar->scan.timeout, ath10k_reset_scan, (unsigned long)ar);
+	INIT_DELAYED_WORK(&ar->scan.timeout, ath10k_scan_timeout_work);
 
 	ar->workqueue = create_singlethread_workqueue("ath10k_wq");
 	if (!ar->workqueue)

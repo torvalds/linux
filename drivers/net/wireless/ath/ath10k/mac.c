@@ -2159,34 +2159,40 @@ void ath10k_mgmt_over_wmi_tx_work(struct work_struct *work)
 /* Scanning */
 /************/
 
-/*
- * This gets called if we dont get a heart-beat during scan.
- * This may indicate the FW has hung and we need to abort the
- * scan manually to prevent cancel_hw_scan() from deadlocking
- */
-void ath10k_reset_scan(unsigned long ptr)
+void __ath10k_scan_finish(struct ath10k *ar)
 {
-	struct ath10k *ar = (struct ath10k *)ptr;
+	lockdep_assert_held(&ar->data_lock);
 
-	spin_lock_bh(&ar->data_lock);
-	if (!ar->scan.in_progress) {
-		spin_unlock_bh(&ar->data_lock);
-		return;
+	switch (ar->scan.state) {
+	case ATH10K_SCAN_IDLE:
+		break;
+	case ATH10K_SCAN_RUNNING:
+	case ATH10K_SCAN_ABORTING:
+		if (ar->scan.is_roc)
+			ieee80211_remain_on_channel_expired(ar->hw);
+		else
+			ieee80211_scan_completed(ar->hw,
+						 (ar->scan.state ==
+						  ATH10K_SCAN_ABORTING));
+		/* fall through */
+	case ATH10K_SCAN_STARTING:
+		ar->scan.state = ATH10K_SCAN_IDLE;
+		ar->scan_channel = NULL;
+		ath10k_offchan_tx_purge(ar);
+		cancel_delayed_work(&ar->scan.timeout);
+		complete_all(&ar->scan.completed);
+		break;
 	}
+}
 
-	ath10k_warn("scan timed out, firmware problem?\n");
-
-	if (ar->scan.is_roc)
-		ieee80211_remain_on_channel_expired(ar->hw);
-	else
-		ieee80211_scan_completed(ar->hw, 1 /* aborted */);
-
-	ar->scan.in_progress = false;
-	complete_all(&ar->scan.completed);
+void ath10k_scan_finish(struct ath10k *ar)
+{
+	spin_lock_bh(&ar->data_lock);
+	__ath10k_scan_finish(ar);
 	spin_unlock_bh(&ar->data_lock);
 }
 
-static int ath10k_abort_scan(struct ath10k *ar)
+static int ath10k_scan_stop(struct ath10k *ar)
 {
 	struct wmi_stop_scan_arg arg = {
 		.req_id = 1, /* FIXME */
@@ -2197,47 +2203,79 @@ static int ath10k_abort_scan(struct ath10k *ar)
 
 	lockdep_assert_held(&ar->conf_mutex);
 
-	del_timer_sync(&ar->scan.timeout);
-
-	spin_lock_bh(&ar->data_lock);
-	if (!ar->scan.in_progress) {
-		spin_unlock_bh(&ar->data_lock);
-		return 0;
-	}
-
-	ar->scan.aborting = true;
-	spin_unlock_bh(&ar->data_lock);
-
 	ret = ath10k_wmi_stop_scan(ar, &arg);
 	if (ret) {
 		ath10k_warn("failed to stop wmi scan: %d\n", ret);
-		spin_lock_bh(&ar->data_lock);
-		ar->scan.in_progress = false;
-		ath10k_offchan_tx_purge(ar);
-		spin_unlock_bh(&ar->data_lock);
-		return -EIO;
+		goto out;
 	}
 
 	ret = wait_for_completion_timeout(&ar->scan.completed, 3*HZ);
-	if (ret == 0)
-		ath10k_warn("timed out while waiting for scan to stop\n");
-
-	/* scan completion may be done right after we timeout here, so let's
-	 * check the in_progress and tell mac80211 scan is completed. if we
-	 * don't do that and FW fails to send us scan completion indication
-	 * then userspace won't be able to scan anymore */
-	ret = 0;
-
-	spin_lock_bh(&ar->data_lock);
-	if (ar->scan.in_progress) {
-		ath10k_warn("failed to stop scan, it's still in progress\n");
-		ar->scan.in_progress = false;
-		ath10k_offchan_tx_purge(ar);
+	if (ret == 0) {
+		ath10k_warn("failed to receive scan abortion completion: timed out\n");
 		ret = -ETIMEDOUT;
+	} else if (ret > 0) {
+		ret = 0;
 	}
+
+out:
+	/* Scan state should be updated upon scan completion but in case
+	 * firmware fails to deliver the event (for whatever reason) it is
+	 * desired to clean up scan state anyway. Firmware may have just
+	 * dropped the scan completion event delivery due to transport pipe
+	 * being overflown with data and/or it can recover on its own before
+	 * next scan request is submitted.
+	 */
+	spin_lock_bh(&ar->data_lock);
+	if (ar->scan.state != ATH10K_SCAN_IDLE)
+		__ath10k_scan_finish(ar);
 	spin_unlock_bh(&ar->data_lock);
 
 	return ret;
+}
+
+static void ath10k_scan_abort(struct ath10k *ar)
+{
+	int ret;
+
+	lockdep_assert_held(&ar->conf_mutex);
+
+	spin_lock_bh(&ar->data_lock);
+
+	switch (ar->scan.state) {
+	case ATH10K_SCAN_IDLE:
+		/* This can happen if timeout worker kicked in and called
+		 * abortion while scan completion was being processed.
+		 */
+		break;
+	case ATH10K_SCAN_STARTING:
+	case ATH10K_SCAN_ABORTING:
+		ath10k_warn("refusing scan abortion due to invalid scan state: %s (%d)\n",
+			    ath10k_scan_state_str(ar->scan.state),
+			    ar->scan.state);
+		break;
+	case ATH10K_SCAN_RUNNING:
+		ar->scan.state = ATH10K_SCAN_ABORTING;
+		spin_unlock_bh(&ar->data_lock);
+
+		ret = ath10k_scan_stop(ar);
+		if (ret)
+			ath10k_warn("failed to abort scan: %d\n", ret);
+
+		spin_lock_bh(&ar->data_lock);
+		break;
+	}
+
+	spin_unlock_bh(&ar->data_lock);
+}
+
+void ath10k_scan_timeout_work(struct work_struct *work)
+{
+	struct ath10k *ar = container_of(work, struct ath10k,
+					 scan.timeout.work);
+
+	mutex_lock(&ar->conf_mutex);
+	ath10k_scan_abort(ar);
+	mutex_unlock(&ar->conf_mutex);
 }
 
 static int ath10k_start_scan(struct ath10k *ar,
@@ -2253,17 +2291,16 @@ static int ath10k_start_scan(struct ath10k *ar,
 
 	ret = wait_for_completion_timeout(&ar->scan.started, 1*HZ);
 	if (ret == 0) {
-		ath10k_abort_scan(ar);
-		return ret;
+		ret = ath10k_scan_stop(ar);
+		if (ret)
+			ath10k_warn("failed to stop scan: %d\n", ret);
+
+		return -ETIMEDOUT;
 	}
 
-	/* the scan can complete earlier, before we even
-	 * start the timer. in that case the timer handler
-	 * checks ar->scan.in_progress and bails out if its
-	 * false. Add a 200ms margin to account event/command
-	 * processing. */
-	mod_timer(&ar->scan.timeout, jiffies +
-		  msecs_to_jiffies(arg->max_scan_time+200));
+	/* Add a 200ms margin to account for event/command processing */
+	ieee80211_queue_delayed_work(ar->hw, &ar->scan.timeout,
+				     msecs_to_jiffies(arg->max_scan_time+200));
 	return 0;
 }
 
@@ -2339,8 +2376,7 @@ void ath10k_halt(struct ath10k *ar)
 		ath10k_monitor_stop(ar);
 	}
 
-	del_timer_sync(&ar->scan.timeout);
-	ath10k_reset_scan((unsigned long)ar);
+	ath10k_scan_finish(ar);
 	ath10k_peer_cleanup_all(ar);
 	ath10k_core_stop(ar);
 	ath10k_hif_power_down(ar);
@@ -2531,6 +2567,7 @@ static void ath10k_stop(struct ieee80211_hw *hw)
 	}
 	mutex_unlock(&ar->conf_mutex);
 
+	cancel_delayed_work_sync(&ar->scan.timeout);
 	cancel_work_sync(&ar->restart_work);
 }
 
@@ -3176,19 +3213,25 @@ static int ath10k_hw_scan(struct ieee80211_hw *hw,
 	mutex_lock(&ar->conf_mutex);
 
 	spin_lock_bh(&ar->data_lock);
-	if (ar->scan.in_progress) {
-		spin_unlock_bh(&ar->data_lock);
+	switch (ar->scan.state) {
+	case ATH10K_SCAN_IDLE:
+		reinit_completion(&ar->scan.started);
+		reinit_completion(&ar->scan.completed);
+		ar->scan.state = ATH10K_SCAN_STARTING;
+		ar->scan.is_roc = false;
+		ar->scan.vdev_id = arvif->vdev_id;
+		ret = 0;
+		break;
+	case ATH10K_SCAN_STARTING:
+	case ATH10K_SCAN_RUNNING:
+	case ATH10K_SCAN_ABORTING:
 		ret = -EBUSY;
-		goto exit;
+		break;
 	}
-
-	reinit_completion(&ar->scan.started);
-	reinit_completion(&ar->scan.completed);
-	ar->scan.in_progress = true;
-	ar->scan.aborting = false;
-	ar->scan.is_roc = false;
-	ar->scan.vdev_id = arvif->vdev_id;
 	spin_unlock_bh(&ar->data_lock);
+
+	if (ret)
+		goto exit;
 
 	memset(&arg, 0, sizeof(arg));
 	ath10k_wmi_start_scan_init(ar, &arg);
@@ -3223,7 +3266,7 @@ static int ath10k_hw_scan(struct ieee80211_hw *hw,
 	if (ret) {
 		ath10k_warn("failed to start hw scan: %d\n", ret);
 		spin_lock_bh(&ar->data_lock);
-		ar->scan.in_progress = false;
+		ar->scan.state = ATH10K_SCAN_IDLE;
 		spin_unlock_bh(&ar->data_lock);
 	}
 
@@ -3236,14 +3279,10 @@ static void ath10k_cancel_hw_scan(struct ieee80211_hw *hw,
 				  struct ieee80211_vif *vif)
 {
 	struct ath10k *ar = hw->priv;
-	int ret;
 
 	mutex_lock(&ar->conf_mutex);
-	ret = ath10k_abort_scan(ar);
-	if (ret) {
-		ath10k_warn("failed to abort scan: %d\n", ret);
-		ieee80211_scan_completed(hw, 1 /* aborted */);
-	}
+	cancel_delayed_work_sync(&ar->scan.timeout);
+	ath10k_scan_abort(ar);
 	mutex_unlock(&ar->conf_mutex);
 }
 
@@ -3666,26 +3705,32 @@ static int ath10k_remain_on_channel(struct ieee80211_hw *hw,
 	struct ath10k *ar = hw->priv;
 	struct ath10k_vif *arvif = ath10k_vif_to_arvif(vif);
 	struct wmi_start_scan_arg arg;
-	int ret;
+	int ret = 0;
 
 	mutex_lock(&ar->conf_mutex);
 
 	spin_lock_bh(&ar->data_lock);
-	if (ar->scan.in_progress) {
-		spin_unlock_bh(&ar->data_lock);
+	switch (ar->scan.state) {
+	case ATH10K_SCAN_IDLE:
+		reinit_completion(&ar->scan.started);
+		reinit_completion(&ar->scan.completed);
+		reinit_completion(&ar->scan.on_channel);
+		ar->scan.state = ATH10K_SCAN_STARTING;
+		ar->scan.is_roc = true;
+		ar->scan.vdev_id = arvif->vdev_id;
+		ar->scan.roc_freq = chan->center_freq;
+		ret = 0;
+		break;
+	case ATH10K_SCAN_STARTING:
+	case ATH10K_SCAN_RUNNING:
+	case ATH10K_SCAN_ABORTING:
 		ret = -EBUSY;
-		goto exit;
+		break;
 	}
-
-	reinit_completion(&ar->scan.started);
-	reinit_completion(&ar->scan.completed);
-	reinit_completion(&ar->scan.on_channel);
-	ar->scan.in_progress = true;
-	ar->scan.aborting = false;
-	ar->scan.is_roc = true;
-	ar->scan.vdev_id = arvif->vdev_id;
-	ar->scan.roc_freq = chan->center_freq;
 	spin_unlock_bh(&ar->data_lock);
+
+	if (ret)
+		goto exit;
 
 	memset(&arg, 0, sizeof(arg));
 	ath10k_wmi_start_scan_init(ar, &arg);
@@ -3703,7 +3748,7 @@ static int ath10k_remain_on_channel(struct ieee80211_hw *hw,
 	if (ret) {
 		ath10k_warn("failed to start roc scan: %d\n", ret);
 		spin_lock_bh(&ar->data_lock);
-		ar->scan.in_progress = false;
+		ar->scan.state = ATH10K_SCAN_IDLE;
 		spin_unlock_bh(&ar->data_lock);
 		goto exit;
 	}
@@ -3711,7 +3756,11 @@ static int ath10k_remain_on_channel(struct ieee80211_hw *hw,
 	ret = wait_for_completion_timeout(&ar->scan.on_channel, 3*HZ);
 	if (ret == 0) {
 		ath10k_warn("failed to switch to channel for roc scan\n");
-		ath10k_abort_scan(ar);
+
+		ret = ath10k_scan_stop(ar);
+		if (ret)
+			ath10k_warn("failed to stop scan: %d\n", ret);
+
 		ret = -ETIMEDOUT;
 		goto exit;
 	}
@@ -3727,7 +3776,8 @@ static int ath10k_cancel_remain_on_channel(struct ieee80211_hw *hw)
 	struct ath10k *ar = hw->priv;
 
 	mutex_lock(&ar->conf_mutex);
-	ath10k_abort_scan(ar);
+	cancel_delayed_work_sync(&ar->scan.timeout);
+	ath10k_scan_abort(ar);
 	mutex_unlock(&ar->conf_mutex);
 
 	return 0;
