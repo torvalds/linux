@@ -959,31 +959,18 @@ static int omap_iommu_probe(struct platform_device *pdev)
 			return err;
 		if (obj->nr_tlb_entries != 32 && obj->nr_tlb_entries != 8)
 			return -EINVAL;
-		/*
-		 * da_start and da_end are needed for omap-iovmm, so hardcode
-		 * these values as used by OMAP3 ISP - the only user for
-		 * omap-iovmm
-		 */
-		obj->da_start = 0;
-		obj->da_end = 0xfffff000;
 		if (of_find_property(of, "ti,iommu-bus-err-back", NULL))
 			obj->has_bus_err_back = MMU_GP_REG_BUS_ERR_BACK_EN;
 	} else {
 		obj->nr_tlb_entries = pdata->nr_tlb_entries;
 		obj->name = pdata->name;
-		obj->da_start = pdata->da_start;
-		obj->da_end = pdata->da_end;
 	}
-	if (obj->da_end <= obj->da_start)
-		return -EINVAL;
 
 	obj->dev = &pdev->dev;
 	obj->ctx = (void *)obj + sizeof(*obj);
 
 	spin_lock_init(&obj->iommu_lock);
-	mutex_init(&obj->mmap_lock);
 	spin_lock_init(&obj->page_table_lock);
-	INIT_LIST_HEAD(&obj->mmap);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	obj->regbase = devm_ioremap_resource(obj->dev, res);
@@ -1291,7 +1278,7 @@ static void omap_iommu_remove_device(struct device *dev)
 	kfree(arch_data);
 }
 
-static struct iommu_ops omap_iommu_ops = {
+static const struct iommu_ops omap_iommu_ops = {
 	.domain_init	= omap_iommu_domain_init,
 	.domain_destroy	= omap_iommu_domain_destroy,
 	.attach_dev	= omap_iommu_attach_dev,

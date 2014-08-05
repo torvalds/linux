@@ -38,6 +38,7 @@
 #include <linux/tboot.h>
 #include <linux/dmi.h>
 #include <linux/slab.h>
+#include <linux/iommu.h>
 #include <asm/irq_remapping.h>
 #include <asm/iommu_table.h>
 
@@ -980,6 +981,12 @@ static int alloc_iommu(struct dmar_drhd_unit *drhd)
 	raw_spin_lock_init(&iommu->register_lock);
 
 	drhd->iommu = iommu;
+
+	if (intel_iommu_enabled)
+		iommu->iommu_dev = iommu_device_create(NULL, iommu,
+						       intel_iommu_groups,
+						       iommu->name);
+
 	return 0;
 
  err_unmap:
@@ -991,6 +998,8 @@ static int alloc_iommu(struct dmar_drhd_unit *drhd)
 
 static void free_iommu(struct intel_iommu *iommu)
 {
+	iommu_device_destroy(iommu->iommu_dev);
+
 	if (iommu->irq) {
 		free_irq(iommu->irq, iommu);
 		irq_set_handler_data(iommu->irq, NULL);
@@ -1338,9 +1347,6 @@ int dmar_enable_qi(struct intel_iommu *iommu)
 		iommu->qi = NULL;
 		return -ENOMEM;
 	}
-
-	qi->free_head = qi->free_tail = 0;
-	qi->free_cnt = QI_LENGTH;
 
 	raw_spin_lock_init(&qi->q_lock);
 
