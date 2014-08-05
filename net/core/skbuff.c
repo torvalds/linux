@@ -3522,6 +3522,8 @@ void skb_tstamp_tx(struct sk_buff *orig_skb,
 	serr->ee.ee_errno = ENOMSG;
 	serr->ee.ee_origin = SO_EE_ORIGIN_TIMESTAMPING;
 	serr->ee.ee_info = SCM_TSTAMP_SND;
+	if (sk->sk_tsflags & SOF_TIMESTAMPING_OPT_ID)
+		serr->ee.ee_data = skb_shinfo(skb)->tskey;
 
 	err = sock_queue_err_skb(sk, skb);
 

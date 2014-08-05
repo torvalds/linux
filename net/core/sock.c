@@ -848,6 +848,9 @@ set_rcvbuf:
 			ret = -EINVAL;
 			break;
 		}
+		if (val & SOF_TIMESTAMPING_OPT_ID &&
+		    !(sk->sk_tsflags & SOF_TIMESTAMPING_OPT_ID))
+			sk->sk_tskey = 0;
 		sk->sk_tsflags = val;
 		if (val & SOF_TIMESTAMPING_RX_SOFTWARE)
 			sock_enable_timestamp(sk,
