@@ -496,6 +496,7 @@ static int coda_s_fmt_vid_out(struct file *file, void *priv,
 			      struct v4l2_format *f)
 {
 	struct coda_ctx *ctx = fh_to_ctx(priv);
+	struct v4l2_format f_cap;
 	int ret;
 
 	ret = coda_try_fmt_vid_out(file, priv, f);
@@ -508,7 +509,16 @@ static int coda_s_fmt_vid_out(struct file *file, void *priv,
 
 	ctx->colorspace = f->fmt.pix.colorspace;
 
-	return ret;
+	f_cap.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	coda_g_fmt(file, priv, &f_cap);
+	f_cap.fmt.pix.width = f->fmt.pix.width;
+	f_cap.fmt.pix.height = f->fmt.pix.height;
+
+	ret = coda_try_fmt_vid_cap(file, priv, &f_cap);
+	if (ret)
+		return ret;
+
+	return coda_s_fmt(ctx, &f_cap);
 }
 
 static int coda_qbuf(struct file *file, void *priv,
