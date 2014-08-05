@@ -126,24 +126,17 @@ static const unsigned short normal_i2c[] = { 0x18, 0x4c, 0x4e, I2C_CLIENT_END };
 #define FAN_TO_REG(val)		((val) <= 82 ? 0xFFFC : \
 				 (5400000 / (val)) & 0xFFFC)
 #define TEMP8_FROM_REG(reg)	((reg) * 1000)
-#define TEMP8_TO_REG(val)	((val) <= -128000 ? -128 : \
-				 (val) >= 127000 ? 127 : \
-				 (val) < 0 ? ((val) - 500) / 1000 : \
-				 ((val) + 500) / 1000)
-#define TEMP8U_TO_REG(val)	((val) <= 0 ? 0 : \
-				 (val) >= 255000 ? 255 : \
-				 ((val) + 500) / 1000)
+#define TEMP8_TO_REG(val)	DIV_ROUND_CLOSEST(clamp_val((val), -128000, \
+							    127000), 1000)
+#define TEMP8U_TO_REG(val)	DIV_ROUND_CLOSEST(clamp_val((val), 0, \
+							    255000), 1000)
 #define TEMP11_FROM_REG(reg)	((reg) / 32 * 125)
-#define TEMP11_TO_REG(val)	((val) <= -128000 ? 0x8000 : \
-				 (val) >= 127875 ? 0x7FE0 : \
-				 (val) < 0 ? ((val) - 62) / 125 * 32 : \
-				 ((val) + 62) / 125 * 32)
-#define TEMP11U_TO_REG(val)	((val) <= 0 ? 0 : \
-				 (val) >= 255875 ? 0xFFE0 : \
-				 ((val) + 62) / 125 * 32)
-#define HYST_TO_REG(val)	((val) <= 0 ? 0 : \
-				 (val) >= 127000 ? 127 : \
-				 ((val) + 500) / 1000)
+#define TEMP11_TO_REG(val)	(DIV_ROUND_CLOSEST(clamp_val((val), -128000, \
+							     127875), 125) * 32)
+#define TEMP11U_TO_REG(val)	(DIV_ROUND_CLOSEST(clamp_val((val), 0, \
+							     255875), 125) * 32)
+#define HYST_TO_REG(val)	DIV_ROUND_CLOSEST(clamp_val((val), 0, 127000), \
+						  1000)
 
 #define UPDATE_INTERVAL(max, rate) \
 			((1000 << (LM63_MAX_CONVRATE - (rate))) / (max))

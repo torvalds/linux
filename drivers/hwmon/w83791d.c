@@ -249,19 +249,16 @@ static u8 fan_to_reg(long rpm, int div)
  * the bottom 7 bits will always be zero
  */
 #define TEMP23_FROM_REG(val)	((val) / 128 * 500)
-#define TEMP23_TO_REG(val)	((val) <= -128000 ? 0x8000 : \
-				 (val) >= 127500 ? 0x7F80 : \
-				 (val) < 0 ? ((val) - 250) / 500 * 128 : \
-				 ((val) + 250) / 500 * 128)
+#define TEMP23_TO_REG(val)	(DIV_ROUND_CLOSEST(clamp_val((val), -128000, \
+						   127500), 500) * 128)
 
 /* for thermal cruise target temp, 7-bits, LSB = 1 degree Celsius */
-#define TARGET_TEMP_TO_REG(val)		((val) < 0 ? 0 : \
-					(val) >= 127000 ? 127 : \
-					((val) + 500) / 1000)
+#define TARGET_TEMP_TO_REG(val)	DIV_ROUND_CLOSEST(clamp_val((val), 0, 127000), \
+						  1000)
 
 /* for thermal cruise temp tolerance, 4-bits, LSB = 1 degree Celsius */
-#define TOL_TEMP_TO_REG(val)		((val) >= 15000 ? 15 : \
-					((val) + 500) / 1000)
+#define TOL_TEMP_TO_REG(val)	DIV_ROUND_CLOSEST(clamp_val((val), 0, 15000), \
+						  1000)
 
 #define BEEP_MASK_TO_REG(val)		((val) & 0xffffff)
 #define BEEP_MASK_FROM_REG(val)		((val) & 0xffffff)

@@ -495,15 +495,13 @@ static void max6697_get_config_of(struct device_node *node,
 	int len;
 	const __be32 *prop;
 
-	prop = of_get_property(node, "smbus-timeout-disable", &len);
-	if (prop)
-		pdata->smbus_timeout_disable = true;
-	prop = of_get_property(node, "extended-range-enable", &len);
-	if (prop)
-		pdata->extended_range_enable = true;
-	prop = of_get_property(node, "beta-compensation-enable", &len);
-	if (prop)
-		pdata->beta_compensation = true;
+	pdata->smbus_timeout_disable =
+		of_property_read_bool(node, "smbus-timeout-disable");
+	pdata->extended_range_enable =
+		of_property_read_bool(node, "extended-range-enable");
+	pdata->beta_compensation =
+		of_property_read_bool(node, "beta-compensation-enable");
+
 	prop = of_get_property(node, "alert-mask", &len);
 	if (prop && len == sizeof(u32))
 		pdata->alert_mask = be32_to_cpu(prop[0]);

@@ -95,7 +95,8 @@ static inline int TEMP_FROM_REG(s8 val)
 }
 
 struct smsc47m192_data {
-	struct device *hwmon_dev;
+	struct i2c_client *client;
+	const struct attribute_group *groups[3];
 	struct mutex update_lock;
 	char valid;		/* !=0 if following fields are valid */
 	unsigned long last_updated;	/* In jiffies */
@@ -112,30 +113,69 @@ struct smsc47m192_data {
 	u8 vrm;
 };
 
-static int smsc47m192_probe(struct i2c_client *client,
-			    const struct i2c_device_id *id);
-static int smsc47m192_detect(struct i2c_client *client,
-			     struct i2c_board_info *info);
-static int smsc47m192_remove(struct i2c_client *client);
-static struct smsc47m192_data *smsc47m192_update_device(struct device *dev);
+static struct smsc47m192_data *smsc47m192_update_device(struct device *dev)
+{
+	struct smsc47m192_data *data = dev_get_drvdata(dev);
+	struct i2c_client *client = data->client;
+	int i, config;
 
-static const struct i2c_device_id smsc47m192_id[] = {
-	{ "smsc47m192", 0 },
-	{ }
-};
-MODULE_DEVICE_TABLE(i2c, smsc47m192_id);
+	mutex_lock(&data->update_lock);
 
-static struct i2c_driver smsc47m192_driver = {
-	.class		= I2C_CLASS_HWMON,
-	.driver = {
-		.name	= "smsc47m192",
-	},
-	.probe		= smsc47m192_probe,
-	.remove		= smsc47m192_remove,
-	.id_table	= smsc47m192_id,
-	.detect		= smsc47m192_detect,
-	.address_list	= normal_i2c,
-};
+	if (time_after(jiffies, data->last_updated + HZ + HZ / 2)
+	 || !data->valid) {
+		u8 sfr = i2c_smbus_read_byte_data(client, SMSC47M192_REG_SFR);
+
+		dev_dbg(&client->dev, "Starting smsc47m192 update\n");
+
+		for (i = 0; i <= 7; i++) {
+			data->in[i] = i2c_smbus_read_byte_data(client,
+						SMSC47M192_REG_IN(i));
+			data->in_min[i] = i2c_smbus_read_byte_data(client,
+						SMSC47M192_REG_IN_MIN(i));
+			data->in_max[i] = i2c_smbus_read_byte_data(client,
+						SMSC47M192_REG_IN_MAX(i));
+		}
+		for (i = 0; i < 3; i++) {
+			data->temp[i] = i2c_smbus_read_byte_data(client,
+						SMSC47M192_REG_TEMP[i]);
+			data->temp_max[i] = i2c_smbus_read_byte_data(client,
+						SMSC47M192_REG_TEMP_MAX[i]);
+			data->temp_min[i] = i2c_smbus_read_byte_data(client,
+						SMSC47M192_REG_TEMP_MIN[i]);
+		}
+		for (i = 1; i < 3; i++)
+			data->temp_offset[i] = i2c_smbus_read_byte_data(client,
+						SMSC47M192_REG_TEMP_OFFSET(i));
+		/*
+		 * first offset is temp_offset[0] if SFR bit 4 is set,
+		 * temp_offset[1] otherwise
+		 */
+		if (sfr & 0x10) {
+			data->temp_offset[0] = data->temp_offset[1];
+			data->temp_offset[1] = 0;
+		} else
+			data->temp_offset[0] = 0;
+
+		data->vid = i2c_smbus_read_byte_data(client, SMSC47M192_REG_VID)
+			    & 0x0f;
+		config = i2c_smbus_read_byte_data(client,
+						  SMSC47M192_REG_CONFIG);
+		if (config & 0x20)
+			data->vid |= (i2c_smbus_read_byte_data(client,
+					SMSC47M192_REG_VID4) & 0x01) << 4;
+		data->alarms = i2c_smbus_read_byte_data(client,
+						SMSC47M192_REG_ALARM1) |
+			       (i2c_smbus_read_byte_data(client,
+						SMSC47M192_REG_ALARM2) << 8);
+
+		data->last_updated = jiffies;
+		data->valid = 1;
+	}
+
+	mutex_unlock(&data->update_lock);
+
+	return data;
+}
 
 /* Voltages */
 static ssize_t show_in(struct device *dev, struct device_attribute *attr,
@@ -170,8 +210,8 @@ static ssize_t set_in_min(struct device *dev, struct device_attribute *attr,
 {
 	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
 	int nr = sensor_attr->index;
-	struct i2c_client *client = to_i2c_client(dev);
-	struct smsc47m192_data *data = i2c_get_clientdata(client);
+	struct smsc47m192_data *data = dev_get_drvdata(dev);
+	struct i2c_client *client = data->client;
 	unsigned long val;
 	int err;
 
@@ -192,8 +232,8 @@ static ssize_t set_in_max(struct device *dev, struct device_attribute *attr,
 {
 	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
 	int nr = sensor_attr->index;
-	struct i2c_client *client = to_i2c_client(dev);
-	struct smsc47m192_data *data = i2c_get_clientdata(client);
+	struct smsc47m192_data *data = dev_get_drvdata(dev);
+	struct i2c_client *client = data->client;
 	unsigned long val;
 	int err;
 
@@ -259,8 +299,8 @@ static ssize_t set_temp_min(struct device *dev, struct device_attribute *attr,
 {
 	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
 	int nr = sensor_attr->index;
-	struct i2c_client *client = to_i2c_client(dev);
-	struct smsc47m192_data *data = i2c_get_clientdata(client);
+	struct smsc47m192_data *data = dev_get_drvdata(dev);
+	struct i2c_client *client = data->client;
 	long val;
 	int err;
 
@@ -281,8 +321,8 @@ static ssize_t set_temp_max(struct device *dev, struct device_attribute *attr,
 {
 	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
 	int nr = sensor_attr->index;
-	struct i2c_client *client = to_i2c_client(dev);
-	struct smsc47m192_data *data = i2c_get_clientdata(client);
+	struct smsc47m192_data *data = dev_get_drvdata(dev);
+	struct i2c_client *client = data->client;
 	long val;
 	int err;
 
@@ -312,8 +352,8 @@ static ssize_t set_temp_offset(struct device *dev, struct device_attribute
 {
 	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
 	int nr = sensor_attr->index;
-	struct i2c_client *client = to_i2c_client(dev);
-	struct smsc47m192_data *data = i2c_get_clientdata(client);
+	struct smsc47m192_data *data = dev_get_drvdata(dev);
+	struct i2c_client *client = data->client;
 	u8 sfr = i2c_smbus_read_byte_data(client, SMSC47M192_REG_SFR);
 	long val;
 	int err;
@@ -552,124 +592,50 @@ static int smsc47m192_detect(struct i2c_client *client,
 static int smsc47m192_probe(struct i2c_client *client,
 			    const struct i2c_device_id *id)
 {
+	struct device *dev = &client->dev;
+	struct device *hwmon_dev;
 	struct smsc47m192_data *data;
 	int config;
-	int err;
 
-	data = devm_kzalloc(&client->dev, sizeof(struct smsc47m192_data),
-			    GFP_KERNEL);
+	data = devm_kzalloc(dev, sizeof(struct smsc47m192_data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
-	i2c_set_clientdata(client, data);
+	data->client = client;
 	data->vrm = vid_which_vrm();
 	mutex_init(&data->update_lock);
 
 	/* Initialize the SMSC47M192 chip */
 	smsc47m192_init_client(client);
 
-	/* Register sysfs hooks */
-	err = sysfs_create_group(&client->dev.kobj, &smsc47m192_group);
-	if (err)
-		return err;
-
+	/* sysfs hooks */
+	data->groups[0] = &smsc47m192_group;
 	/* Pin 110 is either in4 (+12V) or VID4 */
 	config = i2c_smbus_read_byte_data(client, SMSC47M192_REG_CONFIG);
-	if (!(config & 0x20)) {
-		err = sysfs_create_group(&client->dev.kobj,
-					 &smsc47m192_group_in4);
-		if (err)
-			goto exit_remove_files;
-	}
+	if (!(config & 0x20))
+		data->groups[1] = &smsc47m192_group_in4;
 
-	data->hwmon_dev = hwmon_device_register(&client->dev);
-	if (IS_ERR(data->hwmon_dev)) {
-		err = PTR_ERR(data->hwmon_dev);
-		goto exit_remove_files;
-	}
-
-	return 0;
-
-exit_remove_files:
-	sysfs_remove_group(&client->dev.kobj, &smsc47m192_group);
-	sysfs_remove_group(&client->dev.kobj, &smsc47m192_group_in4);
-	return err;
+	hwmon_dev = devm_hwmon_device_register_with_groups(dev, client->name,
+							   data, data->groups);
+	return PTR_ERR_OR_ZERO(hwmon_dev);
 }
 
-static int smsc47m192_remove(struct i2c_client *client)
-{
-	struct smsc47m192_data *data = i2c_get_clientdata(client);
+static const struct i2c_device_id smsc47m192_id[] = {
+	{ "smsc47m192", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, smsc47m192_id);
 
-	hwmon_device_unregister(data->hwmon_dev);
-	sysfs_remove_group(&client->dev.kobj, &smsc47m192_group);
-	sysfs_remove_group(&client->dev.kobj, &smsc47m192_group_in4);
-
-	return 0;
-}
-
-static struct smsc47m192_data *smsc47m192_update_device(struct device *dev)
-{
-	struct i2c_client *client = to_i2c_client(dev);
-	struct smsc47m192_data *data = i2c_get_clientdata(client);
-	int i, config;
-
-	mutex_lock(&data->update_lock);
-
-	if (time_after(jiffies, data->last_updated + HZ + HZ / 2)
-	 || !data->valid) {
-		u8 sfr = i2c_smbus_read_byte_data(client, SMSC47M192_REG_SFR);
-
-		dev_dbg(&client->dev, "Starting smsc47m192 update\n");
-
-		for (i = 0; i <= 7; i++) {
-			data->in[i] = i2c_smbus_read_byte_data(client,
-						SMSC47M192_REG_IN(i));
-			data->in_min[i] = i2c_smbus_read_byte_data(client,
-						SMSC47M192_REG_IN_MIN(i));
-			data->in_max[i] = i2c_smbus_read_byte_data(client,
-						SMSC47M192_REG_IN_MAX(i));
-		}
-		for (i = 0; i < 3; i++) {
-			data->temp[i] = i2c_smbus_read_byte_data(client,
-						SMSC47M192_REG_TEMP[i]);
-			data->temp_max[i] = i2c_smbus_read_byte_data(client,
-						SMSC47M192_REG_TEMP_MAX[i]);
-			data->temp_min[i] = i2c_smbus_read_byte_data(client,
-						SMSC47M192_REG_TEMP_MIN[i]);
-		}
-		for (i = 1; i < 3; i++)
-			data->temp_offset[i] = i2c_smbus_read_byte_data(client,
-						SMSC47M192_REG_TEMP_OFFSET(i));
-		/*
-		 * first offset is temp_offset[0] if SFR bit 4 is set,
-		 * temp_offset[1] otherwise
-		 */
-		if (sfr & 0x10) {
-			data->temp_offset[0] = data->temp_offset[1];
-			data->temp_offset[1] = 0;
-		} else
-			data->temp_offset[0] = 0;
-
-		data->vid = i2c_smbus_read_byte_data(client, SMSC47M192_REG_VID)
-			    & 0x0f;
-		config = i2c_smbus_read_byte_data(client,
-						  SMSC47M192_REG_CONFIG);
-		if (config & 0x20)
-			data->vid |= (i2c_smbus_read_byte_data(client,
-					SMSC47M192_REG_VID4) & 0x01) << 4;
-		data->alarms = i2c_smbus_read_byte_data(client,
-						SMSC47M192_REG_ALARM1) |
-			       (i2c_smbus_read_byte_data(client,
-						SMSC47M192_REG_ALARM2) << 8);
-
-		data->last_updated = jiffies;
-		data->valid = 1;
-	}
-
-	mutex_unlock(&data->update_lock);
-
-	return data;
-}
+static struct i2c_driver smsc47m192_driver = {
+	.class		= I2C_CLASS_HWMON,
+	.driver = {
+		.name	= "smsc47m192",
+	},
+	.probe		= smsc47m192_probe,
+	.id_table	= smsc47m192_id,
+	.detect		= smsc47m192_detect,
+	.address_list	= normal_i2c,
+};
 
 module_i2c_driver(smsc47m192_driver);
 
