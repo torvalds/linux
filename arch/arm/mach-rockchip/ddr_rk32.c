@@ -4063,9 +4063,10 @@ static int _ddr_change_freq(uint32 nMHz)
 
 		ret = __ddr_change_freq(nMHz, ddr_freq_t);
 		if (ret) {
+			reserve_t = 800;
 			return ret;
 		} else {
-			if (reserve_t < 10000)
+			if (reserve_t < 3000)
 				reserve_t += 200;
 		}
 	}while(1);
