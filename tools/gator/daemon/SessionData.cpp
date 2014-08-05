@@ -9,6 +9,7 @@
 #include "SessionData.h"
 
 #include <string.h>
+#include <sys/mman.h>
 
 #include "SessionXML.h"
 #include "Logging.h"
@@ -27,6 +28,15 @@ void SessionData::initialize() {
 	mSessionIsActive = false;
 	mLocalCapture = false;
 	mOneShot = false;
+	mSentSummary = false;
+	const size_t cpuIdSize = sizeof(int)*NR_CPUS;
+	// Share mCpuIds across all instances of gatord
+	mCpuIds = (int *)mmap(NULL, cpuIdSize, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+	if (mCpuIds == MAP_FAILED) {
+		logg->logError(__FILE__, __LINE__, "Unable to mmap shared memory for cpuids");
+		handleException();
+	}
+	memset(mCpuIds, -1, cpuIdSize);
 	readCpuInfo();
 	mConfigurationXMLPath = NULL;
 	mSessionXMLPath = NULL;
@@ -91,10 +101,9 @@ void SessionData::parseSessionXML(char* xmlString) {
 void SessionData::readCpuInfo() {
 	char temp[256]; // arbitrarily large amount
 	strcpy(mCoreName, "unknown");
-	memset(&mCpuIds, -1, sizeof(mCpuIds));
 	mMaxCpuId = -1;
 
-	FILE* f = fopen("/proc/cpuinfo", "r");	
+	FILE* f = fopen("/proc/cpuinfo", "r");
 	if (f == NULL) {
 		logg->logMessage("Error opening /proc/cpuinfo\n"
 			"The core name in the captured xml file will be 'unknown'.");
@@ -102,10 +111,18 @@ void SessionData::readCpuInfo() {
 	}
 
 	bool foundCoreName = false;
-	int processor = 0;
+	int processor = -1;
 	while (fgets(temp, sizeof(temp), f)) {
-		if (strlen(temp) > 0) {
-			temp[strlen(temp) - 1] = 0;	// Replace the line feed with a null
+		const size_t len = strlen(temp);
+
+		if (len == 1) {
+			// New section, clear the processor. Streamline will not know the cpus if the pre Linux 3.8 format of cpuinfo is encountered but also that no incorrect information will be transmitted.
+			processor = -1;
+			continue;
+		}
+
+		if (len > 0) {
+			temp[len - 1] = '\0';	// Replace the line feed with a null
 		}
 
 		const bool foundHardware = strstr(temp, "Hardware") != 0;
@@ -127,10 +144,15 @@ void SessionData::readCpuInfo() {
 			}
 
 			if (foundCPUPart) {
-				mCpuIds[processor] = strtol(position, NULL, 0);
+				const int cpuId = strtol(position, NULL, 0);
 				// If this does not have the full topology in /proc/cpuinfo, mCpuIds[0] may not have the 1 CPU part emitted - this guarantees it's in mMaxCpuId
-				if (mCpuIds[processor] > mMaxCpuId) {
-					mMaxCpuId = mCpuIds[processor];
+				if (cpuId > mMaxCpuId) {
+					mMaxCpuId = cpuId;
+				}
+				if (processor >= NR_CPUS) {
+					logg->logMessage("Too many processors, please increase NR_CPUS");
+				} else if (processor >= 0) {
+					mCpuIds[processor] = cpuId;
 				}
 			}
 
@@ -142,10 +164,23 @@ void SessionData::readCpuInfo() {
 
 	if (!foundCoreName) {
 		logg->logMessage("Could not determine core name from /proc/cpuinfo\n"
-						 "The core name in the captured xml file will be 'unknown'.");
+				 "The core name in the captured xml file will be 'unknown'.");
 	}
 	fclose(f);
- }
+}
+
+uint64_t getTime() {
+	struct timespec ts;
+#ifndef CLOCK_MONOTONIC_RAW
+	// Android doesn't have this defined but it was added in Linux 2.6.28
+#define CLOCK_MONOTONIC_RAW 4
+#endif
+	if (clock_gettime(CLOCK_MONOTONIC_RAW, &ts) != 0) {
+		logg->logError(__FILE__, __LINE__, "Failed to get uptime");
+		handleException();
+	}
+	return (NS_PER_S*ts.tv_sec + ts.tv_nsec);
+}
 
 int getEventKey() {
 	// key 0 is reserved as a timestamp

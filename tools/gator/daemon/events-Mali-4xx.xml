@@ -1,34 +1,33 @@
   <counter_set name="ARM_Mali-4xx_VP_0_cnt" count="2"/>
   <counter_set name="ARM_Mali-4xx_SW_cnt" count="0"/>
-  <counter_set name="ARM_Mali-4xx_Filmstrip_cnt" count="1"/>
-  <category name="Mali-4xx-VP" counter_set="ARM_Mali-4xx_VP_0_cnt" per_cpu="no">
-    <event event="0x01" title="Mali GPU Vertex Processor" name="Active cycles" description="Number of cycles per frame the MaliGP2 was active."/>
-    <event event="0x02" title="Mali GPU Vertex Processor" name="Active cycles, vertex shader" description="Number of cycles per frame the vertex shader unit was active."/>
-    <event event="0x03" title="Mali GPU Vertex Processor" name="Active cycles, vertex storer" description="Number of cycles per frame the vertex storer unit was active."/>
-    <event event="0x04" title="Mali GPU Vertex Processor" name="Active cycles, vertex loader" description="Number of cycles per frame the vertex loader unit was active."/>
-    <event event="0x05" title="Mali GPU Vertex Processor" name="Cycles vertex loader waiting for vertex shader" description="Number of cycles per frame the vertex loader was idle while waiting on the vertex shader."/>
-    <event event="0x06" title="Mali GPU Vertex Processor" name="Words read, system bus" description="Total number of 64 bit words read by the GP2 from the system bus per frame."/>
-    <event event="0x07" title="Mali GPU Vertex Processor" name="Words written, system bus" description="Total number of 64 bit words written by the GP2 to the system bus per frame."/>
-    <event event="0x08" title="Mali GPU Vertex Processor" name="Read bursts, system bus" description="Number of read bursts by the GP2 from the system bus per frame."/>
-    <event event="0x09" title="Mali GPU Vertex Processor" name="Write bursts, system bus" description="Number of write bursts from the MaliGP2 to the system bus per frame."/>
-    <event event="0x0a" title="Mali GPU Vertex Processor" name="Vertices processed" description="Number of vertices processed by the MaliGP2 per frame."/>
-    <event event="0x0b" title="Mali GPU Vertex Processor" name="Vertices fetched" description="Number of vertices fetched by the MaliGP2 per frame."/>
-    <event event="0x0c" title="Mali GPU Vertex Processor" name="Primitives fetched" description="Number of graphics primitives fetched by the MaliGP2 per frame."/>
-    <event event="0x0e" title="Mali GPU Vertex Processor" name="Primitives culled" description="Number of graphics primitives discarded per frame, because they were seen from the back or were offscreen."/>
-    <event event="0x0f" title="Mali GPU Vertex Processor" name="Commands written to tiles" description="Number of commands (8 Bytes, mainly primitives) written by GP2 to the PP input data structure per frame."/>
-    <event event="0x10" title="Mali GPU Vertex Processor" name="Memory blocks allocated" description="Number of overflow data blocks needed for outputting the PP input data structure per frame ."/>
-    <event event="0x13" title="Mali GPU Vertex Processor" name="Vertex loader cache misses" description="Number of cache misses for the vertex shader's vertex input unit per frame."/>
-    <event event="0x16" title="Mali GPU Vertex Processor" name="Active cycles, vertex shader command processor" description="Number of cycles per frame the GP2 vertex shader command processor was active. This includes time waiting for semaphores."/>
-    <event event="0x17" title="Mali GPU Vertex Processor" name="Active cycles, PLBU command processor" description="Number of cycles per frame the MaliGP2 PLBU command processor was active. This includes time waiting for semaphores."/>
-    <event event="0x18" title="Mali GPU Vertex Processor" name="MaliGP2 PLBU cycles per frame" description="Number of cycles per frame the MaliGP2 PLBU output unit was active. This includes time spent waiting on the bus."/>
-    <event event="0x19" title="Mali GPU Vertex Processor" name="Active cycles, PLBU geometry processing" description="Number of cycles per frame the MaliGP2 PLBU was active, excepting final data output. In other words: active cycles through the prepare list commands. This includes time spent waiting on the bus."/>
-    <event event="0x1b" title="Mali GPU Vertex Processor" name="Active cycles, PLBU primitive assembly" description="Number of active cycles per frame spent by the MaliGP2 PLBU doing primitive assembly. This does not include scissoring or final output. This includes time spent waiting on the bus."/>
-    <event event="0x1c" title="Mali GPU Vertex Processor" name="Active cycles, PLBU vertex fetcher" description="Number of active cycles per frame spent by the MaliGP2 PLBU fetching vertex data. This includes time spent waiting on the bus."/>
-    <event event="0x1e" title="Mali GPU Vertex Processor" name="Active cycles, Bounding-box and command generator" description="Number of active cycles per frame spent by the MaliGP2 PLBU setting up bounding boxes and commands (mainly graphics primitives). This includes time spent waiting on the bus."/>
-    <event event="0x20" title="Mali GPU Vertex Processor" name="Active cycles, Scissor tile iterator" description="Number of active cycles per frame spent by the MaliGP2 PLBU iterating over tiles to perform scissoring. This includes time spent waiting on the bus."/>
-    <event event="0x21" title="Mali GPU Vertex Processor" name="Active cycles, PLBU tile iterator" description="Number of active cycles per frame spent by the MaliGP2 PLBU iterating over the tiles in the bounding box generating commands (mainly graphics primitives). This includes time spent waiting on the bus."/>
+  <category name="Mali Vertex Processor" counter_set="ARM_Mali-4xx_VP_0_cnt" per_cpu="no">
+    <event event="0x01" title="Mali-4xx VP" name="Active cycles" description="Number of cycles per frame the MaliGP2 was active."/>
+    <event event="0x02" title="Mali-4xx VP" name="Active cycles, vertex shader" description="Number of cycles per frame the vertex shader unit was active."/>
+    <event event="0x03" title="Mali-4xx VP" name="Active cycles, vertex storer" description="Number of cycles per frame the vertex storer unit was active."/>
+    <event event="0x04" title="Mali-4xx VP" name="Active cycles, vertex loader" description="Number of cycles per frame the vertex loader unit was active."/>
+    <event event="0x05" title="Mali-4xx VP" name="Cycles vertex loader waiting for vertex shader" description="Number of cycles per frame the vertex loader was idle while waiting on the vertex shader."/>
+    <event event="0x06" title="Mali-4xx VP" name="Words read, system bus" description="Total number of 64 bit words read by the GP2 from the system bus per frame."/>
+    <event event="0x07" title="Mali-4xx VP" name="Words written, system bus" description="Total number of 64 bit words written by the GP2 to the system bus per frame."/>
+    <event event="0x08" title="Mali-4xx VP" name="Read bursts, system bus" description="Number of read bursts by the GP2 from the system bus per frame."/>
+    <event event="0x09" title="Mali-4xx VP" name="Write bursts, system bus" description="Number of write bursts from the MaliGP2 to the system bus per frame."/>
+    <event event="0x0a" title="Mali-4xx VP" name="Vertices processed" description="Number of vertices processed by the MaliGP2 per frame."/>
+    <event event="0x0b" title="Mali-4xx VP" name="Vertices fetched" description="Number of vertices fetched by the MaliGP2 per frame."/>
+    <event event="0x0c" title="Mali-4xx VP" name="Primitives fetched" description="Number of graphics primitives fetched by the MaliGP2 per frame."/>
+    <event event="0x0e" title="Mali-4xx VP" name="Primitives culled" description="Number of graphics primitives discarded per frame, because they were seen from the back or were offscreen."/>
+    <event event="0x0f" title="Mali-4xx VP" name="Commands written to tiles" description="Number of commands (8 Bytes, mainly primitives) written by GP2 to the PP input data structure per frame."/>
+    <event event="0x10" title="Mali-4xx VP" name="Memory blocks allocated" description="Number of overflow data blocks needed for outputting the PP input data structure per frame ."/>
+    <event event="0x13" title="Mali-4xx VP" name="Vertex loader cache misses" description="Number of cache misses for the vertex shader's vertex input unit per frame."/>
+    <event event="0x16" title="Mali-4xx VP" name="Active cycles, vertex shader command processor" description="Number of cycles per frame the GP2 vertex shader command processor was active. This includes time waiting for semaphores."/>
+    <event event="0x17" title="Mali-4xx VP" name="Active cycles, PLBU command processor" description="Number of cycles per frame the MaliGP2 PLBU command processor was active. This includes time waiting for semaphores."/>
+    <event event="0x18" title="Mali-4xx VP" name="Active Cycles, PLBU list writer" description="Number of cycles per frame the MaliGP2 PLBU output unit was active. This includes time spent waiting on the bus."/>
+    <event event="0x19" title="Mali-4xx VP" name="Active cycles, PLBU geometry processing" description="Number of cycles per frame the MaliGP2 PLBU was active, excepting final data output. In other words: active cycles through the prepare list commands. This includes time spent waiting on the bus."/>
+    <event event="0x1b" title="Mali-4xx VP" name="Active cycles, PLBU primitive assembly" description="Number of active cycles per frame spent by the MaliGP2 PLBU doing primitive assembly. This does not include scissoring or final output. This includes time spent waiting on the bus."/>
+    <event event="0x1c" title="Mali-4xx VP" name="Active cycles, PLBU vertex fetcher" description="Number of active cycles per frame spent by the MaliGP2 PLBU fetching vertex data. This includes time spent waiting on the bus."/>
+    <event event="0x1e" title="Mali-4xx VP" name="Active cycles, Bounding-box and command generator" description="Number of active cycles per frame spent by the MaliGP2 PLBU setting up bounding boxes and commands (mainly graphics primitives). This includes time spent waiting on the bus."/>
+    <event event="0x20" title="Mali-4xx VP" name="Active cycles, Scissor tile iterator" description="Number of active cycles per frame spent by the MaliGP2 PLBU iterating over tiles to perform scissoring. This includes time spent waiting on the bus."/>
+    <event event="0x21" title="Mali-4xx VP" name="Active cycles, PLBU tile iterator" description="Number of active cycles per frame spent by the MaliGP2 PLBU iterating over the tiles in the bounding box generating commands (mainly graphics primitives). This includes time spent waiting on the bus."/>
   </category>
-  <category name="Mali GPU Fragment Processor" per_cpu="no">
+  <category name="Mali Fragment Processor" per_cpu="no">
     <counter_set name="ARM_Mali-4xx_FP_0_cnt" title="Mali-4xx FP0" description="Mali GPU Fragment Processor 0" count="2"/>
     <counter_set name="ARM_Mali-4xx_FP_1_cnt" title="Mali-4xx FP1" description="Mali GPU Fragment Processor 1" count="2"/>
     <counter_set name="ARM_Mali-4xx_FP_2_cnt" title="Mali-4xx FP2" description="Mali GPU Fragment Processor 2" count="2"/>
@@ -37,7 +36,6 @@
     <counter_set name="ARM_Mali-4xx_FP_5_cnt" title="Mali-4xx FP5" description="Mali GPU Fragment Processor 5" count="2"/>
     <counter_set name="ARM_Mali-4xx_FP_6_cnt" title="Mali-4xx FP6" description="Mali GPU Fragment Processor 6" count="2"/>
     <counter_set name="ARM_Mali-4xx_FP_7_cnt" title="Mali-4xx FP7" description="Mali GPU Fragment Processor 7" count="2"/>
-
     <event event="0x00" title="Mali-4xx FP" name="Active clock cycles" description="Active clock cycles, between polygon start and IRQ."/>
     <event event="0x02" title="Mali-4xx FP" name="Total bus reads" description="Total number of 64-bit words read from the bus."/>
     <event event="0x03" title="Mali-4xx FP" name="Total bus writes" description="Total number of 64-bit words written to the bus."/>
@@ -96,11 +94,10 @@
     <event event="0x3c" title="Mali-4xx FP" name="Program cache hit count" description="Number of hits in the program cache."/>
     <event event="0x3d" title="Mali-4xx FP" name="Program cache miss count" description="Number of misses in the program cache."/>
   </category>
-  <counter_set name="ARM_Mali-4xx_L2_0_cnt" title="Mali-4xx L2 0" description="Mali GPU L2 Cache Core 0" count="2"/>
-  <category name="Mali-4xx-L2_0" counter_set="ARM_Mali-4xx_L2_0_cnt" per_cpu="no">
+  <counter_set name="ARM_Mali-4xx_L2_0_cnt" title="Mali-4xx L2" description="Mali GPU L2 Cache Core 0" count="2"/>
+  <category name="Mali-4xx L2" counter_set="ARM_Mali-4xx_L2_0_cnt" per_cpu="no">
     <event event="0x01" title="Mali L2 Cache" name="Total clock cycles" description="Total clock cycles"/>
     <event event="0x02" title="Mali L2 Cache" name="Active clock cycles" description="Active clock cycles"/>
-
     <option_set name="All">
       <option event_delta="0x08" name="Master" description="Master"/>
       <option event_delta="0x10" name="All slaves" description="All slaves"/>
@@ -110,7 +107,6 @@
       <option event_delta="0x50" name="Slave 3" description="Slave 3"/>
       <option event_delta="0x60" name="Slave 4" description="Slave 4"/>
     </option_set>
-
     <option_set name="Slaves">
       <option event_delta="0x10" name="All slaves" description="All slaves"/>
       <option event_delta="0x20" name="Slave 0" description="Slave 0"/>
@@ -119,7 +115,6 @@
       <option event_delta="0x50" name="Slave 3" description="Slave 3"/>
       <option event_delta="0x60" name="Slave 4" description="Slave 4"/>
     </option_set>
-
     <event event="0x00" option_set="All" title="Mali L2 Cache" name="Read transactions" description="Read transactions"/>
     <event event="0x01" option_set="All" title="Mali L2 Cache" name="Write transactions" description="Write transactions"/>
     <event event="0x02" option_set="All" title="Mali L2 Cache" name="Words read" description="Words read"/>
@@ -131,10 +126,9 @@
     <event event="0x08" option_set="Slaves" title="Mali L2 Cache" name="Cacheable read transactions" description="Cacheable read transactions"/>
   </category>
   <counter_set name="ARM_Mali-4xx_L2_1_cnt" title="Mali-4xx L2 1" description="Mali GPU L2 Cache Core 1" count="2"/>
-  <category name="Mali-4xx-L2_1" counter_set="ARM_Mali-4xx_L2_1_cnt" per_cpu="no">
-    <event event="0x01" title="Mali L2 Cache" name="Total clock cycles" description="Total clock cycles"/>
-    <event event="0x02" title="Mali L2 Cache" name="Active clock cycles" description="Active clock cycles"/>
-
+  <category name="Mali-4xx L2_1" counter_set="ARM_Mali-4xx_L2_1_cnt" per_cpu="no">
+    <event event="0x01" title="Mali L2 Cache 1" name="Total clock cycles" description="Total clock cycles"/>
+    <event event="0x02" title="Mali L2 Cache 1" name="Active clock cycles" description="Active clock cycles"/>
     <option_set name="All">
       <option event_delta="0x08" name="Master" description="Master"/>
       <option event_delta="0x10" name="All slaves" description="All slaves"/>
@@ -144,7 +138,6 @@
       <option event_delta="0x50" name="Slave 3" description="Slave 3"/>
       <option event_delta="0x60" name="Slave 4" description="Slave 4"/>
     </option_set>
-
     <option_set name="Slaves">
       <option event_delta="0x10" name="All slaves" description="All slaves"/>
       <option event_delta="0x20" name="Slave 0" description="Slave 0"/>
@@ -153,22 +146,20 @@
       <option event_delta="0x50" name="Slave 3" description="Slave 3"/>
       <option event_delta="0x60" name="Slave 4" description="Slave 4"/>
     </option_set>
-
-    <event event="0x00" option_set="All" title="Mali L2 Cache" name="Read transactions" description="Read transactions"/>
-    <event event="0x01" option_set="All" title="Mali L2 Cache" name="Write transactions" description="Write transactions"/>
-    <event event="0x02" option_set="All" title="Mali L2 Cache" name="Words read" description="Words read"/>
-    <event event="0x03" option_set="All" title="Mali L2 Cache" name="Words written" description="Words written"/>
-    <event event="0x04" option_set="Slaves" title="Mali L2 Cache" name="Read hits" description="Read hits"/>
-    <event event="0x05" option_set="Slaves" title="Mali L2 Cache" name="Read misses" description="Read misses"/>
-    <event event="0x06" option_set="Slaves" title="Mali L2 Cache" name="Write invalidates" description="Write invalidates"/>
-    <event event="0x07" option_set="Slaves" title="Mali L2 Cache" name="Read invalidates" description="Read invalidates"/>
-    <event event="0x08" option_set="Slaves" title="Mali L2 Cache" name="Cacheable read transactions" description="Cacheable read transactions"/>
+    <event event="0x00" option_set="All" title="Mali L2 Cache 1" name="Read transactions" description="Read transactions"/>
+    <event event="0x01" option_set="All" title="Mali L2 Cache 1" name="Write transactions" description="Write transactions"/>
+    <event event="0x02" option_set="All" title="Mali L2 Cache 1" name="Words read" description="Words read"/>
+    <event event="0x03" option_set="All" title="Mali L2 Cache 1" name="Words written" description="Words written"/>
+    <event event="0x04" option_set="Slaves" title="Mali L2 Cache 1" name="Read hits" description="Read hits"/>
+    <event event="0x05" option_set="Slaves" title="Mali L2 Cache 1" name="Read misses" description="Read misses"/>
+    <event event="0x06" option_set="Slaves" title="Mali L2 Cache 1" name="Write invalidates" description="Write invalidates"/>
+    <event event="0x07" option_set="Slaves" title="Mali L2 Cache 1" name="Read invalidates" description="Read invalidates"/>
+    <event event="0x08" option_set="Slaves" title="Mali L2 Cache 1" name="Cacheable read transactions" description="Cacheable read transactions"/>
   </category>
   <counter_set name="ARM_Mali-4xx_L2_2_cnt" title="Mali-4xx L2 2" description="Mali GPU L2 Cache Core 2" count="2"/>
-  <category name="Mali-4xx-L2_2" counter_set="ARM_Mali-4xx_L2_2_cnt" per_cpu="no">
-    <event event="0x01" title="Mali L2 Cache" name="Total clock cycles" description="Total clock cycles"/>
-    <event event="0x02" title="Mali L2 Cache" name="Active clock cycles" description="Active clock cycles"/>
-
+  <category name="Mali-4xx L2_2" counter_set="ARM_Mali-4xx_L2_2_cnt" per_cpu="no">
+    <event event="0x01" title="Mali L2 Cache 2" name="Total clock cycles" description="Total clock cycles"/>
+    <event event="0x02" title="Mali L2 Cache 2" name="Active clock cycles" description="Active clock cycles"/>
     <option_set name="All">
       <option event_delta="0x08" name="Master" description="Master"/>
       <option event_delta="0x10" name="All slaves" description="All slaves"/>
@@ -178,7 +169,6 @@
       <option event_delta="0x50" name="Slave 3" description="Slave 3"/>
       <option event_delta="0x60" name="Slave 4" description="Slave 4"/>
     </option_set>
-
     <option_set name="Slaves">
       <option event_delta="0x10" name="All slaves" description="All slaves"/>
       <option event_delta="0x20" name="Slave 0" description="Slave 0"/>
@@ -187,18 +177,18 @@
       <option event_delta="0x50" name="Slave 3" description="Slave 3"/>
       <option event_delta="0x60" name="Slave 4" description="Slave 4"/>
     </option_set>
-
-    <event event="0x00" option_set="All" title="Mali L2 Cache" name="Read transactions" description="Read transactions"/>
-    <event event="0x01" option_set="All" title="Mali L2 Cache" name="Write transactions" description="Write transactions"/>
-    <event event="0x02" option_set="All" title="Mali L2 Cache" name="Words read" description="Words read"/>
-    <event event="0x03" option_set="All" title="Mali L2 Cache" name="Words written" description="Words written"/>
-    <event event="0x04" option_set="Slaves" title="Mali L2 Cache" name="Read hits" description="Read hits"/>
-    <event event="0x05" option_set="Slaves" title="Mali L2 Cache" name="Read misses" description="Read misses"/>
-    <event event="0x06" option_set="Slaves" title="Mali L2 Cache" name="Write invalidates" description="Write invalidates"/>
-    <event event="0x07" option_set="Slaves" title="Mali L2 Cache" name="Read invalidates" description="Read invalidates"/>
-    <event event="0x08" option_set="Slaves" title="Mali L2 Cache" name="Cacheable read transactions" description="Cacheable read transactions"/>
+    <event event="0x00" option_set="All" title="Mali L2 Cache 2" name="Read transactions" description="Read transactions"/>
+    <event event="0x01" option_set="All" title="Mali L2 Cache 2" name="Write transactions" description="Write transactions"/>
+    <event event="0x02" option_set="All" title="Mali L2 Cache 2" name="Words read" description="Words read"/>
+    <event event="0x03" option_set="All" title="Mali L2 Cache 2" name="Words written" description="Words written"/>
+    <event event="0x04" option_set="Slaves" title="Mali L2 Cache 2" name="Read hits" description="Read hits"/>
+    <event event="0x05" option_set="Slaves" title="Mali L2 Cache 2" name="Read misses" description="Read misses"/>
+    <event event="0x06" option_set="Slaves" title="Mali L2 Cache 2" name="Write invalidates" description="Write invalidates"/>
+    <event event="0x07" option_set="Slaves" title="Mali L2 Cache 2" name="Read invalidates" description="Read invalidates"/>
+    <event event="0x08" option_set="Slaves" title="Mali L2 Cache 2" name="Cacheable read transactions" description="Cacheable read transactions"/>
   </category>
-  <category name="ARM Mali-4xx Filmstrip" counter_set="ARM_Mali-4xx_Filmstrip_cnt" per_cpu="no">
+  <counter_set name="ARM_Mali-4xx_Filmstrip_cnt" count="1"/>
+  <category name="Mali-4xx Filmstrip" counter_set="ARM_Mali-4xx_Filmstrip_cnt" per_cpu="no">
     <option_set name="fs">
       <option event_delta="0x3c" name="1:60" description="captures every 60th frame"/>
       <option event_delta="0x1e" name="1:30" description="captures every 30th frame"/>
@@ -212,7 +202,11 @@
   <category name="ARM_Mali-4xx_Frequency" per_cpu="no">
     <event counter="ARM_Mali-4xx_Frequency" title="Mali GPU Frequency" name="Frequency" display="average" average_selection="yes" units="MHz" description="GPU core frequency."/>
   </category>
-  <category name="Mali-4xx-SW" counter_set="ARM_Mali-4xx_SW_cnt" per_cpu="no">
+  <category name="Mali-4xx Activity" counter_set="ARM_Mali-4xx_Activity_cnt">
+    <event counter="ARM_Mali-4xx_fragment" title="GPU Fragment" name="Activity" class="activity" activity1="Activity" activity_color1="0x00006fcc" rendering_type="bar" average_selection="yes" average_cores="yes" percentage="yes" description="GPU Fragment Activity"/>
+    <event counter="ARM_Mali-4xx_vertex" title="GPU Vertex" name="Activity" class="activity" activity1="Activity" activity_color1="0x00eda000" rendering_type="bar" average_selection="yes" percentage="yes" description="GPU Vertex Activity"/>
+  </category>
+  <category name="Mali-4xx Software Counters" counter_set="ARM_Mali-4xx_SW_cnt" per_cpu="no">
     <!-- EGL Counters -->
     <event counter="ARM_Mali-4xx_SW_0" title="Mali EGL Software Counters" name="Blit Time" description="Time spent blitting the framebuffer from video memory to framebuffer."/>
     <!-- glDrawElements Counters -->

@@ -12,6 +12,7 @@
 #include <semaphore.h>
 
 #include "Buffer.h"
+#include "Monitor.h"
 #include "OlySocket.h"
 #include "Source.h"
 
@@ -29,8 +30,16 @@ public:
 	void write(Sender *sender);
 
 private:
+	void waitFor(const uint64_t currTime, const int bytes);
+	void configureConnection(const int fd, const char *const handshake, size_t size);
+	bool connectMve();
+
+	sem_t mBufferSem;
 	Buffer mBuffer;
-	OlySocket mSock;
+	Monitor mMonitor;
+	OlyServerSocket mMveStartupUds;
+	int mInterruptFd;
+	int mMveUds;
 
 	// Intentionally unimplemented
 	ExternalSource(const ExternalSource &);

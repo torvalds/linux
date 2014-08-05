@@ -20,8 +20,10 @@
 #include <unistd.h>
 
 #include "Child.h"
+#include "EventsXML.h"
 #include "KMod.h"
 #include "Logging.h"
+#include "Monitor.h"
 #include "OlySocket.h"
 #include "OlyUtility.h"
 #include "SessionData.h"
@@ -31,8 +33,9 @@
 extern Child* child;
 static int shutdownFilesystem();
 static pthread_mutex_t numSessions_mutex;
-static int numSessions = 0;
 static OlyServerSocket* sock = NULL;
+static Monitor monitor;
+static int numSessions = 0;
 static bool driverRunningAtStart = false;
 static bool driverMountedAtStart = false;
 
@@ -102,42 +105,8 @@ static void child_exit(int) {
 	}
 }
 
-static int udpPort(int port) {
-	int s;
-	struct sockaddr_in6 sockaddr;
-	int on;
-	int family = AF_INET6;
-
-	s = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
-	if (s == -1) {
-		family = AF_INET;
-		s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-		if (s == -1) {
-			logg->logError(__FILE__, __LINE__, "socket failed");
-			handleException();
-		}
-	}
-
-	on = 1;
-	if (setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (const char*)&on, sizeof(on)) != 0) {
-		logg->logError(__FILE__, __LINE__, "setsockopt failed");
-		handleException();
-	}
-
-	memset((void*)&sockaddr, 0, sizeof(sockaddr));
-	sockaddr.sin6_family = family;
-	sockaddr.sin6_port = htons(port);
-	sockaddr.sin6_addr = in6addr_any;
-	if (bind(s, (struct sockaddr *)&sockaddr, sizeof(sockaddr)) < 0) {
-		logg->logError(__FILE__, __LINE__, "socket failed");
-		handleException();
-	}
-
-	return s;
-}
-
-#define UDP_ANS_PORT 30000
-#define UDP_REQ_PORT 30001
+static const int UDP_ANS_PORT = 30000;
+static const int UDP_REQ_PORT = 30001;
 
 typedef struct {
 	char rviHeader[8];
@@ -149,50 +118,102 @@ typedef struct {
 	uint32_t ipAddress;
 	uint32_t defaultGateway;
 	uint32_t subnetMask;
-	uint32_t activeConnections; 
+	uint32_t activeConnections;
 } RVIConfigureInfo;
 
 static const char DST_REQ[] = { 'D', 'S', 'T', '_', 'R', 'E', 'Q', ' ', 0, 0, 0, 0x64 };
 
-static void* answerThread(void* pVoid) {
-	prctl(PR_SET_NAME, (unsigned long)&"gatord-discover", 0, 0, 0);
-	const struct cmdline_t * const cmdline = (struct cmdline_t *)pVoid;
-	RVIConfigureInfo dstAns;
-	int req = udpPort(UDP_REQ_PORT);
-	int ans = udpPort(UDP_ANS_PORT);
+class UdpListener {
+public:
+	UdpListener() : mDstAns(), mReq(-1), mAns(-1) {}
 
-	// Format the answer buffer
-	memset(&dstAns, 0, sizeof(dstAns));
-	memcpy(dstAns.rviHeader, "STR_ANS ", sizeof(dstAns.rviHeader));
-	if (gethostname(dstAns.dhcpName, sizeof(dstAns.dhcpName) - 1) != 0) {
-		logg->logError(__FILE__, __LINE__, "gethostname failed");
-		handleException();
-	}
-	// Subvert the defaultGateway field for the port number
-	if (cmdline->port != DEFAULT_PORT) {
-		dstAns.defaultGateway = cmdline->port;
-	}
-	// Subvert the subnetMask field for the protocol version
-	dstAns.subnetMask = PROTOCOL_VERSION;
+	void setup(int port) {
+		mReq = udpPort(UDP_REQ_PORT);
+		mAns = udpPort(UDP_ANS_PORT);
 
-	for (;;) {
+		// Format the answer buffer
+		memset(&mDstAns, 0, sizeof(mDstAns));
+		memcpy(mDstAns.rviHeader, "STR_ANS ", sizeof(mDstAns.rviHeader));
+		if (gethostname(mDstAns.dhcpName, sizeof(mDstAns.dhcpName) - 1) != 0) {
+			logg->logError(__FILE__, __LINE__, "gethostname failed");
+			handleException();
+		}
+		// Subvert the defaultGateway field for the port number
+		if (port != DEFAULT_PORT) {
+			mDstAns.defaultGateway = port;
+		}
+		// Subvert the subnetMask field for the protocol version
+		mDstAns.subnetMask = PROTOCOL_VERSION;
+	}
+
+	int getReq() const {
+		return mReq;
+	}
+
+	void handle() {
 		char buf[128];
 		struct sockaddr_in6 sockaddr;
 		socklen_t addrlen;
 		int read;
 		addrlen = sizeof(sockaddr);
-		read = recvfrom(req, &buf, sizeof(buf), 0, (struct sockaddr *)&sockaddr, &addrlen);
+		read = recvfrom(mReq, &buf, sizeof(buf), 0, (struct sockaddr *)&sockaddr, &addrlen);
 		if (read < 0) {
 			logg->logError(__FILE__, __LINE__, "recvfrom failed");
 			handleException();
 		} else if ((read == 12) && (memcmp(buf, DST_REQ, sizeof(DST_REQ)) == 0)) {
-			if (sendto(ans, &dstAns, sizeof(dstAns), 0, (struct sockaddr *)&sockaddr, addrlen) != sizeof(dstAns)) {
+			if (sendto(mAns, &mDstAns, sizeof(mDstAns), 0, (struct sockaddr *)&sockaddr, addrlen) != sizeof(mDstAns)) {
 				logg->logError(__FILE__, __LINE__, "sendto failed");
 				handleException();
 			}
 		}
 	}
-}
+
+	void close() {
+		::close(mReq);
+		::close(mAns);
+	}
+
+private:
+	int udpPort(int port) {
+		int s;
+		struct sockaddr_in6 sockaddr;
+		int on;
+		int family = AF_INET6;
+
+		s = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
+		if (s == -1) {
+			family = AF_INET;
+			s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+			if (s == -1) {
+				logg->logError(__FILE__, __LINE__, "socket failed");
+				handleException();
+			}
+		}
+
+		on = 1;
+		if (setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (const char*)&on, sizeof(on)) != 0) {
+			logg->logError(__FILE__, __LINE__, "setsockopt failed");
+			handleException();
+		}
+
+		memset((void*)&sockaddr, 0, sizeof(sockaddr));
+		sockaddr.sin6_family = family;
+		sockaddr.sin6_port = htons(port);
+		sockaddr.sin6_addr = in6addr_any;
+		if (bind(s, (struct sockaddr *)&sockaddr, sizeof(sockaddr)) < 0) {
+			logg->logError(__FILE__, __LINE__, "socket failed");
+			handleException();
+		}
+
+		return s;
+	}
+
+	RVIConfigureInfo mDstAns;
+	int mReq;
+	int mAns;
+};
+
+static UdpListener udpListener;
 
 // retval: -1 = failure; 0 = was already mounted; 1 = successfully mounted
 static int mountGatorFS() {
@@ -218,7 +239,7 @@ static bool init_module (const char * const location) {
 		if (fstat(fd, &st) == 0) {
 			void * const p = mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
 			if (p != MAP_FAILED) {
-				if (syscall(__NR_init_module, p, st.st_size, "") == 0) {
+				if (syscall(__NR_init_module, p, (unsigned long)st.st_size, "") == 0) {
 					ret = true;
 				}
 				munmap(p, st.st_size);
@@ -264,8 +285,14 @@ static bool setupFilesystem(char* module) {
 		}
 
 		if (access(location, F_OK) == -1) {
-			// The gator kernel is not already loaded and unable to locate gator.ko
-			return false;
+			if (module == NULL) {
+				// The gator kernel is not already loaded and unable to locate gator.ko in the default location
+				return false;
+			} else {
+				// gator location specified on the command line but it was not found
+				logg->logError(__FILE__, __LINE__, "gator module not found at %s", location);
+				handleException();
+			}
 		}
 
 		// Load driver
@@ -380,6 +407,45 @@ static struct cmdline_t parseCommandLine(int argc, char** argv) {
 	return cmdline;
 }
 
+void handleClient() {
+	OlySocket client(sock->acceptConnection());
+
+	int pid = fork();
+	if (pid < 0) {
+		// Error
+		logg->logError(__FILE__, __LINE__, "Fork process failed. Please power cycle the target device if this error persists.");
+	} else if (pid == 0) {
+		// Child
+		sock->closeServerSocket();
+		udpListener.close();
+		monitor.close();
+		child = new Child(&client, numSessions + 1);
+		child->run();
+		delete child;
+		exit(0);
+	} else {
+		// Parent
+		client.closeSocket();
+
+		pthread_mutex_lock(&numSessions_mutex);
+		numSessions++;
+		pthread_mutex_unlock(&numSessions_mutex);
+
+		// Maximum number of connections is 2
+		int wait = 0;
+		while (numSessions > 1) {
+			// Throttle until one of the children exits before continuing to accept another socket connection
+			logg->logMessage("%d sessions active!", numSessions);
+			if (wait++ >= 10) { // Wait no more than 10 seconds
+				// Kill last created child
+				kill(pid, SIGALRM);
+				break;
+			}
+			sleep(1);
+		}
+	}
+}
+
 // Gator data flow: collector -> collector fifo -> sender
 int main(int argc, char** argv) {
 	// Ensure proper signal handling by making gatord the process group leader
@@ -420,16 +486,23 @@ int main(int argc, char** argv) {
 		logg->logMessage("Unable to setup gatorfs, trying perf");
 		if (!gSessionData->perf.setup()) {
 			logg->logError(__FILE__, __LINE__,
-										 "Unable to locate gator.ko driver:\n"
-										 "  >>> gator.ko should be co-located with gatord in the same directory\n"
-										 "  >>> OR insmod gator.ko prior to launching gatord\n"
-										 "  >>> OR specify the location of gator.ko on the command line\n"
-										 "  >>> OR run Linux 3.12 or later with perf support to collect data via userspace only");
+				       "Unable to locate gator.ko driver:\n"
+				       "  >>> gator.ko should be co-located with gatord in the same directory\n"
+				       "  >>> OR insmod gator.ko prior to launching gatord\n"
+				       "  >>> OR specify the location of gator.ko on the command line\n"
+				       "  >>> OR run Linux 3.4 or later with perf (CONFIG_PERF_EVENTS and CONFIG_HW_PERF_EVENTS) and tracing (CONFIG_TRACING) support to collect data via userspace only");
 			handleException();
 		}
 	}
 
 	gSessionData->hwmon.setup();
+	{
+		EventsXML eventsXML;
+		mxml_node_t *xml = eventsXML.getTree();
+		gSessionData->fsDriver.setup(xml);
+		gSessionData->maliVideo.setup(xml);
+		mxmlDelete(xml);
+	}
 
 	// Handle child exit codes
 	signal(SIGCHLD, child_exit);
@@ -444,47 +517,26 @@ int main(int argc, char** argv) {
 		child->run();
 		delete child;
 	} else {
-		pthread_t answerThreadID;
-		if (pthread_create(&answerThreadID, NULL, answerThread, &cmdline)) {
-			logg->logError(__FILE__, __LINE__, "Failed to create answer thread");
+		sock = new OlyServerSocket(cmdline.port);
+		udpListener.setup(cmdline.port);
+		if (!monitor.init() || !monitor.add(sock->getFd()) || !monitor.add(udpListener.getReq())) {
+			logg->logError(__FILE__, __LINE__, "Monitor setup failed");
 			handleException();
 		}
-		sock = new OlyServerSocket(cmdline.port);
 		// Forever loop, can be exited via a signal or exception
 		while (1) {
+			struct epoll_event events[2];
 			logg->logMessage("Waiting on connection...");
-			OlySocket client(sock->acceptConnection());
-
-			int pid = fork();
-			if (pid < 0) {
-				// Error
-				logg->logError(__FILE__, __LINE__, "Fork process failed. Please power cycle the target device if this error persists.");
-			} else if (pid == 0) {
-				// Child
-				sock->closeServerSocket();
-				child = new Child(&client, numSessions + 1);
-				child->run();
-				delete child;
-				exit(0);
-			} else {
-				// Parent
-				client.closeSocket();
-
-				pthread_mutex_lock(&numSessions_mutex);
-				numSessions++;
-				pthread_mutex_unlock(&numSessions_mutex);
-
-				// Maximum number of connections is 2
-				int wait = 0;
-				while (numSessions > 1) {
-					// Throttle until one of the children exits before continuing to accept another socket connection
-					logg->logMessage("%d sessions active!", numSessions);
-					if (wait++ >= 10) { // Wait no more than 10 seconds
-						// Kill last created child
-						kill(pid, SIGALRM);
-						break;
-					}
-					sleep(1);
+			int ready = monitor.wait(events, ARRAY_LENGTH(events), -1);
+			if (ready < 0) {
+				logg->logError(__FILE__, __LINE__, "Monitor::wait failed");
+				handleException();
+			}
+			for (int i = 0; i < ready; ++i) {
+				if (events[i].data.fd == sock->getFd()) {
+					handleClient();
+				} else if (events[i].data.fd == udpListener.getReq()) {
+					udpListener.handle();
 				}
 			}
 		}

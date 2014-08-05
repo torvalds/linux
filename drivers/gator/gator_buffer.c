@@ -37,11 +37,11 @@ static void marshal_frame(int cpu, int buftype)
 	case SCHED_TRACE_BUF:
 		frame = FRAME_SCHED_TRACE;
 		break;
-	case GPU_TRACE_BUF:
-		frame = FRAME_GPU_TRACE;
-		break;
 	case IDLE_BUF:
 		frame = FRAME_IDLE;
+		break;
+	case ACTIVITY_BUF:
+		frame = FRAME_ACTIVITY;
 		break;
 	default:
 		frame = -1;

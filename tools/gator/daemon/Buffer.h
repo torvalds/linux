@@ -54,6 +54,7 @@ public:
 	// Perf Attrs messages
 	void pea(const struct perf_event_attr *const pea, int key);
 	void keys(const int count, const __u64 *const ids, const int *const keys);
+	void keysOld(const int keyCount, const int *const keys, const int bytes, const char *const buf);
 	void format(const int length, const char *const format);
 	void maps(const int pid, const int tid, const char *const maps);
 	void comm(const int pid, const int tid, const char *const image, const char *const comm);
@@ -64,6 +65,11 @@ public:
 	// Prefer a new member to using these functions if possible
 	char *getWritePos() { return mBuf + mWritePos; }
 	void advanceWrite(int bytes) { mWritePos = (mWritePos + bytes) & /*mask*/(mSize - 1); }
+	static void packInt(char *const buf, const int size, int &writePos, int32_t x);
+	void packInt(int32_t x);
+	void packInt64(int64_t x);
+	void writeBytes(const void *const data, size_t count);
+	void writeString(const char *const str);
 
 	static void writeLEInt(unsigned char *buf, int v) {
 		buf[0] = (v >> 0) & 0xFF;
@@ -75,11 +81,6 @@ public:
 private:
 	bool commitReady() const;
 	bool checkSpace(int bytes);
-
-	void packInt(int32_t x);
-	void packInt64(int64_t x);
-	void writeBytes(const void *const data, size_t count);
-	void writeString(const char *const str);
 
 	const int32_t mCore;
 	const int32_t mBufType;

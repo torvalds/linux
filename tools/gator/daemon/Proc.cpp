@@ -57,14 +57,57 @@ static bool readProcStat(ProcStat *const ps, const char *const pathname, DynBuf 
 	return true;
 }
 
-static bool readProcTask(Buffer *const buffer, const int pid, const char *const image, DynBuf *const printb, DynBuf *const b) {
+static const char *readProcExe(DynBuf *const printb, const int pid, const int tid, DynBuf *const b) {
+	if (tid == -1 ? !printb->printf("/proc/%i/exe", pid)
+			: !printb->printf("/proc/%i/task/%i/exe", pid, tid)) {
+		logg->logMessage("%s(%s:%i): DynBuf::printf failed", __FUNCTION__, __FILE__, __LINE__);
+		return NULL;
+	}
+
+	const int err = b->readlink(printb->getBuf());
+	const char *image;
+	if (err == 0) {
+		image = strrchr(b->getBuf(), '/');
+		if (image == NULL) {
+			image = b->getBuf();
+		} else {
+			++image;
+		}
+	} else if (err == -ENOENT) {
+		// readlink /proc/[pid]/exe returns ENOENT for kernel threads
+		image = "\0";
+	} else {
+		logg->logMessage("%s(%s:%i): DynBuf::readlink failed", __FUNCTION__, __FILE__, __LINE__);
+		return NULL;
+	}
+
+	// Android apps are run by app_process but the cmdline is changed to reference the actual app name
+	if (strcmp(image, "app_process") != 0) {
+		return image;
+	}
+
+	if (tid == -1 ? !printb->printf("/proc/%i/cmdline", pid)
+			: !printb->printf("/proc/%i/task/%i/cmdline", pid, tid)) {
+		logg->logMessage("%s(%s:%i): DynBuf::printf failed", __FUNCTION__, __FILE__, __LINE__);
+		return NULL;
+	}
+
+	if (!b->read(printb->getBuf())) {
+		logg->logMessage("%s(%s:%i): DynBuf::read failed, likely because the thread exited", __FUNCTION__, __FILE__, __LINE__);
+		return NULL;
+	}
+
+	return b->getBuf();
+}
+
+static bool readProcTask(Buffer *const buffer, const int pid, DynBuf *const printb, DynBuf *const b1, DynBuf *const b2) {
 	bool result = false;
 
-	if (!b->printf("/proc/%i/task", pid)) {
+	if (!b1->printf("/proc/%i/task", pid)) {
 		logg->logMessage("%s(%s:%i): DynBuf::printf failed", __FUNCTION__, __FILE__, __LINE__);
 		return result;
 	}
-	DIR *task = opendir(b->getBuf());
+	DIR *task = opendir(b1->getBuf());
 	if (task == NULL) {
 		logg->logMessage("%s(%s:%i): opendir failed", __FUNCTION__, __FILE__, __LINE__);
 		return result;
@@ -84,8 +127,14 @@ static bool readProcTask(Buffer *const buffer, const int pid, const char *const 
 			goto fail;
 		}
 		ProcStat ps;
-		if (!readProcStat(&ps, printb->getBuf(), b)) {
+		if (!readProcStat(&ps, printb->getBuf(), b1)) {
 			logg->logMessage("%s(%s:%i): readProcStat failed", __FUNCTION__, __FILE__, __LINE__);
+			goto fail;
+		}
+
+		const char *const image = readProcExe(printb, pid, tid, b2);
+		if (image == NULL) {
+			logg->logMessage("%s(%s:%i): readImage failed", __FUNCTION__, __FILE__, __LINE__);
 			goto fail;
 		}
 
@@ -100,7 +149,7 @@ static bool readProcTask(Buffer *const buffer, const int pid, const char *const 
 	return result;
 }
 
-bool readProc(Buffer *const buffer, DynBuf *const printb, DynBuf *const b1, DynBuf *const b2, DynBuf *const b3) {
+bool readProc(Buffer *const buffer, bool sendMaps, DynBuf *const printb, DynBuf *const b1, DynBuf *const b2, DynBuf *const b3) {
 	bool result = false;
 
 	DIR *proc = opendir("/proc");
@@ -128,42 +177,29 @@ bool readProc(Buffer *const buffer, DynBuf *const printb, DynBuf *const b1, DynB
 			goto fail;
 		}
 
-		if (!printb->printf("/proc/%i/exe", pid)) {
-			logg->logMessage("%s(%s:%i): DynBuf::printf failed", __FUNCTION__, __FILE__, __LINE__);
-			goto fail;
-		}
-		const int err = b1->readlink(printb->getBuf());
-		const char *image;
-		if (err == 0) {
-			image = strrchr(b1->getBuf(), '/');
-			if (image == NULL) {
-				image = b1->getBuf();
-			} else {
-				++image;
+		if (sendMaps) {
+			if (!printb->printf("/proc/%i/maps", pid)) {
+				logg->logMessage("%s(%s:%i): DynBuf::printf failed", __FUNCTION__, __FILE__, __LINE__);
+				goto fail;
 			}
-		} else if (err == -ENOENT) {
-			// readlink /proc/[pid]/exe returns ENOENT for kernel threads
-			image = "\0";
-		} else {
-			logg->logMessage("%s(%s:%i): DynBuf::readlink failed", __FUNCTION__, __FILE__, __LINE__);
-			goto fail;
-		}
+			if (!b2->read(printb->getBuf())) {
+				logg->logMessage("%s(%s:%i): DynBuf::read failed, likely because the process exited", __FUNCTION__, __FILE__, __LINE__);
+				// This is not a fatal error - the process just doesn't exist any more
+				continue;
+			}
 
-		if (!printb->printf("/proc/%i/maps", pid)) {
-			logg->logMessage("%s(%s:%i): DynBuf::printf failed", __FUNCTION__, __FILE__, __LINE__);
-			goto fail;
+			buffer->maps(pid, pid, b2->getBuf());
 		}
-		if (!b2->read(printb->getBuf())) {
-			logg->logMessage("%s(%s:%i): DynBuf::read failed, likely because the process exited", __FUNCTION__, __FILE__, __LINE__);
-			// This is not a fatal error - the process just doesn't exist any more
-			continue;
-		}
-
-		buffer->maps(pid, pid, b2->getBuf());
 		if (ps.numThreads <= 1) {
+			const char *const image = readProcExe(printb, pid, -1, b1);
+			if (image == NULL) {
+				logg->logMessage("%s(%s:%i): readImage failed", __FUNCTION__, __FILE__, __LINE__);
+				goto fail;
+			}
+
 			buffer->comm(pid, pid, image, ps.comm);
 		} else {
-			if (!readProcTask(buffer, pid, image, printb, b3)) {
+			if (!readProcTask(buffer, pid, printb, b1, b3)) {
 				logg->logMessage("%s(%s:%i): readProcTask failed", __FUNCTION__, __FILE__, __LINE__);
 				goto fail;
 			}

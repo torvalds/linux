@@ -30,4 +30,4 @@ private:
 	Child &operator=(const Child &);
 };
 
-#endif 	//__CHILD_H__
+#endif //__CHILD_H__

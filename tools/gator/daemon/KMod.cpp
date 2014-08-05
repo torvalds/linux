@@ -58,10 +58,15 @@ void KMod::setupCounter(Counter &counter) {
 		return;
 	}
 
+	int value = 0;
 	snprintf(text, sizeof(text), "%s/key", base);
-	int key = 0;
-	DriverSource::readIntDriver(text, &key);
-	counter.setKey(key);
+	DriverSource::readIntDriver(text, &value);
+	counter.setKey(value);
+
+	snprintf(text, sizeof(text), "%s/cores", base);
+	if (DriverSource::readIntDriver(text, &value) == 0) {
+		counter.setCores(value);
+	}
 
 	snprintf(text, sizeof(text), "%s/event", base);
 	DriverSource::writeDriver(text, counter.getEvent());
