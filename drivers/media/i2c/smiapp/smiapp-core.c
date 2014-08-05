@@ -1282,19 +1282,12 @@ static int smiapp_set_power(struct v4l2_subdev *subdev, int on)
 
 	mutex_lock(&sensor->power_mutex);
 
-	/*
-	 * If the power count is modified from 0 to != 0 or from != 0
-	 * to 0, update the power state.
-	 */
-	if (!sensor->power_count == !on)
-		goto out;
-
-	if (on) {
+	if (on && !sensor->power_count) {
 		/* Power on and perform initialisation. */
 		ret = smiapp_power_on(sensor);
 		if (ret < 0)
 			goto out;
-	} else {
+	} else if (!on && sensor->power_count == 1) {
 		smiapp_power_off(sensor);
 	}
 
