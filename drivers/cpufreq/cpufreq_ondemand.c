@@ -170,21 +170,24 @@ static void od_check_cpu(int cpu, unsigned int load)
 		dbs_freq_increase(policy, policy->max);
 	} else {
 		/* Calculate the next frequency proportional to load */
-		unsigned int freq_next;
-		freq_next = load * policy->cpuinfo.max_freq / 100;
+		unsigned int freq_next, min_f, max_f;
+
+		min_f = policy->cpuinfo.min_freq;
+		max_f = policy->cpuinfo.max_freq;
+		freq_next = min_f + load * (max_f - min_f) / 100;
 
 		/* No longer fully busy, reset rate_mult */
 		dbs_info->rate_mult = 1;
 
 		if (!od_tuners->powersave_bias) {
 			__cpufreq_driver_target(policy, freq_next,
-					CPUFREQ_RELATION_L);
+					CPUFREQ_RELATION_C);
 			return;
 		}
 
 		freq_next = od_ops.powersave_bias_target(policy, freq_next,
 					CPUFREQ_RELATION_L);
-		__cpufreq_driver_target(policy, freq_next, CPUFREQ_RELATION_L);
+		__cpufreq_driver_target(policy, freq_next, CPUFREQ_RELATION_C);
 	}
 }
 
