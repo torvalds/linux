@@ -39,6 +39,7 @@ struct scm_timestamping {
  */
 enum {
 	SCM_TSTAMP_SND,		/* driver passed skb to NIC, or HW */
+	SCM_TSTAMP_SCHED,	/* data entered the packet scheduler */
 };
 
 #endif /* _UAPI_LINUX_ERRQUEUE_H */
