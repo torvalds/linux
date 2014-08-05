@@ -55,10 +55,8 @@ static int __vlan_add(struct net_port_vlans *v, u16 vid, u16 flags)
 
 	if (p) {
 		/* Add VLAN to the device filter if it is supported.
-		 * Stricly speaking, this is not necessary now, since
-		 * devices are made promiscuous by the bridge, but if
-		 * that ever changes this code will allow tagged
-		 * traffic to enter the bridge.
+		 * This ensures tagged traffic enters the bridge when
+		 * promiscuous mode is disabled by br_manage_promisc().
 		 */
 		err = vlan_vid_add(dev, br->vlan_proto, vid);
 		if (err)
