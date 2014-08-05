@@ -3189,8 +3189,14 @@ ring_stuck(struct intel_engine_cs *ring, u64 acthd)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 tmp;
 
-	if (ring->hangcheck.acthd != acthd)
-		return HANGCHECK_ACTIVE;
+	if (acthd != ring->hangcheck.acthd) {
+		if (acthd > ring->hangcheck.max_acthd) {
+			ring->hangcheck.max_acthd = acthd;
+			return HANGCHECK_ACTIVE;
+		}
+
+		return HANGCHECK_ACTIVE_LOOP;
+	}
 
 	if (IS_GEN2(dev))
 		return HANGCHECK_HUNG;
@@ -3301,8 +3307,9 @@ static void i915_hangcheck_elapsed(unsigned long data)
 				switch (ring->hangcheck.action) {
 				case HANGCHECK_IDLE:
 				case HANGCHECK_WAIT:
-					break;
 				case HANGCHECK_ACTIVE:
+					break;
+				case HANGCHECK_ACTIVE_LOOP:
 					ring->hangcheck.score += BUSY;
 					break;
 				case HANGCHECK_KICK:
@@ -3322,6 +3329,8 @@ static void i915_hangcheck_elapsed(unsigned long data)
 			 */
 			if (ring->hangcheck.score > 0)
 				ring->hangcheck.score--;
+
+			ring->hangcheck.acthd = ring->hangcheck.max_acthd = 0;
 		}
 
 		ring->hangcheck.seqno = seqno;

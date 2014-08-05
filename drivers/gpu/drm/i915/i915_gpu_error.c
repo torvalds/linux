@@ -229,6 +229,8 @@ static const char *hangcheck_action_to_str(enum intel_ring_hangcheck_action a)
 		return "wait";
 	case HANGCHECK_ACTIVE:
 		return "active";
+	case HANGCHECK_ACTIVE_LOOP:
+		return "active (loop)";
 	case HANGCHECK_KICK:
 		return "kick";
 	case HANGCHECK_HUNG:
