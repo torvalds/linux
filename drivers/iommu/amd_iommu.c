@@ -2149,35 +2149,29 @@ static void do_detach(struct iommu_dev_data *dev_data)
 static int __attach_device(struct iommu_dev_data *dev_data,
 			   struct protection_domain *domain)
 {
+	struct iommu_dev_data *head, *entry;
 	int ret;
 
 	/* lock domain */
 	spin_lock(&domain->lock);
 
-	if (dev_data->alias_data != NULL) {
-		struct iommu_dev_data *alias_data = dev_data->alias_data;
+	head = dev_data;
 
-		/* Some sanity checks */
-		ret = -EBUSY;
-		if (alias_data->domain != NULL &&
-				alias_data->domain != domain)
-			goto out_unlock;
+	if (head->alias_data != NULL)
+		head = head->alias_data;
 
-		if (dev_data->domain != NULL &&
-				dev_data->domain != domain)
-			goto out_unlock;
+	/* Now we have the root of the alias group, if any */
 
-		/* Do real assignment */
-		if (alias_data->domain == NULL)
-			do_attach(alias_data, domain);
+	ret = -EBUSY;
+	if (head->domain != NULL)
+		goto out_unlock;
 
-		atomic_inc(&alias_data->bind);
-	}
+	/* Attach alias group root */
+	do_attach(head, domain);
 
-	if (dev_data->domain == NULL)
-		do_attach(dev_data, domain);
-
-	atomic_inc(&dev_data->bind);
+	/* Attach other devices in the alias group */
+	list_for_each_entry(entry, &head->alias_list, alias_list)
+		do_attach(entry, domain);
 
 	ret = 0;
 
@@ -2325,6 +2319,7 @@ static int attach_device(struct device *dev,
  */
 static void __detach_device(struct iommu_dev_data *dev_data)
 {
+	struct iommu_dev_data *head, *entry;
 	struct protection_domain *domain;
 	unsigned long flags;
 
@@ -2334,15 +2329,14 @@ static void __detach_device(struct iommu_dev_data *dev_data)
 
 	spin_lock_irqsave(&domain->lock, flags);
 
-	if (dev_data->alias_data != NULL) {
-		struct iommu_dev_data *alias_data = dev_data->alias_data;
+	head = dev_data;
+	if (head->alias_data != NULL)
+		head = head->alias_data;
 
-		if (atomic_dec_and_test(&alias_data->bind))
-			do_detach(alias_data);
-	}
+	list_for_each_entry(entry, &head->alias_list, alias_list)
+		do_detach(entry);
 
-	if (atomic_dec_and_test(&dev_data->bind))
-		do_detach(dev_data);
+	do_detach(head);
 
 	spin_unlock_irqrestore(&domain->lock, flags);
 
