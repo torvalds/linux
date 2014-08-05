@@ -26,6 +26,7 @@ struct mipi_dsi_device;
  * struct mipi_dsi_msg - read/write DSI buffer
  * @channel: virtual channel id
  * @type: payload data type
+ * @flags: flags controlling this message transmission
  * @tx_len: length of @tx_buf
  * @tx_buf: data to be written
  * @rx_len: length of @rx_buf
@@ -68,8 +69,19 @@ int mipi_dsi_create_packet(struct mipi_dsi_packet *packet,
  * struct mipi_dsi_host_ops - DSI bus operations
  * @attach: attach DSI device to DSI host
  * @detach: detach DSI device from DSI host
- * @transfer: send and/or receive DSI packet, return number of received bytes,
- * 	      or error
+ * @transfer: transmit a DSI packet
+ *
+ * DSI packets transmitted by .transfer() are passed in as mipi_dsi_msg
+ * structures. This structure contains information about the type of packet
+ * being transmitted as well as the transmit and receive buffers. When an
+ * error is encountered during transmission, this function will return a
+ * negative error code. On success it shall return the number of bytes
+ * transmitted for write packets or the number of bytes received for read
+ * packets.
+ *
+ * Note that typically DSI packet transmission is atomic, so the .transfer()
+ * function will seldomly return anything other than the number of bytes
+ * contained in the transmit buffer on success.
  */
 struct mipi_dsi_host_ops {
 	int (*attach)(struct mipi_dsi_host *host,

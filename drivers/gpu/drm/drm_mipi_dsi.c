@@ -35,6 +35,16 @@
 
 #include <video/mipi_display.h>
 
+/**
+ * DOC: dsi helpers
+ *
+ * These functions contain some common logic and helpers to deal with MIPI DSI
+ * peripherals.
+ *
+ * Helpers are provided for a number of standard MIPI DSI command as well as a
+ * subset of the MIPI DCS command set.
+ */
+
 static int mipi_dsi_device_match(struct device *dev, struct device_driver *drv)
 {
 	return of_driver_match_device(dev, drv);
@@ -699,8 +709,10 @@ static void mipi_dsi_drv_shutdown(struct device *dev)
 }
 
 /**
- * mipi_dsi_driver_register - register a driver for DSI devices
+ * mipi_dsi_driver_register() - register a driver for DSI devices
  * @drv: DSI driver structure
+ *
+ * Return: 0 on success or a negative error code on failure.
  */
 int mipi_dsi_driver_register(struct mipi_dsi_driver *drv)
 {
@@ -717,8 +729,10 @@ int mipi_dsi_driver_register(struct mipi_dsi_driver *drv)
 EXPORT_SYMBOL(mipi_dsi_driver_register);
 
 /**
- * mipi_dsi_driver_unregister - unregister a driver for DSI devices
+ * mipi_dsi_driver_unregister() - unregister a driver for DSI devices
  * @drv: DSI driver structure
+ *
+ * Return: 0 on success or a negative error code on failure.
  */
 void mipi_dsi_driver_unregister(struct mipi_dsi_driver *drv)
 {
