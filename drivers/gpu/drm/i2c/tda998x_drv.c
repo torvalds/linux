@@ -1498,7 +1498,7 @@ tda998x_connector_detect(struct drm_connector *connector, bool force)
 
 static void tda998x_connector_destroy(struct drm_connector *connector)
 {
-	drm_sysfs_connector_remove(connector);
+	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
 }
 
@@ -1550,7 +1550,7 @@ static int tda998x_bind(struct device *dev, struct device *master, void *data)
 	if (ret)
 		goto err_connector;
 
-	ret = drm_sysfs_connector_add(&priv->connector);
+	ret = drm_connector_register(&priv->connector);
 	if (ret)
 		goto err_sysfs;
 
