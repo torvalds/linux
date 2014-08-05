@@ -272,7 +272,6 @@ void i915_gem_init_global_gtt(struct drm_device *dev);
 void i915_gem_setup_global_gtt(struct drm_device *dev, unsigned long start,
 			       unsigned long mappable_end, unsigned long end);
 
-bool intel_enable_ppgtt(struct drm_device *dev, bool full);
 int i915_gem_init_ppgtt(struct drm_device *dev, struct i915_hw_ppgtt *ppgtt);
 
 void i915_check_and_clear_faults(struct drm_device *dev);
