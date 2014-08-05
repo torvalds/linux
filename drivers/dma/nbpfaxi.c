@@ -351,7 +351,7 @@ static u32 nbpf_error_get(struct nbpf_device *nbpf)
 	return nbpf_read(nbpf, NBPF_DSTAT_ER);
 }
 
-struct nbpf_channel *nbpf_error_get_channel(struct nbpf_device *nbpf, u32 error)
+static struct nbpf_channel *nbpf_error_get_channel(struct nbpf_device *nbpf, u32 error)
 {
 	return nbpf->chan + __ffs(error);
 }
