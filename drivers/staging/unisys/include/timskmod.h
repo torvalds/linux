@@ -71,17 +71,6 @@
 #define HOSTADDRESS unsigned long long
 #endif
 
-typedef long VMMIO;  /**< Virtual MMIO address (returned from ioremap), which
-    *   is a virtual address pointer to a memory-mapped region.
-    *   These are declared as "long" instead of u32* to force you to
-    *   use readb()/writeb()/memcpy_fromio()/etc to access them.
-    *   (On x86 we could probably get away with treating them as
-    *   pointers.)
-    */
-typedef long VMMIO8; /**< #VMMIO pointing to  8-bit data */
-typedef long VMMIO16;/**< #VMMIO pointing to 16-bit data */
-typedef long VMMIO32;/**< #VMMIO pointing to 32-bit data */
-
 #define LOCKSEM(sem)                   down_interruptible(sem)
 #define LOCKSEM_UNINTERRUPTIBLE(sem)   down(sem)
 #define UNLOCKSEM(sem)                 up(sem)
