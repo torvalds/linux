@@ -19,8 +19,8 @@ __unisys_vmcall_gnuc(unsigned long tuple, unsigned long reg_ebx,
 		     unsigned long reg_ecx)
 {
 	unsigned long result = 0;
-
 	unsigned int cpuid_eax, cpuid_ebx, cpuid_ecx, cpuid_edx;
+
 	cpuid(0x00000001, &cpuid_eax, &cpuid_ebx, &cpuid_ecx, &cpuid_edx);
 	if (cpuid_ecx & 0x80000000) {
 	      __asm__ __volatile__(".byte 0x00f, 0x001, 0x0c1" : "=a"(result) :
@@ -39,8 +39,8 @@ __unisys_extended_vmcall_gnuc(unsigned long long tuple,
 			      unsigned long long reg_edx)
 {
 	unsigned long result = 0;
-
 	unsigned int cpuid_eax, cpuid_ebx, cpuid_ecx, cpuid_edx;
+
 	cpuid(0x00000001, &cpuid_eax, &cpuid_ebx, &cpuid_ecx, &cpuid_edx);
 	if (cpuid_ecx & 0x80000000) {
 	      __asm__ __volatile__(".byte 0x00f, 0x001, 0x0c1" : "=a"(result) :
