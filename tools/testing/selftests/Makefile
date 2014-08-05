@@ -11,6 +11,7 @@ TARGETS += vm
 TARGETS += powerpc
 TARGETS += user
 TARGETS += sysctl
+TARGETS += firmware
 
 TARGETS_HOTPLUG = cpu-hotplug
 TARGETS_HOTPLUG += memory-hotplug

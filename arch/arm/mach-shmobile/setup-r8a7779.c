@@ -123,7 +123,7 @@ void __init r8a7779_init_irq_extpin(int irlm)
 	r8a7779_init_irq_extpin_dt(irlm);
 	if (irlm)
 		platform_device_register_resndata(
-			&platform_bus, "renesas_intc_irqpin", -1,
+			NULL, "renesas_intc_irqpin", -1,
 			irqpin0_resources, ARRAY_SIZE(irqpin0_resources),
 			&irqpin0_platform_data, sizeof(irqpin0_platform_data));
 }
@@ -632,8 +632,8 @@ static struct resource hpb_dmae_resources[] __initdata = {
 
 static void __init r8a7779_register_hpb_dmae(void)
 {
-	platform_device_register_resndata(&platform_bus, "hpb-dma-engine", -1,
-					  hpb_dmae_resources,
+	platform_device_register_resndata(NULL, "hpb-dma-engine",
+					  -1, hpb_dmae_resources,
 					  ARRAY_SIZE(hpb_dmae_resources),
 					  &dma_platform_data,
 					  sizeof(dma_platform_data));

@@ -118,7 +118,6 @@ static const struct resource ether_resources[] __initconst = {
 };
 
 static const struct platform_device_info ether_info __initconst = {
-	.parent		= &platform_bus,
 	.name		= "r8a7791-ether",
 	.id		= -1,
 	.res		= ether_resources,
@@ -230,7 +229,6 @@ static const struct resource sata0_resources[] __initconst = {
 };
 
 static const struct platform_device_info sata0_info __initconst = {
-	.parent		= &platform_bus,
 	.name		= "sata-r8a7791",
 	.id		= 0,
 	.res		= sata0_resources,
@@ -439,13 +437,13 @@ static void __init koelsch_add_standard_devices(void)
 	r8a7791_pinmux_init();
 	r8a7791_add_standard_devices();
 	platform_device_register_full(&ether_info);
-	platform_device_register_data(&platform_bus, "leds-gpio", -1,
+	platform_device_register_data(NULL, "leds-gpio", -1,
 				      &koelsch_leds_pdata,
 				      sizeof(koelsch_leds_pdata));
-	platform_device_register_data(&platform_bus, "gpio-keys", -1,
+	platform_device_register_data(NULL, "gpio-keys", -1,
 				      &koelsch_keys_pdata,
 				      sizeof(koelsch_keys_pdata));
-	platform_device_register_resndata(&platform_bus, "qspi", 0,
+	platform_device_register_resndata(NULL, "qspi", 0,
 					  qspi_resources,
 					  ARRAY_SIZE(qspi_resources),
 					  &qspi_pdata, sizeof(qspi_pdata));
@@ -460,28 +458,28 @@ static void __init koelsch_add_standard_devices(void)
 	koelsch_add_i2c(4);
 	koelsch_add_i2c(5);
 
-	platform_device_register_data(&platform_bus, "reg-fixed-voltage", 0,
+	platform_device_register_data(NULL, "reg-fixed-voltage", 0,
 				      &vcc_sdhi0_info, sizeof(struct fixed_voltage_config));
-	platform_device_register_data(&platform_bus, "reg-fixed-voltage", 1,
+	platform_device_register_data(NULL, "reg-fixed-voltage", 1,
 				      &vcc_sdhi1_info, sizeof(struct fixed_voltage_config));
-	platform_device_register_data(&platform_bus, "reg-fixed-voltage", 2,
+	platform_device_register_data(NULL, "reg-fixed-voltage", 2,
 				      &vcc_sdhi2_info, sizeof(struct fixed_voltage_config));
-	platform_device_register_data(&platform_bus, "gpio-regulator", 0,
+	platform_device_register_data(NULL, "gpio-regulator", 0,
 				      &vccq_sdhi0_info, sizeof(struct gpio_regulator_config));
-	platform_device_register_data(&platform_bus, "gpio-regulator", 1,
+	platform_device_register_data(NULL, "gpio-regulator", 1,
 				      &vccq_sdhi1_info, sizeof(struct gpio_regulator_config));
-	platform_device_register_data(&platform_bus, "gpio-regulator", 2,
+	platform_device_register_data(NULL, "gpio-regulator", 2,
 				      &vccq_sdhi2_info, sizeof(struct gpio_regulator_config));
 
-	platform_device_register_resndata(&platform_bus, "sh_mobile_sdhi", 0,
+	platform_device_register_resndata(NULL, "sh_mobile_sdhi", 0,
 					  sdhi0_resources, ARRAY_SIZE(sdhi0_resources),
 					  &sdhi0_info, sizeof(struct sh_mobile_sdhi_info));
 
-	platform_device_register_resndata(&platform_bus, "sh_mobile_sdhi", 1,
+	platform_device_register_resndata(NULL, "sh_mobile_sdhi", 1,
 					  sdhi1_resources, ARRAY_SIZE(sdhi1_resources),
 					  &sdhi1_info, sizeof(struct sh_mobile_sdhi_info));
 
-	platform_device_register_resndata(&platform_bus, "sh_mobile_sdhi", 2,
+	platform_device_register_resndata(NULL, "sh_mobile_sdhi", 2,
 					  sdhi2_resources, ARRAY_SIZE(sdhi2_resources),
 					  &sdhi2_info, sizeof(struct sh_mobile_sdhi_info));
 

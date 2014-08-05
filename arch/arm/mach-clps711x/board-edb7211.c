@@ -158,16 +158,16 @@ static void __init edb7211_init_late(void)
 	gpio_request_array(edb7211_gpios, ARRAY_SIZE(edb7211_gpios));
 
 	platform_device_register(&edb7211_flash_pdev);
-	platform_device_register_data(&platform_bus, "platform-lcd", 0,
+	platform_device_register_data(NULL, "platform-lcd", 0,
 				      &edb7211_lcd_power_pdata,
 				      sizeof(edb7211_lcd_power_pdata));
-	platform_device_register_data(&platform_bus, "generic-bl", 0,
+	platform_device_register_data(NULL, "generic-bl", 0,
 				      &edb7211_lcd_backlight_pdata,
 				      sizeof(edb7211_lcd_backlight_pdata));
 	platform_device_register_simple("video-clps711x", 0, NULL, 0);
 	platform_device_register_simple("cs89x0", 0, edb7211_cs8900_resource,
 					ARRAY_SIZE(edb7211_cs8900_resource));
-	platform_device_register_data(&platform_bus, "i2c-gpio", 0,
+	platform_device_register_data(NULL, "i2c-gpio", 0,
 				      &edb7211_i2c_pdata,
 				      sizeof(edb7211_i2c_pdata));
 }

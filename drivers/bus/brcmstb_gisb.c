@@ -212,9 +212,9 @@ static int brcmstb_gisb_arb_probe(struct platform_device *pdev)
 	mutex_init(&gdev->lock);
 	INIT_LIST_HEAD(&gdev->next);
 
-	gdev->base = devm_request_and_ioremap(&pdev->dev, r);
-	if (!gdev->base)
-		return -ENOMEM;
+	gdev->base = devm_ioremap_resource(&pdev->dev, r);
+	if (IS_ERR(gdev->base))
+		return PTR_ERR(gdev->base);
 
 	err = devm_request_irq(&pdev->dev, timeout_irq,
 				brcmstb_gisb_timeout_handler, 0, pdev->name,

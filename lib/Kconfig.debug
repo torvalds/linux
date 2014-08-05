@@ -1635,6 +1635,19 @@ config TEST_BPF
 
 	  If unsure, say N.
 
+config TEST_FIRMWARE
+	tristate "Test firmware loading via userspace interface"
+	default n
+	depends on FW_LOADER
+	help
+	  This builds the "test_firmware" module that creates a userspace
+	  interface for testing firmware loading. This can be used to
+	  control the triggering of firmware loading without needing an
+	  actual firmware-using device. The contents can be rechecked by
+	  userspace.
+
+	  If unsure, say N.
+
 source "samples/Kconfig"
 
 source "lib/Kconfig.kgdb"

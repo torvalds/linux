@@ -65,7 +65,7 @@ R8A7791_GPIO(6, 0xe6055400, 32);
 R8A7791_GPIO(7, 0xe6055800, 26);
 
 #define r8a7791_register_gpio(idx)					\
-	platform_device_register_resndata(&platform_bus, "gpio_rcar", idx, \
+	platform_device_register_resndata(NULL, "gpio_rcar", idx,	\
 		r8a7791_gpio##idx##_resources,				\
 		ARRAY_SIZE(r8a7791_gpio##idx##_resources),		\
 		&r8a7791_gpio##idx##_platform_data,			\
@@ -122,7 +122,7 @@ R8A7791_SCIFA(13, 0xe6c78000, gic_spi(30)); /* SCIFA4 */
 R8A7791_SCIFA(14, 0xe6c80000, gic_spi(31)); /* SCIFA5 */
 
 #define r8a7791_register_scif(index)					       \
-	platform_device_register_resndata(&platform_bus, "sh-sci", index,      \
+	platform_device_register_resndata(NULL, "sh-sci", index,  	       \
 					  scif##index##_resources,	       \
 					  ARRAY_SIZE(scif##index##_resources), \
 					  &scif##index##_platform_data,	       \
@@ -138,7 +138,7 @@ static struct resource cmt0_resources[] = {
 };
 
 #define r8a7791_register_cmt(idx)					\
-	platform_device_register_resndata(&platform_bus, "sh-cmt-48-gen2", \
+	platform_device_register_resndata(NULL, "sh-cmt-48-gen2",	\
 					  idx, cmt##idx##_resources,	\
 					  ARRAY_SIZE(cmt##idx##_resources), \
 					  &cmt##idx##_platform_data,	\
@@ -163,7 +163,7 @@ static struct resource irqc0_resources[] = {
 };
 
 #define r8a7791_register_irqc(idx)					\
-	platform_device_register_resndata(&platform_bus, "renesas_irqc", \
+	platform_device_register_resndata(NULL, "renesas_irqc",		\
 					  idx, irqc##idx##_resources,	\
 					  ARRAY_SIZE(irqc##idx##_resources), \
 					  &irqc##idx##_data,		\

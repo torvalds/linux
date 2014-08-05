@@ -64,7 +64,7 @@
 
 	 if(request_firmware(&fw_entry, $FIRMWARE, device) == 0)
 	 	copy_fw_to_device(fw_entry->data, fw_entry->size);
-	 release(fw_entry);
+	 release_firmware(fw_entry);
 
  Sample/simple hotplug script:
  ============================
@@ -74,7 +74,7 @@
 	HOTPLUG_FW_DIR=/usr/lib/hotplug/firmware/
 
 	echo 1 > /sys/$DEVPATH/loading
-	cat $HOTPLUG_FW_DIR/$FIRMWARE > /sysfs/$DEVPATH/data
+	cat $HOTPLUG_FW_DIR/$FIRMWARE > /sys/$DEVPATH/data
 	echo 0 > /sys/$DEVPATH/loading
 
  Random notes:
@@ -123,6 +123,6 @@
  --------------------
  After firmware cache mechanism is introduced during system sleep,
  request_firmware can be called safely inside device's suspend and
- resume callback, and callers need't cache the firmware by
+ resume callback, and callers needn't cache the firmware by
  themselves any more for dealing with firmware loss during system
  resume.

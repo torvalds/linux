@@ -149,15 +149,21 @@ config EXTRA_FIRMWARE_DIR
 	  some other directory containing the firmware files.
 
 config FW_LOADER_USER_HELPER
+	bool
+
+config FW_LOADER_USER_HELPER_FALLBACK
 	bool "Fallback user-helper invocation for firmware loading"
 	depends on FW_LOADER
-	default y
+	select FW_LOADER_USER_HELPER
 	help
 	  This option enables / disables the invocation of user-helper
 	  (e.g. udev) for loading firmware files as a fallback after the
 	  direct file loading in kernel fails.  The user-mode helper is
 	  no longer required unless you have a special firmware file that
-	  resides in a non-standard path.
+	  resides in a non-standard path. Moreover, the udev support has
+	  been deprecated upstream.
+
+	  If you are unsure about this, say N here.
 
 config DEBUG_DRIVER
 	bool "Driver Core verbose debug messages"
@@ -207,6 +213,15 @@ config DMA_SHARED_BUFFER
 	  multiple drivers. A buffer is associated with a file using driver
 	  APIs extension; the file's descriptor can then be passed on to other
 	  driver.
+
+config FENCE_TRACE
+	bool "Enable verbose FENCE_TRACE messages"
+	depends on DMA_SHARED_BUFFER
+	help
+	  Enable the FENCE_TRACE printks. This will add extra
+	  spam to the console log, but will make it easier to diagnose
+	  lockup related problems for dma-buffers shared across multiple
+	  devices.
 
 config DMA_CMA
 	bool "DMA Contiguous Memory Allocator"

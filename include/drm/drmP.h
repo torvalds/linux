@@ -83,6 +83,7 @@ struct drm_device;
 
 struct device_node;
 struct videomode;
+struct reservation_object;
 
 #include <drm/drm_os_linux.h>
 #include <drm/drm_hashtab.h>
@@ -923,6 +924,8 @@ struct drm_driver {
 	/* low-level interface used by drm_gem_prime_{import,export} */
 	int (*gem_prime_pin)(struct drm_gem_object *obj);
 	void (*gem_prime_unpin)(struct drm_gem_object *obj);
+	struct reservation_object * (*gem_prime_res_obj)(
+				struct drm_gem_object *obj);
 	struct sg_table *(*gem_prime_get_sg_table)(struct drm_gem_object *obj);
 	struct drm_gem_object *(*gem_prime_import_sg_table)(
 				struct drm_device *dev, size_t size,

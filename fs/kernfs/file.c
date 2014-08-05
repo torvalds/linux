@@ -896,7 +896,7 @@ const struct file_operations kernfs_file_fops = {
  * @ops: kernfs operations for the file
  * @priv: private data for the file
  * @ns: optional namespace tag of the file
- * @static_name: don't copy file name
+ * @name_is_static: don't copy file name
  * @key: lockdep key for the file's active_ref, %NULL to disable lockdep
  *
  * Returns the created node on success, ERR_PTR() value on error.
