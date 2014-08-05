@@ -993,7 +993,6 @@ static void platform_device_unregister_children(struct platform_device *pdev)
 struct ipu_platform_reg {
 	struct ipu_client_platformdata pdata;
 	const char *name;
-	int reg_offset;
 };
 
 static const struct ipu_platform_reg client_reg[] = {
@@ -1021,7 +1020,6 @@ static const struct ipu_platform_reg client_reg[] = {
 			.dma[0] = IPUV3_CHANNEL_CSI0,
 			.dma[1] = -EINVAL,
 		},
-		.reg_offset = IPU_CM_CSI0_REG_OFS,
 		.name = "imx-ipuv3-camera",
 	}, {
 		.pdata = {
@@ -1029,7 +1027,6 @@ static const struct ipu_platform_reg client_reg[] = {
 			.dma[0] = IPUV3_CHANNEL_CSI1,
 			.dma[1] = -EINVAL,
 		},
-		.reg_offset = IPU_CM_CSI1_REG_OFS,
 		.name = "imx-ipuv3-camera",
 	},
 };
@@ -1051,19 +1048,9 @@ static int ipu_add_client_devices(struct ipu_soc *ipu, unsigned long ipu_base)
 	for (i = 0; i < ARRAY_SIZE(client_reg); i++) {
 		const struct ipu_platform_reg *reg = &client_reg[i];
 		struct platform_device *pdev;
-		struct resource res;
 
-		if (reg->reg_offset) {
-			memset(&res, 0, sizeof(res));
-			res.flags = IORESOURCE_MEM;
-			res.start = ipu_base + ipu->devtype->cm_ofs + reg->reg_offset;
-			res.end = res.start + PAGE_SIZE - 1;
-			pdev = platform_device_register_resndata(dev, reg->name,
-				id++, &res, 1, &reg->pdata, sizeof(reg->pdata));
-		} else {
-			pdev = platform_device_register_data(dev, reg->name,
-				id++, &reg->pdata, sizeof(reg->pdata));
-		}
+		pdev = platform_device_register_data(dev, reg->name,
+			id++, &reg->pdata, sizeof(reg->pdata));
 
 		if (IS_ERR(pdev)) {
 			ret = PTR_ERR(pdev);
