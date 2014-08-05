@@ -197,10 +197,19 @@ int radeon_get_monitor_bpc(struct drm_connector *connector)
 						  connector->name, bpc);
 			}
 		}
+		else if (bpc > 8) {
+			/* max_tmds_clock missing, but hdmi spec mandates it for deep color. */
+			DRM_DEBUG("%s: Required max tmds clock for HDMI deep color missing. Using 8 bpc.\n",
+					  connector->name);
+			bpc = 8;
+		}
 	}
 
-	if ((radeon_deep_color == 0) && (bpc > 8))
+	if ((radeon_deep_color == 0) && (bpc > 8)) {
+		DRM_DEBUG("%s: Deep color disabled. Set radeon module param deep_color=1 to enable.\n",
+				  connector->name);
 		bpc = 8;
+	}
 
 	DRM_DEBUG("%s: Display bpc=%d, returned bpc=%d\n",
 			  connector->name, connector->display_info.bpc, bpc);
