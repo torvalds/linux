@@ -1378,8 +1378,10 @@ static int __coda_start_decoding(struct coda_ctx *ctx)
 	}
 
 	ret = coda_alloc_framebuffers(ctx, q_data_dst, src_fourcc);
-	if (ret < 0)
+	if (ret < 0) {
+		v4l2_err(&dev->v4l2_dev, "failed to allocate framebuffers\n");
 		return ret;
+	}
 
 	/* Tell the decoder how many frame buffers we allocated. */
 	coda_write(dev, ctx->num_internal_frames, CODA_CMD_SET_FRAME_BUF_NUM);

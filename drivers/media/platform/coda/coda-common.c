@@ -971,8 +971,12 @@ int coda_alloc_aux_buf(struct coda_dev *dev, struct coda_aux_buf *buf,
 {
 	buf->vaddr = dma_alloc_coherent(&dev->plat_dev->dev, size, &buf->paddr,
 					GFP_KERNEL);
-	if (!buf->vaddr)
+	if (!buf->vaddr) {
+		v4l2_err(&dev->v4l2_dev,
+			 "Failed to allocate %s buffer of size %u\n",
+			 name, size);
 		return -ENOMEM;
+	}
 
 	buf->size = size;
 
