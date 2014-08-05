@@ -198,6 +198,16 @@ config REGULATOR_DA9210
 	  converter 12A DC-DC Buck controlled through an I2C
 	  interface.
 
+config REGULATOR_DA9211
+	tristate "Dialog Semiconductor DA9211/DA9212 regulator"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Say y here to support for the Dialog Semiconductor DA9211/DA9212.
+	  The DA9211/DA9212 is a multi-phase synchronous step down
+	  converter 12A DC-DC Buck controlled through an I2C
+	  interface.
+
 config REGULATOR_DBX500_PRCMU
 	bool
 
