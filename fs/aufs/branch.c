@@ -74,7 +74,11 @@ static void au_br_do_free(struct au_branch *br)
 			dput(wbr->wbr_wh[i]);
 		AuDebugOn(atomic_read(&wbr->wbr_wh_running));
 		AuRwDestroy(&wbr->wbr_wh_rwsem);
-		au_wbr_fin_fhsm(wbr);
+	}
+
+	if (br->br_fhsm) {
+		au_br_fhsm_fin(br->br_fhsm);
+		kfree(br->br_fhsm);
 	}
 
 	key = br->br_dykey;
@@ -172,6 +176,13 @@ static struct au_branch *au_br_alloc(struct super_block *sb, int new_nbranch,
 			goto out_hnotify;
 	}
 
+	add_branch->br_fhsm = NULL;
+	if (au_br_fhsm(perm)) {
+		err = au_fhsm_br_alloc(add_branch);
+		if (unlikely(err))
+			goto out_wbr;
+	}
+
 	err = au_sbr_realloc(au_sbi(sb), new_nbranch);
 	if (!err)
 		err = au_di_realloc(au_di(root), new_nbranch);
@@ -180,8 +191,8 @@ static struct au_branch *au_br_alloc(struct super_block *sb, int new_nbranch,
 	if (!err)
 		return add_branch; /* success */
 
+out_wbr:
 	kfree(add_branch->br_wbr);
-
 out_hnotify:
 	au_hnotify_fin_br(add_branch);
 out_br:
@@ -362,7 +373,6 @@ static int au_wbr_init(struct au_branch *br, struct super_block *sb,
 	memset(wbr->wbr_wh, 0, sizeof(wbr->wbr_wh));
 	atomic_set(&wbr->wbr_wh_running, 0);
 	wbr->wbr_bytes = 0;
-	au_wbr_init_fhsm(wbr);
 
 	/*
 	 * a limit for rmdir/rename a dir
@@ -1306,6 +1316,7 @@ int au_br_mod(struct super_block *sb, struct au_opt_mod *mod, int remount,
 	aufs_bindex_t bindex;
 	struct dentry *root;
 	struct au_branch *br;
+	struct au_br_fhsm *bf;
 
 	root = sb->s_root;
 	bindex = au_find_dbindex(root, mod->h_root);
@@ -1327,11 +1338,21 @@ int au_br_mod(struct super_block *sb, struct au_opt_mod *mod, int remount,
 	if (br->br_perm == mod->perm)
 		return 0; /* success */
 
+	/* pre-allocate for non-fhsm --> fhsm */
+	bf = NULL;
+	if (!au_br_fhsm(br->br_perm) && au_br_fhsm(mod->perm)) {
+		err = au_fhsm_br_alloc(br);
+		if (unlikely(err))
+			goto out;
+		bf = br->br_fhsm;
+		br->br_fhsm = NULL;
+	}
+
 	if (au_br_writable(br->br_perm)) {
 		/* remove whiteout base */
 		err = au_br_init_wh(sb, br, mod->perm);
 		if (unlikely(err))
-			goto out;
+			goto out_bf;
 
 		if (!au_br_writable(mod->perm)) {
 			/* rw --> ro, file might be mmapped */
@@ -1367,18 +1388,32 @@ int au_br_mod(struct super_block *sb, struct au_opt_mod *mod, int remount,
 			}
 		}
 	}
+	if (unlikely(err))
+		goto out_bf;
 
-	if (!err) {
-		if ((br->br_perm & AuBrAttr_UNPIN)
-		    && !(mod->perm & AuBrAttr_UNPIN))
-			au_br_dflags_force(br);
-		else if (!(br->br_perm & AuBrAttr_UNPIN)
-			 && (mod->perm & AuBrAttr_UNPIN))
-			au_br_dflags_restore(br);
-		*do_refresh |= need_sigen_inc(br->br_perm, mod->perm);
-		br->br_perm = mod->perm;
-	}
+	if (au_br_fhsm(br->br_perm)) {
+		if (!au_br_fhsm(mod->perm)) {
+			/* fhsm --> non-fhsm */
+			au_br_fhsm_fin(br->br_fhsm);
+			kfree(br->br_fhsm);
+			br->br_fhsm = NULL;
+		}
+	} else if (au_br_fhsm(mod->perm))
+		/* non-fhsm --> fhsm */
+		br->br_fhsm = bf;
 
+	if ((br->br_perm & AuBrAttr_UNPIN)
+	    && !(mod->perm & AuBrAttr_UNPIN))
+		au_br_dflags_force(br);
+	else if (!(br->br_perm & AuBrAttr_UNPIN)
+		 && (mod->perm & AuBrAttr_UNPIN))
+		au_br_dflags_restore(br);
+	*do_refresh |= need_sigen_inc(br->br_perm, mod->perm);
+	br->br_perm = mod->perm;
+	goto out; /* success */
+
+out_bf:
+	kfree(bf);
 out:
 	AuTraceErr(err);
 	return err;
