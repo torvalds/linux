@@ -123,7 +123,10 @@ struct mipi_dsi_device {
 	unsigned long mode_flags;
 };
 
-#define to_mipi_dsi_device(d) container_of(d, struct mipi_dsi_device, dev)
+static inline struct mipi_dsi_device *to_mipi_dsi_device(struct device *dev)
+{
+	return container_of(dev, struct mipi_dsi_device, dev);
+}
 
 int mipi_dsi_attach(struct mipi_dsi_device *dsi);
 int mipi_dsi_detach(struct mipi_dsi_device *dsi);
@@ -146,7 +149,11 @@ struct mipi_dsi_driver {
 	void (*shutdown)(struct mipi_dsi_device *dsi);
 };
 
-#define to_mipi_dsi_driver(d) container_of(d, struct mipi_dsi_driver, driver)
+static inline struct mipi_dsi_driver *
+to_mipi_dsi_driver(struct device_driver *driver)
+{
+	return container_of(driver, struct mipi_dsi_driver, driver);
+}
 
 static inline void *mipi_dsi_get_drvdata(const struct mipi_dsi_device *dsi)
 {
