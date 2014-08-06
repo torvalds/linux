@@ -583,6 +583,8 @@ $chk_signoff = 0 if ($file);
 my @rawlines = ();
 my @lines = ();
 my @fixed = ();
+my @fixed_inserted = ();
+my @fixed_deleted = ();
 my $fixlinenr = -1;
 
 my $vname;
@@ -613,6 +615,8 @@ for my $filename (@ARGV) {
 	@rawlines = ();
 	@lines = ();
 	@fixed = ();
+	@fixed_inserted = ();
+	@fixed_deleted = ();
 	$fixlinenr = -1;
 }
 
@@ -1526,6 +1530,69 @@ sub report_dump {
 	our @report;
 }
 
+sub fixup_current_range {
+	my ($lineRef, $offset, $length) = @_;
+
+	if ($$lineRef =~ /^\@\@ -\d+,\d+ \+(\d+),(\d+) \@\@/) {
+		my $o = $1;
+		my $l = $2;
+		my $no = $o + $offset;
+		my $nl = $l + $length;
+		$$lineRef =~ s/\+$o,$l \@\@/\+$no,$nl \@\@/;
+	}
+}
+
+sub fix_inserted_deleted_lines {
+	my ($linesRef, $insertedRef, $deletedRef) = @_;
+
+	my $range_last_linenr = 0;
+	my $delta_offset = 0;
+
+	my $old_linenr = 0;
+	my $new_linenr = 0;
+
+	my $next_insert = 0;
+	my $next_delete = 0;
+
+	my @lines = ();
+
+	my $inserted = @{$insertedRef}[$next_insert++];
+	my $deleted = @{$deletedRef}[$next_delete++];
+
+	foreach my $old_line (@{$linesRef}) {
+		my $save_line = 1;
+		my $line = $old_line;	#don't modify the array
+		if ($line =~ /^(?:\+\+\+\|\-\-\-)\s+\S+/) {	#new filename
+			$delta_offset = 0;
+		} elsif ($line =~ /^\@\@ -\d+,\d+ \+\d+,\d+ \@\@/) {	#new hunk
+			$range_last_linenr = $new_linenr;
+			fixup_current_range(\$line, $delta_offset, 0);
+		}
+
+		while (defined($deleted) && ${$deleted}{'LINENR'} == $old_linenr) {
+			$deleted = @{$deletedRef}[$next_delete++];
+			$save_line = 0;
+			fixup_current_range(\$lines[$range_last_linenr], $delta_offset--, -1);
+		}
+
+		while (defined($inserted) && ${$inserted}{'LINENR'} == $old_linenr) {
+			push(@lines, ${$inserted}{'LINE'});
+			$inserted = @{$insertedRef}[$next_insert++];
+			$new_linenr++;
+			fixup_current_range(\$lines[$range_last_linenr], $delta_offset++, 1);
+		}
+
+		if ($save_line) {
+			push(@lines, $line);
+			$new_linenr++;
+		}
+
+		$old_linenr++;
+	}
+
+	return @lines;
+}
+
 sub ERROR {
 	my ($type, $msg) = @_;
 
@@ -2377,16 +2444,31 @@ sub process {
 		      $line =~ /^\+\s*(?:static\s+)?[A-Z_]*ATTR/ ||
 		      $line =~ /^\+\s*DECLARE/ ||
 		      $line =~ /^\+\s*__setup/)) {
-			CHK("LINE_SPACING",
-			    "Please use a blank line after function/struct/union/enum declarations\n" . $hereprev);
+			if (CHK("LINE_SPACING",
+				"Please use a blank line after function/struct/union/enum declarations\n" . $hereprev) &&
+			    $fix) {
+			my $inserted = {
+				LINENR => $fixlinenr,
+				LINE => "\+",
+			};
+			push(@fixed_inserted, $inserted);
+			}
 		}
 
 # check for multiple consecutive blank lines
 		if ($prevline =~ /^[\+ ]\s*$/ &&
 		    $line =~ /^\+\s*$/ &&
 		    $last_blank_line != ($linenr - 1)) {
-			CHK("LINE_SPACING",
-			    "Please don't use multiple blank lines\n" . $hereprev);
+			if (CHK("LINE_SPACING",
+				"Please don't use multiple blank lines\n" . $hereprev) &&
+			    $fix) {
+			my $deleted = {
+				LINENR => $fixlinenr,
+				LINE => $rawline,
+			};
+			push(@fixed_deleted, $deleted);
+			}
+
 			$last_blank_line = $linenr;
 		}
 
@@ -2424,8 +2506,15 @@ sub process {
 		      $sline =~ /^\+\s+\(?\s*(?:$Compare|$Assignment|$Operators)/) &&
 			# indentation of previous and current line are the same
 		    (($prevline =~ /\+(\s+)\S/) && $sline =~ /^\+$1\S/)) {
-			WARN("LINE_SPACING",
-			     "Missing a blank line after declarations\n" . $hereprev);
+			if (WARN("LINE_SPACING",
+				 "Missing a blank line after declarations\n" . $hereprev) &&
+			    $fix) {
+			my $inserted = {
+				LINENR => $fixlinenr,
+				LINE => "\+",
+			};
+			push(@fixed_inserted, $inserted);
+			}
 		}
 
 # check for spaces at the beginning of a line.
@@ -2627,7 +2716,7 @@ sub process {
 			#print "realcnt<$realcnt> ctx_cnt<$ctx_cnt>\n";
 			#print "pre<$pre_ctx>\nline<$line>\nctx<$ctx>\nnext<$lines[$ctx_ln - 1]>\n";
 
-			if ($ctx !~ /{\s*/ && defined($lines[$ctx_ln -1]) && $lines[$ctx_ln - 1] =~ /^\+\s*{/) {
+			if ($ctx !~ /{\s*/ && defined($lines[$ctx_ln - 1]) && $lines[$ctx_ln - 1] =~ /^\+\s*{/) {
 				ERROR("OPEN_BRACE",
 				      "that open brace { should be on the previous line\n" .
 					"$here\n$ctx\n$rawlines[$ctx_ln - 1]\n");
@@ -2777,8 +2866,34 @@ sub process {
 # check for initialisation to aggregates open brace on the next line
 		if ($line =~ /^.\s*{/ &&
 		    $prevline =~ /(?:^|[^=])=\s*$/) {
-			ERROR("OPEN_BRACE",
-			      "that open brace { should be on the previous line\n" . $hereprev);
+			if (ERROR("OPEN_BRACE",
+				  "that open brace { should be on the previous line\n" . $hereprev) &&
+			    $fix && $prevline =~ /^\+/) {
+				my $deleted = {
+					LINENR => $fixlinenr - 1,
+					LINE => $prevrawline,
+				};
+				push(@fixed_deleted, $deleted);
+				$deleted = {
+					LINENR => $fixlinenr,
+					LINE => $rawline,
+				};
+				push(@fixed_deleted, $deleted);
+				my $fixedline = $prevrawline;
+				$fixedline =~ s/\s*=\s*$/ = {/;
+				my $inserted = {
+					LINENR => $fixlinenr,
+					LINE => $fixedline,
+				};
+				push(@fixed_inserted, $inserted);
+				$fixedline = $line;
+				$fixedline =~ s/^(.\s*){\s*/$1/;
+				$inserted = {
+					LINENR => $fixlinenr,
+					LINE => $fixedline,
+				};
+				push(@fixed_inserted, $inserted);
+			}
 		}
 
 #
@@ -4900,11 +5015,15 @@ sub process {
 	hash_show_words(\%use_type, "Used");
 	hash_show_words(\%ignore_type, "Ignored");
 
-	if ($clean == 0 && $fix && "@rawlines" ne "@fixed") {
+	if ($clean == 0 && $fix &&
+	    ("@rawlines" ne "@fixed" ||
+	     $#fixed_inserted >= 0 || $#fixed_deleted >= 0)) {
 		my $newfile = $filename;
 		$newfile .= ".EXPERIMENTAL-checkpatch-fixes" if (!$fix_inplace);
 		my $linecount = 0;
 		my $f;
+
+		@fixed = fix_inserted_deleted_lines(\@fixed, \@fixed_inserted, \@fixed_deleted);
 
 		open($f, '>', $newfile)
 		    or die "$P: Can't open $newfile for write\n";
@@ -4913,7 +5032,7 @@ sub process {
 			if ($file) {
 				if ($linecount > 3) {
 					$fixed_line =~ s/^\+//;
-					print $f $fixed_line. "\n";
+					print $f $fixed_line . "\n";
 				}
 			} else {
 				print $f $fixed_line . "\n";
