@@ -103,7 +103,7 @@ static void drm_update_vblank_count(struct drm_device *dev, int crtc)
 			  crtc, vblank->last, cur_vblank, diff);
 	}
 
-	DRM_DEBUG("enabling vblank interrupts on crtc %d, missed %d\n",
+	DRM_DEBUG("updating vblank count on crtc %d, missed %d\n",
 		  crtc, diff);
 
 	/* Reinitialize corresponding vblank timestamp if high-precision query
