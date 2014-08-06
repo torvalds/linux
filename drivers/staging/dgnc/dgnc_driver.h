@@ -481,16 +481,6 @@ struct channel_t {
 	wait_queue_head_t ch_sniff_wait;
 };
 
-
-/*************************************************************************
- *
- * Prototypes for non-static functions used in more than one module
- *
- *************************************************************************/
-
-extern int		dgnc_ms_sleep(ulong ms);
-extern char		*dgnc_ioctl_name(int cmd);
-
 /*
  * Our Global Variables.
  */

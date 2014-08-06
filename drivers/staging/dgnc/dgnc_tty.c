@@ -57,6 +57,7 @@
 #include "dgnc_cls.h"
 #include "dpacompat.h"
 #include "dgnc_sysfs.h"
+#include "dgnc_utils.h"
 
 #define init_MUTEX(sem)	 sema_init(sem, 1)
 #define DECLARE_MUTEX(name)     \
