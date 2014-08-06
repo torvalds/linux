@@ -67,6 +67,29 @@ static struct bus_type mipi_dsi_bus_type = {
 	.pm = &mipi_dsi_device_pm_ops,
 };
 
+static int of_device_match(struct device *dev, void *data)
+{
+	return dev->of_node == data;
+}
+
+/**
+ * of_find_mipi_dsi_device_by_node() - find the MIPI DSI device matching a
+ *    device tree node
+ * @np: device tree node
+ *
+ * Return: A pointer to the MIPI DSI device corresponding to @np or NULL if no
+ *    such device exists (or has not been registered yet).
+ */
+struct mipi_dsi_device *of_find_mipi_dsi_device_by_node(struct device_node *np)
+{
+	struct device *dev;
+
+	dev = bus_find_device(&mipi_dsi_bus_type, NULL, np, of_device_match);
+
+	return dev ? to_mipi_dsi_device(dev) : NULL;
+}
+EXPORT_SYMBOL(of_find_mipi_dsi_device_by_node);
+
 static void mipi_dsi_dev_release(struct device *dev)
 {
 	struct mipi_dsi_device *dsi = to_mipi_dsi_device(dev);
