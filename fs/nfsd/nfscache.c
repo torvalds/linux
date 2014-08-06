@@ -27,7 +27,11 @@
  */
 #define TARGET_BUCKET_SIZE	64
 
-static struct hlist_head *	cache_hash;
+struct nfsd_drc_bucket {
+	struct hlist_head cache_hash;
+};
+
+static struct nfsd_drc_bucket	*drc_hashtbl;
 static struct list_head 	lru_head;
 static struct kmem_cache	*drc_slab;
 
@@ -116,6 +120,12 @@ nfsd_hashsize(unsigned int limit)
 	return roundup_pow_of_two(limit / TARGET_BUCKET_SIZE);
 }
 
+static u32
+nfsd_cache_hash(__be32 xid)
+{
+	return hash_32(be32_to_cpu(xid), maskbits);
+}
+
 static struct svc_cacherep *
 nfsd_reply_cache_alloc(void)
 {
@@ -170,8 +180,8 @@ int nfsd_reply_cache_init(void)
 	if (!drc_slab)
 		goto out_nomem;
 
-	cache_hash = kcalloc(hashsize, sizeof(struct hlist_head), GFP_KERNEL);
-	if (!cache_hash)
+	drc_hashtbl = kcalloc(hashsize, sizeof(*drc_hashtbl), GFP_KERNEL);
+	if (!drc_hashtbl)
 		goto out_nomem;
 
 	return 0;
@@ -193,8 +203,8 @@ void nfsd_reply_cache_shutdown(void)
 		nfsd_reply_cache_free_locked(rp);
 	}
 
-	kfree (cache_hash);
-	cache_hash = NULL;
+	kfree (drc_hashtbl);
+	drc_hashtbl = NULL;
 
 	if (drc_slab) {
 		kmem_cache_destroy(drc_slab);
@@ -218,15 +228,10 @@ lru_put_end(struct svc_cacherep *rp)
  * Move a cache entry from one hash list to another
  */
 static void
-hash_refile(struct svc_cacherep *rp)
+hash_refile(struct nfsd_drc_bucket *b, struct svc_cacherep *rp)
 {
 	hlist_del_init(&rp->c_hash);
-	/*
-	 * No point in byte swapping c_xid since we're just using it to pick
-	 * a hash bucket.
-	 */
-	hlist_add_head(&rp->c_hash, cache_hash +
-			hash_32((__force u32)rp->c_xid, maskbits));
+	hlist_add_head(&rp->c_hash, &b->cache_hash);
 }
 
 /*
@@ -355,17 +360,13 @@ nfsd_cache_match(struct svc_rqst *rqstp, __wsum csum, struct svc_cacherep *rp)
  * NULL on failure.
  */
 static struct svc_cacherep *
-nfsd_cache_search(struct svc_rqst *rqstp, __wsum csum)
+nfsd_cache_search(struct nfsd_drc_bucket *b, struct svc_rqst *rqstp,
+		__wsum csum)
 {
 	struct svc_cacherep	*rp, *ret = NULL;
-	struct hlist_head 	*rh;
+	struct hlist_head 	*rh = &b->cache_hash;
 	unsigned int		entries = 0;
 
-	/*
-	 * No point in byte swapping rq_xid since we're just using it to pick
-	 * a hash bucket.
-	 */
-	rh = &cache_hash[hash_32((__force u32)rqstp->rq_xid, maskbits)];
 	hlist_for_each_entry(rp, rh, c_hash) {
 		++entries;
 		if (nfsd_cache_match(rqstp, csum, rp)) {
@@ -403,6 +404,8 @@ nfsd_cache_lookup(struct svc_rqst *rqstp)
 				vers = rqstp->rq_vers,
 				proc = rqstp->rq_proc;
 	__wsum			csum;
+	u32 hash = nfsd_cache_hash(xid);
+	struct nfsd_drc_bucket *b = &drc_hashtbl[hash];
 	unsigned long		age;
 	int type = rqstp->rq_cachetype;
 	int rtn = RC_DOIT;
@@ -429,7 +432,7 @@ nfsd_cache_lookup(struct svc_rqst *rqstp)
 	/* go ahead and prune the cache */
 	prune_cache_entries();
 
-	found = nfsd_cache_search(rqstp, csum);
+	found = nfsd_cache_search(b, rqstp, csum);
 	if (found) {
 		if (likely(rp))
 			nfsd_reply_cache_free_locked(rp);
@@ -454,7 +457,7 @@ nfsd_cache_lookup(struct svc_rqst *rqstp)
 	rp->c_len = rqstp->rq_arg.len;
 	rp->c_csum = csum;
 
-	hash_refile(rp);
+	hash_refile(b, rp);
 	lru_put_end(rp);
 
 	/* release any buffer */
