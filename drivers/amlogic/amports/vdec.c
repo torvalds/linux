@@ -655,10 +655,12 @@ static struct class vdec_class = {
         .class_attrs = vdec_class_attrs,
     };
 
-static int  vdec_probe(struct platform_device *pdev)
+static int vdec_probe(struct platform_device *pdev)
 {
     s32 r;
     static struct resource res;
+    const void * name;
+    int offset, size;
 
     r = class_register(&vdec_class);
     if (r) {
@@ -666,15 +668,46 @@ static int  vdec_probe(struct platform_device *pdev)
         return r;
     }
     r = find_reserve_block(pdev->dev.of_node->name,0);
-    if(r < 0){
-        printk("can not find %s%d reserve block\n",vdec_class.name,0);
-	    r = -EFAULT;
-	    goto error;
-    }
-    res.start = (phys_addr_t)get_reserve_block_addr(r);
-    res.end = res.start+ (phys_addr_t)get_reserve_block_size(r)-1;
 
-    printk("init vdec memsource %d->%d\n",res.start,res.end);
+    if(r < 0){
+        name = of_get_property(pdev->dev.of_node,"share-memory-name",NULL);
+	if(!name){
+            printk("can not find %s%d reserve block1\n",vdec_class.name,0);
+            r = -EFAULT;
+            goto error;
+
+	}else{
+            r= find_reserve_block_by_name(name);
+            if(r<0){
+                printk("can not find %s%d reserve block2\n",vdec_class.name,0);
+                r = -EFAULT;
+                goto error;
+            }
+            name= of_get_property(pdev->dev.of_node,"share-memory-offset",NULL);
+            if(name)
+                offset= of_read_ulong(name,1);
+            else{
+                printk("can not find %s%d reserve block3\n",vdec_class.name,0);
+                r = -EFAULT;
+                goto error;
+            }
+            name= of_get_property(pdev->dev.of_node,"share-memory-size",NULL);
+            if(name)
+                size= of_read_ulong(name,1);
+            else{
+                printk("can not find %s%d reserve block4\n",vdec_class.name,0);
+                r = -EFAULT;
+                goto error;
+            }			
+            res.start = (phys_addr_t)get_reserve_block_addr(r)+ offset;
+            res.end = res.start+ size-1;		
+		}
+    }else{
+        res.start = (phys_addr_t)get_reserve_block_addr(r);
+        res.end = res.start+ (phys_addr_t)get_reserve_block_size(r)-1;
+    }
+
+    printk("init vdec memsource %x->%x\n",res.start,res.end);
     res.flags = IORESOURCE_MEM;
 
     vdec_set_resource(&res, &pdev->dev);
