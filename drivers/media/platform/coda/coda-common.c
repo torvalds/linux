@@ -75,6 +75,7 @@ void coda_write(struct coda_dev *dev, u32 data, u32 reg)
 unsigned int coda_read(struct coda_dev *dev, u32 reg)
 {
 	u32 data;
+
 	data = readl(dev->regs_base + reg);
 	v4l2_dbg(2, coda_debug, &dev->v4l2_dev,
 		 "%s: data=0x%x, reg=0x%x\n", __func__, data, reg);
@@ -736,7 +737,8 @@ static void coda_pic_run_work(struct work_struct *work)
 		return;
 	}
 
-	if (!wait_for_completion_timeout(&ctx->completion, msecs_to_jiffies(1000))) {
+	if (!wait_for_completion_timeout(&ctx->completion,
+					 msecs_to_jiffies(1000))) {
 		dev_err(&dev->plat_dev->dev, "CODA PIC_RUN timeout\n");
 
 		ctx->hold = true;
@@ -812,6 +814,7 @@ static void coda_lock(void *m2m_priv)
 {
 	struct coda_ctx *ctx = m2m_priv;
 	struct coda_dev *pcdev = ctx->dev;
+
 	mutex_lock(&pcdev->dev_mutex);
 }
 
@@ -819,6 +822,7 @@ static void coda_unlock(void *m2m_priv)
 {
 	struct coda_ctx *ctx = m2m_priv;
 	struct coda_dev *pcdev = ctx->dev;
+
 	mutex_unlock(&pcdev->dev_mutex);
 }
 
@@ -995,7 +999,8 @@ int coda_alloc_aux_buf(struct coda_dev *dev, struct coda_aux_buf *buf,
 	if (name && parent) {
 		buf->blob.data = buf->vaddr;
 		buf->blob.size = size;
-		buf->dentry = debugfs_create_blob(name, 0644, parent, &buf->blob);
+		buf->dentry = debugfs_create_blob(name, 0644, parent,
+						  &buf->blob);
 		if (!buf->dentry)
 			dev_warn(&dev->plat_dev->dev,
 				 "failed to create debugfs entry %s\n", name);
@@ -1276,17 +1281,20 @@ static int coda_ctrls_setup(struct coda_ctx *ctx)
 	v4l2_ctrl_new_std(&ctx->ctrls, &coda_ctrl_ops,
 		V4L2_CID_MPEG_VIDEO_MULTI_SLICE_MAX_MB, 1, 0x3fffffff, 1, 1);
 	v4l2_ctrl_new_std(&ctx->ctrls, &coda_ctrl_ops,
-		V4L2_CID_MPEG_VIDEO_MULTI_SLICE_MAX_BYTES, 1, 0x3fffffff, 1, 500);
+		V4L2_CID_MPEG_VIDEO_MULTI_SLICE_MAX_BYTES, 1, 0x3fffffff, 1,
+		500);
 	v4l2_ctrl_new_std_menu(&ctx->ctrls, &coda_ctrl_ops,
 		V4L2_CID_MPEG_VIDEO_HEADER_MODE,
 		V4L2_MPEG_VIDEO_HEADER_MODE_JOINED_WITH_1ST_FRAME,
 		(1 << V4L2_MPEG_VIDEO_HEADER_MODE_SEPARATE),
 		V4L2_MPEG_VIDEO_HEADER_MODE_JOINED_WITH_1ST_FRAME);
 	v4l2_ctrl_new_std(&ctx->ctrls, &coda_ctrl_ops,
-		V4L2_CID_MPEG_VIDEO_CYCLIC_INTRA_REFRESH_MB, 0, 1920 * 1088 / 256, 1, 0);
+		V4L2_CID_MPEG_VIDEO_CYCLIC_INTRA_REFRESH_MB, 0,
+		1920 * 1088 / 256, 1, 0);
 
 	if (ctx->ctrls.error) {
-		v4l2_err(&ctx->dev->v4l2_dev, "control initialization error (%d)",
+		v4l2_err(&ctx->dev->v4l2_dev,
+			"control initialization error (%d)",
 			ctx->ctrls.error);
 		return -EINVAL;
 	}
@@ -1365,7 +1373,7 @@ static int coda_open(struct file *file, enum coda_inst_type inst_type,
 	int ret;
 	int idx;
 
-	ctx = kzalloc(sizeof *ctx, GFP_KERNEL);
+	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
 		return -ENOMEM;
 
@@ -1444,7 +1452,8 @@ static int coda_open(struct file *file, enum coda_inst_type inst_type,
 	ctx->bitstream.vaddr = dma_alloc_writecombine(&dev->plat_dev->dev,
 			ctx->bitstream.size, &ctx->bitstream.paddr, GFP_KERNEL);
 	if (!ctx->bitstream.vaddr) {
-		v4l2_err(&dev->v4l2_dev, "failed to allocate bitstream ringbuffer");
+		v4l2_err(&dev->v4l2_dev,
+			 "failed to allocate bitstream ringbuffer");
 		ret = -ENOMEM;
 		goto err_dma_writecombine;
 	}
@@ -1617,10 +1626,12 @@ static int coda_hw_init(struct coda_dev *dev)
 	/* Set default values */
 	switch (dev->devtype->product) {
 	case CODA_DX6:
-		coda_write(dev, CODADX6_STREAM_BUF_PIC_FLUSH, CODA_REG_BIT_STREAM_CTRL);
+		coda_write(dev, CODADX6_STREAM_BUF_PIC_FLUSH,
+			   CODA_REG_BIT_STREAM_CTRL);
 		break;
 	default:
-		coda_write(dev, CODA7_STREAM_BUF_PIC_FLUSH, CODA_REG_BIT_STREAM_CTRL);
+		coda_write(dev, CODA7_STREAM_BUF_PIC_FLUSH,
+			   CODA_REG_BIT_STREAM_CTRL);
 	}
 	if (dev->devtype->product == CODA_960)
 		coda_write(dev, 1 << 12, CODA_REG_BIT_FRAME_MEM_CTRL);
@@ -1854,7 +1865,7 @@ static int coda_probe(struct platform_device *pdev)
 	struct resource *res;
 	int ret, irq;
 
-	dev = devm_kzalloc(&pdev->dev, sizeof *dev, GFP_KERNEL);
+	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
 	if (!dev) {
 		dev_err(&pdev->dev, "Not enough memory for %s\n",
 			CODA_NAME);
@@ -1905,7 +1916,8 @@ static int coda_probe(struct platform_device *pdev)
 		if (ret == -ENOENT || ret == -ENOSYS) {
 			dev->rstc = NULL;
 		} else {
-			dev_err(&pdev->dev, "failed get reset control: %d\n", ret);
+			dev_err(&pdev->dev, "failed get reset control: %d\n",
+				ret);
 			return ret;
 		}
 	}
