@@ -712,7 +712,7 @@ EXPORT_SYMBOL(bitmap_parselist_user);
  *
  * If for example, just bits 4 through 7 are set in @buf, then @pos
  * values 4 through 7 will get mapped to 0 through 3, respectively,
- * and other @pos values will get mapped to 0.  When @pos value 7
+ * and other @pos values will get mapped to -1.  When @pos value 7
  * gets mapped to (returns) @ord value 3 in this example, that means
  * that bit 7 is the 3rd (starting with 0th) set bit in @buf.
  *
