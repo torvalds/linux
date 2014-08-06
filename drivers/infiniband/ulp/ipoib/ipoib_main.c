@@ -108,14 +108,11 @@ int ipoib_open(struct net_device *dev)
 
 	set_bit(IPOIB_FLAG_ADMIN_UP, &priv->flags);
 
-
-	ipoib_pkey_dev_check_presence(dev);
-
-	if (!test_bit(IPOIB_PKEY_ASSIGNED, &priv->flags))
-		return 0;
-
-	if (ipoib_ib_dev_open(dev, 1))
+	if (ipoib_ib_dev_open(dev, 1)) {
+		if (!test_bit(IPOIB_PKEY_ASSIGNED, &priv->flags))
+			return 0;
 		goto err_disable;
+	}
 
 	if (ipoib_ib_dev_up(dev))
 		goto err_stop;

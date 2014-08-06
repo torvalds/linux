@@ -669,12 +669,13 @@ int ipoib_ib_dev_open(struct net_device *dev, int flush)
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	int ret;
 
-	if (ib_find_pkey(priv->ca, priv->port, priv->pkey, &priv->pkey_index)) {
-		ipoib_warn(priv, "P_Key 0x%04x not found\n", priv->pkey);
-		clear_bit(IPOIB_PKEY_ASSIGNED, &priv->flags);
+	ipoib_pkey_dev_check_presence(dev);
+
+	if (!test_bit(IPOIB_PKEY_ASSIGNED, &priv->flags)) {
+		ipoib_warn(priv, "P_Key 0x%04x is %s\n", priv->pkey,
+			   (!(priv->pkey & 0x7fff) ? "Invalid" : "not found"));
 		return -1;
 	}
-	set_bit(IPOIB_PKEY_ASSIGNED, &priv->flags);
 
 	ret = ipoib_init_qp(dev);
 	if (ret) {
@@ -712,9 +713,10 @@ dev_stop:
 void ipoib_pkey_dev_check_presence(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
-	u16 pkey_index = 0;
 
-	if (ib_find_pkey(priv->ca, priv->port, priv->pkey, &pkey_index))
+	if (!(priv->pkey & 0x7fff) ||
+	    ib_find_pkey(priv->ca, priv->port, priv->pkey,
+			 &priv->pkey_index))
 		clear_bit(IPOIB_PKEY_ASSIGNED, &priv->flags);
 	else
 		set_bit(IPOIB_PKEY_ASSIGNED, &priv->flags);
@@ -958,13 +960,27 @@ static inline int update_parent_pkey(struct ipoib_dev_priv *priv)
 
 	return 1;
 }
+/*
+ * returns 0 if pkey value was found in a different slot.
+ */
+static inline int update_child_pkey(struct ipoib_dev_priv *priv)
+{
+	u16 old_index = priv->pkey_index;
+
+	priv->pkey_index = 0;
+	ipoib_pkey_dev_check_presence(priv->dev);
+
+	if (test_bit(IPOIB_PKEY_ASSIGNED, &priv->flags) &&
+	    (old_index == priv->pkey_index))
+		return 1;
+	return 0;
+}
 
 static void __ipoib_ib_dev_flush(struct ipoib_dev_priv *priv,
 				enum ipoib_flush_level level)
 {
 	struct ipoib_dev_priv *cpriv;
 	struct net_device *dev = priv->dev;
-	u16 new_index;
 	int result;
 
 	down_read(&priv->vlan_rwsem);
@@ -978,19 +994,20 @@ static void __ipoib_ib_dev_flush(struct ipoib_dev_priv *priv,
 
 	up_read(&priv->vlan_rwsem);
 
-	if (!test_bit(IPOIB_FLAG_INITIALIZED, &priv->flags)) {
-		/* for non-child devices must check/update the pkey value here */
-		if (level == IPOIB_FLUSH_HEAVY) {
-			if (test_bit(IPOIB_FLAG_SUBINTERFACE, &priv->flags))
-				ipoib_pkey_open(priv);
-			else
-				update_parent_pkey(priv);
-		}
+	if (!test_bit(IPOIB_FLAG_INITIALIZED, &priv->flags) &&
+	    level != IPOIB_FLUSH_HEAVY) {
 		ipoib_dbg(priv, "Not flushing - IPOIB_FLAG_INITIALIZED not set.\n");
 		return;
 	}
 
 	if (!test_bit(IPOIB_FLAG_ADMIN_UP, &priv->flags)) {
+		/* interface is down. update pkey and leave. */
+		if (level == IPOIB_FLUSH_HEAVY) {
+			if (!test_bit(IPOIB_FLAG_SUBINTERFACE, &priv->flags))
+				update_parent_pkey(priv);
+			else
+				update_child_pkey(priv);
+		}
 		ipoib_dbg(priv, "Not flushing - IPOIB_FLAG_ADMIN_UP not set.\n");
 		return;
 	}
@@ -1000,19 +1017,13 @@ static void __ipoib_ib_dev_flush(struct ipoib_dev_priv *priv,
 		 * (parent) devices should always takes what present in pkey index 0
 		 */
 		if (test_bit(IPOIB_FLAG_SUBINTERFACE, &priv->flags)) {
-			if (ib_find_pkey(priv->ca, priv->port, priv->pkey, &new_index)) {
-				clear_bit(IPOIB_PKEY_ASSIGNED, &priv->flags);
-				ipoib_ib_dev_down(dev, 0);
-				ipoib_ib_dev_stop(dev, 0);
-				return;
-			}
-			/* restart QP only if P_Key index is changed */
-			if (test_and_set_bit(IPOIB_PKEY_ASSIGNED, &priv->flags) &&
-			    new_index == priv->pkey_index) {
+			result = update_child_pkey(priv);
+			if (result) {
+				/* restart QP only if P_Key index is changed */
 				ipoib_dbg(priv, "Not flushing - P_Key index not changed.\n");
 				return;
 			}
-			priv->pkey_index = new_index;
+
 		} else {
 			result = update_parent_pkey(priv);
 			/* restart QP only if P_Key value changed */
@@ -1032,8 +1043,12 @@ static void __ipoib_ib_dev_flush(struct ipoib_dev_priv *priv,
 		ipoib_ib_dev_down(dev, 0);
 
 	if (level == IPOIB_FLUSH_HEAVY) {
-		ipoib_ib_dev_stop(dev, 0);
-		ipoib_ib_dev_open(dev, 0);
+		if (test_bit(IPOIB_FLAG_INITIALIZED, &priv->flags))
+			ipoib_ib_dev_stop(dev, 0);
+		if (ipoib_ib_dev_open(dev, 0) != 0)
+			return;
+		if (netif_queue_stopped(dev))
+			netif_start_queue(dev);
 	}
 
 	/*
@@ -1088,15 +1103,4 @@ void ipoib_ib_dev_cleanup(struct net_device *dev)
 	ipoib_transport_dev_cleanup(dev);
 }
 
-void ipoib_pkey_open(struct ipoib_dev_priv *priv)
-{
-
-	if (test_bit(IPOIB_FLAG_INITIALIZED, &priv->flags))
-		return;
-
-	ipoib_pkey_dev_check_presence(priv->dev);
-
-	if (test_bit(IPOIB_PKEY_ASSIGNED, &priv->flags))
-		ipoib_open(priv->dev);
-}
 
