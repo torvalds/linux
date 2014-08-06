@@ -66,7 +66,7 @@ static struct fsnotify_event *get_one_event(struct fsnotify_group *group,
 
 	/* held the notification_mutex the whole time, so this is the
 	 * same event we peeked above */
-	return fsnotify_remove_notify_event(group);
+	return fsnotify_remove_first_event(group);
 }
 
 static int create_fd(struct fsnotify_group *group,

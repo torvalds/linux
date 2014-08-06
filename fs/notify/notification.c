@@ -83,10 +83,10 @@ void fsnotify_destroy_event(struct fsnotify_group *group,
  * added to the queue, 1 if the event was merged with some other queued event,
  * 2 if the queue of events has overflown.
  */
-int fsnotify_add_notify_event(struct fsnotify_group *group,
-			      struct fsnotify_event *event,
-			      int (*merge)(struct list_head *,
-					   struct fsnotify_event *))
+int fsnotify_add_event(struct fsnotify_group *group,
+		       struct fsnotify_event *event,
+		       int (*merge)(struct list_head *,
+				    struct fsnotify_event *))
 {
 	int ret = 0;
 	struct list_head *list = &group->notification_list;
@@ -128,7 +128,7 @@ queue:
  * Remove and return the first event from the notification list.  It is the
  * responsibility of the caller to destroy the obtained event
  */
-struct fsnotify_event *fsnotify_remove_notify_event(struct fsnotify_group *group)
+struct fsnotify_event *fsnotify_remove_first_event(struct fsnotify_group *group)
 {
 	struct fsnotify_event *event;
 
@@ -140,7 +140,7 @@ struct fsnotify_event *fsnotify_remove_notify_event(struct fsnotify_group *group
 				 struct fsnotify_event, list);
 	/*
 	 * We need to init list head for the case of overflow event so that
-	 * check in fsnotify_add_notify_events() works
+	 * check in fsnotify_add_event() works
 	 */
 	list_del_init(&event->list);
 	group->q_len--;
@@ -149,9 +149,10 @@ struct fsnotify_event *fsnotify_remove_notify_event(struct fsnotify_group *group
 }
 
 /*
- * This will not remove the event, that must be done with fsnotify_remove_notify_event()
+ * This will not remove the event, that must be done with
+ * fsnotify_remove_first_event()
  */
-struct fsnotify_event *fsnotify_peek_notify_event(struct fsnotify_group *group)
+struct fsnotify_event *fsnotify_peek_first_event(struct fsnotify_group *group)
 {
 	BUG_ON(!mutex_is_locked(&group->notification_mutex));
 
@@ -169,7 +170,7 @@ void fsnotify_flush_notify(struct fsnotify_group *group)
 
 	mutex_lock(&group->notification_mutex);
 	while (!fsnotify_notify_queue_is_empty(group)) {
-		event = fsnotify_remove_notify_event(group);
+		event = fsnotify_remove_first_event(group);
 		fsnotify_destroy_event(group, event);
 	}
 	mutex_unlock(&group->notification_mutex);
