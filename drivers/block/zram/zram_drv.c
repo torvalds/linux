@@ -337,7 +337,7 @@ static int zram_decompress_page(struct zram *zram, char *mem, u32 index)
 	unsigned char *cmem;
 	struct zram_meta *meta = zram->meta;
 	unsigned long handle;
-	u16 size;
+	size_t size;
 
 	read_lock(&meta->tb_lock);
 	handle = meta->table[index].handle;
