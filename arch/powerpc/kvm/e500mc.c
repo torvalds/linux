@@ -194,7 +194,7 @@ int kvmppc_core_vcpu_setup(struct kvm_vcpu *vcpu)
 #ifdef CONFIG_64BIT
 	vcpu->arch.shadow_epcr |= SPRN_EPCR_ICM;
 #endif
-	vcpu->arch.shadow_msrp = MSRP_UCLEP | MSRP_DEP | MSRP_PMMP;
+	vcpu->arch.shadow_msrp = MSRP_UCLEP | MSRP_PMMP;
 	vcpu->arch.eplc = EPC_EGS | (vcpu->kvm->arch.lpid << EPC_ELPID_SHIFT);
 	vcpu->arch.epsc = vcpu->arch.eplc;
 
