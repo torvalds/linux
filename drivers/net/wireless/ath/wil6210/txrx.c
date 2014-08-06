@@ -414,7 +414,6 @@ static struct sk_buff *wil_vring_reap_rx(struct wil6210_priv *wil,
 	cid = wil_rxdesc_cid(d);
 	stats = &wil->sta[cid].stats;
 	stats->last_mcs_rx = wil_rxdesc_mcs(d);
-	wil->stats.last_mcs_rx = stats->last_mcs_rx;
 
 	/* use radiotap header only if required */
 	if (ndev->type == ARPHRD_IEEE80211_RADIOTAP)

@@ -980,7 +980,7 @@ struct wmi_ready_event {
  * WMI_NOTIFY_REQ_DONE_EVENTID
  */
 struct wmi_notify_req_done_event {
-	__le32 status;
+	__le32 status; /* beamforming status, 0: fail; 1: OK; 2: retrying */
 	__le64 tsf;
 	__le32 snr_val;
 	__le32 tx_tpt;

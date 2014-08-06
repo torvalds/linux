@@ -482,33 +482,6 @@ static void wmi_evt_disconnect(struct wil6210_priv *wil, int id,
 	mutex_unlock(&wil->mutex);
 }
 
-static void wmi_evt_notify(struct wil6210_priv *wil, int id, void *d, int len)
-{
-	struct wmi_notify_req_done_event *evt = d;
-
-	if (len < sizeof(*evt)) {
-		wil_err(wil, "Short NOTIFY event\n");
-		return;
-	}
-
-	wil->stats.tsf = le64_to_cpu(evt->tsf);
-	wil->stats.snr = le32_to_cpu(evt->snr_val);
-	wil->stats.bf_mcs = le16_to_cpu(evt->bf_mcs);
-	wil->stats.my_rx_sector = le16_to_cpu(evt->my_rx_sector);
-	wil->stats.my_tx_sector = le16_to_cpu(evt->my_tx_sector);
-	wil->stats.peer_rx_sector = le16_to_cpu(evt->other_rx_sector);
-	wil->stats.peer_tx_sector = le16_to_cpu(evt->other_tx_sector);
-	wil_dbg_wmi(wil, "Link status, MCS %d TSF 0x%016llx\n"
-		    "BF status 0x%08x SNR 0x%08x SQI %d%%\n"
-		    "Tx Tpt %d goodput %d Rx goodput %d\n"
-		    "Sectors(rx:tx) my %d:%d peer %d:%d\n",
-		    wil->stats.bf_mcs, wil->stats.tsf, evt->status,
-		    wil->stats.snr, evt->sqi, le32_to_cpu(evt->tx_tpt),
-		    le32_to_cpu(evt->tx_goodput), le32_to_cpu(evt->rx_goodput),
-		    wil->stats.my_rx_sector, wil->stats.my_tx_sector,
-		    wil->stats.peer_rx_sector, wil->stats.peer_tx_sector);
-}
-
 /*
  * Firmware reports EAPOL frame using WME event.
  * Reconstruct Ethernet frame and deliver it via normal Rx
@@ -651,7 +624,6 @@ static const struct {
 	{WMI_SCAN_COMPLETE_EVENTID,	wmi_evt_scan_complete},
 	{WMI_CONNECT_EVENTID,		wmi_evt_connect},
 	{WMI_DISCONNECT_EVENTID,	wmi_evt_disconnect},
-	{WMI_NOTIFY_REQ_DONE_EVENTID,	wmi_evt_notify},
 	{WMI_EAPOL_RX_EVENTID,		wmi_evt_eapol_rx},
 	{WMI_DATA_PORT_OPEN_EVENTID,	wmi_evt_linkup},
 	{WMI_WBE_LINKDOWN_EVENTID,	wmi_evt_linkdown},

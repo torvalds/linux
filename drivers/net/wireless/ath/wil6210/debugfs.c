@@ -22,6 +22,7 @@
 #include <linux/power_supply.h>
 
 #include "wil6210.h"
+#include "wmi.h"
 #include "txrx.h"
 
 /* Nasty hack. Better have per device instances */
@@ -728,16 +729,79 @@ static const struct file_operations fops_txdesc = {
 };
 
 /*---------beamforming------------*/
+static char *wil_bfstatus_str(u32 status)
+{
+	switch (status) {
+	case 0:
+		return "Failed";
+	case 1:
+		return "OK";
+	case 2:
+		return "Retrying";
+	default:
+		return "??";
+	}
+}
+
+static bool is_all_zeros(void * const x_, size_t sz)
+{
+	/* if reply is all-0, ignore this CID */
+	u32 *x = x_;
+	int n;
+
+	for (n = 0; n < sz / sizeof(*x); n++)
+		if (x[n])
+			return false;
+
+	return true;
+}
+
 static int wil_bf_debugfs_show(struct seq_file *s, void *data)
 {
+	int rc;
+	int i;
 	struct wil6210_priv *wil = s->private;
-	seq_printf(s,
-		   "TSF : 0x%016llx\n"
-		   "TxMCS : %d\n"
-		   "Sectors(rx:tx) my %2d:%2d peer %2d:%2d\n",
-		   wil->stats.tsf, wil->stats.bf_mcs,
-		   wil->stats.my_rx_sector, wil->stats.my_tx_sector,
-		   wil->stats.peer_rx_sector, wil->stats.peer_tx_sector);
+	struct wmi_notify_req_cmd cmd = {
+		.interval_usec = 0,
+	};
+	struct {
+		struct wil6210_mbox_hdr_wmi wmi;
+		struct wmi_notify_req_done_event evt;
+	} __packed reply;
+
+	for (i = 0; i < ARRAY_SIZE(wil->sta); i++) {
+		u32 status;
+
+		cmd.cid = i;
+		rc = wmi_call(wil, WMI_NOTIFY_REQ_CMDID, &cmd, sizeof(cmd),
+			      WMI_NOTIFY_REQ_DONE_EVENTID, &reply,
+			      sizeof(reply), 20);
+		/* if reply is all-0, ignore this CID */
+		if (rc || is_all_zeros(&reply.evt, sizeof(reply.evt)))
+			continue;
+
+		status = le32_to_cpu(reply.evt.status);
+		seq_printf(s, "CID %d {\n"
+			   "  TSF = 0x%016llx\n"
+			   "  TxMCS = %2d TxTpt = %4d\n"
+			   "  SQI = %4d\n"
+			   "  Status = 0x%08x %s\n"
+			   "  Sectors(rx:tx) my %2d:%2d peer %2d:%2d\n"
+			   "  Goodput(rx:tx) %4d:%4d\n"
+			   "}\n",
+			   i,
+			   le64_to_cpu(reply.evt.tsf),
+			   le16_to_cpu(reply.evt.bf_mcs),
+			   le32_to_cpu(reply.evt.tx_tpt),
+			   reply.evt.sqi,
+			   status, wil_bfstatus_str(status),
+			   le16_to_cpu(reply.evt.my_rx_sector),
+			   le16_to_cpu(reply.evt.my_tx_sector),
+			   le16_to_cpu(reply.evt.other_rx_sector),
+			   le16_to_cpu(reply.evt.other_tx_sector),
+			   le32_to_cpu(reply.evt.rx_goodput),
+			   le32_to_cpu(reply.evt.tx_goodput));
+	}
 	return 0;
 }
 
