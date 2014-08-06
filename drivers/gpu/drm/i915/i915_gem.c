@@ -4477,7 +4477,6 @@ struct i915_vma *i915_gem_obj_to_vma(struct drm_i915_gem_object *obj,
 void i915_gem_vma_destroy(struct i915_vma *vma)
 {
 	struct i915_address_space *vm = NULL;
-	struct i915_hw_ppgtt *ppgtt = NULL;
 	WARN_ON(vma->node.allocated);
 
 	/* Keep the vma as a placeholder in the execbuffer reservation lists */
@@ -4485,10 +4484,8 @@ void i915_gem_vma_destroy(struct i915_vma *vma)
 		return;
 
 	vm = vma->vm;
-	ppgtt = vm_to_ppgtt(vm);
 
-	if (ppgtt)
-		kref_put(&ppgtt->ref, ppgtt_release);
+	i915_ppgtt_put(vm_to_ppgtt(vm));
 
 	list_del(&vma->vma_link);
 

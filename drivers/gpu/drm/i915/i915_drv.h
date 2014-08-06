@@ -2549,7 +2549,6 @@ void i915_gem_object_ggtt_unpin(struct drm_i915_gem_object *obj);
 #define ctx_to_ppgtt(ctx) container_of((ctx)->vm, struct i915_hw_ppgtt, base)
 #define vm_to_ppgtt(vm) container_of(vm, struct i915_hw_ppgtt, base)
 int __must_check i915_gem_context_init(struct drm_device *dev);
-void ppgtt_release(struct kref *kref);
 void i915_gem_context_fini(struct drm_device *dev);
 void i915_gem_context_reset(struct drm_device *dev);
 int i915_gem_context_open(struct drm_device *dev, struct drm_file *file);

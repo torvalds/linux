@@ -1180,7 +1180,7 @@ static int gen6_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 	return 0;
 }
 
-int i915_gem_init_ppgtt(struct drm_device *dev, struct i915_hw_ppgtt *ppgtt)
+int i915_ppgtt_init(struct drm_device *dev, struct i915_hw_ppgtt *ppgtt)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret = 0;
@@ -1209,6 +1209,19 @@ int i915_gem_init_ppgtt(struct drm_device *dev, struct i915_hw_ppgtt *ppgtt)
 	}
 
 	return ret;
+}
+
+void  i915_ppgtt_release(struct kref *kref)
+{
+	struct i915_hw_ppgtt *ppgtt =
+		container_of(kref, struct i915_hw_ppgtt, ref);
+
+	/* vmas should already be unbound */
+	WARN_ON(!list_empty(&ppgtt->base.active_list));
+	WARN_ON(!list_empty(&ppgtt->base.inactive_list));
+
+	ppgtt->base.cleanup(&ppgtt->base);
+	kfree(ppgtt);
 }
 
 static void
@@ -2148,15 +2161,12 @@ i915_gem_obj_lookup_or_create_vma(struct drm_i915_gem_object *obj,
 				  struct i915_address_space *vm)
 {
 	struct i915_vma *vma;
-	struct i915_hw_ppgtt *ppgtt = NULL;
 
 	vma = i915_gem_obj_to_vma(obj, vm);
 	if (!vma)
 		vma = __i915_gem_vma_create(obj, vm);
 
-	ppgtt = vm_to_ppgtt(vm);
-	if (ppgtt)
-		kref_get(&ppgtt->ref);
+	i915_ppgtt_get(vm_to_ppgtt(vm));
 
 	return vma;
 }
