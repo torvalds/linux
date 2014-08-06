@@ -600,9 +600,9 @@ bnad_cq_process(struct bnad *bnad, struct bna_ccb *ccb, int budget)
 	prefetch(bnad->netdev);
 
 	cq = ccb->sw_q;
-	cmpl = &cq[ccb->producer_index];
 
 	while (packets < budget) {
+		cmpl = &cq[ccb->producer_index];
 		if (!cmpl->valid)
 			break;
 		/* The 'valid' field is set by the adapter, only after writing

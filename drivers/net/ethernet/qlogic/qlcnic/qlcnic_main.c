@@ -2324,13 +2324,13 @@ qlcnic_setup_netdev(struct qlcnic_adapter *adapter, struct net_device *netdev,
 	if (err)
 		return err;
 
+	qlcnic_dcb_init_dcbnl_ops(adapter->dcb);
+
 	err = register_netdev(netdev);
 	if (err) {
 		dev_err(&pdev->dev, "failed to register net device\n");
 		return err;
 	}
-
-	qlcnic_dcb_init_dcbnl_ops(adapter->dcb);
 
 	return 0;
 }
@@ -2624,12 +2624,12 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (err)
 		goto err_out_disable_mbx_intr;
 
+	if (adapter->portnum == 0)
+		qlcnic_set_drv_version(adapter);
+
 	err = qlcnic_setup_netdev(adapter, netdev, pci_using_dac);
 	if (err)
 		goto err_out_disable_mbx_intr;
-
-	if (adapter->portnum == 0)
-		qlcnic_set_drv_version(adapter);
 
 	pci_set_drvdata(pdev, adapter);
 
