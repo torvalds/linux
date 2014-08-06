@@ -2808,7 +2808,7 @@ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
 {
 	struct hstate *h = hstate_vma(vma);
 	struct page *old_page, *new_page;
-	int outside_reserve = 0;
+	int ret = 0, outside_reserve = 0;
 	unsigned long mmun_start;	/* For mmu_notifiers */
 	unsigned long mmun_end;		/* For mmu_notifiers */
 
@@ -2838,14 +2838,14 @@ retry_avoidcopy:
 
 	page_cache_get(old_page);
 
-	/* Drop page table lock as buddy allocator may be called */
+	/*
+	 * Drop page table lock as buddy allocator may be called. It will
+	 * be acquired again before returning to the caller, as expected.
+	 */
 	spin_unlock(ptl);
 	new_page = alloc_huge_page(vma, address, outside_reserve);
 
 	if (IS_ERR(new_page)) {
-		long err = PTR_ERR(new_page);
-		page_cache_release(old_page);
-
 		/*
 		 * If a process owning a MAP_PRIVATE mapping fails to COW,
 		 * it is due to references held by a child and an insufficient
@@ -2854,6 +2854,7 @@ retry_avoidcopy:
 		 * may get SIGKILLed if it later faults.
 		 */
 		if (outside_reserve) {
+			page_cache_release(old_page);
 			BUG_ON(huge_pte_none(pte));
 			unmap_ref_private(mm, vma, old_page, address);
 			BUG_ON(huge_pte_none(pte));
@@ -2869,12 +2870,9 @@ retry_avoidcopy:
 			return 0;
 		}
 
-		/* Caller expects lock to be held */
-		spin_lock(ptl);
-		if (err == -ENOMEM)
-			return VM_FAULT_OOM;
-		else
-			return VM_FAULT_SIGBUS;
+		ret = (PTR_ERR(new_page) == -ENOMEM) ?
+			VM_FAULT_OOM : VM_FAULT_SIGBUS;
+		goto out_release_old;
 	}
 
 	/*
@@ -2882,11 +2880,8 @@ retry_avoidcopy:
 	 * anon_vma prepared.
 	 */
 	if (unlikely(anon_vma_prepare(vma))) {
-		page_cache_release(new_page);
-		page_cache_release(old_page);
-		/* Caller expects lock to be held */
-		spin_lock(ptl);
-		return VM_FAULT_OOM;
+		ret = VM_FAULT_OOM;
+		goto out_release_all;
 	}
 
 	copy_user_huge_page(new_page, old_page, address, vma,
@@ -2896,6 +2891,7 @@ retry_avoidcopy:
 	mmun_start = address & huge_page_mask(h);
 	mmun_end = mmun_start + huge_page_size(h);
 	mmu_notifier_invalidate_range_start(mm, mmun_start, mmun_end);
+
 	/*
 	 * Retake the page table lock to check for racing updates
 	 * before the page tables are altered
@@ -2916,12 +2912,13 @@ retry_avoidcopy:
 	}
 	spin_unlock(ptl);
 	mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end);
+out_release_all:
 	page_cache_release(new_page);
+out_release_old:
 	page_cache_release(old_page);
 
-	/* Caller expects lock to be held */
-	spin_lock(ptl);
-	return 0;
+	spin_lock(ptl); /* Caller expects lock to be held */
+	return ret;
 }
 
 /* Return the pagecache page at a given address within a VMA */
