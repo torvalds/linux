@@ -2766,7 +2766,8 @@ void do_set_pte(struct vm_area_struct *vma, unsigned long address,
 	update_mmu_cache(vma, address, pte);
 }
 
-static unsigned long fault_around_bytes = rounddown_pow_of_two(65536);
+static unsigned long fault_around_bytes __read_mostly =
+	rounddown_pow_of_two(65536);
 
 #ifdef CONFIG_DEBUG_FS
 static int fault_around_bytes_get(void *data, u64 *val)
