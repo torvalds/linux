@@ -681,7 +681,7 @@ static void init_arraycache(struct array_cache *ac, int limit, int batch)
 static struct array_cache *alloc_arraycache(int node, int entries,
 					    int batchcount, gfp_t gfp)
 {
-	int memsize = sizeof(void *) * entries + sizeof(struct array_cache);
+	size_t memsize = sizeof(void *) * entries + sizeof(struct array_cache);
 	struct array_cache *ac = NULL;
 
 	ac = kmalloc_node(memsize, gfp, node);
@@ -868,7 +868,7 @@ static void *alternate_node_alloc(struct kmem_cache *, gfp_t);
 static struct alien_cache *__alloc_alien_cache(int node, int entries,
 						int batch, gfp_t gfp)
 {
-	int memsize = sizeof(void *) * entries + sizeof(struct alien_cache);
+	size_t memsize = sizeof(void *) * entries + sizeof(struct alien_cache);
 	struct alien_cache *alc = NULL;
 
 	alc = kmalloc_node(memsize, gfp, node);
@@ -880,7 +880,7 @@ static struct alien_cache *__alloc_alien_cache(int node, int entries,
 static struct alien_cache **alloc_alien_cache(int node, int limit, gfp_t gfp)
 {
 	struct alien_cache **alc_ptr;
-	int memsize = sizeof(void *) * nr_node_ids;
+	size_t memsize = sizeof(void *) * nr_node_ids;
 	int i;
 
 	if (limit > 1)
@@ -1037,7 +1037,7 @@ static int init_cache_node_node(int node)
 {
 	struct kmem_cache *cachep;
 	struct kmem_cache_node *n;
-	const int memsize = sizeof(struct kmem_cache_node);
+	const size_t memsize = sizeof(struct kmem_cache_node);
 
 	list_for_each_entry(cachep, &slab_caches, list) {
 		/*
