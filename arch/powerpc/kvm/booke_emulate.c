@@ -293,6 +293,8 @@ int kvmppc_booke_emulate_mfspr(struct kvm_vcpu *vcpu, int sprn, ulong *spr_val)
 		break;
 	case SPRN_DBCR0:
 		*spr_val = vcpu->arch.dbg_reg.dbcr0;
+		if (vcpu->guest_debug)
+			*spr_val = *spr_val | DBCR0_EDM;
 		break;
 	case SPRN_DBCR1:
 		*spr_val = vcpu->arch.dbg_reg.dbcr1;

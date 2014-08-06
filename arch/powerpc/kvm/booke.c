@@ -668,10 +668,10 @@ int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 #endif
 
 	/* Switch to guest debug context */
-	debug = vcpu->arch.shadow_dbg_reg;
+	debug = vcpu->arch.dbg_reg;
 	switch_booke_debug_regs(&debug);
 	debug = current->thread.debug;
-	current->thread.debug = vcpu->arch.shadow_dbg_reg;
+	current->thread.debug = vcpu->arch.dbg_reg;
 
 	vcpu->arch.pgdir = current->mm->pgd;
 	kvmppc_fix_ee_before_entry();
@@ -732,7 +732,7 @@ static int emulation_exit(struct kvm_run *run, struct kvm_vcpu *vcpu)
 
 static int kvmppc_handle_debug(struct kvm_run *run, struct kvm_vcpu *vcpu)
 {
-	struct debug_reg *dbg_reg = &(vcpu->arch.shadow_dbg_reg);
+	struct debug_reg *dbg_reg = &(vcpu->arch.dbg_reg);
 	u32 dbsr = vcpu->arch.dbsr;
 
 	/* Clear guest dbsr (vcpu->arch.dbsr) */
@@ -1848,7 +1848,7 @@ int kvm_arch_vcpu_ioctl_set_guest_debug(struct kvm_vcpu *vcpu,
 	int n, b = 0, w = 0;
 
 	if (!(dbg->control & KVM_GUESTDBG_ENABLE)) {
-		vcpu->arch.shadow_dbg_reg.dbcr0 = 0;
+		vcpu->arch.dbg_reg.dbcr0 = 0;
 		vcpu->guest_debug = 0;
 		kvm_guest_protect_msr(vcpu, MSR_DE, false);
 		return 0;
@@ -1856,15 +1856,13 @@ int kvm_arch_vcpu_ioctl_set_guest_debug(struct kvm_vcpu *vcpu,
 
 	kvm_guest_protect_msr(vcpu, MSR_DE, true);
 	vcpu->guest_debug = dbg->control;
-	vcpu->arch.shadow_dbg_reg.dbcr0 = 0;
-	/* Set DBCR0_EDM in guest visible DBCR0 register. */
-	vcpu->arch.dbg_reg.dbcr0 = DBCR0_EDM;
+	vcpu->arch.dbg_reg.dbcr0 = 0;
 
 	if (vcpu->guest_debug & KVM_GUESTDBG_SINGLESTEP)
-		vcpu->arch.shadow_dbg_reg.dbcr0 |= DBCR0_IDM | DBCR0_IC;
+		vcpu->arch.dbg_reg.dbcr0 |= DBCR0_IDM | DBCR0_IC;
 
 	/* Code below handles only HW breakpoints */
-	dbg_reg = &(vcpu->arch.shadow_dbg_reg);
+	dbg_reg = &(vcpu->arch.dbg_reg);
 
 #ifdef CONFIG_KVM_BOOKE_HV
 	/*
