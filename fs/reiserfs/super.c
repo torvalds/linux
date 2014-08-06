@@ -100,7 +100,11 @@ void reiserfs_schedule_old_flush(struct super_block *s)
 	struct reiserfs_sb_info *sbi = REISERFS_SB(s);
 	unsigned long delay;
 
-	if (s->s_flags & MS_RDONLY)
+	/*
+	 * Avoid scheduling flush when sb is being shut down. It can race
+	 * with journal shutdown and free still queued delayed work.
+	 */
+	if (s->s_flags & MS_RDONLY || !(s->s_flags & MS_ACTIVE))
 		return;
 
 	spin_lock(&sbi->old_work_lock);
