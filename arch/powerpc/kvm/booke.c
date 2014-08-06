@@ -377,7 +377,11 @@ static int kvmppc_booke_irqprio_deliver(struct kvm_vcpu *vcpu,
 		allowed = vcpu->arch.shared->msr & MSR_DE;
 		allowed = allowed && !crit;
 		msr_mask = MSR_ME;
-		int_class = INT_CLASS_CRIT;
+		if (cpu_has_feature(CPU_FTR_DEBUG_LVL_EXC))
+			int_class = INT_CLASS_DBG;
+		else
+			int_class = INT_CLASS_CRIT;
+
 		break;
 	}
 
