@@ -1642,6 +1642,8 @@ sub process {
 
 	my $non_utf8_charset = 0;
 
+	my $last_blank_line = 0;
+
 	our @report = ();
 	our $cnt_lines = 0;
 	our $cnt_error = 0;
@@ -2306,6 +2308,15 @@ sub process {
 		      $line =~ /^\+\s*__setup/)) {
 			CHK("LINE_SPACING",
 			    "Please use a blank line after function/struct/union/enum declarations\n" . $hereprev);
+		}
+
+# check for multiple consecutive blank lines
+		if ($prevline =~ /^[\+ ]\s*$/ &&
+		    $line =~ /^\+\s*$/ &&
+		    $last_blank_line != ($linenr - 1)) {
+			CHK("LINE_SPACING",
+			    "Please don't use multiple blank lines\n" . $hereprev);
+			$last_blank_line = $linenr;
 		}
 
 # check for missing blank lines after declarations
