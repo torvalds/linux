@@ -919,10 +919,13 @@ static struct dma_chan *rspi_request_dma_chan(struct device *dev,
 	memset(&cfg, 0, sizeof(cfg));
 	cfg.slave_id = id;
 	cfg.direction = dir;
-	if (dir == DMA_MEM_TO_DEV)
+	if (dir == DMA_MEM_TO_DEV) {
 		cfg.dst_addr = port_addr;
-	else
+		cfg.dst_addr_width = DMA_SLAVE_BUSWIDTH_1_BYTE;
+	} else {
 		cfg.src_addr = port_addr;
+		cfg.src_addr_width = DMA_SLAVE_BUSWIDTH_1_BYTE;
+	}
 
 	ret = dmaengine_slave_config(chan, &cfg);
 	if (ret) {
