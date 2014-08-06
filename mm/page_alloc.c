@@ -2962,7 +2962,7 @@ EXPORT_SYMBOL(alloc_pages_exact);
  * Note this is not alloc_pages_exact_node() which allocates on a specific node,
  * but is not exact.
  */
-void *alloc_pages_exact_nid(int nid, size_t size, gfp_t gfp_mask)
+void * __meminit alloc_pages_exact_nid(int nid, size_t size, gfp_t gfp_mask)
 {
 	unsigned order = get_order(size);
 	struct page *p = alloc_pages_node(nid, gfp_mask, order);
