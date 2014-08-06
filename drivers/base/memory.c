@@ -284,7 +284,7 @@ static int memory_subsys_online(struct device *dev)
 	 * attribute and need to set the online_type.
 	 */
 	if (mem->online_type < 0)
-		mem->online_type = ONLINE_KEEP;
+		mem->online_type = MMOP_ONLINE_KEEP;
 
 	ret = memory_block_change_state(mem, MEM_ONLINE, MEM_OFFLINE);
 
@@ -316,22 +316,22 @@ store_mem_state(struct device *dev,
 		return ret;
 
 	if (sysfs_streq(buf, "online_kernel"))
-		online_type = ONLINE_KERNEL;
+		online_type = MMOP_ONLINE_KERNEL;
 	else if (sysfs_streq(buf, "online_movable"))
-		online_type = ONLINE_MOVABLE;
+		online_type = MMOP_ONLINE_MOVABLE;
 	else if (sysfs_streq(buf, "online"))
-		online_type = ONLINE_KEEP;
+		online_type = MMOP_ONLINE_KEEP;
 	else if (sysfs_streq(buf, "offline"))
-		online_type = -1;
+		online_type = MMOP_OFFLINE;
 	else {
 		ret = -EINVAL;
 		goto err;
 	}
 
 	switch (online_type) {
-	case ONLINE_KERNEL:
-	case ONLINE_MOVABLE:
-	case ONLINE_KEEP:
+	case MMOP_ONLINE_KERNEL:
+	case MMOP_ONLINE_MOVABLE:
+	case MMOP_ONLINE_KEEP:
 		/*
 		 * mem->online_type is not protected so there can be a
 		 * race here.  However, when racing online, the first
@@ -342,7 +342,7 @@ store_mem_state(struct device *dev,
 		mem->online_type = online_type;
 		ret = device_online(&mem->dev);
 		break;
-	case -1:
+	case MMOP_OFFLINE:
 		ret = device_offline(&mem->dev);
 		break;
 	default:

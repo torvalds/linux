@@ -26,11 +26,12 @@ enum {
 	MEMORY_HOTPLUG_MAX_BOOTMEM_TYPE = NODE_INFO,
 };
 
-/* Types for control the zone type of onlined memory */
+/* Types for control the zone type of onlined and offlined memory */
 enum {
-	ONLINE_KEEP,
-	ONLINE_KERNEL,
-	ONLINE_MOVABLE,
+	MMOP_OFFLINE = -1,
+	MMOP_ONLINE_KEEP,
+	MMOP_ONLINE_KERNEL,
+	MMOP_ONLINE_MOVABLE,
 };
 
 /*

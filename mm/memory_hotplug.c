@@ -977,15 +977,18 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
 	zone = page_zone(pfn_to_page(pfn));
 
 	ret = -EINVAL;
-	if ((zone_idx(zone) > ZONE_NORMAL || online_type == ONLINE_MOVABLE) &&
+	if ((zone_idx(zone) > ZONE_NORMAL ||
+	    online_type == MMOP_ONLINE_MOVABLE) &&
 	    !can_online_high_movable(zone))
 		goto out;
 
-	if (online_type == ONLINE_KERNEL && zone_idx(zone) == ZONE_MOVABLE) {
+	if (online_type == MMOP_ONLINE_KERNEL &&
+	    zone_idx(zone) == ZONE_MOVABLE) {
 		if (move_pfn_range_left(zone - 1, zone, pfn, pfn + nr_pages))
 			goto out;
 	}
-	if (online_type == ONLINE_MOVABLE && zone_idx(zone) == ZONE_MOVABLE - 1) {
+	if (online_type == MMOP_ONLINE_MOVABLE &&
+	    zone_idx(zone) == ZONE_MOVABLE - 1) {
 		if (move_pfn_range_right(zone, zone + 1, pfn, pfn + nr_pages))
 			goto out;
 	}
