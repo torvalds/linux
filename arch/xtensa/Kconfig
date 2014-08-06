@@ -238,6 +238,32 @@ config HIGHMEM
 
 	  If unsure, say Y.
 
+config FAST_SYSCALL_XTENSA
+	bool "Enable fast atomic syscalls"
+	default n
+	help
+	  fast_syscall_xtensa is a syscall that can make atomic operations
+	  on UP kernel when processor has no s32c1i support.
+
+	  This syscall is deprecated. It may have issues when called with
+	  invalid arguments. It is provided only for backwards compatibility.
+	  Only enable it if your userspace software requires it.
+
+	  If unsure, say N.
+
+config FAST_SYSCALL_SPILL_REGISTERS
+	bool "Enable spill registers syscall"
+	default n
+	help
+	  fast_syscall_spill_registers is a syscall that spills all active
+	  register windows of a calling userspace task onto its stack.
+
+	  This syscall is deprecated. It may have issues when called with
+	  invalid arguments. It is provided only for backwards compatibility.
+	  Only enable it if your userspace software requires it.
+
+	  If unsure, say N.
+
 endmenu
 
 config XTENSA_CALIBRATE_CCOUNT

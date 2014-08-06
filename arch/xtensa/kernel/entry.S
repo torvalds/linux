@@ -986,6 +986,8 @@ ENDPROC(fast_syscall_unrecoverable)
  *		j done
  */
 
+#ifdef CONFIG_FAST_SYSCALL_XTENSA
+
 #define TRY								\
 	.section __ex_table, "a";					\
 	.word	66f, 67f;						\
@@ -1049,6 +1051,18 @@ CATCH
 
 ENDPROC(fast_syscall_xtensa)
 
+#else /* CONFIG_FAST_SYSCALL_XTENSA */
+
+ENTRY(fast_syscall_xtensa)
+
+	l32i    a0, a2, PT_AREG0        # restore a0
+	movi	a2, -ENOSYS
+	rfe
+
+ENDPROC(fast_syscall_xtensa)
+
+#endif /* CONFIG_FAST_SYSCALL_XTENSA */
+
 
 /* fast_syscall_spill_registers.
  *
@@ -1063,6 +1077,8 @@ ENDPROC(fast_syscall_xtensa)
  *
  * Note: We assume the stack pointer is EXC_TABLE_KSTK in the fixup handler.
  */
+
+#ifdef CONFIG_FAST_SYSCALL_SPILL_REGISTERS
 
 ENTRY(fast_syscall_spill_registers)
 
@@ -1397,6 +1413,18 @@ ENTRY(fast_syscall_spill_registers_fixup_return)
 	rfde
 
 ENDPROC(fast_syscall_spill_registers_fixup_return)
+
+#else /* CONFIG_FAST_SYSCALL_SPILL_REGISTERS */
+
+ENTRY(fast_syscall_spill_registers)
+
+	l32i    a0, a2, PT_AREG0        # restore a0
+	movi	a2, -ENOSYS
+	rfe
+
+ENDPROC(fast_syscall_spill_registers)
+
+#endif /* CONFIG_FAST_SYSCALL_SPILL_REGISTERS */
 
 #ifdef CONFIG_MMU
 /*
