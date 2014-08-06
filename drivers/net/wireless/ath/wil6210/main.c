@@ -309,7 +309,7 @@ void wil_priv_deinit(struct wil6210_priv *wil)
 	destroy_workqueue(wil->wmi_wq);
 }
 
-static void wil_target_reset(struct wil6210_priv *wil)
+static int wil_target_reset(struct wil6210_priv *wil)
 {
 	int delay = 0;
 	u32 hw_state;
@@ -395,7 +395,7 @@ static void wil_target_reset(struct wil6210_priv *wil)
 		if (delay++ > 100) {
 			wil_err(wil, "Reset not completed, hw_state 0x%08x\n",
 				hw_state);
-			return;
+			return -ETIME;
 		}
 	} while (hw_state != HW_MACHINE_BOOT_DONE);
 
@@ -407,6 +407,7 @@ static void wil_target_reset(struct wil6210_priv *wil)
 	wmb(); /* order is important here */
 
 	wil_dbg_misc(wil, "Reset completed in %d ms\n", delay);
+	return 0;
 
 #undef R
 #undef W
@@ -471,10 +472,11 @@ int wil_reset(struct wil6210_priv *wil)
 	flush_workqueue(wil->wmi_wq_conn);
 	flush_workqueue(wil->wmi_wq);
 
-	/* TODO: put MAC in reset */
-	wil_target_reset(wil);
-
+	rc = wil_target_reset(wil);
 	wil_rx_fini(wil);
+	if (rc)
+		return rc;
+
 
 	/* init after reset */
 	wil->pending_connect_cid = -1;
