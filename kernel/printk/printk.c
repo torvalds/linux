@@ -113,9 +113,9 @@ static int __down_trylock_console_sem(unsigned long ip)
  * This is used for debugging the mess that is the VT code by
  * keeping track if we have the console semaphore held. It's
  * definitely not the perfect debug tool (we don't know if _WE_
- * hold it are racing, but it helps tracking those weird code
- * path in the console code where we end up in places I want
- * locked without the console sempahore held
+ * hold it and are racing, but it helps tracking those weird code
+ * paths in the console code where we end up in places I want
+ * locked without the console sempahore held).
  */
 static int console_locked, console_suspended;
 
@@ -146,8 +146,8 @@ static int console_may_schedule;
  * the overall length of the record.
  *
  * The heads to the first and last entry in the buffer, as well as the
- * sequence numbers of these both entries are maintained when messages
- * are stored..
+ * sequence numbers of these entries are maintained when messages are
+ * stored.
  *
  * If the heads indicate available messages, the length in the header
  * tells the start next message. A length == 0 for the next message
@@ -345,7 +345,7 @@ static int log_make_free_space(u32 msg_size)
 	while (log_first_seq < log_next_seq) {
 		if (logbuf_has_space(msg_size, false))
 			return 0;
-		/* drop old messages until we have enough continuous space */
+		/* drop old messages until we have enough contiguous space */
 		log_first_idx = log_next(log_first_idx);
 		log_first_seq++;
 	}
@@ -1517,7 +1517,7 @@ static struct cont {
 	struct task_struct *owner;	/* task of first print*/
 	u64 ts_nsec;			/* time of first print */
 	u8 level;			/* log level of first message */
-	u8 facility;			/* log level of first message */
+	u8 facility;			/* log facility of first message */
 	enum log_flags flags;		/* prefix, newline flags */
 	bool flushed:1;			/* buffer sealed and committed */
 } cont;
@@ -1922,11 +1922,12 @@ static int __add_preferred_console(char *name, int idx, char *options,
 	return 0;
 }
 /*
- * Set up a list of consoles.  Called from init/main.c
+ * Set up a console.  Called via do_early_param() in init/main.c
+ * for each "console=" parameter in the boot command line.
  */
 static int __init console_setup(char *str)
 {
-	char buf[sizeof(console_cmdline[0].name) + 4]; /* 4 for index */
+	char buf[sizeof(console_cmdline[0].name) + 4]; /* 4 for "ttyS" */
 	char *s, *options, *brl_options = NULL;
 	int idx;
 
@@ -2086,8 +2087,8 @@ EXPORT_SYMBOL(console_lock);
 /**
  * console_trylock - try to lock the console system for exclusive use.
  *
- * Tried to acquire a lock which guarantees that the caller has
- * exclusive access to the console system and the console_drivers list.
+ * Try to acquire a lock which guarantees that the caller has exclusive
+ * access to the console system and the console_drivers list.
  *
  * returns 1 on success, and 0 on failure to acquire the lock.
  */
