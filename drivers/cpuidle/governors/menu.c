@@ -31,7 +31,8 @@
  * The default values do not overflow.
  */
 #define BUCKETS 12
-#define INTERVALS 8
+#define INTERVAL_SHIFT 3
+#define INTERVALS (1UL << INTERVAL_SHIFT)
 #define RESOLUTION 1024
 #define DECAY 8
 #define MAX_INTERESTING 50000
@@ -227,7 +228,10 @@ again:
 				max = value;
 		}
 	}
-	do_div(avg, divisor);
+	if (divisor == INTERVALS)
+		avg >>= INTERVAL_SHIFT;
+	else
+		do_div(avg, divisor);
 
 	/* Then try to determine standard deviation */
 	stddev = 0;
@@ -238,7 +242,11 @@ again:
 			stddev += diff * diff;
 		}
 	}
-	do_div(stddev, divisor);
+	if (divisor == INTERVALS)
+		stddev >>= INTERVAL_SHIFT;
+	else
+		do_div(stddev, divisor);
+
 	/*
 	 * The typical interval is obtained when standard deviation is small
 	 * or standard deviation is small compared to the average interval.
