@@ -209,16 +209,16 @@ static int __init list_sort_test(void)
 {
 	int i, count = 1, err = -ENOMEM;
 	struct debug_el *el;
-	struct list_head *cur, *tmp;
+	struct list_head *cur;
 	LIST_HEAD(head);
 
 	printk(KERN_DEBUG "list_sort_test: start testing list_sort()\n");
 
-	elts = kmalloc(sizeof(void *) * TEST_LIST_LEN, GFP_KERNEL);
+	elts = kcalloc(TEST_LIST_LEN, sizeof(*elts), GFP_KERNEL);
 	if (!elts) {
 		printk(KERN_ERR "list_sort_test: error: cannot allocate "
 				"memory\n");
-		goto exit;
+		return err;
 	}
 
 	for (i = 0; i < TEST_LIST_LEN; i++) {
@@ -286,11 +286,9 @@ static int __init list_sort_test(void)
 
 	err = 0;
 exit:
+	for (i = 0; i < TEST_LIST_LEN; i++)
+		kfree(elts[i]);
 	kfree(elts);
-	list_for_each_safe(cur, tmp, &head) {
-		list_del(cur);
-		kfree(container_of(cur, struct debug_el, list));
-	}
 	return err;
 }
 module_init(list_sort_test);
