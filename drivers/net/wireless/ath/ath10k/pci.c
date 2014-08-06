@@ -726,18 +726,12 @@ static void ath10k_pci_ce_recv_data(struct ath10k_ce_pipe *ce_state)
 	unsigned int nbytes, max_nbytes;
 	unsigned int transfer_id;
 	unsigned int flags;
-	int err;
+	int err, num_replenish = 0;
 
 	while (ath10k_ce_completed_recv_next(ce_state, &transfer_context,
 					     &ce_data, &nbytes, &transfer_id,
 					     &flags) == 0) {
-		err = ath10k_pci_post_rx_pipe(pipe_info, 1);
-		if (unlikely(err)) {
-			/* FIXME: retry */
-			ath10k_warn("failed to replenish CE rx ring %d: %d\n",
-				    pipe_info->pipe_num, err);
-		}
-
+		num_replenish++;
 		skb = transfer_context;
 		max_nbytes = skb->len + skb_tailroom(skb);
 		dma_unmap_single(ar->dev, ATH10K_SKB_CB(skb)->paddr,
@@ -752,6 +746,13 @@ static void ath10k_pci_ce_recv_data(struct ath10k_ce_pipe *ce_state)
 
 		skb_put(skb, nbytes);
 		cb->rx_completion(ar, skb, pipe_info->pipe_num);
+	}
+
+	err = ath10k_pci_post_rx_pipe(pipe_info, num_replenish);
+	if (unlikely(err)) {
+		/* FIXME: retry */
+		ath10k_warn("failed to replenish CE rx ring %d (%d bufs): %d\n",
+			    pipe_info->pipe_num, num_replenish, err);
 	}
 }
 
@@ -1362,8 +1363,6 @@ static int ath10k_pci_hif_exchange_bmi_msg(struct ath10k *ar,
 		ath10k_ce_recv_buf_enqueue(ce_rx, &xfer, resp_paddr);
 	}
 
-	init_completion(&xfer.done);
-
 	ret = ath10k_ce_send(ce_tx, &xfer, req_paddr, req_len, -1, 0);
 	if (ret)
 		goto err_resp;
@@ -1414,10 +1413,7 @@ static void ath10k_pci_bmi_send_done(struct ath10k_ce_pipe *ce_state)
 					  &nbytes, &transfer_id))
 		return;
 
-	if (xfer->wait_for_resp)
-		return;
-
-	complete(&xfer->done);
+	xfer->tx_done = true;
 }
 
 static void ath10k_pci_bmi_recv_data(struct ath10k_ce_pipe *ce_state)
@@ -1438,7 +1434,7 @@ static void ath10k_pci_bmi_recv_data(struct ath10k_ce_pipe *ce_state)
 	}
 
 	xfer->resp_len = nbytes;
-	complete(&xfer->done);
+	xfer->rx_done = true;
 }
 
 static int ath10k_pci_bmi_wait(struct ath10k_ce_pipe *tx_pipe,
@@ -1451,7 +1447,7 @@ static int ath10k_pci_bmi_wait(struct ath10k_ce_pipe *tx_pipe,
 		ath10k_pci_bmi_send_done(tx_pipe);
 		ath10k_pci_bmi_recv_data(rx_pipe);
 
-		if (completion_done(&xfer->done))
+		if (xfer->tx_done && (xfer->rx_done == xfer->wait_for_resp))
 			return 0;
 
 		schedule();

@@ -1805,7 +1805,7 @@ static int atalk_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 		long amount = 0;
 
 		if (skb)
-		amount = skb->len - sizeof(struct ddpehdr);
+			amount = skb->len - sizeof(struct ddpehdr);
 		rc = put_user(amount, (int __user *)argp);
 		break;
 	}

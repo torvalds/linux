@@ -166,8 +166,15 @@ static void iwl_mvm_nic_config(struct iwl_op_mode *op_mode)
 	WARN_ON((radio_cfg_type << CSR_HW_IF_CONFIG_REG_POS_PHY_TYPE) &
 		 ~CSR_HW_IF_CONFIG_REG_MSK_PHY_TYPE);
 
-	/* silicon bits */
-	reg_val |= CSR_HW_IF_CONFIG_REG_BIT_RADIO_SI;
+	/*
+	 * TODO: Bits 7-8 of CSR in 8000 HW family set the ADC sampling, and
+	 * shouldn't be set to any non-zero value. The same is supposed to be
+	 * true of the other HW, but unsetting them (such as the 7260) causes
+	 * automatic tests to fail on seemingly unrelated errors. Need to
+	 * further investigate this, but for now we'll separate cases.
+	 */
+	if (mvm->trans->cfg->device_family != IWL_DEVICE_FAMILY_8000)
+		reg_val |= CSR_HW_IF_CONFIG_REG_BIT_RADIO_SI;
 
 	iwl_trans_set_bits_mask(mvm->trans, CSR_HW_IF_CONFIG_REG,
 				CSR_HW_IF_CONFIG_REG_MSK_MAC_DASH |
@@ -233,7 +240,7 @@ static const struct iwl_rx_handlers iwl_mvm_rx_handlers[] = {
 	RX_HANDLER(SCAN_COMPLETE_NOTIFICATION, iwl_mvm_rx_scan_complete, true),
 	RX_HANDLER(SCAN_OFFLOAD_COMPLETE,
 		   iwl_mvm_rx_scan_offload_complete_notif, true),
-	RX_HANDLER(MATCH_FOUND_NOTIFICATION, iwl_mvm_rx_sched_scan_results,
+	RX_HANDLER(MATCH_FOUND_NOTIFICATION, iwl_mvm_rx_scan_offload_results,
 		   false),
 
 	RX_HANDLER(RADIO_VERSION_NOTIFICATION, iwl_mvm_rx_radio_ver, false),
@@ -282,8 +289,10 @@ static const char *const iwl_mvm_cmd_strings[REPLY_MAX] = {
 	CMD(MATCH_FOUND_NOTIFICATION),
 	CMD(SCAN_OFFLOAD_REQUEST_CMD),
 	CMD(SCAN_OFFLOAD_ABORT_CMD),
+	CMD(HOT_SPOT_CMD),
 	CMD(SCAN_OFFLOAD_COMPLETE),
 	CMD(SCAN_OFFLOAD_UPDATE_PROFILES_CMD),
+	CMD(SCAN_ITERATION_COMPLETE),
 	CMD(POWER_TABLE_CMD),
 	CMD(WEP_KEY),
 	CMD(REPLY_RX_PHY_CMD),
@@ -324,6 +333,9 @@ static const char *const iwl_mvm_cmd_strings[REPLY_MAX] = {
 	CMD(REPLY_THERMAL_MNG_BACKOFF),
 	CMD(MAC_PM_POWER_TABLE),
 	CMD(BT_COEX_CI),
+	CMD(BT_COEX_UPDATE_SW_BOOST),
+	CMD(BT_COEX_UPDATE_CORUN_LUT),
+	CMD(BT_COEX_UPDATE_REDUCED_TXP),
 	CMD(PSM_UAPSD_AP_MISBEHAVING_NOTIFICATION),
 	CMD(ANTENNA_COUPLING_NOTIFICATION),
 };
@@ -380,6 +392,9 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	if (!hw)
 		return NULL;
 
+	if (cfg->max_rx_agg_size)
+		hw->max_rx_aggregation_subframes = cfg->max_rx_agg_size;
+
 	op_mode = hw->priv;
 	op_mode->ops = &iwl_mvm_ops;
 
@@ -405,6 +420,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	mutex_init(&mvm->d0i3_suspend_mutex);
 	spin_lock_init(&mvm->async_handlers_lock);
 	INIT_LIST_HEAD(&mvm->time_event_list);
+	INIT_LIST_HEAD(&mvm->aux_roc_te_list);
 	INIT_LIST_HEAD(&mvm->async_handlers_list);
 	spin_lock_init(&mvm->time_event_lock);
 
@@ -414,6 +430,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	INIT_WORK(&mvm->d0i3_exit_work, iwl_mvm_d0i3_exit_work);
 
 	spin_lock_init(&mvm->d0i3_tx_lock);
+	spin_lock_init(&mvm->refs_lock);
 	skb_queue_head_init(&mvm->d0i3_tx);
 	init_waitqueue_head(&mvm->d0i3_exit_waitq);
 
@@ -502,9 +519,17 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 		}
 	}
 
-	scan_size = sizeof(struct iwl_scan_cmd) +
-		mvm->fw->ucode_capa.max_probe_length +
-		(MAX_NUM_SCAN_CHANNELS * sizeof(struct iwl_scan_channel));
+	if (mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_LMAC_SCAN)
+		scan_size = sizeof(struct iwl_scan_req_unified_lmac) +
+			sizeof(struct iwl_scan_channel_cfg_lmac) *
+				mvm->fw->ucode_capa.n_scan_channels +
+			sizeof(struct iwl_scan_probe_req);
+	else
+		scan_size = sizeof(struct iwl_scan_cmd) +
+			mvm->fw->ucode_capa.max_probe_length +
+			mvm->fw->ucode_capa.n_scan_channels *
+				sizeof(struct iwl_scan_channel);
+
 	mvm->scan_cmd = kmalloc(scan_size, GFP_KERNEL);
 	if (!mvm->scan_cmd)
 		goto out_free;
@@ -520,7 +545,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	memset(&mvm->rx_stats, 0, sizeof(struct mvm_statistics_rx));
 
 	/* rpm starts with a taken ref. only set the appropriate bit here. */
-	set_bit(IWL_MVM_REF_UCODE_DOWN, mvm->ref_bitmap);
+	mvm->refs[IWL_MVM_REF_UCODE_DOWN] = 1;
 
 	return op_mode;
 
@@ -548,9 +573,11 @@ static void iwl_op_mode_mvm_stop(struct iwl_op_mode *op_mode)
 	ieee80211_unregister_hw(mvm->hw);
 
 	kfree(mvm->scan_cmd);
-	vfree(mvm->fw_error_dump);
-	kfree(mvm->fw_error_sram);
-	kfree(mvm->fw_error_rxf);
+	if (mvm->fw_error_dump) {
+		vfree(mvm->fw_error_dump->op_mode_ptr);
+		vfree(mvm->fw_error_dump->trans_ptr);
+		kfree(mvm->fw_error_dump);
+	}
 	kfree(mvm->mcast_filter_cmd);
 	mvm->mcast_filter_cmd = NULL;
 
@@ -754,7 +781,7 @@ static void iwl_mvm_reprobe_wk(struct work_struct *wk)
 	module_put(THIS_MODULE);
 }
 
-static void iwl_mvm_nic_restart(struct iwl_mvm *mvm)
+void iwl_mvm_nic_restart(struct iwl_mvm *mvm, bool fw_error)
 {
 	iwl_abort_notification_waits(&mvm->notif_wait);
 
@@ -811,80 +838,16 @@ static void iwl_mvm_nic_restart(struct iwl_mvm *mvm)
 		reprobe->dev = mvm->trans->dev;
 		INIT_WORK(&reprobe->work, iwl_mvm_reprobe_wk);
 		schedule_work(&reprobe->work);
-	} else if (mvm->cur_ucode == IWL_UCODE_REGULAR && mvm->restart_fw) {
+	} else if (mvm->cur_ucode == IWL_UCODE_REGULAR &&
+		   (!fw_error || mvm->restart_fw)) {
 		/* don't let the transport/FW power down */
 		iwl_mvm_ref(mvm, IWL_MVM_REF_UCODE_DOWN);
 
-		if (mvm->restart_fw > 0)
+		if (fw_error && mvm->restart_fw > 0)
 			mvm->restart_fw--;
 		ieee80211_restart_hw(mvm->hw);
 	}
 }
-
-#ifdef CONFIG_IWLWIFI_DEBUGFS
-void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
-{
-	struct iwl_fw_error_dump_file *dump_file;
-	struct iwl_fw_error_dump_data *dump_data;
-	u32 file_len;
-	u32 trans_len;
-
-	lockdep_assert_held(&mvm->mutex);
-
-	if (mvm->fw_error_dump)
-		return;
-
-	file_len = mvm->fw_error_sram_len +
-		   mvm->fw_error_rxf_len +
-		   sizeof(*dump_file) +
-		   sizeof(*dump_data) * 2;
-
-	trans_len = iwl_trans_dump_data(mvm->trans, NULL, 0);
-	if (trans_len)
-		file_len += trans_len;
-
-	dump_file = vmalloc(file_len);
-	if (!dump_file)
-		return;
-
-	mvm->fw_error_dump = dump_file;
-
-	dump_file->barker = cpu_to_le32(IWL_FW_ERROR_DUMP_BARKER);
-	dump_file->file_len = cpu_to_le32(file_len);
-	dump_data = (void *)dump_file->data;
-	dump_data->type = cpu_to_le32(IWL_FW_ERROR_DUMP_RXF);
-	dump_data->len = cpu_to_le32(mvm->fw_error_rxf_len);
-	memcpy(dump_data->data, mvm->fw_error_rxf, mvm->fw_error_rxf_len);
-
-	dump_data = iwl_mvm_fw_error_next_data(dump_data);
-	dump_data->type = cpu_to_le32(IWL_FW_ERROR_DUMP_SRAM);
-	dump_data->len = cpu_to_le32(mvm->fw_error_sram_len);
-
-	/*
-	 * No need for lock since at the stage the FW isn't loaded. So it
-	 * can't assert - we are the only one who can possibly be accessing
-	 * mvm->fw_error_sram right now.
-	 */
-	memcpy(dump_data->data, mvm->fw_error_sram, mvm->fw_error_sram_len);
-
-	kfree(mvm->fw_error_rxf);
-	mvm->fw_error_rxf = NULL;
-	mvm->fw_error_rxf_len = 0;
-
-	kfree(mvm->fw_error_sram);
-	mvm->fw_error_sram = NULL;
-	mvm->fw_error_sram_len = 0;
-
-	if (trans_len) {
-		void *buf = iwl_mvm_fw_error_next_data(dump_data);
-		u32 real_trans_len = iwl_trans_dump_data(mvm->trans, buf,
-							 trans_len);
-		dump_data = (void *)((u8 *)buf + real_trans_len);
-		dump_file->file_len =
-			cpu_to_le32(file_len - trans_len + real_trans_len);
-	}
-}
-#endif
 
 static void iwl_mvm_nic_error(struct iwl_op_mode *op_mode)
 {
@@ -892,12 +855,7 @@ static void iwl_mvm_nic_error(struct iwl_op_mode *op_mode)
 
 	iwl_mvm_dump_nic_error_log(mvm);
 
-#ifdef CONFIG_IWLWIFI_DEBUGFS
-	iwl_mvm_fw_error_sram_dump(mvm);
-	iwl_mvm_fw_error_rxf_dump(mvm);
-#endif
-
-	iwl_mvm_nic_restart(mvm);
+	iwl_mvm_nic_restart(mvm, true);
 }
 
 static void iwl_mvm_cmd_queue_full(struct iwl_op_mode *op_mode)
@@ -905,7 +863,7 @@ static void iwl_mvm_cmd_queue_full(struct iwl_op_mode *op_mode)
 	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
 
 	WARN_ON(1);
-	iwl_mvm_nic_restart(mvm);
+	iwl_mvm_nic_restart(mvm, true);
 }
 
 struct iwl_d0i3_iter_data {

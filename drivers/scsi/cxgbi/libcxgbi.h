@@ -44,6 +44,15 @@ enum cxgbi_dbg_flag {
 			pr_info(fmt, ##__VA_ARGS__); \
 	} while (0)
 
+#define pr_info_ipaddr(fmt_trail,					\
+			addr1, addr2, args_trail...)			\
+do {									\
+	if (!((1 << CXGBI_DBG_SOCK) & dbg_level))			\
+		break;							\
+	pr_info("%pISpc - %pISpc, " fmt_trail,				\
+		addr1, addr2, args_trail);				\
+} while (0)
+
 /* max. connections per adapter */
 #define CXGBI_MAX_CONN		16384
 
@@ -202,8 +211,15 @@ struct cxgbi_sock {
 	spinlock_t lock;
 	struct kref refcnt;
 	unsigned int state;
-	struct sockaddr_in saddr;
-	struct sockaddr_in daddr;
+	unsigned int csk_family;
+	union {
+		struct sockaddr_in saddr;
+		struct sockaddr_in6 saddr6;
+	};
+	union {
+		struct sockaddr_in daddr;
+		struct sockaddr_in6 daddr6;
+	};
 	struct dst_entry *dst;
 	struct sk_buff_head receive_queue;
 	struct sk_buff_head write_queue;
@@ -692,6 +708,7 @@ struct cxgbi_device *cxgbi_device_register(unsigned int, unsigned int);
 void cxgbi_device_unregister(struct cxgbi_device *);
 void cxgbi_device_unregister_all(unsigned int flag);
 struct cxgbi_device *cxgbi_device_find_by_lldev(void *);
+struct cxgbi_device *cxgbi_device_find_by_netdev(struct net_device *, int *);
 int cxgbi_hbas_add(struct cxgbi_device *, unsigned int, unsigned int,
 			struct scsi_host_template *,
 			struct scsi_transport_template *);

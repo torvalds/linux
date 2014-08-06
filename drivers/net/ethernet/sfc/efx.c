@@ -272,6 +272,9 @@ static int efx_poll(struct napi_struct *napi, int budget)
 	struct efx_nic *efx = channel->efx;
 	int spent;
 
+	if (!efx_channel_lock_napi(channel))
+		return budget;
+
 	netif_vdbg(efx, intr, efx->net_dev,
 		   "channel %d NAPI poll executing on CPU %d\n",
 		   channel->channel, raw_smp_processor_id());
@@ -311,6 +314,7 @@ static int efx_poll(struct napi_struct *napi, int budget)
 		efx_nic_eventq_read_ack(channel);
 	}
 
+	efx_channel_unlock_napi(channel);
 	return spent;
 }
 
@@ -357,7 +361,7 @@ static int efx_init_eventq(struct efx_channel *channel)
 }
 
 /* Enable event queue processing and NAPI */
-static void efx_start_eventq(struct efx_channel *channel)
+void efx_start_eventq(struct efx_channel *channel)
 {
 	netif_dbg(channel->efx, ifup, channel->efx->net_dev,
 		  "chan %d start event queue\n", channel->channel);
@@ -366,17 +370,20 @@ static void efx_start_eventq(struct efx_channel *channel)
 	channel->enabled = true;
 	smp_wmb();
 
+	efx_channel_enable(channel);
 	napi_enable(&channel->napi_str);
 	efx_nic_eventq_read_ack(channel);
 }
 
 /* Disable event queue processing and NAPI */
-static void efx_stop_eventq(struct efx_channel *channel)
+void efx_stop_eventq(struct efx_channel *channel)
 {
 	if (!channel->enabled)
 		return;
 
 	napi_disable(&channel->napi_str);
+	while (!efx_channel_disable(channel))
+		usleep_range(1000, 20000);
 	channel->enabled = false;
 }
 
@@ -1960,6 +1967,8 @@ static void efx_init_napi_channel(struct efx_channel *channel)
 	channel->napi_dev = efx->net_dev;
 	netif_napi_add(channel->napi_dev, &channel->napi_str,
 		       efx_poll, napi_weight);
+	napi_hash_add(&channel->napi_str);
+	efx_channel_init_lock(channel);
 }
 
 static void efx_init_napi(struct efx_nic *efx)
@@ -1972,8 +1981,10 @@ static void efx_init_napi(struct efx_nic *efx)
 
 static void efx_fini_napi_channel(struct efx_channel *channel)
 {
-	if (channel->napi_dev)
+	if (channel->napi_dev) {
 		netif_napi_del(&channel->napi_str);
+		napi_hash_del(&channel->napi_str);
+	}
 	channel->napi_dev = NULL;
 }
 
@@ -2006,6 +2017,37 @@ static void efx_netpoll(struct net_device *net_dev)
 		efx_schedule_channel(channel);
 }
 
+#endif
+
+#ifdef CONFIG_NET_RX_BUSY_POLL
+static int efx_busy_poll(struct napi_struct *napi)
+{
+	struct efx_channel *channel =
+		container_of(napi, struct efx_channel, napi_str);
+	struct efx_nic *efx = channel->efx;
+	int budget = 4;
+	int old_rx_packets, rx_packets;
+
+	if (!netif_running(efx->net_dev))
+		return LL_FLUSH_FAILED;
+
+	if (!efx_channel_lock_poll(channel))
+		return LL_FLUSH_BUSY;
+
+	old_rx_packets = channel->rx_queue.rx_packets;
+	efx_process_channel(channel, budget);
+
+	rx_packets = channel->rx_queue.rx_packets - old_rx_packets;
+
+	/* There is no race condition with NAPI here.
+	 * NAPI will automatically be rescheduled if it yielded during busy
+	 * polling, because it was not able to take the lock and thus returned
+	 * the full budget.
+	 */
+	efx_channel_unlock_poll(channel);
+
+	return rx_packets;
+}
 #endif
 
 /**************************************************************************
@@ -2177,6 +2219,9 @@ static const struct net_device_ops efx_farch_netdev_ops = {
 	.ndo_poll_controller = efx_netpoll,
 #endif
 	.ndo_setup_tc		= efx_setup_tc,
+#ifdef CONFIG_NET_RX_BUSY_POLL
+	.ndo_busy_poll		= efx_busy_poll,
+#endif
 #ifdef CONFIG_RFS_ACCEL
 	.ndo_rx_flow_steer	= efx_filter_rfs,
 #endif
@@ -2196,6 +2241,9 @@ static const struct net_device_ops efx_ef10_netdev_ops = {
 	.ndo_set_features	= efx_set_features,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= efx_netpoll,
+#endif
+#ifdef CONFIG_NET_RX_BUSY_POLL
+	.ndo_busy_poll		= efx_busy_poll,
 #endif
 #ifdef CONFIG_RFS_ACCEL
 	.ndo_rx_flow_steer	= efx_filter_rfs,
@@ -2607,6 +2655,8 @@ static DEFINE_PCI_DEVICE_TABLE(efx_pci_table) = {
 	 .driver_data = (unsigned long) &siena_a0_nic_type},
 	{PCI_DEVICE(PCI_VENDOR_ID_SOLARFLARE, 0x0903),  /* SFC9120 PF */
 	 .driver_data = (unsigned long) &efx_hunt_a0_nic_type},
+	{PCI_DEVICE(PCI_VENDOR_ID_SOLARFLARE, 0x0923),  /* SFC9140 PF */
+	 .driver_data = (unsigned long) &efx_hunt_a0_nic_type},
 	{0}			/* end of list */
 };
 
@@ -2720,6 +2770,17 @@ static void efx_fini_struct(struct efx_nic *efx)
 		destroy_workqueue(efx->workqueue);
 		efx->workqueue = NULL;
 	}
+}
+
+void efx_update_sw_stats(struct efx_nic *efx, u64 *stats)
+{
+	u64 n_rx_nodesc_trunc = 0;
+	struct efx_channel *channel;
+
+	efx_for_each_channel(channel, efx)
+		n_rx_nodesc_trunc += channel->n_rx_nodesc_trunc;
+	stats[GENERIC_STAT_rx_nodesc_trunc] = n_rx_nodesc_trunc;
+	stats[GENERIC_STAT_rx_noskb_drops] = atomic_read(&efx->n_rx_noskb_drops);
 }
 
 /**************************************************************************

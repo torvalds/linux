@@ -530,7 +530,6 @@ int mwifiex_send_tdls_data_frame(struct mwifiex_private *priv, const u8 *peer,
 {
 	struct sk_buff *skb;
 	struct mwifiex_txinfo *tx_info;
-	struct timeval tv;
 	int ret;
 	u16 skb_len;
 
@@ -609,8 +608,7 @@ int mwifiex_send_tdls_data_frame(struct mwifiex_private *priv, const u8 *peer,
 	tx_info->bss_num = priv->bss_num;
 	tx_info->bss_type = priv->bss_type;
 
-	do_gettimeofday(&tv);
-	skb->tstamp = timeval_to_ktime(tv);
+	__net_timestamp(skb);
 	mwifiex_queue_tx_pkt(priv, skb);
 
 	return 0;
@@ -703,7 +701,6 @@ int mwifiex_send_tdls_action_frame(struct mwifiex_private *priv, const u8 *peer,
 {
 	struct sk_buff *skb;
 	struct mwifiex_txinfo *tx_info;
-	struct timeval tv;
 	u8 *pos;
 	u32 pkt_type, tx_control;
 	u16 pkt_len, skb_len;
@@ -769,8 +766,7 @@ int mwifiex_send_tdls_action_frame(struct mwifiex_private *priv, const u8 *peer,
 	pkt_len = skb->len - MWIFIEX_MGMT_FRAME_HEADER_SIZE - sizeof(pkt_len);
 	memcpy(skb->data + MWIFIEX_MGMT_FRAME_HEADER_SIZE, &pkt_len,
 	       sizeof(pkt_len));
-	do_gettimeofday(&tv);
-	skb->tstamp = timeval_to_ktime(tv);
+	__net_timestamp(skb);
 	mwifiex_queue_tx_pkt(priv, skb);
 
 	return 0;
@@ -785,6 +781,7 @@ void mwifiex_process_tdls_action_frame(struct mwifiex_private *priv,
 	struct mwifiex_sta_node *sta_ptr;
 	u8 *peer, *pos, *end;
 	u8 i, action, basic;
+	__le16 cap = 0;
 	int ie_len = 0;
 
 	if (len < (sizeof(struct ethhdr) + 3))
@@ -796,17 +793,8 @@ void mwifiex_process_tdls_action_frame(struct mwifiex_private *priv,
 
 	peer = buf + ETH_ALEN;
 	action = *(buf + sizeof(struct ethhdr) + 2);
-
-	/* just handle TDLS setup request/response/confirm */
-	if (action > WLAN_TDLS_SETUP_CONFIRM)
-		return;
-
 	dev_dbg(priv->adapter->dev,
 		"rx:tdls action: peer=%pM, action=%d\n", peer, action);
-
-	sta_ptr = mwifiex_add_sta_entry(priv, peer);
-	if (!sta_ptr)
-		return;
 
 	switch (action) {
 	case WLAN_TDLS_SETUP_REQUEST:
@@ -815,7 +803,7 @@ void mwifiex_process_tdls_action_frame(struct mwifiex_private *priv,
 
 		pos = buf + sizeof(struct ethhdr) + 4;
 		/* payload 1+ category 1 + action 1 + dialog 1 */
-		sta_ptr->tdls_cap.capab = cpu_to_le16(*(u16 *)pos);
+		cap = cpu_to_le16(*(u16 *)pos);
 		ie_len = len - sizeof(struct ethhdr) - TDLS_REQ_FIX_LEN;
 		pos += 2;
 		break;
@@ -825,7 +813,7 @@ void mwifiex_process_tdls_action_frame(struct mwifiex_private *priv,
 			return;
 		/* payload 1+ category 1 + action 1 + dialog 1 + status code 2*/
 		pos = buf + sizeof(struct ethhdr) + 6;
-		sta_ptr->tdls_cap.capab = cpu_to_le16(*(u16 *)pos);
+		cap = cpu_to_le16(*(u16 *)pos);
 		ie_len = len - sizeof(struct ethhdr) - TDLS_RESP_FIX_LEN;
 		pos += 2;
 		break;
@@ -837,9 +825,15 @@ void mwifiex_process_tdls_action_frame(struct mwifiex_private *priv,
 		ie_len = len - sizeof(struct ethhdr) - TDLS_CONFIRM_FIX_LEN;
 		break;
 	default:
-		dev_warn(priv->adapter->dev, "Unknown TDLS frame type.\n");
+		dev_dbg(priv->adapter->dev, "Unknown TDLS frame type.\n");
 		return;
 	}
+
+	sta_ptr = mwifiex_add_sta_entry(priv, peer);
+	if (!sta_ptr)
+		return;
+
+	sta_ptr->tdls_cap.capab = cap;
 
 	for (end = pos + ie_len; pos + 1 < end; pos += 2 + pos[1]) {
 		if (pos + 2 + pos[1] > end)

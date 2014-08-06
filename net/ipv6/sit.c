@@ -250,7 +250,8 @@ static struct ip_tunnel *ipip6_tunnel_locate(struct net *net,
 	else
 		strcpy(name, "sit%d");
 
-	dev = alloc_netdev(sizeof(*t), name, ipip6_tunnel_setup);
+	dev = alloc_netdev(sizeof(*t), name, NET_NAME_UNKNOWN,
+			   ipip6_tunnel_setup);
 	if (dev == NULL)
 		return NULL;
 
@@ -1729,6 +1730,7 @@ static int __net_init sit_init_net(struct net *net)
 	sitn->tunnels[3] = sitn->tunnels_r_l;
 
 	sitn->fb_tunnel_dev = alloc_netdev(sizeof(struct ip_tunnel), "sit0",
+					   NET_NAME_UNKNOWN,
 					   ipip6_tunnel_setup);
 	if (!sitn->fb_tunnel_dev) {
 		err = -ENOMEM;

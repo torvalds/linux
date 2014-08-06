@@ -145,7 +145,7 @@ static int rsi_stats_read(struct seq_file *seq, void *data)
 	seq_printf(seq, "total_mgmt_pkt_send : %d\n",
 		   common->tx_stats.total_tx_pkt_send[MGMT_SOFT_Q]);
 	seq_printf(seq, "total_mgmt_pkt_queued : %d\n",
-		   skb_queue_len(&common->tx_queue[4]));
+		   skb_queue_len(&common->tx_queue[MGMT_SOFT_Q]));
 	seq_printf(seq, "total_mgmt_pkt_freed  : %d\n",
 		   common->tx_stats.total_tx_pkt_freed[MGMT_SOFT_Q]);
 
@@ -153,25 +153,25 @@ static int rsi_stats_read(struct seq_file *seq, void *data)
 	seq_printf(seq, "total_data_vo_pkt_send: %8d\t",
 		   common->tx_stats.total_tx_pkt_send[VO_Q]);
 	seq_printf(seq, "total_data_vo_pkt_queued:  %8d\t",
-		   skb_queue_len(&common->tx_queue[0]));
+		   skb_queue_len(&common->tx_queue[VO_Q]));
 	seq_printf(seq, "total_vo_pkt_freed: %8d\n",
 		   common->tx_stats.total_tx_pkt_freed[VO_Q]);
 	seq_printf(seq, "total_data_vi_pkt_send: %8d\t",
 		   common->tx_stats.total_tx_pkt_send[VI_Q]);
 	seq_printf(seq, "total_data_vi_pkt_queued:  %8d\t",
-		   skb_queue_len(&common->tx_queue[1]));
+		   skb_queue_len(&common->tx_queue[VI_Q]));
 	seq_printf(seq, "total_vi_pkt_freed: %8d\n",
 		   common->tx_stats.total_tx_pkt_freed[VI_Q]);
 	seq_printf(seq,  "total_data_be_pkt_send: %8d\t",
 		   common->tx_stats.total_tx_pkt_send[BE_Q]);
 	seq_printf(seq, "total_data_be_pkt_queued:  %8d\t",
-		   skb_queue_len(&common->tx_queue[2]));
+		   skb_queue_len(&common->tx_queue[BE_Q]));
 	seq_printf(seq, "total_be_pkt_freed: %8d\n",
 		   common->tx_stats.total_tx_pkt_freed[BE_Q]);
 	seq_printf(seq, "total_data_bk_pkt_send: %8d\t",
 		   common->tx_stats.total_tx_pkt_send[BK_Q]);
 	seq_printf(seq, "total_data_bk_pkt_queued:  %8d\t",
-		   skb_queue_len(&common->tx_queue[3]));
+		   skb_queue_len(&common->tx_queue[BK_Q]));
 	seq_printf(seq, "total_bk_pkt_freed: %8d\n",
 		   common->tx_stats.total_tx_pkt_freed[BK_Q]);
 

@@ -277,7 +277,7 @@ static int ks8995_probe(struct spi_device *spi)
 	/* Chip description */
 	pdata = spi->dev.platform_data;
 
-	ks = kzalloc(sizeof(*ks), GFP_KERNEL);
+	ks = devm_kzalloc(&spi->dev, sizeof(*ks), GFP_KERNEL);
 	if (!ks)
 		return -ENOMEM;
 
@@ -291,14 +291,14 @@ static int ks8995_probe(struct spi_device *spi)
 	err = spi_setup(spi);
 	if (err) {
 		dev_err(&spi->dev, "spi_setup failed, err=%d\n", err);
-		goto err_drvdata;
+		return err;
 	}
 
 	err = ks8995_read(ks, ids, KS8995_REG_ID0, sizeof(ids));
 	if (err < 0) {
 		dev_err(&spi->dev, "unable to read id registers, err=%d\n",
 				err);
-		goto err_drvdata;
+		return err;
 	}
 
 	switch (ids[0]) {
@@ -306,8 +306,7 @@ static int ks8995_probe(struct spi_device *spi)
 		break;
 	default:
 		dev_err(&spi->dev, "unknown family id:%02x\n", ids[0]);
-		err = -ENODEV;
-		goto err_drvdata;
+		return -ENODEV;
 	}
 
 	memcpy(&ks->regs_attr, &ks8995_registers_attr, sizeof(ks->regs_attr));
@@ -320,24 +319,24 @@ static int ks8995_probe(struct spi_device *spi)
 			dev_err(&spi->dev,
 				"unable to read chip id register, err=%d\n",
 				err);
-			goto err_drvdata;
+			return err;
 		}
 		if ((val & 0x80) == 0) {
 			dev_err(&spi->dev, "unknown chip:%02x,0\n", ids[1]);
-			goto err_drvdata;
+			return err;
 		}
 		ks->regs_attr.size = KSZ8864_REGS_SIZE;
 	}
 
 	err = ks8995_reset(ks);
 	if (err)
-		goto err_drvdata;
+		return err;
 
 	err = sysfs_create_bin_file(&spi->dev.kobj, &ks->regs_attr);
 	if (err) {
 		dev_err(&spi->dev, "unable to create sysfs file, err=%d\n",
 				    err);
-		goto err_drvdata;
+		return err;
 	}
 
 	if (get_chip_id(ids[1]) == CHIPID_M) {
@@ -350,20 +349,11 @@ static int ks8995_probe(struct spi_device *spi)
 	}
 
 	return 0;
-
-err_drvdata:
-	kfree(ks);
-	return err;
 }
 
 static int ks8995_remove(struct spi_device *spi)
 {
-	struct ks8995_data      *ks8995;
-
-	ks8995 = spi_get_drvdata(spi);
 	sysfs_remove_bin_file(&spi->dev.kobj, &ks8995_registers_attr);
-
-	kfree(ks8995);
 
 	return 0;
 }

@@ -293,7 +293,8 @@ static void irda_device_setup(struct net_device *dev)
  */
 struct net_device *alloc_irdadev(int sizeof_priv)
 {
-	return alloc_netdev(sizeof_priv, "irda%d", irda_device_setup);
+	return alloc_netdev(sizeof_priv, "irda%d", NET_NAME_UNKNOWN,
+			    irda_device_setup);
 }
 EXPORT_SYMBOL(alloc_irdadev);
 

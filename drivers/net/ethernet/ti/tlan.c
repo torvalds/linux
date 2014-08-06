@@ -69,10 +69,6 @@ MODULE_AUTHOR("Maintainer: Samuel Chessman <chessman@tux.org>");
 MODULE_DESCRIPTION("Driver for TI ThunderLAN based ethernet PCI adapters");
 MODULE_LICENSE("GPL");
 
-
-/* Define this to enable Link beat monitoring */
-#undef MONITOR
-
 /* Turn on debugging. See Documentation/networking/tlan.txt for details */
 static  int		debug;
 module_param(debug, int, 0);
@@ -107,8 +103,10 @@ static struct board {
 	{ "Compaq Netelligent 10/100 TX Embedded UTP",
 	  TLAN_ADAPTER_NONE, 0x83 },
 	{ "Olicom OC-2183/2185", TLAN_ADAPTER_USE_INTERN_10, 0x83 },
-	{ "Olicom OC-2325", TLAN_ADAPTER_UNMANAGED_PHY, 0xf8 },
-	{ "Olicom OC-2326", TLAN_ADAPTER_USE_INTERN_10, 0xf8 },
+	{ "Olicom OC-2325", TLAN_ADAPTER_ACTIVITY_LED |
+	  TLAN_ADAPTER_UNMANAGED_PHY, 0xf8 },
+	{ "Olicom OC-2326", TLAN_ADAPTER_ACTIVITY_LED |
+	  TLAN_ADAPTER_USE_INTERN_10, 0xf8 },
 	{ "Compaq Netelligent 10/100 TX UTP", TLAN_ADAPTER_ACTIVITY_LED, 0x83 },
 	{ "Compaq Netelligent 10 T/2 PCI UTP/coax", TLAN_ADAPTER_NONE, 0x83 },
 	{ "Compaq NetFlex-3/E",
@@ -192,9 +190,7 @@ static void	tlan_phy_power_up(struct net_device *);
 static void	tlan_phy_reset(struct net_device *);
 static void	tlan_phy_start_link(struct net_device *);
 static void	tlan_phy_finish_auto_neg(struct net_device *);
-#ifdef MONITOR
-static void     tlan_phy_monitor(struct net_device *);
-#endif
+static void     tlan_phy_monitor(unsigned long);
 
 /*
   static int	tlan_phy_nop(struct net_device *);
@@ -337,6 +333,7 @@ static void tlan_stop(struct net_device *dev)
 {
 	struct tlan_priv *priv = netdev_priv(dev);
 
+	del_timer_sync(&priv->media_timer);
 	tlan_read_and_clear_stats(dev, TLAN_RECORD);
 	outl(TLAN_HC_AD_RST, dev->base_addr + TLAN_HOST_CMD);
 	/* Reset and power down phy */
@@ -368,8 +365,10 @@ static int tlan_suspend(struct pci_dev *pdev, pm_message_t state)
 static int tlan_resume(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
+	int rc = pci_enable_device(pdev);
 
-	pci_set_power_state(pdev, PCI_D0);
+	if (rc)
+		return rc;
 	pci_restore_state(pdev);
 	pci_enable_wake(pdev, PCI_D0, 0);
 	netif_device_attach(dev);
@@ -781,7 +780,43 @@ static const struct net_device_ops tlan_netdev_ops = {
 #endif
 };
 
+static void tlan_get_drvinfo(struct net_device *dev,
+			     struct ethtool_drvinfo *info)
+{
+	struct tlan_priv *priv = netdev_priv(dev);
 
+	strlcpy(info->driver, KBUILD_MODNAME, sizeof(info->driver));
+	if (priv->pci_dev)
+		strlcpy(info->bus_info, pci_name(priv->pci_dev),
+			sizeof(info->bus_info));
+	else
+		strlcpy(info->bus_info, "EISA",	sizeof(info->bus_info));
+	info->eedump_len = TLAN_EEPROM_SIZE;
+}
+
+static int tlan_get_eeprom_len(struct net_device *dev)
+{
+	return TLAN_EEPROM_SIZE;
+}
+
+static int tlan_get_eeprom(struct net_device *dev,
+			   struct ethtool_eeprom *eeprom, u8 *data)
+{
+	int i;
+
+	for (i = 0; i < TLAN_EEPROM_SIZE; i++)
+		if (tlan_ee_read_byte(dev, i, &data[i]))
+			return -EIO;
+
+	return 0;
+}
+
+static const struct ethtool_ops tlan_ethtool_ops = {
+	.get_drvinfo	= tlan_get_drvinfo,
+	.get_link	= ethtool_op_get_link,
+	.get_eeprom_len	= tlan_get_eeprom_len,
+	.get_eeprom	= tlan_get_eeprom,
+};
 
 /***************************************************************
  *	tlan_init
@@ -830,7 +865,7 @@ static int tlan_init(struct net_device *dev)
 		priv->rx_list_dma + sizeof(struct tlan_list)*TLAN_NUM_RX_LISTS;
 
 	err = 0;
-	for (i = 0;  i < 6 ; i++)
+	for (i = 0; i < ETH_ALEN; i++)
 		err |= tlan_ee_read_byte(dev,
 					 (u8) priv->adapter->addr_ofs + i,
 					 (u8 *) &dev->dev_addr[i]);
@@ -838,12 +873,20 @@ static int tlan_init(struct net_device *dev)
 		pr_err("%s: Error reading MAC from eeprom: %d\n",
 		       dev->name, err);
 	}
-	dev->addr_len = 6;
+	/* Olicom OC-2325/OC-2326 have the address byte-swapped */
+	if (priv->adapter->addr_ofs == 0xf8) {
+		for (i = 0; i < ETH_ALEN; i += 2) {
+			char tmp = dev->dev_addr[i];
+			dev->dev_addr[i] = dev->dev_addr[i + 1];
+			dev->dev_addr[i + 1] = tmp;
+		}
+	}
 
 	netif_carrier_off(dev);
 
 	/* Device methods */
 	dev->netdev_ops = &tlan_netdev_ops;
+	dev->ethtool_ops = &tlan_ethtool_ops;
 	dev->watchdog_timeo = TX_TIMEOUT;
 
 	return 0;
@@ -886,6 +929,7 @@ static int tlan_open(struct net_device *dev)
 	}
 
 	init_timer(&priv->timer);
+	init_timer(&priv->media_timer);
 
 	tlan_start(dev);
 
@@ -1156,9 +1200,6 @@ static irqreturn_t tlan_handle_interrupt(int irq, void *dev_id)
 
 static int tlan_close(struct net_device *dev)
 {
-	struct tlan_priv *priv = netdev_priv(dev);
-
-	priv->neg_be_verbose = 0;
 	tlan_stop(dev);
 
 	free_irq(dev->irq, dev);
@@ -1808,11 +1849,6 @@ static void tlan_timer(unsigned long data)
 	priv->timer.function = NULL;
 
 	switch (priv->timer_type) {
-#ifdef MONITOR
-	case TLAN_TIMER_LINK_BEAT:
-		tlan_phy_monitor(dev);
-		break;
-#endif
 	case TLAN_TIMER_PHY_PDOWN:
 		tlan_phy_power_down(dev);
 		break;
@@ -1854,8 +1890,6 @@ static void tlan_timer(unsigned long data)
 	}
 
 }
-
-
 
 
 /*****************************************************************************
@@ -2205,7 +2239,9 @@ tlan_reset_adapter(struct net_device *dev)
 		}
 	}
 
-	if (priv->phy_num == 0)
+	/* don't power down internal PHY if we're going to use it */
+	if (priv->phy_num == 0 ||
+	   (priv->adapter->flags & TLAN_ADAPTER_USE_INTERN_10))
 		data |= TLAN_NET_CFG_PHY_EN;
 	tlan_dio_write16(dev->base_addr, TLAN_NET_CONFIG, (u16) data);
 
@@ -2255,42 +2291,39 @@ tlan_finish_reset(struct net_device *dev)
 		tlan_mii_read_reg(dev, phy, MII_GEN_STS, &status);
 		udelay(1000);
 		tlan_mii_read_reg(dev, phy, MII_GEN_STS, &status);
-		if ((status & MII_GS_LINK) &&
-		    /* We only support link info on Nat.Sem. PHY's */
-		    (tlphy_id1 == NAT_SEM_ID1) &&
-		    (tlphy_id2 == NAT_SEM_ID2)) {
-			tlan_mii_read_reg(dev, phy, MII_AN_LPA, &partner);
-			tlan_mii_read_reg(dev, phy, TLAN_TLPHY_PAR, &tlphy_par);
+		if (status & MII_GS_LINK) {
+			/* We only support link info on Nat.Sem. PHY's */
+			if ((tlphy_id1 == NAT_SEM_ID1) &&
+			    (tlphy_id2 == NAT_SEM_ID2)) {
+				tlan_mii_read_reg(dev, phy, MII_AN_LPA,
+					&partner);
+				tlan_mii_read_reg(dev, phy, TLAN_TLPHY_PAR,
+					&tlphy_par);
 
-			netdev_info(dev,
-				    "Link active with %s %uMbps %s-Duplex\n",
-				    !(tlphy_par & TLAN_PHY_AN_EN_STAT)
-				    ? "forced" : "Autonegotiation enabled,",
-				    tlphy_par & TLAN_PHY_SPEED_100
-				    ? 100 : 10,
-				    tlphy_par & TLAN_PHY_DUPLEX_FULL
-				    ? "Full" : "Half");
+				netdev_info(dev,
+					"Link active, %s %uMbps %s-Duplex\n",
+					!(tlphy_par & TLAN_PHY_AN_EN_STAT)
+					? "forced" : "Autonegotiation enabled,",
+					tlphy_par & TLAN_PHY_SPEED_100
+					? 100 : 10,
+					tlphy_par & TLAN_PHY_DUPLEX_FULL
+					? "Full" : "Half");
 
-			if (tlphy_par & TLAN_PHY_AN_EN_STAT) {
-				netdev_info(dev, "Partner capability:");
-				for (i = 5; i < 10; i++)
-					if (partner & (1 << i))
-						pr_cont(" %s", media[i-5]);
-				pr_cont("\n");
-			}
-
-			tlan_dio_write8(dev->base_addr, TLAN_LED_REG,
-					TLAN_LED_LINK);
-#ifdef MONITOR
-			/* We have link beat..for now anyway */
-			priv->link = 1;
-			/*Enabling link beat monitoring */
-			tlan_set_timer(dev, (10*HZ), TLAN_TIMER_LINK_BEAT);
-#endif
-		} else if (status & MII_GS_LINK)  {
-			netdev_info(dev, "Link active\n");
-			tlan_dio_write8(dev->base_addr, TLAN_LED_REG,
-					TLAN_LED_LINK);
+				if (tlphy_par & TLAN_PHY_AN_EN_STAT) {
+					netdev_info(dev, "Partner capability:");
+					for (i = 5; i < 10; i++)
+						if (partner & (1 << i))
+							pr_cont(" %s",
+								media[i-5]);
+					pr_cont("\n");
+				}
+			} else
+				netdev_info(dev, "Link active\n");
+			/* Enabling link beat monitoring */
+			priv->media_timer.function = tlan_phy_monitor;
+			priv->media_timer.data = (unsigned long) dev;
+			priv->media_timer.expires = jiffies + HZ;
+			add_timer(&priv->media_timer);
 		}
 	}
 
@@ -2312,6 +2345,7 @@ tlan_finish_reset(struct net_device *dev)
 			     dev->base_addr + TLAN_HOST_CMD + 1);
 		outl(priv->rx_list_dma, dev->base_addr + TLAN_CH_PARM);
 		outl(TLAN_HC_GO | TLAN_HC_RT, dev->base_addr + TLAN_HOST_CMD);
+		tlan_dio_write8(dev->base_addr, TLAN_LED_REG, TLAN_LED_LINK);
 		netif_carrier_on(dev);
 	} else {
 		netdev_info(dev, "Link inactive, will retry in 10 secs...\n");
@@ -2494,9 +2528,10 @@ static void tlan_phy_power_down(struct net_device *dev)
 	value = MII_GC_PDOWN | MII_GC_LOOPBK | MII_GC_ISOLATE;
 	tlan_mii_sync(dev->base_addr);
 	tlan_mii_write_reg(dev, priv->phy[priv->phy_num], MII_GEN_CTL, value);
-	if ((priv->phy_num == 0) &&
-	    (priv->phy[1] != TLAN_PHY_NONE) &&
-	    (!(priv->adapter->flags & TLAN_ADAPTER_USE_INTERN_10))) {
+	if ((priv->phy_num == 0) && (priv->phy[1] != TLAN_PHY_NONE)) {
+		/* if using internal PHY, the external PHY must be powered on */
+		if (priv->adapter->flags & TLAN_ADAPTER_USE_INTERN_10)
+			value = MII_GC_ISOLATE; /* just isolate it from MII */
 		tlan_mii_sync(dev->base_addr);
 		tlan_mii_write_reg(dev, priv->phy[1], MII_GEN_CTL, value);
 	}
@@ -2538,6 +2573,7 @@ static void tlan_phy_reset(struct net_device *dev)
 	struct tlan_priv	*priv = netdev_priv(dev);
 	u16		phy;
 	u16		value;
+	unsigned long timeout = jiffies + HZ;
 
 	phy = priv->phy[priv->phy_num];
 
@@ -2545,9 +2581,13 @@ static void tlan_phy_reset(struct net_device *dev)
 	tlan_mii_sync(dev->base_addr);
 	value = MII_GC_LOOPBK | MII_GC_RESET;
 	tlan_mii_write_reg(dev, phy, MII_GEN_CTL, value);
-	tlan_mii_read_reg(dev, phy, MII_GEN_CTL, &value);
-	while (value & MII_GC_RESET)
+	do {
 		tlan_mii_read_reg(dev, phy, MII_GEN_CTL, &value);
+		if (time_after(jiffies, timeout)) {
+			netdev_err(dev, "PHY reset timeout\n");
+			return;
+		}
+	} while (value & MII_GC_RESET);
 
 	/* Wait for 500 ms and initialize.
 	 * I don't remember why I wait this long.
@@ -2653,7 +2693,6 @@ static void tlan_phy_finish_auto_neg(struct net_device *dev)
 	struct tlan_priv	*priv = netdev_priv(dev);
 	u16		an_adv;
 	u16		an_lpa;
-	u16		data;
 	u16		mode;
 	u16		phy;
 	u16		status;
@@ -2668,13 +2707,7 @@ static void tlan_phy_finish_auto_neg(struct net_device *dev)
 		/* Wait for 8 sec to give the process
 		 * more time.  Perhaps we should fail after a while.
 		 */
-		if (!priv->neg_be_verbose++) {
-			pr_info("Giving autonegotiation more time.\n");
-			pr_info("Please check that your adapter has\n");
-			pr_info("been properly connected to a HUB or Switch.\n");
-			pr_info("Trying to establish link in the background...\n");
-		}
-		tlan_set_timer(dev, (8*HZ), TLAN_TIMER_PHY_FINISH_AN);
+		tlan_set_timer(dev, 2 * HZ, TLAN_TIMER_PHY_FINISH_AN);
 		return;
 	}
 
@@ -2687,13 +2720,11 @@ static void tlan_phy_finish_auto_neg(struct net_device *dev)
 	else if (!(mode & 0x0080) && (mode & 0x0040))
 		priv->tlan_full_duplex = true;
 
+	/* switch to internal PHY for 10 Mbps */
 	if ((!(mode & 0x0180)) &&
 	    (priv->adapter->flags & TLAN_ADAPTER_USE_INTERN_10) &&
 	    (priv->phy_num != 0)) {
 		priv->phy_num = 0;
-		data = TLAN_NET_CFG_1FRAG | TLAN_NET_CFG_1CHAN
-			| TLAN_NET_CFG_PHY_EN;
-		tlan_dio_write16(dev->base_addr, TLAN_NET_CONFIG, data);
 		tlan_set_timer(dev, (400*HZ/1000), TLAN_TIMER_PHY_PDOWN);
 		return;
 	}
@@ -2717,7 +2748,6 @@ static void tlan_phy_finish_auto_neg(struct net_device *dev)
 
 }
 
-#ifdef MONITOR
 
 /*********************************************************************
  *
@@ -2727,18 +2757,18 @@ static void tlan_phy_finish_auto_neg(struct net_device *dev)
  *	      None
  *
  *     Params:
- *	      dev	     The device structure of this device.
+ *	      data	     The device structure of this device.
  *
  *
  *     This function monitors PHY condition by reading the status
- *     register via the MII bus. This can be used to give info
- *     about link changes (up/down), and possible switch to alternate
- *     media.
+ *     register via the MII bus, controls LINK LED and notifies the
+ *     kernel about link state.
  *
  *******************************************************************/
 
-void tlan_phy_monitor(struct net_device *dev)
+static void tlan_phy_monitor(unsigned long data)
 {
+	struct net_device *dev = (struct net_device *) data;
 	struct tlan_priv *priv = netdev_priv(dev);
 	u16     phy;
 	u16     phy_status;
@@ -2750,29 +2780,39 @@ void tlan_phy_monitor(struct net_device *dev)
 
 	/* Check if link has been lost */
 	if (!(phy_status & MII_GS_LINK)) {
-		if (priv->link) {
-			priv->link = 0;
+		if (netif_carrier_ok(dev)) {
 			printk(KERN_DEBUG "TLAN: %s has lost link\n",
 			       dev->name);
+			tlan_dio_write8(dev->base_addr, TLAN_LED_REG, 0);
 			netif_carrier_off(dev);
-			tlan_set_timer(dev, (2*HZ), TLAN_TIMER_LINK_BEAT);
-			return;
+			if (priv->adapter->flags & TLAN_ADAPTER_USE_INTERN_10) {
+				/* power down internal PHY */
+				u16 data = MII_GC_PDOWN | MII_GC_LOOPBK |
+					   MII_GC_ISOLATE;
+
+				tlan_mii_sync(dev->base_addr);
+				tlan_mii_write_reg(dev, priv->phy[0],
+						   MII_GEN_CTL, data);
+				/* set to external PHY */
+				priv->phy_num = 1;
+				/* restart autonegotiation */
+				tlan_set_timer(dev, 4 * HZ / 10,
+					       TLAN_TIMER_PHY_PDOWN);
+				return;
+			}
 		}
 	}
 
 	/* Link restablished? */
-	if ((phy_status & MII_GS_LINK) && !priv->link) {
-		priv->link = 1;
+	if ((phy_status & MII_GS_LINK) && !netif_carrier_ok(dev)) {
+		tlan_dio_write8(dev->base_addr, TLAN_LED_REG, TLAN_LED_LINK);
 		printk(KERN_DEBUG "TLAN: %s has reestablished link\n",
 		       dev->name);
 		netif_carrier_on(dev);
 	}
-
-	/* Setup a new monitor */
-	tlan_set_timer(dev, (2*HZ), TLAN_TIMER_LINK_BEAT);
+	priv->media_timer.expires = jiffies + HZ;
+	add_timer(&priv->media_timer);
 }
-
-#endif /* MONITOR */
 
 
 /*****************************************************************************

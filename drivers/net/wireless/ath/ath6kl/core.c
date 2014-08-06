@@ -123,6 +123,22 @@ int ath6kl_core_init(struct ath6kl *ar, enum ath6kl_htc_type htc_type)
 
 	/* FIXME: we should free all firmwares in the error cases below */
 
+	/*
+	 * Backwards compatibility support for older ar6004 firmware images
+	 * which do not set these feature flags.
+	 */
+	if (ar->target_type == TARGET_TYPE_AR6004 &&
+	    ar->fw_api <= 4) {
+		__set_bit(ATH6KL_FW_CAPABILITY_64BIT_RATES,
+			  ar->fw_capabilities);
+		__set_bit(ATH6KL_FW_CAPABILITY_AP_INACTIVITY_MINS,
+			  ar->fw_capabilities);
+
+		if (ar->hw.id == AR6004_HW_1_3_VERSION)
+			__set_bit(ATH6KL_FW_CAPABILITY_MAP_LP_ENDPOINT,
+				  ar->fw_capabilities);
+	}
+
 	/* Indicate that WMI is enabled (although not ready yet) */
 	set_bit(WMI_ENABLED, &ar->flag);
 	ar->wmi = ath6kl_wmi_init(ar);

@@ -3250,7 +3250,6 @@ srom_map_media(struct net_device *dev)
 	printk("%s: Bad media code [%d] detected in SROM!\n", dev->name,
 	                                                  lp->infoblock_media);
 	return -1;
-	break;
     }
 
     return 0;

@@ -74,6 +74,7 @@
 #include <linux/ipsec.h>
 #include <asm/unaligned.h>
 #include <net/netdma.h>
+#include <linux/errqueue.h>
 
 int sysctl_tcp_timestamps __read_mostly = 1;
 int sysctl_tcp_window_scaling __read_mostly = 1;
@@ -1904,16 +1905,17 @@ void tcp_clear_retrans(struct tcp_sock *tp)
 	tp->sacked_out = 0;
 }
 
-/* Enter Loss state. If "how" is not zero, forget all SACK information
+/* Enter Loss state. If we detect SACK reneging, forget all SACK information
  * and reset tags completely, otherwise preserve SACKs. If receiver
  * dropped its ofo queue, we will know this due to reneging detection.
  */
-void tcp_enter_loss(struct sock *sk, int how)
+void tcp_enter_loss(struct sock *sk)
 {
 	const struct inet_connection_sock *icsk = inet_csk(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *skb;
 	bool new_recovery = false;
+	bool is_reneg;			/* is receiver reneging on SACKs? */
 
 	/* Reduce ssthresh if it has not yet been made inside this window. */
 	if (icsk->icsk_ca_state <= TCP_CA_Disorder ||
@@ -1934,7 +1936,11 @@ void tcp_enter_loss(struct sock *sk, int how)
 		tcp_reset_reno_sack(tp);
 
 	tp->undo_marker = tp->snd_una;
-	if (how) {
+
+	skb = tcp_write_queue_head(sk);
+	is_reneg = skb && (TCP_SKB_CB(skb)->sacked & TCPCB_SACKED_ACKED);
+	if (is_reneg) {
+		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPSACKRENEGING);
 		tp->sacked_out = 0;
 		tp->fackets_out = 0;
 	}
@@ -1948,7 +1954,7 @@ void tcp_enter_loss(struct sock *sk, int how)
 			tp->undo_marker = 0;
 
 		TCP_SKB_CB(skb)->sacked &= (~TCPCB_TAGBITS)|TCPCB_SACKED_ACKED;
-		if (!(TCP_SKB_CB(skb)->sacked&TCPCB_SACKED_ACKED) || how) {
+		if (!(TCP_SKB_CB(skb)->sacked&TCPCB_SACKED_ACKED) || is_reneg) {
 			TCP_SKB_CB(skb)->sacked &= ~TCPCB_SACKED_ACKED;
 			TCP_SKB_CB(skb)->sacked |= TCPCB_LOST;
 			tp->lost_out += tcp_skb_pcount(skb);
@@ -1981,19 +1987,21 @@ void tcp_enter_loss(struct sock *sk, int how)
  * remembered SACKs do not reflect real state of receiver i.e.
  * receiver _host_ is heavily congested (or buggy).
  *
- * Do processing similar to RTO timeout.
+ * To avoid big spurious retransmission bursts due to transient SACK
+ * scoreboard oddities that look like reneging, we give the receiver a
+ * little time (max(RTT/2, 10ms)) to send us some more ACKs that will
+ * restore sanity to the SACK scoreboard. If the apparent reneging
+ * persists until this RTO then we'll clear the SACK scoreboard.
  */
 static bool tcp_check_sack_reneging(struct sock *sk, int flag)
 {
 	if (flag & FLAG_SACK_RENEGING) {
-		struct inet_connection_sock *icsk = inet_csk(sk);
-		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPSACKRENEGING);
+		struct tcp_sock *tp = tcp_sk(sk);
+		unsigned long delay = max(usecs_to_jiffies(tp->srtt_us >> 4),
+					  msecs_to_jiffies(10));
 
-		tcp_enter_loss(sk, 1);
-		icsk->icsk_retransmits++;
-		tcp_retransmit_skb(sk, tcp_write_queue_head(sk));
 		inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS,
-					  icsk->icsk_rto, TCP_RTO_MAX);
+					  delay, TCP_RTO_MAX);
 		return true;
 	}
 	return false;
@@ -2475,7 +2483,7 @@ static bool tcp_try_undo_loss(struct sock *sk, bool frto_undo)
  *	losses and/or application stalls), do not perform any further cwnd
  *	reductions, but instead slow start up to ssthresh.
  */
-static void tcp_init_cwnd_reduction(struct sock *sk, const bool set_ssthresh)
+static void tcp_init_cwnd_reduction(struct sock *sk)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 
@@ -2485,8 +2493,7 @@ static void tcp_init_cwnd_reduction(struct sock *sk, const bool set_ssthresh)
 	tp->prior_cwnd = tp->snd_cwnd;
 	tp->prr_delivered = 0;
 	tp->prr_out = 0;
-	if (set_ssthresh)
-		tp->snd_ssthresh = inet_csk(sk)->icsk_ca_ops->ssthresh(sk);
+	tp->snd_ssthresh = inet_csk(sk)->icsk_ca_ops->ssthresh(sk);
 	TCP_ECN_queue_cwr(tp);
 }
 
@@ -2528,14 +2535,14 @@ static inline void tcp_end_cwnd_reduction(struct sock *sk)
 }
 
 /* Enter CWR state. Disable cwnd undo since congestion is proven with ECN */
-void tcp_enter_cwr(struct sock *sk, const int set_ssthresh)
+void tcp_enter_cwr(struct sock *sk)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 
 	tp->prior_ssthresh = 0;
 	if (inet_csk(sk)->icsk_ca_state < TCP_CA_CWR) {
 		tp->undo_marker = 0;
-		tcp_init_cwnd_reduction(sk, set_ssthresh);
+		tcp_init_cwnd_reduction(sk);
 		tcp_set_ca_state(sk, TCP_CA_CWR);
 	}
 }
@@ -2564,7 +2571,7 @@ static void tcp_try_to_open(struct sock *sk, int flag, const int prior_unsacked)
 		tp->retrans_stamp = 0;
 
 	if (flag & FLAG_ECE)
-		tcp_enter_cwr(sk, 1);
+		tcp_enter_cwr(sk);
 
 	if (inet_csk(sk)->icsk_ca_state != TCP_CA_CWR) {
 		tcp_try_keep_open(sk);
@@ -2670,7 +2677,7 @@ static void tcp_enter_recovery(struct sock *sk, bool ece_ack)
 	if (inet_csk(sk)->icsk_ca_state < TCP_CA_CWR) {
 		if (!ece_ack)
 			tp->prior_ssthresh = tcp_current_ssthresh(sk);
-		tcp_init_cwnd_reduction(sk, true);
+		tcp_init_cwnd_reduction(sk);
 	}
 	tcp_set_ca_state(sk, TCP_CA_Recovery);
 }
@@ -3100,6 +3107,11 @@ static int tcp_clean_rtx_queue(struct sock *sk, int prior_fackets,
 			tp->retrans_stamp = 0;
 		}
 
+		if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_ACK_TSTAMP) &&
+		    between(skb_shinfo(skb)->tskey, prior_snd_una,
+			    tp->snd_una + 1))
+			__skb_tstamp_tx(skb, NULL, sk, SCM_TSTAMP_ACK);
+
 		if (!fully_acked)
 			break;
 
@@ -3346,7 +3358,7 @@ static void tcp_process_tlp_ack(struct sock *sk, u32 ack, int flag)
 		tp->tlp_high_seq = 0;
 		/* Don't reduce cwnd if DSACK arrives for TLP retrans. */
 		if (!(flag & FLAG_DSACKING_ACK)) {
-			tcp_init_cwnd_reduction(sk, true);
+			tcp_init_cwnd_reduction(sk);
 			tcp_set_ca_state(sk, TCP_CA_CWR);
 			tcp_end_cwnd_reduction(sk);
 			tcp_try_keep_open(sk);
@@ -5877,3 +5889,153 @@ discard:
 	return 0;
 }
 EXPORT_SYMBOL(tcp_rcv_state_process);
+
+static inline void pr_drop_req(struct request_sock *req, __u16 port, int family)
+{
+	struct inet_request_sock *ireq = inet_rsk(req);
+
+	if (family == AF_INET)
+		LIMIT_NETDEBUG(KERN_DEBUG pr_fmt("drop open request from %pI4/%u\n"),
+			       &ireq->ir_rmt_addr, port);
+#if IS_ENABLED(CONFIG_IPV6)
+	else if (family == AF_INET6)
+		LIMIT_NETDEBUG(KERN_DEBUG pr_fmt("drop open request from %pI6/%u\n"),
+			       &ireq->ir_v6_rmt_addr, port);
+#endif
+}
+
+int tcp_conn_request(struct request_sock_ops *rsk_ops,
+		     const struct tcp_request_sock_ops *af_ops,
+		     struct sock *sk, struct sk_buff *skb)
+{
+	struct tcp_options_received tmp_opt;
+	struct request_sock *req;
+	struct tcp_sock *tp = tcp_sk(sk);
+	struct dst_entry *dst = NULL;
+	__u32 isn = TCP_SKB_CB(skb)->when;
+	bool want_cookie = false, fastopen;
+	struct flowi fl;
+	struct tcp_fastopen_cookie foc = { .len = -1 };
+	int err;
+
+
+	/* TW buckets are converted to open requests without
+	 * limitations, they conserve resources and peer is
+	 * evidently real one.
+	 */
+	if ((sysctl_tcp_syncookies == 2 ||
+	     inet_csk_reqsk_queue_is_full(sk)) && !isn) {
+		want_cookie = tcp_syn_flood_action(sk, skb, rsk_ops->slab_name);
+		if (!want_cookie)
+			goto drop;
+	}
+
+
+	/* Accept backlog is full. If we have already queued enough
+	 * of warm entries in syn queue, drop request. It is better than
+	 * clogging syn queue with openreqs with exponentially increasing
+	 * timeout.
+	 */
+	if (sk_acceptq_is_full(sk) && inet_csk_reqsk_queue_young(sk) > 1) {
+		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_LISTENOVERFLOWS);
+		goto drop;
+	}
+
+	req = inet_reqsk_alloc(rsk_ops);
+	if (!req)
+		goto drop;
+
+	tcp_rsk(req)->af_specific = af_ops;
+
+	tcp_clear_options(&tmp_opt);
+	tmp_opt.mss_clamp = af_ops->mss_clamp;
+	tmp_opt.user_mss  = tp->rx_opt.user_mss;
+	tcp_parse_options(skb, &tmp_opt, 0, want_cookie ? NULL : &foc);
+
+	if (want_cookie && !tmp_opt.saw_tstamp)
+		tcp_clear_options(&tmp_opt);
+
+	tmp_opt.tstamp_ok = tmp_opt.saw_tstamp;
+	tcp_openreq_init(req, &tmp_opt, skb, sk);
+
+	af_ops->init_req(req, sk, skb);
+
+	if (security_inet_conn_request(sk, skb, req))
+		goto drop_and_free;
+
+	if (!want_cookie || tmp_opt.tstamp_ok)
+		TCP_ECN_create_request(req, skb, sock_net(sk));
+
+	if (want_cookie) {
+		isn = cookie_init_sequence(af_ops, sk, skb, &req->mss);
+		req->cookie_ts = tmp_opt.tstamp_ok;
+	} else if (!isn) {
+		/* VJ's idea. We save last timestamp seen
+		 * from the destination in peer table, when entering
+		 * state TIME-WAIT, and check against it before
+		 * accepting new connection request.
+		 *
+		 * If "isn" is not zero, this request hit alive
+		 * timewait bucket, so that all the necessary checks
+		 * are made in the function processing timewait state.
+		 */
+		if (tmp_opt.saw_tstamp && tcp_death_row.sysctl_tw_recycle) {
+			bool strict;
+
+			dst = af_ops->route_req(sk, &fl, req, &strict);
+			if (dst && strict &&
+			    !tcp_peer_is_proven(req, dst, true)) {
+				NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_PAWSPASSIVEREJECTED);
+				goto drop_and_release;
+			}
+		}
+		/* Kill the following clause, if you dislike this way. */
+		else if (!sysctl_tcp_syncookies &&
+			 (sysctl_max_syn_backlog - inet_csk_reqsk_queue_len(sk) <
+			  (sysctl_max_syn_backlog >> 2)) &&
+			 !tcp_peer_is_proven(req, dst, false)) {
+			/* Without syncookies last quarter of
+			 * backlog is filled with destinations,
+			 * proven to be alive.
+			 * It means that we continue to communicate
+			 * to destinations, already remembered
+			 * to the moment of synflood.
+			 */
+			pr_drop_req(req, ntohs(tcp_hdr(skb)->source),
+				    rsk_ops->family);
+			goto drop_and_release;
+		}
+
+		isn = af_ops->init_seq(skb);
+	}
+	if (!dst) {
+		dst = af_ops->route_req(sk, &fl, req, NULL);
+		if (!dst)
+			goto drop_and_free;
+	}
+
+	tcp_rsk(req)->snt_isn = isn;
+	tcp_openreq_init_rwin(req, sk, dst);
+	fastopen = !want_cookie &&
+		   tcp_try_fastopen(sk, skb, req, &foc, dst);
+	err = af_ops->send_synack(sk, dst, &fl, req,
+				  skb_get_queue_mapping(skb), &foc);
+	if (!fastopen) {
+		if (err || want_cookie)
+			goto drop_and_free;
+
+		tcp_rsk(req)->listener = NULL;
+		af_ops->queue_hash_add(sk, req, TCP_TIMEOUT_INIT);
+	}
+
+	return 0;
+
+drop_and_release:
+	dst_release(dst);
+drop_and_free:
+	reqsk_free(req);
+drop:
+	NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_LISTENDROPS);
+	return 0;
+}
+EXPORT_SYMBOL(tcp_conn_request);

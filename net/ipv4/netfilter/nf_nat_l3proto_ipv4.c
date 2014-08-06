@@ -154,6 +154,7 @@ static void nf_nat_ipv4_csum_recalc(struct sk_buff *skb,
 					 htons(oldlen), htons(datalen), 1);
 }
 
+#if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 static int nf_nat_ipv4_nlattr_to_range(struct nlattr *tb[],
 				       struct nf_nat_range *range)
 {
@@ -169,6 +170,7 @@ static int nf_nat_ipv4_nlattr_to_range(struct nlattr *tb[],
 
 	return 0;
 }
+#endif
 
 static const struct nf_nat_l3proto nf_nat_l3proto_ipv4 = {
 	.l3proto		= NFPROTO_IPV4,
@@ -177,7 +179,9 @@ static const struct nf_nat_l3proto nf_nat_l3proto_ipv4 = {
 	.manip_pkt		= nf_nat_ipv4_manip_pkt,
 	.csum_update		= nf_nat_ipv4_csum_update,
 	.csum_recalc		= nf_nat_ipv4_csum_recalc,
+#if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 	.nlattr_to_range	= nf_nat_ipv4_nlattr_to_range,
+#endif
 #ifdef CONFIG_XFRM
 	.decode_session		= nf_nat_ipv4_decode_session,
 #endif

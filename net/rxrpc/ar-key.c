@@ -350,7 +350,7 @@ static int rxrpc_krb5_decode_tagged_array(struct krb5_tagged_data **_td,
 
 	n_elem = ntohl(*xdr++);
 	toklen -= 4;
-	if (n_elem < 0 || n_elem > max_n_elem)
+	if (n_elem > max_n_elem)
 		return -EINVAL;
 	*_n_elem = n_elem;
 	if (n_elem > 0) {

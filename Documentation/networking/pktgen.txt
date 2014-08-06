@@ -24,6 +24,34 @@ For monitoring and control pktgen creates:
         /proc/net/pktgen/ethX
 
 
+Tuning NIC for max performance
+==============================
+
+The default NIC setting are (likely) not tuned for pktgen's artificial
+overload type of benchmarking, as this could hurt the normal use-case.
+
+Specifically increasing the TX ring buffer in the NIC:
+ # ethtool -G ethX tx 1024
+
+A larger TX ring can improve pktgen's performance, while it can hurt
+in the general case, 1) because the TX ring buffer might get larger
+than the CPUs L1/L2 cache, 2) because it allow more queueing in the
+NIC HW layer (which is bad for bufferbloat).
+
+One should be careful to conclude, that packets/descriptors in the HW
+TX ring cause delay.  Drivers usually delay cleaning up the
+ring-buffers (for various performance reasons), thus packets stalling
+the TX ring, might just be waiting for cleanup.
+
+This cleanup issues is specifically the case, for the driver ixgbe
+(Intel 82599 chip).  This driver (ixgbe) combine TX+RX ring cleanups,
+and the cleanup interval is affected by the ethtool --coalesce setting
+of parameter "rx-usecs".
+
+For ixgbe use e.g "30" resulting in approx 33K interrupts/sec (1/30*10^6):
+ # ethtool -C ethX rx-usecs 30
+
+
 Viewing threads
 ===============
 /proc/net/pktgen/kpktgend_0 

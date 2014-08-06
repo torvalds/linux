@@ -183,11 +183,19 @@ static u32 mcdi_to_ethtool_cap(u32 media, u32 cap)
 			result |= SUPPORTED_1000baseKX_Full;
 		if (cap & (1 << MC_CMD_PHY_CAP_10000FDX_LBN))
 			result |= SUPPORTED_10000baseKX4_Full;
+		if (cap & (1 << MC_CMD_PHY_CAP_40000FDX_LBN))
+			result |= SUPPORTED_40000baseKR4_Full;
 		break;
 
 	case MC_CMD_MEDIA_XFP:
 	case MC_CMD_MEDIA_SFP_PLUS:
 		result |= SUPPORTED_FIBRE;
+		break;
+
+	case MC_CMD_MEDIA_QSFP_PLUS:
+		result |= SUPPORTED_FIBRE;
+		if (cap & (1 << MC_CMD_PHY_CAP_40000FDX_LBN))
+			result |= SUPPORTED_40000baseCR4_Full;
 		break;
 
 	case MC_CMD_MEDIA_BASE_T:
@@ -237,6 +245,8 @@ static u32 ethtool_to_mcdi_cap(u32 cap)
 		result |= (1 << MC_CMD_PHY_CAP_1000FDX_LBN);
 	if (cap & (SUPPORTED_10000baseT_Full | SUPPORTED_10000baseKX4_Full))
 		result |= (1 << MC_CMD_PHY_CAP_10000FDX_LBN);
+	if (cap & (SUPPORTED_40000baseCR4_Full | SUPPORTED_40000baseKR4_Full))
+		result |= (1 << MC_CMD_PHY_CAP_40000FDX_LBN);
 	if (cap & SUPPORTED_Pause)
 		result |= (1 << MC_CMD_PHY_CAP_PAUSE_LBN);
 	if (cap & SUPPORTED_Asym_Pause)
@@ -285,6 +295,7 @@ static u32 mcdi_to_ethtool_media(u32 media)
 
 	case MC_CMD_MEDIA_XFP:
 	case MC_CMD_MEDIA_SFP_PLUS:
+	case MC_CMD_MEDIA_QSFP_PLUS:
 		return PORT_FIBRE;
 
 	case MC_CMD_MEDIA_BASE_T:

@@ -1,7 +1,7 @@
 /*
  * This file is part of the Chelsio T4 Ethernet driver for Linux.
  *
- * Copyright (c) 2003-2010 Chelsio Communications, Inc. All rights reserved.
+ * Copyright (c) 2003-2014 Chelsio Communications, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -75,6 +75,7 @@ enum {
 	CPL_RX_DATA_DDP       = 0x42,
 	CPL_PASS_ACCEPT_REQ   = 0x44,
 	CPL_TRACE_PKT_T5      = 0x48,
+	CPL_RX_ISCSI_DDP      = 0x49,
 
 	CPL_RDMA_READ_REQ     = 0x60,
 
@@ -86,6 +87,7 @@ enum {
 	CPL_SGE_EGR_UPDATE    = 0xA5,
 
 	CPL_TRACE_PKT         = 0xB0,
+	CPL_ISCSI_DATA	      = 0xB2,
 
 	CPL_FW4_MSG           = 0xC0,
 	CPL_FW4_PLD           = 0xC1,
@@ -270,12 +272,15 @@ struct cpl_pass_accept_rpl {
 #define RX_COALESCE_VALID(x) ((x) << 11)
 #define RX_COALESCE(x)       ((x) << 12)
 #define PACE(x)	      ((x) << 16)
+#define RX_FC_VALID	     ((1U) << 19)
+#define RX_FC_DISABLE	     ((1U) << 20)
 #define TX_QUEUE(x)          ((x) << 23)
 #define RX_CHANNEL(x)        ((x) << 26)
 #define CCTRL_ECN(x)         ((x) << 27)
 #define WND_SCALE_EN(x)      ((x) << 28)
 #define TSTAMPS_EN(x)        ((x) << 29)
 #define SACK_EN(x)           ((x) << 30)
+#define T5_OPT_2_VALID	     ((1U) << 31)
 	__be64 opt0;
 };
 

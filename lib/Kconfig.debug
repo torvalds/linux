@@ -1536,6 +1536,14 @@ config TEST_STRING_HELPERS
 config TEST_KSTRTOX
 	tristate "Test kstrto*() family of functions at runtime"
 
+config TEST_RHASHTABLE
+	bool "Perform selftest on resizable hash table"
+	default n
+	help
+	  Enable this option to test the rhashtable functions at boot.
+
+	  If unsure, say N.
+
 endmenu # runtime tests
 
 config PROVIDE_OHCI1394_DMA_INIT

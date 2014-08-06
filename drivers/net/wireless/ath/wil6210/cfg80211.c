@@ -104,8 +104,8 @@ int wil_iftype_nl2wmi(enum nl80211_iftype type)
 	return -EOPNOTSUPP;
 }
 
-static int wil_cid_fill_sinfo(struct wil6210_priv *wil, int cid,
-			      struct station_info *sinfo)
+int wil_cid_fill_sinfo(struct wil6210_priv *wil, int cid,
+		       struct station_info *sinfo)
 {
 	struct wmi_notify_req_cmd cmd = {
 		.cid = cid,
@@ -287,6 +287,7 @@ static int wil_cfg80211_scan(struct wiphy *wiphy,
 		return -EBUSY;
 	}
 
+	wil_dbg_misc(wil, "Start scan_request 0x%p\n", request);
 	wil->scan_request = request;
 	mod_timer(&wil->scan_timer, jiffies + WIL6210_SCAN_TO);
 
@@ -443,15 +444,15 @@ static int wil_cfg80211_disconnect(struct wiphy *wiphy,
 	return rc;
 }
 
-static int wil_cfg80211_mgmt_tx(struct wiphy *wiphy,
-				struct wireless_dev *wdev,
-				struct cfg80211_mgmt_tx_params *params,
-				u64 *cookie)
+int wil_cfg80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
+			 struct cfg80211_mgmt_tx_params *params,
+			 u64 *cookie)
 {
 	const u8 *buf = params->buf;
 	size_t len = params->len;
 	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
 	int rc;
+	bool tx_status = false;
 	struct ieee80211_mgmt *mgmt_frame = (void *)buf;
 	struct wmi_sw_tx_req_cmd *cmd;
 	struct {
@@ -460,8 +461,10 @@ static int wil_cfg80211_mgmt_tx(struct wiphy *wiphy,
 	} __packed evt;
 
 	cmd = kmalloc(sizeof(*cmd) + len, GFP_KERNEL);
-	if (!cmd)
-		return -ENOMEM;
+	if (!cmd) {
+		rc = -ENOMEM;
+		goto out;
+	}
 
 	memcpy(cmd->dst_mac, mgmt_frame->da, WMI_MAC_LEN);
 	cmd->len = cpu_to_le16(len);
@@ -470,10 +473,12 @@ static int wil_cfg80211_mgmt_tx(struct wiphy *wiphy,
 	rc = wmi_call(wil, WMI_SW_TX_REQ_CMDID, cmd, sizeof(*cmd) + len,
 		      WMI_SW_TX_COMPLETE_EVENTID, &evt, sizeof(evt), 2000);
 	if (rc == 0)
-		rc = evt.evt.status;
+		tx_status = !evt.evt.status;
 
 	kfree(cmd);
-
+ out:
+	cfg80211_mgmt_tx_status(wdev, cookie ? *cookie : 0, buf, len,
+				tx_status, GFP_KERNEL);
 	return rc;
 }
 
@@ -562,6 +567,34 @@ static int wil_cancel_remain_on_channel(struct wiphy *wiphy,
 	return rc;
 }
 
+static void wil_print_bcon_data(struct cfg80211_beacon_data *b)
+{
+	print_hex_dump_bytes("head     ", DUMP_PREFIX_OFFSET,
+			     b->head, b->head_len);
+	print_hex_dump_bytes("tail     ", DUMP_PREFIX_OFFSET,
+			     b->tail, b->tail_len);
+	print_hex_dump_bytes("BCON IE  ", DUMP_PREFIX_OFFSET,
+			     b->beacon_ies, b->beacon_ies_len);
+	print_hex_dump_bytes("PROBE    ", DUMP_PREFIX_OFFSET,
+			     b->probe_resp, b->probe_resp_len);
+	print_hex_dump_bytes("PROBE IE ", DUMP_PREFIX_OFFSET,
+			     b->proberesp_ies, b->proberesp_ies_len);
+	print_hex_dump_bytes("ASSOC IE ", DUMP_PREFIX_OFFSET,
+			     b->assocresp_ies, b->assocresp_ies_len);
+}
+
+static void wil_print_crypto(struct wil6210_priv *wil,
+			     struct cfg80211_crypto_settings *c)
+{
+	wil_dbg_misc(wil, "WPA versions: 0x%08x cipher group 0x%08x\n",
+		     c->wpa_versions, c->cipher_group);
+	wil_dbg_misc(wil, "Pairwise ciphers [%d]\n", c->n_ciphers_pairwise);
+	wil_dbg_misc(wil, "AKM suites [%d]\n", c->n_akm_suites);
+	wil_dbg_misc(wil, "Control port : %d, eth_type 0x%04x no_encrypt %d\n",
+		     c->control_port, be16_to_cpu(c->control_port_ethertype),
+		     c->control_port_no_encrypt);
+}
+
 static int wil_fix_bcon(struct wil6210_priv *wil,
 			struct cfg80211_beacon_data *bcon)
 {
@@ -595,7 +628,10 @@ static int wil_cfg80211_start_ap(struct wiphy *wiphy,
 	struct wireless_dev *wdev = ndev->ieee80211_ptr;
 	struct ieee80211_channel *channel = info->chandef.chan;
 	struct cfg80211_beacon_data *bcon = &info->beacon;
+	struct cfg80211_crypto_settings *crypto = &info->crypto;
 	u8 wmi_nettype = wil_iftype_nl2wmi(wdev->iftype);
+
+	wil_dbg_misc(wil, "%s()\n", __func__);
 
 	if (!channel) {
 		wil_err(wil, "AP: No channel???\n");
@@ -604,11 +640,19 @@ static int wil_cfg80211_start_ap(struct wiphy *wiphy,
 
 	wil_dbg_misc(wil, "AP on Channel %d %d MHz, %s\n", channel->hw_value,
 		     channel->center_freq, info->privacy ? "secure" : "open");
+	wil_dbg_misc(wil, "Privacy: %d auth_type %d\n",
+		     info->privacy, info->auth_type);
+	wil_dbg_misc(wil, "BI %d DTIM %d\n", info->beacon_interval,
+		     info->dtim_period);
 	print_hex_dump_bytes("SSID ", DUMP_PREFIX_OFFSET,
 			     info->ssid, info->ssid_len);
+	wil_print_bcon_data(bcon);
+	wil_print_crypto(wil, crypto);
 
-	if (wil_fix_bcon(wil, bcon))
+	if (wil_fix_bcon(wil, bcon)) {
 		wil_dbg_misc(wil, "Fixed bcon\n");
+		wil_print_bcon_data(bcon);
+	}
 
 	mutex_lock(&wil->mutex);
 
@@ -662,6 +706,8 @@ static int wil_cfg80211_stop_ap(struct wiphy *wiphy,
 {
 	int rc = 0;
 	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
+
+	wil_dbg_misc(wil, "%s()\n", __func__);
 
 	mutex_lock(&wil->mutex);
 

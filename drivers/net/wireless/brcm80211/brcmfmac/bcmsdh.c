@@ -25,7 +25,6 @@
 #include <linux/mmc/sdio.h>
 #include <linux/mmc/core.h>
 #include <linux/mmc/sdio_func.h>
-#include <linux/mmc/sdio_ids.h>
 #include <linux/mmc/card.h>
 #include <linux/mmc/host.h>
 #include <linux/platform_device.h>
@@ -39,10 +38,13 @@
 #include <brcm_hw_ids.h>
 #include <brcmu_utils.h>
 #include <brcmu_wifi.h>
+#include <chipcommon.h>
 #include <soc.h>
+#include "chip.h"
 #include "dhd_bus.h"
 #include "dhd_dbg.h"
 #include "sdio_host.h"
+#include "of.h"
 
 #define SDIOH_API_ACCESS_RETRY_LIMIT	2
 
@@ -118,6 +120,7 @@ int brcmf_sdiod_intr_register(struct brcmf_sdio_dev *sdiodev)
 {
 	int ret = 0;
 	u8 data;
+	u32 addr, gpiocontrol;
 	unsigned long flags;
 
 	if ((sdiodev->pdata) && (sdiodev->pdata->oob_irq_supported)) {
@@ -146,6 +149,19 @@ int brcmf_sdiod_intr_register(struct brcmf_sdio_dev *sdiodev)
 		sdiodev->irq_wake = true;
 
 		sdio_claim_host(sdiodev->func[1]);
+
+		if (sdiodev->bus_if->chip == BRCM_CC_43362_CHIP_ID) {
+			/* assign GPIO to SDIO core */
+			addr = CORE_CC_REG(SI_ENUM_BASE, gpiocontrol);
+			gpiocontrol = brcmf_sdiod_regrl(sdiodev, addr, &ret);
+			gpiocontrol |= 0x2;
+			brcmf_sdiod_regwl(sdiodev, addr, gpiocontrol, &ret);
+
+			brcmf_sdiod_regwb(sdiodev, SBSDIO_GPIO_SELECT, 0xf,
+					  &ret);
+			brcmf_sdiod_regwb(sdiodev, SBSDIO_GPIO_OUT, 0, &ret);
+			brcmf_sdiod_regwb(sdiodev, SBSDIO_GPIO_EN, 0x2, &ret);
+		}
 
 		/* must configure SDIO_CCCR_IENx to enable irq */
 		data = brcmf_sdiod_regrb(sdiodev, SDIO_CCCR_IENx, &ret);
@@ -979,18 +995,20 @@ out:
 	return ret;
 }
 
+#define BRCMF_SDIO_DEVICE(dev_id)	\
+	{SDIO_DEVICE(BRCM_SDIO_VENDOR_ID_BROADCOM, dev_id)}
+
 /* devices we support, null terminated */
 static const struct sdio_device_id brcmf_sdmmc_ids[] = {
-	{SDIO_DEVICE(SDIO_VENDOR_ID_BROADCOM, SDIO_DEVICE_ID_BROADCOM_43143)},
-	{SDIO_DEVICE(SDIO_VENDOR_ID_BROADCOM, SDIO_DEVICE_ID_BROADCOM_43241)},
-	{SDIO_DEVICE(SDIO_VENDOR_ID_BROADCOM, SDIO_DEVICE_ID_BROADCOM_4329)},
-	{SDIO_DEVICE(SDIO_VENDOR_ID_BROADCOM, SDIO_DEVICE_ID_BROADCOM_4330)},
-	{SDIO_DEVICE(SDIO_VENDOR_ID_BROADCOM, SDIO_DEVICE_ID_BROADCOM_4334)},
-	{SDIO_DEVICE(SDIO_VENDOR_ID_BROADCOM, SDIO_DEVICE_ID_BROADCOM_43362)},
-	{SDIO_DEVICE(SDIO_VENDOR_ID_BROADCOM,
-		     SDIO_DEVICE_ID_BROADCOM_4335_4339)},
-	{SDIO_DEVICE(SDIO_VENDOR_ID_BROADCOM, SDIO_DEVICE_ID_BROADCOM_4354)},
-	{ /* end: all zeroes */ },
+	BRCMF_SDIO_DEVICE(BRCM_SDIO_43143_DEVICE_ID),
+	BRCMF_SDIO_DEVICE(BRCM_SDIO_43241_DEVICE_ID),
+	BRCMF_SDIO_DEVICE(BRCM_SDIO_4329_DEVICE_ID),
+	BRCMF_SDIO_DEVICE(BRCM_SDIO_4330_DEVICE_ID),
+	BRCMF_SDIO_DEVICE(BRCM_SDIO_4334_DEVICE_ID),
+	BRCMF_SDIO_DEVICE(BRCM_SDIO_43362_DEVICE_ID),
+	BRCMF_SDIO_DEVICE(BRCM_SDIO_4335_4339_DEVICE_ID),
+	BRCMF_SDIO_DEVICE(BRCM_SDIO_4354_DEVICE_ID),
+	{ /* end: all zeroes */ }
 };
 MODULE_DEVICE_TABLE(sdio, brcmf_sdmmc_ids);
 
@@ -1042,6 +1060,9 @@ static int brcmf_ops_sdio_probe(struct sdio_func *func,
 	dev_set_drvdata(&sdiodev->func[1]->dev, bus_if);
 	sdiodev->dev = &sdiodev->func[1]->dev;
 	sdiodev->pdata = brcmfmac_sdio_pdata;
+
+	if (!sdiodev->pdata)
+		brcmf_of_probe(sdiodev);
 
 	atomic_set(&sdiodev->suspend, false);
 	init_waitqueue_head(&sdiodev->request_word_wait);

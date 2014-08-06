@@ -35,6 +35,55 @@
 
 #include "iw_cxgb4.h"
 
+static void print_tpte(struct c4iw_dev *dev, u32 stag)
+{
+	int ret;
+	struct fw_ri_tpte tpte;
+
+	ret = cxgb4_read_tpte(dev->rdev.lldi.ports[0], stag,
+			      (__be32 *)&tpte);
+	if (ret) {
+		dev_err(&dev->rdev.lldi.pdev->dev,
+			"%s cxgb4_read_tpte err %d\n", __func__, ret);
+		return;
+	}
+	PDBG("stag idx 0x%x valid %d key 0x%x state %d pdid %d "
+	       "perm 0x%x ps %d len 0x%llx va 0x%llx\n",
+	       stag & 0xffffff00,
+	       G_FW_RI_TPTE_VALID(ntohl(tpte.valid_to_pdid)),
+	       G_FW_RI_TPTE_STAGKEY(ntohl(tpte.valid_to_pdid)),
+	       G_FW_RI_TPTE_STAGSTATE(ntohl(tpte.valid_to_pdid)),
+	       G_FW_RI_TPTE_PDID(ntohl(tpte.valid_to_pdid)),
+	       G_FW_RI_TPTE_PERM(ntohl(tpte.locread_to_qpid)),
+	       G_FW_RI_TPTE_PS(ntohl(tpte.locread_to_qpid)),
+	       ((u64)ntohl(tpte.len_hi) << 32) | ntohl(tpte.len_lo),
+	       ((u64)ntohl(tpte.va_hi) << 32) | ntohl(tpte.va_lo_fbo));
+}
+
+static void dump_err_cqe(struct c4iw_dev *dev, struct t4_cqe *err_cqe)
+{
+	__be64 *p = (void *)err_cqe;
+
+	dev_err(&dev->rdev.lldi.pdev->dev,
+		"AE qpid %d opcode %d status 0x%x "
+		"type %d len 0x%x wrid.hi 0x%x wrid.lo 0x%x\n",
+		CQE_QPID(err_cqe), CQE_OPCODE(err_cqe),
+		CQE_STATUS(err_cqe), CQE_TYPE(err_cqe), ntohl(err_cqe->len),
+		CQE_WRID_HI(err_cqe), CQE_WRID_LOW(err_cqe));
+
+	PDBG("%016llx %016llx %016llx %016llx\n",
+	     be64_to_cpu(p[0]), be64_to_cpu(p[1]), be64_to_cpu(p[2]),
+	     be64_to_cpu(p[3]));
+
+	/*
+	 * Ingress WRITE and READ_RESP errors provide
+	 * the offending stag, so parse and log it.
+	 */
+	if (RQ_TYPE(err_cqe) && (CQE_OPCODE(err_cqe) == FW_RI_RDMA_WRITE ||
+				 CQE_OPCODE(err_cqe) == FW_RI_READ_RESP))
+		print_tpte(dev, CQE_WRID_STAG(err_cqe));
+}
+
 static void post_qp_event(struct c4iw_dev *dev, struct c4iw_cq *chp,
 			  struct c4iw_qp *qhp,
 			  struct t4_cqe *err_cqe,
@@ -44,11 +93,7 @@ static void post_qp_event(struct c4iw_dev *dev, struct c4iw_cq *chp,
 	struct c4iw_qp_attributes attrs;
 	unsigned long flag;
 
-	printk(KERN_ERR MOD "AE qpid 0x%x opcode %d status 0x%x "
-	       "type %d wrid.hi 0x%x wrid.lo 0x%x\n",
-	       CQE_QPID(err_cqe), CQE_OPCODE(err_cqe),
-	       CQE_STATUS(err_cqe), CQE_TYPE(err_cqe),
-	       CQE_WRID_HI(err_cqe), CQE_WRID_LOW(err_cqe));
+	dump_err_cqe(dev, err_cqe);
 
 	if (qhp->attr.state == C4IW_QP_STATE_RTS) {
 		attrs.next_state = C4IW_QP_STATE_TERMINATE;

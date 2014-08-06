@@ -1572,8 +1572,9 @@ il_scan_initiate(struct il_priv *il, struct ieee80211_vif *vif)
 
 int
 il_mac_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-	       struct cfg80211_scan_request *req)
+	       struct ieee80211_scan_request *hw_req)
 {
+	struct cfg80211_scan_request *req = &hw_req->req;
 	struct il_priv *il = hw->priv;
 	int ret;
 
@@ -2979,7 +2980,8 @@ il_tx_queue_alloc(struct il_priv *il, struct il_tx_queue *txq, u32 id)
 	/* Driver ilate data, only for Tx (not command) queues,
 	 * not shared with device. */
 	if (id != il->cmd_queue) {
-		txq->skbs = kcalloc(TFD_QUEUE_SIZE_MAX, sizeof(struct skb *),
+		txq->skbs = kcalloc(TFD_QUEUE_SIZE_MAX,
+				    sizeof(struct sk_buff *),
 				    GFP_KERNEL);
 		if (!txq->skbs) {
 			IL_ERR("Fail to alloc skbs\n");

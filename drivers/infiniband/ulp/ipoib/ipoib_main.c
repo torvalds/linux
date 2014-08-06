@@ -1394,8 +1394,8 @@ struct ipoib_dev_priv *ipoib_intf_alloc(const char *name)
 {
 	struct net_device *dev;
 
-	dev = alloc_netdev((int) sizeof (struct ipoib_dev_priv), name,
-			   ipoib_setup);
+	dev = alloc_netdev((int)sizeof(struct ipoib_dev_priv), name,
+			   NET_NAME_UNKNOWN, ipoib_setup);
 	if (!dev)
 		return NULL;
 

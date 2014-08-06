@@ -2876,24 +2876,24 @@ static void cxgb4vf_pci_shutdown(struct pci_dev *pdev)
 	if (!adapter)
 		return;
 
-	/*
-	 * Disable all Virtual Interfaces.  This will shut down the
+	/* Disable all Virtual Interfaces.  This will shut down the
 	 * delivery of all ingress packets into the chip for these
 	 * Virtual Interfaces.
 	 */
-	for_each_port(adapter, pidx) {
-		struct net_device *netdev;
-		struct port_info *pi;
+	for_each_port(adapter, pidx)
+		if (test_bit(pidx, &adapter->registered_device_map))
+			unregister_netdev(adapter->port[pidx]);
 
-		if (!test_bit(pidx, &adapter->registered_device_map))
-			continue;
-
-		netdev = adapter->port[pidx];
-		if (!netdev)
-			continue;
-
-		pi = netdev_priv(netdev);
-		t4vf_enable_vi(adapter, pi->viid, false, false);
+	/* Free up all Queues which will prevent further DMA and
+	 * Interrupts allowing various internal pathways to drain.
+	 */
+	t4vf_sge_stop(adapter);
+	if (adapter->flags & USING_MSIX) {
+		pci_disable_msix(adapter->pdev);
+		adapter->flags &= ~USING_MSIX;
+	} else if (adapter->flags & USING_MSI) {
+		pci_disable_msi(adapter->pdev);
+		adapter->flags &= ~USING_MSI;
 	}
 
 	/*
@@ -2901,6 +2901,7 @@ static void cxgb4vf_pci_shutdown(struct pci_dev *pdev)
 	 * Interrupts allowing various internal pathways to drain.
 	 */
 	t4vf_free_sge_resources(adapter);
+	pci_set_drvdata(pdev, NULL);
 }
 
 /*
@@ -2924,6 +2925,15 @@ static DEFINE_PCI_DEVICE_TABLE(cxgb4vf_pci_tbl) = {
 	CH_DEVICE(0x480a, 0),   /* T404-bt */
 	CH_DEVICE(0x480d, 0),   /* T480-cr */
 	CH_DEVICE(0x480e, 0),   /* T440-lp-cr */
+	CH_DEVICE(0x4880, 0),
+	CH_DEVICE(0x4880, 1),
+	CH_DEVICE(0x4880, 2),
+	CH_DEVICE(0x4880, 3),
+	CH_DEVICE(0x4880, 4),
+	CH_DEVICE(0x4880, 5),
+	CH_DEVICE(0x4880, 6),
+	CH_DEVICE(0x4880, 7),
+	CH_DEVICE(0x4880, 8),
 	CH_DEVICE(0x5800, 0),	/* T580-dbg */
 	CH_DEVICE(0x5801, 0),	/* T520-cr */
 	CH_DEVICE(0x5802, 0),	/* T522-cr */

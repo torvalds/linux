@@ -40,6 +40,7 @@ struct ip_tunnel_prl_entry {
 
 struct ip_tunnel_dst {
 	struct dst_entry __rcu 		*dst;
+	__be32				 saddr;
 };
 
 struct ip_tunnel {

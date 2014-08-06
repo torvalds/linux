@@ -910,7 +910,6 @@ static s32 atl1_get_speed_and_duplex(struct atl1_hw *hw, u16 *speed, u16 *duplex
 		if (netif_msg_hw(adapter))
 			dev_dbg(&pdev->dev, "error getting speed\n");
 		return ATLX_ERR_PHY_SPEED;
-		break;
 	}
 	if (phy_data & MII_ATLX_PSSR_DPLX)
 		*duplex = FULL_DUPLEX;

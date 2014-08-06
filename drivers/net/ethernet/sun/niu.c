@@ -2584,7 +2584,6 @@ static int niu_determine_phy_disposition(struct niu *np)
 				break;
 			default:
 				return -EINVAL;
-				break;
 			}
 			phy_addr_off = niu_atca_port_num[np->port];
 			break;

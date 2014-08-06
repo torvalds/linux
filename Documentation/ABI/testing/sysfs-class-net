@@ -1,3 +1,14 @@
+What:		/sys/class/net/<iface>/name_assign_type
+Date:		July 2014
+KernelVersion:	3.17
+Contact:	netdev@vger.kernel.org
+Description:
+		Indicates the name assignment type. Possible values are:
+		1: enumerated by the kernel, possibly in an unpredictable way
+		2: predictably named by the kernel
+		3: named by userspace
+		4: renamed
+
 What:		/sys/class/net/<iface>/addr_assign_type
 Date:		July 2010
 KernelVersion:	3.2

@@ -2396,7 +2396,6 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 		if (netif_msg_ifup(ugeth))
 			pr_err("Bad number of Rx threads value\n");
 		return -EINVAL;
-		break;
 	}
 
 	switch (ug_info->numThreadsTx) {
@@ -2419,7 +2418,6 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 		if (netif_msg_ifup(ugeth))
 			pr_err("Bad number of Tx threads value\n");
 		return -EINVAL;
-		break;
 	}
 
 	/* Calculate rx_extended_features */

@@ -72,7 +72,7 @@ void temac_iow(struct temac_local *lp, int offset, u32 value)
 
 int temac_indirect_busywait(struct temac_local *lp)
 {
-	long end = jiffies + 2;
+	unsigned long end = jiffies + 2;
 
 	while (!(temac_ior(lp, XTE_RDY0_OFFSET) & XTE_RDY0_HARD_ACS_RDY_MASK)) {
 		if (time_before_eq(end, jiffies)) {

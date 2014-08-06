@@ -109,6 +109,7 @@ void sctp_copy_sock(struct sock *newsk, struct sock *sk,
 		    struct sctp_association *asoc);
 extern struct percpu_counter sctp_sockets_allocated;
 int sctp_asconf_mgmt(struct sctp_sock *, struct sctp_sockaddr_entry *);
+struct sk_buff *sctp_skb_recv_datagram(struct sock *, int, int, int *);
 
 /*
  * sctp/primitive.c
@@ -388,27 +389,6 @@ static inline int sctp_list_single_entry(struct list_head *head)
 	return (head->next != head) && (head->next == head->prev);
 }
 
-/* Generate a random jitter in the range of -50% ~ +50% of input RTO. */
-static inline __s32 sctp_jitter(__u32 rto)
-{
-	static __u32 sctp_rand;
-	__s32 ret;
-
-	/* Avoid divide by zero. */
-	if (!rto)
-		rto = 1;
-
-	sctp_rand += jiffies;
-	sctp_rand ^= (sctp_rand << 12);
-	sctp_rand ^= (sctp_rand >> 20);
-
-	/* Choose random number from 0 to rto, then move to -50% ~ +50%
-	 * of rto.
-	 */
-	ret = sctp_rand % rto - (rto >> 1);
-	return ret;
-}
-
 /* Break down data chunks at this point.  */
 static inline int sctp_frag_point(const struct sctp_association *asoc, int pmtu)
 {
@@ -574,6 +554,8 @@ static inline void sctp_v6_map_v4(union sctp_addr *addr)
 static inline void sctp_v4_map_v6(union sctp_addr *addr)
 {
 	addr->v6.sin6_family = AF_INET6;
+	addr->v6.sin6_flowinfo = 0;
+	addr->v6.sin6_scope_id = 0;
 	addr->v6.sin6_port = addr->v4.sin_port;
 	addr->v6.sin6_addr.s6_addr32[3] = addr->v4.sin_addr.s_addr;
 	addr->v6.sin6_addr.s6_addr32[0] = 0;

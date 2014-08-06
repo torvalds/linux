@@ -697,6 +697,8 @@ enum nft_counter_attributes {
  * @NFTA_LOG_PREFIX: prefix to prepend to log messages (NLA_STRING)
  * @NFTA_LOG_SNAPLEN: length of payload to include in netlink message (NLA_U32)
  * @NFTA_LOG_QTHRESHOLD: queue threshold (NLA_U32)
+ * @NFTA_LOG_LEVEL: log level (NLA_U32)
+ * @NFTA_LOG_FLAGS: logging flags (NLA_U32)
  */
 enum nft_log_attributes {
 	NFTA_LOG_UNSPEC,
@@ -704,6 +706,8 @@ enum nft_log_attributes {
 	NFTA_LOG_PREFIX,
 	NFTA_LOG_SNAPLEN,
 	NFTA_LOG_QTHRESHOLD,
+	NFTA_LOG_LEVEL,
+	NFTA_LOG_FLAGS,
 	__NFTA_LOG_MAX
 };
 #define NFTA_LOG_MAX		(__NFTA_LOG_MAX - 1)

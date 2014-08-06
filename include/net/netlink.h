@@ -949,12 +949,12 @@ static inline int nla_put_flag(struct sk_buff *skb, int attrtype)
  * nla_put_msecs - Add a msecs netlink attribute to a socket buffer
  * @skb: socket buffer to add attribute to
  * @attrtype: attribute type
- * @jiffies: number of msecs in jiffies
+ * @njiffies: number of jiffies to convert to msecs
  */
 static inline int nla_put_msecs(struct sk_buff *skb, int attrtype,
-				unsigned long jiffies)
+				unsigned long njiffies)
 {
-	u64 tmp = jiffies_to_msecs(jiffies);
+	u64 tmp = jiffies_to_msecs(njiffies);
 	return nla_put(skb, attrtype, sizeof(u64), &tmp);
 }
 

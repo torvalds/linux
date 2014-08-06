@@ -2015,7 +2015,7 @@ static struct net_device *netiucv_init_netdevice(char *username, char *userdata)
 	struct net_device *dev;
 
 	dev = alloc_netdev(sizeof(struct netiucv_priv), "iucv%d",
-			   netiucv_setup_netdevice);
+			   NET_NAME_UNKNOWN, netiucv_setup_netdevice);
 	if (!dev)
 		return NULL;
 	rtnl_lock();

@@ -131,7 +131,7 @@
  * @target:		Memory location for the compiled filter
  */
 struct jit_ctx {
-	const struct sk_filter *skf;
+	const struct bpf_prog *skf;
 	unsigned int prologue_bytes;
 	u32 idx;
 	u32 flags;
@@ -789,7 +789,7 @@ static int pkt_type_offset(void)
 static int build_body(struct jit_ctx *ctx)
 {
 	void *load_func[] = {jit_get_skb_b, jit_get_skb_h, jit_get_skb_w};
-	const struct sk_filter *prog = ctx->skf;
+	const struct bpf_prog *prog = ctx->skf;
 	const struct sock_filter *inst;
 	unsigned int i, off, load_order, condt;
 	u32 k, b_off __maybe_unused;
@@ -1369,7 +1369,7 @@ jmp_cmp:
 
 int bpf_jit_enable __read_mostly;
 
-void bpf_jit_compile(struct sk_filter *fp)
+void bpf_jit_compile(struct bpf_prog *fp)
 {
 	struct jit_ctx ctx;
 	unsigned int alloc_size, tmp_idx;
@@ -1423,7 +1423,7 @@ out:
 	kfree(ctx.offsets);
 }
 
-void bpf_jit_free(struct sk_filter *fp)
+void bpf_jit_free(struct bpf_prog *fp)
 {
 	if (fp->jited)
 		module_free(NULL, fp->bpf_func);

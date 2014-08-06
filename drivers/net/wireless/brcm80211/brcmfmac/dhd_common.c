@@ -282,6 +282,13 @@ int brcmf_c_preinit_dcmds(struct brcmf_if *ifp)
 	ptr = strrchr(buf, ' ') + 1;
 	strlcpy(ifp->drvr->fwver, ptr, sizeof(ifp->drvr->fwver));
 
+	/* set mpc */
+	err = brcmf_fil_iovar_int_set(ifp, "mpc", 1);
+	if (err) {
+		brcmf_err("failed setting mpc\n");
+		goto done;
+	}
+
 	/*
 	 * Setup timeout if Beacons are lost and roam is off to report
 	 * link down

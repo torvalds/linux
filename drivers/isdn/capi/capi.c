@@ -1260,7 +1260,7 @@ static int __init capinc_tty_init(void)
 	if (capi_ttyminors <= 0)
 		capi_ttyminors = CAPINC_NR_PORTS;
 
-	capiminors = kzalloc(sizeof(struct capi_minor *) * capi_ttyminors,
+	capiminors = kzalloc(sizeof(struct capiminor *) * capi_ttyminors,
 			     GFP_KERNEL);
 	if (!capiminors)
 		return -ENOMEM;

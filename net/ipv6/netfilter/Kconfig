@@ -55,6 +55,11 @@ config NFT_REJECT_IPV6
 	default NFT_REJECT
 	tristate
 
+config NF_LOG_IPV6
+	tristate "IPv6 packet logging"
+	depends on NETFILTER_ADVANCED
+	select NF_LOG_COMMON
+
 config IP6_NF_IPTABLES
 	tristate "IP6 tables support (required for filtering)"
 	depends on INET && IPV6

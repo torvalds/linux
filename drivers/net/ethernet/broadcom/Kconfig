@@ -72,23 +72,23 @@ config BCMGENET
 	  Broadcom BCM7xxx Set Top Box family chipset.
 
 config BNX2
-	tristate "Broadcom NetXtremeII support"
+	tristate "QLogic NetXtremeII support"
 	depends on PCI
 	select CRC32
 	select FW_LOADER
 	---help---
-	  This driver supports Broadcom NetXtremeII gigabit Ethernet cards.
+	  This driver supports QLogic NetXtremeII gigabit Ethernet cards.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called bnx2.  This is recommended.
 
 config CNIC
-	tristate "Broadcom CNIC support"
+	tristate "QLogic CNIC support"
 	depends on PCI
 	select BNX2
 	select UIO
 	---help---
-	  This driver supports offload features of Broadcom NetXtremeII
+	  This driver supports offload features of QLogic NetXtremeII
 	  gigabit Ethernet cards.
 
 	  To compile this driver as a module, choose M here: the module

@@ -1,7 +1,7 @@
 /*
  * Marvell Wireless LAN device driver: Firmware specific macros & structures
  *
- * Copyright (C) 2011, Marvell International Ltd.
+ * Copyright (C) 2011-2014, Marvell International Ltd.
  *
  * This software file (the "File") is distributed by Marvell International
  * Ltd. under the terms of the GNU General Public License Version 2, June 1991
@@ -713,7 +713,7 @@ struct mwifiex_ie_types_vendor_param_set {
 	u8 ie[MWIFIEX_MAX_VSIE_LEN];
 };
 
-#define MWIFIEX_TDLS_IDLE_TIMEOUT	60
+#define MWIFIEX_TDLS_IDLE_TIMEOUT_IN_SEC	60
 
 struct mwifiex_ie_types_tdls_idle_timeout {
 	struct mwifiex_ie_types_header header;

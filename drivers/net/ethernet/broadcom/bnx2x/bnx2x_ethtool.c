@@ -216,6 +216,43 @@ static int bnx2x_get_port_type(struct bnx2x *bp)
 	return port_type;
 }
 
+static int bnx2x_get_vf_settings(struct net_device *dev,
+				 struct ethtool_cmd *cmd)
+{
+	struct bnx2x *bp = netdev_priv(dev);
+
+	if (bp->state == BNX2X_STATE_OPEN) {
+		if (test_bit(BNX2X_LINK_REPORT_FD,
+			     &bp->vf_link_vars.link_report_flags))
+			cmd->duplex = DUPLEX_FULL;
+		else
+			cmd->duplex = DUPLEX_HALF;
+
+		ethtool_cmd_speed_set(cmd, bp->vf_link_vars.line_speed);
+	} else {
+		cmd->duplex = DUPLEX_UNKNOWN;
+		ethtool_cmd_speed_set(cmd, SPEED_UNKNOWN);
+	}
+
+	cmd->port		= PORT_OTHER;
+	cmd->phy_address	= 0;
+	cmd->transceiver	= XCVR_INTERNAL;
+	cmd->autoneg		= AUTONEG_DISABLE;
+	cmd->maxtxpkt		= 0;
+	cmd->maxrxpkt		= 0;
+
+	DP(BNX2X_MSG_ETHTOOL, "ethtool_cmd: cmd %d\n"
+	   "  supported 0x%x  advertising 0x%x  speed %u\n"
+	   "  duplex %d  port %d  phy_address %d  transceiver %d\n"
+	   "  autoneg %d  maxtxpkt %d  maxrxpkt %d\n",
+	   cmd->cmd, cmd->supported, cmd->advertising,
+	   ethtool_cmd_speed(cmd),
+	   cmd->duplex, cmd->port, cmd->phy_address, cmd->transceiver,
+	   cmd->autoneg, cmd->maxtxpkt, cmd->maxrxpkt);
+
+	return 0;
+}
+
 static int bnx2x_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
 	struct bnx2x *bp = netdev_priv(dev);
@@ -1110,6 +1147,10 @@ static u32 bnx2x_get_link(struct net_device *dev)
 
 	if (bp->flags & MF_FUNC_DIS || (bp->state != BNX2X_STATE_OPEN))
 		return 0;
+
+	if (IS_VF(bp))
+		return !test_bit(BNX2X_LINK_REPORT_LINK_DOWN,
+				 &bp->vf_link_vars.link_report_flags);
 
 	return bp->link_vars.link_up;
 }
@@ -3485,8 +3526,7 @@ static const struct ethtool_ops bnx2x_ethtool_ops = {
 };
 
 static const struct ethtool_ops bnx2x_vf_ethtool_ops = {
-	.get_settings		= bnx2x_get_settings,
-	.set_settings		= bnx2x_set_settings,
+	.get_settings		= bnx2x_get_vf_settings,
 	.get_drvinfo		= bnx2x_get_drvinfo,
 	.get_msglevel		= bnx2x_get_msglevel,
 	.set_msglevel		= bnx2x_set_msglevel,

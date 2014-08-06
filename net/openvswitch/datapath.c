@@ -66,16 +66,16 @@ static struct genl_family dp_packet_genl_family;
 static struct genl_family dp_flow_genl_family;
 static struct genl_family dp_datapath_genl_family;
 
-static struct genl_multicast_group ovs_dp_flow_multicast_group = {
-	.name = OVS_FLOW_MCGROUP
+static const struct genl_multicast_group ovs_dp_flow_multicast_group = {
+	.name = OVS_FLOW_MCGROUP,
 };
 
-static struct genl_multicast_group ovs_dp_datapath_multicast_group = {
-	.name = OVS_DATAPATH_MCGROUP
+static const struct genl_multicast_group ovs_dp_datapath_multicast_group = {
+	.name = OVS_DATAPATH_MCGROUP,
 };
 
-struct genl_multicast_group ovs_dp_vport_multicast_group = {
-	.name = OVS_VPORT_MCGROUP
+static const struct genl_multicast_group ovs_dp_vport_multicast_group = {
+	.name = OVS_VPORT_MCGROUP,
 };
 
 /* Check if need to build a reply message.
@@ -266,7 +266,7 @@ void ovs_dp_process_received_packet(struct vport *p, struct sk_buff *skb)
 		upcall.cmd = OVS_PACKET_CMD_MISS;
 		upcall.key = &key;
 		upcall.userdata = NULL;
-		upcall.portid = p->upcall_portid;
+		upcall.portid = ovs_vport_find_upcall_portid(p, skb);
 		ovs_dp_upcall(dp, skb, &upcall);
 		consume_skb(skb);
 		stats_counter = &stats->n_missed;
@@ -464,7 +464,8 @@ static int queue_userspace_packet(struct datapath *dp, struct sk_buff *skb,
 	upcall->dp_ifindex = dp_ifindex;
 
 	nla = nla_nest_start(user_skb, OVS_PACKET_ATTR_KEY);
-	ovs_nla_put_flow(upcall_info->key, upcall_info->key, user_skb);
+	err = ovs_nla_put_flow(upcall_info->key, upcall_info->key, user_skb);
+	BUG_ON(err);
 	nla_nest_end(user_skb, nla);
 
 	if (upcall_info->userdata)
@@ -780,7 +781,7 @@ static struct sk_buff *ovs_flow_cmd_build_info(const struct sw_flow *flow,
 
 	skb = ovs_flow_cmd_alloc_info(ovsl_dereference(flow->sf_acts), info,
 				      always);
-	if (!skb || IS_ERR(skb))
+	if (IS_ERR_OR_NULL(skb))
 		return skb;
 
 	retval = ovs_flow_cmd_fill_info(flow, dp_ifindex, skb,
@@ -1189,7 +1190,7 @@ static const struct nla_policy flow_policy[OVS_FLOW_ATTR_MAX + 1] = {
 	[OVS_FLOW_ATTR_CLEAR] = { .type = NLA_FLAG },
 };
 
-static struct genl_ops dp_flow_genl_ops[] = {
+static const struct genl_ops dp_flow_genl_ops[] = {
 	{ .cmd = OVS_FLOW_CMD_NEW,
 	  .flags = GENL_ADMIN_PERM, /* Requires CAP_NET_ADMIN privilege. */
 	  .policy = flow_policy,
@@ -1373,7 +1374,7 @@ static int ovs_dp_cmd_new(struct sk_buff *skb, struct genl_info *info)
 	parms.options = NULL;
 	parms.dp = dp;
 	parms.port_no = OVSP_LOCAL;
-	parms.upcall_portid = nla_get_u32(a[OVS_DP_ATTR_UPCALL_PID]);
+	parms.upcall_portids = a[OVS_DP_ATTR_UPCALL_PID];
 
 	ovs_dp_change(dp, a);
 
@@ -1577,7 +1578,7 @@ static const struct nla_policy datapath_policy[OVS_DP_ATTR_MAX + 1] = {
 	[OVS_DP_ATTR_USER_FEATURES] = { .type = NLA_U32 },
 };
 
-static struct genl_ops dp_datapath_genl_ops[] = {
+static const struct genl_ops dp_datapath_genl_ops[] = {
 	{ .cmd = OVS_DP_CMD_NEW,
 	  .flags = GENL_ADMIN_PERM, /* Requires CAP_NET_ADMIN privilege. */
 	  .policy = datapath_policy,
@@ -1632,13 +1633,16 @@ static int ovs_vport_cmd_fill_info(struct vport *vport, struct sk_buff *skb,
 
 	if (nla_put_u32(skb, OVS_VPORT_ATTR_PORT_NO, vport->port_no) ||
 	    nla_put_u32(skb, OVS_VPORT_ATTR_TYPE, vport->ops->type) ||
-	    nla_put_string(skb, OVS_VPORT_ATTR_NAME, vport->ops->get_name(vport)) ||
-	    nla_put_u32(skb, OVS_VPORT_ATTR_UPCALL_PID, vport->upcall_portid))
+	    nla_put_string(skb, OVS_VPORT_ATTR_NAME,
+			   vport->ops->get_name(vport)))
 		goto nla_put_failure;
 
 	ovs_vport_get_stats(vport, &vport_stats);
 	if (nla_put(skb, OVS_VPORT_ATTR_STATS, sizeof(struct ovs_vport_stats),
 		    &vport_stats))
+		goto nla_put_failure;
+
+	if (ovs_vport_get_upcall_portids(vport, skb))
 		goto nla_put_failure;
 
 	err = ovs_vport_get_options(vport, skb);
@@ -1762,7 +1766,7 @@ static int ovs_vport_cmd_new(struct sk_buff *skb, struct genl_info *info)
 	parms.options = a[OVS_VPORT_ATTR_OPTIONS];
 	parms.dp = dp;
 	parms.port_no = port_no;
-	parms.upcall_portid = nla_get_u32(a[OVS_VPORT_ATTR_UPCALL_PID]);
+	parms.upcall_portids = a[OVS_VPORT_ATTR_UPCALL_PID];
 
 	vport = new_vport(&parms);
 	err = PTR_ERR(vport);
@@ -1812,8 +1816,14 @@ static int ovs_vport_cmd_set(struct sk_buff *skb, struct genl_info *info)
 			goto exit_unlock_free;
 	}
 
-	if (a[OVS_VPORT_ATTR_UPCALL_PID])
-		vport->upcall_portid = nla_get_u32(a[OVS_VPORT_ATTR_UPCALL_PID]);
+
+	if (a[OVS_VPORT_ATTR_UPCALL_PID]) {
+		struct nlattr *ids = a[OVS_VPORT_ATTR_UPCALL_PID];
+
+		err = ovs_vport_set_upcall_portids(vport, ids);
+		if (err)
+			goto exit_unlock_free;
+	}
 
 	err = ovs_vport_cmd_fill_info(vport, reply, info->snd_portid,
 				      info->snd_seq, 0, OVS_VPORT_CMD_NEW);
@@ -1944,7 +1954,7 @@ static const struct nla_policy vport_policy[OVS_VPORT_ATTR_MAX + 1] = {
 	[OVS_VPORT_ATTR_OPTIONS] = { .type = NLA_NESTED },
 };
 
-static struct genl_ops dp_vport_genl_ops[] = {
+static const struct genl_ops dp_vport_genl_ops[] = {
 	{ .cmd = OVS_VPORT_CMD_NEW,
 	  .flags = GENL_ADMIN_PERM, /* Requires CAP_NET_ADMIN privilege. */
 	  .policy = vport_policy,
@@ -2053,9 +2063,13 @@ static int __init dp_init(void)
 
 	pr_info("Open vSwitch switching datapath\n");
 
-	err = ovs_flow_init();
+	err = ovs_internal_dev_rtnl_link_register();
 	if (err)
 		goto error;
+
+	err = ovs_flow_init();
+	if (err)
+		goto error_unreg_rtnl_link;
 
 	err = ovs_vport_init();
 	if (err)
@@ -2083,6 +2097,8 @@ error_vport_exit:
 	ovs_vport_exit();
 error_flow_exit:
 	ovs_flow_exit();
+error_unreg_rtnl_link:
+	ovs_internal_dev_rtnl_link_unregister();
 error:
 	return err;
 }
@@ -2095,6 +2111,7 @@ static void dp_cleanup(void)
 	rcu_barrier();
 	ovs_vport_exit();
 	ovs_flow_exit();
+	ovs_internal_dev_rtnl_link_unregister();
 }
 
 module_init(dp_init);

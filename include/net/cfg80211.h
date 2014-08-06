@@ -2266,10 +2266,6 @@ struct cfg80211_qos_map {
  *
  * @get_antenna: Get current antenna configuration from device (tx_ant, rx_ant).
  *
- * @set_ringparam: Set tx and rx ring sizes.
- *
- * @get_ringparam: Get tx and rx ring current and maximum sizes.
- *
  * @tdls_mgmt: Transmit a TDLS management frame.
  * @tdls_oper: Perform a high-level TDLS operation (e.g. TDLS link setup).
  *
@@ -2277,16 +2273,6 @@ struct cfg80211_qos_map {
  *	later passes to cfg80211_probe_status().
  *
  * @set_noack_map: Set the NoAck Map for the TIDs.
- *
- * @get_et_sset_count:  Ethtool API to get string-set count.
- *	See @ethtool_ops.get_sset_count
- *
- * @get_et_stats:  Ethtool API to get a set of u64 stats.
- *	See @ethtool_ops.get_ethtool_stats
- *
- * @get_et_strings:  Ethtool API to get a set of strings to describe stats
- *	and perhaps other supported types of ethtool data-sets.
- *	See @ethtool_ops.get_strings
  *
  * @get_channel: Get the current operating channel for the virtual interface.
  *	For monitor interfaces, it should return %NULL unless there's a single
@@ -2315,7 +2301,12 @@ struct cfg80211_qos_map {
  *	reliability. This operation can not fail.
  * @set_coalesce: Set coalesce parameters.
  *
- * @channel_switch: initiate channel-switch procedure (with CSA)
+ * @channel_switch: initiate channel-switch procedure (with CSA). Driver is
+ *	responsible for veryfing if the switch is possible. Since this is
+ *	inherently tricky driver may decide to disconnect an interface later
+ *	with cfg80211_stop_iface(). This doesn't mean driver can accept
+ *	everything. It should do it's best to verify requests and reject them
+ *	as soon as possible.
  *
  * @set_qos_map: Set QoS mapping information to the driver
  *
@@ -2503,10 +2494,6 @@ struct cfg80211_ops {
 	int	(*set_antenna)(struct wiphy *wiphy, u32 tx_ant, u32 rx_ant);
 	int	(*get_antenna)(struct wiphy *wiphy, u32 *tx_ant, u32 *rx_ant);
 
-	int	(*set_ringparam)(struct wiphy *wiphy, u32 tx, u32 rx);
-	void	(*get_ringparam)(struct wiphy *wiphy,
-				 u32 *tx, u32 *tx_max, u32 *rx, u32 *rx_max);
-
 	int	(*sched_scan_start)(struct wiphy *wiphy,
 				struct net_device *dev,
 				struct cfg80211_sched_scan_request *request);
@@ -2518,7 +2505,7 @@ struct cfg80211_ops {
 	int	(*tdls_mgmt)(struct wiphy *wiphy, struct net_device *dev,
 			     const u8 *peer, u8 action_code,  u8 dialog_token,
 			     u16 status_code, u32 peer_capability,
-			     const u8 *buf, size_t len);
+			     bool initiator, const u8 *buf, size_t len);
 	int	(*tdls_oper)(struct wiphy *wiphy, struct net_device *dev,
 			     const u8 *peer, enum nl80211_tdls_operation oper);
 
@@ -2528,13 +2515,6 @@ struct cfg80211_ops {
 	int	(*set_noack_map)(struct wiphy *wiphy,
 				  struct net_device *dev,
 				  u16 noack_map);
-
-	int	(*get_et_sset_count)(struct wiphy *wiphy,
-				     struct net_device *dev, int sset);
-	void	(*get_et_stats)(struct wiphy *wiphy, struct net_device *dev,
-				struct ethtool_stats *stats, u64 *data);
-	void	(*get_et_strings)(struct wiphy *wiphy, struct net_device *dev,
-				  u32 sset, u8 *data);
 
 	int	(*get_channel)(struct wiphy *wiphy,
 			       struct wireless_dev *wdev,
@@ -4842,6 +4822,10 @@ void cfg80211_stop_iface(struct wiphy *wiphy, struct wireless_dev *wdev,
  * the driver while the function is running.
  */
 void cfg80211_shutdown_all_interfaces(struct wiphy *wiphy);
+
+
+/* ethtool helper */
+void cfg80211_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info);
 
 /* Logging, debugging and troubleshooting/diagnostic helpers. */
 

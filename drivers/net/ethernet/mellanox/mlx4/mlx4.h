@@ -62,11 +62,6 @@
 
 #define INIT_HCA_TPT_MW_ENABLE          (1 << 7)
 
-#define MLX4_NUM_UP		8
-#define MLX4_NUM_TC		8
-#define MLX4_RATELIMIT_UNITS 3 /* 100 Mbps */
-#define MLX4_RATELIMIT_DEFAULT 0xffff
-
 struct mlx4_set_port_prio2tc_context {
 	u8 prio2tc[4];
 };

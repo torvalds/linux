@@ -256,12 +256,6 @@ struct bufdesc_ex {
 #define FLAG_RX_CSUM_ENABLED	(BD_ENET_RX_ICE | BD_ENET_RX_PCR)
 #define FLAG_RX_CSUM_ERROR	(BD_ENET_RX_ICE | BD_ENET_RX_PCR)
 
-struct fec_enet_delayed_work {
-	struct delayed_work delay_work;
-	bool timeout;
-	bool trig_tx;
-};
-
 /* The FEC buffer descriptors track the ring buffers.  The rx_bd_base and
  * tx_bd_base always point to the base of the buffer descriptors.  The
  * cur_rx and cur_tx point to the currently available buffer.
@@ -308,7 +302,6 @@ struct fec_enet_private {
 
 	struct	platform_device *pdev;
 
-	int	opened;
 	int	dev_id;
 
 	/* Phylib and MDIO interface */
@@ -328,6 +321,8 @@ struct fec_enet_private {
 	struct	napi_struct napi;
 	int	csum_flags;
 
+	struct work_struct tx_timeout_work;
+
 	struct ptp_clock *ptp_clock;
 	struct ptp_clock_info ptp_caps;
 	unsigned long last_overflow_check;
@@ -340,7 +335,6 @@ struct fec_enet_private {
 	int hwts_rx_en;
 	int hwts_tx_en;
 	struct timer_list time_keep;
-	struct fec_enet_delayed_work delay_work;
 	struct regulator *reg_phy;
 };
 

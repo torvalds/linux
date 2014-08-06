@@ -503,7 +503,6 @@ vxge_rx_1b_compl(struct __vxge_hw_ring *ringh, void *dtr,
 
 			skb_hwts = skb_hwtstamps(skb);
 			skb_hwts->hwtstamp = ns_to_ktime(ns);
-			skb_hwts->syststamp.tv64 = 0;
 		}
 
 		/* rth_hash_type and rth_it_hit are non-zero regardless of

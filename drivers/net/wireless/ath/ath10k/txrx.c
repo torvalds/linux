@@ -119,8 +119,7 @@ struct ath10k_peer *ath10k_peer_find(struct ath10k *ar, int vdev_id,
 	return NULL;
 }
 
-static struct ath10k_peer *ath10k_peer_find_by_id(struct ath10k *ar,
-						  int peer_id)
+struct ath10k_peer *ath10k_peer_find_by_id(struct ath10k *ar, int peer_id)
 {
 	struct ath10k_peer *peer;
 

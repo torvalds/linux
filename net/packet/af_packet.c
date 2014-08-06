@@ -441,14 +441,10 @@ static __u32 tpacket_get_timestamp(struct sk_buff *skb, struct timespec *ts,
 {
 	struct skb_shared_hwtstamps *shhwtstamps = skb_hwtstamps(skb);
 
-	if (shhwtstamps) {
-		if ((flags & SOF_TIMESTAMPING_SYS_HARDWARE) &&
-		    ktime_to_timespec_cond(shhwtstamps->syststamp, ts))
-			return TP_STATUS_TS_SYS_HARDWARE;
-		if ((flags & SOF_TIMESTAMPING_RAW_HARDWARE) &&
-		    ktime_to_timespec_cond(shhwtstamps->hwtstamp, ts))
-			return TP_STATUS_TS_RAW_HARDWARE;
-	}
+	if (shhwtstamps &&
+	    (flags & SOF_TIMESTAMPING_RAW_HARDWARE) &&
+	    ktime_to_timespec_cond(shhwtstamps->hwtstamp, ts))
+		return TP_STATUS_TS_RAW_HARDWARE;
 
 	if (ktime_to_timespec_cond(skb->tstamp, ts))
 		return TP_STATUS_TS_SOFTWARE;
@@ -3071,10 +3067,8 @@ static int packet_dev_mc(struct net_device *dev, struct packet_mclist *i,
 		break;
 	case PACKET_MR_PROMISC:
 		return dev_set_promiscuity(dev, what);
-		break;
 	case PACKET_MR_ALLMULTI:
 		return dev_set_allmulti(dev, what);
-		break;
 	case PACKET_MR_UNICAST:
 		if (i->alen != dev->addr_len)
 			return -EINVAL;

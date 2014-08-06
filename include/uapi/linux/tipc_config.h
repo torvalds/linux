@@ -182,7 +182,7 @@
 
 #define TIPC_MIN_LINK_WIN 16
 #define TIPC_DEF_LINK_WIN 50
-#define TIPC_MAX_LINK_WIN 150
+#define TIPC_MAX_LINK_WIN 8191
 
 
 struct tipc_node_info {

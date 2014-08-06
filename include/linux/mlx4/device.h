@@ -48,6 +48,17 @@
 #define MSIX_LEGACY_SZ		4
 #define MIN_MSIX_P_PORT		5
 
+#define MLX4_NUM_UP			8
+#define MLX4_NUM_TC			8
+#define MLX4_MAX_100M_UNITS_VAL		255	/*
+						 * work around: can't set values
+						 * greater then this value when
+						 * using 100 Mbps units.
+						 */
+#define MLX4_RATELIMIT_100M_UNITS	3	/* 100 Mbps */
+#define MLX4_RATELIMIT_1G_UNITS		4	/* 1 Gbps */
+#define MLX4_RATELIMIT_DEFAULT		0x00ff
+
 #define MLX4_ROCE_MAX_GIDS	128
 #define MLX4_ROCE_PF_GIDS	16
 
@@ -1243,4 +1254,11 @@ int mlx4_vf_smi_enabled(struct mlx4_dev *dev, int slave, int port);
 int mlx4_vf_get_enable_smi_admin(struct mlx4_dev *dev, int slave, int port);
 int mlx4_vf_set_enable_smi_admin(struct mlx4_dev *dev, int slave, int port,
 				 int enable);
+
+/* Returns true if running in low memory profile (kdump kernel) */
+static inline bool mlx4_low_memory_profile(void)
+{
+	return reset_devices;
+}
+
 #endif /* MLX4_DEVICE_H */

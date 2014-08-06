@@ -38,6 +38,7 @@
 #include <linux/davinci_emac.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/of_mdio.h>
 #include <linux/pinctrl/consumer.h>
 
 /*
@@ -95,6 +96,10 @@ struct davinci_mdio_data {
 	struct mii_bus	*bus;
 	bool		suspended;
 	unsigned long	access_time; /* jiffies */
+	/* Indicates that driver shouldn't modify phy_mask in case
+	 * if MDIO bus is registered from DT.
+	 */
+	bool		skip_scan;
 };
 
 static void __davinci_mdio_reset(struct davinci_mdio_data *data)
@@ -143,6 +148,9 @@ static int davinci_mdio_reset(struct mii_bus *bus)
 	ver = __raw_readl(&data->regs->version);
 	dev_info(data->dev, "davinci mdio revision %d.%d\n",
 		 (ver >> 8) & 0xff, ver & 0xff);
+
+	if (data->skip_scan)
+		return 0;
 
 	/* get phy mask from the alive register */
 	phy_mask = __raw_readl(&data->regs->alive);
@@ -369,8 +377,17 @@ static int davinci_mdio_probe(struct platform_device *pdev)
 		goto bail_out;
 	}
 
-	/* register the mii bus */
-	ret = mdiobus_register(data->bus);
+	/* register the mii bus
+	 * Create PHYs from DT only in case if PHY child nodes are explicitly
+	 * defined to support backward compatibility with DTs which assume that
+	 * Davinci MDIO will always scan the bus for PHYs detection.
+	 */
+	if (dev->of_node && of_get_child_count(dev->of_node)) {
+		data->skip_scan = true;
+		ret = of_mdiobus_register(data->bus, dev->of_node);
+	} else {
+		ret = mdiobus_register(data->bus);
+	}
 	if (ret)
 		goto bail_out;
 

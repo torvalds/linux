@@ -101,7 +101,7 @@ ar9003_set_txdesc(struct ath_hw *ah, void *ds, struct ath_tx_info *i)
 
 	ACCESS_ONCE(ads->ctl11) = (i->pkt_len & AR_FrameLen)
 		| (i->flags & ATH9K_TXDESC_VMF ? AR_VirtMoreFrag : 0)
-		| SM(i->txpower, AR_XmitPower)
+		| SM(i->txpower, AR_XmitPower0)
 		| (i->flags & ATH9K_TXDESC_VEOL ? AR_VEOL : 0)
 		| (i->keyix != ATH9K_TXKEYIX_INVALID ? AR_DestIdxValid : 0)
 		| (i->flags & ATH9K_TXDESC_LOWRXCHAIN ? AR_LowRxChain : 0)
@@ -151,6 +151,10 @@ ar9003_set_txdesc(struct ath_hw *ah, void *ds, struct ath_tx_info *i)
 		| SM(i->rtscts_rate, AR_RTSCTSRate);
 
 	ACCESS_ONCE(ads->ctl19) = AR_Not_Sounding;
+
+	ACCESS_ONCE(ads->ctl20) = SM(i->txpower, AR_XmitPower1);
+	ACCESS_ONCE(ads->ctl21) = SM(i->txpower, AR_XmitPower2);
+	ACCESS_ONCE(ads->ctl22) = SM(i->txpower, AR_XmitPower3);
 }
 
 static u16 ar9003_calc_ptr_chksum(struct ar9003_txc *ads)

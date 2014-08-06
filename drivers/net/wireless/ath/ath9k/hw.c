@@ -791,7 +791,8 @@ static void ath9k_hw_init_pll(struct ath_hw *ah,
 				refdiv = 5;
 			} else {
 				pll2_divint = 0x11;
-				pll2_divfrac = 0x26666;
+				pll2_divfrac =
+					AR_SREV_9531(ah) ? 0x26665 : 0x26666;
 				refdiv = 1;
 			}
 		}
@@ -1729,6 +1730,23 @@ static int ath9k_hw_do_fastcc(struct ath_hw *ah, struct ath9k_channel *chan)
 fail:
 	return -EINVAL;
 }
+
+u32 ath9k_hw_get_tsf_offset(struct timespec *last, struct timespec *cur)
+{
+	struct timespec ts;
+	s64 usec;
+
+	if (!cur) {
+		getrawmonotonic(&ts);
+		cur = &ts;
+	}
+
+	usec = cur->tv_sec * 1000000ULL + cur->tv_nsec / 1000;
+	usec -= last->tv_sec * 1000000ULL + last->tv_nsec / 1000;
+
+	return (u32) usec;
+}
+EXPORT_SYMBOL(ath9k_hw_get_tsf_offset);
 
 int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 		   struct ath9k_hw_cal_data *caldata, bool fastcc)

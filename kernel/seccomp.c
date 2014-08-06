@@ -56,7 +56,7 @@
 struct seccomp_filter {
 	atomic_t usage;
 	struct seccomp_filter *prev;
-	struct sk_filter *prog;
+	struct bpf_prog *prog;
 };
 
 /* Limit any path through the tree to 256KB worth of instructions. */
@@ -89,7 +89,7 @@ static void populate_seccomp_data(struct seccomp_data *sd)
  *	@filter: filter to verify
  *	@flen: length of filter
  *
- * Takes a previously checked filter (by sk_chk_filter) and
+ * Takes a previously checked filter (by bpf_check_classic) and
  * redirects all filter code that loads struct sk_buff data
  * and related data through seccomp_bpf_load.  It also
  * enforces length and alignment checking of those loads.
@@ -192,7 +192,7 @@ static u32 seccomp_run_filters(int syscall)
 	 * value always takes priority (ignoring the DATA).
 	 */
 	for (; f; f = f->prev) {
-		u32 cur_ret = SK_RUN_FILTER(f->prog, (void *)&sd);
+		u32 cur_ret = BPF_PROG_RUN(f->prog, (void *)&sd);
 
 		if ((cur_ret & SECCOMP_RET_ACTION) < (ret & SECCOMP_RET_ACTION))
 			ret = cur_ret;
@@ -374,7 +374,7 @@ static struct seccomp_filter *seccomp_prepare_filter(struct sock_fprog *fprog)
 		goto free_prog;
 
 	/* Check and rewrite the fprog via the skb checker */
-	ret = sk_chk_filter(fp, fprog->len);
+	ret = bpf_check_classic(fp, fprog->len);
 	if (ret)
 		goto free_prog;
 
@@ -383,8 +383,8 @@ static struct seccomp_filter *seccomp_prepare_filter(struct sock_fprog *fprog)
 	if (ret)
 		goto free_prog;
 
-	/* Convert 'sock_filter' insns to 'sock_filter_int' insns */
-	ret = sk_convert_filter(fp, fprog->len, NULL, &new_len);
+	/* Convert 'sock_filter' insns to 'bpf_insn' insns */
+	ret = bpf_convert_filter(fp, fprog->len, NULL, &new_len);
 	if (ret)
 		goto free_prog;
 
@@ -395,12 +395,12 @@ static struct seccomp_filter *seccomp_prepare_filter(struct sock_fprog *fprog)
 	if (!filter)
 		goto free_prog;
 
-	filter->prog = kzalloc(sk_filter_size(new_len),
+	filter->prog = kzalloc(bpf_prog_size(new_len),
 			       GFP_KERNEL|__GFP_NOWARN);
 	if (!filter->prog)
 		goto free_filter;
 
-	ret = sk_convert_filter(fp, fprog->len, filter->prog->insnsi, &new_len);
+	ret = bpf_convert_filter(fp, fprog->len, filter->prog->insnsi, &new_len);
 	if (ret)
 		goto free_filter_prog;
 	kfree(fp);
@@ -408,7 +408,7 @@ static struct seccomp_filter *seccomp_prepare_filter(struct sock_fprog *fprog)
 	atomic_set(&filter->usage, 1);
 	filter->prog->len = new_len;
 
-	sk_filter_select_runtime(filter->prog);
+	bpf_prog_select_runtime(filter->prog);
 
 	return filter;
 
@@ -509,7 +509,7 @@ void get_seccomp_filter(struct task_struct *tsk)
 static inline void seccomp_filter_free(struct seccomp_filter *filter)
 {
 	if (filter) {
-		sk_filter_free(filter->prog);
+		bpf_prog_free(filter->prog);
 		kfree(filter);
 	}
 }
