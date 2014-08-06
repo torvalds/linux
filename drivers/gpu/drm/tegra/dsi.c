@@ -26,9 +26,6 @@
 #include "dsi.h"
 #include "mipi-phy.h"
 
-#define DSI_VIDEO_FIFO_DEPTH (1920 / 4)
-#define DSI_HOST_FIFO_DEPTH 64
-
 struct tegra_dsi {
 	struct host1x_client client;
 	struct tegra_output output;
@@ -54,6 +51,9 @@ struct tegra_dsi {
 
 	struct regulator *vdd;
 	bool enabled;
+
+	unsigned int video_fifo_depth;
+	unsigned int host_fifo_depth;
 };
 
 static inline struct tegra_dsi *
@@ -467,7 +467,7 @@ static int tegra_output_dsi_enable(struct tegra_output *output)
 		DSI_CONTROL_SOURCE(dc->pipe);
 	tegra_dsi_writel(dsi, value, DSI_CONTROL);
 
-	tegra_dsi_writel(dsi, DSI_VIDEO_FIFO_DEPTH, DSI_MAX_THRESHOLD);
+	tegra_dsi_writel(dsi, dsi->video_fifo_depth, DSI_MAX_THRESHOLD);
 
 	value = DSI_HOST_CONTROL_HS | DSI_HOST_CONTROL_CS |
 		DSI_HOST_CONTROL_ECC;
@@ -843,6 +843,8 @@ static int tegra_dsi_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	dsi->output.dev = dsi->dev = &pdev->dev;
+	dsi->video_fifo_depth = 1920;
+	dsi->host_fifo_depth = 64;
 
 	err = tegra_output_probe(&dsi->output);
 	if (err < 0)
