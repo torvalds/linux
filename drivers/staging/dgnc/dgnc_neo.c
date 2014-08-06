@@ -1846,7 +1846,7 @@ static void neo_send_break(struct channel_t *ch, int msecs)
 	/* Tell the UART to start sending the break */
 	if (!(ch->ch_flags & CH_BREAK_SENDING)) {
 		uchar temp = readb(&ch->ch_neo_uart->lcr);
-		
+
 		writeb((temp | UART_LCR_SBC), &ch->ch_neo_uart->lcr);
 		neo_pci_posting_flush(ch->ch_bd);
 		ch->ch_flags |= (CH_BREAK_SENDING);
@@ -1935,8 +1935,8 @@ static void neo_vpd(struct dgnc_board *brd)
 
 	if  (((brd->vpd[0x08] != 0x82)	   /* long resource name tag */
 		&&  (brd->vpd[0x10] != 0x82))   /* long resource name tag (PCI-66 files)*/
-		||  (brd->vpd[0x7F] != 0x78))   /* small resource end tag */
-	{
+		||  (brd->vpd[0x7F] != 0x78)) { /* small resource end tag */
+
 		memset(brd->vpd, '\0', NEO_VPD_IMAGESIZE);
 	} else {
 		/* Search for the serial number */
