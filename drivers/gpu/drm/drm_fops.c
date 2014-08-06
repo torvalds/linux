@@ -529,6 +529,8 @@ int drm_release(struct inode *inode, struct file *filp)
 	if (drm_core_check_feature(dev, DRIVER_PRIME))
 		drm_prime_destroy_file_private(&file_priv->prime);
 
+	WARN_ON(!list_empty(&file_priv->event_list));
+
 	put_pid(file_priv->pid);
 	kfree(file_priv);
 
