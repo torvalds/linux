@@ -1260,7 +1260,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 
 	flags = 0;
 	if (args->flags & I915_EXEC_SECURE) {
-		if (!file->is_master || !capable(CAP_SYS_ADMIN))
+		if (!drm_is_master(file) || !capable(CAP_SYS_ADMIN))
 		    return -EPERM;
 
 		flags |= I915_DISPATCH_SECURE;
@@ -1369,7 +1369,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		ret = i915_parse_cmds(ring,
 				      batch_obj,
 				      args->batch_start_offset,
-				      file->is_master);
+				      drm_is_master(file));
 		if (ret)
 			goto err;
 

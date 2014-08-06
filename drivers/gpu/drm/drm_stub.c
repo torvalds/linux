@@ -26,6 +26,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
+#include <linux/debugfs.h>
 #include <linux/fs.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -33,6 +34,7 @@
 #include <linux/slab.h>
 #include <drm/drmP.h>
 #include <drm/drm_core.h>
+#include "drm_legacy.h"
 
 unsigned int drm_debug = 0;	/* 1 to enable debug output */
 EXPORT_SYMBOL(drm_debug);
@@ -61,10 +63,10 @@ module_param_named(timestamp_precision_usec, drm_timestamp_precision, int, 0600)
 module_param_named(timestamp_monotonic, drm_timestamp_monotonic, int, 0600);
 
 static DEFINE_SPINLOCK(drm_minor_lock);
-struct idr drm_minors_idr;
+static struct idr drm_minors_idr;
 
 struct class *drm_class;
-struct dentry *drm_debugfs_root;
+static struct dentry *drm_debugfs_root;
 
 int drm_err(const char *func, const char *format, ...)
 {
@@ -177,7 +179,7 @@ int drm_setmaster_ioctl(struct drm_device *dev, void *data,
 	int ret = 0;
 
 	mutex_lock(&dev->master_mutex);
-	if (file_priv->is_master)
+	if (drm_is_master(file_priv))
 		goto out_unlock;
 
 	if (file_priv->minor->master) {
@@ -191,13 +193,10 @@ int drm_setmaster_ioctl(struct drm_device *dev, void *data,
 	}
 
 	file_priv->minor->master = drm_master_get(file_priv->master);
-	file_priv->is_master = 1;
 	if (dev->driver->master_set) {
 		ret = dev->driver->master_set(dev, file_priv, false);
-		if (unlikely(ret != 0)) {
-			file_priv->is_master = 0;
+		if (unlikely(ret != 0))
 			drm_master_put(&file_priv->minor->master);
-		}
 	}
 
 out_unlock:
@@ -211,7 +210,7 @@ int drm_dropmaster_ioctl(struct drm_device *dev, void *data,
 	int ret = -EINVAL;
 
 	mutex_lock(&dev->master_mutex);
-	if (!file_priv->is_master)
+	if (!drm_is_master(file_priv))
 		goto out_unlock;
 
 	if (!file_priv->minor->master)
@@ -221,7 +220,6 @@ int drm_dropmaster_ioctl(struct drm_device *dev, void *data,
 	if (dev->driver->master_drop)
 		dev->driver->master_drop(dev, file_priv, false);
 	drm_master_put(&file_priv->minor->master);
-	file_priv->is_master = 0;
 
 out_unlock:
 	mutex_unlock(&dev->master_mutex);
@@ -259,6 +257,8 @@ static struct drm_minor **drm_minor_get_slot(struct drm_device *dev,
 static int drm_minor_alloc(struct drm_device *dev, unsigned int type)
 {
 	struct drm_minor *minor;
+	unsigned long flags;
+	int r;
 
 	minor = kzalloc(sizeof(*minor), GFP_KERNEL);
 	if (!minor)
@@ -267,77 +267,92 @@ static int drm_minor_alloc(struct drm_device *dev, unsigned int type)
 	minor->type = type;
 	minor->dev = dev;
 
+	idr_preload(GFP_KERNEL);
+	spin_lock_irqsave(&drm_minor_lock, flags);
+	r = idr_alloc(&drm_minors_idr,
+		      NULL,
+		      64 * type,
+		      64 * (type + 1),
+		      GFP_NOWAIT);
+	spin_unlock_irqrestore(&drm_minor_lock, flags);
+	idr_preload_end();
+
+	if (r < 0)
+		goto err_free;
+
+	minor->index = r;
+
+	minor->kdev = drm_sysfs_minor_alloc(minor);
+	if (IS_ERR(minor->kdev)) {
+		r = PTR_ERR(minor->kdev);
+		goto err_index;
+	}
+
 	*drm_minor_get_slot(dev, type) = minor;
 	return 0;
+
+err_index:
+	spin_lock_irqsave(&drm_minor_lock, flags);
+	idr_remove(&drm_minors_idr, minor->index);
+	spin_unlock_irqrestore(&drm_minor_lock, flags);
+err_free:
+	kfree(minor);
+	return r;
 }
 
 static void drm_minor_free(struct drm_device *dev, unsigned int type)
 {
-	struct drm_minor **slot;
+	struct drm_minor **slot, *minor;
+	unsigned long flags;
 
 	slot = drm_minor_get_slot(dev, type);
-	if (*slot) {
-		drm_mode_group_destroy(&(*slot)->mode_group);
-		kfree(*slot);
-		*slot = NULL;
-	}
+	minor = *slot;
+	if (!minor)
+		return;
+
+	drm_mode_group_destroy(&minor->mode_group);
+	put_device(minor->kdev);
+
+	spin_lock_irqsave(&drm_minor_lock, flags);
+	idr_remove(&drm_minors_idr, minor->index);
+	spin_unlock_irqrestore(&drm_minor_lock, flags);
+
+	kfree(minor);
+	*slot = NULL;
 }
 
 static int drm_minor_register(struct drm_device *dev, unsigned int type)
 {
-	struct drm_minor *new_minor;
+	struct drm_minor *minor;
 	unsigned long flags;
 	int ret;
-	int minor_id;
 
 	DRM_DEBUG("\n");
 
-	new_minor = *drm_minor_get_slot(dev, type);
-	if (!new_minor)
+	minor = *drm_minor_get_slot(dev, type);
+	if (!minor)
 		return 0;
 
-	idr_preload(GFP_KERNEL);
-	spin_lock_irqsave(&drm_minor_lock, flags);
-	minor_id = idr_alloc(&drm_minors_idr,
-			     NULL,
-			     64 * type,
-			     64 * (type + 1),
-			     GFP_NOWAIT);
-	spin_unlock_irqrestore(&drm_minor_lock, flags);
-	idr_preload_end();
-
-	if (minor_id < 0)
-		return minor_id;
-
-	new_minor->index = minor_id;
-
-	ret = drm_debugfs_init(new_minor, minor_id, drm_debugfs_root);
+	ret = drm_debugfs_init(minor, minor->index, drm_debugfs_root);
 	if (ret) {
 		DRM_ERROR("DRM: Failed to initialize /sys/kernel/debug/dri.\n");
-		goto err_id;
+		return ret;
 	}
 
-	ret = drm_sysfs_device_add(new_minor);
-	if (ret) {
-		DRM_ERROR("DRM: Error sysfs_device_add.\n");
+	ret = device_add(minor->kdev);
+	if (ret)
 		goto err_debugfs;
-	}
 
 	/* replace NULL with @minor so lookups will succeed from now on */
 	spin_lock_irqsave(&drm_minor_lock, flags);
-	idr_replace(&drm_minors_idr, new_minor, new_minor->index);
+	idr_replace(&drm_minors_idr, minor, minor->index);
 	spin_unlock_irqrestore(&drm_minor_lock, flags);
 
-	DRM_DEBUG("new minor assigned %d\n", minor_id);
+	DRM_DEBUG("new minor registered %d\n", minor->index);
 	return 0;
 
 err_debugfs:
-	drm_debugfs_cleanup(new_minor);
-err_id:
-	spin_lock_irqsave(&drm_minor_lock, flags);
-	idr_remove(&drm_minors_idr, minor_id);
-	spin_unlock_irqrestore(&drm_minor_lock, flags);
-	new_minor->index = 0;
+	drm_debugfs_cleanup(minor);
 	return ret;
 }
 
@@ -347,16 +362,17 @@ static void drm_minor_unregister(struct drm_device *dev, unsigned int type)
 	unsigned long flags;
 
 	minor = *drm_minor_get_slot(dev, type);
-	if (!minor || !minor->kdev)
+	if (!minor || !device_is_registered(minor->kdev))
 		return;
 
+	/* replace @minor with NULL so lookups will fail from now on */
 	spin_lock_irqsave(&drm_minor_lock, flags);
-	idr_remove(&drm_minors_idr, minor->index);
+	idr_replace(&drm_minors_idr, NULL, minor->index);
 	spin_unlock_irqrestore(&drm_minor_lock, flags);
-	minor->index = 0;
 
+	device_del(minor->kdev);
+	dev_set_drvdata(minor->kdev, NULL); /* safety belt */
 	drm_debugfs_cleanup(minor);
-	drm_sysfs_device_remove(minor);
 }
 
 /**
@@ -589,7 +605,7 @@ struct drm_device *drm_dev_alloc(struct drm_driver *driver,
 	if (drm_ht_create(&dev->map_hash, 12))
 		goto err_minors;
 
-	ret = drm_ctxbitmap_init(dev);
+	ret = drm_legacy_ctxbitmap_init(dev);
 	if (ret) {
 		DRM_ERROR("Cannot allocate memory for context bitmap.\n");
 		goto err_ht;
@@ -606,7 +622,7 @@ struct drm_device *drm_dev_alloc(struct drm_driver *driver,
 	return dev;
 
 err_ctxbitmap:
-	drm_ctxbitmap_cleanup(dev);
+	drm_legacy_ctxbitmap_cleanup(dev);
 err_ht:
 	drm_ht_remove(&dev->map_hash);
 err_minors:
@@ -628,7 +644,7 @@ static void drm_dev_release(struct kref *ref)
 	if (dev->driver->driver_features & DRIVER_GEM)
 		drm_gem_destroy(dev);
 
-	drm_ctxbitmap_cleanup(dev);
+	drm_legacy_ctxbitmap_cleanup(dev);
 	drm_ht_remove(&dev->map_hash);
 	drm_fs_inode_free(dev->anon_inode);
 
@@ -791,3 +807,115 @@ int drm_dev_set_unique(struct drm_device *dev, const char *fmt, ...)
 	return dev->unique ? 0 : -ENOMEM;
 }
 EXPORT_SYMBOL(drm_dev_set_unique);
+
+/*
+ * DRM Core
+ * The DRM core module initializes all global DRM objects and makes them
+ * available to drivers. Once setup, drivers can probe their respective
+ * devices.
+ * Currently, core management includes:
+ *  - The "DRM-Global" key/value database
+ *  - Global ID management for connectors
+ *  - DRM major number allocation
+ *  - DRM minor management
+ *  - DRM sysfs class
+ *  - DRM debugfs root
+ *
+ * Furthermore, the DRM core provides dynamic char-dev lookups. For each
+ * interface registered on a DRM device, you can request minor numbers from DRM
+ * core. DRM core takes care of major-number management and char-dev
+ * registration. A stub ->open() callback forwards any open() requests to the
+ * registered minor.
+ */
+
+static int drm_stub_open(struct inode *inode, struct file *filp)
+{
+	const struct file_operations *new_fops;
+	struct drm_minor *minor;
+	int err;
+
+	DRM_DEBUG("\n");
+
+	mutex_lock(&drm_global_mutex);
+	minor = drm_minor_acquire(iminor(inode));
+	if (IS_ERR(minor)) {
+		err = PTR_ERR(minor);
+		goto out_unlock;
+	}
+
+	new_fops = fops_get(minor->dev->driver->fops);
+	if (!new_fops) {
+		err = -ENODEV;
+		goto out_release;
+	}
+
+	replace_fops(filp, new_fops);
+	if (filp->f_op->open)
+		err = filp->f_op->open(inode, filp);
+	else
+		err = 0;
+
+out_release:
+	drm_minor_release(minor);
+out_unlock:
+	mutex_unlock(&drm_global_mutex);
+	return err;
+}
+
+static const struct file_operations drm_stub_fops = {
+	.owner = THIS_MODULE,
+	.open = drm_stub_open,
+	.llseek = noop_llseek,
+};
+
+static int __init drm_core_init(void)
+{
+	int ret = -ENOMEM;
+
+	drm_global_init();
+	drm_connector_ida_init();
+	idr_init(&drm_minors_idr);
+
+	if (register_chrdev(DRM_MAJOR, "drm", &drm_stub_fops))
+		goto err_p1;
+
+	drm_class = drm_sysfs_create(THIS_MODULE, "drm");
+	if (IS_ERR(drm_class)) {
+		printk(KERN_ERR "DRM: Error creating drm class.\n");
+		ret = PTR_ERR(drm_class);
+		goto err_p2;
+	}
+
+	drm_debugfs_root = debugfs_create_dir("dri", NULL);
+	if (!drm_debugfs_root) {
+		DRM_ERROR("Cannot create /sys/kernel/debug/dri\n");
+		ret = -1;
+		goto err_p3;
+	}
+
+	DRM_INFO("Initialized %s %d.%d.%d %s\n",
+		 CORE_NAME, CORE_MAJOR, CORE_MINOR, CORE_PATCHLEVEL, CORE_DATE);
+	return 0;
+err_p3:
+	drm_sysfs_destroy();
+err_p2:
+	unregister_chrdev(DRM_MAJOR, "drm");
+
+	idr_destroy(&drm_minors_idr);
+err_p1:
+	return ret;
+}
+
+static void __exit drm_core_exit(void)
+{
+	debugfs_remove(drm_debugfs_root);
+	drm_sysfs_destroy();
+
+	unregister_chrdev(DRM_MAJOR, "drm");
+
+	drm_connector_ida_destroy();
+	idr_destroy(&drm_minors_idr);
+}
+
+module_init(drm_core_init);
+module_exit(drm_core_exit);

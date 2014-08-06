@@ -35,6 +35,7 @@
 
 #include <linux/export.h>
 #include <drm/drmP.h>
+#include "drm_legacy.h"
 
 static int drm_notifier(void *priv);
 
@@ -111,7 +112,7 @@ int drm_lock(struct drm_device *dev, void *data, struct drm_file *file_priv)
 	/* don't set the block all signals on the master process for now 
 	 * really probably not the correct answer but lets us debug xkb
  	 * xserver for now */
-	if (!file_priv->is_master) {
+	if (!drm_is_master(file_priv)) {
 		sigemptyset(&dev->sigmask);
 		sigaddset(&dev->sigmask, SIGSTOP);
 		sigaddset(&dev->sigmask, SIGTSTP);

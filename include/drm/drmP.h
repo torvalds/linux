@@ -151,8 +151,6 @@ int drm_err(const char *func, const char *format, ...);
 				     also include looping detection. */
 
 #define DRM_MAGIC_HASH_ORDER  4  /**< Size of key hash table. Must be power of 2. */
-#define DRM_KERNEL_CONTEXT    0	 /**< Change drm_resctx if changed */
-#define DRM_RESERVED_CONTEXTS 1	 /**< Change drm_resctx if changed */
 
 #define DRM_MAP_HASH_OFFSET 0x10000000
 
@@ -385,10 +383,7 @@ struct drm_prime_file_private {
 
 /** File private data */
 struct drm_file {
-	unsigned always_authenticated :1;
 	unsigned authenticated :1;
-	/* Whether we're master for a minor. Protected by master_mutex */
-	unsigned is_master :1;
 	/* true when the client has asked us to expose stereo 3D mode flags */
 	unsigned stereo_allowed :1;
 	/*
@@ -536,15 +531,6 @@ struct drm_map_list {
 	struct drm_local_map *map;	/**< mapping */
 	uint64_t user_token;
 	struct drm_master *master;
-};
-
-/**
- * Context handle list
- */
-struct drm_ctx_list {
-	struct list_head head;		/**< list head */
-	drm_context_t handle;		/**< context handle */
-	struct drm_file *tag;		/**< associated fd private data */
 };
 
 /* location of GART table */
@@ -1034,7 +1020,7 @@ struct drm_device {
 	/** \name Locks */
 	/*@{ */
 	struct mutex struct_mutex;	/**< For others */
-	struct mutex master_mutex;      /**< For drm_minor::master and drm_file::is_master */
+	struct mutex master_mutex;      /**< For drm_minor::master */
 	/*@} */
 
 	/** \name Usage Counters */
@@ -1172,6 +1158,21 @@ static inline bool drm_is_primary_client(const struct drm_file *file_priv)
 	return file_priv->minor->type == DRM_MINOR_LEGACY;
 }
 
+/**
+ * drm_is_master() - Check whether a DRM open-file is DRM-Master
+ * @file: DRM open-file context
+ *
+ * This checks whether a DRM open-file context is owner of the master context
+ * attached to it. If a file owns a master context, it's called DRM-Master.
+ * Per DRM device, only one such file can be DRM-Master at a time.
+ *
+ * Returns: True if the file is DRM-Master, otherwise false.
+ */
+static inline bool drm_is_master(const struct drm_file *file)
+{
+	return file->master && file->master == file->minor->master;
+}
+
 /******************************************************************/
 /** \name Internal function definitions */
 /*@{*/
@@ -1187,7 +1188,6 @@ extern bool drm_ioctl_flags(unsigned int nr, unsigned int *flags);
 				/* Device support (drm_fops.h) */
 extern struct mutex drm_global_mutex;
 extern int drm_open(struct inode *inode, struct file *filp);
-extern int drm_stub_open(struct inode *inode, struct file *filp);
 extern ssize_t drm_read(struct file *filp, char __user *buffer,
 			size_t count, loff_t *offset);
 extern int drm_release(struct inode *inode, struct file *filp);
@@ -1224,29 +1224,6 @@ extern int drm_setversion(struct drm_device *dev, void *data,
 			  struct drm_file *file_priv);
 extern int drm_noop(struct drm_device *dev, void *data,
 		    struct drm_file *file_priv);
-
-				/* Context IOCTL support (drm_context.h) */
-extern int drm_resctx(struct drm_device *dev, void *data,
-		      struct drm_file *file_priv);
-extern int drm_addctx(struct drm_device *dev, void *data,
-		      struct drm_file *file_priv);
-extern int drm_getctx(struct drm_device *dev, void *data,
-		      struct drm_file *file_priv);
-extern int drm_switchctx(struct drm_device *dev, void *data,
-			 struct drm_file *file_priv);
-extern int drm_newctx(struct drm_device *dev, void *data,
-		      struct drm_file *file_priv);
-extern int drm_rmctx(struct drm_device *dev, void *data,
-		     struct drm_file *file_priv);
-
-extern int drm_ctxbitmap_init(struct drm_device *dev);
-extern void drm_ctxbitmap_cleanup(struct drm_device *dev);
-extern void drm_ctxbitmap_free(struct drm_device *dev, int ctx_handle);
-
-extern int drm_setsareactx(struct drm_device *dev, void *data,
-			   struct drm_file *file_priv);
-extern int drm_getsareactx(struct drm_device *dev, void *data,
-			   struct drm_file *file_priv);
 
 				/* Authentication IOCTL support (drm_auth.h) */
 extern int drm_getmagic(struct drm_device *dev, void *data,
@@ -1373,9 +1350,6 @@ extern unsigned int drm_timestamp_precision;
 extern unsigned int drm_timestamp_monotonic;
 
 extern struct class *drm_class;
-extern struct dentry *drm_debugfs_root;
-
-extern struct idr drm_minors_idr;
 
 extern struct drm_local_map *drm_getsarea(struct drm_device *dev);
 
@@ -1493,9 +1467,8 @@ extern int drm_pci_set_unique(struct drm_device *dev,
 struct drm_sysfs_class;
 extern struct class *drm_sysfs_create(struct module *owner, char *name);
 extern void drm_sysfs_destroy(void);
-extern int drm_sysfs_device_add(struct drm_minor *minor);
+extern struct device *drm_sysfs_minor_alloc(struct drm_minor *minor);
 extern void drm_sysfs_hotplug_event(struct drm_device *dev);
-extern void drm_sysfs_device_remove(struct drm_minor *minor);
 extern int drm_sysfs_connector_add(struct drm_connector *connector);
 extern void drm_sysfs_connector_remove(struct drm_connector *connector);
 
