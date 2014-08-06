@@ -47,7 +47,7 @@ static unsigned int		drc_hashsize;
  */
 
 /* total number of entries */
-static unsigned int		num_drc_entries;
+static atomic_t			num_drc_entries;
 
 /* cache misses due only to checksum comparison failures */
 static unsigned int		payload_misses;
@@ -148,7 +148,7 @@ nfsd_reply_cache_free_locked(struct svc_cacherep *rp)
 		kfree(rp->c_replvec.iov_base);
 	}
 	list_del(&rp->c_lru);
-	--num_drc_entries;
+	atomic_dec(&num_drc_entries);
 	drc_mem_usage -= sizeof(*rp);
 	kmem_cache_free(drc_slab, rp);
 }
@@ -167,7 +167,7 @@ int nfsd_reply_cache_init(void)
 	unsigned int i;
 
 	max_drc_entries = nfsd_cache_size_limit();
-	num_drc_entries = 0;
+	atomic_set(&num_drc_entries, 0);
 	hashsize = nfsd_hashsize(max_drc_entries);
 	maskbits = ilog2(hashsize);
 
@@ -242,7 +242,7 @@ prune_bucket(struct nfsd_drc_bucket *b)
 		 */
 		if (rp->c_state == RC_INPROG)
 			continue;
-		if (num_drc_entries <= max_drc_entries &&
+		if (atomic_read(&num_drc_entries) <= max_drc_entries &&
 		    time_before(jiffies, rp->c_timestamp + RC_EXPIRE))
 			break;
 		nfsd_reply_cache_free_locked(rp);
@@ -290,13 +290,7 @@ cache_cleaner_func(struct work_struct *unused)
 static unsigned long
 nfsd_reply_cache_count(struct shrinker *shrink, struct shrink_control *sc)
 {
-	unsigned long num;
-
-	spin_lock(&cache_lock);
-	num = num_drc_entries;
-	spin_unlock(&cache_lock);
-
-	return num;
+	return atomic_read(&num_drc_entries);
 }
 
 static unsigned long
@@ -386,11 +380,12 @@ nfsd_cache_search(struct nfsd_drc_bucket *b, struct svc_rqst *rqstp,
 	/* tally hash chain length stats */
 	if (entries > longest_chain) {
 		longest_chain = entries;
-		longest_chain_cachesize = num_drc_entries;
+		longest_chain_cachesize = atomic_read(&num_drc_entries);
 	} else if (entries == longest_chain) {
 		/* prefer to keep the smallest cachesize possible here */
-		longest_chain_cachesize = min(longest_chain_cachesize,
-						num_drc_entries);
+		longest_chain_cachesize = min_t(unsigned int,
+				longest_chain_cachesize,
+				atomic_read(&num_drc_entries));
 	}
 
 	return ret;
@@ -433,7 +428,7 @@ nfsd_cache_lookup(struct svc_rqst *rqstp)
 	rp = nfsd_reply_cache_alloc();
 	spin_lock(&cache_lock);
 	if (likely(rp)) {
-		++num_drc_entries;
+		atomic_inc(&num_drc_entries);
 		drc_mem_usage += sizeof(*rp);
 	}
 
@@ -617,7 +612,8 @@ static int nfsd_reply_cache_stats_show(struct seq_file *m, void *v)
 {
 	spin_lock(&cache_lock);
 	seq_printf(m, "max entries:           %u\n", max_drc_entries);
-	seq_printf(m, "num entries:           %u\n", num_drc_entries);
+	seq_printf(m, "num entries:           %u\n",
+			atomic_read(&num_drc_entries));
 	seq_printf(m, "hash buckets:          %u\n", 1 << maskbits);
 	seq_printf(m, "mem usage:             %u\n", drc_mem_usage);
 	seq_printf(m, "cache hits:            %u\n", nfsdstats.rchits);
