@@ -1138,8 +1138,6 @@ static void cls_copy_data_from_queue_to_uart(struct channel_t *ch)
 		ch->ch_flags &= ~(CH_TX_FIFO_EMPTY | CH_TX_FIFO_LWM);
 
 	DGNC_UNLOCK(ch->ch_lock, lock_flags);
-
-	return;
 }
 
 
