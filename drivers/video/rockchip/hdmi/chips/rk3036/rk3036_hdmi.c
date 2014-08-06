@@ -293,10 +293,20 @@ static int rk3036_hdmi_drv_init(struct hdmi *hdmi_drv)
 	return ret;
 }
 
+static struct rk_hdmi_drvdata 	rk3036_hdmi_drvdata = {
+	.soc_type =  HDMI_SOC_RK3036,
+};
+
+static struct rk_hdmi_drvdata 	rk312x_hdmi_drvdata = {
+	.soc_type =  HDMI_SOC_RK312X,
+};
+
 #if defined(CONFIG_OF)
 static const struct of_device_id rk3036_hdmi_of_match[] = {
-	{.compatible = "rockchip,rk3036-hdmi",},
-	{.compatible = "rockchip,rk312x-hdmi",},
+	{.compatible = "rockchip,rk3036-hdmi",
+	  .data = (void *)&rk3036_hdmi_drvdata, },
+	{.compatible = "rockchip,rk312x-hdmi",
+	  .data = (void *)&rk312x_hdmi_drvdata,},
 	{}
 };
 
@@ -308,6 +318,8 @@ static int rk3036_hdmi_probe(struct platform_device *pdev)
 	int ret;
 	struct hdmi *hdmi_drv;
 	struct resource *res;
+	const struct of_device_id *match;
+	struct device_node *node = pdev->dev.of_node;
 
 	hdmi_dev = devm_kzalloc(&pdev->dev, sizeof(struct rk_hdmi_device),
 				GFP_KERNEL);
@@ -320,6 +332,12 @@ static int rk3036_hdmi_probe(struct platform_device *pdev)
 	hdmi_drv->dev = &pdev->dev;
 	platform_set_drvdata(pdev, hdmi_dev);
 	spin_lock_init(&hdmi_dev->reg_lock);
+
+	match = of_match_node(rk3036_hdmi_of_match, node);
+	hdmi_drv->data = (struct rk_hdmi_drvdata*)match->data;
+	dev_info(hdmi_drv->dev, "%s,type=%d\n",
+		       __func__,hdmi_drv->data->soc_type);
+	
 
 #ifdef CONFIG_SWITCH
 	hdmi_drv->switch_hdmi.name = "hdmi";

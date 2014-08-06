@@ -219,6 +219,7 @@ static void rk3036_hdmi_config_avi(struct hdmi *hdmi_drv,
 				  	unsigned char vic, unsigned char output_color)
 {
 	int i;
+	int avi_color_mode;
 	char info[SIZE_AVI_INFOFRAME];
 	struct rk_hdmi_device *hdmi_dev = container_of(hdmi_drv,
 						       struct rk_hdmi_device,
@@ -230,7 +231,15 @@ static void rk3036_hdmi_config_avi(struct hdmi *hdmi_drv,
 	info[1] = 0x02;
 	info[2] = 0x0D;
 	info[3] = info[0] + info[1] + info[2];
-	info[4] = (AVI_COLOR_MODE_RGB << 5);
+
+	if (output_color == VIDEO_OUTPUT_RGB444)
+		avi_color_mode = AVI_COLOR_MODE_RGB;
+	else if(output_color == VIDEO_OUTPUT_YCBCR444)
+		avi_color_mode = AVI_COLOR_MODE_YCBCR444;
+	else if(output_color == VIDEO_OUTPUT_YCBCR422)
+		avi_color_mode = AVI_COLOR_MODE_YCBCR422;
+
+	info[4] = (avi_color_mode << 5);
 	info[5] =
 	    (AVI_COLORIMETRY_NO_DATA << 6) | (AVI_CODED_FRAME_ASPECT_NO_DATA <<
 					      4) |
@@ -269,8 +278,12 @@ static int rk3036_hdmi_config_video(struct hdmi *hdmi_drv,
 		return -1;
 	}
 
-	/* Output RGB as default */
-	vpara->output_color = VIDEO_OUTPUT_RGB444;
+	if (hdmi_drv->data->soc_type == HDMI_SOC_RK3036) {
+		vpara->input_color = VIDEO_INPUT_COLOR_RGB;
+		vpara->output_color = VIDEO_OUTPUT_RGB444;/*rk3036 vop only can output rgb fmt*/
+	} else if (hdmi_drv->data->soc_type == HDMI_SOC_RK312X)
+		vpara->input_color = VIDEO_INPUT_COLOR_YCBCR444;/*rk3128 vop can output yuv444 fmt*/
+
 	if (hdmi_drv->pwr_mode == LOWER_PWR)
 		rk3036_hdmi_set_pwr_mode(hdmi_drv, NORMAL);
 

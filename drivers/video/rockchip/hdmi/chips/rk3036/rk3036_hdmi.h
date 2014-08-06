@@ -8,6 +8,7 @@ enum {
 	INPUT_SPDIF
 };
 
+
 #if defined(CONFIG_SND_RK_SOC_HDMI_SPDIF)
 #define HDMI_CODEC_SOURCE_SELECT INPUT_SPDIF
 #else

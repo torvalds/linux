@@ -48,6 +48,11 @@ enum {
 	HDMI_SOURCE_LCDC1 = 1
 };
 
+enum {
+	HDMI_SOC_RK3036,
+	HDMI_SOC_RK312X,
+	HDMI_SOC_RK3288
+};
 /*
  * If HDMI_ENABLE, system will auto configure output mode according to EDID
  * If HDMI_DISABLE, system will output mode according to
@@ -306,11 +311,17 @@ struct hdmi_video_para {
 						 */
 };
 
+struct rk_hdmi_drvdata  {
+	u8 soc_type;
+	u32 reversed;
+};
+
 struct hdmi {
 	struct device *dev;
 	int id;
 	int irq;
 	struct rk_lcdc_driver *lcdc;
+	struct rk_hdmi_drvdata *data;
 
 #ifdef CONFIG_SWITCH
 	struct switch_dev switch_hdmi;
