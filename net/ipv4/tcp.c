@@ -426,13 +426,15 @@ void tcp_init_sock(struct sock *sk)
 }
 EXPORT_SYMBOL(tcp_init_sock);
 
-void tcp_tx_timestamp(struct sock *sk, struct sk_buff *skb)
+static void tcp_tx_timestamp(struct sock *sk, struct sk_buff *skb)
 {
-	struct skb_shared_info *shinfo = skb_shinfo(skb);
+	if (sk->sk_tsflags) {
+		struct skb_shared_info *shinfo = skb_shinfo(skb);
 
-	sock_tx_timestamp(sk, &shinfo->tx_flags);
-	if (shinfo->tx_flags & SKBTX_ANY_SW_TSTAMP)
-		shinfo->tskey = TCP_SKB_CB(skb)->seq + skb->len - 1;
+		sock_tx_timestamp(sk, &shinfo->tx_flags);
+		if (shinfo->tx_flags & SKBTX_ANY_TSTAMP)
+			shinfo->tskey = TCP_SKB_CB(skb)->seq + skb->len - 1;
+	}
 }
 
 /*
