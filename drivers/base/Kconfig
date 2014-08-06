@@ -289,16 +289,6 @@ config CMA_ALIGNMENT
 
 	  If unsure, leave the default value "8".
 
-config CMA_AREAS
-	int "Maximum count of the CMA device-private areas"
-	default 7
-	help
-	  CMA allows to create CMA areas for particular devices. This parameter
-	  sets the maximum number of such device private CMA areas in the
-	  system.
-
-	  If unsure, leave the default value "7".
-
 endif
 
 endmenu
