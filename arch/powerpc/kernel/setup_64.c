@@ -525,21 +525,23 @@ void __init setup_system(void)
 	printk("Starting Linux PPC64 %s\n", init_utsname()->version);
 
 	printk("-----------------------------------------------------\n");
-	printk("ppc64_pft_size                = 0x%llx\n", ppc64_pft_size);
-	printk("physicalMemorySize            = 0x%llx\n", memblock_phys_mem_size());
+	printk("ppc64_pft_size    = 0x%llx\n", ppc64_pft_size);
+	printk("phys_mem_size     = 0x%llx\n", memblock_phys_mem_size());
+
 	if (ppc64_caches.dline_size != 0x80)
-		printk("ppc64_caches.dcache_line_size = 0x%x\n",
-		       ppc64_caches.dline_size);
+		printk("dcache_line_size  = 0x%x\n", ppc64_caches.dline_size);
 	if (ppc64_caches.iline_size != 0x80)
-		printk("ppc64_caches.icache_line_size = 0x%x\n",
-		       ppc64_caches.iline_size);
+		printk("icache_line_size  = 0x%x\n", ppc64_caches.iline_size);
+
 #ifdef CONFIG_PPC_STD_MMU_64
 	if (htab_address)
-		printk("htab_address                  = 0x%p\n", htab_address);
-	printk("htab_hash_mask                = 0x%lx\n", htab_hash_mask);
-#endif /* CONFIG_PPC_STD_MMU_64 */
+		printk("htab_address      = 0x%p\n", htab_address);
+
+	printk("htab_hash_mask    = 0x%lx\n", htab_hash_mask);
+#endif
+
 	if (PHYSICAL_START > 0)
-		printk("physical_start                = 0x%llx\n",
+		printk("physical_start    = 0x%llx\n",
 		       (unsigned long long)PHYSICAL_START);
 	printk("-----------------------------------------------------\n");
 
