@@ -4811,13 +4811,13 @@ sub process {
 			}
 		}
 
-# check for case / default statements not preceeded by break/fallthrough/switch
+# check for case / default statements not preceded by break/fallthrough/switch
 		if ($line =~ /^.\s*(?:case\s+(?:$Ident|$Constant)\s*|default):/) {
 			my $has_break = 0;
 			my $has_statement = 0;
 			my $count = 0;
 			my $prevline = $linenr;
-			while ($prevline > 1 && $count < 3 && !$has_break) {
+			while ($prevline > 1 && ($file || $count < 3) && !$has_break) {
 				$prevline--;
 				my $rline = $rawlines[$prevline - 1];
 				my $fline = $lines[$prevline - 1];
