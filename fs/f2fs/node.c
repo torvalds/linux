@@ -237,7 +237,7 @@ retry:
 			nat_get_blkaddr(e) != NULL_ADDR &&
 			new_blkaddr == NEW_ADDR);
 
-	/* increament version no as node is removed */
+	/* increment version no as node is removed */
 	if (nat_get_blkaddr(e) != NEW_ADDR && new_blkaddr == NULL_ADDR) {
 		unsigned char version = nat_get_version(e);
 		nat_set_version(e, inc_node_version(version));
@@ -274,7 +274,7 @@ int try_to_free_nats(struct f2fs_sb_info *sbi, int nr_shrink)
 }
 
 /*
- * This function returns always success
+ * This function always returns success
  */
 void get_node_info(struct f2fs_sb_info *sbi, nid_t nid, struct node_info *ni)
 {
@@ -650,7 +650,7 @@ static int truncate_partial_nodes(struct dnode_of_data *dn,
 
 	/* get indirect nodes in the path */
 	for (i = 0; i < idx + 1; i++) {
-		/* refernece count'll be increased */
+		/* reference count'll be increased */
 		pages[i] = get_node_page(sbi, nid[i]);
 		if (IS_ERR(pages[i])) {
 			err = PTR_ERR(pages[i]);
@@ -836,7 +836,7 @@ void remove_inode_page(struct inode *inode)
 		f2fs_put_page(page, 1);
 		return;
 	}
-	/* 0 is possible, after f2fs_new_inode() is failed */
+	/* 0 is possible, after f2fs_new_inode() has failed */
 	f2fs_bug_on(inode->i_blocks != 0 && inode->i_blocks != 1);
 	set_new_dnode(&dn, inode, page, page, ino);
 	truncate_node(&dn);
@@ -1637,7 +1637,7 @@ int recover_inode_page(struct f2fs_sb_info *sbi, struct page *page)
 	if (!ipage)
 		return -ENOMEM;
 
-	/* Should not use this inode  from free nid list */
+	/* Should not use this inode from free nid list */
 	remove_free_nid(NM_I(sbi), ino);
 
 	SetPageUptodate(ipage);
@@ -1665,7 +1665,7 @@ int recover_inode_page(struct f2fs_sb_info *sbi, struct page *page)
 
 /*
  * ra_sum_pages() merge contiguous pages into one bio and submit.
- * these pre-readed pages are alloced in bd_inode's mapping tree.
+ * these pre-read pages are allocated in bd_inode's mapping tree.
  */
 static int ra_sum_pages(struct f2fs_sb_info *sbi, struct page **pages,
 				int start, int nrpages)
@@ -1709,7 +1709,7 @@ int restore_node_summary(struct f2fs_sb_info *sbi,
 	for (i = 0; !err && i < last_offset; i += nrpages, addr += nrpages) {
 		nrpages = min(last_offset - i, bio_blocks);
 
-		/* read ahead node pages */
+		/* readahead node pages */
 		nrpages = ra_sum_pages(sbi, pages, addr, nrpages);
 		if (!nrpages)
 			return -ENOMEM;

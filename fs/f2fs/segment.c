@@ -62,7 +62,7 @@ static inline unsigned long __reverse_ffs(unsigned long word)
 }
 
 /*
- * __find_rev_next(_zero)_bit is copied from lib/find_next_bit.c becasue
+ * __find_rev_next(_zero)_bit is copied from lib/find_next_bit.c because
  * f2fs_set_bit makes MSB and LSB reversed in a byte.
  * Example:
  *                             LSB <--> MSB
@@ -808,7 +808,7 @@ static void __refresh_next_blkoff(struct f2fs_sb_info *sbi,
 }
 
 /*
- * This function always allocates a used segment (from dirty seglist) by SSR
+ * This function always allocates a used segment(from dirty seglist) by SSR
  * manner, so it should recover the existing segment information of valid blocks
  */
 static void change_curseg(struct f2fs_sb_info *sbi, int type, bool reuse)

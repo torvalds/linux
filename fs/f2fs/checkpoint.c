@@ -758,7 +758,7 @@ retry_flush_dents:
 	}
 
 	/*
-	 * POR: we should ensure that there is no dirty node pages
+	 * POR: we should ensure that there are no dirty node pages
 	 * until finishing nat/sit flush.
 	 */
 retry_flush_nodes:
@@ -942,7 +942,7 @@ static void do_checkpoint(struct f2fs_sb_info *sbi, bool is_umount)
 }
 
 /*
- * We guarantee that this checkpoint procedure should not fail.
+ * We guarantee that this checkpoint procedure will not fail.
  */
 void write_checkpoint(struct f2fs_sb_info *sbi, bool is_umount)
 {

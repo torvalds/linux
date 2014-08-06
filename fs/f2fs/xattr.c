@@ -528,7 +528,7 @@ static int __f2fs_setxattr(struct inode *inode, int index,
 		int free;
 		/*
 		 * If value is NULL, it is remove operation.
-		 * In case of update operation, we caculate free.
+		 * In case of update operation, we calculate free.
 		 */
 		free = MIN_OFFSET(inode) - ((char *)last - (char *)base_addr);
 		if (found)

@@ -124,7 +124,7 @@ static struct f2fs_dir_entry *find_in_block(struct page *dentry_page,
 
 		/*
 		 * For the most part, it should be a bug when name_len is zero.
-		 * We stop here for figuring out where the bugs are occurred.
+		 * We stop here for figuring out where the bugs has occurred.
 		 */
 		f2fs_bug_on(!de->name_len);
 
@@ -563,7 +563,7 @@ fail:
 }
 
 /*
- * It only removes the dentry from the dentry page,corresponding name
+ * It only removes the dentry from the dentry page, corresponding name
  * entry in name page does not need to be touched during deletion.
  */
 void f2fs_delete_entry(struct f2fs_dir_entry *dentry, struct page *page,

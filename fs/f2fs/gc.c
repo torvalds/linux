@@ -58,7 +58,7 @@ static int gc_thread_func(void *data)
 		 * 3. IO subsystem is idle by checking the # of requests in
 		 *    bdev's request list.
 		 *
-		 * Note) We have to avoid triggering GCs too much frequently.
+		 * Note) We have to avoid triggering GCs frequently.
 		 * Because it is possible that some segments can be
 		 * invalidated soon after by user update or deletion.
 		 * So, I'd like to wait some time to collect dirty segments.
@@ -222,7 +222,7 @@ static unsigned int get_cb_cost(struct f2fs_sb_info *sbi, unsigned int segno)
 
 	u = (vblocks * 100) >> sbi->log_blocks_per_seg;
 
-	/* Handle if the system time is changed by user */
+	/* Handle if the system time has changed by the user */
 	if (mtime < sit_i->min_mtime)
 		sit_i->min_mtime = mtime;
 	if (mtime > sit_i->max_mtime)

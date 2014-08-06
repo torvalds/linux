@@ -395,7 +395,7 @@ enum count_type {
 };
 
 /*
- * The below are the page types of bios used in submti_bio().
+ * The below are the page types of bios used in submit_bio().
  * The available types are:
  * DATA			User data pages. It operates as async mode.
  * NODE			Node pages. It operates as async mode.
@@ -470,7 +470,7 @@ struct f2fs_sb_info {
 	struct list_head dir_inode_list;	/* dir inode list */
 	spinlock_t dir_inode_lock;		/* for dir inode list lock */
 
-	/* basic file system units */
+	/* basic filesystem units */
 	unsigned int log_sectors_per_block;	/* log2 sectors per block */
 	unsigned int log_blocksize;		/* log2 block size */
 	unsigned int blocksize;			/* block size */
@@ -799,7 +799,7 @@ static inline block_t __start_cp_addr(struct f2fs_sb_info *sbi)
 
 	/*
 	 * odd numbered checkpoint should at cp segment 0
-	 * and even segent must be at cp segment 1
+	 * and even segment must be at cp segment 1
 	 */
 	if (!(ckpt_version & 1))
 		start_addr += sbi->blocks_per_seg;

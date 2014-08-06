@@ -549,7 +549,7 @@ static inline void verify_block_addr(struct f2fs_sb_info *sbi, block_t blk_addr)
 }
 
 /*
- * Summary block is always treated as invalid block
+ * Summary block is always treated as an invalid block
  */
 static inline void check_block_count(struct f2fs_sb_info *sbi,
 		int segno, struct f2fs_sit_entry *raw_sit)

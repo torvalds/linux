@@ -229,7 +229,7 @@ static int f2fs_unlink(struct inode *dir, struct dentry *dentry)
 	f2fs_delete_entry(de, page, inode);
 	f2fs_unlock_op(sbi);
 
-	/* In order to evict this inode,  we set it dirty */
+	/* In order to evict this inode, we set it dirty */
 	mark_inode_dirty(inode);
 fail:
 	trace_f2fs_unlink_exit(inode, err);

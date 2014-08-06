@@ -663,7 +663,7 @@ restore_gc:
 	if (need_restart_gc) {
 		if (start_gc_thread(sbi))
 			f2fs_msg(sbi->sb, KERN_WARNING,
-				"background gc thread is stop");
+				"background gc thread has stopped");
 	} else if (need_stop_gc) {
 		stop_gc_thread(sbi);
 	}
