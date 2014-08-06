@@ -687,6 +687,7 @@ struct batadv_priv_nc {
 
 /**
  * struct batadv_softif_vlan - per VLAN attributes set
+ * @bat_priv: pointer to the mesh object
  * @vid: VLAN identifier
  * @kobj: kobject for sysfs vlan subdirectory
  * @ap_isolation: AP isolation state
@@ -696,6 +697,7 @@ struct batadv_priv_nc {
  * @rcu: struct used for freeing in a RCU-safe manner
  */
 struct batadv_softif_vlan {
+	struct batadv_priv *bat_priv;
 	unsigned short vid;
 	struct kobject *kobj;
 	atomic_t ap_isolation;		/* boolean */

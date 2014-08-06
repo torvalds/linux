@@ -1562,7 +1562,7 @@ static ssize_t kvm_htab_write(struct file *file, const char __user *buf,
 				goto out;
 			}
 			if (!rma_setup && is_vrma_hpte(v)) {
-				unsigned long psize = hpte_page_size(v, r);
+				unsigned long psize = hpte_base_page_size(v, r);
 				unsigned long senc = slb_pgsize_encoding(psize);
 				unsigned long lpcr;
 
