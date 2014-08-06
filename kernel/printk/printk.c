@@ -853,9 +853,10 @@ void __init setup_log_buf(int early)
 
 	if (early) {
 		new_log_buf =
-			memblock_virt_alloc(new_log_buf_len, PAGE_SIZE);
+			memblock_virt_alloc(new_log_buf_len, LOG_ALIGN);
 	} else {
-		new_log_buf = memblock_virt_alloc_nopanic(new_log_buf_len, 0);
+		new_log_buf = memblock_virt_alloc_nopanic(new_log_buf_len,
+							  LOG_ALIGN);
 	}
 
 	if (unlikely(!new_log_buf)) {
