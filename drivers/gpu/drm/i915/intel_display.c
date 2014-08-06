@@ -1341,6 +1341,12 @@ static void assert_sprites_disabled(struct drm_i915_private *dev_priv,
 	}
 }
 
+static void assert_vblank_disabled(struct drm_crtc *crtc)
+{
+	if (WARN_ON(drm_crtc_vblank_get(crtc) == 0))
+		drm_crtc_vblank_put(crtc);
+}
+
 static void ibx_assert_pch_refclk_enabled(struct drm_i915_private *dev_priv)
 {
 	u32 val;
@@ -3905,6 +3911,8 @@ static void intel_crtc_enable_planes(struct drm_crtc *crtc)
 	int pipe = intel_crtc->pipe;
 	int plane = intel_crtc->plane;
 
+	assert_vblank_disabled(crtc);
+
 	drm_vblank_on(dev, pipe);
 
 	intel_enable_primary_hw_plane(dev_priv, plane, pipe);
@@ -3954,6 +3962,8 @@ static void intel_crtc_disable_planes(struct drm_crtc *crtc)
 	intel_frontbuffer_flip(dev, INTEL_FRONTBUFFER_ALL_MASK(pipe));
 
 	drm_vblank_off(dev, pipe);
+
+	assert_vblank_disabled(crtc);
 }
 
 static void ironlake_crtc_enable(struct drm_crtc *crtc)
