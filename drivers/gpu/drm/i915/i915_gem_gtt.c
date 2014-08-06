@@ -391,9 +391,6 @@ static void gen8_ppgtt_cleanup(struct i915_address_space *vm)
 	struct i915_hw_ppgtt *ppgtt =
 		container_of(vm, struct i915_hw_ppgtt, base);
 
-	list_del(&vm->global_link);
-	drm_mm_takedown(&vm->mm);
-
 	gen8_ppgtt_unmap_pages(ppgtt);
 	gen8_ppgtt_free(ppgtt);
 }
@@ -974,8 +971,6 @@ static void gen6_ppgtt_cleanup(struct i915_address_space *vm)
 	struct i915_hw_ppgtt *ppgtt =
 		container_of(vm, struct i915_hw_ppgtt, base);
 
-	list_del(&vm->global_link);
-	drm_mm_takedown(&ppgtt->base.mm);
 	drm_mm_remove_node(&ppgtt->node);
 
 	gen6_ppgtt_unmap_pages(ppgtt);
@@ -1225,6 +1220,9 @@ void  i915_ppgtt_release(struct kref *kref)
 	/* vmas should already be unbound */
 	WARN_ON(!list_empty(&ppgtt->base.active_list));
 	WARN_ON(!list_empty(&ppgtt->base.inactive_list));
+
+	list_del(&ppgtt->base.global_link);
+	drm_mm_takedown(&ppgtt->base.mm);
 
 	ppgtt->base.cleanup(&ppgtt->base);
 	kfree(ppgtt);
