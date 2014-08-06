@@ -309,9 +309,12 @@ our $Operators	= qr{
 our $c90_Keywords = qr{do|for|while|if|else|return|goto|continue|switch|default|case|break}x;
 
 our $NonptrType;
+our $NonptrTypeMisordered;
 our $NonptrTypeWithAttr;
 our $Type;
+our $TypeMisordered;
 our $Declare;
+our $DeclareMisordered;
 
 our $NON_ASCII_UTF8	= qr{
 	[\xC2-\xDF][\x80-\xBF]               # non-overlong 2-byte
@@ -353,6 +356,25 @@ our $signature_tags = qr{(?xi:
 	Cc:
 )};
 
+our @typeListMisordered = (
+	qr{char\s+(?:un)?signed},
+	qr{int\s+(?:(?:un)?signed\s+)?short\s},
+	qr{int\s+short(?:\s+(?:un)?signed)},
+	qr{short\s+int(?:\s+(?:un)?signed)},
+	qr{(?:un)?signed\s+int\s+short},
+	qr{short\s+(?:un)?signed},
+	qr{long\s+int\s+(?:un)?signed},
+	qr{int\s+long\s+(?:un)?signed},
+	qr{long\s+(?:un)?signed\s+int},
+	qr{int\s+(?:un)?signed\s+long},
+	qr{int\s+(?:un)?signed},
+	qr{int\s+long\s+long\s+(?:un)?signed},
+	qr{long\s+long\s+int\s+(?:un)?signed},
+	qr{long\s+long\s+(?:un)?signed\s+int},
+	qr{long\s+long\s+(?:un)?signed},
+	qr{long\s+(?:un)?signed},
+);
+
 our @typeList = (
 	qr{void},
 	qr{(?:(?:un)?signed\s+)?char},
@@ -373,6 +395,7 @@ our @typeList = (
 	qr{${Ident}_t},
 	qr{${Ident}_handler},
 	qr{${Ident}_handler_fn},
+	@typeListMisordered,
 );
 our @typeListWithAttr = (
 	@typeList,
@@ -414,6 +437,7 @@ our $allowed_asm_includes = qr{(?x:
 sub build_types {
 	my $mods = "(?x:  \n" . join("|\n  ", @modifierList) . "\n)";
 	my $all = "(?x:  \n" . join("|\n  ", @typeList) . "\n)";
+	my $Misordered = "(?x:  \n" . join("|\n  ", @typeListMisordered) . "\n)";
 	my $allWithAttr = "(?x:  \n" . join("|\n  ", @typeListWithAttr) . "\n)";
 	$Modifier	= qr{(?:$Attribute|$Sparse|$mods)};
 	$NonptrType	= qr{
@@ -422,6 +446,13 @@ sub build_types {
 				(?:typeof|__typeof__)\s*\([^\)]*\)|
 				(?:$typeTypedefs\b)|
 				(?:${all}\b)
+			)
+			(?:\s+$Modifier|\s+const)*
+		  }x;
+	$NonptrTypeMisordered	= qr{
+			(?:$Modifier\s+|const\s+)*
+			(?:
+				(?:${Misordered}\b)
 			)
 			(?:\s+$Modifier|\s+const)*
 		  }x;
@@ -439,7 +470,13 @@ sub build_types {
 			(?:(?:\s|\*|\[\])+\s*const|(?:\s|\*\s*(?:const\s*)?|\[\])+|(?:\s*\[\s*\])+)?
 			(?:\s+$Inline|\s+$Modifier)*
 		  }x;
+	$TypeMisordered	= qr{
+			$NonptrTypeMisordered
+			(?:(?:\s|\*|\[\])+\s*const|(?:\s|\*\s*(?:const\s*)?|\[\])+|(?:\s*\[\s*\])+)?
+			(?:\s+$Inline|\s+$Modifier)*
+		  }x;
 	$Declare	= qr{(?:$Storage\s+(?:$Inline\s+)?)?$Type};
+	$DeclareMisordered	= qr{(?:$Storage\s+(?:$Inline\s+)?)?$TypeMisordered};
 }
 build_types();
 
@@ -2985,6 +3022,13 @@ sub process {
 			    $fix) {
 				$fixed[$fixlinenr] =~ s/(\bstatic\s.*?)\s*=\s*(0|NULL|false)\s*;/$1;/;
 			}
+		}
+
+# check for misordered declarations of char/short/int/long with signed/unsigned
+		while ($sline =~ m{(\b$TypeMisordered\b)}g) {
+			my $tmp = trim($1);
+			WARN("MISORDERED_TYPE",
+			     "type '$tmp' should be specified in [[un]signed] [short|int|long|long long] order\n" . $herecurr);
 		}
 
 # check for static const char * arrays.
