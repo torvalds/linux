@@ -2342,6 +2342,16 @@ sub process {
 # check we are in a valid C source file if not then ignore this hunk
 		next if ($realfile !~ /\.(h|c)$/);
 
+# check indentation of any line with a bare else
+# if the previous line is a break or return and is indented 1 tab more...
+		if ($sline =~ /^\+([\t]+)(?:}[ \t]*)?else(?:[ \t]*{)?\s*$/) {
+			my $tabs = length($1) + 1;
+			if ($prevline =~ /^\+\t{$tabs,$tabs}(?:break|return)\b/) {
+				WARN("UNNECESSARY_ELSE",
+				     "else is not generally useful after a break or return\n" . $hereprev);
+			}
+		}
+
 # discourage the addition of CONFIG_EXPERIMENTAL in #if(def).
 		if ($line =~ /^\+\s*\#\s*if.*\bCONFIG_EXPERIMENTAL\b/) {
 			WARN("CONFIG_EXPERIMENTAL",
