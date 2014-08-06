@@ -30,6 +30,9 @@ Required properties:
 
 Optional properties:
 - clocks           : Must contain a reference to the functional clock.
+- dmas             : Must contain a list of two references to DMA specifiers,
+		     one for transmission, and one for reception.
+- dma-names        : Must contain a list of two DMA names, "tx" and "rx".
 
 Pinctrl properties might be needed, too.  See
 Documentation/devicetree/bindings/pinctrl/renesas,*.
@@ -58,4 +61,6 @@ Examples:
 		num-cs = <1>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+		dmas = <&dmac0 0x17>, <&dmac0 0x18>;
+		dma-names = "tx", "rx";
 	};
