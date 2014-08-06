@@ -533,6 +533,14 @@ void __init setup_system(void)
 	if (ppc64_caches.iline_size != 0x80)
 		printk("icache_line_size  = 0x%x\n", ppc64_caches.iline_size);
 
+	printk("cpu_features      = 0x%016lx\n", cur_cpu_spec->cpu_features);
+	printk("  possible        = 0x%016lx\n", CPU_FTRS_POSSIBLE);
+	printk("  always          = 0x%016lx\n", CPU_FTRS_ALWAYS);
+	printk("cpu_user_features = 0x%08x 0x%08x\n", cur_cpu_spec->cpu_user_features,
+		cur_cpu_spec->cpu_user_features2);
+	printk("mmu_features      = 0x%08x\n", cur_cpu_spec->mmu_features);
+	printk("firmware_features = 0x%016lx\n", powerpc_firmware_features);
+
 #ifdef CONFIG_PPC_STD_MMU_64
 	if (htab_address)
 		printk("htab_address      = 0x%p\n", htab_address);
