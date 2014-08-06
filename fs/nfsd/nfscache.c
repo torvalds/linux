@@ -28,7 +28,6 @@
 #define TARGET_BUCKET_SIZE	64
 
 struct nfsd_drc_bucket {
-	struct hlist_head cache_hash;
 	struct list_head lru_head;
 };
 
@@ -137,7 +136,6 @@ nfsd_reply_cache_alloc(void)
 		rp->c_state = RC_UNUSED;
 		rp->c_type = RC_NOCACHE;
 		INIT_LIST_HEAD(&rp->c_lru);
-		INIT_HLIST_NODE(&rp->c_hash);
 	}
 	return rp;
 }
@@ -149,8 +147,6 @@ nfsd_reply_cache_free_locked(struct svc_cacherep *rp)
 		drc_mem_usage -= rp->c_replvec.iov_len;
 		kfree(rp->c_replvec.iov_base);
 	}
-	if (!hlist_unhashed(&rp->c_hash))
-		hlist_del(&rp->c_hash);
 	list_del(&rp->c_lru);
 	--num_drc_entries;
 	drc_mem_usage -= sizeof(*rp);
@@ -231,16 +227,6 @@ lru_put_end(struct nfsd_drc_bucket *b, struct svc_cacherep *rp)
 	rp->c_timestamp = jiffies;
 	list_move_tail(&rp->c_lru, &b->lru_head);
 	schedule_delayed_work(&cache_cleaner, RC_EXPIRE);
-}
-
-/*
- * Move a cache entry from one hash list to another
- */
-static void
-hash_refile(struct nfsd_drc_bucket *b, struct svc_cacherep *rp)
-{
-	hlist_del_init(&rp->c_hash);
-	hlist_add_head(&rp->c_hash, &b->cache_hash);
 }
 
 static long
@@ -386,10 +372,10 @@ nfsd_cache_search(struct nfsd_drc_bucket *b, struct svc_rqst *rqstp,
 		__wsum csum)
 {
 	struct svc_cacherep	*rp, *ret = NULL;
-	struct hlist_head 	*rh = &b->cache_hash;
+	struct list_head 	*rh = &b->lru_head;
 	unsigned int		entries = 0;
 
-	hlist_for_each_entry(rp, rh, c_hash) {
+	list_for_each_entry(rp, rh, c_lru) {
 		++entries;
 		if (nfsd_cache_match(rqstp, csum, rp)) {
 			ret = rp;
@@ -479,7 +465,6 @@ nfsd_cache_lookup(struct svc_rqst *rqstp)
 	rp->c_len = rqstp->rq_arg.len;
 	rp->c_csum = csum;
 
-	hash_refile(b, rp);
 	lru_put_end(b, rp);
 
 	/* release any buffer */
