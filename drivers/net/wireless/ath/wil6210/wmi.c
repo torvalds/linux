@@ -14,6 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include <linux/moduleparam.h>
 #include <linux/etherdevice.h>
 #include <linux/if_arp.h>
 
@@ -21,6 +22,10 @@
 #include "txrx.h"
 #include "wmi.h"
 #include "trace.h"
+
+static uint max_assoc_sta = 1;
+module_param(max_assoc_sta, uint, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(max_assoc_sta, " Max number of stations associated to the AP");
 
 /**
  * WMI event receiving - theory of operations
@@ -794,7 +799,7 @@ int wmi_pcp_start(struct wil6210_priv *wil, int bi, u8 wmi_nettype, u8 chan)
 		.network_type = wmi_nettype,
 		.disable_sec_offload = 1,
 		.channel = chan - 1,
-		.pcp_max_assoc_sta = WIL6210_MAX_CID,
+		.pcp_max_assoc_sta = max_assoc_sta,
 	};
 	struct {
 		struct wil6210_mbox_hdr_wmi wmi;
@@ -803,6 +808,14 @@ int wmi_pcp_start(struct wil6210_priv *wil, int bi, u8 wmi_nettype, u8 chan)
 
 	if (!wil->secure_pcp)
 		cmd.disable_sec = 1;
+
+	if ((cmd.pcp_max_assoc_sta > WIL6210_MAX_CID) ||
+	    (cmd.pcp_max_assoc_sta <= 0)) {
+		wil_info(wil,
+			 "Requested connection limit %u, valid values are 1 - %d. Setting to %d\n",
+			 max_assoc_sta, WIL6210_MAX_CID, WIL6210_MAX_CID);
+		cmd.pcp_max_assoc_sta = WIL6210_MAX_CID;
+	}
 
 	/*
 	 * Processing time may be huge, in case of secure AP it takes about
