@@ -1494,6 +1494,9 @@ int kvm_vcpu_ioctl_get_one_reg(struct kvm_vcpu *vcpu, struct kvm_one_reg *reg)
 	case KVM_REG_PPC_DAC2:
 		val = get_reg_val(reg->id, vcpu->arch.dbg_reg.dac2);
 		break;
+	case KVM_REG_PPC_DBSR:
+		val = get_reg_val(reg->id, vcpu->arch.dbsr);
+		break;
 	case KVM_REG_PPC_EPR: {
 		u32 epr = kvmppc_get_epr(vcpu);
 		val = get_reg_val(reg->id, epr);
@@ -1563,6 +1566,9 @@ int kvm_vcpu_ioctl_set_one_reg(struct kvm_vcpu *vcpu, struct kvm_one_reg *reg)
 		break;
 	case KVM_REG_PPC_DAC2:
 		vcpu->arch.dbg_reg.dac2 = set_reg_val(reg->id, val);
+		break;
+	case KVM_REG_PPC_DBSR:
+		vcpu->arch.dbsr = set_reg_val(reg->id, val);
 		break;
 	case KVM_REG_PPC_EPR: {
 		u32 new_epr = set_reg_val(reg->id, val);
