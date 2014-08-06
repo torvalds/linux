@@ -569,7 +569,7 @@ static inline void on_slab_lock_classes(struct kmem_cache *cachep)
 		on_slab_lock_classes_node(cachep, node);
 }
 
-static inline void init_lock_keys(void)
+static inline void __init init_lock_keys(void)
 {
 	int node;
 
@@ -577,7 +577,7 @@ static inline void init_lock_keys(void)
 		init_node_lock_keys(node);
 }
 #else
-static void init_node_lock_keys(int q)
+static void __init init_node_lock_keys(int q)
 {
 }
 
