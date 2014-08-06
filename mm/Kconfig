@@ -519,15 +519,17 @@ config CMA_AREAS
 
 	  If unsure, leave the default value "7".
 
-config ZBUD
-	tristate
-	default n
+config MEM_SOFT_DIRTY
+	bool "Track memory changes"
+	depends on CHECKPOINT_RESTORE && HAVE_ARCH_SOFT_DIRTY && PROC_FS
+	select PROC_PAGE_MONITOR
 	help
-	  A special purpose allocator for storing compressed pages.
-	  It is designed to store up to two compressed pages per physical
-	  page.  While this design limits storage density, it has simple and
-	  deterministic reclaim properties that make it preferable to a higher
-	  density approach when reclaim will be used.
+	  This option enables memory changes tracking by introducing a
+	  soft-dirty bit on pte-s. This bit it set when someone writes
+	  into a page just as regular dirty bit, but unlike the latter
+	  it can be cleared by hands.
+
+	  See Documentation/vm/soft-dirty.txt for more details.
 
 config ZSWAP
 	bool "Compressed cache for swap pages (EXPERIMENTAL)"
@@ -549,17 +551,22 @@ config ZSWAP
 	  they have not be fully explored on the large set of potential
 	  configurations and workloads that exist.
 
-config MEM_SOFT_DIRTY
-	bool "Track memory changes"
-	depends on CHECKPOINT_RESTORE && HAVE_ARCH_SOFT_DIRTY && PROC_FS
-	select PROC_PAGE_MONITOR
+config ZPOOL
+	tristate "Common API for compressed memory storage"
+	default n
 	help
-	  This option enables memory changes tracking by introducing a
-	  soft-dirty bit on pte-s. This bit it set when someone writes
-	  into a page just as regular dirty bit, but unlike the latter
-	  it can be cleared by hands.
+	  Compressed memory storage API.  This allows using either zbud or
+	  zsmalloc.
 
-	  See Documentation/vm/soft-dirty.txt for more details.
+config ZBUD
+	tristate "Low density storage for compressed pages"
+	default n
+	help
+	  A special purpose allocator for storing compressed pages.
+	  It is designed to store up to two compressed pages per physical
+	  page.  While this design limits storage density, it has simple and
+	  deterministic reclaim properties that make it preferable to a higher
+	  density approach when reclaim will be used.
 
 config ZSMALLOC
 	tristate "Memory allocator for compressed pages"
