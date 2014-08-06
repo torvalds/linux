@@ -406,7 +406,9 @@ memory_probe_store(struct device *dev, struct device_attribute *attr,
 	int i, ret;
 	unsigned long pages_per_block = PAGES_PER_SECTION * sections_per_block;
 
-	phys_addr = simple_strtoull(buf, NULL, 0);
+	ret = kstrtoull(buf, 0, &phys_addr);
+	if (ret)
+		return ret;
 
 	if (phys_addr & ((pages_per_block << PAGE_SHIFT) - 1))
 		return -EINVAL;
