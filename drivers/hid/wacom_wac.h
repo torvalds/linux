@@ -46,6 +46,7 @@
 
 /* wacom data packet report IDs */
 #define WACOM_REPORT_PENABLED		2
+#define WACOM_REPORT_PENABLED_BT	3
 #define WACOM_REPORT_INTUOSREAD		5
 #define WACOM_REPORT_INTUOSWRITE	6
 #define WACOM_REPORT_INTUOSPAD		12
@@ -73,6 +74,7 @@
 enum {
 	PENPARTNER = 0,
 	GRAPHIRE,
+	GRAPHIRE_BT,
 	WACOM_G4,
 	PTU,
 	PL,

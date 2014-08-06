@@ -265,6 +265,39 @@ static int wacom_set_device_mode(struct hid_device *hdev, int report_id,
 static int wacom_bt_query_tablet_data(struct hid_device *hdev, u8 speed,
 		struct wacom_features *features)
 {
+	struct wacom *wacom = hid_get_drvdata(hdev);
+	int ret;
+	u8 rep_data[2];
+
+	switch (features->type) {
+	case GRAPHIRE_BT:
+		rep_data[0] = 0x03;
+		rep_data[1] = 0x00;
+		ret = wacom_set_report(hdev, HID_FEATURE_REPORT,
+					rep_data[0], rep_data, 2, 3);
+
+		if (ret >= 0) {
+			rep_data[0] = speed == 0 ? 0x05 : 0x06;
+			rep_data[1] = 0x00;
+
+			ret = wacom_set_report(hdev, HID_FEATURE_REPORT,
+						rep_data[0], rep_data, 2, 3);
+
+			if (ret >= 0) {
+				wacom->wacom_wac.bt_high_speed = speed;
+				return 0;
+			}
+		}
+
+		/*
+		 * Note that if the raw queries fail, it's not a hard failure
+		 * and it is safe to continue
+		 */
+		hid_warn(hdev, "failed to poke device, command %d, err %d\n",
+			 rep_data[0], ret);
+		break;
+	}
+
 	return 0;
 }
 
