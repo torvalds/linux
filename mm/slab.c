@@ -3398,7 +3398,7 @@ static void free_block(struct kmem_cache *cachep, void **objpp, int nr_objects,
 		       int node)
 {
 	int i;
-	struct kmem_cache_node *n;
+	struct kmem_cache_node *n = get_node(cachep, node);
 
 	for (i = 0; i < nr_objects; i++) {
 		void *objp;
@@ -3408,7 +3408,6 @@ static void free_block(struct kmem_cache *cachep, void **objpp, int nr_objects,
 		objp = objpp[i];
 
 		page = virt_to_head_page(objp);
-		n = get_node(cachep, node);
 		list_del(&page->lru);
 		check_spinlock_acquired_node(cachep, node);
 		slab_put_obj(cachep, page, objp, node);
