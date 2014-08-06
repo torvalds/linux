@@ -2260,12 +2260,12 @@ sub process {
 			}
 		}
 
-		if ($line =~ /^\+.*\*[ \t]*\)[ \t]+(?!$Assignment|$Arithmetic)/) {
+		if ($line =~ /^\+.*\(\s*$Type\s*\)[ \t]+(?!$Assignment|$Arithmetic)/) {
 			if (CHK("SPACING",
-				"No space is necessary after a cast\n" . $hereprev) &&
+				"No space is necessary after a cast\n" . $herecurr) &&
 			    $fix) {
 				$fixed[$linenr - 1] =~
-				    s/^(\+.*\*[ \t]*\))[ \t]+/$1/;
+				    s/(\(\s*$Type\s*\))[ \t]+/$1/;
 			}
 		}
 
