@@ -397,6 +397,7 @@ static inline void neo_clear_break(struct channel_t *ch, int force)
 		if (time_after_eq(jiffies, ch->ch_stop_sending_break)
 		    || force) {
 			uchar temp = readb(&ch->ch_neo_uart->lcr);
+
 			writeb((temp & ~UART_LCR_SBC), &ch->ch_neo_uart->lcr);
 			neo_pci_posting_flush(ch->ch_bd);
 			ch->ch_flags &= ~(CH_BREAK_SENDING);
@@ -1138,6 +1139,7 @@ static irqreturn_t neo_intr(int irq, void *voidbrd)
 static void neo_disable_receiver(struct channel_t *ch)
 {
 	uchar tmp = readb(&ch->ch_neo_uart->ier);
+
 	tmp &= ~(UART_IER_RDI);
 	writeb(tmp, &ch->ch_neo_uart->ier);
 	neo_pci_posting_flush(ch->ch_bd);
@@ -1152,6 +1154,7 @@ static void neo_disable_receiver(struct channel_t *ch)
 static void neo_enable_receiver(struct channel_t *ch)
 {
 	uchar tmp = readb(&ch->ch_neo_uart->ier);
+
 	tmp |= (UART_IER_RDI);
 	writeb(tmp, &ch->ch_neo_uart->ier);
 	neo_pci_posting_flush(ch->ch_bd);
@@ -1324,6 +1327,7 @@ static void neo_copy_data_from_uart_to_queue(struct channel_t *ch)
 		 */
 		if (linestatus & error_mask)  {
 			uchar discard;
+
 			linestatus = 0;
 			memcpy_fromio(&discard, &ch->ch_neo_uart->txrxburst, 1);
 			continue;
@@ -1822,6 +1826,7 @@ static void neo_send_break(struct channel_t *ch, int msecs)
 	if (msecs == 0) {
 		if (ch->ch_flags & CH_BREAK_SENDING) {
 			uchar temp = readb(&ch->ch_neo_uart->lcr);
+
 			writeb((temp & ~UART_LCR_SBC), &ch->ch_neo_uart->lcr);
 			neo_pci_posting_flush(ch->ch_bd);
 			ch->ch_flags &= ~(CH_BREAK_SENDING);
@@ -1841,6 +1846,7 @@ static void neo_send_break(struct channel_t *ch, int msecs)
 	/* Tell the UART to start sending the break */
 	if (!(ch->ch_flags & CH_BREAK_SENDING)) {
 		uchar temp = readb(&ch->ch_neo_uart->lcr);
+		
 		writeb((temp | UART_LCR_SBC), &ch->ch_neo_uart->lcr);
 		neo_pci_posting_flush(ch->ch_bd);
 		ch->ch_flags |= (CH_BREAK_SENDING);
