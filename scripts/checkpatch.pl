@@ -2353,7 +2353,7 @@ sub process {
 		      $sline =~ /^\+\s+\(?\s*(?:$Compare|$Assignment|$Operators)/) &&
 			# indentation of previous and current line are the same
 		    (($prevline =~ /\+(\s+)\S/) && $sline =~ /^\+$1\S/)) {
-			WARN("SPACING",
+			WARN("LINE_SPACING",
 			     "Missing a blank line after declarations\n" . $hereprev);
 		}
 
