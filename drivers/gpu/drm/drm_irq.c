@@ -730,6 +730,8 @@ EXPORT_SYMBOL(drm_get_last_vbltimestamp);
  */
 u32 drm_vblank_count(struct drm_device *dev, int crtc)
 {
+	if (WARN_ON(crtc >= dev->num_crtcs))
+		return 0;
 	return atomic_read(&dev->vblank[crtc].count);
 }
 EXPORT_SYMBOL(drm_vblank_count);
@@ -751,6 +753,9 @@ u32 drm_vblank_count_and_time(struct drm_device *dev, int crtc,
 			      struct timeval *vblanktime)
 {
 	u32 cur_vblank;
+
+	if (WARN_ON(crtc >= dev->num_crtcs))
+		return 0;
 
 	/* Read timestamp from slot of _vblank_time ringbuffer
 	 * that corresponds to current vblank count. Retry if
@@ -927,6 +932,9 @@ int drm_vblank_get(struct drm_device *dev, int crtc)
 	unsigned long irqflags;
 	int ret = 0;
 
+	if (WARN_ON(crtc >= dev->num_crtcs))
+		return -EINVAL;
+
 	spin_lock_irqsave(&dev->vbl_lock, irqflags);
 	/* Going from 0->1 means we have to enable interrupts again */
 	if (atomic_add_return(1, &dev->vblank[crtc].refcount) == 1) {
@@ -975,6 +983,9 @@ void drm_vblank_put(struct drm_device *dev, int crtc)
 {
 	BUG_ON(atomic_read(&dev->vblank[crtc].refcount) == 0);
 
+	if (WARN_ON(crtc >= dev->num_crtcs))
+		return;
+
 	/* Last user schedules interrupt disable */
 	if (atomic_dec_and_test(&dev->vblank[crtc].refcount) &&
 	    (drm_vblank_offdelay > 0))
@@ -1018,6 +1029,9 @@ void drm_vblank_off(struct drm_device *dev, int crtc)
 	struct timeval now;
 	unsigned long irqflags;
 	unsigned int seq;
+
+	if (WARN_ON(crtc >= dev->num_crtcs))
+		return;
 
 	spin_lock_irqsave(&dev->vbl_lock, irqflags);
 	vblank_disable_and_save(dev, crtc);
@@ -1078,6 +1092,9 @@ void drm_vblank_on(struct drm_device *dev, int crtc)
 {
 	unsigned long irqflags;
 
+	if (WARN_ON(crtc >= dev->num_crtcs))
+		return;
+
 	spin_lock_irqsave(&dev->vbl_lock, irqflags);
 	/* re-enable interrupts if there's are users left */
 	if (atomic_read(&dev->vblank[crtc].refcount) != 0)
@@ -1131,6 +1148,10 @@ void drm_vblank_pre_modeset(struct drm_device *dev, int crtc)
 	/* vblank is not initialized (IRQ not installed ?), or has been freed */
 	if (!dev->num_crtcs)
 		return;
+
+	if (WARN_ON(crtc >= dev->num_crtcs))
+		return;
+
 	/*
 	 * To avoid all the problems that might happen if interrupts
 	 * were enabled/disabled around or between these calls, we just
@@ -1437,6 +1458,9 @@ bool drm_handle_vblank(struct drm_device *dev, int crtc)
 	unsigned long irqflags;
 
 	if (!dev->num_crtcs)
+		return false;
+
+	if (WARN_ON(crtc >= dev->num_crtcs))
 		return false;
 
 	/* Need timestamp lock to prevent concurrent execution with
