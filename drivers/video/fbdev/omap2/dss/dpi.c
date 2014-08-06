@@ -223,7 +223,6 @@ static bool dpi_dsi_clk_calc(struct dpi_data *dpi, unsigned long pck,
 	ctx->dsidev = dpi->dsidev;
 	ctx->pck_min = pck - 1000;
 	ctx->pck_max = pck + 1000;
-	ctx->dsi_cinfo.clkin = clkin;
 
 	pll_min = 0;
 	pll_max = 0;
