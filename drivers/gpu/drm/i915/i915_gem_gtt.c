@@ -1772,6 +1772,12 @@ void i915_global_gtt_cleanup(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct i915_address_space *vm = &dev_priv->gtt.base;
 
+	if (dev_priv->mm.aliasing_ppgtt) {
+		struct i915_hw_ppgtt *ppgtt = dev_priv->mm.aliasing_ppgtt;
+
+		ppgtt->base.cleanup(&ppgtt->base);
+	}
+
 	if (drm_mm_initialized(&vm->mm)) {
 		drm_mm_takedown(&vm->mm);
 		list_del(&vm->global_link);
@@ -1779,6 +1785,7 @@ void i915_global_gtt_cleanup(struct drm_device *dev)
 
 	vm->cleanup(vm);
 }
+
 static int setup_scratch_page(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
