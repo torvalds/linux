@@ -171,60 +171,6 @@ int drm_fb_helper_remove_one_connector(struct drm_fb_helper *fb_helper,
 }
 EXPORT_SYMBOL(drm_fb_helper_remove_one_connector);
 
-static int drm_fb_helper_parse_command_line(struct drm_fb_helper *fb_helper)
-{
-	struct drm_fb_helper_connector *fb_helper_conn;
-	int i;
-
-	for (i = 0; i < fb_helper->connector_count; i++) {
-		struct drm_cmdline_mode *mode;
-		struct drm_connector *connector;
-		char *option = NULL;
-
-		fb_helper_conn = fb_helper->connector_info[i];
-		connector = fb_helper_conn->connector;
-		mode = &fb_helper_conn->cmdline_mode;
-
-		/* do something on return - turn off connector maybe */
-		if (fb_get_options(connector->name, &option))
-			continue;
-
-		if (drm_mode_parse_command_line_for_connector(option,
-							      connector,
-							      mode)) {
-			if (mode->force) {
-				const char *s;
-				switch (mode->force) {
-				case DRM_FORCE_OFF:
-					s = "OFF";
-					break;
-				case DRM_FORCE_ON_DIGITAL:
-					s = "ON - dig";
-					break;
-				default:
-				case DRM_FORCE_ON:
-					s = "ON";
-					break;
-				}
-
-				DRM_INFO("forcing %s connector %s\n",
-					 connector->name, s);
-				connector->force = mode->force;
-			}
-
-			DRM_DEBUG_KMS("cmdline mode for connector %s %dx%d@%dHz%s%s%s\n",
-				      connector->name,
-				      mode->xres, mode->yres,
-				      mode->refresh_specified ? mode->refresh : 60,
-				      mode->rb ? " reduced blanking" : "",
-				      mode->margins ? " with margins" : "",
-				      mode->interlace ?  " interlaced" : "");
-		}
-
-	}
-	return 0;
-}
-
 static void drm_fb_helper_save_lut_atomic(struct drm_crtc *crtc, struct drm_fb_helper *helper)
 {
 	uint16_t *r_base, *g_base, *b_base;
@@ -1013,7 +959,7 @@ static int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 		struct drm_fb_helper_connector *fb_helper_conn = fb_helper->connector_info[i];
 		struct drm_cmdline_mode *cmdline_mode;
 
-		cmdline_mode = &fb_helper_conn->cmdline_mode;
+		cmdline_mode = &fb_helper_conn->connector->cmdline_mode;
 
 		if (cmdline_mode->bpp_specified) {
 			switch (cmdline_mode->bpp) {
@@ -1260,9 +1206,7 @@ EXPORT_SYMBOL(drm_has_preferred_mode);
 
 static bool drm_has_cmdline_mode(struct drm_fb_helper_connector *fb_connector)
 {
-	struct drm_cmdline_mode *cmdline_mode;
-	cmdline_mode = &fb_connector->cmdline_mode;
-	return cmdline_mode->specified;
+	return fb_connector->connector->cmdline_mode.specified;
 }
 
 struct drm_display_mode *drm_pick_cmdline_mode(struct drm_fb_helper_connector *fb_helper_conn,
@@ -1272,7 +1216,7 @@ struct drm_display_mode *drm_pick_cmdline_mode(struct drm_fb_helper_connector *f
 	struct drm_display_mode *mode = NULL;
 	bool prefer_non_interlace;
 
-	cmdline_mode = &fb_helper_conn->cmdline_mode;
+	cmdline_mode = &fb_helper_conn->connector->cmdline_mode;
 	if (cmdline_mode->specified == false)
 		return mode;
 
@@ -1656,8 +1600,6 @@ bool drm_fb_helper_initial_config(struct drm_fb_helper *fb_helper, int bpp_sel)
 {
 	struct drm_device *dev = fb_helper->dev;
 	int count = 0;
-
-	drm_fb_helper_parse_command_line(fb_helper);
 
 	mutex_lock(&dev->mode_config.mutex);
 	count = drm_fb_helper_probe_connector_modes(fb_helper,

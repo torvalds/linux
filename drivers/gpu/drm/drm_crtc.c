@@ -863,6 +863,59 @@ static void drm_mode_remove(struct drm_connector *connector,
 }
 
 /**
+ * drm_connector_get_cmdline_mode - reads the user's cmdline mode
+ * @connector: connector to quwery
+ * @mode: returned mode
+ *
+ * The kernel supports per-connector configration of its consoles through
+ * use of the video= parameter. This function parses that option and
+ * extracts the user's specified mode (or enable/disable status) for a
+ * particular connector. This is typically only used during the early fbdev
+ * setup.
+ */
+static void drm_connector_get_cmdline_mode(struct drm_connector *connector)
+{
+	struct drm_cmdline_mode *mode = &connector->cmdline_mode;
+	char *option = NULL;
+
+	if (fb_get_options(connector->name, &option))
+		return;
+
+	if (!drm_mode_parse_command_line_for_connector(option,
+						       connector,
+						       mode))
+		return;
+
+	if (mode->force) {
+		const char *s;
+
+		switch (mode->force) {
+		case DRM_FORCE_OFF:
+			s = "OFF";
+			break;
+		case DRM_FORCE_ON_DIGITAL:
+			s = "ON - dig";
+			break;
+		default:
+		case DRM_FORCE_ON:
+			s = "ON";
+			break;
+		}
+
+		DRM_INFO("forcing %s connector %s\n", connector->name, s);
+		connector->force = mode->force;
+	}
+
+	DRM_DEBUG_KMS("cmdline mode for connector %s %dx%d@%dHz%s%s%s\n",
+		      connector->name,
+		      mode->xres, mode->yres,
+		      mode->refresh_specified ? mode->refresh : 60,
+		      mode->rb ? " reduced blanking" : "",
+		      mode->margins ? " with margins" : "",
+		      mode->interlace ?  " interlaced" : "");
+}
+
+/**
  * drm_connector_init - Init a preallocated connector
  * @dev: DRM device
  * @connector: the connector to init
@@ -913,6 +966,8 @@ int drm_connector_init(struct drm_device *dev,
 	INIT_LIST_HEAD(&connector->modes);
 	connector->edid_blob_ptr = NULL;
 	connector->status = connector_status_unknown;
+
+	drm_connector_get_cmdline_mode(connector);
 
 	list_add_tail(&connector->head, &dev->mode_config.connector_list);
 	dev->mode_config.num_connector++;
