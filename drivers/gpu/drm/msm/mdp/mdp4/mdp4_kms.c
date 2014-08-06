@@ -106,6 +106,7 @@ static int mdp4_hw_init(struct msm_kms *kms)
 
 	if (mdp4_kms->rev >= 2)
 		mdp4_write(mdp4_kms, REG_MDP4_LAYERMIXER_IN_CFG_UPDATE_METHOD, 1);
+	mdp4_write(mdp4_kms, REG_MDP4_LAYERMIXER_IN_CFG, 0);
 
 	/* disable CSC matrix / YUV by default: */
 	mdp4_write(mdp4_kms, REG_MDP4_PIPE_OP_MODE(VG1), 0);

@@ -280,7 +280,7 @@ static int msm_load(struct drm_device *dev, unsigned long flags)
 	dev->mode_config.max_height = 2048;
 	dev->mode_config.funcs = &mode_config_funcs;
 
-	ret = drm_vblank_init(dev, 1);
+	ret = drm_vblank_init(dev, priv->num_crtcs);
 	if (ret < 0) {
 		dev_err(dev->dev, "failed to initialize vblank\n");
 		goto fail;
