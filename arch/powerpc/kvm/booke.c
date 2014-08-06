@@ -735,6 +735,8 @@ static int kvmppc_handle_debug(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	struct debug_reg *dbg_reg = &(vcpu->arch.shadow_dbg_reg);
 	u32 dbsr = vcpu->arch.dbsr;
 
+	/* Clear guest dbsr (vcpu->arch.dbsr) */
+	vcpu->arch.dbsr = 0;
 	run->debug.arch.status = 0;
 	run->debug.arch.address = vcpu->arch.pc;
 
