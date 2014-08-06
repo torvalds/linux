@@ -57,7 +57,7 @@ MODULE_SUPPORTED_DEVICE("dgnc");
  */
 PARM_INT(debug,		0x00,		0644,	"Driver debugging level");
 PARM_INT(rawreadok,	1,		0644,	"Bypass flip buffers on input");
-PARM_INT(trcbuf_size,	0x100000,	0644, 	"Debugging trace buffer size.");
+PARM_INT(trcbuf_size,	0x100000,	0644,	"Debugging trace buffer size.");
 
 /**************************************************************************
  *
@@ -83,7 +83,7 @@ static void		dgnc_do_remap(struct dgnc_board *brd);
  */
 static const struct file_operations dgnc_BoardFops = {
 	.owner		=	THIS_MODULE,
-	.unlocked_ioctl =  	dgnc_mgmt_ioctl,
+	.unlocked_ioctl =	dgnc_mgmt_ioctl,
 	.open		=	dgnc_mgmt_open,
 	.release	=	dgnc_mgmt_close
 };
@@ -111,7 +111,7 @@ static struct class *dgnc_class;
 /*
  * Poller stuff
  */
-static 			DEFINE_SPINLOCK(dgnc_poll_lock);	/* Poll scheduling lock */
+static DEFINE_SPINLOCK(dgnc_poll_lock); /* Poll scheduling lock */
 static ulong		dgnc_poll_time;				/* Time of next poll */
 static uint		dgnc_poll_stop;				/* Used to tell poller to stop */
 static struct timer_list dgnc_poll_timer;
