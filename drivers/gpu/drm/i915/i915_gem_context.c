@@ -233,8 +233,7 @@ err_out:
  */
 static struct intel_context *
 i915_gem_create_context(struct drm_device *dev,
-			struct drm_i915_file_private *file_priv,
-			bool create_vm)
+			struct drm_i915_file_private *file_priv)
 {
 	const bool is_global_default_ctx = file_priv == NULL;
 	struct intel_context *ctx;
@@ -262,7 +261,7 @@ i915_gem_create_context(struct drm_device *dev,
 		}
 	}
 
-	if (create_vm) {
+	if (USES_FULL_PPGTT(dev)) {
 		struct i915_hw_ppgtt *ppgtt = i915_ppgtt_create(dev, file_priv);
 
 		if (IS_ERR_OR_NULL(ppgtt)) {
@@ -345,7 +344,7 @@ int i915_gem_context_init(struct drm_device *dev)
 		}
 	}
 
-	ctx = i915_gem_create_context(dev, NULL, USES_FULL_PPGTT(dev));
+	ctx = i915_gem_create_context(dev, NULL);
 	if (IS_ERR(ctx)) {
 		DRM_ERROR("Failed to create default global context (error %ld)\n",
 			  PTR_ERR(ctx));
@@ -444,7 +443,7 @@ int i915_gem_context_open(struct drm_device *dev, struct drm_file *file)
 	idr_init(&file_priv->context_idr);
 
 	mutex_lock(&dev->struct_mutex);
-	ctx = i915_gem_create_context(dev, file_priv, USES_FULL_PPGTT(dev));
+	ctx = i915_gem_create_context(dev, file_priv);
 	mutex_unlock(&dev->struct_mutex);
 
 	if (IS_ERR(ctx)) {
@@ -702,7 +701,7 @@ int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
 	if (ret)
 		return ret;
 
-	ctx = i915_gem_create_context(dev, file_priv, USES_FULL_PPGTT(dev));
+	ctx = i915_gem_create_context(dev, file_priv);
 	mutex_unlock(&dev->struct_mutex);
 	if (IS_ERR(ctx))
 		return PTR_ERR(ctx);
