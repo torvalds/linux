@@ -2503,7 +2503,7 @@ static inline bool i915_gem_obj_is_pinned(struct drm_i915_gem_object *obj) {
 }
 
 /* Some GGTT VM helpers */
-#define obj_to_ggtt(obj) \
+#define i915_obj_to_ggtt(obj) \
 	(&((struct drm_i915_private *)(obj)->base.dev->dev_private)->gtt.base)
 static inline bool i915_is_ggtt(struct i915_address_space *vm)
 {
@@ -2523,19 +2523,19 @@ i915_vm_to_ppgtt(struct i915_address_space *vm)
 
 static inline bool i915_gem_obj_ggtt_bound(struct drm_i915_gem_object *obj)
 {
-	return i915_gem_obj_bound(obj, obj_to_ggtt(obj));
+	return i915_gem_obj_bound(obj, i915_obj_to_ggtt(obj));
 }
 
 static inline unsigned long
 i915_gem_obj_ggtt_offset(struct drm_i915_gem_object *obj)
 {
-	return i915_gem_obj_offset(obj, obj_to_ggtt(obj));
+	return i915_gem_obj_offset(obj, i915_obj_to_ggtt(obj));
 }
 
 static inline unsigned long
 i915_gem_obj_ggtt_size(struct drm_i915_gem_object *obj)
 {
-	return i915_gem_obj_size(obj, obj_to_ggtt(obj));
+	return i915_gem_obj_size(obj, i915_obj_to_ggtt(obj));
 }
 
 static inline int __must_check
@@ -2543,7 +2543,8 @@ i915_gem_obj_ggtt_pin(struct drm_i915_gem_object *obj,
 		      uint32_t alignment,
 		      unsigned flags)
 {
-	return i915_gem_object_pin(obj, obj_to_ggtt(obj), alignment, flags | PIN_GLOBAL);
+	return i915_gem_object_pin(obj, i915_obj_to_ggtt(obj),
+				   alignment, flags | PIN_GLOBAL);
 }
 
 static inline int
