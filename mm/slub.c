@@ -4187,7 +4187,7 @@ static int list_locations(struct kmem_cache *s, char *buf,
 #endif
 
 #ifdef SLUB_RESILIENCY_TEST
-static void resiliency_test(void)
+static void __init resiliency_test(void)
 {
 	u8 *p;
 
