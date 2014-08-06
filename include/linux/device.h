@@ -1053,6 +1053,7 @@ struct device {
 	struct cma *cma_area;		/* contiguous memory area for dma
 					   allocations */
 #endif
+	struct removed_region *removed_mem;
 	/* arch specific additions */
 	struct dev_archdata	archdata;
 
