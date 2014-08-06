@@ -1214,9 +1214,9 @@ static int ioctl_get_cycle_timer2(struct client *client, union ioctl_arg *arg)
 	cycle_time = card->driver->read_csr(card, CSR_CYCLE_TIME);
 
 	switch (a->clk_id) {
-	case CLOCK_REALTIME:      getnstimeofday(&ts);                   break;
-	case CLOCK_MONOTONIC:     do_posix_clock_monotonic_gettime(&ts); break;
-	case CLOCK_MONOTONIC_RAW: getrawmonotonic(&ts);                  break;
+	case CLOCK_REALTIME:      getnstimeofday(&ts);	break;
+	case CLOCK_MONOTONIC:     ktime_get_ts(&ts);	break;
+	case CLOCK_MONOTONIC_RAW: getrawmonotonic(&ts);	break;
 	default:
 		ret = -EINVAL;
 	}

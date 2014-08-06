@@ -604,8 +604,8 @@ struct mlx5_cmd_work_ent {
 	int			page_queue;
 	u8			status;
 	u8			token;
-	struct timespec		ts1;
-	struct timespec		ts2;
+	u64			ts1;
+	u64			ts2;
 	u16			op;
 };
 

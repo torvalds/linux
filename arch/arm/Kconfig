@@ -65,7 +65,6 @@ config ARM
 	select HAVE_UID16
 	select HAVE_VIRT_CPU_ACCOUNTING_GEN
 	select IRQ_FORCED_THREADING
-	select KTIME_SCALAR
 	select MODULES_USE_ELF_REL
 	select NO_BOOTMEM
 	select OLD_SIGACTION
@@ -648,6 +647,7 @@ config ARCH_PXA
 	select AUTO_ZRELADDR
 	select CLKDEV_LOOKUP
 	select CLKSRC_MMIO
+	select CLKSRC_OF
 	select GENERIC_CLOCKEVENTS
 	select GPIO_PXA
 	select HAVE_IDE

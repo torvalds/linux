@@ -1149,16 +1149,16 @@ static bool can_wait_boost(struct drm_i915_file_private *file_priv)
 static int __wait_seqno(struct intel_engine_cs *ring, u32 seqno,
 			unsigned reset_counter,
 			bool interruptible,
-			struct timespec *timeout,
+			s64 *timeout,
 			struct drm_i915_file_private *file_priv)
 {
 	struct drm_device *dev = ring->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	const bool irq_test_in_progress =
 		ACCESS_ONCE(dev_priv->gpu_error.test_irq_rings) & intel_ring_flag(ring);
-	struct timespec before, now;
 	DEFINE_WAIT(wait);
 	unsigned long timeout_expire;
+	s64 before, now;
 	int ret;
 
 	WARN(dev_priv->pm.irqs_disabled, "IRQs disabled\n");
@@ -1166,7 +1166,7 @@ static int __wait_seqno(struct intel_engine_cs *ring, u32 seqno,
 	if (i915_seqno_passed(ring->get_seqno(ring, true), seqno))
 		return 0;
 
-	timeout_expire = timeout ? jiffies + timespec_to_jiffies_timeout(timeout) : 0;
+	timeout_expire = timeout ? jiffies + nsecs_to_jiffies((u64)*timeout) : 0;
 
 	if (INTEL_INFO(dev)->gen >= 6 && can_wait_boost(file_priv)) {
 		gen6_rps_boost(dev_priv);
@@ -1181,7 +1181,7 @@ static int __wait_seqno(struct intel_engine_cs *ring, u32 seqno,
 
 	/* Record current time in case interrupted by signal, or wedged */
 	trace_i915_gem_request_wait_begin(ring, seqno);
-	getrawmonotonic(&before);
+	before = ktime_get_raw_ns();
 	for (;;) {
 		struct timer_list timer;
 
@@ -1230,7 +1230,7 @@ static int __wait_seqno(struct intel_engine_cs *ring, u32 seqno,
 			destroy_timer_on_stack(&timer);
 		}
 	}
-	getrawmonotonic(&now);
+	now = ktime_get_raw_ns();
 	trace_i915_gem_request_wait_end(ring, seqno);
 
 	if (!irq_test_in_progress)
@@ -1239,10 +1239,9 @@ static int __wait_seqno(struct intel_engine_cs *ring, u32 seqno,
 	finish_wait(&ring->irq_queue, &wait);
 
 	if (timeout) {
-		struct timespec sleep_time = timespec_sub(now, before);
-		*timeout = timespec_sub(*timeout, sleep_time);
-		if (!timespec_valid(timeout)) /* i.e. negative time remains */
-			set_normalized_timespec(timeout, 0, 0);
+		s64 tres = *timeout - (now - before);
+
+		*timeout = tres < 0 ? 0 : tres;
 	}
 
 	return ret;
@@ -2746,15 +2745,9 @@ i915_gem_wait_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	struct drm_i915_gem_wait *args = data;
 	struct drm_i915_gem_object *obj;
 	struct intel_engine_cs *ring = NULL;
-	struct timespec timeout_stack, *timeout = NULL;
 	unsigned reset_counter;
 	u32 seqno = 0;
 	int ret = 0;
-
-	if (args->timeout_ns >= 0) {
-		timeout_stack = ns_to_timespec(args->timeout_ns);
-		timeout = &timeout_stack;
-	}
 
 	ret = i915_mutex_lock_interruptible(dev);
 	if (ret)
@@ -2780,9 +2773,9 @@ i915_gem_wait_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 		 goto out;
 
 	/* Do this after OLR check to make sure we make forward progress polling
-	 * on this IOCTL with a 0 timeout (like busy ioctl)
+	 * on this IOCTL with a timeout <=0 (like busy ioctl)
 	 */
-	if (!args->timeout_ns) {
+	if (args->timeout_ns <= 0) {
 		ret = -ETIME;
 		goto out;
 	}
@@ -2791,10 +2784,8 @@ i915_gem_wait_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	reset_counter = atomic_read(&dev_priv->gpu_error.reset_counter);
 	mutex_unlock(&dev->struct_mutex);
 
-	ret = __wait_seqno(ring, seqno, reset_counter, true, timeout, file->driver_priv);
-	if (timeout)
-		args->timeout_ns = timespec_to_ns(timeout);
-	return ret;
+	return __wait_seqno(ring, seqno, reset_counter, true, &args->timeout_ns,
+			    file->driver_priv);
 
 out:
 	drm_gem_object_unreference(&obj->base);

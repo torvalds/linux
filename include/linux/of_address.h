@@ -109,7 +109,12 @@ static inline bool of_dma_is_coherent(struct device_node *np)
 extern int of_address_to_resource(struct device_node *dev, int index,
 				  struct resource *r);
 void __iomem *of_iomap(struct device_node *node, int index);
+void __iomem *of_io_request_and_map(struct device_node *device,
+					int index, char *name);
 #else
+
+#include <linux/io.h>
+
 static inline int of_address_to_resource(struct device_node *dev, int index,
 					 struct resource *r)
 {
@@ -119,6 +124,12 @@ static inline int of_address_to_resource(struct device_node *dev, int index,
 static inline void __iomem *of_iomap(struct device_node *device, int index)
 {
 	return NULL;
+}
+
+static inline void __iomem *of_io_request_and_map(struct device_node *device,
+					int index, char *name)
+{
+	return IOMEM_ERR_PTR(-EINVAL);
 }
 #endif
 

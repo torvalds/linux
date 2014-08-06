@@ -159,8 +159,8 @@ struct vmw_surface {
 
 struct vmw_marker_queue {
 	struct list_head head;
-	struct timespec lag;
-	struct timespec lag_time;
+	u64 lag;
+	u64 lag_time;
 	spinlock_t lock;
 };
 

@@ -145,7 +145,6 @@ ioc4_clock_calibrate(struct ioc4_driver_data *idd)
 	union ioc4_int_out int_out;
 	union ioc4_gpcr gpcr;
 	unsigned int state, last_state = 1;
-	struct timespec start_ts, end_ts;
 	uint64_t start, end, period;
 	unsigned int count = 0;
 
@@ -174,10 +173,10 @@ ioc4_clock_calibrate(struct ioc4_driver_data *idd)
 		if (!last_state && state) {
 			count++;
 			if (count == IOC4_CALIBRATE_END) {
-				ktime_get_ts(&end_ts);
+				end = ktime_get_ns();
 				break;
 			} else if (count == IOC4_CALIBRATE_DISCARD)
-				ktime_get_ts(&start_ts);
+				start = ktime_get_ns();
 		}
 		last_state = state;
 	} while (1);
@@ -192,8 +191,6 @@ ioc4_clock_calibrate(struct ioc4_driver_data *idd)
 	 *    by which the IOC4 generates the square wave, to get the
 	 *    period of an IOC4 INT_OUT count.
 	 */
-	end = end_ts.tv_sec * NSEC_PER_SEC + end_ts.tv_nsec;
-	start = start_ts.tv_sec * NSEC_PER_SEC + start_ts.tv_nsec;
 	period = (end - start) /
 		(IOC4_CALIBRATE_CYCLES * 2 * (IOC4_CALIBRATE_COUNT + 1));
 
