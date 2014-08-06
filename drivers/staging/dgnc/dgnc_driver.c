@@ -70,13 +70,8 @@ static void		dgnc_init_globals(void);
 static int		dgnc_found_board(struct pci_dev *pdev, int id);
 static void		dgnc_cleanup_board(struct dgnc_board *brd);
 static void		dgnc_poll_handler(ulong dummy);
-static int		dgnc_init_pci(void);
 static int		dgnc_init_one(struct pci_dev *pdev, const struct pci_device_id *ent);
-static void		dgnc_remove_one(struct pci_dev *dev);
-static int		dgnc_probe1(struct pci_dev *pdev, int card_type);
 static void		dgnc_do_remap(struct dgnc_board *brd);
-
-
 
 /*
  * File operations permitted on Control/Management major.
@@ -170,7 +165,6 @@ static struct pci_driver dgnc_driver = {
 	.name		= "dgnc",
 	.probe		= dgnc_init_one,
 	.id_table       = dgnc_pci_tbl,
-	.remove		= dgnc_remove_one,
 };
 
 
@@ -252,7 +246,7 @@ static int __init dgnc_init_module(void)
 	/*
 	 * Find and configure all the cards
 	 */
-	rc = dgnc_init_pci();
+	rc = pci_register_driver(&dgnc_driver);
 
 	/*
 	 * If something went wrong in the scan, bail out of driver.
@@ -346,15 +340,6 @@ static int dgnc_start(void)
 	return rc;
 }
 
-/*
- * Register pci driver, and return how many boards we have.
- */
-static int dgnc_init_pci(void)
-{
-	return pci_register_driver(&dgnc_driver);
-}
-
-
 /* returns count (>= 0), or negative on error */
 static int dgnc_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
@@ -366,24 +351,13 @@ static int dgnc_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (rc < 0) {
 		rc = -EIO;
 	} else {
-		rc = dgnc_probe1(pdev, ent->driver_data);
+		rc = dgnc_found_board(pdev, ent->driver_data);
 		if (rc == 0) {
 			dgnc_NumBoards++;
 			DPR_INIT(("Incrementing numboards to %d\n", dgnc_NumBoards));
 		}
 	}
 	return rc;
-}
-
-static int dgnc_probe1(struct pci_dev *pdev, int card_type)
-{
-	return dgnc_found_board(pdev, card_type);
-}
-
-
-static void dgnc_remove_one(struct pci_dev *dev)
-{
-	/* Do Nothing */
 }
 
 /*
