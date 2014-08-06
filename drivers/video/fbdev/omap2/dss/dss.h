@@ -119,7 +119,6 @@ struct dsi_clock_info {
 						 * OMAP4: PLLx_CLK1 */
 	unsigned long dsi_pll_hsdiv_dsi_clk;	/* OMAP3: DSI2_PLL_CLK
 						 * OMAP4: PLLx_CLK2 */
-	unsigned long lp_clk;
 
 	/* dividers */
 	u16 regn;
@@ -128,7 +127,6 @@ struct dsi_clock_info {
 			 * OMAP4: REGM4 */
 	u16 regm_dsi;	/* OMAP3: REGM4
 			 * OMAP4: REGM5 */
-	u16 lp_clk_div;
 };
 
 struct dss_lcd_mgr_config {

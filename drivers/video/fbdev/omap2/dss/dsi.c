@@ -287,6 +287,11 @@ struct dsi_clk_calc_ctx {
 	struct omap_dss_dsi_videomode_timings dsi_vm;
 };
 
+struct dsi_lp_clock_info {
+	unsigned long lp_clk;
+	u16 lp_clk_div;
+};
+
 struct dsi_data {
 	struct platform_device *pdev;
 	void __iomem *proto_base;
@@ -306,6 +311,9 @@ struct dsi_data {
 	struct dsi_clock_info user_dsi_cinfo;
 
 	struct dsi_clock_info current_cinfo;
+
+	struct dsi_lp_clock_info user_lp_cinfo;
+	struct dsi_lp_clock_info current_lp_cinfo;
 
 	bool vdds_dsi_enabled;
 	struct regulator *vdds_dsi_reg;
@@ -1293,10 +1301,10 @@ static unsigned long dsi_fclk_rate(struct platform_device *dsidev)
 	return r;
 }
 
-static int dsi_lp_clock_calc(struct dsi_clock_info *cinfo,
-		unsigned long lp_clk_min, unsigned long lp_clk_max)
+static int dsi_lp_clock_calc(unsigned long dsi_fclk,
+		unsigned long lp_clk_min, unsigned long lp_clk_max,
+		struct dsi_lp_clock_info *lp_cinfo)
 {
-	unsigned long dsi_fclk = cinfo->dsi_pll_hsdiv_dsi_clk;
 	unsigned lp_clk_div;
 	unsigned long lp_clk;
 
@@ -1306,8 +1314,8 @@ static int dsi_lp_clock_calc(struct dsi_clock_info *cinfo,
 	if (lp_clk < lp_clk_min || lp_clk > lp_clk_max)
 		return -EINVAL;
 
-	cinfo->lp_clk_div = lp_clk_div;
-	cinfo->lp_clk = lp_clk;
+	lp_cinfo->lp_clk_div = lp_clk_div;
+	lp_cinfo->lp_clk = lp_clk;
 
 	return 0;
 }
@@ -1319,7 +1327,7 @@ static int dsi_set_lp_clk_divisor(struct platform_device *dsidev)
 	unsigned lp_clk_div;
 	unsigned long lp_clk;
 
-	lp_clk_div = dsi->user_dsi_cinfo.lp_clk_div;
+	lp_clk_div = dsi->user_lp_cinfo.lp_clk_div;
 
 	if (lp_clk_div == 0 || lp_clk_div > dsi->lpdiv_max)
 		return -EINVAL;
@@ -1329,8 +1337,8 @@ static int dsi_set_lp_clk_divisor(struct platform_device *dsidev)
 	lp_clk = dsi_fclk / 2 / lp_clk_div;
 
 	DSSDBG("LP_CLK_DIV %u, LP_CLK %lu\n", lp_clk_div, lp_clk);
-	dsi->current_cinfo.lp_clk = lp_clk;
-	dsi->current_cinfo.lp_clk_div = lp_clk_div;
+	dsi->current_lp_cinfo.lp_clk = lp_clk;
+	dsi->current_lp_cinfo.lp_clk_div = lp_clk_div;
 
 	/* LP_CLK_DIVISOR */
 	REG_FLD_MOD(dsidev, DSI_CLK_CTRL, lp_clk_div, 12, 0);
@@ -1801,7 +1809,7 @@ static void dsi_dump_dsidev_clocks(struct platform_device *dsidev,
 
 	seq_printf(s,	"TxByteClkHS\t%lu\n", dsi_get_txbyteclkhs(dsidev));
 
-	seq_printf(s,	"LP_CLK\t\t%lu\n", cinfo->lp_clk);
+	seq_printf(s,	"LP_CLK\t\t%lu\n", dsi->current_lp_cinfo.lp_clk);
 
 	dsi_runtime_put(dsidev);
 }
@@ -5110,8 +5118,8 @@ static int dsi_set_config(struct omap_dss_device *dssdev,
 
 	dsi_pll_calc_dsi_fck(&ctx.dsi_cinfo);
 
-	r = dsi_lp_clock_calc(&ctx.dsi_cinfo, config->lp_clk_min,
-			config->lp_clk_max);
+	r = dsi_lp_clock_calc(ctx.dsi_cinfo.dsi_pll_hsdiv_dsi_clk,
+		config->lp_clk_min, config->lp_clk_max, &dsi->user_lp_cinfo);
 	if (r) {
 		DSSERR("failed to find suitable DSI LP clock settings\n");
 		goto err;
