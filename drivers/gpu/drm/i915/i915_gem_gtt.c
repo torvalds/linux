@@ -1130,35 +1130,38 @@ static int gen6_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 			 ppgtt->node.size >> 20,
 			 ppgtt->node.start / PAGE_SIZE);
 
+	gen6_write_pdes(ppgtt);
+	DRM_DEBUG("Adding PPGTT at offset %x\n",
+		  ppgtt->pd_offset << 10);
+
 	return 0;
 }
 
-int i915_ppgtt_init(struct drm_device *dev, struct i915_hw_ppgtt *ppgtt)
+static int __hw_ppgtt_init(struct drm_device *dev, struct i915_hw_ppgtt *ppgtt)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int ret = 0;
 
 	ppgtt->base.dev = dev;
 	ppgtt->base.scratch = dev_priv->gtt.base.scratch;
 
 	if (INTEL_INFO(dev)->gen < 8)
-		ret = gen6_ppgtt_init(ppgtt);
+		return gen6_ppgtt_init(ppgtt);
 	else if (IS_GEN8(dev))
-		ret = gen8_ppgtt_init(ppgtt, dev_priv->gtt.base.total);
+		return gen8_ppgtt_init(ppgtt, dev_priv->gtt.base.total);
 	else
 		BUG();
+}
+int i915_ppgtt_init(struct drm_device *dev, struct i915_hw_ppgtt *ppgtt)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int ret = 0;
 
-	if (!ret) {
-		struct drm_i915_private *dev_priv = dev->dev_private;
+	ret = __hw_ppgtt_init(dev, ppgtt);
+	if (ret == 0) {
 		kref_init(&ppgtt->ref);
 		drm_mm_init(&ppgtt->base.mm, ppgtt->base.start,
 			    ppgtt->base.total);
 		i915_init_vm(dev_priv, &ppgtt->base);
-		if (INTEL_INFO(dev)->gen < 8) {
-			gen6_write_pdes(ppgtt);
-			DRM_DEBUG("Adding PPGTT at offset %x\n",
-				  ppgtt->pd_offset << 10);
-		}
 	}
 
 	return ret;
@@ -1699,6 +1702,7 @@ int i915_gem_setup_global_gtt(struct drm_device *dev,
 	struct drm_mm_node *entry;
 	struct drm_i915_gem_object *obj;
 	unsigned long hole_start, hole_end;
+	int ret;
 
 	BUG_ON(mappable_end > end);
 
@@ -1710,7 +1714,7 @@ int i915_gem_setup_global_gtt(struct drm_device *dev,
 	/* Mark any preallocated objects as occupied */
 	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list) {
 		struct i915_vma *vma = i915_gem_obj_to_vma(obj, ggtt_vm);
-		int ret;
+
 		DRM_DEBUG_KMS("reserving preallocated space: %lx + %zx\n",
 			      i915_gem_obj_ggtt_offset(obj), obj->base.size);
 
@@ -1736,6 +1740,20 @@ int i915_gem_setup_global_gtt(struct drm_device *dev,
 
 	/* And finally clear the reserved guard page */
 	ggtt_vm->clear_range(ggtt_vm, end - PAGE_SIZE, PAGE_SIZE, true);
+
+	if (USES_PPGTT(dev) && !USES_FULL_PPGTT(dev)) {
+		struct i915_hw_ppgtt *ppgtt;
+
+		ppgtt = kzalloc(sizeof(*ppgtt), GFP_KERNEL);
+		if (!ppgtt)
+			return -ENOMEM;
+
+		ret = __hw_ppgtt_init(dev, ppgtt);
+		if (ret != 0)
+			return ret;
+
+		dev_priv->mm.aliasing_ppgtt = ppgtt;
+	}
 
 	return 0;
 }

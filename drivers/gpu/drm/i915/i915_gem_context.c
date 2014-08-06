@@ -279,17 +279,6 @@ i915_gem_create_context(struct drm_device *dev,
 			goto err_unpin;
 		} else
 			ctx->vm = &ppgtt->base;
-
-		/* This case is reserved for the global default context and
-		 * should only happen once. */
-		if (is_global_default_ctx) {
-			if (WARN_ON(dev_priv->mm.aliasing_ppgtt)) {
-				ret = -EEXIST;
-				goto err_unpin;
-			}
-
-			dev_priv->mm.aliasing_ppgtt = ppgtt;
-		}
 	} else if (USES_PPGTT(dev)) {
 		/* For platforms which only have aliasing PPGTT, we fake the
 		 * address space and refcounting. */
@@ -368,7 +357,7 @@ int i915_gem_context_init(struct drm_device *dev)
 		}
 	}
 
-	ctx = i915_gem_create_context(dev, NULL, USES_PPGTT(dev));
+	ctx = i915_gem_create_context(dev, NULL, USES_FULL_PPGTT(dev));
 	if (IS_ERR(ctx)) {
 		DRM_ERROR("Failed to create default global context (error %ld)\n",
 			  PTR_ERR(ctx));
