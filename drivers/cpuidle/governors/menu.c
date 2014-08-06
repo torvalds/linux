@@ -142,7 +142,7 @@ static int get_loadavg(void)
 	return LOAD_INT(this) * 10 + LOAD_FRAC(this) / 10;
 }
 
-static inline int which_bucket(unsigned int duration)
+static inline int which_bucket(unsigned int duration, unsigned long nr_iowaiters)
 {
 	int bucket = 0;
 
@@ -152,7 +152,7 @@ static inline int which_bucket(unsigned int duration)
 	 * This allows us to calculate
 	 * E(duration)|iowait
 	 */
-	if (nr_iowait_cpu(smp_processor_id()))
+	if (nr_iowaiters)
 		bucket = BUCKETS/2;
 
 	if (duration < 10)
@@ -175,7 +175,7 @@ static inline int which_bucket(unsigned int duration)
  * to be, the higher this multiplier, and thus the higher
  * the barrier to go to an expensive C state.
  */
-static inline int performance_multiplier(void)
+static inline int performance_multiplier(unsigned long nr_iowaiters)
 {
 	int mult = 1;
 
@@ -184,7 +184,7 @@ static inline int performance_multiplier(void)
 	mult += 2 * get_loadavg();
 
 	/* for IO wait tasks (per cpu!) we add 5x each */
-	mult += 10 * nr_iowait_cpu(smp_processor_id());
+	mult += 10 * nr_iowaiters;
 
 	return mult;
 }
@@ -296,6 +296,7 @@ static int menu_select(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 	int latency_req = pm_qos_request(PM_QOS_CPU_DMA_LATENCY);
 	int i;
 	unsigned int interactivity_req;
+	unsigned long nr_iowaiters;
 
 	if (data->needs_update) {
 		menu_update(drv, dev);
@@ -311,8 +312,8 @@ static int menu_select(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 	/* determine the expected residency time, round up */
 	data->next_timer_us = ktime_to_us(tick_nohz_get_sleep_length());
 
-
-	data->bucket = which_bucket(data->next_timer_us);
+	nr_iowaiters = nr_iowait_cpu(smp_processor_id());
+	data->bucket = which_bucket(data->next_timer_us, nr_iowaiters);
 
 	/*
 	 * Force the result of multiplication to be 64 bits even if both
@@ -330,7 +331,7 @@ static int menu_select(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 	 * duration / latency ratio. Adjust the latency limit if
 	 * necessary.
 	 */
-	interactivity_req = data->predicted_us / performance_multiplier();
+	interactivity_req = data->predicted_us / performance_multiplier(nr_iowaiters);
 	if (latency_req > interactivity_req)
 		latency_req = interactivity_req;
 
