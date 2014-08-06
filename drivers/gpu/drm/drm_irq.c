@@ -1095,6 +1095,18 @@ void drm_vblank_on(struct drm_device *dev, int crtc)
 		atomic_dec(&dev->vblank[crtc].refcount);
 		dev->vblank[crtc].inmodeset = 0;
 	}
+
+	/*
+	 * sample the current counter to avoid random jumps
+	 * when drm_vblank_enable() applies the diff
+	 *
+	 * -1 to make sure user will never see the same
+	 * vblank counter value before and after a modeset
+	 */
+	dev->vblank[crtc].last =
+		(dev->driver->get_vblank_counter(dev, crtc) - 1) &
+		dev->max_vblank_count;
+
 	/* re-enable interrupts if there's are users left */
 	if (atomic_read(&dev->vblank[crtc].refcount) != 0)
 		WARN_ON(drm_vblank_enable(dev, crtc));
