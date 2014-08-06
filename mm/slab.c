@@ -1611,7 +1611,8 @@ slab_out_of_memory(struct kmem_cache *cachep, gfp_t gfpflags, int nodeid)
 }
 
 /*
- * Interface to system's page allocator. No need to hold the cache-lock.
+ * Interface to system's page allocator. No need to hold the
+ * kmem_cache_node ->list_lock.
  *
  * If we requested dmaable memory, we will get it. Even if we
  * did not request dmaable memory, we might get it, but that
@@ -1913,9 +1914,9 @@ static void slab_destroy_debugcheck(struct kmem_cache *cachep,
  * @cachep: cache pointer being destroyed
  * @page: page pointer being destroyed
  *
- * Destroy all the objs in a slab, and release the mem back to the system.
- * Before calling the slab must have been unlinked from the cache.  The
- * cache-lock is not held/needed.
+ * Destroy all the objs in a slab page, and release the mem back to the system.
+ * Before calling the slab page must have been unlinked from the cache. The
+ * kmem_cache_node ->list_lock is not held/needed.
  */
 static void slab_destroy(struct kmem_cache *cachep, struct page *page)
 {
