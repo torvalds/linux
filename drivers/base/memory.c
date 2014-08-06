@@ -315,13 +315,13 @@ store_mem_state(struct device *dev,
 	if (ret)
 		return ret;
 
-	if (!strncmp(buf, "online_kernel", min_t(int, count, 13)))
+	if (sysfs_streq(buf, "online_kernel"))
 		online_type = ONLINE_KERNEL;
-	else if (!strncmp(buf, "online_movable", min_t(int, count, 14)))
+	else if (sysfs_streq(buf, "online_movable"))
 		online_type = ONLINE_MOVABLE;
-	else if (!strncmp(buf, "online", min_t(int, count, 6)))
+	else if (sysfs_streq(buf, "online"))
 		online_type = ONLINE_KEEP;
-	else if (!strncmp(buf, "offline", min_t(int, count, 7)))
+	else if (sysfs_streq(buf, "offline"))
 		online_type = -1;
 	else {
 		ret = -EINVAL;
