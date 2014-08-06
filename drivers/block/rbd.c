@@ -1385,6 +1385,14 @@ static bool obj_request_exists_test(struct rbd_obj_request *obj_request)
 	return test_bit(OBJ_REQ_EXISTS, &obj_request->flags) != 0;
 }
 
+static bool obj_request_overlaps_parent(struct rbd_obj_request *obj_request)
+{
+	struct rbd_device *rbd_dev = obj_request->img_request->rbd_dev;
+
+	return obj_request->img_offset <
+	    round_up(rbd_dev->parent_overlap, rbd_obj_bytes(&rbd_dev->header));
+}
+
 static void rbd_obj_request_get(struct rbd_obj_request *obj_request)
 {
 	dout("%s: obj %p (was %d)\n", __func__, obj_request,
@@ -1399,6 +1407,13 @@ static void rbd_obj_request_put(struct rbd_obj_request *obj_request)
 	dout("%s: obj %p (was %d)\n", __func__, obj_request,
 		atomic_read(&obj_request->kref.refcount));
 	kref_put(&obj_request->kref, rbd_obj_request_destroy);
+}
+
+static void rbd_img_request_get(struct rbd_img_request *img_request)
+{
+	dout("%s: img %p (was %d)\n", __func__, img_request,
+	     atomic_read(&img_request->kref.refcount));
+	kref_get(&img_request->kref);
 }
 
 static bool img_request_child_test(struct rbd_img_request *img_request);
@@ -2154,6 +2169,7 @@ static void rbd_img_obj_callback(struct rbd_obj_request *obj_request)
 	img_request->next_completion = which;
 out:
 	spin_unlock_irq(&img_request->completion_lock);
+	rbd_img_request_put(img_request);
 
 	if (!more)
 		rbd_img_request_complete(img_request);
@@ -2250,6 +2266,7 @@ static int rbd_img_request_fill(struct rbd_img_request *img_request,
 			goto out_partial;
 		obj_request->osd_req = osd_req;
 		obj_request->callback = rbd_img_obj_callback;
+		rbd_img_request_get(img_request);
 
 		osd_req_op_extent_init(osd_req, 0, opcode, offset, length,
 						0, 0);
@@ -2278,7 +2295,7 @@ out_partial:
 	rbd_obj_request_put(obj_request);
 out_unwind:
 	for_each_obj_request_safe(img_request, obj_request, next_obj_request)
-		rbd_obj_request_put(obj_request);
+		rbd_img_obj_request_del(img_request, obj_request);
 
 	return -ENOMEM;
 }
@@ -2673,7 +2690,7 @@ static int rbd_img_obj_request_submit(struct rbd_obj_request *obj_request)
 	 */
 	if (!img_request_write_test(img_request) ||
 		!img_request_layered_test(img_request) ||
-		rbd_dev->parent_overlap <= obj_request->img_offset ||
+		!obj_request_overlaps_parent(obj_request) ||
 		((known = obj_request_known_test(obj_request)) &&
 			obj_request_exists_test(obj_request))) {
 

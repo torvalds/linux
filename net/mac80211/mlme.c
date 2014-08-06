@@ -3754,6 +3754,32 @@ static void ieee80211_restart_sta_timer(struct ieee80211_sub_if_data *sdata)
 }
 
 #ifdef CONFIG_PM
+void ieee80211_mgd_quiesce(struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
+	u8 frame_buf[IEEE80211_DEAUTH_FRAME_LEN];
+
+	mutex_lock(&ifmgd->mtx);
+
+	if (ifmgd->auth_data) {
+		/*
+		 * If we are trying to authenticate while suspending, cfg80211
+		 * won't know and won't actually abort those attempts, thus we
+		 * need to do that ourselves.
+		 */
+		ieee80211_send_deauth_disassoc(sdata,
+					       ifmgd->auth_data->bss->bssid,
+					       IEEE80211_STYPE_DEAUTH,
+					       WLAN_REASON_DEAUTH_LEAVING,
+					       false, frame_buf);
+		ieee80211_destroy_auth_data(sdata, false);
+		cfg80211_send_deauth(sdata->dev, frame_buf,
+				     IEEE80211_DEAUTH_FRAME_LEN);
+	}
+
+	mutex_unlock(&ifmgd->mtx);
+}
+
 void ieee80211_sta_restart(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;

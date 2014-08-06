@@ -335,8 +335,8 @@ int __init rockchip_ion_find_reserve_mem(unsigned long node, const char *uname,
 				int depth, void *data)
 {
 #ifdef CONFIG_CMA
-	__be32 *prop;
-	unsigned long len;
+	const __be32 *prop;
+	int len;
 	phys_addr_t size;
 	phys_addr_t base;
 	u32 heap_type;

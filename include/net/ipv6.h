@@ -111,6 +111,9 @@ struct frag_hdr {
 
 #define	IP6_MF	0x0001
 
+#define IP6_REPLY_MARK(net, mark) \
+	((net)->ipv6.sysctl.fwmark_reflect ? (mark) : 0)
+
 #include <net/sock.h>
 
 /* sysctls */

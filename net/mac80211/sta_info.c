@@ -270,6 +270,7 @@ void sta_info_free(struct ieee80211_local *local, struct sta_info *sta)
 
 	sta_dbg(sta->sdata, "Destroyed STA %pM\n", sta->sta.addr);
 
+	kfree(rcu_dereference_raw(sta->sta.rates));
 	kfree(sta);
 }
 

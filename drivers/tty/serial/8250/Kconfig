@@ -62,6 +62,7 @@ config SERIAL_8250_CONSOLE
 	bool "Console on 8250/16550 and compatible serial port"
 	depends on SERIAL_8250=y
 	select SERIAL_CORE_CONSOLE
+	select SERIAL_EARLYCON
 	---help---
 	  If you say Y here, it will be possible to use a serial port as the
 	  system console (the system console is the device which receives all

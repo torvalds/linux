@@ -35,7 +35,9 @@ int pinconf_check_ops(struct pinctrl_dev *pctldev)
 		return -EINVAL;
 	}
 	/* We have to be able to config the pins in SOME way */
-	if (!ops->pin_config_set && !ops->pin_config_group_set) {
+	if (!ops->pin_config_set && !ops->pin_config_group_set
+		&& !ops->pin_config_set_bulk
+		&& !ops->pin_config_group_set_bulk) {
 		dev_err(pctldev->dev,
 			"pinconf has to be able to set a pins config\n");
 		return -EINVAL;
@@ -171,14 +173,14 @@ int pinconf_apply_setting(struct pinctrl_setting const *setting)
 			dev_err(pctldev->dev, "missing pin_config_set op\n");
 			return -EINVAL;
 		}
-		if (ops->pin_config_group_set_bulk) {
-			ret = ops->pin_config_group_set_bulk(pctldev,
+		if (ops->pin_config_set_bulk) {
+			ret = ops->pin_config_set_bulk(pctldev,
 					setting->data.configs.group_or_pin,
 					setting->data.configs.configs,
 					setting->data.configs.num_configs);
 			if (ret < 0) {
 				dev_err(pctldev->dev,
-					"pin_config_set op failed for pin %d\n",
+					"pin_config_set_bulk op failed for pin %d\n",
 					setting->data.configs.group_or_pin);
 				return ret;
 			}
@@ -211,7 +213,7 @@ int pinconf_apply_setting(struct pinctrl_setting const *setting)
 					setting->data.configs.num_configs);
 			if (ret < 0) {
 				dev_err(pctldev->dev,
-					"pin_config_group_set op failed for group %d\n",
+					"pin_config_group_set_bulk op failed for group %d\n",
 					setting->data.configs.group_or_pin);
 				return ret;
 			}

@@ -26,6 +26,7 @@
 #include <asm/assembler.h>
 #include <asm/ptrace.h>
 #include <asm/asm-offsets.h>
+#include <asm/cache.h>
 #include <asm/cputype.h>
 #include <asm/memory.h>
 #include <asm/thread_info.h>
@@ -34,29 +35,17 @@
 #include <asm/page.h>
 #include <asm/virt.h>
 
-/*
- * swapper_pg_dir is the virtual address of the initial page table. We place
- * the page tables 3 * PAGE_SIZE below KERNEL_RAM_VADDR. The idmap_pg_dir has
- * 2 pages and is placed below swapper_pg_dir.
- */
 #define KERNEL_RAM_VADDR	(PAGE_OFFSET + TEXT_OFFSET)
 
 #if (KERNEL_RAM_VADDR & 0xfffff) != 0x80000
 #error KERNEL_RAM_VADDR must start at 0xXXX80000
 #endif
 
-#define SWAPPER_DIR_SIZE	(3 * PAGE_SIZE)
-#define IDMAP_DIR_SIZE		(2 * PAGE_SIZE)
-
-	.globl	swapper_pg_dir
-	.equ	swapper_pg_dir, KERNEL_RAM_VADDR - SWAPPER_DIR_SIZE
-
-	.globl	idmap_pg_dir
-	.equ	idmap_pg_dir, swapper_pg_dir - IDMAP_DIR_SIZE
-
-	.macro	pgtbl, ttb0, ttb1, phys
-	add	\ttb1, \phys, #TEXT_OFFSET - SWAPPER_DIR_SIZE
-	sub	\ttb0, \ttb1, #IDMAP_DIR_SIZE
+	.macro	pgtbl, ttb0, ttb1, virt_to_phys
+	ldr	\ttb1, =swapper_pg_dir
+	ldr	\ttb0, =idmap_pg_dir
+	add	\ttb1, \ttb1, \virt_to_phys
+	add	\ttb0, \ttb0, \virt_to_phys
 	.endm
 
 #ifdef CONFIG_ARM64_64K_PAGES
@@ -107,8 +96,18 @@
 	/*
 	 * DO NOT MODIFY. Image header expected by Linux boot-loaders.
 	 */
+#ifdef CONFIG_EFI
+efi_head:
+	/*
+	 * This add instruction has no meaningful effect except that
+	 * its opcode forms the magic "MZ" signature required by UEFI.
+	 */
+	add	x13, x18, #0x16
+	b	stext
+#else
 	b	stext				// branch to kernel start, magic
 	.long	0				// reserved
+#endif
 	.quad	TEXT_OFFSET			// Image load offset from start of RAM
 	.quad	0				// reserved
 	.quad	0				// reserved
@@ -119,7 +118,109 @@
 	.byte	0x52
 	.byte	0x4d
 	.byte	0x64
+#ifdef CONFIG_EFI
+	.long	pe_header - efi_head		// Offset to the PE header.
+#else
 	.word	0				// reserved
+#endif
+
+#ifdef CONFIG_EFI
+	.align 3
+pe_header:
+	.ascii	"PE"
+	.short 	0
+coff_header:
+	.short	0xaa64				// AArch64
+	.short	2				// nr_sections
+	.long	0 				// TimeDateStamp
+	.long	0				// PointerToSymbolTable
+	.long	1				// NumberOfSymbols
+	.short	section_table - optional_header	// SizeOfOptionalHeader
+	.short	0x206				// Characteristics.
+						// IMAGE_FILE_DEBUG_STRIPPED |
+						// IMAGE_FILE_EXECUTABLE_IMAGE |
+						// IMAGE_FILE_LINE_NUMS_STRIPPED
+optional_header:
+	.short	0x20b				// PE32+ format
+	.byte	0x02				// MajorLinkerVersion
+	.byte	0x14				// MinorLinkerVersion
+	.long	_edata - stext			// SizeOfCode
+	.long	0				// SizeOfInitializedData
+	.long	0				// SizeOfUninitializedData
+	.long	efi_stub_entry - efi_head	// AddressOfEntryPoint
+	.long	stext - efi_head		// BaseOfCode
+
+extra_header_fields:
+	.quad	0				// ImageBase
+	.long	0x20				// SectionAlignment
+	.long	0x8				// FileAlignment
+	.short	0				// MajorOperatingSystemVersion
+	.short	0				// MinorOperatingSystemVersion
+	.short	0				// MajorImageVersion
+	.short	0				// MinorImageVersion
+	.short	0				// MajorSubsystemVersion
+	.short	0				// MinorSubsystemVersion
+	.long	0				// Win32VersionValue
+
+	.long	_edata - efi_head		// SizeOfImage
+
+	// Everything before the kernel image is considered part of the header
+	.long	stext - efi_head		// SizeOfHeaders
+	.long	0				// CheckSum
+	.short	0xa				// Subsystem (EFI application)
+	.short	0				// DllCharacteristics
+	.quad	0				// SizeOfStackReserve
+	.quad	0				// SizeOfStackCommit
+	.quad	0				// SizeOfHeapReserve
+	.quad	0				// SizeOfHeapCommit
+	.long	0				// LoaderFlags
+	.long	0x6				// NumberOfRvaAndSizes
+
+	.quad	0				// ExportTable
+	.quad	0				// ImportTable
+	.quad	0				// ResourceTable
+	.quad	0				// ExceptionTable
+	.quad	0				// CertificationTable
+	.quad	0				// BaseRelocationTable
+
+	// Section table
+section_table:
+
+	/*
+	 * The EFI application loader requires a relocation section
+	 * because EFI applications must be relocatable.  This is a
+	 * dummy section as far as we are concerned.
+	 */
+	.ascii	".reloc"
+	.byte	0
+	.byte	0			// end of 0 padding of section name
+	.long	0
+	.long	0
+	.long	0			// SizeOfRawData
+	.long	0			// PointerToRawData
+	.long	0			// PointerToRelocations
+	.long	0			// PointerToLineNumbers
+	.short	0			// NumberOfRelocations
+	.short	0			// NumberOfLineNumbers
+	.long	0x42100040		// Characteristics (section flags)
+
+
+	.ascii	".text"
+	.byte	0
+	.byte	0
+	.byte	0        		// end of 0 padding of section name
+	.long	_edata - stext		// VirtualSize
+	.long	stext - efi_head	// VirtualAddress
+	.long	_edata - stext		// SizeOfRawData
+	.long	stext - efi_head	// PointerToRawData
+
+	.long	0		// PointerToRelocations (0 for executables)
+	.long	0		// PointerToLineNumbers (0 for executables)
+	.short	0		// NumberOfRelocations  (0 for executables)
+	.short	0		// NumberOfLineNumbers  (0 for executables)
+	.long	0xe0500020	// Characteristics (section flags)
+	.align 5
+#endif
 
 ENTRY(stext)
 	mov	x21, x0				// x21=FDT
@@ -240,8 +341,9 @@ ENDPROC(set_cpu_boot_mode_flag)
  * This is not in .bss, because we set it sufficiently early that the boot-time
  * zeroing of .bss would clobber it.
  */
-	.pushsection	.data
+	.pushsection	.data..cacheline_aligned
 ENTRY(__boot_cpu_mode)
+	.align	L1_CACHE_SHIFT
 	.long	BOOT_CPU_MODE_EL2
 	.long	0
 	.popsection
@@ -297,7 +399,7 @@ ENTRY(secondary_startup)
 	mov	x23, x0				// x23=current cpu_table
 	cbz	x23, __error_p			// invalid processor (x23=0)?
 
-	pgtbl	x25, x26, x24			// x25=TTBR0, x26=TTBR1
+	pgtbl	x25, x26, x28			// x25=TTBR0, x26=TTBR1
 	ldr	x12, [x23, #CPU_INFO_SETUP]
 	add	x12, x12, x28			// __virt_to_phys
 	blr	x12				// initialise processor
@@ -339,8 +441,13 @@ ENDPROC(__enable_mmu)
  *  x27 = *virtual* address to jump to upon completion
  *
  * other registers depend on the function called upon completion
+ *
+ * We align the entire function to the smallest power of two larger than it to
+ * ensure it fits within a single block map entry. Otherwise were PHYS_OFFSET
+ * close to the end of a 512MB or 1GB block we might require an additional
+ * table to map the entire function.
  */
-	.align	6
+	.align	4
 __turn_mmu_on:
 	msr	sctlr_el1, x0
 	isb
@@ -406,7 +513,16 @@ ENDPROC(__calc_phys_offset)
  *   - pgd entry for fixed mappings (TTBR1)
  */
 __create_page_tables:
-	pgtbl	x25, x26, x24			// idmap_pg_dir and swapper_pg_dir addresses
+	pgtbl	x25, x26, x28			// idmap_pg_dir and swapper_pg_dir addresses
+	mov	x27, lr
+
+	/*
+	 * Invalidate the idmap and swapper page tables to avoid potential
+	 * dirty cache lines being evicted.
+	 */
+	mov	x0, x25
+	add	x1, x26, #SWAPPER_DIR_SIZE
+	bl	__inval_cache_range
 
 	/*
 	 * Clear the idmap and swapper page tables.
@@ -466,6 +582,17 @@ __create_page_tables:
 	ldr	x5, =FIXADDR_TOP		// Fixed mapping virtual address
 	add	x0, x26, #2 * PAGE_SIZE		// section table address
 	create_pgd_entry x26, x0, x5, x6, x7
+
+	/*
+	 * Since the page tables have been populated with non-cacheable
+	 * accesses (MMU disabled), invalidate the idmap and swapper page
+	 * tables again to remove any speculatively loaded cache lines.
+	 */
+	mov	x0, x25
+	add	x1, x26, #SWAPPER_DIR_SIZE
+	bl	__inval_cache_range
+
+	mov	lr, x27
 	ret
 ENDPROC(__create_page_tables)
 	.ltorg
@@ -475,7 +602,7 @@ ENDPROC(__create_page_tables)
 __switch_data:
 	.quad	__mmap_switched
 	.quad	__bss_start			// x6
-	.quad	_end				// x7
+	.quad	__bss_stop			// x7
 	.quad	processor_id			// x4
 	.quad	__fdt_pointer			// x5
 	.quad	memstart_addr			// x6

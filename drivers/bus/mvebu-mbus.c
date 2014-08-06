@@ -250,12 +250,6 @@ static int mvebu_mbus_window_conflicts(struct mvebu_mbus_state *mbus,
 		 */
 		if ((u64)base < wend && end > wbase)
 			return 0;
-
-		/*
-		 * Check if target/attribute conflicts
-		 */
-		if (target == wtarget && attr == wattr)
-			return 0;
 	}
 
 	return 1;

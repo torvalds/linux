@@ -96,6 +96,12 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 			uint32_t domain = r->write_domain ?
 				r->write_domain : r->read_domains;
 
+			if (domain & RADEON_GEM_DOMAIN_CPU) {
+				DRM_ERROR("RADEON_GEM_DOMAIN_CPU is not valid "
+					  "for command submission\n");
+				return -EINVAL;
+			}
+
 			p->relocs[i].lobj.domain = domain;
 			if (domain == RADEON_GEM_DOMAIN_VRAM)
 				domain |= RADEON_GEM_DOMAIN_GTT;

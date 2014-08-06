@@ -1314,7 +1314,7 @@ static void vxlan_setup(struct net_device *dev)
 
 	eth_hw_addr_random(dev);
 	ether_setup(dev);
-	dev->hard_header_len = ETH_HLEN + VXLAN_HEADROOM;
+	dev->needed_headroom = ETH_HLEN + VXLAN_HEADROOM;
 
 	dev->netdev_ops = &vxlan_netdev_ops;
 	dev->destructor = vxlan_free;
@@ -1454,7 +1454,7 @@ static int vxlan_newlink(struct net *net, struct net_device *dev,
 			dev->mtu = lowerdev->mtu - VXLAN_HEADROOM;
 
 		/* update header length based on lower device */
-		dev->hard_header_len = lowerdev->hard_header_len +
+		dev->needed_headroom = lowerdev->hard_header_len +
 				       VXLAN_HEADROOM;
 	}
 

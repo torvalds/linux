@@ -86,13 +86,12 @@ extern void __pgd_error(const char *file, int line, unsigned long val);
 #define PAGE_COPY_EXEC		__pgprot(_PAGE_DEFAULT | PTE_USER | PTE_NG | PTE_PXN)
 #define PAGE_READONLY		__pgprot(_PAGE_DEFAULT | PTE_USER | PTE_NG | PTE_PXN | PTE_UXN)
 #define PAGE_READONLY_EXEC	__pgprot(_PAGE_DEFAULT | PTE_USER | PTE_NG | PTE_PXN)
-#define PAGE_EXECONLY		__pgprot(_PAGE_DEFAULT | PTE_NG | PTE_PXN)
 
 #define __P000  PAGE_NONE
 #define __P001  PAGE_READONLY
 #define __P010  PAGE_COPY
 #define __P011  PAGE_COPY
-#define __P100  PAGE_EXECONLY
+#define __P100  PAGE_READONLY_EXEC
 #define __P101  PAGE_READONLY_EXEC
 #define __P110  PAGE_COPY_EXEC
 #define __P111  PAGE_COPY_EXEC
@@ -101,7 +100,7 @@ extern void __pgd_error(const char *file, int line, unsigned long val);
 #define __S001  PAGE_READONLY
 #define __S010  PAGE_SHARED
 #define __S011  PAGE_SHARED
-#define __S100  PAGE_EXECONLY
+#define __S100  PAGE_READONLY_EXEC
 #define __S101  PAGE_READONLY_EXEC
 #define __S110  PAGE_SHARED_EXEC
 #define __S111  PAGE_SHARED_EXEC
@@ -137,8 +136,10 @@ extern struct page *empty_zero_page;
 #define pte_write(pte)		(!!(pte_val(pte) & PTE_WRITE))
 #define pte_exec(pte)		(!(pte_val(pte) & PTE_UXN))
 
-#define pte_valid_ng(pte) \
-	((pte_val(pte) & (PTE_VALID | PTE_NG)) == (PTE_VALID | PTE_NG))
+#define pte_valid_user(pte) \
+	((pte_val(pte) & (PTE_VALID | PTE_USER)) == (PTE_VALID | PTE_USER))
+#define pte_valid_not_user(pte) \
+	((pte_val(pte) & (PTE_VALID | PTE_USER)) == PTE_VALID)
 
 static inline pte_t pte_wrprotect(pte_t pte)
 {
@@ -185,6 +186,15 @@ static inline pte_t pte_mkspecial(pte_t pte)
 static inline void set_pte(pte_t *ptep, pte_t pte)
 {
 	*ptep = pte;
+
+	/*
+	 * Only if the new pte is valid and kernel, otherwise TLB maintenance
+	 * or update_mmu_cache() have the necessary barriers.
+	 */
+	if (pte_valid_not_user(pte)) {
+		dsb(ishst);
+		isb();
+	}
 }
 
 extern void __sync_icache_dcache(pte_t pteval, unsigned long addr);
@@ -192,7 +202,7 @@ extern void __sync_icache_dcache(pte_t pteval, unsigned long addr);
 static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
 			      pte_t *ptep, pte_t pte)
 {
-	if (pte_valid_ng(pte)) {
+	if (pte_valid_user(pte)) {
 		if (!pte_special(pte) && pte_exec(pte))
 			__sync_icache_dcache(pte, addr);
 		if (pte_dirty(pte) && pte_write(pte))
@@ -260,7 +270,7 @@ static inline pmd_t pte_pmd(pte_t pte)
 
 #define pmd_page(pmd)           pfn_to_page(__phys_to_pfn(pmd_val(pmd) & PHYS_MASK))
 
-#define set_pmd_at(mm, addr, pmdp, pmd)	set_pmd(pmdp, pmd)
+#define set_pmd_at(mm, addr, pmdp, pmd)	set_pte_at(mm, addr, (pte_t *)pmdp, pmd_pte(pmd))
 
 static inline int has_transparent_hugepage(void)
 {
@@ -289,10 +299,17 @@ extern pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
 
 #define pmd_bad(pmd)		(!(pmd_val(pmd) & 2))
 
+#define pmd_table(pmd)		((pmd_val(pmd) & PMD_TYPE_MASK) == \
+				 PMD_TYPE_TABLE)
+#define pmd_sect(pmd)		((pmd_val(pmd) & PMD_TYPE_MASK) == \
+				 PMD_TYPE_SECT)
+
+
 static inline void set_pmd(pmd_t *pmdp, pmd_t pmd)
 {
 	*pmdp = pmd;
 	dsb(ishst);
+	isb();
 }
 
 static inline void pmd_clear(pmd_t *pmdp)
@@ -323,6 +340,7 @@ static inline void set_pud(pud_t *pudp, pud_t pud)
 {
 	*pudp = pud;
 	dsb(ishst);
+	isb();
 }
 
 static inline void pud_clear(pud_t *pudp)
@@ -372,9 +390,6 @@ static inline pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot)
 
 extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
 extern pgd_t idmap_pg_dir[PTRS_PER_PGD];
-
-#define SWAPPER_DIR_SIZE	(3 * PAGE_SIZE)
-#define IDMAP_DIR_SIZE		(2 * PAGE_SIZE)
 
 /*
  * Encode and decode a swap entry:

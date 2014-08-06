@@ -170,9 +170,6 @@ asmlinkage void __cpuinit secondary_start_kernel(void)
 	set_cpu_online(cpu, true);
 	complete(&cpu_running);
 
-	local_irq_enable();
-	local_fiq_enable();
-
 	local_dbg_enable();
 	local_irq_enable();
 	local_fiq_enable();
