@@ -333,7 +333,7 @@ static int per_file_stats(int id, void *ptr, void *data)
 			}
 
 			ppgtt = container_of(vma->vm, struct i915_hw_ppgtt, base);
-			if (ppgtt->ctx && ppgtt->ctx->file_priv != stats->file_priv)
+			if (ppgtt->file_priv != stats->file_priv)
 				continue;
 
 			if (obj->ring) /* XXX per-vma statistic */

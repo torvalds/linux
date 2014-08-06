@@ -184,26 +184,6 @@ i915_gem_alloc_context_obj(struct drm_device *dev, size_t size)
 	return obj;
 }
 
-static struct i915_hw_ppgtt *
-create_vm_for_ctx(struct drm_device *dev, struct intel_context *ctx)
-{
-	struct i915_hw_ppgtt *ppgtt;
-	int ret;
-
-	ppgtt = kzalloc(sizeof(*ppgtt), GFP_KERNEL);
-	if (!ppgtt)
-		return ERR_PTR(-ENOMEM);
-
-	ret = i915_ppgtt_init(dev, ppgtt);
-	if (ret) {
-		kfree(ppgtt);
-		return ERR_PTR(ret);
-	}
-
-	ppgtt->ctx = ctx;
-	return ppgtt;
-}
-
 static struct intel_context *
 __create_hw_context(struct drm_device *dev,
 		    struct drm_i915_file_private *file_priv)
@@ -290,7 +270,7 @@ i915_gem_create_context(struct drm_device *dev,
 	}
 
 	if (create_vm) {
-		struct i915_hw_ppgtt *ppgtt = create_vm_for_ctx(dev, ctx);
+		struct i915_hw_ppgtt *ppgtt = i915_ppgtt_create(dev, file_priv);
 
 		if (IS_ERR_OR_NULL(ppgtt)) {
 			DRM_DEBUG_DRIVER("PPGTT setup failed (%ld)\n",

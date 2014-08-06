@@ -1211,6 +1211,27 @@ int i915_ppgtt_init(struct drm_device *dev, struct i915_hw_ppgtt *ppgtt)
 	return ret;
 }
 
+struct i915_hw_ppgtt *
+i915_ppgtt_create(struct drm_device *dev, struct drm_i915_file_private *fpriv)
+{
+	struct i915_hw_ppgtt *ppgtt;
+	int ret;
+
+	ppgtt = kzalloc(sizeof(*ppgtt), GFP_KERNEL);
+	if (!ppgtt)
+		return ERR_PTR(-ENOMEM);
+
+	ret = i915_ppgtt_init(dev, ppgtt);
+	if (ret) {
+		kfree(ppgtt);
+		return ERR_PTR(ret);
+	}
+
+	ppgtt->file_priv = fpriv;
+
+	return ppgtt;
+}
+
 void  i915_ppgtt_release(struct kref *kref)
 {
 	struct i915_hw_ppgtt *ppgtt =
