@@ -45,6 +45,7 @@
 #include <linux/poll.h>
 #include <linux/irq_work.h>
 #include <linux/utsname.h>
+#include <linux/ctype.h>
 
 #include <asm/uaccess.h>
 
@@ -257,7 +258,7 @@ static u64 clear_seq;
 static u32 clear_idx;
 
 #define PREFIX_MAX		32
-#define LOG_LINE_MAX		1024 - PREFIX_MAX
+#define LOG_LINE_MAX		(1024 - PREFIX_MAX)
 
 /* record buffer */
 #if defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS)
@@ -1835,7 +1836,7 @@ EXPORT_SYMBOL(printk);
 
 #define LOG_LINE_MAX		0
 #define PREFIX_MAX		0
-#define LOG_LINE_MAX 0
+
 static u64 syslog_seq;
 static u32 syslog_idx;
 static u64 console_seq;
@@ -1936,7 +1937,8 @@ static int __init console_setup(char *str)
 		strncpy(buf, str, sizeof(buf) - 1);
 	}
 	buf[sizeof(buf) - 1] = 0;
-	if ((options = strchr(str, ',')) != NULL)
+	options = strchr(str, ',');
+	if (options)
 		*(options++) = 0;
 #ifdef __sparc__
 	if (!strcmp(str, "ttya"))
@@ -1945,7 +1947,7 @@ static int __init console_setup(char *str)
 		strcpy(buf, "ttyS1");
 #endif
 	for (s = buf; *s; s++)
-		if ((*s >= '0' && *s <= '9') || *s == ',')
+		if (isdigit(*s) || *s == ',')
 			break;
 	idx = simple_strtoul(s, NULL, 10);
 	*s = 0;
@@ -1984,7 +1986,6 @@ int update_console_cmdline(char *name, int idx, char *name_new, int idx_new, cha
 	     i++, c++)
 		if (strcmp(c->name, name) == 0 && c->index == idx) {
 			strlcpy(c->name, name_new, sizeof(c->name));
-			c->name[sizeof(c->name) - 1] = 0;
 			c->options = options;
 			c->index = idx_new;
 			return i;
@@ -2652,14 +2653,13 @@ EXPORT_SYMBOL(__printk_ratelimit);
 bool printk_timed_ratelimit(unsigned long *caller_jiffies,
 			unsigned int interval_msecs)
 {
-	if (*caller_jiffies == 0
-			|| !time_in_range(jiffies, *caller_jiffies,
-					*caller_jiffies
-					+ msecs_to_jiffies(interval_msecs))) {
-		*caller_jiffies = jiffies;
-		return true;
-	}
-	return false;
+	unsigned long elapsed = jiffies - *caller_jiffies;
+
+	if (*caller_jiffies && elapsed <= msecs_to_jiffies(interval_msecs))
+		return false;
+
+	*caller_jiffies = jiffies;
+	return true;
 }
 EXPORT_SYMBOL(printk_timed_ratelimit);
 
