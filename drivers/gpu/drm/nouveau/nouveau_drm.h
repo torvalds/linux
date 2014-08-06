@@ -10,7 +10,7 @@
 
 #define DRIVER_MAJOR		1
 #define DRIVER_MINOR		1
-#define DRIVER_PATCHLEVEL	1
+#define DRIVER_PATCHLEVEL	2
 
 /*
  * 1.1.1:
@@ -21,6 +21,8 @@
  *        to control registers on the MPs to enable performance counters,
  *        and to control the warp error enable mask (OpenGL requires out of
  *        bounds access to local memory to be silently ignored / return 0).
+ * 1.1.2:
+ *      - fixes multiple bugs in flip completion events and timestamping
  */
 
 #include <core/client.h>
