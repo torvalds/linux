@@ -141,13 +141,13 @@ core_initcall(cma_init_reserved_areas);
 
 /**
  * cma_declare_contiguous() - reserve custom contiguous area
- * @size: Size of the reserved area (in bytes),
  * @base: Base address of the reserved area optional, use 0 for any
+ * @size: Size of the reserved area (in bytes),
  * @limit: End address of the reserved memory (optional, 0 for any).
  * @alignment: Alignment for the CMA area, should be power of 2 or zero
  * @order_per_bit: Order of pages represented by one bit on bitmap.
- * @res_cma: Pointer to store the created cma region.
  * @fixed: hint about where to place the reserved area
+ * @res_cma: Pointer to store the created cma region.
  *
  * This function reserves memory from early allocator. It should be
  * called by arch specific code once the early allocator (memblock or bootmem)
@@ -157,12 +157,12 @@ core_initcall(cma_init_reserved_areas);
  * If @fixed is true, reserve contiguous area at exactly @base.  If false,
  * reserve in range from @base to @limit.
  */
-int __init cma_declare_contiguous(phys_addr_t size,
-			phys_addr_t base, phys_addr_t limit,
+int __init cma_declare_contiguous(phys_addr_t base,
+			phys_addr_t size, phys_addr_t limit,
 			phys_addr_t alignment, unsigned int order_per_bit,
-			struct cma **res_cma, bool fixed)
+			bool fixed, struct cma **res_cma)
 {
-	struct cma *cma = &cma_areas[cma_area_count];
+	struct cma *cma;
 	int ret = 0;
 
 	pr_debug("%s(size %lx, base %08lx, limit %08lx alignment %08lx)\n",
@@ -218,6 +218,7 @@ int __init cma_declare_contiguous(phys_addr_t size,
 	 * Each reserved area must be initialised later, when more kernel
 	 * subsystems (like slab allocator) are available.
 	 */
+	cma = &cma_areas[cma_area_count];
 	cma->base_pfn = PFN_DOWN(base);
 	cma->count = size >> PAGE_SHIFT;
 	cma->order_per_bit = order_per_bit;
