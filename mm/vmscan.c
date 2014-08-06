@@ -137,7 +137,11 @@ struct scan_control {
  * From 0 .. 100.  Higher means more swappy.
  */
 int vm_swappiness = 60;
-unsigned long vm_total_pages;	/* The total number of pages which the VM controls */
+/*
+ * The total number of pages which are beyond the high watermark within all
+ * zones.
+ */
+unsigned long vm_total_pages;
 
 static LIST_HEAD(shrinker_list);
 static DECLARE_RWSEM(shrinker_rwsem);
