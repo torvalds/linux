@@ -748,34 +748,35 @@ static u32 pm8001_setup_msix(struct pm8001_hba_info *pm8001_ha)
 		sizeof(pm8001_ha->msix_entries[0]);
 	for (i = 0; i < max_entry ; i++)
 		pm8001_ha->msix_entries[i].entry = i;
-	rc = pci_enable_msix(pm8001_ha->pdev, pm8001_ha->msix_entries,
+	rc = pci_enable_msix_exact(pm8001_ha->pdev, pm8001_ha->msix_entries,
 		number_of_intr);
 	pm8001_ha->number_of_intr = number_of_intr;
-	if (!rc) {
-		PM8001_INIT_DBG(pm8001_ha, pm8001_printk(
-			"pci_enable_msix request ret:%d no of intr %d\n",
-					rc, pm8001_ha->number_of_intr));
+	if (rc)
+		return rc;
 
+	PM8001_INIT_DBG(pm8001_ha, pm8001_printk(
+		"pci_enable_msix_exact request ret:%d no of intr %d\n",
+				rc, pm8001_ha->number_of_intr));
 
-		for (i = 0; i < number_of_intr; i++) {
-			snprintf(intr_drvname[i], sizeof(intr_drvname[0]),
-					DRV_NAME"%d", i);
-			pm8001_ha->irq_vector[i].irq_id = i;
-			pm8001_ha->irq_vector[i].drv_inst = pm8001_ha;
+	for (i = 0; i < number_of_intr; i++) {
+		snprintf(intr_drvname[i], sizeof(intr_drvname[0]),
+				DRV_NAME"%d", i);
+		pm8001_ha->irq_vector[i].irq_id = i;
+		pm8001_ha->irq_vector[i].drv_inst = pm8001_ha;
 
-			rc = request_irq(pm8001_ha->msix_entries[i].vector,
-				pm8001_interrupt_handler_msix, flag,
-				intr_drvname[i], &(pm8001_ha->irq_vector[i]));
-			if (rc) {
-				for (j = 0; j < i; j++)
-					free_irq(
-					pm8001_ha->msix_entries[j].vector,
+		rc = request_irq(pm8001_ha->msix_entries[i].vector,
+			pm8001_interrupt_handler_msix, flag,
+			intr_drvname[i], &(pm8001_ha->irq_vector[i]));
+		if (rc) {
+			for (j = 0; j < i; j++) {
+				free_irq(pm8001_ha->msix_entries[j].vector,
 					&(pm8001_ha->irq_vector[i]));
-				pci_disable_msix(pm8001_ha->pdev);
-				break;
 			}
+			pci_disable_msix(pm8001_ha->pdev);
+			break;
 		}
 	}
+
 	return rc;
 }
 #endif
