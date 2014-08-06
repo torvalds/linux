@@ -104,6 +104,7 @@ static atomic_t nl_table_users = ATOMIC_INIT(0);
 
 /* Protects netlink socket hash table mutations */
 DEFINE_MUTEX(nl_sk_hash_lock);
+EXPORT_SYMBOL_GPL(nl_sk_hash_lock);
 
 static int lockdep_nl_sk_hash_is_held(void)
 {
