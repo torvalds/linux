@@ -285,11 +285,12 @@ struct page *cma_alloc(struct cma *cma, int count, unsigned int align)
 		if (ret == 0) {
 			page = pfn_to_page(pfn);
 			break;
-		} else if (ret != -EBUSY) {
-			cma_clear_bitmap(cma, pfn, count);
-			break;
 		}
+
 		cma_clear_bitmap(cma, pfn, count);
+		if (ret != -EBUSY)
+			break;
+
 		pr_debug("%s(): memory range at %p is busy, retrying\n",
 			 __func__, pfn_to_page(pfn));
 		/* try again with a bit different memory target */
