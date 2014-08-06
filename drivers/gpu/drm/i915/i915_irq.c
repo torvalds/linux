@@ -4680,6 +4680,14 @@ void intel_irq_init(struct drm_device *dev)
 		dev->max_vblank_count = 0xffffff; /* only 24 bits of frame count */
 	}
 
+	/*
+	 * Opt out of the vblank disable timer on everything except gen2.
+	 * Gen2 doesn't have a hardware frame counter and so depends on
+	 * vblank interrupts to produce sane vblank seuquence numbers.
+	 */
+	if (!IS_GEN2(dev))
+		dev->vblank_disable_immediate = true;
+
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
 		dev->driver->get_vblank_timestamp = i915_get_vblank_timestamp;
 		dev->driver->get_scanout_position = i915_get_crtc_scanoutpos;
