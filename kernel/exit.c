@@ -455,6 +455,7 @@ static void exit_mm(struct task_struct * tsk)
 	task_unlock(tsk);
 	mm_update_next_owner(mm);
 	mmput(mm);
+	clear_thread_flag(TIF_MEMDIE);
 }
 
 /*
