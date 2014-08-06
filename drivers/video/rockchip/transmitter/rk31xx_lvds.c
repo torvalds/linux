@@ -186,20 +186,24 @@ static void rk31xx_output_lvttl(struct rk_lvds_device *lvds,
 
 	val |= v_LVDSMODE_EN(0) | v_MIPIPHY_TTL_EN(1);  /* enable lvds mode */
 	val |= v_LVDS_DATA_SEL(LVDS_DATA_FROM_LCDC);    /* config data source */
-	grf_writel(val, RK312X_GRF_LVDS_CON0);
+	grf_writel(0xffff0380, RK312X_GRF_LVDS_CON0);
 
-        /* set pll prediv and fbdiv */
-	lvds_writel(lvds, MIPIPHY_REG3, v_PREDIV(1) | v_FBDIV_MSB(0));
-	lvds_writel(lvds, MIPIPHY_REG4, v_FBDIV_LSB(7));
+        val = v_MIPITTL_CLK_EN(1) | v_MIPITTL_LANE0_EN(1) |
+                v_MIPITTL_LANE1_EN(1) | v_MIPITTL_LANE2_EN(1) |
+                v_MIPITTL_LANE3_EN(1);
+        grf_writel(val, RK312X_GRF_SOC_CON1);
+
+        /* enable lane */
+        lvds_writel(lvds, MIPIPHY_REG0, 0x7f);
+        val = v_LANE0_EN(1) | v_LANE1_EN(1) | v_LANE2_EN(1) | v_LANE3_EN(1) |
+                v_LANECLK_EN(1) | v_PLL_PWR_OFF(1);
+        lvds_writel(lvds, MIPIPHY_REGEB, val);
 
         /* set ttl mode and reset phy config */
         val = v_LVDS_MODE_EN(0) | v_TTL_MODE_EN(1) | v_MIPI_MODE_EN(0) |
                 v_MSB_SEL(1) | v_DIG_INTER_RST(1);
 	lvds_writel(lvds, MIPIPHY_REGE0, val);
 
-        lvds_writel(lvds, MIPIPHY_REGE1, 0x92);
-
-        /* enable ttl */
 	rk31xx_lvds_pwr_on();
 		
 }

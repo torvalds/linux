@@ -27,6 +27,26 @@ enum {
         LVDS_MSB_D7,
 };
 
+/* RK312X_GRF_SOC_CON1 */
+#define v_MIPITTL_CLK_EN(x)     (BITS_MASK(x, 1, 7) | BITS_EN(1, 7))
+#define v_MIPITTL_LANE0_EN(x)   (BITS_MASK(x, 1, 11) | BITS_EN(1, 11))
+#define v_MIPITTL_LANE1_EN(x)   (BITS_MASK(x, 1, 12) | BITS_EN(1, 12))
+#define v_MIPITTL_LANE2_EN(x)   (BITS_MASK(x, 1, 13) | BITS_EN(1, 13))
+#define v_MIPITTL_LANE3_EN(x)   (BITS_MASK(x, 1, 14) | BITS_EN(1, 14))
+
+
+#define MIPIPHY_REG0            0x0000
+#define m_LANE_EN_0             BITS(1, 2)
+#define m_LANE_EN_1             BITS(1, 3)
+#define m_LANE_EN_2             BITS(1, 4)
+#define m_LANE_EN_3             BITS(1, 5)
+#define m_LANE_EN_CLK           BITS(1, 5)
+#define v_LANE_EN_0(x)          BITS(1, 2)
+#define v_LANE_EN_1(x)          BITS(1, 3)
+#define v_LANE_EN_2(x)          BITS(1, 4)
+#define v_LANE_EN_3(x)          BITS(1, 5)
+#define v_LANE_EN_CLK(x)        BITS(1, 5)
+
 #define MIPIPHY_REG1            0x0004
 #define m_SYNC_RST              BITS(1, 0)
 #define m_LDO_PWR_DOWN          BITS(1, 1)
