@@ -207,7 +207,7 @@ static int __init cmp(void *priv, struct list_head *a, struct list_head *b)
 
 static int __init list_sort_test(void)
 {
-	int i, count = 1, err = -EINVAL;
+	int i, count = 1, err = -ENOMEM;
 	struct debug_el *el;
 	struct list_head *cur, *tmp;
 	LIST_HEAD(head);
@@ -239,6 +239,7 @@ static int __init list_sort_test(void)
 
 	list_sort(NULL, &head, cmp);
 
+	err = -EINVAL;
 	for (cur = head.next; cur->next != &head; cur = cur->next) {
 		struct debug_el *el1;
 		int cmp_result;
