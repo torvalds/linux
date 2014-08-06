@@ -27,6 +27,8 @@
  * the filesystem.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/fs.h>
 #include <linux/vfs.h>
 #include <linux/slab.h>
@@ -448,8 +450,7 @@ static int __init init_squashfs_fs(void)
 		return err;
 	}
 
-	printk(KERN_INFO "squashfs: version 4.0 (2009/01/31) "
-		"Phillip Lougher\n");
+	pr_info("version 4.0 (2009/01/31) Phillip Lougher\n");
 
 	return 0;
 }
