@@ -198,6 +198,13 @@ static void vblank_disable_and_save(struct drm_device *dev, int crtc)
 	 * hope for the best.
 	 */
 	if ((vblrc > 0) && (abs64(diff_ns) > 1000000)) {
+		/* Store new timestamp in ringbuffer. */
+		vblanktimestamp(dev, crtc, vblcount + 1) = tvblank;
+
+		/* Increment cooked vblank count. This also atomically commits
+		 * the timestamp computed above.
+		 */
+		smp_mb__before_atomic();
 		atomic_inc(&vblank->count);
 		smp_mb__after_atomic();
 	}
