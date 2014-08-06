@@ -987,10 +987,13 @@ static struct dma_chan *sh_msiof_request_dma_chan(struct device *dev,
 	memset(&cfg, 0, sizeof(cfg));
 	cfg.slave_id = id;
 	cfg.direction = dir;
-	if (dir == DMA_MEM_TO_DEV)
+	if (dir == DMA_MEM_TO_DEV) {
 		cfg.dst_addr = port_addr;
-	else
+		cfg.dst_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
+	} else {
 		cfg.src_addr = port_addr;
+		cfg.src_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
+	}
 
 	ret = dmaengine_slave_config(chan, &cfg);
 	if (ret) {
