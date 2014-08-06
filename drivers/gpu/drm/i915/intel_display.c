@@ -12719,9 +12719,10 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc)
 	I915_WRITE(reg, I915_READ(reg) & ~PIPECONF_FRAME_START_DELAY_MASK);
 
 	/* restore vblank interrupts to correct state */
-	if (crtc->active)
+	if (crtc->active) {
+		update_scanline_offset(crtc);
 		drm_vblank_on(dev, crtc->pipe);
-	else
+	} else
 		drm_vblank_off(dev, crtc->pipe);
 
 	/* We need to sanitize the plane -> pipe mapping first because this will
@@ -12820,8 +12821,6 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc)
 		 */
 		crtc->cpu_fifo_underrun_disabled = true;
 		crtc->pch_fifo_underrun_disabled = true;
-
-		update_scanline_offset(crtc);
 	}
 }
 
