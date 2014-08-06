@@ -415,6 +415,20 @@ config GLOB
 	  are compiling an out-of tree driver which tells you that it
 	  depends on this.
 
+config GLOB_SELFTEST
+	bool "glob self-test on init"
+	default n
+	depends on GLOB
+	help
+	  This option enables a simple self-test of the glob_match
+	  function on startup.	It is primarily useful for people
+	  working on the code to ensure they haven't introduced any
+	  regressions.
+
+	  It only adds a little bit of code and slows kernel boot (or
+	  module load) by a small amount, so you're welcome to play with
+	  it, but you probably don't need it.
+
 #
 # Netlink attribute parsing support is select'ed if needed
 #
