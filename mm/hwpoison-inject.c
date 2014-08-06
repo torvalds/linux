@@ -72,8 +72,7 @@ DEFINE_SIMPLE_ATTRIBUTE(unpoison_fops, NULL, hwpoison_unpoison, "%lli\n");
 
 static void pfn_inject_exit(void)
 {
-	if (hwpoison_dir)
-		debugfs_remove_recursive(hwpoison_dir);
+	debugfs_remove_recursive(hwpoison_dir);
 }
 
 static int pfn_inject_init(void)
