@@ -1270,6 +1270,7 @@ static int drm_queue_vblank_event(struct drm_device *dev, int pipe,
 				  union drm_wait_vblank *vblwait,
 				  struct drm_file *file_priv)
 {
+	struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
 	struct drm_pending_vblank_event *e;
 	struct timeval now;
 	unsigned long flags;
@@ -1292,6 +1293,18 @@ static int drm_queue_vblank_event(struct drm_device *dev, int pipe,
 	e->base.destroy = (void (*) (struct drm_pending_event *)) kfree;
 
 	spin_lock_irqsave(&dev->event_lock, flags);
+
+	/*
+	 * drm_vblank_off() might have been called after we called
+	 * drm_vblank_get(). drm_vblank_off() holds event_lock
+	 * around the vblank disable, so no need for further locking.
+	 * The reference from drm_vblank_get() protects against
+	 * vblank disable from another source.
+	 */
+	if (!vblank->enabled) {
+		ret = -EINVAL;
+		goto err_unlock;
+	}
 
 	if (file_priv->event_space < sizeof e->event) {
 		ret = -EBUSY;
