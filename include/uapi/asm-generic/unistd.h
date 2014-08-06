@@ -701,9 +701,11 @@ __SYSCALL(__NR_sched_getattr, sys_sched_getattr)
 __SYSCALL(__NR_renameat2, sys_renameat2)
 #define __NR_seccomp 277
 __SYSCALL(__NR_seccomp, sys_seccomp)
+#define __NR_getrandom 278
+__SYSCALL(__NR_getrandom, sys_getrandom)
 
 #undef __NR_syscalls
-#define __NR_syscalls 278
+#define __NR_syscalls 279
 
 /*
  * All syscalls below here should go away really,

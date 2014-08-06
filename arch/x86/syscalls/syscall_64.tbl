@@ -324,6 +324,7 @@
 315	common	sched_getattr		sys_sched_getattr
 316	common	renameat2		sys_renameat2
 317	common	seccomp			sys_seccomp
+318	common	getrandom		sys_getrandom
 
 #
 # x32-specific system call numbers start at 512 to avoid cache impact
