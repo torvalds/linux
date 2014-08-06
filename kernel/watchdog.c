@@ -260,9 +260,11 @@ static void watchdog_overflow_callback(struct perf_event *event,
 			return;
 
 		if (hardlockup_panic)
-			panic("Watchdog detected hard LOCKUP on cpu %d", this_cpu);
+			panic("Watchdog detected hard LOCKUP on cpu %d",
+			      this_cpu);
 		else
-			WARN(1, "Watchdog detected hard LOCKUP on cpu %d", this_cpu);
+			WARN(1, "Watchdog detected hard LOCKUP on cpu %d",
+			     this_cpu);
 
 		__this_cpu_write(hard_watchdog_warn, true);
 		return;
@@ -345,7 +347,7 @@ static enum hrtimer_restart watchdog_timer_fn(struct hrtimer *hrtimer)
 			}
 		}
 
-		printk(KERN_EMERG "BUG: soft lockup - CPU#%d stuck for %us! [%s:%d]\n",
+		pr_emerg("BUG: soft lockup - CPU#%d stuck for %us! [%s:%d]\n",
 			smp_processor_id(), duration,
 			current->comm, task_pid_nr(current));
 		print_modules();
@@ -484,7 +486,7 @@ static int watchdog_nmi_enable(unsigned int cpu)
 	if (PTR_ERR(event) == -EOPNOTSUPP)
 		pr_info("disabled (cpu%i): not supported (no LAPIC?)\n", cpu);
 	else if (PTR_ERR(event) == -ENOENT)
-		pr_warning("disabled (cpu%i): hardware events not enabled\n",
+		pr_warn("disabled (cpu%i): hardware events not enabled\n",
 			 cpu);
 	else
 		pr_err("disabled (cpu%i): unable to create perf event: %ld\n",
