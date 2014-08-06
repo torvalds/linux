@@ -993,10 +993,13 @@ void drm_vblank_put(struct drm_device *dev, int crtc)
 	BUG_ON(atomic_read(&vblank->refcount) == 0);
 
 	/* Last user schedules interrupt disable */
-	if (atomic_dec_and_test(&vblank->refcount) &&
-	    (drm_vblank_offdelay > 0))
-		mod_timer(&vblank->disable_timer,
-			  jiffies + ((drm_vblank_offdelay * HZ)/1000));
+	if (atomic_dec_and_test(&vblank->refcount)) {
+		if (drm_vblank_offdelay < 0)
+			vblank_disable_fn((unsigned long)vblank);
+		else if (drm_vblank_offdelay > 0)
+			mod_timer(&vblank->disable_timer,
+				  jiffies + ((drm_vblank_offdelay * HZ)/1000));
+	}
 }
 EXPORT_SYMBOL(drm_vblank_put);
 
