@@ -471,13 +471,18 @@ void dgnc_sniff_nowait_nolock(struct channel_t *ch, uchar *text, uchar *buf, int
 	int nbuf;
 	int i;
 	int tmpbuflen;
-	char tmpbuf[TMPBUFLEN];
-	char *p = tmpbuf;
+	char *tmpbuf;
+	char *p;
 	int too_much_data;
+
+	tmpbuf = kzalloc(TMPBUFLEN, GFP_KERNEL);
+	if (!tmpbuf)
+		return;
+	p = tmpbuf;
 
 	/* Leave if sniff not open */
 	if (!(ch->ch_sniff_flags & SNIFF_OPEN))
-		return;
+		goto exit;
 
 	do_gettimeofday(&tv);
 
@@ -524,7 +529,7 @@ void dgnc_sniff_nowait_nolock(struct channel_t *ch, uchar *text, uchar *buf, int
 			 * function was probably called by the interrupt/timer routines!
 			 */
 			if (n == 0)
-				return;
+				goto exit;
 
 			/*
 			 * Copy as much data as will fit.
@@ -569,6 +574,9 @@ void dgnc_sniff_nowait_nolock(struct channel_t *ch, uchar *text, uchar *buf, int
 		}
 
 	} while (too_much_data);
+
+exit:
+	kfree(tmpbuf);
 }
 
 
