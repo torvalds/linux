@@ -1449,3 +1449,8 @@ static struct hid_driver wacom_driver = {
 	.raw_event =	wacom_raw_event,
 };
 module_hid_driver(wacom_driver);
+
+MODULE_VERSION(DRIVER_VERSION);
+MODULE_AUTHOR(DRIVER_AUTHOR);
+MODULE_DESCRIPTION(DRIVER_DESC);
+MODULE_LICENSE(DRIVER_LICENSE);
