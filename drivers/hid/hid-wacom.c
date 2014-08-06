@@ -952,7 +952,6 @@ static void wacom_remove(struct hid_device *hdev)
 }
 
 static const struct hid_device_id wacom_devices[] = {
-	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_WACOM, USB_DEVICE_ID_WACOM_INTUOS4_BLUETOOTH) },
 
 	{ }
 };

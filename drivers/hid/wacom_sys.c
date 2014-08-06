@@ -296,6 +296,20 @@ static int wacom_bt_query_tablet_data(struct hid_device *hdev, u8 speed,
 		hid_warn(hdev, "failed to poke device, command %d, err %d\n",
 			 rep_data[0], ret);
 		break;
+	case INTUOS4WL:
+		if (speed == 1)
+			wacom->wacom_wac.bt_features &= ~0x20;
+		else
+			wacom->wacom_wac.bt_features |= 0x20;
+
+		rep_data[0] = 0x03;
+		rep_data[1] = wacom->wacom_wac.bt_features;
+
+		ret = wacom_set_report(hdev, HID_FEATURE_REPORT,
+					rep_data[0], rep_data, 2, 1);
+		if (ret >= 0)
+			wacom->wacom_wac.bt_high_speed = speed;
+		break;
 	}
 
 	return 0;
@@ -720,6 +734,7 @@ static int wacom_initialize_leds(struct wacom *wacom)
 	switch (wacom->wacom_wac.features.type) {
 	case INTUOS4S:
 	case INTUOS4:
+	case INTUOS4WL:
 	case INTUOS4L:
 		wacom->led.select[0] = 0;
 		wacom->led.select[1] = 0;
@@ -786,6 +801,7 @@ static void wacom_destroy_leds(struct wacom *wacom)
 	switch (wacom->wacom_wac.features.type) {
 	case INTUOS4S:
 	case INTUOS4:
+	case INTUOS4WL:
 	case INTUOS4L:
 		sysfs_remove_group(&wacom->hdev->dev.kobj,
 				   &intuos4_led_attr_group);

@@ -37,6 +37,11 @@
  */
 static unsigned short batcap_gr[8] = { 1, 15, 25, 35, 50, 70, 100, 100 };
 
+/*
+ * Percent of battery capacity for Intuos4 WL, AC has a separate bit.
+ */
+static unsigned short batcap_i4[8] = { 1, 15, 30, 45, 60, 70, 85, 100 };
+
 static int wacom_penpartner_irq(struct wacom_wac *wacom)
 {
 	unsigned char *data = wacom->data;
@@ -953,6 +958,58 @@ static int int_dist(int x1, int y1, int x2, int y2)
 	return int_sqrt(x*x + y*y);
 }
 
+static void wacom_intuos_bt_process_data(struct wacom_wac *wacom,
+		unsigned char *data)
+{
+	memcpy(wacom->data, data, 10);
+	wacom_intuos_irq(wacom);
+
+	input_sync(wacom->input);
+	if (wacom->pad_input)
+		input_sync(wacom->pad_input);
+}
+
+static int wacom_intuos_bt_irq(struct wacom_wac *wacom, size_t len)
+{
+	unsigned char data[WACOM_PKGLEN_MAX];
+	int i = 1;
+	unsigned power_raw, battery_capacity, bat_charging, ps_connected;
+
+	memcpy(data, wacom->data, len);
+
+	switch (data[0]) {
+	case 0x04:
+		wacom_intuos_bt_process_data(wacom, data + i);
+		i += 10;
+		/* fall through */
+	case 0x03:
+		wacom_intuos_bt_process_data(wacom, data + i);
+		i += 10;
+		wacom_intuos_bt_process_data(wacom, data + i);
+		i += 10;
+		power_raw = data[i];
+		bat_charging = (power_raw & 0x08) ? 1 : 0;
+		ps_connected = (power_raw & 0x10) ? 1 : 0;
+		battery_capacity = batcap_i4[power_raw & 0x07];
+		if ((wacom->battery_capacity != battery_capacity) ||
+		    (wacom->bat_charging != bat_charging) ||
+		    (wacom->ps_connected != ps_connected)) {
+			wacom->battery_capacity = battery_capacity;
+			wacom->bat_charging = bat_charging;
+			wacom->ps_connected = ps_connected;
+			wacom_notify_battery(wacom);
+		}
+
+		break;
+	default:
+		dev_dbg(wacom->input->dev.parent,
+				"Unknown report: %d,%d size:%zu\n",
+				data[0], data[1], len);
+		return 0;
+	}
+	return 0;
+}
+
 static int wacom_24hdt_irq(struct wacom_wac *wacom)
 {
 	struct input_dev *input = wacom->input;
@@ -1512,6 +1569,10 @@ void wacom_wac_irq(struct wacom_wac *wacom_wac, size_t len)
 		sync = wacom_intuos_irq(wacom_wac);
 		break;
 
+	case INTUOS4WL:
+		sync = wacom_intuos_bt_irq(wacom_wac, len);
+		break;
+
 	case WACOM_24HDT:
 		sync = wacom_24hdt_irq(wacom_wac);
 		break;
@@ -1803,6 +1864,7 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 		break;
 
 	case INTUOS4:
+	case INTUOS4WL:
 	case INTUOS4L:
 	case INTUOS4S:
 		input_set_abs_params(input_dev, ABS_Z, -900, 899, 0, 0);
@@ -2065,6 +2127,15 @@ int wacom_setup_pad_input_capabilities(struct input_dev *input_dev,
 		input_set_abs_params(input_dev, ABS_WHEEL, 0, 71, 0, 0);
 		break;
 
+	case INTUOS4WL:
+		/*
+		 * For Bluetooth devices, the udev rule does not work correctly
+		 * for pads unless we add a stylus capability, which forces
+		 * ID_INPUT_TABLET to be set.
+		 */
+		__set_bit(BTN_STYLUS, input_dev->keybit);
+		/* fall through */
+
 	case INTUOS4:
 	case INTUOS4L:
 		__set_bit(BTN_7, input_dev->keybit);
@@ -2279,6 +2350,9 @@ static const struct wacom_features wacom_features_0xBB =
 static const struct wacom_features wacom_features_0xBC =
 	{ "Wacom Intuos4 WL", 40640, 25400, 2047, 63,
 	  INTUOS4, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES };
+static const struct wacom_features wacom_features_0xBD =
+	{ "Wacom Intuos4 WL", 40640, 25400, 2047, 63,
+	  INTUOS4WL, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES };
 static const struct wacom_features wacom_features_0x26 =
 	{ "Wacom Intuos5 touch S", 31496, 19685, 2047, 63,
 	  INTUOS5S, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, .touch_max = 16 };
@@ -2598,6 +2672,7 @@ const struct hid_device_id wacom_ids[] = {
 	{ USB_DEVICE_WACOM(0xBA) },
 	{ USB_DEVICE_WACOM(0xBB) },
 	{ USB_DEVICE_WACOM(0xBC) },
+	{ BT_DEVICE_WACOM(0xBD) },
 	{ USB_DEVICE_WACOM(0xC0) },
 	{ USB_DEVICE_WACOM(0xC2) },
 	{ USB_DEVICE_WACOM(0xC4) },
