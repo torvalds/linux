@@ -147,6 +147,7 @@ static int mxs_pwm_probe(struct platform_device *pdev)
 	mxs->chip.dev = &pdev->dev;
 	mxs->chip.ops = &mxs_pwm_ops;
 	mxs->chip.base = -1;
+	mxs->chip.can_sleep = true;
 	ret = of_property_read_u32(np, "fsl,pwm-number", &mxs->chip.npwm);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to get pwm number: %d\n", ret);

@@ -1271,7 +1271,7 @@ static int __init capinc_tty_init(void)
 		return -ENOMEM;
 	}
 	drv->driver_name = "capi_nc";
-	drv->name = "capi";
+	drv->name = "capi!";
 	drv->major = 0;
 	drv->minor_start = 0;
 	drv->type = TTY_DRIVER_TYPE_SERIAL;
@@ -1417,7 +1417,7 @@ static int __init capi_init(void)
 		return PTR_ERR(capi_class);
 	}
 
-	device_create(capi_class, NULL, MKDEV(capi_major, 0), NULL, "capi");
+	device_create(capi_class, NULL, MKDEV(capi_major, 0), NULL, "capi20");
 
 	if (capinc_tty_init() < 0) {
 		device_destroy(capi_class, MKDEV(capi_major, 0));

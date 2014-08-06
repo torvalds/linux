@@ -56,10 +56,10 @@ static int bond_fill_slave_info(struct sk_buff *skb,
 	if (nla_put_u16(skb, IFLA_BOND_SLAVE_QUEUE_ID, slave->queue_id))
 		goto nla_put_failure;
 
-	if (slave->bond->params.mode == BOND_MODE_8023AD) {
+	if (BOND_MODE(slave->bond) == BOND_MODE_8023AD) {
 		const struct aggregator *agg;
 
-		agg = SLAVE_AD_INFO(slave).port.aggregator;
+		agg = SLAVE_AD_INFO(slave)->port.aggregator;
 		if (agg)
 			if (nla_put_u16(skb, IFLA_BOND_SLAVE_AD_AGGREGATOR_ID,
 					agg->aggregator_identifier))
@@ -407,7 +407,7 @@ static int bond_fill_info(struct sk_buff *skb,
 	unsigned int packets_per_slave;
 	int i, targets_added;
 
-	if (nla_put_u8(skb, IFLA_BOND_MODE, bond->params.mode))
+	if (nla_put_u8(skb, IFLA_BOND_MODE, BOND_MODE(bond)))
 		goto nla_put_failure;
 
 	if (slave_dev &&
@@ -505,7 +505,7 @@ static int bond_fill_info(struct sk_buff *skb,
 		       bond->params.ad_select))
 		goto nla_put_failure;
 
-	if (bond->params.mode == BOND_MODE_8023AD) {
+	if (BOND_MODE(bond) == BOND_MODE_8023AD) {
 		struct ad_info info;
 
 		if (!bond_3ad_get_active_agg_info(bond, &info)) {

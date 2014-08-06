@@ -169,7 +169,7 @@ static const struct nla_policy fw_policy[TCA_FW_MAX + 1] = {
 
 static int
 fw_change_attrs(struct net *net, struct tcf_proto *tp, struct fw_filter *f,
-	struct nlattr **tb, struct nlattr **tca, unsigned long base)
+	struct nlattr **tb, struct nlattr **tca, unsigned long base, bool ovr)
 {
 	struct fw_head *head = tp->root;
 	struct tcf_exts e;
@@ -177,7 +177,7 @@ fw_change_attrs(struct net *net, struct tcf_proto *tp, struct fw_filter *f,
 	int err;
 
 	tcf_exts_init(&e, TCA_FW_ACT, TCA_FW_POLICE);
-	err = tcf_exts_validate(net, tp, tb, tca[TCA_RATE], &e);
+	err = tcf_exts_validate(net, tp, tb, tca[TCA_RATE], &e, ovr);
 	if (err < 0)
 		return err;
 
@@ -218,7 +218,7 @@ static int fw_change(struct net *net, struct sk_buff *in_skb,
 		     struct tcf_proto *tp, unsigned long base,
 		     u32 handle,
 		     struct nlattr **tca,
-		     unsigned long *arg)
+		     unsigned long *arg, bool ovr)
 {
 	struct fw_head *head = tp->root;
 	struct fw_filter *f = (struct fw_filter *) *arg;
@@ -236,7 +236,7 @@ static int fw_change(struct net *net, struct sk_buff *in_skb,
 	if (f != NULL) {
 		if (f->id != handle && handle)
 			return -EINVAL;
-		return fw_change_attrs(net, tp, f, tb, tca, base);
+		return fw_change_attrs(net, tp, f, tb, tca, base, ovr);
 	}
 
 	if (!handle)
@@ -264,7 +264,7 @@ static int fw_change(struct net *net, struct sk_buff *in_skb,
 	tcf_exts_init(&f->exts, TCA_FW_ACT, TCA_FW_POLICE);
 	f->id = handle;
 
-	err = fw_change_attrs(net, tp, f, tb, tca, base);
+	err = fw_change_attrs(net, tp, f, tb, tca, base, ovr);
 	if (err < 0)
 		goto errout;
 

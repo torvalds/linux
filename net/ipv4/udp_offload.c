@@ -56,7 +56,8 @@ static struct sk_buff *udp4_ufo_fragment(struct sk_buff *skb,
 	__wsum csum;
 
 	if (skb->encapsulation &&
-	    skb_shinfo(skb)->gso_type & SKB_GSO_UDP_TUNNEL) {
+	    (skb_shinfo(skb)->gso_type &
+	     (SKB_GSO_UDP_TUNNEL|SKB_GSO_UDP_TUNNEL_CSUM))) {
 		segs = skb_udp_tunnel_segment(skb, features);
 		goto out;
 	}
@@ -71,8 +72,10 @@ static struct sk_buff *udp4_ufo_fragment(struct sk_buff *skb,
 
 		if (unlikely(type & ~(SKB_GSO_UDP | SKB_GSO_DODGY |
 				      SKB_GSO_UDP_TUNNEL |
+				      SKB_GSO_UDP_TUNNEL_CSUM |
 				      SKB_GSO_IPIP |
-				      SKB_GSO_GRE | SKB_GSO_MPLS) ||
+				      SKB_GSO_GRE | SKB_GSO_GRE_CSUM |
+				      SKB_GSO_MPLS) ||
 			     !(type & (SKB_GSO_UDP))))
 			goto out;
 
@@ -197,6 +200,7 @@ unflush:
 	}
 
 	skb_gro_pull(skb, sizeof(struct udphdr)); /* pull encapsulating udp header */
+	skb_gro_postpull_rcsum(skb, uh, sizeof(struct udphdr));
 	pp = uo_priv->offload->callbacks.gro_receive(head, skb);
 
 out_unlock:

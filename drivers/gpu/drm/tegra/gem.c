@@ -169,7 +169,8 @@ err:
 	return ERR_PTR(ret);
 }
 
-struct tegra_bo *tegra_bo_import(struct drm_device *drm, struct dma_buf *buf)
+static struct tegra_bo *tegra_bo_import(struct drm_device *drm,
+					struct dma_buf *buf)
 {
 	struct dma_buf_attachment *attach;
 	struct tegra_bo *bo;

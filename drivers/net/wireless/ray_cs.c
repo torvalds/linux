@@ -343,7 +343,7 @@ static void ray_detach(struct pcmcia_device *link)
 	ray_release(link);
 
 	local = netdev_priv(dev);
-	del_timer(&local->timer);
+	del_timer_sync(&local->timer);
 
 	if (link->priv) {
 		unregister_netdev(dev);

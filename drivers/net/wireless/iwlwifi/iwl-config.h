@@ -146,6 +146,9 @@ static inline u8 num_of_ant(u8 mask)
  * @wd_timeout: TX queues watchdog timeout
  * @max_event_log_size: size of event log buffer size for ucode event logging
  * @shadow_reg_enable: HW shadow register support
+ * @apmg_wake_up_wa: should the MAC access REQ be asserted when a command
+ *	is in flight. This is due to a HW bug in 7260, 3160 and 7265.
+ * @scd_chain_ext_wa: should the chain extension feature in SCD be disabled.
  */
 struct iwl_base_params {
 	int eeprom_size;
@@ -160,6 +163,8 @@ struct iwl_base_params {
 	u32 max_event_log_size;
 	const bool shadow_reg_enable;
 	const bool pcie_l1_allowed;
+	const bool apmg_wake_up_wa;
+	const bool scd_chain_ext_wa;
 };
 
 /*
@@ -187,6 +192,11 @@ struct iwl_ht_params {
 #define EEPROM_REG_BAND_52_HT40_CHANNELS	0x92
 #define EEPROM_6000_REG_BAND_24_HT40_CHANNELS	0x80
 #define EEPROM_REGULATORY_BAND_NO_HT40		0
+
+/* lower blocks contain EEPROM image and calibration data */
+#define OTP_LOW_IMAGE_SIZE		(2 * 512 * sizeof(u16)) /* 2 KB */
+#define OTP_LOW_IMAGE_SIZE_FAMILY_7000	(16 * 512 * sizeof(u16)) /* 16 KB */
+#define OTP_LOW_IMAGE_SIZE_FAMILY_8000	(32 * 512 * sizeof(u16)) /* 32 KB */
 
 struct iwl_eeprom_params {
 	const u8 regulatory_bands[7];
@@ -264,6 +274,8 @@ struct iwl_cfg {
 	u8   nvm_hw_section_num;
 	bool lp_xtal_workaround;
 	const struct iwl_pwr_tx_backoff *pwr_tx_backoffs;
+	bool no_power_up_nic_in_init;
+	const char *default_nvm_file;
 };
 
 /*

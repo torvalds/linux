@@ -167,7 +167,8 @@ acpi_ev_queue_notify_request(struct acpi_namespace_node * node,
 			  "Dispatching Notify on [%4.4s] (%s) Value 0x%2.2X (%s) Node %p\n",
 			  acpi_ut_get_node_name(node),
 			  acpi_ut_get_type_name(node->type), notify_value,
-			  acpi_ut_get_notify_name(notify_value), node));
+			  acpi_ut_get_notify_name(notify_value, ACPI_TYPE_ANY),
+			  node));
 
 	status = acpi_os_execute(OSL_NOTIFY_HANDLER, acpi_ev_notify_dispatch,
 				 info);

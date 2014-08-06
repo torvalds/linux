@@ -432,7 +432,8 @@ static int imx_ahci_probe(struct platform_device *pdev)
 	reg_val = clk_get_rate(imxpriv->ahb_clk) / 1000;
 	writel(reg_val, hpriv->mmio + IMX_TIMER1MS);
 
-	ret = ahci_platform_init_host(pdev, hpriv, &ahci_imx_port_info, 0, 0);
+	ret = ahci_platform_init_host(pdev, hpriv, &ahci_imx_port_info,
+				      0, 0, 0);
 	if (ret)
 		imx_sata_disable(hpriv);
 

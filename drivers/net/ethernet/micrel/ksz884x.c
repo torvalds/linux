@@ -4930,7 +4930,7 @@ static void netdev_tx_timeout(struct net_device *dev)
 		 * Only reset the hardware if time between calls is long
 		 * enough.
 		 */
-		if (jiffies - last_reset <= dev->watchdog_timeo)
+		if (time_before_eq(jiffies, last_reset + dev->watchdog_timeo))
 			hw_priv = NULL;
 	}
 
@@ -7072,6 +7072,7 @@ static int pcidev_init(struct pci_dev *pdev, const struct pci_device_id *id)
 		dev = alloc_etherdev(sizeof(struct dev_priv));
 		if (!dev)
 			goto pcidev_init_reg_err;
+		SET_NETDEV_DEV(dev, &pdev->dev);
 		info->netdev[i] = dev;
 
 		priv = netdev_priv(dev);
@@ -7106,7 +7107,7 @@ static int pcidev_init(struct pci_dev *pdev, const struct pci_device_id *id)
 		}
 
 		dev->netdev_ops = &netdev_ops;
-		SET_ETHTOOL_OPS(dev, &netdev_ethtool_ops);
+		dev->ethtool_ops = &netdev_ethtool_ops;
 		if (register_netdev(dev))
 			goto pcidev_init_reg_err;
 		port_set_power_saving(port, true);

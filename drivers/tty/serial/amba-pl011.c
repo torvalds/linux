@@ -1744,7 +1744,7 @@ pl011_set_termios(struct uart_port *port, struct ktermios *termios,
 	port->read_status_mask = UART011_DR_OE | 255;
 	if (termios->c_iflag & INPCK)
 		port->read_status_mask |= UART011_DR_FE | UART011_DR_PE;
-	if (termios->c_iflag & (BRKINT | PARMRK))
+	if (termios->c_iflag & (IGNBRK | BRKINT | PARMRK))
 		port->read_status_mask |= UART011_DR_BE;
 
 	/*
@@ -2072,6 +2072,7 @@ static int __init pl011_early_console_setup(struct earlycon_device *device,
 	return 0;
 }
 EARLYCON_DECLARE(pl011, pl011_early_console_setup);
+OF_EARLYCON_DECLARE(pl011, "arm,pl011", pl011_early_console_setup);
 
 #else
 #define AMBA_CONSOLE	NULL

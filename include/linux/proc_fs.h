@@ -44,6 +44,10 @@ extern int remove_proc_subtree(const char *, struct proc_dir_entry *);
 
 #else /* CONFIG_PROC_FS */
 
+static inline void proc_root_init(void)
+{
+}
+
 static inline void proc_flush_task(struct task_struct *task)
 {
 }

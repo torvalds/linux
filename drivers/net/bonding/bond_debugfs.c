@@ -23,7 +23,7 @@ static int bond_debug_rlb_hash_show(struct seq_file *m, void *v)
 	struct rlb_client_info *client_info;
 	u32 hash_index;
 
-	if (bond->params.mode != BOND_MODE_ALB)
+	if (BOND_MODE(bond) != BOND_MODE_ALB)
 		return 0;
 
 	seq_printf(m, "SourceIP        DestinationIP   "

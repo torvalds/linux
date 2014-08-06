@@ -61,12 +61,7 @@
 #include <linux/cgroup.h>
 #include <linux/wait.h>
 
-/*
- * Tracks how many cpusets are currently defined in system.
- * When there is only one cpuset (the root cpuset) we can
- * short circuit some hooks.
- */
-int number_of_cpusets __read_mostly;
+struct static_key cpusets_enabled_key __read_mostly = STATIC_KEY_INIT_FALSE;
 
 /* See "Frequency meter" comments, below. */
 
@@ -124,7 +119,7 @@ static inline struct cpuset *task_cs(struct task_struct *task)
 
 static inline struct cpuset *parent_cs(struct cpuset *cs)
 {
-	return css_cs(css_parent(&cs->css));
+	return css_cs(cs->css.parent);
 }
 
 #ifdef CONFIG_NUMA
@@ -611,7 +606,7 @@ static int generate_sched_domains(cpumask_var_t **domains,
 		goto done;
 	}
 
-	csa = kmalloc(number_of_cpusets * sizeof(cp), GFP_KERNEL);
+	csa = kmalloc(nr_cpusets() * sizeof(cp), GFP_KERNEL);
 	if (!csa)
 		goto done;
 	csn = 0;
@@ -696,11 +691,8 @@ restart:
 		if (nslot == ndoms) {
 			static int warnings = 10;
 			if (warnings) {
-				printk(KERN_WARNING
-				 "rebuild_sched_domains confused:"
-				  " nslot %d, ndoms %d, csn %d, i %d,"
-				  " apn %d\n",
-				  nslot, ndoms, csn, i, apn);
+				pr_warn("rebuild_sched_domains confused: nslot %d, ndoms %d, csn %d, i %d, apn %d\n",
+					nslot, ndoms, csn, i, apn);
 				warnings--;
 			}
 			continue;
@@ -875,7 +867,7 @@ static void update_tasks_cpumask_hier(struct cpuset *root_cs, bool update_root)
 				continue;
 			}
 		}
-		if (!css_tryget(&cp->css))
+		if (!css_tryget_online(&cp->css))
 			continue;
 		rcu_read_unlock();
 
@@ -890,6 +882,7 @@ static void update_tasks_cpumask_hier(struct cpuset *root_cs, bool update_root)
 /**
  * update_cpumask - update the cpus_allowed mask of a cpuset and all tasks in it
  * @cs: the cpuset to consider
+ * @trialcs: trial cpuset
  * @buf: buffer of cpu numbers written to this cpuset
  */
 static int update_cpumask(struct cpuset *cs, struct cpuset *trialcs,
@@ -1110,7 +1103,7 @@ static void update_tasks_nodemask_hier(struct cpuset *root_cs, bool update_root)
 				continue;
 			}
 		}
-		if (!css_tryget(&cp->css))
+		if (!css_tryget_online(&cp->css))
 			continue;
 		rcu_read_unlock();
 
@@ -1605,12 +1598,14 @@ out_unlock:
 /*
  * Common handling for a write to a "cpus" or "mems" file.
  */
-static int cpuset_write_resmask(struct cgroup_subsys_state *css,
-				struct cftype *cft, char *buf)
+static ssize_t cpuset_write_resmask(struct kernfs_open_file *of,
+				    char *buf, size_t nbytes, loff_t off)
 {
-	struct cpuset *cs = css_cs(css);
+	struct cpuset *cs = css_cs(of_css(of));
 	struct cpuset *trialcs;
 	int retval = -ENODEV;
+
+	buf = strstrip(buf);
 
 	/*
 	 * CPU or memory hotunplug may leave @cs w/o any execution
@@ -1635,7 +1630,7 @@ static int cpuset_write_resmask(struct cgroup_subsys_state *css,
 		goto out_unlock;
 	}
 
-	switch (cft->private) {
+	switch (of_cft(of)->private) {
 	case FILE_CPULIST:
 		retval = update_cpumask(cs, trialcs, buf);
 		break;
@@ -1650,7 +1645,7 @@ static int cpuset_write_resmask(struct cgroup_subsys_state *css,
 	free_trial_cpuset(trialcs);
 out_unlock:
 	mutex_unlock(&cpuset_mutex);
-	return retval;
+	return retval ?: nbytes;
 }
 
 /*
@@ -1752,7 +1747,7 @@ static struct cftype files[] = {
 	{
 		.name = "cpus",
 		.seq_show = cpuset_common_seq_show,
-		.write_string = cpuset_write_resmask,
+		.write = cpuset_write_resmask,
 		.max_write_len = (100U + 6 * NR_CPUS),
 		.private = FILE_CPULIST,
 	},
@@ -1760,7 +1755,7 @@ static struct cftype files[] = {
 	{
 		.name = "mems",
 		.seq_show = cpuset_common_seq_show,
-		.write_string = cpuset_write_resmask,
+		.write = cpuset_write_resmask,
 		.max_write_len = (100U + 6 * MAX_NUMNODES),
 		.private = FILE_MEMLIST,
 	},
@@ -1888,7 +1883,7 @@ static int cpuset_css_online(struct cgroup_subsys_state *css)
 	if (is_spread_slab(parent))
 		set_bit(CS_SPREAD_SLAB, &cs->flags);
 
-	number_of_cpusets++;
+	cpuset_inc();
 
 	if (!test_bit(CGRP_CPUSET_CLONE_CHILDREN, &css->cgroup->flags))
 		goto out_unlock;
@@ -1939,7 +1934,7 @@ static void cpuset_css_offline(struct cgroup_subsys_state *css)
 	if (is_sched_load_balance(cs))
 		update_flag(CS_SCHED_LOAD_BALANCE, cs, 0);
 
-	number_of_cpusets--;
+	cpuset_dec();
 	clear_bit(CS_ONLINE, &cs->flags);
 
 	mutex_unlock(&cpuset_mutex);
@@ -1992,7 +1987,6 @@ int __init cpuset_init(void)
 	if (!alloc_cpumask_var(&cpus_attach, GFP_KERNEL))
 		BUG();
 
-	number_of_cpusets = 1;
 	return 0;
 }
 
@@ -2017,7 +2011,7 @@ static void remove_tasks_in_empty_cpuset(struct cpuset *cs)
 		parent = parent_cs(parent);
 
 	if (cgroup_transfer_tasks(parent->css.cgroup, cs->css.cgroup)) {
-		printk(KERN_ERR "cpuset: failed to transfer tasks out of empty cpuset ");
+		pr_err("cpuset: failed to transfer tasks out of empty cpuset ");
 		pr_cont_cgroup_name(cs->css.cgroup);
 		pr_cont("\n");
 	}
@@ -2155,7 +2149,7 @@ static void cpuset_hotplug_workfn(struct work_struct *work)
 
 		rcu_read_lock();
 		cpuset_for_each_descendant_pre(cs, pos_css, &top_cpuset) {
-			if (cs == &top_cpuset || !css_tryget(&cs->css))
+			if (cs == &top_cpuset || !css_tryget_online(&cs->css))
 				continue;
 			rcu_read_unlock();
 
@@ -2536,7 +2530,7 @@ int cpuset_mems_allowed_intersects(const struct task_struct *tsk1,
 
 /**
  * cpuset_print_task_mems_allowed - prints task's cpuset and mems_allowed
- * @task: pointer to task_struct of some task.
+ * @tsk: pointer to task_struct of some task.
  *
  * Description: Prints @task's name, cpuset name, and cached copy of its
  * mems_allowed to the kernel log.
@@ -2554,7 +2548,7 @@ void cpuset_print_task_mems_allowed(struct task_struct *tsk)
 	cgrp = task_cs(tsk)->css.cgroup;
 	nodelist_scnprintf(cpuset_nodelist, CPUSET_NODELIST_LEN,
 			   tsk->mems_allowed);
-	printk(KERN_INFO "%s cpuset=", tsk->comm);
+	pr_info("%s cpuset=", tsk->comm);
 	pr_cont_cgroup_name(cgrp);
 	pr_cont(" mems_allowed=%s\n", cpuset_nodelist);
 
@@ -2646,10 +2640,10 @@ out:
 /* Display task mems_allowed in /proc/<pid>/status file. */
 void cpuset_task_status_allowed(struct seq_file *m, struct task_struct *task)
 {
-	seq_printf(m, "Mems_allowed:\t");
+	seq_puts(m, "Mems_allowed:\t");
 	seq_nodemask(m, &task->mems_allowed);
-	seq_printf(m, "\n");
-	seq_printf(m, "Mems_allowed_list:\t");
+	seq_puts(m, "\n");
+	seq_puts(m, "Mems_allowed_list:\t");
 	seq_nodemask_list(m, &task->mems_allowed);
-	seq_printf(m, "\n");
+	seq_puts(m, "\n");
 }

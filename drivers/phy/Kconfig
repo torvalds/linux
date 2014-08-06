@@ -122,6 +122,7 @@ config PHY_SUN4I_USB
 
 config PHY_SAMSUNG_USB2
 	tristate "Samsung USB 2.0 PHY driver"
+	depends on HAS_IOMEM
 	select GENERIC_PHY
 	select MFD_SYSCON
 	help

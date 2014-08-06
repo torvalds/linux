@@ -64,7 +64,7 @@ EXPORT_SYMBOL_GPL(wm8400_block_read);
 
 static int wm8400_register_codec(struct wm8400 *wm8400)
 {
-	struct mfd_cell cell = {
+	const struct mfd_cell cell = {
 		.name = "wm8400-codec",
 		.platform_data = wm8400,
 		.pdata_size = sizeof(*wm8400),

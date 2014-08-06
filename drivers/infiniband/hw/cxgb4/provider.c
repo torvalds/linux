@@ -122,7 +122,7 @@ static struct ib_ucontext *c4iw_alloc_ucontext(struct ib_device *ibdev,
 	INIT_LIST_HEAD(&context->mmaps);
 	spin_lock_init(&context->mmap_lock);
 
-	if (udata->outlen < sizeof(uresp)) {
+	if (udata->outlen < sizeof(uresp) - sizeof(uresp.reserved)) {
 		if (!warned++)
 			pr_err(MOD "Warning - downlevel libcxgb4 (non-fatal), device status page disabled.");
 		rhp->rdev.flags |= T4_STATUS_PAGE_DISABLED;
@@ -140,7 +140,8 @@ static struct ib_ucontext *c4iw_alloc_ucontext(struct ib_device *ibdev,
 		context->key += PAGE_SIZE;
 		spin_unlock(&context->mmap_lock);
 
-		ret = ib_copy_to_udata(udata, &uresp, sizeof(uresp));
+		ret = ib_copy_to_udata(udata, &uresp,
+				       sizeof(uresp) - sizeof(uresp.reserved));
 		if (ret)
 			goto err_mm;
 
@@ -499,7 +500,7 @@ int c4iw_register_device(struct c4iw_dev *dev)
 	dev->ibdev.node_type = RDMA_NODE_RNIC;
 	memcpy(dev->ibdev.node_desc, C4IW_NODE_DESC, sizeof(C4IW_NODE_DESC));
 	dev->ibdev.phys_port_cnt = dev->rdev.lldi.nports;
-	dev->ibdev.num_comp_vectors = 1;
+	dev->ibdev.num_comp_vectors =  dev->rdev.lldi.nciq;
 	dev->ibdev.dma_device = &(dev->rdev.lldi.pdev->dev);
 	dev->ibdev.query_device = c4iw_query_device;
 	dev->ibdev.query_port = c4iw_query_port;

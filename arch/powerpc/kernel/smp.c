@@ -36,6 +36,7 @@
 #include <linux/atomic.h>
 #include <asm/irq.h>
 #include <asm/hw_irq.h>
+#include <asm/kvm_ppc.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/prom.h>
@@ -390,6 +391,7 @@ void smp_prepare_boot_cpu(void)
 #ifdef CONFIG_PPC64
 	paca[boot_cpuid].__current = current;
 #endif
+	set_numa_node(numa_cpu_lookup_table[boot_cpuid]);
 	current_set[boot_cpuid] = task_thread_info(current);
 }
 
@@ -457,38 +459,9 @@ int generic_check_cpu_restart(unsigned int cpu)
 	return per_cpu(cpu_state, cpu) == CPU_UP_PREPARE;
 }
 
-static atomic_t secondary_inhibit_count;
-
-/*
- * Don't allow secondary CPU threads to come online
- */
-void inhibit_secondary_onlining(void)
+static bool secondaries_inhibited(void)
 {
-	/*
-	 * This makes secondary_inhibit_count stable during cpu
-	 * online/offline operations.
-	 */
-	get_online_cpus();
-
-	atomic_inc(&secondary_inhibit_count);
-	put_online_cpus();
-}
-EXPORT_SYMBOL_GPL(inhibit_secondary_onlining);
-
-/*
- * Allow secondary CPU threads to come online again
- */
-void uninhibit_secondary_onlining(void)
-{
-	get_online_cpus();
-	atomic_dec(&secondary_inhibit_count);
-	put_online_cpus();
-}
-EXPORT_SYMBOL_GPL(uninhibit_secondary_onlining);
-
-static int secondaries_inhibited(void)
-{
-	return atomic_read(&secondary_inhibit_count);
+	return kvm_hv_mode_active();
 }
 
 #else /* HOTPLUG_CPU */
@@ -517,7 +490,7 @@ int __cpu_up(unsigned int cpu, struct task_struct *tidle)
 	 * Don't allow secondary threads to come online if inhibited
 	 */
 	if (threads_per_core > 1 && secondaries_inhibited() &&
-	    cpu % threads_per_core != 0)
+	    cpu_thread_in_subcore(cpu))
 		return -EBUSY;
 
 	if (smp_ops == NULL ||
@@ -750,6 +723,12 @@ void start_secondary(void *unused)
 	}
 	traverse_core_siblings(cpu, true);
 
+	/*
+	 * numa_node_id() works after this.
+	 */
+	set_numa_node(numa_cpu_lookup_table[cpu]);
+	set_numa_mem(local_memory_node(numa_cpu_lookup_table[cpu]));
+
 	smp_wmb();
 	notify_cpu_starting(cpu);
 	set_cpu_online(cpu, true);
@@ -770,7 +749,7 @@ int setup_profiling_timer(unsigned int multiplier)
 /* cpumask of CPUs with asymetric SMT dependancy */
 static const int powerpc_smt_flags(void)
 {
-	int flags = SD_SHARE_CPUPOWER | SD_SHARE_PKG_RESOURCES;
+	int flags = SD_SHARE_CPUCAPACITY | SD_SHARE_PKG_RESOURCES;
 
 	if (cpu_has_feature(CPU_FTR_ASYM_SMT)) {
 		printk_once(KERN_INFO "Enabling Asymmetric SMT scheduling\n");

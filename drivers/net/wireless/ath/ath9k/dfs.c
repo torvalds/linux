@@ -178,12 +178,12 @@ void ath9k_dfs_process_phyerr(struct ath_softc *sc, void *data,
 	pe.ts = mactime;
 	if (ath9k_postprocess_radar_event(sc, &ard, &pe)) {
 		struct dfs_pattern_detector *pd = sc->dfs_detector;
-		static u64 last_ts;
 		ath_dbg(common, DFS,
 			"ath9k_dfs_process_phyerr: channel=%d, ts=%llu, "
 			"width=%d, rssi=%d, delta_ts=%llu\n",
-			pe.freq, pe.ts, pe.width, pe.rssi, pe.ts-last_ts);
-		last_ts = pe.ts;
+			pe.freq, pe.ts, pe.width, pe.rssi,
+			pe.ts - sc->dfs_prev_pulse_ts);
+		sc->dfs_prev_pulse_ts = pe.ts;
 		DFS_STAT_INC(sc, pulses_processed);
 		if (pd != NULL && pd->add_pulse(pd, &pe)) {
 			DFS_STAT_INC(sc, radar_detected);

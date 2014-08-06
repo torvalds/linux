@@ -13,8 +13,6 @@
 #include <linux/init.h>
 #include <linux/llist.h>
 
-extern void cpu_idle(void);
-
 typedef void (*smp_call_func_t)(void *info);
 struct call_single_data {
 	struct llist_node llist;

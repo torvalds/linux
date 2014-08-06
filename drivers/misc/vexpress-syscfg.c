@@ -199,7 +199,7 @@ static struct regmap *vexpress_syscfg_regmap_init(struct device *dev,
 	func = kzalloc(sizeof(*func) + sizeof(*func->template) * num,
 			GFP_KERNEL);
 	if (!func)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	func->syscfg = syscfg;
 	func->num_templates = num;
@@ -231,10 +231,14 @@ static struct regmap *vexpress_syscfg_regmap_init(struct device *dev,
 	func->regmap = regmap_init(dev, NULL, func,
 			&vexpress_syscfg_regmap_config);
 
-	if (IS_ERR(func->regmap))
+	if (IS_ERR(func->regmap)) {
+		void *err = func->regmap;
+
 		kfree(func);
-	else
-		list_add(&func->list, &syscfg->funcs);
+		return err;
+	}
+
+	list_add(&func->list, &syscfg->funcs);
 
 	return func->regmap;
 }

@@ -69,4 +69,49 @@ struct blk_align_bitmap {
 	unsigned long depth;
 } ____cacheline_aligned_in_smp;
 
+static inline struct blk_mq_ctx *__blk_mq_get_ctx(struct request_queue *q,
+					   unsigned int cpu)
+{
+	return per_cpu_ptr(q->queue_ctx, cpu);
+}
+
+/*
+ * This assumes per-cpu software queueing queues. They could be per-node
+ * as well, for instance. For now this is hardcoded as-is. Note that we don't
+ * care about preemption, since we know the ctx's are persistent. This does
+ * mean that we can't rely on ctx always matching the currently running CPU.
+ */
+static inline struct blk_mq_ctx *blk_mq_get_ctx(struct request_queue *q)
+{
+	return __blk_mq_get_ctx(q, get_cpu());
+}
+
+static inline void blk_mq_put_ctx(struct blk_mq_ctx *ctx)
+{
+	put_cpu();
+}
+
+struct blk_mq_alloc_data {
+	/* input parameter */
+	struct request_queue *q;
+	gfp_t gfp;
+	bool reserved;
+
+	/* input & output parameter */
+	struct blk_mq_ctx *ctx;
+	struct blk_mq_hw_ctx *hctx;
+};
+
+static inline void blk_mq_set_alloc_data(struct blk_mq_alloc_data *data,
+		struct request_queue *q, gfp_t gfp, bool reserved,
+		struct blk_mq_ctx *ctx,
+		struct blk_mq_hw_ctx *hctx)
+{
+	data->q = q;
+	data->gfp = gfp;
+	data->reserved = reserved;
+	data->ctx = ctx;
+	data->hctx = hctx;
+}
+
 #endif

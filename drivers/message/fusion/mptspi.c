@@ -780,32 +780,30 @@ static int mptspi_slave_configure(struct scsi_device *sdev)
 }
 
 static int
-mptspi_qcmd_lck(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *))
+mptspi_qcmd(struct Scsi_Host *shost, struct scsi_cmnd *SCpnt)
 {
-	struct _MPT_SCSI_HOST *hd = shost_priv(SCpnt->device->host);
+	struct _MPT_SCSI_HOST *hd = shost_priv(shost);
 	VirtDevice	*vdevice = SCpnt->device->hostdata;
 	MPT_ADAPTER *ioc = hd->ioc;
 
 	if (!vdevice || !vdevice->vtarget) {
 		SCpnt->result = DID_NO_CONNECT << 16;
-		done(SCpnt);
+		SCpnt->scsi_done(SCpnt);
 		return 0;
 	}
 
 	if (SCpnt->device->channel == 1 &&
 		mptscsih_is_phys_disk(ioc, 0, SCpnt->device->id) == 0) {
 		SCpnt->result = DID_NO_CONNECT << 16;
-		done(SCpnt);
+		SCpnt->scsi_done(SCpnt);
 		return 0;
 	}
 
 	if (spi_dv_pending(scsi_target(SCpnt->device)))
 		ddvprintk(ioc, scsi_print_command(SCpnt));
 
-	return mptscsih_qcmd(SCpnt,done);
+	return mptscsih_qcmd(SCpnt);
 }
-
-static DEF_SCSI_QCMD(mptspi_qcmd)
 
 static void mptspi_slave_destroy(struct scsi_device *sdev)
 {

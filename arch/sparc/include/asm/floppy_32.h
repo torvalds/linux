@@ -9,11 +9,12 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 
-#include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/idprom.h>
 #include <asm/oplib.h>
 #include <asm/auxio.h>
+#include <asm/setup.h>
+#include <asm/page.h>
 #include <asm/irq.h>
 
 /* We don't need no stinkin' I/O port allocation crap. */
@@ -49,7 +50,6 @@ struct sun_flpy_controller {
 
 /* You'll only ever find one controller on a SparcStation anyways. */
 static struct sun_flpy_controller *sun_fdc = NULL;
-extern volatile unsigned char *fdc_status;
 
 struct sun_floppy_ops {
 	unsigned char (*fd_inb)(int port);
@@ -212,13 +212,6 @@ static void sun_82077_fd_outb(unsigned char value, int port)
  * underruns.  If non-zero, doing_pdma encodes the direction of
  * the transfer for debugging.  1=read 2=write
  */
-extern char *pdma_vaddr;
-extern unsigned long pdma_size;
-extern volatile int doing_pdma;
-
-/* This is software state */
-extern char *pdma_base;
-extern unsigned long pdma_areasize;
 
 /* Common routines to all controller types on the Sparc. */
 static inline void virtual_dma_init(void)
@@ -263,8 +256,7 @@ static inline void sun_fd_enable_dma(void)
 	pdma_areasize = pdma_size;
 }
 
-extern int sparc_floppy_request_irq(unsigned int irq,
-                                    irq_handler_t irq_handler);
+int sparc_floppy_request_irq(unsigned int irq, irq_handler_t irq_handler);
 
 static int sun_fd_request_irq(void)
 {

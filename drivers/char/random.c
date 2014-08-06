@@ -980,7 +980,6 @@ static void push_to_pool(struct work_struct *work)
 static size_t account(struct entropy_store *r, size_t nbytes, int min,
 		      int reserved)
 {
-	int have_bytes;
 	int entropy_count, orig;
 	size_t ibytes;
 
@@ -989,17 +988,19 @@ static size_t account(struct entropy_store *r, size_t nbytes, int min,
 	/* Can we pull enough? */
 retry:
 	entropy_count = orig = ACCESS_ONCE(r->entropy_count);
-	have_bytes = entropy_count >> (ENTROPY_SHIFT + 3);
 	ibytes = nbytes;
 	/* If limited, never pull more than available */
-	if (r->limit)
-		ibytes = min_t(size_t, ibytes, have_bytes - reserved);
+	if (r->limit) {
+		int have_bytes = entropy_count >> (ENTROPY_SHIFT + 3);
+
+		if ((have_bytes -= reserved) < 0)
+			have_bytes = 0;
+		ibytes = min_t(size_t, ibytes, have_bytes);
+	}
 	if (ibytes < min)
 		ibytes = 0;
-	if (have_bytes >= ibytes + reserved)
-		entropy_count -= ibytes << (ENTROPY_SHIFT + 3);
-	else
-		entropy_count = reserved << (ENTROPY_SHIFT + 3);
+	if ((entropy_count -= ibytes << (ENTROPY_SHIFT + 3)) < 0)
+		entropy_count = 0;
 
 	if (cmpxchg(&r->entropy_count, orig, entropy_count) != orig)
 		goto retry;
@@ -1582,10 +1583,10 @@ static int proc_do_uuid(struct ctl_table *table, int write,
 /*
  * Return entropy available scaled to integral bits
  */
-static int proc_do_entropy(ctl_table *table, int write,
+static int proc_do_entropy(struct ctl_table *table, int write,
 			   void __user *buffer, size_t *lenp, loff_t *ppos)
 {
-	ctl_table fake_table;
+	struct ctl_table fake_table;
 	int entropy_count;
 
 	entropy_count = *(int *)table->data >> ENTROPY_SHIFT;

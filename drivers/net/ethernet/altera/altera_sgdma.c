@@ -353,7 +353,6 @@ static int sgdma_async_read(struct altera_tse_private *priv)
 
 	struct sgdma_descrip __iomem *cdesc = &descbase[0];
 	struct sgdma_descrip __iomem *ndesc = &descbase[1];
-
 	struct tse_buffer *rxbuffer = NULL;
 
 	if (!sgdma_rxbusy(priv)) {

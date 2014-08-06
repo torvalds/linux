@@ -1428,7 +1428,7 @@ static int perf_sched__process_tracepoint_sample(struct perf_tool *tool __maybe_
 	int err = 0;
 
 	evsel->hists.stats.total_period += sample->period;
-	hists__inc_nr_events(&evsel->hists, PERF_RECORD_SAMPLE);
+	hists__inc_nr_samples(&evsel->hists, true);
 
 	if (evsel->handler != NULL) {
 		tracepoint_handler f = evsel->handler;

@@ -42,7 +42,7 @@ struct blk_mq_hw_ctx {
 	unsigned int		nr_ctx;
 	struct blk_mq_ctx	**ctxs;
 
-	unsigned int		wait_index;
+	atomic_t		wait_index;
 
 	struct blk_mq_tags	*tags;
 
@@ -135,7 +135,7 @@ enum {
 	BLK_MQ_S_STOPPED	= 0,
 	BLK_MQ_S_TAG_ACTIVE	= 1,
 
-	BLK_MQ_MAX_DEPTH	= 2048,
+	BLK_MQ_MAX_DEPTH	= 10240,
 
 	BLK_MQ_CPU_WORK_BATCH	= 8,
 };
@@ -155,7 +155,7 @@ void blk_mq_free_request(struct request *rq);
 bool blk_mq_can_queue(struct blk_mq_hw_ctx *);
 struct request *blk_mq_alloc_request(struct request_queue *q, int rw,
 		gfp_t gfp, bool reserved);
-struct request *blk_mq_tag_to_rq(struct blk_mq_hw_ctx *hctx, unsigned int tag);
+struct request *blk_mq_tag_to_rq(struct blk_mq_tags *tags, unsigned int tag);
 
 struct blk_mq_hw_ctx *blk_mq_map_queue(struct request_queue *, const int ctx_index);
 struct blk_mq_hw_ctx *blk_mq_alloc_single_hw_queue(struct blk_mq_tag_set *, unsigned int, int);

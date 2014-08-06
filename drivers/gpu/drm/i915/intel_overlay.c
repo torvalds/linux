@@ -213,7 +213,7 @@ static int intel_overlay_do_wait_request(struct intel_overlay *overlay,
 {
 	struct drm_device *dev = overlay->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_ring_buffer *ring = &dev_priv->ring[RCS];
+	struct intel_engine_cs *ring = &dev_priv->ring[RCS];
 	int ret;
 
 	BUG_ON(overlay->last_flip_req);
@@ -236,7 +236,7 @@ static int intel_overlay_on(struct intel_overlay *overlay)
 {
 	struct drm_device *dev = overlay->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_ring_buffer *ring = &dev_priv->ring[RCS];
+	struct intel_engine_cs *ring = &dev_priv->ring[RCS];
 	int ret;
 
 	BUG_ON(overlay->active);
@@ -263,7 +263,7 @@ static int intel_overlay_continue(struct intel_overlay *overlay,
 {
 	struct drm_device *dev = overlay->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_ring_buffer *ring = &dev_priv->ring[RCS];
+	struct intel_engine_cs *ring = &dev_priv->ring[RCS];
 	u32 flip_addr = overlay->flip_addr;
 	u32 tmp;
 	int ret;
@@ -320,7 +320,7 @@ static int intel_overlay_off(struct intel_overlay *overlay)
 {
 	struct drm_device *dev = overlay->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_ring_buffer *ring = &dev_priv->ring[RCS];
+	struct intel_engine_cs *ring = &dev_priv->ring[RCS];
 	u32 flip_addr = overlay->flip_addr;
 	int ret;
 
@@ -363,7 +363,7 @@ static int intel_overlay_recover_from_interrupt(struct intel_overlay *overlay)
 {
 	struct drm_device *dev = overlay->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_ring_buffer *ring = &dev_priv->ring[RCS];
+	struct intel_engine_cs *ring = &dev_priv->ring[RCS];
 	int ret;
 
 	if (overlay->last_flip_req == 0)
@@ -389,7 +389,7 @@ static int intel_overlay_release_old_vid(struct intel_overlay *overlay)
 {
 	struct drm_device *dev = overlay->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_ring_buffer *ring = &dev_priv->ring[RCS];
+	struct intel_engine_cs *ring = &dev_priv->ring[RCS];
 	int ret;
 
 	/* Only wait if there is actually an old frame to release to
@@ -688,7 +688,7 @@ static int intel_overlay_do_put_image(struct intel_overlay *overlay,
 	u32 swidth, swidthsw, sheight, ostride;
 
 	BUG_ON(!mutex_is_locked(&dev->struct_mutex));
-	BUG_ON(!mutex_is_locked(&dev->mode_config.mutex));
+	BUG_ON(!drm_modeset_is_locked(&dev->mode_config.connection_mutex));
 	BUG_ON(!overlay);
 
 	ret = intel_overlay_release_old_vid(overlay);
@@ -793,7 +793,7 @@ int intel_overlay_switch_off(struct intel_overlay *overlay)
 	int ret;
 
 	BUG_ON(!mutex_is_locked(&dev->struct_mutex));
-	BUG_ON(!mutex_is_locked(&dev->mode_config.mutex));
+	BUG_ON(!drm_modeset_is_locked(&dev->mode_config.connection_mutex));
 
 	ret = intel_overlay_recover_from_interrupt(overlay);
 	if (ret != 0)

@@ -83,7 +83,7 @@ host_send:
 		// increment GET
 		add b32 $r1 0x1
 		and $r14 $r1 #fifo_qmaskf
-		nv_iowr(NV_PPWR_FIFO_GET(0), $r1)
+		nv_iowr(NV_PPWR_FIFO_GET(0), $r14)
 		bra #host_send
 	host_send_done:
 	ret

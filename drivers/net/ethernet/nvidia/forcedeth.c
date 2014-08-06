@@ -406,7 +406,7 @@ union ring_type {
 
 #define NV_RX_DESCRIPTORVALID	(1<<16)
 #define NV_RX_MISSEDFRAME	(1<<17)
-#define NV_RX_SUBSTRACT1	(1<<18)
+#define NV_RX_SUBTRACT1		(1<<18)
 #define NV_RX_ERROR1		(1<<23)
 #define NV_RX_ERROR2		(1<<24)
 #define NV_RX_ERROR3		(1<<25)
@@ -423,7 +423,7 @@ union ring_type {
 #define NV_RX2_CHECKSUM_IP_TCP	(0x14000000)
 #define NV_RX2_CHECKSUM_IP_UDP	(0x18000000)
 #define NV_RX2_DESCRIPTORVALID	(1<<29)
-#define NV_RX2_SUBSTRACT1	(1<<25)
+#define NV_RX2_SUBTRACT1	(1<<25)
 #define NV_RX2_ERROR1		(1<<18)
 #define NV_RX2_ERROR2		(1<<19)
 #define NV_RX2_ERROR3		(1<<20)
@@ -2832,7 +2832,7 @@ static int nv_rx_process(struct net_device *dev, int limit)
 					}
 					/* framing errors are soft errors */
 					else if ((flags & NV_RX_ERROR_MASK) == NV_RX_FRAMINGERR) {
-						if (flags & NV_RX_SUBSTRACT1)
+						if (flags & NV_RX_SUBTRACT1)
 							len--;
 					}
 					/* the rest are hard errors */
@@ -2863,7 +2863,7 @@ static int nv_rx_process(struct net_device *dev, int limit)
 					}
 					/* framing errors are soft errors */
 					else if ((flags & NV_RX2_ERROR_MASK) == NV_RX2_FRAMINGERR) {
-						if (flags & NV_RX2_SUBSTRACT1)
+						if (flags & NV_RX2_SUBTRACT1)
 							len--;
 					}
 					/* the rest are hard errors */
@@ -2937,7 +2937,7 @@ static int nv_rx_process_optimized(struct net_device *dev, int limit)
 				}
 				/* framing errors are soft errors */
 				else if ((flags & NV_RX2_ERROR_MASK) == NV_RX2_FRAMINGERR) {
-					if (flags & NV_RX2_SUBSTRACT1)
+					if (flags & NV_RX2_SUBTRACT1)
 						len--;
 				}
 				/* the rest are hard errors */
@@ -4285,8 +4285,8 @@ static int nv_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 		if (np->duplex)
 			ecmd->duplex = DUPLEX_FULL;
 	} else {
-		speed = -1;
-		ecmd->duplex = -1;
+		speed = SPEED_UNKNOWN;
+		ecmd->duplex = DUPLEX_UNKNOWN;
 	}
 	ethtool_cmd_speed_set(ecmd, speed);
 	ecmd->autoneg = np->autoneg;
@@ -5766,7 +5766,7 @@ static int nv_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 		dev->netdev_ops = &nv_netdev_ops_optimized;
 
 	netif_napi_add(dev, &np->napi, nv_napi_poll, RX_WORK_PER_LOOP);
-	SET_ETHTOOL_OPS(dev, &ops);
+	dev->ethtool_ops = &ops;
 	dev->watchdog_timeo = NV_WATCHDOG_TIMEO;
 
 	pci_set_drvdata(pci_dev, dev);

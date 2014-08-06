@@ -4,17 +4,17 @@
 #include <linux/device.h>
 
 struct module;
+struct request;
 struct scsi_cmnd;
 struct scsi_device;
-struct request;
-struct request_queue;
-
 
 struct scsi_driver {
 	struct module		*owner;
 	struct device_driver	gendrv;
 
 	void (*rescan)(struct device *);
+	int (*init_command)(struct scsi_cmnd *);
+	void (*uninit_command)(struct scsi_cmnd *);
 	int (*done)(struct scsi_cmnd *);
 	int (*eh_action)(struct scsi_cmnd *, int);
 };
@@ -31,8 +31,5 @@ extern int scsi_register_interface(struct class_interface *);
 
 int scsi_setup_blk_pc_cmnd(struct scsi_device *sdev, struct request *req);
 int scsi_setup_fs_cmnd(struct scsi_device *sdev, struct request *req);
-int scsi_prep_state_check(struct scsi_device *sdev, struct request *req);
-int scsi_prep_return(struct request_queue *q, struct request *req, int ret);
-int scsi_prep_fn(struct request_queue *, struct request *);
 
 #endif /* _SCSI_SCSI_DRIVER_H */

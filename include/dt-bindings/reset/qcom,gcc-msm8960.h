@@ -58,7 +58,7 @@
 #define PPSS_PROC_RESET					41
 #define PPSS_RESET					42
 #define DMA_BAM_RESET					43
-#define SIC_TIC_RESET					44
+#define SPS_TIC_H_RESET					44
 #define SLIMBUS_H_RESET					45
 #define SFAB_CFPB_M_RESET				46
 #define SFAB_CFPB_S_RESET				47

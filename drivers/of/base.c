@@ -227,7 +227,8 @@ static int __of_node_add(struct device_node *np)
 	np->kobj.kset = of_kset;
 	if (!np->parent) {
 		/* Nodes without parents are new top level trees */
-		rc = kobject_add(&np->kobj, NULL, safe_name(&of_kset->kobj, "base"));
+		rc = kobject_add(&np->kobj, NULL, "%s",
+				 safe_name(&of_kset->kobj, "base"));
 	} else {
 		name = safe_name(&np->parent->kobj, kbasename(np->full_name));
 		if (!name || !name[0])
@@ -695,6 +696,25 @@ struct device_node *of_get_next_parent(struct device_node *node)
 }
 EXPORT_SYMBOL(of_get_next_parent);
 
+static struct device_node *__of_get_next_child(const struct device_node *node,
+						struct device_node *prev)
+{
+	struct device_node *next;
+
+	if (!node)
+		return NULL;
+
+	next = prev ? prev->sibling : node->child;
+	for (; next; next = next->sibling)
+		if (of_node_get(next))
+			break;
+	of_node_put(prev);
+	return next;
+}
+#define __for_each_child_of_node(parent, child) \
+	for (child = __of_get_next_child(parent, NULL); child != NULL; \
+	     child = __of_get_next_child(parent, child))
+
 /**
  *	of_get_next_child - Iterate a node childs
  *	@node:	parent node
@@ -710,11 +730,7 @@ struct device_node *of_get_next_child(const struct device_node *node,
 	unsigned long flags;
 
 	raw_spin_lock_irqsave(&devtree_lock, flags);
-	next = prev ? prev->sibling : node->child;
-	for (; next; next = next->sibling)
-		if (of_node_get(next))
-			break;
-	of_node_put(prev);
+	next = __of_get_next_child(node, prev);
 	raw_spin_unlock_irqrestore(&devtree_lock, flags);
 	return next;
 }
@@ -733,6 +749,9 @@ struct device_node *of_get_next_available_child(const struct device_node *node,
 {
 	struct device_node *next;
 	unsigned long flags;
+
+	if (!node)
+		return NULL;
 
 	raw_spin_lock_irqsave(&devtree_lock, flags);
 	next = prev ? prev->sibling : node->child;
@@ -771,23 +790,78 @@ struct device_node *of_get_child_by_name(const struct device_node *node,
 }
 EXPORT_SYMBOL(of_get_child_by_name);
 
+static struct device_node *__of_find_node_by_path(struct device_node *parent,
+						const char *path)
+{
+	struct device_node *child;
+	int len = strchrnul(path, '/') - path;
+
+	if (!len)
+		return NULL;
+
+	__for_each_child_of_node(parent, child) {
+		const char *name = strrchr(child->full_name, '/');
+		if (WARN(!name, "malformed device_node %s\n", child->full_name))
+			continue;
+		name++;
+		if (strncmp(path, name, len) == 0 && (strlen(name) == len))
+			return child;
+	}
+	return NULL;
+}
+
 /**
  *	of_find_node_by_path - Find a node matching a full OF path
- *	@path:	The full path to match
+ *	@path: Either the full path to match, or if the path does not
+ *	       start with '/', the name of a property of the /aliases
+ *	       node (an alias).  In the case of an alias, the node
+ *	       matching the alias' value will be returned.
+ *
+ *	Valid paths:
+ *		/foo/bar	Full path
+ *		foo		Valid alias
+ *		foo/bar		Valid alias + relative path
  *
  *	Returns a node pointer with refcount incremented, use
  *	of_node_put() on it when done.
  */
 struct device_node *of_find_node_by_path(const char *path)
 {
-	struct device_node *np = of_allnodes;
+	struct device_node *np = NULL;
+	struct property *pp;
 	unsigned long flags;
 
+	if (strcmp(path, "/") == 0)
+		return of_node_get(of_allnodes);
+
+	/* The path could begin with an alias */
+	if (*path != '/') {
+		char *p = strchrnul(path, '/');
+		int len = p - path;
+
+		/* of_aliases must not be NULL */
+		if (!of_aliases)
+			return NULL;
+
+		for_each_property_of_node(of_aliases, pp) {
+			if (strlen(pp->name) == len && !strncmp(pp->name, path, len)) {
+				np = of_find_node_by_path(pp->value);
+				break;
+			}
+		}
+		if (!np)
+			return NULL;
+		path = p;
+	}
+
+	/* Step down the tree matching path components */
 	raw_spin_lock_irqsave(&devtree_lock, flags);
-	for (; np; np = np->allnext) {
-		if (np->full_name && (of_node_cmp(np->full_name, path) == 0)
-		    && of_node_get(np))
-			break;
+	if (!np)
+		np = of_node_get(of_allnodes);
+	while (np && *path == '/') {
+		path++; /* Increment past '/' delimiter */
+		np = __of_find_node_by_path(np, path);
+		path = strchrnul(path, '/');
 	}
 	raw_spin_unlock_irqrestore(&devtree_lock, flags);
 	return np;
@@ -1800,7 +1874,7 @@ int of_update_property(struct device_node *np, struct property *newprop)
 {
 	struct property **next, *oldprop;
 	unsigned long flags;
-	int rc, found = 0;
+	int rc;
 
 	rc = of_property_notify(OF_RECONFIG_UPDATE_PROPERTY, np, newprop);
 	if (rc)
@@ -1809,34 +1883,34 @@ int of_update_property(struct device_node *np, struct property *newprop)
 	if (!newprop->name)
 		return -EINVAL;
 
-	oldprop = of_find_property(np, newprop->name, NULL);
-	if (!oldprop)
-		return of_add_property(np, newprop);
-
 	raw_spin_lock_irqsave(&devtree_lock, flags);
 	next = &np->properties;
-	while (*next) {
+	oldprop = __of_find_property(np, newprop->name, NULL);
+	if (!oldprop) {
+		/* add the new node */
+		rc = __of_add_property(np, newprop);
+	} else while (*next) {
+		/* replace the node */
 		if (*next == oldprop) {
-			/* found the node */
 			newprop->next = oldprop->next;
 			*next = newprop;
 			oldprop->next = np->deadprops;
 			np->deadprops = oldprop;
-			found = 1;
 			break;
 		}
 		next = &(*next)->next;
 	}
 	raw_spin_unlock_irqrestore(&devtree_lock, flags);
-	if (!found)
-		return -ENODEV;
+	if (rc)
+		return rc;
 
 	/* At early boot, bail out and defer setup to of_init() */
 	if (!of_kset)
-		return found ? 0 : -ENODEV;
+		return 0;
 
 	/* Update the sysfs attribute */
-	sysfs_remove_bin_file(&np->kobj, &oldprop->attr);
+	if (oldprop)
+		sysfs_remove_bin_file(&np->kobj, &oldprop->attr);
 	__of_add_property_sysfs(np, newprop);
 
 	return 0;
@@ -1887,9 +1961,9 @@ int of_attach_node(struct device_node *np)
 
 	raw_spin_lock_irqsave(&devtree_lock, flags);
 	np->sibling = np->parent->child;
-	np->allnext = of_allnodes;
+	np->allnext = np->parent->allnext;
+	np->parent->allnext = np;
 	np->parent->child = np;
-	of_allnodes = np;
 	of_node_clear_flag(np, OF_DETACHED);
 	raw_spin_unlock_irqrestore(&devtree_lock, flags);
 

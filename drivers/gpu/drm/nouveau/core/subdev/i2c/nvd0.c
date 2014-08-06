@@ -42,8 +42,6 @@ nvd0_i2c_sense_sda(struct nouveau_i2c_port *base)
 
 static const struct nouveau_i2c_func
 nvd0_i2c_func = {
-	.acquire   = nv94_i2c_acquire,
-	.release   = nv94_i2c_release,
 	.drive_scl = nv50_i2c_drive_scl,
 	.drive_sda = nv50_i2c_drive_sda,
 	.sense_scl = nvd0_i2c_sense_scl,
@@ -75,7 +73,7 @@ nvd0_i2c_port_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	return 0;
 }
 
-static struct nouveau_oclass
+struct nouveau_oclass
 nvd0_i2c_sclass[] = {
 	{ .handle = NV_I2C_TYPE_DCBI2C(DCB_I2C_NVIO_BIT),
 	  .ofuncs = &(struct nouveau_ofuncs) {
@@ -96,29 +94,19 @@ nvd0_i2c_sclass[] = {
 	{}
 };
 
-static int
-nvd0_i2c_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-	      struct nouveau_oclass *oclass, void *data, u32 size,
-	      struct nouveau_object **pobject)
-{
-	struct nv50_i2c_priv *priv;
-	int ret;
-
-	ret = nouveau_i2c_create(parent, engine, oclass, nvd0_i2c_sclass, &priv);
-	*pobject = nv_object(priv);
-	if (ret)
-		return ret;
-
-	return 0;
-}
-
-struct nouveau_oclass
-nvd0_i2c_oclass = {
-	.handle = NV_SUBDEV(I2C, 0xd0),
-	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nvd0_i2c_ctor,
+struct nouveau_oclass *
+nvd0_i2c_oclass = &(struct nouveau_i2c_impl) {
+	.base.handle = NV_SUBDEV(I2C, 0xd0),
+	.base.ofuncs = &(struct nouveau_ofuncs) {
+		.ctor = _nouveau_i2c_ctor,
 		.dtor = _nouveau_i2c_dtor,
 		.init = _nouveau_i2c_init,
 		.fini = _nouveau_i2c_fini,
 	},
-};
+	.sclass = nvd0_i2c_sclass,
+	.pad_x = &nv04_i2c_pad_oclass,
+	.pad_s = &nv94_i2c_pad_oclass,
+	.aux = 4,
+	.aux_stat = nv94_aux_stat,
+	.aux_mask = nv94_aux_mask,
+}.base;

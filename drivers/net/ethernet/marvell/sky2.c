@@ -4760,7 +4760,7 @@ static struct net_device *sky2_init_netdev(struct sky2_hw *hw, unsigned port,
 
 	SET_NETDEV_DEV(dev, &hw->pdev->dev);
 	dev->irq = hw->pdev->irq;
-	SET_ETHTOOL_OPS(dev, &sky2_ethtool_ops);
+	dev->ethtool_ops = &sky2_ethtool_ops;
 	dev->watchdog_timeo = TX_WATCHDOG;
 	dev->netdev_ops = &sky2_netdev_ops[port];
 

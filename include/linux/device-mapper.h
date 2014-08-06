@@ -115,12 +115,6 @@ typedef int (*dm_busy_fn) (struct dm_target *ti);
 
 void dm_error(const char *message);
 
-/*
- * Combine device limits.
- */
-int dm_set_device_limits(struct dm_target *ti, struct dm_dev *dev,
-			 sector_t start, sector_t len, void *data);
-
 struct dm_dev {
 	struct block_device *bdev;
 	fmode_t mode;
@@ -132,7 +126,7 @@ struct dm_dev {
  * are opened/closed correctly.
  */
 int dm_get_device(struct dm_target *ti, const char *path, fmode_t mode,
-						 struct dm_dev **result);
+		  struct dm_dev **result);
 void dm_put_device(struct dm_target *ti, struct dm_dev *d);
 
 /*
@@ -291,6 +285,7 @@ struct dm_target_io {
 	struct dm_io *io;
 	struct dm_target *ti;
 	unsigned target_bio_nr;
+	unsigned *len_ptr;
 	struct bio clone;
 };
 
@@ -401,6 +396,7 @@ int dm_copy_name_and_uuid(struct mapped_device *md, char *name, char *uuid);
 struct gendisk *dm_disk(struct mapped_device *md);
 int dm_suspended(struct dm_target *ti);
 int dm_noflush_suspending(struct dm_target *ti);
+void dm_accept_partial_bio(struct bio *bio, unsigned n_sectors);
 union map_info *dm_get_rq_mapinfo(struct request *rq);
 
 struct queue_limits *dm_get_queue_limits(struct mapped_device *md);

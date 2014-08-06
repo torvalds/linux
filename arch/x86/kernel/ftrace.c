@@ -297,16 +297,7 @@ int ftrace_int3_handler(struct pt_regs *regs)
 
 static int ftrace_write(unsigned long ip, const char *val, int size)
 {
-	/*
-	 * On x86_64, kernel text mappings are mapped read-only with
-	 * CONFIG_DEBUG_RODATA. So we use the kernel identity mapping instead
-	 * of the kernel text mapping to modify the kernel text.
-	 *
-	 * For 32bit kernels, these mappings are same and we can use
-	 * kernel identity mapping to modify code.
-	 */
-	if (within(ip, (unsigned long)_text, (unsigned long)_etext))
-		ip = (unsigned long)__va(__pa_symbol(ip));
+	ip = text_ip_addr(ip);
 
 	if (probe_kernel_write((void *)ip, val, size))
 		return -EPERM;
@@ -349,40 +340,14 @@ static int add_brk_on_nop(struct dyn_ftrace *rec)
 	return add_break(rec->ip, old);
 }
 
-/*
- * If the record has the FTRACE_FL_REGS set, that means that it
- * wants to convert to a callback that saves all regs. If FTRACE_FL_REGS
- * is not not set, then it wants to convert to the normal callback.
- */
-static unsigned long get_ftrace_addr(struct dyn_ftrace *rec)
-{
-	if (rec->flags & FTRACE_FL_REGS)
-		return (unsigned long)FTRACE_REGS_ADDR;
-	else
-		return (unsigned long)FTRACE_ADDR;
-}
-
-/*
- * The FTRACE_FL_REGS_EN is set when the record already points to
- * a function that saves all the regs. Basically the '_EN' version
- * represents the current state of the function.
- */
-static unsigned long get_ftrace_old_addr(struct dyn_ftrace *rec)
-{
-	if (rec->flags & FTRACE_FL_REGS_EN)
-		return (unsigned long)FTRACE_REGS_ADDR;
-	else
-		return (unsigned long)FTRACE_ADDR;
-}
-
 static int add_breakpoints(struct dyn_ftrace *rec, int enable)
 {
 	unsigned long ftrace_addr;
 	int ret;
 
-	ret = ftrace_test_record(rec, enable);
+	ftrace_addr = ftrace_get_addr_curr(rec);
 
-	ftrace_addr = get_ftrace_addr(rec);
+	ret = ftrace_test_record(rec, enable);
 
 	switch (ret) {
 	case FTRACE_UPDATE_IGNORE:
@@ -392,10 +357,7 @@ static int add_breakpoints(struct dyn_ftrace *rec, int enable)
 		/* converting nop to call */
 		return add_brk_on_nop(rec);
 
-	case FTRACE_UPDATE_MODIFY_CALL_REGS:
 	case FTRACE_UPDATE_MODIFY_CALL:
-		ftrace_addr = get_ftrace_old_addr(rec);
-		/* fall through */
 	case FTRACE_UPDATE_MAKE_NOP:
 		/* converting a call to a nop */
 		return add_brk_on_call(rec, ftrace_addr);
@@ -440,14 +402,14 @@ static int remove_breakpoint(struct dyn_ftrace *rec)
 		 * If not, don't touch the breakpoint, we make just create
 		 * a disaster.
 		 */
-		ftrace_addr = get_ftrace_addr(rec);
+		ftrace_addr = ftrace_get_addr_new(rec);
 		nop = ftrace_call_replace(ip, ftrace_addr);
 
 		if (memcmp(&ins[1], &nop[1], MCOUNT_INSN_SIZE - 1) == 0)
 			goto update;
 
 		/* Check both ftrace_addr and ftrace_old_addr */
-		ftrace_addr = get_ftrace_old_addr(rec);
+		ftrace_addr = ftrace_get_addr_curr(rec);
 		nop = ftrace_call_replace(ip, ftrace_addr);
 
 		if (memcmp(&ins[1], &nop[1], MCOUNT_INSN_SIZE - 1) != 0)
@@ -491,13 +453,12 @@ static int add_update(struct dyn_ftrace *rec, int enable)
 
 	ret = ftrace_test_record(rec, enable);
 
-	ftrace_addr  = get_ftrace_addr(rec);
+	ftrace_addr  = ftrace_get_addr_new(rec);
 
 	switch (ret) {
 	case FTRACE_UPDATE_IGNORE:
 		return 0;
 
-	case FTRACE_UPDATE_MODIFY_CALL_REGS:
 	case FTRACE_UPDATE_MODIFY_CALL:
 	case FTRACE_UPDATE_MAKE_CALL:
 		/* converting nop to call */
@@ -538,13 +499,12 @@ static int finish_update(struct dyn_ftrace *rec, int enable)
 
 	ret = ftrace_update_record(rec, enable);
 
-	ftrace_addr = get_ftrace_addr(rec);
+	ftrace_addr = ftrace_get_addr_new(rec);
 
 	switch (ret) {
 	case FTRACE_UPDATE_IGNORE:
 		return 0;
 
-	case FTRACE_UPDATE_MODIFY_CALL_REGS:
 	case FTRACE_UPDATE_MODIFY_CALL:
 	case FTRACE_UPDATE_MAKE_CALL:
 		/* converting nop to call */
@@ -621,8 +581,8 @@ void ftrace_replace_code(int enable)
 	return;
 
  remove_breakpoints:
+	pr_warn("Failed on %s (%d):\n", report, count);
 	ftrace_bug(ret, rec ? rec->ip : 0);
-	printk(KERN_WARNING "Failed on %s (%d):\n", report, count);
 	for_ftrace_rec_iter(iter) {
 		rec = ftrace_rec_iter_record(iter);
 		/*

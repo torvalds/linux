@@ -292,7 +292,7 @@ struct dma_chan_dev {
 };
 
 /**
- * enum dma_slave_buswidth - defines bus with of the DMA slave
+ * enum dma_slave_buswidth - defines bus width of the DMA slave
  * device, source or target buses
  */
 enum dma_slave_buswidth {

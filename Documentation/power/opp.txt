@@ -10,8 +10,7 @@ Contents
 3. OPP Search Functions
 4. OPP Availability Control Functions
 5. OPP Data Retrieval Functions
-6. Cpufreq Table Generation
-7. Data Structures
+6. Data Structures
 
 1. Introduction
 ===============
@@ -72,7 +71,6 @@ operations until that OPP could be re-enabled if possible.
 OPP library facilitates this concept in it's implementation. The following
 operational functions operate only on available opps:
 opp_find_freq_{ceil, floor}, dev_pm_opp_get_voltage, dev_pm_opp_get_freq, dev_pm_opp_get_opp_count
-and dev_pm_opp_init_cpufreq_table
 
 dev_pm_opp_find_freq_exact is meant to be used to find the opp pointer which can then
 be used for dev_pm_opp_enable/disable functions to make an opp available as required.
@@ -96,10 +94,9 @@ using RCU read locks. The opp_find_freq_{exact,ceil,floor},
 opp_get_{voltage, freq, opp_count} fall into this category.
 
 opp_{add,enable,disable} are updaters which use mutex and implement it's own
-RCU locking mechanisms. dev_pm_opp_init_cpufreq_table acts as an updater and uses
-mutex to implment RCU updater strategy. These functions should *NOT* be called
-under RCU locks and other contexts that prevent blocking functions in RCU or
-mutex operations from working.
+RCU locking mechanisms. These functions should *NOT* be called under RCU locks
+and other contexts that prevent blocking functions in RCU or mutex operations
+from working.
 
 2. Initial OPP List Registration
 ================================
@@ -311,34 +308,7 @@ dev_pm_opp_get_opp_count - Retrieve the number of available opps for a device
 		/* Do other things */
 	 }
 
-6. Cpufreq Table Generation
-===========================
-dev_pm_opp_init_cpufreq_table - cpufreq framework typically is initialized with
-	cpufreq_frequency_table_cpuinfo which is provided with the list of
-	frequencies that are available for operation. This function provides
-	a ready to use conversion routine to translate the OPP layer's internal
-	information about the available frequencies into a format readily
-	providable to cpufreq.
-
-	WARNING: Do not use this function in interrupt context.
-
-	Example:
-	 soc_pm_init()
-	 {
-		/* Do things */
-		r = dev_pm_opp_init_cpufreq_table(dev, &freq_table);
-		if (!r)
-			cpufreq_frequency_table_cpuinfo(policy, freq_table);
-		/* Do other things */
-	 }
-
-	NOTE: This function is available only if CONFIG_CPU_FREQ is enabled in
-	addition to CONFIG_PM as power management feature is required to
-	dynamically scale voltage and frequency in a system.
-
-dev_pm_opp_free_cpufreq_table - Free up the table allocated by dev_pm_opp_init_cpufreq_table
-
-7. Data Structures
+6. Data Structures
 ==================
 Typically an SoC contains multiple voltage domains which are variable. Each
 domain is represented by a device pointer. The relationship to OPP can be

@@ -62,7 +62,7 @@ static inline void check_errata(void)
 	case CPU_34K:
 		/*
 		 * Erratum "RPS May Cause Incorrect Instruction Execution"
-		 * This code only handles VPE0, any SMP/SMTC/RTOS code
+		 * This code only handles VPE0, any SMP/RTOS code
 		 * making use of VPE1 will be responsable for that VPE.
 		 */
 		if ((c->processor_id & PRID_REV_MASK) <= PRID_REV_34K_V1_0_2)
@@ -423,7 +423,7 @@ static void decode_configs(struct cpuinfo_mips *c)
 
 #ifndef CONFIG_MIPS_CPS
 	if (cpu_has_mips_r2) {
-		c->core = read_c0_ebase() & 0x3ff;
+		c->core = get_ebase_cpunum();
 		if (cpu_has_mipsmt)
 			c->core >>= fls(core_nvpes()) - 1;
 	}
@@ -678,21 +678,6 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c, unsigned int cpu)
 		 * Undocumented RM7000:	 Bit 29 in the info register of
 		 * the RM7000 v2.0 indicates if the TLB has 48 or 64
 		 * entries.
-		 *
-		 * 29	   1 =>	   64 entry JTLB
-		 *	   0 =>	   48 entry JTLB
-		 */
-		c->tlbsize = (read_c0_info() & (1 << 29)) ? 64 : 48;
-		break;
-	case PRID_IMP_RM9000:
-		c->cputype = CPU_RM9000;
-		__cpu_name[cpu] = "RM9000";
-		set_isa(c, MIPS_CPU_ISA_IV);
-		c->options = R4K_OPTS | MIPS_CPU_FPU | MIPS_CPU_32FPR |
-			     MIPS_CPU_LLSC;
-		/*
-		 * Bit 29 in the info register of the RM9000
-		 * indicates if the TLB has 48 or 64 entries.
 		 *
 		 * 29	   1 =>	   64 entry JTLB
 		 *	   0 =>	   48 entry JTLB
@@ -1041,6 +1026,7 @@ static inline void cpu_probe_ingenic(struct cpuinfo_mips *c, unsigned int cpu)
 	decode_configs(c);
 	/* JZRISC does not implement the CP0 counter. */
 	c->options &= ~MIPS_CPU_COUNTER;
+	BUG_ON(!__builtin_constant_p(cpu_has_counter) || cpu_has_counter);
 	switch (c->processor_id & PRID_IMP_MASK) {
 	case PRID_IMP_JZRISC:
 		c->cputype = CPU_JZRISC;
@@ -1074,6 +1060,7 @@ static inline void cpu_probe_netlogic(struct cpuinfo_mips *c, int cpu)
 	switch (c->processor_id & PRID_IMP_MASK) {
 	case PRID_IMP_NETLOGIC_XLP2XX:
 	case PRID_IMP_NETLOGIC_XLP9XX:
+	case PRID_IMP_NETLOGIC_XLP5XX:
 		c->cputype = CPU_XLP;
 		__cpu_name[cpu] = "Broadcom XLPII";
 		break;

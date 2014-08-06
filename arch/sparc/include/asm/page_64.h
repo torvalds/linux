@@ -31,17 +31,17 @@
 
 #if defined(CONFIG_HUGETLB_PAGE) || defined(CONFIG_TRANSPARENT_HUGEPAGE)
 struct pt_regs;
-extern void hugetlb_setup(struct pt_regs *regs);
+void hugetlb_setup(struct pt_regs *regs);
 #endif
 
 #define WANT_PAGE_VIRTUAL
 
-extern void _clear_page(void *page);
+void _clear_page(void *page);
 #define clear_page(X)	_clear_page((void *)(X))
 struct page;
-extern void clear_user_page(void *addr, unsigned long vaddr, struct page *page);
+void clear_user_page(void *addr, unsigned long vaddr, struct page *page);
 #define copy_page(X,Y)	memcpy((void *)(X), (void *)(Y), PAGE_SIZE)
-extern void copy_user_page(void *to, void *from, unsigned long vaddr, struct page *topage);
+void copy_user_page(void *to, void *from, unsigned long vaddr, struct page *topage);
 
 /* Unlike sparc32, sparc64's parameter passing API is more
  * sane in that structures which as small enough are passed

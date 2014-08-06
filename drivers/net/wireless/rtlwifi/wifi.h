@@ -1960,8 +1960,6 @@ struct rtl_hal_ops {
 			  u32 regaddr, u32 bitmask);
 	void (*set_rfreg) (struct ieee80211_hw *hw, enum radio_path rfpath,
 			   u32 regaddr, u32 bitmask, u32 data);
-	void (*allow_all_destaddr)(struct ieee80211_hw *hw,
-		bool allow_all_da, bool write_into_reg);
 	void (*linked_set_reg) (struct ieee80211_hw *hw);
 	void (*chk_switch_dmdp) (struct ieee80211_hw *hw);
 	void (*dualmac_easy_concurrent) (struct ieee80211_hw *hw);
@@ -2030,6 +2028,10 @@ struct rtl_mod_params {
 
 	/* default: 1 = using linked fw power save */
 	bool fwctrl_lps;
+
+	/* default: 0 = not using MSI interrupts mode */
+	/* submodules should set their own defalut value */
+	bool msi_support;
 };
 
 struct rtl_hal_usbint_cfg {

@@ -37,6 +37,7 @@
 #include <linux/err.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
+#include <linux/mm.h>
 #include <linux/types.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
@@ -1204,8 +1205,7 @@ static int nand_read_subpage(struct mtd_info *mtd, struct nand_chip *chip,
 	 * ecc.pos. Let's make sure that there are no gaps in ECC positions.
 	 */
 	for (i = 0; i < eccfrag_len - 1; i++) {
-		if (eccpos[i + start_step * chip->ecc.bytes] + 1 !=
-			eccpos[i + start_step * chip->ecc.bytes + 1]) {
+		if (eccpos[i + index] + 1 != eccpos[i + index + 1]) {
 			gaps = 1;
 			break;
 		}
@@ -1501,6 +1501,7 @@ static int nand_do_read_ops(struct mtd_info *mtd, loff_t from,
 		mtd->oobavail : mtd->oobsize;
 
 	uint8_t *bufpoi, *oob, *buf;
+	int use_bufpoi;
 	unsigned int max_bitflips = 0;
 	int retry_mode = 0;
 	bool ecc_fail = false;
@@ -1523,9 +1524,20 @@ static int nand_do_read_ops(struct mtd_info *mtd, loff_t from,
 		bytes = min(mtd->writesize - col, readlen);
 		aligned = (bytes == mtd->writesize);
 
+		if (!aligned)
+			use_bufpoi = 1;
+		else if (chip->options & NAND_USE_BOUNCE_BUFFER)
+			use_bufpoi = !virt_addr_valid(buf);
+		else
+			use_bufpoi = 0;
+
 		/* Is the current page in the buffer? */
 		if (realpage != chip->pagebuf || oob) {
-			bufpoi = aligned ? buf : chip->buffers->databuf;
+			bufpoi = use_bufpoi ? chip->buffers->databuf : buf;
+
+			if (use_bufpoi && aligned)
+				pr_debug("%s: using read bounce buffer for buf@%p\n",
+						 __func__, buf);
 
 read_retry:
 			chip->cmdfunc(mtd, NAND_CMD_READ0, 0x00, page);
@@ -1547,7 +1559,7 @@ read_retry:
 				ret = chip->ecc.read_page(mtd, chip, bufpoi,
 							  oob_required, page);
 			if (ret < 0) {
-				if (!aligned)
+				if (use_bufpoi)
 					/* Invalidate page cache */
 					chip->pagebuf = -1;
 				break;
@@ -1556,7 +1568,7 @@ read_retry:
 			max_bitflips = max_t(unsigned int, max_bitflips, ret);
 
 			/* Transfer not aligned data */
-			if (!aligned) {
+			if (use_bufpoi) {
 				if (!NAND_HAS_SUBPAGE_READ(chip) && !oob &&
 				    !(mtd->ecc_stats.failed - ecc_failures) &&
 				    (ops->mode != MTD_OPS_RAW)) {
@@ -2376,11 +2388,23 @@ static int nand_do_write_ops(struct mtd_info *mtd, loff_t to,
 		int bytes = mtd->writesize;
 		int cached = writelen > bytes && page != blockmask;
 		uint8_t *wbuf = buf;
+		int use_bufpoi;
+		int part_pagewr = (column || writelen < (mtd->writesize - 1));
 
-		/* Partial page write? */
-		if (unlikely(column || writelen < (mtd->writesize - 1))) {
+		if (part_pagewr)
+			use_bufpoi = 1;
+		else if (chip->options & NAND_USE_BOUNCE_BUFFER)
+			use_bufpoi = !virt_addr_valid(buf);
+		else
+			use_bufpoi = 0;
+
+		/* Partial page write?, or need to use bounce buffer */
+		if (use_bufpoi) {
+			pr_debug("%s: using write bounce buffer for buf@%p\n",
+					 __func__, buf);
 			cached = 0;
-			bytes = min_t(int, bytes - column, (int) writelen);
+			if (part_pagewr)
+				bytes = min_t(int, bytes - column, writelen);
 			chip->pagebuf = -1;
 			memset(chip->buffers->databuf, 0xff, mtd->writesize);
 			memcpy(&chip->buffers->databuf[column], buf, bytes);
@@ -2618,18 +2642,20 @@ out:
 }
 
 /**
- * single_erase_cmd - [GENERIC] NAND standard block erase command function
+ * single_erase - [GENERIC] NAND standard block erase command function
  * @mtd: MTD device structure
  * @page: the page address of the block which will be erased
  *
- * Standard erase command for NAND chips.
+ * Standard erase command for NAND chips. Returns NAND status.
  */
-static void single_erase_cmd(struct mtd_info *mtd, int page)
+static int single_erase(struct mtd_info *mtd, int page)
 {
 	struct nand_chip *chip = mtd->priv;
 	/* Send commands to erase a block */
 	chip->cmdfunc(mtd, NAND_CMD_ERASE1, -1, page);
 	chip->cmdfunc(mtd, NAND_CMD_ERASE2, -1, -1);
+
+	return chip->waitfunc(mtd, chip);
 }
 
 /**
@@ -2710,9 +2736,7 @@ int nand_erase_nand(struct mtd_info *mtd, struct erase_info *instr,
 		    (page + pages_per_block))
 			chip->pagebuf = -1;
 
-		chip->erase_cmd(mtd, page & chip->pagemask);
-
-		status = chip->waitfunc(mtd, chip);
+		status = chip->erase(mtd, page & chip->pagemask);
 
 		/*
 		 * See if operation failed and additional status checks are
@@ -3607,7 +3631,7 @@ static struct nand_flash_dev *nand_get_flash_type(struct mtd_info *mtd,
 
 	chip->onfi_version = 0;
 	if (!type->name || !type->pagesize) {
-		/* Check is chip is ONFI compliant */
+		/* Check if the chip is ONFI compliant */
 		if (nand_flash_detect_onfi(mtd, chip, &busw))
 			goto ident_done;
 
@@ -3685,7 +3709,7 @@ ident_done:
 	}
 
 	chip->badblockbits = 8;
-	chip->erase_cmd = single_erase_cmd;
+	chip->erase = single_erase;
 
 	/* Do not replace user supplied command function! */
 	if (mtd->writesize > 512 && chip->cmdfunc == nand_command)
@@ -3770,6 +3794,39 @@ int nand_scan_ident(struct mtd_info *mtd, int maxchips,
 }
 EXPORT_SYMBOL(nand_scan_ident);
 
+/*
+ * Check if the chip configuration meet the datasheet requirements.
+
+ * If our configuration corrects A bits per B bytes and the minimum
+ * required correction level is X bits per Y bytes, then we must ensure
+ * both of the following are true:
+ *
+ * (1) A / B >= X / Y
+ * (2) A >= X
+ *
+ * Requirement (1) ensures we can correct for the required bitflip density.
+ * Requirement (2) ensures we can correct even when all bitflips are clumped
+ * in the same sector.
+ */
+static bool nand_ecc_strength_good(struct mtd_info *mtd)
+{
+	struct nand_chip *chip = mtd->priv;
+	struct nand_ecc_ctrl *ecc = &chip->ecc;
+	int corr, ds_corr;
+
+	if (ecc->size == 0 || chip->ecc_step_ds == 0)
+		/* Not enough information */
+		return true;
+
+	/*
+	 * We get the number of corrected bits per page to compare
+	 * the correction density.
+	 */
+	corr = (mtd->writesize * ecc->strength) / ecc->size;
+	ds_corr = (mtd->writesize * chip->ecc_strength_ds) / chip->ecc_step_ds;
+
+	return corr >= ds_corr && ecc->strength >= chip->ecc_strength_ds;
+}
 
 /**
  * nand_scan_tail - [NAND Interface] Scan for the NAND device
@@ -3990,6 +4047,9 @@ int nand_scan_tail(struct mtd_info *mtd)
 		ecc->layout->oobavail += ecc->layout->oobfree[i].length;
 	mtd->oobavail = ecc->layout->oobavail;
 
+	/* ECC sanity check: warn noisily if it's too weak */
+	WARN_ON(!nand_ecc_strength_good(mtd));
+
 	/*
 	 * Set the number of read / write steps for one page depending on ECC
 	 * mode.
@@ -4023,8 +4083,16 @@ int nand_scan_tail(struct mtd_info *mtd)
 	chip->pagebuf = -1;
 
 	/* Large page NAND with SOFT_ECC should support subpage reads */
-	if ((ecc->mode == NAND_ECC_SOFT) && (chip->page_shift > 9))
-		chip->options |= NAND_SUBPAGE_READ;
+	switch (ecc->mode) {
+	case NAND_ECC_SOFT:
+	case NAND_ECC_SOFT_BCH:
+		if (chip->page_shift > 9)
+			chip->options |= NAND_SUBPAGE_READ;
+		break;
+
+	default:
+		break;
+	}
 
 	/* Fill in remaining MTD driver data */
 	mtd->type = nand_is_slc(chip) ? MTD_NANDFLASH : MTD_MLCNANDFLASH;

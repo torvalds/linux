@@ -67,6 +67,18 @@ config MFD_BCM590XX
 	help
 	  Support for the BCM590xx PMUs from Broadcom
 
+config MFD_AXP20X
+	bool "X-Powers AXP20X"
+	select MFD_CORE
+	select REGMAP_I2C
+	select REGMAP_IRQ
+	depends on I2C=y
+	help
+	  If you say Y here you get support for the X-Powers AXP202 and AXP209.
+	  This driver include only the core APIs. You have to select individual
+	  components like regulators or the PEK (Power Enable Key) under the
+	  corresponding menus.
+
 config MFD_CROS_EC
 	tristate "ChromeOS Embedded Controller"
 	select MFD_CORE
@@ -249,6 +261,16 @@ config MFD_INTEL_MSIC
 	  Select this option to enable access to Intel MSIC (Avatele
 	  Passage) chip. This chip embeds audio, battery, GPIO, etc.
 	  devices used in Intel Medfield platforms.
+
+config MFD_IPAQ_MICRO
+	bool "Atmel Micro ASIC (iPAQ h3100/h3600/h3700) Support"
+	depends on SA1100_H3100 || SA1100_H3600
+	select MFD_CORE
+	help
+	  Select this to get support for the Microcontroller found in
+	  the Compaq iPAQ handheld computers. This is an Atmel
+	  AT90LS8535 microcontroller flashed with a special iPAQ
+	  firmware using the custom protocol implemented in this driver.
 
 config MFD_JANZ_CMODIO
 	tristate "Janz CMOD-IO PCI MODULbus Carrier Board"
@@ -675,6 +697,7 @@ config MFD_DB8500_PRCMU
 config MFD_STMPE
 	bool "STMicroelectronics STMPE"
 	depends on (I2C=y || SPI_MASTER=y)
+	depends on OF
 	select MFD_CORE
 	help
 	  Support for the STMPE family of I/O Expanders from
@@ -719,6 +742,14 @@ config MFD_STA2X11
 	select MFD_CORE
 	select REGMAP_MMIO
 
+config MFD_SUN6I_PRCM
+	bool "Allwinner A31 PRCM controller"
+	depends on ARCH_SUNXI
+	select MFD_CORE
+	help
+	  Support for the PRCM (Power/Reset/Clock Management) unit available
+	  in A31 SoC.
+
 config MFD_SYSCON
 	bool "System Controller Register R/W Based on Regmap"
 	select REGMAP_MMIO
@@ -729,6 +760,7 @@ config MFD_SYSCON
 config MFD_DAVINCI_VOICECODEC
 	tristate
 	select MFD_CORE
+	select REGMAP_MMIO
 
 config MFD_TI_AM335X_TSCADC
 	tristate "TI ADC / Touch Screen chip support"
@@ -1194,7 +1226,7 @@ config MFD_WM8994
 	  functionaltiy of the device other drivers must be enabled.
 
 config MFD_STW481X
-	bool "Support for ST Microelectronics STw481x"
+	tristate "Support for ST Microelectronics STw481x"
 	depends on I2C && ARCH_NOMADIK
 	select REGMAP_I2C
 	select MFD_CORE
@@ -1217,7 +1249,7 @@ config MCP_SA11X0
 
 # Chip drivers
 config MCP_UCB1200
-	bool "Support for UCB1200 / UCB1300"
+	tristate "Support for UCB1200 / UCB1300"
 	depends on MCP_SA11X0
 	select MCP
 

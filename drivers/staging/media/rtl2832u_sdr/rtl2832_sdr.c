@@ -1032,13 +1032,12 @@ err:
 	return ret;
 }
 
-static int rtl2832_sdr_stop_streaming(struct vb2_queue *vq)
+static void rtl2832_sdr_stop_streaming(struct vb2_queue *vq)
 {
 	struct rtl2832_sdr_state *s = vb2_get_drv_priv(vq);
 	dev_dbg(&s->udev->dev, "%s:\n", __func__);
 
-	if (mutex_lock_interruptible(&s->v4l2_lock))
-		return -ERESTARTSYS;
+	mutex_lock(&s->v4l2_lock);
 
 	rtl2832_sdr_kill_urbs(s);
 	rtl2832_sdr_free_urbs(s);
@@ -1053,8 +1052,6 @@ static int rtl2832_sdr_stop_streaming(struct vb2_queue *vq)
 		s->d->props->power_ctrl(s->d, 0);
 
 	mutex_unlock(&s->v4l2_lock);
-
-	return 0;
 }
 
 static struct vb2_ops rtl2832_sdr_vb2_ops = {

@@ -78,10 +78,6 @@
  *     
  */
 
-/*
- * $Log: generic_NCR5380.c,v $
- */
-
 /* settings for DTC3181E card with only Mustek scanner attached */
 #define USLEEP
 #define USLEEP_POLL	1

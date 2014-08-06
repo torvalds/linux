@@ -1582,7 +1582,6 @@ static const struct v4l2_subdev_core_ops saa711x_core_ops = {
 	.s_ctrl = v4l2_subdev_s_ctrl,
 	.queryctrl = v4l2_subdev_queryctrl,
 	.querymenu = v4l2_subdev_querymenu,
-	.s_std = saa711x_s_std,
 	.reset = saa711x_reset,
 	.s_gpio = saa711x_s_gpio,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
@@ -1601,6 +1600,7 @@ static const struct v4l2_subdev_audio_ops saa711x_audio_ops = {
 };
 
 static const struct v4l2_subdev_video_ops saa711x_video_ops = {
+	.s_std = saa711x_s_std,
 	.s_routing = saa711x_s_routing,
 	.s_crystal_freq = saa711x_s_crystal_freq,
 	.s_mbus_fmt = saa711x_s_mbus_fmt,

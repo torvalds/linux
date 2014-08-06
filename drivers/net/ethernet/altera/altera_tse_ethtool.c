@@ -271,5 +271,5 @@ static const struct ethtool_ops tse_ethtool_ops = {
 
 void altera_tse_set_ethtool_ops(struct net_device *netdev)
 {
-	SET_ETHTOOL_OPS(netdev, &tse_ethtool_ops);
+	netdev->ethtool_ops = &tse_ethtool_ops;
 }

@@ -270,7 +270,8 @@ xfs_bulkstat(
 		/*
 		 * Allocate and initialize a btree cursor for ialloc btree.
 		 */
-		cur = xfs_inobt_init_cursor(mp, NULL, agbp, agno);
+		cur = xfs_inobt_init_cursor(mp, NULL, agbp, agno,
+					    XFS_BTNUM_INO);
 		irbp = irbuf;
 		irbufend = irbuf + nirbuf;
 		end_of_ag = 0;
@@ -621,7 +622,8 @@ xfs_inumbers(
 				agino = 0;
 				continue;
 			}
-			cur = xfs_inobt_init_cursor(mp, NULL, agbp, agno);
+			cur = xfs_inobt_init_cursor(mp, NULL, agbp, agno,
+						    XFS_BTNUM_INO);
 			error = xfs_inobt_lookup(cur, agino, XFS_LOOKUP_GE,
 						 &tmp);
 			if (error) {

@@ -60,11 +60,22 @@ struct cma *dma_contiguous_default_area;
  */
 static const phys_addr_t size_bytes = CMA_SIZE_MBYTES * SZ_1M;
 static phys_addr_t size_cmdline = -1;
+static phys_addr_t base_cmdline;
+static phys_addr_t limit_cmdline;
 
 static int __init early_cma(char *p)
 {
 	pr_debug("%s(%s)\n", __func__, p);
 	size_cmdline = memparse(p, &p);
+	if (*p != '@')
+		return 0;
+	base_cmdline = memparse(p + 1, &p);
+	if (*p != '-') {
+		limit_cmdline = base_cmdline + size_cmdline;
+		return 0;
+	}
+	limit_cmdline = memparse(p + 1, &p);
+
 	return 0;
 }
 early_param("cma", early_cma);
@@ -108,11 +119,18 @@ static inline __maybe_unused phys_addr_t cma_early_percent_memory(void)
 void __init dma_contiguous_reserve(phys_addr_t limit)
 {
 	phys_addr_t selected_size = 0;
+	phys_addr_t selected_base = 0;
+	phys_addr_t selected_limit = limit;
+	bool fixed = false;
 
 	pr_debug("%s(limit %08lx)\n", __func__, (unsigned long)limit);
 
 	if (size_cmdline != -1) {
 		selected_size = size_cmdline;
+		selected_base = base_cmdline;
+		selected_limit = min_not_zero(limit_cmdline, limit);
+		if (base_cmdline + size_cmdline == limit_cmdline)
+			fixed = true;
 	} else {
 #ifdef CONFIG_CMA_SIZE_SEL_MBYTES
 		selected_size = size_bytes;
@@ -129,10 +147,12 @@ void __init dma_contiguous_reserve(phys_addr_t limit)
 		pr_debug("%s: reserving %ld MiB for global area\n", __func__,
 			 (unsigned long)selected_size / SZ_1M);
 
-		dma_contiguous_reserve_area(selected_size, 0, limit,
-					    &dma_contiguous_default_area);
+		dma_contiguous_reserve_area(selected_size, selected_base,
+					    selected_limit,
+					    &dma_contiguous_default_area,
+					    fixed);
 	}
-};
+}
 
 static DEFINE_MUTEX(cma_mutex);
 
@@ -156,14 +176,24 @@ static int __init cma_activate_area(struct cma *cma)
 		base_pfn = pfn;
 		for (j = pageblock_nr_pages; j; --j, pfn++) {
 			WARN_ON_ONCE(!pfn_valid(pfn));
+			/*
+			 * alloc_contig_range requires the pfn range
+			 * specified to be in the same zone. Make this
+			 * simple by forcing the entire CMA resv range
+			 * to be in the same zone.
+			 */
 			if (page_zone(pfn_to_page(pfn)) != zone)
-				return -EINVAL;
+				goto err;
 		}
 		init_cma_reserved_pageblock(pfn_to_page(base_pfn));
 	} while (--i);
 
 	mutex_init(&cma->lock);
 	return 0;
+
+err:
+	kfree(cma->bitmap);
+	return -EINVAL;
 }
 
 static struct cma cma_areas[MAX_CMA_AREAS];
@@ -189,15 +219,20 @@ core_initcall(cma_init_reserved_areas);
  * @base: Base address of the reserved area optional, use 0 for any
  * @limit: End address of the reserved memory (optional, 0 for any).
  * @res_cma: Pointer to store the created cma region.
+ * @fixed: hint about where to place the reserved area
  *
  * This function reserves memory from early allocator. It should be
  * called by arch specific code once the early allocator (memblock or bootmem)
  * has been activated and all other subsystems have already allocated/reserved
  * memory. This function allows to create custom reserved areas for specific
  * devices.
+ *
+ * If @fixed is true, reserve contiguous area at exactly @base.  If false,
+ * reserve in range from @base to @limit.
  */
 int __init dma_contiguous_reserve_area(phys_addr_t size, phys_addr_t base,
-				       phys_addr_t limit, struct cma **res_cma)
+				       phys_addr_t limit, struct cma **res_cma,
+				       bool fixed)
 {
 	struct cma *cma = &cma_areas[cma_area_count];
 	phys_addr_t alignment;
@@ -223,18 +258,15 @@ int __init dma_contiguous_reserve_area(phys_addr_t size, phys_addr_t base,
 	limit &= ~(alignment - 1);
 
 	/* Reserve memory */
-	if (base) {
+	if (base && fixed) {
 		if (memblock_is_region_reserved(base, size) ||
 		    memblock_reserve(base, size) < 0) {
 			ret = -EBUSY;
 			goto err;
 		}
 	} else {
-		/*
-		 * Use __memblock_alloc_base() since
-		 * memblock_alloc_base() panic()s.
-		 */
-		phys_addr_t addr = __memblock_alloc_base(size, alignment, limit);
+		phys_addr_t addr = memblock_alloc_range(size, alignment, base,
+							limit);
 		if (!addr) {
 			ret = -ENOMEM;
 			goto err;

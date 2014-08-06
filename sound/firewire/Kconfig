@@ -9,12 +9,12 @@ if SND_FIREWIRE && FIREWIRE
 
 config SND_FIREWIRE_LIB
 	tristate
-	depends on SND_PCM
+	select SND_PCM
+	select SND_RAWMIDI
 
 config SND_DICE
 	tristate "DICE-based DACs (EXPERIMENTAL)"
 	select SND_HWDEP
-	select SND_PCM
 	select SND_FIREWIRE_LIB
 	help
 	  Say Y here to include support for many DACs based on the DICE
@@ -28,7 +28,6 @@ config SND_DICE
 
 config SND_FIREWIRE_SPEAKERS
 	tristate "FireWire speakers"
-	select SND_PCM
 	select SND_FIREWIRE_LIB
 	help
 	  Say Y here to include support for the Griffin FireWave Surround
@@ -39,7 +38,6 @@ config SND_FIREWIRE_SPEAKERS
 
 config SND_ISIGHT
 	tristate "Apple iSight microphone"
-	select SND_PCM
 	select SND_FIREWIRE_LIB
 	help
 	  Say Y here to include support for the front and rear microphones
@@ -50,8 +48,6 @@ config SND_ISIGHT
 
 config SND_SCS1X
 	tristate "Stanton Control System 1 MIDI"
-	select SND_PCM
-	select SND_RAWMIDI
 	select SND_FIREWIRE_LIB
 	help
 	  Say Y here to include support for the MIDI ports of the Stanton
@@ -60,5 +56,60 @@ config SND_SCS1X
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-scs1x.
+
+config SND_FIREWORKS
+	tristate "Echo Fireworks board module support"
+	select SND_FIREWIRE_LIB
+	select SND_HWDEP
+	help
+	  Say Y here to include support for FireWire devices based
+	  on Echo Digital Audio Fireworks board:
+	   * Mackie Onyx 400F/1200F
+	   * Echo AudioFire12/8(until 2009 July)
+	   * Echo AudioFire2/4/Pre8/8(since 2009 July)
+	   * Echo Fireworks 8/HDMI
+	   * Gibson Robot Interface Pack/GoldTop
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-fireworks.
+
+config SND_BEBOB
+	tristate "BridgeCo DM1000/DM1100/DM1500 with BeBoB firmware"
+	select SND_FIREWIRE_LIB
+	select SND_HWDEP
+        help
+	 Say Y here to include support for FireWire devices based
+	 on BridgeCo DM1000/DM1100/DM1500 with BeBoB firmware:
+	  * Edirol FA-66/FA-101
+	  * PreSonus FIREBOX/FIREPOD/FP10/Inspire1394
+	  * BridgeCo RDAudio1/Audio5
+	  * Mackie Onyx 1220/1620/1640 (Firewire I/O Card)
+	  * Mackie d.2 (Firewire Option)
+	  * Stanton FinalScratch 2 (ScratchAmp)
+	  * Tascam IF-FW/DM
+	  * Behringer XENIX UFX 1204/1604
+	  * Behringer Digital Mixer X32 series (X-UF Card)
+	  * Apogee Rosetta 200/400 (X-FireWire card)
+	  * Apogee DA/AD/DD-16X (X-FireWire card)
+	  * Apogee Ensemble
+	  * ESI Quotafire610
+	  * AcousticReality eARMasterOne
+	  * CME MatrixKFW
+	  * Phonic Helix Board 12 MkII/18 MkII/24 MkII
+	  * Phonic Helix Board 12 Universal/18 Universal/24 Universal
+	  * Lynx Aurora 8/16 (LT-FW)
+	  * ICON FireXon
+	  * PrismSound Orpheus/ADA-8XR
+	  * TerraTec PHASE 24 FW/PHASE X24 FW/PHASE 88 Rack FW
+	  * Terratec EWS MIC2/EWS MIC4
+	  * Terratec Aureon 7.1 Firewire
+	  * Yamaha GO44/GO46
+	  * Focusrite Saffire/Saffire LE/SaffirePro10 IO/SaffirePro26 IO
+	  * M-Audio Firewire410/AudioPhile/Solo
+	  * M-Audio Ozonic/NRV10/ProfireLightBridge
+	  * M-Audio Firewire 1814/ProjectMix IO
+
+          To compile this driver as a module, choose M here: the module
+          will be called snd-bebob.
 
 endif # SND_FIREWIRE

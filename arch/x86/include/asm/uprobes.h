@@ -41,18 +41,18 @@ struct arch_uprobe {
 		u8			ixol[MAX_UINSN_BYTES];
 	};
 
-	u16				fixups;
 	const struct uprobe_xol_ops	*ops;
 
 	union {
-#ifdef CONFIG_X86_64
-		unsigned long			rip_rela_target_address;
-#endif
 		struct {
 			s32	offs;
 			u8	ilen;
 			u8	opc1;
-		}				branch;
+		}			branch;
+		struct {
+			u8	fixups;
+			u8	ilen;
+		} 			defparam;
 	};
 };
 

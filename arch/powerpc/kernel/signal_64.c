@@ -38,7 +38,6 @@
 
 #include "signal.h"
 
-#define DEBUG_SIG 0
 
 #define GP_REGS_SIZE	min(sizeof(elf_gregset_t), sizeof(struct pt_regs))
 #define FP_REGS_SIZE	sizeof(elf_fpregset_t)
@@ -700,10 +699,6 @@ int sys_rt_sigreturn(unsigned long r3, unsigned long r4, unsigned long r5,
 	return 0;
 
 badframe:
-#if DEBUG_SIG
-	printk("badframe in sys_rt_sigreturn, regs=%p uc=%p &uc->uc_mcontext=%p\n",
-	       regs, uc, &uc->uc_mcontext);
-#endif
 	if (show_unhandled_signals)
 		printk_ratelimited(regs->msr & MSR_64BIT ? fmt64 : fmt32,
 				   current->comm, current->pid, "rt_sigreturn",
@@ -809,10 +804,6 @@ int handle_rt_signal64(int signr, struct k_sigaction *ka, siginfo_t *info,
 	return 1;
 
 badframe:
-#if DEBUG_SIG
-	printk("badframe in setup_rt_frame, regs=%p frame=%p newsp=%lx\n",
-	       regs, frame, newsp);
-#endif
 	if (show_unhandled_signals)
 		printk_ratelimited(regs->msr & MSR_64BIT ? fmt64 : fmt32,
 				   current->comm, current->pid, "setup_rt_frame",

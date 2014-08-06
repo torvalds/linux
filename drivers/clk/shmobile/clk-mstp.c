@@ -112,7 +112,7 @@ static int cpg_mstp_clock_is_enabled(struct clk_hw *hw)
 	else
 		value = clk_readl(group->smstpcr);
 
-	return !!(value & BIT(clock->bit_index));
+	return !(value & BIT(clock->bit_index));
 }
 
 static const struct clk_ops cpg_mstp_clock_ops = {

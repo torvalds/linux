@@ -1,4 +1,4 @@
-config ARCH_QCOM
+menuconfig ARCH_QCOM
 	bool "Qualcomm Support" if ARCH_MULTI_V7
 	select ARCH_REQUIRE_GPIOLIB
 	select ARM_GIC
@@ -11,8 +11,6 @@ config ARCH_QCOM
 
 if ARCH_QCOM
 
-menu "Qualcomm SoC Selection"
-
 config ARCH_MSM8X60
 	bool "Enable support for MSM8X60"
 	select CLKSRC_QCOM
@@ -24,8 +22,6 @@ config ARCH_MSM8960
 config ARCH_MSM8974
 	bool "Enable support for MSM8974"
 	select HAVE_ARM_ARCH_TIMER
-
-endmenu
 
 config QCOM_SCM
 	bool

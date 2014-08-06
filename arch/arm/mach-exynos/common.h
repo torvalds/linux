@@ -118,6 +118,7 @@ extern void __iomem *sysram_ns_base_addr;
 extern void __iomem *sysram_base_addr;
 void exynos_init_io(void);
 void exynos_restart(enum reboot_mode mode, const char *cmd);
+void exynos_sysram_init(void);
 void exynos_cpuidle_init(void);
 void exynos_cpufreq_init(void);
 void exynos_init_late(void);
@@ -153,7 +154,6 @@ enum sys_powerdown {
 	NUM_SYS_POWERDOWN,
 };
 
-extern unsigned long l2x0_regs_phys;
 struct exynos_pmu_conf {
 	void __iomem *reg;
 	unsigned int val[NUM_SYS_POWERDOWN];

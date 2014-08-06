@@ -102,26 +102,6 @@ void __init omap_barriers_init(void)
 {}
 #endif
 
-void __init gic_init_irq(void)
-{
-	void __iomem *omap_irq_base;
-
-	/* Static mapping, never released */
-	gic_dist_base_addr = ioremap(OMAP44XX_GIC_DIST_BASE, SZ_4K);
-	BUG_ON(!gic_dist_base_addr);
-
-	twd_base = ioremap(OMAP44XX_LOCAL_TWD_BASE, SZ_4K);
-	BUG_ON(!twd_base);
-
-	/* Static mapping, never released */
-	omap_irq_base = ioremap(OMAP44XX_GIC_CPU_BASE, SZ_512);
-	BUG_ON(!omap_irq_base);
-
-	omap_wakeupgen_init();
-
-	gic_init(0, 29, gic_dist_base_addr, omap_irq_base);
-}
-
 void gic_dist_disable(void)
 {
 	if (gic_dist_base_addr)
@@ -167,75 +147,57 @@ void __iomem *omap4_get_l2cache_base(void)
 	return l2cache_base;
 }
 
-static void omap4_l2x0_disable(void)
+static void omap4_l2c310_write_sec(unsigned long val, unsigned reg)
 {
-	outer_flush_all();
-	/* Disable PL310 L2 Cache controller */
-	omap_smc1(0x102, 0x0);
+	unsigned smc_op;
+
+	switch (reg) {
+	case L2X0_CTRL:
+		smc_op = OMAP4_MON_L2X0_CTRL_INDEX;
+		break;
+
+	case L2X0_AUX_CTRL:
+		smc_op = OMAP4_MON_L2X0_AUXCTRL_INDEX;
+		break;
+
+	case L2X0_DEBUG_CTRL:
+		smc_op = OMAP4_MON_L2X0_DBG_CTRL_INDEX;
+		break;
+
+	case L310_PREFETCH_CTRL:
+		smc_op = OMAP4_MON_L2X0_PREFETCH_INDEX;
+		break;
+
+	default:
+		WARN_ONCE(1, "OMAP L2C310: ignoring write to reg 0x%x\n", reg);
+		return;
+	}
+
+	omap_smc1(smc_op, val);
 }
 
-static void omap4_l2x0_set_debug(unsigned long val)
+int __init omap_l2_cache_init(void)
 {
-	/* Program PL310 L2 Cache controller debug register */
-	omap_smc1(0x100, val);
-}
-
-static int __init omap_l2_cache_init(void)
-{
-	u32 aux_ctrl = 0;
-
-	/*
-	 * To avoid code running on other OMAPs in
-	 * multi-omap builds
-	 */
-	if (!cpu_is_omap44xx())
-		return -ENODEV;
+	u32 aux_ctrl;
 
 	/* Static mapping, never released */
 	l2cache_base = ioremap(OMAP44XX_L2CACHE_BASE, SZ_4K);
 	if (WARN_ON(!l2cache_base))
 		return -ENOMEM;
 
-	/*
-	 * 16-way associativity, parity disabled
-	 * Way size - 32KB (es1.0)
-	 * Way size - 64KB (es2.0 +)
-	 */
-	aux_ctrl = ((1 << L2X0_AUX_CTRL_ASSOCIATIVITY_SHIFT) |
-			(0x1 << 25) |
-			(0x1 << L2X0_AUX_CTRL_NS_LOCKDOWN_SHIFT) |
-			(0x1 << L2X0_AUX_CTRL_NS_INT_CTRL_SHIFT));
+	/* 16-way associativity, parity disabled, way size - 64KB (es2.0 +) */
+	aux_ctrl = L2C_AUX_CTRL_SHARED_OVERRIDE |
+		   L310_AUX_CTRL_DATA_PREFETCH |
+		   L310_AUX_CTRL_INSTR_PREFETCH;
 
-	if (omap_rev() == OMAP4430_REV_ES1_0) {
-		aux_ctrl |= 0x2 << L2X0_AUX_CTRL_WAY_SIZE_SHIFT;
-	} else {
-		aux_ctrl |= ((0x3 << L2X0_AUX_CTRL_WAY_SIZE_SHIFT) |
-			(1 << L2X0_AUX_CTRL_SHARE_OVERRIDE_SHIFT) |
-			(1 << L2X0_AUX_CTRL_DATA_PREFETCH_SHIFT) |
-			(1 << L2X0_AUX_CTRL_INSTR_PREFETCH_SHIFT) |
-			(1 << L2X0_AUX_CTRL_EARLY_BRESP_SHIFT));
-	}
-	if (omap_rev() != OMAP4430_REV_ES1_0)
-		omap_smc1(0x109, aux_ctrl);
-
-	/* Enable PL310 L2 Cache controller */
-	omap_smc1(0x102, 0x1);
-
+	outer_cache.write_sec = omap4_l2c310_write_sec;
 	if (of_have_populated_dt())
-		l2x0_of_init(aux_ctrl, L2X0_AUX_CTRL_MASK);
+		l2x0_of_init(aux_ctrl, 0xcf9fffff);
 	else
-		l2x0_init(l2cache_base, aux_ctrl, L2X0_AUX_CTRL_MASK);
-
-	/*
-	 * Override default outer_cache.disable with a OMAP4
-	 * specific one
-	*/
-	outer_cache.disable = omap4_l2x0_disable;
-	outer_cache.set_debug = omap4_l2x0_set_debug;
+		l2x0_init(l2cache_base, aux_ctrl, 0xcf9fffff);
 
 	return 0;
 }
-omap_early_initcall(omap_l2_cache_init);
 #endif
 
 void __iomem *omap4_get_sar_ram_base(void)

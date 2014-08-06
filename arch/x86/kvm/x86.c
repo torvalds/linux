@@ -1898,7 +1898,7 @@ static int set_msr_hyperv_pw(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 		if (!(data & HV_X64_MSR_TSC_REFERENCE_ENABLE))
 			break;
 		gfn = data >> HV_X64_MSR_TSC_REFERENCE_ADDRESS_SHIFT;
-		if (kvm_write_guest(kvm, data,
+		if (kvm_write_guest(kvm, gfn << HV_X64_MSR_TSC_REFERENCE_ADDRESS_SHIFT,
 			&tsc_ref, sizeof(tsc_ref)))
 			return 1;
 		mark_page_dirty(kvm, gfn);

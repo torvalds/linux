@@ -32,12 +32,12 @@ struct leon3_gptimer_regs_map *leon3_gptimer_regs; /* timer controller base addr
 
 int leondebug_irq_disable;
 int leon_debug_irqout;
-static int dummy_master_l10_counter;
+static volatile u32 dummy_master_l10_counter;
 unsigned long amba_system_id;
 static DEFINE_SPINLOCK(leon_irq_lock);
 
+static unsigned long leon3_gptimer_idx; /* Timer Index (0..6) within Timer Core */
 unsigned long leon3_gptimer_irq; /* interrupt controller irq number */
-unsigned long leon3_gptimer_idx; /* Timer Index (0..6) within Timer Core */
 unsigned int sparc_leon_eirq;
 #define LEON_IMASK(cpu) (&leon3_irqctrl_regs->mask[cpu])
 #define LEON_IACK (&leon3_irqctrl_regs->iclear)
@@ -65,7 +65,7 @@ static void leon_handle_ext_irq(unsigned int irq, struct irq_desc *desc)
 }
 
 /* The extended IRQ controller has been found, this function registers it */
-void leon_eirq_setup(unsigned int eirq)
+static void leon_eirq_setup(unsigned int eirq)
 {
 	unsigned long mask, oldmask;
 	unsigned int veirq;
@@ -270,7 +270,7 @@ static u32 leon_cycles_offset(void)
 #ifdef CONFIG_SMP
 
 /* smp clockevent irq */
-irqreturn_t leon_percpu_timer_ce_interrupt(int irq, void *unused)
+static irqreturn_t leon_percpu_timer_ce_interrupt(int irq, void *unused)
 {
 	struct clock_event_device *ce;
 	int cpu = smp_processor_id();
@@ -313,7 +313,7 @@ void __init leon_init_timers(void)
 
 	leondebug_irq_disable = 0;
 	leon_debug_irqout = 0;
-	master_l10_counter = (unsigned int *)&dummy_master_l10_counter;
+	master_l10_counter = (u32 __iomem *)&dummy_master_l10_counter;
 	dummy_master_l10_counter = 0;
 
 	rootnp = of_find_node_by_path("/ambapp0");

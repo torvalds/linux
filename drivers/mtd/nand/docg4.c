@@ -872,7 +872,7 @@ static int docg4_read_oob(struct mtd_info *mtd, struct nand_chip *nand,
 	return 0;
 }
 
-static void docg4_erase_block(struct mtd_info *mtd, int page)
+static int docg4_erase_block(struct mtd_info *mtd, int page)
 {
 	struct nand_chip *nand = mtd->priv;
 	struct docg4_priv *doc = nand->priv;
@@ -916,6 +916,8 @@ static void docg4_erase_block(struct mtd_info *mtd, int page)
 	write_nop(docptr);
 	poll_status(doc);
 	write_nop(docptr);
+
+	return nand->waitfunc(mtd, nand);
 }
 
 static int write_page(struct mtd_info *mtd, struct nand_chip *nand,
@@ -1236,7 +1238,7 @@ static void __init init_mtd_structs(struct mtd_info *mtd)
 	nand->block_markbad = docg4_block_markbad;
 	nand->read_buf = docg4_read_buf;
 	nand->write_buf = docg4_write_buf16;
-	nand->erase_cmd = docg4_erase_block;
+	nand->erase = docg4_erase_block;
 	nand->ecc.read_page = docg4_read_page;
 	nand->ecc.write_page = docg4_write_page;
 	nand->ecc.read_page_raw = docg4_read_page_raw;

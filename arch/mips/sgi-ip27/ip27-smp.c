@@ -186,10 +186,6 @@ static void ip27_smp_finish(void)
 	local_irq_enable();
 }
 
-static void __init ip27_cpus_done(void)
-{
-}
-
 /*
  * Launch a slave into smp_bootstrap().	 It doesn't take an argument, and we
  * set sp to the kernel stack of the newly created idle process, gp to the proc
@@ -236,7 +232,6 @@ struct plat_smp_ops ip27_smp_ops = {
 	.send_ipi_mask		= ip27_send_ipi_mask,
 	.init_secondary		= ip27_init_secondary,
 	.smp_finish		= ip27_smp_finish,
-	.cpus_done		= ip27_cpus_done,
 	.boot_secondary		= ip27_boot_secondary,
 	.smp_setup		= ip27_smp_setup,
 	.prepare_cpus		= ip27_prepare_cpus,

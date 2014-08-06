@@ -501,6 +501,16 @@ config DEBUG_VM
 
 	  If unsure, say N.
 
+config DEBUG_VM_VMACACHE
+	bool "Debug VMA caching"
+	depends on DEBUG_VM
+	help
+	  Enable this to turn on VMA caching debug information. Doing so
+	  can cause significant overhead, so only enable it in non-production
+	  environments.
+
+	  If unsure, say N.
+
 config DEBUG_VM_RB
 	bool "Debug VM red-black trees"
 	depends on DEBUG_VM
@@ -823,11 +833,6 @@ config DEBUG_RT_MUTEXES
 	 This allows rt mutex semantics violations and rt mutex related
 	 deadlocks (lockups) to be detected and reported automatically.
 
-config DEBUG_PI_LIST
-	bool
-	default y
-	depends on DEBUG_RT_MUTEXES
-
 config RT_MUTEX_TESTER
 	bool "Built-in scriptable tester for rt-mutexes"
 	depends on DEBUG_KERNEL && RT_MUTEXES
@@ -925,7 +930,7 @@ config LOCKDEP
 	bool
 	depends on DEBUG_KERNEL && TRACE_IRQFLAGS_SUPPORT && STACKTRACE_SUPPORT && LOCKDEP_SUPPORT
 	select STACKTRACE
-	select FRAME_POINTER if !MIPS && !PPC && !ARM_UNWIND && !S390 && !MICROBLAZE && !ARC
+	select FRAME_POINTER if !MIPS && !PPC && !ARM_UNWIND && !S390 && !MICROBLAZE && !ARC && !SCORE
 	select KALLSYMS
 	select KALLSYMS_ALL
 
@@ -1050,6 +1055,16 @@ config DEBUG_LIST
 	help
 	  Enable this to turn on extended checks in the linked-list
 	  walking routines.
+
+	  If unsure, say N.
+
+config DEBUG_PI_LIST
+	bool "Debug priority linked list manipulation"
+	depends on DEBUG_KERNEL
+	help
+	  Enable this to turn on extended checks in the priority-ordered
+	  linked-list (plist) walking routines.  This checks the entire
+	  list multiple times during each manipulation.
 
 	  If unsure, say N.
 
@@ -1393,7 +1408,7 @@ config FAULT_INJECTION_STACKTRACE_FILTER
 	depends on FAULT_INJECTION_DEBUG_FS && STACKTRACE_SUPPORT
 	depends on !X86_64
 	select STACKTRACE
-	select FRAME_POINTER if !MIPS && !PPC && !S390 && !MICROBLAZE && !ARM_UNWIND && !ARC
+	select FRAME_POINTER if !MIPS && !PPC && !S390 && !MICROBLAZE && !ARM_UNWIND && !ARC && !SCORE
 	help
 	  Provide stacktrace filter for fault-injection capabilities
 
@@ -1496,6 +1511,7 @@ config RBTREE_TEST
 config INTERVAL_TREE_TEST
 	tristate "Interval tree test"
 	depends on m && DEBUG_KERNEL
+	select INTERVAL_TREE
 	help
 	  A benchmark measuring the performance of the interval tree library
 
@@ -1617,6 +1633,19 @@ config TEST_USER_COPY
 	  user/kernel boundary testing is working. If it fails to load,
 	  a regression has been detected in the user/kernel memory boundary
 	  protections.
+
+	  If unsure, say N.
+
+config TEST_BPF
+	tristate "Test BPF filter functionality"
+	default n
+	depends on m && NET
+	help
+	  This builds the "test_bpf" module that runs various test vectors
+	  against the BPF interpreter or BPF JIT compiler depending on the
+	  current setting. This is in particular useful for BPF JIT compiler
+	  development, but also to run regression tests against changes in
+	  the interpreter code.
 
 	  If unsure, say N.
 

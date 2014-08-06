@@ -291,7 +291,7 @@ static void __exception_irq_entry gic_handle_irq(struct pt_regs *regs)
 
 	do {
 		irqstat = readl_relaxed(cpu_base + GIC_CPU_INTACK);
-		irqnr = irqstat & ~0x1c00;
+		irqnr = irqstat & GICC_IAR_INT_ID_MASK;
 
 		if (likely(irqnr > 15 && irqnr < 1021)) {
 			irqnr = irq_find_mapping(gic->domain, irqnr);

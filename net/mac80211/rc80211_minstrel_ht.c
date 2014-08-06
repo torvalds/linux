@@ -22,7 +22,7 @@
 #define MCS_NBITS (AVG_PKT_SIZE << 3)
 
 /* Number of symbols for a packet with (bps) bits per symbol */
-#define MCS_NSYMS(bps) ((MCS_NBITS + (bps) - 1) / (bps))
+#define MCS_NSYMS(bps) DIV_ROUND_UP(MCS_NBITS, (bps))
 
 /* Transmission time (nanoseconds) for a packet containing (syms) symbols */
 #define MCS_SYMBOL_TIME(sgi, syms)					\
@@ -226,8 +226,9 @@ minstrel_ht_calc_tp(struct minstrel_ht_sta *mi, int group, int rate)
 		nsecs = 1000 * mi->overhead / MINSTREL_TRUNC(mi->avg_ampdu_len);
 
 	nsecs += minstrel_mcs_groups[group].duration[rate];
-	tp = 1000000 * ((prob * 1000) / nsecs);
 
+	/* prob is scaled - see MINSTREL_FRAC above */
+	tp = 1000000 * ((prob * 1000) / nsecs);
 	mr->cur_tp = MINSTREL_TRUNC(tp);
 }
 
@@ -1031,6 +1032,22 @@ minstrel_ht_free(void *priv)
 	mac80211_minstrel.free(priv);
 }
 
+static u32 minstrel_ht_get_expected_throughput(void *priv_sta)
+{
+	struct minstrel_ht_sta_priv *msp = priv_sta;
+	struct minstrel_ht_sta *mi = &msp->ht;
+	int i, j;
+
+	if (!msp->is_ht)
+		return mac80211_minstrel.get_expected_throughput(priv_sta);
+
+	i = mi->max_tp_rate / MCS_GROUP_RATES;
+	j = mi->max_tp_rate % MCS_GROUP_RATES;
+
+	/* convert cur_tp from pkt per second in kbps */
+	return mi->groups[i].rates[j].cur_tp * AVG_PKT_SIZE * 8 / 1024;
+}
+
 static const struct rate_control_ops mac80211_minstrel_ht = {
 	.name = "minstrel_ht",
 	.tx_status = minstrel_ht_tx_status,
@@ -1045,6 +1062,7 @@ static const struct rate_control_ops mac80211_minstrel_ht = {
 	.add_sta_debugfs = minstrel_ht_add_sta_debugfs,
 	.remove_sta_debugfs = minstrel_ht_remove_sta_debugfs,
 #endif
+	.get_expected_throughput = minstrel_ht_get_expected_throughput,
 };
 
 

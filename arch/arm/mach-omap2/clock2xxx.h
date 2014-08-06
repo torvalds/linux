@@ -21,10 +21,6 @@ unsigned long omap2xxx_sys_clk_recalc(struct clk_hw *clk,
 				      unsigned long parent_rate);
 unsigned long omap2_osc_clk_recalc(struct clk_hw *clk,
 				   unsigned long parent_rate);
-unsigned long omap2_dpllcore_recalc(struct clk_hw *hw,
-				    unsigned long parent_rate);
-int omap2_reprogram_dpllcore(struct clk_hw *clk, unsigned long rate,
-			     unsigned long parent_rate);
 void omap2xxx_clkt_dpllcore_init(struct clk_hw *hw);
 unsigned long omap2_clk_apll54_recalc(struct clk_hw *hw,
 				      unsigned long parent_rate);

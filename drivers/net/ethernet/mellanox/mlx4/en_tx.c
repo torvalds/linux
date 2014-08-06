@@ -108,12 +108,12 @@ int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
 
 	ring->buf = ring->wqres.buf.direct.buf;
 
-	en_dbg(DRV, priv, "Allocated TX ring (addr:%p) - buf:%p size:%d "
-	       "buf_size:%d dma:%llx\n", ring, ring->buf, ring->size,
-	       ring->buf_size, (unsigned long long) ring->wqres.buf.direct.map);
+	en_dbg(DRV, priv, "Allocated TX ring (addr:%p) - buf:%p size:%d buf_size:%d dma:%llx\n",
+	       ring, ring->buf, ring->size, ring->buf_size,
+	       (unsigned long long) ring->wqres.buf.direct.map);
 
 	ring->qpn = qpn;
-	err = mlx4_qp_alloc(mdev->dev, ring->qpn, &ring->qp);
+	err = mlx4_qp_alloc(mdev->dev, ring->qpn, &ring->qp, GFP_KERNEL);
 	if (err) {
 		en_err(priv, "Failed allocating qp %d\n", ring->qpn);
 		goto err_map;
@@ -122,7 +122,7 @@ int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
 
 	err = mlx4_bf_alloc(mdev->dev, &ring->bf, node);
 	if (err) {
-		en_dbg(DRV, priv, "working without blueflame (%d)", err);
+		en_dbg(DRV, priv, "working without blueflame (%d)\n", err);
 		ring->bf.uar = &mdev->priv_uar;
 		ring->bf.uar->map = mdev->uar_map;
 		ring->bf_enabled = false;
@@ -474,9 +474,15 @@ int mlx4_en_poll_tx_cq(struct napi_struct *napi, int budget)
 	/* If we used up all the quota - we're probably not done yet... */
 	if (done < budget) {
 		/* Done for now */
+		cq->mcq.irq_affinity_change = false;
 		napi_complete(napi);
 		mlx4_en_arm_cq(priv, cq);
 		return done;
+	} else if (unlikely(cq->mcq.irq_affinity_change)) {
+		cq->mcq.irq_affinity_change = false;
+		napi_complete(napi);
+		mlx4_en_arm_cq(priv, cq);
+		return 0;
 	}
 	return budget;
 }

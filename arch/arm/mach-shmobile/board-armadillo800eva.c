@@ -31,7 +31,7 @@
 #include <linux/gpio_keys.h>
 #include <linux/regulator/driver.h>
 #include <linux/pinctrl/machine.h>
-#include <linux/platform_data/pwm-renesas-tpu.h>
+#include <linux/pwm.h>
 #include <linux/pwm_backlight.h>
 #include <linux/regulator/fixed.h>
 #include <linux/regulator/gpio-regulator.h>
@@ -399,24 +399,16 @@ static struct resource pwm_resources[] = {
 	},
 };
 
-static struct tpu_pwm_platform_data pwm_device_data = {
-	.channels[2] = {
-		.polarity = PWM_POLARITY_INVERSED,
-	}
-};
-
 static struct platform_device pwm_device = {
 	.name = "renesas-tpu-pwm",
 	.id = -1,
-	.dev = {
-		.platform_data = &pwm_device_data,
-	},
 	.num_resources = ARRAY_SIZE(pwm_resources),
 	.resource = pwm_resources,
 };
 
 static struct pwm_lookup pwm_lookup[] = {
-	PWM_LOOKUP("renesas-tpu-pwm", 2, "pwm-backlight.0", NULL),
+	PWM_LOOKUP("renesas-tpu-pwm", 2, "pwm-backlight.0", NULL,
+		   33333, PWM_POLARITY_INVERSED),
 };
 
 /* LCDC and backlight */
@@ -1271,8 +1263,8 @@ static void __init eva_init(void)
 
 
 #ifdef CONFIG_CACHE_L2X0
-	/* Early BRESP enable, Shared attribute override enable, 32K*8way */
-	l2x0_init(IOMEM(0xf0002000), 0x40440000, 0x82000fff);
+	/* Shared attribute override enable, 32K*8way */
+	l2x0_init(IOMEM(0xf0002000), 0x00400000, 0xc20f0fff);
 #endif
 
 	i2c_register_board_info(0, i2c0_devices, ARRAY_SIZE(i2c0_devices));

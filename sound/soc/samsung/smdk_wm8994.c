@@ -57,7 +57,7 @@ static int smdk_hw_params(struct snd_pcm_substream *substream,
 	int ret;
 
 	/* AIF1CLK should be >=3MHz for optimal performance */
-	if (params_format(params) == SNDRV_PCM_FORMAT_S24_LE)
+	if (params_width(params) == 24)
 		pll_out = params_rate(params) * 384;
 	else if (params_rate(params) == 8000 || params_rate(params) == 11025)
 		pll_out = params_rate(params) * 512;
@@ -88,18 +88,6 @@ static int smdk_wm8994_init_paiftx(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_codec *codec = rtd->codec;
 	struct snd_soc_dapm_context *dapm = &codec->dapm;
-
-	/* HeadPhone */
-	snd_soc_dapm_enable_pin(dapm, "HPOUT1R");
-	snd_soc_dapm_enable_pin(dapm, "HPOUT1L");
-
-	/* MicIn */
-	snd_soc_dapm_enable_pin(dapm, "IN1LN");
-	snd_soc_dapm_enable_pin(dapm, "IN1RN");
-
-	/* LineIn */
-	snd_soc_dapm_enable_pin(dapm, "IN2LN");
-	snd_soc_dapm_enable_pin(dapm, "IN2RN");
 
 	/* Other pins NC */
 	snd_soc_dapm_nc_pin(dapm, "HPOUT2P");

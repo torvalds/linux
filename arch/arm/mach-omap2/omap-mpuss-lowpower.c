@@ -187,19 +187,15 @@ static void l2x0_pwrst_prepare(unsigned int cpu_id, unsigned int save_state)
  * in every restore MPUSS OFF path.
  */
 #ifdef CONFIG_CACHE_L2X0
-static void save_l2x0_context(void)
+static void __init save_l2x0_context(void)
 {
-	u32 val;
-	void __iomem *l2x0_base = omap4_get_l2cache_base();
-	if (l2x0_base) {
-		val = readl_relaxed(l2x0_base + L2X0_AUX_CTRL);
-		writel_relaxed(val, sar_base + L2X0_AUXCTRL_OFFSET);
-		val = readl_relaxed(l2x0_base + L2X0_PREFETCH_CTRL);
-		writel_relaxed(val, sar_base + L2X0_PREFETCH_CTRL_OFFSET);
-	}
+	writel_relaxed(l2x0_saved_regs.aux_ctrl,
+		     sar_base + L2X0_AUXCTRL_OFFSET);
+	writel_relaxed(l2x0_saved_regs.prefetch_ctrl,
+		     sar_base + L2X0_PREFETCH_CTRL_OFFSET);
 }
 #else
-static void save_l2x0_context(void)
+static void __init save_l2x0_context(void)
 {}
 #endif
 

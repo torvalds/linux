@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Intel Ethernet Controller XL710 Family Linux Virtual Function Driver
- * Copyright(c) 2013 Intel Corporation.
+ * Copyright(c) 2013 - 2014 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -11,6 +11,9 @@
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  * The full GNU General Public License is included in this distribution in
  * the file called "COPYING".
@@ -26,6 +29,16 @@
 #include "i40e_register.h"
 #include "i40e_adminq.h"
 #include "i40e_prototype.h"
+
+/**
+ * i40e_is_nvm_update_op - return true if this is an NVM update operation
+ * @desc: API request descriptor
+ **/
+static inline bool i40e_is_nvm_update_op(struct i40e_aq_desc *desc)
+{
+	return (desc->opcode == i40e_aqc_opc_nvm_erase) ||
+	       (desc->opcode == i40e_aqc_opc_nvm_update);
+}
 
 /**
  *  i40e_adminq_init_regs - Initialize AdminQ registers
@@ -276,8 +289,11 @@ static void i40e_free_asq_bufs(struct i40e_hw *hw)
  *
  *  Configure base address and length registers for the transmit queue
  **/
-static void i40e_config_asq_regs(struct i40e_hw *hw)
+static i40e_status i40e_config_asq_regs(struct i40e_hw *hw)
 {
+	i40e_status ret_code = 0;
+	u32 reg = 0;
+
 	if (hw->mac.type == I40E_MAC_VF) {
 		/* configure the transmit queue */
 		wr32(hw, I40E_VF_ATQBAH1,
@@ -286,6 +302,7 @@ static void i40e_config_asq_regs(struct i40e_hw *hw)
 		    lower_32_bits(hw->aq.asq.desc_buf.pa));
 		wr32(hw, I40E_VF_ATQLEN1, (hw->aq.num_asq_entries |
 					  I40E_VF_ATQLEN1_ATQENABLE_MASK));
+		reg = rd32(hw, I40E_VF_ATQBAL1);
 	} else {
 		/* configure the transmit queue */
 		wr32(hw, I40E_PF_ATQBAH,
@@ -294,7 +311,14 @@ static void i40e_config_asq_regs(struct i40e_hw *hw)
 		    lower_32_bits(hw->aq.asq.desc_buf.pa));
 		wr32(hw, I40E_PF_ATQLEN, (hw->aq.num_asq_entries |
 					  I40E_PF_ATQLEN_ATQENABLE_MASK));
+		reg = rd32(hw, I40E_PF_ATQBAL);
 	}
+
+	/* Check one register to verify that config was applied */
+	if (reg != lower_32_bits(hw->aq.asq.desc_buf.pa))
+		ret_code = I40E_ERR_ADMIN_QUEUE_ERROR;
+
+	return ret_code;
 }
 
 /**
@@ -303,8 +327,11 @@ static void i40e_config_asq_regs(struct i40e_hw *hw)
  *
  * Configure base address and length registers for the receive (event queue)
  **/
-static void i40e_config_arq_regs(struct i40e_hw *hw)
+static i40e_status i40e_config_arq_regs(struct i40e_hw *hw)
 {
+	i40e_status ret_code = 0;
+	u32 reg = 0;
+
 	if (hw->mac.type == I40E_MAC_VF) {
 		/* configure the receive queue */
 		wr32(hw, I40E_VF_ARQBAH1,
@@ -313,6 +340,7 @@ static void i40e_config_arq_regs(struct i40e_hw *hw)
 		    lower_32_bits(hw->aq.arq.desc_buf.pa));
 		wr32(hw, I40E_VF_ARQLEN1, (hw->aq.num_arq_entries |
 					  I40E_VF_ARQLEN1_ARQENABLE_MASK));
+		reg = rd32(hw, I40E_VF_ARQBAL1);
 	} else {
 		/* configure the receive queue */
 		wr32(hw, I40E_PF_ARQBAH,
@@ -321,10 +349,17 @@ static void i40e_config_arq_regs(struct i40e_hw *hw)
 		    lower_32_bits(hw->aq.arq.desc_buf.pa));
 		wr32(hw, I40E_PF_ARQLEN, (hw->aq.num_arq_entries |
 					  I40E_PF_ARQLEN_ARQENABLE_MASK));
+		reg = rd32(hw, I40E_PF_ARQBAL);
 	}
 
 	/* Update tail in the HW to post pre-allocated buffers */
 	wr32(hw, hw->aq.arq.tail, hw->aq.num_arq_entries - 1);
+
+	/* Check one register to verify that config was applied */
+	if (reg != lower_32_bits(hw->aq.arq.desc_buf.pa))
+		ret_code = I40E_ERR_ADMIN_QUEUE_ERROR;
+
+	return ret_code;
 }
 
 /**
@@ -372,7 +407,9 @@ static i40e_status i40e_init_asq(struct i40e_hw *hw)
 		goto init_adminq_free_rings;
 
 	/* initialize base registers */
-	i40e_config_asq_regs(hw);
+	ret_code = i40e_config_asq_regs(hw);
+	if (ret_code)
+		goto init_adminq_free_rings;
 
 	/* success! */
 	goto init_adminq_exit;
@@ -429,7 +466,9 @@ static i40e_status i40e_init_arq(struct i40e_hw *hw)
 		goto init_adminq_free_rings;
 
 	/* initialize base registers */
-	i40e_config_arq_regs(hw);
+	ret_code = i40e_config_arq_regs(hw);
+	if (ret_code)
+		goto init_adminq_free_rings;
 
 	/* success! */
 	goto init_adminq_exit;
@@ -659,6 +698,12 @@ i40e_status i40evf_asq_send_command(struct i40e_hw *hw,
 		goto asq_send_command_exit;
 	}
 
+	if (i40e_is_nvm_update_op(desc) && hw->aq.nvm_busy) {
+		i40e_debug(hw, I40E_DEBUG_AQ_MESSAGE, "AQTX: NVM busy.\n");
+		status = I40E_ERR_NVM;
+		goto asq_send_command_exit;
+	}
+
 	details = I40E_ADMINQ_DETAILS(hw->aq.asq, hw->aq.asq.next_to_use);
 	if (cmd_details) {
 		*details = *cmd_details;
@@ -786,6 +831,9 @@ i40e_status i40evf_asq_send_command(struct i40e_hw *hw,
 		hw->aq.asq_last_status = (enum i40e_admin_queue_err)retval;
 	}
 
+	if (i40e_is_nvm_update_op(desc))
+		hw->aq.nvm_busy = true;
+
 	/* update the error if time out occurred */
 	if ((!cmd_completed) &&
 	    (!details->async && !details->postpone)) {
@@ -879,6 +927,9 @@ i40e_status i40evf_clean_arq_element(struct i40e_hw *hw,
 			memcpy(e->msg_buf, hw->aq.arq.r.arq_bi[desc_idx].va,
 			       e->msg_size);
 	}
+
+	if (i40e_is_nvm_update_op(&e->desc))
+		hw->aq.nvm_busy = false;
 
 	/* Restore the original datalen and buffer address in the desc,
 	 * FW updates datalen to indicate the event message

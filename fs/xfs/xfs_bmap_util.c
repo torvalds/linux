@@ -258,14 +258,23 @@ xfs_bmapi_allocate_worker(
 	struct xfs_bmalloca	*args = container_of(work,
 						struct xfs_bmalloca, work);
 	unsigned long		pflags;
+	unsigned long		new_pflags = PF_FSTRANS;
 
-	/* we are in a transaction context here */
-	current_set_flags_nested(&pflags, PF_FSTRANS);
+	/*
+	 * we are in a transaction context here, but may also be doing work
+	 * in kswapd context, and hence we may need to inherit that state
+	 * temporarily to ensure that we don't block waiting for memory reclaim
+	 * in any way.
+	 */
+	if (args->kswapd)
+		new_pflags |= PF_MEMALLOC | PF_SWAPWRITE | PF_KSWAPD;
+
+	current_set_flags_nested(&pflags, new_pflags);
 
 	args->result = __xfs_bmapi_allocate(args);
 	complete(args->done);
 
-	current_restore_flags_nested(&pflags, PF_FSTRANS);
+	current_restore_flags_nested(&pflags, new_pflags);
 }
 
 /*
@@ -284,6 +293,7 @@ xfs_bmapi_allocate(
 
 
 	args->done = &done;
+	args->kswapd = current_is_kswapd();
 	INIT_WORK_ONSTACK(&args->work, xfs_bmapi_allocate_worker);
 	queue_work(xfs_alloc_wq, &args->work);
 	wait_for_completion(&done);
@@ -1519,7 +1529,6 @@ xfs_collapse_file_space(
 
 	while (!error && !done) {
 		tp = xfs_trans_alloc(mp, XFS_TRANS_DIOSTRAT);
-		tp->t_flags |= XFS_TRANS_RESERVE;
 		/*
 		 * We would need to reserve permanent block for transaction.
 		 * This will come into picture when after shifting extent into
@@ -1529,7 +1538,6 @@ xfs_collapse_file_space(
 		error = xfs_trans_reserve(tp, &M_RES(mp)->tr_write,
 				XFS_DIOSTRAT_SPACE_RES(mp, 0), 0);
 		if (error) {
-			ASSERT(error == ENOSPC || XFS_FORCED_SHUTDOWN(mp));
 			xfs_trans_cancel(tp, 0);
 			break;
 		}

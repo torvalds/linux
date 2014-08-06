@@ -186,7 +186,7 @@ i915_l3_write(struct file *filp, struct kobject *kobj,
 	struct drm_minor *dminor = dev_to_drm_minor(dev);
 	struct drm_device *drm_dev = dminor->dev;
 	struct drm_i915_private *dev_priv = drm_dev->dev_private;
-	struct i915_hw_context *ctx;
+	struct intel_context *ctx;
 	u32 *temp = NULL; /* Just here to make handling failures easy */
 	int slice = (int)(uintptr_t)attr->private;
 	int ret;
@@ -263,6 +263,8 @@ static ssize_t gt_cur_freq_mhz_show(struct device *kdev,
 
 	flush_delayed_work(&dev_priv->rps.delayed_resume_work);
 
+	intel_runtime_pm_get(dev_priv);
+
 	mutex_lock(&dev_priv->rps.hw_lock);
 	if (IS_VALLEYVIEW(dev_priv->dev)) {
 		u32 freq;
@@ -272,6 +274,8 @@ static ssize_t gt_cur_freq_mhz_show(struct device *kdev,
 		ret = dev_priv->rps.cur_freq * GT_FREQUENCY_MULTIPLIER;
 	}
 	mutex_unlock(&dev_priv->rps.hw_lock);
+
+	intel_runtime_pm_put(dev_priv);
 
 	return snprintf(buf, PAGE_SIZE, "%d\n", ret);
 }

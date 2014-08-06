@@ -313,7 +313,13 @@ vti_tunnel_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 			return -EINVAL;
 	}
 
-	p.i_flags |= VTI_ISVTI;
+	if (!(p.i_flags & GRE_KEY))
+		p.i_key = 0;
+	if (!(p.o_flags & GRE_KEY))
+		p.o_key = 0;
+
+	p.i_flags = VTI_ISVTI;
+
 	err = ip_tunnel_ioctl(dev, &p, cmd);
 	if (err)
 		return err;

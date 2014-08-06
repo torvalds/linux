@@ -1823,6 +1823,7 @@ void omapfb_register_panel(struct lcd_panel *panel)
 	if (fbdev_pdev != NULL)
 		omapfb_do_probe(fbdev_pdev, fbdev_panel);
 }
+EXPORT_SYMBOL_GPL(omapfb_register_panel);
 
 /* Called when the device is being detached from the driver */
 static int omapfb_remove(struct platform_device *pdev)

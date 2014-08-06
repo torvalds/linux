@@ -292,8 +292,7 @@ kvm_start_guest:
 	beq	kvm_no_guest
 
 	/* Set HSTATE_DSCR(r13) to something sensible */
-	LOAD_REG_ADDR(r6, dscr_default)
-	ld	r6, 0(r6)
+	ld	r6, PACA_DSCR(r13)
 	std	r6, HSTATE_DSCR(r13)
 
 	bl	kvmppc_hv_entry
@@ -1799,7 +1798,7 @@ kvmppc_hdsi:
 	/* Search the hash table. */
 	mr	r3, r9			/* vcpu pointer */
 	li	r7, 1			/* data fault */
-	bl	.kvmppc_hpte_hv_fault
+	bl	kvmppc_hpte_hv_fault
 	ld	r9, HSTATE_KVM_VCPU(r13)
 	ld	r10, VCPU_PC(r9)
 	ld	r11, VCPU_MSR(r9)
@@ -1873,7 +1872,7 @@ kvmppc_hisi:
 	mr	r4, r10
 	mr	r6, r11
 	li	r7, 0			/* instruction fault */
-	bl	.kvmppc_hpte_hv_fault
+	bl	kvmppc_hpte_hv_fault
 	ld	r9, HSTATE_KVM_VCPU(r13)
 	ld	r10, VCPU_PC(r9)
 	ld	r11, VCPU_MSR(r9)
@@ -1947,16 +1946,16 @@ hcall_real_fallback:
 	.globl	hcall_real_table
 hcall_real_table:
 	.long	0		/* 0 - unused */
-	.long	.kvmppc_h_remove - hcall_real_table
-	.long	.kvmppc_h_enter - hcall_real_table
-	.long	.kvmppc_h_read - hcall_real_table
+	.long	DOTSYM(kvmppc_h_remove) - hcall_real_table
+	.long	DOTSYM(kvmppc_h_enter) - hcall_real_table
+	.long	DOTSYM(kvmppc_h_read) - hcall_real_table
 	.long	0		/* 0x10 - H_CLEAR_MOD */
 	.long	0		/* 0x14 - H_CLEAR_REF */
-	.long	.kvmppc_h_protect - hcall_real_table
-	.long	.kvmppc_h_get_tce - hcall_real_table
-	.long	.kvmppc_h_put_tce - hcall_real_table
+	.long	DOTSYM(kvmppc_h_protect) - hcall_real_table
+	.long	DOTSYM(kvmppc_h_get_tce) - hcall_real_table
+	.long	DOTSYM(kvmppc_h_put_tce) - hcall_real_table
 	.long	0		/* 0x24 - H_SET_SPRG0 */
-	.long	.kvmppc_h_set_dabr - hcall_real_table
+	.long	DOTSYM(kvmppc_h_set_dabr) - hcall_real_table
 	.long	0		/* 0x2c */
 	.long	0		/* 0x30 */
 	.long	0		/* 0x34 */
@@ -1972,11 +1971,11 @@ hcall_real_table:
 	.long	0		/* 0x5c */
 	.long	0		/* 0x60 */
 #ifdef CONFIG_KVM_XICS
-	.long	.kvmppc_rm_h_eoi - hcall_real_table
-	.long	.kvmppc_rm_h_cppr - hcall_real_table
-	.long	.kvmppc_rm_h_ipi - hcall_real_table
+	.long	DOTSYM(kvmppc_rm_h_eoi) - hcall_real_table
+	.long	DOTSYM(kvmppc_rm_h_cppr) - hcall_real_table
+	.long	DOTSYM(kvmppc_rm_h_ipi) - hcall_real_table
 	.long	0		/* 0x70 - H_IPOLL */
-	.long	.kvmppc_rm_h_xirr - hcall_real_table
+	.long	DOTSYM(kvmppc_rm_h_xirr) - hcall_real_table
 #else
 	.long	0		/* 0x64 - H_EOI */
 	.long	0		/* 0x68 - H_CPPR */
@@ -2010,7 +2009,7 @@ hcall_real_table:
 	.long	0		/* 0xd4 */
 	.long	0		/* 0xd8 */
 	.long	0		/* 0xdc */
-	.long	.kvmppc_h_cede - hcall_real_table
+	.long	DOTSYM(kvmppc_h_cede) - hcall_real_table
 	.long	0		/* 0xe4 */
 	.long	0		/* 0xe8 */
 	.long	0		/* 0xec */
@@ -2027,11 +2026,11 @@ hcall_real_table:
 	.long	0		/* 0x118 */
 	.long	0		/* 0x11c */
 	.long	0		/* 0x120 */
-	.long	.kvmppc_h_bulk_remove - hcall_real_table
+	.long	DOTSYM(kvmppc_h_bulk_remove) - hcall_real_table
 	.long	0		/* 0x128 */
 	.long	0		/* 0x12c */
 	.long	0		/* 0x130 */
-	.long	.kvmppc_h_set_xdabr - hcall_real_table
+	.long	DOTSYM(kvmppc_h_set_xdabr) - hcall_real_table
 hcall_real_table_end:
 
 ignore_hdec:
@@ -2256,17 +2255,30 @@ kvm_cede_exit:
 	/* Try to handle a machine check in real mode */
 machine_check_realmode:
 	mr	r3, r9		/* get vcpu pointer */
-	bl	.kvmppc_realmode_machine_check
+	bl	kvmppc_realmode_machine_check
 	nop
-	cmpdi	r3, 0		/* continue exiting from guest? */
+	cmpdi	r3, 0		/* Did we handle MCE ? */
 	ld	r9, HSTATE_KVM_VCPU(r13)
 	li	r12, BOOK3S_INTERRUPT_MACHINE_CHECK
-	beq	mc_cont
+	/*
+	 * Deliver unhandled/fatal (e.g. UE) MCE errors to guest through
+	 * machine check interrupt (set HSRR0 to 0x200). And for handled
+	 * errors (no-fatal), just go back to guest execution with current
+	 * HSRR0 instead of exiting guest. This new approach will inject
+	 * machine check to guest for fatal error causing guest to crash.
+	 *
+	 * The old code used to return to host for unhandled errors which
+	 * was causing guest to hang with soft lockups inside guest and
+	 * makes it difficult to recover guest instance.
+	 */
+	ld	r10, VCPU_PC(r9)
+	ld	r11, VCPU_MSR(r9)
+	bne	2f	/* Continue guest execution. */
 	/* If not, deliver a machine check.  SRR0/1 are already set */
 	li	r10, BOOK3S_INTERRUPT_MACHINE_CHECK
 	ld	r11, VCPU_MSR(r9)
 	bl	kvmppc_msr_interrupt
-	b	fast_interrupt_c_return
+2:	b	fast_interrupt_c_return
 
 /*
  * Check the reason we woke from nap, and take appropriate action.

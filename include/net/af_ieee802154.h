@@ -57,6 +57,14 @@ struct sockaddr_ieee802154 {
 /* get/setsockopt */
 #define SOL_IEEE802154	0
 
-#define WPAN_WANTACK	0
+#define WPAN_WANTACK		0
+#define WPAN_SECURITY		1
+#define WPAN_SECURITY_LEVEL	2
+
+#define WPAN_SECURITY_DEFAULT	0
+#define WPAN_SECURITY_OFF	1
+#define WPAN_SECURITY_ON	2
+
+#define WPAN_SECURITY_LEVEL_DEFAULT	(-1)
 
 #endif

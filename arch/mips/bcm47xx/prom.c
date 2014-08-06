@@ -69,15 +69,18 @@ static __init void prom_init_mem(void)
 	 * BCM47XX uses 128MB for addressing the ram, if the system contains
 	 * less that that amount of ram it remaps the ram more often into the
 	 * available space.
-	 * Accessing memory after 128MB will cause an exception.
-	 * max contains the biggest possible address supported by the platform.
-	 * If the method wants to try something above we assume 128MB ram.
 	 */
-	off = (unsigned long)prom_init;
-	max = off | ((128 << 20) - 1);
-	for (mem = (1 << 20); mem < (128 << 20); mem += (1 << 20)) {
-		if ((off + mem) > max) {
-			mem = (128 << 20);
+
+	/* Physical address, without mapping to any kernel segment */
+	off = CPHYSADDR((unsigned long)prom_init);
+
+	/* Accessing memory after 128 MiB will cause an exception */
+	max = 128 << 20;
+
+	for (mem = 1 << 20; mem < max; mem += 1 << 20) {
+		/* Loop condition may be not enough, off may be over 1 MiB */
+		if (off + mem >= max) {
+			mem = max;
 			printk(KERN_DEBUG "assume 128MB RAM\n");
 			break;
 		}

@@ -39,6 +39,7 @@
 #include <../drivers/ata/ahci.h>
 #include <linux/export.h>
 #include <linux/debugfs.h>
+#include <linux/prefetch.h>
 #include "mtip32xx.h"
 
 #define HW_CMD_SLOT_SZ		(MTIP_MAX_COMMAND_SLOTS * 32)
@@ -193,7 +194,9 @@ static void mtip_put_int_command(struct driver_data *dd, struct mtip_cmd *cmd)
 static struct request *mtip_rq_from_tag(struct driver_data *dd,
 					unsigned int tag)
 {
-	return blk_mq_tag_to_rq(dd->queue->queue_hw_ctx[0], tag);
+	struct blk_mq_hw_ctx *hctx = dd->queue->queue_hw_ctx[0];
+
+	return blk_mq_tag_to_rq(hctx->tags, tag);
 }
 
 static struct mtip_cmd *mtip_cmd_from_tag(struct driver_data *dd,
@@ -2378,6 +2381,8 @@ static void mtip_hw_submit_io(struct driver_data *dd, struct request *rq,
 	/* Map the scatter list for DMA access */
 	nents = dma_map_sg(&dd->pdev->dev, command->sg, nents, dma_dir);
 
+	prefetch(&port->flags);
+
 	command->scatter_ents = nents;
 
 	/*
@@ -2390,7 +2395,7 @@ static void mtip_hw_submit_io(struct driver_data *dd, struct request *rq,
 	fis = command->command;
 	fis->type        = 0x27;
 	fis->opts        = 1 << 7;
-	if (rq_data_dir(rq) == READ)
+	if (dma_dir == DMA_FROM_DEVICE)
 		fis->command = ATA_CMD_FPDMA_READ;
 	else
 		fis->command = ATA_CMD_FPDMA_WRITE;
@@ -2410,7 +2415,7 @@ static void mtip_hw_submit_io(struct driver_data *dd, struct request *rq,
 	fis->res3        = 0;
 	fill_command_sg(dd, command, nents);
 
-	if (command->unaligned)
+	if (unlikely(command->unaligned))
 		fis->device |= 1 << 7;
 
 	/* Populate the command header */
@@ -2431,7 +2436,7 @@ static void mtip_hw_submit_io(struct driver_data *dd, struct request *rq,
 	 * To prevent this command from being issued
 	 * if an internal command is in progress or error handling is active.
 	 */
-	if (port->flags & MTIP_PF_PAUSE_IO) {
+	if (unlikely(port->flags & MTIP_PF_PAUSE_IO)) {
 		set_bit(rq->tag, port->cmds_to_issue);
 		set_bit(MTIP_PF_ISSUE_CMDS_BIT, &port->flags);
 		return;
@@ -3752,7 +3757,7 @@ static bool mtip_check_unal_depth(struct blk_mq_hw_ctx *hctx,
 	struct driver_data *dd = hctx->queue->queuedata;
 	struct mtip_cmd *cmd = blk_mq_rq_to_pdu(rq);
 
-	if (!dd->unal_qdepth || rq_data_dir(rq) == READ)
+	if (rq_data_dir(rq) == READ || !dd->unal_qdepth)
 		return false;
 
 	/*
@@ -3774,11 +3779,11 @@ static int mtip_queue_rq(struct blk_mq_hw_ctx *hctx, struct request *rq)
 {
 	int ret;
 
-	if (mtip_check_unal_depth(hctx, rq))
+	if (unlikely(mtip_check_unal_depth(hctx, rq)))
 		return BLK_MQ_RQ_QUEUE_BUSY;
 
 	ret = mtip_submit_request(hctx, rq);
-	if (!ret)
+	if (likely(!ret))
 		return BLK_MQ_RQ_QUEUE_OK;
 
 	rq->errors = ret;

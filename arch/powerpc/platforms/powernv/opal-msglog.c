@@ -37,7 +37,8 @@ static ssize_t opal_msglog_read(struct file *file, struct kobject *kobj,
 {
 	struct memcons *mc = bin_attr->private;
 	const char *conbuf;
-	size_t ret, first_read = 0;
+	ssize_t ret;
+	size_t first_read = 0;
 	uint32_t out_pos, avail;
 
 	if (!mc)
@@ -69,6 +70,9 @@ static ssize_t opal_msglog_read(struct file *file, struct kobject *kobj,
 		to += first_read;
 		count -= first_read;
 		pos -= avail;
+
+		if (count <= 0)
+			goto out;
 	}
 
 	/* Sanity check. The firmware should not do this to us. */

@@ -60,8 +60,6 @@ static DEFINE_MUTEX(mce_chrdev_read_mutex);
 
 #define SPINUNIT 100	/* 100ns */
 
-atomic_t mce_entry;
-
 DEFINE_PER_CPU(unsigned, mce_exception_count);
 
 struct mce_bank *mce_banks __read_mostly;
@@ -1040,8 +1038,6 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 	DECLARE_BITMAP(valid_banks, MAX_NR_BANKS);
 	char *msg = "Unknown";
 
-	atomic_inc(&mce_entry);
-
 	this_cpu_inc(mce_exception_count);
 
 	if (!cfg->banks)
@@ -1171,7 +1167,6 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 		mce_report_event(regs);
 	mce_wrmsrl(MSR_IA32_MCG_STATUS, 0);
 out:
-	atomic_dec(&mce_entry);
 	sync_core();
 }
 EXPORT_SYMBOL_GPL(do_machine_check);

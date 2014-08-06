@@ -296,14 +296,3 @@ void __init udbg_init_40x_realmode(void)
 }
 
 #endif /* CONFIG_PPC_EARLY_DEBUG_40x */
-
-
-#ifdef CONFIG_PPC_EARLY_DEBUG_WSP
-
-void __init udbg_init_wsp(void)
-{
-	udbg_uart_init_mmio((void *)WSP_UART_VIRT, 1);
-	udbg_uart_setup(57600, 50000000);
-}
-
-#endif /* CONFIG_PPC_EARLY_DEBUG_WSP */

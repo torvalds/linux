@@ -498,7 +498,7 @@ static int sh_tmu_channel_setup(struct sh_tmu_channel *ch, unsigned int index,
 			ch->base = tmu->mapbase + 8 + ch->index * 12;
 	}
 
-	ch->irq = platform_get_irq(tmu->pdev, ch->index);
+	ch->irq = platform_get_irq(tmu->pdev, index);
 	if (ch->irq < 0) {
 		dev_err(&tmu->pdev->dev, "ch%u: failed to get irq\n",
 			ch->index);
@@ -644,10 +644,8 @@ static int sh_tmu_probe(struct platform_device *pdev)
 	}
 
 	tmu = kzalloc(sizeof(*tmu), GFP_KERNEL);
-	if (tmu == NULL) {
-		dev_err(&pdev->dev, "failed to allocate driver data\n");
+	if (tmu == NULL)
 		return -ENOMEM;
-	}
 
 	ret = sh_tmu_setup(tmu, pdev);
 	if (ret) {

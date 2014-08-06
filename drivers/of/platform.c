@@ -51,10 +51,6 @@ struct platform_device *of_find_device_by_node(struct device_node *np)
 }
 EXPORT_SYMBOL(of_find_device_by_node);
 
-#if defined(CONFIG_PPC_DCR)
-#include <asm/dcr.h>
-#endif
-
 #ifdef CONFIG_OF_ADDRESS
 /*
  * The following routines scan a subtree and registers a device for
@@ -68,66 +64,35 @@ EXPORT_SYMBOL(of_find_device_by_node);
  * of_device_make_bus_id - Use the device node data to assign a unique name
  * @dev: pointer to device structure that is linked to a device tree node
  *
- * This routine will first try using either the dcr-reg or the reg property
- * value to derive a unique name.  As a last resort it will use the node
- * name followed by a unique number.
+ * This routine will first try using the translated bus address to
+ * derive a unique name. If it cannot, then it will prepend names from
+ * parent nodes until a unique name can be derived.
  */
 void of_device_make_bus_id(struct device *dev)
 {
-	static atomic_t bus_no_reg_magic;
 	struct device_node *node = dev->of_node;
 	const __be32 *reg;
 	u64 addr;
-	const __be32 *addrp;
-	int magic;
 
-#ifdef CONFIG_PPC_DCR
-	/*
-	 * If it's a DCR based device, use 'd' for native DCRs
-	 * and 'D' for MMIO DCRs.
-	 */
-	reg = of_get_property(node, "dcr-reg", NULL);
-	if (reg) {
-#ifdef CONFIG_PPC_DCR_NATIVE
-		dev_set_name(dev, "d%x.%s", *reg, node->name);
-#else /* CONFIG_PPC_DCR_NATIVE */
-		u64 addr = of_translate_dcr_address(node, *reg, NULL);
-		if (addr != OF_BAD_ADDR) {
-			dev_set_name(dev, "D%llx.%s",
-				     (unsigned long long)addr, node->name);
+	/* Construct the name, using parent nodes if necessary to ensure uniqueness */
+	while (node->parent) {
+		/*
+		 * If the address can be translated, then that is as much
+		 * uniqueness as we need. Make it the first component and return
+		 */
+		reg = of_get_property(node, "reg", NULL);
+		if (reg && (addr = of_translate_address(node, reg)) != OF_BAD_ADDR) {
+			dev_set_name(dev, dev_name(dev) ? "%llx.%s:%s" : "%llx.%s",
+				     (unsigned long long)addr, node->name,
+				     dev_name(dev));
 			return;
 		}
-#endif /* !CONFIG_PPC_DCR_NATIVE */
-	}
-#endif /* CONFIG_PPC_DCR */
 
-	/*
-	 * For MMIO, get the physical address
-	 */
-	reg = of_get_property(node, "reg", NULL);
-	if (reg) {
-		if (of_can_translate_address(node)) {
-			addr = of_translate_address(node, reg);
-		} else {
-			addrp = of_get_address(node, 0, NULL, NULL);
-			if (addrp)
-				addr = of_read_number(addrp, 1);
-			else
-				addr = OF_BAD_ADDR;
-		}
-		if (addr != OF_BAD_ADDR) {
-			dev_set_name(dev, "%llx.%s",
-				     (unsigned long long)addr, node->name);
-			return;
-		}
+		/* format arguments only used if dev_name() resolves to NULL */
+		dev_set_name(dev, dev_name(dev) ? "%s:%s" : "%s",
+			     strrchr(node->full_name, '/') + 1, dev_name(dev));
+		node = node->parent;
 	}
-
-	/*
-	 * No BusID, use the node name and add a globally incremented
-	 * counter (and pray...)
-	 */
-	magic = atomic_add_return(1, &bus_no_reg_magic);
-	dev_set_name(dev, "%s.%d", node->name, magic - 1);
 }
 
 /**
@@ -149,9 +114,8 @@ struct platform_device *of_device_alloc(struct device_node *np,
 		return NULL;
 
 	/* count the io and irq resources */
-	if (of_can_translate_address(np))
-		while (of_address_to_resource(np, num_reg, &temp_res) == 0)
-			num_reg++;
+	while (of_address_to_resource(np, num_reg, &temp_res) == 0)
+		num_reg++;
 	num_irq = of_irq_count(np);
 
 	/* Populate the resource table */
@@ -174,9 +138,6 @@ struct platform_device *of_device_alloc(struct device_node *np,
 	}
 
 	dev->dev.of_node = of_node_get(np);
-#if defined(CONFIG_MICROBLAZE)
-	dev->dev.dma_mask = &dev->archdata.dma_mask;
-#endif
 	dev->dev.parent = parent;
 
 	if (bus_id)
@@ -187,6 +148,60 @@ struct platform_device *of_device_alloc(struct device_node *np,
 	return dev;
 }
 EXPORT_SYMBOL(of_device_alloc);
+
+/**
+ * of_dma_configure - Setup DMA configuration
+ * @dev:	Device to apply DMA configuration
+ *
+ * Try to get devices's DMA configuration from DT and update it
+ * accordingly.
+ *
+ * In case if platform code need to use own special DMA configuration,it
+ * can use Platform bus notifier and handle BUS_NOTIFY_ADD_DEVICE event
+ * to fix up DMA configuration.
+ */
+static void of_dma_configure(struct platform_device *pdev)
+{
+	u64 dma_addr, paddr, size;
+	int ret;
+	struct device *dev = &pdev->dev;
+
+	/*
+	 * Set default dma-mask to 32 bit. Drivers are expected to setup
+	 * the correct supported dma_mask.
+	 */
+	dev->coherent_dma_mask = DMA_BIT_MASK(32);
+
+	/*
+	 * Set it to coherent_dma_mask by default if the architecture
+	 * code has not set it.
+	 */
+	if (!dev->dma_mask)
+		dev->dma_mask = &dev->coherent_dma_mask;
+
+	/*
+	 * if dma-coherent property exist, call arch hook to setup
+	 * dma coherent operations.
+	 */
+	if (of_dma_is_coherent(dev->of_node)) {
+		set_arch_dma_coherent_ops(dev);
+		dev_dbg(dev, "device is dma coherent\n");
+	}
+
+	/*
+	 * if dma-ranges property doesn't exist - just return else
+	 * setup the dma offset
+	 */
+	ret = of_dma_get_range(dev->of_node, &dma_addr, &paddr, &size);
+	if (ret < 0) {
+		dev_dbg(dev, "no dma range information to setup\n");
+		return;
+	}
+
+	/* DMA ranges found. Calculate and set dma_pfn_offset */
+	dev->dma_pfn_offset = PFN_DOWN(paddr - dma_addr);
+	dev_dbg(dev, "dma_pfn_offset(%#08lx)\n", dev->dma_pfn_offset);
+}
 
 /**
  * of_platform_device_create_pdata - Alloc, initialize and register an of_device
@@ -214,12 +229,7 @@ static struct platform_device *of_platform_device_create_pdata(
 	if (!dev)
 		goto err_clear_flag;
 
-#if defined(CONFIG_MICROBLAZE)
-	dev->archdata.dma_mask = 0xffffffffUL;
-#endif
-	dev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
-	if (!dev->dev.dma_mask)
-		dev->dev.dma_mask = &dev->dev.coherent_dma_mask;
+	of_dma_configure(dev);
 	dev->dev.bus = &platform_bus_type;
 	dev->dev.platform_data = platform_data;
 

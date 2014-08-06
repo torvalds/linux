@@ -3,6 +3,8 @@
  * - Split from highmem.c
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/mm.h>
 #include <linux/export.h>
 #include <linux/swap.h>
@@ -15,6 +17,7 @@
 #include <linux/hash.h>
 #include <linux/highmem.h>
 #include <linux/bootmem.h>
+#include <linux/printk.h>
 #include <asm/tlbflush.h>
 
 #include <trace/events/block.h>
@@ -34,7 +37,7 @@ static __init int init_emergency_pool(void)
 
 	page_pool = mempool_create_page_pool(POOL_SIZE, 0);
 	BUG_ON(!page_pool);
-	printk("bounce pool size: %d pages\n", POOL_SIZE);
+	pr_info("pool size: %d pages\n", POOL_SIZE);
 
 	return 0;
 }
@@ -86,7 +89,7 @@ int init_emergency_isa_pool(void)
 				       mempool_free_pages, (void *) 0);
 	BUG_ON(!isa_page_pool);
 
-	printk("isa bounce pool size: %d pages\n", ISA_POOL_SIZE);
+	pr_info("isa pool size: %d pages\n", ISA_POOL_SIZE);
 	return 0;
 }
 

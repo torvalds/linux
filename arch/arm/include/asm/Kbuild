@@ -21,6 +21,7 @@ generic-y += parport.h
 generic-y += poll.h
 generic-y += preempt.h
 generic-y += resource.h
+generic-y += rwsem.h
 generic-y += sections.h
 generic-y += segment.h
 generic-y += sembuf.h

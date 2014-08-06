@@ -932,7 +932,7 @@ DEFINE_NFS4_IDMAP_EVENT(nfs4_map_gid_to_group);
 
 DECLARE_EVENT_CLASS(nfs4_read_event,
 		TP_PROTO(
-			const struct nfs_read_data *data,
+			const struct nfs_pgio_data *data,
 			int error
 		),
 
@@ -972,7 +972,7 @@ DECLARE_EVENT_CLASS(nfs4_read_event,
 #define DEFINE_NFS4_READ_EVENT(name) \
 	DEFINE_EVENT(nfs4_read_event, name, \
 			TP_PROTO( \
-				const struct nfs_read_data *data, \
+				const struct nfs_pgio_data *data, \
 				int error \
 			), \
 			TP_ARGS(data, error))
@@ -983,7 +983,7 @@ DEFINE_NFS4_READ_EVENT(nfs4_pnfs_read);
 
 DECLARE_EVENT_CLASS(nfs4_write_event,
 		TP_PROTO(
-			const struct nfs_write_data *data,
+			const struct nfs_pgio_data *data,
 			int error
 		),
 
@@ -1024,7 +1024,7 @@ DECLARE_EVENT_CLASS(nfs4_write_event,
 #define DEFINE_NFS4_WRITE_EVENT(name) \
 	DEFINE_EVENT(nfs4_write_event, name, \
 			TP_PROTO( \
-				const struct nfs_write_data *data, \
+				const struct nfs_pgio_data *data, \
 				int error \
 			), \
 			TP_ARGS(data, error))

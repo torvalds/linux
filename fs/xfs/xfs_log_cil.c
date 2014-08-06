@@ -97,7 +97,7 @@ xfs_cil_prepare_item(
 {
 	/* Account for the new LV being passed in */
 	if (lv->lv_buf_len != XFS_LOG_VEC_ORDERED) {
-		*diff_len += lv->lv_buf_len;
+		*diff_len += lv->lv_bytes;
 		*diff_iovecs += lv->lv_niovecs;
 	}
 
@@ -111,7 +111,7 @@ xfs_cil_prepare_item(
 	else if (old_lv != lv) {
 		ASSERT(lv->lv_buf_len != XFS_LOG_VEC_ORDERED);
 
-		*diff_len -= old_lv->lv_buf_len;
+		*diff_len -= old_lv->lv_bytes;
 		*diff_iovecs -= old_lv->lv_niovecs;
 		kmem_free(old_lv);
 	}
@@ -239,7 +239,7 @@ xlog_cil_insert_format_items(
 			 * that the space reservation accounting is correct.
 			 */
 			*diff_iovecs -= lv->lv_niovecs;
-			*diff_len -= lv->lv_buf_len;
+			*diff_len -= lv->lv_bytes;
 		} else {
 			/* allocate new data chunk */
 			lv = kmem_zalloc(buf_size, KM_SLEEP|KM_NOFS);
@@ -259,6 +259,7 @@ xlog_cil_insert_format_items(
 
 		/* The allocated data region lies beyond the iovec region */
 		lv->lv_buf_len = 0;
+		lv->lv_bytes = 0;
 		lv->lv_buf = (char *)lv + buf_size - nbytes;
 		ASSERT(IS_ALIGNED((unsigned long)lv->lv_buf, sizeof(uint64_t)));
 
@@ -385,7 +386,15 @@ xlog_cil_committed(
 	xfs_extent_busy_clear(mp, &ctx->busy_extents,
 			     (mp->m_flags & XFS_MOUNT_DISCARD) && !abort);
 
+	/*
+	 * If we are aborting the commit, wake up anyone waiting on the
+	 * committing list.  If we don't, then a shutdown we can leave processes
+	 * waiting in xlog_cil_force_lsn() waiting on a sequence commit that
+	 * will never happen because we aborted it.
+	 */
 	spin_lock(&ctx->cil->xc_push_lock);
+	if (abort)
+		wake_up_all(&ctx->cil->xc_commit_wait);
 	list_del(&ctx->committing);
 	spin_unlock(&ctx->cil->xc_push_lock);
 
@@ -564,8 +573,18 @@ restart:
 	spin_lock(&cil->xc_push_lock);
 	list_for_each_entry(new_ctx, &cil->xc_committing, committing) {
 		/*
+		 * Avoid getting stuck in this loop because we were woken by the
+		 * shutdown, but then went back to sleep once already in the
+		 * shutdown state.
+		 */
+		if (XLOG_FORCED_SHUTDOWN(log)) {
+			spin_unlock(&cil->xc_push_lock);
+			goto out_abort_free_ticket;
+		}
+
+		/*
 		 * Higher sequences will wait for this one so skip them.
-		 * Don't wait for own own sequence, either.
+		 * Don't wait for our own sequence, either.
 		 */
 		if (new_ctx->sequence >= ctx->sequence)
 			continue;
@@ -810,6 +829,13 @@ restart:
 	 */
 	spin_lock(&cil->xc_push_lock);
 	list_for_each_entry(ctx, &cil->xc_committing, committing) {
+		/*
+		 * Avoid getting stuck in this loop because we were woken by the
+		 * shutdown, but then went back to sleep once already in the
+		 * shutdown state.
+		 */
+		if (XLOG_FORCED_SHUTDOWN(log))
+			goto out_shutdown;
 		if (ctx->sequence > sequence)
 			continue;
 		if (!ctx->commit_lsn) {
@@ -833,14 +859,12 @@ restart:
 	 * push sequence after the above wait loop and the CIL still contains
 	 * dirty objects.
 	 *
-	 * When the push occurs, it will empty the CIL and
-	 * atomically increment the currect sequence past the push sequence and
-	 * move it into the committing list. Of course, if the CIL is clean at
-	 * the time of the push, it won't have pushed the CIL at all, so in that
-	 * case we should try the push for this sequence again from the start
-	 * just in case.
+	 * When the push occurs, it will empty the CIL and atomically increment
+	 * the currect sequence past the push sequence and move it into the
+	 * committing list. Of course, if the CIL is clean at the time of the
+	 * push, it won't have pushed the CIL at all, so in that case we should
+	 * try the push for this sequence again from the start just in case.
 	 */
-
 	if (sequence == cil->xc_current_sequence &&
 	    !list_empty(&cil->xc_cil)) {
 		spin_unlock(&cil->xc_push_lock);
@@ -849,6 +873,17 @@ restart:
 
 	spin_unlock(&cil->xc_push_lock);
 	return commit_lsn;
+
+	/*
+	 * We detected a shutdown in progress. We need to trigger the log force
+	 * to pass through it's iclog state machine error handling, even though
+	 * we are already in a shutdown state. Hence we can't return
+	 * NULLCOMMITLSN here as that has special meaning to log forces (i.e.
+	 * LSN is already stable), so we return a zero LSN instead.
+	 */
+out_shutdown:
+	spin_unlock(&cil->xc_push_lock);
+	return 0;
 }
 
 /*

@@ -125,9 +125,9 @@ static struct ubi_ainf_volume *add_vol(struct ubi_attach_info *ai, int vol_id,
 		parent = *p;
 		av = rb_entry(parent, struct ubi_ainf_volume, rb);
 
-		if (vol_id > av->vol_id)
+		if (vol_id < av->vol_id)
 			p = &(*p)->rb_left;
-		else if (vol_id > av->vol_id)
+		else
 			p = &(*p)->rb_right;
 	}
 

@@ -73,12 +73,7 @@ static void __tunnel_dst_set(struct ip_tunnel_dst *idst,
 {
 	struct dst_entry *old_dst;
 
-	if (dst) {
-		if (dst->flags & DST_NOCACHE)
-			dst = NULL;
-		else
-			dst_clone(dst);
-	}
+	dst_clone(dst);
 	old_dst = xchg((__force struct dst_entry **)&idst->dst, dst);
 	dst_release(old_dst);
 }
@@ -108,13 +103,14 @@ static struct rtable *tunnel_rtable_get(struct ip_tunnel *t, u32 cookie)
 
 	rcu_read_lock();
 	dst = rcu_dereference(this_cpu_ptr(t->dst_cache)->dst);
+	if (dst && !atomic_inc_not_zero(&dst->__refcnt))
+		dst = NULL;
 	if (dst) {
 		if (dst->obsolete && dst->ops->check(dst, cookie) == NULL) {
-			rcu_read_unlock();
 			tunnel_dst_reset(t);
-			return NULL;
+			dst_release(dst);
+			dst = NULL;
 		}
-		dst_hold(dst);
 	}
 	rcu_read_unlock();
 	return (struct rtable *)dst;
@@ -268,6 +264,7 @@ static struct ip_tunnel *ip_tunnel_find(struct ip_tunnel_net *itn,
 	__be32 remote = parms->iph.daddr;
 	__be32 local = parms->iph.saddr;
 	__be32 key = parms->i_key;
+	__be16 flags = parms->i_flags;
 	int link = parms->link;
 	struct ip_tunnel *t = NULL;
 	struct hlist_head *head = ip_bucket(itn, parms);
@@ -275,9 +272,9 @@ static struct ip_tunnel *ip_tunnel_find(struct ip_tunnel_net *itn,
 	hlist_for_each_entry_rcu(t, head, hash_node) {
 		if (local == t->parms.iph.saddr &&
 		    remote == t->parms.iph.daddr &&
-		    key == t->parms.i_key &&
 		    link == t->parms.link &&
-		    type == t->dev->type)
+		    type == t->dev->type &&
+		    ip_tunnel_key_match(&t->parms, flags, key))
 			break;
 	}
 	return t;
@@ -395,11 +392,10 @@ static struct ip_tunnel *ip_tunnel_create(struct net *net,
 					  struct ip_tunnel_net *itn,
 					  struct ip_tunnel_parm *parms)
 {
-	struct ip_tunnel *nt, *fbt;
+	struct ip_tunnel *nt;
 	struct net_device *dev;
 
 	BUG_ON(!itn->fb_tunnel_dev);
-	fbt = netdev_priv(itn->fb_tunnel_dev);
 	dev = __ip_tunnel_create(net, itn->fb_tunnel_dev->rtnl_link_ops, parms);
 	if (IS_ERR(dev))
 		return ERR_CAST(dev);
@@ -668,6 +664,7 @@ void ip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
 		dev->needed_headroom = max_headroom;
 
 	if (skb_cow_head(skb, dev->needed_headroom)) {
+		ip_rt_put(rt);
 		dev->stats.tx_dropped++;
 		kfree_skb(skb);
 		return;
@@ -747,19 +744,19 @@ int ip_tunnel_ioctl(struct net_device *dev, struct ip_tunnel_parm *p, int cmd)
 			goto done;
 		if (p->iph.ttl)
 			p->iph.frag_off |= htons(IP_DF);
-		if (!(p->i_flags&TUNNEL_KEY))
-			p->i_key = 0;
-		if (!(p->o_flags&TUNNEL_KEY))
-			p->o_key = 0;
+		if (!(p->i_flags & VTI_ISVTI)) {
+			if (!(p->i_flags & TUNNEL_KEY))
+				p->i_key = 0;
+			if (!(p->o_flags & TUNNEL_KEY))
+				p->o_key = 0;
+		}
 
 		t = ip_tunnel_find(itn, p, itn->fb_tunnel_dev->type);
 
 		if (!t && (cmd == SIOCADDTUNNEL)) {
 			t = ip_tunnel_create(net, itn, p);
-			if (IS_ERR(t)) {
-				err = PTR_ERR(t);
-				break;
-			}
+			err = PTR_ERR_OR_ZERO(t);
+			break;
 		}
 		if (dev != itn->fb_tunnel_dev && cmd == SIOCCHGTUNNEL) {
 			if (t != NULL) {

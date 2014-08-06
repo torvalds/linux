@@ -206,23 +206,21 @@ static void __init dtb_apic_setup(void)
 static void __init x86_flattree_get_config(void)
 {
 	u32 size, map_len;
-	struct boot_param_header *dt;
+	void *dt;
 
 	if (!initial_dtb)
 		return;
 
-	map_len = max(PAGE_SIZE - (initial_dtb & ~PAGE_MASK),
-			(u64)sizeof(struct boot_param_header));
+	map_len = max(PAGE_SIZE - (initial_dtb & ~PAGE_MASK), (u64)128);
 
-	dt = early_memremap(initial_dtb, map_len);
-	size = be32_to_cpu(dt->totalsize);
+	initial_boot_params = dt = early_memremap(initial_dtb, map_len);
+	size = of_get_flat_dt_size();
 	if (map_len < size) {
 		early_iounmap(dt, map_len);
-		dt = early_memremap(initial_dtb, size);
+		initial_boot_params = dt = early_memremap(initial_dtb, size);
 		map_len = size;
 	}
 
-	initial_boot_params = dt;
 	unflatten_and_copy_device_tree();
 	early_iounmap(dt, map_len);
 }

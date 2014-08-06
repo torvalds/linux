@@ -1,3 +1,4 @@
+obj-$(CONFIG_OMAP2_DSS_INIT) += omapdss-boot-init.o
 obj-$(CONFIG_OMAP2_DSS) += omapdss.o
 # Core DSS files
 omapdss-y := core.o dss.o dss_features.o dispc.o dispc_coefs.o display.o \
@@ -10,6 +11,8 @@ omapdss-$(CONFIG_OMAP2_DSS_RFBI) += rfbi.o
 omapdss-$(CONFIG_OMAP2_DSS_VENC) += venc.o
 omapdss-$(CONFIG_OMAP2_DSS_SDI) += sdi.o
 omapdss-$(CONFIG_OMAP2_DSS_DSI) += dsi.o
-omapdss-$(CONFIG_OMAP4_DSS_HDMI) += hdmi4.o hdmi_common.o hdmi_wp.o hdmi_pll.o \
-	hdmi_phy.o hdmi4_core.o
+omapdss-$(CONFIG_OMAP2_DSS_HDMI_COMMON) += hdmi_common.o hdmi_wp.o hdmi_pll.o \
+	hdmi_phy.o
+omapdss-$(CONFIG_OMAP4_DSS_HDMI) += hdmi4.o hdmi4_core.o
+omapdss-$(CONFIG_OMAP5_DSS_HDMI) += hdmi5.o hdmi5_core.o
 ccflags-$(CONFIG_OMAP2_DSS_DEBUG) += -DDEBUG

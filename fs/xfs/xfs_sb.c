@@ -291,7 +291,8 @@ xfs_mount_validate_sb(
 	    (sbp->sb_imax_pct > 100 /* zero sb_imax_pct is valid */)	||
 	    sbp->sb_dblocks == 0					||
 	    sbp->sb_dblocks > XFS_MAX_DBLOCKS(sbp)			||
-	    sbp->sb_dblocks < XFS_MIN_DBLOCKS(sbp))) {
+	    sbp->sb_dblocks < XFS_MIN_DBLOCKS(sbp)			||
+	    sbp->sb_shared_vn != 0)) {
 		xfs_notice(mp, "SB sanity check failed");
 		return XFS_ERROR(EFSCORRUPTED);
 	}
@@ -333,15 +334,6 @@ xfs_mount_validate_sb(
 		xfs_warn(mp, "Offline file system operation in progress!");
 		return XFS_ERROR(EFSCORRUPTED);
 	}
-
-	/*
-	 * Version 1 directory format has never worked on Linux.
-	 */
-	if (unlikely(!xfs_sb_version_hasdirv2(sbp))) {
-		xfs_warn(mp, "file system using version 1 directory format");
-		return XFS_ERROR(ENOSYS);
-	}
-
 	return 0;
 }
 

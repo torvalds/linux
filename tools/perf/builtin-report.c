@@ -72,6 +72,10 @@ static int report__config(const char *var, const char *value, void *cb)
 		rep->min_percent = strtof(value, NULL);
 		return 0;
 	}
+	if (!strcmp(var, "report.children")) {
+		symbol_conf.cumulate_callchain = perf_config_bool(var, value);
+		return 0;
+	}
 
 	return perf_default_config(var, value, cb);
 }
@@ -85,155 +89,51 @@ static void report__inc_stats(struct report *rep, struct hist_entry *he)
 	 */
 	if (he->stat.nr_events == 1)
 		rep->nr_entries++;
-
-	/*
-	 * Only counts number of samples at this stage as it's more
-	 * natural to do it here and non-sample events are also
-	 * counted in perf_session_deliver_event().  The dump_trace
-	 * requires this info is ready before going to the output tree.
-	 */
-	hists__inc_nr_events(he->hists, PERF_RECORD_SAMPLE);
-	if (!he->filtered)
-		he->hists->stats.nr_non_filtered_samples++;
 }
 
-static int report__add_mem_hist_entry(struct report *rep, struct addr_location *al,
-				      struct perf_sample *sample, struct perf_evsel *evsel)
+static int hist_iter__report_callback(struct hist_entry_iter *iter,
+				      struct addr_location *al, bool single,
+				      void *arg)
 {
-	struct symbol *parent = NULL;
-	struct hist_entry *he;
-	struct mem_info *mi, *mx;
-	uint64_t cost;
-	int err = sample__resolve_callchain(sample, &parent, evsel, al, rep->max_stack);
+	int err = 0;
+	struct report *rep = arg;
+	struct hist_entry *he = iter->he;
+	struct perf_evsel *evsel = iter->evsel;
+	struct mem_info *mi;
+	struct branch_info *bi;
 
-	if (err)
-		return err;
+	report__inc_stats(rep, he);
 
-	mi = sample__resolve_mem(sample, al);
-	if (!mi)
-		return -ENOMEM;
-
-	if (rep->hide_unresolved && !al->sym)
+	if (!ui__has_annotation())
 		return 0;
 
-	cost = sample->weight;
-	if (!cost)
-		cost = 1;
-
-	/*
-	 * must pass period=weight in order to get the correct
-	 * sorting from hists__collapse_resort() which is solely
-	 * based on periods. We want sorting be done on nr_events * weight
-	 * and this is indirectly achieved by passing period=weight here
-	 * and the he_stat__add_period() function.
-	 */
-	he = __hists__add_entry(&evsel->hists, al, parent, NULL, mi,
-				cost, cost, 0);
-	if (!he)
-		return -ENOMEM;
-
-	if (ui__has_annotation()) {
-		err = hist_entry__inc_addr_samples(he, evsel->idx, al->addr);
+	if (sort__mode == SORT_MODE__BRANCH) {
+		bi = he->branch_info;
+		err = addr_map_symbol__inc_samples(&bi->from, evsel->idx);
 		if (err)
 			goto out;
 
-		mx = he->mem_info;
-		err = addr_map_symbol__inc_samples(&mx->daddr, evsel->idx);
+		err = addr_map_symbol__inc_samples(&bi->to, evsel->idx);
+
+	} else if (rep->mem_mode) {
+		mi = he->mem_info;
+		err = addr_map_symbol__inc_samples(&mi->daddr, evsel->idx);
 		if (err)
 			goto out;
-	}
 
-	report__inc_stats(rep, he);
-
-	err = hist_entry__append_callchain(he, sample);
-out:
-	return err;
-}
-
-static int report__add_branch_hist_entry(struct report *rep, struct addr_location *al,
-					 struct perf_sample *sample, struct perf_evsel *evsel)
-{
-	struct symbol *parent = NULL;
-	unsigned i;
-	struct hist_entry *he;
-	struct branch_info *bi, *bx;
-	int err = sample__resolve_callchain(sample, &parent, evsel, al, rep->max_stack);
-
-	if (err)
-		return err;
-
-	bi = sample__resolve_bstack(sample, al);
-	if (!bi)
-		return -ENOMEM;
-
-	for (i = 0; i < sample->branch_stack->nr; i++) {
-		if (rep->hide_unresolved && !(bi[i].from.sym && bi[i].to.sym))
-			continue;
-
-		err = -ENOMEM;
-
-		/* overwrite the 'al' to branch-to info */
-		al->map = bi[i].to.map;
-		al->sym = bi[i].to.sym;
-		al->addr = bi[i].to.addr;
-		/*
-		 * The report shows the percentage of total branches captured
-		 * and not events sampled. Thus we use a pseudo period of 1.
-		 */
-		he = __hists__add_entry(&evsel->hists, al, parent, &bi[i], NULL,
-					1, 1, 0);
-		if (he) {
-			if (ui__has_annotation()) {
-				bx = he->branch_info;
-				err = addr_map_symbol__inc_samples(&bx->from,
-								   evsel->idx);
-				if (err)
-					goto out;
-
-				err = addr_map_symbol__inc_samples(&bx->to,
-								   evsel->idx);
-				if (err)
-					goto out;
-			}
-			report__inc_stats(rep, he);
-		} else
-			goto out;
-	}
-	err = 0;
-out:
-	free(bi);
-	return err;
-}
-
-static int report__add_hist_entry(struct report *rep, struct perf_evsel *evsel,
-				  struct addr_location *al, struct perf_sample *sample)
-{
-	struct symbol *parent = NULL;
-	struct hist_entry *he;
-	int err = sample__resolve_callchain(sample, &parent, evsel, al, rep->max_stack);
-
-	if (err)
-		return err;
-
-	he = __hists__add_entry(&evsel->hists, al, parent, NULL, NULL,
-				sample->period, sample->weight,
-				sample->transaction);
-	if (he == NULL)
-		return -ENOMEM;
-
-	err = hist_entry__append_callchain(he, sample);
-	if (err)
-		goto out;
-
-	if (ui__has_annotation())
 		err = hist_entry__inc_addr_samples(he, evsel->idx, al->addr);
 
-	report__inc_stats(rep, he);
+	} else if (symbol_conf.cumulate_callchain) {
+		if (single)
+			err = hist_entry__inc_addr_samples(he, evsel->idx,
+							   al->addr);
+	} else {
+		err = hist_entry__inc_addr_samples(he, evsel->idx, al->addr);
+	}
 
 out:
 	return err;
 }
-
 
 static int process_sample_event(struct perf_tool *tool,
 				union perf_event *event,
@@ -243,6 +143,10 @@ static int process_sample_event(struct perf_tool *tool,
 {
 	struct report *rep = container_of(tool, struct report, tool);
 	struct addr_location al;
+	struct hist_entry_iter iter = {
+		.hide_unresolved = rep->hide_unresolved,
+		.add_entry_cb = hist_iter__report_callback,
+	};
 	int ret;
 
 	if (perf_event__preprocess_sample(event, machine, &al, sample) < 0) {
@@ -257,22 +161,23 @@ static int process_sample_event(struct perf_tool *tool,
 	if (rep->cpu_list && !test_bit(sample->cpu, rep->cpu_bitmap))
 		return 0;
 
-	if (sort__mode == SORT_MODE__BRANCH) {
-		ret = report__add_branch_hist_entry(rep, &al, sample, evsel);
-		if (ret < 0)
-			pr_debug("problem adding lbr entry, skipping event\n");
-	} else if (rep->mem_mode == 1) {
-		ret = report__add_mem_hist_entry(rep, &al, sample, evsel);
-		if (ret < 0)
-			pr_debug("problem adding mem entry, skipping event\n");
-	} else {
-		if (al.map != NULL)
-			al.map->dso->hit = 1;
+	if (sort__mode == SORT_MODE__BRANCH)
+		iter.ops = &hist_iter_branch;
+	else if (rep->mem_mode)
+		iter.ops = &hist_iter_mem;
+	else if (symbol_conf.cumulate_callchain)
+		iter.ops = &hist_iter_cumulative;
+	else
+		iter.ops = &hist_iter_normal;
 
-		ret = report__add_hist_entry(rep, evsel, &al, sample);
-		if (ret < 0)
-			pr_debug("problem incrementing symbol period, skipping event\n");
-	}
+	if (al.map != NULL)
+		al.map->dso->hit = 1;
+
+	ret = hist_entry_iter__add(&iter, &al, evsel, sample, rep->max_stack,
+				   rep);
+	if (ret < 0)
+		pr_debug("problem adding hist entry, skipping event\n");
+
 	return ret;
 }
 
@@ -327,6 +232,14 @@ static int report__setup_sample_type(struct report *rep)
 				ui__error("Can't register callchain params.\n");
 				return -EINVAL;
 			}
+	}
+
+	if (symbol_conf.cumulate_callchain) {
+		/* Silently ignore if callchain is missing */
+		if (!(sample_type & PERF_SAMPLE_CALLCHAIN)) {
+			symbol_conf.cumulate_callchain = false;
+			perf_hpp__cancel_cumulate();
+		}
 	}
 
 	if (sort__mode == SORT_MODE__BRANCH) {
@@ -712,6 +625,8 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT_CALLBACK_DEFAULT('g', "call-graph", &report, "output_type,min_percent[,print_limit],call_order",
 		     "Display callchains using output_type (graph, flat, fractal, or none) , min percent threshold, optional print limit, callchain order, key (function or address). "
 		     "Default: fractal,0.5,callee,function", &report_parse_callchain_opt, callchain_default_opt),
+	OPT_BOOLEAN(0, "children", &symbol_conf.cumulate_callchain,
+		    "Accumulate callchains of children and show total overhead as well"),
 	OPT_INTEGER(0, "max-stack", &report.max_stack,
 		    "Set the maximum stack depth when parsing the callchain, "
 		    "anything beyond the specified depth will be ignored. "
@@ -804,8 +719,10 @@ repeat:
 	has_br_stack = perf_header__has_feat(&session->header,
 					     HEADER_BRANCH_STACK);
 
-	if (branch_mode == -1 && has_br_stack)
+	if (branch_mode == -1 && has_br_stack) {
 		sort__mode = SORT_MODE__BRANCH;
+		symbol_conf.cumulate_callchain = false;
+	}
 
 	if (report.mem_mode) {
 		if (sort__mode == SORT_MODE__BRANCH) {
@@ -813,6 +730,7 @@ repeat:
 			goto error;
 		}
 		sort__mode = SORT_MODE__MEMORY;
+		symbol_conf.cumulate_callchain = false;
 	}
 
 	if (setup_sorting() < 0) {

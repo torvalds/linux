@@ -100,6 +100,9 @@ extern int radeon_dpm;
 extern int radeon_aspm;
 extern int radeon_runtime_pm;
 extern int radeon_hard_reset;
+extern int radeon_vm_size;
+extern int radeon_vm_block_size;
+extern int radeon_deep_color;
 
 /*
  * Copy from radeon_drv.h so we don't have to include both and have conflicting
@@ -676,14 +679,16 @@ void radeon_doorbell_free(struct radeon_device *rdev, u32 doorbell);
  * IRQS.
  */
 
-struct radeon_unpin_work {
-	struct work_struct work;
-	struct radeon_device *rdev;
-	int crtc_id;
-	struct radeon_fence *fence;
+struct radeon_flip_work {
+	struct work_struct		flip_work;
+	struct work_struct		unpin_work;
+	struct radeon_device		*rdev;
+	int				crtc_id;
+	struct drm_framebuffer		*fb;
 	struct drm_pending_vblank_event *event;
-	struct radeon_bo *old_rbo;
-	u64 new_crtc_base;
+	struct radeon_bo		*old_rbo;
+	struct radeon_bo		*new_rbo;
+	struct radeon_fence		*fence;
 };
 
 struct r500_irq_stat_regs {
@@ -744,10 +749,6 @@ union radeon_irq_stat_regs {
 	struct evergreen_irq_stat_regs evergreen;
 	struct cik_irq_stat_regs cik;
 };
-
-#define RADEON_MAX_HPD_PINS 7
-#define RADEON_MAX_CRTCS 6
-#define RADEON_MAX_AFMT_BLOCKS 7
 
 struct radeon_irq {
 	bool				installed;
@@ -835,13 +836,8 @@ struct radeon_mec {
 /* maximum number of VMIDs */
 #define RADEON_NUM_VM	16
 
-/* defines number of bits in page table versus page directory,
- * a page is 4KB so we have 12 bits offset, 9 bits in the page
- * table and the remaining 19 bits are in the page directory */
-#define RADEON_VM_BLOCK_SIZE   9
-
 /* number of entries in page table */
-#define RADEON_VM_PTE_COUNT (1 << RADEON_VM_BLOCK_SIZE)
+#define RADEON_VM_PTE_COUNT (1 << radeon_vm_block_size)
 
 /* PTBs (Page Table Blocks) need to be aligned to 32K */
 #define RADEON_VM_PTB_ALIGN_SIZE   32768
@@ -853,6 +849,15 @@ struct radeon_mec {
 #define R600_PTE_SNOOPED	(1 << 2)
 #define R600_PTE_READABLE	(1 << 5)
 #define R600_PTE_WRITEABLE	(1 << 6)
+
+/* PTE (Page Table Entry) fragment field for different page sizes */
+#define R600_PTE_FRAG_4KB	(0 << 7)
+#define R600_PTE_FRAG_64KB	(4 << 7)
+#define R600_PTE_FRAG_256KB	(6 << 7)
+
+/* flags used for GART page table entries on R600+ */
+#define R600_PTE_GART	( R600_PTE_VALID | R600_PTE_SYSTEM | R600_PTE_SNOOPED \
+			| R600_PTE_READABLE | R600_PTE_WRITEABLE)
 
 struct radeon_vm_pt {
 	struct radeon_bo		*bo;
@@ -986,8 +991,8 @@ struct radeon_cs_reloc {
 	struct radeon_bo		*robj;
 	struct ttm_validate_buffer	tv;
 	uint64_t			gpu_offset;
-	unsigned			domain;
-	unsigned			alt_domain;
+	unsigned			prefered_domains;
+	unsigned			allowed_domains;
 	uint32_t			tiling_flags;
 	uint32_t			handle;
 };
@@ -1771,7 +1776,8 @@ struct radeon_asic {
 	/* gart */
 	struct {
 		void (*tlb_flush)(struct radeon_device *rdev);
-		int (*set_page)(struct radeon_device *rdev, int i, uint64_t addr);
+		void (*set_page)(struct radeon_device *rdev, unsigned i,
+				 uint64_t addr);
 	} gart;
 	struct {
 		int (*init)(struct radeon_device *rdev);
@@ -1883,9 +1889,8 @@ struct radeon_asic {
 	} dpm;
 	/* pageflipping */
 	struct {
-		void (*pre_page_flip)(struct radeon_device *rdev, int crtc);
-		u32 (*page_flip)(struct radeon_device *rdev, int crtc, u64 crtc_base);
-		void (*post_page_flip)(struct radeon_device *rdev, int crtc);
+		void (*page_flip)(struct radeon_device *rdev, int crtc, u64 crtc_base);
+		bool (*page_flip_pending)(struct radeon_device *rdev, int crtc);
 	} pflip;
 };
 
@@ -1924,6 +1929,7 @@ struct r600_asic {
 	unsigned		tiling_group_size;
 	unsigned		tile_config;
 	unsigned		backend_map;
+	unsigned		active_simds;
 };
 
 struct rv770_asic {
@@ -1949,6 +1955,7 @@ struct rv770_asic {
 	unsigned		tiling_group_size;
 	unsigned		tile_config;
 	unsigned		backend_map;
+	unsigned		active_simds;
 };
 
 struct evergreen_asic {
@@ -1975,6 +1982,7 @@ struct evergreen_asic {
 	unsigned tiling_group_size;
 	unsigned tile_config;
 	unsigned backend_map;
+	unsigned active_simds;
 };
 
 struct cayman_asic {
@@ -2013,6 +2021,7 @@ struct cayman_asic {
 	unsigned multi_gpu_tile_size;
 
 	unsigned tile_config;
+	unsigned active_simds;
 };
 
 struct si_asic {
@@ -2043,6 +2052,7 @@ struct si_asic {
 
 	unsigned tile_config;
 	uint32_t tile_mode_array[32];
+	uint32_t active_cus;
 };
 
 struct cik_asic {
@@ -2074,6 +2084,7 @@ struct cik_asic {
 	unsigned tile_config;
 	uint32_t tile_mode_array[32];
 	uint32_t macrotile_mode_array[16];
+	uint32_t active_cus;
 };
 
 union radeon_asic_config {
@@ -2745,9 +2756,8 @@ void radeon_ring_write(struct radeon_ring *ring, uint32_t v);
 #define radeon_pm_finish(rdev) (rdev)->asic->pm.finish((rdev))
 #define radeon_pm_init_profile(rdev) (rdev)->asic->pm.init_profile((rdev))
 #define radeon_pm_get_dynpm_state(rdev) (rdev)->asic->pm.get_dynpm_state((rdev))
-#define radeon_pre_page_flip(rdev, crtc) (rdev)->asic->pflip.pre_page_flip((rdev), (crtc))
 #define radeon_page_flip(rdev, crtc, base) (rdev)->asic->pflip.page_flip((rdev), (crtc), (base))
-#define radeon_post_page_flip(rdev, crtc) (rdev)->asic->pflip.post_page_flip((rdev), (crtc))
+#define radeon_page_flip_pending(rdev, crtc) (rdev)->asic->pflip.page_flip_pending((rdev), (crtc))
 #define radeon_wait_for_vblank(rdev, crtc) (rdev)->asic->display.wait_for_vblank((rdev), (crtc))
 #define radeon_mc_wait_for_idle(rdev) (rdev)->asic->mc_wait_for_idle((rdev))
 #define radeon_get_xclk(rdev) (rdev)->asic->get_xclk((rdev))

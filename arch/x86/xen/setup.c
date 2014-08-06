@@ -27,7 +27,6 @@
 #include <xen/interface/memory.h>
 #include <xen/interface/physdev.h>
 #include <xen/features.h>
-#include "mmu.h"
 #include "xen-ops.h"
 #include "vdso.h"
 
@@ -82,9 +81,6 @@ static void __init xen_add_extra_mem(u64 start, u64 size)
 
 	memblock_reserve(start, size);
 
-	if (xen_feature(XENFEAT_auto_translated_physmap))
-		return;
-
 	xen_max_p2m_pfn = PFN_DOWN(start + size);
 	for (pfn = PFN_DOWN(start); pfn < xen_max_p2m_pfn; pfn++) {
 		unsigned long mfn = pfn_to_mfn(pfn);
@@ -107,7 +103,6 @@ static unsigned long __init xen_do_chunk(unsigned long start,
 		.domid        = DOMID_SELF
 	};
 	unsigned long len = 0;
-	int xlated_phys = xen_feature(XENFEAT_auto_translated_physmap);
 	unsigned long pfn;
 	int ret;
 
@@ -121,7 +116,7 @@ static unsigned long __init xen_do_chunk(unsigned long start,
 				continue;
 			frame = mfn;
 		} else {
-			if (!xlated_phys && mfn != INVALID_P2M_ENTRY)
+			if (mfn != INVALID_P2M_ENTRY)
 				continue;
 			frame = pfn;
 		}
@@ -159,13 +154,6 @@ static unsigned long __init xen_do_chunk(unsigned long start,
 static unsigned long __init xen_release_chunk(unsigned long start,
 					      unsigned long end)
 {
-	/*
-	 * Xen already ballooned out the E820 non RAM regions for us
-	 * and set them up properly in EPT.
-	 */
-	if (xen_feature(XENFEAT_auto_translated_physmap))
-		return end - start;
-
 	return xen_do_chunk(start, end, true);
 }
 
@@ -234,13 +222,7 @@ static void __init xen_set_identity_and_release_chunk(
 	 * (except for the ISA region which must be 1:1 mapped) to
 	 * release the refcounts (in Xen) on the original frames.
 	 */
-
-	/*
-	 * PVH E820 matches the hypervisor's P2M which means we need to
-	 * account for the proper values of *release and *identity.
-	 */
-	for (pfn = start_pfn; !xen_feature(XENFEAT_auto_translated_physmap) &&
-	     pfn <= max_pfn_mapped && pfn < end_pfn; pfn++) {
+	for (pfn = start_pfn; pfn <= max_pfn_mapped && pfn < end_pfn; pfn++) {
 		pte_t pte = __pte_ma(0);
 
 		if (pfn < PFN_UP(ISA_END_ADDRESS))
@@ -518,6 +500,35 @@ char * __init xen_memory_setup(void)
 }
 
 /*
+ * Machine specific memory setup for auto-translated guests.
+ */
+char * __init xen_auto_xlated_memory_setup(void)
+{
+	static struct e820entry map[E820MAX] __initdata;
+
+	struct xen_memory_map memmap;
+	int i;
+	int rc;
+
+	memmap.nr_entries = E820MAX;
+	set_xen_guest_handle(memmap.buffer, map);
+
+	rc = HYPERVISOR_memory_op(XENMEM_memory_map, &memmap);
+	if (rc < 0)
+		panic("No memory map (%d)\n", rc);
+
+	sanitize_e820_map(map, ARRAY_SIZE(map), &memmap.nr_entries);
+
+	for (i = 0; i < memmap.nr_entries; i++)
+		e820_add_region(map[i].addr, map[i].size, map[i].type);
+
+	memblock_reserve(__pa(xen_start_info->mfn_list),
+			 xen_start_info->pt_base - xen_start_info->mfn_list);
+
+	return "Xen";
+}
+
+/*
  * Set the bit indicating "nosegneg" library variants should be used.
  * We only need to bother in pure 32-bit mode; compat 32-bit processes
  * can have un-truncated segments, so wrapping around is allowed.
@@ -525,10 +536,17 @@ char * __init xen_memory_setup(void)
 static void __init fiddle_vdso(void)
 {
 #ifdef CONFIG_X86_32
+	/*
+	 * This could be called before selected_vdso32 is initialized, so
+	 * just fiddle with both possible images.  vdso_image_32_syscall
+	 * can't be selected, since it only exists on 64-bit systems.
+	 */
 	u32 *mask;
-	mask = VDSO32_SYMBOL(&vdso32_int80_start, NOTE_MASK);
+	mask = vdso_image_32_int80.data +
+		vdso_image_32_int80.sym_VDSO32_NOTE_MASK;
 	*mask |= 1 << VDSO_NOTE_NONEGSEG_BIT;
-	mask = VDSO32_SYMBOL(&vdso32_sysenter_start, NOTE_MASK);
+	mask = vdso_image_32_sysenter.data +
+		vdso_image_32_sysenter.sym_VDSO32_NOTE_MASK;
 	*mask |= 1 << VDSO_NOTE_NONEGSEG_BIT;
 #endif
 }
@@ -583,13 +601,7 @@ void xen_enable_syscall(void)
 	}
 #endif /* CONFIG_X86_64 */
 }
-void xen_enable_nmi(void)
-{
-#ifdef CONFIG_X86_64
-	if (register_callback(CALLBACKTYPE_nmi, (char *)nmi))
-		BUG();
-#endif
-}
+
 void __init xen_pvmmu_arch_setup(void)
 {
 	HYPERVISOR_vm_assist(VMASST_CMD_enable, VMASST_TYPE_4gb_segments);
@@ -604,7 +616,6 @@ void __init xen_pvmmu_arch_setup(void)
 
 	xen_enable_sysenter();
 	xen_enable_syscall();
-	xen_enable_nmi();
 }
 
 /* This function is not called for HVM domains */

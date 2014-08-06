@@ -1227,7 +1227,7 @@ static int cfg80211_rtw_set_default_key(struct wiphy *wiphy,
 
 static int cfg80211_rtw_get_station(struct wiphy *wiphy,
 				    struct net_device *ndev,
-				    u8 *mac, struct station_info *sinfo)
+				    const u8 *mac, struct station_info *sinfo)
 {
 	int ret = 0;
 	struct rtw_adapter *padapter = wiphy_to_adapter(wiphy);
@@ -2903,7 +2903,7 @@ static int cfg80211_rtw_stop_ap(struct wiphy *wiphy, struct net_device *ndev)
 }
 
 static int cfg80211_rtw_add_station(struct wiphy *wiphy,
-				    struct net_device *ndev, u8 *mac,
+				    struct net_device *ndev, const u8 *mac,
 				    struct station_parameters *params)
 {
 	DBG_8723A("%s(%s)\n", __func__, ndev->name);
@@ -2912,7 +2912,7 @@ static int cfg80211_rtw_add_station(struct wiphy *wiphy,
 }
 
 static int cfg80211_rtw_del_station(struct wiphy *wiphy,
-				    struct net_device *ndev, u8 *mac)
+				    struct net_device *ndev, const u8 *mac)
 {
 	int ret = 0;
 	struct list_head *phead, *plist, *ptmp;
@@ -2988,7 +2988,7 @@ static int cfg80211_rtw_del_station(struct wiphy *wiphy,
 }
 
 static int cfg80211_rtw_change_station(struct wiphy *wiphy,
-				       struct net_device *ndev, u8 *mac,
+				       struct net_device *ndev, const u8 *mac,
 				       struct station_parameters *params)
 {
 	DBG_8723A("%s(%s)\n", __func__, ndev->name);

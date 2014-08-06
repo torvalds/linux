@@ -204,7 +204,7 @@ void omap4iss_configure_bridge(struct iss_device *iss,
 	iss_reg_write(iss, OMAP4_ISS_MEM_ISP_SYS1, ISP5_CTRL, isp5ctrl_val);
 }
 
-#if defined(DEBUG) && defined(ISS_ISR_DEBUG)
+#ifdef ISS_ISR_DEBUG
 static void iss_isr_dbg(struct iss_device *iss, u32 irqstatus)
 {
 	static const char * const name[] = {
@@ -347,14 +347,14 @@ static irqreturn_t iss_isr(int irq, void *_iss)
 			omap4iss_resizer_isr(&iss->resizer,
 					     isp_irqstatus & resizer_events);
 
-#if defined(DEBUG) && defined(ISS_ISR_DEBUG)
+#ifdef ISS_ISR_DEBUG
 		iss_isp_isr_dbg(iss, isp_irqstatus);
 #endif
 	}
 
 	omap4iss_flush(iss);
 
-#if defined(DEBUG) && defined(ISS_ISR_DEBUG)
+#ifdef ISS_ISR_DEBUG
 	iss_isr_dbg(iss, irqstatus);
 #endif
 
@@ -734,18 +734,17 @@ static int iss_pipeline_is_last(struct media_entity *me)
 
 static int iss_reset(struct iss_device *iss)
 {
-	unsigned long timeout = 0;
+	unsigned int timeout;
 
 	iss_reg_set(iss, OMAP4_ISS_MEM_TOP, ISS_HL_SYSCONFIG,
 		    ISS_HL_SYSCONFIG_SOFTRESET);
 
-	while (iss_reg_read(iss, OMAP4_ISS_MEM_TOP, ISS_HL_SYSCONFIG) &
-	       ISS_HL_SYSCONFIG_SOFTRESET) {
-		if (timeout++ > 100) {
-			dev_alert(iss->dev, "cannot reset ISS\n");
-			return -ETIMEDOUT;
-		}
-		usleep_range(10, 10);
+	timeout = iss_poll_condition_timeout(
+		!(iss_reg_read(iss, OMAP4_ISS_MEM_TOP, ISS_HL_SYSCONFIG) &
+		ISS_HL_SYSCONFIG_SOFTRESET), 1000, 10, 100);
+	if (timeout) {
+		dev_err(iss->dev, "ISS reset timeout\n");
+		return -ETIMEDOUT;
 	}
 
 	iss->crashed = 0;
@@ -754,7 +753,7 @@ static int iss_reset(struct iss_device *iss)
 
 static int iss_isp_reset(struct iss_device *iss)
 {
-	unsigned long timeout = 0;
+	unsigned int timeout;
 
 	/* Fist, ensure that the ISP is IDLE (no transactions happening) */
 	iss_reg_update(iss, OMAP4_ISS_MEM_ISP_SYS1, ISP5_SYSCONFIG,
@@ -763,29 +762,24 @@ static int iss_isp_reset(struct iss_device *iss)
 
 	iss_reg_set(iss, OMAP4_ISS_MEM_ISP_SYS1, ISP5_CTRL, ISP5_CTRL_MSTANDBY);
 
-	for (;;) {
-		if (iss_reg_read(iss, OMAP4_ISS_MEM_ISP_SYS1, ISP5_CTRL) &
-		    ISP5_CTRL_MSTANDBY_WAIT)
-			break;
-		if (timeout++ > 1000) {
-			dev_alert(iss->dev, "cannot set ISP5 to standby\n");
-			return -ETIMEDOUT;
-		}
-		usleep_range(1000, 1500);
+	timeout = iss_poll_condition_timeout(
+		iss_reg_read(iss, OMAP4_ISS_MEM_ISP_SYS1, ISP5_CTRL) &
+		ISP5_CTRL_MSTANDBY_WAIT, 1000000, 1000, 1500);
+	if (timeout) {
+		dev_err(iss->dev, "ISP5 standby timeout\n");
+		return -ETIMEDOUT;
 	}
 
 	/* Now finally, do the reset */
 	iss_reg_set(iss, OMAP4_ISS_MEM_ISP_SYS1, ISP5_SYSCONFIG,
 		    ISP5_SYSCONFIG_SOFTRESET);
 
-	timeout = 0;
-	while (iss_reg_read(iss, OMAP4_ISS_MEM_ISP_SYS1, ISP5_SYSCONFIG) &
-	       ISP5_SYSCONFIG_SOFTRESET) {
-		if (timeout++ > 1000) {
-			dev_alert(iss->dev, "cannot reset ISP5\n");
-			return -ETIMEDOUT;
-		}
-		usleep_range(1000, 1500);
+	timeout = iss_poll_condition_timeout(
+		!(iss_reg_read(iss, OMAP4_ISS_MEM_ISP_SYS1, ISP5_SYSCONFIG) &
+		ISP5_SYSCONFIG_SOFTRESET), 1000000, 1000, 1500);
+	if (timeout) {
+		dev_err(iss->dev, "ISP5 reset timeout\n");
+		return -ETIMEDOUT;
 	}
 
 	return 0;

@@ -267,7 +267,6 @@ struct tps65218 {
 	u32 irq_mask;
 	struct regmap_irq_chip_data *irq_data;
 	struct regulator_desc desc[TPS65218_NUM_REGULATOR];
-	struct regulator_dev *rdev[TPS65218_NUM_REGULATOR];
 	struct tps_info *info[TPS65218_NUM_REGULATOR];
 	struct regmap *regmap;
 };

@@ -138,8 +138,8 @@ static __le32 ext4_superblock_csum(struct super_block *sb,
 	return cpu_to_le32(csum);
 }
 
-int ext4_superblock_csum_verify(struct super_block *sb,
-				struct ext4_super_block *es)
+static int ext4_superblock_csum_verify(struct super_block *sb,
+				       struct ext4_super_block *es)
 {
 	if (!EXT4_HAS_RO_COMPAT_FEATURE(sb,
 				       EXT4_FEATURE_RO_COMPAT_METADATA_CSUM))
@@ -879,6 +879,7 @@ static struct inode *ext4_alloc_inode(struct super_block *sb)
 		return NULL;
 
 	ei->vfs_inode.i_version = 1;
+	spin_lock_init(&ei->i_raw_lock);
 	INIT_LIST_HEAD(&ei->i_prealloc_list);
 	spin_lock_init(&ei->i_prealloc_lock);
 	ext4_es_init_tree(&ei->i_es_tree);
@@ -1903,7 +1904,7 @@ static int ext4_setup_super(struct super_block *sb, struct ext4_super_block *es,
 	if (!(sbi->s_mount_state & EXT4_VALID_FS))
 		ext4_msg(sb, KERN_WARNING, "warning: mounting unchecked fs, "
 			 "running e2fsck is recommended");
-	else if ((sbi->s_mount_state & EXT4_ERROR_FS))
+	else if (sbi->s_mount_state & EXT4_ERROR_FS)
 		ext4_msg(sb, KERN_WARNING,
 			 "warning: mounting fs with errors, "
 			 "running e2fsck is recommended");
@@ -2403,6 +2404,16 @@ static ext4_fsblk_t descriptor_loc(struct super_block *sb,
 	bg = sbi->s_desc_per_block * nr;
 	if (ext4_bg_has_super(sb, bg))
 		has_super = 1;
+
+	/*
+	 * If we have a meta_bg fs with 1k blocks, group 0's GDT is at
+	 * block 2, not 1.  If s_first_data_block == 0 (bigalloc is enabled
+	 * on modern mke2fs or blksize > 1k on older mke2fs) then we must
+	 * compensate.
+	 */
+	if (sb->s_blocksize == 1024 && nr == 0 &&
+	    le32_to_cpu(EXT4_SB(sb)->s_es->s_first_data_block) == 0)
+		has_super++;
 
 	return (has_super + ext4_group_first_block_no(sb, bg));
 }
@@ -3337,7 +3348,7 @@ static ext4_fsblk_t ext4_calculate_resv_clusters(struct super_block *sb)
 	 * By default we reserve 2% or 4096 clusters, whichever is smaller.
 	 * This should cover the situations where we can not afford to run
 	 * out of space like for example punch hole, or converting
-	 * uninitialized extents in delalloc path. In most cases such
+	 * unwritten extents in delalloc path. In most cases such
 	 * allocation would require 1, or 2 blocks, higher numbers are
 	 * very rare.
 	 */
@@ -5370,6 +5381,7 @@ static ssize_t ext4_quota_write(struct super_block *sb, int type,
 	bh = ext4_bread(handle, inode, blk, 1, &err);
 	if (!bh)
 		goto out;
+	BUFFER_TRACE(bh, "get write access");
 	err = ext4_journal_get_write_access(handle, bh);
 	if (err) {
 		brelse(bh);

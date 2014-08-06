@@ -31,6 +31,7 @@
 #include <linux/amba/mmci.h>
 #include <linux/gfp.h>
 #include <linux/mtd/physmap.h>
+#include <linux/memblock.h>
 
 #include <mach/hardware.h>
 #include <asm/irq.h>
@@ -385,19 +386,15 @@ void __init realview_timer_init(unsigned int timer_irq)
 /*
  * Setup the memory banks.
  */
-void realview_fixup(struct tag *tags, char **from, struct meminfo *meminfo)
+void realview_fixup(struct tag *tags, char **from)
 {
 	/*
 	 * Most RealView platforms have 512MB contiguous RAM at 0x70000000.
 	 * Half of this is mirrored at 0.
 	 */
 #ifdef CONFIG_REALVIEW_HIGH_PHYS_OFFSET
-	meminfo->bank[0].start = 0x70000000;
-	meminfo->bank[0].size = SZ_512M;
-	meminfo->nr_banks = 1;
+	memblock_add(0x70000000, SZ_512M);
 #else
-	meminfo->bank[0].start = 0;
-	meminfo->bank[0].size = SZ_256M;
-	meminfo->nr_banks = 1;
+	memblock_add(0, SZ_256M);
 #endif
 }

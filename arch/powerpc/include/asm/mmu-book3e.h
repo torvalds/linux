@@ -223,10 +223,6 @@ typedef struct {
 	unsigned int	id;
 	unsigned int	active;
 	unsigned long	vdso_base;
-#ifdef CONFIG_PPC_ICSWX
-	struct spinlock *cop_lockp;	/* guard cop related stuff */
-	unsigned long acop;		/* mask of enabled coprocessor types */
-#endif /* CONFIG_PPC_ICSWX */
 #ifdef CONFIG_PPC_MM_SLICES
 	u64 low_slices_psize;   /* SLB page size encodings */
 	u64 high_slices_psize;  /* 4 bits per slice for now */

@@ -243,14 +243,11 @@ static int nbd_send_req(struct nbd_device *nbd, struct request *req)
 	struct nbd_request request;
 	unsigned long size = blk_rq_bytes(req);
 
+	memset(&request, 0, sizeof(request));
 	request.magic = htonl(NBD_REQUEST_MAGIC);
 	request.type = htonl(nbd_cmd(req));
 
-	if (nbd_cmd(req) == NBD_CMD_FLUSH) {
-		/* Other values are reserved for FLUSH requests.  */
-		request.from = 0;
-		request.len = 0;
-	} else {
+	if (nbd_cmd(req) != NBD_CMD_FLUSH && nbd_cmd(req) != NBD_CMD_DISC) {
 		request.from = cpu_to_be64((u64)blk_rq_pos(req) << 9);
 		request.len = htonl(size);
 	}

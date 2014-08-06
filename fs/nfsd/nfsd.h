@@ -15,11 +15,20 @@
 #include <linux/nfs2.h>
 #include <linux/nfs3.h>
 #include <linux/nfs4.h>
+#include <linux/sunrpc/svc.h>
 #include <linux/sunrpc/msg_prot.h>
 
-#include <linux/nfsd/debug.h>
-#include <linux/nfsd/export.h>
-#include <linux/nfsd/stats.h>
+#include <uapi/linux/nfsd/debug.h>
+
+#include "stats.h"
+#include "export.h"
+
+#undef ifdebug
+#ifdef NFSD_DEBUG
+# define ifdebug(flag)		if (nfsd_debug & NFSDDBG_##flag)
+#else
+# define ifdebug(flag)		if (0)
+#endif
 
 /*
  * nfsd version
@@ -106,7 +115,6 @@ static inline int nfsd_v4client(struct svc_rqst *rq)
  */
 #ifdef CONFIG_NFSD_V4
 extern unsigned long max_delegations;
-void nfs4_state_init(void);
 int nfsd4_init_slabs(void);
 void nfsd4_free_slabs(void);
 int nfs4_state_start(void);
@@ -117,7 +125,6 @@ void nfs4_reset_lease(time_t leasetime);
 int nfs4_reset_recoverydir(char *recdir);
 char * nfs4_recoverydir(void);
 #else
-static inline void nfs4_state_init(void) { }
 static inline int nfsd4_init_slabs(void) { return 0; }
 static inline void nfsd4_free_slabs(void) { }
 static inline int nfs4_state_start(void) { return 0; }

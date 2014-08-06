@@ -1,0 +1,17 @@
+#
+# MIPS CPU Idle Drivers
+#
+config MIPS_CPS_CPUIDLE
+	bool "CPU Idle driver for MIPS CPS platforms"
+	depends on CPU_IDLE
+	depends on SYS_SUPPORTS_MIPS_CPS
+	select ARCH_NEEDS_CPU_IDLE_COUPLED if MIPS_MT
+	select GENERIC_CLOCKEVENTS_BROADCAST if SMP
+	select MIPS_CPS_PM
+	default y
+	help
+	  Select this option to enable processor idle state management
+	  through cpuidle for systems built around the MIPS Coherent
+	  Processing System (CPS) architecture. In order to make use of
+	  the deepest idle states you will need to ensure that you are
+	  also using the CONFIG_MIPS_CPS SMP implementation.

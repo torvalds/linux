@@ -401,11 +401,11 @@ static void zpci_irq_handler(struct airq_struct *airq)
 int arch_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 {
 	struct zpci_dev *zdev = get_zdev(pdev);
-	unsigned int hwirq, irq, msi_vecs;
+	unsigned int hwirq, msi_vecs;
 	unsigned long aisb;
 	struct msi_desc *msi;
 	struct msi_msg msg;
-	int rc;
+	int rc, irq;
 
 	if (type == PCI_CAP_ID_MSI && nvec > 1)
 		return 1;
@@ -433,7 +433,7 @@ int arch_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 	list_for_each_entry(msi, &pdev->msi_list, list) {
 		rc = -EIO;
 		irq = irq_alloc_desc(0);	/* Alloc irq on node 0 */
-		if (irq == NO_IRQ)
+		if (irq < 0)
 			goto out_msi;
 		rc = irq_set_msi_desc(irq, msi);
 		if (rc)

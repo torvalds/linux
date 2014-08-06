@@ -24,7 +24,7 @@ struct blk_mq_bitmap_tags {
 	unsigned int map_nr;
 	struct blk_align_bitmap *map;
 
-	unsigned int wake_index;
+	atomic_t wake_index;
 	struct bt_wait_state *bs;
 };
 
@@ -48,7 +48,7 @@ struct blk_mq_tags {
 extern struct blk_mq_tags *blk_mq_init_tags(unsigned int nr_tags, unsigned int reserved_tags, int node);
 extern void blk_mq_free_tags(struct blk_mq_tags *tags);
 
-extern unsigned int blk_mq_get_tag(struct blk_mq_hw_ctx *hctx, unsigned int *last_tag, gfp_t gfp, bool reserved);
+extern unsigned int blk_mq_get_tag(struct blk_mq_alloc_data *data);
 extern void blk_mq_put_tag(struct blk_mq_hw_ctx *hctx, unsigned int tag, unsigned int *last_tag);
 extern bool blk_mq_has_free_tags(struct blk_mq_tags *tags);
 extern ssize_t blk_mq_tag_sysfs_show(struct blk_mq_tags *tags, char *page);

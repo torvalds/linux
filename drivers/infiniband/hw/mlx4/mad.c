@@ -478,10 +478,6 @@ int mlx4_ib_send_to_slave(struct mlx4_ib_dev *dev, int slave, u8 port,
 	if (!tun_ctx || tun_ctx->state != DEMUX_PV_STATE_ACTIVE)
 		return -EAGAIN;
 
-	/* QP0 forwarding only for Dom0 */
-	if (!dest_qpt && (mlx4_master_func_num(dev->dev) != slave))
-		return -EINVAL;
-
 	if (!dest_qpt)
 		tun_qp = &tun_ctx->qp[0];
 	else
@@ -667,6 +663,21 @@ static int mlx4_ib_demux_mad(struct ib_device *ibdev, u8 port,
 	}
 	/* Class-specific handling */
 	switch (mad->mad_hdr.mgmt_class) {
+	case IB_MGMT_CLASS_SUBN_LID_ROUTED:
+	case IB_MGMT_CLASS_SUBN_DIRECTED_ROUTE:
+		/* 255 indicates the dom0 */
+		if (slave != 255 && slave != mlx4_master_func_num(dev->dev)) {
+			if (!mlx4_vf_smi_enabled(dev->dev, slave, port))
+				return -EPERM;
+			/* for a VF. drop unsolicited MADs */
+			if (!(mad->mad_hdr.method & IB_MGMT_METHOD_RESP)) {
+				mlx4_ib_warn(ibdev, "demux QP0. rejecting unsolicited mad for slave %d class 0x%x, method 0x%x\n",
+					     slave, mad->mad_hdr.mgmt_class,
+					     mad->mad_hdr.method);
+				return -EINVAL;
+			}
+		}
+		break;
 	case IB_MGMT_CLASS_SUBN_ADM:
 		if (mlx4_ib_demux_sa_handler(ibdev, port, slave,
 					     (struct ib_sa_mad *) mad))
@@ -1165,10 +1176,6 @@ int mlx4_ib_send_to_wire(struct mlx4_ib_dev *dev, int slave, u8 port,
 	if (!sqp_ctx || sqp_ctx->state != DEMUX_PV_STATE_ACTIVE)
 		return -EAGAIN;
 
-	/* QP0 forwarding only for Dom0 */
-	if (dest_qpt == IB_QPT_SMI && (mlx4_master_func_num(dev->dev) != slave))
-		return -EINVAL;
-
 	if (dest_qpt == IB_QPT_SMI) {
 		src_qpnum = 0;
 		sqp = &sqp_ctx->qp[0];
@@ -1285,11 +1292,6 @@ static void mlx4_ib_multiplex_mad(struct mlx4_ib_demux_pv_ctx *ctx, struct ib_wc
 			     "belongs to another slave\n", wc->src_qp);
 		return;
 	}
-	if (slave != mlx4_master_func_num(dev->dev) && !(wc->src_qp & 0x2)) {
-		mlx4_ib_warn(ctx->ib_dev, "can't multiplex bad sqp:%d: "
-			     "non-master trying to send QP0 packets\n", wc->src_qp);
-		return;
-	}
 
 	/* Map transaction ID */
 	ib_dma_sync_single_for_cpu(ctx->ib_dev, tun_qp->ring[wr_ix].map,
@@ -1317,6 +1319,12 @@ static void mlx4_ib_multiplex_mad(struct mlx4_ib_demux_pv_ctx *ctx, struct ib_wc
 
 	/* Class-specific handling */
 	switch (tunnel->mad.mad_hdr.mgmt_class) {
+	case IB_MGMT_CLASS_SUBN_LID_ROUTED:
+	case IB_MGMT_CLASS_SUBN_DIRECTED_ROUTE:
+		if (slave != mlx4_master_func_num(dev->dev) &&
+		    !mlx4_vf_smi_enabled(dev->dev, slave, ctx->port))
+			return;
+		break;
 	case IB_MGMT_CLASS_SUBN_ADM:
 		if (mlx4_ib_multiplex_sa_handler(ctx->ib_dev, ctx->port, slave,
 			      (struct ib_sa_mad *) &tunnel->mad))
@@ -1749,9 +1757,9 @@ static int create_pv_resources(struct ib_device *ibdev, int slave, int port,
 		return -EEXIST;
 
 	ctx->state = DEMUX_PV_STATE_STARTING;
-	/* have QP0 only on port owner, and only if link layer is IB */
-	if (ctx->slave == mlx4_master_func_num(to_mdev(ctx->ib_dev)->dev) &&
-	    rdma_port_get_link_layer(ibdev, ctx->port) == IB_LINK_LAYER_INFINIBAND)
+	/* have QP0 only if link layer is IB */
+	if (rdma_port_get_link_layer(ibdev, ctx->port) ==
+	    IB_LINK_LAYER_INFINIBAND)
 		ctx->has_smi = 1;
 
 	if (ctx->has_smi) {

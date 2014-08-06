@@ -1052,7 +1052,7 @@ config SENSORS_PC87427
 	  will be called pc87427.
 
 config SENSORS_NTC_THERMISTOR
-	tristate "NTC thermistor support"
+	tristate "NTC thermistor support from Murata"
 	depends on !OF || IIO=n || IIO
 	help
 	  This driver supports NTC thermistors sensor reading and its
@@ -1060,7 +1060,8 @@ config SENSORS_NTC_THERMISTOR
 	  send notifications about the temperature.
 
 	  Currently, this driver supports
-	  NCP15WB473, NCP18WB473, NCP21WB473, NCP03WB473, and NCP15WL333.
+	  NCP15WB473, NCP18WB473, NCP21WB473, NCP03WB473, and NCP15WL333
+	  from Murata.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called ntc-thermistor.
@@ -1124,6 +1125,16 @@ config SENSORS_SHT21
 	  This driver can also be built as a module.  If so, the module
 	  will be called sht21.
 
+config SENSORS_SHTC1
+	tristate "Sensiron humidity and temperature sensors. SHTC1 and compat."
+	depends on I2C
+	help
+	  If you say yes here you get support for the Sensiron SHTC1 and SHTW1
+	  humidity and temperature sensors.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called shtc1.
+
 config SENSORS_S3C
 	tristate "Samsung built-in ADC"
 	depends on S3C_ADC
@@ -1166,6 +1177,7 @@ config SENSORS_DME1737
 config SENSORS_EMC1403
 	tristate "SMSC EMC1403/23 thermal sensor"
 	depends on I2C
+	select REGMAP_I2C
 	help
 	  If you say yes here you get support for the SMSC EMC1403/23
 	  temperature monitoring chip.

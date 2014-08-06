@@ -44,7 +44,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/init.h>
-#include <asm/types.h>
+#include <linux/types.h>
 #include <linux/atomic.h>
 #include <linux/mm.h>
 #include <linux/export.h>
@@ -421,6 +421,38 @@ static void kauditd_send_skb(struct sk_buff *skb)
 	} else
 		/* drop the extra reference if sent ok */
 		consume_skb(skb);
+}
+
+/*
+ * kauditd_send_multicast_skb - send the skb to multicast userspace listeners
+ *
+ * This function doesn't consume an skb as might be expected since it has to
+ * copy it anyways.
+ */
+static void kauditd_send_multicast_skb(struct sk_buff *skb)
+{
+	struct sk_buff		*copy;
+	struct audit_net	*aunet = net_generic(&init_net, audit_net_id);
+	struct sock		*sock = aunet->nlsk;
+
+	if (!netlink_has_listeners(sock, AUDIT_NLGRP_READLOG))
+		return;
+
+	/*
+	 * The seemingly wasteful skb_copy() rather than bumping the refcount
+	 * using skb_get() is necessary because non-standard mods are made to
+	 * the skb by the original kaudit unicast socket send routine.  The
+	 * existing auditd daemon assumes this breakage.  Fixing this would
+	 * require co-ordinating a change in the established protocol between
+	 * the kaudit kernel subsystem and the auditd userspace code.  There is
+	 * no reason for new multicast clients to continue with this
+	 * non-compliance.
+	 */
+	copy = skb_copy(skb, GFP_KERNEL);
+	if (!copy)
+		return;
+
+	nlmsg_multicast(sock, copy, 0, AUDIT_NLGRP_READLOG, GFP_KERNEL);
 }
 
 /*
@@ -1076,10 +1108,22 @@ static void audit_receive(struct sk_buff  *skb)
 	mutex_unlock(&audit_cmd_mutex);
 }
 
+/* Run custom bind function on netlink socket group connect or bind requests. */
+static int audit_bind(int group)
+{
+	if (!capable(CAP_AUDIT_READ))
+		return -EPERM;
+
+	return 0;
+}
+
 static int __net_init audit_net_init(struct net *net)
 {
 	struct netlink_kernel_cfg cfg = {
 		.input	= audit_receive,
+		.bind	= audit_bind,
+		.flags	= NL_CFG_F_NONROOT_RECV,
+		.groups	= AUDIT_NLGRP_MAX,
 	};
 
 	struct audit_net *aunet = net_generic(net, audit_net_id);
@@ -1901,10 +1945,10 @@ out:
  * audit_log_end - end one audit record
  * @ab: the audit_buffer
  *
- * The netlink_* functions cannot be called inside an irq context, so
- * the audit buffer is placed on a queue and a tasklet is scheduled to
- * remove them from the queue outside the irq context.  May be called in
- * any context.
+ * netlink_unicast() cannot be called inside an irq context because it blocks
+ * (last arg, flags, is not set to MSG_DONTWAIT), so the audit buffer is placed
+ * on a queue and a tasklet is scheduled to remove them from the queue outside
+ * the irq context.  May be called in any context.
  */
 void audit_log_end(struct audit_buffer *ab)
 {
@@ -1914,6 +1958,18 @@ void audit_log_end(struct audit_buffer *ab)
 		audit_log_lost("rate limit exceeded");
 	} else {
 		struct nlmsghdr *nlh = nlmsg_hdr(ab->skb);
+
+		kauditd_send_multicast_skb(ab->skb);
+
+		/*
+		 * The original kaudit unicast socket sends up messages with
+		 * nlmsg_len set to the payload length rather than the entire
+		 * message length.  This breaks the standard set by netlink.
+		 * The existing auditd daemon assumes this breakage.  Fixing
+		 * this would require co-ordinating a change in the established
+		 * protocol between the kaudit kernel subsystem and the auditd
+		 * userspace code.
+		 */
 		nlh->nlmsg_len = ab->skb->len - NLMSG_HDRLEN;
 
 		if (audit_pid) {

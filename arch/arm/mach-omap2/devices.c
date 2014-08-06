@@ -18,7 +18,6 @@
 #include <linux/slab.h>
 #include <linux/of.h>
 #include <linux/pinctrl/machine.h>
-#include <linux/platform_data/omap4-keypad.h>
 #include <linux/platform_data/mailbox-omap.h>
 
 #include <asm/mach-types.h>
@@ -29,7 +28,6 @@
 #include "iomap.h"
 #include "omap_hwmod.h"
 #include "omap_device.h"
-#include "omap4-keypad.h"
 
 #include "soc.h"
 #include "common.h"
@@ -253,37 +251,6 @@ static inline void omap_init_camera(void)
 	if (cpu_is_omap24xx())
 		platform_device_register(&omap2cam_device);
 #endif
-}
-
-int __init omap4_keyboard_init(struct omap4_keypad_platform_data
-			*sdp4430_keypad_data, struct omap_board_data *bdata)
-{
-	struct platform_device *pdev;
-	struct omap_hwmod *oh;
-	struct omap4_keypad_platform_data *keypad_data;
-	unsigned int id = -1;
-	char *oh_name = "kbd";
-	char *name = "omap4-keypad";
-
-	oh = omap_hwmod_lookup(oh_name);
-	if (!oh) {
-		pr_err("Could not look up %s\n", oh_name);
-		return -ENODEV;
-	}
-
-	keypad_data = sdp4430_keypad_data;
-
-	pdev = omap_device_build(name, id, oh, keypad_data,
-				 sizeof(struct omap4_keypad_platform_data));
-
-	if (IS_ERR(pdev)) {
-		WARN(1, "Can't build omap_device for %s:%s.\n",
-						name, oh->name);
-		return PTR_ERR(pdev);
-	}
-	oh->mux = omap_hwmod_mux_init(bdata->pads, bdata->pads_cnt);
-
-	return 0;
 }
 
 #if defined(CONFIG_OMAP2PLUS_MBOX) || defined(CONFIG_OMAP2PLUS_MBOX_MODULE)

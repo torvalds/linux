@@ -24,7 +24,7 @@
 
 #define INVBLOCK ((u64)-1L)
 
-static u64 ufs_add_fragments(struct inode *, u64, unsigned, unsigned, int *);
+static u64 ufs_add_fragments(struct inode *, u64, unsigned, unsigned);
 static u64 ufs_alloc_fragments(struct inode *, unsigned, u64, unsigned, int *);
 static u64 ufs_alloccg_block(struct inode *, struct ufs_cg_private_info *, u64, int *);
 static u64 ufs_bitmap_search (struct super_block *, struct ufs_cg_private_info *, u64, unsigned);
@@ -52,7 +52,7 @@ void ufs_free_fragments(struct inode *inode, u64 fragment, unsigned count)
 	if (ufs_fragnum(fragment) + count > uspi->s_fpg)
 		ufs_error (sb, "ufs_free_fragments", "internal error");
 	
-	mutex_lock(&UFS_SB(sb)->s_lock);
+	lock_ufs(sb);
 	
 	cgno = ufs_dtog(uspi, fragment);
 	bit = ufs_dtogd(uspi, fragment);
@@ -116,12 +116,12 @@ void ufs_free_fragments(struct inode *inode, u64 fragment, unsigned count)
 		ubh_sync_block(UCPI_UBH(ucpi));
 	ufs_mark_sb_dirty(sb);
 	
-	mutex_unlock(&UFS_SB(sb)->s_lock);
+	unlock_ufs(sb);
 	UFSD("EXIT\n");
 	return;
 
 failed:
-	mutex_unlock(&UFS_SB(sb)->s_lock);
+	unlock_ufs(sb);
 	UFSD("EXIT (FAILED)\n");
 	return;
 }
@@ -151,7 +151,7 @@ void ufs_free_blocks(struct inode *inode, u64 fragment, unsigned count)
 		goto failed;
 	}
 
-	mutex_lock(&UFS_SB(sb)->s_lock);
+	lock_ufs(sb);
 	
 do_more:
 	overflow = 0;
@@ -211,12 +211,12 @@ do_more:
 	}
 
 	ufs_mark_sb_dirty(sb);
-	mutex_unlock(&UFS_SB(sb)->s_lock);
+	unlock_ufs(sb);
 	UFSD("EXIT\n");
 	return;
 
 failed_unlock:
-	mutex_unlock(&UFS_SB(sb)->s_lock);
+	unlock_ufs(sb);
 failed:
 	UFSD("EXIT (FAILED)\n");
 	return;
@@ -357,7 +357,7 @@ u64 ufs_new_fragments(struct inode *inode, void *p, u64 fragment,
 	usb1 = ubh_get_usb_first(uspi);
 	*err = -ENOSPC;
 
-	mutex_lock(&UFS_SB(sb)->s_lock);
+	lock_ufs(sb);
 	tmp = ufs_data_ptr_to_cpu(sb, p);
 
 	if (count + ufs_fragnum(fragment) > uspi->s_fpb) {
@@ -378,19 +378,19 @@ u64 ufs_new_fragments(struct inode *inode, void *p, u64 fragment,
 				  "fragment %llu, tmp %llu\n",
 				  (unsigned long long)fragment,
 				  (unsigned long long)tmp);
-			mutex_unlock(&UFS_SB(sb)->s_lock);
+			unlock_ufs(sb);
 			return INVBLOCK;
 		}
 		if (fragment < UFS_I(inode)->i_lastfrag) {
 			UFSD("EXIT (ALREADY ALLOCATED)\n");
-			mutex_unlock(&UFS_SB(sb)->s_lock);
+			unlock_ufs(sb);
 			return 0;
 		}
 	}
 	else {
 		if (tmp) {
 			UFSD("EXIT (ALREADY ALLOCATED)\n");
-			mutex_unlock(&UFS_SB(sb)->s_lock);
+			unlock_ufs(sb);
 			return 0;
 		}
 	}
@@ -399,7 +399,7 @@ u64 ufs_new_fragments(struct inode *inode, void *p, u64 fragment,
 	 * There is not enough space for user on the device
 	 */
 	if (!capable(CAP_SYS_RESOURCE) && ufs_freespace(uspi, UFS_MINFREE) <= 0) {
-		mutex_unlock(&UFS_SB(sb)->s_lock);
+		unlock_ufs(sb);
 		UFSD("EXIT (FAILED)\n");
 		return 0;
 	}
@@ -424,7 +424,7 @@ u64 ufs_new_fragments(struct inode *inode, void *p, u64 fragment,
 			ufs_clear_frags(inode, result + oldcount,
 					newcount - oldcount, locked_page != NULL);
 		}
-		mutex_unlock(&UFS_SB(sb)->s_lock);
+		unlock_ufs(sb);
 		UFSD("EXIT, result %llu\n", (unsigned long long)result);
 		return result;
 	}
@@ -432,14 +432,14 @@ u64 ufs_new_fragments(struct inode *inode, void *p, u64 fragment,
 	/*
 	 * resize block
 	 */
-	result = ufs_add_fragments (inode, tmp, oldcount, newcount, err);
+	result = ufs_add_fragments(inode, tmp, oldcount, newcount);
 	if (result) {
 		*err = 0;
 		UFS_I(inode)->i_lastfrag = max(UFS_I(inode)->i_lastfrag,
 						fragment + count);
 		ufs_clear_frags(inode, result + oldcount, newcount - oldcount,
 				locked_page != NULL);
-		mutex_unlock(&UFS_SB(sb)->s_lock);
+		unlock_ufs(sb);
 		UFSD("EXIT, result %llu\n", (unsigned long long)result);
 		return result;
 	}
@@ -477,7 +477,7 @@ u64 ufs_new_fragments(struct inode *inode, void *p, u64 fragment,
 		*err = 0;
 		UFS_I(inode)->i_lastfrag = max(UFS_I(inode)->i_lastfrag,
 						fragment + count);
-		mutex_unlock(&UFS_SB(sb)->s_lock);
+		unlock_ufs(sb);
 		if (newcount < request)
 			ufs_free_fragments (inode, result + newcount, request - newcount);
 		ufs_free_fragments (inode, tmp, oldcount);
@@ -485,13 +485,13 @@ u64 ufs_new_fragments(struct inode *inode, void *p, u64 fragment,
 		return result;
 	}
 
-	mutex_unlock(&UFS_SB(sb)->s_lock);
+	unlock_ufs(sb);
 	UFSD("EXIT (FAILED)\n");
 	return 0;
 }		
 
 static u64 ufs_add_fragments(struct inode *inode, u64 fragment,
-			     unsigned oldcount, unsigned newcount, int *err)
+			     unsigned oldcount, unsigned newcount)
 {
 	struct super_block * sb;
 	struct ufs_sb_private_info * uspi;

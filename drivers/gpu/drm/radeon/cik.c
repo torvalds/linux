@@ -80,6 +80,7 @@ extern int sumo_rlc_init(struct radeon_device *rdev);
 extern void si_vram_gtt_location(struct radeon_device *rdev, struct radeon_mc *mc);
 extern void si_rlc_reset(struct radeon_device *rdev);
 extern void si_init_uvd_internal_cg(struct radeon_device *rdev);
+static u32 cik_get_cu_active_bitmap(struct radeon_device *rdev, u32 se, u32 sh);
 extern int cik_sdma_resume(struct radeon_device *rdev);
 extern void cik_sdma_enable(struct radeon_device *rdev, bool enable);
 extern void cik_sdma_fini(struct radeon_device *rdev);
@@ -3257,7 +3258,7 @@ static void cik_gpu_init(struct radeon_device *rdev)
 	u32 mc_shared_chmap, mc_arb_ramcfg;
 	u32 hdp_host_path_cntl;
 	u32 tmp;
-	int i, j;
+	int i, j, k;
 
 	switch (rdev->family) {
 	case CHIP_BONAIRE:
@@ -3445,6 +3446,15 @@ static void cik_gpu_init(struct radeon_device *rdev)
 	cik_setup_rb(rdev, rdev->config.cik.max_shader_engines,
 		     rdev->config.cik.max_sh_per_se,
 		     rdev->config.cik.max_backends_per_se);
+
+	for (i = 0; i < rdev->config.cik.max_shader_engines; i++) {
+		for (j = 0; j < rdev->config.cik.max_sh_per_se; j++) {
+			for (k = 0; k < rdev->config.cik.max_cu_per_sh; k++) {
+				rdev->config.cik.active_cus +=
+					hweight32(cik_get_cu_active_bitmap(rdev, i, j));
+			}
+		}
+	}
 
 	/* set HW defaults for 3D engine */
 	WREG32(CP_MEQ_THRESHOLDS, MEQ1_START(0x30) | MEQ2_START(0x60));
@@ -3698,7 +3708,7 @@ bool cik_semaphore_ring_emit(struct radeon_device *rdev,
 	unsigned sel = emit_wait ? PACKET3_SEM_SEL_WAIT : PACKET3_SEM_SEL_SIGNAL;
 
 	radeon_ring_write(ring, PACKET3(PACKET3_MEM_SEMAPHORE, 1));
-	radeon_ring_write(ring, addr & 0xffffffff);
+	radeon_ring_write(ring, lower_32_bits(addr));
 	radeon_ring_write(ring, (upper_32_bits(addr) & 0xffff) | sel);
 
 	return true;
@@ -3818,7 +3828,7 @@ void cik_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib)
 			radeon_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, 3));
 			radeon_ring_write(ring, WRITE_DATA_DST_SEL(1));
 			radeon_ring_write(ring, ring->next_rptr_gpu_addr & 0xfffffffc);
-			radeon_ring_write(ring, upper_32_bits(ring->next_rptr_gpu_addr) & 0xffffffff);
+			radeon_ring_write(ring, upper_32_bits(ring->next_rptr_gpu_addr));
 			radeon_ring_write(ring, next_rptr);
 		}
 
@@ -5396,6 +5406,7 @@ static int cik_pcie_gart_enable(struct radeon_device *rdev)
 	WREG32(MC_VM_MX_L1_TLB_CNTL,
 	       (0xA << 7) |
 	       ENABLE_L1_TLB |
+	       ENABLE_L1_FRAGMENT_PROCESSING |
 	       SYSTEM_ACCESS_MODE_NOT_IN_SYS |
 	       ENABLE_ADVANCED_DRIVER_MODEL |
 	       SYSTEM_APERTURE_UNMAPPED_ACCESS_PASS_THRU);
@@ -5408,7 +5419,8 @@ static int cik_pcie_gart_enable(struct radeon_device *rdev)
 	       CONTEXT1_IDENTITY_ACCESS_MODE(1));
 	WREG32(VM_L2_CNTL2, INVALIDATE_ALL_L1_TLBS | INVALIDATE_L2_CACHE);
 	WREG32(VM_L2_CNTL3, L2_CACHE_BIGK_ASSOCIATIVITY |
-	       L2_CACHE_BIGK_FRAGMENT_SIZE(6));
+	       BANK_SELECT(4) |
+	       L2_CACHE_BIGK_FRAGMENT_SIZE(4));
 	/* setup context0 */
 	WREG32(VM_CONTEXT0_PAGE_TABLE_START_ADDR, rdev->mc.gtt_start >> 12);
 	WREG32(VM_CONTEXT0_PAGE_TABLE_END_ADDR, rdev->mc.gtt_end >> 12);
@@ -5444,6 +5456,7 @@ static int cik_pcie_gart_enable(struct radeon_device *rdev)
 	       (u32)(rdev->dummy_page.addr >> 12));
 	WREG32(VM_CONTEXT1_CNTL2, 4);
 	WREG32(VM_CONTEXT1_CNTL, ENABLE_CONTEXT | PAGE_TABLE_DEPTH(1) |
+				PAGE_TABLE_BLOCK_SIZE(radeon_vm_block_size - 9) |
 				RANGE_PROTECTION_FAULT_ENABLE_INTERRUPT |
 				RANGE_PROTECTION_FAULT_ENABLE_DEFAULT |
 				DUMMY_PAGE_PROTECTION_FAULT_ENABLE_INTERRUPT |
@@ -7450,7 +7463,7 @@ restart_ih:
 						wake_up(&rdev->irq.vblank_queue);
 					}
 					if (atomic_read(&rdev->irq.pflip[0]))
-						radeon_crtc_handle_flip(rdev, 0);
+						radeon_crtc_handle_vblank(rdev, 0);
 					rdev->irq.stat_regs.cik.disp_int &= ~LB_D1_VBLANK_INTERRUPT;
 					DRM_DEBUG("IH: D1 vblank\n");
 				}
@@ -7476,7 +7489,7 @@ restart_ih:
 						wake_up(&rdev->irq.vblank_queue);
 					}
 					if (atomic_read(&rdev->irq.pflip[1]))
-						radeon_crtc_handle_flip(rdev, 1);
+						radeon_crtc_handle_vblank(rdev, 1);
 					rdev->irq.stat_regs.cik.disp_int_cont &= ~LB_D2_VBLANK_INTERRUPT;
 					DRM_DEBUG("IH: D2 vblank\n");
 				}
@@ -7502,7 +7515,7 @@ restart_ih:
 						wake_up(&rdev->irq.vblank_queue);
 					}
 					if (atomic_read(&rdev->irq.pflip[2]))
-						radeon_crtc_handle_flip(rdev, 2);
+						radeon_crtc_handle_vblank(rdev, 2);
 					rdev->irq.stat_regs.cik.disp_int_cont2 &= ~LB_D3_VBLANK_INTERRUPT;
 					DRM_DEBUG("IH: D3 vblank\n");
 				}
@@ -7528,7 +7541,7 @@ restart_ih:
 						wake_up(&rdev->irq.vblank_queue);
 					}
 					if (atomic_read(&rdev->irq.pflip[3]))
-						radeon_crtc_handle_flip(rdev, 3);
+						radeon_crtc_handle_vblank(rdev, 3);
 					rdev->irq.stat_regs.cik.disp_int_cont3 &= ~LB_D4_VBLANK_INTERRUPT;
 					DRM_DEBUG("IH: D4 vblank\n");
 				}
@@ -7554,7 +7567,7 @@ restart_ih:
 						wake_up(&rdev->irq.vblank_queue);
 					}
 					if (atomic_read(&rdev->irq.pflip[4]))
-						radeon_crtc_handle_flip(rdev, 4);
+						radeon_crtc_handle_vblank(rdev, 4);
 					rdev->irq.stat_regs.cik.disp_int_cont4 &= ~LB_D5_VBLANK_INTERRUPT;
 					DRM_DEBUG("IH: D5 vblank\n");
 				}
@@ -7580,7 +7593,7 @@ restart_ih:
 						wake_up(&rdev->irq.vblank_queue);
 					}
 					if (atomic_read(&rdev->irq.pflip[5]))
-						radeon_crtc_handle_flip(rdev, 5);
+						radeon_crtc_handle_vblank(rdev, 5);
 					rdev->irq.stat_regs.cik.disp_int_cont5 &= ~LB_D6_VBLANK_INTERRUPT;
 					DRM_DEBUG("IH: D6 vblank\n");
 				}

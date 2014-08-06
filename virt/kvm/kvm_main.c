@@ -1714,11 +1714,11 @@ void kvm_vcpu_kick(struct kvm_vcpu *vcpu)
 EXPORT_SYMBOL_GPL(kvm_vcpu_kick);
 #endif /* !CONFIG_S390 */
 
-bool kvm_vcpu_yield_to(struct kvm_vcpu *target)
+int kvm_vcpu_yield_to(struct kvm_vcpu *target)
 {
 	struct pid *pid;
 	struct task_struct *task = NULL;
-	bool ret = false;
+	int ret = 0;
 
 	rcu_read_lock();
 	pid = rcu_dereference(target->pid);

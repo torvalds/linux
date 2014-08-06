@@ -12,6 +12,8 @@
 
 #include <trace/events/power.h>
 
+#include "sched.h"
+
 static int __read_mostly cpu_idle_force_poll;
 
 void cpu_idle_poll_ctrl(bool enable)
@@ -67,6 +69,10 @@ void __weak arch_cpu_idle(void)
  * cpuidle_idle_call - the main idle function
  *
  * NOTE: no locks or semaphores should be used here
+ *
+ * On archs that support TIF_POLLING_NRFLAG, is called with polling
+ * set, and it returns with polling set.  If it ever stops polling, it
+ * must clear the polling bit.
  */
 static void cpuidle_idle_call(void)
 {
@@ -175,10 +181,22 @@ exit_idle:
 
 /*
  * Generic idle loop implementation
+ *
+ * Called with polling cleared.
  */
 static void cpu_idle_loop(void)
 {
 	while (1) {
+		/*
+		 * If the arch has a polling bit, we maintain an invariant:
+		 *
+		 * Our polling bit is clear if we're not scheduled (i.e. if
+		 * rq->curr != rq->idle).  This means that, if rq->idle has
+		 * the polling bit set, then setting need_resched is
+		 * guaranteed to cause the cpu to reschedule.
+		 */
+
+		__current_set_polling();
 		tick_nohz_idle_enter();
 
 		while (!need_resched()) {
@@ -218,6 +236,17 @@ static void cpu_idle_loop(void)
 		 */
 		preempt_set_need_resched();
 		tick_nohz_idle_exit();
+		__current_clr_polling();
+
+		/*
+		 * We promise to call sched_ttwu_pending and reschedule
+		 * if need_resched is set while polling is set.  That
+		 * means that clearing polling needs to be visible
+		 * before doing these things.
+		 */
+		smp_mb__after_atomic();
+
+		sched_ttwu_pending();
 		schedule_preempt_disabled();
 	}
 }
@@ -239,7 +268,6 @@ void cpu_startup_entry(enum cpuhp_state state)
 	 */
 	boot_init_stack_canary();
 #endif
-	__current_set_polling();
 	arch_cpu_idle_prepare();
 	cpu_idle_loop();
 }

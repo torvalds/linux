@@ -172,9 +172,7 @@ void aer_print_error(struct pci_dev *dev, struct aer_err_info *info)
 	int id = ((dev->bus->number << 8) | dev->devfn);
 
 	if (!info->status) {
-		dev_err(&dev->dev,
-			"PCIe Bus Error: severity=%s, type=Unaccessible, "
-			"id=%04x(Unregistered Agent ID)\n",
+		dev_err(&dev->dev, "PCIe Bus Error: severity=%s, type=Unaccessible, id=%04x(Unregistered Agent ID)\n",
 			aer_error_severity_string[info->severity], id);
 		goto out;
 	}
@@ -182,13 +180,11 @@ void aer_print_error(struct pci_dev *dev, struct aer_err_info *info)
 	layer = AER_GET_LAYER_ERROR(info->severity, info->status);
 	agent = AER_GET_AGENT(info->severity, info->status);
 
-	dev_err(&dev->dev,
-		"PCIe Bus Error: severity=%s, type=%s, id=%04x(%s)\n",
+	dev_err(&dev->dev, "PCIe Bus Error: severity=%s, type=%s, id=%04x(%s)\n",
 		aer_error_severity_string[info->severity],
 		aer_error_layer[layer], id, aer_agent_string[agent]);
 
-	dev_err(&dev->dev,
-		"  device [%04x:%04x] error status/mask=%08x/%08x\n",
+	dev_err(&dev->dev, "  device [%04x:%04x] error status/mask=%08x/%08x\n",
 		dev->vendor, dev->device,
 		info->status, info->mask);
 

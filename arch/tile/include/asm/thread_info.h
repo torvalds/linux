@@ -94,7 +94,7 @@ register unsigned long stack_pointer __asm__("sp");
 /* Sit on a nap instruction until interrupted. */
 extern void smp_nap(void);
 
-/* Enable interrupts racelessly and nap forever: helper for cpu_idle(). */
+/* Enable interrupts racelessly and nap forever: helper for arch_cpu_idle(). */
 extern void _cpu_idle(void);
 
 #else /* __ASSEMBLY__ */

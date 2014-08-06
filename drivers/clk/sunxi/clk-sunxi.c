@@ -28,63 +28,6 @@ static DEFINE_SPINLOCK(clk_lock);
 #define SUNXI_MAX_PARENTS	5
 
 /**
- * sun4i_osc_clk_setup() - Setup function for gatable oscillator
- */
-
-#define SUNXI_OSC24M_GATE	0
-
-static void __init sun4i_osc_clk_setup(struct device_node *node)
-{
-	struct clk *clk;
-	struct clk_fixed_rate *fixed;
-	struct clk_gate *gate;
-	const char *clk_name = node->name;
-	u32 rate;
-
-	if (of_property_read_u32(node, "clock-frequency", &rate))
-		return;
-
-	/* allocate fixed-rate and gate clock structs */
-	fixed = kzalloc(sizeof(struct clk_fixed_rate), GFP_KERNEL);
-	if (!fixed)
-		return;
-	gate = kzalloc(sizeof(struct clk_gate), GFP_KERNEL);
-	if (!gate)
-		goto err_free_fixed;
-
-	of_property_read_string(node, "clock-output-names", &clk_name);
-
-	/* set up gate and fixed rate properties */
-	gate->reg = of_iomap(node, 0);
-	gate->bit_idx = SUNXI_OSC24M_GATE;
-	gate->lock = &clk_lock;
-	fixed->fixed_rate = rate;
-
-	clk = clk_register_composite(NULL, clk_name,
-			NULL, 0,
-			NULL, NULL,
-			&fixed->hw, &clk_fixed_rate_ops,
-			&gate->hw, &clk_gate_ops,
-			CLK_IS_ROOT);
-
-	if (IS_ERR(clk))
-		goto err_free_gate;
-
-	of_clk_add_provider(node, of_clk_src_simple_get, clk);
-	clk_register_clkdev(clk, clk_name, NULL);
-
-	return;
-
-err_free_gate:
-	kfree(gate);
-err_free_fixed:
-	kfree(fixed);
-}
-CLK_OF_DECLARE(sun4i_osc, "allwinner,sun4i-a10-osc-clk", sun4i_osc_clk_setup);
-
-
-
-/**
  * sun4i_get_pll1_factors() - calculates n, k, m, p factors for PLL1
  * PLL1 rate is calculated as follows
  * rate = (parent_rate * n * (k + 1) >> p) / (m + 1);
@@ -408,102 +351,41 @@ static void sun7i_a20_get_out_factors(u32 *freq, u32 parent_rate,
 	*p = calcp;
 }
 
-
-
 /**
- * sun7i_a20_gmac_clk_setup - Setup function for A20/A31 GMAC clock module
- *
- * This clock looks something like this
- *                               ________________________
- *  MII TX clock from PHY >-----|___________    _________|----> to GMAC core
- *  GMAC Int. RGMII TX clk >----|___________\__/__gate---|----> to PHY
- *  Ext. 125MHz RGMII TX clk >--|__divider__/            |
- *                              |________________________|
- *
- * The external 125 MHz reference is optional, i.e. GMAC can use its
- * internal TX clock just fine. The A31 GMAC clock module does not have
- * the divider controls for the external reference.
- *
- * To keep it simple, let the GMAC use either the MII TX clock for MII mode,
- * and its internal TX clock for GMII and RGMII modes. The GMAC driver should
- * select the appropriate source and gate/ungate the output to the PHY.
- *
- * Only the GMAC should use this clock. Altering the clock so that it doesn't
- * match the GMAC's operation parameters will result in the GMAC not being
- * able to send traffic out. The GMAC driver should set the clock rate and
- * enable/disable this clock to configure the required state. The clock
- * driver then responds by auto-reparenting the clock.
+ * clk_sunxi_mmc_phase_control() - configures MMC clock phase control
  */
 
-#define SUN7I_A20_GMAC_GPIT	2
-#define SUN7I_A20_GMAC_MASK	0x3
-#define SUN7I_A20_GMAC_PARENTS	2
-
-static void __init sun7i_a20_gmac_clk_setup(struct device_node *node)
+void clk_sunxi_mmc_phase_control(struct clk *clk, u8 sample, u8 output)
 {
-	struct clk *clk;
-	struct clk_mux *mux;
-	struct clk_gate *gate;
-	const char *clk_name = node->name;
-	const char *parents[SUN7I_A20_GMAC_PARENTS];
-	void *reg;
+	#define to_clk_composite(_hw) container_of(_hw, struct clk_composite, hw)
+	#define to_clk_factors(_hw) container_of(_hw, struct clk_factors, hw)
 
-	if (of_property_read_string(node, "clock-output-names", &clk_name))
-		return;
+	struct clk_hw *hw = __clk_get_hw(clk);
+	struct clk_composite *composite = to_clk_composite(hw);
+	struct clk_hw *rate_hw = composite->rate_hw;
+	struct clk_factors *factors = to_clk_factors(rate_hw);
+	unsigned long flags = 0;
+	u32 reg;
 
-	/* allocate mux and gate clock structs */
-	mux = kzalloc(sizeof(struct clk_mux), GFP_KERNEL);
-	if (!mux)
-		return;
+	if (factors->lock)
+		spin_lock_irqsave(factors->lock, flags);
 
-	gate = kzalloc(sizeof(struct clk_gate), GFP_KERNEL);
-	if (!gate)
-		goto free_mux;
+	reg = readl(factors->reg);
 
-	/* gmac clock requires exactly 2 parents */
-	parents[0] = of_clk_get_parent_name(node, 0);
-	parents[1] = of_clk_get_parent_name(node, 1);
-	if (!parents[0] || !parents[1])
-		goto free_gate;
+	/* set sample clock phase control */
+	reg &= ~(0x7 << 20);
+	reg |= ((sample & 0x7) << 20);
 
-	reg = of_iomap(node, 0);
-	if (!reg)
-		goto free_gate;
+	/* set output clock phase control */
+	reg &= ~(0x7 << 8);
+	reg |= ((output & 0x7) << 8);
 
-	/* set up gate and fixed rate properties */
-	gate->reg = reg;
-	gate->bit_idx = SUN7I_A20_GMAC_GPIT;
-	gate->lock = &clk_lock;
-	mux->reg = reg;
-	mux->mask = SUN7I_A20_GMAC_MASK;
-	mux->flags = CLK_MUX_INDEX_BIT;
-	mux->lock = &clk_lock;
+	writel(reg, factors->reg);
 
-	clk = clk_register_composite(NULL, clk_name,
-			parents, SUN7I_A20_GMAC_PARENTS,
-			&mux->hw, &clk_mux_ops,
-			NULL, NULL,
-			&gate->hw, &clk_gate_ops,
-			0);
-
-	if (IS_ERR(clk))
-		goto iounmap_reg;
-
-	of_clk_add_provider(node, of_clk_src_simple_get, clk);
-	clk_register_clkdev(clk, clk_name, NULL);
-
-	return;
-
-iounmap_reg:
-	iounmap(reg);
-free_gate:
-	kfree(gate);
-free_mux:
-	kfree(mux);
+	if (factors->lock)
+		spin_unlock_irqrestore(factors->lock, flags);
 }
-CLK_OF_DECLARE(sun7i_a20_gmac, "allwinner,sun7i-a20-gmac-clk",
-		sun7i_a20_gmac_clk_setup);
-
+EXPORT_SYMBOL(clk_sunxi_mmc_phase_control);
 
 
 /**
@@ -972,6 +854,11 @@ static const struct gates_data sun5i_a13_usb_gates_data __initconst = {
 	.reset_mask = 0x03,
 };
 
+static const struct gates_data sun6i_a31_usb_gates_data __initconst = {
+	.mask = { BIT(18) | BIT(17) | BIT(16) | BIT(10) | BIT(9) | BIT(8) },
+	.reset_mask = BIT(2) | BIT(1) | BIT(0),
+};
+
 static void __init sunxi_gates_clk_setup(struct device_node *node,
 					 struct gates_data *data)
 {
@@ -1267,6 +1154,7 @@ static const struct of_device_id clk_gates_match[] __initconst = {
 	{.compatible = "allwinner,sun6i-a31-apb2-gates-clk", .data = &sun6i_a31_apb2_gates_data,},
 	{.compatible = "allwinner,sun4i-a10-usb-clk", .data = &sun4i_a10_usb_gates_data,},
 	{.compatible = "allwinner,sun5i-a13-usb-clk", .data = &sun5i_a13_usb_gates_data,},
+	{.compatible = "allwinner,sun6i-a31-usb-clk", .data = &sun6i_a31_usb_gates_data,},
 	{}
 };
 
@@ -1278,40 +1166,16 @@ static void __init of_sunxi_table_clock_setup(const struct of_device_id *clk_mat
 	const struct of_device_id *match;
 	void (*setup_function)(struct device_node *, const void *) = function;
 
-	for_each_matching_node(np, clk_match) {
-		match = of_match_node(clk_match, np);
+	for_each_matching_node_and_match(np, clk_match, &match) {
 		data = match->data;
 		setup_function(np, data);
 	}
 }
 
-/**
- * System clock protection
- *
- * By enabling these critical clocks, we prevent their accidental gating
- * by the framework
- */
-static void __init sunxi_clock_protect(void)
+static void __init sunxi_init_clocks(const char *clocks[], int nclocks)
 {
-	struct clk *clk;
+	unsigned int i;
 
-	/* memory bus clock - sun5i+ */
-	clk = clk_get(NULL, "mbus");
-	if (!IS_ERR(clk)) {
-		clk_prepare_enable(clk);
-		clk_put(clk);
-	}
-
-	/* DDR clock - sun4i+ */
-	clk = clk_get(NULL, "pll5_ddr");
-	if (!IS_ERR(clk)) {
-		clk_prepare_enable(clk);
-		clk_put(clk);
-	}
-}
-
-static void __init sunxi_init_clocks(void)
-{
 	/* Register factor clocks */
 	of_sunxi_table_clock_setup(clk_factors_match, sunxi_factors_clk_setup);
 
@@ -1327,11 +1191,48 @@ static void __init sunxi_init_clocks(void)
 	/* Register gate clocks */
 	of_sunxi_table_clock_setup(clk_gates_match, sunxi_gates_clk_setup);
 
-	/* Enable core system clocks */
-	sunxi_clock_protect();
+	/* Protect the clocks that needs to stay on */
+	for (i = 0; i < nclocks; i++) {
+		struct clk *clk = clk_get(NULL, clocks[i]);
+
+		if (!IS_ERR(clk))
+			clk_prepare_enable(clk);
+	}
 }
-CLK_OF_DECLARE(sun4i_a10_clk_init, "allwinner,sun4i-a10", sunxi_init_clocks);
-CLK_OF_DECLARE(sun5i_a10s_clk_init, "allwinner,sun5i-a10s", sunxi_init_clocks);
-CLK_OF_DECLARE(sun5i_a13_clk_init, "allwinner,sun5i-a13", sunxi_init_clocks);
-CLK_OF_DECLARE(sun6i_a31_clk_init, "allwinner,sun6i-a31", sunxi_init_clocks);
-CLK_OF_DECLARE(sun7i_a20_clk_init, "allwinner,sun7i-a20", sunxi_init_clocks);
+
+static const char *sun4i_a10_critical_clocks[] __initdata = {
+	"pll5_ddr",
+};
+
+static void __init sun4i_a10_init_clocks(struct device_node *node)
+{
+	sunxi_init_clocks(sun4i_a10_critical_clocks,
+			  ARRAY_SIZE(sun4i_a10_critical_clocks));
+}
+CLK_OF_DECLARE(sun4i_a10_clk_init, "allwinner,sun4i-a10", sun4i_a10_init_clocks);
+
+static const char *sun5i_critical_clocks[] __initdata = {
+	"mbus",
+	"pll5_ddr",
+};
+
+static void __init sun5i_init_clocks(struct device_node *node)
+{
+	sunxi_init_clocks(sun5i_critical_clocks,
+			  ARRAY_SIZE(sun5i_critical_clocks));
+}
+CLK_OF_DECLARE(sun5i_a10s_clk_init, "allwinner,sun5i-a10s", sun5i_init_clocks);
+CLK_OF_DECLARE(sun5i_a13_clk_init, "allwinner,sun5i-a13", sun5i_init_clocks);
+CLK_OF_DECLARE(sun7i_a20_clk_init, "allwinner,sun7i-a20", sun5i_init_clocks);
+
+static const char *sun6i_critical_clocks[] __initdata = {
+	"cpu",
+	"ahb1_sdram",
+};
+
+static void __init sun6i_init_clocks(struct device_node *node)
+{
+	sunxi_init_clocks(sun6i_critical_clocks,
+			  ARRAY_SIZE(sun6i_critical_clocks));
+}
+CLK_OF_DECLARE(sun6i_a31_clk_init, "allwinner,sun6i-a31", sun6i_init_clocks);

@@ -490,6 +490,8 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ti,hwmods = "cpgmac0";
+			clocks = <&cpsw_125mhz_gclk>, <&cpsw_cpts_rft_clk>;
+			clock-names = "fck", "cpts";
 			status = "disabled";
 			cpdma_channels = <8>;
 			ale_entries = <1024>;
@@ -856,6 +858,35 @@
 			clock-names = "fck";
 			ti,hwmods = "hdq1w";
 			status = "disabled";
+		};
+
+		dss: dss@4832a000 {
+			compatible = "ti,omap3-dss";
+			reg = <0x4832a000 0x200>;
+			status = "disabled";
+			ti,hwmods = "dss_core";
+			clocks = <&disp_clk>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+
+			dispc@4832a400 {
+				compatible = "ti,omap3-dispc";
+				reg = <0x4832a400 0x400>;
+				interrupts = <GIC_SPI 127 IRQ_TYPE_LEVEL_HIGH>;
+				ti,hwmods = "dss_dispc";
+				clocks = <&disp_clk>;
+				clock-names = "fck";
+			};
+
+			rfbi: rfbi@4832a800 {
+				compatible = "ti,omap3-rfbi";
+				reg = <0x4832a800 0x100>;
+				ti,hwmods = "dss_rfbi";
+				clocks = <&disp_clk>;
+				clock-names = "fck";
+			};
 		};
 	};
 };

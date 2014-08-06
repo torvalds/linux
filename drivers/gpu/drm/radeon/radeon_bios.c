@@ -626,7 +626,7 @@ static bool radeon_acpi_vfct_bios(struct radeon_device *rdev)
 	    vhdr->DeviceID != rdev->pdev->device) {
 		DRM_INFO("ACPI VFCT table is not for this card\n");
 		goto out_unmap;
-	};
+	}
 
 	if (vfct->VBIOSImageOffset + sizeof(VFCT_IMAGE_HEADER) + vhdr->ImageLength > tbl_size) {
 		DRM_ERROR("ACPI VFCT image truncated\n");

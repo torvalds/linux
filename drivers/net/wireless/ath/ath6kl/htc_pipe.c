@@ -137,7 +137,6 @@ static void get_htc_packet_credit_based(struct htc_target *target,
 			credits_required = 0;
 
 		} else {
-
 			if (ep->cred_dist.credits < credits_required)
 				break;
 
@@ -169,7 +168,6 @@ static void get_htc_packet_credit_based(struct htc_target *target,
 		/* queue this packet into the caller's queue */
 		list_add_tail(&packet->list, queue);
 	}
-
 }
 
 static void get_htc_packet(struct htc_target *target,
@@ -279,7 +277,6 @@ static int htc_issue_packets(struct htc_target *target,
 			list_add(&packet->list, pkt_queue);
 			break;
 		}
-
 	}
 
 	if (status != 0) {
@@ -385,7 +382,6 @@ static enum htc_send_queue_result htc_try_send(struct htc_target *target,
 			 */
 			list_for_each_entry_safe(packet, tmp_pkt,
 						 txq, list) {
-
 				ath6kl_dbg(ATH6KL_DBG_HTC,
 					   "%s: Indicat overflowed TX pkts: %p\n",
 					   __func__, packet);
@@ -403,7 +399,6 @@ static enum htc_send_queue_result htc_try_send(struct htc_target *target,
 					list_move_tail(&packet->list,
 						       &send_queue);
 				}
-
 			}
 
 			if (list_empty(&send_queue)) {
@@ -454,7 +449,6 @@ static enum htc_send_queue_result htc_try_send(struct htc_target *target,
 	 * enough transmit resources.
 	 */
 	while (true) {
-
 		if (get_queue_depth(&ep->txq) == 0)
 			break;
 
@@ -495,8 +489,8 @@ static enum htc_send_queue_result htc_try_send(struct htc_target *target,
 		}
 
 		spin_lock_bh(&target->tx_lock);
-
 	}
+
 	/* done with this endpoint, we can clear the count */
 	ep->tx_proc_cnt = 0;
 	spin_unlock_bh(&target->tx_lock);
@@ -1106,7 +1100,6 @@ free_skb:
 	dev_kfree_skb(skb);
 
 	return status;
-
 }
 
 static void htc_flush_rx_queue(struct htc_target *target,
@@ -1258,7 +1251,6 @@ static int ath6kl_htc_pipe_conn_service(struct htc_target *target,
 		tx_alloc = 0;
 
 	} else {
-
 		tx_alloc = htc_get_credit_alloc(target, conn_req->svc_id);
 		if (tx_alloc == 0) {
 			status = -ENOMEM;

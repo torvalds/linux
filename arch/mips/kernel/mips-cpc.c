@@ -9,11 +9,17 @@
  */
 
 #include <linux/errno.h>
+#include <linux/percpu.h>
+#include <linux/spinlock.h>
 
 #include <asm/mips-cm.h>
 #include <asm/mips-cpc.h>
 
 void __iomem *mips_cpc_base;
+
+static DEFINE_PER_CPU_ALIGNED(spinlock_t, cpc_core_lock);
+
+static DEFINE_PER_CPU_ALIGNED(unsigned long, cpc_core_lock_flags);
 
 phys_t __weak mips_cpc_phys_base(void)
 {
@@ -39,6 +45,10 @@ phys_t __weak mips_cpc_phys_base(void)
 int mips_cpc_probe(void)
 {
 	phys_t addr;
+	unsigned cpu;
+
+	for_each_possible_cpu(cpu)
+		spin_lock_init(&per_cpu(cpc_core_lock, cpu));
 
 	addr = mips_cpc_phys_base();
 	if (!addr)
@@ -49,4 +59,22 @@ int mips_cpc_probe(void)
 		return -ENXIO;
 
 	return 0;
+}
+
+void mips_cpc_lock_other(unsigned int core)
+{
+	unsigned curr_core;
+	preempt_disable();
+	curr_core = current_cpu_data.core;
+	spin_lock_irqsave(&per_cpu(cpc_core_lock, curr_core),
+			  per_cpu(cpc_core_lock_flags, curr_core));
+	write_cpc_cl_other(core << CPC_Cx_OTHER_CORENUM_SHF);
+}
+
+void mips_cpc_unlock_other(void)
+{
+	unsigned curr_core = current_cpu_data.core;
+	spin_unlock_irqrestore(&per_cpu(cpc_core_lock, curr_core),
+			       per_cpu(cpc_core_lock_flags, curr_core));
+	preempt_enable();
 }

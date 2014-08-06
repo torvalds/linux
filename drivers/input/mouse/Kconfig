@@ -53,7 +53,7 @@ config MOUSE_PS2_LOGIPS2PP
 	default y
 	depends on MOUSE_PS2
 	help
-	  Say Y here if you have a Logictech PS/2++ mouse connected to
+	  Say Y here if you have a Logitech PS/2++ mouse connected to
 	  your system.
 
 	  If unsure, say Y.

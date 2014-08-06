@@ -259,7 +259,7 @@ static int filldir_one(void * __buf, const char * name, int len,
 
 /**
  * get_name - default export_operations->get_name function
- * @dentry: the directory in which to find a name
+ * @path:   the directory in which to find a name
  * @name:   a pointer to a %NAME_MAX+1 char buffer to store the name
  * @child:  the dentry for the child directory.
  *
@@ -337,7 +337,7 @@ out:
 /**
  * export_encode_fh - default export_operations->encode_fh function
  * @inode:   the object to encode
- * @fh:      where to store the file handle fragment
+ * @fid:     where to store the file handle fragment
  * @max_len: maximum length to store there
  * @parent:  parent directory inode, if wanted
  *

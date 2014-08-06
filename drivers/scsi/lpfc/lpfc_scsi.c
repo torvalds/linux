@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2013 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2014 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
@@ -73,7 +73,7 @@ lpfc_rport_data_from_scsi_device(struct scsi_device *sdev)
 {
 	struct lpfc_vport *vport = (struct lpfc_vport *)sdev->host->hostdata;
 
-	if (vport->phba->cfg_EnableXLane)
+	if (vport->phba->cfg_fof)
 		return ((struct lpfc_device_data *)sdev->hostdata)->rport_data;
 	else
 		return (struct lpfc_rport_data *)sdev->hostdata;
@@ -3462,7 +3462,7 @@ lpfc_scsi_prep_dma_buf_s4(struct lpfc_hba *phba, struct lpfc_scsi_buf *lpfc_cmd)
 	 * If the OAS driver feature is enabled and the lun is enabled for
 	 * OAS, set the oas iocb related flags.
 	 */
-	if ((phba->cfg_EnableXLane) && ((struct lpfc_device_data *)
+	if ((phba->cfg_fof) && ((struct lpfc_device_data *)
 		scsi_cmnd->device->hostdata)->oas_enabled)
 		lpfc_cmd->cur_iocbq.iocb_flag |= LPFC_IO_OAS;
 	return 0;
@@ -4314,6 +4314,7 @@ lpfc_scsi_prep_cmnd(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
 		fcp_cmnd->fcpCntl1 = SIMPLE_Q;
 
 	sli4 = (phba->sli_rev == LPFC_SLI_REV4);
+	piocbq->iocb.un.fcpi.fcpi_XRdy = 0;
 
 	/*
 	 * There are three possibilities here - use scatter-gather segment, use
@@ -4782,7 +4783,9 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
 	struct lpfc_scsi_buf *lpfc_cmd;
 	IOCB_t *cmd, *icmd;
 	int ret = SUCCESS, status = 0;
-	unsigned long flags;
+	struct lpfc_sli_ring *pring_s4;
+	int ring_number, ret_val;
+	unsigned long flags, iflags;
 	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(waitq);
 
 	status = fc_block_scsi_eh(cmnd);
@@ -4833,6 +4836,14 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
 
 	BUG_ON(iocb->context1 != lpfc_cmd);
 
+	/* abort issued in recovery is still in progress */
+	if (iocb->iocb_flag & LPFC_DRIVER_ABORTED) {
+		lpfc_printf_vlog(vport, KERN_WARNING, LOG_FCP,
+			 "3389 SCSI Layer I/O Abort Request is pending\n");
+		spin_unlock_irqrestore(&phba->hbalock, flags);
+		goto wait_for_cmpl;
+	}
+
 	abtsiocb = __lpfc_sli_get_iocbq(phba);
 	if (abtsiocb == NULL) {
 		ret = FAILED;
@@ -4871,11 +4882,23 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
 
 	abtsiocb->iocb_cmpl = lpfc_sli_abort_fcp_cmpl;
 	abtsiocb->vport = vport;
+	if (phba->sli_rev == LPFC_SLI_REV4) {
+		ring_number = MAX_SLI3_CONFIGURED_RINGS + iocb->fcp_wqidx;
+		pring_s4 = &phba->sli.ring[ring_number];
+		/* Note: both hbalock and ring_lock must be set here */
+		spin_lock_irqsave(&pring_s4->ring_lock, iflags);
+		ret_val = __lpfc_sli_issue_iocb(phba, pring_s4->ringno,
+						abtsiocb, 0);
+		spin_unlock_irqrestore(&pring_s4->ring_lock, iflags);
+	} else {
+		ret_val = __lpfc_sli_issue_iocb(phba, LPFC_FCP_RING,
+						abtsiocb, 0);
+	}
 	/* no longer need the lock after this point */
 	spin_unlock_irqrestore(&phba->hbalock, flags);
 
-	if (lpfc_sli_issue_iocb(phba, LPFC_FCP_RING, abtsiocb, 0) ==
-	    IOCB_ERROR) {
+
+	if (ret_val == IOCB_ERROR) {
 		lpfc_sli_release_iocbq(phba, abtsiocb);
 		ret = FAILED;
 		goto out;
@@ -4885,12 +4908,16 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
 		lpfc_sli_handle_fast_ring_event(phba,
 			&phba->sli.ring[LPFC_FCP_RING], HA_R0RE_REQ);
 
+wait_for_cmpl:
 	lpfc_cmd->waitq = &waitq;
 	/* Wait for abort to complete */
 	wait_event_timeout(waitq,
 			  (lpfc_cmd->pCmd != cmnd),
 			   msecs_to_jiffies(2*vport->cfg_devloss_tmo*1000));
+
+	spin_lock_irqsave(shost->host_lock, flags);
 	lpfc_cmd->waitq = NULL;
+	spin_unlock_irqrestore(shost->host_lock, flags);
 
 	if (lpfc_cmd->pCmd == cmnd) {
 		ret = FAILED;
@@ -5172,8 +5199,9 @@ lpfc_reset_flush_io_context(struct lpfc_vport *vport, uint16_t tgt_id,
 
 	cnt = lpfc_sli_sum_iocb(vport, tgt_id, lun_id, context);
 	if (cnt)
-		lpfc_sli_abort_iocb(vport, &phba->sli.ring[phba->sli.fcp_ring],
-				    tgt_id, lun_id, context);
+		lpfc_sli_abort_taskmgmt(vport,
+					&phba->sli.ring[phba->sli.fcp_ring],
+					tgt_id, lun_id, context);
 	later = msecs_to_jiffies(2 * vport->cfg_devloss_tmo * 1000) + jiffies;
 	while (time_after(later, jiffies) && cnt) {
 		schedule_timeout_uninterruptible(msecs_to_jiffies(20));
@@ -5491,7 +5519,7 @@ lpfc_slave_alloc(struct scsi_device *sdev)
 	if (!rport || fc_remote_port_chkready(rport))
 		return -ENXIO;
 
-	if (phba->cfg_EnableXLane) {
+	if (phba->cfg_fof) {
 
 		/*
 		 * Check to see if the device data structure for the lun
@@ -5616,7 +5644,7 @@ lpfc_slave_destroy(struct scsi_device *sdev)
 	struct lpfc_device_data *device_data = sdev->hostdata;
 
 	atomic_dec(&phba->sdev_cnt);
-	if ((phba->cfg_EnableXLane) && (device_data)) {
+	if ((phba->cfg_fof) && (device_data)) {
 		spin_lock_irqsave(&phba->devicelock, flags);
 		device_data->available = false;
 		if (!device_data->oas_enabled)
@@ -5655,7 +5683,7 @@ lpfc_create_device_data(struct lpfc_hba *phba, struct lpfc_name *vport_wwpn,
 	int memory_flags;
 
 	if (unlikely(!phba) || !vport_wwpn || !target_wwpn  ||
-	    !(phba->cfg_EnableXLane))
+	    !(phba->cfg_fof))
 		return NULL;
 
 	/* Attempt to create the device data to contain lun info */
@@ -5693,7 +5721,7 @@ lpfc_delete_device_data(struct lpfc_hba *phba,
 {
 
 	if (unlikely(!phba) || !lun_info  ||
-	    !(phba->cfg_EnableXLane))
+	    !(phba->cfg_fof))
 		return;
 
 	if (!list_empty(&lun_info->listentry))
@@ -5727,7 +5755,7 @@ __lpfc_get_device_data(struct lpfc_hba *phba, struct list_head *list,
 	struct lpfc_device_data *lun_info;
 
 	if (unlikely(!phba) || !list || !vport_wwpn || !target_wwpn ||
-	    !phba->cfg_EnableXLane)
+	    !phba->cfg_fof)
 		return NULL;
 
 	/* Check to see if the lun is already enabled for OAS. */
@@ -5789,7 +5817,7 @@ lpfc_find_next_oas_lun(struct lpfc_hba *phba, struct lpfc_name *vport_wwpn,
 	    !starting_lun || !found_vport_wwpn ||
 	    !found_target_wwpn || !found_lun || !found_lun_status ||
 	    (*starting_lun == NO_MORE_OAS_LUN) ||
-	    !phba->cfg_EnableXLane)
+	    !phba->cfg_fof)
 		return false;
 
 	lun = *starting_lun;
@@ -5873,7 +5901,7 @@ lpfc_enable_oas_lun(struct lpfc_hba *phba, struct lpfc_name *vport_wwpn,
 	unsigned long flags;
 
 	if (unlikely(!phba) || !vport_wwpn || !target_wwpn ||
-	    !phba->cfg_EnableXLane)
+	    !phba->cfg_fof)
 		return false;
 
 	spin_lock_irqsave(&phba->devicelock, flags);
@@ -5930,7 +5958,7 @@ lpfc_disable_oas_lun(struct lpfc_hba *phba, struct lpfc_name *vport_wwpn,
 	unsigned long flags;
 
 	if (unlikely(!phba) || !vport_wwpn || !target_wwpn ||
-	    !phba->cfg_EnableXLane)
+	    !phba->cfg_fof)
 		return false;
 
 	spin_lock_irqsave(&phba->devicelock, flags);

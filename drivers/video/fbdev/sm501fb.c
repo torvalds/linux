@@ -1215,7 +1215,7 @@ static ssize_t sm501fb_crtsrc_store(struct device *dev,
 }
 
 /* Prepare the device_attr for registration with sysfs later */
-static DEVICE_ATTR(crt_src, 0666, sm501fb_crtsrc_show, sm501fb_crtsrc_store);
+static DEVICE_ATTR(crt_src, 0664, sm501fb_crtsrc_show, sm501fb_crtsrc_store);
 
 /* sm501fb_show_regs
  *

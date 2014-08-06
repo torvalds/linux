@@ -795,15 +795,12 @@ static const struct net_device_ops vti6_netdev_ops = {
  **/
 static void vti6_dev_setup(struct net_device *dev)
 {
-	struct ip6_tnl *t;
-
 	dev->netdev_ops = &vti6_netdev_ops;
 	dev->destructor = vti6_dev_free;
 
 	dev->type = ARPHRD_TUNNEL6;
 	dev->hard_header_len = LL_MAX_HEADER + sizeof(struct ipv6hdr);
 	dev->mtu = ETH_DATA_LEN;
-	t = netdev_priv(dev);
 	dev->flags |= IFF_NOARP;
 	dev->addr_len = sizeof(struct in6_addr);
 	dev->priv_flags &= ~IFF_XMIT_DST_RELEASE;

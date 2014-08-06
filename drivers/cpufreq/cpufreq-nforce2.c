@@ -379,7 +379,7 @@ static struct cpufreq_driver nforce2_driver = {
 };
 
 #ifdef MODULE
-static DEFINE_PCI_DEVICE_TABLE(nforce2_ids) = {
+static const struct pci_device_id nforce2_ids[] = {
 	{ PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NFORCE2 },
 	{}
 };

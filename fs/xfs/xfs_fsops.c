@@ -24,6 +24,8 @@
 #include "xfs_sb.h"
 #include "xfs_ag.h"
 #include "xfs_mount.h"
+#include "xfs_da_format.h"
+#include "xfs_da_btree.h"
 #include "xfs_inode.h"
 #include "xfs_trans.h"
 #include "xfs_inode_item.h"
@@ -74,23 +76,18 @@ xfs_fs_geometry(
 	}
 	if (new_version >= 3) {
 		geo->version = XFS_FSOP_GEOM_VERSION;
-		geo->flags =
+		geo->flags = XFS_FSOP_GEOM_FLAGS_NLINK |
+			     XFS_FSOP_GEOM_FLAGS_DIRV2 |
 			(xfs_sb_version_hasattr(&mp->m_sb) ?
 				XFS_FSOP_GEOM_FLAGS_ATTR : 0) |
-			(xfs_sb_version_hasnlink(&mp->m_sb) ?
-				XFS_FSOP_GEOM_FLAGS_NLINK : 0) |
 			(xfs_sb_version_hasquota(&mp->m_sb) ?
 				XFS_FSOP_GEOM_FLAGS_QUOTA : 0) |
 			(xfs_sb_version_hasalign(&mp->m_sb) ?
 				XFS_FSOP_GEOM_FLAGS_IALIGN : 0) |
 			(xfs_sb_version_hasdalign(&mp->m_sb) ?
 				XFS_FSOP_GEOM_FLAGS_DALIGN : 0) |
-			(xfs_sb_version_hasshared(&mp->m_sb) ?
-				XFS_FSOP_GEOM_FLAGS_SHARED : 0) |
 			(xfs_sb_version_hasextflgbit(&mp->m_sb) ?
 				XFS_FSOP_GEOM_FLAGS_EXTFLG : 0) |
-			(xfs_sb_version_hasdirv2(&mp->m_sb) ?
-				XFS_FSOP_GEOM_FLAGS_DIRV2 : 0) |
 			(xfs_sb_version_hassector(&mp->m_sb) ?
 				XFS_FSOP_GEOM_FLAGS_SECTOR : 0) |
 			(xfs_sb_version_hasasciici(&mp->m_sb) ?
@@ -104,11 +101,13 @@ xfs_fs_geometry(
 			(xfs_sb_version_hascrc(&mp->m_sb) ?
 				XFS_FSOP_GEOM_FLAGS_V5SB : 0) |
 			(xfs_sb_version_hasftype(&mp->m_sb) ?
-				XFS_FSOP_GEOM_FLAGS_FTYPE : 0);
+				XFS_FSOP_GEOM_FLAGS_FTYPE : 0) |
+			(xfs_sb_version_hasfinobt(&mp->m_sb) ?
+				XFS_FSOP_GEOM_FLAGS_FINOBT : 0);
 		geo->logsectsize = xfs_sb_version_hassector(&mp->m_sb) ?
 				mp->m_sb.sb_logsectsize : BBSIZE;
 		geo->rtsectsize = mp->m_sb.sb_blocksize;
-		geo->dirblocksize = mp->m_dirblksize;
+		geo->dirblocksize = mp->m_dir_geo->blksize;
 	}
 	if (new_version >= 4) {
 		geo->flags |=
@@ -316,6 +315,10 @@ xfs_growfs_data_private(
 		agi->agi_dirino = cpu_to_be32(NULLAGINO);
 		if (xfs_sb_version_hascrc(&mp->m_sb))
 			uuid_copy(&agi->agi_uuid, &mp->m_sb.sb_uuid);
+		if (xfs_sb_version_hasfinobt(&mp->m_sb)) {
+			agi->agi_free_root = cpu_to_be32(XFS_FIBT_BLOCK(mp));
+			agi->agi_free_level = cpu_to_be32(1);
+		}
 		for (bucket = 0; bucket < XFS_AGI_UNLINKED_BUCKETS; bucket++)
 			agi->agi_unlinked[bucket] = cpu_to_be32(NULLAGINO);
 
@@ -407,6 +410,34 @@ xfs_growfs_data_private(
 		xfs_buf_relse(bp);
 		if (error)
 			goto error0;
+
+		/*
+		 * FINO btree root block
+		 */
+		if (xfs_sb_version_hasfinobt(&mp->m_sb)) {
+			bp = xfs_growfs_get_hdr_buf(mp,
+				XFS_AGB_TO_DADDR(mp, agno, XFS_FIBT_BLOCK(mp)),
+				BTOBB(mp->m_sb.sb_blocksize), 0,
+				&xfs_inobt_buf_ops);
+			if (!bp) {
+				error = ENOMEM;
+				goto error0;
+			}
+
+			if (xfs_sb_version_hascrc(&mp->m_sb))
+				xfs_btree_init_block(mp, bp, XFS_FIBT_CRC_MAGIC,
+						     0, 0, agno,
+						     XFS_BTREE_CRC_BLOCKS);
+			else
+				xfs_btree_init_block(mp, bp, XFS_FIBT_MAGIC, 0,
+						     0, agno, 0);
+
+			error = xfs_bwrite(bp);
+			xfs_buf_relse(bp);
+			if (error)
+				goto error0;
+		}
+
 	}
 	xfs_trans_agblocks_delta(tp, nfree);
 	/*

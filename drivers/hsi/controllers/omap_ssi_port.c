@@ -1116,8 +1116,7 @@ static int __init ssi_port_probe(struct platform_device *pd)
 
 	dev_dbg(&pd->dev, "init ssi port...\n");
 
-	err = ref_module(THIS_MODULE, ssi->owner);
-	if (err) {
+	if (!try_module_get(ssi->owner)) {
 		dev_err(&pd->dev, "could not increment parent module refcount (err=%d)\n",
 			err);
 		return -ENODEV;
@@ -1254,6 +1253,7 @@ static int __exit ssi_port_remove(struct platform_device *pd)
 
 	omap_ssi->port[omap_port->port_id] = NULL;
 	platform_set_drvdata(pd, NULL);
+	module_put(ssi->owner);
 	pm_runtime_disable(&pd->dev);
 
 	return 0;

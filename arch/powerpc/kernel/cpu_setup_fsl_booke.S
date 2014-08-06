@@ -94,12 +94,12 @@ _GLOBAL(setup_altivec_idle)
 _GLOBAL(__setup_cpu_e6500)
 	mflr	r6
 #ifdef CONFIG_PPC64
-	bl	.setup_altivec_ivors
+	bl	setup_altivec_ivors
 	/* Touch IVOR42 only if the CPU supports E.HV category */
 	mfspr	r10,SPRN_MMUCFG
 	rlwinm.	r10,r10,0,MMUCFG_LPIDSIZE
 	beq	1f
-	bl	.setup_lrat_ivor
+	bl	setup_lrat_ivor
 1:
 #endif
 	bl	setup_pw20_idle
@@ -164,15 +164,15 @@ _GLOBAL(__setup_cpu_e5500)
 #ifdef CONFIG_PPC_BOOK3E_64
 _GLOBAL(__restore_cpu_e6500)
 	mflr	r5
-	bl	.setup_altivec_ivors
+	bl	setup_altivec_ivors
 	/* Touch IVOR42 only if the CPU supports E.HV category */
 	mfspr	r10,SPRN_MMUCFG
 	rlwinm.	r10,r10,0,MMUCFG_LPIDSIZE
 	beq	1f
-	bl	.setup_lrat_ivor
+	bl	setup_lrat_ivor
 1:
-	bl	.setup_pw20_idle
-	bl	.setup_altivec_idle
+	bl	setup_pw20_idle
+	bl	setup_altivec_idle
 	bl	__restore_cpu_e5500
 	mtlr	r5
 	blr
@@ -181,9 +181,9 @@ _GLOBAL(__restore_cpu_e5500)
 	mflr	r4
 	bl	__e500_icache_setup
 	bl	__e500_dcache_setup
-	bl	.__setup_base_ivors
-	bl	.setup_perfmon_ivor
-	bl	.setup_doorbell_ivors
+	bl	__setup_base_ivors
+	bl	setup_perfmon_ivor
+	bl	setup_doorbell_ivors
 	/*
 	 * We only want to touch IVOR38-41 if we're running on hardware
 	 * that supports category E.HV.  The architectural way to determine
@@ -192,7 +192,7 @@ _GLOBAL(__restore_cpu_e5500)
 	mfspr	r10,SPRN_MMUCFG
 	rlwinm.	r10,r10,0,MMUCFG_LPIDSIZE
 	beq	1f
-	bl	.setup_ehv_ivors
+	bl	setup_ehv_ivors
 1:
 	mtlr	r4
 	blr
@@ -201,9 +201,9 @@ _GLOBAL(__setup_cpu_e5500)
 	mflr	r5
 	bl	__e500_icache_setup
 	bl	__e500_dcache_setup
-	bl	.__setup_base_ivors
-	bl	.setup_perfmon_ivor
-	bl	.setup_doorbell_ivors
+	bl	__setup_base_ivors
+	bl	setup_perfmon_ivor
+	bl	setup_doorbell_ivors
 	/*
 	 * We only want to touch IVOR38-41 if we're running on hardware
 	 * that supports category E.HV.  The architectural way to determine
@@ -212,7 +212,7 @@ _GLOBAL(__setup_cpu_e5500)
 	mfspr	r10,SPRN_MMUCFG
 	rlwinm.	r10,r10,0,MMUCFG_LPIDSIZE
 	beq	1f
-	bl	.setup_ehv_ivors
+	bl	setup_ehv_ivors
 	b	2f
 1:
 	ld	r10,CPU_SPEC_FEATURES(r4)

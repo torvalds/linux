@@ -23,9 +23,7 @@ obj-y			+= checksum_$(CONFIG_WORD_SIZE).o
 obj-$(CONFIG_PPC64)	+= checksum_wrappers_64.o
 endif
 
-ifeq ($(CONFIG_CPU_LITTLE_ENDIAN),)
 obj-$(CONFIG_PPC64)		+= memcpy_power7.o memcpy_64.o 
-endif
 
 obj-$(CONFIG_PPC_EMULATE_SSTEP)	+= sstep.o ldstfp.o
 

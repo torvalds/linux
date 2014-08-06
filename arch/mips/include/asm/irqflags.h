@@ -17,7 +17,7 @@
 #include <linux/stringify.h>
 #include <asm/hazards.h>
 
-#if defined(CONFIG_CPU_MIPSR2) && !defined(CONFIG_MIPS_MT_SMTC)
+#ifdef CONFIG_CPU_MIPSR2
 
 static inline void arch_local_irq_disable(void)
 {
@@ -118,30 +118,15 @@ void arch_local_irq_disable(void);
 unsigned long arch_local_irq_save(void);
 void arch_local_irq_restore(unsigned long flags);
 void __arch_local_irq_restore(unsigned long flags);
-#endif /* if defined(CONFIG_CPU_MIPSR2) && !defined(CONFIG_MIPS_MT_SMTC) */
-
-
-extern void smtc_ipi_replay(void);
+#endif /* CONFIG_CPU_MIPSR2 */
 
 static inline void arch_local_irq_enable(void)
 {
-#ifdef CONFIG_MIPS_MT_SMTC
-	/*
-	 * SMTC kernel needs to do a software replay of queued
-	 * IPIs, at the cost of call overhead on each local_irq_enable()
-	 */
-	smtc_ipi_replay();
-#endif
 	__asm__ __volatile__(
 	"	.set	push						\n"
 	"	.set	reorder						\n"
 	"	.set	noat						\n"
-#ifdef CONFIG_MIPS_MT_SMTC
-	"	mfc0	$1, $2, 1	# SMTC - clear TCStatus.IXMT	\n"
-	"	ori	$1, 0x400					\n"
-	"	xori	$1, 0x400					\n"
-	"	mtc0	$1, $2, 1					\n"
-#elif defined(CONFIG_CPU_MIPSR2)
+#if   defined(CONFIG_CPU_MIPSR2)
 	"	ei							\n"
 #else
 	"	mfc0	$1,$12						\n"
@@ -163,11 +148,7 @@ static inline unsigned long arch_local_save_flags(void)
 	asm __volatile__(
 	"	.set	push						\n"
 	"	.set	reorder						\n"
-#ifdef CONFIG_MIPS_MT_SMTC
-	"	mfc0	%[flags], $2, 1					\n"
-#else
 	"	mfc0	%[flags], $12					\n"
-#endif
 	"	.set	pop						\n"
 	: [flags] "=r" (flags));
 
@@ -177,14 +158,7 @@ static inline unsigned long arch_local_save_flags(void)
 
 static inline int arch_irqs_disabled_flags(unsigned long flags)
 {
-#ifdef CONFIG_MIPS_MT_SMTC
-	/*
-	 * SMTC model uses TCStatus.IXMT to disable interrupts for a thread/CPU
-	 */
-	return flags & 0x400;
-#else
 	return !(flags & 1);
-#endif
 }
 
 #endif /* #ifndef __ASSEMBLY__ */

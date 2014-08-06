@@ -389,14 +389,14 @@ nv84_fifo_cclass = {
  ******************************************************************************/
 
 static void
-nv84_fifo_uevent_enable(struct nouveau_event *event, int index)
+nv84_fifo_uevent_enable(struct nouveau_event *event, int type, int index)
 {
 	struct nv84_fifo_priv *priv = event->priv;
 	nv_mask(priv, 0x002140, 0x40000000, 0x40000000);
 }
 
 static void
-nv84_fifo_uevent_disable(struct nouveau_event *event, int index)
+nv84_fifo_uevent_disable(struct nouveau_event *event, int type, int index)
 {
 	struct nv84_fifo_priv *priv = event->priv;
 	nv_mask(priv, 0x002140, 0x40000000, 0x00000000);

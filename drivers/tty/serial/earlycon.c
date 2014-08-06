@@ -15,6 +15,8 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/serial_core.h>
+#include <linux/sizes.h>
+#include <linux/mod_devicetable.h>
 
 #ifdef CONFIG_FIX_EARLYCON_MEM
 #include <asm/fixmap.h>
@@ -23,7 +25,7 @@
 #include <asm/serial.h>
 
 static struct console early_con = {
-	.name =		"earlycon",
+	.name =		"uart", /* 8250 console switch requires this name */
 	.flags =	CON_PRINTBUFFER | CON_BOOT,
 	.index =	-1,
 };
@@ -31,6 +33,9 @@ static struct console early_con = {
 static struct earlycon_device early_console_dev = {
 	.con = &early_con,
 };
+
+static const struct of_device_id __earlycon_of_table_sentinel
+	__used __section(__earlycon_of_table_end);
 
 static void __iomem * __init earlycon_map(unsigned long paddr, size_t size)
 {
@@ -138,6 +143,29 @@ int __init setup_earlycon(char *buf, const char *match,
 		return err;
 	if (!early_console_dev.con->write)
 		return -ENODEV;
+
+	register_console(early_console_dev.con);
+	return 0;
+}
+
+int __init of_setup_earlycon(unsigned long addr,
+			     int (*setup)(struct earlycon_device *, const char *))
+{
+	int err;
+	struct uart_port *port = &early_console_dev.port;
+
+	port->iotype = UPIO_MEM;
+	port->mapbase = addr;
+	port->uartclk = BASE_BAUD * 16;
+	port->membase = earlycon_map(addr, SZ_4K);
+
+	early_console_dev.con->data = &early_console_dev;
+	err = setup(&early_console_dev, NULL);
+	if (err < 0)
+		return err;
+	if (!early_console_dev.con->write)
+		return -ENODEV;
+
 
 	register_console(early_console_dev.con);
 	return 0;

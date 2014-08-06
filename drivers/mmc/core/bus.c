@@ -341,16 +341,17 @@ int mmc_add_card(struct mmc_card *card)
 	if (mmc_host_is_spi(card->host)) {
 		pr_info("%s: new %s%s%s card on SPI\n",
 			mmc_hostname(card->host),
-			mmc_card_highspeed(card) ? "high speed " : "",
-			mmc_card_ddr_mode(card) ? "DDR " : "",
+			mmc_card_hs(card) ? "high speed " : "",
+			mmc_card_ddr52(card) ? "DDR " : "",
 			type);
 	} else {
 		pr_info("%s: new %s%s%s%s%s card at address %04x\n",
 			mmc_hostname(card->host),
 			mmc_card_uhs(card) ? "ultra high speed " :
-			(mmc_card_highspeed(card) ? "high speed " : ""),
+			(mmc_card_hs(card) ? "high speed " : ""),
+			mmc_card_hs400(card) ? "HS400 " :
 			(mmc_card_hs200(card) ? "HS200 " : ""),
-			mmc_card_ddr_mode(card) ? "DDR " : "",
+			mmc_card_ddr52(card) ? "DDR " : "",
 			uhs_bus_speed_mode, type, card->rca);
 	}
 

@@ -1055,8 +1055,8 @@ void __init mem_init(void)
 	after_bootmem = 1;
 
 	/* Register memory areas for /proc/kcore */
-	kclist_add(&kcore_vsyscall, (void *)VSYSCALL_START,
-			 VSYSCALL_END - VSYSCALL_START, KCORE_OTHER);
+	kclist_add(&kcore_vsyscall, (void *)VSYSCALL_ADDR,
+			 PAGE_SIZE, KCORE_OTHER);
 
 	mem_init_print_info(NULL);
 }
@@ -1185,11 +1185,19 @@ int kern_addr_valid(unsigned long addr)
  * covers the 64bit vsyscall page now. 32bit has a real VMA now and does
  * not need special handling anymore:
  */
+static const char *gate_vma_name(struct vm_area_struct *vma)
+{
+	return "[vsyscall]";
+}
+static struct vm_operations_struct gate_vma_ops = {
+	.name = gate_vma_name,
+};
 static struct vm_area_struct gate_vma = {
-	.vm_start	= VSYSCALL_START,
-	.vm_end		= VSYSCALL_START + (VSYSCALL_MAPPED_PAGES * PAGE_SIZE),
+	.vm_start	= VSYSCALL_ADDR,
+	.vm_end		= VSYSCALL_ADDR + PAGE_SIZE,
 	.vm_page_prot	= PAGE_READONLY_EXEC,
-	.vm_flags	= VM_READ | VM_EXEC
+	.vm_flags	= VM_READ | VM_EXEC,
+	.vm_ops		= &gate_vma_ops,
 };
 
 struct vm_area_struct *get_gate_vma(struct mm_struct *mm)
@@ -1218,28 +1226,45 @@ int in_gate_area(struct mm_struct *mm, unsigned long addr)
  */
 int in_gate_area_no_mm(unsigned long addr)
 {
-	return (addr >= VSYSCALL_START) && (addr < VSYSCALL_END);
+	return (addr & PAGE_MASK) == VSYSCALL_ADDR;
 }
 
-const char *arch_vma_name(struct vm_area_struct *vma)
+static unsigned long probe_memory_block_size(void)
 {
-	if (vma->vm_mm && vma->vm_start == (long)vma->vm_mm->context.vdso)
-		return "[vdso]";
-	if (vma == &gate_vma)
-		return "[vsyscall]";
-	return NULL;
-}
+	/* start from 2g */
+	unsigned long bz = 1UL<<31;
 
 #ifdef CONFIG_X86_UV
-unsigned long memory_block_size_bytes(void)
-{
 	if (is_uv_system()) {
 		printk(KERN_INFO "UV: memory block size 2GB\n");
 		return 2UL * 1024 * 1024 * 1024;
 	}
-	return MIN_MEMORY_BLOCK_SIZE;
-}
 #endif
+
+	/* less than 64g installed */
+	if ((max_pfn << PAGE_SHIFT) < (16UL << 32))
+		return MIN_MEMORY_BLOCK_SIZE;
+
+	/* get the tail size */
+	while (bz > MIN_MEMORY_BLOCK_SIZE) {
+		if (!((max_pfn << PAGE_SHIFT) & (bz - 1)))
+			break;
+		bz >>= 1;
+	}
+
+	printk(KERN_DEBUG "memory block size : %ldMB\n", bz >> 20);
+
+	return bz;
+}
+
+static unsigned long memory_block_size_probed;
+unsigned long memory_block_size_bytes(void)
+{
+	if (!memory_block_size_probed)
+		memory_block_size_probed = probe_memory_block_size();
+
+	return memory_block_size_probed;
+}
 
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
 /*

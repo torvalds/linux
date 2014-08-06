@@ -24,6 +24,12 @@
 #define RPC_MAX_SLOT_TABLE_LIMIT	(65536U)
 #define RPC_MAX_SLOT_TABLE	RPC_MAX_SLOT_TABLE_LIMIT
 
+#define RPC_CWNDSHIFT		(8U)
+#define RPC_CWNDSCALE		(1U << RPC_CWNDSHIFT)
+#define RPC_INITCWND		RPC_CWNDSCALE
+#define RPC_MAXCWND(xprt)	((xprt)->max_reqs << RPC_CWNDSHIFT)
+#define RPCXPRT_CONGESTED(xprt) ((xprt)->cong >= (xprt)->cwnd)
+
 /*
  * This describes a timeout strategy
  */

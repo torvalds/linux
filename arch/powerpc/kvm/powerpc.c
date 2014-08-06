@@ -426,7 +426,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
 	case KVM_CAP_PPC_SMT:
 		if (hv_enabled)
-			r = threads_per_core;
+			r = threads_per_subcore;
 		else
 			r = 0;
 		break;

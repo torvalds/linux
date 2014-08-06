@@ -23,10 +23,10 @@ static unsigned long dir_blocks(struct inode *inode)
 
 static unsigned int dir_buckets(unsigned int level, int dir_level)
 {
-	if (level < MAX_DIR_HASH_DEPTH / 2)
+	if (level + dir_level < MAX_DIR_HASH_DEPTH / 2)
 		return 1 << (level + dir_level);
 	else
-		return 1 << ((MAX_DIR_HASH_DEPTH / 2 + dir_level) - 1);
+		return MAX_DIR_BUCKETS;
 }
 
 static unsigned int bucket_blocks(unsigned int level)
@@ -267,6 +267,8 @@ void f2fs_set_link(struct inode *dir, struct f2fs_dir_entry *de,
 static void init_dent_inode(const struct qstr *name, struct page *ipage)
 {
 	struct f2fs_inode *ri;
+
+	f2fs_wait_on_page_writeback(ipage, NODE);
 
 	/* copy name info. to this inode page */
 	ri = F2FS_INODE(ipage);
@@ -637,10 +639,16 @@ static int f2fs_readdir(struct file *file, struct dir_context *ctx)
 	struct f2fs_dentry_block *dentry_blk = NULL;
 	struct f2fs_dir_entry *de = NULL;
 	struct page *dentry_page = NULL;
+	struct file_ra_state *ra = &file->f_ra;
 	unsigned int n = ((unsigned long)ctx->pos / NR_DENTRY_IN_BLOCK);
 	unsigned char d_type = DT_UNKNOWN;
 
 	bit_pos = ((unsigned long)ctx->pos % NR_DENTRY_IN_BLOCK);
+
+	/* readahead for multi pages of dir */
+	if (npages - n > 1 && !ra_has_index(ra, n))
+		page_cache_sync_readahead(inode->i_mapping, ra, file, n,
+				min(npages - n, (pgoff_t)MAX_DIR_RA_PAGES));
 
 	for (; n < npages; n++) {
 		dentry_page = get_lock_data_page(inode, n);

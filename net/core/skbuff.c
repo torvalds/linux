@@ -689,12 +689,15 @@ static void __copy_skb_header(struct sk_buff *new, const struct sk_buff *old)
 	new->ooo_okay		= old->ooo_okay;
 	new->no_fcs		= old->no_fcs;
 	new->encapsulation	= old->encapsulation;
+	new->encap_hdr_csum	= old->encap_hdr_csum;
+	new->csum_valid		= old->csum_valid;
+	new->csum_complete_sw	= old->csum_complete_sw;
 #ifdef CONFIG_XFRM
 	new->sp			= secpath_get(old->sp);
 #endif
 	memcpy(new->cb, old->cb, sizeof(old->cb));
 	new->csum		= old->csum;
-	new->local_df		= old->local_df;
+	new->ignore_df		= old->ignore_df;
 	new->pkt_type		= old->pkt_type;
 	new->ip_summed		= old->ip_summed;
 	skb_copy_queue_mapping(new, old);
@@ -951,10 +954,13 @@ struct sk_buff *skb_copy(const struct sk_buff *skb, gfp_t gfp_mask)
 EXPORT_SYMBOL(skb_copy);
 
 /**
- *	__pskb_copy	-	create copy of an sk_buff with private head.
+ *	__pskb_copy_fclone	-  create copy of an sk_buff with private head.
  *	@skb: buffer to copy
  *	@headroom: headroom of new skb
  *	@gfp_mask: allocation priority
+ *	@fclone: if true allocate the copy of the skb from the fclone
+ *	cache instead of the head cache; it is recommended to set this
+ *	to true for the cases where the copy will likely be cloned
  *
  *	Make a copy of both an &sk_buff and part of its data, located
  *	in header. Fragmented data remain shared. This is used when
@@ -964,11 +970,12 @@ EXPORT_SYMBOL(skb_copy);
  *	The returned buffer has a reference count of 1.
  */
 
-struct sk_buff *__pskb_copy(struct sk_buff *skb, int headroom, gfp_t gfp_mask)
+struct sk_buff *__pskb_copy_fclone(struct sk_buff *skb, int headroom,
+				   gfp_t gfp_mask, bool fclone)
 {
 	unsigned int size = skb_headlen(skb) + headroom;
-	struct sk_buff *n = __alloc_skb(size, gfp_mask,
-					skb_alloc_rx_flag(skb), NUMA_NO_NODE);
+	int flags = skb_alloc_rx_flag(skb) | (fclone ? SKB_ALLOC_FCLONE : 0);
+	struct sk_buff *n = __alloc_skb(size, gfp_mask, flags, NUMA_NO_NODE);
 
 	if (!n)
 		goto out;
@@ -1008,7 +1015,7 @@ struct sk_buff *__pskb_copy(struct sk_buff *skb, int headroom, gfp_t gfp_mask)
 out:
 	return n;
 }
-EXPORT_SYMBOL(__pskb_copy);
+EXPORT_SYMBOL(__pskb_copy_fclone);
 
 /**
  *	pskb_expand_head - reallocate header of &sk_buff
@@ -2881,12 +2888,14 @@ struct sk_buff *skb_segment(struct sk_buff *head_skb,
 	int pos;
 	int dummy;
 
+	__skb_push(head_skb, doffset);
 	proto = skb_network_protocol(head_skb, &dummy);
 	if (unlikely(!proto))
 		return ERR_PTR(-EINVAL);
 
-	csum = !!can_checksum_protocol(features, proto);
-	__skb_push(head_skb, doffset);
+	csum = !head_skb->encap_hdr_csum &&
+	    !!can_checksum_protocol(features, proto);
+
 	headroom = skb_headroom(head_skb);
 	pos = skb_headlen(head_skb);
 
@@ -2983,6 +2992,8 @@ struct sk_buff *skb_segment(struct sk_buff *head_skb,
 			nskb->csum = skb_copy_and_csum_bits(head_skb, offset,
 							    skb_put(nskb, len),
 							    len, 0);
+			SKB_GSO_CB(nskb)->csum_start =
+			    skb_headroom(nskb) + doffset;
 			continue;
 		}
 
@@ -3052,6 +3063,8 @@ perform_csum_check:
 			nskb->csum = skb_checksum(nskb, doffset,
 						  nskb->len - doffset, 0);
 			nskb->ip_summed = CHECKSUM_NONE;
+			SKB_GSO_CB(nskb)->csum_start =
+			    skb_headroom(nskb) + doffset;
 		}
 	} while ((offset += len) < head_skb->len);
 
@@ -3913,7 +3926,7 @@ void skb_scrub_packet(struct sk_buff *skb, bool xnet)
 	skb->tstamp.tv64 = 0;
 	skb->pkt_type = PACKET_HOST;
 	skb->skb_iif = 0;
-	skb->local_df = 0;
+	skb->ignore_df = 0;
 	skb_dst_drop(skb);
 	skb->mark = 0;
 	secpath_reset(skb);

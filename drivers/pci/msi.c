@@ -413,7 +413,7 @@ static void free_msi_irqs(struct pci_dev *dev)
 	if (dev->msi_irq_groups) {
 		sysfs_remove_groups(&dev->dev.kobj, dev->msi_irq_groups);
 		msi_attrs = dev->msi_irq_groups[0]->attrs;
-		list_for_each_entry(entry, &dev->msi_list, list) {
+		while (msi_attrs[count]) {
 			dev_attr = container_of(msi_attrs[count],
 						struct device_attribute, attr);
 			kfree(dev_attr->attr.name);
@@ -980,8 +980,7 @@ int pci_enable_msix(struct pci_dev *dev, struct msix_entry *entries, int nvec)
 
 	/* Check whether driver already requested for MSI irq */
 	if (dev->msi_enabled) {
-		dev_info(&dev->dev, "can't enable MSI-X "
-		       "(MSI IRQ already assigned)\n");
+		dev_info(&dev->dev, "can't enable MSI-X (MSI IRQ already assigned)\n");
 		return -EINVAL;
 	}
 	status = msix_capability_init(dev, entries, nvec);

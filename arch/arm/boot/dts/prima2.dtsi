@@ -48,7 +48,7 @@
 		ranges = <0x40000000 0x40000000 0x80000000>;
 
 		l2-cache-controller@80040000 {
-			compatible = "arm,pl310-cache", "sirf,prima2-pl310-cache";
+			compatible = "arm,pl310-cache";
 			reg = <0x80040000 0x1000>;
 			interrupts = <59>;
 			arm,tag-latency = <1 1 1>;

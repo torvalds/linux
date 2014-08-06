@@ -22,10 +22,9 @@ void __weak pcibios_update_irq(struct pci_dev *dev, int irq)
 	pci_write_config_byte(dev, PCI_INTERRUPT_LINE, irq);
 }
 
-static void
-pdev_fixup_irq(struct pci_dev *dev,
-	       u8 (*swizzle)(struct pci_dev *, u8 *),
-	       int (*map_irq)(const struct pci_dev *, u8, u8))
+static void pdev_fixup_irq(struct pci_dev *dev,
+			   u8 (*swizzle)(struct pci_dev *, u8 *),
+			   int (*map_irq)(const struct pci_dev *, u8, u8))
 {
 	u8 pin, slot;
 	int irq = 0;
@@ -58,11 +57,11 @@ pdev_fixup_irq(struct pci_dev *dev,
 	pcibios_update_irq(dev, irq);
 }
 
-void
-pci_fixup_irqs(u8 (*swizzle)(struct pci_dev *, u8 *),
-	       int (*map_irq)(const struct pci_dev *, u8, u8))
+void pci_fixup_irqs(u8 (*swizzle)(struct pci_dev *, u8 *),
+		    int (*map_irq)(const struct pci_dev *, u8, u8))
 {
 	struct pci_dev *dev = NULL;
+
 	for_each_pci_dev(dev)
 		pdev_fixup_irq(dev, swizzle, map_irq);
 }

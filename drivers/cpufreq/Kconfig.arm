@@ -85,7 +85,7 @@ config ARM_EXYNOS_CPU_FREQ_BOOST_SW
 	  It allows usage of special frequencies for Samsung Exynos
 	  processors if thermal conditions are appropriate.
 
-	  It reguires, for safe operation, thermal framework with properly
+	  It requires, for safe operation, thermal framework with properly
 	  defined trip points.
 
 	  If in doubt, say N.
@@ -186,7 +186,7 @@ config ARM_S3C2416_CPUFREQ
 	  S3C2450 SoC. The S3C2416 supports changing the rate of the
 	  armdiv clock source and also entering a so called dynamic
 	  voltage scaling mode in which it is possible to reduce the
-	  core voltage of the cpu.
+	  core voltage of the CPU.
 
 	  If in doubt, say N.
 

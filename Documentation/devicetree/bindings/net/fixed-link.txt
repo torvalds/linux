@@ -1,0 +1,42 @@
+Fixed link Device Tree binding
+------------------------------
+
+Some Ethernet MACs have a "fixed link", and are not connected to a
+normal MDIO-managed PHY device. For those situations, a Device Tree
+binding allows to describe a "fixed link".
+
+Such a fixed link situation is described by creating a 'fixed-link'
+sub-node of the Ethernet MAC device node, with the following
+properties:
+
+* 'speed' (integer, mandatory), to indicate the link speed. Accepted
+  values are 10, 100 and 1000
+* 'full-duplex' (boolean, optional), to indicate that full duplex is
+  used. When absent, half duplex is assumed.
+* 'pause' (boolean, optional), to indicate that pause should be
+  enabled.
+* 'asym-pause' (boolean, optional), to indicate that asym_pause should
+  be enabled.
+
+Old, deprecated 'fixed-link' binding:
+
+* A 'fixed-link' property in the Ethernet MAC node, with 5 cells, of the
+  form <a b c d e> with the following accepted values:
+  - a: emulated PHY ID, choose any but but unique to the all specified
+    fixed-links, from 0 to 31
+  - b: duplex configuration: 0 for half duplex, 1 for full duplex
+  - c: link speed in Mbits/sec, accepted values are: 10, 100 and 1000
+  - d: pause configuration: 0 for no pause, 1 for pause
+  - e: asymmetric pause configuration: 0 for no asymmetric pause, 1 for
+    asymmetric pause
+
+Example:
+
+ethernet@0 {
+	...
+	fixed-link {
+	      speed = <1000>;
+	      full-duplex;
+	};
+	...
+};

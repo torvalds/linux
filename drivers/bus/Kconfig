@@ -45,7 +45,7 @@ config OMAP_INTERCONNECT
 
 config ARM_CCI
 	bool "ARM CCI driver support"
-	depends on ARM
+	depends on ARM && OF && CPU_V7
 	help
 	  Driver supporting the CCI cache coherent interconnect for ARM
 	  platforms.

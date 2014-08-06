@@ -1176,7 +1176,7 @@ void ip6_update_pmtu(struct sk_buff *skb, struct net *net, __be32 mtu,
 
 	memset(&fl6, 0, sizeof(fl6));
 	fl6.flowi6_oif = oif;
-	fl6.flowi6_mark = mark;
+	fl6.flowi6_mark = mark ? mark : IP6_REPLY_MARK(net, skb->mark);
 	fl6.daddr = iph->daddr;
 	fl6.saddr = iph->saddr;
 	fl6.flowlabel = ip6_flowinfo(iph);
@@ -1455,7 +1455,7 @@ static int ip6_dst_gc(struct dst_ops *ops)
 		goto out;
 
 	net->ipv6.ip6_rt_gc_expire++;
-	fib6_run_gc(net->ipv6.ip6_rt_gc_expire, net, entries > rt_max_size);
+	fib6_run_gc(net->ipv6.ip6_rt_gc_expire, net, true);
 	entries = dst_entries_get_slow(ops);
 	if (entries < ops->gc_thresh)
 		net->ipv6.ip6_rt_gc_expire = rt_gc_timeout>>1;

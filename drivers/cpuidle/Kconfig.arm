@@ -18,6 +18,12 @@ config ARM_BIG_LITTLE_CPUIDLE
 	  define different C-states for little and big cores through the
 	  multiple CPU idle drivers infrastructure.
 
+config ARM_CLPS711X_CPUIDLE
+	bool "CPU Idle Driver for CLPS711X processors"
+	depends on ARCH_CLPS711X || COMPILE_TEST
+	help
+	  Select this to enable cpuidle on Cirrus Logic CLPS711X SOCs.
+
 config ARM_HIGHBANK_CPUIDLE
 	bool "CPU Idle Driver for Calxeda processors"
 	depends on ARM_PSCI

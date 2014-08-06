@@ -533,7 +533,7 @@ static u8 hpc_readcmdtoindex (u8 cmd, u8 index)
 *
 * Return   0 or error codes
 *---------------------------------------------------------------------*/
-int ibmphp_hpc_readslot (struct slot * pslot, u8 cmd, u8 * pstatus)
+int ibmphp_hpc_readslot (struct slot *pslot, u8 cmd, u8 *pstatus)
 {
 	void __iomem *wpg_bbar = NULL;
 	struct controller *ctlr_ptr;
@@ -672,7 +672,7 @@ int ibmphp_hpc_readslot (struct slot * pslot, u8 cmd, u8 * pstatus)
 *
 * Action: issue a WRITE command to HPC
 *---------------------------------------------------------------------*/
-int ibmphp_hpc_writeslot (struct slot * pslot, u8 cmd)
+int ibmphp_hpc_writeslot (struct slot *pslot, u8 cmd)
 {
 	void __iomem *wpg_bbar = NULL;
 	struct controller *ctlr_ptr;
@@ -1102,7 +1102,7 @@ void __exit ibmphp_hpc_stop_poll_thread (void)
 * Value:
 *---------------------------------------------------------------------*/
 static int hpc_wait_ctlr_notworking (int timeout, struct controller *ctlr_ptr, void __iomem *wpg_bbar,
-				    u8 * pstatus)
+				    u8 *pstatus)
 {
 	int rc = 0;
 	u8 done = 0;

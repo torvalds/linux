@@ -1993,7 +1993,11 @@ static unsigned int ata_scsiop_inq_std(struct ata_scsi_args *args, u8 *rbuf)
 	memcpy(rbuf, hdr, sizeof(hdr));
 	memcpy(&rbuf[8], "ATA     ", 8);
 	ata_id_string(args->id, &rbuf[16], ATA_ID_PROD, 16);
-	ata_id_string(args->id, &rbuf[32], ATA_ID_FW_REV, 4);
+
+	/* From SAT, use last 2 words from fw rev unless they are spaces */
+	ata_id_string(args->id, &rbuf[32], ATA_ID_FW_REV + 2, 4);
+	if (strncmp(&rbuf[32], "    ", 4) == 0)
+		ata_id_string(args->id, &rbuf[32], ATA_ID_FW_REV, 4);
 
 	if (rbuf[32] == 0 || rbuf[32] == ' ')
 		memcpy(&rbuf[32], "n/a ", 4);

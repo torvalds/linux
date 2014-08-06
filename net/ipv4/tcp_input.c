@@ -1162,12 +1162,12 @@ static int tcp_match_skb_to_sack(struct sock *sk, struct sk_buff *skb,
 			unsigned int new_len = (pkt_len / mss) * mss;
 			if (!in_sack && new_len < pkt_len) {
 				new_len += mss;
-				if (new_len > skb->len)
+				if (new_len >= skb->len)
 					return 0;
 			}
 			pkt_len = new_len;
 		}
-		err = tcp_fragment(sk, skb, pkt_len, mss);
+		err = tcp_fragment(sk, skb, pkt_len, mss, GFP_ATOMIC);
 		if (err < 0)
 			return err;
 	}
@@ -2241,7 +2241,8 @@ static void tcp_mark_head_lost(struct sock *sk, int packets, int mark_head)
 				break;
 
 			mss = skb_shinfo(skb)->gso_size;
-			err = tcp_fragment(sk, skb, (packets - oldcnt) * mss, mss);
+			err = tcp_fragment(sk, skb, (packets - oldcnt) * mss,
+					   mss, GFP_ATOMIC);
 			if (err < 0)
 				break;
 			cnt = packets;
@@ -2684,13 +2685,12 @@ static void tcp_process_loss(struct sock *sk, int flag, bool is_dupack)
 	bool recovered = !before(tp->snd_una, tp->high_seq);
 
 	if (tp->frto) { /* F-RTO RFC5682 sec 3.1 (sack enhanced version). */
-		if (flag & FLAG_ORIG_SACK_ACKED) {
-			/* Step 3.b. A timeout is spurious if not all data are
-			 * lost, i.e., never-retransmitted data are (s)acked.
-			 */
-			tcp_try_undo_loss(sk, true);
+		/* Step 3.b. A timeout is spurious if not all data are
+		 * lost, i.e., never-retransmitted data are (s)acked.
+		 */
+		if (tcp_try_undo_loss(sk, flag & FLAG_ORIG_SACK_ACKED))
 			return;
-		}
+
 		if (after(tp->snd_nxt, tp->high_seq) &&
 		    (flag & FLAG_DATA_SACKED || is_dupack)) {
 			tp->frto = 0; /* Loss was real: 2nd part of step 3.a */
@@ -2938,10 +2938,11 @@ static void tcp_synack_rtt_meas(struct sock *sk, const u32 synack_stamp)
 		tcp_ack_update_rtt(sk, FLAG_SYN_ACKED, seq_rtt_us, -1L);
 }
 
-static void tcp_cong_avoid(struct sock *sk, u32 ack, u32 acked, u32 in_flight)
+static void tcp_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 {
 	const struct inet_connection_sock *icsk = inet_csk(sk);
-	icsk->icsk_ca_ops->cong_avoid(sk, ack, acked, in_flight);
+
+	icsk->icsk_ca_ops->cong_avoid(sk, ack, acked);
 	tcp_sk(sk)->snd_cwnd_stamp = tcp_time_stamp;
 }
 
@@ -3364,7 +3365,6 @@ static int tcp_ack(struct sock *sk, const struct sk_buff *skb, int flag)
 	u32 ack_seq = TCP_SKB_CB(skb)->seq;
 	u32 ack = TCP_SKB_CB(skb)->ack_seq;
 	bool is_dupack = false;
-	u32 prior_in_flight;
 	u32 prior_fackets;
 	int prior_packets = tp->packets_out;
 	const int prior_unsacked = tp->packets_out - tp->sacked_out;
@@ -3397,7 +3397,6 @@ static int tcp_ack(struct sock *sk, const struct sk_buff *skb, int flag)
 		flag |= FLAG_SND_UNA_ADVANCED;
 
 	prior_fackets = tp->fackets_out;
-	prior_in_flight = tcp_packets_in_flight(tp);
 
 	/* ts_recent update must be made after we are sure that the packet
 	 * is in window.
@@ -3452,7 +3451,7 @@ static int tcp_ack(struct sock *sk, const struct sk_buff *skb, int flag)
 
 	/* Advance cwnd if state allows */
 	if (tcp_may_raise_cwnd(sk, flag))
-		tcp_cong_avoid(sk, ack, acked, prior_in_flight);
+		tcp_cong_avoid(sk, ack, acked);
 
 	if (tcp_ack_is_dubious(sk, flag)) {
 		is_dupack = !(flag & (FLAG_SND_UNA_ADVANCED | FLAG_NOT_DUP));
@@ -4701,28 +4700,6 @@ static int tcp_prune_queue(struct sock *sk)
 	/* Massive buffer overcommit. */
 	tp->pred_flags = 0;
 	return -1;
-}
-
-/* RFC2861, slow part. Adjust cwnd, after it was not full during one rto.
- * As additional protections, we do not touch cwnd in retransmission phases,
- * and if application hit its sndbuf limit recently.
- */
-void tcp_cwnd_application_limited(struct sock *sk)
-{
-	struct tcp_sock *tp = tcp_sk(sk);
-
-	if (inet_csk(sk)->icsk_ca_state == TCP_CA_Open &&
-	    sk->sk_socket && !test_bit(SOCK_NOSPACE, &sk->sk_socket->flags)) {
-		/* Limited by application or receiver window. */
-		u32 init_win = tcp_init_cwnd(tp, __sk_dst_get(sk));
-		u32 win_used = max(tp->snd_cwnd_used, init_win);
-		if (win_used < tp->snd_cwnd) {
-			tp->snd_ssthresh = tcp_current_ssthresh(sk);
-			tp->snd_cwnd = (tp->snd_cwnd + win_used) >> 1;
-		}
-		tp->snd_cwnd_used = 0;
-	}
-	tp->snd_cwnd_stamp = tcp_time_stamp;
 }
 
 static bool tcp_should_expand_sndbuf(const struct sock *sk)

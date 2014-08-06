@@ -144,13 +144,7 @@ search_module_dbetables(unsigned long addr)
 #define MODULE_KERNEL_TYPE "64BIT "
 #endif
 
-#ifdef CONFIG_MIPS_MT_SMTC
-#define MODULE_KERNEL_SMTC "MT_SMTC "
-#else
-#define MODULE_KERNEL_SMTC ""
-#endif
-
 #define MODULE_ARCH_VERMAGIC \
-	MODULE_PROC_FAMILY MODULE_KERNEL_TYPE MODULE_KERNEL_SMTC
+	MODULE_PROC_FAMILY MODULE_KERNEL_TYPE
 
 #endif /* _ASM_MODULE_H */

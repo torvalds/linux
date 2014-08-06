@@ -137,12 +137,6 @@ struct filename;
 #define VMACACHE_MASK (VMACACHE_SIZE - 1)
 
 /*
- * List of flags we want to share for kernel threads,
- * if only because they are not used by them anyway.
- */
-#define CLONE_KERNEL	(CLONE_FS | CLONE_FILES | CLONE_SIGHAND)
-
-/*
  * These are the constant used to fake the fixed-point load-average
  * counting. Some notes:
  *  - 11 bit fractions expand to 22 bits by the multiplies: this gives
@@ -745,7 +739,6 @@ static inline int signal_group_exit(const struct signal_struct *sig)
 struct user_struct {
 	atomic_t __count;	/* reference count */
 	atomic_t processes;	/* How many processes does this user have? */
-	atomic_t files;		/* How many open files does this user have? */
 	atomic_t sigpending;	/* How many pending signals does this user have? */
 #ifdef CONFIG_INOTIFY_USER
 	atomic_t inotify_watches; /* How many inotify watches does this user have? */
@@ -854,10 +847,10 @@ enum cpu_idle_type {
 };
 
 /*
- * Increase resolution of cpu_power calculations
+ * Increase resolution of cpu_capacity calculations
  */
-#define SCHED_POWER_SHIFT	10
-#define SCHED_POWER_SCALE	(1L << SCHED_POWER_SHIFT)
+#define SCHED_CAPACITY_SHIFT	10
+#define SCHED_CAPACITY_SCALE	(1L << SCHED_CAPACITY_SHIFT)
 
 /*
  * sched-domains (multiprocessor balancing) declarations:
@@ -869,7 +862,7 @@ enum cpu_idle_type {
 #define SD_BALANCE_FORK		0x0008	/* Balance on fork, clone */
 #define SD_BALANCE_WAKE		0x0010  /* Balance on wakeup */
 #define SD_WAKE_AFFINE		0x0020	/* Wake task to waking CPU */
-#define SD_SHARE_CPUPOWER	0x0080	/* Domain members share cpu power */
+#define SD_SHARE_CPUCAPACITY	0x0080	/* Domain members share cpu power */
 #define SD_SHARE_POWERDOMAIN	0x0100	/* Domain members share power domain */
 #define SD_SHARE_PKG_RESOURCES	0x0200	/* Domain members share cpu pkg resources */
 #define SD_SERIALIZE		0x0400	/* Only a single load balancing instance */
@@ -881,7 +874,7 @@ enum cpu_idle_type {
 #ifdef CONFIG_SCHED_SMT
 static inline const int cpu_smt_flags(void)
 {
-	return SD_SHARE_CPUPOWER | SD_SHARE_PKG_RESOURCES;
+	return SD_SHARE_CPUCAPACITY | SD_SHARE_PKG_RESOURCES;
 }
 #endif
 
@@ -1013,7 +1006,7 @@ typedef const int (*sched_domain_flags_f)(void);
 struct sd_data {
 	struct sched_domain **__percpu sd;
 	struct sched_group **__percpu sg;
-	struct sched_group_power **__percpu sgp;
+	struct sched_group_capacity **__percpu sgc;
 };
 
 struct sched_domain_topology_level {
@@ -2180,7 +2173,7 @@ static inline void sched_autogroup_fork(struct signal_struct *sig) { }
 static inline void sched_autogroup_exit(struct signal_struct *sig) { }
 #endif
 
-extern bool yield_to(struct task_struct *p, bool preempt);
+extern int yield_to(struct task_struct *p, bool preempt);
 extern void set_user_nice(struct task_struct *p, long nice);
 extern int task_prio(const struct task_struct *p);
 /**
@@ -2421,9 +2414,6 @@ extern void flush_itimer_signals(void);
 
 extern void do_group_exit(int);
 
-extern int allow_signal(int);
-extern int disallow_signal(int);
-
 extern int do_execve(struct filename *,
 		     const char __user * const __user *,
 		     const char __user * const __user *);
@@ -2431,7 +2421,11 @@ extern long do_fork(unsigned long, unsigned long, unsigned long, int __user *, i
 struct task_struct *fork_idle(int);
 extern pid_t kernel_thread(int (*fn)(void *), void *arg, unsigned long flags);
 
-extern void set_task_comm(struct task_struct *tsk, const char *from);
+extern void __set_task_comm(struct task_struct *tsk, const char *from, bool exec);
+static inline void set_task_comm(struct task_struct *tsk, const char *from)
+{
+	__set_task_comm(tsk, from, false);
+}
 extern char *get_task_comm(char *to, struct task_struct *tsk);
 
 #ifdef CONFIG_SMP
@@ -2967,7 +2961,7 @@ static inline void inc_syscw(struct task_struct *tsk)
 #define TASK_SIZE_OF(tsk)	TASK_SIZE
 #endif
 
-#ifdef CONFIG_MM_OWNER
+#ifdef CONFIG_MEMCG
 extern void mm_update_next_owner(struct mm_struct *mm);
 extern void mm_init_owner(struct mm_struct *mm, struct task_struct *p);
 #else
@@ -2978,7 +2972,7 @@ static inline void mm_update_next_owner(struct mm_struct *mm)
 static inline void mm_init_owner(struct mm_struct *mm, struct task_struct *p)
 {
 }
-#endif /* CONFIG_MM_OWNER */
+#endif /* CONFIG_MEMCG */
 
 static inline unsigned long task_rlimit(const struct task_struct *tsk,
 		unsigned int limit)

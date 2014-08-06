@@ -315,15 +315,15 @@
 &esdhc1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_esdhc1>;
-	fsl,cd-controller;
-	fsl,wp-controller;
+	cd-gpios = <&gpio1 0 GPIO_ACTIVE_LOW>;
+	wp-gpios = <&gpio1 1 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 };
 
 &esdhc2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_esdhc2>;
-	cd-gpios = <&gpio1 6 GPIO_ACTIVE_HIGH>;
+	cd-gpios = <&gpio1 6 GPIO_ACTIVE_LOW>;
 	wp-gpios = <&gpio1 5 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 };
@@ -468,8 +468,8 @@
 				MX51_PAD_SD1_DATA1__SD1_DATA1		0x20d5
 				MX51_PAD_SD1_DATA2__SD1_DATA2		0x20d5
 				MX51_PAD_SD1_DATA3__SD1_DATA3		0x20d5
-				MX51_PAD_GPIO1_0__SD1_CD		0x20d5
-				MX51_PAD_GPIO1_1__SD1_WP		0x20d5
+				MX51_PAD_GPIO1_0__GPIO1_0		0x100
+				MX51_PAD_GPIO1_1__GPIO1_1		0x100
 			>;
 		};
 

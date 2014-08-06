@@ -303,7 +303,6 @@ static struct ata_port_operations xgene_ahci_ops = {
 };
 
 static const struct ata_port_info xgene_ahci_port_info = {
-	AHCI_HFLAGS(AHCI_HFLAG_NO_PMP | AHCI_HFLAG_YES_NCQ),
 	.flags = AHCI_FLAG_COMMON | ATA_FLAG_NCQ,
 	.pio_mask = ATA_PIO4,
 	.udma_mask = ATA_UDMA6,
@@ -382,6 +381,7 @@ static int xgene_ahci_probe(struct platform_device *pdev)
 	struct ahci_host_priv *hpriv;
 	struct xgene_ahci_context *ctx;
 	struct resource *res;
+	unsigned long hflags;
 	int rc;
 
 	hpriv = ahci_platform_get_resources(pdev);
@@ -450,7 +450,10 @@ static int xgene_ahci_probe(struct platform_device *pdev)
 		goto disable_resources;
 	}
 
-	rc = ahci_platform_init_host(pdev, hpriv, &xgene_ahci_port_info, 0, 0);
+	hflags = AHCI_HFLAG_NO_PMP | AHCI_HFLAG_YES_NCQ;
+
+	rc = ahci_platform_init_host(pdev, hpriv, &xgene_ahci_port_info,
+				     hflags, 0, 0);
 	if (rc)
 		goto disable_resources;
 

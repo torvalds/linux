@@ -1516,7 +1516,7 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id id)
 		dev->ts1.height = 576;
 		cx2341x_handler_set_50hz(&dev->mpeg_ctrl_handler, true);
 	}
-	call_all(dev, core, s_std, dev->norm);
+	call_all(dev, video, s_std, dev->norm);
 	/* do mode control overrides */
 	cx231xx_do_mode_ctrl_overrides(dev);
 

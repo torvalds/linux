@@ -847,7 +847,7 @@ static int st_i2c_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id st_i2c_match[] = {
+static const struct of_device_id st_i2c_match[] = {
 	{ .compatible = "st,comms-ssc-i2c", },
 	{ .compatible = "st,comms-ssc4-i2c", },
 	{},

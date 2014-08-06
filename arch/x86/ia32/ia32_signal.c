@@ -383,8 +383,8 @@ int ia32_setup_frame(int sig, struct ksignal *ksig,
 	} else {
 		/* Return stub is in 32bit vsyscall page */
 		if (current->mm->context.vdso)
-			restorer = VDSO32_SYMBOL(current->mm->context.vdso,
-						 sigreturn);
+			restorer = current->mm->context.vdso +
+				selected_vdso32->sym___kernel_sigreturn;
 		else
 			restorer = &frame->retcode;
 	}
@@ -462,8 +462,8 @@ int ia32_setup_rt_frame(int sig, struct ksignal *ksig,
 		if (ksig->ka.sa.sa_flags & SA_RESTORER)
 			restorer = ksig->ka.sa.sa_restorer;
 		else
-			restorer = VDSO32_SYMBOL(current->mm->context.vdso,
-						 rt_sigreturn);
+			restorer = current->mm->context.vdso +
+				selected_vdso32->sym___kernel_rt_sigreturn;
 		put_user_ex(ptr_to_compat(restorer), &frame->pretcode);
 
 		/*

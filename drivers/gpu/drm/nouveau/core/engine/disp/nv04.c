@@ -51,6 +51,14 @@ nv04_disp_scanoutpos(struct nouveau_object *object, u32 mthd,
 	args->htotal  = nv_rd32(priv, 0x680824 + (head * 0x2000)) & 0xffff;
 	args->hblanke = args->htotal - 1;
 
+	/*
+	 * If output is vga instead of digital then vtotal/htotal is invalid
+	 * so we have to give up and trigger the timestamping fallback in the
+	 * drm core.
+	 */
+	if (!args->vtotal || !args->htotal)
+		return -ENOTSUPP;
+
 	args->time[0] = ktime_to_ns(ktime_get());
 	line = nv_rd32(priv, 0x600868 + (head * 0x2000));
 	args->time[1] = ktime_to_ns(ktime_get());
@@ -78,13 +86,13 @@ nv04_disp_sclass[] = {
  ******************************************************************************/
 
 static void
-nv04_disp_vblank_enable(struct nouveau_event *event, int head)
+nv04_disp_vblank_enable(struct nouveau_event *event, int type, int head)
 {
 	nv_wr32(event->priv, 0x600140 + (head * 0x2000) , 0x00000001);
 }
 
 static void
-nv04_disp_vblank_disable(struct nouveau_event *event, int head)
+nv04_disp_vblank_disable(struct nouveau_event *event, int type, int head)
 {
 	nv_wr32(event->priv, 0x600140 + (head * 0x2000) , 0x00000000);
 }
@@ -98,12 +106,12 @@ nv04_disp_intr(struct nouveau_subdev *subdev)
 	u32 pvideo;
 
 	if (crtc0 & 0x00000001) {
-		nouveau_event_trigger(priv->base.vblank, 0);
+		nouveau_event_trigger(priv->base.vblank, 1, 0);
 		nv_wr32(priv, 0x600100, 0x00000001);
 	}
 
 	if (crtc1 & 0x00000001) {
-		nouveau_event_trigger(priv->base.vblank, 1);
+		nouveau_event_trigger(priv->base.vblank, 1, 1);
 		nv_wr32(priv, 0x602100, 0x00000001);
 	}
 

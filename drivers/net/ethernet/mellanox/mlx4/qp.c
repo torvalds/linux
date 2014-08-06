@@ -264,37 +264,37 @@ void mlx4_qp_release_range(struct mlx4_dev *dev, int base_qpn, int cnt)
 			       MLX4_CMD_FREE_RES,
 			       MLX4_CMD_TIME_CLASS_A, MLX4_CMD_WRAPPED);
 		if (err) {
-			mlx4_warn(dev, "Failed to release qp range"
-				  " base:%d cnt:%d\n", base_qpn, cnt);
+			mlx4_warn(dev, "Failed to release qp range base:%d cnt:%d\n",
+				  base_qpn, cnt);
 		}
 	} else
 		 __mlx4_qp_release_range(dev, base_qpn, cnt);
 }
 EXPORT_SYMBOL_GPL(mlx4_qp_release_range);
 
-int __mlx4_qp_alloc_icm(struct mlx4_dev *dev, int qpn)
+int __mlx4_qp_alloc_icm(struct mlx4_dev *dev, int qpn, gfp_t gfp)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct mlx4_qp_table *qp_table = &priv->qp_table;
 	int err;
 
-	err = mlx4_table_get(dev, &qp_table->qp_table, qpn);
+	err = mlx4_table_get(dev, &qp_table->qp_table, qpn, gfp);
 	if (err)
 		goto err_out;
 
-	err = mlx4_table_get(dev, &qp_table->auxc_table, qpn);
+	err = mlx4_table_get(dev, &qp_table->auxc_table, qpn, gfp);
 	if (err)
 		goto err_put_qp;
 
-	err = mlx4_table_get(dev, &qp_table->altc_table, qpn);
+	err = mlx4_table_get(dev, &qp_table->altc_table, qpn, gfp);
 	if (err)
 		goto err_put_auxc;
 
-	err = mlx4_table_get(dev, &qp_table->rdmarc_table, qpn);
+	err = mlx4_table_get(dev, &qp_table->rdmarc_table, qpn, gfp);
 	if (err)
 		goto err_put_altc;
 
-	err = mlx4_table_get(dev, &qp_table->cmpt_table, qpn);
+	err = mlx4_table_get(dev, &qp_table->cmpt_table, qpn, gfp);
 	if (err)
 		goto err_put_rdmarc;
 
@@ -316,7 +316,7 @@ err_out:
 	return err;
 }
 
-static int mlx4_qp_alloc_icm(struct mlx4_dev *dev, int qpn)
+static int mlx4_qp_alloc_icm(struct mlx4_dev *dev, int qpn, gfp_t gfp)
 {
 	u64 param = 0;
 
@@ -326,7 +326,7 @@ static int mlx4_qp_alloc_icm(struct mlx4_dev *dev, int qpn)
 				    MLX4_CMD_ALLOC_RES, MLX4_CMD_TIME_CLASS_A,
 				    MLX4_CMD_WRAPPED);
 	}
-	return __mlx4_qp_alloc_icm(dev, qpn);
+	return __mlx4_qp_alloc_icm(dev, qpn, gfp);
 }
 
 void __mlx4_qp_free_icm(struct mlx4_dev *dev, int qpn)
@@ -355,7 +355,7 @@ static void mlx4_qp_free_icm(struct mlx4_dev *dev, int qpn)
 		__mlx4_qp_free_icm(dev, qpn);
 }
 
-int mlx4_qp_alloc(struct mlx4_dev *dev, int qpn, struct mlx4_qp *qp)
+int mlx4_qp_alloc(struct mlx4_dev *dev, int qpn, struct mlx4_qp *qp, gfp_t gfp)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct mlx4_qp_table *qp_table = &priv->qp_table;
@@ -366,7 +366,7 @@ int mlx4_qp_alloc(struct mlx4_dev *dev, int qpn, struct mlx4_qp *qp)
 
 	qp->qpn = qpn;
 
-	err = mlx4_qp_alloc_icm(dev, qpn);
+	err = mlx4_qp_alloc_icm(dev, qpn, gfp);
 	if (err)
 		return err;
 
@@ -612,8 +612,7 @@ int mlx4_qp_to_ready(struct mlx4_dev *dev, struct mlx4_mtt *mtt,
 		err = mlx4_qp_modify(dev, mtt, states[i], states[i + 1],
 				     context, 0, 0, qp);
 		if (err) {
-			mlx4_err(dev, "Failed to bring QP to state: "
-				 "%d with error: %d\n",
+			mlx4_err(dev, "Failed to bring QP to state: %d with error: %d\n",
 				 states[i + 1], err);
 			return err;
 		}
