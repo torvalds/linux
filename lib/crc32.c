@@ -155,6 +155,20 @@ crc32_body(u32 crc, unsigned char const *buf, size_t len, const u32 (*tab)[256])
 }
 #endif
 
+/*
+ * crc32 select endian
+ *
+ */
+
+u32  crc32_sel(u32 crc,unsigned char const *p,size_t len,u8 endian_type){
+ 	
+ 	/*
+ 	 *	(endian_type) ? big endian : little endian 
+ 	 */
+	return (endian_type) ? crc32_be(crc,p,len) : crc_le(crc,p,len);
+	
+}
+
 /* For conditions of distribution and use, see copyright notice in zlib.h */
 static u32 crc32_generic_combine(u32 crc1, u32 crc2, size_t len2,
 				 u32 polynomial)

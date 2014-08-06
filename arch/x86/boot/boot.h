@@ -39,43 +39,54 @@ extern struct boot_params boot_params;
 
 #define cpu_relax()	asm volatile("rep; nop")
 
+
+/*
+ * unsigned short-u16  port_t
+ * perhaps, be defined in linux/types.h
+ */
+typedef u16 port_t;
+typedef u8 byte_t;
+typedef u16 word_t;
+typedef u32 dword_t; 
+
+
 /* Basic port I/O */
-static inline void outb(u8 v, u16 port)
+static inline void outb(byte_t value, port_t port)
 {
-	asm volatile("outb %0,%1" : : "a" (v), "dN" (port));
+	asm volatile("outb %0,%1" : : "a" (value), "dN" (port));
 }
-static inline u8 inb(u16 port)
+static inline byte_t inb(port_t port)
 {
-	u8 v;
-	asm volatile("inb %1,%0" : "=a" (v) : "dN" (port));
-	return v;
-}
-
-static inline void outw(u16 v, u16 port)
-{
-	asm volatile("outw %0,%1" : : "a" (v), "dN" (port));
-}
-static inline u16 inw(u16 port)
-{
-	u16 v;
-	asm volatile("inw %1,%0" : "=a" (v) : "dN" (port));
-	return v;
+	byte_t ret_val;
+	asm volatile("inb %1,%0" : "=a" (ret_val) : "dN" (port));
+	return ret_val;
 }
 
-static inline void outl(u32 v, u16 port)
+static inline void outw(word_t value, port_t port)
 {
-	asm volatile("outl %0,%1" : : "a" (v), "dN" (port));
+	asm volatile("outw %0,%1" : : "a" (value), "dN" (port));
 }
-static inline u32 inl(u16 port)
+static inline word_t inw(port_t port)
 {
-	u32 v;
-	asm volatile("inl %1,%0" : "=a" (v) : "dN" (port));
-	return v;
+	word_t ret_val;
+	asm volatile("inw %1,%0" : "=a" (ret_val) : "dN" (port));
+	return ret_val;
+}
+
+static inline void outl(dword_t value, port_t port)
+{
+	asm volatile("outl %0,%1" : : "a" (value), "dN" (port));
+}
+static inline dword_t inl(port_t port)
+{
+	dword ret_val;
+	asm volatile("inl %1,%0" : "=a" (ret_val) : "dN" (port));
+	return ret_val;
 }
 
 static inline void io_delay(void)
 {
-	const u16 DELAY_PORT = 0x80;
+	const port_t DELAY_PORT = 0x80;
 	asm volatile("outb %%al,%0" : : "dN" (DELAY_PORT));
 }
 
