@@ -133,6 +133,9 @@ struct RGF_ICR {
 #define RGF_HP_CTRL			(0x88265c)
 #define RGF_PCIE_LOS_COUNTER_CTL	(0x882dc4)
 
+/* MAC timer, usec, for packet lifetime */
+#define RGF_MAC_MTRL_COUNTER_0		(0x886aa8)
+
 /* popular locations */
 #define HOST_MBOX   HOSTADDR(RGF_USER_USER_SCRATCH_PAD)
 #define HOST_SW_INT (HOSTADDR(RGF_USER_USER_ICR) + \

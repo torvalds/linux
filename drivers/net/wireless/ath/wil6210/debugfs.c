@@ -1021,6 +1021,9 @@ int wil6210_debugfs_init(struct wil6210_priv *wil)
 				   HOSTADDR(RGF_DMA_EP_MISC_ICR));
 	wil6210_debugfs_create_pseudo_ISR(wil, dbg);
 	wil6210_debugfs_create_ITR_CNT(wil, dbg);
+	wil_debugfs_create_iomem_x32("MAC_MTRL_COUNTER_0", S_IRUGO, dbg,
+				     wil->csr +
+				     HOSTADDR(RGF_MAC_MTRL_COUNTER_0));
 
 	wil_debugfs_create_iomem_x32("RGF_USER_USAGE_1", S_IRUGO, dbg,
 				     wil->csr +
