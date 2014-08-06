@@ -2450,6 +2450,16 @@ sub process {
 			}
 		}
 
+# check indentation of a line with a break;
+# if the previous line is a goto or return and is indented the same # of tabs
+		if ($sline =~ /^\+([\t]+)break\s*;\s*$/) {
+			my $tabs = $1;
+			if ($prevline =~ /^\+$tabs(?:goto|return)\b/) {
+				WARN("UNNECESSARY_BREAK",
+				     "break is not useful after a goto or return\n" . $hereprev);
+			}
+		}
+
 # discourage the addition of CONFIG_EXPERIMENTAL in #if(def).
 		if ($line =~ /^\+\s*\#\s*if.*\bCONFIG_EXPERIMENTAL\b/) {
 			WARN("CONFIG_EXPERIMENTAL",
