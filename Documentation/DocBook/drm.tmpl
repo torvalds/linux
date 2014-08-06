@@ -3387,6 +3387,12 @@ void (*disable_vblank) (struct drm_device *dev, int crtc);</synopsis>
       module parameter or the <varname>drm_vblank_offdelay</varname> global
       variable and expressed in milliseconds. Its default value is 5000 ms.
       Zero means never disable, and a negative value means disable immediately.
+      Drivers may override the behaviour by setting the
+      <structname>drm_device</structname>
+      <structfield>vblank_disable_immediate</structfield> flag, which when set
+      causes vblank interrupts to be disabled immediately regardless of the
+      drm_vblank_offdelay value. The flag should only be set if there's a
+      properly working hardware vblank counter present.
     </para>
     <para>
       When a vertical blanking interrupt occurs drivers only need to call the
