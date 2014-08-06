@@ -243,6 +243,8 @@ static const struct pci_device_id wil6210_pcie_ids[] = {
 	  .driver_data = (kernel_ulong_t)&wil_board_marlon },
 	{ PCI_DEVICE(0x1ae9, 0x0310),
 	  .driver_data = (kernel_ulong_t)&wil_board_sparrow },
+	{ PCI_DEVICE(0x1ae9, 0x0302), /* same as above, firmware broken */
+	  .driver_data = (kernel_ulong_t)&wil_board_sparrow },
 	{ /* end: all zeroes */	},
 };
 MODULE_DEVICE_TABLE(pci, wil6210_pcie_ids);
