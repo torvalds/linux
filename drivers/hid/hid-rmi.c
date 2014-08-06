@@ -909,10 +909,15 @@ static int rmi_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		return ret;
 	}
 
-	if (!test_bit(RMI_STARTED, &data->flags)) {
-		hid_hw_stop(hdev);
-		return -EIO;
-	}
+	if (!test_bit(RMI_STARTED, &data->flags))
+		/*
+		 * The device maybe in the bootloader if rmi_input_configured
+		 * failed to find F11 in the PDT. Print an error, but don't
+		 * return an error from rmi_probe so that hidraw will be
+		 * accessible from userspace. That way a userspace tool
+		 * can be used to reload working firmware on the touchpad.
+		 */
+		hid_err(hdev, "Device failed to be properly configured\n");
 
 	return 0;
 }
