@@ -239,6 +239,7 @@ static void vblank_disable_fn(unsigned long arg)
 void drm_vblank_cleanup(struct drm_device *dev)
 {
 	int crtc;
+	unsigned long irqflags;
 
 	/* Bail if the driver didn't call drm_vblank_init() */
 	if (dev->num_crtcs == 0)
@@ -248,7 +249,10 @@ void drm_vblank_cleanup(struct drm_device *dev)
 		struct drm_vblank_crtc *vblank = &dev->vblank[crtc];
 
 		del_timer_sync(&vblank->disable_timer);
-		vblank_disable_fn((unsigned long)vblank);
+
+		spin_lock_irqsave(&dev->vbl_lock, irqflags);
+		vblank_disable_and_save(dev, crtc);
+		spin_unlock_irqrestore(&dev->vbl_lock, irqflags);
 	}
 
 	kfree(dev->vblank);
