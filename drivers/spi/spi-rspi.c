@@ -1084,7 +1084,7 @@ static int rspi_probe(struct platform_device *pdev)
 			master->num_chipselect = rspi_pd->num_chipselect;
 		else
 			master->num_chipselect = 2; /* default */
-	};
+	}
 
 	/* ops parameter check */
 	if (!ops->set_config_register) {
