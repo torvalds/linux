@@ -284,7 +284,7 @@ static inline void bitmap_shift_right(unsigned long *dst,
 			const unsigned long *src, int n, int nbits)
 {
 	if (small_const_nbits(nbits))
-		*dst = *src >> n;
+		*dst = (*src & BITMAP_LAST_WORD_MASK(nbits)) >> n;
 	else
 		__bitmap_shift_right(dst, src, n, nbits);
 }
