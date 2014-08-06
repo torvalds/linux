@@ -390,6 +390,7 @@ static inline void cls_clear_break(struct channel_t *ch, int force)
 	if (ch->ch_flags & CH_BREAK_SENDING) {
 		if (time_after(jiffies, ch->ch_stop_sending_break) || force) {
 			uchar temp = readb(&ch->ch_cls_uart->lcr);
+
 			writeb((temp & ~UART_LCR_SBC), &ch->ch_cls_uart->lcr);
 			ch->ch_flags &= ~(CH_BREAK_SENDING);
 			ch->ch_stop_sending_break = 0;
@@ -866,6 +867,7 @@ static irqreturn_t cls_intr(int irq, void *voidbrd)
 static void cls_disable_receiver(struct channel_t *ch)
 {
 	uchar tmp = readb(&ch->ch_cls_uart->ier);
+
 	tmp &= ~(UART_IER_RDI);
 	writeb(tmp, &ch->ch_cls_uart->ier);
 }
@@ -874,6 +876,7 @@ static void cls_disable_receiver(struct channel_t *ch)
 static void cls_enable_receiver(struct channel_t *ch)
 {
 	uchar tmp = readb(&ch->ch_cls_uart->ier);
+
 	tmp |= (UART_IER_RDI);
 	writeb(tmp, &ch->ch_cls_uart->ier);
 }
@@ -920,6 +923,7 @@ static void cls_copy_data_from_uart_to_queue(struct channel_t *ch)
 		*/
 		if (linestatus & error_mask)  {
 			uchar discard;
+
 			linestatus = 0;
 			discard = readb(&ch->ch_cls_uart->txrx);
 			continue;
@@ -1157,6 +1161,7 @@ static void cls_parse_modem(struct channel_t *ch, uchar signals)
 	DGNC_LOCK(ch->ch_lock, lock_flags);
 	if (ch->ch_digi.digi_flags & DIGI_ALTPIN) {
 		uchar mswap = signals;
+
 		if (mswap & UART_MSR_DDCD) {
 			msignals &= ~UART_MSR_DDCD;
 			msignals |= UART_MSR_DDSR;
@@ -1356,6 +1361,7 @@ static void cls_send_break(struct channel_t *ch, int msecs)
 		/* Turn break off, and unset some variables */
 		if (ch->ch_flags & CH_BREAK_SENDING) {
 			uchar temp = readb(&ch->ch_cls_uart->lcr);
+
 			writeb((temp & ~UART_LCR_SBC), &ch->ch_cls_uart->lcr);
 			ch->ch_flags &= ~(CH_BREAK_SENDING);
 			ch->ch_stop_sending_break = 0;
@@ -1375,6 +1381,7 @@ static void cls_send_break(struct channel_t *ch, int msecs)
 	/* Tell the UART to start sending the break */
 	if (!(ch->ch_flags & CH_BREAK_SENDING)) {
 		uchar temp = readb(&ch->ch_cls_uart->lcr);
+
 		writeb((temp | UART_LCR_SBC), &ch->ch_cls_uart->lcr);
 		ch->ch_flags |= (CH_BREAK_SENDING);
 		DPR_IOCTL((
