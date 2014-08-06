@@ -283,6 +283,10 @@ static inline void set_freepointer(struct kmem_cache *s, void *object, void *fp)
 	for (__p = (__addr); __p < (__addr) + (__objects) * (__s)->size;\
 			__p += (__s)->size)
 
+#define for_each_object_idx(__p, __idx, __s, __addr, __objects) \
+	for (__p = (__addr), __idx = 1; __idx <= __objects;\
+			__p += (__s)->size, __idx++)
+
 /* Determine object index from a given position */
 static inline int slab_index(void *p, struct kmem_cache *s, void *addr)
 {
@@ -1379,9 +1383,9 @@ static struct page *new_slab(struct kmem_cache *s, gfp_t flags, int node)
 {
 	struct page *page;
 	void *start;
-	void *last;
 	void *p;
 	int order;
+	int idx;
 
 	BUG_ON(flags & GFP_SLAB_BUG_MASK);
 
@@ -1402,14 +1406,13 @@ static struct page *new_slab(struct kmem_cache *s, gfp_t flags, int node)
 	if (unlikely(s->flags & SLAB_POISON))
 		memset(start, POISON_INUSE, PAGE_SIZE << order);
 
-	last = start;
-	for_each_object(p, s, start, page->objects) {
-		setup_object(s, page, last);
-		set_freepointer(s, last, p);
-		last = p;
+	for_each_object_idx(p, idx, s, start, page->objects) {
+		setup_object(s, page, p);
+		if (likely(idx < page->objects))
+			set_freepointer(s, p, p + s->size);
+		else
+			set_freepointer(s, p, NULL);
 	}
-	setup_object(s, page, last);
-	set_freepointer(s, last, NULL);
 
 	page->freelist = start;
 	page->inuse = page->objects;
