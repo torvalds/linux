@@ -710,15 +710,15 @@ sub format_email {
 }
 
 sub which {
-    my ($bin) = @_;
+	my ($bin) = @_;
 
-    foreach my $path (split(/:/, $ENV{PATH})) {
-	if (-e "$path/$bin") {
-	    return "$path/$bin";
+	foreach my $path (split(/:/, $ENV{PATH})) {
+		if (-e "$path/$bin") {
+			return "$path/$bin";
+		}
 	}
-    }
 
-    return "";
+	return "";
 }
 
 sub which_conf {
