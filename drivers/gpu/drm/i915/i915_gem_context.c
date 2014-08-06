@@ -436,13 +436,6 @@ int i915_gem_context_enable(struct drm_i915_private *dev_priv)
 	struct intel_engine_cs *ring;
 	int ret, i;
 
-	/* This is the only place the aliasing PPGTT gets enabled, which means
-	 * it has to happen before we bail on reset */
-	if (dev_priv->mm.aliasing_ppgtt) {
-		struct i915_hw_ppgtt *ppgtt = dev_priv->mm.aliasing_ppgtt;
-		ppgtt->enable(ppgtt);
-	}
-
 	/* FIXME: We should make this work, even in reset */
 	if (i915_reset_in_progress(&dev_priv->gpu_error))
 		return 0;

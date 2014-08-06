@@ -276,6 +276,7 @@ int i915_gem_setup_global_gtt(struct drm_device *dev, unsigned long start,
 
 
 int i915_ppgtt_init(struct drm_device *dev, struct i915_hw_ppgtt *ppgtt);
+int i915_ppgtt_init_hw(struct drm_device *dev);
 void i915_ppgtt_release(struct kref *kref);
 struct i915_hw_ppgtt *i915_ppgtt_create(struct drm_device *dev,
 					struct drm_i915_file_private *fpriv);

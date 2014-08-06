@@ -4719,6 +4719,14 @@ i915_gem_init_hw(struct drm_device *dev)
 	if (ret && ret != -EIO) {
 		DRM_ERROR("Context enable failed %d\n", ret);
 		i915_gem_cleanup_ringbuffer(dev);
+
+		return ret;
+	}
+
+	ret = i915_ppgtt_init_hw(dev);
+	if (ret && ret != -EIO) {
+		DRM_ERROR("PPGTT enable failed %d\n", ret);
+		i915_gem_cleanup_ringbuffer(dev);
 	}
 
 	return ret;

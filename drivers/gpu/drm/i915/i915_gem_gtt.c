@@ -67,7 +67,6 @@ static void ppgtt_bind_vma(struct i915_vma *vma,
 			   enum i915_cache_level cache_level,
 			   u32 flags);
 static void ppgtt_unbind_vma(struct i915_vma *vma);
-static int gen8_ppgtt_enable(struct i915_hw_ppgtt *ppgtt);
 
 static inline gen8_gtt_pte_t gen8_pte_encode(dma_addr_t addr,
 					     enum i915_cache_level level,
@@ -604,7 +603,6 @@ static int gen8_ppgtt_init(struct i915_hw_ppgtt *ppgtt, uint64_t size)
 		kunmap_atomic(pd_vaddr);
 	}
 
-	ppgtt->enable = gen8_ppgtt_enable;
 	ppgtt->switch_mm = gen8_mm_switch;
 	ppgtt->base.clear_range = gen8_ppgtt_clear_range;
 	ppgtt->base.insert_entries = gen8_ppgtt_insert_entries;
@@ -825,39 +823,20 @@ static int gen6_mm_switch(struct i915_hw_ppgtt *ppgtt,
 	return 0;
 }
 
-static int gen8_ppgtt_enable(struct i915_hw_ppgtt *ppgtt)
+static void gen8_ppgtt_enable(struct drm_device *dev)
 {
-	struct drm_device *dev = ppgtt->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_engine_cs *ring;
-	int j, ret;
+	int j;
 
 	for_each_ring(ring, dev_priv, j) {
 		I915_WRITE(RING_MODE_GEN7(ring),
 			   _MASKED_BIT_ENABLE(GFX_PPGTT_ENABLE));
-
-		/* We promise to do a switch later with FULL PPGTT. If this is
-		 * aliasing, this is the one and only switch we'll do */
-		if (USES_FULL_PPGTT(dev))
-			continue;
-
-		ret = ppgtt->switch_mm(ppgtt, ring, true);
-		if (ret)
-			goto err_out;
 	}
-
-	return 0;
-
-err_out:
-	for_each_ring(ring, dev_priv, j)
-		I915_WRITE(RING_MODE_GEN7(ring),
-			   _MASKED_BIT_DISABLE(GFX_PPGTT_ENABLE));
-	return ret;
 }
 
-static int gen7_ppgtt_enable(struct i915_hw_ppgtt *ppgtt)
+static void gen7_ppgtt_enable(struct drm_device *dev)
 {
-	struct drm_device *dev = ppgtt->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_engine_cs *ring;
 	uint32_t ecochk, ecobits;
@@ -876,31 +855,16 @@ static int gen7_ppgtt_enable(struct i915_hw_ppgtt *ppgtt)
 	I915_WRITE(GAM_ECOCHK, ecochk);
 
 	for_each_ring(ring, dev_priv, i) {
-		int ret;
 		/* GFX_MODE is per-ring on gen7+ */
 		I915_WRITE(RING_MODE_GEN7(ring),
 			   _MASKED_BIT_ENABLE(GFX_PPGTT_ENABLE));
-
-		/* We promise to do a switch later with FULL PPGTT. If this is
-		 * aliasing, this is the one and only switch we'll do */
-		if (USES_FULL_PPGTT(dev))
-			continue;
-
-		ret = ppgtt->switch_mm(ppgtt, ring, true);
-		if (ret)
-			return ret;
 	}
-
-	return 0;
 }
 
-static int gen6_ppgtt_enable(struct i915_hw_ppgtt *ppgtt)
+static void gen6_ppgtt_enable(struct drm_device *dev)
 {
-	struct drm_device *dev = ppgtt->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_engine_cs *ring;
 	uint32_t ecochk, gab_ctl, ecobits;
-	int i;
 
 	ecobits = I915_READ(GAC_ECO_BITS);
 	I915_WRITE(GAC_ECO_BITS, ecobits | ECOBITS_SNB_BIT |
@@ -913,14 +877,6 @@ static int gen6_ppgtt_enable(struct i915_hw_ppgtt *ppgtt)
 	I915_WRITE(GAM_ECOCHK, ecochk | ECOCHK_SNB_BIT | ECOCHK_PPGTT_CACHE64B);
 
 	I915_WRITE(GFX_MODE, _MASKED_BIT_ENABLE(GFX_PPGTT_ENABLE));
-
-	for_each_ring(ring, dev_priv, i) {
-		int ret = ppgtt->switch_mm(ppgtt, ring, true);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
 }
 
 /* PPGTT support for Sandybdrige/Gen6 and later */
@@ -1140,13 +1096,10 @@ static int gen6_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 
 	ppgtt->base.pte_encode = dev_priv->gtt.base.pte_encode;
 	if (IS_GEN6(dev)) {
-		ppgtt->enable = gen6_ppgtt_enable;
 		ppgtt->switch_mm = gen6_mm_switch;
 	} else if (IS_HASWELL(dev)) {
-		ppgtt->enable = gen7_ppgtt_enable;
 		ppgtt->switch_mm = hsw_mm_switch;
 	} else if (IS_GEN7(dev)) {
-		ppgtt->enable = gen7_ppgtt_enable;
 		ppgtt->switch_mm = gen7_mm_switch;
 	} else
 		BUG();
@@ -1211,6 +1164,35 @@ int i915_ppgtt_init(struct drm_device *dev, struct i915_hw_ppgtt *ppgtt)
 	return ret;
 }
 
+int i915_ppgtt_init_hw(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_engine_cs *ring;
+	struct i915_hw_ppgtt *ppgtt = dev_priv->mm.aliasing_ppgtt;
+	int i, ret = 0;
+
+	if (!USES_PPGTT(dev))
+		return 0;
+
+	if (IS_GEN6(dev))
+		gen6_ppgtt_enable(dev);
+	else if (IS_GEN7(dev))
+		gen7_ppgtt_enable(dev);
+	else if (INTEL_INFO(dev)->gen >= 8)
+		gen8_ppgtt_enable(dev);
+	else
+		WARN_ON(1);
+
+	if (ppgtt) {
+		for_each_ring(ring, dev_priv, i) {
+			ret = ppgtt->switch_mm(ppgtt, ring, true);
+			if (ret != 0)
+				return ret;
+		}
+	}
+
+	return ret;
+}
 struct i915_hw_ppgtt *
 i915_ppgtt_create(struct drm_device *dev, struct drm_i915_file_private *fpriv)
 {
