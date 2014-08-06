@@ -260,7 +260,6 @@ static inline struct kmem_cache *cache_from_obj(struct kmem_cache *s, void *x)
 	WARN_ON_ONCE(1);
 	return s;
 }
-#endif
 
 #ifndef CONFIG_SLOB
 /*
@@ -311,3 +310,5 @@ static inline struct kmem_cache_node *get_node(struct kmem_cache *s, int node)
 
 void *slab_next(struct seq_file *m, void *p, loff_t *pos);
 void slab_stop(struct seq_file *m, void *p);
+
+#endif /* MM_SLAB_H */
