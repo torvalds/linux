@@ -25,6 +25,7 @@
 
 #define OP_19_XOP_RFI     50
 #define OP_19_XOP_RFCI    51
+#define OP_19_XOP_RFDI    39
 
 #define OP_31_XOP_MFMSR   83
 #define OP_31_XOP_WRTEE   131
@@ -35,6 +36,12 @@ static void kvmppc_emul_rfi(struct kvm_vcpu *vcpu)
 {
 	vcpu->arch.pc = vcpu->arch.shared->srr0;
 	kvmppc_set_msr(vcpu, vcpu->arch.shared->srr1);
+}
+
+static void kvmppc_emul_rfdi(struct kvm_vcpu *vcpu)
+{
+	vcpu->arch.pc = vcpu->arch.dsrr0;
+	kvmppc_set_msr(vcpu, vcpu->arch.dsrr1);
 }
 
 static void kvmppc_emul_rfci(struct kvm_vcpu *vcpu)
@@ -62,6 +69,12 @@ int kvmppc_booke_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		case OP_19_XOP_RFCI:
 			kvmppc_emul_rfci(vcpu);
 			kvmppc_set_exit_type(vcpu, EMULATED_RFCI_EXITS);
+			*advance = 0;
+			break;
+
+		case OP_19_XOP_RFDI:
+			kvmppc_emul_rfdi(vcpu);
+			kvmppc_set_exit_type(vcpu, EMULATED_RFDI_EXITS);
 			*advance = 0;
 			break;
 
