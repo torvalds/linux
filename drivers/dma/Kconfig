@@ -386,6 +386,7 @@ config DMA_SUN6I
 config NBPFAXI_DMA
 	tristate "Renesas Type-AXI NBPF DMA support"
 	select DMA_ENGINE
+	depends on ARM || COMPILE_TEST
 	help
 	  Support for "Type-AXI" NBPF DMA IPs from Renesas
 
