@@ -800,27 +800,15 @@ static void s6e8aa0_panel_init(struct s6e8aa0 *ctx)
 }
 
 static void s6e8aa0_set_maximum_return_packet_size(struct s6e8aa0 *ctx,
-						   int size)
+						   u16 size)
 {
 	struct mipi_dsi_device *dsi = to_mipi_dsi_device(ctx->dev);
-	const struct mipi_dsi_host_ops *ops = dsi->host->ops;
-	u8 buf[] = {size, 0};
-	struct mipi_dsi_msg msg = {
-		.channel = dsi->channel,
-		.type = MIPI_DSI_SET_MAXIMUM_RETURN_PACKET_SIZE,
-		.tx_len = sizeof(buf),
-		.tx_buf = buf
-	};
 	int ret;
 
 	if (ctx->error < 0)
 		return;
 
-	if (!ops || !ops->transfer)
-		ret = -EIO;
-	else
-		ret = ops->transfer(dsi->host, &msg);
-
+	ret = mipi_dsi_set_maximum_return_packet_size(dsi, size);
 	if (ret < 0) {
 		dev_err(ctx->dev,
 			"error %d setting maximum return packet size to %d\n",
