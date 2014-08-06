@@ -225,7 +225,7 @@ static inline void bitmap_complement(unsigned long *dst, const unsigned long *sr
 			unsigned int nbits)
 {
 	if (small_const_nbits(nbits))
-		*dst = ~(*src) & BITMAP_LAST_WORD_MASK(nbits);
+		*dst = ~(*src);
 	else
 		__bitmap_complement(dst, src, nbits);
 }
