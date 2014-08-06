@@ -56,14 +56,6 @@
 #define DRM_REDUNDANT_VBLIRQ_THRESH_NS 1000000
 
 /*
- * Clear vblank timestamp buffer for a crtc.
- */
-static void clear_vblank_timestamps(struct drm_device *dev, int crtc)
-{
-	memset(dev->vblank[crtc].time, 0, sizeof(dev->vblank[crtc].time));
-}
-
-/*
  * Disable vblank irq's on crtc, make sure that last vblank count
  * of hardware and corresponding consistent software vblank counter
  * are preserved, even if there are any spurious vblank irq's after
@@ -130,9 +122,6 @@ static void vblank_disable_and_save(struct drm_device *dev, int crtc)
 		atomic_inc(&dev->vblank[crtc].count);
 		smp_mb__after_atomic();
 	}
-
-	/* Invalidate all timestamps while vblank irq's are off. */
-	clear_vblank_timestamps(dev, crtc);
 
 	spin_unlock_irqrestore(&dev->vblank_time_lock, irqflags);
 }
