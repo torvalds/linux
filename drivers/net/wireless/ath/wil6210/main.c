@@ -327,6 +327,8 @@ static void wil_target_reset(struct wil6210_priv *wil)
 	/* register clear = read, AND with inverted, write */
 #define C(a, v) W(a, R(a) & ~v)
 
+	wmb(); /* If host reorder writes here -> race in NIC */
+	W(RGF_USER_MAC_CPU_0,  BIT(1)); /* mac_cpu_man_rst */
 	wil->hw_version = R(RGF_USER_FW_REV_ID);
 	rev_id = wil->hw_version & 0xff;
 
@@ -343,8 +345,9 @@ static void wil_target_reset(struct wil6210_priv *wil)
 		wmb(); /* order is important here */
 	}
 
-	W(RGF_USER_MAC_CPU_0,  BIT(1)); /* mac_cpu_man_rst */
 	W(RGF_USER_USER_CPU_0, BIT(1)); /* user_cpu_man_rst */
+	wmb(); /* If host reorder writes here -> race in NIC */
+	W(RGF_USER_MAC_CPU_0,  BIT(1)); /* mac_cpu_man_rst */
 	wmb(); /* order is important here */
 
 	W(RGF_USER_CLKS_CTL_SW_RST_VEC_2, 0xFE000000);
