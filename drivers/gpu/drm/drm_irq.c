@@ -1039,6 +1039,15 @@ void drm_vblank_off(struct drm_device *dev, int crtc)
 	}
 	spin_unlock(&dev->event_lock);
 
+	/*
+	 * Prevent subsequent drm_vblank_get() from re-enabling
+	 * the vblank interrupt by bumping the refcount.
+	 */
+	if (!dev->vblank[crtc].inmodeset) {
+		atomic_inc(&dev->vblank[crtc].refcount);
+		dev->vblank[crtc].inmodeset = 1;
+	}
+
 	spin_unlock_irqrestore(&dev->vbl_lock, irqflags);
 }
 EXPORT_SYMBOL(drm_vblank_off);
@@ -1079,6 +1088,11 @@ void drm_vblank_on(struct drm_device *dev, int crtc)
 	unsigned long irqflags;
 
 	spin_lock_irqsave(&dev->vbl_lock, irqflags);
+	/* Drop our private "prevent drm_vblank_get" refcount */
+	if (dev->vblank[crtc].inmodeset) {
+		atomic_dec(&dev->vblank[crtc].refcount);
+		dev->vblank[crtc].inmodeset = 0;
+	}
 	/* re-enable interrupts if there's are users left */
 	if (atomic_read(&dev->vblank[crtc].refcount) != 0)
 		WARN_ON(drm_vblank_enable(dev, crtc));
