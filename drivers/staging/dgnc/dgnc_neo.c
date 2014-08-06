@@ -1804,9 +1804,8 @@ static uint neo_get_uart_bytes_left(struct channel_t *ch)
 
 	/* Determine whether the Transmitter is empty or not */
 	if (!(lsr & UART_LSR_TEMT)) {
-		if (ch->ch_flags & CH_TX_FIFO_EMPTY) {
+		if (ch->ch_flags & CH_TX_FIFO_EMPTY)
 			tasklet_schedule(&ch->ch_bd->helper_tasklet);
-		}
 		left = 1;
 	} else {
 		ch->ch_flags |= (CH_TX_FIFO_EMPTY | CH_TX_FIFO_LWM);
