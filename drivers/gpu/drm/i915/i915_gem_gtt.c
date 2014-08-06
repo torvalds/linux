@@ -2187,7 +2187,8 @@ i915_gem_obj_lookup_or_create_vma(struct drm_i915_gem_object *obj,
 	if (!vma)
 		vma = __i915_gem_vma_create(obj, vm);
 
-	i915_ppgtt_get(vm_to_ppgtt(vm));
+	if (!i915_is_ggtt(vm))
+		i915_ppgtt_get(i915_vm_to_ppgtt(vm));
 
 	return vma;
 }

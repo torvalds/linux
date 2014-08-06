@@ -2512,6 +2512,15 @@ static inline bool i915_is_ggtt(struct i915_address_space *vm)
 	return vm == ggtt;
 }
 
+static inline struct i915_hw_ppgtt *
+i915_vm_to_ppgtt(struct i915_address_space *vm)
+{
+	WARN_ON(i915_is_ggtt(vm));
+
+	return container_of(vm, struct i915_hw_ppgtt, base);
+}
+
+
 static inline bool i915_gem_obj_ggtt_bound(struct drm_i915_gem_object *obj)
 {
 	return i915_gem_obj_bound(obj, obj_to_ggtt(obj));
@@ -2547,7 +2556,6 @@ void i915_gem_object_ggtt_unpin(struct drm_i915_gem_object *obj);
 
 /* i915_gem_context.c */
 #define ctx_to_ppgtt(ctx) container_of((ctx)->vm, struct i915_hw_ppgtt, base)
-#define vm_to_ppgtt(vm) container_of(vm, struct i915_hw_ppgtt, base)
 int __must_check i915_gem_context_init(struct drm_device *dev);
 void i915_gem_context_fini(struct drm_device *dev);
 void i915_gem_context_reset(struct drm_device *dev);

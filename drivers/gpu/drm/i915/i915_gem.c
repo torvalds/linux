@@ -4485,7 +4485,8 @@ void i915_gem_vma_destroy(struct i915_vma *vma)
 
 	vm = vma->vm;
 
-	i915_ppgtt_put(vm_to_ppgtt(vm));
+	if (!i915_is_ggtt(vm))
+		i915_ppgtt_put(i915_vm_to_ppgtt(vm));
 
 	list_del(&vma->vma_link);
 
