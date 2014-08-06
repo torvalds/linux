@@ -1767,6 +1767,18 @@ void i915_gem_init_global_gtt(struct drm_device *dev)
 	i915_gem_setup_global_gtt(dev, 0, mappable_size, gtt_size);
 }
 
+void i915_global_gtt_cleanup(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct i915_address_space *vm = &dev_priv->gtt.base;
+
+	if (drm_mm_initialized(&vm->mm)) {
+		drm_mm_takedown(&vm->mm);
+		list_del(&vm->global_link);
+	}
+
+	vm->cleanup(vm);
+}
 static int setup_scratch_page(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -2035,10 +2047,6 @@ static void gen6_gmch_remove(struct i915_address_space *vm)
 
 	struct i915_gtt *gtt = container_of(vm, struct i915_gtt, base);
 
-	if (drm_mm_initialized(&vm->mm)) {
-		drm_mm_takedown(&vm->mm);
-		list_del(&vm->global_link);
-	}
 	iounmap(gtt->gsm);
 	teardown_scratch_page(vm->dev);
 }
@@ -2071,10 +2079,6 @@ static int i915_gmch_probe(struct drm_device *dev,
 
 static void i915_gmch_remove(struct i915_address_space *vm)
 {
-	if (drm_mm_initialized(&vm->mm)) {
-		drm_mm_takedown(&vm->mm);
-		list_del(&vm->global_link);
-	}
 	intel_gmch_remove();
 }
 
