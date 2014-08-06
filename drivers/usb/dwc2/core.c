@@ -118,6 +118,7 @@ static int dwc2_core_reset(struct dwc2_hsotg *hsotg)
 {
 	u32 greset;
 	int count = 0;
+	u32 gusbcfg;
 
 	dev_vdbg(hsotg->dev, "%s()\n", __func__);
 
@@ -147,6 +148,23 @@ static int dwc2_core_reset(struct dwc2_hsotg *hsotg)
 			return -EBUSY;
 		}
 	} while (greset & GRSTCTL_CSFTRST);
+
+	if (hsotg->dr_mode == USB_DR_MODE_HOST) {
+		gusbcfg = readl(hsotg->regs + GUSBCFG);
+		gusbcfg &= ~GUSBCFG_FORCEDEVMODE;
+		gusbcfg |= GUSBCFG_FORCEHOSTMODE;
+		writel(gusbcfg, hsotg->regs + GUSBCFG);
+	} else if (hsotg->dr_mode == USB_DR_MODE_PERIPHERAL) {
+		gusbcfg = readl(hsotg->regs + GUSBCFG);
+		gusbcfg &= ~GUSBCFG_FORCEHOSTMODE;
+		gusbcfg |= GUSBCFG_FORCEDEVMODE;
+		writel(gusbcfg, hsotg->regs + GUSBCFG);
+	} else if (hsotg->dr_mode == USB_DR_MODE_OTG) {
+		gusbcfg = readl(hsotg->regs + GUSBCFG);
+		gusbcfg &= ~GUSBCFG_FORCEHOSTMODE;
+		gusbcfg &= ~GUSBCFG_FORCEDEVMODE;
+		writel(gusbcfg, hsotg->regs + GUSBCFG);
+	}
 
 	/*
 	 * NOTE: This long sleep is _very_ important, otherwise the core will
