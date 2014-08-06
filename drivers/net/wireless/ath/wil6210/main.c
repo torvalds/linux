@@ -25,6 +25,9 @@ static bool no_fw_recovery;
 module_param(no_fw_recovery, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(no_fw_recovery, " disable FW error recovery");
 
+#define RST_DELAY (20) /* msec, for loop in @wil_target_reset */
+#define RST_COUNT (1 + 1000/RST_DELAY) /* round up to be above 1 sec total */
+
 /*
  * Due to a hardware issue,
  * one has to read/write to/from NIC in 32-bit chunks;
@@ -388,11 +391,11 @@ static int wil_target_reset(struct wil6210_priv *wil)
 	W(RGF_USER_CLKS_CTL_SW_RST_VEC_0, 0);
 	wmb(); /* order is important here */
 
-	/* wait until device ready */
+	/* wait until device ready. typical time is 200..250 msec */
 	do {
-		msleep(1);
+		msleep(RST_DELAY);
 		hw_state = R(RGF_USER_HW_MACHINE_STATE);
-		if (delay++ > 100) {
+		if (delay++ > RST_COUNT) {
 			wil_err(wil, "Reset not completed, hw_state 0x%08x\n",
 				hw_state);
 			return -ETIME;
@@ -406,7 +409,7 @@ static int wil_target_reset(struct wil6210_priv *wil)
 	C(RGF_USER_CLKS_CTL_0, BIT_USER_CLKS_RST_PWGD);
 	wmb(); /* order is important here */
 
-	wil_dbg_misc(wil, "Reset completed in %d ms\n", delay);
+	wil_dbg_misc(wil, "Reset completed in %d ms\n", delay * RST_DELAY);
 	return 0;
 
 #undef R
