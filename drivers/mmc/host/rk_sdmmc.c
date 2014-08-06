@@ -1505,8 +1505,14 @@ static int dw_mci_get_cd(struct mmc_host *mmc)
                         msleep(10);
                         if (gpio_val == gpio_get_value_cansleep(gpio_cd)) {
                                 gpio_cd = gpio_get_value_cansleep(gpio_cd) == 0 ? 1 : 0;
-                                if (gpio_cd == 0)
+                                if (gpio_cd == 0) {
+                                        /* Enable force_jtag wihtout card in slot, ONLY for NCD-package */
+                                        grf_writel((0x1 << 24) | (1 << 8), RK312X_GRF_SOC_CON0);
                                         dw_mci_ctrl_all_reset(host);
+                                } else {
+                                        /* Really card detected: SHOULD disable force_jtag */
+                                        grf_writel((0x1 << 24) | (0 << 8), RK312X_GRF_SOC_CON0);
+                                }
                         } else {
                                 /* Jitter */
                                 return slot->last_detect_state;
@@ -3131,8 +3137,14 @@ static irqreturn_t dw_mci_gpio_cd_irqt(int irq, void *dev_id)
         struct dw_mci_slot *slot = mmc_priv(mmc);
         struct dw_mci *host = slot->host;
 
-        queue_work(host->card_workqueue, &host->card_work);
+        #if 0
+        if (mmc->ops->card_event)
+                mmc->ops->card_event(mmc);
 
+        mmc_detect_change(mmc, msecs_to_jiffies(200));
+        #endif
+
+        queue_work(host->card_workqueue, &host->card_work);
         return IRQ_HANDLED;
 }
 
