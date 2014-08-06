@@ -238,6 +238,9 @@ static int hih6130_probe(struct i2c_client *client,
 	hih6130->client = client;
 	mutex_init(&hih6130->lock);
 
+	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_QUICK))
+		hih6130->write_length = 1;
+
 	hwmon_dev = devm_hwmon_device_register_with_groups(dev, client->name,
 							   hih6130,
 							   hih6130_groups);
