@@ -5,8 +5,8 @@ comment "Host-side USB support is needed for USB Network Adapter support"
 	depends on !USB && NET
 
 menuconfig USB_NET_DRIVERS
-	bool "USB Network Adapters"
-	default y
+	tristate "USB Network Adapters"
+	default USB if USB
 	depends on USB && NET
 
 if USB_NET_DRIVERS
