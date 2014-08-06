@@ -170,6 +170,8 @@ extern int __mmu_notifier_register(struct mmu_notifier *mn,
 				   struct mm_struct *mm);
 extern void mmu_notifier_unregister(struct mmu_notifier *mn,
 				    struct mm_struct *mm);
+extern void mmu_notifier_unregister_no_release(struct mmu_notifier *mn,
+					       struct mm_struct *mm);
 extern void __mmu_notifier_mm_destroy(struct mm_struct *mm);
 extern void __mmu_notifier_release(struct mm_struct *mm);
 extern int __mmu_notifier_clear_flush_young(struct mm_struct *mm,
@@ -287,6 +289,10 @@ static inline void mmu_notifier_mm_destroy(struct mm_struct *mm)
 	mmu_notifier_change_pte(___mm, ___address, ___pte);		\
 	set_pte_at(___mm, ___address, __ptep, ___pte);			\
 })
+
+extern void mmu_notifier_call_srcu(struct rcu_head *rcu,
+				   void (*func)(struct rcu_head *rcu));
+extern void mmu_notifier_synchronize(void);
 
 #else /* CONFIG_MMU_NOTIFIER */
 
