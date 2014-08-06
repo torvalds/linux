@@ -296,8 +296,7 @@ bool dsi_pll_calc(struct platform_device *dsidev, unsigned long clkin,
 unsigned long dsi_get_pll_hsdiv_dispc_rate(struct platform_device *dsidev);
 int dsi_pll_set_clock_div(struct platform_device *dsidev,
 		struct dsi_clock_info *cinfo);
-int dsi_pll_init(struct platform_device *dsidev, bool enable_hsclk,
-		bool enable_hsdiv);
+int dsi_pll_init(struct platform_device *dsidev);
 void dsi_pll_uninit(struct platform_device *dsidev, bool disconnect_lanes);
 struct platform_device *dsi_get_dsidev_from_id(int module);
 #else
@@ -324,8 +323,7 @@ static inline int dsi_pll_set_clock_div(struct platform_device *dsidev,
 	WARN("%s: DSI not compiled in\n", __func__);
 	return -ENODEV;
 }
-static inline int dsi_pll_init(struct platform_device *dsidev,
-		bool enable_hsclk, bool enable_hsdiv)
+static inline int dsi_pll_init(struct platform_device *dsidev)
 {
 	WARN("%s: DSI not compiled in\n", __func__);
 	return -ENODEV;

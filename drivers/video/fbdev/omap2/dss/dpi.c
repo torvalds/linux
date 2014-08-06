@@ -405,7 +405,7 @@ static int dpi_display_enable(struct omap_dss_device *dssdev)
 		if (r)
 			goto err_get_dsi;
 
-		r = dsi_pll_init(dpi->dsidev, 0, 1);
+		r = dsi_pll_init(dpi->dsidev);
 		if (r)
 			goto err_dsi_pll_init;
 	}
@@ -557,7 +557,7 @@ static int dpi_verify_dsi_pll(struct platform_device *dsidev)
 	if (r)
 		return r;
 
-	r = dsi_pll_init(dsidev, 0, 1);
+	r = dsi_pll_init(dsidev);
 	if (r) {
 		dsi_runtime_put(dsidev);
 		return r;

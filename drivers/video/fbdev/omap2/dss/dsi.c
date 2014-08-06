@@ -1672,20 +1672,12 @@ err:
 	return r;
 }
 
-int dsi_pll_init(struct platform_device *dsidev, bool enable_hsclk,
-		bool enable_hsdiv)
+int dsi_pll_init(struct platform_device *dsidev)
 {
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	int r = 0;
-	enum dsi_pll_power_state pwstate;
 
 	DSSDBG("PLL init\n");
-
-	/*
-	 * It seems that on many OMAPs we need to enable both to have a
-	 * functional HSDivider.
-	 */
-	enable_hsclk = enable_hsdiv = true;
 
 	r = dsi_regulator_init(dsidev);
 	if (r)
@@ -1718,16 +1710,7 @@ int dsi_pll_init(struct platform_device *dsidev, bool enable_hsclk,
 	 * fill the whole display. No idea about this */
 	dispc_pck_free_enable(0);
 
-	if (enable_hsclk && enable_hsdiv)
-		pwstate = DSI_PLL_POWER_ON_ALL;
-	else if (enable_hsclk)
-		pwstate = DSI_PLL_POWER_ON_HSCLK;
-	else if (enable_hsdiv)
-		pwstate = DSI_PLL_POWER_ON_DIV;
-	else
-		pwstate = DSI_PLL_POWER_OFF;
-
-	r = dsi_pll_power(dsidev, pwstate);
+	r = dsi_pll_power(dsidev, DSI_PLL_POWER_ON_ALL);
 
 	if (r)
 		goto err1;
@@ -4487,7 +4470,7 @@ static int dsi_display_init_dsi(struct platform_device *dsidev)
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	int r;
 
-	r = dsi_pll_init(dsidev, true, true);
+	r = dsi_pll_init(dsidev);
 	if (r)
 		goto err0;
 
