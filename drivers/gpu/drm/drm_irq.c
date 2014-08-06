@@ -303,7 +303,7 @@ int drm_vblank_init(struct drm_device *dev, int num_crtcs)
 	return 0;
 
 err:
-	drm_vblank_cleanup(dev);
+	dev->num_crtcs = 0;
 	return ret;
 }
 EXPORT_SYMBOL(drm_vblank_init);
