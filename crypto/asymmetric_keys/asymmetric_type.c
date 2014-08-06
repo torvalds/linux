@@ -23,6 +23,35 @@ static LIST_HEAD(asymmetric_key_parsers);
 static DECLARE_RWSEM(asymmetric_key_parsers_sem);
 
 /*
+ * Match asymmetric key id with partial match
+ * @id:		key id to match in a form "id:<id>"
+ */
+int asymmetric_keyid_match(const char *kid, const char *id)
+{
+	size_t idlen, kidlen;
+
+	if (!kid || !id)
+		return 0;
+
+	/* make it possible to use id as in the request: "id:<id>" */
+	if (strncmp(id, "id:", 3) == 0)
+		id += 3;
+
+	/* Anything after here requires a partial match on the ID string */
+	idlen = strlen(id);
+	kidlen = strlen(kid);
+	if (idlen > kidlen)
+		return 0;
+
+	kid += kidlen - idlen;
+	if (strcasecmp(id, kid) != 0)
+		return 0;
+
+	return 1;
+}
+EXPORT_SYMBOL_GPL(asymmetric_keyid_match);
+
+/*
  * Match asymmetric keys on (part of) their name
  * We have some shorthand methods for matching keys.  We allow:
  *
@@ -34,9 +63,8 @@ static int asymmetric_key_match(const struct key *key, const void *description)
 {
 	const struct asymmetric_key_subtype *subtype = asymmetric_key_subtype(key);
 	const char *spec = description;
-	const char *id, *kid;
+	const char *id;
 	ptrdiff_t speclen;
-	size_t idlen, kidlen;
 
 	if (!subtype || !spec || !*spec)
 		return 0;
@@ -55,23 +83,8 @@ static int asymmetric_key_match(const struct key *key, const void *description)
 	speclen = id - spec;
 	id++;
 
-	/* Anything after here requires a partial match on the ID string */
-	kid = asymmetric_key_id(key);
-	if (!kid)
-		return 0;
-
-	idlen = strlen(id);
-	kidlen = strlen(kid);
-	if (idlen > kidlen)
-		return 0;
-
-	kid += kidlen - idlen;
-	if (strcasecmp(id, kid) != 0)
-		return 0;
-
-	if (speclen == 2 &&
-	    memcmp(spec, "id", 2) == 0)
-		return 1;
+	if (speclen == 2 && memcmp(spec, "id", 2) == 0)
+		return asymmetric_keyid_match(asymmetric_key_id(key), id);
 
 	if (speclen == subtype->name_len &&
 	    memcmp(spec, subtype->name, speclen) == 0)
@@ -156,34 +169,11 @@ static void asymmetric_key_free_preparse(struct key_preparsed_payload *prep)
 	pr_devel("==>%s()\n", __func__);
 
 	if (subtype) {
-		subtype->destroy(prep->payload);
+		subtype->destroy(prep->payload[0]);
 		module_put(subtype->owner);
 	}
 	kfree(prep->type_data[1]);
 	kfree(prep->description);
-}
-
-/*
- * Instantiate a asymmetric_key defined key.  The key was preparsed, so we just
- * have to transfer the data here.
- */
-static int asymmetric_key_instantiate(struct key *key, struct key_preparsed_payload *prep)
-{
-	int ret;
-
-	pr_devel("==>%s()\n", __func__);
-
-	ret = key_payload_reserve(key, prep->quotalen);
-	if (ret == 0) {
-		key->type_data.p[0] = prep->type_data[0];
-		key->type_data.p[1] = prep->type_data[1];
-		key->payload.data = prep->payload;
-		prep->type_data[0] = NULL;
-		prep->type_data[1] = NULL;
-		prep->payload = NULL;
-	}
-	pr_devel("<==%s() = %d\n", __func__, ret);
-	return ret;
 }
 
 /*
@@ -205,7 +195,7 @@ struct key_type key_type_asymmetric = {
 	.name		= "asymmetric",
 	.preparse	= asymmetric_key_preparse,
 	.free_preparse	= asymmetric_key_free_preparse,
-	.instantiate	= asymmetric_key_instantiate,
+	.instantiate	= generic_key_instantiate,
 	.match		= asymmetric_key_match,
 	.destroy	= asymmetric_key_destroy,
 	.describe	= asymmetric_key_describe,

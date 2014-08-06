@@ -566,6 +566,11 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			possible to determine what the correct size should be.
 			This option provides an override for these situations.
 
+	ca_keys=	[KEYS] This parameter identifies a specific key(s) on
+			the system trusted keyring to be used for certificate
+			trust validation.
+			format: { id:<keyid> | builtin }
+
 	ccw_timeout_log [S390]
 			See Documentation/s390/CommonIO for details.
 
@@ -1318,6 +1323,23 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			Select one of defined IMA measurements template formats.
 			Formats: { "ima" | "ima-ng" }
 			Default: "ima-ng"
+
+	ima.ahash_minsize= [IMA] Minimum file size for asynchronous hash usage
+			Format: <min_file_size>
+			Set the minimal file size for using asynchronous hash.
+			If left unspecified, ahash usage is disabled.
+
+			ahash performance varies for different data sizes on
+			different crypto accelerators. This option can be used
+			to achieve the best performance for a particular HW.
+
+	ima.ahash_bufsize= [IMA] Asynchronous hash buffer size
+			Format: <bufsize>
+			Set hashing buffer size. Default: 4k.
+
+			ahash performance varies for different chunk sizes on
+			different crypto accelerators. This option can be used
+			to achieve best performance for particular HW.
 
 	init=		[KNL]
 			Format: <full_path>
