@@ -1271,33 +1271,24 @@ static bool g4x_compute_srwm(struct drm_device *dev,
 			      display, cursor);
 }
 
-static bool vlv_compute_drain_latency(struct drm_device *dev,
-				     int plane,
-				     int *plane_prec_mult,
-				     int *plane_dl,
-				     int *cursor_prec_mult,
-				     int *cursor_dl)
+static bool vlv_compute_drain_latency(struct drm_crtc *crtc,
+				      int pixel_size,
+				      int *prec_mult,
+				      int *drain_latency)
 {
-	struct drm_crtc *crtc;
-	int clock, pixel_size;
 	int entries;
+	int clock = to_intel_crtc(crtc)->config.adjusted_mode.crtc_clock;
 
-	crtc = intel_get_crtc_for_plane(dev, plane);
-	if (!intel_crtc_active(crtc))
+	if (WARN(clock == 0, "Pixel clock is zero!\n"))
 		return false;
 
-	clock = to_intel_crtc(crtc)->config.adjusted_mode.crtc_clock;
-	pixel_size = crtc->primary->fb->bits_per_pixel / 8;	/* BPP */
+	if (WARN(pixel_size == 0, "Pixel size is zero!\n"))
+		return false;
 
 	entries = (clock / 1000) * pixel_size;
-	*plane_prec_mult = (entries > 128) ?
-		DRAIN_LATENCY_PRECISION_64 : DRAIN_LATENCY_PRECISION_32;
-	*plane_dl = (64 * (*plane_prec_mult) * 4) / entries;
-
-	entries = (clock / 1000) * 4;	/* BPP is always 4 for cursor */
-	*cursor_prec_mult = (entries > 128) ?
-		DRAIN_LATENCY_PRECISION_64 : DRAIN_LATENCY_PRECISION_32;
-	*cursor_dl = (64 * (*cursor_prec_mult) * 4) / entries;
+	*prec_mult = (entries > 128) ? DRAIN_LATENCY_PRECISION_64 :
+				       DRAIN_LATENCY_PRECISION_32;
+	*drain_latency = (64 * (*prec_mult) * 4) / entries;
 
 	return true;
 }
@@ -1312,24 +1303,46 @@ static bool vlv_compute_drain_latency(struct drm_device *dev,
 
 static void vlv_update_drain_latency(struct drm_crtc *crtc)
 {
-	struct drm_device *dev = crtc->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	enum pipe pipe = to_intel_crtc(crtc)->pipe;
-	int plane_prec, plane_dl;
-	int cursor_prec, cursor_dl;
-	int plane_prec_mult, cursor_prec_mult;
+	struct drm_i915_private *dev_priv = crtc->dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	int pixel_size;
+	int drain_latency;
+	enum pipe pipe = intel_crtc->pipe;
+	int plane_prec, prec_mult, plane_dl;
 
-	if (vlv_compute_drain_latency(dev, pipe, &plane_prec_mult, &plane_dl,
-				      &cursor_prec_mult, &cursor_dl)) {
-		cursor_prec = (cursor_prec_mult == DRAIN_LATENCY_PRECISION_64) ?
-			DDL_CURSOR_PRECISION_64 : DDL_CURSOR_PRECISION_32;
-		plane_prec = (plane_prec_mult == DRAIN_LATENCY_PRECISION_64) ?
-			DDL_PLANE_PRECISION_64 : DDL_PLANE_PRECISION_32;
+	plane_dl = I915_READ(VLV_DDL(pipe)) & ~(DDL_PLANE_PRECISION_64 |
+		   DRAIN_LATENCY_MASK | DDL_CURSOR_PRECISION_64 |
+		   (DRAIN_LATENCY_MASK << DDL_CURSOR_SHIFT));
 
-		I915_WRITE(VLV_DDL(pipe), cursor_prec |
-			   (cursor_dl << DDL_CURSOR_SHIFT) |
-			   plane_prec | (plane_dl << DDL_PLANE_SHIFT));
+	if (!intel_crtc_active(crtc)) {
+		I915_WRITE(VLV_DDL(pipe), plane_dl);
+		return;
 	}
+
+	/* Primary plane Drain Latency */
+	pixel_size = crtc->primary->fb->bits_per_pixel / 8;	/* BPP */
+	if (vlv_compute_drain_latency(crtc, pixel_size, &prec_mult, &drain_latency)) {
+		plane_prec = (prec_mult == DRAIN_LATENCY_PRECISION_64) ?
+					   DDL_PLANE_PRECISION_64 :
+					   DDL_PLANE_PRECISION_32;
+		plane_dl |= plane_prec | drain_latency;
+	}
+
+	/* Cursor Drain Latency
+	 * BPP is always 4 for cursor
+	 */
+	pixel_size = 4;
+
+	/* Program cursor DL only if it is enabled */
+	if (intel_crtc->cursor_base &&
+	    vlv_compute_drain_latency(crtc, pixel_size, &prec_mult, &drain_latency)) {
+		plane_prec = (prec_mult == DRAIN_LATENCY_PRECISION_64) ?
+					   DDL_CURSOR_PRECISION_64 :
+					   DDL_CURSOR_PRECISION_32;
+		plane_dl |= plane_prec | (drain_latency << DDL_CURSOR_SHIFT);
+	}
+
+	I915_WRITE(VLV_DDL(pipe), plane_dl);
 }
 
 #define single_plane_enabled(mask) is_power_of_2(mask)

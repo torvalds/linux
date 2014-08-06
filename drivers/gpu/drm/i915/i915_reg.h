@@ -4009,6 +4009,7 @@ enum punit_power_well {
 #define DDL_PLANE_PRECISION_64		(1<<7)
 #define DDL_PLANE_PRECISION_32		(0<<7)
 #define DDL_PLANE_SHIFT			0
+#define DRAIN_LATENCY_MASK		0x7f
 
 /* FIFO watermark sizes etc */
 #define G4X_FIFO_LINE_SIZE	64
