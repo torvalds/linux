@@ -1821,7 +1821,13 @@ static int per_file_ctx(int id, void *ptr, void *data)
 {
 	struct intel_context *ctx = ptr;
 	struct seq_file *m = data;
-	struct i915_hw_ppgtt *ppgtt = ctx_to_ppgtt(ctx);
+	struct i915_hw_ppgtt *ppgtt = ctx->ppgtt;
+
+	if (!ppgtt) {
+		seq_printf(m, "  no ppgtt for context %d\n",
+			   ctx->user_handle);
+		return 0;
+	}
 
 	if (i915_gem_context_is_default(ctx))
 		seq_puts(m, "  default context:\n");
@@ -1881,8 +1887,7 @@ static void gen6_ppgtt_info(struct seq_file *m, struct drm_device *dev)
 		seq_printf(m, "pd gtt offset: 0x%08x\n", ppgtt->pd_offset);
 
 		ppgtt->debug_dump(ppgtt, m);
-	} else
-		return;
+	}
 
 	list_for_each_entry_reverse(file, &dev->filelist, lhead) {
 		struct drm_i915_file_private *file_priv = file->driver_priv;

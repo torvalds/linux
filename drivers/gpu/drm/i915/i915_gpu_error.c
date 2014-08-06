@@ -967,6 +967,12 @@ static void i915_gem_record_rings(struct drm_device *dev,
 
 		request = i915_gem_find_active_request(ring);
 		if (request) {
+			struct i915_address_space *vm;
+
+			vm = request->ctx && request->ctx->ppgtt ?
+				&request->ctx->ppgtt->base :
+				&dev_priv->gtt.base;
+
 			/* We need to copy these to an anonymous buffer
 			 * as the simplest method to avoid being overwritten
 			 * by userspace.
@@ -974,9 +980,7 @@ static void i915_gem_record_rings(struct drm_device *dev,
 			error->ring[i].batchbuffer =
 				i915_error_object_create(dev_priv,
 							 request->batch_obj,
-							 request->ctx ?
-							 request->ctx->vm :
-							 &dev_priv->gtt.base);
+							 vm);
 
 			if (HAS_BROKEN_CS_TLB(dev_priv->dev) &&
 			    ring->scratch.obj)

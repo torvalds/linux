@@ -904,7 +904,7 @@ populate_lr_context(struct intel_context *ctx, struct drm_i915_gem_object *ctx_o
 		    struct intel_engine_cs *ring, struct intel_ringbuffer *ringbuf)
 {
 	struct drm_i915_gem_object *ring_obj = ringbuf->obj;
-	struct i915_hw_ppgtt *ppgtt = ctx_to_ppgtt(ctx);
+	struct i915_hw_ppgtt *ppgtt = ctx->ppgtt;
 	struct page *page;
 	uint32_t *reg_state;
 	int ret;

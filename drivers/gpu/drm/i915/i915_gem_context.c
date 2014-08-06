@@ -135,19 +135,13 @@ static int get_context_size(struct drm_device *dev)
 void i915_gem_context_free(struct kref *ctx_ref)
 {
 	struct intel_context *ctx = container_of(ctx_ref,
-						   typeof(*ctx), ref);
-	struct i915_hw_ppgtt *ppgtt = NULL;
+						 typeof(*ctx), ref);
 
-	if (i915.enable_execlists) {
-		ppgtt = ctx_to_ppgtt(ctx);
+	if (i915.enable_execlists)
 		intel_lr_context_free(ctx);
-	} else if (ctx->legacy_hw_ctx.rcs_state) {
-		/* We refcount even the aliasing PPGTT to keep the code symmetric */
-		if (USES_PPGTT(ctx->legacy_hw_ctx.rcs_state->base.dev))
-			ppgtt = ctx_to_ppgtt(ctx);
-	}
 
-	i915_ppgtt_put(ppgtt);
+	i915_ppgtt_put(ctx->ppgtt);
+
 	if (ctx->legacy_hw_ctx.rcs_state)
 		drm_gem_object_unreference(&ctx->legacy_hw_ctx.rcs_state->base);
 	list_del(&ctx->link);
@@ -243,7 +237,6 @@ i915_gem_create_context(struct drm_device *dev,
 			bool create_vm)
 {
 	const bool is_global_default_ctx = file_priv == NULL;
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_context *ctx;
 	int ret = 0;
 
@@ -277,15 +270,10 @@ i915_gem_create_context(struct drm_device *dev,
 					 PTR_ERR(ppgtt));
 			ret = PTR_ERR(ppgtt);
 			goto err_unpin;
-		} else
-			ctx->vm = &ppgtt->base;
-	} else if (USES_PPGTT(dev)) {
-		/* For platforms which only have aliasing PPGTT, we fake the
-		 * address space and refcounting. */
-		ctx->vm = &dev_priv->mm.aliasing_ppgtt->base;
-		i915_ppgtt_get(dev_priv->mm.aliasing_ppgtt);
-	} else
-		ctx->vm = &dev_priv->gtt.base;
+		}
+
+		ctx->ppgtt = ppgtt;
+	}
 
 	return ctx;
 
@@ -543,7 +531,6 @@ static int do_switch(struct intel_engine_cs *ring,
 {
 	struct drm_i915_private *dev_priv = ring->dev->dev_private;
 	struct intel_context *from = ring->last_context;
-	struct i915_hw_ppgtt *ppgtt = ctx_to_ppgtt(to);
 	u32 hw_flags = 0;
 	bool uninitialized = false;
 	int ret, i;
@@ -571,8 +558,8 @@ static int do_switch(struct intel_engine_cs *ring,
 	 */
 	from = ring->last_context;
 
-	if (USES_FULL_PPGTT(ring->dev)) {
-		ret = ppgtt->switch_mm(ppgtt, ring, false);
+	if (to->ppgtt) {
+		ret = to->ppgtt->switch_mm(to->ppgtt, ring, false);
 		if (ret)
 			goto unpin_out;
 	}
