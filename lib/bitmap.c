@@ -665,13 +665,8 @@ static int __bitmap_parselist(const char *buf, unsigned int buflen,
 
 int bitmap_parselist(const char *bp, unsigned long *maskp, int nmaskbits)
 {
-	char *nl  = strchr(bp, '\n');
-	int len;
-
-	if (nl)
-		len = nl - bp;
-	else
-		len = strlen(bp);
+	char *nl  = strchrnul(bp, '\n');
+	int len = nl - bp;
 
 	return __bitmap_parselist(bp, len, 0, maskp, nmaskbits);
 }
