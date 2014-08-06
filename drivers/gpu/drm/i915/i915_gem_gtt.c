@@ -1698,10 +1698,10 @@ static void i915_gtt_color_adjust(struct drm_mm_node *node,
 	}
 }
 
-void i915_gem_setup_global_gtt(struct drm_device *dev,
-			       unsigned long start,
-			       unsigned long mappable_end,
-			       unsigned long end)
+int i915_gem_setup_global_gtt(struct drm_device *dev,
+			      unsigned long start,
+			      unsigned long mappable_end,
+			      unsigned long end)
 {
 	/* Let GEM Manage all of the aperture.
 	 *
@@ -1734,8 +1734,10 @@ void i915_gem_setup_global_gtt(struct drm_device *dev,
 
 		WARN_ON(i915_gem_obj_ggtt_bound(obj));
 		ret = drm_mm_reserve_node(&ggtt_vm->mm, &vma->node);
-		if (ret)
-			DRM_DEBUG_KMS("Reservation failed\n");
+		if (ret) {
+			DRM_DEBUG_KMS("Reservation failed: %i\n", ret);
+			return ret;
+		}
 		obj->has_global_gtt_mapping = 1;
 	}
 
@@ -1752,6 +1754,8 @@ void i915_gem_setup_global_gtt(struct drm_device *dev,
 
 	/* And finally clear the reserved guard page */
 	ggtt_vm->clear_range(ggtt_vm, end - PAGE_SIZE, PAGE_SIZE, true);
+
+	return 0;
 }
 
 void i915_gem_init_global_gtt(struct drm_device *dev)

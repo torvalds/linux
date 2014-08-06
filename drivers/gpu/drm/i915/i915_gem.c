@@ -4754,7 +4754,12 @@ int i915_gem_init(struct drm_device *dev)
 		dev_priv->gt.stop_ring = intel_logical_ring_stop;
 	}
 
-	i915_gem_init_userptr(dev);
+	ret = i915_gem_init_userptr(dev);
+	if (ret) {
+		mutex_unlock(&dev->struct_mutex);
+		return ret;
+	}
+
 	i915_gem_init_global_gtt(dev);
 
 	ret = i915_gem_context_init(dev);
