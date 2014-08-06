@@ -272,6 +272,11 @@ static int __init list_sort_test(void)
 		}
 		count++;
 	}
+	if (head.prev != cur) {
+		printk(KERN_ERR "list_sort_test: error: list is corrupted\n");
+		goto exit;
+	}
+
 
 	if (count != TEST_LIST_LEN) {
 		printk(KERN_ERR "list_sort_test: error: bad list length %d",
