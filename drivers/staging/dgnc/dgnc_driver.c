@@ -278,64 +278,60 @@ static int dgnc_start(void)
 	int rc = 0;
 	unsigned long flags;
 
-	if (dgnc_driver_start == FALSE) {
+	if (dgnc_driver_start == TRUE)
+		return rc;
+	dgnc_driver_start = TRUE;
 
-		dgnc_driver_start = TRUE;
+	/* make sure that the globals are init'd before we do anything else */
+	dgnc_init_globals();
 
-		/* make sure that the globals are init'd before we do anything else */
-		dgnc_init_globals();
+	APR(("For the tools package or updated drivers please visit http://www.digi.com\n"));
 
-		dgnc_NumBoards = 0;
-
-		APR(("For the tools package or updated drivers please visit http://www.digi.com\n"));
-
+	/*
+	 * Register our base character device into the kernel.
+	 * This allows the download daemon to connect to the downld device
+	 * before any of the boards are init'ed.
+	 */
+	if (!dgnc_Major_Control_Registered) {
 		/*
-		 * Register our base character device into the kernel.
-		 * This allows the download daemon to connect to the downld device
-		 * before any of the boards are init'ed.
+		 * Register management/dpa devices
 		 */
-		if (!dgnc_Major_Control_Registered) {
-			/*
-			 * Register management/dpa devices
-			 */
-			rc = register_chrdev(0, "dgnc", &dgnc_BoardFops);
-			if (rc <= 0) {
-				APR(("Can't register dgnc driver device (%d)\n", rc));
-				rc = -ENXIO;
-				return rc;
-			}
-			dgnc_Major = rc;
-
-			dgnc_class = class_create(THIS_MODULE, "dgnc_mgmt");
-			device_create(dgnc_class, NULL,
-				MKDEV(dgnc_Major, 0),
-				NULL, "dgnc_mgmt");
-			dgnc_Major_Control_Registered = TRUE;
+		rc = register_chrdev(0, "dgnc", &dgnc_BoardFops);
+		if (rc <= 0) {
+			APR(("Can't register dgnc driver device (%d)\n", rc));
+			return -ENXIO;
 		}
+		dgnc_Major = rc;
 
-		/*
-		 * Init any global tty stuff.
-		 */
-		rc = dgnc_tty_preinit();
-
-		if (rc < 0) {
-			APR(("tty preinit - not enough memory (%d)\n", rc));
-			return rc;
-		}
-
-		/* Start the poller */
-		DGNC_LOCK(dgnc_poll_lock, flags);
-		init_timer(&dgnc_poll_timer);
-		dgnc_poll_timer.function = dgnc_poll_handler;
-		dgnc_poll_timer.data = 0;
-		dgnc_poll_time = jiffies + dgnc_jiffies_from_ms(dgnc_poll_tick);
-		dgnc_poll_timer.expires = dgnc_poll_time;
-		DGNC_UNLOCK(dgnc_poll_lock, flags);
-
-		add_timer(&dgnc_poll_timer);
-
-		dgnc_driver_state = DRIVER_READY;
+		dgnc_class = class_create(THIS_MODULE, "dgnc_mgmt");
+		device_create(dgnc_class, NULL,
+			MKDEV(dgnc_Major, 0),
+			NULL, "dgnc_mgmt");
+		dgnc_Major_Control_Registered = TRUE;
 	}
+
+	/*
+	 * Init any global tty stuff.
+	 */
+	rc = dgnc_tty_preinit();
+
+	if (rc < 0) {
+		APR(("tty preinit - not enough memory (%d)\n", rc));
+		return rc;
+	}
+
+	/* Start the poller */
+	DGNC_LOCK(dgnc_poll_lock, flags);
+	init_timer(&dgnc_poll_timer);
+	dgnc_poll_timer.function = dgnc_poll_handler;
+	dgnc_poll_timer.data = 0;
+	dgnc_poll_time = jiffies + dgnc_jiffies_from_ms(dgnc_poll_tick);
+	dgnc_poll_timer.expires = dgnc_poll_time;
+	DGNC_UNLOCK(dgnc_poll_lock, flags);
+
+	add_timer(&dgnc_poll_timer);
+
+	dgnc_driver_state = DRIVER_READY;
 
 	return rc;
 }
@@ -814,6 +810,7 @@ static void dgnc_init_globals(void)
 	dgnc_rawreadok		= rawreadok;
 	dgnc_trcbuf_size	= trcbuf_size;
 	dgnc_debug		= debug;
+	dgnc_NumBoards		= 0;
 
 	for (i = 0; i < MAXBOARDS; i++)
 		dgnc_Board[i] = NULL;
