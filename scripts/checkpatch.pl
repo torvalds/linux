@@ -356,6 +356,7 @@ our $signature_tags = qr{(?xi:
 our @typeList = (
 	qr{void},
 	qr{(?:unsigned\s+)?char},
+	qr{(?:unsigned\s+)?short\s+int},
 	qr{(?:unsigned\s+)?short},
 	qr{(?:unsigned\s+)?int},
 	qr{(?:unsigned\s+)?long},
