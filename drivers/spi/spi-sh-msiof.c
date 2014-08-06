@@ -977,10 +977,11 @@ static struct dma_chan *sh_msiof_request_dma_chan(struct device *dev,
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
 
-	chan = dma_request_channel(mask, shdma_chan_filter,
-				  (void *)(unsigned long)id);
+	chan = dma_request_slave_channel_compat(mask, shdma_chan_filter,
+				(void *)(unsigned long)id, dev,
+				dir == DMA_MEM_TO_DEV ? "tx" : "rx");
 	if (!chan) {
-		dev_warn(dev, "dma_request_channel failed\n");
+		dev_warn(dev, "dma_request_slave_channel_compat failed\n");
 		return NULL;
 	}
 
@@ -1010,12 +1011,22 @@ static int sh_msiof_request_dma(struct sh_msiof_spi_priv *p)
 	struct platform_device *pdev = p->pdev;
 	struct device *dev = &pdev->dev;
 	const struct sh_msiof_spi_info *info = dev_get_platdata(dev);
+	unsigned int dma_tx_id, dma_rx_id;
 	const struct resource *res;
 	struct spi_master *master;
 	struct device *tx_dev, *rx_dev;
 
-	if (!info || !info->dma_tx_id || !info->dma_rx_id)
-		return 0;	/* The driver assumes no error */
+	if (dev->of_node) {
+		/* In the OF case we will get the slave IDs from the DT */
+		dma_tx_id = 0;
+		dma_rx_id = 0;
+	} else if (info && info->dma_tx_id && info->dma_rx_id) {
+		dma_tx_id = info->dma_tx_id;
+		dma_rx_id = info->dma_rx_id;
+	} else {
+		/* The driver assumes no error */
+		return 0;
+	}
 
 	/* The DMA engine uses the second register set, if present */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
@@ -1024,13 +1035,13 @@ static int sh_msiof_request_dma(struct sh_msiof_spi_priv *p)
 
 	master = p->master;
 	master->dma_tx = sh_msiof_request_dma_chan(dev, DMA_MEM_TO_DEV,
-						   info->dma_tx_id,
+						   dma_tx_id,
 						   res->start + TFDR);
 	if (!master->dma_tx)
 		return -ENODEV;
 
 	master->dma_rx = sh_msiof_request_dma_chan(dev, DMA_DEV_TO_MEM,
-						   info->dma_rx_id,
+						   dma_rx_id,
 						   res->start + RFDR);
 	if (!master->dma_rx)
 		goto free_tx_chan;
