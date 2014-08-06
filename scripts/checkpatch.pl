@@ -3491,6 +3491,14 @@ sub process {
 			}
 		}
 
+# check unnecessary parentheses around addressof/dereference single $Lvals
+# ie: &(foo->bar) should be &foo->bar and *(foo->bar) should be *foo->bar
+
+		while ($line =~ /(?:[^&]&\s*|\*)\(\s*($Ident\s*(?:$Member\s*)+)\s*\)/g) {
+			CHK("UNNECESSARY_PARENTHESES",
+			    "Unnecessary parentheses around $1\n" . $herecurr);
+		    }
+
 #goto labels aren't indented, allow a single space however
 		if ($line=~/^.\s+[A-Za-z\d_]+:(?![0-9]+)/ and
 		   !($line=~/^. [A-Za-z\d_]+:/) and !($line=~/^.\s+default:/)) {
