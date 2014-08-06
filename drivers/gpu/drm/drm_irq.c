@@ -55,6 +55,70 @@
  */
 #define DRM_REDUNDANT_VBLIRQ_THRESH_NS 1000000
 
+/**
+ * drm_update_vblank_count - update the master vblank counter
+ * @dev: DRM device
+ * @crtc: counter to update
+ *
+ * Call back into the driver to update the appropriate vblank counter
+ * (specified by @crtc).  Deal with wraparound, if it occurred, and
+ * update the last read value so we can deal with wraparound on the next
+ * call if necessary.
+ *
+ * Only necessary when going from off->on, to account for frames we
+ * didn't get an interrupt for.
+ *
+ * Note: caller must hold dev->vbl_lock since this reads & writes
+ * device vblank fields.
+ */
+static void drm_update_vblank_count(struct drm_device *dev, int crtc)
+{
+	u32 cur_vblank, diff, tslot, rc;
+	struct timeval t_vblank;
+
+	/*
+	 * Interrupts were disabled prior to this call, so deal with counter
+	 * wrap if needed.
+	 * NOTE!  It's possible we lost a full dev->max_vblank_count events
+	 * here if the register is small or we had vblank interrupts off for
+	 * a long time.
+	 *
+	 * We repeat the hardware vblank counter & timestamp query until
+	 * we get consistent results. This to prevent races between gpu
+	 * updating its hardware counter while we are retrieving the
+	 * corresponding vblank timestamp.
+	 */
+	do {
+		cur_vblank = dev->driver->get_vblank_counter(dev, crtc);
+		rc = drm_get_last_vbltimestamp(dev, crtc, &t_vblank, 0);
+	} while (cur_vblank != dev->driver->get_vblank_counter(dev, crtc));
+
+	/* Deal with counter wrap */
+	diff = cur_vblank - dev->vblank[crtc].last;
+	if (cur_vblank < dev->vblank[crtc].last) {
+		diff += dev->max_vblank_count;
+
+		DRM_DEBUG("last_vblank[%d]=0x%x, cur_vblank=0x%x => diff=0x%x\n",
+			  crtc, dev->vblank[crtc].last, cur_vblank, diff);
+	}
+
+	DRM_DEBUG("enabling vblank interrupts on crtc %d, missed %d\n",
+		  crtc, diff);
+
+	/* Reinitialize corresponding vblank timestamp if high-precision query
+	 * available. Skip this step if query unsupported or failed. Will
+	 * reinitialize delayed at next vblank interrupt in that case.
+	 */
+	if (rc) {
+		tslot = atomic_read(&dev->vblank[crtc].count) + diff;
+		vblanktimestamp(dev, crtc, tslot) = t_vblank;
+	}
+
+	smp_mb__before_atomic();
+	atomic_add(diff, &dev->vblank[crtc].count);
+	smp_mb__after_atomic();
+}
+
 /*
  * Disable vblank irq's on crtc, make sure that last vblank count
  * of hardware and corresponding consistent software vblank counter
@@ -797,70 +861,6 @@ void drm_send_vblank_event(struct drm_device *dev, int crtc,
 	send_vblank_event(dev, e, seq, &now);
 }
 EXPORT_SYMBOL(drm_send_vblank_event);
-
-/**
- * drm_update_vblank_count - update the master vblank counter
- * @dev: DRM device
- * @crtc: counter to update
- *
- * Call back into the driver to update the appropriate vblank counter
- * (specified by @crtc).  Deal with wraparound, if it occurred, and
- * update the last read value so we can deal with wraparound on the next
- * call if necessary.
- *
- * Only necessary when going from off->on, to account for frames we
- * didn't get an interrupt for.
- *
- * Note: caller must hold dev->vbl_lock since this reads & writes
- * device vblank fields.
- */
-static void drm_update_vblank_count(struct drm_device *dev, int crtc)
-{
-	u32 cur_vblank, diff, tslot, rc;
-	struct timeval t_vblank;
-
-	/*
-	 * Interrupts were disabled prior to this call, so deal with counter
-	 * wrap if needed.
-	 * NOTE!  It's possible we lost a full dev->max_vblank_count events
-	 * here if the register is small or we had vblank interrupts off for
-	 * a long time.
-	 *
-	 * We repeat the hardware vblank counter & timestamp query until
-	 * we get consistent results. This to prevent races between gpu
-	 * updating its hardware counter while we are retrieving the
-	 * corresponding vblank timestamp.
-	 */
-	do {
-		cur_vblank = dev->driver->get_vblank_counter(dev, crtc);
-		rc = drm_get_last_vbltimestamp(dev, crtc, &t_vblank, 0);
-	} while (cur_vblank != dev->driver->get_vblank_counter(dev, crtc));
-
-	/* Deal with counter wrap */
-	diff = cur_vblank - dev->vblank[crtc].last;
-	if (cur_vblank < dev->vblank[crtc].last) {
-		diff += dev->max_vblank_count;
-
-		DRM_DEBUG("last_vblank[%d]=0x%x, cur_vblank=0x%x => diff=0x%x\n",
-			  crtc, dev->vblank[crtc].last, cur_vblank, diff);
-	}
-
-	DRM_DEBUG("enabling vblank interrupts on crtc %d, missed %d\n",
-		  crtc, diff);
-
-	/* Reinitialize corresponding vblank timestamp if high-precision query
-	 * available. Skip this step if query unsupported or failed. Will
-	 * reinitialize delayed at next vblank interrupt in that case.
-	 */
-	if (rc) {
-		tslot = atomic_read(&dev->vblank[crtc].count) + diff;
-		vblanktimestamp(dev, crtc, tslot) = t_vblank;
-	}
-
-	smp_mb__before_atomic();
-	atomic_add(diff, &dev->vblank[crtc].count);
-	smp_mb__after_atomic();
-}
 
 /**
  * drm_vblank_enable - enable the vblank interrupt on a CRTC
