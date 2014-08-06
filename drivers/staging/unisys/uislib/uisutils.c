@@ -118,6 +118,7 @@ uisctrl_register_req_handler_ex(uuid_le switchTypeGuid,
 {
 	ReqHandlerInfo_t *pReqHandlerInfo;
 	int rc = 0;		/* assume failure */
+
 	LOGINF("type=%pUL, controlfunc=0x%p.\n",
 	       &switchTypeGuid, controlfunc);
 	if (!controlfunc) {
@@ -162,6 +163,7 @@ int
 uisctrl_unregister_req_handler_ex(uuid_le switchTypeGuid)
 {
 	int rc = 0;		/* assume failure */
+
 	LOGINF("type=%pUL.\n", &switchTypeGuid);
 	if (ReqHandlerDel(switchTypeGuid) < 0) {
 		LOGERR("failed to remove %pUL from server list\n",
@@ -250,6 +252,7 @@ uisutil_copy_fragsinfo_from_skb(unsigned char *calling_ctx, void *skb_in,
 	if (skb_shinfo(skb)->frag_list) {
 		struct sk_buff *skbinlist;
 		int c;
+
 		for (skbinlist = skb_shinfo(skb)->frag_list; skbinlist;
 		     skbinlist = skbinlist->next) {
 
@@ -307,6 +310,7 @@ ReqHandlerFind(uuid_le switchTypeGuid)
 {
 	struct list_head *lelt, *tmp;
 	ReqHandlerInfo_t *entry = NULL;
+
 	spin_lock(&ReqHandlerInfo_list_lock);
 	list_for_each_safe(lelt, tmp, &ReqHandlerInfo_list) {
 		entry = list_entry(lelt, ReqHandlerInfo_t, list_link);
@@ -325,6 +329,7 @@ ReqHandlerDel(uuid_le switchTypeGuid)
 	struct list_head *lelt, *tmp;
 	ReqHandlerInfo_t *entry = NULL;
 	int rc = -1;
+
 	spin_lock(&ReqHandlerInfo_list_lock);
 	list_for_each_safe(lelt, tmp, &ReqHandlerInfo_list) {
 		entry = list_entry(lelt, ReqHandlerInfo_t, list_link);
