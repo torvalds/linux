@@ -2292,6 +2292,22 @@ sub process {
 			     "networking block comments put the trailing */ on a separate line\n" . $herecurr);
 		}
 
+# check for missing blank lines after struct/union declarations
+# with exceptions for various attributes and macros
+		if ($prevline =~ /^[\+ ]};?\s*$/ &&
+		    $line =~ /^\+/ &&
+		    !($line =~ /^\+\s*$/ ||
+		      $line =~ /^\+\s*EXPORT_SYMBOL/ ||
+		      $line =~ /^\+\s*MODULE_/i ||
+		      $line =~ /^\+\s*\#\s*(?:end|elif|else)/ ||
+		      $line =~ /^\+[a-z_]*init/ ||
+		      $line =~ /^\+\s*(?:static\s+)?[A-Z_]*ATTR/ ||
+		      $line =~ /^\+\s*DECLARE/ ||
+		      $line =~ /^\+\s*__setup/)) {
+			CHK("LINE_SPACING",
+			    "Please use a blank line after function/struct/union/enum declarations\n" . $hereprev);
+		}
+
 # check for missing blank lines after declarations
 		if ($sline =~ /^\+\s+\S/ &&			#Not at char 1
 			# actual declarations
