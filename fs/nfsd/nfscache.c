@@ -338,19 +338,23 @@ nfsd_cache_csum(struct svc_rqst *rqstp)
 static bool
 nfsd_cache_match(struct svc_rqst *rqstp, __wsum csum, struct svc_cacherep *rp)
 {
-	/* Check RPC header info first */
-	if (rqstp->rq_xid != rp->c_xid || rqstp->rq_proc != rp->c_proc ||
-	    rqstp->rq_prot != rp->c_prot || rqstp->rq_vers != rp->c_vers ||
-	    rqstp->rq_arg.len != rp->c_len ||
-	    !rpc_cmp_addr(svc_addr(rqstp), (struct sockaddr *)&rp->c_addr) ||
-	    rpc_get_port(svc_addr(rqstp)) != rpc_get_port((struct sockaddr *)&rp->c_addr))
+	/* Check RPC XID first */
+	if (rqstp->rq_xid != rp->c_xid)
 		return false;
-
 	/* compare checksum of NFS data */
 	if (csum != rp->c_csum) {
 		++payload_misses;
 		return false;
 	}
+
+	/* Other discriminators */
+	if (rqstp->rq_proc != rp->c_proc ||
+	    rqstp->rq_prot != rp->c_prot ||
+	    rqstp->rq_vers != rp->c_vers ||
+	    rqstp->rq_arg.len != rp->c_len ||
+	    !rpc_cmp_addr(svc_addr(rqstp), (struct sockaddr *)&rp->c_addr) ||
+	    rpc_get_port(svc_addr(rqstp)) != rpc_get_port((struct sockaddr *)&rp->c_addr))
+		return false;
 
 	return true;
 }
