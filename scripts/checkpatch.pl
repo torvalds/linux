@@ -423,11 +423,6 @@ foreach my $entry (@mode_permission_funcs) {
 	$mode_perms_search .= $entry->[0];
 }
 
-our $declaration_macros = qr{(?x:
-	(?:$Storage\s+)?(?:DECLARE|DEFINE)_[A-Z]+\s*\(|
-	(?:$Storage\s+)?LIST_HEAD\s*\(
-)};
-
 our $allowed_asm_includes = qr{(?x:
 	irq|
 	memory
@@ -489,6 +484,12 @@ our $Typecast	= qr{\s*(\(\s*$NonptrType\s*\)){0,1}\s*};
 our $balanced_parens = qr/(\((?:[^\(\)]++|(?-1))*\))/;
 our $LvalOrFunc	= qr{((?:[\&\*]\s*)?$Lval)\s*($balanced_parens{0,1})\s*};
 our $FuncArg = qr{$Typecast{0,1}($LvalOrFunc|$Constant)};
+
+our $declaration_macros = qr{(?x:
+	(?:$Storage\s+)?(?:[A-Z_][A-Z0-9]*_){0,2}(?:DEFINE|DECLARE)(?:_[A-Z0-9]+){1,2}\s*\(|
+	(?:$Storage\s+)?LIST_HEAD\s*\(|
+	(?:$Storage\s+)?${Type}\s+uninitialized_var\s*\(
+)};
 
 sub deparenthesize {
 	my ($string) = @_;
