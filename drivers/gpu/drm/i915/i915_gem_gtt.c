@@ -2148,10 +2148,15 @@ i915_gem_obj_lookup_or_create_vma(struct drm_i915_gem_object *obj,
 				  struct i915_address_space *vm)
 {
 	struct i915_vma *vma;
+	struct i915_hw_ppgtt *ppgtt = NULL;
 
 	vma = i915_gem_obj_to_vma(obj, vm);
 	if (!vma)
 		vma = __i915_gem_vma_create(obj, vm);
+
+	ppgtt = vm_to_ppgtt(vm);
+	if (ppgtt)
+		kref_get(&ppgtt->ref);
 
 	return vma;
 }
