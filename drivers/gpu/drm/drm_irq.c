@@ -140,6 +140,19 @@ static void vblank_disable_and_save(struct drm_device *dev, int crtc)
 	 */
 	spin_lock_irqsave(&dev->vblank_time_lock, irqflags);
 
+	/*
+	 * If the vblank interrupt was already disbled update the count
+	 * and timestamp to maintain the appearance that the counter
+	 * has been ticking all along until this time. This makes the
+	 * count account for the entire time between drm_vblank_on() and
+	 * drm_vblank_off().
+	 */
+	if (!dev->vblank[crtc].enabled) {
+		drm_update_vblank_count(dev, crtc);
+		spin_unlock_irqrestore(&dev->vblank_time_lock, irqflags);
+		return;
+	}
+
 	dev->driver->disable_vblank(dev, crtc);
 	dev->vblank[crtc].enabled = false;
 
