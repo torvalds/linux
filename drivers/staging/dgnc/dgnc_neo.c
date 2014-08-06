@@ -1640,7 +1640,7 @@ static void neo_copy_data_from_queue_to_uart(struct channel_t *ch)
 
 static void neo_parse_modem(struct channel_t *ch, uchar signals)
 {
-	volatile uchar msignals = signals;
+	uchar msignals = signals;
 
 	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
 		return;
