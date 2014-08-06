@@ -169,6 +169,8 @@ struct wacom_wac {
 	int num_contacts_left;
 	int bat_charging;
 	int ps_connected;
+	u8 bt_features;
+	u8 bt_high_speed;
 };
 
 #endif
