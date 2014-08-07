@@ -134,9 +134,27 @@ static int usb20otg_get_status(int id)
 }
 
 #ifdef CONFIG_RK_USB_UART
+/**
+ *  dwc_otg_uart_enabled - check if a usb-uart bypass func is enabled in DT
+ *
+ *  Returns true if the status property of node "usb_uart" is set to "okay"
+ *  or "ok", if this property is absent it will use the default status "ok"
+ *  0 otherwise
+ */
+static bool dwc_otg_uart_enabled(void)
+{
+	struct device_node *np;
+
+	np = of_find_node_by_name(NULL, "usb_uart");
+	if (np && of_device_is_available(np))
+		return true;
+
+	return false;
+}
+
 static void dwc_otg_uart_mode(void *pdata, int enter_usb_uart_mode)
 {
-	if (1 == enter_usb_uart_mode) {
+	if ((1 == enter_usb_uart_mode) && dwc_otg_uart_enabled()) {
 		/* bypass dm, enter uart mode */
 		control_usb->grf_uoc0_base->CON3 = (0x00c0 | (0x00c0 << 16));
 
@@ -144,6 +162,10 @@ static void dwc_otg_uart_mode(void *pdata, int enter_usb_uart_mode)
 		/* enter usb mode */
 		control_usb->grf_uoc0_base->CON3 = (0x00c0 << 16);
 	}
+}
+#else
+static void dwc_otg_uart_mode(void *pdata, int enter_usb_uart_mode)
+{
 }
 #endif
 
@@ -172,9 +194,7 @@ struct dwc_otg_platform_data usb20otg_pdata_rk3288 = {
 	.clock_enable = usb20otg_clock_enable,
 	.get_status = usb20otg_get_status,
 	.power_enable = usb20otg_power_enable,
-#ifdef CONFIG_RK_USB_UART
 	.dwc_otg_uart_mode = dwc_otg_uart_mode,
-#endif
 	.bc_detect_cb = usb20otg_battery_charger_detect_cb,
 };
 
@@ -671,10 +691,8 @@ static irqreturn_t bvalid_irq_handler(int irq, void *dev_id)
 	/* clear irq */
 	control_usb->grf_uoc0_base->CON4 = (0x0008 | (0x0008 << 16));
 
-#ifdef CONFIG_RK_USB_UART
 	/* usb otg dp/dm switch to usb phy */
 	dwc_otg_uart_mode(NULL, PHY_USB_MODE);
-#endif
 
 	if (control_usb->usb_irq_wakeup) {
 		wake_lock_timeout(&control_usb->usb_wakelock,
@@ -705,10 +723,8 @@ static irqreturn_t id_irq_handler(int irq, void *dev_id)
 
 	/* id fall */
 	if (uoc_con & (1 << 7)) {
-#ifdef CONFIG_RK_USB_UART
 		/* usb otg dp/dm switch to usb phy */
 		dwc_otg_uart_mode(NULL, PHY_USB_MODE);
-#endif
 		/* clear id fall irq pandding */
 		control_usb->grf_uoc0_base->CON4 = ((1 << 7) | (1 << 23));
 	}

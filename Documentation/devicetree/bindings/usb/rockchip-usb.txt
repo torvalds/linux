@@ -178,6 +178,12 @@ Optional properties:
  - rk_usb,xcvrsel
  - rk_usb,termsel
 
+ The child node 'usb_uart' to the node 'dwc_control_usb' is for
+ the usb uart debug function.
+ Required propertie:
+ - status : If be "ok" or "okay" will enable the usb-uart debug
+   function and bypass UART2 to USB OTG io port.
+
 Example:
  - RK3288
 
@@ -219,6 +225,9 @@ Example:
 			rk_usb,chgdet     = <0x2cc 23 1>;
 			rk_usb,fsvminus   = <0x2cc 25 1>;
 			rk_usb,fsvplus    = <0x2cc 24 1>;
+		};
+		usb_uart {
+			status = "okay";
 		};
 	};
 

@@ -1653,9 +1653,7 @@ static void dwc_otg_pcd_work_init(dwc_otg_pcd_t *pcd,
 {
 
 	struct dwc_otg_device *otg_dev = pcd->otg_dev;
-#ifdef CONFIG_RK_USB_UART
 	struct dwc_otg_platform_data *pldata = otg_dev->pldata;
-#endif
 
 	pcd->vbus_status = USB_BC_TYPE_DISCNT;
 	pcd->phy_suspend = USB_PHY_ENABLED;
@@ -1667,7 +1665,6 @@ static void dwc_otg_pcd_work_init(dwc_otg_pcd_t *pcd,
 
 	if (dwc_otg_is_device_mode(pcd->core_if) &&
 	    (otg_dev->core_if->usb_mode != USB_MODE_FORCE_HOST)) {
-#ifdef CONFIG_RK_USB_UART
 		if (pldata->get_status(USB_STATUS_BVABLID)) {
 			/* enter usb phy mode */
 			pldata->dwc_otg_uart_mode(pldata, PHY_USB_MODE);
@@ -1675,14 +1672,11 @@ static void dwc_otg_pcd_work_init(dwc_otg_pcd_t *pcd,
 			/* usb phy bypass to uart mode */
 			pldata->dwc_otg_uart_mode(pldata, PHY_UART_MODE);
 		}
-#endif
 		schedule_delayed_work(&pcd->check_vbus_work, (HZ << 4));
 	}
-#ifdef CONFIG_RK_USB_UART
 	else if (pldata->dwc_otg_uart_mode != NULL)
 		/* host mode,enter usb phy mode */
 		pldata->dwc_otg_uart_mode(pldata, PHY_USB_MODE);
-#endif
 
 }
 
