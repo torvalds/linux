@@ -177,7 +177,7 @@
 	status = "okay";
 	rk818: rk818@1c {
 		reg = <0x1c>;
-		status = "disable";
+		status = "okay";
 	};
 };
 &i2c2 {
