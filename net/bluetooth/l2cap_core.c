@@ -1420,51 +1420,6 @@ static void l2cap_conn_start(struct l2cap_conn *conn)
 	mutex_unlock(&conn->chan_lock);
 }
 
-/* Find socket with cid and source/destination bdaddr.
- * Returns closest match, locked.
- */
-static struct l2cap_chan *l2cap_global_chan_by_scid(int state, u16 cid,
-						    bdaddr_t *src,
-						    bdaddr_t *dst)
-{
-	struct l2cap_chan *c, *c1 = NULL;
-
-	read_lock(&chan_list_lock);
-
-	list_for_each_entry(c, &chan_list, global_l) {
-		if (state && c->state != state)
-			continue;
-
-		if (c->scid == cid) {
-			int src_match, dst_match;
-			int src_any, dst_any;
-
-			/* Exact match. */
-			src_match = !bacmp(&c->src, src);
-			dst_match = !bacmp(&c->dst, dst);
-			if (src_match && dst_match) {
-				l2cap_chan_hold(c);
-				read_unlock(&chan_list_lock);
-				return c;
-			}
-
-			/* Closest match */
-			src_any = !bacmp(&c->src, BDADDR_ANY);
-			dst_any = !bacmp(&c->dst, BDADDR_ANY);
-			if ((src_match && dst_any) || (src_any && dst_match) ||
-			    (src_any && dst_any))
-				c1 = c;
-		}
-	}
-
-	if (c1)
-		l2cap_chan_hold(c1);
-
-	read_unlock(&chan_list_lock);
-
-	return c1;
-}
-
 static void l2cap_le_conn_ready(struct l2cap_conn *conn)
 {
 	struct hci_conn *hcon = conn->hcon;
@@ -6854,36 +6809,6 @@ free_skb:
 	kfree_skb(skb);
 }
 
-static void l2cap_att_channel(struct l2cap_conn *conn,
-			      struct sk_buff *skb)
-{
-	struct hci_conn *hcon = conn->hcon;
-	struct l2cap_chan *chan;
-
-	if (hcon->type != LE_LINK)
-		goto free_skb;
-
-	chan = l2cap_global_chan_by_scid(BT_CONNECTED, L2CAP_CID_ATT,
-					 &hcon->src, &hcon->dst);
-	if (!chan)
-		goto free_skb;
-
-	BT_DBG("chan %p, len %d", chan, skb->len);
-
-	if (chan->imtu < skb->len)
-		goto drop;
-
-	if (!chan->ops->recv(chan, skb)) {
-		l2cap_chan_put(chan);
-		return;
-	}
-
-drop:
-	l2cap_chan_put(chan);
-free_skb:
-	kfree_skb(skb);
-}
-
 static void l2cap_recv_frame(struct l2cap_conn *conn, struct sk_buff *skb)
 {
 	struct l2cap_hdr *lh = (void *) skb->data;
@@ -6927,10 +6852,6 @@ static void l2cap_recv_frame(struct l2cap_conn *conn, struct sk_buff *skb)
 		psm = get_unaligned((__le16 *) skb->data);
 		skb_pull(skb, L2CAP_PSMLEN_SIZE);
 		l2cap_conless_channel(conn, psm, skb);
-		break;
-
-	case L2CAP_CID_ATT:
-		l2cap_att_channel(conn, skb);
 		break;
 
 	case L2CAP_CID_LE_SIGNALING:
