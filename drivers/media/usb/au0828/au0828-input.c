@@ -25,6 +25,10 @@
 #include <linux/slab.h>
 #include <media/rc-core.h>
 
+static int disable_ir;
+module_param(disable_ir,        int, 0444);
+MODULE_PARM_DESC(disable_ir, "disable infrared remote support");
+
 #include "au0828.h"
 
 struct au0828_rc {
@@ -271,7 +275,7 @@ int au0828_rc_register(struct au0828_dev *dev)
 	int err = -ENOMEM;
 	u16 i2c_rc_dev_addr = 0;
 
-	if (!dev->board.has_ir_i2c)
+	if (!dev->board.has_ir_i2c || disable_ir)
 		return 0;
 
 	i2c_rc_dev_addr = au0828_probe_i2c_ir(dev);
