@@ -291,7 +291,8 @@ int radeon_gem_userptr_ioctl(struct drm_device *dev, void *data,
 
 	/* reject unknown flag values */
 	if (args->flags & ~(RADEON_GEM_USERPTR_READONLY |
-	    RADEON_GEM_USERPTR_ANONONLY | RADEON_GEM_USERPTR_VALIDATE))
+	    RADEON_GEM_USERPTR_ANONONLY | RADEON_GEM_USERPTR_VALIDATE |
+	    RADEON_GEM_USERPTR_REGISTER))
 		return -EINVAL;
 
 	/* readonly pages not tested on older hardware */
@@ -311,6 +312,12 @@ int radeon_gem_userptr_ioctl(struct drm_device *dev, void *data,
 	r = radeon_ttm_tt_set_userptr(bo->tbo.ttm, args->addr, args->flags);
 	if (r)
 		goto release_object;
+
+	if (args->flags & RADEON_GEM_USERPTR_REGISTER) {
+		r = radeon_mn_register(bo, args->addr);
+		if (r)
+			goto release_object;
+	}
 
 	if (args->flags & RADEON_GEM_USERPTR_VALIDATE) {
 		down_read(&current->mm->mmap_sem);

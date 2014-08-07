@@ -65,6 +65,7 @@
 #include <linux/list.h>
 #include <linux/kref.h>
 #include <linux/interval_tree.h>
+#include <linux/hashtable.h>
 
 #include <ttm/ttm_bo_api.h>
 #include <ttm/ttm_bo_driver.h>
@@ -487,6 +488,9 @@ struct radeon_bo {
 
 	struct ttm_bo_kmap_obj		dma_buf_vmap;
 	pid_t				pid;
+
+	struct radeon_mn		*mn;
+	struct interval_tree_node	mn_it;
 };
 #define gem_to_radeon_bo(gobj) container_of((gobj), struct radeon_bo, gem_base)
 
@@ -1725,6 +1729,11 @@ void radeon_test_ring_sync(struct radeon_device *rdev,
 			   struct radeon_ring *cpB);
 void radeon_test_syncing(struct radeon_device *rdev);
 
+/*
+ * MMU Notifier
+ */
+int radeon_mn_register(struct radeon_bo *bo, unsigned long addr);
+void radeon_mn_unregister(struct radeon_bo *bo);
 
 /*
  * Debugfs
@@ -2372,6 +2381,9 @@ struct radeon_device {
 	/* tracking pinned memory */
 	u64 vram_pin_size;
 	u64 gart_pin_size;
+
+	struct mutex	mn_lock;
+	DECLARE_HASHTABLE(mn_hash, 7);
 };
 
 bool radeon_is_px(struct drm_device *dev);
