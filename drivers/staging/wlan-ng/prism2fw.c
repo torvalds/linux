@@ -764,30 +764,35 @@ static int plugimage(struct imgchunk *fchunk, unsigned int nfchunks,
 static int read_cardpda(struct pda *pda, wlandevice_t *wlandev)
 {
 	int result = 0;
-	struct p80211msg_p2req_readpda msg;
+	struct p80211msg_p2req_readpda *msg;
+
+	msg = kzalloc(sizeof(*msg), GFP_KERNEL);
+	if (!msg)
+		return -ENOMEM;
 
 	/* set up the msg */
-	msg.msgcode = DIDmsg_p2req_readpda;
-	msg.msglen = sizeof(msg);
-	strcpy(msg.devname, wlandev->name);
-	msg.pda.did = DIDmsg_p2req_readpda_pda;
-	msg.pda.len = HFA384x_PDA_LEN_MAX;
-	msg.pda.status = P80211ENUM_msgitem_status_no_value;
-	msg.resultcode.did = DIDmsg_p2req_readpda_resultcode;
-	msg.resultcode.len = sizeof(u32);
-	msg.resultcode.status = P80211ENUM_msgitem_status_no_value;
+	msg->msgcode = DIDmsg_p2req_readpda;
+	msg->msglen = sizeof(msg);
+	strcpy(msg->devname, wlandev->name);
+	msg->pda.did = DIDmsg_p2req_readpda_pda;
+	msg->pda.len = HFA384x_PDA_LEN_MAX;
+	msg->pda.status = P80211ENUM_msgitem_status_no_value;
+	msg->resultcode.did = DIDmsg_p2req_readpda_resultcode;
+	msg->resultcode.len = sizeof(u32);
+	msg->resultcode.status = P80211ENUM_msgitem_status_no_value;
 
-	if (prism2mgmt_readpda(wlandev, &msg) != 0) {
+	if (prism2mgmt_readpda(wlandev, msg) != 0) {
 		/* prism2mgmt_readpda prints an errno if appropriate */
 		result = -1;
-	} else if (msg.resultcode.data == P80211ENUM_resultcode_success) {
-		memcpy(pda->buf, msg.pda.data, HFA384x_PDA_LEN_MAX);
+	} else if (msg->resultcode.data == P80211ENUM_resultcode_success) {
+		memcpy(pda->buf, msg->pda.data, HFA384x_PDA_LEN_MAX);
 		result = mkpdrlist(pda);
 	} else {
 		/* resultcode must've been something other than success */
 		result = -1;
 	}
 
+	kfree(msg);
 	return result;
 }
 
