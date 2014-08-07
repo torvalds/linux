@@ -810,6 +810,9 @@ static int rk312x_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 			lcdc_msk_reg(lcdc_dev, AXI_BUS_CTRL, mask, val);
                         if (lcdc_dev->soc_type == VOP_RK312X) {
 				lcdc_dev->overlay_mode = VOP_YUV_DOMAIN;
+                                lcdc_msk_reg(lcdc_dev, DSP_CTRL0,
+                                             m_SW_UV_OFFSET_EN,
+                                             v_SW_UV_OFFSET_EN(0));
                         }
 			break;
 		case SCREEN_TVOUT:
@@ -833,6 +836,9 @@ static int rk312x_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 			}
                         if (lcdc_dev->soc_type == VOP_RK312X) {
 				lcdc_dev->overlay_mode = VOP_YUV_DOMAIN;
+                                lcdc_msk_reg(lcdc_dev, DSP_CTRL0,
+                                             m_SW_UV_OFFSET_EN,
+                                             v_SW_UV_OFFSET_EN(1));
                         }
 			break;
 		default:
