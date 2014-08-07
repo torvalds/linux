@@ -191,6 +191,19 @@ static void __init rk312x_init_late(void)
 
 static void rk312x_restart(char mode, const char *cmd)
 {
+	u32 boot_flag, boot_mode;
+
+	rockchip_restart_get_boot_mode(cmd, &boot_flag, &boot_mode);
+
+	writel_relaxed(boot_flag, RK_GRF_VIRT + RK312X_GRF_OS_REG4);	// for loader
+	writel_relaxed(boot_mode, RK_GRF_VIRT + RK312X_GRF_OS_REG5);	// for linux
+	dsb();
+
+	/* pll enter slow mode */
+	writel_relaxed(0x30110000, RK_CRU_VIRT + RK312X_CRU_MODE_CON);
+	dsb();
+	writel_relaxed(0xeca8, RK_CRU_VIRT + RK312X_CRU_GLB_SRST_SND_VALUE);
+	dsb();
 }
 
 DT_MACHINE_START(RK3126_DT, "Rockchip RK3126")
