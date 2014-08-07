@@ -138,14 +138,6 @@ int ath10k_htc_send(struct ath10k_htc *htc,
 		return -ENOENT;
 	}
 
-	/* FIXME: This looks ugly, can we fix it? */
-	spin_lock_bh(&htc->tx_lock);
-	if (htc->stopped) {
-		spin_unlock_bh(&htc->tx_lock);
-		return -ESHUTDOWN;
-	}
-	spin_unlock_bh(&htc->tx_lock);
-
 	skb_push(skb, sizeof(struct ath10k_htc_hdr));
 
 	if (ep->tx_credit_flow_enabled) {
@@ -846,13 +838,6 @@ int ath10k_htc_start(struct ath10k_htc *htc)
 	return 0;
 }
 
-void ath10k_htc_stop(struct ath10k_htc *htc)
-{
-	spin_lock_bh(&htc->tx_lock);
-	htc->stopped = true;
-	spin_unlock_bh(&htc->tx_lock);
-}
-
 /* registered target arrival callback from the HIF layer */
 int ath10k_htc_init(struct ath10k *ar)
 {
@@ -862,7 +847,6 @@ int ath10k_htc_init(struct ath10k *ar)
 
 	spin_lock_init(&htc->tx_lock);
 
-	htc->stopped = false;
 	ath10k_htc_reset_endpoint_states(htc);
 
 	/* setup HIF layer callbacks */

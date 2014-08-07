@@ -779,7 +779,7 @@ int ath10k_core_start(struct ath10k *ar)
 	if (status <= 0) {
 		ath10k_warn("wmi service ready event not received");
 		status = -ETIMEDOUT;
-		goto err_htc_stop;
+		goto err_hif_stop;
 	}
 
 	ath10k_dbg(ATH10K_DBG_BOOT, "firmware %s booted\n",
@@ -788,25 +788,25 @@ int ath10k_core_start(struct ath10k *ar)
 	status = ath10k_wmi_cmd_init(ar);
 	if (status) {
 		ath10k_err("could not send WMI init command (%d)\n", status);
-		goto err_htc_stop;
+		goto err_hif_stop;
 	}
 
 	status = ath10k_wmi_wait_for_unified_ready(ar);
 	if (status <= 0) {
 		ath10k_err("wmi unified ready event not received\n");
 		status = -ETIMEDOUT;
-		goto err_htc_stop;
+		goto err_hif_stop;
 	}
 
 	status = ath10k_htt_setup(&ar->htt);
 	if (status) {
 		ath10k_err("failed to setup htt: %d\n", status);
-		goto err_htc_stop;
+		goto err_hif_stop;
 	}
 
 	status = ath10k_debug_start(ar);
 	if (status)
-		goto err_htc_stop;
+		goto err_hif_stop;
 
 	if (test_bit(ATH10K_FW_FEATURE_WMI_10X, ar->fw_features))
 		ar->free_vdev_map = (1 << TARGET_10X_NUM_VDEVS) - 1;
@@ -835,8 +835,6 @@ int ath10k_core_start(struct ath10k *ar)
 
 	return 0;
 
-err_htc_stop:
-	ath10k_htc_stop(&ar->htc);
 err_hif_stop:
 	ath10k_hif_stop(ar);
 err_htt_rx_detach:
@@ -881,7 +879,6 @@ void ath10k_core_stop(struct ath10k *ar)
 		ath10k_wait_for_suspend(ar, WMI_PDEV_SUSPEND_AND_DISABLE_INTR);
 
 	ath10k_debug_stop(ar);
-	ath10k_htc_stop(&ar->htc);
 	ath10k_hif_stop(ar);
 	ath10k_htt_tx_free(&ar->htt);
 	ath10k_htt_rx_free(&ar->htt);
