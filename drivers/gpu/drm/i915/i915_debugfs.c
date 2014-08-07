@@ -1721,6 +1721,86 @@ static int i915_context_status(struct seq_file *m, void *unused)
 	return 0;
 }
 
+static int i915_execlists(struct seq_file *m, void *data)
+{
+	struct drm_info_node *node = (struct drm_info_node *)m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_engine_cs *ring;
+	u32 status_pointer;
+	u8 read_pointer;
+	u8 write_pointer;
+	u32 status;
+	u32 ctx_id;
+	struct list_head *cursor;
+	int ring_id, i;
+	int ret;
+
+	if (!i915.enable_execlists) {
+		seq_puts(m, "Logical Ring Contexts are disabled\n");
+		return 0;
+	}
+
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
+
+	for_each_ring(ring, dev_priv, ring_id) {
+		struct intel_ctx_submit_request *head_req = NULL;
+		int count = 0;
+		unsigned long flags;
+
+		seq_printf(m, "%s\n", ring->name);
+
+		status = I915_READ(RING_EXECLIST_STATUS(ring));
+		ctx_id = I915_READ(RING_EXECLIST_STATUS(ring) + 4);
+		seq_printf(m, "\tExeclist status: 0x%08X, context: %u\n",
+			   status, ctx_id);
+
+		status_pointer = I915_READ(RING_CONTEXT_STATUS_PTR(ring));
+		seq_printf(m, "\tStatus pointer: 0x%08X\n", status_pointer);
+
+		read_pointer = ring->next_context_status_buffer;
+		write_pointer = status_pointer & 0x07;
+		if (read_pointer > write_pointer)
+			write_pointer += 6;
+		seq_printf(m, "\tRead pointer: 0x%08X, write pointer 0x%08X\n",
+			   read_pointer, write_pointer);
+
+		for (i = 0; i < 6; i++) {
+			status = I915_READ(RING_CONTEXT_STATUS_BUF(ring) + 8*i);
+			ctx_id = I915_READ(RING_CONTEXT_STATUS_BUF(ring) + 8*i + 4);
+
+			seq_printf(m, "\tStatus buffer %d: 0x%08X, context: %u\n",
+				   i, status, ctx_id);
+		}
+
+		spin_lock_irqsave(&ring->execlist_lock, flags);
+		list_for_each(cursor, &ring->execlist_queue)
+			count++;
+		head_req = list_first_entry_or_null(&ring->execlist_queue,
+				struct intel_ctx_submit_request, execlist_link);
+		spin_unlock_irqrestore(&ring->execlist_lock, flags);
+
+		seq_printf(m, "\t%d requests in queue\n", count);
+		if (head_req) {
+			struct drm_i915_gem_object *ctx_obj;
+
+			ctx_obj = head_req->ctx->engine[ring_id].state;
+			seq_printf(m, "\tHead request id: %u\n",
+				   intel_execlists_ctx_id(ctx_obj));
+			seq_printf(m, "\tHead request tail: %u\n",
+				   head_req->tail);
+		}
+
+		seq_putc(m, '\n');
+	}
+
+	mutex_unlock(&dev->struct_mutex);
+
+	return 0;
+}
+
 static int i915_gen6_forcewake_count_info(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = m->private;
@@ -3974,6 +4054,7 @@ static const struct drm_info_list i915_debugfs_list[] = {
 	{"i915_opregion", i915_opregion, 0},
 	{"i915_gem_framebuffer", i915_gem_framebuffer_info, 0},
 	{"i915_context_status", i915_context_status, 0},
+	{"i915_execlists", i915_execlists, 0},
 	{"i915_gen6_forcewake_count", i915_gen6_forcewake_count_info, 0},
 	{"i915_swizzle_info", i915_swizzle_info, 0},
 	{"i915_ppgtt_info", i915_ppgtt_info, 0},

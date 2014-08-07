@@ -46,12 +46,6 @@
 
 #define GEN8_LR_CONTEXT_ALIGN 4096
 
-#define RING_ELSP(ring)			((ring)->mmio_base+0x230)
-#define RING_EXECLIST_STATUS(ring)	((ring)->mmio_base+0x234)
-#define RING_CONTEXT_CONTROL(ring)	((ring)->mmio_base+0x244)
-#define RING_CONTEXT_STATUS_BUF(ring)	((ring)->mmio_base+0x370)
-#define RING_CONTEXT_STATUS_PTR(ring)	((ring)->mmio_base+0x3a0)
-
 #define RING_EXECLIST_QFULL		(1 << 0x2)
 #define RING_EXECLIST1_VALID		(1 << 0x3)
 #define RING_EXECLIST0_VALID		(1 << 0x4)
