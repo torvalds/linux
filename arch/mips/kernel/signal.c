@@ -31,7 +31,6 @@
 #include <linux/bitops.h>
 #include <asm/cacheflush.h>
 #include <asm/fpu.h>
-#include <asm/msa.h>
 #include <asm/sim.h>
 #include <asm/ucontext.h>
 #include <asm/cpu-features.h>
@@ -47,9 +46,6 @@ static int (*restore_fp_context)(struct sigcontext __user *sc);
 
 extern asmlinkage int _save_fp_context(struct sigcontext __user *sc);
 extern asmlinkage int _restore_fp_context(struct sigcontext __user *sc);
-
-extern asmlinkage int _save_msa_context(struct sigcontext __user *sc);
-extern asmlinkage int _restore_msa_context(struct sigcontext __user *sc);
 
 struct sigframe {
 	u32 sf_ass[4];		/* argument save space for o32 */
@@ -100,60 +96,20 @@ static int copy_fp_from_sigcontext(struct sigcontext __user *sc)
 }
 
 /*
- * These functions will save only the upper 64 bits of the vector registers,
- * since the lower 64 bits have already been saved as the scalar FP context.
- */
-static int copy_msa_to_sigcontext(struct sigcontext __user *sc)
-{
-	int i;
-	int err = 0;
-
-	for (i = 0; i < NUM_FPU_REGS; i++) {
-		err |=
-		    __put_user(get_fpr64(&current->thread.fpu.fpr[i], 1),
-			       &sc->sc_msaregs[i]);
-	}
-	err |= __put_user(current->thread.fpu.msacsr, &sc->sc_msa_csr);
-
-	return err;
-}
-
-static int copy_msa_from_sigcontext(struct sigcontext __user *sc)
-{
-	int i;
-	int err = 0;
-	u64 val;
-
-	for (i = 0; i < NUM_FPU_REGS; i++) {
-		err |= __get_user(val, &sc->sc_msaregs[i]);
-		set_fpr64(&current->thread.fpu.fpr[i], 1, val);
-	}
-	err |= __get_user(current->thread.fpu.msacsr, &sc->sc_msa_csr);
-
-	return err;
-}
-
-/*
  * Helper routines
  */
-static int protected_save_fp_context(struct sigcontext __user *sc,
-				     unsigned used_math)
+static int protected_save_fp_context(struct sigcontext __user *sc)
 {
 	int err;
-	bool save_msa = cpu_has_msa && (used_math & USEDMATH_MSA);
 #ifndef CONFIG_EVA
 	while (1) {
 		lock_fpu_owner();
 		if (is_fpu_owner()) {
 			err = save_fp_context(sc);
-			if (save_msa && !err)
-				err = _save_msa_context(sc);
 			unlock_fpu_owner();
 		} else {
 			unlock_fpu_owner();
 			err = copy_fp_to_sigcontext(sc);
-			if (save_msa && !err)
-				err = copy_msa_to_sigcontext(sc);
 		}
 		if (likely(!err))
 			break;
@@ -169,38 +125,24 @@ static int protected_save_fp_context(struct sigcontext __user *sc,
 	 * EVA does not have FPU EVA instructions so saving fpu context directly
 	 * does not work.
 	 */
-	disable_msa();
 	lose_fpu(1);
 	err = save_fp_context(sc); /* this might fail */
-	if (save_msa && !err)
-		err = copy_msa_to_sigcontext(sc);
 #endif
 	return err;
 }
 
-static int protected_restore_fp_context(struct sigcontext __user *sc,
-					unsigned used_math)
+static int protected_restore_fp_context(struct sigcontext __user *sc)
 {
 	int err, tmp __maybe_unused;
-	bool restore_msa = cpu_has_msa && (used_math & USEDMATH_MSA);
 #ifndef CONFIG_EVA
 	while (1) {
 		lock_fpu_owner();
 		if (is_fpu_owner()) {
 			err = restore_fp_context(sc);
-			if (restore_msa && !err) {
-				enable_msa();
-				err = _restore_msa_context(sc);
-			} else {
-				/* signal handler may have used MSA */
-				disable_msa();
-			}
 			unlock_fpu_owner();
 		} else {
 			unlock_fpu_owner();
 			err = copy_fp_from_sigcontext(sc);
-			if (!err && (used_math & USEDMATH_MSA))
-				err = copy_msa_from_sigcontext(sc);
 		}
 		if (likely(!err))
 			break;
@@ -216,11 +158,8 @@ static int protected_restore_fp_context(struct sigcontext __user *sc,
 	 * EVA does not have FPU EVA instructions so restoring fpu context
 	 * directly does not work.
 	 */
-	enable_msa();
 	lose_fpu(0);
 	err = restore_fp_context(sc); /* this might fail */
-	if (restore_msa && !err)
-		err = copy_msa_from_sigcontext(sc);
 #endif
 	return err;
 }
@@ -252,8 +191,7 @@ int setup_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc)
 		err |= __put_user(rddsp(DSP_MASK), &sc->sc_dsp);
 	}
 
-	used_math = used_math() ? USEDMATH_FP : 0;
-	used_math |= thread_msa_context_live() ? USEDMATH_MSA : 0;
+	used_math = !!used_math();
 	err |= __put_user(used_math, &sc->sc_used_math);
 
 	if (used_math) {
@@ -261,7 +199,7 @@ int setup_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc)
 		 * Save FPU state to signal context. Signal handler
 		 * will "inherit" current FPU state.
 		 */
-		err |= protected_save_fp_context(sc, used_math);
+		err |= protected_save_fp_context(sc);
 	}
 	return err;
 }
@@ -286,14 +224,14 @@ int fpcsr_pending(unsigned int __user *fpcsr)
 }
 
 static int
-check_and_restore_fp_context(struct sigcontext __user *sc, unsigned used_math)
+check_and_restore_fp_context(struct sigcontext __user *sc)
 {
 	int err, sig;
 
 	err = sig = fpcsr_pending(&sc->sc_fpc_csr);
 	if (err > 0)
 		err = 0;
-	err |= protected_restore_fp_context(sc, used_math);
+	err |= protected_restore_fp_context(sc);
 	return err ?: sig;
 }
 
@@ -333,10 +271,9 @@ int restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc)
 	if (used_math) {
 		/* restore fpu context if we have used it before */
 		if (!err)
-			err = check_and_restore_fp_context(sc, used_math);
+			err = check_and_restore_fp_context(sc);
 	} else {
-		/* signal handler may have used FPU or MSA. Disable them. */
-		disable_msa();
+		/* signal handler may have used FPU.  Give it up. */
 		lose_fpu(0);
 	}
 

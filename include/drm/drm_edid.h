@@ -202,6 +202,11 @@ struct detailed_timing {
 #define DRM_EDID_FEATURE_PM_SUSPEND       (1 << 6)
 #define DRM_EDID_FEATURE_PM_STANDBY       (1 << 7)
 
+#define DRM_EDID_HDMI_DC_48               (1 << 6)
+#define DRM_EDID_HDMI_DC_36               (1 << 5)
+#define DRM_EDID_HDMI_DC_30               (1 << 4)
+#define DRM_EDID_HDMI_DC_Y444             (1 << 3)
+
 struct edid {
 	u8 header[8];
 	/* Vendor & product info */

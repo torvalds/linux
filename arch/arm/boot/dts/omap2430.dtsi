@@ -14,6 +14,32 @@
 	compatible = "ti,omap2430", "ti,omap2";
 
 	ocp {
+		prcm: prcm@49006000 {
+			compatible = "ti,omap2-prcm";
+			reg = <0x49006000 0x1000>;
+
+			prcm_clocks: clocks {
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
+
+			prcm_clockdomains: clockdomains {
+			};
+		};
+
+		scrm: scrm@49002000 {
+			compatible = "ti,omap2-scrm";
+			reg = <0x49002000 0x1000>;
+
+			scrm_clocks: clocks {
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
+
+			scrm_clockdomains: clockdomains {
+			};
+		};
+
 		counter32k: counter@49020000 {
 			compatible = "ti,omap-counter32k";
 			reg = <0x49020000 0x20>;
@@ -214,6 +240,13 @@
 			ti,hwmods = "mmc2";
 			dmas = <&sdma 47>, <&sdma 48>;
 			dma-names = "tx", "rx";
+		};
+
+		mailbox: mailbox@48094000 {
+			compatible = "ti,omap2-mailbox";
+			reg = <0x48094000 0x200>;
+			interrupts = <26>;
+			ti,hwmods = "mailbox";
 		};
 
 		timer1: timer@49018000 {

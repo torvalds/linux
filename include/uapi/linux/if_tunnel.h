@@ -100,7 +100,7 @@ enum {
 #define IFLA_GRE_MAX	(__IFLA_GRE_MAX - 1)
 
 /* VTI-mode i_flags */
-#define VTI_ISVTI 0x0001
+#define VTI_ISVTI ((__force __be16)0x0001)
 
 enum {
 	IFLA_VTI_UNSPEC,

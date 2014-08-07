@@ -435,10 +435,10 @@ static int start_streaming(struct vb2_queue *vq, unsigned int count)
 	return 0;
 }
 
-static int stop_streaming(struct vb2_queue *vq)
+static void stop_streaming(struct vb2_queue *vq)
 {
 	struct camif_vp *vp = vb2_get_drv_priv(vq);
-	return camif_stop_capture(vp);
+	camif_stop_capture(vp);
 }
 
 static int queue_setup(struct vb2_queue *vq, const struct v4l2_format *pfmt,

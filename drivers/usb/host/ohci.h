@@ -729,3 +729,6 @@ extern int	ohci_setup(struct usb_hcd *hcd);
 extern int	ohci_suspend(struct usb_hcd *hcd, bool do_wakeup);
 extern int	ohci_resume(struct usb_hcd *hcd, bool hibernated);
 #endif
+extern int	ohci_hub_control(struct usb_hcd	*hcd, u16 typeReq, u16 wValue,
+				 u16 wIndex, char *buf, u16 wLength);
+extern int	ohci_hub_status_data(struct usb_hcd *hcd, char *buf);

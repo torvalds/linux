@@ -19,6 +19,9 @@ xhci-hcd-$(CONFIG_PCI)	+= xhci-pci.o
 
 ifneq ($(CONFIG_USB_XHCI_PLATFORM), )
 	xhci-hcd-y		+= xhci-plat.o
+ifneq ($(CONFIG_USB_XHCI_MVEBU), )
+	xhci-hcd-y		+= xhci-mvebu.o
+endif
 endif
 
 obj-$(CONFIG_USB_WHCI_HCD)	+= whci/
@@ -70,3 +73,4 @@ obj-$(CONFIG_USB_HCD_BCMA)	+= bcma-hcd.o
 obj-$(CONFIG_USB_HCD_SSB)	+= ssb-hcd.o
 obj-$(CONFIG_USB_FUSBH200_HCD)	+= fusbh200-hcd.o
 obj-$(CONFIG_USB_FOTG210_HCD)	+= fotg210-hcd.o
+obj-$(CONFIG_USB_MAX3421_HCD)	+= max3421-hcd.o

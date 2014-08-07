@@ -67,6 +67,7 @@ config FSL_XGMAC_MDIO
 	tristate "Freescale XGMAC MDIO"
 	depends on FSL_SOC
 	select PHYLIB
+	select OF_MDIO
 	---help---
 	  This driver supports the MDIO bus on the Fman 10G Ethernet MACs.
 

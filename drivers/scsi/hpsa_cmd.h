@@ -151,7 +151,7 @@
 #define HPSA_VPD_HEADER_SZ              4
 
 /* Logical volume states */
-#define HPSA_VPD_LV_STATUS_UNSUPPORTED			-1
+#define HPSA_VPD_LV_STATUS_UNSUPPORTED			0xff
 #define HPSA_LV_OK                                      0x0
 #define HPSA_LV_UNDERGOING_ERASE			0x0F
 #define HPSA_LV_UNDERGOING_RPI				0x12
@@ -238,11 +238,21 @@ struct ReportLUNdata {
 	u8 LUN[HPSA_MAX_LUN][8];
 };
 
+struct ext_report_lun_entry {
+	u8 lunid[8];
+	u8 wwid[8];
+	u8 device_type;
+	u8 device_flags;
+	u8 lun_count; /* multi-lun device, how many luns */
+	u8 redundant_paths;
+	u32 ioaccel_handle; /* ioaccel1 only uses lower 16 bits */
+};
+
 struct ReportExtendedLUNdata {
 	u8 LUNListLength[4];
 	u8 extended_response_flag;
 	u8 reserved[3];
-	u8 LUN[HPSA_MAX_LUN][24];
+	struct ext_report_lun_entry LUN[HPSA_MAX_LUN];
 };
 
 struct SenseSubsystem_info {
@@ -375,6 +385,7 @@ struct ctlr_info; /* defined in hpsa.h */
  *        or a bus address.
  */
 
+#define COMMANDLIST_ALIGNMENT 128
 struct CommandList {
 	struct CommandListHeader Header;
 	struct RequestBlock      Request;
@@ -389,21 +400,7 @@ struct CommandList {
 	struct list_head list;
 	struct completion *waiting;
 	void   *scsi_cmd;
-
-/* on 64 bit architectures, to get this to be 32-byte-aligned
- * it so happens we need PAD_64 bytes of padding, on 32 bit systems,
- * we need PAD_32 bytes of padding (see below).   This does that.
- * If it happens that 64 bit and 32 bit systems need different
- * padding, PAD_32 and PAD_64 can be set independently, and.
- * the code below will do the right thing.
- */
-#define IS_32_BIT ((8 - sizeof(long))/4)
-#define IS_64_BIT (!IS_32_BIT)
-#define PAD_32 (40)
-#define PAD_64 (12)
-#define COMMANDLIST_PAD (IS_32_BIT * PAD_32 + IS_64_BIT * PAD_64)
-	u8 pad[COMMANDLIST_PAD];
-};
+} __aligned(COMMANDLIST_ALIGNMENT);
 
 /* Max S/G elements in I/O accelerator command */
 #define IOACCEL1_MAXSGENTRIES           24
@@ -413,6 +410,7 @@ struct CommandList {
  * Structure for I/O accelerator (mode 1) commands.
  * Note that this structure must be 128-byte aligned in size.
  */
+#define IOACCEL1_COMMANDLIST_ALIGNMENT 128
 struct io_accel1_cmd {
 	u16 dev_handle;			/* 0x00 - 0x01 */
 	u8  reserved1;			/* 0x02 */
@@ -440,12 +438,7 @@ struct io_accel1_cmd {
 	struct vals32 host_addr;	/* 0x70 - 0x77 */
 	u8  CISS_LUN[8];		/* 0x78 - 0x7F */
 	struct SGDescriptor SG[IOACCEL1_MAXSGENTRIES];
-#define IOACCEL1_PAD_64 0
-#define IOACCEL1_PAD_32 0
-#define IOACCEL1_PAD (IS_32_BIT * IOACCEL1_PAD_32 + \
-			IS_64_BIT * IOACCEL1_PAD_64)
-	u8 pad[IOACCEL1_PAD];
-};
+} __aligned(IOACCEL1_COMMANDLIST_ALIGNMENT);
 
 #define IOACCEL1_FUNCTION_SCSIIO        0x00
 #define IOACCEL1_SGLOFFSET              32
@@ -510,14 +503,11 @@ struct io_accel2_scsi_response {
 	u8 sense_data_buff[32];		/* sense/response data buffer */
 };
 
-#define IOACCEL2_64_PAD 76
-#define IOACCEL2_32_PAD 76
-#define IOACCEL2_PAD (IS_32_BIT * IOACCEL2_32_PAD + \
-			IS_64_BIT * IOACCEL2_64_PAD)
 /*
  * Structure for I/O accelerator (mode 2 or m2) commands.
  * Note that this structure must be 128-byte aligned in size.
  */
+#define IOACCEL2_COMMANDLIST_ALIGNMENT 128
 struct io_accel2_cmd {
 	u8  IU_type;			/* IU Type */
 	u8  direction;			/* direction, memtype, and encryption */
@@ -544,8 +534,7 @@ struct io_accel2_cmd {
 	u32 tweak_upper;		/* Encryption tweak, upper 4 bytes */
 	struct ioaccel2_sg_element sg[IOACCEL2_MAXSGENTRIES];
 	struct io_accel2_scsi_response error_data;
-	u8 pad[IOACCEL2_PAD];
-};
+} __aligned(IOACCEL2_COMMANDLIST_ALIGNMENT);
 
 /*
  * defines for Mode 2 command struct
@@ -636,7 +625,7 @@ struct TransTable_struct {
 	u32            RepQCount;
 	u32            RepQCtrAddrLow32;
 	u32            RepQCtrAddrHigh32;
-#define MAX_REPLY_QUEUES 8
+#define MAX_REPLY_QUEUES 64
 	struct vals32  RepQAddr[MAX_REPLY_QUEUES];
 };
 

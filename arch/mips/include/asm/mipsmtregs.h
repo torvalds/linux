@@ -36,6 +36,8 @@
 
 #define read_c0_tcbind()		__read_32bit_c0_register($2, 2)
 
+#define write_c0_tchalt(val)		__write_32bit_c0_register($2, 4, val)
+
 #define read_c0_tccontext()		__read_32bit_c0_register($2, 5)
 #define write_c0_tccontext(val)		__write_32bit_c0_register($2, 5, val)
 

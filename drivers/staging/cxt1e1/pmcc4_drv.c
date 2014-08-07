@@ -122,35 +122,6 @@ c4_find_chan (int channum)
     return NULL;
 }
 
-
-ci_t       *__init
-c4_new (void *hi)
-{
-    ci_t       *ci;
-
-#ifdef SBE_MAP_DEBUG
-    pr_warning("c4_new() entered, ci needs %u.\n",
-               (unsigned int) sizeof (ci_t));
-#endif
-
-    ci = (ci_t *) OS_kmalloc (sizeof (ci_t));
-    if (ci)
-    {
-        ci->hdw_info = hi;
-        ci->state = C_INIT;         /* mark as hardware not available */
-        ci->next = c4_list;
-        c4_list = ci;
-        ci->brdno = ci->next ? ci->next->brdno + 1 : 0;
-    } else
-        pr_warning("failed CI malloc, size %u.\n",
-                   (unsigned int) sizeof (ci_t));
-
-    if (!CI)
-        CI = ci;                    /* DEBUG, only board 0 usage */
-    return ci;
-}
-
-
 /***
  * Check port state and set LED states using watchdog or ioctl...
  * also check for in-band SF loopback commands (& cause results if they are there)
@@ -485,12 +456,12 @@ c4_cleanup (void)
             for (j = 0; j < MUSYCC_NCHANS; j++)
             {
                 if (pi->chan[j])
-                    OS_kfree (pi->chan[j]);     /* free mch_t struct */
+                    kfree(pi->chan[j]);     /* free mch_t struct */
             }
-            OS_kfree (pi->regram_saved);
+            kfree(pi->regram_saved);
         }
-        OS_kfree (ci->iqd_p_saved);
-        OS_kfree (ci);
+        kfree(ci->iqd_p_saved);
+        kfree(ci);
         ci = next;                  /* cleanup next board, if any */
     }
 }
@@ -619,7 +590,7 @@ c4_init (ci_t *ci, u_char *func0, u_char *func1)
         /* allocate channel structures for this port */
         for (j = 0; j < MUSYCC_NCHANS; j++)
         {
-            ch = OS_kmalloc (sizeof (mch_t));
+		ch = kzalloc(sizeof(mch_t), GFP_KERNEL | GFP_DMA);
             if (ch)
             {
                 pi->chan[j] = ch;
@@ -1368,8 +1339,8 @@ c4_chan_up (ci_t *ci, int channum)
     ch->txd_num = txnum;
     ch->rxix_irq_srv = 0;
 
-    ch->mdr = OS_kmalloc (sizeof (struct mdesc) * rxnum);
-    ch->mdt = OS_kmalloc (sizeof (struct mdesc) * txnum);
+	ch->mdr = kzalloc(sizeof(struct mdesc) * rxnum, GFP_KERNEL | GFP_DMA);
+	ch->mdt = kzalloc(sizeof(struct mdesc) * txnum, GFP_KERNEL | GFP_DMA);
     if (ch->p.chan_mode == CFG_CH_PROTO_TRANS)
                tmp = __constant_cpu_to_le32 (cxt1e1_max_mru | EOBIRQ_ENABLE);
     else
@@ -1462,10 +1433,10 @@ errfree:
         i--;
         OS_mem_token_free (ch->mdr[i].mem_token);
     }
-    OS_kfree (ch->mdt);
+    kfree(ch->mdt);
     ch->mdt = NULL;
     ch->txd_num = 0;
-    OS_kfree (ch->mdr);
+    kfree(ch->mdr);
     ch->mdr = NULL;
     ch->rxd_num = 0;
     ch->state = DOWN;

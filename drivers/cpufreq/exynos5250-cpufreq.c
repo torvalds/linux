@@ -16,8 +16,8 @@
 #include <linux/io.h>
 #include <linux/slab.h>
 #include <linux/cpufreq.h>
-
-#include <mach/map.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
 
 #include "exynos-cpufreq.h"
 
@@ -25,6 +25,7 @@ static struct clk *cpu_clk;
 static struct clk *moutcore;
 static struct clk *mout_mpll;
 static struct clk *mout_apll;
+static struct exynos_dvfs_info *cpufreq;
 
 static unsigned int exynos5250_volt_table[] = {
 	1300000, 1250000, 1225000, 1200000, 1150000,
@@ -87,17 +88,18 @@ static void set_clkdiv(unsigned int div_index)
 
 	tmp = apll_freq_5250[div_index].clk_div_cpu0;
 
-	__raw_writel(tmp, EXYNOS5_CLKDIV_CPU0);
+	__raw_writel(tmp, cpufreq->cmu_regs + EXYNOS5_CLKDIV_CPU0);
 
-	while (__raw_readl(EXYNOS5_CLKDIV_STATCPU0) & 0x11111111)
+	while (__raw_readl(cpufreq->cmu_regs + EXYNOS5_CLKDIV_STATCPU0)
+	       & 0x11111111)
 		cpu_relax();
 
 	/* Change Divider - CPU1 */
 	tmp = apll_freq_5250[div_index].clk_div_cpu1;
 
-	__raw_writel(tmp, EXYNOS5_CLKDIV_CPU1);
+	__raw_writel(tmp, cpufreq->cmu_regs + EXYNOS5_CLKDIV_CPU1);
 
-	while (__raw_readl(EXYNOS5_CLKDIV_STATCPU1) & 0x11)
+	while (__raw_readl(cpufreq->cmu_regs + EXYNOS5_CLKDIV_STATCPU1) & 0x11)
 		cpu_relax();
 }
 
@@ -111,7 +113,8 @@ static void set_apll(unsigned int index)
 
 	do {
 		cpu_relax();
-		tmp = (__raw_readl(EXYNOS5_CLKMUX_STATCPU) >> 16);
+		tmp = (__raw_readl(cpufreq->cmu_regs + EXYNOS5_CLKMUX_STATCPU)
+			>> 16);
 		tmp &= 0x7;
 	} while (tmp != 0x2);
 
@@ -122,7 +125,7 @@ static void set_apll(unsigned int index)
 
 	do {
 		cpu_relax();
-		tmp = __raw_readl(EXYNOS5_CLKMUX_STATCPU);
+		tmp = __raw_readl(cpufreq->cmu_regs + EXYNOS5_CLKMUX_STATCPU);
 		tmp &= (0x7 << 16);
 	} while (tmp != (0x1 << 16));
 }
@@ -141,7 +144,29 @@ static void exynos5250_set_frequency(unsigned int old_index,
 
 int exynos5250_cpufreq_init(struct exynos_dvfs_info *info)
 {
+	struct device_node *np;
 	unsigned long rate;
+
+	/*
+	 * HACK: This is a temporary workaround to get access to clock
+	 * controller registers directly and remove static mappings and
+	 * dependencies on platform headers. It is necessary to enable
+	 * Exynos multi-platform support and will be removed together with
+	 * this whole driver as soon as Exynos gets migrated to use
+	 * cpufreq-cpu0 driver.
+	 */
+	np = of_find_compatible_node(NULL, NULL, "samsung,exynos5250-clock");
+	if (!np) {
+		pr_err("%s: failed to find clock controller DT node\n",
+			__func__);
+		return -ENODEV;
+	}
+
+	info->cmu_regs = of_iomap(np, 0);
+	if (!info->cmu_regs) {
+		pr_err("%s: failed to map CMU registers\n", __func__);
+		return -EFAULT;
+	}
 
 	cpu_clk = clk_get(NULL, "armclk");
 	if (IS_ERR(cpu_clk))
@@ -168,6 +193,8 @@ int exynos5250_cpufreq_init(struct exynos_dvfs_info *info)
 	info->volt_table = exynos5250_volt_table;
 	info->freq_table = exynos5250_freq_table;
 	info->set_freq = exynos5250_set_frequency;
+
+	cpufreq = info;
 
 	return 0;
 

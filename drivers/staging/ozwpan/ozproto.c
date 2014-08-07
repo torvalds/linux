@@ -765,7 +765,7 @@ static char *oz_get_next_device_name(char *s, char *dname, int max_size)
 int oz_protocol_init(char *devs)
 {
 	skb_queue_head_init(&g_rx_queue);
-	if (devs && (devs[0] == '*')) {
+	if (devs[0] == '*') {
 		oz_binding_add(NULL);
 	} else {
 		char d[32];
@@ -792,7 +792,7 @@ int oz_get_pd_list(struct oz_mac_addr *addr, int max_count)
 		if (count >= max_count)
 			break;
 		pd = container_of(e, struct oz_pd, link);
-		memcpy(&addr[count++], pd->mac_addr, ETH_ALEN);
+		ether_addr_copy((u8 *)&addr[count++], pd->mac_addr);
 	}
 	spin_unlock_bh(&g_polling_lock);
 	return count;

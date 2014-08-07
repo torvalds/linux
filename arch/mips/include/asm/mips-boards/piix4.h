@@ -55,4 +55,16 @@
 #define PIIX4_FUNC3_PMREGMISC			0x80
 #define   PIIX4_FUNC3_PMREGMISC_EN			(1 << 0)
 
+/* Power Management IO Space */
+#define PIIX4_FUNC3IO_PMSTS			0x00
+#define   PIIX4_FUNC3IO_PMSTS_PWRBTN_STS		(1 << 8)
+#define PIIX4_FUNC3IO_PMCNTRL			0x04
+#define   PIIX4_FUNC3IO_PMCNTRL_SUS_EN			(1 << 13)
+#define   PIIX4_FUNC3IO_PMCNTRL_SUS_TYP			(0x7 << 10)
+#define   PIIX4_FUNC3IO_PMCNTRL_SUS_TYP_SOFF		(0x0 << 10)
+#define   PIIX4_FUNC3IO_PMCNTRL_SUS_TYP_STR		(0x1 << 10)
+
+/* Data for magic special PCI cycle */
+#define PIIX4_SUSPEND_MAGIC			0x00120002
+
 #endif /* __ASM_MIPS_BOARDS_PIIX4_H */

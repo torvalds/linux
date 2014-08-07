@@ -121,16 +121,8 @@ static int exynos_drm_fbdev_update(struct drm_fb_helper *helper,
 	offset = fbi->var.xoffset * (fb->bits_per_pixel >> 3);
 	offset += fbi->var.yoffset * fb->pitches[0];
 
-	dev->mode_config.fb_base = (resource_size_t)buffer->dma_addr;
 	fbi->screen_base = buffer->kvaddr + offset;
-	if (is_drm_iommu_supported(dev))
-		fbi->fix.smem_start = (unsigned long)
-			(page_to_phys(sg_page(buffer->sgt->sgl)) + offset);
-	else
-		fbi->fix.smem_start = (unsigned long)buffer->dma_addr;
-
 	fbi->screen_size = size;
-	fbi->fix.smem_len = size;
 
 	return 0;
 }
@@ -237,7 +229,7 @@ static struct drm_fb_helper_funcs exynos_drm_fb_helper_funcs = {
 	.fb_probe =	exynos_drm_fbdev_create,
 };
 
-bool exynos_drm_fbdev_is_anything_connected(struct drm_device *dev)
+static bool exynos_drm_fbdev_is_anything_connected(struct drm_device *dev)
 {
 	struct drm_connector *connector;
 	bool ret = false;
@@ -375,7 +367,5 @@ void exynos_drm_fbdev_restore_mode(struct drm_device *dev)
 	if (!private || !private->fb_helper)
 		return;
 
-	drm_modeset_lock_all(dev);
-	drm_fb_helper_restore_fbdev_mode(private->fb_helper);
-	drm_modeset_unlock_all(dev);
+	drm_fb_helper_restore_fbdev_mode_unlocked(private->fb_helper);
 }

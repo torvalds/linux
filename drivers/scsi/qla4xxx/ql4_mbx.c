@@ -2381,7 +2381,7 @@ int qla4_84xx_config_acb(struct scsi_qla_host *ha, int acb_config)
 			ql4_printk(KERN_ERR, ha, "%s: Unable to alloc acb\n",
 				   __func__);
 			rval = QLA_ERROR;
-			goto exit_config_acb;
+			goto exit_free_acb;
 		}
 		memcpy(ha->saved_acb, acb, acb_len);
 		break;
@@ -2395,8 +2395,6 @@ int qla4_84xx_config_acb(struct scsi_qla_host *ha, int acb_config)
 		}
 
 		memcpy(acb, ha->saved_acb, acb_len);
-		kfree(ha->saved_acb);
-		ha->saved_acb = NULL;
 
 		rval = qla4xxx_set_acb(ha, &mbox_cmd[0], &mbox_sts[0], acb_dma);
 		if (rval != QLA_SUCCESS)
@@ -2412,6 +2410,10 @@ exit_free_acb:
 	dma_free_coherent(&ha->pdev->dev, sizeof(struct addr_ctrl_blk), acb,
 			  acb_dma);
 exit_config_acb:
+	if ((acb_config == ACB_CONFIG_SET) && ha->saved_acb) {
+		kfree(ha->saved_acb);
+		ha->saved_acb = NULL;
+	}
 	DEBUG2(ql4_printk(KERN_INFO, ha,
 			  "%s %s\n", __func__,
 			  rval == QLA_SUCCESS ? "SUCCEEDED" : "FAILED"));

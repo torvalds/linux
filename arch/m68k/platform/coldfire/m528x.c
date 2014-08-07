@@ -34,6 +34,7 @@ DEFINE_CLK(mcfpit3, "mcfpit.3", MCF_CLK);
 DEFINE_CLK(mcfuart0, "mcfuart.0", MCF_BUSCLK);
 DEFINE_CLK(mcfuart1, "mcfuart.1", MCF_BUSCLK);
 DEFINE_CLK(mcfuart2, "mcfuart.2", MCF_BUSCLK);
+DEFINE_CLK(mcfqspi0, "mcfqspi.0", MCF_BUSCLK);
 DEFINE_CLK(fec0, "fec.0", MCF_BUSCLK);
 
 struct clk *mcf_clks[] = {
@@ -46,21 +47,20 @@ struct clk *mcf_clks[] = {
 	&clk_mcfuart0,
 	&clk_mcfuart1,
 	&clk_mcfuart2,
+	&clk_mcfqspi0,
 	&clk_fec0,
 	NULL
 };
 
 /***************************************************************************/
 
-#if IS_ENABLED(CONFIG_SPI_COLDFIRE_QSPI)
-
 static void __init m528x_qspi_init(void)
 {
+#if IS_ENABLED(CONFIG_SPI_COLDFIRE_QSPI)
 	/* setup Port QS for QSPI with gpio CS control */
 	__raw_writeb(0x07, MCFGPIO_PQSPAR);
-}
-
 #endif /* IS_ENABLED(CONFIG_SPI_COLDFIRE_QSPI) */
+}
 
 /***************************************************************************/
 
@@ -126,9 +126,7 @@ void __init config_BSP(char *commandp, int size)
 	mach_sched_init = hw_timer_init;
 	m528x_uarts_init();
 	m528x_fec_init();
-#if IS_ENABLED(CONFIG_SPI_COLDFIRE_QSPI)
 	m528x_qspi_init();
-#endif
 }
 
 /***************************************************************************/

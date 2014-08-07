@@ -75,7 +75,7 @@ struct afs_call {
 	const struct afs_call_type *type;	/* type of call */
 	const struct afs_wait_mode *wait_mode;	/* completion wait mode */
 	wait_queue_head_t	waitq;		/* processes awaiting completion */
-	work_func_t		async_workfn;
+	void (*async_workfn)(struct afs_call *call); /* asynchronous work function */
 	struct work_struct	async_work;	/* asynchronous work processor */
 	struct work_struct	work;		/* actual work processor */
 	struct sk_buff_head	rx_queue;	/* received packets */
@@ -747,8 +747,7 @@ extern int afs_write_end(struct file *file, struct address_space *mapping,
 extern int afs_writepage(struct page *, struct writeback_control *);
 extern int afs_writepages(struct address_space *, struct writeback_control *);
 extern void afs_pages_written_back(struct afs_vnode *, struct afs_call *);
-extern ssize_t afs_file_write(struct kiocb *, const struct iovec *,
-			      unsigned long, loff_t);
+extern ssize_t afs_file_write(struct kiocb *, struct iov_iter *);
 extern int afs_writeback_all(struct afs_vnode *);
 extern int afs_fsync(struct file *, loff_t, loff_t, int);
 

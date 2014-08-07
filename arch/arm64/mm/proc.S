@@ -182,7 +182,7 @@ ENDPROC(cpu_do_switch_mm)
 ENTRY(__cpu_setup)
 	ic	iallu				// I+BTB cache invalidate
 	tlbi	vmalle1is			// invalidate I + D TLBs
-	dsb	sy
+	dsb	ish
 
 	mov	x0, #3 << 20
 	msr	cpacr_el1, x0			// Enable FP/ASIMD

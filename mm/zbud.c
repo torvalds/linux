@@ -247,7 +247,7 @@ void zbud_destroy_pool(struct zbud_pool *pool)
  * gfp arguments are invalid or -ENOMEM if the pool was unable to allocate
  * a new page.
  */
-int zbud_alloc(struct zbud_pool *pool, int size, gfp_t gfp,
+int zbud_alloc(struct zbud_pool *pool, unsigned int size, gfp_t gfp,
 			unsigned long *handle)
 {
 	int chunks, i, freechunks;
@@ -255,7 +255,7 @@ int zbud_alloc(struct zbud_pool *pool, int size, gfp_t gfp,
 	enum buddy bud;
 	struct page *page;
 
-	if (size <= 0 || gfp & __GFP_HIGHMEM)
+	if (!size || (gfp & __GFP_HIGHMEM))
 		return -EINVAL;
 	if (size > PAGE_SIZE - ZHDR_SIZE_ALIGNED - CHUNK_SIZE)
 		return -ENOSPC;

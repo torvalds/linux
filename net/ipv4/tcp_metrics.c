@@ -1159,10 +1159,7 @@ static void __net_exit tcp_net_metrics_exit(struct net *net)
 			tm = next;
 		}
 	}
-	if (is_vmalloc_addr(net->ipv4.tcp_metrics_hash))
-		vfree(net->ipv4.tcp_metrics_hash);
-	else
-		kfree(net->ipv4.tcp_metrics_hash);
+	kvfree(net->ipv4.tcp_metrics_hash);
 }
 
 static __net_initdata struct pernet_operations tcp_net_metrics_ops = {

@@ -1,8 +1,7 @@
 # file format version
 FILE_VERSION = 1
 
-MAKEFLAGS += --no-print-directory
-LIBLOCKDEP_VERSION=$(shell make -sC ../../.. kernelversion)
+LIBLOCKDEP_VERSION=$(shell make --no-print-directory -sC ../../.. kernelversion)
 
 # Makefiles suck: This macro sets a default value of $(2) for the
 # variable named by $(1), unless the variable has been set by
@@ -105,7 +104,7 @@ N		=
 
 export Q VERBOSE
 
-INCLUDES = -I. -I/usr/local/include -I./uinclude -I./include $(CONFIG_INCLUDES)
+INCLUDES = -I. -I/usr/local/include -I./uinclude -I./include -I../../include $(CONFIG_INCLUDES)
 
 # Set compile option CFLAGS if not set elsewhere
 CFLAGS ?= -g -DCONFIG_LOCKDEP -DCONFIG_STACKTRACE -DCONFIG_PROVE_LOCKING -DBITS_PER_LONG=__WORDSIZE -DLIBLOCKDEP_VERSION='"$(LIBLOCKDEP_VERSION)"' -rdynamic -O0 -g
@@ -231,7 +230,7 @@ install_lib: all_cmd
 install: install_lib
 
 clean:
-	$(RM) *.o *~ $(TARGETS) *.a *.so $(VERSION_FILES) .*.d
+	$(RM) *.o *~ $(TARGETS) *.a *liblockdep*.so* $(VERSION_FILES) .*.d
 	$(RM) tags TAGS
 
 endif # skip-makefile

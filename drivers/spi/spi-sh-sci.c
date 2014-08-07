@@ -16,7 +16,6 @@
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/spinlock.h>
-#include <linux/workqueue.h>
 #include <linux/platform_device.h>
 
 #include <linux/spi/spi.h>
@@ -176,9 +175,9 @@ static int sh_sci_spi_remove(struct platform_device *dev)
 {
 	struct sh_sci_spi *sp = platform_get_drvdata(dev);
 
-	iounmap(sp->membase);
-	setbits(sp, PIN_INIT, 0);
 	spi_bitbang_stop(&sp->bitbang);
+	setbits(sp, PIN_INIT, 0);
+	iounmap(sp->membase);
 	spi_master_put(sp->bitbang.master);
 	return 0;
 }

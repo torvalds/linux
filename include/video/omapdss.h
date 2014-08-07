@@ -319,6 +319,7 @@ enum omapdss_version {
 	OMAPDSS_VER_OMAP4430_ES2,	/* OMAP4430 ES2.0, 2.1, 2.2 */
 	OMAPDSS_VER_OMAP4,		/* All other OMAP4s */
 	OMAPDSS_VER_OMAP5,
+	OMAPDSS_VER_AM43xx,
 };
 
 /* Board specific data */
@@ -388,8 +389,8 @@ struct omap_dss_cpr_coefs {
 };
 
 struct omap_overlay_info {
-	u32 paddr;
-	u32 p_uv_addr;  /* for NV12 format */
+	dma_addr_t paddr;
+	dma_addr_t p_uv_addr;  /* for NV12 format */
 	u16 screen_width;
 	u16 width;
 	u16 height;
@@ -963,9 +964,6 @@ void dispc_ovl_set_channel_out(enum omap_plane plane,
 int dispc_ovl_setup(enum omap_plane plane, const struct omap_overlay_info *oi,
 		bool replication, const struct omap_video_timings *mgr_timings,
 		bool mem_to_mem);
-
-#define to_dss_driver(x) container_of((x), struct omap_dss_driver, driver)
-#define to_dss_device(x) container_of((x), struct omap_dss_device, old_dev)
 
 int omapdss_compat_init(void);
 void omapdss_compat_uninit(void);

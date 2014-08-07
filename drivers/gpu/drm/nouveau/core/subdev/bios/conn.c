@@ -28,12 +28,12 @@
 #include <subdev/bios/dcb.h>
 #include <subdev/bios/conn.h>
 
-u16
-dcb_conntab(struct nouveau_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
+u32
+nvbios_connTe(struct nouveau_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 {
-	u16 dcb = dcb_table(bios, ver, hdr, cnt, len);
+	u32 dcb = dcb_table(bios, ver, hdr, cnt, len);
 	if (dcb && *ver >= 0x30 && *hdr >= 0x16) {
-		u16 data = nv_ro16(bios, dcb + 0x14);
+		u32 data = nv_ro16(bios, dcb + 0x14);
 		if (data) {
 			*ver = nv_ro08(bios, data + 0);
 			*hdr = nv_ro08(bios, data + 1);
@@ -42,15 +42,59 @@ dcb_conntab(struct nouveau_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 			return data;
 		}
 	}
-	return 0x0000;
+	return 0x00000000;
 }
 
-u16
-dcb_conn(struct nouveau_bios *bios, u8 idx, u8 *ver, u8 *len)
+u32
+nvbios_connTp(struct nouveau_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len,
+	      struct nvbios_connT *info)
+{
+	u32 data = nvbios_connTe(bios, ver, hdr, cnt, len);
+	memset(info, 0x00, sizeof(*info));
+	switch (!!data * *ver) {
+	case 0x30:
+	case 0x40:
+		return data;
+	default:
+		break;
+	}
+	return 0x00000000;
+}
+
+u32
+nvbios_connEe(struct nouveau_bios *bios, u8 idx, u8 *ver, u8 *len)
 {
 	u8  hdr, cnt;
-	u16 data = dcb_conntab(bios, ver, &hdr, &cnt, len);
+	u32 data = nvbios_connTe(bios, ver, &hdr, &cnt, len);
 	if (data && idx < cnt)
 		return data + hdr + (idx * *len);
-	return 0x0000;
+	return 0x00000000;
+}
+
+u32
+nvbios_connEp(struct nouveau_bios *bios, u8 idx, u8 *ver, u8 *len,
+	      struct nvbios_connE *info)
+{
+	u32 data = nvbios_connEe(bios, idx, ver, len);
+	memset(info, 0x00, sizeof(*info));
+	switch (!!data * *ver) {
+	case 0x30:
+	case 0x40:
+		info->type     =  nv_ro08(bios, data + 0x00);
+		info->location =  nv_ro08(bios, data + 0x01) & 0x0f;
+		info->hpd      = (nv_ro08(bios, data + 0x01) & 0x30) >> 4;
+		info->dp       = (nv_ro08(bios, data + 0x01) & 0xc0) >> 6;
+		if (*len < 4)
+			return data;
+		info->hpd     |= (nv_ro08(bios, data + 0x02) & 0x03) << 2;
+		info->dp      |=  nv_ro08(bios, data + 0x02) & 0x0c;
+		info->di       = (nv_ro08(bios, data + 0x02) & 0xf0) >> 4;
+		info->hpd     |= (nv_ro08(bios, data + 0x03) & 0x07) << 4;
+		info->sr       = (nv_ro08(bios, data + 0x03) & 0x08) >> 3;
+		info->lcdid    = (nv_ro08(bios, data + 0x03) & 0x70) >> 4;
+		return data;
+	default:
+		break;
+	}
+	return 0x00000000;
 }

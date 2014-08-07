@@ -247,3 +247,46 @@ const struct xattr_handler *nfs3_xattr_handlers[] = {
 	&posix_acl_default_xattr_handler,
 	NULL,
 };
+
+static int
+nfs3_list_one_acl(struct inode *inode, int type, const char *name, void *data,
+		size_t size, ssize_t *result)
+{
+	struct posix_acl *acl;
+	char *p = data + *result;
+
+	acl = get_acl(inode, type);
+	if (!acl)
+		return 0;
+
+	posix_acl_release(acl);
+
+	*result += strlen(name);
+	*result += 1;
+	if (!size)
+		return 0;
+	if (*result > size)
+		return -ERANGE;
+
+	strcpy(p, name);
+	return 0;
+}
+
+ssize_t
+nfs3_listxattr(struct dentry *dentry, char *data, size_t size)
+{
+	struct inode *inode = dentry->d_inode;
+	ssize_t result = 0;
+	int error;
+
+	error = nfs3_list_one_acl(inode, ACL_TYPE_ACCESS,
+			POSIX_ACL_XATTR_ACCESS, data, size, &result);
+	if (error)
+		return error;
+
+	error = nfs3_list_one_acl(inode, ACL_TYPE_DEFAULT,
+			POSIX_ACL_XATTR_DEFAULT, data, size, &result);
+	if (error)
+		return error;
+	return result;
+}

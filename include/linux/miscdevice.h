@@ -64,7 +64,7 @@ struct miscdevice  {
 	umode_t mode;
 };
 
-extern int misc_register(struct miscdevice * misc);
+extern int misc_register(struct miscdevice *misc);
 extern int misc_deregister(struct miscdevice *misc);
 
 #define MODULE_ALIAS_MISCDEV(minor)				\

@@ -140,38 +140,8 @@ You can either grep through the kernel log to find relevant information, i.e.
 or retrieve the information from /dev/media? with help of the media-ctl tool:
 # media-ctl -p
 
-6. Platform support
-===================
-
-The machine code (arch/arm/plat-samsung and arch/arm/mach-*) must select
-following options:
-
-CONFIG_S5P_DEV_FIMC0       mandatory
-CONFIG_S5P_DEV_FIMC1  \
-CONFIG_S5P_DEV_FIMC2  |    optional
-CONFIG_S5P_DEV_FIMC3  |
-CONFIG_S5P_SETUP_FIMC /
-CONFIG_S5P_DEV_CSIS0  \    optional for MIPI-CSI interface
-CONFIG_S5P_DEV_CSIS1  /
-
-Except that, relevant s5p_device_fimc? should be registered in the machine code
-in addition to a "s5p-fimc-md" platform device to which the media device driver
-is bound.  The "s5p-fimc-md" device instance is required even if only mem-to-mem
-operation is used.
-
-The description of sensor(s) attached to FIMC/MIPI-CSIS camera inputs should be
-passed as the "s5p-fimc-md" device platform_data.  The platform data structure
-is defined in file include/media/s5p_fimc.h.
-
 7. Build
 ========
-
-This driver depends on following config options:
-PLAT_S5P,
-PM_RUNTIME,
-I2C,
-REGULATOR,
-VIDEO_V4L2_SUBDEV_API,
 
 If the driver is built as a loadable kernel module (CONFIG_VIDEO_SAMSUNG_S5P_FIMC=m)
 two modules are created (in addition to the core v4l2 modules): s5p-fimc.ko and

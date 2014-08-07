@@ -165,7 +165,7 @@ void tipc_port_mcast_rcv(struct sk_buff *buf, struct tipc_port_list *dp)
 		msg_set_destnode(msg, tipc_own_addr);
 		if (dp->count == 1) {
 			msg_set_destport(msg, dp->ports[0]);
-			tipc_port_rcv(buf);
+			tipc_sk_rcv(buf);
 			tipc_port_list_free(dp);
 			return;
 		}
@@ -180,7 +180,7 @@ void tipc_port_mcast_rcv(struct sk_buff *buf, struct tipc_port_list *dp)
 			if ((index == 0) && (cnt != 0))
 				item = item->next;
 			msg_set_destport(buf_msg(b), item->ports[index]);
-			tipc_port_rcv(b);
+			tipc_sk_rcv(b);
 		}
 	}
 exit:
@@ -343,7 +343,7 @@ int tipc_reject_msg(struct sk_buff *buf, u32 err)
 	/* send returned message & dispose of rejected message */
 	src_node = msg_prevnode(msg);
 	if (in_own_node(src_node))
-		tipc_port_rcv(rbuf);
+		tipc_sk_rcv(rbuf);
 	else
 		tipc_link_xmit(rbuf, src_node, msg_link_selector(rmsg));
 exit:
@@ -754,37 +754,6 @@ int tipc_port_shutdown(u32 ref)
 	return tipc_port_disconnect(ref);
 }
 
-/**
- * tipc_port_rcv - receive message from lower layer and deliver to port user
- */
-int tipc_port_rcv(struct sk_buff *buf)
-{
-	struct tipc_port *p_ptr;
-	struct tipc_msg *msg = buf_msg(buf);
-	u32 destport = msg_destport(msg);
-	u32 dsz = msg_data_sz(msg);
-	u32 err;
-
-	/* forward unresolved named message */
-	if (unlikely(!destport)) {
-		tipc_net_route_msg(buf);
-		return dsz;
-	}
-
-	/* validate destination & pass to port, otherwise reject message */
-	p_ptr = tipc_port_lock(destport);
-	if (likely(p_ptr)) {
-		err = tipc_sk_rcv(&tipc_port_to_sock(p_ptr)->sk, buf);
-		tipc_port_unlock(p_ptr);
-		if (likely(!err))
-			return dsz;
-	} else {
-		err = TIPC_ERR_NO_PORT;
-	}
-
-	return tipc_reject_msg(buf, err);
-}
-
 /*
  *  tipc_port_iovec_rcv: Concatenate and deliver sectioned
  *                       message for this node.
@@ -798,7 +767,7 @@ static int tipc_port_iovec_rcv(struct tipc_port *sender,
 
 	res = tipc_msg_build(&sender->phdr, msg_sect, len, MAX_MSG_SIZE, &buf);
 	if (likely(buf))
-		tipc_port_rcv(buf);
+		tipc_sk_rcv(buf);
 	return res;
 }
 

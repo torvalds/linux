@@ -49,13 +49,6 @@ static u64 notrace jiffy_sched_clock_read(void)
 	return (u64)(jiffies - INITIAL_JIFFIES);
 }
 
-static u32 __read_mostly (*read_sched_clock_32)(void);
-
-static u64 notrace read_sched_clock_32_wrapper(void)
-{
-	return read_sched_clock_32();
-}
-
 static u64 __read_mostly (*read_sched_clock)(void) = jiffy_sched_clock_read;
 
 static inline u64 notrace cyc_to_ns(u64 cyc, u32 mult, u32 shift)
@@ -174,12 +167,6 @@ void __init sched_clock_register(u64 (*read)(void), int bits,
 		enable_sched_clock_irqtime();
 
 	pr_debug("Registered %pF as sched_clock source\n", read);
-}
-
-void __init setup_sched_clock(u32 (*read)(void), int bits, unsigned long rate)
-{
-	read_sched_clock_32 = read;
-	sched_clock_register(read_sched_clock_32_wrapper, bits, rate);
 }
 
 void __init sched_clock_postinit(void)

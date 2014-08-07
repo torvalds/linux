@@ -502,6 +502,7 @@ __\name\()_proc_info:
 	.long	\cpu_val
 	.long	\cpu_mask
 	.long   PMD_TYPE_SECT | \
+		PMD_SECT_CACHEABLE | \
 		PMD_BIT4 | \
 		PMD_SECT_AP_WRITE | \
 		PMD_SECT_AP_READ

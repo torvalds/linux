@@ -16,9 +16,11 @@
 #include <linux/init.h>
 #include <linux/bitops.h>
 #include <linux/err.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
+#include <linux/regulator/of_regulator.h>
 #include <linux/gpio.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
@@ -195,6 +197,32 @@ static const struct regulator_init_data arizona_micsupp_ext_default = {
 	.num_consumer_supplies = 1,
 };
 
+static int arizona_micsupp_of_get_pdata(struct arizona *arizona,
+					struct regulator_config *config)
+{
+	struct arizona_pdata *pdata = &arizona->pdata;
+	struct arizona_micsupp *micsupp = config->driver_data;
+	struct device_node *np;
+	struct regulator_init_data *init_data;
+
+	np = of_get_child_by_name(arizona->dev->of_node, "micvdd");
+
+	if (np) {
+		config->of_node = np;
+
+		init_data = of_get_regulator_init_data(arizona->dev, np);
+
+		if (init_data) {
+			init_data->consumer_supplies = &micsupp->supply;
+			init_data->num_consumer_supplies = 1;
+
+			pdata->micvdd = init_data;
+		}
+	}
+
+	return 0;
+}
+
 static int arizona_micsupp_probe(struct platform_device *pdev)
 {
 	struct arizona *arizona = dev_get_drvdata(pdev->dev.parent);
@@ -234,6 +262,14 @@ static int arizona_micsupp_probe(struct platform_device *pdev)
 	config.driver_data = micsupp;
 	config.regmap = arizona->regmap;
 
+	if (IS_ENABLED(CONFIG_OF)) {
+		if (!dev_get_platdata(arizona->dev)) {
+			ret = arizona_micsupp_of_get_pdata(arizona, &config);
+			if (ret < 0)
+				return ret;
+		}
+	}
+
 	if (arizona->pdata.micvdd)
 		config.init_data = arizona->pdata.micvdd;
 	else
@@ -252,6 +288,8 @@ static int arizona_micsupp_probe(struct platform_device *pdev)
 			ret);
 		return ret;
 	}
+
+	of_node_put(config.of_node);
 
 	platform_set_drvdata(pdev, micsupp);
 

@@ -453,10 +453,6 @@ static inline void cls_parse_isr(struct dgnc_board *brd, uint port)
 			cls_copy_data_from_queue_to_uart(ch);
 		}
 
-		/* Received Xoff signal/Special character */
-		if (isr & UART_IIR_XOFF)
-			/* Empty */
-
 		/* CTS/RTS change of state */
 		if (isr & UART_IIR_CTSRTS) {
 			brd->intr_modem++;

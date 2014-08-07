@@ -74,11 +74,9 @@ struct wm8962_priv {
 	struct regulator_bulk_data supplies[WM8962_NUM_SUPPLIES];
 	struct notifier_block disable_nb[WM8962_NUM_SUPPLIES];
 
-#if IS_ENABLED(CONFIG_INPUT)
 	struct input_dev *beep;
 	struct work_struct beep_work;
 	int beep_rate;
-#endif
 
 #ifdef CONFIG_GPIOLIB
 	struct gpio_chip gpio_chip;
@@ -154,6 +152,7 @@ static struct reg_default wm8962_reg[] = {
 	{ 40, 0x0000 },   /* R40    - SPKOUTL volume */
 	{ 41, 0x0000 },   /* R41    - SPKOUTR volume */
 
+	{ 49, 0x0010 },   /* R49    - Class D Control 1 */
 	{ 51, 0x0003 },   /* R51    - Class D Control 2 */
 
 	{ 56, 0x0506 },   /* R56    - Clocking 4 */
@@ -795,7 +794,6 @@ static bool wm8962_volatile_register(struct device *dev, unsigned int reg)
 	case WM8962_ALC2:
 	case WM8962_THERMAL_SHUTDOWN_STATUS:
 	case WM8962_ADDITIONAL_CONTROL_4:
-	case WM8962_CLASS_D_CONTROL_1:
 	case WM8962_DC_SERVO_6:
 	case WM8962_INTERRUPT_STATUS_1:
 	case WM8962_INTERRUPT_STATUS_2:
@@ -1552,7 +1550,7 @@ static int wm8962_dsp2_ena_get(struct snd_kcontrol *kcontrol,
 			       struct snd_ctl_elem_value *ucontrol)
 {
 	int shift = kcontrol->private_value;
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct wm8962_priv *wm8962 = snd_soc_codec_get_drvdata(codec);
 
 	ucontrol->value.integer.value[0] = !!(wm8962->dsp2_ena & 1 << shift);
@@ -1564,7 +1562,7 @@ static int wm8962_dsp2_ena_put(struct snd_kcontrol *kcontrol,
 			       struct snd_ctl_elem_value *ucontrol)
 {
 	int shift = kcontrol->private_value;
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct wm8962_priv *wm8962 = snd_soc_codec_get_drvdata(codec);
 	int old = wm8962->dsp2_ena;
 	int ret = 0;
@@ -1602,7 +1600,7 @@ out:
 static int wm8962_put_hp_sw(struct snd_kcontrol *kcontrol,
 			    struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	int ret;
 
 	/* Apply the update (if any) */
@@ -1632,7 +1630,7 @@ static int wm8962_put_hp_sw(struct snd_kcontrol *kcontrol,
 static int wm8962_put_spk_sw(struct snd_kcontrol *kcontrol,
 			    struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	int ret;
 
 	/* Apply the update (if any) */
@@ -2929,12 +2927,21 @@ static int wm8962_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 static int wm8962_mute(struct snd_soc_dai *dai, int mute)
 {
 	struct snd_soc_codec *codec = dai->codec;
-	int val;
+	int val, ret;
 
 	if (mute)
-		val = WM8962_DAC_MUTE;
+		val = WM8962_DAC_MUTE | WM8962_DAC_MUTE_ALT;
 	else
 		val = 0;
+
+	/**
+	 * The DAC mute bit is mirrored in two registers, update both to keep
+	 * the register cache consistent.
+	 */
+	ret = snd_soc_update_bits(codec, WM8962_CLASS_D_CONTROL_1,
+				  WM8962_DAC_MUTE_ALT, val);
+	if (ret < 0)
+		return ret;
 
 	return snd_soc_update_bits(codec, WM8962_ADC_DAC_CONTROL_1,
 				   WM8962_DAC_MUTE, val);
@@ -3145,7 +3152,6 @@ int wm8962_mic_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack)
 }
 EXPORT_SYMBOL_GPL(wm8962_mic_detect);
 
-#if IS_ENABLED(CONFIG_INPUT)
 static int beep_rates[] = {
 	500, 1000, 2000, 4000,
 };
@@ -3277,15 +3283,6 @@ static void wm8962_free_beep(struct snd_soc_codec *codec)
 
 	snd_soc_update_bits(codec, WM8962_BEEP_GENERATOR_1, WM8962_BEEP_ENA,0);
 }
-#else
-static void wm8962_init_beep(struct snd_soc_codec *codec)
-{
-}
-
-static void wm8962_free_beep(struct snd_soc_codec *codec)
-{
-}
-#endif
 
 static void wm8962_set_gpio_mode(struct wm8962_priv *wm8962, int gpio)
 {

@@ -1,4 +1,4 @@
-/* Copyright © 2010 - 2013 UNISYS CORPORATION
+/* Copyright (C) 2010 - 2013 UNISYS CORPORATION
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -38,16 +38,16 @@
 
 /* {EEA7A573-DB82-447c-8716-EFBEAAAE4858} */
 #define ULTRA_DIAG_CHANNEL_PROTOCOL_GUID \
-	{0xeea7a573, 0xdb82, 0x447c, \
-		{0x87, 0x16, 0xef, 0xbe, 0xaa, 0xae, 0x48, 0x58} }
+		UUID_LE(0xeea7a573, 0xdb82, 0x447c, \
+				0x87, 0x16, 0xef, 0xbe, 0xaa, 0xae, 0x48, 0x58)
 
-static const GUID UltraDiagChannelProtocolGuid =
+static const uuid_le UltraDiagChannelProtocolGuid =
 	ULTRA_DIAG_CHANNEL_PROTOCOL_GUID;
 
 /* {E850F968-3263-4484-8CA5-2A35D087A5A8} */
 #define ULTRA_DIAG_ROOT_CHANNEL_PROTOCOL_GUID \
-	{0xe850f968, 0x3263, 0x4484, \
-		{0x8c, 0xa5, 0x2a, 0x35, 0xd0, 0x87, 0xa5, 0xa8} }
+		UUID_LE(0xe850f968, 0x3263, 0x4484, \
+				0x8c, 0xa5, 0x2a, 0x35, 0xd0, 0x87, 0xa5, 0xa8)
 
 #define ULTRA_DIAG_CHANNEL_PROTOCOL_SIGNATURE  ULTRA_CHANNEL_PROTOCOL_SIGNATURE
 
@@ -356,7 +356,7 @@ typedef enum  {
  *IsChannelInitialized: 1 iff SignalInit was called for this channel; otherwise
  *			0, and assume the channel is not ready for use yet.
  *
- * Reserved: Padding to allign the fields in this structure.
+ * Reserved: Padding to align the fields in this structure.
  *
  *SubsystemSeverityFilter: Level of severity on a subsystem basis that controls
  *			whether events are logged.  Any event's severity for a

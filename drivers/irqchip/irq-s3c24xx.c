@@ -1323,8 +1323,7 @@ static struct s3c24xx_irq_of_ctrl s3c2410_ctrl[] = {
 };
 
 int __init s3c2410_init_intc_of(struct device_node *np,
-			struct device_node *interrupt_parent,
-			struct s3c24xx_irq_of_ctrl *ctrl, int num_ctrl)
+			struct device_node *interrupt_parent)
 {
 	return s3c_init_intc_of(np, interrupt_parent,
 				s3c2410_ctrl, ARRAY_SIZE(s3c2410_ctrl));
@@ -1346,8 +1345,7 @@ static struct s3c24xx_irq_of_ctrl s3c2416_ctrl[] = {
 };
 
 int __init s3c2416_init_intc_of(struct device_node *np,
-			struct device_node *interrupt_parent,
-			struct s3c24xx_irq_of_ctrl *ctrl, int num_ctrl)
+			struct device_node *interrupt_parent)
 {
 	return s3c_init_intc_of(np, interrupt_parent,
 				s3c2416_ctrl, ARRAY_SIZE(s3c2416_ctrl));

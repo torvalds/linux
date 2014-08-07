@@ -192,20 +192,21 @@ out_audit:
 }
 
 /**
- * smk_curacc - determine if current has a specific access to an object
+ * smk_tskacc - determine if a task has a specific access to an object
+ * @tsp: a pointer to the subject task
  * @obj_label: a pointer to the object's Smack label
  * @mode: the access requested, in "MAY" format
  * @a : common audit data
  *
- * This function checks the current subject label/object label pair
+ * This function checks the subject task's label/object label pair
  * in the access rule list and returns 0 if the access is permitted,
- * non zero otherwise. It allows that current may have the capability
+ * non zero otherwise. It allows that the task may have the capability
  * to override the rules.
  */
-int smk_curacc(char *obj_label, u32 mode, struct smk_audit_info *a)
+int smk_tskacc(struct task_smack *subject, char *obj_label,
+	       u32 mode, struct smk_audit_info *a)
 {
-	struct task_smack *tsp = current_security();
-	struct smack_known *skp = smk_of_task(tsp);
+	struct smack_known *skp = smk_of_task(subject);
 	int may;
 	int rc;
 
@@ -219,7 +220,7 @@ int smk_curacc(char *obj_label, u32 mode, struct smk_audit_info *a)
 		 * it can further restrict access.
 		 */
 		may = smk_access_entry(skp->smk_known, obj_label,
-					&tsp->smk_rules);
+					&subject->smk_rules);
 		if (may < 0)
 			goto out_audit;
 		if ((mode & may) == mode)
@@ -239,6 +240,24 @@ out_audit:
 		smack_log(skp->smk_known, obj_label, mode, rc, a);
 #endif
 	return rc;
+}
+
+/**
+ * smk_curacc - determine if current has a specific access to an object
+ * @obj_label: a pointer to the object's Smack label
+ * @mode: the access requested, in "MAY" format
+ * @a : common audit data
+ *
+ * This function checks the current subject label/object label pair
+ * in the access rule list and returns 0 if the access is permitted,
+ * non zero otherwise. It allows that current may have the capability
+ * to override the rules.
+ */
+int smk_curacc(char *obj_label, u32 mode, struct smk_audit_info *a)
+{
+	struct task_smack *tsp = current_security();
+
+	return smk_tskacc(tsp, obj_label, mode, a);
 }
 
 #ifdef CONFIG_AUDIT
@@ -285,7 +304,10 @@ static void smack_log_callback(struct audit_buffer *ab, void *a)
 	audit_log_untrustedstring(ab, sad->subject);
 	audit_log_format(ab, " object=");
 	audit_log_untrustedstring(ab, sad->object);
-	audit_log_format(ab, " requested=%s", sad->request);
+	if (sad->request[0] == '\0')
+		audit_log_format(ab, " labels_differ");
+	else
+		audit_log_format(ab, " requested=%s", sad->request);
 }
 
 /**

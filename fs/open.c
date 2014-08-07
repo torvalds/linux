@@ -725,6 +725,12 @@ static int do_dentry_open(struct file *f,
 	}
 	if ((f->f_mode & (FMODE_READ | FMODE_WRITE)) == FMODE_READ)
 		i_readcount_inc(inode);
+	if ((f->f_mode & FMODE_READ) &&
+	     likely(f->f_op->read || f->f_op->aio_read || f->f_op->read_iter))
+		f->f_mode |= FMODE_CAN_READ;
+	if ((f->f_mode & FMODE_WRITE) &&
+	     likely(f->f_op->write || f->f_op->aio_write || f->f_op->write_iter))
+		f->f_mode |= FMODE_CAN_WRITE;
 
 	f->f_flags &= ~(O_CREAT | O_EXCL | O_NOCTTY | O_TRUNC);
 

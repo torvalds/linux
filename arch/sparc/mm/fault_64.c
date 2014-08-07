@@ -32,6 +32,7 @@
 #include <asm/lsu.h>
 #include <asm/sections.h>
 #include <asm/mmu_context.h>
+#include <asm/setup.h>
 
 int show_unhandled_signals = 1;
 
@@ -196,9 +197,6 @@ static void do_fault_siginfo(int code, int sig, struct pt_regs *regs,
 	force_sig_info(sig, &info, current);
 }
 
-extern int handle_ldf_stq(u32, struct pt_regs *);
-extern int handle_ld_nf(u32, struct pt_regs *);
-
 static unsigned int get_fault_insn(struct pt_regs *regs, unsigned int insn)
 {
 	if (!insn) {
@@ -281,18 +279,6 @@ static void noinline __kprobes bogus_32bit_fault_tpc(struct pt_regs *regs)
 	show_regs(regs);
 }
 
-static void noinline __kprobes bogus_32bit_fault_address(struct pt_regs *regs,
-							 unsigned long addr)
-{
-	static int times;
-
-	if (times++ < 10)
-		printk(KERN_ERR "FAULT[%s:%d]: 32-bit process "
-		       "reports 64-bit fault address [%lx]\n",
-		       current->comm, current->pid, addr);
-	show_regs(regs);
-}
-
 asmlinkage void __kprobes do_sparc64_fault(struct pt_regs *regs)
 {
 	enum ctx_state prev_state = exception_enter();
@@ -322,10 +308,8 @@ asmlinkage void __kprobes do_sparc64_fault(struct pt_regs *regs)
 				goto intr_or_no_mm;
 			}
 		}
-		if (unlikely((address >> 32) != 0)) {
-			bogus_32bit_fault_address(regs, address);
+		if (unlikely((address >> 32) != 0))
 			goto intr_or_no_mm;
-		}
 	}
 
 	if (regs->tstate & TSTATE_PRIV) {

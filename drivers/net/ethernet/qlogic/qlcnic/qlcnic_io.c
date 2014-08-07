@@ -305,7 +305,6 @@ static void qlcnic_send_filter(struct qlcnic_adapter *adapter,
 {
 	struct vlan_ethhdr *vh = (struct vlan_ethhdr *)(skb->data);
 	struct ethhdr *phdr = (struct ethhdr *)(skb->data);
-	struct net_device *netdev = adapter->netdev;
 	u16 protocol = ntohs(skb->protocol);
 	struct qlcnic_filter *fil, *tmp_fil;
 	struct hlist_head *head;
@@ -314,27 +313,16 @@ static void qlcnic_send_filter(struct qlcnic_adapter *adapter,
 	u16 vlan_id = 0;
 	u8 hindex, hval;
 
-	if (!qlcnic_sriov_pf_check(adapter)) {
-		if (ether_addr_equal(phdr->h_source, adapter->mac_addr))
-			return;
-	} else {
+	if (ether_addr_equal(phdr->h_source, adapter->mac_addr))
+		return;
+
+	if (adapter->flags & QLCNIC_VLAN_FILTERING) {
 		if (protocol == ETH_P_8021Q) {
 			vh = (struct vlan_ethhdr *)skb->data;
 			vlan_id = ntohs(vh->h_vlan_TCI);
 		} else if (vlan_tx_tag_present(skb)) {
 			vlan_id = vlan_tx_tag_get(skb);
 		}
-
-		if (ether_addr_equal(phdr->h_source, adapter->mac_addr) &&
-		    !vlan_id)
-			return;
-	}
-
-	if (adapter->fhash.fnum >= adapter->fhash.fmax) {
-		adapter->stats.mac_filter_limit_overrun++;
-		netdev_info(netdev, "Can not add more than %d mac-vlan filters, configured %d\n",
-			    adapter->fhash.fmax, adapter->fhash.fnum);
-		return;
 	}
 
 	memcpy(&src_addr, phdr->h_source, ETH_ALEN);
@@ -351,6 +339,11 @@ static void qlcnic_send_filter(struct qlcnic_adapter *adapter,
 			tmp_fil->ftime = jiffies;
 			return;
 		}
+	}
+
+	if (unlikely(adapter->fhash.fnum >= adapter->fhash.fmax)) {
+		adapter->stats.mac_filter_limit_overrun++;
+		return;
 	}
 
 	fil = kzalloc(sizeof(struct qlcnic_filter), GFP_ATOMIC);
@@ -1216,8 +1209,7 @@ qlcnic_process_rcv(struct qlcnic_adapter *adapter,
 	if (!skb)
 		return buffer;
 
-	if (adapter->drv_mac_learn &&
-	    (adapter->flags & QLCNIC_ESWITCH_ENABLED)) {
+	if (adapter->rx_mac_learn) {
 		t_vid = 0;
 		is_lb_pkt = qlcnic_82xx_is_lb_pkt(sts_data0);
 		qlcnic_add_lb_filter(adapter, skb, is_lb_pkt, t_vid);
@@ -1293,8 +1285,7 @@ qlcnic_process_lro(struct qlcnic_adapter *adapter,
 	if (!skb)
 		return buffer;
 
-	if (adapter->drv_mac_learn &&
-	    (adapter->flags & QLCNIC_ESWITCH_ENABLED)) {
+	if (adapter->rx_mac_learn) {
 		t_vid = 0;
 		is_lb_pkt = qlcnic_82xx_is_lb_pkt(sts_data0);
 		qlcnic_add_lb_filter(adapter, skb, is_lb_pkt, t_vid);

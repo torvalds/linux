@@ -229,9 +229,7 @@ static void __init prcm_setup_regs(void)
 	clkdm_for_each(omap_pm_clkdms_setup, NULL);
 	clkdm_add_wkdep(mpu_clkdm, wkup_clkdm);
 
-#ifdef CONFIG_SUSPEND
-	omap_pm_suspend = omap2_enter_full_retention;
-#endif
+	omap_common_suspend_init(omap2_enter_full_retention);
 
 	/* REVISIT: Configure number of 32 kHz clock cycles for sys_clk
 	 * stabilisation */

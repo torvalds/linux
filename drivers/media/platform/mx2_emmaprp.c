@@ -207,10 +207,8 @@ struct emmaprp_dev {
 	struct mutex		dev_mutex;
 	spinlock_t		irqlock;
 
-	int			irq_emma;
 	void __iomem		*base_emma;
 	struct clk		*clk_emma_ahb, *clk_emma_ipg;
-	struct resource		*res_emma;
 
 	struct v4l2_m2m_dev	*m2m_dev;
 	struct vb2_alloc_ctx	*alloc_ctx;
@@ -901,9 +899,8 @@ static int emmaprp_probe(struct platform_device *pdev)
 {
 	struct emmaprp_dev *pcdev;
 	struct video_device *vfd;
-	struct resource *res_emma;
-	int irq_emma;
-	int ret;
+	struct resource *res;
+	int irq, ret;
 
 	pcdev = devm_kzalloc(&pdev->dev, sizeof(*pcdev), GFP_KERNEL);
 	if (!pcdev)
@@ -920,12 +917,10 @@ static int emmaprp_probe(struct platform_device *pdev)
 	if (IS_ERR(pcdev->clk_emma_ahb))
 		return PTR_ERR(pcdev->clk_emma_ahb);
 
-	irq_emma = platform_get_irq(pdev, 0);
-	res_emma = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (irq_emma < 0 || res_emma == NULL) {
-		dev_err(&pdev->dev, "Missing platform resources data\n");
-		return -ENODEV;
-	}
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	pcdev->base_emma = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(pcdev->base_emma))
+		return PTR_ERR(pcdev->base_emma);
 
 	ret = v4l2_device_register(&pdev->dev, &pcdev->v4l2_dev);
 	if (ret)
@@ -952,20 +947,11 @@ static int emmaprp_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, pcdev);
 
-	pcdev->base_emma = devm_ioremap_resource(&pdev->dev, res_emma);
-	if (IS_ERR(pcdev->base_emma)) {
-		ret = PTR_ERR(pcdev->base_emma);
+	irq = platform_get_irq(pdev, 0);
+	ret = devm_request_irq(&pdev->dev, irq, emmaprp_irq, 0,
+			       dev_name(&pdev->dev), pcdev);
+	if (ret)
 		goto rel_vdev;
-	}
-
-	pcdev->irq_emma = irq_emma;
-	pcdev->res_emma = res_emma;
-
-	if (devm_request_irq(&pdev->dev, pcdev->irq_emma, emmaprp_irq,
-			     0, MEM2MEM_NAME, pcdev) < 0) {
-		ret = -ENODEV;
-		goto rel_vdev;
-	}
 
 	pcdev->alloc_ctx = vb2_dma_contig_init_ctx(&pdev->dev);
 	if (IS_ERR(pcdev->alloc_ctx)) {
@@ -999,6 +985,8 @@ rel_vdev:
 unreg_dev:
 	v4l2_device_unregister(&pcdev->v4l2_dev);
 
+	mutex_destroy(&pcdev->dev_mutex);
+
 	return ret;
 }
 
@@ -1012,6 +1000,7 @@ static int emmaprp_remove(struct platform_device *pdev)
 	v4l2_m2m_release(pcdev->m2m_dev);
 	vb2_dma_contig_cleanup_ctx(pcdev->alloc_ctx);
 	v4l2_device_unregister(&pcdev->v4l2_dev);
+	mutex_destroy(&pcdev->dev_mutex);
 
 	return 0;
 }

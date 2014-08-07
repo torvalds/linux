@@ -194,7 +194,9 @@ struct sk_buff *ovs_vport_cmd_build_info(struct vport *, u32 pid, u32 seq,
 int ovs_execute_actions(struct datapath *dp, struct sk_buff *skb);
 void ovs_dp_notify_wq(struct work_struct *work);
 
-#define OVS_NLERR(fmt, ...) \
-	pr_info_once("netlink: " fmt, ##__VA_ARGS__)
-
+#define OVS_NLERR(fmt, ...)					\
+do {								\
+	if (net_ratelimit())					\
+		pr_info("netlink: " fmt, ##__VA_ARGS__);	\
+} while (0)
 #endif /* datapath.h */

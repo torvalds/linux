@@ -141,23 +141,6 @@ int Media_D_CopySector(struct us_data *us, u32 start, u16 count, u8 *buf)
 	return NO_ERROR;
 }
 
-/* ----- Release_D_CopySector() ------------------------------------------ */
-static int Release_D_CopySector(struct us_data *us)
-{
-	Log2Phy[Media.Zone][Media.LogBlock] = WriteBlock;
-	Media.PhyBlock = ReadBlock;
-
-	if (Media.PhyBlock == NO_ASSIGN) {
-		Media.PhyBlock = WriteBlock;
-		return SMSUCCESS;
-	}
-
-	Clr_D_Bit(Assign[Media.Zone], Media.PhyBlock);
-	Media.PhyBlock = WriteBlock;
-
-	return SMSUCCESS;
-}
-
 /* SmartMedia Physical Format Test Subroutine */
 /* ----- Check_D_MediaFmt() --------------------------------------------- */
 int Check_D_MediaFmt(struct us_data *us)
@@ -181,6 +164,23 @@ int Check_D_MediaFmt(struct us_data *us)
 	}
 
 	MediaChange = SMSUCCESS;
+	return SMSUCCESS;
+}
+
+/* ----- Release_D_CopySector() ------------------------------------------ */
+static int Release_D_CopySector(struct us_data *us)
+{
+	Log2Phy[Media.Zone][Media.LogBlock] = WriteBlock;
+	Media.PhyBlock = ReadBlock;
+
+	if (Media.PhyBlock == NO_ASSIGN) {
+		Media.PhyBlock = WriteBlock;
+		return SMSUCCESS;
+	}
+
+	Clr_D_Bit(Assign[Media.Zone], Media.PhyBlock);
+	Media.PhyBlock = WriteBlock;
+
 	return SMSUCCESS;
 }
 

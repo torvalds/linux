@@ -21,10 +21,6 @@
  * 1+ (800) 334-5454
  */
 
-/*
- * $Log: NCR5380.h,v $
- */
-
 #ifndef NCR5380_H
 #define NCR5380_H
 
@@ -60,6 +56,9 @@
 #define NDEBUG_C400_PREAD	0x100000
 #define NDEBUG_C400_PWRITE	0x200000
 #define NDEBUG_LISTS		0x400000
+#define NDEBUG_ABORT		0x800000
+#define NDEBUG_TAGS		0x1000000
+#define NDEBUG_MERGING		0x2000000
 
 #define NDEBUG_ANY		0xFFFFFFFFUL
 
@@ -292,9 +291,24 @@ struct NCR5380_hostdata {
 
 #ifdef __KERNEL__
 
-#define dprintk(a,b)			do {} while(0)
-#define NCR5380_dprint(a,b)		do {} while(0)
-#define NCR5380_dprint_phase(a,b)	do {} while(0)
+#ifndef NDEBUG
+#define NDEBUG (0)
+#endif
+
+#define dprintk(flg, fmt, ...) \
+	do { if ((NDEBUG) & (flg)) pr_debug(fmt, ## __VA_ARGS__); } while (0)
+
+#if NDEBUG
+#define NCR5380_dprint(flg, arg) \
+	do { if ((NDEBUG) & (flg)) NCR5380_print(arg); } while (0)
+#define NCR5380_dprint_phase(flg, arg) \
+	do { if ((NDEBUG) & (flg)) NCR5380_print_phase(arg); } while (0)
+static void NCR5380_print_phase(struct Scsi_Host *instance);
+static void NCR5380_print(struct Scsi_Host *instance);
+#else
+#define NCR5380_dprint(flg, arg)       do {} while (0)
+#define NCR5380_dprint_phase(flg, arg) do {} while (0)
+#endif
 
 #if defined(AUTOPROBE_IRQ)
 static int NCR5380_probe_irq(struct Scsi_Host *instance, int possible);
@@ -307,10 +321,6 @@ static irqreturn_t NCR5380_intr(int irq, void *dev_id);
 #endif
 static void NCR5380_main(struct work_struct *work);
 static void __maybe_unused NCR5380_print_options(struct Scsi_Host *instance);
-#ifdef NDEBUG
-static void NCR5380_print_phase(struct Scsi_Host *instance);
-static void NCR5380_print(struct Scsi_Host *instance);
-#endif
 static int NCR5380_abort(Scsi_Cmnd * cmd);
 static int NCR5380_bus_reset(Scsi_Cmnd * cmd);
 static int NCR5380_queue_command(struct Scsi_Host *, struct scsi_cmnd *);

@@ -199,7 +199,8 @@ int mdc_setattr(struct obd_export *exp, struct md_op_data *op_data,
 	*request = req;
 	if (rc && req->rq_commit_cb) {
 		/* Put an extra reference on \var mod on error case. */
-		obd_mod_put(*mod);
+		if (mod != NULL && *mod != NULL)
+			obd_mod_put(*mod);
 		req->rq_commit_cb(req);
 	}
 	return rc;
@@ -357,9 +358,9 @@ int mdc_unlink(struct obd_export *exp, struct md_op_data *op_data,
 	mdc_unlink_pack(req, op_data);
 
 	req_capsule_set_size(&req->rq_pill, &RMF_MDT_MD, RCL_SERVER,
-			     obd->u.cli.cl_max_mds_easize);
+			     obd->u.cli.cl_default_mds_easize);
 	req_capsule_set_size(&req->rq_pill, &RMF_LOGCOOKIES, RCL_SERVER,
-			     obd->u.cli.cl_max_mds_cookiesize);
+			     obd->u.cli.cl_default_mds_cookiesize);
 	ptlrpc_request_set_replen(req);
 
 	*request = req;
@@ -470,9 +471,9 @@ int mdc_rename(struct obd_export *exp, struct md_op_data *op_data,
 	mdc_rename_pack(req, op_data, old, oldlen, new, newlen);
 
 	req_capsule_set_size(&req->rq_pill, &RMF_MDT_MD, RCL_SERVER,
-			     obd->u.cli.cl_max_mds_easize);
+			     obd->u.cli.cl_default_mds_easize);
 	req_capsule_set_size(&req->rq_pill, &RMF_LOGCOOKIES, RCL_SERVER,
-			     obd->u.cli.cl_max_mds_cookiesize);
+			     obd->u.cli.cl_default_mds_cookiesize);
 	ptlrpc_request_set_replen(req);
 
 	rc = mdc_reint(req, obd->u.cli.cl_rpc_lock, LUSTRE_IMP_FULL);

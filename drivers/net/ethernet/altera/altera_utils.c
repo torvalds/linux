@@ -17,28 +17,28 @@
 #include "altera_tse.h"
 #include "altera_utils.h"
 
-void tse_set_bit(void __iomem *ioaddr, u32 bit_mask)
+void tse_set_bit(void __iomem *ioaddr, size_t offs, u32 bit_mask)
 {
-	u32 value = ioread32(ioaddr);
+	u32 value = csrrd32(ioaddr, offs);
 	value |= bit_mask;
-	iowrite32(value, ioaddr);
+	csrwr32(value, ioaddr, offs);
 }
 
-void tse_clear_bit(void __iomem *ioaddr, u32 bit_mask)
+void tse_clear_bit(void __iomem *ioaddr, size_t offs, u32 bit_mask)
 {
-	u32 value = ioread32(ioaddr);
+	u32 value = csrrd32(ioaddr, offs);
 	value &= ~bit_mask;
-	iowrite32(value, ioaddr);
+	csrwr32(value, ioaddr, offs);
 }
 
-int tse_bit_is_set(void __iomem *ioaddr, u32 bit_mask)
+int tse_bit_is_set(void __iomem *ioaddr, size_t offs, u32 bit_mask)
 {
-	u32 value = ioread32(ioaddr);
+	u32 value = csrrd32(ioaddr, offs);
 	return (value & bit_mask) ? 1 : 0;
 }
 
-int tse_bit_is_clear(void __iomem *ioaddr, u32 bit_mask)
+int tse_bit_is_clear(void __iomem *ioaddr, size_t offs, u32 bit_mask)
 {
-	u32 value = ioread32(ioaddr);
+	u32 value = csrrd32(ioaddr, offs);
 	return (value & bit_mask) ? 0 : 1;
 }

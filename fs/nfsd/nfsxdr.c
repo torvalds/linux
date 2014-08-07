@@ -214,7 +214,8 @@ nfssvc_decode_void(struct svc_rqst *rqstp, __be32 *p, void *dummy)
 int
 nfssvc_decode_fhandle(struct svc_rqst *rqstp, __be32 *p, struct nfsd_fhandle *args)
 {
-	if (!(p = decode_fh(p, &args->fh)))
+	p = decode_fh(p, &args->fh);
+	if (!p)
 		return 0;
 	return xdr_argsize_check(rqstp, p);
 }
@@ -248,7 +249,8 @@ nfssvc_decode_readargs(struct svc_rqst *rqstp, __be32 *p,
 {
 	unsigned int len;
 	int v;
-	if (!(p = decode_fh(p, &args->fh)))
+	p = decode_fh(p, &args->fh);
+	if (!p)
 		return 0;
 
 	args->offset    = ntohl(*p++);
@@ -281,7 +283,8 @@ nfssvc_decode_writeargs(struct svc_rqst *rqstp, __be32 *p,
 	unsigned int len, hdr, dlen;
 	int v;
 
-	if (!(p = decode_fh(p, &args->fh)))
+	p = decode_fh(p, &args->fh);
+	if (!p)
 		return 0;
 
 	p++;				/* beginoffset */
@@ -355,7 +358,8 @@ nfssvc_decode_renameargs(struct svc_rqst *rqstp, __be32 *p,
 int
 nfssvc_decode_readlinkargs(struct svc_rqst *rqstp, __be32 *p, struct nfsd_readlinkargs *args)
 {
-	if (!(p = decode_fh(p, &args->fh)))
+	p = decode_fh(p, &args->fh);
+	if (!p)
 		return 0;
 	args->buffer = page_address(*(rqstp->rq_next_page++));
 
@@ -391,7 +395,8 @@ int
 nfssvc_decode_readdirargs(struct svc_rqst *rqstp, __be32 *p,
 					struct nfsd_readdirargs *args)
 {
-	if (!(p = decode_fh(p, &args->fh)))
+	p = decode_fh(p, &args->fh);
+	if (!p)
 		return 0;
 	args->cookie = ntohl(*p++);
 	args->count  = ntohl(*p++);

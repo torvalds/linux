@@ -192,21 +192,28 @@ int serial8250_request_dma(struct uart_8250_port *p)
 
 	dma->rx_buf = dma_alloc_coherent(dma->rxchan->device->dev, dma->rx_size,
 					&dma->rx_addr, GFP_KERNEL);
-	if (!dma->rx_buf) {
-		dma_release_channel(dma->rxchan);
-		dma_release_channel(dma->txchan);
-		return -ENOMEM;
-	}
+	if (!dma->rx_buf)
+		goto err;
 
 	/* TX buffer */
 	dma->tx_addr = dma_map_single(dma->txchan->device->dev,
 					p->port.state->xmit.buf,
 					UART_XMIT_SIZE,
 					DMA_TO_DEVICE);
+	if (dma_mapping_error(dma->txchan->device->dev, dma->tx_addr)) {
+		dma_free_coherent(dma->rxchan->device->dev, dma->rx_size,
+				  dma->rx_buf, dma->rx_addr);
+		goto err;
+	}
 
 	dev_dbg_ratelimited(p->port.dev, "got both dma channels\n");
 
 	return 0;
+err:
+	dma_release_channel(dma->rxchan);
+	dma_release_channel(dma->txchan);
+
+	return -ENOMEM;
 }
 EXPORT_SYMBOL_GPL(serial8250_request_dma);
 

@@ -217,8 +217,6 @@ static void mdp4_crtc_destroy(struct drm_crtc *crtc)
 {
 	struct mdp4_crtc *mdp4_crtc = to_mdp4_crtc(crtc);
 
-	mdp4_crtc->plane->funcs->destroy(mdp4_crtc->plane);
-
 	drm_crtc_cleanup(crtc);
 	drm_flip_work_cleanup(&mdp4_crtc->unref_fb_work);
 	drm_flip_work_cleanup(&mdp4_crtc->unref_cursor_work);

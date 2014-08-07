@@ -338,6 +338,29 @@ static struct dev_rcv_lists *find_dev_rcv_lists(struct net_device *dev)
 }
 
 /**
+ * effhash - hash function for 29 bit CAN identifier reduction
+ * @can_id: 29 bit CAN identifier
+ *
+ * Description:
+ *  To reduce the linear traversal in one linked list of _single_ EFF CAN
+ *  frame subscriptions the 29 bit identifier is mapped to 10 bits.
+ *  (see CAN_EFF_RCV_HASH_BITS definition)
+ *
+ * Return:
+ *  Hash value from 0x000 - 0x3FF ( enforced by CAN_EFF_RCV_HASH_BITS mask )
+ */
+static unsigned int effhash(canid_t can_id)
+{
+	unsigned int hash;
+
+	hash = can_id;
+	hash ^= can_id >> CAN_EFF_RCV_HASH_BITS;
+	hash ^= can_id >> (2 * CAN_EFF_RCV_HASH_BITS);
+
+	return hash & ((1 << CAN_EFF_RCV_HASH_BITS) - 1);
+}
+
+/**
  * find_rcv_list - determine optimal filterlist inside device filter struct
  * @can_id: pointer to CAN identifier of a given can_filter
  * @mask: pointer to CAN mask of a given can_filter
@@ -400,10 +423,8 @@ static struct hlist_head *find_rcv_list(canid_t *can_id, canid_t *mask,
 	    !(*can_id & CAN_RTR_FLAG)) {
 
 		if (*can_id & CAN_EFF_FLAG) {
-			if (*mask == (CAN_EFF_MASK | CAN_EFF_RTR_FLAGS)) {
-				/* RFC: a future use-case for hash-tables? */
-				return &d->rx[RX_EFF];
-			}
+			if (*mask == (CAN_EFF_MASK | CAN_EFF_RTR_FLAGS))
+				return &d->rx_eff[effhash(*can_id)];
 		} else {
 			if (*mask == (CAN_SFF_MASK | CAN_EFF_RTR_FLAGS))
 				return &d->rx_sff[*can_id];
@@ -632,7 +653,7 @@ static int can_rcv_filter(struct dev_rcv_lists *d, struct sk_buff *skb)
 		return matches;
 
 	if (can_id & CAN_EFF_FLAG) {
-		hlist_for_each_entry_rcu(r, &d->rx[RX_EFF], list) {
+		hlist_for_each_entry_rcu(r, &d->rx_eff[effhash(can_id)], list) {
 			if (r->can_id == can_id) {
 				deliver(skb, r);
 				matches++;

@@ -122,6 +122,12 @@ enum {
 };
 
 enum {
+	STAC_92HD95_HP_LED,
+	STAC_92HD95_HP_BASS,
+	STAC_92HD95_MODELS
+};
+
+enum {
 	STAC_925x_REF,
 	STAC_M1,
 	STAC_M1_2,
@@ -795,7 +801,7 @@ static int find_mute_led_cfg(struct hda_codec *codec, int default_polarity)
 	}
 
 	while ((dev = dmi_find_device(DMI_DEV_TYPE_OEM_STRING, NULL, dev))) {
-		if (sscanf(dev->name, "HP_Mute_LED_%d_%x",
+		if (sscanf(dev->name, "HP_Mute_LED_%u_%x",
 			   &spec->gpio_led_polarity,
 			   &spec->gpio_led) == 2) {
 			unsigned int max_gpio;
@@ -808,7 +814,7 @@ static int find_mute_led_cfg(struct hda_codec *codec, int default_polarity)
 				spec->vref_mute_led_nid = spec->gpio_led;
 			return 1;
 		}
-		if (sscanf(dev->name, "HP_Mute_LED_%d",
+		if (sscanf(dev->name, "HP_Mute_LED_%u",
 			   &spec->gpio_led_polarity) == 1) {
 			set_hp_led_gpio(codec);
 			return 1;
@@ -4128,6 +4134,48 @@ static const struct snd_pci_quirk stac9205_fixup_tbl[] = {
 	{} /* terminator */
 };
 
+static void stac92hd95_fixup_hp_led(struct hda_codec *codec,
+				    const struct hda_fixup *fix, int action)
+{
+	struct sigmatel_spec *spec = codec->spec;
+
+	if (action != HDA_FIXUP_ACT_PRE_PROBE)
+		return;
+
+	if (find_mute_led_cfg(codec, spec->default_polarity))
+		codec_dbg(codec, "mute LED gpio %d polarity %d\n",
+				spec->gpio_led,
+				spec->gpio_led_polarity);
+}
+
+static const struct hda_fixup stac92hd95_fixups[] = {
+	[STAC_92HD95_HP_LED] = {
+		.type = HDA_FIXUP_FUNC,
+		.v.func = stac92hd95_fixup_hp_led,
+	},
+	[STAC_92HD95_HP_BASS] = {
+		.type = HDA_FIXUP_VERBS,
+		.v.verbs = (const struct hda_verb[]) {
+			{0x1a, 0x795, 0x00}, /* HPF to 100Hz */
+			{}
+		},
+		.chained = true,
+		.chain_id = STAC_92HD95_HP_LED,
+	},
+};
+
+static const struct snd_pci_quirk stac92hd95_fixup_tbl[] = {
+	SND_PCI_QUIRK(PCI_VENDOR_ID_HP, 0x1911, "HP Spectre 13", STAC_92HD95_HP_BASS),
+	{} /* terminator */
+};
+
+static const struct hda_model_fixup stac92hd95_models[] = {
+	{ .id = STAC_92HD95_HP_LED, .name = "hp-led" },
+	{ .id = STAC_92HD95_HP_BASS, .name = "hp-bass" },
+	{}
+};
+
+
 static int stac_parse_auto_config(struct hda_codec *codec)
 {
 	struct sigmatel_spec *spec = codec->spec;
@@ -4580,9 +4628,15 @@ static int patch_stac92hd95(struct hda_codec *codec)
 	spec->gen.beep_nid = 0x19; /* digital beep */
 	spec->pwr_nids = stac92hd95_pwr_nids;
 	spec->num_pwrs = ARRAY_SIZE(stac92hd95_pwr_nids);
-	spec->default_polarity = -1; /* no default cfg */
+	spec->default_polarity = 0;
 
 	codec->patch_ops = stac_patch_ops;
+
+	snd_hda_pick_fixup(codec, stac92hd95_models, stac92hd95_fixup_tbl,
+			   stac92hd95_fixups);
+	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_PRE_PROBE);
+
+	stac_setup_gpio(codec);
 
 	err = stac_parse_auto_config(codec);
 	if (err < 0) {
@@ -4591,6 +4645,8 @@ static int patch_stac92hd95(struct hda_codec *codec)
 	}
 
 	codec->proc_widget_hook = stac92hd_proc_hook;
+
+	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_PROBE);
 
 	return 0;
 }

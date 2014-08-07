@@ -264,8 +264,6 @@ struct mlx5_ib_mr {
 	__be64			*pas;
 	dma_addr_t		dma;
 	int			npages;
-	struct completion	done;
-	enum ib_wc_status	status;
 	struct mlx5_ib_dev     *dev;
 	struct mlx5_create_mkey_mbox_out out;
 	struct mlx5_core_sig_ctx    *sig;
@@ -276,6 +274,17 @@ struct mlx5_ib_fast_reg_page_list {
 	__be64			       *mapped_page_list;
 	dma_addr_t			map;
 };
+
+struct mlx5_ib_umr_context {
+	enum ib_wc_status	status;
+	struct completion	done;
+};
+
+static inline void mlx5_ib_init_umr_context(struct mlx5_ib_umr_context *context)
+{
+	context->status = -1;
+	init_completion(&context->done);
+}
 
 struct umr_common {
 	struct ib_pd	*pd;

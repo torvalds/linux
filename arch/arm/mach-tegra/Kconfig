@@ -1,13 +1,11 @@
-config ARCH_TEGRA
+menuconfig ARCH_TEGRA
 	bool "NVIDIA Tegra" if ARCH_MULTI_V7
-	select ARCH_HAS_CPUFREQ
 	select ARCH_REQUIRE_GPIOLIB
 	select ARCH_SUPPORTS_TRUSTED_FOUNDATIONS
 	select ARM_GIC
 	select CLKSRC_MMIO
 	select HAVE_ARM_SCU if SMP
 	select HAVE_ARM_TWD if SMP
-	select MIGHT_HAVE_PCI
 	select PINCTRL
 	select ARCH_HAS_RESET_CONTROLLER
 	select RESET_CONTROLLER
@@ -17,8 +15,7 @@ config ARCH_TEGRA
 	help
 	  This enables support for NVIDIA Tegra based systems.
 
-menu "NVIDIA Tegra options"
-	depends on ARCH_TEGRA
+if ARCH_TEGRA
 
 config ARCH_TEGRA_2x_SOC
 	bool "Enable support for Tegra20 family"
@@ -70,4 +67,4 @@ config TEGRA_AHB
 	  which controls AHB bus master arbitration and some
 	  performance parameters(priority, prefech size).
 
-endmenu
+endif

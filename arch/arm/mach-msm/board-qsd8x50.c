@@ -116,7 +116,7 @@ static int hsusb_phy_clk_reset(struct clk *phy_clk)
 
 static struct msm_otg_platform_data msm_otg_pdata = {
 	.phy_init_seq		= hsusb_phy_init_seq,
-	.mode                   = USB_PERIPHERAL,
+	.mode                   = USB_DR_MODE_PERIPHERAL,
 	.otg_control		= OTG_PHY_CONTROL,
 	.link_clk_reset		= hsusb_link_clk_reset,
 	.phy_clk_reset		= hsusb_phy_clk_reset,

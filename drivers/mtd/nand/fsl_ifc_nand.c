@@ -56,7 +56,7 @@ struct fsl_ifc_nand_ctrl {
 	struct nand_hw_control controller;
 	struct fsl_ifc_mtd *chips[FSL_IFC_BANK_COUNT];
 
-	u8 __iomem *addr;	/* Address of assigned IFC buffer	*/
+	void __iomem *addr;	/* Address of assigned IFC buffer	*/
 	unsigned int page;	/* Last page written to / read from	*/
 	unsigned int read_bytes;/* Number of bytes read during command	*/
 	unsigned int column;	/* Saved column from SEQIN		*/
@@ -591,7 +591,10 @@ static void fsl_ifc_cmdfunc(struct mtd_info *mtd, unsigned int command,
 		 * The chip always seems to report that it is
 		 * write-protected, even when it is not.
 		 */
-		setbits8(ifc_nand_ctrl->addr, NAND_STATUS_WP);
+		if (chip->options & NAND_BUSWIDTH_16)
+			setbits16(ifc_nand_ctrl->addr, NAND_STATUS_WP);
+		else
+			setbits8(ifc_nand_ctrl->addr, NAND_STATUS_WP);
 		return;
 
 	case NAND_CMD_RESET:
@@ -636,7 +639,7 @@ static void fsl_ifc_write_buf(struct mtd_info *mtd, const u8 *buf, int len)
 		len = bufsize - ifc_nand_ctrl->index;
 	}
 
-	memcpy_toio(&ifc_nand_ctrl->addr[ifc_nand_ctrl->index], buf, len);
+	memcpy_toio(ifc_nand_ctrl->addr + ifc_nand_ctrl->index, buf, len);
 	ifc_nand_ctrl->index += len;
 }
 
@@ -648,13 +651,16 @@ static uint8_t fsl_ifc_read_byte(struct mtd_info *mtd)
 {
 	struct nand_chip *chip = mtd->priv;
 	struct fsl_ifc_mtd *priv = chip->priv;
+	unsigned int offset;
 
 	/*
 	 * If there are still bytes in the IFC buffer, then use the
 	 * next byte.
 	 */
-	if (ifc_nand_ctrl->index < ifc_nand_ctrl->read_bytes)
-		return in_8(&ifc_nand_ctrl->addr[ifc_nand_ctrl->index++]);
+	if (ifc_nand_ctrl->index < ifc_nand_ctrl->read_bytes) {
+		offset = ifc_nand_ctrl->index++;
+		return in_8(ifc_nand_ctrl->addr + offset);
+	}
 
 	dev_err(priv->dev, "%s: beyond end of buffer\n", __func__);
 	return ERR_BYTE;
@@ -675,8 +681,7 @@ static uint8_t fsl_ifc_read_byte16(struct mtd_info *mtd)
 	 * next byte.
 	 */
 	if (ifc_nand_ctrl->index < ifc_nand_ctrl->read_bytes) {
-		data = in_be16((uint16_t __iomem *)&ifc_nand_ctrl->
-			       addr[ifc_nand_ctrl->index]);
+		data = in_be16(ifc_nand_ctrl->addr + ifc_nand_ctrl->index);
 		ifc_nand_ctrl->index += 2;
 		return (uint8_t) data;
 	}
@@ -701,7 +706,7 @@ static void fsl_ifc_read_buf(struct mtd_info *mtd, u8 *buf, int len)
 
 	avail = min((unsigned int)len,
 			ifc_nand_ctrl->read_bytes - ifc_nand_ctrl->index);
-	memcpy_fromio(buf, &ifc_nand_ctrl->addr[ifc_nand_ctrl->index], avail);
+	memcpy_fromio(buf, ifc_nand_ctrl->addr + ifc_nand_ctrl->index, avail);
 	ifc_nand_ctrl->index += avail;
 
 	if (len > avail)

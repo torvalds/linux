@@ -510,7 +510,11 @@ static void __init pSeries_setup_arch(void)
 static int __init pSeries_init_panel(void)
 {
 	/* Manually leave the kernel version on the panel. */
+#ifdef __BIG_ENDIAN__
 	ppc_md.progress("Linux ppc64\n", 0);
+#else
+	ppc_md.progress("Linux ppc64le\n", 0);
+#endif
 	ppc_md.progress(init_utsname()->version, 0);
 
 	return 0;
@@ -665,7 +669,7 @@ static int __init pseries_probe_fw_features(unsigned long node,
 					    void *data)
 {
 	const char *prop;
-	unsigned long len;
+	int len;
 	static int hypertas_found;
 	static int vec5_found;
 
@@ -698,7 +702,7 @@ static int __init pseries_probe_fw_features(unsigned long node,
 static int __init pSeries_probe(void)
 {
 	unsigned long root = of_get_flat_dt_root();
- 	char *dtype = of_get_flat_dt_prop(root, "device_type", NULL);
+	const char *dtype = of_get_flat_dt_prop(root, "device_type", NULL);
 
  	if (dtype == NULL)
  		return 0;
@@ -805,5 +809,8 @@ define_machine(pseries) {
 	.machine_check_exception = pSeries_machine_check_exception,
 #ifdef CONFIG_KEXEC
 	.machine_kexec          = pSeries_machine_kexec,
+#endif
+#ifdef CONFIG_MEMORY_HOTPLUG_SPARSE
+	.memory_block_size	= pseries_memory_block_size,
 #endif
 };

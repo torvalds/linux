@@ -1415,6 +1415,9 @@ struct ql_iscsi_stats {
 #define QLA83XX_DBG_OCM_WNDREG_ARRAY_LEN	16
 #define QLA83XX_SS_OCM_WNDREG_INDEX		3
 #define QLA83XX_SS_PCI_INDEX			0
+#define QLA8022_TEMPLATE_CAP_OFFSET		172
+#define QLA83XX_TEMPLATE_CAP_OFFSET		268
+#define QLA80XX_TEMPLATE_RESERVED_BITS		16
 
 struct qla4_8xxx_minidump_template_hdr {
 	uint32_t entry_type;
@@ -1434,6 +1437,7 @@ struct qla4_8xxx_minidump_template_hdr {
 	uint32_t saved_state_array[QLA8XXX_DBG_STATE_ARRAY_LEN];
 	uint32_t capture_size_array[QLA8XXX_DBG_CAP_SIZE_ARRAY_LEN];
 	uint32_t ocm_window_reg[QLA83XX_DBG_OCM_WNDREG_ARRAY_LEN];
+	uint32_t capabilities[QLA80XX_TEMPLATE_RESERVED_BITS];
 };
 
 #endif /*  _QLA4X_FW_H */

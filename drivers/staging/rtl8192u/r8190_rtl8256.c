@@ -32,7 +32,7 @@ void PHY_SetRF8256Bandwidth(struct net_device *dev , HT_CHANNEL_WIDTH Bandwidth)
 	for(eRFPath = 0; eRFPath <RF90_PATH_MAX; eRFPath++)
 	{
 		if (!rtl8192_phy_CheckIsLegalRFPath(dev, eRFPath))
-				continue;
+			continue;
 
 		switch (Bandwidth)
 		{
@@ -125,7 +125,7 @@ void phy_RF8256_Config_ParaFile(struct net_device *dev)
 	for(eRFPath = (RF90_RADIO_PATH_E)RF90_PATH_A; eRFPath <priv->NumTotalRFPath; eRFPath++)
 	{
 		if (!rtl8192_phy_CheckIsLegalRFPath(dev, eRFPath))
-				continue;
+			continue;
 
 		pPhyReg = &priv->PHYRegDef[eRFPath];
 
@@ -249,7 +249,7 @@ void PHY_SetRF8256CCKTxPower(struct net_device *dev, u8 powerlevel)
 		if(priv->CustomerID == RT_CID_819x_Netcore)
 			TxAGC = 0x22;
 		else
-		TxAGC += priv->CckPwEnl;
+			TxAGC += priv->CckPwEnl;
 	}
 
 	if(TxAGC > 0x24)

@@ -835,7 +835,7 @@ static void max310x_set_termios(struct uart_port *port,
 	if (termios->c_iflag & INPCK)
 		port->read_status_mask |= MAX310X_LSR_RXPAR_BIT |
 					  MAX310X_LSR_FRERR_BIT;
-	if (termios->c_iflag & (BRKINT | PARMRK))
+	if (termios->c_iflag & (IGNBRK | BRKINT | PARMRK))
 		port->read_status_mask |= MAX310X_LSR_RXBRK_BIT;
 
 	/* Set status ignore mask */

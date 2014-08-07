@@ -193,7 +193,8 @@ azx_assign_device(struct azx *chip, struct snd_pcm_substream *substream)
 				dsp_unlock(azx_dev);
 				return azx_dev;
 			}
-			if (!res)
+			if (!res ||
+			    (chip->driver_caps & AZX_DCAPS_REVERSE_ASSIGN))
 				res = azx_dev;
 		}
 		dsp_unlock(azx_dev);

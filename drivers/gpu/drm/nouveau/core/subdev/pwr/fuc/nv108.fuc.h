@@ -1018,7 +1018,7 @@ uint32_t nv108_pwr_code[] = {
 	0xb600023f,
 	0x1ec40110,
 	0x04b0400f,
-	0xbd0001f6,
+	0xbd000ef6,
 	0xc70ef404,
 /* 0x0328: host_send_done */
 /* 0x032a: host_recv */

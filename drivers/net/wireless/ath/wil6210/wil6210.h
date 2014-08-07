@@ -35,11 +35,14 @@ static inline u32 WIL_GET_BITS(u32 x, int b0, int b1)
 #define WIL6210_MEM_SIZE (2*1024*1024UL)
 
 #define WIL6210_RX_RING_SIZE	(128)
-#define WIL6210_TX_RING_SIZE	(128)
+#define WIL6210_TX_RING_SIZE	(512)
 #define WIL6210_MAX_TX_RINGS	(24) /* HW limit */
 #define WIL6210_MAX_CID		(8) /* HW limit */
 #define WIL6210_NAPI_BUDGET	(16) /* arbitrary */
 #define WIL6210_ITR_TRSH	(10000) /* arbitrary - about 15 IRQs/msec */
+#define WIL6210_FW_RECOVERY_RETRIES	(5) /* try to recover this many times */
+#define WIL6210_FW_RECOVERY_TO	msecs_to_jiffies(5000)
+#define WIL6210_SCAN_TO		msecs_to_jiffies(10000)
 
 /* Hardware definitions begin */
 
@@ -301,6 +304,7 @@ struct wil_tid_ampdu_rx {
 	u16 buf_size;
 	u16 timeout;
 	u8 dialog_token;
+	bool first_time; /* is it 1-st time this buffer used? */
 };
 
 struct wil6210_stats {
@@ -360,6 +364,8 @@ struct wil6210_priv {
 	u32 fw_version;
 	u32 hw_version;
 	u8 n_mids; /* number of additional MIDs as reported by FW */
+	int recovery_count; /* num of FW recovery attempts in a short time */
+	unsigned long last_fw_recovery; /* jiffies of last fw recovery */
 	/* profile */
 	u32 monitor_flags;
 	u32 secure_pcp; /* create secure PCP? */
@@ -381,6 +387,7 @@ struct wil6210_priv {
 	struct work_struct disconnect_worker;
 	struct work_struct fw_error_worker;	/* for FW error recovery */
 	struct timer_list connect_timer;
+	struct timer_list scan_timer; /* detect scan timeout */
 	int pending_connect_cid;
 	struct list_head pending_wmi_ev;
 	/*
@@ -507,7 +514,7 @@ void wil_wdev_free(struct wil6210_priv *wil);
 int wmi_set_mac_address(struct wil6210_priv *wil, void *addr);
 int wmi_pcp_start(struct wil6210_priv *wil, int bi, u8 wmi_nettype, u8 chan);
 int wmi_pcp_stop(struct wil6210_priv *wil);
-void wil6210_disconnect(struct wil6210_priv *wil, void *bssid);
+void wil6210_disconnect(struct wil6210_priv *wil, const u8 *bssid);
 
 int wil_rx_init(struct wil6210_priv *wil);
 void wil_rx_fini(struct wil6210_priv *wil);

@@ -36,6 +36,20 @@ struct regs_info {
 	int	sleep_id;
 };
 
+static const struct regulator_linear_range smps_low_ranges[] = {
+	REGULATOR_LINEAR_RANGE(0, 0x0, 0x0, 0),
+	REGULATOR_LINEAR_RANGE(500000, 0x1, 0x6, 0),
+	REGULATOR_LINEAR_RANGE(510000, 0x7, 0x79, 10000),
+	REGULATOR_LINEAR_RANGE(1650000, 0x7A, 0x7f, 0),
+};
+
+static const struct regulator_linear_range smps_high_ranges[] = {
+	REGULATOR_LINEAR_RANGE(0, 0x0, 0x0, 0),
+	REGULATOR_LINEAR_RANGE(1000000, 0x1, 0x6, 0),
+	REGULATOR_LINEAR_RANGE(1020000, 0x7, 0x79, 20000),
+	REGULATOR_LINEAR_RANGE(3300000, 0x7A, 0x7f, 0),
+};
+
 static const struct regs_info palmas_regs_info[] = {
 	{
 		.name		= "SMPS12",
@@ -280,54 +294,6 @@ static int palmas_ldo_write(struct palmas *palmas, unsigned int reg,
 	return regmap_write(palmas->regmap[REGULATOR_SLAVE], addr, value);
 }
 
-static int palmas_is_enabled_smps(struct regulator_dev *dev)
-{
-	struct palmas_pmic *pmic = rdev_get_drvdata(dev);
-	int id = rdev_get_id(dev);
-	unsigned int reg;
-
-	palmas_smps_read(pmic->palmas, palmas_regs_info[id].ctrl_addr, &reg);
-
-	reg &= PALMAS_SMPS12_CTRL_STATUS_MASK;
-	reg >>= PALMAS_SMPS12_CTRL_STATUS_SHIFT;
-
-	return !!(reg);
-}
-
-static int palmas_enable_smps(struct regulator_dev *dev)
-{
-	struct palmas_pmic *pmic = rdev_get_drvdata(dev);
-	int id = rdev_get_id(dev);
-	unsigned int reg;
-
-	palmas_smps_read(pmic->palmas, palmas_regs_info[id].ctrl_addr, &reg);
-
-	reg &= ~PALMAS_SMPS12_CTRL_MODE_ACTIVE_MASK;
-	if (pmic->current_reg_mode[id])
-		reg |= pmic->current_reg_mode[id];
-	else
-		reg |= SMPS_CTRL_MODE_ON;
-
-	palmas_smps_write(pmic->palmas, palmas_regs_info[id].ctrl_addr, reg);
-
-	return 0;
-}
-
-static int palmas_disable_smps(struct regulator_dev *dev)
-{
-	struct palmas_pmic *pmic = rdev_get_drvdata(dev);
-	int id = rdev_get_id(dev);
-	unsigned int reg;
-
-	palmas_smps_read(pmic->palmas, palmas_regs_info[id].ctrl_addr, &reg);
-
-	reg &= ~PALMAS_SMPS12_CTRL_MODE_ACTIVE_MASK;
-
-	palmas_smps_write(pmic->palmas, palmas_regs_info[id].ctrl_addr, reg);
-
-	return 0;
-}
-
 static int palmas_set_mode_smps(struct regulator_dev *dev, unsigned int mode)
 {
 	struct palmas_pmic *pmic = rdev_get_drvdata(dev);
@@ -359,6 +325,10 @@ static int palmas_set_mode_smps(struct regulator_dev *dev, unsigned int mode)
 	if (rail_enable)
 		palmas_smps_write(pmic->palmas,
 			palmas_regs_info[id].ctrl_addr, reg);
+
+	/* Switch the enable value to ensure this is used for enable */
+	pmic->desc[id].enable_val = pmic->current_reg_mode[id];
+
 	return 0;
 }
 
@@ -380,81 +350,6 @@ static unsigned int palmas_get_mode_smps(struct regulator_dev *dev)
 	}
 
 	return 0;
-}
-
-static int palmas_list_voltage_smps(struct regulator_dev *dev,
-					unsigned selector)
-{
-	struct palmas_pmic *pmic = rdev_get_drvdata(dev);
-	int id = rdev_get_id(dev);
-	int mult = 1;
-
-	/* Read the multiplier set in VSEL register to return
-	 * the correct voltage.
-	 */
-	if (pmic->range[id])
-		mult = 2;
-
-	if (selector == 0)
-		return 0;
-	else if (selector < 6)
-		return 500000 * mult;
-	else
-		/* Voltage is linear mapping starting from selector 6,
-		 * volt = (0.49V + ((selector - 5) * 0.01V)) * RANGE
-		 * RANGE is either x1 or x2
-		 */
-		return (490000 + ((selector - 5) * 10000)) * mult;
-}
-
-static int palmas_map_voltage_smps(struct regulator_dev *rdev,
-		int min_uV, int max_uV)
-{
-	struct palmas_pmic *pmic = rdev_get_drvdata(rdev);
-	int id = rdev_get_id(rdev);
-	int ret, voltage;
-
-	if (min_uV == 0)
-		return 0;
-
-	if (pmic->range[id]) { /* RANGE is x2 */
-		if (min_uV < 1000000)
-			min_uV = 1000000;
-		ret = DIV_ROUND_UP(min_uV - 1000000, 20000) + 6;
-	} else {		/* RANGE is x1 */
-		if (min_uV < 500000)
-			min_uV = 500000;
-		ret = DIV_ROUND_UP(min_uV - 500000, 10000) + 6;
-	}
-
-	/* Map back into a voltage to verify we're still in bounds */
-	voltage = palmas_list_voltage_smps(rdev, ret);
-	if (voltage < min_uV || voltage > max_uV)
-		return -EINVAL;
-
-	return ret;
-}
-
-static int palma_smps_set_voltage_smps_time_sel(struct regulator_dev *rdev,
-	unsigned int old_selector, unsigned int new_selector)
-{
-	struct palmas_pmic *pmic = rdev_get_drvdata(rdev);
-	int id = rdev_get_id(rdev);
-	int old_uv, new_uv;
-	unsigned int ramp_delay = pmic->ramp_delay[id];
-
-	if (!ramp_delay)
-		return 0;
-
-	old_uv = palmas_list_voltage_smps(rdev, old_selector);
-	if (old_uv < 0)
-		return old_uv;
-
-	new_uv = palmas_list_voltage_smps(rdev, new_selector);
-	if (new_uv < 0)
-		return new_uv;
-
-	return DIV_ROUND_UP(abs(old_uv - new_uv), ramp_delay);
 }
 
 static int palmas_smps_set_ramp_delay(struct regulator_dev *rdev,
@@ -493,16 +388,16 @@ static int palmas_smps_set_ramp_delay(struct regulator_dev *rdev,
 }
 
 static struct regulator_ops palmas_ops_smps = {
-	.is_enabled		= palmas_is_enabled_smps,
-	.enable			= palmas_enable_smps,
-	.disable		= palmas_disable_smps,
+	.is_enabled		= regulator_is_enabled_regmap,
+	.enable			= regulator_enable_regmap,
+	.disable		= regulator_disable_regmap,
 	.set_mode		= palmas_set_mode_smps,
 	.get_mode		= palmas_get_mode_smps,
 	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
 	.set_voltage_sel	= regulator_set_voltage_sel_regmap,
-	.list_voltage		= palmas_list_voltage_smps,
-	.map_voltage		= palmas_map_voltage_smps,
-	.set_voltage_time_sel	= palma_smps_set_voltage_smps_time_sel,
+	.list_voltage		= regulator_list_voltage_linear_range,
+	.map_voltage		= regulator_map_voltage_linear_range,
+	.set_voltage_time_sel	= regulator_set_voltage_time_sel,
 	.set_ramp_delay		= palmas_smps_set_ramp_delay,
 };
 
@@ -511,9 +406,9 @@ static struct regulator_ops palmas_ops_ext_control_smps = {
 	.get_mode		= palmas_get_mode_smps,
 	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
 	.set_voltage_sel	= regulator_set_voltage_sel_regmap,
-	.list_voltage		= palmas_list_voltage_smps,
-	.map_voltage		= palmas_map_voltage_smps,
-	.set_voltage_time_sel	= palma_smps_set_voltage_smps_time_sel,
+	.list_voltage		= regulator_list_voltage_linear_range,
+	.map_voltage		= regulator_map_voltage_linear_range,
+	.set_voltage_time_sel	= regulator_set_voltage_time_sel,
 	.set_ramp_delay		= palmas_smps_set_ramp_delay,
 };
 
@@ -1042,12 +937,17 @@ static int palmas_regulators_probe(struct platform_device *pdev)
 			 * ranges. Read the current smps mode for later use.
 			 */
 			addr = palmas_regs_info[id].vsel_addr;
+			pmic->desc[id].n_linear_ranges = 3;
 
 			ret = palmas_smps_read(pmic->palmas, addr, &reg);
 			if (ret)
 				return ret;
 			if (reg & PALMAS_SMPS12_VOLTAGE_RANGE)
 				pmic->range[id] = 1;
+			if (pmic->range[id])
+				pmic->desc[id].linear_ranges = smps_high_ranges;
+			else
+				pmic->desc[id].linear_ranges = smps_low_ranges;
 
 			if (reg_init && reg_init->roof_floor)
 				pmic->desc[id].ops =
@@ -1068,6 +968,14 @@ static int palmas_regulators_probe(struct platform_device *pdev)
 				return ret;
 			pmic->current_reg_mode[id] = reg &
 					PALMAS_SMPS12_CTRL_MODE_ACTIVE_MASK;
+
+			pmic->desc[id].enable_reg =
+					PALMAS_BASE_TO_REG(PALMAS_SMPS_BASE,
+						palmas_regs_info[id].ctrl_addr);
+			pmic->desc[id].enable_mask =
+					PALMAS_SMPS12_CTRL_MODE_ACTIVE_MASK;
+			/* set_mode overrides this value */
+			pmic->desc[id].enable_val = SMPS_CTRL_MODE_ON;
 		}
 
 		pmic->desc[id].type = REGULATOR_VOLTAGE;
@@ -1199,7 +1107,7 @@ static int palmas_regulators_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id of_palmas_match_tbl[] = {
+static const struct of_device_id of_palmas_match_tbl[] = {
 	{ .compatible = "ti,palmas-pmic", },
 	{ .compatible = "ti,twl6035-pmic", },
 	{ .compatible = "ti,twl6036-pmic", },

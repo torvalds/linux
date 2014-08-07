@@ -17,6 +17,7 @@
 
 #include <linux/kernel.h>
 #include <linux/err.h>
+#include <linux/of.h>
 #include <video/omapdss.h>
 
 #include "hdmi.h"
@@ -321,6 +322,46 @@ struct hdmi_cm hdmi_get_code(struct omap_video_timings *timing)
 
 end:
 	return cm;
+}
+
+int hdmi_parse_lanes_of(struct platform_device *pdev, struct device_node *ep,
+	struct hdmi_phy_data *phy)
+{
+	struct property *prop;
+	int r, len;
+
+	prop = of_find_property(ep, "lanes", &len);
+	if (prop) {
+		u32 lanes[8];
+
+		if (len / sizeof(u32) != ARRAY_SIZE(lanes)) {
+			dev_err(&pdev->dev, "bad number of lanes\n");
+			return -EINVAL;
+		}
+
+		r = of_property_read_u32_array(ep, "lanes", lanes,
+			ARRAY_SIZE(lanes));
+		if (r) {
+			dev_err(&pdev->dev, "failed to read lane data\n");
+			return r;
+		}
+
+		r = hdmi_phy_parse_lanes(phy, lanes);
+		if (r) {
+			dev_err(&pdev->dev, "failed to parse lane data\n");
+			return r;
+		}
+	} else {
+		static const u32 default_lanes[] = { 0, 1, 2, 3, 4, 5, 6, 7 };
+
+		r = hdmi_phy_parse_lanes(phy, default_lanes);
+		if (WARN_ON(r)) {
+			dev_err(&pdev->dev, "failed to parse lane data\n");
+			return r;
+		}
+	}
+
+	return 0;
 }
 
 #if defined(CONFIG_OMAP4_DSS_HDMI_AUDIO)

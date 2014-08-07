@@ -730,7 +730,7 @@ nvc0_fifo_intr_engine_unit(struct nvc0_fifo_priv *priv, int engn)
 	for (unkn = 0; unkn < 8; unkn++) {
 		u32 ints = (intr >> (unkn * 0x04)) & inte;
 		if (ints & 0x1) {
-			nouveau_event_trigger(priv->base.uevent, 0);
+			nouveau_event_trigger(priv->base.uevent, 1, 0);
 			ints &= ~1;
 		}
 		if (ints) {
@@ -827,14 +827,14 @@ nvc0_fifo_intr(struct nouveau_subdev *subdev)
 }
 
 static void
-nvc0_fifo_uevent_enable(struct nouveau_event *event, int index)
+nvc0_fifo_uevent_enable(struct nouveau_event *event, int type, int index)
 {
 	struct nvc0_fifo_priv *priv = event->priv;
 	nv_mask(priv, 0x002140, 0x80000000, 0x80000000);
 }
 
 static void
-nvc0_fifo_uevent_disable(struct nouveau_event *event, int index)
+nvc0_fifo_uevent_disable(struct nouveau_event *event, int type, int index)
 {
 	struct nvc0_fifo_priv *priv = event->priv;
 	nv_mask(priv, 0x002140, 0x80000000, 0x00000000);

@@ -11,7 +11,7 @@
 
 /dts-v1/;
 #include "imx6q.dtsi"
-#include "imx6qdl-gw54xx.dtsi"
+#include "imx6qdl-gw51xx.dtsi"
 
 / {
 	model = "Gateworks Ventana i.MX6 Quad GW51XX";

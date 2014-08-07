@@ -51,7 +51,17 @@ extern int rcu_expedited; /* for sysctl */
 extern int rcutorture_runnable; /* for sysctl */
 #endif /* #ifdef CONFIG_RCU_TORTURE_TEST */
 
+enum rcutorture_type {
+	RCU_FLAVOR,
+	RCU_BH_FLAVOR,
+	RCU_SCHED_FLAVOR,
+	SRCU_FLAVOR,
+	INVALID_RCU_FLAVOR
+};
+
 #if defined(CONFIG_TREE_RCU) || defined(CONFIG_TREE_PREEMPT_RCU)
+void rcutorture_get_gp_data(enum rcutorture_type test_type, int *flags,
+			    unsigned long *gpnum, unsigned long *completed);
 void rcutorture_record_test_transition(void);
 void rcutorture_record_progress(unsigned long vernum);
 void do_trace_rcu_torture_read(const char *rcutorturename,
@@ -60,6 +70,15 @@ void do_trace_rcu_torture_read(const char *rcutorturename,
 			       unsigned long c_old,
 			       unsigned long c);
 #else
+static inline void rcutorture_get_gp_data(enum rcutorture_type test_type,
+					  int *flags,
+					  unsigned long *gpnum,
+					  unsigned long *completed)
+{
+	*flags = 0;
+	*gpnum = 0;
+	*completed = 0;
+}
 static inline void rcutorture_record_test_transition(void)
 {
 }
@@ -228,6 +247,18 @@ void rcu_idle_exit(void);
 void rcu_irq_enter(void);
 void rcu_irq_exit(void);
 
+#ifdef CONFIG_RCU_STALL_COMMON
+void rcu_sysrq_start(void);
+void rcu_sysrq_end(void);
+#else /* #ifdef CONFIG_RCU_STALL_COMMON */
+static inline void rcu_sysrq_start(void)
+{
+}
+static inline void rcu_sysrq_end(void)
+{
+}
+#endif /* #else #ifdef CONFIG_RCU_STALL_COMMON */
+
 #ifdef CONFIG_RCU_USER_QS
 void rcu_user_enter(void);
 void rcu_user_exit(void);
@@ -291,9 +322,19 @@ void wait_rcu_gp(call_rcu_func_t crf);
  * initialization.
  */
 #ifdef CONFIG_DEBUG_OBJECTS_RCU_HEAD
+void init_rcu_head(struct rcu_head *head);
+void destroy_rcu_head(struct rcu_head *head);
 void init_rcu_head_on_stack(struct rcu_head *head);
 void destroy_rcu_head_on_stack(struct rcu_head *head);
 #else /* !CONFIG_DEBUG_OBJECTS_RCU_HEAD */
+static inline void init_rcu_head(struct rcu_head *head)
+{
+}
+
+static inline void destroy_rcu_head(struct rcu_head *head)
+{
+}
+
 static inline void init_rcu_head_on_stack(struct rcu_head *head)
 {
 }
@@ -328,7 +369,7 @@ extern struct lockdep_map rcu_lock_map;
 extern struct lockdep_map rcu_bh_lock_map;
 extern struct lockdep_map rcu_sched_lock_map;
 extern struct lockdep_map rcu_callback_map;
-extern int debug_lockdep_rcu_enabled(void);
+int debug_lockdep_rcu_enabled(void);
 
 /**
  * rcu_read_lock_held() - might we be in RCU read-side critical section?
@@ -949,6 +990,9 @@ static inline notrace void rcu_read_unlock_sched_notrace(void)
  * pointers, but you must use rcu_assign_pointer() to initialize the
  * external-to-structure pointer -after- you have completely initialized
  * the reader-accessible portions of the linked structure.
+ *
+ * Note that unlike rcu_assign_pointer(), RCU_INIT_POINTER() provides no
+ * ordering guarantees for either the CPU or the compiler.
  */
 #define RCU_INIT_POINTER(p, v) \
 	do { \

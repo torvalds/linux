@@ -67,6 +67,7 @@ static struct buffer_head *ext4_append(handle_t *handle,
 		return ERR_PTR(err);
 	inode->i_size += inode->i_sb->s_blocksize;
 	EXT4_I(inode)->i_disksize = inode->i_size;
+	BUFFER_TRACE(bh, "get_write_access");
 	err = ext4_journal_get_write_access(handle, bh);
 	if (err) {
 		brelse(bh);
@@ -1778,6 +1779,7 @@ static int make_indexed_dir(handle_t *handle, struct dentry *dentry,
 
 	blocksize =  dir->i_sb->s_blocksize;
 	dxtrace(printk(KERN_DEBUG "Creating index: inode %lu\n", dir->i_ino));
+	BUFFER_TRACE(bh, "get_write_access");
 	retval = ext4_journal_get_write_access(handle, bh);
 	if (retval) {
 		ext4_std_error(dir->i_sb, retval);
@@ -2510,8 +2512,7 @@ static int empty_dir(struct inode *inode)
 		 ext4_rec_len_from_disk(de1->rec_len, sb->s_blocksize);
 	de = ext4_next_entry(de1, sb->s_blocksize);
 	while (offset < inode->i_size) {
-		if (!bh ||
-		    (void *) de >= (void *) (bh->b_data+sb->s_blocksize)) {
+		if ((void *) de >= (void *) (bh->b_data+sb->s_blocksize)) {
 			unsigned int lblock;
 			err = 0;
 			brelse(bh);
@@ -2539,26 +2540,37 @@ static int empty_dir(struct inode *inode)
 	return 1;
 }
 
-/* ext4_orphan_add() links an unlinked or truncated inode into a list of
+/*
+ * ext4_orphan_add() links an unlinked or truncated inode into a list of
  * such inodes, starting at the superblock, in case we crash before the
  * file is closed/deleted, or in case the inode truncate spans multiple
  * transactions and the last transaction is not recovered after a crash.
  *
  * At filesystem recovery time, we walk this list deleting unlinked
  * inodes and truncating linked inodes in ext4_orphan_cleanup().
+ *
+ * Orphan list manipulation functions must be called under i_mutex unless
+ * we are just creating the inode or deleting it.
  */
 int ext4_orphan_add(handle_t *handle, struct inode *inode)
 {
 	struct super_block *sb = inode->i_sb;
+	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	struct ext4_iloc iloc;
 	int err = 0, rc;
+	bool dirty = false;
 
-	if (!EXT4_SB(sb)->s_journal)
+	if (!sbi->s_journal)
 		return 0;
 
-	mutex_lock(&EXT4_SB(sb)->s_orphan_lock);
+	WARN_ON_ONCE(!(inode->i_state & (I_NEW | I_FREEING)) &&
+		     !mutex_is_locked(&inode->i_mutex));
+	/*
+	 * Exit early if inode already is on orphan list. This is a big speedup
+	 * since we don't have to contend on the global s_orphan_lock.
+	 */
 	if (!list_empty(&EXT4_I(inode)->i_orphan))
-		goto out_unlock;
+		return 0;
 
 	/*
 	 * Orphan handling is only valid for files with data blocks
@@ -2569,48 +2581,51 @@ int ext4_orphan_add(handle_t *handle, struct inode *inode)
 	J_ASSERT((S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode) ||
 		  S_ISLNK(inode->i_mode)) || inode->i_nlink == 0);
 
-	BUFFER_TRACE(EXT4_SB(sb)->s_sbh, "get_write_access");
-	err = ext4_journal_get_write_access(handle, EXT4_SB(sb)->s_sbh);
+	BUFFER_TRACE(sbi->s_sbh, "get_write_access");
+	err = ext4_journal_get_write_access(handle, sbi->s_sbh);
 	if (err)
-		goto out_unlock;
+		goto out;
 
 	err = ext4_reserve_inode_write(handle, inode, &iloc);
 	if (err)
-		goto out_unlock;
+		goto out;
+
+	mutex_lock(&sbi->s_orphan_lock);
 	/*
 	 * Due to previous errors inode may be already a part of on-disk
 	 * orphan list. If so skip on-disk list modification.
 	 */
-	if (NEXT_ORPHAN(inode) && NEXT_ORPHAN(inode) <=
-		(le32_to_cpu(EXT4_SB(sb)->s_es->s_inodes_count)))
-			goto mem_insert;
+	if (!NEXT_ORPHAN(inode) || NEXT_ORPHAN(inode) >
+	    (le32_to_cpu(sbi->s_es->s_inodes_count))) {
+		/* Insert this inode at the head of the on-disk orphan list */
+		NEXT_ORPHAN(inode) = le32_to_cpu(sbi->s_es->s_last_orphan);
+		sbi->s_es->s_last_orphan = cpu_to_le32(inode->i_ino);
+		dirty = true;
+	}
+	list_add(&EXT4_I(inode)->i_orphan, &sbi->s_orphan);
+	mutex_unlock(&sbi->s_orphan_lock);
 
-	/* Insert this inode at the head of the on-disk orphan list... */
-	NEXT_ORPHAN(inode) = le32_to_cpu(EXT4_SB(sb)->s_es->s_last_orphan);
-	EXT4_SB(sb)->s_es->s_last_orphan = cpu_to_le32(inode->i_ino);
-	err = ext4_handle_dirty_super(handle, sb);
-	rc = ext4_mark_iloc_dirty(handle, inode, &iloc);
-	if (!err)
-		err = rc;
-
-	/* Only add to the head of the in-memory list if all the
-	 * previous operations succeeded.  If the orphan_add is going to
-	 * fail (possibly taking the journal offline), we can't risk
-	 * leaving the inode on the orphan list: stray orphan-list
-	 * entries can cause panics at unmount time.
-	 *
-	 * This is safe: on error we're going to ignore the orphan list
-	 * anyway on the next recovery. */
-mem_insert:
-	if (!err)
-		list_add(&EXT4_I(inode)->i_orphan, &EXT4_SB(sb)->s_orphan);
-
+	if (dirty) {
+		err = ext4_handle_dirty_super(handle, sb);
+		rc = ext4_mark_iloc_dirty(handle, inode, &iloc);
+		if (!err)
+			err = rc;
+		if (err) {
+			/*
+			 * We have to remove inode from in-memory list if
+			 * addition to on disk orphan list failed. Stray orphan
+			 * list entries can cause panics at unmount time.
+			 */
+			mutex_lock(&sbi->s_orphan_lock);
+			list_del(&EXT4_I(inode)->i_orphan);
+			mutex_unlock(&sbi->s_orphan_lock);
+		}
+	}
 	jbd_debug(4, "superblock will point to %lu\n", inode->i_ino);
 	jbd_debug(4, "orphan inode %lu will point to %d\n",
 			inode->i_ino, NEXT_ORPHAN(inode));
-out_unlock:
-	mutex_unlock(&EXT4_SB(sb)->s_orphan_lock);
-	ext4_std_error(inode->i_sb, err);
+out:
+	ext4_std_error(sb, err);
 	return err;
 }
 
@@ -2622,45 +2637,51 @@ int ext4_orphan_del(handle_t *handle, struct inode *inode)
 {
 	struct list_head *prev;
 	struct ext4_inode_info *ei = EXT4_I(inode);
-	struct ext4_sb_info *sbi;
+	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
 	__u32 ino_next;
 	struct ext4_iloc iloc;
 	int err = 0;
 
-	if ((!EXT4_SB(inode->i_sb)->s_journal) &&
-	    !(EXT4_SB(inode->i_sb)->s_mount_state & EXT4_ORPHAN_FS))
+	if (!sbi->s_journal && !(sbi->s_mount_state & EXT4_ORPHAN_FS))
 		return 0;
 
-	mutex_lock(&EXT4_SB(inode->i_sb)->s_orphan_lock);
+	WARN_ON_ONCE(!(inode->i_state & (I_NEW | I_FREEING)) &&
+		     !mutex_is_locked(&inode->i_mutex));
+	/* Do this quick check before taking global s_orphan_lock. */
 	if (list_empty(&ei->i_orphan))
-		goto out;
+		return 0;
 
-	ino_next = NEXT_ORPHAN(inode);
-	prev = ei->i_orphan.prev;
-	sbi = EXT4_SB(inode->i_sb);
+	if (handle) {
+		/* Grab inode buffer early before taking global s_orphan_lock */
+		err = ext4_reserve_inode_write(handle, inode, &iloc);
+	}
 
+	mutex_lock(&sbi->s_orphan_lock);
 	jbd_debug(4, "remove inode %lu from orphan list\n", inode->i_ino);
 
+	prev = ei->i_orphan.prev;
 	list_del_init(&ei->i_orphan);
 
 	/* If we're on an error path, we may not have a valid
 	 * transaction handle with which to update the orphan list on
 	 * disk, but we still need to remove the inode from the linked
 	 * list in memory. */
-	if (!handle)
-		goto out;
-
-	err = ext4_reserve_inode_write(handle, inode, &iloc);
-	if (err)
+	if (!handle || err) {
+		mutex_unlock(&sbi->s_orphan_lock);
 		goto out_err;
+	}
 
+	ino_next = NEXT_ORPHAN(inode);
 	if (prev == &sbi->s_orphan) {
 		jbd_debug(4, "superblock will point to %u\n", ino_next);
 		BUFFER_TRACE(sbi->s_sbh, "get_write_access");
 		err = ext4_journal_get_write_access(handle, sbi->s_sbh);
-		if (err)
+		if (err) {
+			mutex_unlock(&sbi->s_orphan_lock);
 			goto out_brelse;
+		}
 		sbi->s_es->s_last_orphan = cpu_to_le32(ino_next);
+		mutex_unlock(&sbi->s_orphan_lock);
 		err = ext4_handle_dirty_super(handle, inode->i_sb);
 	} else {
 		struct ext4_iloc iloc2;
@@ -2670,20 +2691,20 @@ int ext4_orphan_del(handle_t *handle, struct inode *inode)
 		jbd_debug(4, "orphan inode %lu will point to %u\n",
 			  i_prev->i_ino, ino_next);
 		err = ext4_reserve_inode_write(handle, i_prev, &iloc2);
-		if (err)
+		if (err) {
+			mutex_unlock(&sbi->s_orphan_lock);
 			goto out_brelse;
+		}
 		NEXT_ORPHAN(i_prev) = ino_next;
 		err = ext4_mark_iloc_dirty(handle, i_prev, &iloc2);
+		mutex_unlock(&sbi->s_orphan_lock);
 	}
 	if (err)
 		goto out_brelse;
 	NEXT_ORPHAN(inode) = 0;
 	err = ext4_mark_iloc_dirty(handle, inode, &iloc);
-
 out_err:
 	ext4_std_error(inode->i_sb, err);
-out:
-	mutex_unlock(&EXT4_SB(inode->i_sb)->s_orphan_lock);
 	return err;
 
 out_brelse:

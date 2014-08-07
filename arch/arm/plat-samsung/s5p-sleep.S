@@ -22,7 +22,6 @@
 */
 
 #include <linux/linkage.h>
-#include <asm/asm-offsets.h>
 
 	.data
 	.align

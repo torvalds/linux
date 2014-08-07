@@ -338,7 +338,7 @@ static irqreturn_t wil6210_irq_misc_thread(int irq, void *cookie)
 	}
 
 	if (isr)
-		wil_err(wil, "un-handled MISC ISR bits 0x%08x\n", isr);
+		wil_dbg_irq(wil, "un-handled MISC ISR bits 0x%08x\n", isr);
 
 	wil->isr_misc = 0;
 

@@ -557,10 +557,8 @@ static void pcl812_ai_setup_dma(struct comedi_device *dev,
 
 	/*  we use EOS, so adapt DMA buffer to one scan */
 	if (devpriv->ai_eos) {
-		devpriv->dmabytestomove[0] =
-			cmd->chanlist_len * sizeof(short);
-		devpriv->dmabytestomove[1] =
-			cmd->chanlist_len * sizeof(short);
+		devpriv->dmabytestomove[0] = cfc_bytes_per_scan(s);
+		devpriv->dmabytestomove[1] = cfc_bytes_per_scan(s);
 		devpriv->dma_runs_to_end = 1;
 	} else {
 		devpriv->dmabytestomove[0] = devpriv->hwdmasize;
@@ -575,8 +573,7 @@ static void pcl812_ai_setup_dma(struct comedi_device *dev,
 			devpriv->dma_runs_to_end = 1;
 		} else {
 			/*  how many samples we must transfer? */
-			bytes = cmd->chanlist_len *
-				cmd->stop_arg * sizeof(short);
+			bytes = cmd->stop_arg * cfc_bytes_per_scan(s);
 
 			/*  how many DMA pages we must fill */
 			devpriv->dma_runs_to_end =
@@ -721,7 +718,7 @@ static int pcl812_ai_cmdtest(struct comedi_device *dev,
 	struct pcl812_private *devpriv = dev->private;
 	int err = 0;
 	unsigned int flags;
-	int tmp;
+	unsigned int arg;
 
 	/* Step 1 : check if triggers are trivially valid */
 
@@ -761,7 +758,6 @@ static int pcl812_ai_cmdtest(struct comedi_device *dev,
 		err |= cfc_check_trigger_arg_is(&cmd->convert_arg, 0);
 
 	err |= cfc_check_trigger_arg_min(&cmd->chanlist_len, 1);
-	err |= cfc_check_trigger_arg_max(&cmd->chanlist_len, MAX_CHANLIST_LEN);
 	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
 
 	if (cmd->stop_src == TRIG_COUNT)
@@ -775,15 +771,12 @@ static int pcl812_ai_cmdtest(struct comedi_device *dev,
 	/* step 4: fix up any arguments */
 
 	if (cmd->convert_src == TRIG_TIMER) {
-		tmp = cmd->convert_arg;
+		arg = cmd->convert_arg;
 		i8253_cascade_ns_to_timer(I8254_OSC_BASE_2MHZ,
 					  &devpriv->divisor1,
 					  &devpriv->divisor2,
-					  &cmd->convert_arg, cmd->flags);
-		if (cmd->convert_arg < board->ai_ns_min)
-			cmd->convert_arg = board->ai_ns_min;
-		if (tmp != cmd->convert_arg)
-			err++;
+					  &arg, cmd->flags);
+		err |= cfc_check_trigger_arg_is(&cmd->convert_arg, arg);
 	}
 
 	if (err)
@@ -811,8 +804,9 @@ static int pcl812_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 				devpriv->ai_dma = 0;
 				break;
 			}
-	} else
+	} else {
 		devpriv->ai_dma = 0;
+	}
 
 	devpriv->ai_act_scan = 0;
 	devpriv->ai_poll_ptr = 0;
@@ -882,7 +876,7 @@ static void pcl812_handle_eoc(struct comedi_device *dev,
 		return;
 	}
 
-	comedi_buf_put(s->async, pcl812_ai_get_sample(dev, s));
+	comedi_buf_put(s, pcl812_ai_get_sample(dev, s));
 
 	/* Set up next channel. Added by abbotti 2010-01-20, but untested. */
 	next_chan = s->async->cur_chan + 1;
@@ -902,7 +896,7 @@ static void transfer_from_dma_buf(struct comedi_device *dev,
 	unsigned int i;
 
 	for (i = len; i; i--) {
-		comedi_buf_put(s->async, ptr[bufptr++]);
+		comedi_buf_put(s, ptr[bufptr++]);
 
 		if (!pcl812_ai_next_chan(dev, s))
 			break;

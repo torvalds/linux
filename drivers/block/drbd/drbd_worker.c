@@ -118,7 +118,7 @@ static void drbd_endio_read_sec_final(struct drbd_peer_request *peer_req) __rele
 
 /* writes on behalf of the partner, or resync writes,
  * "submitted" by the receiver, final stage.  */
-static void drbd_endio_write_sec_final(struct drbd_peer_request *peer_req) __releases(local)
+void drbd_endio_write_sec_final(struct drbd_peer_request *peer_req) __releases(local)
 {
 	unsigned long flags = 0;
 	struct drbd_peer_device *peer_device = peer_req->peer_device;
@@ -150,7 +150,9 @@ static void drbd_endio_write_sec_final(struct drbd_peer_request *peer_req) __rel
 
 	do_wake = list_empty(block_id == ID_SYNCER ? &device->sync_ee : &device->active_ee);
 
-	if (test_bit(__EE_WAS_ERROR, &peer_req->flags))
+	/* FIXME do we want to detach for failed REQ_DISCARD?
+	 * ((peer_req->flags & (EE_WAS_ERROR|EE_IS_TRIM)) == EE_WAS_ERROR) */
+	if (peer_req->flags & EE_WAS_ERROR)
 		__drbd_chk_io_error(device, DRBD_WRITE_ERROR);
 	spin_unlock_irqrestore(&device->resource->req_lock, flags);
 
@@ -176,10 +178,12 @@ void drbd_peer_request_endio(struct bio *bio, int error)
 	struct drbd_device *device = peer_req->peer_device->device;
 	int uptodate = bio_flagged(bio, BIO_UPTODATE);
 	int is_write = bio_data_dir(bio) == WRITE;
+	int is_discard = !!(bio->bi_rw & REQ_DISCARD);
 
 	if (error && __ratelimit(&drbd_ratelimit_state))
 		drbd_warn(device, "%s: error=%d s=%llus\n",
-				is_write ? "write" : "read", error,
+				is_write ? (is_discard ? "discard" : "write")
+					: "read", error,
 				(unsigned long long)peer_req->i.sector);
 	if (!error && !uptodate) {
 		if (__ratelimit(&drbd_ratelimit_state))
@@ -263,7 +267,12 @@ void drbd_request_endio(struct bio *bio, int error)
 
 	/* to avoid recursion in __req_mod */
 	if (unlikely(error)) {
-		what = (bio_data_dir(bio) == WRITE)
+		if (bio->bi_rw & REQ_DISCARD)
+			what = (error == -EOPNOTSUPP)
+				? DISCARD_COMPLETED_NOTSUPP
+				: DISCARD_COMPLETED_WITH_ERROR;
+		else
+			what = (bio_data_dir(bio) == WRITE)
 			? WRITE_COMPLETED_WITH_ERROR
 			: (bio_rw(bio) == READ)
 			  ? READ_COMPLETED_WITH_ERROR
@@ -395,7 +404,7 @@ static int read_for_csum(struct drbd_peer_device *peer_device, sector_t sector, 
 	/* GFP_TRY, because if there is no memory available right now, this may
 	 * be rescheduled for later. It is "only" background resync, after all. */
 	peer_req = drbd_alloc_peer_req(peer_device, ID_SYNCER /* unused */, sector,
-				       size, GFP_TRY);
+				       size, true /* has real payload */, GFP_TRY);
 	if (!peer_req)
 		goto defer;
 
@@ -492,10 +501,9 @@ struct fifo_buffer *fifo_alloc(int fifo_size)
 	return fb;
 }
 
-static int drbd_rs_controller(struct drbd_device *device)
+static int drbd_rs_controller(struct drbd_device *device, unsigned int sect_in)
 {
 	struct disk_conf *dc;
-	unsigned int sect_in;  /* Number of sectors that came in since the last turn */
 	unsigned int want;     /* The number of sectors we want in the proxy */
 	int req_sect; /* Number of sectors to request in this turn */
 	int correction; /* Number of sectors more we need in the proxy*/
@@ -504,9 +512,6 @@ static int drbd_rs_controller(struct drbd_device *device)
 	int curr_corr;
 	int max_sect;
 	struct fifo_buffer *plan;
-
-	sect_in = atomic_xchg(&device->rs_sect_in, 0); /* Number of sectors that came in */
-	device->rs_in_flight -= sect_in;
 
 	dc = rcu_dereference(device->ldev->disk_conf);
 	plan = rcu_dereference(device->rs_plan_s);
@@ -550,11 +555,16 @@ static int drbd_rs_controller(struct drbd_device *device)
 
 static int drbd_rs_number_requests(struct drbd_device *device)
 {
-	int number;
+	unsigned int sect_in;  /* Number of sectors that came in since the last turn */
+	int number, mxb;
+
+	sect_in = atomic_xchg(&device->rs_sect_in, 0);
+	device->rs_in_flight -= sect_in;
 
 	rcu_read_lock();
+	mxb = drbd_get_max_buffers(device) / 2;
 	if (rcu_dereference(device->rs_plan_s)->size) {
-		number = drbd_rs_controller(device) >> (BM_BLOCK_SHIFT - 9);
+		number = drbd_rs_controller(device, sect_in) >> (BM_BLOCK_SHIFT - 9);
 		device->c_sync_rate = number * HZ * (BM_BLOCK_SIZE / 1024) / SLEEP_TIME;
 	} else {
 		device->c_sync_rate = rcu_dereference(device->ldev->disk_conf)->resync_rate;
@@ -562,8 +572,14 @@ static int drbd_rs_number_requests(struct drbd_device *device)
 	}
 	rcu_read_unlock();
 
-	/* ignore the amount of pending requests, the resync controller should
-	 * throttle down to incoming reply rate soon enough anyways. */
+	/* Don't have more than "max-buffers"/2 in-flight.
+	 * Otherwise we may cause the remote site to stall on drbd_alloc_pages(),
+	 * potentially causing a distributed deadlock on congestion during
+	 * online-verify or (checksum-based) resync, if max-buffers,
+	 * socket buffer sizes and resync rate settings are mis-configured. */
+	if (mxb - device->rs_in_flight < number)
+		number = mxb - device->rs_in_flight;
+
 	return number;
 }
 
@@ -597,7 +613,7 @@ static int make_resync_request(struct drbd_device *device, int cancel)
 
 	max_bio_size = queue_max_hw_sectors(device->rq_queue) << 9;
 	number = drbd_rs_number_requests(device);
-	if (number == 0)
+	if (number <= 0)
 		goto requeue;
 
 	for (i = 0; i < number; i++) {
@@ -647,7 +663,7 @@ next_sector:
 		 */
 		align = 1;
 		rollback_i = i;
-		for (;;) {
+		while (i < number) {
 			if (size + BM_BLOCK_SIZE > max_bio_size)
 				break;
 
@@ -1670,11 +1686,15 @@ void drbd_start_resync(struct drbd_device *device, enum drbd_conns side)
 	}
 	clear_bit(B_RS_H_DONE, &device->flags);
 
-	write_lock_irq(&global_state_lock);
+	/* req_lock: serialize with drbd_send_and_submit() and others
+	 * global_state_lock: for stable sync-after dependencies */
+	spin_lock_irq(&device->resource->req_lock);
+	write_lock(&global_state_lock);
 	/* Did some connection breakage or IO error race with us? */
 	if (device->state.conn < C_CONNECTED
 	|| !get_ldev_if_state(device, D_NEGOTIATING)) {
-		write_unlock_irq(&global_state_lock);
+		write_unlock(&global_state_lock);
+		spin_unlock_irq(&device->resource->req_lock);
 		mutex_unlock(device->state_mutex);
 		return;
 	}
@@ -1714,7 +1734,8 @@ void drbd_start_resync(struct drbd_device *device, enum drbd_conns side)
 		}
 		_drbd_pause_after(device);
 	}
-	write_unlock_irq(&global_state_lock);
+	write_unlock(&global_state_lock);
+	spin_unlock_irq(&device->resource->req_lock);
 
 	if (r == SS_SUCCESS) {
 		/* reset rs_last_bcast when a resync or verify is started,
@@ -1778,34 +1799,6 @@ void drbd_start_resync(struct drbd_device *device, enum drbd_conns side)
 	mutex_unlock(device->state_mutex);
 }
 
-/* If the resource already closed the current epoch, but we did not
- * (because we have not yet seen new requests), we should send the
- * corresponding barrier now.  Must be checked within the same spinlock
- * that is used to check for new requests. */
-static bool need_to_send_barrier(struct drbd_connection *connection)
-{
-	if (!connection->send.seen_any_write_yet)
-		return false;
-
-	/* Skip barriers that do not contain any writes.
-	 * This may happen during AHEAD mode. */
-	if (!connection->send.current_epoch_writes)
-		return false;
-
-	/* ->req_lock is held when requests are queued on
-	 * connection->sender_work, and put into ->transfer_log.
-	 * It is also held when ->current_tle_nr is increased.
-	 * So either there are already new requests queued,
-	 * and corresponding barriers will be send there.
-	 * Or nothing new is queued yet, so the difference will be 1.
-	 */
-	if (atomic_read(&connection->current_tle_nr) !=
-	    connection->send.current_epoch_nr + 1)
-		return false;
-
-	return true;
-}
-
 static bool dequeue_work_batch(struct drbd_work_queue *queue, struct list_head *work_list)
 {
 	spin_lock_irq(&queue->q_lock);
@@ -1864,12 +1857,22 @@ static void wait_for_work(struct drbd_connection *connection, struct list_head *
 			spin_unlock_irq(&connection->resource->req_lock);
 			break;
 		}
-		send_barrier = need_to_send_barrier(connection);
+
+		/* We found nothing new to do, no to-be-communicated request,
+		 * no other work item.  We may still need to close the last
+		 * epoch.  Next incoming request epoch will be connection ->
+		 * current transfer log epoch number.  If that is different
+		 * from the epoch of the last request we communicated, it is
+		 * safe to send the epoch separating barrier now.
+		 */
+		send_barrier =
+			atomic_read(&connection->current_tle_nr) !=
+			connection->send.current_epoch_nr;
 		spin_unlock_irq(&connection->resource->req_lock);
-		if (send_barrier) {
-			drbd_send_barrier(connection);
-			connection->send.current_epoch_nr++;
-		}
+
+		if (send_barrier)
+			maybe_send_barrier(connection,
+					connection->send.current_epoch_nr + 1);
 		schedule();
 		/* may be woken up for other things but new work, too,
 		 * e.g. if the current epoch got closed.

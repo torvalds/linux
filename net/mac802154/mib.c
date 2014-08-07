@@ -213,3 +213,190 @@ void mac802154_dev_set_page_channel(struct net_device *dev, u8 page, u8 chan)
 	} else
 		mutex_unlock(&priv->hw->phy->pib_lock);
 }
+
+
+int mac802154_get_params(struct net_device *dev,
+			 struct ieee802154_llsec_params *params)
+{
+	struct mac802154_sub_if_data *priv = netdev_priv(dev);
+	int res;
+
+	BUG_ON(dev->type != ARPHRD_IEEE802154);
+
+	mutex_lock(&priv->sec_mtx);
+	res = mac802154_llsec_get_params(&priv->sec, params);
+	mutex_unlock(&priv->sec_mtx);
+
+	return res;
+}
+
+int mac802154_set_params(struct net_device *dev,
+			 const struct ieee802154_llsec_params *params,
+			 int changed)
+{
+	struct mac802154_sub_if_data *priv = netdev_priv(dev);
+	int res;
+
+	BUG_ON(dev->type != ARPHRD_IEEE802154);
+
+	mutex_lock(&priv->sec_mtx);
+	res = mac802154_llsec_set_params(&priv->sec, params, changed);
+	mutex_unlock(&priv->sec_mtx);
+
+	return res;
+}
+
+
+int mac802154_add_key(struct net_device *dev,
+		      const struct ieee802154_llsec_key_id *id,
+		      const struct ieee802154_llsec_key *key)
+{
+	struct mac802154_sub_if_data *priv = netdev_priv(dev);
+	int res;
+
+	BUG_ON(dev->type != ARPHRD_IEEE802154);
+
+	mutex_lock(&priv->sec_mtx);
+	res = mac802154_llsec_key_add(&priv->sec, id, key);
+	mutex_unlock(&priv->sec_mtx);
+
+	return res;
+}
+
+int mac802154_del_key(struct net_device *dev,
+		      const struct ieee802154_llsec_key_id *id)
+{
+	struct mac802154_sub_if_data *priv = netdev_priv(dev);
+	int res;
+
+	BUG_ON(dev->type != ARPHRD_IEEE802154);
+
+	mutex_lock(&priv->sec_mtx);
+	res = mac802154_llsec_key_del(&priv->sec, id);
+	mutex_unlock(&priv->sec_mtx);
+
+	return res;
+}
+
+
+int mac802154_add_dev(struct net_device *dev,
+		      const struct ieee802154_llsec_device *llsec_dev)
+{
+	struct mac802154_sub_if_data *priv = netdev_priv(dev);
+	int res;
+
+	BUG_ON(dev->type != ARPHRD_IEEE802154);
+
+	mutex_lock(&priv->sec_mtx);
+	res = mac802154_llsec_dev_add(&priv->sec, llsec_dev);
+	mutex_unlock(&priv->sec_mtx);
+
+	return res;
+}
+
+int mac802154_del_dev(struct net_device *dev, __le64 dev_addr)
+{
+	struct mac802154_sub_if_data *priv = netdev_priv(dev);
+	int res;
+
+	BUG_ON(dev->type != ARPHRD_IEEE802154);
+
+	mutex_lock(&priv->sec_mtx);
+	res = mac802154_llsec_dev_del(&priv->sec, dev_addr);
+	mutex_unlock(&priv->sec_mtx);
+
+	return res;
+}
+
+
+int mac802154_add_devkey(struct net_device *dev,
+			 __le64 device_addr,
+			 const struct ieee802154_llsec_device_key *key)
+{
+	struct mac802154_sub_if_data *priv = netdev_priv(dev);
+	int res;
+
+	BUG_ON(dev->type != ARPHRD_IEEE802154);
+
+	mutex_lock(&priv->sec_mtx);
+	res = mac802154_llsec_devkey_add(&priv->sec, device_addr, key);
+	mutex_unlock(&priv->sec_mtx);
+
+	return res;
+}
+
+int mac802154_del_devkey(struct net_device *dev,
+			 __le64 device_addr,
+			 const struct ieee802154_llsec_device_key *key)
+{
+	struct mac802154_sub_if_data *priv = netdev_priv(dev);
+	int res;
+
+	BUG_ON(dev->type != ARPHRD_IEEE802154);
+
+	mutex_lock(&priv->sec_mtx);
+	res = mac802154_llsec_devkey_del(&priv->sec, device_addr, key);
+	mutex_unlock(&priv->sec_mtx);
+
+	return res;
+}
+
+
+int mac802154_add_seclevel(struct net_device *dev,
+			   const struct ieee802154_llsec_seclevel *sl)
+{
+	struct mac802154_sub_if_data *priv = netdev_priv(dev);
+	int res;
+
+	BUG_ON(dev->type != ARPHRD_IEEE802154);
+
+	mutex_lock(&priv->sec_mtx);
+	res = mac802154_llsec_seclevel_add(&priv->sec, sl);
+	mutex_unlock(&priv->sec_mtx);
+
+	return res;
+}
+
+int mac802154_del_seclevel(struct net_device *dev,
+			   const struct ieee802154_llsec_seclevel *sl)
+{
+	struct mac802154_sub_if_data *priv = netdev_priv(dev);
+	int res;
+
+	BUG_ON(dev->type != ARPHRD_IEEE802154);
+
+	mutex_lock(&priv->sec_mtx);
+	res = mac802154_llsec_seclevel_del(&priv->sec, sl);
+	mutex_unlock(&priv->sec_mtx);
+
+	return res;
+}
+
+
+void mac802154_lock_table(struct net_device *dev)
+{
+	struct mac802154_sub_if_data *priv = netdev_priv(dev);
+
+	BUG_ON(dev->type != ARPHRD_IEEE802154);
+
+	mutex_lock(&priv->sec_mtx);
+}
+
+void mac802154_get_table(struct net_device *dev,
+			 struct ieee802154_llsec_table **t)
+{
+	struct mac802154_sub_if_data *priv = netdev_priv(dev);
+
+	BUG_ON(dev->type != ARPHRD_IEEE802154);
+
+	*t = &priv->sec.table;
+}
+
+void mac802154_unlock_table(struct net_device *dev)
+{
+	struct mac802154_sub_if_data *priv = netdev_priv(dev);
+
+	BUG_ON(dev->type != ARPHRD_IEEE802154);
+
+	mutex_unlock(&priv->sec_mtx);
+}

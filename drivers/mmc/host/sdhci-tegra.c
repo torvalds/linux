@@ -32,11 +32,17 @@
 
 /* Tegra SDHOST controller vendor register definitions */
 #define SDHCI_TEGRA_VENDOR_MISC_CTRL		0x120
+#define SDHCI_MISC_CTRL_ENABLE_SDR104		0x8
+#define SDHCI_MISC_CTRL_ENABLE_SDR50		0x10
 #define SDHCI_MISC_CTRL_ENABLE_SDHCI_SPEC_300	0x20
+#define SDHCI_MISC_CTRL_ENABLE_DDR50		0x200
 
 #define NVQUIRK_FORCE_SDHCI_SPEC_200	BIT(0)
 #define NVQUIRK_ENABLE_BLOCK_GAP_DET	BIT(1)
 #define NVQUIRK_ENABLE_SDHCI_SPEC_300	BIT(2)
+#define NVQUIRK_DISABLE_SDR50		BIT(3)
+#define NVQUIRK_DISABLE_SDR104		BIT(4)
+#define NVQUIRK_DISABLE_DDR50		BIT(5)
 
 struct sdhci_tegra_soc_data {
 	const struct sdhci_pltfm_data *pdata;
@@ -47,19 +53,6 @@ struct sdhci_tegra {
 	const struct sdhci_tegra_soc_data *soc_data;
 	int power_gpio;
 };
-
-static u32 tegra_sdhci_readl(struct sdhci_host *host, int reg)
-{
-	u32 val;
-
-	if (unlikely(reg == SDHCI_PRESENT_STATE)) {
-		/* Use wp_gpio here instead? */
-		val = readl(host->ioaddr + reg);
-		return val | SDHCI_WRITE_PROTECT;
-	}
-
-	return readl(host->ioaddr + reg);
-}
 
 static u16 tegra_sdhci_readw(struct sdhci_host *host, int reg)
 {
@@ -108,26 +101,33 @@ static unsigned int tegra_sdhci_get_ro(struct sdhci_host *host)
 	return mmc_gpio_get_ro(host->mmc);
 }
 
-static void tegra_sdhci_reset_exit(struct sdhci_host *host, u8 mask)
+static void tegra_sdhci_reset(struct sdhci_host *host, u8 mask)
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct sdhci_tegra *tegra_host = pltfm_host->priv;
 	const struct sdhci_tegra_soc_data *soc_data = tegra_host->soc_data;
+	u32 misc_ctrl;
+
+	sdhci_reset(host, mask);
 
 	if (!(mask & SDHCI_RESET_ALL))
 		return;
 
+	misc_ctrl = sdhci_readw(host, SDHCI_TEGRA_VENDOR_MISC_CTRL);
 	/* Erratum: Enable SDHCI spec v3.00 support */
-	if (soc_data->nvquirks & NVQUIRK_ENABLE_SDHCI_SPEC_300) {
-		u32 misc_ctrl;
-
-		misc_ctrl = sdhci_readb(host, SDHCI_TEGRA_VENDOR_MISC_CTRL);
+	if (soc_data->nvquirks & NVQUIRK_ENABLE_SDHCI_SPEC_300)
 		misc_ctrl |= SDHCI_MISC_CTRL_ENABLE_SDHCI_SPEC_300;
-		sdhci_writeb(host, misc_ctrl, SDHCI_TEGRA_VENDOR_MISC_CTRL);
-	}
+	/* Don't advertise UHS modes which aren't supported yet */
+	if (soc_data->nvquirks & NVQUIRK_DISABLE_SDR50)
+		misc_ctrl &= ~SDHCI_MISC_CTRL_ENABLE_SDR50;
+	if (soc_data->nvquirks & NVQUIRK_DISABLE_DDR50)
+		misc_ctrl &= ~SDHCI_MISC_CTRL_ENABLE_DDR50;
+	if (soc_data->nvquirks & NVQUIRK_DISABLE_SDR104)
+		misc_ctrl &= ~SDHCI_MISC_CTRL_ENABLE_SDR104;
+	sdhci_writew(host, misc_ctrl, SDHCI_TEGRA_VENDOR_MISC_CTRL);
 }
 
-static int tegra_sdhci_buswidth(struct sdhci_host *host, int bus_width)
+static void tegra_sdhci_set_bus_width(struct sdhci_host *host, int bus_width)
 {
 	u32 ctrl;
 
@@ -144,23 +144,25 @@ static int tegra_sdhci_buswidth(struct sdhci_host *host, int bus_width)
 			ctrl &= ~SDHCI_CTRL_4BITBUS;
 	}
 	sdhci_writeb(host, ctrl, SDHCI_HOST_CONTROL);
-	return 0;
 }
 
 static const struct sdhci_ops tegra_sdhci_ops = {
 	.get_ro     = tegra_sdhci_get_ro,
-	.read_l     = tegra_sdhci_readl,
 	.read_w     = tegra_sdhci_readw,
 	.write_l    = tegra_sdhci_writel,
-	.platform_bus_width = tegra_sdhci_buswidth,
-	.platform_reset_exit = tegra_sdhci_reset_exit,
+	.set_clock  = sdhci_set_clock,
+	.set_bus_width = tegra_sdhci_set_bus_width,
+	.reset      = tegra_sdhci_reset,
+	.set_uhs_signaling = sdhci_set_uhs_signaling,
+	.get_max_clock = sdhci_pltfm_clk_get_max_clock,
 };
 
 static const struct sdhci_pltfm_data sdhci_tegra20_pdata = {
 	.quirks = SDHCI_QUIRK_BROKEN_TIMEOUT_VAL |
 		  SDHCI_QUIRK_SINGLE_POWER_WRITE |
 		  SDHCI_QUIRK_NO_HISPD_BIT |
-		  SDHCI_QUIRK_BROKEN_ADMA_ZEROLEN_DESC,
+		  SDHCI_QUIRK_BROKEN_ADMA_ZEROLEN_DESC |
+		  SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN,
 	.ops  = &tegra_sdhci_ops,
 };
 
@@ -175,13 +177,16 @@ static const struct sdhci_pltfm_data sdhci_tegra30_pdata = {
 		  SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK |
 		  SDHCI_QUIRK_SINGLE_POWER_WRITE |
 		  SDHCI_QUIRK_NO_HISPD_BIT |
-		  SDHCI_QUIRK_BROKEN_ADMA_ZEROLEN_DESC,
+		  SDHCI_QUIRK_BROKEN_ADMA_ZEROLEN_DESC |
+		  SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN,
 	.ops  = &tegra_sdhci_ops,
 };
 
 static struct sdhci_tegra_soc_data soc_data_tegra30 = {
 	.pdata = &sdhci_tegra30_pdata,
-	.nvquirks = NVQUIRK_ENABLE_SDHCI_SPEC_300,
+	.nvquirks = NVQUIRK_ENABLE_SDHCI_SPEC_300 |
+		    NVQUIRK_DISABLE_SDR50 |
+		    NVQUIRK_DISABLE_SDR104,
 };
 
 static const struct sdhci_pltfm_data sdhci_tegra114_pdata = {
@@ -189,12 +194,16 @@ static const struct sdhci_pltfm_data sdhci_tegra114_pdata = {
 		  SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK |
 		  SDHCI_QUIRK_SINGLE_POWER_WRITE |
 		  SDHCI_QUIRK_NO_HISPD_BIT |
-		  SDHCI_QUIRK_BROKEN_ADMA_ZEROLEN_DESC,
+		  SDHCI_QUIRK_BROKEN_ADMA_ZEROLEN_DESC |
+		  SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN,
 	.ops  = &tegra_sdhci_ops,
 };
 
 static struct sdhci_tegra_soc_data soc_data_tegra114 = {
 	.pdata = &sdhci_tegra114_pdata,
+	.nvquirks = NVQUIRK_DISABLE_SDR50 |
+		    NVQUIRK_DISABLE_DDR50 |
+		    NVQUIRK_DISABLE_SDR104,
 };
 
 static const struct of_device_id sdhci_tegra_dt_match[] = {

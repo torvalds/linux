@@ -163,6 +163,7 @@ int kvm_set_irq_inatomic(struct kvm *kvm, int irq_source_id, u32 irq, int level)
 	struct kvm_kernel_irq_routing_entry *e;
 	int ret = -EINVAL;
 	struct kvm_irq_routing_table *irq_rt;
+	int idx;
 
 	trace_kvm_set_irq(irq, level, irq_source_id);
 
@@ -174,8 +175,8 @@ int kvm_set_irq_inatomic(struct kvm *kvm, int irq_source_id, u32 irq, int level)
 	 * Since there's no easy way to do this, we only support injecting MSI
 	 * which is limited to 1:1 GSI mapping.
 	 */
-	rcu_read_lock();
-	irq_rt = rcu_dereference(kvm->irq_routing);
+	idx = srcu_read_lock(&kvm->irq_srcu);
+	irq_rt = srcu_dereference(kvm->irq_routing, &kvm->irq_srcu);
 	if (irq < irq_rt->nr_rt_entries)
 		hlist_for_each_entry(e, &irq_rt->map[irq], link) {
 			if (likely(e->type == KVM_IRQ_ROUTING_MSI))
@@ -184,7 +185,7 @@ int kvm_set_irq_inatomic(struct kvm *kvm, int irq_source_id, u32 irq, int level)
 				ret = -EWOULDBLOCK;
 			break;
 		}
-	rcu_read_unlock();
+	srcu_read_unlock(&kvm->irq_srcu, idx);
 	return ret;
 }
 
@@ -253,22 +254,22 @@ void kvm_unregister_irq_mask_notifier(struct kvm *kvm, int irq,
 	mutex_lock(&kvm->irq_lock);
 	hlist_del_rcu(&kimn->link);
 	mutex_unlock(&kvm->irq_lock);
-	synchronize_rcu();
+	synchronize_srcu(&kvm->irq_srcu);
 }
 
 void kvm_fire_mask_notifiers(struct kvm *kvm, unsigned irqchip, unsigned pin,
 			     bool mask)
 {
 	struct kvm_irq_mask_notifier *kimn;
-	int gsi;
+	int idx, gsi;
 
-	rcu_read_lock();
-	gsi = rcu_dereference(kvm->irq_routing)->chip[irqchip][pin];
+	idx = srcu_read_lock(&kvm->irq_srcu);
+	gsi = srcu_dereference(kvm->irq_routing, &kvm->irq_srcu)->chip[irqchip][pin];
 	if (gsi != -1)
 		hlist_for_each_entry_rcu(kimn, &kvm->mask_notifier_list, link)
 			if (kimn->irq == gsi)
 				kimn->func(kimn, mask);
-	rcu_read_unlock();
+	srcu_read_unlock(&kvm->irq_srcu, idx);
 }
 
 int kvm_set_routing_entry(struct kvm_irq_routing_table *rt,

@@ -99,39 +99,7 @@ static int rmobile_pd_power_up(struct generic_pm_domain *genpd)
 
 static bool rmobile_pd_active_wakeup(struct device *dev)
 {
-	bool (*active_wakeup)(struct device *dev);
-
-	active_wakeup = dev_gpd_data(dev)->ops.active_wakeup;
-	return active_wakeup ? active_wakeup(dev) : true;
-}
-
-static int rmobile_pd_stop_dev(struct device *dev)
-{
-	int (*stop)(struct device *dev);
-
-	stop = dev_gpd_data(dev)->ops.stop;
-	if (stop) {
-		int ret = stop(dev);
-		if (ret)
-			return ret;
-	}
-	return pm_clk_suspend(dev);
-}
-
-static int rmobile_pd_start_dev(struct device *dev)
-{
-	int (*start)(struct device *dev);
-	int ret;
-
-	ret = pm_clk_resume(dev);
-	if (ret)
-		return ret;
-
-	start = dev_gpd_data(dev)->ops.start;
-	if (start)
-		ret = start(dev);
-
-	return ret;
+	return true;
 }
 
 static void rmobile_init_pm_domain(struct rmobile_pm_domain *rmobile_pd)
@@ -140,8 +108,8 @@ static void rmobile_init_pm_domain(struct rmobile_pm_domain *rmobile_pd)
 	struct dev_power_governor *gov = rmobile_pd->gov;
 
 	pm_genpd_init(genpd, gov ? : &simple_qos_governor, false);
-	genpd->dev_ops.stop		= rmobile_pd_stop_dev;
-	genpd->dev_ops.start		= rmobile_pd_start_dev;
+	genpd->dev_ops.stop		= pm_clk_suspend;
+	genpd->dev_ops.start		= pm_clk_resume;
 	genpd->dev_ops.active_wakeup	= rmobile_pd_active_wakeup;
 	genpd->dev_irq_safe		= true;
 	genpd->power_off		= rmobile_pd_power_down;

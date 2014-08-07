@@ -474,7 +474,6 @@ static const struct v4l2_ctrl_ops s2250_ctrl_ops = {
 
 static const struct v4l2_subdev_core_ops s2250_core_ops = {
 	.log_status = s2250_log_status,
-	.s_std = s2250_s_std,
 };
 
 static const struct v4l2_subdev_audio_ops s2250_audio_ops = {
@@ -482,6 +481,7 @@ static const struct v4l2_subdev_audio_ops s2250_audio_ops = {
 };
 
 static const struct v4l2_subdev_video_ops s2250_video_ops = {
+	.s_std = s2250_s_std,
 	.s_routing = s2250_s_video_routing,
 	.s_mbus_fmt = s2250_s_mbus_fmt,
 };

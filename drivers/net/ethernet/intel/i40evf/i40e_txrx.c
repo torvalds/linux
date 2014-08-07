@@ -12,6 +12,9 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
+ * You should have received a copy of the GNU General Public License along
+ * with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
  * The full GNU General Public License is included in this distribution in
  * the file called "COPYING".
  *
@@ -725,10 +728,12 @@ static inline void i40e_rx_checksum(struct i40e_vsi *vsi,
 				    u32 rx_error,
 				    u16 rx_ptype)
 {
+	struct i40e_rx_ptype_decoded decoded = decode_rx_desc_ptype(rx_ptype);
+	bool ipv4 = false, ipv6 = false;
 	bool ipv4_tunnel, ipv6_tunnel;
 	__wsum rx_udp_csum;
-	__sum16 csum;
 	struct iphdr *iph;
+	__sum16 csum;
 
 	ipv4_tunnel = (rx_ptype > I40E_RX_PTYPE_GRENAT4_MAC_PAY3) &&
 		      (rx_ptype < I40E_RX_PTYPE_GRENAT4_MACVLAN_IPV6_ICMP_PAY4);
@@ -739,29 +744,57 @@ static inline void i40e_rx_checksum(struct i40e_vsi *vsi,
 	skb->ip_summed = CHECKSUM_NONE;
 
 	/* Rx csum enabled and ip headers found? */
-	if (!(vsi->netdev->features & NETIF_F_RXCSUM &&
-	      rx_status & (1 << I40E_RX_DESC_STATUS_L3L4P_SHIFT)))
+	if (!(vsi->netdev->features & NETIF_F_RXCSUM))
 		return;
+
+	/* did the hardware decode the packet and checksum? */
+	if (!(rx_status & (1 << I40E_RX_DESC_STATUS_L3L4P_SHIFT)))
+		return;
+
+	/* both known and outer_ip must be set for the below code to work */
+	if (!(decoded.known && decoded.outer_ip))
+		return;
+
+	if (decoded.outer_ip == I40E_RX_PTYPE_OUTER_IP &&
+	    decoded.outer_ip_ver == I40E_RX_PTYPE_OUTER_IPV4)
+		ipv4 = true;
+	else if (decoded.outer_ip == I40E_RX_PTYPE_OUTER_IP &&
+		 decoded.outer_ip_ver == I40E_RX_PTYPE_OUTER_IPV6)
+		ipv6 = true;
+
+	if (ipv4 &&
+	    (rx_error & ((1 << I40E_RX_DESC_ERROR_IPE_SHIFT) |
+			 (1 << I40E_RX_DESC_ERROR_EIPE_SHIFT))))
+		goto checksum_fail;
 
 	/* likely incorrect csum if alternate IP extension headers found */
-	if (rx_status & (1 << I40E_RX_DESC_STATUS_IPV6EXADD_SHIFT))
+	if (ipv6 &&
+	    decoded.inner_prot == I40E_RX_PTYPE_INNER_PROT_TCP &&
+	    rx_error & (1 << I40E_RX_DESC_ERROR_L4E_SHIFT) &&
+	    rx_status & (1 << I40E_RX_DESC_STATUS_IPV6EXADD_SHIFT))
+		/* don't increment checksum err here, non-fatal err */
 		return;
 
-	/* IP or L4 or outmost IP checksum error */
-	if (rx_error & ((1 << I40E_RX_DESC_ERROR_IPE_SHIFT) |
-			(1 << I40E_RX_DESC_ERROR_L4E_SHIFT) |
-			(1 << I40E_RX_DESC_ERROR_EIPE_SHIFT))) {
-		vsi->back->hw_csum_rx_error++;
-		return;
-	}
+	/* there was some L4 error, count error and punt packet to the stack */
+	if (rx_error & (1 << I40E_RX_DESC_ERROR_L4E_SHIFT))
+		goto checksum_fail;
 
+	/* handle packets that were not able to be checksummed due
+	 * to arrival speed, in this case the stack can compute
+	 * the csum.
+	 */
+	if (rx_error & (1 << I40E_RX_DESC_ERROR_PPRS_SHIFT))
+		return;
+
+	/* If VXLAN traffic has an outer UDPv4 checksum we need to check
+	 * it in the driver, hardware does not do it for us.
+	 * Since L3L4P bit was set we assume a valid IHL value (>=5)
+	 * so the total length of IPv4 header is IHL*4 bytes
+	 * The UDP_0 bit *may* bet set if the *inner* header is UDP
+	 */
 	if (ipv4_tunnel &&
+	    (decoded.inner_prot != I40E_RX_PTYPE_INNER_PROT_UDP) &&
 	    !(rx_status & (1 << I40E_RX_DESC_STATUS_UDP_0_SHIFT))) {
-		/* If VXLAN traffic has an outer UDPv4 checksum we need to check
-		 * it in the driver, hardware does not do it for us.
-		 * Since L3L4P bit was set we assume a valid IHL value (>=5)
-		 * so the total length of IPv4 header is IHL*4 bytes
-		 */
 		skb->transport_header = skb->mac_header +
 					sizeof(struct ethhdr) +
 					(ip_hdr(skb)->ihl * 4);
@@ -778,13 +811,16 @@ static inline void i40e_rx_checksum(struct i40e_vsi *vsi,
 				(skb->len - skb_transport_offset(skb)),
 				IPPROTO_UDP, rx_udp_csum);
 
-		if (udp_hdr(skb)->check != csum) {
-			vsi->back->hw_csum_rx_error++;
-			return;
-		}
+		if (udp_hdr(skb)->check != csum)
+			goto checksum_fail;
 	}
 
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
+
+	return;
+
+checksum_fail:
+	vsi->back->hw_csum_rx_error++;
 }
 
 /**
@@ -953,6 +989,9 @@ static int i40e_clean_rx_irq(struct i40e_ring *rx_ring, int budget)
 		/* ERR_MASK will only have valid bits if EOP set */
 		if (unlikely(rx_error & (1 << I40E_RX_DESC_ERROR_RXE_SHIFT))) {
 			dev_kfree_skb_any(skb);
+			/* TODO: shouldn't we increment a counter indicating the
+			 * drop?
+			 */
 			goto next_desc;
 		}
 
@@ -1508,9 +1547,7 @@ static int i40e_maybe_stop_tx(struct i40e_ring *tx_ring, int size)
 static int i40e_xmit_descriptor_count(struct sk_buff *skb,
 				      struct i40e_ring *tx_ring)
 {
-#if PAGE_SIZE > I40E_MAX_DATA_PER_TXD
 	unsigned int f;
-#endif
 	int count = 0;
 
 	/* need: 1 descriptor per page * PAGE_SIZE/I40E_MAX_DATA_PER_TXD,
@@ -1519,12 +1556,9 @@ static int i40e_xmit_descriptor_count(struct sk_buff *skb,
 	 *       + 1 desc for context descriptor,
 	 * otherwise try next time
 	 */
-#if PAGE_SIZE > I40E_MAX_DATA_PER_TXD
 	for (f = 0; f < skb_shinfo(skb)->nr_frags; f++)
 		count += TXD_USE_COUNT(skb_shinfo(skb)->frags[f].size);
-#else
-	count += skb_shinfo(skb)->nr_frags;
-#endif
+
 	count += TXD_USE_COUNT(skb_headlen(skb));
 	if (i40e_maybe_stop_tx(tx_ring, count + 4 + 1)) {
 		tx_ring->tx_stats.tx_busy++;

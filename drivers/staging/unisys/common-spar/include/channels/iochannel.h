@@ -1,4 +1,4 @@
-/* Copyright © 2010 - 2013 UNISYS CORPORATION */
+/* Copyright (C) 2010 - 2013 UNISYS CORPORATION */
 /* All rights reserved. */
 #ifndef __IOCHANNEL_H__
 #define __IOCHANNEL_H__
@@ -28,6 +28,8 @@
 *        CHANNEL_ATTACHING -> CHANNEL_ATTACHED (performed only by IOPart)
 *        CHANNEL_ATTACHED -> CHANNEL_OPENED (performed only by GuestPart)
 */
+
+#include <linux/uuid.h>
 
 #include "commontypes.h"
 #include "vmcallinterface.h"
@@ -192,7 +194,7 @@ typedef enum { NET_RCV_POST = 0,	/* submit buffer to hold receiving
 	/* uisnic -> virtnic */
 	NET_MACADDR,		/* indicates the client has requested to update
 				 * its MAC addr */
-	NET_MACADDR_ACK,	/* Mac addres  */
+	NET_MACADDR_ACK,	/* MAC address  */
 
 } NET_TYPES;
 
@@ -696,7 +698,7 @@ typedef struct _ULTRA_IO_CHANNEL_PROTOCOL {
 			U8 macaddr[MAX_MACADDR_LEN];	/* 6 bytes */
 			U32 num_rcv_bufs;	/* 4 */
 			U32 mtu;	/* 4 */
-			GUID zoneGuid;	/* 16 */
+			uuid_le zoneGuid;	/* 16 */
 		} vnic;		/* total     30 */
 	};
 
@@ -807,7 +809,7 @@ static inline int ULTRA_VHBA_init_channel(ULTRA_IO_CHANNEL_PROTOCOL *x,
 	x->ChannelHeader.HeaderSize = sizeof(x->ChannelHeader);
 	x->ChannelHeader.Size = COVER(bytes, 4096);
 	x->ChannelHeader.Type = UltraVhbaChannelProtocolGuid;
-	x->ChannelHeader.ZoneGuid = Guid0;
+	x->ChannelHeader.ZoneGuid = NULL_UUID_LE;
 	x->vhba.wwnn = *wwnn;
 	x->vhba.max = *max;
 	INIT_CLIENTSTRING(x, ULTRA_IO_CHANNEL_PROTOCOL, clientStr,
@@ -832,7 +834,7 @@ static inline void ULTRA_VHBA_set_max(ULTRA_IO_CHANNEL_PROTOCOL *x,
 static inline int ULTRA_VNIC_init_channel(ULTRA_IO_CHANNEL_PROTOCOL *x,
 						 unsigned char *macaddr,
 						 U32 num_rcv_bufs, U32 mtu,
-						 GUID zoneGuid,
+						 uuid_le zoneGuid,
 						 unsigned char *clientStr,
 						 U32 clientStrLen,
 						 U64 bytes)  {
@@ -843,7 +845,7 @@ static inline int ULTRA_VNIC_init_channel(ULTRA_IO_CHANNEL_PROTOCOL *x,
 	x->ChannelHeader.HeaderSize = sizeof(x->ChannelHeader);
 	x->ChannelHeader.Size = COVER(bytes, 4096);
 	x->ChannelHeader.Type = UltraVnicChannelProtocolGuid;
-	x->ChannelHeader.ZoneGuid = Guid0;
+	x->ChannelHeader.ZoneGuid = NULL_UUID_LE;
 	MEMCPY(x->vnic.macaddr, macaddr, MAX_MACADDR_LEN);
 	x->vnic.num_rcv_bufs = num_rcv_bufs;
 	x->vnic.mtu = mtu;

@@ -1256,7 +1256,7 @@ static void build_r4000_tlb_refill_handler(void)
 	memset(relocs, 0, sizeof(relocs));
 	memset(final_handler, 0, sizeof(final_handler));
 
-	if ((scratch_reg >= 0 || scratchpad_available()) && use_bbit_insns()) {
+	if (IS_ENABLED(CONFIG_64BIT) && (scratch_reg >= 0 || scratchpad_available()) && use_bbit_insns()) {
 		htlb_info = build_fast_tlb_refill_handler(&p, &l, &r, K0, K1,
 							  scratch_reg);
 		vmalloc_mode = refill_scratch;
@@ -1422,16 +1422,17 @@ static void build_r4000_tlb_refill_handler(void)
 extern u32 handle_tlbl[], handle_tlbl_end[];
 extern u32 handle_tlbs[], handle_tlbs_end[];
 extern u32 handle_tlbm[], handle_tlbm_end[];
-extern u32 tlbmiss_handler_setup_pgd[], tlbmiss_handler_setup_pgd_end[];
+extern u32 tlbmiss_handler_setup_pgd_start[], tlbmiss_handler_setup_pgd[];
+extern u32 tlbmiss_handler_setup_pgd_end[];
 
 static void build_setup_pgd(void)
 {
 	const int a0 = 4;
 	const int __maybe_unused a1 = 5;
 	const int __maybe_unused a2 = 6;
-	u32 *p = tlbmiss_handler_setup_pgd;
+	u32 *p = tlbmiss_handler_setup_pgd_start;
 	const int tlbmiss_handler_setup_pgd_size =
-		tlbmiss_handler_setup_pgd_end - tlbmiss_handler_setup_pgd;
+		tlbmiss_handler_setup_pgd_end - tlbmiss_handler_setup_pgd_start;
 #ifndef CONFIG_MIPS_PGD_C0_CONTEXT
 	long pgdc = (long)pgd_current;
 #endif

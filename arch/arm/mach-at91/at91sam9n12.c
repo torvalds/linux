@@ -19,9 +19,10 @@
 #include "board.h"
 #include "soc.h"
 #include "generic.h"
-#include "clock.h"
 #include "sam9_smc.h"
 
+#if defined(CONFIG_OLD_CLK_AT91)
+#include "clock.h"
 /* --------------------------------------------------------------------
  *  Clocks
  * -------------------------------------------------------------------- */
@@ -215,6 +216,9 @@ static void __init at91sam9n12_register_clocks(void)
 			 ARRAY_SIZE(periph_clocks_lookups));
 
 }
+#else
+#define at91sam9n12_register_clocks NULL
+#endif
 
 /* --------------------------------------------------------------------
  *  AT91SAM9N12 processor initialization

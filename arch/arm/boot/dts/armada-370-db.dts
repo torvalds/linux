@@ -35,7 +35,6 @@
 
 		internal-regs {
 			serial@12000 {
-				clock-frequency = <200000000>;
 				status = "okay";
 			};
 			sata@a0000 {
@@ -67,6 +66,7 @@
 			i2c@11000 {
 				pinctrl-0 = <&i2c0_pins>;
 				pinctrl-names = "default";
+				clock-frequency = <100000>;
 				status = "okay";
 				audio_codec: audio-codec@4a {
 					compatible = "cirrus,cs42l51";

@@ -87,6 +87,7 @@ void labpc_drain_dma(struct comedi_device *dev)
 	struct labpc_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
 	struct comedi_async *async = s->async;
+	struct comedi_cmd *cmd = &async->cmd;
 	int status;
 	unsigned long flags;
 	unsigned int max_points, num_points, residue, leftover;
@@ -108,12 +109,12 @@ void labpc_drain_dma(struct comedi_device *dev)
 	 */
 	residue = get_dma_residue(devpriv->dma_chan) / sample_size;
 	num_points = max_points - residue;
-	if (devpriv->count < num_points && async->cmd.stop_src == TRIG_COUNT)
+	if (cmd->stop_src == TRIG_COUNT && devpriv->count < num_points)
 		num_points = devpriv->count;
 
 	/* figure out how many points will be stored next time */
 	leftover = 0;
-	if (async->cmd.stop_src != TRIG_COUNT) {
+	if (cmd->stop_src != TRIG_COUNT) {
 		leftover = devpriv->dma_transfer_size / sample_size;
 	} else if (devpriv->count > num_points) {
 		leftover = devpriv->count - num_points;
@@ -125,7 +126,7 @@ void labpc_drain_dma(struct comedi_device *dev)
 	for (i = 0; i < num_points; i++)
 		cfc_write_to_buffer(s, devpriv->dma_buffer[i]);
 
-	if (async->cmd.stop_src == TRIG_COUNT)
+	if (cmd->stop_src == TRIG_COUNT)
 		devpriv->count -= num_points;
 
 	/* set address and count for next transfer */

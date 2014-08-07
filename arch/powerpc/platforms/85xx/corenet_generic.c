@@ -67,7 +67,7 @@ void __init corenet_gen_setup_arch(void)
 
 	swiotlb_detect_4g();
 
-	pr_info("%s board from Freescale Semiconductor\n", ppc_md.name);
+	pr_info("%s board\n", ppc_md.name);
 
 	mpc85xx_qe_init();
 }
@@ -115,6 +115,7 @@ int __init corenet_gen_publish_devices(void)
 static const char * const boards[] __initconst = {
 	"fsl,P2041RDB",
 	"fsl,P3041DS",
+	"fsl,OCA4080",
 	"fsl,P4080DS",
 	"fsl,P5020DS",
 	"fsl,P5040DS",
@@ -122,12 +123,16 @@ static const char * const boards[] __initconst = {
 	"fsl,B4860QDS",
 	"fsl,B4420QDS",
 	"fsl,B4220QDS",
+	"fsl,T1040QDS",
+	"fsl,T1042QDS",
+	"keymile,kmcoge4",
 	NULL
 };
 
 static const char * const hv_boards[] __initconst = {
 	"fsl,P2041RDB-hv",
 	"fsl,P3041DS-hv",
+	"fsl,OCA4080-hv",
 	"fsl,P4080DS-hv",
 	"fsl,P5020DS-hv",
 	"fsl,P5040DS-hv",
@@ -135,6 +140,8 @@ static const char * const hv_boards[] __initconst = {
 	"fsl,B4860QDS-hv",
 	"fsl,B4420QDS-hv",
 	"fsl,B4220QDS-hv",
+	"fsl,T1040QDS-hv",
+	"fsl,T1042QDS-hv",
 	NULL
 };
 

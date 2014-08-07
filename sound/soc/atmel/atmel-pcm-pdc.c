@@ -76,12 +76,6 @@ struct atmel_runtime_data {
 	size_t period_size;
 
 	dma_addr_t period_ptr;		/* physical address of next period */
-
-	/* PDC register save */
-	u32 pdc_xpr_save;
-	u32 pdc_xcr_save;
-	u32 pdc_xnpr_save;
-	u32 pdc_xncr_save;
 };
 
 /*--------------------------------------------------------------------------*\
@@ -320,67 +314,10 @@ static struct snd_pcm_ops atmel_pcm_ops = {
 	.mmap		= atmel_pcm_mmap,
 };
 
-
-/*--------------------------------------------------------------------------*\
- * ASoC platform driver
-\*--------------------------------------------------------------------------*/
-#ifdef CONFIG_PM
-static int atmel_pcm_suspend(struct snd_soc_dai *dai)
-{
-	struct snd_pcm_runtime *runtime = dai->runtime;
-	struct atmel_runtime_data *prtd;
-	struct atmel_pcm_dma_params *params;
-
-	if (!runtime)
-		return 0;
-
-	prtd = runtime->private_data;
-	params = prtd->params;
-
-	/* disable the PDC and save the PDC registers */
-
-	ssc_writel(params->ssc->regs, PDC_PTCR, params->mask->pdc_disable);
-
-	prtd->pdc_xpr_save = ssc_readx(params->ssc->regs, params->pdc->xpr);
-	prtd->pdc_xcr_save = ssc_readx(params->ssc->regs, params->pdc->xcr);
-	prtd->pdc_xnpr_save = ssc_readx(params->ssc->regs, params->pdc->xnpr);
-	prtd->pdc_xncr_save = ssc_readx(params->ssc->regs, params->pdc->xncr);
-
-	return 0;
-}
-
-static int atmel_pcm_resume(struct snd_soc_dai *dai)
-{
-	struct snd_pcm_runtime *runtime = dai->runtime;
-	struct atmel_runtime_data *prtd;
-	struct atmel_pcm_dma_params *params;
-
-	if (!runtime)
-		return 0;
-
-	prtd = runtime->private_data;
-	params = prtd->params;
-
-	/* restore the PDC registers and enable the PDC */
-	ssc_writex(params->ssc->regs, params->pdc->xpr, prtd->pdc_xpr_save);
-	ssc_writex(params->ssc->regs, params->pdc->xcr, prtd->pdc_xcr_save);
-	ssc_writex(params->ssc->regs, params->pdc->xnpr, prtd->pdc_xnpr_save);
-	ssc_writex(params->ssc->regs, params->pdc->xncr, prtd->pdc_xncr_save);
-
-	ssc_writel(params->ssc->regs, PDC_PTCR, params->mask->pdc_enable);
-	return 0;
-}
-#else
-#define atmel_pcm_suspend	NULL
-#define atmel_pcm_resume	NULL
-#endif
-
 static struct snd_soc_platform_driver atmel_soc_platform = {
 	.ops		= &atmel_pcm_ops,
 	.pcm_new	= atmel_pcm_new,
 	.pcm_free	= atmel_pcm_free,
-	.suspend	= atmel_pcm_suspend,
-	.resume		= atmel_pcm_resume,
 };
 
 int atmel_pcm_pdc_platform_register(struct device *dev)

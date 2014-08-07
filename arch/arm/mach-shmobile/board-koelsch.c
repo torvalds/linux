@@ -216,7 +216,7 @@ static const struct spi_board_info spi_info[] __initconst = {
 	{
 		.modalias	= "m25p80",
 		.platform_data	= &spi_flash_data,
-		.mode		= SPI_MODE_0,
+		.mode		= SPI_MODE_0 | SPI_TX_QUAD | SPI_RX_QUAD,
 		.max_speed_hz	= 30000000,
 		.bus_num	= 0,
 		.chip_select	= 0,
@@ -522,7 +522,7 @@ static const char * const koelsch_boards_compat_dt[] __initconst = {
 
 DT_MACHINE_START(KOELSCH_DT, "koelsch")
 	.smp		= smp_ops(r8a7791_smp_ops),
-	.init_early	= r8a7791_init_early,
+	.init_early	= shmobile_init_delay,
 	.init_time	= rcar_gen2_timer_init,
 	.init_machine	= koelsch_init,
 	.init_late	= shmobile_init_late,

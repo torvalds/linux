@@ -81,7 +81,7 @@ sbc_emulate_readcapacity(struct se_cmd *cmd)
 		transport_kunmap_data_sg(cmd);
 	}
 
-	target_complete_cmd(cmd, GOOD);
+	target_complete_cmd_with_length(cmd, GOOD, 8);
 	return 0;
 }
 
@@ -137,7 +137,7 @@ sbc_emulate_readcapacity_16(struct se_cmd *cmd)
 		transport_kunmap_data_sg(cmd);
 	}
 
-	target_complete_cmd(cmd, GOOD);
+	target_complete_cmd_with_length(cmd, GOOD, 32);
 	return 0;
 }
 
@@ -174,24 +174,6 @@ sbc_emulate_noop(struct se_cmd *cmd)
 static inline u32 sbc_get_size(struct se_cmd *cmd, u32 sectors)
 {
 	return cmd->se_dev->dev_attrib.block_size * sectors;
-}
-
-static int sbc_check_valid_sectors(struct se_cmd *cmd)
-{
-	struct se_device *dev = cmd->se_dev;
-	unsigned long long end_lba;
-	u32 sectors;
-
-	sectors = cmd->data_length / dev->dev_attrib.block_size;
-	end_lba = dev->transport->get_blocks(dev) + 1;
-
-	if (cmd->t_task_lba + sectors > end_lba) {
-		pr_err("target: lba %llu, sectors %u exceeds end lba %llu\n",
-			cmd->t_task_lba, sectors, end_lba);
-		return -EINVAL;
-	}
-
-	return 0;
 }
 
 static inline u32 transport_get_sectors_6(unsigned char *cdb)
@@ -665,8 +647,19 @@ sbc_check_prot(struct se_device *dev, struct se_cmd *cmd, unsigned char *cdb,
 
 	cmd->prot_type = dev->dev_attrib.pi_prot_type;
 	cmd->prot_length = dev->prot_length * sectors;
-	pr_debug("%s: prot_type=%d, prot_length=%d prot_op=%d prot_checks=%d\n",
-		 __func__, cmd->prot_type, cmd->prot_length,
+
+	/**
+	 * In case protection information exists over the wire
+	 * we modify command data length to describe pure data.
+	 * The actual transfer length is data length + protection
+	 * length
+	 **/
+	if (protect)
+		cmd->data_length = sectors * dev->dev_attrib.block_size;
+
+	pr_debug("%s: prot_type=%d, data_length=%d, prot_length=%d "
+		 "prot_op=%d prot_checks=%d\n",
+		 __func__, cmd->prot_type, cmd->data_length, cmd->prot_length,
 		 cmd->prot_op, cmd->prot_checks);
 
 	return true;
@@ -877,15 +870,6 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 		break;
 	case SYNCHRONIZE_CACHE:
 	case SYNCHRONIZE_CACHE_16:
-		if (!ops->execute_sync_cache) {
-			size = 0;
-			cmd->execute_cmd = sbc_emulate_noop;
-			break;
-		}
-
-		/*
-		 * Extract LBA and range to be flushed for emulated SYNCHRONIZE_CACHE
-		 */
 		if (cdb[0] == SYNCHRONIZE_CACHE) {
 			sectors = transport_get_sectors_10(cdb);
 			cmd->t_task_lba = transport_lba_32(cdb);
@@ -893,18 +877,12 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 			sectors = transport_get_sectors_16(cdb);
 			cmd->t_task_lba = transport_lba_64(cdb);
 		}
-
-		size = sbc_get_size(cmd, sectors);
-
-		/*
-		 * Check to ensure that LBA + Range does not exceed past end of
-		 * device for IBLOCK and FILEIO ->do_sync_cache() backend calls
-		 */
-		if (cmd->t_task_lba || sectors) {
-			if (sbc_check_valid_sectors(cmd) < 0)
-				return TCM_ADDRESS_OUT_OF_RANGE;
+		if (ops->execute_sync_cache) {
+			cmd->execute_cmd = ops->execute_sync_cache;
+			goto check_lba;
 		}
-		cmd->execute_cmd = ops->execute_sync_cache;
+		size = 0;
+		cmd->execute_cmd = sbc_emulate_noop;
 		break;
 	case UNMAP:
 		if (!ops->execute_unmap)
@@ -947,8 +925,10 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 		break;
 	case VERIFY:
 		size = 0;
+		sectors = transport_get_sectors_10(cdb);
+		cmd->t_task_lba = transport_lba_32(cdb);
 		cmd->execute_cmd = sbc_emulate_noop;
-		break;
+		goto check_lba;
 	case REZERO_UNIT:
 	case SEEK_6:
 	case SEEK_10:
@@ -988,7 +968,7 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 				dev->dev_attrib.hw_max_sectors);
 			return TCM_INVALID_CDB_FIELD;
 		}
-
+check_lba:
 		end_lba = dev->transport->get_blocks(dev) + 1;
 		if (cmd->t_task_lba + sectors > end_lba) {
 			pr_err("cmd exceeds last lba %llu "

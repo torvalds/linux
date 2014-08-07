@@ -163,7 +163,7 @@ static int iio_hwmon_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id iio_hwmon_of_match[] = {
+static const struct of_device_id iio_hwmon_of_match[] = {
 	{ .compatible = "iio-hwmon", },
 	{ }
 };

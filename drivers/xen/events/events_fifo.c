@@ -66,7 +66,22 @@ static DEFINE_PER_CPU(struct evtchn_fifo_queue, cpu_queue);
 static event_word_t *event_array[MAX_EVENT_ARRAY_PAGES] __read_mostly;
 static unsigned event_array_pages __read_mostly;
 
+/*
+ * sync_set_bit() and friends must be unsigned long aligned on non-x86
+ * platforms.
+ */
+#if !defined(CONFIG_X86) && BITS_PER_LONG > 32
+
+#define BM(w) (unsigned long *)((unsigned long)w & ~0x7UL)
+#define EVTCHN_FIFO_BIT(b, w) \
+    (((unsigned long)w & 0x4UL) ? (EVTCHN_FIFO_ ##b + 32) : EVTCHN_FIFO_ ##b)
+
+#else
+
 #define BM(w) ((unsigned long *)(w))
+#define EVTCHN_FIFO_BIT(b, w) EVTCHN_FIFO_ ##b
+
+#endif
 
 static inline event_word_t *event_word_from_port(unsigned port)
 {
@@ -161,33 +176,38 @@ static void evtchn_fifo_bind_to_cpu(struct irq_info *info, unsigned cpu)
 static void evtchn_fifo_clear_pending(unsigned port)
 {
 	event_word_t *word = event_word_from_port(port);
-	sync_clear_bit(EVTCHN_FIFO_PENDING, BM(word));
+	sync_clear_bit(EVTCHN_FIFO_BIT(PENDING, word), BM(word));
 }
 
 static void evtchn_fifo_set_pending(unsigned port)
 {
 	event_word_t *word = event_word_from_port(port);
-	sync_set_bit(EVTCHN_FIFO_PENDING, BM(word));
+	sync_set_bit(EVTCHN_FIFO_BIT(PENDING, word), BM(word));
 }
 
 static bool evtchn_fifo_is_pending(unsigned port)
 {
 	event_word_t *word = event_word_from_port(port);
-	return sync_test_bit(EVTCHN_FIFO_PENDING, BM(word));
+	return sync_test_bit(EVTCHN_FIFO_BIT(PENDING, word), BM(word));
 }
 
 static bool evtchn_fifo_test_and_set_mask(unsigned port)
 {
 	event_word_t *word = event_word_from_port(port);
-	return sync_test_and_set_bit(EVTCHN_FIFO_MASKED, BM(word));
+	return sync_test_and_set_bit(EVTCHN_FIFO_BIT(MASKED, word), BM(word));
 }
 
 static void evtchn_fifo_mask(unsigned port)
 {
 	event_word_t *word = event_word_from_port(port);
-	sync_set_bit(EVTCHN_FIFO_MASKED, BM(word));
+	sync_set_bit(EVTCHN_FIFO_BIT(MASKED, word), BM(word));
 }
 
+static bool evtchn_fifo_is_masked(unsigned port)
+{
+	event_word_t *word = event_word_from_port(port);
+	return sync_test_bit(EVTCHN_FIFO_BIT(MASKED, word), BM(word));
+}
 /*
  * Clear MASKED, spinning if BUSY is set.
  */
@@ -211,7 +231,7 @@ static void evtchn_fifo_unmask(unsigned port)
 	BUG_ON(!irqs_disabled());
 
 	clear_masked(word);
-	if (sync_test_bit(EVTCHN_FIFO_PENDING, BM(word))) {
+	if (evtchn_fifo_is_pending(port)) {
 		struct evtchn_unmask unmask = { .port = port };
 		(void)HYPERVISOR_event_channel_op(EVTCHNOP_unmask, &unmask);
 	}
@@ -243,7 +263,7 @@ static void handle_irq_for_port(unsigned port)
 
 static void consume_one_event(unsigned cpu,
 			      struct evtchn_fifo_control_block *control_block,
-			      unsigned priority, uint32_t *ready)
+			      unsigned priority, unsigned long *ready)
 {
 	struct evtchn_fifo_queue *q = &per_cpu(cpu_queue, cpu);
 	uint32_t head;
@@ -273,10 +293,9 @@ static void consume_one_event(unsigned cpu,
 	 * copy of the ready word.
 	 */
 	if (head == 0)
-		clear_bit(priority, BM(ready));
+		clear_bit(priority, ready);
 
-	if (sync_test_bit(EVTCHN_FIFO_PENDING, BM(word))
-	    && !sync_test_bit(EVTCHN_FIFO_MASKED, BM(word)))
+	if (evtchn_fifo_is_pending(port) && !evtchn_fifo_is_masked(port))
 		handle_irq_for_port(port);
 
 	q->head[priority] = head;
@@ -285,7 +304,7 @@ static void consume_one_event(unsigned cpu,
 static void evtchn_fifo_handle_events(unsigned cpu)
 {
 	struct evtchn_fifo_control_block *control_block;
-	uint32_t ready;
+	unsigned long ready;
 	unsigned q;
 
 	control_block = per_cpu(cpu_control_block, cpu);

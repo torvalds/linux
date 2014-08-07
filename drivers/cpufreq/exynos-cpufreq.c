@@ -17,8 +17,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/cpufreq.h>
 #include <linux/platform_device.h>
-
-#include <plat/cpu.h>
+#include <linux/of.h>
 
 #include "exynos-cpufreq.h"
 
@@ -29,17 +28,16 @@ static unsigned int locking_frequency;
 static int exynos_cpufreq_get_index(unsigned int freq)
 {
 	struct cpufreq_frequency_table *freq_table = exynos_info->freq_table;
-	int index;
+	struct cpufreq_frequency_table *pos;
 
-	for (index = 0;
-		freq_table[index].frequency != CPUFREQ_TABLE_END; index++)
-		if (freq_table[index].frequency == freq)
+	cpufreq_for_each_entry(pos, freq_table)
+		if (pos->frequency == freq)
 			break;
 
-	if (freq_table[index].frequency == CPUFREQ_TABLE_END)
+	if (pos->frequency == CPUFREQ_TABLE_END)
 		return -EINVAL;
 
-	return index;
+	return pos - freq_table;
 }
 
 static int exynos_cpufreq_scale(unsigned int target_freq)
@@ -49,6 +47,7 @@ static int exynos_cpufreq_scale(unsigned int target_freq)
 	struct cpufreq_policy *policy = cpufreq_cpu_get(0);
 	unsigned int arm_volt, safe_arm_volt = 0;
 	unsigned int mpll_freq_khz = exynos_info->mpll_freq_khz;
+	struct device *dev = exynos_info->dev;
 	unsigned int old_freq;
 	int index, old_index;
 	int ret = 0;
@@ -90,8 +89,8 @@ static int exynos_cpufreq_scale(unsigned int target_freq)
 		/* Firstly, voltage up to increase frequency */
 		ret = regulator_set_voltage(arm_regulator, arm_volt, arm_volt);
 		if (ret) {
-			pr_err("%s: failed to set cpu voltage to %d\n",
-				__func__, arm_volt);
+			dev_err(dev, "failed to set cpu voltage to %d\n",
+				arm_volt);
 			return ret;
 		}
 	}
@@ -100,8 +99,8 @@ static int exynos_cpufreq_scale(unsigned int target_freq)
 		ret = regulator_set_voltage(arm_regulator, safe_arm_volt,
 				      safe_arm_volt);
 		if (ret) {
-			pr_err("%s: failed to set cpu voltage to %d\n",
-				__func__, safe_arm_volt);
+			dev_err(dev, "failed to set cpu voltage to %d\n",
+				safe_arm_volt);
 			return ret;
 		}
 	}
@@ -115,8 +114,8 @@ static int exynos_cpufreq_scale(unsigned int target_freq)
 		ret = regulator_set_voltage(arm_regulator, arm_volt,
 				arm_volt);
 		if (ret) {
-			pr_err("%s: failed to set cpu voltage to %d\n",
-				__func__, arm_volt);
+			dev_err(dev, "failed to set cpu voltage to %d\n",
+				arm_volt);
 			goto out;
 		}
 	}
@@ -163,26 +162,36 @@ static int exynos_cpufreq_probe(struct platform_device *pdev)
 	if (!exynos_info)
 		return -ENOMEM;
 
-	if (soc_is_exynos4210())
+	exynos_info->dev = &pdev->dev;
+
+	if (of_machine_is_compatible("samsung,exynos4210")) {
+		exynos_info->type = EXYNOS_SOC_4210;
 		ret = exynos4210_cpufreq_init(exynos_info);
-	else if (soc_is_exynos4212() || soc_is_exynos4412())
+	} else if (of_machine_is_compatible("samsung,exynos4212")) {
+		exynos_info->type = EXYNOS_SOC_4212;
 		ret = exynos4x12_cpufreq_init(exynos_info);
-	else if (soc_is_exynos5250())
+	} else if (of_machine_is_compatible("samsung,exynos4412")) {
+		exynos_info->type = EXYNOS_SOC_4412;
+		ret = exynos4x12_cpufreq_init(exynos_info);
+	} else if (of_machine_is_compatible("samsung,exynos5250")) {
+		exynos_info->type = EXYNOS_SOC_5250;
 		ret = exynos5250_cpufreq_init(exynos_info);
-	else
-		return 0;
+	} else {
+		pr_err("%s: Unknown SoC type\n", __func__);
+		return -ENODEV;
+	}
 
 	if (ret)
 		goto err_vdd_arm;
 
 	if (exynos_info->set_freq == NULL) {
-		pr_err("%s: No set_freq function (ERR)\n", __func__);
+		dev_err(&pdev->dev, "No set_freq function (ERR)\n");
 		goto err_vdd_arm;
 	}
 
 	arm_regulator = regulator_get(NULL, "vdd_arm");
 	if (IS_ERR(arm_regulator)) {
-		pr_err("%s: failed to get resource vdd_arm\n", __func__);
+		dev_err(&pdev->dev, "failed to get resource vdd_arm\n");
 		goto err_vdd_arm;
 	}
 
@@ -192,7 +201,7 @@ static int exynos_cpufreq_probe(struct platform_device *pdev)
 	if (!cpufreq_register_driver(&exynos_driver))
 		return 0;
 
-	pr_err("%s: failed to register cpufreq driver\n", __func__);
+	dev_err(&pdev->dev, "failed to register cpufreq driver\n");
 	regulator_put(arm_regulator);
 err_vdd_arm:
 	kfree(exynos_info);

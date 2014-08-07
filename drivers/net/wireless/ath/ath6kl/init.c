@@ -1192,7 +1192,6 @@ static int ath6kl_upload_board_file(struct ath6kl *ar)
 
 	if (board_ext_address &&
 	    ar->fw_board_len == (board_data_size + board_ext_data_size)) {
-
 		/* write extended board data */
 		ath6kl_dbg(ATH6KL_DBG_BOOT,
 			   "writing extended board data to 0x%x (%d B)\n",

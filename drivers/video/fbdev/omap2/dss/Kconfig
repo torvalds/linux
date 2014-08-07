@@ -1,6 +1,10 @@
+config OMAP2_DSS_INIT
+	bool
+
 menuconfig OMAP2_DSS
         tristate "OMAP2+ Display Subsystem support"
 	select VIDEOMODE_HELPERS
+	select OMAP2_DSS_INIT
         help
 	  OMAP2+ Display Subsystem support.
 
@@ -59,14 +63,30 @@ config OMAP2_DSS_VENC
 	help
 	  OMAP Video Encoder support for S-Video and composite TV-out.
 
+config OMAP2_DSS_HDMI_COMMON
+	bool
+
 config OMAP4_DSS_HDMI
-	bool "HDMI support"
+	bool "HDMI support for OMAP4"
         default y
+	select OMAP2_DSS_HDMI_COMMON
 	help
-	  HDMI Interface. This adds the High Definition Multimedia Interface.
-	  See http://www.hdmi.org/ for HDMI specification.
+	  HDMI support for OMAP4 based SoCs.
 
 config OMAP4_DSS_HDMI_AUDIO
+	bool
+
+config OMAP5_DSS_HDMI
+	bool "HDMI support for OMAP5"
+	default n
+	select OMAP2_DSS_HDMI_COMMON
+	help
+	  HDMI Interface for OMAP5 and similar cores. This adds the High
+	  Definition Multimedia Interface. See http://www.hdmi.org/ for HDMI
+	  specification.
+
+config OMAP5_DSS_HDMI_AUDIO
+	depends on OMAP5_DSS_HDMI
 	bool
 
 config OMAP2_DSS_SDI

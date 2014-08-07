@@ -197,7 +197,8 @@ struct tcp_sock {
 	u8	do_early_retrans:1,/* Enable RFC5827 early-retransmit  */
 		syn_data:1,	/* SYN includes data */
 		syn_fastopen:1,	/* SYN includes Fast Open option */
-		syn_data_acked:1;/* data in SYN is acked by SYN-ACK */
+		syn_data_acked:1,/* data in SYN is acked by SYN-ACK */
+		is_cwnd_limited:1;/* forward progress limited by snd_cwnd? */
 	u32	tlp_high_seq;	/* snd_nxt at the time of TLP retransmit. */
 
 /* RTT measurement */
@@ -209,6 +210,8 @@ struct tcp_sock {
 
 	u32	packets_out;	/* Packets which are "in flight"	*/
 	u32	retrans_out;	/* Retransmitted packets out		*/
+	u32	max_packets_out;  /* max packets_out in last window */
+	u32	max_packets_seq;  /* right edge of max_packets_out flight */
 
 	u16	urg_data;	/* Saved octet of OOB data and control flags */
 	u8	ecn_flags;	/* ECN status bits.			*/
@@ -363,11 +366,6 @@ static inline bool tcp_passive_fastopen(const struct sock *sk)
 {
 	return (sk->sk_state == TCP_SYN_RECV &&
 		tcp_sk(sk)->fastopen_rsk != NULL);
-}
-
-static inline bool fastopen_cookie_present(struct tcp_fastopen_cookie *foc)
-{
-	return foc->len != -1;
 }
 
 extern void tcp_sock_destruct(struct sock *sk);

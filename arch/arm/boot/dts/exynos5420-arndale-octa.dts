@@ -26,6 +26,11 @@
 		bootargs = "console=ttySAC3,115200";
 	};
 
+	firmware@02073000 {
+		compatible = "samsung,secure-firmware";
+		reg = <0x02073000 0x1000>;
+	};
+
 	fixed-rate-clocks {
 		oscclk {
 			compatible = "samsung,exynos5420-oscclk";
@@ -35,6 +40,11 @@
 
 	rtc@101E0000 {
 		status = "okay";
+	};
+
+	codec@11000000 {
+		samsung,mfc-r = <0x43000000 0x800000>;
+		samsung,mfc-l = <0x51000000 0x800000>;
 	};
 
 	mmc@12200000 {
@@ -362,18 +372,6 @@
 			gpios = <&gpx2 7 1>;
 			linux,code = <KEY_WAKEUP>;
 			gpio-key,wakeup;
-		};
-	};
-
-	amba {
-		mdma1: mdma@11C10000 {
-			/*
-			 * MDMA1 can support both secure and non-secure
-			 * AXI transactions. When this is enabled in the kernel
-			 * for boards that run in secure mode, we are getting
-			 * imprecise external aborts causing the kernel to oops.
-			 */
-			status = "disabled";
 		};
 	};
 };

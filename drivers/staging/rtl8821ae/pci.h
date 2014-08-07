@@ -282,13 +282,8 @@ int rtl_pci_reset_trx_ring(struct ieee80211_hw *hw);
 
 extern struct rtl_intf_ops rtl_pci_ops;
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,8,0))
 int rtl_pci_probe(struct pci_dev *pdev,
                   const struct pci_device_id *id);
-#else
-int __devinit rtl_pci_probe(struct pci_dev *pdev,
-			    const struct pci_device_id *id);
-#endif
 void rtl_pci_disconnect(struct pci_dev *pdev);
 int rtl_pci_suspend(struct device *dev);
 int rtl_pci_resume(struct device *dev);

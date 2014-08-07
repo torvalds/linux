@@ -270,7 +270,7 @@ void free_pages_and_swap_cache(struct page **pages, int nr)
 
 		for (i = 0; i < todo; i++)
 			free_swap_cache(pagep[i]);
-		release_pages(pagep, todo, 0);
+		release_pages(pagep, todo, false);
 		pagep += todo;
 		nr -= todo;
 	}

@@ -20,6 +20,15 @@ struct priv {
 	void __iomem *base;
 };
 
+static int mcb_pci_get_irq(struct mcb_device *mdev)
+{
+	struct mcb_bus *mbus = mdev->bus;
+	struct device *dev = mbus->carrier;
+	struct pci_dev *pdev = to_pci_dev(dev);
+
+	return pdev->irq;
+}
+
 static int mcb_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct priv *priv;
@@ -67,7 +76,13 @@ static int mcb_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	pci_set_drvdata(pdev, priv);
 
-	priv->bus = mcb_alloc_bus();
+	priv->bus = mcb_alloc_bus(&pdev->dev);
+	if (IS_ERR(priv->bus)) {
+		ret = PTR_ERR(priv->bus);
+		goto err_drvdata;
+	}
+
+	priv->bus->get_irq = mcb_pci_get_irq;
 
 	ret = chameleon_parse_cells(priv->bus, mapbase, priv->base);
 	if (ret < 0)

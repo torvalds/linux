@@ -77,7 +77,6 @@ typedef	struct xfs_bmap_free
  * from written to unwritten, otherwise convert from unwritten to written.
  */
 #define XFS_BMAPI_CONVERT	0x040
-#define XFS_BMAPI_STACK_SWITCH	0x080
 
 #define XFS_BMAPI_FLAGS \
 	{ XFS_BMAPI_ENTIRE,	"ENTIRE" }, \
@@ -86,8 +85,7 @@ typedef	struct xfs_bmap_free
 	{ XFS_BMAPI_PREALLOC,	"PREALLOC" }, \
 	{ XFS_BMAPI_IGSTATE,	"IGSTATE" }, \
 	{ XFS_BMAPI_CONTIG,	"CONTIG" }, \
-	{ XFS_BMAPI_CONVERT,	"CONVERT" }, \
-	{ XFS_BMAPI_STACK_SWITCH, "STACK_SWITCH" }
+	{ XFS_BMAPI_CONVERT,	"CONVERT" }
 
 
 static inline int xfs_bmapi_aflag(int w)
@@ -156,8 +154,8 @@ int	xfs_bmap_first_unused(struct xfs_trans *tp, struct xfs_inode *ip,
 		xfs_extlen_t len, xfs_fileoff_t *unused, int whichfork);
 int	xfs_bmap_last_before(struct xfs_trans *tp, struct xfs_inode *ip,
 		xfs_fileoff_t *last_block, int whichfork);
-int	xfs_bmap_last_offset(struct xfs_trans *tp, struct xfs_inode *ip,
-		xfs_fileoff_t *unused, int whichfork);
+int	xfs_bmap_last_offset(struct xfs_inode *ip, xfs_fileoff_t *unused,
+		int whichfork);
 int	xfs_bmap_one_block(struct xfs_inode *ip, int whichfork);
 int	xfs_bmap_read_extents(struct xfs_trans *tp, struct xfs_inode *ip,
 		int whichfork);

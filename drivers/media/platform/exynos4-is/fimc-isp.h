@@ -24,7 +24,7 @@
 #include <media/videobuf2-core.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-mediabus.h>
-#include <media/s5p_fimc.h>
+#include <media/exynos-fimc.h>
 
 extern int fimc_isp_debug;
 

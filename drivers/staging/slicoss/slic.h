@@ -310,8 +310,6 @@ struct sliccard {
 	u32           loadtimerset;
 	uint              config_set;
 	struct slic_config  config;
-	struct dentry      *debugfs_dir;
-	struct dentry      *debugfs_cardinfo;
 	struct adapter  *master;
 	struct adapter  *adapter[SLIC_MAX_PORTS];
 	struct sliccard *next;
@@ -364,12 +362,6 @@ struct slic_shmem {
 	volatile struct slic_stats     inicstats;
 };
 
-struct slic_reg_params {
-	u32       linkspeed;
-	u32       linkduplex;
-	u32       fail_on_bad_eeprom;
-};
-
 struct slic_upr {
 	uint               adapter;
 	u32            upr_request;
@@ -409,7 +401,6 @@ struct adapter {
 	uint                card_size;
 	uint                chipid;
 	struct net_device  *netdev;
-	struct net_device  *next_netdevice;
 	struct slic_spinlock     adapter_lock;
 	struct slic_spinlock     reset_lock;
 	struct pci_dev     *pcidev;
@@ -420,8 +411,6 @@ struct adapter {
 	ushort              devid;
 	ushort              subsysid;
 	u32             irq;
-	void __iomem *memorybase;
-	u32             memorylength;
 	u32             drambase;
 	u32             dramlength;
 	uint                queues_initialized;
@@ -452,7 +441,6 @@ struct adapter {
 	u32             pingtimerset;
 	struct timer_list   loadtimer;
 	u32             loadtimerset;
-	struct dentry      *debugfs_entry;
 	struct slic_spinlock     upr_lock;
 	struct slic_spinlock     bit64reglock;
 	struct slic_rspqueue     rspqueue;
@@ -498,7 +486,6 @@ struct adapter {
 	u32             intagg_period;
 	struct inicpm_state    *inicpm_info;
 	void *pinicpm_info;
-	struct slic_reg_params   reg_params;
 	struct slic_ifevents  if_events;
 	struct slic_stats        inicstats_prev;
 	struct slicnet_stats     slic_stats;

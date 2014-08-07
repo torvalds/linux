@@ -419,7 +419,7 @@ static int xmon_core(struct pt_regs *regs, int fromipi)
 		get_output_lock();
 		excprint(regs);
 		if (bp) {
-			printf("cpu 0x%x stopped at breakpoint 0x%x (",
+			printf("cpu 0x%x stopped at breakpoint 0x%lx (",
 			       cpu, BP_NUM(bp));
 			xmon_print_symbol(regs->nip, " ", ")\n");
 		}
@@ -513,7 +513,7 @@ static int xmon_core(struct pt_regs *regs, int fromipi)
 		excprint(regs);
 		bp = at_breakpoint(regs->nip);
 		if (bp) {
-			printf("Stopped at breakpoint %x (", BP_NUM(bp));
+			printf("Stopped at breakpoint %lx (", BP_NUM(bp));
 			xmon_print_symbol(regs->nip, " ", ")\n");
 		}
 		if (unrecoverable_excp(regs))
@@ -759,7 +759,7 @@ static void insert_cpu_bpts(void)
 		brk.address = dabr.address;
 		brk.type = (dabr.enabled & HW_BRK_TYPE_DABR) | HW_BRK_TYPE_PRIV_ALL;
 		brk.len = 8;
-		set_breakpoint(&brk);
+		__set_breakpoint(&brk);
 	}
 	if (iabr && cpu_has_feature(CPU_FTR_IABR))
 		mtspr(SPRN_IABR, iabr->address
@@ -997,14 +997,14 @@ static int cpu_cmd(void)
 					last_cpu = cpu;
 				} else {
 					if (last_cpu != first_cpu)
-						printf("-%lx", last_cpu);
+						printf("-0x%lx", last_cpu);
 					last_cpu = first_cpu = cpu;
-					printf(" %lx", cpu);
+					printf(" 0x%lx", cpu);
 				}
 			}
 		}
 		if (last_cpu != first_cpu)
-			printf("-%lx", last_cpu);
+			printf("-0x%lx", last_cpu);
 		printf("\n");
 		return 0;
 	}
@@ -1024,7 +1024,7 @@ static int cpu_cmd(void)
 			/* take control back */
 			mb();
 			xmon_owner = smp_processor_id();
-			printf("cpu %u didn't take control\n", cpu);
+			printf("cpu 0x%x didn't take control\n", cpu);
 			return 0;
 		}
 		barrier();
@@ -1086,7 +1086,7 @@ csum(void)
 	fcs = 0xffff;
 	for (i = 0; i < ncsum; ++i) {
 		if (mread(adrs+i, &v, 1) == 0) {
-			printf("csum stopped at %x\n", adrs+i);
+			printf("csum stopped at "REG"\n", adrs+i);
 			break;
 		}
 		fcs = FCS(fcs, v);
@@ -1202,12 +1202,12 @@ bpt_cmds(void)
 			/* assume a breakpoint address */
 			bp = at_breakpoint(a);
 			if (bp == NULL) {
-				printf("No breakpoint at %x\n", a);
+				printf("No breakpoint at %lx\n", a);
 				break;
 			}
 		}
 
-		printf("Cleared breakpoint %x (", BP_NUM(bp));
+		printf("Cleared breakpoint %lx (", BP_NUM(bp));
 		xmon_print_symbol(bp->address, " ", ")\n");
 		bp->enabled = 0;
 		break;
@@ -1746,7 +1746,7 @@ mwrite(unsigned long adrs, void *buf, int size)
 		__delay(200);
 		n = size;
 	} else {
-		printf("*** Error writing address %x\n", adrs + n);
+		printf("*** Error writing address "REG"\n", adrs + n);
 	}
 	catch_memory_errors = 0;
 	return n;
@@ -2435,7 +2435,7 @@ static void proccall(void)
 		ret = func(args[0], args[1], args[2], args[3],
 			   args[4], args[5], args[6], args[7]);
 		sync();
-		printf("return value is %x\n", ret);
+		printf("return value is 0x%lx\n", ret);
 	} else {
 		printf("*** %x exception occurred\n", fault_except);
 	}
@@ -2700,7 +2700,7 @@ static void dump_slb(void)
 	unsigned long esid,vsid,valid;
 	unsigned long llp;
 
-	printf("SLB contents of cpu %x\n", smp_processor_id());
+	printf("SLB contents of cpu 0x%x\n", smp_processor_id());
 
 	for (i = 0; i < mmu_slb_size; i++) {
 		asm volatile("slbmfee  %0,%1" : "=r" (esid) : "r" (i));
@@ -2732,7 +2732,7 @@ static void dump_stab(void)
 	int i;
 	unsigned long *tmp = (unsigned long *)local_paca->stab_addr;
 
-	printf("Segment table contents of cpu %x\n", smp_processor_id());
+	printf("Segment table contents of cpu 0x%x\n", smp_processor_id());
 
 	for (i = 0; i < PAGE_SIZE/16; i++) {
 		unsigned long a, b;

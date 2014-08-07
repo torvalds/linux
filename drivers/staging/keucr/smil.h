@@ -204,6 +204,7 @@ extern struct keucr_media_area    CisArea;
 int         Init_D_SmartMedia(void);
 int         Pwoff_D_SmartMedia(void);
 int         Check_D_SmartMedia(void);
+int         Check_D_MediaFmt(struct us_data *);
 int         Check_D_Parameter(struct us_data *, u16 *, u8 *, u8 *);
 int         Media_D_ReadSector(struct us_data *, u32, u16, u8 *);
 int         Media_D_WriteSector(struct us_data *, u32, u16, u8 *);
@@ -283,7 +284,5 @@ void calculate_ecc(u8 *, u8 *, u8 *, u8 *, u8 *);
 u8 correct_data(u8 *, u8 *, u8,   u8,   u8);
 int  _Correct_D_SwECC(u8 *, u8 *, u8 *);
 void _Calculate_D_SwECC(u8 *, u8 *);
-
-void SM_Init(void);
 
 #endif /* already included */

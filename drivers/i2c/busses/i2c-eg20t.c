@@ -751,10 +751,8 @@ static int pch_i2c_probe(struct pci_dev *pdev,
 	pch_pci_dbg(pdev, "Entered.\n");
 
 	adap_info = kzalloc((sizeof(struct adapter_info)), GFP_KERNEL);
-	if (adap_info == NULL) {
-		pch_pci_err(pdev, "Memory allocation FAILED\n");
+	if (adap_info == NULL)
 		return -ENOMEM;
-	}
 
 	ret = pci_enable_device(pdev);
 	if (ret) {

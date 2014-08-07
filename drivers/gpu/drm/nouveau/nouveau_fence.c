@@ -166,7 +166,7 @@ nouveau_fence_done(struct nouveau_fence *fence)
 }
 
 static int
-nouveau_fence_wait_uevent_handler(void *data, int index)
+nouveau_fence_wait_uevent_handler(void *data, u32 type, int index)
 {
 	struct nouveau_fence_priv *priv = data;
 	wake_up_all(&priv->waiting);
@@ -183,7 +183,7 @@ nouveau_fence_wait_uevent(struct nouveau_fence *fence, bool intr)
 	struct nouveau_eventh *handler;
 	int ret = 0;
 
-	ret = nouveau_event_new(pfifo->uevent, 0,
+	ret = nouveau_event_new(pfifo->uevent, 1, 0,
 				nouveau_fence_wait_uevent_handler,
 				priv, &handler);
 	if (ret)

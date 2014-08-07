@@ -111,38 +111,10 @@ struct smp_cmd_security_req {
 #define SMP_CMD_NOTSUPP			0x07
 #define SMP_UNSPECIFIED			0x08
 #define SMP_REPEATED_ATTEMPTS		0x09
+#define SMP_INVALID_PARAMS		0x0a
 
 #define SMP_MIN_ENC_KEY_SIZE		7
 #define SMP_MAX_ENC_KEY_SIZE		16
-
-#define SMP_FLAG_TK_VALID	1
-#define SMP_FLAG_CFM_PENDING	2
-#define SMP_FLAG_MITM_AUTH	3
-#define SMP_FLAG_COMPLETE	4
-#define SMP_FLAG_INITIATOR	5
-
-struct smp_chan {
-	struct l2cap_conn *conn;
-	u8		preq[7]; /* SMP Pairing Request */
-	u8		prsp[7]; /* SMP Pairing Response */
-	u8		prnd[16]; /* SMP Pairing Random (local) */
-	u8		rrnd[16]; /* SMP Pairing Random (remote) */
-	u8		pcnf[16]; /* SMP Pairing Confirm */
-	u8		tk[16]; /* SMP Temporary Key */
-	u8		enc_key_size;
-	u8		remote_key_dist;
-	bdaddr_t	id_addr;
-	u8		id_addr_type;
-	u8		irk[16];
-	struct smp_csrk	*csrk;
-	struct smp_csrk	*slave_csrk;
-	struct smp_ltk	*ltk;
-	struct smp_ltk	*slave_ltk;
-	struct smp_irk	*remote_irk;
-	unsigned long	smp_flags;
-	struct work_struct confirm;
-	struct work_struct random;
-};
 
 /* SMP Commands */
 bool smp_sufficient_security(struct hci_conn *hcon, u8 sec_level);

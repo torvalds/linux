@@ -1111,10 +1111,8 @@ static int pl022_dma_probe(struct pl022 *pl022)
 	}
 
 	pl022->dummypage = kmalloc(PAGE_SIZE, GFP_KERNEL);
-	if (!pl022->dummypage) {
-		dev_dbg(&pl022->adev->dev, "no DMA dummypage!\n");
+	if (!pl022->dummypage)
 		goto err_no_dummypage;
-	}
 
 	dev_info(&pl022->adev->dev, "setup for DMA on RX %s, TX %s\n",
 		 dma_chan_name(pl022->dma_rx_channel),
@@ -1809,11 +1807,8 @@ static int pl022_setup(struct spi_device *spi)
 
 	if (chip == NULL) {
 		chip = kzalloc(sizeof(struct chip_data), GFP_KERNEL);
-		if (!chip) {
-			dev_err(&spi->dev,
-				"cannot allocate controller state\n");
+		if (!chip)
 			return -ENOMEM;
-		}
 		dev_dbg(&spi->dev,
 			"allocated memory for controller's runtime state\n");
 	}
@@ -2050,10 +2045,8 @@ pl022_platform_data_dt_get(struct device *dev)
 	}
 
 	pd = devm_kzalloc(dev, sizeof(struct pl022_ssp_controller), GFP_KERNEL);
-	if (!pd) {
-		dev_err(dev, "cannot allocate platform data memory\n");
+	if (!pd)
 		return NULL;
-	}
 
 	pd->bus_id = -1;
 	pd->enable_dma = 1;

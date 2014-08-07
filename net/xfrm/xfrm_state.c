@@ -463,9 +463,7 @@ expired:
 	if (!err)
 		km_state_expired(x, 1, 0);
 
-	xfrm_audit_state_delete(x, err ? 0 : 1,
-				audit_get_loginuid(current),
-				audit_get_sessionid(current), 0);
+	xfrm_audit_state_delete(x, err ? 0 : 1, true);
 
 out:
 	spin_unlock(&x->lock);
@@ -562,7 +560,7 @@ EXPORT_SYMBOL(xfrm_state_delete);
 
 #ifdef CONFIG_SECURITY_NETWORK_XFRM
 static inline int
-xfrm_state_flush_secctx_check(struct net *net, u8 proto, struct xfrm_audit *audit_info)
+xfrm_state_flush_secctx_check(struct net *net, u8 proto, bool task_valid)
 {
 	int i, err = 0;
 
@@ -572,10 +570,7 @@ xfrm_state_flush_secctx_check(struct net *net, u8 proto, struct xfrm_audit *audi
 		hlist_for_each_entry(x, net->xfrm.state_bydst+i, bydst) {
 			if (xfrm_id_proto_match(x->id.proto, proto) &&
 			   (err = security_xfrm_state_delete(x)) != 0) {
-				xfrm_audit_state_delete(x, 0,
-							audit_info->loginuid,
-							audit_info->sessionid,
-							audit_info->secid);
+				xfrm_audit_state_delete(x, 0, task_valid);
 				return err;
 			}
 		}
@@ -585,18 +580,18 @@ xfrm_state_flush_secctx_check(struct net *net, u8 proto, struct xfrm_audit *audi
 }
 #else
 static inline int
-xfrm_state_flush_secctx_check(struct net *net, u8 proto, struct xfrm_audit *audit_info)
+xfrm_state_flush_secctx_check(struct net *net, u8 proto, bool task_valid)
 {
 	return 0;
 }
 #endif
 
-int xfrm_state_flush(struct net *net, u8 proto, struct xfrm_audit *audit_info)
+int xfrm_state_flush(struct net *net, u8 proto, bool task_valid)
 {
 	int i, err = 0, cnt = 0;
 
 	spin_lock_bh(&net->xfrm.xfrm_state_lock);
-	err = xfrm_state_flush_secctx_check(net, proto, audit_info);
+	err = xfrm_state_flush_secctx_check(net, proto, task_valid);
 	if (err)
 		goto out;
 
@@ -612,9 +607,7 @@ restart:
 
 				err = xfrm_state_delete(x);
 				xfrm_audit_state_delete(x, err ? 0 : 1,
-							audit_info->loginuid,
-							audit_info->sessionid,
-							audit_info->secid);
+							task_valid);
 				xfrm_state_put(x);
 				if (!err)
 					cnt++;
@@ -2128,14 +2121,10 @@ out_bydst:
 
 void xfrm_state_fini(struct net *net)
 {
-	struct xfrm_audit audit_info;
 	unsigned int sz;
 
 	flush_work(&net->xfrm.state_hash_work);
-	audit_info.loginuid = INVALID_UID;
-	audit_info.sessionid = (unsigned int)-1;
-	audit_info.secid = 0;
-	xfrm_state_flush(net, IPSEC_PROTO_ANY, &audit_info);
+	xfrm_state_flush(net, IPSEC_PROTO_ANY, false);
 	flush_work(&net->xfrm.state_gc_work);
 
 	WARN_ON(!list_empty(&net->xfrm.state_all));
@@ -2198,30 +2187,28 @@ static void xfrm_audit_helper_pktinfo(struct sk_buff *skb, u16 family,
 	}
 }
 
-void xfrm_audit_state_add(struct xfrm_state *x, int result,
-			  kuid_t auid, unsigned int sessionid, u32 secid)
+void xfrm_audit_state_add(struct xfrm_state *x, int result, bool task_valid)
 {
 	struct audit_buffer *audit_buf;
 
 	audit_buf = xfrm_audit_start("SAD-add");
 	if (audit_buf == NULL)
 		return;
-	xfrm_audit_helper_usrinfo(auid, sessionid, secid, audit_buf);
+	xfrm_audit_helper_usrinfo(task_valid, audit_buf);
 	xfrm_audit_helper_sainfo(x, audit_buf);
 	audit_log_format(audit_buf, " res=%u", result);
 	audit_log_end(audit_buf);
 }
 EXPORT_SYMBOL_GPL(xfrm_audit_state_add);
 
-void xfrm_audit_state_delete(struct xfrm_state *x, int result,
-			     kuid_t auid, unsigned int sessionid, u32 secid)
+void xfrm_audit_state_delete(struct xfrm_state *x, int result, bool task_valid)
 {
 	struct audit_buffer *audit_buf;
 
 	audit_buf = xfrm_audit_start("SAD-delete");
 	if (audit_buf == NULL)
 		return;
-	xfrm_audit_helper_usrinfo(auid, sessionid, secid, audit_buf);
+	xfrm_audit_helper_usrinfo(task_valid, audit_buf);
 	xfrm_audit_helper_sainfo(x, audit_buf);
 	audit_log_format(audit_buf, " res=%u", result);
 	audit_log_end(audit_buf);

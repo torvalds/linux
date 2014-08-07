@@ -74,7 +74,6 @@ xfs_rtbuf_get(
 				   mp->m_bsize, 0, &bp, NULL);
 	if (error)
 		return error;
-	ASSERT(!xfs_buf_geterror(bp));
 	*bpp = bp;
 	return 0;
 }

@@ -57,11 +57,26 @@ static DEFINE_SPINLOCK(opal_notifier_lock);
 static uint64_t last_notified_mask = 0x0ul;
 static atomic_t opal_notifier_hold = ATOMIC_INIT(0);
 
+static void opal_reinit_cores(void)
+{
+	/* Do the actual re-init, This will clobber all FPRs, VRs, etc...
+	 *
+	 * It will preserve non volatile GPRs and HSPRG0/1. It will
+	 * also restore HIDs and other SPRs to their original value
+	 * but it might clobber a bunch.
+	 */
+#ifdef __BIG_ENDIAN__
+	opal_reinit_cpus(OPAL_REINIT_CPUS_HILE_BE);
+#else
+	opal_reinit_cpus(OPAL_REINIT_CPUS_HILE_LE);
+#endif
+}
+
 int __init early_init_dt_scan_opal(unsigned long node,
 				   const char *uname, int depth, void *data)
 {
 	const void *basep, *entryp, *sizep;
-	unsigned long basesz, entrysz, runtimesz;
+	int basesz, entrysz, runtimesz;
 
 	if (depth != 1 || strcmp(uname, "ibm,opal") != 0)
 		return 0;
@@ -77,11 +92,11 @@ int __init early_init_dt_scan_opal(unsigned long node,
 	opal.entry = of_read_number(entryp, entrysz/4);
 	opal.size = of_read_number(sizep, runtimesz/4);
 
-	pr_debug("OPAL Base  = 0x%llx (basep=%p basesz=%ld)\n",
+	pr_debug("OPAL Base  = 0x%llx (basep=%p basesz=%d)\n",
 		 opal.base, basep, basesz);
-	pr_debug("OPAL Entry = 0x%llx (entryp=%p basesz=%ld)\n",
+	pr_debug("OPAL Entry = 0x%llx (entryp=%p basesz=%d)\n",
 		 opal.entry, entryp, entrysz);
-	pr_debug("OPAL Entry = 0x%llx (sizep=%p runtimesz=%ld)\n",
+	pr_debug("OPAL Entry = 0x%llx (sizep=%p runtimesz=%d)\n",
 		 opal.size, sizep, runtimesz);
 
 	powerpc_firmware_features |= FW_FEATURE_OPAL;
@@ -96,13 +111,20 @@ int __init early_init_dt_scan_opal(unsigned long node,
 		printk("OPAL V1 detected !\n");
 	}
 
+	/* Reinit all cores with the right endian */
+	opal_reinit_cores();
+
+	/* Restore some bits */
+	if (cur_cpu_spec->cpu_restore)
+		cur_cpu_spec->cpu_restore();
+
 	return 1;
 }
 
 int __init early_init_dt_scan_recoverable_ranges(unsigned long node,
 				   const char *uname, int depth, void *data)
 {
-	unsigned long i, psize, size;
+	int i, psize, size;
 	const __be32 *prop;
 
 	if (depth != 1 || strcmp(uname, "ibm,opal") != 0)
@@ -359,7 +381,7 @@ int opal_get_chars(uint32_t vtermno, char *buf, int count)
 	if ((be64_to_cpu(evt) & OPAL_EVENT_CONSOLE_INPUT) == 0)
 		return 0;
 	len = cpu_to_be64(count);
-	rc = opal_console_read(vtermno, &len, buf);	
+	rc = opal_console_read(vtermno, &len, buf);
 	if (rc == OPAL_SUCCESS)
 		return be64_to_cpu(len);
 	return 0;

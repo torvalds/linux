@@ -95,15 +95,6 @@ static inline struct udp_hslot *udp_hashslot2(struct udp_table *table,
 	return &table->hash2[hash & table->mask];
 }
 
-/* Note: this must match 'valbool' in sock_setsockopt */
-#define UDP_CSUM_NOXMIT		1
-
-/* Used by SunRPC/xprt layer. */
-#define UDP_CSUM_NORCV		2
-
-/* Default, as per the RFC, is to always do csums. */
-#define UDP_CSUM_DEFAULT	0
-
 extern struct proto udp_prot;
 
 extern atomic_long_t udp_memory_allocated;
@@ -120,7 +111,9 @@ struct sk_buff;
  */
 static inline __sum16 __udp_lib_checksum_complete(struct sk_buff *skb)
 {
-	return __skb_checksum_complete_head(skb, UDP_SKB_CB(skb)->cscov);
+	return (UDP_SKB_CB(skb)->cscov == skb->len ?
+		__skb_checksum_complete(skb) :
+		__skb_checksum_complete_head(skb, UDP_SKB_CB(skb)->cscov));
 }
 
 static inline int udp_lib_checksum_complete(struct sk_buff *skb)
@@ -155,6 +148,15 @@ static inline __wsum udp_csum(struct sk_buff *skb)
 	}
 	return csum;
 }
+
+static inline __sum16 udp_v4_check(int len, __be32 saddr,
+				   __be32 daddr, __wsum base)
+{
+	return csum_tcpudp_magic(saddr, daddr, len, IPPROTO_UDP, base);
+}
+
+void udp_set_csum(bool nocheck, struct sk_buff *skb,
+		  __be32 saddr, __be32 daddr, int len);
 
 /* hash routines shared between UDPv4/6 and UDP-Litev4/6 */
 static inline void udp_lib_hash(struct sock *sk)

@@ -819,9 +819,7 @@ mpc52xx_ata_remove(struct platform_device *op)
 	return 0;
 }
 
-
-#ifdef CONFIG_PM
-
+#ifdef CONFIG_PM_SLEEP
 static int
 mpc52xx_ata_suspend(struct platform_device *op, pm_message_t state)
 {
@@ -847,9 +845,7 @@ mpc52xx_ata_resume(struct platform_device *op)
 
 	return 0;
 }
-
 #endif
-
 
 static struct of_device_id mpc52xx_ata_of_match[] = {
 	{ .compatible = "fsl,mpc5200-ata", },
@@ -861,7 +857,7 @@ static struct of_device_id mpc52xx_ata_of_match[] = {
 static struct platform_driver mpc52xx_ata_of_platform_driver = {
 	.probe		= mpc52xx_ata_probe,
 	.remove		= mpc52xx_ata_remove,
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	.suspend	= mpc52xx_ata_suspend,
 	.resume		= mpc52xx_ata_resume,
 #endif

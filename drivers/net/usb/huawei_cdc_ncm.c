@@ -84,12 +84,13 @@ static int huawei_cdc_ncm_bind(struct usbnet *usbnet_dev,
 	ctx = drvstate->ctx;
 
 	if (usbnet_dev->status)
-		/* CDC-WMC r1.1 requires wMaxCommand to be "at least 256
-		 * decimal (0x100)"
+		/* The wMaxCommand buffer must be big enough to hold
+		 * any message from the modem. Experience has shown
+		 * that some replies are more than 256 bytes long
 		 */
 		subdriver = usb_cdc_wdm_register(ctx->control,
 						 &usbnet_dev->status->desc,
-						 256, /* wMaxCommand */
+						 1024, /* wMaxCommand */
 						 huawei_cdc_ncm_wdm_manage_power);
 	if (IS_ERR(subdriver)) {
 		ret = PTR_ERR(subdriver);
@@ -172,24 +173,11 @@ err:
 	return ret;
 }
 
-static int huawei_cdc_ncm_check_connect(struct usbnet *usbnet_dev)
-{
-	struct cdc_ncm_ctx *ctx;
-
-	ctx = (struct cdc_ncm_ctx *)usbnet_dev->data[0];
-
-	if (ctx == NULL)
-		return 1; /* disconnected */
-
-	return !ctx->connected;
-}
-
 static const struct driver_info huawei_cdc_ncm_info = {
 	.description = "Huawei CDC NCM device",
 	.flags = FLAG_NO_SETINT | FLAG_MULTI_PACKET | FLAG_WWAN,
 	.bind = huawei_cdc_ncm_bind,
 	.unbind = huawei_cdc_ncm_unbind,
-	.check_connect = huawei_cdc_ncm_check_connect,
 	.manage_power = huawei_cdc_ncm_manage_power,
 	.rx_fixup = cdc_ncm_rx_fixup,
 	.tx_fixup = cdc_ncm_tx_fixup,

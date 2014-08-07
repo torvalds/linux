@@ -116,7 +116,7 @@ static void drbd_syncer_progress(struct drbd_device *device, struct seq_file *se
 	/* ------------------------ ~18s average ------------------------ */
 	i = (device->rs_last_mark + 2) % DRBD_SYNC_MARKS;
 	dt = (jiffies - device->rs_mark_time[i]) / HZ;
-	if (dt > (DRBD_SYNC_MARK_STEP * DRBD_SYNC_MARKS))
+	if (dt > 180)
 		stalled = 1;
 
 	if (!dt)

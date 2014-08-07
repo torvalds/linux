@@ -24,6 +24,7 @@
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
+		enable-method = "rockchip,rk3066-smp";
 
 		cpu@0 {
 			device_type = "cpu";
@@ -79,7 +80,7 @@
 
 		pinctrl@20008000 {
 			compatible = "rockchip,rk3066a-pinctrl";
-			reg = <0x20008000 0x150>;
+			rockchip,grf = <&grf>;
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges;

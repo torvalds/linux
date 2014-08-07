@@ -248,8 +248,8 @@ void perf_trace_del(struct perf_event *p_event, int flags)
 	tp_event->class->reg(tp_event, TRACE_REG_PERF_DEL, p_event);
 }
 
-__kprobes void *perf_trace_buf_prepare(int size, unsigned short type,
-				       struct pt_regs *regs, int *rctxp)
+void *perf_trace_buf_prepare(int size, unsigned short type,
+			     struct pt_regs *regs, int *rctxp)
 {
 	struct trace_entry *entry;
 	unsigned long flags;
@@ -281,6 +281,7 @@ __kprobes void *perf_trace_buf_prepare(int size, unsigned short type,
 	return raw_data;
 }
 EXPORT_SYMBOL_GPL(perf_trace_buf_prepare);
+NOKPROBE_SYMBOL(perf_trace_buf_prepare);
 
 #ifdef CONFIG_FUNCTION_TRACER
 static void

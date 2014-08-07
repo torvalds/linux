@@ -307,7 +307,7 @@ struct rfcomm_dlc *rfcomm_dlc_alloc(gfp_t prio)
 	setup_timer(&d->timer, rfcomm_dlc_timeout, (unsigned long)d);
 
 	skb_queue_head_init(&d->tx_queue);
-	spin_lock_init(&d->lock);
+	mutex_init(&d->lock);
 	atomic_set(&d->refcnt, 1);
 
 	rfcomm_dlc_clear_state(d);

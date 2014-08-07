@@ -87,7 +87,7 @@ your PCI configuration:
 
 	echo -n pirq=; echo `scanpci | grep T_L | cut -c56-` | sed 's/ /,/g'
 
-note that this script wont work if you have skipped a few slots or if your
+note that this script won't work if you have skipped a few slots or if your
 board does not do default daisy-chaining. (or the IO-APIC has the PIRQ pins
 connected in some strange way). E.g. if in the above case you have your SCSI
 card (IRQ11) in Slot3, and have Slot1 empty:

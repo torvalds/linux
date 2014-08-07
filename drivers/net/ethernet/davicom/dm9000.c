@@ -109,6 +109,7 @@ typedef struct board_info {
 	u8		imr_all;
 
 	unsigned int	flags;
+	unsigned int	in_timeout:1;
 	unsigned int	in_suspend:1;
 	unsigned int	wake_supported:1;
 
@@ -187,13 +188,13 @@ dm9000_reset(board_info_t *db)
 	 * The essential point is that we have to do a double reset, and the
 	 * instruction is to set LBK into MAC internal loopback mode.
 	 */
-	iow(db, DM9000_NCR, 0x03);
+	iow(db, DM9000_NCR, NCR_RST | NCR_MAC_LBK);
 	udelay(100); /* Application note says at least 20 us */
 	if (ior(db, DM9000_NCR) & 1)
 		dev_err(db->dev, "dm9000 did not respond to first reset\n");
 
 	iow(db, DM9000_NCR, 0);
-	iow(db, DM9000_NCR, 0x03);
+	iow(db, DM9000_NCR, NCR_RST | NCR_MAC_LBK);
 	udelay(100);
 	if (ior(db, DM9000_NCR) & 1)
 		dev_err(db->dev, "dm9000 did not respond to second reset\n");
@@ -273,7 +274,7 @@ static void dm9000_dumpblk_32bit(void __iomem *reg, int count)
  */
 static void dm9000_msleep(board_info_t *db, unsigned int ms)
 {
-	if (db->in_suspend)
+	if (db->in_suspend || db->in_timeout)
 		mdelay(ms);
 	else
 		msleep(ms);
@@ -334,7 +335,8 @@ dm9000_phy_write(struct net_device *dev,
 	unsigned long reg_save;
 
 	dm9000_dbg(db, 5, "phy_write[%02x] = %04x\n", reg, value);
-	mutex_lock(&db->addr_lock);
+	if (!db->in_timeout)
+		mutex_lock(&db->addr_lock);
 
 	spin_lock_irqsave(&db->lock, flags);
 
@@ -365,7 +367,8 @@ dm9000_phy_write(struct net_device *dev,
 	writeb(reg_save, db->io_addr);
 
 	spin_unlock_irqrestore(&db->lock, flags);
-	mutex_unlock(&db->addr_lock);
+	if (!db->in_timeout)
+		mutex_unlock(&db->addr_lock);
 }
 
 /* dm9000_set_io
@@ -882,6 +885,18 @@ dm9000_hash_table(struct net_device *dev)
 	spin_unlock_irqrestore(&db->lock, flags);
 }
 
+static void
+dm9000_mask_interrupts(board_info_t *db)
+{
+	iow(db, DM9000_IMR, IMR_PAR);
+}
+
+static void
+dm9000_unmask_interrupts(board_info_t *db)
+{
+	iow(db, DM9000_IMR, db->imr_all);
+}
+
 /*
  * Initialize dm9000 board
  */
@@ -893,6 +908,9 @@ dm9000_init_dm9000(struct net_device *dev)
 	unsigned int ncr;
 
 	dm9000_dbg(db, 1, "entering %s\n", __func__);
+
+	dm9000_reset(db);
+	dm9000_mask_interrupts(db);
 
 	/* I/O mode */
 	db->io_mode = ior(db, DM9000_ISR) >> 6;	/* ISR bit7:6 keeps I/O mode */
@@ -941,9 +959,6 @@ dm9000_init_dm9000(struct net_device *dev)
 
 	db->imr_all = imr;
 
-	/* Enable TX/RX interrupt mask */
-	iow(db, DM9000_IMR, imr);
-
 	/* Init Driver variable */
 	db->tx_pkt_cnt = 0;
 	db->queue_pkt_len = 0;
@@ -959,17 +974,19 @@ static void dm9000_timeout(struct net_device *dev)
 
 	/* Save previous register address */
 	spin_lock_irqsave(&db->lock, flags);
+	db->in_timeout = 1;
 	reg_save = readb(db->io_addr);
 
 	netif_stop_queue(dev);
-	dm9000_reset(db);
 	dm9000_init_dm9000(dev);
+	dm9000_unmask_interrupts(db);
 	/* We can accept TX packets again */
 	dev->trans_start = jiffies; /* prevent tx timeout */
 	netif_wake_queue(dev);
 
 	/* Restore previous register address */
 	writeb(reg_save, db->io_addr);
+	db->in_timeout = 0;
 	spin_unlock_irqrestore(&db->lock, flags);
 }
 
@@ -1093,7 +1110,6 @@ dm9000_rx(struct net_device *dev)
 		if (rxbyte & DM9000_PKT_ERR) {
 			dev_warn(db->dev, "status check fail: %d\n", rxbyte);
 			iow(db, DM9000_RCR, 0x00);	/* Stop Device */
-			iow(db, DM9000_ISR, IMR_PAR);	/* Stop INT request */
 			return;
 		}
 
@@ -1193,9 +1209,7 @@ static irqreturn_t dm9000_interrupt(int irq, void *dev_id)
 	/* Save previous register address */
 	reg_save = readb(db->io_addr);
 
-	/* Disable all interrupts */
-	iow(db, DM9000_IMR, IMR_PAR);
-
+	dm9000_mask_interrupts(db);
 	/* Got DM9000 interrupt status */
 	int_status = ior(db, DM9000_ISR);	/* Got ISR */
 	iow(db, DM9000_ISR, int_status);	/* Clear ISR status */
@@ -1218,9 +1232,7 @@ static irqreturn_t dm9000_interrupt(int irq, void *dev_id)
 		}
 	}
 
-	/* Re-enable interrupt mask */
-	iow(db, DM9000_IMR, db->imr_all);
-
+	dm9000_unmask_interrupts(db);
 	/* Restore previous register address */
 	writeb(reg_save, db->io_addr);
 
@@ -1292,6 +1304,9 @@ dm9000_open(struct net_device *dev)
 	 * may work, and tell the user that this is a problem */
 
 	if (irqflags == IRQF_TRIGGER_NONE)
+		irqflags = irq_get_trigger_type(dev->irq);
+
+	if (irqflags == IRQF_TRIGGER_NONE)
 		dev_warn(db->dev, "WARNING: no IRQ resource flags set.\n");
 
 	irqflags |= IRQF_SHARED;
@@ -1301,11 +1316,14 @@ dm9000_open(struct net_device *dev)
 	mdelay(1); /* delay needs by DM9000B */
 
 	/* Initialize DM9000 board */
-	dm9000_reset(db);
 	dm9000_init_dm9000(dev);
 
 	if (request_irq(dev->irq, dm9000_interrupt, irqflags, dev->name, dev))
 		return -EAGAIN;
+	/* Now that we have an interrupt handler hooked up we can unmask
+	 * our interrupts
+	 */
+	dm9000_unmask_interrupts(db);
 
 	/* Init driver variable */
 	db->dbug_cnt = 0;
@@ -1313,7 +1331,8 @@ dm9000_open(struct net_device *dev)
 	mii_check_media(&db->mii, netif_msg_link(db), 1);
 	netif_start_queue(dev);
 
-	dm9000_schedule_poll(db);
+	/* Poll initial link status */
+	schedule_delayed_work(&db->phy_poll, 1);
 
 	return 0;
 }
@@ -1326,7 +1345,7 @@ dm9000_shutdown(struct net_device *dev)
 	/* RESET device */
 	dm9000_phy_write(dev, 0, MII_BMCR, BMCR_RESET);	/* PHY RESET */
 	iow(db, DM9000_GPR, 0x01);	/* Power-Down PHY */
-	iow(db, DM9000_IMR, IMR_PAR);	/* Disable all interrupt */
+	dm9000_mask_interrupts(db);
 	iow(db, DM9000_RCR, 0x00);	/* Disable RX */
 }
 
@@ -1547,12 +1566,7 @@ dm9000_probe(struct platform_device *pdev)
 	db->flags |= DM9000_PLATF_SIMPLE_PHY;
 #endif
 
-	/* Fixing bug on dm9000_probe, takeover dm9000_reset(db),
-	 * Need 'NCR_MAC_LBK' bit to indeed stable our DM9000 fifo
-	 * while probe stage.
-	 */
-
-	iow(db, DM9000_NCR, NCR_MAC_LBK | NCR_RST);
+	dm9000_reset(db);
 
 	/* try multiple times, DM9000 sometimes gets the read wrong */
 	for (i = 0; i < 8; i++) {
@@ -1695,8 +1709,8 @@ dm9000_drv_resume(struct device *dev)
 			/* reset if we were not in wake mode to ensure if
 			 * the device was powered off it is in a known state */
 			if (!db->wake_state) {
-				dm9000_reset(db);
 				dm9000_init_dm9000(ndev);
+				dm9000_unmask_interrupts(db);
 			}
 
 			netif_device_attach(ndev);

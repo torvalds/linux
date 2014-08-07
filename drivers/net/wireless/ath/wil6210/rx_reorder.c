@@ -49,10 +49,17 @@ static void wil_release_reorder_frames(struct wil6210_priv *wil,
 {
 	int index;
 
-	while (seq_less(r->head_seq_num, hseq)) {
+	/* note: this function is never called with
+	 * hseq preceding r->head_seq_num, i.e it is always true
+	 * !seq_less(hseq, r->head_seq_num)
+	 * and thus on loop exit it should be
+	 * r->head_seq_num == hseq
+	 */
+	while (seq_less(r->head_seq_num, hseq) && r->stored_mpdu_num) {
 		index = reorder_index(r, r->head_seq_num);
 		wil_release_reorder_frame(wil, r, index);
 	}
+	r->head_seq_num = hseq;
 }
 
 static void wil_reorder_release(struct wil6210_priv *wil,
@@ -90,6 +97,22 @@ void wil_rx_reorder(struct wil6210_priv *wil, struct sk_buff *skb)
 	hseq = r->head_seq_num;
 
 	spin_lock(&r->reorder_lock);
+
+	/** Due to the race between WMI events, where BACK establishment
+	 * reported, and data Rx, few packets may be pass up before reorder
+	 * buffer get allocated. Catch up by pretending SSN is what we
+	 * see in the 1-st Rx packet
+	 */
+	if (r->first_time) {
+		r->first_time = false;
+		if (seq != r->head_seq_num) {
+			wil_err(wil, "Error: 1-st frame with wrong sequence"
+				" %d, should be %d. Fixing...\n", seq,
+				r->head_seq_num);
+			r->head_seq_num = seq;
+			r->ssn = seq;
+		}
+	}
 
 	/* frame with out of date sequence number */
 	if (seq_less(seq, r->head_seq_num)) {
@@ -162,6 +185,7 @@ struct wil_tid_ampdu_rx *wil_tid_ampdu_rx_alloc(struct wil6210_priv *wil,
 	r->head_seq_num = ssn;
 	r->buf_size = size;
 	r->stored_mpdu_num = 0;
+	r->first_time = true;
 	return r;
 }
 

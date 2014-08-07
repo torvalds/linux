@@ -43,6 +43,7 @@ static struct omap_prcm_irq_setup omap3_prcm_irq_setup = {
 	.ocp_barrier		= &omap3xxx_prm_ocp_barrier,
 	.save_and_clear_irqen	= &omap3xxx_prm_save_and_clear_irqen,
 	.restore_irqen		= &omap3xxx_prm_restore_irqen,
+	.reconfigure_io_chain	= &omap3xxx_prm_reconfigure_io_chain,
 };
 
 /*
@@ -246,7 +247,7 @@ void omap3xxx_prm_reconfigure_io_chain(void)
  */
 static void __init omap3xxx_prm_enable_io_wakeup(void)
 {
-	if (omap3_has_io_wakeup())
+	if (prm_features & PRM_HAS_IO_WAKEUP)
 		omap2_prm_set_mod_reg_bits(OMAP3430_EN_IO_MASK, WKUP_MOD,
 					   PM_WKEN);
 }
@@ -400,23 +401,26 @@ struct pwrdm_ops omap3_pwrdm_operations = {
  *
  */
 
+static int omap3xxx_prm_late_init(void);
+
 static struct prm_ll_data omap3xxx_prm_ll_data = {
 	.read_reset_sources = &omap3xxx_prm_read_reset_sources,
+	.late_init = &omap3xxx_prm_late_init,
 };
 
 int __init omap3xxx_prm_init(void)
 {
-	if (!cpu_is_omap34xx())
-		return 0;
+	if (omap3_has_io_wakeup())
+		prm_features |= PRM_HAS_IO_WAKEUP;
 
 	return prm_register(&omap3xxx_prm_ll_data);
 }
 
-static int __init omap3xxx_prm_late_init(void)
+static int omap3xxx_prm_late_init(void)
 {
 	int ret;
 
-	if (!cpu_is_omap34xx())
+	if (!(prm_features & PRM_HAS_IO_WAKEUP))
 		return 0;
 
 	omap3xxx_prm_enable_io_wakeup();
@@ -427,15 +431,9 @@ static int __init omap3xxx_prm_late_init(void)
 
 	return ret;
 }
-omap_subsys_initcall(omap3xxx_prm_late_init);
 
 static void __exit omap3xxx_prm_exit(void)
 {
-	if (!cpu_is_omap34xx())
-		return;
-
-	/* Should never happen */
-	WARN(prm_unregister(&omap3xxx_prm_ll_data),
-	     "%s: prm_ll_data function pointer mismatch\n", __func__);
+	prm_unregister(&omap3xxx_prm_ll_data);
 }
 __exitcall(omap3xxx_prm_exit);

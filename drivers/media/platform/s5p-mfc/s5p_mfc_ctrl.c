@@ -400,3 +400,65 @@ int s5p_mfc_wakeup(struct s5p_mfc_dev *dev)
 	return 0;
 }
 
+int s5p_mfc_open_mfc_inst(struct s5p_mfc_dev *dev, struct s5p_mfc_ctx *ctx)
+{
+	int ret = 0;
+
+	ret = s5p_mfc_hw_call(dev->mfc_ops, alloc_instance_buffer, ctx);
+	if (ret) {
+		mfc_err("Failed allocating instance buffer\n");
+		goto err;
+	}
+
+	if (ctx->type == MFCINST_DECODER) {
+		ret = s5p_mfc_hw_call(dev->mfc_ops,
+					alloc_dec_temp_buffers, ctx);
+		if (ret) {
+			mfc_err("Failed allocating temporary buffers\n");
+			goto err_free_inst_buf;
+		}
+	}
+
+	set_work_bit_irqsave(ctx);
+	s5p_mfc_clean_ctx_int_flags(ctx);
+	s5p_mfc_hw_call(dev->mfc_ops, try_run, dev);
+	if (s5p_mfc_wait_for_done_ctx(ctx,
+		S5P_MFC_R2H_CMD_OPEN_INSTANCE_RET, 0)) {
+		/* Error or timeout */
+		mfc_err("Error getting instance from hardware\n");
+		ret = -EIO;
+		goto err_free_desc_buf;
+	}
+
+	mfc_debug(2, "Got instance number: %d\n", ctx->inst_no);
+	return ret;
+
+err_free_desc_buf:
+	if (ctx->type == MFCINST_DECODER)
+		s5p_mfc_hw_call(dev->mfc_ops, release_dec_desc_buffer, ctx);
+err_free_inst_buf:
+	s5p_mfc_hw_call(dev->mfc_ops, release_instance_buffer, ctx);
+err:
+	return ret;
+}
+
+void s5p_mfc_close_mfc_inst(struct s5p_mfc_dev *dev, struct s5p_mfc_ctx *ctx)
+{
+	ctx->state = MFCINST_RETURN_INST;
+	set_work_bit_irqsave(ctx);
+	s5p_mfc_clean_ctx_int_flags(ctx);
+	s5p_mfc_hw_call(dev->mfc_ops, try_run, dev);
+	/* Wait until instance is returned or timeout occurred */
+	if (s5p_mfc_wait_for_done_ctx(ctx,
+				S5P_MFC_R2H_CMD_CLOSE_INSTANCE_RET, 0))
+		mfc_err("Err returning instance\n");
+
+	/* Free resources */
+	s5p_mfc_hw_call(dev->mfc_ops, release_codec_buffers, ctx);
+	s5p_mfc_hw_call(dev->mfc_ops, release_instance_buffer, ctx);
+	if (ctx->type == MFCINST_DECODER)
+		s5p_mfc_hw_call(dev->mfc_ops, release_dec_desc_buffer, ctx);
+
+	ctx->inst_no = MFC_NO_INSTANCE_SET;
+	ctx->state = MFCINST_FREE;
+}

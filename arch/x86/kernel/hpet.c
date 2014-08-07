@@ -74,9 +74,6 @@ static inline void hpet_writel(unsigned int d, unsigned int a)
 static inline void hpet_set_mapping(void)
 {
 	hpet_virt_address = ioremap_nocache(hpet_address, HPET_MMAP_SIZE);
-#ifdef CONFIG_X86_64
-	__set_fixmap(VSYSCALL_HPET, hpet_address, PAGE_KERNEL_VVAR_NOCACHE);
-#endif
 }
 
 static inline void hpet_clear_mapping(void)
@@ -479,7 +476,7 @@ static int hpet_msi_next_event(unsigned long delta,
 static int hpet_setup_msi_irq(unsigned int irq)
 {
 	if (x86_msi.setup_hpet_msi(irq, hpet_blockid)) {
-		destroy_irq(irq);
+		irq_free_hwirq(irq);
 		return -EINVAL;
 	}
 	return 0;
@@ -487,9 +484,8 @@ static int hpet_setup_msi_irq(unsigned int irq)
 
 static int hpet_assign_irq(struct hpet_dev *dev)
 {
-	unsigned int irq;
+	unsigned int irq = irq_alloc_hwirq(-1);
 
-	irq = create_irq_nr(0, -1);
 	if (!irq)
 		return -EINVAL;
 

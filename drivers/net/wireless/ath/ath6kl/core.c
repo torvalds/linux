@@ -45,9 +45,9 @@ module_param(testmode, uint, 0644);
 module_param(recovery_enable, uint, 0644);
 module_param(heart_beat_poll, uint, 0644);
 MODULE_PARM_DESC(recovery_enable, "Enable recovery from firmware error");
-MODULE_PARM_DESC(heart_beat_poll, "Enable fw error detection periodic"   \
-		 "polling. This also specifies the polling interval in"  \
-		 "msecs. Set reocvery_enable for this to be effective");
+MODULE_PARM_DESC(heart_beat_poll,
+		 "Enable fw error detection periodic polling in msecs - Also set recovery_enable for this to be effective");
+
 
 void ath6kl_core_tx_complete(struct ath6kl *ar, struct sk_buff *skb)
 {

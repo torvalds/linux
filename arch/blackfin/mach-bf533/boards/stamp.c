@@ -17,6 +17,7 @@
 #if IS_ENABLED(CONFIG_USB_ISP1362_HCD)
 #include <linux/usb/isp1362.h>
 #endif
+#include <linux/gpio.h>
 #include <linux/irq.h>
 #include <linux/i2c.h>
 #include <asm/dma.h>

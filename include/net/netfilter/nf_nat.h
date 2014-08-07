@@ -48,6 +48,8 @@ unsigned int nf_nat_setup_info(struct nf_conn *ct,
 extern unsigned int nf_nat_alloc_null_binding(struct nf_conn *ct,
 					      unsigned int hooknum);
 
+struct nf_conn_nat *nf_ct_nat_ext_add(struct nf_conn *ct);
+
 /* Is this tuple already taken? (not by us)*/
 int nf_nat_used_tuple(const struct nf_conntrack_tuple *tuple,
 		      const struct nf_conn *ignored_conntrack);

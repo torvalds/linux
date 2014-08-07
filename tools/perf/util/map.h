@@ -6,7 +6,7 @@
 #include <linux/rbtree.h>
 #include <stdio.h>
 #include <stdbool.h>
-#include "types.h"
+#include <linux/types.h>
 
 enum map_type {
 	MAP__FUNCTION = 0,
@@ -35,6 +35,8 @@ struct map {
 	bool			referenced;
 	bool			erange_warned;
 	u32			priv;
+	u32			prot;
+	u32			flags;
 	u64			pgoff;
 	u64			reloc;
 	u32			maj, min; /* only valid for MMAP2 record */
@@ -59,7 +61,19 @@ struct map_groups {
 	struct rb_root	 maps[MAP__NR_TYPES];
 	struct list_head removed_maps[MAP__NR_TYPES];
 	struct machine	 *machine;
+	int		 refcnt;
 };
+
+struct map_groups *map_groups__new(void);
+void map_groups__delete(struct map_groups *mg);
+
+static inline struct map_groups *map_groups__get(struct map_groups *mg)
+{
+	++mg->refcnt;
+	return mg;
+}
+
+void map_groups__put(struct map_groups *mg);
 
 static inline struct kmap *map__kmap(struct map *map)
 {
@@ -106,7 +120,7 @@ void map__init(struct map *map, enum map_type type,
 	       u64 start, u64 end, u64 pgoff, struct dso *dso);
 struct map *map__new(struct list_head *dsos__list, u64 start, u64 len,
 		     u64 pgoff, u32 pid, u32 d_maj, u32 d_min, u64 ino,
-		     u64 ino_gen,
+		     u64 ino_gen, u32 prot, u32 flags,
 		     char *filename, enum map_type type);
 struct map *map__new2(u64 start, struct dso *dso, enum map_type type);
 void map__delete(struct map *map);

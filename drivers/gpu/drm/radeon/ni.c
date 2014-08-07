@@ -1057,6 +1057,18 @@ static void cayman_gpu_init(struct radeon_device *rdev)
 			disabled_rb_mask &= ~(1 << i);
 	}
 
+	for (i = 0; i < rdev->config.cayman.max_shader_engines; i++) {
+		u32 simd_disable_bitmap;
+
+		WREG32(GRBM_GFX_INDEX, INSTANCE_BROADCAST_WRITES | SE_INDEX(i));
+		WREG32(RLC_GFX_INDEX, INSTANCE_BROADCAST_WRITES | SE_INDEX(i));
+		simd_disable_bitmap = (RREG32(CC_GC_SHADER_PIPE_CONFIG) & 0xffff0000) >> 16;
+		simd_disable_bitmap |= 0xffffffff << rdev->config.cayman.max_simds_per_se;
+		tmp <<= 16;
+		tmp |= simd_disable_bitmap;
+	}
+	rdev->config.cayman.active_simds = hweight32(~tmp);
+
 	WREG32(GRBM_GFX_INDEX, INSTANCE_BROADCAST_WRITES | SE_BROADCAST_WRITES);
 	WREG32(RLC_GFX_INDEX, INSTANCE_BROADCAST_WRITES | SE_BROADCAST_WRITES);
 
@@ -1228,12 +1240,14 @@ static int cayman_pcie_gart_enable(struct radeon_device *rdev)
 	       SYSTEM_APERTURE_UNMAPPED_ACCESS_PASS_THRU);
 	/* Setup L2 cache */
 	WREG32(VM_L2_CNTL, ENABLE_L2_CACHE |
+	       ENABLE_L2_FRAGMENT_PROCESSING |
 	       ENABLE_L2_PTE_CACHE_LRU_UPDATE_BY_WRITE |
 	       ENABLE_L2_PDE0_CACHE_LRU_UPDATE_BY_WRITE |
 	       EFFECTIVE_L2_QUEUE_SIZE(7) |
 	       CONTEXT1_IDENTITY_ACCESS_MODE(1));
 	WREG32(VM_L2_CNTL2, INVALIDATE_ALL_L1_TLBS | INVALIDATE_L2_CACHE);
 	WREG32(VM_L2_CNTL3, L2_CACHE_BIGK_ASSOCIATIVITY |
+	       BANK_SELECT(6) |
 	       L2_CACHE_BIGK_FRAGMENT_SIZE(6));
 	/* setup context0 */
 	WREG32(VM_CONTEXT0_PAGE_TABLE_START_ADDR, rdev->mc.gtt_start >> 12);
@@ -1266,6 +1280,7 @@ static int cayman_pcie_gart_enable(struct radeon_device *rdev)
 	       (u32)(rdev->dummy_page.addr >> 12));
 	WREG32(VM_CONTEXT1_CNTL2, 4);
 	WREG32(VM_CONTEXT1_CNTL, ENABLE_CONTEXT | PAGE_TABLE_DEPTH(1) |
+				PAGE_TABLE_BLOCK_SIZE(radeon_vm_block_size - 9) |
 				RANGE_PROTECTION_FAULT_ENABLE_INTERRUPT |
 				RANGE_PROTECTION_FAULT_ENABLE_DEFAULT |
 				DUMMY_PAGE_PROTECTION_FAULT_ENABLE_INTERRUPT |
@@ -1343,7 +1358,7 @@ void cayman_fence_ring_emit(struct radeon_device *rdev,
 	/* EVENT_WRITE_EOP - flush caches, send int */
 	radeon_ring_write(ring, PACKET3(PACKET3_EVENT_WRITE_EOP, 4));
 	radeon_ring_write(ring, EVENT_TYPE(CACHE_FLUSH_AND_INV_EVENT_TS) | EVENT_INDEX(5));
-	radeon_ring_write(ring, addr & 0xffffffff);
+	radeon_ring_write(ring, lower_32_bits(addr));
 	radeon_ring_write(ring, (upper_32_bits(addr) & 0xff) | DATA_SEL(1) | INT_SEL(2));
 	radeon_ring_write(ring, fence->seq);
 	radeon_ring_write(ring, 0);

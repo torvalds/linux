@@ -830,7 +830,7 @@ static bool piix_irq_check(struct ata_port *ap)
 	return ap->ops->bmdma_status(ap) & ATA_DMA_INTR;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int piix_broken_suspend(void)
 {
 	static const struct dmi_system_id sysids[] = {
@@ -1767,7 +1767,7 @@ static struct pci_driver piix_pci_driver = {
 	.id_table		= piix_pci_tbl,
 	.probe			= piix_init_one,
 	.remove			= piix_remove_one,
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	.suspend		= piix_pci_device_suspend,
 	.resume			= piix_pci_device_resume,
 #endif

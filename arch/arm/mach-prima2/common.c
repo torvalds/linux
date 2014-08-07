@@ -34,6 +34,8 @@ static const char *atlas6_dt_match[] __initconst = {
 
 DT_MACHINE_START(ATLAS6_DT, "Generic ATLAS6 (Flattened Device Tree)")
 	/* Maintainer: Barry Song <baohua.song@csr.com> */
+	.l2c_aux_val	= 0,
+	.l2c_aux_mask	= ~0,
 	.map_io         = sirfsoc_map_io,
 	.init_late	= sirfsoc_init_late,
 	.dt_compat      = atlas6_dt_match,
@@ -48,6 +50,8 @@ static const char *prima2_dt_match[] __initconst = {
 
 DT_MACHINE_START(PRIMA2_DT, "Generic PRIMA2 (Flattened Device Tree)")
 	/* Maintainer: Barry Song <baohua.song@csr.com> */
+	.l2c_aux_val	= 0,
+	.l2c_aux_mask	= ~0,
 	.map_io         = sirfsoc_map_io,
 	.dma_zone_size	= SZ_256M,
 	.init_late	= sirfsoc_init_late,
@@ -63,6 +67,8 @@ static const char *marco_dt_match[] __initconst = {
 
 DT_MACHINE_START(MARCO_DT, "Generic MARCO (Flattened Device Tree)")
 	/* Maintainer: Barry Song <baohua.song@csr.com> */
+	.l2c_aux_val	= 0,
+	.l2c_aux_mask	= ~0,
 	.smp            = smp_ops(sirfsoc_smp_ops),
 	.map_io         = sirfsoc_map_io,
 	.init_late	= sirfsoc_init_late,

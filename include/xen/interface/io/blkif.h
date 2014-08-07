@@ -86,7 +86,7 @@ typedef uint64_t blkif_sector_t;
  *     Interface%20manuals/100293068c.pdf
  * The backend can optionally provide three extra XenBus attributes to
  * further optimize the discard functionality:
- * 'discard-aligment' - Devices that support discard functionality may
+ * 'discard-alignment' - Devices that support discard functionality may
  * internally allocate space in units that are bigger than the exported
  * logical block size. The discard-alignment parameter indicates how many bytes
  * the beginning of the partition is offset from the internal allocation unit's

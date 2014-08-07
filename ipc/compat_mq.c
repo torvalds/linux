@@ -12,7 +12,7 @@
 #include <linux/mqueue.h>
 #include <linux/syscalls.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 struct compat_mq_attr {
 	compat_long_t mq_flags;      /* message queue flags		     */

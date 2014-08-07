@@ -395,7 +395,9 @@ struct ovs_key_nd {
  * @OVS_FLOW_ATTR_ACTIONS: Nested %OVS_ACTION_ATTR_* attributes specifying
  * the actions to take for packets that match the key.  Always present in
  * notifications.  Required for %OVS_FLOW_CMD_NEW requests, optional for
- * %OVS_FLOW_CMD_SET requests.
+ * %OVS_FLOW_CMD_SET requests.  An %OVS_FLOW_CMD_SET without
+ * %OVS_FLOW_ATTR_ACTIONS will not modify the actions.  To clear the actions,
+ * an %OVS_FLOW_ATTR_ACTIONS without any nested attributes must be given.
  * @OVS_FLOW_ATTR_STATS: &struct ovs_flow_stats giving statistics for this
  * flow.  Present in notifications if the stats would be nonzero.  Ignored in
  * requests.

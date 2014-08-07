@@ -31,6 +31,24 @@
 		pinctrl2 = &pinctrl_2;
 	};
 
+	sysram@02020000 {
+		compatible = "mmio-sram";
+		reg = <0x02020000 0x20000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0x02020000 0x20000>;
+
+		smp-sysram@0 {
+			compatible = "samsung,exynos4210-sysram";
+			reg = <0x0 0x1000>;
+		};
+
+		smp-sysram@1f000 {
+			compatible = "samsung,exynos4210-sysram-ns";
+			reg = <0x1f000 0x1000>;
+		};
+	};
+
 	pd_lcd1: lcd1-power-domain@10023CA0 {
 		compatible = "samsung,exynos4210-pd";
 		reg = <0x10023CA0 0x20>;

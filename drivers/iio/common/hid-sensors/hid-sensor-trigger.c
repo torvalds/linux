@@ -28,16 +28,17 @@
 #include <linux/iio/sysfs.h>
 #include "hid-sensor-trigger.h"
 
-static int hid_sensor_data_rdy_trigger_set_state(struct iio_trigger *trig,
-						bool state)
+int hid_sensor_power_state(struct hid_sensor_common *st, bool state)
 {
-	struct hid_sensor_common *st = iio_trigger_get_drvdata(trig);
 	int state_val;
 	int report_val;
 
 	if (state) {
 		if (sensor_hub_device_open(st->hsdev))
 			return -EIO;
+
+		atomic_inc(&st->data_ready);
+
 		state_val = hid_sensor_get_usage_index(st->hsdev,
 			st->power_state.report_id,
 			st->power_state.index,
@@ -47,6 +48,8 @@ static int hid_sensor_data_rdy_trigger_set_state(struct iio_trigger *trig,
 			st->report_state.index,
 			HID_USAGE_SENSOR_PROP_REPORTING_STATE_ALL_EVENTS_ENUM);
 	} else {
+		if (!atomic_dec_and_test(&st->data_ready))
+			return 0;
 		sensor_hub_device_close(st->hsdev);
 		state_val = hid_sensor_get_usage_index(st->hsdev,
 			st->power_state.report_id,
@@ -57,7 +60,6 @@ static int hid_sensor_data_rdy_trigger_set_state(struct iio_trigger *trig,
 			st->report_state.index,
 			HID_USAGE_SENSOR_PROP_REPORTING_STATE_NO_EVENTS_ENUM);
 	}
-	st->data_ready = state;
 
 	if (state_val >= 0) {
 		state_val += st->power_state.logical_minimum;
@@ -73,7 +75,17 @@ static int hid_sensor_data_rdy_trigger_set_state(struct iio_trigger *trig,
 					(s32)report_val);
 	}
 
+	sensor_hub_get_feature(st->hsdev, st->power_state.report_id,
+					st->power_state.index,
+					&state_val);
 	return 0;
+}
+EXPORT_SYMBOL(hid_sensor_power_state);
+
+static int hid_sensor_data_rdy_trigger_set_state(struct iio_trigger *trig,
+						bool state)
+{
+	return hid_sensor_power_state(iio_trigger_get_drvdata(trig), state);
 }
 
 void hid_sensor_remove_trigger(struct hid_sensor_common *attrb)

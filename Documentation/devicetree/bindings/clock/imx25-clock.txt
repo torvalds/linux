@@ -139,6 +139,9 @@ clocks and IDs.
 	uart5_ipg		124
 	reserved		125
 	wdt_ipg			126
+	cko_div			127
+	cko_sel			128
+	cko			129
 
 Examples:
 

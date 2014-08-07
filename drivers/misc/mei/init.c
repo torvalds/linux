@@ -74,9 +74,13 @@ int mei_reset(struct mei_device *dev)
 	if (state != MEI_DEV_INITIALIZING &&
 	    state != MEI_DEV_DISABLED &&
 	    state != MEI_DEV_POWER_DOWN &&
-	    state != MEI_DEV_POWER_UP)
-		dev_warn(&dev->pdev->dev, "unexpected reset: dev_state = %s\n",
-			 mei_dev_state_str(state));
+	    state != MEI_DEV_POWER_UP) {
+		struct mei_fw_status fw_status;
+		mei_fw_status(dev, &fw_status);
+		dev_warn(&dev->pdev->dev,
+			"unexpected reset: dev_state = %s " FW_STS_FMT "\n",
+			mei_dev_state_str(state), FW_STS_PRM(fw_status));
+	}
 
 	/* we're already in reset, cancel the init timer
 	 * if the reset was called due the hbm protocol error
@@ -118,8 +122,8 @@ int mei_reset(struct mei_device *dev)
 		mei_amthif_reset_params(dev);
 	}
 
+	mei_hbm_reset(dev);
 
-	dev->me_clients_num = 0;
 	dev->rd_msg_hdr = 0;
 	dev->wd_pending = false;
 
@@ -303,15 +307,58 @@ void mei_stop(struct mei_device *dev)
 }
 EXPORT_SYMBOL_GPL(mei_stop);
 
+/**
+ * mei_write_is_idle - check if the write queues are idle
+ *
+ * @dev: the device structure
+ *
+ * returns true of there is no pending write
+ */
+bool mei_write_is_idle(struct mei_device *dev)
+{
+	bool idle = (dev->dev_state == MEI_DEV_ENABLED &&
+		list_empty(&dev->ctrl_wr_list.list) &&
+		list_empty(&dev->write_list.list));
 
+	dev_dbg(&dev->pdev->dev, "write pg: is idle[%d] state=%s ctrl=%d write=%d\n",
+		idle,
+		mei_dev_state_str(dev->dev_state),
+		list_empty(&dev->ctrl_wr_list.list),
+		list_empty(&dev->write_list.list));
 
-void mei_device_init(struct mei_device *dev)
+	return idle;
+}
+EXPORT_SYMBOL_GPL(mei_write_is_idle);
+
+int mei_fw_status(struct mei_device *dev, struct mei_fw_status *fw_status)
+{
+	int i;
+	const struct mei_fw_status *fw_src = &dev->cfg->fw_status;
+
+	if (!fw_status)
+		return -EINVAL;
+
+	fw_status->count = fw_src->count;
+	for (i = 0; i < fw_src->count && i < MEI_FW_STATUS_MAX; i++) {
+		int ret;
+		ret = pci_read_config_dword(dev->pdev,
+			fw_src->status[i], &fw_status->status[i]);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mei_fw_status);
+
+void mei_device_init(struct mei_device *dev, const struct mei_cfg *cfg)
 {
 	/* setup our list array */
 	INIT_LIST_HEAD(&dev->file_list);
 	INIT_LIST_HEAD(&dev->device_list);
 	mutex_init(&dev->device_lock);
 	init_waitqueue_head(&dev->wait_hw_ready);
+	init_waitqueue_head(&dev->wait_pg);
 	init_waitqueue_head(&dev->wait_recvd_msg);
 	init_waitqueue_head(&dev->wait_stop_wd);
 	dev->dev_state = MEI_DEV_INITIALIZING;
@@ -340,6 +387,9 @@ void mei_device_init(struct mei_device *dev)
 	 * 0: Reserved for MEI Bus Message communications
 	 */
 	bitmap_set(dev->host_clients_map, 0, 1);
+
+	dev->pg_event = MEI_PG_EVENT_IDLE;
+	dev->cfg      = cfg;
 }
 EXPORT_SYMBOL_GPL(mei_device_init);
 

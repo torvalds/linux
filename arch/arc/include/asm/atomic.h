@@ -190,11 +190,6 @@ static inline void atomic_clear_mask(unsigned long mask, unsigned long *addr)
 
 #endif /* !CONFIG_ARC_HAS_LLSC */
 
-#define smp_mb__before_atomic_dec()	barrier()
-#define smp_mb__after_atomic_dec()	barrier()
-#define smp_mb__before_atomic_inc()	barrier()
-#define smp_mb__after_atomic_inc()	barrier()
-
 /**
  * __atomic_add_unless - add unless the number is a given value
  * @v: pointer of type atomic_t

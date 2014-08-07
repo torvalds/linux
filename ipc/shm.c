@@ -43,7 +43,7 @@
 #include <linux/mount.h>
 #include <linux/ipc_namespace.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "util.h"
 
@@ -493,7 +493,11 @@ static int newseg(struct ipc_namespace *ns, struct ipc_params *params)
 	if (size < SHMMIN || size > ns->shm_ctlmax)
 		return -EINVAL;
 
-	if (ns->shm_tot + numpages > ns->shm_ctlall)
+	if (numpages << PAGE_SHIFT < size)
+		return -ENOSPC;
+
+	if (ns->shm_tot + numpages < ns->shm_tot ||
+			ns->shm_tot + numpages > ns->shm_ctlall)
 		return -ENOSPC;
 
 	shp = ipc_rcu_alloc(sizeof(*shp));
@@ -609,14 +613,14 @@ static inline int shm_more_checks(struct kern_ipc_perm *ipcp,
 SYSCALL_DEFINE3(shmget, key_t, key, size_t, size, int, shmflg)
 {
 	struct ipc_namespace *ns;
-	struct ipc_ops shm_ops;
+	static const struct ipc_ops shm_ops = {
+		.getnew = newseg,
+		.associate = shm_security,
+		.more_checks = shm_more_checks,
+	};
 	struct ipc_params shm_params;
 
 	ns = current->nsproxy->ipc_ns;
-
-	shm_ops.getnew = newseg;
-	shm_ops.associate = shm_security;
-	shm_ops.more_checks = shm_more_checks;
 
 	shm_params.key = key;
 	shm_params.flg = shmflg;
@@ -694,7 +698,7 @@ static inline unsigned long copy_shminfo_to_user(void __user *buf, struct shminf
 		out.shmmin	= in->shmmin;
 		out.shmmni	= in->shmmni;
 		out.shmseg	= in->shmseg;
-		out.shmall	= in->shmall; 
+		out.shmall	= in->shmall;
 
 		return copy_to_user(buf, &out, sizeof(out));
 	    }
@@ -1160,6 +1164,9 @@ long do_shmat(int shmid, char __user *shmaddr, int shmflg, ulong *raddr,
 	down_write(&current->mm->mmap_sem);
 	if (addr && !(shmflg & SHM_REMAP)) {
 		err = -EINVAL;
+		if (addr + size < addr)
+			goto invalid;
+
 		if (find_vma_intersection(current->mm, addr, addr + size))
 			goto invalid;
 		/*

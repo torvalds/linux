@@ -659,6 +659,66 @@ DEFINE_EVENT_CONDITION(f2fs__submit_bio, f2fs_submit_read_bio,
 	TP_CONDITION(bio)
 );
 
+TRACE_EVENT(f2fs_write_begin,
+
+	TP_PROTO(struct inode *inode, loff_t pos, unsigned int len,
+				unsigned int flags),
+
+	TP_ARGS(inode, pos, len, flags),
+
+	TP_STRUCT__entry(
+		__field(dev_t,	dev)
+		__field(ino_t,	ino)
+		__field(loff_t,	pos)
+		__field(unsigned int, len)
+		__field(unsigned int, flags)
+	),
+
+	TP_fast_assign(
+		__entry->dev	= inode->i_sb->s_dev;
+		__entry->ino	= inode->i_ino;
+		__entry->pos	= pos;
+		__entry->len	= len;
+		__entry->flags	= flags;
+	),
+
+	TP_printk("dev = (%d,%d), ino = %lu, pos = %llu, len = %u, flags = %u",
+		show_dev_ino(__entry),
+		(unsigned long long)__entry->pos,
+		__entry->len,
+		__entry->flags)
+);
+
+TRACE_EVENT(f2fs_write_end,
+
+	TP_PROTO(struct inode *inode, loff_t pos, unsigned int len,
+				unsigned int copied),
+
+	TP_ARGS(inode, pos, len, copied),
+
+	TP_STRUCT__entry(
+		__field(dev_t,	dev)
+		__field(ino_t,	ino)
+		__field(loff_t,	pos)
+		__field(unsigned int, len)
+		__field(unsigned int, copied)
+	),
+
+	TP_fast_assign(
+		__entry->dev	= inode->i_sb->s_dev;
+		__entry->ino	= inode->i_ino;
+		__entry->pos	= pos;
+		__entry->len	= len;
+		__entry->copied	= copied;
+	),
+
+	TP_printk("dev = (%d,%d), ino = %lu, pos = %llu, len = %u, copied = %u",
+		show_dev_ino(__entry),
+		(unsigned long long)__entry->pos,
+		__entry->len,
+		__entry->copied)
+);
+
 DECLARE_EVENT_CLASS(f2fs__page,
 
 	TP_PROTO(struct page *page, int type),
@@ -672,6 +732,7 @@ DECLARE_EVENT_CLASS(f2fs__page,
 		__field(int, dir)
 		__field(pgoff_t, index)
 		__field(int, dirty)
+		__field(int, uptodate)
 	),
 
 	TP_fast_assign(
@@ -681,14 +742,31 @@ DECLARE_EVENT_CLASS(f2fs__page,
 		__entry->dir	= S_ISDIR(page->mapping->host->i_mode);
 		__entry->index	= page->index;
 		__entry->dirty	= PageDirty(page);
+		__entry->uptodate = PageUptodate(page);
 	),
 
-	TP_printk("dev = (%d,%d), ino = %lu, %s, %s, index = %lu, dirty = %d",
+	TP_printk("dev = (%d,%d), ino = %lu, %s, %s, index = %lu, "
+		"dirty = %d, uptodate = %d",
 		show_dev_ino(__entry),
 		show_block_type(__entry->type),
 		show_file_type(__entry->dir),
 		(unsigned long)__entry->index,
-		__entry->dirty)
+		__entry->dirty,
+		__entry->uptodate)
+);
+
+DEFINE_EVENT(f2fs__page, f2fs_writepage,
+
+	TP_PROTO(struct page *page, int type),
+
+	TP_ARGS(page, type)
+);
+
+DEFINE_EVENT(f2fs__page, f2fs_readpage,
+
+	TP_PROTO(struct page *page, int type),
+
+	TP_ARGS(page, type)
 );
 
 DEFINE_EVENT(f2fs__page, f2fs_set_page_dirty,
@@ -703,6 +781,70 @@ DEFINE_EVENT(f2fs__page, f2fs_vm_page_mkwrite,
 	TP_PROTO(struct page *page, int type),
 
 	TP_ARGS(page, type)
+);
+
+TRACE_EVENT(f2fs_writepages,
+
+	TP_PROTO(struct inode *inode, struct writeback_control *wbc, int type),
+
+	TP_ARGS(inode, wbc, type),
+
+	TP_STRUCT__entry(
+		__field(dev_t,	dev)
+		__field(ino_t,	ino)
+		__field(int,	type)
+		__field(int,	dir)
+		__field(long,	nr_to_write)
+		__field(long,	pages_skipped)
+		__field(loff_t,	range_start)
+		__field(loff_t,	range_end)
+		__field(pgoff_t, writeback_index)
+		__field(int,	sync_mode)
+		__field(char,	for_kupdate)
+		__field(char,	for_background)
+		__field(char,	tagged_writepages)
+		__field(char,	for_reclaim)
+		__field(char,	range_cyclic)
+		__field(char,	for_sync)
+	),
+
+	TP_fast_assign(
+		__entry->dev		= inode->i_sb->s_dev;
+		__entry->ino		= inode->i_ino;
+		__entry->type		= type;
+		__entry->dir		= S_ISDIR(inode->i_mode);
+		__entry->nr_to_write	= wbc->nr_to_write;
+		__entry->pages_skipped	= wbc->pages_skipped;
+		__entry->range_start	= wbc->range_start;
+		__entry->range_end	= wbc->range_end;
+		__entry->writeback_index = inode->i_mapping->writeback_index;
+		__entry->sync_mode	= wbc->sync_mode;
+		__entry->for_kupdate	= wbc->for_kupdate;
+		__entry->for_background	= wbc->for_background;
+		__entry->tagged_writepages	= wbc->tagged_writepages;
+		__entry->for_reclaim	= wbc->for_reclaim;
+		__entry->range_cyclic	= wbc->range_cyclic;
+		__entry->for_sync	= wbc->for_sync;
+	),
+
+	TP_printk("dev = (%d,%d), ino = %lu, %s, %s, nr_to_write %ld, "
+		"skipped %ld, start %lld, end %lld, wb_idx %lu, sync_mode %d, "
+		"kupdate %u background %u tagged %u reclaim %u cyclic %u sync %u",
+		show_dev_ino(__entry),
+		show_block_type(__entry->type),
+		show_file_type(__entry->dir),
+		__entry->nr_to_write,
+		__entry->pages_skipped,
+		__entry->range_start,
+		__entry->range_end,
+		(unsigned long)__entry->writeback_index,
+		__entry->sync_mode,
+		__entry->for_kupdate,
+		__entry->for_background,
+		__entry->tagged_writepages,
+		__entry->for_reclaim,
+		__entry->range_cyclic,
+		__entry->for_sync)
 );
 
 TRACE_EVENT(f2fs_submit_page_mbio,

@@ -509,12 +509,11 @@ static void osc_io_setattr_end(const struct lu_env *env,
 static int osc_io_read_start(const struct lu_env *env,
 			     const struct cl_io_slice *slice)
 {
-	struct osc_io    *oio   = cl2osc_io(env, slice);
 	struct cl_object *obj   = slice->cis_obj;
 	struct cl_attr   *attr  = &osc_env_info(env)->oti_attr;
 	int rc = 0;
 
-	if (oio->oi_lockless == 0 && !slice->cis_io->ci_noatime) {
+	if (!slice->cis_io->ci_noatime) {
 		cl_object_attr_lock(obj);
 		attr->cat_atime = LTIME_S(CURRENT_TIME);
 		rc = cl_object_attr_set(env, obj, attr, CAT_ATIME);
@@ -526,24 +525,17 @@ static int osc_io_read_start(const struct lu_env *env,
 static int osc_io_write_start(const struct lu_env *env,
 			      const struct cl_io_slice *slice)
 {
-	struct osc_io    *oio   = cl2osc_io(env, slice);
 	struct cl_object *obj   = slice->cis_obj;
 	struct cl_attr   *attr  = &osc_env_info(env)->oti_attr;
-	int	      result = 0;
+	int rc = 0;
 
-	if (oio->oi_lockless == 0) {
-		OBD_FAIL_TIMEOUT(OBD_FAIL_OSC_DELAY_SETTIME, 1);
-		cl_object_attr_lock(obj);
-		result = cl_object_attr_get(env, obj, attr);
-		if (result == 0) {
-			attr->cat_mtime = attr->cat_ctime =
-				LTIME_S(CURRENT_TIME);
-			result = cl_object_attr_set(env, obj, attr,
-						    CAT_MTIME | CAT_CTIME);
-		}
-		cl_object_attr_unlock(obj);
-	}
-	return result;
+	OBD_FAIL_TIMEOUT(OBD_FAIL_OSC_DELAY_SETTIME, 1);
+	cl_object_attr_lock(obj);
+	attr->cat_mtime = attr->cat_ctime = LTIME_S(CURRENT_TIME);
+	rc = cl_object_attr_set(env, obj, attr, CAT_MTIME | CAT_CTIME);
+	cl_object_attr_unlock(obj);
+
+	return rc;
 }
 
 static int osc_fsync_ost(const struct lu_env *env, struct osc_object *obj,
@@ -812,7 +804,7 @@ int osc_req_init(const struct lu_env *env, struct cl_device *dev,
 	struct osc_req *or;
 	int result;
 
-	OBD_SLAB_ALLOC_PTR_GFP(or, osc_req_kmem, __GFP_IO);
+	OBD_SLAB_ALLOC_PTR_GFP(or, osc_req_kmem, GFP_NOFS);
 	if (or != NULL) {
 		cl_req_slice_add(req, &or->or_cl, dev, &osc_req_ops);
 		result = 0;

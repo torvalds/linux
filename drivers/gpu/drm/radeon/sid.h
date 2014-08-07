@@ -107,8 +107,8 @@
 #define		SPLL_CHG_STATUS				(1 << 1)
 #define	SPLL_CNTL_MODE					0x618
 #define		SPLL_SW_DIR_CONTROL			(1 << 0)
-#	define SPLL_REFCLK_SEL(x)			((x) << 8)
-#	define SPLL_REFCLK_SEL_MASK			0xFF00
+#	define SPLL_REFCLK_SEL(x)			((x) << 26)
+#	define SPLL_REFCLK_SEL_MASK			(3 << 26)
 
 #define	CG_SPLL_SPREAD_SPECTRUM				0x620
 #define		SSEN					(1 << 0)
@@ -362,6 +362,7 @@
 #define		READ_PROTECTION_FAULT_ENABLE_DEFAULT		(1 << 16)
 #define		WRITE_PROTECTION_FAULT_ENABLE_INTERRUPT		(1 << 18)
 #define		WRITE_PROTECTION_FAULT_ENABLE_DEFAULT		(1 << 19)
+#define		PAGE_TABLE_BLOCK_SIZE(x)			(((x) & 0xF) << 24)
 #define VM_CONTEXT1_CNTL				0x1414
 #define VM_CONTEXT0_CNTL2				0x1430
 #define VM_CONTEXT1_CNTL2				0x1434

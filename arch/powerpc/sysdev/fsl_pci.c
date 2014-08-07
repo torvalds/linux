@@ -1150,8 +1150,7 @@ static int fsl_pci_pme_probe(struct pci_controller *hose)
 	pci = hose->private_data;
 
 	/* Enable PTOD, ENL23D & EXL23D */
-	out_be32(&pci->pex_pme_mes_disr, 0);
-	setbits32(&pci->pex_pme_mes_disr,
+	clrbits32(&pci->pex_pme_mes_disr,
 		  PME_DISR_EN_PTOD | PME_DISR_EN_ENL23D | PME_DISR_EN_EXL23D);
 
 	out_be32(&pci->pex_pme_mes_ier, 0);

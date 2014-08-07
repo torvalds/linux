@@ -17,6 +17,16 @@ void vmacache_flush_all(struct mm_struct *mm)
 {
 	struct task_struct *g, *p;
 
+	/*
+	 * Single threaded tasks need not iterate the entire
+	 * list of process. We can avoid the flushing as well
+	 * since the mm's seqnum was increased and don't have
+	 * to worry about other threads' seqnum. Current's
+	 * flush will occur upon the next lookup.
+	 */
+	if (atomic_read(&mm->mm_users) == 1)
+		return;
+
 	rcu_read_lock();
 	for_each_process_thread(g, p) {
 		/*
@@ -78,6 +88,8 @@ struct vm_area_struct *vmacache_find(struct mm_struct *mm, unsigned long addr)
 	if (!vmacache_valid(mm))
 		return NULL;
 
+	count_vm_vmacache_event(VMACACHE_FIND_CALLS);
+
 	for (i = 0; i < VMACACHE_SIZE; i++) {
 		struct vm_area_struct *vma = current->vmacache[i];
 
@@ -85,8 +97,10 @@ struct vm_area_struct *vmacache_find(struct mm_struct *mm, unsigned long addr)
 			continue;
 		if (WARN_ON_ONCE(vma->vm_mm != mm))
 			break;
-		if (vma->vm_start <= addr && vma->vm_end > addr)
+		if (vma->vm_start <= addr && vma->vm_end > addr) {
+			count_vm_vmacache_event(VMACACHE_FIND_HITS);
 			return vma;
+		}
 	}
 
 	return NULL;
@@ -102,11 +116,15 @@ struct vm_area_struct *vmacache_find_exact(struct mm_struct *mm,
 	if (!vmacache_valid(mm))
 		return NULL;
 
+	count_vm_vmacache_event(VMACACHE_FIND_CALLS);
+
 	for (i = 0; i < VMACACHE_SIZE; i++) {
 		struct vm_area_struct *vma = current->vmacache[i];
 
-		if (vma && vma->vm_start == start && vma->vm_end == end)
+		if (vma && vma->vm_start == start && vma->vm_end == end) {
+			count_vm_vmacache_event(VMACACHE_FIND_HITS);
 			return vma;
+		}
 	}
 
 	return NULL;

@@ -252,7 +252,6 @@ struct rcu_data {
 	bool		passed_quiesce;	/* User-mode/idle loop etc. */
 	bool		qs_pending;	/* Core waits for quiesc state. */
 	bool		beenonline;	/* CPU online at least once. */
-	bool		preemptible;	/* Preemptible RCU? */
 	struct rcu_node *mynode;	/* This CPU's leaf of hierarchy */
 	unsigned long grpmask;		/* Mask to apply to leaf qsmask. */
 #ifdef CONFIG_RCU_CPU_STALL_INFO
@@ -308,6 +307,9 @@ struct rcu_data {
 	/* 4) reasons this CPU needed to be kicked by force_quiescent_state */
 	unsigned long dynticks_fqs;	/* Kicked due to dynticks idle. */
 	unsigned long offline_fqs;	/* Kicked due to being offline. */
+	unsigned long cond_resched_completed;
+					/* Grace period that needs help */
+					/*  from cond_resched(). */
 
 	/* 5) __rcu_pending() statistics. */
 	unsigned long n_rcu_pending;	/* rcu_pending() calls since boot. */
@@ -393,6 +395,7 @@ struct rcu_state {
 	struct rcu_node *level[RCU_NUM_LVLS];	/* Hierarchy levels. */
 	u32 levelcnt[MAX_RCU_LVLS + 1];		/* # nodes in each level. */
 	u8 levelspread[RCU_NUM_LVLS];		/* kids/node in each level. */
+	u8 flavor_mask;				/* bit in flavor mask. */
 	struct rcu_data __percpu *rda;		/* pointer of percu rcu_data. */
 	void (*call)(struct rcu_head *head,	/* call_rcu() flavor. */
 		     void (*func)(struct rcu_head *head));
@@ -406,7 +409,8 @@ struct rcu_state {
 	unsigned long completed;		/* # of last completed gp. */
 	struct task_struct *gp_kthread;		/* Task for grace periods. */
 	wait_queue_head_t gp_wq;		/* Where GP task waits. */
-	int gp_flags;				/* Commands for GP task. */
+	short gp_flags;				/* Commands for GP task. */
+	short gp_state;				/* GP kthread sleep state. */
 
 	/* End of fields guarded by root rcu_node's lock. */
 
@@ -462,12 +466,16 @@ struct rcu_state {
 	const char *name;			/* Name of structure. */
 	char abbr;				/* Abbreviated name. */
 	struct list_head flavors;		/* List of RCU flavors. */
-	struct irq_work wakeup_work;		/* Postponed wakeups */
 };
 
 /* Values for rcu_state structure's gp_flags field. */
 #define RCU_GP_FLAG_INIT 0x1	/* Need grace-period initialization. */
 #define RCU_GP_FLAG_FQS  0x2	/* Need grace-period quiescent-state forcing. */
+
+/* Values for rcu_state structure's gp_flags field. */
+#define RCU_GP_WAIT_INIT 0	/* Initial state. */
+#define RCU_GP_WAIT_GPS  1	/* Wait for grace-period start. */
+#define RCU_GP_WAIT_FQS  2	/* Wait for force-quiescent-state time. */
 
 extern struct list_head rcu_struct_flavors;
 
@@ -547,7 +555,6 @@ static void print_cpu_stall_info(struct rcu_state *rsp, int cpu);
 static void print_cpu_stall_info_end(void);
 static void zero_cpu_stall_ticks(struct rcu_data *rdp);
 static void increment_cpu_stall_ticks(void);
-static int rcu_nocb_needs_gp(struct rcu_state *rsp);
 static void rcu_nocb_gp_set(struct rcu_node *rnp, int nrq);
 static void rcu_nocb_gp_cleanup(struct rcu_state *rsp, struct rcu_node *rnp);
 static void rcu_init_one_nocb(struct rcu_node *rnp);
@@ -560,7 +567,7 @@ static bool rcu_nocb_need_deferred_wakeup(struct rcu_data *rdp);
 static void do_nocb_deferred_wakeup(struct rcu_data *rdp);
 static void rcu_boot_init_nocb_percpu_data(struct rcu_data *rdp);
 static void rcu_spawn_nocb_kthreads(struct rcu_state *rsp);
-static void rcu_kick_nohz_cpu(int cpu);
+static void __maybe_unused rcu_kick_nohz_cpu(int cpu);
 static bool init_nocb_callback_list(struct rcu_data *rdp);
 static void rcu_sysidle_enter(struct rcu_dynticks *rdtp, int irq);
 static void rcu_sysidle_exit(struct rcu_dynticks *rdtp, int irq);

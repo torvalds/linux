@@ -2,20 +2,6 @@
  * Common support for CompuLab SB-T35 used on SBC-T3530, SBC-T3517 and SBC-T3730
  */
 
-/ {
-	vddvario_sb_t35: regulator-vddvario-sb-t35 {
-		compatible = "regulator-fixed";
-		regulator-name = "vddvario";
-		regulator-always-on;
-	};
-
-	vdd33a_sb_t35: regulator-vdd33a-sb-t35 {
-		compatible = "regulator-fixed";
-		regulator-name = "vdd33a";
-		regulator-always-on;
-	};
-};
-
 &omap3_pmx_core {
 	smsc2_pins: pinmux_smsc2_pins {
 		pinctrl-single,pins = <
@@ -37,11 +23,10 @@
 		reg = <4 0 0xff>;
 		bank-width = <2>;
 		gpmc,mux-add-data;
-		gpmc,cs-on-ns = <0>;
-		gpmc,cs-rd-off-ns = <186>;
-		gpmc,cs-wr-off-ns = <186>;
-		gpmc,adv-on-ns = <12>;
-		gpmc,adv-rd-off-ns = <48>;
+		gpmc,cs-on-ns = <1>;
+		gpmc,cs-rd-off-ns = <180>;
+		gpmc,cs-wr-off-ns = <180>;
+		gpmc,adv-rd-off-ns = <18>;
 		gpmc,adv-wr-off-ns = <48>;
 		gpmc,oe-on-ns = <54>;
 		gpmc,oe-off-ns = <168>;
@@ -49,16 +34,14 @@
 		gpmc,we-off-ns = <168>;
 		gpmc,rd-cycle-ns = <186>;
 		gpmc,wr-cycle-ns = <186>;
-		gpmc,access-ns = <114>;
-		gpmc,page-burst-access-ns = <6>;
-		gpmc,bus-turnaround-ns = <12>;
-		gpmc,cycle2cycle-delay-ns = <18>;
-		gpmc,wr-data-mux-bus-ns = <90>;
-		gpmc,wr-access-ns = <186>;
+		gpmc,access-ns = <144>;
+		gpmc,page-burst-access-ns = <24>;
+		gpmc,bus-turnaround-ns = <90>;
+		gpmc,cycle2cycle-delay-ns = <90>;
 		gpmc,cycle2cycle-samecsen;
 		gpmc,cycle2cycle-diffcsen;
-		vddvario-supply = <&vddvario_sb_t35>;
-		vdd33a-supply = <&vdd33a_sb_t35>;
+		vddvario-supply = <&vddvario>;
+		vdd33a-supply = <&vdd33a>;
 		reg-io-width = <4>;
 		smsc,save-mac-address;
 	};

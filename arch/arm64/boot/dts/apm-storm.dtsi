@@ -257,16 +257,63 @@
 				enable-offset = <0x0>;
 				enable-mask = <0x39>;
 			};
+
+			rtcclk: rtcclk@17000000 {
+				compatible = "apm,xgene-device-clock";
+				#clock-cells = <1>;
+				clocks = <&socplldiv2 0>;
+				reg = <0x0 0x17000000 0x0 0x2000>;
+				reg-names = "csr-reg";
+				csr-offset = <0xc>;
+				csr-mask = <0x2>;
+				enable-offset = <0x10>;
+				enable-mask = <0x2>;
+				clock-output-names = "rtcclk";
+			};
 		};
 
 		serial0: serial@1c020000 {
+			status = "disabled";
 			device_type = "serial";
-			compatible = "ns16550";
+			compatible = "ns16550a";
 			reg = <0 0x1c020000 0x0 0x1000>;
 			reg-shift = <2>;
 			clock-frequency = <10000000>; /* Updated by bootloader */
 			interrupt-parent = <&gic>;
 			interrupts = <0x0 0x4c 0x4>;
+		};
+
+		serial1: serial@1c021000 {
+			status = "disabled";
+			device_type = "serial";
+			compatible = "ns16550a";
+			reg = <0 0x1c021000 0x0 0x1000>;
+			reg-shift = <2>;
+			clock-frequency = <10000000>; /* Updated by bootloader */
+			interrupt-parent = <&gic>;
+			interrupts = <0x0 0x4d 0x4>;
+		};
+
+		serial2: serial@1c022000 {
+			status = "disabled";
+			device_type = "serial";
+			compatible = "ns16550a";
+			reg = <0 0x1c022000 0x0 0x1000>;
+			reg-shift = <2>;
+			clock-frequency = <10000000>; /* Updated by bootloader */
+			interrupt-parent = <&gic>;
+			interrupts = <0x0 0x4e 0x4>;
+		};
+
+		serial3: serial@1c023000 {
+			status = "disabled";
+			device_type = "serial";
+			compatible = "ns16550a";
+			reg = <0 0x1c023000 0x0 0x1000>;
+			reg-shift = <2>;
+			clock-frequency = <10000000>; /* Updated by bootloader */
+			interrupt-parent = <&gic>;
+			interrupts = <0x0 0x4f 0x4>;
 		};
 
 		phy1: phy@1f21a000 {
@@ -341,6 +388,14 @@
 			clocks = <&sata45clk 0>;
 			phys = <&phy3 0>;
 			phy-names = "sata-phy";
+		};
+
+		rtc: rtc@10510000 {
+			compatible = "apm,xgene-rtc";
+			reg = <0x0 0x10510000 0x0 0x400>;
+			interrupts = <0x0 0x46 0x4>;
+			#clock-cells = <1>;
+			clocks = <&rtcclk 0>;
 		};
 	};
 };

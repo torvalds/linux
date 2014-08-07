@@ -84,6 +84,9 @@ static const char * const iio_modifier_names[] = {
 	[IIO_MOD_LIGHT_RED] = "red",
 	[IIO_MOD_LIGHT_GREEN] = "green",
 	[IIO_MOD_LIGHT_BLUE] = "blue",
+	[IIO_MOD_QUATERNION] = "quaternion",
+	[IIO_MOD_TEMP_AMBIENT] = "ambient",
+	[IIO_MOD_TEMP_OBJECT] = "object",
 };
 
 /* relies on pairs of these shared then separate */
@@ -340,7 +343,7 @@ ssize_t iio_enum_read(struct iio_dev *indio_dev,
 	else if (i >= e->num_items)
 		return -EINVAL;
 
-	return sprintf(buf, "%s\n", e->items[i]);
+	return snprintf(buf, PAGE_SIZE, "%s\n", e->items[i]);
 }
 EXPORT_SYMBOL_GPL(iio_enum_read);
 
@@ -373,41 +376,53 @@ EXPORT_SYMBOL_GPL(iio_enum_write);
  * @buf: The buffer to which the formated value gets written
  * @type: One of the IIO_VAL_... constants. This decides how the val and val2
  *        parameters are formatted.
- * @val: First part of the value, exact meaning depends on the type parameter.
- * @val2: Second part of the value, exact meaning depends on the type parameter.
+ * @vals: pointer to the values, exact meaning depends on the type parameter.
  */
-ssize_t iio_format_value(char *buf, unsigned int type, int val, int val2)
+ssize_t iio_format_value(char *buf, unsigned int type, int size, int *vals)
 {
 	unsigned long long tmp;
 	bool scale_db = false;
 
 	switch (type) {
 	case IIO_VAL_INT:
-		return sprintf(buf, "%d\n", val);
+		return sprintf(buf, "%d\n", vals[0]);
 	case IIO_VAL_INT_PLUS_MICRO_DB:
 		scale_db = true;
 	case IIO_VAL_INT_PLUS_MICRO:
-		if (val2 < 0)
-			return sprintf(buf, "-%ld.%06u%s\n", abs(val), -val2,
+		if (vals[1] < 0)
+			return sprintf(buf, "-%ld.%06u%s\n", abs(vals[0]),
+					-vals[1],
 				scale_db ? " dB" : "");
 		else
-			return sprintf(buf, "%d.%06u%s\n", val, val2,
+			return sprintf(buf, "%d.%06u%s\n", vals[0], vals[1],
 				scale_db ? " dB" : "");
 	case IIO_VAL_INT_PLUS_NANO:
-		if (val2 < 0)
-			return sprintf(buf, "-%ld.%09u\n", abs(val), -val2);
+		if (vals[1] < 0)
+			return sprintf(buf, "-%ld.%09u\n", abs(vals[0]),
+					-vals[1]);
 		else
-			return sprintf(buf, "%d.%09u\n", val, val2);
+			return sprintf(buf, "%d.%09u\n", vals[0], vals[1]);
 	case IIO_VAL_FRACTIONAL:
-		tmp = div_s64((s64)val * 1000000000LL, val2);
-		val2 = do_div(tmp, 1000000000LL);
-		val = tmp;
-		return sprintf(buf, "%d.%09u\n", val, val2);
+		tmp = div_s64((s64)vals[0] * 1000000000LL, vals[1]);
+		vals[1] = do_div(tmp, 1000000000LL);
+		vals[0] = tmp;
+		return sprintf(buf, "%d.%09u\n", vals[0], vals[1]);
 	case IIO_VAL_FRACTIONAL_LOG2:
-		tmp = (s64)val * 1000000000LL >> val2;
-		val2 = do_div(tmp, 1000000000LL);
-		val = tmp;
-		return sprintf(buf, "%d.%09u\n", val, val2);
+		tmp = (s64)vals[0] * 1000000000LL >> vals[1];
+		vals[1] = do_div(tmp, 1000000000LL);
+		vals[0] = tmp;
+		return sprintf(buf, "%d.%09u\n", vals[0], vals[1]);
+	case IIO_VAL_INT_MULTIPLE:
+	{
+		int i;
+		int len = 0;
+
+		for (i = 0; i < size; ++i)
+			len += snprintf(&buf[len], PAGE_SIZE - len, "%d ",
+								vals[i]);
+		len += snprintf(&buf[len], PAGE_SIZE - len, "\n");
+		return len;
+	}
 	default:
 		return 0;
 	}
@@ -419,14 +434,23 @@ static ssize_t iio_read_channel_info(struct device *dev,
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
-	int val, val2;
-	int ret = indio_dev->info->read_raw(indio_dev, this_attr->c,
-					    &val, &val2, this_attr->address);
+	int vals[INDIO_MAX_RAW_ELEMENTS];
+	int ret;
+	int val_len = 2;
+
+	if (indio_dev->info->read_raw_multi)
+		ret = indio_dev->info->read_raw_multi(indio_dev, this_attr->c,
+							INDIO_MAX_RAW_ELEMENTS,
+							vals, &val_len,
+							this_attr->address);
+	else
+		ret = indio_dev->info->read_raw(indio_dev, this_attr->c,
+				    &vals[0], &vals[1], this_attr->address);
 
 	if (ret < 0)
 		return ret;
 
-	return iio_format_value(buf, ret, val, val2);
+	return iio_format_value(buf, ret, val_len, vals);
 }
 
 /**
@@ -716,6 +740,8 @@ static int iio_device_add_info_mask_type(struct iio_dev *indio_dev,
 	int i, ret, attrcount = 0;
 
 	for_each_set_bit(i, infomask, sizeof(infomask)*8) {
+		if (i >= ARRAY_SIZE(iio_chan_info_postfix))
+			return -EINVAL;
 		ret = __iio_add_chan_devattr(iio_chan_info_postfix[i],
 					     chan,
 					     &iio_read_channel_info,
@@ -820,7 +846,7 @@ static ssize_t iio_show_dev_name(struct device *dev,
 				 char *buf)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
-	return sprintf(buf, "%s\n", indio_dev->name);
+	return snprintf(buf, PAGE_SIZE, "%s\n", indio_dev->name);
 }
 
 static DEVICE_ATTR(name, S_IRUGO, iio_show_dev_name, NULL);

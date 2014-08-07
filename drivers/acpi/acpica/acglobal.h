@@ -44,144 +44,14 @@
 #ifndef __ACGLOBAL_H__
 #define __ACGLOBAL_H__
 
-/*
- * Ensure that the globals are actually defined and initialized only once.
- *
- * The use of these macros allows a single list of globals (here) in order
- * to simplify maintenance of the code.
- */
-#ifdef DEFINE_ACPI_GLOBALS
-#define ACPI_GLOBAL(type,name) \
-	extern type name; \
-	type name
-
-#define ACPI_INIT_GLOBAL(type,name,value) \
-	type name=value
-
-#else
-#define ACPI_GLOBAL(type,name) \
-	extern type name
-
-#define ACPI_INIT_GLOBAL(type,name,value) \
-	extern type name
-#endif
-
-#ifdef DEFINE_ACPI_GLOBALS
-
-/* Public globals, available from outside ACPICA subsystem */
-
 /*****************************************************************************
  *
- * Runtime configuration (static defaults that can be overriden at runtime)
+ * Globals related to the ACPI tables
  *
  ****************************************************************************/
 
-/*
- * Enable "slack" in the AML interpreter?  Default is FALSE, and the
- * interpreter strictly follows the ACPI specification. Setting to TRUE
- * allows the interpreter to ignore certain errors and/or bad AML constructs.
- *
- * Currently, these features are enabled by this flag:
- *
- * 1) Allow "implicit return" of last value in a control method
- * 2) Allow access beyond the end of an operation region
- * 3) Allow access to uninitialized locals/args (auto-init to integer 0)
- * 4) Allow ANY object type to be a source operand for the Store() operator
- * 5) Allow unresolved references (invalid target name) in package objects
- * 6) Enable warning messages for behavior that is not ACPI spec compliant
- */
-ACPI_INIT_GLOBAL(u8, acpi_gbl_enable_interpreter_slack, FALSE);
+/* Master list of all ACPI tables that were found in the RSDT/XSDT */
 
-/*
- * Automatically serialize all methods that create named objects? Default
- * is TRUE, meaning that all non_serialized methods are scanned once at
- * table load time to determine those that create named objects. Methods
- * that create named objects are marked Serialized in order to prevent
- * possible run-time problems if they are entered by more than one thread.
- */
-ACPI_INIT_GLOBAL(u8, acpi_gbl_auto_serialize_methods, TRUE);
-
-/*
- * Create the predefined _OSI method in the namespace? Default is TRUE
- * because ACPI CA is fully compatible with other ACPI implementations.
- * Changing this will revert ACPI CA (and machine ASL) to pre-OSI behavior.
- */
-ACPI_INIT_GLOBAL(u8, acpi_gbl_create_osi_method, TRUE);
-
-/*
- * Optionally use default values for the ACPI register widths. Set this to
- * TRUE to use the defaults, if an FADT contains incorrect widths/lengths.
- */
-ACPI_INIT_GLOBAL(u8, acpi_gbl_use_default_register_widths, TRUE);
-
-/*
- * Optionally enable output from the AML Debug Object.
- */
-ACPI_INIT_GLOBAL(u8, acpi_gbl_enable_aml_debug_object, FALSE);
-
-/*
- * Optionally copy the entire DSDT to local memory (instead of simply
- * mapping it.) There are some BIOSs that corrupt or replace the original
- * DSDT, creating the need for this option. Default is FALSE, do not copy
- * the DSDT.
- */
-ACPI_INIT_GLOBAL(u8, acpi_gbl_copy_dsdt_locally, FALSE);
-
-/*
- * Optionally ignore an XSDT if present and use the RSDT instead.
- * Although the ACPI specification requires that an XSDT be used instead
- * of the RSDT, the XSDT has been found to be corrupt or ill-formed on
- * some machines. Default behavior is to use the XSDT if present.
- */
-ACPI_INIT_GLOBAL(u8, acpi_gbl_do_not_use_xsdt, FALSE);
-
-/*
- * Optionally use 32-bit FADT addresses if and when there is a conflict
- * (address mismatch) between the 32-bit and 64-bit versions of the
- * address. Although ACPICA adheres to the ACPI specification which
- * requires the use of the corresponding 64-bit address if it is non-zero,
- * some machines have been found to have a corrupted non-zero 64-bit
- * address. Default is FALSE, do not favor the 32-bit addresses.
- */
-ACPI_INIT_GLOBAL(u8, acpi_gbl_use32_bit_fadt_addresses, FALSE);
-
-/*
- * Optionally truncate I/O addresses to 16 bits. Provides compatibility
- * with other ACPI implementations. NOTE: During ACPICA initialization,
- * this value is set to TRUE if any Windows OSI strings have been
- * requested by the BIOS.
- */
-ACPI_INIT_GLOBAL(u8, acpi_gbl_truncate_io_addresses, FALSE);
-
-/*
- * Disable runtime checking and repair of values returned by control methods.
- * Use only if the repair is causing a problem on a particular machine.
- */
-ACPI_INIT_GLOBAL(u8, acpi_gbl_disable_auto_repair, FALSE);
-
-/*
- * Optionally do not load any SSDTs from the RSDT/XSDT during initialization.
- * This can be useful for debugging ACPI problems on some machines.
- */
-ACPI_INIT_GLOBAL(u8, acpi_gbl_disable_ssdt_table_load, FALSE);
-
-/*
- * We keep track of the latest version of Windows that has been requested by
- * the BIOS.
- */
-ACPI_INIT_GLOBAL(u8, acpi_gbl_osi_data, 0);
-
-#endif				/* DEFINE_ACPI_GLOBALS */
-
-/*****************************************************************************
- *
- * ACPI Table globals
- *
- ****************************************************************************/
-
-/*
- * Master list of all ACPI tables that were found in the RSDT/XSDT.
- */
 ACPI_GLOBAL(struct acpi_table_list, acpi_gbl_root_table_list);
 
 /* DSDT information. Used to check for DSDT corruption */
@@ -279,7 +149,6 @@ ACPI_GLOBAL(acpi_exception_handler, acpi_gbl_exception_handler);
 ACPI_GLOBAL(acpi_init_handler, acpi_gbl_init_handler);
 ACPI_GLOBAL(acpi_table_handler, acpi_gbl_table_handler);
 ACPI_GLOBAL(void *, acpi_gbl_table_handler_context);
-ACPI_GLOBAL(struct acpi_walk_state *, acpi_gbl_breakpoint_walk);
 ACPI_GLOBAL(acpi_interface_handler, acpi_gbl_interface_handler);
 ACPI_GLOBAL(struct acpi_sci_handler_info *, acpi_gbl_sci_handler_list);
 
@@ -296,7 +165,6 @@ ACPI_GLOBAL(u8, acpi_gbl_reg_methods_executed);
 /* Misc */
 
 ACPI_GLOBAL(u32, acpi_gbl_original_mode);
-ACPI_GLOBAL(u32, acpi_gbl_rsdp_original_location);
 ACPI_GLOBAL(u32, acpi_gbl_ns_lookup_count);
 ACPI_GLOBAL(u32, acpi_gbl_ps_find_count);
 ACPI_GLOBAL(u16, acpi_gbl_pm1_enable_register_save);
@@ -483,11 +351,6 @@ ACPI_GLOBAL(u16, acpi_gbl_node_type_count_misc);
 ACPI_GLOBAL(u32, acpi_gbl_num_nodes);
 ACPI_GLOBAL(u32, acpi_gbl_num_objects);
 
-ACPI_GLOBAL(u32, acpi_gbl_size_of_parse_tree);
-ACPI_GLOBAL(u32, acpi_gbl_size_of_method_trees);
-ACPI_GLOBAL(u32, acpi_gbl_size_of_node_entries);
-ACPI_GLOBAL(u32, acpi_gbl_size_of_acpi_objects);
-
 #endif				/* ACPI_DEBUGGER */
 
 /*****************************************************************************
@@ -509,5 +372,6 @@ ACPI_INIT_GLOBAL(ACPI_FILE, acpi_gbl_debug_file, NULL);
  ****************************************************************************/
 
 extern const struct ah_predefined_name asl_predefined_info[];
+extern const struct ah_device_id asl_device_ids[];
 
 #endif				/* __ACGLOBAL_H__ */

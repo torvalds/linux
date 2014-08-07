@@ -12,8 +12,8 @@
  * license other than the GPL, without Broadcom's express prior written
  * consent.
  *
- * Maintained by: Eilon Greenstein <eilong@broadcom.com>
- * Written by: Ariel Elior <ariele@broadcom.com>
+ * Maintained by: Ariel Elior <ariel.elior@qlogic.com>
+ * Written by: Ariel Elior <ariel.elior@qlogic.com>
  */
 #ifndef VF_PF_IF_H
 #define VF_PF_IF_H

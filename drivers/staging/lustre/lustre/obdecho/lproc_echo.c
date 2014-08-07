@@ -39,13 +39,13 @@
 #ifdef LPROCFS
 LPROC_SEQ_FOPS_RO_TYPE(echo, uuid);
 static struct lprocfs_vars lprocfs_echo_obd_vars[] = {
-	{ "uuid",	 &echo_uuid_fops,	0, 0 },
+	{ "uuid",	 &echo_uuid_fops,	NULL, 0 },
 	{ 0 }
 };
 
 LPROC_SEQ_FOPS_RO_TYPE(echo, numrefs);
 static struct lprocfs_vars lprocfs_echo_module_vars[] = {
-	{ "num_refs",     &echo_numrefs_fops,     0, 0 },
+	{ "num_refs",     &echo_numrefs_fops,     NULL, 0 },
 	{ 0 }
 };
 

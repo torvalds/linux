@@ -649,7 +649,7 @@ mptfc_slave_alloc(struct scsi_device *sdev)
 }
 
 static int
-mptfc_qcmd_lck(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *))
+mptfc_qcmd(struct Scsi_Host *shost, struct scsi_cmnd *SCpnt)
 {
 	struct mptfc_rport_info	*ri;
 	struct fc_rport	*rport = starget_to_rport(scsi_target(SCpnt->device));
@@ -658,14 +658,14 @@ mptfc_qcmd_lck(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *))
 
 	if (!vdevice || !vdevice->vtarget) {
 		SCpnt->result = DID_NO_CONNECT << 16;
-		done(SCpnt);
+		SCpnt->scsi_done(SCpnt);
 		return 0;
 	}
 
 	err = fc_remote_port_chkready(rport);
 	if (unlikely(err)) {
 		SCpnt->result = err;
-		done(SCpnt);
+		SCpnt->scsi_done(SCpnt);
 		return 0;
 	}
 
@@ -673,14 +673,12 @@ mptfc_qcmd_lck(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *))
 	ri = *((struct mptfc_rport_info **)rport->dd_data);
 	if (unlikely(!ri)) {
 		SCpnt->result = DID_IMM_RETRY << 16;
-		done(SCpnt);
+		SCpnt->scsi_done(SCpnt);
 		return 0;
 	}
 
-	return mptscsih_qcmd(SCpnt,done);
+	return mptscsih_qcmd(SCpnt);
 }
-
-static DEF_SCSI_QCMD(mptfc_qcmd)
 
 /*
  *	mptfc_display_port_link_speed - displaying link speed

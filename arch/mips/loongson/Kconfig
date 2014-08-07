@@ -64,7 +64,6 @@ config LEMOTE_MACH3A
 	bool "Lemote Loongson 3A family machines"
 	select ARCH_SPARSEMEM_ENABLE
 	select GENERIC_ISA_DMA_SUPPORT_BROKEN
-	select GENERIC_HARDIRQS_NO__DO_IRQ
 	select BOOT_ELF32
 	select BOARD_SCACHE
 	select CSRC_R4K
@@ -96,10 +95,11 @@ config CS5536
 
 config CS5536_MFGPT
 	bool "CS5536 MFGPT Timer"
-	depends on CS5536
+	depends on CS5536 && !HIGH_RES_TIMERS
 	select MIPS_EXTERNAL_TIMER
 	help
-	  This option enables the mfgpt0 timer of AMD CS5536.
+	  This option enables the mfgpt0 timer of AMD CS5536. With this timer
+	  switched on you can not use high resolution timers.
 
 	  If you want to enable the Loongson2 CPUFreq Driver, Please enable
 	  this option at first, otherwise, You will get wrong system time.

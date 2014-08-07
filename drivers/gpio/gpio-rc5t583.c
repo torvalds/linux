@@ -119,10 +119,8 @@ static int rc5t583_gpio_probe(struct platform_device *pdev)
 
 	rc5t583_gpio = devm_kzalloc(&pdev->dev, sizeof(*rc5t583_gpio),
 					GFP_KERNEL);
-	if (!rc5t583_gpio) {
-		dev_warn(&pdev->dev, "Mem allocation for rc5t583_gpio failed");
+	if (!rc5t583_gpio)
 		return -ENOMEM;
-	}
 
 	rc5t583_gpio->gpio_chip.label = "gpio-rc5t583",
 	rc5t583_gpio->gpio_chip.owner = THIS_MODULE,

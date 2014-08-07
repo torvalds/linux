@@ -31,7 +31,7 @@
 #include <linux/of.h>
 #include <linux/of_gpio.h>
 #include <linux/of_device.h>
-#include <linux/omap-dma.h>
+#include <linux/omap-dmaengine.h>
 #include <linux/mmc/host.h>
 #include <linux/mmc/core.h>
 #include <linux/mmc/mmc.h>
@@ -582,7 +582,7 @@ static void omap_hsmmc_set_clock(struct omap_hsmmc_host *host)
 	 *	- MMC/SD clock coming out of controller > 25MHz
 	 */
 	if ((mmc_slot(host).features & HSMMC_HAS_HSPE_SUPPORT) &&
-	    (ios->timing != MMC_TIMING_UHS_DDR50) &&
+	    (ios->timing != MMC_TIMING_MMC_DDR52) &&
 	    ((OMAP_HSMMC_READ(host->base, CAPA) & HSS) == HSS)) {
 		regval = OMAP_HSMMC_READ(host->base, HCTL);
 		if (clkdiv && (clk_get_rate(host->fclk)/clkdiv) > 25000000)
@@ -602,7 +602,7 @@ static void omap_hsmmc_set_bus_width(struct omap_hsmmc_host *host)
 	u32 con;
 
 	con = OMAP_HSMMC_READ(host->base, CON);
-	if (ios->timing == MMC_TIMING_UHS_DDR50)
+	if (ios->timing == MMC_TIMING_MMC_DDR52)
 		con |= DDR;	/* configure in DDR mode */
 	else
 		con &= ~DDR;
@@ -920,15 +920,16 @@ omap_hsmmc_xfer_done(struct omap_hsmmc_host *host, struct mmc_data *data)
 static void
 omap_hsmmc_cmd_done(struct omap_hsmmc_host *host, struct mmc_command *cmd)
 {
-	host->cmd = NULL;
-
 	if (host->mrq->sbc && (host->cmd == host->mrq->sbc) &&
 	    !host->mrq->sbc->error && !(host->flags & AUTO_CMD23)) {
+		host->cmd = NULL;
 		omap_hsmmc_start_dma_transfer(host);
 		omap_hsmmc_start_command(host, host->mrq->cmd,
 						host->mrq->data);
 		return;
 	}
+
+	host->cmd = NULL;
 
 	if (cmd->flags & MMC_RSP_PRESENT) {
 		if (cmd->flags & MMC_RSP_136) {
@@ -1851,6 +1852,7 @@ static int omap_hsmmc_probe(struct platform_device *pdev)
 	unsigned tx_req, rx_req;
 	struct pinctrl *pinctrl;
 	const struct omap_mmc_of_data *data;
+	void __iomem *base;
 
 	match = of_match_device(of_match_ptr(omap_mmc_of_match), &pdev->dev);
 	if (match) {
@@ -1881,9 +1883,9 @@ static int omap_hsmmc_probe(struct platform_device *pdev)
 	if (res == NULL || irq < 0)
 		return -ENXIO;
 
-	res = request_mem_region(res->start, resource_size(res), pdev->name);
-	if (res == NULL)
-		return -EBUSY;
+	base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(base))
+		return PTR_ERR(base);
 
 	ret = omap_hsmmc_gpio_init(pdata);
 	if (ret)
@@ -1904,7 +1906,7 @@ static int omap_hsmmc_probe(struct platform_device *pdev)
 	host->irq	= irq;
 	host->slot_id	= 0;
 	host->mapbase	= res->start + pdata->reg_offset;
-	host->base	= ioremap(host->mapbase, SZ_4K);
+	host->base	= base + pdata->reg_offset;
 	host->power_mode = MMC_POWER_OFF;
 	host->next_data.cookie = 1;
 	host->pbias_enabled = 0;
@@ -1922,7 +1924,7 @@ static int omap_hsmmc_probe(struct platform_device *pdev)
 
 	spin_lock_init(&host->irq_lock);
 
-	host->fclk = clk_get(&pdev->dev, "fck");
+	host->fclk = devm_clk_get(&pdev->dev, "fck");
 	if (IS_ERR(host->fclk)) {
 		ret = PTR_ERR(host->fclk);
 		host->fclk = NULL;
@@ -1941,7 +1943,7 @@ static int omap_hsmmc_probe(struct platform_device *pdev)
 
 	omap_hsmmc_context_save(host);
 
-	host->dbclk = clk_get(&pdev->dev, "mmchsdb_fck");
+	host->dbclk = devm_clk_get(&pdev->dev, "mmchsdb_fck");
 	/*
 	 * MMC can still work without debounce clock.
 	 */
@@ -1949,7 +1951,6 @@ static int omap_hsmmc_probe(struct platform_device *pdev)
 		host->dbclk = NULL;
 	} else if (clk_prepare_enable(host->dbclk) != 0) {
 		dev_warn(mmc_dev(host->mmc), "Failed to enable debounce clk\n");
-		clk_put(host->dbclk);
 		host->dbclk = NULL;
 	}
 
@@ -2018,7 +2019,7 @@ static int omap_hsmmc_probe(struct platform_device *pdev)
 	}
 
 	/* Request IRQ for MMC operations */
-	ret = request_irq(host->irq, omap_hsmmc_irq, 0,
+	ret = devm_request_irq(&pdev->dev, host->irq, omap_hsmmc_irq, 0,
 			mmc_hostname(mmc), host);
 	if (ret) {
 		dev_err(mmc_dev(host->mmc), "Unable to grab HSMMC IRQ\n");
@@ -2029,7 +2030,7 @@ static int omap_hsmmc_probe(struct platform_device *pdev)
 		if (pdata->init(&pdev->dev) != 0) {
 			dev_err(mmc_dev(host->mmc),
 				"Unable to configure MMC IRQs\n");
-			goto err_irq_cd_init;
+			goto err_irq;
 		}
 	}
 
@@ -2044,9 +2045,9 @@ static int omap_hsmmc_probe(struct platform_device *pdev)
 
 	/* Request IRQ for card detect */
 	if ((mmc_slot(host).card_detect_irq)) {
-		ret = request_threaded_irq(mmc_slot(host).card_detect_irq,
-					   NULL,
-					   omap_hsmmc_detect,
+		ret = devm_request_threaded_irq(&pdev->dev,
+						mmc_slot(host).card_detect_irq,
+						NULL, omap_hsmmc_detect,
 					   IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
 					   mmc_hostname(mmc), host);
 		if (ret) {
@@ -2089,15 +2090,12 @@ static int omap_hsmmc_probe(struct platform_device *pdev)
 
 err_slot_name:
 	mmc_remove_host(mmc);
-	free_irq(mmc_slot(host).card_detect_irq, host);
 err_irq_cd:
 	if (host->use_reg)
 		omap_hsmmc_reg_put(host);
 err_reg:
 	if (host->pdata->cleanup)
 		host->pdata->cleanup(&pdev->dev);
-err_irq_cd_init:
-	free_irq(host->irq, host);
 err_irq:
 	if (host->tx_chan)
 		dma_release_channel(host->tx_chan);
@@ -2105,27 +2103,19 @@ err_irq:
 		dma_release_channel(host->rx_chan);
 	pm_runtime_put_sync(host->dev);
 	pm_runtime_disable(host->dev);
-	clk_put(host->fclk);
-	if (host->dbclk) {
+	if (host->dbclk)
 		clk_disable_unprepare(host->dbclk);
-		clk_put(host->dbclk);
-	}
 err1:
-	iounmap(host->base);
 	mmc_free_host(mmc);
 err_alloc:
 	omap_hsmmc_gpio_free(pdata);
 err:
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (res)
-		release_mem_region(res->start, resource_size(res));
 	return ret;
 }
 
 static int omap_hsmmc_remove(struct platform_device *pdev)
 {
 	struct omap_hsmmc_host *host = platform_get_drvdata(pdev);
-	struct resource *res;
 
 	pm_runtime_get_sync(host->dev);
 	mmc_remove_host(host->mmc);
@@ -2133,9 +2123,6 @@ static int omap_hsmmc_remove(struct platform_device *pdev)
 		omap_hsmmc_reg_put(host);
 	if (host->pdata->cleanup)
 		host->pdata->cleanup(&pdev->dev);
-	free_irq(host->irq, host);
-	if (mmc_slot(host).card_detect_irq)
-		free_irq(mmc_slot(host).card_detect_irq, host);
 
 	if (host->tx_chan)
 		dma_release_channel(host->tx_chan);
@@ -2144,19 +2131,11 @@ static int omap_hsmmc_remove(struct platform_device *pdev)
 
 	pm_runtime_put_sync(host->dev);
 	pm_runtime_disable(host->dev);
-	clk_put(host->fclk);
-	if (host->dbclk) {
+	if (host->dbclk)
 		clk_disable_unprepare(host->dbclk);
-		clk_put(host->dbclk);
-	}
 
 	omap_hsmmc_gpio_free(host->pdata);
-	iounmap(host->base);
 	mmc_free_host(host->mmc);
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (res)
-		release_mem_region(res->start, resource_size(res));
 
 	return 0;
 }

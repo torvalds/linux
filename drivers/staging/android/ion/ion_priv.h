@@ -178,6 +178,7 @@ struct ion_heap {
 	spinlock_t free_lock;
 	wait_queue_head_t waitqueue;
 	struct task_struct *task;
+
 	int (*debug_show)(struct ion_heap *heap, struct seq_file *, void *);
 };
 
@@ -377,7 +378,7 @@ struct ion_page_pool {
 
 struct ion_page_pool *ion_page_pool_create(gfp_t gfp_mask, unsigned int order);
 void ion_page_pool_destroy(struct ion_page_pool *);
-void *ion_page_pool_alloc(struct ion_page_pool *);
+struct page *ion_page_pool_alloc(struct ion_page_pool *);
 void ion_page_pool_free(struct ion_page_pool *, struct page *);
 
 /** ion_page_pool_shrink - shrinks the size of the memory cached in the pool

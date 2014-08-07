@@ -103,10 +103,10 @@ static int __init dummy_probe(struct pcie_device *dev)
 }
 
 static struct pcie_port_service_driver __initdata dummy_driver = {
-        .name           = "pciehp_dummy",
+	.name		= "pciehp_dummy",
 	.port_type	= PCIE_ANY_PORT,
 	.service	= PCIE_PORT_SERVICE_HP,
-        .probe          = dummy_probe,
+	.probe		= dummy_probe,
 };
 
 static int __init select_detection_mode(void)

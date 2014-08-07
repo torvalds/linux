@@ -17,7 +17,7 @@
 	interrupt-parent = <&intc>;
 
 	chosen {
-		bootargs = "console=ttyARC0,115200n8";
+		bootargs = "console=ttyARC0,115200n8 earlyprintk=ttyARC0";
 	};
 
 	aliases {

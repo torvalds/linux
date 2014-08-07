@@ -1,11 +1,12 @@
 <refentry id="vidioc-enum-dv-timings">
   <refmeta>
-    <refentrytitle>ioctl VIDIOC_ENUM_DV_TIMINGS</refentrytitle>
+    <refentrytitle>ioctl VIDIOC_ENUM_DV_TIMINGS, VIDIOC_SUBDEV_ENUM_DV_TIMINGS</refentrytitle>
     &manvol;
   </refmeta>
 
   <refnamediv>
     <refname>VIDIOC_ENUM_DV_TIMINGS</refname>
+    <refname>VIDIOC_SUBDEV_ENUM_DV_TIMINGS</refname>
     <refpurpose>Enumerate supported Digital Video timings</refpurpose>
   </refnamediv>
 
@@ -33,7 +34,7 @@
       <varlistentry>
 	<term><parameter>request</parameter></term>
 	<listitem>
-	  <para>VIDIOC_ENUM_DV_TIMINGS</para>
+	  <para>VIDIOC_ENUM_DV_TIMINGS, VIDIOC_SUBDEV_ENUM_DV_TIMINGS</para>
 	</listitem>
       </varlistentry>
       <varlistentry>
@@ -61,13 +62,20 @@ standards or even custom timings that are not in this list.</para>
 
     <para>To query the available timings, applications initialize the
 <structfield>index</structfield> field and zero the reserved array of &v4l2-enum-dv-timings;
-and call the <constant>VIDIOC_ENUM_DV_TIMINGS</constant> ioctl with a pointer to this
-structure. Drivers fill the rest of the structure or return an
+and call the <constant>VIDIOC_ENUM_DV_TIMINGS</constant> ioctl on a video node with a
+pointer to this structure. Drivers fill the rest of the structure or return an
 &EINVAL; when the index is out of bounds. To enumerate all supported DV timings,
 applications shall begin at index zero, incrementing by one until the
 driver returns <errorcode>EINVAL</errorcode>. Note that drivers may enumerate a
 different set of DV timings after switching the video input or
 output.</para>
+
+    <para>When implemented by the driver DV timings of subdevices can be queried
+by calling the <constant>VIDIOC_SUBDEV_ENUM_DV_TIMINGS</constant> ioctl directly
+on a subdevice node. The DV timings are specific to inputs (for DV receivers) or
+outputs (for DV transmitters), applications must specify the desired pad number
+in the &v4l2-enum-dv-timings; <structfield>pad</structfield> field. Attempts to
+enumerate timings on a pad that doesn't support them will return an &EINVAL;.</para>
 
     <table pgwide="1" frame="none" id="v4l2-enum-dv-timings">
       <title>struct <structname>v4l2_enum_dv_timings</structname></title>
@@ -82,8 +90,16 @@ application.</entry>
 	  </row>
 	  <row>
 	    <entry>__u32</entry>
-	    <entry><structfield>reserved</structfield>[3]</entry>
-	    <entry>Reserved for future extensions. Drivers must set the array to zero.</entry>
+	    <entry><structfield>pad</structfield></entry>
+	    <entry>Pad number as reported by the media controller API. This field
+	    is only used when operating on a subdevice node. When operating on a
+	    video node applications must set this field to zero.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>reserved</structfield>[2]</entry>
+	    <entry>Reserved for future extensions. Drivers and applications must
+	    set the array to zero.</entry>
 	  </row>
 	  <row>
 	    <entry>&v4l2-dv-timings;</entry>
@@ -103,7 +119,7 @@ application.</entry>
 	<term><errorcode>EINVAL</errorcode></term>
 	<listitem>
 	  <para>The &v4l2-enum-dv-timings; <structfield>index</structfield>
-is out of bounds.</para>
+is out of bounds or the <structfield>pad</structfield> number is invalid.</para>
 	</listitem>
       </varlistentry>
       <varlistentry>

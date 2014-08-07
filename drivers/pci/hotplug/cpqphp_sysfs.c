@@ -79,7 +79,7 @@ static int show_ctrl (struct controller *ctrl, char *buf)
 
 static int show_dev (struct controller *ctrl, char *buf)
 {
-	char * out = buf;
+	char *out = buf;
 	int index;
 	struct pci_resource *res;
 	struct pci_func *new_slot;

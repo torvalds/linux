@@ -138,7 +138,9 @@ static int i8k_smm(struct smm_regs *regs)
 	if (!alloc_cpumask_var(&old_mask, GFP_KERNEL))
 		return -ENOMEM;
 	cpumask_copy(old_mask, &current->cpus_allowed);
-	set_cpus_allowed_ptr(current, cpumask_of(0));
+	rc = set_cpus_allowed_ptr(current, cpumask_of(0));
+	if (rc)
+		goto out;
 	if (smp_processor_id() != 0) {
 		rc = -EBUSY;
 		goto out;

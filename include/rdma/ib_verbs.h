@@ -80,8 +80,8 @@ enum rdma_transport_type {
 	RDMA_TRANSPORT_USNIC_UDP
 };
 
-enum rdma_transport_type
-rdma_node_get_transport(enum rdma_node_type node_type) __attribute_const__;
+__attribute_const__ enum rdma_transport_type
+rdma_node_get_transport(enum rdma_node_type node_type);
 
 enum rdma_link_layer {
 	IB_LINK_LAYER_UNSPECIFIED,
@@ -466,14 +466,14 @@ enum ib_rate {
  * converted to 2, since 5 Gbit/sec is 2 * 2.5 Gbit/sec.
  * @rate: rate to convert.
  */
-int ib_rate_to_mult(enum ib_rate rate) __attribute_const__;
+__attribute_const__ int ib_rate_to_mult(enum ib_rate rate);
 
 /**
  * ib_rate_to_mbps - Convert the IB rate enum to Mbps.
  * For example, IB_RATE_2_5_GBPS will be converted to 2500.
  * @rate: rate to convert.
  */
-int ib_rate_to_mbps(enum ib_rate rate) __attribute_const__;
+__attribute_const__ int ib_rate_to_mbps(enum ib_rate rate);
 
 enum ib_mr_create_flags {
 	IB_MR_SIGNATURE_EN = 1,
@@ -604,7 +604,7 @@ struct ib_mr_status {
  * enum.
  * @mult: multiple to convert.
  */
-enum ib_rate mult_to_ib_rate(int mult) __attribute_const__;
+__attribute_const__ enum ib_rate mult_to_ib_rate(int mult);
 
 struct ib_ah_attr {
 	struct ib_global_route	grh;
@@ -783,6 +783,7 @@ enum ib_qp_create_flags {
 	IB_QP_CREATE_BLOCK_MULTICAST_LOOPBACK	= 1 << 1,
 	IB_QP_CREATE_NETIF_QP			= 1 << 5,
 	IB_QP_CREATE_SIGNATURE_EN		= 1 << 6,
+	IB_QP_CREATE_USE_GFP_NOIO		= 1 << 7,
 	/* reserve bits 26-31 for low level drivers' internal use */
 	IB_QP_CREATE_RESERVED_START		= 1 << 26,
 	IB_QP_CREATE_RESERVED_END		= 1 << 31,

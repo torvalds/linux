@@ -1074,14 +1074,13 @@ static int msi3101_start_streaming(struct vb2_queue *vq, unsigned int count)
 	return ret;
 }
 
-static int msi3101_stop_streaming(struct vb2_queue *vq)
+static void msi3101_stop_streaming(struct vb2_queue *vq)
 {
 	struct msi3101_state *s = vb2_get_drv_priv(vq);
-	int ret;
+
 	dev_dbg(&s->udev->dev, "%s:\n", __func__);
 
-	if (mutex_lock_interruptible(&s->v4l2_lock))
-		return -ERESTARTSYS;
+	mutex_lock(&s->v4l2_lock);
 
 	if (s->udev)
 		msi3101_isoc_cleanup(s);
@@ -1090,22 +1089,15 @@ static int msi3101_stop_streaming(struct vb2_queue *vq)
 
 	/* according to tests, at least 700us delay is required  */
 	msleep(20);
-	ret = msi3101_ctrl_msg(s, CMD_STOP_STREAMING, 0);
-	if (ret)
-		goto err_sleep_tuner;
+	if (!msi3101_ctrl_msg(s, CMD_STOP_STREAMING, 0)) {
+		/* sleep USB IF / ADC */
+		msi3101_ctrl_msg(s, CMD_WREG, 0x01000003);
+	}
 
-	/* sleep USB IF / ADC */
-	ret = msi3101_ctrl_msg(s, CMD_WREG, 0x01000003);
-	if (ret)
-		goto err_sleep_tuner;
-
-err_sleep_tuner:
 	/* sleep tuner */
-	ret = v4l2_subdev_call(s->v4l2_subdev, core, s_power, 0);
+	v4l2_subdev_call(s->v4l2_subdev, core, s_power, 0);
 
 	mutex_unlock(&s->v4l2_lock);
-
-	return ret;
 }
 
 static struct vb2_ops msi3101_vb2_ops = {

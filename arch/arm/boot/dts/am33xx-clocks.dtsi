@@ -96,46 +96,28 @@
 		clock-div = <1>;
 	};
 
-	ehrpwm0_gate_tbclk: ehrpwm0_gate_tbclk {
+	ehrpwm0_tbclk: ehrpwm0_tbclk@44e10664 {
 		#clock-cells = <0>;
-		compatible = "ti,composite-no-wait-gate-clock";
+		compatible = "ti,gate-clock";
 		clocks = <&dpll_per_m2_ck>;
 		ti,bit-shift = <0>;
 		reg = <0x0664>;
 	};
 
-	ehrpwm0_tbclk: ehrpwm0_tbclk {
+	ehrpwm1_tbclk: ehrpwm1_tbclk@44e10664 {
 		#clock-cells = <0>;
-		compatible = "ti,composite-clock";
-		clocks = <&ehrpwm0_gate_tbclk>;
-	};
-
-	ehrpwm1_gate_tbclk: ehrpwm1_gate_tbclk {
-		#clock-cells = <0>;
-		compatible = "ti,composite-no-wait-gate-clock";
+		compatible = "ti,gate-clock";
 		clocks = <&dpll_per_m2_ck>;
 		ti,bit-shift = <1>;
 		reg = <0x0664>;
 	};
 
-	ehrpwm1_tbclk: ehrpwm1_tbclk {
+	ehrpwm2_tbclk: ehrpwm2_tbclk@44e10664 {
 		#clock-cells = <0>;
-		compatible = "ti,composite-clock";
-		clocks = <&ehrpwm1_gate_tbclk>;
-	};
-
-	ehrpwm2_gate_tbclk: ehrpwm2_gate_tbclk {
-		#clock-cells = <0>;
-		compatible = "ti,composite-no-wait-gate-clock";
+		compatible = "ti,gate-clock";
 		clocks = <&dpll_per_m2_ck>;
 		ti,bit-shift = <2>;
 		reg = <0x0664>;
-	};
-
-	ehrpwm2_tbclk: ehrpwm2_tbclk {
-		#clock-cells = <0>;
-		compatible = "ti,composite-clock";
-		clocks = <&ehrpwm2_gate_tbclk>;
 	};
 };
 &prcm_clocks {

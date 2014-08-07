@@ -88,12 +88,22 @@
 		};
 	};
 
+	hsotg@12480000 {
+		vusb_d-supply = <&vusb_reg>;
+		vusb_a-supply = <&vusbdac_reg>;
+		status = "okay";
+	};
+
 	sdhci_emmc: sdhci@12510000 {
 		bus-width = <8>;
 		non-removable;
 		pinctrl-0 = <&sd0_clk &sd0_cmd &sd0_bus8>;
 		pinctrl-names = "default";
 		vmmc-supply = <&vemmc_reg>;
+		status = "okay";
+	};
+
+	exynos-usbphy@125B0000 {
 		status = "okay";
 	};
 

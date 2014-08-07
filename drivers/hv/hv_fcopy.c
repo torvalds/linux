@@ -246,8 +246,8 @@ void hv_fcopy_onchannelcallback(void *context)
 		/*
 		 * Send the information to the user-level daemon.
 		 */
-		fcopy_send_data();
 		schedule_delayed_work(&fcopy_work, 5*HZ);
+		fcopy_send_data();
 		return;
 	}
 	icmsghdr->icflags = ICMSGHDRFLAG_TRANSACTION | ICMSGHDRFLAG_RESPONSE;

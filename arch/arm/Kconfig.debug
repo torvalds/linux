@@ -317,6 +317,13 @@ choice
 		  Say Y here if you want kernel low-level debugging support
 		  on i.MX6SL.
 
+	config DEBUG_IMX6SX_UART
+		bool "i.MX6SX Debug UART"
+		depends on SOC_IMX6SX
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  on i.MX6SX.
+
 	config DEBUG_KEYSTONE_UART0
 		bool "Kernel low-level debugging on KEYSTONE2 using UART0"
 		depends on ARCH_KEYSTONE
@@ -349,56 +356,40 @@ choice
 		  Say Y here if you want kernel low-level debugging support
 		  on MMP UART3.
 
-	config DEBUG_MSM_UART1
-		bool "Kernel low-level debugging messages via MSM UART1"
-		depends on ARCH_MSM7X00A || ARCH_MSM7X30 || ARCH_QSD8X50
-		select DEBUG_MSM_UART
+	config DEBUG_MSM_UART
+		bool "Kernel low-level debugging messages via MSM UART"
+		depends on ARCH_MSM
 		help
 		  Say Y here if you want the debug print routines to direct
-		  their output to the first serial port on MSM devices.
+		  their output to the serial port on MSM devices.
 
-	config DEBUG_MSM_UART2
-		bool "Kernel low-level debugging messages via MSM UART2"
-		depends on ARCH_MSM7X00A || ARCH_MSM7X30 || ARCH_QSD8X50
-		select DEBUG_MSM_UART
-		help
-		  Say Y here if you want the debug print routines to direct
-		  their output to the second serial port on MSM devices.
+		  ARCH                DEBUG_UART_PHYS   DEBUG_UART_BASE   #
+		  MSM7X00A, QSD8X50   0xa9a00000        0xe1000000        UART1
+		  MSM7X00A, QSD8X50   0xa9b00000        0xe1000000        UART2
+		  MSM7X00A, QSD8X50   0xa9c00000        0xe1000000        UART3
 
-	config DEBUG_MSM_UART3
-		bool "Kernel low-level debugging messages via MSM UART3"
-		depends on ARCH_MSM7X00A || ARCH_MSM7X30 || ARCH_QSD8X50
-		select DEBUG_MSM_UART
-		help
-		  Say Y here if you want the debug print routines to direct
-		  their output to the third serial port on MSM devices.
+		  MSM7X30             0xaca00000        0xe1000000        UART1
+		  MSM7X30             0xacb00000        0xe1000000        UART2
+		  MSM7X30             0xacc00000        0xe1000000        UART3
 
-	config DEBUG_MSM8660_UART
-		bool "Kernel low-level debugging messages via MSM 8660 UART"
-		depends on ARCH_MSM8X60
-		select MSM_HAS_DEBUG_UART_HS
-		select DEBUG_MSM_UART
-		help
-		  Say Y here if you want the debug print routines to direct
-		  their output to the serial port on MSM 8660 devices.
+		  Please adjust DEBUG_UART_PHYS and DEBUG_UART_BASE configuration
+		  options based on your needs.
 
-	config DEBUG_MSM8960_UART
-		bool "Kernel low-level debugging messages via MSM 8960 UART"
-		depends on ARCH_MSM8960
-		select MSM_HAS_DEBUG_UART_HS
-		select DEBUG_MSM_UART
+	config DEBUG_QCOM_UARTDM
+		bool "Kernel low-level debugging messages via QCOM UARTDM"
+		depends on ARCH_QCOM
 		help
 		  Say Y here if you want the debug print routines to direct
-		  their output to the serial port on MSM 8960 devices.
+		  their output to the serial port on Qualcomm devices.
 
-	config DEBUG_MSM8974_UART
-		bool "Kernel low-level debugging messages via MSM 8974 UART"
-		depends on ARCH_MSM8974
-		select MSM_HAS_DEBUG_UART_HS
-		select DEBUG_MSM_UART
-		help
-		  Say Y here if you want the debug print routines to direct
-		  their output to the serial port on MSM 8974 devices.
+		  ARCH      DEBUG_UART_PHYS   DEBUG_UART_BASE
+		  APQ8084   0xf995e000        0xfa75e000
+		  MSM8X60   0x19c40000        0xf0040000
+		  MSM8960   0x16440000        0xf0040000
+		  MSM8974   0xf991e000        0xfa71e000
+
+		  Please adjust DEBUG_UART_PHYS and DEBUG_UART_BASE configuration
+		  options based on your needs.
 
 	config DEBUG_MVEBU_UART
 		bool "Kernel low-level debugging messages via MVEBU UART (old bootloaders)"
@@ -625,6 +616,7 @@ choice
 	config DEBUG_S3C_UART0
 		depends on PLAT_SAMSUNG
 		select DEBUG_EXYNOS_UART if ARCH_EXYNOS
+		select DEBUG_S3C24XX_UART if ARCH_S3C24XX
 		bool "Use S3C UART 0 for low-level debug"
 		help
 		  Say Y here if you want the debug print routines to direct
@@ -637,6 +629,7 @@ choice
 	config DEBUG_S3C_UART1
 		depends on PLAT_SAMSUNG
 		select DEBUG_EXYNOS_UART if ARCH_EXYNOS
+		select DEBUG_S3C24XX_UART if ARCH_S3C24XX
 		bool "Use S3C UART 1 for low-level debug"
 		help
 		  Say Y here if you want the debug print routines to direct
@@ -649,6 +642,7 @@ choice
 	config DEBUG_S3C_UART2
 		depends on PLAT_SAMSUNG
 		select DEBUG_EXYNOS_UART if ARCH_EXYNOS
+		select DEBUG_S3C24XX_UART if ARCH_S3C24XX
 		bool "Use S3C UART 2 for low-level debug"
 		help
 		  Say Y here if you want the debug print routines to direct
@@ -669,6 +663,33 @@ choice
 
 		  The uncompressor code port configuration is now handled
 		  by CONFIG_S3C_LOWLEVEL_UART_PORT.
+
+	config DEBUG_S3C2410_UART0
+		depends on ARCH_S3C24XX
+		select DEBUG_S3C2410_UART
+		bool "Use S3C2410/S3C2412 UART 0 for low-level debug"
+		help
+		  Say Y here if you want the debug print routines to direct
+		  their output to UART 0. The port must have been initialised
+		  by the boot-loader before use.
+
+	config DEBUG_S3C2410_UART1
+		depends on ARCH_S3C24XX
+		select DEBUG_S3C2410_UART
+		bool "Use S3C2410/S3C2412 UART 1 for low-level debug"
+		help
+		  Say Y here if you want the debug print routines to direct
+		  their output to UART 1. The port must have been initialised
+		  by the boot-loader before use.
+
+	config DEBUG_S3C2410_UART2
+		depends on ARCH_S3C24XX
+		select DEBUG_S3C2410_UART
+		bool "Use S3C2410/S3C2412 UART 2 for low-level debug"
+		help
+		  Say Y here if you want the debug print routines to direct
+		  their output to UART 2. The port must have been initialised
+		  by the boot-loader before use.
 
 	config DEBUG_SOCFPGA_UART
 		depends on ARCH_SOCFPGA
@@ -921,6 +942,13 @@ endchoice
 config DEBUG_EXYNOS_UART
 	bool
 
+config DEBUG_S3C2410_UART
+	bool
+	select DEBUG_S3C24XX_UART
+
+config DEBUG_S3C24XX_UART
+	bool
+
 config DEBUG_OMAP2PLUS_UART
 	bool
 	depends on ARCH_OMAP2PLUS
@@ -935,9 +963,19 @@ config DEBUG_IMX_UART_PORT
 						DEBUG_IMX51_UART || \
 						DEBUG_IMX53_UART || \
 						DEBUG_IMX6Q_UART || \
-						DEBUG_IMX6SL_UART
+						DEBUG_IMX6SL_UART || \
+						DEBUG_IMX6SX_UART
 	default 1
 	depends on ARCH_MXC
+	help
+	  Choose UART port on which kernel low-level debug messages
+	  should be output.
+
+config DEBUG_VF_UART_PORT
+	int "Vybrid Debug UART Port Selection" if DEBUG_VF_UART
+	default 1
+	range 0 3
+	depends on SOC_VF610
 	help
 	  Choose UART port on which kernel low-level debug messages
 	  should be output.
@@ -949,10 +987,6 @@ config DEBUG_TEGRA_UART
 config DEBUG_STI_UART
 	bool
 	depends on ARCH_STI
-
-config DEBUG_MSM_UART
-	bool
-	depends on ARCH_MSM || ARCH_QCOM
 
 config DEBUG_LL_INCLUDE
 	string
@@ -970,9 +1004,11 @@ config DEBUG_LL_INCLUDE
 				 DEBUG_IMX51_UART || \
 				 DEBUG_IMX53_UART ||\
 				 DEBUG_IMX6Q_UART || \
-				 DEBUG_IMX6SL_UART
-	default "debug/msm.S" if DEBUG_MSM_UART
+				 DEBUG_IMX6SL_UART || \
+				 DEBUG_IMX6SX_UART
+	default "debug/msm.S" if DEBUG_MSM_UART || DEBUG_QCOM_UARTDM
 	default "debug/omap2plus.S" if DEBUG_OMAP2PLUS_UART
+	default "debug/s3c24xx.S" if DEBUG_S3C24XX_UART
 	default "debug/sirf.S" if DEBUG_SIRFPRIMA2_UART1 || DEBUG_SIRFMARCO_UART1
 	default "debug/sti.S" if DEBUG_STI_UART
 	default "debug/tegra.S" if DEBUG_TEGRA_UART
@@ -1029,12 +1065,19 @@ config DEBUG_UART_PHYS
 	default 0x40090000 if ARCH_LPC32XX
 	default 0x40100000 if DEBUG_PXA_UART1
 	default 0x42000000 if ARCH_GEMINI
+	default 0x50000000 if DEBUG_S3C24XX_UART && (DEBUG_S3C_UART0 || \
+				DEBUG_S3C2410_UART0)
+	default 0x50004000 if DEBUG_S3C24XX_UART && (DEBUG_S3C_UART1 || \
+				DEBUG_S3C2410_UART1)
+	default 0x50008000 if DEBUG_S3C24XX_UART && (DEBUG_S3C_UART2 || \
+				DEBUG_S3C2410_UART2)
 	default 0x7c0003f8 if FOOTBRIDGE
 	default 0x80070000 if DEBUG_IMX23_UART
 	default 0x80074000 if DEBUG_IMX28_UART
 	default 0x80230000 if DEBUG_PICOXCELL_UART
 	default 0x808c0000 if ARCH_EP93XX
 	default 0x90020000 if DEBUG_NSPIRE_CLASSIC_UART || DEBUG_NSPIRE_CX_UART
+	default 0xa9a00000 if DEBUG_MSM_UART
 	default 0xb0090000 if DEBUG_VEXPRESS_UART0_CRX
 	default 0xc0013000 if DEBUG_U300_UART
 	default 0xc8000000 if ARCH_IXP4XX && !CPU_BIG_ENDIAN
@@ -1050,6 +1093,7 @@ config DEBUG_UART_PHYS
 				ARCH_ORION5X
 	default 0xf7fc9000 if DEBUG_BERLIN_UART
 	default 0xf8b00000 if DEBUG_HI3716_UART
+	default 0xf991e000 if DEBUG_QCOM_UARTDM
 	default 0xfcb00000 if DEBUG_HI3620_UART
 	default 0xfe800000 if ARCH_IOP32X
 	default 0xffc02000 if DEBUG_SOCFPGA_UART
@@ -1058,11 +1102,13 @@ config DEBUG_UART_PHYS
 	default 0xfffff700 if ARCH_IOP33X
 	depends on DEBUG_LL_UART_8250 || DEBUG_LL_UART_PL01X || \
 		DEBUG_LL_UART_EFM32 || \
-		DEBUG_UART_8250 || DEBUG_UART_PL01X
+		DEBUG_UART_8250 || DEBUG_UART_PL01X || \
+		DEBUG_MSM_UART || DEBUG_QCOM_UARTDM || DEBUG_S3C24XX_UART
 
 config DEBUG_UART_VIRT
 	hex "Virtual base address of debug UART"
 	default 0xe0010fe0 if ARCH_RPC
+	default 0xe1000000 if DEBUG_MSM_UART
 	default 0xf0000be0 if ARCH_EBSA110
 	default 0xf0009000 if DEBUG_CNS3XXX
 	default 0xf01fb000 if DEBUG_NOMADIK_UART
@@ -1075,9 +1121,16 @@ config DEBUG_UART_VIRT
 	default 0xf2100000 if DEBUG_PXA_UART1
 	default 0xf4090000 if ARCH_LPC32XX
 	default 0xf4200000 if ARCH_GEMINI
+	default 0xf7000000 if DEBUG_S3C24XX_UART && (DEBUG_S3C_UART0 || \
+				DEBUG_S3C2410_UART0)
+	default 0xf7004000 if DEBUG_S3C24XX_UART && (DEBUG_S3C_UART1 || \
+				DEBUG_S3C2410_UART1)
+	default 0xf7008000 if DEBUG_S3C24XX_UART && (DEBUG_S3C_UART2 || \
+				DEBUG_S3C2410_UART2)
 	default 0xf7fc9000 if DEBUG_BERLIN_UART
 	default 0xf8009000 if DEBUG_VEXPRESS_UART0_CA9
 	default 0xf8090000 if DEBUG_VEXPRESS_UART0_RS1
+	default 0xfa71e000 if DEBUG_QCOM_UARTDM
 	default 0xfb009000 if DEBUG_REALVIEW_STD_PORT
 	default 0xfb10c000 if DEBUG_REALVIEW_PB1176_PORT
 	default 0xfd000000 if ARCH_SPEAR3XX || ARCH_SPEAR6XX
@@ -1116,7 +1169,8 @@ config DEBUG_UART_VIRT
 	default 0xff003000 if DEBUG_U300_UART
 	default DEBUG_UART_PHYS if !MMU
 	depends on DEBUG_LL_UART_8250 || DEBUG_LL_UART_PL01X || \
-		DEBUG_UART_8250 || DEBUG_UART_PL01X
+		DEBUG_UART_8250 || DEBUG_UART_PL01X || \
+		DEBUG_MSM_UART || DEBUG_QCOM_UARTDM || DEBUG_S3C24XX_UART
 
 config DEBUG_UART_8250_SHIFT
 	int "Register offset shift for the 8250 debug UART"

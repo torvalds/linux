@@ -273,67 +273,10 @@ static bool iwl_mvm_time_event_response(struct iwl_notif_wait_data *notif_wait,
 	return true;
 }
 
-/* used to convert from time event API v2 to v1 */
-#define TE_V2_DEP_POLICY_MSK (TE_V2_DEP_OTHER | TE_V2_DEP_TSF |\
-			     TE_V2_EVENT_SOCIOPATHIC)
-static inline u16 te_v2_get_notify(__le16 policy)
-{
-	return le16_to_cpu(policy) & TE_V2_NOTIF_MSK;
-}
-
-static inline u16 te_v2_get_dep_policy(__le16 policy)
-{
-	return (le16_to_cpu(policy) & TE_V2_DEP_POLICY_MSK) >>
-		TE_V2_PLACEMENT_POS;
-}
-
-static inline u16 te_v2_get_absence(__le16 policy)
-{
-	return (le16_to_cpu(policy) & TE_V2_ABSENCE) >> TE_V2_ABSENCE_POS;
-}
-
-static void iwl_mvm_te_v2_to_v1(const struct iwl_time_event_cmd_v2 *cmd_v2,
-				struct iwl_time_event_cmd_v1 *cmd_v1)
-{
-	cmd_v1->id_and_color = cmd_v2->id_and_color;
-	cmd_v1->action = cmd_v2->action;
-	cmd_v1->id = cmd_v2->id;
-	cmd_v1->apply_time = cmd_v2->apply_time;
-	cmd_v1->max_delay = cmd_v2->max_delay;
-	cmd_v1->depends_on = cmd_v2->depends_on;
-	cmd_v1->interval = cmd_v2->interval;
-	cmd_v1->duration = cmd_v2->duration;
-	if (cmd_v2->repeat == TE_V2_REPEAT_ENDLESS)
-		cmd_v1->repeat = cpu_to_le32(TE_V1_REPEAT_ENDLESS);
-	else
-		cmd_v1->repeat = cpu_to_le32(cmd_v2->repeat);
-	cmd_v1->max_frags = cpu_to_le32(cmd_v2->max_frags);
-	cmd_v1->interval_reciprocal = 0; /* unused */
-
-	cmd_v1->dep_policy = cpu_to_le32(te_v2_get_dep_policy(cmd_v2->policy));
-	cmd_v1->is_present = cpu_to_le32(!te_v2_get_absence(cmd_v2->policy));
-	cmd_v1->notify = cpu_to_le32(te_v2_get_notify(cmd_v2->policy));
-}
-
-static int iwl_mvm_send_time_event_cmd(struct iwl_mvm *mvm,
-				       const struct iwl_time_event_cmd_v2 *cmd)
-{
-	struct iwl_time_event_cmd_v1 cmd_v1;
-
-	if (mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_TIME_EVENT_API_V2)
-		return iwl_mvm_send_cmd_pdu(mvm, TIME_EVENT_CMD, CMD_SYNC,
-					    sizeof(*cmd), cmd);
-
-	iwl_mvm_te_v2_to_v1(cmd, &cmd_v1);
-	return iwl_mvm_send_cmd_pdu(mvm, TIME_EVENT_CMD, CMD_SYNC,
-				    sizeof(cmd_v1), &cmd_v1);
-}
-
-
 static int iwl_mvm_time_event_send_add(struct iwl_mvm *mvm,
 				       struct ieee80211_vif *vif,
 				       struct iwl_mvm_time_event_data *te_data,
-				       struct iwl_time_event_cmd_v2 *te_cmd)
+				       struct iwl_time_event_cmd *te_cmd)
 {
 	static const u8 time_event_response[] = { TIME_EVENT_CMD };
 	struct iwl_notification_wait wait_time_event;
@@ -369,7 +312,8 @@ static int iwl_mvm_time_event_send_add(struct iwl_mvm *mvm,
 				   ARRAY_SIZE(time_event_response),
 				   iwl_mvm_time_event_response, te_data);
 
-	ret = iwl_mvm_send_time_event_cmd(mvm, te_cmd);
+	ret = iwl_mvm_send_cmd_pdu(mvm, TIME_EVENT_CMD, 0,
+					    sizeof(*te_cmd), te_cmd);
 	if (ret) {
 		IWL_ERR(mvm, "Couldn't send TIME_EVENT_CMD: %d\n", ret);
 		iwl_remove_notification(&mvm->notif_wait, &wait_time_event);
@@ -397,7 +341,7 @@ void iwl_mvm_protect_session(struct iwl_mvm *mvm,
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm_time_event_data *te_data = &mvmvif->time_event_data;
-	struct iwl_time_event_cmd_v2 time_cmd = {};
+	struct iwl_time_event_cmd time_cmd = {};
 
 	lockdep_assert_held(&mvm->mutex);
 
@@ -453,7 +397,7 @@ void iwl_mvm_remove_time_event(struct iwl_mvm *mvm,
 			       struct iwl_mvm_vif *mvmvif,
 			       struct iwl_mvm_time_event_data *te_data)
 {
-	struct iwl_time_event_cmd_v2 time_cmd = {};
+	struct iwl_time_event_cmd time_cmd = {};
 	u32 id, uid;
 	int ret;
 
@@ -490,7 +434,8 @@ void iwl_mvm_remove_time_event(struct iwl_mvm *mvm,
 		cpu_to_le32(FW_CMD_ID_AND_COLOR(mvmvif->id, mvmvif->color));
 
 	IWL_DEBUG_TE(mvm, "Removing TE 0x%x\n", le32_to_cpu(time_cmd.id));
-	ret = iwl_mvm_send_time_event_cmd(mvm, &time_cmd);
+	ret = iwl_mvm_send_cmd_pdu(mvm, TIME_EVENT_CMD, 0,
+				   sizeof(time_cmd), &time_cmd);
 	if (WARN_ON(ret))
 		return;
 }
@@ -510,7 +455,7 @@ int iwl_mvm_start_p2p_roc(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm_time_event_data *te_data = &mvmvif->time_event_data;
-	struct iwl_time_event_cmd_v2 time_cmd = {};
+	struct iwl_time_event_cmd time_cmd = {};
 
 	lockdep_assert_held(&mvm->mutex);
 	if (te_data->running) {

@@ -1,6 +1,6 @@
 /* periodic_work.c
  *
- * Copyright © 2010 - 2013 UNISYS CORPORATION
+ * Copyright (C) 2010 - 2013 UNISYS CORPORATION
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -92,6 +92,7 @@ EXPORT_SYMBOL_GPL(visor_periodic_work_destroy);
 BOOL visor_periodic_work_nextperiod(PERIODIC_WORK *periodic_work)
 {
 	BOOL rc = FALSE;
+
 	write_lock(&periodic_work->lock);
 	if (periodic_work->want_to_stop) {
 		periodic_work->is_scheduled = FALSE;

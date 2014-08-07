@@ -9,29 +9,12 @@ struct device_node;
 #ifdef CONFIG_NUMA
 
 /*
- * Before going off node we want the VM to try and reclaim from the local
- * node. It does this if the remote distance is larger than RECLAIM_DISTANCE.
- * With the default REMOTE_DISTANCE of 20 and the default RECLAIM_DISTANCE of
- * 20, we never reclaim and go off node straight away.
- *
- * To fix this we choose a smaller value of RECLAIM_DISTANCE.
+ * If zone_reclaim_mode is enabled, a RECLAIM_DISTANCE of 10 will mean that
+ * all zones on all nodes will be eligible for zone_reclaim().
  */
 #define RECLAIM_DISTANCE 10
 
 #include <asm/mmzone.h>
-
-static inline int cpu_to_node(int cpu)
-{
-	int nid;
-
-	nid = numa_cpu_lookup_table[cpu];
-
-	/*
-	 * During early boot, the numa-cpu lookup table might not have been
-	 * setup for all CPUs yet. In such cases, default to node 0.
-	 */
-	return (nid < 0) ? 0 : nid;
-}
 
 #define parent_node(node)	(node)
 

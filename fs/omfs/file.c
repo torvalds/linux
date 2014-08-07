@@ -337,10 +337,10 @@ static sector_t omfs_bmap(struct address_space *mapping, sector_t block)
 
 const struct file_operations omfs_file_operations = {
 	.llseek = generic_file_llseek,
-	.read = do_sync_read,
-	.write = do_sync_write,
-	.aio_read = generic_file_aio_read,
-	.aio_write = generic_file_aio_write,
+	.read = new_sync_read,
+	.write = new_sync_write,
+	.read_iter = generic_file_read_iter,
+	.write_iter = generic_file_write_iter,
 	.mmap = generic_file_mmap,
 	.fsync = generic_file_fsync,
 	.splice_read = generic_file_splice_read,

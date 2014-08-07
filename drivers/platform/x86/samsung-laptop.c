@@ -27,6 +27,7 @@
 #include <linux/debugfs.h>
 #include <linux/ctype.h>
 #include <linux/efi.h>
+#include <linux/suspend.h>
 #include <acpi/video.h>
 
 /*
@@ -340,6 +341,8 @@ struct samsung_laptop {
 	struct samsung_laptop_debug debug;
 	struct samsung_quirks *quirks;
 
+	struct notifier_block pm_nb;
+
 	bool handle_backlight;
 	bool has_stepping_quirk;
 
@@ -348,12 +351,19 @@ struct samsung_laptop {
 
 struct samsung_quirks {
 	bool broken_acpi_video;
+	bool four_kbd_backlight_levels;
+	bool enable_kbd_backlight;
 };
 
 static struct samsung_quirks samsung_unknown = {};
 
 static struct samsung_quirks samsung_broken_acpi_video = {
 	.broken_acpi_video = true,
+};
+
+static struct samsung_quirks samsung_np740u3e = {
+	.four_kbd_backlight_levels = true,
+	.enable_kbd_backlight = true,
 };
 
 static bool force;
@@ -1051,6 +1061,8 @@ static int __init samsung_leds_init(struct samsung_laptop *samsung)
 		samsung->kbd_led.brightness_set = kbd_led_set;
 		samsung->kbd_led.brightness_get = kbd_led_get;
 		samsung->kbd_led.max_brightness = 8;
+		if (samsung->quirks->four_kbd_backlight_levels)
+			samsung->kbd_led.max_brightness = 4;
 
 		ret = led_classdev_register(&samsung->platform_device->dev,
 					   &samsung->kbd_led);
@@ -1414,6 +1426,19 @@ static void samsung_platform_exit(struct samsung_laptop *samsung)
 	}
 }
 
+static int samsung_pm_notification(struct notifier_block *nb,
+				   unsigned long val, void *ptr)
+{
+	struct samsung_laptop *samsung;
+
+	samsung = container_of(nb, struct samsung_laptop, pm_nb);
+	if (val == PM_POST_HIBERNATION &&
+	    samsung->quirks->enable_kbd_backlight)
+		kbd_backlight_enable(samsung);
+
+	return 0;
+}
+
 static int __init samsung_platform_init(struct samsung_laptop *samsung)
 {
 	struct platform_device *pdev;
@@ -1534,6 +1559,15 @@ static struct dmi_system_id __initdata samsung_dmi_table[] = {
 		},
 	 .driver_data = &samsung_broken_acpi_video,
 	},
+	{
+	 .callback = samsung_dmi_matched,
+	 .ident = "730U3E/740U3E",
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "SAMSUNG ELECTRONICS CO., LTD."),
+		DMI_MATCH(DMI_PRODUCT_NAME, "730U3E/740U3E"),
+		},
+	 .driver_data = &samsung_np740u3e,
+	},
 	{ },
 };
 MODULE_DEVICE_TABLE(dmi, samsung_dmi_table);
@@ -1608,6 +1642,9 @@ static int __init samsung_init(void)
 	if (ret)
 		goto error_debugfs;
 
+	samsung->pm_nb.notifier_call = samsung_pm_notification;
+	register_pm_notifier(&samsung->pm_nb);
+
 	samsung_platform_device = samsung->platform_device;
 	return ret;
 
@@ -1633,6 +1670,7 @@ static void __exit samsung_exit(void)
 	struct samsung_laptop *samsung;
 
 	samsung = platform_get_drvdata(samsung_platform_device);
+	unregister_pm_notifier(&samsung->pm_nb);
 
 	samsung_debugfs_exit(samsung);
 	samsung_leds_exit(samsung);

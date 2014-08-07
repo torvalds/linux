@@ -69,7 +69,9 @@ struct ucontext32 {
 	__u32			uc_link;	/* pointer */	
 	compat_stack_t		uc_stack;
 	_sigregs32		uc_mcontext;
-	compat_sigset_t		uc_sigmask;	/* mask last for extensibility */
+	compat_sigset_t		uc_sigmask;
+	/* Allow for uc_sigmask growth.  Glibc uses a 1024-bit sigset_t.  */
+	unsigned char		__unused[128 - sizeof(compat_sigset_t)];
 };
 
 struct stat64_emu31;

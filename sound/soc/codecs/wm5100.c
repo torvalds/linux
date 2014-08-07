@@ -390,7 +390,7 @@ static int wm5100_mixer_values[] = {
 
 #define WM5100_MUX_CTL_DECL(name) \
 	const struct snd_kcontrol_new name##_mux =	\
-		SOC_DAPM_VALUE_ENUM("Route", name##_enum)
+		SOC_DAPM_ENUM("Route", name##_enum)
 
 #define WM5100_MIXER_ENUMS(name, base_reg) \
 	static WM5100_MUX_ENUM_DECL(name##_in1_enum, base_reg);	     \
@@ -448,7 +448,7 @@ WM5100_MIXER_ENUMS(LHPF3, WM5100_HPLP3MIX_INPUT_1_SOURCE);
 WM5100_MIXER_ENUMS(LHPF4, WM5100_HPLP4MIX_INPUT_1_SOURCE);
 
 #define WM5100_MUX(name, ctrl) \
-	SND_SOC_DAPM_VALUE_MUX(name, SND_SOC_NOPM, 0, 0, ctrl)
+	SND_SOC_DAPM_MUX(name, SND_SOC_NOPM, 0, 0, ctrl)
 
 #define WM5100_MIXER_WIDGETS(name, name_str)	\
 	WM5100_MUX(name_str " Input 1", &name##_in1_mux), \

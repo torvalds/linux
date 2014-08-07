@@ -13,6 +13,7 @@ allwinner	Allwinner Technology Co., Ltd.
 altr	Altera Corp.
 amcc	Applied Micro Circuits Corporation (APM, formally AMCC)
 amd	Advanced Micro Devices (AMD), Inc.
+ams	AMS AG
 amstaos	AMS-Taos Inc.
 apm	Applied Micro Circuits Corporation (APM)
 arm	ARM Ltd.
@@ -73,12 +74,16 @@ lantiq	Lantiq Semiconductor
 lg	LG Corporation
 linux	Linux-specific binding
 lsi	LSI Corp. (LSI Logic)
+lltc	Linear Technology Corporation
 marvell	Marvell Technology Group Ltd.
 maxim	Maxim Integrated Products
+micrel	Micrel Inc.
 microchip	Microchip Technology Inc.
 mosaixtech	Mosaix Technologies, Inc.
 moxa	Moxa
 mpl	MPL AG
+mundoreader	Mundo Reader S.L.
+murata	Murata Manufacturing Co., Ltd.
 mxicy	Macronix International Co., Ltd.
 national	National Semiconductor
 neonode		Neonode Inc.
@@ -94,10 +99,12 @@ panasonic	Panasonic Corporation
 phytec	PHYTEC Messtechnik GmbH
 picochip	Picochip Ltd
 plathome	Plat'Home Co., Ltd.
+pixcir  PIXCIR MICROELECTRONICS Co., Ltd
 powervr	PowerVR (deprecated, use img)
 qca	Qualcomm Atheros, Inc.
 qcom	Qualcomm Technologies, Inc
 qnap	QNAP Systems, Inc.
+radxa	Radxa
 raidsonic	RaidSonic Technology GmbH
 ralink	Mediatek/Ralink Technology Corp.
 ramtron	Ramtron International
@@ -123,10 +130,12 @@ stericsson	ST-Ericsson
 synology	Synology, Inc.
 ti	Texas Instruments
 tlm	Trusted Logic Mobility
+toradex	Toradex AG
 toshiba	Toshiba Corporation
 toumaz	Toumaz
 usi	Universal Scientifc Industrial Co., Ltd.
 v3	V3 Semiconductor
+variscite	Variscite Ltd.
 via	VIA Technologies, Inc.
 voipac	Voipac Technologies s.r.o.
 winbond Winbond Electronics corp.
@@ -135,3 +144,4 @@ wm	Wondermedia Technologies, Inc.
 xes	Extreme Engineering Solutions (X-ES)
 xlnx	Xilinx
 zyxel	ZyXEL Communications Corp.
+zarlink	Zarlink Semiconductor

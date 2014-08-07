@@ -191,12 +191,12 @@ static int ccp_aes_xts_cra_init(struct crypto_tfm *tfm)
 	ctx->complete = ccp_aes_xts_complete;
 	ctx->u.aes.key_len = 0;
 
-	fallback_tfm = crypto_alloc_ablkcipher(tfm->__crt_alg->cra_name, 0,
+	fallback_tfm = crypto_alloc_ablkcipher(crypto_tfm_alg_name(tfm), 0,
 					       CRYPTO_ALG_ASYNC |
 					       CRYPTO_ALG_NEED_FALLBACK);
 	if (IS_ERR(fallback_tfm)) {
 		pr_warn("could not load fallback driver %s\n",
-			tfm->__crt_alg->cra_name);
+			crypto_tfm_alg_name(tfm));
 		return PTR_ERR(fallback_tfm);
 	}
 	ctx->u.aes.tfm_ablkcipher = fallback_tfm;

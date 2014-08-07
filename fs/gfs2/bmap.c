@@ -707,7 +707,7 @@ int gfs2_extent_map(struct inode *inode, u64 lblock, int *new, u64 *dblock, unsi
  * @top: The first pointer in the buffer
  * @bottom: One more than the last pointer
  * @height: the height this buffer is at
- * @data: a pointer to a struct strip_mine
+ * @sm: a pointer to a struct strip_mine
  *
  * Returns: errno
  */
@@ -992,6 +992,8 @@ unlock:
 	return err;
 }
 
+#define GFS2_JTRUNC_REVOKES 8192
+
 /**
  * gfs2_journaled_truncate - Wrapper for truncate_pagecache for jdata files
  * @inode: The inode being truncated
@@ -1002,8 +1004,6 @@ unlock:
  * truncated. As a result, we need to split this into separate transactions
  * if the number of pages being truncated gets too large.
  */
-
-#define GFS2_JTRUNC_REVOKES 8192
 
 static int gfs2_journaled_truncate(struct inode *inode, u64 oldsize, u64 newsize)
 {
@@ -1348,7 +1348,7 @@ void gfs2_free_journal_extents(struct gfs2_jdesc *jd)
  * gfs2_add_jextent - Add or merge a new extent to extent cache
  * @jd: The journal descriptor
  * @lblock: The logical block at start of new extent
- * @pblock: The physical block at start of new extent
+ * @dblock: The physical block at start of new extent
  * @blocks: Size of extent in fs blocks
  *
  * Returns: 0 on success or -ENOMEM

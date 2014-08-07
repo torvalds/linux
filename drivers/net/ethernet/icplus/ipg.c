@@ -2245,7 +2245,7 @@ static int ipg_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	 */
 	dev->netdev_ops = &ipg_netdev_ops;
 	SET_NETDEV_DEV(dev, &pdev->dev);
-	SET_ETHTOOL_OPS(dev, &ipg_ethtool_ops);
+	dev->ethtool_ops = &ipg_ethtool_ops;
 
 	rc = pci_request_regions(pdev, DRV_NAME);
 	if (rc)

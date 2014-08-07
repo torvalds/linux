@@ -52,9 +52,9 @@ static DEFINE_MUTEX(profile_flip_mutex);
 
 int profile_setup(char *str)
 {
-	static char schedstr[] = "schedule";
-	static char sleepstr[] = "sleep";
-	static char kvmstr[] = "kvm";
+	static const char schedstr[] = "schedule";
+	static const char sleepstr[] = "sleep";
+	static const char kvmstr[] = "kvm";
 	int par;
 
 	if (!strncmp(str, sleepstr, strlen(sleepstr))) {
@@ -64,12 +64,10 @@ int profile_setup(char *str)
 			str += strlen(sleepstr) + 1;
 		if (get_option(&str, &par))
 			prof_shift = par;
-		printk(KERN_INFO
-			"kernel sleep profiling enabled (shift: %ld)\n",
+		pr_info("kernel sleep profiling enabled (shift: %ld)\n",
 			prof_shift);
 #else
-		printk(KERN_WARNING
-			"kernel sleep profiling requires CONFIG_SCHEDSTATS\n");
+		pr_warn("kernel sleep profiling requires CONFIG_SCHEDSTATS\n");
 #endif /* CONFIG_SCHEDSTATS */
 	} else if (!strncmp(str, schedstr, strlen(schedstr))) {
 		prof_on = SCHED_PROFILING;
@@ -77,8 +75,7 @@ int profile_setup(char *str)
 			str += strlen(schedstr) + 1;
 		if (get_option(&str, &par))
 			prof_shift = par;
-		printk(KERN_INFO
-			"kernel schedule profiling enabled (shift: %ld)\n",
+		pr_info("kernel schedule profiling enabled (shift: %ld)\n",
 			prof_shift);
 	} else if (!strncmp(str, kvmstr, strlen(kvmstr))) {
 		prof_on = KVM_PROFILING;
@@ -86,13 +83,12 @@ int profile_setup(char *str)
 			str += strlen(kvmstr) + 1;
 		if (get_option(&str, &par))
 			prof_shift = par;
-		printk(KERN_INFO
-			"kernel KVM profiling enabled (shift: %ld)\n",
+		pr_info("kernel KVM profiling enabled (shift: %ld)\n",
 			prof_shift);
 	} else if (get_option(&str, &par)) {
 		prof_shift = par;
 		prof_on = CPU_PROFILING;
-		printk(KERN_INFO "kernel profiling enabled (shift: %ld)\n",
+		pr_info("kernel profiling enabled (shift: %ld)\n",
 			prof_shift);
 	}
 	return 1;

@@ -148,7 +148,6 @@ static struct drm_connector_funcs imx_pd_connector_funcs = {
 static struct drm_connector_helper_funcs imx_pd_connector_helper_funcs = {
 	.get_modes = imx_pd_connector_get_modes,
 	.best_encoder = imx_pd_connector_best_encoder,
-	.mode_valid = imx_drm_connector_mode_valid,
 };
 
 static struct drm_encoder_funcs imx_pd_encoder_funcs = {
@@ -173,6 +172,13 @@ static int imx_pd_register(struct drm_device *drm,
 				       imxpd->dev->of_node);
 	if (ret)
 		return ret;
+
+	/* set the connector's dpms to OFF so that
+	 * drm_helper_connector_dpms() won't return
+	 * immediately since the current state is ON
+	 * at this point.
+	 */
+	imxpd->connector.dpms = DRM_MODE_DPMS_OFF;
 
 	drm_encoder_helper_add(&imxpd->encoder, &imx_pd_encoder_helper_funcs);
 	drm_encoder_init(drm, &imxpd->encoder, &imx_pd_encoder_funcs,
@@ -219,6 +225,8 @@ static int imx_pd_bind(struct device *dev, struct device *master, void *data)
 			imxpd->interface_pix_fmt = V4L2_PIX_FMT_RGB565;
 		else if (!strcmp(fmt, "bgr666"))
 			imxpd->interface_pix_fmt = V4L2_PIX_FMT_BGR666;
+		else if (!strcmp(fmt, "lvds666"))
+			imxpd->interface_pix_fmt = v4l2_fourcc('L', 'V', 'D', '6');
 	}
 
 	panel_node = of_parse_phandle(np, "fsl,panel", 0);

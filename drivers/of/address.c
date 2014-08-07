@@ -498,8 +498,7 @@ static u64 __of_translate_address(struct device_node *dev,
 	/* Count address cells & copy address locally */
 	bus->count_cells(dev, &na, &ns);
 	if (!OF_CHECK_COUNTS(na, ns)) {
-		printk(KERN_ERR "prom_parse: Bad cell count for %s\n",
-		       of_node_full_name(dev));
+		pr_debug("OF: Bad cell count for %s\n", of_node_full_name(dev));
 		goto bail;
 	}
 	memcpy(addr, in_addr, na * 4);
@@ -563,25 +562,6 @@ u64 of_translate_dma_address(struct device_node *dev, const __be32 *in_addr)
 	return __of_translate_address(dev, in_addr, "dma-ranges");
 }
 EXPORT_SYMBOL(of_translate_dma_address);
-
-bool of_can_translate_address(struct device_node *dev)
-{
-	struct device_node *parent;
-	struct of_bus *bus;
-	int na, ns;
-
-	parent = of_get_parent(dev);
-	if (parent == NULL)
-		return false;
-
-	bus = of_match_bus(parent);
-	bus->count_cells(dev, &na, &ns);
-
-	of_node_put(parent);
-
-	return OF_CHECK_COUNTS(na, ns);
-}
-EXPORT_SYMBOL(of_can_translate_address);
 
 const __be32 *of_get_address(struct device_node *dev, int index, u64 *size,
 		    unsigned int *flags)
@@ -721,3 +701,113 @@ void __iomem *of_iomap(struct device_node *np, int index)
 	return ioremap(res.start, resource_size(&res));
 }
 EXPORT_SYMBOL(of_iomap);
+
+/**
+ * of_dma_get_range - Get DMA range info
+ * @np:		device node to get DMA range info
+ * @dma_addr:	pointer to store initial DMA address of DMA range
+ * @paddr:	pointer to store initial CPU address of DMA range
+ * @size:	pointer to store size of DMA range
+ *
+ * Look in bottom up direction for the first "dma-ranges" property
+ * and parse it.
+ *  dma-ranges format:
+ *	DMA addr (dma_addr)	: naddr cells
+ *	CPU addr (phys_addr_t)	: pna cells
+ *	size			: nsize cells
+ *
+ * It returns -ENODEV if "dma-ranges" property was not found
+ * for this device in DT.
+ */
+int of_dma_get_range(struct device_node *np, u64 *dma_addr, u64 *paddr, u64 *size)
+{
+	struct device_node *node = of_node_get(np);
+	const __be32 *ranges = NULL;
+	int len, naddr, nsize, pna;
+	int ret = 0;
+	u64 dmaaddr;
+
+	if (!node)
+		return -EINVAL;
+
+	while (1) {
+		naddr = of_n_addr_cells(node);
+		nsize = of_n_size_cells(node);
+		node = of_get_next_parent(node);
+		if (!node)
+			break;
+
+		ranges = of_get_property(node, "dma-ranges", &len);
+
+		/* Ignore empty ranges, they imply no translation required */
+		if (ranges && len > 0)
+			break;
+
+		/*
+		 * At least empty ranges has to be defined for parent node if
+		 * DMA is supported
+		 */
+		if (!ranges)
+			break;
+	}
+
+	if (!ranges) {
+		pr_debug("%s: no dma-ranges found for node(%s)\n",
+			 __func__, np->full_name);
+		ret = -ENODEV;
+		goto out;
+	}
+
+	len /= sizeof(u32);
+
+	pna = of_n_addr_cells(node);
+
+	/* dma-ranges format:
+	 * DMA addr	: naddr cells
+	 * CPU addr	: pna cells
+	 * size		: nsize cells
+	 */
+	dmaaddr = of_read_number(ranges, naddr);
+	*paddr = of_translate_dma_address(np, ranges);
+	if (*paddr == OF_BAD_ADDR) {
+		pr_err("%s: translation of DMA address(%pad) to CPU address failed node(%s)\n",
+		       __func__, dma_addr, np->full_name);
+		ret = -EINVAL;
+		goto out;
+	}
+	*dma_addr = dmaaddr;
+
+	*size = of_read_number(ranges + naddr + pna, nsize);
+
+	pr_debug("dma_addr(%llx) cpu_addr(%llx) size(%llx)\n",
+		 *dma_addr, *paddr, *size);
+
+out:
+	of_node_put(node);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(of_dma_get_range);
+
+/**
+ * of_dma_is_coherent - Check if device is coherent
+ * @np:	device node
+ *
+ * It returns true if "dma-coherent" property was found
+ * for this device in DT.
+ */
+bool of_dma_is_coherent(struct device_node *np)
+{
+	struct device_node *node = of_node_get(np);
+
+	while (node) {
+		if (of_property_read_bool(node, "dma-coherent")) {
+			of_node_put(node);
+			return true;
+		}
+		node = of_get_next_parent(node);
+	}
+	of_node_put(node);
+	return false;
+}
+EXPORT_SYMBOL_GPL(of_dma_is_coherent);

@@ -41,6 +41,8 @@ static const struct acpi_device_id container_device_ids[] = {
 	{"", 0},
 };
 
+#ifdef CONFIG_ACPI_CONTAINER
+
 static int acpi_container_offline(struct container_dev *cdev)
 {
 	struct acpi_device *adev = ACPI_COMPANION(&cdev->dev);
@@ -109,5 +111,18 @@ static struct acpi_scan_handler container_handler = {
 
 void __init acpi_container_init(void)
 {
+	acpi_scan_add_handler(&container_handler);
+}
+
+#else
+
+static struct acpi_scan_handler container_handler = {
+	.ids = container_device_ids,
+};
+
+void __init acpi_container_init(void)
+{
 	acpi_scan_add_handler_with_hotplug(&container_handler, "container");
 }
+
+#endif /* CONFIG_ACPI_CONTAINER */

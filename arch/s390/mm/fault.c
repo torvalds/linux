@@ -415,7 +415,7 @@ static inline int do_exception(struct pt_regs *regs, int access)
 	 * The instruction that caused the program check has
 	 * been nullified. Don't signal single step via SIGTRAP.
 	 */
-	clear_tsk_thread_flag(tsk, TIF_PER_TRAP);
+	clear_pt_regs_flag(regs, PIF_PER_TRAP);
 
 	if (notify_page_fault(regs))
 		return 0;

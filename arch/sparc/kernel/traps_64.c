@@ -43,8 +43,10 @@
 #include <asm/prom.h>
 #include <asm/memctrl.h>
 #include <asm/cacheflush.h>
+#include <asm/setup.h>
 
 #include "entry.h"
+#include "kernel.h"
 #include "kstack.h"
 
 /* When an irrecoverable trap occurs at tl > 0, the trap entry
@@ -2209,8 +2211,6 @@ out:
 	exception_exit(prev_state);
 }
 
-extern int do_mathemu(struct pt_regs *, struct fpustate *, bool);
-
 void do_fpother(struct pt_regs *regs)
 {
 	enum ctx_state prev_state = exception_enter();
@@ -2383,7 +2383,7 @@ static inline struct reg_window *kernel_stack_up(struct reg_window *rw)
 	return (struct reg_window *) (fp + STACK_BIAS);
 }
 
-void die_if_kernel(char *str, struct pt_regs *regs)
+void __noreturn die_if_kernel(char *str, struct pt_regs *regs)
 {
 	static int die_counter;
 	int count = 0;
@@ -2432,9 +2432,6 @@ EXPORT_SYMBOL(die_if_kernel);
 
 #define VIS_OPCODE_MASK	((0x3 << 30) | (0x3f << 19))
 #define VIS_OPCODE_VAL	((0x2 << 30) | (0x36 << 19))
-
-extern int handle_popc(u32 insn, struct pt_regs *regs);
-extern int handle_ldf_stq(u32 insn, struct pt_regs *regs);
 
 void do_illegal_instruction(struct pt_regs *regs)
 {
@@ -2485,8 +2482,6 @@ void do_illegal_instruction(struct pt_regs *regs)
 out:
 	exception_exit(prev_state);
 }
-
-extern void kernel_unaligned_trap(struct pt_regs *regs, unsigned int insn);
 
 void mem_address_unaligned(struct pt_regs *regs, unsigned long sfar, unsigned long sfsr)
 {

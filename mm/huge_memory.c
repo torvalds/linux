@@ -5,6 +5,8 @@
  *  the COPYING file in the top-level directory.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/mm.h>
 #include <linux/sched.h>
 #include <linux/highmem.h>
@@ -151,8 +153,7 @@ static int start_khugepaged(void)
 			khugepaged_thread = kthread_run(khugepaged, NULL,
 							"khugepaged");
 		if (unlikely(IS_ERR(khugepaged_thread))) {
-			printk(KERN_ERR
-			       "khugepaged: kthread_run(khugepaged) failed\n");
+			pr_err("khugepaged: kthread_run(khugepaged) failed\n");
 			err = PTR_ERR(khugepaged_thread);
 			khugepaged_thread = NULL;
 		}
@@ -584,19 +585,19 @@ static int __init hugepage_init_sysfs(struct kobject **hugepage_kobj)
 
 	*hugepage_kobj = kobject_create_and_add("transparent_hugepage", mm_kobj);
 	if (unlikely(!*hugepage_kobj)) {
-		printk(KERN_ERR "hugepage: failed to create transparent hugepage kobject\n");
+		pr_err("failed to create transparent hugepage kobject\n");
 		return -ENOMEM;
 	}
 
 	err = sysfs_create_group(*hugepage_kobj, &hugepage_attr_group);
 	if (err) {
-		printk(KERN_ERR "hugepage: failed to register transparent hugepage group\n");
+		pr_err("failed to register transparent hugepage group\n");
 		goto delete_obj;
 	}
 
 	err = sysfs_create_group(*hugepage_kobj, &khugepaged_attr_group);
 	if (err) {
-		printk(KERN_ERR "hugepage: failed to register transparent hugepage group\n");
+		pr_err("failed to register transparent hugepage group\n");
 		goto remove_hp_group;
 	}
 
@@ -689,8 +690,7 @@ static int __init setup_transparent_hugepage(char *str)
 	}
 out:
 	if (!ret)
-		printk(KERN_WARNING
-		       "transparent_hugepage= cannot parse, ignored\n");
+		pr_warn("transparent_hugepage= cannot parse, ignored\n");
 	return ret;
 }
 __setup("transparent_hugepage=", setup_transparent_hugepage);
@@ -941,6 +941,37 @@ unlock:
 	spin_unlock(ptl);
 }
 
+/*
+ * Save CONFIG_DEBUG_PAGEALLOC from faulting falsely on tail pages
+ * during copy_user_huge_page()'s copy_page_rep(): in the case when
+ * the source page gets split and a tail freed before copy completes.
+ * Called under pmd_lock of checked pmd, so safe from splitting itself.
+ */
+static void get_user_huge_page(struct page *page)
+{
+	if (IS_ENABLED(CONFIG_DEBUG_PAGEALLOC)) {
+		struct page *endpage = page + HPAGE_PMD_NR;
+
+		atomic_add(HPAGE_PMD_NR, &page->_count);
+		while (++page < endpage)
+			get_huge_page_tail(page);
+	} else {
+		get_page(page);
+	}
+}
+
+static void put_user_huge_page(struct page *page)
+{
+	if (IS_ENABLED(CONFIG_DEBUG_PAGEALLOC)) {
+		struct page *endpage = page + HPAGE_PMD_NR;
+
+		while (page < endpage)
+			put_page(page++);
+	} else {
+		put_page(page);
+	}
+}
+
 static int do_huge_pmd_wp_page_fallback(struct mm_struct *mm,
 					struct vm_area_struct *vma,
 					unsigned long address,
@@ -1074,7 +1105,7 @@ int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		ret |= VM_FAULT_WRITE;
 		goto out_unlock;
 	}
-	get_page(page);
+	get_user_huge_page(page);
 	spin_unlock(ptl);
 alloc:
 	if (transparent_hugepage_enabled(vma) &&
@@ -1095,7 +1126,7 @@ alloc:
 				split_huge_page(page);
 				ret |= VM_FAULT_FALLBACK;
 			}
-			put_page(page);
+			put_user_huge_page(page);
 		}
 		count_vm_event(THP_FAULT_FALLBACK);
 		goto out;
@@ -1105,7 +1136,7 @@ alloc:
 		put_page(new_page);
 		if (page) {
 			split_huge_page(page);
-			put_page(page);
+			put_user_huge_page(page);
 		} else
 			split_huge_page_pmd(vma, address, pmd);
 		ret |= VM_FAULT_FALLBACK;
@@ -1127,7 +1158,7 @@ alloc:
 
 	spin_lock(ptl);
 	if (page)
-		put_page(page);
+		put_user_huge_page(page);
 	if (unlikely(!pmd_same(*pmd, orig_pmd))) {
 		spin_unlock(ptl);
 		mem_cgroup_uncharge_page(new_page);
@@ -1830,10 +1861,11 @@ static void __split_huge_page(struct page *page,
 	 * the newly established pmd of the child later during the
 	 * walk, to be able to set it as pmd_trans_splitting too.
 	 */
-	if (mapcount != page_mapcount(page))
-		printk(KERN_ERR "mapcount %d page_mapcount %d\n",
-		       mapcount, page_mapcount(page));
-	BUG_ON(mapcount != page_mapcount(page));
+	if (mapcount != page_mapcount(page)) {
+		pr_err("mapcount %d page_mapcount %d\n",
+			mapcount, page_mapcount(page));
+		BUG();
+	}
 
 	__split_huge_page_refcount(page, list);
 
@@ -1844,10 +1876,11 @@ static void __split_huge_page(struct page *page,
 		BUG_ON(is_vma_temporary_stack(vma));
 		mapcount2 += __split_huge_page_map(page, vma, addr);
 	}
-	if (mapcount != mapcount2)
-		printk(KERN_ERR "mapcount %d mapcount2 %d page_mapcount %d\n",
-		       mapcount, mapcount2, page_mapcount(page));
-	BUG_ON(mapcount != mapcount2);
+	if (mapcount != mapcount2) {
+		pr_err("mapcount %d mapcount2 %d page_mapcount %d\n",
+			mapcount, mapcount2, page_mapcount(page));
+		BUG();
+	}
 }
 
 /*
@@ -2390,8 +2423,6 @@ static void collapse_huge_page(struct mm_struct *mm,
 	pmd = mm_find_pmd(mm, address);
 	if (!pmd)
 		goto out;
-	if (pmd_trans_huge(*pmd))
-		goto out;
 
 	anon_vma_lock_write(vma->anon_vma);
 
@@ -2489,8 +2520,6 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
 
 	pmd = mm_find_pmd(mm, address);
 	if (!pmd)
-		goto out;
-	if (pmd_trans_huge(*pmd))
 		goto out;
 
 	memset(khugepaged_node_load, 0, sizeof(khugepaged_node_load));
@@ -2740,7 +2769,7 @@ static int khugepaged(void *none)
 	struct mm_slot *mm_slot;
 
 	set_freezable();
-	set_user_nice(current, 19);
+	set_user_nice(current, MAX_NICE);
 
 	while (!kthread_should_stop()) {
 		khugepaged_do_scan();
@@ -2844,12 +2873,22 @@ void split_huge_page_pmd_mm(struct mm_struct *mm, unsigned long address,
 static void split_huge_page_address(struct mm_struct *mm,
 				    unsigned long address)
 {
+	pgd_t *pgd;
+	pud_t *pud;
 	pmd_t *pmd;
 
 	VM_BUG_ON(!(address & ~HPAGE_PMD_MASK));
 
-	pmd = mm_find_pmd(mm, address);
-	if (!pmd)
+	pgd = pgd_offset(mm, address);
+	if (!pgd_present(*pgd))
+		return;
+
+	pud = pud_offset(pgd, address);
+	if (!pud_present(*pud))
+		return;
+
+	pmd = pmd_offset(pud, address);
+	if (!pmd_present(*pmd))
 		return;
 	/*
 	 * Caller holds the mmap_sem write mode, so a huge pmd cannot

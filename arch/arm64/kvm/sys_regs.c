@@ -71,13 +71,13 @@ static u32 get_ccsidr(u32 csselr)
 static void do_dc_cisw(u32 val)
 {
 	asm volatile("dc cisw, %x0" : : "r" (val));
-	dsb();
+	dsb(ish);
 }
 
 static void do_dc_csw(u32 val)
 {
 	asm volatile("dc csw, %x0" : : "r" (val));
-	dsb();
+	dsb(ish);
 }
 
 /* See note at ARM ARM B1.14.4 */

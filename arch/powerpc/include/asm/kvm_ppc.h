@@ -337,6 +337,10 @@ static inline void kvmppc_fast_vcpu_kick(struct kvm_vcpu *vcpu)
 	vcpu->kvm->arch.kvm_ops->fast_vcpu_kick(vcpu);
 }
 
+extern void kvm_hv_vm_activated(void);
+extern void kvm_hv_vm_deactivated(void);
+extern bool kvm_hv_mode_active(void);
+
 #else
 static inline void __init kvm_cma_reserve(void)
 {}
@@ -356,6 +360,9 @@ static inline void kvmppc_fast_vcpu_kick(struct kvm_vcpu *vcpu)
 {
 	kvm_vcpu_kick(vcpu);
 }
+
+static inline bool kvm_hv_mode_active(void)		{ return false; }
+
 #endif
 
 #ifdef CONFIG_KVM_XICS
@@ -449,6 +456,84 @@ static inline void kvmppc_mmu_flush_icache(pfn_t pfn)
 }
 
 /*
+ * Shared struct helpers. The shared struct can be little or big endian,
+ * depending on the guest endianness. So expose helpers to all of them.
+ */
+static inline bool kvmppc_shared_big_endian(struct kvm_vcpu *vcpu)
+{
+#if defined(CONFIG_PPC_BOOK3S_64) && defined(CONFIG_KVM_BOOK3S_PR_POSSIBLE)
+	/* Only Book3S_64 PR supports bi-endian for now */
+	return vcpu->arch.shared_big_endian;
+#elif defined(CONFIG_PPC_BOOK3S_64) && defined(__LITTLE_ENDIAN__)
+	/* Book3s_64 HV on little endian is always little endian */
+	return false;
+#else
+	return true;
+#endif
+}
+
+#define SHARED_WRAPPER_GET(reg, size)					\
+static inline u##size kvmppc_get_##reg(struct kvm_vcpu *vcpu)	\
+{									\
+	if (kvmppc_shared_big_endian(vcpu))				\
+	       return be##size##_to_cpu(vcpu->arch.shared->reg);	\
+	else								\
+	       return le##size##_to_cpu(vcpu->arch.shared->reg);	\
+}									\
+
+#define SHARED_WRAPPER_SET(reg, size)					\
+static inline void kvmppc_set_##reg(struct kvm_vcpu *vcpu, u##size val)	\
+{									\
+	if (kvmppc_shared_big_endian(vcpu))				\
+	       vcpu->arch.shared->reg = cpu_to_be##size(val);		\
+	else								\
+	       vcpu->arch.shared->reg = cpu_to_le##size(val);		\
+}									\
+
+#define SHARED_WRAPPER(reg, size)					\
+	SHARED_WRAPPER_GET(reg, size)					\
+	SHARED_WRAPPER_SET(reg, size)					\
+
+SHARED_WRAPPER(critical, 64)
+SHARED_WRAPPER(sprg0, 64)
+SHARED_WRAPPER(sprg1, 64)
+SHARED_WRAPPER(sprg2, 64)
+SHARED_WRAPPER(sprg3, 64)
+SHARED_WRAPPER(srr0, 64)
+SHARED_WRAPPER(srr1, 64)
+SHARED_WRAPPER(dar, 64)
+SHARED_WRAPPER_GET(msr, 64)
+static inline void kvmppc_set_msr_fast(struct kvm_vcpu *vcpu, u64 val)
+{
+	if (kvmppc_shared_big_endian(vcpu))
+	       vcpu->arch.shared->msr = cpu_to_be64(val);
+	else
+	       vcpu->arch.shared->msr = cpu_to_le64(val);
+}
+SHARED_WRAPPER(dsisr, 32)
+SHARED_WRAPPER(int_pending, 32)
+SHARED_WRAPPER(sprg4, 64)
+SHARED_WRAPPER(sprg5, 64)
+SHARED_WRAPPER(sprg6, 64)
+SHARED_WRAPPER(sprg7, 64)
+
+static inline u32 kvmppc_get_sr(struct kvm_vcpu *vcpu, int nr)
+{
+	if (kvmppc_shared_big_endian(vcpu))
+	       return be32_to_cpu(vcpu->arch.shared->sr[nr]);
+	else
+	       return le32_to_cpu(vcpu->arch.shared->sr[nr]);
+}
+
+static inline void kvmppc_set_sr(struct kvm_vcpu *vcpu, int nr, u32 val)
+{
+	if (kvmppc_shared_big_endian(vcpu))
+	       vcpu->arch.shared->sr[nr] = cpu_to_be32(val);
+	else
+	       vcpu->arch.shared->sr[nr] = cpu_to_le32(val);
+}
+
+/*
  * Please call after prepare_to_enter. This function puts the lazy ee and irq
  * disabled tracking state back to normal mode, without actually enabling
  * interrupts.
@@ -485,7 +570,7 @@ static inline ulong kvmppc_get_ea_indexed(struct kvm_vcpu *vcpu, int ra, int rb)
 	msr_64bit = MSR_SF;
 #endif
 
-	if (!(vcpu->arch.shared->msr & msr_64bit))
+	if (!(kvmppc_get_msr(vcpu) & msr_64bit))
 		ea = (uint32_t)ea;
 
 	return ea;

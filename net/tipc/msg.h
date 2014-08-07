@@ -1,7 +1,7 @@
 /*
  * net/tipc/msg.h: Include file for TIPC message header routines
  *
- * Copyright (c) 2000-2007, Ericsson AB
+ * Copyright (c) 2000-2007, 2014, Ericsson AB
  * Copyright (c) 2005-2008, 2010-2011, Wind River Systems
  * All rights reserved.
  *
@@ -711,4 +711,7 @@ void tipc_msg_init(struct tipc_msg *m, u32 user, u32 type, u32 hsize,
 		   u32 destnode);
 int tipc_msg_build(struct tipc_msg *hdr, struct iovec const *msg_sect,
 		   unsigned int len, int max_size, struct sk_buff **buf);
+
+int tipc_buf_append(struct sk_buff **headbuf, struct sk_buff **buf);
+
 #endif

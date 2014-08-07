@@ -1090,7 +1090,7 @@ void ivtv_s_std_enc(struct ivtv *itv, v4l2_std_id std)
 		itv->vbi.sliced_decoder_line_size = itv->is_60hz ? 272 : 284;
 
 	/* Tuner */
-	ivtv_call_all(itv, core, s_std, itv->std);
+	ivtv_call_all(itv, video, s_std, itv->std);
 }
 
 void ivtv_s_std_dec(struct ivtv *itv, v4l2_std_id std)

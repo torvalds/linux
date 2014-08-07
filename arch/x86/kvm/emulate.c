@@ -161,6 +161,7 @@
 #define Fastop      ((u64)1 << 44)  /* Use opcode::u.fastop */
 #define NoWrite     ((u64)1 << 45)  /* No writeback */
 #define SrcWrite    ((u64)1 << 46)  /* Write back src operand */
+#define NoMod	    ((u64)1 << 47)  /* Mod field is ignored */
 
 #define DstXacc     (DstAccLo | SrcAccHi | SrcWrite)
 
@@ -1077,7 +1078,7 @@ static int decode_modrm(struct x86_emulate_ctxt *ctxt,
 	ctxt->modrm_rm |= (ctxt->modrm & 0x07);
 	ctxt->modrm_seg = VCPU_SREG_DS;
 
-	if (ctxt->modrm_mod == 3) {
+	if (ctxt->modrm_mod == 3 || (ctxt->d & NoMod)) {
 		op->type = OP_REG;
 		op->bytes = (ctxt->d & ByteOp) ? 1 : ctxt->op_bytes;
 		op->addr.reg = decode_register(ctxt, ctxt->modrm_rm,
@@ -1324,7 +1325,8 @@ static int pio_in_emulated(struct x86_emulate_ctxt *ctxt,
 		rc->end = n * size;
 	}
 
-	if (ctxt->rep_prefix && !(ctxt->eflags & EFLG_DF)) {
+	if (ctxt->rep_prefix && (ctxt->d & String) &&
+	    !(ctxt->eflags & EFLG_DF)) {
 		ctxt->dst.data = rc->data + rc->pos;
 		ctxt->dst.type = OP_MEM_STR;
 		ctxt->dst.count = (rc->end - rc->pos) / size;
@@ -1409,11 +1411,11 @@ static int write_segment_descriptor(struct x86_emulate_ctxt *ctxt,
 }
 
 /* Does not support long mode */
-static int load_segment_descriptor(struct x86_emulate_ctxt *ctxt,
-				   u16 selector, int seg)
+static int __load_segment_descriptor(struct x86_emulate_ctxt *ctxt,
+				     u16 selector, int seg, u8 cpl, bool in_task_switch)
 {
 	struct desc_struct seg_desc, old_desc;
-	u8 dpl, rpl, cpl;
+	u8 dpl, rpl;
 	unsigned err_vec = GP_VECTOR;
 	u32 err_code = 0;
 	bool null_selector = !(selector & ~0x3); /* 0000-0003 are null */
@@ -1441,7 +1443,6 @@ static int load_segment_descriptor(struct x86_emulate_ctxt *ctxt,
 	}
 
 	rpl = selector & 3;
-	cpl = ctxt->ops->cpl(ctxt);
 
 	/* NULL selector is not valid for TR, CS and SS (except for long mode) */
 	if ((seg == VCPU_SREG_CS
@@ -1486,6 +1487,9 @@ static int load_segment_descriptor(struct x86_emulate_ctxt *ctxt,
 			goto exception;
 		break;
 	case VCPU_SREG_CS:
+		if (in_task_switch && rpl != dpl)
+			goto exception;
+
 		if (!(seg_desc.type & 8))
 			goto exception;
 
@@ -1541,6 +1545,13 @@ load:
 exception:
 	emulate_exception(ctxt, err_vec, err_code, true);
 	return X86EMUL_PROPAGATE_FAULT;
+}
+
+static int load_segment_descriptor(struct x86_emulate_ctxt *ctxt,
+				   u16 selector, int seg)
+{
+	u8 cpl = ctxt->ops->cpl(ctxt);
+	return __load_segment_descriptor(ctxt, selector, seg, cpl, false);
 }
 
 static void write_register_operand(struct operand *op)
@@ -2404,6 +2415,7 @@ static int load_state_from_tss16(struct x86_emulate_ctxt *ctxt,
 				 struct tss_segment_16 *tss)
 {
 	int ret;
+	u8 cpl;
 
 	ctxt->_eip = tss->ip;
 	ctxt->eflags = tss->flag | 2;
@@ -2426,23 +2438,25 @@ static int load_state_from_tss16(struct x86_emulate_ctxt *ctxt,
 	set_segment_selector(ctxt, tss->ss, VCPU_SREG_SS);
 	set_segment_selector(ctxt, tss->ds, VCPU_SREG_DS);
 
+	cpl = tss->cs & 3;
+
 	/*
 	 * Now load segment descriptors. If fault happens at this stage
 	 * it is handled in a context of new task
 	 */
-	ret = load_segment_descriptor(ctxt, tss->ldt, VCPU_SREG_LDTR);
+	ret = __load_segment_descriptor(ctxt, tss->ldt, VCPU_SREG_LDTR, cpl, true);
 	if (ret != X86EMUL_CONTINUE)
 		return ret;
-	ret = load_segment_descriptor(ctxt, tss->es, VCPU_SREG_ES);
+	ret = __load_segment_descriptor(ctxt, tss->es, VCPU_SREG_ES, cpl, true);
 	if (ret != X86EMUL_CONTINUE)
 		return ret;
-	ret = load_segment_descriptor(ctxt, tss->cs, VCPU_SREG_CS);
+	ret = __load_segment_descriptor(ctxt, tss->cs, VCPU_SREG_CS, cpl, true);
 	if (ret != X86EMUL_CONTINUE)
 		return ret;
-	ret = load_segment_descriptor(ctxt, tss->ss, VCPU_SREG_SS);
+	ret = __load_segment_descriptor(ctxt, tss->ss, VCPU_SREG_SS, cpl, true);
 	if (ret != X86EMUL_CONTINUE)
 		return ret;
-	ret = load_segment_descriptor(ctxt, tss->ds, VCPU_SREG_DS);
+	ret = __load_segment_descriptor(ctxt, tss->ds, VCPU_SREG_DS, cpl, true);
 	if (ret != X86EMUL_CONTINUE)
 		return ret;
 
@@ -2496,7 +2510,7 @@ static int task_switch_16(struct x86_emulate_ctxt *ctxt,
 static void save_state_to_tss32(struct x86_emulate_ctxt *ctxt,
 				struct tss_segment_32 *tss)
 {
-	tss->cr3 = ctxt->ops->get_cr(ctxt, 3);
+	/* CR3 and ldt selector are not saved intentionally */
 	tss->eip = ctxt->_eip;
 	tss->eflags = ctxt->eflags;
 	tss->eax = reg_read(ctxt, VCPU_REGS_RAX);
@@ -2514,13 +2528,13 @@ static void save_state_to_tss32(struct x86_emulate_ctxt *ctxt,
 	tss->ds = get_segment_selector(ctxt, VCPU_SREG_DS);
 	tss->fs = get_segment_selector(ctxt, VCPU_SREG_FS);
 	tss->gs = get_segment_selector(ctxt, VCPU_SREG_GS);
-	tss->ldt_selector = get_segment_selector(ctxt, VCPU_SREG_LDTR);
 }
 
 static int load_state_from_tss32(struct x86_emulate_ctxt *ctxt,
 				 struct tss_segment_32 *tss)
 {
 	int ret;
+	u8 cpl;
 
 	if (ctxt->ops->set_cr(ctxt, 3, tss->cr3))
 		return emulate_gp(ctxt, 0);
@@ -2539,7 +2553,8 @@ static int load_state_from_tss32(struct x86_emulate_ctxt *ctxt,
 
 	/*
 	 * SDM says that segment selectors are loaded before segment
-	 * descriptors
+	 * descriptors.  This is important because CPL checks will
+	 * use CS.RPL.
 	 */
 	set_segment_selector(ctxt, tss->ldt_selector, VCPU_SREG_LDTR);
 	set_segment_selector(ctxt, tss->es, VCPU_SREG_ES);
@@ -2553,43 +2568,38 @@ static int load_state_from_tss32(struct x86_emulate_ctxt *ctxt,
 	 * If we're switching between Protected Mode and VM86, we need to make
 	 * sure to update the mode before loading the segment descriptors so
 	 * that the selectors are interpreted correctly.
-	 *
-	 * Need to get rflags to the vcpu struct immediately because it
-	 * influences the CPL which is checked at least when loading the segment
-	 * descriptors and when pushing an error code to the new kernel stack.
-	 *
-	 * TODO Introduce a separate ctxt->ops->set_cpl callback
 	 */
-	if (ctxt->eflags & X86_EFLAGS_VM)
+	if (ctxt->eflags & X86_EFLAGS_VM) {
 		ctxt->mode = X86EMUL_MODE_VM86;
-	else
+		cpl = 3;
+	} else {
 		ctxt->mode = X86EMUL_MODE_PROT32;
-
-	ctxt->ops->set_rflags(ctxt, ctxt->eflags);
+		cpl = tss->cs & 3;
+	}
 
 	/*
 	 * Now load segment descriptors. If fault happenes at this stage
 	 * it is handled in a context of new task
 	 */
-	ret = load_segment_descriptor(ctxt, tss->ldt_selector, VCPU_SREG_LDTR);
+	ret = __load_segment_descriptor(ctxt, tss->ldt_selector, VCPU_SREG_LDTR, cpl, true);
 	if (ret != X86EMUL_CONTINUE)
 		return ret;
-	ret = load_segment_descriptor(ctxt, tss->es, VCPU_SREG_ES);
+	ret = __load_segment_descriptor(ctxt, tss->es, VCPU_SREG_ES, cpl, true);
 	if (ret != X86EMUL_CONTINUE)
 		return ret;
-	ret = load_segment_descriptor(ctxt, tss->cs, VCPU_SREG_CS);
+	ret = __load_segment_descriptor(ctxt, tss->cs, VCPU_SREG_CS, cpl, true);
 	if (ret != X86EMUL_CONTINUE)
 		return ret;
-	ret = load_segment_descriptor(ctxt, tss->ss, VCPU_SREG_SS);
+	ret = __load_segment_descriptor(ctxt, tss->ss, VCPU_SREG_SS, cpl, true);
 	if (ret != X86EMUL_CONTINUE)
 		return ret;
-	ret = load_segment_descriptor(ctxt, tss->ds, VCPU_SREG_DS);
+	ret = __load_segment_descriptor(ctxt, tss->ds, VCPU_SREG_DS, cpl, true);
 	if (ret != X86EMUL_CONTINUE)
 		return ret;
-	ret = load_segment_descriptor(ctxt, tss->fs, VCPU_SREG_FS);
+	ret = __load_segment_descriptor(ctxt, tss->fs, VCPU_SREG_FS, cpl, true);
 	if (ret != X86EMUL_CONTINUE)
 		return ret;
-	ret = load_segment_descriptor(ctxt, tss->gs, VCPU_SREG_GS);
+	ret = __load_segment_descriptor(ctxt, tss->gs, VCPU_SREG_GS, cpl, true);
 	if (ret != X86EMUL_CONTINUE)
 		return ret;
 
@@ -2604,6 +2614,8 @@ static int task_switch_32(struct x86_emulate_ctxt *ctxt,
 	struct tss_segment_32 tss_seg;
 	int ret;
 	u32 new_tss_base = get_desc_base(new_desc);
+	u32 eip_offset = offsetof(struct tss_segment_32, eip);
+	u32 ldt_sel_offset = offsetof(struct tss_segment_32, ldt_selector);
 
 	ret = ops->read_std(ctxt, old_tss_base, &tss_seg, sizeof tss_seg,
 			    &ctxt->exception);
@@ -2613,8 +2625,9 @@ static int task_switch_32(struct x86_emulate_ctxt *ctxt,
 
 	save_state_to_tss32(ctxt, &tss_seg);
 
-	ret = ops->write_std(ctxt, old_tss_base, &tss_seg, sizeof tss_seg,
-			     &ctxt->exception);
+	/* Only GP registers and segment selectors are saved */
+	ret = ops->write_std(ctxt, old_tss_base + eip_offset, &tss_seg.eip,
+			     ldt_sel_offset - eip_offset, &ctxt->exception);
 	if (ret != X86EMUL_CONTINUE)
 		/* FIXME: need to provide precise fault address */
 		return ret;
@@ -3386,10 +3399,6 @@ static int check_cr_write(struct x86_emulate_ctxt *ctxt)
 		ctxt->ops->get_msr(ctxt, MSR_EFER, &efer);
 		if (efer & EFER_LMA)
 			rsvd = CR3_L_MODE_RESERVED_BITS;
-		else if (ctxt->ops->get_cr(ctxt, 4) & X86_CR4_PAE)
-			rsvd = CR3_PAE_RESERVED_BITS;
-		else if (ctxt->ops->get_cr(ctxt, 0) & X86_CR0_PG)
-			rsvd = CR3_NONPAE_RESERVED_BITS;
 
 		if (new_val & rsvd)
 			return emulate_gp(ctxt, 0);
@@ -3869,10 +3878,12 @@ static const struct opcode twobyte_table[256] = {
 	N, N, N, N, N, N, N, N,
 	D(ImplicitOps | ModRM), N, N, N, N, N, N, D(ImplicitOps | ModRM),
 	/* 0x20 - 0x2F */
-	DIP(ModRM | DstMem | Priv | Op3264, cr_read, check_cr_read),
-	DIP(ModRM | DstMem | Priv | Op3264, dr_read, check_dr_read),
-	IIP(ModRM | SrcMem | Priv | Op3264, em_cr_write, cr_write, check_cr_write),
-	IIP(ModRM | SrcMem | Priv | Op3264, em_dr_write, dr_write, check_dr_write),
+	DIP(ModRM | DstMem | Priv | Op3264 | NoMod, cr_read, check_cr_read),
+	DIP(ModRM | DstMem | Priv | Op3264 | NoMod, dr_read, check_dr_read),
+	IIP(ModRM | SrcMem | Priv | Op3264 | NoMod, em_cr_write, cr_write,
+						check_cr_write),
+	IIP(ModRM | SrcMem | Priv | Op3264 | NoMod, em_dr_write, dr_write,
+						check_dr_write),
 	N, N, N, N,
 	GP(ModRM | DstReg | SrcMem | Mov | Sse, &pfx_0f_28_0f_29),
 	GP(ModRM | DstMem | SrcReg | Mov | Sse, &pfx_0f_28_0f_29),

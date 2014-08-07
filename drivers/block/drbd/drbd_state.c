@@ -54,8 +54,8 @@ static void after_state_ch(struct drbd_device *device, union drbd_state os,
 static enum drbd_state_rv is_valid_state(struct drbd_device *, union drbd_state);
 static enum drbd_state_rv is_valid_soft_transition(union drbd_state, union drbd_state, struct drbd_connection *);
 static enum drbd_state_rv is_valid_transition(union drbd_state os, union drbd_state ns);
-static union drbd_state sanitize_state(struct drbd_device *device, union drbd_state ns,
-				       enum sanitize_state_warnings *warn);
+static union drbd_state sanitize_state(struct drbd_device *device, union drbd_state os,
+				       union drbd_state ns, enum sanitize_state_warnings *warn);
 
 static inline bool is_susp(union drbd_state s)
 {
@@ -287,7 +287,7 @@ _req_st_cond(struct drbd_device *device, union drbd_state mask,
 
 	spin_lock_irqsave(&device->resource->req_lock, flags);
 	os = drbd_read_state(device);
-	ns = sanitize_state(device, apply_mask_val(os, mask, val), NULL);
+	ns = sanitize_state(device, os, apply_mask_val(os, mask, val), NULL);
 	rv = is_valid_transition(os, ns);
 	if (rv >= SS_SUCCESS)
 		rv = SS_UNKNOWN_ERROR;  /* cont waiting, otherwise fail. */
@@ -333,7 +333,7 @@ drbd_req_state(struct drbd_device *device, union drbd_state mask,
 
 	spin_lock_irqsave(&device->resource->req_lock, flags);
 	os = drbd_read_state(device);
-	ns = sanitize_state(device, apply_mask_val(os, mask, val), NULL);
+	ns = sanitize_state(device, os, apply_mask_val(os, mask, val), NULL);
 	rv = is_valid_transition(os, ns);
 	if (rv < SS_SUCCESS) {
 		spin_unlock_irqrestore(&device->resource->req_lock, flags);
@@ -740,8 +740,8 @@ static void print_sanitize_warnings(struct drbd_device *device, enum sanitize_st
  * When we loose connection, we have to set the state of the peers disk (pdsk)
  * to D_UNKNOWN. This rule and many more along those lines are in this function.
  */
-static union drbd_state sanitize_state(struct drbd_device *device, union drbd_state ns,
-				       enum sanitize_state_warnings *warn)
+static union drbd_state sanitize_state(struct drbd_device *device, union drbd_state os,
+				       union drbd_state ns, enum sanitize_state_warnings *warn)
 {
 	enum drbd_fencing_p fp;
 	enum drbd_disk_state disk_min, disk_max, pdsk_min, pdsk_max;
@@ -882,11 +882,13 @@ static union drbd_state sanitize_state(struct drbd_device *device, union drbd_st
 	}
 
 	if (fp == FP_STONITH &&
-	    (ns.role == R_PRIMARY && ns.conn < C_CONNECTED && ns.pdsk > D_OUTDATED))
+	    (ns.role == R_PRIMARY && ns.conn < C_CONNECTED && ns.pdsk > D_OUTDATED) &&
+	    !(os.role == R_PRIMARY && os.conn < C_CONNECTED && os.pdsk > D_OUTDATED))
 		ns.susp_fen = 1; /* Suspend IO while fence-peer handler runs (peer lost) */
 
 	if (device->resource->res_opts.on_no_data == OND_SUSPEND_IO &&
-	    (ns.role == R_PRIMARY && ns.disk < D_UP_TO_DATE && ns.pdsk < D_UP_TO_DATE))
+	    (ns.role == R_PRIMARY && ns.disk < D_UP_TO_DATE && ns.pdsk < D_UP_TO_DATE) &&
+	    !(os.role == R_PRIMARY && os.disk < D_UP_TO_DATE && os.pdsk < D_UP_TO_DATE))
 		ns.susp_nod = 1; /* Suspend IO while no data available (no accessible data available) */
 
 	if (ns.aftr_isp || ns.peer_isp || ns.user_isp) {
@@ -958,7 +960,7 @@ __drbd_set_state(struct drbd_device *device, union drbd_state ns,
 
 	os = drbd_read_state(device);
 
-	ns = sanitize_state(device, ns, &ssw);
+	ns = sanitize_state(device, os, ns, &ssw);
 	if (ns.i == os.i)
 		return SS_NOTHING_TO_DO;
 
@@ -1656,7 +1658,7 @@ conn_is_valid_transition(struct drbd_connection *connection, union drbd_state ma
 	idr_for_each_entry(&connection->peer_devices, peer_device, vnr) {
 		struct drbd_device *device = peer_device->device;
 		os = drbd_read_state(device);
-		ns = sanitize_state(device, apply_mask_val(os, mask, val), NULL);
+		ns = sanitize_state(device, os, apply_mask_val(os, mask, val), NULL);
 
 		if (flags & CS_IGN_OUTD_FAIL && ns.disk == D_OUTDATED && os.disk < D_OUTDATED)
 			ns.disk = os.disk;
@@ -1718,7 +1720,7 @@ conn_set_state(struct drbd_connection *connection, union drbd_state mask, union 
 		number_of_volumes++;
 		os = drbd_read_state(device);
 		ns = apply_mask_val(os, mask, val);
-		ns = sanitize_state(device, ns, NULL);
+		ns = sanitize_state(device, os, ns, NULL);
 
 		if (flags & CS_IGN_OUTD_FAIL && ns.disk == D_OUTDATED && os.disk < D_OUTDATED)
 			ns.disk = os.disk;
@@ -1763,19 +1765,19 @@ conn_set_state(struct drbd_connection *connection, union drbd_state mask, union 
 static enum drbd_state_rv
 _conn_rq_cond(struct drbd_connection *connection, union drbd_state mask, union drbd_state val)
 {
-	enum drbd_state_rv rv;
+	enum drbd_state_rv err, rv = SS_UNKNOWN_ERROR; /* continue waiting */;
 
 	if (test_and_clear_bit(CONN_WD_ST_CHG_OKAY, &connection->flags))
-		return SS_CW_SUCCESS;
+		rv = SS_CW_SUCCESS;
 
 	if (test_and_clear_bit(CONN_WD_ST_CHG_FAIL, &connection->flags))
-		return SS_CW_FAILED_BY_PEER;
+		rv = SS_CW_FAILED_BY_PEER;
 
-	rv = conn_is_valid_transition(connection, mask, val, 0);
-	if (rv == SS_SUCCESS && connection->cstate == C_WF_REPORT_PARAMS)
-		rv = SS_UNKNOWN_ERROR; /* continue waiting */
+	err = conn_is_valid_transition(connection, mask, val, 0);
+	if (err == SS_SUCCESS && connection->cstate == C_WF_REPORT_PARAMS)
+		return rv;
 
-	return rv;
+	return err;
 }
 
 enum drbd_state_rv

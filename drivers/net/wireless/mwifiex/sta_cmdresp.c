@@ -865,14 +865,20 @@ static int mwifiex_ret_tdls_oper(struct mwifiex_private *priv,
 
 	switch (action) {
 	case ACT_TDLS_DELETE:
-		if (reason)
-			dev_err(priv->adapter->dev,
-				"TDLS link delete for %pM failed: reason %d\n",
-				cmd_tdls_oper->peer_mac, reason);
-		else
+		if (reason) {
+			if (!node || reason == TDLS_ERR_LINK_NONEXISTENT)
+				dev_dbg(priv->adapter->dev,
+					"TDLS link delete for %pM failed: reason %d\n",
+					cmd_tdls_oper->peer_mac, reason);
+			else
+				dev_err(priv->adapter->dev,
+					"TDLS link delete for %pM failed: reason %d\n",
+					cmd_tdls_oper->peer_mac, reason);
+		} else {
 			dev_dbg(priv->adapter->dev,
-				"TDLS link config for %pM successful\n",
+				"TDLS link delete for %pM successful\n",
 				cmd_tdls_oper->peer_mac);
+		}
 		break;
 	case ACT_TDLS_CREATE:
 		if (reason) {

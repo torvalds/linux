@@ -123,10 +123,8 @@ static int tps65910_gpio_probe(struct platform_device *pdev)
 
 	tps65910_gpio = devm_kzalloc(&pdev->dev,
 				sizeof(*tps65910_gpio), GFP_KERNEL);
-	if (!tps65910_gpio) {
-		dev_err(&pdev->dev, "Could not allocate tps65910_gpio\n");
+	if (!tps65910_gpio)
 		return -ENOMEM;
-	}
 
 	tps65910_gpio->tps65910 = tps65910;
 

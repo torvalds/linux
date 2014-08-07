@@ -16,6 +16,7 @@
 #include <linux/vmalloc.h>
 #include <linux/fs.h>
 #include <linux/bootmem.h>
+#include <asm/cacheflush.h>
 
 #include "kvm_mips_comm.h"
 
@@ -40,7 +41,7 @@ kvm_mips_trans_cache_index(uint32_t inst, uint32_t *opc,
 	    CKSEG0ADDR(kvm_mips_translate_guest_kseg0_to_hpa
 		       (vcpu, (unsigned long) opc));
 	memcpy((void *)kseg0_opc, (void *)&synci_inst, sizeof(uint32_t));
-	mips32_SyncICache(kseg0_opc, 32);
+	local_flush_icache_range(kseg0_opc, kseg0_opc + 32);
 
 	return result;
 }
@@ -66,7 +67,7 @@ kvm_mips_trans_cache_va(uint32_t inst, uint32_t *opc,
 	    CKSEG0ADDR(kvm_mips_translate_guest_kseg0_to_hpa
 		       (vcpu, (unsigned long) opc));
 	memcpy((void *)kseg0_opc, (void *)&synci_inst, sizeof(uint32_t));
-	mips32_SyncICache(kseg0_opc, 32);
+	local_flush_icache_range(kseg0_opc, kseg0_opc + 32);
 
 	return result;
 }
@@ -99,11 +100,12 @@ kvm_mips_trans_mfc0(uint32_t inst, uint32_t *opc, struct kvm_vcpu *vcpu)
 		    CKSEG0ADDR(kvm_mips_translate_guest_kseg0_to_hpa
 			       (vcpu, (unsigned long) opc));
 		memcpy((void *)kseg0_opc, (void *)&mfc0_inst, sizeof(uint32_t));
-		mips32_SyncICache(kseg0_opc, 32);
+		local_flush_icache_range(kseg0_opc, kseg0_opc + 32);
 	} else if (KVM_GUEST_KSEGX((unsigned long) opc) == KVM_GUEST_KSEG23) {
 		local_irq_save(flags);
 		memcpy((void *)opc, (void *)&mfc0_inst, sizeof(uint32_t));
-		mips32_SyncICache((unsigned long) opc, 32);
+		local_flush_icache_range((unsigned long)opc,
+					 (unsigned long)opc + 32);
 		local_irq_restore(flags);
 	} else {
 		kvm_err("%s: Invalid address: %p\n", __func__, opc);
@@ -134,11 +136,12 @@ kvm_mips_trans_mtc0(uint32_t inst, uint32_t *opc, struct kvm_vcpu *vcpu)
 		    CKSEG0ADDR(kvm_mips_translate_guest_kseg0_to_hpa
 			       (vcpu, (unsigned long) opc));
 		memcpy((void *)kseg0_opc, (void *)&mtc0_inst, sizeof(uint32_t));
-		mips32_SyncICache(kseg0_opc, 32);
+		local_flush_icache_range(kseg0_opc, kseg0_opc + 32);
 	} else if (KVM_GUEST_KSEGX((unsigned long) opc) == KVM_GUEST_KSEG23) {
 		local_irq_save(flags);
 		memcpy((void *)opc, (void *)&mtc0_inst, sizeof(uint32_t));
-		mips32_SyncICache((unsigned long) opc, 32);
+		local_flush_icache_range((unsigned long)opc,
+					 (unsigned long)opc + 32);
 		local_irq_restore(flags);
 	} else {
 		kvm_err("%s: Invalid address: %p\n", __func__, opc);

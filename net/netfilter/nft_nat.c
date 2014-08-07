@@ -175,12 +175,14 @@ static int nft_nat_dump(struct sk_buff *skb, const struct nft_expr *expr)
 	if (nla_put_be32(skb,
 			 NFTA_NAT_REG_ADDR_MAX, htonl(priv->sreg_addr_max)))
 		goto nla_put_failure;
-	if (nla_put_be32(skb,
-			 NFTA_NAT_REG_PROTO_MIN, htonl(priv->sreg_proto_min)))
-		goto nla_put_failure;
-	if (nla_put_be32(skb,
-			 NFTA_NAT_REG_PROTO_MAX, htonl(priv->sreg_proto_max)))
-		goto nla_put_failure;
+	if (priv->sreg_proto_min) {
+		if (nla_put_be32(skb, NFTA_NAT_REG_PROTO_MIN,
+				 htonl(priv->sreg_proto_min)))
+			goto nla_put_failure;
+		if (nla_put_be32(skb, NFTA_NAT_REG_PROTO_MAX,
+				 htonl(priv->sreg_proto_max)))
+			goto nla_put_failure;
+	}
 	return 0;
 
 nla_put_failure:

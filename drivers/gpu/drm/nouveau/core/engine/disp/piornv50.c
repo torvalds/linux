@@ -33,68 +33,107 @@
 #include "nv50.h"
 
 /******************************************************************************
+ * TMDS
+ *****************************************************************************/
+
+static int
+nv50_pior_tmds_ctor(struct nouveau_object *parent,
+		    struct nouveau_object *engine,
+		    struct nouveau_oclass *oclass, void *info, u32 index,
+		    struct nouveau_object **pobject)
+{
+	struct nouveau_i2c *i2c = nouveau_i2c(parent);
+	struct nvkm_output *outp;
+	int ret;
+
+	ret = nvkm_output_create(parent, engine, oclass, info, index, &outp);
+	*pobject = nv_object(outp);
+	if (ret)
+		return ret;
+
+	outp->edid = i2c->find_type(i2c, NV_I2C_TYPE_EXTDDC(outp->info.extdev));
+	return 0;
+}
+
+struct nvkm_output_impl
+nv50_pior_tmds_impl = {
+	.base.handle = DCB_OUTPUT_TMDS | 0x0100,
+	.base.ofuncs = &(struct nouveau_ofuncs) {
+		.ctor = nv50_pior_tmds_ctor,
+		.dtor = _nvkm_output_dtor,
+		.init = _nvkm_output_init,
+		.fini = _nvkm_output_fini,
+	},
+};
+
+/******************************************************************************
  * DisplayPort
  *****************************************************************************/
-static struct nouveau_i2c_port *
-nv50_pior_dp_find(struct nouveau_disp *disp, struct dcb_output *outp)
+
+static int
+nv50_pior_dp_pattern(struct nvkm_output_dp *outp, int pattern)
 {
-	struct nouveau_i2c *i2c = nouveau_i2c(disp);
-	return i2c->find_type(i2c, NV_I2C_TYPE_EXTAUX(outp->extdev));
+	struct nouveau_i2c_port *port = outp->base.edid;
+	if (port && port->func->pattern)
+		return port->func->pattern(port, pattern);
+	return port ? 0 : -ENODEV;
 }
 
 static int
-nv50_pior_dp_pattern(struct nouveau_disp *disp, struct dcb_output *outp,
-		     int head, int pattern)
+nv50_pior_dp_lnk_pwr(struct nvkm_output_dp *outp, int nr)
 {
-	struct nouveau_i2c_port *port;
-	int ret = -EINVAL;
-
-	port = nv50_pior_dp_find(disp, outp);
-	if (port) {
-		if (port->func->pattern)
-			ret = port->func->pattern(port, pattern);
-		else
-			ret = 0;
-	}
-
-	return ret;
+	return 0;
 }
 
 static int
-nv50_pior_dp_lnk_ctl(struct nouveau_disp *disp, struct dcb_output *outp,
-		     int head, int lane_nr, int link_bw, bool enh)
+nv50_pior_dp_lnk_ctl(struct nvkm_output_dp *outp, int nr, int bw, bool ef)
 {
-	struct nouveau_i2c_port *port;
-	int ret = -EINVAL;
-
-	port = nv50_pior_dp_find(disp, outp);
+	struct nouveau_i2c_port *port = outp->base.edid;
 	if (port && port->func->lnk_ctl)
-		ret = port->func->lnk_ctl(port, lane_nr, link_bw, enh);
-
-	return ret;
+		return port->func->lnk_ctl(port, nr, bw, ef);
+	return port ? 0 : -ENODEV;
 }
 
 static int
-nv50_pior_dp_drv_ctl(struct nouveau_disp *disp, struct dcb_output *outp,
-		     int head, int lane, int vsw, int pre)
+nv50_pior_dp_drv_ctl(struct nvkm_output_dp *outp, int ln, int vs, int pe, int pc)
 {
-	struct nouveau_i2c_port *port;
-	int ret = -EINVAL;
-
-	port = nv50_pior_dp_find(disp, outp);
-	if (port) {
-		if (port->func->drv_ctl)
-			ret = port->func->drv_ctl(port, lane, vsw, pre);
-		else
-			ret = 0;
-	}
-
-	return ret;
+	struct nouveau_i2c_port *port = outp->base.edid;
+	if (port && port->func->drv_ctl)
+		return port->func->drv_ctl(port, ln, vs, pe);
+	return port ? 0 : -ENODEV;
 }
 
-const struct nouveau_dp_func
-nv50_pior_dp_func = {
+static int
+nv50_pior_dp_ctor(struct nouveau_object *parent,
+		  struct nouveau_object *engine,
+		  struct nouveau_oclass *oclass, void *info, u32 index,
+		  struct nouveau_object **pobject)
+{
+	struct nouveau_i2c *i2c = nouveau_i2c(parent);
+	struct nvkm_output_dp *outp;
+	int ret;
+
+	ret = nvkm_output_dp_create(parent, engine, oclass, info, index, &outp);
+	*pobject = nv_object(outp);
+	if (ret)
+		return ret;
+
+	outp->base.edid = i2c->find_type(i2c, NV_I2C_TYPE_EXTAUX(
+					 outp->base.info.extdev));
+	return 0;
+}
+
+struct nvkm_output_dp_impl
+nv50_pior_dp_impl = {
+	.base.base.handle = DCB_OUTPUT_DP | 0x0010,
+	.base.base.ofuncs = &(struct nouveau_ofuncs) {
+		.ctor = nv50_pior_dp_ctor,
+		.dtor = _nvkm_output_dp_dtor,
+		.init = _nvkm_output_dp_init,
+		.fini = _nvkm_output_dp_fini,
+	},
 	.pattern = nv50_pior_dp_pattern,
+	.lnk_pwr = nv50_pior_dp_lnk_pwr,
 	.lnk_ctl = nv50_pior_dp_lnk_ctl,
 	.drv_ctl = nv50_pior_dp_drv_ctl,
 };
@@ -102,6 +141,7 @@ nv50_pior_dp_func = {
 /******************************************************************************
  * General PIOR handling
  *****************************************************************************/
+
 int
 nv50_pior_power(struct nv50_disp_priv *priv, int or, u32 data)
 {

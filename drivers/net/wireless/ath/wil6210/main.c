@@ -81,7 +81,7 @@ static void wil_disconnect_cid(struct wil6210_priv *wil, int cid)
 	memset(&sta->stats, 0, sizeof(sta->stats));
 }
 
-static void _wil6210_disconnect(struct wil6210_priv *wil, void *bssid)
+static void _wil6210_disconnect(struct wil6210_priv *wil, const u8 *bssid)
 {
 	int cid = -ENOENT;
 	struct net_device *ndev = wil_to_ndev(wil);
@@ -150,6 +150,15 @@ static void wil_connect_timer_fn(ulong x)
 	schedule_work(&wil->disconnect_worker);
 }
 
+static void wil_scan_timer_fn(ulong x)
+{
+	struct wil6210_priv *wil = (void *)x;
+
+	clear_bit(wil_status_fwready, &wil->status);
+	wil_err(wil, "Scan timeout detected, start fw error recovery\n");
+	schedule_work(&wil->fw_error_worker);
+}
+
 static void wil_fw_error_worker(struct work_struct *work)
 {
 	struct wil6210_priv *wil = container_of(work,
@@ -161,12 +170,30 @@ static void wil_fw_error_worker(struct work_struct *work)
 	if (no_fw_recovery)
 		return;
 
+	/* increment @recovery_count if less then WIL6210_FW_RECOVERY_TO
+	 * passed since last recovery attempt
+	 */
+	if (time_is_after_jiffies(wil->last_fw_recovery +
+				  WIL6210_FW_RECOVERY_TO))
+		wil->recovery_count++;
+	else
+		wil->recovery_count = 1; /* fw was alive for a long time */
+
+	if (wil->recovery_count > WIL6210_FW_RECOVERY_RETRIES) {
+		wil_err(wil, "too many recovery attempts (%d), giving up\n",
+			wil->recovery_count);
+		return;
+	}
+
+	wil->last_fw_recovery = jiffies;
+
 	mutex_lock(&wil->mutex);
 	switch (wdev->iftype) {
 	case NL80211_IFTYPE_STATION:
 	case NL80211_IFTYPE_P2P_CLIENT:
 	case NL80211_IFTYPE_MONITOR:
-		wil_info(wil, "fw error recovery started...\n");
+		wil_info(wil, "fw error recovery started (try %d)...\n",
+			 wil->recovery_count);
 		wil_reset(wil);
 
 		/* need to re-allocate Rx ring after reset */
@@ -230,6 +257,7 @@ int wil_priv_init(struct wil6210_priv *wil)
 
 	wil->pending_connect_cid = -1;
 	setup_timer(&wil->connect_timer, wil_connect_timer_fn, (ulong)wil);
+	setup_timer(&wil->scan_timer, wil_scan_timer_fn, (ulong)wil);
 
 	INIT_WORK(&wil->connect_worker, wil_connect_worker);
 	INIT_WORK(&wil->disconnect_worker, wil_disconnect_worker);
@@ -249,10 +277,12 @@ int wil_priv_init(struct wil6210_priv *wil)
 		return -EAGAIN;
 	}
 
+	wil->last_fw_recovery = jiffies;
+
 	return 0;
 }
 
-void wil6210_disconnect(struct wil6210_priv *wil, void *bssid)
+void wil6210_disconnect(struct wil6210_priv *wil, const u8 *bssid)
 {
 	del_timer_sync(&wil->connect_timer);
 	_wil6210_disconnect(wil, bssid);
@@ -260,6 +290,7 @@ void wil6210_disconnect(struct wil6210_priv *wil, void *bssid)
 
 void wil_priv_deinit(struct wil6210_priv *wil)
 {
+	del_timer_sync(&wil->scan_timer);
 	cancel_work_sync(&wil->disconnect_worker);
 	cancel_work_sync(&wil->fw_error_worker);
 	mutex_lock(&wil->mutex);
@@ -363,8 +394,8 @@ static int wil_wait_for_fw_ready(struct wil6210_priv *wil)
 		wil_err(wil, "Firmware not ready\n");
 		return -ETIME;
 	} else {
-		wil_dbg_misc(wil, "FW ready after %d ms\n",
-			     jiffies_to_msecs(to-left));
+		wil_info(wil, "FW ready after %d ms. HW version 0x%08x\n",
+			 jiffies_to_msecs(to-left), wil->hw_version);
 	}
 	return 0;
 }
@@ -391,6 +422,7 @@ int wil_reset(struct wil6210_priv *wil)
 	if (wil->scan_request) {
 		wil_dbg_misc(wil, "Abort scan_request 0x%p\n",
 			     wil->scan_request);
+		del_timer_sync(&wil->scan_timer);
 		cfg80211_scan_done(wil->scan_request, true);
 		wil->scan_request = NULL;
 	}
@@ -520,6 +552,7 @@ static int __wil_down(struct wil6210_priv *wil)
 	napi_disable(&wil->napi_tx);
 
 	if (wil->scan_request) {
+		del_timer_sync(&wil->scan_timer);
 		cfg80211_scan_done(wil->scan_request, true);
 		wil->scan_request = NULL;
 	}

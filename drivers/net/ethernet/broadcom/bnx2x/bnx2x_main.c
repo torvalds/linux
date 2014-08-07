@@ -6,7 +6,7 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation.
  *
- * Maintained by: Eilon Greenstein <eilong@broadcom.com>
+ * Maintained by: Ariel Elior <ariel.elior@qlogic.com>
  * Written by: Eliezer Tamir
  * Based on code from Michael Chan's bnx2 driver
  * UDP CSUM errata workaround by Arik Gendelman
@@ -1858,10 +1858,10 @@ void bnx2x_sp_event(struct bnx2x_fastpath *fp, union eth_rx_cqe *rr_cqe)
 		return;
 #endif
 
-	smp_mb__before_atomic_inc();
+	smp_mb__before_atomic();
 	atomic_inc(&bp->cq_spq_left);
 	/* push the change in bp->spq_left and towards the memory */
-	smp_mb__after_atomic_inc();
+	smp_mb__after_atomic();
 
 	DP(BNX2X_MSG_SP, "bp->cq_spq_left %x\n", atomic_read(&bp->cq_spq_left));
 
@@ -1876,11 +1876,11 @@ void bnx2x_sp_event(struct bnx2x_fastpath *fp, union eth_rx_cqe *rr_cqe)
 		 * sp_state is cleared, and this order prevents
 		 * races
 		 */
-		smp_mb__before_clear_bit();
+		smp_mb__before_atomic();
 		set_bit(BNX2X_AFEX_PENDING_VIFSET_MCP_ACK, &bp->sp_state);
 		wmb();
 		clear_bit(BNX2X_AFEX_FCOE_Q_UPDATE_PENDING, &bp->sp_state);
-		smp_mb__after_clear_bit();
+		smp_mb__after_atomic();
 
 		/* schedule the sp task as mcp ack is required */
 		bnx2x_schedule_sp_task(bp);
@@ -5272,9 +5272,9 @@ static void bnx2x_after_function_update(struct bnx2x *bp)
 		__clear_bit(RAMROD_COMP_WAIT, &queue_params.ramrod_flags);
 
 		/* mark latest Q bit */
-		smp_mb__before_clear_bit();
+		smp_mb__before_atomic();
 		set_bit(BNX2X_AFEX_FCOE_Q_UPDATE_PENDING, &bp->sp_state);
-		smp_mb__after_clear_bit();
+		smp_mb__after_atomic();
 
 		/* send Q update ramrod for FCoE Q */
 		rc = bnx2x_queue_state_change(bp, &queue_params);
@@ -5500,7 +5500,7 @@ next_spqe:
 		spqe_cnt++;
 	} /* for */
 
-	smp_mb__before_atomic_inc();
+	smp_mb__before_atomic();
 	atomic_add(spqe_cnt, &bp->eq_spq_left);
 
 	bp->eq_cons = sw_cons;
@@ -10051,8 +10051,26 @@ static void bnx2x_prev_unload_close_mac(struct bnx2x *bp,
 #define BCM_5710_UNDI_FW_MF_MAJOR	(0x07)
 #define BCM_5710_UNDI_FW_MF_MINOR	(0x08)
 #define BCM_5710_UNDI_FW_MF_VERS	(0x05)
-#define BNX2X_PREV_UNDI_MF_PORT(p)	(0x1a150c + ((p) << 4))
-#define BNX2X_PREV_UNDI_MF_FUNC(f)	(0x1a184c + ((f) << 4))
+#define BNX2X_PREV_UNDI_MF_PORT(p) (BAR_TSTRORM_INTMEM + 0x150c + ((p) << 4))
+#define BNX2X_PREV_UNDI_MF_FUNC(f) (BAR_TSTRORM_INTMEM + 0x184c + ((f) << 4))
+
+static bool bnx2x_prev_is_after_undi(struct bnx2x *bp)
+{
+	/* UNDI marks its presence in DORQ -
+	 * it initializes CID offset for normal bell to 0x7
+	 */
+	if (!(REG_RD(bp, MISC_REG_RESET_REG_1) &
+	    MISC_REGISTERS_RESET_REG_1_RST_DORQ))
+		return false;
+
+	if (REG_RD(bp, DORQ_REG_NORM_CID_OFST) == 0x7) {
+		BNX2X_DEV_INFO("UNDI previously loaded\n");
+		return true;
+	}
+
+	return false;
+}
+
 static bool bnx2x_prev_unload_undi_fw_supports_mf(struct bnx2x *bp)
 {
 	u8 major, minor, version;
@@ -10302,6 +10320,10 @@ static int bnx2x_prev_unload_uncommon(struct bnx2x *bp)
 
 	BNX2X_DEV_INFO("Path is unmarked\n");
 
+	/* Cannot proceed with FLR if UNDI is loaded, since FW does not match */
+	if (bnx2x_prev_is_after_undi(bp))
+		goto out;
+
 	/* If function has FLR capabilities, and existing FW version matches
 	 * the one required, then FLR will be sufficient to clean any residue
 	 * left by previous driver
@@ -10322,6 +10344,7 @@ static int bnx2x_prev_unload_uncommon(struct bnx2x *bp)
 
 	BNX2X_DEV_INFO("Could not FLR\n");
 
+out:
 	/* Close the MCP request, return failure*/
 	rc = bnx2x_prev_mcp_done(bp);
 	if (!rc)
@@ -10352,6 +10375,7 @@ static int bnx2x_prev_unload_common(struct bnx2x *bp)
 	/* Reset should be performed after BRB is emptied */
 	if (reset_reg & MISC_REGISTERS_RESET_REG_1_RST_BRB1) {
 		u32 timer_count = 1000;
+		bool need_write = true;
 
 		/* Close the MAC Rx to prevent BRB from filling up */
 		bnx2x_prev_unload_close_mac(bp, &mac_vals);
@@ -10359,19 +10383,13 @@ static int bnx2x_prev_unload_common(struct bnx2x *bp)
 		/* close LLH filters towards the BRB */
 		bnx2x_set_rx_filter(&bp->link_params, 0);
 
-		/* Check if the UNDI driver was previously loaded
-		 * UNDI driver initializes CID offset for normal bell to 0x7
-		 */
-		if (reset_reg & MISC_REGISTERS_RESET_REG_1_RST_DORQ) {
-			tmp_reg = REG_RD(bp, DORQ_REG_NORM_CID_OFST);
-			if (tmp_reg == 0x7) {
-				BNX2X_DEV_INFO("UNDI previously loaded\n");
-				prev_undi = true;
-				/* clear the UNDI indication */
-				REG_WR(bp, DORQ_REG_NORM_CID_OFST, 0);
-				/* clear possible idle check errors */
-				REG_RD(bp, NIG_REG_NIG_INT_STS_CLR_0);
-			}
+		/* Check if the UNDI driver was previously loaded */
+		if (bnx2x_prev_is_after_undi(bp)) {
+			prev_undi = true;
+			/* clear the UNDI indication */
+			REG_WR(bp, DORQ_REG_NORM_CID_OFST, 0);
+			/* clear possible idle check errors */
+			REG_RD(bp, NIG_REG_NIG_INT_STS_CLR_0);
 		}
 		if (!CHIP_IS_E1x(bp))
 			/* block FW from writing to host */
@@ -10398,7 +10416,10 @@ static int bnx2x_prev_unload_common(struct bnx2x *bp)
 			 * cleaning methods - might be redundant but harmless.
 			 */
 			if (bnx2x_prev_unload_undi_fw_supports_mf(bp)) {
-				bnx2x_prev_unload_undi_mf(bp);
+				if (need_write) {
+					bnx2x_prev_unload_undi_mf(bp);
+					need_write = false;
+				}
 			} else if (prev_undi) {
 				/* If UNDI resides in memory,
 				 * manually increment it
@@ -12916,7 +12937,7 @@ static int bnx2x_get_num_non_def_sbs(struct pci_dev *pdev, int cnic_cnt)
 	 * without the default SB.
 	 * For VFs there is no default SB, then we return (index+1).
 	 */
-	pci_read_config_word(pdev, pdev->msix_cap + PCI_MSI_FLAGS, &control);
+	pci_read_config_word(pdev, pdev->msix_cap + PCI_MSIX_FLAGS, &control);
 
 	index = control & PCI_MSIX_FLAGS_QSIZE;
 
@@ -13279,8 +13300,8 @@ static int bnx2x_eeh_nic_unload(struct bnx2x *bp)
 	netdev_reset_tc(bp->dev);
 
 	del_timer_sync(&bp->timer);
-	cancel_delayed_work(&bp->sp_task);
-	cancel_delayed_work(&bp->period_task);
+	cancel_delayed_work_sync(&bp->sp_task);
+	cancel_delayed_work_sync(&bp->period_task);
 
 	spin_lock_bh(&bp->stats_lock);
 	bp->stats_state = STATS_STATE_DISABLED;
@@ -13871,9 +13892,9 @@ static int bnx2x_drv_ctl(struct net_device *dev, struct drv_ctl_info *ctl)
 	case DRV_CTL_RET_L2_SPQ_CREDIT_CMD: {
 		int count = ctl->data.credit.credit_count;
 
-		smp_mb__before_atomic_inc();
+		smp_mb__before_atomic();
 		atomic_add(count, &bp->cq_spq_left);
-		smp_mb__after_atomic_inc();
+		smp_mb__after_atomic();
 		break;
 	}
 	case DRV_CTL_ULP_REGISTER_CMD: {

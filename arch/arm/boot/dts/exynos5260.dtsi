@@ -1,0 +1,304 @@
+/*
+ * SAMSUNG EXYNOS5260 SoC device tree source
+ *
+ * Copyright (c) 2013 Samsung Electronics Co., Ltd.
+ *		http://www.samsung.com
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+*/
+
+#include "skeleton.dtsi"
+
+#include <dt-bindings/clock/exynos5260-clk.h>
+
+/ {
+	compatible = "samsung,exynos5260", "samsung,exynos5";
+	interrupt-parent = <&gic>;
+
+	aliases {
+		pinctrl0 = &pinctrl_0;
+		pinctrl1 = &pinctrl_1;
+		pinctrl2 = &pinctrl_2;
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a15";
+			reg = <0x0>;
+			cci-control-port = <&cci_control1>;
+		};
+
+		cpu@1 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a15";
+			reg = <0x1>;
+			cci-control-port = <&cci_control1>;
+		};
+
+		cpu@100 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a7";
+			reg = <0x100>;
+			cci-control-port = <&cci_control0>;
+		};
+
+		cpu@101 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a7";
+			reg = <0x101>;
+			cci-control-port = <&cci_control0>;
+		};
+
+		cpu@102 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a7";
+			reg = <0x102>;
+			cci-control-port = <&cci_control0>;
+		};
+
+		cpu@103 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a7";
+			reg = <0x103>;
+			cci-control-port = <&cci_control0>;
+		};
+	};
+
+	soc: soc {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		clock_top: clock-controller@10010000 {
+			compatible = "samsung,exynos5260-clock-top";
+			reg = <0x10010000 0x10000>;
+			#clock-cells = <1>;
+		};
+
+		clock_peri: clock-controller@10200000 {
+			compatible = "samsung,exynos5260-clock-peri";
+			reg = <0x10200000 0x10000>;
+			#clock-cells = <1>;
+		};
+
+		clock_egl: clock-controller@10600000 {
+			compatible = "samsung,exynos5260-clock-egl";
+			reg = <0x10600000 0x10000>;
+			#clock-cells = <1>;
+		};
+
+		clock_kfc: clock-controller@10700000 {
+			compatible = "samsung,exynos5260-clock-kfc";
+			reg = <0x10700000 0x10000>;
+			#clock-cells = <1>;
+		};
+
+		clock_g2d: clock-controller@10A00000 {
+			compatible = "samsung,exynos5260-clock-g2d";
+			reg = <0x10A00000 0x10000>;
+			#clock-cells = <1>;
+		};
+
+		clock_mif: clock-controller@10CE0000 {
+			compatible = "samsung,exynos5260-clock-mif";
+			reg = <0x10CE0000 0x10000>;
+			#clock-cells = <1>;
+		};
+
+		clock_mfc: clock-controller@11090000 {
+			compatible = "samsung,exynos5260-clock-mfc";
+			reg = <0x11090000 0x10000>;
+			#clock-cells = <1>;
+		};
+
+		clock_g3d: clock-controller@11830000 {
+			compatible = "samsung,exynos5260-clock-g3d";
+			reg = <0x11830000 0x10000>;
+			#clock-cells = <1>;
+		};
+
+		clock_fsys: clock-controller@122E0000 {
+			compatible = "samsung,exynos5260-clock-fsys";
+			reg = <0x122E0000 0x10000>;
+			#clock-cells = <1>;
+		};
+
+		clock_aud: clock-controller@128C0000 {
+			compatible = "samsung,exynos5260-clock-aud";
+			reg = <0x128C0000 0x10000>;
+			#clock-cells = <1>;
+		};
+
+		clock_isp: clock-controller@133C0000 {
+			compatible = "samsung,exynos5260-clock-isp";
+			reg = <0x133C0000 0x10000>;
+			#clock-cells = <1>;
+		};
+
+		clock_gscl: clock-controller@13F00000 {
+			compatible = "samsung,exynos5260-clock-gscl";
+			reg = <0x13F00000 0x10000>;
+			#clock-cells = <1>;
+		};
+
+		clock_disp: clock-controller@14550000 {
+			compatible = "samsung,exynos5260-clock-disp";
+			reg = <0x14550000 0x10000>;
+			#clock-cells = <1>;
+		};
+
+		gic: interrupt-controller@10481000 {
+			compatible = "arm,cortex-a15-gic", "arm,cortex-a9-gic";
+			#interrupt-cells = <3>;
+			#address-cells = <0>;
+			#size-cells = <0>;
+			interrupt-controller;
+			reg = <0x10481000 0x1000>,
+				<0x10482000 0x1000>,
+				<0x10484000 0x2000>,
+				<0x10486000 0x2000>;
+			interrupts = <1 9 0xf04>;
+		};
+
+		chipid: chipid@10000000 {
+			compatible = "samsung,exynos4210-chipid";
+			reg = <0x10000000 0x100>;
+		};
+
+		mct: mct@100B0000 {
+			compatible = "samsung,exynos4210-mct";
+			reg = <0x100B0000 0x1000>;
+			clocks = <&fin_pll>, <&clock_peri PERI_CLK_MCT>;
+			clock-names = "fin_pll", "mct";
+			interrupts = <0 104 0>, <0 105 0>, <0 106 0>,
+					<0 107 0>, <0 122 0>, <0 123 0>,
+					<0 124 0>, <0 125 0>, <0 126 0>,
+					<0 127 0>, <0 128 0>, <0 129 0>;
+		};
+
+		cci: cci@10F00000 {
+			compatible = "arm,cci-400";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = <0x10F00000 0x1000>;
+			ranges = <0x0 0x10F00000 0x6000>;
+
+			cci_control0: slave-if@4000 {
+				compatible = "arm,cci-400-ctrl-if";
+				interface-type = "ace";
+				reg = <0x4000 0x1000>;
+			};
+
+			cci_control1: slave-if@5000 {
+				compatible = "arm,cci-400-ctrl-if";
+				interface-type = "ace";
+				reg = <0x5000 0x1000>;
+			};
+		};
+
+		pinctrl_0: pinctrl@11600000 {
+			compatible = "samsung,exynos5260-pinctrl";
+			reg = <0x11600000 0x1000>;
+			interrupts = <0 79 0>;
+
+			wakeup-interrupt-controller {
+				compatible = "samsung,exynos4210-wakeup-eint";
+				interrupt-parent = <&gic>;
+				interrupts = <0 32 0>;
+			};
+		};
+
+		pinctrl_1: pinctrl@12290000 {
+			compatible = "samsung,exynos5260-pinctrl";
+			reg = <0x12290000 0x1000>;
+			interrupts = <0 157 0>;
+		};
+
+		pinctrl_2: pinctrl@128B0000 {
+			compatible = "samsung,exynos5260-pinctrl";
+			reg = <0x128B0000 0x1000>;
+			interrupts = <0 243 0>;
+		};
+
+		uart0: serial@12C00000 {
+			compatible = "samsung,exynos4210-uart";
+			reg = <0x12C00000 0x100>;
+			interrupts = <0 146 0>;
+			clocks = <&clock_peri PERI_CLK_UART0>, <&clock_peri PERI_SCLK_UART0>;
+			clock-names = "uart", "clk_uart_baud0";
+			status = "disabled";
+		};
+
+		uart1: serial@12C10000 {
+			compatible = "samsung,exynos4210-uart";
+			reg = <0x12C10000 0x100>;
+			interrupts = <0 147 0>;
+			clocks = <&clock_peri PERI_CLK_UART1>, <&clock_peri PERI_SCLK_UART1>;
+			clock-names = "uart", "clk_uart_baud0";
+			status = "disabled";
+		};
+
+		uart2: serial@12C20000 {
+			compatible = "samsung,exynos4210-uart";
+			reg = <0x12C20000 0x100>;
+			interrupts = <0 148 0>;
+			clocks = <&clock_peri PERI_CLK_UART2>, <&clock_peri PERI_SCLK_UART2>;
+			clock-names = "uart", "clk_uart_baud0";
+			status = "disabled";
+		};
+
+		uart3: serial@12860000 {
+			compatible = "samsung,exynos4210-uart";
+			reg = <0x12860000 0x100>;
+			interrupts = <0 145 0>;
+			clocks = <&clock_aud AUD_CLK_AUD_UART>, <&clock_aud AUD_SCLK_AUD_UART>;
+			clock-names = "uart", "clk_uart_baud0";
+			status = "disabled";
+		};
+
+		mmc_0: mmc@12140000 {
+			compatible = "samsung,exynos5250-dw-mshc";
+			reg = <0x12140000 0x2000>;
+			interrupts = <0 156 0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clocks = <&clock_fsys FSYS_CLK_MMC0>, <&clock_top TOP_SCLK_MMC0>;
+			clock-names = "biu", "ciu";
+			fifo-depth = <64>;
+			status = "disabled";
+		};
+
+		mmc_1: mmc@12150000 {
+			compatible = "samsung,exynos5250-dw-mshc";
+			reg = <0x12150000 0x2000>;
+			interrupts = <0 158 0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clocks = <&clock_fsys FSYS_CLK_MMC1>, <&clock_top TOP_SCLK_MMC1>;
+			clock-names = "biu", "ciu";
+			fifo-depth = <64>;
+			status = "disabled";
+		};
+
+		mmc_2: mmc@12160000 {
+			compatible = "samsung,exynos5250-dw-mshc";
+			reg = <0x12160000 0x2000>;
+			interrupts = <0 159 0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clocks = <&clock_fsys FSYS_CLK_MMC2>, <&clock_top TOP_SCLK_MMC2>;
+			clock-names = "biu", "ciu";
+			fifo-depth = <64>;
+			status = "disabled";
+		};
+	};
+};
+
+#include "exynos5260-pinctrl.dtsi"

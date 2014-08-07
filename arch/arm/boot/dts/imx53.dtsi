@@ -18,6 +18,7 @@
 
 / {
 	aliases {
+		ethernet0 = &fec;
 		gpio0 = &gpio1;
 		gpio1 = &gpio2;
 		gpio2 = &gpio3;
@@ -115,7 +116,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			compatible = "fsl,imx53-ipu";
-			reg = <0x18000000 0x080000000>;
+			reg = <0x18000000 0x08000000>;
 			interrupts = <11 10>;
 			clocks = <&clks IMX5_CLK_IPU_GATE>,
 			         <&clks IMX5_CLK_IPU_DI0_GATE>,
@@ -726,8 +727,8 @@
 				clocks = <&clks IMX5_CLK_VPU_GATE>,
 				         <&clks IMX5_CLK_VPU_GATE>;
 				clock-names = "per", "ahb";
+				resets = <&src 1>;
 				iram = <&ocram>;
-				status = "disabled";
 			};
 		};
 

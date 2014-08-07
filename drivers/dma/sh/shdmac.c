@@ -18,21 +18,22 @@
  *
  */
 
+#include <linux/delay.h>
+#include <linux/dmaengine.h>
+#include <linux/err.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
+#include <linux/kdebug.h>
 #include <linux/module.h>
+#include <linux/notifier.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
-#include <linux/slab.h>
-#include <linux/interrupt.h>
-#include <linux/dmaengine.h>
-#include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
-#include <linux/sh_dma.h>
-#include <linux/notifier.h>
-#include <linux/kdebug.h>
-#include <linux/spinlock.h>
 #include <linux/rculist.h>
+#include <linux/sh_dma.h>
+#include <linux/slab.h>
+#include <linux/spinlock.h>
 
 #include "../dmaengine.h"
 #include "shdma.h"

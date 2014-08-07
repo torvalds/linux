@@ -804,23 +804,11 @@ static void pathb_fill_iqk(struct adapter *adapt, bool iqkok, s32 result[][8], u
 	}
 }
 
-/*  */
-/*  2011/07/26 MH Add an API for testing IQK fail case. */
-/*  */
-/*  MP Already declare in odm.c */
-static bool ODM_CheckPowerStatus(struct adapter *Adapter)
-{
-	return	true;
-}
-
 void _PHY_SaveADDARegisters(struct adapter *adapt, u32 *ADDAReg, u32 *ADDABackup, u32 RegisterNum)
 {
 	u32 i;
 	struct hal_data_8188e	*pHalData = GET_HAL_DATA(adapt);
 	struct odm_dm_struct *dm_odm = &pHalData->odmpriv;
-
-	if (!ODM_CheckPowerStatus(adapt))
-		return;
 
 	ODM_RT_TRACE(dm_odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD, ("Save ADDA parameters.\n"));
 	for (i = 0; i < RegisterNum; i++) {
@@ -1294,8 +1282,6 @@ void PHY_IQCalibrate_8188E(struct adapter *adapt, bool recovery)
 	bool is2t;
 
 	is2t = (dm_odm->RFType == ODM_2T2R) ? true : false;
-	if (!ODM_CheckPowerStatus(adapt))
-		return;
 
 	if (!(dm_odm->SupportAbility & ODM_RF_CALIBRATION))
 		return;

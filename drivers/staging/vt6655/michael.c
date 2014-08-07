@@ -47,10 +47,7 @@
 /*---------------------  Static Variables  --------------------------*/
 
 /*---------------------  Static Functions  --------------------------*/
-/*
-  static unsigned long s_dwGetUINT32(unsigned char *p);         // Get unsigned long from 4 bytes LSByte first
-  static void s_vPutUINT32(unsigned char *p, unsigned long val); // Put unsigned long into 4 bytes LSByte first
-*/
+
 static void s_vClear(void);                       // Clear the internal message,
 // resets the object to the state just after construction.
 static void s_vSetKey(u32  dwK0, u32  dwK1);
@@ -64,30 +61,6 @@ static u32 M;		/* Message accumulator (single word) */
 static unsigned int nBytesInM;      // # bytes in M
 
 /*---------------------  Export Functions  --------------------------*/
-
-/*
-  static unsigned long s_dwGetUINT32 (unsigned char *p)
-// Convert from unsigned char [] to unsigned long in a portable way
-{
-unsigned long res = 0;
-unsigned int i;
-for (i=0; i<4; i++)
-{
-	res |= (*p++) << (8 * i);
-}
-return res;
-}
-
-static void s_vPutUINT32 (unsigned char *p, unsigned long val)
-// Convert from unsigned long to unsigned char [] in a portable way
-{
-	unsigned int i;
-	for (i=0; i<4; i++) {
-		*p++ = (unsigned char) (val & 0xff);
-		val >>= 8;
-	}
-}
-*/
 
 static void s_vClear(void)
 {
@@ -164,9 +137,9 @@ void MIC_vGetMIC(u32 *pdwL, u32 *pdwR)
 	s_vAppendByte(0);
 	s_vAppendByte(0);
 	// and then zeroes until the length is a multiple of 4
-	while (nBytesInM != 0) {
+	while (nBytesInM != 0)
 		s_vAppendByte(0);
-	}
+
 	// The s_vAppendByte function has already computed the result.
 	*pdwL = L;
 	*pdwR = R;

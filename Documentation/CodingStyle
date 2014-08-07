@@ -660,15 +660,23 @@ There are a number of driver model diagnostic macros in <linux/device.h>
 which you should use to make sure messages are matched to the right device
 and driver, and are tagged with the right level:  dev_err(), dev_warn(),
 dev_info(), and so forth.  For messages that aren't associated with a
-particular device, <linux/printk.h> defines pr_debug() and pr_info().
+particular device, <linux/printk.h> defines pr_notice(), pr_info(),
+pr_warn(), pr_err(), etc.
 
 Coming up with good debugging messages can be quite a challenge; and once
-you have them, they can be a huge help for remote troubleshooting.  Such
-messages should be compiled out when the DEBUG symbol is not defined (that
-is, by default they are not included).  When you use dev_dbg() or pr_debug(),
-that's automatic.  Many subsystems have Kconfig options to turn on -DDEBUG.
-A related convention uses VERBOSE_DEBUG to add dev_vdbg() messages to the
-ones already enabled by DEBUG.
+you have them, they can be a huge help for remote troubleshooting.  However
+debug message printing is handled differently than printing other non-debug
+messages.  While the other pr_XXX() functions print unconditionally,
+pr_debug() does not; it is compiled out by default, unless either DEBUG is
+defined or CONFIG_DYNAMIC_DEBUG is set.  That is true for dev_dbg() also,
+and a related convention uses VERBOSE_DEBUG to add dev_vdbg() messages to
+the ones already enabled by DEBUG.
+
+Many subsystems have Kconfig debug options to turn on -DDEBUG in the
+corresponding Makefile; in other cases specific files #define DEBUG.  And
+when a debug message should be unconditionally printed, such as if it is
+already inside a debug-related #ifdef secton, printk(KERN_DEBUG ...) can be
+used.
 
 
 		Chapter 14: Allocating memory

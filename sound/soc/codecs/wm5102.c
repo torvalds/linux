@@ -764,8 +764,8 @@ SOC_ENUM("LHPF2 Mode", arizona_lhpf2_mode),
 SOC_ENUM("LHPF3 Mode", arizona_lhpf3_mode),
 SOC_ENUM("LHPF4 Mode", arizona_lhpf4_mode),
 
-SOC_VALUE_ENUM("ISRC1 FSL", arizona_isrc_fsl[0]),
-SOC_VALUE_ENUM("ISRC2 FSL", arizona_isrc_fsl[1]),
+SOC_ENUM("ISRC1 FSL", arizona_isrc_fsl[0]),
+SOC_ENUM("ISRC2 FSL", arizona_isrc_fsl[1]),
 
 ARIZONA_MIXER_CONTROLS("Mic", ARIZONA_MICMIX_INPUT_1_SOURCE),
 ARIZONA_MIXER_CONTROLS("Noise", ARIZONA_NOISEMIX_INPUT_1_SOURCE),
@@ -814,9 +814,9 @@ SOC_DOUBLE_R_TLV("SPKDAT1 Digital Volume", ARIZONA_DAC_DIGITAL_VOLUME_5L,
 		 ARIZONA_DAC_DIGITAL_VOLUME_5R, ARIZONA_OUT5L_VOL_SHIFT,
 		 0xbf, 0, digital_tlv),
 
-SOC_VALUE_ENUM("HPOUT1 OSR", wm5102_hpout_osr[0]),
-SOC_VALUE_ENUM("HPOUT2 OSR", wm5102_hpout_osr[1]),
-SOC_VALUE_ENUM("EPOUT OSR", wm5102_hpout_osr[2]),
+SOC_ENUM("HPOUT1 OSR", wm5102_hpout_osr[0]),
+SOC_ENUM("HPOUT2 OSR", wm5102_hpout_osr[1]),
+SOC_ENUM("EPOUT OSR", wm5102_hpout_osr[2]),
 
 SOC_DOUBLE("HPOUT1 DRE Switch", ARIZONA_DRE_ENABLE,
 	   ARIZONA_DRE1L_ENA_SHIFT, ARIZONA_DRE1R_ENA_SHIFT, 1, 0),
@@ -970,7 +970,7 @@ static const struct soc_enum wm5102_aec_loopback =
 			      wm5102_aec_loopback_values);
 
 static const struct snd_kcontrol_new wm5102_aec_loopback_mux =
-	SOC_DAPM_VALUE_ENUM("AEC Loopback", wm5102_aec_loopback);
+	SOC_DAPM_ENUM("AEC Loopback", wm5102_aec_loopback);
 
 static const struct snd_soc_dapm_widget wm5102_dapm_widgets[] = {
 SND_SOC_DAPM_SUPPLY("SYSCLK", ARIZONA_SYSTEM_CLOCK_1, ARIZONA_SYSCLK_ENA_SHIFT,
@@ -1204,7 +1204,7 @@ SND_SOC_DAPM_AIF_IN("SLIMRX8", NULL, 0,
 
 ARIZONA_DSP_WIDGETS(DSP1, "DSP1"),
 
-SND_SOC_DAPM_VALUE_MUX("AEC Loopback", ARIZONA_DAC_AEC_CONTROL_1,
+SND_SOC_DAPM_MUX("AEC Loopback", ARIZONA_DAC_AEC_CONTROL_1,
 		       ARIZONA_AEC_LOOPBACK_ENA_SHIFT, 0,
 		       &wm5102_aec_loopback_mux),
 
@@ -1760,10 +1760,6 @@ static int wm5102_codec_probe(struct snd_soc_codec *codec)
 	struct wm5102_priv *priv = snd_soc_codec_get_drvdata(codec);
 	int ret;
 
-	ret = snd_soc_codec_set_cache_io(codec, priv->core.arizona->regmap);
-	if (ret != 0)
-		return ret;
-
 	ret = snd_soc_add_codec_controls(codec, wm_adsp2_fw_controls, 2);
 	if (ret != 0)
 		return ret;
@@ -1802,9 +1798,17 @@ static unsigned int wm5102_digital_vu[] = {
 	ARIZONA_DAC_DIGITAL_VOLUME_5R,
 };
 
+static struct regmap *wm5102_get_regmap(struct device *dev)
+{
+	struct wm5102_priv *priv = dev_get_drvdata(dev);
+
+	return priv->core.arizona->regmap;
+}
+
 static struct snd_soc_codec_driver soc_codec_dev_wm5102 = {
 	.probe = wm5102_codec_probe,
 	.remove = wm5102_codec_remove,
+	.get_regmap = wm5102_get_regmap,
 
 	.idle_bias_off = true,
 

@@ -40,6 +40,12 @@ struct nfc_rawsock {
 	struct work_struct tx_work;
 	bool tx_work_scheduled;
 };
+
+struct nfc_sock_list {
+	struct hlist_head head;
+	rwlock_t          lock;
+};
+
 #define nfc_rawsock(sk) ((struct nfc_rawsock *) sk)
 #define to_rawsock_sk(_tx_work) \
 	((struct sock *) container_of(_tx_work, struct nfc_rawsock, tx_work))

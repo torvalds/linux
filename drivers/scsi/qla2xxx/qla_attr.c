@@ -1,6 +1,6 @@
 /*
  * QLogic Fibre Channel HBA Driver
- * Copyright (c)  2003-2013 QLogic Corporation
+ * Copyright (c)  2003-2014 QLogic Corporation
  *
  * See LICENSE.qla2xxx for copyright and licensing details.
  */
@@ -664,7 +664,7 @@ do_read:
 		}
 
 		rval = qla2x00_read_sfp(vha, ha->sfp_data_dma, ha->sfp_data,
-		    addr, offset, SFP_BLOCK_SIZE, 0);
+		    addr, offset, SFP_BLOCK_SIZE, BIT_1);
 		if (rval != QLA_SUCCESS) {
 			ql_log(ql_log_warn, vha, 0x706d,
 			    "Unable to read SFP data (%x/%x/%x).\n", rval,
@@ -1495,7 +1495,7 @@ qla2x00_fw_dump_size_show(struct device *dev, struct device_attribute *attr,
 
 	if (!ha->fw_dumped)
 		size = 0;
-	else if (IS_QLA82XX(ha))
+	else if (IS_P3P_TYPE(ha))
 		size = ha->md_template_size + ha->md_dump_size;
 	else
 		size = ha->fw_dump_len;

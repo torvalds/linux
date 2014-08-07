@@ -75,6 +75,7 @@ struct cpufreq_policy {
 	unsigned int		max;    /* in kHz */
 	unsigned int		cur;    /* in kHz, only needed if cpufreq
 					 * governors are used */
+	unsigned int		restore_freq; /* = policy->cur before transition */
 	unsigned int		suspend_freq; /* freq to set during suspend */
 
 	unsigned int		policy; /* see above */
@@ -110,6 +111,7 @@ struct cpufreq_policy {
 	bool			transition_ongoing; /* Tracks transition status */
 	spinlock_t		transition_lock;
 	wait_queue_head_t	transition_wait;
+	struct task_struct	*transition_task; /* Task which is doing the transition */
 };
 
 /* Only for ACPI */
@@ -220,11 +222,35 @@ struct cpufreq_driver {
 
 	/* define one out of two */
 	int	(*setpolicy)	(struct cpufreq_policy *policy);
+
+	/*
+	 * On failure, should always restore frequency to policy->restore_freq
+	 * (i.e. old freq).
+	 */
 	int	(*target)	(struct cpufreq_policy *policy,	/* Deprecated */
 				 unsigned int target_freq,
 				 unsigned int relation);
 	int	(*target_index)	(struct cpufreq_policy *policy,
 				 unsigned int index);
+	/*
+	 * Only for drivers with target_index() and CPUFREQ_ASYNC_NOTIFICATION
+	 * unset.
+	 *
+	 * get_intermediate should return a stable intermediate frequency
+	 * platform wants to switch to and target_intermediate() should set CPU
+	 * to to that frequency, before jumping to the frequency corresponding
+	 * to 'index'. Core will take care of sending notifications and driver
+	 * doesn't have to handle them in target_intermediate() or
+	 * target_index().
+	 *
+	 * Drivers can return '0' from get_intermediate() in case they don't
+	 * wish to switch to intermediate frequency for some target frequency.
+	 * In that case core will directly call ->target_index().
+	 */
+	unsigned int (*get_intermediate)(struct cpufreq_policy *policy,
+					 unsigned int index);
+	int	(*target_intermediate)(struct cpufreq_policy *policy,
+				       unsigned int index);
 
 	/* should be defined, if possible */
 	unsigned int	(*get)	(unsigned int cpu);
@@ -456,8 +482,8 @@ extern struct cpufreq_governor cpufreq_gov_conservative;
  *********************************************************************/
 
 /* Special Values of .frequency field */
-#define CPUFREQ_ENTRY_INVALID	~0
-#define CPUFREQ_TABLE_END	~1
+#define CPUFREQ_ENTRY_INVALID	~0u
+#define CPUFREQ_TABLE_END	~1u
 /* Special Values of .flags field */
 #define CPUFREQ_BOOST_FREQ	(1 << 0)
 
@@ -467,6 +493,55 @@ struct cpufreq_frequency_table {
 	unsigned int	frequency; /* kHz - doesn't need to be in ascending
 				    * order */
 };
+
+#if defined(CONFIG_CPU_FREQ) && defined(CONFIG_PM_OPP)
+int dev_pm_opp_init_cpufreq_table(struct device *dev,
+				  struct cpufreq_frequency_table **table);
+void dev_pm_opp_free_cpufreq_table(struct device *dev,
+				   struct cpufreq_frequency_table **table);
+#else
+static inline int dev_pm_opp_init_cpufreq_table(struct device *dev,
+						struct cpufreq_frequency_table
+						**table)
+{
+	return -EINVAL;
+}
+
+static inline void dev_pm_opp_free_cpufreq_table(struct device *dev,
+						 struct cpufreq_frequency_table
+						 **table)
+{
+}
+#endif
+
+static inline bool cpufreq_next_valid(struct cpufreq_frequency_table **pos)
+{
+	while ((*pos)->frequency != CPUFREQ_TABLE_END)
+		if ((*pos)->frequency != CPUFREQ_ENTRY_INVALID)
+			return true;
+		else
+			(*pos)++;
+	return false;
+}
+
+/*
+ * cpufreq_for_each_entry -	iterate over a cpufreq_frequency_table
+ * @pos:	the cpufreq_frequency_table * to use as a loop cursor.
+ * @table:	the cpufreq_frequency_table * to iterate over.
+ */
+
+#define cpufreq_for_each_entry(pos, table)	\
+	for (pos = table; pos->frequency != CPUFREQ_TABLE_END; pos++)
+
+/*
+ * cpufreq_for_each_valid_entry -     iterate over a cpufreq_frequency_table
+ *	excluding CPUFREQ_ENTRY_INVALID frequencies.
+ * @pos:        the cpufreq_frequency_table * to use as a loop cursor.
+ * @table:      the cpufreq_frequency_table * to iterate over.
+ */
+
+#define cpufreq_for_each_valid_entry(pos, table)	\
+	for (pos = table; cpufreq_next_valid(&pos); pos++)
 
 int cpufreq_frequency_table_cpuinfo(struct cpufreq_policy *policy,
 				    struct cpufreq_frequency_table *table);

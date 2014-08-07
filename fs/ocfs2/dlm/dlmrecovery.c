@@ -1708,7 +1708,8 @@ int dlm_master_requery_handler(struct o2net_msg *msg, u32 len, void *data,
 				mlog_errno(-ENOMEM);
 				/* retry!? */
 				BUG();
-			}
+			} else
+				__dlm_lockres_grab_inflight_worker(dlm, res);
 		} else /* put.. incase we are not the master */
 			dlm_lockres_put(res);
 		spin_unlock(&res->spinlock);
@@ -1986,7 +1987,15 @@ skip_lvb:
 		}
 		if (!bad) {
 			dlm_lock_get(newlock);
-			list_add_tail(&newlock->list, queue);
+			if (mres->flags & DLM_MRES_RECOVERY &&
+					ml->list == DLM_CONVERTING_LIST &&
+					newlock->ml.type >
+					newlock->ml.convert_type) {
+				/* newlock is doing downconvert, add it to the
+				 * head of converting list */
+				list_add(&newlock->list, queue);
+			} else
+				list_add_tail(&newlock->list, queue);
 			mlog(0, "%s:%.*s: added lock for node %u, "
 			     "setting refmap bit\n", dlm->name,
 			     res->lockname.len, res->lockname.name, ml->node);

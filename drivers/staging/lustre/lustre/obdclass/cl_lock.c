@@ -139,7 +139,7 @@ static void cl_lock_trace0(int level, const struct lu_env *env,
 	       func, line);
 }
 #define cl_lock_trace(level, env, prefix, lock)			 \
-	cl_lock_trace0(level, env, prefix, lock, __FUNCTION__, __LINE__)
+	cl_lock_trace0(level, env, prefix, lock, __func__, __LINE__)
 
 #define RETIP ((unsigned long)__builtin_return_address(0))
 
@@ -360,7 +360,7 @@ static struct cl_lock *cl_lock_alloc(const struct lu_env *env,
 	struct cl_lock	  *lock;
 	struct lu_object_header *head;
 
-	OBD_SLAB_ALLOC_PTR_GFP(lock, cl_lock_kmem, __GFP_IO);
+	OBD_SLAB_ALLOC_PTR_GFP(lock, cl_lock_kmem, GFP_NOFS);
 	if (lock != NULL) {
 		atomic_set(&lock->cll_ref, 1);
 		lock->cll_descr = *descr;
@@ -478,7 +478,7 @@ static struct cl_lock *cl_lock_lookup(const struct lu_env *env,
 	struct cl_object_header *head;
 
 	head = cl_object_header(obj);
-	LINVRNT(spin_is_locked(&head->coh_lock_guard));
+	assert_spin_locked(&head->coh_lock_guard);
 	CS_LOCK_INC(obj, lookup);
 	list_for_each_entry(lock, &head->coh_locks, cll_linkage) {
 		int matched;
@@ -533,6 +533,7 @@ static struct cl_lock *cl_lock_find(const struct lu_env *env,
 			spin_lock(&head->coh_lock_guard);
 			ghost = cl_lock_lookup(env, obj, io, need);
 			if (ghost == NULL) {
+				cl_lock_get_trust(lock);
 				list_add_tail(&lock->cll_linkage,
 						  &head->coh_locks);
 				spin_unlock(&head->coh_lock_guard);
@@ -791,14 +792,21 @@ static void cl_lock_delete0(const struct lu_env *env, struct cl_lock *lock)
 	LINVRNT(cl_lock_invariant(env, lock));
 
 	if (lock->cll_state < CLS_FREEING) {
+		bool in_cache;
+
 		LASSERT(lock->cll_state != CLS_INTRANSIT);
 		cl_lock_state_set(env, lock, CLS_FREEING);
 
 		head = cl_object_header(lock->cll_descr.cld_obj);
 
 		spin_lock(&head->coh_lock_guard);
-		list_del_init(&lock->cll_linkage);
+		in_cache = !list_empty(&lock->cll_linkage);
+		if (in_cache)
+			list_del_init(&lock->cll_linkage);
 		spin_unlock(&head->coh_lock_guard);
+
+		if (in_cache) /* coh_locks cache holds a refcount. */
+			cl_lock_put(env, lock);
 
 		/*
 		 * From now on, no new references to this lock can be acquired

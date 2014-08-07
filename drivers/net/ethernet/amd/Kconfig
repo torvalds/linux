@@ -7,7 +7,7 @@ config NET_VENDOR_AMD
 	default y
 	depends on DIO || MACH_DECSTATION || MVME147 || ATARI || SUN3 || \
 		   SUN3X || SBUS || PCI || ZORRO || (ISA && ISA_DMA_API) || \
-		   (ARM && ARCH_EBSA110) || ISA || EISA || PCMCIA
+		   (ARM && ARCH_EBSA110) || ISA || EISA || PCMCIA || ARM64
 	---help---
 	  If you have a network (Ethernet) chipset belonging to this class,
 	  say Y.
@@ -176,5 +176,17 @@ config SUNLANCE
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called sunlance.
+
+config AMD_XGBE
+	tristate "AMD 10GbE Ethernet driver"
+	depends on OF_NET
+	select PHYLIB
+	select AMD_XGBE_PHY
+	---help---
+	  This driver supports the AMD 10GbE Ethernet device found on an
+	  AMD SoC.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called amd-xgbe.
 
 endif # NET_VENDOR_AMD

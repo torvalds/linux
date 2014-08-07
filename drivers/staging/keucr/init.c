@@ -9,6 +9,7 @@
 #include "usb.h"
 #include "scsiglue.h"
 #include "transport.h"
+#include "smil.h"
 #include "init.h"
 
 /*

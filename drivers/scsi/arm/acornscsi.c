@@ -62,13 +62,6 @@
  */
 #undef CONFIG_SCSI_ACORNSCSI_TAGGED_QUEUE
 /*
- * SCSI-II Linked command support.
- *
- * The higher level code doesn't support linked commands yet, and so the option
- * is undef'd here.
- */
-#undef CONFIG_SCSI_ACORNSCSI_LINK
-/*
  * SCSI-II Synchronous transfer support.
  *
  * Tried and tested...
@@ -158,10 +151,6 @@
 #define ABORT_TAG 0xd
 #else
 #error "Yippee!  ABORT TAG is now defined!  Remove this error!"
-#endif
-
-#ifdef CONFIG_SCSI_ACORNSCSI_LINK
-#error SCSI2 LINKed commands not supported (yet)!
 #endif
 
 #ifdef USE_DMAC
@@ -1668,42 +1657,6 @@ void acornscsi_message(AS_Host *host)
 	}
 	break;
 
-#ifdef CONFIG_SCSI_ACORNSCSI_LINK
-    case LINKED_CMD_COMPLETE:
-    case LINKED_FLG_CMD_COMPLETE:
-	/*
-	 * We don't support linked commands yet
-	 */
-	if (0) {
-#if (DEBUG & DEBUG_LINK)
-	    printk("scsi%d.%c: lun %d tag %d linked command complete\n",
-		    host->host->host_no, acornscsi_target(host), host->SCpnt->tag);
-#endif
-	    /*
-	     * A linked command should only terminate with one of these messages
-	     * if there are more linked commands available.
-	     */
-	    if (!host->SCpnt->next_link) {
-		printk(KERN_WARNING "scsi%d.%c: lun %d tag %d linked command complete, but no next_link\n",
-			instance->host_no, acornscsi_target(host), host->SCpnt->tag);
-		acornscsi_sbic_issuecmd(host, CMND_ASSERTATN);
-		msgqueue_addmsg(&host->scsi.msgs, 1, ABORT);
-	    } else {
-		struct scsi_cmnd *SCpnt = host->SCpnt;
-
-		acornscsi_dma_cleanup(host);
-
-		host->SCpnt = host->SCpnt->next_link;
-		host->SCpnt->tag = SCpnt->tag;
-		SCpnt->result = DID_OK | host->scsi.SCp.Message << 8 | host->Scsi.SCp.Status;
-		SCpnt->done(SCpnt);
-
-		/* initialise host->SCpnt->SCp */
-	    }
-	    break;
-	}
-#endif
-
     default: /* reject message */
 	printk(KERN_ERR "scsi%d.%c: unrecognised message %02X, rejecting\n",
 		host->host->host_no, acornscsi_target(host),
@@ -2825,9 +2778,6 @@ char *acornscsi_info(struct Scsi_Host *host)
 #ifdef CONFIG_SCSI_ACORNSCSI_TAGGED_QUEUE
     " TAG"
 #endif
-#ifdef CONFIG_SCSI_ACORNSCSI_LINK
-    " LINK"
-#endif
 #if (DEBUG & DEBUG_NO_WRITE)
     " NOWRITE (" __stringify(NO_WRITE) ")"
 #endif
@@ -2850,9 +2800,6 @@ static int acornscsi_show_info(struct seq_file *m, struct Scsi_Host *instance)
 #endif
 #ifdef CONFIG_SCSI_ACORNSCSI_TAGGED_QUEUE
     " TAG"
-#endif
-#ifdef CONFIG_SCSI_ACORNSCSI_LINK
-    " LINK"
 #endif
 #if (DEBUG & DEBUG_NO_WRITE)
     " NOWRITE (" __stringify(NO_WRITE) ")"

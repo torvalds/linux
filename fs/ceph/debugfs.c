@@ -71,9 +71,9 @@ static int mdsc_show(struct seq_file *s, void *p)
 		seq_printf(s, "%s", ceph_mds_op_name(req->r_op));
 
 		if (req->r_got_unsafe)
-			seq_printf(s, "\t(unsafe)");
+			seq_puts(s, "\t(unsafe)");
 		else
-			seq_printf(s, "\t");
+			seq_puts(s, "\t");
 
 		if (req->r_inode) {
 			seq_printf(s, " #%llx", ceph_ino(req->r_inode));
@@ -119,7 +119,7 @@ static int mdsc_show(struct seq_file *s, void *p)
 				seq_printf(s, " %s", req->r_path2);
 		}
 
-		seq_printf(s, "\n");
+		seq_puts(s, "\n");
 	}
 	mutex_unlock(&mdsc->mutex);
 

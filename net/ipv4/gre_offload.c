@@ -42,6 +42,7 @@ static struct sk_buff *gre_gso_segment(struct sk_buff *skb,
 				  SKB_GSO_DODGY |
 				  SKB_GSO_TCP_ECN |
 				  SKB_GSO_GRE |
+				  SKB_GSO_GRE_CSUM |
 				  SKB_GSO_IPIP)))
 		goto out;
 
@@ -55,6 +56,8 @@ static struct sk_buff *gre_gso_segment(struct sk_buff *skb,
 		goto out;
 
 	csum = !!(greh->flags & GRE_CSUM);
+	if (csum)
+		skb->encap_hdr_csum = 1;
 
 	if (unlikely(!pskb_may_pull(skb, ghl)))
 		goto out;
@@ -94,10 +97,13 @@ static struct sk_buff *gre_gso_segment(struct sk_buff *skb,
 				}
 			}
 
-			greh = (struct gre_base_hdr *)(skb->data);
+			skb_reset_transport_header(skb);
+
+			greh = (struct gre_base_hdr *)
+			    skb_transport_header(skb);
 			pcsum = (__be32 *)(greh + 1);
 			*pcsum = 0;
-			*(__sum16 *)pcsum = csum_fold(skb_checksum(skb, 0, skb->len, 0));
+			*(__sum16 *)pcsum = gso_make_checksum(skb, 0);
 		}
 		__skb_push(skb, tnl_hlen - ghl);
 
@@ -125,10 +131,12 @@ static __sum16 gro_skb_checksum(struct sk_buff *skb)
 		csum_partial(skb->data, skb_gro_offset(skb), 0));
 	sum = csum_fold(NAPI_GRO_CB(skb)->csum);
 	if (unlikely(skb->ip_summed == CHECKSUM_COMPLETE)) {
-		if (unlikely(!sum))
+		if (unlikely(!sum) && !skb->csum_complete_sw)
 			netdev_rx_csum_fault(skb->dev);
-	} else
+	} else {
 		skb->ip_summed = CHECKSUM_COMPLETE;
+		skb->csum_complete_sw = 1;
+	}
 
 	return sum;
 }

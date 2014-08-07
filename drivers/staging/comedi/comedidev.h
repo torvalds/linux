@@ -108,8 +108,6 @@ struct comedi_buf_map {
 };
 
 struct comedi_async {
-	struct comedi_subdevice *subdevice;
-
 	void *prealloc_buf;	/* pre-allocated buffer */
 	unsigned int prealloc_bufsz;	/* buffer size, in bytes */
 	struct comedi_buf_map *buf_map;	/* map of buffer pages */
@@ -182,7 +180,6 @@ struct comedi_device {
 	const char *board_name;
 	const void *board_ptr;
 	bool attached:1;
-	bool in_request_module:1;
 	bool ioenabled:1;
 	spinlock_t spinlock;
 	struct mutex mutex;
@@ -336,19 +333,19 @@ static inline unsigned int bytes_per_sample(const struct comedi_subdevice *subd)
  */
 int comedi_set_hw_dev(struct comedi_device *dev, struct device *hw_dev);
 
-unsigned int comedi_buf_write_alloc(struct comedi_async *, unsigned int);
-unsigned int comedi_buf_write_free(struct comedi_async *, unsigned int);
+unsigned int comedi_buf_write_alloc(struct comedi_subdevice *s, unsigned int n);
+unsigned int comedi_buf_write_free(struct comedi_subdevice *s, unsigned int n);
 
-unsigned int comedi_buf_read_n_available(struct comedi_async *);
-unsigned int comedi_buf_read_alloc(struct comedi_async *, unsigned int);
-unsigned int comedi_buf_read_free(struct comedi_async *, unsigned int);
+unsigned int comedi_buf_read_n_available(struct comedi_subdevice *s);
+unsigned int comedi_buf_read_alloc(struct comedi_subdevice *s, unsigned int n);
+unsigned int comedi_buf_read_free(struct comedi_subdevice *s, unsigned int n);
 
-int comedi_buf_put(struct comedi_async *, unsigned short);
-int comedi_buf_get(struct comedi_async *, unsigned short *);
+int comedi_buf_put(struct comedi_subdevice *s, unsigned short x);
+int comedi_buf_get(struct comedi_subdevice *s, unsigned short *x);
 
-void comedi_buf_memcpy_to(struct comedi_async *async, unsigned int offset,
+void comedi_buf_memcpy_to(struct comedi_subdevice *s, unsigned int offset,
 			  const void *source, unsigned int num_bytes);
-void comedi_buf_memcpy_from(struct comedi_async *async, unsigned int offset,
+void comedi_buf_memcpy_from(struct comedi_subdevice *s, unsigned int offset,
 			    void *destination, unsigned int num_bytes);
 
 /* drivers.c - general comedi driver functions */

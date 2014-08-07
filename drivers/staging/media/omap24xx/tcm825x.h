@@ -21,8 +21,8 @@
 
 #define TCM825X_NAME "tcm825x"
 
-#define TCM825X_MASK(x)  x & 0x00ff
-#define TCM825X_ADDR(x) (x & 0xff00) >> 8
+#define TCM825X_MASK(x) (x & 0x00ff)
+#define TCM825X_ADDR(x) ((x & 0xff00) >> 8)
 
 /* The TCM825X I2C sensor chip has a fixed slave address of 0x3d. */
 #define TCM825X_I2C_ADDR	0x3d

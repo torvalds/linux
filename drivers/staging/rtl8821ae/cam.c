@@ -28,9 +28,7 @@
  *****************************************************************************/
 #include "wifi.h"
 #include "cam.h"
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,2,0))
 #include <linux/export.h>
-#endif
 
 void rtl_cam_reset_sec_info(struct ieee80211_hw *hw)
 {

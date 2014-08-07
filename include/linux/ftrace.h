@@ -62,9 +62,6 @@ typedef void (*ftrace_func_t)(unsigned long ip, unsigned long parent_ip,
  * set in the flags member.
  *
  * ENABLED - set/unset when ftrace_ops is registered/unregistered
- * GLOBAL  - set manualy by ftrace_ops user to denote the ftrace_ops
- *           is part of the global tracers sharing the same filter
- *           via set_ftrace_* debugfs files.
  * DYNAMIC - set when ftrace_ops is registered to denote dynamically
  *           allocated ftrace_ops which need special care
  * CONTROL - set manualy by ftrace_ops user to denote the ftrace_ops
@@ -96,15 +93,14 @@ typedef void (*ftrace_func_t)(unsigned long ip, unsigned long parent_ip,
  */
 enum {
 	FTRACE_OPS_FL_ENABLED			= 1 << 0,
-	FTRACE_OPS_FL_GLOBAL			= 1 << 1,
-	FTRACE_OPS_FL_DYNAMIC			= 1 << 2,
-	FTRACE_OPS_FL_CONTROL			= 1 << 3,
-	FTRACE_OPS_FL_SAVE_REGS			= 1 << 4,
-	FTRACE_OPS_FL_SAVE_REGS_IF_SUPPORTED	= 1 << 5,
-	FTRACE_OPS_FL_RECURSION_SAFE		= 1 << 6,
-	FTRACE_OPS_FL_STUB			= 1 << 7,
-	FTRACE_OPS_FL_INITIALIZED		= 1 << 8,
-	FTRACE_OPS_FL_DELETED			= 1 << 9,
+	FTRACE_OPS_FL_DYNAMIC			= 1 << 1,
+	FTRACE_OPS_FL_CONTROL			= 1 << 2,
+	FTRACE_OPS_FL_SAVE_REGS			= 1 << 3,
+	FTRACE_OPS_FL_SAVE_REGS_IF_SUPPORTED	= 1 << 4,
+	FTRACE_OPS_FL_RECURSION_SAFE		= 1 << 5,
+	FTRACE_OPS_FL_STUB			= 1 << 6,
+	FTRACE_OPS_FL_INITIALIZED		= 1 << 7,
+	FTRACE_OPS_FL_DELETED			= 1 << 8,
 };
 
 /*
@@ -366,14 +362,12 @@ enum {
  *  IGNORE           - The function is already what we want it to be
  *  MAKE_CALL        - Start tracing the function
  *  MODIFY_CALL      - Stop saving regs for the function
- *  MODIFY_CALL_REGS - Start saving regs for the function
  *  MAKE_NOP         - Stop tracing the function
  */
 enum {
 	FTRACE_UPDATE_IGNORE,
 	FTRACE_UPDATE_MAKE_CALL,
 	FTRACE_UPDATE_MODIFY_CALL,
-	FTRACE_UPDATE_MODIFY_CALL_REGS,
 	FTRACE_UPDATE_MAKE_NOP,
 };
 
@@ -404,6 +398,8 @@ int ftrace_update_record(struct dyn_ftrace *rec, int enable);
 int ftrace_test_record(struct dyn_ftrace *rec, int enable);
 void ftrace_run_stop_machine(int command);
 unsigned long ftrace_location(unsigned long ip);
+unsigned long ftrace_get_addr_new(struct dyn_ftrace *rec);
+unsigned long ftrace_get_addr_curr(struct dyn_ftrace *rec);
 
 extern ftrace_func_t ftrace_trace_function;
 
@@ -616,25 +612,27 @@ static inline void __ftrace_enabled_restore(int enabled)
 #endif
 }
 
-#ifndef HAVE_ARCH_CALLER_ADDR
+/* All archs should have this, but we define it for consistency */
+#ifndef ftrace_return_address0
+# define ftrace_return_address0 __builtin_return_address(0)
+#endif
+
+/* Archs may use other ways for ADDR1 and beyond */
+#ifndef ftrace_return_address
 # ifdef CONFIG_FRAME_POINTER
-#  define CALLER_ADDR0 ((unsigned long)__builtin_return_address(0))
-#  define CALLER_ADDR1 ((unsigned long)__builtin_return_address(1))
-#  define CALLER_ADDR2 ((unsigned long)__builtin_return_address(2))
-#  define CALLER_ADDR3 ((unsigned long)__builtin_return_address(3))
-#  define CALLER_ADDR4 ((unsigned long)__builtin_return_address(4))
-#  define CALLER_ADDR5 ((unsigned long)__builtin_return_address(5))
-#  define CALLER_ADDR6 ((unsigned long)__builtin_return_address(6))
+#  define ftrace_return_address(n) __builtin_return_address(n)
 # else
-#  define CALLER_ADDR0 ((unsigned long)__builtin_return_address(0))
-#  define CALLER_ADDR1 0UL
-#  define CALLER_ADDR2 0UL
-#  define CALLER_ADDR3 0UL
-#  define CALLER_ADDR4 0UL
-#  define CALLER_ADDR5 0UL
-#  define CALLER_ADDR6 0UL
+#  define ftrace_return_address(n) 0UL
 # endif
-#endif /* ifndef HAVE_ARCH_CALLER_ADDR */
+#endif
+
+#define CALLER_ADDR0 ((unsigned long)ftrace_return_address0)
+#define CALLER_ADDR1 ((unsigned long)ftrace_return_address(1))
+#define CALLER_ADDR2 ((unsigned long)ftrace_return_address(2))
+#define CALLER_ADDR3 ((unsigned long)ftrace_return_address(3))
+#define CALLER_ADDR4 ((unsigned long)ftrace_return_address(4))
+#define CALLER_ADDR5 ((unsigned long)ftrace_return_address(5))
+#define CALLER_ADDR6 ((unsigned long)ftrace_return_address(6))
 
 #ifdef CONFIG_IRQSOFF_TRACER
   extern void time_hardirqs_on(unsigned long a0, unsigned long a1);

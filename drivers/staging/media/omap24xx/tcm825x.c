@@ -89,10 +89,10 @@ static const struct tcm825x_reg rgb565	=	{ 0x02, TCM825X_PICFMT };
 
 /* Our own specific controls */
 #define V4L2_CID_ALC				V4L2_CID_PRIVATE_BASE
-#define V4L2_CID_H_EDGE_EN			V4L2_CID_PRIVATE_BASE + 1
-#define V4L2_CID_V_EDGE_EN			V4L2_CID_PRIVATE_BASE + 2
-#define V4L2_CID_LENS				V4L2_CID_PRIVATE_BASE + 3
-#define V4L2_CID_MAX_EXPOSURE_TIME		V4L2_CID_PRIVATE_BASE + 4
+#define V4L2_CID_H_EDGE_EN			(V4L2_CID_PRIVATE_BASE + 1)
+#define V4L2_CID_V_EDGE_EN			(V4L2_CID_PRIVATE_BASE + 2)
+#define V4L2_CID_LENS				(V4L2_CID_PRIVATE_BASE + 3)
+#define V4L2_CID_MAX_EXPOSURE_TIME		(V4L2_CID_PRIVATE_BASE + 4)
 #define V4L2_CID_LAST_PRIV			V4L2_CID_MAX_EXPOSURE_TIME
 
 /*  Video controls  */
@@ -914,8 +914,8 @@ static int __init tcm825x_init(void)
 
 	rval = i2c_add_driver(&tcm825x_i2c_driver);
 	if (rval)
-		printk(KERN_INFO "%s: failed registering " TCM825X_NAME "\n",
-		       __func__);
+		pr_info("%s: failed registering " TCM825X_NAME "\n",
+			__func__);
 
 	return rval;
 }

@@ -226,7 +226,7 @@ int v9fs_open_to_dotl_flags(int flags)
  * v9fs_vfs_create_dotl - VFS hook to create files for 9P2000.L protocol.
  * @dir: directory inode that is being created
  * @dentry:  dentry that is being deleted
- * @mode: create permissions
+ * @omode: create permissions
  *
  */
 
@@ -375,7 +375,7 @@ err_clunk_old_fid:
  * v9fs_vfs_mkdir_dotl - VFS mkdir hook to create a directory
  * @dir:  inode that is being unlinked
  * @dentry: dentry that is being unlinked
- * @mode: mode for new directory
+ * @omode: mode for new directory
  *
  */
 
@@ -607,7 +607,6 @@ int v9fs_vfs_setattr_dotl(struct dentry *dentry, struct iattr *iattr)
  * v9fs_stat2inode_dotl - populate an inode structure with stat info
  * @stat: stat structure
  * @inode: inode to populate
- * @sb: superblock of filesystem
  *
  */
 
@@ -808,7 +807,7 @@ v9fs_vfs_link_dotl(struct dentry *old_dentry, struct inode *dir,
  * v9fs_vfs_mknod_dotl - create a special file
  * @dir: inode destination for new link
  * @dentry: dentry for file
- * @mode: mode for creation
+ * @omode: mode for creation
  * @rdev: device associated with special file
  *
  */

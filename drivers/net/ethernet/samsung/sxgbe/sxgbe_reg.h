@@ -188,7 +188,6 @@
 
 /* L3/L4 function registers */
 #define SXGBE_CORE_L34_ADDCTL_REG	0x0C00
-#define SXGBE_CORE_L34_ADDCTL_REG	0x0C00
 #define SXGBE_CORE_L34_DATA_REG		0x0C04
 
 /* ARP registers */

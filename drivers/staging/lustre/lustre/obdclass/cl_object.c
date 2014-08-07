@@ -220,7 +220,7 @@ int cl_object_attr_get(const struct lu_env *env, struct cl_object *obj,
 	struct lu_object_header *top;
 	int result;
 
-	LASSERT(spin_is_locked(cl_object_attr_guard(obj)));
+	assert_spin_locked(cl_object_attr_guard(obj));
 
 	top = obj->co_lu.lo_header;
 	result = 0;
@@ -251,7 +251,7 @@ int cl_object_attr_set(const struct lu_env *env, struct cl_object *obj,
 	struct lu_object_header *top;
 	int result;
 
-	LASSERT(spin_is_locked(cl_object_attr_guard(obj)));
+	assert_spin_locked(cl_object_attr_guard(obj));
 
 	top = obj->co_lu.lo_header;
 	result = 0;
@@ -684,7 +684,7 @@ static struct lu_env *cl_env_new(__u32 ctx_tags, __u32 ses_tags, void *debug)
 	struct lu_env *env;
 	struct cl_env *cle;
 
-	OBD_SLAB_ALLOC_PTR_GFP(cle, cl_env_kmem, __GFP_IO);
+	OBD_SLAB_ALLOC_PTR_GFP(cle, cl_env_kmem, GFP_NOFS);
 	if (cle != NULL) {
 		int rc;
 

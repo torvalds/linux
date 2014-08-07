@@ -199,7 +199,7 @@ static inline int rdev_change_station(struct cfg80211_registered_device *rdev,
 }
 
 static inline int rdev_get_station(struct cfg80211_registered_device *rdev,
-				   struct net_device *dev, u8 *mac,
+				   struct net_device *dev, const u8 *mac,
 				   struct station_info *sinfo)
 {
 	int ret;
@@ -946,6 +946,19 @@ static inline int rdev_set_qos_map(struct cfg80211_registered_device *rdev,
 		ret = rdev->ops->set_qos_map(&rdev->wiphy, dev, qos_map);
 		trace_rdev_return_int(&rdev->wiphy, ret);
 	}
+
+	return ret;
+}
+
+static inline int
+rdev_set_ap_chanwidth(struct cfg80211_registered_device *rdev,
+		      struct net_device *dev, struct cfg80211_chan_def *chandef)
+{
+	int ret;
+
+	trace_rdev_set_ap_chanwidth(&rdev->wiphy, dev, chandef);
+	ret = rdev->ops->set_ap_chanwidth(&rdev->wiphy, dev, chandef);
+	trace_rdev_return_int(&rdev->wiphy, ret);
 
 	return ret;
 }

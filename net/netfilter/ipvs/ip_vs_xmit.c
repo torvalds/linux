@@ -562,7 +562,7 @@ ip_vs_bypass_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 	ip_send_check(iph);
 
 	/* Another hack: avoid icmp_send in ip_fragment */
-	skb->local_df = 1;
+	skb->ignore_df = 1;
 
 	ip_vs_send_or_cont(NFPROTO_IPV4, skb, cp, 0);
 	rcu_read_unlock();
@@ -590,7 +590,7 @@ ip_vs_bypass_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 		goto tx_error;
 
 	/* Another hack: avoid icmp_send in ip_fragment */
-	skb->local_df = 1;
+	skb->ignore_df = 1;
 
 	ip_vs_send_or_cont(NFPROTO_IPV6, skb, cp, 0);
 	rcu_read_unlock();
@@ -684,7 +684,7 @@ ip_vs_nat_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 	   MTU problem. */
 
 	/* Another hack: avoid icmp_send in ip_fragment */
-	skb->local_df = 1;
+	skb->ignore_df = 1;
 
 	rc = ip_vs_nat_send_or_cont(NFPROTO_IPV4, skb, cp, local);
 	rcu_read_unlock();
@@ -774,7 +774,7 @@ ip_vs_nat_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 	   MTU problem. */
 
 	/* Another hack: avoid icmp_send in ip_fragment */
-	skb->local_df = 1;
+	skb->ignore_df = 1;
 
 	rc = ip_vs_nat_send_or_cont(NFPROTO_IPV6, skb, cp, local);
 	rcu_read_unlock();
@@ -883,10 +883,10 @@ ip_vs_tunnel_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 	iph->daddr		=	cp->daddr.ip;
 	iph->saddr		=	saddr;
 	iph->ttl		=	old_iph->ttl;
-	ip_select_ident(skb, &rt->dst, NULL);
+	ip_select_ident(skb, NULL);
 
 	/* Another hack: avoid icmp_send in ip_fragment */
-	skb->local_df = 1;
+	skb->ignore_df = 1;
 
 	ret = ip_vs_tunnel_xmit_prepare(skb, cp);
 	if (ret == NF_ACCEPT)
@@ -974,7 +974,7 @@ ip_vs_tunnel_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 	iph->hop_limit		=	old_iph->hop_limit;
 
 	/* Another hack: avoid icmp_send in ip_fragment */
-	skb->local_df = 1;
+	skb->ignore_df = 1;
 
 	ret = ip_vs_tunnel_xmit_prepare(skb, cp);
 	if (ret == NF_ACCEPT)
@@ -1023,7 +1023,7 @@ ip_vs_dr_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 	ip_send_check(ip_hdr(skb));
 
 	/* Another hack: avoid icmp_send in ip_fragment */
-	skb->local_df = 1;
+	skb->ignore_df = 1;
 
 	ip_vs_send_or_cont(NFPROTO_IPV4, skb, cp, 0);
 	rcu_read_unlock();
@@ -1060,7 +1060,7 @@ ip_vs_dr_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 	}
 
 	/* Another hack: avoid icmp_send in ip_fragment */
-	skb->local_df = 1;
+	skb->ignore_df = 1;
 
 	ip_vs_send_or_cont(NFPROTO_IPV6, skb, cp, 0);
 	rcu_read_unlock();
@@ -1157,7 +1157,7 @@ ip_vs_icmp_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 	ip_vs_nat_icmp(skb, pp, cp, 0);
 
 	/* Another hack: avoid icmp_send in ip_fragment */
-	skb->local_df = 1;
+	skb->ignore_df = 1;
 
 	rc = ip_vs_nat_send_or_cont(NFPROTO_IPV4, skb, cp, local);
 	rcu_read_unlock();
@@ -1249,7 +1249,7 @@ ip_vs_icmp_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 	ip_vs_nat_icmp_v6(skb, pp, cp, 0);
 
 	/* Another hack: avoid icmp_send in ip_fragment */
-	skb->local_df = 1;
+	skb->ignore_df = 1;
 
 	rc = ip_vs_nat_send_or_cont(NFPROTO_IPV6, skb, cp, local);
 	rcu_read_unlock();

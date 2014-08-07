@@ -1,0 +1,54 @@
+
+IBM Akebono board device tree
+=============================
+
+The IBM Akebono board is a development board for the PPC476GTR SoC.
+
+0) The root node
+
+   Required properties:
+
+   - model : "ibm,akebono".
+   - compatible : "ibm,akebono" , "ibm,476gtr".
+
+1.a) The Secure Digital Host Controller Interface (SDHCI) node
+
+  Represent the Secure Digital Host Controller Interfaces.
+
+  Required properties:
+
+   - compatible : should be "ibm,476gtr-sdhci","generic-sdhci".
+   - reg : should contain the SDHCI registers location and length.
+   - interrupt-parent : a phandle for the interrupt controller.
+   - interrupts : should contain the SDHCI interrupt.
+
+1.b) The Advanced Host Controller Interface (AHCI) SATA node
+
+  Represents the advanced host controller SATA interface.
+
+  Required properties:
+
+   - compatible : should be "ibm,476gtr-ahci".
+   - reg : should contain the AHCI registers location and length.
+   - interrupt-parent : a phandle for the interrupt controller.
+   - interrupts : should contain the AHCI interrupt.
+
+1.c) The FPGA node
+
+  The Akebono board stores some board information such as the revision
+  number in an FPGA which is represented by this node.
+
+  Required properties:
+
+   - compatible : should be "ibm,akebono-fpga".
+   - reg : should contain the FPGA registers location and length.
+
+1.d) The AVR node
+
+  The Akebono board has an Atmel AVR microprocessor attached to the I2C
+  bus as a power controller for the board.
+
+  Required properties:
+
+   - compatible : should be "ibm,akebono-avr".
+   - reg : should contain the I2C bus address for the AVR.

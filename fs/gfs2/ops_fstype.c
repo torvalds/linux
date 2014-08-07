@@ -94,6 +94,7 @@ static struct gfs2_sbd *init_sbd(struct super_block *sb)
 	INIT_LIST_HEAD(&sdp->sd_jindex_list);
 	spin_lock_init(&sdp->sd_jindex_spin);
 	mutex_init(&sdp->sd_jindex_mutex);
+	init_completion(&sdp->sd_journal_ready);
 
 	INIT_LIST_HEAD(&sdp->sd_quota_list);
 	mutex_init(&sdp->sd_quota_mutex);
@@ -129,6 +130,10 @@ static struct gfs2_sbd *init_sbd(struct super_block *sb)
 	init_rwsem(&sdp->sd_log_flush_lock);
 	atomic_set(&sdp->sd_log_in_flight, 0);
 	init_waitqueue_head(&sdp->sd_log_flush_wait);
+	init_waitqueue_head(&sdp->sd_log_frozen_wait);
+	atomic_set(&sdp->sd_log_freeze, 0);
+	atomic_set(&sdp->sd_frozen_root, 0);
+	init_waitqueue_head(&sdp->sd_frozen_root_wait);
 
 	return sdp;
 }
@@ -419,8 +424,8 @@ static int init_locking(struct gfs2_sbd *sdp, struct gfs2_holder *mount_gh,
 		goto fail_live;
 	}
 
-	error = gfs2_glock_get(sdp, GFS2_TRANS_LOCK, &gfs2_trans_glops,
-			       CREATE, &sdp->sd_trans_gl);
+	error = gfs2_glock_get(sdp, GFS2_FREEZE_LOCK, &gfs2_freeze_glops,
+			       CREATE, &sdp->sd_freeze_gl);
 	if (error) {
 		fs_err(sdp, "can't create transaction glock: %d\n", error);
 		goto fail_rename;
@@ -429,7 +434,7 @@ static int init_locking(struct gfs2_sbd *sdp, struct gfs2_holder *mount_gh,
 	return 0;
 
 fail_trans:
-	gfs2_glock_put(sdp->sd_trans_gl);
+	gfs2_glock_put(sdp->sd_freeze_gl);
 fail_rename:
 	gfs2_glock_put(sdp->sd_rename_gl);
 fail_live:
@@ -755,7 +760,15 @@ static int init_journal(struct gfs2_sbd *sdp, int undo)
 	set_bit(SDF_JOURNAL_CHECKED, &sdp->sd_flags);
 	gfs2_glock_dq_uninit(&ji_gh);
 	jindex = 0;
-
+	if (!sdp->sd_args.ar_spectator) {
+		error = gfs2_glock_nq_init(sdp->sd_freeze_gl, LM_ST_SHARED, 0,
+					   &sdp->sd_thaw_gh);
+		if (error) {
+			fs_err(sdp, "can't acquire freeze glock: %d\n", error);
+			goto fail_jinode_gh;
+		}
+	}
+	gfs2_glock_dq_uninit(&sdp->sd_thaw_gh);
 	return 0;
 
 fail_jinode_gh:
@@ -784,6 +797,7 @@ static int init_inodes(struct gfs2_sbd *sdp, int undo)
 		goto fail_qinode;
 
 	error = init_journal(sdp, undo);
+	complete_all(&sdp->sd_journal_ready);
 	if (error)
 		goto fail;
 
@@ -1200,6 +1214,7 @@ fail_sb:
 fail_locking:
 	init_locking(sdp, &mount_gh, UNDO);
 fail_lm:
+	complete_all(&sdp->sd_journal_ready);
 	gfs2_gl_hash_clear(sdp);
 	gfs2_lm_unmount(sdp);
 fail_debug:
@@ -1380,7 +1395,7 @@ static void gfs2_kill_sb(struct super_block *sb)
 		return;
 	}
 
-	gfs2_meta_syncfs(sdp);
+	gfs2_log_flush(sdp, NULL, SYNC_FLUSH);
 	dput(sdp->sd_root_dir);
 	dput(sdp->sd_master_dir);
 	sdp->sd_root_dir = NULL;

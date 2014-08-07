@@ -114,12 +114,16 @@ over a rather long period of time, but improvements are always welcome!
 			http://www.openvms.compaq.com/wizard/wiz_2637.html
 
 		The rcu_dereference() primitive is also an excellent
-		documentation aid, letting the person reading the code
-		know exactly which pointers are protected by RCU.
+		documentation aid, letting the person reading the
+		code know exactly which pointers are protected by RCU.
 		Please note that compilers can also reorder code, and
 		they are becoming increasingly aggressive about doing
-		just that.  The rcu_dereference() primitive therefore
-		also prevents destructive compiler optimizations.
+		just that.  The rcu_dereference() primitive therefore also
+		prevents destructive compiler optimizations.  However,
+		with a bit of devious creativity, it is possible to
+		mishandle the return value from rcu_dereference().
+		Please see rcu_dereference.txt in this directory for
+		more information.
 
 		The rcu_dereference() primitive is used by the
 		various "_rcu()" list-traversal primitives, such

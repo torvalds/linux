@@ -39,6 +39,8 @@
  * @fifo_depth: depth of tx/rx FIFO
  * @slot_width: width of each DAI slot
  * @hck_rate: clock rate of desired HCKx clock
+ * @sck_rate: clock rate of desired SCKx clock
+ * @hck_dir: the direction of HCKx pads
  * @sck_div: if using PSR/PM dividers for SCKx clock
  * @slave_mode: if fully using DAI slave mode
  * @synchronous: if using tx/rx synchronous mode
@@ -55,6 +57,8 @@ struct fsl_esai {
 	u32 fifo_depth;
 	u32 slot_width;
 	u32 hck_rate[2];
+	u32 sck_rate[2];
+	bool hck_dir[2];
 	bool sck_div[2];
 	bool slave_mode;
 	bool synchronous;
@@ -209,8 +213,13 @@ static int fsl_esai_set_dai_sysclk(struct snd_soc_dai *dai, int clk_id,
 	struct clk *clksrc = esai_priv->extalclk;
 	bool tx = clk_id <= ESAI_HCKT_EXTAL;
 	bool in = dir == SND_SOC_CLOCK_IN;
-	u32 ret, ratio, ecr = 0;
+	u32 ratio, ecr = 0;
 	unsigned long clk_rate;
+	int ret;
+
+	/* Bypass divider settings if the requirement doesn't change */
+	if (freq == esai_priv->hck_rate[tx] && dir == esai_priv->hck_dir[tx])
+		return 0;
 
 	/* sck_div can be only bypassed if ETO/ERO=0 and SNC_SOC_CLOCK_OUT */
 	esai_priv->sck_div[tx] = true;
@@ -258,10 +267,16 @@ static int fsl_esai_set_dai_sysclk(struct snd_soc_dai *dai, int clk_id,
 		return -EINVAL;
 	}
 
-	if (ratio == 1) {
+	/* Only EXTAL source can be output directly without using PSR and PM */
+	if (ratio == 1 && clksrc == esai_priv->extalclk) {
 		/* Bypass all the dividers if not being needed */
 		ecr |= tx ? ESAI_ECR_ETO : ESAI_ECR_ERO;
 		goto out;
+	} else if (ratio < 2) {
+		/* The ratio should be no less than 2 if using other sources */
+		dev_err(dai->dev, "failed to derive required HCK%c rate\n",
+				tx ? 'T' : 'R');
+		return -EINVAL;
 	}
 
 	ret = fsl_esai_divisor_cal(dai, tx, ratio, false, 0);
@@ -271,6 +286,7 @@ static int fsl_esai_set_dai_sysclk(struct snd_soc_dai *dai, int clk_id,
 	esai_priv->sck_div[tx] = false;
 
 out:
+	esai_priv->hck_dir[tx] = dir;
 	esai_priv->hck_rate[tx] = freq;
 
 	regmap_update_bits(esai_priv->regmap, REG_ESAI_ECR,
@@ -288,9 +304,10 @@ static int fsl_esai_set_bclk(struct snd_soc_dai *dai, bool tx, u32 freq)
 	struct fsl_esai *esai_priv = snd_soc_dai_get_drvdata(dai);
 	u32 hck_rate = esai_priv->hck_rate[tx];
 	u32 sub, ratio = hck_rate / freq;
+	int ret;
 
-	/* Don't apply for fully slave mode*/
-	if (esai_priv->slave_mode)
+	/* Don't apply for fully slave mode or unchanged bclk */
+	if (esai_priv->slave_mode || esai_priv->sck_rate[tx] == freq)
 		return 0;
 
 	if (ratio * freq > hck_rate)
@@ -307,13 +324,21 @@ static int fsl_esai_set_bclk(struct snd_soc_dai *dai, bool tx, u32 freq)
 		return -EINVAL;
 	}
 
-	if (esai_priv->sck_div[tx] && (ratio > 16 || ratio == 0)) {
+	/* The ratio should be contented by FP alone if bypassing PM and PSR */
+	if (!esai_priv->sck_div[tx] && (ratio > 16 || ratio == 0)) {
 		dev_err(dai->dev, "the ratio is out of range (1 ~ 16)\n");
 		return -EINVAL;
 	}
 
-	return fsl_esai_divisor_cal(dai, tx, ratio, true,
+	ret = fsl_esai_divisor_cal(dai, tx, ratio, true,
 			esai_priv->sck_div[tx] ? 0 : ratio);
+	if (ret)
+		return ret;
+
+	/* Save current bclk rate */
+	esai_priv->sck_rate[tx] = freq;
+
+	return 0;
 }
 
 static int fsl_esai_set_dai_tdm_slot(struct snd_soc_dai *dai, u32 tx_mask,
@@ -432,8 +457,8 @@ static int fsl_esai_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 static int fsl_esai_startup(struct snd_pcm_substream *substream,
 			    struct snd_soc_dai *dai)
 {
-	int ret;
 	struct fsl_esai *esai_priv = snd_soc_dai_get_drvdata(dai);
+	int ret;
 
 	/*
 	 * Some platforms might use the same bit to gate all three or two of
@@ -454,12 +479,6 @@ static int fsl_esai_startup(struct snd_pcm_substream *substream,
 	}
 
 	if (!dai->active) {
-		/* Reset Port C */
-		regmap_update_bits(esai_priv->regmap, REG_ESAI_PRRC,
-				   ESAI_PRRC_PDC_MASK, ESAI_PRRC_PDC(ESAI_GPIO));
-		regmap_update_bits(esai_priv->regmap, REG_ESAI_PCRC,
-				   ESAI_PCRC_PC_MASK, ESAI_PCRC_PC(ESAI_GPIO));
-
 		/* Set synchronous mode */
 		regmap_update_bits(esai_priv->regmap, REG_ESAI_SAICR,
 				   ESAI_SAICR_SYNC, esai_priv->synchronous ?
@@ -491,7 +510,8 @@ static int fsl_esai_hw_params(struct snd_pcm_substream *substream,
 	bool tx = substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
 	u32 width = snd_pcm_format_width(params_format(params));
 	u32 channels = params_channels(params);
-	u32 bclk, mask, val, ret;
+	u32 bclk, mask, val;
+	int ret;
 
 	bclk = params_rate(params) * esai_priv->slot_width * 2;
 
@@ -519,6 +539,11 @@ static int fsl_esai_hw_params(struct snd_pcm_substream *substream,
 
 	regmap_update_bits(esai_priv->regmap, REG_ESAI_xCR(tx), mask, val);
 
+	/* Remove ESAI personal reset by configuring ESAI_PCRC and ESAI_PRRC */
+	regmap_update_bits(esai_priv->regmap, REG_ESAI_PRRC,
+			   ESAI_PRRC_PDC_MASK, ESAI_PRRC_PDC(ESAI_GPIO));
+	regmap_update_bits(esai_priv->regmap, REG_ESAI_PCRC,
+			   ESAI_PCRC_PC_MASK, ESAI_PCRC_PC(ESAI_GPIO));
 	return 0;
 }
 
@@ -816,6 +841,7 @@ static int fsl_esai_probe(struct platform_device *pdev)
 
 static const struct of_device_id fsl_esai_dt_ids[] = {
 	{ .compatible = "fsl,imx35-esai", },
+	{ .compatible = "fsl,vf610-esai", },
 	{}
 };
 MODULE_DEVICE_TABLE(of, fsl_esai_dt_ids);

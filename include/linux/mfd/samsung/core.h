@@ -24,35 +24,36 @@ enum sec_device_type {
 };
 
 /**
- * struct sec_pmic_dev - s5m87xx master device for sub-drivers
- * @dev: master device of the chip (can be used to access platform data)
- * @pdata: pointer to private data used to pass platform data to child
- * @i2c: i2c client private data for regulator
- * @rtc: i2c client private data for rtc
- * @iolock: mutex for serializing io access
- * @irqlock: mutex for buslock
- * @irq_base: base IRQ number for sec-pmic, required for IRQs
- * @irq: generic IRQ number for s5m87xx
- * @ono: power onoff IRQ number for s5m87xx
- * @irq_masks_cur: currently active value
- * @irq_masks_cache: cached hardware value
- * @type: indicate which s5m87xx "variant" is used
+ * struct sec_pmic_dev - s2m/s5m master device for sub-drivers
+ * @dev:		Master device of the chip
+ * @pdata:		Platform data populated with data from DTS
+ *			or board files
+ * @regmap_pmic:	Regmap associated with PMIC's I2C address
+ * @i2c:		I2C client of the main driver
+ * @device_type:	Type of device, matches enum sec_device_type
+ * @irq_base:		Base IRQ number for device, required for IRQs
+ * @irq:		Generic IRQ number for device
+ * @irq_data:		Runtime data structure for IRQ controller
+ * @ono:		Power onoff IRQ number for s5m87xx
+ * @wakeup:		Whether or not this is a wakeup device
+ * @wtsr_smpl:		Whether or not to enable in RTC driver the Watchdog
+ *			Timer Software Reset (registers set to default value
+ *			after PWRHOLD falling) and Sudden Momentary Power Loss
+ *			(PMIC will enter power on sequence after short drop in
+ *			VBATT voltage).
  */
 struct sec_pmic_dev {
 	struct device *dev;
 	struct sec_platform_data *pdata;
 	struct regmap *regmap_pmic;
-	struct regmap *regmap_rtc;
 	struct i2c_client *i2c;
-	struct i2c_client *rtc;
 
-	int device_type;
+	unsigned long device_type;
 	int irq_base;
 	int irq;
 	struct regmap_irq_chip_data *irq_data;
 
 	int ono;
-	unsigned long type;
 	bool wakeup;
 	bool wtsr_smpl;
 };

@@ -461,11 +461,11 @@ The number of blocks and buckets are determined by,
   # of blocks in level #n = |
                             `- 4, Otherwise
 
-                             ,- 2^ (n + dir_level),
-			     |            if n < MAX_DIR_HASH_DEPTH / 2,
+                             ,- 2^(n + dir_level),
+			     |        if n + dir_level < MAX_DIR_HASH_DEPTH / 2,
   # of buckets in level #n = |
-                             `- 2^((MAX_DIR_HASH_DEPTH / 2 + dir_level) - 1),
-			                  Otherwise
+                             `- 2^((MAX_DIR_HASH_DEPTH / 2) - 1),
+			              Otherwise
 
 When F2FS finds a file name in a directory, at first a hash value of the file
 name is calculated. Then, F2FS scans the hash table in level #0 to find the

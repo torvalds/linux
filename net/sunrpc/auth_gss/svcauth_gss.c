@@ -1503,6 +1503,7 @@ svcauth_gss_accept(struct svc_rqst *rqstp, __be32 *authp)
 			if (unwrap_integ_data(rqstp, &rqstp->rq_arg,
 					gc->gc_seq, rsci->mechctx))
 				goto garbage_args;
+			rqstp->rq_auth_slack = RPC_MAX_AUTH_SIZE;
 			break;
 		case RPC_GSS_SVC_PRIVACY:
 			/* placeholders for length and seq. number: */
@@ -1511,6 +1512,7 @@ svcauth_gss_accept(struct svc_rqst *rqstp, __be32 *authp)
 			if (unwrap_priv_data(rqstp, &rqstp->rq_arg,
 					gc->gc_seq, rsci->mechctx))
 				goto garbage_args;
+			rqstp->rq_auth_slack = RPC_MAX_AUTH_SIZE * 2;
 			break;
 		default:
 			goto auth_err;

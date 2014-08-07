@@ -1716,17 +1716,17 @@ static int ext3_journalled_writepage(struct page *page,
 	WARN_ON_ONCE(IS_RDONLY(inode) &&
 		     !(EXT3_SB(inode->i_sb)->s_mount_state & EXT3_ERROR_FS));
 
-	if (ext3_journal_current_handle())
-		goto no_write;
-
 	trace_ext3_journalled_writepage(page);
-	handle = ext3_journal_start(inode, ext3_writepage_trans_blocks(inode));
-	if (IS_ERR(handle)) {
-		ret = PTR_ERR(handle);
-		goto no_write;
-	}
-
 	if (!page_has_buffers(page) || PageChecked(page)) {
+		if (ext3_journal_current_handle())
+			goto no_write;
+
+		handle = ext3_journal_start(inode,
+					    ext3_writepage_trans_blocks(inode));
+		if (IS_ERR(handle)) {
+			ret = PTR_ERR(handle);
+			goto no_write;
+		}
 		/*
 		 * It's mmapped pagecache.  Add buffers and journal it.  There
 		 * doesn't seem much point in redirtying the page here.
@@ -1749,17 +1749,18 @@ static int ext3_journalled_writepage(struct page *page,
 		atomic_set(&EXT3_I(inode)->i_datasync_tid,
 			   handle->h_transaction->t_tid);
 		unlock_page(page);
+		err = ext3_journal_stop(handle);
+		if (!ret)
+			ret = err;
 	} else {
 		/*
-		 * It may be a page full of checkpoint-mode buffers.  We don't
-		 * really know unless we go poke around in the buffer_heads.
-		 * But block_write_full_page will do the right thing.
+		 * It is a page full of checkpoint-mode buffers. Go and write
+		 * them. They should have been already mapped when they went
+		 * to the journal so provide NULL get_block function to catch
+		 * errors.
 		 */
-		ret = block_write_full_page(page, ext3_get_block, wbc);
+		ret = block_write_full_page(page, NULL, wbc);
 	}
-	err = ext3_journal_stop(handle);
-	if (!ret)
-		ret = err;
 out:
 	return ret;
 
@@ -1820,8 +1821,7 @@ static int ext3_releasepage(struct page *page, gfp_t wait)
  * VFS code falls back into buffered path in that case so we are safe.
  */
 static ssize_t ext3_direct_IO(int rw, struct kiocb *iocb,
-			const struct iovec *iov, loff_t offset,
-			unsigned long nr_segs)
+			struct iov_iter *iter, loff_t offset)
 {
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file->f_mapping->host;
@@ -1829,10 +1829,10 @@ static ssize_t ext3_direct_IO(int rw, struct kiocb *iocb,
 	handle_t *handle;
 	ssize_t ret;
 	int orphan = 0;
-	size_t count = iov_length(iov, nr_segs);
+	size_t count = iov_iter_count(iter);
 	int retries = 0;
 
-	trace_ext3_direct_IO_enter(inode, offset, iov_length(iov, nr_segs), rw);
+	trace_ext3_direct_IO_enter(inode, offset, count, rw);
 
 	if (rw == WRITE) {
 		loff_t final_size = offset + count;
@@ -1856,15 +1856,14 @@ static ssize_t ext3_direct_IO(int rw, struct kiocb *iocb,
 	}
 
 retry:
-	ret = blockdev_direct_IO(rw, iocb, inode, iov, offset, nr_segs,
-				 ext3_get_block);
+	ret = blockdev_direct_IO(rw, iocb, inode, iter, offset, ext3_get_block);
 	/*
 	 * In case of error extending write may have instantiated a few
 	 * blocks outside i_size. Trim these off again.
 	 */
 	if (unlikely((rw & WRITE) && ret < 0)) {
 		loff_t isize = i_size_read(inode);
-		loff_t end = offset + iov_length(iov, nr_segs);
+		loff_t end = offset + count;
 
 		if (end > isize)
 			ext3_truncate_failed_direct_write(inode);
@@ -1909,8 +1908,7 @@ retry:
 			ret = err;
 	}
 out:
-	trace_ext3_direct_IO_exit(inode, offset,
-				iov_length(iov, nr_segs), rw, ret);
+	trace_ext3_direct_IO_exit(inode, offset, count, rw, ret);
 	return ret;
 }
 

@@ -147,8 +147,8 @@ static int br_handle_local_finish(struct sk_buff *skb)
 	struct net_bridge_port *p = br_port_get_rcu(skb->dev);
 	u16 vid = 0;
 
-	br_vlan_get_tag(skb, &vid);
-	if (p->flags & BR_LEARNING)
+	/* check if vlan is allowed, to avoid spoofing */
+	if (p->flags & BR_LEARNING && br_should_learn(p, skb, &vid))
 		br_fdb_update(p->br, p, eth_hdr(skb)->h_source, vid, false);
 	return 0;	 /* process further */
 }
@@ -177,6 +177,8 @@ rx_handler_result_t br_handle_frame(struct sk_buff **pskb)
 	p = br_port_get_rcu(skb->dev);
 
 	if (unlikely(is_link_local_ether_addr(dest))) {
+		u16 fwd_mask = p->br->group_fwd_mask_required;
+
 		/*
 		 * See IEEE 802.1D Table 7-10 Reserved addresses
 		 *
@@ -194,7 +196,8 @@ rx_handler_result_t br_handle_frame(struct sk_buff **pskb)
 		case 0x00:	/* Bridge Group Address */
 			/* If STP is turned off,
 			   then must forward to keep loop detection */
-			if (p->br->stp_enabled == BR_NO_STP)
+			if (p->br->stp_enabled == BR_NO_STP ||
+			    fwd_mask & (1u << dest[5]))
 				goto forward;
 			break;
 
@@ -203,7 +206,8 @@ rx_handler_result_t br_handle_frame(struct sk_buff **pskb)
 
 		default:
 			/* Allow selective forwarding for most other protocols */
-			if (p->br->group_fwd_mask & (1u << dest[5]))
+			fwd_mask |= p->br->group_fwd_mask;
+			if (fwd_mask & (1u << dest[5]))
 				goto forward;
 		}
 

@@ -30,10 +30,10 @@ struct linux_pcic {
 };
 
 #ifdef CONFIG_PCIC_PCI
-extern int pcic_present(void);
-extern int pcic_probe(void);
-extern void pci_time_init(void);
-extern void sun4m_pci_init_IRQ(void);
+int pcic_present(void);
+int pcic_probe(void);
+void pci_time_init(void);
+void sun4m_pci_init_IRQ(void);
 #else
 static inline int pcic_present(void) { return 0; }
 static inline int pcic_probe(void) { return 0; }

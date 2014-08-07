@@ -1124,7 +1124,7 @@ uint32_t nva3_pwr_code[] = {
 	0x0f1ec401,
 	0x04b007f1,
 	0xd00604b6,
-	0x04bd0001,
+	0x04bd000e,
 /* 0x03cb: host_send_done */
 	0xf8ba0ef4,
 /* 0x03cd: host_recv */

@@ -353,7 +353,7 @@ static void pcl818_ai_setup_dma(struct comedi_device *dev,
 	disable_dma(devpriv->dma);	/*  disable dma */
 	bytes = devpriv->hwdmasize;
 	if (cmd->stop_src == TRIG_COUNT) {
-		bytes = cmd->chanlist_len * cmd->stop_arg * sizeof(short);
+		bytes = cmd->stop_arg * cfc_bytes_per_scan(s);
 		devpriv->dma_runs_to_end = bytes / devpriv->hwdmasize;
 		devpriv->last_dma_run = bytes % devpriv->hwdmasize;
 		devpriv->dma_runs_to_end--;
@@ -561,7 +561,7 @@ static void pcl818_handle_eoc(struct comedi_device *dev,
 	if (pcl818_ai_dropout(dev, s, chan))
 		return;
 
-	comedi_buf_put(s->async, val);
+	comedi_buf_put(s, val);
 
 	pcl818_ai_next_chan(dev, s);
 }
@@ -590,7 +590,7 @@ static void pcl818_handle_dma(struct comedi_device *dev,
 		if (pcl818_ai_dropout(dev, s, chan))
 			break;
 
-		comedi_buf_put(s->async, val);
+		comedi_buf_put(s, val);
 
 		if (!pcl818_ai_next_chan(dev, s))
 			break;
@@ -630,7 +630,7 @@ static void pcl818_handle_fifo(struct comedi_device *dev,
 		if (pcl818_ai_dropout(dev, s, chan))
 			break;
 
-		comedi_buf_put(s->async, val);
+		comedi_buf_put(s, val);
 
 		if (!pcl818_ai_next_chan(dev, s))
 			break;
@@ -741,7 +741,7 @@ static int ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 	const struct pcl818_board *board = comedi_board(dev);
 	struct pcl818_private *devpriv = dev->private;
 	int err = 0;
-	int tmp;
+	unsigned int arg;
 
 	/* Step 1 : check if triggers are trivially valid */
 
@@ -788,15 +788,12 @@ static int ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 	/* step 4: fix up any arguments */
 
 	if (cmd->convert_src == TRIG_TIMER) {
-		tmp = cmd->convert_arg;
+		arg = cmd->convert_arg;
 		i8253_cascade_ns_to_timer(devpriv->i8253_osc_base,
 					  &devpriv->divisor1,
 					  &devpriv->divisor2,
-					  &cmd->convert_arg, cmd->flags);
-		if (cmd->convert_arg < board->ns_min)
-			cmd->convert_arg = board->ns_min;
-		if (tmp != cmd->convert_arg)
-			err++;
+					  &arg, cmd->flags);
+		err |= cfc_check_trigger_arg_is(&cmd->convert_arg, arg);
 	}
 
 	if (err)

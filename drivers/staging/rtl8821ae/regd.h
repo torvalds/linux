@@ -60,16 +60,8 @@ enum country_code_type_t {
 	COUNTRY_CODE_MAX
 };
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,9,0))
 int rtl_regd_init(struct ieee80211_hw *hw,
 		  void (*reg_notifier) (struct wiphy *wiphy,
 				        struct regulatory_request *request));
 void rtl_reg_notifier(struct wiphy *wiphy, struct regulatory_request *request);
-#else
-int rtl_regd_init(struct ieee80211_hw *hw,
-		  int (*reg_notifier) (struct wiphy *wiphy,
-				       struct regulatory_request *request));
-int rtl_reg_notifier(struct wiphy *wiphy, struct regulatory_request *request);
-#endif
-
 #endif

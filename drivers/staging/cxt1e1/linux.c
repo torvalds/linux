@@ -60,7 +60,6 @@ status_t    c4_chan_work_init(mpi_t *, mch_t *);
 void        musycc_wq_chan_restart(void *);
 status_t __init c4_init(ci_t *, u_char *, u_char *);
 status_t __init c4_init2(ci_t *);
-ci_t       *__init c4_new(void *);
 int __init  c4hw_attach_all(void);
 void __init hdw_sn_get(hdw_info_t *, int);
 
@@ -83,23 +82,6 @@ int         musycc_start_xmit(ci_t *, int, void *);
 
 extern ci_t *CI;
 extern struct s_hdw_info hdw_info[];
-
-#if defined(CONFIG_SBE_HDLC_V7) || defined(CONFIG_SBE_WAN256T3_HDLC_V7) || \
-	defined(CONFIG_SBE_HDLC_V7_MODULE) || defined(CONFIG_SBE_WAN256T3_HDLC_V7_MODULE)
-#define _v7_hdlc_  1
-#else
-#define _v7_hdlc_  0
-#endif
-
-#if _v7_hdlc_
-#define V7(x) (x ## _v7)
-extern int  hdlc_netif_rx_v7(hdlc_device *, struct sk_buff *);
-extern int  register_hdlc_device_v7(hdlc_device *);
-extern int  unregister_hdlc_device_v7(hdlc_device *);
-
-#else
-#define V7(x) x
-#endif
 
 int         error_flag;         /* module load error reporting */
 int         cxt1e1_log_level = LOG_ERROR;
@@ -418,7 +400,7 @@ create_chan(struct net_device *ndev, ci_t *ci,
 		struct c4_priv *priv;
 
 		/* allocate then fill in private data structure */
-		priv = OS_kmalloc(sizeof(struct c4_priv));
+		priv = kzalloc(sizeof(struct c4_priv), GFP_KERNEL);
 		if (!priv) {
 			pr_warning("%s: no memory for net_device !\n",
 				   ci->devname);
@@ -428,7 +410,7 @@ create_chan(struct net_device *ndev, ci_t *ci,
 		if (!dev) {
 			pr_warning("%s: no memory for hdlc_device !\n",
 				   ci->devname);
-			OS_kfree(priv);
+			kfree(priv);
 			return NULL;
 		}
 		priv->ci = ci;
@@ -972,8 +954,8 @@ c4_add_dev(hdw_info_t *hi, int brdno, unsigned long f0, unsigned long f1,
 
 	if (register_netdev(ndev) ||
 		(c4_init(ci, (u_char *) f0, (u_char *) f1) != SBE_DRVR_SUCCESS)) {
-		OS_kfree(netdev_priv(ndev));
-		OS_kfree(ndev);
+		kfree(netdev_priv(ndev));
+		kfree(ndev);
 		error_flag = -ENODEV;
 		return NULL;
 	}
@@ -998,8 +980,8 @@ c4_add_dev(hdw_info_t *hi, int brdno, unsigned long f0, unsigned long f1,
 		pr_warning("%s: MUSYCC could not get irq: %d\n",
 			   ndev->name, irq0);
 		unregister_netdev(ndev);
-		OS_kfree(netdev_priv(ndev));
-		OS_kfree(ndev);
+		kfree(netdev_priv(ndev));
+		kfree(ndev);
 		error_flag = -EIO;
 		return NULL;
 	}
@@ -1008,8 +990,8 @@ c4_add_dev(hdw_info_t *hi, int brdno, unsigned long f0, unsigned long f1,
 		pr_warning("%s: EBUS could not get irq: %d\n", hi->devname, irq1);
 		unregister_netdev(ndev);
 		free_irq(irq0, ndev);
-		OS_kfree(netdev_priv(ndev));
-		OS_kfree(ndev);
+		kfree(netdev_priv(ndev));
+		kfree(ndev);
 		error_flag = -EIO;
 		return NULL;
 	}
@@ -1068,8 +1050,8 @@ c4_add_dev(hdw_info_t *hi, int brdno, unsigned long f0, unsigned long f1,
 		unregister_netdev(ndev);
 		free_irq(irq1, ndev);
 		free_irq(irq0, ndev);
-		OS_kfree(netdev_priv(ndev));
-		OS_kfree(ndev);
+		kfree(netdev_priv(ndev));
+		kfree(ndev);
 		/* failure, error_flag is set */
 		return NULL;
 	}

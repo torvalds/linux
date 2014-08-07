@@ -11,6 +11,7 @@
  */
 
 #include "omap3-overo-common-peripherals.dtsi"
+#include "omap3-overo-common-lcd43.dtsi"
 
 #include <dt-bindings/input/input.h>
 

@@ -78,6 +78,9 @@ struct btmrvl_sdio_card_reg {
 	u8 io_port_0;
 	u8 io_port_1;
 	u8 io_port_2;
+	bool int_read_to_clear;
+	u8 host_int_rsr;
+	u8 card_misc_cfg;
 };
 
 struct btmrvl_sdio_card {

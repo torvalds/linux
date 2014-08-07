@@ -1728,9 +1728,6 @@ static int init_phy(struct net_device *dev)
 
 	phydev = of_phy_connect(dev, ug_info->phy_node, &adjust_link, 0,
 				priv->phy_interface);
-	if (!phydev)
-		phydev = of_phy_connect_fixed_link(dev, &adjust_link,
-						   priv->phy_interface);
 	if (!phydev) {
 		dev_err(&dev->dev, "Could not attach to PHY\n");
 		return -ENODEV;
@@ -2993,11 +2990,11 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 	if (ug_info->rxExtendedFiltering) {
 		size += THREAD_RX_PRAM_ADDITIONAL_FOR_EXTENDED_FILTERING;
 		if (ug_info->largestexternallookupkeysize ==
-		    QE_FLTR_TABLE_LOOKUP_KEY_SIZE_8_BYTES)
+		    QE_FLTR_LARGEST_EXTERNAL_TABLE_LOOKUP_KEY_SIZE_8_BYTES)
 			size +=
 			    THREAD_RX_PRAM_ADDITIONAL_FOR_EXTENDED_FILTERING_8;
 		if (ug_info->largestexternallookupkeysize ==
-		    QE_FLTR_TABLE_LOOKUP_KEY_SIZE_16_BYTES)
+		    QE_FLTR_LARGEST_EXTERNAL_TABLE_LOOKUP_KEY_SIZE_16_BYTES)
 			size +=
 			    THREAD_RX_PRAM_ADDITIONAL_FOR_EXTENDED_FILTERING_16;
 	}
@@ -3790,6 +3787,17 @@ static int ucc_geth_probe(struct platform_device* ofdev)
 	ug_info->uf_info.irq = irq_of_parse_and_map(np, 0);
 
 	ug_info->phy_node = of_parse_phandle(np, "phy-handle", 0);
+	if (!ug_info->phy_node) {
+		/* In the case of a fixed PHY, the DT node associated
+		 * to the PHY is the Ethernet MAC DT node.
+		 */
+		if (of_phy_is_fixed_link(np)) {
+			err = of_phy_register_fixed_link(np);
+			if (err)
+				return err;
+		}
+		ug_info->phy_node = np;
+	}
 
 	/* Find the TBI PHY node.  If it's not there, we don't support SGMII */
 	ug_info->tbi_node = of_parse_phandle(np, "tbi-handle", 0);

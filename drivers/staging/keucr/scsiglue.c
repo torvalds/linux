@@ -106,7 +106,7 @@ static int queuecommand_lck(struct scsi_cmnd *srb,
 	/* check for state-transition errors */
 	if (us->srb != NULL) {
 		/* pr_info("Error in %s: us->srb = %p\n"
-				 __FUNCTION__, us->srb); */
+				 __func__, us->srb); */
 		return SCSI_MLQUEUE_HOST_BUSY;
 	}
 

@@ -289,14 +289,12 @@ int __init mx35_clocks_init(void)
 	return 0;
 }
 
-static int __init mx35_clocks_init_dt(struct device_node *ccm_node)
+static void __init mx35_clocks_init_dt(struct device_node *ccm_node)
 {
 	clk_data.clks = clk;
 	clk_data.clk_num = ARRAY_SIZE(clk);
 	of_clk_add_provider(ccm_node, of_clk_src_onecell_get, &clk_data);
 
 	mx35_clocks_init();
-
-	return 0;
 }
 CLK_OF_DECLARE(imx35, "fsl,imx35-ccm", mx35_clocks_init_dt);

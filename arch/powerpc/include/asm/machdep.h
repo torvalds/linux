@@ -98,6 +98,9 @@ struct machdep_calls {
 	void		(*iommu_save)(void);
 	void		(*iommu_restore)(void);
 #endif
+#ifdef CONFIG_MEMORY_HOTPLUG_SPARSE
+	unsigned long	(*memory_block_size)(void);
+#endif
 #endif /* CONFIG_PPC64 */
 
 	void		(*pci_dma_dev_setup)(struct pci_dev *dev);
@@ -113,6 +116,8 @@ struct machdep_calls {
 	/* Optional, may be NULL. */
 	void		(*show_cpuinfo)(struct seq_file *m);
 	void		(*show_percpuinfo)(struct seq_file *m, int i);
+	/* Returns the current operating frequency of "cpu" in Hz */
+	unsigned long  	(*get_proc_freq)(unsigned int cpu);
 
 	void		(*init_IRQ)(void);
 
@@ -240,6 +245,9 @@ struct machdep_calls {
 
 	/* Called during PCI resource reassignment */
 	resource_size_t (*pcibios_window_alignment)(struct pci_bus *, unsigned long type);
+
+	/* Reset the secondary bus of bridge */
+	void  (*pcibios_reset_secondary_bus)(struct pci_dev *dev);
 
 	/* Called to shutdown machine specific hardware not already controlled
 	 * by other drivers.

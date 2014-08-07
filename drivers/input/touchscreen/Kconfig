@@ -471,6 +471,18 @@ config TOUCHSCREEN_HP7XX
 	  To compile this driver as a module, choose M here: the
 	  module will be called jornada720_ts.
 
+config TOUCHSCREEN_IPAQ_MICRO
+	tristate "HP iPAQ Atmel Micro ASIC touchscreen"
+	depends on MFD_IPAQ_MICRO
+	help
+	  Say Y here to enable support for the touchscreen attached to
+	  the Atmel Micro peripheral controller on iPAQ h3100/h3600/h3700
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ipaq-micro-ts.
+
 config TOUCHSCREEN_HTCPEN
 	tristate "HTC Shift X9500 touchscreen"
 	depends on ISA
@@ -554,18 +566,6 @@ config TOUCHSCREEN_TI_AM335X_TSC
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ti_am335x_tsc.
-
-config TOUCHSCREEN_ATMEL_TSADCC
-	tristate "Atmel Touchscreen Interface"
-	depends on ARCH_AT91
-	help
-	  Say Y here if you have a 4-wire touchscreen connected to the
-          ADC Controller on your Atmel SoC.
-
-	  If unsure, say N.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called atmel_tsadcc.
 
 config TOUCHSCREEN_UCB1400
 	tristate "Philips UCB1400 touchscreen"

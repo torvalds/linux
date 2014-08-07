@@ -18,7 +18,6 @@
 
 #ifndef __ASSEMBLY__
 
-#include <asm/arcregs.h>	/* for STATUS_E1_MASK et all */
 #include <asm/ptrace.h>
 
 /* Arch specific stuff which needs to be saved per task.
@@ -41,15 +40,13 @@ struct thread_struct {
 /* Forward declaration, a strange C thing */
 struct task_struct;
 
-/*
- * Return saved PC of a blocked thread.
- */
+/* Return saved PC of a blocked thread  */
 unsigned long thread_saved_pc(struct task_struct *t);
 
 #define task_pt_regs(p) \
 	((struct pt_regs *)(THREAD_SIZE + (void *)task_stack_page(p)) - 1)
 
-/* Free all resources held by a thread. */
+/* Free all resources held by a thread */
 #define release_thread(thread) do { } while (0)
 
 /* Prepare to copy thread state - unlazy all lazy status */
@@ -82,26 +79,8 @@ unsigned long thread_saved_pc(struct task_struct *t);
 #define KSTK_BLINK(tsk) KSTK_REG(tsk, 4)
 #define KSTK_FP(tsk)    KSTK_REG(tsk, 0)
 
-/*
- * Do necessary setup to start up a newly executed thread.
- *
- * E1,E2 so that Interrupts are enabled in user mode
- * L set, so Loop inhibited to begin with
- * lp_start and lp_end seeded with bogus non-zero values so to easily catch
- * the ARC700 sr to lp_start hardware bug
- */
-#define start_thread(_regs, _pc, _usp)				\
-do {								\
-	set_fs(USER_DS); /* reads from user space */		\
-	(_regs)->ret = (_pc);					\
-	/* Interrupts enabled in User Mode */			\
-	(_regs)->status32 = STATUS_U_MASK | STATUS_L_MASK	\
-		| STATUS_E1_MASK | STATUS_E2_MASK;		\
-	(_regs)->sp = (_usp);					\
-	/* bogus seed values for debugging */			\
-	(_regs)->lp_start = 0x10;				\
-	(_regs)->lp_end = 0x80;					\
-} while (0)
+extern void start_thread(struct pt_regs * regs, unsigned long pc,
+			 unsigned long usp);
 
 extern unsigned int get_wchan(struct task_struct *p);
 

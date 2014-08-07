@@ -96,7 +96,12 @@ struct pci_dev *acpi_get_pci_dev(acpi_handle);
 /* Arch-defined function to add a bus to the system */
 
 struct pci_bus *pci_acpi_scan_root(struct acpi_pci_root *root);
+
+#ifdef CONFIG_X86
 void pci_acpi_crs_quirks(void);
+#else
+static inline void pci_acpi_crs_quirks(void) { }
+#endif
 
 /* --------------------------------------------------------------------------
                                     Processor

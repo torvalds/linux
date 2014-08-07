@@ -745,11 +745,13 @@ void sptlrpc_conf_log_update_begin(const char *logname)
 	mutex_lock(&sptlrpc_conf_lock);
 
 	conf = sptlrpc_conf_get(fsname, 0);
-	if (conf && conf->sc_local) {
-		LASSERT(conf->sc_updated == 0);
-		sptlrpc_conf_free_rsets(conf);
+	if (conf) {
+		if(conf->sc_local) {
+			LASSERT(conf->sc_updated == 0);
+			sptlrpc_conf_free_rsets(conf);
+		}
+		conf->sc_modified = 0;
 	}
-	conf->sc_modified = 0;
 
 	mutex_unlock(&sptlrpc_conf_lock);
 }

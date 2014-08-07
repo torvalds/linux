@@ -24,6 +24,7 @@ extern int zynq_early_slcr_init(void);
 extern void zynq_slcr_system_reset(void);
 extern void zynq_slcr_cpu_stop(int cpu);
 extern void zynq_slcr_cpu_start(int cpu);
+extern u32 zynq_slcr_get_device_id(void);
 
 #ifdef CONFIG_SMP
 extern void secondary_startup(void);

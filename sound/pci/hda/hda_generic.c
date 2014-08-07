@@ -3722,7 +3722,7 @@ static void parse_digital(struct hda_codec *codec)
 		} else {
 			spec->multiout.slave_dig_outs = spec->slave_dig_outs;
 			if (nums >= ARRAY_SIZE(spec->slave_dig_outs) - 1)
-			break;
+				break;
 			spec->slave_dig_outs[nums - 1] = dig_nid;
 		}
 		nums++;

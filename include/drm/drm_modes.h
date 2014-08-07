@@ -223,7 +223,7 @@ void drm_mode_validate_size(struct drm_device *dev,
 void drm_mode_prune_invalid(struct drm_device *dev,
 			    struct list_head *mode_list, bool verbose);
 void drm_mode_sort(struct list_head *mode_list);
-void drm_mode_connector_list_update(struct drm_connector *connector);
+void drm_mode_connector_list_update(struct drm_connector *connector, bool merge_type_bits);
 
 /* parsing cmdline modes */
 bool

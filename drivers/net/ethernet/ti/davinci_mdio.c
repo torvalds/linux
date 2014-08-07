@@ -303,7 +303,7 @@ static int davinci_mdio_probe_dt(struct mdio_platform_data *data,
 		return -EINVAL;
 
 	if (of_property_read_u32(node, "bus_freq", &prop)) {
-		pr_err("Missing bus_freq property in the DT.\n");
+		dev_err(&pdev->dev, "Missing bus_freq property in the DT.\n");
 		return -EINVAL;
 	}
 	data->bus_freq = prop;
@@ -321,15 +321,14 @@ static int davinci_mdio_probe(struct platform_device *pdev)
 	struct phy_device *phy;
 	int ret, addr;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
-	data->bus = mdiobus_alloc();
+	data->bus = devm_mdiobus_alloc(dev);
 	if (!data->bus) {
 		dev_err(dev, "failed to alloc mii bus\n");
-		ret = -ENOMEM;
-		goto bail_out;
+		return -ENOMEM;
 	}
 
 	if (dev->of_node) {
@@ -349,12 +348,9 @@ static int davinci_mdio_probe(struct platform_device *pdev)
 	data->bus->parent	= dev;
 	data->bus->priv		= data;
 
-	/* Select default pin state */
-	pinctrl_pm_select_default_state(&pdev->dev);
-
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_get_sync(&pdev->dev);
-	data->clk = clk_get(&pdev->dev, "fck");
+	data->clk = devm_clk_get(dev, "fck");
 	if (IS_ERR(data->clk)) {
 		dev_err(dev, "failed to get device clock\n");
 		ret = PTR_ERR(data->clk);
@@ -367,24 +363,9 @@ static int davinci_mdio_probe(struct platform_device *pdev)
 	spin_lock_init(&data->lock);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(dev, "could not find register map resource\n");
-		ret = -ENOENT;
-		goto bail_out;
-	}
-
-	res = devm_request_mem_region(dev, res->start, resource_size(res),
-					    dev_name(dev));
-	if (!res) {
-		dev_err(dev, "could not allocate register map resource\n");
-		ret = -ENXIO;
-		goto bail_out;
-	}
-
-	data->regs = devm_ioremap_nocache(dev, res->start, resource_size(res));
-	if (!data->regs) {
-		dev_err(dev, "could not map mdio registers\n");
-		ret = -ENOMEM;
+	data->regs = devm_ioremap_resource(dev, res);
+	if (IS_ERR(data->regs)) {
+		ret = PTR_ERR(data->regs);
 		goto bail_out;
 	}
 
@@ -406,15 +387,8 @@ static int davinci_mdio_probe(struct platform_device *pdev)
 	return 0;
 
 bail_out:
-	if (data->bus)
-		mdiobus_free(data->bus);
-
-	if (data->clk)
-		clk_put(data->clk);
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-
-	kfree(data);
 
 	return ret;
 }
@@ -423,17 +397,11 @@ static int davinci_mdio_remove(struct platform_device *pdev)
 {
 	struct davinci_mdio_data *data = platform_get_drvdata(pdev);
 
-	if (data->bus) {
+	if (data->bus)
 		mdiobus_unregister(data->bus);
-		mdiobus_free(data->bus);
-	}
 
-	if (data->clk)
-		clk_put(data->clk);
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-
-	kfree(data);
 
 	return 0;
 }

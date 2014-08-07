@@ -13,6 +13,7 @@
  *		Vineet Gupta
  */
 
+#include <linux/crc32.h>
 #include <linux/etherdevice.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -362,6 +363,15 @@ static irqreturn_t arc_emac_intr(int irq, void *dev_instance)
 	return IRQ_HANDLED;
 }
 
+#ifdef CONFIG_NET_POLL_CONTROLLER
+static void arc_emac_poll_controller(struct net_device *dev)
+{
+	disable_irq(dev->irq);
+	arc_emac_intr(dev->irq, dev);
+	enable_irq(dev->irq);
+}
+#endif
+
 /**
  * arc_emac_open - Open the network device.
  * @ndev:	Pointer to the network device.
@@ -448,6 +458,41 @@ static int arc_emac_open(struct net_device *ndev)
 	netif_start_queue(ndev);
 
 	return 0;
+}
+
+/**
+ * arc_emac_set_rx_mode - Change the receive filtering mode.
+ * @ndev:	Pointer to the network device.
+ *
+ * This function enables/disables promiscuous or all-multicast mode
+ * and updates the multicast filtering list of the network device.
+ */
+static void arc_emac_set_rx_mode(struct net_device *ndev)
+{
+	struct arc_emac_priv *priv = netdev_priv(ndev);
+
+	if (ndev->flags & IFF_PROMISC) {
+		arc_reg_or(priv, R_CTRL, PROM_MASK);
+	} else {
+		arc_reg_clr(priv, R_CTRL, PROM_MASK);
+
+		if (ndev->flags & IFF_ALLMULTI) {
+			arc_reg_set(priv, R_LAFL, ~0);
+			arc_reg_set(priv, R_LAFH, ~0);
+		} else {
+			struct netdev_hw_addr *ha;
+			unsigned int filter[2] = { 0, 0 };
+			int bit;
+
+			netdev_for_each_mc_addr(ha, ndev) {
+				bit = ether_crc_le(ETH_ALEN, ha->addr) >> 26;
+				filter[bit >> 5] |= 1 << (bit & 31);
+			}
+
+			arc_reg_set(priv, R_LAFL, filter[0]);
+			arc_reg_set(priv, R_LAFH, filter[1]);
+		}
+	}
 }
 
 /**
@@ -620,6 +665,10 @@ static const struct net_device_ops arc_emac_netdev_ops = {
 	.ndo_start_xmit		= arc_emac_tx,
 	.ndo_set_mac_address	= arc_emac_set_address,
 	.ndo_get_stats		= arc_emac_stats,
+	.ndo_set_rx_mode	= arc_emac_set_rx_mode,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= arc_emac_poll_controller,
+#endif
 };
 
 static int arc_emac_probe(struct platform_device *pdev)

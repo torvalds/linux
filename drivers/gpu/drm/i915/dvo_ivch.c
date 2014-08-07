@@ -195,7 +195,7 @@ static bool ivch_read(struct intel_dvo_device *dvo, int addr, uint16_t *data)
 	if (i2c_transfer(adapter, msgs, 3) == 3) {
 		*data = (in_buf[1] << 8) | in_buf[0];
 		return true;
-	};
+	}
 
 	if (!priv->quiet) {
 		DRM_DEBUG_KMS("Unable to read register 0x%02x from "

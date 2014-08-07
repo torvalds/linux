@@ -341,10 +341,6 @@ struct i40e_virtchnl_pf_event {
 	int severity;
 };
 
-/* The following are TBD, not necessary for LAN functionality.
- * I40E_VIRTCHNL_OP_FCOE
- */
-
 /* VF reset states - these are written into the RSTAT register:
  * I40E_VFGEN_RSTAT1 on the PF
  * I40E_VFGEN_RSTAT on the VF

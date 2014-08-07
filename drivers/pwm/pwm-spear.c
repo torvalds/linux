@@ -179,10 +179,8 @@ static int spear_pwm_probe(struct platform_device *pdev)
 	u32 val;
 
 	pc = devm_kzalloc(&pdev->dev, sizeof(*pc), GFP_KERNEL);
-	if (!pc) {
-		dev_err(&pdev->dev, "failed to allocate memory\n");
+	if (!pc)
 		return -ENOMEM;
-	}
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	pc->mmio_base = devm_ioremap_resource(&pdev->dev, r);
@@ -222,7 +220,7 @@ static int spear_pwm_probe(struct platform_device *pdev)
 	}
 
 	ret = pwmchip_add(&pc->chip);
-	if (!ret) {
+	if (ret < 0) {
 		clk_unprepare(pc->clk);
 		dev_err(&pdev->dev, "pwmchip_add() failed: %d\n", ret);
 	}

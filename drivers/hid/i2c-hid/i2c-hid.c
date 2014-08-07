@@ -807,34 +807,18 @@ static int i2c_hid_fetch_hid_descriptor(struct i2c_hid *ihid)
 	unsigned int dsize;
 	int ret;
 
-	/* Fetch the length of HID description, retrieve the 4 first bytes:
+	/* i2c hid fetch using a fixed descriptor size (30 bytes) */
+	i2c_hid_dbg(ihid, "Fetching the HID descriptor\n");
+	ret = i2c_hid_command(client, &hid_descr_cmd, ihid->hdesc_buffer,
+				sizeof(struct i2c_hid_desc));
+	if (ret) {
+		dev_err(&client->dev, "hid_descr_cmd failed\n");
+		return -ENODEV;
+	}
+
+	/* Validate the length of HID descriptor, the 4 first bytes:
 	 * bytes 0-1 -> length
 	 * bytes 2-3 -> bcdVersion (has to be 1.00) */
-	ret = i2c_hid_command(client, &hid_descr_cmd, ihid->hdesc_buffer, 4);
-
-	i2c_hid_dbg(ihid, "%s, ihid->hdesc_buffer: %4ph\n", __func__,
-			ihid->hdesc_buffer);
-
-	if (ret) {
-		dev_err(&client->dev,
-			"unable to fetch the size of HID descriptor (ret=%d)\n",
-			ret);
-		return -ENODEV;
-	}
-
-	dsize = le16_to_cpu(hdesc->wHIDDescLength);
-	/*
-	 * the size of the HID descriptor should at least contain
-	 * its size and the bcdVersion (4 bytes), and should not be greater
-	 * than sizeof(struct i2c_hid_desc) as we directly fill this struct
-	 * through i2c_hid_command.
-	 */
-	if (dsize < 4 || dsize > sizeof(struct i2c_hid_desc)) {
-		dev_err(&client->dev, "weird size of HID descriptor (%u)\n",
-			dsize);
-		return -ENODEV;
-	}
-
 	/* check bcdVersion == 1.0 */
 	if (le16_to_cpu(hdesc->bcdVersion) != 0x0100) {
 		dev_err(&client->dev,
@@ -843,17 +827,14 @@ static int i2c_hid_fetch_hid_descriptor(struct i2c_hid *ihid)
 		return -ENODEV;
 	}
 
-	i2c_hid_dbg(ihid, "Fetching the HID descriptor\n");
-
-	ret = i2c_hid_command(client, &hid_descr_cmd, ihid->hdesc_buffer,
-				dsize);
-	if (ret) {
-		dev_err(&client->dev, "hid_descr_cmd Fail\n");
+	/* Descriptor length should be 30 bytes as per the specification */
+	dsize = le16_to_cpu(hdesc->wHIDDescLength);
+	if (dsize != sizeof(struct i2c_hid_desc)) {
+		dev_err(&client->dev, "weird size of HID descriptor (%u)\n",
+			dsize);
 		return -ENODEV;
 	}
-
 	i2c_hid_dbg(ihid, "HID Descriptor: %*ph\n", dsize, ihid->hdesc_buffer);
-
 	return 0;
 }
 

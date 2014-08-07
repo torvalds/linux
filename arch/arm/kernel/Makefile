@@ -39,6 +39,7 @@ obj-$(CONFIG_ARTHUR)		+= arthur.o
 obj-$(CONFIG_ISA_DMA)		+= dma-isa.o
 obj-$(CONFIG_PCI)		+= bios32.o isa.o
 obj-$(CONFIG_ARM_CPU_SUSPEND)	+= sleep.o suspend.o
+obj-$(CONFIG_HIBERNATION)	+= hibernate.o
 obj-$(CONFIG_SMP)		+= smp.o
 ifdef CONFIG_MMU
 obj-$(CONFIG_SMP)		+= smp_tlb.o

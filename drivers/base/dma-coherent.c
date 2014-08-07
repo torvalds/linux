@@ -10,13 +10,13 @@
 struct dma_coherent_mem {
 	void		*virt_base;
 	dma_addr_t	device_base;
-	phys_addr_t	pfn_base;
+	unsigned long	pfn_base;
 	int		size;
 	int		flags;
 	unsigned long	*bitmap;
 };
 
-int dma_declare_coherent_memory(struct device *dev, dma_addr_t bus_addr,
+int dma_declare_coherent_memory(struct device *dev, phys_addr_t phys_addr,
 				dma_addr_t device_addr, size_t size, int flags)
 {
 	void __iomem *mem_base = NULL;
@@ -32,7 +32,7 @@ int dma_declare_coherent_memory(struct device *dev, dma_addr_t bus_addr,
 
 	/* FIXME: this routine just ignores DMA_MEMORY_INCLUDES_CHILDREN */
 
-	mem_base = ioremap(bus_addr, size);
+	mem_base = ioremap(phys_addr, size);
 	if (!mem_base)
 		goto out;
 
@@ -45,7 +45,7 @@ int dma_declare_coherent_memory(struct device *dev, dma_addr_t bus_addr,
 
 	dev->dma_mem->virt_base = mem_base;
 	dev->dma_mem->device_base = device_addr;
-	dev->dma_mem->pfn_base = PFN_DOWN(bus_addr);
+	dev->dma_mem->pfn_base = PFN_DOWN(phys_addr);
 	dev->dma_mem->size = pages;
 	dev->dma_mem->flags = flags;
 
@@ -208,7 +208,7 @@ int dma_mmap_from_coherent(struct device *dev, struct vm_area_struct *vma,
 
 		*ret = -ENXIO;
 		if (off < count && user_count <= count - off) {
-			unsigned pfn = mem->pfn_base + start + off;
+			unsigned long pfn = mem->pfn_base + start + off;
 			*ret = remap_pfn_range(vma, vma->vm_start, pfn,
 					       user_count << PAGE_SHIFT,
 					       vma->vm_page_prot);

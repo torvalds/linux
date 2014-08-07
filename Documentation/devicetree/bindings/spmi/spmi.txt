@@ -26,7 +26,7 @@ Each child node must have one and only one 'reg' entry of type SPMI_USID.
 		reg = <...>;
 
 		#address-cells = <2>;
-		#size-cells <0>;
+		#size-cells = <0>;
 
 		child@0 {
 			compatible = "...";

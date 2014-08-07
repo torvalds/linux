@@ -325,14 +325,14 @@ static inline struct ath9k_htc_tx_ctl *HTC_SKB_CB(struct sk_buff *skb)
 
 #define TX_STAT_INC(c) (hif_dev->htc_handle->drv_priv->debug.tx_stats.c++)
 #define TX_STAT_ADD(c, a) (hif_dev->htc_handle->drv_priv->debug.tx_stats.c += a)
-#define RX_STAT_INC(c) (hif_dev->htc_handle->drv_priv->debug.rx_stats.c++)
-#define RX_STAT_ADD(c, a) (hif_dev->htc_handle->drv_priv->debug.rx_stats.c += a)
+#define RX_STAT_INC(c) (hif_dev->htc_handle->drv_priv->debug.skbrx_stats.c++)
+#define RX_STAT_ADD(c, a) (hif_dev->htc_handle->drv_priv->debug.skbrx_stats.c += a)
 #define CAB_STAT_INC   priv->debug.tx_stats.cab_queued++
 
 #define TX_QSTAT_INC(q) (priv->debug.tx_stats.queue_stats[q]++)
 
 void ath9k_htc_err_stat_rx(struct ath9k_htc_priv *priv,
-			   struct ath_htc_rx_status *rxs);
+			   struct ath_rx_status *rs);
 
 struct ath_tx_stats {
 	u32 buf_queued;
@@ -345,25 +345,18 @@ struct ath_tx_stats {
 	u32 queue_stats[IEEE80211_NUM_ACS];
 };
 
-struct ath_rx_stats {
+struct ath_skbrx_stats {
 	u32 skb_allocated;
 	u32 skb_completed;
 	u32 skb_completed_bytes;
 	u32 skb_dropped;
-	u32 err_crc;
-	u32 err_decrypt_crc;
-	u32 err_mic;
-	u32 err_pre_delim;
-	u32 err_post_delim;
-	u32 err_decrypt_busy;
-	u32 err_phy;
-	u32 err_phy_stats[ATH9K_PHYERR_MAX];
 };
 
 struct ath9k_debug {
 	struct dentry *debugfs_phy;
 	struct ath_tx_stats tx_stats;
 	struct ath_rx_stats rx_stats;
+	struct ath_skbrx_stats skbrx_stats;
 };
 
 void ath9k_htc_get_et_strings(struct ieee80211_hw *hw,
@@ -385,7 +378,7 @@ void ath9k_htc_get_et_stats(struct ieee80211_hw *hw,
 #define TX_QSTAT_INC(c) do { } while (0)
 
 static inline void ath9k_htc_err_stat_rx(struct ath9k_htc_priv *priv,
-					 struct ath_htc_rx_status *rxs)
+					 struct ath_rx_status *rs)
 {
 }
 

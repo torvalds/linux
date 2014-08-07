@@ -851,7 +851,7 @@ out:
 static void ndisc_recv_na(struct sk_buff *skb)
 {
 	struct nd_msg *msg = (struct nd_msg *)skb_transport_header(skb);
-	const struct in6_addr *saddr = &ipv6_hdr(skb)->saddr;
+	struct in6_addr *saddr = &ipv6_hdr(skb)->saddr;
 	const struct in6_addr *daddr = &ipv6_hdr(skb)->daddr;
 	u8 *lladdr = NULL;
 	u32 ndoptlen = skb_tail_pointer(skb) - (skb_transport_header(skb) +
@@ -944,10 +944,7 @@ static void ndisc_recv_na(struct sk_buff *skb)
 			/*
 			 * Change: router to host
 			 */
-			struct rt6_info *rt;
-			rt = rt6_get_dflt_router(saddr, dev);
-			if (rt)
-				ip6_del_rt(rt);
+			rt6_clean_tohost(dev_net(dev),  saddr);
 		}
 
 out:

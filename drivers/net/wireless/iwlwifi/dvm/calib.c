@@ -94,7 +94,6 @@ int iwl_send_calib_results(struct iwl_priv *priv)
 {
 	struct iwl_host_cmd hcmd = {
 		.id = REPLY_PHY_CALIBRATION_CMD,
-		.flags = CMD_SYNC,
 	};
 	struct iwl_calib_result *res;
 

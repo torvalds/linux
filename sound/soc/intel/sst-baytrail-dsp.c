@@ -214,6 +214,13 @@ static void sst_byt_boot(struct sst_dsp *sst)
 {
 	int tries = 10;
 
+	/*
+	 * save the physical address of extended firmware block in the first
+	 * 4 bytes of the mailbox
+	 */
+	memcpy_toio(sst->addr.lpe + SST_BYT_MAILBOX_OFFSET,
+	       &sst->pdata->fw_base, sizeof(u32));
+
 	/* release stall and wait to unstall */
 	sst_dsp_shim_update_bits64(sst, SST_CSR, SST_BYT_CSR_STALL, 0x0);
 	while (tries--) {
@@ -317,14 +324,7 @@ static int sst_byt_init(struct sst_dsp *sst, struct sst_pdata *pdata)
 		return ret;
 	}
 
-	/*
-	 * save the physical address of extended firmware block in the first
-	 * 4 bytes of the mailbox
-	 */
-	memcpy_toio(sst->addr.lpe + SST_BYT_MAILBOX_OFFSET,
-	       &pdata->fw_base, sizeof(u32));
-
-	ret = dma_coerce_mask_and_coherent(dev, DMA_BIT_MASK(32));
+	ret = dma_coerce_mask_and_coherent(sst->dma_dev, DMA_BIT_MASK(32));
 	if (ret)
 		return ret;
 

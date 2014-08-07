@@ -17,15 +17,6 @@
 #ifndef __ALTERA_MSGDMAHW_H__
 #define __ALTERA_MSGDMAHW_H__
 
-/* mSGDMA standard descriptor format
- */
-struct msgdma_desc {
-	u32 read_addr;	/* data buffer source address */
-	u32 write_addr;	/* data buffer destination address */
-	u32 len;	/* the number of bytes to transfer per descriptor */
-	u32 control;	/* characteristics of the transfer */
-};
-
 /* mSGDMA extended descriptor format
  */
 struct msgdma_extended_desc {
@@ -158,6 +149,10 @@ struct msgdma_response {
 	u32 bytes_transferred;
 	u32 status;
 };
+
+#define msgdma_respoffs(a) (offsetof(struct msgdma_response, a))
+#define msgdma_csroffs(a) (offsetof(struct msgdma_csr, a))
+#define msgdma_descroffs(a) (offsetof(struct msgdma_extended_desc, a))
 
 /* mSGDMA response register bit definitions
  */

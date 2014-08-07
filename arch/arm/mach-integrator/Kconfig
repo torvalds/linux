@@ -28,7 +28,7 @@ config ARCH_CINTEGRATOR
 	bool
 
 config INTEGRATOR_IMPD1
-	tristate "Include support for Integrator/IM-PD1"
+	bool "Include support for Integrator/IM-PD1"
 	depends on ARCH_INTEGRATOR_AP
 	select ARCH_REQUIRE_GPIOLIB
 	select ARM_VIC

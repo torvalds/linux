@@ -110,9 +110,15 @@
 #ifndef cpu_has_smartmips
 #define cpu_has_smartmips	(cpu_data[0].ases & MIPS_ASE_SMARTMIPS)
 #endif
+
 #ifndef cpu_has_rixi
-#define cpu_has_rixi		(cpu_data[0].options & MIPS_CPU_RIXI)
+# ifdef CONFIG_64BIT
+# define cpu_has_rixi		(cpu_data[0].options & MIPS_CPU_RIXI)
+# else /* CONFIG_32BIT */
+# define cpu_has_rixi		((cpu_data[0].options & MIPS_CPU_RIXI) && !cpu_has_64bits)
+# endif
 #endif
+
 #ifndef cpu_has_mmips
 # ifdef CONFIG_SYS_SUPPORTS_MICROMIPS
 #  define cpu_has_mmips		(cpu_data[0].options & MIPS_CPU_MICROMIPS)
@@ -120,6 +126,7 @@
 #  define cpu_has_mmips		0
 # endif
 #endif
+
 #ifndef cpu_has_vtag_icache
 #define cpu_has_vtag_icache	(cpu_data[0].icache.flags & MIPS_CACHE_VTAG)
 #endif
@@ -183,6 +190,17 @@
 /*
  * Shortcuts ...
  */
+#define cpu_has_mips_2_3_4_5	(cpu_has_mips_2 | cpu_has_mips_3_4_5)
+#define cpu_has_mips_3_4_5	(cpu_has_mips_3 | cpu_has_mips_4_5)
+#define cpu_has_mips_4_5	(cpu_has_mips_4 | cpu_has_mips_5)
+
+#define cpu_has_mips_2_3_4_5_r	(cpu_has_mips_2 | cpu_has_mips_3_4_5_r)
+#define cpu_has_mips_3_4_5_r	(cpu_has_mips_3 | cpu_has_mips_4_5_r)
+#define cpu_has_mips_4_5_r	(cpu_has_mips_4 | cpu_has_mips_5_r)
+#define cpu_has_mips_5_r	(cpu_has_mips_5 | cpu_has_mips_r)
+
+#define cpu_has_mips_4_5_r2	(cpu_has_mips_4_5 | cpu_has_mips_r2)
+
 #define cpu_has_mips32	(cpu_has_mips32r1 | cpu_has_mips32r2)
 #define cpu_has_mips64	(cpu_has_mips64r1 | cpu_has_mips64r2)
 #define cpu_has_mips_r1 (cpu_has_mips32r1 | cpu_has_mips64r1)

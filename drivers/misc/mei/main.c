@@ -467,7 +467,6 @@ static int mei_ioctl_connect_client(struct file *file,
 	}
 
 	cl->me_client_id = dev->me_clients[i].client_id;
-	cl->state = MEI_FILE_CONNECTING;
 
 	dev_dbg(&dev->pdev->dev, "Connect to FW Client ID = %d\n",
 			cl->me_client_id);

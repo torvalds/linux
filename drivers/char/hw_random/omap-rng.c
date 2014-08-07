@@ -369,10 +369,8 @@ static int omap_rng_probe(struct platform_device *pdev)
 	int ret;
 
 	priv = devm_kzalloc(dev, sizeof(struct omap_rng_dev), GFP_KERNEL);
-	if (!priv) {
-		dev_err(&pdev->dev, "could not allocate memory\n");
+	if (!priv)
 		return -ENOMEM;
-	};
 
 	omap_rng_ops.priv = (unsigned long)priv;
 	platform_set_drvdata(pdev, priv);

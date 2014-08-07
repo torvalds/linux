@@ -32,6 +32,8 @@
 #include <assert.h>
 #include <ftw.h>
 #include <time.h>
+#include <setjmp.h>
+#include <signal.h>
 #include <sys/types.h>
 #include <sys/errno.h>
 #include <sys/fcntl.h>
@@ -824,21 +826,38 @@ static void show_file(const char *name, const struct stat *st)
 			atime, now - st->st_atime);
 }
 
+static sigjmp_buf sigbus_jmp;
+
+static void * volatile sigbus_addr;
+
+static void sigbus_handler(int sig, siginfo_t *info, void *ucontex)
+{
+	(void)sig;
+	(void)ucontex;
+	sigbus_addr = info ? info->si_addr : NULL;
+	siglongjmp(sigbus_jmp, 1);
+}
+
+static struct sigaction sigbus_action = {
+	.sa_sigaction = sigbus_handler,
+	.sa_flags = SA_SIGINFO,
+};
+
 static void walk_file(const char *name, const struct stat *st)
 {
 	uint8_t vec[PAGEMAP_BATCH];
 	uint64_t buf[PAGEMAP_BATCH], flags;
 	unsigned long nr_pages, pfn, i;
+	off_t off, end = st->st_size;
 	int fd;
-	off_t off;
 	ssize_t len;
 	void *ptr;
 	int first = 1;
 
 	fd = checked_open(name, O_RDONLY|O_NOATIME|O_NOFOLLOW);
 
-	for (off = 0; off < st->st_size; off += len) {
-		nr_pages = (st->st_size - off + page_size - 1) / page_size;
+	for (off = 0; off < end; off += len) {
+		nr_pages = (end - off + page_size - 1) / page_size;
 		if (nr_pages > PAGEMAP_BATCH)
 			nr_pages = PAGEMAP_BATCH;
 		len = nr_pages * page_size;
@@ -855,11 +874,19 @@ static void walk_file(const char *name, const struct stat *st)
 		if (madvise(ptr, len, MADV_RANDOM))
 			fatal("madvice failed: %s", name);
 
+		if (sigsetjmp(sigbus_jmp, 1)) {
+			end = off + sigbus_addr ? sigbus_addr - ptr : 0;
+			fprintf(stderr, "got sigbus at offset %lld: %s\n",
+					(long long)end, name);
+			goto got_sigbus;
+		}
+
 		/* populate ptes */
 		for (i = 0; i < nr_pages ; i++) {
 			if (vec[i] & 1)
 				(void)*(volatile int *)(ptr + i * page_size);
 		}
+got_sigbus:
 
 		/* turn off harvesting reference bits */
 		if (madvise(ptr, len, MADV_SEQUENTIAL))
@@ -910,6 +937,7 @@ static void walk_page_cache(void)
 
 	kpageflags_fd = checked_open(PROC_KPAGEFLAGS, O_RDONLY);
 	pagemap_fd = checked_open("/proc/self/pagemap", O_RDONLY);
+	sigaction(SIGBUS, &sigbus_action, NULL);
 
 	if (stat(opt_file, &st))
 		fatal("stat failed: %s\n", opt_file);
@@ -925,6 +953,7 @@ static void walk_page_cache(void)
 
 	close(kpageflags_fd);
 	close(pagemap_fd);
+	signal(SIGBUS, SIG_DFL);
 }
 
 static void parse_file(const char *name)

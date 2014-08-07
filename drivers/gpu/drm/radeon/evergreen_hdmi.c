@@ -293,10 +293,13 @@ void evergreen_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode
 	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 	struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
+	struct drm_connector *connector = radeon_get_connector_for_encoder(encoder);
 	u8 buffer[HDMI_INFOFRAME_HEADER_SIZE + HDMI_AVI_INFOFRAME_SIZE];
 	struct hdmi_avi_infoframe frame;
 	uint32_t offset;
 	ssize_t err;
+	uint32_t val;
+	int bpc = 8;
 
 	if (!dig || !dig->afmt)
 		return;
@@ -305,6 +308,12 @@ void evergreen_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode
 	if (!dig->afmt->enabled)
 		return;
 	offset = dig->afmt->offset;
+
+	/* hdmi deep color mode general control packets setup, if bpc > 8 */
+	if (encoder->crtc) {
+		struct radeon_crtc *radeon_crtc = to_radeon_crtc(encoder->crtc);
+		bpc = radeon_crtc->bpc;
+	}
 
 	/* disable audio prior to setting up hw */
 	if (ASIC_IS_DCE6(rdev)) {
@@ -321,6 +330,35 @@ void evergreen_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode
 	       HDMI_NULL_SEND); /* send null packets when required */
 
 	WREG32(AFMT_AUDIO_CRC_CONTROL + offset, 0x1000);
+
+	val = RREG32(HDMI_CONTROL + offset);
+	val &= ~HDMI_DEEP_COLOR_ENABLE;
+	val &= ~HDMI_DEEP_COLOR_DEPTH_MASK;
+
+	switch (bpc) {
+		case 0:
+		case 6:
+		case 8:
+		case 16:
+		default:
+			DRM_DEBUG("%s: Disabling hdmi deep color for %d bpc.\n",
+					 connector->name, bpc);
+			break;
+		case 10:
+			val |= HDMI_DEEP_COLOR_ENABLE;
+			val |= HDMI_DEEP_COLOR_DEPTH(HDMI_30BIT_DEEP_COLOR);
+			DRM_DEBUG("%s: Enabling hdmi deep color 30 for 10 bpc.\n",
+					 connector->name);
+			break;
+		case 12:
+			val |= HDMI_DEEP_COLOR_ENABLE;
+			val |= HDMI_DEEP_COLOR_DEPTH(HDMI_36BIT_DEEP_COLOR);
+			DRM_DEBUG("%s: Enabling hdmi deep color 36 for 12 bpc.\n",
+					 connector->name);
+			break;
+	}
+
+	WREG32(HDMI_CONTROL + offset, val);
 
 	WREG32(HDMI_VBI_PACKET_CONTROL + offset,
 	       HDMI_NULL_SEND | /* send null packets when required */
@@ -348,9 +386,13 @@ void evergreen_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode
 
 	/* fglrx clears sth in AFMT_AUDIO_PACKET_CONTROL2 here */
 
-	WREG32(HDMI_ACR_PACKET_CONTROL + offset,
-	       HDMI_ACR_SOURCE | /* select SW CTS value */
-	       HDMI_ACR_AUTO_SEND); /* allow hw to sent ACR packets when required */
+	if (bpc > 8)
+		WREG32(HDMI_ACR_PACKET_CONTROL + offset,
+		       HDMI_ACR_AUTO_SEND); /* allow hw to sent ACR packets when required */
+	else
+		WREG32(HDMI_ACR_PACKET_CONTROL + offset,
+		       HDMI_ACR_SOURCE | /* select SW CTS value */
+		       HDMI_ACR_AUTO_SEND); /* allow hw to sent ACR packets when required */
 
 	evergreen_hdmi_update_ACR(encoder, mode->clock);
 

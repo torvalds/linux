@@ -9,8 +9,7 @@
 /dts-v1/;
 #include "stih416.dtsi"
 #include "stih41x-b2000.dtsi"
-
 / {
-	compatible = "st,stih416", "st,stih416-b2000";
 	model = "STiH416 B2000";
+	compatible = "st,stih416-b2000", "st,stih416";
 };

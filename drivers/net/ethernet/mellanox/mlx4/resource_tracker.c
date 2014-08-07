@@ -279,7 +279,7 @@ enum qp_transition {
 };
 
 /* For Debug uses */
-static const char *ResourceType(enum mlx4_resource rt)
+static const char *resource_str(enum mlx4_resource rt)
 {
 	switch (rt) {
 	case RES_QP: return "RES_QP";
@@ -307,6 +307,7 @@ static inline int mlx4_grant_resource(struct mlx4_dev *dev, int slave,
 		&priv->mfunc.master.res_tracker.res_alloc[res_type];
 	int err = -EINVAL;
 	int allocated, free, reserved, guaranteed, from_free;
+	int from_rsvd;
 
 	if (slave > dev->num_vfs)
 		return -EINVAL;
@@ -321,11 +322,16 @@ static inline int mlx4_grant_resource(struct mlx4_dev *dev, int slave,
 		res_alloc->res_reserved;
 	guaranteed = res_alloc->guaranteed[slave];
 
-	if (allocated + count > res_alloc->quota[slave])
+	if (allocated + count > res_alloc->quota[slave]) {
+		mlx4_warn(dev, "VF %d port %d res %s: quota exceeded, count %d alloc %d quota %d\n",
+			  slave, port, resource_str(res_type), count,
+			  allocated, res_alloc->quota[slave]);
 		goto out;
+	}
 
 	if (allocated + count <= guaranteed) {
 		err = 0;
+		from_rsvd = count;
 	} else {
 		/* portion may need to be obtained from free area */
 		if (guaranteed - allocated > 0)
@@ -333,8 +339,14 @@ static inline int mlx4_grant_resource(struct mlx4_dev *dev, int slave,
 		else
 			from_free = count;
 
-		if (free - from_free > reserved)
+		from_rsvd = count - from_free;
+
+		if (free - from_free >= reserved)
 			err = 0;
+		else
+			mlx4_warn(dev, "VF %d port %d res %s: free pool empty, free %d from_free %d rsvd %d\n",
+				  slave, port, resource_str(res_type), free,
+				  from_free, reserved);
 	}
 
 	if (!err) {
@@ -342,9 +354,11 @@ static inline int mlx4_grant_resource(struct mlx4_dev *dev, int slave,
 		if (port > 0) {
 			res_alloc->allocated[(port - 1) * (dev->num_vfs + 1) + slave] += count;
 			res_alloc->res_port_free[port - 1] -= count;
+			res_alloc->res_port_rsvd[port - 1] -= from_rsvd;
 		} else {
 			res_alloc->allocated[slave] += count;
 			res_alloc->res_free -= count;
+			res_alloc->res_reserved -= from_rsvd;
 		}
 	}
 
@@ -360,17 +374,36 @@ static inline void mlx4_release_resource(struct mlx4_dev *dev, int slave,
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct resource_allocator *res_alloc =
 		&priv->mfunc.master.res_tracker.res_alloc[res_type];
+	int allocated, guaranteed, from_rsvd;
 
 	if (slave > dev->num_vfs)
 		return;
 
 	spin_lock(&res_alloc->alloc_lock);
+
+	allocated = (port > 0) ?
+		res_alloc->allocated[(port - 1) * (dev->num_vfs + 1) + slave] :
+		res_alloc->allocated[slave];
+	guaranteed = res_alloc->guaranteed[slave];
+
+	if (allocated - count >= guaranteed) {
+		from_rsvd = 0;
+	} else {
+		/* portion may need to be returned to reserved area */
+		if (allocated - guaranteed > 0)
+			from_rsvd = count - (allocated - guaranteed);
+		else
+			from_rsvd = count;
+	}
+
 	if (port > 0) {
 		res_alloc->allocated[(port - 1) * (dev->num_vfs + 1) + slave] -= count;
 		res_alloc->res_port_free[port - 1] += count;
+		res_alloc->res_port_rsvd[port - 1] += from_rsvd;
 	} else {
 		res_alloc->allocated[slave] -= count;
 		res_alloc->res_free += count;
+		res_alloc->res_reserved += from_rsvd;
 	}
 
 	spin_unlock(&res_alloc->alloc_lock);
@@ -586,6 +619,7 @@ void mlx4_free_resource_tracker(struct mlx4_dev *dev,
 			}
 			/* free master's vlans */
 			i = dev->caps.function;
+			mlx4_reset_roce_gids(dev, i);
 			mutex_lock(&priv->mfunc.master.res_tracker.slave_list[i].mutex);
 			rem_slave_vlans(dev, i);
 			mutex_unlock(&priv->mfunc.master.res_tracker.slave_list[i].mutex);
@@ -962,7 +996,7 @@ static struct res_common *alloc_tr(u64 id, enum mlx4_resource type, int slave,
 		ret = alloc_srq_tr(id);
 		break;
 	case RES_MAC:
-		printk(KERN_ERR "implementation missing\n");
+		pr_err("implementation missing\n");
 		return NULL;
 	case RES_COUNTER:
 		ret = alloc_counter_tr(id);
@@ -1056,10 +1090,10 @@ static int remove_mtt_ok(struct res_mtt *res, int order)
 {
 	if (res->com.state == RES_MTT_BUSY ||
 	    atomic_read(&res->ref_count)) {
-		printk(KERN_DEBUG "%s-%d: state %s, ref_count %d\n",
-		       __func__, __LINE__,
-		       mtt_states_str(res->com.state),
-		       atomic_read(&res->ref_count));
+		pr_devel("%s-%d: state %s, ref_count %d\n",
+			 __func__, __LINE__,
+			 mtt_states_str(res->com.state),
+			 atomic_read(&res->ref_count));
 		return -EBUSY;
 	} else if (res->com.state != RES_MTT_ALLOCATED)
 		return -EPERM;
@@ -1532,7 +1566,7 @@ static int qp_alloc_res(struct mlx4_dev *dev, int slave, int op, int cmd,
 			return err;
 
 		if (!fw_reserved(dev, qpn)) {
-			err = __mlx4_qp_alloc_icm(dev, qpn);
+			err = __mlx4_qp_alloc_icm(dev, qpn, GFP_KERNEL);
 			if (err) {
 				res_abort_move(dev, slave, RES_QP, qpn);
 				return err;
@@ -1619,7 +1653,7 @@ static int mpt_alloc_res(struct mlx4_dev *dev, int slave, int op, int cmd,
 		if (err)
 			return err;
 
-		err = __mlx4_mpt_alloc_icm(dev, mpt->key);
+		err = __mlx4_mpt_alloc_icm(dev, mpt->key, GFP_KERNEL);
 		if (err) {
 			res_abort_move(dev, slave, RES_MPT, id);
 			return err;
@@ -2827,10 +2861,12 @@ static int get_containing_mtt(struct mlx4_dev *dev, int slave, int start,
 }
 
 static int verify_qp_parameters(struct mlx4_dev *dev,
+				struct mlx4_vhcr *vhcr,
 				struct mlx4_cmd_mailbox *inbox,
 				enum qp_transition transition, u8 slave)
 {
 	u32			qp_type;
+	u32			qpn;
 	struct mlx4_qp_context	*qp_ctx;
 	enum mlx4_qp_optpar	optpar;
 	int port;
@@ -2873,8 +2909,22 @@ static int verify_qp_parameters(struct mlx4_dev *dev,
 		default:
 			break;
 		}
-
 		break;
+
+	case MLX4_QP_ST_MLX:
+		qpn = vhcr->in_modifier & 0x7fffff;
+		port = (qp_ctx->pri_path.sched_queue >> 6 & 1) + 1;
+		if (transition == QP_TRANS_INIT2RTR &&
+		    slave != mlx4_master_func_num(dev) &&
+		    mlx4_is_qp_reserved(dev, qpn) &&
+		    !mlx4_vf_smi_enabled(dev, slave, port)) {
+			/* only enabled VFs may create MLX proxy QPs */
+			mlx4_err(dev, "%s: unprivileged slave %d attempting to create an MLX proxy special QP on port %d\n",
+				 __func__, slave, port);
+			return -EPERM;
+		}
+		break;
+
 	default:
 		break;
 	}
@@ -3454,7 +3504,7 @@ int mlx4_INIT2RTR_QP_wrapper(struct mlx4_dev *dev, int slave,
 	err = adjust_qp_sched_queue(dev, slave, qpc, inbox);
 	if (err)
 		return err;
-	err = verify_qp_parameters(dev, inbox, QP_TRANS_INIT2RTR, slave);
+	err = verify_qp_parameters(dev, vhcr, inbox, QP_TRANS_INIT2RTR, slave);
 	if (err)
 		return err;
 
@@ -3508,7 +3558,7 @@ int mlx4_RTR2RTS_QP_wrapper(struct mlx4_dev *dev, int slave,
 	err = adjust_qp_sched_queue(dev, slave, context, inbox);
 	if (err)
 		return err;
-	err = verify_qp_parameters(dev, inbox, QP_TRANS_RTR2RTS, slave);
+	err = verify_qp_parameters(dev, vhcr, inbox, QP_TRANS_RTR2RTS, slave);
 	if (err)
 		return err;
 
@@ -3530,7 +3580,7 @@ int mlx4_RTS2RTS_QP_wrapper(struct mlx4_dev *dev, int slave,
 	err = adjust_qp_sched_queue(dev, slave, context, inbox);
 	if (err)
 		return err;
-	err = verify_qp_parameters(dev, inbox, QP_TRANS_RTS2RTS, slave);
+	err = verify_qp_parameters(dev, vhcr, inbox, QP_TRANS_RTS2RTS, slave);
 	if (err)
 		return err;
 
@@ -3567,7 +3617,7 @@ int mlx4_SQD2SQD_QP_wrapper(struct mlx4_dev *dev, int slave,
 	err = adjust_qp_sched_queue(dev, slave, context, inbox);
 	if (err)
 		return err;
-	err = verify_qp_parameters(dev, inbox, QP_TRANS_SQD2SQD, slave);
+	err = verify_qp_parameters(dev, vhcr, inbox, QP_TRANS_SQD2SQD, slave);
 	if (err)
 		return err;
 
@@ -3589,7 +3639,7 @@ int mlx4_SQD2RTS_QP_wrapper(struct mlx4_dev *dev, int slave,
 	err = adjust_qp_sched_queue(dev, slave, context, inbox);
 	if (err)
 		return err;
-	err = verify_qp_parameters(dev, inbox, QP_TRANS_SQD2RTS, slave);
+	err = verify_qp_parameters(dev, vhcr, inbox, QP_TRANS_SQD2RTS, slave);
 	if (err)
 		return err;
 
@@ -3880,7 +3930,7 @@ static int add_eth_header(struct mlx4_dev *dev, int slave,
 		}
 	}
 	if (!be_mac) {
-		pr_err("Failed adding eth header to FS rule, Can't find matching MAC for port %d .\n",
+		pr_err("Failed adding eth header to FS rule, Can't find matching MAC for port %d\n",
 		       port);
 		return -EINVAL;
 	}
@@ -3893,6 +3943,60 @@ static int add_eth_header(struct mlx4_dev *dev, int slave,
 
 	return 0;
 
+}
+
+#define MLX4_UPD_QP_PATH_MASK_SUPPORTED (1ULL << MLX4_UPD_QP_PATH_MASK_MAC_INDEX)
+int mlx4_UPDATE_QP_wrapper(struct mlx4_dev *dev, int slave,
+			   struct mlx4_vhcr *vhcr,
+			   struct mlx4_cmd_mailbox *inbox,
+			   struct mlx4_cmd_mailbox *outbox,
+			   struct mlx4_cmd_info *cmd_info)
+{
+	int err;
+	u32 qpn = vhcr->in_modifier & 0xffffff;
+	struct res_qp *rqp;
+	u64 mac;
+	unsigned port;
+	u64 pri_addr_path_mask;
+	struct mlx4_update_qp_context *cmd;
+	int smac_index;
+
+	cmd = (struct mlx4_update_qp_context *)inbox->buf;
+
+	pri_addr_path_mask = be64_to_cpu(cmd->primary_addr_path_mask);
+	if (cmd->qp_mask || cmd->secondary_addr_path_mask ||
+	    (pri_addr_path_mask & ~MLX4_UPD_QP_PATH_MASK_SUPPORTED))
+		return -EPERM;
+
+	/* Just change the smac for the QP */
+	err = get_res(dev, slave, qpn, RES_QP, &rqp);
+	if (err) {
+		mlx4_err(dev, "Updating qpn 0x%x for slave %d rejected\n", qpn, slave);
+		return err;
+	}
+
+	port = (rqp->sched_queue >> 6 & 1) + 1;
+	smac_index = cmd->qp_context.pri_path.grh_mylmc;
+	err = mac_find_smac_ix_in_slave(dev, slave, port,
+					smac_index, &mac);
+	if (err) {
+		mlx4_err(dev, "Failed to update qpn 0x%x, MAC is invalid. smac_ix: %d\n",
+			 qpn, smac_index);
+		goto err_mac;
+	}
+
+	err = mlx4_cmd(dev, inbox->dma,
+		       vhcr->in_modifier, 0,
+		       MLX4_CMD_UPDATE_QP, MLX4_CMD_TIME_CLASS_A,
+		       MLX4_CMD_NATIVE);
+	if (err) {
+		mlx4_err(dev, "Failed to update qpn on qpn 0x%x, command failed\n", qpn);
+		goto err_mac;
+	}
+
+err_mac:
+	put_res(dev, slave, qpn, RES_QP);
+	return err;
 }
 
 int mlx4_QP_FLOW_STEERING_ATTACH_wrapper(struct mlx4_dev *dev, int slave,
@@ -3923,7 +4027,7 @@ int mlx4_QP_FLOW_STEERING_ATTACH_wrapper(struct mlx4_dev *dev, int slave,
 	qpn = be32_to_cpu(ctrl->qpn) & 0xffffff;
 	err = get_res(dev, slave, qpn, RES_QP, &rqp);
 	if (err) {
-		pr_err("Steering rule with qpn 0x%x rejected.\n", qpn);
+		pr_err("Steering rule with qpn 0x%x rejected\n", qpn);
 		return err;
 	}
 	rule_header = (struct _rule_hw *)(ctrl + 1);
@@ -3941,7 +4045,7 @@ int mlx4_QP_FLOW_STEERING_ATTACH_wrapper(struct mlx4_dev *dev, int slave,
 	case MLX4_NET_TRANS_RULE_ID_IPV4:
 	case MLX4_NET_TRANS_RULE_ID_TCP:
 	case MLX4_NET_TRANS_RULE_ID_UDP:
-		pr_warn("Can't attach FS rule without L2 headers, adding L2 header.\n");
+		pr_warn("Can't attach FS rule without L2 headers, adding L2 header\n");
 		if (add_eth_header(dev, slave, inbox, rlist, header_id)) {
 			err = -EINVAL;
 			goto err_put;
@@ -3950,7 +4054,7 @@ int mlx4_QP_FLOW_STEERING_ATTACH_wrapper(struct mlx4_dev *dev, int slave,
 			sizeof(struct mlx4_net_trans_rule_hw_eth) >> 2;
 		break;
 	default:
-		pr_err("Corrupted mailbox.\n");
+		pr_err("Corrupted mailbox\n");
 		err = -EINVAL;
 		goto err_put;
 	}
@@ -3964,7 +4068,7 @@ int mlx4_QP_FLOW_STEERING_ATTACH_wrapper(struct mlx4_dev *dev, int slave,
 
 	err = add_res_range(dev, slave, vhcr->out_param, 1, RES_FS_RULE, qpn);
 	if (err) {
-		mlx4_err(dev, "Fail to add flow steering resources.\n ");
+		mlx4_err(dev, "Fail to add flow steering resources\n");
 		/* detach rule*/
 		mlx4_cmd(dev, vhcr->out_param, 0, 0,
 			 MLX4_QP_FLOW_STEERING_DETACH, MLX4_CMD_TIME_CLASS_A,
@@ -4002,7 +4106,7 @@ int mlx4_QP_FLOW_STEERING_DETACH_wrapper(struct mlx4_dev *dev, int slave,
 
 	err = rem_res_range(dev, slave, vhcr->in_param, 1, RES_FS_RULE, 0);
 	if (err) {
-		mlx4_err(dev, "Fail to remove flow steering resources.\n ");
+		mlx4_err(dev, "Fail to remove flow steering resources\n");
 		goto out;
 	}
 
@@ -4080,7 +4184,7 @@ static int _move_all_busy(struct mlx4_dev *dev, int slave,
 					if (print)
 						mlx4_dbg(dev,
 							 "%s id 0x%llx is busy\n",
-							  ResourceType(type),
+							  resource_str(type),
 							  r->res_id);
 					++busy;
 				} else {
@@ -4131,8 +4235,8 @@ static void rem_slave_qps(struct mlx4_dev *dev, int slave)
 
 	err = move_all_busy(dev, slave, RES_QP);
 	if (err)
-		mlx4_warn(dev, "rem_slave_qps: Could not move all qps to busy"
-			  "for slave %d\n", slave);
+		mlx4_warn(dev, "rem_slave_qps: Could not move all qps to busy for slave %d\n",
+			  slave);
 
 	spin_lock_irq(mlx4_tlock(dev));
 	list_for_each_entry_safe(qp, tmp, qp_list, com.list) {
@@ -4170,10 +4274,8 @@ static void rem_slave_qps(struct mlx4_dev *dev, int slave)
 						       MLX4_CMD_TIME_CLASS_A,
 						       MLX4_CMD_NATIVE);
 					if (err)
-						mlx4_dbg(dev, "rem_slave_qps: failed"
-							 " to move slave %d qpn %d to"
-							 " reset\n", slave,
-							 qp->local_qpn);
+						mlx4_dbg(dev, "rem_slave_qps: failed to move slave %d qpn %d to reset\n",
+							 slave, qp->local_qpn);
 					atomic_dec(&qp->rcq->ref_count);
 					atomic_dec(&qp->scq->ref_count);
 					atomic_dec(&qp->mtt->ref_count);
@@ -4207,8 +4309,8 @@ static void rem_slave_srqs(struct mlx4_dev *dev, int slave)
 
 	err = move_all_busy(dev, slave, RES_SRQ);
 	if (err)
-		mlx4_warn(dev, "rem_slave_srqs: Could not move all srqs to "
-			  "busy for slave %d\n", slave);
+		mlx4_warn(dev, "rem_slave_srqs: Could not move all srqs - too busy for slave %d\n",
+			  slave);
 
 	spin_lock_irq(mlx4_tlock(dev));
 	list_for_each_entry_safe(srq, tmp, srq_list, com.list) {
@@ -4238,9 +4340,7 @@ static void rem_slave_srqs(struct mlx4_dev *dev, int slave)
 						       MLX4_CMD_TIME_CLASS_A,
 						       MLX4_CMD_NATIVE);
 					if (err)
-						mlx4_dbg(dev, "rem_slave_srqs: failed"
-							 " to move slave %d srq %d to"
-							 " SW ownership\n",
+						mlx4_dbg(dev, "rem_slave_srqs: failed to move slave %d srq %d to SW ownership\n",
 							 slave, srqn);
 
 					atomic_dec(&srq->mtt->ref_count);
@@ -4275,8 +4375,8 @@ static void rem_slave_cqs(struct mlx4_dev *dev, int slave)
 
 	err = move_all_busy(dev, slave, RES_CQ);
 	if (err)
-		mlx4_warn(dev, "rem_slave_cqs: Could not move all cqs to "
-			  "busy for slave %d\n", slave);
+		mlx4_warn(dev, "rem_slave_cqs: Could not move all cqs - too busy for slave %d\n",
+			  slave);
 
 	spin_lock_irq(mlx4_tlock(dev));
 	list_for_each_entry_safe(cq, tmp, cq_list, com.list) {
@@ -4306,9 +4406,7 @@ static void rem_slave_cqs(struct mlx4_dev *dev, int slave)
 						       MLX4_CMD_TIME_CLASS_A,
 						       MLX4_CMD_NATIVE);
 					if (err)
-						mlx4_dbg(dev, "rem_slave_cqs: failed"
-							 " to move slave %d cq %d to"
-							 " SW ownership\n",
+						mlx4_dbg(dev, "rem_slave_cqs: failed to move slave %d cq %d to SW ownership\n",
 							 slave, cqn);
 					atomic_dec(&cq->mtt->ref_count);
 					state = RES_CQ_ALLOCATED;
@@ -4340,8 +4438,8 @@ static void rem_slave_mrs(struct mlx4_dev *dev, int slave)
 
 	err = move_all_busy(dev, slave, RES_MPT);
 	if (err)
-		mlx4_warn(dev, "rem_slave_mrs: Could not move all mpts to "
-			  "busy for slave %d\n", slave);
+		mlx4_warn(dev, "rem_slave_mrs: Could not move all mpts - too busy for slave %d\n",
+			  slave);
 
 	spin_lock_irq(mlx4_tlock(dev));
 	list_for_each_entry_safe(mpt, tmp, mpt_list, com.list) {
@@ -4376,9 +4474,7 @@ static void rem_slave_mrs(struct mlx4_dev *dev, int slave)
 						     MLX4_CMD_TIME_CLASS_A,
 						     MLX4_CMD_NATIVE);
 					if (err)
-						mlx4_dbg(dev, "rem_slave_mrs: failed"
-							 " to move slave %d mpt %d to"
-							 " SW ownership\n",
+						mlx4_dbg(dev, "rem_slave_mrs: failed to move slave %d mpt %d to SW ownership\n",
 							 slave, mptn);
 					if (mpt->mtt)
 						atomic_dec(&mpt->mtt->ref_count);
@@ -4410,8 +4506,8 @@ static void rem_slave_mtts(struct mlx4_dev *dev, int slave)
 
 	err = move_all_busy(dev, slave, RES_MTT);
 	if (err)
-		mlx4_warn(dev, "rem_slave_mtts: Could not move all mtts to "
-			  "busy for slave %d\n", slave);
+		mlx4_warn(dev, "rem_slave_mtts: Could not move all mtts  - too busy for slave %d\n",
+			  slave);
 
 	spin_lock_irq(mlx4_tlock(dev));
 	list_for_each_entry_safe(mtt, tmp, mtt_list, com.list) {
@@ -4513,8 +4609,8 @@ static void rem_slave_eqs(struct mlx4_dev *dev, int slave)
 
 	err = move_all_busy(dev, slave, RES_EQ);
 	if (err)
-		mlx4_warn(dev, "rem_slave_eqs: Could not move all eqs to "
-			  "busy for slave %d\n", slave);
+		mlx4_warn(dev, "rem_slave_eqs: Could not move all eqs - too busy for slave %d\n",
+			  slave);
 
 	spin_lock_irq(mlx4_tlock(dev));
 	list_for_each_entry_safe(eq, tmp, eq_list, com.list) {
@@ -4546,9 +4642,8 @@ static void rem_slave_eqs(struct mlx4_dev *dev, int slave)
 							   MLX4_CMD_TIME_CLASS_A,
 							   MLX4_CMD_NATIVE);
 					if (err)
-						mlx4_dbg(dev, "rem_slave_eqs: failed"
-							 " to move slave %d eqs %d to"
-							 " SW ownership\n", slave, eqn);
+						mlx4_dbg(dev, "rem_slave_eqs: failed to move slave %d eqs %d to SW ownership\n",
+							 slave, eqn);
 					mlx4_free_cmd_mailbox(dev, mailbox);
 					atomic_dec(&eq->mtt->ref_count);
 					state = RES_EQ_RESERVED;
@@ -4577,8 +4672,8 @@ static void rem_slave_counters(struct mlx4_dev *dev, int slave)
 
 	err = move_all_busy(dev, slave, RES_COUNTER);
 	if (err)
-		mlx4_warn(dev, "rem_slave_counters: Could not move all counters to "
-			  "busy for slave %d\n", slave);
+		mlx4_warn(dev, "rem_slave_counters: Could not move all counters - too busy for slave %d\n",
+			  slave);
 
 	spin_lock_irq(mlx4_tlock(dev));
 	list_for_each_entry_safe(counter, tmp, counter_list, com.list) {
@@ -4608,8 +4703,8 @@ static void rem_slave_xrcdns(struct mlx4_dev *dev, int slave)
 
 	err = move_all_busy(dev, slave, RES_XRCD);
 	if (err)
-		mlx4_warn(dev, "rem_slave_xrcdns: Could not move all xrcdns to "
-			  "busy for slave %d\n", slave);
+		mlx4_warn(dev, "rem_slave_xrcdns: Could not move all xrcdns - too busy for slave %d\n",
+			  slave);
 
 	spin_lock_irq(mlx4_tlock(dev));
 	list_for_each_entry_safe(xrcd, tmp, xrcdn_list, com.list) {
@@ -4627,7 +4722,7 @@ static void rem_slave_xrcdns(struct mlx4_dev *dev, int slave)
 void mlx4_delete_all_resources_for_slave(struct mlx4_dev *dev, int slave)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
-
+	mlx4_reset_roce_gids(dev, slave);
 	mutex_lock(&priv->mfunc.master.res_tracker.slave_list[slave].mutex);
 	rem_slave_vlans(dev, slave);
 	rem_slave_macs(dev, slave);
@@ -4754,10 +4849,8 @@ void mlx4_vf_immed_vlan_work_handler(struct work_struct *_work)
 				       0, MLX4_CMD_UPDATE_QP,
 				       MLX4_CMD_TIME_CLASS_C, MLX4_CMD_NATIVE);
 			if (err) {
-				mlx4_info(dev, "UPDATE_QP failed for slave %d, "
-					  "port %d, qpn %d (%d)\n",
-					  work->slave, port, qp->local_qpn,
-					  err);
+				mlx4_info(dev, "UPDATE_QP failed for slave %d, port %d, qpn %d (%d)\n",
+					  work->slave, port, qp->local_qpn, err);
 				errors++;
 			}
 		}

@@ -491,7 +491,7 @@ static int imx_pinctrl_parse_groups(struct device_node *np,
 			pin->mux_mode |= IOMUXC_CONFIG_SION;
 		pin->config = config & ~IMX_PAD_SION;
 
-		dev_dbg(info->dev, "%s: %d 0x%08lx", info->pins[pin_id].name,
+		dev_dbg(info->dev, "%s: 0x%x 0x%08lx", info->pins[pin_id].name,
 				pin->mux_mode, pin->config);
 	}
 

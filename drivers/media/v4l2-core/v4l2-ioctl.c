@@ -562,7 +562,7 @@ static void v4l_print_cropcap(const void *arg, bool write_only)
 	const struct v4l2_cropcap *p = arg;
 
 	pr_cont("type=%s, bounds wxh=%dx%d, x,y=%d,%d, "
-		"defrect wxh=%dx%d, x,y=%d,%d\n, "
+		"defrect wxh=%dx%d, x,y=%d,%d, "
 		"pixelaspect %d/%d\n",
 		prt_names(p->type, v4l2_type_names),
 		p->bounds.width, p->bounds.height,
@@ -2260,7 +2260,7 @@ done:
 }
 
 static int check_array_args(unsigned int cmd, void *parg, size_t *array_size,
-			    void * __user *user_ptr, void ***kernel_ptr)
+			    void __user **user_ptr, void ***kernel_ptr)
 {
 	int ret = 0;
 
@@ -2277,7 +2277,7 @@ static int check_array_args(unsigned int cmd, void *parg, size_t *array_size,
 				break;
 			}
 			*user_ptr = (void __user *)buf->m.planes;
-			*kernel_ptr = (void *)&buf->m.planes;
+			*kernel_ptr = (void **)&buf->m.planes;
 			*array_size = sizeof(struct v4l2_plane) * buf->length;
 			ret = 1;
 		}
@@ -2294,7 +2294,7 @@ static int check_array_args(unsigned int cmd, void *parg, size_t *array_size,
 				break;
 			}
 			*user_ptr = (void __user *)edid->edid;
-			*kernel_ptr = (void *)&edid->edid;
+			*kernel_ptr = (void **)&edid->edid;
 			*array_size = edid->blocks * 128;
 			ret = 1;
 		}
@@ -2312,7 +2312,7 @@ static int check_array_args(unsigned int cmd, void *parg, size_t *array_size,
 				break;
 			}
 			*user_ptr = (void __user *)ctrls->controls;
-			*kernel_ptr = (void *)&ctrls->controls;
+			*kernel_ptr = (void **)&ctrls->controls;
 			*array_size = sizeof(struct v4l2_ext_control)
 				    * ctrls->count;
 			ret = 1;
@@ -2412,7 +2412,7 @@ video_usercopy(struct file *file, unsigned int cmd, unsigned long arg,
 	}
 
 	if (has_array_args) {
-		*kernel_ptr = user_ptr;
+		*kernel_ptr = (void __force *)user_ptr;
 		if (copy_to_user(user_ptr, mbuf, array_size))
 			err = -EFAULT;
 		goto out_array_args;

@@ -30,6 +30,7 @@
 #include <linux/kthread.h>
 #include <linux/time.h>
 #include <linux/random.h>
+#include <linux/delay.h>
 
 #include <cluster/masklog.h>
 
@@ -2185,8 +2186,20 @@ static int ocfs2_commit_thread(void *arg)
 					 || kthread_should_stop());
 
 		status = ocfs2_commit_cache(osb);
-		if (status < 0)
-			mlog_errno(status);
+		if (status < 0) {
+			static unsigned long abort_warn_time;
+
+			/* Warn about this once per minute */
+			if (printk_timed_ratelimit(&abort_warn_time, 60*HZ))
+				mlog(ML_ERROR, "status = %d, journal is "
+						"already aborted.\n", status);
+			/*
+			 * After ocfs2_commit_cache() fails, j_num_trans has a
+			 * non-zero value.  Sleep here to avoid a busy-wait
+			 * loop.
+			 */
+			msleep_interruptible(1000);
+		}
 
 		if (kthread_should_stop() && atomic_read(&journal->j_num_trans)){
 			mlog(ML_KTHREAD,

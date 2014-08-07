@@ -253,6 +253,8 @@ enum iwl_mvm_agg_state {
  *	This is basically (last acked packet++).
  * @rate_n_flags: Rate at which Tx was attempted. Holds the data between the
  *	Tx response (TX_CMD), and the block ack notification (COMPRESSED_BA).
+ * @reduced_tpc: Reduced tx power. Holds the data between the
+ *	Tx response (TX_CMD), and the block ack notification (COMPRESSED_BA).
  * @state: state of the BA agreement establishment / tear down.
  * @txq_id: Tx queue used by the BA session
  * @ssn: the first packet to be sent in AGG HW queue in Tx AGG start flow, or
@@ -265,6 +267,7 @@ struct iwl_mvm_tid_data {
 	u16 next_reclaimed;
 	/* The rest is Tx AGG related */
 	u32 rate_n_flags;
+	u8 reduced_tpc;
 	enum iwl_mvm_agg_state state;
 	u16 txq_id;
 	u16 ssn;
@@ -284,8 +287,6 @@ static inline u16 iwl_mvm_tid_queued(struct iwl_mvm_tid_data *tid_data)
  * @tid_disable_agg: bitmap: if bit(tid) is set, the fw won't send ampdus for
  *	tid.
  * @max_agg_bufsize: the maximal size of the AGG buffer for this station
- * @bt_reduced_txpower_dbg: debug mode in which %bt_reduced_txpower is forced
- *	by debugfs.
  * @bt_reduced_txpower: is reduced tx power enabled for this station
  * @next_status_eosp: the next reclaimed packet is a PS-Poll response and
  *	we need to signal the EOSP
@@ -306,7 +307,6 @@ struct iwl_mvm_sta {
 	u32 mac_id_n_color;
 	u16 tid_disable_agg;
 	u8 max_agg_bufsize;
-	bool bt_reduced_txpower_dbg;
 	bool bt_reduced_txpower;
 	bool next_status_eosp;
 	spinlock_t lock;

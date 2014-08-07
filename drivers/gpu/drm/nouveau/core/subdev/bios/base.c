@@ -183,10 +183,11 @@ nouveau_bios_shadow_prom(struct nouveau_bios *bios)
 		goto out;
 
 	bios->data = kmalloc(bios->size, GFP_KERNEL);
-	if (bios->data) {
-		for (i = 0; i < bios->size; i += 4)
-			((u32 *)bios->data)[i/4] = nv_rd32(bios, 0x300000 + i);
-	}
+	if (!bios->data)
+		goto out;
+
+	for (i = 0; i < bios->size; i += 4)
+		((u32 *)bios->data)[i/4] = nv_rd32(bios, 0x300000 + i);
 
 	/* check the PCI record header */
 	pcir = nv_ro16(bios, 0x0018);

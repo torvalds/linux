@@ -42,9 +42,10 @@
 #include "msg.h"
 #include "node_subscr.h"
 
-#define TIPC_FLOW_CONTROL_WIN 512
-#define CONN_OVERLOAD_LIMIT	((TIPC_FLOW_CONTROL_WIN * 2 + 1) * \
-				SKB_TRUESIZE(TIPC_MAX_USER_MSG_SIZE))
+#define TIPC_CONNACK_INTV         256
+#define TIPC_FLOWCTRL_WIN        (TIPC_CONNACK_INTV * 2)
+#define TIPC_CONN_OVERLOAD_LIMIT ((TIPC_FLOWCTRL_WIN * 2 + 1) * \
+				  SKB_TRUESIZE(TIPC_MAX_USER_MSG_SIZE))
 
 /**
  * struct tipc_port - TIPC port structure
@@ -134,7 +135,6 @@ int tipc_port_peer_msg(struct tipc_port *p_ptr, struct tipc_msg *msg);
 /*
  * TIPC messaging routines
  */
-int tipc_port_rcv(struct sk_buff *buf);
 
 int tipc_send(struct tipc_port *port,
 	      struct iovec const *msg_sect,
@@ -187,7 +187,7 @@ static inline void tipc_port_unlock(struct tipc_port *p_ptr)
 
 static inline int tipc_port_congested(struct tipc_port *p_ptr)
 {
-	return (p_ptr->sent - p_ptr->acked) >= (TIPC_FLOW_CONTROL_WIN * 2);
+	return ((p_ptr->sent - p_ptr->acked) >= TIPC_FLOWCTRL_WIN);
 }
 
 

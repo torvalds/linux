@@ -38,12 +38,10 @@ enum _NIC_VERSION {
 #include <rtw_ht.h>
 
 #include <rtw_cmd.h>
-#include <wlan_bssdef.h>
 #include <rtw_xmit.h>
 #include <rtw_recv.h>
 #include <hal_intf.h>
 #include <hal_com.h>
-#include <rtw_qos.h>
 #include <rtw_security.h>
 #include <rtw_pwrctrl.h>
 #include <rtw_io.h>
@@ -55,25 +53,9 @@ enum _NIC_VERSION {
 #include <rtw_event.h>
 #include <rtw_led.h>
 #include <rtw_mlme_ext.h>
-#include <rtw_p2p.h>
 #include <rtw_ap.h>
 
 #include "ioctl_cfg80211.h"
-
-#define SPEC_DEV_ID_NONE BIT(0)
-#define SPEC_DEV_ID_DISABLE_HT BIT(1)
-#define SPEC_DEV_ID_ENABLE_PS BIT(2)
-#define SPEC_DEV_ID_RF_CONFIG_1T1R BIT(3)
-#define SPEC_DEV_ID_RF_CONFIG_2T2R BIT(4)
-#define SPEC_DEV_ID_ASSIGN_IFNAME BIT(5)
-
-struct specific_device_id {
-	u32		flags;
-
-	u16		idVendor;
-	u16		idProduct;
-
-};
 
 struct registry_priv {
 	u8	chip_version;
@@ -187,8 +169,6 @@ struct dvobj_priv {
 	int	RtOutPipe[3];
 	u8	Queue2Pipe[HW_QUEUE_ENTRY];/* for out pipe mapping */
 
-	u8	irq_alloc;
-
 /*-------- below is for USB INTERFACE --------*/
 
 	u8	nr_endpoint;
@@ -196,10 +176,6 @@ struct dvobj_priv {
 	u8	RtNumInPipes;
 	u8	RtNumOutPipes;
 	int	ep_num[5]; /* endpoint number */
-
-	int	RegUsbSS;
-
-	struct semaphore usb_suspend_sema;
 
 	struct mutex  usb_vendor_req_mutex;
 
@@ -243,8 +219,6 @@ struct rtw_adapter {
 	struct	mlme_ext_priv mlmeextpriv;
 	struct	cmd_priv	cmdpriv;
 	struct	evt_priv	evtpriv;
-	/* struct	io_queue	*pio_queue; */
-	struct	io_priv	iopriv;
 	struct	xmit_priv	xmitpriv;
 	struct	recv_priv	recvpriv;
 	struct	sta_priv	stapriv;
@@ -254,21 +228,9 @@ struct rtw_adapter {
 	struct	eeprom_priv eeprompriv;
 	struct	led_priv	ledpriv;
 
-#ifdef CONFIG_8723AU_AP_MODE
-	struct	hostapd_priv	*phostapdpriv;
-#endif
-
-	struct cfg80211_wifidirect_info	cfg80211_wdinfo;
 	u32	setband;
-	struct wifidirect_info	wdinfo;
-
-#ifdef CONFIG_8723AU_P2P
-	struct wifi_display_info wfd_info;
-#endif /* CONFIG_8723AU_P2P */
 
 	void *HalData;
-	u32 hal_data_sz;
-	struct hal_ops	HalFunc;
 
 	s32	bDriverStopped;
 	s32	bSurpriseRemoved;
@@ -283,69 +245,26 @@ struct rtw_adapter {
 	u8	init_adpt_in_progress;
 	u8	bHaltInProgress;
 
-	void *cmdThread;
-	void *evtThread;
-	void *xmitThread;
-	void *recvThread;
-
-	void (*intf_start)(struct rtw_adapter *adapter);
-	void (*intf_stop)(struct rtw_adapter *adapter);
-
 	struct net_device *pnetdev;
 
 	/*  used by rtw_rereg_nd_name related function */
-	struct rereg_nd_name_data {
-		struct net_device *old_pnetdev;
-		char old_ifname[IFNAMSIZ];
-		u8 old_ips_mode;
-		u8 old_bRegUseLed;
-	} rereg_nd_name_priv;
-
 	int bup;
 	struct net_device_stats stats;
-	struct iw_statistics iwstats;
-	struct proc_dir_entry *dir_dev;/*  for proc directory */
 
 	struct wireless_dev *rtw_wdev;
 	int net_closed;
 
 	u8 bFWReady;
-	u8 bBTFWReady;
 	u8 bReadPortCancel;
 	u8 bWritePortCancel;
-	u8 bRxRSSIDisplay;
 	/* The driver will show the desired chan nor when this flag is 1. */
 	u8 bNotifyChannelChange;
-#ifdef CONFIG_8723AU_P2P
-	/* driver will show current P2P status when the  application reads it*/
-	u8 bShowGetP2PState;
-#endif
 	struct rtw_adapter *pbuddy_adapter;
 
 	/* extend to support multi interface */
 	/* IFACE_ID0 is equals to PRIMARY_ADAPTER */
 	/* IFACE_ID1 is equals to SECONDARY_ADAPTER */
 	u8 iface_id;
-
-#ifdef CONFIG_BR_EXT
-	_lock					br_ext_lock;
-	/* unsigned int			macclone_completed; */
-	struct nat25_network_db_entry	*nethash[NAT25_HASH_SIZE];
-	int				pppoe_connection_in_progress;
-	unsigned char			pppoe_addr[MACADDRLEN];
-	unsigned char			scdb_mac[MACADDRLEN];
-	unsigned char			scdb_ip[4];
-	struct nat25_network_db_entry	*scdb_entry;
-	unsigned char			br_mac[MACADDRLEN];
-	unsigned char			br_ip[4];
-
-	struct br_ext_info		ethBrExtInfo;
-#endif	/*  CONFIG_BR_EXT */
-
-	u8    fix_rate;
-
-	unsigned char     in_cta_test;
-
 };
 
 #define adapter_to_dvobj(adapter) (adapter->dvobj)

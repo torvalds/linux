@@ -180,16 +180,16 @@ struct csc_data *csc_create(struct platform_device *pdev)
 	csc->pdev = pdev;
 
 	csc->res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-			"vpe_csc");
+			"csc");
 	if (csc->res == NULL) {
 		dev_err(&pdev->dev, "missing platform resources data\n");
 		return ERR_PTR(-ENODEV);
 	}
 
 	csc->base = devm_ioremap_resource(&pdev->dev, csc->res);
-	if (!csc->base) {
+	if (IS_ERR(csc->base)) {
 		dev_err(&pdev->dev, "failed to ioremap\n");
-		return ERR_PTR(-ENOMEM);
+		return csc->base;
 	}
 
 	return csc;

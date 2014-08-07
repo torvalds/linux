@@ -662,9 +662,9 @@ static void pcifront_do_aer(struct work_struct *data)
 	notify_remote_via_evtchn(pdev->evtchn);
 
 	/*in case of we lost an aer request in four lines time_window*/
-	smp_mb__before_clear_bit();
+	smp_mb__before_atomic();
 	clear_bit(_PDEVB_op_active, &pdev->flags);
-	smp_mb__after_clear_bit();
+	smp_mb__after_atomic();
 
 	schedule_pcifront_aer_op(pdev);
 

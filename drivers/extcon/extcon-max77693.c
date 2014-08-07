@@ -1175,25 +1175,24 @@ static int max77693_muic_probe(struct platform_device *pdev)
 	}
 
 	/* Initialize extcon device */
-	info->edev = devm_kzalloc(&pdev->dev, sizeof(struct extcon_dev),
-				  GFP_KERNEL);
-	if (!info->edev) {
+	info->edev = devm_extcon_dev_allocate(&pdev->dev,
+					      max77693_extcon_cable);
+	if (IS_ERR(info->edev)) {
 		dev_err(&pdev->dev, "failed to allocate memory for extcon\n");
 		ret = -ENOMEM;
 		goto err_irq;
 	}
 	info->edev->name = DEV_NAME;
 	info->edev->dev.parent = &pdev->dev;
-	info->edev->supported_cable = max77693_extcon_cable;
-	ret = extcon_dev_register(info->edev);
+
+	ret = devm_extcon_dev_register(&pdev->dev, info->edev);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register extcon device\n");
 		goto err_irq;
 	}
 
-
 	/* Initialize MUIC register by using platform data or default data */
-	if (pdata->muic_data) {
+	if (pdata && pdata->muic_data) {
 		init_data = pdata->muic_data->init_data;
 		num_init_data = pdata->muic_data->num_init_data;
 	} else {
@@ -1226,7 +1225,7 @@ static int max77693_muic_probe(struct platform_device *pdev)
 				= init_data[i].data;
 	}
 
-	if (pdata->muic_data) {
+	if (pdata && pdata->muic_data) {
 		struct max77693_muic_platform_data *muic_pdata
 						   = pdata->muic_data;
 
@@ -1267,7 +1266,7 @@ static int max77693_muic_probe(struct platform_device *pdev)
 			MAX77693_MUIC_REG_ID, &id);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to read revision number\n");
-		goto err_extcon;
+		goto err_irq;
 	}
 	dev_info(info->dev, "device ID : 0x%x\n", id);
 
@@ -1283,12 +1282,11 @@ static int max77693_muic_probe(struct platform_device *pdev)
 	 * driver should notify cable state to upper layer.
 	 */
 	INIT_DELAYED_WORK(&info->wq_detcable, max77693_muic_detect_cable_wq);
-	schedule_delayed_work(&info->wq_detcable, delay_jiffies);
+	queue_delayed_work(system_power_efficient_wq, &info->wq_detcable,
+			delay_jiffies);
 
 	return ret;
 
-err_extcon:
-	extcon_dev_unregister(info->edev);
 err_irq:
 	while (--i >= 0)
 		free_irq(muic_irqs[i].virq, info);
@@ -1304,7 +1302,6 @@ static int max77693_muic_remove(struct platform_device *pdev)
 		free_irq(muic_irqs[i].virq, info);
 	cancel_work_sync(&info->irq_work);
 	input_unregister_device(info->dock);
-	extcon_dev_unregister(info->edev);
 
 	return 0;
 }

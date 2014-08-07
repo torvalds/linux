@@ -1,5 +1,5 @@
 #include <stdbool.h>
-#include <inttypes.h>
+#include <linux/types.h>
 
 #include "util.h"
 #include "event.h"

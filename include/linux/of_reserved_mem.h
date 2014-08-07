@@ -21,33 +21,19 @@ struct reserved_mem_ops {
 				  struct device *dev);
 };
 
-typedef int (*reservedmem_of_init_fn)(struct reserved_mem *rmem,
-				      unsigned long node, const char *uname);
+typedef int (*reservedmem_of_init_fn)(struct reserved_mem *rmem);
+
+#define RESERVEDMEM_OF_DECLARE(name, compat, init)			\
+	_OF_DECLARE(reservedmem, name, compat, init, reservedmem_of_init_fn)
 
 #ifdef CONFIG_OF_RESERVED_MEM
 void fdt_init_reserved_mem(void);
 void fdt_reserved_mem_save_node(unsigned long node, const char *uname,
 			       phys_addr_t base, phys_addr_t size);
-
-#define RESERVEDMEM_OF_DECLARE(name, compat, init)			\
-	static const struct of_device_id __reservedmem_of_table_##name	\
-		__used __section(__reservedmem_of_table)		\
-		 = { .compatible = compat,				\
-		     .data = (init == (reservedmem_of_init_fn)NULL) ?	\
-				init : init }
-
 #else
 static inline void fdt_init_reserved_mem(void) { }
 static inline void fdt_reserved_mem_save_node(unsigned long node,
 		const char *uname, phys_addr_t base, phys_addr_t size) { }
-
-#define RESERVEDMEM_OF_DECLARE(name, compat, init)			\
-	static const struct of_device_id __reservedmem_of_table_##name	\
-		__attribute__((unused))					\
-		 = { .compatible = compat,				\
-		     .data = (init == (reservedmem_of_init_fn)NULL) ?	\
-				init : init }
-
 #endif
 
 #endif /* __OF_RESERVED_MEM_H */

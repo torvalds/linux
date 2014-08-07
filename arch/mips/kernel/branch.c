@@ -48,6 +48,202 @@ int __isa_exception_epc(struct pt_regs *regs)
 	return epc;
 }
 
+/* (microMIPS) Convert 16-bit register encoding to 32-bit register encoding. */
+static const unsigned int reg16to32map[8] = {16, 17, 2, 3, 4, 5, 6, 7};
+
+int __mm_isBranchInstr(struct pt_regs *regs, struct mm_decoded_insn dec_insn,
+		       unsigned long *contpc)
+{
+	union mips_instruction insn = (union mips_instruction)dec_insn.insn;
+	int bc_false = 0;
+	unsigned int fcr31;
+	unsigned int bit;
+
+	if (!cpu_has_mmips)
+		return 0;
+
+	switch (insn.mm_i_format.opcode) {
+	case mm_pool32a_op:
+		if ((insn.mm_i_format.simmediate & MM_POOL32A_MINOR_MASK) ==
+		    mm_pool32axf_op) {
+			switch (insn.mm_i_format.simmediate >>
+				MM_POOL32A_MINOR_SHIFT) {
+			case mm_jalr_op:
+			case mm_jalrhb_op:
+			case mm_jalrs_op:
+			case mm_jalrshb_op:
+				if (insn.mm_i_format.rt != 0)	/* Not mm_jr */
+					regs->regs[insn.mm_i_format.rt] =
+						regs->cp0_epc +
+						dec_insn.pc_inc +
+						dec_insn.next_pc_inc;
+				*contpc = regs->regs[insn.mm_i_format.rs];
+				return 1;
+			}
+		}
+		break;
+	case mm_pool32i_op:
+		switch (insn.mm_i_format.rt) {
+		case mm_bltzals_op:
+		case mm_bltzal_op:
+			regs->regs[31] = regs->cp0_epc +
+				dec_insn.pc_inc +
+				dec_insn.next_pc_inc;
+			/* Fall through */
+		case mm_bltz_op:
+			if ((long)regs->regs[insn.mm_i_format.rs] < 0)
+				*contpc = regs->cp0_epc +
+					dec_insn.pc_inc +
+					(insn.mm_i_format.simmediate << 1);
+			else
+				*contpc = regs->cp0_epc +
+					dec_insn.pc_inc +
+					dec_insn.next_pc_inc;
+			return 1;
+		case mm_bgezals_op:
+		case mm_bgezal_op:
+			regs->regs[31] = regs->cp0_epc +
+					dec_insn.pc_inc +
+					dec_insn.next_pc_inc;
+			/* Fall through */
+		case mm_bgez_op:
+			if ((long)regs->regs[insn.mm_i_format.rs] >= 0)
+				*contpc = regs->cp0_epc +
+					dec_insn.pc_inc +
+					(insn.mm_i_format.simmediate << 1);
+			else
+				*contpc = regs->cp0_epc +
+					dec_insn.pc_inc +
+					dec_insn.next_pc_inc;
+			return 1;
+		case mm_blez_op:
+			if ((long)regs->regs[insn.mm_i_format.rs] <= 0)
+				*contpc = regs->cp0_epc +
+					dec_insn.pc_inc +
+					(insn.mm_i_format.simmediate << 1);
+			else
+				*contpc = regs->cp0_epc +
+					dec_insn.pc_inc +
+					dec_insn.next_pc_inc;
+			return 1;
+		case mm_bgtz_op:
+			if ((long)regs->regs[insn.mm_i_format.rs] <= 0)
+				*contpc = regs->cp0_epc +
+					dec_insn.pc_inc +
+					(insn.mm_i_format.simmediate << 1);
+			else
+				*contpc = regs->cp0_epc +
+					dec_insn.pc_inc +
+					dec_insn.next_pc_inc;
+			return 1;
+		case mm_bc2f_op:
+		case mm_bc1f_op:
+			bc_false = 1;
+			/* Fall through */
+		case mm_bc2t_op:
+		case mm_bc1t_op:
+			preempt_disable();
+			if (is_fpu_owner())
+				asm volatile("cfc1\t%0,$31" : "=r" (fcr31));
+			else
+				fcr31 = current->thread.fpu.fcr31;
+			preempt_enable();
+
+			if (bc_false)
+				fcr31 = ~fcr31;
+
+			bit = (insn.mm_i_format.rs >> 2);
+			bit += (bit != 0);
+			bit += 23;
+			if (fcr31 & (1 << bit))
+				*contpc = regs->cp0_epc +
+					dec_insn.pc_inc +
+					(insn.mm_i_format.simmediate << 1);
+			else
+				*contpc = regs->cp0_epc +
+					dec_insn.pc_inc + dec_insn.next_pc_inc;
+			return 1;
+		}
+		break;
+	case mm_pool16c_op:
+		switch (insn.mm_i_format.rt) {
+		case mm_jalr16_op:
+		case mm_jalrs16_op:
+			regs->regs[31] = regs->cp0_epc +
+				dec_insn.pc_inc + dec_insn.next_pc_inc;
+			/* Fall through */
+		case mm_jr16_op:
+			*contpc = regs->regs[insn.mm_i_format.rs];
+			return 1;
+		}
+		break;
+	case mm_beqz16_op:
+		if ((long)regs->regs[reg16to32map[insn.mm_b1_format.rs]] == 0)
+			*contpc = regs->cp0_epc +
+				dec_insn.pc_inc +
+				(insn.mm_b1_format.simmediate << 1);
+		else
+			*contpc = regs->cp0_epc +
+				dec_insn.pc_inc + dec_insn.next_pc_inc;
+		return 1;
+	case mm_bnez16_op:
+		if ((long)regs->regs[reg16to32map[insn.mm_b1_format.rs]] != 0)
+			*contpc = regs->cp0_epc +
+				dec_insn.pc_inc +
+				(insn.mm_b1_format.simmediate << 1);
+		else
+			*contpc = regs->cp0_epc +
+				dec_insn.pc_inc + dec_insn.next_pc_inc;
+		return 1;
+	case mm_b16_op:
+		*contpc = regs->cp0_epc + dec_insn.pc_inc +
+			 (insn.mm_b0_format.simmediate << 1);
+		return 1;
+	case mm_beq32_op:
+		if (regs->regs[insn.mm_i_format.rs] ==
+		    regs->regs[insn.mm_i_format.rt])
+			*contpc = regs->cp0_epc +
+				dec_insn.pc_inc +
+				(insn.mm_i_format.simmediate << 1);
+		else
+			*contpc = regs->cp0_epc +
+				dec_insn.pc_inc +
+				dec_insn.next_pc_inc;
+		return 1;
+	case mm_bne32_op:
+		if (regs->regs[insn.mm_i_format.rs] !=
+		    regs->regs[insn.mm_i_format.rt])
+			*contpc = regs->cp0_epc +
+				dec_insn.pc_inc +
+				(insn.mm_i_format.simmediate << 1);
+		else
+			*contpc = regs->cp0_epc +
+				dec_insn.pc_inc + dec_insn.next_pc_inc;
+		return 1;
+	case mm_jalx32_op:
+		regs->regs[31] = regs->cp0_epc +
+			dec_insn.pc_inc + dec_insn.next_pc_inc;
+		*contpc = regs->cp0_epc + dec_insn.pc_inc;
+		*contpc >>= 28;
+		*contpc <<= 28;
+		*contpc |= (insn.j_format.target << 2);
+		return 1;
+	case mm_jals32_op:
+	case mm_jal32_op:
+		regs->regs[31] = regs->cp0_epc +
+			dec_insn.pc_inc + dec_insn.next_pc_inc;
+		/* Fall through */
+	case mm_j32_op:
+		*contpc = regs->cp0_epc + dec_insn.pc_inc;
+		*contpc >>= 27;
+		*contpc <<= 27;
+		*contpc |= (insn.j_format.target << 1);
+		set_isa16_mode(*contpc);
+		return 1;
+	}
+	return 0;
+}
+
 /*
  * Compute return address and emulate branch in microMIPS mode after an
  * exception only. It does not handle compact branches/jumps and cannot
@@ -317,7 +513,7 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 		if (regs->regs[insn.i_format.rs] ==
 		    regs->regs[insn.i_format.rt]) {
 			epc = epc + 4 + (insn.i_format.simmediate << 2);
-			if (insn.i_format.rt == beql_op)
+			if (insn.i_format.opcode == beql_op)
 				ret = BRANCH_LIKELY_TAKEN;
 		} else
 			epc += 8;
@@ -329,7 +525,7 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 		if (regs->regs[insn.i_format.rs] !=
 		    regs->regs[insn.i_format.rt]) {
 			epc = epc + 4 + (insn.i_format.simmediate << 2);
-			if (insn.i_format.rt == bnel_op)
+			if (insn.i_format.opcode == bnel_op)
 				ret = BRANCH_LIKELY_TAKEN;
 		} else
 			epc += 8;
@@ -341,7 +537,7 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 		/* rt field assumed to be zero */
 		if ((long)regs->regs[insn.i_format.rs] <= 0) {
 			epc = epc + 4 + (insn.i_format.simmediate << 2);
-			if (insn.i_format.rt == bnel_op)
+			if (insn.i_format.opcode == blezl_op)
 				ret = BRANCH_LIKELY_TAKEN;
 		} else
 			epc += 8;
@@ -353,7 +549,7 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 		/* rt field assumed to be zero */
 		if ((long)regs->regs[insn.i_format.rs] > 0) {
 			epc = epc + 4 + (insn.i_format.simmediate << 2);
-			if (insn.i_format.rt == bnel_op)
+			if (insn.i_format.opcode == bgtzl_op)
 				ret = BRANCH_LIKELY_TAKEN;
 		} else
 			epc += 8;
@@ -366,7 +562,11 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 	case cop1_op:
 		preempt_disable();
 		if (is_fpu_owner())
-			asm volatile("cfc1\t%0,$31" : "=r" (fcr31));
+			asm volatile(
+				".set push\n"
+				"\t.set mips1\n"
+				"\tcfc1\t%0,$31\n"
+				"\t.set pop" : "=r" (fcr31));
 		else
 			fcr31 = current->thread.fpu.fcr31;
 		preempt_enable();

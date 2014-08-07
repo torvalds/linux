@@ -19,7 +19,7 @@ struct powernow_k8_data {
 	u32 vidmvs;  /* usable value calculated from mvs */
 	u32 vstable; /* voltage stabilization time, units 20 us */
 	u32 plllock; /* pll lock time, units 1 us */
-        u32 exttype; /* extended interface = 1 */
+	u32 exttype; /* extended interface = 1 */
 
 	/* keep track of the current fid / vid or pstate */
 	u32 currvid;

@@ -1141,7 +1141,7 @@ kiblnd_alloc_pages(kib_pages_t **pp, int cpt, int npages)
 	for (i = 0; i < npages; i++) {
 		p->ibp_pages[i] = alloc_pages_node(
 				    cfs_cpt_spread_node(lnet_cpt_table(), cpt),
-				    __GFP_IO, 0);
+				    GFP_NOFS, 0);
 		if (p->ibp_pages[i] == NULL) {
 			CERROR("Can't allocate page %d of %d\n", i, npages);
 			kiblnd_free_pages(p);

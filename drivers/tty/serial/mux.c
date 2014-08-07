@@ -29,7 +29,7 @@
 #include <asm/irq.h>
 #include <asm/parisc-device.h>
 
-#ifdef CONFIG_MAGIC_SYSRQ
+#if defined(CONFIG_SERIAL_MUX_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
 #include <linux/sysrq.h>
 #define SUPPORT_SYSRQ
 #endif
@@ -613,7 +613,7 @@ static void __exit mux_exit(void)
 {
 	/* Delete the Mux timer. */
 	if(port_cnt > 0) {
-		del_timer(&mux_timer);
+		del_timer_sync(&mux_timer);
 #ifdef CONFIG_SERIAL_MUX_CONSOLE
 		unregister_console(&mux_console);
 #endif

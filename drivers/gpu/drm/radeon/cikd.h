@@ -482,6 +482,7 @@
 #define		READ_PROTECTION_FAULT_ENABLE_DEFAULT		(1 << 16)
 #define		WRITE_PROTECTION_FAULT_ENABLE_INTERRUPT		(1 << 18)
 #define		WRITE_PROTECTION_FAULT_ENABLE_DEFAULT		(1 << 19)
+#define		PAGE_TABLE_BLOCK_SIZE(x)			(((x) & 0xF) << 24)
 #define VM_CONTEXT1_CNTL				0x1414
 #define VM_CONTEXT0_CNTL2				0x1430
 #define VM_CONTEXT1_CNTL2				0x1434
@@ -1751,12 +1752,12 @@
 #define		EOP_TC_WB_ACTION_EN                     (1 << 15) /* L2 */
 #define		EOP_TCL1_ACTION_EN                      (1 << 16)
 #define		EOP_TC_ACTION_EN                        (1 << 17) /* L2 */
+#define		EOP_TCL2_VOLATILE                       (1 << 24)
 #define		EOP_CACHE_POLICY(x)                     ((x) << 25)
                 /* 0 - LRU
 		 * 1 - Stream
 		 * 2 - Bypass
 		 */
-#define		EOP_TCL2_VOLATILE                       (1 << 27)
 #define		DATA_SEL(x)                             ((x) << 29)
                 /* 0 - discard
 		 * 1 - send low 32bit data

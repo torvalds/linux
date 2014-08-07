@@ -259,7 +259,7 @@ int mwifiex_complete_cmd(struct mwifiex_adapter *adapter,
  * NULL is returned if station entry is not found in associated STA list.
  */
 struct mwifiex_sta_node *
-mwifiex_get_sta_entry(struct mwifiex_private *priv, u8 *mac)
+mwifiex_get_sta_entry(struct mwifiex_private *priv, const u8 *mac)
 {
 	struct mwifiex_sta_node *node;
 
@@ -280,7 +280,7 @@ mwifiex_get_sta_entry(struct mwifiex_private *priv, u8 *mac)
  * If received mac address is NULL, NULL is returned.
  */
 struct mwifiex_sta_node *
-mwifiex_add_sta_entry(struct mwifiex_private *priv, u8 *mac)
+mwifiex_add_sta_entry(struct mwifiex_private *priv, const u8 *mac)
 {
 	struct mwifiex_sta_node *node;
 	unsigned long flags;
@@ -332,7 +332,7 @@ mwifiex_set_sta_ht_cap(struct mwifiex_private *priv, const u8 *ies,
 }
 
 /* This function will delete a station entry from station list */
-void mwifiex_del_sta_entry(struct mwifiex_private *priv, u8 *mac)
+void mwifiex_del_sta_entry(struct mwifiex_private *priv, const u8 *mac)
 {
 	struct mwifiex_sta_node *node;
 	unsigned long flags;

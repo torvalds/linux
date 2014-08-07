@@ -14,6 +14,7 @@
 
 / {
 	aliases {
+		ethernet0 = &fec;
 		gpio0 = &gpio1;
 		gpio1 = &gpio2;
 		gpio2 = &gpio3;
@@ -21,6 +22,8 @@
 		i2c0 = &i2c1;
 		i2c1 = &i2c2;
 		i2c2 = &i2c3;
+		mmc0 = &esdhc1;
+		mmc1 = &esdhc2;
 		serial0 = &uart1;
 		serial1 = &uart2;
 		serial2 = &uart3;
@@ -165,9 +168,10 @@
 				status = "disabled";
 			};
 
-			kpp@43fa8000 {
+			kpp: kpp@43fa8000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
+				compatible = "fsl,imx25-kpp", "fsl,imx21-kpp";
 				reg = <0x43fa8000 0x4000>;
 				clocks = <&clks 102>;
 				clock-names = "";
@@ -482,23 +486,13 @@
 				clocks = <&clks 99>;
 			};
 
-			usbphy1: usbphy@1 {
-				compatible = "nop-usbphy";
-				status = "disabled";
-			};
-
-			usbphy2: usbphy@2 {
-				compatible = "nop-usbphy";
-				status = "disabled";
-			};
-
 			usbotg: usb@53ff4000 {
 				compatible = "fsl,imx25-usb", "fsl,imx27-usb";
 				reg = <0x53ff4000 0x0200>;
 				interrupts = <37>;
-				clocks = <&clks 9>, <&clks 70>, <&clks 8>;
-				clock-names = "ipg", "ahb", "per";
+				clocks = <&clks 70>;
 				fsl,usbmisc = <&usbmisc 0>;
+				fsl,usbphy = <&usbphy0>;
 				status = "disabled";
 			};
 
@@ -506,9 +500,9 @@
 				compatible = "fsl,imx25-usb", "fsl,imx27-usb";
 				reg = <0x53ff4400 0x0200>;
 				interrupts = <35>;
-				clocks = <&clks 9>, <&clks 70>, <&clks 8>;
-				clock-names = "ipg", "ahb", "per";
+				clocks = <&clks 70>;
 				fsl,usbmisc = <&usbmisc 1>;
+				fsl,usbphy = <&usbphy1>;
 				status = "disabled";
 			};
 
@@ -518,7 +512,6 @@
 				clocks = <&clks 9>, <&clks 70>, <&clks 8>;
 				clock-names = "ipg", "ahb", "per";
 				reg = <0x53ff4600 0x00f>;
-				status = "disabled";
 			};
 
 			dryice@53ffc000 {
@@ -528,6 +521,11 @@
 				clock-names = "ipg";
 				interrupts = <25>;
 			};
+		};
+
+		iram: sram@78000000 {
+			compatible = "mmio-sram";
+			reg = <0x78000000 0x20000>;
 		};
 
 		emi@80000000 {
@@ -548,6 +546,22 @@
 				interrupts = <33>;
 				status = "disabled";
 			};
+		};
+	};
+
+	usbphy {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		usbphy0: usb-phy@0 {
+			reg = <0>;
+			compatible = "usb-nop-xceiv";
+		};
+
+		usbphy1: usb-phy@1 {
+			reg = <1>;
+			compatible = "usb-nop-xceiv";
 		};
 	};
 };

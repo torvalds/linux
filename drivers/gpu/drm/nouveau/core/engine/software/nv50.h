@@ -19,7 +19,7 @@ int  nv50_software_ctor(struct nouveau_object *, struct nouveau_object *,
 
 struct nv50_software_cclass {
 	struct nouveau_oclass base;
-	int (*vblank)(void *, int);
+	int (*vblank)(void *, u32, int);
 };
 
 struct nv50_software_chan {

@@ -40,6 +40,7 @@
 		hdmi@54280000 {
 			status = "okay";
 
+			hdmi-supply = <&vdd_5v0_hdmi>;
 			vdd-supply = <&sys_3v3_reg>;
 			pll-supply = <&vio_reg>;
 
@@ -476,6 +477,17 @@
 			regulator-boot-on;
 			enable-active-high;
 			gpio = <&gpio TEGRA_GPIO(L, 7) GPIO_ACTIVE_HIGH>;
+			vin-supply = <&sys_3v3_reg>;
+		};
+
+		vdd_5v0_hdmi: regulator@8 {
+			compatible = "regulator-fixed";
+			reg = <8>;
+			regulator-name = "+VDD_5V_HDMI";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			regulator-always-on;
+			regulator-boot-on;
 			vin-supply = <&sys_3v3_reg>;
 		};
 	};

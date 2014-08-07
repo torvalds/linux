@@ -1036,8 +1036,8 @@ static int set_recover_size(struct gfs2_sbd *sdp, struct dlm_slot *slots,
 
 	new_size = old_size + RECOVER_SIZE_INC;
 
-	submit = kzalloc(new_size * sizeof(uint32_t), GFP_NOFS);
-	result = kzalloc(new_size * sizeof(uint32_t), GFP_NOFS);
+	submit = kcalloc(new_size, sizeof(uint32_t), GFP_NOFS);
+	result = kcalloc(new_size, sizeof(uint32_t), GFP_NOFS);
 	if (!submit || !result) {
 		kfree(submit);
 		kfree(result);
@@ -1134,7 +1134,7 @@ static void gdlm_recover_done(void *arg, struct dlm_slot *slots, int num_slots,
 		queue_delayed_work(gfs2_control_wq, &sdp->sd_control_work, 0);
 
 	clear_bit(DFL_DLM_RECOVERY, &ls->ls_recover_flags);
-	smp_mb__after_clear_bit();
+	smp_mb__after_atomic();
 	wake_up_bit(&ls->ls_recover_flags, DFL_DLM_RECOVERY);
 	spin_unlock(&ls->ls_recover_spin);
 }
@@ -1271,7 +1271,7 @@ static int gdlm_mount(struct gfs2_sbd *sdp, const char *table)
 
 	ls->ls_first = !!test_bit(DFL_FIRST_MOUNT, &ls->ls_recover_flags);
 	clear_bit(SDF_NOJOURNALID, &sdp->sd_flags);
-	smp_mb__after_clear_bit();
+	smp_mb__after_atomic();
 	wake_up_bit(&sdp->sd_flags, SDF_NOJOURNALID);
 	return 0;
 

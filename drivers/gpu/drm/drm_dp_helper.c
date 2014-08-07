@@ -206,13 +206,17 @@ i2c_dp_aux_prepare_bus(struct i2c_adapter *adapter)
  * i2c_dp_aux_add_bus() - register an i2c adapter using the aux ch helper
  * @adapter: i2c adapter to register
  *
- * This registers an i2c adapater that uses dp aux channel as it's underlaying
+ * This registers an i2c adapter that uses dp aux channel as it's underlaying
  * transport. The driver needs to fill out the &i2c_algo_dp_aux_data structure
  * and store it in the algo_data member of the @adapter argument. This will be
  * used by the i2c over dp aux algorithm to drive the hardware.
  *
  * RETURNS:
  * 0 on success, -ERRNO on failure.
+ *
+ * IMPORTANT:
+ * This interface is deprecated, please switch to the new dp aux helpers and
+ * drm_dp_aux_register().
  */
 int
 i2c_dp_aux_add_bus(struct i2c_adapter *adapter)
@@ -378,7 +382,10 @@ static int drm_dp_dpcd_access(struct drm_dp_aux *aux, u8 request,
 	 * transactions.
 	 */
 	for (retry = 0; retry < 7; retry++) {
+
+		mutex_lock(&aux->hw_mutex);
 		err = aux->transfer(aux, &msg);
+		mutex_unlock(&aux->hw_mutex);
 		if (err < 0) {
 			if (err == -EBUSY)
 				continue;
@@ -592,7 +599,9 @@ static int drm_dp_i2c_do_msg(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
 	 * before giving up the AUX transaction.
 	 */
 	for (retry = 0; retry < 7; retry++) {
+		mutex_lock(&aux->hw_mutex);
 		err = aux->transfer(aux, msg);
+		mutex_unlock(&aux->hw_mutex);
 		if (err < 0) {
 			if (err == -EBUSY)
 				continue;
@@ -725,13 +734,15 @@ static const struct i2c_algorithm drm_dp_i2c_algo = {
 };
 
 /**
- * drm_dp_aux_register_i2c_bus() - register an I2C adapter for I2C-over-AUX
+ * drm_dp_aux_register() - initialise and register aux channel
  * @aux: DisplayPort AUX channel
  *
  * Returns 0 on success or a negative error code on failure.
  */
-int drm_dp_aux_register_i2c_bus(struct drm_dp_aux *aux)
+int drm_dp_aux_register(struct drm_dp_aux *aux)
 {
+	mutex_init(&aux->hw_mutex);
+
 	aux->ddc.algo = &drm_dp_i2c_algo;
 	aux->ddc.algo_data = aux;
 	aux->ddc.retries = 3;
@@ -746,14 +757,14 @@ int drm_dp_aux_register_i2c_bus(struct drm_dp_aux *aux)
 
 	return i2c_add_adapter(&aux->ddc);
 }
-EXPORT_SYMBOL(drm_dp_aux_register_i2c_bus);
+EXPORT_SYMBOL(drm_dp_aux_register);
 
 /**
- * drm_dp_aux_unregister_i2c_bus() - unregister an I2C-over-AUX adapter
+ * drm_dp_aux_unregister() - unregister an AUX adapter
  * @aux: DisplayPort AUX channel
  */
-void drm_dp_aux_unregister_i2c_bus(struct drm_dp_aux *aux)
+void drm_dp_aux_unregister(struct drm_dp_aux *aux)
 {
 	i2c_del_adapter(&aux->ddc);
 }
-EXPORT_SYMBOL(drm_dp_aux_unregister_i2c_bus);
+EXPORT_SYMBOL(drm_dp_aux_unregister);

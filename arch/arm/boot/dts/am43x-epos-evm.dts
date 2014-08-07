@@ -19,12 +19,54 @@
 	model = "TI AM43x EPOS EVM";
 	compatible = "ti,am43x-epos-evm","ti,am4372","ti,am43";
 
+	aliases {
+		display0 = &lcd0;
+	};
+
 	vmmcsd_fixed: fixedregulator-sd {
 		compatible = "regulator-fixed";
 		regulator-name = "vmmcsd_fixed";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		enable-active-high;
+	};
+
+	lcd0: display {
+		compatible = "osddisplays,osd057T0559-34ts", "panel-dpi";
+		label = "lcd";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&lcd_pins>;
+
+		/*
+		 * SelLCDorHDMI, LOW to select HDMI. This is not really the
+		 * panel's enable GPIO, but we don't have HDMI driver support nor
+		 * support to switch between two displays, so using this gpio as
+		 * panel's enable should be safe.
+		 */
+		enable-gpios = <&gpio2 1 GPIO_ACTIVE_HIGH>;
+
+		panel-timing {
+			clock-frequency = <33000000>;
+			hactive = <800>;
+			vactive = <480>;
+			hfront-porch = <210>;
+			hback-porch = <16>;
+			hsync-len = <30>;
+			vback-porch = <10>;
+			vfront-porch = <22>;
+			vsync-len = <13>;
+			hsync-active = <0>;
+			vsync-active = <0>;
+			de-active = <1>;
+			pixelclk-active = <1>;
+		};
+
+		port {
+			lcd_in: endpoint {
+				remote-endpoint = <&dpi_out>;
+			};
+		};
 	};
 
 	am43xx_pinmux: pinmux@44e10800 {
@@ -138,6 +180,69 @@
 				0x160 (PIN_INPUT | MUX_MODE7) /* spi0_cs1.gpio0_6 */
 			>;
 		};
+
+		qspi1_default: qspi1_default {
+			pinctrl-single,pins = <
+				0x7c (PIN_INPUT_PULLUP | MUX_MODE3)
+				0x88 (PIN_INPUT_PULLUP | MUX_MODE2)
+				0x90 (PIN_INPUT_PULLUP | MUX_MODE3)
+				0x94 (PIN_INPUT_PULLUP | MUX_MODE3)
+				0x98 (PIN_INPUT_PULLUP | MUX_MODE3)
+				0x9c (PIN_INPUT_PULLUP | MUX_MODE3)
+			>;
+		};
+
+		pixcir_ts_pins: pixcir_ts_pins {
+			pinctrl-single,pins = <
+				0x44 (PIN_INPUT_PULLUP | MUX_MODE7)	/* gpmc_a1.gpio1_17 */
+			>;
+		};
+
+		hdq_pins: pinmux_hdq_pins {
+			pinctrl-single,pins = <
+				0x234 (PIN_INPUT_PULLUP | MUX_MODE1)    /* cam1_wen.hdq_gpio */
+			>;
+		};
+
+		dss_pins: dss_pins {
+			pinctrl-single,pins = <
+				0x020 (PIN_OUTPUT_PULLUP | MUX_MODE1) /*gpmc ad 8 -> DSS DATA 23 */
+				0x024 (PIN_OUTPUT_PULLUP | MUX_MODE1)
+				0x028 (PIN_OUTPUT_PULLUP | MUX_MODE1)
+				0x02C (PIN_OUTPUT_PULLUP | MUX_MODE1)
+				0x030 (PIN_OUTPUT_PULLUP | MUX_MODE1)
+				0x034 (PIN_OUTPUT_PULLUP | MUX_MODE1)
+				0x038 (PIN_OUTPUT_PULLUP | MUX_MODE1)
+				0x03C (PIN_OUTPUT_PULLUP | MUX_MODE1) /*gpmc ad 15 -> DSS DATA 16 */
+				0x0A0 (PIN_OUTPUT_PULLUP | MUX_MODE0) /* DSS DATA 0 */
+				0x0A4 (PIN_OUTPUT_PULLUP | MUX_MODE0)
+				0x0A8 (PIN_OUTPUT_PULLUP | MUX_MODE0)
+				0x0AC (PIN_OUTPUT_PULLUP | MUX_MODE0)
+				0x0B0 (PIN_OUTPUT_PULLUP | MUX_MODE0)
+				0x0B4 (PIN_OUTPUT_PULLUP | MUX_MODE0)
+				0x0B8 (PIN_OUTPUT_PULLUP | MUX_MODE0)
+				0x0BC (PIN_OUTPUT_PULLUP | MUX_MODE0)
+				0x0C0 (PIN_OUTPUT_PULLUP | MUX_MODE0)
+				0x0C4 (PIN_OUTPUT_PULLUP | MUX_MODE0)
+				0x0C8 (PIN_OUTPUT_PULLUP | MUX_MODE0)
+				0x0CC (PIN_OUTPUT_PULLUP | MUX_MODE0)
+				0x0D0 (PIN_OUTPUT_PULLUP | MUX_MODE0)
+				0x0D4 (PIN_OUTPUT_PULLUP | MUX_MODE0)
+				0x0D8 (PIN_OUTPUT_PULLUP | MUX_MODE0)
+				0x0DC (PIN_OUTPUT_PULLUP | MUX_MODE0) /* DSS DATA 15 */
+				0x0E0 (PIN_OUTPUT_PULLUP | MUX_MODE0) /* DSS VSYNC */
+				0x0E4 (PIN_OUTPUT_PULLUP | MUX_MODE0) /* DSS HSYNC */
+				0x0E8 (PIN_OUTPUT_PULLUP | MUX_MODE0) /* DSS PCLK */
+				0x0EC (PIN_OUTPUT_PULLUP | MUX_MODE0) /* DSS AC BIAS EN */
+			>;
+		};
+
+		lcd_pins: lcd_pins {
+			pinctrl-single,pins = <
+				/* GPMC CLK -> GPIO 2_1 to select LCD / HDMI */
+				0x08C (PIN_OUTPUT_PULLUP | MUX_MODE7)
+			>;
+		};
 	};
 
 	matrix_keypad: matrix_keypad@0 {
@@ -214,6 +319,10 @@
 	phy-mode = "rmii";
 };
 
+&phy_sel {
+	rmii-clock-ext;
+};
+
 &i2c0 {
 	status = "okay";
 	pinctrl-names = "default";
@@ -226,15 +335,17 @@
 	};
 
 	pixcir_ts@5c {
-		compatible = "pixcir,pixcir_ts";
+		compatible = "pixcir,pixcir_tangoc";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pixcir_ts_pins>;
 		reg = <0x5c>;
 		interrupt-parent = <&gpio1>;
 		interrupts = <17 0>;
 
 		attb-gpio = <&gpio1 17 GPIO_ACTIVE_HIGH>;
 
-		x-size = <1024>;
-		y-size = <768>;
+		touchscreen-size-x = <1024>;
+		touchscreen-size-y = <600>;
 	};
 };
 
@@ -341,7 +452,7 @@
 		};
 		partition@9 {
 			label = "NAND.file-system";
-			reg = <0x00800000 0x1F600000>;
+			reg = <0x00a00000 0x1f600000>;
 		};
 	};
 };
@@ -366,4 +477,94 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&spi1_pins>;
 	status = "okay";
+};
+
+&usb2_phy1 {
+	status = "okay";
+};
+
+&usb1 {
+	dr_mode = "peripheral";
+	status = "okay";
+};
+
+&usb2_phy2 {
+	status = "okay";
+};
+
+&usb2 {
+	dr_mode = "host";
+	status = "okay";
+};
+
+&qspi {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&qspi1_default>;
+
+	spi-max-frequency = <48000000>;
+	m25p80@0 {
+		compatible = "mx66l51235l";
+		spi-max-frequency = <48000000>;
+		reg = <0>;
+		spi-cpol;
+		spi-cpha;
+		spi-tx-bus-width = <1>;
+		spi-rx-bus-width = <4>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		/* MTD partition table.
+		 * The ROM checks the first 512KiB
+		 * for a valid file to boot(XIP).
+		 */
+		partition@0 {
+			label = "QSPI.U_BOOT";
+			reg = <0x00000000 0x000080000>;
+		};
+		partition@1 {
+			label = "QSPI.U_BOOT.backup";
+			reg = <0x00080000 0x00080000>;
+		};
+		partition@2 {
+			label = "QSPI.U-BOOT-SPL_OS";
+			reg = <0x00100000 0x00010000>;
+		};
+		partition@3 {
+			label = "QSPI.U_BOOT_ENV";
+			reg = <0x00110000 0x00010000>;
+		};
+		partition@4 {
+			label = "QSPI.U-BOOT-ENV.backup";
+			reg = <0x00120000 0x00010000>;
+		};
+		partition@5 {
+			label = "QSPI.KERNEL";
+			reg = <0x00130000 0x0800000>;
+		};
+		partition@6 {
+			label = "QSPI.FILESYSTEM";
+			reg = <0x00930000 0x36D0000>;
+		};
+	};
+};
+
+&hdq {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&hdq_pins>;
+};
+
+&dss {
+	status = "ok";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&dss_pins>;
+
+	port {
+		dpi_out: endpoint@0 {
+			remote-endpoint = <&lcd_in>;
+			data-lines = <24>;
+		};
+	};
 };

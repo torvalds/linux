@@ -1,5 +1,5 @@
 /*
- * General MIPS MT support routines, usable in AP/SP, SMVP, or SMTC kernels
+ * General MIPS MT support routines, usable in AP/SP and SMVP.
  * Copyright (C) 2005 Mips Technologies, Inc
  */
 #include <linux/cpu.h>

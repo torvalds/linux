@@ -4,10 +4,10 @@
 #include <linux/perf_event.h>
 #include <sys/types.h>
 #include <stdbool.h>
-#include "types.h"
+#include <linux/bitmap.h>
+#include <linux/types.h>
 #include "event.h"
 
-#include <linux/bitmap.h>
 
 enum {
 	HEADER_RESERVED		= 0,	/* always cleared */

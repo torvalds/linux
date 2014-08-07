@@ -54,9 +54,7 @@
 #include "mac.h"
 #include "michael.h"
 #include "tkip.h"
-#include "tcrc.h"
 #include "wctl.h"
-#include "hostap.h"
 #include "rf.h"
 #include "datarate.h"
 #include "usbpipe.h"
@@ -101,11 +99,11 @@ static struct vnt_usb_send_context *s_vGetFreeContext(struct vnt_private *);
 static u16 s_vGenerateTxParameter(struct vnt_private *pDevice,
 	u8 byPktType, u16 wCurrentRate,	struct vnt_tx_buffer *tx_buffer,
 	struct vnt_mic_hdr **mic_hdr, u32 need_mic, u32 cbFrameSize,
-	int bNeedACK, u32 uDMAIdx, struct ethhdr *psEthHeader, bool need_rts);
+	int bNeedACK, struct ethhdr *psEthHeader, bool need_rts);
 
 static void s_vGenerateMACHeader(struct vnt_private *pDevice,
 	u8 *pbyBufferAddr, u16 wDuration, struct ethhdr *psEthHeader,
-	int bNeedEncrypt, u16 wFragType, u32 uDMAIdx, u32 uFragIdx);
+	int bNeedEncrypt, u16 wFragType, u32 uFragIdx);
 
 static void s_vFillTxKey(struct vnt_private *pDevice,
 	struct vnt_tx_fifo_head *fifo_head, u8 *pbyIVHead,
@@ -119,9 +117,9 @@ static unsigned int s_uGetTxRsvTime(struct vnt_private *pDevice, u8 byPktType,
 	u32 cbFrameLength, u16 wRate, int bNeedAck);
 
 static __le16 s_uGetRTSCTSRsvTime(struct vnt_private *priv,
-	u8 rsv_type, u8 pkt_type, u32 frame_lenght, u16 current_rate);
+	u8 rsv_type, u8 pkt_type, u32 frame_length, u16 current_rate);
 
-static u16 s_vFillCTSHead(struct vnt_private *pDevice, u32 uDMAIdx,
+static u16 s_vFillCTSHead(struct vnt_private *pDevice,
 	u8 byPktType, union vnt_tx_data_head *head, u32 cbFrameLength,
 	int bNeedAck, u16 wCurrentRate, u8 byFBOption);
 
@@ -149,9 +147,9 @@ static struct vnt_usb_send_context
 			return NULL;
 
 		context = priv->apTD[ii];
-		if (context->bBoolInUse == false) {
-			context->bBoolInUse = true;
-			memset(context->Data, 0,
+		if (context->in_use == false) {
+			context->in_use = true;
+			memset(context->data, 0,
 					MAX_TOTAL_SIZE_WITH_ALL_HEADERS);
 			return context;
 		}
@@ -181,41 +179,40 @@ static void s_vFillTxKey(struct vnt_private *pDevice,
 	struct vnt_mic_hdr *mic_hdr)
 {
 	u8 *pbyBuf = (u8 *)&fifo_head->adwTxKey[0];
-	u32 *pdwIV = (u32 *)pbyIVHead;
-	u32 *pdwExtIV = (u32 *)((u8 *)pbyIVHead + 4);
+	__le32 *pdwIV = (__le32 *)pbyIVHead;
+	__le32 *pdwExtIV = (__le32 *)((u8 *)pbyIVHead + 4);
 	struct ieee80211_hdr *pMACHeader = (struct ieee80211_hdr *)pbyHdrBuf;
-	u32 dwRevIVCounter;
+	__le32 rev_iv_counter;
 
 	/* Fill TXKEY */
 	if (pTransmitKey == NULL)
 		return;
 
-	dwRevIVCounter = cpu_to_le32(pDevice->dwIVCounter);
-	*pdwIV = pDevice->dwIVCounter;
+	rev_iv_counter = cpu_to_le32(pDevice->dwIVCounter);
+	*pdwIV = cpu_to_le32(pDevice->dwIVCounter);
 	pDevice->byKeyIndex = pTransmitKey->dwKeyIndex & 0xf;
 
 	switch (pTransmitKey->byCipherSuite) {
 	case KEY_CTL_WEP:
 		if (pTransmitKey->uKeyLength == WLAN_WEP232_KEYLEN) {
-			memcpy(pDevice->abyPRNG, (u8 *)&dwRevIVCounter, 3);
+			memcpy(pDevice->abyPRNG, (u8 *)&rev_iv_counter, 3);
 			memcpy(pDevice->abyPRNG + 3, pTransmitKey->abyKey,
 						pTransmitKey->uKeyLength);
 		} else {
-			memcpy(pbyBuf, (u8 *)&dwRevIVCounter, 3);
+			memcpy(pbyBuf, (u8 *)&rev_iv_counter, 3);
 			memcpy(pbyBuf + 3, pTransmitKey->abyKey,
 						pTransmitKey->uKeyLength);
 			if (pTransmitKey->uKeyLength == WLAN_WEP40_KEYLEN) {
-				memcpy(pbyBuf+8, (u8 *)&dwRevIVCounter, 3);
-			memcpy(pbyBuf+11, pTransmitKey->abyKey,
+				memcpy(pbyBuf+8, (u8 *)&rev_iv_counter, 3);
+				memcpy(pbyBuf+11, pTransmitKey->abyKey,
 						pTransmitKey->uKeyLength);
 			}
 
 			memcpy(pDevice->abyPRNG, pbyBuf, 16);
 		}
 		/* Append IV after Mac Header */
-		*pdwIV &= WEP_IV_MASK;
-		*pdwIV |= (u32)pDevice->byKeyIndex << 30;
-		*pdwIV = cpu_to_le32(*pdwIV);
+		*pdwIV &= cpu_to_le32(WEP_IV_MASK);
+		*pdwIV |= cpu_to_le32((u32)pDevice->byKeyIndex << 30);
 
 		pDevice->dwIVCounter++;
 		if (pDevice->dwIVCounter > WEP_IV_MASK)
@@ -256,7 +253,7 @@ static void s_vFillTxKey(struct vnt_private *pDevice,
 		*(pbyIVHead+3) = (u8)(((pDevice->byKeyIndex << 6) &
 							0xc0) | 0x20);
 
-		*pdwIV |= cpu_to_le16((u16)(pTransmitKey->wTSC15_0));
+		*pdwIV |= cpu_to_le32((u32)(pTransmitKey->wTSC15_0));
 
 		/* Append IV&ExtIV after Mac Header */
 		*pdwExtIV = cpu_to_le32(pTransmitKey->dwTSC47_16);
@@ -283,9 +280,10 @@ static void s_vFillTxKey(struct vnt_private *pDevice,
 
 		/* MICHDR2 */
 		memcpy(mic_hdr->addr3, pMACHeader->addr3, ETH_ALEN);
-		mic_hdr->frame_control = cpu_to_le16(pMACHeader->frame_control
-								& 0xc78f);
-		mic_hdr->seq_ctrl = cpu_to_le16(pMACHeader->seq_ctrl & 0xf);
+		mic_hdr->frame_control = cpu_to_le16(
+			le16_to_cpu(pMACHeader->frame_control) & 0xc78f);
+		mic_hdr->seq_ctrl = cpu_to_le16(
+				le16_to_cpu(pMACHeader->seq_ctrl) & 0xf);
 
 		if (ieee80211_has_a4(pMACHeader->frame_control))
 			memcpy(mic_hdr->addr4, pMACHeader->addr4, ETH_ALEN);
@@ -305,7 +303,7 @@ static void s_vSWencryption(struct vnt_private *pDevice,
     if (pTransmitKey->byCipherSuite == KEY_CTL_WEP) {
         //=======================================================================
         // Append ICV after payload
-        dwICV = CRCdwGetCrc32Ex(pbyPayloadHead, wPayloadSize, dwICV);//ICV(Payload)
+	dwICV = ether_crc_le(wPayloadSize, pbyPayloadHead);
         pdwICV = (u32 *)(pbyPayloadHead + wPayloadSize);
         // finally, we must invert dwCRC to get the correct answer
         *pdwICV = cpu_to_le32(~dwICV);
@@ -316,7 +314,7 @@ static void s_vSWencryption(struct vnt_private *pDevice,
     } else if (pTransmitKey->byCipherSuite == KEY_CTL_TKIP) {
         //=======================================================================
         //Append ICV after payload
-        dwICV = CRCdwGetCrc32Ex(pbyPayloadHead, wPayloadSize, dwICV);//ICV(Payload)
+	dwICV = ether_crc_le(wPayloadSize, pbyPayloadHead);
         pdwICV = (u32 *)(pbyPayloadHead + wPayloadSize);
         // finally, we must invert dwCRC to get the correct answer
         *pdwICV = cpu_to_le32(~dwICV);
@@ -368,14 +366,14 @@ static __le16 vnt_rxtx_rsvtime_le16(struct vnt_private *priv, u8 pkt_type,
 
 //byFreqType: 0=>5GHZ 1=>2.4GHZ
 static __le16 s_uGetRTSCTSRsvTime(struct vnt_private *priv,
-	u8 rsv_type, u8 pkt_type, u32 frame_lenght, u16 current_rate)
+	u8 rsv_type, u8 pkt_type, u32 frame_length, u16 current_rate)
 {
 	u32 rrv_time, rts_time, cts_time, ack_time, data_time;
 
 	rrv_time = rts_time = cts_time = ack_time = data_time = 0;
 
 	data_time = BBuGetFrameTime(priv->byPreambleType, pkt_type,
-						frame_lenght, current_rate);
+						frame_length, current_rate);
 
 	if (rsv_type == 0) {
 		rts_time = BBuGetFrameTime(priv->byPreambleType,
@@ -551,7 +549,8 @@ static int vnt_fill_ieee80211_rts(struct vnt_private *priv,
 		__le16 duration)
 {
 	rts->duration = duration;
-	rts->frame_control = TYPE_CTL_RTS;
+	rts->frame_control =
+		cpu_to_le16(IEEE80211_FTYPE_CTL | IEEE80211_STYPE_RTS);
 
 	if (priv->op_mode == NL80211_IFTYPE_ADHOC ||
 				priv->op_mode == NL80211_IFTYPE_AP)
@@ -713,7 +712,7 @@ static u16 s_vFillRTSHead(struct vnt_private *pDevice, u8 byPktType,
 	return 0;
 }
 
-static u16 s_vFillCTSHead(struct vnt_private *pDevice, u32 uDMAIdx,
+static u16 s_vFillCTSHead(struct vnt_private *pDevice,
 	u8 byPktType, union vnt_tx_data_head *head, u32 cbFrameLength,
 	int bNeedAck, u16 wCurrentRate, u8 byFBOption)
 {
@@ -741,7 +740,9 @@ static u16 s_vFillCTSHead(struct vnt_private *pDevice, u32 uDMAIdx,
 			pDevice->tx_rate_fb1, bNeedAck, byFBOption);
 		/* Get CTS Frame body */
 		pBuf->data.duration = pBuf->duration_ba;
-		pBuf->data.frame_control = TYPE_CTL_CTS;
+		pBuf->data.frame_control =
+			cpu_to_le16(IEEE80211_FTYPE_CTL | IEEE80211_STYPE_CTS);
+
 		memcpy(pBuf->data.ra, pDevice->abyCurrentNetAddr, ETH_ALEN);
 
 		return vnt_rxtx_datahead_g_fb(pDevice, byPktType, wCurrentRate,
@@ -757,7 +758,9 @@ static u16 s_vFillCTSHead(struct vnt_private *pDevice, u32 uDMAIdx,
 			wCurrentRate, bNeedAck, byFBOption);
 		/*Get CTS Frame body*/
 		pBuf->data.duration = pBuf->duration_ba;
-		pBuf->data.frame_control = TYPE_CTL_CTS;
+		pBuf->data.frame_control =
+			cpu_to_le16(IEEE80211_FTYPE_CTL | IEEE80211_STYPE_CTS);
+
 		memcpy(pBuf->data.ra, pDevice->abyCurrentNetAddr, ETH_ALEN);
 
 		return vnt_rxtx_datahead_g(pDevice, byPktType, wCurrentRate,
@@ -782,7 +785,6 @@ static u16 s_vFillCTSHead(struct vnt_private *pDevice, u32 uDMAIdx,
  *      pCTS            - CTS Buffer
  *      cbFrameSize     - Transmit Data Length (Hdr+Payload+FCS)
  *      bNeedACK        - If need ACK
- *      uDMAIdx         - DMA Index
  *  Out:
  *      none
  *
@@ -793,23 +795,20 @@ static u16 s_vFillCTSHead(struct vnt_private *pDevice, u32 uDMAIdx,
 static u16 s_vGenerateTxParameter(struct vnt_private *pDevice,
 	u8 byPktType, u16 wCurrentRate,	struct vnt_tx_buffer *tx_buffer,
 	struct vnt_mic_hdr **mic_hdr, u32 need_mic, u32 cbFrameSize,
-	int bNeedACK, u32 uDMAIdx, struct ethhdr *psEthHeader, bool need_rts)
+	int bNeedACK, struct ethhdr *psEthHeader, bool need_rts)
 {
 	struct vnt_tx_fifo_head *pFifoHead = &tx_buffer->fifo_head;
 	union vnt_tx_data_head *head = NULL;
 	u16 wFifoCtl;
 	u8 byFBOption = AUTO_FB_NONE;
 
-	pFifoHead->wReserved = wCurrentRate;
+	pFifoHead->current_rate = cpu_to_le16(wCurrentRate);
 	wFifoCtl = pFifoHead->wFIFOCtl;
 
 	if (wFifoCtl & FIFOCTL_AUTO_FB_0)
 		byFBOption = AUTO_FB_0;
 	else if (wFifoCtl & FIFOCTL_AUTO_FB_1)
 		byFBOption = AUTO_FB_1;
-
-	if (!pFifoHead)
-		return 0;
 
 	if (byPktType == PK_TYPE_11GB || byPktType == PK_TYPE_11GA) {
 		if (need_rts) {
@@ -864,7 +863,7 @@ static u16 s_vGenerateTxParameter(struct vnt_private *pDevice,
 			}
 
 			/* Fill CTS */
-			return s_vFillCTSHead(pDevice, uDMAIdx, byPktType,
+			return s_vFillCTSHead(pDevice, byPktType,
 				head, cbFrameSize, bNeedACK, wCurrentRate,
 					byFBOption);
 		}
@@ -949,12 +948,11 @@ static u16 s_vGenerateTxParameter(struct vnt_private *pDevice,
 
 static int s_bPacketToWirelessUsb(struct vnt_private *pDevice, u8 byPktType,
 	struct vnt_tx_buffer *tx_buffer, int bNeedEncryption,
-	u32 uSkbPacketLen, u32 uDMAIdx,	struct ethhdr *psEthHeader,
+	u32 uSkbPacketLen, struct ethhdr *psEthHeader,
 	u8 *pPacket, PSKeyItem pTransmitKey, u32 uNodeIndex, u16 wCurrentRate,
 	u32 *pcbHeaderLen, u32 *pcbTotalLen)
 {
 	struct vnt_tx_fifo_head *pTxBufHead = &tx_buffer->fifo_head;
-	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
 	u32 cbFrameSize, cbFrameBodySize;
 	u32 cb802_1_H_len;
 	u32 cbIVlen = 0, cbICVlen = 0, cbMIClen = 0, cbMACHdLen = 0;
@@ -1008,7 +1006,7 @@ static int s_bPacketToWirelessUsb(struct vnt_private *pDevice, u8 byPktType,
 		pTxBufHead->wFIFOCtl |= FIFOCTL_NEEDACK;
 	}
 
-    pTxBufHead->wTimeStamp = DEFAULT_MSDU_LIFETIME_RES_64us;
+    pTxBufHead->time_stamp = cpu_to_le16(DEFAULT_MSDU_LIFETIME_RES_64us);
 
     //Set FRAGCTL_MACHDCNT
 	cbMACHdLen = WLAN_HDR_ADDR3_LEN;
@@ -1145,27 +1143,21 @@ static int s_bPacketToWirelessUsb(struct vnt_private *pDevice, u8 byPktType,
     //=========================
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"No Fragmentation...\n");
     byFragType = FRAGCTL_NONFRAG;
-    //uDMAIdx = TYPE_AC0DMA;
     //pTxBufHead = (PSTxBufHead) &(pTxBufHead->adwTxKey[0]);
 
 	/* Fill FIFO, RrvTime, RTS and CTS */
 	uDuration = s_vGenerateTxParameter(pDevice, byPktType, wCurrentRate,
 			tx_buffer, &pMICHDR, cbMICHDR,
-			cbFrameSize, bNeedACK, uDMAIdx, psEthHeader, bRTS);
+			cbFrameSize, bNeedACK, psEthHeader, bRTS);
 
     // Generate TX MAC Header
     s_vGenerateMACHeader(pDevice, pbyMacHdr, (u16)uDuration, psEthHeader, bNeedEncryption,
-                           byFragType, uDMAIdx, 0);
+		byFragType, 0);
 
     if (bNeedEncryption == true) {
         //Fill TXKEY
 	s_vFillTxKey(pDevice, pTxBufHead, pbyIVHead, pTransmitKey,
 		pbyMacHdr, (u16)cbFrameBodySize, pMICHDR);
-
-        if (pDevice->bEnableHostWEP) {
-            pMgmt->sNodeDBTable[uNodeIndex].dwTSC47_16 = pTransmitKey->dwTSC47_16;
-            pMgmt->sNodeDBTable[uNodeIndex].wTSC15_0 = pTransmitKey->wTSC15_0;
-        }
     }
 
 	/* 802.1H */
@@ -1287,7 +1279,7 @@ static int s_bPacketToWirelessUsb(struct vnt_private *pDevice, u8 byPktType,
 
 static void s_vGenerateMACHeader(struct vnt_private *pDevice,
 	u8 *pbyBufferAddr, u16 wDuration, struct ethhdr *psEthHeader,
-	int bNeedEncrypt, u16 wFragType, u32 uDMAIdx, u32 uFragIdx)
+	int bNeedEncrypt, u16 wFragType, u32 uFragIdx)
 {
 	struct ieee80211_hdr *pMACHeader = (struct ieee80211_hdr *)pbyBufferAddr;
 
@@ -1383,38 +1375,39 @@ CMD_STATUS csMgmt_xmit(struct vnt_private *pDevice,
 	u16 wTxBufSize;
 	u32 cbMacHdLen;
 	u16 wCurrentRate = RATE_1M;
+	unsigned long flags;
+
+	if (pDevice->byBBType == BB_TYPE_11A) {
+		wCurrentRate = RATE_6M;
+		byPktType = PK_TYPE_11A;
+	} else {
+		wCurrentRate = RATE_1M;
+		byPktType = PK_TYPE_11B;
+	}
+
+	if (pMgmt->eScanState != WMAC_NO_SCANNING)
+		vnt_rf_setpower(pDevice, wCurrentRate, pDevice->byCurrentCh);
+	else
+		vnt_rf_setpower(pDevice, wCurrentRate, pMgmt->uCurrChannel);
+
+	pDevice->wCurrentRate = wCurrentRate;
+
+	spin_lock_irqsave(&pDevice->lock, flags);
 
 	pContext = s_vGetFreeContext(pDevice);
+	if (!pContext) {
+		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
+			"ManagementSend TX...NO CONTEXT!\n");
+		spin_unlock_irqrestore(&pDevice->lock, flags);
+		return CMD_STATUS_RESOURCES;
+	}
 
-    if (NULL == pContext) {
-        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"ManagementSend TX...NO CONTEXT!\n");
-        return CMD_STATUS_RESOURCES;
-    }
-
-	pTX_Buffer = (struct vnt_tx_buffer *)&pContext->Data[0];
+	pTX_Buffer = (struct vnt_tx_buffer *)&pContext->data[0];
     cbFrameBodySize = pPacket->cbPayloadLen;
 	pTxBufHead = &pTX_Buffer->fifo_head;
 	pbyTxBufferAddr = (u8 *)&pTxBufHead->adwTxKey[0];
 	wTxBufSize = sizeof(struct vnt_tx_fifo_head);
 
-    if (pDevice->byBBType == BB_TYPE_11A) {
-        wCurrentRate = RATE_6M;
-        byPktType = PK_TYPE_11A;
-    } else {
-        wCurrentRate = RATE_1M;
-        byPktType = PK_TYPE_11B;
-    }
-
-    // SetPower will cause error power TX state for OFDM Date packet in TX buffer.
-    // 2004.11.11 Kyle -- Using OFDM power to tx MngPkt will decrease the connection capability.
-    //                    And cmd timer will wait data pkt TX finish before scanning so it's OK
-    //                    to set power here.
-    if (pMgmt->eScanState != WMAC_NO_SCANNING) {
-        RFbSetPower(pDevice, wCurrentRate, pDevice->byCurrentCh);
-    } else {
-        RFbSetPower(pDevice, wCurrentRate, pMgmt->uCurrChannel);
-    }
-    pDevice->wCurrentRate = wCurrentRate;
 
     //Set packet type
     if (byPktType == PK_TYPE_11A) {//0000 0000 0000 0000
@@ -1431,7 +1424,7 @@ CMD_STATUS csMgmt_xmit(struct vnt_private *pDevice,
     }
 
     pTxBufHead->wFIFOCtl |= FIFOCTL_TMOEN;
-    pTxBufHead->wTimeStamp = cpu_to_le16(DEFAULT_MGN_LIFETIME_RES_64us);
+    pTxBufHead->time_stamp = cpu_to_le16(DEFAULT_MGN_LIFETIME_RES_64us);
 
     if (is_multicast_ether_addr(pPacket->p80211Header->sA3.abyAddr1)) {
         bNeedACK = false;
@@ -1527,7 +1520,7 @@ CMD_STATUS csMgmt_xmit(struct vnt_private *pDevice,
 	/* Fill FIFO,RrvTime,RTS,and CTS */
 	uDuration = s_vGenerateTxParameter(pDevice, byPktType, wCurrentRate,
 		pTX_Buffer, &pMICHDR, 0,
-		cbFrameSize, bNeedACK, TYPE_TXDMA0, &sEthHeader, false);
+		cbFrameSize, bNeedACK, &sEthHeader, false);
 
     pMACHeader = (struct ieee80211_hdr *) (pbyTxBufferAddr + cbHeaderSize);
 
@@ -1605,13 +1598,13 @@ CMD_STATUS csMgmt_xmit(struct vnt_private *pDevice,
 	}
     }
 
-    pTX_Buffer->wTxByteCount = cpu_to_le16((u16)(cbReqCount));
+    pTX_Buffer->tx_byte_count = cpu_to_le16((u16)(cbReqCount));
     pTX_Buffer->byPKTNO = (u8) (((wCurrentRate<<4) &0x00F0) | ((pDevice->wSeqCounter - 1) & 0x000F));
     pTX_Buffer->byType = 0x00;
 
-    pContext->pPacket = NULL;
-    pContext->type = CONTEXT_MGMT_PACKET;
-    pContext->uBufLen = (u16)cbReqCount + 4;  //USB header
+	pContext->skb = NULL;
+	pContext->type = CONTEXT_MGMT_PACKET;
+	pContext->buf_len = (u16)cbReqCount + 4; /* USB header */
 
     if (WLAN_GET_FC_TODS(pMACHeader->frame_control) == 0) {
 	s_vSaveTxPktInfo(pDevice, (u8)(pTX_Buffer->byPKTNO & 0x0F),
@@ -1625,6 +1618,9 @@ CMD_STATUS csMgmt_xmit(struct vnt_private *pDevice,
     }
 
     PIPEnsSendBulkOut(pDevice,pContext);
+
+	spin_unlock_irqrestore(&pDevice->lock, flags);
+
     return CMD_STATUS_PENDING;
 }
 
@@ -1649,7 +1645,7 @@ CMD_STATUS csBeacon_xmit(struct vnt_private *pDevice,
         return status ;
     }
 
-	pTX_Buffer = (struct vnt_beacon_buffer *)&pContext->Data[0];
+	pTX_Buffer = (struct vnt_beacon_buffer *)&pContext->data[0];
 	short_head = &pTX_Buffer->short_head;
 
     cbFrameBodySize = pPacket->cbPayloadLen;
@@ -1697,374 +1693,16 @@ CMD_STATUS csBeacon_xmit(struct vnt_private *pDevice,
 
     cbReqCount = cbHeaderSize + WLAN_HDR_ADDR3_LEN + cbFrameBodySize;
 
-    pTX_Buffer->wTxByteCount = (u16)cbReqCount;
+    pTX_Buffer->tx_byte_count = cpu_to_le16((u16)cbReqCount);
     pTX_Buffer->byPKTNO = (u8) (((wCurrentRate<<4) &0x00F0) | ((pDevice->wSeqCounter - 1) & 0x000F));
     pTX_Buffer->byType = 0x01;
 
-    pContext->pPacket = NULL;
-    pContext->type = CONTEXT_MGMT_PACKET;
-    pContext->uBufLen = (u16)cbReqCount + 4;  //USB header
+	pContext->skb = NULL;
+	pContext->type = CONTEXT_MGMT_PACKET;
+	pContext->buf_len = (u16)cbReqCount + 4; /* USB header */
 
     PIPEnsSendBulkOut(pDevice,pContext);
     return CMD_STATUS_PENDING;
-
-}
-
-void vDMA0_tx_80211(struct vnt_private *pDevice, struct sk_buff *skb)
-{
-	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
-	struct vnt_tx_buffer *pTX_Buffer;
-	struct vnt_tx_fifo_head *pTxBufHead;
-	u8 byPktType;
-	u8 *pbyTxBufferAddr;
-	u32 uDuration, cbReqCount;
-	struct ieee80211_hdr *pMACHeader;
-	u32 cbHeaderSize, cbFrameBodySize;
-	int bNeedACK, bIsPSPOLL = false;
-	u32 cbFrameSize;
-	u32 cbIVlen = 0, cbICVlen = 0, cbMIClen = 0, cbFCSlen = 4;
-	u32 uPadding = 0;
-	u32 cbMICHDR = 0, uLength = 0;
-	u32 dwMICKey0, dwMICKey1;
-	u32 dwMIC_Priority;
-	u32 *pdwMIC_L, *pdwMIC_R;
-	u16 wTxBufSize;
-	u32 cbMacHdLen;
-	struct ethhdr sEthHeader;
-	struct vnt_mic_hdr *pMICHDR;
-	u32 wCurrentRate = RATE_1M;
-	PUWLAN_80211HDR  p80211Header;
-	u32 uNodeIndex = 0;
-	int bNodeExist = false;
-	SKeyItem STempKey;
-	PSKeyItem pTransmitKey = NULL;
-	u8 *pbyIVHead, *pbyPayloadHead, *pbyMacHdr;
-	u32 cbExtSuppRate = 0;
-	struct vnt_usb_send_context *pContext;
-
-	pMICHDR = NULL;
-
-    if(skb->len <= WLAN_HDR_ADDR3_LEN) {
-       cbFrameBodySize = 0;
-    }
-    else {
-       cbFrameBodySize = skb->len - WLAN_HDR_ADDR3_LEN;
-    }
-    p80211Header = (PUWLAN_80211HDR)skb->data;
-
-	pContext = s_vGetFreeContext(pDevice);
-
-    if (NULL == pContext) {
-        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"DMA0 TX...NO CONTEXT!\n");
-        dev_kfree_skb_irq(skb);
-        return ;
-    }
-
-	pTX_Buffer = (struct vnt_tx_buffer *)&pContext->Data[0];
-	pTxBufHead = &pTX_Buffer->fifo_head;
-	pbyTxBufferAddr = (u8 *)&pTxBufHead->adwTxKey[0];
-	wTxBufSize = sizeof(struct vnt_tx_fifo_head);
-
-    if (pDevice->byBBType == BB_TYPE_11A) {
-        wCurrentRate = RATE_6M;
-        byPktType = PK_TYPE_11A;
-    } else {
-        wCurrentRate = RATE_1M;
-        byPktType = PK_TYPE_11B;
-    }
-
-    // SetPower will cause error power TX state for OFDM Date packet in TX buffer.
-    // 2004.11.11 Kyle -- Using OFDM power to tx MngPkt will decrease the connection capability.
-    //                    And cmd timer will wait data pkt TX finish before scanning so it's OK
-    //                    to set power here.
-    if (pMgmt->eScanState != WMAC_NO_SCANNING) {
-        RFbSetPower(pDevice, wCurrentRate, pDevice->byCurrentCh);
-    } else {
-        RFbSetPower(pDevice, wCurrentRate, pMgmt->uCurrChannel);
-    }
-
-    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"vDMA0_tx_80211: p80211Header->sA3.wFrameCtl = %x \n", p80211Header->sA3.wFrameCtl);
-
-    //Set packet type
-    if (byPktType == PK_TYPE_11A) {//0000 0000 0000 0000
-        pTxBufHead->wFIFOCtl = 0;
-    }
-    else if (byPktType == PK_TYPE_11B) {//0000 0001 0000 0000
-        pTxBufHead->wFIFOCtl |= FIFOCTL_11B;
-    }
-    else if (byPktType == PK_TYPE_11GB) {//0000 0010 0000 0000
-        pTxBufHead->wFIFOCtl |= FIFOCTL_11GB;
-    }
-    else if (byPktType == PK_TYPE_11GA) {//0000 0011 0000 0000
-        pTxBufHead->wFIFOCtl |= FIFOCTL_11GA;
-    }
-
-    pTxBufHead->wFIFOCtl |= FIFOCTL_TMOEN;
-    pTxBufHead->wTimeStamp = cpu_to_le16(DEFAULT_MGN_LIFETIME_RES_64us);
-
-    if (is_multicast_ether_addr(p80211Header->sA3.abyAddr1)) {
-        bNeedACK = false;
-        if (pDevice->bEnableHostWEP) {
-            uNodeIndex = 0;
-            bNodeExist = true;
-        }
-    }
-    else {
-        if (pDevice->bEnableHostWEP) {
-            if (BSSbIsSTAInNodeDB(pDevice, (u8 *)(p80211Header->sA3.abyAddr1), &uNodeIndex))
-                bNodeExist = true;
-        }
-        bNeedACK = true;
-        pTxBufHead->wFIFOCtl |= FIFOCTL_NEEDACK;
-    };
-
-    if ((pMgmt->eCurrMode == WMAC_MODE_ESS_AP) ||
-        (pMgmt->eCurrMode == WMAC_MODE_IBSS_STA) ) {
-
-        pTxBufHead->wFIFOCtl |= FIFOCTL_LRETRY;
-        //Set Preamble type always long
-        //pDevice->byPreambleType = PREAMBLE_LONG;
-
-        // probe-response don't retry
-        //if ((p80211Header->sA4.wFrameCtl & TYPE_SUBTYPE_MASK) == TYPE_MGMT_PROBE_RSP) {
-        //     bNeedACK = false;
-        //     pTxBufHead->wFIFOCtl  &= (~FIFOCTL_NEEDACK);
-        //}
-    }
-
-    pTxBufHead->wFIFOCtl |= (FIFOCTL_GENINT | FIFOCTL_ISDMA0);
-
-    if ((p80211Header->sA4.wFrameCtl & TYPE_SUBTYPE_MASK) == TYPE_CTL_PSPOLL) {
-        bIsPSPOLL = true;
-        cbMacHdLen = WLAN_HDR_ADDR2_LEN;
-    } else {
-        cbMacHdLen = WLAN_HDR_ADDR3_LEN;
-    }
-
-    // hostapd daemon ext support rate patch
-    if (WLAN_GET_FC_FSTYPE(p80211Header->sA4.wFrameCtl) == WLAN_FSTYPE_ASSOCRESP) {
-
-        if (((PWLAN_IE_SUPP_RATES)pMgmt->abyCurrSuppRates)->len != 0) {
-            cbExtSuppRate += ((PWLAN_IE_SUPP_RATES)pMgmt->abyCurrSuppRates)->len + WLAN_IEHDR_LEN;
-         }
-
-        if (((PWLAN_IE_SUPP_RATES)pMgmt->abyCurrExtSuppRates)->len != 0) {
-            cbExtSuppRate += ((PWLAN_IE_SUPP_RATES)pMgmt->abyCurrExtSuppRates)->len + WLAN_IEHDR_LEN;
-         }
-
-         if (cbExtSuppRate >0) {
-            cbFrameBodySize = WLAN_ASSOCRESP_OFF_SUPP_RATES;
-         }
-    }
-
-    //Set FRAGCTL_MACHDCNT
-    pTxBufHead->wFragCtl |= cpu_to_le16((u16)cbMacHdLen << 10);
-
-    // Notes:
-    // Although spec says MMPDU can be fragmented; In most case,
-    // no one will send a MMPDU under fragmentation. With RTS may occur.
-
-    if (WLAN_GET_FC_ISWEP(p80211Header->sA4.wFrameCtl) != 0) {
-        if (pDevice->eEncryptionStatus == Ndis802_11Encryption1Enabled) {
-            cbIVlen = 4;
-            cbICVlen = 4;
-    	    pTxBufHead->wFragCtl |= FRAGCTL_LEGACY;
-        }
-        else if (pDevice->eEncryptionStatus == Ndis802_11Encryption2Enabled) {
-            cbIVlen = 8;//IV+ExtIV
-            cbMIClen = 8;
-            cbICVlen = 4;
-    	    pTxBufHead->wFragCtl |= FRAGCTL_TKIP;
-    	    //We need to get seed here for filling TxKey entry.
-            //TKIPvMixKey(pTransmitKey->abyKey, pDevice->abyCurrentNetAddr,
-            //            pTransmitKey->wTSC15_0, pTransmitKey->dwTSC47_16, pDevice->abyPRNG);
-        }
-        else if (pDevice->eEncryptionStatus == Ndis802_11Encryption3Enabled) {
-            cbIVlen = 8;//RSN Header
-            cbICVlen = 8;//MIC
-	    cbMICHDR = sizeof(struct vnt_mic_hdr);
-            pTxBufHead->wFragCtl |= FRAGCTL_AES;
-        }
-        //MAC Header should be padding 0 to DW alignment.
-        uPadding = 4 - (cbMacHdLen%4);
-        uPadding %= 4;
-    }
-
-    cbFrameSize = cbMacHdLen + cbFrameBodySize + cbIVlen + cbMIClen + cbICVlen + cbFCSlen + cbExtSuppRate;
-
-    //Set FIFOCTL_GrpAckPolicy
-    if (pDevice->bGrpAckPolicy == true) {//0000 0100 0000 0000
-        pTxBufHead->wFIFOCtl |=	FIFOCTL_GRPACK;
-    }
-    //the rest of pTxBufHead->wFragCtl:FragTyp will be set later in s_vFillFragParameter()
-
-    if (byPktType == PK_TYPE_11GB || byPktType == PK_TYPE_11GA) {//802.11g packet
-	cbHeaderSize = wTxBufSize + sizeof(struct vnt_rrv_time_cts) + cbMICHDR +
-		sizeof(struct vnt_cts);
-
-    }
-    else {//802.11a/b packet
-	cbHeaderSize = wTxBufSize + sizeof(struct vnt_rrv_time_ab) + cbMICHDR +
-					sizeof(struct vnt_tx_datahead_ab);
-    }
-    memcpy(&(sEthHeader.h_dest[0]),
-	   &(p80211Header->sA3.abyAddr1[0]),
-	   ETH_ALEN);
-    memcpy(&(sEthHeader.h_source[0]),
-	   &(p80211Header->sA3.abyAddr2[0]),
-	   ETH_ALEN);
-    //=========================
-    //    No Fragmentation
-    //=========================
-    pTxBufHead->wFragCtl |= (u16)FRAGCTL_NONFRAG;
-
-	/* Fill FIFO,RrvTime,RTS,and CTS */
-	uDuration = s_vGenerateTxParameter(pDevice, byPktType, wCurrentRate,
-		pTX_Buffer, &pMICHDR, cbMICHDR,
-		cbFrameSize, bNeedACK, TYPE_TXDMA0, &sEthHeader, false);
-
-	pMACHeader = (struct ieee80211_hdr *) (pbyTxBufferAddr + cbHeaderSize);
-
-    cbReqCount = cbHeaderSize + cbMacHdLen + uPadding + cbIVlen + (cbFrameBodySize + cbMIClen) + cbExtSuppRate;
-
-    pbyMacHdr = (u8 *)(pbyTxBufferAddr + cbHeaderSize);
-    pbyPayloadHead = (u8 *)(pbyMacHdr + cbMacHdLen + uPadding + cbIVlen);
-    pbyIVHead = (u8 *)(pbyMacHdr + cbMacHdLen + uPadding);
-
-    // Copy the Packet into a tx Buffer
-    memcpy(pbyMacHdr, skb->data, cbMacHdLen);
-
-    // version set to 0, patch for hostapd deamon
-    pMACHeader->frame_control &= cpu_to_le16(0xfffc);
-    memcpy(pbyPayloadHead, (skb->data + cbMacHdLen), cbFrameBodySize);
-
-    // replace support rate, patch for hostapd daemon( only support 11M)
-    if (WLAN_GET_FC_FSTYPE(p80211Header->sA4.wFrameCtl) == WLAN_FSTYPE_ASSOCRESP) {
-        if (cbExtSuppRate != 0) {
-            if (((PWLAN_IE_SUPP_RATES)pMgmt->abyCurrSuppRates)->len != 0)
-                memcpy((pbyPayloadHead + cbFrameBodySize),
-                        pMgmt->abyCurrSuppRates,
-                        ((PWLAN_IE_SUPP_RATES)pMgmt->abyCurrSuppRates)->len + WLAN_IEHDR_LEN
-                       );
-             if (((PWLAN_IE_SUPP_RATES)pMgmt->abyCurrExtSuppRates)->len != 0)
-                memcpy((pbyPayloadHead + cbFrameBodySize) + ((PWLAN_IE_SUPP_RATES)pMgmt->abyCurrSuppRates)->len + WLAN_IEHDR_LEN,
-                        pMgmt->abyCurrExtSuppRates,
-                        ((PWLAN_IE_SUPP_RATES)pMgmt->abyCurrExtSuppRates)->len + WLAN_IEHDR_LEN
-                       );
-         }
-    }
-
-    // Set wep
-    if (WLAN_GET_FC_ISWEP(p80211Header->sA4.wFrameCtl) != 0) {
-
-        if (pDevice->bEnableHostWEP) {
-            pTransmitKey = &STempKey;
-            pTransmitKey->byCipherSuite = pMgmt->sNodeDBTable[uNodeIndex].byCipherSuite;
-            pTransmitKey->dwKeyIndex = pMgmt->sNodeDBTable[uNodeIndex].dwKeyIndex;
-            pTransmitKey->uKeyLength = pMgmt->sNodeDBTable[uNodeIndex].uWepKeyLength;
-            pTransmitKey->dwTSC47_16 = pMgmt->sNodeDBTable[uNodeIndex].dwTSC47_16;
-            pTransmitKey->wTSC15_0 = pMgmt->sNodeDBTable[uNodeIndex].wTSC15_0;
-            memcpy(pTransmitKey->abyKey,
-                &pMgmt->sNodeDBTable[uNodeIndex].abyWepKey[0],
-                pTransmitKey->uKeyLength
-                );
-        }
-
-        if ((pTransmitKey != NULL) && (pTransmitKey->byCipherSuite == KEY_CTL_TKIP)) {
-
-            dwMICKey0 = *(u32 *)(&pTransmitKey->abyKey[16]);
-            dwMICKey1 = *(u32 *)(&pTransmitKey->abyKey[20]);
-
-            // DO Software Michael
-            MIC_vInit(dwMICKey0, dwMICKey1);
-            MIC_vAppend((u8 *)&(sEthHeader.h_dest[0]), 12);
-            dwMIC_Priority = 0;
-            MIC_vAppend((u8 *)&dwMIC_Priority, 4);
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"DMA0_tx_8021:MIC KEY:"\
-			" %X, %X\n", dwMICKey0, dwMICKey1);
-
-            uLength = cbHeaderSize + cbMacHdLen + uPadding + cbIVlen;
-
-            MIC_vAppend((pbyTxBufferAddr + uLength), cbFrameBodySize);
-
-            pdwMIC_L = (u32 *)(pbyTxBufferAddr + uLength + cbFrameBodySize);
-            pdwMIC_R = (u32 *)(pbyTxBufferAddr + uLength + cbFrameBodySize + 4);
-
-            MIC_vGetMIC(pdwMIC_L, pdwMIC_R);
-            MIC_vUnInit();
-
-            if (pDevice->bTxMICFail == true) {
-                *pdwMIC_L = 0;
-                *pdwMIC_R = 0;
-                pDevice->bTxMICFail = false;
-            }
-
-            DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"uLength: %d, %d\n", uLength, cbFrameBodySize);
-            DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"cbReqCount:%d, %d, %d, %d\n", cbReqCount, cbHeaderSize, uPadding, cbIVlen);
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"MIC:%x, %x\n",
-			*pdwMIC_L, *pdwMIC_R);
-
-        }
-
-	s_vFillTxKey(pDevice, pTxBufHead, pbyIVHead, pTransmitKey,
-		pbyMacHdr, (u16)cbFrameBodySize, pMICHDR);
-
-        if (pDevice->bEnableHostWEP) {
-            pMgmt->sNodeDBTable[uNodeIndex].dwTSC47_16 = pTransmitKey->dwTSC47_16;
-            pMgmt->sNodeDBTable[uNodeIndex].wTSC15_0 = pTransmitKey->wTSC15_0;
-        }
-
-        if ((pDevice->byLocalID <= REV_ID_VT3253_A1)) {
-            s_vSWencryption(pDevice, pTransmitKey, pbyPayloadHead, (u16)(cbFrameBodySize + cbMIClen));
-        }
-    }
-
-    pMACHeader->seq_ctrl = cpu_to_le16(pDevice->wSeqCounter << 4);
-    pDevice->wSeqCounter++ ;
-    if (pDevice->wSeqCounter > 0x0fff)
-        pDevice->wSeqCounter = 0;
-
-    if (bIsPSPOLL) {
-        // The MAC will automatically replace the Duration-field of MAC header by Duration-field
-        // of  FIFO control header.
-        // This will cause AID-field of PS-POLL packet be incorrect (Because PS-POLL's AID field is
-        // in the same place of other packet's Duration-field).
-        // And it will cause Cisco-AP to issue Disassociation-packet
-	if (byPktType == PK_TYPE_11GB || byPktType == PK_TYPE_11GA) {
-		struct vnt_tx_datahead_g *data_head = &pTX_Buffer->tx_head.
-						tx_cts.tx.head.cts_g.data_head;
-		data_head->duration_a =
-			cpu_to_le16(p80211Header->sA2.wDurationID);
-		data_head->duration_b =
-			cpu_to_le16(p80211Header->sA2.wDurationID);
-	} else {
-		struct vnt_tx_datahead_ab *data_head = &pTX_Buffer->tx_head.
-					tx_ab.tx.head.data_head_ab;
-		data_head->duration =
-			cpu_to_le16(p80211Header->sA2.wDurationID);
-	}
-    }
-
-    pTX_Buffer->wTxByteCount = cpu_to_le16((u16)(cbReqCount));
-    pTX_Buffer->byPKTNO = (u8) (((wCurrentRate<<4) &0x00F0) | ((pDevice->wSeqCounter - 1) & 0x000F));
-    pTX_Buffer->byType = 0x00;
-
-    pContext->pPacket = skb;
-    pContext->type = CONTEXT_MGMT_PACKET;
-    pContext->uBufLen = (u16)cbReqCount + 4;  //USB header
-
-    if (WLAN_GET_FC_TODS(pMACHeader->frame_control) == 0) {
-	s_vSaveTxPktInfo(pDevice, (u8)(pTX_Buffer->byPKTNO & 0x0F),
-			&pMACHeader->addr1[0], (u16)cbFrameSize,
-			pTxBufHead->wFIFOCtl);
-    }
-    else {
-	s_vSaveTxPktInfo(pDevice, (u8)(pTX_Buffer->byPKTNO & 0x0F),
-			&pMACHeader->addr3[0], (u16)cbFrameSize,
-			pTxBufHead->wFIFOCtl);
-    }
-    PIPEnsSendBulkOut(pDevice,pContext);
-    return ;
 
 }
 
@@ -2083,8 +1721,7 @@ void vDMA0_tx_80211(struct vnt_private *pDevice, struct sk_buff *skb)
  * Return Value: NULL
  */
 
-int nsDMA_tx_packet(struct vnt_private *pDevice,
-	u32 uDMAIdx, struct sk_buff *skb)
+int nsDMA_tx_packet(struct vnt_private *pDevice, struct sk_buff *skb)
 {
 	struct net_device_stats *pStats = &pDevice->stats;
 	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
@@ -2096,7 +1733,6 @@ int nsDMA_tx_packet(struct vnt_private *pDevice,
 	u8 byPktType;
 	int bNeedEncryption = false;
 	PSKeyItem pTransmitKey = NULL;
-	SKeyItem STempKey;
 	int ii;
 	int bTKIP_UseGTK = false;
 	int bNeedDeAuth = false;
@@ -2173,15 +1809,7 @@ int nsDMA_tx_packet(struct vnt_private *pDevice,
         }
     }
 
-	pContext = s_vGetFreeContext(pDevice);
-
-    if (pContext == NULL) {
-        DBG_PRT(MSG_LEVEL_DEBUG, KERN_DEBUG" pContext == NULL\n");
-        dev_kfree_skb_irq(skb);
-        return STATUS_RESOURCES;
-    }
-
-    memcpy(pDevice->sTxEthHeader.h_dest, (u8 *)(skb->data), ETH_HLEN);
+	memcpy(&pDevice->sTxEthHeader, skb->data, ETH_HLEN);
 
 //mike add:station mode check eapol-key challenge--->
 {
@@ -2268,22 +1896,6 @@ int nsDMA_tx_packet(struct vnt_private *pDevice,
         } while(false);
     }
 
-    if (pDevice->bEnableHostWEP) {
-        DBG_PRT(MSG_LEVEL_DEBUG, KERN_DEBUG"acdma0: STA index %d\n", uNodeIndex);
-        if (pDevice->bEncryptionEnable == true) {
-            pTransmitKey = &STempKey;
-            pTransmitKey->byCipherSuite = pMgmt->sNodeDBTable[uNodeIndex].byCipherSuite;
-            pTransmitKey->dwKeyIndex = pMgmt->sNodeDBTable[uNodeIndex].dwKeyIndex;
-            pTransmitKey->uKeyLength = pMgmt->sNodeDBTable[uNodeIndex].uWepKeyLength;
-            pTransmitKey->dwTSC47_16 = pMgmt->sNodeDBTable[uNodeIndex].dwTSC47_16;
-            pTransmitKey->wTSC15_0 = pMgmt->sNodeDBTable[uNodeIndex].wTSC15_0;
-            memcpy(pTransmitKey->abyKey,
-                &pMgmt->sNodeDBTable[uNodeIndex].abyWepKey[0],
-                pTransmitKey->uKeyLength
-                );
-         }
-    }
-
     byPktType = (u8)pDevice->byPacketType;
 
     if (pDevice->bFixRate) {
@@ -2346,12 +1958,10 @@ int nsDMA_tx_packet(struct vnt_private *pDevice,
 	if (pDevice->sTxEthHeader.h_proto == cpu_to_be16(ETH_P_PAE)) {
 		if (pDevice->byBBType != BB_TYPE_11A) {
 			pDevice->wCurrentRate = RATE_1M;
-			pDevice->byACKRate = RATE_1M;
 			pDevice->byTopCCKBasicRate = RATE_1M;
 			pDevice->byTopOFDMBasicRate = RATE_6M;
 		} else {
 			pDevice->wCurrentRate = RATE_6M;
-			pDevice->byACKRate = RATE_6M;
 			pDevice->byTopCCKBasicRate = RATE_1M;
 			pDevice->byTopOFDMBasicRate = RATE_6M;
 		}
@@ -2389,21 +1999,11 @@ int nsDMA_tx_packet(struct vnt_private *pDevice,
                     }
                 }
             }
-
-            if (pDevice->bEnableHostWEP) {
-                if ((uNodeIndex != 0) &&
-                    (pMgmt->sNodeDBTable[uNodeIndex].dwKeyIndex & PAIRWISE_KEY)) {
-			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Find PTK [%X]\n",
-				pTransmitKey->dwKeyIndex);
-                    bNeedEncryption = true;
-                 }
-             }
         }
         else {
 
             if (pTransmitKey == NULL) {
                 DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"return no tx key\n");
-		pContext->bBoolInUse = false;
                 dev_kfree_skb_irq(skb);
                 pStats->tx_dropped++;
                 return STATUS_FAILURE;
@@ -2411,21 +2011,28 @@ int nsDMA_tx_packet(struct vnt_private *pDevice,
         }
     }
 
-	pTX_Buffer = (struct vnt_tx_buffer *)&pContext->Data[0];
+	pContext = s_vGetFreeContext(pDevice);
+	if (!pContext) {
+		DBG_PRT(MSG_LEVEL_DEBUG, KERN_DEBUG" pContext == NULL\n");
+		dev_kfree_skb_irq(skb);
+		return STATUS_RESOURCES;
+	}
+
+	pTX_Buffer = (struct vnt_tx_buffer *)&pContext->data[0];
 
     fConvertedPacket = s_bPacketToWirelessUsb(pDevice, byPktType,
 			pTX_Buffer, bNeedEncryption,
-                        skb->len, uDMAIdx, &pDevice->sTxEthHeader,
+			skb->len, &pDevice->sTxEthHeader,
                         (u8 *)skb->data, pTransmitKey, uNodeIndex,
                         pDevice->wCurrentRate,
                         &uHeaderLen, &BytesToWrite
                        );
 
-    if (fConvertedPacket == false) {
-        pContext->bBoolInUse = false;
-        dev_kfree_skb_irq(skb);
-        return STATUS_FAILURE;
-    }
+	if (fConvertedPacket == false) {
+		pContext->in_use = false;
+		dev_kfree_skb_irq(skb);
+		return STATUS_FAILURE;
+	}
 
     if ( pDevice->bEnablePSMode == true ) {
         if ( !pDevice->bPSModeTxBurst ) {
@@ -2437,11 +2044,11 @@ int nsDMA_tx_packet(struct vnt_private *pDevice,
     }
 
     pTX_Buffer->byPKTNO = (u8) (((pDevice->wCurrentRate<<4) &0x00F0) | ((pDevice->wSeqCounter - 1) & 0x000F));
-    pTX_Buffer->wTxByteCount = (u16)BytesToWrite;
+    pTX_Buffer->tx_byte_count = cpu_to_le16((u16)BytesToWrite);
 
-    pContext->pPacket = skb;
-    pContext->type = CONTEXT_DATA_PACKET;
-    pContext->uBufLen = (u16)BytesToWrite + 4 ; //USB header
+	pContext->skb = skb;
+	pContext->type = CONTEXT_DATA_PACKET;
+	pContext->buf_len = (u16)BytesToWrite + 4 ; /* USB header */
 
     s_vSaveTxPktInfo(pDevice, (u8)(pTX_Buffer->byPKTNO & 0x0F),
 			&pDevice->sTxEthHeader.h_dest[0],
@@ -2456,154 +2063,12 @@ int nsDMA_tx_packet(struct vnt_private *pDevice,
 	bScheduleCommand((void *) pDevice, WLAN_CMD_DEAUTH, (u8 *) &wReason);
     }
 
-  if(status!=STATUS_PENDING) {
-     pContext->bBoolInUse = false;
-    dev_kfree_skb_irq(skb);
-    return STATUS_FAILURE;
-  }
-  else
-    return 0;
+	if (status != STATUS_PENDING) {
+		pContext->in_use = false;
+		dev_kfree_skb_irq(skb);
+		return STATUS_FAILURE;
+	}
 
+
+	return 0;
 }
-
-/*
- * Description:
- *      Relay packet send (AC1DMA) from rx dpc.
- *
- * Parameters:
- *  In:
- *      pDevice         - Pointer to the adapter
- *      pPacket         - Pointer to rx packet
- *      cbPacketSize    - rx ethernet frame size
- *  Out:
- *      TURE, false
- *
- * Return Value: Return true if packet is copy to dma1; otherwise false
- */
-
-int bRelayPacketSend(struct vnt_private *pDevice, u8 *pbySkbData, u32 uDataLen,
-	u32 uNodeIndex)
-{
-	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
-	struct vnt_tx_buffer *pTX_Buffer;
-	u32 BytesToWrite = 0, uHeaderLen = 0;
-	u8 byPktType = PK_TYPE_11B;
-	int bNeedEncryption = false;
-	SKeyItem STempKey;
-	PSKeyItem pTransmitKey = NULL;
-	u8 *pbyBSSID;
-	struct vnt_usb_send_context *pContext;
-	u8 byPktTyp;
-	int fConvertedPacket;
-	u32 status;
-	u16 wKeepRate = pDevice->wCurrentRate;
-
-	pContext = s_vGetFreeContext(pDevice);
-
-    if (NULL == pContext) {
-        return false;
-    }
-
-    memcpy(pDevice->sTxEthHeader.h_dest, (u8 *)pbySkbData, ETH_HLEN);
-
-    if (pDevice->bEncryptionEnable == true) {
-        bNeedEncryption = true;
-        // get group key
-        pbyBSSID = pDevice->abyBroadcastAddr;
-        if(KeybGetTransmitKey(&(pDevice->sKey), pbyBSSID, GROUP_KEY, &pTransmitKey) == false) {
-            pTransmitKey = NULL;
-            DBG_PRT(MSG_LEVEL_DEBUG, KERN_DEBUG"KEY is NULL. [%d]\n", pMgmt->eCurrMode);
-        } else {
-            DBG_PRT(MSG_LEVEL_DEBUG, KERN_DEBUG"Get GTK.\n");
-        }
-    }
-
-    if (pDevice->bEnableHostWEP) {
-        if (uNodeIndex < MAX_NODE_NUM + 1) {
-            pTransmitKey = &STempKey;
-            pTransmitKey->byCipherSuite = pMgmt->sNodeDBTable[uNodeIndex].byCipherSuite;
-            pTransmitKey->dwKeyIndex = pMgmt->sNodeDBTable[uNodeIndex].dwKeyIndex;
-            pTransmitKey->uKeyLength = pMgmt->sNodeDBTable[uNodeIndex].uWepKeyLength;
-            pTransmitKey->dwTSC47_16 = pMgmt->sNodeDBTable[uNodeIndex].dwTSC47_16;
-            pTransmitKey->wTSC15_0 = pMgmt->sNodeDBTable[uNodeIndex].wTSC15_0;
-            memcpy(pTransmitKey->abyKey,
-                    &pMgmt->sNodeDBTable[uNodeIndex].abyWepKey[0],
-                    pTransmitKey->uKeyLength
-                  );
-        }
-    }
-
-    if ( bNeedEncryption && (pTransmitKey == NULL) ) {
-        pContext->bBoolInUse = false;
-        return false;
-    }
-
-    byPktTyp = (u8)pDevice->byPacketType;
-
-    if (pDevice->bFixRate) {
-        if (pDevice->byBBType == BB_TYPE_11B) {
-            if (pDevice->uConnectionRate >= RATE_11M) {
-                pDevice->wCurrentRate = RATE_11M;
-            } else {
-                pDevice->wCurrentRate = (u16)pDevice->uConnectionRate;
-            }
-        } else {
-            if ((pDevice->byBBType == BB_TYPE_11A) &&
-                (pDevice->uConnectionRate <= RATE_6M)) {
-                pDevice->wCurrentRate = RATE_6M;
-            } else {
-                if (pDevice->uConnectionRate >= RATE_54M)
-                    pDevice->wCurrentRate = RATE_54M;
-                else
-                    pDevice->wCurrentRate = (u16)pDevice->uConnectionRate;
-            }
-        }
-    }
-    else {
-        pDevice->wCurrentRate = pMgmt->sNodeDBTable[uNodeIndex].wTxDataRate;
-    }
-
-    if (wKeepRate != pDevice->wCurrentRate) {
-	bScheduleCommand((void *) pDevice, WLAN_CMD_SETPOWER, NULL);
-    }
-
-    if (pDevice->wCurrentRate <= RATE_11M)
-        byPktType = PK_TYPE_11B;
-
-    BytesToWrite = uDataLen + ETH_FCS_LEN;
-
-    // Convert the packet to an usb frame and copy into our buffer
-    // and send the irp.
-
-	pTX_Buffer = (struct vnt_tx_buffer *)&pContext->Data[0];
-
-    fConvertedPacket = s_bPacketToWirelessUsb(pDevice, byPktType,
-			pTX_Buffer, bNeedEncryption,
-                         uDataLen, TYPE_AC0DMA, &pDevice->sTxEthHeader,
-                         pbySkbData, pTransmitKey, uNodeIndex,
-                         pDevice->wCurrentRate,
-                         &uHeaderLen, &BytesToWrite
-                        );
-
-    if (fConvertedPacket == false) {
-        pContext->bBoolInUse = false;
-        return false;
-    }
-
-    pTX_Buffer->byPKTNO = (u8) (((pDevice->wCurrentRate<<4) &0x00F0) | ((pDevice->wSeqCounter - 1) & 0x000F));
-    pTX_Buffer->wTxByteCount = (u16)BytesToWrite;
-
-    pContext->pPacket = NULL;
-    pContext->type = CONTEXT_DATA_PACKET;
-    pContext->uBufLen = (u16)BytesToWrite + 4 ; //USB header
-
-    s_vSaveTxPktInfo(pDevice, (u8)(pTX_Buffer->byPKTNO & 0x0F),
-		&pDevice->sTxEthHeader.h_dest[0],
-		(u16)(BytesToWrite - uHeaderLen),
-		pTX_Buffer->fifo_head.wFIFOCtl);
-
-    status = PIPEnsSendBulkOut(pDevice,pContext);
-
-    return true;
-}
-

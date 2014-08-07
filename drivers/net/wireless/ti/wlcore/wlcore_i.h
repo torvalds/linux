@@ -512,8 +512,8 @@ int wl1271_recalc_rx_streaming(struct wl1271 *wl, struct wl12xx_vif *wlvif);
 void wl12xx_queue_recovery_work(struct wl1271 *wl);
 size_t wl12xx_copy_fwlog(struct wl1271 *wl, u8 *memblock, size_t maxlen);
 int wl1271_rx_filter_alloc_field(struct wl12xx_rx_filter *filter,
-					u16 offset, u8 flags,
-					u8 *pattern, u8 len);
+				 u16 offset, u8 flags,
+				 const u8 *pattern, u8 len);
 void wl1271_rx_filter_free(struct wl12xx_rx_filter *filter);
 struct wl12xx_rx_filter *wl1271_rx_filter_alloc(void);
 int wl1271_rx_filter_get_fields_size(struct wl12xx_rx_filter *filter);

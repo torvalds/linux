@@ -32,6 +32,7 @@ static unsigned long tainted_mask;
 static int pause_on_oops;
 static int pause_on_oops_flag;
 static DEFINE_SPINLOCK(pause_on_oops_lock);
+static bool crash_kexec_post_notifiers;
 
 int panic_timeout = CONFIG_PANIC_TIMEOUT;
 EXPORT_SYMBOL_GPL(panic_timeout);
@@ -112,9 +113,11 @@ void panic(const char *fmt, ...)
 	/*
 	 * If we have crashed and we have a crash kernel loaded let it handle
 	 * everything else.
-	 * Do we want to call this before we try to display a message?
+	 * If we want to run this after calling panic_notifiers, pass
+	 * the "crash_kexec_post_notifiers" option to the kernel.
 	 */
-	crash_kexec(NULL);
+	if (!crash_kexec_post_notifiers)
+		crash_kexec(NULL);
 
 	/*
 	 * Note smp_send_stop is the usual smp shutdown function, which
@@ -130,6 +133,15 @@ void panic(const char *fmt, ...)
 	atomic_notifier_call_chain(&panic_notifier_list, 0, buf);
 
 	kmsg_dump(KMSG_DUMP_PANIC);
+
+	/*
+	 * If you doubt kdump always works fine in any situation,
+	 * "crash_kexec_post_notifiers" offers you a chance to run
+	 * panic_notifiers and dumping kmsg before kdump.
+	 * Note: since some panic_notifiers can make crashed kernel
+	 * more unstable, it can increase risks of the kdump failure too.
+	 */
+	crash_kexec(NULL);
 
 	bust_spinlocks(0);
 
@@ -471,6 +483,13 @@ EXPORT_SYMBOL(__stack_chk_fail);
 
 core_param(panic, panic_timeout, int, 0644);
 core_param(pause_on_oops, pause_on_oops, int, 0644);
+
+static int __init setup_crash_kexec_post_notifiers(char *s)
+{
+	crash_kexec_post_notifiers = true;
+	return 0;
+}
+early_param("crash_kexec_post_notifiers", setup_crash_kexec_post_notifiers);
 
 static int __init oops_setup(char *s)
 {

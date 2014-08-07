@@ -1,6 +1,6 @@
 /* virthba.c
  *
- * Copyright © 2010 - 2013 UNISYS CORPORATION
+ * Copyright (C) 2010 - 2013 UNISYS CORPORATION
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -82,8 +82,16 @@ static int virthba_ioctl(struct scsi_device *dev, int cmd, void __user *arg);
 static int virthba_queue_command_lck(struct scsi_cmnd *scsicmd,
 				     void (*virthba_cmnd_done)(struct scsi_cmnd *));
 
+static const struct x86_cpu_id unisys_spar_ids[] = {
+	{ X86_VENDOR_INTEL, 6, 62, X86_FEATURE_ANY },
+	{}
+};
+
+/* Autoload */
+MODULE_DEVICE_TABLE(x86cpu, unisys_spar_ids);
+
 #ifdef DEF_SCSI_QCMD
-DEF_SCSI_QCMD(virthba_queue_command)
+static DEF_SCSI_QCMD(virthba_queue_command)
 #else
 #define virthba_queue_command virthba_queue_command_lck
 #endif
@@ -1046,7 +1054,7 @@ static int
 virthba_slave_alloc(struct scsi_device *scsidev)
 {
 	/* this called by the midlayer before scan for new devices -
-	 * LLD can alloc any struc & do init if needed.
+	 * LLD can alloc any struct & do init if needed.
 	 */
 	struct virtdisk_info *vdisk;
 	struct virtdisk_info *tmpvdisk;
@@ -1400,7 +1408,7 @@ info_proc_read(struct file *file, char __user *buf, size_t len, loff_t *offset)
 		virthbainfo = VirtHbasOpen[i].virthbainfo;
 		length += sprintf(vbuf + length, "CHANSOCK is not defined.\n");
 
-		length += sprintf(vbuf + length, "MaxBuffLen:%d\n", MaxBuffLen);
+		length += sprintf(vbuf + length, "MaxBuffLen:%u\n", MaxBuffLen);
 
 		length += sprintf(vbuf + length, "\nvirthba result queue poll wait:%d usecs.\n",
 				  rsltq_wait_usecs);
@@ -1534,7 +1542,7 @@ virthba_serverup(struct virtpci_dev *virtpcidev)
 	       virtpcidev->deviceNo);
 
 	if (!virthbainfo->serverdown) {
-		DBGINF("Server up message recieved while server is already up.\n");
+		DBGINF("Server up message received while server is already up.\n");
 		return 1;
 	}
 	if (virthbainfo->serverchangingstate) {
@@ -1690,6 +1698,9 @@ virthba_mod_init(void)
 {
 	int error;
 	int i;
+
+	if (!unisys_spar_platform)
+		return -ENODEV;
 
 	LOGINF("Entering virthba_mod_init...\n");
 

@@ -51,10 +51,6 @@ struct tegra_ehci_soc_config {
 	bool has_hostpc;
 };
 
-static int (*orig_hub_control)(struct usb_hcd *hcd,
-				u16 typeReq, u16 wValue, u16 wIndex,
-				char *buf, u16 wLength);
-
 struct tegra_ehci_hcd {
 	struct tegra_usb_phy *phy;
 	struct clk *clk;
@@ -236,7 +232,7 @@ static int tegra_ehci_hub_control(
 	spin_unlock_irqrestore(&ehci->lock, flags);
 
 	/* Handle the hub control events here */
-	return orig_hub_control(hcd, typeReq, wValue, wIndex, buf, wLength);
+	return ehci_hub_control(hcd, typeReq, wValue, wIndex, buf, wLength);
 
 done:
 	spin_unlock_irqrestore(&ehci->lock, flags);
@@ -415,10 +411,9 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 	}
 	hcd->rsrc_start = res->start;
 	hcd->rsrc_len = resource_size(res);
-	hcd->regs = devm_ioremap(&pdev->dev, res->start, resource_size(res));
-	if (!hcd->regs) {
-		dev_err(&pdev->dev, "Failed to remap I/O memory\n");
-		err = -ENOMEM;
+	hcd->regs = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(hcd->regs)) {
+		err = PTR_ERR(hcd->regs);
 		goto cleanup_clk_en;
 	}
 	ehci->caps = hcd->regs + 0x100;
@@ -553,8 +548,6 @@ static int __init ehci_tegra_init(void)
 	 * want to encourage others to override these functions by making it
 	 * too easy.
 	 */
-
-	orig_hub_control = tegra_ehci_hc_driver.hub_control;
 
 	tegra_ehci_hc_driver.map_urb_for_dma = tegra_ehci_map_urb_for_dma;
 	tegra_ehci_hc_driver.unmap_urb_for_dma = tegra_ehci_unmap_urb_for_dma;

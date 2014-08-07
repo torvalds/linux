@@ -81,7 +81,7 @@ struct dst_entry *inet6_csk_route_req(struct sock *sk,
 	final_p = fl6_update_dst(fl6, np->opt, &final);
 	fl6->saddr = ireq->ir_v6_loc_addr;
 	fl6->flowi6_oif = ireq->ir_iif;
-	fl6->flowi6_mark = sk->sk_mark;
+	fl6->flowi6_mark = ireq->ir_mark;
 	fl6->fl6_dport = ireq->ir_rmt_port;
 	fl6->fl6_sport = htons(ireq->ir_num);
 	security_req_classify_flow(req, flowi6_to_flowi(fl6));

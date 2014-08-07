@@ -539,7 +539,7 @@ static int get_filter(void __user *arg, struct sock_filter **p)
 {
 	struct sock_fprog uprog;
 	struct sock_filter *code = NULL;
-	int len, err;
+	int len;
 
 	if (copy_from_user(&uprog, arg, sizeof(uprog)))
 		return -EFAULT;
@@ -553,12 +553,6 @@ static int get_filter(void __user *arg, struct sock_filter **p)
 	code = memdup_user(uprog.filter, len);
 	if (IS_ERR(code))
 		return PTR_ERR(code);
-
-	err = sk_chk_filter(code, uprog.len);
-	if (err) {
-		kfree(code);
-		return err;
-	}
 
 	*p = code;
 	return uprog.len;
@@ -757,7 +751,7 @@ static long ppp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 		err = get_filter(argp, &code);
 		if (err >= 0) {
-			struct sock_fprog fprog = {
+			struct sock_fprog_kern fprog = {
 				.len = err,
 				.filter = code,
 			};
@@ -778,7 +772,7 @@ static long ppp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 		err = get_filter(argp, &code);
 		if (err >= 0) {
-			struct sock_fprog fprog = {
+			struct sock_fprog_kern fprog = {
 				.len = err,
 				.filter = code,
 			};

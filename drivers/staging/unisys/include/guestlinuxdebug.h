@@ -1,4 +1,4 @@
-/* Copyright © 2010 - 2013 UNISYS CORPORATION
+/* Copyright (C) 2010 - 2013 UNISYS CORPORATION
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -17,7 +17,7 @@
 #define __GUESTLINUXDEBUG_H__
 
 /*
-* This file contains supporting interface for "vmcallinterface.h", particuarly
+* This file contains supporting interface for "vmcallinterface.h", particularly
 * regarding adding additional structure and functionality to linux
 * ISSUE_IO_VMCALL_POSTCODE_SEVERITY */
 
@@ -142,7 +142,7 @@ typedef enum {			/* POSTCODE event identifier tuples */
  * Please also note that the resulting postcode is in hex, so if you are
  * searching for the __LINE__ number, convert it first to decimal.  The line
  * number combined with driver and type of call, will allow you to track down
- * exactly what line an error occured on, or where the last driver
+ * exactly what line an error occurred on, or where the last driver
  * entered/exited from.
  */
 

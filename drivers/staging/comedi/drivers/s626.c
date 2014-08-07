@@ -295,10 +295,24 @@ static void s626_debi_replace(struct comedi_device *dev, unsigned int addr,
 
 /* **************  EEPROM ACCESS FUNCTIONS  ************** */
 
-static uint32_t s626_i2c_handshake(struct comedi_device *dev, uint32_t val)
+static int s626_i2c_handshake_eoc(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
+				 struct comedi_insn *insn,
+				 unsigned long context)
+{
+	bool status;
+
+	status = s626_mc_test(dev, S626_MC2_UPLD_IIC, S626_P_MC2);
+	if (status)
+		return 0;
+	return -EBUSY;
+}
+
+static int s626_i2c_handshake(struct comedi_device *dev, uint32_t val)
 {
 	struct s626_private *devpriv = dev->private;
 	unsigned int ctrl;
+	int ret;
 
 	/* Write I2C command to I2C Transfer Control shadow register */
 	writel(val, devpriv->mmio + S626_P_I2CCTRL);
@@ -308,8 +322,9 @@ static uint32_t s626_i2c_handshake(struct comedi_device *dev, uint32_t val)
 	 * wait for upload confirmation.
 	 */
 	s626_mc_enable(dev, S626_MC2_UPLD_IIC, S626_P_MC2);
-	while (!s626_mc_test(dev, S626_MC2_UPLD_IIC, S626_P_MC2))
-		;
+	ret = comedi_timeout(dev, NULL, NULL, s626_i2c_handshake_eoc, 0);
+	if (ret)
+		return ret;
 
 	/* Wait until I2C bus transfer is finished or an error occurs */
 	do {
@@ -1613,7 +1628,6 @@ static bool s626_handle_eos_interrupt(struct comedi_device *dev)
 		readaddr++;
 
 		/* put data into read buffer */
-		/* comedi_buf_put(async, tempdata); */
 		cfc_write_to_buffer(s, tempdata);
 	}
 
@@ -2029,8 +2043,9 @@ static int s626_ai_insn_read(struct comedi_device *dev,
 	/* Wait for the data to arrive in FB BUFFER 1 register. */
 
 	/* Wait for ADC done */
-	while (!(readl(devpriv->mmio + S626_P_PSR) & S626_PSR_GPIO2))
-		;
+	ret = comedi_timeout(dev, s, insn, s626_ai_eoc, 0);
+	if (ret)
+		return ret;
 
 	/* Fetch ADC data from audio interface's input shift register. */
 
@@ -2060,9 +2075,12 @@ static int s626_ai_load_polllist(uint8_t *ppl, struct comedi_cmd *cmd)
 }
 
 static int s626_ai_inttrig(struct comedi_device *dev,
-			   struct comedi_subdevice *s, unsigned int trignum)
+			   struct comedi_subdevice *s,
+			   unsigned int trig_num)
 {
-	if (trignum != 0)
+	struct comedi_cmd *cmd = &s->async->cmd;
+
+	if (trig_num != cmd->start_arg)
 		return -EINVAL;
 
 	/* Start executing the RPS program */
@@ -2080,7 +2098,7 @@ static int s626_ai_inttrig(struct comedi_device *dev,
  * Also, it should adjust ns so that it cooresponds to the actual time
  * that the device will use.
  */
-static int s626_ns_to_timer(int *nanosec, int round_mode)
+static int s626_ns_to_timer(unsigned int *nanosec, int round_mode)
 {
 	int divider, base;
 
@@ -2188,7 +2206,7 @@ static int s626_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		 * interval
 		 */
 		k = &s626_enc_chan_info[5];
-		tick = s626_ns_to_timer((int *)&cmd->scan_begin_arg,
+		tick = s626_ns_to_timer(&cmd->scan_begin_arg,
 					cmd->flags & TRIG_ROUND_MASK);
 
 		/* load timer value and enable interrupt */
@@ -2211,7 +2229,7 @@ static int s626_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		 * interval
 		 */
 		k = &s626_enc_chan_info[4];
-		tick = s626_ns_to_timer((int *)&cmd->convert_arg,
+		tick = s626_ns_to_timer(&cmd->convert_arg,
 					cmd->flags & TRIG_ROUND_MASK);
 
 		/* load timer value and enable interrupt */
@@ -2270,7 +2288,7 @@ static int s626_ai_cmdtest(struct comedi_device *dev,
 			   struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
 	int err = 0;
-	int tmp;
+	unsigned int arg;
 
 	/* Step 1 : check if triggers are trivially valid */
 
@@ -2298,12 +2316,18 @@ static int s626_ai_cmdtest(struct comedi_device *dev,
 	if (err)
 		return 2;
 
-	/* step 3: make sure arguments are trivially compatible */
+	/* Step 3: check if arguments are trivially valid */
 
-	if (cmd->start_src != TRIG_EXT)
+	switch (cmd->start_src) {
+	case TRIG_NOW:
+	case TRIG_INT:
 		err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
-	if (cmd->start_src == TRIG_EXT)
+		break;
+	case TRIG_EXT:
 		err |= cfc_check_trigger_arg_max(&cmd->start_arg, 39);
+		break;
+	}
+
 	if (cmd->scan_begin_src == TRIG_EXT)
 		err |= cfc_check_trigger_arg_max(&cmd->scan_begin_arg, 39);
 	if (cmd->convert_src == TRIG_EXT)
@@ -2347,24 +2371,20 @@ static int s626_ai_cmdtest(struct comedi_device *dev,
 	/* step 4: fix up any arguments */
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
-		tmp = cmd->scan_begin_arg;
-		s626_ns_to_timer((int *)&cmd->scan_begin_arg,
-				 cmd->flags & TRIG_ROUND_MASK);
-		if (tmp != cmd->scan_begin_arg)
-			err++;
+		arg = cmd->scan_begin_arg;
+		s626_ns_to_timer(&arg, cmd->flags & TRIG_ROUND_MASK);
+		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, arg);
 	}
+
 	if (cmd->convert_src == TRIG_TIMER) {
-		tmp = cmd->convert_arg;
-		s626_ns_to_timer((int *)&cmd->convert_arg,
-				 cmd->flags & TRIG_ROUND_MASK);
-		if (tmp != cmd->convert_arg)
-			err++;
-		if (cmd->scan_begin_src == TRIG_TIMER &&
-		    cmd->scan_begin_arg < cmd->convert_arg *
-					  cmd->scan_end_arg) {
-			cmd->scan_begin_arg = cmd->convert_arg *
-					      cmd->scan_end_arg;
-			err++;
+		arg = cmd->convert_arg;
+		s626_ns_to_timer(&arg, cmd->flags & TRIG_ROUND_MASK);
+		err |= cfc_check_trigger_arg_is(&cmd->convert_arg, arg);
+
+		if (cmd->scan_begin_src == TRIG_TIMER) {
+			arg = cmd->convert_arg * cmd->scan_end_arg;
+			err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
+							 arg);
 		}
 	}
 
@@ -2681,8 +2701,9 @@ static int s626_initialize(struct comedi_device *dev)
 	writel(S626_I2C_CLKSEL | S626_I2C_ABORT,
 	       devpriv->mmio + S626_P_I2CSTAT);
 	s626_mc_enable(dev, S626_MC2_UPLD_IIC, S626_P_MC2);
-	while (!(readl(devpriv->mmio + S626_P_MC2) & S626_MC2_UPLD_IIC))
-		;
+	ret = comedi_timeout(dev, NULL, NULL, s626_i2c_handshake_eoc, 0);
+	if (ret)
+		return ret;
 
 	/*
 	 * Per SAA7146 data sheet, write to STATUS
@@ -2691,8 +2712,9 @@ static int s626_initialize(struct comedi_device *dev)
 	for (i = 0; i < 2; i++) {
 		writel(S626_I2C_CLKSEL, devpriv->mmio + S626_P_I2CSTAT);
 		s626_mc_enable(dev, S626_MC2_UPLD_IIC, S626_P_MC2);
-		while (!s626_mc_test(dev, S626_MC2_UPLD_IIC, S626_P_MC2))
-			;
+		ret = comedi_timeout(dev, NULL, NULL, s626_i2c_handshake_eoc, 0);
+		if (ret)
+			return ret;
 	}
 
 	/*

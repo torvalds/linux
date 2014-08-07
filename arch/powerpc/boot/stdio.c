@@ -21,6 +21,18 @@ size_t strnlen(const char * s, size_t count)
 	return sc - s;
 }
 
+#ifdef __powerpc64__
+
+# define do_div(n, base) ({						\
+	unsigned int __base = (base);					\
+	unsigned int __rem;						\
+	__rem = ((unsigned long long)(n)) % __base;			\
+	(n) = ((unsigned long long)(n)) / __base;			\
+	__rem;								\
+})
+
+#else
+
 extern unsigned int __div64_32(unsigned long long *dividend,
 			       unsigned int divisor);
 
@@ -38,6 +50,8 @@ extern unsigned int __div64_32(unsigned long long *dividend,
 		__rem = __div64_32(&(n), __base);			\
 	__rem;								\
  })
+
+#endif /* __powerpc64__ */
 
 static int skip_atoi(const char **s)
 {

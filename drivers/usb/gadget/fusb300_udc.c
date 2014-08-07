@@ -1400,17 +1400,13 @@ static int __init fusb300_probe(struct platform_device *pdev)
 
 	/* initialize udc */
 	fusb300 = kzalloc(sizeof(struct fusb300), GFP_KERNEL);
-	if (fusb300 == NULL) {
-		pr_err("kzalloc error\n");
+	if (fusb300 == NULL)
 		goto clean_up;
-	}
 
 	for (i = 0; i < FUSB300_MAX_NUM_EP; i++) {
 		_ep[i] = kzalloc(sizeof(struct fusb300_ep), GFP_KERNEL);
-		if (_ep[i] == NULL) {
-			pr_err("_ep kzalloc error\n");
+		if (_ep[i] == NULL)
 			goto clean_up;
-		}
 		fusb300->ep[i] = _ep[i];
 	}
 

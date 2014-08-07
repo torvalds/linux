@@ -133,14 +133,6 @@ befs_get_block(struct inode *inode, sector_t block,
 
 	befs_debug(sb, "---> befs_get_block() for inode %lu, block %ld",
 		   (unsigned long)inode->i_ino, (long)block);
-
-	if (block < 0) {
-		befs_error(sb, "befs_get_block() was asked for a block "
-			   "number less than zero: block %ld in inode %lu",
-			   (long)block, (unsigned long)inode->i_ino);
-		return -EIO;
-	}
-
 	if (create) {
 		befs_error(sb, "befs_get_block() was asked to write to "
 			   "block %ld in inode %lu", (long)block,
@@ -396,9 +388,8 @@ static struct inode *befs_iget(struct super_block *sb, unsigned long ino)
 	if (S_ISLNK(inode->i_mode) && !(befs_ino->i_flags & BEFS_LONG_SYMLINK)){
 		inode->i_size = 0;
 		inode->i_blocks = befs_sb->block_size / VFS_BLOCK_SIZE;
-		strncpy(befs_ino->i_data.symlink, raw_inode->data.symlink,
-			BEFS_SYMLINK_LEN - 1);
-		befs_ino->i_data.symlink[BEFS_SYMLINK_LEN - 1] = '\0';
+		strlcpy(befs_ino->i_data.symlink, raw_inode->data.symlink,
+			BEFS_SYMLINK_LEN);
 	} else {
 		int num_blks;
 
@@ -591,21 +582,21 @@ befs_utf2nls(struct super_block *sb, const char *in,
 /**
  * befs_nls2utf - Convert NLS string to utf8 encodeing
  * @sb: Superblock
- * @src: Input string buffer in NLS format
- * @srclen: Length of input string in bytes
- * @dest: The output string in UTF-8 format
- * @destlen: Length of the output buffer
+ * @in: Input string buffer in NLS format
+ * @in_len: Length of input string in bytes
+ * @out: The output string in UTF-8 format
+ * @out_len: Length of the output buffer
  * 
- * Converts input string @src, which is in the format of the loaded NLS map,
+ * Converts input string @in, which is in the format of the loaded NLS map,
  * into a utf8 string.
  * 
- * The destination string @dest is allocated by this function and the caller is
+ * The destination string @out is allocated by this function and the caller is
  * responsible for freeing it with kfree()
  * 
- * On return, *@destlen is the length of @dest in bytes.
+ * On return, *@out_len is the length of @out in bytes.
  *
  * On success, the return value is the number of utf8 characters written to
- * the output buffer @dest.
+ * the output buffer @out.
  *  
  * On Failure, a negative number coresponding to the error code is returned.
  */

@@ -256,7 +256,6 @@ enum cpuhp_state {
 };
 
 void cpu_startup_entry(enum cpuhp_state state);
-void cpu_idle(void);
 
 void cpu_idle_poll_ctrl(bool enable);
 

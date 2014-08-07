@@ -884,7 +884,7 @@ static void batadv_softif_init_early(struct net_device *dev)
 	/* generate random address */
 	eth_hw_addr_random(dev);
 
-	SET_ETHTOOL_OPS(dev, &batadv_ethtool_ops);
+	dev->ethtool_ops = &batadv_ethtool_ops;
 
 	memset(priv, 0, sizeof(*priv));
 }

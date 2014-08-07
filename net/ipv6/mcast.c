@@ -1301,8 +1301,17 @@ int igmp6_event_query(struct sk_buff *skb)
 	len = ntohs(ipv6_hdr(skb)->payload_len) + sizeof(struct ipv6hdr);
 	len -= skb_network_header_len(skb);
 
-	/* Drop queries with not link local source */
-	if (!(ipv6_addr_type(&ipv6_hdr(skb)->saddr) & IPV6_ADDR_LINKLOCAL))
+	/* RFC3810 6.2
+	 * Upon reception of an MLD message that contains a Query, the node
+	 * checks if the source address of the message is a valid link-local
+	 * address, if the Hop Limit is set to 1, and if the Router Alert
+	 * option is present in the Hop-By-Hop Options header of the IPv6
+	 * packet.  If any of these checks fails, the packet is dropped.
+	 */
+	if (!(ipv6_addr_type(&ipv6_hdr(skb)->saddr) & IPV6_ADDR_LINKLOCAL) ||
+	    ipv6_hdr(skb)->hop_limit != 1 ||
+	    !(IP6CB(skb)->flags & IP6SKB_ROUTERALERT) ||
+	    IP6CB(skb)->ra != htons(IPV6_OPT_ROUTERALERT_MLD))
 		return -EINVAL;
 
 	idev = __in6_dev_get(skb->dev);

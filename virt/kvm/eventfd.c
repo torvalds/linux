@@ -31,6 +31,7 @@
 #include <linux/list.h>
 #include <linux/eventfd.h>
 #include <linux/kernel.h>
+#include <linux/srcu.h>
 #include <linux/slab.h>
 
 #include "iodev.h"
@@ -118,19 +119,22 @@ static void
 irqfd_resampler_ack(struct kvm_irq_ack_notifier *kian)
 {
 	struct _irqfd_resampler *resampler;
+	struct kvm *kvm;
 	struct _irqfd *irqfd;
+	int idx;
 
 	resampler = container_of(kian, struct _irqfd_resampler, notifier);
+	kvm = resampler->kvm;
 
-	kvm_set_irq(resampler->kvm, KVM_IRQFD_RESAMPLE_IRQ_SOURCE_ID,
+	kvm_set_irq(kvm, KVM_IRQFD_RESAMPLE_IRQ_SOURCE_ID,
 		    resampler->notifier.gsi, 0, false);
 
-	rcu_read_lock();
+	idx = srcu_read_lock(&kvm->irq_srcu);
 
 	list_for_each_entry_rcu(irqfd, &resampler->list, resampler_link)
 		eventfd_signal(irqfd->resamplefd, 1);
 
-	rcu_read_unlock();
+	srcu_read_unlock(&kvm->irq_srcu, idx);
 }
 
 static void
@@ -142,7 +146,7 @@ irqfd_resampler_shutdown(struct _irqfd *irqfd)
 	mutex_lock(&kvm->irqfds.resampler_lock);
 
 	list_del_rcu(&irqfd->resampler_link);
-	synchronize_rcu();
+	synchronize_srcu(&kvm->irq_srcu);
 
 	if (list_empty(&resampler->list)) {
 		list_del(&resampler->link);
@@ -221,17 +225,18 @@ irqfd_wakeup(wait_queue_t *wait, unsigned mode, int sync, void *key)
 	unsigned long flags = (unsigned long)key;
 	struct kvm_kernel_irq_routing_entry *irq;
 	struct kvm *kvm = irqfd->kvm;
+	int idx;
 
 	if (flags & POLLIN) {
-		rcu_read_lock();
-		irq = rcu_dereference(irqfd->irq_entry);
+		idx = srcu_read_lock(&kvm->irq_srcu);
+		irq = srcu_dereference(irqfd->irq_entry, &kvm->irq_srcu);
 		/* An event has been signaled, inject an interrupt */
 		if (irq)
 			kvm_set_msi(irq, kvm, KVM_USERSPACE_IRQ_SOURCE_ID, 1,
 					false);
 		else
 			schedule_work(&irqfd->inject);
-		rcu_read_unlock();
+		srcu_read_unlock(&kvm->irq_srcu, idx);
 	}
 
 	if (flags & POLLHUP) {
@@ -363,7 +368,7 @@ kvm_irqfd_assign(struct kvm *kvm, struct kvm_irqfd *args)
 		}
 
 		list_add_rcu(&irqfd->resampler_link, &irqfd->resampler->list);
-		synchronize_rcu();
+		synchronize_srcu(&kvm->irq_srcu);
 
 		mutex_unlock(&kvm->irqfds.resampler_lock);
 	}
@@ -465,7 +470,7 @@ kvm_irqfd_deassign(struct kvm *kvm, struct kvm_irqfd *args)
 			 * another thread calls kvm_irq_routing_update before
 			 * we flush workqueue below (we synchronize with
 			 * kvm_irq_routing_update using irqfds.lock).
-			 * It is paired with synchronize_rcu done by caller
+			 * It is paired with synchronize_srcu done by caller
 			 * of that function.
 			 */
 			rcu_assign_pointer(irqfd->irq_entry, NULL);
@@ -524,7 +529,7 @@ kvm_irqfd_release(struct kvm *kvm)
 
 /*
  * Change irq_routing and irqfd.
- * Caller must invoke synchronize_rcu afterwards.
+ * Caller must invoke synchronize_srcu(&kvm->irq_srcu) afterwards.
  */
 void kvm_irq_routing_update(struct kvm *kvm,
 			    struct kvm_irq_routing_table *irq_rt)
@@ -600,7 +605,15 @@ ioeventfd_in_range(struct _ioeventfd *p, gpa_t addr, int len, const void *val)
 {
 	u64 _val;
 
-	if (!(addr == p->addr && len == p->length))
+	if (addr != p->addr)
+		/* address must be precise for a hit */
+		return false;
+
+	if (!p->length)
+		/* length = 0 means only look at the address, so always a hit */
+		return true;
+
+	if (len != p->length)
 		/* address-range must be precise for a hit */
 		return false;
 
@@ -671,9 +684,11 @@ ioeventfd_check_collision(struct kvm *kvm, struct _ioeventfd *p)
 
 	list_for_each_entry(_p, &kvm->ioeventfds, list)
 		if (_p->bus_idx == p->bus_idx &&
-		    _p->addr == p->addr && _p->length == p->length &&
-		    (_p->wildcard || p->wildcard ||
-		     _p->datamatch == p->datamatch))
+		    _p->addr == p->addr &&
+		    (!_p->length || !p->length ||
+		     (_p->length == p->length &&
+		      (_p->wildcard || p->wildcard ||
+		       _p->datamatch == p->datamatch))))
 			return true;
 
 	return false;
@@ -697,8 +712,9 @@ kvm_assign_ioeventfd(struct kvm *kvm, struct kvm_ioeventfd *args)
 	int                       ret;
 
 	bus_idx = ioeventfd_bus_from_flags(args->flags);
-	/* must be natural-word sized */
+	/* must be natural-word sized, or 0 to ignore length */
 	switch (args->len) {
+	case 0:
 	case 1:
 	case 2:
 	case 4:
@@ -714,6 +730,12 @@ kvm_assign_ioeventfd(struct kvm *kvm, struct kvm_ioeventfd *args)
 
 	/* check for extra flags that we don't understand */
 	if (args->flags & ~KVM_IOEVENTFD_VALID_FLAG_MASK)
+		return -EINVAL;
+
+	/* ioeventfd with no length can't be combined with DATAMATCH */
+	if (!args->len &&
+	    args->flags & (KVM_IOEVENTFD_FLAG_PIO |
+			   KVM_IOEVENTFD_FLAG_DATAMATCH))
 		return -EINVAL;
 
 	eventfd = eventfd_ctx_fdget(args->fd);
@@ -753,6 +775,16 @@ kvm_assign_ioeventfd(struct kvm *kvm, struct kvm_ioeventfd *args)
 	if (ret < 0)
 		goto unlock_fail;
 
+	/* When length is ignored, MMIO is also put on a separate bus, for
+	 * faster lookups.
+	 */
+	if (!args->len && !(args->flags & KVM_IOEVENTFD_FLAG_PIO)) {
+		ret = kvm_io_bus_register_dev(kvm, KVM_FAST_MMIO_BUS,
+					      p->addr, 0, &p->dev);
+		if (ret < 0)
+			goto register_fail;
+	}
+
 	kvm->buses[bus_idx]->ioeventfd_count++;
 	list_add_tail(&p->list, &kvm->ioeventfds);
 
@@ -760,6 +792,8 @@ kvm_assign_ioeventfd(struct kvm *kvm, struct kvm_ioeventfd *args)
 
 	return 0;
 
+register_fail:
+	kvm_io_bus_unregister_dev(kvm, bus_idx, &p->dev);
 unlock_fail:
 	mutex_unlock(&kvm->slots_lock);
 
@@ -799,6 +833,10 @@ kvm_deassign_ioeventfd(struct kvm *kvm, struct kvm_ioeventfd *args)
 			continue;
 
 		kvm_io_bus_unregister_dev(kvm, bus_idx, &p->dev);
+		if (!p->length) {
+			kvm_io_bus_unregister_dev(kvm, KVM_FAST_MMIO_BUS,
+						  &p->dev);
+		}
 		kvm->buses[bus_idx]->ioeventfd_count--;
 		ioeventfd_release(p);
 		ret = 0;

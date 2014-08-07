@@ -1168,7 +1168,8 @@ int gnttab_resume(void)
 
 int gnttab_suspend(void)
 {
-	gnttab_interface->unmap_frames();
+	if (!xen_feature(XENFEAT_auto_translated_physmap))
+		gnttab_interface->unmap_frames();
 	return 0;
 }
 

@@ -445,15 +445,9 @@ EXPORT_SYMBOL_GPL(samsung_asoc_init_dma_data);
 
 int samsung_asoc_dma_platform_register(struct device *dev)
 {
-	return snd_soc_register_platform(dev, &samsung_asoc_platform);
+	return devm_snd_soc_register_platform(dev, &samsung_asoc_platform);
 }
 EXPORT_SYMBOL_GPL(samsung_asoc_dma_platform_register);
-
-void samsung_asoc_dma_platform_unregister(struct device *dev)
-{
-	snd_soc_unregister_platform(dev);
-}
-EXPORT_SYMBOL_GPL(samsung_asoc_dma_platform_unregister);
 
 MODULE_AUTHOR("Ben Dooks, <ben@simtec.co.uk>");
 MODULE_DESCRIPTION("Samsung ASoC DMA Driver");

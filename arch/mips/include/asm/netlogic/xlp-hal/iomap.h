@@ -74,6 +74,8 @@
 #define XLP_IO_USB_OHCI2_OFFSET(node)	XLP_HDR_OFFSET(node, 0, 2, 4)
 #define XLP_IO_USB_OHCI3_OFFSET(node)	XLP_HDR_OFFSET(node, 0, 2, 5)
 
+#define XLP_IO_SATA_OFFSET(node)	XLP_HDR_OFFSET(node, 0, 3, 2)
+
 /* XLP2xx has an updated USB block */
 #define XLP2XX_IO_USB_OFFSET(node, i)	XLP_HDR_OFFSET(node, 0, 4, i)
 #define XLP2XX_IO_USB_XHCI0_OFFSET(node)	XLP_HDR_OFFSET(node, 0, 4, 1)
@@ -103,13 +105,11 @@
 #define XLP_IO_SYS_OFFSET(node)		XLP_HDR_OFFSET(node, 0, 6, 5)
 #define XLP_IO_JTAG_OFFSET(node)	XLP_HDR_OFFSET(node, 0, 6, 6)
 
+/* Flash */
 #define XLP_IO_NOR_OFFSET(node)		XLP_HDR_OFFSET(node, 0, 7, 0)
 #define XLP_IO_NAND_OFFSET(node)	XLP_HDR_OFFSET(node, 0, 7, 1)
 #define XLP_IO_SPI_OFFSET(node)		XLP_HDR_OFFSET(node, 0, 7, 2)
-/* SD flash */
-#define XLP_IO_SD_OFFSET(node)		XLP_HDR_OFFSET(node, 0, 7, 3)
-#define XLP_IO_MMC_OFFSET(node, slot)	\
-		((XLP_IO_SD_OFFSET(node))+(slot*0x100)+XLP_IO_PCI_HDRSZ)
+#define XLP_IO_MMC_OFFSET(node)		XLP_HDR_OFFSET(node, 0, 7, 3)
 
 /* Things have changed drastically in XLP 9XX */
 #define XLP9XX_HDR_OFFSET(n, d, f)	\
@@ -120,6 +120,8 @@
 #define XLP9XX_IO_UART_OFFSET(node)	XLP9XX_HDR_OFFSET(node, 2, 2)
 #define XLP9XX_IO_SYS_OFFSET(node)	XLP9XX_HDR_OFFSET(node, 6, 0)
 #define XLP9XX_IO_FUSE_OFFSET(node)	XLP9XX_HDR_OFFSET(node, 6, 1)
+#define XLP9XX_IO_CLOCK_OFFSET(node)	XLP9XX_HDR_OFFSET(node, 6, 2)
+#define XLP9XX_IO_POWER_OFFSET(node)	XLP9XX_HDR_OFFSET(node, 6, 3)
 #define XLP9XX_IO_JTAG_OFFSET(node)	XLP9XX_HDR_OFFSET(node, 6, 4)
 
 #define XLP9XX_IO_PCIE_OFFSET(node, i)	XLP9XX_HDR_OFFSET(node, 1, i)
@@ -135,11 +137,11 @@
 /* XLP9XX on-chip SATA controller */
 #define XLP9XX_IO_SATA_OFFSET(node)		XLP9XX_HDR_OFFSET(node, 3, 2)
 
+/* Flash */
 #define XLP9XX_IO_NOR_OFFSET(node)		XLP9XX_HDR_OFFSET(node, 7, 0)
 #define XLP9XX_IO_NAND_OFFSET(node)		XLP9XX_HDR_OFFSET(node, 7, 1)
 #define XLP9XX_IO_SPI_OFFSET(node)		XLP9XX_HDR_OFFSET(node, 7, 2)
-/* SD flash */
-#define XLP9XX_IO_MMCSD_OFFSET(node)		XLP9XX_HDR_OFFSET(node, 7, 3)
+#define XLP9XX_IO_MMC_OFFSET(node)		XLP9XX_HDR_OFFSET(node, 7, 3)
 
 /* PCI config header register id's */
 #define XLP_PCI_CFGREG0			0x00
@@ -186,8 +188,10 @@
 #define PCI_DEVICE_ID_NLM_NOR		0x1015
 #define PCI_DEVICE_ID_NLM_NAND		0x1016
 #define PCI_DEVICE_ID_NLM_MMC		0x1018
-#define PCI_DEVICE_ID_NLM_XHCI		0x101d
+#define PCI_DEVICE_ID_NLM_SATA		0x101A
+#define PCI_DEVICE_ID_NLM_XHCI		0x101D
 
+#define PCI_DEVICE_ID_XLP9XX_MMC	0x9018
 #define PCI_DEVICE_ID_XLP9XX_SATA	0x901A
 #define PCI_DEVICE_ID_XLP9XX_XHCI	0x901D
 

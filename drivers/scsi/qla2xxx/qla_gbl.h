@@ -1,6 +1,6 @@
 /*
  * QLogic Fibre Channel HBA Driver
- * Copyright (c)  2003-2013 QLogic Corporation
+ * Copyright (c)  2003-2014 QLogic Corporation
  *
  * See LICENSE.qla2xxx for copyright and licensing details.
  */
@@ -220,6 +220,13 @@ extern unsigned long qla2x00_get_async_timeout(struct scsi_qla_host *);
 
 extern void *qla2x00_alloc_iocbs(scsi_qla_host_t *, srb_t *);
 extern int qla2x00_issue_marker(scsi_qla_host_t *, int);
+extern int qla24xx_walk_and_build_sglist_no_difb(struct qla_hw_data *, srb_t *,
+	uint32_t *, uint16_t, struct qla_tgt_cmd *);
+extern int qla24xx_walk_and_build_sglist(struct qla_hw_data *, srb_t *,
+	uint32_t *, uint16_t, struct qla_tgt_cmd *);
+extern int qla24xx_walk_and_build_prot_sglist(struct qla_hw_data *, srb_t *,
+	uint32_t *, uint16_t, struct qla_tgt_cmd *);
+
 
 /*
  * Global Function Prototypes in qla_mbx.c source file.
@@ -345,6 +352,11 @@ extern int
 qla2x00_write_serdes_word(scsi_qla_host_t *, uint16_t, uint16_t);
 extern int
 qla2x00_read_serdes_word(scsi_qla_host_t *, uint16_t, uint16_t *);
+
+extern int
+qla8044_write_serdes_word(scsi_qla_host_t *, uint32_t, uint32_t);
+extern int
+qla8044_read_serdes_word(scsi_qla_host_t *, uint32_t, uint32_t *);
 
 extern int
 qla2x00_set_serdes_params(scsi_qla_host_t *, uint16_t, uint16_t, uint16_t);

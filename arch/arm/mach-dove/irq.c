@@ -108,12 +108,48 @@ static int __initdata gpio2_irqs[4] = {
 	0,
 };
 
+#ifdef CONFIG_MULTI_IRQ_HANDLER
+/*
+ * Compiling with both non-DT and DT support enabled, will
+ * break asm irq handler used by non-DT boards. Therefore,
+ * we provide a C-style irq handler even for non-DT boards,
+ * if MULTI_IRQ_HANDLER is set.
+ */
+
+static void __iomem *dove_irq_base = IRQ_VIRT_BASE;
+
+static asmlinkage void
+__exception_irq_entry dove_legacy_handle_irq(struct pt_regs *regs)
+{
+	u32 stat;
+
+	stat = readl_relaxed(dove_irq_base + IRQ_CAUSE_LOW_OFF);
+	stat &= readl_relaxed(dove_irq_base + IRQ_MASK_LOW_OFF);
+	if (stat) {
+		unsigned int hwirq = __fls(stat);
+		handle_IRQ(hwirq, regs);
+		return;
+	}
+	stat = readl_relaxed(dove_irq_base + IRQ_CAUSE_HIGH_OFF);
+	stat &= readl_relaxed(dove_irq_base + IRQ_MASK_HIGH_OFF);
+	if (stat) {
+		unsigned int hwirq = 32 + __fls(stat);
+		handle_IRQ(hwirq, regs);
+		return;
+	}
+}
+#endif
+
 void __init dove_init_irq(void)
 {
 	int i;
 
 	orion_irq_init(0, IRQ_VIRT_BASE + IRQ_MASK_LOW_OFF);
 	orion_irq_init(32, IRQ_VIRT_BASE + IRQ_MASK_HIGH_OFF);
+
+#ifdef CONFIG_MULTI_IRQ_HANDLER
+	set_handle_irq(dove_legacy_handle_irq);
+#endif
 
 	/*
 	 * Initialize gpiolib for GPIOs 0-71.

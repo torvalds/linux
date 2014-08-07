@@ -10,6 +10,7 @@
 
 #include <linux/init.h>
 #include <linux/linkage.h>
+#include <asm/processor.h>
 #include <asm/cache.h>
 #include <asm/errno.h>
 #include <asm/ptrace.h>
@@ -37,17 +38,15 @@ __PT_R13     =	__PT_GPRS + 524
 __PT_R14     =	__PT_GPRS + 56
 __PT_R15     =	__PT_GPRS + 60
 
-_TIF_WORK_SVC = (_TIF_SIGPENDING | _TIF_NOTIFY_RESUME | _TIF_NEED_RESCHED | \
-		 _TIF_MCCK_PENDING | _TIF_PER_TRAP | _TIF_ASCE)
-_TIF_WORK_INT = (_TIF_SIGPENDING | _TIF_NOTIFY_RESUME | _TIF_NEED_RESCHED | \
-		 _TIF_MCCK_PENDING | _TIF_ASCE)
-_TIF_TRACE    = (_TIF_SYSCALL_TRACE | _TIF_SYSCALL_AUDIT | _TIF_SECCOMP | \
-		 _TIF_SYSCALL_TRACEPOINT)
-_TIF_TRANSFER = (_TIF_MCCK_PENDING | _TIF_TLB_WAIT)
-
 STACK_SHIFT = PAGE_SHIFT + THREAD_ORDER
 STACK_SIZE  = 1 << STACK_SHIFT
 STACK_INIT  = STACK_SIZE - STACK_FRAME_OVERHEAD - __PT_SIZE
+
+_TIF_WORK	= (_TIF_SIGPENDING | _TIF_NOTIFY_RESUME | _TIF_NEED_RESCHED)
+_TIF_TRACE	= (_TIF_SYSCALL_TRACE | _TIF_SYSCALL_AUDIT | _TIF_SECCOMP | \
+		   _TIF_SYSCALL_TRACEPOINT)
+_CIF_WORK	= (_CIF_MCCK_PENDING | _CIF_ASCE)
+_PIF_WORK	= (_PIF_PER_TRAP)
 
 #define BASED(name) name-system_call(%r13)
 
@@ -160,13 +159,7 @@ ENTRY(__switch_to)
 	lctl	%c4,%c4,__TASK_pid(%r3)		# load pid to control reg. 4
 	mvc	__LC_CURRENT_PID(4,%r0),__TASK_pid(%r3)	# store pid of next
 	l	%r15,__THREAD_ksp(%r3)		# load kernel stack of next
-	lhi	%r6,_TIF_TRANSFER		# transfer TIF bits
-	n	%r6,__TI_flags(%r4)		# isolate TIF bits
-	jz	0f
-	o	%r6,__TI_flags(%r5)		# set TIF bits of next
-	st	%r6,__TI_flags(%r5)
-	ni	__TI_flags+3(%r4),255-_TIF_TRANSFER # clear TIF bits of prev
-0:	lm	%r6,%r15,__SF_GPRS(%r15)	# load gprs of next task
+	lm	%r6,%r15,__SF_GPRS(%r15)	# load gprs of next task
 	br	%r14
 
 __critical_start:
@@ -181,6 +174,7 @@ sysc_stm:
 	stm	%r8,%r15,__LC_SAVE_AREA_SYNC
 	l	%r12,__LC_THREAD_INFO
 	l	%r13,__LC_SVC_NEW_PSW+4
+	lhi	%r14,_PIF_SYSCALL
 sysc_per:
 	l	%r15,__LC_KERNEL_STACK
 	la	%r11,STACK_FRAME_OVERHEAD(%r15)	# pointer to pt_regs
@@ -190,8 +184,8 @@ sysc_vtime:
 	mvc	__PT_R8(32,%r11),__LC_SAVE_AREA_SYNC
 	mvc	__PT_PSW(8,%r11),__LC_SVC_OLD_PSW
 	mvc	__PT_INT_CODE(4,%r11),__LC_SVC_ILC
+	st	%r14,__PT_FLAGS(%r11)
 sysc_do_svc:
-	oi	__TI_flags+3(%r12),_TIF_SYSCALL
 	l	%r10,__TI_sysc_table(%r12)	# 31 bit system call table
 	lh	%r8,__PT_INT_CODE+2(%r11)
 	sla	%r8,2				# shift and test for svc0
@@ -207,7 +201,7 @@ sysc_nr_ok:
 	st	%r2,__PT_ORIG_GPR2(%r11)
 	st	%r7,STACK_FRAME_OVERHEAD(%r15)
 	l	%r9,0(%r8,%r10)			# get system call addr.
-	tm	__TI_flags+2(%r12),_TIF_TRACE >> 8
+	tm	__TI_flags+3(%r12),_TIF_TRACE
 	jnz	sysc_tracesys
 	basr	%r14,%r9			# call sys_xxxx
 	st	%r2,__PT_R2(%r11)		# store return value
@@ -217,9 +211,12 @@ sysc_return:
 sysc_tif:
 	tm	__PT_PSW+1(%r11),0x01		# returning to user ?
 	jno	sysc_restore
-	tm	__TI_flags+3(%r12),_TIF_WORK_SVC
-	jnz	sysc_work			# check for work
-	ni	__TI_flags+3(%r12),255-_TIF_SYSCALL
+	tm	__PT_FLAGS+3(%r11),_PIF_WORK
+	jnz	sysc_work
+	tm	__TI_flags+3(%r12),_TIF_WORK
+	jnz	sysc_work			# check for thread work
+	tm	__LC_CPU_FLAGS+3,_CIF_WORK
+	jnz	sysc_work
 sysc_restore:
 	mvc	__LC_RETURN_PSW(8),__PT_PSW(%r11)
 	stpt	__LC_EXIT_TIMER
@@ -231,17 +228,17 @@ sysc_done:
 # One of the work bits is on. Find out which one.
 #
 sysc_work:
-	tm	__TI_flags+3(%r12),_TIF_MCCK_PENDING
+	tm	__LC_CPU_FLAGS+3,_CIF_MCCK_PENDING
 	jo	sysc_mcck_pending
 	tm	__TI_flags+3(%r12),_TIF_NEED_RESCHED
 	jo	sysc_reschedule
-	tm	__TI_flags+3(%r12),_TIF_PER_TRAP
+	tm	__PT_FLAGS+3(%r11),_PIF_PER_TRAP
 	jo	sysc_singlestep
 	tm	__TI_flags+3(%r12),_TIF_SIGPENDING
 	jo	sysc_sigpending
 	tm	__TI_flags+3(%r12),_TIF_NOTIFY_RESUME
 	jo	sysc_notify_resume
-	tm	__TI_flags+3(%r12),_TIF_ASCE
+	tm	__LC_CPU_FLAGS+3,_CIF_ASCE
 	jo	sysc_uaccess
 	j	sysc_return		# beware of critical section cleanup
 
@@ -254,7 +251,7 @@ sysc_reschedule:
 	br	%r1			# call schedule
 
 #
-# _TIF_MCCK_PENDING is set, call handler
+# _CIF_MCCK_PENDING is set, call handler
 #
 sysc_mcck_pending:
 	l	%r1,BASED(.Lhandle_mcck)
@@ -262,10 +259,10 @@ sysc_mcck_pending:
 	br	%r1			# TIF bit will be cleared by handler
 
 #
-# _TIF_ASCE is set, load user space asce
+# _CIF_ASCE is set, load user space asce
 #
 sysc_uaccess:
-	ni	__TI_flags+3(%r12),255-_TIF_ASCE
+	ni	__LC_CPU_FLAGS+3,255-_CIF_ASCE
 	lctl	%c1,%c1,__LC_USER_ASCE	# load primary asce
 	j	sysc_return
 
@@ -276,7 +273,7 @@ sysc_sigpending:
 	lr	%r2,%r11		# pass pointer to pt_regs
 	l	%r1,BASED(.Ldo_signal)
 	basr	%r14,%r1		# call do_signal
-	tm	__TI_flags+3(%r12),_TIF_SYSCALL
+	tm	__PT_FLAGS+3(%r11),_PIF_SYSCALL
 	jno	sysc_return
 	lm	%r2,%r7,__PT_R2(%r11)	# load svc arguments
 	l	%r10,__TI_sysc_table(%r12)	# 31 bit system call table
@@ -297,10 +294,10 @@ sysc_notify_resume:
 	br	%r1			# call do_notify_resume
 
 #
-# _TIF_PER_TRAP is set, call do_per_trap
+# _PIF_PER_TRAP is set, call do_per_trap
 #
 sysc_singlestep:
-	ni	__TI_flags+3(%r12),255-_TIF_PER_TRAP
+	ni	__PT_FLAGS+3(%r11),255-_PIF_PER_TRAP
 	lr	%r2,%r11		# pass pointer to pt_regs
 	l	%r1,BASED(.Ldo_per_trap)
 	la	%r14,BASED(sysc_return)
@@ -330,7 +327,7 @@ sysc_tracego:
 	basr	%r14,%r9		# call sys_xxx
 	st	%r2,__PT_R2(%r11)	# store return value
 sysc_tracenogo:
-	tm	__TI_flags+2(%r12),_TIF_TRACE >> 8
+	tm	__TI_flags+3(%r12),_TIF_TRACE
 	jz	sysc_return
 	l	%r1,BASED(.Ltrace_exit)
 	lr	%r2,%r11		# pass pointer to pt_regs
@@ -384,15 +381,16 @@ ENTRY(pgm_check_handler)
 	stm	%r8,%r9,__PT_PSW(%r11)
 	mvc	__PT_INT_CODE(4,%r11),__LC_PGM_ILC
 	mvc	__PT_INT_PARM_LONG(4,%r11),__LC_TRANS_EXC_CODE
+	xc	__PT_FLAGS(4,%r11),__PT_FLAGS(%r11)
 	tm	__LC_PGM_ILC+3,0x80	# check for per exception
 	jz	0f
 	l	%r1,__TI_task(%r12)
 	tmh	%r8,0x0001		# kernel per event ?
 	jz	pgm_kprobe
-	oi	__TI_flags+3(%r12),_TIF_PER_TRAP
+	oi	__PT_FLAGS+3(%r11),_PIF_PER_TRAP
 	mvc	__THREAD_per_address(4,%r1),__LC_PER_ADDRESS
-	mvc	__THREAD_per_cause(2,%r1),__LC_PER_CAUSE
-	mvc	__THREAD_per_paid(1,%r1),__LC_PER_PAID
+	mvc	__THREAD_per_cause(2,%r1),__LC_PER_CODE
+	mvc	__THREAD_per_paid(1,%r1),__LC_PER_ACCESS_ID
 0:	REENABLE_IRQS
 	xc	__SF_BACKCHAIN(4,%r15),__SF_BACKCHAIN(%r15)
 	l	%r1,BASED(.Ljump_table)
@@ -420,9 +418,9 @@ pgm_kprobe:
 # single stepped system call
 #
 pgm_svcper:
-	oi	__TI_flags+3(%r12),_TIF_PER_TRAP
 	mvc	__LC_RETURN_PSW(4),__LC_SVC_NEW_PSW
 	mvc	__LC_RETURN_PSW+4(4),BASED(.Lsysc_per)
+	lhi	%r14,_PIF_SYSCALL | _PIF_PER_TRAP
 	lpsw	__LC_RETURN_PSW		# branch to sysc_per and enable irqs
 
 /*
@@ -445,6 +443,7 @@ io_skip:
 	mvc	__PT_R8(32,%r11),__LC_SAVE_AREA_ASYNC
 	stm	%r8,%r9,__PT_PSW(%r11)
 	mvc	__PT_INT_CODE(12,%r11),__LC_SUBCHANNEL_ID
+	xc	__PT_FLAGS(4,%r11),__PT_FLAGS(%r11)
 	TRACE_IRQS_OFF
 	xc	__SF_BACKCHAIN(4,%r15),__SF_BACKCHAIN(%r15)
 io_loop:
@@ -466,8 +465,10 @@ io_return:
 	LOCKDEP_SYS_EXIT
 	TRACE_IRQS_ON
 io_tif:
-	tm	__TI_flags+3(%r12),_TIF_WORK_INT
+	tm	__TI_flags+3(%r12),_TIF_WORK
 	jnz	io_work			# there is work to do (signals etc.)
+	tm	__LC_CPU_FLAGS+3,_CIF_WORK
+	jnz	io_work
 io_restore:
 	mvc	__LC_RETURN_PSW(8),__PT_PSW(%r11)
 	stpt	__LC_EXIT_TIMER
@@ -477,7 +478,7 @@ io_done:
 
 #
 # There is work todo, find out in which context we have been interrupted:
-# 1) if we return to user space we can do all _TIF_WORK_INT work
+# 1) if we return to user space we can do all _TIF_WORK work
 # 2) if we return to kernel code and preemptive scheduling is enabled check
 #    the preemption counter and if it is zero call preempt_schedule_irq
 # Before any work can be done, a switch to the kernel stack is required.
@@ -520,11 +521,9 @@ io_work_user:
 
 #
 # One of the work bits is on. Find out which one.
-# Checked are: _TIF_SIGPENDING, _TIF_NOTIFY_RESUME, _TIF_NEED_RESCHED
-#		and _TIF_MCCK_PENDING
 #
 io_work_tif:
-	tm	__TI_flags+3(%r12),_TIF_MCCK_PENDING
+	tm	__LC_CPU_FLAGS+3(%r12),_CIF_MCCK_PENDING
 	jo	io_mcck_pending
 	tm	__TI_flags+3(%r12),_TIF_NEED_RESCHED
 	jo	io_reschedule
@@ -532,12 +531,12 @@ io_work_tif:
 	jo	io_sigpending
 	tm	__TI_flags+3(%r12),_TIF_NOTIFY_RESUME
 	jo	io_notify_resume
-	tm	__TI_flags+3(%r12),_TIF_ASCE
+	tm	__LC_CPU_FLAGS+3,_CIF_ASCE
 	jo	io_uaccess
 	j	io_return		# beware of critical section cleanup
 
 #
-# _TIF_MCCK_PENDING is set, call handler
+# _CIF_MCCK_PENDING is set, call handler
 #
 io_mcck_pending:
 	# TRACE_IRQS_ON already done at io_return
@@ -547,10 +546,10 @@ io_mcck_pending:
 	j	io_return
 
 #
-# _TIF_ASCE is set, load user space asce
+# _CIF_ASCE is set, load user space asce
 #
 io_uaccess:
-	ni	__TI_flags+3(%r12),255-_TIF_ASCE
+	ni	__LC_CPU_FLAGS+3,255-_CIF_ASCE
 	lctl	%c1,%c1,__LC_USER_ASCE	# load primary asce
 	j	io_return
 
@@ -613,6 +612,7 @@ ext_skip:
 	stm	%r8,%r9,__PT_PSW(%r11)
 	mvc	__PT_INT_CODE(4,%r11),__LC_EXT_CPU_ADDR
 	mvc	__PT_INT_PARM(4,%r11),__LC_EXT_PARAMS
+	xc	__PT_FLAGS(4,%r11),__PT_FLAGS(%r11)
 	TRACE_IRQS_OFF
 	l	%r1,BASED(.Ldo_IRQ)
 	lr	%r2,%r11		# pass pointer to pt_regs
@@ -677,6 +677,7 @@ mcck_skip:
 	stm	%r0,%r7,__PT_R0(%r11)
 	mvc	__PT_R8(32,%r11),__LC_GPREGS_SAVE_AREA+32
 	stm	%r8,%r9,__PT_PSW(%r11)
+	xc	__PT_FLAGS(4,%r11),__PT_FLAGS(%r11)
 	xc	__SF_BACKCHAIN(4,%r15),__SF_BACKCHAIN(%r15)
 	l	%r1,BASED(.Ldo_machine_check)
 	lr	%r2,%r11		# pass pointer to pt_regs
@@ -689,7 +690,7 @@ mcck_skip:
 	la	%r11,STACK_FRAME_OVERHEAD(%r15)
 	lr	%r15,%r1
 	ssm	__LC_PGM_NEW_PSW	# turn dat on, keep irqs off
-	tm	__TI_flags+3(%r12),_TIF_MCCK_PENDING
+	tm	__LC_CPU_FLAGS+3,_CIF_MCCK_PENDING
 	jno	mcck_return
 	TRACE_IRQS_OFF
 	l	%r1,BASED(.Lhandle_mcck)
@@ -842,6 +843,8 @@ cleanup_system_call:
 	stm	%r0,%r7,__PT_R0(%r9)
 	mvc	__PT_PSW(8,%r9),__LC_SVC_OLD_PSW
 	mvc	__PT_INT_CODE(4,%r9),__LC_SVC_ILC
+	xc	__PT_FLAGS(4,%r9),__PT_FLAGS(%r9)
+	mvi	__PT_FLAGS+3(%r9),_PIF_SYSCALL
 	# setup saved register 15
 	st	%r15,28(%r11)		# r15 stack pointer
 	# set new psw address and exit

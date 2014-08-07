@@ -26,6 +26,7 @@
 
 #include <linux/kvm_host.h>
 #include <linux/slab.h>
+#include <linux/srcu.h>
 #include <linux/export.h>
 #include <trace/events/kvm.h>
 #include "irq.h"
@@ -33,19 +34,19 @@
 bool kvm_irq_has_notifier(struct kvm *kvm, unsigned irqchip, unsigned pin)
 {
 	struct kvm_irq_ack_notifier *kian;
-	int gsi;
+	int gsi, idx;
 
-	rcu_read_lock();
-	gsi = rcu_dereference(kvm->irq_routing)->chip[irqchip][pin];
+	idx = srcu_read_lock(&kvm->irq_srcu);
+	gsi = srcu_dereference(kvm->irq_routing, &kvm->irq_srcu)->chip[irqchip][pin];
 	if (gsi != -1)
 		hlist_for_each_entry_rcu(kian, &kvm->irq_ack_notifier_list,
 					 link)
 			if (kian->gsi == gsi) {
-				rcu_read_unlock();
+				srcu_read_unlock(&kvm->irq_srcu, idx);
 				return true;
 			}
 
-	rcu_read_unlock();
+	srcu_read_unlock(&kvm->irq_srcu, idx);
 
 	return false;
 }
@@ -54,18 +55,18 @@ EXPORT_SYMBOL_GPL(kvm_irq_has_notifier);
 void kvm_notify_acked_irq(struct kvm *kvm, unsigned irqchip, unsigned pin)
 {
 	struct kvm_irq_ack_notifier *kian;
-	int gsi;
+	int gsi, idx;
 
 	trace_kvm_ack_irq(irqchip, pin);
 
-	rcu_read_lock();
-	gsi = rcu_dereference(kvm->irq_routing)->chip[irqchip][pin];
+	idx = srcu_read_lock(&kvm->irq_srcu);
+	gsi = srcu_dereference(kvm->irq_routing, &kvm->irq_srcu)->chip[irqchip][pin];
 	if (gsi != -1)
 		hlist_for_each_entry_rcu(kian, &kvm->irq_ack_notifier_list,
 					 link)
 			if (kian->gsi == gsi)
 				kian->irq_acked(kian);
-	rcu_read_unlock();
+	srcu_read_unlock(&kvm->irq_srcu, idx);
 }
 
 void kvm_register_irq_ack_notifier(struct kvm *kvm,
@@ -85,7 +86,7 @@ void kvm_unregister_irq_ack_notifier(struct kvm *kvm,
 	mutex_lock(&kvm->irq_lock);
 	hlist_del_init_rcu(&kian->link);
 	mutex_unlock(&kvm->irq_lock);
-	synchronize_rcu();
+	synchronize_srcu(&kvm->irq_srcu);
 #ifdef __KVM_HAVE_IOAPIC
 	kvm_vcpu_request_scan_ioapic(kvm);
 #endif
@@ -115,7 +116,7 @@ int kvm_set_irq(struct kvm *kvm, int irq_source_id, u32 irq, int level,
 		bool line_status)
 {
 	struct kvm_kernel_irq_routing_entry *e, irq_set[KVM_NR_IRQCHIPS];
-	int ret = -1, i = 0;
+	int ret = -1, i = 0, idx;
 	struct kvm_irq_routing_table *irq_rt;
 
 	trace_kvm_set_irq(irq, level, irq_source_id);
@@ -124,12 +125,12 @@ int kvm_set_irq(struct kvm *kvm, int irq_source_id, u32 irq, int level,
 	 * IOAPIC.  So set the bit in both. The guest will ignore
 	 * writes to the unused one.
 	 */
-	rcu_read_lock();
-	irq_rt = rcu_dereference(kvm->irq_routing);
+	idx = srcu_read_lock(&kvm->irq_srcu);
+	irq_rt = srcu_dereference(kvm->irq_routing, &kvm->irq_srcu);
 	if (irq < irq_rt->nr_rt_entries)
 		hlist_for_each_entry(e, &irq_rt->map[irq], link)
 			irq_set[i++] = *e;
-	rcu_read_unlock();
+	srcu_read_unlock(&kvm->irq_srcu, idx);
 
 	while(i--) {
 		int r;
@@ -226,7 +227,7 @@ int kvm_set_irq_routing(struct kvm *kvm,
 	kvm_irq_routing_update(kvm, new);
 	mutex_unlock(&kvm->irq_lock);
 
-	synchronize_rcu();
+	synchronize_srcu_expedited(&kvm->irq_srcu);
 
 	new = old;
 	r = 0;

@@ -1,5 +1,5 @@
 config SOLO6X10
-	tristate "Softlogic 6x10 MPEG codec cards"
+	tristate "Bluecherry / Softlogic 6x10 capture cards (MPEG-4/H.264)"
 	depends on PCI && VIDEO_DEV && SND && I2C
 	select FONT_SUPPORT
 	select FONT_8x16
@@ -8,5 +8,11 @@ config SOLO6X10
 	select SND_PCM
 	select FONT_8x16
 	---help---
-	  This driver supports the Softlogic based MPEG-4 and h.264 codec
-	  cards.
+	  This driver supports the Bluecherry H.264 and MPEG-4 hardware
+	  compression capture cards and other Softlogic-based ones.
+
+	  Following cards have been tested:
+	  * Bluecherry BC-H16480A (PCIe, 16 port, H.264)
+	  * Bluecherry BC-H04120A (PCIe, 4 port, H.264)
+	  * Bluecherry BC-H04120A-MPCI (Mini-PCI, 4 port, H.264)
+	  * Bluecherry BC-04120A (PCIe, 4 port, MPEG-4)

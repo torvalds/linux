@@ -17,6 +17,7 @@
 
 / {
 	model = "Radxa Rock";
+	compatible = "radxa,rock", "rockchip,rk3188";
 
 	memory {
 		reg = <0x60000000 0x80000000>;

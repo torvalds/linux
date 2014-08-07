@@ -72,6 +72,20 @@ mb_incoherent(void)
 #define mb()		fast_mb()
 #define iob()		fast_iob()
 
+#ifndef __tilegx__ /* 32 bit */
+/*
+ * We need to barrier before modifying the word, since the _atomic_xxx()
+ * routines just tns the lock and then read/modify/write of the word.
+ * But after the word is updated, the routine issues an "mf" before returning,
+ * and since it's a function call, we don't even need a compiler barrier.
+ */
+#define smp_mb__before_atomic()	smp_mb()
+#define smp_mb__after_atomic()	do { } while (0)
+#else /* 64 bit */
+#define smp_mb__before_atomic()	smp_mb()
+#define smp_mb__after_atomic()	smp_mb()
+#endif
+
 #include <asm-generic/barrier.h>
 
 #endif /* !__ASSEMBLY__ */

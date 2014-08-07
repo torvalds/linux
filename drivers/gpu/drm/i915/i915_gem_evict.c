@@ -68,9 +68,9 @@ mark_free(struct i915_vma *vma, struct list_head *unwind)
 int
 i915_gem_evict_something(struct drm_device *dev, struct i915_address_space *vm,
 			 int min_size, unsigned alignment, unsigned cache_level,
+			 unsigned long start, unsigned long end,
 			 unsigned flags)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct list_head eviction_list, unwind_list;
 	struct i915_vma *vma;
 	int ret = 0;
@@ -102,11 +102,10 @@ i915_gem_evict_something(struct drm_device *dev, struct i915_address_space *vm,
 	 */
 
 	INIT_LIST_HEAD(&unwind_list);
-	if (flags & PIN_MAPPABLE) {
-		BUG_ON(!i915_is_ggtt(vm));
+	if (start != 0 || end != vm->total) {
 		drm_mm_init_scan_with_range(&vm->mm, min_size,
-					    alignment, cache_level, 0,
-					    dev_priv->gtt.mappable_end);
+					    alignment, cache_level,
+					    start, end);
 	} else
 		drm_mm_init_scan(&vm->mm, min_size, alignment, cache_level);
 

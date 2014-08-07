@@ -211,8 +211,8 @@ static int spdif_hw_params(struct snd_pcm_substream *substream,
 	con |= CON_PCM_DATA;
 
 	con &= ~CON_PCM_MASK;
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S16_LE:
+	switch (params_width(params)) {
+	case 16:
 		con |= CON_PCM_16BIT;
 		break;
 	default:
@@ -427,8 +427,8 @@ static int spdif_probe(struct platform_device *pdev)
 
 	dev_set_drvdata(&pdev->dev, spdif);
 
-	ret = snd_soc_register_component(&pdev->dev, &samsung_spdif_component,
-					 &samsung_spdif_dai, 1);
+	ret = devm_snd_soc_register_component(&pdev->dev,
+			&samsung_spdif_component, &samsung_spdif_dai, 1);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "fail to register dai\n");
 		goto err4;
@@ -444,12 +444,10 @@ static int spdif_probe(struct platform_device *pdev)
 	ret = samsung_asoc_dma_platform_register(&pdev->dev);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register DMA: %d\n", ret);
-		goto err5;
+		goto err4;
 	}
 
 	return 0;
-err5:
-	snd_soc_unregister_component(&pdev->dev);
 err4:
 	iounmap(spdif->regs);
 err3:
@@ -466,9 +464,6 @@ static int spdif_remove(struct platform_device *pdev)
 {
 	struct samsung_spdif_info *spdif = &spdif_info;
 	struct resource *mem_res;
-
-	samsung_asoc_dma_platform_unregister(&pdev->dev);
-	snd_soc_unregister_component(&pdev->dev);
 
 	iounmap(spdif->regs);
 

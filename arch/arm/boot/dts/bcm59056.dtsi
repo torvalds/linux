@@ -70,5 +70,26 @@
 
 		vsr_reg: vsr {
 		};
+
+		gpldo1_reg: gpldo1 {
+		};
+
+		gpldo2_reg: gpldo2 {
+		};
+
+		gpldo3_reg: gpldo3 {
+		};
+
+		gpldo4_reg: gpldo4 {
+		};
+
+		gpldo5_reg: gpldo5 {
+		};
+
+		gpldo6_reg: gpldo6 {
+		};
+
+		vbus_reg: vbus {
+		};
 	};
 };

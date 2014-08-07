@@ -135,6 +135,8 @@ cond_syscall(sys_setresgid16);
 cond_syscall(sys_setresuid16);
 cond_syscall(sys_setreuid16);
 cond_syscall(sys_setuid16);
+cond_syscall(sys_sgetmask);
+cond_syscall(sys_ssetmask);
 cond_syscall(sys_vm86old);
 cond_syscall(sys_vm86);
 cond_syscall(sys_ipc);

@@ -47,12 +47,13 @@ static int sysfs_kf_seq_show(struct seq_file *sf, void *v)
 	ssize_t count;
 	char *buf;
 
-	/* acquire buffer and ensure that it's >= PAGE_SIZE */
+	/* acquire buffer and ensure that it's >= PAGE_SIZE and clear */
 	count = seq_get_buf(sf, &buf);
 	if (count < PAGE_SIZE) {
 		seq_commit(sf, -1);
 		return 0;
 	}
+	memset(buf, 0, PAGE_SIZE);
 
 	/*
 	 * Invoke show().  Control may reach here via seq file lseek even

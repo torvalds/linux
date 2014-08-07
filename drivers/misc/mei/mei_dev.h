@@ -153,6 +153,20 @@ struct mei_msg_data {
 	unsigned char *data;
 };
 
+/* Maximum number of processed FW status registers */
+#define MEI_FW_STATUS_MAX 2
+
+/*
+ * struct mei_fw_status - storage of FW status data
+ *
+ * @count - number of actually available elements in array
+ * @status - FW status registers
+ */
+struct mei_fw_status {
+	int count;
+	u32 status[MEI_FW_STATUS_MAX];
+};
+
 /**
  * struct mei_me_client - representation of me (fw) client
  *
@@ -213,12 +227,16 @@ struct mei_cl {
 
 /** struct mei_hw_ops
  *
+ * @fw_status        - read FW status from PCI config space
  * @host_is_ready    - query for host readiness
 
  * @hw_is_ready      - query if hw is ready
  * @hw_reset         - reset hw
  * @hw_start         - start hw after reset
  * @hw_config        - configure hw
+
+ * @pg_state         - power gating state of the device
+ * @pg_is_enabled    - is power gating enabled
 
  * @intr_clear       - clear pending interrupts
  * @intr_enable      - enable interrupts
@@ -237,12 +255,17 @@ struct mei_cl {
  */
 struct mei_hw_ops {
 
+	int (*fw_status)(struct mei_device *dev,
+		struct mei_fw_status *fw_status);
 	bool (*host_is_ready)(struct mei_device *dev);
 
 	bool (*hw_is_ready)(struct mei_device *dev);
 	int (*hw_reset)(struct mei_device *dev, bool enable);
 	int (*hw_start)(struct mei_device *dev);
 	void (*hw_config)(struct mei_device *dev);
+
+	enum mei_pg_state (*pg_state)(struct mei_device *dev);
+	bool (*pg_is_enabled)(struct mei_device *dev);
 
 	void (*intr_clear)(struct mei_device *dev);
 	void (*intr_enable)(struct mei_device *dev);
@@ -331,16 +354,61 @@ struct mei_cl_device {
 	void *priv_data;
 };
 
+
+ /**
+ * enum mei_pg_event - power gating transition events
+ *
+ * @MEI_PG_EVENT_IDLE: the driver is not in power gating transition
+ * @MEI_PG_EVENT_WAIT: the driver is waiting for a pg event to complete
+ * @MEI_PG_EVENT_RECEIVED: the driver received pg event
+ */
+enum mei_pg_event {
+	MEI_PG_EVENT_IDLE,
+	MEI_PG_EVENT_WAIT,
+	MEI_PG_EVENT_RECEIVED,
+};
+
+/**
+ * enum mei_pg_state - device internal power gating state
+ *
+ * @MEI_PG_OFF: device is not power gated - it is active
+ * @MEI_PG_ON:  device is power gated - it is in lower power state
+ */
+enum mei_pg_state {
+	MEI_PG_OFF = 0,
+	MEI_PG_ON =  1,
+};
+
+/*
+ * mei_cfg
+ *
+ * @fw_status - FW status
+ * @quirk_probe - device exclusion quirk
+ */
+struct mei_cfg {
+	const struct mei_fw_status fw_status;
+	bool (*quirk_probe)(struct pci_dev *pdev);
+};
+
+
+#define MEI_PCI_DEVICE(dev, cfg) \
+	.vendor = PCI_VENDOR_ID_INTEL, .device = (dev), \
+	.subvendor = PCI_ANY_ID, .subdevice = PCI_ANY_ID, \
+	.driver_data = (kernel_ulong_t)&(cfg)
+
+
 /**
  * struct mei_device -  MEI private device struct
 
  * @reset_count - limits the number of consecutive resets
  * @hbm_state - state of host bus message protocol
+ * @pg_event - power gating event
  * @mem_addr - mem mapped base register address
 
  * @hbuf_depth - depth of hardware host/write buffer is slots
  * @hbuf_is_ready - query if the host host/write buffer is ready
  * @wr_msg - the buffer for hbm control messages
+ * @cfg - per device generation config and ops
  */
 struct mei_device {
 	struct pci_dev *pdev;	/* pointer to pci device struct */
@@ -371,6 +439,7 @@ struct mei_device {
 	 * waiting queue for receive message from FW
 	 */
 	wait_queue_head_t wait_hw_ready;
+	wait_queue_head_t wait_pg;
 	wait_queue_head_t wait_recvd_msg;
 	wait_queue_head_t wait_stop_wd;
 
@@ -381,6 +450,14 @@ struct mei_device {
 	enum mei_dev_state dev_state;
 	enum mei_hbm_state hbm_state;
 	u16 init_clients_timer;
+
+	/*
+	 * Power Gating support
+	 */
+	enum mei_pg_event pg_event;
+#ifdef CONFIG_PM_RUNTIME
+	struct dev_pm_domain pg_domain;
+#endif /* CONFIG_PM_RUNTIME */
 
 	unsigned char rd_msg_buf[MEI_RD_MSG_BUF_SIZE];	/* control messages */
 	u32 rd_msg_hdr;
@@ -442,6 +519,7 @@ struct mei_device {
 
 
 	const struct mei_hw_ops *ops;
+	const struct mei_cfg *cfg;
 	char hw[0] __aligned(sizeof(void *));
 };
 
@@ -474,7 +552,7 @@ static inline u32 mei_slots2data(int slots)
 /*
  * mei init function prototypes
  */
-void mei_device_init(struct mei_device *dev);
+void mei_device_init(struct mei_device *dev, const struct mei_cfg *cfg);
 int mei_reset(struct mei_device *dev);
 int mei_start(struct mei_device *dev);
 int mei_restart(struct mei_device *dev);
@@ -553,10 +631,22 @@ void mei_watchdog_unregister(struct mei_device *dev);
  * Register Access Function
  */
 
+
 static inline void mei_hw_config(struct mei_device *dev)
 {
 	dev->ops->hw_config(dev);
 }
+
+static inline enum mei_pg_state mei_pg_state(struct mei_device *dev)
+{
+	return dev->ops->pg_state(dev);
+}
+
+static inline bool mei_pg_is_enabled(struct mei_device *dev)
+{
+	return dev->ops->pg_is_enabled(dev);
+}
+
 static inline int mei_hw_reset(struct mei_device *dev, bool enable)
 {
 	return dev->ops->hw_reset(dev, enable);
@@ -629,7 +719,16 @@ static inline int mei_count_full_read_slots(struct mei_device *dev)
 	return dev->ops->rdbuf_full_slots(dev);
 }
 
+int mei_fw_status(struct mei_device *dev, struct mei_fw_status *fw_status);
+
+#define FW_STS_FMT "%08X %08X"
+#define FW_STS_PRM(fw_status) \
+	(fw_status).count > 0 ? (fw_status).status[0] : 0xDEADBEEF, \
+	(fw_status).count > 1 ? (fw_status).status[1] : 0xDEADBEEF
+
 bool mei_hbuf_acquire(struct mei_device *dev);
+
+bool mei_write_is_idle(struct mei_device *dev);
 
 #if IS_ENABLED(CONFIG_DEBUG_FS)
 int mei_dbgfs_register(struct mei_device *dev, const char *name);

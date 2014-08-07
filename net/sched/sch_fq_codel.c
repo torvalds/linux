@@ -365,12 +365,7 @@ static void *fq_codel_zalloc(size_t sz)
 
 static void fq_codel_free(void *addr)
 {
-	if (addr) {
-		if (is_vmalloc_addr(addr))
-			vfree(addr);
-		else
-			kfree(addr);
-	}
+	kvfree(addr);
 }
 
 static void fq_codel_destroy(struct Qdisc *sch)

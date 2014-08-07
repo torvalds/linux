@@ -6,6 +6,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/cpu.h>
 #include <linux/kvm_host.h>
 #include <linux/preempt.h>
 #include <linux/export.h>
@@ -180,4 +181,34 @@ void __init kvm_cma_reserve(void)
 		align_size = max(kvm_rma_pages << PAGE_SHIFT, align_size);
 		kvm_cma_declare_contiguous(selected_size, align_size);
 	}
+}
+
+/*
+ * When running HV mode KVM we need to block certain operations while KVM VMs
+ * exist in the system. We use a counter of VMs to track this.
+ *
+ * One of the operations we need to block is onlining of secondaries, so we
+ * protect hv_vm_count with get/put_online_cpus().
+ */
+static atomic_t hv_vm_count;
+
+void kvm_hv_vm_activated(void)
+{
+	get_online_cpus();
+	atomic_inc(&hv_vm_count);
+	put_online_cpus();
+}
+EXPORT_SYMBOL_GPL(kvm_hv_vm_activated);
+
+void kvm_hv_vm_deactivated(void)
+{
+	get_online_cpus();
+	atomic_dec(&hv_vm_count);
+	put_online_cpus();
+}
+EXPORT_SYMBOL_GPL(kvm_hv_vm_deactivated);
+
+bool kvm_hv_mode_active(void)
+{
+	return atomic_read(&hv_vm_count) != 0;
 }

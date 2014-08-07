@@ -230,7 +230,7 @@ int nfs_atomic_open(struct inode *, struct dentry *, struct file *,
 extern struct file_system_type nfs4_fs_type;
 
 /* nfs4namespace.c */
-struct rpc_clnt *nfs4_create_sec_client(struct rpc_clnt *, struct inode *, struct qstr *);
+struct rpc_clnt *nfs4_negotiate_security(struct rpc_clnt *, struct inode *, struct qstr *);
 struct vfsmount *nfs4_submount(struct nfs_server *, struct dentry *,
 			       struct nfs_fh *, struct nfs_fattr *);
 int nfs4_replace_transport(struct nfs_server *server,
@@ -337,7 +337,7 @@ nfs4_state_protect(struct nfs_client *clp, unsigned long sp4_mode,
  */
 static inline void
 nfs4_state_protect_write(struct nfs_client *clp, struct rpc_clnt **clntp,
-			 struct rpc_message *msg, struct nfs_write_data *wdata)
+			 struct rpc_message *msg, struct nfs_pgio_data *wdata)
 {
 	if (_nfs4_state_protect(clp, NFS_SP4_MACH_CRED_WRITE, clntp, msg) &&
 	    !test_bit(NFS_SP4_MACH_CRED_COMMIT, &clp->cl_sp4_flags))
@@ -369,7 +369,7 @@ nfs4_state_protect(struct nfs_client *clp, unsigned long sp4_flags,
 
 static inline void
 nfs4_state_protect_write(struct nfs_client *clp, struct rpc_clnt **clntp,
-			 struct rpc_message *msg, struct nfs_write_data *wdata)
+			 struct rpc_message *msg, struct nfs_pgio_data *wdata)
 {
 }
 #endif /* CONFIG_NFS_V4_1 */

@@ -179,7 +179,7 @@ static int stub_send_ret_submit(struct stub_device *sdev)
 		else
 			iovnum = 2;
 
-		iov = kzalloc(iovnum * sizeof(struct kvec), GFP_KERNEL);
+		iov = kcalloc(iovnum, sizeof(struct kvec), GFP_KERNEL);
 
 		if (!iov) {
 			usbip_event_add(&sdev->ud, SDEV_EVENT_ERROR_MALLOC);
@@ -218,6 +218,7 @@ static int stub_send_ret_submit(struct stub_device *sdev)
 			 */
 
 			int i;
+
 			for (i = 0; i < urb->number_of_packets; i++) {
 				iov[iovnum].iov_base = urb->transfer_buffer +
 					urb->iso_frame_desc[i].offset;

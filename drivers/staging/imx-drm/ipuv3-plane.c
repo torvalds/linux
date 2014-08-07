@@ -17,7 +17,7 @@
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 
-#include "ipu-v3/imx-ipu-v3.h"
+#include "video/imx-ipu-v3.h"
 #include "ipuv3-plane.h"
 
 #define to_ipu_plane(x)	container_of(x, struct ipu_plane, base)
@@ -239,6 +239,8 @@ err_out:
 
 void ipu_plane_enable(struct ipu_plane *ipu_plane)
 {
+	if (ipu_plane->dp)
+		ipu_dp_enable(ipu_plane->ipu);
 	ipu_dmfc_enable_channel(ipu_plane->dmfc);
 	ipu_idmac_enable_channel(ipu_plane->ipu_ch);
 	if (ipu_plane->dp)
@@ -257,6 +259,8 @@ void ipu_plane_disable(struct ipu_plane *ipu_plane)
 		ipu_dp_disable_channel(ipu_plane->dp);
 	ipu_idmac_disable_channel(ipu_plane->ipu_ch);
 	ipu_dmfc_disable_channel(ipu_plane->dmfc);
+	if (ipu_plane->dp)
+		ipu_dp_disable(ipu_plane->ipu);
 }
 
 static void ipu_plane_dpms(struct ipu_plane *ipu_plane, int mode)

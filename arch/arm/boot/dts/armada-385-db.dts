@@ -16,7 +16,7 @@
 
 / {
 	model = "Marvell Armada 385 Development Board";
-	compatible = "marvell,a385-db", "marvell,armada385", "marvell,armada38x";
+	compatible = "marvell,a385-db", "marvell,armada385", "marvell,armada380";
 
 	chosen {
 		bootargs = "console=ttyS0,115200 earlyprintk";
@@ -55,7 +55,6 @@
 			};
 
 			serial@12000 {
-				clock-frequency = <200000000>;
 				status = "okay";
 			};
 
@@ -63,6 +62,10 @@
 				status = "okay";
 				phy = <&phy1>;
 				phy-mode = "rgmii-id";
+			};
+
+			usb@50000 {
+				status = "ok";
 			};
 
 			ethernet@70000 {
@@ -81,12 +84,22 @@
 				};
 			};
 
+			sata@a8000 {
+				status = "okay";
+			};
+
+			sata@e0000 {
+				status = "okay";
+			};
+
 			flash@d0000 {
 				status = "okay";
 				num-cs = <1>;
 				marvell,nand-keep-config;
 				marvell,nand-enable-arbiter;
 				nand-on-flash-bbt;
+				nand-ecc-strength = <4>;
+				nand-ecc-step-size = <512>;
 
 				partition@0 {
 					label = "U-Boot";
@@ -100,6 +113,22 @@
 					label = "Filesystem";
 					reg = <0x1000000 0x3f000000>;
 				};
+			};
+
+			sdhci@d8000 {
+				clock-frequency = <200000000>;
+				broken-cd;
+				wp-inverted;
+				bus-width = <8>;
+				status = "okay";
+			};
+
+			usb3@f0000 {
+				status = "okay";
+			};
+
+			usb3@f8000 {
+				status = "okay";
 			};
 		};
 

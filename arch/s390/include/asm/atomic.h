@@ -412,9 +412,4 @@ static inline long long atomic64_dec_if_positive(atomic64_t *v)
 #define atomic64_dec_and_test(_v)	(atomic64_sub_return(1, _v) == 0)
 #define atomic64_inc_not_zero(v)	atomic64_add_unless((v), 1, 0)
 
-#define smp_mb__before_atomic_dec()	smp_mb()
-#define smp_mb__after_atomic_dec()	smp_mb()
-#define smp_mb__before_atomic_inc()	smp_mb()
-#define smp_mb__after_atomic_inc()	smp_mb()
-
 #endif /* __ARCH_S390_ATOMIC__  */

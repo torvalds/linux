@@ -122,9 +122,6 @@ struct lloop_device {
 	loff_t	       lo_offset;
 	loff_t	       lo_sizelimit;
 	int		  lo_flags;
-	int		(*ioctl)(struct lloop_device *, int cmd,
-				    unsigned long arg);
-
 	struct file	 *lo_backing_file;
 	struct block_device *lo_device;
 	unsigned	     lo_blocksize;
@@ -407,7 +404,7 @@ static int loop_thread(void *data)
 	int refcheck;
 	int ret = 0;
 
-	set_user_nice(current, -20);
+	set_user_nice(current, MIN_NICE);
 
 	lo->lo_state = LLOOP_BOUND;
 
@@ -509,7 +506,6 @@ static int loop_set_fd(struct lloop_device *lo, struct file *unused,
 	lo->lo_device = bdev;
 	lo->lo_flags = lo_flags;
 	lo->lo_backing_file = file;
-	lo->ioctl = NULL;
 	lo->lo_sizelimit = 0;
 	lo->old_gfp_mask = mapping_gfp_mask(mapping);
 	mapping_set_gfp_mask(mapping, lo->old_gfp_mask & ~(__GFP_IO|__GFP_FS));
@@ -568,7 +564,6 @@ static int loop_clr_fd(struct lloop_device *lo, struct block_device *bdev,
 
 	down(&lo->lo_sem);
 	lo->lo_backing_file = NULL;
-	lo->ioctl = NULL;
 	lo->lo_device = NULL;
 	lo->lo_offset = 0;
 	lo->lo_sizelimit = 0;
@@ -624,7 +619,10 @@ static int lo_ioctl(struct block_device *bdev, fmode_t mode,
 	case LL_IOC_LLOOP_INFO: {
 		struct lu_fid fid;
 
-		LASSERT(lo->lo_backing_file != NULL);
+		if (lo->lo_backing_file == NULL) {
+			err = -ENOENT;
+			break;
+		}
 		if (inode == NULL)
 			inode = lo->lo_backing_file->f_dentry->d_inode;
 		if (lo->lo_state == LLOOP_BOUND)

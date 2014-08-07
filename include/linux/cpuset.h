@@ -12,10 +12,31 @@
 #include <linux/cpumask.h>
 #include <linux/nodemask.h>
 #include <linux/mm.h>
+#include <linux/jump_label.h>
 
 #ifdef CONFIG_CPUSETS
 
-extern int number_of_cpusets;	/* How many cpusets are defined in system? */
+extern struct static_key cpusets_enabled_key;
+static inline bool cpusets_enabled(void)
+{
+	return static_key_false(&cpusets_enabled_key);
+}
+
+static inline int nr_cpusets(void)
+{
+	/* jump label reference count + the top-level cpuset */
+	return static_key_count(&cpusets_enabled_key) + 1;
+}
+
+static inline void cpuset_inc(void)
+{
+	static_key_slow_inc(&cpusets_enabled_key);
+}
+
+static inline void cpuset_dec(void)
+{
+	static_key_slow_dec(&cpusets_enabled_key);
+}
 
 extern int cpuset_init(void);
 extern void cpuset_init_smp(void);
@@ -32,13 +53,13 @@ extern int __cpuset_node_allowed_hardwall(int node, gfp_t gfp_mask);
 
 static inline int cpuset_node_allowed_softwall(int node, gfp_t gfp_mask)
 {
-	return number_of_cpusets <= 1 ||
+	return nr_cpusets() <= 1 ||
 		__cpuset_node_allowed_softwall(node, gfp_mask);
 }
 
 static inline int cpuset_node_allowed_hardwall(int node, gfp_t gfp_mask)
 {
-	return number_of_cpusets <= 1 ||
+	return nr_cpusets() <= 1 ||
 		__cpuset_node_allowed_hardwall(node, gfp_mask);
 }
 
@@ -123,6 +144,8 @@ static inline void set_mems_allowed(nodemask_t nodemask)
 }
 
 #else /* !CONFIG_CPUSETS */
+
+static inline bool cpusets_enabled(void) { return false; }
 
 static inline int cpuset_init(void) { return 0; }
 static inline void cpuset_init_smp(void) {}

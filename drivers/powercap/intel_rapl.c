@@ -951,7 +951,9 @@ static const struct x86_cpu_id rapl_ids[] = {
 	{ X86_VENDOR_INTEL, 6, 0x2d},/* Sandy Bridge EP */
 	{ X86_VENDOR_INTEL, 6, 0x37},/* Valleyview */
 	{ X86_VENDOR_INTEL, 6, 0x3a},/* Ivy Bridge */
-	{ X86_VENDOR_INTEL, 6, 0x45},/* Haswell */
+	{ X86_VENDOR_INTEL, 6, 0x3c},/* Haswell */
+	{ X86_VENDOR_INTEL, 6, 0x3d},/* Broadwell */
+	{ X86_VENDOR_INTEL, 6, 0x45},/* Haswell ULT */
 	/* TODO: Add more CPU IDs after testing */
 	{}
 };
@@ -1124,8 +1126,7 @@ err_cleanup_package:
 static int rapl_check_domain(int cpu, int domain)
 {
 	unsigned msr;
-	u64 val1, val2 = 0;
-	int retry = 0;
+	u64 val = 0;
 
 	switch (domain) {
 	case RAPL_DOMAIN_PACKAGE:
@@ -1144,26 +1145,13 @@ static int rapl_check_domain(int cpu, int domain)
 		pr_err("invalid domain id %d\n", domain);
 		return -EINVAL;
 	}
-	if (rdmsrl_safe_on_cpu(cpu, msr, &val1))
+	/* make sure domain counters are available and contains non-zero
+	 * values, otherwise skip it.
+	 */
+	if (rdmsrl_safe_on_cpu(cpu, msr, &val) || !val)
 		return -ENODEV;
 
-	/* PP1/uncore/graphics domain may not be active at the time of
-	 * driver loading. So skip further checks.
-	 */
-	if (domain == RAPL_DOMAIN_PP1)
-		return 0;
-	/* energy counters roll slowly on some domains */
-	while (++retry < 10) {
-		usleep_range(10000, 15000);
-		rdmsrl_safe_on_cpu(cpu, msr, &val2);
-		if ((val1 & ENERGY_STATUS_MASK) != (val2 & ENERGY_STATUS_MASK))
-			return 0;
-	}
-	/* if energy counter does not change, report as bad domain */
-	pr_info("domain %s energy ctr %llu:%llu not working, skip\n",
-		rapl_domain_names[domain], val1, val2);
-
-	return -ENODEV;
+	return 0;
 }
 
 /* Detect active and valid domains for the given CPU, caller must
@@ -1180,6 +1168,9 @@ static int rapl_detect_domains(struct rapl_package *rp, int cpu)
 		/* use physical package id to read counters */
 		if (!rapl_check_domain(cpu, i))
 			rp->domain_map |= 1 << i;
+		else
+			pr_warn("RAPL domain %s detection failed\n",
+				rapl_domain_names[i]);
 	}
 	rp->nr_domains = bitmap_weight(&rp->domain_map,	RAPL_DOMAIN_MAX);
 	if (!rp->nr_domains) {

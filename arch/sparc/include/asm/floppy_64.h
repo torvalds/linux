@@ -296,7 +296,7 @@ struct sun_pci_dma_op {
 static struct sun_pci_dma_op sun_pci_dma_current = { -1U, 0, 0, NULL};
 static struct sun_pci_dma_op sun_pci_dma_pending = { -1U, 0, 0, NULL};
 
-extern irqreturn_t floppy_interrupt(int irq, void *dev_id);
+irqreturn_t floppy_interrupt(int irq, void *dev_id);
 
 static unsigned char sun_pci_fd_inb(unsigned long port)
 {

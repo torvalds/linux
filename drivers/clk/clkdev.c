@@ -27,6 +27,32 @@ static LIST_HEAD(clocks);
 static DEFINE_MUTEX(clocks_mutex);
 
 #if defined(CONFIG_OF) && defined(CONFIG_COMMON_CLK)
+
+/**
+ * of_clk_get_by_clkspec() - Lookup a clock form a clock provider
+ * @clkspec: pointer to a clock specifier data structure
+ *
+ * This function looks up a struct clk from the registered list of clock
+ * providers, an input is a clock specifier data structure as returned
+ * from the of_parse_phandle_with_args() function call.
+ */
+struct clk *of_clk_get_by_clkspec(struct of_phandle_args *clkspec)
+{
+	struct clk *clk;
+
+	if (!clkspec)
+		return ERR_PTR(-EINVAL);
+
+	of_clk_lock();
+	clk = __of_clk_get_from_provider(clkspec);
+
+	if (!IS_ERR(clk) && !__clk_get(clk))
+		clk = ERR_PTR(-ENOENT);
+
+	of_clk_unlock();
+	return clk;
+}
+
 struct clk *of_clk_get(struct device_node *np, int index)
 {
 	struct of_phandle_args clkspec;
@@ -41,13 +67,7 @@ struct clk *of_clk_get(struct device_node *np, int index)
 	if (rc)
 		return ERR_PTR(rc);
 
-	of_clk_lock();
-	clk = __of_clk_get_from_provider(&clkspec);
-
-	if (!IS_ERR(clk) && !__clk_get(clk))
-		clk = ERR_PTR(-ENOENT);
-
-	of_clk_unlock();
+	clk = of_clk_get_by_clkspec(&clkspec);
 	of_node_put(clkspec.np);
 	return clk;
 }

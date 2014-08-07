@@ -37,26 +37,6 @@ config AD7606_IFACE_SPI
 	  Say yes here to include parallel interface support on the AD7606
 	  ADC driver.
 
-config AD799X
-	tristate "Analog Devices AD799x ADC driver"
-	depends on I2C
-	select IIO_TRIGGER if IIO_BUFFER
-	select AD799X_RING_BUFFER
-	help
-	  Say yes here to build support for Analog Devices:
-	  ad7991, ad7995, ad7999, ad7992, ad7993, ad7994, ad7997, ad7998
-	  i2c analog to digital converters (ADC). Provides direct access
-	  via sysfs.
-
-config AD799X_RING_BUFFER
-	bool "Analog Devices AD799x: use ring buffer"
-	depends on AD799X
-	select IIO_BUFFER
-	select IIO_TRIGGERED_BUFFER
-	help
-	  Say yes here to include ring buffer support in the AD799X
-	  ADC driver.
-
 config AD7780
 	tristate "Analog Devices AD7780 and similar ADCs driver"
 	depends on SPI

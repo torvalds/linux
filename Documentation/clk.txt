@@ -68,21 +68,27 @@ the operations defined in clk.h:
 		int		(*is_enabled)(struct clk_hw *hw);
 		unsigned long	(*recalc_rate)(struct clk_hw *hw,
 						unsigned long parent_rate);
-		long		(*round_rate)(struct clk_hw *hw, unsigned long,
-						unsigned long *);
+		long		(*round_rate)(struct clk_hw *hw,
+						unsigned long rate,
+						unsigned long *parent_rate);
 		long		(*determine_rate)(struct clk_hw *hw,
 						unsigned long rate,
 						unsigned long *best_parent_rate,
 						struct clk **best_parent_clk);
 		int		(*set_parent)(struct clk_hw *hw, u8 index);
 		u8		(*get_parent)(struct clk_hw *hw);
-		int		(*set_rate)(struct clk_hw *hw, unsigned long);
+		int		(*set_rate)(struct clk_hw *hw,
+					    unsigned long rate,
+					    unsigned long parent_rate);
 		int		(*set_rate_and_parent)(struct clk_hw *hw,
 					    unsigned long rate,
-					    unsigned long parent_rate, u8 index);
+					    unsigned long parent_rate,
+					    u8 index);
 		unsigned long	(*recalc_accuracy)(struct clk_hw *hw,
-						   unsigned long parent_accuracy);
+						unsigned long parent_accuracy);
 		void		(*init)(struct clk_hw *hw);
+		int		(*debug_init)(struct clk_hw *hw,
+					      struct dentry *dentry);
 	};
 
 	Part 3 - hardware clk implementations

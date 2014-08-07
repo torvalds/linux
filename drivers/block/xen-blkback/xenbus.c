@@ -35,10 +35,24 @@ static void connect(struct backend_info *);
 static int connect_ring(struct backend_info *);
 static void backend_changed(struct xenbus_watch *, const char **,
 			    unsigned int);
+static void xen_blkif_free(struct xen_blkif *blkif);
+static void xen_vbd_free(struct xen_vbd *vbd);
 
 struct xenbus_device *xen_blkbk_xenbus(struct backend_info *be)
 {
 	return be->dev;
+}
+
+/*
+ * The last request could free the device from softirq context and
+ * xen_blkif_free() can sleep.
+ */
+static void xen_blkif_deferred_free(struct work_struct *work)
+{
+	struct xen_blkif *blkif;
+
+	blkif = container_of(work, struct xen_blkif, free_work);
+	xen_blkif_free(blkif);
 }
 
 static int blkback_name(struct xen_blkif *blkif, char *buf)
@@ -121,7 +135,6 @@ static struct xen_blkif *xen_blkif_alloc(domid_t domid)
 	init_completion(&blkif->drain_complete);
 	atomic_set(&blkif->drain, 0);
 	blkif->st_print = jiffies;
-	init_waitqueue_head(&blkif->waiting_to_free);
 	blkif->persistent_gnts.rb_node = NULL;
 	spin_lock_init(&blkif->free_pages_lock);
 	INIT_LIST_HEAD(&blkif->free_pages);
@@ -132,6 +145,7 @@ static struct xen_blkif *xen_blkif_alloc(domid_t domid)
 	INIT_WORK(&blkif->persistent_purge_work, xen_blkbk_unmap_purged_grants);
 
 	INIT_LIST_HEAD(&blkif->pending_free);
+	INIT_WORK(&blkif->free_work, xen_blkif_deferred_free);
 
 	for (i = 0; i < XEN_BLKIF_REQS; i++) {
 		req = kzalloc(sizeof(*req), GFP_KERNEL);
@@ -231,7 +245,7 @@ static int xen_blkif_map(struct xen_blkif *blkif, unsigned long shared_page,
 	return 0;
 }
 
-static void xen_blkif_disconnect(struct xen_blkif *blkif)
+static int xen_blkif_disconnect(struct xen_blkif *blkif)
 {
 	if (blkif->xenblkd) {
 		kthread_stop(blkif->xenblkd);
@@ -239,9 +253,12 @@ static void xen_blkif_disconnect(struct xen_blkif *blkif)
 		blkif->xenblkd = NULL;
 	}
 
-	atomic_dec(&blkif->refcnt);
-	wait_event(blkif->waiting_to_free, atomic_read(&blkif->refcnt) == 0);
-	atomic_inc(&blkif->refcnt);
+	/* The above kthread_stop() guarantees that at this point we
+	 * don't have any discard_io or other_io requests. So, checking
+	 * for inflight IO is enough.
+	 */
+	if (atomic_read(&blkif->inflight) > 0)
+		return -EBUSY;
 
 	if (blkif->irq) {
 		unbind_from_irqhandler(blkif->irq, blkif);
@@ -252,6 +269,8 @@ static void xen_blkif_disconnect(struct xen_blkif *blkif)
 		xenbus_unmap_ring_vfree(blkif->be->dev, blkif->blk_ring);
 		blkif->blk_rings.common.sring = NULL;
 	}
+
+	return 0;
 }
 
 static void xen_blkif_free(struct xen_blkif *blkif)
@@ -259,8 +278,8 @@ static void xen_blkif_free(struct xen_blkif *blkif)
 	struct pending_req *req, *n;
 	int i = 0, j;
 
-	if (!atomic_dec_and_test(&blkif->refcnt))
-		BUG();
+	xen_blkif_disconnect(blkif);
+	xen_vbd_free(&blkif->vbd);
 
 	/* Remove all persistent grants and the cache of ballooned pages. */
 	xen_blkbk_free_caches(blkif);
@@ -449,16 +468,15 @@ static int xen_blkbk_remove(struct xenbus_device *dev)
 		be->backend_watch.node = NULL;
 	}
 
+	dev_set_drvdata(&dev->dev, NULL);
+
 	if (be->blkif) {
 		xen_blkif_disconnect(be->blkif);
-		xen_vbd_free(&be->blkif->vbd);
-		xen_blkif_free(be->blkif);
-		be->blkif = NULL;
+		xen_blkif_put(be->blkif);
 	}
 
 	kfree(be->mode);
 	kfree(be);
-	dev_set_drvdata(&dev->dev, NULL);
 	return 0;
 }
 
@@ -481,9 +499,14 @@ static void xen_blkbk_discard(struct xenbus_transaction xbt, struct backend_info
 	struct xenbus_device *dev = be->dev;
 	struct xen_blkif *blkif = be->blkif;
 	int err;
-	int state = 0;
+	int state = 0, discard_enable;
 	struct block_device *bdev = be->blkif->vbd.bdev;
 	struct request_queue *q = bdev_get_queue(bdev);
+
+	err = xenbus_scanf(XBT_NIL, dev->nodename, "discard-enable", "%d",
+			   &discard_enable);
+	if (err == 1 && !discard_enable)
+		return;
 
 	if (blk_queue_discard(q)) {
 		err = xenbus_printf(xbt, dev->nodename,
@@ -700,7 +723,11 @@ static void frontend_changed(struct xenbus_device *dev,
 		 * Enforce precondition before potential leak point.
 		 * xen_blkif_disconnect() is idempotent.
 		 */
-		xen_blkif_disconnect(be->blkif);
+		err = xen_blkif_disconnect(be->blkif);
+		if (err) {
+			xenbus_dev_fatal(dev, err, "pending I/O");
+			break;
+		}
 
 		err = connect_ring(be);
 		if (err)

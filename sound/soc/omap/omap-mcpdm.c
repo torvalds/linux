@@ -40,6 +40,7 @@
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 #include <sound/dmaengine_pcm.h>
+#include <sound/omap-pcm.h>
 
 #include "omap-mcpdm.h"
 
@@ -265,9 +266,6 @@ static int omap_mcpdm_dai_startup(struct snd_pcm_substream *substream,
 	}
 	mutex_unlock(&mcpdm->mutex);
 
-	snd_soc_dai_set_dma_data(dai, substream,
-				 &mcpdm->dma_data[substream->stream]);
-
 	return 0;
 }
 
@@ -406,6 +404,11 @@ static int omap_mcpdm_probe(struct snd_soc_dai *dai)
 	mcpdm->config[SNDRV_PCM_STREAM_PLAYBACK].threshold = 2;
 	mcpdm->config[SNDRV_PCM_STREAM_CAPTURE].threshold =
 							MCPDM_UP_THRES_MAX - 3;
+
+	snd_soc_dai_init_dma_data(dai,
+				  &mcpdm->dma_data[SNDRV_PCM_STREAM_PLAYBACK],
+				  &mcpdm->dma_data[SNDRV_PCM_STREAM_CAPTURE]);
+
 	return ret;
 }
 
@@ -460,6 +463,7 @@ static int asoc_mcpdm_probe(struct platform_device *pdev)
 {
 	struct omap_mcpdm *mcpdm;
 	struct resource *res;
+	int ret;
 
 	mcpdm = devm_kzalloc(&pdev->dev, sizeof(struct omap_mcpdm), GFP_KERNEL);
 	if (!mcpdm)
@@ -490,9 +494,13 @@ static int asoc_mcpdm_probe(struct platform_device *pdev)
 
 	mcpdm->dev = &pdev->dev;
 
-	return devm_snd_soc_register_component(&pdev->dev,
+	ret =  devm_snd_soc_register_component(&pdev->dev,
 					       &omap_mcpdm_component,
 					       &omap_mcpdm_dai, 1);
+	if (ret)
+		return ret;
+
+	return omap_pcm_platform_register(&pdev->dev);
 }
 
 static const struct of_device_id omap_mcpdm_of_match[] = {

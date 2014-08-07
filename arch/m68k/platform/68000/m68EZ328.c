@@ -69,7 +69,8 @@ void __init config_BSP(char *command, int len)
   if (p) strcpy(p,command);
   else command[0] = 0;
 #endif
- 
+
+  mach_sched_init = hw_timer_init;
   mach_hwclk = m68328_hwclk;
   mach_reset = m68ez328_reset;
 }

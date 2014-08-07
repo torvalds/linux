@@ -136,7 +136,8 @@ struct buffer_head *gfs2_getbuf(struct gfs2_glock *gl, u64 blkno, int create)
 			yield();
 		}
 	} else {
-		page = find_lock_page(mapping, index);
+		page = find_get_page_flags(mapping, index,
+						FGP_LOCK|FGP_ACCESSED);
 		if (!page)
 			return NULL;
 	}
@@ -153,7 +154,6 @@ struct buffer_head *gfs2_getbuf(struct gfs2_glock *gl, u64 blkno, int create)
 		map_bh(bh, sdp->sd_vfs, blkno);
 
 	unlock_page(page);
-	mark_page_accessed(page);
 	page_cache_release(page);
 
 	return bh;

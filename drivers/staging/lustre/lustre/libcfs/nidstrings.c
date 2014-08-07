@@ -227,11 +227,11 @@ libcfs_ip_addr2str(__u32 addr, char *str)
 int
 libcfs_ip_str2addr(const char *str, int nob, __u32 *addr)
 {
-	int   a;
-	int   b;
-	int   c;
-	int   d;
-	int   n = nob;			  /* XscanfX */
+	unsigned int	a;
+	unsigned int	b;
+	unsigned int	c;
+	unsigned int	d;
+	int		n = nob; /* XscanfX */
 
 	/* numeric IP? */
 	if (sscanf(str, "%u.%u.%u.%u%n", &a, &b, &c, &d, &n) >= 4 &&
@@ -419,7 +419,7 @@ libcfs_str2net_internal(const char *str, __u32 *net)
 {
 	struct netstrfns *uninitialized_var(nf);
 	int	       nob;
-	int	       netnum;
+	unsigned int   netnum;
 	int	       i;
 
 	for (i = 0; i < libcfs_nnetstrfns; i++) {

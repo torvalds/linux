@@ -40,6 +40,7 @@ pwm_info(struct nouveau_therm *therm, int line)
 		case 0x00: return 2;
 		case 0x19: return 1;
 		case 0x1c: return 0;
+		case 0x1e: return 2;
 		default:
 			break;
 		}

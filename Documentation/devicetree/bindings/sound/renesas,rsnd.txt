@@ -20,6 +20,7 @@ Required properties:
 SSI subnode properties:
 - interrupts			: Should contain SSI interrupt for PIO transfer
 - shared-pin			: if shared clock pin
+- pio-transfer			: use PIO transfer mode
 
 SRC subnode properties:
 no properties at this point

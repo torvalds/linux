@@ -15,6 +15,7 @@
 
 #include <crypto/internal/hash.h>
 #include <crypto/scatterwalk.h>
+#include <linux/bug.h>
 #include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -46,7 +47,10 @@ static int hash_walk_next(struct crypto_hash_walk *walk)
 	unsigned int nbytes = min(walk->entrylen,
 				  ((unsigned int)(PAGE_SIZE)) - offset);
 
-	walk->data = kmap_atomic(walk->pg);
+	if (walk->flags & CRYPTO_ALG_ASYNC)
+		walk->data = kmap(walk->pg);
+	else
+		walk->data = kmap_atomic(walk->pg);
 	walk->data += offset;
 
 	if (offset & alignmask) {
@@ -93,8 +97,16 @@ int crypto_hash_walk_done(struct crypto_hash_walk *walk, int err)
 		return nbytes;
 	}
 
-	kunmap_atomic(walk->data);
-	crypto_yield(walk->flags);
+	if (walk->flags & CRYPTO_ALG_ASYNC)
+		kunmap(walk->pg);
+	else {
+		kunmap_atomic(walk->data);
+		/*
+		 * The may sleep test only makes sense for sync users.
+		 * Async users don't need to sleep here anyway.
+		 */
+		crypto_yield(walk->flags);
+	}
 
 	if (err)
 		return err;
@@ -124,11 +136,30 @@ int crypto_hash_walk_first(struct ahash_request *req,
 
 	walk->alignmask = crypto_ahash_alignmask(crypto_ahash_reqtfm(req));
 	walk->sg = req->src;
-	walk->flags = req->base.flags;
+	walk->flags = req->base.flags & CRYPTO_TFM_REQ_MASK;
 
 	return hash_walk_new_entry(walk);
 }
 EXPORT_SYMBOL_GPL(crypto_hash_walk_first);
+
+int crypto_ahash_walk_first(struct ahash_request *req,
+			    struct crypto_hash_walk *walk)
+{
+	walk->total = req->nbytes;
+
+	if (!walk->total)
+		return 0;
+
+	walk->alignmask = crypto_ahash_alignmask(crypto_ahash_reqtfm(req));
+	walk->sg = req->src;
+	walk->flags = req->base.flags & CRYPTO_TFM_REQ_MASK;
+	walk->flags |= CRYPTO_ALG_ASYNC;
+
+	BUILD_BUG_ON(CRYPTO_TFM_REQ_MASK & CRYPTO_ALG_ASYNC);
+
+	return hash_walk_new_entry(walk);
+}
+EXPORT_SYMBOL_GPL(crypto_ahash_walk_first);
 
 int crypto_hash_walk_first_compat(struct hash_desc *hdesc,
 				  struct crypto_hash_walk *walk,
@@ -141,7 +172,7 @@ int crypto_hash_walk_first_compat(struct hash_desc *hdesc,
 
 	walk->alignmask = crypto_hash_alignmask(hdesc->tfm);
 	walk->sg = sg;
-	walk->flags = hdesc->flags;
+	walk->flags = hdesc->flags & CRYPTO_TFM_REQ_MASK;
 
 	return hash_walk_new_entry(walk);
 }

@@ -205,8 +205,7 @@ $(run):
 	( eval $$cmd ) >> $@ 2>&1; \
 	echo "  test: $(call test,$@)" >> $@ 2>&1; \
 	$(call test,$@) && \
-	rm -f $@ \
-	rm -rf $$TMP_DEST
+	rm -rf $@ $$TMP_DEST || (cat $@ ; false)
 
 $(run_O):
 	$(call clean)
@@ -217,9 +216,7 @@ $(run_O):
 	( eval $$cmd ) >> $@ 2>&1 && \
 	echo "  test: $(call test_O,$@)" >> $@ 2>&1; \
 	$(call test_O,$@) && \
-	rm -f $@ && \
-	rm -rf $$TMP_O \
-	rm -rf $$TMP_DEST
+	rm -rf $@ $$TMP_O $$TMP_DEST || (cat $@ ; false)
 
 tarpkg:
 	@cmd="$(PERF)/tests/perf-targz-src-pkg $(PERF)"; \

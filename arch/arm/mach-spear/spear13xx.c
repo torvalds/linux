@@ -38,15 +38,15 @@ void __init spear13xx_l2x0_init(void)
 	if (!IS_ENABLED(CONFIG_CACHE_L2X0))
 		return;
 
-	writel_relaxed(0x06, VA_L2CC_BASE + L2X0_PREFETCH_CTRL);
+	writel_relaxed(0x06, VA_L2CC_BASE + L310_PREFETCH_CTRL);
 
 	/*
 	 * Program following latencies in order to make
 	 * SPEAr1340 work at 600 MHz
 	 */
-	writel_relaxed(0x221, VA_L2CC_BASE + L2X0_TAG_LATENCY_CTRL);
-	writel_relaxed(0x441, VA_L2CC_BASE + L2X0_DATA_LATENCY_CTRL);
-	l2x0_init(VA_L2CC_BASE, 0x70A60001, 0xfe00ffff);
+	writel_relaxed(0x221, VA_L2CC_BASE + L310_TAG_LATENCY_CTRL);
+	writel_relaxed(0x441, VA_L2CC_BASE + L310_DATA_LATENCY_CTRL);
+	l2x0_init(VA_L2CC_BASE, 0x30a00001, 0xfe0fffff);
 }
 
 /*

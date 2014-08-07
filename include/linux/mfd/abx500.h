@@ -330,7 +330,6 @@ int abx500_mask_and_set_register_interruptible(struct device *dev, u8 bank,
 int abx500_get_chip_id(struct device *dev);
 int abx500_event_registers_startup_state_get(struct device *dev, u8 *event);
 int abx500_startup_irq_enabled(struct device *dev, unsigned int irq);
-void abx500_dump_all_banks(void);
 
 struct abx500_ops {
 	int (*get_chip_id) (struct device *);

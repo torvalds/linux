@@ -44,9 +44,14 @@
 #define DEVICEADDR_USBADR     (0x7FUL << 25)
 
 /* PORTSC */
+#define PORTSC_CCS            BIT(0)
+#define PORTSC_CSC            BIT(1)
+#define PORTSC_PEC            BIT(3)
+#define PORTSC_OCC            BIT(5)
 #define PORTSC_FPR            BIT(6)
 #define PORTSC_SUSP           BIT(7)
 #define PORTSC_HSP            BIT(9)
+#define PORTSC_PP             BIT(12)
 #define PORTSC_PTC            (0x0FUL << 16)
 #define PORTSC_PHCD(d)	      ((d) ? BIT(22) : BIT(23))
 /* PTS and PTW for non lpm version only */
@@ -55,6 +60,9 @@
 	(u32)((((d) & 0x3) << 30) | (((d) & 0x4) ? BIT(25) : 0))
 #define PORTSC_PTW            BIT(28)
 #define PORTSC_STS            BIT(29)
+
+#define PORTSC_W1C_BITS						\
+	(PORTSC_CSC | PORTSC_PEC | PORTSC_OCC)
 
 /* DEVLC */
 #define DEVLC_PFSC            BIT(23)
@@ -72,6 +80,8 @@
 
 /* OTGSC */
 #define OTGSC_IDPU	      BIT(5)
+#define OTGSC_HADP	      BIT(6)
+#define OTGSC_HABA	      BIT(7)
 #define OTGSC_ID	      BIT(8)
 #define OTGSC_AVV	      BIT(9)
 #define OTGSC_ASV	      BIT(10)

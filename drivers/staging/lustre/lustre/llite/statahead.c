@@ -958,13 +958,18 @@ static int ll_agl_thread(void *arg)
 	struct ptlrpc_thread     *thread = &sai->sai_agl_thread;
 	struct l_wait_info	lwi    = { 0 };
 
-	CDEBUG(D_READA, "agl thread started: [pid %d] [parent %.*s]\n",
-	       current_pid(), parent->d_name.len, parent->d_name.name);
+	thread->t_pid = current_pid();
+	CDEBUG(D_READA, "agl thread started: sai %p, parent %.*s\n",
+	       sai, parent->d_name.len, parent->d_name.name);
 
 	atomic_inc(&sbi->ll_agl_total);
 	spin_lock(&plli->lli_agl_lock);
 	sai->sai_agl_valid = 1;
-	thread_set_flags(thread, SVC_RUNNING);
+	if (thread_is_init(thread))
+		/* If someone else has changed the thread state
+		 * (e.g. already changed to SVC_STOPPING), we can't just
+		 * blindly overwrite that setting. */
+		thread_set_flags(thread, SVC_RUNNING);
 	spin_unlock(&plli->lli_agl_lock);
 	wake_up(&thread->t_ctl_waitq);
 
@@ -1004,8 +1009,8 @@ static int ll_agl_thread(void *arg)
 	spin_unlock(&plli->lli_agl_lock);
 	wake_up(&thread->t_ctl_waitq);
 	ll_sai_put(sai);
-	CDEBUG(D_READA, "agl thread stopped: [pid %d] [parent %.*s]\n",
-	       current_pid(), parent->d_name.len, parent->d_name.name);
+	CDEBUG(D_READA, "agl thread stopped: sai %p, parent %.*s\n",
+	       sai, parent->d_name.len, parent->d_name.name);
 	return 0;
 }
 
@@ -1016,8 +1021,8 @@ static void ll_start_agl(struct dentry *parent, struct ll_statahead_info *sai)
 	struct ll_inode_info  *plli;
 	struct task_struct *task;
 
-	CDEBUG(D_READA, "start agl thread: [pid %d] [parent %.*s]\n",
-	       current_pid(), parent->d_name.len, parent->d_name.name);
+	CDEBUG(D_READA, "start agl thread: sai %p, parent %.*s\n",
+	       sai, parent->d_name.len, parent->d_name.name);
 
 	plli = ll_i2info(parent->d_inode);
 	task = kthread_run(ll_agl_thread, parent,
@@ -1050,15 +1055,20 @@ static int ll_statahead_thread(void *arg)
 	struct ll_dir_chain       chain;
 	struct l_wait_info	lwi    = { 0 };
 
-	CDEBUG(D_READA, "statahead thread started: [pid %d] [parent %.*s]\n",
-	       current_pid(), parent->d_name.len, parent->d_name.name);
+	thread->t_pid = current_pid();
+	CDEBUG(D_READA, "statahead thread starting: sai %p, parent %.*s\n",
+	       sai, parent->d_name.len, parent->d_name.name);
 
 	if (sbi->ll_flags & LL_SBI_AGL_ENABLED)
 		ll_start_agl(parent, sai);
 
 	atomic_inc(&sbi->ll_sa_total);
 	spin_lock(&plli->lli_sa_lock);
-	thread_set_flags(thread, SVC_RUNNING);
+	if (thread_is_init(thread))
+		/* If someone else has changed the thread state
+		 * (e.g. already changed to SVC_STOPPING), we can't just
+		 * blindly overwrite that setting. */
+		thread_set_flags(thread, SVC_RUNNING);
 	spin_unlock(&plli->lli_sa_lock);
 	wake_up(&thread->t_ctl_waitq);
 
@@ -1220,9 +1230,7 @@ do_it:
 			 */
 			ll_release_page(page, le32_to_cpu(dp->ldp_flags) &
 					      LDF_COLLIDE);
-			sai->sai_in_readpage = 1;
 			page = ll_get_dir_page(dir, pos, &chain);
-			sai->sai_in_readpage = 0;
 		} else {
 			LASSERT(le32_to_cpu(dp->ldp_flags) & LDF_COLLIDE);
 			ll_release_page(page, 1);
@@ -1239,8 +1247,8 @@ out:
 		spin_unlock(&plli->lli_agl_lock);
 		wake_up(&agl_thread->t_ctl_waitq);
 
-		CDEBUG(D_READA, "stop agl thread: [pid %d]\n",
-		       current_pid());
+		CDEBUG(D_READA, "stop agl thread: sai %p pid %u\n",
+		       sai, (unsigned int)agl_thread->t_pid);
 		l_wait_event(agl_thread->t_ctl_waitq,
 			     thread_is_stopped(agl_thread),
 			     &lwi);
@@ -1266,8 +1274,8 @@ out:
 	wake_up(&thread->t_ctl_waitq);
 	ll_sai_put(sai);
 	dput(parent);
-	CDEBUG(D_READA, "statahead thread stopped: [pid %d] [parent %.*s]\n",
-	       current_pid(), parent->d_name.len, parent->d_name.name);
+	CDEBUG(D_READA, "statahead thread stopped: sai %p, parent %.*s\n",
+	       sai, parent->d_name.len, parent->d_name.name);
 	return rc;
 }
 
@@ -1298,8 +1306,8 @@ void ll_stop_statahead(struct inode *dir, void *key)
 			spin_unlock(&lli->lli_sa_lock);
 			wake_up(&thread->t_ctl_waitq);
 
-			CDEBUG(D_READA, "stop statahead thread: [pid %d]\n",
-			       current_pid());
+			CDEBUG(D_READA, "stop statahead thread: sai %p pid %u\n",
+			       lli->lli_sai, (unsigned int)thread->t_pid);
 			l_wait_event(thread->t_ctl_waitq,
 				     thread_is_stopped(thread),
 				     &lwi);
@@ -1473,10 +1481,10 @@ ll_sai_unplug(struct ll_statahead_info *sai, struct ll_sa_entry *entry)
 			CDEBUG(D_READA, "Statahead for dir "DFID" hit "
 			       "ratio too low: hit/miss "LPU64"/"LPU64
 			       ", sent/replied "LPU64"/"LPU64", stopping "
-			       "statahead thread: pid %d\n",
+			       "statahead thread\n",
 			       PFID(&lli->lli_fid), sai->sai_hit,
 			       sai->sai_miss, sai->sai_sent,
-			       sai->sai_replied, current_pid());
+			       sai->sai_replied);
 			spin_lock(&lli->lli_sa_lock);
 			if (!thread_is_stopped(thread))
 				thread_set_flags(thread, SVC_STOPPING);
@@ -1552,12 +1560,6 @@ int do_statahead_enter(struct inode *dir, struct dentry **dentryp,
 			ll_sai_unplug(sai, entry);
 			return entry ? 1 : -EAGAIN;
 		}
-
-		/* if statahead is busy in readdir, help it do post-work */
-		while (!ll_sa_entry_stated(entry) &&
-		       sai->sai_in_readpage &&
-		       !sa_received_empty(sai))
-			ll_post_statahead(sai);
 
 		if (!ll_sa_entry_stated(entry)) {
 			sai->sai_index_wait = entry->se_index;
@@ -1655,9 +1657,15 @@ int do_statahead_enter(struct inode *dir, struct dentry **dentryp,
 		GOTO(out, rc = -EAGAIN);
 	}
 
-	CDEBUG(D_READA, "start statahead thread: [pid %d] [parent %.*s]\n",
-	       current_pid(), parent->d_name.len, parent->d_name.name);
+	CDEBUG(D_READA, "start statahead thread: sai %p, parent %.*s\n",
+	       sai, parent->d_name.len, parent->d_name.name);
 
+	/* The sai buffer already has one reference taken at allocation time,
+	 * but as soon as we expose the sai by attaching it to the lli that
+	 * default reference can be dropped by another thread calling
+	 * ll_stop_statahead. We need to take a local reference to protect
+	 * the sai buffer while we intend to access it. */
+	ll_sai_get(sai);
 	lli->lli_sai = sai;
 
 	plli = ll_i2info(parent->d_inode);
@@ -1670,6 +1678,9 @@ int do_statahead_enter(struct inode *dir, struct dentry **dentryp,
 		lli->lli_opendir_key = NULL;
 		thread_set_flags(thread, SVC_STOPPED);
 		thread_set_flags(&sai->sai_agl_thread, SVC_STOPPED);
+		/* Drop both our own local reference and the default
+		 * reference from allocation time. */
+		ll_sai_put(sai);
 		ll_sai_put(sai);
 		LASSERT(lli->lli_sai == NULL);
 		return -EAGAIN;
@@ -1678,6 +1689,7 @@ int do_statahead_enter(struct inode *dir, struct dentry **dentryp,
 	l_wait_event(thread->t_ctl_waitq,
 		     thread_is_running(thread) || thread_is_stopped(thread),
 		     &lwi);
+	ll_sai_put(sai);
 
 	/*
 	 * We don't stat-ahead for the first dirent since we are already in

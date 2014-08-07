@@ -1458,7 +1458,7 @@ static void mpsc_set_termios(struct uart_port *port, struct ktermios *termios,
 		pi->port.read_status_mask |= SDMA_DESC_CMDSTAT_PE
 			| SDMA_DESC_CMDSTAT_FR;
 
-	if (termios->c_iflag & (BRKINT | PARMRK))
+	if (termios->c_iflag & (IGNBRK | BRKINT | PARMRK))
 		pi->port.read_status_mask |= SDMA_DESC_CMDSTAT_BR;
 
 	/* Characters/events to ignore */

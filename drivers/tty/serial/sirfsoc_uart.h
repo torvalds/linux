@@ -424,8 +424,6 @@ struct sirfsoc_uart_port {
 	struct dma_chan			*tx_dma_chan;
 	dma_addr_t			tx_dma_addr;
 	struct dma_async_tx_descriptor	*tx_dma_desc;
-	spinlock_t			rx_lock;
-	spinlock_t			tx_lock;
 	struct tasklet_struct		rx_dma_complete_tasklet;
 	struct tasklet_struct		rx_tmo_process_tasklet;
 	unsigned int			rx_io_count;
@@ -441,9 +439,7 @@ struct sirfsoc_uart_port {
 
 /* Register Access Control */
 #define portaddr(port, reg)		((port)->membase + (reg))
-#define rd_regb(port, reg)		(__raw_readb(portaddr(port, reg)))
 #define rd_regl(port, reg)		(__raw_readl(portaddr(port, reg)))
-#define wr_regb(port, reg, val)		__raw_writeb(val, portaddr(port, reg))
 #define wr_regl(port, reg, val)		__raw_writel(val, portaddr(port, reg))
 
 /* UART Port Mask */

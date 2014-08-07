@@ -372,6 +372,7 @@ static int listen_all_addrinfo(struct addrinfo *ai_head, int sockfdlist[],
 
 	for (ai = ai_head; ai && nsockfd < maxsockfd; ai = ai->ai_next) {
 		int sock;
+
 		addrinfo_to_text(ai, ai_buf, ai_buf_size);
 		dbg("opening %s", ai_buf);
 		sock = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
@@ -457,11 +458,13 @@ static void set_signal(void)
 
 static const char *pid_file;
 
-static void write_pid_file()
+static void write_pid_file(void)
 {
 	if (pid_file) {
 		dbg("creating pid file %s", pid_file);
-		FILE *fp = fopen(pid_file, "w");
+		FILE *fp;
+
+		fp = fopen(pid_file, "w");
 		if (!fp) {
 			err("pid_file: %s: %d (%s)",
 			    pid_file, errno, strerror(errno));
@@ -472,7 +475,7 @@ static void write_pid_file()
 	}
 }
 
-static void remove_pid_file()
+static void remove_pid_file(void)
 {
 	if (pid_file) {
 		dbg("removing pid file %s", pid_file);
@@ -602,6 +605,7 @@ int main(int argc, char *argv[])
 	int daemonize = 0;
 	int ipv4 = 0, ipv6 = 0;
 	int opt, rc = -1;
+
 	pid_file = NULL;
 
 	usbip_use_stderr = 1;

@@ -42,7 +42,7 @@
 #define HBorder                 0x00000020
 #define VBorder                 0x00000010
 #define WideScreenMode		0x00000100
-
+#define NewModeInfo		0x00000200
 
 /* DCLK Index */
 #define VCLK25_175     		0x00
@@ -67,6 +67,11 @@
 #define VCLK106_5   		0x12
 #define VCLK146_25  		0x13
 #define VCLK148_5   		0x14
+#define VCLK71      		0x15
+#define VCLK88_75   		0x16
+#define VCLK119     		0x17
+#define VCLK85_5     		0x18
+#define VCLK97_75     		0x19
 
 static struct ast_vbios_dclk_info dclk_table[] = {
 	{0x2C, 0xE7, 0x03},					/* 00: VCLK25_175	*/
@@ -90,6 +95,10 @@ static struct ast_vbios_dclk_info dclk_table[] = {
 	{0x28, 0x49, 0x80},					/* 12: VCLK106.5        */
 	{0x37, 0x49, 0x80},					/* 13: VCLK146.25       */
 	{0x1f, 0x45, 0x80},					/* 14: VCLK148.5        */
+	{0x47, 0x6c, 0x80},					/* 15: VCLK71       */
+	{0x25, 0x65, 0x80},					/* 16: VCLK88.75    */
+	{0x77, 0x58, 0x80},					/* 17: VCLK119      */
+	{0x32, 0x67, 0x80},				    /* 18: VCLK85_5     */
 };
 
 static struct ast_vbios_stdtable vbios_stdtable[] = {
@@ -225,41 +234,63 @@ static struct ast_vbios_enhtable res_1600x1200[] = {
 	 (SyncPP | Charx8Dot), 0xFF, 1, 0x33 },
 };
 
-static struct ast_vbios_enhtable res_1920x1200[] = {
-	{2080, 1920, 48, 32, 1235, 1200, 3, 6, VCLK154,	/* 60Hz */
-	 (SyncNP | Charx8Dot), 60, 1, 0x34 },
-	{2080, 1920, 48, 32, 1235, 1200, 3, 6, VCLK154,	/* 60Hz */
-	 (SyncNP | Charx8Dot), 0xFF, 1, 0x34 },
+/* 16:9 */
+static struct ast_vbios_enhtable res_1360x768[] = {
+	{1792, 1360, 64,112, 795,  768, 3, 6, VCLK85_5,	         /* 60Hz */
+	 (SyncPP | Charx8Dot | LineCompareOff | WideScreenMode | NewModeInfo), 60, 1, 0x39 },
+	{1792, 1360, 64,112, 795,  768, 3, 6, VCLK85_5,	         /* end */
+	 (SyncPP | Charx8Dot | LineCompareOff | WideScreenMode | NewModeInfo), 0xFF, 1, 0x39 },
 };
+
+static struct ast_vbios_enhtable res_1600x900[] = {
+	{1760, 1600, 48, 32, 926,  900, 3, 5, VCLK97_75,	/* 60Hz CVT RB */
+	 (SyncNP | Charx8Dot | LineCompareOff | WideScreenMode | NewModeInfo), 60, 1, 0x3A },
+	{1760, 1600, 48, 32, 926,  900, 3, 5, VCLK97_75,	/* end */
+	 (SyncNP | Charx8Dot | LineCompareOff | WideScreenMode | NewModeInfo), 0xFF, 1, 0x3A }
+};
+
+static struct ast_vbios_enhtable res_1920x1080[] = {
+	{2200, 1920, 88, 44, 1125, 1080, 4, 5, VCLK148_5,	/* 60Hz */
+	 (SyncNP | Charx8Dot | LineCompareOff | WideScreenMode | NewModeInfo), 60, 1, 0x38 },
+	{2200, 1920, 88, 44, 1125, 1080, 4, 5, VCLK148_5,	/* 60Hz */
+	 (SyncNP | Charx8Dot | LineCompareOff | WideScreenMode | NewModeInfo), 0xFF, 1, 0x38 },
+};
+
 
 /* 16:10 */
 static struct ast_vbios_enhtable res_1280x800[] = {
+	{1440, 1280, 48, 32,  823,  800, 3, 6, VCLK71,	/* 60Hz RB */
+	 (SyncNP | Charx8Dot | LineCompareOff | WideScreenMode | NewModeInfo), 60, 1, 35 },
 	{1680, 1280, 72,128,  831,  800, 3, 6, VCLK83_5,	/* 60Hz */
-	 (SyncPN | Charx8Dot | LineCompareOff | WideScreenMode), 60, 1, 0x35 },
+	 (SyncPN | Charx8Dot | LineCompareOff | WideScreenMode | NewModeInfo), 60, 1, 0x35 },
 	{1680, 1280, 72,128,  831,  800, 3, 6, VCLK83_5,	/* 60Hz */
-	 (SyncPN | Charx8Dot | LineCompareOff | WideScreenMode), 0xFF, 1, 0x35 },
+	 (SyncPN | Charx8Dot | LineCompareOff | WideScreenMode | NewModeInfo), 0xFF, 1, 0x35 },
 
 };
 
 static struct ast_vbios_enhtable res_1440x900[] = {
+	{1600, 1440, 48, 32,  926,  900, 3, 6, VCLK88_75,	/* 60Hz RB */
+	 (SyncNP | Charx8Dot | LineCompareOff | WideScreenMode | NewModeInfo), 60, 1, 0x36 },
 	{1904, 1440, 80,152,  934,  900, 3, 6, VCLK106_5,	/* 60Hz */
-	 (SyncPN | Charx8Dot | LineCompareOff | WideScreenMode), 60, 1, 0x36 },
+	 (SyncPN | Charx8Dot | LineCompareOff | WideScreenMode | NewModeInfo), 60, 1, 0x36 },
 	{1904, 1440, 80,152,  934,  900, 3, 6, VCLK106_5,	/* 60Hz */
-	 (SyncPN | Charx8Dot | LineCompareOff | WideScreenMode), 0xFF, 1, 0x36 },
+	 (SyncPN | Charx8Dot | LineCompareOff | WideScreenMode | NewModeInfo), 0xFF, 1, 0x36 },
 };
 
 static struct ast_vbios_enhtable res_1680x1050[] = {
+	{1840, 1680, 48, 32, 1080, 1050, 3, 6, VCLK119,	/* 60Hz RB */
+	 (SyncNP | Charx8Dot | LineCompareOff | WideScreenMode | NewModeInfo), 60, 1, 0x37 },
 	{2240, 1680,104,176, 1089, 1050, 3, 6, VCLK146_25,	/* 60Hz */
-	 (SyncPN | Charx8Dot | LineCompareOff | WideScreenMode), 60, 1, 0x37 },
+	 (SyncPN | Charx8Dot | LineCompareOff | WideScreenMode | NewModeInfo), 60, 1, 0x37 },
 	{2240, 1680,104,176, 1089, 1050, 3, 6, VCLK146_25,	/* 60Hz */
-	 (SyncPN | Charx8Dot | LineCompareOff | WideScreenMode), 0xFF, 1, 0x37 },
+	 (SyncPN | Charx8Dot | LineCompareOff | WideScreenMode | NewModeInfo), 0xFF, 1, 0x37 },
 };
 
-/* HDTV */
-static struct ast_vbios_enhtable res_1920x1080[] = {
-	{2200, 1920, 88, 44, 1125, 1080, 4, 5, VCLK148_5,	/* 60Hz */
-	 (SyncNP | Charx8Dot | LineCompareOff | WideScreenMode), 60, 1, 0x38 },
-	{2200, 1920, 88, 44, 1125, 1080, 4, 5, VCLK148_5,	/* 60Hz */
-	 (SyncNP | Charx8Dot | LineCompareOff | WideScreenMode), 0xFF, 1, 0x38 },
+static struct ast_vbios_enhtable res_1920x1200[] = {
+	{2080, 1920, 48, 32, 1235, 1200, 3, 6, VCLK154,	/* 60Hz */
+	 (SyncNP | Charx8Dot | LineCompareOff | WideScreenMode | NewModeInfo), 60, 1, 0x34 },
+	{2080, 1920, 48, 32, 1235, 1200, 3, 6, VCLK154,	/* 60Hz */
+	 (SyncNP | Charx8Dot | LineCompareOff | WideScreenMode | NewModeInfo), 0xFF, 1, 0x34 },
 };
+
 #endif

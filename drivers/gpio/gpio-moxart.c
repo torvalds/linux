@@ -113,10 +113,8 @@ static int moxart_gpio_probe(struct platform_device *pdev)
 	int ret;
 
 	mgc = devm_kzalloc(dev, sizeof(*mgc), GFP_KERNEL);
-	if (!mgc) {
-		dev_err(dev, "can't allocate GPIO chip container\n");
+	if (!mgc)
 		return -ENOMEM;
-	}
 	mgc->gpio = moxart_template_chip;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);

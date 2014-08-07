@@ -1178,7 +1178,7 @@ MODULE_LICENSE ("GPL");
 #define SA1111_DRIVER		ohci_hcd_sa1111_driver
 #endif
 
-#ifdef CONFIG_ARCH_DAVINCI_DA8XX
+#ifdef CONFIG_USB_OHCI_HCD_DAVINCI
 #include "ohci-da8xx.c"
 #define DAVINCI_PLATFORM_DRIVER	ohci_hcd_da8xx_driver
 #endif

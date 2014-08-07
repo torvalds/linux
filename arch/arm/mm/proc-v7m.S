@@ -123,6 +123,11 @@ __v7m_setup:
 	mov	pc, lr
 ENDPROC(__v7m_setup)
 
+	.align 2
+__v7m_setup_stack:
+	.space	4 * 8				@ 8 registers
+__v7m_setup_stack_top:
+
 	define_processor_functions v7m, dabort=nommu_early_abort, pabort=legacy_pabort, nommu=1
 
 	.section ".rodata"
@@ -152,6 +157,3 @@ __v7m_proc_info:
 	.long	nop_cache_fns		@ proc_info_list.cache
 	.size	__v7m_proc_info, . - __v7m_proc_info
 
-__v7m_setup_stack:
-	.space	4 * 8				@ 8 registers
-__v7m_setup_stack_top:

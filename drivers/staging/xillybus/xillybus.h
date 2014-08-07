@@ -116,7 +116,6 @@ struct xilly_endpoint {
 	 */
 	struct pci_dev *pdev;
 	struct device *dev;
-	struct resource res; /* OF devices only */
 	struct xilly_endpoint_hardware *ephw;
 
 	struct list_head ep_list;

@@ -248,6 +248,12 @@ static void mcf_set_termios(struct uart_port *port, struct ktermios *termios,
 		mr1 |= MCFUART_MR1_PARITYNONE;
 	}
 
+	/*
+	 * FIXME: port->read_status_mask and port->ignore_status_mask
+	 * need to be initialized based on termios settings for
+	 * INPCK, IGNBRK, IGNPAR, PARMRK, BRKINT
+	 */
+
 	if (termios->c_cflag & CSTOPB)
 		mr2 |= MCFUART_MR2_STOP2;
 	else

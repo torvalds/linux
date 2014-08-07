@@ -325,7 +325,7 @@ int client_obd_setup(struct obd_device *obddev, struct lustre_cfg *lcfg)
 	}
 
 	init_rwsem(&cli->cl_sem);
-	sema_init(&cli->cl_mgc_sem, 1);
+	mutex_init(&cli->cl_mgc_mutex);
 	cli->cl_conn_count = 0;
 	memcpy(server_uuid.uuid, lustre_cfg_buf(lcfg, 2),
 	       min_t(unsigned int, LUSTRE_CFG_BUFLEN(lcfg, 2),
@@ -514,7 +514,7 @@ int client_connect_import(const struct lu_env *env,
 		LASSERT (imp->imp_state == LUSTRE_IMP_DISCON);
 		GOTO(out_ldlm, rc);
 	}
-	LASSERT((*exp)->exp_connection);
+	LASSERT(*exp != NULL && (*exp)->exp_connection);
 
 	if (data) {
 		LASSERTF((ocd->ocd_connect_flags & data->ocd_connect_flags) ==

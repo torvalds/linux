@@ -52,7 +52,7 @@ static void kvmppc_rmap_reset(struct kvm *kvm);
 
 long kvmppc_alloc_hpt(struct kvm *kvm, u32 *htab_orderp)
 {
-	unsigned long hpt;
+	unsigned long hpt = 0;
 	struct revmap_entry *rev;
 	struct page *page = NULL;
 	long order = KVM_DEFAULT_HPT_ORDER;
@@ -64,22 +64,11 @@ long kvmppc_alloc_hpt(struct kvm *kvm, u32 *htab_orderp)
 	}
 
 	kvm->arch.hpt_cma_alloc = 0;
-	/*
-	 * try first to allocate it from the kernel page allocator.
-	 * We keep the CMA reserved for failed allocation.
-	 */
-	hpt = __get_free_pages(GFP_KERNEL | __GFP_ZERO | __GFP_REPEAT |
-			       __GFP_NOWARN, order - PAGE_SHIFT);
-
-	/* Next try to allocate from the preallocated pool */
-	if (!hpt) {
-		VM_BUG_ON(order < KVM_CMA_CHUNK_ORDER);
-		page = kvm_alloc_hpt(1 << (order - PAGE_SHIFT));
-		if (page) {
-			hpt = (unsigned long)pfn_to_kaddr(page_to_pfn(page));
-			kvm->arch.hpt_cma_alloc = 1;
-		} else
-			--order;
+	VM_BUG_ON(order < KVM_CMA_CHUNK_ORDER);
+	page = kvm_alloc_hpt(1 << (order - PAGE_SHIFT));
+	if (page) {
+		hpt = (unsigned long)pfn_to_kaddr(page_to_pfn(page));
+		kvm->arch.hpt_cma_alloc = 1;
 	}
 
 	/* Lastly try successively smaller sizes from the page allocator */
@@ -596,6 +585,7 @@ int kvmppc_book3s_hv_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	struct kvm *kvm = vcpu->kvm;
 	unsigned long *hptep, hpte[3], r;
 	unsigned long mmu_seq, psize, pte_size;
+	unsigned long gpa_base, gfn_base;
 	unsigned long gpa, gfn, hva, pfn;
 	struct kvm_memory_slot *memslot;
 	unsigned long *rmap;
@@ -634,7 +624,9 @@ int kvmppc_book3s_hv_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 
 	/* Translate the logical address and get the page */
 	psize = hpte_page_size(hpte[0], r);
-	gpa = (r & HPTE_R_RPN & ~(psize - 1)) | (ea & (psize - 1));
+	gpa_base = r & HPTE_R_RPN & ~(psize - 1);
+	gfn_base = gpa_base >> PAGE_SHIFT;
+	gpa = gpa_base | (ea & (psize - 1));
 	gfn = gpa >> PAGE_SHIFT;
 	memslot = gfn_to_memslot(kvm, gfn);
 
@@ -645,6 +637,13 @@ int kvmppc_book3s_hv_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 
 	if (!kvm->arch.using_mmu_notifiers)
 		return -EFAULT;		/* should never get here */
+
+	/*
+	 * This should never happen, because of the slot_is_aligned()
+	 * check in kvmppc_do_h_enter().
+	 */
+	if (gfn_base < memslot->base_gfn)
+		return -EFAULT;
 
 	/* used to check for invalidations in progress */
 	mmu_seq = kvm->mmu_notifier_seq;
@@ -738,7 +737,8 @@ int kvmppc_book3s_hv_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		goto out_unlock;
 	hpte[0] = (hpte[0] & ~HPTE_V_ABSENT) | HPTE_V_VALID;
 
-	rmap = &memslot->arch.rmap[gfn - memslot->base_gfn];
+	/* Always put the HPTE in the rmap chain for the page base address */
+	rmap = &memslot->arch.rmap[gfn_base - memslot->base_gfn];
 	lock_rmap(rmap);
 
 	/* Check if we might have been invalidated; let the guest retry if so */
@@ -1060,22 +1060,33 @@ void kvm_set_spte_hva_hv(struct kvm *kvm, unsigned long hva, pte_t pte)
 	kvm_handle_hva(kvm, hva, kvm_unmap_rmapp);
 }
 
-static int kvm_test_clear_dirty(struct kvm *kvm, unsigned long *rmapp)
+static int vcpus_running(struct kvm *kvm)
+{
+	return atomic_read(&kvm->arch.vcpus_running) != 0;
+}
+
+/*
+ * Returns the number of system pages that are dirty.
+ * This can be more than 1 if we find a huge-page HPTE.
+ */
+static int kvm_test_clear_dirty_npages(struct kvm *kvm, unsigned long *rmapp)
 {
 	struct revmap_entry *rev = kvm->arch.revmap;
 	unsigned long head, i, j;
+	unsigned long n;
+	unsigned long v, r;
 	unsigned long *hptep;
-	int ret = 0;
+	int npages_dirty = 0;
 
  retry:
 	lock_rmap(rmapp);
 	if (*rmapp & KVMPPC_RMAP_CHANGED) {
 		*rmapp &= ~KVMPPC_RMAP_CHANGED;
-		ret = 1;
+		npages_dirty = 1;
 	}
 	if (!(*rmapp & KVMPPC_RMAP_PRESENT)) {
 		unlock_rmap(rmapp);
-		return ret;
+		return npages_dirty;
 	}
 
 	i = head = *rmapp & KVMPPC_RMAP_INDEX;
@@ -1083,7 +1094,22 @@ static int kvm_test_clear_dirty(struct kvm *kvm, unsigned long *rmapp)
 		hptep = (unsigned long *) (kvm->arch.hpt_virt + (i << 4));
 		j = rev[i].forw;
 
-		if (!(hptep[1] & HPTE_R_C))
+		/*
+		 * Checking the C (changed) bit here is racy since there
+		 * is no guarantee about when the hardware writes it back.
+		 * If the HPTE is not writable then it is stable since the
+		 * page can't be written to, and we would have done a tlbie
+		 * (which forces the hardware to complete any writeback)
+		 * when making the HPTE read-only.
+		 * If vcpus are running then this call is racy anyway
+		 * since the page could get dirtied subsequently, so we
+		 * expect there to be a further call which would pick up
+		 * any delayed C bit writeback.
+		 * Otherwise we need to do the tlbie even if C==0 in
+		 * order to pick up any delayed writeback of C.
+		 */
+		if (!(hptep[1] & HPTE_R_C) &&
+		    (!hpte_is_writable(hptep[1]) || vcpus_running(kvm)))
 			continue;
 
 		if (!try_lock_hpte(hptep, HPTE_V_HVLOCK)) {
@@ -1095,24 +1121,33 @@ static int kvm_test_clear_dirty(struct kvm *kvm, unsigned long *rmapp)
 		}
 
 		/* Now check and modify the HPTE */
-		if ((hptep[0] & HPTE_V_VALID) && (hptep[1] & HPTE_R_C)) {
-			/* need to make it temporarily absent to clear C */
-			hptep[0] |= HPTE_V_ABSENT;
-			kvmppc_invalidate_hpte(kvm, hptep, i);
-			hptep[1] &= ~HPTE_R_C;
-			eieio();
-			hptep[0] = (hptep[0] & ~HPTE_V_ABSENT) | HPTE_V_VALID;
+		if (!(hptep[0] & HPTE_V_VALID))
+			continue;
+
+		/* need to make it temporarily absent so C is stable */
+		hptep[0] |= HPTE_V_ABSENT;
+		kvmppc_invalidate_hpte(kvm, hptep, i);
+		v = hptep[0];
+		r = hptep[1];
+		if (r & HPTE_R_C) {
+			hptep[1] = r & ~HPTE_R_C;
 			if (!(rev[i].guest_rpte & HPTE_R_C)) {
 				rev[i].guest_rpte |= HPTE_R_C;
 				note_hpte_modification(kvm, &rev[i]);
 			}
-			ret = 1;
+			n = hpte_page_size(v, r);
+			n = (n + PAGE_SIZE - 1) >> PAGE_SHIFT;
+			if (n > npages_dirty)
+				npages_dirty = n;
+			eieio();
 		}
-		hptep[0] &= ~HPTE_V_HVLOCK;
+		v &= ~(HPTE_V_ABSENT | HPTE_V_HVLOCK);
+		v |= HPTE_V_VALID;
+		hptep[0] = v;
 	} while ((i = j) != head);
 
 	unlock_rmap(rmapp);
-	return ret;
+	return npages_dirty;
 }
 
 static void harvest_vpa_dirty(struct kvmppc_vpa *vpa,
@@ -1136,15 +1171,22 @@ static void harvest_vpa_dirty(struct kvmppc_vpa *vpa,
 long kvmppc_hv_get_dirty_log(struct kvm *kvm, struct kvm_memory_slot *memslot,
 			     unsigned long *map)
 {
-	unsigned long i;
+	unsigned long i, j;
 	unsigned long *rmapp;
 	struct kvm_vcpu *vcpu;
 
 	preempt_disable();
 	rmapp = memslot->arch.rmap;
 	for (i = 0; i < memslot->npages; ++i) {
-		if (kvm_test_clear_dirty(kvm, rmapp) && map)
-			__set_bit_le(i, map);
+		int npages = kvm_test_clear_dirty_npages(kvm, rmapp);
+		/*
+		 * Note that if npages > 0 then i must be a multiple of npages,
+		 * since we always put huge-page HPTEs in the rmap chain
+		 * corresponding to their page base address.
+		 */
+		if (npages && map)
+			for (j = i; npages; ++j, --npages)
+				__set_bit_le(j, map);
 		++rmapp;
 	}
 

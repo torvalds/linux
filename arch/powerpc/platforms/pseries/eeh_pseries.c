@@ -175,6 +175,36 @@ static int pseries_eeh_find_cap(struct device_node *dn, int cap)
 	return 0;
 }
 
+static int pseries_eeh_find_ecap(struct device_node *dn, int cap)
+{
+	struct pci_dn *pdn = PCI_DN(dn);
+	struct eeh_dev *edev = of_node_to_eeh_dev(dn);
+	u32 header;
+	int pos = 256;
+	int ttl = (4096 - 256) / 8;
+
+	if (!edev || !edev->pcie_cap)
+		return 0;
+	if (rtas_read_config(pdn, pos, 4, &header) != PCIBIOS_SUCCESSFUL)
+		return 0;
+	else if (!header)
+		return 0;
+
+	while (ttl-- > 0) {
+		if (PCI_EXT_CAP_ID(header) == cap && pos)
+			return pos;
+
+		pos = PCI_EXT_CAP_NEXT(header);
+		if (pos < 256)
+			break;
+
+		if (rtas_read_config(pdn, pos, 4, &header) != PCIBIOS_SUCCESSFUL)
+			break;
+	}
+
+	return 0;
+}
+
 /**
  * pseries_eeh_of_probe - EEH probe on the given device
  * @dn: OF node
@@ -220,7 +250,9 @@ static void *pseries_eeh_of_probe(struct device_node *dn, void *flag)
 	 * or PCIe switch downstream port.
 	 */
 	edev->class_code = class_code;
+	edev->pcix_cap = pseries_eeh_find_cap(dn, PCI_CAP_ID_PCIX);
 	edev->pcie_cap = pseries_eeh_find_cap(dn, PCI_CAP_ID_EXP);
+	edev->aer_cap = pseries_eeh_find_ecap(dn, PCI_EXT_CAP_ID_ERR);
 	edev->mode &= 0xFFFFFF00;
 	if ((edev->class_code >> 8) == PCI_CLASS_BRIDGE_PCI) {
 		edev->mode |= EEH_DEV_BRIDGE;
@@ -464,6 +496,7 @@ static int pseries_eeh_get_state(struct eeh_pe *pe, int *state)
 			} else {
 				result = EEH_STATE_NOT_SUPPORT;
 			}
+			break;
 		default:
 			result = EEH_STATE_NOT_SUPPORT;
 		}
@@ -499,10 +532,18 @@ static int pseries_eeh_reset(struct eeh_pe *pe, int option)
 	/* If fundamental-reset not supported, try hot-reset */
 	if (option == EEH_RESET_FUNDAMENTAL &&
 	    ret == -8) {
+		option = EEH_RESET_HOT;
 		ret = rtas_call(ibm_set_slot_reset, 4, 1, NULL,
 				config_addr, BUID_HI(pe->phb->buid),
-				BUID_LO(pe->phb->buid), EEH_RESET_HOT);
+				BUID_LO(pe->phb->buid), option);
 	}
+
+	/* We need reset hold or settlement delay */
+	if (option == EEH_RESET_FUNDAMENTAL ||
+	    option == EEH_RESET_HOT)
+		msleep(EEH_PE_RST_HOLD_TIME);
+	else
+		msleep(EEH_PE_RST_SETTLE_TIME);
 
 	return ret;
 }

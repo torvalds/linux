@@ -189,10 +189,9 @@ static inline u32 iwl_rx_packet_payload_len(const struct iwl_rx_packet *pkt)
 /**
  * enum CMD_MODE - how to send the host commands ?
  *
- * @CMD_SYNC: The caller will be stalled until the fw responds to the command
  * @CMD_ASYNC: Return right away and don't wait for the response
- * @CMD_WANT_SKB: valid only with CMD_SYNC. The caller needs the buffer of the
- *	response. The caller needs to call iwl_free_resp when done.
+ * @CMD_WANT_SKB: Not valid with CMD_ASYNC. The caller needs the buffer of
+ *	the response. The caller needs to call iwl_free_resp when done.
  * @CMD_HIGH_PRIO: The command is high priority - it goes to the front of the
  *	command queue, but after other high priority commands. valid only
  *	with CMD_ASYNC.
@@ -202,7 +201,6 @@ static inline u32 iwl_rx_packet_payload_len(const struct iwl_rx_packet *pkt)
  *	(i.e. mark it as non-idle).
  */
 enum CMD_MODE {
-	CMD_SYNC		= 0,
 	CMD_ASYNC		= BIT(0),
 	CMD_WANT_SKB		= BIT(1),
 	CMD_SEND_IN_RFKILL	= BIT(2),
@@ -427,7 +425,7 @@ struct iwl_trans;
  * @send_cmd:send a host command. Must return -ERFKILL if RFkill is asserted.
  *	If RFkill is asserted in the middle of a SYNC host command, it must
  *	return -ERFKILL straight away.
- *	May sleep only if CMD_SYNC is set
+ *	May sleep only if CMD_ASYNC is not set
  * @tx: send an skb
  *	Must be atomic
  * @reclaim: free packet until ssn. Returns a list of freed packets.
@@ -437,8 +435,7 @@ struct iwl_trans;
  *	this one. The op_mode must not configure the HCMD queue. May sleep.
  * @txq_disable: de-configure a Tx queue to send AMPDUs
  *	Must be atomic
- * @wait_tx_queue_empty: wait until all tx queues are empty
- *	May sleep
+ * @wait_tx_queue_empty: wait until tx queues are empty. May sleep.
  * @dbgfs_register: add the dbgfs files under this directory. Files will be
  *	automatically deleted.
  * @write8: write a u8 to a register at offset ofs from the BAR
@@ -464,6 +461,11 @@ struct iwl_trans;
  * @unref: release a reference previously taken with @ref. Note that
  *	initially the reference count is 1, making an initial @unref
  *	necessary to allow low power states.
+ * @dump_data: fill a data dump with debug data, maybe containing last
+ *	TX'ed commands and similar. When called with a NULL buffer and
+ *	zero buffer length, provide only the (estimated) required buffer
+ *	length. Return the used buffer length.
+ *	Note that the transport must fill in the proper file headers.
  */
 struct iwl_trans_ops {
 
@@ -471,6 +473,8 @@ struct iwl_trans_ops {
 	void (*op_mode_leave)(struct iwl_trans *iwl_trans);
 	int (*start_fw)(struct iwl_trans *trans, const struct fw_img *fw,
 			bool run_in_rfkill);
+	int (*update_sf)(struct iwl_trans *trans,
+			 struct iwl_sf_region *st_fwrd_space);
 	void (*fw_alive)(struct iwl_trans *trans, u32 scd_addr);
 	void (*stop_device)(struct iwl_trans *trans);
 
@@ -490,7 +494,7 @@ struct iwl_trans_ops {
 	void (*txq_disable)(struct iwl_trans *trans, int queue);
 
 	int (*dbgfs_register)(struct iwl_trans *trans, struct dentry* dir);
-	int (*wait_tx_queue_empty)(struct iwl_trans *trans);
+	int (*wait_tx_queue_empty)(struct iwl_trans *trans, u32 txq_bm);
 
 	void (*write8)(struct iwl_trans *trans, u32 ofs, u8 val);
 	void (*write32)(struct iwl_trans *trans, u32 ofs, u32 val);
@@ -512,6 +516,10 @@ struct iwl_trans_ops {
 			      u32 value);
 	void (*ref)(struct iwl_trans *trans);
 	void (*unref)(struct iwl_trans *trans);
+
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+	u32 (*dump_data)(struct iwl_trans *trans, void *buf, u32 buflen);
+#endif
 };
 
 /**
@@ -630,6 +638,17 @@ static inline int iwl_trans_start_fw(struct iwl_trans *trans,
 	return trans->ops->start_fw(trans, fw, run_in_rfkill);
 }
 
+static inline int iwl_trans_update_sf(struct iwl_trans *trans,
+				      struct iwl_sf_region *st_fwrd_space)
+{
+	might_sleep();
+
+	if (trans->ops->update_sf)
+		return trans->ops->update_sf(trans, st_fwrd_space);
+
+	return 0;
+}
+
 static inline void iwl_trans_stop_device(struct iwl_trans *trans)
 {
 	might_sleep();
@@ -665,6 +684,16 @@ static inline void iwl_trans_unref(struct iwl_trans *trans)
 		trans->ops->unref(trans);
 }
 
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+static inline u32 iwl_trans_dump_data(struct iwl_trans *trans,
+				      void *buf, u32 buflen)
+{
+	if (!trans->ops->dump_data)
+		return 0;
+	return trans->ops->dump_data(trans, buf, buflen);
+}
+#endif
+
 static inline int iwl_trans_send_cmd(struct iwl_trans *trans,
 				     struct iwl_host_cmd *cmd)
 {
@@ -678,7 +707,7 @@ static inline int iwl_trans_send_cmd(struct iwl_trans *trans,
 		return -EIO;
 
 	if (unlikely(trans->state != IWL_TRANS_FW_ALIVE)) {
-		IWL_ERR(trans, "%s bad state = %d", __func__, trans->state);
+		IWL_ERR(trans, "%s bad state = %d\n", __func__, trans->state);
 		return -EIO;
 	}
 
@@ -720,7 +749,7 @@ static inline int iwl_trans_tx(struct iwl_trans *trans, struct sk_buff *skb,
 		return -EIO;
 
 	if (unlikely(trans->state != IWL_TRANS_FW_ALIVE))
-		IWL_ERR(trans, "%s bad state = %d", __func__, trans->state);
+		IWL_ERR(trans, "%s bad state = %d\n", __func__, trans->state);
 
 	return trans->ops->tx(trans, skb, dev_cmd, queue);
 }
@@ -729,7 +758,7 @@ static inline void iwl_trans_reclaim(struct iwl_trans *trans, int queue,
 				     int ssn, struct sk_buff_head *skbs)
 {
 	if (unlikely(trans->state != IWL_TRANS_FW_ALIVE))
-		IWL_ERR(trans, "%s bad state = %d", __func__, trans->state);
+		IWL_ERR(trans, "%s bad state = %d\n", __func__, trans->state);
 
 	trans->ops->reclaim(trans, queue, ssn, skbs);
 }
@@ -746,7 +775,7 @@ static inline void iwl_trans_txq_enable(struct iwl_trans *trans, int queue,
 	might_sleep();
 
 	if (unlikely((trans->state != IWL_TRANS_FW_ALIVE)))
-		IWL_ERR(trans, "%s bad state = %d", __func__, trans->state);
+		IWL_ERR(trans, "%s bad state = %d\n", __func__, trans->state);
 
 	trans->ops->txq_enable(trans, queue, fifo, sta_id, tid,
 				 frame_limit, ssn);
@@ -759,12 +788,13 @@ static inline void iwl_trans_ac_txq_enable(struct iwl_trans *trans, int queue,
 			     IWL_MAX_TID_COUNT, IWL_FRAME_LIMIT, 0);
 }
 
-static inline int iwl_trans_wait_tx_queue_empty(struct iwl_trans *trans)
+static inline int iwl_trans_wait_tx_queue_empty(struct iwl_trans *trans,
+						u32 txq_bm)
 {
 	if (unlikely(trans->state != IWL_TRANS_FW_ALIVE))
-		IWL_ERR(trans, "%s bad state = %d", __func__, trans->state);
+		IWL_ERR(trans, "%s bad state = %d\n", __func__, trans->state);
 
-	return trans->ops->wait_tx_queue_empty(trans);
+	return trans->ops->wait_tx_queue_empty(trans, txq_bm);
 }
 
 static inline int iwl_trans_dbgfs_register(struct iwl_trans *trans,

@@ -386,6 +386,39 @@ static void **dbg_userword(struct kmem_cache *cachep, void *objp)
 
 #endif
 
+#define OBJECT_FREE (0)
+#define OBJECT_ACTIVE (1)
+
+#ifdef CONFIG_DEBUG_SLAB_LEAK
+
+static void set_obj_status(struct page *page, int idx, int val)
+{
+	int freelist_size;
+	char *status;
+	struct kmem_cache *cachep = page->slab_cache;
+
+	freelist_size = cachep->num * sizeof(freelist_idx_t);
+	status = (char *)page->freelist + freelist_size;
+	status[idx] = val;
+}
+
+static inline unsigned int get_obj_status(struct page *page, int idx)
+{
+	int freelist_size;
+	char *status;
+	struct kmem_cache *cachep = page->slab_cache;
+
+	freelist_size = cachep->num * sizeof(freelist_idx_t);
+	status = (char *)page->freelist + freelist_size;
+
+	return status[idx];
+}
+
+#else
+static inline void set_obj_status(struct page *page, int idx, int val) {}
+
+#endif
+
 /*
  * Do not go above this order unless 0 objects fit into the slab or
  * overridden on the command line.
@@ -576,12 +609,30 @@ static inline struct array_cache *cpu_cache_get(struct kmem_cache *cachep)
 	return cachep->array[smp_processor_id()];
 }
 
+static size_t calculate_freelist_size(int nr_objs, size_t align)
+{
+	size_t freelist_size;
+
+	freelist_size = nr_objs * sizeof(freelist_idx_t);
+	if (IS_ENABLED(CONFIG_DEBUG_SLAB_LEAK))
+		freelist_size += nr_objs * sizeof(char);
+
+	if (align)
+		freelist_size = ALIGN(freelist_size, align);
+
+	return freelist_size;
+}
+
 static int calculate_nr_objs(size_t slab_size, size_t buffer_size,
 				size_t idx_size, size_t align)
 {
 	int nr_objs;
+	size_t remained_size;
 	size_t freelist_size;
+	int extra_space = 0;
 
+	if (IS_ENABLED(CONFIG_DEBUG_SLAB_LEAK))
+		extra_space = sizeof(char);
 	/*
 	 * Ignore padding for the initial guess. The padding
 	 * is at most @align-1 bytes, and @buffer_size is at
@@ -590,14 +641,15 @@ static int calculate_nr_objs(size_t slab_size, size_t buffer_size,
 	 * into the memory allocation when taking the padding
 	 * into account.
 	 */
-	nr_objs = slab_size / (buffer_size + idx_size);
+	nr_objs = slab_size / (buffer_size + idx_size + extra_space);
 
 	/*
 	 * This calculated number will be either the right
 	 * amount, or one greater than what we want.
 	 */
-	freelist_size = slab_size - nr_objs * buffer_size;
-	if (freelist_size < ALIGN(nr_objs * idx_size, align))
+	remained_size = slab_size - nr_objs * buffer_size;
+	freelist_size = calculate_freelist_size(nr_objs, align);
+	if (remained_size < freelist_size)
 		nr_objs--;
 
 	return nr_objs;
@@ -635,7 +687,7 @@ static void cache_estimate(unsigned long gfporder, size_t buffer_size,
 	} else {
 		nr_objs = calculate_nr_objs(slab_size, buffer_size,
 					sizeof(freelist_idx_t), align);
-		mgmt_size = ALIGN(nr_objs * sizeof(freelist_idx_t), align);
+		mgmt_size = calculate_freelist_size(nr_objs, align);
 	}
 	*num = nr_objs;
 	*left_over = slab_size - nr_objs*buffer_size - mgmt_size;
@@ -1621,10 +1673,16 @@ __initcall(cpucache_init);
 static noinline void
 slab_out_of_memory(struct kmem_cache *cachep, gfp_t gfpflags, int nodeid)
 {
+#if DEBUG
 	struct kmem_cache_node *n;
 	struct page *page;
 	unsigned long flags;
 	int node;
+	static DEFINE_RATELIMIT_STATE(slab_oom_rs, DEFAULT_RATELIMIT_INTERVAL,
+				      DEFAULT_RATELIMIT_BURST);
+
+	if ((gfpflags & __GFP_NOWARN) || !__ratelimit(&slab_oom_rs))
+		return;
 
 	printk(KERN_WARNING
 		"SLAB: Unable to allocate memory on node %d (gfp=0x%x)\n",
@@ -1662,6 +1720,7 @@ slab_out_of_memory(struct kmem_cache *cachep, gfp_t gfpflags, int nodeid)
 			node, active_slabs, num_slabs, active_objs, num_objs,
 			free_objects);
 	}
+#endif
 }
 
 /*
@@ -1681,10 +1740,13 @@ static struct page *kmem_getpages(struct kmem_cache *cachep, gfp_t flags,
 	if (cachep->flags & SLAB_RECLAIM_ACCOUNT)
 		flags |= __GFP_RECLAIMABLE;
 
+	if (memcg_charge_slab(cachep, flags, cachep->gfporder))
+		return NULL;
+
 	page = alloc_pages_exact_node(nodeid, flags | __GFP_NOTRACK, cachep->gfporder);
 	if (!page) {
-		if (!(flags & __GFP_NOWARN) && printk_ratelimit())
-			slab_out_of_memory(cachep, flags, nodeid);
+		memcg_uncharge_slab(cachep, cachep->gfporder);
+		slab_out_of_memory(cachep, flags, nodeid);
 		return NULL;
 	}
 
@@ -1702,7 +1764,6 @@ static struct page *kmem_getpages(struct kmem_cache *cachep, gfp_t flags,
 	__SetPageSlab(page);
 	if (page->pfmemalloc)
 		SetPageSlabPfmemalloc(page);
-	memcg_bind_pages(cachep, cachep->gfporder);
 
 	if (kmemcheck_enabled && !(cachep->flags & SLAB_NOTRACK)) {
 		kmemcheck_alloc_shadow(page, cachep->gfporder, flags, nodeid);
@@ -1738,10 +1799,10 @@ static void kmem_freepages(struct kmem_cache *cachep, struct page *page)
 	page_mapcount_reset(page);
 	page->mapping = NULL;
 
-	memcg_release_pages(cachep, cachep->gfporder);
 	if (current->reclaim_state)
 		current->reclaim_state->reclaimed_slab += nr_freed;
-	__free_memcg_kmem_pages(page, cachep->gfporder);
+	__free_pages(page, cachep->gfporder);
+	memcg_uncharge_slab(cachep, cachep->gfporder);
 }
 
 static void kmem_rcu_free(struct rcu_head *head)
@@ -2032,13 +2093,16 @@ static size_t calculate_slab_order(struct kmem_cache *cachep,
 			break;
 
 		if (flags & CFLGS_OFF_SLAB) {
+			size_t freelist_size_per_obj = sizeof(freelist_idx_t);
 			/*
 			 * Max number of objs-per-slab for caches which
 			 * use off-slab slabs. Needed to avoid a possible
 			 * looping condition in cache_grow().
 			 */
+			if (IS_ENABLED(CONFIG_DEBUG_SLAB_LEAK))
+				freelist_size_per_obj += sizeof(char);
 			offslab_limit = size;
-			offslab_limit /= sizeof(freelist_idx_t);
+			offslab_limit /= freelist_size_per_obj;
 
  			if (num > offslab_limit)
 				break;
@@ -2285,8 +2349,7 @@ __kmem_cache_create (struct kmem_cache *cachep, unsigned long flags)
 	if (!cachep->num)
 		return -E2BIG;
 
-	freelist_size =
-		ALIGN(cachep->num * sizeof(freelist_idx_t), cachep->align);
+	freelist_size = calculate_freelist_size(cachep->num, cachep->align);
 
 	/*
 	 * If the slab has been placed off-slab, and we have enough space then
@@ -2299,7 +2362,7 @@ __kmem_cache_create (struct kmem_cache *cachep, unsigned long flags)
 
 	if (flags & CFLGS_OFF_SLAB) {
 		/* really off slab. No need for manual alignment */
-		freelist_size = cachep->num * sizeof(freelist_idx_t);
+		freelist_size = calculate_freelist_size(cachep->num, 0);
 
 #ifdef CONFIG_PAGE_POISONING
 		/* If we're going to use the generic kernel_map_pages()
@@ -2469,8 +2532,7 @@ out:
 	return nr_freed;
 }
 
-/* Called with slab_mutex held to protect against cpu hotplug */
-static int __cache_shrink(struct kmem_cache *cachep)
+int __kmem_cache_shrink(struct kmem_cache *cachep)
 {
 	int ret = 0, i = 0;
 	struct kmem_cache_node *n;
@@ -2491,32 +2553,11 @@ static int __cache_shrink(struct kmem_cache *cachep)
 	return (ret ? 1 : 0);
 }
 
-/**
- * kmem_cache_shrink - Shrink a cache.
- * @cachep: The cache to shrink.
- *
- * Releases as many slabs as possible for a cache.
- * To help debugging, a zero exit status indicates all slabs were released.
- */
-int kmem_cache_shrink(struct kmem_cache *cachep)
-{
-	int ret;
-	BUG_ON(!cachep || in_interrupt());
-
-	get_online_cpus();
-	mutex_lock(&slab_mutex);
-	ret = __cache_shrink(cachep);
-	mutex_unlock(&slab_mutex);
-	put_online_cpus();
-	return ret;
-}
-EXPORT_SYMBOL(kmem_cache_shrink);
-
 int __kmem_cache_shutdown(struct kmem_cache *cachep)
 {
 	int i;
 	struct kmem_cache_node *n;
-	int rc = __cache_shrink(cachep);
+	int rc = __kmem_cache_shrink(cachep);
 
 	if (rc)
 		return rc;
@@ -2625,6 +2666,7 @@ static void cache_init_objs(struct kmem_cache *cachep,
 		if (cachep->ctor)
 			cachep->ctor(objp);
 #endif
+		set_obj_status(page, i, OBJECT_FREE);
 		set_free_obj(page, i, i);
 	}
 }
@@ -2833,6 +2875,7 @@ static void *cache_free_debugcheck(struct kmem_cache *cachep, void *objp,
 	BUG_ON(objnr >= cachep->num);
 	BUG_ON(objp != index_to_obj(cachep, page, objnr));
 
+	set_obj_status(page, objnr, OBJECT_FREE);
 	if (cachep->flags & SLAB_POISON) {
 #ifdef CONFIG_DEBUG_PAGEALLOC
 		if ((cachep->size % PAGE_SIZE)==0 && OFF_SLAB(cachep)) {
@@ -2966,6 +3009,8 @@ static inline void cache_alloc_debugcheck_before(struct kmem_cache *cachep,
 static void *cache_alloc_debugcheck_after(struct kmem_cache *cachep,
 				gfp_t flags, void *objp, unsigned long caller)
 {
+	struct page *page;
+
 	if (!objp)
 		return objp;
 	if (cachep->flags & SLAB_POISON) {
@@ -2996,6 +3041,9 @@ static void *cache_alloc_debugcheck_after(struct kmem_cache *cachep,
 		*dbg_redzone1(cachep, objp) = RED_ACTIVE;
 		*dbg_redzone2(cachep, objp) = RED_ACTIVE;
 	}
+
+	page = virt_to_head_page(objp);
+	set_obj_status(page, obj_to_index(cachep, page, objp), OBJECT_ACTIVE);
 	objp += obj_offset(cachep);
 	if (cachep->ctor && cachep->flags & SLAB_POISON)
 		cachep->ctor(objp);
@@ -4232,21 +4280,12 @@ static void handle_slab(unsigned long *n, struct kmem_cache *c,
 						struct page *page)
 {
 	void *p;
-	int i, j;
+	int i;
 
 	if (n[0] == n[1])
 		return;
 	for (i = 0, p = page->s_mem; i < c->num; i++, p += c->size) {
-		bool active = true;
-
-		for (j = page->active; j < c->num; j++) {
-			/* Skip freed item */
-			if (get_free_obj(page, j) == i) {
-				active = false;
-				break;
-			}
-		}
-		if (!active)
+		if (get_obj_status(page, i) != OBJECT_ACTIVE)
 			continue;
 
 		if (!add_caller(n, (unsigned long)*dbg_userword(c, p)))

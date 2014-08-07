@@ -132,6 +132,34 @@ unsigned long __must_check __copy_to_user(void __user *to, const void *from,
 #define __copy_to_user_inatomic __copy_to_user
 #define __copy_from_user_inatomic __copy_from_user
 
+#ifdef CONFIG_HAVE_MARCH_Z10_FEATURES
+
+#define __put_get_user_asm(to, from, size, spec)		\
+({								\
+	register unsigned long __reg0 asm("0") = spec;		\
+	int __rc;						\
+								\
+	asm volatile(						\
+		"0:	mvcos	%1,%3,%2\n"			\
+		"1:	xr	%0,%0\n"			\
+		"2:\n"						\
+		".pushsection .fixup, \"ax\"\n"			\
+		"3:	lhi	%0,%5\n"			\
+		"	jg	2b\n"				\
+		".popsection\n"					\
+		EX_TABLE(0b,3b) EX_TABLE(1b,3b)			\
+		: "=d" (__rc), "=Q" (*(to))			\
+		: "d" (size), "Q" (*(from)),			\
+		  "d" (__reg0), "K" (-EFAULT)			\
+		: "cc");					\
+	__rc;							\
+})
+
+#define __put_user_fn(x, ptr, size) __put_get_user_asm(ptr, x, size, 0x810000UL)
+#define __get_user_fn(x, ptr, size) __put_get_user_asm(x, ptr, size, 0x81UL)
+
+#else /* CONFIG_HAVE_MARCH_Z10_FEATURES */
+
 static inline int __put_user_fn(void *x, void __user *ptr, unsigned long size)
 {
 	size = __copy_to_user(ptr, x, size);
@@ -143,6 +171,8 @@ static inline int __get_user_fn(void *x, const void __user *ptr, unsigned long s
 	size = __copy_from_user(x, ptr, size);
 	return size ? -EFAULT : 0;
 }
+
+#endif /* CONFIG_HAVE_MARCH_Z10_FEATURES */
 
 /*
  * These are the main single-value transfer routines.  They automatically

@@ -4,6 +4,10 @@
 #include <linux/sched.h>
 #include <linux/device.h> /* for dev_warn */
 #include <linux/selection.h>
+#include <linux/workqueue.h>
+#include <linux/tty.h>
+#include <linux/tty_flip.h>
+#include <asm/cmpxchg.h>
 
 #include "speakup.h"
 
@@ -121,31 +125,61 @@ int speakup_set_selection(struct tty_struct *tty)
 	return 0;
 }
 
-/* TODO: move to some helper thread, probably.  That'd fix having to check for
- * in_atomic().  */
-int speakup_paste_selection(struct tty_struct *tty)
+struct speakup_paste_work {
+	struct work_struct work;
+	struct tty_struct *tty;
+};
+
+static void __speakup_paste_selection(struct work_struct *work)
 {
+	struct speakup_paste_work *spw =
+		container_of(work, struct speakup_paste_work, work);
+	struct tty_struct *tty = xchg(&spw->tty, NULL);
 	struct vc_data *vc = (struct vc_data *) tty->driver_data;
 	int pasted = 0, count;
+	struct tty_ldisc *ld;
 	DECLARE_WAITQUEUE(wait, current);
+
+	ld = tty_ldisc_ref_wait(tty);
+	tty_buffer_lock_exclusive(&vc->port);
+
 	add_wait_queue(&vc->paste_wait, &wait);
 	while (sel_buffer && sel_buffer_lth > pasted) {
 		set_current_state(TASK_INTERRUPTIBLE);
 		if (test_bit(TTY_THROTTLED, &tty->flags)) {
-			if (in_atomic())
-				/* if we are in an interrupt handler, abort */
-				break;
 			schedule();
 			continue;
 		}
 		count = sel_buffer_lth - pasted;
-		count = min_t(int, count, tty->receive_room);
-		tty->ldisc->ops->receive_buf(tty, sel_buffer + pasted,
-			NULL, count);
+		count = tty_ldisc_receive_buf(ld, sel_buffer + pasted, NULL,
+					      count);
 		pasted += count;
 	}
 	remove_wait_queue(&vc->paste_wait, &wait);
 	current->state = TASK_RUNNING;
+
+	tty_buffer_unlock_exclusive(&vc->port);
+	tty_ldisc_deref(ld);
+	tty_kref_put(tty);
+}
+
+static struct speakup_paste_work speakup_paste_work = {
+	.work = __WORK_INITIALIZER(speakup_paste_work.work,
+				   __speakup_paste_selection)
+};
+
+int speakup_paste_selection(struct tty_struct *tty)
+{
+	if (cmpxchg(&speakup_paste_work.tty, NULL, tty) != NULL)
+		return -EBUSY;
+
+	tty_kref_get(tty);
+	schedule_work_on(WORK_CPU_UNBOUND, &speakup_paste_work.work);
 	return 0;
 }
 
+void speakup_cancel_paste(void)
+{
+	cancel_work_sync(&speakup_paste_work.work);
+	tty_kref_put(speakup_paste_work.tty);
+}

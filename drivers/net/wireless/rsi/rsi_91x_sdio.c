@@ -285,7 +285,6 @@ static void rsi_reset_card(struct sdio_func *pfunction)
 		if (err) {
 			rsi_dbg(ERR_ZONE, "%s: CCCR speed reg read failed: %d\n",
 				__func__, err);
-			card->state &= ~MMC_STATE_HIGHSPEED;
 		} else {
 			err = rsi_cmd52writebyte(card,
 						 SDIO_CCCR_SPEED,
@@ -296,14 +295,13 @@ static void rsi_reset_card(struct sdio_func *pfunction)
 					__func__, err);
 				return;
 			}
-			mmc_card_set_highspeed(card);
 			host->ios.timing = MMC_TIMING_SD_HS;
 			host->ops->set_ios(host, &host->ios);
 		}
 	}
 
 	/* Set clock */
-	if (mmc_card_highspeed(card))
+	if (mmc_card_hs(card))
 		clock = 50000000;
 	else
 		clock = card->cis.max_dtr;

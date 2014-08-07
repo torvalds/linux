@@ -803,12 +803,13 @@ static u32 sh_mmcif_set_cmd(struct sh_mmcif_host *host,
 			break;
 		}
 		switch (host->timing) {
-		case MMC_TIMING_UHS_DDR50:
+		case MMC_TIMING_MMC_DDR52:
 			/*
 			 * MMC core will only set this timing, if the host
-			 * advertises the MMC_CAP_UHS_DDR50 capability. MMCIF
-			 * implementations with this capability, e.g. sh73a0,
-			 * will have to set it in their platform data.
+			 * advertises the MMC_CAP_1_8V_DDR/MMC_CAP_1_2V_DDR
+			 * capability. MMCIF implementations with this
+			 * capability, e.g. sh73a0, will have to set it
+			 * in their platform data.
 			 */
 			tmp |= CMD_SET_DARS;
 			break;

@@ -112,7 +112,6 @@ typedef struct tagKnownBSS {
 	unsigned char abySSID[WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1];
 	unsigned char byRxRate;
 
-//    unsigned short wATIMWindow;
 	unsigned char byRSSIStatCnt;
 	long            ldBmMAX;
 	long            ldBmAverage[RSSI_STAT_COUNT];
@@ -147,7 +146,6 @@ typedef struct tagKnownBSS {
 
 	// Clear count
 	unsigned int	uClearCount;
-//    unsigned char abyIEs[WLAN_BEACON_FR_MAXLEN];
 	unsigned int	uIELength;
 	QWORD           qwBSSTimestamp;
 	QWORD           qwLocalTSF;     // local TSF timer

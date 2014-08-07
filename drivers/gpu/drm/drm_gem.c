@@ -474,21 +474,10 @@ struct page **drm_gem_get_pages(struct drm_gem_object *obj, gfp_t gfpmask)
 			goto fail;
 		pages[i] = p;
 
-		/* There is a hypothetical issue w/ drivers that require
-		 * buffer memory in the low 4GB.. if the pages are un-
-		 * pinned, and swapped out, they can end up swapped back
-		 * in above 4GB.  If pages are already in memory, then
-		 * shmem_read_mapping_page_gfp will ignore the gfpmask,
-		 * even if the already in-memory page disobeys the mask.
-		 *
-		 * It is only a theoretical issue today, because none of
-		 * the devices with this limitation can be populated with
-		 * enough memory to trigger the issue.  But this BUG_ON()
-		 * is here as a reminder in case the problem with
-		 * shmem_read_mapping_page_gfp() isn't solved by the time
-		 * it does become a real issue.
-		 *
-		 * See this thread: http://lkml.org/lkml/2011/7/11/238
+		/* Make sure shmem keeps __GFP_DMA32 allocated pages in the
+		 * correct region during swapin. Note that this requires
+		 * __GFP_DMA32 to be set in mapping_gfp_mask(inode->i_mapping)
+		 * so shmem can relocate pages during swapin if required.
 		 */
 		BUG_ON((gfpmask & __GFP_DMA32) &&
 				(page_to_pfn(p) >= 0x00100000UL));

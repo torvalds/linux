@@ -18,9 +18,6 @@
  * with this program; if not, write to the Free Software Foundation, Inc.,
  * 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA.
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- *
- * TODO
- *	-	cache alarm and critical limit registers
  */
 
 #include <linux/module.h>
@@ -32,22 +29,18 @@
 #include <linux/err.h>
 #include <linux/sysfs.h>
 #include <linux/mutex.h>
-#include <linux/jiffies.h>
+#include <linux/regmap.h>
 
 #define THERMAL_PID_REG		0xfd
 #define THERMAL_SMSC_ID_REG	0xfe
 #define THERMAL_REVISION_REG	0xff
 
+enum emc1403_chip { emc1402, emc1403, emc1404 };
+
 struct thermal_data {
-	struct i2c_client *client;
-	const struct attribute_group *groups[3];
+	struct regmap *regmap;
 	struct mutex mutex;
-	/*
-	 * Cache the hyst value so we don't keep re-reading it. In theory
-	 * we could cache it forever as nobody else should be writing it.
-	 */
-	u8 cached_hyst;
-	unsigned long hyst_valid;
+	const struct attribute_group *groups[4];
 };
 
 static ssize_t show_temp(struct device *dev,
@@ -55,12 +48,13 @@ static ssize_t show_temp(struct device *dev,
 {
 	struct sensor_device_attribute *sda = to_sensor_dev_attr(attr);
 	struct thermal_data *data = dev_get_drvdata(dev);
+	unsigned int val;
 	int retval;
 
-	retval = i2c_smbus_read_byte_data(data->client, sda->index);
+	retval = regmap_read(data->regmap, sda->index, &val);
 	if (retval < 0)
 		return retval;
-	return sprintf(buf, "%d000\n", retval);
+	return sprintf(buf, "%d000\n", val);
 }
 
 static ssize_t show_bit(struct device *dev,
@@ -68,12 +62,13 @@ static ssize_t show_bit(struct device *dev,
 {
 	struct sensor_device_attribute_2 *sda = to_sensor_dev_attr_2(attr);
 	struct thermal_data *data = dev_get_drvdata(dev);
+	unsigned int val;
 	int retval;
 
-	retval = i2c_smbus_read_byte_data(data->client, sda->nr);
+	retval = regmap_read(data->regmap, sda->nr, &val);
 	if (retval < 0)
 		return retval;
-	return sprintf(buf, "%d\n", !!(retval & sda->index));
+	return sprintf(buf, "%d\n", !!(val & sda->index));
 }
 
 static ssize_t store_temp(struct device *dev,
@@ -86,8 +81,8 @@ static ssize_t store_temp(struct device *dev,
 
 	if (kstrtoul(buf, 10, &val))
 		return -EINVAL;
-	retval = i2c_smbus_write_byte_data(data->client, sda->index,
-					DIV_ROUND_CLOSEST(val, 1000));
+	retval = regmap_write(data->regmap, sda->index,
+			      DIV_ROUND_CLOSEST(val, 1000));
 	if (retval < 0)
 		return retval;
 	return count;
@@ -98,51 +93,51 @@ static ssize_t store_bit(struct device *dev,
 {
 	struct sensor_device_attribute_2 *sda = to_sensor_dev_attr_2(attr);
 	struct thermal_data *data = dev_get_drvdata(dev);
-	struct i2c_client *client = data->client;
 	unsigned long val;
 	int retval;
 
 	if (kstrtoul(buf, 10, &val))
 		return -EINVAL;
 
-	mutex_lock(&data->mutex);
-	retval = i2c_smbus_read_byte_data(client, sda->nr);
+	retval = regmap_update_bits(data->regmap, sda->nr, sda->index,
+				    val ? sda->index : 0);
 	if (retval < 0)
-		goto fail;
-
-	retval &= ~sda->index;
-	if (val)
-		retval |= sda->index;
-
-	retval = i2c_smbus_write_byte_data(client, sda->index, retval);
-	if (retval == 0)
-		retval = count;
-fail:
-	mutex_unlock(&data->mutex);
-	return retval;
+		return retval;
+	return count;
 }
 
-static ssize_t show_hyst(struct device *dev,
-			struct device_attribute *attr, char *buf)
+static ssize_t show_hyst_common(struct device *dev,
+				struct device_attribute *attr, char *buf,
+				bool is_min)
 {
 	struct sensor_device_attribute *sda = to_sensor_dev_attr(attr);
 	struct thermal_data *data = dev_get_drvdata(dev);
-	struct i2c_client *client = data->client;
+	struct regmap *regmap = data->regmap;
+	unsigned int limit;
+	unsigned int hyst;
 	int retval;
-	int hyst;
 
-	retval = i2c_smbus_read_byte_data(client, sda->index);
+	retval = regmap_read(regmap, sda->index, &limit);
 	if (retval < 0)
 		return retval;
 
-	if (time_after(jiffies, data->hyst_valid)) {
-		hyst = i2c_smbus_read_byte_data(client, 0x21);
-		if (hyst < 0)
-			return retval;
-		data->cached_hyst = hyst;
-		data->hyst_valid = jiffies + HZ;
-	}
-	return sprintf(buf, "%d000\n", retval - data->cached_hyst);
+	retval = regmap_read(regmap, 0x21, &hyst);
+	if (retval < 0)
+		return retval;
+
+	return sprintf(buf, "%d000\n", is_min ? limit + hyst : limit - hyst);
+}
+
+static ssize_t show_hyst(struct device *dev,
+			 struct device_attribute *attr, char *buf)
+{
+	return show_hyst_common(dev, attr, buf, false);
+}
+
+static ssize_t show_min_hyst(struct device *dev,
+			     struct device_attribute *attr, char *buf)
+{
+	return show_hyst_common(dev, attr, buf, true);
 }
 
 static ssize_t store_hyst(struct device *dev,
@@ -150,7 +145,8 @@ static ssize_t store_hyst(struct device *dev,
 {
 	struct sensor_device_attribute *sda = to_sensor_dev_attr(attr);
 	struct thermal_data *data = dev_get_drvdata(dev);
-	struct i2c_client *client = data->client;
+	struct regmap *regmap = data->regmap;
+	unsigned int limit;
 	int retval;
 	int hyst;
 	unsigned long val;
@@ -159,23 +155,15 @@ static ssize_t store_hyst(struct device *dev,
 		return -EINVAL;
 
 	mutex_lock(&data->mutex);
-	retval = i2c_smbus_read_byte_data(client, sda->index);
+	retval = regmap_read(regmap, sda->index, &limit);
 	if (retval < 0)
 		goto fail;
 
-	hyst = val - retval * 1000;
-	hyst = DIV_ROUND_CLOSEST(hyst, 1000);
-	if (hyst < 0 || hyst > 255) {
-		retval = -ERANGE;
-		goto fail;
-	}
-
-	retval = i2c_smbus_write_byte_data(client, 0x21, hyst);
-	if (retval == 0) {
+	hyst = limit * 1000 - val;
+	hyst = clamp_val(DIV_ROUND_CLOSEST(hyst, 1000), 0, 255);
+	retval = regmap_write(regmap, 0x21, hyst);
+	if (retval == 0)
 		retval = count;
-		data->cached_hyst = hyst;
-		data->hyst_valid = jiffies + HZ;
-	}
 fail:
 	mutex_unlock(&data->mutex);
 	return retval;
@@ -198,6 +186,8 @@ static SENSOR_DEVICE_ATTR_2(temp1_max_alarm, S_IRUGO,
 	show_bit, NULL, 0x35, 0x01);
 static SENSOR_DEVICE_ATTR_2(temp1_crit_alarm, S_IRUGO,
 	show_bit, NULL, 0x37, 0x01);
+static SENSOR_DEVICE_ATTR(temp1_min_hyst, S_IRUGO, show_min_hyst, NULL, 0x06);
+static SENSOR_DEVICE_ATTR(temp1_max_hyst, S_IRUGO, show_hyst, NULL, 0x05);
 static SENSOR_DEVICE_ATTR(temp1_crit_hyst, S_IRUGO | S_IWUSR,
 	show_hyst, store_hyst, 0x20);
 
@@ -208,14 +198,16 @@ static SENSOR_DEVICE_ATTR(temp2_max, S_IRUGO | S_IWUSR,
 static SENSOR_DEVICE_ATTR(temp2_crit, S_IRUGO | S_IWUSR,
 	show_temp, store_temp, 0x19);
 static SENSOR_DEVICE_ATTR(temp2_input, S_IRUGO, show_temp, NULL, 0x01);
+static SENSOR_DEVICE_ATTR_2(temp2_fault, S_IRUGO, show_bit, NULL, 0x1b, 0x02);
 static SENSOR_DEVICE_ATTR_2(temp2_min_alarm, S_IRUGO,
 	show_bit, NULL, 0x36, 0x02);
 static SENSOR_DEVICE_ATTR_2(temp2_max_alarm, S_IRUGO,
 	show_bit, NULL, 0x35, 0x02);
 static SENSOR_DEVICE_ATTR_2(temp2_crit_alarm, S_IRUGO,
 	show_bit, NULL, 0x37, 0x02);
-static SENSOR_DEVICE_ATTR(temp2_crit_hyst, S_IRUGO | S_IWUSR,
-	show_hyst, store_hyst, 0x19);
+static SENSOR_DEVICE_ATTR(temp2_min_hyst, S_IRUGO, show_min_hyst, NULL, 0x08);
+static SENSOR_DEVICE_ATTR(temp2_max_hyst, S_IRUGO, show_hyst, NULL, 0x07);
+static SENSOR_DEVICE_ATTR(temp2_crit_hyst, S_IRUGO, show_hyst, NULL, 0x19);
 
 static SENSOR_DEVICE_ATTR(temp3_min, S_IRUGO | S_IWUSR,
 	show_temp, store_temp, 0x16);
@@ -224,14 +216,16 @@ static SENSOR_DEVICE_ATTR(temp3_max, S_IRUGO | S_IWUSR,
 static SENSOR_DEVICE_ATTR(temp3_crit, S_IRUGO | S_IWUSR,
 	show_temp, store_temp, 0x1A);
 static SENSOR_DEVICE_ATTR(temp3_input, S_IRUGO, show_temp, NULL, 0x23);
+static SENSOR_DEVICE_ATTR_2(temp3_fault, S_IRUGO, show_bit, NULL, 0x1b, 0x04);
 static SENSOR_DEVICE_ATTR_2(temp3_min_alarm, S_IRUGO,
 	show_bit, NULL, 0x36, 0x04);
 static SENSOR_DEVICE_ATTR_2(temp3_max_alarm, S_IRUGO,
 	show_bit, NULL, 0x35, 0x04);
 static SENSOR_DEVICE_ATTR_2(temp3_crit_alarm, S_IRUGO,
 	show_bit, NULL, 0x37, 0x04);
-static SENSOR_DEVICE_ATTR(temp3_crit_hyst, S_IRUGO | S_IWUSR,
-	show_hyst, store_hyst, 0x1A);
+static SENSOR_DEVICE_ATTR(temp3_min_hyst, S_IRUGO, show_min_hyst, NULL, 0x16);
+static SENSOR_DEVICE_ATTR(temp3_max_hyst, S_IRUGO, show_hyst, NULL, 0x15);
+static SENSOR_DEVICE_ATTR(temp3_crit_hyst, S_IRUGO, show_hyst, NULL, 0x1A);
 
 static SENSOR_DEVICE_ATTR(temp4_min, S_IRUGO | S_IWUSR,
 	show_temp, store_temp, 0x2D);
@@ -240,44 +234,66 @@ static SENSOR_DEVICE_ATTR(temp4_max, S_IRUGO | S_IWUSR,
 static SENSOR_DEVICE_ATTR(temp4_crit, S_IRUGO | S_IWUSR,
 	show_temp, store_temp, 0x30);
 static SENSOR_DEVICE_ATTR(temp4_input, S_IRUGO, show_temp, NULL, 0x2A);
+static SENSOR_DEVICE_ATTR_2(temp4_fault, S_IRUGO, show_bit, NULL, 0x1b, 0x08);
 static SENSOR_DEVICE_ATTR_2(temp4_min_alarm, S_IRUGO,
 	show_bit, NULL, 0x36, 0x08);
 static SENSOR_DEVICE_ATTR_2(temp4_max_alarm, S_IRUGO,
 	show_bit, NULL, 0x35, 0x08);
 static SENSOR_DEVICE_ATTR_2(temp4_crit_alarm, S_IRUGO,
 	show_bit, NULL, 0x37, 0x08);
-static SENSOR_DEVICE_ATTR(temp4_crit_hyst, S_IRUGO | S_IWUSR,
-	show_hyst, store_hyst, 0x30);
+static SENSOR_DEVICE_ATTR(temp4_min_hyst, S_IRUGO, show_min_hyst, NULL, 0x2D);
+static SENSOR_DEVICE_ATTR(temp4_max_hyst, S_IRUGO, show_hyst, NULL, 0x2C);
+static SENSOR_DEVICE_ATTR(temp4_crit_hyst, S_IRUGO, show_hyst, NULL, 0x30);
 
 static SENSOR_DEVICE_ATTR_2(power_state, S_IRUGO | S_IWUSR,
 	show_bit, store_bit, 0x03, 0x40);
 
-static struct attribute *emc1403_attrs[] = {
+static struct attribute *emc1402_attrs[] = {
 	&sensor_dev_attr_temp1_min.dev_attr.attr,
 	&sensor_dev_attr_temp1_max.dev_attr.attr,
 	&sensor_dev_attr_temp1_crit.dev_attr.attr,
 	&sensor_dev_attr_temp1_input.dev_attr.attr,
-	&sensor_dev_attr_temp1_min_alarm.dev_attr.attr,
-	&sensor_dev_attr_temp1_max_alarm.dev_attr.attr,
-	&sensor_dev_attr_temp1_crit_alarm.dev_attr.attr,
+	&sensor_dev_attr_temp1_min_hyst.dev_attr.attr,
+	&sensor_dev_attr_temp1_max_hyst.dev_attr.attr,
 	&sensor_dev_attr_temp1_crit_hyst.dev_attr.attr,
+
 	&sensor_dev_attr_temp2_min.dev_attr.attr,
 	&sensor_dev_attr_temp2_max.dev_attr.attr,
 	&sensor_dev_attr_temp2_crit.dev_attr.attr,
 	&sensor_dev_attr_temp2_input.dev_attr.attr,
+	&sensor_dev_attr_temp2_min_hyst.dev_attr.attr,
+	&sensor_dev_attr_temp2_max_hyst.dev_attr.attr,
+	&sensor_dev_attr_temp2_crit_hyst.dev_attr.attr,
+
+	&sensor_dev_attr_power_state.dev_attr.attr,
+	NULL
+};
+
+static const struct attribute_group emc1402_group = {
+		.attrs = emc1402_attrs,
+};
+
+static struct attribute *emc1403_attrs[] = {
+	&sensor_dev_attr_temp1_min_alarm.dev_attr.attr,
+	&sensor_dev_attr_temp1_max_alarm.dev_attr.attr,
+	&sensor_dev_attr_temp1_crit_alarm.dev_attr.attr,
+
+	&sensor_dev_attr_temp2_fault.dev_attr.attr,
 	&sensor_dev_attr_temp2_min_alarm.dev_attr.attr,
 	&sensor_dev_attr_temp2_max_alarm.dev_attr.attr,
 	&sensor_dev_attr_temp2_crit_alarm.dev_attr.attr,
-	&sensor_dev_attr_temp2_crit_hyst.dev_attr.attr,
+
 	&sensor_dev_attr_temp3_min.dev_attr.attr,
 	&sensor_dev_attr_temp3_max.dev_attr.attr,
 	&sensor_dev_attr_temp3_crit.dev_attr.attr,
 	&sensor_dev_attr_temp3_input.dev_attr.attr,
+	&sensor_dev_attr_temp3_fault.dev_attr.attr,
 	&sensor_dev_attr_temp3_min_alarm.dev_attr.attr,
 	&sensor_dev_attr_temp3_max_alarm.dev_attr.attr,
 	&sensor_dev_attr_temp3_crit_alarm.dev_attr.attr,
+	&sensor_dev_attr_temp3_min_hyst.dev_attr.attr,
+	&sensor_dev_attr_temp3_max_hyst.dev_attr.attr,
 	&sensor_dev_attr_temp3_crit_hyst.dev_attr.attr,
-	&sensor_dev_attr_power_state.dev_attr.attr,
 	NULL
 };
 
@@ -290,15 +306,51 @@ static struct attribute *emc1404_attrs[] = {
 	&sensor_dev_attr_temp4_max.dev_attr.attr,
 	&sensor_dev_attr_temp4_crit.dev_attr.attr,
 	&sensor_dev_attr_temp4_input.dev_attr.attr,
+	&sensor_dev_attr_temp4_fault.dev_attr.attr,
 	&sensor_dev_attr_temp4_min_alarm.dev_attr.attr,
 	&sensor_dev_attr_temp4_max_alarm.dev_attr.attr,
 	&sensor_dev_attr_temp4_crit_alarm.dev_attr.attr,
+	&sensor_dev_attr_temp4_min_hyst.dev_attr.attr,
+	&sensor_dev_attr_temp4_max_hyst.dev_attr.attr,
 	&sensor_dev_attr_temp4_crit_hyst.dev_attr.attr,
 	NULL
 };
 
 static const struct attribute_group emc1404_group = {
 	.attrs = emc1404_attrs,
+};
+
+/*
+ * EMC14x2 uses a different register and different bits to report alarm and
+ * fault status. For simplicity, provide a separate attribute group for this
+ * chip series.
+ * Since we can not re-use the same attribute names, create a separate attribute
+ * array.
+ */
+static struct sensor_device_attribute_2 emc1402_alarms[] = {
+	SENSOR_ATTR_2(temp1_min_alarm, S_IRUGO, show_bit, NULL, 0x02, 0x20),
+	SENSOR_ATTR_2(temp1_max_alarm, S_IRUGO, show_bit, NULL, 0x02, 0x40),
+	SENSOR_ATTR_2(temp1_crit_alarm, S_IRUGO, show_bit, NULL, 0x02, 0x01),
+
+	SENSOR_ATTR_2(temp2_fault, S_IRUGO, show_bit, NULL, 0x02, 0x04),
+	SENSOR_ATTR_2(temp2_min_alarm, S_IRUGO, show_bit, NULL, 0x02, 0x08),
+	SENSOR_ATTR_2(temp2_max_alarm, S_IRUGO, show_bit, NULL, 0x02, 0x10),
+	SENSOR_ATTR_2(temp2_crit_alarm, S_IRUGO, show_bit, NULL, 0x02, 0x02),
+};
+
+static struct attribute *emc1402_alarm_attrs[] = {
+	&emc1402_alarms[0].dev_attr.attr,
+	&emc1402_alarms[1].dev_attr.attr,
+	&emc1402_alarms[2].dev_attr.attr,
+	&emc1402_alarms[3].dev_attr.attr,
+	&emc1402_alarms[4].dev_attr.attr,
+	&emc1402_alarms[5].dev_attr.attr,
+	&emc1402_alarms[6].dev_attr.attr,
+	NULL,
+};
+
+static const struct attribute_group emc1402_alarm_group = {
+	.attrs = emc1402_alarm_attrs,
 };
 
 static int emc1403_detect(struct i2c_client *client,
@@ -313,8 +365,14 @@ static int emc1403_detect(struct i2c_client *client,
 
 	id = i2c_smbus_read_byte_data(client, THERMAL_PID_REG);
 	switch (id) {
+	case 0x20:
+		strlcpy(info->type, "emc1402", I2C_NAME_SIZE);
+		break;
 	case 0x21:
 		strlcpy(info->type, "emc1403", I2C_NAME_SIZE);
+		break;
+	case 0x22:
+		strlcpy(info->type, "emc1422", I2C_NAME_SIZE);
 		break;
 	case 0x23:
 		strlcpy(info->type, "emc1423", I2C_NAME_SIZE);
@@ -330,11 +388,40 @@ static int emc1403_detect(struct i2c_client *client,
 	}
 
 	id = i2c_smbus_read_byte_data(client, THERMAL_REVISION_REG);
-	if (id != 0x01)
+	if (id < 0x01 || id > 0x04)
 		return -ENODEV;
 
 	return 0;
 }
+
+static bool emc1403_regmap_is_volatile(struct device *dev, unsigned int reg)
+{
+	switch (reg) {
+	case 0x00:	/* internal diode high byte */
+	case 0x01:	/* external diode 1 high byte */
+	case 0x02:	/* status */
+	case 0x10:	/* external diode 1 low byte */
+	case 0x1b:	/* external diode fault */
+	case 0x23:	/* external diode 2 high byte */
+	case 0x24:	/* external diode 2 low byte */
+	case 0x29:	/* internal diode low byte */
+	case 0x2a:	/* externl diode 3 high byte */
+	case 0x2b:	/* external diode 3 low byte */
+	case 0x35:	/* high limit status */
+	case 0x36:	/* low limit status */
+	case 0x37:	/* therm limit status */
+		return true;
+	default:
+		return false;
+	}
+}
+
+static struct regmap_config emc1403_regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 8,
+	.cache_type = REGCACHE_RBTREE,
+	.volatile_reg = emc1403_regmap_is_volatile,
+};
 
 static int emc1403_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
@@ -347,17 +434,27 @@ static int emc1403_probe(struct i2c_client *client,
 	if (data == NULL)
 		return -ENOMEM;
 
-	data->client = client;
+	data->regmap = devm_regmap_init_i2c(client, &emc1403_regmap_config);
+	if (IS_ERR(data->regmap))
+		return PTR_ERR(data->regmap);
+
 	mutex_init(&data->mutex);
-	data->hyst_valid = jiffies - 1;		/* Expired */
 
-	data->groups[0] = &emc1403_group;
-	if (id->driver_data)
-		data->groups[1] = &emc1404_group;
+	switch (id->driver_data) {
+	case emc1404:
+		data->groups[2] = &emc1404_group;
+	case emc1403:
+		data->groups[1] = &emc1403_group;
+	case emc1402:
+		data->groups[0] = &emc1402_group;
+	}
 
-	hwmon_dev = hwmon_device_register_with_groups(&client->dev,
-						      client->name, data,
-						      data->groups);
+	if (id->driver_data == emc1402)
+		data->groups[1] = &emc1402_alarm_group;
+
+	hwmon_dev = devm_hwmon_device_register_with_groups(&client->dev,
+							   client->name, data,
+							   data->groups);
 	if (IS_ERR(hwmon_dev))
 		return PTR_ERR(hwmon_dev);
 
@@ -366,14 +463,20 @@ static int emc1403_probe(struct i2c_client *client,
 }
 
 static const unsigned short emc1403_address_list[] = {
-	0x18, 0x29, 0x4c, 0x4d, I2C_CLIENT_END
+	0x18, 0x1c, 0x29, 0x4c, 0x4d, 0x5c, I2C_CLIENT_END
 };
 
+/* Last digit of chip name indicates number of channels */
 static const struct i2c_device_id emc1403_idtable[] = {
-	{ "emc1403", 0 },
-	{ "emc1404", 1 },
-	{ "emc1423", 0 },
-	{ "emc1424", 1 },
+	{ "emc1402", emc1402 },
+	{ "emc1403", emc1403 },
+	{ "emc1404", emc1404 },
+	{ "emc1412", emc1402 },
+	{ "emc1413", emc1403 },
+	{ "emc1414", emc1404 },
+	{ "emc1422", emc1402 },
+	{ "emc1423", emc1403 },
+	{ "emc1424", emc1404 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, emc1403_idtable);

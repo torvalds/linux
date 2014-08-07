@@ -38,8 +38,38 @@
 #define LOV_INTERNAL_H
 
 #include <obd_class.h>
-#include <obd_lov.h>
 #include <lustre/lustre_user.h>
+
+/* lov_do_div64(a, b) returns a % b, and a = a / b.
+ * The 32-bit code is LOV-specific due to knowing about stripe limits in
+ * order to reduce the divisor to a 32-bit number.  If the divisor is
+ * already a 32-bit value the compiler handles this directly. */
+#if BITS_PER_LONG == 64
+# define lov_do_div64(n, base) ({					\
+	uint64_t __base = (base);					\
+	uint64_t __rem;							\
+	__rem = ((uint64_t)(n)) % __base;				\
+	(n) = ((uint64_t)(n)) / __base;					\
+	__rem;								\
+})
+#elif BITS_PER_LONG == 32
+# define lov_do_div64(n, base) ({					\
+	uint64_t __rem;							\
+	if ((sizeof(base) > 4) && (((base) & 0xffffffff00000000ULL) != 0)) {  \
+		int __remainder;					      \
+		LASSERTF(!((base) & (LOV_MIN_STRIPE_SIZE - 1)), "64 bit lov " \
+			 "division %llu / %llu\n", (n), (uint64_t)(base));    \
+		__remainder = (n) & (LOV_MIN_STRIPE_SIZE - 1);		\
+		(n) >>= LOV_MIN_STRIPE_BITS;				\
+		__rem = do_div(n, (base) >> LOV_MIN_STRIPE_BITS);	\
+		__rem <<= LOV_MIN_STRIPE_BITS;				\
+		__rem += __remainder;					\
+	} else {							\
+		__rem = do_div(n, base);				\
+	}								\
+	__rem;								\
+})
+#endif
 
 struct lov_lock_handles {
 	struct portals_handle   llh_handle;
@@ -251,10 +281,6 @@ int lov_process_config_base(struct obd_device *obd, struct lustre_cfg *lcfg,
 			    __u32 *indexp, int *genp);
 int lov_del_target(struct obd_device *obd, __u32 index,
 		   struct obd_uuid *uuidp, int gen);
-/* lov_log.c */
-int lov_llog_init(struct obd_device *obd, struct obd_llog_group *olg,
-		  struct obd_device *tgt, int *idx);
-int lov_llog_finish(struct obd_device *obd, int count);
 
 /* lov_pack.c */
 int lov_packmd(struct obd_export *exp, struct lov_mds_md **lmm,
@@ -279,6 +305,7 @@ void lov_dump_lmm(int level, void *lmm);
 /* lov_ea.c */
 struct lov_stripe_md *lsm_alloc_plain(__u16 stripe_count, int *size);
 void lsm_free_plain(struct lov_stripe_md *lsm);
+void dump_lsm(unsigned int level, const struct lov_stripe_md *lsm);
 
 int lovea_destroy_object(struct lov_obd *lov, struct lov_stripe_md *lsm,
 			 struct obdo *oa, void *data);

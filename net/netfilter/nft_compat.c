@@ -195,6 +195,15 @@ static void
 nft_target_destroy(const struct nft_ctx *ctx, const struct nft_expr *expr)
 {
 	struct xt_target *target = expr->ops->data;
+	void *info = nft_expr_priv(expr);
+	struct xt_tgdtor_param par;
+
+	par.net = ctx->net;
+	par.target = target;
+	par.targinfo = info;
+	par.family = ctx->afi->family;
+	if (par.target->destroy != NULL)
+		par.target->destroy(&par);
 
 	module_put(target->me);
 }
@@ -382,6 +391,15 @@ static void
 nft_match_destroy(const struct nft_ctx *ctx, const struct nft_expr *expr)
 {
 	struct xt_match *match = expr->ops->data;
+	void *info = nft_expr_priv(expr);
+	struct xt_mtdtor_param par;
+
+	par.net = ctx->net;
+	par.match = match;
+	par.matchinfo = info;
+	par.family = ctx->afi->family;
+	if (par.match->destroy != NULL)
+		par.match->destroy(&par);
 
 	module_put(match->me);
 }

@@ -16,7 +16,7 @@ To do ISA style DMA you need to include two headers:
 #include <asm/dma.h>
 
 The first is the generic DMA API used to convert virtual addresses to
-physical addresses (see Documentation/DMA-API.txt for details).
+bus addresses (see Documentation/DMA-API.txt for details).
 
 The second contains the routines specific to ISA DMA transfers. Since
 this is not present on all platforms make sure you construct your
@@ -50,7 +50,7 @@ early as possible and not release it until the driver is unloaded.)
 Part III - Address translation
 ------------------------------
 
-To translate the virtual address to a physical use the normal DMA
+To translate the virtual address to a bus address, use the normal DMA
 API. Do _not_ use isa_virt_to_phys() even though it does the same
 thing. The reason for this is that the function isa_virt_to_phys()
 will require a Kconfig dependency to ISA, not just ISA_DMA_API which

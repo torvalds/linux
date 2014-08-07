@@ -175,10 +175,8 @@ static int s5pv210_target(struct cpufreq_policy *policy, unsigned int index)
 	mutex_lock(&set_freq_lock);
 
 	if (no_cpufreq_access) {
-#ifdef CONFIG_PM_VERBOSE
-		pr_err("%s:%d denied access to %s as it is disabled"
-				"temporarily\n", __FILE__, __LINE__, __func__);
-#endif
+		pr_err("Denied access to %s as it is disabled temporarily\n",
+		       __func__);
 		ret = -EINVAL;
 		goto exit;
 	}

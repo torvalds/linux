@@ -173,7 +173,6 @@ xfs_trans_ail_cursor_next(
  */
 void
 xfs_trans_ail_cursor_done(
-	struct xfs_ail		*ailp,
 	struct xfs_ail_cursor	*cur)
 {
 	cur->item = NULL;
@@ -368,7 +367,7 @@ xfsaild_push(
 		 * If the AIL is empty or our push has reached the end we are
 		 * done now.
 		 */
-		xfs_trans_ail_cursor_done(ailp, &cur);
+		xfs_trans_ail_cursor_done(&cur);
 		spin_unlock(&ailp->xa_lock);
 		goto out_done;
 	}
@@ -453,7 +452,7 @@ xfsaild_push(
 			break;
 		lsn = lip->li_lsn;
 	}
-	xfs_trans_ail_cursor_done(ailp, &cur);
+	xfs_trans_ail_cursor_done(&cur);
 	spin_unlock(&ailp->xa_lock);
 
 	if (xfs_buf_delwri_submit_nowait(&ailp->xa_buf_list))

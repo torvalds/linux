@@ -51,7 +51,6 @@ struct	dm_priv {
 };
 
 void rtl8188e_init_dm_priv(struct adapter *adapt);
-void rtl8188e_deinit_dm_priv(struct adapter *adapt);
 void rtl8188e_InitHalDm(struct adapter *adapt);
 void rtl8188e_HalDmWatchDog(struct adapter *adapt);
 

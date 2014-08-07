@@ -142,18 +142,16 @@ struct lowpwr_lps_parm{
 
 
 /*  host message to firmware cmd */
-void rtl8723a_set_FwPwrMode_cmd(struct rtw_adapter * padapter, u8 Mode);
-void rtl8723a_set_FwJoinBssReport_cmd(struct rtw_adapter * padapter, u8 mstatus);
+void rtl8723a_set_FwPwrMode_cmd(struct rtw_adapter *padapter, u8 Mode);
+void rtl8723a_set_FwJoinBssReport_cmd(struct rtw_adapter *padapter, u8 mstatus);
 #ifdef CONFIG_8723AU_BT_COEXIST
-void rtl8723a_set_BTCoex_AP_mode_FwRsvdPkt_cmd(struct rtw_adapter * padapter);
+void rtl8723a_set_BTCoex_AP_mode_FwRsvdPkt_cmd(struct rtw_adapter *padapter);
+#else
+#define rtl8723a_set_BTCoex_AP_mode_FwRsvdPkt_cmd(padapter) do {} while(0)
 #endif
-u8 rtl8723a_set_rssi_cmd(struct rtw_adapter * padapter, u8 *param);
-u8 rtl8723a_set_raid_cmd(struct rtw_adapter * padapter, u32 mask, u8 arg);
-void rtl8723a_add_rateatid(struct rtw_adapter * padapter, u32 bitmap, u8 arg, u8 rssi_level);
-
-#ifdef CONFIG_8723AU_P2P
-void rtl8723a_set_p2p_ps_offload_cmd(struct rtw_adapter * padapter, u8 p2p_ps_state);
-#endif /* CONFIG_8723AU_P2P */
+int rtl8723a_set_rssi_cmd(struct rtw_adapter *padapter, u8 *param);
+int rtl8723a_set_raid_cmd(struct rtw_adapter *padapter, u32 mask, u8 arg);
+void rtl8723a_add_rateatid(struct rtw_adapter *padapter, u32 bitmap, u8 arg, u8 rssi_level);
 
 void CheckFwRsvdPageContent23a(struct rtw_adapter *padapter);
 

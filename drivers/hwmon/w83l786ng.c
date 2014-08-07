@@ -249,7 +249,7 @@ static ssize_t show_##reg(struct device *dev, struct device_attribute *attr, \
 	int nr = to_sensor_dev_attr(attr)->index; \
 	struct w83l786ng_data *data = w83l786ng_update_device(dev); \
 	return sprintf(buf, "%d\n", \
-		FAN_FROM_REG(data->fan[nr], DIV_FROM_REG(data->fan_div[nr]))); \
+		FAN_FROM_REG(data->reg[nr], DIV_FROM_REG(data->fan_div[nr]))); \
 }
 
 show_fan_reg(fan);

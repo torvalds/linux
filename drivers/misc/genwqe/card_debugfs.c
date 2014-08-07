@@ -348,7 +348,7 @@ int genwqe_init_debugfs(struct genwqe_dev *cd)
 	char name[64];
 	unsigned int i;
 
-	sprintf(card_name, "%s%u_card", GENWQE_DEVNAME, cd->card_idx);
+	sprintf(card_name, "%s%d_card", GENWQE_DEVNAME, cd->card_idx);
 
 	root = debugfs_create_dir(card_name, cd->debugfs_genwqe);
 	if (!root) {
@@ -454,7 +454,7 @@ int genwqe_init_debugfs(struct genwqe_dev *cd)
 	}
 
 	for (i = 0; i <  GENWQE_MAX_VFS; i++) {
-		sprintf(name, "vf%d_jobtimeout_msec", i);
+		sprintf(name, "vf%u_jobtimeout_msec", i);
 
 		file = debugfs_create_u32(name, 0666, root,
 					  &cd->vf_jobtimeout_msec[i]);

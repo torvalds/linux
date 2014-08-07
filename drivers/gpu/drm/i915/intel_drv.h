@@ -81,8 +81,8 @@
 /* Maximum cursor sizes */
 #define GEN2_CURSOR_WIDTH 64
 #define GEN2_CURSOR_HEIGHT 64
-#define CURSOR_WIDTH 256
-#define CURSOR_HEIGHT 256
+#define MAX_CURSOR_WIDTH 256
+#define MAX_CURSOR_HEIGHT 256
 
 #define INTEL_I2C_BUS_DVO 1
 #define INTEL_I2C_BUS_SDVO 2
@@ -106,8 +106,8 @@
 #define INTEL_DVO_CHIP_TMDS 2
 #define INTEL_DVO_CHIP_TVOUT 4
 
-#define INTEL_DSI_COMMAND_MODE	0
-#define INTEL_DSI_VIDEO_MODE	1
+#define INTEL_DSI_VIDEO_MODE	0
+#define INTEL_DSI_COMMAND_MODE	1
 
 struct intel_framebuffer {
 	struct drm_framebuffer base;
@@ -273,6 +273,13 @@ struct intel_crtc_config {
 	 * accordingly. */
 	bool has_dp_encoder;
 
+	/* Whether we should send NULL infoframes. Required for audio. */
+	bool has_hdmi_sink;
+
+	/* Audio enabled on this pipe. Only valid if either has_hdmi_sink or
+	 * has_dp_encoder is set. */
+	bool has_audio;
+
 	/*
 	 * Enable dithering, used when the selected pipe bpp doesn't match the
 	 * plane bpp.
@@ -305,6 +312,9 @@ struct intel_crtc_config {
 
 	int pipe_bpp;
 	struct intel_link_m_n dp_m_n;
+
+	/* m2_n2 for eDP downclock */
+	struct intel_link_m_n dp_m2_n2;
 
 	/*
 	 * Frequence the dpll for the port should run at. Differs from the
@@ -343,6 +353,9 @@ struct intel_pipe_wm {
 	struct intel_wm_level wm[5];
 	uint32_t linetime;
 	bool fbc_wm_enabled;
+	bool pipe_enabled;
+	bool sprites_enabled;
+	bool sprites_scaled;
 };
 
 struct intel_crtc {
@@ -357,7 +370,6 @@ struct intel_crtc {
 	 */
 	bool active;
 	unsigned long enabled_power_domains;
-	bool eld_vld;
 	bool primary_enabled; /* is the primary plane (partially) visible? */
 	bool lowfreq_avail;
 	struct intel_overlay *overlay;
@@ -374,8 +386,8 @@ struct intel_crtc {
 	uint32_t cursor_addr;
 	int16_t cursor_x, cursor_y;
 	int16_t cursor_width, cursor_height;
-	int16_t max_cursor_width, max_cursor_height;
-	bool cursor_visible;
+	uint32_t cursor_cntl;
+	uint32_t cursor_base;
 
 	struct intel_plane_config plane_config;
 	struct intel_crtc_config config;
@@ -396,6 +408,10 @@ struct intel_crtc {
 		/* watermarks currently being used  */
 		struct intel_pipe_wm active;
 	} wm;
+
+	wait_queue_head_t vbl_wait;
+
+	int scanline_offset;
 };
 
 struct intel_plane_wm_parameters {
@@ -479,10 +495,22 @@ struct intel_hdmi {
 				enum hdmi_infoframe_type type,
 				const void *frame, ssize_t len);
 	void (*set_infoframes)(struct drm_encoder *encoder,
+			       bool enable,
 			       struct drm_display_mode *adjusted_mode);
 };
 
 #define DP_MAX_DOWNSTREAM_PORTS		0x10
+
+/**
+ * HIGH_RR is the highest eDP panel refresh rate read from EDID
+ * LOW_RR is the lowest eDP panel refresh rate found from EDID
+ * parsing for same resolution.
+ */
+enum edp_drrs_refresh_rate_type {
+	DRRS_HIGH_RR,
+	DRRS_LOW_RR,
+	DRRS_MAX_RR, /* RR count */
+};
 
 struct intel_dp {
 	uint32_t output_reg;
@@ -510,6 +538,8 @@ struct intel_dp {
 	unsigned long last_power_on;
 	unsigned long last_backlight_off;
 	bool psr_setup_done;
+	struct notifier_block edp_notifier;
+
 	bool use_tps3;
 	struct intel_connector *attached_connector;
 
@@ -522,6 +552,12 @@ struct intel_dp {
 				     bool has_aux_irq,
 				     int send_bytes,
 				     uint32_t aux_clock_divider);
+	struct {
+		enum drrs_support_type type;
+		enum edp_drrs_refresh_rate_type refresh_rate_type;
+		struct mutex mutex;
+	} drrs_state;
+
 };
 
 struct intel_digital_port {
@@ -537,8 +573,23 @@ vlv_dport_to_channel(struct intel_digital_port *dport)
 {
 	switch (dport->port) {
 	case PORT_B:
+	case PORT_D:
 		return DPIO_CH0;
 	case PORT_C:
+		return DPIO_CH1;
+	default:
+		BUG();
+	}
+}
+
+static inline int
+vlv_pipe_to_channel(enum pipe pipe)
+{
+	switch (pipe) {
+	case PIPE_A:
+	case PIPE_C:
+		return DPIO_CH0;
+	case PIPE_B:
 		return DPIO_CH1;
 	default:
 		BUG();
@@ -569,6 +620,8 @@ struct intel_unpin_work {
 #define INTEL_FLIP_INACTIVE	0
 #define INTEL_FLIP_PENDING	1
 #define INTEL_FLIP_COMPLETE	2
+	u32 flip_count;
+	u32 gtt_offset;
 	bool enable_stall_check;
 };
 
@@ -620,8 +673,6 @@ hdmi_to_dig_port(struct intel_hdmi *intel_hdmi)
 /* i915_irq.c */
 bool intel_set_cpu_fifo_underrun_reporting(struct drm_device *dev,
 					   enum pipe pipe, bool enable);
-bool __intel_set_cpu_fifo_underrun_reporting(struct drm_device *dev,
-					     enum pipe pipe, bool enable);
 bool intel_set_pch_fifo_underrun_reporting(struct drm_device *dev,
 					   enum transcoder pch_transcoder,
 					   bool enable);
@@ -629,8 +680,12 @@ void ilk_enable_gt_irq(struct drm_i915_private *dev_priv, uint32_t mask);
 void ilk_disable_gt_irq(struct drm_i915_private *dev_priv, uint32_t mask);
 void snb_enable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask);
 void snb_disable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask);
-void hsw_runtime_pm_disable_interrupts(struct drm_device *dev);
-void hsw_runtime_pm_restore_interrupts(struct drm_device *dev);
+void bdw_enable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask);
+void bdw_disable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask);
+void intel_runtime_pm_disable_interrupts(struct drm_device *dev);
+void intel_runtime_pm_restore_interrupts(struct drm_device *dev);
+int intel_get_crtc_scanline(struct intel_crtc *crtc);
+void i9xx_check_fifo_underruns(struct drm_device *dev);
 
 
 /* intel_crt.c */
@@ -666,9 +721,10 @@ void intel_ddi_get_config(struct intel_encoder *encoder,
 const char *intel_output_name(int output);
 bool intel_has_pending_fb_unpin(struct drm_device *dev);
 int intel_pch_rawclk(struct drm_device *dev);
+int valleyview_cur_cdclk(struct drm_i915_private *dev_priv);
 void intel_mark_busy(struct drm_device *dev);
 void intel_mark_fb_busy(struct drm_i915_gem_object *obj,
-			struct intel_ring_buffer *ring);
+			struct intel_engine_cs *ring);
 void intel_mark_idle(struct drm_device *dev);
 void intel_crtc_restore_mode(struct drm_crtc *crtc);
 void intel_crtc_update_dpms(struct drm_crtc *crtc);
@@ -695,12 +751,14 @@ void vlv_wait_port_ready(struct drm_i915_private *dev_priv,
 			 struct intel_digital_port *dport);
 bool intel_get_load_detect_pipe(struct drm_connector *connector,
 				struct drm_display_mode *mode,
-				struct intel_load_detect_pipe *old);
+				struct intel_load_detect_pipe *old,
+				struct drm_modeset_acquire_ctx *ctx);
 void intel_release_load_detect_pipe(struct drm_connector *connector,
-				    struct intel_load_detect_pipe *old);
+				    struct intel_load_detect_pipe *old,
+				    struct drm_modeset_acquire_ctx *ctx);
 int intel_pin_and_fence_fb_obj(struct drm_device *dev,
 			       struct drm_i915_gem_object *obj,
-			       struct intel_ring_buffer *pipelined);
+			       struct intel_engine_cs *pipelined);
 void intel_unpin_fb_obj(struct drm_i915_gem_object *obj);
 struct drm_framebuffer *
 __intel_framebuffer_create(struct drm_device *dev,
@@ -751,6 +809,8 @@ int valleyview_get_vco(struct drm_i915_private *dev_priv);
 void intel_mode_from_pipe_config(struct drm_display_mode *mode,
 				 struct intel_crtc_config *pipe_config);
 int intel_format_to_fourcc(int format);
+void intel_crtc_wait_for_pending_flips(struct drm_crtc *crtc);
+
 
 /* intel_dp.c */
 void intel_dp_init(struct drm_device *dev, int output_reg, enum port port);
@@ -774,7 +834,7 @@ void intel_edp_panel_off(struct intel_dp *intel_dp);
 void intel_edp_psr_enable(struct intel_dp *intel_dp);
 void intel_edp_psr_disable(struct intel_dp *intel_dp);
 void intel_edp_psr_update(struct drm_device *dev);
-
+void intel_dp_set_drrs_state(struct drm_device *dev, int refresh_rate);
 
 /* intel_dsi.c */
 bool intel_dsi_init(struct drm_device *dev);
@@ -876,6 +936,7 @@ extern struct drm_display_mode *intel_find_panel_downclock(
 /* intel_pm.c */
 void intel_init_clock_gating(struct drm_device *dev);
 void intel_suspend_hw(struct drm_device *dev);
+int ilk_wm_max_level(const struct drm_device *dev);
 void intel_update_watermarks(struct drm_crtc *crtc);
 void intel_update_sprite_watermarks(struct drm_plane *plane,
 				    struct drm_crtc *crtc,
@@ -891,8 +952,8 @@ int intel_power_domains_init(struct drm_i915_private *);
 void intel_power_domains_remove(struct drm_i915_private *);
 bool intel_display_power_enabled(struct drm_i915_private *dev_priv,
 				 enum intel_display_power_domain domain);
-bool intel_display_power_enabled_sw(struct drm_i915_private *dev_priv,
-				    enum intel_display_power_domain domain);
+bool intel_display_power_enabled_unlocked(struct drm_i915_private *dev_priv,
+					  enum intel_display_power_domain domain);
 void intel_display_power_get(struct drm_i915_private *dev_priv,
 			     enum intel_display_power_domain domain);
 void intel_display_power_put(struct drm_i915_private *dev_priv,
@@ -902,6 +963,7 @@ void intel_init_gt_powersave(struct drm_device *dev);
 void intel_cleanup_gt_powersave(struct drm_device *dev);
 void intel_enable_gt_powersave(struct drm_device *dev);
 void intel_disable_gt_powersave(struct drm_device *dev);
+void intel_reset_gt_powersave(struct drm_device *dev);
 void ironlake_teardown_rc6(struct drm_device *dev);
 void gen6_update_ring_freq(struct drm_device *dev);
 void gen6_rps_idle(struct drm_i915_private *dev_priv);
@@ -909,11 +971,13 @@ void gen6_rps_boost(struct drm_i915_private *dev_priv);
 void intel_aux_display_runtime_get(struct drm_i915_private *dev_priv);
 void intel_aux_display_runtime_put(struct drm_i915_private *dev_priv);
 void intel_runtime_pm_get(struct drm_i915_private *dev_priv);
+void intel_runtime_pm_get_noresume(struct drm_i915_private *dev_priv);
 void intel_runtime_pm_put(struct drm_i915_private *dev_priv);
 void intel_init_runtime_pm(struct drm_i915_private *dev_priv);
 void intel_fini_runtime_pm(struct drm_i915_private *dev_priv);
 void ilk_wm_get_hw_state(struct drm_device *dev);
-
+void __vlv_set_power_well(struct drm_i915_private *dev_priv,
+			  enum punit_power_well power_well_id, bool enable);
 
 /* intel_sdvo.c */
 bool intel_sdvo_init(struct drm_device *dev, uint32_t sdvo_reg, bool is_sdvob);

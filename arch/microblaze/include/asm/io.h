@@ -19,17 +19,14 @@
 #ifndef CONFIG_PCI
 #define _IO_BASE	0
 #define _ISA_MEM_BASE	0
-#define PCI_DRAM_OFFSET	0
 #else
 #define _IO_BASE	isa_io_base
 #define _ISA_MEM_BASE	isa_mem_base
-#define PCI_DRAM_OFFSET	pci_dram_offset
 struct pci_dev;
 extern void pci_iounmap(struct pci_dev *dev, void __iomem *);
 #define pci_iounmap pci_iounmap
 
 extern unsigned long isa_io_base;
-extern unsigned long pci_dram_offset;
 extern resource_size_t isa_mem_base;
 #endif
 

@@ -16,6 +16,7 @@
 #include <linux/irqreturn.h>
 
 struct mcb_driver;
+struct mcb_device;
 
 /**
  * struct mcb_bus - MEN Chameleon Bus
@@ -23,11 +24,14 @@ struct mcb_driver;
  * @dev: pointer to carrier device
  * @children: the child busses
  * @bus_nr: mcb bus number
+ * @get_irq: callback to get IRQ number
  */
 struct mcb_bus {
 	struct list_head children;
 	struct device dev;
+	struct device *carrier;
 	int bus_nr;
+	int (*get_irq)(struct mcb_device *dev);
 };
 #define to_mcb_bus(b) container_of((b), struct mcb_bus, dev)
 
@@ -105,7 +109,7 @@ extern void mcb_unregister_driver(struct mcb_driver *driver);
 	module_driver(__mcb_driver, mcb_register_driver, mcb_unregister_driver);
 extern void mcb_bus_add_devices(const struct mcb_bus *bus);
 extern int mcb_device_register(struct mcb_bus *bus, struct mcb_device *dev);
-extern struct mcb_bus *mcb_alloc_bus(void);
+extern struct mcb_bus *mcb_alloc_bus(struct device *carrier);
 extern struct mcb_bus *mcb_bus_get(struct mcb_bus *bus);
 extern void mcb_bus_put(struct mcb_bus *bus);
 extern struct mcb_device *mcb_alloc_dev(struct mcb_bus *bus);

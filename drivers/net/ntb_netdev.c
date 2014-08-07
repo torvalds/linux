@@ -298,7 +298,6 @@ static int ntb_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
 	cmd->supported = SUPPORTED_Backplane;
 	cmd->advertising = ADVERTISED_Backplane;
-	cmd->speed = SPEED_UNKNOWN;
 	ethtool_cmd_speed_set(cmd, SPEED_UNKNOWN);
 	cmd->duplex = DUPLEX_FULL;
 	cmd->port = PORT_OTHER;
@@ -348,7 +347,7 @@ static int ntb_netdev_probe(struct pci_dev *pdev)
 	memcpy(ndev->dev_addr, ndev->perm_addr, ndev->addr_len);
 
 	ndev->netdev_ops = &ntb_netdev_ops;
-	SET_ETHTOOL_OPS(ndev, &ntb_ethtool_ops);
+	ndev->ethtool_ops = &ntb_ethtool_ops;
 
 	dev->qp = ntb_transport_create_queue(ndev, pdev, &ntb_netdev_handlers);
 	if (!dev->qp) {

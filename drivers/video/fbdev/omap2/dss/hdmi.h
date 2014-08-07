@@ -80,6 +80,7 @@
 #define HDMI_TXPHY_DIGITAL_CTRL			0x4
 #define HDMI_TXPHY_POWER_CTRL			0x8
 #define HDMI_TXPHY_PAD_CFG_CTRL			0xC
+#define HDMI_TXPHY_BIST_CONTROL			0x1C
 
 enum hdmi_pll_pwr {
 	HDMI_PLLPWRCMD_ALLOFF = 0,
@@ -351,7 +352,8 @@ struct hdmi_pll_data {
 struct hdmi_phy_data {
 	void __iomem *base;
 
-	int irq;
+	u8 lane_function[4];
+	u8 lane_polarity[4];
 };
 
 struct hdmi_core_data {
@@ -360,13 +362,13 @@ struct hdmi_core_data {
 	struct hdmi_core_infoframe_avi avi_cfg;
 };
 
-static inline void hdmi_write_reg(void __iomem *base_addr, const u16 idx,
+static inline void hdmi_write_reg(void __iomem *base_addr, const u32 idx,
 		u32 val)
 {
 	__raw_writel(val, base_addr + idx);
 }
 
-static inline u32 hdmi_read_reg(void __iomem *base_addr, const u16 idx)
+static inline u32 hdmi_read_reg(void __iomem *base_addr, const u32 idx)
 {
 	return __raw_readl(base_addr + idx);
 }
@@ -417,18 +419,19 @@ void hdmi_pll_compute(struct hdmi_pll_data *pll, unsigned long clkin, int phy);
 int hdmi_pll_init(struct platform_device *pdev, struct hdmi_pll_data *pll);
 
 /* HDMI PHY funcs */
-int hdmi_phy_enable(struct hdmi_phy_data *phy, struct hdmi_wp_data *wp,
-		struct hdmi_config *cfg);
-void hdmi_phy_disable(struct hdmi_phy_data *phy, struct hdmi_wp_data *wp);
+int hdmi_phy_configure(struct hdmi_phy_data *phy, struct hdmi_config *cfg);
 void hdmi_phy_dump(struct hdmi_phy_data *phy, struct seq_file *s);
 int hdmi_phy_init(struct platform_device *pdev, struct hdmi_phy_data *phy);
+int hdmi_phy_parse_lanes(struct hdmi_phy_data *phy, const u32 *lanes);
 
 /* HDMI common funcs */
 const struct hdmi_config *hdmi_default_timing(void);
 const struct hdmi_config *hdmi_get_timings(int mode, int code);
 struct hdmi_cm hdmi_get_code(struct omap_video_timings *timing);
+int hdmi_parse_lanes_of(struct platform_device *pdev, struct device_node *ep,
+	struct hdmi_phy_data *phy);
 
-#if defined(CONFIG_OMAP4_DSS_HDMI_AUDIO)
+#if defined(CONFIG_OMAP4_DSS_HDMI_AUDIO) || defined(CONFIG_OMAP5_DSS_HDMI_AUDIO)
 int hdmi_compute_acr(u32 pclk, u32 sample_freq, u32 *n, u32 *cts);
 int hdmi_wp_audio_enable(struct hdmi_wp_data *wp, bool enable);
 int hdmi_wp_audio_core_req_enable(struct hdmi_wp_data *wp, bool enable);

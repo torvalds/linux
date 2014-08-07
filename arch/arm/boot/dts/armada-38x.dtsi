@@ -20,7 +20,7 @@
 
 / {
 	model = "Marvell Armada 38x family SoC";
-	compatible = "marvell,armada38x";
+	compatible = "marvell,armada380";
 
 	aliases {
 		gpio0 = &gpio0;
@@ -108,6 +108,11 @@
 				cache-level = <2>;
 			};
 
+			scu@c000 {
+				compatible = "arm,cortex-a9-scu";
+				reg = <0xc000 0x58>;
+			};
+
 			timer@c600 {
 				compatible = "arm,cortex-a9-twd-timer";
 				reg = <0xc600 0x20>;
@@ -174,6 +179,7 @@
 				reg-shift = <2>;
 				interrupts = <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>;
 				reg-io-width = <1>;
+				clocks = <&coreclk 0>;
 				status = "disabled";
 			};
 
@@ -183,6 +189,7 @@
 				reg-shift = <2>;
 				interrupts = <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>;
 				reg-io-width = <1>;
+				clocks = <&coreclk 0>;
 				status = "disabled";
 			};
 
@@ -267,6 +274,28 @@
 				clock-names = "nbclk", "fixed";
 			};
 
+			watchdog@20300 {
+				compatible = "marvell,armada-380-wdt";
+				reg = <0x20300 0x34>, <0x20704 0x4>, <0x18260 0x4>;
+				clocks = <&coreclk 2>, <&refclk>;
+				clock-names = "nbclk", "fixed";
+			};
+
+			cpurst@20800 {
+				compatible = "marvell,armada-370-cpu-reset";
+				reg = <0x20800 0x10>;
+			};
+
+			coherency-fabric@21010 {
+				compatible = "marvell,armada-380-coherency-fabric";
+				reg = <0x21010 0x1c>;
+			};
+
+			pmsu@22000 {
+				compatible = "marvell,armada-380-pmsu";
+				reg = <0x22000 0x1000>;
+			};
+
 			eth1: ethernet@30000 {
 				compatible = "marvell,armada-370-neta";
 				reg = <0x30000 0x4000>;
@@ -280,6 +309,14 @@
 				reg = <0x34000 0x4000>;
 				interrupts-extended = <&mpic 12>;
 				clocks = <&gateclk 2>;
+				status = "disabled";
+			};
+
+			usb@50000 {
+				compatible = "marvell,orion-ehci";
+				reg = <0x58000 0x500>;
+				interrupts = <GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&gateclk 18>;
 				status = "disabled";
 			};
 
@@ -339,12 +376,34 @@
 				clocks = <&gateclk 4>;
 			};
 
+			sata@a8000 {
+				compatible = "marvell,armada-380-ahci";
+				reg = <0xa8000 0x2000>;
+				interrupts = <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&gateclk 15>;
+				status = "disabled";
+			};
+
+			sata@e0000 {
+				compatible = "marvell,armada-380-ahci";
+				reg = <0xe0000 0x2000>;
+				interrupts = <GIC_SPI 28 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&gateclk 30>;
+				status = "disabled";
+			};
+
 			coredivclk: clock@e4250 {
 				compatible = "marvell,armada-380-corediv-clock";
 				reg = <0xe4250 0xc>;
 				#clock-cells = <1>;
 				clocks = <&mainpll>;
 				clock-output-names = "nand";
+			};
+
+			thermal@e8078 {
+				compatible = "marvell,armada380-thermal";
+				reg = <0xe4078 0x4>, <0xe4074 0x4>;
+				status = "okay";
 			};
 
 			flash@d0000 {
@@ -354,6 +413,31 @@
 				#size-cells = <1>;
 				interrupts = <GIC_SPI 84 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&coredivclk 0>;
+				status = "disabled";
+			};
+
+			sdhci@d8000 {
+				compatible = "marvell,armada-380-sdhci";
+				reg = <0xd8000 0x1000>, <0xdc000 0x100>;
+				interrupts = <0 25 0x4>;
+				clocks = <&gateclk 17>;
+				mrvl,clk-delay-cycles = <0x1F>;
+				status = "disabled";
+			};
+
+			usb3@f0000 {
+				compatible = "marvell,armada-380-xhci";
+				reg = <0xf0000 0x4000>,<0xf4000 0x4000>;
+				interrupts = <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&gateclk 9>;
+				status = "disabled";
+			};
+
+			usb3@f8000 {
+				compatible = "marvell,armada-380-xhci";
+				reg = <0xf8000 0x4000>,<0xfc000 0x4000>;
+				interrupts = <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&gateclk 10>;
 				status = "disabled";
 			};
 		};

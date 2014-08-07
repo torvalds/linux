@@ -623,6 +623,12 @@ static inline void *devm_kcalloc(struct device *dev,
 }
 extern void devm_kfree(struct device *dev, void *p);
 extern char *devm_kstrdup(struct device *dev, const char *s, gfp_t gfp);
+extern void *devm_kmemdup(struct device *dev, const void *src, size_t len,
+			  gfp_t gfp);
+
+extern unsigned long devm_get_free_pages(struct device *dev,
+					 gfp_t gfp_mask, unsigned int order);
+extern void devm_free_pages(struct device *dev, unsigned long addr);
 
 void __iomem *devm_ioremap_resource(struct device *dev, struct resource *res);
 void __iomem *devm_request_and_ioremap(struct device *dev,
@@ -673,6 +679,7 @@ struct acpi_dev_node {
  * 		variants, which GPIO pins act in what additional roles, and so
  * 		on.  This shrinks the "Board Support Packages" (BSPs) and
  * 		minimizes board-specific #ifdefs in drivers.
+ * @driver_data: Private pointer for driver specific info.
  * @power:	For device power management.
  * 		See Documentation/power/devices.txt for details.
  * @pm_domain:	Provide callbacks that are executed during system suspend,
@@ -685,6 +692,7 @@ struct acpi_dev_node {
  * @coherent_dma_mask: Like dma_mask, but for alloc_coherent mapping as not all
  * 		hardware supports 64-bit addresses for consistent allocations
  * 		such descriptors.
+ * @dma_pfn_offset: offset of DMA memory range relatively of RAM
  * @dma_parms:	A low level driver may set these to teach IOMMU code about
  * 		segment limitations.
  * @dma_pools:	Dma pools (if dma'ble device).
@@ -734,6 +742,8 @@ struct device {
 					   device */
 	void		*platform_data;	/* Platform specific data, device
 					   core doesn't touch it */
+	void		*driver_data;	/* Driver data, set and get with
+					   dev_set/get_drvdata */
 	struct dev_pm_info	power;
 	struct dev_pm_domain	*pm_domain;
 
@@ -750,6 +760,7 @@ struct device {
 					     not all hardware supports
 					     64 bit addresses for consistent
 					     allocations such descriptors. */
+	unsigned long	dma_pfn_offset;
 
 	struct device_dma_parameters *dma_parms;
 
@@ -822,6 +833,16 @@ static inline void set_dev_node(struct device *dev, int node)
 {
 }
 #endif
+
+static inline void *dev_get_drvdata(const struct device *dev)
+{
+	return dev->driver_data;
+}
+
+static inline void dev_set_drvdata(struct device *dev, void *data)
+{
+	dev->driver_data = data;
+}
 
 static inline struct pm_subsys_data *dev_to_psd(struct device *dev)
 {
@@ -907,8 +928,6 @@ extern int device_move(struct device *dev, struct device *new_parent,
 extern const char *device_get_devnode(struct device *dev,
 				      umode_t *mode, kuid_t *uid, kgid_t *gid,
 				      const char **tmp);
-extern void *dev_get_drvdata(const struct device *dev);
-extern int dev_set_drvdata(struct device *dev, void *data);
 
 static inline bool device_supports_offline(struct device *dev)
 {

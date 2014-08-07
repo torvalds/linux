@@ -157,7 +157,7 @@ static void ax_reset_8390(struct net_device *dev)
 
 	/* This check _should_not_ be necessary, omit eventually. */
 	while ((ei_inb(addr + EN0_ISR) & ENISR_RESET) == 0) {
-		if (jiffies - reset_start_time > 2 * HZ / 100) {
+		if (time_after(jiffies, reset_start_time + 2 * HZ / 100)) {
 			netdev_warn(dev, "%s: did not complete.\n", __func__);
 			break;
 		}
@@ -293,7 +293,7 @@ static void ax_block_output(struct net_device *dev, int count,
 	dma_start = jiffies;
 
 	while ((ei_inb(nic_base + EN0_ISR) & ENISR_RDC) == 0) {
-		if (jiffies - dma_start > 2 * HZ / 100) {		/* 20ms */
+		if (time_after(jiffies, dma_start + 2 * HZ / 100)) { /* 20ms */
 			netdev_warn(dev, "timeout waiting for Tx RDC.\n");
 			ax_reset_8390(dev);
 			ax_NS8390_init(dev, 1);
