@@ -1318,6 +1318,8 @@ int brcmf_proto_msgbuf_attach(struct brcmf_pub *drvr)
 	msgbuf->nrof_flowrings = if_msgbuf->nrof_flowrings;
 	msgbuf->flowring_dma_handle = kzalloc(msgbuf->nrof_flowrings *
 		sizeof(*msgbuf->flowring_dma_handle), GFP_ATOMIC);
+	if (!msgbuf->flowring_dma_handle)
+		goto fail;
 
 	msgbuf->rx_dataoffset = if_msgbuf->rx_dataoffset;
 	msgbuf->max_rxbufpost = if_msgbuf->max_rxbufpost;
@@ -1362,6 +1364,7 @@ fail:
 		kfree(msgbuf->flow_map);
 		kfree(msgbuf->txstatus_done_map);
 		brcmf_msgbuf_release_pktids(msgbuf);
+		kfree(msgbuf->flowring_dma_handle);
 		if (msgbuf->ioctbuf)
 			dma_free_coherent(drvr->bus_if->dev,
 					  BRCMF_TX_IOCTL_MAX_MSG_SIZE,
@@ -1391,6 +1394,7 @@ void brcmf_proto_msgbuf_detach(struct brcmf_pub *drvr)
 				  BRCMF_TX_IOCTL_MAX_MSG_SIZE,
 				  msgbuf->ioctbuf, msgbuf->ioctbuf_handle);
 		brcmf_msgbuf_release_pktids(msgbuf);
+		kfree(msgbuf->flowring_dma_handle);
 		kfree(msgbuf);
 		drvr->proto->pd = NULL;
 	}
