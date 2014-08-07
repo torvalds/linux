@@ -21,7 +21,7 @@
 		rockchip,usb_irq_wakeup;
 	};
 
-	 pwm_regulator1 {
+	pwm_regulator1:pwm-regulator1 {
 		compatible = "rockchip_pwm_regulator";
 		pwms = <&pwm1 0 25000>;
 		rockchip,pwm_id= <1>;
@@ -30,8 +30,8 @@
 		rockchip,pwm_min_voltage= <950000>;
 		rockchip,pwm_max_voltage= <1450000>;
 		rockchip,pwm_suspend_voltage= <1250000>;
-		rockchip,pwm_coefficient= <475>;
-		status = "okay";
+		rockchip,pwm_coefficient= <550>;
+		status = "disabled";
 		regulators {
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -46,7 +46,7 @@
 		};
 	};
 
-	 pwm_regulator2 {
+	pwm_regulator2:pwm-regulator2 {
 		compatible = "rockchip_pwm_regulator";
 		pwms = <&pwm2 0 25000>;
 		rockchip,pwm_id= <2>;
@@ -55,8 +55,8 @@
 		rockchip,pwm_min_voltage= <950000>;
 		rockchip,pwm_max_voltage= <1450000>;
 		rockchip,pwm_suspend_voltage= <1250000>;
-		rockchip,pwm_coefficient= <475>;
-		status = "okay";
+		rockchip,pwm_coefficient= <550>;
+		status = "disabled";
 		regulators {
 			#address-cells = <1>;
 			#size-cells = <0>;

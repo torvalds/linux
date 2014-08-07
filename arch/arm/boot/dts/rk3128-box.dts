@@ -4,3 +4,81 @@
 	 compatible = "rockchip,rk3128";
 };
 
+
+&clk_core_dvfs_table {
+	operating-points = <
+		/* KHz    uV */
+		/*408000 1250000
+		600000 1250000
+		696000 1250000
+		*/
+		816000 1250000
+		1008000 1250000
+		>;
+	status="okay";
+};
+
+&clk_gpu_dvfs_table {
+	operating-points = <
+		/* KHz    uV */
+		200000 1250000
+		300000 1250000
+		>;
+	status="okay";
+};
+
+&clk_ddr_dvfs_table {
+	operating-points = <
+		/* KHz    uV */
+		200000 950000
+		300000 950000
+		400000 1000000
+		533000 1050000
+		>;
+
+	freq-table = <
+		/*status		freq(KHz)*/
+		SYS_STATUS_NORMAL	400000
+		SYS_STATUS_SUSPEND	200000
+		SYS_STATUS_VIDEO_1080P  240000
+		SYS_STATUS_VIDEO_4K     400000
+		SYS_STATUS_PERFORMANCE  528000
+		SYS_STATUS_DUALVIEW	400000
+		SYS_STATUS_BOOST	324000
+		SYS_STATUS_ISP		533000
+		>;
+	auto-freq-table = <
+		240000
+		324000
+		396000
+		528000
+		>;
+	auto-freq=<0>;
+	status="disable";
+};
+
+&pwm_regulator1 {
+	status = "okay";
+};
+
+&pwm_regulator2 {
+	status = "okay";
+};
+
+&pwm1 {
+	status = "okay";
+};
+
+&pwm2 {
+	status = "okay";
+};
+
+&lcdc {
+	status = "okay";
+};
+
+&i2c2 {
+	status = "disabled";
+};
+
+
