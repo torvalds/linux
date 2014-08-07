@@ -46,31 +46,27 @@
 #define AD7291_VOLTAGE_ALERT_STATUS	0x1F
 #define AD7291_T_ALERT_STATUS		0x20
 
+#define AD7291_BITS			12
 #define AD7291_VOLTAGE_LIMIT_COUNT	8
 
 
 /*
  * AD7291 command
  */
-#define AD7291_AUTOCYCLE		(1 << 0)
-#define AD7291_RESET			(1 << 1)
-#define AD7291_ALERT_CLEAR		(1 << 2)
-#define AD7291_ALERT_POLARITY		(1 << 3)
-#define AD7291_EXT_REF			(1 << 4)
-#define AD7291_NOISE_DELAY		(1 << 5)
-#define AD7291_T_SENSE_MASK		(1 << 7)
-#define AD7291_VOLTAGE_MASK		0xFF00
-#define AD7291_VOLTAGE_OFFSET		0x8
+#define AD7291_AUTOCYCLE		BIT(0)
+#define AD7291_RESET			BIT(1)
+#define AD7291_ALERT_CLEAR		BIT(2)
+#define AD7291_ALERT_POLARITY		BIT(3)
+#define AD7291_EXT_REF			BIT(4)
+#define AD7291_NOISE_DELAY		BIT(5)
+#define AD7291_T_SENSE_MASK		BIT(7)
+#define AD7291_VOLTAGE_MASK		GENMASK(15, 8)
+#define AD7291_VOLTAGE_OFFSET		8
 
 /*
  * AD7291 value masks
  */
-#define AD7291_CHANNEL_MASK		0xF000
-#define AD7291_BITS			12
-#define AD7291_VALUE_MASK		0xFFF
-#define AD7291_T_VALUE_SIGN		0x400
-#define AD7291_T_VALUE_FLOAT_OFFSET	2
-#define AD7291_T_VALUE_FLOAT_MASK	0x2
+#define AD7291_VALUE_MASK		GENMASK(11, 0)
 
 struct ad7291_chip_info {
 	struct i2c_client	*client;
@@ -172,7 +168,7 @@ static unsigned int ad7291_threshold_reg(const struct iio_chan_spec *chan,
 		offset = chan->channel;
 		break;
 	case IIO_TEMP:
-		offset = 8;
+		offset = AD7291_VOLTAGE_OFFSET;
 		break;
 	default:
 	    return 0;
@@ -251,7 +247,7 @@ static int ad7291_read_event_config(struct iio_dev *indio_dev,
 
 	switch (chan->type) {
 	case IIO_VOLTAGE:
-		if (chip->c_mask & (1 << (15 - chan->channel)))
+		if (chip->c_mask & BIT(15 - chan->channel))
 			return 1;
 		else
 			return 0;
@@ -336,7 +332,7 @@ static int ad7291_read_raw(struct iio_dev *indio_dev,
 			}
 			/* Enable this channel alone */
 			regval = chip->command & (~AD7291_VOLTAGE_MASK);
-			regval |= 1 << (15 - chan->channel);
+			regval |= BIT(15 - chan->channel);
 			ret = ad7291_i2c_write(chip, AD7291_COMMAND, regval);
 			if (ret < 0) {
 				mutex_unlock(&chip->state_lock);
