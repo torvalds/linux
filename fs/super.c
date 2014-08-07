@@ -702,11 +702,21 @@ int do_remount_sb(struct super_block *sb, int flags, void *data, int force)
 		return -EACCES;
 #endif
 
-	if (flags & MS_RDONLY)
-		acct_auto_close(&sb->s_pins);
-	shrink_dcache_sb(sb);
-
 	remount_ro = (flags & MS_RDONLY) && !(sb->s_flags & MS_RDONLY);
+
+	if (remount_ro) {
+		if (sb->s_pins.first) {
+			up_write(&sb->s_umount);
+			acct_auto_close(&sb->s_pins);
+			down_write(&sb->s_umount);
+			if (!sb->s_root)
+				return 0;
+			if (sb->s_writers.frozen != SB_UNFROZEN)
+				return -EBUSY;
+			remount_ro = (flags & MS_RDONLY) && !(sb->s_flags & MS_RDONLY);
+		}
+	}
+	shrink_dcache_sb(sb);
 
 	/* If we are remounting RDONLY and current sb is read/write,
 	   make sure there are no rw files opened */
