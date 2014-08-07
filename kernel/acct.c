@@ -79,15 +79,25 @@ int acct_parm[3] = {4, 2, 30};
 static void do_acct_process(struct bsd_acct_struct *acct);
 
 struct bsd_acct_struct {
-	long			count;
-	struct hlist_node	s_list;
-	struct hlist_node	m_list;
+	atomic_long_t		count;
+	union {
+		struct {
+			struct hlist_node	s_list;
+			struct hlist_node	m_list;
+		};
+		struct rcu_head rcu;
+	};
 	struct mutex		lock;
 	int			active;
 	unsigned long		needcheck;
 	struct file		*file;
 	struct pid_namespace	*ns;
 };
+
+static void acct_free_rcu(struct rcu_head *head)
+{
+	kfree(container_of(head, struct bsd_acct_struct, rcu));
+}
 
 static DEFINE_SPINLOCK(acct_lock);
 
@@ -128,22 +138,22 @@ out:
 
 static void acct_put(struct bsd_acct_struct *p)
 {
-	spin_lock(&acct_lock);
-	if (!--p->count)
-		kfree(p);
-	spin_unlock(&acct_lock);
+	if (atomic_long_dec_and_test(&p->count))
+		call_rcu(&p->rcu, acct_free_rcu);
 }
 
 static struct bsd_acct_struct *__acct_get(struct bsd_acct_struct *res)
 {
-	res->count++;
-	spin_unlock(&acct_lock);
+	if (!atomic_long_inc_not_zero(&res->count)) {
+		rcu_read_unlock();
+		cpu_relax();
+		return NULL;
+	}
+	rcu_read_unlock();
 	mutex_lock(&res->lock);
 	if (!res->ns) {
 		mutex_unlock(&res->lock);
-		spin_lock(&acct_lock);
-		if (!--res->count)
-			kfree(res);
+		acct_put(res);
 		return NULL;
 	}
 	return res;
@@ -152,13 +162,15 @@ static struct bsd_acct_struct *__acct_get(struct bsd_acct_struct *res)
 static struct bsd_acct_struct *acct_get(struct pid_namespace *ns)
 {
 	struct bsd_acct_struct *res;
-	spin_lock(&acct_lock);
 again:
-	if (!ns->bacct) {
-		spin_unlock(&acct_lock);
+	smp_rmb();
+	rcu_read_lock();
+	res = ACCESS_ONCE(ns->bacct);
+	if (!res) {
+		rcu_read_unlock();
 		return NULL;
 	}
-	res = __acct_get(ns->bacct);
+	res = __acct_get(res);
 	if (!res)
 		goto again;
 	return res;
@@ -170,26 +182,27 @@ static void acct_kill(struct bsd_acct_struct *acct,
 	if (acct) {
 		struct file *file = acct->file;
 		struct pid_namespace *ns = acct->ns;
+		do_acct_process(acct);
+		mnt_unpin(file->f_path.mnt);
+		filp_close(file, NULL);
 		spin_lock(&acct_lock);
 		hlist_del(&acct->m_list);
 		hlist_del(&acct->s_list);
-		mnt_unpin(file->f_path.mnt);
 		spin_unlock(&acct_lock);
-		do_acct_process(acct);
-		filp_close(file, NULL);
-		spin_lock(&acct_lock);
 		ns->bacct = new;
 		if (new) {
 			struct vfsmount *m = new->file->f_path.mnt;
 			mnt_pin(m);
+			spin_lock(&acct_lock);
 			hlist_add_head(&new->s_list, &m->mnt_sb->s_pins);
 			hlist_add_head(&new->m_list, &real_mount(m)->mnt_pins);
+			spin_unlock(&acct_lock);
+			mutex_unlock(&new->lock);
 		}
 		acct->ns = NULL;
+		atomic_long_dec(&acct->count);
 		mutex_unlock(&acct->lock);
-		if (!(acct->count -= 2))
-			kfree(acct);
-		spin_unlock(&acct_lock);
+		acct_put(acct);
 	}
 }
 
@@ -223,7 +236,7 @@ static int acct_on(struct filename *pathname)
 		return -EIO;
 	}
 
-	acct->count = 1;
+	atomic_long_set(&acct->count, 1);
 	acct->file = file;
 	acct->needcheck = jiffies;
 	acct->ns = ns;
@@ -231,15 +244,17 @@ static int acct_on(struct filename *pathname)
 	mnt = file->f_path.mnt;
 
 	old = acct_get(ns);
+	mutex_lock_nested(&acct->lock, 1);	/* nobody has seen it yet */
 	if (old) {
 		acct_kill(old, acct);
 	} else {
-		spin_lock(&acct_lock);
 		ns->bacct = acct;
+		spin_lock(&acct_lock);
 		mnt_pin(mnt);
 		hlist_add_head(&acct->s_list, &mnt->mnt_sb->s_pins);
 		hlist_add_head(&acct->m_list, &real_mount(mnt)->mnt_pins);
 		spin_unlock(&acct_lock);
+		mutex_unlock(&acct->lock);
 	}
 	mntput(mnt); /* it's pinned, now give up active reference */
 	return 0;
@@ -282,28 +297,32 @@ SYSCALL_DEFINE1(acct, const char __user *, name)
 
 void acct_auto_close_mnt(struct hlist_head *list)
 {
+	rcu_read_lock();
 	while (1) {
-		spin_lock(&acct_lock);
-		if (!list->first)
+		struct hlist_node *p = ACCESS_ONCE(list->first);
+		if (!p)
 			break;
-		acct_kill(__acct_get(hlist_entry(list->first,
+		acct_kill(__acct_get(hlist_entry(p,
 						 struct bsd_acct_struct,
 						 m_list)), NULL);
+		rcu_read_lock();
 	}
-	spin_unlock(&acct_lock);
+	rcu_read_unlock();
 }
 
 void acct_auto_close(struct hlist_head *list)
 {
+	rcu_read_lock();
 	while (1) {
-		spin_lock(&acct_lock);
-		if (!list->first)
+		struct hlist_node *p = ACCESS_ONCE(list->first);
+		if (!p)
 			break;
-		acct_kill(__acct_get(hlist_entry(list->first,
+		acct_kill(__acct_get(hlist_entry(p,
 						 struct bsd_acct_struct,
 						 s_list)), NULL);
+		rcu_read_lock();
 	}
-	spin_unlock(&acct_lock);
+	rcu_read_unlock();
 }
 
 void acct_exit_ns(struct pid_namespace *ns)
