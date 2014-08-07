@@ -1435,10 +1435,8 @@ register_fail:
 	unmap_group_regs(priv);
 	gfar_free_rx_queues(priv);
 	gfar_free_tx_queues(priv);
-	if (priv->phy_node)
-		of_node_put(priv->phy_node);
-	if (priv->tbi_node)
-		of_node_put(priv->tbi_node);
+	of_node_put(priv->phy_node);
+	of_node_put(priv->tbi_node);
 	free_gfar_dev(priv);
 	return err;
 }
@@ -1447,10 +1445,8 @@ static int gfar_remove(struct platform_device *ofdev)
 {
 	struct gfar_private *priv = platform_get_drvdata(ofdev);
 
-	if (priv->phy_node)
-		of_node_put(priv->phy_node);
-	if (priv->tbi_node)
-		of_node_put(priv->tbi_node);
+	of_node_put(priv->phy_node);
+	of_node_put(priv->tbi_node);
 
 	unregister_netdev(priv->ndev);
 	unmap_group_regs(priv);
