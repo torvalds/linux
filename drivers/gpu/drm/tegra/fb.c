@@ -46,14 +46,15 @@ bool tegra_fb_is_bottom_up(struct drm_framebuffer *framebuffer)
 	return false;
 }
 
-bool tegra_fb_is_tiled(struct drm_framebuffer *framebuffer)
+int tegra_fb_get_tiling(struct drm_framebuffer *framebuffer,
+			struct tegra_bo_tiling *tiling)
 {
 	struct tegra_fb *fb = to_tegra_fb(framebuffer);
 
-	if (fb->planes[0]->flags & TEGRA_BO_TILED)
-		return true;
+	/* TODO: handle YUV formats? */
+	*tiling = fb->planes[0]->tiling;
 
-	return false;
+	return 0;
 }
 
 static void tegra_fb_destroy(struct drm_framebuffer *framebuffer)
@@ -193,6 +194,7 @@ static int tegra_fbdev_probe(struct drm_fb_helper *helper,
 			     struct drm_fb_helper_surface_size *sizes)
 {
 	struct tegra_fbdev *fbdev = to_tegra_fbdev(helper);
+	struct tegra_drm *tegra = helper->dev->dev_private;
 	struct drm_device *drm = helper->dev;
 	struct drm_mode_fb_cmd2 cmd = { 0 };
 	unsigned int bytes_per_pixel;
@@ -207,7 +209,8 @@ static int tegra_fbdev_probe(struct drm_fb_helper *helper,
 
 	cmd.width = sizes->surface_width;
 	cmd.height = sizes->surface_height;
-	cmd.pitches[0] = sizes->surface_width * bytes_per_pixel;
+	cmd.pitches[0] = round_up(sizes->surface_width * bytes_per_pixel,
+				  tegra->pitch_align);
 	cmd.pixel_format = drm_mode_legacy_fb_format(sizes->surface_bpp,
 						     sizes->surface_depth);
 
