@@ -1254,6 +1254,7 @@ struct eeh_pe *eeh_iommu_group_to_pe(struct iommu_group *group)
 
 	return edev->pe;
 }
+EXPORT_SYMBOL_GPL(eeh_iommu_group_to_pe);
 
 #endif /* CONFIG_IOMMU_API */
 
