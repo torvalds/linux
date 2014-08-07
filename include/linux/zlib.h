@@ -493,64 +493,6 @@ extern int deflateInit2 (z_streamp strm,
    method). msg is set to null if there is no error message.  deflateInit2 does
    not perform any compression: this will be done by deflate().
 */
-                            
-#if 0
-extern int zlib_deflateSetDictionary (z_streamp strm,
-						     const Byte *dictionary,
-						     uInt  dictLength);
-#endif
-/*
-     Initializes the compression dictionary from the given byte sequence
-   without producing any compressed output. This function must be called
-   immediately after deflateInit, deflateInit2 or deflateReset, before any
-   call of deflate. The compressor and decompressor must use exactly the same
-   dictionary (see inflateSetDictionary).
-
-     The dictionary should consist of strings (byte sequences) that are likely
-   to be encountered later in the data to be compressed, with the most commonly
-   used strings preferably put towards the end of the dictionary. Using a
-   dictionary is most useful when the data to be compressed is short and can be
-   predicted with good accuracy; the data can then be compressed better than
-   with the default empty dictionary.
-
-     Depending on the size of the compression data structures selected by
-   deflateInit or deflateInit2, a part of the dictionary may in effect be
-   discarded, for example if the dictionary is larger than the window size in
-   deflate or deflate2. Thus the strings most likely to be useful should be
-   put at the end of the dictionary, not at the front.
-
-     Upon return of this function, strm->adler is set to the Adler32 value
-   of the dictionary; the decompressor may later use this value to determine
-   which dictionary has been used by the compressor. (The Adler32 value
-   applies to the whole dictionary even if only a subset of the dictionary is
-   actually used by the compressor.)
-
-     deflateSetDictionary returns Z_OK if success, or Z_STREAM_ERROR if a
-   parameter is invalid (such as NULL dictionary) or the stream state is
-   inconsistent (for example if deflate has already been called for this stream
-   or if the compression method is bsort). deflateSetDictionary does not
-   perform any compression: this will be done by deflate().
-*/
-
-#if 0
-extern int zlib_deflateCopy (z_streamp dest, z_streamp source);
-#endif
-
-/*
-     Sets the destination stream as a complete copy of the source stream.
-
-     This function can be useful when several compression strategies will be
-   tried, for example when there are several ways of pre-processing the input
-   data with a filter. The streams that will be discarded should then be freed
-   by calling deflateEnd.  Note that deflateCopy duplicates the internal
-   compression state which can be quite large, so this strategy is slow and
-   can consume lots of memory.
-
-     deflateCopy returns Z_OK if success, Z_MEM_ERROR if there was not
-   enough memory, Z_STREAM_ERROR if the source stream state was inconsistent
-   (such as zalloc being NULL). msg is left unchanged in both source and
-   destination.
-*/
 
 extern int zlib_deflateReset (z_streamp strm);
 /*
@@ -567,27 +509,6 @@ static inline unsigned long deflateBound(unsigned long s)
 {
 	return s + ((s + 7) >> 3) + ((s + 63) >> 6) + 11;
 }
-
-#if 0
-extern int zlib_deflateParams (z_streamp strm, int level, int strategy);
-#endif
-/*
-     Dynamically update the compression level and compression strategy.  The
-   interpretation of level and strategy is as in deflateInit2.  This can be
-   used to switch between compression and straight copy of the input data, or
-   to switch to a different kind of input data requiring a different
-   strategy. If the compression level is changed, the input available so far
-   is compressed with the old level (and may be flushed); the new level will
-   take effect only at the next call of deflate().
-
-     Before the call of deflateParams, the stream state must be set as for
-   a call of deflate(), since the currently available input may have to
-   be compressed and flushed. In particular, strm->avail_out must be non-zero.
-
-     deflateParams returns Z_OK if success, Z_STREAM_ERROR if the source
-   stream state was inconsistent or if a parameter was invalid, Z_BUF_ERROR
-   if strm->avail_out was zero.
-*/
 
 /*   
 extern int inflateInit2 (z_streamp strm, int  windowBits);
@@ -629,45 +550,6 @@ extern int inflateInit2 (z_streamp strm, int  windowBits);
    any decompression apart from reading the zlib header if present: this will
    be done by inflate(). (So next_in and avail_in may be modified, but next_out
    and avail_out are unchanged.)
-*/
-
-extern int zlib_inflateSetDictionary (z_streamp strm,
-						     const Byte *dictionary,
-						     uInt  dictLength);
-/*
-     Initializes the decompression dictionary from the given uncompressed byte
-   sequence. This function must be called immediately after a call of inflate,
-   if that call returned Z_NEED_DICT. The dictionary chosen by the compressor
-   can be determined from the adler32 value returned by that call of inflate.
-   The compressor and decompressor must use exactly the same dictionary (see
-   deflateSetDictionary).  For raw inflate, this function can be called
-   immediately after inflateInit2() or inflateReset() and before any call of
-   inflate() to set the dictionary.  The application must insure that the
-   dictionary that was used for compression is provided.
-
-     inflateSetDictionary returns Z_OK if success, Z_STREAM_ERROR if a
-   parameter is invalid (such as NULL dictionary) or the stream state is
-   inconsistent, Z_DATA_ERROR if the given dictionary doesn't match the
-   expected one (incorrect adler32 value). inflateSetDictionary does not
-   perform any decompression: this will be done by subsequent calls of
-   inflate().
-*/
-
-#if 0
-extern int zlib_inflateSync (z_streamp strm);
-#endif
-/* 
-    Skips invalid compressed data until a full flush point (see above the
-  description of deflate with Z_FULL_FLUSH) can be found, or until all
-  available input is skipped. No output is provided.
-
-    inflateSync returns Z_OK if a full flush point has been found, Z_BUF_ERROR
-  if no more input was provided, Z_DATA_ERROR if no flush point has been found,
-  or Z_STREAM_ERROR if the stream structure was inconsistent. In the success
-  case, the application may save the current current value of total_in which
-  indicates where valid compressed data was found. In the error case, the
-  application may repeatedly call inflateSync, providing more input each time,
-  until success or end of the input data.
 */
 
 extern int zlib_inflateReset (z_streamp strm);

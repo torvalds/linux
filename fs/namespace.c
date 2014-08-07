@@ -798,7 +798,7 @@ static void commit_tree(struct mount *mnt, struct mount *shadows)
 	list_splice(&head, n->list.prev);
 
 	if (shadows)
-		hlist_add_after_rcu(&shadows->mnt_hash, &mnt->mnt_hash);
+		hlist_add_behind_rcu(&mnt->mnt_hash, &shadows->mnt_hash);
 	else
 		hlist_add_head_rcu(&mnt->mnt_hash,
 				m_hash(&parent->mnt, mnt->mnt_mountpoint));
