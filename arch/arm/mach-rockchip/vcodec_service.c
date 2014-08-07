@@ -873,7 +873,12 @@ static void reg_deinit(struct vpu_service_info *pservice, vpu_reg *reg)
 	// release memory region attach to this registers table.
 	if (pservice->mmu_dev) {
 		list_for_each_entry_safe(mem_region, n, &reg->mem_region_list, reg_lnk) {
-			ion_unmap_iommu(pservice->dev, pservice->ion_client, mem_region->hdl);
+			/* do not unmap iommu manually,
+			   unmap will proccess when memory release */
+			/*ion_unmap_iommu(pservice->dev,
+					pservice->ion_client,
+					mem_region->hdl);
+			vcodec_exit_mode();*/
 			ion_free(pservice->ion_client, mem_region->hdl);
 			list_del_init(&mem_region->reg_lnk);
 			kfree(mem_region);
@@ -1453,7 +1458,9 @@ static int vcodec_probe(struct platform_device *pdev)
     struct vpu_service_info *pservice = devm_kzalloc(dev, sizeof(struct vpu_service_info), GFP_KERNEL);
     char *prop = (char*)dev_name(dev);
 #if defined(CONFIG_VCODEC_MMU)
-    char mmu_dev_dts_name[40];
+	u32 iommu_en = 0;
+	char mmu_dev_dts_name[40];
+	of_property_read_u32(np, "iommu_enabled", &iommu_en);
 #endif
 
     pr_info("probe device %s\n", dev_name(dev));
@@ -1605,26 +1612,27 @@ static int vcodec_probe(struct platform_device *pdev)
 #endif
 
 #if defined(CONFIG_VCODEC_MMU)
-    pservice->ion_client = rockchip_ion_client_create("vpu");
-    if (IS_ERR(pservice->ion_client)) {
-        dev_err(&pdev->dev, "failed to create ion client for vcodec");
-        return PTR_ERR(pservice->ion_client);
-    } else {
-        dev_info(&pdev->dev, "vcodec ion client create success!\n");
-    }
-    
-    if (pservice->hw_info->hw_id == HEVC_ID) {
-        sprintf(mmu_dev_dts_name, "iommu,hevc_mmu");
-    } else {
-        sprintf(mmu_dev_dts_name, "iommu,vpu_mmu");
-    }
-    
-    pservice->mmu_dev = rockchip_get_sysmmu_device_by_compatible(mmu_dev_dts_name);
-    
-    if (pservice->mmu_dev) {
-        platform_set_sysmmu(pservice->mmu_dev, pservice->dev);
-        iovmm_activate(pservice->dev);
-    }
+	if (iommu_en) {
+		pservice->ion_client = rockchip_ion_client_create("vpu");
+		if (IS_ERR(pservice->ion_client)) {
+			dev_err(&pdev->dev, "failed to create ion client for vcodec");
+			return PTR_ERR(pservice->ion_client);
+		} else {
+			dev_info(&pdev->dev, "vcodec ion client create success!\n");
+		}
+
+		if (pservice->hw_info->hw_id == HEVC_ID)
+			sprintf(mmu_dev_dts_name, "iommu,hevc_mmu");
+		else
+			sprintf(mmu_dev_dts_name, "iommu,vpu_mmu");
+
+		pservice->mmu_dev = rockchip_get_sysmmu_device_by_compatible(mmu_dev_dts_name);
+
+		if (pservice->mmu_dev) {
+			platform_set_sysmmu(pservice->mmu_dev, pservice->dev);
+			iovmm_activate(pservice->dev);
+		}
+	}
 #endif
 
     vpu_service_power_off(pservice);
