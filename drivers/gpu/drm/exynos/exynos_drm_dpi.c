@@ -125,14 +125,18 @@ static int exynos_dpi_create_connector(struct exynos_drm_display *display,
 
 static void exynos_dpi_poweron(struct exynos_dpi *ctx)
 {
-	if (ctx->panel)
+	if (ctx->panel) {
+		drm_panel_prepare(ctx->panel);
 		drm_panel_enable(ctx->panel);
+	}
 }
 
 static void exynos_dpi_poweroff(struct exynos_dpi *ctx)
 {
-	if (ctx->panel)
+	if (ctx->panel) {
 		drm_panel_disable(ctx->panel);
+		drm_panel_unprepare(ctx->panel);
+	}
 }
 
 static void exynos_dpi_dpms(struct exynos_drm_display *display, int mode)

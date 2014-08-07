@@ -1,0 +1,7 @@
+InnoLux 15.6" WXGA TFT LCD panel
+
+Required properties:
+- compatible: should be "innolux,n156bge-l21"
+
+This binding is compatible with the simple-panel binding, which is specified
+in simple-panel.txt in this directory.
