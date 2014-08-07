@@ -124,7 +124,7 @@ nvc0_software_cclass = {
 	.base.handle = NV_ENGCTX(SW, 0xc0),
 	.base.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = nv50_software_context_ctor,
-		.dtor = _nouveau_software_context_dtor,
+		.dtor = nv50_software_context_dtor,
 		.init = _nouveau_software_context_init,
 		.fini = _nouveau_software_context_fini,
 	},
