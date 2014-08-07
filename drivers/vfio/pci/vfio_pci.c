@@ -44,6 +44,9 @@ static int vfio_pci_enable(struct vfio_pci_device *vdev)
 	u16 cmd;
 	u8 msix_pos;
 
+	/* Don't allow our initial saved state to include busmaster */
+	pci_clear_master(pdev);
+
 	ret = pci_enable_device(pdev);
 	if (ret)
 		return ret;
@@ -99,7 +102,8 @@ static void vfio_pci_disable(struct vfio_pci_device *vdev)
 	struct pci_dev *pdev = vdev->pdev;
 	int bar;
 
-	pci_disable_device(pdev);
+	/* Stop the device from further DMA */
+	pci_clear_master(pdev);
 
 	vfio_pci_set_irqs_ioctl(vdev, VFIO_IRQ_SET_DATA_NONE |
 				VFIO_IRQ_SET_ACTION_TRIGGER,
@@ -128,7 +132,7 @@ static void vfio_pci_disable(struct vfio_pci_device *vdev)
 			__func__, dev_name(&pdev->dev));
 
 		if (!vdev->reset_works)
-			return;
+			goto out;
 
 		pci_save_state(pdev);
 	}
@@ -151,6 +155,8 @@ static void vfio_pci_disable(struct vfio_pci_device *vdev)
 	}
 
 	pci_restore_state(pdev);
+out:
+	pci_disable_device(pdev);
 }
 
 static void vfio_pci_release(void *device_data)
