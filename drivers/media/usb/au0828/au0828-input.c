@@ -135,8 +135,6 @@ static int au0828_get_key_au8522(struct au0828_rc *ir)
 	/* Disable IR */
 	au8522_rc_clear(ir, 0xe0, 1 << 4);
 
-	usleep_range(45000, 46000);
-
 	/* Enable IR */
 	au8522_rc_set(ir, 0xe0, 1 << 4);
 
