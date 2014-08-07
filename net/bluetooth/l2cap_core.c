@@ -7231,7 +7231,7 @@ int l2cap_connect_ind(struct hci_dev *hdev, bdaddr_t *bdaddr)
  * global list (by passing NULL as first parameter).
  */
 static struct l2cap_chan *l2cap_global_fixed_chan(struct l2cap_chan *c,
-						  bdaddr_t *src)
+						  bdaddr_t *src, u8 link_type)
 {
 	read_lock(&chan_list_lock);
 
@@ -7246,6 +7246,10 @@ static struct l2cap_chan *l2cap_global_fixed_chan(struct l2cap_chan *c,
 		if (c->state != BT_LISTEN)
 			continue;
 		if (bacmp(&c->src, src) && bacmp(&c->src, BDADDR_ANY))
+			continue;
+		if (link_type == ACL_LINK && c->src_type != BDADDR_BREDR)
+			continue;
+		if (link_type == LE_LINK && c->src_type == BDADDR_BREDR)
 			continue;
 
 		l2cap_chan_hold(c);
@@ -7287,7 +7291,7 @@ void l2cap_connect_cfm(struct hci_conn *hcon, u8 status)
 	 * we left off, because the list lock would prevent calling the
 	 * potentially sleeping l2cap_chan_lock() function.
 	 */
-	pchan = l2cap_global_fixed_chan(NULL, &hdev->bdaddr);
+	pchan = l2cap_global_fixed_chan(NULL, &hdev->bdaddr, hcon->type);
 	while (pchan) {
 		struct l2cap_chan *chan, *next;
 
@@ -7308,7 +7312,8 @@ void l2cap_connect_cfm(struct hci_conn *hcon, u8 status)
 
 		l2cap_chan_unlock(pchan);
 next:
-		next = l2cap_global_fixed_chan(pchan, &hdev->bdaddr);
+		next = l2cap_global_fixed_chan(pchan, &hdev->bdaddr,
+					       hcon->type);
 		l2cap_chan_put(pchan);
 		pchan = next;
 	}
