@@ -1168,8 +1168,7 @@ static int smp_cmd_sign_info(struct l2cap_conn *conn, struct sk_buff *skb)
 		memcpy(csrk->val, rp->csrk, sizeof(csrk->val));
 	}
 	smp->csrk = csrk;
-	if (!(smp->remote_key_dist & SMP_DIST_SIGN))
-		smp_distribute_keys(conn);
+	smp_distribute_keys(conn);
 	hci_dev_unlock(hdev);
 
 	return 0;
