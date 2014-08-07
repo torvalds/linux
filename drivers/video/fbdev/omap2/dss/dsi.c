@@ -329,8 +329,6 @@ struct dsi_data {
 	struct mutex lock;
 	struct semaphore bus_lock;
 
-	unsigned pll_locked;
-
 	spinlock_t irq_lock;
 	struct dsi_isr_tables isr_tables;
 	/* space for a copy used by the interrupt handler */
@@ -1206,11 +1204,6 @@ static inline void dsi_enable_pll_clock(struct platform_device *dsidev,
 		clk_prepare_enable(dsi->sys_clk);
 	else
 		clk_disable_unprepare(dsi->sys_clk);
-
-	if (enable && dsi->pll_locked) {
-		if (wait_for_bit_change(dsidev, DSI_PLL_STATUS, 1, 1) != 1)
-			DSSERR("cannot lock PLL when enabling clocks\n");
-	}
 }
 
 static void _dsi_print_reset_status(struct platform_device *dsidev)
@@ -1647,8 +1640,6 @@ int dsi_pll_set_clock_div(struct platform_device *dsidev,
 		goto err;
 	}
 
-	dsi->pll_locked = 1;
-
 	l = dsi_read_reg(dsidev, DSI_PLL_CONFIGURATION2);
 	l = FLD_MOD(l, 0, 0, 0);	/* DSI_PLL_IDLE */
 	l = FLD_MOD(l, 0, 5, 5);	/* DSI_PLL_PLLLPMODE */
@@ -1739,7 +1730,6 @@ void dsi_pll_uninit(struct platform_device *dsidev, bool disconnect_lanes)
 {
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 
-	dsi->pll_locked = 0;
 	dsi_pll_power(dsidev, DSI_PLL_POWER_OFF);
 	if (disconnect_lanes) {
 		WARN_ON(!dsi->vdds_dsi_enabled);
