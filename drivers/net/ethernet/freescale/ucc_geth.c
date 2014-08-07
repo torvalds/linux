@@ -3862,8 +3862,11 @@ static int ucc_geth_probe(struct platform_device* ofdev)
 	/* Create an ethernet device instance */
 	dev = alloc_etherdev(sizeof(*ugeth));
 
-	if (dev == NULL)
+	if (dev == NULL) {
+		of_node_put(ug_info->tbi_node);
+		of_node_put(ug_info->phy_node);
 		return -ENOMEM;
+	}
 
 	ugeth = netdev_priv(dev);
 	spin_lock_init(&ugeth->lock);
@@ -3897,6 +3900,8 @@ static int ucc_geth_probe(struct platform_device* ofdev)
 			pr_err("%s: Cannot register net device, aborting\n",
 			       dev->name);
 		free_netdev(dev);
+		of_node_put(ug_info->tbi_node);
+		of_node_put(ug_info->phy_node);
 		return err;
 	}
 
@@ -3920,6 +3925,8 @@ static int ucc_geth_remove(struct platform_device* ofdev)
 	unregister_netdev(dev);
 	free_netdev(dev);
 	ucc_geth_memclean(ugeth);
+	of_node_put(ugeth->info->tbi_node);
+	of_node_put(ugeth->info->phy_node);
 
 	return 0;
 }
