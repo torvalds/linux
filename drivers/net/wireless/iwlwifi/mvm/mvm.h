@@ -719,7 +719,7 @@ struct iwl_mvm {
 	u8 last_agg_queue;
 
 	/* Indicate if device power save is allowed */
-	bool ps_disabled;
+	u8 ps_disabled; /* u8 instead of bool to ease debugfs_create_* usage */
 
 	struct ieee80211_vif __rcu *csa_vif;
 	struct ieee80211_vif __rcu *csa_tx_blocked_vif;

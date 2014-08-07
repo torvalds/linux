@@ -1447,6 +1447,9 @@ int iwl_mvm_dbgfs_register(struct iwl_mvm *mvm, struct dentry *dbgfs_dir)
 		goto err;
 #endif
 
+	if (!debugfs_create_u8("ps_disabled", S_IRUSR,
+			       mvm->debugfs_dir, &mvm->ps_disabled))
+		goto err;
 	if (!debugfs_create_blob("nvm_hw", S_IRUSR,
 				  mvm->debugfs_dir, &mvm->nvm_hw_blob))
 		goto err;
