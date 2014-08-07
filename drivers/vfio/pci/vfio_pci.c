@@ -39,6 +39,8 @@ MODULE_PARM_DESC(nointxmask,
 
 static DEFINE_MUTEX(driver_lock);
 
+static void vfio_pci_try_bus_reset(struct vfio_pci_device *vdev);
+
 static int vfio_pci_enable(struct vfio_pci_device *vdev)
 {
 	struct pci_dev *pdev = vdev->pdev;
@@ -123,6 +125,8 @@ static void vfio_pci_disable(struct vfio_pci_device *vdev)
 		vdev->barmap[bar] = NULL;
 	}
 
+	vdev->needs_reset = true;
+
 	/*
 	 * If we have saved state, restore it.  If we can reset the device,
 	 * even better.  Resetting with current state seems better than
@@ -154,11 +158,15 @@ static void vfio_pci_disable(struct vfio_pci_device *vdev)
 		if (ret)
 			pr_warn("%s: Failed to reset device %s (%d)\n",
 				__func__, dev_name(&pdev->dev), ret);
+		else
+			vdev->needs_reset = false;
 	}
 
 	pci_restore_state(pdev);
 out:
 	pci_disable_device(pdev);
+
+	vfio_pci_try_bus_reset(vdev);
 }
 
 static void vfio_pci_release(void *device_data)
@@ -922,6 +930,110 @@ static struct pci_driver vfio_pci_driver = {
 	.remove		= vfio_pci_remove,
 	.err_handler	= &vfio_err_handlers,
 };
+
+/*
+ * Test whether a reset is necessary and possible.  We mark devices as
+ * needs_reset when they are released, but don't have a function-local reset
+ * available.  If any of these exist in the affected devices, we want to do
+ * a bus/slot reset.  We also need all of the affected devices to be unused,
+ * so we abort if any device has a non-zero refcnt.  driver_lock prevents a
+ * device from being opened during the scan or unbound from vfio-pci.
+ */
+static int vfio_pci_test_bus_reset(struct pci_dev *pdev, void *data)
+{
+	bool *needs_reset = data;
+	struct pci_driver *pci_drv = ACCESS_ONCE(pdev->driver);
+	int ret = -EBUSY;
+
+	if (pci_drv == &vfio_pci_driver) {
+		struct vfio_device *device;
+		struct vfio_pci_device *vdev;
+
+		device = vfio_device_get_from_dev(&pdev->dev);
+		if (!device)
+			return ret;
+
+		vdev = vfio_device_data(device);
+		if (vdev) {
+			if (vdev->needs_reset)
+				*needs_reset = true;
+
+			if (!vdev->refcnt)
+				ret = 0;
+		}
+
+		vfio_device_put(device);
+	}
+
+	/*
+	 * TODO: vfio-core considers groups to be viable even if some devices
+	 * are attached to known drivers, like pci-stub or pcieport.  We can't
+	 * freeze devices from being unbound to those drivers like we can
+	 * here though, so it would be racy to test for them.  We also can't
+	 * use device_lock() to prevent changes as that would interfere with
+	 * PCI-core taking device_lock during bus reset.  For now, we require
+	 * devices to be bound to vfio-pci to get a bus/slot reset on release.
+	 */
+
+	return ret;
+}
+
+/* Clear needs_reset on all affected devices after successful bus/slot reset */
+static int vfio_pci_clear_needs_reset(struct pci_dev *pdev, void *data)
+{
+	struct pci_driver *pci_drv = ACCESS_ONCE(pdev->driver);
+
+	if (pci_drv == &vfio_pci_driver) {
+		struct vfio_device *device;
+		struct vfio_pci_device *vdev;
+
+		device = vfio_device_get_from_dev(&pdev->dev);
+		if (!device)
+			return 0;
+
+		vdev = vfio_device_data(device);
+		if (vdev)
+			vdev->needs_reset = false;
+
+		vfio_device_put(device);
+	}
+
+	return 0;
+}
+
+/*
+ * Attempt to do a bus/slot reset if there are devices affected by a reset for
+ * this device that are needs_reset and all of the affected devices are unused
+ * (!refcnt).  Callers of this function are required to hold driver_lock such
+ * that devices can not be unbound from vfio-pci or opened by a user while we
+ * test for and perform a bus/slot reset.
+ */
+static void vfio_pci_try_bus_reset(struct vfio_pci_device *vdev)
+{
+	bool needs_reset = false, slot = false;
+	int ret;
+
+	if (!pci_probe_reset_slot(vdev->pdev->slot))
+		slot = true;
+	else if (pci_probe_reset_bus(vdev->pdev->bus))
+		return;
+
+	if (vfio_pci_for_each_slot_or_bus(vdev->pdev,
+					  vfio_pci_test_bus_reset,
+					  &needs_reset, slot) || !needs_reset)
+		return;
+
+	if (slot)
+		ret = pci_try_reset_slot(vdev->pdev->slot);
+	else
+		ret = pci_try_reset_bus(vdev->pdev->bus);
+
+	if (ret)
+		return;
+
+	vfio_pci_for_each_slot_or_bus(vdev->pdev,
+				      vfio_pci_clear_needs_reset, NULL, slot);
+}
 
 static void __exit vfio_pci_cleanup(void)
 {
