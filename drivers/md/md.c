@@ -7376,7 +7376,7 @@ void md_do_sync(struct md_thread *thread)
 	struct mddev *mddev2;
 	unsigned int currspeed = 0,
 		 window;
-	sector_t max_sectors,j, io_sectors;
+	sector_t max_sectors,j, io_sectors, recovery_done;
 	unsigned long mark[SYNC_MARKS];
 	unsigned long update_time;
 	sector_t mark_cnt[SYNC_MARKS];
@@ -7652,7 +7652,8 @@ void md_do_sync(struct md_thread *thread)
 		 */
 		cond_resched();
 
-		currspeed = ((unsigned long)(io_sectors-mddev->resync_mark_cnt))/2
+		recovery_done = io_sectors - atomic_read(&mddev->recovery_active);
+		currspeed = ((unsigned long)(recovery_done - mddev->resync_mark_cnt))/2
 			/((jiffies-mddev->resync_mark)/HZ +1) +1;
 
 		if (currspeed > speed_min(mddev)) {
