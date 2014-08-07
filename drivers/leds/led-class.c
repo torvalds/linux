@@ -9,16 +9,17 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/init.h>
-#include <linux/list.h>
-#include <linux/spinlock.h>
-#include <linux/device.h>
-#include <linux/timer.h>
-#include <linux/err.h>
 #include <linux/ctype.h>
+#include <linux/device.h>
+#include <linux/err.h>
+#include <linux/init.h>
+#include <linux/kernel.h>
 #include <linux/leds.h>
+#include <linux/list.h>
+#include <linux/module.h>
+#include <linux/slab.h>
+#include <linux/spinlock.h>
+#include <linux/timer.h>
 #include "leds.h"
 
 static struct class *leds_class;
