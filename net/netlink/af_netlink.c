@@ -213,7 +213,7 @@ static int __netlink_deliver_tap_skb(struct sk_buff *skb,
 		nskb->protocol = htons((u16) sk->sk_protocol);
 		nskb->pkt_type = netlink_is_kernel(sk) ?
 				 PACKET_KERNEL : PACKET_USER;
-
+		skb_reset_network_header(nskb);
 		ret = dev_queue_xmit(nskb);
 		if (unlikely(ret > 0))
 			ret = net_xmit_errno(ret);
