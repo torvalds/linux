@@ -1059,12 +1059,12 @@ void ath10k_core_unregister(struct ath10k *ar)
 }
 EXPORT_SYMBOL(ath10k_core_unregister);
 
-struct ath10k *ath10k_core_create(void *hif_priv, struct device *dev,
+struct ath10k *ath10k_core_create(size_t priv_size, struct device *dev,
 				  const struct ath10k_hif_ops *hif_ops)
 {
 	struct ath10k *ar;
 
-	ar = ath10k_mac_create();
+	ar = ath10k_mac_create(priv_size);
 	if (!ar)
 		return NULL;
 
@@ -1074,7 +1074,6 @@ struct ath10k *ath10k_core_create(void *hif_priv, struct device *dev,
 	ar->p2p = !!ath10k_p2p;
 	ar->dev = dev;
 
-	ar->hif.priv = hif_priv;
 	ar->hif.ops = hif_ops;
 
 	init_completion(&ar->scan.started);

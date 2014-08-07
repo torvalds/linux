@@ -202,7 +202,7 @@ struct ath10k_pci {
 
 static inline struct ath10k_pci *ath10k_pci_priv(struct ath10k *ar)
 {
-	return ar->hif.priv;
+	return (struct ath10k_pci *)ar->drv_priv;
 }
 
 static inline u32 ath10k_pci_reg_read32(struct ath10k *ar, u32 addr)

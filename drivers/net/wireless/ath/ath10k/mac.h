@@ -26,7 +26,7 @@ struct ath10k_generic_iter {
 	int ret;
 };
 
-struct ath10k *ath10k_mac_create(void);
+struct ath10k *ath10k_mac_create(size_t priv_size);
 void ath10k_mac_destroy(struct ath10k *ar);
 int ath10k_mac_register(struct ath10k *ar);
 void ath10k_mac_unregister(struct ath10k *ar);

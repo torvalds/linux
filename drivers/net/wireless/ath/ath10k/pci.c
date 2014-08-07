@@ -2621,10 +2621,14 @@ static int ath10k_pci_probe(struct pci_dev *pdev,
 
 	ath10k_dbg(ATH10K_DBG_PCI, "pci probe\n");
 
-	ar_pci = kzalloc(sizeof(*ar_pci), GFP_KERNEL);
-	if (ar_pci == NULL)
+	ar = ath10k_core_create(sizeof(*ar_pci), &pdev->dev,
+				&ath10k_pci_hif_ops);
+	if (!ar) {
+		ath10k_err("failed to allocate core\n");
 		return -ENOMEM;
+	}
 
+	ar_pci = ath10k_pci_priv(ar);
 	ar_pci->pdev = pdev;
 	ar_pci->dev = &pdev->dev;
 
@@ -2635,20 +2639,13 @@ static int ath10k_pci_probe(struct pci_dev *pdev,
 	default:
 		ret = -ENODEV;
 		ath10k_err("Unknown device ID: %d\n", pci_dev->device);
-		goto err_ar_pci;
+		goto err_core_destroy;
 	}
 
 	if (ath10k_pci_target_ps)
 		set_bit(ATH10K_PCI_FEATURE_SOC_POWER_SAVE, ar_pci->features);
 
 	ath10k_pci_dump_features(ar_pci);
-
-	ar = ath10k_core_create(ar_pci, ar_pci->dev, &ath10k_pci_hif_ops);
-	if (!ar) {
-		ath10k_err("failed to create driver core\n");
-		ret = -EINVAL;
-		goto err_ar_pci;
-	}
 
 	ar_pci->ar = ar;
 	atomic_set(&ar_pci->keep_awake_count, 0);
@@ -2658,7 +2655,7 @@ static int ath10k_pci_probe(struct pci_dev *pdev,
 	ret = pci_enable_device(pdev);
 	if (ret) {
 		ath10k_err("failed to enable PCI device: %d\n", ret);
-		goto err_ar;
+		goto err_core_destroy;
 	}
 
 	/* Request MMIO resources */
@@ -2742,11 +2739,8 @@ err_region:
 	pci_release_region(pdev, BAR_NUM);
 err_device:
 	pci_disable_device(pdev);
-err_ar:
+err_core_destroy:
 	ath10k_core_destroy(ar);
-err_ar_pci:
-	/* call HIF PCI free here */
-	kfree(ar_pci);
 
 	return ret;
 }
@@ -2775,7 +2769,6 @@ static void ath10k_pci_remove(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 
 	ath10k_core_destroy(ar);
-	kfree(ar_pci);
 }
 
 MODULE_DEVICE_TABLE(pci, ath10k_pci_id_table);
