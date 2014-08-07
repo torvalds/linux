@@ -247,10 +247,7 @@ static int ad7291_read_event_config(struct iio_dev *indio_dev,
 
 	switch (chan->type) {
 	case IIO_VOLTAGE:
-		if (chip->c_mask & BIT(15 - chan->channel))
-			return 1;
-		else
-			return 0;
+		return !!(chip->c_mask & BIT(15 - chan->channel));
 	case IIO_TEMP:
 		/* always on */
 		return 1;
