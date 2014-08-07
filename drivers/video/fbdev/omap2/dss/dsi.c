@@ -374,7 +374,7 @@ struct dsi_data {
 #endif
 	/* DSI PLL Parameter Ranges */
 	unsigned long regm_max, regn_max;
-	unsigned long  regm_dispc_max, regm_dsi_max;
+	unsigned long  regm_hsdiv_max;
 	unsigned long  fint_min, fint_max;
 	unsigned long lpdiv_max;
 
@@ -1414,7 +1414,7 @@ bool dsi_hsdiv_calc(struct platform_device *dsidev, unsigned long pll,
 	out_max = dss_feat_get_param_max(FEAT_PARAM_DSS_FCK);
 
 	regm_start = max(DIV_ROUND_UP(pll, out_max), 1ul);
-	regm_stop = min(pll / out_min, dsi->regm_dispc_max);
+	regm_stop = min(pll / out_min, dsi->regm_hsdiv_max);
 
 	for (regm = regm_start; regm <= regm_stop; ++regm) {
 		out = pll / regm;
@@ -1477,10 +1477,10 @@ static int dsi_calc_clock_rates(struct platform_device *dsidev,
 	if (cinfo->regm == 0 || cinfo->regm > dsi->regm_max)
 		return -EINVAL;
 
-	if (cinfo->regm_hsdiv[HSDIV_DISPC] > dsi->regm_dispc_max)
+	if (cinfo->regm_hsdiv[HSDIV_DISPC] > dsi->regm_hsdiv_max)
 		return -EINVAL;
 
-	if (cinfo->regm_hsdiv[HSDIV_DSI] > dsi->regm_dsi_max)
+	if (cinfo->regm_hsdiv[HSDIV_DSI] > dsi->regm_hsdiv_max)
 		return -EINVAL;
 
 	cinfo->fint = clk_get_rate(dsi->sys_clk) / cinfo->regn;
@@ -5232,9 +5232,8 @@ static void dsi_calc_clock_param_ranges(struct platform_device *dsidev)
 
 	dsi->regn_max = dss_feat_get_param_max(FEAT_PARAM_DSIPLL_REGN);
 	dsi->regm_max = dss_feat_get_param_max(FEAT_PARAM_DSIPLL_REGM);
-	dsi->regm_dispc_max =
-		dss_feat_get_param_max(FEAT_PARAM_DSIPLL_REGM_DISPC);
-	dsi->regm_dsi_max = dss_feat_get_param_max(FEAT_PARAM_DSIPLL_REGM_DSI);
+	dsi->regm_hsdiv_max =
+		dss_feat_get_param_max(FEAT_PARAM_DSIPLL_REGM_HSDIV);
 	dsi->fint_min = dss_feat_get_param_min(FEAT_PARAM_DSIPLL_FINT);
 	dsi->fint_max = dss_feat_get_param_max(FEAT_PARAM_DSIPLL_FINT);
 	dsi->lpdiv_max = dss_feat_get_param_max(FEAT_PARAM_DSIPLL_LPDIV);
