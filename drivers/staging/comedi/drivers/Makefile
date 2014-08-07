@@ -125,6 +125,7 @@ obj-$(CONFIG_COMEDI_QUATECH_DAQP_CS)	+= quatech_daqp_cs.o
 
 # Comedi USB drivers
 obj-$(CONFIG_COMEDI_DT9812)		+= dt9812.o
+obj-$(CONFIG_COMEDI_NI_USB6501)		+= ni_usb6501.o
 obj-$(CONFIG_COMEDI_USBDUX)		+= usbdux.o
 obj-$(CONFIG_COMEDI_USBDUXFAST)		+= usbduxfast.o
 obj-$(CONFIG_COMEDI_USBDUXSIGMA)	+= usbduxsigma.o

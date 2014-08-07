@@ -1209,6 +1209,17 @@ config COMEDI_DT9812
 	  To compile this driver as a module, choose M here: the module will be
 	  called dt9812.
 
+config COMEDI_NI_USB6501
+	tristate "NI USB-6501 support"
+	---help---
+	  Enable support for the National Instruments USB-6501 module.
+
+	  The NI USB-6501 is a Full-Speed USB 2.0 (12 Mbit/s) device that
+	  provides 24 digital I/O lines channels and one 32-bit counter.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called ni_usb6501.
+
 config COMEDI_USBDUX
 	tristate "ITL USB-DUX-D support"
 	---help---
