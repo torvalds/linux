@@ -790,6 +790,7 @@ static int l2cap_sock_setsockopt(struct socket *sock, int level, int optname,
 		if (chan->scid == L2CAP_CID_ATT) {
 			if (smp_conn_security(conn->hcon, sec.level))
 				break;
+			set_bit(FLAG_PENDING_SECURITY, &chan->flags);
 			sk->sk_state = BT_CONFIG;
 			chan->state = BT_CONFIG;
 
@@ -1358,6 +1359,11 @@ static void l2cap_sock_defer_cb(struct l2cap_chan *chan)
 static void l2cap_sock_resume_cb(struct l2cap_chan *chan)
 {
 	struct sock *sk = chan->data;
+
+	if (test_and_clear_bit(FLAG_PENDING_SECURITY, &chan->flags)) {
+		sk->sk_state = BT_CONNECTED;
+		chan->state = BT_CONNECTED;
+	}
 
 	clear_bit(BT_SK_SUSPEND, &bt_sk(sk)->flags);
 	sk->sk_state_change(sk);
