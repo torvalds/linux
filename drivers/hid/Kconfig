@@ -748,12 +748,17 @@ config THRUSTMASTER_FF
 	  Rumble Force or Force Feedback Wheel.
 
 config HID_WACOM
-	tristate "Wacom Bluetooth devices support"
+	tristate "Wacom Intuos/Graphire tablet support (USB)"
 	depends on HID
-	depends on LEDS_CLASS
 	select POWER_SUPPLY
-	---help---
-	Support for Wacom Graphire Bluetooth and Intuos4 WL tablets.
+	select NEW_LEDS
+	select LEDS_CLASS
+	help
+	  Say Y here if you want to use the USB or BT version of the Wacom Intuos
+	  or Graphire tablet.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called wacom.
 
 config HID_WIIMOTE
 	tristate "Nintendo Wii / Wii U peripherals"

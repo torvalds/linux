@@ -46,6 +46,7 @@
 
 /* wacom data packet report IDs */
 #define WACOM_REPORT_PENABLED		2
+#define WACOM_REPORT_PENABLED_BT	3
 #define WACOM_REPORT_INTUOSREAD		5
 #define WACOM_REPORT_INTUOSWRITE	6
 #define WACOM_REPORT_INTUOSPAD		12
@@ -68,10 +69,12 @@
 #define WACOM_QUIRK_BBTOUCH_LOWRES	0x0002
 #define WACOM_QUIRK_NO_INPUT		0x0004
 #define WACOM_QUIRK_MONITOR		0x0008
+#define WACOM_QUIRK_BATTERY		0x0010
 
 enum {
 	PENPARTNER = 0,
 	GRAPHIRE,
+	GRAPHIRE_BT,
 	WACOM_G4,
 	PTU,
 	PL,
@@ -83,6 +86,7 @@ enum {
 	INTUOS3L,
 	INTUOS4S,
 	INTUOS4,
+	INTUOS4WL,
 	INTUOS4L,
 	INTUOS5S,
 	INTUOS5,
@@ -114,7 +118,6 @@ enum {
 
 struct wacom_features {
 	const char *name;
-	int pktlen;
 	int x_max;
 	int y_max;
 	int pressure_max;
@@ -127,8 +130,8 @@ struct wacom_features {
 	int device_type;
 	int x_phy;
 	int y_phy;
-	unsigned char unit;
-	unsigned char unitExpo;
+	unsigned unit;
+	int unitExpo;
 	int x_fuzz;
 	int y_fuzz;
 	int pressure_fuzz;
@@ -137,6 +140,9 @@ struct wacom_features {
 	unsigned touch_max;
 	int oVid;
 	int oPid;
+	int pktlen;
+	bool check_for_hid_type;
+	int hid_type;
 };
 
 struct wacom_shared {
@@ -150,16 +156,24 @@ struct wacom_shared {
 
 struct wacom_wac {
 	char name[WACOM_NAME_MAX];
-	unsigned char *data;
+	char pad_name[WACOM_NAME_MAX];
+	char bat_name[WACOM_NAME_MAX];
+	char ac_name[WACOM_NAME_MAX];
+	unsigned char data[WACOM_PKGLEN_MAX];
 	int tool[2];
 	int id[2];
 	__u32 serial[2];
 	struct wacom_features features;
 	struct wacom_shared *shared;
 	struct input_dev *input;
+	struct input_dev *pad_input;
 	int pid;
 	int battery_capacity;
 	int num_contacts_left;
+	int bat_charging;
+	int ps_connected;
+	u8 bt_features;
+	u8 bt_high_speed;
 };
 
 #endif

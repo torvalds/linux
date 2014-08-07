@@ -25,10 +25,22 @@
 #define WACOM_INTUOS_RES	100
 #define WACOM_INTUOS3_RES	200
 
-/* Scale factor relating reported contact size to logical contact area.
+/*
+ * Scale factor relating reported contact size to logical contact area.
  * 2^14/pi is a good approximation on Intuos5 and 3rd-gen Bamboo
  */
 #define WACOM_CONTACT_AREA_SCALE 2607
+
+/*
+ * Percent of battery capacity for Graphire.
+ * 8th value means AC online and show 100% capacity.
+ */
+static unsigned short batcap_gr[8] = { 1, 15, 25, 35, 50, 70, 100, 100 };
+
+/*
+ * Percent of battery capacity for Intuos4 WL, AC has a separate bit.
+ */
+static unsigned short batcap_i4[8] = { 1, 15, 30, 45, 60, 70, 85, 100 };
 
 static int wacom_penpartner_irq(struct wacom_wac *wacom)
 {
@@ -217,17 +229,13 @@ static int wacom_dtus_irq(struct wacom_wac *wacom)
 			"%s: received unknown report #%d", __func__, data[0]);
 		return 0;
 	} else if (data[0] == WACOM_REPORT_DTUSPAD) {
+		input = wacom->pad_input;
 		input_report_key(input, BTN_0, (data[1] & 0x01));
 		input_report_key(input, BTN_1, (data[1] & 0x02));
 		input_report_key(input, BTN_2, (data[1] & 0x04));
 		input_report_key(input, BTN_3, (data[1] & 0x08));
 		input_report_abs(input, ABS_MISC,
 				 data[1] & 0x0f ? PAD_DEVICE_ID : 0);
-		/*
-		 * Serial number is required when expresskeys are
-		 * reported through pen interface.
-		 */
-		input_event(input, EV_MSC, MSC_SERIAL, 0xf0);
 		return 1;
 	} else {
 		prox = data[1] & 0x80;
@@ -257,7 +265,6 @@ static int wacom_dtus_irq(struct wacom_wac *wacom)
 			wacom->id[0] = 0;
 		input_report_key(input, wacom->tool[0], prox);
 		input_report_abs(input, ABS_MISC, wacom->id[0]);
-		input_event(input, EV_MSC, MSC_SERIAL, 1);
 		return 1;
 	}
 }
@@ -267,11 +274,20 @@ static int wacom_graphire_irq(struct wacom_wac *wacom)
 	struct wacom_features *features = &wacom->features;
 	unsigned char *data = wacom->data;
 	struct input_dev *input = wacom->input;
+	struct input_dev *pad_input = wacom->pad_input;
+	int battery_capacity, ps_connected;
 	int prox;
 	int rw = 0;
 	int retval = 0;
 
-	if (data[0] != WACOM_REPORT_PENABLED) {
+	if (features->type == GRAPHIRE_BT) {
+		if (data[0] != WACOM_REPORT_PENABLED_BT) {
+			dev_dbg(input->dev.parent,
+				"%s: received unknown report #%d\n", __func__,
+				data[0]);
+			goto exit;
+		}
+	} else if (data[0] != WACOM_REPORT_PENABLED) {
 		dev_dbg(input->dev.parent,
 			"%s: received unknown report #%d\n", __func__, data[0]);
 		goto exit;
@@ -305,7 +321,12 @@ static int wacom_graphire_irq(struct wacom_wac *wacom)
 		input_report_abs(input, ABS_X, le16_to_cpup((__le16 *)&data[2]));
 		input_report_abs(input, ABS_Y, le16_to_cpup((__le16 *)&data[4]));
 		if (wacom->tool[0] != BTN_TOOL_MOUSE) {
-			input_report_abs(input, ABS_PRESSURE, data[6] | ((data[7] & 0x03) << 8));
+			if (features->type == GRAPHIRE_BT)
+				input_report_abs(input, ABS_PRESSURE, data[6] |
+					(((__u16) (data[1] & 0x08)) << 5));
+			else
+				input_report_abs(input, ABS_PRESSURE, data[6] |
+					((data[7] & 0x03) << 8));
 			input_report_key(input, BTN_TOUCH, data[1] & 0x01);
 			input_report_key(input, BTN_STYLUS, data[1] & 0x02);
 			input_report_key(input, BTN_STYLUS2, data[1] & 0x04);
@@ -316,6 +337,20 @@ static int wacom_graphire_irq(struct wacom_wac *wacom)
 					features->type == WACOM_MO) {
 				input_report_abs(input, ABS_DISTANCE, data[6] & 0x3f);
 				rw = (data[7] & 0x04) - (data[7] & 0x03);
+			} else if (features->type == GRAPHIRE_BT) {
+				/* Compute distance between mouse and tablet */
+				rw = 44 - (data[6] >> 2);
+				rw = clamp_val(rw, 0, 31);
+				input_report_abs(input, ABS_DISTANCE, rw);
+				if (((data[1] >> 5) & 3) == 2) {
+					/* Mouse with wheel */
+					input_report_key(input, BTN_MIDDLE,
+							data[1] & 0x04);
+					rw = (data[6] & 0x01) ? -1 :
+						(data[6] & 0x02) ? 1 : 0;
+				} else {
+					rw = 0;
+				}
 			} else {
 				input_report_abs(input, ABS_DISTANCE, data[7] & 0x3f);
 				rw = -(signed char)data[6];
@@ -327,7 +362,6 @@ static int wacom_graphire_irq(struct wacom_wac *wacom)
 			wacom->id[0] = 0;
 		input_report_abs(input, ABS_MISC, wacom->id[0]); /* report tool id */
 		input_report_key(input, wacom->tool[0], prox);
-		input_event(input, EV_MSC, MSC_SERIAL, 1);
 		input_sync(input); /* sync last event */
 	}
 
@@ -337,14 +371,13 @@ static int wacom_graphire_irq(struct wacom_wac *wacom)
 		prox = data[7] & 0xf8;
 		if (prox || wacom->id[1]) {
 			wacom->id[1] = PAD_DEVICE_ID;
-			input_report_key(input, BTN_BACK, (data[7] & 0x40));
-			input_report_key(input, BTN_FORWARD, (data[7] & 0x80));
+			input_report_key(pad_input, BTN_BACK, (data[7] & 0x40));
+			input_report_key(pad_input, BTN_FORWARD, (data[7] & 0x80));
 			rw = ((data[7] & 0x18) >> 3) - ((data[7] & 0x20) >> 3);
-			input_report_rel(input, REL_WHEEL, rw);
+			input_report_rel(pad_input, REL_WHEEL, rw);
 			if (!prox)
 				wacom->id[1] = 0;
-			input_report_abs(input, ABS_MISC, wacom->id[1]);
-			input_event(input, EV_MSC, MSC_SERIAL, 0xf0);
+			input_report_abs(pad_input, ABS_MISC, wacom->id[1]);
 			retval = 1;
 		}
 		break;
@@ -353,18 +386,42 @@ static int wacom_graphire_irq(struct wacom_wac *wacom)
 		prox = (data[7] & 0xf8) || data[8];
 		if (prox || wacom->id[1]) {
 			wacom->id[1] = PAD_DEVICE_ID;
-			input_report_key(input, BTN_BACK, (data[7] & 0x08));
-			input_report_key(input, BTN_LEFT, (data[7] & 0x20));
-			input_report_key(input, BTN_FORWARD, (data[7] & 0x10));
-			input_report_key(input, BTN_RIGHT, (data[7] & 0x40));
-			input_report_abs(input, ABS_WHEEL, (data[8] & 0x7f));
+			input_report_key(pad_input, BTN_BACK, (data[7] & 0x08));
+			input_report_key(pad_input, BTN_LEFT, (data[7] & 0x20));
+			input_report_key(pad_input, BTN_FORWARD, (data[7] & 0x10));
+			input_report_key(pad_input, BTN_RIGHT, (data[7] & 0x40));
+			input_report_abs(pad_input, ABS_WHEEL, (data[8] & 0x7f));
 			if (!prox)
 				wacom->id[1] = 0;
-			input_report_abs(input, ABS_MISC, wacom->id[1]);
-			input_event(input, EV_MSC, MSC_SERIAL, 0xf0);
+			input_report_abs(pad_input, ABS_MISC, wacom->id[1]);
 			retval = 1;
 		}
 		break;
+	case GRAPHIRE_BT:
+		prox = data[7] & 0x03;
+		if (prox || wacom->id[1]) {
+			wacom->id[1] = PAD_DEVICE_ID;
+			input_report_key(pad_input, BTN_0, (data[7] & 0x02));
+			input_report_key(pad_input, BTN_1, (data[7] & 0x01));
+			if (!prox)
+				wacom->id[1] = 0;
+			input_report_abs(pad_input, ABS_MISC, wacom->id[1]);
+			retval = 1;
+		}
+		break;
+	}
+
+	/* Store current battery capacity and power supply state */
+	if (features->type == GRAPHIRE_BT) {
+		rw = (data[7] >> 2 & 0x07);
+		battery_capacity = batcap_gr[rw];
+		ps_connected = rw == 7;
+		if ((wacom->battery_capacity != battery_capacity) ||
+		    (wacom->ps_connected != ps_connected)) {
+			wacom->battery_capacity = battery_capacity;
+			wacom->ps_connected = ps_connected;
+			wacom_notify_battery(wacom);
+		}
 	}
 exit:
 	return retval;
@@ -584,6 +641,7 @@ static int wacom_intuos_irq(struct wacom_wac *wacom)
 
 	/* pad packets. Works as a second tool and is always in prox */
 	if (data[0] == WACOM_REPORT_INTUOSPAD || data[0] == WACOM_REPORT_INTUOS5PAD) {
+		input = wacom->pad_input;
 		if (features->type >= INTUOS4S && features->type <= INTUOS4L) {
 			input_report_key(input, BTN_0, (data[2] & 0x01));
 			input_report_key(input, BTN_1, (data[3] & 0x01));
@@ -773,7 +831,6 @@ static int wacom_intuos_irq(struct wacom_wac *wacom)
 				input_report_abs(input, ABS_MISC, 0);
 			}
 		}
-		input_event(input, EV_MSC, MSC_SERIAL, 0xffffffff);
                 return 1;
 	}
 
@@ -899,6 +956,58 @@ static int int_dist(int x1, int y1, int x2, int y2)
 	int y = y2 - y1;
 
 	return int_sqrt(x*x + y*y);
+}
+
+static void wacom_intuos_bt_process_data(struct wacom_wac *wacom,
+		unsigned char *data)
+{
+	memcpy(wacom->data, data, 10);
+	wacom_intuos_irq(wacom);
+
+	input_sync(wacom->input);
+	if (wacom->pad_input)
+		input_sync(wacom->pad_input);
+}
+
+static int wacom_intuos_bt_irq(struct wacom_wac *wacom, size_t len)
+{
+	unsigned char data[WACOM_PKGLEN_MAX];
+	int i = 1;
+	unsigned power_raw, battery_capacity, bat_charging, ps_connected;
+
+	memcpy(data, wacom->data, len);
+
+	switch (data[0]) {
+	case 0x04:
+		wacom_intuos_bt_process_data(wacom, data + i);
+		i += 10;
+		/* fall through */
+	case 0x03:
+		wacom_intuos_bt_process_data(wacom, data + i);
+		i += 10;
+		wacom_intuos_bt_process_data(wacom, data + i);
+		i += 10;
+		power_raw = data[i];
+		bat_charging = (power_raw & 0x08) ? 1 : 0;
+		ps_connected = (power_raw & 0x10) ? 1 : 0;
+		battery_capacity = batcap_i4[power_raw & 0x07];
+		if ((wacom->battery_capacity != battery_capacity) ||
+		    (wacom->bat_charging != bat_charging) ||
+		    (wacom->ps_connected != ps_connected)) {
+			wacom->battery_capacity = battery_capacity;
+			wacom->bat_charging = bat_charging;
+			wacom->ps_connected = ps_connected;
+			wacom_notify_battery(wacom);
+		}
+
+		break;
+	default:
+		dev_dbg(wacom->input->dev.parent,
+				"Unknown report: %d,%d size:%zu\n",
+				data[0], data[1], len);
+		return 0;
+	}
+	return 0;
 }
 
 static int wacom_24hdt_irq(struct wacom_wac *wacom)
@@ -1093,7 +1202,7 @@ static int wacom_tpc_pen(struct wacom_wac *wacom)
 		input_report_key(input, BTN_STYLUS2, data[1] & 0x10);
 		input_report_abs(input, ABS_X, le16_to_cpup((__le16 *)&data[2]));
 		input_report_abs(input, ABS_Y, le16_to_cpup((__le16 *)&data[4]));
-		input_report_abs(input, ABS_PRESSURE, ((data[7] & 0x03) << 8) | data[6]);
+		input_report_abs(input, ABS_PRESSURE, ((data[7] & 0x07) << 8) | data[6]);
 		input_report_key(input, BTN_TOUCH, data[1] & 0x05);
 		input_report_key(input, wacom->tool[0], prox);
 		return 1;
@@ -1143,6 +1252,7 @@ static int wacom_bpt_touch(struct wacom_wac *wacom)
 {
 	struct wacom_features *features = &wacom->features;
 	struct input_dev *input = wacom->input;
+	struct input_dev *pad_input = wacom->pad_input;
 	unsigned char *data = wacom->data;
 	int i;
 
@@ -1177,14 +1287,12 @@ static int wacom_bpt_touch(struct wacom_wac *wacom)
 
 	input_mt_report_pointer_emulation(input, true);
 
-	input_report_key(input, BTN_LEFT, (data[1] & 0x08) != 0);
-	input_report_key(input, BTN_FORWARD, (data[1] & 0x04) != 0);
-	input_report_key(input, BTN_BACK, (data[1] & 0x02) != 0);
-	input_report_key(input, BTN_RIGHT, (data[1] & 0x01) != 0);
+	input_report_key(pad_input, BTN_LEFT, (data[1] & 0x08) != 0);
+	input_report_key(pad_input, BTN_FORWARD, (data[1] & 0x04) != 0);
+	input_report_key(pad_input, BTN_BACK, (data[1] & 0x02) != 0);
+	input_report_key(pad_input, BTN_RIGHT, (data[1] & 0x01) != 0);
 
-	input_sync(input);
-
-	return 0;
+	return 1;
 }
 
 static void wacom_bpt3_touch_msg(struct wacom_wac *wacom, unsigned char *data)
@@ -1232,7 +1340,7 @@ static void wacom_bpt3_touch_msg(struct wacom_wac *wacom, unsigned char *data)
 
 static void wacom_bpt3_button_msg(struct wacom_wac *wacom, unsigned char *data)
 {
-	struct input_dev *input = wacom->input;
+	struct input_dev *input = wacom->pad_input;
 	struct wacom_features *features = &wacom->features;
 
 	if (features->type == INTUOSHT) {
@@ -1269,9 +1377,7 @@ static int wacom_bpt3_touch(struct wacom_wac *wacom)
 	}
 	input_mt_report_pointer_emulation(input, true);
 
-	input_sync(input);
-
-	return 0;
+	return 1;
 }
 
 static int wacom_bpt_pen(struct wacom_wac *wacom)
@@ -1375,7 +1481,7 @@ static int wacom_wireless_irq(struct wacom_wac *wacom, size_t len)
 
 	connected = data[1] & 0x01;
 	if (connected) {
-		int pid, battery;
+		int pid, battery, ps_connected;
 
 		if ((wacom->shared->type == INTUOSHT) &&
 				wacom->shared->touch_max) {
@@ -1385,17 +1491,29 @@ static int wacom_wireless_irq(struct wacom_wac *wacom, size_t len)
 		}
 
 		pid = get_unaligned_be16(&data[6]);
-		battery = data[5] & 0x3f;
+		battery = (data[5] & 0x3f) * 100 / 31;
+		ps_connected = !!(data[5] & 0x80);
 		if (wacom->pid != pid) {
 			wacom->pid = pid;
 			wacom_schedule_work(wacom);
 		}
-		wacom->battery_capacity = battery;
+
+		if (wacom->shared->type &&
+		    (battery != wacom->battery_capacity ||
+		     ps_connected != wacom->ps_connected)) {
+			wacom->battery_capacity = battery;
+			wacom->ps_connected = ps_connected;
+			wacom->bat_charging = ps_connected &&
+						wacom->battery_capacity < 100;
+			wacom_notify_battery(wacom);
+		}
 	} else if (wacom->pid != 0) {
 		/* disconnected while previously connected */
 		wacom->pid = 0;
 		wacom_schedule_work(wacom);
 		wacom->battery_capacity = 0;
+		wacom->bat_charging = 0;
+		wacom->ps_connected = 0;
 	}
 
 	return 0;
@@ -1416,6 +1534,7 @@ void wacom_wac_irq(struct wacom_wac *wacom_wac, size_t len)
 
 	case WACOM_G4:
 	case GRAPHIRE:
+	case GRAPHIRE_BT:
 	case WACOM_MO:
 		sync = wacom_graphire_irq(wacom_wac);
 		break;
@@ -1448,6 +1567,10 @@ void wacom_wac_irq(struct wacom_wac *wacom_wac, size_t len)
 	case DTK:
 	case CINTIQ_HYBRID:
 		sync = wacom_intuos_irq(wacom_wac);
+		break;
+
+	case INTUOS4WL:
+		sync = wacom_intuos_bt_irq(wacom_wac, len);
 		break;
 
 	case WACOM_24HDT:
@@ -1489,8 +1612,11 @@ void wacom_wac_irq(struct wacom_wac *wacom_wac, size_t len)
 		break;
 	}
 
-	if (sync)
+	if (sync) {
 		input_sync(wacom_wac->input);
+		if (wacom_wac->pad_input)
+			input_sync(wacom_wac->pad_input);
+	}
 }
 
 static void wacom_setup_cintiq(struct wacom_wac *wacom_wac)
@@ -1565,8 +1691,10 @@ void wacom_setup_device_quirks(struct wacom_features *features)
 		features->quirks |= WACOM_QUIRK_NO_INPUT;
 
 		/* must be monitor interface if no device_type set */
-		if (!features->device_type)
+		if (!features->device_type) {
 			features->quirks |= WACOM_QUIRK_MONITOR;
+			features->quirks |= WACOM_QUIRK_BATTERY;
+		}
 	}
 }
 
@@ -1615,7 +1743,6 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 				   struct wacom_wac *wacom_wac)
 {
 	struct wacom_features *features = &wacom_wac->features;
-	int i;
 
 	input_dev->evbit[0] |= BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
 
@@ -1630,10 +1757,6 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 		/* fall through */
 
 	case WACOM_G4:
-		input_set_capability(input_dev, EV_MSC, MSC_SERIAL);
-
-		__set_bit(BTN_BACK, input_dev->keybit);
-		__set_bit(BTN_FORWARD, input_dev->keybit);
 		/* fall through */
 
 	case GRAPHIRE:
@@ -1652,62 +1775,42 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 		__set_bit(INPUT_PROP_POINTER, input_dev->propbit);
 		break;
 
+	case GRAPHIRE_BT:
+		__clear_bit(ABS_MISC, input_dev->absbit);
+		input_set_abs_params(input_dev, ABS_DISTANCE, 0,
+					      features->distance_max,
+					      0, 0);
+
+		input_set_capability(input_dev, EV_REL, REL_WHEEL);
+
+		__set_bit(BTN_LEFT, input_dev->keybit);
+		__set_bit(BTN_RIGHT, input_dev->keybit);
+		__set_bit(BTN_MIDDLE, input_dev->keybit);
+
+		__set_bit(BTN_TOOL_RUBBER, input_dev->keybit);
+		__set_bit(BTN_TOOL_PEN, input_dev->keybit);
+		__set_bit(BTN_TOOL_MOUSE, input_dev->keybit);
+		__set_bit(BTN_STYLUS, input_dev->keybit);
+		__set_bit(BTN_STYLUS2, input_dev->keybit);
+
+		__set_bit(INPUT_PROP_POINTER, input_dev->propbit);
+		break;
+
 	case WACOM_24HD:
-		__set_bit(BTN_A, input_dev->keybit);
-		__set_bit(BTN_B, input_dev->keybit);
-		__set_bit(BTN_C, input_dev->keybit);
-		__set_bit(BTN_X, input_dev->keybit);
-		__set_bit(BTN_Y, input_dev->keybit);
-		__set_bit(BTN_Z, input_dev->keybit);
-
-		for (i = 6; i < 10; i++)
-			__set_bit(BTN_0 + i, input_dev->keybit);
-
-		__set_bit(KEY_PROG1, input_dev->keybit);
-		__set_bit(KEY_PROG2, input_dev->keybit);
-		__set_bit(KEY_PROG3, input_dev->keybit);
-
 		input_set_abs_params(input_dev, ABS_Z, -900, 899, 0, 0);
 		input_set_abs_params(input_dev, ABS_THROTTLE, 0, 71, 0, 0);
 		/* fall through */
 
 	case DTK:
-		for (i = 0; i < 6; i++)
-			__set_bit(BTN_0 + i, input_dev->keybit);
-
 		__set_bit(INPUT_PROP_DIRECT, input_dev->propbit);
 
 		wacom_setup_cintiq(wacom_wac);
 		break;
 
 	case WACOM_22HD:
-		__set_bit(KEY_PROG1, input_dev->keybit);
-		__set_bit(KEY_PROG2, input_dev->keybit);
-		__set_bit(KEY_PROG3, input_dev->keybit);
-		/* fall through */
-
 	case WACOM_21UX2:
-		__set_bit(BTN_A, input_dev->keybit);
-		__set_bit(BTN_B, input_dev->keybit);
-		__set_bit(BTN_C, input_dev->keybit);
-		__set_bit(BTN_X, input_dev->keybit);
-		__set_bit(BTN_Y, input_dev->keybit);
-		__set_bit(BTN_Z, input_dev->keybit);
-		__set_bit(BTN_BASE, input_dev->keybit);
-		__set_bit(BTN_BASE2, input_dev->keybit);
-		/* fall through */
-
 	case WACOM_BEE:
-		__set_bit(BTN_8, input_dev->keybit);
-		__set_bit(BTN_9, input_dev->keybit);
-		/* fall through */
-
 	case CINTIQ:
-		for (i = 0; i < 8; i++)
-			__set_bit(BTN_0 + i, input_dev->keybit);
-
-		input_set_abs_params(input_dev, ABS_RX, 0, 4096, 0, 0);
-		input_set_abs_params(input_dev, ABS_RY, 0, 4096, 0, 0);
 		input_set_abs_params(input_dev, ABS_Z, -900, 899, 0, 0);
 
 		__set_bit(INPUT_PROP_DIRECT, input_dev->propbit);
@@ -1716,9 +1819,6 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 		break;
 
 	case WACOM_13HD:
-		for (i = 0; i < 9; i++)
-			__set_bit(BTN_0 + i, input_dev->keybit);
-
 		input_set_abs_params(input_dev, ABS_Z, -900, 899, 0, 0);
 		__set_bit(INPUT_PROP_DIRECT, input_dev->propbit);
 		wacom_setup_cintiq(wacom_wac);
@@ -1726,21 +1826,7 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 
 	case INTUOS3:
 	case INTUOS3L:
-		__set_bit(BTN_4, input_dev->keybit);
-		__set_bit(BTN_5, input_dev->keybit);
-		__set_bit(BTN_6, input_dev->keybit);
-		__set_bit(BTN_7, input_dev->keybit);
-
-		input_set_abs_params(input_dev, ABS_RY, 0, 4096, 0, 0);
-		/* fall through */
-
 	case INTUOS3S:
-		__set_bit(BTN_0, input_dev->keybit);
-		__set_bit(BTN_1, input_dev->keybit);
-		__set_bit(BTN_2, input_dev->keybit);
-		__set_bit(BTN_3, input_dev->keybit);
-
-		input_set_abs_params(input_dev, ABS_RX, 0, 4096, 0, 0);
 		input_set_abs_params(input_dev, ABS_Z, -900, 899, 0, 0);
 		/* fall through */
 
@@ -1754,20 +1840,11 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 	case INTUOS5L:
 	case INTUOSPM:
 	case INTUOSPL:
-		if (features->device_type == BTN_TOOL_PEN) {
-			__set_bit(BTN_7, input_dev->keybit);
-			__set_bit(BTN_8, input_dev->keybit);
-		}
-		/* fall through */
-
 	case INTUOS5S:
 	case INTUOSPS:
 		__set_bit(INPUT_PROP_POINTER, input_dev->propbit);
 
 		if (features->device_type == BTN_TOOL_PEN) {
-			for (i = 0; i < 7; i++)
-				__set_bit(BTN_0 + i, input_dev->keybit);
-
 			input_set_abs_params(input_dev, ABS_DISTANCE, 0,
 					      features->distance_max,
 					      0, 0);
@@ -1787,15 +1864,9 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 		break;
 
 	case INTUOS4:
+	case INTUOS4WL:
 	case INTUOS4L:
-		__set_bit(BTN_7, input_dev->keybit);
-		__set_bit(BTN_8, input_dev->keybit);
-		/* fall through */
-
 	case INTUOS4S:
-		for (i = 0; i < 7; i++)
-			__set_bit(BTN_0 + i, input_dev->keybit);
-
 		input_set_abs_params(input_dev, ABS_Z, -900, 899, 0, 0);
 		wacom_setup_intuos(wacom_wac);
 
@@ -1839,11 +1910,6 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 	case DTUS:
 	case PL:
 	case DTU:
-		if (features->type == DTUS) {
-			input_set_capability(input_dev, EV_MSC, MSC_SERIAL);
-			for (i = 0; i < 4; i++)
-				__set_bit(BTN_0 + i, input_dev->keybit);
-		}
 		__set_bit(BTN_TOOL_PEN, input_dev->keybit);
 		__set_bit(BTN_TOOL_RUBBER, input_dev->keybit);
 		__set_bit(BTN_STYLUS, input_dev->keybit);
@@ -1876,11 +1942,6 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 		__clear_bit(ABS_MISC, input_dev->absbit);
 
 		if (features->device_type == BTN_TOOL_FINGER) {
-
-			__set_bit(BTN_LEFT, input_dev->keybit);
-			__set_bit(BTN_FORWARD, input_dev->keybit);
-			__set_bit(BTN_BACK, input_dev->keybit);
-			__set_bit(BTN_RIGHT, input_dev->keybit);
 
 			if (features->touch_max) {
 				/* touch interface */
@@ -1919,17 +1980,6 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 		break;
 
 	case CINTIQ_HYBRID:
-		__set_bit(BTN_1, input_dev->keybit);
-		__set_bit(BTN_2, input_dev->keybit);
-		__set_bit(BTN_3, input_dev->keybit);
-		__set_bit(BTN_4, input_dev->keybit);
-
-		__set_bit(BTN_5, input_dev->keybit);
-		__set_bit(BTN_6, input_dev->keybit);
-		__set_bit(BTN_7, input_dev->keybit);
-		__set_bit(BTN_8, input_dev->keybit);
-		__set_bit(BTN_0, input_dev->keybit);
-
 		input_set_abs_params(input_dev, ABS_Z, -900, 899, 0, 0);
 		__set_bit(INPUT_PROP_DIRECT, input_dev->propbit);
 
@@ -1939,429 +1989,620 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 	return 0;
 }
 
+int wacom_setup_pad_input_capabilities(struct input_dev *input_dev,
+				   struct wacom_wac *wacom_wac)
+{
+	struct wacom_features *features = &wacom_wac->features;
+	int i;
+
+	input_dev->evbit[0] |= BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
+
+	/* kept for making legacy xf86-input-wacom working with the wheels */
+	__set_bit(ABS_MISC, input_dev->absbit);
+
+	/* kept for making legacy xf86-input-wacom accepting the pad */
+	input_set_abs_params(input_dev, ABS_X, 0, 1, 0, 0);
+	input_set_abs_params(input_dev, ABS_Y, 0, 1, 0, 0);
+
+	switch (features->type) {
+	case GRAPHIRE_BT:
+		__set_bit(BTN_0, input_dev->keybit);
+		__set_bit(BTN_1, input_dev->keybit);
+		break;
+
+	case WACOM_MO:
+		__set_bit(BTN_BACK, input_dev->keybit);
+		__set_bit(BTN_LEFT, input_dev->keybit);
+		__set_bit(BTN_FORWARD, input_dev->keybit);
+		__set_bit(BTN_RIGHT, input_dev->keybit);
+		input_set_abs_params(input_dev, ABS_WHEEL, 0, 71, 0, 0);
+		break;
+
+	case WACOM_G4:
+		__set_bit(BTN_BACK, input_dev->keybit);
+		__set_bit(BTN_LEFT, input_dev->keybit);
+		__set_bit(BTN_FORWARD, input_dev->keybit);
+		__set_bit(BTN_RIGHT, input_dev->keybit);
+		input_set_capability(input_dev, EV_REL, REL_WHEEL);
+		break;
+
+	case WACOM_24HD:
+		__set_bit(BTN_A, input_dev->keybit);
+		__set_bit(BTN_B, input_dev->keybit);
+		__set_bit(BTN_C, input_dev->keybit);
+		__set_bit(BTN_X, input_dev->keybit);
+		__set_bit(BTN_Y, input_dev->keybit);
+		__set_bit(BTN_Z, input_dev->keybit);
+
+		for (i = 0; i < 10; i++)
+			__set_bit(BTN_0 + i, input_dev->keybit);
+
+		__set_bit(KEY_PROG1, input_dev->keybit);
+		__set_bit(KEY_PROG2, input_dev->keybit);
+		__set_bit(KEY_PROG3, input_dev->keybit);
+
+		input_set_abs_params(input_dev, ABS_WHEEL, 0, 71, 0, 0);
+		input_set_abs_params(input_dev, ABS_THROTTLE, 0, 71, 0, 0);
+		break;
+
+	case DTK:
+		for (i = 0; i < 6; i++)
+			__set_bit(BTN_0 + i, input_dev->keybit);
+
+		break;
+
+	case WACOM_22HD:
+		__set_bit(KEY_PROG1, input_dev->keybit);
+		__set_bit(KEY_PROG2, input_dev->keybit);
+		__set_bit(KEY_PROG3, input_dev->keybit);
+		/* fall through */
+
+	case WACOM_21UX2:
+		__set_bit(BTN_A, input_dev->keybit);
+		__set_bit(BTN_B, input_dev->keybit);
+		__set_bit(BTN_C, input_dev->keybit);
+		__set_bit(BTN_X, input_dev->keybit);
+		__set_bit(BTN_Y, input_dev->keybit);
+		__set_bit(BTN_Z, input_dev->keybit);
+		__set_bit(BTN_BASE, input_dev->keybit);
+		__set_bit(BTN_BASE2, input_dev->keybit);
+		/* fall through */
+
+	case WACOM_BEE:
+		__set_bit(BTN_8, input_dev->keybit);
+		__set_bit(BTN_9, input_dev->keybit);
+		/* fall through */
+
+	case CINTIQ:
+		for (i = 0; i < 8; i++)
+			__set_bit(BTN_0 + i, input_dev->keybit);
+
+		input_set_abs_params(input_dev, ABS_RX, 0, 4096, 0, 0);
+		input_set_abs_params(input_dev, ABS_RY, 0, 4096, 0, 0);
+		break;
+
+	case WACOM_13HD:
+		for (i = 0; i < 9; i++)
+			__set_bit(BTN_0 + i, input_dev->keybit);
+
+		input_set_abs_params(input_dev, ABS_WHEEL, 0, 71, 0, 0);
+		break;
+
+	case INTUOS3:
+	case INTUOS3L:
+		__set_bit(BTN_4, input_dev->keybit);
+		__set_bit(BTN_5, input_dev->keybit);
+		__set_bit(BTN_6, input_dev->keybit);
+		__set_bit(BTN_7, input_dev->keybit);
+
+		input_set_abs_params(input_dev, ABS_RY, 0, 4096, 0, 0);
+		/* fall through */
+
+	case INTUOS3S:
+		__set_bit(BTN_0, input_dev->keybit);
+		__set_bit(BTN_1, input_dev->keybit);
+		__set_bit(BTN_2, input_dev->keybit);
+		__set_bit(BTN_3, input_dev->keybit);
+
+		input_set_abs_params(input_dev, ABS_RX, 0, 4096, 0, 0);
+		break;
+
+	case INTUOS5:
+	case INTUOS5L:
+	case INTUOSPM:
+	case INTUOSPL:
+		__set_bit(BTN_7, input_dev->keybit);
+		__set_bit(BTN_8, input_dev->keybit);
+		/* fall through */
+
+	case INTUOS5S:
+	case INTUOSPS:
+		/* touch interface does not have the pad device */
+		if (features->device_type != BTN_TOOL_PEN)
+			return 1;
+
+		for (i = 0; i < 7; i++)
+			__set_bit(BTN_0 + i, input_dev->keybit);
+
+		input_set_abs_params(input_dev, ABS_WHEEL, 0, 71, 0, 0);
+		break;
+
+	case INTUOS4WL:
+		/*
+		 * For Bluetooth devices, the udev rule does not work correctly
+		 * for pads unless we add a stylus capability, which forces
+		 * ID_INPUT_TABLET to be set.
+		 */
+		__set_bit(BTN_STYLUS, input_dev->keybit);
+		/* fall through */
+
+	case INTUOS4:
+	case INTUOS4L:
+		__set_bit(BTN_7, input_dev->keybit);
+		__set_bit(BTN_8, input_dev->keybit);
+		/* fall through */
+
+	case INTUOS4S:
+		for (i = 0; i < 7; i++)
+			__set_bit(BTN_0 + i, input_dev->keybit);
+
+		input_set_abs_params(input_dev, ABS_WHEEL, 0, 71, 0, 0);
+		break;
+
+	case CINTIQ_HYBRID:
+		for (i = 0; i < 9; i++)
+			__set_bit(BTN_0 + i, input_dev->keybit);
+
+		break;
+
+	case DTUS:
+		for (i = 0; i < 4; i++)
+			__set_bit(BTN_0 + i, input_dev->keybit);
+		break;
+
+	case INTUOSHT:
+	case BAMBOO_PT:
+		/* pad device is on the touch interface */
+		if (features->device_type != BTN_TOOL_FINGER)
+			return 1;
+
+		__clear_bit(ABS_MISC, input_dev->absbit);
+
+		__set_bit(BTN_LEFT, input_dev->keybit);
+		__set_bit(BTN_FORWARD, input_dev->keybit);
+		__set_bit(BTN_BACK, input_dev->keybit);
+		__set_bit(BTN_RIGHT, input_dev->keybit);
+
+		break;
+
+	default:
+		/* no pad supported */
+		return 1;
+	}
+	return 0;
+}
+
 static const struct wacom_features wacom_features_0x00 =
-	{ "Wacom Penpartner",     WACOM_PKGLEN_PENPRTN,    5040,  3780,  255,
-	  0, PENPARTNER, WACOM_PENPRTN_RES, WACOM_PENPRTN_RES };
+	{ "Wacom Penpartner", 5040, 3780, 255, 0,
+	  PENPARTNER, WACOM_PENPRTN_RES, WACOM_PENPRTN_RES };
 static const struct wacom_features wacom_features_0x10 =
-	{ "Wacom Graphire",       WACOM_PKGLEN_GRAPHIRE,  10206,  7422,  511,
-	  63, GRAPHIRE, WACOM_GRAPHIRE_RES, WACOM_GRAPHIRE_RES };
+	{ "Wacom Graphire", 10206, 7422, 511, 63,
+	  GRAPHIRE, WACOM_GRAPHIRE_RES, WACOM_GRAPHIRE_RES };
+static const struct wacom_features wacom_features_0x81 =
+	{ "Wacom Graphire BT", 16704, 12064, 511, 32,
+	  GRAPHIRE_BT, WACOM_GRAPHIRE_RES, WACOM_GRAPHIRE_RES };
 static const struct wacom_features wacom_features_0x11 =
-	{ "Wacom Graphire2 4x5",  WACOM_PKGLEN_GRAPHIRE,  10206,  7422,  511,
-	  63, GRAPHIRE, WACOM_GRAPHIRE_RES, WACOM_GRAPHIRE_RES };
+	{ "Wacom Graphire2 4x5", 10206, 7422, 511, 63,
+	  GRAPHIRE, WACOM_GRAPHIRE_RES, WACOM_GRAPHIRE_RES };
 static const struct wacom_features wacom_features_0x12 =
-	{ "Wacom Graphire2 5x7",  WACOM_PKGLEN_GRAPHIRE,  13918, 10206,  511,
-	  63, GRAPHIRE, WACOM_GRAPHIRE_RES, WACOM_GRAPHIRE_RES };
+	{ "Wacom Graphire2 5x7", 13918, 10206, 511, 63,
+	  GRAPHIRE, WACOM_GRAPHIRE_RES, WACOM_GRAPHIRE_RES };
 static const struct wacom_features wacom_features_0x13 =
-	{ "Wacom Graphire3",      WACOM_PKGLEN_GRAPHIRE,  10208,  7424,  511,
-	  63, GRAPHIRE, WACOM_GRAPHIRE_RES, WACOM_GRAPHIRE_RES };
+	{ "Wacom Graphire3", 10208, 7424, 511, 63,
+	  GRAPHIRE, WACOM_GRAPHIRE_RES, WACOM_GRAPHIRE_RES };
 static const struct wacom_features wacom_features_0x14 =
-	{ "Wacom Graphire3 6x8",  WACOM_PKGLEN_GRAPHIRE,  16704, 12064,  511,
-	  63, GRAPHIRE, WACOM_GRAPHIRE_RES, WACOM_GRAPHIRE_RES };
+	{ "Wacom Graphire3 6x8", 16704, 12064, 511, 63,
+	  GRAPHIRE, WACOM_GRAPHIRE_RES, WACOM_GRAPHIRE_RES };
 static const struct wacom_features wacom_features_0x15 =
-	{ "Wacom Graphire4 4x5",  WACOM_PKGLEN_GRAPHIRE,  10208,  7424,  511,
-	  63, WACOM_G4, WACOM_GRAPHIRE_RES, WACOM_GRAPHIRE_RES };
+	{ "Wacom Graphire4 4x5", 10208, 7424, 511, 63,
+	  WACOM_G4, WACOM_GRAPHIRE_RES, WACOM_GRAPHIRE_RES };
 static const struct wacom_features wacom_features_0x16 =
-	{ "Wacom Graphire4 6x8",  WACOM_PKGLEN_GRAPHIRE,  16704, 12064,  511,
-	  63, WACOM_G4, WACOM_GRAPHIRE_RES, WACOM_GRAPHIRE_RES };
+	{ "Wacom Graphire4 6x8", 16704, 12064, 511, 63,
+	  WACOM_G4, WACOM_GRAPHIRE_RES, WACOM_GRAPHIRE_RES };
 static const struct wacom_features wacom_features_0x17 =
-	{ "Wacom BambooFun 4x5",  WACOM_PKGLEN_BBFUN,     14760,  9225,  511,
-	  63, WACOM_MO, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+	{ "Wacom BambooFun 4x5", 14760, 9225, 511, 63,
+	  WACOM_MO, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0x18 =
-	{ "Wacom BambooFun 6x8",  WACOM_PKGLEN_BBFUN,     21648, 13530,  511,
-	  63, WACOM_MO, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+	{ "Wacom BambooFun 6x8", 21648, 13530, 511, 63,
+	  WACOM_MO, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0x19 =
-	{ "Wacom Bamboo1 Medium", WACOM_PKGLEN_GRAPHIRE,  16704, 12064,  511,
-	  63, GRAPHIRE, WACOM_GRAPHIRE_RES, WACOM_GRAPHIRE_RES };
+	{ "Wacom Bamboo1 Medium", 16704, 12064, 511, 63,
+	  GRAPHIRE, WACOM_GRAPHIRE_RES, WACOM_GRAPHIRE_RES };
 static const struct wacom_features wacom_features_0x60 =
-	{ "Wacom Volito",         WACOM_PKGLEN_GRAPHIRE,   5104,  3712,  511,
-	  63, GRAPHIRE, WACOM_VOLITO_RES, WACOM_VOLITO_RES };
+	{ "Wacom Volito", 5104, 3712, 511, 63,
+	  GRAPHIRE, WACOM_VOLITO_RES, WACOM_VOLITO_RES };
 static const struct wacom_features wacom_features_0x61 =
-	{ "Wacom PenStation2",    WACOM_PKGLEN_GRAPHIRE,   3250,  2320,  255,
-	  63, GRAPHIRE, WACOM_VOLITO_RES, WACOM_VOLITO_RES };
+	{ "Wacom PenStation2", 3250, 2320, 255, 63,
+	  GRAPHIRE, WACOM_VOLITO_RES, WACOM_VOLITO_RES };
 static const struct wacom_features wacom_features_0x62 =
-	{ "Wacom Volito2 4x5",    WACOM_PKGLEN_GRAPHIRE,   5104,  3712,  511,
-	  63, GRAPHIRE, WACOM_VOLITO_RES, WACOM_VOLITO_RES };
+	{ "Wacom Volito2 4x5", 5104, 3712, 511, 63,
+	  GRAPHIRE, WACOM_VOLITO_RES, WACOM_VOLITO_RES };
 static const struct wacom_features wacom_features_0x63 =
-	{ "Wacom Volito2 2x3",    WACOM_PKGLEN_GRAPHIRE,   3248,  2320,  511,
-	  63, GRAPHIRE, WACOM_VOLITO_RES, WACOM_VOLITO_RES };
+	{ "Wacom Volito2 2x3", 3248, 2320, 511, 63,
+	  GRAPHIRE, WACOM_VOLITO_RES, WACOM_VOLITO_RES };
 static const struct wacom_features wacom_features_0x64 =
-	{ "Wacom PenPartner2",    WACOM_PKGLEN_GRAPHIRE,   3250,  2320,  511,
-	  63, GRAPHIRE, WACOM_VOLITO_RES, WACOM_VOLITO_RES };
+	{ "Wacom PenPartner2", 3250, 2320, 511, 63,
+	  GRAPHIRE, WACOM_VOLITO_RES, WACOM_VOLITO_RES };
 static const struct wacom_features wacom_features_0x65 =
-	{ "Wacom Bamboo",         WACOM_PKGLEN_BBFUN,     14760,  9225,  511,
-	  63, WACOM_MO, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+	{ "Wacom Bamboo", 14760, 9225, 511, 63,
+	  WACOM_MO, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0x69 =
-	{ "Wacom Bamboo1",        WACOM_PKGLEN_GRAPHIRE,   5104,  3712,  511,
-	  63, GRAPHIRE, WACOM_PENPRTN_RES, WACOM_PENPRTN_RES };
+	{ "Wacom Bamboo1", 5104, 3712, 511, 63,
+	  GRAPHIRE, WACOM_PENPRTN_RES, WACOM_PENPRTN_RES };
 static const struct wacom_features wacom_features_0x6A =
-	{ "Wacom Bamboo1 4x6",    WACOM_PKGLEN_GRAPHIRE,  14760,  9225, 1023,
-	  63, GRAPHIRE, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+	{ "Wacom Bamboo1 4x6", 14760, 9225, 1023, 63,
+	  GRAPHIRE, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0x6B =
-	{ "Wacom Bamboo1 5x8",    WACOM_PKGLEN_GRAPHIRE,  21648, 13530, 1023,
-	  63, GRAPHIRE, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+	{ "Wacom Bamboo1 5x8", 21648, 13530, 1023, 63,
+	  GRAPHIRE, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0x20 =
-	{ "Wacom Intuos 4x5",     WACOM_PKGLEN_INTUOS,    12700, 10600, 1023,
-	  31, INTUOS, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+	{ "Wacom Intuos 4x5", 12700, 10600, 1023, 31,
+	  INTUOS, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0x21 =
-	{ "Wacom Intuos 6x8",     WACOM_PKGLEN_INTUOS,    20320, 16240, 1023,
-	  31, INTUOS, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+	{ "Wacom Intuos 6x8", 20320, 16240, 1023, 31,
+	  INTUOS, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0x22 =
-	{ "Wacom Intuos 9x12",    WACOM_PKGLEN_INTUOS,    30480, 24060, 1023,
-	  31, INTUOS, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+	{ "Wacom Intuos 9x12", 30480, 24060, 1023, 31,
+	  INTUOS, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0x23 =
-	{ "Wacom Intuos 12x12",   WACOM_PKGLEN_INTUOS,    30480, 31680, 1023,
-	  31, INTUOS, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+	{ "Wacom Intuos 12x12", 30480, 31680, 1023, 31,
+	  INTUOS, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0x24 =
-	{ "Wacom Intuos 12x18",   WACOM_PKGLEN_INTUOS,    45720, 31680, 1023,
-	  31, INTUOS, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+	{ "Wacom Intuos 12x18", 45720, 31680, 1023, 31,
+	  INTUOS, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0x30 =
-	{ "Wacom PL400",          WACOM_PKGLEN_GRAPHIRE,   5408,  4056,  255,
-	  0, PL, WACOM_PL_RES, WACOM_PL_RES };
+	{ "Wacom PL400", 5408, 4056, 255, 0,
+	  PL, WACOM_PL_RES, WACOM_PL_RES };
 static const struct wacom_features wacom_features_0x31 =
-	{ "Wacom PL500",          WACOM_PKGLEN_GRAPHIRE,   6144,  4608,  255,
-	  0, PL, WACOM_PL_RES, WACOM_PL_RES };
+	{ "Wacom PL500", 6144, 4608, 255, 0,
+	  PL, WACOM_PL_RES, WACOM_PL_RES };
 static const struct wacom_features wacom_features_0x32 =
-	{ "Wacom PL600",          WACOM_PKGLEN_GRAPHIRE,   6126,  4604,  255,
-	  0, PL, WACOM_PL_RES, WACOM_PL_RES };
+	{ "Wacom PL600", 6126, 4604, 255, 0,
+	  PL, WACOM_PL_RES, WACOM_PL_RES };
 static const struct wacom_features wacom_features_0x33 =
-	{ "Wacom PL600SX",        WACOM_PKGLEN_GRAPHIRE,   6260,  5016,  255,
-	  0, PL, WACOM_PL_RES, WACOM_PL_RES };
+	{ "Wacom PL600SX", 6260, 5016, 255, 0,
+	  PL, WACOM_PL_RES, WACOM_PL_RES };
 static const struct wacom_features wacom_features_0x34 =
-	{ "Wacom PL550",          WACOM_PKGLEN_GRAPHIRE,   6144,  4608,  511,
-	  0, PL, WACOM_PL_RES, WACOM_PL_RES };
+	{ "Wacom PL550", 6144, 4608, 511, 0,
+	  PL, WACOM_PL_RES, WACOM_PL_RES };
 static const struct wacom_features wacom_features_0x35 =
-	{ "Wacom PL800",          WACOM_PKGLEN_GRAPHIRE,   7220,  5780,  511,
-	  0, PL, WACOM_PL_RES, WACOM_PL_RES };
+	{ "Wacom PL800", 7220, 5780, 511, 0,
+	  PL, WACOM_PL_RES, WACOM_PL_RES };
 static const struct wacom_features wacom_features_0x37 =
-	{ "Wacom PL700",          WACOM_PKGLEN_GRAPHIRE,   6758,  5406,  511,
-	  0, PL, WACOM_PL_RES, WACOM_PL_RES };
+	{ "Wacom PL700", 6758, 5406, 511, 0,
+	  PL, WACOM_PL_RES, WACOM_PL_RES };
 static const struct wacom_features wacom_features_0x38 =
-	{ "Wacom PL510",          WACOM_PKGLEN_GRAPHIRE,   6282,  4762,  511,
-	  0, PL, WACOM_PL_RES, WACOM_PL_RES };
+	{ "Wacom PL510", 6282, 4762, 511, 0,
+	  PL, WACOM_PL_RES, WACOM_PL_RES };
 static const struct wacom_features wacom_features_0x39 =
-	{ "Wacom DTU710",         WACOM_PKGLEN_GRAPHIRE,  34080, 27660,  511,
-	  0, PL, WACOM_PL_RES, WACOM_PL_RES };
+	{ "Wacom DTU710", 34080, 27660, 511, 0,
+	  PL, WACOM_PL_RES, WACOM_PL_RES };
 static const struct wacom_features wacom_features_0xC4 =
-	{ "Wacom DTF521",         WACOM_PKGLEN_GRAPHIRE,   6282,  4762,  511,
-	  0, PL, WACOM_PL_RES, WACOM_PL_RES };
+	{ "Wacom DTF521", 6282, 4762, 511, 0,
+	  PL, WACOM_PL_RES, WACOM_PL_RES };
 static const struct wacom_features wacom_features_0xC0 =
-	{ "Wacom DTF720",         WACOM_PKGLEN_GRAPHIRE,   6858,  5506,  511,
-	  0, PL, WACOM_PL_RES, WACOM_PL_RES };
+	{ "Wacom DTF720", 6858, 5506, 511, 0,
+	  PL, WACOM_PL_RES, WACOM_PL_RES };
 static const struct wacom_features wacom_features_0xC2 =
-	{ "Wacom DTF720a",        WACOM_PKGLEN_GRAPHIRE,   6858,  5506,  511,
-	  0, PL, WACOM_PL_RES, WACOM_PL_RES };
+	{ "Wacom DTF720a", 6858, 5506, 511, 0,
+	  PL, WACOM_PL_RES, WACOM_PL_RES };
 static const struct wacom_features wacom_features_0x03 =
-	{ "Wacom Cintiq Partner", WACOM_PKGLEN_GRAPHIRE,  20480, 15360,  511,
-	  0, PTU, WACOM_PL_RES, WACOM_PL_RES };
+	{ "Wacom Cintiq Partner", 20480, 15360, 511, 0,
+	  PTU, WACOM_PL_RES, WACOM_PL_RES };
 static const struct wacom_features wacom_features_0x41 =
-	{ "Wacom Intuos2 4x5",    WACOM_PKGLEN_INTUOS,    12700, 10600, 1023,
-	  31, INTUOS, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+	{ "Wacom Intuos2 4x5", 12700, 10600, 1023, 31,
+	  INTUOS, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0x42 =
-	{ "Wacom Intuos2 6x8",    WACOM_PKGLEN_INTUOS,    20320, 16240, 1023,
-	  31, INTUOS, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+	{ "Wacom Intuos2 6x8", 20320, 16240, 1023, 31,
+	  INTUOS, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0x43 =
-	{ "Wacom Intuos2 9x12",   WACOM_PKGLEN_INTUOS,    30480, 24060, 1023,
-	  31, INTUOS, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+	{ "Wacom Intuos2 9x12", 30480, 24060, 1023, 31,
+	  INTUOS, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0x44 =
-	{ "Wacom Intuos2 12x12",  WACOM_PKGLEN_INTUOS,    30480, 31680, 1023,
-	  31, INTUOS, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+	{ "Wacom Intuos2 12x12", 30480, 31680, 1023, 31,
+	  INTUOS, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0x45 =
-	{ "Wacom Intuos2 12x18",  WACOM_PKGLEN_INTUOS,    45720, 31680, 1023,
-	  31, INTUOS, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+	{ "Wacom Intuos2 12x18", 45720, 31680, 1023, 31,
+	  INTUOS, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0xB0 =
-	{ "Wacom Intuos3 4x5",    WACOM_PKGLEN_INTUOS,    25400, 20320, 1023,
-	  63, INTUOS3S, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES };
+	{ "Wacom Intuos3 4x5", 25400, 20320, 1023, 63,
+	  INTUOS3S, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES };
 static const struct wacom_features wacom_features_0xB1 =
-	{ "Wacom Intuos3 6x8",    WACOM_PKGLEN_INTUOS,    40640, 30480, 1023,
-	  63, INTUOS3, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES };
+	{ "Wacom Intuos3 6x8", 40640, 30480, 1023, 63,
+	  INTUOS3, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES };
 static const struct wacom_features wacom_features_0xB2 =
-	{ "Wacom Intuos3 9x12",   WACOM_PKGLEN_INTUOS,    60960, 45720, 1023,
-	  63, INTUOS3, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES };
+	{ "Wacom Intuos3 9x12", 60960, 45720, 1023, 63,
+	  INTUOS3, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES };
 static const struct wacom_features wacom_features_0xB3 =
-	{ "Wacom Intuos3 12x12",  WACOM_PKGLEN_INTUOS,    60960, 60960, 1023,
-	  63, INTUOS3L, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES };
+	{ "Wacom Intuos3 12x12", 60960, 60960, 1023, 63,
+	  INTUOS3L, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES };
 static const struct wacom_features wacom_features_0xB4 =
-	{ "Wacom Intuos3 12x19",  WACOM_PKGLEN_INTUOS,    97536, 60960, 1023,
-	  63, INTUOS3L, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES };
+	{ "Wacom Intuos3 12x19", 97536, 60960, 1023, 63,
+	  INTUOS3L, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES };
 static const struct wacom_features wacom_features_0xB5 =
-	{ "Wacom Intuos3 6x11",   WACOM_PKGLEN_INTUOS,    54204, 31750, 1023,
-	  63, INTUOS3, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES };
+	{ "Wacom Intuos3 6x11", 54204, 31750, 1023, 63,
+	  INTUOS3, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES };
 static const struct wacom_features wacom_features_0xB7 =
-	{ "Wacom Intuos3 4x6",    WACOM_PKGLEN_INTUOS,    31496, 19685, 1023,
-	  63, INTUOS3S, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES };
+	{ "Wacom Intuos3 4x6", 31496, 19685, 1023, 63,
+	  INTUOS3S, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES };
 static const struct wacom_features wacom_features_0xB8 =
-	{ "Wacom Intuos4 4x6",    WACOM_PKGLEN_INTUOS,    31496, 19685, 2047,
-	  63, INTUOS4S, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES };
+	{ "Wacom Intuos4 4x6", 31496, 19685, 2047, 63,
+	  INTUOS4S, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES };
 static const struct wacom_features wacom_features_0xB9 =
-	{ "Wacom Intuos4 6x9",    WACOM_PKGLEN_INTUOS,    44704, 27940, 2047,
-	  63, INTUOS4, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES };
+	{ "Wacom Intuos4 6x9", 44704, 27940, 2047, 63,
+	  INTUOS4, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES };
 static const struct wacom_features wacom_features_0xBA =
-	{ "Wacom Intuos4 8x13",   WACOM_PKGLEN_INTUOS,    65024, 40640, 2047,
-	  63, INTUOS4L, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES };
+	{ "Wacom Intuos4 8x13", 65024, 40640, 2047, 63,
+	  INTUOS4L, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES };
 static const struct wacom_features wacom_features_0xBB =
-	{ "Wacom Intuos4 12x19",  WACOM_PKGLEN_INTUOS,    97536, 60960, 2047,
-	  63, INTUOS4L, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES };
+	{ "Wacom Intuos4 12x19", 97536, 60960, 2047, 63,
+	  INTUOS4L, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES };
 static const struct wacom_features wacom_features_0xBC =
-	{ "Wacom Intuos4 WL",     WACOM_PKGLEN_INTUOS,    40640, 25400, 2047,
-	  63, INTUOS4, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES };
+	{ "Wacom Intuos4 WL", 40640, 25400, 2047, 63,
+	  INTUOS4, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES };
+static const struct wacom_features wacom_features_0xBD =
+	{ "Wacom Intuos4 WL", 40640, 25400, 2047, 63,
+	  INTUOS4WL, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES };
 static const struct wacom_features wacom_features_0x26 =
-	{ "Wacom Intuos5 touch S", WACOM_PKGLEN_INTUOS,  31496, 19685, 2047,
-	  63, INTUOS5S, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES,
-	  .touch_max = 16 };
+	{ "Wacom Intuos5 touch S", 31496, 19685, 2047, 63,
+	  INTUOS5S, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, .touch_max = 16 };
 static const struct wacom_features wacom_features_0x27 =
-	{ "Wacom Intuos5 touch M", WACOM_PKGLEN_INTUOS,  44704, 27940, 2047,
-	  63, INTUOS5, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES,
-	  .touch_max = 16 };
+	{ "Wacom Intuos5 touch M", 44704, 27940, 2047, 63,
+	  INTUOS5, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, .touch_max = 16 };
 static const struct wacom_features wacom_features_0x28 =
-	{ "Wacom Intuos5 touch L", WACOM_PKGLEN_INTUOS, 65024, 40640, 2047,
-	  63, INTUOS5L, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES,
-	  .touch_max = 16 };
+	{ "Wacom Intuos5 touch L", 65024, 40640, 2047, 63,
+	  INTUOS5L, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, .touch_max = 16 };
 static const struct wacom_features wacom_features_0x29 =
-	{ "Wacom Intuos5 S", WACOM_PKGLEN_INTUOS,  31496, 19685, 2047,
-	  63, INTUOS5S, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES };
+	{ "Wacom Intuos5 S", 31496, 19685, 2047, 63,
+	  INTUOS5S, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES };
 static const struct wacom_features wacom_features_0x2A =
-	{ "Wacom Intuos5 M", WACOM_PKGLEN_INTUOS,  44704, 27940, 2047,
-	  63, INTUOS5, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES };
+	{ "Wacom Intuos5 M", 44704, 27940, 2047, 63,
+	  INTUOS5, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES };
 static const struct wacom_features wacom_features_0x314 =
-	{ "Wacom Intuos Pro S", WACOM_PKGLEN_INTUOS,  31496, 19685, 2047,
-	  63, INTUOSPS, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES,
-	  .touch_max = 16 };
+	{ "Wacom Intuos Pro S", 31496, 19685, 2047, 63,
+	  INTUOSPS, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, .touch_max = 16,
+	  .check_for_hid_type = true, .hid_type = HID_TYPE_USBNONE };
 static const struct wacom_features wacom_features_0x315 =
-	{ "Wacom Intuos Pro M", WACOM_PKGLEN_INTUOS,  44704, 27940, 2047,
-	  63, INTUOSPM, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES,
-	  .touch_max = 16 };
+	{ "Wacom Intuos Pro M", 44704, 27940, 2047, 63,
+	  INTUOSPM, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, .touch_max = 16,
+	  .check_for_hid_type = true, .hid_type = HID_TYPE_USBNONE };
 static const struct wacom_features wacom_features_0x317 =
-	{ "Wacom Intuos Pro L", WACOM_PKGLEN_INTUOS,  65024, 40640, 2047,
-	  63, INTUOSPL, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES,
-	  .touch_max = 16 };
+	{ "Wacom Intuos Pro L", 65024, 40640, 2047, 63,
+	  INTUOSPL, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, .touch_max = 16,
+	  .check_for_hid_type = true, .hid_type = HID_TYPE_USBNONE };
 static const struct wacom_features wacom_features_0xF4 =
-	{ "Wacom Cintiq 24HD",       WACOM_PKGLEN_INTUOS,   104280, 65400, 2047,
-	  63, WACOM_24HD, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 200, 200 };
+	{ "Wacom Cintiq 24HD", 104280, 65400, 2047, 63,
+	  WACOM_24HD, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 200, 200 };
 static const struct wacom_features wacom_features_0xF8 =
-	{ "Wacom Cintiq 24HD touch", WACOM_PKGLEN_INTUOS,   104280, 65400, 2047, /* Pen */
-	  63, WACOM_24HD, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 200, 200,
+	{ "Wacom Cintiq 24HD touch", 104280, 65400, 2047, 63, /* Pen */
+	  WACOM_24HD, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 200, 200,
 	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0xf6 };
 static const struct wacom_features wacom_features_0xF6 =
 	{ "Wacom Cintiq 24HD touch", .type = WACOM_24HDT, /* Touch */
-	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0xf8, .touch_max = 10 };
+	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0xf8, .touch_max = 10,
+	  .check_for_hid_type = true, .hid_type = HID_TYPE_USBNONE };
 static const struct wacom_features wacom_features_0x3F =
-	{ "Wacom Cintiq 21UX",    WACOM_PKGLEN_INTUOS,    87200, 65600, 1023,
-	  63, CINTIQ, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES };
+	{ "Wacom Cintiq 21UX", 87200, 65600, 1023, 63,
+	  CINTIQ, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES };
 static const struct wacom_features wacom_features_0xC5 =
-	{ "Wacom Cintiq 20WSX",   WACOM_PKGLEN_INTUOS,    86680, 54180, 1023,
-	  63, WACOM_BEE, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES };
+	{ "Wacom Cintiq 20WSX", 86680, 54180, 1023, 63,
+	  WACOM_BEE, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES };
 static const struct wacom_features wacom_features_0xC6 =
-	{ "Wacom Cintiq 12WX",    WACOM_PKGLEN_INTUOS,    53020, 33440, 1023,
-	  63, WACOM_BEE, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES };
+	{ "Wacom Cintiq 12WX", 53020, 33440, 1023, 63,
+	  WACOM_BEE, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES };
 static const struct wacom_features wacom_features_0x304 =
-	{ "Wacom Cintiq 13HD",    WACOM_PKGLEN_INTUOS,    59352, 33648, 1023,
-	  63, WACOM_13HD, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 200, 200 };
+	{ "Wacom Cintiq 13HD", 59352, 33648, 1023, 63,
+	  WACOM_13HD, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 200, 200 };
 static const struct wacom_features wacom_features_0xC7 =
-	{ "Wacom DTU1931",        WACOM_PKGLEN_GRAPHIRE,  37832, 30305,  511,
-	  0, PL, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+	{ "Wacom DTU1931", 37832, 30305, 511, 0,
+	  PL, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0xCE =
-	{ "Wacom DTU2231",        WACOM_PKGLEN_GRAPHIRE,  47864, 27011,  511,
-	  0, DTU, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+	{ "Wacom DTU2231", 47864, 27011, 511, 0,
+	  DTU, WACOM_INTUOS_RES, WACOM_INTUOS_RES,
+	  .check_for_hid_type = true, .hid_type = HID_TYPE_USBMOUSE };
 static const struct wacom_features wacom_features_0xF0 =
-	{ "Wacom DTU1631",        WACOM_PKGLEN_GRAPHIRE,  34623, 19553,  511,
-	  0, DTU, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+	{ "Wacom DTU1631", 34623, 19553, 511, 0,
+	  DTU, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0xFB =
-	{ "Wacom DTU1031",        WACOM_PKGLEN_DTUS,      22096, 13960,  511,
-	  0, DTUS, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+	{ "Wacom DTU1031", 22096, 13960, 511, 0,
+	  DTUS, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0x57 =
-	{ "Wacom DTK2241",        WACOM_PKGLEN_INTUOS,    95640, 54060, 2047,
-	  63, DTK, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 200, 200 };
+	{ "Wacom DTK2241", 95640, 54060, 2047, 63,
+	  DTK, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 200, 200 };
 static const struct wacom_features wacom_features_0x59 = /* Pen */
-	{ "Wacom DTH2242",        WACOM_PKGLEN_INTUOS,    95640, 54060, 2047,
-	  63, DTK, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 200, 200,
+	{ "Wacom DTH2242", 95640, 54060, 2047, 63,
+	  DTK, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 200, 200,
 	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x5D };
 static const struct wacom_features wacom_features_0x5D = /* Touch */
 	{ "Wacom DTH2242",       .type = WACOM_24HDT,
-	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x59, .touch_max = 10 };
+	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x59, .touch_max = 10,
+	  .check_for_hid_type = true, .hid_type = HID_TYPE_USBNONE };
 static const struct wacom_features wacom_features_0xCC =
-	{ "Wacom Cintiq 21UX2",   WACOM_PKGLEN_INTUOS,    87000, 65400, 2047,
-	  63, WACOM_21UX2, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 200, 200 };
+	{ "Wacom Cintiq 21UX2", 87000, 65400, 2047, 63,
+	  WACOM_21UX2, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 200, 200 };
 static const struct wacom_features wacom_features_0xFA =
-	{ "Wacom Cintiq 22HD",    WACOM_PKGLEN_INTUOS,    95640, 54060, 2047,
-	  63, WACOM_22HD, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 200, 200 };
+	{ "Wacom Cintiq 22HD", 95640, 54060, 2047, 63,
+	  WACOM_22HD, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 200, 200 };
 static const struct wacom_features wacom_features_0x5B =
-	{ "Wacom Cintiq 22HDT", WACOM_PKGLEN_INTUOS,      95640, 54060, 2047,
-	  63, WACOM_22HD, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 200, 200,
+	{ "Wacom Cintiq 22HDT", 95640, 54060, 2047, 63,
+	  WACOM_22HD, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 200, 200,
 	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x5e };
 static const struct wacom_features wacom_features_0x5E =
 	{ "Wacom Cintiq 22HDT", .type = WACOM_24HDT,
-	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x5b, .touch_max = 10 };
+	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x5b, .touch_max = 10,
+	  .check_for_hid_type = true, .hid_type = HID_TYPE_USBNONE };
 static const struct wacom_features wacom_features_0x90 =
-	{ "Wacom ISDv4 90",       WACOM_PKGLEN_GRAPHIRE,  26202, 16325,  255,
-	  0, TABLETPC, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+	{ "Wacom ISDv4 90", 26202, 16325, 255, 0,
+	  TABLETPC, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0x93 =
-	{ "Wacom ISDv4 93",       WACOM_PKGLEN_GRAPHIRE,  26202, 16325,  255,
-	  0, TABLETPC, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+	{ "Wacom ISDv4 93", 26202, 16325, 255, 0,
+	  TABLETPC, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0x97 =
-	{ "Wacom ISDv4 97",       WACOM_PKGLEN_GRAPHIRE,  26202, 16325,  511,
-	  0, TABLETPC, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+	{ "Wacom ISDv4 97", 26202, 16325, 511, 0,
+	  TABLETPC, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0x9A =
-	{ "Wacom ISDv4 9A",       WACOM_PKGLEN_GRAPHIRE,  26202, 16325,  255,
-	  0, TABLETPC, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+	{ "Wacom ISDv4 9A", 26202, 16325, 255, 0,
+	  TABLETPC, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0x9F =
-	{ "Wacom ISDv4 9F",       WACOM_PKGLEN_GRAPHIRE,  26202, 16325,  255,
-	  0, TABLETPC, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+	{ "Wacom ISDv4 9F", 26202, 16325, 255, 0,
+	  TABLETPC, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0xE2 =
-	{ "Wacom ISDv4 E2",       WACOM_PKGLEN_TPC2FG,    26202, 16325,  255,
-	  0, TABLETPC2FG, WACOM_INTUOS_RES, WACOM_INTUOS_RES,
-	  .touch_max = 2 };
+	{ "Wacom ISDv4 E2", 26202, 16325, 255, 0,
+	  TABLETPC2FG, WACOM_INTUOS_RES, WACOM_INTUOS_RES, .touch_max = 2 };
 static const struct wacom_features wacom_features_0xE3 =
-	{ "Wacom ISDv4 E3",       WACOM_PKGLEN_TPC2FG,    26202, 16325,  255,
-	  0, TABLETPC2FG, WACOM_INTUOS_RES, WACOM_INTUOS_RES,
-	  .touch_max = 2 };
+	{ "Wacom ISDv4 E3", 26202, 16325, 255, 0,
+	  TABLETPC2FG, WACOM_INTUOS_RES, WACOM_INTUOS_RES, .touch_max = 2 };
 static const struct wacom_features wacom_features_0xE5 =
-	{ "Wacom ISDv4 E5",       WACOM_PKGLEN_MTOUCH,    26202, 16325,  255,
-	  0, MTSCREEN, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+	{ "Wacom ISDv4 E5", 26202, 16325, 255, 0,
+	  MTSCREEN, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0xE6 =
-	{ "Wacom ISDv4 E6",       WACOM_PKGLEN_TPC2FG,    27760, 15694,  255,
-	  0, TABLETPC2FG, WACOM_INTUOS_RES, WACOM_INTUOS_RES,
-	  .touch_max = 2 };
+	{ "Wacom ISDv4 E6", 27760, 15694, 255, 0,
+	  TABLETPC2FG, WACOM_INTUOS_RES, WACOM_INTUOS_RES, .touch_max = 2 };
 static const struct wacom_features wacom_features_0xEC =
-	{ "Wacom ISDv4 EC",       WACOM_PKGLEN_GRAPHIRE,  25710, 14500,  255,
-	  0, TABLETPC,    WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+	{ "Wacom ISDv4 EC", 25710, 14500, 255, 0,
+	  TABLETPC,    WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0xED =
-	{ "Wacom ISDv4 ED",       WACOM_PKGLEN_GRAPHIRE,  26202, 16325,  255,
-	  0, TABLETPCE, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+	{ "Wacom ISDv4 ED", 26202, 16325, 255, 0,
+	  TABLETPCE, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0xEF =
-	{ "Wacom ISDv4 EF",       WACOM_PKGLEN_GRAPHIRE,  26202, 16325,  255,
-	  0, TABLETPC, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+	{ "Wacom ISDv4 EF", 26202, 16325, 255, 0,
+	  TABLETPC, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0x100 =
-	{ "Wacom ISDv4 100",      WACOM_PKGLEN_MTTPC,     26202, 16325,  255,
-	  0, MTTPC, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+	{ "Wacom ISDv4 100", 26202, 16325, 255, 0,
+	  MTTPC, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0x101 =
-	{ "Wacom ISDv4 101",      WACOM_PKGLEN_MTTPC,     26202, 16325,  255,
-	  0, MTTPC, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+	{ "Wacom ISDv4 101", 26202, 16325, 255, 0,
+	  MTTPC, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0x10D =
-	{ "Wacom ISDv4 10D",      WACOM_PKGLEN_MTTPC,     26202, 16325,  255,
-	  0, MTTPC, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+	{ "Wacom ISDv4 10D", 26202, 16325, 255, 0,
+	  MTTPC, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0x10E =
-	{ "Wacom ISDv4 10E",      WACOM_PKGLEN_MTTPC,     27760, 15694,  255,
-	  0, MTTPC, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+	{ "Wacom ISDv4 10E", 27760, 15694, 255, 0,
+	  MTTPC, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0x10F =
-	{ "Wacom ISDv4 10F",      WACOM_PKGLEN_MTTPC,     27760, 15694,  255,
-	  0, MTTPC, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+	{ "Wacom ISDv4 10F", 27760, 15694, 255, 0,
+	  MTTPC, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0x116 =
-	{ "Wacom ISDv4 116",      WACOM_PKGLEN_GRAPHIRE,  26202, 16325,  255,
-	  0, TABLETPCE, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+	{ "Wacom ISDv4 116", 26202, 16325, 255, 0,
+	  TABLETPCE, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+static const struct wacom_features wacom_features_0x12C =
+	{ "Wacom ISDv4 12C", 27848, 15752, 2047, 0,
+	  TABLETPC, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0x4001 =
-	{ "Wacom ISDv4 4001",      WACOM_PKGLEN_MTTPC,     26202, 16325,  255,
-	  0, MTTPC, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+	{ "Wacom ISDv4 4001", 26202, 16325, 255, 0,
+	  MTTPC, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0x4004 =
-	{ "Wacom ISDv4 4004",      WACOM_PKGLEN_MTTPC,     11060, 6220,  255,
-	  0, MTTPC_B, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+	{ "Wacom ISDv4 4004", 11060, 6220, 255, 0,
+	  MTTPC_B, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0x5000 =
-	{ "Wacom ISDv4 5000",      WACOM_PKGLEN_MTTPC,     27848, 15752,  1023,
-	  0, MTTPC_B, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+	{ "Wacom ISDv4 5000", 27848, 15752, 1023, 0,
+	  MTTPC_B, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0x5002 =
-	{ "Wacom ISDv4 5002",      WACOM_PKGLEN_MTTPC,     29576, 16724,  1023,
-	  0, MTTPC_B, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+	{ "Wacom ISDv4 5002", 29576, 16724, 1023, 0,
+	  MTTPC_B, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0x47 =
-	{ "Wacom Intuos2 6x8",    WACOM_PKGLEN_INTUOS,    20320, 16240, 1023,
-	  31, INTUOS, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+	{ "Wacom Intuos2 6x8", 20320, 16240, 1023, 31,
+	  INTUOS, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0x84 =
-	{ "Wacom Wireless Receiver", WACOM_PKGLEN_WIRELESS, 0, 0, 0,
-	  0, WIRELESS, 0, 0, .touch_max = 16 };
+	{ "Wacom Wireless Receiver", 0, 0, 0, 0,
+	  WIRELESS, 0, 0, .touch_max = 16 };
 static const struct wacom_features wacom_features_0xD0 =
-	{ "Wacom Bamboo 2FG",     WACOM_PKGLEN_BBFUN,     14720,  9200, 1023,
-	  31, BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES,
-	  .touch_max = 2 };
+	{ "Wacom Bamboo 2FG", 14720, 9200, 1023, 31,
+	  BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES, .touch_max = 2 };
 static const struct wacom_features wacom_features_0xD1 =
-	{ "Wacom Bamboo 2FG 4x5", WACOM_PKGLEN_BBFUN,     14720,  9200, 1023,
-	  31, BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES,
-	  .touch_max = 2 };
+	{ "Wacom Bamboo 2FG 4x5", 14720, 9200, 1023, 31,
+	  BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES, .touch_max = 2 };
 static const struct wacom_features wacom_features_0xD2 =
-	{ "Wacom Bamboo Craft",   WACOM_PKGLEN_BBFUN,     14720,  9200, 1023,
-	  31, BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES,
-	  .touch_max = 2 };
+	{ "Wacom Bamboo Craft", 14720, 9200, 1023, 31,
+	  BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES, .touch_max = 2 };
 static const struct wacom_features wacom_features_0xD3 =
-	{ "Wacom Bamboo 2FG 6x8", WACOM_PKGLEN_BBFUN,     21648, 13700, 1023,
-	  31, BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES,
-	  .touch_max = 2 };
+	{ "Wacom Bamboo 2FG 6x8", 21648, 13700, 1023, 31,
+	  BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES, .touch_max = 2 };
 static const struct wacom_features wacom_features_0xD4 =
-	{ "Wacom Bamboo Pen",     WACOM_PKGLEN_BBFUN,     14720,  9200, 1023,
-	  31, BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+	{ "Wacom Bamboo Pen", 14720, 9200, 1023, 31,
+	  BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0xD5 =
-	{ "Wacom Bamboo Pen 6x8",     WACOM_PKGLEN_BBFUN, 21648, 13700, 1023,
-	  31, BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+	{ "Wacom Bamboo Pen 6x8", 21648, 13700, 1023, 31,
+	  BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0xD6 =
-	{ "Wacom BambooPT 2FG 4x5", WACOM_PKGLEN_BBFUN,   14720,  9200, 1023,
-	  31, BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES,
-	  .touch_max = 2 };
+	{ "Wacom BambooPT 2FG 4x5", 14720, 9200, 1023, 31,
+	  BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES, .touch_max = 2 };
 static const struct wacom_features wacom_features_0xD7 =
-	{ "Wacom BambooPT 2FG Small", WACOM_PKGLEN_BBFUN, 14720,  9200, 1023,
-	  31, BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES,
-	  .touch_max = 2 };
+	{ "Wacom BambooPT 2FG Small", 14720, 9200, 1023, 31,
+	  BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES, .touch_max = 2 };
 static const struct wacom_features wacom_features_0xD8 =
-	{ "Wacom Bamboo Comic 2FG", WACOM_PKGLEN_BBFUN,   21648, 13700, 1023,
-	  31, BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES,
-	  .touch_max = 2 };
+	{ "Wacom Bamboo Comic 2FG", 21648, 13700, 1023, 31,
+	  BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES, .touch_max = 2 };
 static const struct wacom_features wacom_features_0xDA =
-	{ "Wacom Bamboo 2FG 4x5 SE", WACOM_PKGLEN_BBFUN,  14720,  9200, 1023,
-	  31, BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES,
-	  .touch_max = 2 };
+	{ "Wacom Bamboo 2FG 4x5 SE", 14720, 9200, 1023, 31,
+	  BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES, .touch_max = 2 };
 static const struct wacom_features wacom_features_0xDB =
-	{ "Wacom Bamboo 2FG 6x8 SE", WACOM_PKGLEN_BBFUN,  21648, 13700, 1023,
-	  31, BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES,
-	  .touch_max = 2 };
+	{ "Wacom Bamboo 2FG 6x8 SE", 21648, 13700, 1023, 31,
+	  BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES, .touch_max = 2 };
 static const struct wacom_features wacom_features_0xDD =
-        { "Wacom Bamboo Connect", WACOM_PKGLEN_BBPEN,     14720,  9200, 1023,
-          31, BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+        { "Wacom Bamboo Connect", 14720, 9200, 1023, 31,
+          BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0xDE =
-        { "Wacom Bamboo 16FG 4x5", WACOM_PKGLEN_BBPEN,    14720,  9200, 1023,
-	  31, BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES,
-	  .touch_max = 16 };
+        { "Wacom Bamboo 16FG 4x5", 14720, 9200, 1023, 31,
+	  BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES, .touch_max = 16 };
 static const struct wacom_features wacom_features_0xDF =
-        { "Wacom Bamboo 16FG 6x8", WACOM_PKGLEN_BBPEN,    21648, 13700, 1023,
-	  31, BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES,
-	  .touch_max = 16 };
+        { "Wacom Bamboo 16FG 6x8", 21648, 13700, 1023, 31,
+	  BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES, .touch_max = 16 };
 static const struct wacom_features wacom_features_0x300 =
-	{ "Wacom Bamboo One S",    WACOM_PKGLEN_BBPEN,    14720,  9225, 1023,
-	  31, BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+	{ "Wacom Bamboo One S", 14720, 9225, 1023, 31,
+	  BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0x301 =
-	{ "Wacom Bamboo One M",    WACOM_PKGLEN_BBPEN,    21648, 13530, 1023,
-	  31, BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+	{ "Wacom Bamboo One M", 21648, 13530, 1023, 31,
+	  BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0x302 =
-	{ "Wacom Intuos PT S",     WACOM_PKGLEN_BBPEN,    15200,  9500, 1023,
-	  31, INTUOSHT, WACOM_INTUOS_RES, WACOM_INTUOS_RES,
-	  .touch_max = 16 };
+	{ "Wacom Intuos PT S", 15200, 9500, 1023, 31,
+	  INTUOSHT, WACOM_INTUOS_RES, WACOM_INTUOS_RES, .touch_max = 16,
+	  .check_for_hid_type = true, .hid_type = HID_TYPE_USBNONE };
 static const struct wacom_features wacom_features_0x303 =
-	{ "Wacom Intuos PT M",     WACOM_PKGLEN_BBPEN,    21600, 13500, 1023,
-	  31, INTUOSHT, WACOM_INTUOS_RES, WACOM_INTUOS_RES,
-	  .touch_max = 16 };
+	{ "Wacom Intuos PT M", 21600, 13500, 1023, 31,
+	  INTUOSHT, WACOM_INTUOS_RES, WACOM_INTUOS_RES, .touch_max = 16,
+	  .check_for_hid_type = true, .hid_type = HID_TYPE_USBNONE };
 static const struct wacom_features wacom_features_0x30E =
-	{ "Wacom Intuos S",        WACOM_PKGLEN_BBPEN,    15200,  9500, 1023,
-	  31, INTUOSHT, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+	{ "Wacom Intuos S", 15200, 9500, 1023, 31,
+	  INTUOSHT, WACOM_INTUOS_RES, WACOM_INTUOS_RES,
+	  .check_for_hid_type = true, .hid_type = HID_TYPE_USBNONE };
 static const struct wacom_features wacom_features_0x6004 =
-	{ "ISD-V4",               WACOM_PKGLEN_GRAPHIRE,  12800,  8000,  255,
-	  0, TABLETPC, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
-static const struct wacom_features wacom_features_0x0307 =
-	{ "Wacom ISDv5 307", WACOM_PKGLEN_INTUOS,  59352,  33648, 2047,
-	  63, CINTIQ_HYBRID, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 200, 200,
+	{ "ISD-V4", 12800, 8000, 255, 0,
+	  TABLETPC, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+static const struct wacom_features wacom_features_0x307 =
+	{ "Wacom ISDv5 307", 59352, 33648, 2047, 63,
+	  CINTIQ_HYBRID, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 200, 200,
 	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x309 };
-static const struct wacom_features wacom_features_0x0309 =
+static const struct wacom_features wacom_features_0x309 =
 	{ "Wacom ISDv5 309", .type = WACOM_24HDT, /* Touch */
-	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x0307, .touch_max = 10 };
+	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x0307, .touch_max = 10,
+	  .check_for_hid_type = true, .hid_type = HID_TYPE_USBNONE };
 
-#define USB_DEVICE_WACOM(prod)					\
-	USB_DEVICE(USB_VENDOR_ID_WACOM, prod),			\
-	.driver_info = (kernel_ulong_t)&wacom_features_##prod
+#define USB_DEVICE_WACOM(prod)						\
+	HID_DEVICE(BUS_USB, HID_GROUP_WACOM, USB_VENDOR_ID_WACOM, prod),\
+	.driver_data = (kernel_ulong_t)&wacom_features_##prod
 
-#define USB_DEVICE_DETAILED(prod, class, sub, proto)			\
-	USB_DEVICE_AND_INTERFACE_INFO(USB_VENDOR_ID_WACOM, prod, class,	\
-				      sub, proto),			\
-	.driver_info = (kernel_ulong_t)&wacom_features_##prod
+#define BT_DEVICE_WACOM(prod)						\
+	HID_DEVICE(BUS_BLUETOOTH, HID_GROUP_WACOM, USB_VENDOR_ID_WACOM, prod),\
+	.driver_data = (kernel_ulong_t)&wacom_features_##prod
 
 #define USB_DEVICE_LENOVO(prod)					\
-	USB_DEVICE(USB_VENDOR_ID_LENOVO, prod),			\
-	.driver_info = (kernel_ulong_t)&wacom_features_##prod
+	HID_USB_DEVICE(USB_VENDOR_ID_LENOVO, prod),			\
+	.driver_data = (kernel_ulong_t)&wacom_features_##prod
 
-const struct usb_device_id wacom_ids[] = {
+const struct hid_device_id wacom_ids[] = {
 	{ USB_DEVICE_WACOM(0x00) },
+	{ USB_DEVICE_WACOM(0x03) },
 	{ USB_DEVICE_WACOM(0x10) },
 	{ USB_DEVICE_WACOM(0x11) },
 	{ USB_DEVICE_WACOM(0x12) },
@@ -2372,20 +2613,16 @@ const struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE_WACOM(0x17) },
 	{ USB_DEVICE_WACOM(0x18) },
 	{ USB_DEVICE_WACOM(0x19) },
-	{ USB_DEVICE_WACOM(0x60) },
-	{ USB_DEVICE_WACOM(0x61) },
-	{ USB_DEVICE_WACOM(0x62) },
-	{ USB_DEVICE_WACOM(0x63) },
-	{ USB_DEVICE_WACOM(0x64) },
-	{ USB_DEVICE_WACOM(0x65) },
-	{ USB_DEVICE_WACOM(0x69) },
-	{ USB_DEVICE_WACOM(0x6A) },
-	{ USB_DEVICE_WACOM(0x6B) },
 	{ USB_DEVICE_WACOM(0x20) },
 	{ USB_DEVICE_WACOM(0x21) },
 	{ USB_DEVICE_WACOM(0x22) },
 	{ USB_DEVICE_WACOM(0x23) },
 	{ USB_DEVICE_WACOM(0x24) },
+	{ USB_DEVICE_WACOM(0x26) },
+	{ USB_DEVICE_WACOM(0x27) },
+	{ USB_DEVICE_WACOM(0x28) },
+	{ USB_DEVICE_WACOM(0x29) },
+	{ USB_DEVICE_WACOM(0x2A) },
 	{ USB_DEVICE_WACOM(0x30) },
 	{ USB_DEVICE_WACOM(0x31) },
 	{ USB_DEVICE_WACOM(0x32) },
@@ -2395,20 +2632,34 @@ const struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE_WACOM(0x37) },
 	{ USB_DEVICE_WACOM(0x38) },
 	{ USB_DEVICE_WACOM(0x39) },
-	{ USB_DEVICE_WACOM(0xC4) },
-	{ USB_DEVICE_WACOM(0xC0) },
-	{ USB_DEVICE_WACOM(0xC2) },
-	{ USB_DEVICE_WACOM(0x03) },
+	{ USB_DEVICE_WACOM(0x3F) },
 	{ USB_DEVICE_WACOM(0x41) },
 	{ USB_DEVICE_WACOM(0x42) },
 	{ USB_DEVICE_WACOM(0x43) },
 	{ USB_DEVICE_WACOM(0x44) },
 	{ USB_DEVICE_WACOM(0x45) },
+	{ USB_DEVICE_WACOM(0x47) },
 	{ USB_DEVICE_WACOM(0x57) },
 	{ USB_DEVICE_WACOM(0x59) },
-	{ USB_DEVICE_DETAILED(0x5D, USB_CLASS_HID, 0, 0) },
 	{ USB_DEVICE_WACOM(0x5B) },
-	{ USB_DEVICE_DETAILED(0x5E, USB_CLASS_HID, 0, 0) },
+	{ USB_DEVICE_WACOM(0x5D) },
+	{ USB_DEVICE_WACOM(0x5E) },
+	{ USB_DEVICE_WACOM(0x60) },
+	{ USB_DEVICE_WACOM(0x61) },
+	{ USB_DEVICE_WACOM(0x62) },
+	{ USB_DEVICE_WACOM(0x63) },
+	{ USB_DEVICE_WACOM(0x64) },
+	{ USB_DEVICE_WACOM(0x65) },
+	{ USB_DEVICE_WACOM(0x69) },
+	{ USB_DEVICE_WACOM(0x6A) },
+	{ USB_DEVICE_WACOM(0x6B) },
+	{ BT_DEVICE_WACOM(0x81) },
+	{ USB_DEVICE_WACOM(0x84) },
+	{ USB_DEVICE_WACOM(0x90) },
+	{ USB_DEVICE_WACOM(0x93) },
+	{ USB_DEVICE_WACOM(0x97) },
+	{ USB_DEVICE_WACOM(0x9A) },
+	{ USB_DEVICE_WACOM(0x9F) },
 	{ USB_DEVICE_WACOM(0xB0) },
 	{ USB_DEVICE_WACOM(0xB1) },
 	{ USB_DEVICE_WACOM(0xB2) },
@@ -2421,23 +2672,15 @@ const struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE_WACOM(0xBA) },
 	{ USB_DEVICE_WACOM(0xBB) },
 	{ USB_DEVICE_WACOM(0xBC) },
-	{ USB_DEVICE_WACOM(0x26) },
-	{ USB_DEVICE_WACOM(0x27) },
-	{ USB_DEVICE_WACOM(0x28) },
-	{ USB_DEVICE_WACOM(0x29) },
-	{ USB_DEVICE_WACOM(0x2A) },
-	{ USB_DEVICE_WACOM(0x3F) },
+	{ BT_DEVICE_WACOM(0xBD) },
+	{ USB_DEVICE_WACOM(0xC0) },
+	{ USB_DEVICE_WACOM(0xC2) },
+	{ USB_DEVICE_WACOM(0xC4) },
 	{ USB_DEVICE_WACOM(0xC5) },
 	{ USB_DEVICE_WACOM(0xC6) },
 	{ USB_DEVICE_WACOM(0xC7) },
-	/*
-	 * DTU-2231 has two interfaces on the same configuration,
-	 * only one is used.
-	 */
-	{ USB_DEVICE_DETAILED(0xCE, USB_CLASS_HID,
-			      USB_INTERFACE_SUBCLASS_BOOT,
-			      USB_INTERFACE_PROTOCOL_MOUSE) },
-	{ USB_DEVICE_WACOM(0x84) },
+	{ USB_DEVICE_WACOM(0xCC) },
+	{ USB_DEVICE_WACOM(0xCE) },
 	{ USB_DEVICE_WACOM(0xD0) },
 	{ USB_DEVICE_WACOM(0xD1) },
 	{ USB_DEVICE_WACOM(0xD2) },
@@ -2452,13 +2695,6 @@ const struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE_WACOM(0xDD) },
 	{ USB_DEVICE_WACOM(0xDE) },
 	{ USB_DEVICE_WACOM(0xDF) },
-	{ USB_DEVICE_WACOM(0xF0) },
-	{ USB_DEVICE_WACOM(0xCC) },
-	{ USB_DEVICE_WACOM(0x90) },
-	{ USB_DEVICE_WACOM(0x93) },
-	{ USB_DEVICE_WACOM(0x97) },
-	{ USB_DEVICE_WACOM(0x9A) },
-	{ USB_DEVICE_WACOM(0x9F) },
 	{ USB_DEVICE_WACOM(0xE2) },
 	{ USB_DEVICE_WACOM(0xE3) },
 	{ USB_DEVICE_WACOM(0xE5) },
@@ -2466,34 +2702,34 @@ const struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE_WACOM(0xEC) },
 	{ USB_DEVICE_WACOM(0xED) },
 	{ USB_DEVICE_WACOM(0xEF) },
+	{ USB_DEVICE_WACOM(0xF0) },
+	{ USB_DEVICE_WACOM(0xF4) },
+	{ USB_DEVICE_WACOM(0xF6) },
+	{ USB_DEVICE_WACOM(0xF8) },
+	{ USB_DEVICE_WACOM(0xFA) },
+	{ USB_DEVICE_WACOM(0xFB) },
 	{ USB_DEVICE_WACOM(0x100) },
 	{ USB_DEVICE_WACOM(0x101) },
 	{ USB_DEVICE_WACOM(0x10D) },
 	{ USB_DEVICE_WACOM(0x10E) },
 	{ USB_DEVICE_WACOM(0x10F) },
 	{ USB_DEVICE_WACOM(0x116) },
+	{ USB_DEVICE_WACOM(0x12C) },
 	{ USB_DEVICE_WACOM(0x300) },
 	{ USB_DEVICE_WACOM(0x301) },
-	{ USB_DEVICE_DETAILED(0x302, USB_CLASS_HID, 0, 0) },
-	{ USB_DEVICE_DETAILED(0x303, USB_CLASS_HID, 0, 0) },
-	{ USB_DEVICE_DETAILED(0x30E, USB_CLASS_HID, 0, 0) },
+	{ USB_DEVICE_WACOM(0x302) },
+	{ USB_DEVICE_WACOM(0x303) },
 	{ USB_DEVICE_WACOM(0x304) },
-	{ USB_DEVICE_DETAILED(0x314, USB_CLASS_HID, 0, 0) },
-	{ USB_DEVICE_DETAILED(0x315, USB_CLASS_HID, 0, 0) },
-	{ USB_DEVICE_DETAILED(0x317, USB_CLASS_HID, 0, 0) },
+	{ USB_DEVICE_WACOM(0x307) },
+	{ USB_DEVICE_WACOM(0x309) },
+	{ USB_DEVICE_WACOM(0x30E) },
+	{ USB_DEVICE_WACOM(0x314) },
+	{ USB_DEVICE_WACOM(0x315) },
+	{ USB_DEVICE_WACOM(0x317) },
 	{ USB_DEVICE_WACOM(0x4001) },
 	{ USB_DEVICE_WACOM(0x4004) },
 	{ USB_DEVICE_WACOM(0x5000) },
 	{ USB_DEVICE_WACOM(0x5002) },
-	{ USB_DEVICE_WACOM(0x47) },
-	{ USB_DEVICE_WACOM(0xF4) },
-	{ USB_DEVICE_WACOM(0xF8) },
-	{ USB_DEVICE_DETAILED(0xF6, USB_CLASS_HID, 0, 0) },
-	{ USB_DEVICE_WACOM(0xFA) },
-	{ USB_DEVICE_WACOM(0xFB) },
-	{ USB_DEVICE_WACOM(0x0307) },
-	{ USB_DEVICE_DETAILED(0x0309, USB_CLASS_HID, 0, 0) },
-	{ USB_DEVICE_LENOVO(0x6004) },
 	{ }
 };
-MODULE_DEVICE_TABLE(usb, wacom_ids);
+MODULE_DEVICE_TABLE(hid, wacom_ids);
