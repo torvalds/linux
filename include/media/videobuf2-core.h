@@ -366,6 +366,7 @@ struct v4l2_fh;
  *		cannot be started unless at least this number of buffers
  *		have been queued into the driver.
  *
+ * @mmap_lock:	private mutex used when buffers are allocated/freed/mmapped
  * @memory:	current memory type used
  * @bufs:	videobuf buffer structures
  * @num_buffers: number of allocated/used buffers
@@ -399,6 +400,7 @@ struct vb2_queue {
 	u32				min_buffers_needed;
 
 /* private: internal use only */
+	struct mutex			mmap_lock;
 	enum v4l2_memory		memory;
 	struct vb2_buffer		*bufs[VIDEO_MAX_FRAME];
 	unsigned int			num_buffers;
