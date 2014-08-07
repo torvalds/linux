@@ -1797,6 +1797,35 @@ pnfs_set_layoutcommit(struct nfs_pgio_header *hdr)
 }
 EXPORT_SYMBOL_GPL(pnfs_set_layoutcommit);
 
+void pnfs_commit_set_layoutcommit(struct nfs_commit_data *data)
+{
+	struct inode *inode = data->inode;
+	struct nfs_inode *nfsi = NFS_I(inode);
+	bool mark_as_dirty = false;
+
+	spin_lock(&inode->i_lock);
+	if (!test_and_set_bit(NFS_INO_LAYOUTCOMMIT, &nfsi->flags)) {
+		mark_as_dirty = true;
+		dprintk("%s: Set layoutcommit for inode %lu ",
+			__func__, inode->i_ino);
+	}
+	if (!test_and_set_bit(NFS_LSEG_LAYOUTCOMMIT, &data->lseg->pls_flags)) {
+		/* references matched in nfs4_layoutcommit_release */
+		pnfs_get_lseg(data->lseg);
+	}
+	if (data->lwb > nfsi->layout->plh_lwb)
+		nfsi->layout->plh_lwb = data->lwb;
+	spin_unlock(&inode->i_lock);
+	dprintk("%s: lseg %p end_pos %llu\n",
+		__func__, data->lseg, nfsi->layout->plh_lwb);
+
+	/* if pnfs_layoutcommit_inode() runs between inode locks, the next one
+	 * will be a noop because NFS_INO_LAYOUTCOMMIT will not be set */
+	if (mark_as_dirty)
+		mark_inode_dirty_sync(inode);
+}
+EXPORT_SYMBOL_GPL(pnfs_commit_set_layoutcommit);
+
 void pnfs_cleanup_layoutcommit(struct nfs4_layoutcommit_data *data)
 {
 	struct nfs_server *nfss = NFS_SERVER(data->args.inode);

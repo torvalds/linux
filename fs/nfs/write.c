@@ -1538,6 +1538,18 @@ int nfs_initiate_commit(struct rpc_clnt *clnt, struct nfs_commit_data *data,
 }
 EXPORT_SYMBOL_GPL(nfs_initiate_commit);
 
+static loff_t nfs_get_lwb(struct list_head *head)
+{
+	loff_t lwb = 0;
+	struct nfs_page *req;
+
+	list_for_each_entry(req, head, wb_list)
+		if (lwb < (req_offset(req) + req->wb_bytes))
+			lwb = req_offset(req) + req->wb_bytes;
+
+	return lwb;
+}
+
 /*
  * Set up the argument/result storage required for the RPC call.
  */
@@ -1557,6 +1569,9 @@ void nfs_init_commit(struct nfs_commit_data *data,
 	data->inode	  = inode;
 	data->cred	  = first->wb_context->cred;
 	data->lseg	  = lseg; /* reference transferred */
+	/* only set lwb for pnfs commit */
+	if (lseg)
+		data->lwb = nfs_get_lwb(&data->pages);
 	data->mds_ops     = &nfs_commit_ops;
 	data->completion_ops = cinfo->completion_ops;
 	data->dreq	  = cinfo->dreq;
