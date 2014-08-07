@@ -116,6 +116,10 @@ enum spi_nor_ops {
 	SPI_NOR_OPS_UNLOCK,
 };
 
+enum spi_nor_option_flags {
+	SNOR_F_USE_FSR		= BIT(0),
+};
+
 /**
  * struct spi_nor - Structure for defining a the SPI NOR layer
  * @mtd:		point to a mtd_info structure
@@ -129,6 +133,7 @@ enum spi_nor_ops {
  * @program_opcode:	the program opcode
  * @flash_read:		the mode of the read
  * @sst_write_second:	used by the SST write operation
+ * @flags:		flag options for the current SPI-NOR (SNOR_F_*)
  * @cfg:		used by the read_xfer/write_xfer
  * @cmd_buf:		used by the write_reg
  * @prepare:		[OPTIONAL] do some preparations for the
@@ -158,6 +163,7 @@ struct spi_nor {
 	u8			program_opcode;
 	enum read_mode		flash_read;
 	bool			sst_write_second;
+	u32			flags;
 	struct spi_nor_xfer_cfg	cfg;
 	u8			cmd_buf[SPI_NOR_MAX_CMD_SIZE];
 
