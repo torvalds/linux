@@ -1082,6 +1082,9 @@ static void l2cap_send_rr_or_rnr(struct l2cap_chan *chan, bool poll)
 
 static inline int __l2cap_no_conn_pending(struct l2cap_chan *chan)
 {
+	if (chan->chan_type != L2CAP_CHAN_CONN_ORIENTED)
+		return true;
+
 	return !test_bit(CONF_CONNECT_PEND, &chan->conf_state);
 }
 
