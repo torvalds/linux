@@ -75,15 +75,11 @@ int acct_parm[3] = {4, 2, 30};
 /*
  * External references and all of the globals.
  */
-static void do_acct_process(struct bsd_acct_struct *acct,
-		struct pid_namespace *ns, struct file *);
+static void do_acct_process(struct bsd_acct_struct *acct);
 
-/*
- * This structure is used so that all the data protected by lock
- * can be placed in the same cache line as the lock.  This primes
- * the cache line to have the data after getting the lock.
- */
 struct bsd_acct_struct {
+	long			count;
+	struct mutex		lock;
 	int			active;
 	unsigned long		needcheck;
 	struct file		*file;
@@ -157,39 +153,59 @@ out:
 	return res;
 }
 
-/*
- * Close the old accounting file (if currently open) and then replace
- * it with file (if non-NULL).
- *
- * NOTE: acct_lock MUST be held on entry and exit.
- */
-static void acct_file_reopen(struct bsd_acct_struct *acct, struct file *file,
-		struct pid_namespace *ns)
+static void acct_put(struct bsd_acct_struct *p)
 {
-	struct file *old_acct = NULL;
-	struct pid_namespace *old_ns = NULL;
+	spin_lock(&acct_lock);
+	if (!--p->count)
+		kfree(p);
+	spin_unlock(&acct_lock);
+}
 
-	if (acct->file) {
-		old_acct = acct->file;
-		old_ns = acct->ns;
-		acct->active = 0;
-		acct->file = NULL;
-		acct->ns = NULL;
-		list_del(&acct->list);
+static struct bsd_acct_struct *acct_get(struct bsd_acct_struct **p)
+{
+	struct bsd_acct_struct *res;
+	spin_lock(&acct_lock);
+again:
+	res = *p;
+	if (res)
+		res->count++;
+	spin_unlock(&acct_lock);
+	if (res) {
+		mutex_lock(&res->lock);
+		if (!res->ns) {
+			mutex_unlock(&res->lock);
+			spin_lock(&acct_lock);
+			if (!--res->count)
+				kfree(res);
+			goto again;
+		}
 	}
-	if (file) {
-		acct->file = file;
-		acct->ns = ns;
-		acct->needcheck = jiffies;
-		acct->active = 0;
-		list_add(&acct->list, &acct_list);
-	}
-	if (old_acct) {
-		mnt_unpin(old_acct->f_path.mnt);
-		spin_unlock(&acct_lock);
-		do_acct_process(acct, old_ns, old_acct);
-		filp_close(old_acct, NULL);
+	return res;
+}
+
+static void acct_kill(struct bsd_acct_struct *acct,
+		      struct bsd_acct_struct *new)
+{
+	if (acct) {
+		struct file *file = acct->file;
+		struct pid_namespace *ns = acct->ns;
 		spin_lock(&acct_lock);
+		list_del(&acct->list);
+		mnt_unpin(file->f_path.mnt);
+		spin_unlock(&acct_lock);
+		do_acct_process(acct);
+		filp_close(file, NULL);
+		spin_lock(&acct_lock);
+		ns->bacct = new;
+		if (new) {
+			mnt_pin(new->file->f_path.mnt);
+			list_add(&new->list, &acct_list);
+		}
+		acct->ns = NULL;
+		mutex_unlock(&acct->lock);
+		if (!(acct->count -= 2))
+			kfree(acct);
+		spin_unlock(&acct_lock);
 	}
 }
 
@@ -197,47 +213,50 @@ static int acct_on(struct filename *pathname)
 {
 	struct file *file;
 	struct vfsmount *mnt;
-	struct pid_namespace *ns;
-	struct bsd_acct_struct *acct = NULL;
+	struct pid_namespace *ns = task_active_pid_ns(current);
+	struct bsd_acct_struct *acct, *old;
+
+	acct = kzalloc(sizeof(struct bsd_acct_struct), GFP_KERNEL);
+	if (!acct)
+		return -ENOMEM;
 
 	/* Difference from BSD - they don't do O_APPEND */
 	file = file_open_name(pathname, O_WRONLY|O_APPEND|O_LARGEFILE, 0);
-	if (IS_ERR(file))
+	if (IS_ERR(file)) {
+		kfree(acct);
 		return PTR_ERR(file);
+	}
 
 	if (!S_ISREG(file_inode(file)->i_mode)) {
+		kfree(acct);
 		filp_close(file, NULL);
 		return -EACCES;
 	}
 
 	if (!file->f_op->write) {
+		kfree(acct);
 		filp_close(file, NULL);
 		return -EIO;
 	}
 
-	ns = task_active_pid_ns(current);
-	if (ns->bacct == NULL) {
-		acct = kzalloc(sizeof(struct bsd_acct_struct), GFP_KERNEL);
-		if (acct == NULL) {
-			filp_close(file, NULL);
-			return -ENOMEM;
-		}
-	}
-
-	spin_lock(&acct_lock);
-	if (ns->bacct == NULL) {
-		ns->bacct = acct;
-		acct = NULL;
-	}
-
+	acct->count = 1;
+	acct->file = file;
+	acct->needcheck = jiffies;
+	acct->ns = ns;
+	mutex_init(&acct->lock);
 	mnt = file->f_path.mnt;
-	mnt_pin(mnt);
-	acct_file_reopen(ns->bacct, file, ns);
-	spin_unlock(&acct_lock);
 
+	old = acct_get(&ns->bacct);
+	if (old) {
+		acct_kill(old, acct);
+	} else {
+		spin_lock(&acct_lock);
+		ns->bacct = acct;
+		mnt_pin(mnt);
+		list_add(&acct->list, &acct_list);
+		spin_unlock(&acct_lock);
+	}
 	mntput(mnt); /* it's pinned, now give up active reference */
-	kfree(acct);
-
 	return 0;
 }
 
@@ -270,15 +289,7 @@ SYSCALL_DEFINE1(acct, const char __user *, name)
 		mutex_unlock(&acct_on_mutex);
 		putname(tmp);
 	} else {
-		struct bsd_acct_struct *acct;
-
-		acct = task_active_pid_ns(current)->bacct;
-		if (acct == NULL)
-			return 0;
-
-		spin_lock(&acct_lock);
-		acct_file_reopen(acct, NULL, NULL);
-		spin_unlock(&acct_lock);
+		acct_kill(acct_get(&task_active_pid_ns(current)->bacct), NULL);
 	}
 
 	return error;
@@ -298,8 +309,19 @@ void acct_auto_close_mnt(struct vfsmount *m)
 	spin_lock(&acct_lock);
 restart:
 	list_for_each_entry(acct, &acct_list, list)
-		if (acct->file && acct->file->f_path.mnt == m) {
-			acct_file_reopen(acct, NULL, NULL);
+		if (acct->file->f_path.mnt == m) {
+			acct->count++;
+			spin_unlock(&acct_lock);
+			mutex_lock(&acct->lock);
+			if (!acct->ns) {
+				mutex_unlock(&acct->lock);
+				spin_lock(&acct_lock);
+				if (!--acct->count)
+					kfree(acct);
+				goto restart;
+			}
+			acct_kill(acct, NULL);
+			spin_lock(&acct_lock);
 			goto restart;
 		}
 	spin_unlock(&acct_lock);
@@ -319,8 +341,19 @@ void acct_auto_close(struct super_block *sb)
 	spin_lock(&acct_lock);
 restart:
 	list_for_each_entry(acct, &acct_list, list)
-		if (acct->file && acct->file->f_path.dentry->d_sb == sb) {
-			acct_file_reopen(acct, NULL, NULL);
+		if (acct->file->f_path.dentry->d_sb == sb) {
+			acct->count++;
+			spin_unlock(&acct_lock);
+			mutex_lock(&acct->lock);
+			if (!acct->ns) {
+				mutex_unlock(&acct->lock);
+				spin_lock(&acct_lock);
+				if (!--acct->count)
+					kfree(acct);
+				goto restart;
+			}
+			acct_kill(acct, NULL);
+			spin_lock(&acct_lock);
 			goto restart;
 		}
 	spin_unlock(&acct_lock);
@@ -328,17 +361,7 @@ restart:
 
 void acct_exit_ns(struct pid_namespace *ns)
 {
-	struct bsd_acct_struct *acct = ns->bacct;
-
-	if (acct == NULL)
-		return;
-
-	spin_lock(&acct_lock);
-	if (acct->file != NULL)
-		acct_file_reopen(acct, NULL, NULL);
-	spin_unlock(&acct_lock);
-
-	kfree(acct);
+	acct_kill(acct_get(&ns->bacct), NULL);
 }
 
 /*
@@ -507,12 +530,13 @@ static void fill_ac(acct_t *ac)
 /*
  *  do_acct_process does all actual work. Caller holds the reference to file.
  */
-static void do_acct_process(struct bsd_acct_struct *acct,
-		struct pid_namespace *ns, struct file *file)
+static void do_acct_process(struct bsd_acct_struct *acct)
 {
 	acct_t ac;
 	unsigned long flim;
 	const struct cred *orig_cred;
+	struct pid_namespace *ns = acct->ns;
+	struct file *file = acct->file;
 
 	/*
 	 * Accounting records are not subject to resource limits.
@@ -606,27 +630,12 @@ void acct_collect(long exitcode, int group_dead)
 static void slow_acct_process(struct pid_namespace *ns)
 {
 	for ( ; ns; ns = ns->parent) {
-		struct file *file = NULL;
-		struct bsd_acct_struct *acct;
-
-		acct = ns->bacct;
-		/*
-		 * accelerate the common fastpath:
-		 */
-		if (!acct || !acct->file)
-			continue;
-
-		spin_lock(&acct_lock);
-		file = acct->file;
-		if (unlikely(!file)) {
-			spin_unlock(&acct_lock);
-			continue;
+		struct bsd_acct_struct *acct = acct_get(&ns->bacct);
+		if (acct) {
+			do_acct_process(acct);
+			mutex_unlock(&acct->lock);
+			acct_put(acct);
 		}
-		get_file(file);
-		spin_unlock(&acct_lock);
-
-		do_acct_process(acct, ns, file);
-		fput(file);
 	}
 }
 
@@ -645,8 +654,7 @@ void acct_process(void)
 	 * its parent.
 	 */
 	for (ns = task_active_pid_ns(current); ns != NULL; ns = ns->parent) {
-		struct bsd_acct_struct *acct = ns->bacct;
-		if (acct && acct->file)
+		if (ns->bacct)
 			break;
 	}
 	if (unlikely(ns))
