@@ -3058,6 +3058,13 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	S		[KNL] Run init in single mode
 
+	s390_iommu=	[HW,S390]
+			Set s390 IOTLB flushing mode
+		strict
+			With strict flushing every unmap operation will result in
+			an IOTLB flush. Default is lazy flushing before reuse,
+			which is faster.
+
 	sa1100ir	[NET]
 			See drivers/net/irda/sa1100_ir.c.
 
