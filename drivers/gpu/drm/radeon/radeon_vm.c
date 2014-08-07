@@ -483,6 +483,10 @@ int radeon_vm_bo_set_addr(struct radeon_device *rdev,
 			/* add a clone of the bo_va to clear the old address */
 			struct radeon_bo_va *tmp;
 			tmp = kzalloc(sizeof(struct radeon_bo_va), GFP_KERNEL);
+			if (!tmp) {
+				mutex_unlock(&vm->mutex);
+				return -ENOMEM;
+			}
 			tmp->it.start = bo_va->it.start;
 			tmp->it.last = bo_va->it.last;
 			tmp->vm = vm;
