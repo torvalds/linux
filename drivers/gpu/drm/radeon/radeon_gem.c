@@ -291,7 +291,7 @@ int radeon_gem_userptr_ioctl(struct drm_device *dev, void *data,
 
 	/* reject unknown flag values */
 	if (args->flags & ~(RADEON_GEM_USERPTR_READONLY |
-	    RADEON_GEM_USERPTR_ANONONLY))
+	    RADEON_GEM_USERPTR_ANONONLY | RADEON_GEM_USERPTR_VALIDATE))
 		return -EINVAL;
 
 	/* readonly pages not tested on older hardware */
@@ -311,6 +311,22 @@ int radeon_gem_userptr_ioctl(struct drm_device *dev, void *data,
 	r = radeon_ttm_tt_set_userptr(bo->tbo.ttm, args->addr, args->flags);
 	if (r)
 		goto release_object;
+
+	if (args->flags & RADEON_GEM_USERPTR_VALIDATE) {
+		down_read(&current->mm->mmap_sem);
+		r = radeon_bo_reserve(bo, true);
+		if (r) {
+			up_read(&current->mm->mmap_sem);
+			goto release_object;
+		}
+
+		radeon_ttm_placement_from_domain(bo, RADEON_GEM_DOMAIN_GTT);
+		r = ttm_bo_validate(&bo->tbo, &bo->placement, true, false);
+		radeon_bo_unreserve(bo);
+		up_read(&current->mm->mmap_sem);
+		if (r)
+			goto release_object;
+	}
 
 	r = drm_gem_handle_create(filp, gobj, &handle);
 	/* drop reference from allocate - handle holds it now */
