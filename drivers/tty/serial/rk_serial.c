@@ -304,7 +304,7 @@ static inline unsigned int serial_in(struct uart_rk_port *up, int offset)
 {
 	offset = offset << 2;
 
-	return __raw_readb(up->port.membase + offset);
+	return __raw_readl(up->port.membase + offset);
 }
 
 /* Save the LCR value so it can be re-written when a Busy Detect IRQ occurs. */
@@ -325,7 +325,7 @@ static inline void dwapb_check_clear_ier(struct uart_rk_port *up, int offset)
 static inline void serial_out(struct uart_rk_port *up, int offset, unsigned char value)
 {
 	dwapb_save_out_value(up, offset, value);
-	__raw_writeb(value, up->port.membase + (offset << 2));
+	__raw_writel(value, up->port.membase + (offset << 2));
 	if (offset != UART_TX)
 		dsb();
 	dwapb_check_clear_ier(up, offset);
