@@ -94,13 +94,18 @@ static int au8522_rc_read(struct au0828_rc *ir, u16 reg, int val,
 static int au8522_rc_andor(struct au0828_rc *ir, u16 reg, u8 mask, u8 value)
 {
 	int rc;
-	char buf;
+	char buf, oldbuf;
 
 	rc = au8522_rc_read(ir, reg, -1, &buf, 1);
 	if (rc < 0)
 		return rc;
 
+	oldbuf = buf;
 	buf = (buf & ~mask) | (value & mask);
+
+	/* Nothing to do, just return */
+	if (buf == oldbuf)
+		return 0;
 
 	return au8522_rc_write(ir, reg, buf);
 }
@@ -126,8 +131,11 @@ static int au0828_get_key_au8522(struct au0828_rc *ir)
 
 	/* Check IR int */
 	rc = au8522_rc_read(ir, 0xe1, -1, buf, 1);
-	if (rc < 0 || !(buf[0] & (1 << 4)))
+	if (rc < 0 || !(buf[0] & (1 << 4))) {
+		/* Be sure that IR is enabled */
+	        au8522_rc_set(ir, 0xe0, 1 << 4);
 		return 0;
+	}
 
 	/* Something arrived. Get the data */
 	rc = au8522_rc_read(ir, 0xe3, 0x11, buf, sizeof(buf));
