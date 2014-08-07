@@ -182,7 +182,7 @@ static void imx_drm_driver_preclose(struct drm_device *drm,
 {
 	int i;
 
-	if (!drm_is_master(file))
+	if (!file->is_master)
 		return;
 
 	for (i = 0; i < MAX_CRTC; i++)

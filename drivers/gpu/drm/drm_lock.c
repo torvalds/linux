@@ -112,7 +112,7 @@ int drm_lock(struct drm_device *dev, void *data, struct drm_file *file_priv)
 	/* don't set the block all signals on the master process for now 
 	 * really probably not the correct answer but lets us debug xkb
  	 * xserver for now */
-	if (!drm_is_master(file_priv)) {
+	if (!file_priv->is_master) {
 		sigemptyset(&dev->sigmask);
 		sigaddset(&dev->sigmask, SIGSTOP);
 		sigaddset(&dev->sigmask, SIGTSTP);

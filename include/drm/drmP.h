@@ -384,6 +384,8 @@ struct drm_prime_file_private {
 /** File private data */
 struct drm_file {
 	unsigned authenticated :1;
+	/* Whether we're master for a minor. Protected by master_mutex */
+	unsigned is_master :1;
 	/* true when the client has asked us to expose stereo 3D mode flags */
 	unsigned stereo_allowed :1;
 	/*
@@ -1020,7 +1022,7 @@ struct drm_device {
 	/** \name Locks */
 	/*@{ */
 	struct mutex struct_mutex;	/**< For others */
-	struct mutex master_mutex;      /**< For drm_minor::master */
+	struct mutex master_mutex;      /**< For drm_minor::master and drm_file::is_master */
 	/*@} */
 
 	/** \name Usage Counters */
@@ -1156,21 +1158,6 @@ static inline bool drm_is_control_client(const struct drm_file *file_priv)
 static inline bool drm_is_primary_client(const struct drm_file *file_priv)
 {
 	return file_priv->minor->type == DRM_MINOR_LEGACY;
-}
-
-/**
- * drm_is_master() - Check whether a DRM open-file is DRM-Master
- * @file: DRM open-file context
- *
- * This checks whether a DRM open-file context is owner of the master context
- * attached to it. If a file owns a master context, it's called DRM-Master.
- * Per DRM device, only one such file can be DRM-Master at a time.
- *
- * Returns: True if the file is DRM-Master, otherwise false.
- */
-static inline bool drm_is_master(const struct drm_file *file)
-{
-	return file->master && file->master == file->minor->master;
 }
 
 /******************************************************************/

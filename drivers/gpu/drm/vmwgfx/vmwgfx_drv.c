@@ -990,7 +990,7 @@ static struct vmw_master *vmw_master_check(struct drm_device *dev,
 	if (unlikely(ret != 0))
 		return ERR_PTR(-ERESTARTSYS);
 
-	if (drm_is_master(file_priv)) {
+	if (file_priv->is_master) {
 		mutex_unlock(&dev->master_mutex);
 		return NULL;
 	}
