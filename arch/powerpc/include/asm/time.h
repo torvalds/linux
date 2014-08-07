@@ -102,6 +102,15 @@ static inline u64 get_rtc(void)
 	return (u64)hi * 1000000000 + lo;
 }
 
+static inline u64 get_vtb(void)
+{
+#ifdef CONFIG_PPC_BOOK3S_64
+	if (cpu_has_feature(CPU_FTR_ARCH_207S))
+		return mfvtb();
+#endif
+	return 0;
+}
+
 #ifdef CONFIG_PPC64
 static inline u64 get_tb(void)
 {

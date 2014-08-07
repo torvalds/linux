@@ -33,7 +33,6 @@
 /* IVPR must be 64KiB-aligned. */
 #define VCPU_SIZE_ORDER 4
 #define VCPU_SIZE_LOG   (VCPU_SIZE_ORDER + 12)
-#define VCPU_TLB_PGSZ   PPC44x_TLB_64K
 #define VCPU_SIZE_BYTES (1<<VCPU_SIZE_LOG)
 
 #define BOOKE_INTERRUPT_CRITICAL 0
@@ -132,6 +131,7 @@
 #define BOOK3S_HFLAG_NATIVE_PS			0x8
 #define BOOK3S_HFLAG_MULTI_PGSIZE		0x10
 #define BOOK3S_HFLAG_NEW_TLBIE			0x20
+#define BOOK3S_HFLAG_SPLIT_HACK			0x40
 
 #define RESUME_FLAG_NV          (1<<0)  /* Reload guest nonvolatile state? */
 #define RESUME_FLAG_HOST        (1<<1)  /* Resume host? */

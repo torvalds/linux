@@ -250,6 +250,14 @@ int kvmppc_core_emulate_mtspr_e500(struct kvm_vcpu *vcpu, int sprn, ulong spr_va
 				spr_val);
 		break;
 
+	case SPRN_PWRMGTCR0:
+		/*
+		 * Guest relies on host power management configurations
+		 * Treat the request as a general store
+		 */
+		vcpu->arch.pwrmgtcr0 = spr_val;
+		break;
+
 	/* extra exceptions */
 	case SPRN_IVOR32:
 		vcpu->arch.ivor[BOOKE_IRQPRIO_SPE_UNAVAIL] = spr_val;
@@ -366,6 +374,10 @@ int kvmppc_core_emulate_mfspr_e500(struct kvm_vcpu *vcpu, int sprn, ulong *spr_v
 		 * category is disabled in the VM. Give them a chance to live.
 		 */
 		*spr_val = vcpu->arch.eptcfg;
+		break;
+
+	case SPRN_PWRMGTCR0:
+		*spr_val = vcpu->arch.pwrmgtcr0;
 		break;
 
 	/* extra exceptions */
