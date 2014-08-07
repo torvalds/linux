@@ -92,6 +92,7 @@ enum _VOP_SOC_TYPE {
         #define m_WIN0_ALPHA_MODE	BITS(1, 18)
         #define m_WIN1_ALPHA_MODE	BITS(1, 19)
         #define m_WIN0_CSC_MODE		BITS(3, 20)
+	#define m_WIN1_CSC_MODE		BITS(1, 22)
         #define m_WIN0_YUV_CLIP		BITS(1, 23)
         #define m_TVE_MODE		BITS(1, 25)
         #define m_SW_UV_OFFSET_EN	BITS(1, 26)	/* use for rk312x */
@@ -120,6 +121,7 @@ enum _VOP_SOC_TYPE {
         #define v_WIN0_ALPHA_MODE(x)		BITS_MASK(x, 1, 18)
         #define v_WIN1_ALPHA_MODE(x)		BITS_MASK(x, 1, 19)
         #define v_WIN0_CSC_MODE(x)		BITS_MASK(x, 3, 20)
+	#define v_WIN1_CSC_MODE(x)		BITS_MASK(x, 1, 22)
         #define v_WIN0_YUV_CLIP(x)		BITS_MASK(x, 1, 23)
         #define v_TVE_MODE(x)			BITS_MASK(x, 1, 25)
         #define v_SW_UV_OFFSET_EN(x)		BITS_MASK(x, 1, 26)      /* rk312x */
@@ -437,10 +439,10 @@ enum _VOP_SOC_TYPE {
 
 #define BCSH_H 			(0xdc)	
 	#define m_BCSH_SIN_HUE		BITS(0xff, 0)
-	#define m_BCSH_COS_HUE		BITS(0xff, 16)
+	#define m_BCSH_COS_HUE		BITS(0xff, 8)
 
 	#define v_BCSH_SIN_HUE(x)	BITS_MASK(x, 0xff, 0)
-	#define v_BCSH_COS_HUE(x)	BITS_MASK(x, 0xff, 16)
+	#define v_BCSH_COS_HUE(x)	BITS_MASK(x, 0xff, 8)
 
 #define FRC_LOWER01_0           (0xe0)
 #define FRC_LOWER01_1           (0xe4)
@@ -623,16 +625,28 @@ enum _vop_tv_mode {
 	TV_PAL,
 };
 
-enum _vop_csc_mode {
-	VOP_CSC_BT601 = 0,
-	VOP_CSC_JPEG,
-	VOP_CSC_BT709
+enum _vop_r2y_csc_mode {
+	VOP_R2Y_CSC_BT601 = 0,
+	VOP_R2Y_CSC_BT709
+};
+
+enum _vop_y2r_csc_mode {
+	VOP_Y2R_CSC_MPEG = 0,
+	VOP_Y2R_CSC_JPEG,
+	VOP_Y2R_CSC_HD,
+	VOP_Y2R_CSC_BYPASS
 };
 
 enum _vop_hwc_size {
 	VOP_HWC_SIZE_32,
 	VOP_HWC_SIZE_64
 };
+
+enum _vop_overlay_mode {
+	VOP_RGB_DOMAIN,
+	VOP_YUV_DOMAIN
+};
+
 
 #define CalScale(x, y)	             ((((u32)(x - 1)) * 0x1000) / (y - 1))
 
@@ -673,6 +687,7 @@ struct lcdc_device {
         u32 s_pixclock;
 
 	u32 standby;			/* 1:standby,0:work */
+	u16 overlay_mode;
 };
 
 static inline void lcdc_writel(struct lcdc_device *lcdc_dev, u32 offset, u32 v)

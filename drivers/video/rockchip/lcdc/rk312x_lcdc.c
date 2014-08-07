@@ -230,12 +230,59 @@ static int rk312x_lcdc_alpha_cfg(struct lcdc_device *lcdc_dev)
 	return 0;
 }
 
+static void lcdc_layer_csc_mode(struct lcdc_device *lcdc_dev,
+				      struct rk_lcdc_win *win)
+{
+	struct rk_screen *screen = lcdc_dev->driver.cur_screen;
+
+	if (lcdc_dev->overlay_mode == VOP_YUV_DOMAIN) {
+		switch (win->fmt_cfg) {
+		case VOP_FORMAT_ARGB888:
+		case VOP_FORMAT_RGB888:
+		case VOP_FORMAT_RGB565:
+			if ((screen->mode.xres < 1280 ) &&
+			    (screen->mode.yres < 720)) {
+				win->csc_mode = VOP_R2Y_CSC_BT601;
+			} else {
+				win->csc_mode = VOP_R2Y_CSC_BT709;
+			}
+			break;
+		default:
+			break;
+		}
+		if (win->id  == 0) {
+			lcdc_msk_reg(lcdc_dev, DSP_CTRL0, m_WIN0_CSC_MODE,
+				     v_WIN0_CSC_MODE(win->csc_mode));
+		} else if (win->id  == 1) {
+			lcdc_msk_reg(lcdc_dev, DSP_CTRL0, m_WIN1_CSC_MODE,
+				     v_WIN1_CSC_MODE(win->csc_mode));
+		}
+	} else if (lcdc_dev->overlay_mode == VOP_RGB_DOMAIN) {
+		switch (win->fmt_cfg) {
+		case VOP_FORMAT_YCBCR420:
+			if (win->id  == 0) {
+				win->csc_mode = VOP_Y2R_CSC_MPEG;
+				lcdc_msk_reg(lcdc_dev, DSP_CTRL0, m_WIN0_CSC_MODE,
+					     v_WIN0_CSC_MODE(win->csc_mode));
+			}
+			break;
+		default:
+			break;
+		}
+	}
+
+}
+
+
 static void lcdc_layer_update_regs(struct lcdc_device *lcdc_dev,
 				   struct rk_lcdc_win *win)
 {
 	u32 mask, val;
 
 	if (win->state == 1) {
+		if (lcdc_dev->soc_type == VOP_RK312X)
+			lcdc_layer_csc_mode(lcdc_dev,win);
+
 		if (win->id == 0) {
 			mask = m_WIN0_EN | m_WIN0_FORMAT | m_WIN0_RB_SWAP;
 			val = v_WIN0_EN(win->state) |
@@ -734,6 +781,7 @@ static int rk312x_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
                                 mask = m_RGB_DCLK_EN | m_RGB_DCLK_INVERT;
 			        val = v_RGB_DCLK_EN(1) | v_RGB_DCLK_INVERT(0);
                                 lcdc_msk_reg(lcdc_dev, AXI_BUS_CTRL, mask, val);
+				lcdc_dev->overlay_mode = VOP_RGB_DOMAIN;
                         }
                         break;
                 case SCREEN_LVDS:
@@ -741,6 +789,7 @@ static int rk312x_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
                                 mask = m_LVDS_DCLK_EN | m_LVDS_DCLK_INVERT;
 			        val = v_LVDS_DCLK_EN(1) | v_LVDS_DCLK_INVERT(0);
                                 lcdc_msk_reg(lcdc_dev, AXI_BUS_CTRL, mask, val);
+				lcdc_dev->overlay_mode = VOP_RGB_DOMAIN;
                         }
                         break;
                 case SCREEN_MIPI:
@@ -748,6 +797,7 @@ static int rk312x_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
                                 mask = m_MIPI_DCLK_EN | m_MIPI_DCLK_INVERT;
 			        val = v_MIPI_DCLK_EN(1) | v_MIPI_DCLK_INVERT(0);
                                 lcdc_msk_reg(lcdc_dev, AXI_BUS_CTRL, mask, val);
+				lcdc_dev->overlay_mode = VOP_RGB_DOMAIN;
                         }
                         break;
 		case SCREEN_HDMI:
@@ -758,6 +808,9 @@ static int rk312x_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 				val |= v_CORE_CLK_DIV_EN(1);
 			}
 			lcdc_msk_reg(lcdc_dev, AXI_BUS_CTRL, mask, val);
+                        if (lcdc_dev->soc_type == VOP_RK312X) {
+				lcdc_dev->overlay_mode = VOP_YUV_DOMAIN;
+                        }
 			break;
 		case SCREEN_TVOUT:
 			mask = m_TVE_DAC_DCLK_EN;
@@ -778,12 +831,14 @@ static int rk312x_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 					"unsupported video timing!\n");
 				return -1;
 			}
+                        if (lcdc_dev->soc_type == VOP_RK312X) {
+				lcdc_dev->overlay_mode = VOP_YUV_DOMAIN;
+                        }
 			break;
 		default:
 			dev_err(lcdc_dev->dev, "un supported interface!\n");
 			break;
 		}
-
                 if (lcdc_dev->soc_type == VOP_RK312X) {
                         switch (screen->face) {
 		        case OUT_P565:
@@ -835,7 +890,9 @@ static int rk312x_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 		        default:
 			        dev_err(lcdc_dev->dev, "un supported interface!\n");
 			        break;
-		        }
+			}
+			lcdc_msk_reg(lcdc_dev, DSP_CTRL0, m_SW_OVERLAY_MODE,
+				     v_SW_OVERLAY_MODE(lcdc_dev->overlay_mode));
                 }
 
 		mask = m_DSP_OUT_FORMAT | m_HSYNC_POL | m_VSYNC_POL |
@@ -1477,9 +1534,13 @@ static int rk312x_lcdc_open_bcsh(struct rk_lcdc_driver *dev_drv, bool open)
 	spin_lock(&lcdc_dev->reg_lock);
 	if (lcdc_dev->clk_on) {
 		if (open) {
-			lcdc_writel(lcdc_dev, BCSH_CTRL, 0x1);
-			lcdc_writel(lcdc_dev, BCSH_BCS, 0xd0010000);
-			lcdc_writel(lcdc_dev, BCSH_H, 0x01000000);
+			lcdc_writel(lcdc_dev, BCSH_CTRL,
+				    v_BCSH_EN(1) | v_BCSH_OUT_MODE(3));
+			lcdc_writel(lcdc_dev, BCSH_BCS,
+				    v_BCSH_BRIGHTNESS(0x00) |
+				    v_BCSH_CONTRAST(0x80) |
+				    v_BCSH_SAT_CON(0x80));
+			lcdc_writel(lcdc_dev, BCSH_H, v_BCSH_COS_HUE(0x80));
 		} else {
 			mask = m_BCSH_EN;
 			val = v_BCSH_EN(0);
@@ -1487,6 +1548,15 @@ static int rk312x_lcdc_open_bcsh(struct rk_lcdc_driver *dev_drv, bool open)
 		}
 		lcdc_cfg_done(lcdc_dev);
 	}
+
+	if (lcdc_dev->overlay_mode == VOP_YUV_DOMAIN) {
+		lcdc_msk_reg(lcdc_dev, BCSH_CTRL, m_BCSH_R2Y_CSC_MODE,
+			     v_BCSH_R2Y_CSC_MODE(VOP_Y2R_CSC_BYPASS));
+	} else {
+		lcdc_msk_reg(lcdc_dev, BCSH_CTRL, m_BCSH_R2Y_CSC_MODE,
+			     v_BCSH_R2Y_CSC_MODE(VOP_Y2R_CSC_MPEG));
+	}
+
 	spin_unlock(&lcdc_dev->reg_lock);
 	return 0;
 }
