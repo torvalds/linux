@@ -3794,7 +3794,7 @@ static int ucc_geth_probe(struct platform_device* ofdev)
 			if (err)
 				return err;
 		}
-		ug_info->phy_node = np;
+		ug_info->phy_node = of_node_get(np);
 	}
 
 	/* Find the TBI PHY node.  If it's not there, we don't support SGMII */
