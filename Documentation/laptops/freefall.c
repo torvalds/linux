@@ -34,6 +34,7 @@ static int set_unload_heads_path(char *device)
 	if (strlen(device) <= 5 || strncmp(device, "/dev/", 5) != 0)
 		return -EINVAL;
 	strncpy(devname, device + 5, sizeof(devname) - 1);
+	devname[sizeof(devname) - 1] = '\0';
 	strncpy(device_path, device, sizeof(device_path) - 1);
 
 	snprintf(unload_heads_path, sizeof(unload_heads_path) - 1,

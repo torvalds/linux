@@ -398,7 +398,7 @@ static void menu_update(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 	 *
 	 * Any measured amount of time will include the exit latency.
 	 * Since we are interested in when the wakeup begun, not when it
-	 * was completed, we must substract the exit latency. However, if
+	 * was completed, we must subtract the exit latency. However, if
 	 * the measured amount of time is less than the exit latency,
 	 * assume the state was never reached and the exit latency is 0.
 	 */
