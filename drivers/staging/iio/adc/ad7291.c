@@ -73,8 +73,6 @@
 #define AD7291_T_VALUE_FLOAT_OFFSET	2
 #define AD7291_T_VALUE_FLOAT_MASK	0x2
 
-#define AD7291_BITS			12
-
 struct ad7291_chip_info {
 	struct i2c_client	*client;
 	struct regulator	*reg;
