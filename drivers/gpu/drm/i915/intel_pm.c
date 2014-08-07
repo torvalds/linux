@@ -1494,6 +1494,37 @@ static void cherryview_update_wm(struct drm_crtc *crtc)
 		intel_set_memory_cxsr(dev_priv, true);
 }
 
+static void valleyview_update_sprite_wm(struct drm_plane *plane,
+					struct drm_crtc *crtc,
+					uint32_t sprite_width,
+					uint32_t sprite_height,
+					int pixel_size,
+					bool enabled, bool scaled)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int pipe = to_intel_plane(plane)->pipe;
+	int sprite = to_intel_plane(plane)->plane;
+	int drain_latency;
+	int plane_prec;
+	int sprite_dl;
+	int prec_mult;
+
+	sprite_dl = I915_READ(VLV_DDL(pipe)) & ~(DDL_SPRITE_PRECISION_64(sprite) |
+		    (DRAIN_LATENCY_MASK << DDL_SPRITE_SHIFT(sprite)));
+
+	if (enabled && vlv_compute_drain_latency(crtc, pixel_size, &prec_mult,
+						 &drain_latency)) {
+		plane_prec = (prec_mult == DRAIN_LATENCY_PRECISION_64) ?
+					   DDL_SPRITE_PRECISION_64(sprite) :
+					   DDL_SPRITE_PRECISION_32(sprite);
+		sprite_dl |= plane_prec |
+			     (drain_latency << DDL_SPRITE_SHIFT(sprite));
+	}
+
+	I915_WRITE(VLV_DDL(pipe), sprite_dl);
+}
+
 static void g4x_update_wm(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
@@ -7225,10 +7256,12 @@ void intel_init_pm(struct drm_device *dev)
 			dev_priv->display.init_clock_gating = gen8_init_clock_gating;
 	} else if (IS_CHERRYVIEW(dev)) {
 		dev_priv->display.update_wm = cherryview_update_wm;
+		dev_priv->display.update_sprite_wm = valleyview_update_sprite_wm;
 		dev_priv->display.init_clock_gating =
 			cherryview_init_clock_gating;
 	} else if (IS_VALLEYVIEW(dev)) {
 		dev_priv->display.update_wm = valleyview_update_wm;
+		dev_priv->display.update_sprite_wm = valleyview_update_sprite_wm;
 		dev_priv->display.init_clock_gating =
 			valleyview_init_clock_gating;
 	} else if (IS_PINEVIEW(dev)) {

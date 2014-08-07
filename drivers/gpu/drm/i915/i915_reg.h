@@ -4000,12 +4000,9 @@ enum punit_power_well {
 #define DDL_CURSOR_PRECISION_64		(1<<31)
 #define DDL_CURSOR_PRECISION_32		(0<<31)
 #define DDL_CURSOR_SHIFT		24
-#define DDL_SPRITE1_PRECISION_64	(1<<23)
-#define DDL_SPRITE1_PRECISION_32	(0<<23)
-#define DDL_SPRITE1_SHIFT		16
-#define DDL_SPRITE0_PRECISION_64	(1<<15)
-#define DDL_SPRITE0_PRECISION_32	(0<<15)
-#define DDL_SPRITE0_SHIFT		8
+#define DDL_SPRITE_PRECISION_64(sprite)	(1<<(15+8*(sprite)))
+#define DDL_SPRITE_PRECISION_32(sprite)	(0<<(15+8*(sprite)))
+#define DDL_SPRITE_SHIFT(sprite)	(8+8*(sprite))
 #define DDL_PLANE_PRECISION_64		(1<<7)
 #define DDL_PLANE_PRECISION_32		(0<<7)
 #define DDL_PLANE_SHIFT			0
