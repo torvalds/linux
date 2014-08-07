@@ -350,16 +350,16 @@ static void print_nid_path(struct hda_codec *codec,
 			   const char *pfx, struct nid_path *path)
 {
 	char buf[40];
+	char *pos = buf;
 	int i;
 
+	*pos = 0;
+	for (i = 0; i < path->depth; i++)
+		pos += scnprintf(pos, sizeof(buf) - (pos - buf), "%s%02x",
+				 pos != buf ? ":" : "",
+				 path->path[i]);
 
-	buf[0] = 0;
-	for (i = 0; i < path->depth; i++) {
-		char tmp[4];
-		sprintf(tmp, ":%02x", path->path[i]);
-		strlcat(buf, tmp, sizeof(buf));
-	}
-	codec_dbg(codec, "%s path: depth=%d %s\n", pfx, path->depth, buf);
+	codec_dbg(codec, "%s path: depth=%d '%s'\n", pfx, path->depth, buf);
 }
 
 /* called recursively */
@@ -1700,9 +1700,11 @@ static int fill_and_eval_dacs(struct hda_codec *codec,
 #define DEBUG_BADNESS
 
 #ifdef DEBUG_BADNESS
-#define debug_badness(fmt, args...)	codec_dbg(codec, fmt, ##args)
+#define debug_badness(fmt, ...)						\
+	codec_dbg(codec, fmt, ##__VA_ARGS__)
 #else
-#define debug_badness(...)
+#define debug_badness(fmt, ...)						\
+	do { if (0) codec_dbg(codec, fmt, ##__VA_ARGS__); } while (0)
 #endif
 
 #ifdef DEBUG_BADNESS
@@ -3054,7 +3056,7 @@ static int parse_capture_source(struct hda_codec *codec, hda_nid_t pin,
 			if (spec->hp_mic_pin == pin)
 				spec->hp_mic_mux_idx = imux->num_items;
 			spec->imux_pins[imux->num_items] = pin;
-			snd_hda_add_imux_item(imux, label, cfg_idx, NULL);
+			snd_hda_add_imux_item(codec, imux, label, cfg_idx, NULL);
 			imux_added = true;
 			if (spec->dyn_adc_switch)
 				spec->dyn_adc_idx[imux_idx] = c;

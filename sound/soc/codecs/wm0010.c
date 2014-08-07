@@ -144,7 +144,7 @@ static const struct snd_soc_dapm_route wm0010_dapm_routes[] = {
 
 static const char *wm0010_state_to_str(enum wm0010_state state)
 {
-	const char *state_to_str[] = {
+	static const char * const state_to_str[] = {
 		"Power off",
 		"Out of reset",
 		"Boot ROM",
@@ -413,7 +413,6 @@ static int wm0010_firmware_load(const char *name, struct snd_soc_codec *codec)
 
 		xfer = kzalloc(sizeof(*xfer), GFP_KERNEL);
 		if (!xfer) {
-			dev_err(codec->dev, "Failed to allocate xfer\n");
 			ret = -ENOMEM;
 			goto abort;
 		}
@@ -423,8 +422,6 @@ static int wm0010_firmware_load(const char *name, struct snd_soc_codec *codec)
 
 		out = kzalloc(len, GFP_KERNEL | GFP_DMA);
 		if (!out) {
-			dev_err(codec->dev,
-				"Failed to allocate RX buffer\n");
 			ret = -ENOMEM;
 			goto abort1;
 		}
@@ -432,8 +429,6 @@ static int wm0010_firmware_load(const char *name, struct snd_soc_codec *codec)
 
 		img = kzalloc(len, GFP_KERNEL | GFP_DMA);
 		if (!img) {
-			dev_err(codec->dev,
-				"Failed to allocate image buffer\n");
 			ret = -ENOMEM;
 			goto abort1;
 		}
@@ -526,14 +521,12 @@ static int wm0010_stage2_load(struct snd_soc_codec *codec)
 	/* Copy to local buffer first as vmalloc causes problems for dma */
 	img = kzalloc(fw->size, GFP_KERNEL | GFP_DMA);
 	if (!img) {
-		dev_err(codec->dev, "Failed to allocate image buffer\n");
 		ret = -ENOMEM;
 		goto abort2;
 	}
 
 	out = kzalloc(fw->size, GFP_KERNEL | GFP_DMA);
 	if (!out) {
-		dev_err(codec->dev, "Failed to allocate output buffer\n");
 		ret = -ENOMEM;
 		goto abort1;
 	}
@@ -679,11 +672,8 @@ static int wm0010_boot(struct snd_soc_codec *codec)
 		}
 
 		img_swap = kzalloc(len, GFP_KERNEL | GFP_DMA);
-		if (!img_swap) {
-			dev_err(codec->dev,
-				"Failed to allocate image buffer\n");
+		if (!img_swap)
 			goto abort;
-		}
 
 		/* We need to re-order for 0010 */
 		byte_swap_64((u64 *)&pll_rec, img_swap, len);

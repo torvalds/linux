@@ -2046,14 +2046,14 @@ enum dma_state {
 	DMA_STATE_RUN   = 1
 };
 
-static int dma_convert_to_hda_format(
+static int dma_convert_to_hda_format(struct hda_codec *codec,
 		unsigned int sample_rate,
 		unsigned short channels,
 		unsigned short *hda_format)
 {
 	unsigned int format_val;
 
-	format_val = snd_hda_calc_stream_format(
+	format_val = snd_hda_calc_stream_format(codec,
 				sample_rate,
 				channels,
 				SNDRV_PCM_FORMAT_S32_LE,
@@ -2452,7 +2452,7 @@ static int dspxfr_image(struct hda_codec *codec,
 	}
 
 	dma_engine->codec = codec;
-	dma_convert_to_hda_format(sample_rate, channels, &hda_format);
+	dma_convert_to_hda_format(codec, sample_rate, channels, &hda_format);
 	dma_engine->m_converter_format = hda_format;
 	dma_engine->buf_size = (ovly ? DSP_DMA_WRITE_BUFLEN_OVLY :
 			DSP_DMA_WRITE_BUFLEN_INIT) * 2;
