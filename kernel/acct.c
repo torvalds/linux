@@ -154,7 +154,6 @@ static void close_work(struct work_struct *work)
 {
 	struct bsd_acct_struct *acct = container_of(work, struct bsd_acct_struct, work);
 	struct file *file = acct->file;
-	mnt_unpin(file->f_path.mnt);
 	if (file->f_op->flush)
 		file->f_op->flush(file, NULL);
 	__fput_sync(file);
@@ -196,9 +195,10 @@ static void acct_pin_kill(struct fs_pin *pin)
 static int acct_on(struct filename *pathname)
 {
 	struct file *file;
-	struct vfsmount *mnt;
+	struct vfsmount *mnt, *internal;
 	struct pid_namespace *ns = task_active_pid_ns(current);
 	struct bsd_acct_struct *acct, *old;
+	int err;
 
 	acct = kzalloc(sizeof(struct bsd_acct_struct), GFP_KERNEL);
 	if (!acct)
@@ -222,6 +222,21 @@ static int acct_on(struct filename *pathname)
 		filp_close(file, NULL);
 		return -EIO;
 	}
+	internal = mnt_clone_internal(&file->f_path);
+	if (IS_ERR(internal)) {
+		kfree(acct);
+		filp_close(file, NULL);
+		return PTR_ERR(internal);
+	}
+	err = mnt_want_write(internal);
+	if (err) {
+		mntput(internal);
+		kfree(acct);
+		filp_close(file, NULL);
+		return err;
+	}
+	mnt = file->f_path.mnt;
+	file->f_path.mnt = internal;
 
 	atomic_long_set(&acct->pin.count, 1);
 	acct->pin.kill = acct_pin_kill;
@@ -229,8 +244,6 @@ static int acct_on(struct filename *pathname)
 	acct->needcheck = jiffies;
 	acct->ns = ns;
 	mutex_init(&acct->lock);
-	mnt = file->f_path.mnt;
-	mnt_pin(mnt);
 	mutex_lock_nested(&acct->lock, 1);	/* nobody has seen it yet */
 	pin_insert(&acct->pin, mnt);
 
@@ -240,7 +253,8 @@ static int acct_on(struct filename *pathname)
 	else
 		ns->bacct = acct;
 	mutex_unlock(&acct->lock);
-	mntput(mnt); /* it's pinned, now give up active reference */
+	mnt_drop_write(mnt);
+	mntput(mnt);
 	return 0;
 }
 
