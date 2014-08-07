@@ -453,7 +453,7 @@
 			};
 
 			sdma: sdma@53fd4000 {
-				compatible = "fsl,imx25-sdma", "fsl,imx35-sdma";
+				compatible = "fsl,imx25-sdma";
 				reg = <0x53fd4000 0x4000>;
 				clocks = <&clks 112>, <&clks 68>;
 				clock-names = "ipg", "ahb";
