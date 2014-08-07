@@ -46,6 +46,7 @@ struct au0828_board au0828_boards[] = {
 		.name	= "Hauppauge HVR850",
 		.tuner_type = TUNER_XC5000,
 		.tuner_addr = 0x61,
+		.has_ir_i2c = 1,
 		.i2c_clk_divider = AU0828_I2C_CLK_250KHZ,
 		.input = {
 			{
