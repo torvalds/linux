@@ -74,8 +74,8 @@
 
 #define RGA2_VERSION   "2.000"
 
-ktime_t rga_start;
-ktime_t rga_end;
+ktime_t rga2_start;
+ktime_t rga2_end;
 
 int rga2_flag = 0;
 
@@ -878,9 +878,9 @@ static int rga2_blit_sync(rga2_session *session, struct rga2_req *req)
 	}
 
     #if RGA2_TEST_TIME
-    rga_end = ktime_get();
-    rga_end = ktime_sub(rga_end, rga_start);
-    printk("sync one cmd end time %d\n", (int)ktime_to_us(rga_end));
+    rga2_end = ktime_get();
+    rga2_end = ktime_sub(rga2_end, rga2_start);
+    printk("sync one cmd end time %d\n", (int)ktime_to_us(rga2_end));
     #endif
 
     return ret;
@@ -992,7 +992,7 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 }
 
 
-long rga_ioctl_kernel(struct rga_req *req_rga)
+long rga2_ioctl_kernel(struct rga_req *req_rga)
 {
 	int ret = 0;
     rga2_session *session;
@@ -1109,7 +1109,7 @@ static struct miscdevice rga2_dev ={
 };
 
 static const struct of_device_id rockchip_rga_dt_ids[] = {
-	{ .compatible = "rockchip,rga", },
+	{ .compatible = "rockchip,rga2", },
 	{},
 };
 
