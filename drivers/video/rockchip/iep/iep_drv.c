@@ -79,11 +79,13 @@ static void iep_reg_deinit(struct iep_reg *reg)
 #if defined(CONFIG_IEP_IOMMU)
     struct iep_mem_region *mem_region = NULL, *n;
     // release memory region attach to this registers table.
-    list_for_each_entry_safe(mem_region, n, &reg->mem_region_list, reg_lnk) {
-        ion_unmap_iommu(iep_service.iommu_dev, iep_service.ion_client, mem_region->hdl);
-        ion_free(iep_service.ion_client, mem_region->hdl);
-        list_del_init(&mem_region->reg_lnk);
-        kfree(mem_region);
+    if (iep_service.iommu_dev) {
+        list_for_each_entry_safe(mem_region, n, &reg->mem_region_list, reg_lnk) {
+            ion_unmap_iommu(iep_service.iommu_dev, iep_service.ion_client, mem_region->hdl);
+            ion_free(iep_service.ion_client, mem_region->hdl);
+            list_del_init(&mem_region->reg_lnk);
+            kfree(mem_region);
+        }
     }
 #endif 
     list_del_init(&reg->session_link);
@@ -797,7 +799,10 @@ static int iep_drv_probe(struct platform_device *pdev)
     int ret = 0;
     struct resource *res = NULL;
 #if defined(CONFIG_IEP_IOMMU)
+    u32 iommu_en = 0;
     struct device *mmu_dev = NULL;
+    struct device_node *np = pdev->dev.of_node;
+    of_property_read_u32(np, "iommu_enabled", &iommu_en);
 #endif
 
     data = (struct iep_drvdata*)devm_kzalloc(&pdev->dev, sizeof(struct iep_drvdata), GFP_KERNEL);
@@ -884,24 +889,26 @@ static int iep_drv_probe(struct platform_device *pdev)
     
 #if defined(CONFIG_IEP_IOMMU)
     iep_service.iommu_dev = NULL;
-    iep_power_on();
-    iep_service.ion_client = rockchip_ion_client_create("iep");
-    if (IS_ERR(iep_service.ion_client)) {
-        IEP_ERR("failed to create ion client for vcodec");
-        return PTR_ERR(iep_service.ion_client);
-    } else {
-        IEP_INFO("iep ion client create success!\n");
+    if (iommu_en) {
+        iep_power_on();
+        iep_service.ion_client = rockchip_ion_client_create("iep");
+        if (IS_ERR(iep_service.ion_client)) {
+            IEP_ERR("failed to create ion client for vcodec");
+            return PTR_ERR(iep_service.ion_client);
+        } else {
+            IEP_INFO("iep ion client create success!\n");
+        }
+
+        mmu_dev = rockchip_get_sysmmu_device_by_compatible("iommu,iep_mmu");
+        
+        if (mmu_dev) {
+            platform_set_sysmmu(mmu_dev, &pdev->dev);
+            iovmm_activate(&pdev->dev);
+        }
+
+        iep_service.iommu_dev = &pdev->dev;
+        iep_power_off();
     }
-   
-    mmu_dev = rockchip_get_sysmmu_device_by_compatible("iommu,iep_mmu");
-    
-    if (mmu_dev) {
-        platform_set_sysmmu(mmu_dev, &pdev->dev);
-        iovmm_activate(&pdev->dev);
-    }
-    
-    iep_service.iommu_dev = &pdev->dev;
-    iep_power_off();
 #endif
 
     IEP_INFO("IEP Driver loaded succesfully\n");
