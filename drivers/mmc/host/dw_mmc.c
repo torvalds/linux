@@ -996,7 +996,8 @@ static int dw_mci_get_ro(struct mmc_host *mmc)
 	int gpio_ro = mmc_gpio_get_ro(mmc);
 
 	/* Use platform get_ro function, else try on board write protect */
-	if (slot->quirks & DW_MCI_SLOT_QUIRK_NO_WRITE_PROTECT)
+	if ((slot->quirks & DW_MCI_SLOT_QUIRK_NO_WRITE_PROTECT) ||
+			(slot->host->quirks & DW_MCI_QUIRK_NO_WRITE_PROTECT))
 		read_only = 0;
 	else if (!IS_ERR_VALUE(gpio_ro))
 		read_only = gpio_ro;
@@ -2014,8 +2015,11 @@ static int dw_mci_of_get_slot_quirks(struct device *dev, u8 slot)
 
 	/* get quirks */
 	for (idx = 0; idx < ARRAY_SIZE(of_slot_quirks); idx++)
-		if (of_get_property(np, of_slot_quirks[idx].quirk, NULL))
+		if (of_get_property(np, of_slot_quirks[idx].quirk, NULL)) {
+			dev_warn(dev, "Slot quirk %s is deprecated\n",
+					of_slot_quirks[idx].quirk);
 			quirks |= of_slot_quirks[idx].id;
+		}
 
 	return quirks;
 }
@@ -2279,6 +2283,9 @@ static struct dw_mci_of_quirks {
 	{
 		.quirk	= "broken-cd",
 		.id	= DW_MCI_QUIRK_BROKEN_CARD_DETECTION,
+	}, {
+		.quirk	= "disable-wp",
+		.id	= DW_MCI_QUIRK_NO_WRITE_PROTECT,
 	},
 };
 
