@@ -206,7 +206,6 @@ static void acct_kill(struct bsd_acct_struct *acct,
 		ns->bacct = new;
 		if (new) {
 			struct vfsmount *m = new->file->f_path.mnt;
-			mnt_pin(m);
 			spin_lock(&acct_lock);
 			hlist_add_head(&new->s_list, &m->mnt_sb->s_pins);
 			hlist_add_head(&new->m_list, &real_mount(m)->mnt_pins);
@@ -256,6 +255,7 @@ static int acct_on(struct filename *pathname)
 	acct->ns = ns;
 	mutex_init(&acct->lock);
 	mnt = file->f_path.mnt;
+	mnt_pin(mnt);
 
 	old = acct_get(ns);
 	mutex_lock_nested(&acct->lock, 1);	/* nobody has seen it yet */
@@ -264,7 +264,6 @@ static int acct_on(struct filename *pathname)
 	} else {
 		ns->bacct = acct;
 		spin_lock(&acct_lock);
-		mnt_pin(mnt);
 		hlist_add_head(&acct->s_list, &mnt->mnt_sb->s_pins);
 		hlist_add_head(&acct->m_list, &real_mount(mnt)->mnt_pins);
 		spin_unlock(&acct_lock);
