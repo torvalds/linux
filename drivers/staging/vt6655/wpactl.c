@@ -224,7 +224,9 @@ int wpa_set_keys(PSDevice pDevice, void *ctx,
 	} else {
 		spin_unlock_irq(&pDevice->lock);
 		if (param->u.wpa_key.key &&
-		    copy_from_user(&abyKey[0], param->u.wpa_key.key, param->u.wpa_key.key_len)) {
+		    copy_from_user(&abyKey[0],
+				   (void __user *)param->u.wpa_key.key,
+				   param->u.wpa_key.key_len)) {
 			spin_lock_irq(&pDevice->lock);
 			return -EINVAL;
 		}
@@ -262,7 +264,9 @@ int wpa_set_keys(PSDevice pDevice, void *ctx,
 	} else {
 		spin_unlock_irq(&pDevice->lock);
 		if (param->u.wpa_key.seq &&
-		    copy_from_user(&abySeq[0], param->u.wpa_key.seq, param->u.wpa_key.seq_len)) {
+		    copy_from_user(&abySeq[0],
+				   (void __user *)param->u.wpa_key.seq,
+				   param->u.wpa_key.seq_len)) {
 			spin_lock_irq(&pDevice->lock);
 			return -EINVAL;
 		}
