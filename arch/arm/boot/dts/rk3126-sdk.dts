@@ -1,4 +1,5 @@
 #include "rk312x-sdk.dtsi"
+#include "lcd-b101ew05.dtsi"
 
 / {
 	 compatible = "rockchip,rk3126";
@@ -11,8 +12,16 @@
         };
 };
 
+&rk_screen {
+	display-timings = <&disp_timings>;
+};
+
 &lcdc {
 	status = "okay";
+
+	pinctrl-names = "default", "gpio";
+	pinctrl-0 = <&lcdc0_lcdc>;
+	pinctrl-1 = <&lcdc0_gpio>;
 
 	power_ctr: power_ctr {
 		rockchip,debug = <0>;

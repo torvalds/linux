@@ -1,7 +1,6 @@
 /dts-v1/;
 
 #include "rk312x.dtsi"
-#include "lcd-b101ew05.dtsi"
 
 / {
 	fiq-debugger {
@@ -206,10 +205,6 @@
 &fb {
 	rockchip,disp-mode = <ONE_DUAL>;
 	rockchip,uboot-logo-on = <0>;
-};
-
-&rk_screen {
-	display-timings = <&disp_timings>;
 };
 
 &hdmi {
