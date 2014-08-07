@@ -137,7 +137,6 @@ struct service_to_pipe {
 
 enum ath10k_pci_features {
 	ATH10K_PCI_FEATURE_MSI_X		= 0,
-	ATH10K_PCI_FEATURE_SOC_POWER_SAVE	= 1,
 
 	/* keep last */
 	ATH10K_PCI_FEATURE_COUNT
@@ -183,9 +182,6 @@ struct ath10k_pci {
 
 	int started;
 
-	atomic_t keep_awake_count;
-	bool verified_awake;
-
 	struct ath10k_pci_pipe pipe_info[CE_COUNT_MAX];
 
 	struct ath10k_hif_cb msg_callbacks_current;
@@ -203,20 +199,6 @@ struct ath10k_pci {
 static inline struct ath10k_pci *ath10k_pci_priv(struct ath10k *ar)
 {
 	return (struct ath10k_pci *)ar->drv_priv;
-}
-
-static inline u32 ath10k_pci_reg_read32(struct ath10k *ar, u32 addr)
-{
-	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
-
-	return ioread32(ar_pci->mem + PCIE_LOCAL_BASE_ADDRESS + addr);
-}
-
-static inline void ath10k_pci_reg_write32(struct ath10k *ar, u32 addr, u32 val)
-{
-	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
-
-	iowrite32(val, ar_pci->mem + PCIE_LOCAL_BASE_ADDRESS + addr);
 }
 
 #define ATH_PCI_RESET_WAIT_MAX 10 /* ms */
@@ -242,35 +224,17 @@ static inline void ath10k_pci_reg_write32(struct ath10k *ar, u32 addr, u32 val)
 /* Wait up to this many Ms for a Diagnostic Access CE operation to complete */
 #define DIAG_ACCESS_CE_TIMEOUT_MS 10
 
-/*
- * This API allows the Host to access Target registers directly
- * and relatively efficiently over PCIe.
- * This allows the Host to avoid extra overhead associated with
- * sending a message to firmware and waiting for a response message
- * from firmware, as is done on other interconnects.
+/* Target exposes its registers for direct access. However before host can
+ * access them it needs to make sure the target is awake (ath10k_pci_wake,
+ * ath10k_pci_wake_wait, ath10k_pci_is_awake). Once target is awake it won't go
+ * to sleep unless host tells it to (ath10k_pci_sleep).
  *
- * Yet there is some complexity with direct accesses because the
- * Target's power state is not known a priori. The Host must issue
- * special PCIe reads/writes in order to explicitly wake the Target
- * and to verify that it is awake and will remain awake.
+ * If host tries to access target registers without waking it up it can
+ * scribble over host memory.
  *
- * Usage:
- *
- *   Use ath10k_pci_read32 and ath10k_pci_write32 to access Target space.
- *   These calls must be bracketed by ath10k_pci_wake and
- *   ath10k_pci_sleep.  A single BEGIN/END pair is adequate for
- *   multiple READ/WRITE operations.
- *
- *   Use ath10k_pci_wake to put the Target in a state in
- *   which it is legal for the Host to directly access it. This
- *   may involve waking the Target from a low power state, which
- *   may take up to 2Ms!
- *
- *   Use ath10k_pci_sleep to tell the Target that as far as
- *   this code path is concerned, it no longer needs to remain
- *   directly accessible.  BEGIN/END is under a reference counter;
- *   multiple code paths may issue BEGIN/END on a single targid.
+ * If target is asleep waking it up may take up to even 2ms.
  */
+
 static inline void ath10k_pci_write32(struct ath10k *ar, u32 offset,
 				      u32 value)
 {
@@ -296,25 +260,18 @@ static inline void ath10k_pci_soc_write32(struct ath10k *ar, u32 addr, u32 val)
 	ath10k_pci_write32(ar, RTC_SOC_BASE_ADDRESS + addr, val);
 }
 
-int ath10k_do_pci_wake(struct ath10k *ar);
-void ath10k_do_pci_sleep(struct ath10k *ar);
-
-static inline int ath10k_pci_wake(struct ath10k *ar)
+static inline u32 ath10k_pci_reg_read32(struct ath10k *ar, u32 addr)
 {
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 
-	if (test_bit(ATH10K_PCI_FEATURE_SOC_POWER_SAVE, ar_pci->features))
-		return ath10k_do_pci_wake(ar);
-
-	return 0;
+	return ioread32(ar_pci->mem + PCIE_LOCAL_BASE_ADDRESS + addr);
 }
 
-static inline void ath10k_pci_sleep(struct ath10k *ar)
+static inline void ath10k_pci_reg_write32(struct ath10k *ar, u32 addr, u32 val)
 {
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 
-	if (test_bit(ATH10K_PCI_FEATURE_SOC_POWER_SAVE, ar_pci->features))
-		ath10k_do_pci_sleep(ar);
+	iowrite32(val, ar_pci->mem + PCIE_LOCAL_BASE_ADDRESS + addr);
 }
 
 #endif /* _PCI_H_ */
