@@ -7341,15 +7341,8 @@ int l2cap_security_cfm(struct hci_conn *hcon, u8 status, u8 encrypt)
 			continue;
 		}
 
-		if (chan->scid == L2CAP_CID_ATT) {
-			if (!status && encrypt) {
-				chan->sec_level = hcon->sec_level;
-				l2cap_chan_ready(chan);
-			}
-
-			l2cap_chan_unlock(chan);
-			continue;
-		}
+		if (!status && encrypt)
+			chan->sec_level = hcon->sec_level;
 
 		if (!__l2cap_no_conn_pending(chan)) {
 			l2cap_chan_unlock(chan);
