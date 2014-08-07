@@ -693,9 +693,9 @@ static int sh_msiof_dma_once(struct sh_msiof_spi_priv *p, const void *tx,
 	reinit_completion(&p->done);
 
 	/* Now start DMA */
-	if (tx)
-		dma_async_issue_pending(p->master->dma_rx);
 	if (rx)
+		dma_async_issue_pending(p->master->dma_rx);
+	if (tx)
 		dma_async_issue_pending(p->master->dma_tx);
 
 	ret = sh_msiof_spi_start(p, rx);
