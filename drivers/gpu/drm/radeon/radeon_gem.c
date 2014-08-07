@@ -272,6 +272,65 @@ int radeon_gem_create_ioctl(struct drm_device *dev, void *data,
 	return 0;
 }
 
+int radeon_gem_userptr_ioctl(struct drm_device *dev, void *data,
+			     struct drm_file *filp)
+{
+	struct radeon_device *rdev = dev->dev_private;
+	struct drm_radeon_gem_userptr *args = data;
+	struct drm_gem_object *gobj;
+	struct radeon_bo *bo;
+	uint32_t handle;
+	int r;
+
+	if (offset_in_page(args->addr | args->size))
+		return -EINVAL;
+
+	/* we only support read only mappings for now */
+	if (!(args->flags & RADEON_GEM_USERPTR_READONLY))
+		return -EACCES;
+
+	/* reject unknown flag values */
+	if (args->flags & ~RADEON_GEM_USERPTR_READONLY)
+		return -EINVAL;
+
+	/* readonly pages not tested on older hardware */
+	if (rdev->family < CHIP_R600)
+		return -EINVAL;
+
+	down_read(&rdev->exclusive_lock);
+
+	/* create a gem object to contain this object in */
+	r = radeon_gem_object_create(rdev, args->size, 0,
+				     RADEON_GEM_DOMAIN_CPU, 0,
+				     false, &gobj);
+	if (r)
+		goto handle_lockup;
+
+	bo = gem_to_radeon_bo(gobj);
+	r = radeon_ttm_tt_set_userptr(bo->tbo.ttm, args->addr, args->flags);
+	if (r)
+		goto release_object;
+
+	r = drm_gem_handle_create(filp, gobj, &handle);
+	/* drop reference from allocate - handle holds it now */
+	drm_gem_object_unreference_unlocked(gobj);
+	if (r)
+		goto handle_lockup;
+
+	args->handle = handle;
+	up_read(&rdev->exclusive_lock);
+	return 0;
+
+release_object:
+	drm_gem_object_unreference_unlocked(gobj);
+
+handle_lockup:
+	up_read(&rdev->exclusive_lock);
+	r = radeon_gem_handle_lockup(rdev, r);
+
+	return r;
+}
+
 int radeon_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 				struct drm_file *filp)
 {
@@ -315,6 +374,10 @@ int radeon_mode_dumb_mmap(struct drm_file *filp,
 		return -ENOENT;
 	}
 	robj = gem_to_radeon_bo(gobj);
+	if (radeon_ttm_tt_has_userptr(robj->tbo.ttm)) {
+		drm_gem_object_unreference_unlocked(gobj);
+		return -EPERM;
+	}
 	*offset_p = radeon_bo_mmap_offset(robj);
 	drm_gem_object_unreference_unlocked(gobj);
 	return 0;
@@ -532,6 +595,11 @@ int radeon_gem_op_ioctl(struct drm_device *dev, void *data,
 		return -ENOENT;
 	}
 	robj = gem_to_radeon_bo(gobj);
+
+	r = -EPERM;
+	if (radeon_ttm_tt_has_userptr(robj->tbo.ttm))
+		goto out;
+
 	r = radeon_bo_reserve(robj, false);
 	if (unlikely(r))
 		goto out;

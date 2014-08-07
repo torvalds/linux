@@ -264,6 +264,9 @@ int radeon_bo_pin_restricted(struct radeon_bo *bo, u32 domain, u64 max_offset,
 {
 	int r, i;
 
+	if (radeon_ttm_tt_has_userptr(bo->tbo.ttm))
+		return -EPERM;
+
 	if (bo->pin_count) {
 		bo->pin_count++;
 		if (gpu_addr)
