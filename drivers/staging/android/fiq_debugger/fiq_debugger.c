@@ -246,7 +246,11 @@ static void fiq_debugger_prompt(struct fiq_debugger_state *state)
 
 static void fiq_debugger_dump_kernel_log(struct fiq_debugger_state *state)
 {
+#ifdef CONFIG_ARCH_ROCKCHIP
+	char buf[968];
+#else
 	char buf[512];
+#endif
 	size_t len;
 	struct kmsg_dumper dumper = { .active = true };
 
