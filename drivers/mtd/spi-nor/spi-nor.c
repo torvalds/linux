@@ -671,11 +671,6 @@ static const struct spi_device_id *spi_nor_read_id(struct spi_nor *nor)
 	return ERR_PTR(-ENODEV);
 }
 
-static const struct spi_device_id *jedec_probe(struct spi_nor *nor)
-{
-	return nor->read_id(nor);
-}
-
 static int spi_nor_read(struct mtd_info *mtd, loff_t from, size_t len,
 			size_t *retlen, u_char *buf)
 {
@@ -958,7 +953,7 @@ int spi_nor_scan(struct spi_nor *nor, const struct spi_device_id *id,
 	if (info->jedec_id) {
 		const struct spi_device_id *jid;
 
-		jid = jedec_probe(nor);
+		jid = nor->read_id(nor);
 		if (IS_ERR(jid)) {
 			return PTR_ERR(jid);
 		} else if (jid != id) {
