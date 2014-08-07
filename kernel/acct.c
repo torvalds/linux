@@ -78,7 +78,7 @@ int acct_parm[3] = {4, 2, 30};
  */
 static void do_acct_process(struct bsd_acct_struct *acct);
 
-struct bsd_acct_struct {
+struct fs_pin {
 	atomic_long_t		count;
 	union {
 		struct {
@@ -87,6 +87,10 @@ struct bsd_acct_struct {
 		};
 		struct rcu_head rcu;
 	};
+};
+
+struct bsd_acct_struct {
+	struct fs_pin		pin;
 	struct mutex		lock;
 	int			active;
 	unsigned long		needcheck;
@@ -96,9 +100,9 @@ struct bsd_acct_struct {
 	struct completion	done;
 };
 
-static void acct_free_rcu(struct rcu_head *head)
+static void pin_free_rcu(struct rcu_head *head)
 {
-	kfree(container_of(head, struct bsd_acct_struct, rcu));
+	kfree(container_of(head, struct fs_pin, rcu));
 }
 
 static DEFINE_SPINLOCK(acct_lock);
@@ -138,15 +142,15 @@ out:
 	return acct->active;
 }
 
-static void acct_put(struct bsd_acct_struct *p)
+static void pin_put(struct fs_pin *p)
 {
 	if (atomic_long_dec_and_test(&p->count))
-		call_rcu(&p->rcu, acct_free_rcu);
+		call_rcu(&p->rcu, pin_free_rcu);
 }
 
 static struct bsd_acct_struct *__acct_get(struct bsd_acct_struct *res)
 {
-	if (!atomic_long_inc_not_zero(&res->count)) {
+	if (!atomic_long_inc_not_zero(&res->pin.count)) {
 		rcu_read_unlock();
 		cpu_relax();
 		return NULL;
@@ -155,7 +159,7 @@ static struct bsd_acct_struct *__acct_get(struct bsd_acct_struct *res)
 	mutex_lock(&res->lock);
 	if (!res->ns) {
 		mutex_unlock(&res->lock);
-		acct_put(res);
+		pin_put(&res->pin);
 		return NULL;
 	}
 	return res;
@@ -200,22 +204,22 @@ static void acct_kill(struct bsd_acct_struct *acct,
 		schedule_work(&acct->work);
 		wait_for_completion(&acct->done);
 		spin_lock(&acct_lock);
-		hlist_del(&acct->m_list);
-		hlist_del(&acct->s_list);
+		hlist_del(&acct->pin.m_list);
+		hlist_del(&acct->pin.s_list);
 		spin_unlock(&acct_lock);
 		ns->bacct = new;
 		if (new) {
 			struct vfsmount *m = new->file->f_path.mnt;
 			spin_lock(&acct_lock);
-			hlist_add_head(&new->s_list, &m->mnt_sb->s_pins);
-			hlist_add_head(&new->m_list, &real_mount(m)->mnt_pins);
+			hlist_add_head(&new->pin.s_list, &m->mnt_sb->s_pins);
+			hlist_add_head(&new->pin.m_list, &real_mount(m)->mnt_pins);
 			spin_unlock(&acct_lock);
 			mutex_unlock(&new->lock);
 		}
 		acct->ns = NULL;
-		atomic_long_dec(&acct->count);
+		atomic_long_dec(&acct->pin.count);
 		mutex_unlock(&acct->lock);
-		acct_put(acct);
+		pin_put(&acct->pin);
 	}
 }
 
@@ -249,7 +253,7 @@ static int acct_on(struct filename *pathname)
 		return -EIO;
 	}
 
-	atomic_long_set(&acct->count, 1);
+	atomic_long_set(&acct->pin.count, 1);
 	acct->file = file;
 	acct->needcheck = jiffies;
 	acct->ns = ns;
@@ -264,8 +268,8 @@ static int acct_on(struct filename *pathname)
 	} else {
 		ns->bacct = acct;
 		spin_lock(&acct_lock);
-		hlist_add_head(&acct->s_list, &mnt->mnt_sb->s_pins);
-		hlist_add_head(&acct->m_list, &real_mount(mnt)->mnt_pins);
+		hlist_add_head(&acct->pin.s_list, &mnt->mnt_sb->s_pins);
+		hlist_add_head(&acct->pin.m_list, &real_mount(mnt)->mnt_pins);
 		spin_unlock(&acct_lock);
 		mutex_unlock(&acct->lock);
 	}
@@ -317,7 +321,7 @@ void acct_auto_close_mnt(struct hlist_head *list)
 			break;
 		acct_kill(__acct_get(hlist_entry(p,
 						 struct bsd_acct_struct,
-						 m_list)), NULL);
+						 pin.m_list)), NULL);
 		rcu_read_lock();
 	}
 	rcu_read_unlock();
@@ -332,7 +336,7 @@ void acct_auto_close(struct hlist_head *list)
 			break;
 		acct_kill(__acct_get(hlist_entry(p,
 						 struct bsd_acct_struct,
-						 s_list)), NULL);
+						 pin.s_list)), NULL);
 		rcu_read_lock();
 	}
 	rcu_read_unlock();
@@ -613,7 +617,7 @@ static void slow_acct_process(struct pid_namespace *ns)
 		if (acct) {
 			do_acct_process(acct);
 			mutex_unlock(&acct->lock);
-			acct_put(acct);
+			pin_put(&acct->pin);
 		}
 	}
 }
