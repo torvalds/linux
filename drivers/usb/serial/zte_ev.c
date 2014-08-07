@@ -275,7 +275,6 @@ static void zte_ev_usb_serial_close(struct usb_serial_port *port)
 static const struct usb_device_id id_table[] = {
 	/* MG880 */
 	{ USB_DEVICE(0x19d2, 0xfffd) },
-	{ USB_DEVICE(0x05C6, 0x3197) },
 	{ },
 };
 MODULE_DEVICE_TABLE(usb, id_table);
