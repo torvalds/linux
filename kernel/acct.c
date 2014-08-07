@@ -92,6 +92,8 @@ struct bsd_acct_struct {
 	unsigned long		needcheck;
 	struct file		*file;
 	struct pid_namespace	*ns;
+	struct work_struct	work;
+	struct completion	done;
 };
 
 static void acct_free_rcu(struct rcu_head *head)
@@ -176,15 +178,27 @@ again:
 	return res;
 }
 
+static void close_work(struct work_struct *work)
+{
+	struct bsd_acct_struct *acct = container_of(work, struct bsd_acct_struct, work);
+	struct file *file = acct->file;
+	mnt_unpin(file->f_path.mnt);
+	if (file->f_op->flush)
+		file->f_op->flush(file, NULL);
+	__fput_sync(file);
+	complete(&acct->done);
+}
+
 static void acct_kill(struct bsd_acct_struct *acct,
 		      struct bsd_acct_struct *new)
 {
 	if (acct) {
-		struct file *file = acct->file;
 		struct pid_namespace *ns = acct->ns;
 		do_acct_process(acct);
-		mnt_unpin(file->f_path.mnt);
-		filp_close(file, NULL);
+		INIT_WORK(&acct->work, close_work);
+		init_completion(&acct->done);
+		schedule_work(&acct->work);
+		wait_for_completion(&acct->done);
 		spin_lock(&acct_lock);
 		hlist_del(&acct->m_list);
 		hlist_del(&acct->s_list);
