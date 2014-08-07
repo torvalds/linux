@@ -73,7 +73,7 @@
 
 		L2: l2-cache {
 			compatible = "arm,pl310-cache";
-			reg = <0xfc10000 0x100000>;
+			reg = <0x100000 0x100000>;
 			interrupts = <0 15 4>;
 			cache-unified;
 			cache-level = <2>;

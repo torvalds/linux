@@ -1307,6 +1307,9 @@ static void power_pmu_enable(struct pmu *pmu)
  out_enable:
 	pmao_restore_workaround(ebb);
 
+	if (ppmu->flags & PPMU_ARCH_207S)
+		mtspr(SPRN_MMCR2, 0);
+
 	mmcr0 = ebb_switch_in(ebb, cpuhw->mmcr[0]);
 
 	mb();
@@ -1314,9 +1317,6 @@ static void power_pmu_enable(struct pmu *pmu)
 		ppmu->config_bhrb(cpuhw->bhrb_filter);
 
 	write_mmcr0(cpuhw, mmcr0);
-
-	if (ppmu->flags & PPMU_ARCH_207S)
-		mtspr(SPRN_MMCR2, 0);
 
 	/*
 	 * Enable instruction sampling if necessary

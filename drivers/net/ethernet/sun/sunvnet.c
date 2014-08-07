@@ -610,6 +610,13 @@ static int __vnet_tx_trigger(struct vnet_port *port)
 	return err;
 }
 
+static inline bool port_is_up(struct vnet_port *vnet)
+{
+	struct vio_driver_state *vio = &vnet->vio;
+
+	return !!(vio->hs_state & VIO_HS_COMPLETE);
+}
+
 struct vnet_port *__tx_port_find(struct vnet *vp, struct sk_buff *skb)
 {
 	unsigned int hash = vnet_hashfn(skb->data);
@@ -617,14 +624,19 @@ struct vnet_port *__tx_port_find(struct vnet *vp, struct sk_buff *skb)
 	struct vnet_port *port;
 
 	hlist_for_each_entry(port, hp, hash) {
+		if (!port_is_up(port))
+			continue;
 		if (ether_addr_equal(port->raddr, skb->data))
 			return port;
 	}
-	port = NULL;
-	if (!list_empty(&vp->port_list))
-		port = list_entry(vp->port_list.next, struct vnet_port, list);
-
-	return port;
+	list_for_each_entry(port, &vp->port_list, list) {
+		if (!port->switch_port)
+			continue;
+		if (!port_is_up(port))
+			continue;
+		return port;
+	}
+	return NULL;
 }
 
 struct vnet_port *tx_port_find(struct vnet *vp, struct sk_buff *skb)
