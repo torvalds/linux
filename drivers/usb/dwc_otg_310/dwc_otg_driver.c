@@ -1217,12 +1217,18 @@ static int dwc_otg_driver_resume(struct platform_device *_dev)
 static void dwc_otg_driver_shutdown(struct platform_device *_dev)
 {
 	struct device *dev = &_dev->dev;
+	struct dwc_otg_platform_data *pldata = dev->platform_data;
 	dwc_otg_device_t *otg_dev = dev->platform_data;
 	dwc_otg_core_if_t *core_if = otg_dev->core_if;
 	dctl_data_t dctl = {.d32 = 0 };
 
 	DWC_PRINTF("%s: disconnect USB %s mode\n", __func__,
 		   dwc_otg_is_host_mode(core_if) ? "host" : "device");
+
+    if( pldata->dwc_otg_uart_mode != NULL)
+        pldata->dwc_otg_uart_mode( pldata, PHY_USB_MODE);
+    if(pldata->phy_suspend != NULL)
+        pldata->phy_suspend(pldata, USB_PHY_ENABLED);
 	if (dwc_otg_is_host_mode(core_if)) {
 		if (core_if->hcd_cb && core_if->hcd_cb->stop)
 			core_if->hcd_cb->stop(core_if->hcd_cb_p);
