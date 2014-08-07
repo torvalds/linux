@@ -642,18 +642,14 @@ static int sh_msiof_dma_once(struct sh_msiof_spi_priv *p, const void *tx,
 		desc_rx = dmaengine_prep_slave_single(p->master->dma_rx,
 					p->rx_dma_addr, len, DMA_FROM_DEVICE,
 					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
-		if (!desc_rx) {
-			ret = -EAGAIN;
-			goto no_dma_rx;
-		}
+		if (!desc_rx)
+			return -EAGAIN;
 
 		desc_rx->callback = sh_msiof_dma_complete;
 		desc_rx->callback_param = p;
 		cookie = dmaengine_submit(desc_rx);
-		if (dma_submit_error(cookie)) {
-			ret = cookie;
-			goto no_dma_rx;
-		}
+		if (dma_submit_error(cookie))
+			return cookie;
 	}
 
 	if (tx) {
@@ -738,7 +734,6 @@ no_dma_tx:
 	if (rx)
 		dmaengine_terminate_all(p->master->dma_rx);
 	sh_msiof_write(p, IER, 0);
-no_dma_rx:
 	return ret;
 }
 
