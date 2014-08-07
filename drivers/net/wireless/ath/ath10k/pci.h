@@ -135,13 +135,6 @@ struct service_to_pipe {
 	u32 pipenum;
 };
 
-enum ath10k_pci_features {
-	ATH10K_PCI_FEATURE_MSI_X		= 0,
-
-	/* keep last */
-	ATH10K_PCI_FEATURE_COUNT
-};
-
 /* Per-pipe state. */
 struct ath10k_pci_pipe {
 	/* Handle of underlying Copy Engine */
@@ -167,8 +160,6 @@ struct ath10k_pci {
 	struct device *dev;
 	struct ath10k *ar;
 	void __iomem *mem;
-
-	DECLARE_BITMAP(features, ATH10K_PCI_FEATURE_COUNT);
 
 	/*
 	 * Number of MSI interrupts granted, 0 --> using legacy PCI line

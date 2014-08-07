@@ -2317,8 +2317,6 @@ static void ath10k_pci_init_irq_tasklets(struct ath10k *ar)
 static int ath10k_pci_init_irq(struct ath10k *ar)
 {
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
-	bool msix_supported = test_bit(ATH10K_PCI_FEATURE_MSI_X,
-				       ar_pci->features);
 	int ret;
 
 	ath10k_pci_init_irq_tasklets(ar);
@@ -2328,7 +2326,7 @@ static int ath10k_pci_init_irq(struct ath10k *ar)
 		ath10k_info("limiting irq mode to: %d\n", ath10k_pci_irq_mode);
 
 	/* Try MSI-X */
-	if (ath10k_pci_irq_mode == ATH10K_PCI_IRQ_AUTO && msix_supported) {
+	if (ath10k_pci_irq_mode == ATH10K_PCI_IRQ_AUTO) {
 		ar_pci->num_msi_intrs = MSI_NUM_REQUEST;
 		ret = pci_enable_msi_range(ar_pci->pdev, ar_pci->num_msi_intrs,
 							 ar_pci->num_msi_intrs);
@@ -2484,22 +2482,6 @@ static int ath10k_pci_cold_reset(struct ath10k *ar)
 	return 0;
 }
 
-static void ath10k_pci_dump_features(struct ath10k_pci *ar_pci)
-{
-	int i;
-
-	for (i = 0; i < ATH10K_PCI_FEATURE_COUNT; i++) {
-		if (!test_bit(i, ar_pci->features))
-			continue;
-
-		switch (i) {
-		case ATH10K_PCI_FEATURE_MSI_X:
-			ath10k_dbg(ATH10K_DBG_BOOT, "device supports MSI-X\n");
-			break;
-		}
-	}
-}
-
 static int ath10k_pci_probe(struct pci_dev *pdev,
 			    const struct pci_device_id *pci_dev)
 {
@@ -2521,19 +2503,6 @@ static int ath10k_pci_probe(struct pci_dev *pdev,
 	ar_pci = ath10k_pci_priv(ar);
 	ar_pci->pdev = pdev;
 	ar_pci->dev = &pdev->dev;
-
-	switch (pci_dev->device) {
-	case QCA988X_2_0_DEVICE_ID:
-		set_bit(ATH10K_PCI_FEATURE_MSI_X, ar_pci->features);
-		break;
-	default:
-		ret = -ENODEV;
-		ath10k_err("Unknown device ID: %d\n", pci_dev->device);
-		goto err_core_destroy;
-	}
-
-	ath10k_pci_dump_features(ar_pci);
-
 	ar_pci->ar = ar;
 
 	pci_set_drvdata(pdev, ar);
