@@ -956,7 +956,7 @@ put_again:
 		mnt->mnt_pinned = 0;
 		rcu_read_unlock();
 		unlock_mount_hash();
-		acct_auto_close_mnt(&mnt->mnt);
+		acct_auto_close_mnt(&mnt->mnt_pins);
 		goto put_again;
 	}
 	if (unlikely(mnt->mnt.mnt_flags & MNT_DOOMED)) {

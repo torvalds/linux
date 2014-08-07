@@ -59,6 +59,7 @@
 #include <asm/div64.h>
 #include <linux/blkdev.h> /* sector_div */
 #include <linux/pid_namespace.h>
+#include <../fs/mount.h>	/* will go away when we refactor */
 
 /*
  * These constants control the amount of freespace that suspend and
@@ -79,16 +80,16 @@ static void do_acct_process(struct bsd_acct_struct *acct);
 
 struct bsd_acct_struct {
 	long			count;
+	struct hlist_node	s_list;
+	struct hlist_node	m_list;
 	struct mutex		lock;
 	int			active;
 	unsigned long		needcheck;
 	struct file		*file;
 	struct pid_namespace	*ns;
-	struct list_head	list;
 };
 
 static DEFINE_SPINLOCK(acct_lock);
-static LIST_HEAD(acct_list);
 
 /*
  * Check the amount of free space and suspend/resume accordingly.
@@ -133,25 +134,33 @@ static void acct_put(struct bsd_acct_struct *p)
 	spin_unlock(&acct_lock);
 }
 
-static struct bsd_acct_struct *acct_get(struct bsd_acct_struct **p)
+static struct bsd_acct_struct *__acct_get(struct bsd_acct_struct *res)
+{
+	res->count++;
+	spin_unlock(&acct_lock);
+	mutex_lock(&res->lock);
+	if (!res->ns) {
+		mutex_unlock(&res->lock);
+		spin_lock(&acct_lock);
+		if (!--res->count)
+			kfree(res);
+		return NULL;
+	}
+	return res;
+}
+
+static struct bsd_acct_struct *acct_get(struct pid_namespace *ns)
 {
 	struct bsd_acct_struct *res;
 	spin_lock(&acct_lock);
 again:
-	res = *p;
-	if (res)
-		res->count++;
-	spin_unlock(&acct_lock);
-	if (res) {
-		mutex_lock(&res->lock);
-		if (!res->ns) {
-			mutex_unlock(&res->lock);
-			spin_lock(&acct_lock);
-			if (!--res->count)
-				kfree(res);
-			goto again;
-		}
+	if (!ns->bacct) {
+		spin_unlock(&acct_lock);
+		return NULL;
 	}
+	res = __acct_get(ns->bacct);
+	if (!res)
+		goto again;
 	return res;
 }
 
@@ -162,7 +171,8 @@ static void acct_kill(struct bsd_acct_struct *acct,
 		struct file *file = acct->file;
 		struct pid_namespace *ns = acct->ns;
 		spin_lock(&acct_lock);
-		list_del(&acct->list);
+		hlist_del(&acct->m_list);
+		hlist_del(&acct->s_list);
 		mnt_unpin(file->f_path.mnt);
 		spin_unlock(&acct_lock);
 		do_acct_process(acct);
@@ -170,8 +180,10 @@ static void acct_kill(struct bsd_acct_struct *acct,
 		spin_lock(&acct_lock);
 		ns->bacct = new;
 		if (new) {
-			mnt_pin(new->file->f_path.mnt);
-			list_add(&new->list, &acct_list);
+			struct vfsmount *m = new->file->f_path.mnt;
+			mnt_pin(m);
+			hlist_add_head(&new->s_list, &m->mnt_sb->s_pins);
+			hlist_add_head(&new->m_list, &real_mount(m)->mnt_pins);
 		}
 		acct->ns = NULL;
 		mutex_unlock(&acct->lock);
@@ -218,14 +230,15 @@ static int acct_on(struct filename *pathname)
 	mutex_init(&acct->lock);
 	mnt = file->f_path.mnt;
 
-	old = acct_get(&ns->bacct);
+	old = acct_get(ns);
 	if (old) {
 		acct_kill(old, acct);
 	} else {
 		spin_lock(&acct_lock);
 		ns->bacct = acct;
 		mnt_pin(mnt);
-		list_add(&acct->list, &acct_list);
+		hlist_add_head(&acct->s_list, &mnt->mnt_sb->s_pins);
+		hlist_add_head(&acct->m_list, &real_mount(mnt)->mnt_pins);
 		spin_unlock(&acct_lock);
 	}
 	mntput(mnt); /* it's pinned, now give up active reference */
@@ -261,79 +274,41 @@ SYSCALL_DEFINE1(acct, const char __user *, name)
 		mutex_unlock(&acct_on_mutex);
 		putname(tmp);
 	} else {
-		acct_kill(acct_get(&task_active_pid_ns(current)->bacct), NULL);
+		acct_kill(acct_get(task_active_pid_ns(current)), NULL);
 	}
 
 	return error;
 }
 
-/**
- * acct_auto_close - turn off a filesystem's accounting if it is on
- * @m: vfsmount being shut down
- *
- * If the accounting is turned on for a file in the subtree pointed to
- * to by m, turn accounting off.  Done when m is about to die.
- */
-void acct_auto_close_mnt(struct vfsmount *m)
+void acct_auto_close_mnt(struct hlist_head *list)
 {
-	struct bsd_acct_struct *acct;
-
-	spin_lock(&acct_lock);
-restart:
-	list_for_each_entry(acct, &acct_list, list)
-		if (acct->file->f_path.mnt == m) {
-			acct->count++;
-			spin_unlock(&acct_lock);
-			mutex_lock(&acct->lock);
-			if (!acct->ns) {
-				mutex_unlock(&acct->lock);
-				spin_lock(&acct_lock);
-				if (!--acct->count)
-					kfree(acct);
-				goto restart;
-			}
-			acct_kill(acct, NULL);
-			spin_lock(&acct_lock);
-			goto restart;
-		}
+	while (1) {
+		spin_lock(&acct_lock);
+		if (!list->first)
+			break;
+		acct_kill(__acct_get(hlist_entry(list->first,
+						 struct bsd_acct_struct,
+						 m_list)), NULL);
+	}
 	spin_unlock(&acct_lock);
 }
 
-/**
- * acct_auto_close - turn off a filesystem's accounting if it is on
- * @sb: super block for the filesystem
- *
- * If the accounting is turned on for a file in the filesystem pointed
- * to by sb, turn accounting off.
- */
-void acct_auto_close(struct super_block *sb)
+void acct_auto_close(struct hlist_head *list)
 {
-	struct bsd_acct_struct *acct;
-
-	spin_lock(&acct_lock);
-restart:
-	list_for_each_entry(acct, &acct_list, list)
-		if (acct->file->f_path.dentry->d_sb == sb) {
-			acct->count++;
-			spin_unlock(&acct_lock);
-			mutex_lock(&acct->lock);
-			if (!acct->ns) {
-				mutex_unlock(&acct->lock);
-				spin_lock(&acct_lock);
-				if (!--acct->count)
-					kfree(acct);
-				goto restart;
-			}
-			acct_kill(acct, NULL);
-			spin_lock(&acct_lock);
-			goto restart;
-		}
+	while (1) {
+		spin_lock(&acct_lock);
+		if (!list->first)
+			break;
+		acct_kill(__acct_get(hlist_entry(list->first,
+						 struct bsd_acct_struct,
+						 s_list)), NULL);
+	}
 	spin_unlock(&acct_lock);
 }
 
 void acct_exit_ns(struct pid_namespace *ns)
 {
-	acct_kill(acct_get(&ns->bacct), NULL);
+	acct_kill(acct_get(ns), NULL);
 }
 
 /*
@@ -602,7 +577,7 @@ void acct_collect(long exitcode, int group_dead)
 static void slow_acct_process(struct pid_namespace *ns)
 {
 	for ( ; ns; ns = ns->parent) {
-		struct bsd_acct_struct *acct = acct_get(&ns->bacct);
+		struct bsd_acct_struct *acct = acct_get(ns);
 		if (acct) {
 			do_acct_process(acct);
 			mutex_unlock(&acct->lock);

@@ -1250,6 +1250,7 @@ struct super_block {
 
 	/* AIO completions deferred from interrupt context */
 	struct workqueue_struct *s_dio_done_wq;
+	struct hlist_head s_pins;
 
 	/*
 	 * Keep the lru lists last in the structure so they always sit on their
