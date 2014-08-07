@@ -210,6 +210,10 @@ int l2cap_add_scid(struct l2cap_chan *chan,  __u16 scid)
 {
 	write_lock(&chan_list_lock);
 
+	/* Override the defaults (which are for conn-oriented) */
+	chan->omtu = L2CAP_DEFAULT_MTU;
+	chan->chan_type = L2CAP_CHAN_FIXED;
+
 	chan->scid = scid;
 
 	write_unlock(&chan_list_lock);
