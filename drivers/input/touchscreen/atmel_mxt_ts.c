@@ -1422,10 +1422,12 @@ static int mxt_get_object_table(struct mxt_data *data)
 
 		switch (object->type) {
 		case MXT_GEN_MESSAGE_T5:
-			if (data->info.family_id == 0x80) {
+			if (data->info.family_id == 0x80 &&
+			    data->info.version < 0x20) {
 				/*
-				 * On mXT224 read and discard unused CRC byte
-				 * otherwise DMA reads are misaligned
+				 * On mXT224 firmware versions prior to V2.0
+				 * read and discard unused CRC byte otherwise
+				 * DMA reads are misaligned.
 				 */
 				data->T5_msg_size = mxt_obj_size(object);
 			} else {
