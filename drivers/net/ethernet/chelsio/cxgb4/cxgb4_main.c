@@ -522,6 +522,8 @@ static void dcb_tx_queue_prio_enable(struct net_device *dev, int enable)
 			dev_err(adap->pdev_dev,
 				"Can't %s DCB Priority on port %d, TX Queue %d: err=%d\n",
 				enable ? "set" : "unset", pi->port_id, i, -err);
+		else
+			txq->dcb_prio = value;
 	}
 }
 #endif /* CONFIG_CHELSIO_T4_DCB */
