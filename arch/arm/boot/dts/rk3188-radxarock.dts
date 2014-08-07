@@ -181,11 +181,8 @@
 	status = "okay";
 	vmmc-supply = <&vcc_sd0>;
 
-	slot@0 {
-		reg = <0>;
-		bus-width = <4>;
-		disable-wp;
-	};
+	bus-width = <4>;
+	disable-wp;
 };
 
 &pinctrl {
