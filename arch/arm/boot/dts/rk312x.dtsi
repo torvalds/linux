@@ -658,15 +658,15 @@
 		status = "disabled";
 	};
 
-        vpu: vpu_service@10104000 {
+	vpu: vpu_service@10106000 {
 		compatible = "vpu_service";
-		reg = <0x10104000 0x800>;
+		reg = <0x10106000 0x800>;
 		interrupts = <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "irq_enc", "irq_dec";
 		clocks = <&clk_vdpu>, <&hclk_vdpu>;
 		clock-names = "aclk_vcodec", "hclk_vcodec";
 		name = "vpu_service";
-		status = "disabled";
+		status = "okay";
 	};
 
 	hevc: hevc_service@10104000 {
@@ -677,10 +677,10 @@
 		clocks = <&clk_vdpu>, <&hclk_vdpu>, <&clk_hevc_core>;
 		clock-names = "aclk_vcodec", "hclk_vcodec", "clk_core";
 		name = "hevc_service";
-		status = "disabled";
-        };
+		status = "okay";
+	};
 
-        iep: iep@10108000 {
+	iep: iep@10108000 {
 		compatible = "rockchip,iep";
 		reg = <0x10108000 0x800>;
 		interrupts = <GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH>;

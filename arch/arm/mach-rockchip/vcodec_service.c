@@ -166,7 +166,7 @@ static VPU_HW_INFO_E vpu_hw_set[] = {
 		.dec_reg_num	= REG_NUM_9190_DEC_PP,
 		.dec_io_size	= REG_NUM_9190_DEC_PP * 4,
 	},
-	
+
 };
 
 
@@ -358,7 +358,7 @@ typedef struct vpu_service_info {
 	struct dentry		*debugfs_file_regs;
 
 	u32 irq_status;
-#if defined(CONFIG_VCODEC_MMU)	
+#if defined(CONFIG_VCODEC_MMU)
 	struct ion_client	*ion_client;
 	struct list_head	mem_region_list;
 	struct device		*mmu_dev;
@@ -401,35 +401,41 @@ static const struct file_operations debug_vcodec_fops = {
 #define VPU_TIMEOUT_DELAY		2*HZ /* 2s */
 #define VPU_SIMULATE_DELAY		msecs_to_jiffies(15)
 
+#define BIT_VCODEC_SEL_RK3036		(1<<3)
+#define BIT_VCODEC_SEL_RK312X		(1<<15)
 static void vcodec_enter_mode_nolock(enum vcodec_device_id id, u32 *reserved_mode)
 {
-	if (soc_is_rk3036()) {
+	if (soc_is_rk3036() || soc_is_rk3126() || soc_is_rk3128()) {
+		int bits = soc_is_rk3036() ? BIT_VCODEC_SEL_RK3036 : BIT_VCODEC_SEL_RK312X;
+		void __iomem *addr = soc_is_rk3036() ? (RK_GRF_VIRT + RK3036_GRF_SOC_CON1) : (RK_GRF_VIRT + RK312X_GRF_SOC_CON1);
 		if (reserved_mode)
-			*reserved_mode = readl_relaxed(RK_GRF_VIRT + RK3036_GRF_SOC_CON1);
-#define BIT_VCODEC_SEL		(1<<3)
-		if (id == VCODEC_DEVICE_ID_HEVC) {
-			writel_relaxed(readl_relaxed(RK_GRF_VIRT + RK3036_GRF_SOC_CON1) | (BIT_VCODEC_SEL) | (BIT_VCODEC_SEL << 16), RK_GRF_VIRT + RK3036_GRF_SOC_CON1);
-		} else {
-			writel_relaxed((readl_relaxed(RK_GRF_VIRT + RK3036_GRF_SOC_CON1) & (~BIT_VCODEC_SEL)) | (BIT_VCODEC_SEL << 16), RK_GRF_VIRT + RK3036_GRF_SOC_CON1);
-		}
+			*reserved_mode = readl_relaxed(addr);
+		if (id == VCODEC_DEVICE_ID_HEVC)
+			writel_relaxed(readl_relaxed(addr) | (bits) | (bits << 16), addr);
+		else
+			writel_relaxed((readl_relaxed(addr) & (~bits)) | (bits << 16), addr);
 	}
 }
 
 static void vcodec_exit_mode_nolock(enum vcodec_device_id id, u32 reserved_mode)
 {
-	writel_relaxed(reserved_mode | (BIT_VCODEC_SEL << 16), RK_GRF_VIRT + RK3036_GRF_SOC_CON1);
+	if (soc_is_rk3036() || soc_is_rk3126() || soc_is_rk3128()) {
+		int bits = soc_is_rk3036() ? BIT_VCODEC_SEL_RK3036 : BIT_VCODEC_SEL_RK312X;
+		void __iomem *addr = soc_is_rk3036() ? (RK_GRF_VIRT + RK3036_GRF_SOC_CON1) : (RK_GRF_VIRT + RK312X_GRF_SOC_CON1);
+		writel_relaxed(reserved_mode | (bits << 16), addr);
+	}
 }
 
 static void vcodec_enter_mode(enum vcodec_device_id id)
 {
-	if (soc_is_rk3036())
+	if (soc_is_rk3036() || soc_is_rk3126() || soc_is_rk3128())
 		mutex_lock(&g_mode_mutex);
 	vcodec_enter_mode_nolock(id, NULL);
 }
 
 static void vcodec_exit_mode(void)
 {
-	if (soc_is_rk3036())
+	if (soc_is_rk3036() || soc_is_rk3126() || soc_is_rk3128())
 		mutex_unlock(&g_mode_mutex);
 }
 
@@ -456,7 +462,7 @@ static int vpu_get_clk(struct vpu_service_info *pservice)
 				break;
 			}
 
-			if (!soc_is_rk3036()) {
+			if (!soc_is_rk3036() && !soc_is_rk3126() && !soc_is_rk3128()) {
 				pservice->clk_cabac = devm_clk_get(pservice->dev, "clk_cabac");
 				if (IS_ERR(pservice->clk_cabac)) {
 					dev_err(pservice->dev, "failed on clk_get clk_cabac\n");
@@ -466,7 +472,7 @@ static int vpu_get_clk(struct vpu_service_info *pservice)
 				pservice->clk_cabac = NULL;
 			}
 
-			if (!soc_is_rk3036()) {
+			if (!soc_is_rk3036() && !soc_is_rk3126() && !soc_is_rk3128()) {
 				pservice->pd_video = devm_clk_get(pservice->dev, "pd_hevc");
 				if (IS_ERR(pservice->pd_video)) {
 					dev_err(pservice->dev, "failed on clk_get pd_hevc\n");
@@ -476,7 +482,7 @@ static int vpu_get_clk(struct vpu_service_info *pservice)
 				pservice->pd_video = NULL;
 			}
 		} else {
-			if (!soc_is_rk3036()) {
+			if (!soc_is_rk3036() && !soc_is_rk3126() && !soc_is_rk3128()) {
 				pservice->pd_video = devm_clk_get(pservice->dev, "pd_video");
 				if (IS_ERR(pservice->pd_video)) {
 					dev_err(pservice->dev, "failed on clk_get pd_video\n");
@@ -484,6 +490,14 @@ static int vpu_get_clk(struct vpu_service_info *pservice)
 				}
 			} else {
 				pservice->pd_video = NULL;
+			}
+		}
+
+		if (soc_is_rk3126() || soc_is_rk3128()) {
+			pservice->pd_video = devm_clk_get(pservice->dev, "pd_video");
+			if (IS_ERR(pservice->pd_video)) {
+				dev_err(pservice->dev, "failed on clk_get pd_video\n");
+				break;
 			}
 		}
 
@@ -880,7 +894,7 @@ static vpu_reg *reg_init(struct vpu_service_info *pservice, vpu_session *session
 	INIT_LIST_HEAD(&reg->session_link);
 	INIT_LIST_HEAD(&reg->status_link);
 
-#if defined(CONFIG_VCODEC_MMU)  
+#if defined(CONFIG_VCODEC_MMU)
 	if (pservice->mmu_dev)
 		INIT_LIST_HEAD(&reg->mem_region_list);
 #endif
@@ -1384,7 +1398,7 @@ static long vpu_service_ioctl(struct file *filp, unsigned int cmd, unsigned long
 		int iommu_enable = 0;
 
 #if defined(CONFIG_VCODEC_MMU)
-		iommu_enable = pservice->mmu_dev ? 1 : 0; 
+		iommu_enable = pservice->mmu_dev ? 1 : 0;
 #endif
 
 		if (copy_to_user((void __user *)arg, &iommu_enable, sizeof(int))) {
@@ -1695,7 +1709,7 @@ static int vcodec_probe(struct platform_device *pdev)
 	if (pservice->debugfs_dir == NULL)
 		pr_err("create debugfs dir %s failed\n", dev_name(dev));
 
-	pservice->debugfs_file_regs = 
+	pservice->debugfs_file_regs =
 		debugfs_create_file("regs", 0664,
 				    pservice->debugfs_dir, pservice,
 				    &debug_vcodec_fops);
@@ -1816,7 +1830,7 @@ static void get_hw_info(struct vpu_service_info *pservice)
 	if (pservice->dev_id == VCODEC_DEVICE_ID_VPU) {
 		u32 configReg   = pservice->dec_dev.hwregs[VPU_DEC_HWCFG0];
 		u32 asicID      = pservice->dec_dev.hwregs[0];
-	
+
 		dec->h264Support    = (configReg >> DWL_H264_E) & 0x3U;
 		dec->jpegSupport    = (configReg >> DWL_JPEG_E) & 0x01U;
 		if (dec->jpegSupport && ((configReg >> DWL_PJPEG_E) & 0x01U))
@@ -1830,11 +1844,11 @@ static void get_hw_info(struct vpu_service_info *pservice)
 
 		if (soc_is_rk3190() || soc_is_rk3288())
 			dec->maxDecPicWidth = 4096;
-		else if (soc_is_rk3036())
+		else if (soc_is_rk3036() || soc_is_rk3126() || soc_is_rk3128())
 			dec->maxDecPicWidth = 1920;
 		else
 			dec->maxDecPicWidth = configReg & 0x07FFU;
-	
+
 		/* 2nd Config register */
 		configReg   = pservice->dec_dev.hwregs[VPU_DEC_HWCFG1];
 		if (dec->refBufSupport) {
@@ -1862,9 +1876,9 @@ static void get_hw_info(struct vpu_service_info *pservice)
 
 		if (dec->refBufSupport && (asicID >> 16) == 0x6731U )
 			dec->refBufSupport |= 8; /* enable HW support for offset */
-	
+
 		/// invalidate fuse register value in rk319x vpu and following.
-		if (!soc_is_rk3190() && !soc_is_rk3288() && !soc_is_rk3036()) {
+		if (!soc_is_rk3190() && !soc_is_rk3288() && !soc_is_rk3036() && !soc_is_rk3126() && !soc_is_rk3128()) {
 			VPUHwFuseStatus_t hwFuseSts;
 			/* Decoder fuse configuration */
 			u32 fuseReg = pservice->dec_dev.hwregs[VPU_DEC_HW_FUSE_CFG];
@@ -2004,7 +2018,7 @@ static void get_hw_info(struct vpu_service_info *pservice)
 
 		pservice->bug_dec_addr = cpu_is_rk30xx();
 	} else {
-		if (soc_is_rk3036())
+		if (soc_is_rk3036()  || soc_is_rk3126() || soc_is_rk3128())
 			dec->maxDecPicWidth = 1920;
 		else
 			dec->maxDecPicWidth = 4096;
@@ -2308,7 +2322,7 @@ u8* get_align_ptr_no_copy(int len, u32 *phy)
 static int hevc_test_case0(vpu_service_info *pservice)
 {
 	vpu_session session;
-	vpu_reg *reg; 
+	vpu_reg *reg;
 	unsigned long size = 272;//sizeof(register_00); // registers array length
 	int testidx = 0;
 	int ret = 0;
@@ -2324,7 +2338,7 @@ static int hevc_test_case0(vpu_service_info *pservice)
 	int rps_size[2];
 	int scl_size[2];
 	int cabac_size[2];
-	
+
 	u32 phy_pps;
 	u32 phy_rps;
 	u32 phy_scl;
@@ -2371,7 +2385,7 @@ static int hevc_test_case0(vpu_service_info *pservice)
 
 	scl_size[0] = sizeof(scaling_list_00);
 	scl_size[1] = sizeof(scaling_list_01);
-	
+
 	cabac_size[0] = sizeof(Cabac_table);
 	cabac_size[1] = sizeof(Cabac_table);
 
