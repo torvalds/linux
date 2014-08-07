@@ -265,7 +265,7 @@ filelayout_set_layoutcommit(struct nfs_pgio_header *hdr)
 {
 
 	if (FILELAYOUT_LSEG(hdr->lseg)->commit_through_mds ||
-	    hdr->res.verf->committed == NFS_FILE_SYNC)
+	    hdr->res.verf->committed != NFS_DATA_SYNC)
 		return;
 
 	pnfs_set_layoutcommit(hdr);
@@ -402,6 +402,9 @@ static int filelayout_commit_done_cb(struct rpc_task *task,
 		rpc_restart_call_prepare(task);
 		return -EAGAIN;
 	}
+
+	if (data->verf.committed == NFS_UNSTABLE)
+		pnfs_commit_set_layoutcommit(data);
 
 	return 0;
 }
