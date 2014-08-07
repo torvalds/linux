@@ -274,7 +274,7 @@ config CORENET_GENERIC
 	  For 32bit kernel, the following boards are supported:
 	    P2041 RDB, P3041 DS, P4080 DS, kmcoge4, and OCA4080
 	  For 64bit kernel, the following boards are supported:
-	    T4240 QDS and B4 QDS
+	    T208x QDS/RDB, T4240 QDS/RDB and B4 QDS
 	  The following boards are supported for both 32bit and 64bit kernel:
 	    P5020 DS, P5040 DS and T104xQDS
 

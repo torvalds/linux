@@ -13,30 +13,69 @@
 #include <asm/hvcall.h>
 #include <asm/asm-offsets.h>
 #include <asm/opal.h>
+#include <asm/jump_label.h>
+
+	.section	".text"
+
+#ifdef CONFIG_TRACEPOINTS
+#ifdef CONFIG_JUMP_LABEL
+#define OPAL_BRANCH(LABEL)					\
+	ARCH_STATIC_BRANCH(LABEL, opal_tracepoint_key)
+#else
+
+	.section	".toc","aw"
+
+	.globl opal_tracepoint_refcount
+opal_tracepoint_refcount:
+	.llong	0
+
+	.section	".text"
+
+/*
+ * We branch around this in early init by using an unconditional cpu
+ * feature.
+ */
+#define OPAL_BRANCH(LABEL)					\
+BEGIN_FTR_SECTION;						\
+	b	1f;						\
+END_FTR_SECTION(0, 1);						\
+	ld	r12,opal_tracepoint_refcount@toc(r2);		\
+	std	r12,32(r1);					\
+	cmpdi	r12,0;						\
+	bne-	LABEL;						\
+1:
+
+#endif
+
+#else
+#define OPAL_BRANCH(LABEL)
+#endif
 
 /* TODO:
  *
  * - Trace irqs in/off (needs saving/restoring all args, argh...)
  * - Get r11 feed up by Dave so I can have better register usage
  */
+
 #define OPAL_CALL(name, token)		\
  _GLOBAL(name);				\
 	mflr	r0;			\
-	mfcr	r12;			\
 	std	r0,16(r1);		\
+	li	r0,token;		\
+	OPAL_BRANCH(opal_tracepoint_entry) \
+	mfcr	r12;			\
 	stw	r12,8(r1);		\
 	std	r1,PACAR1(r13);		\
-	li	r0,0;			\
+	li	r11,0;			\
 	mfmsr	r12;			\
-	ori	r0,r0,MSR_EE;		\
+	ori	r11,r11,MSR_EE;		\
 	std	r12,PACASAVEDMSR(r13);	\
-	andc	r12,r12,r0;		\
+	andc	r12,r12,r11;		\
 	mtmsrd	r12,1;			\
-	LOAD_REG_ADDR(r0,opal_return);	\
-	mtlr	r0;			\
-	li	r0,MSR_DR|MSR_IR|MSR_LE;\
-	andc	r12,r12,r0;		\
-	li	r0,token;		\
+	LOAD_REG_ADDR(r11,opal_return);	\
+	mtlr	r11;			\
+	li	r11,MSR_DR|MSR_IR|MSR_LE;\
+	andc	r12,r12,r11;		\
 	mtspr	SPRN_HSRR1,r12;		\
 	LOAD_REG_ADDR(r11,opal);	\
 	ld	r12,8(r11);		\
@@ -60,6 +99,64 @@ opal_return:
 	mtspr	SPRN_SRR1,r6;
 	mtcr	r4;
 	rfid
+
+#ifdef CONFIG_TRACEPOINTS
+opal_tracepoint_entry:
+	stdu	r1,-STACKFRAMESIZE(r1)
+	std	r0,STK_REG(R23)(r1)
+	std	r3,STK_REG(R24)(r1)
+	std	r4,STK_REG(R25)(r1)
+	std	r5,STK_REG(R26)(r1)
+	std	r6,STK_REG(R27)(r1)
+	std	r7,STK_REG(R28)(r1)
+	std	r8,STK_REG(R29)(r1)
+	std	r9,STK_REG(R30)(r1)
+	std	r10,STK_REG(R31)(r1)
+	mr	r3,r0
+	addi	r4,r1,STK_REG(R24)
+	bl	__trace_opal_entry
+	ld	r0,STK_REG(R23)(r1)
+	ld	r3,STK_REG(R24)(r1)
+	ld	r4,STK_REG(R25)(r1)
+	ld	r5,STK_REG(R26)(r1)
+	ld	r6,STK_REG(R27)(r1)
+	ld	r7,STK_REG(R28)(r1)
+	ld	r8,STK_REG(R29)(r1)
+	ld	r9,STK_REG(R30)(r1)
+	ld	r10,STK_REG(R31)(r1)
+	LOAD_REG_ADDR(r11,opal_tracepoint_return)
+	mfcr	r12
+	std	r11,16(r1)
+	stw	r12,8(r1)
+	std	r1,PACAR1(r13)
+	li	r11,0
+	mfmsr	r12
+	ori	r11,r11,MSR_EE
+	std	r12,PACASAVEDMSR(r13)
+	andc	r12,r12,r11
+	mtmsrd	r12,1
+	LOAD_REG_ADDR(r11,opal_return)
+	mtlr	r11
+	li	r11,MSR_DR|MSR_IR|MSR_LE
+	andc	r12,r12,r11
+	mtspr	SPRN_HSRR1,r12
+	LOAD_REG_ADDR(r11,opal)
+	ld	r12,8(r11)
+	ld	r2,0(r11)
+	mtspr	SPRN_HSRR0,r12
+	hrfid
+
+opal_tracepoint_return:
+	std	r3,STK_REG(R31)(r1)
+	mr	r4,r3
+	ld	r0,STK_REG(R23)(r1)
+	bl	__trace_opal_exit
+	ld	r3,STK_REG(R31)(r1)
+	addi	r1,r1,STACKFRAMESIZE
+	ld	r0,16(r1)
+	mtlr	r0
+	blr
+#endif
 
 OPAL_CALL(opal_invalid_call,			OPAL_INVALID_CALL);
 OPAL_CALL(opal_console_write,			OPAL_CONSOLE_WRITE);
@@ -86,6 +183,7 @@ OPAL_CALL(opal_get_xive,			OPAL_GET_XIVE);
 OPAL_CALL(opal_register_exception_handler,	OPAL_REGISTER_OPAL_EXCEPTION_HANDLER);
 OPAL_CALL(opal_pci_eeh_freeze_status,		OPAL_PCI_EEH_FREEZE_STATUS);
 OPAL_CALL(opal_pci_eeh_freeze_clear,		OPAL_PCI_EEH_FREEZE_CLEAR);
+OPAL_CALL(opal_pci_eeh_freeze_set,		OPAL_PCI_EEH_FREEZE_SET);
 OPAL_CALL(opal_pci_shpc,			OPAL_PCI_SHPC);
 OPAL_CALL(opal_pci_phb_mmio_enable,		OPAL_PCI_PHB_MMIO_ENABLE);
 OPAL_CALL(opal_pci_set_phb_mem_window,		OPAL_PCI_SET_PHB_MEM_WINDOW);
@@ -146,3 +244,4 @@ OPAL_CALL(opal_sync_host_reboot,		OPAL_SYNC_HOST_REBOOT);
 OPAL_CALL(opal_sensor_read,			OPAL_SENSOR_READ);
 OPAL_CALL(opal_get_param,			OPAL_GET_PARAM);
 OPAL_CALL(opal_set_param,			OPAL_SET_PARAM);
+OPAL_CALL(opal_handle_hmi,			OPAL_HANDLE_HMI);

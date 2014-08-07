@@ -147,6 +147,8 @@ struct opal_sg_list {
 #define OPAL_SET_PARAM				90
 #define OPAL_DUMP_RESEND			91
 #define OPAL_DUMP_INFO2				94
+#define OPAL_PCI_EEH_FREEZE_SET			97
+#define OPAL_HANDLE_HMI				98
 
 #ifndef __ASSEMBLY__
 
@@ -170,7 +172,11 @@ enum OpalFreezeState {
 enum OpalEehFreezeActionToken {
 	OPAL_EEH_ACTION_CLEAR_FREEZE_MMIO = 1,
 	OPAL_EEH_ACTION_CLEAR_FREEZE_DMA = 2,
-	OPAL_EEH_ACTION_CLEAR_FREEZE_ALL = 3
+	OPAL_EEH_ACTION_CLEAR_FREEZE_ALL = 3,
+
+	OPAL_EEH_ACTION_SET_FREEZE_MMIO = 1,
+	OPAL_EEH_ACTION_SET_FREEZE_DMA  = 2,
+	OPAL_EEH_ACTION_SET_FREEZE_ALL  = 3
 };
 
 enum OpalPciStatusToken {
@@ -240,6 +246,7 @@ enum OpalMessageType {
 	OPAL_MSG_MEM_ERR,
 	OPAL_MSG_EPOW,
 	OPAL_MSG_SHUTDOWN,
+	OPAL_MSG_HMI_EVT,
 	OPAL_MSG_TYPE_MAX,
 };
 
@@ -338,6 +345,12 @@ enum OpalPeltvAction {
 enum OpalMveEnableAction {
 	OPAL_DISABLE_MVE = 0,
 	OPAL_ENABLE_MVE = 1
+};
+
+enum OpalM64EnableAction {
+	OPAL_DISABLE_M64 = 0,
+	OPAL_ENABLE_M64_SPLIT = 1,
+	OPAL_ENABLE_M64_NON_SPLIT = 2
 };
 
 enum OpalPciResetScope {
@@ -502,6 +515,50 @@ struct OpalMemoryErrorData {
 	} u;
 };
 
+/* HMI interrupt event */
+enum OpalHMI_Version {
+	OpalHMIEvt_V1 = 1,
+};
+
+enum OpalHMI_Severity {
+	OpalHMI_SEV_NO_ERROR = 0,
+	OpalHMI_SEV_WARNING = 1,
+	OpalHMI_SEV_ERROR_SYNC = 2,
+	OpalHMI_SEV_FATAL = 3,
+};
+
+enum OpalHMI_Disposition {
+	OpalHMI_DISPOSITION_RECOVERED = 0,
+	OpalHMI_DISPOSITION_NOT_RECOVERED = 1,
+};
+
+enum OpalHMI_ErrType {
+	OpalHMI_ERROR_MALFUNC_ALERT	= 0,
+	OpalHMI_ERROR_PROC_RECOV_DONE,
+	OpalHMI_ERROR_PROC_RECOV_DONE_AGAIN,
+	OpalHMI_ERROR_PROC_RECOV_MASKED,
+	OpalHMI_ERROR_TFAC,
+	OpalHMI_ERROR_TFMR_PARITY,
+	OpalHMI_ERROR_HA_OVERFLOW_WARN,
+	OpalHMI_ERROR_XSCOM_FAIL,
+	OpalHMI_ERROR_XSCOM_DONE,
+	OpalHMI_ERROR_SCOM_FIR,
+	OpalHMI_ERROR_DEBUG_TRIG_FIR,
+	OpalHMI_ERROR_HYP_RESOURCE,
+};
+
+struct OpalHMIEvent {
+	uint8_t		version;	/* 0x00 */
+	uint8_t		severity;	/* 0x01 */
+	uint8_t		type;		/* 0x02 */
+	uint8_t		disposition;	/* 0x03 */
+	uint8_t		reserved_1[4];	/* 0x04 */
+
+	__be64		hmer;
+	/* TFMR register. Valid only for TFAC and TFMR_PARITY error type. */
+	__be64		tfmr;
+};
+
 enum {
 	OPAL_P7IOC_DIAG_TYPE_NONE	= 0,
 	OPAL_P7IOC_DIAG_TYPE_RGC	= 1,
@@ -513,40 +570,40 @@ enum {
 };
 
 struct OpalIoP7IOCErrorData {
-	uint16_t type;
+	__be16 type;
 
 	/* GEM */
-	uint64_t gemXfir;
-	uint64_t gemRfir;
-	uint64_t gemRirqfir;
-	uint64_t gemMask;
-	uint64_t gemRwof;
+	__be64 gemXfir;
+	__be64 gemRfir;
+	__be64 gemRirqfir;
+	__be64 gemMask;
+	__be64 gemRwof;
 
 	/* LEM */
-	uint64_t lemFir;
-	uint64_t lemErrMask;
-	uint64_t lemAction0;
-	uint64_t lemAction1;
-	uint64_t lemWof;
+	__be64 lemFir;
+	__be64 lemErrMask;
+	__be64 lemAction0;
+	__be64 lemAction1;
+	__be64 lemWof;
 
 	union {
 		struct OpalIoP7IOCRgcErrorData {
-			uint64_t rgcStatus;		/* 3E1C10 */
-			uint64_t rgcLdcp;		/* 3E1C18 */
+			__be64 rgcStatus;	/* 3E1C10 */
+			__be64 rgcLdcp;		/* 3E1C18 */
 		}rgc;
 		struct OpalIoP7IOCBiErrorData {
-			uint64_t biLdcp0;		/* 3C0100, 3C0118 */
-			uint64_t biLdcp1;		/* 3C0108, 3C0120 */
-			uint64_t biLdcp2;		/* 3C0110, 3C0128 */
-			uint64_t biFenceStatus;		/* 3C0130, 3C0130 */
+			__be64 biLdcp0;		/* 3C0100, 3C0118 */
+			__be64 biLdcp1;		/* 3C0108, 3C0120 */
+			__be64 biLdcp2;		/* 3C0110, 3C0128 */
+			__be64 biFenceStatus;	/* 3C0130, 3C0130 */
 
-			uint8_t  biDownbound;		/* BI Downbound or Upbound */
+			    u8 biDownbound;	/* BI Downbound or Upbound */
 		}bi;
 		struct OpalIoP7IOCCiErrorData {
-			uint64_t ciPortStatus;		/* 3Dn008 */
-			uint64_t ciPortLdcp;		/* 3Dn010 */
+			__be64 ciPortStatus;	/* 3Dn008 */
+			__be64 ciPortLdcp;	/* 3Dn010 */
 
-			uint8_t	 ciPort;		/* Index of CI port: 0/1 */
+			    u8 ciPort;		/* Index of CI port: 0/1 */
 		}ci;
 	};
 };
@@ -578,60 +635,60 @@ struct OpalIoPhbErrorCommon {
 struct OpalIoP7IOCPhbErrorData {
 	struct OpalIoPhbErrorCommon common;
 
-	uint32_t brdgCtl;
+	__be32 brdgCtl;
 
 	// P7IOC utl regs
-	uint32_t portStatusReg;
-	uint32_t rootCmplxStatus;
-	uint32_t busAgentStatus;
+	__be32 portStatusReg;
+	__be32 rootCmplxStatus;
+	__be32 busAgentStatus;
 
 	// P7IOC cfg regs
-	uint32_t deviceStatus;
-	uint32_t slotStatus;
-	uint32_t linkStatus;
-	uint32_t devCmdStatus;
-	uint32_t devSecStatus;
+	__be32 deviceStatus;
+	__be32 slotStatus;
+	__be32 linkStatus;
+	__be32 devCmdStatus;
+	__be32 devSecStatus;
 
 	// cfg AER regs
-	uint32_t rootErrorStatus;
-	uint32_t uncorrErrorStatus;
-	uint32_t corrErrorStatus;
-	uint32_t tlpHdr1;
-	uint32_t tlpHdr2;
-	uint32_t tlpHdr3;
-	uint32_t tlpHdr4;
-	uint32_t sourceId;
+	__be32 rootErrorStatus;
+	__be32 uncorrErrorStatus;
+	__be32 corrErrorStatus;
+	__be32 tlpHdr1;
+	__be32 tlpHdr2;
+	__be32 tlpHdr3;
+	__be32 tlpHdr4;
+	__be32 sourceId;
 
-	uint32_t rsv3;
+	__be32 rsv3;
 
 	// Record data about the call to allocate a buffer.
-	uint64_t errorClass;
-	uint64_t correlator;
+	__be64 errorClass;
+	__be64 correlator;
 
 	//P7IOC MMIO Error Regs
-	uint64_t p7iocPlssr;                // n120
-	uint64_t p7iocCsr;                  // n110
-	uint64_t lemFir;                    // nC00
-	uint64_t lemErrorMask;              // nC18
-	uint64_t lemWOF;                    // nC40
-	uint64_t phbErrorStatus;            // nC80
-	uint64_t phbFirstErrorStatus;       // nC88
-	uint64_t phbErrorLog0;              // nCC0
-	uint64_t phbErrorLog1;              // nCC8
-	uint64_t mmioErrorStatus;           // nD00
-	uint64_t mmioFirstErrorStatus;      // nD08
-	uint64_t mmioErrorLog0;             // nD40
-	uint64_t mmioErrorLog1;             // nD48
-	uint64_t dma0ErrorStatus;           // nD80
-	uint64_t dma0FirstErrorStatus;      // nD88
-	uint64_t dma0ErrorLog0;             // nDC0
-	uint64_t dma0ErrorLog1;             // nDC8
-	uint64_t dma1ErrorStatus;           // nE00
-	uint64_t dma1FirstErrorStatus;      // nE08
-	uint64_t dma1ErrorLog0;             // nE40
-	uint64_t dma1ErrorLog1;             // nE48
-	uint64_t pestA[OPAL_P7IOC_NUM_PEST_REGS];
-	uint64_t pestB[OPAL_P7IOC_NUM_PEST_REGS];
+	__be64 p7iocPlssr;                // n120
+	__be64 p7iocCsr;                  // n110
+	__be64 lemFir;                    // nC00
+	__be64 lemErrorMask;              // nC18
+	__be64 lemWOF;                    // nC40
+	__be64 phbErrorStatus;            // nC80
+	__be64 phbFirstErrorStatus;       // nC88
+	__be64 phbErrorLog0;              // nCC0
+	__be64 phbErrorLog1;              // nCC8
+	__be64 mmioErrorStatus;           // nD00
+	__be64 mmioFirstErrorStatus;      // nD08
+	__be64 mmioErrorLog0;             // nD40
+	__be64 mmioErrorLog1;             // nD48
+	__be64 dma0ErrorStatus;           // nD80
+	__be64 dma0FirstErrorStatus;      // nD88
+	__be64 dma0ErrorLog0;             // nDC0
+	__be64 dma0ErrorLog1;             // nDC8
+	__be64 dma1ErrorStatus;           // nE00
+	__be64 dma1FirstErrorStatus;      // nE08
+	__be64 dma1ErrorLog0;             // nE40
+	__be64 dma1ErrorLog1;             // nE48
+	__be64 pestA[OPAL_P7IOC_NUM_PEST_REGS];
+	__be64 pestB[OPAL_P7IOC_NUM_PEST_REGS];
 };
 
 struct OpalIoPhb3ErrorData {
@@ -758,6 +815,8 @@ int64_t opal_pci_eeh_freeze_status(uint64_t phb_id, uint64_t pe_number,
 				   __be64 *phb_status);
 int64_t opal_pci_eeh_freeze_clear(uint64_t phb_id, uint64_t pe_number,
 				  uint64_t eeh_action_token);
+int64_t opal_pci_eeh_freeze_set(uint64_t phb_id, uint64_t pe_number,
+				uint64_t eeh_action_token);
 int64_t opal_pci_shpc(uint64_t phb_id, uint64_t shpc_action, uint8_t *state);
 
 
@@ -768,7 +827,7 @@ int64_t opal_pci_set_phb_mem_window(uint64_t phb_id, uint16_t window_type,
 				    uint16_t window_num,
 				    uint64_t starting_real_address,
 				    uint64_t starting_pci_address,
-				    uint16_t segment_size);
+				    uint64_t size);
 int64_t opal_pci_map_pe_mmio_window(uint64_t phb_id, uint16_t pe_number,
 				    uint16_t window_type, uint16_t window_num,
 				    uint16_t segment_num);
@@ -860,6 +919,7 @@ int64_t opal_get_param(uint64_t token, uint32_t param_id, uint64_t buffer,
 int64_t opal_set_param(uint64_t token, uint32_t param_id, uint64_t buffer,
 		uint64_t length);
 int64_t opal_sensor_read(uint32_t sensor_hndl, int token, __be32 *sensor_data);
+int64_t opal_handle_hmi(void);
 
 /* Internal functions */
 extern int early_init_dt_scan_opal(unsigned long node, const char *uname,
@@ -902,6 +962,8 @@ extern void opal_msglog_init(void);
 
 extern int opal_machine_check(struct pt_regs *regs);
 extern bool opal_mce_check_early_recovery(struct pt_regs *regs);
+extern int opal_hmi_exception_early(struct pt_regs *regs);
+extern int opal_handle_hmi_exception(struct pt_regs *regs);
 
 extern void opal_shutdown(void);
 extern int opal_resync_timebase(void);

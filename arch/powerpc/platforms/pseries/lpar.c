@@ -26,6 +26,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/console.h>
 #include <linux/export.h>
+#include <linux/static_key.h>
 #include <asm/processor.h>
 #include <asm/mmu.h>
 #include <asm/page.h>
@@ -649,6 +650,19 @@ EXPORT_SYMBOL(arch_free_page);
 #endif
 
 #ifdef CONFIG_TRACEPOINTS
+#ifdef CONFIG_JUMP_LABEL
+struct static_key hcall_tracepoint_key = STATIC_KEY_INIT;
+
+void hcall_tracepoint_regfunc(void)
+{
+	static_key_slow_inc(&hcall_tracepoint_key);
+}
+
+void hcall_tracepoint_unregfunc(void)
+{
+	static_key_slow_dec(&hcall_tracepoint_key);
+}
+#else
 /*
  * We optimise our hcall path by placing hcall_tracepoint_refcount
  * directly in the TOC so we can check if the hcall tracepoints are
@@ -657,13 +671,6 @@ EXPORT_SYMBOL(arch_free_page);
 
 /* NB: reg/unreg are called while guarded with the tracepoints_mutex */
 extern long hcall_tracepoint_refcount;
-
-/* 
- * Since the tracing code might execute hcalls we need to guard against
- * recursion. One example of this are spinlocks calling H_YIELD on
- * shared processor partitions.
- */
-static DEFINE_PER_CPU(unsigned int, hcall_trace_depth);
 
 void hcall_tracepoint_regfunc(void)
 {
@@ -674,6 +681,15 @@ void hcall_tracepoint_unregfunc(void)
 {
 	hcall_tracepoint_refcount--;
 }
+#endif
+
+/*
+ * Since the tracing code might execute hcalls we need to guard against
+ * recursion. One example of this are spinlocks calling H_YIELD on
+ * shared processor partitions.
+ */
+static DEFINE_PER_CPU(unsigned int, hcall_trace_depth);
+
 
 void __trace_hcall_entry(unsigned long opcode, unsigned long *args)
 {

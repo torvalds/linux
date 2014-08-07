@@ -174,6 +174,10 @@ struct machdep_calls {
 	/* Exception handlers */
 	int		(*system_reset_exception)(struct pt_regs *regs);
 	int 		(*machine_check_exception)(struct pt_regs *regs);
+	int		(*handle_hmi_exception)(struct pt_regs *regs);
+
+	/* Early exception handlers called in realmode */
+	int		(*hmi_exception_early)(struct pt_regs *regs);
 
 	/* Called during machine check exception to retrive fixup address. */
 	bool		(*mce_check_early_recovery)(struct pt_regs *regs);
@@ -366,6 +370,7 @@ static inline void log_error(char *buf, unsigned int err_type, int fatal)
 	} \
 	__define_initcall(__machine_initcall_##mach##_##fn, id);
 
+#define machine_early_initcall(mach, fn)	__define_machine_initcall(mach, fn, early)
 #define machine_core_initcall(mach, fn)		__define_machine_initcall(mach, fn, 1)
 #define machine_core_initcall_sync(mach, fn)	__define_machine_initcall(mach, fn, 1s)
 #define machine_postcore_initcall(mach, fn)	__define_machine_initcall(mach, fn, 2)

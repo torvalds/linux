@@ -18,6 +18,7 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 
+#include <asm/machdep.h>
 #include <asm/rtas.h>
 #include "pseries.h"
 
@@ -362,4 +363,4 @@ static int __init mobility_sysfs_init(void)
 
 	return rc;
 }
-device_initcall(mobility_sysfs_init);
+machine_device_initcall(pseries, mobility_sysfs_init);

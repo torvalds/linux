@@ -265,7 +265,7 @@ static int __init pseries_suspend_init(void)
 {
 	int rc;
 
-	if (!machine_is(pseries) || !firmware_has_feature(FW_FEATURE_LPAR))
+	if (!firmware_has_feature(FW_FEATURE_LPAR))
 		return 0;
 
 	suspend_data.token = rtas_token("ibm,suspend-me");
@@ -280,5 +280,4 @@ static int __init pseries_suspend_init(void)
 	suspend_set_ops(&pseries_suspend_ops);
 	return 0;
 }
-
-__initcall(pseries_suspend_init);
+machine_device_initcall(pseries, pseries_suspend_init);

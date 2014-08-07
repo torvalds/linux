@@ -157,8 +157,10 @@ static void vfio_pci_release(void *device_data)
 {
 	struct vfio_pci_device *vdev = device_data;
 
-	if (atomic_dec_and_test(&vdev->refcnt))
+	if (atomic_dec_and_test(&vdev->refcnt)) {
+		vfio_spapr_pci_eeh_release(vdev->pdev);
 		vfio_pci_disable(vdev);
+	}
 
 	module_put(THIS_MODULE);
 }
@@ -166,19 +168,27 @@ static void vfio_pci_release(void *device_data)
 static int vfio_pci_open(void *device_data)
 {
 	struct vfio_pci_device *vdev = device_data;
+	int ret;
 
 	if (!try_module_get(THIS_MODULE))
 		return -ENODEV;
 
 	if (atomic_inc_return(&vdev->refcnt) == 1) {
-		int ret = vfio_pci_enable(vdev);
+		ret = vfio_pci_enable(vdev);
+		if (ret)
+			goto error;
+
+		ret = vfio_spapr_pci_eeh_open(vdev->pdev);
 		if (ret) {
-			module_put(THIS_MODULE);
-			return ret;
+			vfio_pci_disable(vdev);
+			goto error;
 		}
 	}
 
 	return 0;
+error:
+	module_put(THIS_MODULE);
+	return ret;
 }
 
 static int vfio_pci_get_irq_count(struct vfio_pci_device *vdev, int irq_type)

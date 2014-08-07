@@ -150,8 +150,10 @@
 #define PPC_INST_MCRXR_MASK		0xfc0007fe
 #define PPC_INST_MFSPR_PVR		0x7c1f42a6
 #define PPC_INST_MFSPR_PVR_MASK		0xfc1fffff
+#define PPC_INST_MFTMR			0x7c0002dc
 #define PPC_INST_MSGSND			0x7c00019c
 #define PPC_INST_MSGSNDP		0x7c00011c
+#define PPC_INST_MTTMR			0x7c0003dc
 #define PPC_INST_NOP			0x60000000
 #define PPC_INST_POPCNTB		0x7c0000f4
 #define PPC_INST_POPCNTB_MASK		0xfc0007fe
@@ -368,5 +370,12 @@
 					       | __PPC_RA(r))
 #define TABORT(r)		stringify_in_c(.long PPC_INST_TABORT \
 					       | __PPC_RA(r))
+
+/* book3e thread control instructions */
+#define TMRN(x)			((((x) & 0x1f) << 16) | (((x) & 0x3e0) << 6))
+#define MTTMR(tmr, r)		stringify_in_c(.long PPC_INST_MTTMR | \
+					       TMRN(tmr) | ___PPC_RS(r))
+#define MFTMR(tmr, r)		stringify_in_c(.long PPC_INST_MFTMR | \
+					       TMRN(tmr) | ___PPC_RT(r))
 
 #endif /* _ASM_POWERPC_PPC_OPCODE_H */

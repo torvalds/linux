@@ -159,6 +159,8 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 	cmpwi	r12, BOOK3S_INTERRUPT_EXTERNAL
 BEGIN_FTR_SECTION
 	beq	11f
+	cmpwi	cr2, r12, BOOK3S_INTERRUPT_HMI
+	beq	cr2, 14f			/* HMI check */
 END_FTR_SECTION_IFSET(CPU_FTR_ARCH_206)
 
 	/* RFI into the highmem handler, or branch to interrupt handler */
@@ -178,6 +180,10 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_206)
 	ba	0x500
 
 13:	b	machine_check_fwnmi
+
+14:	mtspr	SPRN_HSRR0, r8
+	mtspr	SPRN_HSRR1, r7
+	b	hmi_exception_after_realmode
 
 kvmppc_primary_no_guest:
 	/* We handle this much like a ceded vcpu */

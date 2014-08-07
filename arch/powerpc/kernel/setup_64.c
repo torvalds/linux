@@ -201,7 +201,11 @@ static void cpu_ready_for_interrupts(void)
 	/* Set IR and DR in PACA MSR */
 	get_paca()->kernel_msr = MSR_KERNEL;
 
-	/* Enable AIL if supported */
+	/*
+	 * Enable AIL if supported, and we are in hypervisor mode. If we are
+	 * not in hypervisor mode, we enable relocation-on interrupts later
+	 * in pSeries_setup_arch() using the H_SET_MODE hcall.
+	 */
 	if (cpu_has_feature(CPU_FTR_HVMODE) &&
 	    cpu_has_feature(CPU_FTR_ARCH_207S)) {
 		unsigned long lpcr = mfspr(SPRN_LPCR);
@@ -507,7 +511,11 @@ void __init setup_system(void)
 	check_smt_enabled();
 	setup_tlb_core_data();
 
-#ifdef CONFIG_SMP
+	/*
+	 * Freescale Book3e parts spin in a loop provided by firmware,
+	 * so smp_release_cpus() does nothing for them
+	 */
+#if defined(CONFIG_SMP) && !defined(CONFIG_PPC_FSL_BOOK3E)
 	/* Release secondary cpus out of their spinloops at 0x60 now that
 	 * we can map physical -> logical CPU ids
 	 */
@@ -673,9 +681,6 @@ void __init setup_arch(char **cmdline_p)
 	exc_lvl_early_init();
 	emergency_stack_init();
 
-#ifdef CONFIG_PPC_STD_MMU_64
-	stabs_alloc();
-#endif
 	/* set up the bootmem stuff with available memory */
 	do_init_bootmem();
 	sparse_init();

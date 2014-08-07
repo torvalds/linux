@@ -78,10 +78,6 @@ struct paca_struct {
 	u64 kernel_toc;			/* Kernel TOC address */
 	u64 kernelbase;			/* Base address of kernel */
 	u64 kernel_msr;			/* MSR while running in kernel */
-#ifdef CONFIG_PPC_STD_MMU_64
-	u64 stab_real;			/* Absolute address of segment table */
-	u64 stab_addr;			/* Virtual address of segment table */
-#endif /* CONFIG_PPC_STD_MMU_64 */
 	void *emergency_sp;		/* pointer to emergency stack */
 	u64 data_offset;		/* per cpu data offset */
 	s16 hw_cpu_id;			/* Physical processor number */
@@ -171,6 +167,7 @@ struct paca_struct {
 	 * and already using emergency stack.
 	 */
 	u16 in_mce;
+	u8 hmi_event_available;		 /* HMI event is available */
 #endif
 
 	/* Stuff for accurate time accounting */
