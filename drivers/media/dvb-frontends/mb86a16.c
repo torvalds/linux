@@ -118,6 +118,8 @@ static int mb86a16_read(struct mb86a16_state *state, u8 reg, u8 *val)
 		dprintk(verbose, MB86A16_ERROR, 1, "read error(reg=0x%02x, ret=%i)",
 			reg, ret);
 
+		if (ret < 0)
+			return ret;
 		return -EREMOTEIO;
 	}
 	*val = b1[0];
