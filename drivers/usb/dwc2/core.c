@@ -2674,23 +2674,23 @@ int dwc2_get_hwparams(struct dwc2_hsotg *hsotg)
 	hwcfg2 = readl(hsotg->regs + GHWCFG2);
 	hwcfg3 = readl(hsotg->regs + GHWCFG3);
 	hwcfg4 = readl(hsotg->regs + GHWCFG4);
-	gnptxfsiz = readl(hsotg->regs + GNPTXFSIZ);
 	grxfsiz = readl(hsotg->regs + GRXFSIZ);
 
 	dev_dbg(hsotg->dev, "hwcfg1=%08x\n", hwcfg1);
 	dev_dbg(hsotg->dev, "hwcfg2=%08x\n", hwcfg2);
 	dev_dbg(hsotg->dev, "hwcfg3=%08x\n", hwcfg3);
 	dev_dbg(hsotg->dev, "hwcfg4=%08x\n", hwcfg4);
-	dev_dbg(hsotg->dev, "gnptxfsiz=%08x\n", gnptxfsiz);
 	dev_dbg(hsotg->dev, "grxfsiz=%08x\n", grxfsiz);
 
-	/* Force host mode to get HPTXFSIZ exact power on value */
+	/* Force host mode to get HPTXFSIZ / GNPTXFSIZ exact power on value */
 	gusbcfg = readl(hsotg->regs + GUSBCFG);
 	gusbcfg |= GUSBCFG_FORCEHOSTMODE;
 	writel(gusbcfg, hsotg->regs + GUSBCFG);
 	usleep_range(100000, 150000);
 
+	gnptxfsiz = readl(hsotg->regs + GNPTXFSIZ);
 	hptxfsiz = readl(hsotg->regs + HPTXFSIZ);
+	dev_dbg(hsotg->dev, "gnptxfsiz=%08x\n", gnptxfsiz);
 	dev_dbg(hsotg->dev, "hptxfsiz=%08x\n", hptxfsiz);
 	gusbcfg = readl(hsotg->regs + GUSBCFG);
 	gusbcfg &= ~GUSBCFG_FORCEHOSTMODE;
