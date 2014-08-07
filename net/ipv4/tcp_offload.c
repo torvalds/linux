@@ -14,12 +14,12 @@
 #include <net/tcp.h>
 #include <net/protocol.h>
 
-void tcp_gso_tstamp(struct sk_buff *skb, unsigned int ts_seq, unsigned int seq,
-		    unsigned int mss)
+static void tcp_gso_tstamp(struct sk_buff *skb, unsigned int ts_seq,
+			   unsigned int seq, unsigned int mss)
 {
 	while (skb) {
-		if (ts_seq < (__u64) seq + mss) {
-			skb_shinfo(skb)->tx_flags = SKBTX_SW_TSTAMP;
+		if (before(ts_seq, seq + mss)) {
+			skb_shinfo(skb)->tx_flags |= SKBTX_SW_TSTAMP;
 			skb_shinfo(skb)->tskey = ts_seq;
 			return;
 		}
