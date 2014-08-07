@@ -4204,7 +4204,7 @@ L:	linux-kernel@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git timers/core
 S:	Maintained
 F:	Documentation/timers/
-F:	kernel/hrtimer.c
+F:	kernel/time/hrtimer.c
 F:	kernel/time/clockevents.c
 F:	kernel/time/tick*.*
 F:	kernel/time/timer_*.c
@@ -7026,10 +7026,10 @@ POSIX CLOCKS and TIMERS
 M:	Thomas Gleixner <tglx@linutronix.de>
 L:	linux-kernel@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git timers/core
-S:	Supported
+S:	Maintained
 F:	fs/timerfd.c
 F:	include/linux/timer*
-F:	kernel/*timer*
+F:	kernel/time/*timer*
 
 POWER SUPPLY CLASS/SUBSYSTEM and DRIVERS
 M:	Dmitry Eremin-Solenikov <dbaryshkov@gmail.com>

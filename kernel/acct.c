@@ -458,9 +458,7 @@ static void do_acct_process(struct bsd_acct_struct *acct,
 	acct_t ac;
 	mm_segment_t fs;
 	unsigned long flim;
-	u64 elapsed;
-	u64 run_time;
-	struct timespec uptime;
+	u64 elapsed, run_time;
 	struct tty_struct *tty;
 	const struct cred *orig_cred;
 
@@ -484,10 +482,8 @@ static void do_acct_process(struct bsd_acct_struct *acct,
 	strlcpy(ac.ac_comm, current->comm, sizeof(ac.ac_comm));
 
 	/* calculate run_time in nsec*/
-	do_posix_clock_monotonic_gettime(&uptime);
-	run_time = (u64)uptime.tv_sec*NSEC_PER_SEC + uptime.tv_nsec;
-	run_time -= (u64)current->group_leader->start_time.tv_sec * NSEC_PER_SEC
-		       + current->group_leader->start_time.tv_nsec;
+	run_time = ktime_get_ns();
+	run_time -= current->group_leader->start_time;
 	/* convert nsec -> AHZ */
 	elapsed = nsec_to_AHZ(run_time);
 #if ACCT_VERSION==3
