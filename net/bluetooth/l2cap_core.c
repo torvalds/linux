@@ -7268,13 +7268,16 @@ void l2cap_connect_cfm(struct hci_conn *hcon, u8 status)
 
 	BT_DBG("hcon %p bdaddr %pMR status %d", hcon, &hcon->dst, status);
 
-	if (!status) {
-		conn = l2cap_conn_add(hcon);
-		if (conn)
-			l2cap_conn_ready(conn);
-	} else {
+	if (status) {
 		l2cap_conn_del(hcon, bt_to_errno(status));
+		return;
 	}
+
+	conn = l2cap_conn_add(hcon);
+	if (!conn)
+		return;
+
+	l2cap_conn_ready(conn);
 }
 
 int l2cap_disconn_ind(struct hci_conn *hcon)
