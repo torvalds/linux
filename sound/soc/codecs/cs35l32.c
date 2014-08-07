@@ -549,6 +549,7 @@ static int cs35l32_i2c_probe(struct i2c_client *i2c_client,
 err_disable:
 	regulator_bulk_disable(ARRAY_SIZE(cs35l32->supplies),
 			       cs35l32->supplies);
+	return ret;
 }
 
 static int cs35l32_i2c_remove(struct i2c_client *i2c_client)
