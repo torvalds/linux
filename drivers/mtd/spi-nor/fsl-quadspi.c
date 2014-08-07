@@ -719,15 +719,9 @@ static int fsl_qspi_read(struct spi_nor *nor, loff_t from,
 {
 	struct fsl_qspi *q = nor->priv;
 	u8 cmd = nor->read_opcode;
-	int ret;
 
 	dev_dbg(q->dev, "cmd [%x],read from (0x%p, 0x%.8x, 0x%.8x),len:%d\n",
 		cmd, q->ahb_base, q->chip_base_addr, (unsigned int)from, len);
-
-	/* Wait until the previous command is finished. */
-	ret = nor->wait_till_ready(nor);
-	if (ret)
-		return ret;
 
 	/* Read out the data directly from the AHB buffer.*/
 	memcpy(buf, q->ahb_base + q->chip_base_addr + from, len);
@@ -743,11 +737,6 @@ static int fsl_qspi_erase(struct spi_nor *nor, loff_t offs)
 
 	dev_dbg(nor->dev, "%dKiB at 0x%08x:0x%08x\n",
 		nor->mtd->erasesize / 1024, q->chip_base_addr, (u32)offs);
-
-	/* Wait until finished previous write command. */
-	ret = nor->wait_till_ready(nor);
-	if (ret)
-		return ret;
 
 	/* Send write enable, then erase commands. */
 	ret = nor->write_reg(nor, SPINOR_OP_WREN, NULL, 0, 0);
