@@ -33,6 +33,7 @@ struct b43_bus_dev {
 			   size_t count, u16 offset, u8 reg_width);
 	void (*block_write)(struct b43_bus_dev *dev, const void *buffer,
 			    size_t count, u16 offset, u8 reg_width);
+	bool flush_writes;
 
 	struct device *dev;
 	struct device *dma_dev;

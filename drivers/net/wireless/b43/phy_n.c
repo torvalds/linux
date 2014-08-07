@@ -6501,7 +6501,7 @@ static void b43_nphy_op_maskset(struct b43_wldev *dev, u16 reg, u16 mask,
 				 u16 set)
 {
 	check_phyreg(dev, reg);
-	b43_write16(dev, B43_MMIO_PHY_CONTROL, reg);
+	b43_write16f(dev, B43_MMIO_PHY_CONTROL, reg);
 	b43_maskset16(dev, B43_MMIO_PHY_DATA, mask, set);
 	dev->phy.writes_counter = 1;
 }
@@ -6516,7 +6516,7 @@ static u16 b43_nphy_op_radio_read(struct b43_wldev *dev, u16 reg)
 	else
 		reg |= 0x100;
 
-	b43_write16(dev, B43_MMIO_RADIO_CONTROL, reg);
+	b43_write16f(dev, B43_MMIO_RADIO_CONTROL, reg);
 	return b43_read16(dev, B43_MMIO_RADIO_DATA_LOW);
 }
 
@@ -6525,7 +6525,7 @@ static void b43_nphy_op_radio_write(struct b43_wldev *dev, u16 reg, u16 value)
 	/* Register 1 is a 32-bit register. */
 	B43_WARN_ON(dev->phy.rev < 7 && reg == 1);
 
-	b43_write16(dev, B43_MMIO_RADIO_CONTROL, reg);
+	b43_write16f(dev, B43_MMIO_RADIO_CONTROL, reg);
 	b43_write16(dev, B43_MMIO_RADIO_DATA_LOW, value);
 }
 

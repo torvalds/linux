@@ -1988,7 +1988,7 @@ static void lpphy_calibration(struct b43_wldev *dev)
 static void b43_lpphy_op_maskset(struct b43_wldev *dev, u16 reg, u16 mask,
 				 u16 set)
 {
-	b43_write16(dev, B43_MMIO_PHY_CONTROL, reg);
+	b43_write16f(dev, B43_MMIO_PHY_CONTROL, reg);
 	b43_write16(dev, B43_MMIO_PHY_DATA,
 		    (b43_read16(dev, B43_MMIO_PHY_DATA) & mask) | set);
 }
@@ -2004,7 +2004,7 @@ static u16 b43_lpphy_op_radio_read(struct b43_wldev *dev, u16 reg)
 	} else
 		reg |= 0x200;
 
-	b43_write16(dev, B43_MMIO_RADIO_CONTROL, reg);
+	b43_write16f(dev, B43_MMIO_RADIO_CONTROL, reg);
 	return b43_read16(dev, B43_MMIO_RADIO_DATA_LOW);
 }
 
@@ -2013,7 +2013,7 @@ static void b43_lpphy_op_radio_write(struct b43_wldev *dev, u16 reg, u16 value)
 	/* Register 1 is a 32-bit register. */
 	B43_WARN_ON(reg == 1);
 
-	b43_write16(dev, B43_MMIO_RADIO_CONTROL, reg);
+	b43_write16f(dev, B43_MMIO_RADIO_CONTROL, reg);
 	b43_write16(dev, B43_MMIO_RADIO_DATA_LOW, value);
 }
 

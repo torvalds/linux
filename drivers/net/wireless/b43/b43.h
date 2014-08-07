@@ -1012,6 +1012,16 @@ static inline void b43_write16(struct b43_wldev *dev, u16 offset, u16 value)
 	dev->dev->write16(dev->dev, offset, value);
 }
 
+/* To optimize this check for flush_writes on BCM47XX_BCMA only. */
+static inline void b43_write16f(struct b43_wldev *dev, u16 offset, u16 value)
+{
+	b43_write16(dev, offset, value);
+#if defined(CONFIG_BCM47XX_BCMA)
+	if (dev->dev->flush_writes)
+		b43_read16(dev, offset);
+#endif
+}
+
 static inline void b43_maskset16(struct b43_wldev *dev, u16 offset, u16 mask,
 				 u16 set)
 {
