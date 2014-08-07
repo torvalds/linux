@@ -231,14 +231,7 @@ static int wait_till_ready(struct spi_nor *nor)
  */
 static int erase_chip(struct spi_nor *nor)
 {
-	int ret;
-
 	dev_dbg(nor->dev, " %lldKiB\n", (long long)(nor->mtd->size >> 10));
-
-	/* Wait until finished previous write command. */
-	ret = wait_till_ready(nor);
-	if (ret)
-		return ret;
 
 	/* Send write enable, then erase commands. */
 	write_enable(nor);
@@ -302,6 +295,10 @@ static int spi_nor_erase(struct mtd_info *mtd, struct erase_info *instr)
 			goto erase_err;
 		}
 
+		ret = spi_nor_wait_till_ready(nor);
+		if (ret)
+			goto erase_err;
+
 	/* REVISIT in some cases we could speed up erasing large regions
 	 * by using SPINOR_OP_SE instead of SPINOR_OP_BE_4K.  We may have set up
 	 * to use "small sector erase", but that's not always optimal.
@@ -317,6 +314,10 @@ static int spi_nor_erase(struct mtd_info *mtd, struct erase_info *instr)
 
 			addr += mtd->erasesize;
 			len -= mtd->erasesize;
+
+			ret = spi_nor_wait_till_ready(nor);
+			if (ret)
+				goto erase_err;
 		}
 	}
 
@@ -343,11 +344,6 @@ static int spi_nor_lock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 	ret = spi_nor_lock_and_prep(nor, SPI_NOR_OPS_LOCK);
 	if (ret)
 		return ret;
-
-	/* Wait until finished previous command */
-	ret = wait_till_ready(nor);
-	if (ret)
-		goto err;
 
 	status_old = read_sr(nor);
 
@@ -390,11 +386,6 @@ static int spi_nor_unlock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 	ret = spi_nor_lock_and_prep(nor, SPI_NOR_OPS_UNLOCK);
 	if (ret)
 		return ret;
-
-	/* Wait until finished previous command */
-	ret = wait_till_ready(nor);
-	if (ret)
-		goto err;
 
 	status_old = read_sr(nor);
 
@@ -706,11 +697,6 @@ static int sst_write(struct mtd_info *mtd, loff_t to, size_t len,
 	if (ret)
 		return ret;
 
-	/* Wait until finished previous write command. */
-	ret = wait_till_ready(nor);
-	if (ret)
-		goto time_out;
-
 	write_enable(nor);
 
 	nor->sst_write_second = false;
@@ -782,11 +768,6 @@ static int spi_nor_write(struct mtd_info *mtd, loff_t to, size_t len,
 	if (ret)
 		return ret;
 
-	/* Wait until finished previous write command. */
-	ret = wait_till_ready(nor);
-	if (ret)
-		goto write_err;
-
 	write_enable(nor);
 
 	page_offset = to & (nor->page_size - 1);
@@ -815,6 +796,7 @@ static int spi_nor_write(struct mtd_info *mtd, loff_t to, size_t len,
 		}
 	}
 
+	ret = spi_nor_wait_till_ready(nor);
 write_err:
 	spi_nor_unlock_and_unprep(nor, SPI_NOR_OPS_WRITE);
 	return ret;
