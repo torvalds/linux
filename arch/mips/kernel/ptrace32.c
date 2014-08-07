@@ -22,7 +22,6 @@
 #include <linux/errno.h>
 #include <linux/ptrace.h>
 #include <linux/smp.h>
-#include <linux/user.h>
 #include <linux/security.h>
 
 #include <asm/cpu.h>
@@ -32,6 +31,7 @@
 #include <asm/mipsmtregs.h>
 #include <asm/pgtable.h>
 #include <asm/page.h>
+#include <asm/reg.h>
 #include <asm/uaccess.h>
 #include <asm/bootinfo.h>
 
@@ -129,7 +129,7 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 			break;
 		case FPC_EIR:
 			/* implementation / version register */
-			tmp = current_cpu_data.fpu_id;
+			tmp = boot_cpu_data.fpu_id;
 			break;
 		case DSP_BASE ... DSP_BASE + 5: {
 			dspreg_t *dregs;
@@ -256,11 +256,13 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 		}
 
 	case PTRACE_GETREGS:
-		ret = ptrace_getregs(child, (__s64 __user *) (__u64) data);
+		ret = ptrace_getregs(child,
+				(struct user_pt_regs __user *) (__u64) data);
 		break;
 
 	case PTRACE_SETREGS:
-		ret = ptrace_setregs(child, (__s64 __user *) (__u64) data);
+		ret = ptrace_setregs(child,
+				(struct user_pt_regs __user *) (__u64) data);
 		break;
 
 	case PTRACE_GETFPREGS:

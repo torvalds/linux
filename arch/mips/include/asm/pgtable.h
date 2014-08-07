@@ -97,6 +97,31 @@ extern void paging_init(void);
 
 #define pmd_page_vaddr(pmd)	pmd_val(pmd)
 
+#define htw_stop()							\
+do {									\
+	if (cpu_has_htw)						\
+		write_c0_pwctl(read_c0_pwctl() &			\
+			       ~(1 << MIPS_PWCTL_PWEN_SHIFT));		\
+} while(0)
+
+#define htw_start()							\
+do {									\
+	if (cpu_has_htw)						\
+		write_c0_pwctl(read_c0_pwctl() |			\
+			       (1 << MIPS_PWCTL_PWEN_SHIFT));		\
+} while(0)
+
+
+#define htw_reset()							\
+do {									\
+	if (cpu_has_htw) {						\
+		htw_stop();						\
+		back_to_back_c0_hazard();				\
+		htw_start();						\
+		back_to_back_c0_hazard();				\
+	}								\
+} while(0)
+
 #if defined(CONFIG_64BIT_PHYS_ADDR) && defined(CONFIG_CPU_MIPS32)
 
 #define pte_none(pte)		(!(((pte).pte_low | (pte).pte_high) & ~_PAGE_GLOBAL))
@@ -131,6 +156,7 @@ static inline void pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *pt
 		null.pte_low = null.pte_high = _PAGE_GLOBAL;
 
 	set_pte_at(mm, addr, ptep, null);
+	htw_reset();
 }
 #else
 
@@ -168,6 +194,7 @@ static inline void pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *pt
 	else
 #endif
 		set_pte_at(mm, addr, ptep, __pte(0));
+	htw_reset();
 }
 #endif
 
