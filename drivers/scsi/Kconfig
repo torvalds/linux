@@ -40,13 +40,6 @@ config SCSI_DMA
 	bool
 	default n
 
-config SCSI_TGT
-	tristate "SCSI target support"
-	depends on SCSI
-	---help---
-	  If you want to use SCSI target mode drivers enable this option.
-	  If you choose M, the module will be called scsi_tgt.
-
 config SCSI_NETLINK
 	bool
 	default	n
@@ -197,20 +190,6 @@ config SCSI_ENCLOSURE
 	  it has an enclosure device.  Selecting this option will just allow
 	  certain enclosure conditions to be reported and is not required.
 
-config SCSI_MULTI_LUN
-	bool "Probe all LUNs on each SCSI device"
-	depends on SCSI
-	help
-	  Some devices support more than one LUN (Logical Unit Number) in order
-	  to allow access to several media, e.g. CD jukebox, USB card reader,
-	  mobile phone in mass storage mode. This option forces the kernel to
-	  probe for all LUNs by default. This setting can be overridden by
-	  max_luns boot/module parameter. Note that this option does not affect
-	  devices conforming to SCSI-3 or higher as they can explicitly report
-	  their number of LUNs. It is safe to say Y here unless you have one of
-	  those rare devices which reacts in an unexpected way when probed for
-	  multiple LUNs.
-
 config SCSI_CONSTANTS
 	bool "Verbose SCSI error reporting (kernel size +=12K)"
 	depends on SCSI
@@ -285,13 +264,6 @@ config SCSI_FC_ATTRS
 	  each attached FiberChannel device to sysfs, say Y.
 	  Otherwise, say N.
 
-config SCSI_FC_TGT_ATTRS
-	bool "SCSI target support for FiberChannel Transport Attributes"
-	depends on SCSI_FC_ATTRS
-	depends on SCSI_TGT = y || SCSI_TGT = SCSI_FC_ATTRS
-	help
-		If you want to use SCSI target mode drivers enable this option.
-
 config SCSI_ISCSI_ATTRS
 	tristate "iSCSI Transport Attributes"
 	depends on SCSI && NET
@@ -317,13 +289,6 @@ config SCSI_SRP_ATTRS
 	help
 	  If you wish to export transport-specific information about
 	  each attached SRP device to sysfs, say Y.
-
-config SCSI_SRP_TGT_ATTRS
-	bool "SCSI target support for SRP Transport Attributes"
-	depends on SCSI_SRP_ATTRS
-	depends on SCSI_TGT = y || SCSI_TGT = SCSI_SRP_ATTRS
-	help
-		If you want to use SCSI target mode drivers enable this option.
 
 endmenu
 
@@ -528,7 +493,7 @@ config SCSI_DPT_I2O
 
 config SCSI_ADVANSYS
 	tristate "AdvanSys SCSI support"
-	depends on SCSI && VIRT_TO_BUS
+	depends on SCSI && VIRT_TO_BUS && !ARM
 	depends on ISA || EISA || PCI
 	help
 	  This is a driver for all SCSI host adapters manufactured by
@@ -847,20 +812,6 @@ config SCSI_IBMVSCSI
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ibmvscsi.
-
-config SCSI_IBMVSCSIS
-	tristate "IBM Virtual SCSI Server support"
-	depends on PPC_PSERIES && SCSI_SRP && SCSI_SRP_TGT_ATTRS
-	help
-	  This is the SRP target driver for IBM pSeries virtual environments.
-
-	  The userspace component needed to initialize the driver and
-	  documentation can be found:
-
-	  http://stgt.berlios.de/
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called ibmvstgt.
 
 config SCSI_IBMVFC
 	tristate "IBM Virtual FC support"
@@ -1749,16 +1700,6 @@ config SCSI_PM8001
 	help
 	  This driver supports PMC-Sierra PCIE SAS/SATA 8x6G SPC 8001 chip
 	  based host adapters.
-
-config SCSI_SRP
-	tristate "SCSI RDMA Protocol helper library"
-	depends on SCSI && PCI
-	select SCSI_TGT
-	help
-	  If you wish to use SRP target drivers, say Y.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called libsrp.
 
 config SCSI_BFA_FC
 	tristate "Brocade BFA Fibre Channel Support"

@@ -1205,7 +1205,7 @@ int qla4xxx_abort_task(struct scsi_qla_host *ha, struct srb *srb)
 	if (mbox_sts[0] != MBOX_STS_COMMAND_COMPLETE) {
 		status = QLA_ERROR;
 
-		DEBUG2(printk(KERN_WARNING "scsi%ld:%d:%d: abort task FAILED: "
+		DEBUG2(printk(KERN_WARNING "scsi%ld:%d:%llu: abort task FAILED: "
 		    "mbx0=%04X, mb1=%04X, mb2=%04X, mb3=%04X, mb4=%04X\n",
 		    ha->host_no, cmd->device->id, cmd->device->lun, mbox_sts[0],
 		    mbox_sts[1], mbox_sts[2], mbox_sts[3], mbox_sts[4]));
@@ -1225,14 +1225,14 @@ int qla4xxx_abort_task(struct scsi_qla_host *ha, struct srb *srb)
  * are valid before calling this routine.
  **/
 int qla4xxx_reset_lun(struct scsi_qla_host * ha, struct ddb_entry * ddb_entry,
-		      int lun)
+		      uint64_t lun)
 {
 	uint32_t mbox_cmd[MBOX_REG_COUNT];
 	uint32_t mbox_sts[MBOX_REG_COUNT];
 	uint32_t scsi_lun[2];
 	int status = QLA_SUCCESS;
 
-	DEBUG2(printk("scsi%ld:%d:%d: lun reset issued\n", ha->host_no,
+	DEBUG2(printk("scsi%ld:%d:%llu: lun reset issued\n", ha->host_no,
 		      ddb_entry->fw_ddb_index, lun));
 
 	/*

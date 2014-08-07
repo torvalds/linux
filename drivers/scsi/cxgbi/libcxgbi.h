@@ -709,7 +709,7 @@ void cxgbi_device_unregister(struct cxgbi_device *);
 void cxgbi_device_unregister_all(unsigned int flag);
 struct cxgbi_device *cxgbi_device_find_by_lldev(void *);
 struct cxgbi_device *cxgbi_device_find_by_netdev(struct net_device *, int *);
-int cxgbi_hbas_add(struct cxgbi_device *, unsigned int, unsigned int,
+int cxgbi_hbas_add(struct cxgbi_device *, u64, unsigned int,
 			struct scsi_host_template *,
 			struct scsi_transport_template *);
 void cxgbi_hbas_remove(struct cxgbi_device *);

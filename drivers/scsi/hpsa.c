@@ -1708,7 +1708,14 @@ static void complete_scsi_command(struct CommandList *cp)
 
 	cmd->result |= ei->ScsiStatus;
 
-	/* copy the sense data whether we need to or not. */
+	scsi_set_resid(cmd, ei->ResidualCnt);
+	if (ei->CommandStatus == 0) {
+		cmd_free(h, cp);
+		cmd->scsi_done(cmd);
+		return;
+	}
+
+	/* copy the sense data */
 	if (SCSI_SENSE_BUFFERSIZE < sizeof(ei->SenseInfo))
 		sense_data_size = SCSI_SENSE_BUFFERSIZE;
 	else
@@ -1717,13 +1724,6 @@ static void complete_scsi_command(struct CommandList *cp)
 		sense_data_size = ei->SenseLen;
 
 	memcpy(cmd->sense_buffer, ei->SenseInfo, sense_data_size);
-	scsi_set_resid(cmd, ei->ResidualCnt);
-
-	if (ei->CommandStatus == 0) {
-		cmd_free(h, cp);
-		cmd->scsi_done(cmd);
-		return;
-	}
 
 	/* For I/O accelerator commands, copy over some fields to the normal
 	 * CISS header used below for error handling.
@@ -3686,6 +3686,8 @@ static int hpsa_scsi_ioaccel_raid_map(struct ctlr_info *h,
 			(((u64) cmd->cmnd[2]) << 8) |
 			cmd->cmnd[3];
 		block_cnt = cmd->cmnd[4];
+		if (block_cnt == 0)
+			block_cnt = 256;
 		break;
 	case WRITE_10:
 		is_write = 1;
@@ -3734,7 +3736,6 @@ static int hpsa_scsi_ioaccel_raid_map(struct ctlr_info *h,
 	default:
 		return IO_ACCEL_INELIGIBLE; /* process via normal I/O path */
 	}
-	BUG_ON(block_cnt == 0);
 	last_block = first_block + block_cnt - 1;
 
 	/* check for write to non-RAID-0 */
@@ -4590,7 +4591,7 @@ static int hpsa_eh_abort_handler(struct scsi_cmnd *sc)
 		return FAILED;
 
 	memset(msg, 0, sizeof(msg));
-	ml += sprintf(msg+ml, "ABORT REQUEST on C%d:B%d:T%d:L%d ",
+	ml += sprintf(msg+ml, "ABORT REQUEST on C%d:B%d:T%d:L%llu ",
 		h->scsi_host->host_no, sc->device->channel,
 		sc->device->id, sc->device->lun);
 
@@ -5092,7 +5093,7 @@ static int hpsa_big_passthru_ioctl(struct ctlr_info *h, void __user *argp)
 		}
 		if (ioc->Request.Type.Direction & XFER_WRITE) {
 			if (copy_from_user(buff[sg_used], data_ptr, sz)) {
-				status = -ENOMEM;
+				status = -EFAULT;
 				goto cleanup1;
 			}
 		} else
@@ -6365,9 +6366,9 @@ static inline void hpsa_set_driver_support_bits(struct ctlr_info *h)
 {
 	u32 driver_support;
 
-#ifdef CONFIG_X86
-	/* Need to enable prefetch in the SCSI core for 6400 in x86 */
 	driver_support = readl(&(h->cfgtable->driver_support));
+	/* Need to enable prefetch in the SCSI core for 6400 in x86 */
+#ifdef CONFIG_X86
 	driver_support |= ENABLE_SCSI_PREFETCH;
 #endif
 	driver_support |= ENABLE_UNIT_ATTN;
@@ -6913,8 +6914,12 @@ static int hpsa_offline_devices_ready(struct ctlr_info *h)
 		d = list_entry(this, struct offline_device_entry,
 				offline_list);
 		spin_unlock_irqrestore(&h->offline_device_lock, flags);
-		if (!hpsa_volume_offline(h, d->scsi3addr))
+		if (!hpsa_volume_offline(h, d->scsi3addr)) {
+			spin_lock_irqsave(&h->offline_device_lock, flags);
+			list_del(&d->offline_list);
+			spin_unlock_irqrestore(&h->offline_device_lock, flags);
 			return 1;
+		}
 		spin_lock_irqsave(&h->offline_device_lock, flags);
 	}
 	spin_unlock_irqrestore(&h->offline_device_lock, flags);
@@ -6995,8 +7000,10 @@ reinit_after_soft_reset:
 
 	/* Allocate and clear per-cpu variable lockup_detected */
 	h->lockup_detected = alloc_percpu(u32);
-	if (!h->lockup_detected)
+	if (!h->lockup_detected) {
+		rc = -ENOMEM;
 		goto clean1;
+	}
 	set_lockup_detected_for_all_cpus(h, 0);
 
 	rc = hpsa_pci_init(h);

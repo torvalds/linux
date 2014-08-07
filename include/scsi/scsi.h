@@ -332,6 +332,7 @@ static inline int scsi_status_is_good(int status)
 #define TYPE_ENCLOSURE      0x0d    /* Enclosure Services Device */
 #define TYPE_RBC	    0x0e
 #define TYPE_OSD            0x11
+#define TYPE_ZBC            0x14
 #define TYPE_NO_LUN         0x7f
 
 /* SCSI protocols; these are taken from SPC-3 section 7.5 */
@@ -385,7 +386,7 @@ struct scsi_lun {
 #define SCSI_W_LUN_ACCESS_CONTROL (SCSI_W_LUN_BASE + 2)
 #define SCSI_W_LUN_TARGET_LOG_PAGE (SCSI_W_LUN_BASE + 3)
 
-static inline int scsi_is_wlun(unsigned int lun)
+static inline int scsi_is_wlun(u64 lun)
 {
 	return (lun & 0xff00) == SCSI_W_LUN_BASE;
 }

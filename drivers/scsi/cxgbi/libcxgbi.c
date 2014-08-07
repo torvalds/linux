@@ -283,7 +283,7 @@ void cxgbi_hbas_remove(struct cxgbi_device *cdev)
 }
 EXPORT_SYMBOL_GPL(cxgbi_hbas_remove);
 
-int cxgbi_hbas_add(struct cxgbi_device *cdev, unsigned int max_lun,
+int cxgbi_hbas_add(struct cxgbi_device *cdev, u64 max_lun,
 		unsigned int max_id, struct scsi_host_template *sht,
 		struct scsi_transport_template *stt)
 {

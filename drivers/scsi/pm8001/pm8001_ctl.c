@@ -397,7 +397,10 @@ static ssize_t pm8001_ctl_bios_version_show(struct device *cdev,
 	payload.func_specific = kzalloc(4096, GFP_KERNEL);
 	if (!payload.func_specific)
 		return -ENOMEM;
-	PM8001_CHIP_DISP->get_nvmd_req(pm8001_ha, &payload);
+	if (PM8001_CHIP_DISP->get_nvmd_req(pm8001_ha, &payload)) {
+		kfree(payload.func_specific);
+		return -ENOMEM;
+	}
 	wait_for_completion(&completion);
 	virt_addr = pm8001_ha->memoryMap.region[NVMD].virt_ptr;
 	for (bios_index = BIOSOFFSET; bios_index < BIOS_OFFSET_LIMIT;
@@ -614,11 +617,11 @@ static int pm8001_update_flash(struct pm8001_hba_info *pm8001_ha)
 
 		pm8001_ha->nvmd_completion = &completion;
 		ret = PM8001_CHIP_DISP->fw_flash_update_req(pm8001_ha, payload);
+		if (ret)
+			break;
 		wait_for_completion(&completion);
-		if (ret || (fwControl->retcode > FLASH_UPDATE_IN_PROGRESS)) {
+		if (fwControl->retcode > FLASH_UPDATE_IN_PROGRESS) {
 			ret = fwControl->retcode;
-			kfree(ioctlbuffer);
-			ioctlbuffer = NULL;
 			break;
 		}
 	}
