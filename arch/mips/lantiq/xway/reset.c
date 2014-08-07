@@ -176,8 +176,15 @@ void ltq_rst_init(void)
 
 static void ltq_machine_restart(char *command)
 {
+	u32 val = ltq_rcu_r32(RCU_RST_REQ);
+
+	if (of_device_is_compatible(ltq_rcu_np, "lantiq,rcu-xrx200"))
+		val |= RCU_RD_GPHY1_XRX200 | RCU_RD_GPHY0_XRX200;
+
+	val |= RCU_RD_SRST;
+
 	local_irq_disable();
-	ltq_rcu_w32(ltq_rcu_r32(RCU_RST_REQ) | RCU_RD_SRST, RCU_RST_REQ);
+	ltq_rcu_w32(val, RCU_RST_REQ);
 	unreachable();
 }
 
