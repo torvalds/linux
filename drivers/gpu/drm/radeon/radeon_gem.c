@@ -285,19 +285,24 @@ int radeon_gem_userptr_ioctl(struct drm_device *dev, void *data,
 	if (offset_in_page(args->addr | args->size))
 		return -EINVAL;
 
-	/* we only support read only mappings for now */
-	if (!(args->flags & RADEON_GEM_USERPTR_READONLY))
-		return -EACCES;
-
 	/* reject unknown flag values */
 	if (args->flags & ~(RADEON_GEM_USERPTR_READONLY |
 	    RADEON_GEM_USERPTR_ANONONLY | RADEON_GEM_USERPTR_VALIDATE |
 	    RADEON_GEM_USERPTR_REGISTER))
 		return -EINVAL;
 
-	/* readonly pages not tested on older hardware */
-	if (rdev->family < CHIP_R600)
-		return -EINVAL;
+	if (args->flags & RADEON_GEM_USERPTR_READONLY) {
+		/* readonly pages not tested on older hardware */
+		if (rdev->family < CHIP_R600)
+			return -EINVAL;
+
+	} else if (!(args->flags & RADEON_GEM_USERPTR_ANONONLY) ||
+		   !(args->flags & RADEON_GEM_USERPTR_REGISTER)) {
+
+		/* if we want to write to it we must require anonymous
+		   memory and install a MMU notifier */
+		return -EACCES;
+	}
 
 	down_read(&rdev->exclusive_lock);
 
