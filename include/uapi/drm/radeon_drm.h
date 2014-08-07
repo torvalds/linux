@@ -816,6 +816,7 @@ struct drm_radeon_gem_create {
  * perform any operation.
  */
 #define RADEON_GEM_USERPTR_READONLY	(1 << 0)
+#define RADEON_GEM_USERPTR_ANONONLY	(1 << 1)
 
 struct drm_radeon_gem_userptr {
 	uint64_t		addr;

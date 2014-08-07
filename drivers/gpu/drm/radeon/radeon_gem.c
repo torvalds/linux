@@ -290,7 +290,8 @@ int radeon_gem_userptr_ioctl(struct drm_device *dev, void *data,
 		return -EACCES;
 
 	/* reject unknown flag values */
-	if (args->flags & ~RADEON_GEM_USERPTR_READONLY)
+	if (args->flags & ~(RADEON_GEM_USERPTR_READONLY |
+	    RADEON_GEM_USERPTR_ANONONLY))
 		return -EINVAL;
 
 	/* readonly pages not tested on older hardware */
