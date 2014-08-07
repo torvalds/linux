@@ -894,7 +894,7 @@ static void br_del_file(struct file **to_free, unsigned long long opened,
 		bend = au_fbend_dir(file);
 		for (bindex = bstart; bindex <= bend; bindex++) {
 			hfile = fidir->fd_hfile + bindex;
-			if (!hfile)
+			if (!hfile->hf_file)
 				continue;
 
 			if (hfile->hf_br->br_id == br_id) {
