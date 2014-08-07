@@ -2556,8 +2556,8 @@ F:	arch/x86/kernel/cpuid.c
 F:	arch/x86/kernel/msr.c
 
 CPU POWER MONITORING SUBSYSTEM
-M:	Dominik Brodowski <linux@dominikbrodowski.net>
 M:	Thomas Renninger <trenn@suse.de>
+L:	linux-pm@vger.kernel.org
 S:	Maintained
 F:	tools/power/cpupower/
 
@@ -7066,8 +7066,10 @@ F:	include/linux/timer*
 F:	kernel/time/*timer*
 
 POWER SUPPLY CLASS/SUBSYSTEM and DRIVERS
+M:	Sebastian Reichel <sre@kernel.org>
 M:	Dmitry Eremin-Solenikov <dbaryshkov@gmail.com>
 M:	David Woodhouse <dwmw2@infradead.org>
+L:	linux-pm@vger.kernel.org
 T:	git git://git.infradead.org/battery-2.6.git
 S:	Maintained
 F:	include/linux/power_supply.h

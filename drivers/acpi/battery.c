@@ -35,7 +35,6 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/suspend.h>
-#include <linux/delay.h>
 #include <asm/unaligned.h>
 
 #ifdef CONFIG_ACPI_PROCFS_POWER
