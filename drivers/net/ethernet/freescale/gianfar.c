@@ -892,12 +892,12 @@ static int gfar_of_init(struct platform_device *ofdev, struct net_device **pdev)
 	/* In the case of a fixed PHY, the DT node associated
 	 * to the PHY is the Ethernet MAC DT node.
 	 */
-	if (of_phy_is_fixed_link(np)) {
+	if (!priv->phy_node && of_phy_is_fixed_link(np)) {
 		err = of_phy_register_fixed_link(np);
 		if (err)
 			goto err_grp_init;
 
-		priv->phy_node = np;
+		priv->phy_node = of_node_get(np);
 	}
 
 	/* Find the TBI PHY.  If it's not there, we don't support SGMII */
