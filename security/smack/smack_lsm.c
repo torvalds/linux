@@ -923,7 +923,7 @@ static int smack_inode_setxattr(struct dentry *dentry, const char *name,
 		rc = -EPERM;
 
 	if (rc == 0 && check_import) {
-		skp = smk_import_entry(value, size);
+		skp = size ? smk_import_entry(value, size) : NULL;
 		if (skp == NULL || (check_star &&
 		    (skp == &smack_known_star || skp == &smack_known_web)))
 			rc = -EINVAL;
