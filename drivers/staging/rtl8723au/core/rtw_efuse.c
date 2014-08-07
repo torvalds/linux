@@ -156,8 +156,7 @@ ReadEFuseByte23a(struct rtw_adapter *Adapter, u16 _offset, u8 *pbuf)
 	/* Check bit 32 read-ready */
 	retry = 0;
 	value32 = rtl8723au_read32(Adapter, EFUSE_CTRL);
-	/* while(!(((value32 >> 24) & 0xff) & 0x80)  && (retry<10)) */
-	while (!(((value32 >> 24) & 0xff) & 0x80) && (retry<10000)) {
+	while (!((value32 >> 24) & 0x80) && retry < 10000) {
 		value32 = rtl8723au_read32(Adapter, EFUSE_CTRL);
 		retry++;
 	}
