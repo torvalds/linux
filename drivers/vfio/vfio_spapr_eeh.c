@@ -19,9 +19,9 @@
 #define DRIVER_DESC	"VFIO IOMMU SPAPR EEH"
 
 /* We might build address mapping here for "fast" path later */
-int vfio_spapr_pci_eeh_open(struct pci_dev *pdev)
+void vfio_spapr_pci_eeh_open(struct pci_dev *pdev)
 {
-	return eeh_dev_open(pdev);
+	eeh_dev_open(pdev);
 }
 EXPORT_SYMBOL_GPL(vfio_spapr_pci_eeh_open);
 

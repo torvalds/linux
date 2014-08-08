@@ -100,15 +100,14 @@ extern long vfio_external_check_extension(struct vfio_group *group,
 
 struct pci_dev;
 #ifdef CONFIG_EEH
-extern int vfio_spapr_pci_eeh_open(struct pci_dev *pdev);
+extern void vfio_spapr_pci_eeh_open(struct pci_dev *pdev);
 extern void vfio_spapr_pci_eeh_release(struct pci_dev *pdev);
 extern long vfio_spapr_iommu_eeh_ioctl(struct iommu_group *group,
 				       unsigned int cmd,
 				       unsigned long arg);
 #else
-static inline int vfio_spapr_pci_eeh_open(struct pci_dev *pdev)
+static inline void vfio_spapr_pci_eeh_open(struct pci_dev *pdev)
 {
-	return 0;
 }
 
 static inline void vfio_spapr_pci_eeh_release(struct pci_dev *pdev)
