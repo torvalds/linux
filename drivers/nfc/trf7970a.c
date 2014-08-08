@@ -36,7 +36,13 @@
  * The trf7970a is very timing sensitive and the VIN, EN2, and EN
  * pins must asserted in that order and with specific delays in between.
  * The delays used in the driver were provided by TI and have been
- * confirmed to work with this driver.
+ * confirmed to work with this driver.  There is a bug with the current
+ * version of the trf7970a that requires that EN2 remain low no matter
+ * what.  If it goes high, it will generate an RF field even when in
+ * passive target mode.  TI has indicated that the chip will work okay
+ * when EN2 is left low.  The 'en2-rf-quirk' device tree property
+ * indicates that trf7970a currently being used has the erratum and
+ * that EN2 must be kept low.
  *
  * Timeouts are implemented using the delayed workqueue kernel facility.
  * Timeouts are required so things don't hang when there is no response
@@ -133,6 +139,7 @@
  * read continuous command for IRQ Status and Collision Position registers.
  */
 #define TRF7970A_QUIRK_IRQ_STATUS_READ		BIT(0)
+#define TRF7970A_QUIRK_EN2_MUST_STAY_LOW	BIT(1)
 
 /* Direct commands */
 #define TRF7970A_CMD_IDLE			0x00
@@ -1309,6 +1316,9 @@ static int trf7970a_probe(struct spi_device *spi)
 		return ret;
 	}
 
+	if (of_property_read_bool(np, "en2-rf-quirk"))
+		trf->quirks |= TRF7970A_QUIRK_EN2_MUST_STAY_LOW;
+
 	ret = devm_request_threaded_irq(trf->dev, spi->irq, NULL,
 			trf7970a_irq, IRQF_TRIGGER_RISING | IRQF_ONESHOT,
 			"trf7970a", trf);
@@ -1455,8 +1465,11 @@ static int trf7970a_pm_runtime_resume(struct device *dev)
 
 	usleep_range(5000, 6000);
 
-	gpio_set_value(trf->en2_gpio, 1);
-	usleep_range(1000, 2000);
+	if (!(trf->quirks & TRF7970A_QUIRK_EN2_MUST_STAY_LOW)) {
+		gpio_set_value(trf->en2_gpio, 1);
+		usleep_range(1000, 2000);
+	}
+
 	gpio_set_value(trf->en_gpio, 1);
 
 	usleep_range(20000, 21000);
