@@ -703,6 +703,12 @@ static int i915_interrupt_info(struct seq_file *m, void *data)
 		}
 
 		for_each_pipe(pipe) {
+			if (!intel_display_power_enabled(dev_priv,
+						POWER_DOMAIN_PIPE(pipe))) {
+				seq_printf(m, "Pipe %c power disabled\n",
+					   pipe_name(pipe));
+				continue;
+			}
 			seq_printf(m, "Pipe %c IMR:\t%08x\n",
 				   pipe_name(pipe),
 				   I915_READ(GEN8_DE_PIPE_IMR(pipe)));
