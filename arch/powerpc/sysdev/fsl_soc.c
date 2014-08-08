@@ -197,8 +197,7 @@ static int __init setup_rstcr(void)
 	if (!rstcr && ppc_md.restart == fsl_rstcr_restart)
 		printk(KERN_ERR "No RSTCR register, warm reboot won't work\n");
 
-	if (np)
-		of_node_put(np);
+	of_node_put(np);
 
 	return 0;
 }
