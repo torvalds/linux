@@ -1557,9 +1557,6 @@ void recover_inline_xattr(struct inode *inode, struct page *page)
 	struct page *ipage;
 	struct f2fs_inode *ri;
 
-	if (!IS_INODE(page))
-		return;
-
 	ipage = get_node_page(sbi, inode->i_ino);
 	f2fs_bug_on(IS_ERR(ipage));
 
@@ -1580,15 +1577,12 @@ update_inode:
 	f2fs_put_page(ipage, 1);
 }
 
-bool recover_xattr_data(struct inode *inode, struct page *page, block_t blkaddr)
+void recover_xattr_data(struct inode *inode, struct page *page, block_t blkaddr)
 {
 	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
 	nid_t prev_xnid = F2FS_I(inode)->i_xattr_nid;
 	nid_t new_xnid = nid_of_node(page);
 	struct node_info ni;
-
-	if (!f2fs_has_xattr_block(ofs_of_node(page)))
-		return false;
 
 	/* 1: invalidate the previous xattr nid */
 	if (!prev_xnid)
@@ -1617,7 +1611,6 @@ recover_xnid:
 	set_node_addr(sbi, &ni, blkaddr, false);
 
 	update_inode_page(inode);
-	return true;
 }
 
 int recover_inode_page(struct f2fs_sb_info *sbi, struct page *page)
