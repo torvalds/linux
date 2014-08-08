@@ -48,8 +48,7 @@
 #include <linux/of_gpio.h>
 #include <linux/rockchip/cpu.h>
 #include <media/camsys_head.h>
-#include <linux/rockchip/sysmmu.h>
-#include <linux/rockchip/iovmm.h>
+#include <linux/rockchip-iovmm.h>
 
 
 
