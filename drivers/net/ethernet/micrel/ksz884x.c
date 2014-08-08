@@ -4409,14 +4409,13 @@ static int ksz_alloc_desc(struct dev_info *adapter)
 		DESC_ALIGNMENT;
 
 	adapter->desc_pool.alloc_virt =
-		pci_alloc_consistent(
-			adapter->pdev, adapter->desc_pool.alloc_size,
-			&adapter->desc_pool.dma_addr);
+		pci_zalloc_consistent(adapter->pdev,
+				      adapter->desc_pool.alloc_size,
+				      &adapter->desc_pool.dma_addr);
 	if (adapter->desc_pool.alloc_virt == NULL) {
 		adapter->desc_pool.alloc_size = 0;
 		return 1;
 	}
-	memset(adapter->desc_pool.alloc_virt, 0, adapter->desc_pool.alloc_size);
 
 	/* Align to the next cache line boundary. */
 	offset = (((ulong) adapter->desc_pool.alloc_virt % DESC_ALIGNMENT) ?
