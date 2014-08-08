@@ -3581,53 +3581,6 @@ out:
 	return ret;
 }
 
-/*
- * Batch_start/batch_end is called in unmap_page_range/invlidate/trucate.
- * In that cases, pages are freed continuously and we can expect pages
- * are in the same memcg. All these calls itself limits the number of
- * pages freed at once, then uncharge_start/end() is called properly.
- * This may be called prural(2) times in a context,
- */
-
-void mem_cgroup_uncharge_start(void)
-{
-	unsigned long flags;
-
-	local_irq_save(flags);
-	current->memcg_batch.do_batch++;
-	/* We can do nest. */
-	if (current->memcg_batch.do_batch == 1) {
-		current->memcg_batch.memcg = NULL;
-		current->memcg_batch.nr_pages = 0;
-		current->memcg_batch.memsw_nr_pages = 0;
-	}
-	local_irq_restore(flags);
-}
-
-void mem_cgroup_uncharge_end(void)
-{
-	struct memcg_batch_info *batch = &current->memcg_batch;
-	unsigned long flags;
-
-	local_irq_save(flags);
-	VM_BUG_ON(!batch->do_batch);
-	if (--batch->do_batch) /* If stacked, do nothing */
-		goto out;
-	/*
-	 * This "batch->memcg" is valid without any css_get/put etc...
-	 * bacause we hide charges behind us.
-	 */
-	if (batch->nr_pages)
-		res_counter_uncharge(&batch->memcg->res,
-				     batch->nr_pages * PAGE_SIZE);
-	if (batch->memsw_nr_pages)
-		res_counter_uncharge(&batch->memcg->memsw,
-				     batch->memsw_nr_pages * PAGE_SIZE);
-	memcg_oom_recover(batch->memcg);
-out:
-	local_irq_restore(flags);
-}
-
 #ifdef CONFIG_MEMCG_SWAP
 static void mem_cgroup_swap_statistics(struct mem_cgroup *memcg,
 					 bool charge)
@@ -6554,6 +6507,98 @@ void mem_cgroup_cancel_charge(struct page *page, struct mem_cgroup *memcg)
 	cancel_charge(memcg, nr_pages);
 }
 
+static void uncharge_batch(struct mem_cgroup *memcg, unsigned long pgpgout,
+			   unsigned long nr_mem, unsigned long nr_memsw,
+			   unsigned long nr_anon, unsigned long nr_file,
+			   unsigned long nr_huge, struct page *dummy_page)
+{
+	unsigned long flags;
+
+	if (nr_mem)
+		res_counter_uncharge(&memcg->res, nr_mem * PAGE_SIZE);
+	if (nr_memsw)
+		res_counter_uncharge(&memcg->memsw, nr_memsw * PAGE_SIZE);
+
+	memcg_oom_recover(memcg);
+
+	local_irq_save(flags);
+	__this_cpu_sub(memcg->stat->count[MEM_CGROUP_STAT_RSS], nr_anon);
+	__this_cpu_sub(memcg->stat->count[MEM_CGROUP_STAT_CACHE], nr_file);
+	__this_cpu_sub(memcg->stat->count[MEM_CGROUP_STAT_RSS_HUGE], nr_huge);
+	__this_cpu_add(memcg->stat->events[MEM_CGROUP_EVENTS_PGPGOUT], pgpgout);
+	__this_cpu_add(memcg->stat->nr_page_events, nr_anon + nr_file);
+	memcg_check_events(memcg, dummy_page);
+	local_irq_restore(flags);
+}
+
+static void uncharge_list(struct list_head *page_list)
+{
+	struct mem_cgroup *memcg = NULL;
+	unsigned long nr_memsw = 0;
+	unsigned long nr_anon = 0;
+	unsigned long nr_file = 0;
+	unsigned long nr_huge = 0;
+	unsigned long pgpgout = 0;
+	unsigned long nr_mem = 0;
+	struct list_head *next;
+	struct page *page;
+
+	next = page_list->next;
+	do {
+		unsigned int nr_pages = 1;
+		struct page_cgroup *pc;
+
+		page = list_entry(next, struct page, lru);
+		next = page->lru.next;
+
+		VM_BUG_ON_PAGE(PageLRU(page), page);
+		VM_BUG_ON_PAGE(page_count(page), page);
+
+		pc = lookup_page_cgroup(page);
+		if (!PageCgroupUsed(pc))
+			continue;
+
+		/*
+		 * Nobody should be changing or seriously looking at
+		 * pc->mem_cgroup and pc->flags at this point, we have
+		 * fully exclusive access to the page.
+		 */
+
+		if (memcg != pc->mem_cgroup) {
+			if (memcg) {
+				uncharge_batch(memcg, pgpgout, nr_mem, nr_memsw,
+					       nr_anon, nr_file, nr_huge, page);
+				pgpgout = nr_mem = nr_memsw = 0;
+				nr_anon = nr_file = nr_huge = 0;
+			}
+			memcg = pc->mem_cgroup;
+		}
+
+		if (PageTransHuge(page)) {
+			nr_pages <<= compound_order(page);
+			VM_BUG_ON_PAGE(!PageTransHuge(page), page);
+			nr_huge += nr_pages;
+		}
+
+		if (PageAnon(page))
+			nr_anon += nr_pages;
+		else
+			nr_file += nr_pages;
+
+		if (pc->flags & PCG_MEM)
+			nr_mem += nr_pages;
+		if (pc->flags & PCG_MEMSW)
+			nr_memsw += nr_pages;
+		pc->flags = 0;
+
+		pgpgout++;
+	} while (next != page_list);
+
+	if (memcg)
+		uncharge_batch(memcg, pgpgout, nr_mem, nr_memsw,
+			       nr_anon, nr_file, nr_huge, page);
+}
+
 /**
  * mem_cgroup_uncharge - uncharge a page
  * @page: page to uncharge
@@ -6563,67 +6608,34 @@ void mem_cgroup_cancel_charge(struct page *page, struct mem_cgroup *memcg)
  */
 void mem_cgroup_uncharge(struct page *page)
 {
-	struct memcg_batch_info *batch;
-	unsigned int nr_pages = 1;
-	struct mem_cgroup *memcg;
 	struct page_cgroup *pc;
-	unsigned long pc_flags;
-	unsigned long flags;
-
-	VM_BUG_ON_PAGE(PageLRU(page), page);
-	VM_BUG_ON_PAGE(page_count(page), page);
 
 	if (mem_cgroup_disabled())
 		return;
 
+	/* Don't touch page->lru of any random page, pre-check: */
 	pc = lookup_page_cgroup(page);
-
-	/* Every final put_page() ends up here */
 	if (!PageCgroupUsed(pc))
 		return;
 
-	if (PageTransHuge(page)) {
-		nr_pages <<= compound_order(page);
-		VM_BUG_ON_PAGE(!PageTransHuge(page), page);
-	}
-	/*
-	 * Nobody should be changing or seriously looking at
-	 * pc->mem_cgroup and pc->flags at this point, we have fully
-	 * exclusive access to the page.
-	 */
-	memcg = pc->mem_cgroup;
-	pc_flags = pc->flags;
-	pc->flags = 0;
+	INIT_LIST_HEAD(&page->lru);
+	uncharge_list(&page->lru);
+}
 
-	local_irq_save(flags);
+/**
+ * mem_cgroup_uncharge_list - uncharge a list of page
+ * @page_list: list of pages to uncharge
+ *
+ * Uncharge a list of pages previously charged with
+ * mem_cgroup_try_charge() and mem_cgroup_commit_charge().
+ */
+void mem_cgroup_uncharge_list(struct list_head *page_list)
+{
+	if (mem_cgroup_disabled())
+		return;
 
-	if (nr_pages > 1)
-		goto direct;
-	if (unlikely(test_thread_flag(TIF_MEMDIE)))
-		goto direct;
-	batch = &current->memcg_batch;
-	if (!batch->do_batch)
-		goto direct;
-	if (batch->memcg && batch->memcg != memcg)
-		goto direct;
-	if (!batch->memcg)
-		batch->memcg = memcg;
-	if (pc_flags & PCG_MEM)
-		batch->nr_pages++;
-	if (pc_flags & PCG_MEMSW)
-		batch->memsw_nr_pages++;
-	goto out;
-direct:
-	if (pc_flags & PCG_MEM)
-		res_counter_uncharge(&memcg->res, nr_pages * PAGE_SIZE);
-	if (pc_flags & PCG_MEMSW)
-		res_counter_uncharge(&memcg->memsw, nr_pages * PAGE_SIZE);
-	memcg_oom_recover(memcg);
-out:
-	mem_cgroup_charge_statistics(memcg, page, -nr_pages);
-	memcg_check_events(memcg, page);
-
-	local_irq_restore(flags);
+	if (!list_empty(page_list))
+		uncharge_list(page_list);
 }
 
 /**

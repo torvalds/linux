@@ -59,12 +59,8 @@ int mem_cgroup_try_charge(struct page *page, struct mm_struct *mm,
 void mem_cgroup_commit_charge(struct page *page, struct mem_cgroup *memcg,
 			      bool lrucare);
 void mem_cgroup_cancel_charge(struct page *page, struct mem_cgroup *memcg);
-
 void mem_cgroup_uncharge(struct page *page);
-
-/* Batched uncharging */
-void mem_cgroup_uncharge_start(void);
-void mem_cgroup_uncharge_end(void);
+void mem_cgroup_uncharge_list(struct list_head *page_list);
 
 void mem_cgroup_migrate(struct page *oldpage, struct page *newpage,
 			bool lrucare);
@@ -233,11 +229,7 @@ static inline void mem_cgroup_uncharge(struct page *page)
 {
 }
 
-static inline void mem_cgroup_uncharge_start(void)
-{
-}
-
-static inline void mem_cgroup_uncharge_end(void)
+static inline void mem_cgroup_uncharge_list(struct list_head *page_list)
 {
 }
 
