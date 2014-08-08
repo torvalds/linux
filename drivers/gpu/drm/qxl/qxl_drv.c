@@ -84,6 +84,7 @@ static const struct file_operations qxl_fops = {
 	.release = drm_release,
 	.unlocked_ioctl = drm_ioctl,
 	.poll = drm_poll,
+	.read = drm_read,
 	.mmap = qxl_mmap,
 };
 
@@ -195,6 +196,20 @@ static int qxl_pm_restore(struct device *dev)
 	return qxl_drm_resume(drm_dev, false);
 }
 
+static u32 qxl_noop_get_vblank_counter(struct drm_device *dev, int crtc)
+{
+	return dev->vblank[crtc].count.counter;
+}
+
+static int qxl_noop_enable_vblank(struct drm_device *dev, int crtc)
+{
+	return 0;
+}
+
+static void qxl_noop_disable_vblank(struct drm_device *dev, int crtc)
+{
+}
+
 static const struct dev_pm_ops qxl_pm_ops = {
 	.suspend = qxl_pm_suspend,
 	.resume = qxl_pm_resume,
@@ -216,6 +231,9 @@ static struct drm_driver qxl_driver = {
 			   DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED,
 	.load = qxl_driver_load,
 	.unload = qxl_driver_unload,
+	.get_vblank_counter = qxl_noop_get_vblank_counter,
+	.enable_vblank = qxl_noop_enable_vblank,
+	.disable_vblank = qxl_noop_disable_vblank,
 
 	.dumb_create = qxl_mode_dumb_create,
 	.dumb_map_offset = qxl_mode_dumb_mmap,

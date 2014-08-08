@@ -298,6 +298,9 @@ int qxl_driver_unload(struct drm_device *dev)
 
 	if (qdev == NULL)
 		return 0;
+
+	drm_vblank_cleanup(dev);
+
 	qxl_modeset_fini(qdev);
 	qxl_device_fini(qdev);
 
@@ -325,15 +328,20 @@ int qxl_driver_load(struct drm_device *dev, unsigned long flags)
 	if (r)
 		goto out;
 
+	r = drm_vblank_init(dev, 1);
+	if (r)
+		goto unload;
+
 	r = qxl_modeset_init(qdev);
-	if (r) {
-		qxl_driver_unload(dev);
-		goto out;
-	}
+	if (r)
+		goto unload;
 
 	drm_kms_helper_poll_init(qdev->ddev);
 
 	return 0;
+unload:
+	qxl_driver_unload(dev);
+
 out:
 	kfree(qdev);
 	return r;
