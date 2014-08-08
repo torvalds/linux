@@ -902,8 +902,10 @@ static int f2fs_fill_super(struct super_block *sb, void *data, int silent)
 	struct buffer_head *raw_super_buf;
 	struct inode *root;
 	long err = -EINVAL;
+	bool retry = true;
 	int i;
 
+try_onemore:
 	/* allocate memory for f2fs-specific super block info */
 	sbi = kzalloc(sizeof(struct f2fs_sb_info), GFP_KERNEL);
 	if (!sbi)
@@ -1083,9 +1085,11 @@ static int f2fs_fill_super(struct super_block *sb, void *data, int silent)
 	/* recover fsynced data */
 	if (!test_opt(sbi, DISABLE_ROLL_FORWARD)) {
 		err = recover_fsync_data(sbi);
-		if (err)
+		if (err) {
 			f2fs_msg(sb, KERN_ERR,
 				"Cannot recover all fsync data errno=%ld", err);
+			goto free_kobj;
+		}
 	}
 
 	/*
@@ -1126,6 +1130,13 @@ free_sb_buf:
 	brelse(raw_super_buf);
 free_sbi:
 	kfree(sbi);
+
+	/* give only one another chance */
+	if (retry) {
+		retry = !retry;
+		shrink_dcache_sb(sb);
+		goto try_onemore;
+	}
 	return err;
 }
 
