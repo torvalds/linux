@@ -6,11 +6,7 @@ enum {
 	PCG_USED = 0x01,	/* This page is charged to a memcg */
 	PCG_MEM = 0x02,		/* This page holds a memory charge */
 	PCG_MEMSW = 0x04,	/* This page holds a memory+swap charge */
-	__NR_PCG_FLAGS,
 };
-
-#ifndef __GENERATING_BOUNDS_H
-#include <generated/bounds.h>
 
 struct pglist_data;
 
@@ -106,7 +102,5 @@ static inline void swap_cgroup_swapoff(int type)
 }
 
 #endif /* CONFIG_MEMCG_SWAP */
-
-#endif /* !__GENERATING_BOUNDS_H */
 
 #endif /* __LINUX_PAGE_CGROUP_H */
