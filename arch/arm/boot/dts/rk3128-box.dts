@@ -1,4 +1,5 @@
 #include "rk312x-sdk.dtsi"
+#include "lcd-box.dtsi"
 
 / {
 	 compatible = "rockchip,rk3128";
@@ -71,6 +72,10 @@
 
 &pwm2 {
 	status = "okay";
+};
+
+&rk_screen {
+	display-timings = <&disp_timings>;
 };
 
 &lcdc {
