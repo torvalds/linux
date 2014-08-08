@@ -2006,7 +2006,7 @@ int reiserfs_do_truncate(struct reiserfs_transaction_handle *th,
 					    &s_search_path) == POSITION_FOUND);
 
 	RFALSE(file_size > ROUND_UP(new_file_size),
-	       "PAP-5680: truncate did not finish: new_file_size %Ld, current %Ld, oid %d",
+	       "PAP-5680: truncate did not finish: new_file_size %lld, current %lld, oid %d",
 	       new_file_size, file_size, s_item_key.on_disk_key.k_objectid);
 
 update_and_out:
