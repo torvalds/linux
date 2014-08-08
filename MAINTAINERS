@@ -5144,7 +5144,6 @@ L:	linux-nfs@vger.kernel.org
 W:	http://nfs.sourceforge.net/
 S:	Supported
 F:	fs/nfsd/
-F:	include/linux/nfsd/
 F:	include/uapi/linux/nfsd/
 F:	fs/lockd/
 F:	fs/nfs_common/
