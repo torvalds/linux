@@ -1599,6 +1599,28 @@ config KEXEC
 	  interface is strongly in flux, so no good recommendation can be
 	  made.
 
+config KEXEC_VERIFY_SIG
+	bool "Verify kernel signature during kexec_file_load() syscall"
+	depends on KEXEC
+	---help---
+	  This option makes kernel signature verification mandatory for
+	  kexec_file_load() syscall. If kernel is signature can not be
+	  verified, kexec_file_load() will fail.
+
+	  This option enforces signature verification at generic level.
+	  One needs to enable signature verification for type of kernel
+	  image being loaded to make sure it works. For example, enable
+	  bzImage signature verification option to be able to load and
+	  verify signatures of bzImage. Otherwise kernel loading will fail.
+
+config KEXEC_BZIMAGE_VERIFY_SIG
+	bool "Enable bzImage signature verification support"
+	depends on KEXEC_VERIFY_SIG
+	depends on SIGNED_PE_FILE_VERIFICATION
+	select SYSTEM_TRUSTED_KEYRING
+	---help---
+	  Enable bzImage signature verification support.
+
 config CRASH_DUMP
 	bool "kernel crash dumps"
 	depends on X86_64 || (X86_32 && HIGHMEM)

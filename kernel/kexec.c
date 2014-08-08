@@ -416,6 +416,12 @@ void __weak arch_kimage_file_post_load_cleanup(struct kimage *image)
 {
 }
 
+int __weak arch_kexec_kernel_verify_sig(struct kimage *image, void *buf,
+					unsigned long buf_len)
+{
+	return -EKEYREJECTED;
+}
+
 /* Apply relocations of type RELA */
 int __weak
 arch_kexec_apply_relocations_add(const Elf_Ehdr *ehdr, Elf_Shdr *sechdrs,
@@ -494,6 +500,15 @@ kimage_file_prepare_segments(struct kimage *image, int kernel_fd, int initrd_fd,
 	if (ret)
 		goto out;
 
+#ifdef CONFIG_KEXEC_VERIFY_SIG
+	ret = arch_kexec_kernel_verify_sig(image, image->kernel_buf,
+					   image->kernel_buf_len);
+	if (ret) {
+		pr_debug("kernel signature verification failed.\n");
+		goto out;
+	}
+	pr_debug("kernel signature verification successful.\n");
+#endif
 	/* It is possible that there no initramfs is being loaded */
 	if (!(flags & KEXEC_FILE_NO_INITRAMFS)) {
 		ret = copy_file_from_fd(initrd_fd, &image->initrd_buf,

@@ -191,11 +191,14 @@ typedef void *(kexec_load_t)(struct kimage *image, char *kernel_buf,
 			     unsigned long initrd_len, char *cmdline,
 			     unsigned long cmdline_len);
 typedef int (kexec_cleanup_t)(void *loader_data);
+typedef int (kexec_verify_sig_t)(const char *kernel_buf,
+				 unsigned long kernel_len);
 
 struct kexec_file_ops {
 	kexec_probe_t *probe;
 	kexec_load_t *load;
 	kexec_cleanup_t *cleanup;
+	kexec_verify_sig_t *verify_sig;
 };
 
 /* kexec interface functions */
