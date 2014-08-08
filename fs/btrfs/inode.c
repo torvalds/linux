@@ -4674,6 +4674,11 @@ static void evict_inode_truncate_pages(struct inode *inode)
 		clear_bit(EXTENT_FLAG_LOGGING, &em->flags);
 		remove_extent_mapping(map_tree, em);
 		free_extent_map(em);
+		if (need_resched()) {
+			write_unlock(&map_tree->lock);
+			cond_resched();
+			write_lock(&map_tree->lock);
+		}
 	}
 	write_unlock(&map_tree->lock);
 
@@ -4696,6 +4701,7 @@ static void evict_inode_truncate_pages(struct inode *inode)
 				 &cached_state, GFP_NOFS);
 		free_extent_state(state);
 
+		cond_resched();
 		spin_lock(&io_tree->lock);
 	}
 	spin_unlock(&io_tree->lock);
