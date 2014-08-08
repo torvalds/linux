@@ -18,10 +18,12 @@
 #include <linux/kexec.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
+#include <linux/efi.h>
 
 #include <asm/bootparam.h>
 #include <asm/setup.h>
 #include <asm/crash.h>
+#include <asm/efi.h>
 
 #define MAX_ELFCOREHDR_STR_LEN	30	/* elfcorehdr=0x<64bit-value> */
 
@@ -90,7 +92,7 @@ static int setup_cmdline(struct kimage *image, struct boot_params *params,
 	return 0;
 }
 
-static int setup_memory_map_entries(struct boot_params *params)
+static int setup_e820_entries(struct boot_params *params)
 {
 	unsigned int nr_e820_entries;
 
@@ -107,8 +109,93 @@ static int setup_memory_map_entries(struct boot_params *params)
 	return 0;
 }
 
-static int setup_boot_parameters(struct kimage *image,
-				 struct boot_params *params)
+#ifdef CONFIG_EFI
+static int setup_efi_info_memmap(struct boot_params *params,
+				  unsigned long params_load_addr,
+				  unsigned int efi_map_offset,
+				  unsigned int efi_map_sz)
+{
+	void *efi_map = (void *)params + efi_map_offset;
+	unsigned long efi_map_phys_addr = params_load_addr + efi_map_offset;
+	struct efi_info *ei = &params->efi_info;
+
+	if (!efi_map_sz)
+		return 0;
+
+	efi_runtime_map_copy(efi_map, efi_map_sz);
+
+	ei->efi_memmap = efi_map_phys_addr & 0xffffffff;
+	ei->efi_memmap_hi = efi_map_phys_addr >> 32;
+	ei->efi_memmap_size = efi_map_sz;
+
+	return 0;
+}
+
+static int
+prepare_add_efi_setup_data(struct boot_params *params,
+		       unsigned long params_load_addr,
+		       unsigned int efi_setup_data_offset)
+{
+	unsigned long setup_data_phys;
+	struct setup_data *sd = (void *)params + efi_setup_data_offset;
+	struct efi_setup_data *esd = (void *)sd + sizeof(struct setup_data);
+
+	esd->fw_vendor = efi.fw_vendor;
+	esd->runtime = efi.runtime;
+	esd->tables = efi.config_table;
+	esd->smbios = efi.smbios;
+
+	sd->type = SETUP_EFI;
+	sd->len = sizeof(struct efi_setup_data);
+
+	/* Add setup data */
+	setup_data_phys = params_load_addr + efi_setup_data_offset;
+	sd->next = params->hdr.setup_data;
+	params->hdr.setup_data = setup_data_phys;
+
+	return 0;
+}
+
+static int
+setup_efi_state(struct boot_params *params, unsigned long params_load_addr,
+		unsigned int efi_map_offset, unsigned int efi_map_sz,
+		unsigned int efi_setup_data_offset)
+{
+	struct efi_info *current_ei = &boot_params.efi_info;
+	struct efi_info *ei = &params->efi_info;
+
+	if (!current_ei->efi_memmap_size)
+		return 0;
+
+	/*
+	 * If 1:1 mapping is not enabled, second kernel can not setup EFI
+	 * and use EFI run time services. User space will have to pass
+	 * acpi_rsdp=<addr> on kernel command line to make second kernel boot
+	 * without efi.
+	 */
+	if (efi_enabled(EFI_OLD_MEMMAP))
+		return 0;
+
+	ei->efi_loader_signature = current_ei->efi_loader_signature;
+	ei->efi_systab = current_ei->efi_systab;
+	ei->efi_systab_hi = current_ei->efi_systab_hi;
+
+	ei->efi_memdesc_version = current_ei->efi_memdesc_version;
+	ei->efi_memdesc_size = efi_get_runtime_map_desc_size();
+
+	setup_efi_info_memmap(params, params_load_addr, efi_map_offset,
+			      efi_map_sz);
+	prepare_add_efi_setup_data(params, params_load_addr,
+				   efi_setup_data_offset);
+	return 0;
+}
+#endif /* CONFIG_EFI */
+
+static int
+setup_boot_parameters(struct kimage *image, struct boot_params *params,
+		      unsigned long params_load_addr,
+		      unsigned int efi_map_offset, unsigned int efi_map_sz,
+		      unsigned int efi_setup_data_offset)
 {
 	unsigned int nr_e820_entries;
 	unsigned long long mem_k, start, end;
@@ -140,7 +227,7 @@ static int setup_boot_parameters(struct kimage *image,
 		if (ret)
 			return ret;
 	} else
-		setup_memory_map_entries(params);
+		setup_e820_entries(params);
 
 	nr_e820_entries = params->e820_entries;
 
@@ -160,6 +247,12 @@ static int setup_boot_parameters(struct kimage *image,
 				params->alt_mem_k = 0xffffffff;
 		}
 	}
+
+#ifdef CONFIG_EFI
+	/* Setup EFI state */
+	setup_efi_state(params, params_load_addr, efi_map_offset, efi_map_sz,
+			efi_setup_data_offset);
+#endif
 
 	/* Setup EDD info */
 	memcpy(params->eddbuf, boot_params.eddbuf,
@@ -214,6 +307,15 @@ int bzImage64_probe(const char *buf, unsigned long len)
 		return ret;
 	}
 
+	/*
+	 * Can't handle 32bit EFI as it does not allow loading kernel
+	 * above 4G. This should be handled by 32bit bzImage loader
+	 */
+	if (efi_enabled(EFI_RUNTIME_SERVICES) && !efi_enabled(EFI_64BIT)) {
+		pr_debug("EFI is 32 bit. Can't load kernel above 4G.\n");
+		return ret;
+	}
+
 	/* I've got a bzImage */
 	pr_debug("It's a relocatable bzImage64\n");
 	ret = 0;
@@ -229,7 +331,7 @@ void *bzImage64_load(struct kimage *image, char *kernel,
 
 	struct setup_header *header;
 	int setup_sects, kern16_size, ret = 0;
-	unsigned long setup_header_size, params_cmdline_sz;
+	unsigned long setup_header_size, params_cmdline_sz, params_misc_sz;
 	struct boot_params *params;
 	unsigned long bootparam_load_addr, kernel_load_addr, initrd_load_addr;
 	unsigned long purgatory_load_addr;
@@ -239,6 +341,7 @@ void *bzImage64_load(struct kimage *image, char *kernel,
 	struct kexec_entry64_regs regs64;
 	void *stack;
 	unsigned int setup_hdr_offset = offsetof(struct boot_params, hdr);
+	unsigned int efi_map_offset, efi_map_sz, efi_setup_data_offset;
 
 	header = (struct setup_header *)(kernel + setup_hdr_offset);
 	setup_sects = header->setup_sects;
@@ -285,12 +388,29 @@ void *bzImage64_load(struct kimage *image, char *kernel,
 
 	pr_debug("Loaded purgatory at 0x%lx\n", purgatory_load_addr);
 
-	/* Load Bootparams and cmdline */
+
+	/*
+	 * Load Bootparams and cmdline and space for efi stuff.
+	 *
+	 * Allocate memory together for multiple data structures so
+	 * that they all can go in single area/segment and we don't
+	 * have to create separate segment for each. Keeps things
+	 * little bit simple
+	 */
+	efi_map_sz = efi_get_runtime_map_size();
+	efi_map_sz = ALIGN(efi_map_sz, 16);
 	params_cmdline_sz = sizeof(struct boot_params) + cmdline_len +
 				MAX_ELFCOREHDR_STR_LEN;
-	params = kzalloc(params_cmdline_sz, GFP_KERNEL);
+	params_cmdline_sz = ALIGN(params_cmdline_sz, 16);
+	params_misc_sz = params_cmdline_sz + efi_map_sz +
+				sizeof(struct setup_data) +
+				sizeof(struct efi_setup_data);
+
+	params = kzalloc(params_misc_sz, GFP_KERNEL);
 	if (!params)
 		return ERR_PTR(-ENOMEM);
+	efi_map_offset = params_cmdline_sz;
+	efi_setup_data_offset = efi_map_offset + efi_map_sz;
 
 	/* Copy setup header onto bootparams. Documentation/x86/boot.txt */
 	setup_header_size = 0x0202 + kernel[0x0201] - setup_hdr_offset;
@@ -298,13 +418,13 @@ void *bzImage64_load(struct kimage *image, char *kernel,
 	/* Is there a limit on setup header size? */
 	memcpy(&params->hdr, (kernel + setup_hdr_offset), setup_header_size);
 
-	ret = kexec_add_buffer(image, (char *)params, params_cmdline_sz,
-			       params_cmdline_sz, 16, MIN_BOOTPARAM_ADDR,
+	ret = kexec_add_buffer(image, (char *)params, params_misc_sz,
+			       params_misc_sz, 16, MIN_BOOTPARAM_ADDR,
 			       ULONG_MAX, 1, &bootparam_load_addr);
 	if (ret)
 		goto out_free_params;
-	pr_debug("Loaded boot_param and command line at 0x%lx bufsz=0x%lx memsz=0x%lx\n",
-		 bootparam_load_addr, params_cmdline_sz, params_cmdline_sz);
+	pr_debug("Loaded boot_param, command line and misc at 0x%lx bufsz=0x%lx memsz=0x%lx\n",
+		 bootparam_load_addr, params_misc_sz, params_misc_sz);
 
 	/* Load kernel */
 	kernel_buf = kernel + kern16_size;
@@ -365,7 +485,9 @@ void *bzImage64_load(struct kimage *image, char *kernel,
 	if (ret)
 		goto out_free_params;
 
-	ret = setup_boot_parameters(image, params);
+	ret = setup_boot_parameters(image, params, bootparam_load_addr,
+				    efi_map_offset, efi_map_sz,
+				    efi_setup_data_offset);
 	if (ret)
 		goto out_free_params;
 
