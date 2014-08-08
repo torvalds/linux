@@ -130,10 +130,6 @@ struct pid_entry {
 		{ .proc_get_link = get_link } )
 #define REG(NAME, MODE, fops)				\
 	NOD(NAME, (S_IFREG|(MODE)), NULL, &fops, {})
-#define INF(NAME, MODE, read)				\
-	NOD(NAME, (S_IFREG|(MODE)), 			\
-		NULL, &proc_info_file_operations,	\
-		{ .proc_read = read } )
 #define ONE(NAME, MODE, show)				\
 	NOD(NAME, (S_IFREG|(MODE)), 			\
 		NULL, &proc_single_file_operations,	\
@@ -602,43 +598,6 @@ static int proc_pid_permission(struct inode *inode, int mask)
 
 static const struct inode_operations proc_def_inode_operations = {
 	.setattr	= proc_setattr,
-};
-
-#define PROC_BLOCK_SIZE	(3*1024)		/* 4K page size but our output routines use some slack for overruns */
-
-static ssize_t proc_info_read(struct file * file, char __user * buf,
-			  size_t count, loff_t *ppos)
-{
-	struct inode * inode = file_inode(file);
-	unsigned long page;
-	ssize_t length;
-	struct task_struct *task = get_proc_task(inode);
-
-	length = -ESRCH;
-	if (!task)
-		goto out_no_task;
-
-	if (count > PROC_BLOCK_SIZE)
-		count = PROC_BLOCK_SIZE;
-
-	length = -ENOMEM;
-	if (!(page = __get_free_page(GFP_TEMPORARY)))
-		goto out;
-
-	length = PROC_I(inode)->op.proc_read(task, (char*)page);
-
-	if (length >= 0)
-		length = simple_read_from_buffer(buf, count, ppos, (char *)page, length);
-	free_page(page);
-out:
-	put_task_struct(task);
-out_no_task:
-	return length;
-}
-
-static const struct file_operations proc_info_file_operations = {
-	.read		= proc_info_read,
-	.llseek		= generic_file_llseek,
 };
 
 static int proc_single_show(struct seq_file *m, void *v)
