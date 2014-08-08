@@ -125,45 +125,27 @@ static struct page *kimage_alloc_page(struct kimage *image,
 				       gfp_t gfp_mask,
 				       unsigned long dest);
 
-static int do_kimage_alloc(struct kimage **rimage, unsigned long entry,
-			   unsigned long nr_segments,
-			   struct kexec_segment __user *segments)
+static int copy_user_segment_list(struct kimage *image,
+				  unsigned long nr_segments,
+				  struct kexec_segment __user *segments)
 {
+	int ret;
 	size_t segment_bytes;
-	struct kimage *image;
-	unsigned long i;
-	int result;
-
-	/* Allocate a controlling structure */
-	result = -ENOMEM;
-	image = kzalloc(sizeof(*image), GFP_KERNEL);
-	if (!image)
-		goto out;
-
-	image->head = 0;
-	image->entry = &image->head;
-	image->last_entry = &image->head;
-	image->control_page = ~0; /* By default this does not apply */
-	image->start = entry;
-	image->type = KEXEC_TYPE_DEFAULT;
-
-	/* Initialize the list of control pages */
-	INIT_LIST_HEAD(&image->control_pages);
-
-	/* Initialize the list of destination pages */
-	INIT_LIST_HEAD(&image->dest_pages);
-
-	/* Initialize the list of unusable pages */
-	INIT_LIST_HEAD(&image->unusable_pages);
 
 	/* Read in the segments */
 	image->nr_segments = nr_segments;
 	segment_bytes = nr_segments * sizeof(*segments);
-	result = copy_from_user(image->segment, segments, segment_bytes);
-	if (result) {
-		result = -EFAULT;
-		goto out;
-	}
+	ret = copy_from_user(image->segment, segments, segment_bytes);
+	if (ret)
+		ret = -EFAULT;
+
+	return ret;
+}
+
+static int sanity_check_segment_list(struct kimage *image)
+{
+	int result, i;
+	unsigned long nr_segments = image->nr_segments;
 
 	/*
 	 * Verify we have good destination addresses.  The caller is
@@ -185,9 +167,9 @@ static int do_kimage_alloc(struct kimage **rimage, unsigned long entry,
 		mstart = image->segment[i].mem;
 		mend   = mstart + image->segment[i].memsz;
 		if ((mstart & ~PAGE_MASK) || (mend & ~PAGE_MASK))
-			goto out;
+			return result;
 		if (mend >= KEXEC_DESTINATION_MEMORY_LIMIT)
-			goto out;
+			return result;
 	}
 
 	/* Verify our destination addresses do not overlap.
@@ -208,7 +190,7 @@ static int do_kimage_alloc(struct kimage **rimage, unsigned long entry,
 			pend   = pstart + image->segment[j].memsz;
 			/* Do the segments overlap ? */
 			if ((mend > pstart) && (mstart < pend))
-				goto out;
+				return result;
 		}
 	}
 
@@ -220,18 +202,61 @@ static int do_kimage_alloc(struct kimage **rimage, unsigned long entry,
 	result = -EINVAL;
 	for (i = 0; i < nr_segments; i++) {
 		if (image->segment[i].bufsz > image->segment[i].memsz)
-			goto out;
+			return result;
 	}
 
-	result = 0;
-out:
-	if (result == 0)
-		*rimage = image;
-	else
-		kfree(image);
+	/*
+	 * Verify we have good destination addresses.  Normally
+	 * the caller is responsible for making certain we don't
+	 * attempt to load the new image into invalid or reserved
+	 * areas of RAM.  But crash kernels are preloaded into a
+	 * reserved area of ram.  We must ensure the addresses
+	 * are in the reserved area otherwise preloading the
+	 * kernel could corrupt things.
+	 */
 
-	return result;
+	if (image->type == KEXEC_TYPE_CRASH) {
+		result = -EADDRNOTAVAIL;
+		for (i = 0; i < nr_segments; i++) {
+			unsigned long mstart, mend;
 
+			mstart = image->segment[i].mem;
+			mend = mstart + image->segment[i].memsz - 1;
+			/* Ensure we are within the crash kernel limits */
+			if ((mstart < crashk_res.start) ||
+			    (mend > crashk_res.end))
+				return result;
+		}
+	}
+
+	return 0;
+}
+
+static struct kimage *do_kimage_alloc_init(void)
+{
+	struct kimage *image;
+
+	/* Allocate a controlling structure */
+	image = kzalloc(sizeof(*image), GFP_KERNEL);
+	if (!image)
+		return NULL;
+
+	image->head = 0;
+	image->entry = &image->head;
+	image->last_entry = &image->head;
+	image->control_page = ~0; /* By default this does not apply */
+	image->type = KEXEC_TYPE_DEFAULT;
+
+	/* Initialize the list of control pages */
+	INIT_LIST_HEAD(&image->control_pages);
+
+	/* Initialize the list of destination pages */
+	INIT_LIST_HEAD(&image->dest_pages);
+
+	/* Initialize the list of unusable pages */
+	INIT_LIST_HEAD(&image->unusable_pages);
+
+	return image;
 }
 
 static void kimage_free_page_list(struct list_head *list);
@@ -244,10 +269,19 @@ static int kimage_normal_alloc(struct kimage **rimage, unsigned long entry,
 	struct kimage *image;
 
 	/* Allocate and initialize a controlling structure */
-	image = NULL;
-	result = do_kimage_alloc(&image, entry, nr_segments, segments);
+	image = do_kimage_alloc_init();
+	if (!image)
+		return -ENOMEM;
+
+	image->start = entry;
+
+	result = copy_user_segment_list(image, nr_segments, segments);
 	if (result)
-		goto out;
+		goto out_free_image;
+
+	result = sanity_check_segment_list(image);
+	if (result)
+		goto out_free_image;
 
 	/*
 	 * Find a location for the control code buffer, and add it
@@ -259,22 +293,21 @@ static int kimage_normal_alloc(struct kimage **rimage, unsigned long entry,
 					   get_order(KEXEC_CONTROL_PAGE_SIZE));
 	if (!image->control_code_page) {
 		pr_err("Could not allocate control_code_buffer\n");
-		goto out_free;
+		goto out_free_image;
 	}
 
 	image->swap_page = kimage_alloc_control_pages(image, 0);
 	if (!image->swap_page) {
 		pr_err("Could not allocate swap buffer\n");
-		goto out_free;
+		goto out_free_control_pages;
 	}
 
 	*rimage = image;
 	return 0;
-
-out_free:
+out_free_control_pages:
 	kimage_free_page_list(&image->control_pages);
+out_free_image:
 	kfree(image);
-out:
 	return result;
 }
 
@@ -284,19 +317,17 @@ static int kimage_crash_alloc(struct kimage **rimage, unsigned long entry,
 {
 	int result;
 	struct kimage *image;
-	unsigned long i;
 
-	image = NULL;
 	/* Verify we have a valid entry point */
-	if ((entry < crashk_res.start) || (entry > crashk_res.end)) {
-		result = -EADDRNOTAVAIL;
-		goto out;
-	}
+	if ((entry < crashk_res.start) || (entry > crashk_res.end))
+		return -EADDRNOTAVAIL;
 
 	/* Allocate and initialize a controlling structure */
-	result = do_kimage_alloc(&image, entry, nr_segments, segments);
-	if (result)
-		goto out;
+	image = do_kimage_alloc_init();
+	if (!image)
+		return -ENOMEM;
+
+	image->start = entry;
 
 	/* Enable the special crash kernel control page
 	 * allocation policy.
@@ -304,25 +335,13 @@ static int kimage_crash_alloc(struct kimage **rimage, unsigned long entry,
 	image->control_page = crashk_res.start;
 	image->type = KEXEC_TYPE_CRASH;
 
-	/*
-	 * Verify we have good destination addresses.  Normally
-	 * the caller is responsible for making certain we don't
-	 * attempt to load the new image into invalid or reserved
-	 * areas of RAM.  But crash kernels are preloaded into a
-	 * reserved area of ram.  We must ensure the addresses
-	 * are in the reserved area otherwise preloading the
-	 * kernel could corrupt things.
-	 */
-	result = -EADDRNOTAVAIL;
-	for (i = 0; i < nr_segments; i++) {
-		unsigned long mstart, mend;
+	result = copy_user_segment_list(image, nr_segments, segments);
+	if (result)
+		goto out_free_image;
 
-		mstart = image->segment[i].mem;
-		mend = mstart + image->segment[i].memsz - 1;
-		/* Ensure we are within the crash kernel limits */
-		if ((mstart < crashk_res.start) || (mend > crashk_res.end))
-			goto out_free;
-	}
+	result = sanity_check_segment_list(image);
+	if (result)
+		goto out_free_image;
 
 	/*
 	 * Find a location for the control code buffer, and add
@@ -334,15 +353,14 @@ static int kimage_crash_alloc(struct kimage **rimage, unsigned long entry,
 					   get_order(KEXEC_CONTROL_PAGE_SIZE));
 	if (!image->control_code_page) {
 		pr_err("Could not allocate control_code_buffer\n");
-		goto out_free;
+		goto out_free_image;
 	}
 
 	*rimage = image;
 	return 0;
 
-out_free:
+out_free_image:
 	kfree(image);
-out:
 	return result;
 }
 
