@@ -161,7 +161,7 @@ int ib_agent_port_open(struct ib_device *device, int port_num)
 		port_priv->agent[0] = ib_register_mad_agent(device, port_num,
 							    IB_QPT_SMI, NULL, 0,
 							    &agent_send_handler,
-							    NULL, NULL);
+							    NULL, NULL, 0);
 		if (IS_ERR(port_priv->agent[0])) {
 			ret = PTR_ERR(port_priv->agent[0]);
 			goto error2;
@@ -172,7 +172,7 @@ int ib_agent_port_open(struct ib_device *device, int port_num)
 	port_priv->agent[1] = ib_register_mad_agent(device, port_num,
 						    IB_QPT_GSI, NULL, 0,
 						    &agent_send_handler,
-						    NULL, NULL);
+						    NULL, NULL, 0);
 	if (IS_ERR(port_priv->agent[1])) {
 		ret = PTR_ERR(port_priv->agent[1]);
 		goto error3;

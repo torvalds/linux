@@ -647,6 +647,7 @@ static int ib_umad_reg_agent(struct ib_umad_file *file, void __user *arg,
 
 found:
 	if (ureq.mgmt_class) {
+		memset(&req, 0, sizeof(req));
 		req.mgmt_class         = ureq.mgmt_class;
 		req.mgmt_class_version = ureq.mgmt_class_version;
 		memcpy(req.oui, ureq.oui, sizeof req.oui);
@@ -667,7 +668,7 @@ found:
 				      ureq.qpn ? IB_QPT_GSI : IB_QPT_SMI,
 				      ureq.mgmt_class ? &req : NULL,
 				      ureq.rmpp_version,
-				      send_handler, recv_handler, file);
+				      send_handler, recv_handler, file, 0);
 	if (IS_ERR(agent)) {
 		ret = PTR_ERR(agent);
 		agent = NULL;
@@ -704,6 +705,119 @@ out:
 
 	return ret;
 }
+
+static int ib_umad_reg_agent2(struct ib_umad_file *file, void __user *arg)
+{
+	struct ib_user_mad_reg_req2 ureq;
+	struct ib_mad_reg_req req;
+	struct ib_mad_agent *agent = NULL;
+	int agent_id;
+	int ret;
+
+	mutex_lock(&file->port->file_mutex);
+	mutex_lock(&file->mutex);
+
+	if (!file->port->ib_dev) {
+		dev_notice(file->port->dev,
+			   "ib_umad_reg_agent2: invalid device\n");
+		ret = -EPIPE;
+		goto out;
+	}
+
+	if (copy_from_user(&ureq, arg, sizeof(ureq))) {
+		ret = -EFAULT;
+		goto out;
+	}
+
+	if (ureq.qpn != 0 && ureq.qpn != 1) {
+		dev_notice(file->port->dev,
+			   "ib_umad_reg_agent2: invalid QPN %d specified\n",
+			   ureq.qpn);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if (ureq.flags & ~IB_USER_MAD_REG_FLAGS_CAP) {
+		dev_notice(file->port->dev,
+			   "ib_umad_reg_agent2 failed: invalid registration flags specified 0x%x; supported 0x%x\n",
+			   ureq.flags, IB_USER_MAD_REG_FLAGS_CAP);
+		ret = -EINVAL;
+
+		if (put_user((u32)IB_USER_MAD_REG_FLAGS_CAP,
+				(u32 __user *) (arg + offsetof(struct
+				ib_user_mad_reg_req2, flags))))
+			ret = -EFAULT;
+
+		goto out;
+	}
+
+	for (agent_id = 0; agent_id < IB_UMAD_MAX_AGENTS; ++agent_id)
+		if (!__get_agent(file, agent_id))
+			goto found;
+
+	dev_notice(file->port->dev,
+		   "ib_umad_reg_agent2: Max Agents (%u) reached\n",
+		   IB_UMAD_MAX_AGENTS);
+	ret = -ENOMEM;
+	goto out;
+
+found:
+	if (ureq.mgmt_class) {
+		memset(&req, 0, sizeof(req));
+		req.mgmt_class         = ureq.mgmt_class;
+		req.mgmt_class_version = ureq.mgmt_class_version;
+		if (ureq.oui & 0xff000000) {
+			dev_notice(file->port->dev,
+				   "ib_umad_reg_agent2 failed: oui invalid 0x%08x\n",
+				   ureq.oui);
+			ret = -EINVAL;
+			goto out;
+		}
+		req.oui[2] =  ureq.oui & 0x0000ff;
+		req.oui[1] = (ureq.oui & 0x00ff00) >> 8;
+		req.oui[0] = (ureq.oui & 0xff0000) >> 16;
+		memcpy(req.method_mask, ureq.method_mask,
+			sizeof(req.method_mask));
+	}
+
+	agent = ib_register_mad_agent(file->port->ib_dev, file->port->port_num,
+				      ureq.qpn ? IB_QPT_GSI : IB_QPT_SMI,
+				      ureq.mgmt_class ? &req : NULL,
+				      ureq.rmpp_version,
+				      send_handler, recv_handler, file,
+				      ureq.flags);
+	if (IS_ERR(agent)) {
+		ret = PTR_ERR(agent);
+		agent = NULL;
+		goto out;
+	}
+
+	if (put_user(agent_id,
+		     (u32 __user *)(arg +
+				offsetof(struct ib_user_mad_reg_req2, id)))) {
+		ret = -EFAULT;
+		goto out;
+	}
+
+	if (!file->already_used) {
+		file->already_used = 1;
+		file->use_pkey_index = 1;
+	}
+
+	file->agent[agent_id] = agent;
+	ret = 0;
+
+out:
+	mutex_unlock(&file->mutex);
+
+	if (ret && agent)
+		ib_unregister_mad_agent(agent);
+
+	mutex_unlock(&file->port->file_mutex);
+
+	return ret;
+}
+
 
 static int ib_umad_unreg_agent(struct ib_umad_file *file, u32 __user *arg)
 {
@@ -760,6 +874,8 @@ static long ib_umad_ioctl(struct file *filp, unsigned int cmd,
 		return ib_umad_unreg_agent(filp->private_data, (__u32 __user *) arg);
 	case IB_USER_MAD_ENABLE_PKEY:
 		return ib_umad_enable_pkey(filp->private_data);
+	case IB_USER_MAD_REGISTER_AGENT2:
+		return ib_umad_reg_agent2(filp->private_data, (void __user *) arg);
 	default:
 		return -ENOIOCTLCMD;
 	}
@@ -776,6 +892,8 @@ static long ib_umad_compat_ioctl(struct file *filp, unsigned int cmd,
 		return ib_umad_unreg_agent(filp->private_data, compat_ptr(arg));
 	case IB_USER_MAD_ENABLE_PKEY:
 		return ib_umad_enable_pkey(filp->private_data);
+	case IB_USER_MAD_REGISTER_AGENT2:
+		return ib_umad_reg_agent2(filp->private_data, compat_ptr(arg));
 	default:
 		return -ENOIOCTLCMD;
 	}

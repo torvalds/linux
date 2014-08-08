@@ -198,7 +198,8 @@ struct ib_mad_agent *ib_register_mad_agent(struct ib_device *device,
 					   u8 rmpp_version,
 					   ib_mad_send_handler send_handler,
 					   ib_mad_recv_handler recv_handler,
-					   void *context)
+					   void *context,
+					   u32 registration_flags)
 {
 	struct ib_mad_port_private *port_priv;
 	struct ib_mad_agent *ret = ERR_PTR(-EINVAL);
@@ -359,6 +360,7 @@ struct ib_mad_agent *ib_register_mad_agent(struct ib_device *device,
 	mad_agent_priv->agent.context = context;
 	mad_agent_priv->agent.qp = port_priv->qp_info[qpn].qp;
 	mad_agent_priv->agent.port_num = port_num;
+	mad_agent_priv->agent.flags = registration_flags;
 	spin_lock_init(&mad_agent_priv->lock);
 	INIT_LIST_HEAD(&mad_agent_priv->send_list);
 	INIT_LIST_HEAD(&mad_agent_priv->wait_list);
