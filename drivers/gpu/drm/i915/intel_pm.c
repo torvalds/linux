@@ -1287,15 +1287,14 @@ static bool vlv_compute_drain_latency(struct drm_device *dev,
 	pixel_size = crtc->primary->fb->bits_per_pixel / 8;	/* BPP */
 
 	entries = (clock / 1000) * pixel_size;
-	*plane_prec_mult = (entries > 256) ?
-		DRAIN_LATENCY_PRECISION_32 : DRAIN_LATENCY_PRECISION_16;
-	*plane_dl = (64 * (*plane_prec_mult) * 4) / ((clock / 1000) *
-						     pixel_size);
+	*plane_prec_mult = (entries > 128) ?
+		DRAIN_LATENCY_PRECISION_64 : DRAIN_LATENCY_PRECISION_32;
+	*plane_dl = (64 * (*plane_prec_mult) * 4) / entries;
 
 	entries = (clock / 1000) * 4;	/* BPP is always 4 for cursor */
-	*cursor_prec_mult = (entries > 256) ?
-		DRAIN_LATENCY_PRECISION_32 : DRAIN_LATENCY_PRECISION_16;
-	*cursor_dl = (64 * (*cursor_prec_mult) * 4) / ((clock / 1000) * 4);
+	*cursor_prec_mult = (entries > 128) ?
+		DRAIN_LATENCY_PRECISION_64 : DRAIN_LATENCY_PRECISION_32;
+	*cursor_dl = (64 * (*cursor_prec_mult) * 4) / entries;
 
 	return true;
 }
@@ -1320,9 +1319,9 @@ static void vlv_update_drain_latency(struct drm_device *dev)
 	if (vlv_compute_drain_latency(dev, 0, &plane_prec_mult, &planea_dl,
 				      &cursor_prec_mult, &cursora_dl)) {
 		cursora_prec = (cursor_prec_mult == DRAIN_LATENCY_PRECISION_32) ?
-			DDL_CURSORA_PRECISION_32 : DDL_CURSORA_PRECISION_16;
+			DDL_CURSORA_PRECISION_32 : DDL_CURSORA_PRECISION_64;
 		planea_prec = (plane_prec_mult == DRAIN_LATENCY_PRECISION_32) ?
-			DDL_PLANEA_PRECISION_32 : DDL_PLANEA_PRECISION_16;
+			DDL_PLANEA_PRECISION_32 : DDL_PLANEA_PRECISION_64;
 
 		I915_WRITE(VLV_DDL1, cursora_prec |
 				(cursora_dl << DDL_CURSORA_SHIFT) |
@@ -1333,9 +1332,9 @@ static void vlv_update_drain_latency(struct drm_device *dev)
 	if (vlv_compute_drain_latency(dev, 1, &plane_prec_mult, &planeb_dl,
 				      &cursor_prec_mult, &cursorb_dl)) {
 		cursorb_prec = (cursor_prec_mult == DRAIN_LATENCY_PRECISION_32) ?
-			DDL_CURSORB_PRECISION_32 : DDL_CURSORB_PRECISION_16;
+			DDL_CURSORB_PRECISION_32 : DDL_CURSORB_PRECISION_64;
 		planeb_prec = (plane_prec_mult == DRAIN_LATENCY_PRECISION_32) ?
-			DDL_PLANEB_PRECISION_32 : DDL_PLANEB_PRECISION_16;
+			DDL_PLANEB_PRECISION_32 : DDL_PLANEB_PRECISION_64;
 
 		I915_WRITE(VLV_DDL2, cursorb_prec |
 				(cursorb_dl << DDL_CURSORB_SHIFT) |
@@ -3420,10 +3419,10 @@ static void intel_print_rc6_info(struct drm_device *dev, u32 mode)
 		else
 			mode = 0;
 	}
-	DRM_INFO("Enabling RC6 states: RC6 %s, RC6p %s, RC6pp %s\n",
-		 (mode & GEN6_RC_CTL_RC6_ENABLE) ? "on" : "off",
-		 (mode & GEN6_RC_CTL_RC6p_ENABLE) ? "on" : "off",
-		 (mode & GEN6_RC_CTL_RC6pp_ENABLE) ? "on" : "off");
+	DRM_DEBUG_KMS("Enabling RC6 states: RC6 %s, RC6p %s, RC6pp %s\n",
+		      (mode & GEN6_RC_CTL_RC6_ENABLE) ? "on" : "off",
+		      (mode & GEN6_RC_CTL_RC6p_ENABLE) ? "on" : "off",
+		      (mode & GEN6_RC_CTL_RC6pp_ENABLE) ? "on" : "off");
 }
 
 static int sanitize_rc6_option(const struct drm_device *dev, int enable_rc6)
@@ -3447,8 +3446,8 @@ static int sanitize_rc6_option(const struct drm_device *dev, int enable_rc6)
 			mask = INTEL_RC6_ENABLE;
 
 		if ((enable_rc6 & mask) != enable_rc6)
-			DRM_INFO("Adjusting RC6 mask to %d (requested %d, valid %d)\n",
-				 enable_rc6 & mask, enable_rc6, mask);
+			DRM_DEBUG_KMS("Adjusting RC6 mask to %d (requested %d, valid %d)\n",
+				      enable_rc6 & mask, enable_rc6, mask);
 
 		return enable_rc6 & mask;
 	}
@@ -5228,11 +5227,9 @@ static void gen6_check_mch_setup(struct drm_device *dev)
 	uint32_t tmp;
 
 	tmp = I915_READ(MCH_SSKPD);
-	if ((tmp & MCH_SSKPD_WM0_MASK) != MCH_SSKPD_WM0_VAL) {
-		DRM_INFO("Wrong MCH_SSKPD value: 0x%08x\n", tmp);
-		DRM_INFO("This can cause pipe underruns and display issues.\n");
-		DRM_INFO("Please upgrade your BIOS to fix this.\n");
-	}
+	if ((tmp & MCH_SSKPD_WM0_MASK) != MCH_SSKPD_WM0_VAL)
+		DRM_DEBUG_KMS("Wrong MCH_SSKPD value: 0x%08x This can cause underruns.\n",
+			      tmp);
 }
 
 static void gen6_init_clock_gating(struct drm_device *dev)

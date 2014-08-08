@@ -380,6 +380,27 @@ gen7_render_ring_flush(struct intel_engine_cs *ring,
 }
 
 static int
+gen8_emit_pipe_control(struct intel_engine_cs *ring,
+		       u32 flags, u32 scratch_addr)
+{
+	int ret;
+
+	ret = intel_ring_begin(ring, 6);
+	if (ret)
+		return ret;
+
+	intel_ring_emit(ring, GFX_OP_PIPE_CONTROL(6));
+	intel_ring_emit(ring, flags);
+	intel_ring_emit(ring, scratch_addr);
+	intel_ring_emit(ring, 0);
+	intel_ring_emit(ring, 0);
+	intel_ring_emit(ring, 0);
+	intel_ring_advance(ring);
+
+	return 0;
+}
+
+static int
 gen8_render_ring_flush(struct intel_engine_cs *ring,
 		       u32 invalidate_domains, u32 flush_domains)
 {
@@ -402,22 +423,17 @@ gen8_render_ring_flush(struct intel_engine_cs *ring,
 		flags |= PIPE_CONTROL_STATE_CACHE_INVALIDATE;
 		flags |= PIPE_CONTROL_QW_WRITE;
 		flags |= PIPE_CONTROL_GLOBAL_GTT_IVB;
+
+		/* WaCsStallBeforeStateCacheInvalidate:bdw,chv */
+		ret = gen8_emit_pipe_control(ring,
+					     PIPE_CONTROL_CS_STALL |
+					     PIPE_CONTROL_STALL_AT_SCOREBOARD,
+					     0);
+		if (ret)
+			return ret;
 	}
 
-	ret = intel_ring_begin(ring, 6);
-	if (ret)
-		return ret;
-
-	intel_ring_emit(ring, GFX_OP_PIPE_CONTROL(6));
-	intel_ring_emit(ring, flags);
-	intel_ring_emit(ring, scratch_addr);
-	intel_ring_emit(ring, 0);
-	intel_ring_emit(ring, 0);
-	intel_ring_emit(ring, 0);
-	intel_ring_advance(ring);
-
-	return 0;
-
+	return gen8_emit_pipe_control(ring, flags, scratch_addr);
 }
 
 static void ring_write_tail(struct intel_engine_cs *ring,
@@ -515,6 +531,9 @@ static int init_ring_common(struct intel_engine_cs *ring)
 		intel_ring_setup_status_page(ring);
 	else
 		ring_setup_phys_status_page(ring);
+
+	/* Enforce ordering by reading HEAD register back */
+	I915_READ_HEAD(ring);
 
 	/* Initialize the ring. This must happen _after_ we've cleared the ring
 	 * registers with the above sequence (the readback of the HEAD registers

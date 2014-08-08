@@ -53,7 +53,7 @@
 
 #define DRIVER_NAME		"i915"
 #define DRIVER_DESC		"Intel Graphics"
-#define DRIVER_DATE		"20140620"
+#define DRIVER_DATE		"20140725"
 
 enum pipe {
 	INVALID_PIPE = -1,
@@ -314,6 +314,7 @@ struct drm_i915_error_state {
 	u32 eir;
 	u32 pgtbl_er;
 	u32 ier;
+	u32 gtier[4];
 	u32 ccid;
 	u32 derrmr;
 	u32 forcewake;

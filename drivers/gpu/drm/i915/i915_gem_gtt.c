@@ -1415,7 +1415,7 @@ static void gen8_ggtt_insert_entries(struct i915_address_space *vm,
 		(gen8_gtt_pte_t __iomem *)dev_priv->gtt.gsm + first_entry;
 	int i = 0;
 	struct sg_page_iter sg_iter;
-	dma_addr_t addr = 0;
+	dma_addr_t addr = 0; /* shut up gcc */
 
 	for_each_sg_page(st->sgl, &sg_iter, st->nents, 0) {
 		addr = sg_dma_address(sg_iter.sg) +
@@ -1461,7 +1461,7 @@ static void gen6_ggtt_insert_entries(struct i915_address_space *vm,
 		(gen6_gtt_pte_t __iomem *)dev_priv->gtt.gsm + first_entry;
 	int i = 0;
 	struct sg_page_iter sg_iter;
-	dma_addr_t addr;
+	dma_addr_t addr = 0;
 
 	for_each_sg_page(st->sgl, &sg_iter, st->nents, 0) {
 		addr = sg_page_iter_dma_address(&sg_iter);
@@ -1475,9 +1475,10 @@ static void gen6_ggtt_insert_entries(struct i915_address_space *vm,
 	 * of NUMA access patterns. Therefore, even with the way we assume
 	 * hardware should work, we must keep this posting read for paranoia.
 	 */
-	if (i != 0)
-		WARN_ON(readl(&gtt_entries[i-1]) !=
-			vm->pte_encode(addr, level, true, flags));
+	if (i != 0) {
+		unsigned long gtt = readl(&gtt_entries[i-1]);
+		WARN_ON(gtt != vm->pte_encode(addr, level, true, flags));
+	}
 
 	/* This next bit makes the above posting read even more important. We
 	 * want to flush the TLBs only after we're certain all the PTE updates
