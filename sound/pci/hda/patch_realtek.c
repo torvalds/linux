@@ -4103,8 +4103,19 @@ static void alc_fixup_dell_xps13(struct hda_codec *codec,
 {
 	if (action == HDA_FIXUP_ACT_PROBE) {
 		struct alc_spec *spec = codec->spec;
+		struct hda_input_mux *imux = &spec->gen.input_mux;
+		int i;
+
 		spec->shutup = alc_no_shutup;
 		codec->power_filter = alc_power_filter_xps13;
+
+		/* Make the internal mic the default input source. */
+		for (i = 0; i < imux->num_items; i++) {
+			if (spec->gen.imux_pins[i] == 0x12) {
+				spec->gen.cur_mux[0] = i;
+				break;
+			}
+		}
 	}
 }
 
