@@ -14,6 +14,8 @@ Optional SoC Specific Properties:
 - pintctrl-0: Specifies the pin control groups used for this controller.
 - autosuspend-delay: Specify autosuspend delay in milliseconds.
 - vin-voltage-override: Specify voltage of VIN pin in microvolts.
+- irq-status-read-quirk: Specify that the trf7970a being used has the
+  "IRQ Status Read" erratum.
 
 Example (for ARM-based BeagleBone with TRF7970A on SPI1):
 
@@ -33,6 +35,7 @@ Example (for ARM-based BeagleBone with TRF7970A on SPI1):
 		vin-supply = <&ldo3_reg>;
 		vin-voltage-override = <5000000>;
 		autosuspend-delay = <30000>;
+		irq-status-read-quirk;
 		status = "okay";
 	};
 };
