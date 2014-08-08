@@ -11,15 +11,6 @@
 		bootargs = "vmalloc=512M clk_ignore_unused";
 	};
 
-	usb_control {
-		compatible = "rockchip,rk3126-usb-control";
-		host_drv_gpio = <&gpio2 GPIO_B4 GPIO_ACTIVE_LOW>;
-		otg_drv_gpio = <&gpio2 GPIO_B6 GPIO_ACTIVE_LOW>;
-
-		rockchip,remote_wakeup;
-		rockchip,usb_irq_wakeup;
-	};
-
 	pwm_regulator1:pwm-regulator1 {
 		compatible = "rockchip_pwm_regulator";
 		pwms = <&pwm1 0 25000>;
