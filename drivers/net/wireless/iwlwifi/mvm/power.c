@@ -566,9 +566,8 @@ static void iwl_mvm_power_iterator(void *_data, u8 *mac,
 	}
 }
 
-static void
-iwl_mvm_power_set_pm(struct iwl_mvm *mvm,
-				    struct iwl_power_vifs *vifs)
+static void iwl_mvm_power_set_pm(struct iwl_mvm *mvm,
+				 struct iwl_power_vifs *vifs)
 {
 	struct iwl_mvm_vif *bss_mvmvif = NULL;
 	struct iwl_mvm_vif *p2p_mvmvif = NULL;
@@ -830,7 +829,7 @@ int iwl_mvm_power_update_mac(struct iwl_mvm *mvm)
 	struct iwl_power_vifs vifs = {
 		.mvm = mvm,
 	};
-	bool ba_enable;
+	bool ba_enable, disable_ps;
 	int ret;
 
 	lockdep_assert_held(&mvm->mutex);
@@ -838,16 +837,19 @@ int iwl_mvm_power_update_mac(struct iwl_mvm *mvm)
 	iwl_mvm_power_set_pm(mvm, &vifs);
 
 	/* disable PS if CAM */
-	if (iwlmvm_mod_params.power_scheme == IWL_POWER_SCHEME_CAM) {
-		mvm->ps_disabled = true;
-	} else {
-	/* don't update device power state unless we add / remove monitor */
-		if (vifs.monitor_vif) {
-			if (vifs.monitor_active)
-				mvm->ps_disabled = true;
-			ret = iwl_mvm_power_update_device(mvm);
-			if (ret)
-				return ret;
+	disable_ps = (iwlmvm_mod_params.power_scheme == IWL_POWER_SCHEME_CAM);
+	/* ...or if there is an active monitor vif */
+	disable_ps |= (vifs.monitor_vif && vifs.monitor_active);
+
+	/* update device power state if it has changed */
+	if (mvm->ps_disabled != disable_ps) {
+		bool old_ps_disabled = mvm->ps_disabled;
+
+		mvm->ps_disabled = disable_ps;
+		ret = iwl_mvm_power_update_device(mvm);
+		if (ret) {
+			mvm->ps_disabled = old_ps_disabled;
+			return ret;
 		}
 	}
 
