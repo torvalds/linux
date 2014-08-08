@@ -268,7 +268,7 @@ config CROSS_MEMORY_ATTACH
 	help
 	  Enabling this option adds the system calls process_vm_readv and
 	  process_vm_writev which allow a process with the correct privileges
-	  to directly read from or write to to another process's address space.
+	  to directly read from or write to another process' address space.
 	  See the man page for more details.
 
 config FHANDLE
