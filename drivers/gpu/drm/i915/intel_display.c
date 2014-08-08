@@ -2388,12 +2388,26 @@ static void i9xx_update_primary_plane(struct drm_crtc *crtc,
 	int plane = intel_crtc->plane;
 	unsigned long linear_offset;
 	u32 dspcntr;
-	u32 reg;
+	u32 reg = DSPCNTR(plane);
 
-	reg = DSPCNTR(plane);
-	dspcntr = I915_READ(reg);
-	/* Mask out pixel format bits in case we change it */
-	dspcntr &= ~DISPPLANE_PIXFORMAT_MASK;
+	dspcntr = DISPPLANE_GAMMA_ENABLE;
+
+	if (intel_crtc->primary_enabled)
+		dspcntr |= DISPLAY_PLANE_ENABLE;
+
+	if (INTEL_INFO(dev)->gen < 4) {
+		if (intel_crtc->pipe == PIPE_B)
+			dspcntr |= DISPPLANE_SEL_PIPE_B;
+
+		/* pipesrc and dspsize control the size that is scaled from,
+		 * which should always be the user's requested size.
+		 */
+		I915_WRITE(DSPSIZE(plane),
+			   ((intel_crtc->config.pipe_src_h - 1) << 16) |
+			   (intel_crtc->config.pipe_src_w - 1));
+		I915_WRITE(DSPPOS(plane), 0);
+	}
+
 	switch (fb->pixel_format) {
 	case DRM_FORMAT_C8:
 		dspcntr |= DISPPLANE_8BPP;
@@ -2425,12 +2439,9 @@ static void i9xx_update_primary_plane(struct drm_crtc *crtc,
 		BUG();
 	}
 
-	if (INTEL_INFO(dev)->gen >= 4) {
-		if (obj->tiling_mode != I915_TILING_NONE)
-			dspcntr |= DISPPLANE_TILED;
-		else
-			dspcntr &= ~DISPPLANE_TILED;
-	}
+	if (INTEL_INFO(dev)->gen >= 4 &&
+	    obj->tiling_mode != I915_TILING_NONE)
+		dspcntr |= DISPPLANE_TILED;
 
 	if (IS_G4X(dev))
 		dspcntr |= DISPPLANE_TRICKLE_FEED_DISABLE;
@@ -2474,12 +2485,16 @@ static void ironlake_update_primary_plane(struct drm_crtc *crtc,
 	int plane = intel_crtc->plane;
 	unsigned long linear_offset;
 	u32 dspcntr;
-	u32 reg;
+	u32 reg = DSPCNTR(plane);
 
-	reg = DSPCNTR(plane);
-	dspcntr = I915_READ(reg);
-	/* Mask out pixel format bits in case we change it */
-	dspcntr &= ~DISPPLANE_PIXFORMAT_MASK;
+	dspcntr = DISPPLANE_GAMMA_ENABLE;
+
+	if (intel_crtc->primary_enabled)
+		dspcntr |= DISPLAY_PLANE_ENABLE;
+
+	if (IS_HASWELL(dev) || IS_BROADWELL(dev))
+		dspcntr |= DISPPLANE_PIPE_CSC_ENABLE;
+
 	switch (fb->pixel_format) {
 	case DRM_FORMAT_C8:
 		dspcntr |= DISPPLANE_8BPP;
@@ -2509,12 +2524,8 @@ static void ironlake_update_primary_plane(struct drm_crtc *crtc,
 
 	if (obj->tiling_mode != I915_TILING_NONE)
 		dspcntr |= DISPPLANE_TILED;
-	else
-		dspcntr &= ~DISPPLANE_TILED;
 
-	if (IS_HASWELL(dev) || IS_BROADWELL(dev))
-		dspcntr &= ~DISPPLANE_TRICKLE_FEED_DISABLE;
-	else
+	if (!IS_HASWELL(dev) && !IS_BROADWELL(dev))
 		dspcntr |= DISPPLANE_TRICKLE_FEED_DISABLE;
 
 	I915_WRITE(reg, dspcntr);
@@ -3936,7 +3947,6 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_encoder *encoder;
 	int pipe = intel_crtc->pipe;
-	enum plane plane = intel_crtc->plane;
 
 	WARN_ON(!crtc->enabled);
 
@@ -3957,10 +3967,6 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 	}
 
 	ironlake_set_pipeconf(crtc);
-
-	/* Set up the display plane register */
-	I915_WRITE(DSPCNTR(plane), DISPPLANE_GAMMA_ENABLE);
-	POSTING_READ(DSPCNTR(plane));
 
 	dev_priv->display.update_primary_plane(crtc, crtc->primary->fb,
 					       crtc->x, crtc->y);
@@ -4049,7 +4055,6 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_encoder *encoder;
 	int pipe = intel_crtc->pipe;
-	enum plane plane = intel_crtc->plane;
 
 	WARN_ON(!crtc->enabled);
 
@@ -4072,10 +4077,6 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 	haswell_set_pipeconf(crtc);
 
 	intel_set_pipe_csc(crtc);
-
-	/* Set up the display plane register */
-	I915_WRITE(DSPCNTR(plane), DISPPLANE_GAMMA_ENABLE | DISPPLANE_PIPE_CSC_ENABLE);
-	POSTING_READ(DSPCNTR(plane));
 
 	dev_priv->display.update_primary_plane(crtc, crtc->primary->fb,
 					       crtc->x, crtc->y);
@@ -4632,9 +4633,7 @@ static void valleyview_crtc_enable(struct drm_crtc *crtc)
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_encoder *encoder;
 	int pipe = intel_crtc->pipe;
-	int plane = intel_crtc->plane;
 	bool is_dsi;
-	u32 dspcntr;
 
 	WARN_ON(!crtc->enabled);
 
@@ -4650,26 +4649,12 @@ static void valleyview_crtc_enable(struct drm_crtc *crtc)
 			vlv_prepare_pll(intel_crtc);
 	}
 
-	/* Set up the display plane register */
-	dspcntr = DISPPLANE_GAMMA_ENABLE;
-
 	if (intel_crtc->config.has_dp_encoder)
 		intel_dp_set_m_n(intel_crtc);
 
 	intel_set_pipe_timings(intel_crtc);
 
-	/* pipesrc and dspsize control the size that is scaled from,
-	 * which should always be the user's requested size.
-	 */
-	I915_WRITE(DSPSIZE(plane),
-		   ((intel_crtc->config.pipe_src_h - 1) << 16) |
-		   (intel_crtc->config.pipe_src_w - 1));
-	I915_WRITE(DSPPOS(plane), 0);
-
 	i9xx_set_pipeconf(intel_crtc);
-
-	I915_WRITE(DSPCNTR(plane), dspcntr);
-	POSTING_READ(DSPCNTR(plane));
 
 	dev_priv->display.update_primary_plane(crtc, crtc->primary->fb,
 					       crtc->x, crtc->y);
@@ -4725,8 +4710,6 @@ static void i9xx_crtc_enable(struct drm_crtc *crtc)
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_encoder *encoder;
 	int pipe = intel_crtc->pipe;
-	int plane = intel_crtc->plane;
-	u32 dspcntr;
 
 	WARN_ON(!crtc->enabled);
 
@@ -4735,31 +4718,12 @@ static void i9xx_crtc_enable(struct drm_crtc *crtc)
 
 	i9xx_set_pll_dividers(intel_crtc);
 
-	/* Set up the display plane register */
-	dspcntr = DISPPLANE_GAMMA_ENABLE;
-
-	if (pipe == 0)
-		dspcntr &= ~DISPPLANE_SEL_PIPE_MASK;
-	else
-		dspcntr |= DISPPLANE_SEL_PIPE_B;
-
 	if (intel_crtc->config.has_dp_encoder)
 		intel_dp_set_m_n(intel_crtc);
 
 	intel_set_pipe_timings(intel_crtc);
 
-	/* pipesrc and dspsize control the size that is scaled from,
-	 * which should always be the user's requested size.
-	 */
-	I915_WRITE(DSPSIZE(plane),
-		   ((intel_crtc->config.pipe_src_h - 1) << 16) |
-		   (intel_crtc->config.pipe_src_w - 1));
-	I915_WRITE(DSPPOS(plane), 0);
-
 	i9xx_set_pipeconf(intel_crtc);
-
-	I915_WRITE(DSPCNTR(plane), dspcntr);
-	POSTING_READ(DSPCNTR(plane));
 
 	dev_priv->display.update_primary_plane(crtc, crtc->primary->fb,
 					       crtc->x, crtc->y);
