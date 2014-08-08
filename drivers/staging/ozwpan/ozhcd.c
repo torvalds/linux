@@ -45,10 +45,6 @@
  */
 #define OZ_PLAT_DEV_NAME	"ozwpan"
 
-/* Maximum number of free urb links that can be kept in the pool.
- */
-#define OZ_MAX_LINK_POOL_SIZE	16
-
 /* Get endpoint object from the containing link.
  */
 #define ep_from_link(__e) container_of((__e), struct oz_endpoint, link)
@@ -74,6 +70,8 @@ struct oz_urb_link {
 	u8 ep_num;
 	unsigned submit_counter;
 };
+
+static struct kmem_cache *oz_urb_link_cache;
 
 /* Holds state information about a USB endpoint.
  */
@@ -198,9 +196,6 @@ static struct platform_device *g_plat_dev;
 static struct oz_hcd *g_ozhcd;
 static DEFINE_SPINLOCK(g_hcdlock);	/* Guards g_ozhcd. */
 static const char g_hcd_name[] = "Ozmo WPAN";
-static struct list_head *g_link_pool;
-static int g_link_pool_size;
-static DEFINE_SPINLOCK(g_link_lock);
 static DEFINE_SPINLOCK(g_tasklet_lock);
 static struct tasklet_struct g_urb_process_tasklet;
 static struct tasklet_struct g_urb_cancel_tasklet;
@@ -265,68 +260,22 @@ static int oz_get_port_from_addr(struct oz_hcd *ozhcd, u8 bus_addr)
 }
 
 /*
- * Allocates an urb link, first trying the pool but going to heap if empty.
  * Context: any
  */
 static struct oz_urb_link *oz_alloc_urb_link(void)
 {
-	struct oz_urb_link *urbl = NULL;
-	unsigned long irq_state;
-
-	spin_lock_irqsave(&g_link_lock, irq_state);
-	if (g_link_pool) {
-		urbl = container_of(g_link_pool, struct oz_urb_link, link);
-		g_link_pool = urbl->link.next;
-		--g_link_pool_size;
-	}
-	spin_unlock_irqrestore(&g_link_lock, irq_state);
-	if (urbl == NULL)
-		urbl = kmalloc(sizeof(struct oz_urb_link), GFP_ATOMIC);
-	return urbl;
+	return kmem_cache_alloc(oz_urb_link_cache, GFP_ATOMIC);
 }
 
 /*
- * Frees an urb link by putting it in the pool if there is enough space or
- * deallocating it to heap otherwise.
  * Context: any
  */
 static void oz_free_urb_link(struct oz_urb_link *urbl)
 {
-	if (urbl) {
-		unsigned long irq_state;
+	if (!urbl)
+		return;
 
-		spin_lock_irqsave(&g_link_lock, irq_state);
-		if (g_link_pool_size < OZ_MAX_LINK_POOL_SIZE) {
-			urbl->link.next = g_link_pool;
-			g_link_pool = &urbl->link;
-			urbl = NULL;
-			g_link_pool_size++;
-		}
-		spin_unlock_irqrestore(&g_link_lock, irq_state);
-		kfree(urbl);
-	}
-}
-
-/*
- * Deallocates all the urb links in the pool.
- * Context: unknown
- */
-static void oz_empty_link_pool(void)
-{
-	struct list_head *e;
-	unsigned long irq_state;
-
-	spin_lock_irqsave(&g_link_lock, irq_state);
-	e = g_link_pool;
-	g_link_pool = NULL;
-	g_link_pool_size = 0;
-	spin_unlock_irqrestore(&g_link_lock, irq_state);
-	while (e) {
-		struct oz_urb_link *urbl =
-			container_of(e, struct oz_urb_link, link);
-		e = e->next;
-		kfree(urbl);
-	}
+	kmem_cache_free(oz_urb_link_cache, urbl);
 }
 
 /*
@@ -2311,7 +2260,6 @@ static int oz_plat_remove(struct platform_device *dev)
 	oz_dbg(ON, "Removing hcd\n");
 	usb_remove_hcd(hcd);
 	usb_put_hcd(hcd);
-	oz_empty_link_pool();
 	return 0;
 }
 
@@ -2341,6 +2289,11 @@ int oz_hcd_init(void)
 
 	if (usb_disabled())
 		return -ENODEV;
+
+	oz_urb_link_cache = KMEM_CACHE(oz_urb_link, 0);
+	if (!oz_urb_link_cache)
+		return -ENOMEM;
+
 	tasklet_init(&g_urb_process_tasklet, oz_urb_process_tasklet, 0);
 	tasklet_init(&g_urb_cancel_tasklet, oz_urb_cancel_tasklet, 0);
 	err = platform_driver_register(&g_oz_plat_drv);
@@ -2380,4 +2333,5 @@ void oz_hcd_term(void)
 	platform_device_unregister(g_plat_dev);
 	platform_driver_unregister(&g_oz_plat_drv);
 	oz_dbg(ON, "Pending urbs:%d\n", atomic_read(&g_pending_urbs));
+	kmem_cache_destroy(oz_urb_link_cache);
 }
