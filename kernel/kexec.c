@@ -261,12 +261,20 @@ static struct kimage *do_kimage_alloc_init(void)
 
 static void kimage_free_page_list(struct list_head *list);
 
-static int kimage_normal_alloc(struct kimage **rimage, unsigned long entry,
-				unsigned long nr_segments,
-				struct kexec_segment __user *segments)
+static int kimage_alloc_init(struct kimage **rimage, unsigned long entry,
+			     unsigned long nr_segments,
+			     struct kexec_segment __user *segments,
+			     unsigned long flags)
 {
-	int result;
+	int ret;
 	struct kimage *image;
+	bool kexec_on_panic = flags & KEXEC_ON_CRASH;
+
+	if (kexec_on_panic) {
+		/* Verify we have a valid entry point */
+		if ((entry < crashk_res.start) || (entry > crashk_res.end))
+			return -EADDRNOTAVAIL;
+	}
 
 	/* Allocate and initialize a controlling structure */
 	image = do_kimage_alloc_init();
@@ -275,20 +283,26 @@ static int kimage_normal_alloc(struct kimage **rimage, unsigned long entry,
 
 	image->start = entry;
 
-	result = copy_user_segment_list(image, nr_segments, segments);
-	if (result)
+	ret = copy_user_segment_list(image, nr_segments, segments);
+	if (ret)
 		goto out_free_image;
 
-	result = sanity_check_segment_list(image);
-	if (result)
+	ret = sanity_check_segment_list(image);
+	if (ret)
 		goto out_free_image;
+
+	 /* Enable the special crash kernel control page allocation policy. */
+	if (kexec_on_panic) {
+		image->control_page = crashk_res.start;
+		image->type = KEXEC_TYPE_CRASH;
+	}
 
 	/*
 	 * Find a location for the control code buffer, and add it
 	 * the vector of segments so that it's pages will also be
 	 * counted as destination pages.
 	 */
-	result = -ENOMEM;
+	ret = -ENOMEM;
 	image->control_code_page = kimage_alloc_control_pages(image,
 					   get_order(KEXEC_CONTROL_PAGE_SIZE));
 	if (!image->control_code_page) {
@@ -296,10 +310,12 @@ static int kimage_normal_alloc(struct kimage **rimage, unsigned long entry,
 		goto out_free_image;
 	}
 
-	image->swap_page = kimage_alloc_control_pages(image, 0);
-	if (!image->swap_page) {
-		pr_err("Could not allocate swap buffer\n");
-		goto out_free_control_pages;
+	if (!kexec_on_panic) {
+		image->swap_page = kimage_alloc_control_pages(image, 0);
+		if (!image->swap_page) {
+			pr_err("Could not allocate swap buffer\n");
+			goto out_free_control_pages;
+		}
 	}
 
 	*rimage = image;
@@ -308,60 +324,7 @@ out_free_control_pages:
 	kimage_free_page_list(&image->control_pages);
 out_free_image:
 	kfree(image);
-	return result;
-}
-
-static int kimage_crash_alloc(struct kimage **rimage, unsigned long entry,
-				unsigned long nr_segments,
-				struct kexec_segment __user *segments)
-{
-	int result;
-	struct kimage *image;
-
-	/* Verify we have a valid entry point */
-	if ((entry < crashk_res.start) || (entry > crashk_res.end))
-		return -EADDRNOTAVAIL;
-
-	/* Allocate and initialize a controlling structure */
-	image = do_kimage_alloc_init();
-	if (!image)
-		return -ENOMEM;
-
-	image->start = entry;
-
-	/* Enable the special crash kernel control page
-	 * allocation policy.
-	 */
-	image->control_page = crashk_res.start;
-	image->type = KEXEC_TYPE_CRASH;
-
-	result = copy_user_segment_list(image, nr_segments, segments);
-	if (result)
-		goto out_free_image;
-
-	result = sanity_check_segment_list(image);
-	if (result)
-		goto out_free_image;
-
-	/*
-	 * Find a location for the control code buffer, and add
-	 * the vector of segments so that it's pages will also be
-	 * counted as destination pages.
-	 */
-	result = -ENOMEM;
-	image->control_code_page = kimage_alloc_control_pages(image,
-					   get_order(KEXEC_CONTROL_PAGE_SIZE));
-	if (!image->control_code_page) {
-		pr_err("Could not allocate control_code_buffer\n");
-		goto out_free_image;
-	}
-
-	*rimage = image;
-	return 0;
-
-out_free_image:
-	kfree(image);
-	return result;
+	return ret;
 }
 
 static int kimage_is_destination_range(struct kimage *image,
@@ -1004,16 +967,16 @@ SYSCALL_DEFINE4(kexec_load, unsigned long, entry, unsigned long, nr_segments,
 
 		/* Loading another kernel to reboot into */
 		if ((flags & KEXEC_ON_CRASH) == 0)
-			result = kimage_normal_alloc(&image, entry,
-							nr_segments, segments);
+			result = kimage_alloc_init(&image, entry, nr_segments,
+						   segments, flags);
 		/* Loading another kernel to switch to if this one crashes */
 		else if (flags & KEXEC_ON_CRASH) {
 			/* Free any current crash dump kernel before
 			 * we corrupt it.
 			 */
 			kimage_free(xchg(&kexec_crash_image, NULL));
-			result = kimage_crash_alloc(&image, entry,
-						     nr_segments, segments);
+			result = kimage_alloc_init(&image, entry, nr_segments,
+						   segments, flags);
 			crash_map_reserved_pages();
 		}
 		if (result)
