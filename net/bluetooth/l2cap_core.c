@@ -1464,9 +1464,6 @@ static void l2cap_conn_ready(struct l2cap_conn *conn)
 
 	BT_DBG("conn %p", conn);
 
-	if (hcon->type == LE_LINK)
-		l2cap_le_conn_ready(conn);
-
 	mutex_lock(&conn->chan_lock);
 
 	list_for_each_entry(chan, &conn->chan_l, list) {
@@ -1491,6 +1488,9 @@ static void l2cap_conn_ready(struct l2cap_conn *conn)
 	}
 
 	mutex_unlock(&conn->chan_lock);
+
+	if (hcon->type == LE_LINK)
+		l2cap_le_conn_ready(conn);
 
 	queue_work(hcon->hdev->workqueue, &conn->pending_rx_work);
 }
