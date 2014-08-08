@@ -18,6 +18,7 @@
 #include <linux/amba/bus.h>
 #include <linux/amba/kmi.h>
 #include <linux/amba/clcd.h>
+#include <linux/platform_data/video-clcd-versatile.h>
 #include <linux/amba/mmci.h>
 #include <linux/io.h>
 #include <linux/irqchip/versatile-fpga.h>
@@ -35,8 +36,6 @@
 #include <asm/mach/irq.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
-
-#include <plat/clcd.h>
 
 #include "hardware.h"
 #include "cm.h"

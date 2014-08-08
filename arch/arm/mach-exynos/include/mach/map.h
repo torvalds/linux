@@ -1,5 +1,4 @@
-/* linux/arch/arm/mach-exynos/include/mach/map.h
- *
+/*
  * Copyright (c) 2010-2011 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/
  *

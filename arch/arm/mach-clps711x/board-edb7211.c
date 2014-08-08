@@ -148,11 +148,6 @@ fixup_edb7211(struct tag *tags, char **cmdline)
 	memblock_add(0xc1000000, SZ_8M);
 }
 
-static void __init edb7211_init(void)
-{
-	clps711x_devices_init();
-}
-
 static void __init edb7211_init_late(void)
 {
 	gpio_request_array(edb7211_gpios, ARRAY_SIZE(edb7211_gpios));
@@ -178,10 +173,9 @@ MACHINE_START(EDB7211, "CL-EDB7211 (EP7211 eval board)")
 	.fixup		= fixup_edb7211,
 	.reserve	= edb7211_reserve,
 	.map_io		= clps711x_map_io,
-	.init_early	= clps711x_init_early,
 	.init_irq	= clps711x_init_irq,
 	.init_time	= clps711x_timer_init,
-	.init_machine	= edb7211_init,
+	.init_machine	= clps711x_devices_init,
 	.init_late	= edb7211_init_late,
 	.restart	= clps711x_restart,
 MACHINE_END

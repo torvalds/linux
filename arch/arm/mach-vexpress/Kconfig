@@ -13,7 +13,6 @@ menuconfig ARCH_VEXPRESS
 	select ICST
 	select NO_IOPORT_MAP
 	select PLAT_VERSATILE
-	select PLAT_VERSATILE_CLCD
 	select POWER_RESET
 	select POWER_RESET_VEXPRESS
 	select POWER_SUPPLY

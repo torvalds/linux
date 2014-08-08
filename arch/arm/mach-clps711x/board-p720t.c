@@ -365,7 +365,6 @@ MACHINE_START(P720T, "ARM-Prospector720T")
 	.atag_offset	= 0x100,
 	.fixup		= fixup_p720t,
 	.map_io		= clps711x_map_io,
-	.init_early	= clps711x_init_early,
 	.init_irq	= clps711x_init_irq,
 	.init_time	= clps711x_timer_init,
 	.init_machine	= p720t_init,

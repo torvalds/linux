@@ -22,9 +22,10 @@
 #include <linux/io.h>
 #include <linux/sh_clk.h>
 #include <linux/clkdev.h>
-#include <mach/clock.h>
-#include <mach/common.h>
-#include <mach/r8a7740.h>
+
+#include "clock.h"
+#include "common.h"
+#include "r8a7740.h"
 
 /*
  *        |  MDx  |  XTAL1/EXTAL1   |  System   | EXTALR |

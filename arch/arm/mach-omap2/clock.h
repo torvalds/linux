@@ -101,31 +101,6 @@ struct clockdomain;
 	};							\
 	DEFINE_STRUCT_CLK(_name, _parent_names, _ops);
 
-#define DEFINE_CLK_OMAP_HSDIVIDER(_name, _parent_name,		\
-				_parent_ptr, _flags,		\
-				_clksel_reg, _clksel_mask)	\
-	static const struct clksel _name##_div[] = {		\
-		{						\
-			.parent = _parent_ptr,			\
-			.rates = div31_1to31_rates		\
-		},						\
-		{ .parent = NULL },				\
-	};							\
-	static struct clk _name;				\
-	static const char *_name##_parent_names[] = {		\
-		_parent_name,					\
-	};							\
-	static struct clk_hw_omap _name##_hw = {		\
-		.hw = {						\
-			.clk = &_name,				\
-		},						\
-		.clksel		= _name##_div,			\
-		.clksel_reg	= _clksel_reg,			\
-		.clksel_mask	= _clksel_mask,			\
-		.ops		= &clkhwops_omap4_dpllmx,	\
-	};							\
-	DEFINE_STRUCT_CLK(_name, _name##_parent_names, omap_hsdivider_ops);
-
 /* struct clksel_rate.flags possibilities */
 #define RATE_IN_242X		(1 << 0)
 #define RATE_IN_243X		(1 << 1)
@@ -248,6 +223,23 @@ void omap2_clk_writel(u32 val, struct clk_hw_omap *clk, void __iomem *reg);
 
 extern u16 cpu_mask;
 
+/*
+ * Clock features setup. Used instead of CPU type checks.
+ */
+struct ti_clk_features {
+	u32 flags;
+	long fint_min;
+	long fint_max;
+	long fint_band1_max;
+	long fint_band2_min;
+	u8 dpll_bypass_vals;
+	u8 cm_idlest_val;
+};
+
+#define TI_CLK_DPLL_HAS_FREQSEL		(1 << 0)
+
+extern struct ti_clk_features ti_clk_features;
+
 extern const struct clkops clkops_omap2_dflt_wait;
 extern const struct clkops clkops_dummy;
 extern const struct clkops clkops_omap2_dflt;
@@ -286,4 +278,6 @@ extern int omap2_clkops_enable_clkdm(struct clk_hw *hw);
 extern void omap2_clkops_disable_clkdm(struct clk_hw *hw);
 
 extern void omap_clocks_register(struct omap_clk *oclks, int cnt);
+
+void __init ti_clk_init_features(void);
 #endif

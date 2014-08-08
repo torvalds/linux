@@ -38,6 +38,7 @@
 #include <video/samsung_fimd.h>
 #include <mach/map.h>
 #include <mach/regs-clock.h>
+#include <mach/gpio-samsung.h>
 
 #include <plat/gpio-cfg.h>
 #include <plat/devs.h>

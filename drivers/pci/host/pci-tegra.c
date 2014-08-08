@@ -41,10 +41,11 @@
 #include <linux/reset.h>
 #include <linux/sizes.h>
 #include <linux/slab.h>
-#include <linux/tegra-cpuidle.h>
-#include <linux/tegra-powergate.h>
 #include <linux/vmalloc.h>
 #include <linux/regulator/consumer.h>
+
+#include <soc/tegra/cpuidle.h>
+#include <soc/tegra/pmc.h>
 
 #include <asm/mach/irq.h>
 #include <asm/mach/map.h>
