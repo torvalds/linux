@@ -27,10 +27,10 @@
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
 
-#include "core.h"
-#include "pinconf.h"
+#include "../core.h"
+#include "../pinconf.h"
 #include "pinctrl-msm.h"
-#include "pinctrl-utils.h"
+#include "../pinctrl-utils.h"
 
 #define MAX_NR_GPIO 300
 
@@ -142,9 +142,6 @@ static int msm_pinmux_enable(struct pinctrl_dev *pctldev,
 
 	g = &pctrl->soc->groups[group];
 
-	if (WARN_ON(g->mux_bit < 0))
-		return -EINVAL;
-
 	for (i = 0; i < g->nfuncs; i++) {
 		if (g->funcs[i] == function)
 			break;
@@ -165,36 +162,11 @@ static int msm_pinmux_enable(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-static void msm_pinmux_disable(struct pinctrl_dev *pctldev,
-			       unsigned function,
-			       unsigned group)
-{
-	struct msm_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
-	const struct msm_pingroup *g;
-	unsigned long flags;
-	u32 val;
-
-	g = &pctrl->soc->groups[group];
-
-	if (WARN_ON(g->mux_bit < 0))
-		return;
-
-	spin_lock_irqsave(&pctrl->lock, flags);
-
-	/* Clear the mux bits to select gpio mode */
-	val = readl(pctrl->regs + g->ctl_reg);
-	val &= ~(0x7 << g->mux_bit);
-	writel(val, pctrl->regs + g->ctl_reg);
-
-	spin_unlock_irqrestore(&pctrl->lock, flags);
-}
-
 static const struct pinmux_ops msm_pinmux_ops = {
 	.get_functions_count	= msm_get_functions_count,
 	.get_function_name	= msm_get_function_name,
 	.get_function_groups	= msm_get_function_groups,
 	.enable			= msm_pinmux_enable,
-	.disable		= msm_pinmux_disable,
 };
 
 static int msm_config_reg(struct msm_pinctrl *pctrl,
@@ -206,6 +178,7 @@ static int msm_config_reg(struct msm_pinctrl *pctrl,
 	switch (param) {
 	case PIN_CONFIG_BIAS_DISABLE:
 	case PIN_CONFIG_BIAS_PULL_DOWN:
+	case PIN_CONFIG_BIAS_BUS_HOLD:
 	case PIN_CONFIG_BIAS_PULL_UP:
 		*bit = g->pull_bit;
 		*mask = 3;
@@ -243,6 +216,7 @@ static int msm_config_set(struct pinctrl_dev *pctldev, unsigned int pin,
 
 #define MSM_NO_PULL	0
 #define MSM_PULL_DOWN	1
+#define MSM_KEEPER	2
 #define MSM_PULL_UP	3
 
 static unsigned msm_regval_to_drive(u32 val)
@@ -279,6 +253,9 @@ static int msm_config_group_get(struct pinctrl_dev *pctldev,
 		break;
 	case PIN_CONFIG_BIAS_PULL_DOWN:
 		arg = arg == MSM_PULL_DOWN;
+		break;
+	case PIN_CONFIG_BIAS_BUS_HOLD:
+		arg = arg == MSM_KEEPER;
 		break;
 	case PIN_CONFIG_BIAS_PULL_UP:
 		arg = arg == MSM_PULL_UP;
@@ -338,6 +315,9 @@ static int msm_config_group_set(struct pinctrl_dev *pctldev,
 			break;
 		case PIN_CONFIG_BIAS_PULL_DOWN:
 			arg = MSM_PULL_DOWN;
+			break;
+		case PIN_CONFIG_BIAS_BUS_HOLD:
+			arg = MSM_KEEPER;
 			break;
 		case PIN_CONFIG_BIAS_PULL_UP:
 			arg = MSM_PULL_UP;

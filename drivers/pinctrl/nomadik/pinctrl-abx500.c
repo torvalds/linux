@@ -32,8 +32,8 @@
 #include <linux/pinctrl/machine.h>
 
 #include "pinctrl-abx500.h"
-#include "core.h"
-#include "pinconf.h"
+#include "../core.h"
+#include "../pinconf.h"
 
 /*
  * The AB9540 and AB8540 GPIO support are extended versions
@@ -737,20 +737,6 @@ static int abx500_pmx_enable(struct pinctrl_dev *pctldev, unsigned function,
 	return ret;
 }
 
-static void abx500_pmx_disable(struct pinctrl_dev *pctldev,
-			       unsigned function, unsigned group)
-{
-	struct abx500_pinctrl *pct = pinctrl_dev_get_drvdata(pctldev);
-	const struct abx500_pingroup *g;
-
-	g = &pct->soc->groups[group];
-	if (g->altsetting < 0)
-		return;
-
-	/* FIXME: poke out the mux, set the pin to some default state? */
-	dev_dbg(pct->dev, "disable group %s, %u pins\n", g->name, g->npins);
-}
-
 static int abx500_gpio_request_enable(struct pinctrl_dev *pctldev,
 			       struct pinctrl_gpio_range *range,
 			       unsigned offset)
@@ -799,7 +785,6 @@ static const struct pinmux_ops abx500_pinmux_ops = {
 	.get_function_name = abx500_pmx_get_func_name,
 	.get_function_groups = abx500_pmx_get_func_groups,
 	.enable = abx500_pmx_enable,
-	.disable = abx500_pmx_disable,
 	.gpio_request_enable = abx500_gpio_request_enable,
 	.gpio_disable_free = abx500_gpio_disable_free,
 };

@@ -23,7 +23,7 @@
 #include <linux/interrupt.h>
 #include <linux/irqdomain.h>
 #include <linux/of_irq.h>
-#include "core.h"
+#include "../core.h"
 
 /* EXYNOS5440 GPIO and Pinctrl register offsets */
 #define GPIO_MUX		0x00
@@ -371,13 +371,6 @@ static int exynos5440_pinmux_enable(struct pinctrl_dev *pctldev, unsigned select
 	return 0;
 }
 
-/* disable a specified pinmux by writing to registers */
-static void exynos5440_pinmux_disable(struct pinctrl_dev *pctldev,
-					unsigned selector, unsigned group)
-{
-	exynos5440_pinmux_setup(pctldev, selector, group, false);
-}
-
 /*
  * The calls to gpio_direction_output() and gpio_direction_input()
  * leads to this function call (via the pinctrl_gpio_direction_{input|output}()
@@ -395,7 +388,6 @@ static const struct pinmux_ops exynos5440_pinmux_ops = {
 	.get_function_name	= exynos5440_pinmux_get_fname,
 	.get_function_groups	= exynos5440_pinmux_get_groups,
 	.enable			= exynos5440_pinmux_enable,
-	.disable		= exynos5440_pinmux_disable,
 	.gpio_set_direction	= exynos5440_pinmux_gpio_set_direction,
 };
 

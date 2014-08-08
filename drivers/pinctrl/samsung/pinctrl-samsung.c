@@ -30,7 +30,7 @@
 #include <linux/spinlock.h>
 #include <linux/syscore_ops.h>
 
-#include "core.h"
+#include "../core.h"
 #include "pinctrl-samsung.h"
 
 #define GROUP_SUFFIX		"-grp"
@@ -40,13 +40,14 @@
 
 /* list of all possible config options supported */
 static struct pin_config {
-	char		*prop_cfg;
-	unsigned int	cfg_type;
-} pcfgs[] = {
+	const char *property;
+	enum pincfg_type param;
+} cfg_params[] = {
 	{ "samsung,pin-pud", PINCFG_TYPE_PUD },
 	{ "samsung,pin-drv", PINCFG_TYPE_DRV },
 	{ "samsung,pin-con-pdn", PINCFG_TYPE_CON_PDN },
 	{ "samsung,pin-pud-pdn", PINCFG_TYPE_PUD_PDN },
+	{ "samsung,pin-val", PINCFG_TYPE_DAT },
 };
 
 /* Global list of devices (struct samsung_pinctrl_drv_data) */
@@ -59,163 +60,242 @@ static inline struct samsung_pin_bank *gc_to_pin_bank(struct gpio_chip *gc)
 	return container_of(gc, struct samsung_pin_bank, gpio_chip);
 }
 
-/* check if the selector is a valid pin group selector */
 static int samsung_get_group_count(struct pinctrl_dev *pctldev)
 {
-	struct samsung_pinctrl_drv_data *drvdata;
+	struct samsung_pinctrl_drv_data *pmx = pinctrl_dev_get_drvdata(pctldev);
 
-	drvdata = pinctrl_dev_get_drvdata(pctldev);
-	return drvdata->nr_groups;
+	return pmx->nr_groups;
 }
 
-/* return the name of the group selected by the group selector */
 static const char *samsung_get_group_name(struct pinctrl_dev *pctldev,
-						unsigned selector)
+						unsigned group)
 {
-	struct samsung_pinctrl_drv_data *drvdata;
+	struct samsung_pinctrl_drv_data *pmx = pinctrl_dev_get_drvdata(pctldev);
 
-	drvdata = pinctrl_dev_get_drvdata(pctldev);
-	return drvdata->pin_groups[selector].name;
+	return pmx->pin_groups[group].name;
 }
 
-/* return the pin numbers associated with the specified group */
 static int samsung_get_group_pins(struct pinctrl_dev *pctldev,
-		unsigned selector, const unsigned **pins, unsigned *num_pins)
+					unsigned group,
+					const unsigned **pins,
+					unsigned *num_pins)
 {
-	struct samsung_pinctrl_drv_data *drvdata;
+	struct samsung_pinctrl_drv_data *pmx = pinctrl_dev_get_drvdata(pctldev);
 
-	drvdata = pinctrl_dev_get_drvdata(pctldev);
-	*pins = drvdata->pin_groups[selector].pins;
-	*num_pins = drvdata->pin_groups[selector].num_pins;
+	*pins = pmx->pin_groups[group].pins;
+	*num_pins = pmx->pin_groups[group].num_pins;
+
 	return 0;
 }
 
-/* create pinctrl_map entries by parsing device tree nodes */
-static int samsung_dt_node_to_map(struct pinctrl_dev *pctldev,
-			struct device_node *np, struct pinctrl_map **maps,
-			unsigned *nmaps)
+static int reserve_map(struct device *dev, struct pinctrl_map **map,
+		       unsigned *reserved_maps, unsigned *num_maps,
+		       unsigned reserve)
 {
-	struct device *dev = pctldev->dev;
-	struct pinctrl_map *map;
-	unsigned long *cfg = NULL;
-	char *gname, *fname;
-	int cfg_cnt = 0, map_cnt = 0, idx = 0;
+	unsigned old_num = *reserved_maps;
+	unsigned new_num = *num_maps + reserve;
+	struct pinctrl_map *new_map;
 
-	/* count the number of config options specfied in the node */
-	for (idx = 0; idx < ARRAY_SIZE(pcfgs); idx++) {
-		if (of_find_property(np, pcfgs[idx].prop_cfg, NULL))
-			cfg_cnt++;
-	}
+	if (old_num >= new_num)
+		return 0;
 
-	/*
-	 * Find out the number of map entries to create. All the config options
-	 * can be accomadated into a single config map entry.
-	 */
-	if (cfg_cnt)
-		map_cnt = 1;
-	if (of_find_property(np, "samsung,pin-function", NULL))
-		map_cnt++;
-	if (!map_cnt) {
-		dev_err(dev, "node %s does not have either config or function "
-				"configurations\n", np->name);
-		return -EINVAL;
-	}
-
-	/* Allocate memory for pin-map entries */
-	map = kzalloc(sizeof(*map) * map_cnt, GFP_KERNEL);
-	if (!map) {
-		dev_err(dev, "could not alloc memory for pin-maps\n");
+	new_map = krealloc(*map, sizeof(*new_map) * new_num, GFP_KERNEL);
+	if (!new_map) {
+		dev_err(dev, "krealloc(map) failed\n");
 		return -ENOMEM;
 	}
-	*nmaps = 0;
 
-	/*
-	 * Allocate memory for pin group name. The pin group name is derived
-	 * from the node name from which these map entries are be created.
-	 */
-	gname = kzalloc(strlen(np->name) + GSUFFIX_LEN, GFP_KERNEL);
-	if (!gname) {
-		dev_err(dev, "failed to alloc memory for group name\n");
-		goto free_map;
-	}
-	sprintf(gname, "%s%s", np->name, GROUP_SUFFIX);
+	memset(new_map + old_num, 0, (new_num - old_num) * sizeof(*new_map));
 
-	/*
-	 * don't have config options? then skip over to creating function
-	 * map entries.
-	 */
-	if (!cfg_cnt)
-		goto skip_cfgs;
+	*map = new_map;
+	*reserved_maps = new_num;
 
-	/* Allocate memory for config entries */
-	cfg = kzalloc(sizeof(*cfg) * cfg_cnt, GFP_KERNEL);
-	if (!cfg) {
-		dev_err(dev, "failed to alloc memory for configs\n");
-		goto free_gname;
-	}
-
-	/* Prepare a list of config settings */
-	for (idx = 0, cfg_cnt = 0; idx < ARRAY_SIZE(pcfgs); idx++) {
-		u32 value;
-		if (!of_property_read_u32(np, pcfgs[idx].prop_cfg, &value))
-			cfg[cfg_cnt++] =
-				PINCFG_PACK(pcfgs[idx].cfg_type, value);
-	}
-
-	/* create the config map entry */
-	map[*nmaps].data.configs.group_or_pin = gname;
-	map[*nmaps].data.configs.configs = cfg;
-	map[*nmaps].data.configs.num_configs = cfg_cnt;
-	map[*nmaps].type = PIN_MAP_TYPE_CONFIGS_GROUP;
-	*nmaps += 1;
-
-skip_cfgs:
-	/* create the function map entry */
-	if (of_find_property(np, "samsung,pin-function", NULL)) {
-		fname = kzalloc(strlen(np->name) + FSUFFIX_LEN,	GFP_KERNEL);
-		if (!fname) {
-			dev_err(dev, "failed to alloc memory for func name\n");
-			goto free_cfg;
-		}
-		sprintf(fname, "%s%s", np->name, FUNCTION_SUFFIX);
-
-		map[*nmaps].data.mux.group = gname;
-		map[*nmaps].data.mux.function = fname;
-		map[*nmaps].type = PIN_MAP_TYPE_MUX_GROUP;
-		*nmaps += 1;
-	}
-
-	*maps = map;
 	return 0;
-
-free_cfg:
-	kfree(cfg);
-free_gname:
-	kfree(gname);
-free_map:
-	kfree(map);
-	return -ENOMEM;
 }
 
-/* free the memory allocated to hold the pin-map table */
-static void samsung_dt_free_map(struct pinctrl_dev *pctldev,
-			     struct pinctrl_map *map, unsigned num_maps)
+static int add_map_mux(struct pinctrl_map **map, unsigned *reserved_maps,
+		       unsigned *num_maps, const char *group,
+		       const char *function)
 {
-	int idx;
+	if (WARN_ON(*num_maps == *reserved_maps))
+		return -ENOSPC;
 
-	for (idx = 0; idx < num_maps; idx++) {
-		if (map[idx].type == PIN_MAP_TYPE_MUX_GROUP) {
-			kfree(map[idx].data.mux.function);
-			if (!idx)
-				kfree(map[idx].data.mux.group);
-		} else if (map->type == PIN_MAP_TYPE_CONFIGS_GROUP) {
-			kfree(map[idx].data.configs.configs);
-			if (!idx)
-				kfree(map[idx].data.configs.group_or_pin);
-		}
-	};
+	(*map)[*num_maps].type = PIN_MAP_TYPE_MUX_GROUP;
+	(*map)[*num_maps].data.mux.group = group;
+	(*map)[*num_maps].data.mux.function = function;
+	(*num_maps)++;
+
+	return 0;
+}
+
+static int add_map_configs(struct device *dev, struct pinctrl_map **map,
+			   unsigned *reserved_maps, unsigned *num_maps,
+			   const char *group, unsigned long *configs,
+			   unsigned num_configs)
+{
+	unsigned long *dup_configs;
+
+	if (WARN_ON(*num_maps == *reserved_maps))
+		return -ENOSPC;
+
+	dup_configs = kmemdup(configs, num_configs * sizeof(*dup_configs),
+			      GFP_KERNEL);
+	if (!dup_configs) {
+		dev_err(dev, "kmemdup(configs) failed\n");
+		return -ENOMEM;
+	}
+
+	(*map)[*num_maps].type = PIN_MAP_TYPE_CONFIGS_GROUP;
+	(*map)[*num_maps].data.configs.group_or_pin = group;
+	(*map)[*num_maps].data.configs.configs = dup_configs;
+	(*map)[*num_maps].data.configs.num_configs = num_configs;
+	(*num_maps)++;
+
+	return 0;
+}
+
+static int add_config(struct device *dev, unsigned long **configs,
+		      unsigned *num_configs, unsigned long config)
+{
+	unsigned old_num = *num_configs;
+	unsigned new_num = old_num + 1;
+	unsigned long *new_configs;
+
+	new_configs = krealloc(*configs, sizeof(*new_configs) * new_num,
+			       GFP_KERNEL);
+	if (!new_configs) {
+		dev_err(dev, "krealloc(configs) failed\n");
+		return -ENOMEM;
+	}
+
+	new_configs[old_num] = config;
+
+	*configs = new_configs;
+	*num_configs = new_num;
+
+	return 0;
+}
+
+static void samsung_dt_free_map(struct pinctrl_dev *pctldev,
+				      struct pinctrl_map *map,
+				      unsigned num_maps)
+{
+	int i;
+
+	for (i = 0; i < num_maps; i++)
+		if (map[i].type == PIN_MAP_TYPE_CONFIGS_GROUP)
+			kfree(map[i].data.configs.configs);
 
 	kfree(map);
+}
+
+static int samsung_dt_subnode_to_map(struct samsung_pinctrl_drv_data *drvdata,
+				     struct device *dev,
+				     struct device_node *np,
+				     struct pinctrl_map **map,
+				     unsigned *reserved_maps,
+				     unsigned *num_maps)
+{
+	int ret, i;
+	u32 val;
+	unsigned long config;
+	unsigned long *configs = NULL;
+	unsigned num_configs = 0;
+	unsigned reserve;
+	struct property *prop;
+	const char *group;
+	bool has_func = false;
+
+	ret = of_property_read_u32(np, "samsung,pin-function", &val);
+	if (!ret)
+		has_func = true;
+
+	for (i = 0; i < ARRAY_SIZE(cfg_params); i++) {
+		ret = of_property_read_u32(np, cfg_params[i].property, &val);
+		if (!ret) {
+			config = PINCFG_PACK(cfg_params[i].param, val);
+			ret = add_config(dev, &configs, &num_configs, config);
+			if (ret < 0)
+				goto exit;
+		/* EINVAL=missing, which is fine since it's optional */
+		} else if (ret != -EINVAL) {
+			dev_err(dev, "could not parse property %s\n",
+				cfg_params[i].property);
+		}
+	}
+
+	reserve = 0;
+	if (has_func)
+		reserve++;
+	if (num_configs)
+		reserve++;
+	ret = of_property_count_strings(np, "samsung,pins");
+	if (ret < 0) {
+		dev_err(dev, "could not parse property samsung,pins\n");
+		goto exit;
+	}
+	reserve *= ret;
+
+	ret = reserve_map(dev, map, reserved_maps, num_maps, reserve);
+	if (ret < 0)
+		goto exit;
+
+	of_property_for_each_string(np, "samsung,pins", prop, group) {
+		if (has_func) {
+			ret = add_map_mux(map, reserved_maps,
+						num_maps, group, np->full_name);
+			if (ret < 0)
+				goto exit;
+		}
+
+		if (num_configs) {
+			ret = add_map_configs(dev, map, reserved_maps,
+					      num_maps, group, configs,
+					      num_configs);
+			if (ret < 0)
+				goto exit;
+		}
+	}
+
+	ret = 0;
+
+exit:
+	kfree(configs);
+	return ret;
+}
+
+static int samsung_dt_node_to_map(struct pinctrl_dev *pctldev,
+					struct device_node *np_config,
+					struct pinctrl_map **map,
+					unsigned *num_maps)
+{
+	struct samsung_pinctrl_drv_data *drvdata;
+	unsigned reserved_maps;
+	struct device_node *np;
+	int ret;
+
+	drvdata = pinctrl_dev_get_drvdata(pctldev);
+
+	reserved_maps = 0;
+	*map = NULL;
+	*num_maps = 0;
+
+	if (!of_get_child_count(np_config))
+		return samsung_dt_subnode_to_map(drvdata, pctldev->dev,
+							np_config, map,
+							&reserved_maps,
+							num_maps);
+
+	for_each_child_of_node(np_config, np) {
+		ret = samsung_dt_subnode_to_map(drvdata, pctldev->dev, np, map,
+						&reserved_maps, num_maps);
+		if (ret < 0) {
+			samsung_dt_free_map(pctldev, *map, *num_maps);
+			return ret;
+		}
+	}
+
+	return 0;
 }
 
 /* list of pinctrl callbacks for the pinctrl core */
@@ -286,83 +366,21 @@ static void samsung_pinmux_setup(struct pinctrl_dev *pctldev, unsigned selector,
 					unsigned group, bool enable)
 {
 	struct samsung_pinctrl_drv_data *drvdata;
-	const unsigned int *pins;
-	struct samsung_pin_bank *bank;
-	void __iomem *reg;
-	u32 mask, shift, data, pin_offset, cnt;
-	unsigned long flags;
-
-	drvdata = pinctrl_dev_get_drvdata(pctldev);
-	pins = drvdata->pin_groups[group].pins;
-
-	/*
-	 * for each pin in the pin group selected, program the correspoding pin
-	 * pin function number in the config register.
-	 */
-	for (cnt = 0; cnt < drvdata->pin_groups[group].num_pins; cnt++) {
-		struct samsung_pin_bank_type *type;
-
-		pin_to_reg_bank(drvdata, pins[cnt] - drvdata->ctrl->base,
-				&reg, &pin_offset, &bank);
-		type = bank->type;
-		mask = (1 << type->fld_width[PINCFG_TYPE_FUNC]) - 1;
-		shift = pin_offset * type->fld_width[PINCFG_TYPE_FUNC];
-		if (shift >= 32) {
-			/* Some banks have two config registers */
-			shift -= 32;
-			reg += 4;
-		}
-
-		spin_lock_irqsave(&bank->slock, flags);
-
-		data = readl(reg + type->reg_offset[PINCFG_TYPE_FUNC]);
-		data &= ~(mask << shift);
-		if (enable)
-			data |= drvdata->pin_groups[group].func << shift;
-		writel(data, reg + type->reg_offset[PINCFG_TYPE_FUNC]);
-
-		spin_unlock_irqrestore(&bank->slock, flags);
-	}
-}
-
-/* enable a specified pinmux by writing to registers */
-static int samsung_pinmux_enable(struct pinctrl_dev *pctldev, unsigned selector,
-					unsigned group)
-{
-	samsung_pinmux_setup(pctldev, selector, group, true);
-	return 0;
-}
-
-/* disable a specified pinmux by writing to registers */
-static void samsung_pinmux_disable(struct pinctrl_dev *pctldev,
-					unsigned selector, unsigned group)
-{
-	samsung_pinmux_setup(pctldev, selector, group, false);
-}
-
-/*
- * The calls to gpio_direction_output() and gpio_direction_input()
- * leads to this function call (via the pinctrl_gpio_direction_{input|output}()
- * function called from the gpiolib interface).
- */
-static int samsung_pinmux_gpio_set_direction(struct pinctrl_dev *pctldev,
-		struct pinctrl_gpio_range *range, unsigned offset, bool input)
-{
 	struct samsung_pin_bank_type *type;
 	struct samsung_pin_bank *bank;
-	struct samsung_pinctrl_drv_data *drvdata;
 	void __iomem *reg;
-	u32 data, pin_offset, mask, shift;
+	u32 mask, shift, data, pin_offset;
 	unsigned long flags;
+	const struct samsung_pmx_func *func;
+	const struct samsung_pin_group *grp;
 
-	bank = gc_to_pin_bank(range->gc);
-	type = bank->type;
 	drvdata = pinctrl_dev_get_drvdata(pctldev);
+	func = &drvdata->pmx_functions[selector];
+	grp = &drvdata->pin_groups[group];
 
-	pin_offset = offset - bank->pin_base;
-	reg = drvdata->virt_base + bank->pctl_offset +
-					type->reg_offset[PINCFG_TYPE_FUNC];
-
+	pin_to_reg_bank(drvdata, grp->pins[0] - drvdata->ctrl->base,
+			&reg, &pin_offset, &bank);
+	type = bank->type;
 	mask = (1 << type->fld_width[PINCFG_TYPE_FUNC]) - 1;
 	shift = pin_offset * type->fld_width[PINCFG_TYPE_FUNC];
 	if (shift >= 32) {
@@ -373,14 +391,20 @@ static int samsung_pinmux_gpio_set_direction(struct pinctrl_dev *pctldev,
 
 	spin_lock_irqsave(&bank->slock, flags);
 
-	data = readl(reg);
+	data = readl(reg + type->reg_offset[PINCFG_TYPE_FUNC]);
 	data &= ~(mask << shift);
-	if (!input)
-		data |= FUNC_OUTPUT << shift;
-	writel(data, reg);
+	if (enable)
+		data |= func->val << shift;
+	writel(data, reg + type->reg_offset[PINCFG_TYPE_FUNC]);
 
 	spin_unlock_irqrestore(&bank->slock, flags);
+}
 
+/* enable a specified pinmux by writing to registers */
+static int samsung_pinmux_enable(struct pinctrl_dev *pctldev, unsigned selector,
+					unsigned group)
+{
+	samsung_pinmux_setup(pctldev, selector, group, true);
 	return 0;
 }
 
@@ -390,8 +414,6 @@ static const struct pinmux_ops samsung_pinmux_ops = {
 	.get_function_name	= samsung_pinmux_get_fname,
 	.get_function_groups	= samsung_pinmux_get_groups,
 	.enable			= samsung_pinmux_enable,
-	.disable		= samsung_pinmux_disable,
-	.gpio_set_direction	= samsung_pinmux_gpio_set_direction,
 };
 
 /* set or get the pin config settings for a specified pin */
@@ -540,25 +562,59 @@ static int samsung_gpio_get(struct gpio_chip *gc, unsigned offset)
 }
 
 /*
- * gpiolib gpio_direction_input callback function. The setting of the pin
- * mux function as 'gpio input' will be handled by the pinctrl susbsystem
- * interface.
+ * The calls to gpio_direction_output() and gpio_direction_input()
+ * leads to this function call.
  */
-static int samsung_gpio_direction_input(struct gpio_chip *gc, unsigned offset)
+static int samsung_gpio_set_direction(struct gpio_chip *gc,
+					     unsigned offset, bool input)
 {
-	return pinctrl_gpio_direction_input(gc->base + offset);
+	struct samsung_pin_bank_type *type;
+	struct samsung_pin_bank *bank;
+	struct samsung_pinctrl_drv_data *drvdata;
+	void __iomem *reg;
+	u32 data, mask, shift;
+	unsigned long flags;
+
+	bank = gc_to_pin_bank(gc);
+	type = bank->type;
+	drvdata = bank->drvdata;
+
+	reg = drvdata->virt_base + bank->pctl_offset +
+					type->reg_offset[PINCFG_TYPE_FUNC];
+
+	mask = (1 << type->fld_width[PINCFG_TYPE_FUNC]) - 1;
+	shift = offset * type->fld_width[PINCFG_TYPE_FUNC];
+	if (shift >= 32) {
+		/* Some banks have two config registers */
+		shift -= 32;
+		reg += 4;
+	}
+
+	spin_lock_irqsave(&bank->slock, flags);
+
+	data = readl(reg);
+	data &= ~(mask << shift);
+	if (!input)
+		data |= FUNC_OUTPUT << shift;
+	writel(data, reg);
+
+	spin_unlock_irqrestore(&bank->slock, flags);
+
+	return 0;
 }
 
-/*
- * gpiolib gpio_direction_output callback function. The setting of the pin
- * mux function as 'gpio output' will be handled by the pinctrl susbsystem
- * interface.
- */
+/* gpiolib gpio_direction_input callback function. */
+static int samsung_gpio_direction_input(struct gpio_chip *gc, unsigned offset)
+{
+	return samsung_gpio_set_direction(gc, offset, true);
+}
+
+/* gpiolib gpio_direction_output callback function. */
 static int samsung_gpio_direction_output(struct gpio_chip *gc, unsigned offset,
 							int value)
 {
 	samsung_gpio_set(gc, offset, value);
-	return pinctrl_gpio_direction_output(gc->base + offset);
+	return samsung_gpio_set_direction(gc, offset, false);
 }
 
 /*
@@ -578,87 +634,115 @@ static int samsung_gpio_to_irq(struct gpio_chip *gc, unsigned offset)
 	return (virq) ? : -ENXIO;
 }
 
-/*
- * Parse the pin names listed in the 'samsung,pins' property and convert it
- * into a list of gpio numbers are create a pin group from it.
- */
-static int samsung_pinctrl_parse_dt_pins(struct platform_device *pdev,
-					 struct device_node *cfg_np,
-					 struct pinctrl_desc *pctl,
-					 unsigned int **pin_list,
-					 unsigned int *npins)
+static struct samsung_pin_group *samsung_pinctrl_create_groups(
+				struct device *dev,
+				struct samsung_pinctrl_drv_data *drvdata,
+				unsigned int *cnt)
 {
-	struct device *dev = &pdev->dev;
-	struct property *prop;
-	struct pinctrl_pin_desc const *pdesc = pctl->pins;
-	unsigned int idx = 0, cnt;
-	const char *pin_name;
-
-	*npins = of_property_count_strings(cfg_np, "samsung,pins");
-	if (IS_ERR_VALUE(*npins)) {
-		dev_err(dev, "invalid pin list in %s node", cfg_np->name);
-		return -EINVAL;
-	}
-
-	*pin_list = devm_kzalloc(dev, *npins * sizeof(**pin_list), GFP_KERNEL);
-	if (!*pin_list) {
-		dev_err(dev, "failed to allocate memory for pin list\n");
-		return -ENOMEM;
-	}
-
-	of_property_for_each_string(cfg_np, "samsung,pins", prop, pin_name) {
-		for (cnt = 0; cnt < pctl->npins; cnt++) {
-			if (pdesc[cnt].name) {
-				if (!strcmp(pin_name, pdesc[cnt].name)) {
-					(*pin_list)[idx++] = pdesc[cnt].number;
-					break;
-				}
-			}
-		}
-		if (cnt == pctl->npins) {
-			dev_err(dev, "pin %s not valid in %s node\n",
-					pin_name, cfg_np->name);
-			devm_kfree(dev, *pin_list);
-			return -EINVAL;
-		}
-	}
-
-	return 0;
-}
-
-/*
- * Parse the information about all the available pin groups and pin functions
- * from device node of the pin-controller. A pin group is formed with all
- * the pins listed in the "samsung,pins" property.
- */
-static int samsung_pinctrl_parse_dt(struct platform_device *pdev,
-				    struct samsung_pinctrl_drv_data *drvdata)
-{
-	struct device *dev = &pdev->dev;
-	struct device_node *dev_np = dev->of_node;
-	struct device_node *cfg_np;
+	struct pinctrl_desc *ctrldesc = &drvdata->pctl;
 	struct samsung_pin_group *groups, *grp;
-	struct samsung_pmx_func *functions, *func;
-	unsigned *pin_list;
-	unsigned int npins, grp_cnt, func_idx = 0;
-	char *gname, *fname;
-	int ret;
+	const struct pinctrl_pin_desc *pdesc;
+	int i;
 
-	grp_cnt = of_get_child_count(dev_np);
-	if (!grp_cnt)
-		return -EINVAL;
-
-	groups = devm_kzalloc(dev, grp_cnt * sizeof(*groups), GFP_KERNEL);
-	if (!groups) {
-		dev_err(dev, "failed allocate memory for ping group list\n");
-		return -EINVAL;
-	}
+	groups = devm_kzalloc(dev, ctrldesc->npins * sizeof(*groups),
+				GFP_KERNEL);
+	if (!groups)
+		return ERR_PTR(-EINVAL);
 	grp = groups;
 
-	functions = devm_kzalloc(dev, grp_cnt * sizeof(*functions), GFP_KERNEL);
+	pdesc = ctrldesc->pins;
+	for (i = 0; i < ctrldesc->npins; ++i, ++pdesc, ++grp) {
+		grp->name = pdesc->name;
+		grp->pins = &pdesc->number;
+		grp->num_pins = 1;
+	}
+
+	*cnt = ctrldesc->npins;
+	return groups;
+}
+
+static int samsung_pinctrl_create_function(struct device *dev,
+				struct samsung_pinctrl_drv_data *drvdata,
+				struct device_node *func_np,
+				struct samsung_pmx_func *func)
+{
+	int npins;
+	int ret;
+	int i;
+
+	if (of_property_read_u32(func_np, "samsung,pin-function", &func->val))
+		return 0;
+
+	npins = of_property_count_strings(func_np, "samsung,pins");
+	if (npins < 1) {
+		dev_err(dev, "invalid pin list in %s node", func_np->name);
+		return -EINVAL;
+	}
+
+	func->name = func_np->full_name;
+
+	func->groups = devm_kzalloc(dev, npins * sizeof(char *), GFP_KERNEL);
+	if (!func->groups)
+		return -ENOMEM;
+
+	for (i = 0; i < npins; ++i) {
+		const char *gname;
+
+		ret = of_property_read_string_index(func_np, "samsung,pins",
+							i, &gname);
+		if (ret) {
+			dev_err(dev,
+				"failed to read pin name %d from %s node\n",
+				i, func_np->name);
+			return ret;
+		}
+
+		func->groups[i] = gname;
+	}
+
+	func->num_groups = npins;
+	return 1;
+}
+
+static struct samsung_pmx_func *samsung_pinctrl_create_functions(
+				struct device *dev,
+				struct samsung_pinctrl_drv_data *drvdata,
+				unsigned int *cnt)
+{
+	struct samsung_pmx_func *functions, *func;
+	struct device_node *dev_np = dev->of_node;
+	struct device_node *cfg_np;
+	unsigned int func_cnt = 0;
+	int ret;
+
+	/*
+	 * Iterate over all the child nodes of the pin controller node
+	 * and create pin groups and pin function lists.
+	 */
+	for_each_child_of_node(dev_np, cfg_np) {
+		struct device_node *func_np;
+
+		if (!of_get_child_count(cfg_np)) {
+			if (!of_find_property(cfg_np,
+			    "samsung,pin-function", NULL))
+				continue;
+			++func_cnt;
+			continue;
+		}
+
+		for_each_child_of_node(cfg_np, func_np) {
+			if (!of_find_property(func_np,
+			    "samsung,pin-function", NULL))
+				continue;
+			++func_cnt;
+		}
+	}
+
+	functions = devm_kzalloc(dev, func_cnt * sizeof(*functions),
+					GFP_KERNEL);
 	if (!functions) {
 		dev_err(dev, "failed to allocate memory for function list\n");
-		return -EINVAL;
+		return ERR_PTR(-EINVAL);
 	}
 	func = functions;
 
@@ -666,61 +750,68 @@ static int samsung_pinctrl_parse_dt(struct platform_device *pdev,
 	 * Iterate over all the child nodes of the pin controller node
 	 * and create pin groups and pin function lists.
 	 */
+	func_cnt = 0;
 	for_each_child_of_node(dev_np, cfg_np) {
-		u32 function;
-		if (!of_find_property(cfg_np, "samsung,pins", NULL))
+		struct device_node *func_np;
+
+		if (!of_get_child_count(cfg_np)) {
+			ret = samsung_pinctrl_create_function(dev, drvdata,
+							cfg_np, func);
+			if (ret < 0)
+				return ERR_PTR(ret);
+			if (ret > 0) {
+				++func;
+				++func_cnt;
+			}
 			continue;
-
-		ret = samsung_pinctrl_parse_dt_pins(pdev, cfg_np,
-					&drvdata->pctl,	&pin_list, &npins);
-		if (ret)
-			return ret;
-
-		/* derive pin group name from the node name */
-		gname = devm_kzalloc(dev, strlen(cfg_np->name) + GSUFFIX_LEN,
-					GFP_KERNEL);
-		if (!gname) {
-			dev_err(dev, "failed to alloc memory for group name\n");
-			return -ENOMEM;
 		}
-		sprintf(gname, "%s%s", cfg_np->name, GROUP_SUFFIX);
 
-		grp->name = gname;
-		grp->pins = pin_list;
-		grp->num_pins = npins;
-		of_property_read_u32(cfg_np, "samsung,pin-function", &function);
-		grp->func = function;
-		grp++;
-
-		if (!of_find_property(cfg_np, "samsung,pin-function", NULL))
-			continue;
-
-		/* derive function name from the node name */
-		fname = devm_kzalloc(dev, strlen(cfg_np->name) + FSUFFIX_LEN,
-					GFP_KERNEL);
-		if (!fname) {
-			dev_err(dev, "failed to alloc memory for func name\n");
-			return -ENOMEM;
+		for_each_child_of_node(cfg_np, func_np) {
+			ret = samsung_pinctrl_create_function(dev, drvdata,
+						func_np, func);
+			if (ret < 0)
+				return ERR_PTR(ret);
+			if (ret > 0) {
+				++func;
+				++func_cnt;
+			}
 		}
-		sprintf(fname, "%s%s", cfg_np->name, FUNCTION_SUFFIX);
+	}
 
-		func->name = fname;
-		func->groups = devm_kzalloc(dev, sizeof(char *), GFP_KERNEL);
-		if (!func->groups) {
-			dev_err(dev, "failed to alloc memory for group list "
-					"in pin function");
-			return -ENOMEM;
-		}
-		func->groups[0] = gname;
-		func->num_groups = 1;
-		func++;
-		func_idx++;
+	*cnt = func_cnt;
+	return functions;
+}
+
+/*
+ * Parse the information about all the available pin groups and pin functions
+ * from device node of the pin-controller. A pin group is formed with all
+ * the pins listed in the "samsung,pins" property.
+ */
+
+static int samsung_pinctrl_parse_dt(struct platform_device *pdev,
+				    struct samsung_pinctrl_drv_data *drvdata)
+{
+	struct device *dev = &pdev->dev;
+	struct samsung_pin_group *groups;
+	struct samsung_pmx_func *functions;
+	unsigned int grp_cnt = 0, func_cnt = 0;
+
+	groups = samsung_pinctrl_create_groups(dev, drvdata, &grp_cnt);
+	if (IS_ERR(groups)) {
+		dev_err(dev, "failed to parse pin groups\n");
+		return PTR_ERR(groups);
+	}
+
+	functions = samsung_pinctrl_create_functions(dev, drvdata, &func_cnt);
+	if (IS_ERR(functions)) {
+		dev_err(dev, "failed to parse pin functions\n");
+		return PTR_ERR(groups);
 	}
 
 	drvdata->pin_groups = groups;
 	drvdata->nr_groups = grp_cnt;
 	drvdata->pmx_functions = functions;
-	drvdata->nr_functions = func_idx;
+	drvdata->nr_functions = func_cnt;
 
 	return 0;
 }
@@ -790,7 +881,8 @@ static int samsung_pinctrl_register(struct platform_device *pdev,
 		pin_bank = &drvdata->ctrl->pin_banks[bank];
 		pin_bank->grange.name = pin_bank->name;
 		pin_bank->grange.id = bank;
-		pin_bank->grange.pin_base = pin_bank->pin_base;
+		pin_bank->grange.pin_base = drvdata->ctrl->base
+						+ pin_bank->pin_base;
 		pin_bank->grange.base = pin_bank->gpio_chip.base;
 		pin_bank->grange.npins = pin_bank->gpio_chip.ngpio;
 		pin_bank->grange.gc = &pin_bank->gpio_chip;
@@ -800,7 +892,19 @@ static int samsung_pinctrl_register(struct platform_device *pdev,
 	return 0;
 }
 
+static int samsung_gpio_request(struct gpio_chip *chip, unsigned offset)
+{
+	return pinctrl_request_gpio(chip->base + offset);
+}
+
+static void samsung_gpio_free(struct gpio_chip *chip, unsigned offset)
+{
+	pinctrl_free_gpio(chip->base + offset);
+}
+
 static const struct gpio_chip samsung_gpiolib_chip = {
+	.request = samsung_gpio_request,
+	.free = samsung_gpio_free,
 	.set = samsung_gpio_set,
 	.get = samsung_gpio_get,
 	.direction_input = samsung_gpio_direction_input,
