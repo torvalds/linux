@@ -139,11 +139,17 @@ static int smp_ah(struct crypto_blkcipher *tfm, u8 irk[16], u8 r[3], u8 res[3])
 	return 0;
 }
 
-bool smp_irk_matches(struct crypto_blkcipher *tfm, u8 irk[16],
-		     bdaddr_t *bdaddr)
+bool smp_irk_matches(struct hci_dev *hdev, u8 irk[16], bdaddr_t *bdaddr)
 {
+	struct l2cap_chan *chan = hdev->smp_data;
+	struct crypto_blkcipher *tfm;
 	u8 hash[3];
 	int err;
+
+	if (!chan || !chan->data)
+		return false;
+
+	tfm = chan->data;
 
 	BT_DBG("RPA %pMR IRK %*phN", bdaddr, 16, irk);
 
@@ -154,9 +160,16 @@ bool smp_irk_matches(struct crypto_blkcipher *tfm, u8 irk[16],
 	return !memcmp(bdaddr->b, hash, 3);
 }
 
-int smp_generate_rpa(struct crypto_blkcipher *tfm, u8 irk[16], bdaddr_t *rpa)
+int smp_generate_rpa(struct hci_dev *hdev, u8 irk[16], bdaddr_t *rpa)
 {
+	struct l2cap_chan *chan = hdev->smp_data;
+	struct crypto_blkcipher *tfm;
 	int err;
+
+	if (!chan || !chan->data)
+		return -EOPNOTSUPP;
+
+	tfm = chan->data;
 
 	get_random_bytes(&rpa->b[3], 3);
 
@@ -1555,24 +1568,24 @@ static const struct l2cap_ops smp_root_chan_ops = {
 int smp_register(struct hci_dev *hdev)
 {
 	struct l2cap_chan *chan;
+	struct crypto_blkcipher	*tfm_aes;
 
 	BT_DBG("%s", hdev->name);
 
-	hdev->tfm_aes = crypto_alloc_blkcipher("ecb(aes)", 0,
-					       CRYPTO_ALG_ASYNC);
-	if (IS_ERR(hdev->tfm_aes)) {
-		int err = PTR_ERR(hdev->tfm_aes);
+	tfm_aes = crypto_alloc_blkcipher("ecb(aes)", 0, CRYPTO_ALG_ASYNC);
+	if (IS_ERR(tfm_aes)) {
+		int err = PTR_ERR(tfm_aes);
 		BT_ERR("Unable to create crypto context");
-		hdev->tfm_aes = NULL;
 		return err;
 	}
 
 	chan = l2cap_chan_create();
 	if (!chan) {
-		crypto_free_blkcipher(hdev->tfm_aes);
-		hdev->tfm_aes = NULL;
+		crypto_free_blkcipher(tfm_aes);
 		return -ENOMEM;
 	}
+
+	chan->data = tfm_aes;
 
 	/* FIXME: Using reserved 0x1f value for now - to be changed to
 	 * L2CAP_CID_SMP once all functionality is in place.
@@ -1596,15 +1609,17 @@ int smp_register(struct hci_dev *hdev)
 void smp_unregister(struct hci_dev *hdev)
 {
 	struct l2cap_chan *chan = hdev->smp_data;
+	struct crypto_blkcipher *tfm_aes;
 
 	if (!chan)
 		return;
 
 	BT_DBG("%s chan %p", hdev->name, chan);
 
-	if (hdev->tfm_aes) {
-		crypto_free_blkcipher(hdev->tfm_aes);
-		hdev->tfm_aes = NULL;
+	tfm_aes = chan->data;
+	if (tfm_aes) {
+		chan->data = NULL;
+		crypto_free_blkcipher(tfm_aes);
 	}
 
 	hdev->smp_data = NULL;

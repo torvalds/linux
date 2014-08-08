@@ -3234,11 +3234,8 @@ struct smp_irk *hci_find_irk_by_rpa(struct hci_dev *hdev, bdaddr_t *rpa)
 			return irk;
 	}
 
-	if (!hdev->tfm_aes)
-		return NULL;
-
 	list_for_each_entry(irk, &hdev->identity_resolving_keys, list) {
-		if (smp_irk_matches(hdev->tfm_aes, irk->val, rpa)) {
+		if (smp_irk_matches(hdev, irk->val, rpa)) {
 			bacpy(&irk->rpa, rpa);
 			return irk;
 		}
@@ -3887,13 +3884,7 @@ int hci_update_random_address(struct hci_request *req, bool require_privacy,
 		    !bacmp(&hdev->random_addr, &hdev->rpa))
 			return 0;
 
-		if (!hdev->tfm_aes) {
-			BT_ERR("%s crypto not available to generate RPA",
-			       hdev->name);
-			return -EOPNOTSUPP;
-		}
-
-		err = smp_generate_rpa(hdev->tfm_aes, hdev->irk, &hdev->rpa);
+		err = smp_generate_rpa(hdev, hdev->irk, &hdev->rpa);
 		if (err < 0) {
 			BT_ERR("%s failed to generate new RPA", hdev->name);
 			return err;

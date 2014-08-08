@@ -132,9 +132,8 @@ int smp_user_confirm_reply(struct hci_conn *conn, u16 mgmt_op, __le32 passkey);
 
 void smp_chan_destroy(struct l2cap_conn *conn);
 
-bool smp_irk_matches(struct crypto_blkcipher *tfm, u8 irk[16],
-		     bdaddr_t *bdaddr);
-int smp_generate_rpa(struct crypto_blkcipher *tfm, u8 irk[16], bdaddr_t *rpa);
+bool smp_irk_matches(struct hci_dev *hdev, u8 irk[16], bdaddr_t *bdaddr);
+int smp_generate_rpa(struct hci_dev *hdev, u8 irk[16], bdaddr_t *rpa);
 
 int smp_register(struct hci_dev *hdev);
 void smp_unregister(struct hci_dev *hdev);
