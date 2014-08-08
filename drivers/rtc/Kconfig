@@ -760,6 +760,15 @@ config RTC_DRV_DS1742
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-ds1742.
 
+config RTC_DRV_DS2404
+	tristate "Maxim/Dallas DS2404"
+	help
+	  If you say yes here you get support for the
+	  Dallas DS2404 RTC chip.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-ds2404.
+
 config RTC_DRV_DA9052
 	tristate "Dialog DA9052/DA9053 RTC"
 	depends on PMIC_DA9052
@@ -872,15 +881,6 @@ config RTC_DRV_V3020
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-v3020.
-
-config RTC_DRV_DS2404
-	tristate "Dallas DS2404"
-	help
-	  If you say yes here you get support for the
-	  Dallas DS2404 RTC chip.
-
-	  This driver can also be built as a module. If so, the module
-	  will be called rtc-ds2404.
 
 config RTC_DRV_WM831X
 	tristate "Wolfson Microelectronics WM831x RTC"
