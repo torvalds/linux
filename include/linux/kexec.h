@@ -121,13 +121,57 @@ struct kimage {
 #define KEXEC_TYPE_DEFAULT 0
 #define KEXEC_TYPE_CRASH   1
 	unsigned int preserve_context : 1;
+	/* If set, we are using file mode kexec syscall */
+	unsigned int file_mode:1;
 
 #ifdef ARCH_HAS_KIMAGE_ARCH
 	struct kimage_arch arch;
 #endif
+
+	/* Additional fields for file based kexec syscall */
+	void *kernel_buf;
+	unsigned long kernel_buf_len;
+
+	void *initrd_buf;
+	unsigned long initrd_buf_len;
+
+	char *cmdline_buf;
+	unsigned long cmdline_buf_len;
+
+	/* File operations provided by image loader */
+	struct kexec_file_ops *fops;
+
+	/* Image loader handling the kernel can store a pointer here */
+	void *image_loader_data;
 };
 
+/*
+ * Keeps track of buffer parameters as provided by caller for requesting
+ * memory placement of buffer.
+ */
+struct kexec_buf {
+	struct kimage *image;
+	char *buffer;
+	unsigned long bufsz;
+	unsigned long memsz;
+	unsigned long buf_align;
+	unsigned long buf_min;
+	unsigned long buf_max;
+	bool top_down;		/* allocate from top of memory hole */
+};
 
+typedef int (kexec_probe_t)(const char *kernel_buf, unsigned long kernel_size);
+typedef void *(kexec_load_t)(struct kimage *image, char *kernel_buf,
+			     unsigned long kernel_len, char *initrd,
+			     unsigned long initrd_len, char *cmdline,
+			     unsigned long cmdline_len);
+typedef int (kexec_cleanup_t)(struct kimage *image);
+
+struct kexec_file_ops {
+	kexec_probe_t *probe;
+	kexec_load_t *load;
+	kexec_cleanup_t *cleanup;
+};
 
 /* kexec interface functions */
 extern void machine_kexec(struct kimage *image);
@@ -138,6 +182,11 @@ extern asmlinkage long sys_kexec_load(unsigned long entry,
 					struct kexec_segment __user *segments,
 					unsigned long flags);
 extern int kernel_kexec(void);
+extern int kexec_add_buffer(struct kimage *image, char *buffer,
+			    unsigned long bufsz, unsigned long memsz,
+			    unsigned long buf_align, unsigned long buf_min,
+			    unsigned long buf_max, bool top_down,
+			    unsigned long *load_addr);
 extern struct page *kimage_alloc_control_pages(struct kimage *image,
 						unsigned int order);
 extern void crash_kexec(struct pt_regs *);
@@ -187,6 +236,10 @@ extern int kexec_load_disabled;
 #else
 #define KEXEC_FLAGS    (KEXEC_ON_CRASH | KEXEC_PRESERVE_CONTEXT)
 #endif
+
+/* List of defined/legal kexec file flags */
+#define KEXEC_FILE_FLAGS	(KEXEC_FILE_UNLOAD | KEXEC_FILE_ON_CRASH | \
+				 KEXEC_FILE_NO_INITRAMFS)
 
 #define VMCOREINFO_BYTES           (4096)
 #define VMCOREINFO_NOTE_NAME       "VMCOREINFO"

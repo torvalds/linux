@@ -6,6 +6,8 @@
  * Version 2.  See the file COPYING for more details.
  */
 
+#define pr_fmt(fmt)	"kexec: " fmt
+
 #include <linux/capability.h>
 #include <linux/mm.h>
 #include <linux/file.h>
@@ -322,6 +324,221 @@ static int kimage_alloc_init(struct kimage **rimage, unsigned long entry,
 	return 0;
 out_free_control_pages:
 	kimage_free_page_list(&image->control_pages);
+out_free_image:
+	kfree(image);
+	return ret;
+}
+
+static int copy_file_from_fd(int fd, void **buf, unsigned long *buf_len)
+{
+	struct fd f = fdget(fd);
+	int ret;
+	struct kstat stat;
+	loff_t pos;
+	ssize_t bytes = 0;
+
+	if (!f.file)
+		return -EBADF;
+
+	ret = vfs_getattr(&f.file->f_path, &stat);
+	if (ret)
+		goto out;
+
+	if (stat.size > INT_MAX) {
+		ret = -EFBIG;
+		goto out;
+	}
+
+	/* Don't hand 0 to vmalloc, it whines. */
+	if (stat.size == 0) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	*buf = vmalloc(stat.size);
+	if (!*buf) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	pos = 0;
+	while (pos < stat.size) {
+		bytes = kernel_read(f.file, pos, (char *)(*buf) + pos,
+				    stat.size - pos);
+		if (bytes < 0) {
+			vfree(*buf);
+			ret = bytes;
+			goto out;
+		}
+
+		if (bytes == 0)
+			break;
+		pos += bytes;
+	}
+
+	if (pos != stat.size) {
+		ret = -EBADF;
+		vfree(*buf);
+		goto out;
+	}
+
+	*buf_len = pos;
+out:
+	fdput(f);
+	return ret;
+}
+
+/* Architectures can provide this probe function */
+int __weak arch_kexec_kernel_image_probe(struct kimage *image, void *buf,
+					 unsigned long buf_len)
+{
+	return -ENOEXEC;
+}
+
+void * __weak arch_kexec_kernel_image_load(struct kimage *image)
+{
+	return ERR_PTR(-ENOEXEC);
+}
+
+void __weak arch_kimage_file_post_load_cleanup(struct kimage *image)
+{
+}
+
+/*
+ * Free up memory used by kernel, initrd, and comand line. This is temporary
+ * memory allocation which is not needed any more after these buffers have
+ * been loaded into separate segments and have been copied elsewhere.
+ */
+static void kimage_file_post_load_cleanup(struct kimage *image)
+{
+	vfree(image->kernel_buf);
+	image->kernel_buf = NULL;
+
+	vfree(image->initrd_buf);
+	image->initrd_buf = NULL;
+
+	kfree(image->cmdline_buf);
+	image->cmdline_buf = NULL;
+
+	/* See if architecture has anything to cleanup post load */
+	arch_kimage_file_post_load_cleanup(image);
+}
+
+/*
+ * In file mode list of segments is prepared by kernel. Copy relevant
+ * data from user space, do error checking, prepare segment list
+ */
+static int
+kimage_file_prepare_segments(struct kimage *image, int kernel_fd, int initrd_fd,
+			     const char __user *cmdline_ptr,
+			     unsigned long cmdline_len, unsigned flags)
+{
+	int ret = 0;
+	void *ldata;
+
+	ret = copy_file_from_fd(kernel_fd, &image->kernel_buf,
+				&image->kernel_buf_len);
+	if (ret)
+		return ret;
+
+	/* Call arch image probe handlers */
+	ret = arch_kexec_kernel_image_probe(image, image->kernel_buf,
+					    image->kernel_buf_len);
+
+	if (ret)
+		goto out;
+
+	/* It is possible that there no initramfs is being loaded */
+	if (!(flags & KEXEC_FILE_NO_INITRAMFS)) {
+		ret = copy_file_from_fd(initrd_fd, &image->initrd_buf,
+					&image->initrd_buf_len);
+		if (ret)
+			goto out;
+	}
+
+	if (cmdline_len) {
+		image->cmdline_buf = kzalloc(cmdline_len, GFP_KERNEL);
+		if (!image->cmdline_buf) {
+			ret = -ENOMEM;
+			goto out;
+		}
+
+		ret = copy_from_user(image->cmdline_buf, cmdline_ptr,
+				     cmdline_len);
+		if (ret) {
+			ret = -EFAULT;
+			goto out;
+		}
+
+		image->cmdline_buf_len = cmdline_len;
+
+		/* command line should be a string with last byte null */
+		if (image->cmdline_buf[cmdline_len - 1] != '\0') {
+			ret = -EINVAL;
+			goto out;
+		}
+	}
+
+	/* Call arch image load handlers */
+	ldata = arch_kexec_kernel_image_load(image);
+
+	if (IS_ERR(ldata)) {
+		ret = PTR_ERR(ldata);
+		goto out;
+	}
+
+	image->image_loader_data = ldata;
+out:
+	/* In case of error, free up all allocated memory in this function */
+	if (ret)
+		kimage_file_post_load_cleanup(image);
+	return ret;
+}
+
+static int
+kimage_file_alloc_init(struct kimage **rimage, int kernel_fd,
+		       int initrd_fd, const char __user *cmdline_ptr,
+		       unsigned long cmdline_len, unsigned long flags)
+{
+	int ret;
+	struct kimage *image;
+
+	image = do_kimage_alloc_init();
+	if (!image)
+		return -ENOMEM;
+
+	image->file_mode = 1;
+
+	ret = kimage_file_prepare_segments(image, kernel_fd, initrd_fd,
+					   cmdline_ptr, cmdline_len, flags);
+	if (ret)
+		goto out_free_image;
+
+	ret = sanity_check_segment_list(image);
+	if (ret)
+		goto out_free_post_load_bufs;
+
+	ret = -ENOMEM;
+	image->control_code_page = kimage_alloc_control_pages(image,
+					   get_order(KEXEC_CONTROL_PAGE_SIZE));
+	if (!image->control_code_page) {
+		pr_err("Could not allocate control_code_buffer\n");
+		goto out_free_post_load_bufs;
+	}
+
+	image->swap_page = kimage_alloc_control_pages(image, 0);
+	if (!image->swap_page) {
+		pr_err(KERN_ERR "Could not allocate swap buffer\n");
+		goto out_free_control_pages;
+	}
+
+	*rimage = image;
+	return 0;
+out_free_control_pages:
+	kimage_free_page_list(&image->control_pages);
+out_free_post_load_bufs:
+	kimage_file_post_load_cleanup(image);
+	kfree(image->image_loader_data);
 out_free_image:
 	kfree(image);
 	return ret;
@@ -644,6 +861,16 @@ static void kimage_free(struct kimage *image)
 
 	/* Free the kexec control pages... */
 	kimage_free_page_list(&image->control_pages);
+
+	kfree(image->image_loader_data);
+
+	/*
+	 * Free up any temporary buffers allocated. This might hit if
+	 * error occurred much later after buffer allocation.
+	 */
+	if (image->file_mode)
+		kimage_file_post_load_cleanup(image);
+
 	kfree(image);
 }
 
@@ -772,10 +999,14 @@ static int kimage_load_normal_segment(struct kimage *image,
 	unsigned long maddr;
 	size_t ubytes, mbytes;
 	int result;
-	unsigned char __user *buf;
+	unsigned char __user *buf = NULL;
+	unsigned char *kbuf = NULL;
 
 	result = 0;
-	buf = segment->buf;
+	if (image->file_mode)
+		kbuf = segment->kbuf;
+	else
+		buf = segment->buf;
 	ubytes = segment->bufsz;
 	mbytes = segment->memsz;
 	maddr = segment->mem;
@@ -807,7 +1038,11 @@ static int kimage_load_normal_segment(struct kimage *image,
 				PAGE_SIZE - (maddr & ~PAGE_MASK));
 		uchunk = min(ubytes, mchunk);
 
-		result = copy_from_user(ptr, buf, uchunk);
+		/* For file based kexec, source pages are in kernel memory */
+		if (image->file_mode)
+			memcpy(ptr, kbuf, uchunk);
+		else
+			result = copy_from_user(ptr, buf, uchunk);
 		kunmap(page);
 		if (result) {
 			result = -EFAULT;
@@ -815,7 +1050,10 @@ static int kimage_load_normal_segment(struct kimage *image,
 		}
 		ubytes -= uchunk;
 		maddr  += mchunk;
-		buf    += mchunk;
+		if (image->file_mode)
+			kbuf += mchunk;
+		else
+			buf += mchunk;
 		mbytes -= mchunk;
 	}
 out:
@@ -1062,7 +1300,72 @@ SYSCALL_DEFINE5(kexec_file_load, int, kernel_fd, int, initrd_fd,
 		unsigned long, cmdline_len, const char __user *, cmdline_ptr,
 		unsigned long, flags)
 {
-	return -ENOSYS;
+	int ret = 0, i;
+	struct kimage **dest_image, *image;
+
+	/* We only trust the superuser with rebooting the system. */
+	if (!capable(CAP_SYS_BOOT) || kexec_load_disabled)
+		return -EPERM;
+
+	/* Make sure we have a legal set of flags */
+	if (flags != (flags & KEXEC_FILE_FLAGS))
+		return -EINVAL;
+
+	image = NULL;
+
+	if (!mutex_trylock(&kexec_mutex))
+		return -EBUSY;
+
+	dest_image = &kexec_image;
+	if (flags & KEXEC_FILE_ON_CRASH)
+		dest_image = &kexec_crash_image;
+
+	if (flags & KEXEC_FILE_UNLOAD)
+		goto exchange;
+
+	/*
+	 * In case of crash, new kernel gets loaded in reserved region. It is
+	 * same memory where old crash kernel might be loaded. Free any
+	 * current crash dump kernel before we corrupt it.
+	 */
+	if (flags & KEXEC_FILE_ON_CRASH)
+		kimage_free(xchg(&kexec_crash_image, NULL));
+
+	ret = kimage_file_alloc_init(&image, kernel_fd, initrd_fd, cmdline_ptr,
+				     cmdline_len, flags);
+	if (ret)
+		goto out;
+
+	ret = machine_kexec_prepare(image);
+	if (ret)
+		goto out;
+
+	for (i = 0; i < image->nr_segments; i++) {
+		struct kexec_segment *ksegment;
+
+		ksegment = &image->segment[i];
+		pr_debug("Loading segment %d: buf=0x%p bufsz=0x%zx mem=0x%lx memsz=0x%zx\n",
+			 i, ksegment->buf, ksegment->bufsz, ksegment->mem,
+			 ksegment->memsz);
+
+		ret = kimage_load_segment(image, &image->segment[i]);
+		if (ret)
+			goto out;
+	}
+
+	kimage_terminate(image);
+
+	/*
+	 * Free up any temporary buffers allocated which are not needed
+	 * after image has been loaded
+	 */
+	kimage_file_post_load_cleanup(image);
+exchange:
+	image = xchg(dest_image, image);
+out:
+	mutex_unlock(&kexec_mutex);
+	kimage_free(image);
+	return ret;
 }
 
 void crash_kexec(struct pt_regs *regs)
@@ -1619,6 +1922,176 @@ static int __init crash_save_vmcoreinfo_init(void)
 }
 
 subsys_initcall(crash_save_vmcoreinfo_init);
+
+static int __kexec_add_segment(struct kimage *image, char *buf,
+			       unsigned long bufsz, unsigned long mem,
+			       unsigned long memsz)
+{
+	struct kexec_segment *ksegment;
+
+	ksegment = &image->segment[image->nr_segments];
+	ksegment->kbuf = buf;
+	ksegment->bufsz = bufsz;
+	ksegment->mem = mem;
+	ksegment->memsz = memsz;
+	image->nr_segments++;
+
+	return 0;
+}
+
+static int locate_mem_hole_top_down(unsigned long start, unsigned long end,
+				    struct kexec_buf *kbuf)
+{
+	struct kimage *image = kbuf->image;
+	unsigned long temp_start, temp_end;
+
+	temp_end = min(end, kbuf->buf_max);
+	temp_start = temp_end - kbuf->memsz;
+
+	do {
+		/* align down start */
+		temp_start = temp_start & (~(kbuf->buf_align - 1));
+
+		if (temp_start < start || temp_start < kbuf->buf_min)
+			return 0;
+
+		temp_end = temp_start + kbuf->memsz - 1;
+
+		/*
+		 * Make sure this does not conflict with any of existing
+		 * segments
+		 */
+		if (kimage_is_destination_range(image, temp_start, temp_end)) {
+			temp_start = temp_start - PAGE_SIZE;
+			continue;
+		}
+
+		/* We found a suitable memory range */
+		break;
+	} while (1);
+
+	/* If we are here, we found a suitable memory range */
+	__kexec_add_segment(image, kbuf->buffer, kbuf->bufsz, temp_start,
+			    kbuf->memsz);
+
+	/* Success, stop navigating through remaining System RAM ranges */
+	return 1;
+}
+
+static int locate_mem_hole_bottom_up(unsigned long start, unsigned long end,
+				     struct kexec_buf *kbuf)
+{
+	struct kimage *image = kbuf->image;
+	unsigned long temp_start, temp_end;
+
+	temp_start = max(start, kbuf->buf_min);
+
+	do {
+		temp_start = ALIGN(temp_start, kbuf->buf_align);
+		temp_end = temp_start + kbuf->memsz - 1;
+
+		if (temp_end > end || temp_end > kbuf->buf_max)
+			return 0;
+		/*
+		 * Make sure this does not conflict with any of existing
+		 * segments
+		 */
+		if (kimage_is_destination_range(image, temp_start, temp_end)) {
+			temp_start = temp_start + PAGE_SIZE;
+			continue;
+		}
+
+		/* We found a suitable memory range */
+		break;
+	} while (1);
+
+	/* If we are here, we found a suitable memory range */
+	__kexec_add_segment(image, kbuf->buffer, kbuf->bufsz, temp_start,
+			    kbuf->memsz);
+
+	/* Success, stop navigating through remaining System RAM ranges */
+	return 1;
+}
+
+static int locate_mem_hole_callback(u64 start, u64 end, void *arg)
+{
+	struct kexec_buf *kbuf = (struct kexec_buf *)arg;
+	unsigned long sz = end - start + 1;
+
+	/* Returning 0 will take to next memory range */
+	if (sz < kbuf->memsz)
+		return 0;
+
+	if (end < kbuf->buf_min || start > kbuf->buf_max)
+		return 0;
+
+	/*
+	 * Allocate memory top down with-in ram range. Otherwise bottom up
+	 * allocation.
+	 */
+	if (kbuf->top_down)
+		return locate_mem_hole_top_down(start, end, kbuf);
+	return locate_mem_hole_bottom_up(start, end, kbuf);
+}
+
+/*
+ * Helper function for placing a buffer in a kexec segment. This assumes
+ * that kexec_mutex is held.
+ */
+int kexec_add_buffer(struct kimage *image, char *buffer, unsigned long bufsz,
+		     unsigned long memsz, unsigned long buf_align,
+		     unsigned long buf_min, unsigned long buf_max,
+		     bool top_down, unsigned long *load_addr)
+{
+
+	struct kexec_segment *ksegment;
+	struct kexec_buf buf, *kbuf;
+	int ret;
+
+	/* Currently adding segment this way is allowed only in file mode */
+	if (!image->file_mode)
+		return -EINVAL;
+
+	if (image->nr_segments >= KEXEC_SEGMENT_MAX)
+		return -EINVAL;
+
+	/*
+	 * Make sure we are not trying to add buffer after allocating
+	 * control pages. All segments need to be placed first before
+	 * any control pages are allocated. As control page allocation
+	 * logic goes through list of segments to make sure there are
+	 * no destination overlaps.
+	 */
+	if (!list_empty(&image->control_pages)) {
+		WARN_ON(1);
+		return -EINVAL;
+	}
+
+	memset(&buf, 0, sizeof(struct kexec_buf));
+	kbuf = &buf;
+	kbuf->image = image;
+	kbuf->buffer = buffer;
+	kbuf->bufsz = bufsz;
+
+	kbuf->memsz = ALIGN(memsz, PAGE_SIZE);
+	kbuf->buf_align = max(buf_align, PAGE_SIZE);
+	kbuf->buf_min = buf_min;
+	kbuf->buf_max = buf_max;
+	kbuf->top_down = top_down;
+
+	/* Walk the RAM ranges and allocate a suitable range for the buffer */
+	ret = walk_system_ram_res(0, -1, kbuf, locate_mem_hole_callback);
+	if (ret != 1) {
+		/* A suitable memory range could not be found for buffer */
+		return -EADDRNOTAVAIL;
+	}
+
+	/* Found a suitable memory range */
+	ksegment = &image->segment[image->nr_segments - 1];
+	*load_addr = ksegment->mem;
+	return 0;
+}
+
 
 /*
  * Move into place and start executing a preloaded standalone
