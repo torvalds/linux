@@ -112,6 +112,95 @@ void nilfs_sysfs_delete_##name##_group(struct the_nilfs *nilfs) \
 }
 
 /************************************************************************
+ *                        NILFS segments attrs                          *
+ ************************************************************************/
+
+static ssize_t
+nilfs_segments_segments_number_show(struct nilfs_segments_attr *attr,
+				     struct the_nilfs *nilfs,
+				     char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%lu\n", nilfs->ns_nsegments);
+}
+
+static ssize_t
+nilfs_segments_blocks_per_segment_show(struct nilfs_segments_attr *attr,
+					struct the_nilfs *nilfs,
+					char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%lu\n", nilfs->ns_blocks_per_segment);
+}
+
+static ssize_t
+nilfs_segments_clean_segments_show(struct nilfs_segments_attr *attr,
+				    struct the_nilfs *nilfs,
+				    char *buf)
+{
+	unsigned long ncleansegs;
+
+	down_read(&NILFS_MDT(nilfs->ns_dat)->mi_sem);
+	ncleansegs = nilfs_sufile_get_ncleansegs(nilfs->ns_sufile);
+	up_read(&NILFS_MDT(nilfs->ns_dat)->mi_sem);
+
+	return snprintf(buf, PAGE_SIZE, "%lu\n", ncleansegs);
+}
+
+static ssize_t
+nilfs_segments_dirty_segments_show(struct nilfs_segments_attr *attr,
+				    struct the_nilfs *nilfs,
+				    char *buf)
+{
+	struct nilfs_sustat sustat;
+	int err;
+
+	down_read(&nilfs->ns_segctor_sem);
+	err = nilfs_sufile_get_stat(nilfs->ns_sufile, &sustat);
+	up_read(&nilfs->ns_segctor_sem);
+	if (err < 0) {
+		printk(KERN_ERR "NILFS: unable to get segment stat: err=%d\n",
+			err);
+		return err;
+	}
+
+	return snprintf(buf, PAGE_SIZE, "%llu\n", sustat.ss_ndirtysegs);
+}
+
+static const char segments_readme_str[] =
+	"The segments group contains attributes that describe\n"
+	"details about volume's segments.\n\n"
+	"(1) segments_number\n\tshow number of segments on volume.\n\n"
+	"(2) blocks_per_segment\n\tshow number of blocks in segment.\n\n"
+	"(3) clean_segments\n\tshow count of clean segments.\n\n"
+	"(4) dirty_segments\n\tshow count of dirty segments.\n\n";
+
+static ssize_t
+nilfs_segments_README_show(struct nilfs_segments_attr *attr,
+			    struct the_nilfs *nilfs,
+			    char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, segments_readme_str);
+}
+
+NILFS_SEGMENTS_RO_ATTR(segments_number);
+NILFS_SEGMENTS_RO_ATTR(blocks_per_segment);
+NILFS_SEGMENTS_RO_ATTR(clean_segments);
+NILFS_SEGMENTS_RO_ATTR(dirty_segments);
+NILFS_SEGMENTS_RO_ATTR(README);
+
+static struct attribute *nilfs_segments_attrs[] = {
+	NILFS_SEGMENTS_ATTR_LIST(segments_number),
+	NILFS_SEGMENTS_ATTR_LIST(blocks_per_segment),
+	NILFS_SEGMENTS_ATTR_LIST(clean_segments),
+	NILFS_SEGMENTS_ATTR_LIST(dirty_segments),
+	NILFS_SEGMENTS_ATTR_LIST(README),
+	NULL,
+};
+
+NILFS_DEV_INT_GROUP_OPS(segments, dev);
+NILFS_DEV_INT_GROUP_TYPE(segments, dev);
+NILFS_DEV_INT_GROUP_FNS(segments, dev);
+
+/************************************************************************
  *                        NILFS segctor attrs                           *
  ************************************************************************/
 
@@ -664,9 +753,13 @@ int nilfs_sysfs_create_device_group(struct super_block *sb)
 	if (err)
 		goto free_dev_subgroups;
 
-	err = nilfs_sysfs_create_superblock_group(nilfs);
+	err = nilfs_sysfs_create_segments_group(nilfs);
 	if (err)
 		goto cleanup_dev_kobject;
+
+	err = nilfs_sysfs_create_superblock_group(nilfs);
+	if (err)
+		goto delete_segments_group;
 
 	err = nilfs_sysfs_create_segctor_group(nilfs);
 	if (err)
@@ -676,6 +769,9 @@ int nilfs_sysfs_create_device_group(struct super_block *sb)
 
 delete_superblock_group:
 	nilfs_sysfs_delete_superblock_group(nilfs);
+
+delete_segments_group:
+	nilfs_sysfs_delete_segments_group(nilfs);
 
 cleanup_dev_kobject:
 	kobject_del(&nilfs->ns_dev_kobj);
@@ -689,6 +785,7 @@ failed_create_device_group:
 
 void nilfs_sysfs_delete_device_group(struct the_nilfs *nilfs)
 {
+	nilfs_sysfs_delete_segments_group(nilfs);
 	nilfs_sysfs_delete_superblock_group(nilfs);
 	nilfs_sysfs_delete_segctor_group(nilfs);
 	kobject_del(&nilfs->ns_dev_kobj);

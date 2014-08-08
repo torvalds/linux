@@ -30,6 +30,8 @@
  * @sg_superblock_kobj_unregister: completion state
  * @sg_segctor_kobj: /sys/fs/<nilfs>/<device>/segctor
  * @sg_segctor_kobj_unregister: completion state
+ * @sg_segments_kobj: /sys/fs/<nilfs>/<device>/segments
+ * @sg_segments_kobj_unregister: completion state
  */
 struct nilfs_sysfs_dev_subgroups {
 	/* /sys/fs/<nilfs>/<device>/superblock */
@@ -39,6 +41,10 @@ struct nilfs_sysfs_dev_subgroups {
 	/* /sys/fs/<nilfs>/<device>/segctor */
 	struct kobject sg_segctor_kobj;
 	struct completion sg_segctor_kobj_unregister;
+
+	/* /sys/fs/<nilfs>/<device>/segments */
+	struct kobject sg_segments_kobj;
+	struct completion sg_segments_kobj_unregister;
 };
 
 #define NILFS_COMMON_ATTR_STRUCT(name) \
@@ -62,6 +68,7 @@ struct nilfs_##name##_attr { \
 };
 
 NILFS_DEV_ATTR_STRUCT(dev);
+NILFS_DEV_ATTR_STRUCT(segments);
 NILFS_DEV_ATTR_STRUCT(superblock);
 NILFS_DEV_ATTR_STRUCT(segctor);
 
@@ -92,6 +99,11 @@ NILFS_DEV_ATTR_STRUCT(segctor);
 #define NILFS_DEV_RW_ATTR(name) \
 	NILFS_RW_ATTR(dev, name)
 
+#define NILFS_SEGMENTS_RO_ATTR(name) \
+	NILFS_RO_ATTR(segments, name)
+#define NILFS_SEGMENTS_RW_ATTR(name) \
+	NILFS_RW_ATTR(segs_info, name)
+
 #define NILFS_SUPERBLOCK_RO_ATTR(name) \
 	NILFS_RO_ATTR(superblock, name)
 #define NILFS_SUPERBLOCK_RW_ATTR(name) \
@@ -108,6 +120,8 @@ NILFS_DEV_ATTR_STRUCT(segctor);
 	(&nilfs_feature_attr_##name.attr)
 #define NILFS_DEV_ATTR_LIST(name) \
 	(&nilfs_dev_attr_##name.attr)
+#define NILFS_SEGMENTS_ATTR_LIST(name) \
+	(&nilfs_segments_attr_##name.attr)
 #define NILFS_SUPERBLOCK_ATTR_LIST(name) \
 	(&nilfs_superblock_attr_##name.attr)
 #define NILFS_SEGCTOR_ATTR_LIST(name) \

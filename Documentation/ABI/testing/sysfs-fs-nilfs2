@@ -179,3 +179,34 @@ Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
 Description:
 		Describe attributes of /sys/fs/nilfs2/<device>/segctor
 		group.
+
+What:		/sys/fs/nilfs2/<device>/segments/segments_number
+Date:		April 2014
+Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
+Description:
+		Show number of segments on a volume.
+
+What:		/sys/fs/nilfs2/<device>/segments/blocks_per_segment
+Date:		April 2014
+Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
+Description:
+		Show number of blocks in segment.
+
+What:		/sys/fs/nilfs2/<device>/segments/clean_segments
+Date:		April 2014
+Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
+Description:
+		Show count of clean segments.
+
+What:		/sys/fs/nilfs2/<device>/segments/dirty_segments
+Date:		April 2014
+Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
+Description:
+		Show count of dirty segments.
+
+What:		/sys/fs/nilfs2/<device>/segments/README
+Date:		April 2014
+Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
+Description:
+		Describe attributes of /sys/fs/nilfs2/<device>/segments
+		group.
