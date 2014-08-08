@@ -2433,13 +2433,13 @@ intel_dp_voltage_max(struct intel_dp *intel_dp)
 	enum port port = dp_to_dig_port(intel_dp)->port;
 
 	if (IS_VALLEYVIEW(dev))
-		return DP_TRAIN_VOLTAGE_SWING_1200;
+		return DP_TRAIN_VOLTAGE_SWING_LEVEL_3;
 	else if (IS_GEN7(dev) && port == PORT_A)
-		return DP_TRAIN_VOLTAGE_SWING_800;
+		return DP_TRAIN_VOLTAGE_SWING_LEVEL_2;
 	else if (HAS_PCH_CPT(dev) && port != PORT_A)
-		return DP_TRAIN_VOLTAGE_SWING_1200;
+		return DP_TRAIN_VOLTAGE_SWING_LEVEL_3;
 	else
-		return DP_TRAIN_VOLTAGE_SWING_800;
+		return DP_TRAIN_VOLTAGE_SWING_LEVEL_2;
 }
 
 static uint8_t
@@ -2450,49 +2450,49 @@ intel_dp_pre_emphasis_max(struct intel_dp *intel_dp, uint8_t voltage_swing)
 
 	if (IS_HASWELL(dev) || IS_BROADWELL(dev)) {
 		switch (voltage_swing & DP_TRAIN_VOLTAGE_SWING_MASK) {
-		case DP_TRAIN_VOLTAGE_SWING_400:
-			return DP_TRAIN_PRE_EMPHASIS_9_5;
-		case DP_TRAIN_VOLTAGE_SWING_600:
-			return DP_TRAIN_PRE_EMPHASIS_6;
-		case DP_TRAIN_VOLTAGE_SWING_800:
-			return DP_TRAIN_PRE_EMPHASIS_3_5;
-		case DP_TRAIN_VOLTAGE_SWING_1200:
+		case DP_TRAIN_VOLTAGE_SWING_LEVEL_0:
+			return DP_TRAIN_PRE_EMPH_LEVEL_3;
+		case DP_TRAIN_VOLTAGE_SWING_LEVEL_1:
+			return DP_TRAIN_PRE_EMPH_LEVEL_2;
+		case DP_TRAIN_VOLTAGE_SWING_LEVEL_2:
+			return DP_TRAIN_PRE_EMPH_LEVEL_1;
+		case DP_TRAIN_VOLTAGE_SWING_LEVEL_3:
 		default:
-			return DP_TRAIN_PRE_EMPHASIS_0;
+			return DP_TRAIN_PRE_EMPH_LEVEL_0;
 		}
 	} else if (IS_VALLEYVIEW(dev)) {
 		switch (voltage_swing & DP_TRAIN_VOLTAGE_SWING_MASK) {
-		case DP_TRAIN_VOLTAGE_SWING_400:
-			return DP_TRAIN_PRE_EMPHASIS_9_5;
-		case DP_TRAIN_VOLTAGE_SWING_600:
-			return DP_TRAIN_PRE_EMPHASIS_6;
-		case DP_TRAIN_VOLTAGE_SWING_800:
-			return DP_TRAIN_PRE_EMPHASIS_3_5;
-		case DP_TRAIN_VOLTAGE_SWING_1200:
+		case DP_TRAIN_VOLTAGE_SWING_LEVEL_0:
+			return DP_TRAIN_PRE_EMPH_LEVEL_3;
+		case DP_TRAIN_VOLTAGE_SWING_LEVEL_1:
+			return DP_TRAIN_PRE_EMPH_LEVEL_2;
+		case DP_TRAIN_VOLTAGE_SWING_LEVEL_2:
+			return DP_TRAIN_PRE_EMPH_LEVEL_1;
+		case DP_TRAIN_VOLTAGE_SWING_LEVEL_3:
 		default:
-			return DP_TRAIN_PRE_EMPHASIS_0;
+			return DP_TRAIN_PRE_EMPH_LEVEL_0;
 		}
 	} else if (IS_GEN7(dev) && port == PORT_A) {
 		switch (voltage_swing & DP_TRAIN_VOLTAGE_SWING_MASK) {
-		case DP_TRAIN_VOLTAGE_SWING_400:
-			return DP_TRAIN_PRE_EMPHASIS_6;
-		case DP_TRAIN_VOLTAGE_SWING_600:
-		case DP_TRAIN_VOLTAGE_SWING_800:
-			return DP_TRAIN_PRE_EMPHASIS_3_5;
+		case DP_TRAIN_VOLTAGE_SWING_LEVEL_0:
+			return DP_TRAIN_PRE_EMPH_LEVEL_2;
+		case DP_TRAIN_VOLTAGE_SWING_LEVEL_1:
+		case DP_TRAIN_VOLTAGE_SWING_LEVEL_2:
+			return DP_TRAIN_PRE_EMPH_LEVEL_1;
 		default:
-			return DP_TRAIN_PRE_EMPHASIS_0;
+			return DP_TRAIN_PRE_EMPH_LEVEL_0;
 		}
 	} else {
 		switch (voltage_swing & DP_TRAIN_VOLTAGE_SWING_MASK) {
-		case DP_TRAIN_VOLTAGE_SWING_400:
-			return DP_TRAIN_PRE_EMPHASIS_6;
-		case DP_TRAIN_VOLTAGE_SWING_600:
-			return DP_TRAIN_PRE_EMPHASIS_6;
-		case DP_TRAIN_VOLTAGE_SWING_800:
-			return DP_TRAIN_PRE_EMPHASIS_3_5;
-		case DP_TRAIN_VOLTAGE_SWING_1200:
+		case DP_TRAIN_VOLTAGE_SWING_LEVEL_0:
+			return DP_TRAIN_PRE_EMPH_LEVEL_2;
+		case DP_TRAIN_VOLTAGE_SWING_LEVEL_1:
+			return DP_TRAIN_PRE_EMPH_LEVEL_2;
+		case DP_TRAIN_VOLTAGE_SWING_LEVEL_2:
+			return DP_TRAIN_PRE_EMPH_LEVEL_1;
+		case DP_TRAIN_VOLTAGE_SWING_LEVEL_3:
 		default:
-			return DP_TRAIN_PRE_EMPHASIS_0;
+			return DP_TRAIN_PRE_EMPH_LEVEL_0;
 		}
 	}
 }
@@ -2511,22 +2511,22 @@ static uint32_t intel_vlv_signal_levels(struct intel_dp *intel_dp)
 	int pipe = intel_crtc->pipe;
 
 	switch (train_set & DP_TRAIN_PRE_EMPHASIS_MASK) {
-	case DP_TRAIN_PRE_EMPHASIS_0:
+	case DP_TRAIN_PRE_EMPH_LEVEL_0:
 		preemph_reg_value = 0x0004000;
 		switch (train_set & DP_TRAIN_VOLTAGE_SWING_MASK) {
-		case DP_TRAIN_VOLTAGE_SWING_400:
+		case DP_TRAIN_VOLTAGE_SWING_LEVEL_0:
 			demph_reg_value = 0x2B405555;
 			uniqtranscale_reg_value = 0x552AB83A;
 			break;
-		case DP_TRAIN_VOLTAGE_SWING_600:
+		case DP_TRAIN_VOLTAGE_SWING_LEVEL_1:
 			demph_reg_value = 0x2B404040;
 			uniqtranscale_reg_value = 0x5548B83A;
 			break;
-		case DP_TRAIN_VOLTAGE_SWING_800:
+		case DP_TRAIN_VOLTAGE_SWING_LEVEL_2:
 			demph_reg_value = 0x2B245555;
 			uniqtranscale_reg_value = 0x5560B83A;
 			break;
-		case DP_TRAIN_VOLTAGE_SWING_1200:
+		case DP_TRAIN_VOLTAGE_SWING_LEVEL_3:
 			demph_reg_value = 0x2B405555;
 			uniqtranscale_reg_value = 0x5598DA3A;
 			break;
@@ -2534,18 +2534,18 @@ static uint32_t intel_vlv_signal_levels(struct intel_dp *intel_dp)
 			return 0;
 		}
 		break;
-	case DP_TRAIN_PRE_EMPHASIS_3_5:
+	case DP_TRAIN_PRE_EMPH_LEVEL_1:
 		preemph_reg_value = 0x0002000;
 		switch (train_set & DP_TRAIN_VOLTAGE_SWING_MASK) {
-		case DP_TRAIN_VOLTAGE_SWING_400:
+		case DP_TRAIN_VOLTAGE_SWING_LEVEL_0:
 			demph_reg_value = 0x2B404040;
 			uniqtranscale_reg_value = 0x5552B83A;
 			break;
-		case DP_TRAIN_VOLTAGE_SWING_600:
+		case DP_TRAIN_VOLTAGE_SWING_LEVEL_1:
 			demph_reg_value = 0x2B404848;
 			uniqtranscale_reg_value = 0x5580B83A;
 			break;
-		case DP_TRAIN_VOLTAGE_SWING_800:
+		case DP_TRAIN_VOLTAGE_SWING_LEVEL_2:
 			demph_reg_value = 0x2B404040;
 			uniqtranscale_reg_value = 0x55ADDA3A;
 			break;
@@ -2553,14 +2553,14 @@ static uint32_t intel_vlv_signal_levels(struct intel_dp *intel_dp)
 			return 0;
 		}
 		break;
-	case DP_TRAIN_PRE_EMPHASIS_6:
+	case DP_TRAIN_PRE_EMPH_LEVEL_2:
 		preemph_reg_value = 0x0000000;
 		switch (train_set & DP_TRAIN_VOLTAGE_SWING_MASK) {
-		case DP_TRAIN_VOLTAGE_SWING_400:
+		case DP_TRAIN_VOLTAGE_SWING_LEVEL_0:
 			demph_reg_value = 0x2B305555;
 			uniqtranscale_reg_value = 0x5570B83A;
 			break;
-		case DP_TRAIN_VOLTAGE_SWING_600:
+		case DP_TRAIN_VOLTAGE_SWING_LEVEL_1:
 			demph_reg_value = 0x2B2B4040;
 			uniqtranscale_reg_value = 0x55ADDA3A;
 			break;
@@ -2568,10 +2568,10 @@ static uint32_t intel_vlv_signal_levels(struct intel_dp *intel_dp)
 			return 0;
 		}
 		break;
-	case DP_TRAIN_PRE_EMPHASIS_9_5:
+	case DP_TRAIN_PRE_EMPH_LEVEL_3:
 		preemph_reg_value = 0x0006000;
 		switch (train_set & DP_TRAIN_VOLTAGE_SWING_MASK) {
-		case DP_TRAIN_VOLTAGE_SWING_400:
+		case DP_TRAIN_VOLTAGE_SWING_LEVEL_0:
 			demph_reg_value = 0x1B405555;
 			uniqtranscale_reg_value = 0x55ADDA3A;
 			break;
@@ -2610,21 +2610,21 @@ static uint32_t intel_chv_signal_levels(struct intel_dp *intel_dp)
 	int i;
 
 	switch (train_set & DP_TRAIN_PRE_EMPHASIS_MASK) {
-	case DP_TRAIN_PRE_EMPHASIS_0:
+	case DP_TRAIN_PRE_EMPH_LEVEL_0:
 		switch (train_set & DP_TRAIN_VOLTAGE_SWING_MASK) {
-		case DP_TRAIN_VOLTAGE_SWING_400:
+		case DP_TRAIN_VOLTAGE_SWING_LEVEL_0:
 			deemph_reg_value = 128;
 			margin_reg_value = 52;
 			break;
-		case DP_TRAIN_VOLTAGE_SWING_600:
+		case DP_TRAIN_VOLTAGE_SWING_LEVEL_1:
 			deemph_reg_value = 128;
 			margin_reg_value = 77;
 			break;
-		case DP_TRAIN_VOLTAGE_SWING_800:
+		case DP_TRAIN_VOLTAGE_SWING_LEVEL_2:
 			deemph_reg_value = 128;
 			margin_reg_value = 102;
 			break;
-		case DP_TRAIN_VOLTAGE_SWING_1200:
+		case DP_TRAIN_VOLTAGE_SWING_LEVEL_3:
 			deemph_reg_value = 128;
 			margin_reg_value = 154;
 			/* FIXME extra to set for 1200 */
@@ -2633,17 +2633,17 @@ static uint32_t intel_chv_signal_levels(struct intel_dp *intel_dp)
 			return 0;
 		}
 		break;
-	case DP_TRAIN_PRE_EMPHASIS_3_5:
+	case DP_TRAIN_PRE_EMPH_LEVEL_1:
 		switch (train_set & DP_TRAIN_VOLTAGE_SWING_MASK) {
-		case DP_TRAIN_VOLTAGE_SWING_400:
+		case DP_TRAIN_VOLTAGE_SWING_LEVEL_0:
 			deemph_reg_value = 85;
 			margin_reg_value = 78;
 			break;
-		case DP_TRAIN_VOLTAGE_SWING_600:
+		case DP_TRAIN_VOLTAGE_SWING_LEVEL_1:
 			deemph_reg_value = 85;
 			margin_reg_value = 116;
 			break;
-		case DP_TRAIN_VOLTAGE_SWING_800:
+		case DP_TRAIN_VOLTAGE_SWING_LEVEL_2:
 			deemph_reg_value = 85;
 			margin_reg_value = 154;
 			break;
@@ -2651,13 +2651,13 @@ static uint32_t intel_chv_signal_levels(struct intel_dp *intel_dp)
 			return 0;
 		}
 		break;
-	case DP_TRAIN_PRE_EMPHASIS_6:
+	case DP_TRAIN_PRE_EMPH_LEVEL_2:
 		switch (train_set & DP_TRAIN_VOLTAGE_SWING_MASK) {
-		case DP_TRAIN_VOLTAGE_SWING_400:
+		case DP_TRAIN_VOLTAGE_SWING_LEVEL_0:
 			deemph_reg_value = 64;
 			margin_reg_value = 104;
 			break;
-		case DP_TRAIN_VOLTAGE_SWING_600:
+		case DP_TRAIN_VOLTAGE_SWING_LEVEL_1:
 			deemph_reg_value = 64;
 			margin_reg_value = 154;
 			break;
@@ -2665,9 +2665,9 @@ static uint32_t intel_chv_signal_levels(struct intel_dp *intel_dp)
 			return 0;
 		}
 		break;
-	case DP_TRAIN_PRE_EMPHASIS_9_5:
+	case DP_TRAIN_PRE_EMPH_LEVEL_3:
 		switch (train_set & DP_TRAIN_VOLTAGE_SWING_MASK) {
-		case DP_TRAIN_VOLTAGE_SWING_400:
+		case DP_TRAIN_VOLTAGE_SWING_LEVEL_0:
 			deemph_reg_value = 43;
 			margin_reg_value = 154;
 			break;
@@ -2714,9 +2714,9 @@ static uint32_t intel_chv_signal_levels(struct intel_dp *intel_dp)
 	}
 
 	if (((train_set & DP_TRAIN_PRE_EMPHASIS_MASK)
-			== DP_TRAIN_PRE_EMPHASIS_0) &&
+			== DP_TRAIN_PRE_EMPH_LEVEL_0) &&
 		((train_set & DP_TRAIN_VOLTAGE_SWING_MASK)
-			== DP_TRAIN_VOLTAGE_SWING_1200)) {
+			== DP_TRAIN_VOLTAGE_SWING_LEVEL_3)) {
 
 		/*
 		 * The document said it needs to set bit 27 for ch0 and bit 26
@@ -2795,32 +2795,32 @@ intel_gen4_signal_levels(uint8_t train_set)
 	uint32_t	signal_levels = 0;
 
 	switch (train_set & DP_TRAIN_VOLTAGE_SWING_MASK) {
-	case DP_TRAIN_VOLTAGE_SWING_400:
+	case DP_TRAIN_VOLTAGE_SWING_LEVEL_0:
 	default:
 		signal_levels |= DP_VOLTAGE_0_4;
 		break;
-	case DP_TRAIN_VOLTAGE_SWING_600:
+	case DP_TRAIN_VOLTAGE_SWING_LEVEL_1:
 		signal_levels |= DP_VOLTAGE_0_6;
 		break;
-	case DP_TRAIN_VOLTAGE_SWING_800:
+	case DP_TRAIN_VOLTAGE_SWING_LEVEL_2:
 		signal_levels |= DP_VOLTAGE_0_8;
 		break;
-	case DP_TRAIN_VOLTAGE_SWING_1200:
+	case DP_TRAIN_VOLTAGE_SWING_LEVEL_3:
 		signal_levels |= DP_VOLTAGE_1_2;
 		break;
 	}
 	switch (train_set & DP_TRAIN_PRE_EMPHASIS_MASK) {
-	case DP_TRAIN_PRE_EMPHASIS_0:
+	case DP_TRAIN_PRE_EMPH_LEVEL_0:
 	default:
 		signal_levels |= DP_PRE_EMPHASIS_0;
 		break;
-	case DP_TRAIN_PRE_EMPHASIS_3_5:
+	case DP_TRAIN_PRE_EMPH_LEVEL_1:
 		signal_levels |= DP_PRE_EMPHASIS_3_5;
 		break;
-	case DP_TRAIN_PRE_EMPHASIS_6:
+	case DP_TRAIN_PRE_EMPH_LEVEL_2:
 		signal_levels |= DP_PRE_EMPHASIS_6;
 		break;
-	case DP_TRAIN_PRE_EMPHASIS_9_5:
+	case DP_TRAIN_PRE_EMPH_LEVEL_3:
 		signal_levels |= DP_PRE_EMPHASIS_9_5;
 		break;
 	}
@@ -2834,19 +2834,19 @@ intel_gen6_edp_signal_levels(uint8_t train_set)
 	int signal_levels = train_set & (DP_TRAIN_VOLTAGE_SWING_MASK |
 					 DP_TRAIN_PRE_EMPHASIS_MASK);
 	switch (signal_levels) {
-	case DP_TRAIN_VOLTAGE_SWING_400 | DP_TRAIN_PRE_EMPHASIS_0:
-	case DP_TRAIN_VOLTAGE_SWING_600 | DP_TRAIN_PRE_EMPHASIS_0:
+	case DP_TRAIN_VOLTAGE_SWING_LEVEL_0 | DP_TRAIN_PRE_EMPH_LEVEL_0:
+	case DP_TRAIN_VOLTAGE_SWING_LEVEL_1 | DP_TRAIN_PRE_EMPH_LEVEL_0:
 		return EDP_LINK_TRAIN_400_600MV_0DB_SNB_B;
-	case DP_TRAIN_VOLTAGE_SWING_400 | DP_TRAIN_PRE_EMPHASIS_3_5:
+	case DP_TRAIN_VOLTAGE_SWING_LEVEL_0 | DP_TRAIN_PRE_EMPH_LEVEL_1:
 		return EDP_LINK_TRAIN_400MV_3_5DB_SNB_B;
-	case DP_TRAIN_VOLTAGE_SWING_400 | DP_TRAIN_PRE_EMPHASIS_6:
-	case DP_TRAIN_VOLTAGE_SWING_600 | DP_TRAIN_PRE_EMPHASIS_6:
+	case DP_TRAIN_VOLTAGE_SWING_LEVEL_0 | DP_TRAIN_PRE_EMPH_LEVEL_2:
+	case DP_TRAIN_VOLTAGE_SWING_LEVEL_1 | DP_TRAIN_PRE_EMPH_LEVEL_2:
 		return EDP_LINK_TRAIN_400_600MV_6DB_SNB_B;
-	case DP_TRAIN_VOLTAGE_SWING_600 | DP_TRAIN_PRE_EMPHASIS_3_5:
-	case DP_TRAIN_VOLTAGE_SWING_800 | DP_TRAIN_PRE_EMPHASIS_3_5:
+	case DP_TRAIN_VOLTAGE_SWING_LEVEL_1 | DP_TRAIN_PRE_EMPH_LEVEL_1:
+	case DP_TRAIN_VOLTAGE_SWING_LEVEL_2 | DP_TRAIN_PRE_EMPH_LEVEL_1:
 		return EDP_LINK_TRAIN_600_800MV_3_5DB_SNB_B;
-	case DP_TRAIN_VOLTAGE_SWING_800 | DP_TRAIN_PRE_EMPHASIS_0:
-	case DP_TRAIN_VOLTAGE_SWING_1200 | DP_TRAIN_PRE_EMPHASIS_0:
+	case DP_TRAIN_VOLTAGE_SWING_LEVEL_2 | DP_TRAIN_PRE_EMPH_LEVEL_0:
+	case DP_TRAIN_VOLTAGE_SWING_LEVEL_3 | DP_TRAIN_PRE_EMPH_LEVEL_0:
 		return EDP_LINK_TRAIN_800_1200MV_0DB_SNB_B;
 	default:
 		DRM_DEBUG_KMS("Unsupported voltage swing/pre-emphasis level:"
@@ -2862,21 +2862,21 @@ intel_gen7_edp_signal_levels(uint8_t train_set)
 	int signal_levels = train_set & (DP_TRAIN_VOLTAGE_SWING_MASK |
 					 DP_TRAIN_PRE_EMPHASIS_MASK);
 	switch (signal_levels) {
-	case DP_TRAIN_VOLTAGE_SWING_400 | DP_TRAIN_PRE_EMPHASIS_0:
+	case DP_TRAIN_VOLTAGE_SWING_LEVEL_0 | DP_TRAIN_PRE_EMPH_LEVEL_0:
 		return EDP_LINK_TRAIN_400MV_0DB_IVB;
-	case DP_TRAIN_VOLTAGE_SWING_400 | DP_TRAIN_PRE_EMPHASIS_3_5:
+	case DP_TRAIN_VOLTAGE_SWING_LEVEL_0 | DP_TRAIN_PRE_EMPH_LEVEL_1:
 		return EDP_LINK_TRAIN_400MV_3_5DB_IVB;
-	case DP_TRAIN_VOLTAGE_SWING_400 | DP_TRAIN_PRE_EMPHASIS_6:
+	case DP_TRAIN_VOLTAGE_SWING_LEVEL_0 | DP_TRAIN_PRE_EMPH_LEVEL_2:
 		return EDP_LINK_TRAIN_400MV_6DB_IVB;
 
-	case DP_TRAIN_VOLTAGE_SWING_600 | DP_TRAIN_PRE_EMPHASIS_0:
+	case DP_TRAIN_VOLTAGE_SWING_LEVEL_1 | DP_TRAIN_PRE_EMPH_LEVEL_0:
 		return EDP_LINK_TRAIN_600MV_0DB_IVB;
-	case DP_TRAIN_VOLTAGE_SWING_600 | DP_TRAIN_PRE_EMPHASIS_3_5:
+	case DP_TRAIN_VOLTAGE_SWING_LEVEL_1 | DP_TRAIN_PRE_EMPH_LEVEL_1:
 		return EDP_LINK_TRAIN_600MV_3_5DB_IVB;
 
-	case DP_TRAIN_VOLTAGE_SWING_800 | DP_TRAIN_PRE_EMPHASIS_0:
+	case DP_TRAIN_VOLTAGE_SWING_LEVEL_2 | DP_TRAIN_PRE_EMPH_LEVEL_0:
 		return EDP_LINK_TRAIN_800MV_0DB_IVB;
-	case DP_TRAIN_VOLTAGE_SWING_800 | DP_TRAIN_PRE_EMPHASIS_3_5:
+	case DP_TRAIN_VOLTAGE_SWING_LEVEL_2 | DP_TRAIN_PRE_EMPH_LEVEL_1:
 		return EDP_LINK_TRAIN_800MV_3_5DB_IVB;
 
 	default:
@@ -2893,25 +2893,25 @@ intel_hsw_signal_levels(uint8_t train_set)
 	int signal_levels = train_set & (DP_TRAIN_VOLTAGE_SWING_MASK |
 					 DP_TRAIN_PRE_EMPHASIS_MASK);
 	switch (signal_levels) {
-	case DP_TRAIN_VOLTAGE_SWING_400 | DP_TRAIN_PRE_EMPHASIS_0:
+	case DP_TRAIN_VOLTAGE_SWING_LEVEL_0 | DP_TRAIN_PRE_EMPH_LEVEL_0:
 		return DDI_BUF_TRANS_SELECT(0);
-	case DP_TRAIN_VOLTAGE_SWING_400 | DP_TRAIN_PRE_EMPHASIS_3_5:
+	case DP_TRAIN_VOLTAGE_SWING_LEVEL_0 | DP_TRAIN_PRE_EMPH_LEVEL_1:
 		return DDI_BUF_TRANS_SELECT(1);
-	case DP_TRAIN_VOLTAGE_SWING_400 | DP_TRAIN_PRE_EMPHASIS_6:
+	case DP_TRAIN_VOLTAGE_SWING_LEVEL_0 | DP_TRAIN_PRE_EMPH_LEVEL_2:
 		return DDI_BUF_TRANS_SELECT(2);
-	case DP_TRAIN_VOLTAGE_SWING_400 | DP_TRAIN_PRE_EMPHASIS_9_5:
+	case DP_TRAIN_VOLTAGE_SWING_LEVEL_0 | DP_TRAIN_PRE_EMPH_LEVEL_3:
 		return DDI_BUF_TRANS_SELECT(3);
 
-	case DP_TRAIN_VOLTAGE_SWING_600 | DP_TRAIN_PRE_EMPHASIS_0:
+	case DP_TRAIN_VOLTAGE_SWING_LEVEL_1 | DP_TRAIN_PRE_EMPH_LEVEL_0:
 		return DDI_BUF_TRANS_SELECT(4);
-	case DP_TRAIN_VOLTAGE_SWING_600 | DP_TRAIN_PRE_EMPHASIS_3_5:
+	case DP_TRAIN_VOLTAGE_SWING_LEVEL_1 | DP_TRAIN_PRE_EMPH_LEVEL_1:
 		return DDI_BUF_TRANS_SELECT(5);
-	case DP_TRAIN_VOLTAGE_SWING_600 | DP_TRAIN_PRE_EMPHASIS_6:
+	case DP_TRAIN_VOLTAGE_SWING_LEVEL_1 | DP_TRAIN_PRE_EMPH_LEVEL_2:
 		return DDI_BUF_TRANS_SELECT(6);
 
-	case DP_TRAIN_VOLTAGE_SWING_800 | DP_TRAIN_PRE_EMPHASIS_0:
+	case DP_TRAIN_VOLTAGE_SWING_LEVEL_2 | DP_TRAIN_PRE_EMPH_LEVEL_0:
 		return DDI_BUF_TRANS_SELECT(7);
-	case DP_TRAIN_VOLTAGE_SWING_800 | DP_TRAIN_PRE_EMPHASIS_3_5:
+	case DP_TRAIN_VOLTAGE_SWING_LEVEL_2 | DP_TRAIN_PRE_EMPH_LEVEL_1:
 		return DDI_BUF_TRANS_SELECT(8);
 	default:
 		DRM_DEBUG_KMS("Unsupported voltage swing/pre-emphasis level:"
