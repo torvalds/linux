@@ -329,8 +329,8 @@ static int exynos_dp_link_start(struct exynos_dp_device *dp)
 		return retval;
 
 	for (lane = 0; lane < lane_count; lane++)
-		buf[lane] = DP_TRAIN_PRE_EMPHASIS_0 |
-			    DP_TRAIN_VOLTAGE_SWING_400;
+		buf[lane] = DP_TRAIN_PRE_EMPH_LEVEL_0 |
+			    DP_TRAIN_VOLTAGE_SWING_LEVEL_0;
 
 	retval = exynos_dp_write_bytes_to_dpcd(dp, DP_TRAINING_LANE0_SET,
 			lane_count, buf);
