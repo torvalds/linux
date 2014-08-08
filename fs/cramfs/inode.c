@@ -11,6 +11,8 @@
  * The actual compression is based on zlib, see the other files.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/pagemap.h>
@@ -277,7 +279,7 @@ static int cramfs_fill_super(struct super_block *sb, void *data, int silent)
 		/* check for wrong endianness */
 		if (super.magic == CRAMFS_MAGIC_WEND) {
 			if (!silent)
-				pr_err("cramfs: wrong endianness\n");
+				pr_err("wrong endianness\n");
 			return -EINVAL;
 		}
 
@@ -287,22 +289,22 @@ static int cramfs_fill_super(struct super_block *sb, void *data, int silent)
 		mutex_unlock(&read_mutex);
 		if (super.magic != CRAMFS_MAGIC) {
 			if (super.magic == CRAMFS_MAGIC_WEND && !silent)
-				pr_err("cramfs: wrong endianness\n");
+				pr_err("wrong endianness\n");
 			else if (!silent)
-				pr_err("cramfs: wrong magic\n");
+				pr_err("wrong magic\n");
 			return -EINVAL;
 		}
 	}
 
 	/* get feature flags first */
 	if (super.flags & ~CRAMFS_SUPPORTED_FLAGS) {
-		pr_err("cramfs: unsupported filesystem features\n");
+		pr_err("unsupported filesystem features\n");
 		return -EINVAL;
 	}
 
 	/* Check that the root inode is in a sane state */
 	if (!S_ISDIR(super.root.mode)) {
-		pr_err("cramfs: root is not a directory\n");
+		pr_err("root is not a directory\n");
 		return -EINVAL;
 	}
 	/* correct strange, hard-coded permissions of mkcramfs */
@@ -321,12 +323,12 @@ static int cramfs_fill_super(struct super_block *sb, void *data, int silent)
 	sbi->magic=super.magic;
 	sbi->flags=super.flags;
 	if (root_offset == 0)
-		pr_info("cramfs: empty filesystem");
+		pr_info("empty filesystem");
 	else if (!(super.flags & CRAMFS_FLAG_SHIFTED_ROOT_OFFSET) &&
 		 ((root_offset != sizeof(struct cramfs_super)) &&
 		  (root_offset != 512 + sizeof(struct cramfs_super))))
 	{
-		pr_err("cramfs: bad root offset %lu\n", root_offset);
+		pr_err("bad root offset %lu\n", root_offset);
 		return -EINVAL;
 	}
 
@@ -511,7 +513,7 @@ static int cramfs_readpage(struct file *file, struct page * page)
 		if (compr_len == 0)
 			; /* hole */
 		else if (unlikely(compr_len > (PAGE_CACHE_SIZE << 1))) {
-			pr_err("cramfs: bad compressed blocksize %u\n",
+			pr_err("bad compressed blocksize %u\n",
 				compr_len);
 			goto err;
 		} else {
