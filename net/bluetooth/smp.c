@@ -1455,3 +1455,29 @@ int smp_distribute_keys(struct l2cap_conn *conn)
 
 	return 0;
 }
+
+int smp_register(struct hci_dev *hdev)
+{
+	BT_DBG("%s", hdev->name);
+
+	hdev->tfm_aes = crypto_alloc_blkcipher("ecb(aes)", 0,
+					       CRYPTO_ALG_ASYNC);
+	if (IS_ERR(hdev->tfm_aes)) {
+		int err = PTR_ERR(hdev->tfm_aes);
+		BT_ERR("Unable to create crypto context");
+		hdev->tfm_aes = NULL;
+		return err;
+	}
+
+	return 0;
+}
+
+void smp_unregister(struct hci_dev *hdev)
+{
+	BT_DBG("%s", hdev->name);
+
+	if (hdev->tfm_aes) {
+		crypto_free_blkcipher(hdev->tfm_aes);
+		hdev->tfm_aes = NULL;
+	}
+}

@@ -136,4 +136,7 @@ bool smp_irk_matches(struct crypto_blkcipher *tfm, u8 irk[16],
 		     bdaddr_t *bdaddr);
 int smp_generate_rpa(struct crypto_blkcipher *tfm, u8 irk[16], bdaddr_t *rpa);
 
+int smp_register(struct hci_dev *hdev);
+void smp_unregister(struct hci_dev *hdev);
+
 #endif /* __SMP_H */

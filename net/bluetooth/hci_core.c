@@ -1764,34 +1764,6 @@ static void hci_init4_req(struct hci_request *req, unsigned long opt)
 	}
 }
 
-static int hci_register_smp(struct hci_dev *hdev)
-{
-	int err;
-
-	BT_DBG("%s", hdev->name);
-
-	hdev->tfm_aes = crypto_alloc_blkcipher("ecb(aes)", 0,
-					       CRYPTO_ALG_ASYNC);
-	if (IS_ERR(hdev->tfm_aes)) {
-		BT_ERR("Unable to create crypto context");
-		err = PTR_ERR(hdev->tfm_aes);
-		hdev->tfm_aes = NULL;
-		return err;
-	}
-
-	return 0;
-}
-
-static void hci_unregister_smp(struct hci_dev *hdev)
-{
-	BT_DBG("%s", hdev->name);
-
-	if (hdev->tfm_aes) {
-		crypto_free_blkcipher(hdev->tfm_aes);
-		hdev->tfm_aes = NULL;
-	}
-}
-
 static int __hci_init(struct hci_dev *hdev)
 {
 	int err;
@@ -1927,7 +1899,7 @@ static int __hci_init(struct hci_dev *hdev)
 				   hdev->debugfs,
 				   &hdev->discov_interleaved_timeout);
 
-		hci_register_smp(hdev);
+		smp_register(hdev);
 	}
 
 	return 0;
@@ -4224,7 +4196,7 @@ void hci_unregister_dev(struct hci_dev *hdev)
 		rfkill_destroy(hdev->rfkill);
 	}
 
-	hci_unregister_smp(hdev);
+	smp_unregister(hdev);
 
 	device_del(&hdev->dev);
 
