@@ -42,6 +42,174 @@ static struct kset *nilfs_kset;
 })
 
 /************************************************************************
+ *                        NILFS device attrs                            *
+ ************************************************************************/
+
+static
+ssize_t nilfs_dev_revision_show(struct nilfs_dev_attr *attr,
+				struct the_nilfs *nilfs,
+				char *buf)
+{
+	struct nilfs_super_block **sbp = nilfs->ns_sbp;
+	u32 major = le32_to_cpu(sbp[0]->s_rev_level);
+	u16 minor = le16_to_cpu(sbp[0]->s_minor_rev_level);
+
+	return snprintf(buf, PAGE_SIZE, "%d.%d\n", major, minor);
+}
+
+static
+ssize_t nilfs_dev_blocksize_show(struct nilfs_dev_attr *attr,
+				 struct the_nilfs *nilfs,
+				 char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%u\n", nilfs->ns_blocksize);
+}
+
+static
+ssize_t nilfs_dev_device_size_show(struct nilfs_dev_attr *attr,
+				    struct the_nilfs *nilfs,
+				    char *buf)
+{
+	struct nilfs_super_block **sbp = nilfs->ns_sbp;
+	u64 dev_size = le64_to_cpu(sbp[0]->s_dev_size);
+
+	return snprintf(buf, PAGE_SIZE, "%llu\n", dev_size);
+}
+
+static
+ssize_t nilfs_dev_free_blocks_show(struct nilfs_dev_attr *attr,
+				   struct the_nilfs *nilfs,
+				   char *buf)
+{
+	sector_t free_blocks = 0;
+
+	nilfs_count_free_blocks(nilfs, &free_blocks);
+	return snprintf(buf, PAGE_SIZE, "%llu\n",
+			(unsigned long long)free_blocks);
+}
+
+static
+ssize_t nilfs_dev_uuid_show(struct nilfs_dev_attr *attr,
+			    struct the_nilfs *nilfs,
+			    char *buf)
+{
+	struct nilfs_super_block **sbp = nilfs->ns_sbp;
+
+	return snprintf(buf, PAGE_SIZE, "%pUb\n", sbp[0]->s_uuid);
+}
+
+static
+ssize_t nilfs_dev_volume_name_show(struct nilfs_dev_attr *attr,
+				    struct the_nilfs *nilfs,
+				    char *buf)
+{
+	struct nilfs_super_block **sbp = nilfs->ns_sbp;
+
+	return scnprintf(buf, sizeof(sbp[0]->s_volume_name), "%s\n",
+			 sbp[0]->s_volume_name);
+}
+
+static const char dev_readme_str[] =
+	"The <device> group contains attributes that describe file system\n"
+	"partition's details.\n\n"
+	"(1) revision\n\tshow NILFS file system revision.\n\n"
+	"(2) blocksize\n\tshow volume block size in bytes.\n\n"
+	"(3) device_size\n\tshow volume size in bytes.\n\n"
+	"(4) free_blocks\n\tshow count of free blocks on volume.\n\n"
+	"(5) uuid\n\tshow volume's UUID.\n\n"
+	"(6) volume_name\n\tshow volume's name.\n\n";
+
+static ssize_t nilfs_dev_README_show(struct nilfs_dev_attr *attr,
+				     struct the_nilfs *nilfs,
+				     char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, dev_readme_str);
+}
+
+NILFS_DEV_RO_ATTR(revision);
+NILFS_DEV_RO_ATTR(blocksize);
+NILFS_DEV_RO_ATTR(device_size);
+NILFS_DEV_RO_ATTR(free_blocks);
+NILFS_DEV_RO_ATTR(uuid);
+NILFS_DEV_RO_ATTR(volume_name);
+NILFS_DEV_RO_ATTR(README);
+
+static struct attribute *nilfs_dev_attrs[] = {
+	NILFS_DEV_ATTR_LIST(revision),
+	NILFS_DEV_ATTR_LIST(blocksize),
+	NILFS_DEV_ATTR_LIST(device_size),
+	NILFS_DEV_ATTR_LIST(free_blocks),
+	NILFS_DEV_ATTR_LIST(uuid),
+	NILFS_DEV_ATTR_LIST(volume_name),
+	NILFS_DEV_ATTR_LIST(README),
+	NULL,
+};
+
+static ssize_t nilfs_dev_attr_show(struct kobject *kobj,
+				    struct attribute *attr, char *buf)
+{
+	struct the_nilfs *nilfs = container_of(kobj, struct the_nilfs,
+						ns_dev_kobj);
+	struct nilfs_dev_attr *a = container_of(attr, struct nilfs_dev_attr,
+						attr);
+
+	return a->show ? a->show(a, nilfs, buf) : 0;
+}
+
+static ssize_t nilfs_dev_attr_store(struct kobject *kobj,
+				    struct attribute *attr,
+				    const char *buf, size_t len)
+{
+	struct the_nilfs *nilfs = container_of(kobj, struct the_nilfs,
+						ns_dev_kobj);
+	struct nilfs_dev_attr *a = container_of(attr, struct nilfs_dev_attr,
+						attr);
+
+	return a->store ? a->store(a, nilfs, buf, len) : 0;
+}
+
+static void nilfs_dev_attr_release(struct kobject *kobj)
+{
+	struct the_nilfs *nilfs = container_of(kobj, struct the_nilfs,
+						ns_dev_kobj);
+	complete(&nilfs->ns_dev_kobj_unregister);
+}
+
+static const struct sysfs_ops nilfs_dev_attr_ops = {
+	.show	= nilfs_dev_attr_show,
+	.store	= nilfs_dev_attr_store,
+};
+
+static struct kobj_type nilfs_dev_ktype = {
+	.default_attrs	= nilfs_dev_attrs,
+	.sysfs_ops	= &nilfs_dev_attr_ops,
+	.release	= nilfs_dev_attr_release,
+};
+
+int nilfs_sysfs_create_device_group(struct super_block *sb)
+{
+	struct the_nilfs *nilfs = sb->s_fs_info;
+	int err;
+
+	nilfs->ns_dev_kobj.kset = nilfs_kset;
+	init_completion(&nilfs->ns_dev_kobj_unregister);
+	err = kobject_init_and_add(&nilfs->ns_dev_kobj, &nilfs_dev_ktype, NULL,
+				    "%s", sb->s_id);
+	if (err)
+		goto failed_create_device_group;
+
+	return 0;
+
+failed_create_device_group:
+	return err;
+}
+
+void nilfs_sysfs_delete_device_group(struct the_nilfs *nilfs)
+{
+	kobject_del(&nilfs->ns_dev_kobj);
+}
+
+/************************************************************************
  *                        NILFS feature attrs                           *
  ************************************************************************/
 

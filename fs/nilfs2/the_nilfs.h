@@ -95,6 +95,8 @@ enum {
  * @ns_inode_size: size of on-disk inode
  * @ns_first_ino: first not-special inode number
  * @ns_crc_seed: seed value of CRC32 calculation
+ * @ns_dev_kobj: /sys/fs/<nilfs>/<device>
+ * @ns_dev_kobj_unregister: completion state
  */
 struct the_nilfs {
 	unsigned long		ns_flags;
@@ -188,6 +190,10 @@ struct the_nilfs {
 	int			ns_inode_size;
 	int			ns_first_ino;
 	u32			ns_crc_seed;
+
+	/* /sys/fs/<nilfs>/<device> */
+	struct kobject ns_dev_kobj;
+	struct completion ns_dev_kobj_unregister;
 };
 
 #define THE_NILFS_FNS(bit, name)					\

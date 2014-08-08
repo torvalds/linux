@@ -12,3 +12,47 @@ Date:		April 2014
 Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
 Description:
 		Describe attributes of /sys/fs/nilfs2/features group.
+
+What:		/sys/fs/nilfs2/<device>/revision
+Date:		April 2014
+Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
+Description:
+		Show NILFS file system revision on volume.
+		This value informs about metadata structures'
+		revision on mounted volume.
+
+What:		/sys/fs/nilfs2/<device>/blocksize
+Date:		April 2014
+Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
+Description:
+		Show volume's block size in bytes.
+
+What:		/sys/fs/nilfs2/<device>/device_size
+Date:		April 2014
+Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
+Description:
+		Show volume size in bytes.
+
+What:		/sys/fs/nilfs2/<device>/free_blocks
+Date:		April 2014
+Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
+Description:
+		Show count of free blocks on volume.
+
+What:		/sys/fs/nilfs2/<device>/uuid
+Date:		April 2014
+Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
+Description:
+		Show volume's UUID (Universally Unique Identifier).
+
+What:		/sys/fs/nilfs2/<device>/volume_name
+Date:		April 2014
+Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
+Description:
+		Show volume's label.
+
+What:		/sys/fs/nilfs2/<device>/README
+Date:		April 2014
+Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
+Description:
+		Describe attributes of /sys/fs/nilfs2/<device> group.
