@@ -1144,7 +1144,7 @@ static u32 dsi_get_errors(struct platform_device *dsidev)
 	return e;
 }
 
-int dsi_runtime_get(struct platform_device *dsidev)
+static int dsi_runtime_get(struct platform_device *dsidev)
 {
 	int r;
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
@@ -1156,7 +1156,7 @@ int dsi_runtime_get(struct platform_device *dsidev)
 	return r < 0 ? r : 0;
 }
 
-void dsi_runtime_put(struct platform_device *dsidev)
+static void dsi_runtime_put(struct platform_device *dsidev)
 {
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	int r;
@@ -1674,6 +1674,10 @@ int dsi_pll_init(struct platform_device *dsidev)
 	if (r)
 		return r;
 
+	r = dsi_runtime_get(dsidev);
+	if (r)
+		return r;
+
 	dsi_enable_pll_clock(dsidev, 1);
 	/*
 	 * Note: SCP CLK is not required on OMAP3, but it is required on OMAP4.
@@ -1717,6 +1721,7 @@ err1:
 err0:
 	dsi_disable_scp_clk(dsidev);
 	dsi_enable_pll_clock(dsidev, 0);
+	dsi_runtime_put(dsidev);
 	return r;
 }
 
@@ -1733,6 +1738,7 @@ void dsi_pll_uninit(struct platform_device *dsidev, bool disconnect_lanes)
 
 	dsi_disable_scp_clk(dsidev);
 	dsi_enable_pll_clock(dsidev, 0);
+	dsi_runtime_put(dsidev);
 
 	DSSDBG("PLL uninit done\n");
 }

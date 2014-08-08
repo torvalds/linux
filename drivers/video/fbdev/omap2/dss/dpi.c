@@ -402,10 +402,6 @@ static int dpi_display_enable(struct omap_dss_device *dssdev)
 		goto err_src_sel;
 
 	if (dpi->dsidev) {
-		r = dsi_runtime_get(dpi->dsidev);
-		if (r)
-			goto err_get_dsi;
-
 		r = dsi_pll_init(dpi->dsidev);
 		if (r)
 			goto err_dsi_pll_init;
@@ -432,9 +428,6 @@ err_set_mode:
 	if (dpi->dsidev)
 		dsi_pll_uninit(dpi->dsidev, true);
 err_dsi_pll_init:
-	if (dpi->dsidev)
-		dsi_runtime_put(dpi->dsidev);
-err_get_dsi:
 err_src_sel:
 	dispc_runtime_put();
 err_get_dispc:
@@ -459,7 +452,6 @@ static void dpi_display_disable(struct omap_dss_device *dssdev)
 	if (dpi->dsidev) {
 		dss_select_lcd_clk_source(mgr->id, OMAP_DSS_CLK_SRC_FCK);
 		dsi_pll_uninit(dpi->dsidev, true);
-		dsi_runtime_put(dpi->dsidev);
 	}
 
 	dispc_runtime_put();
@@ -554,18 +546,11 @@ static int dpi_verify_dsi_pll(struct platform_device *dsidev)
 
 	/* do initial setup with the PLL to see if it is operational */
 
-	r = dsi_runtime_get(dsidev);
+	r = dsi_pll_init(dsidev);
 	if (r)
 		return r;
 
-	r = dsi_pll_init(dsidev);
-	if (r) {
-		dsi_runtime_put(dsidev);
-		return r;
-	}
-
 	dsi_pll_uninit(dsidev, true);
-	dsi_runtime_put(dsidev);
 
 	return 0;
 }
