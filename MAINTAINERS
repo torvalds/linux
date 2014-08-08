@@ -7245,7 +7245,7 @@ PXA3xx NAND FLASH DRIVER
 M:	Ezequiel Garcia <ezequiel.garcia@free-electrons.com>
 L:	linux-mtd@lists.infradead.org
 S:	Maintained
-F:	drivers/mtd/nand/pxa3xx-nand.c
+F:	drivers/mtd/nand/pxa3xx_nand.c
 
 MMP SUPPORT
 M:	Eric Miao <eric.y.miao@gmail.com>
