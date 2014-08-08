@@ -1659,9 +1659,9 @@ static int vcodec_probe(struct platform_device *pdev)
 		}
 
 		if (pservice->hw_info->hw_id == HEVC_ID)
-			sprintf(mmu_dev_dts_name, "iommu,hevc_mmu");
+			sprintf(mmu_dev_dts_name, HEVC_IOMMU_COMPATIBLE_NAME);
 		else
-			sprintf(mmu_dev_dts_name, "iommu,vpu_mmu");
+			sprintf(mmu_dev_dts_name, VPU_IOMMU_COMPATIBLE_NAME);
 
 		pservice->mmu_dev = rockchip_get_sysmmu_device_by_compatible(mmu_dev_dts_name);
 

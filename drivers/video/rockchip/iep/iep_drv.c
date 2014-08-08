@@ -937,7 +937,7 @@ static int iep_drv_probe(struct platform_device *pdev)
             IEP_INFO("iep ion client create success!\n");
         }
 
-        mmu_dev = rockchip_get_sysmmu_device_by_compatible("iommu,iep_mmu");
+        mmu_dev = rockchip_get_sysmmu_device_by_compatible(IEP_IOMMU_COMPATIBLE_NAME);
         
         if (mmu_dev) {
             platform_set_sysmmu(mmu_dev, &pdev->dev);
