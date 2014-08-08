@@ -4,8 +4,9 @@
 /// "kfree(NULL) is safe this check is probably not required"
 /// and kfreeaddr.cocci by Julia Lawall.
 ///
-/// Comments: -
-/// Options: --no-includes --include-headers
+// Copyright: (C) 2014 Fabian Frederick.  GPLv2.
+// Comments: -
+// Options: --no-includes --include-headers
 
 virtual patch
 virtual org
