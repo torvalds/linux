@@ -7203,7 +7203,7 @@ F:	drivers/ptp/*
 F:	include/linux/ptp_cl*
 
 PTRACE SUPPORT
-M:	Roland McGrath <roland@redhat.com>
+M:	Roland McGrath <roland@hack.frob.com>
 M:	Oleg Nesterov <oleg@redhat.com>
 S:	Maintained
 F:	include/asm-generic/syscall.h
