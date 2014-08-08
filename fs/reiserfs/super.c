@@ -15,7 +15,7 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/time.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include "reiserfs.h"
 #include "acl.h"
 #include "xattr.h"

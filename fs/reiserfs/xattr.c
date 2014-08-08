@@ -45,7 +45,7 @@
 #include <linux/xattr.h>
 #include "xattr.h"
 #include "acl.h"
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <net/checksum.h>
 #include <linux/stat.h>
 #include <linux/quotaops.h>
