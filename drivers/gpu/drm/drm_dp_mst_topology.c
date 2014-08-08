@@ -1772,7 +1772,7 @@ static int drm_dp_get_vc_payload_bw(int dp_link_bw, int dp_link_count)
 	case DP_LINK_BW_5_4:
 		return 10 * dp_link_count;
 	}
-	return 0;
+	BUG();
 }
 
 /**
