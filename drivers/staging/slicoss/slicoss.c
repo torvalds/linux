@@ -1191,18 +1191,15 @@ static int slic_rspqueue_init(struct adapter *adapter)
 	rspq->num_pages = SLIC_RSPQ_PAGES_GB;
 
 	for (i = 0; i < rspq->num_pages; i++) {
-		rspq->vaddr[i] = pci_alloc_consistent(adapter->pcidev,
-						      PAGE_SIZE,
-						      &rspq->paddr[i]);
+		rspq->vaddr[i] = pci_zalloc_consistent(adapter->pcidev,
+						       PAGE_SIZE,
+						       &rspq->paddr[i]);
 		if (!rspq->vaddr[i]) {
 			dev_err(&adapter->pcidev->dev,
 				"pci_alloc_consistent failed\n");
 			slic_rspqueue_free(adapter);
 			return -ENOMEM;
 		}
-		/* FIXME:
-		 * do we really need this assertions (4K PAGE_SIZE aligned addr)? */
-		memset(rspq->vaddr[i], 0, PAGE_SIZE);
 
 		if (paddrh == 0) {
 			slic_reg32_write(&slic_regs->slic_rbar,
