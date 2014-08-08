@@ -9,9 +9,14 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/module.h>
 #include <linux/uaccess.h>
 #include <linux/vfio.h>
 #include <asm/eeh.h>
+
+#define DRIVER_VERSION	"0.1"
+#define DRIVER_AUTHOR	"Gavin Shan, IBM Corporation"
+#define DRIVER_DESC	"VFIO IOMMU SPAPR EEH"
 
 /* We might build address mapping here for "fast" path later */
 int vfio_spapr_pci_eeh_open(struct pci_dev *pdev)
@@ -88,3 +93,8 @@ long vfio_spapr_iommu_eeh_ioctl(struct iommu_group *group,
 	return ret;
 }
 EXPORT_SYMBOL(vfio_spapr_iommu_eeh_ioctl);
+
+MODULE_VERSION(DRIVER_VERSION);
+MODULE_LICENSE("GPL v2");
+MODULE_AUTHOR(DRIVER_AUTHOR);
+MODULE_DESCRIPTION(DRIVER_DESC);
