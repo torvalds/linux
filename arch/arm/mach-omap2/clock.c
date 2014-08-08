@@ -100,27 +100,6 @@ u32 omap2_clk_readl(struct clk_hw_omap *clk, void __iomem *reg)
 }
 
 /*
- * Used for clocks that have the same value as the parent clock,
- * divided by some factor
- */
-unsigned long omap_fixed_divisor_recalc(struct clk_hw *hw,
-		unsigned long parent_rate)
-{
-	struct clk_hw_omap *oclk;
-
-	if (!hw) {
-		pr_warn("%s: hw is NULL\n", __func__);
-		return -EINVAL;
-	}
-
-	oclk = to_clk_hw_omap(hw);
-
-	WARN_ON(!oclk->fixed_div);
-
-	return parent_rate / oclk->fixed_div;
-}
-
-/*
  * OMAP2+ specific clock functions
  */
 

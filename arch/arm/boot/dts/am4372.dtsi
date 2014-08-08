@@ -30,7 +30,7 @@
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		cpu@0 {
+		cpu: cpu@0 {
 			compatible = "arm,cortex-a9";
 			device_type = "cpu";
 			reg = <0>;
@@ -267,7 +267,7 @@
 			ti,hwmods = "counter_32k";
 		};
 
-		rtc@44e3e000 {
+		rtc: rtc@44e3e000 {
 			compatible = "ti,am4372-rtc","ti,da830-rtc";
 			reg = <0x44e3e000 0x1000>;
 			interrupts = <GIC_SPI 75 IRQ_TYPE_LEVEL_HIGH
@@ -276,7 +276,7 @@
 			status = "disabled";
 		};
 
-		wdt@44e35000 {
+		wdt: wdt@44e35000 {
 			compatible = "ti,am4372-wdt","ti,omap3-wdt";
 			reg = <0x44e35000 0x1000>;
 			interrupts = <GIC_SPI 91 IRQ_TYPE_LEVEL_HIGH>;
@@ -868,7 +868,7 @@
 			#size-cells = <1>;
 			ranges;
 
-			dispc@4832a400 {
+			dispc: dispc@4832a400 {
 				compatible = "ti,omap3-dispc";
 				reg = <0x4832a400 0x400>;
 				interrupts = <GIC_SPI 127 IRQ_TYPE_LEVEL_HIGH>;

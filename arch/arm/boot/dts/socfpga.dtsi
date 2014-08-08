@@ -687,6 +687,7 @@
 		};
 
 		rst: rstmgr@ffd05000 {
+			#reset-cells = <1>;
 			compatible = "altr,rst-mgr";
 			reg = <0xffd05000 0x1000>;
 		};

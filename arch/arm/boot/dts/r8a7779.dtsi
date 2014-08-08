@@ -54,13 +54,13 @@
 		spi2 = &hspi2;
 	};
 
-        gic: interrupt-controller@f0001000 {
-                compatible = "arm,cortex-a9-gic";
-                #interrupt-cells = <3>;
-                interrupt-controller;
-                reg = <0xf0001000 0x1000>,
-                      <0xf0000100 0x100>;
-        };
+	gic: interrupt-controller@f0001000 {
+		compatible = "arm,cortex-a9-gic";
+		#interrupt-cells = <3>;
+		interrupt-controller;
+		reg = <0xf0001000 0x1000>,
+		      <0xf0000100 0x100>;
+	};
 
 	gpio0: gpio@ffc40000 {
 		compatible = "renesas,gpio-r8a7779", "renesas,gpio-rcar";

@@ -244,7 +244,9 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_ICK_ID("src.7", "rcar_sound", &mstp_clks[MSTP524]),
 	CLKDEV_ICK_ID("src.8", "rcar_sound", &mstp_clks[MSTP523]),
 	CLKDEV_ICK_ID("fck", "sh-tmu.0", &mstp_clks[MSTP016]),
+	CLKDEV_ICK_ID("fck", "ffd80000.timer", &mstp_clks[MSTP016]),
 	CLKDEV_ICK_ID("fck", "sh-tmu.1", &mstp_clks[MSTP015]),
+	CLKDEV_ICK_ID("fck", "ffd81000.timer", &mstp_clks[MSTP015]),
 };
 
 void __init r8a7778_clock_init(void)

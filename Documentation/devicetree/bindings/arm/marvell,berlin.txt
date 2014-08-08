@@ -24,6 +24,22 @@ SoC and board used. Currently known SoC compatibles are:
 	...
 }
 
+* Marvell Berlin CPU control bindings
+
+CPU control register allows various operations on CPUs, like resetting them
+independently.
+
+Required properties:
+- compatible: should be "marvell,berlin-cpu-ctrl"
+- reg: address and length of the register set
+
+Example:
+
+cpu-ctrl@f7dd0000 {
+	compatible = "marvell,berlin-cpu-ctrl";
+	reg = <0xf7dd0000 0x10000>;
+};
+
 * Marvell Berlin2 chip control binding
 
 Marvell Berlin SoCs have a chip control register set providing several

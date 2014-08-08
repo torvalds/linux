@@ -252,6 +252,8 @@ static const struct of_device_id exynos_dt_pmu_match[] = {
 	{ .compatible = "samsung,exynos4212-pmu" },
 	{ .compatible = "samsung,exynos4412-pmu" },
 	{ .compatible = "samsung,exynos5250-pmu" },
+	{ .compatible = "samsung,exynos5260-pmu" },
+	{ .compatible = "samsung,exynos5410-pmu" },
 	{ .compatible = "samsung,exynos5420-pmu" },
 	{ /*sentinel*/ },
 };

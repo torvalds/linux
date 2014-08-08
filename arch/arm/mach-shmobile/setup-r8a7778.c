@@ -293,12 +293,6 @@ void __init r8a7778_add_dt_devices(void)
 	}
 #endif
 
-	r8a7778_register_scif(0);
-	r8a7778_register_scif(1);
-	r8a7778_register_scif(2);
-	r8a7778_register_scif(3);
-	r8a7778_register_scif(4);
-	r8a7778_register_scif(5);
 	r8a7778_register_tmu(0);
 }
 
@@ -507,6 +501,12 @@ static void __init r8a7778_register_hpb_dmae(void)
 void __init r8a7778_add_standard_devices(void)
 {
 	r8a7778_add_dt_devices();
+	r8a7778_register_scif(0);
+	r8a7778_register_scif(1);
+	r8a7778_register_scif(2);
+	r8a7778_register_scif(3);
+	r8a7778_register_scif(4);
+	r8a7778_register_scif(5);
 	r8a7778_register_i2c(0);
 	r8a7778_register_i2c(1);
 	r8a7778_register_i2c(2);
