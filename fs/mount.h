@@ -29,7 +29,10 @@ struct mount {
 	struct mount *mnt_parent;
 	struct dentry *mnt_mountpoint;
 	struct vfsmount mnt;
-	struct rcu_head mnt_rcu;
+	union {
+		struct rcu_head mnt_rcu;
+		struct llist_node mnt_llist;
+	};
 #ifdef CONFIG_SMP
 	struct mnt_pcp __percpu *mnt_pcp;
 #else

@@ -23,6 +23,7 @@
 #include <linux/proc_ns.h>
 #include <linux/magic.h>
 #include <linux/bootmem.h>
+#include <linux/task_work.h>
 #include "pnode.h"
 #include "internal.h"
 
@@ -957,6 +958,46 @@ static struct mount *clone_mnt(struct mount *old, struct dentry *root,
 	return ERR_PTR(err);
 }
 
+static void cleanup_mnt(struct mount *mnt)
+{
+	/*
+	 * This probably indicates that somebody messed
+	 * up a mnt_want/drop_write() pair.  If this
+	 * happens, the filesystem was probably unable
+	 * to make r/w->r/o transitions.
+	 */
+	/*
+	 * The locking used to deal with mnt_count decrement provides barriers,
+	 * so mnt_get_writers() below is safe.
+	 */
+	WARN_ON(mnt_get_writers(mnt));
+	if (unlikely(mnt->mnt_pins.first))
+		mnt_pin_kill(mnt);
+	fsnotify_vfsmount_delete(&mnt->mnt);
+	dput(mnt->mnt.mnt_root);
+	deactivate_super(mnt->mnt.mnt_sb);
+	mnt_free_id(mnt);
+	call_rcu(&mnt->mnt_rcu, delayed_free_vfsmnt);
+}
+
+static void __cleanup_mnt(struct rcu_head *head)
+{
+	cleanup_mnt(container_of(head, struct mount, mnt_rcu));
+}
+
+static LLIST_HEAD(delayed_mntput_list);
+static void delayed_mntput(struct work_struct *unused)
+{
+	struct llist_node *node = llist_del_all(&delayed_mntput_list);
+	struct llist_node *next;
+
+	for (; node; node = next) {
+		next = llist_next(node);
+		cleanup_mnt(llist_entry(node, struct mount, mnt_llist));
+	}
+}
+static DECLARE_DELAYED_WORK(delayed_mntput_work, delayed_mntput);
+
 static void mntput_no_expire(struct mount *mnt)
 {
 	rcu_read_lock();
@@ -982,24 +1023,18 @@ static void mntput_no_expire(struct mount *mnt)
 	list_del(&mnt->mnt_instance);
 	unlock_mount_hash();
 
-	/*
-	 * This probably indicates that somebody messed
-	 * up a mnt_want/drop_write() pair.  If this
-	 * happens, the filesystem was probably unable
-	 * to make r/w->r/o transitions.
-	 */
-	/*
-	 * The locking used to deal with mnt_count decrement provides barriers,
-	 * so mnt_get_writers() below is safe.
-	 */
-	WARN_ON(mnt_get_writers(mnt));
-	if (unlikely(mnt->mnt_pins.first))
-		mnt_pin_kill(mnt);
-	fsnotify_vfsmount_delete(&mnt->mnt);
-	dput(mnt->mnt.mnt_root);
-	deactivate_super(mnt->mnt.mnt_sb);
-	mnt_free_id(mnt);
-	call_rcu(&mnt->mnt_rcu, delayed_free_vfsmnt);
+	if (likely(!(mnt->mnt.mnt_flags & MNT_INTERNAL))) {
+		struct task_struct *task = current;
+		if (likely(!(task->flags & PF_KTHREAD))) {
+			init_task_work(&mnt->mnt_rcu, __cleanup_mnt);
+			if (!task_work_add(task, &mnt->mnt_rcu, true))
+				return;
+		}
+		if (llist_add(&mnt->mnt_llist, &delayed_mntput_list))
+			schedule_delayed_work(&delayed_mntput_work, 1);
+		return;
+	}
+	cleanup_mnt(mnt);
 }
 
 void mntput(struct vfsmount *mnt)
