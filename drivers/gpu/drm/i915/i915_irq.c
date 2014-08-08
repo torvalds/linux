@@ -1327,10 +1327,10 @@ static u32 vlv_c0_residency(struct drm_i915_private *dev_priv,
  * @dev_priv: DRM device private
  *
  */
-static u32 vlv_calc_delay_from_C0_counters(struct drm_i915_private *dev_priv)
+static int vlv_calc_delay_from_C0_counters(struct drm_i915_private *dev_priv)
 {
 	u32 residency_C0_up = 0, residency_C0_down = 0;
-	u8 new_delay, adj;
+	int new_delay, adj;
 
 	dev_priv->rps.ei_interrupt_count++;
 
