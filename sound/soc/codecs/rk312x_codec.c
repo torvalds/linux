@@ -1,0 +1,2360 @@
+/*
+ * rk312x_codec.c
+ *
+ * Driver for rockchip rk3036 codec
+ * Copyright (C) 2014
+ *
+ * This program is free software; you can redistribute  it and/or modify it
+ * under  the terms of  the GNU General  Public License as published by the
+ * Free Software Foundation;  either version 2 of the  License, or (at your
+ * option) any later version.
+ *
+ *
+ */
+#include <linux/init.h>
+#include <linux/module.h>
+#include <linux/interrupt.h>
+#include <linux/device.h>
+#include <linux/delay.h>
+#include <linux/clk.h>
+#include <linux/version.h>
+#include <linux/of.h>
+#include <linux/of_gpio.h>
+#include <linux/clk.h>
+#include <linux/io.h>
+#include <linux/rockchip/iomap.h>
+#include <linux/rockchip/grf.h>
+#include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
+#include <linux/regmap.h>
+#include <linux/slab.h>
+#include <asm/dma.h>
+#include <sound/core.h>
+#include <sound/pcm.h>
+#include <sound/pcm_params.h>
+#include <sound/initval.h>
+#include <sound/soc.h>
+#include <sound/soc-dapm.h>
+#include <sound/dmaengine_pcm.h>
+#include <linux/io.h>
+#include <linux/spinlock.h>
+#include <sound/tlv.h>
+#include "rk312x_codec.h"
+
+static int debug = 7;
+module_param(debug, int, S_IRUGO|S_IWUSR);
+
+#define dbg_codec(level, fmt, arg...)		\
+	do {					\
+		if (debug >= level)		\
+			printk(fmt , ## arg);	\
+	 } while (0)
+
+#define	DBG(fmt, ...)	dbg_codec(0, fmt, ## __VA_ARGS__)
+#define RK2928_ACODEC_PHYS 0x20030000
+
+#define INVALID_GPIO -1
+#define SPK_CTRL_OPEN	0
+#define SPK_CTRL_CLOSE	1
+
+/* volume setting
+ *  0: -39dB
+ *  26: 0dB
+ *  31: 6dB
+ *  Step: 1.5dB
+*/
+#define  OUT_VOLUME    25
+
+/* capture vol set
+ * 0: -18db
+ * 12: 0db
+ * 31: 28.5db
+ * step: 1.5db
+*/
+#define CAP_VOL		31	/*0-31 */
+/*with capacity or not*/
+#define WITH_CAP
+
+struct rk312x_codec_priv {
+	void __iomem	*regbase;
+	struct snd_soc_codec *codec;
+
+	unsigned int stereo_sysclk;
+	unsigned int rate;
+
+	int playback_active;
+	int capture_active;
+	int spk_ctl_gpio;
+	int hp_ctl_gpio;
+	int delay_time;
+
+	long int playback_path;
+	long int capture_path;
+	long int voice_call_path;
+	struct clk	*pclk;
+};
+static struct rk312x_codec_priv *rk312x_priv;
+
+#define RK312x_CODEC_ALL	0
+#define RK312x_CODEC_PLAYBACK	1
+#define RK312x_CODEC_CAPTURE	2
+#define RK312x_CODEC_INCALL	3
+
+#define RK312x_CODEC_WORK_NULL	0
+#define RK312x_CODEC_WORK_POWER_DOWN	1
+#define RK312x_CODEC_WORK_POWER_UP	2
+static struct workqueue_struct *rk312x_codec_workq;
+
+static void rk312x_codec_capture_work(struct work_struct *work);
+static DECLARE_DELAYED_WORK(capture_delayed_work, rk312x_codec_capture_work);
+static int rk312x_codec_work_capture_type = RK312x_CODEC_WORK_NULL;
+static bool rk312x_for_mid = 1;
+static int rk312x_codec_power_up(int type);
+static const unsigned int rk312x_reg_defaults[RK312x_PGAR_AGC_CTL5+1] = {
+	[RK312x_RESET] = 0x0003,
+	[RK312x_ADC_INT_CTL1] = 0x0050,
+	[RK312x_ADC_INT_CTL2] = 0x000e,
+	[RK312x_DAC_INT_CTL1] = 0x0050,
+	[RK312x_DAC_INT_CTL2] = 0x000e,
+	[RK312x_DAC_INT_CTL3] = 0x22,
+	[RK312x_ADC_MIC_CTL] = 0x0000,
+	[RK312x_BST_CTL] = 0x000,
+	[RK312x_ALC_MUNIN_CTL] = 0x0044,
+	[RK312x_BSTL_ALCL_CTL] = 0x000c,
+	[RK312x_ALCR_GAIN_CTL] = 0x000C,
+	[RK312x_ADC_ENABLE] = 0x0000,
+	[RK312x_DAC_CTL] = 0x0000,
+	[RK312x_DAC_ENABLE] = 0x0000,
+	[RK312x_HPMIX_CTL] = 0x0000,
+	[RK312x_HPMIX_S_SELECT] = 0x0000,
+	[RK312x_HPOUT_CTL] = 0x0000,
+	[RK312x_HPOUTL_GAIN] = 0x0000,
+	[RK312x_HPOUTR_GAIN] = 0x0000,
+	[RK312x_SELECT_CURRENT] = 0x003e,
+	[RK312x_PGAL_AGC_CTL1] = 0x0000,
+	[RK312x_PGAL_AGC_CTL2] = 0x0046,
+	[RK312x_PGAL_AGC_CTL3] = 0x0041,
+	[RK312x_PGAL_AGC_CTL4] = 0x002c,
+	[RK312x_PGAL_ASR_CTL] = 0x0000,
+	[RK312x_PGAL_AGC_MAX_H] = 0x0026,
+	[RK312x_PGAL_AGC_MAX_L] = 0x0040,
+	[RK312x_PGAL_AGC_MIN_H] = 0x0036,
+	[RK312x_PGAL_AGC_MIN_L] = 0x0020,
+	[RK312x_PGAL_AGC_CTL5] = 0x0038,
+	[RK312x_PGAR_AGC_CTL1] = 0x0000,
+	[RK312x_PGAR_AGC_CTL2] = 0x0046,
+	[RK312x_PGAR_AGC_CTL3] = 0x0041,
+	[RK312x_PGAR_AGC_CTL4] = 0x002c,
+	[RK312x_PGAR_ASR_CTL] = 0x0000,
+	[RK312x_PGAR_AGC_MAX_H] = 0x0026,
+	[RK312x_PGAR_AGC_MAX_L] = 0x0040,
+	[RK312x_PGAR_AGC_MIN_H] = 0x0036,
+	[RK312x_PGAR_AGC_MIN_L] = 0x0020,
+	[RK312x_PGAR_AGC_CTL5] = 0x0038,
+};
+
+static struct rk312x_init_bit_typ rk312x_init_bit_list[] = {
+	{RK312x_HPOUT_CTL, RK312x_HPOUTL_EN,
+	 RK312x_HPOUTL_WORK, RK312x_HPVREF_EN},
+	{RK312x_HPOUT_CTL, RK312x_HPOUTR_EN,
+	 RK312x_HPOUTR_WORK, RK312x_HPVREF_WORK},
+	{RK312x_HPMIX_CTL, RK312x_HPMIXR_EN,
+	 RK312x_HPMIXR_WORK2, RK312x_HPMIXR_WORK1},
+	{RK312x_HPMIX_CTL, RK312x_HPMIXL_EN,
+	 RK312x_HPMIXL_WORK2, RK312x_HPMIXL_WORK1},
+};
+#define RK312x_INIT_BIT_LIST_LEN ARRAY_SIZE(rk312x_init_bit_list)
+
+static int rk312x_init_bit_register(unsigned int reg, int i)
+{
+	for (; i < RK312x_INIT_BIT_LIST_LEN; i++) {
+		if (rk312x_init_bit_list[i].reg == reg)
+			return i;
+	}
+
+	return -1;
+}
+
+static unsigned int
+rk312x_codec_read(struct snd_soc_codec *codec,
+		  unsigned int reg);
+static inline void
+rk312x_write_reg_cache(struct snd_soc_codec *codec,
+		       unsigned int reg,
+		       unsigned int value);
+
+static unsigned int
+rk312x_set_init_value(struct snd_soc_codec *codec,
+		      unsigned int reg, unsigned int value)
+{
+	unsigned int read_value, power_bit, set_bit2, set_bit1;
+	int i;
+	int tmp = 0;
+
+	/* read codec init register */
+	i = rk312x_init_bit_register(reg, 0);
+
+	/* set codec init bit
+	widget init bit should be setted 0 after widget power up or unmute,
+	and should be setted 1 after widget power down or mute.
+	*/
+	if (i >= 0) {
+		read_value = rk312x_codec_read(codec, reg);
+		while (i >= 0) {
+			power_bit = rk312x_init_bit_list[i].power_bit;
+			set_bit2 = rk312x_init_bit_list[i].init2_bit;
+			set_bit1 = rk312x_init_bit_list[i].init1_bit;
+
+			if ((read_value & power_bit) != (value & power_bit)) {
+				if (value & power_bit) {
+					tmp = value | set_bit2 | set_bit1;
+					writel(value, rk312x_priv->regbase+reg);
+					writel(tmp, rk312x_priv->regbase+reg);
+
+				} else {
+					tmp = value & (~set_bit2) & (~set_bit1);
+					writel(tmp, rk312x_priv->regbase+reg);
+					writel(value, rk312x_priv->regbase+reg);
+				}
+				value = tmp;
+			} else {
+				if (read_value != value)
+					writel(value, rk312x_priv->regbase+reg);
+			}
+
+			i = rk312x_init_bit_register(reg, ++i);
+
+			rk312x_write_reg_cache(codec, reg, value);
+		}
+	} else {
+		return i;
+	}
+
+	return value;
+}
+
+static int rk312x_volatile_register(struct snd_soc_codec *codec,
+				    unsigned int reg)
+{
+	switch (reg) {
+	case RK312x_RESET:
+		return 1;
+	default:
+		return 0;
+	}
+}
+
+static int rk312x_codec_register(struct snd_soc_codec *codec, unsigned int reg)
+{
+	switch (reg) {
+	case RK312x_RESET:
+	case RK312x_ADC_INT_CTL1:
+	case RK312x_ADC_INT_CTL2:
+	case RK312x_DAC_INT_CTL1:
+	case RK312x_DAC_INT_CTL2:
+	case RK312x_DAC_INT_CTL3:
+	case RK312x_ADC_MIC_CTL:
+	case RK312x_BST_CTL:
+	case RK312x_ALC_MUNIN_CTL:
+	case RK312x_BSTL_ALCL_CTL:
+	case RK312x_ALCR_GAIN_CTL:
+	case RK312x_ADC_ENABLE:
+	case RK312x_DAC_CTL:
+	case RK312x_DAC_ENABLE:
+	case RK312x_HPMIX_CTL:
+	case RK312x_HPMIX_S_SELECT:
+	case RK312x_HPOUT_CTL:
+	case RK312x_HPOUTL_GAIN:
+	case RK312x_HPOUTR_GAIN:
+	case RK312x_SELECT_CURRENT:
+	case RK312x_PGAL_AGC_CTL1:
+	case RK312x_PGAL_AGC_CTL2:
+	case RK312x_PGAL_AGC_CTL3:
+	case RK312x_PGAL_AGC_CTL4:
+	case RK312x_PGAL_ASR_CTL:
+	case RK312x_PGAL_AGC_MAX_H:
+	case RK312x_PGAL_AGC_MAX_L:
+	case RK312x_PGAL_AGC_MIN_H:
+	case RK312x_PGAL_AGC_MIN_L:
+	case RK312x_PGAL_AGC_CTL5:
+	case RK312x_PGAR_AGC_CTL1:
+	case RK312x_PGAR_AGC_CTL2:
+	case RK312x_PGAR_AGC_CTL3:
+	case RK312x_PGAR_AGC_CTL4:
+	case RK312x_PGAR_ASR_CTL:
+	case RK312x_PGAR_AGC_MAX_H:
+	case RK312x_PGAR_AGC_MAX_L:
+	case RK312x_PGAR_AGC_MIN_H:
+	case RK312x_PGAR_AGC_MIN_L:
+	case RK312x_PGAR_AGC_CTL5:
+		return 1;
+	default:
+		return 0;
+	}
+}
+
+static inline unsigned int rk312x_read_reg_cache(struct snd_soc_codec *codec,
+						 unsigned int reg)
+{
+	unsigned int *cache = codec->reg_cache;
+
+	if (rk312x_codec_register(codec, reg))
+		return  cache[reg];
+
+	DBG("%s : reg error!\n", __func__);
+
+	return -EINVAL;
+}
+
+static inline void rk312x_write_reg_cache(struct snd_soc_codec *codec,
+					  unsigned int reg,
+					  unsigned int value)
+{
+	unsigned int *cache = codec->reg_cache;
+
+	if (rk312x_codec_register(codec, reg)) {
+		cache[reg] = value;
+		return;
+	}
+
+	DBG("%s : reg error!\n", __func__);
+}
+
+static unsigned int rk312x_codec_read(struct snd_soc_codec *codec,
+				      unsigned int reg)
+{
+	unsigned int value;
+
+	if (!rk312x_priv) {
+		printk("%s : rk312x is NULL\n", __func__);
+		return -EINVAL;
+	}
+
+	if (!rk312x_codec_register(codec, reg)) {
+		DBG("%s : reg error!\n", __func__);
+		return -EINVAL;
+	}
+
+	if (rk312x_volatile_register(codec, reg) == 0)
+		value = rk312x_read_reg_cache(codec, reg);
+	else
+		value = readl_relaxed(rk312x_priv->regbase+reg);
+
+	value = readl_relaxed(rk312x_priv->regbase+reg);
+	dbg_codec(2, "%s : reg = 0x%x, val= 0x%x\n", __func__,
+		  reg, value);
+
+	return value;
+}
+
+static int rk312x_codec_write(struct snd_soc_codec *codec,
+			      unsigned int reg, unsigned int value)
+{
+	int new_value;
+
+	if (!rk312x_priv) {
+		DBG("%s : rk312x is NULL\n", __func__);
+		return -EINVAL;
+	} else if (!rk312x_codec_register(codec, reg)) {
+		DBG("%s : reg error!\n", __func__);
+		return -EINVAL;
+	}
+	new_value = rk312x_set_init_value(codec, reg, value);
+
+	if (new_value == -1) {
+		writel(value, rk312x_priv->regbase+reg);
+		rk312x_write_reg_cache(codec, reg, value);
+	}
+	rk312x_codec_read(codec, reg);
+	return 0;
+}
+
+static int rk312x_hw_write(const struct i2c_client *client,
+			   const char *buf, int count)
+{
+	unsigned int reg, value;
+
+	if (!rk312x_priv || !rk312x_priv->codec) {
+		DBG("%s : rk312x_priv or rk312x_priv->codec is NULL\n",
+		    __func__);
+		return -EINVAL;
+	}
+
+	if (count == 3) {
+		reg = (unsigned int)buf[0];
+		value = (buf[1] & 0xff00) | (0x00ff & buf[2]);
+		writel(value, rk312x_priv->regbase+reg);
+	} else {
+		DBG("%s : i2c len error\n", __func__);
+	}
+
+	return  count;
+}
+
+static int rk312x_reset(struct snd_soc_codec *codec)
+{
+	writel(0x00, rk312x_priv->regbase+RK312x_RESET);
+	mdelay(10);
+	writel(0x43, rk312x_priv->regbase+RK312x_RESET);
+	mdelay(10);
+
+	memcpy(codec->reg_cache, rk312x_reg_defaults,
+	       sizeof(rk312x_reg_defaults));
+
+	return 0;
+}
+
+static const DECLARE_TLV_DB_SCALE(out_vol_tlv, -3900, 150, 0);
+static const DECLARE_TLV_DB_SCALE(pga_vol_tlv, -1800, 150, 0);
+static const DECLARE_TLV_DB_SCALE(bst_vol_tlv, 0, 2000, 0);
+static const DECLARE_TLV_DB_SCALE(pga_agc_max_vol_tlv, -1350, 600, 0);
+static const DECLARE_TLV_DB_SCALE(pga_agc_min_vol_tlv, -1800, 600, 0);
+
+static const char *const rk312x_input_mode[] = {
+			"Differential", "Single-Ended"};
+
+static const char *const rk312x_micbias_ratio[] = {
+			"1.0 Vref", "1.1 Vref",
+			"1.2 Vref", "1.3 Vref",
+			"1.4 Vref", "1.5 Vref",
+			"1.6 Vref", "1.7 Vref",};
+
+static const char *const rk312x_dis_en_sel[] = {"Disable", "Enable"};
+
+static const char *const rk312x_pga_agc_way[] = {"Normal", "Jack"};
+
+static const char *const rk312x_agc_backup_way[] = {
+			"Normal", "Jack1", "Jack2", "Jack3"};
+
+static const char *const rk312x_pga_agc_hold_time[] = {
+			"0ms", "2ms", "4ms", "8ms",
+			"16ms", "32ms", "64ms",
+			"128ms", "256ms", "512ms", "1s"};
+
+static const char *const rk312x_pga_agc_ramp_up_time[] = {
+		"Normal:500us Jack:125us",
+		"Normal:1ms Jack:250us",
+		"Normal:2ms Jack:500us",
+		"Normal:4ms Jack:1ms",
+		"Normal:8ms Jack:2ms",
+		"Normal:16ms Jack:4ms",
+		"Normal:32ms Jack:8ms",
+		"Normal:64ms Jack:16ms",
+		"Normal:128ms Jack:32ms",
+		"Normal:256ms Jack:64ms",
+		"Normal:512ms Jack:128ms"};
+
+static const char *const rk312x_pga_agc_ramp_down_time[] = {
+		"Normal:125us Jack:32us",
+		"Normal:250us Jack:64us",
+		"Normal:500us Jack:125us",
+		"Normal:1ms Jack:250us",
+		"Normal:2ms Jack:500us",
+		"Normal:4ms Jack:1ms",
+		"Normal:8ms Jack:2ms",
+		"Normal:16ms Jack:4ms",
+		"Normal:32ms Jack:8ms",
+		"Normal:64ms Jack:16ms",
+		"Normal:128ms Jack:32ms"};
+
+static const char *const rk312x_pga_agc_mode[] = {"Normal", "Limiter"};
+
+static const char *const rk312x_pga_agc_recovery_mode[] = {
+		"Right Now", "After AGC to Limiter"};
+
+static const char *const rk312x_pga_agc_noise_gate_threhold[] = {
+		"-39dB", "-45dB", "-51dB",
+		"-57dB", "-63dB", "-69dB", "-75dB", "-81dB"};
+
+static const char *const rk312x_pga_agc_update_gain[] = {
+		"Right Now", "After 1st Zero Cross"};
+
+static const char *const rk312x_pga_agc_approximate_sample_rate[] = {
+		"96KHZ", "48KHz", "441KHZ", "32KHz",
+		"24KHz", "16KHz", "12KHz", "8KHz"};
+
+static const struct soc_enum rk312x_bst_enum[] = {
+		SOC_ENUM_SINGLE(RK312x_BSTL_ALCL_CTL,
+				RK312x_BSTL_MODE_SFT, 2,
+				rk312x_input_mode),
+};
+
+
+static const struct soc_enum rk312x_micbias_enum[] = {
+	SOC_ENUM_SINGLE(RK312x_ADC_MIC_CTL,
+			RK312x_MICBIAS_VOL_SHT, 8,
+			rk312x_micbias_ratio),
+};
+
+static const struct soc_enum rk312x_agcl_enum[] = {
+	SOC_ENUM_SINGLE(RK312x_PGAL_AGC_CTL1,
+			RK312x_PGA_AGC_BK_WAY_SFT, 4,
+			rk312x_agc_backup_way),/*0*/
+	SOC_ENUM_SINGLE(RK312x_PGAL_AGC_CTL1,
+			RK312x_PGA_AGC_WAY_SFT, 2,
+			rk312x_pga_agc_way),/*1*/
+	SOC_ENUM_SINGLE(RK312x_PGAL_AGC_CTL1,
+			RK312x_PGA_AGC_HOLD_T_SFT, 11,
+			rk312x_pga_agc_hold_time),/*2*/
+	SOC_ENUM_SINGLE(RK312x_PGAL_AGC_CTL2,
+			RK312x_PGA_AGC_GRU_T_SFT, 11,
+			rk312x_pga_agc_ramp_up_time),/*3*/
+	SOC_ENUM_SINGLE(RK312x_PGAL_AGC_CTL2,
+			RK312x_PGA_AGC_GRD_T_SFT, 11,
+			rk312x_pga_agc_ramp_down_time),/*4*/
+	SOC_ENUM_SINGLE(RK312x_PGAL_AGC_CTL3,
+			RK312x_PGA_AGC_MODE_SFT, 2,
+			rk312x_pga_agc_mode),/*5*/
+	SOC_ENUM_SINGLE(RK312x_PGAL_AGC_CTL3,
+			RK312x_PGA_AGC_ZO_SFT, 2,
+			rk312x_dis_en_sel),/*6*/
+	SOC_ENUM_SINGLE(RK312x_PGAL_AGC_CTL3,
+			RK312x_PGA_AGC_REC_MODE_SFT, 2,
+			rk312x_pga_agc_recovery_mode),/*7*/
+	SOC_ENUM_SINGLE(RK312x_PGAL_AGC_CTL3,
+			RK312x_PGA_AGC_FAST_D_SFT, 2,
+			rk312x_dis_en_sel),/*8*/
+	SOC_ENUM_SINGLE(RK312x_PGAL_AGC_CTL3,
+			RK312x_PGA_AGC_NG_SFT, 2,
+			rk312x_dis_en_sel),/*9*/
+	SOC_ENUM_SINGLE(RK312x_PGAL_AGC_CTL3,
+			RK312x_PGA_AGC_NG_THR_SFT, 8,
+			rk312x_pga_agc_noise_gate_threhold),/*10*/
+	SOC_ENUM_SINGLE(RK312x_PGAL_AGC_CTL4,
+			RK312x_PGA_AGC_ZO_MODE_SFT, 2,
+			rk312x_pga_agc_update_gain),/*11*/
+	SOC_ENUM_SINGLE(RK312x_PGAL_ASR_CTL,
+			RK312x_PGA_SLOW_CLK_SFT, 2,
+			rk312x_dis_en_sel),/*12*/
+	SOC_ENUM_SINGLE(RK312x_PGAL_ASR_CTL,
+			RK312x_PGA_ASR_SFT, 8,
+			rk312x_pga_agc_approximate_sample_rate),/*13*/
+	SOC_ENUM_SINGLE(RK312x_PGAL_AGC_CTL5,
+			RK312x_PGA_AGC_SFT, 2,
+			rk312x_dis_en_sel),/*14*/
+};
+
+static const struct soc_enum rk312x_agcr_enum[] = {
+	SOC_ENUM_SINGLE(RK312x_PGAR_AGC_CTL1,
+			RK312x_PGA_AGC_BK_WAY_SFT, 4,
+			rk312x_agc_backup_way),/*0*/
+	SOC_ENUM_SINGLE(RK312x_PGAR_AGC_CTL1,
+			RK312x_PGA_AGC_WAY_SFT, 2,
+			rk312x_pga_agc_way),/*1*/
+	SOC_ENUM_SINGLE(RK312x_PGAR_AGC_CTL1,
+			RK312x_PGA_AGC_HOLD_T_SFT, 11,
+			rk312x_pga_agc_hold_time),/*2*/
+	SOC_ENUM_SINGLE(RK312x_PGAR_AGC_CTL2,
+			RK312x_PGA_AGC_GRU_T_SFT, 11,
+			rk312x_pga_agc_ramp_up_time),/*3*/
+	SOC_ENUM_SINGLE(RK312x_PGAR_AGC_CTL2,
+			RK312x_PGA_AGC_GRD_T_SFT, 11,
+			rk312x_pga_agc_ramp_down_time),/*4*/
+	SOC_ENUM_SINGLE(RK312x_PGAR_AGC_CTL3,
+			RK312x_PGA_AGC_MODE_SFT, 2,
+			rk312x_pga_agc_mode),/*5*/
+	SOC_ENUM_SINGLE(RK312x_PGAR_AGC_CTL3,
+			RK312x_PGA_AGC_ZO_SFT, 2,
+			rk312x_dis_en_sel),/*6*/
+	SOC_ENUM_SINGLE(RK312x_PGAR_AGC_CTL3,
+			RK312x_PGA_AGC_REC_MODE_SFT, 2,
+			rk312x_pga_agc_recovery_mode),/*7*/
+	SOC_ENUM_SINGLE(RK312x_PGAR_AGC_CTL3,
+			RK312x_PGA_AGC_FAST_D_SFT, 2,
+			rk312x_dis_en_sel),/*8*/
+	SOC_ENUM_SINGLE(RK312x_PGAR_AGC_CTL3,
+			RK312x_PGA_AGC_NG_SFT, 2, rk312x_dis_en_sel),/*9*/
+	SOC_ENUM_SINGLE(RK312x_PGAR_AGC_CTL3,
+			RK312x_PGA_AGC_NG_THR_SFT, 8,
+			rk312x_pga_agc_noise_gate_threhold),/*10*/
+	SOC_ENUM_SINGLE(RK312x_PGAR_AGC_CTL4,
+			RK312x_PGA_AGC_ZO_MODE_SFT, 2,
+			rk312x_pga_agc_update_gain),/*11*/
+	SOC_ENUM_SINGLE(RK312x_PGAR_ASR_CTL,
+			RK312x_PGA_SLOW_CLK_SFT, 2,
+			rk312x_dis_en_sel),/*12*/
+	SOC_ENUM_SINGLE(RK312x_PGAR_ASR_CTL,
+			RK312x_PGA_ASR_SFT, 8,
+			rk312x_pga_agc_approximate_sample_rate),/*13*/
+	SOC_ENUM_SINGLE(RK312x_PGAR_AGC_CTL5,
+			RK312x_PGA_AGC_SFT, 2,
+			rk312x_dis_en_sel),/*14*/
+};
+
+static const struct snd_kcontrol_new rk312x_snd_controls[] = {
+	/* Add for set voice volume */
+	SOC_DOUBLE_R_TLV("Speaker Playback Volume", RK312x_HPOUTL_GAIN,
+			 RK312x_HPOUTR_GAIN, RK312x_HPOUT_GAIN_SFT,
+			 31, 0, out_vol_tlv),
+	SOC_DOUBLE("Speaker Playback Switch", RK312x_HPOUT_CTL,
+		   RK312x_HPOUTL_MUTE_SHT, RK312x_HPOUTR_MUTE_SHT, 1, 0),
+	SOC_DOUBLE_R_TLV("Headphone Playback Volume", RK312x_HPOUTL_GAIN,
+			 RK312x_HPOUTR_GAIN, RK312x_HPOUT_GAIN_SFT,
+			 31, 0, out_vol_tlv),
+	SOC_DOUBLE("Headphone Playback Switch", RK312x_HPOUT_CTL,
+		   RK312x_HPOUTL_MUTE_SHT, RK312x_HPOUTR_MUTE_SHT, 1, 0),
+	SOC_DOUBLE_R_TLV("Earpiece Playback Volume", RK312x_HPOUTL_GAIN,
+			 RK312x_HPOUTR_GAIN, RK312x_HPOUT_GAIN_SFT,
+			 31, 0, out_vol_tlv),
+	SOC_DOUBLE("Earpiece Playback Switch", RK312x_HPOUT_CTL,
+		   RK312x_HPOUTL_MUTE_SHT, RK312x_HPOUTR_MUTE_SHT, 1, 0),
+
+
+	/* Add for set capture mute */
+	SOC_SINGLE_TLV("Main Mic Capture Volume", RK312x_BST_CTL,
+		       RK312x_BSTL_GAIN_SHT, 1, 0, bst_vol_tlv),
+	SOC_SINGLE("Main Mic Capture Switch", RK312x_BST_CTL,
+		   RK312x_BSTL_MUTE_SHT, 1, 0),
+	SOC_SINGLE_TLV("Headset Mic Capture Volume", RK312x_BST_CTL,
+		       RK312x_BSTR_GAIN_SHT, 1, 0, bst_vol_tlv),
+	SOC_SINGLE("Headset Mic Capture Switch", RK312x_BST_CTL,
+		   RK312x_BSTR_MUTE_SHT, 1, 0),
+
+	SOC_SINGLE("ALCL Switch", RK312x_ALC_MUNIN_CTL,
+		   RK312x_ALCL_MUTE_SHT, 1, 0),
+	SOC_SINGLE_TLV("ALCL Capture Volume", RK312x_BSTL_ALCL_CTL,
+		       RK312x_ALCL_GAIN_SHT, 31, 0, pga_vol_tlv),
+	SOC_SINGLE("ALCR Switch", RK312x_ALC_MUNIN_CTL,
+		   RK312x_ALCR_MUTE_SHT, 1, 0),
+	SOC_SINGLE_TLV("ALCR Capture Volume", RK312x_ALCR_GAIN_CTL,
+		       RK312x_ALCL_GAIN_SHT, 31, 0, pga_vol_tlv),
+
+	SOC_ENUM("BST_L Mode",  rk312x_bst_enum[0]),
+
+	SOC_ENUM("Micbias Voltage",  rk312x_micbias_enum[0]),
+	SOC_ENUM("PGAL AGC Back Way",  rk312x_agcl_enum[0]),
+	SOC_ENUM("PGAL AGC Way",  rk312x_agcl_enum[1]),
+	SOC_ENUM("PGAL AGC Hold Time",  rk312x_agcl_enum[2]),
+	SOC_ENUM("PGAL AGC Ramp Up Time",  rk312x_agcl_enum[3]),
+	SOC_ENUM("PGAL AGC Ramp Down Time",  rk312x_agcl_enum[4]),
+	SOC_ENUM("PGAL AGC Mode",  rk312x_agcl_enum[5]),
+	SOC_ENUM("PGAL AGC Gain Update Zero Enable",  rk312x_agcl_enum[6]),
+	SOC_ENUM("PGAL AGC Gain Recovery LPGA VOL",  rk312x_agcl_enum[7]),
+	SOC_ENUM("PGAL AGC Fast Decrement Enable",  rk312x_agcl_enum[8]),
+	SOC_ENUM("PGAL AGC Noise Gate Enable",  rk312x_agcl_enum[9]),
+	SOC_ENUM("PGAL AGC Noise Gate Threhold",  rk312x_agcl_enum[10]),
+	SOC_ENUM("PGAL AGC Upate Gain",  rk312x_agcl_enum[11]),
+	SOC_ENUM("PGAL AGC Slow Clock Enable",  rk312x_agcl_enum[12]),
+	SOC_ENUM("PGAL AGC Approximate Sample Rate",  rk312x_agcl_enum[13]),
+	SOC_ENUM("PGAL AGC Enable",  rk312x_agcl_enum[14]),
+
+	SOC_SINGLE_TLV("PGAL AGC Volume", RK312x_PGAL_AGC_CTL4,
+		       RK312x_PGA_AGC_VOL_SFT, 31, 0, pga_vol_tlv),
+
+	SOC_SINGLE("PGAL AGC Max Level High 8 Bits",
+		   RK312x_PGAL_AGC_MAX_H,
+		   0, 255, 0),
+	SOC_SINGLE("PGAL AGC Max Level Low 8 Bits",
+		   RK312x_PGAL_AGC_MAX_L,
+		   0, 255, 0),
+	SOC_SINGLE("PGAL AGC Min Level High 8 Bits",
+		   RK312x_PGAL_AGC_MIN_H,
+		   0, 255, 0),
+	SOC_SINGLE("PGAL AGC Min Level Low 8 Bits",
+		   RK312x_PGAL_AGC_MIN_L,
+		   0, 255, 0),
+
+	SOC_SINGLE_TLV("PGAL AGC Max Gain",
+		       RK312x_PGAL_AGC_CTL5,
+		       RK312x_PGA_AGC_MAX_G_SFT, 7, 0,
+		       pga_agc_max_vol_tlv),
+	/* AGC enable and 0x0a bit 5 is 1 */
+	SOC_SINGLE_TLV("PGAL AGC Min Gain", RK312x_PGAL_AGC_CTL5,
+		       RK312x_PGA_AGC_MIN_G_SFT, 7, 0, pga_agc_min_vol_tlv),
+	/* AGC enable and 0x0a bit 5 is 1 */
+
+	SOC_ENUM("PGAR AGC Back Way",  rk312x_agcr_enum[0]),
+	SOC_ENUM("PGAR AGC Way",  rk312x_agcr_enum[1]),
+	SOC_ENUM("PGAR AGC Hold Time",  rk312x_agcr_enum[2]),
+	SOC_ENUM("PGAR AGC Ramp Up Time",  rk312x_agcr_enum[3]),
+	SOC_ENUM("PGAR AGC Ramp Down Time",  rk312x_agcr_enum[4]),
+	SOC_ENUM("PGAR AGC Mode",  rk312x_agcr_enum[5]),
+	SOC_ENUM("PGAR AGC Gain Update Zero Enable",  rk312x_agcr_enum[6]),
+	SOC_ENUM("PGAR AGC Gain Recovery LPGA VOL",  rk312x_agcr_enum[7]),
+	SOC_ENUM("PGAR AGC Fast Decrement Enable",  rk312x_agcr_enum[8]),
+	SOC_ENUM("PGAR AGC Noise Gate Enable",  rk312x_agcr_enum[9]),
+	SOC_ENUM("PGAR AGC Noise Gate Threhold",  rk312x_agcr_enum[10]),
+	SOC_ENUM("PGAR AGC Upate Gain",  rk312x_agcr_enum[11]),
+	SOC_ENUM("PGAR AGC Slow Clock Enable",  rk312x_agcr_enum[12]),
+	SOC_ENUM("PGAR AGC Approximate Sample Rate",  rk312x_agcr_enum[13]),
+	SOC_ENUM("PGAR AGC Enable",  rk312x_agcr_enum[14]),
+	/* AGC disable and 0x0a bit 4 is 1 */
+	SOC_SINGLE_TLV("PGAR AGC Volume", RK312x_PGAR_AGC_CTL4,
+		       RK312x_PGA_AGC_VOL_SFT, 31, 0, pga_vol_tlv),
+
+	SOC_SINGLE("PGAR AGC Max Level High 8 Bits", RK312x_PGAR_AGC_MAX_H,
+		   0, 255, 0),
+	SOC_SINGLE("PGAR AGC Max Level Low 8 Bits", RK312x_PGAR_AGC_MAX_L,
+		   0, 255, 0),
+	SOC_SINGLE("PGAR AGC Min Level High 8 Bits", RK312x_PGAR_AGC_MIN_H,
+		   0, 255, 0),
+	SOC_SINGLE("PGAR AGC Min Level Low 8 Bits", RK312x_PGAR_AGC_MIN_L,
+		   0, 255, 0),
+	/* AGC enable and 0x06 bit 4 is 1 */
+	SOC_SINGLE_TLV("PGAR AGC Max Gain", RK312x_PGAR_AGC_CTL5,
+		       RK312x_PGA_AGC_MAX_G_SFT, 7, 0, pga_agc_max_vol_tlv),
+	/*  AGC enable and 0x06 bit 4 is 1 */
+	SOC_SINGLE_TLV("PGAR AGC Min Gain", RK312x_PGAR_AGC_CTL5,
+		       RK312x_PGA_AGC_MIN_G_SFT, 7, 0, pga_agc_min_vol_tlv),
+
+};
+
+/* For tiny alsa playback/capture/voice call path */
+static const char *const rk312x_playback_path_mode[] = {
+		"OFF", "RCV", "SPK", "HP", "HP_NO_MIC",
+		"BT", "SPK_HP", "RING_SPK", "RING_HP",
+		"RING_HP_NO_MIC", "RING_SPK_HP"};
+
+static const char *const rk312x_capture_path_mode[] = {
+		"MIC OFF", "Main Mic", "Hands Free Mic", "BT Sco Mic"};
+
+static const char *const rk312x_voice_call_path_mode[] = {
+		"OFF", "RCV", "SPK", "HP", "HP_NO_MIC", "BT"};
+
+
+static const SOC_ENUM_SINGLE_DECL(rk312x_playback_path_type, 0, 0,
+				  rk312x_playback_path_mode);
+static const SOC_ENUM_SINGLE_DECL(rk312x_capture_path_type, 0, 0,
+				  rk312x_capture_path_mode);
+static const SOC_ENUM_SINGLE_DECL(rk312x_voice_call_path_type, 0, 0,
+				  rk312x_voice_call_path_mode);
+
+
+/* static int rk312x_codec_power_up(int type); */
+static int rk312x_codec_power_down(int type);
+
+static int rk312x_playback_path_get(struct snd_kcontrol *kcontrol,
+				    struct snd_ctl_elem_value *ucontrol)
+{
+	if (!rk312x_priv) {
+		DBG("%s : rk312x_priv is NULL\n", __func__);
+		return -EINVAL;
+	}
+
+	DBG("%s : playback_path = %ld\n",
+	    __func__, ucontrol->value.integer.value[0]);
+
+	ucontrol->value.integer.value[0] = rk312x_priv->playback_path;
+
+	return 0;
+}
+
+static int rk312x_playback_path_put(struct snd_kcontrol *kcontrol,
+				    struct snd_ctl_elem_value *ucontrol)
+{
+	/* struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol); */
+	long int pre_path;
+
+	if (!rk312x_priv) {
+		DBG("%s : rk312x_priv is NULL\n", __func__);
+		return -EINVAL;
+	}
+
+	if (rk312x_priv->playback_path ==
+	    ucontrol->value.integer.value[0]) {
+		DBG("%s : playback_path is not changed!\n", __func__);
+		return 0;
+	}
+
+	pre_path = rk312x_priv->playback_path;
+	rk312x_priv->playback_path = ucontrol->value.integer.value[0];
+
+	DBG("%s : set playback_path = %ld\n", __func__,
+	    rk312x_priv->playback_path);
+
+	switch (rk312x_priv->playback_path) {
+	case OFF:
+		if (pre_path != OFF)
+			rk312x_codec_power_down(RK312x_CODEC_PLAYBACK);
+		break;
+	case RCV:
+		break;
+	case SPK_PATH:
+	case RING_SPK:
+		if (pre_path == OFF)
+			rk312x_codec_power_up(RK312x_CODEC_PLAYBACK);
+		break;
+	case HP_PATH:
+	case HP_NO_MIC:
+	case RING_HP:
+	case RING_HP_NO_MIC:
+		if (pre_path == OFF)
+			rk312x_codec_power_up(RK312x_CODEC_PLAYBACK);
+		break;
+	case BT:
+		break;
+	case SPK_HP:
+	case RING_SPK_HP:
+		if (pre_path == OFF)
+			rk312x_codec_power_up(RK312x_CODEC_PLAYBACK);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int rk312x_capture_path_get(struct snd_kcontrol *kcontrol,
+				   struct snd_ctl_elem_value *ucontrol)
+{
+	if (!rk312x_priv) {
+		DBG("%s : rk312x_priv is NULL\n", __func__);
+		return -EINVAL;
+	}
+
+	DBG("%s : capture_path = %ld\n", __func__,
+	    ucontrol->value.integer.value[0]);
+
+	ucontrol->value.integer.value[0] = rk312x_priv->capture_path;
+
+	return 0;
+}
+
+static int rk312x_capture_path_put(struct snd_kcontrol *kcontrol,
+				   struct snd_ctl_elem_value *ucontrol)
+{
+	/* struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol); */
+	long int pre_path;
+
+	if (!rk312x_priv) {
+		DBG("%s : rk312x_priv is NULL\n", __func__);
+		return -EINVAL;
+	}
+
+	if (rk312x_priv->capture_path == ucontrol->value.integer.value[0])
+		DBG("%s : capture_path is not changed!\n", __func__);
+
+	pre_path = rk312x_priv->capture_path;
+	rk312x_priv->capture_path = ucontrol->value.integer.value[0];
+
+	DBG("%s : set capture_path = %ld\n", __func__,
+	    rk312x_priv->capture_path);
+
+	switch (rk312x_priv->capture_path) {
+	case MIC_OFF:
+		if (pre_path != MIC_OFF)
+			rk312x_codec_power_down(RK312x_CODEC_CAPTURE);
+		break;
+	case Main_Mic:
+		if (pre_path == MIC_OFF)
+			rk312x_codec_power_up(RK312x_CODEC_CAPTURE);
+		break;
+	case Hands_Free_Mic:
+		if (pre_path == MIC_OFF)
+			rk312x_codec_power_up(RK312x_CODEC_CAPTURE);
+		break;
+	case BT_Sco_Mic:
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int rk312x_voice_call_path_get(struct snd_kcontrol *kcontrol,
+				      struct snd_ctl_elem_value *ucontrol)
+{
+	if (!rk312x_priv) {
+		DBG("%s : rk312x_priv is NULL\n", __func__);
+		return -EINVAL;
+	}
+
+	DBG("%s : playback_path = %ld\n", __func__,
+	    ucontrol->value.integer.value[0]);
+
+	ucontrol->value.integer.value[0] = rk312x_priv->voice_call_path;
+
+	return 0;
+}
+
+static int rk312x_voice_call_path_put(struct snd_kcontrol *kcontrol,
+				      struct snd_ctl_elem_value *ucontrol)
+{
+	/* struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol); */
+	long int pre_path;
+
+	if (!rk312x_priv) {
+		DBG("%s : rk312x_priv is NULL\n", __func__);
+		return -EINVAL;
+	}
+
+	if (rk312x_priv->voice_call_path == ucontrol->value.integer.value[0])
+		DBG("%s : playback_path is not changed!\n", __func__);
+
+	pre_path = rk312x_priv->voice_call_path;
+	rk312x_priv->voice_call_path = ucontrol->value.integer.value[0];
+
+	DBG("%s : set playback_path = %ld\n", __func__,
+	    rk312x_priv->voice_call_path);
+
+	/* open playback route for incall route and keytone */
+	if (pre_path == OFF) {
+		if (rk312x_priv->playback_path != OFF)
+			/* mute output for incall route pop nosie */
+				mdelay(100);
+		else
+			rk312x_codec_power_up(RK312x_CODEC_PLAYBACK);
+	}
+
+	switch (rk312x_priv->voice_call_path) {
+	case OFF:
+		if (pre_path != MIC_OFF)
+			rk312x_codec_power_down(RK312x_CODEC_CAPTURE);
+		break;
+	case RCV:
+		break;
+	case SPK_PATH:
+		/* open incall route */
+		if (pre_path == OFF ||	pre_path == RCV || pre_path == BT)
+			rk312x_codec_power_up(RK312x_CODEC_INCALL);
+
+		break;
+	case HP_PATH:
+	case HP_NO_MIC:
+		/* open incall route */
+		if (pre_path == OFF ||	pre_path == RCV || pre_path == BT)
+			rk312x_codec_power_up(RK312x_CODEC_INCALL);
+		break;
+	case BT:
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static const struct snd_kcontrol_new rk312x_snd_path_controls[] = {
+	SOC_ENUM_EXT("Playback Path", rk312x_playback_path_type,
+		     rk312x_playback_path_get, rk312x_playback_path_put),
+	SOC_ENUM_EXT("Capture MIC Path", rk312x_capture_path_type,
+		     rk312x_capture_path_get, rk312x_capture_path_put),
+	SOC_ENUM_EXT("Voice Call Path", rk312x_voice_call_path_type,
+		     rk312x_voice_call_path_get, rk312x_voice_call_path_put),
+};
+
+static int rk312x_dacl_event(struct snd_soc_dapm_widget *w,
+			     struct snd_kcontrol *kcontrol,
+			     int event)
+{
+	struct snd_soc_codec *codec = w->codec;
+
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMU:
+		snd_soc_update_bits(codec, RK312x_DAC_ENABLE,
+				    RK312x_DACL_WORK, 0);
+		snd_soc_update_bits(codec, RK312x_DAC_ENABLE,
+				    RK312x_DACL_EN | RK312x_DACL_CLK_EN,
+				    RK312x_DACL_EN | RK312x_DACL_CLK_EN);
+		snd_soc_update_bits(codec, RK312x_DAC_ENABLE,
+				    RK312x_DACL_WORK, RK312x_DACL_WORK);
+		break;
+
+	case SND_SOC_DAPM_POST_PMD:
+		snd_soc_update_bits(codec, RK312x_DAC_ENABLE,
+				    RK312x_DACL_EN
+				    | RK312x_DACL_CLK_EN, 0);
+		snd_soc_update_bits(codec, RK312x_DAC_ENABLE,
+				    RK312x_DACL_WORK, 0);
+		break;
+
+	default:
+		return 0;
+	}
+
+	return 0;
+}
+
+static int rk312x_dacr_event(struct snd_soc_dapm_widget *w,
+			     struct snd_kcontrol *kcontrol,
+			     int event)
+{
+	struct snd_soc_codec *codec = w->codec;
+
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMU:
+		snd_soc_update_bits(codec, RK312x_DAC_ENABLE,
+				    RK312x_DACR_WORK, 0);
+		snd_soc_update_bits(codec, RK312x_DAC_ENABLE,
+				    RK312x_DACR_EN
+				    | RK312x_DACR_CLK_EN,
+				    RK312x_DACR_EN
+				    | RK312x_DACR_CLK_EN);
+		snd_soc_update_bits(codec, RK312x_DAC_ENABLE,
+				    RK312x_DACR_WORK,
+				    RK312x_DACR_WORK);
+		break;
+
+	case SND_SOC_DAPM_POST_PMD:
+		snd_soc_update_bits(codec, RK312x_DAC_ENABLE,
+				    RK312x_DACR_EN
+				    | RK312x_DACR_CLK_EN, 0);
+		snd_soc_update_bits(codec, RK312x_DAC_ENABLE,
+				    RK312x_DACR_WORK, 0);
+		break;
+
+	default:
+		return 0;
+	}
+
+	return 0;
+}
+
+static int rk312x_adcl_event(struct snd_soc_dapm_widget *w,
+			     struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_codec *codec = w->codec;
+
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMU:
+		snd_soc_update_bits(codec, RK312x_ADC_ENABLE,
+				    RK312x_ADCL_CLK_EN_SFT
+				    | RK312x_ADCL_AMP_EN_SFT,
+				    RK312x_ADCL_CLK_EN
+				    | RK312x_ADCL_AMP_EN);
+		break;
+
+	case SND_SOC_DAPM_POST_PMD:
+		snd_soc_update_bits(codec, RK312x_ADC_ENABLE,
+				    RK312x_ADCL_CLK_EN_SFT
+				    | RK312x_ADCL_AMP_EN_SFT, 0);
+		break;
+
+	default:
+		return 0;
+	}
+
+	return 0;
+}
+
+static int rk312x_adcr_event(struct snd_soc_dapm_widget *w,
+			     struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_codec *codec = w->codec;
+
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMU:
+		snd_soc_update_bits(codec, RK312x_ADC_ENABLE,
+				    RK312x_ADCR_CLK_EN_SFT
+				    | RK312x_ADCR_AMP_EN_SFT,
+				    RK312x_ADCR_CLK_EN
+				    | RK312x_ADCR_AMP_EN);
+		break;
+
+	case SND_SOC_DAPM_POST_PMD:
+		snd_soc_update_bits(codec, RK312x_ADC_ENABLE,
+				    RK312x_ADCR_CLK_EN_SFT
+				    | RK312x_ADCR_AMP_EN_SFT, 0);
+		break;
+
+	default:
+		return 0;
+	}
+
+	return 0;
+}
+
+/* HPmix */
+static const struct snd_kcontrol_new rk312x_hpmixl[] = {
+	SOC_DAPM_SINGLE("ALCR Switch", RK312x_HPMIX_S_SELECT,
+			RK312x_HPMIXL_SEL_ALCR_SFT, 1, 0),
+	SOC_DAPM_SINGLE("ALCL Switch", RK312x_HPMIX_S_SELECT,
+			RK312x_HPMIXL_SEL_ALCL_SFT, 1, 0),
+	SOC_DAPM_SINGLE("DACL Switch", RK312x_HPMIX_S_SELECT,
+			RK312x_HPMIXL_SEL_DACL_SFT, 1, 0),
+};
+
+static const struct snd_kcontrol_new rk312x_hpmixr[] = {
+	SOC_DAPM_SINGLE("ALCR Switch", RK312x_HPMIX_S_SELECT,
+			RK312x_HPMIXR_SEL_ALCR_SFT, 1, 0),
+	SOC_DAPM_SINGLE("ALCL Switch", RK312x_HPMIX_S_SELECT,
+			RK312x_HPMIXR_SEL_ALCL_SFT, 1, 0),
+	SOC_DAPM_SINGLE("DACR Switch", RK312x_HPMIX_S_SELECT,
+			RK312x_HPMIXR_SEL_DACR_SFT, 1, 0),
+};
+
+static int rk312x_hpmixl_event(struct snd_soc_dapm_widget *w,
+			       struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_codec *codec = w->codec;
+
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMU:
+		snd_soc_update_bits(codec, RK312x_DAC_CTL,
+				    RK312x_ZO_DET_VOUTR_SFT,
+				    RK312x_ZO_DET_VOUTR_EN);
+		snd_soc_update_bits(codec, RK312x_DAC_CTL,
+				    RK312x_ZO_DET_VOUTL_SFT,
+				    RK312x_ZO_DET_VOUTL_EN);
+		break;
+
+	case SND_SOC_DAPM_PRE_PMD:
+		snd_soc_update_bits(codec, RK312x_DAC_CTL,
+				    RK312x_ZO_DET_VOUTR_SFT,
+				    RK312x_ZO_DET_VOUTR_DIS);
+		snd_soc_update_bits(codec, RK312x_DAC_CTL,
+				    RK312x_ZO_DET_VOUTL_SFT,
+				    RK312x_ZO_DET_VOUTL_DIS);
+		break;
+
+	default:
+		return 0;
+	}
+
+	return 0;
+}
+
+static int rk312x_hpmixr_event(struct snd_soc_dapm_widget *w,
+			       struct snd_kcontrol *kcontrol, int event)
+{
+	/* struct snd_soc_codec *codec = w->codec; */
+#if 0
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMU:
+		snd_soc_update_bits(codec, RK312x_HPMIX_CTL,
+				    RK312x_HPMIXR_WORK2, RK312x_HPMIXR_WORK2);
+		break;
+
+	case SND_SOC_DAPM_PRE_PMD:
+		snd_soc_update_bits(codec, RK312x_HPMIX_CTL,
+				    RK312x_HPMIXR_WORK2, 0);
+		break;
+
+	default:
+		return 0;
+	}
+#endif
+	return 0;
+}
+
+/* HP MUX */
+
+static const char *const hpl_sel[] = {"HPMIXL", "DACL"};
+
+static const struct soc_enum hpl_sel_enum =
+	SOC_ENUM_SINGLE(RK312x_HPMIX_S_SELECT, RK312x_HPMIXL_BYPASS_SFT,
+			ARRAY_SIZE(hpl_sel), hpl_sel);
+
+static const struct snd_kcontrol_new hpl_sel_mux =
+	SOC_DAPM_ENUM("HPL select Mux", hpl_sel_enum);
+
+static const char *const hpr_sel[] = {"HPMIXR", "DACR"};
+
+static const struct soc_enum hpr_sel_enum =
+	SOC_ENUM_SINGLE(RK312x_HPMIX_S_SELECT, RK312x_HPMIXR_BYPASS_SFT,
+			ARRAY_SIZE(hpr_sel), hpr_sel);
+
+static const struct snd_kcontrol_new hpr_sel_mux =
+	SOC_DAPM_ENUM("HPR select Mux", hpr_sel_enum);
+
+/* IN_L MUX */
+static const char *const lnl_sel[] = {"NO", "BSTL", "LINEL", "NOUSE"};
+
+static const struct soc_enum lnl_sel_enum =
+	SOC_ENUM_SINGLE(RK312x_ALC_MUNIN_CTL, RK312x_MUXINL_F_SHT,
+			ARRAY_SIZE(lnl_sel), lnl_sel);
+
+static const struct snd_kcontrol_new lnl_sel_mux =
+	SOC_DAPM_ENUM("MUXIN_L select", lnl_sel_enum);
+
+/* IN_R MUX */
+static const char *const lnr_sel[] = {"NO", "BSTR", "LINER", "NOUSE"};
+
+static const struct soc_enum lnr_sel_enum =
+	SOC_ENUM_SINGLE(RK312x_ALC_MUNIN_CTL, RK312x_MUXINR_F_SHT,
+			ARRAY_SIZE(lnr_sel), lnr_sel);
+
+static const struct snd_kcontrol_new lnr_sel_mux =
+	SOC_DAPM_ENUM("MUXIN_R select", lnr_sel_enum);
+
+
+static const struct snd_soc_dapm_widget rk312x_dapm_widgets[] = {
+	/* microphone bias */
+	SND_SOC_DAPM_MICBIAS("Mic Bias", RK312x_ADC_MIC_CTL,
+			     RK312x_MICBIAS_VOL_ENABLE, 0),
+
+	/* DACs */
+	SND_SOC_DAPM_DAC_E("DACL", NULL, SND_SOC_NOPM,
+			   0, 0, rk312x_dacl_event,
+			   SND_SOC_DAPM_POST_PMD
+			   | SND_SOC_DAPM_POST_PMU),
+	SND_SOC_DAPM_DAC_E("DACR", NULL, SND_SOC_NOPM,
+			   0, 0, rk312x_dacr_event,
+			   SND_SOC_DAPM_POST_PMD
+			   | SND_SOC_DAPM_POST_PMU),
+
+	/* ADCs */
+	SND_SOC_DAPM_ADC_E("ADCL", NULL, SND_SOC_NOPM,
+			   0, 0, rk312x_adcl_event,
+			   SND_SOC_DAPM_POST_PMD
+			   | SND_SOC_DAPM_POST_PMU),
+	SND_SOC_DAPM_ADC_E("ADCR", NULL, SND_SOC_NOPM,
+			   0, 0, rk312x_adcr_event,
+			   SND_SOC_DAPM_POST_PMD
+			   | SND_SOC_DAPM_POST_PMU),
+
+	/* PGA */
+	SND_SOC_DAPM_PGA("BSTL", RK312x_BST_CTL,
+			 RK312x_BSTL_PWRD_SFT, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("BSTR", RK312x_BST_CTL,
+			 RK312x_BSTR_PWRD_SFT, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("ALCL", RK312x_ALC_MUNIN_CTL,
+			 RK312x_ALCL_PWR_SHT , 0, NULL, 0),
+	SND_SOC_DAPM_PGA("ALCR", RK312x_ALC_MUNIN_CTL,
+			 RK312x_ALCR_PWR_SHT , 0, NULL, 0),
+	SND_SOC_DAPM_PGA("HPL", RK312x_HPOUT_CTL,
+			 RK312x_HPOUTL_PWR_SHT, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("HPR", RK312x_HPOUT_CTL,
+			 RK312x_HPOUTR_PWR_SHT, 0, NULL, 0),
+
+	/* MIXER */
+	SND_SOC_DAPM_MIXER_E("HPMIXL", RK312x_HPMIX_CTL,
+			     RK312x_HPMIXL_SFT, 0,
+			     rk312x_hpmixl,
+			     ARRAY_SIZE(rk312x_hpmixl),
+			     rk312x_hpmixl_event,
+			     SND_SOC_DAPM_PRE_PMD
+			     | SND_SOC_DAPM_POST_PMU),
+	SND_SOC_DAPM_MIXER_E("HPMIXR", RK312x_HPMIX_CTL,
+			     RK312x_HPMIXR_SFT, 0,
+			     rk312x_hpmixr,
+			     ARRAY_SIZE(rk312x_hpmixr),
+			     rk312x_hpmixr_event,
+			     SND_SOC_DAPM_PRE_PMD
+			     | SND_SOC_DAPM_POST_PMU),
+
+	/* MUX */
+	SND_SOC_DAPM_MUX("IN_R Mux", SND_SOC_NOPM, 0, 0,
+			 &lnr_sel_mux),
+	SND_SOC_DAPM_MUX("IN_L Mux", SND_SOC_NOPM, 0, 0,
+			 &lnl_sel_mux),
+	SND_SOC_DAPM_MUX("HPL Mux", SND_SOC_NOPM, 0, 0,
+			 &hpl_sel_mux),
+	SND_SOC_DAPM_MUX("HPR Mux", SND_SOC_NOPM, 0, 0,
+			 &hpr_sel_mux),
+
+	/* Audio Interface */
+	SND_SOC_DAPM_AIF_IN("I2S DAC", "HiFi Playback", 0,
+			    SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("I2S ADC", "HiFi Capture", 0,
+			     SND_SOC_NOPM, 0, 0),
+
+	/* Input */
+	SND_SOC_DAPM_INPUT("LINEL"),
+	SND_SOC_DAPM_INPUT("LINER"),
+	SND_SOC_DAPM_INPUT("MICP"),
+	SND_SOC_DAPM_INPUT("MICN"),
+
+	/* Output */
+	SND_SOC_DAPM_OUTPUT("HPOUTL"),
+	SND_SOC_DAPM_OUTPUT("HPOUTR"),
+
+};
+
+static const struct snd_soc_dapm_route rk312x_dapm_routes[] = {
+	/* Input */
+	{"BSTR", NULL, "MICP"},
+	{"BSTL", NULL, "MICP"},
+	{"BSTL", NULL, "MICN"},
+
+	{"IN_R Mux", "LINER", "LINER"},
+	{"IN_R Mux", "BSTR", "BSTR"},
+	{"IN_L Mux", "LINEL", "LINEL"},
+	{"IN_L Mux", "BSTL", "BSTL"},
+
+	{"ALCL", NULL, "IN_L Mux"},
+	{"ALCR", NULL, "IN_R Mux"},
+
+
+	{"ADCR", NULL, "ALCR"},
+	{"ADCL", NULL, "ALCL"},
+
+	{"I2S ADC", NULL, "ADCR"},
+	{"I2S ADC", NULL, "ADCL"},
+
+	/* Output */
+
+	{"DACR", NULL, "I2S DAC"},
+	{"DACL", NULL, "I2S DAC"},
+
+	{"HPMIXR", "ALCR Switch", "ALCR"},
+	{"HPMIXR", "ALCL Switch", "ALCL"},
+	{"HPMIXR", "DACR Switch", "DACR"},
+
+	{"HPMIXL", "ALCR Switch", "ALCR"},
+	{"HPMIXL", "ALCL Switch", "ALCL"},
+	{"HPMIXL", "DACL Switch", "DACL"},
+
+
+	{"HPR Mux", "DACR", "DACR"},
+	{"HPR Mux", "HPMIXR", "HPMIXR"},
+	{"HPL Mux", "DACL", "DACL"},
+	{"HPL Mux", "HPMIXL", "HPMIXL"},
+
+	{"HPR", NULL, "HPR Mux"},
+	{"HPL", NULL, "HPL Mux"},
+
+	{"HPOUTR", NULL, "HPR"},
+	{"HPOUTL", NULL, "HPL"},
+};
+
+static int rk312x_set_bias_level(struct snd_soc_codec *codec,
+				 enum snd_soc_bias_level level)
+{
+	DBG("%s  level=%d\n", __func__, level);
+
+	switch (level) {
+	case SND_SOC_BIAS_ON:
+		break;
+
+	case SND_SOC_BIAS_PREPARE:
+		break;
+
+	case SND_SOC_BIAS_STANDBY:
+		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
+			writel(0x32, rk312x_priv->regbase+RK312x_DAC_INT_CTL3);
+			snd_soc_update_bits(codec, RK312x_ADC_MIC_CTL,
+					    RK312x_ADC_CURRENT_ENABLE,
+					    RK312x_ADC_CURRENT_ENABLE);
+			snd_soc_update_bits(codec, RK312x_DAC_CTL,
+					    RK312x_CURRENT_EN,
+					    RK312x_CURRENT_EN);
+			/* set power */
+			snd_soc_update_bits(codec, RK312x_ADC_ENABLE,
+					    RK312x_ADCL_REF_VOL_EN_SFT
+					    | RK312x_ADCR_REF_VOL_EN_SFT,
+					    RK312x_ADCL_REF_VOL_EN
+					    | RK312x_ADCR_REF_VOL_EN);
+
+			snd_soc_update_bits(codec, RK312x_ADC_MIC_CTL,
+					    RK312x_ADCL_ZERO_DET_EN_SFT
+					    | RK312x_ADCR_ZERO_DET_EN_SFT,
+					    RK312x_ADCL_ZERO_DET_EN
+					    | RK312x_ADCR_ZERO_DET_EN);
+
+			snd_soc_update_bits(codec, RK312x_DAC_CTL,
+					    RK312x_REF_VOL_DACL_EN_SFT
+					    | RK312x_REF_VOL_DACR_EN_SFT,
+					    RK312x_REF_VOL_DACL_EN
+					    | RK312x_REF_VOL_DACR_EN);
+
+			snd_soc_update_bits(codec, RK312x_DAC_ENABLE,
+					    RK312x_DACL_REF_VOL_EN_SFT
+					    | RK312x_DACR_REF_VOL_EN_SFT,
+					    RK312x_DACL_REF_VOL_EN
+					    | RK312x_DACR_REF_VOL_EN);
+		}
+		break;
+
+	case SND_SOC_BIAS_OFF:
+			snd_soc_update_bits(codec, RK312x_DAC_ENABLE,
+					    RK312x_DACL_REF_VOL_EN_SFT
+					    | RK312x_DACR_REF_VOL_EN_SFT, 0);
+			snd_soc_update_bits(codec, RK312x_DAC_CTL,
+					    RK312x_REF_VOL_DACL_EN_SFT
+					    | RK312x_REF_VOL_DACR_EN_SFT, 0);
+			snd_soc_update_bits(codec, RK312x_ADC_MIC_CTL,
+					    RK312x_ADCL_ZERO_DET_EN_SFT
+					    | RK312x_ADCR_ZERO_DET_EN_SFT, 0);
+			snd_soc_update_bits(codec, RK312x_ADC_ENABLE,
+					    RK312x_ADCL_REF_VOL_EN_SFT
+					    | RK312x_ADCR_REF_VOL_EN_SFT, 0);
+			snd_soc_update_bits(codec, RK312x_ADC_MIC_CTL,
+					    RK312x_ADC_CURRENT_ENABLE, 0);
+			snd_soc_update_bits(codec, RK312x_DAC_CTL,
+					    RK312x_CURRENT_EN, 0);
+			writel(0x22, rk312x_priv->regbase+RK312x_DAC_INT_CTL3);
+		break;
+	}
+	codec->dapm.bias_level = level;
+
+	return 0;
+}
+
+static int rk312x_set_dai_sysclk(struct snd_soc_dai *codec_dai,
+				 int clk_id, unsigned int freq, int dir)
+{
+	struct rk312x_codec_priv *rk312x = rk312x_priv;
+
+	if (!rk312x) {
+		DBG("%s : rk312x is NULL\n", __func__);
+		return -EINVAL;
+	}
+
+	rk312x->stereo_sysclk = freq;
+
+	return 0;
+}
+
+static int rk312x_set_dai_fmt(struct snd_soc_dai *codec_dai,
+			      unsigned int fmt)
+{
+	struct snd_soc_codec *codec = codec_dai->codec;
+	unsigned int adc_aif1 = 0, adc_aif2 = 0, dac_aif1 = 0, dac_aif2 = 0;
+
+	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
+	case SND_SOC_DAIFMT_CBS_CFS:
+		adc_aif2 |= RK312x_I2S_MODE_SLV;
+		break;
+	case SND_SOC_DAIFMT_CBM_CFM:
+		adc_aif2 |= RK312x_I2S_MODE_MST;
+		break;
+	default:
+		DBG("%s : set master mask failed!\n", __func__);
+		return -EINVAL;
+	}
+
+	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
+	case SND_SOC_DAIFMT_DSP_A:
+		adc_aif1 |= RK312x_ADC_DF_PCM;
+		dac_aif1 |= RK312x_DAC_DF_PCM;
+		break;
+	case SND_SOC_DAIFMT_DSP_B:
+		break;
+	case SND_SOC_DAIFMT_I2S:
+		adc_aif1 |= RK312x_ADC_DF_I2S;
+		dac_aif1 |= RK312x_DAC_DF_I2S;
+		break;
+	case SND_SOC_DAIFMT_RIGHT_J:
+		adc_aif1 |= RK312x_ADC_DF_RJ;
+		dac_aif1 |= RK312x_DAC_DF_RJ;
+		break;
+	case SND_SOC_DAIFMT_LEFT_J:
+		adc_aif1 |= RK312x_ADC_DF_LJ;
+		dac_aif1 |= RK312x_DAC_DF_LJ;
+		break;
+	default:
+		DBG("%s : set format failed!\n", __func__);
+		return -EINVAL;
+	}
+
+	switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
+	case SND_SOC_DAIFMT_NB_NF:
+		adc_aif1 |= RK312x_ALRCK_POL_DIS;
+		adc_aif2 |= RK312x_ABCLK_POL_DIS;
+		dac_aif1 |= RK312x_DLRCK_POL_DIS;
+		dac_aif2 |= RK312x_DBCLK_POL_DIS;
+		break;
+	case SND_SOC_DAIFMT_IB_IF:
+		adc_aif1 |= RK312x_ALRCK_POL_EN;
+		adc_aif2 |= RK312x_ABCLK_POL_EN;
+		dac_aif1 |= RK312x_DLRCK_POL_EN;
+		dac_aif2 |= RK312x_DBCLK_POL_EN;
+		break;
+	case SND_SOC_DAIFMT_IB_NF:
+		adc_aif1 |= RK312x_ALRCK_POL_DIS;
+		adc_aif2 |= RK312x_ABCLK_POL_EN;
+		dac_aif1 |= RK312x_DLRCK_POL_DIS;
+		dac_aif2 |= RK312x_DBCLK_POL_EN;
+		break;
+	case SND_SOC_DAIFMT_NB_IF:
+		adc_aif1 |= RK312x_ALRCK_POL_EN;
+		adc_aif2 |= RK312x_ABCLK_POL_DIS;
+		dac_aif1 |= RK312x_DLRCK_POL_EN;
+		dac_aif2 |= RK312x_DBCLK_POL_DIS;
+		break;
+	default:
+		DBG("%s : set dai format failed!\n", __func__);
+		return -EINVAL;
+	}
+
+	snd_soc_update_bits(codec, RK312x_ADC_INT_CTL1,
+			    RK312x_ALRCK_POL_MASK
+			    | RK312x_ADC_DF_MASK, adc_aif1);
+	snd_soc_update_bits(codec, RK312x_ADC_INT_CTL2,
+			    RK312x_ABCLK_POL_MASK
+			    | RK312x_I2S_MODE_MASK, adc_aif2);
+	snd_soc_update_bits(codec, RK312x_DAC_INT_CTL1,
+			    RK312x_DLRCK_POL_MASK
+			    | RK312x_DAC_DF_MASK, dac_aif1);
+	snd_soc_update_bits(codec, RK312x_DAC_INT_CTL2,
+			    RK312x_DBCLK_POL_MASK, dac_aif2);
+
+	return 0;
+}
+
+static int rk312x_hw_params(struct snd_pcm_substream *substream,
+			    struct snd_pcm_hw_params *params,
+			    struct snd_soc_dai *dai)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_codec *codec = rtd->codec;
+	struct rk312x_codec_priv *rk312x = rk312x_priv;
+	unsigned int rate = params_rate(params);
+	unsigned int div;
+	unsigned int adc_aif1 = 0, adc_aif2  = 0, dac_aif1 = 0, dac_aif2  = 0;
+
+	if (!rk312x) {
+		DBG("%s : rk312x is NULL\n", __func__);
+		return -EINVAL;
+	}
+
+	/* bclk = codec_clk / 4 */
+	/* lrck = bclk / (wl * 2) */
+	div = (((rk312x->stereo_sysclk / 4) / rate) / 2);
+
+	if ((rk312x->stereo_sysclk % (4 * rate * 2) > 0) ||
+	    (div != 16 && div != 20 && div != 24 && div != 32)) {
+		DBG("%s : need PLL\n", __func__);
+		return -EINVAL;
+	}
+
+	switch (div) {
+	case 16:
+		adc_aif2 |= RK312x_ADC_WL_16;
+		dac_aif2 |= RK312x_DAC_WL_16;
+		break;
+	case 20:
+		adc_aif2 |= RK312x_ADC_WL_20;
+		dac_aif2 |= RK312x_DAC_WL_20;
+		break;
+	case 24:
+		adc_aif2 |= RK312x_ADC_WL_24;
+		dac_aif2 |= RK312x_DAC_WL_24;
+		break;
+	case 32:
+		adc_aif2 |= RK312x_ADC_WL_32;
+		dac_aif2 |= RK312x_DAC_WL_32;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+
+	DBG("%s : MCLK = %dHz, sample rate = %dHz, div = %d\n",
+	    __func__, rk312x->stereo_sysclk, rate, div);
+
+	switch (params_format(params)) {
+	case SNDRV_PCM_FORMAT_S16_LE:
+		adc_aif1 |= RK312x_ADC_VWL_16;
+		dac_aif1 |= RK312x_DAC_VWL_16;
+		DBG("SLE16\n");
+		break;
+	case SNDRV_PCM_FORMAT_S20_3LE:
+		adc_aif1 |= RK312x_ADC_VWL_20;
+		dac_aif1 |= RK312x_DAC_VWL_20;
+		DBG("S20_3LE\n");
+		break;
+	case SNDRV_PCM_FORMAT_S24_LE:
+		adc_aif1 |= RK312x_ADC_VWL_24;
+		dac_aif1 |= RK312x_DAC_VWL_24;
+		DBG("S24LE\n");
+		break;
+	case SNDRV_PCM_FORMAT_S32_LE:
+		adc_aif1 |= RK312x_ADC_VWL_32;
+		dac_aif1 |= RK312x_DAC_VWL_32;
+		DBG("S32LE\n");
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	switch (params_channels(params)) {
+	case RK312x_MONO:
+		adc_aif1 |= RK312x_ADC_TYPE_MONO;
+		DBG("mono\n");
+		break;
+	case RK312x_STEREO:
+		adc_aif1 |= RK312x_ADC_TYPE_STEREO;
+		DBG("stero\n");
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	adc_aif1 |= RK312x_ADC_SWAP_DIS;
+	adc_aif2 |= RK312x_ADC_RST_DIS;
+	dac_aif1 |= RK312x_DAC_SWAP_DIS;
+	dac_aif2 |= RK312x_DAC_RST_DIS;
+
+	rk312x->rate = rate;
+
+	snd_soc_update_bits(codec, RK312x_ADC_INT_CTL1,
+			    RK312x_ADC_VWL_MASK
+			    | RK312x_ADC_SWAP_MASK
+			    | RK312x_ADC_TYPE_MASK, adc_aif1);
+	snd_soc_update_bits(codec, RK312x_ADC_INT_CTL2,
+			    RK312x_ADC_WL_MASK
+			    | RK312x_ADC_RST_MASK, adc_aif2);
+	snd_soc_update_bits(codec, RK312x_DAC_INT_CTL1,
+			    RK312x_DAC_VWL_MASK
+			    | RK312x_DAC_SWAP_MASK, dac_aif1);
+	snd_soc_update_bits(codec, RK312x_DAC_INT_CTL2,
+			    RK312x_DAC_WL_MASK
+			    | RK312x_DAC_RST_MASK, dac_aif2);
+
+	return 0;
+}
+
+static int rk312x_digital_mute(struct snd_soc_dai *dai, int mute)
+{
+	struct snd_soc_codec *codec = dai->codec;
+	unsigned int is_hp_pd;
+
+	is_hp_pd = (RK312x_HPOUTL_MSK | RK312x_HPOUTR_MSK)
+		    & snd_soc_read(codec, RK312x_HPOUT_CTL);
+
+/*	if (mute) {
+		if (rk312x_priv && rk312x_priv->hp_ctl_gpio !=
+			INVALID_GPIO && is_hp_pd) {
+			DBG("%s : set hp ctl gpio LOW\n", __func__);
+			pio_set_value(rk312x_priv->hp_ctl_gpio,
+				      GPIO_LOW);
+			 msleep(200);//rk312x_priv->delay_time);
+		}
+
+	} else {
+		if (rk312x_priv && rk312x_priv->hp_ctl_gpio
+		    != INVALID_GPIO &&  is_hp_pd) {
+			DBG("%s : set hp ctl gpio HIGH\n", __func__);
+			gpio_set_value(rk312x_priv->hp_ctl_gpio,
+				       GPIO_HIGH);
+			msleep(100);//rk312x_priv->delay_time);
+		 }
+	}
+*/
+	return 0;
+}
+
+static struct rk312x_reg_val_typ playback_power_up_list[] = {
+	{0x18, 0x32},
+	{0xa0, 0x40},
+	{0xa0, 0x62},
+	{0xa4, 0x88},
+	{0xa4, 0xcc},
+	{0xa4, 0xee},
+	{0xa8, 0x44},
+	{0xb0, 0x92},
+	{0xb0, 0xdb},
+	{0xac, 0x11}, /*DAC*/
+	{0xa8, 0x55},
+	{0xa8, 0x77},
+	{0xa4, 0xff},
+	{0xb0, 0xff},
+	{0xa0, 0x73},
+	{0xb4, OUT_VOLUME},
+	{0xb8, OUT_VOLUME},
+};
+#define RK312x_CODEC_PLAYBACK_POWER_UP_LIST_LEN ARRAY_SIZE( \
+					playback_power_up_list)
+
+static struct rk312x_reg_val_typ playback_power_down_list[] = {
+	{0xb0, 0xdb},
+	{0xa8, 0x44},
+	{0xac, 0x00},
+	{0xb0, 0x92},
+	{0xa0, 0x22},
+	{0xb0, 0x00},
+	{0xa8, 0x00},
+	{0xa4, 0x00},
+	{0xa0, 0x00},
+	{0x18, 0x22},
+#ifdef WITH_CAP
+	/* {0xbc, 0x08},*/
+#endif
+	{0xb4, 0x0},
+	{0xb8, 0x0},
+	{0x18, 0x22},
+};
+#define RK312x_CODEC_PLAYBACK_POWER_DOWN_LIST_LEN ARRAY_SIZE( \
+				playback_power_down_list)
+
+static struct rk312x_reg_val_typ capture_power_up_list[] = {
+	{0x88, 0x80},
+	{0x88, 0xc0},
+	{0x88, 0xc7},
+	{0x9c, 0x88},
+	{0x8c, 0x04},
+	{0x90, 0x66},
+	{0x9c, 0xcc},
+	{0x9c, 0xee},
+	{0x8c, 0x07},
+	{0x90, 0x77},
+	{0x94, 0x20 | CAP_VOL},
+	{0x98, CAP_VOL},
+	{0x88, 0xf7},
+
+};
+#define RK312x_CODEC_CAPTURE_POWER_UP_LIST_LEN ARRAY_SIZE(capture_power_up_list)
+
+static struct rk312x_reg_val_typ capture_power_down_list[] = {
+	{0x9c, 0xcc},
+	{0x90, 0x66},
+	{0x8c, 0x44},
+	{0x9c, 0x88},
+	{0x88, 0xc7},
+	{0x88, 0xc0},
+	{0x88, 0x80},
+	{0x8c, 0x00},
+	{0X94, 0x0c},
+	{0X98, 0x0c},
+	{0x9c, 0x00},
+	{0x88, 0x00},
+	{0x90, 0x44},
+};
+#define RK312x_CODEC_CAPTURE_POWER_DOWN_LIST_LEN ARRAY_SIZE(\
+				capture_power_down_list)
+
+static int rk312x_codec_power_up(int type)
+{
+	struct snd_soc_codec *codec = rk312x_priv->codec;
+	int i;
+
+	if (!rk312x_priv || !rk312x_priv->codec) {
+		DBG("%s : rk312x_priv or rk312x_priv->codec is NULL\n",
+		    __func__);
+		return -EINVAL;
+	}
+	DBG("%s : power up %s%s\n", __func__,
+	    type == RK312x_CODEC_PLAYBACK ? "playback" : "",
+	    type == RK312x_CODEC_CAPTURE ? "capture" : "");
+
+	if (type == RK312x_CODEC_PLAYBACK) {
+		for (i = 0; i < RK312x_CODEC_PLAYBACK_POWER_UP_LIST_LEN; i++) {
+			snd_soc_write(codec, playback_power_up_list[i].reg,
+				      playback_power_up_list[i].value);
+			msleep(20);
+		}
+	} else if (type == RK312x_CODEC_CAPTURE) {
+		for (i = 0; i < RK312x_CODEC_CAPTURE_POWER_UP_LIST_LEN; i++) {
+			snd_soc_write(codec, capture_power_up_list[i].reg,
+				      capture_power_up_list[i].value);
+			msleep(20);
+		}
+	} else if (type == RK312x_CODEC_INCALL) {
+		snd_soc_update_bits(codec, RK312x_ALC_MUNIN_CTL,
+				    RK312x_MUXINL_F_MSK | RK312x_MUXINR_F_MSK,
+				    RK312x_MUXINR_F_INR | RK312x_MUXINL_F_INL);
+	}
+	return 0;
+}
+
+static int rk312x_codec_power_down(int type)
+{
+	struct snd_soc_codec *codec = rk312x_priv->codec;
+	int i;
+
+	if (!rk312x_priv || !rk312x_priv->codec) {
+		DBG("%s : rk312x_priv or rk312x_priv->codec is NULL\n",
+		    __func__);
+		return -EINVAL;
+	}
+
+	DBG("%s : power down %s%s%s\n", __func__,
+	    type == RK312x_CODEC_PLAYBACK ? "playback" : "",
+	    type == RK312x_CODEC_CAPTURE ? "capture" : "",
+	    type == RK312x_CODEC_ALL ? "all" : "");
+
+	if ((type == RK312x_CODEC_CAPTURE) || (type == RK312x_CODEC_INCALL)) {
+		for (i = 0; i < RK312x_CODEC_CAPTURE_POWER_DOWN_LIST_LEN; i++) {
+			snd_soc_write(codec, capture_power_down_list[i].reg,
+				      capture_power_down_list[i].value);
+		}
+	} else if (type == RK312x_CODEC_PLAYBACK) {
+		for (i = 0;
+		     i < RK312x_CODEC_PLAYBACK_POWER_DOWN_LIST_LEN;
+		     i++) {
+			snd_soc_write(codec, playback_power_down_list[i].reg,
+				      playback_power_down_list[i].value);
+		}
+
+	} else if (type == RK312x_CODEC_ALL) {
+		rk312x_reset(codec);
+	}
+
+	return 0;
+}
+
+static void  rk312x_codec_capture_work(struct work_struct *work)
+{
+	DBG("%s : rk312x_codec_work_capture_type = %d\n", __func__,
+	    rk312x_codec_work_capture_type);
+
+	switch (rk312x_codec_work_capture_type) {
+	case RK312x_CODEC_WORK_POWER_DOWN:
+		rk312x_codec_power_down(RK312x_CODEC_CAPTURE);
+		break;
+	case RK312x_CODEC_WORK_POWER_UP:
+		rk312x_codec_power_up(RK312x_CODEC_CAPTURE);
+		break;
+	default:
+		break;
+	}
+
+	rk312x_codec_work_capture_type = RK312x_CODEC_WORK_NULL;
+}
+
+static int rk312x_startup(struct snd_pcm_substream *substream,
+			  struct snd_soc_dai *dai)
+{
+	struct rk312x_codec_priv *rk312x = rk312x_priv;
+	bool playback = (substream->stream == SNDRV_PCM_STREAM_PLAYBACK);
+	bool is_codec_playback_running = rk312x->playback_active > 0;
+	bool is_codec_capture_running = rk312x->capture_active > 0;
+
+	if (!rk312x_for_mid) {
+		DBG("%s immediately return for phone\n", __func__);
+		return 0;
+	}
+
+	if (!rk312x) {
+		DBG("%s : rk312x is NULL\n", __func__);
+		return -EINVAL;
+	}
+	if (playback)
+		rk312x->playback_active++;
+	else
+		rk312x->capture_active++;
+
+	if (playback) {
+		if (rk312x->playback_active > 0) {
+			if (!is_codec_playback_running)
+				rk312x_codec_power_up(
+					RK312x_CODEC_PLAYBACK);
+		}
+	} else {
+		if (rk312x->capture_active > 0 &&
+		    !is_codec_capture_running) {
+			if (rk312x_codec_work_capture_type
+			    != RK312x_CODEC_WORK_POWER_UP) {
+				cancel_delayed_work_sync(
+					&capture_delayed_work);
+				if (rk312x_codec_work_capture_type ==
+					RK312x_CODEC_WORK_NULL) {
+					rk312x_codec_power_up(
+						RK312x_CODEC_CAPTURE);
+				} else {
+					rk312x_codec_work_capture_type =
+						RK312x_CODEC_WORK_NULL;
+				}
+			}
+		}
+	}
+
+	return 0;
+}
+
+static void rk312x_shutdown(struct snd_pcm_substream *substream,
+			    struct snd_soc_dai *dai)
+{
+	struct rk312x_codec_priv *rk312x = rk312x_priv;
+	bool playback = (substream->stream == SNDRV_PCM_STREAM_PLAYBACK);
+	bool is_codec_playback_running = rk312x->playback_active > 0;
+	bool is_codec_capture_running = rk312x->capture_active > 0;
+
+	if (!rk312x_for_mid) {
+		DBG("%s immediately return for phone\n",
+		    __func__);
+		return;
+	}
+
+	if (!rk312x) {
+		DBG("%s : rk312x is NULL\n", __func__);
+		return;
+	}
+	if (playback)
+		rk312x->playback_active--;
+	else
+		rk312x->capture_active--;
+
+	if (playback) {
+		if (rk312x->playback_active <= 0) {
+			if (is_codec_playback_running == true)
+				rk312x_codec_power_down(
+					RK312x_CODEC_PLAYBACK);
+			else
+				DBG(" Warning:playback closed! return !\n");
+		}
+	} else {
+		if (rk312x->capture_active <= 0) {
+			if ((rk312x_codec_work_capture_type !=
+			     RK312x_CODEC_WORK_POWER_DOWN) &&
+			    (is_codec_capture_running == true)) {
+				cancel_delayed_work_sync(&capture_delayed_work);
+			/*
+			 * If rk312x_codec_work_capture_type is NULL
+			 * means codec already power down,
+			 * so power up codec.
+			 * If rk312x_codec_work_capture_type is
+			 * RK312x_CODEC_WORK_POWER_UP it means
+			 * codec haven't be powered up, so we don't
+			 * need to power down codec.
+			 * If is playback call power down,
+			 * power down immediatly, because audioflinger
+			 * already has delay 3s.
+			 */
+				if (rk312x_codec_work_capture_type ==
+				    RK312x_CODEC_WORK_NULL) {
+					rk312x_codec_work_capture_type =
+						RK312x_CODEC_WORK_POWER_DOWN;
+					queue_delayed_work(rk312x_codec_workq,
+							&capture_delayed_work,
+							msecs_to_jiffies(3000));
+				} else {
+					rk312x_codec_work_capture_type =
+							RK312x_CODEC_WORK_NULL;
+				}
+			}
+		}
+	}
+}
+
+#define RK312x_PLAYBACK_RATES (SNDRV_PCM_RATE_8000 |\
+			      SNDRV_PCM_RATE_16000 |	\
+			      SNDRV_PCM_RATE_32000 |	\
+			      SNDRV_PCM_RATE_44100 |	\
+			      SNDRV_PCM_RATE_48000 |	\
+			      SNDRV_PCM_RATE_96000)
+
+#define RK312x_CAPTURE_RATES (SNDRV_PCM_RATE_8000 |\
+			      SNDRV_PCM_RATE_16000 |	\
+			      SNDRV_PCM_RATE_32000 |	\
+			      SNDRV_PCM_RATE_44100 |	\
+			      SNDRV_PCM_RATE_48000 |	\
+			      SNDRV_PCM_RATE_96000)
+
+#define RK312x_FORMATS (SNDRV_PCM_FMTBIT_S16_LE |\
+			SNDRV_PCM_FMTBIT_S20_3LE |\
+			SNDRV_PCM_FMTBIT_S24_LE |\
+			SNDRV_PCM_FMTBIT_S32_LE)
+
+static struct snd_soc_dai_ops rk312x_dai_ops = {
+	.hw_params	= rk312x_hw_params,
+	.set_fmt	= rk312x_set_dai_fmt,
+	.set_sysclk	= rk312x_set_dai_sysclk,
+	.digital_mute	= rk312x_digital_mute,
+	.startup	= rk312x_startup,
+	.shutdown	= rk312x_shutdown,
+};
+
+static struct snd_soc_dai_driver rk312x_dai[] = {
+	{
+		.name = "rk312x-hifi",
+		.id = RK312x_HIFI,
+		.playback = {
+			.stream_name = "HiFi Playback",
+			.channels_min = 2,
+			.channels_max = 2,
+			.rates = RK312x_PLAYBACK_RATES,
+			.formats = RK312x_FORMATS,
+		},
+		.capture = {
+			.stream_name = "HiFi Capture",
+			.channels_min = 2,
+			.channels_max = 2,
+			.rates = RK312x_CAPTURE_RATES,
+			.formats = RK312x_FORMATS,
+		},
+		.ops = &rk312x_dai_ops,
+	},
+	{
+		.name = "rk312x-voice",
+		.id = RK312x_VOICE,
+		.playback = {
+			.stream_name = "Voice Playback",
+			.channels_min = 1,
+			.channels_max = 2,
+			.rates = RK312x_PLAYBACK_RATES,
+			.formats = RK312x_FORMATS,
+		},
+		.capture = {
+			.stream_name = "Voice Capture",
+			.channels_min = 1,
+			.channels_max = 2,
+			.rates = RK312x_CAPTURE_RATES,
+			.formats = RK312x_FORMATS,
+		},
+		.ops = &rk312x_dai_ops,
+	},
+
+};
+
+static int rk312x_suspend(struct snd_soc_codec *codec)
+{
+	if (rk312x_for_mid) {
+		cancel_delayed_work_sync(&capture_delayed_work);
+
+		if (rk312x_codec_work_capture_type != RK312x_CODEC_WORK_NULL)
+			rk312x_codec_work_capture_type = RK312x_CODEC_WORK_NULL;
+
+		rk312x_codec_power_down(RK312x_CODEC_PLAYBACK);
+		rk312x_codec_power_down(RK312x_CODEC_ALL);
+		snd_soc_write(codec, RK312x_SELECT_CURRENT, 0x1e);
+		snd_soc_write(codec, RK312x_SELECT_CURRENT, 0x3e);
+	} else {
+		rk312x_set_bias_level(codec, SND_SOC_BIAS_OFF);
+	}
+	return 0;
+}
+
+static ssize_t gpio_show(struct kobject *kobj, struct kobj_attribute *attr,
+			 char *buf)
+{
+	return 0;
+}
+
+static ssize_t gpio_store(struct kobject *kobj, struct kobj_attribute *attr,
+			  const char *buf, size_t n)
+{
+	const char *buftmp = buf;
+	char cmd;
+	int ret;
+	struct rk312x_codec_priv *rk312x =
+			snd_soc_codec_get_drvdata(rk312x_priv->codec);
+
+	ret = sscanf(buftmp, "%c ", &cmd);
+	if (ret == 0)
+		return ret;
+	DBG("--luoxt--: get cmd = %c\n", cmd);
+	switch (cmd) {
+	case 'l':
+		DBG("%s :  lxt set spk ctl gpio low\n",
+		    __func__);
+		gpio_set_value(rk312x->spk_ctl_gpio, 0);
+		break;
+	case 'h':
+			DBG("%s :  lxt set spk ctl gpio high\n",
+			    __func__);
+			gpio_set_value(rk312x->spk_ctl_gpio, 1);
+		break;
+	case 'o':
+			DBG("%s: codec power up playback and capture\n",
+			    __func__);
+			rk312x_codec_power_up(RK312x_CODEC_PLAYBACK);
+			rk312x_codec_power_up(RK312x_CODEC_CAPTURE);
+		break;
+	default:
+			DBG("--luoxt-- unknown cmd\n");
+	}
+	return n;
+}
+static struct kobject *gpio_kobj;
+struct gpio_attribute {
+
+	struct attribute    attr;
+
+	ssize_t (*show)(struct kobject *kobj, struct kobj_attribute *attr,
+			char *buf);
+	ssize_t (*store)(struct kobject *kobj, struct kobj_attribute *attr,
+			 const char *buf, size_t n);
+};
+
+static struct gpio_attribute gpio_attrs[] = {
+	/*     node_name    permision       show_func   store_func */
+	__ATTR(gpio-ctl,  S_IRUGO | S_IWUSR,  gpio_show, gpio_store),
+};
+
+static int rk312x_resume(struct snd_soc_codec *codec)
+{
+	if (!rk312x_for_mid)
+		rk312x_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
+	return 0;
+}
+
+static int rk312x_probe(struct snd_soc_codec *codec)
+{
+	struct rk312x_codec_priv *rk312x_codec =
+				snd_soc_codec_get_drvdata(codec);
+	unsigned int val;
+	int ret;
+	int i = 0;
+
+	rk312x_codec->codec = codec;
+	clk_prepare_enable(rk312x_codec->pclk);
+
+	ret = snd_soc_codec_set_cache_io(codec, 8, 8, SND_SOC_I2C);
+	if (ret != 0)
+		goto err__;
+	codec->hw_read = rk312x_codec_read;
+	codec->hw_write = (hw_write_t)rk312x_hw_write;
+	codec->read = rk312x_codec_read;
+	codec->write = rk312x_codec_write;
+
+	if (rk312x_for_mid) {
+		rk312x_codec->playback_active = 0;
+		rk312x_codec->capture_active = 0;
+
+		rk312x_codec_workq = create_freezable_workqueue("rk312x-codec");
+
+		if (rk312x_codec_workq == NULL) {
+			DBG("%s : rk312x_codec_workq is NULL!\n", __func__);
+			ret = -ENOMEM;
+			goto err__;
+		}
+	}
+
+	val = snd_soc_read(codec, RK312x_RESET);
+	if (val != rk312x_reg_defaults[RK312x_RESET]) {
+		DBG("%s : codec register 0: %x is not a 0x00000003\n",
+		    __func__, val);
+		ret = -ENODEV;
+		goto err__;
+	}
+
+	rk312x_reset(codec);
+
+	if (!rk312x_for_mid) {
+		codec->dapm.bias_level = SND_SOC_BIAS_OFF;
+		rk312x_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
+	}
+
+#ifdef WITH_CAP
+	snd_soc_write(codec, RK312x_SELECT_CURRENT, 0x1e);
+	snd_soc_write(codec, RK312x_SELECT_CURRENT, 0x3e);
+#endif
+
+#if 1
+	gpio_kobj = kobject_create_and_add("gpio-ctl", NULL);
+
+	if (!gpio_kobj)
+		return -ENOMEM;
+	for (i = 0; i < ARRAY_SIZE(gpio_attrs); i++) {
+		ret = sysfs_create_file(gpio_kobj, &gpio_attrs[i].attr);
+		if (ret != 0) {
+			DBG("create gpio-ctl sysfs %d error\n", i);
+			/* return ret; */
+		}
+	}
+#endif
+
+	return 0;
+
+err__:
+	dbg_codec(2, "%s err ret=%d\n", __func__, ret);
+	return ret;
+}
+
+/* power down chip */
+static int rk312x_remove(struct snd_soc_codec *codec)
+{
+	DBG("%s\n", __func__);
+
+	if (!rk312x_priv) {
+		DBG("%s : rk312x_priv is NULL\n", __func__);
+		return 0;
+	}
+
+	/* if (rk312x_priv->spk_ctl_gpio != INVALID_GPIO) */
+		/* gpio_set_value(rk312x_priv->spk_ctl_gpio, GPIO_LOW); */
+
+	/* if (rk312x_priv->hp_ctl_gpio != INVALID_GPIO) */
+		/* gpio_set_value(rk312x_priv->hp_ctl_gpio, GPIO_LOW); */
+
+	mdelay(10);
+
+	if (rk312x_for_mid) {
+		cancel_delayed_work_sync(&capture_delayed_work);
+
+		if (rk312x_codec_work_capture_type != RK312x_CODEC_WORK_NULL)
+			rk312x_codec_work_capture_type = RK312x_CODEC_WORK_NULL;
+	}
+	snd_soc_write(codec, RK312x_RESET, 0xfc);
+	mdelay(10);
+	snd_soc_write(codec, RK312x_RESET, 0x3);
+	mdelay(10);
+
+	/* if (rk312x_priv) */
+	kfree(rk312x_priv);
+
+	return 0;
+}
+
+#if 0
+static int rk3036_suspend(struct snd_soc_codec *codec)
+{
+	rk3036_set_bias_level(codec, SND_SOC_BIAS_OFF);
+	return 0;
+}
+
+static int rk3036_resume(struct snd_soc_codec *codec)
+{
+	rk3036_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
+	return 0;
+}
+
+static int rk3036_set_bias_level(struct snd_soc_codec *codec, enum
+	snd_soc_bias_level level)
+{
+	switch (level) {
+	case SND_SOC_BIAS_ON:
+		break;
+
+	case SND_SOC_BIAS_PREPARE:
+		break;
+
+	case SND_SOC_BIAS_STANDBY:
+		break;
+
+	case SND_SOC_BIAS_OFF:
+		break;
+	}
+	codec->dapm.bias_level = level;
+	return 0;
+}
+
+static int rk3036_volatile_register(struct snd_soc_codec *
+				codec, unsigned int reg)
+{
+	switch (reg) {
+	case RK3036_CODEC_RESET:
+		return 1;
+	default:
+		return 0;
+	}
+}
+
+static int rk3036_codec_register(struct snd_soc_codec *codec, unsigned int reg)
+{
+	switch (reg) {
+	case RK3036_CODEC_RESET:
+	case RK3036_CODEC_REG03:
+	case RK3036_CODEC_REG04:
+	case RK3036_CODEC_REG05:
+	case RK3036_CODEC_REG22:
+	case RK3036_CODEC_REG23:
+	case RK3036_CODEC_REG24:
+	case RK3036_CODEC_REG25:
+	case RK3036_CODEC_REG26:
+	case RK3036_CODEC_REG27:
+	case RK3036_CODEC_REG28:
+		return 1;
+	default:
+		return 0;
+	}
+}
+#endif
+
+static struct snd_soc_codec_driver soc_codec_dev_rk312x = {
+	.probe = rk312x_probe,
+	.remove = rk312x_remove,
+	.suspend = rk312x_suspend,
+	.resume = rk312x_resume,
+	.set_bias_level = rk312x_set_bias_level,
+	.reg_cache_size = ARRAY_SIZE(rk312x_reg_defaults),
+	.reg_word_size = sizeof(unsigned int),
+	.reg_cache_default = rk312x_reg_defaults,
+	.volatile_register = rk312x_volatile_register,
+	.readable_register = rk312x_codec_register,
+	.reg_cache_step = sizeof(unsigned int),
+};
+
+static int rk312x_platform_probe(struct platform_device *pdev)
+{
+	struct device_node *rk312x_np = pdev->dev.of_node;
+	struct rk312x_codec_priv *rk312x;
+	struct resource *res;
+	int ret;
+
+	rk312x = devm_kzalloc(&pdev->dev, sizeof(*rk312x), GFP_KERNEL);
+	if (!rk312x) {
+		dbg_codec(2, "%s : rk312x priv kzalloc failed!\n",
+			  __func__);
+		return -ENOMEM;
+	}
+	rk312x_priv = rk312x;
+	platform_set_drvdata(pdev, rk312x);
+	rk312x->spk_ctl_gpio = of_get_named_gpio(rk312x_np,
+						 "spk_ctl_io", 0);
+	if (!gpio_is_valid(rk312x->spk_ctl_gpio)) {
+		dbg_codec(2, "invalid reset_gpio: %d\n",
+			  rk312x->spk_ctl_gpio);
+		ret = -ENOENT;
+		goto err__;
+	}
+
+	ret = devm_gpio_request(&pdev->dev, rk312x->spk_ctl_gpio, "spk_ctl");
+	if (ret < 0) {
+		dbg_codec(2, "rk312x_platform_probe spk_ctl_gpio fail\n");
+		goto err__;
+	}
+	gpio_direction_output(rk312x->spk_ctl_gpio, SPK_CTRL_CLOSE);
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	rk312x->regbase = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(rk312x->regbase))
+		return PTR_ERR(rk312x->regbase);
+
+	rk312x->pclk = devm_clk_get(&pdev->dev, "g_pclk_acodec");
+	if (IS_ERR(rk312x->pclk)) {
+		dev_err(&pdev->dev, "Unable to get acodec hclk\n");
+		ret = -ENXIO;
+		goto err__;
+	}
+
+	return snd_soc_register_codec(&pdev->dev, &soc_codec_dev_rk312x,
+				rk312x_dai, ARRAY_SIZE(rk312x_dai));
+
+err__:
+	platform_set_drvdata(pdev, NULL);
+	rk312x_priv = NULL;
+	return ret;
+}
+
+static int rk312x_platform_remove(struct platform_device *pdev)
+{
+	rk312x_priv = NULL;
+	snd_soc_unregister_codec(&pdev->dev);
+	return 0;
+}
+
+void rk312x_platform_shutdown(struct platform_device *pdev)
+{
+	DBG("%s\n", __func__);
+
+	if (!rk312x_priv || !rk312x_priv->codec) {
+		DBG("%s : rk312x_priv or rk312x_priv->codec is NULL\n",
+		    __func__);
+		return;
+	}
+
+	/* if (rk312x_priv->spk_ctl_gpio != INVALID_GPIO) */
+		/* gpio_set_value(rk312x_priv->spk_ctl_gpio, GPIO_LOW); */
+
+	/* if (rk312x_priv->hp_ctl_gpio != INVALID_GPIO) */
+		/* gpio_set_value(rk312x_priv->hp_ctl_gpio, GPIO_LOW); */
+
+	mdelay(10);
+
+	if (rk312x_for_mid) {
+		cancel_delayed_work_sync(&capture_delayed_work);
+		if (rk312x_codec_work_capture_type !=
+					RK312x_CODEC_WORK_NULL)
+			rk312x_codec_work_capture_type =
+					RK312x_CODEC_WORK_NULL;
+	}
+
+	writel(0xfc, rk312x_priv->regbase+RK312x_RESET);
+	mdelay(10);
+	writel(0x03, rk312x_priv->regbase+RK312x_RESET);
+
+	/* if (rk312x_priv) */
+	kfree(rk312x_priv);
+}
+
+#ifdef CONFIG_OF
+static const struct of_device_id rk3126_codec_of_match[] = {
+	{ .compatible = "rk312x-codec" },
+	{},
+};
+MODULE_DEVICE_TABLE(of, rk3126_codec_of_match);
+#endif
+
+static struct platform_driver rk312x_codec_driver = {
+	.driver = {
+		   .name = "rk312x-codec",
+		   .owner = THIS_MODULE,
+		   .of_match_table = of_match_ptr(rk3126_codec_of_match),
+		   },
+	.probe = rk312x_platform_probe,
+	.remove = rk312x_platform_remove,
+	.shutdown = rk312x_platform_shutdown,
+};
+module_platform_driver(rk312x_codec_driver);
+
+/* Module information */
+MODULE_AUTHOR("rockchip");
+MODULE_DESCRIPTION("ROCKCHIP i2s ASoC Interface");
+MODULE_LICENSE("GPL");

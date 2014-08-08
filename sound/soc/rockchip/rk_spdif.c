@@ -43,7 +43,7 @@
 #include "rk_pcm.h"
 
 #undef  DEBUG_SPDIF
-#define DEBUG_SPDIF 0
+#define DEBUG_SPDIF 1
 
 #if DEBUG_SPDIF
 #define RK_SPDIF_DBG(x...) pr_info("rk_spdif:"x)
@@ -140,6 +140,7 @@ struct rockchip_spdif_info {
 	spinlock_t	lock;/*lock parmeter setting.*/
 	void __iomem	*regs;
 	unsigned long	clk_rate;
+	struct clk	*hclk;
 	struct clk	*clk;
 	struct snd_dmaengine_dai_dma_data	dma_playback;
 };
@@ -454,6 +455,14 @@ static int spdif_probe(struct platform_device *pdev)
 	}
 
 	/* get spdif clock and init. */
+	spdif->hclk = devm_clk_get(&pdev->dev, "spdif_hclk");
+	if (IS_ERR(spdif->hclk)) {
+		dev_err(&pdev->dev, "Can't retrieve spdif hclock\n");
+		spdif->hclk = NULL;
+	}
+	clk_prepare_enable(spdif->hclk);
+
+	/* get spdif clock and init. */
 	spdif->clk = devm_clk_get(&pdev->dev, "spdif_mclk");
 	if (IS_ERR(spdif->clk)) {
 		dev_err(&pdev->dev, "Can't retrieve spdif clock\n");
@@ -507,7 +516,7 @@ static int spdif_remove(struct platform_device *pdev)
 
 #ifdef CONFIG_OF
 static const struct of_device_id exynos_spdif_match[] = {
-	{ .compatible = "rockchip-spdif"},
+	{ .compatible = "rk312x-spdif"},
 	{},
 };
 MODULE_DEVICE_TABLE(of, exynos_spdif_match);
@@ -517,7 +526,7 @@ static struct platform_driver rockchip_spdif_driver = {
 	.probe	= spdif_probe,
 	.remove	= spdif_remove,
 	.driver	= {
-		.name	= "rockchip-spdif",
+		.name	= "rk312x-spdif",
 		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(exynos_spdif_match),
 	},
