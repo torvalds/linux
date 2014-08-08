@@ -326,6 +326,7 @@ struct iwl_mvm_vif_bf_data {
  *	interface should get quota etc.
  * @low_latency: indicates that this interface is in low-latency mode
  *	(VMACLowLatencyMode)
+ * @ps_disabled: indicates that this interface requires PS to be disabled
  * @queue_params: QoS params for this MAC
  * @bcast_sta: station used for broadcast packets. Used by the following
  *  vifs: P2P_DEVICE, GO and AP.
@@ -343,6 +344,7 @@ struct iwl_mvm_vif {
 	bool pm_enabled;
 	bool monitor_active;
 	bool low_latency;
+	bool ps_disabled;
 	struct iwl_mvm_vif_bf_data bf_data;
 
 	u32 ap_beacon_time;

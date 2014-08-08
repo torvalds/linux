@@ -512,6 +512,17 @@ static void iwl_mvm_power_disable_pm_iterator(void *_data, u8* mac,
 	mvmvif->pm_enabled = false;
 }
 
+static void iwl_mvm_power_ps_disabled_iterator(void *_data, u8* mac,
+					       struct ieee80211_vif *vif)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	bool *disable_ps = _data;
+
+	if (mvmvif->phy_ctxt)
+		if (mvmvif->phy_ctxt->id < MAX_PHYS)
+			*disable_ps |= mvmvif->ps_disabled;
+}
+
 static void iwl_mvm_power_get_vifs_iterator(void *_data, u8 *mac,
 					    struct ieee80211_vif *vif)
 {
@@ -831,16 +842,18 @@ int iwl_mvm_disable_beacon_filter(struct iwl_mvm *mvm,
 	return ret;
 }
 
-static int iwl_mvm_power_set_ps(struct iwl_mvm *mvm,
-				struct iwl_power_vifs *vifs)
+static int iwl_mvm_power_set_ps(struct iwl_mvm *mvm)
 {
 	bool disable_ps;
 	int ret;
 
 	/* disable PS if CAM */
 	disable_ps = (iwlmvm_mod_params.power_scheme == IWL_POWER_SCHEME_CAM);
-	/* ...or if there is an active monitor vif */
-	disable_ps |= (vifs->monitor_vif && vifs->monitor_active);
+	/* ...or if any of the vifs require PS to be off */
+	ieee80211_iterate_active_interfaces_atomic(mvm->hw,
+					IEEE80211_IFACE_ITER_NORMAL,
+					iwl_mvm_power_ps_disabled_iterator,
+					&disable_ps);
 
 	/* update device power state if it has changed */
 	if (mvm->ps_disabled != disable_ps) {
@@ -889,7 +902,7 @@ int iwl_mvm_power_update_ps(struct iwl_mvm *mvm)
 					IEEE80211_IFACE_ITER_NORMAL,
 					iwl_mvm_power_get_vifs_iterator, &vifs);
 
-	ret = iwl_mvm_power_set_ps(mvm, &vifs);
+	ret = iwl_mvm_power_set_ps(mvm);
 	if (ret)
 		return ret;
 
@@ -912,7 +925,7 @@ int iwl_mvm_power_update_mac(struct iwl_mvm *mvm)
 
 	iwl_mvm_power_set_pm(mvm, &vifs);
 
-	ret = iwl_mvm_power_set_ps(mvm, &vifs);
+	ret = iwl_mvm_power_set_ps(mvm);
 	if (ret)
 		return ret;
 

@@ -2708,7 +2708,10 @@ static int __iwl_mvm_assign_vif_chanctx(struct iwl_mvm *mvm,
 		ret = 0;
 		goto out;
 	case NL80211_IFTYPE_STATION:
+		break;
 	case NL80211_IFTYPE_MONITOR:
+		/* always disable PS when a monitor interface is active */
+		mvmvif->ps_disabled = true;
 		break;
 	default:
 		ret = -EINVAL;
@@ -2784,6 +2787,7 @@ static void __iwl_mvm_unassign_vif_chanctx(struct iwl_mvm *mvm,
 		goto out;
 	case NL80211_IFTYPE_MONITOR:
 		mvmvif->monitor_active = false;
+		mvmvif->ps_disabled = false;
 		break;
 	case NL80211_IFTYPE_AP:
 		/* This part is triggered only during CSA */
