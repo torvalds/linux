@@ -838,7 +838,23 @@ static inline struct l2cap_chan *l2cap_chan_no_new_connection(struct l2cap_chan 
 	return NULL;
 }
 
+static inline int l2cap_chan_no_recv(struct l2cap_chan *chan, struct sk_buff *skb)
+{
+	return -ENOSYS;
+}
+
+static inline struct sk_buff *l2cap_chan_no_alloc_skb(struct l2cap_chan *chan,
+						      unsigned long hdr_len,
+						      unsigned long len, int nb)
+{
+	return ERR_PTR(-ENOSYS);
+}
+
 static inline void l2cap_chan_no_teardown(struct l2cap_chan *chan, int err)
+{
+}
+
+static inline void l2cap_chan_no_close(struct l2cap_chan *chan)
 {
 }
 
@@ -846,7 +862,16 @@ static inline void l2cap_chan_no_ready(struct l2cap_chan *chan)
 {
 }
 
+static inline void l2cap_chan_no_state_change(struct l2cap_chan *chan,
+					      int state, int err)
+{
+}
+
 static inline void l2cap_chan_no_defer(struct l2cap_chan *chan)
+{
+}
+
+static inline void l2cap_chan_no_suspend(struct l2cap_chan *chan)
 {
 }
 
