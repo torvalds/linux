@@ -523,6 +523,10 @@ struct process_kallsyms_args {
 	struct dso *dso;
 };
 
+/*
+ * These are symbols in the kernel image, so make sure that
+ * sym is from a kernel DSO.
+ */
 bool symbol__is_idle(struct symbol *sym)
 {
 	const char * const idle_symbols[] = {
