@@ -210,3 +210,34 @@ Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
 Description:
 		Describe attributes of /sys/fs/nilfs2/<device>/segments
 		group.
+
+What:		/sys/fs/nilfs2/<device>/checkpoints/checkpoints_number
+Date:		April 2014
+Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
+Description:
+		Show number of checkpoints on volume.
+
+What:		/sys/fs/nilfs2/<device>/checkpoints/snapshots_number
+Date:		April 2014
+Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
+Description:
+		Show number of snapshots on volume.
+
+What:		/sys/fs/nilfs2/<device>/checkpoints/last_seg_checkpoint
+Date:		April 2014
+Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
+Description:
+		Show checkpoint number of the latest segment.
+
+What:		/sys/fs/nilfs2/<device>/checkpoints/next_checkpoint
+Date:		April 2014
+Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
+Description:
+		Show next checkpoint number.
+
+What:		/sys/fs/nilfs2/<device>/checkpoints/README
+Date:		April 2014
+Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
+Description:
+		Describe attributes of /sys/fs/nilfs2/<device>/checkpoints
+		group.

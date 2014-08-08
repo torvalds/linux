@@ -112,6 +112,119 @@ void nilfs_sysfs_delete_##name##_group(struct the_nilfs *nilfs) \
 }
 
 /************************************************************************
+ *                      NILFS checkpoints attrs                         *
+ ************************************************************************/
+
+static ssize_t
+nilfs_checkpoints_checkpoints_number_show(struct nilfs_checkpoints_attr *attr,
+					    struct the_nilfs *nilfs,
+					    char *buf)
+{
+	__u64 ncheckpoints;
+	struct nilfs_cpstat cpstat;
+	int err;
+
+	down_read(&nilfs->ns_segctor_sem);
+	err = nilfs_cpfile_get_stat(nilfs->ns_cpfile, &cpstat);
+	up_read(&nilfs->ns_segctor_sem);
+	if (err < 0) {
+		printk(KERN_ERR "NILFS: unable to get checkpoint stat: err=%d\n",
+			err);
+		return err;
+	}
+
+	ncheckpoints = cpstat.cs_ncps;
+
+	return snprintf(buf, PAGE_SIZE, "%llu\n", ncheckpoints);
+}
+
+static ssize_t
+nilfs_checkpoints_snapshots_number_show(struct nilfs_checkpoints_attr *attr,
+					struct the_nilfs *nilfs,
+					char *buf)
+{
+	__u64 nsnapshots;
+	struct nilfs_cpstat cpstat;
+	int err;
+
+	down_read(&nilfs->ns_segctor_sem);
+	err = nilfs_cpfile_get_stat(nilfs->ns_cpfile, &cpstat);
+	up_read(&nilfs->ns_segctor_sem);
+	if (err < 0) {
+		printk(KERN_ERR "NILFS: unable to get checkpoint stat: err=%d\n",
+			err);
+		return err;
+	}
+
+	nsnapshots = cpstat.cs_nsss;
+
+	return snprintf(buf, PAGE_SIZE, "%llu\n", nsnapshots);
+}
+
+static ssize_t
+nilfs_checkpoints_last_seg_checkpoint_show(struct nilfs_checkpoints_attr *attr,
+					    struct the_nilfs *nilfs,
+					    char *buf)
+{
+	__u64 last_cno;
+
+	spin_lock(&nilfs->ns_last_segment_lock);
+	last_cno = nilfs->ns_last_cno;
+	spin_unlock(&nilfs->ns_last_segment_lock);
+
+	return snprintf(buf, PAGE_SIZE, "%llu\n", last_cno);
+}
+
+static ssize_t
+nilfs_checkpoints_next_checkpoint_show(struct nilfs_checkpoints_attr *attr,
+					struct the_nilfs *nilfs,
+					char *buf)
+{
+	__u64 cno;
+
+	down_read(&nilfs->ns_sem);
+	cno = nilfs->ns_cno;
+	up_read(&nilfs->ns_sem);
+
+	return snprintf(buf, PAGE_SIZE, "%llu\n", cno);
+}
+
+static const char checkpoints_readme_str[] =
+	"The checkpoints group contains attributes that describe\n"
+	"details about volume's checkpoints.\n\n"
+	"(1) checkpoints_number\n\tshow number of checkpoints on volume.\n\n"
+	"(2) snapshots_number\n\tshow number of snapshots on volume.\n\n"
+	"(3) last_seg_checkpoint\n"
+	"\tshow checkpoint number of the latest segment.\n\n"
+	"(4) next_checkpoint\n\tshow next checkpoint number.\n\n";
+
+static ssize_t
+nilfs_checkpoints_README_show(struct nilfs_checkpoints_attr *attr,
+				struct the_nilfs *nilfs, char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, checkpoints_readme_str);
+}
+
+NILFS_CHECKPOINTS_RO_ATTR(checkpoints_number);
+NILFS_CHECKPOINTS_RO_ATTR(snapshots_number);
+NILFS_CHECKPOINTS_RO_ATTR(last_seg_checkpoint);
+NILFS_CHECKPOINTS_RO_ATTR(next_checkpoint);
+NILFS_CHECKPOINTS_RO_ATTR(README);
+
+static struct attribute *nilfs_checkpoints_attrs[] = {
+	NILFS_CHECKPOINTS_ATTR_LIST(checkpoints_number),
+	NILFS_CHECKPOINTS_ATTR_LIST(snapshots_number),
+	NILFS_CHECKPOINTS_ATTR_LIST(last_seg_checkpoint),
+	NILFS_CHECKPOINTS_ATTR_LIST(next_checkpoint),
+	NILFS_CHECKPOINTS_ATTR_LIST(README),
+	NULL,
+};
+
+NILFS_DEV_INT_GROUP_OPS(checkpoints, dev);
+NILFS_DEV_INT_GROUP_TYPE(checkpoints, dev);
+NILFS_DEV_INT_GROUP_FNS(checkpoints, dev);
+
+/************************************************************************
  *                        NILFS segments attrs                          *
  ************************************************************************/
 
@@ -753,9 +866,13 @@ int nilfs_sysfs_create_device_group(struct super_block *sb)
 	if (err)
 		goto free_dev_subgroups;
 
-	err = nilfs_sysfs_create_segments_group(nilfs);
+	err = nilfs_sysfs_create_checkpoints_group(nilfs);
 	if (err)
 		goto cleanup_dev_kobject;
+
+	err = nilfs_sysfs_create_segments_group(nilfs);
+	if (err)
+		goto delete_checkpoints_group;
 
 	err = nilfs_sysfs_create_superblock_group(nilfs);
 	if (err)
@@ -773,6 +890,9 @@ delete_superblock_group:
 delete_segments_group:
 	nilfs_sysfs_delete_segments_group(nilfs);
 
+delete_checkpoints_group:
+	nilfs_sysfs_delete_checkpoints_group(nilfs);
+
 cleanup_dev_kobject:
 	kobject_del(&nilfs->ns_dev_kobj);
 
@@ -785,6 +905,7 @@ failed_create_device_group:
 
 void nilfs_sysfs_delete_device_group(struct the_nilfs *nilfs)
 {
+	nilfs_sysfs_delete_checkpoints_group(nilfs);
 	nilfs_sysfs_delete_segments_group(nilfs);
 	nilfs_sysfs_delete_superblock_group(nilfs);
 	nilfs_sysfs_delete_segctor_group(nilfs);
