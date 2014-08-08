@@ -2215,7 +2215,7 @@ static int btrfs_punch_hole(struct inode *inode, loff_t offset, loff_t len)
 		goto out_only_mutex;
 	}
 
-	lockstart = round_up(offset , BTRFS_I(inode)->root->sectorsize);
+	lockstart = round_up(offset, BTRFS_I(inode)->root->sectorsize);
 	lockend = round_down(offset + len,
 			     BTRFS_I(inode)->root->sectorsize) - 1;
 	same_page = ((offset >> PAGE_CACHE_SHIFT) ==
@@ -2276,7 +2276,7 @@ static int btrfs_punch_hole(struct inode *inode, loff_t offset, loff_t len)
 						tail_start + tail_len, 0, 1);
 				if (ret)
 					goto out_only_mutex;
-				}
+			}
 		}
 	}
 
