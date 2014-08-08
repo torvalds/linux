@@ -6959,9 +6959,9 @@ M:	Jamie Iles <jamie@jamieiles.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 T:	git git://github.com/jamieiles/linux-2.6-ji.git
 S:	Supported
+F:	arch/arm/boot/dts/picoxcell*
 F:	arch/arm/mach-picoxcell/
-F:	drivers/*/picoxcell*
-F:	drivers/*/*/picoxcell*
+F:	drivers/crypto/picoxcell*
 
 PIN CONTROL SUBSYSTEM
 M:	Linus Walleij <linus.walleij@linaro.org>
