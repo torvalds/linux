@@ -1195,7 +1195,7 @@ void iep_config(iep_session *session, IEP_MSG *iep_msg)
     
 #if defined(CONFIG_IEP_IOMMU)
     INIT_LIST_HEAD(&reg->mem_region_list);    
-#endif    
+#endif
 
     //write config
     iep_config_src_size(iep_msg);
@@ -1249,10 +1249,12 @@ void iep_config(iep_session *session, IEP_MSG *iep_msg)
 #endif
 
 #if defined(CONFIG_IEP_IOMMU)
-    if (0 > iep_reg_address_translate(&iep_service, reg)) {
-        IEP_ERR("error: translate reg address failed\n");
-        kfree(reg);
-        return;
+    if (iep_service.iommu_dev) {
+        if (0 > iep_reg_address_translate(&iep_service, reg)) {
+            IEP_ERR("error: translate reg address failed\n");
+            kfree(reg);
+            return;
+        }
     }
 #endif
 

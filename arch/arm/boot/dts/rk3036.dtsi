@@ -643,8 +643,9 @@
 		};
 	};
 
-        vpu: vpu_service@10108000 {
+	vpu: vpu_service@10108000 {
 		compatible = "vpu_service";
+		iommu_enabled = <1>;
 		reg = <0x10108000 0x800>;
 		interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "irq_dec";
@@ -656,6 +657,7 @@
 
 	hevc: hevc_service@1010c000 {
 		compatible = "rockchip,hevc_service";
+		iommu_enabled = <1>;
 		reg = <0x1010c000 0x400>;
 		interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "irq_dec";
@@ -663,7 +665,7 @@
 		clock-names = "aclk_vcodec", "hclk_vcodec", "clk_core";
 		name = "hevc_service";
 		status = "okay";
-        };
+	};
 
 	vop_mmu {
 		dbgname = "vop";

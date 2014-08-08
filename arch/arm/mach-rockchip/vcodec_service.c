@@ -405,9 +405,9 @@ static const struct file_operations debug_vcodec_fops = {
 #define BIT_VCODEC_SEL_RK312X		(1<<15)
 static void vcodec_enter_mode_nolock(enum vcodec_device_id id, u32 *reserved_mode)
 {
-	if (soc_is_rk3036() || soc_is_rk3126() || soc_is_rk3128()) {
-		int bits = soc_is_rk3036() ? BIT_VCODEC_SEL_RK3036 : BIT_VCODEC_SEL_RK312X;
-		void __iomem *addr = soc_is_rk3036() ? (RK_GRF_VIRT + RK3036_GRF_SOC_CON1) : (RK_GRF_VIRT + RK312X_GRF_SOC_CON1);
+	if (cpu_is_rk3036() || cpu_is_rk312x()) {
+		int bits = cpu_is_rk3036() ? BIT_VCODEC_SEL_RK3036 : BIT_VCODEC_SEL_RK312X;
+		void __iomem *addr = cpu_is_rk3036() ? (RK_GRF_VIRT + RK3036_GRF_SOC_CON1) : (RK_GRF_VIRT + RK312X_GRF_SOC_CON1);
 		if (reserved_mode)
 			*reserved_mode = readl_relaxed(addr);
 		if (id == VCODEC_DEVICE_ID_HEVC)
@@ -419,23 +419,23 @@ static void vcodec_enter_mode_nolock(enum vcodec_device_id id, u32 *reserved_mod
 
 static void vcodec_exit_mode_nolock(enum vcodec_device_id id, u32 reserved_mode)
 {
-	if (soc_is_rk3036() || soc_is_rk3126() || soc_is_rk3128()) {
-		int bits = soc_is_rk3036() ? BIT_VCODEC_SEL_RK3036 : BIT_VCODEC_SEL_RK312X;
-		void __iomem *addr = soc_is_rk3036() ? (RK_GRF_VIRT + RK3036_GRF_SOC_CON1) : (RK_GRF_VIRT + RK312X_GRF_SOC_CON1);
+	if (cpu_is_rk3036() || cpu_is_rk312x()) {
+		int bits = cpu_is_rk3036() ? BIT_VCODEC_SEL_RK3036 : BIT_VCODEC_SEL_RK312X;
+		void __iomem *addr = cpu_is_rk3036() ? (RK_GRF_VIRT + RK3036_GRF_SOC_CON1) : (RK_GRF_VIRT + RK312X_GRF_SOC_CON1);
 		writel_relaxed(reserved_mode | (bits << 16), addr);
 	}
 }
 
 static void vcodec_enter_mode(enum vcodec_device_id id)
 {
-	if (soc_is_rk3036() || soc_is_rk3126() || soc_is_rk3128())
+	if (cpu_is_rk3036() || cpu_is_rk312x())
 		mutex_lock(&g_mode_mutex);
 	vcodec_enter_mode_nolock(id, NULL);
 }
 
 static void vcodec_exit_mode(void)
 {
-	if (soc_is_rk3036() || soc_is_rk3126() || soc_is_rk3128())
+	if (cpu_is_rk3036() || cpu_is_rk312x())
 		mutex_unlock(&g_mode_mutex);
 }
 
@@ -462,7 +462,7 @@ static int vpu_get_clk(struct vpu_service_info *pservice)
 				break;
 			}
 
-			if (!soc_is_rk3036() && !soc_is_rk3126() && !soc_is_rk3128()) {
+			if (!cpu_is_rk3036() && !cpu_is_rk312x()) {
 				pservice->clk_cabac = devm_clk_get(pservice->dev, "clk_cabac");
 				if (IS_ERR(pservice->clk_cabac)) {
 					dev_err(pservice->dev, "failed on clk_get clk_cabac\n");
@@ -472,7 +472,7 @@ static int vpu_get_clk(struct vpu_service_info *pservice)
 				pservice->clk_cabac = NULL;
 			}
 
-			if (!soc_is_rk3036() && !soc_is_rk3126() && !soc_is_rk3128()) {
+			if (!cpu_is_rk3036() && !cpu_is_rk312x()) {
 				pservice->pd_video = devm_clk_get(pservice->dev, "pd_hevc");
 				if (IS_ERR(pservice->pd_video)) {
 					dev_err(pservice->dev, "failed on clk_get pd_hevc\n");
@@ -482,7 +482,7 @@ static int vpu_get_clk(struct vpu_service_info *pservice)
 				pservice->pd_video = NULL;
 			}
 		} else {
-			if (!soc_is_rk3036() && !soc_is_rk3126() && !soc_is_rk3128()) {
+			if (!cpu_is_rk3036() && !cpu_is_rk312x()) {
 				pservice->pd_video = devm_clk_get(pservice->dev, "pd_video");
 				if (IS_ERR(pservice->pd_video)) {
 					dev_err(pservice->dev, "failed on clk_get pd_video\n");
@@ -493,7 +493,7 @@ static int vpu_get_clk(struct vpu_service_info *pservice)
 			}
 		}
 
-		if (soc_is_rk3126() || soc_is_rk3128()) {
+		if (cpu_is_rk312x()) {
 			pservice->pd_video = devm_clk_get(pservice->dev, "pd_video");
 			if (IS_ERR(pservice->pd_video)) {
 				dev_err(pservice->dev, "failed on clk_get pd_video\n");
@@ -1415,7 +1415,7 @@ static long vpu_service_ioctl(struct file *filp, unsigned int cmd, unsigned long
 
 	return 0;
 }
-#if 1
+
 static int vpu_service_check_hw(vpu_service_info *p, unsigned long hw_addr)
 {
 	int ret = -EINVAL, i = 0;
@@ -1442,7 +1442,6 @@ static int vpu_service_check_hw(vpu_service_info *p, unsigned long hw_addr)
 	iounmap((void *)tmp);
 	return ret;
 }
-#endif
 
 static int vpu_service_open(struct inode *inode, struct file *filp)
 {
@@ -1554,7 +1553,9 @@ static int vcodec_probe(struct platform_device *pdev)
 	struct vpu_service_info *pservice = devm_kzalloc(dev, sizeof(struct vpu_service_info), GFP_KERNEL);
 	char *prop = (char*)dev_name(dev);
 #if defined(CONFIG_VCODEC_MMU)
+	u32 iommu_en = 0;
 	char mmu_dev_dts_name[40];
+	of_property_read_u32(np, "iommu_enabled", &iommu_en);
 #endif
 
 	pr_info("probe device %s\n", dev_name(dev));
@@ -1584,7 +1585,7 @@ static int vcodec_probe(struct platform_device *pdev)
 	pservice->reg_pproc	= NULL;
 	atomic_set(&pservice->total_running, 0);
 	pservice->enabled = false;
-#if defined(CONFIG_VCODEC_MMU)    
+#if defined(CONFIG_VCODEC_MMU)
 	pservice->mmu_dev = NULL;
 #endif
 	pservice->dev = dev;
@@ -1610,7 +1611,7 @@ static int vcodec_probe(struct platform_device *pdev)
 
 	{
 		u32 offset = res->start;
-		if (soc_is_rk3036()) {
+		if (cpu_is_rk3036()) {
 			if (pservice->dev_id == VCODEC_DEVICE_ID_VPU)
 				offset += 0x400;
 		}
@@ -1629,7 +1630,7 @@ static int vcodec_probe(struct platform_device *pdev)
 
 	pservice->reg_size   = pservice->dec_dev.iosize;
 
-	if (pservice->hw_info->hw_id != HEVC_ID && !soc_is_rk3036()) {
+	if (pservice->hw_info->hw_id != HEVC_ID && !cpu_is_rk3036()) {
 		pservice->enc_dev.iobaseaddr = res->start + pservice->hw_info->enc_offset;
 		pservice->enc_dev.iosize     = pservice->hw_info->enc_io_size;
 
@@ -1716,23 +1717,26 @@ static int vcodec_probe(struct platform_device *pdev)
 #endif
 
 #if defined(CONFIG_VCODEC_MMU)
-	pservice->ion_client = rockchip_ion_client_create("vpu");
-	if (IS_ERR(pservice->ion_client)) {
-		dev_err(&pdev->dev, "failed to create ion client for vcodec");
-		return PTR_ERR(pservice->ion_client);
-	} else {
-		dev_info(&pdev->dev, "vcodec ion client create success!\n");
-	}
+	if (iommu_en) {
+		pservice->ion_client = rockchip_ion_client_create("vpu");
+		if (IS_ERR(pservice->ion_client)) {
+			dev_err(&pdev->dev, "failed to create ion client for vcodec");
+			return PTR_ERR(pservice->ion_client);
+		} else {
+			dev_info(&pdev->dev, "vcodec ion client create success!\n");
+		}
 
-	if (pservice->hw_info->hw_id == HEVC_ID)
-		sprintf(mmu_dev_dts_name, "iommu,hevc_mmu");
-	else
-		sprintf(mmu_dev_dts_name, "iommu,vpu_mmu");
-	pservice->mmu_dev = rockchip_get_sysmmu_device_by_compatible(mmu_dev_dts_name);
+		if (pservice->hw_info->hw_id == HEVC_ID)
+			sprintf(mmu_dev_dts_name, "iommu,hevc_mmu");
+		else
+			sprintf(mmu_dev_dts_name, "iommu,vpu_mmu");
 
-	if (pservice->mmu_dev) {
-		platform_set_sysmmu(pservice->mmu_dev, pservice->dev);
-		iovmm_activate(pservice->dev);
+		pservice->mmu_dev = rockchip_get_sysmmu_device_by_compatible(mmu_dev_dts_name);
+
+		if (pservice->mmu_dev) {
+			platform_set_sysmmu(pservice->mmu_dev, pservice->dev);
+			iovmm_activate(pservice->dev);
+		}
 	}
 #endif
 
@@ -1844,7 +1848,7 @@ static void get_hw_info(struct vpu_service_info *pservice)
 
 		if (soc_is_rk3190() || soc_is_rk3288())
 			dec->maxDecPicWidth = 4096;
-		else if (soc_is_rk3036() || soc_is_rk3126() || soc_is_rk3128())
+		else if (cpu_is_rk3036() || cpu_is_rk312x())
 			dec->maxDecPicWidth = 1920;
 		else
 			dec->maxDecPicWidth = configReg & 0x07FFU;
@@ -1878,7 +1882,7 @@ static void get_hw_info(struct vpu_service_info *pservice)
 			dec->refBufSupport |= 8; /* enable HW support for offset */
 
 		/// invalidate fuse register value in rk319x vpu and following.
-		if (!soc_is_rk3190() && !soc_is_rk3288() && !soc_is_rk3036() && !soc_is_rk3126() && !soc_is_rk3128()) {
+		if (!soc_is_rk3190() && !soc_is_rk3288() && !cpu_is_rk3036() && !cpu_is_rk312x()) {
 			VPUHwFuseStatus_t hwFuseSts;
 			/* Decoder fuse configuration */
 			u32 fuseReg = pservice->dec_dev.hwregs[VPU_DEC_HW_FUSE_CFG];
@@ -1995,7 +1999,7 @@ static void get_hw_info(struct vpu_service_info *pservice)
 			}
 		}
 
-		if (!soc_is_rk3036()) {
+		if (!cpu_is_rk3036()) {
 			configReg = pservice->enc_dev.hwregs[63];
 			enc->maxEncodedWidth = configReg & ((1 << 11) - 1);
 			enc->h264Enabled = (configReg >> 27) & 1;
@@ -2018,7 +2022,7 @@ static void get_hw_info(struct vpu_service_info *pservice)
 
 		pservice->bug_dec_addr = cpu_is_rk30xx();
 	} else {
-		if (soc_is_rk3036()  || soc_is_rk3126() || soc_is_rk3128())
+		if (cpu_is_rk3036()  || cpu_is_rk312x())
 			dec->maxDecPicWidth = 1920;
 		else
 			dec->maxDecPicWidth = 4096;
