@@ -3271,8 +3271,17 @@ int cgroup_add_legacy_cftypes(struct cgroup_subsys *ss, struct cftype *cfts)
 {
 	struct cftype *cft;
 
-	for (cft = cfts; cft && cft->name[0] != '\0'; cft++)
-		cft->flags |= __CFTYPE_NOT_ON_DFL;
+	/*
+	 * If legacy_flies_on_dfl, we want to show the legacy files on the
+	 * dfl hierarchy but iff the target subsystem hasn't been updated
+	 * for the dfl hierarchy yet.
+	 */
+	if (!cgroup_legacy_files_on_dfl ||
+	    ss->dfl_cftypes != ss->legacy_cftypes) {
+		for (cft = cfts; cft && cft->name[0] != '\0'; cft++)
+			cft->flags |= __CFTYPE_NOT_ON_DFL;
+	}
+
 	return cgroup_add_cftypes(ss, cfts);
 }
 
