@@ -286,13 +286,12 @@ static void ufs_print_cylinder_stuff(struct super_block *sb,
 
 static const struct super_operations ufs_super_ops;
 
-static char error_buf[1024];
-
 void ufs_error (struct super_block * sb, const char * function,
 	const char * fmt, ...)
 {
 	struct ufs_sb_private_info * uspi;
 	struct ufs_super_block_first * usb1;
+	struct va_format vaf;
 	va_list args;
 
 	uspi = UFS_SB(sb)->s_uspi;
@@ -304,20 +303,21 @@ void ufs_error (struct super_block * sb, const char * function,
 		ufs_mark_sb_dirty(sb);
 		sb->s_flags |= MS_RDONLY;
 	}
-	va_start (args, fmt);
-	vsnprintf (error_buf, sizeof(error_buf), fmt, args);
-	va_end (args);
+	va_start(args, fmt);
+	vaf.fmt = fmt;
+	vaf.va = &args;
 	switch (UFS_SB(sb)->s_mount_opt & UFS_MOUNT_ONERROR) {
 	case UFS_MOUNT_ONERROR_PANIC:
-		panic("panic (device %s): %s: %s\n",
-			sb->s_id, function, error_buf);
+		panic("panic (device %s): %s: %pV\n",
+		      sb->s_id, function, &vaf);
 
 	case UFS_MOUNT_ONERROR_LOCK:
 	case UFS_MOUNT_ONERROR_UMOUNT:
 	case UFS_MOUNT_ONERROR_REPAIR:
-		pr_crit("error (device %s): %s: %s\n",
-			sb->s_id, function, error_buf);
-	}		
+		pr_crit("error (device %s): %s: %pV\n",
+			sb->s_id, function, &vaf);
+	}
+	va_end(args);
 }
 
 void ufs_panic (struct super_block * sb, const char * function,
@@ -325,6 +325,7 @@ void ufs_panic (struct super_block * sb, const char * function,
 {
 	struct ufs_sb_private_info * uspi;
 	struct ufs_super_block_first * usb1;
+	struct va_format vaf;
 	va_list args;
 	
 	uspi = UFS_SB(sb)->s_uspi;
@@ -335,24 +336,27 @@ void ufs_panic (struct super_block * sb, const char * function,
 		ubh_mark_buffer_dirty(USPI_UBH(uspi));
 		ufs_mark_sb_dirty(sb);
 	}
-	va_start (args, fmt);
-	vsnprintf (error_buf, sizeof(error_buf), fmt, args);
-	va_end (args);
+	va_start(args, fmt);
+	vaf.fmt = fmt;
+	vaf.va = &args;
 	sb->s_flags |= MS_RDONLY;
-	pr_crit("panic (device %s): %s: %s\n",
-		sb->s_id, function, error_buf);
+	pr_crit("panic (device %s): %s: %pV\n",
+		sb->s_id, function, &vaf);
+	va_end(args);
 }
 
 void ufs_warning (struct super_block * sb, const char * function,
 	const char * fmt, ...)
 {
+	struct va_format vaf;
 	va_list args;
 
-	va_start (args, fmt);
-	vsnprintf (error_buf, sizeof(error_buf), fmt, args);
-	va_end (args);
-	pr_warn("warning (device %s): %s: %s\n",
-		sb->s_id, function, error_buf);
+	va_start(args, fmt);
+	vaf.fmt = fmt;
+	vaf.va = &args;
+	pr_warn("(device %s): %s: %pV\n",
+		sb->s_id, function, &vaf);
+	va_end(args);
 }
 
 enum {
