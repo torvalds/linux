@@ -961,16 +961,15 @@ static int __test_skcipher(struct crypto_ablkcipher *tfm, int enc,
 
 	j = 0;
 	for (i = 0; i < tcount; i++) {
+		if (template[i].np && !template[i].also_non_np)
+			continue;
+
 		if (template[i].iv)
 			memcpy(iv, template[i].iv, MAX_IVLEN);
 		else
 			memset(iv, 0, MAX_IVLEN);
 
-		if (template[i].np && !template[i].also_non_np)
-			continue;
-
 		j++;
-
 		ret = -EINVAL;
 		if (WARN_ON(align_offset + template[i].ilen > PAGE_SIZE))
 			goto out;
@@ -1038,16 +1037,15 @@ static int __test_skcipher(struct crypto_ablkcipher *tfm, int enc,
 		if (align_offset != 0)
 			break;
 
+		if (!template[i].np)
+			continue;
+
 		if (template[i].iv)
 			memcpy(iv, template[i].iv, MAX_IVLEN);
 		else
 			memset(iv, 0, MAX_IVLEN);
 
-		if (!template[i].np)
-			continue;
-
 		j++;
-
 		crypto_ablkcipher_clear_flags(tfm, ~0);
 		if (template[i].wk)
 			crypto_ablkcipher_set_flags(tfm, CRYPTO_TFM_REQ_WEAK_KEY);
