@@ -621,7 +621,7 @@ AMD MICROCODE UPDATE SUPPORT
 M:	Andreas Herrmann <herrmann.der.user@googlemail.com>
 L:	amd64-microcode@amd64.org
 S:	Maintained
-F:	arch/x86/kernel/microcode_amd.c
+F:	arch/x86/kernel/cpu/microcode/amd*
 
 AMD XGBE DRIVER
 M:	Tom Lendacky <thomas.lendacky@amd.com>
@@ -4692,8 +4692,8 @@ F:	drivers/platform/x86/intel_menlow.c
 INTEL IA32 MICROCODE UPDATE SUPPORT
 M:	Tigran Aivazian <tigran@aivazian.fsnet.co.uk>
 S:	Maintained
-F:	arch/x86/kernel/microcode_core.c
-F:	arch/x86/kernel/microcode_intel.c
+F:	arch/x86/kernel/cpu/microcode/core*
+F:	arch/x86/kernel/cpu/microcode/intel*
 
 INTEL I/OAT DMA DRIVER
 M:	Dan Williams <dan.j.williams@intel.com>
