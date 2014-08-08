@@ -33,6 +33,7 @@
 #include <linux/slab.h>
 
 struct nilfs_sc_info;
+struct nilfs_sysfs_dev_subgroups;
 
 /* the_nilfs struct */
 enum {
@@ -54,6 +55,7 @@ enum {
  * @ns_sbwcount: write count of super block
  * @ns_sbsize: size of valid data in super block
  * @ns_mount_state: file system state
+ * @ns_sb_update_freq: interval of periodical update of superblocks (in seconds)
  * @ns_seg_seq: segment sequence counter
  * @ns_segnum: index number of the latest full segment.
  * @ns_nextnum: index number of the full segment index to be used next
@@ -97,6 +99,7 @@ enum {
  * @ns_crc_seed: seed value of CRC32 calculation
  * @ns_dev_kobj: /sys/fs/<nilfs>/<device>
  * @ns_dev_kobj_unregister: completion state
+ * @ns_dev_subgroups: <device> subgroups pointer
  */
 struct the_nilfs {
 	unsigned long		ns_flags;
@@ -116,6 +119,7 @@ struct the_nilfs {
 	unsigned		ns_sbwcount;
 	unsigned		ns_sbsize;
 	unsigned		ns_mount_state;
+	unsigned		ns_sb_update_freq;
 
 	/*
 	 * Following fields are dedicated to a writable FS-instance.
@@ -194,6 +198,7 @@ struct the_nilfs {
 	/* /sys/fs/<nilfs>/<device> */
 	struct kobject ns_dev_kobj;
 	struct completion ns_dev_kobj_unregister;
+	struct nilfs_sysfs_dev_subgroups *ns_dev_subgroups;
 };
 
 #define THE_NILFS_FNS(bit, name)					\
@@ -260,7 +265,8 @@ struct nilfs_root {
 static inline int nilfs_sb_need_update(struct the_nilfs *nilfs)
 {
 	u64 t = get_seconds();
-	return t < nilfs->ns_sbwtime || t > nilfs->ns_sbwtime + NILFS_SB_FREQ;
+	return t < nilfs->ns_sbwtime ||
+		t > nilfs->ns_sbwtime + nilfs->ns_sb_update_freq;
 }
 
 static inline int nilfs_sb_will_flip(struct the_nilfs *nilfs)

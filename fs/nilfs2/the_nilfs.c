@@ -85,6 +85,7 @@ struct the_nilfs *alloc_nilfs(struct block_device *bdev)
 	nilfs->ns_cptree = RB_ROOT;
 	spin_lock_init(&nilfs->ns_cptree_lock);
 	init_rwsem(&nilfs->ns_segctor_sem);
+	nilfs->ns_sb_update_freq = NILFS_SB_FREQ;
 
 	return nilfs;
 }

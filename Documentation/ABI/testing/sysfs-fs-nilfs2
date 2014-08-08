@@ -56,3 +56,36 @@ Date:		April 2014
 Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
 Description:
 		Describe attributes of /sys/fs/nilfs2/<device> group.
+
+What:		/sys/fs/nilfs2/<device>/superblock/sb_write_time
+Date:		April 2014
+Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
+Description:
+		Show last write time of super block in human-readable
+		format.
+
+What:		/sys/fs/nilfs2/<device>/superblock/sb_write_time_secs
+Date:		April 2014
+Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
+Description:
+		Show last write time of super block in seconds.
+
+What:		/sys/fs/nilfs2/<device>/superblock/sb_write_count
+Date:		April 2014
+Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
+Description:
+		Show current write count of super block.
+
+What:		/sys/fs/nilfs2/<device>/superblock/sb_update_frequency
+Date:		April 2014
+Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
+Description:
+		Show/Set interval of periodical update of superblock
+		(in seconds).
+
+What:		/sys/fs/nilfs2/<device>/superblock/README
+Date:		April 2014
+Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
+Description:
+		Describe attributes of /sys/fs/nilfs2/<device>/superblock
+		group.

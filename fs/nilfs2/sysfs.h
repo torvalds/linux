@@ -24,6 +24,17 @@
 
 #define NILFS_ROOT_GROUP_NAME	"nilfs2"
 
+/*
+ * struct nilfs_sysfs_dev_subgroups - device subgroup kernel objects
+ * @sg_superblock_kobj: /sys/fs/<nilfs>/<device>/superblock
+ * @sg_superblock_kobj_unregister: completion state
+ */
+struct nilfs_sysfs_dev_subgroups {
+	/* /sys/fs/<nilfs>/<device>/superblock */
+	struct kobject sg_superblock_kobj;
+	struct completion sg_superblock_kobj_unregister;
+};
+
 #define NILFS_COMMON_ATTR_STRUCT(name) \
 struct nilfs_##name##_attr { \
 	struct attribute attr; \
@@ -45,6 +56,7 @@ struct nilfs_##name##_attr { \
 };
 
 NILFS_DEV_ATTR_STRUCT(dev);
+NILFS_DEV_ATTR_STRUCT(superblock);
 
 #define NILFS_ATTR(type, name, mode, show, store) \
 	static struct nilfs_##type##_attr nilfs_##type##_attr_##name = \
@@ -73,9 +85,16 @@ NILFS_DEV_ATTR_STRUCT(dev);
 #define NILFS_DEV_RW_ATTR(name) \
 	NILFS_RW_ATTR(dev, name)
 
+#define NILFS_SUPERBLOCK_RO_ATTR(name) \
+	NILFS_RO_ATTR(superblock, name)
+#define NILFS_SUPERBLOCK_RW_ATTR(name) \
+	NILFS_RW_ATTR(superblock, name)
+
 #define NILFS_FEATURE_ATTR_LIST(name) \
 	(&nilfs_feature_attr_##name.attr)
 #define NILFS_DEV_ATTR_LIST(name) \
 	(&nilfs_dev_attr_##name.attr)
+#define NILFS_SUPERBLOCK_ATTR_LIST(name) \
+	(&nilfs_superblock_attr_##name.attr)
 
 #endif /* _NILFS_SYSFS_H */
