@@ -261,6 +261,20 @@ config HOLTEK_FF
 	  Say Y here if you have a Holtek On Line Grip based game controller
 	  and want to have force feedback support for it.
 
+config HID_GT683R
+	tristate "MSI GT68xR LED support"
+	depends on LEDS_CLASS && USB_HID
+	---help---
+	Say Y here if you want to enable support for the three MSI GT68xR LEDs
+
+	This driver support following modes:
+	  - Normal: LEDs are fully on when enabled
+	  - Audio:  LEDs brightness depends on sound level
+	  - Breathing: LEDs brightness varies at human breathing rate
+
+	Currently the following devices are know to be supported:
+	  - MSI GT683R
+
 config HID_HUION
 	tristate "Huion tablets"
 	depends on USB_HID

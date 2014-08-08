@@ -143,6 +143,13 @@ config LEDS_SUNFIRE
 	  This option enables support for the Left, Middle, and Right
 	  LEDs on the I/O and CPU boards of SunFire UltraSPARC servers.
 
+config LEDS_IPAQ_MICRO
+	tristate "LED Support for the Compaq iPAQ h3xxx"
+	depends on MFD_IPAQ_MICRO
+	help
+	  Choose this option if you want to use the notification LED on
+	  Compaq/HP iPAQ h3100 and h3600.
+
 config LEDS_HP6XX
 	tristate "LED Support for the HP Jornada 6xx"
 	depends on LEDS_CLASS
