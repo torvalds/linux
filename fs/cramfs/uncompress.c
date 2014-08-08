@@ -59,7 +59,7 @@ int cramfs_uncompress_init(void)
 {
 	if (!initialized++) {
 		stream.workspace = vmalloc(zlib_inflate_workspacesize());
-		if ( !stream.workspace ) {
+		if (!stream.workspace) {
 			initialized = 0;
 			return -ENOMEM;
 		}
