@@ -86,6 +86,17 @@ NILFS_DEV_ATTR_STRUCT(checkpoints);
 NILFS_DEV_ATTR_STRUCT(superblock);
 NILFS_DEV_ATTR_STRUCT(segctor);
 
+#define NILFS_CP_ATTR_STRUCT(name) \
+struct nilfs_##name##_attr { \
+	struct attribute attr; \
+	ssize_t (*show)(struct nilfs_##name##_attr *, struct nilfs_root *, \
+			char *); \
+	ssize_t (*store)(struct nilfs_##name##_attr *, struct nilfs_root *, \
+			 const char *, size_t); \
+};
+
+NILFS_CP_ATTR_STRUCT(snapshot);
+
 #define NILFS_ATTR(type, name, mode, show, store) \
 	static struct nilfs_##type##_attr nilfs_##type##_attr_##name = \
 		__ATTR(name, mode, show, store)
@@ -126,6 +137,13 @@ NILFS_DEV_ATTR_STRUCT(segctor);
 #define NILFS_CHECKPOINTS_RW_ATTR(name) \
 	NILFS_RW_ATTR(checkpoints, name)
 
+#define NILFS_SNAPSHOT_INFO_ATTR(name) \
+	NILFS_INFO_ATTR(snapshot, name)
+#define NILFS_SNAPSHOT_RO_ATTR(name) \
+	NILFS_RO_ATTR(snapshot, name)
+#define NILFS_SNAPSHOT_RW_ATTR(name) \
+	NILFS_RW_ATTR(snapshot, name)
+
 #define NILFS_SUPERBLOCK_RO_ATTR(name) \
 	NILFS_RO_ATTR(superblock, name)
 #define NILFS_SUPERBLOCK_RW_ATTR(name) \
@@ -148,6 +166,8 @@ NILFS_DEV_ATTR_STRUCT(segctor);
 	(&nilfs_mounted_snapshots_attr_##name.attr)
 #define NILFS_CHECKPOINTS_ATTR_LIST(name) \
 	(&nilfs_checkpoints_attr_##name.attr)
+#define NILFS_SNAPSHOT_ATTR_LIST(name) \
+	(&nilfs_snapshot_attr_##name.attr)
 #define NILFS_SUPERBLOCK_ATTR_LIST(name) \
 	(&nilfs_superblock_attr_##name.attr)
 #define NILFS_SEGCTOR_ATTR_LIST(name) \

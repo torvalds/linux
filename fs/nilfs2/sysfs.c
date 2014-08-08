@@ -112,6 +112,124 @@ void nilfs_sysfs_delete_##name##_group(struct the_nilfs *nilfs) \
 }
 
 /************************************************************************
+ *                        NILFS snapshot attrs                          *
+ ************************************************************************/
+
+static ssize_t
+nilfs_snapshot_inodes_count_show(struct nilfs_snapshot_attr *attr,
+				 struct nilfs_root *root, char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%llu\n",
+			(unsigned long long)atomic64_read(&root->inodes_count));
+}
+
+static ssize_t
+nilfs_snapshot_blocks_count_show(struct nilfs_snapshot_attr *attr,
+				 struct nilfs_root *root, char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%llu\n",
+			(unsigned long long)atomic64_read(&root->blocks_count));
+}
+
+static const char snapshot_readme_str[] =
+	"The group contains details about mounted snapshot.\n\n"
+	"(1) inodes_count\n\tshow number of inodes for snapshot.\n\n"
+	"(2) blocks_count\n\tshow number of blocks for snapshot.\n\n";
+
+static ssize_t
+nilfs_snapshot_README_show(struct nilfs_snapshot_attr *attr,
+			    struct nilfs_root *root, char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, snapshot_readme_str);
+}
+
+NILFS_SNAPSHOT_RO_ATTR(inodes_count);
+NILFS_SNAPSHOT_RO_ATTR(blocks_count);
+NILFS_SNAPSHOT_RO_ATTR(README);
+
+static struct attribute *nilfs_snapshot_attrs[] = {
+	NILFS_SNAPSHOT_ATTR_LIST(inodes_count),
+	NILFS_SNAPSHOT_ATTR_LIST(blocks_count),
+	NILFS_SNAPSHOT_ATTR_LIST(README),
+	NULL,
+};
+
+static ssize_t nilfs_snapshot_attr_show(struct kobject *kobj,
+					struct attribute *attr, char *buf)
+{
+	struct nilfs_root *root =
+			container_of(kobj, struct nilfs_root, snapshot_kobj);
+	struct nilfs_snapshot_attr *a =
+			container_of(attr, struct nilfs_snapshot_attr, attr);
+
+	return a->show ? a->show(a, root, buf) : 0;
+}
+
+static ssize_t nilfs_snapshot_attr_store(struct kobject *kobj,
+					 struct attribute *attr,
+					 const char *buf, size_t len)
+{
+	struct nilfs_root *root =
+			container_of(kobj, struct nilfs_root, snapshot_kobj);
+	struct nilfs_snapshot_attr *a =
+			container_of(attr, struct nilfs_snapshot_attr, attr);
+
+	return a->store ? a->store(a, root, buf, len) : 0;
+}
+
+static void nilfs_snapshot_attr_release(struct kobject *kobj)
+{
+	struct nilfs_root *root = container_of(kobj, struct nilfs_root,
+						snapshot_kobj);
+	complete(&root->snapshot_kobj_unregister);
+}
+
+static const struct sysfs_ops nilfs_snapshot_attr_ops = {
+	.show	= nilfs_snapshot_attr_show,
+	.store	= nilfs_snapshot_attr_store,
+};
+
+static struct kobj_type nilfs_snapshot_ktype = {
+	.default_attrs	= nilfs_snapshot_attrs,
+	.sysfs_ops	= &nilfs_snapshot_attr_ops,
+	.release	= nilfs_snapshot_attr_release,
+};
+
+int nilfs_sysfs_create_snapshot_group(struct nilfs_root *root)
+{
+	struct the_nilfs *nilfs;
+	struct kobject *parent;
+	int err;
+
+	nilfs = root->nilfs;
+	parent = &nilfs->ns_dev_subgroups->sg_mounted_snapshots_kobj;
+	root->snapshot_kobj.kset = nilfs_kset;
+	init_completion(&root->snapshot_kobj_unregister);
+
+	if (root->cno == NILFS_CPTREE_CURRENT_CNO) {
+		err = kobject_init_and_add(&root->snapshot_kobj,
+					    &nilfs_snapshot_ktype,
+					    &nilfs->ns_dev_kobj,
+					    "current_checkpoint");
+	} else {
+		err = kobject_init_and_add(&root->snapshot_kobj,
+					    &nilfs_snapshot_ktype,
+					    parent,
+					    "%llu", root->cno);
+	}
+
+	if (err)
+		return err;
+
+	return 0;
+}
+
+void nilfs_sysfs_delete_snapshot_group(struct nilfs_root *root)
+{
+	kobject_del(&root->snapshot_kobj);
+}
+
+/************************************************************************
  *                    NILFS mounted snapshots attrs                     *
  ************************************************************************/
 

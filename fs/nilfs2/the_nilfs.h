@@ -243,6 +243,8 @@ THE_NILFS_FNS(SB_DIRTY, sb_dirty)
  * @ifile: inode file
  * @inodes_count: number of inodes
  * @blocks_count: number of blocks
+ * @snapshot_kobj: /sys/fs/<nilfs>/<device>/mounted_snapshots/<snapshot>
+ * @snapshot_kobj_unregister: completion state for kernel object
  */
 struct nilfs_root {
 	__u64 cno;
@@ -254,6 +256,10 @@ struct nilfs_root {
 
 	atomic64_t inodes_count;
 	atomic64_t blocks_count;
+
+	/* /sys/fs/<nilfs>/<device>/mounted_snapshots/<snapshot> */
+	struct kobject snapshot_kobj;
+	struct completion snapshot_kobj_unregister;
 };
 
 /* Special checkpoint number */

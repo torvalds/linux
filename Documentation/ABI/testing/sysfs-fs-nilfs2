@@ -248,3 +248,22 @@ Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
 Description:
 		Describe content of /sys/fs/nilfs2/<device>/mounted_snapshots
 		group.
+
+What:		/sys/fs/nilfs2/<device>/mounted_snapshots/<id>/inodes_count
+Date:		April 2014
+Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
+Description:
+		Show number of inodes for snapshot.
+
+What:		/sys/fs/nilfs2/<device>/mounted_snapshots/<id>/blocks_count
+Date:		April 2014
+Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
+Description:
+		Show number of blocks for snapshot.
+
+What:		/sys/fs/nilfs2/<device>/mounted_snapshots/<id>/README
+Date:		April 2014
+Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
+Description:
+		Describe attributes of /sys/fs/nilfs2/<device>/mounted_snapshots/<id>
+		group.
