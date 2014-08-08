@@ -139,13 +139,14 @@ nfs_iocounter_wait(struct nfs_io_counter *c)
 /*
  * nfs_page_group_lock - lock the head of the page group
  * @req - request in group that is to be locked
+ * @nonblock - if true don't block waiting for lock
  *
  * this lock must be held if modifying the page group list
  *
  * returns result from wait_on_bit_lock: 0 on success, < 0 on error
  */
 int
-nfs_page_group_lock(struct nfs_page *req, bool wait)
+nfs_page_group_lock(struct nfs_page *req, bool nonblock)
 {
 	struct nfs_page *head = req->wb_head;
 	int ret;
@@ -155,7 +156,7 @@ nfs_page_group_lock(struct nfs_page *req, bool wait)
 	do {
 		ret = wait_on_bit_lock(&head->wb_flags, PG_HEADLOCK,
 			TASK_UNINTERRUPTIBLE);
-	} while (wait && ret != 0);
+	} while (!nonblock && ret != 0);
 
 	WARN_ON_ONCE(ret > 0);
 	return ret;
@@ -219,7 +220,7 @@ bool nfs_page_group_sync_on_bit(struct nfs_page *req, unsigned int bit)
 {
 	bool ret;
 
-	nfs_page_group_lock(req, true);
+	nfs_page_group_lock(req, false);
 	ret = nfs_page_group_sync_on_bit_locked(req, bit);
 	nfs_page_group_unlock(req);
 
@@ -860,7 +861,7 @@ static int __nfs_pageio_add_request(struct nfs_pageio_descriptor *desc,
 	unsigned int offset, pgbase;
 	int ret;
 
-	ret = nfs_page_group_lock(req, false);
+	ret = nfs_page_group_lock(req, true);
 	if (ret < 0) {
 		desc->pg_error = ret;
 		return 0;
@@ -886,7 +887,7 @@ static int __nfs_pageio_add_request(struct nfs_pageio_descriptor *desc,
 			if (desc->pg_recoalesce)
 				return 0;
 			/* retry add_request for this subreq */
-			ret = nfs_page_group_lock(req, false);
+			ret = nfs_page_group_lock(req, true);
 			if (ret < 0) {
 				desc->pg_error = ret;
 				return 0;

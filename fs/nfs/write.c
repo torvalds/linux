@@ -241,7 +241,7 @@ static bool nfs_page_group_covers_page(struct nfs_page *req)
 	unsigned int pos = 0;
 	unsigned int len = nfs_page_length(req->wb_page);
 
-	nfs_page_group_lock(req, true);
+	nfs_page_group_lock(req, false);
 
 	do {
 		tmp = nfs_page_group_search_locked(req->wb_head, pos);
@@ -479,7 +479,7 @@ try_again:
 	}
 
 	/* lock each request in the page group */
-	ret = nfs_page_group_lock(head, false);
+	ret = nfs_page_group_lock(head, true);
 	if (ret < 0)
 		return ERR_PTR(ret);
 	subreq = head;
