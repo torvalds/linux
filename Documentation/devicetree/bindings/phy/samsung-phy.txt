@@ -30,6 +30,7 @@ Required properties:
 	- "samsung,exynos4210-usb2-phy"
 	- "samsung,exynos4x12-usb2-phy"
 	- "samsung,exynos5250-usb2-phy"
+	- "samsung,s5pv210-usb2-phy"
 - reg : a list of registers used by phy driver
 	- first and obligatory is the location of phy modules registers
 - samsung,sysreg-phandle - handle to syscon used to control the system registers

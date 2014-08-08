@@ -19,6 +19,41 @@
 		reg = <0x0 0x08000000>;
 	};
 
+	xtal24mhz: xtal24mhz@24M {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <24000000>;
+	};
+
+	core-module@10000000 {
+		compatible = "arm,core-module-versatile", "syscon";
+		reg = <0x10000000 0x200>;
+
+		/* OSC1 on AB, OSC4 on PB */
+		osc1: cm_aux_osc@24M {
+			#clock-cells = <0>;
+			compatible = "arm,versatile-cm-auxosc";
+			clocks = <&xtal24mhz>;
+		};
+
+		/* The timer clock is the 24 MHz oscillator divided to 1MHz */
+		timclk: timclk@1M {
+			#clock-cells = <0>;
+			compatible = "fixed-factor-clock";
+			clock-div = <24>;
+			clock-mult = <1>;
+			clocks = <&xtal24mhz>;
+		};
+
+		pclk: pclk@24M {
+			#clock-cells = <0>;
+			compatible = "fixed-factor-clock";
+			clock-div = <1>;
+			clock-mult = <1>;
+			clocks = <&xtal24mhz>;
+		};
+	};
+
 	flash@34000000 {
 		compatible = "arm,versatile-flash";
 		reg = <0x34000000 0x4000000>;
@@ -59,6 +94,8 @@
 			interrupt-controller;
 			#interrupt-cells = <1>;
 			reg = <0x10140000 0x1000>;
+			clear-mask = <0xffffffff>;
+			valid-mask = <0xffffffff>;
 		};
 
 		sic: intc@10003000 {
@@ -68,69 +105,93 @@
 			reg = <0x10003000 0x1000>;
 			interrupt-parent = <&vic>;
 			interrupts = <31>; /* Cascaded to vic */
+			clear-mask = <0xffffffff>;
+			valid-mask = <0xffc203f8>;
 		};
 
 		dma@10130000 {
 			compatible = "arm,pl081", "arm,primecell";
 			reg = <0x10130000 0x1000>;
 			interrupts = <17>;
+			clocks = <&pclk>;
+			clock-names = "apb_pclk";
 		};
 
 		uart0: uart@101f1000 {
 			compatible = "arm,pl011", "arm,primecell";
 			reg = <0x101f1000 0x1000>;
 			interrupts = <12>;
+			clocks = <&xtal24mhz>, <&pclk>;
+			clock-names = "uartclk", "apb_pclk";
 		};
 
 		uart1: uart@101f2000 {
 			compatible = "arm,pl011", "arm,primecell";
 			reg = <0x101f2000 0x1000>;
 			interrupts = <13>;
+			clocks = <&xtal24mhz>, <&pclk>;
+			clock-names = "uartclk", "apb_pclk";
 		};
 
 		uart2: uart@101f3000 {
 			compatible = "arm,pl011", "arm,primecell";
 			reg = <0x101f3000 0x1000>;
 			interrupts = <14>;
+			clocks = <&xtal24mhz>, <&pclk>;
+			clock-names = "uartclk", "apb_pclk";
 		};
 
 		smc@10100000 {
 			compatible = "arm,primecell";
 			reg = <0x10100000 0x1000>;
+			clocks = <&pclk>;
+			clock-names = "apb_pclk";
 		};
 
 		mpmc@10110000 {
 			compatible = "arm,primecell";
 			reg = <0x10110000 0x1000>;
+			clocks = <&pclk>;
+			clock-names = "apb_pclk";
 		};
 
 		display@10120000 {
 			compatible = "arm,pl110", "arm,primecell";
 			reg = <0x10120000 0x1000>;
 			interrupts = <16>;
+			clocks = <&osc1>, <&pclk>;
+			clock-names = "clcd", "apb_pclk";
 		};
 
 		sctl@101e0000 {
 			compatible = "arm,primecell";
 			reg = <0x101e0000 0x1000>;
+			clocks = <&pclk>;
+			clock-names = "apb_pclk";
 		};
 
 		watchdog@101e1000 {
 			compatible = "arm,primecell";
 			reg = <0x101e1000 0x1000>;
 			interrupts = <0>;
+			clocks = <&pclk>;
+			clock-names = "apb_pclk";
 		};
 
 		timer@101e2000 {
 			compatible = "arm,sp804", "arm,primecell";
 			reg = <0x101e2000 0x1000>;
 			interrupts = <4>;
+			clocks = <&timclk>, <&timclk>, <&pclk>;
+			clock-names = "timer0", "timer1", "apb_pclk";
 		};
 
 		timer@101e3000 {
 			compatible = "arm,sp804", "arm,primecell";
 			reg = <0x101e3000 0x1000>;
 			interrupts = <5>;
+			clocks = <&timclk>, <&timclk>, <&pclk>;
+			clock-names = "timer0", "timer1", "apb_pclk";
 		};
 
 		gpio0: gpio@101e4000 {
@@ -141,6 +202,8 @@
 			#gpio-cells = <2>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
+			clocks = <&pclk>;
+			clock-names = "apb_pclk";
 		};
 
 		gpio1: gpio@101e5000 {
@@ -151,24 +214,32 @@
 			#gpio-cells = <2>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
+			clocks = <&pclk>;
+			clock-names = "apb_pclk";
 		};
 
 		rtc@101e8000 {
 			compatible = "arm,pl030", "arm,primecell";
 			reg = <0x101e8000 0x1000>;
 			interrupts = <10>;
+			clocks = <&pclk>;
+			clock-names = "apb_pclk";
 		};
 
 		sci@101f0000 {
 			compatible = "arm,primecell";
 			reg = <0x101f0000 0x1000>;
 			interrupts = <15>;
+			clocks = <&pclk>;
+			clock-names = "apb_pclk";
 		};
 
 		ssp@101f4000 {
 			compatible = "arm,pl022", "arm,primecell";
 			reg = <0x101f4000 0x1000>;
 			interrupts = <11>;
+			clocks = <&xtal24mhz>, <&pclk>;
+			clock-names = "SSPCLK", "apb_pclk";
 		};
 
 		fpga {
@@ -181,23 +252,31 @@
 				compatible = "arm,primecell";
 				reg = <0x4000 0x1000>;
 				interrupts = <24>;
+				clocks = <&pclk>;
+				clock-names = "apb_pclk";
 			};
 			mmc@5000 {
-				compatible = "arm,primecell";
+				compatible = "arm,pl180", "arm,primecell";
 				reg = < 0x5000 0x1000>;
 				interrupts-extended = <&vic 22 &sic 2>;
+				clocks = <&xtal24mhz>, <&pclk>;
+				clock-names = "mclk", "apb_pclk";
 			};
 			kmi@6000 {
 				compatible = "arm,pl050", "arm,primecell";
 				reg = <0x6000 0x1000>;
 				interrupt-parent = <&sic>;
 				interrupts = <3>;
+				clocks = <&xtal24mhz>, <&pclk>;
+				clock-names = "KMIREFCLK", "apb_pclk";
 			};
 			kmi@7000 {
 				compatible = "arm,pl050", "arm,primecell";
 				reg = <0x7000 0x1000>;
 				interrupt-parent = <&sic>;
 				interrupts = <4>;
+				clocks = <&xtal24mhz>, <&pclk>;
+				clock-names = "KMIREFCLK", "apb_pclk";
 			};
 		};
 	};

@@ -26,6 +26,8 @@
 #include <asm/smp_scu.h>
 #include <asm/firmware.h>
 
+#include <mach/map.h>
+
 #include "common.h"
 #include "regs-pmu.h"
 
@@ -41,7 +43,7 @@ extern void exynos4_secondary_startup(void);
  */
 void exynos_cpu_power_down(int cpu)
 {
-	__raw_writel(0, EXYNOS_ARM_CORE_CONFIGURATION(cpu));
+	pmu_raw_writel(0, EXYNOS_ARM_CORE_CONFIGURATION(cpu));
 }
 
 /**
@@ -52,8 +54,8 @@ void exynos_cpu_power_down(int cpu)
  */
 void exynos_cpu_power_up(int cpu)
 {
-	__raw_writel(S5P_CORE_LOCAL_PWR_EN,
-		     EXYNOS_ARM_CORE_CONFIGURATION(cpu));
+	pmu_raw_writel(S5P_CORE_LOCAL_PWR_EN,
+			EXYNOS_ARM_CORE_CONFIGURATION(cpu));
 }
 
 /**
@@ -63,7 +65,7 @@ void exynos_cpu_power_up(int cpu)
  */
 int exynos_cpu_power_state(int cpu)
 {
-	return (__raw_readl(EXYNOS_ARM_CORE_STATUS(cpu)) &
+	return (pmu_raw_readl(EXYNOS_ARM_CORE_STATUS(cpu)) &
 			S5P_CORE_LOCAL_PWR_EN);
 }
 
@@ -73,7 +75,7 @@ int exynos_cpu_power_state(int cpu)
  */
 void exynos_cluster_power_down(int cluster)
 {
-	__raw_writel(0, EXYNOS_COMMON_CONFIGURATION(cluster));
+	pmu_raw_writel(0, EXYNOS_COMMON_CONFIGURATION(cluster));
 }
 
 /**
@@ -82,8 +84,8 @@ void exynos_cluster_power_down(int cluster)
  */
 void exynos_cluster_power_up(int cluster)
 {
-	__raw_writel(S5P_CORE_LOCAL_PWR_EN,
-		     EXYNOS_COMMON_CONFIGURATION(cluster));
+	pmu_raw_writel(S5P_CORE_LOCAL_PWR_EN,
+			EXYNOS_COMMON_CONFIGURATION(cluster));
 }
 
 /**
@@ -93,14 +95,14 @@ void exynos_cluster_power_up(int cluster)
  */
 int exynos_cluster_power_state(int cluster)
 {
-	return (__raw_readl(EXYNOS_COMMON_STATUS(cluster)) &
-			S5P_CORE_LOCAL_PWR_EN);
+	return (pmu_raw_readl(EXYNOS_COMMON_STATUS(cluster)) &
+		S5P_CORE_LOCAL_PWR_EN);
 }
 
 static inline void __iomem *cpu_boot_reg_base(void)
 {
 	if (soc_is_exynos4210() && samsung_rev() == EXYNOS4210_REV_1_1)
-		return S5P_INFORM5;
+		return pmu_base_addr + S5P_INFORM5;
 	return sysram_base_addr;
 }
 

@@ -21,7 +21,7 @@
 #include <linux/platform_data/video-clcd-versatile.h>
 #include <linux/amba/mmci.h>
 #include <linux/io.h>
-#include <linux/irqchip/versatile-fpga.h>
+#include <linux/irqchip.h>
 #include <linux/gfp.h>
 #include <linux/mtd/physmap.h>
 #include <linux/of_irq.h>
@@ -234,15 +234,10 @@ static void __init intcp_init_early(void)
 	sched_clock_register(intcp_read_sched_clock, 32, 24000000);
 }
 
-static const struct of_device_id fpga_irq_of_match[] __initconst = {
-	{ .compatible = "arm,versatile-fpga-irq", .data = fpga_irq_of_init, },
-	{ /* Sentinel */ }
-};
-
 static void __init intcp_init_irq_of(void)
 {
 	cm_init();
-	of_irq_init(fpga_irq_of_match);
+	irqchip_init();
 }
 
 /*
@@ -328,7 +323,6 @@ DT_MACHINE_START(INTEGRATOR_CP_DT, "ARM Integrator/CP (Device Tree)")
 	.map_io		= intcp_map_io,
 	.init_early	= intcp_init_early,
 	.init_irq	= intcp_init_irq_of,
-	.handle_irq	= fpga_handle_irq,
 	.init_machine	= intcp_init_of,
 	.restart	= integrator_restart,
 	.dt_compat      = intcp_dt_board_compat,

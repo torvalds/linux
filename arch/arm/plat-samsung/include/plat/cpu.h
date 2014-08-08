@@ -47,7 +47,6 @@ IS_SAMSUNG_CPU(s3c24xx, S3C24XX_CPU_ID, S3C24XX_CPU_MASK)
 IS_SAMSUNG_CPU(s3c2412, S3C2412_CPU_ID, S3C2412_CPU_MASK)
 IS_SAMSUNG_CPU(s3c6400, S3C6400_CPU_ID, S3C64XX_CPU_MASK)
 IS_SAMSUNG_CPU(s3c6410, S3C6410_CPU_ID, S3C64XX_CPU_MASK)
-IS_SAMSUNG_CPU(s5pv210, S5PV210_CPU_ID, S5PV210_CPU_MASK)
 
 #if defined(CONFIG_CPU_S3C2410) || defined(CONFIG_CPU_S3C2412) || \
     defined(CONFIG_CPU_S3C2416) || defined(CONFIG_CPU_S3C2440) || \
@@ -74,12 +73,6 @@ IS_SAMSUNG_CPU(s5pv210, S5PV210_CPU_ID, S5PV210_CPU_MASK)
 # define soc_is_s3c6400()	0
 # define soc_is_s3c6410()	0
 # define soc_is_s3c64xx()	0
-#endif
-
-#if defined(CONFIG_CPU_S5PV210)
-# define soc_is_s5pv210()	is_samsung_s5pv210()
-#else
-# define soc_is_s5pv210()	0
 #endif
 
 #define IODESC_ENT(x) { (unsigned long)S3C24XX_VA_##x, __phys_to_pfn(S3C24XX_PA_##x), S3C24XX_SZ_##x, MT_DEVICE }
@@ -117,12 +110,9 @@ extern void s3c_init_cpu(unsigned long idcode,
 
 /* core initialisation functions */
 
-extern void s5p_init_irq(u32 *vic, u32 num_vic);
-
 extern void s3c24xx_init_io(struct map_desc *mach_desc, int size);
 
 extern void s3c64xx_init_cpu(void);
-extern void s5p_init_cpu(void __iomem *cpuid_addr);
 
 extern unsigned int samsung_rev(void);
 
@@ -149,8 +139,5 @@ extern struct bus_type s3c2440_subsys;
 extern struct bus_type s3c2442_subsys;
 extern struct bus_type s3c2443_subsys;
 extern struct bus_type s3c6410_subsys;
-extern struct bus_type s5pv210_subsys;
-
-extern void (*s5pc1xx_idle)(void);
 
 #endif

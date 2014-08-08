@@ -19,10 +19,12 @@
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/console.h>
+
 #include <asm/io.h>
-#include <mach/r8a7779.h>
+
 #include "common.h"
 #include "pm-rcar.h"
+#include "r8a7779.h"
 
 /* SYSC */
 #define SYSCIER 0x0c
