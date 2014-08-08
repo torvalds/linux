@@ -183,6 +183,14 @@ archscripts: scripts_basic
 archheaders:
 	$(Q)$(MAKE) $(build)=arch/x86/syscalls all
 
+archprepare:
+ifeq ($(CONFIG_KEXEC),y)
+# Build only for 64bit. No loaders for 32bit yet.
+ ifeq ($(CONFIG_X86_64),y)
+	$(Q)$(MAKE) $(build)=arch/x86/purgatory arch/x86/purgatory/kexec-purgatory.c
+ endif
+endif
+
 ###
 # Kernel objects
 

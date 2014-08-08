@@ -11,7 +11,7 @@
 
 int main(int argc, char *argv[])
 {
-	int ch, total=0;
+	int ch, total = 0;
 
 	if (argc > 1)
 		printf("const char %s[] %s=\n",
@@ -19,10 +19,9 @@ int main(int argc, char *argv[])
 
 	do {
 		printf("\t\"");
-		while ((ch = getchar()) != EOF)
-		{
+		while ((ch = getchar()) != EOF) {
 			total++;
-			printf("\\x%02x",ch);
+			printf("\\x%02x", ch);
 			if (total % 16 == 0)
 				break;
 		}

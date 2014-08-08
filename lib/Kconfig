@@ -508,4 +508,11 @@ config UCS2_STRING
 
 source "lib/fonts/Kconfig"
 
+#
+# sg chaining option
+#
+
+config ARCH_HAS_SG_CHAIN
+	def_bool n
+
 endmenu

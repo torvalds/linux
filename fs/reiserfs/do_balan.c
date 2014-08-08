@@ -10,7 +10,7 @@
  * and using buffers obtained after all above.
  */
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/time.h>
 #include "reiserfs.h"
 #include <linux/buffer_head.h>
