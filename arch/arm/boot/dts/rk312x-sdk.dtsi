@@ -218,7 +218,7 @@
 			regulator-initial-state = <3>;
 			regulator-state-mem {
 				regulator-state-mode = <0x2>;
-				regulator-state-enabled;
+				regulator-state-disabled;
 				regulator-state-uv = <900000>;
 			};
 		};
@@ -244,7 +244,7 @@
 			regulator-initial-state = <3>;
 			regulator-state-mem {
 				regulator-state-mode = <0x2>;
-				regulator-state-disabled;
+				regulator-state-enabled;
 				regulator-state-uv = <1200000>;
 			};
 		};
@@ -257,7 +257,7 @@
 			regulator-initial-state = <3>;
 			regulator-state-mem {
 				regulator-state-mode = <0x2>;
-				regulator-state-disabled;
+				regulator-state-enabled;
 				regulator-state-uv = <2800000>;
 			};
 		};
@@ -268,7 +268,7 @@
 			regulator-max-microvolt = <3300000>;
 			regulator-initial-state = <3>;
 			regulator-state-mem {
-				regulator-state-disabled;
+				regulator-state-enabled;
 				regulator-state-uv = <3300000>;
 			};
 		};
@@ -279,7 +279,7 @@
 			regulator-max-microvolt = <3000000>;
 			regulator-initial-state = <3>;
 			regulator-state-mem {
-				regulator-state-disabled;
+				regulator-state-enabled;
 				regulator-state-uv = <3000000>;
 			};
 		};
@@ -290,7 +290,7 @@
 			regulator-max-microvolt = <1100000>;
 			regulator-initial-state = <3>;
 			regulator-state-mem {
-				regulator-state-disabled;
+				regulator-state-enabled;
 				regulator-state-uv = <1100000>;
 			};
 		};
@@ -301,7 +301,7 @@
 			regulator-max-microvolt = <2500000>;
 			regulator-initial-state = <3>;
 			regulator-state-mem {
-				regulator-state-disabled;
+				regulator-state-enabled;
 				regulator-state-uv = <2500000>;
 			};
 		};
@@ -312,7 +312,7 @@
 			regulator-max-microvolt = <3000000>;
 			regulator-initial-state = <3>;
 			regulator-state-mem {
-				regulator-state-disabled;
+				regulator-state-enabled;
 				regulator-state-uv = <3000000>;
 			};
 		};
@@ -323,7 +323,7 @@
 			regulator-max-microvolt = <1200000>;
 			regulator-initial-state = <3>;
 			regulator-state-mem {
-				regulator-state-disabled;
+				regulator-state-enabled;
 				regulator-state-uv = <1200000>;
 			};
 		};
@@ -334,7 +334,7 @@
 			regulator-max-microvolt = <1800000>;
 			regulator-initial-state = <3>;
 			regulator-state-mem {
-				regulator-state-disabled;
+				regulator-state-enabled;
 				regulator-state-uv = <1800000>;
 			};
 		};
@@ -345,7 +345,7 @@
 			regulator-max-microvolt = <1800000>;
 			regulator-initial-state = <3>;
 			regulator-state-mem {
-				regulator-state-disabled;
+				regulator-state-enabled;
 				regulator-state-uv = <1800000>;
 			};
 		};
@@ -355,7 +355,7 @@
 			regulator-max-microvolt = <3000000>;
 			regulator-initial-state = <3>;
 			regulator-state-mem {
-				regulator-state-disabled;
+				regulator-state-enabled;
 				regulator-state-uv = <3000000>;
 			};
 		};
