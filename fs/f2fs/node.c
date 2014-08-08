@@ -1557,18 +1557,17 @@ void recover_inline_xattr(struct inode *inode, struct page *page)
 	struct page *ipage;
 	struct f2fs_inode *ri;
 
-	if (!f2fs_has_inline_xattr(inode))
-		return;
-
 	if (!IS_INODE(page))
-		return;
-
-	ri = F2FS_INODE(page);
-	if (!(ri->i_inline & F2FS_INLINE_XATTR))
 		return;
 
 	ipage = get_node_page(sbi, inode->i_ino);
 	f2fs_bug_on(IS_ERR(ipage));
+
+	ri = F2FS_INODE(page);
+	if (!(ri->i_inline & F2FS_INLINE_XATTR)) {
+		clear_inode_flag(F2FS_I(inode), FI_INLINE_XATTR);
+		goto update_inode;
+	}
 
 	dst_addr = inline_xattr_addr(ipage);
 	src_addr = inline_xattr_addr(page);
@@ -1576,7 +1575,7 @@ void recover_inline_xattr(struct inode *inode, struct page *page)
 
 	f2fs_wait_on_page_writeback(ipage, NODE);
 	memcpy(dst_addr, src_addr, inline_size);
-
+update_inode:
 	update_inode(inode, ipage);
 	f2fs_put_page(ipage, 1);
 }
