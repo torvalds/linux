@@ -70,7 +70,7 @@ static int twl6030_interrupt_mapping[24] = {
 	BATDETECT_INTR_OFFSET,	/* Bit 9	BAT			*/
 	SIMDETECT_INTR_OFFSET,	/* Bit 10	SIM			*/
 	MMCDETECT_INTR_OFFSET,	/* Bit 11	MMC			*/
-	RSV_INTR_OFFSET,  	/* Bit 12	Reserved		*/
+	RSV_INTR_OFFSET,	/* Bit 12	Reserved		*/
 	MADC_INTR_OFFSET,	/* Bit 13	GPADC_RT_EOC		*/
 	MADC_INTR_OFFSET,	/* Bit 14	GPADC_SW_EOC		*/
 	GASGAUGE_INTR_OFFSET,	/* Bit 15	CC_AUTOCAL		*/
@@ -245,6 +245,7 @@ int twl6030_interrupt_unmask(u8 bit_mask, u8 offset)
 {
 	int ret;
 	u8 unmask_value;
+
 	ret = twl_i2c_read_u8(TWL_MODULE_PIH, &unmask_value,
 			REG_INT_STS_A + offset);
 	unmask_value &= (~(bit_mask));
@@ -258,6 +259,7 @@ int twl6030_interrupt_mask(u8 bit_mask, u8 offset)
 {
 	int ret;
 	u8 mask_value;
+
 	ret = twl_i2c_read_u8(TWL_MODULE_PIH, &mask_value,
 			REG_INT_STS_A + offset);
 	mask_value |= (bit_mask);

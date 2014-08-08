@@ -6037,8 +6037,7 @@ F:	include/media/mt9v032.h
 MULTIFUNCTION DEVICES (MFD)
 M:	Samuel Ortiz <sameo@linux.intel.com>
 M:	Lee Jones <lee.jones@linaro.org>
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/sameo/mfd-next.git
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/sameo/mfd-fixes.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lee/mfd.git
 S:	Supported
 F:	drivers/mfd/
 F:	include/linux/mfd/
