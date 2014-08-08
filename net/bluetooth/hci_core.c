@@ -3882,6 +3882,12 @@ int hci_update_random_address(struct hci_request *req, bool require_privacy,
 		    !bacmp(&hdev->random_addr, &hdev->rpa))
 			return 0;
 
+		if (!hdev->tfm_aes) {
+			BT_ERR("%s crypto not available to generate RPA",
+			       hdev->name);
+			return -EOPNOTSUPP;
+		}
+
 		err = smp_generate_rpa(hdev->tfm_aes, hdev->irk, &hdev->rpa);
 		if (err < 0) {
 			BT_ERR("%s failed to generate new RPA", hdev->name);
