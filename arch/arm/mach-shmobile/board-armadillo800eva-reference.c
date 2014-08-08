@@ -55,11 +55,11 @@
  * CON22	Serial
  * CON23	LAN
  * CON24	USB3
- * LED1		Camera LED(Yellow)
+ * LED1		Camera LED (Yellow)
  * LED2		Power LED (Green)
- * ED3-LED6	User LED(Yellow)
- * LED7		LAN link LED(Green)
- * LED8		LAN activity LED(Yellow)
+ * LED3-LED6	User LED (Yellow)
+ * LED7		LAN link LED (Green)
+ * LED8		LAN activity LED (Yellow)
  */
 
 /*

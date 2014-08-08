@@ -887,5 +887,6 @@ DT_MACHINE_START(LAGER_DT, "lager")
 	.init_time	= rcar_gen2_timer_init,
 	.init_machine	= lager_init,
 	.init_late	= shmobile_init_late,
+	.reserve	= rcar_gen2_reserve,
 	.dt_compat	= lager_boards_compat_dt,
 MACHINE_END
