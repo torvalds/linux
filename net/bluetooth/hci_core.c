@@ -1764,6 +1764,34 @@ static void hci_init4_req(struct hci_request *req, unsigned long opt)
 	}
 }
 
+static int hci_register_smp(struct hci_dev *hdev)
+{
+	int err;
+
+	BT_DBG("%s", hdev->name);
+
+	hdev->tfm_aes = crypto_alloc_blkcipher("ecb(aes)", 0,
+					       CRYPTO_ALG_ASYNC);
+	if (IS_ERR(hdev->tfm_aes)) {
+		BT_ERR("Unable to create crypto context");
+		err = PTR_ERR(hdev->tfm_aes);
+		hdev->tfm_aes = NULL;
+		return err;
+	}
+
+	return 0;
+}
+
+static void hci_unregister_smp(struct hci_dev *hdev)
+{
+	BT_DBG("%s", hdev->name);
+
+	if (hdev->tfm_aes) {
+		crypto_free_blkcipher(hdev->tfm_aes);
+		hdev->tfm_aes = NULL;
+	}
+}
+
 static int __hci_init(struct hci_dev *hdev)
 {
 	int err;
@@ -4099,18 +4127,13 @@ int hci_register_dev(struct hci_dev *hdev)
 
 	dev_set_name(&hdev->dev, "%s", hdev->name);
 
-	hdev->tfm_aes = crypto_alloc_blkcipher("ecb(aes)", 0,
-					       CRYPTO_ALG_ASYNC);
-	if (IS_ERR(hdev->tfm_aes)) {
-		BT_ERR("Unable to create crypto context");
-		error = PTR_ERR(hdev->tfm_aes);
-		hdev->tfm_aes = NULL;
+	error = hci_register_smp(hdev);
+	if (error)
 		goto err_wqueue;
-	}
 
 	error = device_add(&hdev->dev);
 	if (error < 0)
-		goto err_tfm;
+		goto err_smp;
 
 	hdev->rfkill = rfkill_alloc(hdev->name, &hdev->dev,
 				    RFKILL_TYPE_BLUETOOTH, &hci_rfkill_ops,
@@ -4152,8 +4175,8 @@ int hci_register_dev(struct hci_dev *hdev)
 
 	return id;
 
-err_tfm:
-	crypto_free_blkcipher(hdev->tfm_aes);
+err_smp:
+	hci_unregister_smp(hdev);
 err_wqueue:
 	destroy_workqueue(hdev->workqueue);
 	destroy_workqueue(hdev->req_workqueue);
@@ -4205,8 +4228,7 @@ void hci_unregister_dev(struct hci_dev *hdev)
 		rfkill_destroy(hdev->rfkill);
 	}
 
-	if (hdev->tfm_aes)
-		crypto_free_blkcipher(hdev->tfm_aes);
+	hci_unregister_smp(hdev);
 
 	device_del(&hdev->dev);
 
