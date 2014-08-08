@@ -11782,6 +11782,10 @@ intel_cursor_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 		return intel_crtc_cursor_set_obj(crtc, obj, crtc_w, crtc_h);
 	} else {
 		intel_crtc_update_cursor(crtc, visible);
+
+		intel_frontbuffer_flip(crtc->dev,
+				       INTEL_FRONTBUFFER_CURSOR(intel_crtc->pipe));
+
 		return 0;
 	}
 }
