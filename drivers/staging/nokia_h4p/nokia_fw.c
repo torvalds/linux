@@ -197,8 +197,6 @@ void hci_h4p_parse_fw_event(struct hci_h4p_info *info, struct sk_buff *skb)
 		dev_err(info->dev, "Don't know how to parse fw event\n");
 		info->fw_error = -EINVAL;
 	}
-
-	return;
 }
 
 MODULE_FIRMWARE(FW_NAME_TI1271_PRELE);
