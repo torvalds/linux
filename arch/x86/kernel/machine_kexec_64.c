@@ -23,9 +23,10 @@
 #include <asm/tlbflush.h>
 #include <asm/mmu_context.h>
 #include <asm/debugreg.h>
+#include <asm/kexec-bzimage64.h>
 
 static struct kexec_file_ops *kexec_file_loaders[] = {
-		NULL,
+		&kexec_bzImage64_ops,
 };
 
 static void free_transition_pgtable(struct kimage *image)
@@ -328,7 +329,7 @@ int arch_kimage_file_post_load_cleanup(struct kimage *image)
 	if (!image->fops || !image->fops->cleanup)
 		return 0;
 
-	return image->fops->cleanup(image);
+	return image->fops->cleanup(image->image_loader_data);
 }
 
 /*

@@ -460,6 +460,14 @@ static void kimage_file_post_load_cleanup(struct kimage *image)
 
 	/* See if architecture has anything to cleanup post load */
 	arch_kimage_file_post_load_cleanup(image);
+
+	/*
+	 * Above call should have called into bootloader to free up
+	 * any data stored in kimage->image_loader_data. It should
+	 * be ok now to free it up.
+	 */
+	kfree(image->image_loader_data);
+	image->image_loader_data = NULL;
 }
 
 /*
@@ -576,7 +584,6 @@ out_free_control_pages:
 	kimage_free_page_list(&image->control_pages);
 out_free_post_load_bufs:
 	kimage_file_post_load_cleanup(image);
-	kfree(image->image_loader_data);
 out_free_image:
 	kfree(image);
 	return ret;
@@ -899,8 +906,6 @@ static void kimage_free(struct kimage *image)
 
 	/* Free the kexec control pages... */
 	kimage_free_page_list(&image->control_pages);
-
-	kfree(image->image_loader_data);
 
 	/*
 	 * Free up any temporary buffers allocated. This might hit if

@@ -190,7 +190,7 @@ typedef void *(kexec_load_t)(struct kimage *image, char *kernel_buf,
 			     unsigned long kernel_len, char *initrd,
 			     unsigned long initrd_len, char *cmdline,
 			     unsigned long cmdline_len);
-typedef int (kexec_cleanup_t)(struct kimage *image);
+typedef int (kexec_cleanup_t)(void *loader_data);
 
 struct kexec_file_ops {
 	kexec_probe_t *probe;
