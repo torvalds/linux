@@ -3232,6 +3232,9 @@ struct smp_irk *hci_find_irk_by_rpa(struct hci_dev *hdev, bdaddr_t *rpa)
 			return irk;
 	}
 
+	if (!hdev->tfm_aes)
+		return NULL;
+
 	list_for_each_entry(irk, &hdev->identity_resolving_keys, list) {
 		if (smp_irk_matches(hdev->tfm_aes, irk->val, rpa)) {
 			bacpy(&irk->rpa, rpa);
