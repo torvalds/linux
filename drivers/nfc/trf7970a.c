@@ -132,7 +132,7 @@
 /* Erratum: When reading IRQ Status register on trf7970a, we must issue a
  * read continuous command for IRQ Status and Collision Position registers.
  */
-#define TRF7970A_QUIRK_IRQ_STATUS_READ_ERRATA	BIT(0)
+#define TRF7970A_QUIRK_IRQ_STATUS_READ		BIT(0)
 
 /* Direct commands */
 #define TRF7970A_CMD_IDLE			0x00
@@ -424,7 +424,7 @@ static int trf7970a_read_irqstatus(struct trf7970a *trf, u8 *status)
 
 	addr = TRF7970A_IRQ_STATUS | TRF7970A_CMD_BIT_RW;
 
-	if (trf->quirks & TRF7970A_QUIRK_IRQ_STATUS_READ_ERRATA) {
+	if (trf->quirks & TRF7970A_QUIRK_IRQ_STATUS_READ) {
 		addr |= TRF7970A_CMD_BIT_CONTINUOUS;
 		ret = spi_write_then_read(trf->spi, &addr, 1, buf, 2);
 	} else {
@@ -1260,7 +1260,6 @@ static int trf7970a_get_vin_voltage_override(struct device_node *np,
 static int trf7970a_probe(struct spi_device *spi)
 {
 	struct device_node *np = spi->dev.of_node;
-	const struct spi_device_id *id = spi_get_device_id(spi);
 	struct trf7970a *trf;
 	int uvolts, autosuspend_delay, ret;
 
@@ -1276,10 +1275,12 @@ static int trf7970a_probe(struct spi_device *spi)
 	trf->state = TRF7970A_ST_OFF;
 	trf->dev = &spi->dev;
 	trf->spi = spi;
-	trf->quirks = id->driver_data;
 
 	spi->mode = SPI_MODE_1;
 	spi->bits_per_word = 8;
+
+	if (of_property_read_bool(np, "irq-status-read-quirk"))
+		trf->quirks |= TRF7970A_QUIRK_IRQ_STATUS_READ;
 
 	/* There are two enable pins - both must be present */
 	trf->en_gpio = of_get_named_gpio(np, "ti,enable-gpios", 0);
@@ -1478,7 +1479,7 @@ static const struct dev_pm_ops trf7970a_pm_ops = {
 };
 
 static const struct spi_device_id trf7970a_id_table[] = {
-	{ "trf7970a", TRF7970A_QUIRK_IRQ_STATUS_READ_ERRATA },
+	{ "trf7970a", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, trf7970a_id_table);
