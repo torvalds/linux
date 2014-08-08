@@ -471,8 +471,7 @@ int imx_drm_encoder_parse_of(struct drm_device *drm,
 		crtc_mask |= mask;
 	}
 
-	if (ep)
-		of_node_put(ep);
+	of_node_put(ep);
 	if (i == 0)
 		return -ENOENT;
 
