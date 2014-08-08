@@ -178,6 +178,7 @@ static void shm_rcu_free(struct rcu_head *head)
 
 static inline void shm_rmid(struct ipc_namespace *ns, struct shmid_kernel *s)
 {
+	list_del(&s->shm_clist);
 	ipc_rmid(&shm_ids(ns), &s->shm_perm);
 }
 
@@ -268,14 +269,10 @@ static void shm_close(struct vm_area_struct *vma)
 }
 
 /* Called with ns->shm_ids(ns).rwsem locked */
-static int shm_try_destroy_current(int id, void *p, void *data)
+static void shm_mark_orphan(struct shmid_kernel *shp, struct ipc_namespace *ns)
 {
-	struct ipc_namespace *ns = data;
-	struct kern_ipc_perm *ipcp = p;
-	struct shmid_kernel *shp = container_of(ipcp, struct shmid_kernel, shm_perm);
-
-	if (shp->shm_creator != current)
-		return 0;
+	if (WARN_ON(shp->shm_creator != current)) /* Remove me when it works */
+		return;
 
 	/*
 	 * Mark it as orphaned to destroy the segment when
@@ -289,13 +286,12 @@ static int shm_try_destroy_current(int id, void *p, void *data)
 	 * is not set, it shouldn't be deleted here.
 	 */
 	if (!ns->shm_rmid_forced)
-		return 0;
+		return;
 
 	if (shm_may_destroy(ns, shp)) {
 		shm_lock_by_ptr(shp);
 		shm_destroy(ns, shp);
 	}
-	return 0;
 }
 
 /* Called with ns->shm_ids(ns).rwsem locked */
@@ -333,14 +329,17 @@ void shm_destroy_orphaned(struct ipc_namespace *ns)
 void exit_shm(struct task_struct *task)
 {
 	struct ipc_namespace *ns = task->nsproxy->ipc_ns;
+	struct shmid_kernel *shp, *n;
 
 	if (shm_ids(ns).in_use == 0)
 		return;
 
 	/* Destroy all already created segments, but not mapped yet */
 	down_write(&shm_ids(ns).rwsem);
-	if (shm_ids(ns).in_use)
-		idr_for_each(&shm_ids(ns).ipcs_idr, &shm_try_destroy_current, ns);
+	list_for_each_entry_safe(shp, n, &task->sysvshm.shm_clist, shm_clist)
+		shm_mark_orphan(shp, ns);
+	/* remove the list head from any segments still attached */
+	list_del(&task->sysvshm.shm_clist);
 	up_write(&shm_ids(ns).rwsem);
 }
 
@@ -561,6 +560,7 @@ static int newseg(struct ipc_namespace *ns, struct ipc_params *params)
 	shp->shm_nattch = 0;
 	shp->shm_file = file;
 	shp->shm_creator = current;
+	list_add(&shp->shm_clist, &current->sysvshm.shm_clist);
 
 	/*
 	 * shmid gets reported as "inode#" in /proc/pid/maps.

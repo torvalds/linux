@@ -1,6 +1,7 @@
 #ifndef _LINUX_SHM_H_
 #define _LINUX_SHM_H_
 
+#include <linux/list.h>
 #include <asm/page.h>
 #include <uapi/linux/shm.h>
 #include <asm/shmparam.h>
@@ -20,6 +21,7 @@ struct shmid_kernel /* private to the kernel */
 
 	/* The task created the shm object.  NULL if the task is dead. */
 	struct task_struct	*shm_creator;
+	struct list_head	shm_clist;	/* list by creator */
 };
 
 /* shm_mode upper byte flags */
@@ -44,11 +46,20 @@ struct shmid_kernel /* private to the kernel */
 #define SHM_HUGE_1GB    (30 << SHM_HUGE_SHIFT)
 
 #ifdef CONFIG_SYSVIPC
+struct sysv_shm {
+	struct list_head shm_clist;
+};
+
 long do_shmat(int shmid, char __user *shmaddr, int shmflg, unsigned long *addr,
 	      unsigned long shmlba);
 extern int is_file_shm_hugepages(struct file *file);
-extern void exit_shm(struct task_struct *task);
+void exit_shm(struct task_struct *task);
+#define shm_init_task(task) INIT_LIST_HEAD(&(task)->sysvshm.shm_clist)
 #else
+struct sysv_shm {
+	/* empty */
+};
+
 static inline long do_shmat(int shmid, char __user *shmaddr,
 			    int shmflg, unsigned long *addr,
 			    unsigned long shmlba)
@@ -60,6 +71,9 @@ static inline int is_file_shm_hugepages(struct file *file)
 	return 0;
 }
 static inline void exit_shm(struct task_struct *task)
+{
+}
+static inline void shm_init_task(struct task_struct *task)
 {
 }
 #endif

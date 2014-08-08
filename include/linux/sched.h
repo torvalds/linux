@@ -33,6 +33,7 @@ struct sched_param {
 
 #include <linux/smp.h>
 #include <linux/sem.h>
+#include <linux/shm.h>
 #include <linux/signal.h>
 #include <linux/compiler.h>
 #include <linux/completion.h>
@@ -1385,6 +1386,7 @@ struct task_struct {
 #ifdef CONFIG_SYSVIPC
 /* ipc stuff */
 	struct sysv_sem sysvsem;
+	struct sysv_shm sysvshm;
 #endif
 #ifdef CONFIG_DETECT_HUNG_TASK
 /* hung task detection */

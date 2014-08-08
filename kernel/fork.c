@@ -1362,6 +1362,7 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	if (retval)
 		goto bad_fork_cleanup_policy;
 	/* copy all the process information */
+	shm_init_task(p);
 	retval = copy_semundo(clone_flags, p);
 	if (retval)
 		goto bad_fork_cleanup_audit;
@@ -1912,6 +1913,11 @@ SYSCALL_DEFINE1(unshare, unsigned long, unshare_flags)
 			 * CLONE_SYSVSEM is equivalent to sys_exit().
 			 */
 			exit_sem(current);
+		}
+		if (unshare_flags & CLONE_NEWIPC) {
+			/* Orphan segments in old ns (see sem above). */
+			exit_shm(current);
+			shm_init_task(current);
 		}
 
 		if (new_nsproxy)
