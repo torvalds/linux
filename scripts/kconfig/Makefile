@@ -117,6 +117,10 @@ PHONY += kvmconfig
 kvmconfig:
 	$(call mergeconfig,kvm_guest)
 
+PHONY += tinyconfig
+tinyconfig: allnoconfig
+	$(call mergeconfig,tiny)
+
 # Help text used by make help
 help:
 	@echo  '  config	  - Update current config utilising a line-oriented program'
@@ -138,6 +142,7 @@ help:
 	@echo  '  listnewconfig   - List new options'
 	@echo  '  olddefconfig	  - Same as silentoldconfig but sets new symbols to their default value'
 	@echo  '  kvmconfig	  - Enable additional options for guest kernel support'
+	@echo  '  tinyconfig	  - Configure the tiniest possible kernel'
 
 # lxdialog stuff
 check-lxdialog  := $(srctree)/$(src)/lxdialog/check-lxdialog.sh
