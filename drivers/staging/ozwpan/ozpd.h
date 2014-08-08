@@ -90,8 +90,6 @@ struct oz_pd {
 	unsigned	max_stream_buffering;
 	int		nb_queued_frames;
 	int		nb_queued_isoc_frames;
-	struct list_head *tx_pool;
-	int		tx_pool_count;
 	spinlock_t	tx_frame_lock;
 	struct list_head *last_sent_frame;
 	struct list_head tx_queue;
@@ -131,5 +129,6 @@ void oz_apps_init(void);
 void oz_apps_term(void);
 
 extern struct kmem_cache *oz_elt_info_cache;
+extern struct kmem_cache *oz_tx_frame_cache;
 
 #endif /* Sentry */

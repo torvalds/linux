@@ -21,8 +21,6 @@
 #include <linux/uaccess.h>
 #include <net/psnap.h>
 
-#define OZ_MAX_TX_POOL_SIZE	6
-
 static struct oz_tx_frame *oz_tx_frame_alloc(struct oz_pd *pd);
 static void oz_tx_frame_free(struct oz_pd *pd, struct oz_tx_frame *f);
 static void oz_tx_isoc_free(struct oz_pd *pd, struct oz_tx_frame *f);
@@ -177,13 +175,6 @@ static void oz_pd_free(struct work_struct *work)
 		e = e->next;
 		kfree(fwell);
 	}
-	/* Deallocate all frames in tx pool.
-	 */
-	while (pd->tx_pool) {
-		e = pd->tx_pool;
-		pd->tx_pool = e->next;
-		kfree(container_of(e, struct oz_tx_frame, link));
-	}
 	if (pd->net_dev)
 		dev_put(pd->net_dev);
 	kfree(pd);
@@ -333,17 +324,9 @@ int oz_pd_sleep(struct oz_pd *pd)
  */
 static struct oz_tx_frame *oz_tx_frame_alloc(struct oz_pd *pd)
 {
-	struct oz_tx_frame *f = NULL;
+	struct oz_tx_frame *f;
 
-	spin_lock_bh(&pd->tx_frame_lock);
-	if (pd->tx_pool) {
-		f = container_of(pd->tx_pool, struct oz_tx_frame, link);
-		pd->tx_pool = pd->tx_pool->next;
-		pd->tx_pool_count--;
-	}
-	spin_unlock_bh(&pd->tx_frame_lock);
-	if (f == NULL)
-		f = kmalloc(sizeof(struct oz_tx_frame), GFP_ATOMIC);
+	f = kmem_cache_alloc(oz_tx_frame_cache, GFP_ATOMIC);
 	if (f) {
 		f->total_size = sizeof(struct oz_hdr);
 		INIT_LIST_HEAD(&f->link);
@@ -359,13 +342,9 @@ static void oz_tx_isoc_free(struct oz_pd *pd, struct oz_tx_frame *f)
 {
 	pd->nb_queued_isoc_frames--;
 	list_del_init(&f->link);
-	if (pd->tx_pool_count < OZ_MAX_TX_POOL_SIZE) {
-		f->link.next = pd->tx_pool;
-		pd->tx_pool = &f->link;
-		pd->tx_pool_count++;
-	} else {
-		kfree(f);
-	}
+
+	kmem_cache_free(oz_tx_frame_cache, f);
+
 	oz_dbg(TX_FRAMES, "Releasing ISOC Frame isoc_nb= %d\n",
 	       pd->nb_queued_isoc_frames);
 }
@@ -375,15 +354,7 @@ static void oz_tx_isoc_free(struct oz_pd *pd, struct oz_tx_frame *f)
  */
 static void oz_tx_frame_free(struct oz_pd *pd, struct oz_tx_frame *f)
 {
-	spin_lock_bh(&pd->tx_frame_lock);
-	if (pd->tx_pool_count < OZ_MAX_TX_POOL_SIZE) {
-		f->link.next = pd->tx_pool;
-		pd->tx_pool = &f->link;
-		pd->tx_pool_count++;
-		f = NULL;
-	}
-	spin_unlock_bh(&pd->tx_frame_lock);
-	kfree(f);
+	kmem_cache_free(oz_tx_frame_cache, f);
 }
 
 /*

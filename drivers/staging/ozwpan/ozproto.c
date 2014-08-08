@@ -53,6 +53,7 @@ static u16 g_apps = 0x1;
 static int g_processing_rx;
 
 struct kmem_cache *oz_elt_info_cache;
+struct kmem_cache *oz_tx_frame_cache;
 
 /*
  * Context: softirq-serialized
@@ -483,6 +484,7 @@ void oz_protocol_term(void)
 	spin_unlock_bh(&g_polling_lock);
 	oz_dbg(ON, "Protocol stopped\n");
 
+	kmem_cache_destroy(oz_tx_frame_cache);
 	kmem_cache_destroy(oz_elt_info_cache);
 }
 
@@ -770,6 +772,12 @@ int oz_protocol_init(char *devs)
 	oz_elt_info_cache = KMEM_CACHE(oz_elt_info, 0);
 	if (!oz_elt_info_cache)
 		return -ENOMEM;
+
+	oz_tx_frame_cache = KMEM_CACHE(oz_tx_frame, 0);
+	if (!oz_tx_frame_cache) {
+		kmem_cache_destroy(oz_elt_info_cache);
+		return -ENOMEM;
+	}
 
 	skb_queue_head_init(&g_rx_queue);
 	if (devs[0] == '*') {

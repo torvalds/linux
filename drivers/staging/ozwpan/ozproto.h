@@ -66,5 +66,6 @@ int oz_get_pd_status_list(char *pd_list, int max_count);
 int oz_get_binding_list(char *buf, int max_if);
 
 extern struct kmem_cache *oz_elt_info_cache;
+extern struct kmem_cache *oz_tx_frame_cache;
 
 #endif /* _OZPROTO_H */
