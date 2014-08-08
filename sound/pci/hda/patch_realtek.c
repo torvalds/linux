@@ -4093,7 +4093,7 @@ static unsigned int alc_power_filter_xps13(struct hda_codec *codec,
 
 	/* Avoid pop noises when headphones are plugged in */
 	if (spec->gen.hp_jack_present)
-		if (nid == codec->afg || nid == 0x02)
+		if (nid == codec->afg || nid == 0x02 || nid == 0x15)
 			return AC_PWRST_D0;
 	return power_state;
 }
