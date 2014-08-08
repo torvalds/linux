@@ -303,6 +303,7 @@ struct hci_dev {
 	__u32			req_result;
 
 	struct crypto_blkcipher	*tfm_aes;
+	void			*smp_data;
 
 	struct discovery_state	discovery;
 	struct hci_conn_hash	conn_hash;

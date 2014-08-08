@@ -637,6 +637,7 @@ struct l2cap_conn {
 
 	struct delayed_work	security_timer;
 	struct smp_chan		*smp_chan;
+	struct l2cap_chan	*smp;
 
 	struct list_head	chan_l;
 	struct mutex		chan_lock;
