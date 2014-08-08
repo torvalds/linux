@@ -440,12 +440,11 @@ static const struct limit_names lnames[RLIM_NLIMITS] = {
 };
 
 /* Display limits for a process */
-static int proc_pid_limits(struct task_struct *task, char *buffer)
+static int proc_pid_limits(struct seq_file *m, struct pid_namespace *ns,
+			   struct pid *pid, struct task_struct *task)
 {
 	unsigned int i;
-	int count = 0;
 	unsigned long flags;
-	char *bufptr = buffer;
 
 	struct rlimit rlim[RLIM_NLIMITS];
 
@@ -457,31 +456,29 @@ static int proc_pid_limits(struct task_struct *task, char *buffer)
 	/*
 	 * print the file header
 	 */
-	count += sprintf(&bufptr[count], "%-25s %-20s %-20s %-10s\n",
+       seq_printf(m, "%-25s %-20s %-20s %-10s\n",
 			"Limit", "Soft Limit", "Hard Limit", "Units");
 
 	for (i = 0; i < RLIM_NLIMITS; i++) {
 		if (rlim[i].rlim_cur == RLIM_INFINITY)
-			count += sprintf(&bufptr[count], "%-25s %-20s ",
+			seq_printf(m, "%-25s %-20s ",
 					 lnames[i].name, "unlimited");
 		else
-			count += sprintf(&bufptr[count], "%-25s %-20lu ",
+			seq_printf(m, "%-25s %-20lu ",
 					 lnames[i].name, rlim[i].rlim_cur);
 
 		if (rlim[i].rlim_max == RLIM_INFINITY)
-			count += sprintf(&bufptr[count], "%-20s ", "unlimited");
+			seq_printf(m, "%-20s ", "unlimited");
 		else
-			count += sprintf(&bufptr[count], "%-20lu ",
-					 rlim[i].rlim_max);
+			seq_printf(m, "%-20lu ", rlim[i].rlim_max);
 
 		if (lnames[i].unit)
-			count += sprintf(&bufptr[count], "%-10s\n",
-					 lnames[i].unit);
+			seq_printf(m, "%-10s\n", lnames[i].unit);
 		else
-			count += sprintf(&bufptr[count], "\n");
+			seq_putc(m, '\n');
 	}
 
-	return count;
+	return 0;
 }
 
 #ifdef CONFIG_HAVE_ARCH_TRACEHOOK
@@ -2558,7 +2555,7 @@ static const struct pid_entry tgid_base_stuff[] = {
 	ONE("auxv",       S_IRUSR, proc_pid_auxv),
 	ONE("status",     S_IRUGO, proc_pid_status),
 	ONE("personality", S_IRUSR, proc_pid_personality),
-	INF("limits",	  S_IRUGO, proc_pid_limits),
+	ONE("limits",	  S_IRUGO, proc_pid_limits),
 #ifdef CONFIG_SCHED_DEBUG
 	REG("sched",      S_IRUGO|S_IWUSR, proc_pid_sched_operations),
 #endif
@@ -2897,7 +2894,7 @@ static const struct pid_entry tid_base_stuff[] = {
 	ONE("auxv",      S_IRUSR, proc_pid_auxv),
 	ONE("status",    S_IRUGO, proc_pid_status),
 	ONE("personality", S_IRUSR, proc_pid_personality),
-	INF("limits",	 S_IRUGO, proc_pid_limits),
+	ONE("limits",	 S_IRUGO, proc_pid_limits),
 #ifdef CONFIG_SCHED_DEBUG
 	REG("sched",     S_IRUGO|S_IWUSR, proc_pid_sched_operations),
 #endif
