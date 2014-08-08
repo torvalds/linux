@@ -143,7 +143,7 @@ static void rockchip_snd_txctrl(struct rk30_i2s_info *i2s, int on)
 			udelay(1);
 			clr_error_count --;
 			if(clr_error_count == 0)
-				printk("%s: i2s clr reg warning =%d",__FUNCTION__,readl(&(pheadi2s->I2S_CLR)));
+				printk("%s: i2s clr reg warning =%d\n",__FUNCTION__,readl(&(pheadi2s->I2S_CLR)));
 		}
 	}	
 }
@@ -204,7 +204,7 @@ static void rockchip_snd_rxctrl(struct rk30_i2s_info *i2s, int on)
 			udelay(1);
 			clr_error_count --;
 			if(clr_error_count == 0)
-				printk("%s: i2s clr reg warning =%d",__FUNCTION__,readl(&(pheadi2s->I2S_CLR)));
+				printk("%s: i2s clr reg warning =%d\n",__FUNCTION__,readl(&(pheadi2s->I2S_CLR)));
 		}
 	}
 }

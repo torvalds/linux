@@ -61,10 +61,13 @@
  *  31: 6dB
  *  Step: 1.5dB
 */
-#define  OUT_VOLUME    31
+#define  OUT_VOLUME    26
 
-/*with capacity or not*/
-#define WITH_CAP
+#define CODECDEBUG	0
+
+#if CODECDEBUG
+static struct delayed_work debug_delayed_work;
+#endif
 
 struct rk3036_codec_priv {
 	void __iomem	*regbase;
@@ -74,6 +77,7 @@ struct rk3036_codec_priv {
 	unsigned int rate;
 
 	struct delayed_work codec_delayed_work;
+	struct delayed_work spk_ctrl_delayed_work;
 	int spk_ctl_gpio;
 	int delay_time;
 
@@ -139,8 +143,7 @@ static int rk3036_reset(struct snd_soc_codec *codec)
 	mdelay(10);
 	writel(0x03, rk3036_priv->regbase+RK3036_CODEC_RESET);
 	mdelay(10);
-	memcpy(codec->
-		reg_cache, rk3036_reg_defaults,
+	memcpy(codec->reg_cache, rk3036_reg_defaults,
 		sizeof(rk3036_reg_defaults));
 	return 0;
 }
@@ -286,6 +289,7 @@ static int rk3036_digital_mute(struct snd_soc_dai *dai, int mute)
 	struct snd_soc_codec *codec = dai->codec;
 	unsigned int val;
 
+	printk("rk3036_digital_mute = %d\n", mute);
 	if (mute) {
 		val = snd_soc_read(codec, RK3036_CODEC_REG27);
 		if (val & (RK3036_CR27_HPOUTL_G_WORK
@@ -306,70 +310,145 @@ static int rk3036_digital_mute(struct snd_soc_dai *dai, int mute)
 	return 0;
 }
 
-static struct rk3036_reg_val_typ playback_power_up_list[] = {
-	/*01*/{RK3036_CODEC_REG24,
-		RK3036_CR24_DAC_SOURCE_WORK},
+static int rk3036_codec_power_on(int wait_ms)
+{
+	struct snd_soc_codec *codec = rk3036_priv->codec;
+
+	if (!rk3036_priv || !rk3036_priv->codec)
+		return -EINVAL;
+
+	snd_soc_write(codec, RK3036_CODEC_REG24, RK3036_CR24_DAC_SOURCE_STOP
+											|RK3036_CR24_DAC_PRECHARGE
+											|RK3036_CR24_DACL_REFV_STOP
+											|RK3036_CR24_DACR_REFV_STOP
+											|RK3036_CR24_VOUTL_ZEROD_STOP
+											|RK3036_CR24_VOUTR_ZEROD_STOP);
+	
+	/* set a big current for capacitor charge. */
+	snd_soc_write(codec, RK3036_CODEC_REG28, RK3036_CR28_YES_027I
+											|RK3036_CR28_YES_050I
+											|RK3036_CR28_YES_100I
+											|RK3036_CR28_YES_130I
+											|RK3036_CR28_YES_260I
+											|RK3036_CR28_YES_400I);
+
+	/* wait for capacitor charge finish. */
+	mdelay(wait_ms);
+
+	/* set a small current for power waste. */
+	snd_soc_write(codec, RK3036_CODEC_REG28, RK3036_CR28_NON_027I
+											|RK3036_CR28_NON_050I
+											|RK3036_CR28_YES_100I
+											|RK3036_CR28_NON_130I
+											|RK3036_CR28_NON_260I
+											|RK3036_CR28_NON_400I);
+	
+	return 0;
+}
+
+static struct rk3036_reg_val_typ codec_open_list_p[] = {
+	/*S1*/{RK3036_CODEC_REG24,
+				RK3036_CR24_DAC_SOURCE_WORK
+				|RK3036_CR24_DAC_PRECHARGE
+				|RK3036_CR24_DAC_PRECHARGE
+				|RK3036_CR24_DACL_REFV_STOP
+				|RK3036_CR24_DACR_REFV_STOP
+				|RK3036_CR24_VOUTL_ZEROD_STOP
+				|RK3036_CR24_VOUTR_ZEROD_STOP},
 	/* open current source. */
 
-	/*02*/{RK3036_CODEC_REG22,
-	RK3036_CR22_DACL_PATH_REFV_WORK|RK3036_CR22_DACR_PATH_REFV_WORK},
-	/* power on dac path reference voltage. */
+	/*S2*/{RK3036_CODEC_REG22,
+				RK3036_CR22_DACL_PATH_REFV_WORK
+				|RK3036_CR22_DACR_PATH_REFV_WORK
+				|RK3036_CR22_DACL_CLK_STOP
+				|RK3036_CR22_DACR_CLK_STOP
+				|RK3036_CR22_DACL_STOP
+				|RK3036_CR22_DACR_STOP},
+	/* power on dac path reference voltage. */	
 
-	/*03*/{RK3036_CODEC_REG27,
-	RK3036_CR27_HPOUTL_POP_WORK|RK3036_CR27_HPOUTR_POP_WORK},
+	/*S3*/{RK3036_CODEC_REG27,
+				RK3036_CR27_DACL_INIT
+				|RK3036_CR27_DACR_INIT
+				|RK3036_CR27_HPOUTL_G_MUTE
+				|RK3036_CR27_HPOUTR_G_MUTE
+				|RK3036_CR27_HPOUTL_POP_WORK
+				|RK3036_CR27_HPOUTR_POP_WORK},
 	/* pop precharge work. */
 
-	/*04*/{RK3036_CODEC_REG23,
-	RK3036_CR23_HPOUTL_EN_WORK|RK3036_CR23_HPOUTR_EN_WORK},
+	/*S4*/{RK3036_CODEC_REG23,
+				RK3036_CR23_HPOUTL_INIT
+				|RK3036_CR23_HPOUTR_INIT
+				|RK3036_CR23_HPOUTL_EN_WORK
+				|RK3036_CR23_HPOUTR_EN_WORK},
 	/* start-up HPOUTL HPOUTR */
 
-	/*05*/{RK3036_CODEC_REG23,
-	RK3036_CR23_HPOUTL_EN_WORK|RK3036_CR23_HPOUTR_EN_WORK
-	|RK3036_CR23_HPOUTL_WORK|RK3036_CR23_HPOUTR_WORK},
+	/*S5*/{RK3036_CODEC_REG23,
+				RK3036_CR23_HPOUTL_WORK
+				|RK3036_CR23_HPOUTR_WORK
+				|RK3036_CR23_HPOUTL_EN_WORK
+				|RK3036_CR23_HPOUTR_EN_WORK},
 	/* end the init state of HPOUTL HPOUTR */
 
-	/*06*/{RK3036_CODEC_REG24,
-	RK3036_CR24_DAC_SOURCE_WORK
-	|RK3036_CR24_DAC_PRECHARGE
-	|RK3036_CR24_DACL_REFV_WORK|RK3036_CR24_DACR_REFV_WORK},
+	/*S6*/{RK3036_CODEC_REG24,
+				RK3036_CR24_DAC_SOURCE_WORK
+				|RK3036_CR24_DAC_PRECHARGE
+				|RK3036_CR24_DACL_REFV_WORK
+				|RK3036_CR24_DACR_REFV_WORK
+				|RK3036_CR24_VOUTL_ZEROD_STOP
+				|RK3036_CR24_VOUTR_ZEROD_STOP},
 	/* start-up special ref_v of DACL DACR */
 
-	/*07*/{RK3036_CODEC_REG22,
-	RK3036_CR22_DACL_PATH_REFV_WORK|RK3036_CR22_DACR_PATH_REFV_WORK
-	|RK3036_CR22_DACL_CLK_WORK|RK3036_CR22_DACR_CLK_WORK},
+	/*S7*/{RK3036_CODEC_REG22,
+				RK3036_CR22_DACL_PATH_REFV_WORK
+				|RK3036_CR22_DACR_PATH_REFV_WORK
+				|RK3036_CR22_DACL_CLK_WORK
+				|RK3036_CR22_DACR_CLK_WORK
+				|RK3036_CR22_DACL_STOP
+				|RK3036_CR22_DACR_STOP},
 	/* start-up clock modul of LR channel */
 
-	/*08*/{RK3036_CODEC_REG22,
-	RK3036_CR22_DACL_PATH_REFV_WORK|RK3036_CR22_DACR_PATH_REFV_WORK
-	|RK3036_CR22_DACL_CLK_WORK|RK3036_CR22_DACR_CLK_WORK
-	|RK3036_CR22_DACL_WORK|RK3036_CR22_DACR_WORK},
+	/*S8*/{RK3036_CODEC_REG22,
+				RK3036_CR22_DACL_PATH_REFV_WORK
+				|RK3036_CR22_DACR_PATH_REFV_WORK
+				|RK3036_CR22_DACL_CLK_WORK
+				|RK3036_CR22_DACR_CLK_WORK
+				|RK3036_CR22_DACL_WORK
+				|RK3036_CR22_DACR_WORK},
 	/* start-up DACL DACR module */
 
-	/*09*/{RK3036_CODEC_REG27,
-	RK3036_CR27_HPOUTL_POP_WORK|RK3036_CR27_HPOUTR_POP_WORK
-	|RK3036_CR27_DACL_WORK|RK3036_CR27_DACR_WORK},
+	/*S9*/{RK3036_CODEC_REG27,
+				RK3036_CR27_DACL_WORK
+				|RK3036_CR27_DACR_WORK
+				|RK3036_CR27_HPOUTL_G_MUTE
+				|RK3036_CR27_HPOUTR_G_MUTE
+				|RK3036_CR27_HPOUTL_POP_WORK
+				|RK3036_CR27_HPOUTR_POP_WORK},
 	/* end the init state of DACL DACR */
 
-	/*10*/{RK3036_CODEC_REG25, OUT_VOLUME},
-	/*11*/{RK3036_CODEC_REG26, OUT_VOLUME},
+	/*S10*/{RK3036_CODEC_REG25, OUT_VOLUME},
+	/*S10*/{RK3036_CODEC_REG26, OUT_VOLUME},
 
-	/*12*/{RK3036_CODEC_REG24,
-	RK3036_CR24_DAC_SOURCE_WORK
-	|RK3036_CR24_DAC_PRECHARGE
-	|RK3036_CR24_DACL_REFV_WORK|RK3036_CR24_DACR_REFV_WORK
-	|RK3036_CR24_VOUTL_ZEROD_WORK|RK3036_CR24_VOUTR_ZEROD_WORK},
+	/*S11*/{RK3036_CODEC_REG24,
+				RK3036_CR24_DAC_SOURCE_WORK
+				|RK3036_CR24_DAC_PRECHARGE
+				|RK3036_CR24_DACL_REFV_WORK
+				|RK3036_CR24_DACR_REFV_WORK
+				|RK3036_CR24_VOUTL_ZEROD_STOP	//RK3036_CR24_VOUTL_ZEROD_WORK
+				|RK3036_CR24_VOUTR_ZEROD_STOP}, //RK3036_CR24_VOUTR_ZEROD_WORK
 	/* according to the need, open the zero-crossing detection function. */
 
-	/*13*/{RK3036_CODEC_REG27,
-	RK3036_CR27_HPOUTL_POP_WORK|RK3036_CR27_HPOUTR_POP_WORK
-	|RK3036_CR27_DACL_WORK|RK3036_CR27_DACR_WORK
-	|RK3036_CR27_HPOUTL_G_WORK|RK3036_CR27_HPOUTR_G_WORK},
+	/*S12*/{RK3036_CODEC_REG27,
+				RK3036_CR27_DACL_WORK
+				|RK3036_CR27_DACR_WORK
+				|RK3036_CR27_HPOUTL_G_WORK
+				|RK3036_CR27_HPOUTR_G_WORK
+				|RK3036_CR27_HPOUTL_POP_WORK
+				|RK3036_CR27_HPOUTR_POP_WORK},
 	/* end initial status of HPOUTL HPOUTR module,start normal output. */
 };
+#define OPEN_LIST_LEN_P ARRAY_SIZE(codec_open_list_p)
 
-#define PLAYBACK_POWER_UP_LIST_LEN ARRAY_SIZE(playback_power_up_list)
-
-static int rk3036_codec_power_up(void)
+static int rk3036_codec_open_p(void)
 {
 	struct snd_soc_codec *codec = rk3036_priv->codec;
 	int i, volume = 0;
@@ -377,8 +456,8 @@ static int rk3036_codec_power_up(void)
 	if (!rk3036_priv || !rk3036_priv->codec)
 		return -EINVAL;
 
-	for (i = 0; i < PLAYBACK_POWER_UP_LIST_LEN; i++) {
-		if ((playback_power_up_list[i].reg ==
+	for (i = 0; i < OPEN_LIST_LEN_P; i++) {
+		if ((codec_open_list_p[i].reg ==
 			RK3036_CODEC_REG25) && (volume < OUT_VOLUME)) {
 			snd_soc_write(codec, RK3036_CODEC_REG25, volume);
 			snd_soc_write(codec, RK3036_CODEC_REG26, volume);
@@ -386,12 +465,132 @@ static int rk3036_codec_power_up(void)
 			mdelay(10);
 			i--;
 		} else {
-			snd_soc_write(codec, playback_power_up_list[i].
-				reg, playback_power_up_list[i].value);
+			snd_soc_write(codec, codec_open_list_p[i].reg, codec_open_list_p[i].value);
 			mdelay(1);
 		}
 	}
 
+	return 0;
+}
+
+static struct rk3036_reg_val_typ codec_close_list_p[] = {
+	/*S1*/{RK3036_CODEC_REG24,
+				RK3036_CR24_DAC_SOURCE_WORK
+				|RK3036_CR24_DAC_PRECHARGE
+				|RK3036_CR24_DACL_REFV_WORK
+				|RK3036_CR24_DACR_REFV_WORK
+				|RK3036_CR24_VOUTL_ZEROD_STOP
+				|RK3036_CR24_VOUTR_ZEROD_STOP},
+
+	/*S2*/{RK3036_CODEC_REG25, 0x00},
+	/*S2*/{RK3036_CODEC_REG26, 0x00},
+
+	/*S3*/{RK3036_CODEC_REG27,
+				RK3036_CR27_DACL_WORK
+				|RK3036_CR27_DACR_WORK
+				|RK3036_CR27_HPOUTL_G_MUTE
+				|RK3036_CR27_HPOUTR_G_MUTE
+				|RK3036_CR27_HPOUTL_POP_WORK
+				|RK3036_CR27_HPOUTR_POP_WORK},
+
+	/*S4*/{RK3036_CODEC_REG23,
+				RK3036_CR23_HPOUTL_WORK
+				|RK3036_CR23_HPOUTR_WORK
+				|RK3036_CR23_HPOUTL_EN_STOP
+				|RK3036_CR23_HPOUTR_EN_STOP},
+
+	/*S5*/{RK3036_CODEC_REG23,
+				RK3036_CR23_HPOUTL_INIT
+				|RK3036_CR23_HPOUTR_INIT
+				|RK3036_CR23_HPOUTL_EN_STOP
+				|RK3036_CR23_HPOUTR_EN_STOP},
+
+	/*S6*/{RK3036_CODEC_REG27,
+				RK3036_CR27_DACL_WORK
+				|RK3036_CR27_DACR_WORK
+				|RK3036_CR27_HPOUTL_G_MUTE
+				|RK3036_CR27_HPOUTR_G_MUTE
+				|RK3036_CR27_HPOUTL_POP_PRECHARGE
+				|RK3036_CR27_HPOUTR_POP_PRECHARGE},
+
+	/*S7*/{RK3036_CODEC_REG22,
+				RK3036_CR22_DACL_PATH_REFV_STOP
+				|RK3036_CR22_DACR_PATH_REFV_STOP
+				|RK3036_CR22_DACL_CLK_STOP
+				|RK3036_CR22_DACR_CLK_STOP
+				|RK3036_CR22_DACL_STOP
+				|RK3036_CR22_DACR_STOP},
+	
+	/*S8*/{RK3036_CODEC_REG24,
+				RK3036_CR24_DAC_SOURCE_STOP
+				|RK3036_CR24_DAC_PRECHARGE
+				|RK3036_CR24_DACL_REFV_STOP
+				|RK3036_CR24_DACR_REFV_STOP
+				|RK3036_CR24_VOUTL_ZEROD_STOP
+				|RK3036_CR24_VOUTR_ZEROD_STOP},
+
+	/*S9*/{RK3036_CODEC_REG27,
+				RK3036_CR27_DACL_INIT
+				|RK3036_CR27_DACR_INIT
+				|RK3036_CR27_HPOUTL_G_MUTE
+				|RK3036_CR27_HPOUTR_G_MUTE
+				|RK3036_CR27_HPOUTL_POP_PRECHARGE
+				|RK3036_CR27_HPOUTR_POP_PRECHARGE},
+
+};
+#define CLOSE_LIST_LEN_P ARRAY_SIZE(codec_close_list_p)
+
+static int rk3036_codec_close_p(void)
+{
+	struct snd_soc_codec *codec = rk3036_priv->codec;
+	int i, volume = 0;
+
+	if (!rk3036_priv || !rk3036_priv->codec)
+		return -EINVAL;
+
+	for (i = 0; i < CLOSE_LIST_LEN_P; i++) {
+		if ((codec_close_list_p[i].reg ==
+			RK3036_CODEC_REG25) && (volume > 0)) {
+			snd_soc_write(codec, RK3036_CODEC_REG25, volume);
+			snd_soc_write(codec, RK3036_CODEC_REG26, volume);
+			volume++;
+			mdelay(10);
+			i--;
+		} else {
+			snd_soc_write(codec, codec_close_list_p[i].reg, codec_close_list_p[i].value);
+			mdelay(1);
+		}
+	}
+
+	return 0;
+}
+
+static int rk3036_codec_power_off(int wait_ms)
+{
+	struct snd_soc_codec *codec = rk3036_priv->codec;
+
+	if (!rk3036_priv || !rk3036_priv->codec)
+		return -EINVAL;
+	
+	/* set a big current for capacitor discharge. */
+	snd_soc_write(codec, RK3036_CODEC_REG28, RK3036_CR28_YES_027I
+											|RK3036_CR28_YES_050I
+											|RK3036_CR28_YES_100I
+											|RK3036_CR28_YES_130I
+											|RK3036_CR28_YES_260I
+											|RK3036_CR28_YES_400I);
+
+	/* start discharge. */
+	snd_soc_write(codec, RK3036_CODEC_REG24, RK3036_CR24_DAC_SOURCE_STOP
+											|RK3036_CR24_DAC_DISCHARGE
+											|RK3036_CR24_DACL_REFV_STOP
+											|RK3036_CR24_DACR_REFV_STOP
+											|RK3036_CR24_VOUTL_ZEROD_STOP
+											|RK3036_CR24_VOUTR_ZEROD_STOP);
+	
+	/* wait for capacitor discharge finish. */
+	mdelay(wait_ms);
+	
 	return 0;
 }
 
@@ -501,13 +700,146 @@ static void spk_ctrl_fun(int status)
 		gpio_set_value(rk3036_priv->spk_ctl_gpio, status);
 }
 
-static void rk3036_delayedwork_fun(struct work_struct *work)
+static void codec_delayedwork_fun(struct work_struct *work)
+{
+	dbg_codec(2, "codec_delayedwork_fun\n");
+	
+	/* codec power on. */
+	rk3036_codec_power_on(200);
+
+	/* codec start up. */
+	rk3036_codec_open_p();
+
+	/* for sure, start codec again. */
+	mdelay(200);
+	rk3036_codec_open_p();
+}
+
+static void spk_ctrl_delayedwork_fun(struct work_struct *work)
 {
 	if (rk3036_priv == NULL)
 		return;
-	dbg_codec(2, "rk3036_delayedwork_fun\n");
+	dbg_codec(2, "spk_ctrl_delayedwork_fun\n");
 	spk_ctrl_fun(SPK_CTRL_OPEN);
 }
+
+#if CODECDEBUG
+static int delay_time_try = 10;
+static void rk3036_cmd_fun(struct work_struct *work)
+{
+	unsigned int cmd;
+	unsigned int next_delay;
+	
+	if (rk3036_priv == NULL)
+		return;
+
+	cmd = readl_relaxed(rk3036_priv->regbase+(0x0d << 2));
+	if (cmd == 0x50)
+		return;
+
+	writel(0, rk3036_priv->regbase+(0x0d << 2));
+	if (cmd)
+	{
+		printk("\n\n\n\n\n");
+		printk("===rk3036_cmd_fun cmd :=> %d\n\n", cmd);
+	}
+
+	next_delay = 500;
+	switch(cmd)
+	{
+		case 1:
+			delay_time_try = -1;
+			printk("rk3036_codec_close_p\n");
+			rk3036_codec_close_p();
+			break;
+
+		case 2:
+			printk("rk3036_codec_power_off\n");
+			rk3036_codec_power_off(0);
+			break;
+
+		case 3:
+			printk("reset+rk3036_codec_power_on\n");
+			writel(0x00, rk3036_priv->regbase + RK3036_CODEC_RESET);
+			mdelay(10);
+			writel(0x03, rk3036_priv->regbase + RK3036_CODEC_RESET);
+			mdelay(10);
+			rk3036_codec_power_on(10);
+			break;
+
+		case 4:
+			printk("rk3036_codec_open_p\n");
+			rk3036_codec_open_p();
+			break;
+
+		case 12:
+			printk("rk3036_codec_close_p\n");
+			rk3036_codec_close_p();
+			printk("rk3036_codec_power_off\n");
+			rk3036_codec_power_off(0);
+			break;
+
+		case 34:
+			delay_time_try += 10;
+			printk("reset+rk3036_codec_power_on delay_time_try=%d\n", delay_time_try);
+			writel(0x00, rk3036_priv->regbase + RK3036_CODEC_RESET);
+			mdelay(10);
+			writel(0x03, rk3036_priv->regbase + RK3036_CODEC_RESET);
+			mdelay(10);
+			rk3036_codec_power_on(delay_time_try/2);
+			printk("rk3036_codec_open_p\n");
+			rk3036_codec_open_p();
+
+			printk("reset+rk3036_codec_power_on delay_time_try=%d\n", delay_time_try);
+			writel(0x00, rk3036_priv->regbase + RK3036_CODEC_RESET);
+			mdelay(10);
+			writel(0x03, rk3036_priv->regbase + RK3036_CODEC_RESET);
+			mdelay(10);
+			rk3036_codec_power_on(delay_time_try/2);
+			printk("rk3036_codec_open_p\n");
+			rk3036_codec_open_p();
+			break;
+			
+		case 43:
+			delay_time_try -= 10;
+			printk("reset+rk3036_codec_power_on delay_time_try=%d\n", delay_time_try);
+			writel(0x00, rk3036_priv->regbase + RK3036_CODEC_RESET);
+			mdelay(10);
+			writel(0x03, rk3036_priv->regbase + RK3036_CODEC_RESET);
+			mdelay(10);
+			rk3036_codec_power_on(delay_time_try);
+			printk("rk3036_codec_open_p\n");
+			rk3036_codec_open_p();
+			break;
+			
+		case 37:
+			printk("rk3036_codec_close_p\n");
+			rk3036_codec_close_p();
+			printk("rk3036_codec_power_off\n");
+			rk3036_codec_power_off(0);
+			writel(73, rk3036_priv->regbase+(0x0d << 2));
+			next_delay = 1000;
+			break;
+
+		case 73:
+			printk("reset+rk3036_codec_power_on\n");
+			writel(0x00, rk3036_priv->regbase + RK3036_CODEC_RESET);
+			mdelay(10);
+			writel(0x03, rk3036_priv->regbase + RK3036_CODEC_RESET);
+			mdelay(10);
+			rk3036_codec_power_on(10);
+			printk("rk3036_codec_open_p\n");
+			rk3036_codec_open_p();
+			writel(37, rk3036_priv->regbase+(0x0d << 2));
+			next_delay = 2000;
+			break;
+
+		default:
+			break;
+	}
+	schedule_delayed_work(&debug_delayed_work, msecs_to_jiffies(next_delay));
+}
+#endif
 
 static int rk3036_probe(struct snd_soc_codec *codec)
 {
@@ -529,8 +861,11 @@ static int rk3036_probe(struct snd_soc_codec *codec)
 	codec->read = rk3036_codec_read;
 	codec->write = rk3036_codec_write;
 
-	INIT_DELAYED_WORK(&rk3036_codec->
-		codec_delayed_work, rk3036_delayedwork_fun);
+	INIT_DELAYED_WORK(&rk3036_codec->codec_delayed_work,
+			codec_delayedwork_fun);
+
+	INIT_DELAYED_WORK(&rk3036_codec->spk_ctrl_delayed_work,
+			spk_ctrl_delayedwork_fun);
 
 	val = snd_soc_read(codec, RK3036_CODEC_RESET);
 	if (val != rk3036_reg_defaults[RK3036_CODEC_RESET]) {
@@ -542,26 +877,29 @@ static int rk3036_probe(struct snd_soc_codec *codec)
 	val = readl_relaxed(RK_GRF_VIRT + RK3036_GRF_SOC_CON0);
 	writel_relaxed(val | 0x04000400, RK_GRF_VIRT + RK3036_GRF_SOC_CON0);
 
+	/* codec reset. */
 	rk3036_reset(codec);
 
-	snd_soc_write(codec, RK3036_CODEC_REG24, RK3036_CR24_DAC_SOURCE_STOP
-						| RK3036_CR24_DAC_PRECHARGE
-						| RK3036_CR24_DACL_REFV_STOP
-						| RK3036_CR24_DACR_REFV_STOP
-						| RK3036_CR24_VOUTL_ZEROD_STOP
-						| RK3036_CR24_VOUTR_ZEROD_STOP);
-#ifdef WITH_CAP
-	/*set for capacity output,clear up noise*/
-	snd_soc_write(codec, RK3036_CODEC_REG28, 0x37);
-	mdelay(50);
-	/*snd_soc_write(codec, 0xbc,0x28);*/
-#endif
+	/* discharge the capacity at frist. */
+	rk3036_codec_power_off(20);
 
-	rk3036_codec_power_up();
+	/* codec power on. */
+	rk3036_codec_power_on(200);
 
-	schedule_delayed_work(&rk3036_codec->
-		codec_delayed_work, msecs_to_jiffies(5000));
+	/* codec start up. */
+	rk3036_codec_open_p();
+
+	schedule_delayed_work(&rk3036_codec->codec_delayed_work, 
+		msecs_to_jiffies(15000));/* codec_delayedwork_fun */
 	codec->dapm.bias_level = SND_SOC_BIAS_PREPARE;
+
+	schedule_delayed_work(&rk3036_codec->spk_ctrl_delayed_work, 
+		msecs_to_jiffies(5000));/* spk_ctrl_delayedwork_fun */
+
+#if CODECDEBUG
+	INIT_DELAYED_WORK(&debug_delayed_work, rk3036_cmd_fun);
+	schedule_delayed_work(&debug_delayed_work, msecs_to_jiffies(1000));
+#endif
 
 	return 0;
 
@@ -579,11 +917,7 @@ static int rk3036_remove(struct snd_soc_codec *codec)
 
 	spk_ctrl_fun(SPK_CTRL_CLOSE);
 
-	mdelay(10);
-	snd_soc_write(codec, RK3036_CODEC_RESET, 0xfc);
-	mdelay(10);
-	snd_soc_write(codec, RK3036_CODEC_RESET, 0x3);
-	mdelay(10);
+	rk3036_codec_close_p();
 
 	return 0;
 }
@@ -665,6 +999,42 @@ static struct snd_soc_codec_driver soc_codec_dev_rk3036 = {
 	.reg_cache_step = sizeof(unsigned int),
 };
 
+#ifdef CONFIG_PM
+static int rk3036_codec_suspend_noirq(struct device *dev)
+{
+	spk_ctrl_fun(SPK_CTRL_CLOSE);
+
+	/* close the codec */
+	rk3036_codec_close_p();
+
+	/* power off the codec */
+	rk3036_codec_power_off(10);
+	
+	return 0;
+}
+
+static int rk3036_codec_resume_noirq(struct device *dev)
+{
+	struct snd_soc_codec *codec = rk3036_priv->codec;
+	
+	/* codec reset. */
+	rk3036_reset(codec);
+
+	/* codec power on. */
+	rk3036_codec_power_on(100);
+
+	/* codec start up. */
+	rk3036_codec_open_p();
+
+	spk_ctrl_fun(SPK_CTRL_OPEN);
+
+	return 0;
+}
+#else
+/*#define rk3036_codec_suspend_noirq NULL*/
+/*#define rk3036_codec_resume_noirq NULL*/
+#endif
+
 static int rk3036_platform_probe(struct platform_device *pdev)
 {
 	struct device_node *rk3036_np = pdev->dev.of_node;
@@ -731,9 +1101,9 @@ void rk3036_platform_shutdown(struct platform_device *pdev)
 	spk_ctrl_fun(SPK_CTRL_CLOSE);
 
 	mdelay(10);
-	writel(0xfc, rk3036_priv->regbase+RK3036_CODEC_RESET);
+	writel(0xfc, rk3036_priv->regbase + RK3036_CODEC_RESET);
 	mdelay(10);
-	writel(0x03, rk3036_priv->regbase+RK3036_CODEC_RESET);
+	writel(0x03, rk3036_priv->regbase + RK3036_CODEC_RESET);
 }
 
 #ifdef CONFIG_OF
@@ -744,11 +1114,17 @@ static const struct of_device_id rk3036codec_of_match[] = {
 MODULE_DEVICE_TABLE(of, rk3036codec_of_match);
 #endif
 
+static const struct dev_pm_ops rk3036_codec_pm_ops = {
+	.suspend_noirq = rk3036_codec_suspend_noirq,
+	.resume_noirq  = rk3036_codec_resume_noirq,
+};
+
 static struct platform_driver rk3036_codec_driver = {
 	.driver = {
 		   .name = "rk3036-codec",
 		   .owner = THIS_MODULE,
 		   .of_match_table = of_match_ptr(rk3036codec_of_match),
+		   .pm	= &rk3036_codec_pm_ops,
 		   },
 	.probe = rk3036_platform_probe,
 	.remove = rk3036_platform_remove,
