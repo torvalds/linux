@@ -30,6 +30,8 @@
  * @sg_superblock_kobj_unregister: completion state
  * @sg_segctor_kobj: /sys/fs/<nilfs>/<device>/segctor
  * @sg_segctor_kobj_unregister: completion state
+ * @sg_mounted_snapshots_kobj: /sys/fs/<nilfs>/<device>/mounted_snapshots
+ * @sg_mounted_snapshots_kobj_unregister: completion state
  * @sg_checkpoints_kobj: /sys/fs/<nilfs>/<device>/checkpoints
  * @sg_checkpoints_kobj_unregister: completion state
  * @sg_segments_kobj: /sys/fs/<nilfs>/<device>/segments
@@ -43,6 +45,10 @@ struct nilfs_sysfs_dev_subgroups {
 	/* /sys/fs/<nilfs>/<device>/segctor */
 	struct kobject sg_segctor_kobj;
 	struct completion sg_segctor_kobj_unregister;
+
+	/* /sys/fs/<nilfs>/<device>/mounted_snapshots */
+	struct kobject sg_mounted_snapshots_kobj;
+	struct completion sg_mounted_snapshots_kobj_unregister;
 
 	/* /sys/fs/<nilfs>/<device>/checkpoints */
 	struct kobject sg_checkpoints_kobj;
@@ -75,6 +81,7 @@ struct nilfs_##name##_attr { \
 
 NILFS_DEV_ATTR_STRUCT(dev);
 NILFS_DEV_ATTR_STRUCT(segments);
+NILFS_DEV_ATTR_STRUCT(mounted_snapshots);
 NILFS_DEV_ATTR_STRUCT(checkpoints);
 NILFS_DEV_ATTR_STRUCT(superblock);
 NILFS_DEV_ATTR_STRUCT(segctor);
@@ -111,6 +118,9 @@ NILFS_DEV_ATTR_STRUCT(segctor);
 #define NILFS_SEGMENTS_RW_ATTR(name) \
 	NILFS_RW_ATTR(segs_info, name)
 
+#define NILFS_MOUNTED_SNAPSHOTS_RO_ATTR(name) \
+	NILFS_RO_ATTR(mounted_snapshots, name)
+
 #define NILFS_CHECKPOINTS_RO_ATTR(name) \
 	NILFS_RO_ATTR(checkpoints, name)
 #define NILFS_CHECKPOINTS_RW_ATTR(name) \
@@ -134,6 +144,8 @@ NILFS_DEV_ATTR_STRUCT(segctor);
 	(&nilfs_dev_attr_##name.attr)
 #define NILFS_SEGMENTS_ATTR_LIST(name) \
 	(&nilfs_segments_attr_##name.attr)
+#define NILFS_MOUNTED_SNAPSHOTS_ATTR_LIST(name) \
+	(&nilfs_mounted_snapshots_attr_##name.attr)
 #define NILFS_CHECKPOINTS_ATTR_LIST(name) \
 	(&nilfs_checkpoints_attr_##name.attr)
 #define NILFS_SUPERBLOCK_ATTR_LIST(name) \

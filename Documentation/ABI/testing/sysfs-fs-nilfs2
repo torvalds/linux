@@ -241,3 +241,10 @@ Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
 Description:
 		Describe attributes of /sys/fs/nilfs2/<device>/checkpoints
 		group.
+
+What:		/sys/fs/nilfs2/<device>/mounted_snapshots/README
+Date:		April 2014
+Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
+Description:
+		Describe content of /sys/fs/nilfs2/<device>/mounted_snapshots
+		group.
