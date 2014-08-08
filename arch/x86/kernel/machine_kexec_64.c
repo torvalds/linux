@@ -6,6 +6,8 @@
  * Version 2.  See the file COPYING for more details.
  */
 
+#define pr_fmt(fmt)	"kexec: " fmt
+
 #include <linux/mm.h>
 #include <linux/kexec.h>
 #include <linux/string.h>
@@ -327,4 +329,144 @@ int arch_kimage_file_post_load_cleanup(struct kimage *image)
 		return 0;
 
 	return image->fops->cleanup(image);
+}
+
+/*
+ * Apply purgatory relocations.
+ *
+ * ehdr: Pointer to elf headers
+ * sechdrs: Pointer to section headers.
+ * relsec: section index of SHT_RELA section.
+ *
+ * TODO: Some of the code belongs to generic code. Move that in kexec.c.
+ */
+int arch_kexec_apply_relocations_add(const Elf64_Ehdr *ehdr,
+				     Elf64_Shdr *sechdrs, unsigned int relsec)
+{
+	unsigned int i;
+	Elf64_Rela *rel;
+	Elf64_Sym *sym;
+	void *location;
+	Elf64_Shdr *section, *symtabsec;
+	unsigned long address, sec_base, value;
+	const char *strtab, *name, *shstrtab;
+
+	/*
+	 * ->sh_offset has been modified to keep the pointer to section
+	 * contents in memory
+	 */
+	rel = (void *)sechdrs[relsec].sh_offset;
+
+	/* Section to which relocations apply */
+	section = &sechdrs[sechdrs[relsec].sh_info];
+
+	pr_debug("Applying relocate section %u to %u\n", relsec,
+		 sechdrs[relsec].sh_info);
+
+	/* Associated symbol table */
+	symtabsec = &sechdrs[sechdrs[relsec].sh_link];
+
+	/* String table */
+	if (symtabsec->sh_link >= ehdr->e_shnum) {
+		/* Invalid strtab section number */
+		pr_err("Invalid string table section index %d\n",
+		       symtabsec->sh_link);
+		return -ENOEXEC;
+	}
+
+	strtab = (char *)sechdrs[symtabsec->sh_link].sh_offset;
+
+	/* section header string table */
+	shstrtab = (char *)sechdrs[ehdr->e_shstrndx].sh_offset;
+
+	for (i = 0; i < sechdrs[relsec].sh_size / sizeof(*rel); i++) {
+
+		/*
+		 * rel[i].r_offset contains byte offset from beginning
+		 * of section to the storage unit affected.
+		 *
+		 * This is location to update (->sh_offset). This is temporary
+		 * buffer where section is currently loaded. This will finally
+		 * be loaded to a different address later, pointed to by
+		 * ->sh_addr. kexec takes care of moving it
+		 *  (kexec_load_segment()).
+		 */
+		location = (void *)(section->sh_offset + rel[i].r_offset);
+
+		/* Final address of the location */
+		address = section->sh_addr + rel[i].r_offset;
+
+		/*
+		 * rel[i].r_info contains information about symbol table index
+		 * w.r.t which relocation must be made and type of relocation
+		 * to apply. ELF64_R_SYM() and ELF64_R_TYPE() macros get
+		 * these respectively.
+		 */
+		sym = (Elf64_Sym *)symtabsec->sh_offset +
+				ELF64_R_SYM(rel[i].r_info);
+
+		if (sym->st_name)
+			name = strtab + sym->st_name;
+		else
+			name = shstrtab + sechdrs[sym->st_shndx].sh_name;
+
+		pr_debug("Symbol: %s info: %02x shndx: %02x value=%llx size: %llx\n",
+			 name, sym->st_info, sym->st_shndx, sym->st_value,
+			 sym->st_size);
+
+		if (sym->st_shndx == SHN_UNDEF) {
+			pr_err("Undefined symbol: %s\n", name);
+			return -ENOEXEC;
+		}
+
+		if (sym->st_shndx == SHN_COMMON) {
+			pr_err("symbol '%s' in common section\n", name);
+			return -ENOEXEC;
+		}
+
+		if (sym->st_shndx == SHN_ABS)
+			sec_base = 0;
+		else if (sym->st_shndx >= ehdr->e_shnum) {
+			pr_err("Invalid section %d for symbol %s\n",
+			       sym->st_shndx, name);
+			return -ENOEXEC;
+		} else
+			sec_base = sechdrs[sym->st_shndx].sh_addr;
+
+		value = sym->st_value;
+		value += sec_base;
+		value += rel[i].r_addend;
+
+		switch (ELF64_R_TYPE(rel[i].r_info)) {
+		case R_X86_64_NONE:
+			break;
+		case R_X86_64_64:
+			*(u64 *)location = value;
+			break;
+		case R_X86_64_32:
+			*(u32 *)location = value;
+			if (value != *(u32 *)location)
+				goto overflow;
+			break;
+		case R_X86_64_32S:
+			*(s32 *)location = value;
+			if ((s64)value != *(s32 *)location)
+				goto overflow;
+			break;
+		case R_X86_64_PC32:
+			value -= (u64)address;
+			*(u32 *)location = value;
+			break;
+		default:
+			pr_err("Unknown rela relocation: %llu\n",
+			       ELF64_R_TYPE(rel[i].r_info));
+			return -ENOEXEC;
+		}
+	}
+	return 0;
+
+overflow:
+	pr_err("Overflow in relocation type %d value 0x%lx\n",
+	       (int)ELF64_R_TYPE(rel[i].r_info), value);
+	return -ENOEXEC;
 }
