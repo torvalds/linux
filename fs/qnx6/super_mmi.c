@@ -44,14 +44,14 @@ struct qnx6_super_block *qnx6_mmi_fill_super(struct super_block *s, int silent)
 	   start with the first superblock */
 	bh1 = sb_bread(s, 0);
 	if (!bh1) {
-		pr_err("qnx6: Unable to read first mmi superblock\n");
+		pr_err("Unable to read first mmi superblock\n");
 		return NULL;
 	}
 	sb1 = (struct qnx6_mmi_super_block *)bh1->b_data;
 	sbi = QNX6_SB(s);
 	if (fs32_to_cpu(sbi, sb1->sb_magic) != QNX6_SUPER_MAGIC) {
 		if (!silent) {
-			pr_err("qnx6: wrong signature (magic) in superblock #1.\n");
+			pr_err("wrong signature (magic) in superblock #1.\n");
 			goto out;
 		}
 	}
@@ -59,7 +59,7 @@ struct qnx6_super_block *qnx6_mmi_fill_super(struct super_block *s, int silent)
 	/* checksum check - start at byte 8 and end at byte 512 */
 	if (fs32_to_cpu(sbi, sb1->sb_checksum) !=
 				crc32_be(0, (char *)(bh1->b_data + 8), 504)) {
-		pr_err("qnx6: superblock #1 checksum error\n");
+		pr_err("superblock #1 checksum error\n");
 		goto out;
 	}
 
@@ -69,7 +69,7 @@ struct qnx6_super_block *qnx6_mmi_fill_super(struct super_block *s, int silent)
 
 	/* set new blocksize */
 	if (!sb_set_blocksize(s, fs32_to_cpu(sbi, sb1->sb_blocksize))) {
-		pr_err("qnx6: unable to set blocksize\n");
+		pr_err("unable to set blocksize\n");
 		goto out;
 	}
 	/* blocksize invalidates bh - pull it back in */
@@ -82,26 +82,26 @@ struct qnx6_super_block *qnx6_mmi_fill_super(struct super_block *s, int silent)
 	/* read second superblock */
 	bh2 = sb_bread(s, offset);
 	if (!bh2) {
-		pr_err("qnx6: unable to read the second superblock\n");
+		pr_err("unable to read the second superblock\n");
 		goto out;
 	}
 	sb2 = (struct qnx6_mmi_super_block *)bh2->b_data;
 	if (fs32_to_cpu(sbi, sb2->sb_magic) != QNX6_SUPER_MAGIC) {
 		if (!silent)
-			pr_err("qnx6: wrong signature (magic) in superblock #2.\n");
+			pr_err("wrong signature (magic) in superblock #2.\n");
 		goto out;
 	}
 
 	/* checksum check - start at byte 8 and end at byte 512 */
 	if (fs32_to_cpu(sbi, sb2->sb_checksum)
 			!= crc32_be(0, (char *)(bh2->b_data + 8), 504)) {
-		pr_err("qnx6: superblock #1 checksum error\n");
+		pr_err("superblock #1 checksum error\n");
 		goto out;
 	}
 
 	qsb = kmalloc(sizeof(*qsb), GFP_KERNEL);
 	if (!qsb) {
-		pr_err("qnx6: unable to allocate memory.\n");
+		pr_err("unable to allocate memory.\n");
 		goto out;
 	}
 
@@ -117,7 +117,7 @@ struct qnx6_super_block *qnx6_mmi_fill_super(struct super_block *s, int silent)
 		sbi->sb_buf = bh1;
 		sbi->sb = (struct qnx6_super_block *)bh1->b_data;
 		brelse(bh2);
-		pr_info("qnx6: superblock #1 active\n");
+		pr_info("superblock #1 active\n");
 	} else {
 		/* superblock #2 active */
 		qnx6_mmi_copy_sb(qsb, sb2);
@@ -129,7 +129,7 @@ struct qnx6_super_block *qnx6_mmi_fill_super(struct super_block *s, int silent)
 		sbi->sb_buf = bh2;
 		sbi->sb = (struct qnx6_super_block *)bh2->b_data;
 		brelse(bh1);
-		pr_info("qnx6: superblock #2 active\n");
+		pr_info("superblock #2 active\n");
 	}
 	kfree(qsb);
 
