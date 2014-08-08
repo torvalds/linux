@@ -330,28 +330,28 @@ static struct proc_dir_entry *__proc_create(struct proc_dir_entry **parent,
 					  nlink_t nlink)
 {
 	struct proc_dir_entry *ent = NULL;
-	const char *fn = name;
-	unsigned int len;
-
-	/* make sure name is valid */
-	if (!name || !strlen(name))
-		goto out;
+	const char *fn;
+	struct qstr qstr;
 
 	if (xlate_proc_name(name, parent, &fn) != 0)
 		goto out;
+	qstr.name = fn;
+	qstr.len = strlen(fn);
+	if (qstr.len == 0 || qstr.len >= 256) {
+		WARN(1, "name len %u\n", qstr.len);
+		return NULL;
+	}
+	if (*parent == &proc_root && name_to_int(&qstr) != ~0U) {
+		WARN(1, "create '/proc/%s' by hand\n", qstr.name);
+		return NULL;
+	}
 
-	/* At this point there must not be any '/' characters beyond *fn */
-	if (strchr(fn, '/'))
-		goto out;
-
-	len = strlen(fn);
-
-	ent = kzalloc(sizeof(struct proc_dir_entry) + len + 1, GFP_KERNEL);
+	ent = kzalloc(sizeof(struct proc_dir_entry) + qstr.len + 1, GFP_KERNEL);
 	if (!ent)
 		goto out;
 
-	memcpy(ent->name, fn, len + 1);
-	ent->namelen = len;
+	memcpy(ent->name, fn, qstr.len + 1);
+	ent->namelen = qstr.len;
 	ent->mode = mode;
 	ent->nlink = nlink;
 	atomic_set(&ent->count, 1);
