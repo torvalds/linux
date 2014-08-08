@@ -21,7 +21,7 @@
 #include <linux/err.h>
 #include <linux/dma-mapping.h>
 #include <linux/rockchip_ion.h>
-#include <linux/rockchip/iovmm.h>
+#include <linux/rockchip-iovmm.h>
 
 #include "ion.h"
 #include "ion_priv.h"
@@ -204,11 +204,11 @@ static int ion_cma_map_iommu(struct ion_buffer *buffer,
 	int ret = 0;
 	struct ion_cma_buffer_info *info = buffer->priv_virt;
 
-	data->iova_addr = iovmm_map(iommu_dev, info->table->sgl, 0, iova_length);
+	data->iova_addr = rockchip_iovmm_map(iommu_dev, info->table->sgl, 0, iova_length);
 	pr_debug("%s: map %x -> %lx\n", __func__, info->table->sgl->dma_address,
 		data->iova_addr);
 	if (!data->iova_addr || IS_ERR_VALUE(data->iova_addr)) {
-		pr_err("%s: iovmm_map() failed: %lx\n", __func__, data->iova_addr);
+		pr_err("%s: rockchip_iovmm_map() failed: %lx\n", __func__, data->iova_addr);
 		ret = -EINVAL;
 		goto out;
 	}
@@ -222,7 +222,7 @@ out:
 void ion_cma_unmap_iommu(struct device *iommu_dev, struct ion_iommu_map *data)
 {
 	pr_debug("%s: unmap %x@%lx\n", __func__, data->mapped_size, data->iova_addr);
-	iovmm_unmap(iommu_dev, data->iova_addr);
+	rockchip_iovmm_unmap(iommu_dev, data->iova_addr);
 
 	return;
 }
