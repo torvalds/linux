@@ -4377,6 +4377,10 @@ static int beiscsi_setup_boot_info(struct beiscsi_hba *phba)
 {
 	struct iscsi_boot_kobj *boot_kobj;
 
+	/* it has been created previously */
+	if (phba->boot_kset)
+		return 0;
+
 	/* get boot info using mgmt cmd */
 	if (beiscsi_get_boot_info(phba))
 		/* Try to see if we can carry on without this */
@@ -5335,6 +5339,14 @@ static void be_eqd_update(struct beiscsi_hba *phba)
 	}
 }
 
+static void be_check_boot_session(struct beiscsi_hba *phba)
+{
+	if (beiscsi_setup_boot_info(phba))
+		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT,
+			    "BM_%d : Could not set up "
+			    "iSCSI boot info on async event.\n");
+}
+
 /*
  * beiscsi_hw_health_check()- Check adapter health
  * @work: work item to check HW health
@@ -5349,6 +5361,11 @@ beiscsi_hw_health_check(struct work_struct *work)
 			     beiscsi_hw_check_task.work);
 
 	be_eqd_update(phba);
+
+	if (phba->state & BE_ADAPTER_CHECK_BOOT) {
+		phba->state &= ~BE_ADAPTER_CHECK_BOOT;
+		be_check_boot_session(phba);
+	}
 
 	beiscsi_ue_detect(phba);
 

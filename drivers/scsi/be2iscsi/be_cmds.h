@@ -118,6 +118,14 @@ struct be_mcc_compl {
 #define ASYNC_TRAILER_EVENT_CODE_SHIFT	8	/* bits 8 - 15 */
 #define ASYNC_TRAILER_EVENT_CODE_MASK	0xFF
 #define ASYNC_EVENT_CODE_LINK_STATE	0x1
+#define ASYNC_EVENT_CODE_ISCSI		0x4
+
+#define ASYNC_TRAILER_EVENT_TYPE_SHIFT	16	/* bits 16 - 23 */
+#define ASYNC_TRAILER_EVENT_TYPE_MASK	0xF
+#define ASYNC_EVENT_NEW_ISCSI_TGT_DISC	0x4
+#define ASYNC_EVENT_NEW_ISCSI_CONN	0x5
+#define ASYNC_EVENT_NEW_TCP_CONN	0x7
+
 struct be_async_event_trailer {
 	u32 code;
 };
