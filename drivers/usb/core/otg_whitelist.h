@@ -17,34 +17,61 @@
  */
 
 static struct usb_device_id whitelist_table [] = {
-
-/* hubs are optional in OTG, but very handy ... */
-{ USB_DEVICE_INFO(USB_CLASS_HUB, 0, 0), },
-{ USB_DEVICE_INFO(USB_CLASS_HUB, 0, 1), },
-
-#ifdef	CONFIG_USB_PRINTER		/* ignoring nonstatic linkage! */
-/* FIXME actually, printers are NOT supposed to use device classes;
- * they're supposed to use interface classes...
- */
-{ USB_DEVICE_INFO(7, 1, 1) },
-{ USB_DEVICE_INFO(7, 1, 2) },
-{ USB_DEVICE_INFO(7, 1, 3) },
+/* Add FSL i.mx whitelist, the default list is for USB Compliance Test */
+#if defined(CONFIG_USB_EHSET_TEST_FIXTURE)	\
+	|| defined(CONFIG_USB_EHSET_TEST_FIXTURE_MODULE)
+#define TEST_SE0_NAK_PID			0x0101
+#define TEST_J_PID				0x0102
+#define TEST_K_PID				0x0103
+#define TEST_PACKET_PID				0x0104
+#define TEST_HS_HOST_PORT_SUSPEND_RESUME	0x0106
+#define TEST_SINGLE_STEP_GET_DEV_DESC		0x0107
+#define TEST_SINGLE_STEP_SET_FEATURE		0x0108
+{ USB_DEVICE(0x1a0a, TEST_SE0_NAK_PID) },
+{ USB_DEVICE(0x1a0a, TEST_J_PID) },
+{ USB_DEVICE(0x1a0a, TEST_K_PID) },
+{ USB_DEVICE(0x1a0a, TEST_PACKET_PID) },
+{ USB_DEVICE(0x1a0a, TEST_HS_HOST_PORT_SUSPEND_RESUME) },
+{ USB_DEVICE(0x1a0a, TEST_SINGLE_STEP_GET_DEV_DESC) },
+{ USB_DEVICE(0x1a0a, TEST_SINGLE_STEP_SET_FEATURE) },
 #endif
 
-#ifdef	CONFIG_USB_NET_CDCETHER
-/* Linux-USB CDC Ethernet gadget */
-{ USB_DEVICE(0x0525, 0xa4a1), },
-/* Linux-USB CDC Ethernet + RNDIS gadget */
-{ USB_DEVICE(0x0525, 0xa4a2), },
-#endif
+#define USB_INTERFACE_CLASS_INFO(cl) \
+	.match_flags = USB_DEVICE_ID_MATCH_INT_CLASS, \
+	.bInterfaceClass = (cl)
 
-#if	defined(CONFIG_USB_TEST) || defined(CONFIG_USB_TEST_MODULE)
-/* gadget zero, for testing */
-{ USB_DEVICE(0x0525, 0xa4a0), },
+{USB_INTERFACE_CLASS_INFO(USB_CLASS_HUB) },
+#if defined(CONFIG_USB_STORAGE) || defined(CONFIG_USB_STORAGE_MODULE)
+{USB_INTERFACE_CLASS_INFO(USB_CLASS_MASS_STORAGE) },
+#endif
+#if defined(CONFIG_USB_HID) || defined(CONFIG_USB_HID_MODULE)
+{USB_INTERFACE_CLASS_INFO(USB_CLASS_HID) },
 #endif
 
 { }	/* Terminating entry */
 };
+
+static bool match_int_class(struct usb_device_id *id, struct usb_device *udev)
+{
+	struct usb_host_config *c;
+	int num_configs, i;
+
+	/* Copy the code from generic.c */
+	c = udev->config;
+	num_configs = udev->descriptor.bNumConfigurations;
+	for (i = 0; i < num_configs; (i++, c++)) {
+		struct usb_interface_descriptor	*desc = NULL;
+
+		/* It's possible that a config has no interfaces! */
+		if (c->desc.bNumInterfaces > 0)
+			desc = &c->intf_cache[0]->altsetting->desc;
+
+		if (desc && (desc->bInterfaceClass == id->bInterfaceClass))
+			return true;
+	}
+
+	return false;
+}
 
 static int is_targeted(struct usb_device *dev)
 {
@@ -92,6 +119,10 @@ static int is_targeted(struct usb_device *dev)
 
 		if ((id->match_flags & USB_DEVICE_ID_MATCH_DEV_PROTOCOL) &&
 		    (id->bDeviceProtocol != dev->descriptor.bDeviceProtocol))
+			continue;
+
+		if ((id->match_flags & USB_DEVICE_ID_MATCH_INT_CLASS) &&
+		    (!match_int_class(id, dev)))
 			continue;
 
 		return 1;
