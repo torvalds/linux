@@ -87,7 +87,7 @@ static struct kobj_type nilfs_##name##_ktype = { \
 };
 
 #define NILFS_DEV_INT_GROUP_FNS(name, parent_name) \
-int nilfs_sysfs_create_##name##_group(struct the_nilfs *nilfs) \
+static int nilfs_sysfs_create_##name##_group(struct the_nilfs *nilfs) \
 { \
 	struct kobject *parent; \
 	struct kobject *kobj; \
@@ -106,7 +106,7 @@ int nilfs_sysfs_create_##name##_group(struct the_nilfs *nilfs) \
 		return err; \
 	return 0; \
 } \
-void nilfs_sysfs_delete_##name##_group(struct the_nilfs *nilfs) \
+static void nilfs_sysfs_delete_##name##_group(struct the_nilfs *nilfs) \
 { \
 	kobject_del(&nilfs->ns_##parent_name##_subgroups->sg_##name##_kobj); \
 }
