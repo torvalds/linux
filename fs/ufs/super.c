@@ -65,7 +65,6 @@
  * Evgeniy Dushistov <dushistov@mail.ru>, 2007
  */
 
-
 #include <linux/exportfs.h>
 #include <linux/module.h>
 #include <linux/bitops.h>
@@ -310,13 +309,13 @@ void ufs_error (struct super_block * sb, const char * function,
 	va_end (args);
 	switch (UFS_SB(sb)->s_mount_opt & UFS_MOUNT_ONERROR) {
 	case UFS_MOUNT_ONERROR_PANIC:
-		panic ("UFS-fs panic (device %s): %s: %s\n", 
+		panic("panic (device %s): %s: %s\n",
 			sb->s_id, function, error_buf);
 
 	case UFS_MOUNT_ONERROR_LOCK:
 	case UFS_MOUNT_ONERROR_UMOUNT:
 	case UFS_MOUNT_ONERROR_REPAIR:
-		pr_crit("UFS-fs error (device %s): %s: %s\n",
+		pr_crit("error (device %s): %s: %s\n",
 			sb->s_id, function, error_buf);
 	}		
 }
@@ -340,7 +339,7 @@ void ufs_panic (struct super_block * sb, const char * function,
 	vsnprintf (error_buf, sizeof(error_buf), fmt, args);
 	va_end (args);
 	sb->s_flags |= MS_RDONLY;
-	pr_crit("UFS-fs panic (device %s): %s: %s\n",
+	pr_crit("panic (device %s): %s: %s\n",
 		sb->s_id, function, error_buf);
 }
 
@@ -352,7 +351,7 @@ void ufs_warning (struct super_block * sb, const char * function,
 	va_start (args, fmt);
 	vsnprintf (error_buf, sizeof(error_buf), fmt, args);
 	va_end (args);
-	pr_warn("UFS-fs warning (device %s): %s: %s\n",
+	pr_warn("warning (device %s): %s: %s\n",
 		sb->s_id, function, error_buf);
 }
 
@@ -464,12 +463,12 @@ static int ufs_parse_options (char * options, unsigned * mount_options)
 			ufs_set_opt (*mount_options, ONERROR_UMOUNT);
 			break;
 		case Opt_onerror_repair:
-			pr_err("UFS-fs: Unable to do repair on error, will lock lock instead\n");
+			pr_err("Unable to do repair on error, will lock lock instead\n");
 			ufs_clear_opt (*mount_options, ONERROR);
 			ufs_set_opt (*mount_options, ONERROR_REPAIR);
 			break;
 		default:
-			pr_err("UFS-fs: Invalid option: \"%s\" or missing value\n", p);
+			pr_err("Invalid option: \"%s\" or missing value\n", p);
 			return 0;
 		}
 	}
@@ -972,7 +971,7 @@ static int ufs_fill_super(struct super_block *sb, void *data, int silent)
 	
 again:	
 	if (!sb_set_blocksize(sb, block_size)) {
-		pr_err("UFS: failed to set blocksize\n");
+		pr_err("failed to set blocksize\n");
 		goto failed;
 	}
 
