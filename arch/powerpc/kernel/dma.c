@@ -40,6 +40,26 @@ void *dma_direct_alloc_coherent(struct device *dev, size_t size,
 #else
 	struct page *page;
 	int node = dev_to_node(dev);
+	u64 pfn = (dev->coherent_dma_mask >> PAGE_SHIFT) + 1;
+	int zone;
+
+	zone = dma_pfn_limit_to_zone(pfn);
+	if (zone < 0) {
+		dev_err(dev, "%s: No suitable zone for pfn %#llx\n",
+			__func__, pfn);
+		return NULL;
+	}
+
+	switch (zone) {
+	case ZONE_DMA:
+		flag |= GFP_DMA;
+		break;
+#ifdef CONFIG_ZONE_DMA32
+	case ZONE_DMA32:
+		flag |= GFP_DMA32;
+		break;
+#endif
+	};
 
 	/* ignore region specifiers */
 	flag  &= ~(__GFP_HIGHMEM);
