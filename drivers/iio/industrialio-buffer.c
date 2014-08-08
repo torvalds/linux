@@ -951,7 +951,7 @@ static int iio_buffer_add_demux(struct iio_buffer *buffer,
 		(*p)->to + (*p)->length == out_loc) {
 		(*p)->length += length;
 	} else {
-		*p = kmalloc(sizeof(*p), GFP_KERNEL);
+		*p = kmalloc(sizeof(**p), GFP_KERNEL);
 		if (*p == NULL)
 			return -ENOMEM;
 		(*p)->from = in_loc;
