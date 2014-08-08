@@ -1092,7 +1092,7 @@ When kbuild executes, the following steps are followed (roughly):
 
 	Usage:
 		target: source(s) FORCE
-			$(call if_changed,ld/objcopy/gzip)
+			$(call if_changed,ld/objcopy/gzip/...)
 
 	When the rule is evaluated, it is checked to see if any files
 	need an update, or the command line has changed since the last
@@ -1110,7 +1110,7 @@ When kbuild executes, the following steps are followed (roughly):
 	significant; for instance, the below will fail (note the extra space
 	after the comma):
 		target: source(s) FORCE
-	#WRONG!#	$(call if_changed, ld/objcopy/gzip)
+	#WRONG!#	$(call if_changed, ld/objcopy/gzip/...)
 
     ld
 	Link target. Often, LDFLAGS_$@ is used to set specific options to ld.
@@ -1142,7 +1142,7 @@ When kbuild executes, the following steps are followed (roughly):
 
 	The ": %: %.o" part of the prerequisite is a shorthand that
 	free us from listing the setup.o and bootsect.o files.
-	Note: It is a common mistake to forget the "target :=" assignment,
+	Note: It is a common mistake to forget the "targets :=" assignment,
 	      resulting in the target file being recompiled for no
 	      obvious reason.
 
