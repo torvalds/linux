@@ -480,8 +480,11 @@ try_again:
 
 	/* lock each request in the page group */
 	ret = nfs_page_group_lock(head, true);
-	if (ret < 0)
+	if (ret < 0) {
+		spin_unlock(&inode->i_lock);
+		nfs_release_request(head);
 		return ERR_PTR(ret);
+	}
 	subreq = head;
 	do {
 		/*
