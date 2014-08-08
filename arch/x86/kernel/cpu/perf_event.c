@@ -387,7 +387,7 @@ int x86_pmu_hw_config(struct perf_event *event)
 			precise++;
 
 			/* Support for IP fixup */
-			if (x86_pmu.lbr_nr)
+			if (x86_pmu.lbr_nr || x86_pmu.intel_cap.pebs_format >= 2)
 				precise++;
 		}
 
