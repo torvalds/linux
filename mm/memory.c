@@ -3430,44 +3430,6 @@ int __pmd_alloc(struct mm_struct *mm, pud_t *pud, unsigned long address)
 }
 #endif /* __PAGETABLE_PMD_FOLDED */
 
-#if !defined(__HAVE_ARCH_GATE_AREA)
-
-#if defined(AT_SYSINFO_EHDR)
-static struct vm_area_struct gate_vma;
-
-static int __init gate_vma_init(void)
-{
-	gate_vma.vm_mm = NULL;
-	gate_vma.vm_start = FIXADDR_USER_START;
-	gate_vma.vm_end = FIXADDR_USER_END;
-	gate_vma.vm_flags = VM_READ | VM_MAYREAD | VM_EXEC | VM_MAYEXEC;
-	gate_vma.vm_page_prot = __P101;
-
-	return 0;
-}
-__initcall(gate_vma_init);
-#endif
-
-struct vm_area_struct *get_gate_vma(struct mm_struct *mm)
-{
-#ifdef AT_SYSINFO_EHDR
-	return &gate_vma;
-#else
-	return NULL;
-#endif
-}
-
-int in_gate_area_no_mm(unsigned long addr)
-{
-#ifdef AT_SYSINFO_EHDR
-	if ((addr >= FIXADDR_USER_START) && (addr < FIXADDR_USER_END))
-		return 1;
-#endif
-	return 0;
-}
-
-#endif	/* __HAVE_ARCH_GATE_AREA */
-
 static int __follow_pte(struct mm_struct *mm, unsigned long address,
 		pte_t **ptepp, spinlock_t **ptlp)
 {
