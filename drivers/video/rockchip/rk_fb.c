@@ -49,8 +49,7 @@
 
 #if defined(CONFIG_ION_ROCKCHIP)
 #include <linux/rockchip_ion.h>
-#include <linux/rockchip/iovmm.h>
-#include <linux/rockchip/sysmmu.h>
+#include <linux/rockchip-iovmm.h>
 #include <linux/dma-buf.h>
 #include <linux/highmem.h>
 #endif
@@ -3668,7 +3667,7 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 			    rk_fb_get_sysmmu_device_by_compatible(dev_drv->mmu_dts_name);
 			if (mmu_dev) {
 				rk_fb_platform_set_sysmmu(mmu_dev, dev_drv->dev);
-				rockchip_sysmmu_set_fault_handler(dev_drv->dev,
+				rockchip_iovmm_set_fault_handler(dev_drv->dev,
 								  rk_fb_sysmmu_fault_handler);
 				rockchip_iovmm_activate(dev_drv->dev);
 			} else

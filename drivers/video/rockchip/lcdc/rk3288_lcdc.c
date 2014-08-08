@@ -26,6 +26,7 @@
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
+#include <linux/rockchip-iovmm.h>
 #include <asm/div64.h>
 #include <asm/uaccess.h>
 #include <linux/rockchip/cpu.h>
@@ -3611,9 +3612,9 @@ static int rk3288_lcdc_probe(struct platform_device *pdev)
 
 	if (dev_drv->iommu_enabled) {
 		if(lcdc_dev->id == 0){
-			strcpy(dev_drv->mmu_dts_name, "iommu,vopb_mmu");
+			strcpy(dev_drv->mmu_dts_name, VOPB_IOMMU_COMPATIBLE_NAME);
 		}else{
-			strcpy(dev_drv->mmu_dts_name, "iommu,vopl_mmu");
+			strcpy(dev_drv->mmu_dts_name, VOPL_IOMMU_COMPATIBLE_NAME);
 		}
 	}
 
