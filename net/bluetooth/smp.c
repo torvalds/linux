@@ -1206,7 +1206,7 @@ int smp_sig_channel(struct l2cap_conn *conn, struct sk_buff *skb)
 	 * returns an error).
 	 */
 	if (code != SMP_CMD_PAIRING_REQ && code != SMP_CMD_SECURITY_REQ &&
-	    !conn->smp_chan) {
+	    !test_bit(HCI_CONN_LE_SMP_PEND, &hcon->flags)) {
 		BT_ERR("Unexpected SMP command 0x%02x. Disconnecting.", code);
 		kfree_skb(skb);
 		return -EOPNOTSUPP;
