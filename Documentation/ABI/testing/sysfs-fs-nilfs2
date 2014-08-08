@@ -1,0 +1,14 @@
+
+What:		/sys/fs/nilfs2/features/revision
+Date:		April 2014
+Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
+Description:
+		Show current revision of NILFS file system driver.
+		This value informs about file system revision that
+		driver is ready to support.
+
+What:		/sys/fs/nilfs2/features/README
+Date:		April 2014
+Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
+Description:
+		Describe attributes of /sys/fs/nilfs2/features group.
