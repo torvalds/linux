@@ -1651,11 +1651,6 @@ static void l2cap_conn_del(struct hci_conn *hcon, int err)
 	if (conn->info_state & L2CAP_INFO_FEAT_MASK_REQ_SENT)
 		cancel_delayed_work_sync(&conn->info_timer);
 
-	if (test_and_clear_bit(HCI_CONN_LE_SMP_PEND, &hcon->flags)) {
-		cancel_delayed_work_sync(&conn->security_timer);
-		smp_chan_destroy(conn);
-	}
-
 	hcon->l2cap_data = NULL;
 	conn->hchan = NULL;
 	l2cap_conn_put(conn);
@@ -6860,11 +6855,6 @@ static void l2cap_recv_frame(struct l2cap_conn *conn, struct sk_buff *skb)
 
 	case L2CAP_CID_LE_SIGNALING:
 		l2cap_le_sig_channel(conn, skb);
-		break;
-
-	case L2CAP_CID_SMP:
-		if (smp_sig_channel(conn, skb))
-			l2cap_conn_del(conn->hcon, EACCES);
 		break;
 
 	default:

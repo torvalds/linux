@@ -636,7 +636,6 @@ struct l2cap_conn {
 	__u8			disc_reason;
 
 	struct delayed_work	security_timer;
-	struct smp_chan		*smp_chan;
 	struct l2cap_chan	*smp;
 
 	struct list_head	chan_l;
