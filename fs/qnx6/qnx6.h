@@ -25,12 +25,6 @@ typedef __u64 __bitwise __fs64;
 
 #include <linux/qnx6_fs.h>
 
-#ifdef CONFIG_QNX6FS_DEBUG
-#define QNX6DEBUG(X) printk X
-#else
-#define QNX6DEBUG(X) (void) 0
-#endif
-
 struct qnx6_sb_info {
 	struct buffer_head	*sb_buf;	/* superblock buffer */
 	struct qnx6_super_block	*sb;		/* our superblock */

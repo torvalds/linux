@@ -73,8 +73,8 @@ static int qnx6_get_block(struct inode *inode, sector_t iblock,
 {
 	unsigned phys;
 
-	QNX6DEBUG((KERN_INFO "qnx6: qnx6_get_block inode=[%ld] iblock=[%ld]\n",
-			inode->i_ino, (unsigned long)iblock));
+	pr_debug("qnx6_get_block inode=[%ld] iblock=[%ld]\n",
+		 inode->i_ino, (unsigned long)iblock);
 
 	phys = qnx6_block_map(inode, iblock);
 	if (phys) {
@@ -205,26 +205,16 @@ void qnx6_superblock_debug(struct qnx6_super_block *sb, struct super_block *s)
 {
 	struct qnx6_sb_info *sbi = QNX6_SB(s);
 
-	QNX6DEBUG((KERN_INFO "magic: %08x\n",
-				fs32_to_cpu(sbi, sb->sb_magic)));
-	QNX6DEBUG((KERN_INFO "checksum: %08x\n",
-				fs32_to_cpu(sbi, sb->sb_checksum)));
-	QNX6DEBUG((KERN_INFO "serial: %llx\n",
-				fs64_to_cpu(sbi, sb->sb_serial)));
-	QNX6DEBUG((KERN_INFO "flags: %08x\n",
-				fs32_to_cpu(sbi, sb->sb_flags)));
-	QNX6DEBUG((KERN_INFO "blocksize: %08x\n",
-				fs32_to_cpu(sbi, sb->sb_blocksize)));
-	QNX6DEBUG((KERN_INFO "num_inodes: %08x\n",
-				fs32_to_cpu(sbi, sb->sb_num_inodes)));
-	QNX6DEBUG((KERN_INFO "free_inodes: %08x\n",
-				fs32_to_cpu(sbi, sb->sb_free_inodes)));
-	QNX6DEBUG((KERN_INFO "num_blocks: %08x\n",
-				fs32_to_cpu(sbi, sb->sb_num_blocks)));
-	QNX6DEBUG((KERN_INFO "free_blocks: %08x\n",
-				fs32_to_cpu(sbi, sb->sb_free_blocks)));
-	QNX6DEBUG((KERN_INFO "inode_levels: %02x\n",
-				sb->Inode.levels));
+	pr_debug("magic: %08x\n", fs32_to_cpu(sbi, sb->sb_magic));
+	pr_debug("checksum: %08x\n", fs32_to_cpu(sbi, sb->sb_checksum));
+	pr_debug("serial: %llx\n", fs64_to_cpu(sbi, sb->sb_serial));
+	pr_debug("flags: %08x\n", fs32_to_cpu(sbi, sb->sb_flags));
+	pr_debug("blocksize: %08x\n", fs32_to_cpu(sbi, sb->sb_blocksize));
+	pr_debug("num_inodes: %08x\n", fs32_to_cpu(sbi, sb->sb_num_inodes));
+	pr_debug("free_inodes: %08x\n", fs32_to_cpu(sbi, sb->sb_free_inodes));
+	pr_debug("num_blocks: %08x\n", fs32_to_cpu(sbi, sb->sb_num_blocks));
+	pr_debug("free_blocks: %08x\n", fs32_to_cpu(sbi, sb->sb_free_blocks));
+	pr_debug("inode_levels: %02x\n", sb->Inode.levels);
 }
 #endif
 
@@ -283,8 +273,7 @@ static struct buffer_head *qnx6_check_first_superblock(struct super_block *s,
 		sbi->s_bytesex = BYTESEX_BE;
 		if (fs32_to_cpu(sbi, sb->sb_magic) == QNX6_SUPER_MAGIC) {
 			/* we got a big endian fs */
-			QNX6DEBUG((KERN_INFO "qnx6: fs got different"
-					" endianness.\n"));
+			pr_debug("fs got different endianness.\n");
 			return bh;
 		} else
 			sbi->s_bytesex = BYTESEX_LE;
