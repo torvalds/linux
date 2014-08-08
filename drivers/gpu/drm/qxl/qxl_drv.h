@@ -530,6 +530,18 @@ int qxl_garbage_collect(struct qxl_device *qdev);
 int qxl_debugfs_init(struct drm_minor *minor);
 void qxl_debugfs_takedown(struct drm_minor *minor);
 
+/* qxl_prime.c */
+int qxl_gem_prime_pin(struct drm_gem_object *obj);
+void qxl_gem_prime_unpin(struct drm_gem_object *obj);
+struct sg_table *qxl_gem_prime_get_sg_table(struct drm_gem_object *obj);
+struct drm_gem_object *qxl_gem_prime_import_sg_table(
+	struct drm_device *dev, size_t size,
+	struct sg_table *sgt);
+void *qxl_gem_prime_vmap(struct drm_gem_object *obj);
+void qxl_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr);
+int qxl_gem_prime_mmap(struct drm_gem_object *obj,
+				struct vm_area_struct *vma);
+
 /* qxl_irq.c */
 int qxl_irq_init(struct qxl_device *qdev);
 irqreturn_t qxl_irq_handler(int irq, void *arg);
