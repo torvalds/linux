@@ -27,7 +27,7 @@
 
 #include "internal.h"
 
-DEFINE_SPINLOCK(proc_subdir_lock);
+static DEFINE_SPINLOCK(proc_subdir_lock);
 
 static int proc_match(unsigned int len, const char *name, struct proc_dir_entry *de)
 {
