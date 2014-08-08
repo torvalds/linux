@@ -1,2 +1,4 @@
+fuse_mnt
+fuse_test
 memfd_test
 memfd-test-file
