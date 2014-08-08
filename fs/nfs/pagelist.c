@@ -168,6 +168,23 @@ nfs_page_group_lock(struct nfs_page *req, bool nonblock)
 }
 
 /*
+ * nfs_page_group_lock_wait - wait for the lock to clear, but don't grab it
+ * @req - a request in the group
+ *
+ * This is a blocking call to wait for the group lock to be cleared.
+ */
+void
+nfs_page_group_lock_wait(struct nfs_page *req)
+{
+	struct nfs_page *head = req->wb_head;
+
+	WARN_ON_ONCE(head != head->wb_head);
+
+	wait_on_bit(&head->wb_flags, PG_HEADLOCK,
+		TASK_UNINTERRUPTIBLE);
+}
+
+/*
  * nfs_page_group_unlock - unlock the head of the page group
  * @req - request in group that is to be unlocked
  */

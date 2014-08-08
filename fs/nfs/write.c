@@ -478,13 +478,23 @@ try_again:
 		return NULL;
 	}
 
-	/* lock each request in the page group */
+	/* holding inode lock, so always make a non-blocking call to try the
+	 * page group lock */
 	ret = nfs_page_group_lock(head, true);
 	if (ret < 0) {
 		spin_unlock(&inode->i_lock);
+
+		if (!nonblock && ret == -EAGAIN) {
+			nfs_page_group_lock_wait(head);
+			nfs_release_request(head);
+			goto try_again;
+		}
+
 		nfs_release_request(head);
 		return ERR_PTR(ret);
 	}
+
+	/* lock each request in the page group */
 	subreq = head;
 	do {
 		/*
