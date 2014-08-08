@@ -399,7 +399,7 @@ static irqreturn_t rk3x_i2c_irq(int irqno, void *dev_id)
 	}
 
 	/* is there anything left to handle? */
-	if (unlikely(ipd == 0))
+	if (unlikely((ipd & REG_INT_ALL) == 0))
 		goto out;
 
 	switch (i2c->state) {
