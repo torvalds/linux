@@ -868,7 +868,7 @@ static int ufs_fill_super(struct super_block *sb, void *data, int silent)
 		break;
 
 	case UFS_MOUNT_UFSTYPE_SUNOS:
-		UFSD(("ufstype=sunos\n"))
+		UFSD("ufstype=sunos\n");
 		uspi->s_fsize = block_size = 1024;
 		uspi->s_fmask = ~(1024 - 1);
 		uspi->s_fshift = 10;
