@@ -126,7 +126,7 @@ int drm_fb_helper_add_one_connector(struct drm_fb_helper *fb_helper, struct drm_
 
 	WARN_ON(!mutex_is_locked(&fb_helper->dev->mode_config.mutex));
 	if (fb_helper->connector_count + 1 > fb_helper->connector_info_alloc_count) {
-		temp = krealloc(fb_helper->connector_info, sizeof(struct drm_fb_helper_connector) * (fb_helper->connector_count + 1), GFP_KERNEL);
+		temp = krealloc(fb_helper->connector_info, sizeof(struct drm_fb_helper_connector *) * (fb_helper->connector_count + 1), GFP_KERNEL);
 		if (!temp)
 			return -ENOMEM;
 
