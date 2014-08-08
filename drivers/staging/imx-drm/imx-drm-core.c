@@ -202,7 +202,7 @@ static const struct file_operations imx_drm_driver_fops = {
 
 void imx_drm_connector_destroy(struct drm_connector *connector)
 {
-	drm_sysfs_connector_remove(connector);
+	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
 }
 EXPORT_SYMBOL_GPL(imx_drm_connector_destroy);
@@ -293,10 +293,10 @@ static int imx_drm_driver_load(struct drm_device *drm, unsigned long flags)
 	 * userspace will expect to be able to access DRM at this point.
 	 */
 	list_for_each_entry(connector, &drm->mode_config.connector_list, head) {
-		ret = drm_sysfs_connector_add(connector);
+		ret = drm_connector_register(connector);
 		if (ret) {
 			dev_err(drm->dev,
-				"[CONNECTOR:%d:%s] drm_sysfs_connector_add failed: %d\n",
+				"[CONNECTOR:%d:%s] drm_connector_register failed: %d\n",
 				connector->base.id,
 				connector->name, ret);
 			goto err_unbind;

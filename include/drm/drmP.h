@@ -152,8 +152,6 @@ int drm_err(const char *func, const char *format, ...);
 				     also include looping detection. */
 
 #define DRM_MAGIC_HASH_ORDER  4  /**< Size of key hash table. Must be power of 2. */
-#define DRM_KERNEL_CONTEXT    0	 /**< Change drm_resctx if changed */
-#define DRM_RESERVED_CONTEXTS 1	 /**< Change drm_resctx if changed */
 
 #define DRM_MAP_HASH_OFFSET 0x10000000
 
@@ -347,18 +345,6 @@ struct drm_waitlist {
 	spinlock_t write_lock;
 };
 
-struct drm_freelist {
-	int initialized;	       /**< Freelist in use */
-	atomic_t count;		       /**< Number of free buffers */
-	struct drm_buf *next;	       /**< End pointer */
-
-	wait_queue_head_t waiting;     /**< Processes waiting on free bufs */
-	int low_mark;		       /**< Low water mark */
-	int high_mark;		       /**< High water mark */
-	atomic_t wfh;		       /**< If waiting for high mark */
-	spinlock_t lock;
-};
-
 typedef struct drm_dma_handle {
 	dma_addr_t busaddr;
 	void *vaddr;
@@ -376,7 +362,8 @@ struct drm_buf_entry {
 	int page_order;
 	struct drm_dma_handle **seglist;
 
-	struct drm_freelist freelist;
+	int low_mark;			/**< Low water mark */
+	int high_mark;			/**< High water mark */
 };
 
 /* Event queued up for userspace to read */
@@ -397,7 +384,6 @@ struct drm_prime_file_private {
 
 /** File private data */
 struct drm_file {
-	unsigned always_authenticated :1;
 	unsigned authenticated :1;
 	/* Whether we're master for a minor. Protected by master_mutex */
 	unsigned is_master :1;
@@ -440,23 +426,6 @@ struct drm_file {
 	int event_space;
 
 	struct drm_prime_file_private prime;
-};
-
-/** Wait queue */
-struct drm_queue {
-	atomic_t use_count;		/**< Outstanding uses (+1) */
-	atomic_t finalization;		/**< Finalization in progress */
-	atomic_t block_count;		/**< Count of processes waiting */
-	atomic_t block_read;		/**< Queue blocked for reads */
-	wait_queue_head_t read_queue;	/**< Processes waiting on block_read */
-	atomic_t block_write;		/**< Queue blocked for writes */
-	wait_queue_head_t write_queue;	/**< Processes waiting on block_write */
-	atomic_t total_queued;		/**< Total queued statistic */
-	atomic_t total_flushed;		/**< Total flushes statistic */
-	atomic_t total_locks;		/**< Total locks statistics */
-	enum drm_ctx_flags flags;	/**< Context preserving and 2D-only */
-	struct drm_waitlist waitlist;	/**< Pending buffers */
-	wait_queue_head_t flush_queue;	/**< Processes waiting until flush */
 };
 
 /**
@@ -565,15 +534,6 @@ struct drm_map_list {
 	struct drm_local_map *map;	/**< mapping */
 	uint64_t user_token;
 	struct drm_master *master;
-};
-
-/**
- * Context handle list
- */
-struct drm_ctx_list {
-	struct list_head head;		/**< list head */
-	drm_context_t handle;		/**< context handle */
-	struct drm_file *tag;		/**< associated fd private data */
 };
 
 /* location of GART table */
@@ -1218,7 +1178,6 @@ extern bool drm_ioctl_flags(unsigned int nr, unsigned int *flags);
 				/* Device support (drm_fops.h) */
 extern struct mutex drm_global_mutex;
 extern int drm_open(struct inode *inode, struct file *filp);
-extern int drm_stub_open(struct inode *inode, struct file *filp);
 extern ssize_t drm_read(struct file *filp, char __user *buffer,
 			size_t count, loff_t *offset);
 extern int drm_release(struct inode *inode, struct file *filp);
@@ -1255,29 +1214,6 @@ extern int drm_setversion(struct drm_device *dev, void *data,
 			  struct drm_file *file_priv);
 extern int drm_noop(struct drm_device *dev, void *data,
 		    struct drm_file *file_priv);
-
-				/* Context IOCTL support (drm_context.h) */
-extern int drm_resctx(struct drm_device *dev, void *data,
-		      struct drm_file *file_priv);
-extern int drm_addctx(struct drm_device *dev, void *data,
-		      struct drm_file *file_priv);
-extern int drm_getctx(struct drm_device *dev, void *data,
-		      struct drm_file *file_priv);
-extern int drm_switchctx(struct drm_device *dev, void *data,
-			 struct drm_file *file_priv);
-extern int drm_newctx(struct drm_device *dev, void *data,
-		      struct drm_file *file_priv);
-extern int drm_rmctx(struct drm_device *dev, void *data,
-		     struct drm_file *file_priv);
-
-extern int drm_ctxbitmap_init(struct drm_device *dev);
-extern void drm_ctxbitmap_cleanup(struct drm_device *dev);
-extern void drm_ctxbitmap_free(struct drm_device *dev, int ctx_handle);
-
-extern int drm_setsareactx(struct drm_device *dev, void *data,
-			   struct drm_file *file_priv);
-extern int drm_getsareactx(struct drm_device *dev, void *data,
-			   struct drm_file *file_priv);
 
 				/* Authentication IOCTL support (drm_auth.h) */
 extern int drm_getmagic(struct drm_device *dev, void *data,
@@ -1398,17 +1334,12 @@ extern void drm_master_put(struct drm_master **master);
 extern void drm_put_dev(struct drm_device *dev);
 extern void drm_unplug_dev(struct drm_device *dev);
 extern unsigned int drm_debug;
-extern unsigned int drm_rnodes;
-extern unsigned int drm_universal_planes;
 
 extern unsigned int drm_vblank_offdelay;
 extern unsigned int drm_timestamp_precision;
 extern unsigned int drm_timestamp_monotonic;
 
 extern struct class *drm_class;
-extern struct dentry *drm_debugfs_root;
-
-extern struct idr drm_minors_idr;
 
 extern struct drm_local_map *drm_getsarea(struct drm_device *dev);
 
@@ -1422,6 +1353,8 @@ extern int drm_debugfs_create_files(const struct drm_info_list *files,
 extern int drm_debugfs_remove_files(const struct drm_info_list *files,
 				    int count, struct drm_minor *minor);
 extern int drm_debugfs_cleanup(struct drm_minor *minor);
+extern int drm_debugfs_connector_add(struct drm_connector *connector);
+extern void drm_debugfs_connector_remove(struct drm_connector *connector);
 #else
 static inline int drm_debugfs_init(struct drm_minor *minor, int minor_id,
 				   struct dentry *root)
@@ -1446,6 +1379,15 @@ static inline int drm_debugfs_cleanup(struct drm_minor *minor)
 {
 	return 0;
 }
+
+static inline int drm_debugfs_connector_add(struct drm_connector *connector)
+{
+	return 0;
+}
+static inline void drm_debugfs_connector_remove(struct drm_connector *connector)
+{
+}
+
 #endif
 
 				/* Info file support */
@@ -1515,9 +1457,8 @@ extern int drm_pci_set_unique(struct drm_device *dev,
 struct drm_sysfs_class;
 extern struct class *drm_sysfs_create(struct module *owner, char *name);
 extern void drm_sysfs_destroy(void);
-extern int drm_sysfs_device_add(struct drm_minor *minor);
+extern struct device *drm_sysfs_minor_alloc(struct drm_minor *minor);
 extern void drm_sysfs_hotplug_event(struct drm_device *dev);
-extern void drm_sysfs_device_remove(struct drm_minor *minor);
 extern int drm_sysfs_connector_add(struct drm_connector *connector);
 extern void drm_sysfs_connector_remove(struct drm_connector *connector);
 
@@ -1577,7 +1518,7 @@ void drm_gem_free_mmap_offset(struct drm_gem_object *obj);
 int drm_gem_create_mmap_offset(struct drm_gem_object *obj);
 int drm_gem_create_mmap_offset_size(struct drm_gem_object *obj, size_t size);
 
-struct page **drm_gem_get_pages(struct drm_gem_object *obj, gfp_t gfpmask);
+struct page **drm_gem_get_pages(struct drm_gem_object *obj);
 void drm_gem_put_pages(struct drm_gem_object *obj, struct page **pages,
 		bool dirty, bool accessed);
 

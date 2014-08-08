@@ -76,6 +76,7 @@ static void cirrus_pci_remove(struct pci_dev *pdev)
 	drm_put_dev(dev);
 }
 
+#ifdef CONFIG_PM_SLEEP
 static int cirrus_pm_suspend(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
@@ -110,6 +111,7 @@ static int cirrus_pm_resume(struct device *dev)
 	drm_kms_helper_poll_enable(drm_dev);
 	return 0;
 }
+#endif
 
 static const struct file_operations cirrus_driver_fops = {
 	.owner = THIS_MODULE,

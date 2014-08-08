@@ -32,17 +32,17 @@ struct msm_mmu_funcs {
 
 struct msm_mmu {
 	const struct msm_mmu_funcs *funcs;
-	struct drm_device *dev;
+	struct device *dev;
 };
 
-static inline void msm_mmu_init(struct msm_mmu *mmu, struct drm_device *dev,
+static inline void msm_mmu_init(struct msm_mmu *mmu, struct device *dev,
 		const struct msm_mmu_funcs *funcs)
 {
 	mmu->dev = dev;
 	mmu->funcs = funcs;
 }
 
-struct msm_mmu *msm_iommu_new(struct drm_device *dev, struct iommu_domain *domain);
-struct msm_mmu *msm_gpummu_new(struct drm_device *dev, struct msm_gpu *gpu);
+struct msm_mmu *msm_iommu_new(struct device *dev, struct iommu_domain *domain);
+struct msm_mmu *msm_gpummu_new(struct device *dev, struct msm_gpu *gpu);
 
 #endif /* __MSM_MMU_H__ */

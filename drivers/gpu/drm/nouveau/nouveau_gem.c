@@ -61,7 +61,7 @@ nouveau_gem_object_open(struct drm_gem_object *gem, struct drm_file *file_priv)
 	if (!cli->base.vm)
 		return 0;
 
-	ret = ttm_bo_reserve(&nvbo->bo, false, false, false, 0);
+	ret = ttm_bo_reserve(&nvbo->bo, false, false, false, NULL);
 	if (ret)
 		return ret;
 
@@ -132,7 +132,7 @@ nouveau_gem_object_close(struct drm_gem_object *gem, struct drm_file *file_priv)
 	if (!cli->base.vm)
 		return;
 
-	ret = ttm_bo_reserve(&nvbo->bo, false, false, false, 0);
+	ret = ttm_bo_reserve(&nvbo->bo, false, false, false, NULL);
 	if (ret)
 		return;
 

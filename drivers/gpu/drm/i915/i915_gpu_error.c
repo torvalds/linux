@@ -327,6 +327,7 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 	struct drm_device *dev = error_priv->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_error_state *error = error_priv->error;
+	struct drm_i915_error_object *obj;
 	int i, j, offset, elt;
 	int max_hangcheck_score;
 
@@ -395,8 +396,6 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 				    error->pinned_bo_count[0]);
 
 	for (i = 0; i < ARRAY_SIZE(error->ring); i++) {
-		struct drm_i915_error_object *obj;
-
 		obj = error->ring[i].batchbuffer;
 		if (obj) {
 			err_puts(m, dev_priv->ring[i].name);
@@ -456,6 +455,18 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 				   dev_priv->ring[i].name,
 				   obj->gtt_offset);
 			print_error_obj(m, obj);
+		}
+	}
+
+	if ((obj = error->semaphore_obj)) {
+		err_printf(m, "Semaphore page = 0x%08x\n", obj->gtt_offset);
+		for (elt = 0; elt < PAGE_SIZE/16; elt += 4) {
+			err_printf(m, "[%04x] %08x %08x %08x %08x\n",
+				   elt * 4,
+				   obj->pages[0][elt],
+				   obj->pages[0][elt+1],
+				   obj->pages[0][elt+2],
+				   obj->pages[0][elt+3]);
 		}
 	}
 
@@ -529,6 +540,7 @@ static void i915_error_state_free(struct kref *error_ref)
 		kfree(error->ring[i].requests);
 	}
 
+	i915_error_object_free(error->semaphore_obj);
 	kfree(error->active_bo);
 	kfree(error->overlay);
 	kfree(error->display);
@@ -746,7 +758,59 @@ static void i915_gem_record_fences(struct drm_device *dev,
 	}
 }
 
+
+static void gen8_record_semaphore_state(struct drm_i915_private *dev_priv,
+					struct drm_i915_error_state *error,
+					struct intel_engine_cs *ring,
+					struct drm_i915_error_ring *ering)
+{
+	struct intel_engine_cs *to;
+	int i;
+
+	if (!i915_semaphore_is_enabled(dev_priv->dev))
+		return;
+
+	if (!error->semaphore_obj)
+		error->semaphore_obj =
+			i915_error_object_create(dev_priv,
+						 dev_priv->semaphore_obj,
+						 &dev_priv->gtt.base);
+
+	for_each_ring(to, dev_priv, i) {
+		int idx;
+		u16 signal_offset;
+		u32 *tmp;
+
+		if (ring == to)
+			continue;
+
+		signal_offset = (GEN8_SIGNAL_OFFSET(ring, i) & PAGE_MASK) / 4;
+		tmp = error->semaphore_obj->pages[0];
+		idx = intel_ring_sync_index(ring, to);
+
+		ering->semaphore_mboxes[idx] = tmp[signal_offset];
+		ering->semaphore_seqno[idx] = ring->semaphore.sync_seqno[idx];
+	}
+}
+
+static void gen6_record_semaphore_state(struct drm_i915_private *dev_priv,
+					struct intel_engine_cs *ring,
+					struct drm_i915_error_ring *ering)
+{
+	ering->semaphore_mboxes[0] = I915_READ(RING_SYNC_0(ring->mmio_base));
+	ering->semaphore_mboxes[1] = I915_READ(RING_SYNC_1(ring->mmio_base));
+	ering->semaphore_seqno[0] = ring->semaphore.sync_seqno[0];
+	ering->semaphore_seqno[1] = ring->semaphore.sync_seqno[1];
+
+	if (HAS_VEBOX(dev_priv->dev)) {
+		ering->semaphore_mboxes[2] =
+			I915_READ(RING_SYNC_2(ring->mmio_base));
+		ering->semaphore_seqno[2] = ring->semaphore.sync_seqno[2];
+	}
+}
+
 static void i915_record_ring_state(struct drm_device *dev,
+				   struct drm_i915_error_state *error,
 				   struct intel_engine_cs *ring,
 				   struct drm_i915_error_ring *ering)
 {
@@ -755,18 +819,10 @@ static void i915_record_ring_state(struct drm_device *dev,
 	if (INTEL_INFO(dev)->gen >= 6) {
 		ering->rc_psmi = I915_READ(ring->mmio_base + 0x50);
 		ering->fault_reg = I915_READ(RING_FAULT_REG(ring));
-		ering->semaphore_mboxes[0]
-			= I915_READ(RING_SYNC_0(ring->mmio_base));
-		ering->semaphore_mboxes[1]
-			= I915_READ(RING_SYNC_1(ring->mmio_base));
-		ering->semaphore_seqno[0] = ring->semaphore.sync_seqno[0];
-		ering->semaphore_seqno[1] = ring->semaphore.sync_seqno[1];
-	}
-
-	if (HAS_VEBOX(dev)) {
-		ering->semaphore_mboxes[2] =
-			I915_READ(RING_SYNC_2(ring->mmio_base));
-		ering->semaphore_seqno[2] = ring->semaphore.sync_seqno[2];
+		if (INTEL_INFO(dev)->gen >= 8)
+			gen8_record_semaphore_state(dev_priv, error, ring, ering);
+		else
+			gen6_record_semaphore_state(dev_priv, ring, ering);
 	}
 
 	if (INTEL_INFO(dev)->gen >= 4) {
@@ -871,6 +927,9 @@ static void i915_gem_record_active_context(struct intel_engine_cs *ring,
 		return;
 
 	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list) {
+		if (!i915_gem_obj_ggtt_bound(obj))
+			continue;
+
 		if ((error->ccid & PAGE_MASK) == i915_gem_obj_ggtt_offset(obj)) {
 			ering->ctx = i915_error_ggtt_object_create(dev_priv, obj);
 			break;
@@ -895,7 +954,7 @@ static void i915_gem_record_rings(struct drm_device *dev,
 
 		error->ring[i].valid = true;
 
-		i915_record_ring_state(dev, ring, &error->ring[i]);
+		i915_record_ring_state(dev, error, ring, &error->ring[i]);
 
 		request = i915_gem_find_active_request(ring);
 		if (request) {

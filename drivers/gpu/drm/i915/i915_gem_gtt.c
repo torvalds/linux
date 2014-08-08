@@ -63,6 +63,13 @@ static int sanitize_enable_ppgtt(struct drm_device *dev, int enable_ppgtt)
 	}
 #endif
 
+	/* Early VLV doesn't have this */
+	if (IS_VALLEYVIEW(dev) && !IS_CHERRYVIEW(dev) &&
+	    dev->pdev->revision < 0xb) {
+		DRM_DEBUG_DRIVER("disabling PPGTT on pre-B3 step VLV\n");
+		return 0;
+	}
+
 	return HAS_ALIASING_PPGTT(dev) ? 1 : 0;
 }
 
@@ -110,7 +117,7 @@ static inline gen8_ppgtt_pde_t gen8_pde_encode(struct drm_device *dev,
 
 static gen6_gtt_pte_t snb_pte_encode(dma_addr_t addr,
 				     enum i915_cache_level level,
-				     bool valid)
+				     bool valid, u32 unused)
 {
 	gen6_gtt_pte_t pte = valid ? GEN6_PTE_VALID : 0;
 	pte |= GEN6_PTE_ADDR_ENCODE(addr);
@@ -132,7 +139,7 @@ static gen6_gtt_pte_t snb_pte_encode(dma_addr_t addr,
 
 static gen6_gtt_pte_t ivb_pte_encode(dma_addr_t addr,
 				     enum i915_cache_level level,
-				     bool valid)
+				     bool valid, u32 unused)
 {
 	gen6_gtt_pte_t pte = valid ? GEN6_PTE_VALID : 0;
 	pte |= GEN6_PTE_ADDR_ENCODE(addr);
@@ -156,7 +163,7 @@ static gen6_gtt_pte_t ivb_pte_encode(dma_addr_t addr,
 
 static gen6_gtt_pte_t byt_pte_encode(dma_addr_t addr,
 				     enum i915_cache_level level,
-				     bool valid)
+				     bool valid, u32 flags)
 {
 	gen6_gtt_pte_t pte = valid ? GEN6_PTE_VALID : 0;
 	pte |= GEN6_PTE_ADDR_ENCODE(addr);
@@ -164,7 +171,8 @@ static gen6_gtt_pte_t byt_pte_encode(dma_addr_t addr,
 	/* Mark the page as writeable.  Other platforms don't have a
 	 * setting for read-only/writable, so this matches that behavior.
 	 */
-	pte |= BYT_PTE_WRITEABLE;
+	if (!(flags & PTE_READ_ONLY))
+		pte |= BYT_PTE_WRITEABLE;
 
 	if (level != I915_CACHE_NONE)
 		pte |= BYT_PTE_SNOOPED_BY_CPU_CACHES;
@@ -174,7 +182,7 @@ static gen6_gtt_pte_t byt_pte_encode(dma_addr_t addr,
 
 static gen6_gtt_pte_t hsw_pte_encode(dma_addr_t addr,
 				     enum i915_cache_level level,
-				     bool valid)
+				     bool valid, u32 unused)
 {
 	gen6_gtt_pte_t pte = valid ? GEN6_PTE_VALID : 0;
 	pte |= HSW_PTE_ADDR_ENCODE(addr);
@@ -187,7 +195,7 @@ static gen6_gtt_pte_t hsw_pte_encode(dma_addr_t addr,
 
 static gen6_gtt_pte_t iris_pte_encode(dma_addr_t addr,
 				      enum i915_cache_level level,
-				      bool valid)
+				      bool valid, u32 unused)
 {
 	gen6_gtt_pte_t pte = valid ? GEN6_PTE_VALID : 0;
 	pte |= HSW_PTE_ADDR_ENCODE(addr);
@@ -301,7 +309,7 @@ static void gen8_ppgtt_clear_range(struct i915_address_space *vm,
 static void gen8_ppgtt_insert_entries(struct i915_address_space *vm,
 				      struct sg_table *pages,
 				      uint64_t start,
-				      enum i915_cache_level cache_level)
+				      enum i915_cache_level cache_level, u32 unused)
 {
 	struct i915_hw_ppgtt *ppgtt =
 		container_of(vm, struct i915_hw_ppgtt, base);
@@ -639,7 +647,7 @@ static void gen6_dump_ppgtt(struct i915_hw_ppgtt *ppgtt, struct seq_file *m)
 	uint32_t pd_entry;
 	int pte, pde;
 
-	scratch_pte = vm->pte_encode(vm->scratch.addr, I915_CACHE_LLC, true);
+	scratch_pte = vm->pte_encode(vm->scratch.addr, I915_CACHE_LLC, true, 0);
 
 	pd_addr = (gen6_gtt_pte_t __iomem *)dev_priv->gtt.gsm +
 		ppgtt->pd_offset / sizeof(gen6_gtt_pte_t);
@@ -941,7 +949,7 @@ static void gen6_ppgtt_clear_range(struct i915_address_space *vm,
 	unsigned first_pte = first_entry % I915_PPGTT_PT_ENTRIES;
 	unsigned last_pte, i;
 
-	scratch_pte = vm->pte_encode(vm->scratch.addr, I915_CACHE_LLC, true);
+	scratch_pte = vm->pte_encode(vm->scratch.addr, I915_CACHE_LLC, true, 0);
 
 	while (num_entries) {
 		last_pte = first_pte + num_entries;
@@ -964,7 +972,7 @@ static void gen6_ppgtt_clear_range(struct i915_address_space *vm,
 static void gen6_ppgtt_insert_entries(struct i915_address_space *vm,
 				      struct sg_table *pages,
 				      uint64_t start,
-				      enum i915_cache_level cache_level)
+				      enum i915_cache_level cache_level, u32 flags)
 {
 	struct i915_hw_ppgtt *ppgtt =
 		container_of(vm, struct i915_hw_ppgtt, base);
@@ -981,7 +989,8 @@ static void gen6_ppgtt_insert_entries(struct i915_address_space *vm,
 
 		pt_vaddr[act_pte] =
 			vm->pte_encode(sg_page_iter_dma_address(&sg_iter),
-				       cache_level, true);
+				       cache_level, true, flags);
+
 		if (++act_pte == I915_PPGTT_PT_ENTRIES) {
 			kunmap_atomic(pt_vaddr);
 			pt_vaddr = NULL;
@@ -1218,8 +1227,12 @@ ppgtt_bind_vma(struct i915_vma *vma,
 	       enum i915_cache_level cache_level,
 	       u32 flags)
 {
+	/* Currently applicable only to VLV */
+	if (vma->obj->gt_ro)
+		flags |= PTE_READ_ONLY;
+
 	vma->vm->insert_entries(vma->vm, vma->obj->pages, vma->node.start,
-				cache_level);
+				cache_level, flags);
 }
 
 static void ppgtt_unbind_vma(struct i915_vma *vma)
@@ -1394,7 +1407,7 @@ static inline void gen8_set_pte(void __iomem *addr, gen8_gtt_pte_t pte)
 static void gen8_ggtt_insert_entries(struct i915_address_space *vm,
 				     struct sg_table *st,
 				     uint64_t start,
-				     enum i915_cache_level level)
+				     enum i915_cache_level level, u32 unused)
 {
 	struct drm_i915_private *dev_priv = vm->dev->dev_private;
 	unsigned first_entry = start >> PAGE_SHIFT;
@@ -1440,7 +1453,7 @@ static void gen8_ggtt_insert_entries(struct i915_address_space *vm,
 static void gen6_ggtt_insert_entries(struct i915_address_space *vm,
 				     struct sg_table *st,
 				     uint64_t start,
-				     enum i915_cache_level level)
+				     enum i915_cache_level level, u32 flags)
 {
 	struct drm_i915_private *dev_priv = vm->dev->dev_private;
 	unsigned first_entry = start >> PAGE_SHIFT;
@@ -1452,7 +1465,7 @@ static void gen6_ggtt_insert_entries(struct i915_address_space *vm,
 
 	for_each_sg_page(st->sgl, &sg_iter, st->nents, 0) {
 		addr = sg_page_iter_dma_address(&sg_iter);
-		iowrite32(vm->pte_encode(addr, level, true), &gtt_entries[i]);
+		iowrite32(vm->pte_encode(addr, level, true, flags), &gtt_entries[i]);
 		i++;
 	}
 
@@ -1464,7 +1477,7 @@ static void gen6_ggtt_insert_entries(struct i915_address_space *vm,
 	 */
 	if (i != 0)
 		WARN_ON(readl(&gtt_entries[i-1]) !=
-			vm->pte_encode(addr, level, true));
+			vm->pte_encode(addr, level, true, flags));
 
 	/* This next bit makes the above posting read even more important. We
 	 * want to flush the TLBs only after we're certain all the PTE updates
@@ -1518,7 +1531,7 @@ static void gen6_ggtt_clear_range(struct i915_address_space *vm,
 		 first_entry, num_entries, max_entries))
 		num_entries = max_entries;
 
-	scratch_pte = vm->pte_encode(vm->scratch.addr, I915_CACHE_LLC, use_scratch);
+	scratch_pte = vm->pte_encode(vm->scratch.addr, I915_CACHE_LLC, use_scratch, 0);
 
 	for (i = 0; i < num_entries; i++)
 		iowrite32(scratch_pte, &gtt_base[i]);
@@ -1567,6 +1580,10 @@ static void ggtt_bind_vma(struct i915_vma *vma,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj = vma->obj;
 
+	/* Currently applicable only to VLV */
+	if (obj->gt_ro)
+		flags |= PTE_READ_ONLY;
+
 	/* If there is no aliasing PPGTT, or the caller needs a global mapping,
 	 * or we have a global mapping already but the cacheability flags have
 	 * changed, set the global PTEs.
@@ -1583,7 +1600,7 @@ static void ggtt_bind_vma(struct i915_vma *vma,
 		    (cache_level != obj->cache_level)) {
 			vma->vm->insert_entries(vma->vm, obj->pages,
 						vma->node.start,
-						cache_level);
+						cache_level, flags);
 			obj->has_global_gtt_mapping = 1;
 		}
 	}
@@ -1595,7 +1612,7 @@ static void ggtt_bind_vma(struct i915_vma *vma,
 		appgtt->base.insert_entries(&appgtt->base,
 					    vma->obj->pages,
 					    vma->node.start,
-					    cache_level);
+					    cache_level, flags);
 		vma->obj->has_aliasing_ppgtt_mapping = 1;
 	}
 }

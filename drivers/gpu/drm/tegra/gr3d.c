@@ -130,6 +130,7 @@ static const struct of_device_id tegra_gr3d_match[] = {
 	{ .compatible = "nvidia,tegra20-gr3d" },
 	{ }
 };
+MODULE_DEVICE_TABLE(of, tegra_gr3d_match);
 
 static const u32 gr3d_addr_regs[] = {
 	GR3D_IDX_ATTRIBUTE( 0),

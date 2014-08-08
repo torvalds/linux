@@ -1610,7 +1610,7 @@ int max_width, max_height;</synopsis>
           The connector is then registered with a call to
           <function>drm_connector_init</function> with a pointer to the connector
           functions and a connector type, and exposed through sysfs with a call to
-          <function>drm_sysfs_connector_add</function>.
+          <function>drm_connector_register</function>.
         </para>
         <para>
           Supported connector types are
@@ -1768,7 +1768,7 @@ int max_width, max_height;</synopsis>
 	(<function>drm_encoder_cleanup</function>) and connectors
 	(<function>drm_connector_cleanup</function>). Furthermore, connectors
 	that have been added to sysfs must be removed by a call to
-	<function>drm_sysfs_connector_remove</function> before calling
+	<function>drm_connector_unregister</function> before calling
 	<function>drm_connector_cleanup</function>.
       </para>
       <para>
@@ -1813,7 +1813,7 @@ void intel_crt_init(struct drm_device *dev)
 	drm_encoder_helper_add(&intel_output->enc, &intel_crt_helper_funcs);
 	drm_connector_helper_add(connector, &intel_crt_connector_helper_funcs);
 
-	drm_sysfs_connector_add(connector);
+	drm_connector_register(connector);
 }]]></programlisting>
       <para>
         In the example above (taken from the i915 driver), a CRTC, connector and
@@ -2338,6 +2338,12 @@ void intel_crt_init(struct drm_device *dev)
 !Edrivers/gpu/drm/drm_dp_helper.c
     </sect2>
     <sect2>
+      <title>Display Port MST Helper Functions Reference</title>
+!Pdrivers/gpu/drm/drm_dp_mst_topology.c dp mst helper
+!Iinclude/drm/drm_dp_mst_helper.h
+!Edrivers/gpu/drm/drm_dp_mst_topology.c
+    </sect2>
+    <sect2>
       <title>EDID Helper Functions Reference</title>
 !Edrivers/gpu/drm/drm_edid.c
     </sect2>
@@ -2502,7 +2508,7 @@ void intel_crt_init(struct drm_device *dev)
 	<td valign="top" >Description/Restrictions</td>
 	</tr>
 	<tr>
-	<td rowspan="20" valign="top" >DRM</td>
+	<td rowspan="21" valign="top" >DRM</td>
 	<td rowspan="2" valign="top" >Generic</td>
 	<td valign="top" >“EDID”</td>
 	<td valign="top" >BLOB | IMMUTABLE</td>
@@ -2633,12 +2639,21 @@ void intel_crt_init(struct drm_device *dev)
 	<td valign="top" >TBD</td>
 	</tr>
 	<tr>
-	<td rowspan="2" valign="top" >Optional</td>
+	<td rowspan="3" valign="top" >Optional</td>
 	<td valign="top" >“scaling mode”</td>
 	<td valign="top" >ENUM</td>
 	<td valign="top" >{ "None", "Full", "Center", "Full aspect" }</td>
 	<td valign="top" >Connector</td>
 	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >"aspect ratio"</td>
+	<td valign="top" >ENUM</td>
+	<td valign="top" >{ "None", "4:3", "16:9" }</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >DRM property to set aspect ratio from user space app.
+		This enum is made generic to allow addition of custom aspect
+		ratios.</td>
 	</tr>
 	<tr>
 	<td valign="top" >“dirty”</td>
@@ -2649,7 +2664,7 @@ void intel_crt_init(struct drm_device *dev)
 	</tr>
 	<tr>
 	<td rowspan="21" valign="top" >i915</td>
-	<td rowspan="3" valign="top" >Generic</td>
+	<td rowspan="2" valign="top" >Generic</td>
 	<td valign="top" >"Broadcast RGB"</td>
 	<td valign="top" >ENUM</td>
 	<td valign="top" >{ "Automatic", "Full", "Limited 16:235" }</td>
@@ -2664,10 +2679,11 @@ void intel_crt_init(struct drm_device *dev)
 	<td valign="top" >TBD</td>
 	</tr>
 	<tr>
-	<td valign="top" >Standard name as in DRM</td>
-	<td valign="top" >Standard type as in DRM</td>
-	<td valign="top" >Standard value as in DRM</td>
-	<td valign="top" >Standard Object as in DRM</td>
+	<td rowspan="1" valign="top" >Plane</td>
+	<td valign="top" >“rotation”</td>
+	<td valign="top" >BITMASK</td>
+	<td valign="top" >{ 0, "rotate-0" }, { 2, "rotate-180" }</td>
+	<td valign="top" >Plane</td>
 	<td valign="top" >TBD</td>
 	</tr>
 	<tr>
@@ -2799,8 +2815,8 @@ void intel_crt_init(struct drm_device *dev)
 	<td valign="top" >TBD</td>
 	</tr>
 	<tr>
-	<td rowspan="3" valign="top" >CDV gma-500</td>
-	<td rowspan="3" valign="top" >Generic</td>
+	<td rowspan="2" valign="top" >CDV gma-500</td>
+	<td rowspan="2" valign="top" >Generic</td>
 	<td valign="top" >"Broadcast RGB"</td>
 	<td valign="top" >ENUM</td>
 	<td valign="top" >{ “Full”, “Limited 16:235” }</td>
@@ -2815,26 +2831,12 @@ void intel_crt_init(struct drm_device *dev)
 	<td valign="top" >TBD</td>
 	</tr>
 	<tr>
-	<td valign="top" >Standard name as in DRM</td>
-	<td valign="top" >Standard type as in DRM</td>
-	<td valign="top" >Standard value as in DRM</td>
-	<td valign="top" >Standard Object as in DRM</td>
-	<td valign="top" >TBD</td>
-	</tr>
-	<tr>
-	<td rowspan="20" valign="top" >Poulsbo</td>
-	<td rowspan="2" valign="top" >Generic</td>
+	<td rowspan="19" valign="top" >Poulsbo</td>
+	<td rowspan="1" valign="top" >Generic</td>
 	<td valign="top" >“backlight”</td>
 	<td valign="top" >RANGE</td>
 	<td valign="top" >Min=0, Max=100</td>
 	<td valign="top" >Connector</td>
-	<td valign="top" >TBD</td>
-	</tr>
-	<tr>
-	<td valign="top" >Standard name as in DRM</td>
-	<td valign="top" >Standard type as in DRM</td>
-	<td valign="top" >Standard value as in DRM</td>
-	<td valign="top" >Standard Object as in DRM</td>
 	<td valign="top" >TBD</td>
 	</tr>
 	<tr>
@@ -3064,7 +3066,7 @@ void intel_crt_init(struct drm_device *dev)
 	<td valign="top" >TBD</td>
 	</tr>
 	<tr>
-	<td rowspan="3" valign="top" >i2c/ch7006_drv</td>
+	<td rowspan="2" valign="top" >i2c/ch7006_drv</td>
 	<td valign="top" >Generic</td>
 	<td valign="top" >“scale”</td>
 	<td valign="top" >RANGE</td>
@@ -3073,14 +3075,7 @@ void intel_crt_init(struct drm_device *dev)
 	<td valign="top" >TBD</td>
 	</tr>
 	<tr>
-	<td rowspan="2" valign="top" >TV</td>
-	<td valign="top" >Standard names as in DRM</td>
-	<td valign="top" >Standard types as in DRM</td>
-	<td valign="top" >Standard Values as in DRM</td>
-	<td valign="top" >Standard object as in DRM</td>
-	<td valign="top" >TBD</td>
-	</tr>
-	<tr>
+	<td rowspan="1" valign="top" >TV</td>
 	<td valign="top" >“mode”</td>
 	<td valign="top" >ENUM</td>
 	<td valign="top" >{ "PAL", "PAL-M","PAL-N"}, ”PAL-Nc"
@@ -3089,7 +3084,7 @@ void intel_crt_init(struct drm_device *dev)
 	<td valign="top" >TBD</td>
 	</tr>
 	<tr>
-	<td rowspan="16" valign="top" >nouveau</td>
+	<td rowspan="15" valign="top" >nouveau</td>
 	<td rowspan="6" valign="top" >NV10 Overlay</td>
 	<td valign="top" >"colorkey"</td>
 	<td valign="top" >RANGE</td>
@@ -3198,14 +3193,6 @@ void intel_crt_init(struct drm_device *dev)
 	<td valign="top" >TBD</td>
 	</tr>
 	<tr>
-	<td valign="top" >Generic</td>
-	<td valign="top" >Standard name as in DRM</td>
-	<td valign="top" >Standard type as in DRM</td>
-	<td valign="top" >Standard value as in DRM</td>
-	<td valign="top" >Standard Object as in DRM</td>
-	<td valign="top" >TBD</td>
-	</tr>
-	<tr>
 	<td rowspan="2" valign="top" >omap</td>
 	<td rowspan="2" valign="top" >Generic</td>
 	<td valign="top" >“rotation”</td>
@@ -3236,7 +3223,7 @@ void intel_crt_init(struct drm_device *dev)
 	<td valign="top" >TBD</td>
 	</tr>
 	<tr>
-	<td rowspan="10" valign="top" >radeon</td>
+	<td rowspan="9" valign="top" >radeon</td>
 	<td valign="top" >DVI-I</td>
 	<td valign="top" >“coherent”</td>
 	<td valign="top" >RANGE</td>
@@ -3305,14 +3292,6 @@ void intel_crt_init(struct drm_device *dev)
 	<td valign="top" >ENUM</td>
 	<td valign="top" >{ "off", "on" }</td>
 	<td valign="top" >Connector</td>
-	<td valign="top" >TBD</td>
-	</tr>
-	<tr>
-	<td valign="top" >Generic</td>
-	<td valign="top" >Standard name as in DRM</td>
-	<td valign="top" >Standard type as in DRM</td>
-	<td valign="top" >Standard value as in DRM</td>
-	<td valign="top" >Standard Object as in DRM</td>
 	<td valign="top" >TBD</td>
 	</tr>
 	<tr>

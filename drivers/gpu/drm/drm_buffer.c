@@ -80,11 +80,7 @@ int drm_buffer_alloc(struct drm_buffer **buf, int size)
 
 error_out:
 
-	/* Only last element can be null pointer so check for it first. */
-	if ((*buf)->data[idx])
-		kfree((*buf)->data[idx]);
-
-	for (--idx; idx >= 0; --idx)
+	for (; idx >= 0; --idx)
 		kfree((*buf)->data[idx]);
 
 	kfree(*buf);

@@ -130,7 +130,7 @@ static void omap_connector_destroy(struct drm_connector *connector)
 	struct omap_dss_device *dssdev = omap_connector->dssdev;
 
 	DBG("%s", omap_connector->dssdev->name);
-	drm_sysfs_connector_remove(connector);
+	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
 	kfree(omap_connector);
 
@@ -307,7 +307,7 @@ struct drm_connector *omap_connector_init(struct drm_device *dev,
 	connector->interlace_allowed = 1;
 	connector->doublescan_allowed = 0;
 
-	drm_sysfs_connector_add(connector);
+	drm_connector_register(connector);
 
 	return connector;
 

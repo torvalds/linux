@@ -97,6 +97,7 @@ static struct drm_driver bochs_driver = {
 /* ---------------------------------------------------------------------- */
 /* pm interface                                                           */
 
+#ifdef CONFIG_PM_SLEEP
 static int bochs_pm_suspend(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
@@ -131,6 +132,7 @@ static int bochs_pm_resume(struct device *dev)
 	drm_kms_helper_poll_enable(drm_dev);
 	return 0;
 }
+#endif
 
 static const struct dev_pm_ops bochs_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(bochs_pm_suspend,

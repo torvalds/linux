@@ -438,7 +438,7 @@ void nouveau_fbcon_gpu_lockup(struct fb_info *info)
 	info->flags |= FBINFO_HWACCEL_DISABLED;
 }
 
-static struct drm_fb_helper_funcs nouveau_fbcon_helper_funcs = {
+static const struct drm_fb_helper_funcs nouveau_fbcon_helper_funcs = {
 	.gamma_set = nouveau_fbcon_gamma_set,
 	.gamma_get = nouveau_fbcon_gamma_get,
 	.fb_probe = nouveau_fbcon_create,
@@ -464,7 +464,8 @@ nouveau_fbcon_init(struct drm_device *dev)
 
 	fbcon->dev = dev;
 	drm->fbcon = fbcon;
-	fbcon->helper.funcs = &nouveau_fbcon_helper_funcs;
+
+	drm_fb_helper_prepare(dev, &fbcon->helper, &nouveau_fbcon_helper_funcs);
 
 	ret = drm_fb_helper_init(dev, &fbcon->helper,
 				 dev->mode_config.num_crtc, 4);
