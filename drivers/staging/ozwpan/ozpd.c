@@ -504,8 +504,6 @@ static void oz_retire_frame(struct oz_pd *pd, struct oz_tx_frame *f)
 		spin_unlock_bh(&pd->elt_buff.lock);
 	}
 	oz_tx_frame_free(pd, f);
-	if (pd->elt_buff.free_elts > pd->elt_buff.max_free_elts)
-		oz_trim_elt_pool(&pd->elt_buff);
 }
 
 /*

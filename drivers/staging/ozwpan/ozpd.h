@@ -130,4 +130,6 @@ void oz_handle_app_elt(struct oz_pd *pd, u8 app_id, struct oz_elt *elt);
 void oz_apps_init(void);
 void oz_apps_term(void);
 
+extern struct kmem_cache *oz_elt_info_cache;
+
 #endif /* Sentry */

@@ -11,6 +11,7 @@
 #include <linux/etherdevice.h>
 #include <linux/errno.h>
 #include <linux/ieee80211.h>
+#include <linux/slab.h>
 #include "ozdbg.h"
 #include "ozprotocol.h"
 #include "ozeltbuf.h"
@@ -50,6 +51,8 @@ static struct sk_buff_head g_rx_queue;
 static u8 g_session_id;
 static u16 g_apps = 0x1;
 static int g_processing_rx;
+
+struct kmem_cache *oz_elt_info_cache;
 
 /*
  * Context: softirq-serialized
@@ -479,6 +482,8 @@ void oz_protocol_term(void)
 	}
 	spin_unlock_bh(&g_polling_lock);
 	oz_dbg(ON, "Protocol stopped\n");
+
+	kmem_cache_destroy(oz_elt_info_cache);
 }
 
 /*
@@ -762,6 +767,10 @@ static char *oz_get_next_device_name(char *s, char *dname, int max_size)
  */
 int oz_protocol_init(char *devs)
 {
+	oz_elt_info_cache = KMEM_CACHE(oz_elt_info, 0);
+	if (!oz_elt_info_cache)
+		return -ENOMEM;
+
 	skb_queue_head_init(&g_rx_queue);
 	if (devs[0] == '*') {
 		oz_binding_add(NULL);

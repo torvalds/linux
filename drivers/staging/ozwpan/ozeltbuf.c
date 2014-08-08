@@ -10,9 +10,6 @@
 #include "ozeltbuf.h"
 #include "ozpd.h"
 
-#define OZ_ELT_INFO_MAGIC_USED	0x35791057
-#define OZ_ELT_INFO_MAGIC_FREE	0x78940102
-
 /*
  * Context: softirq-serialized
  */
@@ -22,7 +19,6 @@ void oz_elt_buf_init(struct oz_elt_buf *buf)
 	INIT_LIST_HEAD(&buf->stream_list);
 	INIT_LIST_HEAD(&buf->order_list);
 	INIT_LIST_HEAD(&buf->isoc_list);
-	buf->max_free_elts = 32;
 	spin_lock_init(&buf->lock);
 }
 
@@ -49,14 +45,6 @@ void oz_elt_buf_term(struct oz_elt_buf *buf)
 			kfree(ei);
 		}
 	}
-	/* Free any elelment in the pool. */
-	while (buf->elt_pool) {
-		struct oz_elt_info *ei =
-			container_of(buf->elt_pool, struct oz_elt_info, link);
-		buf->elt_pool = buf->elt_pool->next;
-		kfree(ei);
-	}
-	buf->free_elts = 0;
 }
 
 /*
@@ -66,27 +54,8 @@ struct oz_elt_info *oz_elt_info_alloc(struct oz_elt_buf *buf)
 {
 	struct oz_elt_info *ei;
 
-	spin_lock_bh(&buf->lock);
-	if (buf->free_elts && buf->elt_pool) {
-		ei = container_of(buf->elt_pool, struct oz_elt_info, link);
-		buf->elt_pool = ei->link.next;
-		buf->free_elts--;
-		spin_unlock_bh(&buf->lock);
-		if (ei->magic != OZ_ELT_INFO_MAGIC_FREE) {
-			oz_dbg(ON, "%s: ei with bad magic: 0x%x\n",
-			       __func__, ei->magic);
-		}
-	} else {
-		spin_unlock_bh(&buf->lock);
-		ei = kmalloc(sizeof(struct oz_elt_info), GFP_ATOMIC);
-	}
+	ei = kmem_cache_zalloc(oz_elt_info_cache, GFP_ATOMIC);
 	if (ei) {
-		ei->flags = 0;
-		ei->app_id = 0;
-		ei->callback = NULL;
-		ei->context = 0;
-		ei->stream = NULL;
-		ei->magic = OZ_ELT_INFO_MAGIC_USED;
 		INIT_LIST_HEAD(&ei->link);
 		INIT_LIST_HEAD(&ei->link_order);
 	}
@@ -99,17 +68,8 @@ struct oz_elt_info *oz_elt_info_alloc(struct oz_elt_buf *buf)
  */
 void oz_elt_info_free(struct oz_elt_buf *buf, struct oz_elt_info *ei)
 {
-	if (ei) {
-		if (ei->magic == OZ_ELT_INFO_MAGIC_USED) {
-			buf->free_elts++;
-			ei->link.next = buf->elt_pool;
-			buf->elt_pool = &ei->link;
-			ei->magic = OZ_ELT_INFO_MAGIC_FREE;
-		} else {
-			oz_dbg(ON, "%s: bad magic ei: %p magic: 0x%x\n",
-			       __func__, ei, ei->magic);
-		}
-	}
+	if (ei)
+		kmem_cache_free(oz_elt_info_cache, ei);
 }
 
 /*------------------------------------------------------------------------------
@@ -312,26 +272,4 @@ int oz_select_elts_for_tx(struct oz_elt_buf *buf, u8 isoc, unsigned *len,
 int oz_are_elts_available(struct oz_elt_buf *buf)
 {
 	return buf->order_list.next != &buf->order_list;
-}
-
-void oz_trim_elt_pool(struct oz_elt_buf *buf)
-{
-	struct list_head *free = NULL;
-	struct list_head *e;
-
-	spin_lock_bh(&buf->lock);
-	while (buf->free_elts > buf->max_free_elts) {
-		e = buf->elt_pool;
-		buf->elt_pool = e->next;
-		e->next = free;
-		free = e;
-		buf->free_elts--;
-	}
-	spin_unlock_bh(&buf->lock);
-	while (free) {
-		struct oz_elt_info *ei =
-			container_of(free, struct oz_elt_info, link);
-		free = free->next;
-		kfree(ei);
-	}
 }
