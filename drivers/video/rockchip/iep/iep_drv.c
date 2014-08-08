@@ -27,6 +27,7 @@
 #include <linux/rk_fb.h>
 #include <linux/wakelock.h>
 #include <linux/of.h>
+#include <linux/of_platform.h>
 #include <linux/io.h>
 #include <linux/module.h>
 #include <asm/cacheflush.h>
@@ -223,7 +224,7 @@ static void iep_power_on(void)
     
 #if defined(CONFIG_IEP_IOMMU)
     if (iep_service.iommu_dev) {
-        iovmm_activate(iep_service.iommu_dev);
+        rockchip_iovmm_activate(iep_service.iommu_dev);
     }
 #endif    
     
@@ -250,7 +251,7 @@ static void iep_power_off(void)
     
 #if defined(CONFIG_IEP_IOMMU)
     if (iep_service.iommu_dev) {
-        iovmm_deactivate(iep_service.iommu_dev);
+        rockchip_iovmm_deactivate(iep_service.iommu_dev);
     }
 #endif    
 
@@ -790,6 +791,43 @@ static struct miscdevice iep_dev = {
     .fops  = &iep_fops,
 };
 
+#ifdef CONFIG_IEP_IOMMU
+static struct device *rockchip_get_sysmmu_device_by_compatible(const char *compt)
+{
+	struct device_node *dn = NULL;
+	struct platform_device *pd = NULL;
+	struct device *ret = NULL ;
+
+	dn = of_find_compatible_node(NULL,NULL,compt);
+	if(!dn)
+	{
+		printk("can't find device node %s \r\n",compt);
+		return NULL;
+	}
+	
+	pd = of_find_device_by_node(dn);
+	if(!pd)
+	{	
+		printk("can't find platform device in device node %s \r\n",compt);
+		return  NULL;
+	}
+	ret = &pd->dev;
+	
+	return ret;
+
+}
+#ifdef CONFIG_IOMMU_API
+static inline void platform_set_sysmmu(struct device *iommu, struct device *dev)
+{
+	dev->archdata.iommu = iommu;
+}
+#else
+static inline void platform_set_sysmmu(struct device *iommu, struct device *dev)
+{
+}
+#endif
+#endif
+
 #if defined(CONFIG_IEP_IOMMU)
 extern struct ion_client *rockchip_ion_client_create(const char * name);
 #endif
@@ -903,7 +941,7 @@ static int iep_drv_probe(struct platform_device *pdev)
         
         if (mmu_dev) {
             platform_set_sysmmu(mmu_dev, &pdev->dev);
-            iovmm_activate(&pdev->dev);
+            rockchip_iovmm_activate(&pdev->dev);
         }
 
         iep_service.iommu_dev = &pdev->dev;

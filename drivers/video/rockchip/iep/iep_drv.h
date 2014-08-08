@@ -11,8 +11,7 @@
 
 #ifdef CONFIG_IEP_IOMMU
 #include <linux/rockchip_ion.h>
-#include <linux/rockchip/iovmm.h>
-#include <linux/rockchip/sysmmu.h>
+#include <linux/rockchip-iovmm.h>
 #include <linux/dma-buf.h>
 #endif
 #include "iep.h"

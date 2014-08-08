@@ -33,6 +33,7 @@
 #include <linux/wakelock.h>
 #include <linux/cdev.h>
 #include <linux/of.h>
+#include <linux/of_platform.h>
 #include <linux/rockchip/cpu.h>
 #include <linux/rockchip/cru.h>
 
@@ -48,8 +49,7 @@
 #endif
 
 #ifdef CONFIG_VCODEC_MMU
-#include <linux/rockchip/iovmm.h>
-#include <linux/rockchip/sysmmu.h>
+#include <linux/rockchip-iovmm.h>
 #include <linux/dma-buf.h>
 #endif
 
@@ -554,7 +554,7 @@ static void vpu_service_power_off(struct vpu_service_info *pservice)
     
 #if defined(CONFIG_VCODEC_MMU)
     if (pservice->mmu_dev) {
-        iovmm_deactivate(pservice->dev);
+        rockchip_iovmm_deactivate(pservice->dev);
     }
 #endif 
 
@@ -630,7 +630,7 @@ static void vpu_service_power_on(struct vpu_service_info *pservice)
     
 #if defined(CONFIG_VCODEC_MMU)    
     if (pservice->mmu_dev) {
-        iovmm_activate(pservice->dev);
+        rockchip_iovmm_activate(pservice->dev);
     }
 #endif    
 }
@@ -1442,6 +1442,43 @@ static void simulate_start(struct vpu_service_info *pservice)
 }
 #endif
 
+#ifdef CONFIG_VCODEC_MMU
+static struct device *rockchip_get_sysmmu_device_by_compatible(const char *compt)
+{
+	struct device_node *dn = NULL;
+	struct platform_device *pd = NULL;
+	struct device *ret = NULL ;
+
+	dn = of_find_compatible_node(NULL,NULL,compt);
+	if(!dn)
+	{
+		printk("can't find device node %s \r\n",compt);
+		return NULL;
+	}
+	
+	pd = of_find_device_by_node(dn);
+	if(!pd)
+	{	
+		printk("can't find platform device in device node %s \r\n",compt);
+		return  NULL;
+	}
+	ret = &pd->dev;
+	
+	return ret;
+
+}
+#ifdef CONFIG_IOMMU_API
+static inline void platform_set_sysmmu(struct device *iommu, struct device *dev)
+{
+	dev->archdata.iommu = iommu;
+}
+#else
+static inline void platform_set_sysmmu(struct device *iommu, struct device *dev)
+{
+}
+#endif
+#endif
+
 #if HEVC_TEST_ENABLE
 static int hevc_test_case0(vpu_service_info *pservice);
 #endif
@@ -1630,7 +1667,7 @@ static int vcodec_probe(struct platform_device *pdev)
 
 		if (pservice->mmu_dev) {
 			platform_set_sysmmu(pservice->mmu_dev, pservice->dev);
-			iovmm_activate(pservice->dev);
+			rockchip_iovmm_activate(pservice->dev);
 		}
 	}
 #endif
