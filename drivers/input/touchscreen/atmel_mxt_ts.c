@@ -1064,131 +1064,21 @@ static u32 mxt_calculate_crc(u8 *base, off_t start_off, off_t end_off)
 	return crc;
 }
 
-/*
- * mxt_update_cfg - download configuration to chip
- *
- * Atmel Raw Config File Format
- *
- * The first four lines of the raw config file contain:
- *  1) Version
- *  2) Chip ID Information (first 7 bytes of device memory)
- *  3) Chip Information Block 24-bit CRC Checksum
- *  4) Chip Configuration 24-bit CRC Checksum
- *
- * The rest of the file consists of one line per object instance:
- *   <TYPE> <INSTANCE> <SIZE> <CONTENTS>
- *
- *   <TYPE> - 2-byte object type as hex
- *   <INSTANCE> - 2-byte object instance number as hex
- *   <SIZE> - 2-byte object size as hex
- *   <CONTENTS> - array of <SIZE> 1-byte hex values
- */
-static int mxt_update_cfg(struct mxt_data *data, const struct firmware *cfg)
+static int mxt_prepare_cfg_mem(struct mxt_data *data,
+			       const struct firmware *cfg,
+			       unsigned int data_pos,
+			       unsigned int cfg_start_ofs,
+			       u8 *config_mem,
+			       size_t config_mem_size)
 {
 	struct device *dev = &data->client->dev;
-	struct mxt_info cfg_info;
 	struct mxt_object *object;
-	int ret;
+	unsigned int type, instance, size, byte_offset;
 	int offset;
-	int data_pos;
-	int byte_offset;
+	int ret;
 	int i;
-	int cfg_start_ofs;
-	u32 info_crc, config_crc, calculated_crc;
-	u8 *config_mem;
-	size_t config_mem_size;
-	unsigned int type, instance, size;
-	u8 val;
 	u16 reg;
-
-	mxt_update_crc(data, MXT_COMMAND_REPORTALL, 1);
-
-	if (strncmp(cfg->data, MXT_CFG_MAGIC, strlen(MXT_CFG_MAGIC))) {
-		dev_err(dev, "Unrecognised config file\n");
-		ret = -EINVAL;
-		goto release;
-	}
-
-	data_pos = strlen(MXT_CFG_MAGIC);
-
-	/* Load information block and check */
-	for (i = 0; i < sizeof(struct mxt_info); i++) {
-		ret = sscanf(cfg->data + data_pos, "%hhx%n",
-			     (unsigned char *)&cfg_info + i,
-			     &offset);
-		if (ret != 1) {
-			dev_err(dev, "Bad format\n");
-			ret = -EINVAL;
-			goto release;
-		}
-
-		data_pos += offset;
-	}
-
-	if (cfg_info.family_id != data->info.family_id) {
-		dev_err(dev, "Family ID mismatch!\n");
-		ret = -EINVAL;
-		goto release;
-	}
-
-	if (cfg_info.variant_id != data->info.variant_id) {
-		dev_err(dev, "Variant ID mismatch!\n");
-		ret = -EINVAL;
-		goto release;
-	}
-
-	/* Read CRCs */
-	ret = sscanf(cfg->data + data_pos, "%x%n", &info_crc, &offset);
-	if (ret != 1) {
-		dev_err(dev, "Bad format: failed to parse Info CRC\n");
-		ret = -EINVAL;
-		goto release;
-	}
-	data_pos += offset;
-
-	ret = sscanf(cfg->data + data_pos, "%x%n", &config_crc, &offset);
-	if (ret != 1) {
-		dev_err(dev, "Bad format: failed to parse Config CRC\n");
-		ret = -EINVAL;
-		goto release;
-	}
-	data_pos += offset;
-
-	/*
-	 * The Info Block CRC is calculated over mxt_info and the object
-	 * table. If it does not match then we are trying to load the
-	 * configuration from a different chip or firmware version, so
-	 * the configuration CRC is invalid anyway.
-	 */
-	if (info_crc == data->info_crc) {
-		if (config_crc == 0 || data->config_crc == 0) {
-			dev_info(dev, "CRC zero, attempting to apply config\n");
-		} else if (config_crc == data->config_crc) {
-			dev_dbg(dev, "Config CRC 0x%06X: OK\n",
-				 data->config_crc);
-			ret = 0;
-			goto release;
-		} else {
-			dev_info(dev, "Config CRC 0x%06X: does not match file 0x%06X\n",
-				 data->config_crc, config_crc);
-		}
-	} else {
-		dev_warn(dev,
-			 "Warning: Info CRC error - device=0x%06X file=0x%06X\n",
-			 data->info_crc, info_crc);
-	}
-
-	/* Malloc memory to store configuration */
-	cfg_start_ofs = MXT_OBJECT_START +
-			data->info.object_num * sizeof(struct mxt_object) +
-			MXT_INFO_CHECKSUM_SIZE;
-	config_mem_size = data->mem_size - cfg_start_ofs;
-	config_mem = kzalloc(config_mem_size, GFP_KERNEL);
-	if (!config_mem) {
-		dev_err(dev, "Failed to allocate memory\n");
-		ret = -ENOMEM;
-		goto release;
-	}
+	u8 val;
 
 	while (data_pos < cfg->size) {
 		/* Read type, instance, length */
@@ -1199,8 +1089,7 @@ static int mxt_update_cfg(struct mxt_data *data, const struct firmware *cfg)
 			break;
 		} else if (ret != 3) {
 			dev_err(dev, "Bad format: failed to parse object\n");
-			ret = -EINVAL;
-			goto release_mem;
+			return -EINVAL;
 		}
 		data_pos += offset;
 
@@ -1240,8 +1129,7 @@ static int mxt_update_cfg(struct mxt_data *data, const struct firmware *cfg)
 
 		if (instance >= mxt_obj_instances(object)) {
 			dev_err(dev, "Object instances exceeded!\n");
-			ret = -EINVAL;
-			goto release_mem;
+			return -EINVAL;
 		}
 
 		reg = object->start_address + mxt_obj_size(object) * instance;
@@ -1252,8 +1140,7 @@ static int mxt_update_cfg(struct mxt_data *data, const struct firmware *cfg)
 				     &offset);
 			if (ret != 1) {
 				dev_err(dev, "Bad format in T%d\n", type);
-				ret = -EINVAL;
-				goto release_mem;
+				return -EINVAL;
 			}
 			data_pos += offset;
 
@@ -1262,17 +1149,165 @@ static int mxt_update_cfg(struct mxt_data *data, const struct firmware *cfg)
 
 			byte_offset = reg + i - cfg_start_ofs;
 
-			if ((byte_offset >= 0)
-			    && (byte_offset <= config_mem_size)) {
+			if (byte_offset >= 0 &&
+			    byte_offset <= config_mem_size) {
 				*(config_mem + byte_offset) = val;
 			} else {
 				dev_err(dev, "Bad object: reg:%d, T%d, ofs=%d\n",
 					reg, object->type, byte_offset);
-				ret = -EINVAL;
-				goto release_mem;
+				return -EINVAL;
 			}
 		}
 	}
+
+	return 0;
+}
+
+static int mxt_upload_cfg_mem(struct mxt_data *data, unsigned int cfg_start,
+			      u8 *config_mem, size_t config_mem_size)
+{
+	unsigned int byte_offset = 0;
+	int error;
+
+	/* Write configuration as blocks */
+	while (byte_offset < config_mem_size) {
+		unsigned int size = config_mem_size - byte_offset;
+
+		if (size > MXT_MAX_BLOCK_WRITE)
+			size = MXT_MAX_BLOCK_WRITE;
+
+		error = __mxt_write_reg(data->client,
+					cfg_start + byte_offset,
+					size, config_mem + byte_offset);
+		if (error) {
+			dev_err(&data->client->dev,
+				"Config write error, ret=%d\n", error);
+			return error;
+		}
+
+		byte_offset += size;
+	}
+
+	return 0;
+}
+
+/*
+ * mxt_update_cfg - download configuration to chip
+ *
+ * Atmel Raw Config File Format
+ *
+ * The first four lines of the raw config file contain:
+ *  1) Version
+ *  2) Chip ID Information (first 7 bytes of device memory)
+ *  3) Chip Information Block 24-bit CRC Checksum
+ *  4) Chip Configuration 24-bit CRC Checksum
+ *
+ * The rest of the file consists of one line per object instance:
+ *   <TYPE> <INSTANCE> <SIZE> <CONTENTS>
+ *
+ *   <TYPE> - 2-byte object type as hex
+ *   <INSTANCE> - 2-byte object instance number as hex
+ *   <SIZE> - 2-byte object size as hex
+ *   <CONTENTS> - array of <SIZE> 1-byte hex values
+ */
+static int mxt_update_cfg(struct mxt_data *data, const struct firmware *cfg)
+{
+	struct device *dev = &data->client->dev;
+	struct mxt_info cfg_info;
+	int ret;
+	int offset;
+	int data_pos;
+	int i;
+	int cfg_start_ofs;
+	u32 info_crc, config_crc, calculated_crc;
+	u8 *config_mem;
+	size_t config_mem_size;
+
+	mxt_update_crc(data, MXT_COMMAND_REPORTALL, 1);
+
+	if (strncmp(cfg->data, MXT_CFG_MAGIC, strlen(MXT_CFG_MAGIC))) {
+		dev_err(dev, "Unrecognised config file\n");
+		return -EINVAL;
+	}
+
+	data_pos = strlen(MXT_CFG_MAGIC);
+
+	/* Load information block and check */
+	for (i = 0; i < sizeof(struct mxt_info); i++) {
+		ret = sscanf(cfg->data + data_pos, "%hhx%n",
+			     (unsigned char *)&cfg_info + i,
+			     &offset);
+		if (ret != 1) {
+			dev_err(dev, "Bad format\n");
+			return -EINVAL;
+		}
+
+		data_pos += offset;
+	}
+
+	if (cfg_info.family_id != data->info.family_id) {
+		dev_err(dev, "Family ID mismatch!\n");
+		return -EINVAL;
+	}
+
+	if (cfg_info.variant_id != data->info.variant_id) {
+		dev_err(dev, "Variant ID mismatch!\n");
+		return -EINVAL;
+	}
+
+	/* Read CRCs */
+	ret = sscanf(cfg->data + data_pos, "%x%n", &info_crc, &offset);
+	if (ret != 1) {
+		dev_err(dev, "Bad format: failed to parse Info CRC\n");
+		return -EINVAL;
+	}
+	data_pos += offset;
+
+	ret = sscanf(cfg->data + data_pos, "%x%n", &config_crc, &offset);
+	if (ret != 1) {
+		dev_err(dev, "Bad format: failed to parse Config CRC\n");
+		return -EINVAL;
+	}
+	data_pos += offset;
+
+	/*
+	 * The Info Block CRC is calculated over mxt_info and the object
+	 * table. If it does not match then we are trying to load the
+	 * configuration from a different chip or firmware version, so
+	 * the configuration CRC is invalid anyway.
+	 */
+	if (info_crc == data->info_crc) {
+		if (config_crc == 0 || data->config_crc == 0) {
+			dev_info(dev, "CRC zero, attempting to apply config\n");
+		} else if (config_crc == data->config_crc) {
+			dev_dbg(dev, "Config CRC 0x%06X: OK\n",
+				 data->config_crc);
+			return 0;
+		} else {
+			dev_info(dev, "Config CRC 0x%06X: does not match file 0x%06X\n",
+				 data->config_crc, config_crc);
+		}
+	} else {
+		dev_warn(dev,
+			 "Warning: Info CRC error - device=0x%06X file=0x%06X\n",
+			 data->info_crc, info_crc);
+	}
+
+	/* Malloc memory to store configuration */
+	cfg_start_ofs = MXT_OBJECT_START +
+			data->info.object_num * sizeof(struct mxt_object) +
+			MXT_INFO_CHECKSUM_SIZE;
+	config_mem_size = data->mem_size - cfg_start_ofs;
+	config_mem = kzalloc(config_mem_size, GFP_KERNEL);
+	if (!config_mem) {
+		dev_err(dev, "Failed to allocate memory\n");
+		return -ENOMEM;
+	}
+
+	ret = mxt_prepare_cfg_mem(data, cfg, data_pos, cfg_start_ofs,
+				  config_mem, config_mem_size);
+	if (ret)
+		goto release_mem;
 
 	/* Calculate crc of the received configs (not the raw config file) */
 	if (data->T7_address < cfg_start_ofs) {
@@ -1286,28 +1321,14 @@ static int mxt_update_cfg(struct mxt_data *data, const struct firmware *cfg)
 					   data->T7_address - cfg_start_ofs,
 					   config_mem_size);
 
-	if (config_crc > 0 && (config_crc != calculated_crc))
+	if (config_crc > 0 && config_crc != calculated_crc)
 		dev_warn(dev, "Config CRC error, calculated=%06X, file=%06X\n",
 			 calculated_crc, config_crc);
 
-	/* Write configuration as blocks */
-	byte_offset = 0;
-	while (byte_offset < config_mem_size) {
-		size = config_mem_size - byte_offset;
-
-		if (size > MXT_MAX_BLOCK_WRITE)
-			size = MXT_MAX_BLOCK_WRITE;
-
-		ret = __mxt_write_reg(data->client,
-				      cfg_start_ofs + byte_offset,
-				      size, config_mem + byte_offset);
-		if (ret != 0) {
-			dev_err(dev, "Config write error, ret=%d\n", ret);
-			goto release_mem;
-		}
-
-		byte_offset += size;
-	}
+	ret = mxt_upload_cfg_mem(data, cfg_start_ofs,
+				 config_mem, config_mem_size);
+	if (ret)
+		goto release_mem;
 
 	mxt_update_crc(data, MXT_COMMAND_BACKUPNV, MXT_BACKUP_VALUE);
 
@@ -1319,8 +1340,6 @@ static int mxt_update_cfg(struct mxt_data *data, const struct firmware *cfg)
 
 release_mem:
 	kfree(config_mem);
-release:
-	release_firmware(cfg);
 	return ret;
 }
 
@@ -1640,6 +1659,7 @@ static int mxt_configure_objects(struct mxt_data *data,
 static void mxt_config_cb(const struct firmware *cfg, void *ctx)
 {
 	mxt_configure_objects(ctx, cfg);
+	release_firmware(cfg);
 }
 
 static int mxt_initialize(struct mxt_data *data)
