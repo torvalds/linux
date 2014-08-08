@@ -55,7 +55,7 @@ adfs_fplus_read(struct super_block *sb, unsigned int id, unsigned int sz, struct
 	}
 
 	size >>= sb->s_blocksize_bits;
-	if (size > sizeof(dir->bh)/sizeof(dir->bh[0])) {
+	if (size > ARRAY_SIZE(dir->bh)) {
 		/* this directory is too big for fixed bh set, must allocate */
 		struct buffer_head **bh_fplus =
 			kzalloc(size * sizeof(struct buffer_head *),
