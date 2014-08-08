@@ -566,6 +566,8 @@ void l2cap_chan_del(struct l2cap_chan *chan, int err)
 
 	BT_DBG("chan %p, conn %p, err %d", chan, conn, err);
 
+	chan->ops->teardown(chan, err);
+
 	if (conn) {
 		struct amp_mgr *mgr = conn->hcon->amp_mgr;
 		/* Delete from channel list */
@@ -588,8 +590,6 @@ void l2cap_chan_del(struct l2cap_chan *chan, int err)
 		BT_DBG("chan %p disconnect hs_hchan %p", chan, hs_hchan);
 		amp_disconnect_logical_link(hs_hchan);
 	}
-
-	chan->ops->teardown(chan, err);
 
 	if (test_bit(CONF_NOT_COMPLETE, &chan->conf_state))
 		return;
