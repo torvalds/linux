@@ -13,6 +13,7 @@ Optional SoC Specific Properties:
 - pinctrl-names: Contains only one value - "default".
 - pintctrl-0: Specifies the pin control groups used for this controller.
 - autosuspend-delay: Specify autosuspend delay in milliseconds.
+- vin-voltage-override: Specify voltage of VIN pin in microvolts.
 
 Example (for ARM-based BeagleBone with TRF7970A on SPI1):
 
@@ -30,6 +31,7 @@ Example (for ARM-based BeagleBone with TRF7970A on SPI1):
 		ti,enable-gpios = <&gpio2 2 GPIO_ACTIVE_LOW>,
 				  <&gpio2 5 GPIO_ACTIVE_LOW>;
 		vin-supply = <&ldo3_reg>;
+		vin-voltage-override = <5000000>;
 		autosuspend-delay = <30000>;
 		status = "okay";
 	};
