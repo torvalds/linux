@@ -1926,6 +1926,8 @@ static int __hci_init(struct hci_dev *hdev)
 		debugfs_create_u16("discov_interleaved_timeout", 0644,
 				   hdev->debugfs,
 				   &hdev->discov_interleaved_timeout);
+
+		hci_register_smp(hdev);
 	}
 
 	return 0;
@@ -4127,13 +4129,9 @@ int hci_register_dev(struct hci_dev *hdev)
 
 	dev_set_name(&hdev->dev, "%s", hdev->name);
 
-	error = hci_register_smp(hdev);
-	if (error)
-		goto err_wqueue;
-
 	error = device_add(&hdev->dev);
 	if (error < 0)
-		goto err_smp;
+		goto err_wqueue;
 
 	hdev->rfkill = rfkill_alloc(hdev->name, &hdev->dev,
 				    RFKILL_TYPE_BLUETOOTH, &hci_rfkill_ops,
@@ -4175,8 +4173,6 @@ int hci_register_dev(struct hci_dev *hdev)
 
 	return id;
 
-err_smp:
-	hci_unregister_smp(hdev);
 err_wqueue:
 	destroy_workqueue(hdev->workqueue);
 	destroy_workqueue(hdev->req_workqueue);
