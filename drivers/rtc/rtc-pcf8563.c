@@ -69,6 +69,52 @@ struct pcf8563 {
 	int voltage_low; /* incicates if a low_voltage was detected */
 };
 
+static int pcf8563_read_block_data(struct i2c_client *client, unsigned char reg,
+				   unsigned char length, unsigned char *buf)
+{
+	struct i2c_msg msgs[] = {
+		{/* setup read ptr */
+			.addr = client->addr,
+			.len = 1,
+			.buf = &reg,
+		},
+		{
+			.addr = client->addr,
+			.flags = I2C_M_RD,
+			.len = length,
+			.buf = buf
+		},
+	};
+
+	if ((i2c_transfer(client->adapter, msgs, 2)) != 2) {
+		dev_err(&client->dev, "%s: read error\n", __func__);
+		return -EIO;
+	}
+
+	return 0;
+}
+
+static int pcf8563_write_block_data(struct i2c_client *client,
+				   unsigned char reg, unsigned char length,
+				   unsigned char *buf)
+{
+	int i, err;
+
+	for (i = 0; i < length; i++) {
+		unsigned char data[2] = { reg + i, buf[i] };
+
+		err = i2c_master_send(client, data, sizeof(data));
+		if (err != sizeof(data)) {
+			dev_err(&client->dev,
+				"%s: err=%d addr=%02x, data=%02x\n",
+				__func__, err, data[0], data[1]);
+			return -EIO;
+		}
+	}
+
+	return 0;
+}
+
 /*
  * In the routines that deal directly with the pcf8563 hardware, we use
  * rtc_time -- month 0-11, hour 0-23, yr = calendar year-epoch.
@@ -76,27 +122,12 @@ struct pcf8563 {
 static int pcf8563_get_datetime(struct i2c_client *client, struct rtc_time *tm)
 {
 	struct pcf8563 *pcf8563 = i2c_get_clientdata(client);
-	unsigned char buf[13] = { PCF8563_REG_ST1 };
+	unsigned char buf[9];
+	int err;
 
-	struct i2c_msg msgs[] = {
-		{/* setup read ptr */
-			.addr = client->addr,
-			.len = 1,
-			.buf = buf
-		},
-		{/* read status + date */
-			.addr = client->addr,
-			.flags = I2C_M_RD,
-			.len = 13,
-			.buf = buf
-		},
-	};
-
-	/* read registers */
-	if ((i2c_transfer(client->adapter, msgs, 2)) != 2) {
-		dev_err(&client->dev, "%s: read error\n", __func__);
-		return -EIO;
-	}
+	err = pcf8563_read_block_data(client, PCF8563_REG_ST1, 9, buf);
+	if (err)
+		return err;
 
 	if (buf[PCF8563_REG_SC] & PCF8563_SC_LV) {
 		pcf8563->voltage_low = 1;
@@ -144,7 +175,7 @@ static int pcf8563_get_datetime(struct i2c_client *client, struct rtc_time *tm)
 static int pcf8563_set_datetime(struct i2c_client *client, struct rtc_time *tm)
 {
 	struct pcf8563 *pcf8563 = i2c_get_clientdata(client);
-	int i, err;
+	int err;
 	unsigned char buf[9];
 
 	dev_dbg(&client->dev, "%s: secs=%d, mins=%d, hours=%d, "
@@ -170,19 +201,10 @@ static int pcf8563_set_datetime(struct i2c_client *client, struct rtc_time *tm)
 
 	buf[PCF8563_REG_DW] = tm->tm_wday & 0x07;
 
-	/* write register's data */
-	for (i = 0; i < 7; i++) {
-		unsigned char data[2] = { PCF8563_REG_SC + i,
-						buf[PCF8563_REG_SC + i] };
-
-		err = i2c_master_send(client, data, sizeof(data));
-		if (err != sizeof(data)) {
-			dev_err(&client->dev,
-				"%s: err=%d addr=%02x, data=%02x\n",
-				__func__, err, data[0], data[1]);
-			return -EIO;
-		}
-	}
+	err = pcf8563_write_block_data(client, PCF8563_REG_SC,
+				9 - PCF8563_REG_SC, buf + PCF8563_REG_SC);
+	if (err)
+		return err;
 
 	return 0;
 }
