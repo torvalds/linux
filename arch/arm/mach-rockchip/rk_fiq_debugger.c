@@ -37,6 +37,13 @@
 #include <linux/irqchip/arm-gic.h>
 #include "rk_fiq_debugger.h"
 
+#define UART_USR	0x1f	/* In: UART Status Register */
+#define UART_USR_RX_FIFO_FULL		0x10 /* Receive FIFO full */
+#define UART_USR_RX_FIFO_NOT_EMPTY	0x08 /* Receive FIFO not empty */
+#define UART_USR_TX_FIFO_EMPTY		0x04 /* Transmit FIFO empty */
+#define UART_USR_TX_FIFO_NOT_FULL	0x02 /* Transmit FIFO not full */
+#define UART_USR_BUSY			0x01 /* UART busy indicator */
+
 struct rk_fiq_debugger {
 	struct fiq_debugger_pdata pdata;
 	void __iomem *debug_port_base;
@@ -113,10 +120,7 @@ static void debug_putc(struct platform_device *pdev, unsigned int c)
 	struct rk_fiq_debugger *t;
 	t = container_of(dev_get_platdata(&pdev->dev), typeof(*t), pdata);
 
-//	while (!(rk_fiq_read_lsr(t) & UART_LSR_THRE))
-//		cpu_relax();
-	//enable TX FIFO
-	while (!(rk_fiq_read(t, 0x1F) & 0x02))
+	while (!(rk_fiq_read(t, UART_USR) & UART_USR_TX_FIFO_NOT_FULL))
 		cpu_relax();
 	rk_fiq_write(t, c, UART_TX);
 }

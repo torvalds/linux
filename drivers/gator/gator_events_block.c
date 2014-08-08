@@ -28,26 +28,25 @@ static ulong block_rq_rd_key;
 static atomic_t blockCnt[BLOCK_TOTAL];
 static int blockGet[BLOCK_TOTAL * 4];
 
-GATOR_DEFINE_PROBE(block_rq_complete, TP_PROTO(struct request_queue *q, struct request *rq))
+GATOR_DEFINE_PROBE(block_rq_complete, TP_PROTO(struct request_queue *q, struct request *rq, unsigned int nr_bytes))
 {
-	int write, size;
+	int write;
 
 	if (!rq)
 		return;
 
 	write = rq->cmd_flags & EVENTWRITE;
-	size = rq->resid_len;
 
-	if (!size)
+	if (!nr_bytes)
 		return;
 
 	if (write) {
 		if (block_rq_wr_enabled) {
-			atomic_add(size, &blockCnt[BLOCK_RQ_WR]);
+			atomic_add(nr_bytes, &blockCnt[BLOCK_RQ_WR]);
 		}
 	} else {
 		if (block_rq_rd_enabled) {
-			atomic_add(size, &blockCnt[BLOCK_RQ_RD]);
+			atomic_add(nr_bytes, &blockCnt[BLOCK_RQ_RD]);
 		}
 	}
 }

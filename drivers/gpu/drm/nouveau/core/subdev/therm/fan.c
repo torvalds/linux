@@ -54,8 +54,10 @@ nouveau_fan_update(struct nouveau_fan *fan, bool immediate, int target)
 
 	/* check that we're not already at the target duty cycle */
 	duty = fan->get(therm);
-	if (duty == target)
-		goto done;
+	if (duty == target) {
+		spin_unlock_irqrestore(&fan->lock, flags);
+		return 0;
+	}
 
 	/* smooth out the fanspeed increase/decrease */
 	if (!immediate && duty >= 0) {
@@ -73,8 +75,15 @@ nouveau_fan_update(struct nouveau_fan *fan, bool immediate, int target)
 
 	nv_debug(therm, "FAN update: %d\n", duty);
 	ret = fan->set(therm, duty);
-	if (ret)
-		goto done;
+	if (ret) {
+		spin_unlock_irqrestore(&fan->lock, flags);
+		return ret;
+	}
+
+	/* fan speed updated, drop the fan lock before grabbing the
+	 * alarm-scheduling lock and risking a deadlock
+	 */
+	spin_unlock_irqrestore(&fan->lock, flags);
 
 	/* schedule next fan update, if not at target speed already */
 	if (list_empty(&fan->alarm.head) && target != duty) {
@@ -92,8 +101,6 @@ nouveau_fan_update(struct nouveau_fan *fan, bool immediate, int target)
 		ptimer->alarm(ptimer, delay * 1000 * 1000, &fan->alarm);
 	}
 
-done:
-	spin_unlock_irqrestore(&fan->lock, flags);
 	return ret;
 }
 

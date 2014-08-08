@@ -2721,13 +2721,12 @@ static void tcp_process_loss(struct sock *sk, int flag, bool is_dupack)
 	bool recovered = !before(tp->snd_una, tp->high_seq);
 
 	if (tp->frto) { /* F-RTO RFC5682 sec 3.1 (sack enhanced version). */
-		if (flag & FLAG_ORIG_SACK_ACKED) {
-			/* Step 3.b. A timeout is spurious if not all data are
-			 * lost, i.e., never-retransmitted data are (s)acked.
-			 */
-			tcp_try_undo_loss(sk, true);
+		/* Step 3.b. A timeout is spurious if not all data are
+		 * lost, i.e., never-retransmitted data are (s)acked.
+		 */
+		if (tcp_try_undo_loss(sk, flag & FLAG_ORIG_SACK_ACKED))
 			return;
-		}
+
 		if (after(tp->snd_nxt, tp->high_seq) &&
 		    (flag & FLAG_DATA_SACKED || is_dupack)) {
 			tp->frto = 0; /* Loss was real: 2nd part of step 3.a */

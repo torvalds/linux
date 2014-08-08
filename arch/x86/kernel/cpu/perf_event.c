@@ -1252,10 +1252,20 @@ void perf_events_lapic_init(void)
 static int __kprobes
 perf_event_nmi_handler(unsigned int cmd, struct pt_regs *regs)
 {
+	int ret;
+	u64 start_clock;
+	u64 finish_clock;
+
 	if (!atomic_read(&active_events))
 		return NMI_DONE;
 
-	return x86_pmu.handle_irq(regs);
+	start_clock = local_clock();
+	ret = x86_pmu.handle_irq(regs);
+	finish_clock = local_clock();
+
+	perf_sample_event_took(finish_clock - start_clock);
+
+	return ret;
 }
 
 struct event_constraint emptyconstraint;

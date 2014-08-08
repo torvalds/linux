@@ -745,7 +745,7 @@ static inline void ep0_out_start(dwc_otg_core_if_t *core_if,
 		}
 	}
 
-	doeptsize0.b.supcnt = 3;
+	doeptsize0.b.supcnt = 1;
 	doeptsize0.b.pktcnt = 1;
 	doeptsize0.b.xfersize = 8 * 3;
 
@@ -1834,20 +1834,6 @@ static inline void pcd_setup(dwc_otg_pcd_t *pcd)
 
 	doeptsize0.d32 = DWC_READ_REG32(&dev_if->out_ep_regs[0]->doeptsiz);
 
-	/** In BDMA more then 1 setup packet is not supported till 3.00a */
-	if (core_if->dma_enable && core_if->dma_desc_enable == 0
-	    && (doeptsize0.b.supcnt < 2)
-	    && (core_if->snpsid < OTG_CORE_REV_2_94a)) {
-		DWC_ERROR
-		    ("\n\n-----------	 CANNOT handle > 1 setup packet in DMA mode\n\n");
-	}
-	if ((core_if->snpsid >= OTG_CORE_REV_3_00a)
-	    && (core_if->dma_enable == 1) && (core_if->dma_desc_enable == 0)) {
-		ctrl =
-		    (pcd->setup_pkt +
-		     (3 - doeptsize0.b.supcnt - 1 +
-		      ep0->dwc_ep.stp_rollover))->req;
-	}
 #ifdef DEBUG_EP0
 	DWC_DEBUGPL(DBG_PCD, "SETUP %02x.%02x v%04x i%04x l%04x\n",
 		    ctrl.bmRequestType, ctrl.bRequest,

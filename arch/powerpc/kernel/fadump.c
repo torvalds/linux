@@ -55,9 +55,9 @@ int crash_mem_ranges;
 int __init early_init_dt_scan_fw_dump(unsigned long node,
 			const char *uname, int depth, void *data)
 {
-	__be32 *sections;
+	const __be32 *sections;
 	int i, num_sections;
-	unsigned long size;
+	int size;
 	const int *token;
 
 	if (depth != 1 || strcmp(uname, "rtas") != 0)

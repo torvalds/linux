@@ -364,7 +364,7 @@ sctp_disposition_t sctp_sf_do_5_1B_init(struct net *net,
 
 	/* Verify the INIT chunk before processing it. */
 	err_chunk = NULL;
-	if (!sctp_verify_init(net, asoc, chunk->chunk_hdr->type,
+	if (!sctp_verify_init(net, ep, asoc, chunk->chunk_hdr->type,
 			      (sctp_init_chunk_t *)chunk->chunk_hdr, chunk,
 			      &err_chunk)) {
 		/* This chunk contains fatal error. It is to be discarded.
@@ -531,7 +531,7 @@ sctp_disposition_t sctp_sf_do_5_1C_ack(struct net *net,
 
 	/* Verify the INIT chunk before processing it. */
 	err_chunk = NULL;
-	if (!sctp_verify_init(net, asoc, chunk->chunk_hdr->type,
+	if (!sctp_verify_init(net, ep, asoc, chunk->chunk_hdr->type,
 			      (sctp_init_chunk_t *)chunk->chunk_hdr, chunk,
 			      &err_chunk)) {
 
@@ -1437,7 +1437,7 @@ static sctp_disposition_t sctp_sf_do_unexpected_init(
 
 	/* Verify the INIT chunk before processing it. */
 	err_chunk = NULL;
-	if (!sctp_verify_init(net, asoc, chunk->chunk_hdr->type,
+	if (!sctp_verify_init(net, ep, asoc, chunk->chunk_hdr->type,
 			      (sctp_init_chunk_t *)chunk->chunk_hdr, chunk,
 			      &err_chunk)) {
 		/* This chunk contains fatal error. It is to be discarded.
