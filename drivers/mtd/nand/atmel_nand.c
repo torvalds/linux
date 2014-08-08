@@ -131,7 +131,6 @@ struct atmel_nand_host {
 	u32			pmecc_lookup_table_offset_512;
 	u32			pmecc_lookup_table_offset_1024;
 
-	int			pmecc_bytes_per_sector;
 	int			pmecc_degree;	/* Degree of remainders */
 	int			pmecc_cw_len;	/* Length of codeword */
 
@@ -843,7 +842,7 @@ static void pmecc_correct_data(struct mtd_info *mtd, uint8_t *buf, uint8_t *ecc,
 				pos, bit_pos, err_byte, *(buf + byte_pos));
 		} else {
 			/* Bit flip in OOB area */
-			tmp = sector_num * host->pmecc_bytes_per_sector
+			tmp = sector_num * nand_chip->ecc.bytes
 					+ (byte_pos - sector_size);
 			err_byte = ecc[tmp];
 			ecc[tmp] ^= (1 << bit_pos);
@@ -892,7 +891,7 @@ normal_check:
 				return -EIO;
 			} else {
 				pmecc_correct_data(mtd, buf_pos, ecc, i,
-					host->pmecc_bytes_per_sector, err_nbr);
+					nand_chip->ecc.bytes, err_nbr);
 				mtd->ecc_stats.corrected += err_nbr;
 				total_err += err_nbr;
 			}
@@ -987,10 +986,10 @@ static int atmel_nand_pmecc_write_page(struct mtd_info *mtd,
 	}
 
 	for (i = 0; i < chip->ecc.steps; i++) {
-		for (j = 0; j < host->pmecc_bytes_per_sector; j++) {
+		for (j = 0; j < chip->ecc.bytes; j++) {
 			int pos;
 
-			pos = i * host->pmecc_bytes_per_sector + j;
+			pos = i * chip->ecc.bytes + j;
 			chip->oob_poi[eccpos[pos]] =
 				pmecc_readb_ecc_relaxed(host->ecc, i, j);
 		}
@@ -1186,14 +1185,12 @@ static int atmel_pmecc_nand_init_params(struct platform_device *pdev,
 		host->pmecc_degree = (sector_size == 512) ?
 			PMECC_GF_DIMENSION_13 : PMECC_GF_DIMENSION_14;
 		host->pmecc_cw_len = (1 << host->pmecc_degree) - 1;
-		host->pmecc_bytes_per_sector = pmecc_get_ecc_bytes(
-			cap, sector_size);
 		host->pmecc_alpha_to = pmecc_get_alpha_to(host);
 		host->pmecc_index_of = host->pmecc_rom_base +
 			host->pmecc_lookup_table_offset;
 
 		nand_chip->ecc.strength = cap;
-		nand_chip->ecc.bytes = host->pmecc_bytes_per_sector;
+		nand_chip->ecc.bytes = pmecc_get_ecc_bytes(cap, sector_size);
 		nand_chip->ecc.steps = mtd->writesize / sector_size;
 		nand_chip->ecc.total = nand_chip->ecc.bytes *
 			nand_chip->ecc.steps;
