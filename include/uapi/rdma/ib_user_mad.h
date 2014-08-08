@@ -213,7 +213,10 @@ struct ib_user_mad_reg_req {
  *                       used.
  * @rmpp_version       - If set, indicates the RMPP version to use.
  */
-#define IB_USER_MAD_REG_FLAGS_CAP (0)
+enum {
+	IB_USER_MAD_USER_RMPP = (1 << 0),
+};
+#define IB_USER_MAD_REG_FLAGS_CAP (IB_USER_MAD_USER_RMPP)
 struct ib_user_mad_reg_req2 {
 	__u32	id;
 	__u32	qpn;

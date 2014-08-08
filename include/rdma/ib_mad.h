@@ -40,6 +40,7 @@
 #include <linux/list.h>
 
 #include <rdma/ib_verbs.h>
+#include <uapi/rdma/ib_user_mad.h>
 
 /* Management base version */
 #define IB_MGMT_BASE_VERSION			1
@@ -359,6 +360,9 @@ typedef void (*ib_mad_recv_handler)(struct ib_mad_agent *mad_agent,
  * @port_num: Port number on which QP is registered
  * @rmpp_version: If set, indicates the RMPP version used by this agent.
  */
+enum {
+	IB_MAD_USER_RMPP = IB_USER_MAD_USER_RMPP,
+};
 struct ib_mad_agent {
 	struct ib_device	*device;
 	struct ib_qp		*qp;
@@ -665,5 +669,12 @@ void *ib_get_rmpp_segment(struct ib_mad_send_buf *send_buf, int seg_num);
  * @send_buf: Previously allocated send data buffer.
  */
 void ib_free_send_mad(struct ib_mad_send_buf *send_buf);
+
+/**
+ * ib_mad_kernel_rmpp_agent - Returns if the agent is performing RMPP.
+ * @agent: the agent in question
+ * @return: true if agent is performing rmpp, false otherwise.
+ */
+int ib_mad_kernel_rmpp_agent(struct ib_mad_agent *agent);
 
 #endif /* IB_MAD_H */
