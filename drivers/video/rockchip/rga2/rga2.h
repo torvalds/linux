@@ -631,7 +631,4 @@ struct rga2_service_info {
 #define RGA2_MODE_CTRL            0x100
 #define RGA_BLIT_COMPLETE_EVENT 1
 
-long rga_ioctl_kernel(struct rga_req *req);
-
-
 #endif /*_RK29_IPP_DRIVER_H_*/

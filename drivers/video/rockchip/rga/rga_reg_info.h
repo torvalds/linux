@@ -73,7 +73,7 @@
 #define rRGA_DST_VIR_INFO         (*(volatile uint32_t *)(RGA_BASE + RGA_DST_VIR_INFO))
 
 #define rRGA_DST_CTR_INFO         (*(volatile uint32_t *)(RGA_BASE + RGA_DST_CTR_INFO))
-#define rRGA_LINE_DRAW_XY_INFO    (*(volatile uint32_t *)(RGA_BASE + RGA_LINE_DRAW_XY_INFO))  //repeat 
+#define rRGA_LINE_DRAW_XY_INFO    (*(volatile uint32_t *)(RGA_BASE + RGA_LINE_DRAW_XY_INFO))  //repeat
 
 //Alpha/ROP Registers
 #define rRGA_ALPHA_CON            (*(volatile uint32_t *)(RGA_BASE + RGA_ALPHA_CON))
@@ -258,7 +258,7 @@
 #define s_RGA_LINE_DRAW_LAST_POINT(x)             (  ((x)&0x1)<<30)
 #define s_RGA_LINE_DRAW_ANTI_ALISING(x)           (  ((x)&0x1)<<31)
 
- 
+
 /* RGA_ALPHA_CON */
 #define m_RGA_ALPHA_CON_ENABLE                  ( 0x1<<0 )
 #define m_RGA_ALPHA_CON_A_OR_R_SEL              ( 0x1<<1 )
@@ -360,7 +360,7 @@
 #define RGA_DST_VIR_INFO_OFFSET         0x50
 
 #define RGA_DST_CTR_INFO_OFFSET         0x54
-#define RGA_LINE_DRAW_XY_INFO_OFFSET    0x54  //repeat 
+#define RGA_LINE_DRAW_XY_INFO_OFFSET    0x54  //repeat
 
 #define RGA_ALPHA_CON_OFFSET            0x58
 #define RGA_FADING_CON_OFFSET           0x5c
@@ -435,7 +435,7 @@
 #define RGA_DST_VIR_INFO_OFFSET         (RGA_DST_VIR_INFO-0x100)
 
 #define RGA_DST_CTR_INFO_OFFSET         (RGA_DST_CTR_INFO-0x100)
-#define RGA_LINE_DRAW_XY_INFO_OFFSET    (RGA_LINE_DRAW_XY_INFO-0x100)  //repeat 
+#define RGA_LINE_DRAW_XY_INFO_OFFSET    (RGA_LINE_DRAW_XY_INFO-0x100)  //repeat
 
 #define RGA_ALPHA_CON_OFFSET            (RGA_ALPHA_CON-0x100)
 
@@ -451,7 +451,11 @@
 #define RGA_PRESCL_CR_MST_OFFSET        (RGA_PRESCL_CR_MST-0x100)  //repeat
 
 #define RGA_FADING_CON_OFFSET           (RGA_FADING_CON-0x100)
-#define RGA_MMU_TLB_OFFSET             (RGA_MMU_TBL-0x100)
+#define RGA_MMU_TLB_OFFSET              (RGA_MMU_TBL-0x100)
+
+#define RGA_YUV_OUT_CFG_OFFSET         (RGA_YUV_OUT_CFG-0x100)
+#define RGA_DST_UV_MST_OFFSET          (RGA_DST_UV_MST-0x100)
+
 
 
 void matrix_cal(const struct rga_req *msg, TILE_INFO *tile);

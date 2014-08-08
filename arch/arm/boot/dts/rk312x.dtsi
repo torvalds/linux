@@ -690,7 +690,7 @@
 	};
 	
 	rga: rga@1010c000 {
-		compatible = "rockchip,rga";
+		compatible = "rockchip,rga_drv";
 		reg = <0x1010c000 0x1000>;
 		interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clk_gates0 11>, <&clk_gates1 4>;

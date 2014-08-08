@@ -2,6 +2,8 @@
 #define _RGA_DRIVER_H_
 
 #include <linux/mutex.h>
+#include <linux/scatterlist.h>
+
 
 #define RGA_BLIT_SYNC	0x5017
 #define RGA_BLIT_ASYNC  0x5018
@@ -11,7 +13,7 @@
 
 
 #define RGA_REG_CTRL_LEN    0x8    /* 8  */
-#define RGA_REG_CMD_LEN     0x1c   /* 28 */
+#define RGA_REG_CMD_LEN     0x20   /* 32 */
 #define RGA_CMD_BUF_SIZE    0x700  /* 16*28*4 */
 
 #define RGA_OUT_OF_RESOURCES    -10
@@ -26,7 +28,7 @@
 
 /* RGA process mode enum */
 enum
-{    
+{
     bitblt_mode               = 0x0,
     color_palette_mode        = 0x1,
     color_fill_mode           = 0x2,
@@ -55,7 +57,7 @@ enum
 
 
 /* RGA rotate mode */
-enum 
+enum
 {
     rotate_mode0             = 0x0,     /* no rotate */
     rotate_mode1             = 0x1,     /* rotate    */
@@ -74,13 +76,13 @@ enum
 
 
 /*
-//          Alpha    Red     Green   Blue  
-{  4, 32, {{32,24,   8, 0,  16, 8,  24,16 }}, GGL_RGBA },   // RK_FORMAT_RGBA_8888    
-{  4, 24, {{ 0, 0,   8, 0,  16, 8,  24,16 }}, GGL_RGB  },   // RK_FORMAT_RGBX_8888    
+//          Alpha    Red     Green   Blue
+{  4, 32, {{32,24,   8, 0,  16, 8,  24,16 }}, GGL_RGBA },   // RK_FORMAT_RGBA_8888
+{  4, 24, {{ 0, 0,   8, 0,  16, 8,  24,16 }}, GGL_RGB  },   // RK_FORMAT_RGBX_8888
 {  3, 24, {{ 0, 0,   8, 0,  16, 8,  24,16 }}, GGL_RGB  },   // RK_FORMAT_RGB_888
 {  4, 32, {{32,24,  24,16,  16, 8,   8, 0 }}, GGL_BGRA },   // RK_FORMAT_BGRA_8888
-{  2, 16, {{ 0, 0,  16,11,  11, 5,   5, 0 }}, GGL_RGB  },   // RK_FORMAT_RGB_565        
-{  2, 16, {{ 1, 0,  16,11,  11, 6,   6, 1 }}, GGL_RGBA },   // RK_FORMAT_RGBA_5551    
+{  2, 16, {{ 0, 0,  16,11,  11, 5,   5, 0 }}, GGL_RGB  },   // RK_FORMAT_RGB_565
+{  2, 16, {{ 1, 0,  16,11,  11, 6,   6, 1 }}, GGL_RGBA },   // RK_FORMAT_RGBA_5551
 {  2, 16, {{ 4, 0,  16,12,  12, 8,   8, 4 }}, GGL_RGBA },   // RK_FORMAT_RGBA_4444
 {  3, 24, {{ 0, 0,  24,16,  16, 8,   8, 0 }}, GGL_BGR  },   // RK_FORMAT_BGB_888
 
@@ -95,39 +97,39 @@ enum
     RK_FORMAT_RGBA_5551    = 0x5,
     RK_FORMAT_RGBA_4444    = 0x6,
     RK_FORMAT_BGR_888      = 0x7,
-    
-    RK_FORMAT_YCbCr_422_SP = 0x8,    
-    RK_FORMAT_YCbCr_422_P  = 0x9,    
-    RK_FORMAT_YCbCr_420_SP = 0xa,    
+
+    RK_FORMAT_YCbCr_422_SP = 0x8,
+    RK_FORMAT_YCbCr_422_P  = 0x9,
+    RK_FORMAT_YCbCr_420_SP = 0xa,
     RK_FORMAT_YCbCr_420_P  = 0xb,
 
-    RK_FORMAT_YCrCb_422_SP = 0xc,    
-    RK_FORMAT_YCrCb_422_P  = 0xd,    
-    RK_FORMAT_YCrCb_420_SP = 0xe,    
+    RK_FORMAT_YCrCb_422_SP = 0xc,
+    RK_FORMAT_YCrCb_422_P  = 0xd,
+    RK_FORMAT_YCrCb_420_SP = 0xe,
     RK_FORMAT_YCrCb_420_P  = 0xf,
-    
+
     RK_FORMAT_BPP1         = 0x10,
     RK_FORMAT_BPP2         = 0x11,
     RK_FORMAT_BPP4         = 0x12,
     RK_FORMAT_BPP8         = 0x13,
 };
-    
-    
+
+
 typedef struct rga_img_info_t
 {
     unsigned int yrgb_addr;      /* yrgb    mem addr         */
     unsigned int uv_addr;        /* cb/cr   mem addr         */
     unsigned int v_addr;         /* cr      mem addr         */
     unsigned int format;         //definition by RK_FORMAT
-    
+
     unsigned short act_w;
     unsigned short act_h;
     unsigned short x_offset;
     unsigned short y_offset;
-    
+
     unsigned short vir_w;
     unsigned short vir_h;
-    
+
     unsigned short endian_mode; //for BPP
     unsigned short alpha_swap;
 }
@@ -163,8 +165,8 @@ typedef struct RECT
 {
     unsigned short xmin;
     unsigned short xmax; // width - 1
-    unsigned short ymin; 
-    unsigned short ymax; // height - 1 
+    unsigned short ymin;
+    unsigned short ymax; // height - 1
 } RECT;
 
 typedef struct RGB
@@ -225,23 +227,23 @@ line_draw_t;
 
 struct rga_req {
     uint8_t render_mode;            /* (enum) process mode sel */
-    
+
     rga_img_info_t src;             /* src image info */
     rga_img_info_t dst;             /* dst image info */
     rga_img_info_t pat;             /* patten image info */
 
     uint32_t rop_mask_addr;         /* rop4 mask addr */
     uint32_t LUT_addr;              /* LUT addr */
-    
+
     RECT clip;                      /* dst clip window default value is dst_vir */
                                     /* value from [0, w-1] / [0, h-1]*/
-        
+
     int32_t sina;                   /* dst angle  default value 0  16.16 scan from table */
-    int32_t cosa;                   /* dst angle  default value 0  16.16 scan from table */        
+    int32_t cosa;                   /* dst angle  default value 0  16.16 scan from table */
 
     uint16_t alpha_rop_flag;        /* alpha rop process flag           */
                                     /* ([0] = 1 alpha_rop_enable)       */
-                                    /* ([1] = 1 rop enable)             */                                                                                                                
+                                    /* ([1] = 1 rop enable)             */
                                     /* ([2] = 1 fading_enable)          */
                                     /* ([3] = 1 PD_enable)              */
                                     /* ([4] = 1 alpha cal_mode_sel)     */
@@ -249,32 +251,32 @@ struct rga_req {
                                     /* ([6] = 1 gradient fill mode sel) */
                                     /* ([7] = 1 AA_enable)              */
 
-    uint8_t  scale_mode;            /* 0 nearst / 1 bilnear / 2 bicubic */                             
-                            
+    uint8_t  scale_mode;            /* 0 nearst / 1 bilnear / 2 bicubic */
+
     uint32_t color_key_max;         /* color key max */
-    uint32_t color_key_min;         /* color key min */     
+    uint32_t color_key_min;         /* color key min */
 
     uint32_t fg_color;              /* foreground color */
     uint32_t bg_color;              /* background color */
 
     COLOR_FILL gr_color;            /* color fill use gradient */
-    
+
     line_draw_t line_draw_info;
-    
+
     FADING fading;
-                              
+
     uint8_t PD_mode;                /* porter duff alpha mode sel */
-    
+
     uint8_t alpha_global_value;     /* global alpha value */
-     
+
     uint16_t rop_code;              /* rop2/3/4 code  scan from rop code table*/
-    
+
     uint8_t bsfilter_flag;          /* [2] 0 blur 1 sharp / [1:0] filter_type*/
-    
+
     uint8_t palette_mode;           /* (enum) color palatte  0/1bpp, 1/2bpp 2/4bpp 3/8bpp*/
 
-    uint8_t yuv2rgb_mode;           /* (enum) BT.601 MPEG / BT.601 JPEG / BT.709  */ 
-    
+    uint8_t yuv2rgb_mode;           /* (enum) BT.601 MPEG / BT.601 JPEG / BT.709  */
+
     uint8_t endian_mode;            /* 0/big endian 1/little endian*/
 
     uint8_t rotate_mode;            /* (enum) rotate mode  */
@@ -284,7 +286,7 @@ struct rga_req {
                                     /* 0x3,     y_mirror   */
 
     uint8_t color_fill_mode;        /* 0 solid color / 1 patten color */
-                                    
+
     MMU mmu_info;                   /* mmu information */
 
     uint8_t  alpha_rop_mode;        /* ([0~1] alpha mode)       */
@@ -292,14 +294,17 @@ struct rga_req {
                                     /* ([4]   zero  mode en)    */
                                     /* ([5]   dst   alpha mode) */
 
-    uint8_t  src_trans_mode;                           
+    uint8_t  src_trans_mode;
+
+    struct sg_table *sg_src;
+    struct sg_table *sg_dst;
 };
 
-    
+
 typedef struct TILE_INFO
 {
     int64_t matrix[4];
-    
+
     uint16_t tile_x_num;     /* x axis tile num / tile size is 8x8 pixel */
     uint16_t tile_y_num;     /* y axis tile num */
 
@@ -323,9 +328,9 @@ typedef struct TILE_INFO
     int32_t y_dy;
 
     mdp_img_act dst_ctrl;
-    
+
 }
-TILE_INFO;	
+TILE_INFO;
 
 
 /**
@@ -348,15 +353,15 @@ typedef struct rga_session {
     atomic_t        num_done;
 } rga_session;
 
-struct rga_reg {    
+struct rga_reg {
     rga_session 		*session;
 	struct list_head	session_link;		/* link to rga service session */
 	struct list_head	status_link;		/* link to register set list */
 	uint32_t  sys_reg[RGA_REG_CTRL_LEN];
     uint32_t  cmd_reg[RGA_REG_CMD_LEN];
-    
+
     uint32_t *MMU_base;
-    //atomic_t int_enable;   
+    //atomic_t int_enable;
 
     //struct rga_req      req;
 };
@@ -371,9 +376,9 @@ typedef struct rga_service_info {
     struct list_head	done;			/* link to link_reg in struct vpu_reg */
     struct list_head	session;		/* link to list_session in struct vpu_session */
     atomic_t		total_running;
-    
+
     struct rga_reg        *reg;
-    
+
     uint32_t            cmd_buff[28*8];/* cmd_buff for rga */
     uint32_t            *pre_scale_buf;
     atomic_t            int_disable;     /* 0 int enable 1 int disable  */
@@ -390,7 +395,7 @@ typedef struct rga_service_info {
 
 
 
-#if defined(CONFIG_ARCH_RK2928) || defined(CONFIG_ARCH_RK3026)
+#if defined(CONFIG_ARCH_RK2928) || defined(CONFIG_ARCH_RK3026) || defined(CONFIG_ARCH_RK312x)
 #define RGA_BASE                 0x1010c000
 #elif defined(CONFIG_ARCH_RK30)
 #define RGA_BASE                 0x10114000
@@ -444,7 +449,7 @@ typedef struct rga_service_info {
 #define RGA_DST_VIR_INFO         0x150
 
 #define RGA_DST_CTR_INFO         0x154
-#define RGA_LINE_DRAW_XY_INFO    0x154  //repeat 
+#define RGA_LINE_DRAW_XY_INFO    0x154  //repeat
 
 //Alpha/ROP Registers
 #define RGA_ALPHA_CON            0x158
@@ -466,10 +471,12 @@ typedef struct rga_service_info {
 
 #define RGA_MMU_TBL              0x16c  //repeat
 
+#define RGA_YUV_OUT_CFG          0x170
+#define RGA_DST_UV_MST           0x174
+
 
 #define RGA_BLIT_COMPLETE_EVENT 1
 
 long rga_ioctl_kernel(struct rga_req *req);
-
 
 #endif /*_RK29_IPP_DRIVER_H_*/

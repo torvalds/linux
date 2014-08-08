@@ -79,6 +79,8 @@ ktime_t rga2_end;
 
 int rga2_flag = 0;
 
+extern long (*rga_ioctl_kernel_p)(struct rga_req *);
+
 rga2_session rga2_session_global;
 
 struct rga2_drvdata_t {
@@ -1109,7 +1111,7 @@ static struct miscdevice rga2_dev ={
 };
 
 static const struct of_device_id rockchip_rga_dt_ids[] = {
-	{ .compatible = "rockchip,rga2", },
+	{ .compatible = "rockchip,rga2_drv", },
 	{},
 };
 
@@ -1125,6 +1127,8 @@ static int rga2_drv_probe(struct platform_device *pdev)
 	atomic_set(&rga2_service.src_format_swt, 0);
 	rga2_service.last_prc_src_format = 1; /* default is yuv first*/
 	rga2_service.enable = false;
+
+    rga_ioctl_kernel_p = rga2_ioctl_kernel;
 
 	data = devm_kzalloc(&pdev->dev, sizeof(struct rga2_drvdata_t), GFP_KERNEL);
 	if(NULL == data)
@@ -1226,7 +1230,7 @@ static struct platform_driver rga2_driver = {
 	.remove		= rga2_drv_remove,
 	.driver		= {
 		.owner  = THIS_MODULE,
-		.name	= "rga",
+		.name	= "rga2",
 		.of_match_table = of_match_ptr(rockchip_rga_dt_ids),
 	},
 };

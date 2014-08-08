@@ -84,6 +84,9 @@ ktime_t rga_end;
 
 rga_session rga_session_global;
 
+long (*rga_ioctl_kernel_p)(struct rga_req *);
+
+
 struct rga_drvdata {
   	struct miscdevice miscdev;
   	struct device dev;
@@ -139,8 +142,8 @@ static void print_info(struct rga_req *req)
         req->src.act_w, req->src.act_h, req->src.vir_w, req->src.vir_h);
     printk("src : x_off = %.8x y_off = %.8x\n", req->src.x_offset, req->src.y_offset);
 
-    printk("dst : yrgb_addr = %.8x, dst.uv_addr = %.8x, dst.v_addr = %.8x\n",
-            req->dst.yrgb_addr, req->dst.uv_addr, req->dst.v_addr);
+    printk("dst : yrgb_addr = %.8x, dst.uv_addr = %.8x, dst.v_addr = %.8x, format = %d\n",
+            req->dst.yrgb_addr, req->dst.uv_addr, req->dst.v_addr, req->dst.format);
     printk("dst : x_off = %.8x y_off = %.8x\n", req->dst.x_offset, req->dst.y_offset);
     printk("dst : act_w = %d, act_h = %d, vir_w = %d, vir_h = %d\n",
         req->dst.act_w, req->dst.act_h, req->dst.vir_w, req->dst.vir_h);
@@ -439,10 +442,10 @@ static void rga_copy_reg(struct rga_reg *reg, uint32_t offset)
     atomic_add(1, &rga_service.cmd_num);
 	atomic_add(1, &reg->session->task_running);
 
-    cmd_buf = (uint32_t *)rga_service.cmd_buff + offset*28;
+    cmd_buf = (uint32_t *)rga_service.cmd_buff + offset*32;
     reg_p = (uint32_t *)reg->cmd_reg;
 
-    for(i=0; i<28; i++)
+    for(i=0; i<32; i++)
     {
         cmd_buf[i] = reg_p[i];
     }
@@ -647,6 +650,7 @@ static void rga_try_set_reg(void)
                 printk("CMD_REG\n");
                 for (i=0; i<7; i++)
                     printk("%.8x %.8x %.8x %.8x\n", p[0 + i*4], p[1+i*4], p[2 + i*4], p[3 + i*4]);
+                printk("%.8x %.8x\n", p[0 + i*4], p[1+i*4]);
             }
 #endif
 
@@ -671,6 +675,7 @@ static void rga_try_set_reg(void)
                 for (i=0; i<7; i++)
                     printk("%.8x %.8x %.8x %.8x\n", rga_read(0x100 + i*16 + 0),
                             rga_read(0x100 + i*16 + 4), rga_read(0x100 + i*16 + 8), rga_read(0x100 + i*16 + 12));
+                printk("%.8x %.8x\n", rga_read(0x100 + i*16 + 0), rga_read(0x100 + i*16 + 4));
             }
 #endif
         }
@@ -790,39 +795,73 @@ static void rga_mem_addr_sel(struct rga_req *req)
 
 }
 
-
 static int rga_convert_dma_buf(struct rga_req *req)
 {
 	struct ion_handle *hdl;
 	ion_phys_addr_t phy_addr;
 	size_t len;
+    int ret;
+
+    req->sg_src  = NULL;
+    req->sg_dst  = NULL;
 
     if(req->src.yrgb_addr) {
         hdl = ion_import_dma_buf(drvdata->ion_client, req->src.yrgb_addr);
-	    ion_phys(drvdata->ion_client, hdl, &phy_addr, &len);
-        req->src.yrgb_addr = phy_addr;
-        req->src.uv_addr = req->src.yrgb_addr + (req->src.vir_w * req->src.vir_h);
+        if (IS_ERR(hdl)) {
+            ret = PTR_ERR(hdl);
+            printk("RGA2 ERROR ion buf handle\n");
+            return ret;
+        }
+        if ((req->mmu_info.mmu_flag >> 8) & 1) {
+            req->sg_src = ion_sg_table(drvdata->ion_client, hdl);
+            req->src.yrgb_addr = req->src.uv_addr;
+            req->src.uv_addr = req->src.yrgb_addr + (req->src.vir_w * req->src.vir_h);
+            req->src.v_addr = req->src.uv_addr + (req->src.vir_w * req->src.vir_h)/4;
+        }
+        else {
+            ion_phys(drvdata->ion_client, hdl, &phy_addr, &len);
+            req->src.yrgb_addr = phy_addr;
+            req->src.uv_addr = req->src.yrgb_addr + (req->src.vir_w * req->src.vir_h);
+            req->src.v_addr = req->src.uv_addr + (req->src.vir_w * req->src.vir_h)/4;
+        }
         ion_free(drvdata->ion_client, hdl);
     }
     else {
         req->src.yrgb_addr = req->src.uv_addr;
         req->src.uv_addr = req->src.yrgb_addr + (req->src.vir_w * req->src.vir_h);
+        req->src.v_addr = req->src.uv_addr + (req->src.vir_w * req->src.vir_h)/4;
     }
 
     if(req->dst.yrgb_addr) {
         hdl = ion_import_dma_buf(drvdata->ion_client, req->dst.yrgb_addr);
-	    ion_phys(drvdata->ion_client, hdl, &phy_addr, &len);
-        req->dst.yrgb_addr = phy_addr;
-        req->dst.uv_addr = req->dst.yrgb_addr + (req->dst.vir_w * req->dst.vir_h);
+        if (IS_ERR(hdl)) {
+            ret = PTR_ERR(hdl);
+            printk("RGA2 ERROR ion buf handle\n");
+            return ret;
+        }
+        if ((req->mmu_info.mmu_flag >> 10) & 1) {
+            req->sg_dst = ion_sg_table(drvdata->ion_client, hdl);
+            req->dst.yrgb_addr = req->dst.uv_addr;
+            req->dst.uv_addr = req->dst.yrgb_addr + (req->dst.vir_w * req->dst.vir_h);
+            req->dst.v_addr = req->dst.uv_addr + (req->dst.vir_w * req->dst.vir_h)/4;
+        }
+        else {
+            ion_phys(drvdata->ion_client, hdl, &phy_addr, &len);
+            req->dst.yrgb_addr = phy_addr;
+            req->dst.uv_addr = req->dst.yrgb_addr + (req->dst.vir_w * req->dst.vir_h);
+            req->dst.v_addr = req->dst.uv_addr + (req->dst.vir_w * req->dst.vir_h)/4;
+        }
         ion_free(drvdata->ion_client, hdl);
     }
     else {
         req->dst.yrgb_addr = req->dst.uv_addr;
-        req->dst.uv_addr = req->dst.yrgb_addr + (req->src.vir_w * req->src.vir_h);
+        req->dst.uv_addr = req->dst.yrgb_addr + (req->dst.vir_w * req->dst.vir_h);
+        req->dst.v_addr = req->dst.uv_addr + (req->dst.vir_w * req->dst.vir_h)/4;
     }
 
     return 0;
 }
+
 
 static int rga_blit(rga_session *session, struct rga_req *req)
 {
@@ -838,14 +877,14 @@ static int rga_blit(rga_session *session, struct rga_req *req)
     daw = req->dst.act_w;
     dah = req->dst.act_h;
 
+    #if RGA_TEST
+    print_info(req);
+    #endif
+
     if(rga_convert_dma_buf(req)) {
         printk("RGA : DMA buf copy error\n");
         return -EFAULT;
     }
-
-    #if RGA_TEST
-    print_info(req);
-    #endif
 
     do {
         if((req->render_mode == bitblt_mode) && (((saw>>1) >= daw) || ((sah>>1) >= dah))) {
@@ -1034,6 +1073,20 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 long rga_ioctl_kernel(struct rga_req *req)
 {
 	int ret = 0;
+    if (!rga_ioctl_kernel_p) {
+        printk("rga_ioctl_kernel_p is NULL\n");
+        return -1;
+    }
+    else {
+        ret = (*rga_ioctl_kernel_p)(req);
+	    return ret;
+    }
+}
+
+
+long rga_ioctl_kernel_imp(struct rga_req *req)
+{
+	int ret = 0;
     rga_session *session;
 
     mutex_lock(&rga_service.mutex);
@@ -1046,24 +1099,7 @@ long rga_ioctl_kernel(struct rga_req *req)
 		return -EINVAL;
 	}
 
-	switch (RGA_BLIT_SYNC) {
-		case RGA_BLIT_SYNC:
-            ret = rga_blit_sync(session, req);
-            break;
-		case RGA_BLIT_ASYNC:
-			break;
-		case RGA_FLUSH:
-			break;
-        case RGA_GET_RESULT:
-            break;
-        case RGA_GET_VERSION:
-            //ret = 0;
-            break;
-		default:
-			ERR("unknown ioctl cmd!\n");
-			ret = -EINVAL;
-			break;
-	}
+    ret = rga_blit_sync(session, req);
 
 	mutex_unlock(&rga_service.mutex);
 
@@ -1162,7 +1198,7 @@ static struct miscdevice rga_dev ={
 
 #if defined(CONFIG_OF)
 static const struct of_device_id rockchip_rga_dt_ids[] = {
-	{ .compatible = "rockchip,rga", },
+	{ .compatible = "rockchip,rga_drv", },
 	{},
 };
 #endif
@@ -1180,6 +1216,8 @@ static int rga_drv_probe(struct platform_device *pdev)
 	atomic_set(&rga_service.src_format_swt, 0);
 	rga_service.last_prc_src_format = 1; /* default is yuv first*/
 	rga_service.enable = false;
+
+    rga_ioctl_kernel_p = rga_ioctl_kernel_imp;
 
 	data = devm_kzalloc(&pdev->dev, sizeof(struct rga_drvdata), GFP_KERNEL);
 	if(! data) {
@@ -1303,8 +1341,8 @@ static int __init rga_init(void)
         return -1;
     }
 
-    /* malloc 8 M buf */
-    for(i=0; i<2048; i++)
+    /* malloc 4 M buf */
+    for(i=0; i<1024; i++)
     {
         buf_p = (uint32_t *)__get_free_page(GFP_KERNEL|__GFP_ZERO);
         if(buf_p == NULL)
@@ -1360,7 +1398,7 @@ static void __exit rga_exit(void)
 
     rga_power_off();
 
-    for(i=0; i<2048; i++)
+    for(i=0; i<1024; i++)
     {
         if((uint32_t *)rga_service.pre_scale_buf[i] != NULL)
         {
