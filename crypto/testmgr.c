@@ -966,73 +966,69 @@ static int __test_skcipher(struct crypto_ablkcipher *tfm, int enc,
 		else
 			memset(iv, 0, MAX_IVLEN);
 
-		if (!(template[i].np) || (template[i].also_non_np)) {
-			j++;
+		if (template[i].np && !template[i].also_non_np)
+			continue;
 
-			ret = -EINVAL;
-			if (WARN_ON(align_offset + template[i].ilen >
-				    PAGE_SIZE))
-				goto out;
+		j++;
 
-			data = xbuf[0];
+		ret = -EINVAL;
+		if (WARN_ON(align_offset + template[i].ilen > PAGE_SIZE))
+			goto out;
+
+		data = xbuf[0];
+		data += align_offset;
+		memcpy(data, template[i].input, template[i].ilen);
+
+		crypto_ablkcipher_clear_flags(tfm, ~0);
+		if (template[i].wk)
+			crypto_ablkcipher_set_flags(tfm, CRYPTO_TFM_REQ_WEAK_KEY);
+
+		ret = crypto_ablkcipher_setkey(tfm, template[i].key,
+					       template[i].klen);
+		if (!ret == template[i].fail) {
+			pr_err("alg: skcipher%s: setkey failed on test %d for %s: flags=%x\n",
+			       d, j, algo, crypto_ablkcipher_get_flags(tfm));
+			goto out;
+		} else if (ret)
+			continue;
+
+		sg_init_one(&sg[0], data, template[i].ilen);
+		if (diff_dst) {
+			data = xoutbuf[0];
 			data += align_offset;
-			memcpy(data, template[i].input, template[i].ilen);
+			sg_init_one(&sgout[0], data, template[i].ilen);
+		}
 
-			crypto_ablkcipher_clear_flags(tfm, ~0);
-			if (template[i].wk)
-				crypto_ablkcipher_set_flags(
-					tfm, CRYPTO_TFM_REQ_WEAK_KEY);
+		ablkcipher_request_set_crypt(req, sg, (diff_dst) ? sgout : sg,
+					     template[i].ilen, iv);
+		ret = enc ? crypto_ablkcipher_encrypt(req) :
+			    crypto_ablkcipher_decrypt(req);
 
-			ret = crypto_ablkcipher_setkey(tfm, template[i].key,
-						       template[i].klen);
-			if (!ret == template[i].fail) {
-				pr_err("alg: skcipher%s: setkey failed on test %d for %s: flags=%x\n",
-				       d, j, algo,
-				       crypto_ablkcipher_get_flags(tfm));
-				goto out;
-			} else if (ret)
-				continue;
-
-			sg_init_one(&sg[0], data, template[i].ilen);
-			if (diff_dst) {
-				data = xoutbuf[0];
-				data += align_offset;
-				sg_init_one(&sgout[0], data, template[i].ilen);
-			}
-
-			ablkcipher_request_set_crypt(req, sg,
-						     (diff_dst) ? sgout : sg,
-						     template[i].ilen, iv);
-			ret = enc ?
-				crypto_ablkcipher_encrypt(req) :
-				crypto_ablkcipher_decrypt(req);
-
-			switch (ret) {
-			case 0:
+		switch (ret) {
+		case 0:
+			break;
+		case -EINPROGRESS:
+		case -EBUSY:
+			ret = wait_for_completion_interruptible(
+				&result.completion);
+			if (!ret && !((ret = result.err))) {
+				reinit_completion(&result.completion);
 				break;
-			case -EINPROGRESS:
-			case -EBUSY:
-				ret = wait_for_completion_interruptible(
-					&result.completion);
-				if (!ret && !((ret = result.err))) {
-					reinit_completion(&result.completion);
-					break;
-				}
-				/* fall through */
-			default:
-				pr_err("alg: skcipher%s: %s failed on test %d for %s: ret=%d\n",
-				       d, e, j, algo, -ret);
-				goto out;
 			}
+			/* fall through */
+		default:
+			pr_err("alg: skcipher%s: %s failed on test %d for %s: ret=%d\n",
+			       d, e, j, algo, -ret);
+			goto out;
+		}
 
-			q = data;
-			if (memcmp(q, template[i].result, template[i].rlen)) {
-				pr_err("alg: skcipher%s: Test %d failed on %s for %s\n",
-				       d, j, e, algo);
-				hexdump(q, template[i].rlen);
-				ret = -EINVAL;
-				goto out;
-			}
+		q = data;
+		if (memcmp(q, template[i].result, template[i].rlen)) {
+			pr_err("alg: skcipher%s: Test %d failed on %s for %s\n",
+			       d, j, e, algo);
+			hexdump(q, template[i].rlen);
+			ret = -EINVAL;
+			goto out;
 		}
 	}
 
@@ -1047,116 +1043,109 @@ static int __test_skcipher(struct crypto_ablkcipher *tfm, int enc,
 		else
 			memset(iv, 0, MAX_IVLEN);
 
-		if (template[i].np) {
-			j++;
+		if (!template[i].np)
+			continue;
 
-			crypto_ablkcipher_clear_flags(tfm, ~0);
-			if (template[i].wk)
-				crypto_ablkcipher_set_flags(
-					tfm, CRYPTO_TFM_REQ_WEAK_KEY);
+		j++;
 
-			ret = crypto_ablkcipher_setkey(tfm, template[i].key,
-						       template[i].klen);
-			if (!ret == template[i].fail) {
-				pr_err("alg: skcipher%s: setkey failed on chunk test %d for %s: flags=%x\n",
-				       d, j, algo,
-				       crypto_ablkcipher_get_flags(tfm));
+		crypto_ablkcipher_clear_flags(tfm, ~0);
+		if (template[i].wk)
+			crypto_ablkcipher_set_flags(tfm, CRYPTO_TFM_REQ_WEAK_KEY);
+
+		ret = crypto_ablkcipher_setkey(tfm, template[i].key,
+					       template[i].klen);
+		if (!ret == template[i].fail) {
+			pr_err("alg: skcipher%s: setkey failed on chunk test %d for %s: flags=%x\n",
+			       d, j, algo, crypto_ablkcipher_get_flags(tfm));
+			goto out;
+		} else if (ret)
+			continue;
+
+		temp = 0;
+		ret = -EINVAL;
+		sg_init_table(sg, template[i].np);
+		if (diff_dst)
+			sg_init_table(sgout, template[i].np);
+		for (k = 0; k < template[i].np; k++) {
+			if (WARN_ON(offset_in_page(IDX[k]) +
+				    template[i].tap[k] > PAGE_SIZE))
 				goto out;
-			} else if (ret)
-				continue;
 
-			temp = 0;
-			ret = -EINVAL;
-			sg_init_table(sg, template[i].np);
+			q = xbuf[IDX[k] >> PAGE_SHIFT] + offset_in_page(IDX[k]);
+
+			memcpy(q, template[i].input + temp, template[i].tap[k]);
+
+			if (offset_in_page(q) + template[i].tap[k] < PAGE_SIZE)
+				q[template[i].tap[k]] = 0;
+
+			sg_set_buf(&sg[k], q, template[i].tap[k]);
+			if (diff_dst) {
+				q = xoutbuf[IDX[k] >> PAGE_SHIFT] +
+				    offset_in_page(IDX[k]);
+
+				sg_set_buf(&sgout[k], q, template[i].tap[k]);
+
+				memset(q, 0, template[i].tap[k]);
+				if (offset_in_page(q) +
+				    template[i].tap[k] < PAGE_SIZE)
+					q[template[i].tap[k]] = 0;
+			}
+
+			temp += template[i].tap[k];
+		}
+
+		ablkcipher_request_set_crypt(req, sg, (diff_dst) ? sgout : sg,
+					     template[i].ilen, iv);
+
+		ret = enc ? crypto_ablkcipher_encrypt(req) :
+			    crypto_ablkcipher_decrypt(req);
+
+		switch (ret) {
+		case 0:
+			break;
+		case -EINPROGRESS:
+		case -EBUSY:
+			ret = wait_for_completion_interruptible(
+					&result.completion);
+			if (!ret && !((ret = result.err))) {
+				reinit_completion(&result.completion);
+				break;
+			}
+			/* fall through */
+		default:
+			pr_err("alg: skcipher%s: %s failed on chunk test %d for %s: ret=%d\n",
+			       d, e, j, algo, -ret);
+			goto out;
+		}
+
+		temp = 0;
+		ret = -EINVAL;
+		for (k = 0; k < template[i].np; k++) {
 			if (diff_dst)
-				sg_init_table(sgout, template[i].np);
-			for (k = 0; k < template[i].np; k++) {
-				if (WARN_ON(offset_in_page(IDX[k]) +
-					    template[i].tap[k] > PAGE_SIZE))
-					goto out;
-
+				q = xoutbuf[IDX[k] >> PAGE_SHIFT] +
+				    offset_in_page(IDX[k]);
+			else
 				q = xbuf[IDX[k] >> PAGE_SHIFT] +
 				    offset_in_page(IDX[k]);
 
-				memcpy(q, template[i].input + temp,
-				       template[i].tap[k]);
-
-				if (offset_in_page(q) + template[i].tap[k] <
-				    PAGE_SIZE)
-					q[template[i].tap[k]] = 0;
-
-				sg_set_buf(&sg[k], q, template[i].tap[k]);
-				if (diff_dst) {
-					q = xoutbuf[IDX[k] >> PAGE_SHIFT] +
-					    offset_in_page(IDX[k]);
-
-					sg_set_buf(&sgout[k], q,
-						   template[i].tap[k]);
-
-					memset(q, 0, template[i].tap[k]);
-					if (offset_in_page(q) +
-					    template[i].tap[k] < PAGE_SIZE)
-						q[template[i].tap[k]] = 0;
-				}
-
-				temp += template[i].tap[k];
-			}
-
-			ablkcipher_request_set_crypt(req, sg,
-					(diff_dst) ? sgout : sg,
-					template[i].ilen, iv);
-
-			ret = enc ?
-				crypto_ablkcipher_encrypt(req) :
-				crypto_ablkcipher_decrypt(req);
-
-			switch (ret) {
-			case 0:
-				break;
-			case -EINPROGRESS:
-			case -EBUSY:
-				ret = wait_for_completion_interruptible(
-					&result.completion);
-				if (!ret && !((ret = result.err))) {
-					reinit_completion(&result.completion);
-					break;
-				}
-				/* fall through */
-			default:
-				pr_err("alg: skcipher%s: %s failed on chunk test %d for %s: ret=%d\n",
-				       d, e, j, algo, -ret);
+			if (memcmp(q, template[i].result + temp,
+				   template[i].tap[k])) {
+				pr_err("alg: skcipher%s: Chunk test %d failed on %s at page %u for %s\n",
+				       d, j, e, k, algo);
+				hexdump(q, template[i].tap[k]);
 				goto out;
 			}
 
-			temp = 0;
-			ret = -EINVAL;
-			for (k = 0; k < template[i].np; k++) {
-				if (diff_dst)
-					q = xoutbuf[IDX[k] >> PAGE_SHIFT] +
-					    offset_in_page(IDX[k]);
-				else
-					q = xbuf[IDX[k] >> PAGE_SHIFT] +
-					    offset_in_page(IDX[k]);
-
-				if (memcmp(q, template[i].result + temp,
-					   template[i].tap[k])) {
-					pr_err("alg: skcipher%s: Chunk test %d failed on %s at page %u for %s\n",
-					       d, j, e, k, algo);
-					hexdump(q, template[i].tap[k]);
-					goto out;
-				}
-
-				q += template[i].tap[k];
-				for (n = 0; offset_in_page(q + n) && q[n]; n++)
-					;
-				if (n) {
-					pr_err("alg: skcipher%s: Result buffer corruption in chunk test %d on %s at page %u for %s: %u bytes:\n",
-					       d, j, e, k, algo, n);
-					hexdump(q, n);
-					goto out;
-				}
-				temp += template[i].tap[k];
+			q += template[i].tap[k];
+			for (n = 0; offset_in_page(q + n) && q[n]; n++)
+				;
+			if (n) {
+				pr_err("alg: skcipher%s: Result buffer corruption in chunk test %d on %s at page %u for %s: %u bytes:\n",
+				       d, j, e, k, algo, n);
+				hexdump(q, n);
+				goto out;
 			}
+			temp += template[i].tap[k];
 		}
 	}
 
