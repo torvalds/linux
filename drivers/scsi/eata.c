@@ -1238,8 +1238,8 @@ static int port_detect(unsigned long port_base, unsigned int j,
 		struct eata_config *cf;
 		dma_addr_t cf_dma_addr;
 
-		cf = pci_alloc_consistent(pdev, sizeof(struct eata_config),
-					  &cf_dma_addr);
+		cf = pci_zalloc_consistent(pdev, sizeof(struct eata_config),
+					   &cf_dma_addr);
 
 		if (!cf) {
 			printk
@@ -1249,7 +1249,6 @@ static int port_detect(unsigned long port_base, unsigned int j,
 		}
 
 		/* Set board configuration */
-		memset((char *)cf, 0, sizeof(struct eata_config));
 		cf->len = (ushort) H2DEV16((ushort) 510);
 		cf->ocena = 1;
 

@@ -116,13 +116,12 @@ int pm8001_mem_alloc(struct pci_dev *pdev, void **virt_addr,
 	u64 align_offset = 0;
 	if (align)
 		align_offset = (dma_addr_t)align - 1;
-	mem_virt_alloc =
-		pci_alloc_consistent(pdev, mem_size + align, &mem_dma_handle);
+	mem_virt_alloc = pci_zalloc_consistent(pdev, mem_size + align,
+					       &mem_dma_handle);
 	if (!mem_virt_alloc) {
 		pm8001_printk("memory allocation error\n");
 		return -1;
 	}
-	memset((void *)mem_virt_alloc, 0, mem_size+align);
 	*pphys_addr = mem_dma_handle;
 	phys_align = (*pphys_addr + align_offset) & ~align_offset;
 	*virt_addr = (void *)mem_virt_alloc + phys_align - *pphys_addr;
