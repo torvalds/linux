@@ -3,6 +3,45 @@
 
 / {
 	 compatible = "rockchip,rk3128";
+	wireless-wlan {
+		compatible = "wlan-platdata";
+
+		wifi_chip_type = "";
+		sdio_vref = <0>; //1800mv or 3300mv
+
+		//power_ctrl_by_pmu;
+		//power_pmu_regulator = "act_ldo3";
+		//power_pmu_enable_level = <1>; //1->HIGH, 0->LOW
+
+		//vref_ctrl_enable;
+		//vref_ctrl_gpio = <&gpio0 GPIO_A2 GPIO_ACTIVE_HIGH>;
+		//vref_pmu_regulator = "act_ldo3";
+		//vref_pmu_enable_level = <1>; //1->HIGH, 0->LOW
+
+		WIFI,poweren_gpio = <&gpio0 GPIO_D6 GPIO_ACTIVE_HIGH>;
+		WIFI,host_wake_irq = <&gpio0 GPIO_A2 GPIO_ACTIVE_HIGH>;
+		//WIFI,reset_gpio = <&gpio0 GPIO_A2 GPIO_ACTIVE_LOW>;
+
+		status = "okay";
+    };
+
+    wireless-bluetooth {
+        compatible = "bluetooth-platdata";
+
+        //wifi-bt-power-toggle;
+
+     	uart_rts_gpios = <&gpio0 GPIO_C2 GPIO_ACTIVE_LOW>;
+        pinctrl-names = "default","rts_gpio";
+        pinctrl-0 = <&uart0_rts>;
+        pinctrl-1 = <&uart0_rts_gpio>;
+
+        //BT,power_gpio = <&gpio4 GPIO_D3 GPIO_ACTIVE_HIGH>;
+	BT,reset_gpio = <&gpio3 GPIO_C5 GPIO_ACTIVE_HIGH>;
+	BT,wake_gpio = <&gpio1 GPIO_B4 GPIO_ACTIVE_HIGH>;
+	BT,wake_host_irq = <&gpio0 GPIO_A2 GPIO_ACTIVE_LOW>;
+
+        status = "disabled";
+    };
 	usb_control {
 		compatible = "rockchip,rk3126-usb-control";
 		host_drv_gpio = <&gpio3 GPIO_C4 GPIO_ACTIVE_LOW>;
