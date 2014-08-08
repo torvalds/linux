@@ -23,7 +23,7 @@
 #include <linux/vfs.h>
 #include <linux/mutex.h>
 #include <uapi/linux/cramfs_fs.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "internal.h"
 
