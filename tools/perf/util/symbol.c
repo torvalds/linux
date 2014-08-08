@@ -531,6 +531,7 @@ bool symbol__is_idle(struct symbol *sym)
 {
 	const char * const idle_symbols[] = {
 		"cpu_idle",
+		"cpu_startup_entry",
 		"intel_idle",
 		"default_idle",
 		"native_safe_halt",
