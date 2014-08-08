@@ -247,7 +247,7 @@ struct _scsi_io_transfer {
 /*
  * The pci device ids are defined in mpi/mpi2_cnfg.h.
  */
-static DEFINE_PCI_DEVICE_TABLE(scsih_pci_table) = {
+static const struct pci_device_id scsih_pci_table[] = {
 	/* Fury ~ 3004 and 3008 */
 	{ MPI2_MFGPAGE_VENDORID_LSI, MPI25_MFGPAGE_DEVID_SAS3004,
 		PCI_ANY_ID, PCI_ANY_ID },

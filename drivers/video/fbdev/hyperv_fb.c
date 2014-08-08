@@ -892,7 +892,7 @@ static int hvfb_remove(struct hv_device *hdev)
 }
 
 
-static DEFINE_PCI_DEVICE_TABLE(pci_stub_id_table) = {
+static const struct pci_device_id pci_stub_id_table[] = {
 	{
 		.vendor      = PCI_VENDOR_ID_MICROSOFT,
 		.device      = PCI_DEVICE_ID_HYPERV_VIDEO,

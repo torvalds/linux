@@ -177,7 +177,7 @@ static void bochs_pci_remove(struct pci_dev *pdev)
 	drm_put_dev(dev);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(bochs_pci_tbl) = {
+static const struct pci_device_id bochs_pci_tbl[] = {
 	{
 		.vendor      = 0x1234,
 		.device      = 0x1111,

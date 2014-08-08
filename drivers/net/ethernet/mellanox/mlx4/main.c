@@ -2727,7 +2727,7 @@ int mlx4_restart_one(struct pci_dev *pdev)
 	return __mlx4_init_one(pdev, pci_dev_data);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(mlx4_pci_table) = {
+static const struct pci_device_id mlx4_pci_table[] = {
 	/* MT25408 "Hermon" SDR */
 	{ PCI_VDEVICE(MELLANOX, 0x6340), MLX4_PCI_DEV_FORCE_SENSE_PORT },
 	/* MT25408 "Hermon" DDR */

@@ -1045,7 +1045,7 @@ snd_ad1889_remove(struct pci_dev *pci)
 	snd_card_free(pci_get_drvdata(pci));
 }
 
-static DEFINE_PCI_DEVICE_TABLE(snd_ad1889_ids) = {
+static const struct pci_device_id snd_ad1889_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_ANALOG_DEVICES, PCI_DEVICE_ID_AD1889JS) },
 	{ 0, },
 };
