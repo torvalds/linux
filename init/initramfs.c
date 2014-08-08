@@ -369,7 +369,8 @@ static int __init do_name(void)
 static int __init do_copy(void)
 {
 	if (count >= body_len) {
-		xwrite(wfd, victim, body_len);
+		if (xwrite(wfd, victim, body_len) != body_len)
+			error("write error");
 		sys_close(wfd);
 		do_utime(vcollected, mtime);
 		kfree(vcollected);
@@ -377,7 +378,8 @@ static int __init do_copy(void)
 		state = SkipIt;
 		return 0;
 	} else {
-		xwrite(wfd, victim, count);
+		if (xwrite(wfd, victim, count) != count)
+			error("write error");
 		body_len -= count;
 		eat(count);
 		return 1;
