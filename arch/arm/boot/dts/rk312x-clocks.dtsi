@@ -39,10 +39,10 @@
 				#clock-cells = <0>;
 			};
 
-			gmac_clkin: rmii_clkin {
+			gmac_clkin: gmac_clkin {
 				compatible = "rockchip,rk-fixed-clock";
 				clock-output-names = "gmac_clkin";
-				clock-frequency = <0>;
+				clock-frequency = <125000000>;
 				#clock-cells = <0>;
 			};
 

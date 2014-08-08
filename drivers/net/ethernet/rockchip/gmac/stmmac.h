@@ -91,17 +91,7 @@ struct stmmac_priv {
 	u32 msg_enable;
 	int wolopts;
 	int wol_irq;
-	struct clk *clk_mac;
 	struct clk *stmmac_clk;
-	struct clk *clk_mac_pll;
-	struct clk *gmac_clkin;
-	struct clk *mac_clk_rx;
-	struct clk *mac_clk_tx;
-	struct clk *clk_mac_ref;
-	struct clk *clk_mac_refout;
-	struct clk *aclk_mac;
-	struct clk *pclk_mac;
-	bool clk_enable;
 	int clk_csr;
 	struct timer_list eee_ctrl_timer;
 	int lpi_irq;
@@ -129,7 +119,20 @@ struct bsp_priv {
 	int reset_io;
 	int reset_io_level;
 	int phy_iface;
-	int (*phy_power_on)(struct plat_stmmacenet_data *plat, int enable);
+
+	struct clk *clk_mac;
+	struct clk *clk_mac_pll;
+	struct clk *gmac_clkin;
+	struct clk *mac_clk_rx;
+	struct clk *mac_clk_tx;
+	struct clk *clk_mac_ref;
+	struct clk *clk_mac_refout;
+	struct clk *aclk_mac;
+	struct clk *pclk_mac;
+	bool clk_enable;
+
+	int (*phy_power_on)(bool enable);
+	int (*gmac_clk_enable)(bool enable);
 };
 
 extern int phyaddr;

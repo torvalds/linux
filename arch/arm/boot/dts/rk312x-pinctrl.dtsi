@@ -788,7 +788,12 @@
 				rockchip,pins = <GMAC_COL>;
 				rockchip,pull = <VALUE_PULL_DEFAULT>;
 			};
-			
+
+			gmac_col_gpio:gmac-col-gpio {
+				rockchip,pins = <GPIO2_D0>;
+				rockchip,pull = <VALUE_PULL_DEFAULT>;
+			};
+		
 			gmac_mdc:gmac-mdc {
 				rockchip,pins = <GMAC_MDC>;
 				rockchip,pull = <VALUE_PULL_DEFAULT>;

@@ -187,6 +187,25 @@
 		status = "disabled";
 	};
 
+	gmac: eth@2008c000 {
+		compatible = "rockchip,gmac";
+		reg = <0x2008c000 0x4000>;
+		interrupts = <GIC_SPI 56 IRQ_TYPE_LEVEL_HIGH>;  /*irq=88*/
+		interrupt-names = "macirq";
+		clocks = <&clk_mac_ref>, <&clk_gates2 6>,
+			<&clk_gates2 7>, <&clk_gates2 4>,
+			<&clk_gates2 5>,
+			<&clk_gates10 11>;
+		clock-names = "clk_mac", "mac_clk_rx",
+			"mac_clk_tx", "clk_mac_ref",
+			"clk_mac_refout",
+			"pclk_mac";
+		//phy-mode = "rmii";
+		phy-mode = "rgmii";
+		pinctrl-names = "default";
+		pinctrl-0 = <&gmac_rxdv &gmac_txclk &gmac_crs &gmac_rxclk &gmac_mdio &gmac_txen &gmac_clk &gmac_rxer &gmac_rxd1 &gmac_rxd0 &gmac_txd1 &gmac_txd0 &gmac_rxd3 &gmac_rxd2 &gmac_txd2 &gmac_txd3 &gmac_col_gpio &gmac_mdc>;
+	};
+
 	fiq-debugger {
 		compatible = "rockchip,fiq-debugger";
 		rockchip,serial-id = <2>;
@@ -220,7 +239,7 @@
 			<&aclk_vio0_pre 300000000>, <&hclk_vio_pre 150000000>,
 			<&aclk_vio1_pre 300000000>, <&clk_vepu 300000000>,
 			<&clk_vdpu 300000000>, <&clk_hevc_core 200000000>,
-			<&clk_mac_ref 50000000>;
+			<&clk_mac_ref 125000000>;
 	/*	rockchip,clocks-uboot-has-init =
 			<&aclk_vio1>;*/
 	};
