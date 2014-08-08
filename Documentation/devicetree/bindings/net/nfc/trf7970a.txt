@@ -16,6 +16,8 @@ Optional SoC Specific Properties:
 - vin-voltage-override: Specify voltage of VIN pin in microvolts.
 - irq-status-read-quirk: Specify that the trf7970a being used has the
   "IRQ Status Read" erratum.
+- en2-rf-quirk: Specify that the trf7970a being used has the "EN2 RF"
+  erratum.
 
 Example (for ARM-based BeagleBone with TRF7970A on SPI1):
 
@@ -36,6 +38,7 @@ Example (for ARM-based BeagleBone with TRF7970A on SPI1):
 		vin-voltage-override = <5000000>;
 		autosuspend-delay = <30000>;
 		irq-status-read-quirk;
+		en2-rf-quirk;
 		status = "okay";
 	};
 };
