@@ -24,24 +24,7 @@ Please note that implementation details can be changed.
 
    a page/swp_entry may be charged (usage += PAGE_SIZE) at
 
-	mem_cgroup_charge_anon()
-	  Called at new page fault and Copy-On-Write.
-
-	mem_cgroup_try_charge_swapin()
-	  Called at do_swap_page() (page fault on swap entry) and swapoff.
-	  Followed by charge-commit-cancel protocol. (With swap accounting)
-	  At commit, a charge recorded in swap_cgroup is removed.
-
-	mem_cgroup_charge_file()
-	  Called at add_to_page_cache()
-
-	mem_cgroup_cache_charge_swapin()
-	  Called at shmem's swapin.
-
-	mem_cgroup_prepare_migration()
-	  Called before migration. "extra" charge is done and followed by
-	  charge-commit-cancel protocol.
-	  At commit, charge against oldpage or newpage will be committed.
+	mem_cgroup_try_charge()
 
 2. Uncharge
   a page/swp_entry may be uncharged (usage -= PAGE_SIZE) by
@@ -69,19 +52,14 @@ Please note that implementation details can be changed.
 	to new page is committed. At failure, charge to old page is committed.
 
 3. charge-commit-cancel
-	In some case, we can't know this "charge" is valid or not at charging
-	(because of races).
-	To handle such case, there are charge-commit-cancel functions.
-		mem_cgroup_try_charge_XXX
-		mem_cgroup_commit_charge_XXX
-		mem_cgroup_cancel_charge_XXX
-	these are used in swap-in and migration.
+	Memcg pages are charged in two steps:
+		mem_cgroup_try_charge()
+		mem_cgroup_commit_charge() or mem_cgroup_cancel_charge()
 
 	At try_charge(), there are no flags to say "this page is charged".
 	at this point, usage += PAGE_SIZE.
 
-	At commit(), the function checks the page should be charged or not
-	and set flags or avoid charging.(usage -= PAGE_SIZE)
+	At commit(), the page is associated with the memcg.
 
 	At cancel(), simply usage -= PAGE_SIZE.
 
