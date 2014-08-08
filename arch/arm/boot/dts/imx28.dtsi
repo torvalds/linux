@@ -585,6 +585,17 @@
 					fsl,pull-up = <MXS_PULL_ENABLE>;
 				};
 
+				i2c1_pins_b: i2c1@1 {
+					reg = <1>;
+					fsl,pinmux-ids = <
+						MX28_PAD_AUART2_CTS__I2C1_SCL
+						MX28_PAD_AUART2_RTS__I2C1_SDA
+					>;
+					fsl,drive-strength = <MXS_DRIVE_8mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_ENABLE>;
+				};
+
 				saif0_pins_a: saif0@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
