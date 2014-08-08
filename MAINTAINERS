@@ -3239,25 +3239,11 @@ T:	git git://linuxtv.org/anttip/media_tree.git
 S:	Maintained
 F:	drivers/media/tuners/e4000*
 
-EATA-DMA SCSI DRIVER
-M:	Michael Neuffer <mike@i-Connect.Net>
-L:	linux-eata@i-connect.net
-L:	linux-scsi@vger.kernel.org
-S:	Maintained
-F:	drivers/scsi/eata*
-
 EATA ISA/EISA/PCI SCSI DRIVER
 M:	Dario Ballabio <ballabio_dario@emc.com>
 L:	linux-scsi@vger.kernel.org
 S:	Maintained
 F:	drivers/scsi/eata.c
-
-EATA-PIO SCSI DRIVER
-M:	Michael Neuffer <mike@i-Connect.Net>
-L:	linux-eata@i-connect.net
-L:	linux-scsi@vger.kernel.org
-S:	Maintained
-F:	drivers/scsi/eata_pio.*
 
 EC100 MEDIA DRIVER
 M:	Antti Palosaari <crope@iki.fi>
