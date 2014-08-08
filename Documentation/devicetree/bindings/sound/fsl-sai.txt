@@ -38,8 +38,7 @@ Note:
   default synchronous mode (sync Rx with Tx) will be used, which means both
   transimitter and receiver will send and receive data by following clocks
   of transimitter.
-- fsl,sai-asynchronous will be ignored if fsl,sai-synchronous-rx property is
-  already present.
+- fsl,sai-asynchronous and fsl,sai-synchronous-rx are exclusive.
 
 Example:
 sai2: sai@40031000 {

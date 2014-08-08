@@ -634,6 +634,13 @@ static int fsl_sai_probe(struct platform_device *pdev)
 	fsl_sai_dai.symmetric_channels = 1;
 	fsl_sai_dai.symmetric_samplebits = 1;
 
+	if (of_find_property(np, "fsl,sai-synchronous-rx", NULL) &&
+	    of_find_property(np, "fsl,sai-asynchronous", NULL)) {
+		/* error out if both synchronous and asynchronous are present */
+		dev_err(&pdev->dev, "invalid binding for synchronous mode\n");
+		return -EINVAL;
+	}
+
 	if (of_find_property(np, "fsl,sai-synchronous-rx", NULL)) {
 		/* Sync Rx with Tx */
 		sai->synchronous[RX] = false;
