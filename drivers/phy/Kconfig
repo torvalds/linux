@@ -197,13 +197,6 @@ config PHY_EXYNOS5_USBDRD
 	  This driver provides PHY interface for USB 3.0 DRD controller
 	  present on Exynos5 SoC series.
 
-config PHY_XGENE
-	tristate "APM X-Gene 15Gbps PHY support"
-	depends on HAS_IOMEM && OF && (ARM64 || COMPILE_TEST)
-	select GENERIC_PHY
-	help
-	  This option enables support for APM X-Gene SoC multi-purpose PHY.
-
 config PHY_QCOM_APQ8064_SATA
 	tristate "Qualcomm APQ8064 SATA SerDes/PHY driver"
 	depends on ARCH_QCOM
@@ -217,5 +210,24 @@ config PHY_QCOM_IPQ806X_SATA
 	depends on HAS_IOMEM
 	depends on OF
 	select GENERIC_PHY
+
+config PHY_ST_SPEAR1310_MIPHY
+	tristate "ST SPEAR1310-MIPHY driver"
+	select GENERIC_PHY
+	help
+	  Support for ST SPEAr1310 MIPHY which can be used for PCIe and SATA.
+
+config PHY_ST_SPEAR1340_MIPHY
+	tristate "ST SPEAR1340-MIPHY driver"
+	select GENERIC_PHY
+	help
+	  Support for ST SPEAr1340 MIPHY which can be used for PCIe and SATA.
+
+config PHY_XGENE
+	tristate "APM X-Gene 15Gbps PHY support"
+	depends on HAS_IOMEM && OF && (ARM64 || COMPILE_TEST)
+	select GENERIC_PHY
+	help
+	  This option enables support for APM X-Gene SoC multi-purpose PHY.
 
 endmenu
