@@ -5961,7 +5961,7 @@ static int set_bitmap_file(struct mddev *mddev, int fd)
 	int err = 0;
 
 	if (mddev->pers) {
-		if (!mddev->pers->quiesce)
+		if (!mddev->pers->quiesce || !mddev->thread)
 			return -EBUSY;
 		if (mddev->recovery || mddev->sync_thread)
 			return -EBUSY;
@@ -6263,7 +6263,7 @@ static int update_array_info(struct mddev *mddev, mdu_array_info_t *info)
 		rv = update_raid_disks(mddev, info->raid_disks);
 
 	if ((state ^ info->state) & (1<<MD_SB_BITMAP_PRESENT)) {
-		if (mddev->pers->quiesce == NULL)
+		if (mddev->pers->quiesce == NULL || mddev->thread == NULL)
 			return -EINVAL;
 		if (mddev->recovery || mddev->sync_thread)
 			return -EBUSY;
