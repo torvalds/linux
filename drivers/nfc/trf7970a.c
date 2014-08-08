@@ -1297,7 +1297,7 @@ static int trf7970a_probe(struct spi_device *spi)
 	}
 
 	ret = devm_gpio_request_one(trf->dev, trf->en_gpio,
-			GPIOF_DIR_OUT | GPIOF_INIT_LOW, "EN");
+			GPIOF_DIR_OUT | GPIOF_INIT_LOW, "trf7970a EN");
 	if (ret) {
 		dev_err(trf->dev, "Can't request EN GPIO: %d\n", ret);
 		return ret;
@@ -1310,7 +1310,7 @@ static int trf7970a_probe(struct spi_device *spi)
 	}
 
 	ret = devm_gpio_request_one(trf->dev, trf->en2_gpio,
-			GPIOF_DIR_OUT | GPIOF_INIT_LOW, "EN2");
+			GPIOF_DIR_OUT | GPIOF_INIT_LOW, "trf7970a EN2");
 	if (ret) {
 		dev_err(trf->dev, "Can't request EN2 GPIO: %d\n", ret);
 		return ret;
