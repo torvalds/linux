@@ -1,5 +1,6 @@
 
 #include "generic_sensor.h"
+#include <linux/moduleparam.h>
 /*
 *      Driver Version Note
 *v0.0.1: this driver is compatible with generic_sensor
@@ -15,14 +16,14 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define dprintk(level, fmt, arg...) do {			\
 	if (debug >= level) 					\
 	printk(KERN_WARNING fmt , ## arg); } while (0)
-
+#define debug_printk(format, ...) dprintk(1, format, ## __VA_ARGS__)  
 /* Sensor Driver Configuration Begin */
 #define SENSOR_NAME RK29_CAM_SENSOR_OV2659
 #define SENSOR_V4L2_IDENT V4L2_IDENT_OV2659
 #define SENSOR_ID 0x2656
-#define SENSOR_BUS_PARAM                     (SOCAM_MASTER |\
-                                             SOCAM_PCLK_SAMPLE_RISING|SOCAM_HSYNC_ACTIVE_HIGH| SOCAM_VSYNC_ACTIVE_LOW|\
-                                             SOCAM_DATA_ACTIVE_HIGH | SOCAM_DATAWIDTH_8  |SOCAM_MCLK_24MHZ)
+#define SENSOR_BUS_PARAM                     (V4L2_MBUS_MASTER |\
+                                             V4L2_MBUS_PCLK_SAMPLE_RISING|V4L2_MBUS_HSYNC_ACTIVE_HIGH| V4L2_MBUS_VSYNC_ACTIVE_LOW|\
+                                             V4L2_MBUS_DATA_ACTIVE_HIGH | SOCAM_DATAWIDTH_8  |SOCAM_MCLK_24MHZ)
 #define SENSOR_PREVIEW_W                     800
 #define SENSOR_PREVIEW_H                     600
 #define SENSOR_PREVIEW_FPS                   15000     // 15fps 
@@ -721,7 +722,7 @@ static struct rk_sensor_datafmt sensor_colour_fmts[] = {
 	{V4L2_MBUS_FMT_UYVY8_2X8, V4L2_COLORSPACE_JPEG},
 	{V4L2_MBUS_FMT_YUYV8_2X8, V4L2_COLORSPACE_JPEG} 
 };
-static struct soc_camera_ops sensor_ops;
+//static struct soc_camera_ops sensor_ops;//yzm
 
 
 /*
@@ -1117,6 +1118,7 @@ static int 	sensor_face_detect_usr_cb(struct i2c_client *client,int on){
 */
 static void sensor_init_parameters_user(struct specific_sensor* spsensor,struct soc_camera_device *icd)
 {
+	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
     return;
 }
 
@@ -1124,7 +1126,7 @@ static void sensor_init_parameters_user(struct specific_sensor* spsensor,struct 
 * :::::WARNING:::::
 * It is not allowed to modify the following code
 */
-
+#if 1
 sensor_init_parameters_default_code();
 
 sensor_v4l2_struct_initialization();
@@ -1132,6 +1134,6 @@ sensor_v4l2_struct_initialization();
 sensor_probe_default_code();
 
 sensor_remove_default_code();
-
+#endif
 sensor_driver_default_module_code();
 

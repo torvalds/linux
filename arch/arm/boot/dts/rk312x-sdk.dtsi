@@ -2,6 +2,8 @@
 
 #include "rk312x.dtsi"
 
+#include "lcd-b101ew05.dtsi"
+#include "rk312x-cif-sensor.dtsi"
 / {
 	fiq-debugger {
 		status = "okay";
@@ -206,7 +208,7 @@
 &rk818 {
 	gpios =<&gpio1 GPIO_B1 GPIO_ACTIVE_HIGH>,<&gpio1 GPIO_A1 GPIO_ACTIVE_LOW>;
 	rk818,system-power-controller;
-	rk818,support_dc_chg = <1>;/*1: dc chg; 0:usb chg*/
+	//rk818,support_dc_chg = <1>;/*1: dc chg; 0:usb chg*/
 
 	regulators {
 
@@ -430,4 +432,8 @@
 
 &pwm0 {
         status = "okay";
+};
+
+&cif_sensor{
+	status = "okay";
 };

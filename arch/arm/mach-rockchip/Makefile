@@ -21,3 +21,4 @@ obj-$(CONFIG_BLOCK_RKNAND) += rknandbase.o
 obj-$(CONFIG_DDR_TEST) += ddr_test.o
 obj-$(CONFIG_RK_PM_TESTS) += rk_pm_tests/
 obj-$(CONFIG_RK_FT_TEST) += rk_pm_tests/ft/
+obj-$(CONFIG_ROCK_CHIP_SOC_CAMERA) += board-rk30-sdk-camera.o

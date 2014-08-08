@@ -816,4 +816,12 @@
 			rockchip,ion_heap = <3>;
 		};
 	};
+	cif: cif@1010a000 {
+	     compatible = "rockchip,cif";
+	     reg = <0x1010a000 0x2000>;
+	     interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
+	     clocks = <&clk_gates3 3>,<&clk_gates6 5>,<&clk_gates6 4>,<&clk_cif0_in>,<&clk_cif_out>;
+	     clock-names = "pd_cif0", "aclk_cif0","hclk_cif0","cif0_in","cif0_out";
+	     status = "okay";
+	     };
 };

@@ -39,6 +39,10 @@ struct soc_camera_device {
 	unsigned char iface;		/* Host number */
 	unsigned char devnum;		/* Device number per host */
 	struct soc_camera_sense *sense;	/* See comment in struct definition */
+
+	struct soc_camera_ops *ops;//yzm
+	struct mutex video_lock;//yzm
+
 	struct video_device *vdev;
 	struct v4l2_ctrl_handler ctrl_handler;
 	const struct soc_camera_format_xlate *current_fmt;
@@ -73,6 +77,17 @@ struct soc_camera_host_ops {
 	struct module *owner;
 	int (*add)(struct soc_camera_device *);
 	void (*remove)(struct soc_camera_device *);
+	/****************yzm**************/
+	int (*suspend)(struct soc_camera_device *, pm_message_t);
+	int (*resume)(struct soc_camera_device *);
+	//int (*enum_frameinervals)(struct soc_camera_device *, struct v4l2_frmivalenum);
+	int (*get_ctrl)(struct soc_camera_device *, struct v4l2_control *);
+	int (*set_ctrl)(struct soc_camera_device *, struct v4l2_control *);
+	int (*s_stream)(struct soc_camera_device *, int enable);
+	const struct v4l2_queryctrl *controls;
+	int num_controls;
+	/***************yzm*****************/
+	
 	/*
 	 * .get_formats() is called for each client device format, but
 	 * .put_formats() is only called once. Further, if any of the calls to
@@ -100,7 +115,7 @@ struct soc_camera_host_ops {
 			      struct soc_camera_device *);
 	int (*reqbufs)(struct soc_camera_device *, struct v4l2_requestbuffers *);
 	int (*querycap)(struct soc_camera_host *, struct v4l2_capability *);
-	int (*set_bus_param)(struct soc_camera_device *);
+	int (*set_bus_param)(struct soc_camera_device *, __u32);//yzm
 	int (*get_parm)(struct soc_camera_device *, struct v4l2_streamparm *);
 	int (*set_parm)(struct soc_camera_device *, struct v4l2_streamparm *);
 	int (*enum_framesizes)(struct soc_camera_device *, struct v4l2_frmsizeenum *);
@@ -123,6 +138,8 @@ struct soc_camera_subdev_desc {
 	/* sensor driver private platform data */
 	void *drv_priv;
 
+	struct soc_camera_device *socdev;//yzm
+	
 	/* Optional regulators that have to be managed on power on/off events */
 	struct regulator_bulk_data *regulators;
 	int num_regulators;
@@ -131,6 +148,7 @@ struct soc_camera_subdev_desc {
 	int (*power)(struct device *, int);
 	int (*reset)(struct device *);
 
+	int (*powerdown)(struct device *, int);//yzm
 	/*
 	 * some platforms may support different data widths than the sensors
 	 * native ones due to different data line routing. Let the board code
@@ -177,7 +195,7 @@ struct soc_camera_link {
 	unsigned long flags;
 
 	void *priv;
-
+	void *priv_usr;		//yzm@rock-chips.com
 	/* Optional regulators that have to be managed on power on/off events */
 	struct regulator_bulk_data *regulators;
 	int num_regulators;
@@ -185,6 +203,7 @@ struct soc_camera_link {
 	/* Optional callbacks to power on or off and reset the sensor */
 	int (*power)(struct device *, int);
 	int (*reset)(struct device *);
+	int (*powerdown)(struct device *,int);		//yzm@rock-chips.com
 	/*
 	 * some platforms may support different data widths than the sensors
 	 * native ones due to different data line routing. Let the board code
@@ -261,6 +280,20 @@ struct soc_camera_format_xlate {
 	const struct soc_mbus_pixelfmt *host_fmt;
 };
 
+/*****************yzm***************/
+struct soc_camera_ops {
+	int (*suspend)(struct soc_camera_device *, pm_message_t state);
+	int (*resume)(struct soc_camera_device *);
+	unsigned long (*query_bus_param)(struct soc_camera_device *);
+	int (*set_bus_param)(struct soc_camera_device *, unsigned long);
+	int (*enum_input)(struct soc_camera_device *, struct v4l2_input *);
+	const struct v4l2_queryctrl *controls;
+	struct v4l2_querymenu *menus;
+	int num_controls;
+	int num_menus;
+};	
+/****************yzm***************/
+
 #define SOCAM_SENSE_PCLK_CHANGED	(1 << 0)
 
 /**
@@ -297,7 +330,11 @@ struct soc_camera_sense {
 #define SOCAM_DATAWIDTH_16	SOCAM_DATAWIDTH(16)
 #define SOCAM_DATAWIDTH_18	SOCAM_DATAWIDTH(18)
 #define SOCAM_DATAWIDTH_24	SOCAM_DATAWIDTH(24)
-
+/**************yzm***********/
+#define SOCAM_PCLK_SAMPLE_FALLING     (1<<13)
+#define SOCAM_MCLK_24MHZ        (1<<29)
+#define SOCAM_MCLK_48MHZ        (1<<31)
+//*************yzm***********end
 #define SOCAM_DATAWIDTH_MASK (SOCAM_DATAWIDTH_4 | SOCAM_DATAWIDTH_8 | \
 			      SOCAM_DATAWIDTH_9 | SOCAM_DATAWIDTH_10 | \
 			      SOCAM_DATAWIDTH_12 | SOCAM_DATAWIDTH_15 | \
