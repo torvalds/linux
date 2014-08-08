@@ -56,6 +56,8 @@
  * 2 of the Licence, or (at your option) any later version.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/string.h>
 #include <linux/fs.h>
@@ -380,7 +382,7 @@ static struct inode *romfs_iget(struct super_block *sb, unsigned long pos)
 eio:
 	ret = -EIO;
 error:
-	pr_err("ROMFS: read error for inode 0x%lx\n", pos);
+	pr_err("read error for inode 0x%lx\n", pos);
 	return ERR_PTR(ret);
 }
 
@@ -513,8 +515,7 @@ static int romfs_fill_super(struct super_block *sb, void *data, int silent)
 	}
 
 	if (romfs_checksum(rsb, min_t(size_t, img_size, 512))) {
-		pr_err("ROMFS: bad initial checksum on dev %s.\n",
-		       sb->s_id);
+		pr_err("bad initial checksum on dev %s.\n", sb->s_id);
 		goto error_rsb_inval;
 	}
 
@@ -522,8 +523,8 @@ static int romfs_fill_super(struct super_block *sb, void *data, int silent)
 
 	len = strnlen(rsb->name, ROMFS_MAXFN);
 	if (!silent)
-		pr_notice("ROMFS: Mounting image '%*.*s' through %s\n",
-		       (unsigned) len, (unsigned) len, rsb->name, storage);
+		pr_notice("Mounting image '%*.*s' through %s\n",
+			  (unsigned) len, (unsigned) len, rsb->name, storage);
 
 	kfree(rsb);
 	rsb = NULL;
@@ -622,12 +623,12 @@ static int __init init_romfs_fs(void)
 				  romfs_i_init_once);
 
 	if (!romfs_inode_cachep) {
-		pr_err("ROMFS error: Failed to initialise inode cache\n");
+		pr_err("Failed to initialise inode cache\n");
 		return -ENOMEM;
 	}
 	ret = register_filesystem(&romfs_fs_type);
 	if (ret) {
-		pr_err("ROMFS error: Failed to register filesystem\n");
+		pr_err("Failed to register filesystem\n");
 		goto error_register;
 	}
 	return 0;
