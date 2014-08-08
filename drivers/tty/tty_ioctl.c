@@ -402,7 +402,7 @@ void tty_termios_encode_baud_rate(struct ktermios *termios,
 
 #ifdef BOTHER
 	/* If the user asked for a precise weird speed give a precise weird
-	   answer. If they asked for a Bfoo speed they many have problems
+	   answer. If they asked for a Bfoo speed they may have problems
 	   digesting non-exact replies so fuzz a bit */
 
 	if ((termios->c_cflag & CBAUD) == BOTHER)
