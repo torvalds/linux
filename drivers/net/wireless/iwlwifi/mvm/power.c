@@ -504,13 +504,20 @@ struct iwl_power_vifs {
 	bool p2p_tdls;
 };
 
-static void iwl_mvm_power_iterator(void *_data, u8 *mac,
-				   struct ieee80211_vif *vif)
+static void iwl_mvm_power_disable_pm_iterator(void *_data, u8* mac,
+					      struct ieee80211_vif *vif)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+
+	mvmvif->pm_enabled = false;
+}
+
+static void iwl_mvm_power_get_vifs_iterator(void *_data, u8 *mac,
+					    struct ieee80211_vif *vif)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_power_vifs *power_iterator = _data;
 
-	mvmvif->pm_enabled = false;
 	switch (ieee80211_vif_type_p2p(vif)) {
 	case NL80211_IFTYPE_P2P_DEVICE:
 		break;
@@ -577,10 +584,11 @@ static void iwl_mvm_power_set_pm(struct iwl_mvm *mvm,
 
 	lockdep_assert_held(&mvm->mutex);
 
-	/* get vifs info + set pm_enable to false */
+	/* set pm_enable to false */
 	ieee80211_iterate_active_interfaces_atomic(mvm->hw,
-					    IEEE80211_IFACE_ITER_NORMAL,
-					    iwl_mvm_power_iterator, vifs);
+					IEEE80211_IFACE_ITER_NORMAL,
+					iwl_mvm_power_disable_pm_iterator,
+					NULL);
 
 	if (vifs->bss_vif)
 		bss_mvmvif = iwl_mvm_vif_from_mac80211(vifs->bss_vif);
@@ -823,23 +831,16 @@ int iwl_mvm_disable_beacon_filter(struct iwl_mvm *mvm,
 	return ret;
 }
 
-int iwl_mvm_power_update_mac(struct iwl_mvm *mvm)
+static int iwl_mvm_power_set_ps(struct iwl_mvm *mvm,
+				struct iwl_power_vifs *vifs)
 {
-	struct iwl_mvm_vif *mvmvif;
-	struct iwl_power_vifs vifs = {
-		.mvm = mvm,
-	};
-	bool ba_enable, disable_ps;
+	bool disable_ps;
 	int ret;
-
-	lockdep_assert_held(&mvm->mutex);
-
-	iwl_mvm_power_set_pm(mvm, &vifs);
 
 	/* disable PS if CAM */
 	disable_ps = (iwlmvm_mod_params.power_scheme == IWL_POWER_SCHEME_CAM);
 	/* ...or if there is an active monitor vif */
-	disable_ps |= (vifs.monitor_vif && vifs.monitor_active);
+	disable_ps |= (vifs->monitor_vif && vifs->monitor_active);
 
 	/* update device power state if it has changed */
 	if (mvm->ps_disabled != disable_ps) {
@@ -852,6 +853,31 @@ int iwl_mvm_power_update_mac(struct iwl_mvm *mvm)
 			return ret;
 		}
 	}
+
+	return 0;
+}
+
+int iwl_mvm_power_update_mac(struct iwl_mvm *mvm)
+{
+	struct iwl_mvm_vif *mvmvif;
+	struct iwl_power_vifs vifs = {
+		.mvm = mvm,
+	};
+	bool ba_enable;
+	int ret;
+
+	lockdep_assert_held(&mvm->mutex);
+
+	/* get vifs info */
+	ieee80211_iterate_active_interfaces_atomic(mvm->hw,
+					IEEE80211_IFACE_ITER_NORMAL,
+					iwl_mvm_power_get_vifs_iterator, &vifs);
+
+	iwl_mvm_power_set_pm(mvm, &vifs);
+
+	ret = iwl_mvm_power_set_ps(mvm, &vifs);
+	if (ret)
+		return ret;
 
 	if (vifs.bss_vif) {
 		ret = iwl_mvm_power_send_cmd(mvm, vifs.bss_vif);
