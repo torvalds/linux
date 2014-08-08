@@ -132,7 +132,6 @@ struct atmel_nand_host {
 	u32			pmecc_lookup_table_offset_1024;
 
 	int			pmecc_bytes_per_sector;
-	int			pmecc_sector_number;
 	int			pmecc_degree;	/* Degree of remainders */
 	int			pmecc_cw_len;	/* Length of codeword */
 
@@ -877,7 +876,7 @@ static int pmecc_correction(struct mtd_info *mtd, u32 pmecc_stat, uint8_t *buf,
 	return 0;
 
 normal_check:
-	for (i = 0; i < host->pmecc_sector_number; i++) {
+	for (i = 0; i < nand_chip->ecc.steps; i++) {
 		err_nbr = 0;
 		if (pmecc_stat & 0x1) {
 			buf_pos = buf + i * host->pmecc_sector_size;
@@ -987,7 +986,7 @@ static int atmel_nand_pmecc_write_page(struct mtd_info *mtd,
 		cpu_relax();
 	}
 
-	for (i = 0; i < host->pmecc_sector_number; i++) {
+	for (i = 0; i < chip->ecc.steps; i++) {
 		for (j = 0; j < host->pmecc_bytes_per_sector; j++) {
 			int pos;
 
@@ -1034,7 +1033,7 @@ static void atmel_pmecc_core_init(struct mtd_info *mtd)
 	else if (host->pmecc_sector_size == 1024)
 		val |= PMECC_CFG_SECTOR1024;
 
-	switch (host->pmecc_sector_number) {
+	switch (nand_chip->ecc.steps) {
 	case 1:
 		val |= PMECC_CFG_PAGE_1SECTOR;
 		break;
@@ -1187,18 +1186,17 @@ static int atmel_pmecc_nand_init_params(struct platform_device *pdev,
 		host->pmecc_degree = (sector_size == 512) ?
 			PMECC_GF_DIMENSION_13 : PMECC_GF_DIMENSION_14;
 		host->pmecc_cw_len = (1 << host->pmecc_degree) - 1;
-		host->pmecc_sector_number = mtd->writesize / sector_size;
 		host->pmecc_bytes_per_sector = pmecc_get_ecc_bytes(
 			cap, sector_size);
 		host->pmecc_alpha_to = pmecc_get_alpha_to(host);
 		host->pmecc_index_of = host->pmecc_rom_base +
 			host->pmecc_lookup_table_offset;
 
-		nand_chip->ecc.steps = host->pmecc_sector_number;
 		nand_chip->ecc.strength = cap;
 		nand_chip->ecc.bytes = host->pmecc_bytes_per_sector;
-		nand_chip->ecc.total = host->pmecc_bytes_per_sector *
-				       host->pmecc_sector_number;
+		nand_chip->ecc.steps = mtd->writesize / sector_size;
+		nand_chip->ecc.total = nand_chip->ecc.bytes *
+			nand_chip->ecc.steps;
 		if (nand_chip->ecc.total > mtd->oobsize - 2) {
 			dev_err(host->dev, "No room for ECC bytes\n");
 			err_no = -EINVAL;
