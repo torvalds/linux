@@ -61,13 +61,13 @@ new_cs_exit:
 	.balign 4
 entry64_regs:
 rax:	.quad 0x0
-rbx:	.quad 0x0
 rcx:	.quad 0x0
 rdx:	.quad 0x0
-rsi:	.quad 0x0
-rdi:	.quad 0x0
+rbx:	.quad 0x0
 rsp:	.quad 0x0
 rbp:	.quad 0x0
+rsi:	.quad 0x0
+rdi:	.quad 0x0
 r8:	.quad 0x0
 r9:	.quad 0x0
 r10:	.quad 0x0

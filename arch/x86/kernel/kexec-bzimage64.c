@@ -21,6 +21,9 @@
 
 #include <asm/bootparam.h>
 #include <asm/setup.h>
+#include <asm/crash.h>
+
+#define MAX_ELFCOREHDR_STR_LEN	30	/* elfcorehdr=0x<64bit-value> */
 
 /*
  * Defines lowest physical address for various segments. Not sure where
@@ -58,18 +61,24 @@ static int setup_initrd(struct boot_params *params,
 	return 0;
 }
 
-static int setup_cmdline(struct boot_params *params,
+static int setup_cmdline(struct kimage *image, struct boot_params *params,
 			 unsigned long bootparams_load_addr,
 			 unsigned long cmdline_offset, char *cmdline,
 			 unsigned long cmdline_len)
 {
 	char *cmdline_ptr = ((char *)params) + cmdline_offset;
-	unsigned long cmdline_ptr_phys;
+	unsigned long cmdline_ptr_phys, len;
 	uint32_t cmdline_low_32, cmdline_ext_32;
 
 	memcpy(cmdline_ptr, cmdline, cmdline_len);
+	if (image->type == KEXEC_TYPE_CRASH) {
+		len = sprintf(cmdline_ptr + cmdline_len - 1,
+			" elfcorehdr=0x%lx", image->arch.elf_load_addr);
+		cmdline_len += len;
+	}
 	cmdline_ptr[cmdline_len - 1] = '\0';
 
+	pr_debug("Final command line is: %s\n", cmdline_ptr);
 	cmdline_ptr_phys = bootparams_load_addr + cmdline_offset;
 	cmdline_low_32 = cmdline_ptr_phys & 0xffffffffUL;
 	cmdline_ext_32 = cmdline_ptr_phys >> 32;
@@ -98,11 +107,12 @@ static int setup_memory_map_entries(struct boot_params *params)
 	return 0;
 }
 
-static int setup_boot_parameters(struct boot_params *params)
+static int setup_boot_parameters(struct kimage *image,
+				 struct boot_params *params)
 {
 	unsigned int nr_e820_entries;
 	unsigned long long mem_k, start, end;
-	int i;
+	int i, ret = 0;
 
 	/* Get subarch from existing bootparams */
 	params->hdr.hardware_subarch = boot_params.hdr.hardware_subarch;
@@ -125,7 +135,13 @@ static int setup_boot_parameters(struct boot_params *params)
 	/* Default sysdesc table */
 	params->sys_desc_table.length = 0;
 
-	setup_memory_map_entries(params);
+	if (image->type == KEXEC_TYPE_CRASH) {
+		ret = crash_setup_memmap_entries(image, params);
+		if (ret)
+			return ret;
+	} else
+		setup_memory_map_entries(params);
+
 	nr_e820_entries = params->e820_entries;
 
 	for (i = 0; i < nr_e820_entries; i++) {
@@ -153,7 +169,7 @@ static int setup_boot_parameters(struct boot_params *params)
 	memcpy(params->edd_mbr_sig_buffer, boot_params.edd_mbr_sig_buffer,
 	       EDD_MBR_SIG_MAX * sizeof(unsigned int));
 
-	return 0;
+	return ret;
 }
 
 int bzImage64_probe(const char *buf, unsigned long len)
@@ -241,6 +257,22 @@ void *bzImage64_load(struct kimage *image, char *kernel,
 	}
 
 	/*
+	 * In case of crash dump, we will append elfcorehdr=<addr> to
+	 * command line. Make sure it does not overflow
+	 */
+	if (cmdline_len + MAX_ELFCOREHDR_STR_LEN > header->cmdline_size) {
+		pr_debug("Appending elfcorehdr=<addr> to command line exceeds maximum allowed length\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	/* Allocate and load backup region */
+	if (image->type == KEXEC_TYPE_CRASH) {
+		ret = crash_load_segments(image);
+		if (ret)
+			return ERR_PTR(ret);
+	}
+
+	/*
 	 * Load purgatory. For 64bit entry point, purgatory  code can be
 	 * anywhere.
 	 */
@@ -254,7 +286,8 @@ void *bzImage64_load(struct kimage *image, char *kernel,
 	pr_debug("Loaded purgatory at 0x%lx\n", purgatory_load_addr);
 
 	/* Load Bootparams and cmdline */
-	params_cmdline_sz = sizeof(struct boot_params) + cmdline_len;
+	params_cmdline_sz = sizeof(struct boot_params) + cmdline_len +
+				MAX_ELFCOREHDR_STR_LEN;
 	params = kzalloc(params_cmdline_sz, GFP_KERNEL);
 	if (!params)
 		return ERR_PTR(-ENOMEM);
@@ -303,8 +336,8 @@ void *bzImage64_load(struct kimage *image, char *kernel,
 		setup_initrd(params, initrd_load_addr, initrd_len);
 	}
 
-	setup_cmdline(params, bootparam_load_addr, sizeof(struct boot_params),
-		      cmdline, cmdline_len);
+	setup_cmdline(image, params, bootparam_load_addr,
+		      sizeof(struct boot_params), cmdline, cmdline_len);
 
 	/* bootloader info. Do we need a separate ID for kexec kernel loader? */
 	params->hdr.type_of_loader = 0x0D << 4;
@@ -332,7 +365,9 @@ void *bzImage64_load(struct kimage *image, char *kernel,
 	if (ret)
 		goto out_free_params;
 
-	setup_boot_parameters(params);
+	ret = setup_boot_parameters(image, params);
+	if (ret)
+		goto out_free_params;
 
 	/* Allocate loader specific data */
 	ldata = kzalloc(sizeof(struct bzimage64_data), GFP_KERNEL);

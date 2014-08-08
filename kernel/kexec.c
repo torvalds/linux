@@ -548,12 +548,19 @@ kimage_file_alloc_init(struct kimage **rimage, int kernel_fd,
 {
 	int ret;
 	struct kimage *image;
+	bool kexec_on_panic = flags & KEXEC_FILE_ON_CRASH;
 
 	image = do_kimage_alloc_init();
 	if (!image)
 		return -ENOMEM;
 
 	image->file_mode = 1;
+
+	if (kexec_on_panic) {
+		/* Enable special crash kernel control page alloc policy. */
+		image->control_page = crashk_res.start;
+		image->type = KEXEC_TYPE_CRASH;
+	}
 
 	ret = kimage_file_prepare_segments(image, kernel_fd, initrd_fd,
 					   cmdline_ptr, cmdline_len, flags);
@@ -572,10 +579,12 @@ kimage_file_alloc_init(struct kimage **rimage, int kernel_fd,
 		goto out_free_post_load_bufs;
 	}
 
-	image->swap_page = kimage_alloc_control_pages(image, 0);
-	if (!image->swap_page) {
-		pr_err(KERN_ERR "Could not allocate swap buffer\n");
-		goto out_free_control_pages;
+	if (!kexec_on_panic) {
+		image->swap_page = kimage_alloc_control_pages(image, 0);
+		if (!image->swap_page) {
+			pr_err(KERN_ERR "Could not allocate swap buffer\n");
+			goto out_free_control_pages;
+		}
 	}
 
 	*rimage = image;
@@ -1113,10 +1122,14 @@ static int kimage_load_crash_segment(struct kimage *image,
 	unsigned long maddr;
 	size_t ubytes, mbytes;
 	int result;
-	unsigned char __user *buf;
+	unsigned char __user *buf = NULL;
+	unsigned char *kbuf = NULL;
 
 	result = 0;
-	buf = segment->buf;
+	if (image->file_mode)
+		kbuf = segment->kbuf;
+	else
+		buf = segment->buf;
 	ubytes = segment->bufsz;
 	mbytes = segment->memsz;
 	maddr = segment->mem;
@@ -1139,7 +1152,12 @@ static int kimage_load_crash_segment(struct kimage *image,
 			/* Zero the trailing part of the page */
 			memset(ptr + uchunk, 0, mchunk - uchunk);
 		}
-		result = copy_from_user(ptr, buf, uchunk);
+
+		/* For file based kexec, source pages are in kernel memory */
+		if (image->file_mode)
+			memcpy(ptr, kbuf, uchunk);
+		else
+			result = copy_from_user(ptr, buf, uchunk);
 		kexec_flush_icache_page(page);
 		kunmap(page);
 		if (result) {
@@ -1148,7 +1166,10 @@ static int kimage_load_crash_segment(struct kimage *image,
 		}
 		ubytes -= uchunk;
 		maddr  += mchunk;
-		buf += mchunk;
+		if (image->file_mode)
+			kbuf += mchunk;
+		else
+			buf += mchunk;
 		mbytes -= mchunk;
 	}
 out:
@@ -2127,7 +2148,14 @@ int kexec_add_buffer(struct kimage *image, char *buffer, unsigned long bufsz,
 	kbuf->top_down = top_down;
 
 	/* Walk the RAM ranges and allocate a suitable range for the buffer */
-	ret = walk_system_ram_res(0, -1, kbuf, locate_mem_hole_callback);
+	if (image->type == KEXEC_TYPE_CRASH)
+		ret = walk_iomem_res("Crash kernel",
+				     IORESOURCE_MEM | IORESOURCE_BUSY,
+				     crashk_res.start, crashk_res.end, kbuf,
+				     locate_mem_hole_callback);
+	else
+		ret = walk_system_ram_res(0, -1, kbuf,
+					  locate_mem_hole_callback);
 	if (ret != 1) {
 		/* A suitable memory range could not be found for buffer */
 		return -EADDRNOTAVAIL;

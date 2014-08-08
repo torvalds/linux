@@ -178,6 +178,38 @@ static void load_segments(void)
 		);
 }
 
+/* Update purgatory as needed after various image segments have been prepared */
+static int arch_update_purgatory(struct kimage *image)
+{
+	int ret = 0;
+
+	if (!image->file_mode)
+		return 0;
+
+	/* Setup copying of backup region */
+	if (image->type == KEXEC_TYPE_CRASH) {
+		ret = kexec_purgatory_get_set_symbol(image, "backup_dest",
+				&image->arch.backup_load_addr,
+				sizeof(image->arch.backup_load_addr), 0);
+		if (ret)
+			return ret;
+
+		ret = kexec_purgatory_get_set_symbol(image, "backup_src",
+				&image->arch.backup_src_start,
+				sizeof(image->arch.backup_src_start), 0);
+		if (ret)
+			return ret;
+
+		ret = kexec_purgatory_get_set_symbol(image, "backup_sz",
+				&image->arch.backup_src_sz,
+				sizeof(image->arch.backup_src_sz), 0);
+		if (ret)
+			return ret;
+	}
+
+	return ret;
+}
+
 int machine_kexec_prepare(struct kimage *image)
 {
 	unsigned long start_pgtable;
@@ -188,6 +220,11 @@ int machine_kexec_prepare(struct kimage *image)
 
 	/* Setup the identity mapped 64bit page table */
 	result = init_pgtable(image, start_pgtable);
+	if (result)
+		return result;
+
+	/* update purgatory as needed */
+	result = arch_update_purgatory(image);
 	if (result)
 		return result;
 
@@ -315,6 +352,9 @@ int arch_kexec_kernel_image_probe(struct kimage *image, void *buf,
 
 void *arch_kexec_kernel_image_load(struct kimage *image)
 {
+	vfree(image->arch.elf_headers);
+	image->arch.elf_headers = NULL;
+
 	if (!image->fops || !image->fops->load)
 		return ERR_PTR(-ENOEXEC);
 
