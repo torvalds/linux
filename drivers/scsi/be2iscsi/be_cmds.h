@@ -26,9 +26,9 @@
  * The commands are serviced by the ARM processor in the OneConnect's MPU.
  */
 struct be_sge {
-	u32 pa_lo;
-	u32 pa_hi;
-	u32 len;
+	__le32 pa_lo;
+	__le32 pa_hi;
+	__le32 len;
 };
 
 #define MCC_WRB_SGE_CNT_SHIFT 3	/* bits 3 - 7 of dword 0 */
@@ -624,11 +624,11 @@ static inline struct be_sge *nonembedded_sgl(struct be_mcc_wrb *wrb)
 /******************** Modify EQ Delay *******************/
 struct be_cmd_req_modify_eq_delay {
 	struct be_cmd_req_hdr hdr;
-	u32 num_eq;
+	__le32 num_eq;
 	struct {
-		u32 eq_id;
-		u32 phase;
-		u32 delay_multiplier;
+		__le32 eq_id;
+		__le32 phase;
+		__le32 delay_multiplier;
 	} delay[MAX_CPUS];
 } __packed;
 
