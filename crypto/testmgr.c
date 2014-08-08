@@ -311,78 +311,75 @@ static int __test_hash(struct crypto_ahash *tfm, struct hash_testvec *template,
 		if (align_offset != 0)
 			break;
 
-		if (template[i].np) {
-			j++;
-			memset(result, 0, MAX_DIGEST_SIZE);
+		if (!template[i].np)
+			continue;
 
-			temp = 0;
-			sg_init_table(sg, template[i].np);
-			ret = -EINVAL;
-			for (k = 0; k < template[i].np; k++) {
-				if (WARN_ON(offset_in_page(IDX[k]) +
-					    template[i].tap[k] > PAGE_SIZE))
-					goto out;
-				sg_set_buf(&sg[k],
-					   memcpy(xbuf[IDX[k] >> PAGE_SHIFT] +
-						  offset_in_page(IDX[k]),
-						  template[i].plaintext + temp,
-						  template[i].tap[k]),
-					   template[i].tap[k]);
-				temp += template[i].tap[k];
-			}
+		j++;
+		memset(result, 0, MAX_DIGEST_SIZE);
 
-			if (template[i].ksize) {
-				if (template[i].ksize > MAX_KEYLEN) {
-					pr_err("alg: hash: setkey failed on test %d for %s: key size %d > %d\n",
-					       j, algo, template[i].ksize,
-					       MAX_KEYLEN);
-					ret = -EINVAL;
-					goto out;
-				}
-				crypto_ahash_clear_flags(tfm, ~0);
-				memcpy(key, template[i].key, template[i].ksize);
-				ret = crypto_ahash_setkey(tfm, key,
-							  template[i].ksize);
-
-				if (ret) {
-					printk(KERN_ERR "alg: hash: setkey "
-					       "failed on chunking test %d "
-					       "for %s: ret=%d\n", j, algo,
-					       -ret);
-					goto out;
-				}
-			}
-
-			ahash_request_set_crypt(req, sg, result,
-						template[i].psize);
-			ret = crypto_ahash_digest(req);
-			switch (ret) {
-			case 0:
-				break;
-			case -EINPROGRESS:
-			case -EBUSY:
-				ret = wait_for_completion_interruptible(
-					&tresult.completion);
-				if (!ret && !(ret = tresult.err)) {
-					reinit_completion(&tresult.completion);
-					break;
-				}
-				/* fall through */
-			default:
-				printk(KERN_ERR "alg: hash: digest failed "
-				       "on chunking test %d for %s: "
-				       "ret=%d\n", j, algo, -ret);
+		temp = 0;
+		sg_init_table(sg, template[i].np);
+		ret = -EINVAL;
+		for (k = 0; k < template[i].np; k++) {
+			if (WARN_ON(offset_in_page(IDX[k]) +
+				    template[i].tap[k] > PAGE_SIZE))
 				goto out;
-			}
+			sg_set_buf(&sg[k],
+				   memcpy(xbuf[IDX[k] >> PAGE_SHIFT] +
+					  offset_in_page(IDX[k]),
+					  template[i].plaintext + temp,
+					  template[i].tap[k]),
+				   template[i].tap[k]);
+			temp += template[i].tap[k];
+		}
 
-			if (memcmp(result, template[i].digest,
-				   crypto_ahash_digestsize(tfm))) {
-				printk(KERN_ERR "alg: hash: Chunking test %d "
-				       "failed for %s\n", j, algo);
-				hexdump(result, crypto_ahash_digestsize(tfm));
+		if (template[i].ksize) {
+			if (template[i].ksize > MAX_KEYLEN) {
+				pr_err("alg: hash: setkey failed on test %d for %s: key size %d > %d\n",
+				       j, algo, template[i].ksize, MAX_KEYLEN);
 				ret = -EINVAL;
 				goto out;
 			}
+			crypto_ahash_clear_flags(tfm, ~0);
+			memcpy(key, template[i].key, template[i].ksize);
+			ret = crypto_ahash_setkey(tfm, key, template[i].ksize);
+
+			if (ret) {
+				printk(KERN_ERR "alg: hash: setkey "
+				       "failed on chunking test %d "
+				       "for %s: ret=%d\n", j, algo, -ret);
+				goto out;
+			}
+		}
+
+		ahash_request_set_crypt(req, sg, result, template[i].psize);
+		ret = crypto_ahash_digest(req);
+		switch (ret) {
+		case 0:
+			break;
+		case -EINPROGRESS:
+		case -EBUSY:
+			ret = wait_for_completion_interruptible(
+				&tresult.completion);
+			if (!ret && !(ret = tresult.err)) {
+				reinit_completion(&tresult.completion);
+				break;
+			}
+			/* fall through */
+		default:
+			printk(KERN_ERR "alg: hash: digest failed "
+			       "on chunking test %d for %s: "
+			       "ret=%d\n", j, algo, -ret);
+			goto out;
+		}
+
+		if (memcmp(result, template[i].digest,
+			   crypto_ahash_digestsize(tfm))) {
+			printk(KERN_ERR "alg: hash: Chunking test %d "
+			       "failed for %s\n", j, algo);
+			hexdump(result, crypto_ahash_digestsize(tfm));
+			ret = -EINVAL;
+			goto out;
 		}
 	}
 
