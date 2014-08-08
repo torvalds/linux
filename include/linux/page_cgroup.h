@@ -3,9 +3,9 @@
 
 enum {
 	/* flags for mem_cgroup */
-	PCG_LOCK,  /* Lock for pc->mem_cgroup and following bits. */
-	PCG_USED, /* this object is in use. */
-	PCG_MIGRATION, /* under page migration */
+	PCG_USED = 0x01,	/* This page is charged to a memcg */
+	PCG_MEM = 0x02,		/* This page holds a memory charge */
+	PCG_MEMSW = 0x04,	/* This page holds a memory+swap charge */
 	__NR_PCG_FLAGS,
 };
 
@@ -44,42 +44,9 @@ static inline void __init page_cgroup_init(void)
 struct page_cgroup *lookup_page_cgroup(struct page *page);
 struct page *lookup_cgroup_page(struct page_cgroup *pc);
 
-#define TESTPCGFLAG(uname, lname)			\
-static inline int PageCgroup##uname(struct page_cgroup *pc)	\
-	{ return test_bit(PCG_##lname, &pc->flags); }
-
-#define SETPCGFLAG(uname, lname)			\
-static inline void SetPageCgroup##uname(struct page_cgroup *pc)\
-	{ set_bit(PCG_##lname, &pc->flags);  }
-
-#define CLEARPCGFLAG(uname, lname)			\
-static inline void ClearPageCgroup##uname(struct page_cgroup *pc)	\
-	{ clear_bit(PCG_##lname, &pc->flags);  }
-
-#define TESTCLEARPCGFLAG(uname, lname)			\
-static inline int TestClearPageCgroup##uname(struct page_cgroup *pc)	\
-	{ return test_and_clear_bit(PCG_##lname, &pc->flags);  }
-
-TESTPCGFLAG(Used, USED)
-CLEARPCGFLAG(Used, USED)
-SETPCGFLAG(Used, USED)
-
-SETPCGFLAG(Migration, MIGRATION)
-CLEARPCGFLAG(Migration, MIGRATION)
-TESTPCGFLAG(Migration, MIGRATION)
-
-static inline void lock_page_cgroup(struct page_cgroup *pc)
+static inline int PageCgroupUsed(struct page_cgroup *pc)
 {
-	/*
-	 * Don't take this lock in IRQ context.
-	 * This lock is for pc->mem_cgroup, USED, MIGRATION
-	 */
-	bit_spin_lock(PCG_LOCK, &pc->flags);
-}
-
-static inline void unlock_page_cgroup(struct page_cgroup *pc)
-{
-	bit_spin_unlock(PCG_LOCK, &pc->flags);
+	return !!(pc->flags & PCG_USED);
 }
 
 #else /* CONFIG_MEMCG */
