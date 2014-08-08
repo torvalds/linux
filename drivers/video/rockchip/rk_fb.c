@@ -1351,7 +1351,7 @@ u32 freed_index;
 char buf[PAGE_SIZE];
 
 int rk_fb_sysmmu_fault_handler(struct device *dev,
-			       enum rk_sysmmu_inttype itype,
+			       enum rk_iommu_inttype itype,
 			       unsigned long pgtable_base,
 			       unsigned long fault_addr, unsigned int status)
 {
