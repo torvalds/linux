@@ -2415,7 +2415,7 @@ W:	http://linux-cifs.samba.org/
 Q:	http://patchwork.ozlabs.org/project/linux-cifs-client/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/sfrench/cifs-2.6.git
 S:	Supported
-F:	Documentation/filesystems/cifs.txt
+F:	Documentation/filesystems/cifs/
 F:	fs/cifs/
 
 COMPACTPCI HOTPLUG CORE
