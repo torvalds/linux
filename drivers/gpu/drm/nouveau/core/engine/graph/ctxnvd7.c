@@ -214,12 +214,6 @@ nvd7_grctx_generate_attrib(struct nvc0_grctx *info)
 	}
 }
 
-static void
-nvd7_grctx_generate_mods(struct nvc0_graph_priv *priv, struct nvc0_grctx *info)
-{
-	mmio_list(0x17e91c, 0x03060609, 0, 0); /* different from kepler */
-}
-
 void
 nvd7_grctx_generate_main(struct nvc0_graph_priv *priv, struct nvc0_grctx *info)
 {
@@ -239,7 +233,6 @@ nvd7_grctx_generate_main(struct nvc0_graph_priv *priv, struct nvc0_grctx *info)
 	oclass->bundle(info);
 	oclass->pagepool(info);
 	oclass->attrib(info);
-	oclass->mods(priv, info);
 	oclass->unkn(priv);
 
 	nvc0_grctx_generate_tpcid(priv);
@@ -269,7 +262,6 @@ nvd7_grctx_oclass = &(struct nvc0_grctx_oclass) {
 		.wr32 = _nouveau_graph_context_wr32,
 	},
 	.main  = nvd7_grctx_generate_main,
-	.mods  = nvd7_grctx_generate_mods,
 	.unkn  = nve4_grctx_generate_unkn,
 	.hub   = nvd7_grctx_pack_hub,
 	.gpc   = nvd7_grctx_pack_gpc,

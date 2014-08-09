@@ -15,9 +15,6 @@ struct nvc0_grctx {
 int  nvc0_grctx_mmio_data(struct nvc0_grctx *, u32 size, u32 align, u32 access);
 void nvc0_grctx_mmio_item(struct nvc0_grctx *, u32 addr, u32 data, int s, int);
 
-#define mmio_data(a,b,c) nvc0_grctx_mmio_data(info, (a), (b), (c))
-#define mmio_list(a,b,c,d) nvc0_grctx_mmio_item(info, (a), (b), (c), (d))
-
 #define mmio_vram(a,b,c,d) nvc0_grctx_mmio_data((a), (b), (c), (d))
 #define mmio_refn(a,b,c,d,e) nvc0_grctx_mmio_item((a), (b), (c), (d), (e))
 #define mmio_skip(a,b,c) mmio_refn((a), (b), (c), -1, -1)
@@ -28,7 +25,6 @@ struct nvc0_grctx_oclass {
 	/* main context generation function */
 	void  (*main)(struct nvc0_graph_priv *, struct nvc0_grctx *);
 	/* context-specific modify-on-first-load list generation function */
-	void  (*mods)(struct nvc0_graph_priv *, struct nvc0_grctx *);
 	void  (*unkn)(struct nvc0_graph_priv *);
 	/* mmio context data */
 	const struct nvc0_graph_pack *hub;
@@ -67,7 +63,6 @@ void nvc0_grctx_generate_main(struct nvc0_graph_priv *, struct nvc0_grctx *);
 void nvc0_grctx_generate_bundle(struct nvc0_grctx *);
 void nvc0_grctx_generate_pagepool(struct nvc0_grctx *);
 void nvc0_grctx_generate_attrib(struct nvc0_grctx *);
-void nvc0_grctx_generate_mods(struct nvc0_graph_priv *, struct nvc0_grctx *);
 void nvc0_grctx_generate_unkn(struct nvc0_graph_priv *);
 void nvc0_grctx_generate_tpcid(struct nvc0_graph_priv *);
 void nvc0_grctx_generate_r406028(struct nvc0_graph_priv *);
@@ -77,7 +72,6 @@ void nvc0_grctx_generate_r406800(struct nvc0_graph_priv *);
 
 extern struct nouveau_oclass *nvc1_grctx_oclass;
 void nvc1_grctx_generate_attrib(struct nvc0_grctx *);
-void nvc1_grctx_generate_mods(struct nvc0_graph_priv *, struct nvc0_grctx *);
 void nvc1_grctx_generate_unkn(struct nvc0_graph_priv *);
 
 extern struct nouveau_oclass *nvc4_grctx_oclass;
@@ -93,7 +87,6 @@ extern struct nouveau_oclass *gk20a_grctx_oclass;
 void nve4_grctx_generate_main(struct nvc0_graph_priv *, struct nvc0_grctx *);
 void nve4_grctx_generate_bundle(struct nvc0_grctx *);
 void nve4_grctx_generate_pagepool(struct nvc0_grctx *);
-void nve4_grctx_generate_mods(struct nvc0_graph_priv *, struct nvc0_grctx *);
 void nve4_grctx_generate_unkn(struct nvc0_graph_priv *);
 void nve4_grctx_generate_r418bb8(struct nvc0_graph_priv *);
 

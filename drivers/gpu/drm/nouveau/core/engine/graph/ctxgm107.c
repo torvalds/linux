@@ -929,11 +929,6 @@ gm107_grctx_generate_attrib(struct nvc0_grctx *info)
 	}
 }
 
-void
-gm107_grctx_generate_mods(struct nvc0_graph_priv *priv, struct nvc0_grctx *info)
-{
-}
-
 static void
 gm107_grctx_generate_tpcid(struct nvc0_graph_priv *priv)
 {
@@ -971,7 +966,6 @@ gm107_grctx_generate_main(struct nvc0_graph_priv *priv, struct nvc0_grctx *info)
 	oclass->bundle(info);
 	oclass->pagepool(info);
 	oclass->attrib(info);
-	oclass->mods(priv, info);
 	oclass->unkn(priv);
 
 	gm107_grctx_generate_tpcid(priv);
@@ -1016,7 +1010,6 @@ gm107_grctx_oclass = &(struct nvc0_grctx_oclass) {
 		.wr32 = _nouveau_graph_context_wr32,
 	},
 	.main  = gm107_grctx_generate_main,
-	.mods  = gm107_grctx_generate_mods,
 	.unkn  = nve4_grctx_generate_unkn,
 	.hub   = gm107_grctx_pack_hub,
 	.gpc   = gm107_grctx_pack_gpc,

@@ -511,7 +511,6 @@ nvd9_grctx_oclass = &(struct nvc0_grctx_oclass) {
 		.wr32 = _nouveau_graph_context_wr32,
 	},
 	.main  = nvc0_grctx_generate_main,
-	.mods  = nvc1_grctx_generate_mods,
 	.unkn  = nvc1_grctx_generate_unkn,
 	.hub   = nvd9_grctx_pack_hub,
 	.gpc   = nvd9_grctx_pack_gpc,

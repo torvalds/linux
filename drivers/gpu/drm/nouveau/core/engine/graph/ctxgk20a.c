@@ -41,7 +41,6 @@ gk20a_grctx_oclass = &(struct nvc0_grctx_oclass) {
 		.wr32 = _nouveau_graph_context_wr32,
 	},
 	.main  = nve4_grctx_generate_main,
-	.mods  = nve4_grctx_generate_mods,
 	.unkn  = nve4_grctx_generate_unkn,
 	.hub   = nve4_grctx_pack_hub,
 	.gpc   = nve4_grctx_pack_gpc,

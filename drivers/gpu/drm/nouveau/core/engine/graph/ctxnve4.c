@@ -870,13 +870,6 @@ nve4_grctx_generate_pagepool(struct nvc0_grctx *info)
 }
 
 void
-nve4_grctx_generate_mods(struct nvc0_graph_priv *priv, struct nvc0_grctx *info)
-{
-	mmio_list(0x17e91c, 0x06060609, 0, 0);
-	mmio_list(0x17e920, 0x00090a05, 0, 0);
-}
-
-void
 nve4_grctx_generate_unkn(struct nvc0_graph_priv *priv)
 {
 	nv_mask(priv, 0x418c6c, 0x00000001, 0x00000001);
@@ -964,7 +957,6 @@ nve4_grctx_generate_main(struct nvc0_graph_priv *priv, struct nvc0_grctx *info)
 	oclass->bundle(info);
 	oclass->pagepool(info);
 	oclass->attrib(info);
-	oclass->mods(priv, info);
 	oclass->unkn(priv);
 
 	nvc0_grctx_generate_tpcid(priv);
@@ -1006,7 +998,6 @@ nve4_grctx_oclass = &(struct nvc0_grctx_oclass) {
 		.wr32 = _nouveau_graph_context_wr32,
 	},
 	.main  = nve4_grctx_generate_main,
-	.mods  = nve4_grctx_generate_mods,
 	.unkn  = nve4_grctx_generate_unkn,
 	.hub   = nve4_grctx_pack_hub,
 	.gpc   = nve4_grctx_pack_gpc,

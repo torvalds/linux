@@ -764,11 +764,6 @@ nvc1_grctx_generate_attrib(struct nvc0_grctx *info)
 }
 
 void
-nvc1_grctx_generate_mods(struct nvc0_graph_priv *priv, struct nvc0_grctx *info)
-{
-}
-
-void
 nvc1_grctx_generate_unkn(struct nvc0_graph_priv *priv)
 {
 	nv_mask(priv, 0x418c6c, 0x00000001, 0x00000001);
@@ -791,7 +786,6 @@ nvc1_grctx_oclass = &(struct nvc0_grctx_oclass) {
 		.wr32 = _nouveau_graph_context_wr32,
 	},
 	.main  = nvc0_grctx_generate_main,
-	.mods  = nvc1_grctx_generate_mods,
 	.unkn  = nvc1_grctx_generate_unkn,
 	.hub   = nvc1_grctx_pack_hub,
 	.gpc   = nvc1_grctx_pack_gpc,

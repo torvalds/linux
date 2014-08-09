@@ -531,13 +531,6 @@ nv108_grctx_pack_ppc[] = {
  * PGRAPH context implementation
  ******************************************************************************/
 
-static void
-nv108_grctx_generate_mods(struct nvc0_graph_priv *priv, struct nvc0_grctx *info)
-{
-	mmio_list(0x17e91c, 0x0b040a0b, 0, 0);
-	mmio_list(0x17e920, 0x00090d08, 0, 0);
-}
-
 struct nouveau_oclass *
 nv108_grctx_oclass = &(struct nvc0_grctx_oclass) {
 	.base.handle = NV_ENGCTX(GR, 0x08),
@@ -550,7 +543,6 @@ nv108_grctx_oclass = &(struct nvc0_grctx_oclass) {
 		.wr32 = _nouveau_graph_context_wr32,
 	},
 	.main  = nve4_grctx_generate_main,
-	.mods  = nv108_grctx_generate_mods,
 	.unkn  = nve4_grctx_generate_unkn,
 	.hub   = nv108_grctx_pack_hub,
 	.gpc   = nv108_grctx_pack_gpc,
