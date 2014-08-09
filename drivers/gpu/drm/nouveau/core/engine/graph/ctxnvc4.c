@@ -102,4 +102,6 @@ nvc4_grctx_oclass = &(struct nvc0_grctx_oclass) {
 	.mthd  = nvc0_grctx_pack_mthd,
 	.bundle = nvc0_grctx_generate_bundle,
 	.bundle_size = 0x1800,
+	.pagepool = nvc0_grctx_generate_pagepool,
+	.pagepool_size = 0x8000,
 }.base;

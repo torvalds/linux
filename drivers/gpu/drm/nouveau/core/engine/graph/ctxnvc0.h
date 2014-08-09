@@ -44,6 +44,9 @@ struct nvc0_grctx_oclass {
 	u32 bundle_size;
 	u32 bundle_min_gpm_fifo_depth;
 	u32 bundle_token_limit;
+	/* pagepool */
+	void (*pagepool)(struct nvc0_grctx *);
+	u32 pagepool_size;
 };
 
 static inline const struct nvc0_grctx_oclass *
@@ -56,6 +59,7 @@ extern struct nouveau_oclass *nvc0_grctx_oclass;
 int  nvc0_grctx_generate(struct nvc0_graph_priv *);
 void nvc0_grctx_generate_main(struct nvc0_graph_priv *, struct nvc0_grctx *);
 void nvc0_grctx_generate_bundle(struct nvc0_grctx *);
+void nvc0_grctx_generate_pagepool(struct nvc0_grctx *);
 void nvc0_grctx_generate_mods(struct nvc0_graph_priv *, struct nvc0_grctx *);
 void nvc0_grctx_generate_unkn(struct nvc0_graph_priv *);
 void nvc0_grctx_generate_tpcid(struct nvc0_graph_priv *);
@@ -77,6 +81,7 @@ extern struct nouveau_oclass *nve4_grctx_oclass;
 extern struct nouveau_oclass *gk20a_grctx_oclass;
 void nve4_grctx_generate_main(struct nvc0_graph_priv *, struct nvc0_grctx *);
 void nve4_grctx_generate_bundle(struct nvc0_grctx *);
+void nve4_grctx_generate_pagepool(struct nvc0_grctx *);
 void nve4_grctx_generate_mods(struct nvc0_graph_priv *, struct nvc0_grctx *);
 void nve4_grctx_generate_unkn(struct nvc0_graph_priv *);
 void nve4_grctx_generate_r418bb8(struct nvc0_graph_priv *);

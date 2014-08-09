@@ -95,4 +95,6 @@ gk110b_grctx_oclass = &(struct nvc0_grctx_oclass) {
 	.bundle_size = 0x3000,
 	.bundle_min_gpm_fifo_depth = 0x180,
 	.bundle_token_limit = 0x600,
+	.pagepool = nve4_grctx_generate_pagepool,
+	.pagepool_size = 0x8000,
 }.base;

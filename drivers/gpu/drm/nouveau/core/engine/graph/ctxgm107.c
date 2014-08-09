@@ -876,17 +876,24 @@ gm107_grctx_generate_bundle(struct nvc0_grctx *info)
 }
 
 static void
+gm107_grctx_generate_pagepool(struct nvc0_grctx *info)
+{
+	const struct nvc0_grctx_oclass *impl = nvc0_grctx_impl(info->priv);
+	const u32 access = NV_MEM_ACCESS_RW | NV_MEM_ACCESS_SYS;
+	const int s = 8;
+	const int b = mmio_vram(info, impl->pagepool_size, (1 << s), access);
+	mmio_refn(info, 0x40800c, 0x00000000, s, b);
+	mmio_wr32(info, 0x408010, 0x80000000);
+	mmio_refn(info, 0x419004, 0x00000000, s, b);
+	mmio_wr32(info, 0x419008, 0x00000000);
+	mmio_wr32(info, 0x4064cc, 0x80000000);
+	mmio_wr32(info, 0x418e30, 0x80000000); /* guess at it being related */
+}
+
+static void
 gm107_grctx_generate_mods(struct nvc0_graph_priv *priv, struct nvc0_grctx *info)
 {
-	mmio_data(0x008000, 0x0100, NV_MEM_ACCESS_RW | NV_MEM_ACCESS_SYS);
 	mmio_data(0x200000, 0x1000, NV_MEM_ACCESS_RW);
-
-	mmio_list(0x40800c, 0x00000000,  8, 1);
-	mmio_list(0x408010, 0x80000000,  0, 0);
-	mmio_list(0x419004, 0x00000000,  8, 1);
-	mmio_list(0x419008, 0x00000000,  0, 0);
-	mmio_list(0x4064cc, 0x80000000,  0, 0);
-	mmio_list(0x418e30, 0x80000000,  0, 0);
 
 	mmio_list(0x418810, 0x80000000, 12, 2);
 	mmio_list(0x419848, 0x10000000, 12, 2);
@@ -944,6 +951,7 @@ gm107_grctx_generate_main(struct nvc0_graph_priv *priv, struct nvc0_grctx *info)
 	nv_wr32(priv, 0x404154, 0x00000000);
 
 	oclass->bundle(info);
+	oclass->pagepool(info);
 	oclass->mods(priv, info);
 	oclass->unkn(priv);
 
@@ -1002,4 +1010,6 @@ gm107_grctx_oclass = &(struct nvc0_grctx_oclass) {
 	.bundle_size = 0x3000,
 	.bundle_min_gpm_fifo_depth = 0x180,
 	.bundle_token_limit = 0x2c0,
+	.pagepool = gm107_grctx_generate_pagepool,
+	.pagepool_size = 0x8000,
 }.base;
