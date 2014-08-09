@@ -558,6 +558,7 @@ struct intel_uncore {
 
 struct intel_device_info {
 	u32 display_mmio_offset;
+	u16 device_id;
 	u8 num_pipes:3;
 	u8 num_sprites[I915_MAX_PIPES];
 	u8 gen;
@@ -1980,51 +1981,52 @@ struct drm_i915_cmd_table {
 	int count;
 };
 
-#define INTEL_INFO(dev)	(&to_i915(dev)->info)
+#define INTEL_INFO(p) 	(&to_i915(p)->info)
+#define INTEL_DEVID(p)	(INTEL_INFO(p)->device_id)
 
-#define IS_I830(dev)		((dev)->pdev->device == 0x3577)
-#define IS_845G(dev)		((dev)->pdev->device == 0x2562)
+#define IS_I830(dev)		(INTEL_DEVID(dev) == 0x3577)
+#define IS_845G(dev)		(INTEL_DEVID(dev) == 0x2562)
 #define IS_I85X(dev)		(INTEL_INFO(dev)->is_i85x)
-#define IS_I865G(dev)		((dev)->pdev->device == 0x2572)
+#define IS_I865G(dev)		(INTEL_DEVID(dev) == 0x2572)
 #define IS_I915G(dev)		(INTEL_INFO(dev)->is_i915g)
-#define IS_I915GM(dev)		((dev)->pdev->device == 0x2592)
-#define IS_I945G(dev)		((dev)->pdev->device == 0x2772)
+#define IS_I915GM(dev)		(INTEL_DEVID(dev) == 0x2592)
+#define IS_I945G(dev)		(INTEL_DEVID(dev) == 0x2772)
 #define IS_I945GM(dev)		(INTEL_INFO(dev)->is_i945gm)
 #define IS_BROADWATER(dev)	(INTEL_INFO(dev)->is_broadwater)
 #define IS_CRESTLINE(dev)	(INTEL_INFO(dev)->is_crestline)
-#define IS_GM45(dev)		((dev)->pdev->device == 0x2A42)
+#define IS_GM45(dev)		(INTEL_DEVID(dev) == 0x2A42)
 #define IS_G4X(dev)		(INTEL_INFO(dev)->is_g4x)
-#define IS_PINEVIEW_G(dev)	((dev)->pdev->device == 0xa001)
-#define IS_PINEVIEW_M(dev)	((dev)->pdev->device == 0xa011)
+#define IS_PINEVIEW_G(dev)	(INTEL_DEVID(dev) == 0xa001)
+#define IS_PINEVIEW_M(dev)	(INTEL_DEVID(dev) == 0xa011)
 #define IS_PINEVIEW(dev)	(INTEL_INFO(dev)->is_pineview)
 #define IS_G33(dev)		(INTEL_INFO(dev)->is_g33)
-#define IS_IRONLAKE_M(dev)	((dev)->pdev->device == 0x0046)
+#define IS_IRONLAKE_M(dev)	(INTEL_DEVID(dev) == 0x0046)
 #define IS_IVYBRIDGE(dev)	(INTEL_INFO(dev)->is_ivybridge)
-#define IS_IVB_GT1(dev)		((dev)->pdev->device == 0x0156 || \
-				 (dev)->pdev->device == 0x0152 || \
-				 (dev)->pdev->device == 0x015a)
-#define IS_SNB_GT1(dev)		((dev)->pdev->device == 0x0102 || \
-				 (dev)->pdev->device == 0x0106 || \
-				 (dev)->pdev->device == 0x010A)
+#define IS_IVB_GT1(dev)		(INTEL_DEVID(dev) == 0x0156 || \
+				 INTEL_DEVID(dev) == 0x0152 || \
+				 INTEL_DEVID(dev) == 0x015a)
+#define IS_SNB_GT1(dev)		(INTEL_DEVID(dev) == 0x0102 || \
+				 INTEL_DEVID(dev) == 0x0106 || \
+				 INTEL_DEVID(dev) == 0x010A)
 #define IS_VALLEYVIEW(dev)	(INTEL_INFO(dev)->is_valleyview)
 #define IS_CHERRYVIEW(dev)	(INTEL_INFO(dev)->is_valleyview && IS_GEN8(dev))
 #define IS_HASWELL(dev)	(INTEL_INFO(dev)->is_haswell)
 #define IS_BROADWELL(dev)	(!INTEL_INFO(dev)->is_valleyview && IS_GEN8(dev))
 #define IS_MOBILE(dev)		(INTEL_INFO(dev)->is_mobile)
 #define IS_HSW_EARLY_SDV(dev)	(IS_HASWELL(dev) && \
-				 ((dev)->pdev->device & 0xFF00) == 0x0C00)
+				 (INTEL_DEVID(dev) & 0xFF00) == 0x0C00)
 #define IS_BDW_ULT(dev)		(IS_BROADWELL(dev) && \
-				 (((dev)->pdev->device & 0xf) == 0x2  || \
-				 ((dev)->pdev->device & 0xf) == 0x6 || \
-				 ((dev)->pdev->device & 0xf) == 0xe))
+				 ((INTEL_DEVID(dev) & 0xf) == 0x2  || \
+				 (INTEL_DEVID(dev) & 0xf) == 0x6 || \
+				 (INTEL_DEVID(dev) & 0xf) == 0xe))
 #define IS_HSW_ULT(dev)		(IS_HASWELL(dev) && \
-				 ((dev)->pdev->device & 0xFF00) == 0x0A00)
+				 (INTEL_DEVID(dev) & 0xFF00) == 0x0A00)
 #define IS_ULT(dev)		(IS_HSW_ULT(dev) || IS_BDW_ULT(dev))
 #define IS_HSW_GT3(dev)		(IS_HASWELL(dev) && \
-				 ((dev)->pdev->device & 0x00F0) == 0x0020)
+				 (INTEL_DEVID(dev) & 0x00F0) == 0x0020)
 /* ULX machines are also considered ULT. */
-#define IS_HSW_ULX(dev)		((dev)->pdev->device == 0x0A0E || \
-				 (dev)->pdev->device == 0x0A1E)
+#define IS_HSW_ULX(dev)		(INTEL_DEVID(dev) == 0x0A0E || \
+				 INTEL_DEVID(dev) == 0x0A1E)
 #define IS_PRELIMINARY_HW(intel_info) ((intel_info)->is_preliminary)
 
 /*

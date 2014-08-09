@@ -1603,9 +1603,10 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	dev->dev_private = dev_priv;
 	dev_priv->dev = dev;
 
-	/* copy initial configuration to dev_priv->info */
+	/* Setup the write-once "constant" device info */
 	device_info = (struct intel_device_info *)&dev_priv->info;
-	*device_info = *info;
+	memcpy(device_info, info, sizeof(dev_priv->info));
+	device_info->device_id = dev->pdev->device;
 
 	spin_lock_init(&dev_priv->irq_lock);
 	spin_lock_init(&dev_priv->gpu_error.lock);
