@@ -913,6 +913,21 @@ nv50_disp_base_mthd(struct nouveau_object *object, u32 mthd,
 		if (!priv->sor.hdmi)
 			return -ENODEV;
 		return priv->sor.hdmi(object, priv, data, size, head, outp);
+	case NV50_DISP_MTHD_V1_SOR_LVDS_SCRIPT: {
+		union {
+			struct nv50_disp_sor_lvds_script_v0 v0;
+		} *args = data;
+		nv_ioctl(object, "disp sor lvds script size %d\n", size);
+		if (nvif_unpack(args->v0, 0, 0, false)) {
+			nv_ioctl(object, "disp sor lvds script "
+					 "vers %d name %04x\n",
+				 args->v0.version, args->v0.script);
+			priv->sor.lvdsconf = args->v0.script;
+			return 0;
+		} else
+			return ret;
+	}
+		break;
 	default:
 		break;
 	}
@@ -1041,7 +1056,6 @@ nv50_disp_base_ofuncs = {
 static struct nouveau_omthds
 nv50_disp_base_omthds[] = {
 	{ HEAD_MTHD(NV50_DISP_SCANOUTPOS)     , nv50_disp_base_scanoutpos },
-	{ SOR_MTHD(NV50_DISP_SOR_LVDS_SCRIPT) , nv50_sor_mthd },
 	{ PIOR_MTHD(NV50_DISP_PIOR_PWR)       , nv50_pior_mthd },
 	{ PIOR_MTHD(NV50_DISP_PIOR_TMDS_PWR)  , nv50_pior_mthd },
 	{ PIOR_MTHD(NV50_DISP_PIOR_DP_PWR)    , nv50_pior_mthd },

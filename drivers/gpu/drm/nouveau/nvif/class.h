@@ -360,4 +360,11 @@ struct nv50_disp_sor_hdmi_pwr_v0 {
 	__u8  pad04[4];
 };
 
+struct nv50_disp_sor_lvds_script_v0 {
+	__u8  version;
+	__u8  pad01[1];
+	__u16 script;
+	__u8  pad04[4];
+};
+
 #endif

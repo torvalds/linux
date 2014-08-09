@@ -1882,15 +1882,24 @@ static void
 nv50_sor_mode_set(struct drm_encoder *encoder, struct drm_display_mode *umode,
 		  struct drm_display_mode *mode)
 {
+	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+	struct nouveau_crtc *nv_crtc = nouveau_crtc(encoder->crtc);
+	struct {
+		struct nv50_disp_mthd_v1 base;
+		struct nv50_disp_sor_lvds_script_v0 lvds;
+	} lvds = {
+		.base.version = 1,
+		.base.method  = NV50_DISP_MTHD_V1_SOR_LVDS_SCRIPT,
+		.base.hasht   = nv_encoder->dcb->hasht,
+		.base.hashm   = nv_encoder->dcb->hashm,
+	};
 	struct nv50_disp *disp = nv50_disp(encoder->dev);
 	struct nv50_mast *mast = nv50_mast(encoder->dev);
 	struct drm_device *dev = encoder->dev;
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-	struct nouveau_crtc *nv_crtc = nouveau_crtc(encoder->crtc);
 	struct nouveau_connector *nv_connector;
 	struct nvbios *bios = &drm->vbios;
-	u32 lvds = 0, mask, ctrl;
+	u32 mask, ctrl;
 	u8 owner = 1 << nv_crtc->index;
 	u8 proto = 0xf;
 	u8 depth = 0x0;
@@ -1916,31 +1925,31 @@ nv50_sor_mode_set(struct drm_encoder *encoder, struct drm_display_mode *umode,
 
 		if (bios->fp_no_ddc) {
 			if (bios->fp.dual_link)
-				lvds |= 0x0100;
+				lvds.lvds.script |= 0x0100;
 			if (bios->fp.if_is_24bit)
-				lvds |= 0x0200;
+				lvds.lvds.script |= 0x0200;
 		} else {
 			if (nv_connector->type == DCB_CONNECTOR_LVDS_SPWG) {
 				if (((u8 *)nv_connector->edid)[121] == 2)
-					lvds |= 0x0100;
+					lvds.lvds.script |= 0x0100;
 			} else
 			if (mode->clock >= bios->fp.duallink_transition_clk) {
-				lvds |= 0x0100;
+				lvds.lvds.script |= 0x0100;
 			}
 
-			if (lvds & 0x0100) {
+			if (lvds.lvds.script & 0x0100) {
 				if (bios->fp.strapless_is_24bit & 2)
-					lvds |= 0x0200;
+					lvds.lvds.script |= 0x0200;
 			} else {
 				if (bios->fp.strapless_is_24bit & 1)
-					lvds |= 0x0200;
+					lvds.lvds.script |= 0x0200;
 			}
 
 			if (nv_connector->base.display_info.bpc == 8)
-				lvds |= 0x0200;
+				lvds.lvds.script |= 0x0200;
 		}
 
-		nvif_exec(disp->disp, NV50_DISP_SOR_LVDS_SCRIPT + nv_encoder->or, &lvds, sizeof(lvds));
+		nvif_mthd(disp->disp, 0, &lvds, sizeof(lvds));
 		break;
 	case DCB_OUTPUT_DP:
 		if (nv_connector->base.display_info.bpc == 6) {

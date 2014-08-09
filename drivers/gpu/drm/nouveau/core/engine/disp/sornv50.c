@@ -84,10 +84,6 @@ nv50_sor_mthd(struct nouveau_object *object, u32 mthd, void *args, u32 size)
 	}
 
 	switch (mthd & ~0x3f) {
-	case NV50_DISP_SOR_LVDS_SCRIPT:
-		priv->sor.lvdsconf = data & NV50_DISP_SOR_LVDS_SCRIPT_ID;
-		ret = 0;
-		break;
 	case NV94_DISP_SOR_DP_PWR:
 		if (outp) {
 			struct nvkm_output_dp *outpdp = (void *)outp;

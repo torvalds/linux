@@ -74,7 +74,6 @@ nv94_disp_sclass[] = {
 static struct nouveau_omthds
 nv94_disp_base_omthds[] = {
 	{ HEAD_MTHD(NV50_DISP_SCANOUTPOS)     , nv50_disp_base_scanoutpos },
-	{ SOR_MTHD(NV50_DISP_SOR_LVDS_SCRIPT) , nv50_sor_mthd },
 	{ SOR_MTHD(NV94_DISP_SOR_DP_PWR)      , nv50_sor_mthd },
 	{ PIOR_MTHD(NV50_DISP_PIOR_PWR)       , nv50_pior_mthd },
 	{ PIOR_MTHD(NV50_DISP_PIOR_TMDS_PWR)  , nv50_pior_mthd },
