@@ -68,19 +68,17 @@ struct nv50_chan {
 };
 
 static int
-nv50_chan_create(struct nvif_object *disp, u32 bclass, u8 head,
+nv50_chan_create(struct nvif_object *disp, const u32 *oclass, u8 head,
 		 void *data, u32 size, struct nv50_chan *chan)
 {
-	const u32 oclass = EVO_CHAN_OCLASS(bclass, disp);
-	const u32 handle = EVO_CHAN_HANDLE(bclass, head);
-	int ret;
-
-	ret = nvif_object_init(disp, NULL, handle, oclass, data, size,
-			      &chan->user);
-	if (ret)
-		return ret;
-
-	return 0;
+	while (oclass[0]) {
+		int ret = nvif_object_init(disp, NULL, (oclass[0] << 16) | head,
+					   oclass[0], data, size,
+					  &chan->user);
+		if (oclass++, ret == 0)
+			return ret;
+	}
+	return -ENOSYS;
 }
 
 static void
@@ -104,10 +102,72 @@ nv50_pioc_destroy(struct nv50_pioc *pioc)
 }
 
 static int
-nv50_pioc_create(struct nvif_object *disp, u32 bclass, u8 head,
+nv50_pioc_create(struct nvif_object *disp, const u32 *oclass, u8 head,
 		 void *data, u32 size, struct nv50_pioc *pioc)
 {
-	return nv50_chan_create(disp, bclass, head, data, size, &pioc->base);
+	return nv50_chan_create(disp, oclass, head, data, size, &pioc->base);
+}
+
+/******************************************************************************
+ * Cursor Immediate
+ *****************************************************************************/
+
+struct nv50_curs {
+	struct nv50_pioc base;
+};
+
+static int
+nv50_curs_create(struct nvif_object *disp, int head, struct nv50_curs *curs)
+{
+	struct nv50_display_curs_class args = {
+		.head = head,
+	};
+	static const u32 oclass[] = {
+		GM107_DISP_CURS_CLASS,
+		NVF0_DISP_CURS_CLASS,
+		NVE0_DISP_CURS_CLASS,
+		NVD0_DISP_CURS_CLASS,
+		NVA3_DISP_CURS_CLASS,
+		NV94_DISP_CURS_CLASS,
+		NVA0_DISP_CURS_CLASS,
+		NV84_DISP_CURS_CLASS,
+		NV50_DISP_CURS_CLASS,
+		0
+	};
+
+	return nv50_pioc_create(disp, oclass, head, &args, sizeof(args),
+			       &curs->base);
+}
+
+/******************************************************************************
+ * Overlay Immediate
+ *****************************************************************************/
+
+struct nv50_oimm {
+	struct nv50_pioc base;
+};
+
+static int
+nv50_oimm_create(struct nvif_object *disp, int head, struct nv50_oimm *oimm)
+{
+	struct nv50_display_oimm_class args = {
+		.head = head,
+	};
+	static const u32 oclass[] = {
+		GM107_DISP_OIMM_CLASS,
+		NVF0_DISP_OIMM_CLASS,
+		NVE0_DISP_OIMM_CLASS,
+		NVD0_DISP_OIMM_CLASS,
+		NVA3_DISP_OIMM_CLASS,
+		NV94_DISP_OIMM_CLASS,
+		NVA0_DISP_OIMM_CLASS,
+		NV84_DISP_OIMM_CLASS,
+		NV50_DISP_OIMM_CLASS,
+		0
+	};
+
+	return nv50_pioc_create(disp, oclass, head, &args, sizeof(args),
+			       &oimm->base);
 }
 
 /******************************************************************************
@@ -143,7 +203,7 @@ nv50_dmac_destroy(struct nv50_dmac *dmac, struct nvif_object *disp)
 }
 
 static int
-nv50_dmac_create(struct nvif_object *disp, u32 bclass, u8 head,
+nv50_dmac_create(struct nvif_object *disp, const u32 *oclass, u8 head,
 		 void *data, u32 size, u64 syncbuf,
 		 struct nv50_dmac *dmac)
 {
@@ -170,7 +230,7 @@ nv50_dmac_create(struct nvif_object *disp, u32 bclass, u8 head,
 	if (ret)
 		return ret;
 
-	ret = nv50_chan_create(disp, bclass, head, data, size, &dmac->base);
+	ret = nv50_chan_create(disp, oclass, head, data, size, &dmac->base);
 	nvif_object_fini(&pushbuf);
 	if (ret)
 		return ret;
@@ -202,13 +262,40 @@ nv50_dmac_create(struct nvif_object *disp, u32 bclass, u8 head,
 	return ret;
 }
 
+/******************************************************************************
+ * Core
+ *****************************************************************************/
+
 struct nv50_mast {
 	struct nv50_dmac base;
 };
 
-struct nv50_curs {
-	struct nv50_pioc base;
-};
+static int
+nv50_core_create(struct nvif_object *disp, u64 syncbuf, struct nv50_mast *core)
+{
+	struct nv50_display_mast_class args = {
+		.pushbuf = EVO_PUSH_HANDLE(MAST, 0),
+	};
+	static const u32 oclass[] = {
+		GM107_DISP_MAST_CLASS,
+		NVF0_DISP_MAST_CLASS,
+		NVE0_DISP_MAST_CLASS,
+		NVD0_DISP_MAST_CLASS,
+		NVA3_DISP_MAST_CLASS,
+		NV94_DISP_MAST_CLASS,
+		NVA0_DISP_MAST_CLASS,
+		NV84_DISP_MAST_CLASS,
+		NV50_DISP_MAST_CLASS,
+		0
+	};
+
+	return nv50_dmac_create(disp, oclass, 0, &args, sizeof(args), syncbuf,
+			       &core->base);
+}
+
+/******************************************************************************
+ * Base
+ *****************************************************************************/
 
 struct nv50_sync {
 	struct nv50_dmac base;
@@ -216,13 +303,63 @@ struct nv50_sync {
 	u32 data;
 };
 
+static int
+nv50_base_create(struct nvif_object *disp, int head, u64 syncbuf,
+		 struct nv50_sync *base)
+{
+	struct nv50_display_sync_class args = {
+		.pushbuf = EVO_PUSH_HANDLE(SYNC, head),
+		.head = head,
+	};
+	static const u32 oclass[] = {
+		GM107_DISP_SYNC_CLASS,
+		NVF0_DISP_SYNC_CLASS,
+		NVE0_DISP_SYNC_CLASS,
+		NVD0_DISP_SYNC_CLASS,
+		NVA3_DISP_SYNC_CLASS,
+		NV94_DISP_SYNC_CLASS,
+		NVA0_DISP_SYNC_CLASS,
+		NV84_DISP_SYNC_CLASS,
+		NV50_DISP_SYNC_CLASS,
+		0
+	};
+
+	return nv50_dmac_create(disp, oclass, head, &args, sizeof(args),
+				syncbuf, &base->base);
+}
+
+/******************************************************************************
+ * Overlay
+ *****************************************************************************/
+
 struct nv50_ovly {
 	struct nv50_dmac base;
 };
 
-struct nv50_oimm {
-	struct nv50_pioc base;
-};
+static int
+nv50_ovly_create(struct nvif_object *disp, int head, u64 syncbuf,
+		 struct nv50_ovly *ovly)
+{
+	struct nv50_display_ovly_class args = {
+		.pushbuf = EVO_PUSH_HANDLE(OVLY, head),
+		.head = head,
+	};
+	static const u32 oclass[] = {
+		GM107_DISP_OVLY_CLASS,
+		NVF0_DISP_OVLY_CLASS,
+		NVE0_DISP_OVLY_CLASS,
+		NVD0_DISP_OVLY_CLASS,
+		NVA3_DISP_OVLY_CLASS,
+		NV94_DISP_OVLY_CLASS,
+		NVA0_DISP_OVLY_CLASS,
+		NV84_DISP_OVLY_CLASS,
+		NV50_DISP_OVLY_CLASS,
+		0
+	};
+
+	return nv50_dmac_create(disp, oclass, head, &args, sizeof(args),
+				syncbuf, &ovly->base);
+}
 
 struct nv50_head {
 	struct nouveau_crtc base;
@@ -1276,11 +1413,7 @@ nv50_crtc_create(struct drm_device *dev, int index)
 	nv50_crtc_lut_load(crtc);
 
 	/* allocate cursor resources */
-	ret = nv50_pioc_create(disp->disp, NV50_DISP_CURS_CLASS, index,
-			      &(struct nv50_display_curs_class) {
-					.head = index,
-			      }, sizeof(struct nv50_display_curs_class),
-			      &head->curs.base);
+	ret = nv50_curs_create(disp->disp, index, &head->curs);
 	if (ret)
 		goto out;
 
@@ -1301,12 +1434,8 @@ nv50_crtc_create(struct drm_device *dev, int index)
 		goto out;
 
 	/* allocate page flip / sync resources */
-	ret = nv50_dmac_create(disp->disp, NV50_DISP_SYNC_CLASS, index,
-			      &(struct nv50_display_sync_class) {
-					.pushbuf = EVO_PUSH_HANDLE(SYNC, index),
-					.head = index,
-			      }, sizeof(struct nv50_display_sync_class),
-			      disp->sync->bo.offset, &head->sync.base);
+	ret = nv50_base_create(disp->disp, index, disp->sync->bo.offset,
+			      &head->sync);
 	if (ret)
 		goto out;
 
@@ -1314,20 +1443,12 @@ nv50_crtc_create(struct drm_device *dev, int index)
 	head->sync.data = 0x00000000;
 
 	/* allocate overlay resources */
-	ret = nv50_pioc_create(disp->disp, NV50_DISP_OIMM_CLASS, index,
-			      &(struct nv50_display_oimm_class) {
-					.head = index,
-			      }, sizeof(struct nv50_display_oimm_class),
-			      &head->oimm.base);
+	ret = nv50_oimm_create(disp->disp, index, &head->oimm);
 	if (ret)
 		goto out;
 
-	ret = nv50_dmac_create(disp->disp, NV50_DISP_OVLY_CLASS, index,
-			      &(struct nv50_display_ovly_class) {
-					.pushbuf = EVO_PUSH_HANDLE(OVLY, index),
-					.head = index,
-			      }, sizeof(struct nv50_display_ovly_class),
-			      disp->sync->bo.offset, &head->ovly.base);
+	ret = nv50_ovly_create(disp->disp, index, disp->sync->bo.offset,
+			      &head->ovly);
 	if (ret)
 		goto out;
 
@@ -2288,11 +2409,8 @@ nv50_display_create(struct drm_device *dev)
 		goto out;
 
 	/* allocate master evo channel */
-	ret = nv50_dmac_create(disp->disp, NV50_DISP_MAST_CLASS, 0,
-			      &(struct nv50_display_mast_class) {
-					.pushbuf = EVO_PUSH_HANDLE(MAST, 0),
-			      }, sizeof(struct nv50_display_mast_class),
-			      disp->sync->bo.offset, &disp->mast.base);
+	ret = nv50_core_create(disp->disp, disp->sync->bo.offset,
+			      &disp->mast);
 	if (ret)
 		goto out;
 
