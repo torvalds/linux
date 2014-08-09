@@ -168,6 +168,7 @@ nouveau_abi16_fini(struct nouveau_abi16 *abi16)
 int
 nouveau_abi16_ioctl_getparam(ABI16_IOCTL_ARGS)
 {
+	struct nouveau_cli *cli = nouveau_cli(file_priv);
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_device *device = nv_device(drm->device);
 	struct nouveau_timer *ptimer = nouveau_timer(device);
@@ -224,7 +225,7 @@ nouveau_abi16_ioctl_getparam(ABI16_IOCTL_ARGS)
 		getparam->value = graph->units ? graph->units(graph) : 0;
 		break;
 	default:
-		nv_debug(device, "unknown parameter %lld\n", getparam->param);
+		NV_PRINTK(debug, cli, "unknown parameter %lld\n", getparam->param);
 		return -EINVAL;
 	}
 

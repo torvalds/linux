@@ -168,11 +168,15 @@ nouveau_platform_device_create_(struct platform_device *pdev,
 				int size, void **pobject);
 void nouveau_drm_device_remove(struct drm_device *dev);
 
-#define NV_FATAL(cli, fmt, args...) nv_fatal((cli), fmt, ##args)
-#define NV_ERROR(cli, fmt, args...) nv_error((cli), fmt, ##args)
-#define NV_WARN(cli, fmt, args...) nv_warn((cli), fmt, ##args)
-#define NV_INFO(cli, fmt, args...) nv_info((cli), fmt, ##args)
-#define NV_DEBUG(cli, fmt, args...) nv_debug((cli), fmt, ##args)
+#define NV_PRINTK(l,c,f,a...) do {                                             \
+	struct nouveau_cli *_cli = (c);                                        \
+	nv_##l(_cli, f, ##a);                                                  \
+} while(0)
+#define NV_FATAL(drm,f,a...) NV_PRINTK(fatal, &(drm)->client, f, ##a)
+#define NV_ERROR(drm,f,a...) NV_PRINTK(error, &(drm)->client, f, ##a)
+#define NV_WARN(drm,f,a...) NV_PRINTK(warn, &(drm)->client, f, ##a)
+#define NV_INFO(drm,f,a...) NV_PRINTK(info, &(drm)->client, f, ##a)
+#define NV_DEBUG(drm,f,a...) NV_PRINTK(debug, &(drm)->client, f, ##a)
 
 extern int nouveau_modeset;
 

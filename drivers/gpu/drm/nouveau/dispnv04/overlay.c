@@ -256,7 +256,7 @@ static const struct drm_plane_funcs nv10_plane_funcs = {
 static void
 nv10_overlay_init(struct drm_device *device)
 {
-	struct nouveau_device *dev = nouveau_dev(device);
+	struct nouveau_drm *drm = nouveau_drm(device);
 	struct nouveau_plane *plane = kzalloc(sizeof(struct nouveau_plane), GFP_KERNEL);
 	int num_formats = ARRAY_SIZE(formats);
 	int ret;
@@ -264,7 +264,7 @@ nv10_overlay_init(struct drm_device *device)
 	if (!plane)
 		return;
 
-	switch (dev->chipset) {
+	switch (nv_device(drm->device)->chipset) {
 	case 0x10:
 	case 0x11:
 	case 0x15:
@@ -333,7 +333,7 @@ cleanup:
 	drm_plane_cleanup(&plane->base);
 err:
 	kfree(plane);
-	nv_error(dev, "Failed to create plane\n");
+	NV_ERROR(drm, "Failed to create plane\n");
 }
 
 static int
@@ -447,7 +447,7 @@ static const struct drm_plane_funcs nv04_plane_funcs = {
 static void
 nv04_overlay_init(struct drm_device *device)
 {
-	struct nouveau_device *dev = nouveau_dev(device);
+	struct nouveau_drm *drm = nouveau_drm(device);
 	struct nouveau_plane *plane = kzalloc(sizeof(struct nouveau_plane), GFP_KERNEL);
 	int ret;
 
@@ -483,7 +483,7 @@ cleanup:
 	drm_plane_cleanup(&plane->base);
 err:
 	kfree(plane);
-	nv_error(dev, "Failed to create plane\n");
+	NV_ERROR(drm, "Failed to create plane\n");
 }
 
 void

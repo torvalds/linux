@@ -50,7 +50,7 @@ get_agp_mode(struct nouveau_drm *drm, const struct drm_agp_info *info)
 		    device->pdev->vendor == quirk->chip_vendor &&
 		    device->pdev->device == quirk->chip_device) {
 			agpmode = quirk->mode;
-			nv_info(device, "Forcing agp mode to %dX. Use agpmode to override.\n",
+			NV_INFO(drm, "Forcing agp mode to %dX. Use agpmode to override.\n",
 				agpmode);
 			break;
 		}
@@ -150,7 +150,6 @@ void
 nouveau_agp_init(struct nouveau_drm *drm)
 {
 #if __OS_HAS_AGP
-	struct nouveau_device *device = nv_device(drm->device);
 	struct drm_device *dev = drm->dev;
 	struct drm_agp_info info;
 	struct drm_agp_mode mode;
@@ -162,13 +161,13 @@ nouveau_agp_init(struct nouveau_drm *drm)
 
 	ret = drm_agp_acquire(dev);
 	if (ret) {
-		nv_error(device, "unable to acquire AGP: %d\n", ret);
+		NV_ERROR(drm, "unable to acquire AGP: %d\n", ret);
 		return;
 	}
 
 	ret = drm_agp_info(dev, &info);
 	if (ret) {
-		nv_error(device, "unable to get AGP info: %d\n", ret);
+		NV_ERROR(drm, "unable to get AGP info: %d\n", ret);
 		return;
 	}
 
@@ -177,7 +176,7 @@ nouveau_agp_init(struct nouveau_drm *drm)
 
 	ret = drm_agp_enable(dev, mode);
 	if (ret) {
-		nv_error(device, "unable to enable AGP: %d\n", ret);
+		NV_ERROR(drm, "unable to enable AGP: %d\n", ret);
 		return;
 	}
 

@@ -284,7 +284,7 @@ evo_wait(void *evoc, int nr)
 		nv_wo32(dmac->base.user, 0x0000, 0x00000000);
 		if (!nv_wait(dmac->base.user, 0x0004, ~0, 0x00000000)) {
 			mutex_unlock(&dmac->lock);
-			NV_ERROR(dmac->base.user, "channel stalled\n");
+			nv_error(dmac->base.user, "channel stalled\n");
 			return NULL;
 		}
 

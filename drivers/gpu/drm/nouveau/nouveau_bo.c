@@ -201,7 +201,7 @@ nouveau_bo_new(struct drm_device *dev, int size, int align,
 	max_size = INT_MAX & ~((1 << lpg_shift) - 1);
 
 	if (size <= 0 || size > max_size) {
-		nv_warn(drm, "skipped size %x\n", (u32)size);
+		NV_WARN(drm, "skipped size %x\n", (u32)size);
 		return -EINVAL;
 	}
 
