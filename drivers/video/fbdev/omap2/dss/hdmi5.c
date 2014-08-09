@@ -299,29 +299,11 @@ static int hdmi_display_check_timing(struct omap_dss_device *dssdev,
 static void hdmi_display_set_timing(struct omap_dss_device *dssdev,
 		struct omap_video_timings *timings)
 {
-	struct hdmi_cm cm;
-	const struct hdmi_config *t;
-
 	mutex_lock(&hdmi.lock);
 
-	cm = hdmi_get_code(timings);
-	hdmi.cfg.cm = cm;
+	hdmi.cfg.timings = *timings;
 
-	t = hdmi_get_timings(cm.mode, cm.code);
-	if (t != NULL) {
-		hdmi.cfg = *t;
-
-		dispc_set_tv_pclk(t->timings.pixelclock);
-	} else {
-		hdmi.cfg.timings = *timings;
-		hdmi.cfg.cm.code = 0;
-		hdmi.cfg.cm.mode = HDMI_DVI;
-
-		dispc_set_tv_pclk(timings->pixelclock);
-	}
-
-	DSSDBG("using mode: %s, code %d\n", hdmi.cfg.cm.mode == HDMI_DVI ?
-			"DVI" : "HDMI", hdmi.cfg.cm.code);
+	dispc_set_tv_pclk(timings->pixelclock);
 
 	mutex_unlock(&hdmi.lock);
 }
@@ -329,14 +311,7 @@ static void hdmi_display_set_timing(struct omap_dss_device *dssdev,
 static void hdmi_display_get_timings(struct omap_dss_device *dssdev,
 		struct omap_video_timings *timings)
 {
-	const struct hdmi_config *cfg;
-	struct hdmi_cm cm = hdmi.cfg.cm;
-
-	cfg = hdmi_get_timings(cm.mode, cm.code);
-	if (cfg == NULL)
-		cfg = hdmi_default_timing();
-
-	memcpy(timings, &cfg->timings, sizeof(cfg->timings));
+	*timings = hdmi.cfg.timings;
 }
 
 static void hdmi_dump_regs(struct seq_file *s)
@@ -541,7 +516,7 @@ static int hdmi_audio_enable(struct omap_dss_device *dssdev)
 
 	mutex_lock(&hdmi.lock);
 
-	if (!hdmi_mode_has_audio(hdmi.cfg.cm.mode)) {
+	if (!hdmi_mode_has_audio(hdmi.cfg.hdmi_dvi_mode)) {
 		r = -EPERM;
 		goto err;
 	}
@@ -579,7 +554,7 @@ static bool hdmi_audio_supported(struct omap_dss_device *dssdev)
 
 	mutex_lock(&hdmi.lock);
 
-	r = hdmi_mode_has_audio(hdmi.cfg.cm.mode);
+	r = hdmi_mode_has_audio(hdmi.cfg.hdmi_dvi_mode);
 
 	mutex_unlock(&hdmi.lock);
 	return r;
@@ -593,7 +568,7 @@ static int hdmi_audio_config(struct omap_dss_device *dssdev,
 
 	mutex_lock(&hdmi.lock);
 
-	if (!hdmi_mode_has_audio(hdmi.cfg.cm.mode)) {
+	if (!hdmi_mode_has_audio(hdmi.cfg.hdmi_dvi_mode)) {
 		r = -EPERM;
 		goto err;
 	}
@@ -640,6 +615,20 @@ static int hdmi_audio_config(struct omap_dss_device *dssdev,
 }
 #endif
 
+static int hdmi_set_infoframe(struct omap_dss_device *dssdev,
+		const struct hdmi_avi_infoframe *avi)
+{
+	hdmi.cfg.infoframe = *avi;
+	return 0;
+}
+
+static int hdmi_set_hdmi_mode(struct omap_dss_device *dssdev,
+		bool hdmi_mode)
+{
+	hdmi.cfg.hdmi_dvi_mode = hdmi_mode ? HDMI_HDMI : HDMI_DVI;
+	return 0;
+}
+
 static const struct omapdss_hdmi_ops hdmi_ops = {
 	.connect		= hdmi_connect,
 	.disconnect		= hdmi_disconnect,
@@ -652,6 +641,8 @@ static const struct omapdss_hdmi_ops hdmi_ops = {
 	.get_timings		= hdmi_display_get_timings,
 
 	.read_edid		= hdmi_read_edid,
+	.set_infoframe		= hdmi_set_infoframe,
+	.set_hdmi_mode		= hdmi_set_hdmi_mode,
 
 	.audio_enable		= hdmi_audio_enable,
 	.audio_disable		= hdmi_audio_disable,
