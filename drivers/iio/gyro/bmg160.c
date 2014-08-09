@@ -237,6 +237,7 @@ static int bmg160_chip_init(struct bmg160_data *data)
 
 static int bmg160_set_power_state(struct bmg160_data *data, bool on)
 {
+#ifdef CONFIG_PM_RUNTIME
 	int ret;
 
 	if (on)
@@ -251,6 +252,7 @@ static int bmg160_set_power_state(struct bmg160_data *data, bool on)
 			"Failed: bmg160_set_power_state for %d\n", on);
 		return ret;
 	}
+#endif
 
 	return 0;
 }
