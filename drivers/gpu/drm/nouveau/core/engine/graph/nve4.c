@@ -35,7 +35,7 @@ static struct nouveau_oclass
 nve4_graph_sclass[] = {
 	{ 0x902d, &nouveau_object_ofuncs },
 	{ 0xa040, &nouveau_object_ofuncs },
-	{ 0xa097, &nouveau_object_ofuncs },
+	{ KEPLER_A, &nvc0_fermi_ofuncs },
 	{ 0xa0c0, &nouveau_object_ofuncs },
 	{}
 };
@@ -303,6 +303,9 @@ nve4_graph_init(struct nouveau_object *object)
 	nv_wr32(priv, 0x400134, 0xffffffff);
 
 	nv_wr32(priv, 0x400054, 0x34ce3464);
+
+	nvc0_graph_zbc_init(priv);
+
 	return nvc0_graph_init_ctxctl(priv);
 }
 

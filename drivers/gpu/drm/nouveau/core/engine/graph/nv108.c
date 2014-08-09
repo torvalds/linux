@@ -33,7 +33,7 @@ static struct nouveau_oclass
 nv108_graph_sclass[] = {
 	{ 0x902d, &nouveau_object_ofuncs },
 	{ 0xa140, &nouveau_object_ofuncs },
-	{ 0xa197, &nouveau_object_ofuncs },
+	{ KEPLER_B, &nvc0_fermi_ofuncs },
 	{ 0xa1c0, &nouveau_object_ofuncs },
 	{}
 };

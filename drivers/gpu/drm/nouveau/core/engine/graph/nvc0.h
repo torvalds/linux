@@ -30,11 +30,15 @@
 #include <core/gpuobj.h>
 #include <core/option.h>
 
+#include <nvif/unpack.h>
+#include <nvif/class.h>
+
 #include <subdev/fb.h>
 #include <subdev/vm.h>
 #include <subdev/bar.h>
 #include <subdev/timer.h>
 #include <subdev/mc.h>
+#include <subdev/ltc.h>
 
 #include <engine/fifo.h>
 #include <engine/graph.h>
@@ -69,6 +73,18 @@ struct nvc0_graph_fuc {
 	u32  size;
 };
 
+struct nvc0_graph_zbc_color {
+	u32 format;
+	u32 ds[4];
+	u32 l2[4];
+};
+
+struct nvc0_graph_zbc_depth {
+	u32 format;
+	u32 ds;
+	u32 l2;
+};
+
 struct nvc0_graph_priv {
 	struct nouveau_graph base;
 
@@ -77,6 +93,9 @@ struct nvc0_graph_priv {
 	struct nvc0_graph_fuc fuc41ac;
 	struct nvc0_graph_fuc fuc41ad;
 	bool firmware;
+
+	struct nvc0_graph_zbc_color zbc_color[NOUVEAU_LTC_MAX_ZBC_CNT];
+	struct nvc0_graph_zbc_depth zbc_depth[NOUVEAU_LTC_MAX_ZBC_CNT];
 
 	u8 rop_nr;
 	u8 gpc_nr;
@@ -119,10 +138,14 @@ int  nvc0_graph_ctor(struct nouveau_object *, struct nouveau_object *,
 		     struct nouveau_object **);
 void nvc0_graph_dtor(struct nouveau_object *);
 int  nvc0_graph_init(struct nouveau_object *);
+void nvc0_graph_zbc_init(struct nvc0_graph_priv *);
+
 int  nve4_graph_fini(struct nouveau_object *, bool);
 int  nve4_graph_init(struct nouveau_object *);
 
 int  nvf0_graph_fini(struct nouveau_object *, bool);
+
+extern struct nouveau_ofuncs nvc0_fermi_ofuncs;
 
 extern struct nouveau_oclass nvc0_graph_sclass[];
 extern struct nouveau_oclass nvc8_graph_sclass[];

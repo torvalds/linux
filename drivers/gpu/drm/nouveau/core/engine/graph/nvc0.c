@@ -26,14 +26,199 @@
 #include "ctxnvc0.h"
 
 /*******************************************************************************
+ * Zero Bandwidth Clear
+ ******************************************************************************/
+
+static void
+nvc0_graph_zbc_clear_color(struct nvc0_graph_priv *priv, int zbc)
+{
+	if (priv->zbc_color[zbc].format) {
+		nv_wr32(priv, 0x405804, priv->zbc_color[zbc].ds[0]);
+		nv_wr32(priv, 0x405808, priv->zbc_color[zbc].ds[1]);
+		nv_wr32(priv, 0x40580c, priv->zbc_color[zbc].ds[2]);
+		nv_wr32(priv, 0x405810, priv->zbc_color[zbc].ds[3]);
+	}
+	nv_wr32(priv, 0x405814, priv->zbc_color[zbc].format);
+	nv_wr32(priv, 0x405820, zbc);
+	nv_wr32(priv, 0x405824, 0x00000004); /* TRIGGER | WRITE | COLOR */
+}
+
+static int
+nvc0_graph_zbc_color_get(struct nvc0_graph_priv *priv, int format,
+			 const u32 ds[4], const u32 l2[4])
+{
+	struct nouveau_ltc *ltc = nouveau_ltc(priv);
+	int zbc = -ENOSPC, i;
+
+	for (i = ltc->zbc_min; i <= ltc->zbc_max; i++) {
+		if (priv->zbc_color[i].format) {
+			if (priv->zbc_color[i].format != format)
+				continue;
+			if (memcmp(priv->zbc_color[i].ds, ds, sizeof(
+				   priv->zbc_color[i].ds)))
+				continue;
+			if (memcmp(priv->zbc_color[i].l2, l2, sizeof(
+				   priv->zbc_color[i].l2))) {
+				WARN_ON(1);
+				return -EINVAL;
+			}
+			return i;
+		} else {
+			zbc = (zbc < 0) ? i : zbc;
+		}
+	}
+
+	memcpy(priv->zbc_color[zbc].ds, ds, sizeof(priv->zbc_color[zbc].ds));
+	memcpy(priv->zbc_color[zbc].l2, l2, sizeof(priv->zbc_color[zbc].l2));
+	priv->zbc_color[zbc].format = format;
+	ltc->zbc_color_get(ltc, zbc, l2);
+	nvc0_graph_zbc_clear_color(priv, zbc);
+	return zbc;
+}
+
+static void
+nvc0_graph_zbc_clear_depth(struct nvc0_graph_priv *priv, int zbc)
+{
+	if (priv->zbc_depth[zbc].format)
+		nv_wr32(priv, 0x405818, priv->zbc_depth[zbc].ds);
+	nv_wr32(priv, 0x40581c, priv->zbc_depth[zbc].format);
+	nv_wr32(priv, 0x405820, zbc);
+	nv_wr32(priv, 0x405824, 0x00000005); /* TRIGGER | WRITE | DEPTH */
+}
+
+static int
+nvc0_graph_zbc_depth_get(struct nvc0_graph_priv *priv, int format,
+			 const u32 ds, const u32 l2)
+{
+	struct nouveau_ltc *ltc = nouveau_ltc(priv);
+	int zbc = -ENOSPC, i;
+
+	for (i = ltc->zbc_min; i <= ltc->zbc_max; i++) {
+		if (priv->zbc_depth[i].format) {
+			if (priv->zbc_depth[i].format != format)
+				continue;
+			if (priv->zbc_depth[i].ds != ds)
+				continue;
+			if (priv->zbc_depth[i].l2 != l2) {
+				WARN_ON(1);
+				return -EINVAL;
+			}
+			return i;
+		} else {
+			zbc = (zbc < 0) ? i : zbc;
+		}
+	}
+
+	priv->zbc_depth[zbc].format = format;
+	priv->zbc_depth[zbc].ds = ds;
+	priv->zbc_depth[zbc].l2 = l2;
+	ltc->zbc_depth_get(ltc, zbc, l2);
+	nvc0_graph_zbc_clear_depth(priv, zbc);
+	return zbc;
+}
+
+/*******************************************************************************
  * Graphics object classes
  ******************************************************************************/
+
+static int
+nvc0_fermi_mthd_zbc_color(struct nouveau_object *object, void *data, u32 size)
+{
+	struct nvc0_graph_priv *priv = (void *)object->engine;
+	union {
+		struct fermi_a_zbc_color_v0 v0;
+	} *args = data;
+	int ret;
+
+	if (nvif_unpack(args->v0, 0, 0, false)) {
+		switch (args->v0.format) {
+		case FERMI_A_ZBC_COLOR_V0_FMT_ZERO:
+		case FERMI_A_ZBC_COLOR_V0_FMT_UNORM_ONE:
+		case FERMI_A_ZBC_COLOR_V0_FMT_RF32_GF32_BF32_AF32:
+		case FERMI_A_ZBC_COLOR_V0_FMT_R16_G16_B16_A16:
+		case FERMI_A_ZBC_COLOR_V0_FMT_RN16_GN16_BN16_AN16:
+		case FERMI_A_ZBC_COLOR_V0_FMT_RS16_GS16_BS16_AS16:
+		case FERMI_A_ZBC_COLOR_V0_FMT_RU16_GU16_BU16_AU16:
+		case FERMI_A_ZBC_COLOR_V0_FMT_RF16_GF16_BF16_AF16:
+		case FERMI_A_ZBC_COLOR_V0_FMT_A8R8G8B8:
+		case FERMI_A_ZBC_COLOR_V0_FMT_A8RL8GL8BL8:
+		case FERMI_A_ZBC_COLOR_V0_FMT_A2B10G10R10:
+		case FERMI_A_ZBC_COLOR_V0_FMT_AU2BU10GU10RU10:
+		case FERMI_A_ZBC_COLOR_V0_FMT_A8B8G8R8:
+		case FERMI_A_ZBC_COLOR_V0_FMT_A8BL8GL8RL8:
+		case FERMI_A_ZBC_COLOR_V0_FMT_AN8BN8GN8RN8:
+		case FERMI_A_ZBC_COLOR_V0_FMT_AS8BS8GS8RS8:
+		case FERMI_A_ZBC_COLOR_V0_FMT_AU8BU8GU8RU8:
+		case FERMI_A_ZBC_COLOR_V0_FMT_A2R10G10B10:
+		case FERMI_A_ZBC_COLOR_V0_FMT_BF10GF11RF11:
+			ret = nvc0_graph_zbc_color_get(priv, args->v0.format,
+							     args->v0.ds,
+							     args->v0.l2);
+			if (ret >= 0) {
+				args->v0.index = ret;
+				return 0;
+			}
+			break;
+		default:
+			return -EINVAL;
+		}
+	}
+
+	return ret;
+}
+
+static int
+nvc0_fermi_mthd_zbc_depth(struct nouveau_object *object, void *data, u32 size)
+{
+	struct nvc0_graph_priv *priv = (void *)object->engine;
+	union {
+		struct fermi_a_zbc_depth_v0 v0;
+	} *args = data;
+	int ret;
+
+	if (nvif_unpack(args->v0, 0, 0, false)) {
+		switch (args->v0.format) {
+		case FERMI_A_ZBC_DEPTH_V0_FMT_FP32:
+			ret = nvc0_graph_zbc_depth_get(priv, args->v0.format,
+							     args->v0.ds,
+							     args->v0.l2);
+			return (ret >= 0) ? 0 : -ENOSPC;
+		default:
+			return -EINVAL;
+		}
+	}
+
+	return ret;
+}
+
+static int
+nvc0_fermi_mthd(struct nouveau_object *object, u32 mthd, void *data, u32 size)
+{
+	switch (mthd) {
+	case FERMI_A_ZBC_COLOR:
+		return nvc0_fermi_mthd_zbc_color(object, data, size);
+	case FERMI_A_ZBC_DEPTH:
+		return nvc0_fermi_mthd_zbc_depth(object, data, size);
+	default:
+		break;
+	}
+	return -EINVAL;
+}
+
+struct nouveau_ofuncs
+nvc0_fermi_ofuncs = {
+	.ctor = _nouveau_object_ctor,
+	.dtor = nouveau_object_destroy,
+	.init = nouveau_object_init,
+	.fini = nouveau_object_fini,
+	.mthd = nvc0_fermi_mthd,
+};
 
 struct nouveau_oclass
 nvc0_graph_sclass[] = {
 	{ 0x902d, &nouveau_object_ofuncs },
 	{ 0x9039, &nouveau_object_ofuncs },
-	{ 0x9097, &nouveau_object_ofuncs },
+	{ FERMI_A, &nvc0_fermi_ofuncs },
 	{ 0x90c0, &nouveau_object_ofuncs },
 	{}
 };
@@ -405,6 +590,35 @@ nvc0_graph_pack_mmio[] = {
 /*******************************************************************************
  * PGRAPH engine/subdev functions
  ******************************************************************************/
+
+void
+nvc0_graph_zbc_init(struct nvc0_graph_priv *priv)
+{
+	const u32  zero[] = { 0x00000000, 0x00000000, 0x00000000, 0x00000000,
+			      0x00000000, 0x00000000, 0x00000000, 0x00000000 };
+	const u32   one[] = { 0x3f800000, 0x3f800000, 0x3f800000, 0x3f800000,
+			      0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff };
+	const u32 f32_0[] = { 0x00000000, 0x00000000, 0x00000000, 0x00000000,
+			      0x00000000, 0x00000000, 0x00000000, 0x00000000 };
+	const u32 f32_1[] = { 0x3f800000, 0x3f800000, 0x3f800000, 0x3f800000,
+			      0x3f800000, 0x3f800000, 0x3f800000, 0x3f800000 };
+	struct nouveau_ltc *ltc = nouveau_ltc(priv);
+	int index;
+
+	if (!priv->zbc_color[0].format) {
+		nvc0_graph_zbc_color_get(priv, 1,  & zero[0],   &zero[4]);
+		nvc0_graph_zbc_color_get(priv, 2,  &  one[0],    &one[4]);
+		nvc0_graph_zbc_color_get(priv, 4,  &f32_0[0],  &f32_0[4]);
+		nvc0_graph_zbc_color_get(priv, 4,  &f32_1[0],  &f32_1[4]);
+		nvc0_graph_zbc_depth_get(priv, 1, 0x00000000, 0x00000000);
+		nvc0_graph_zbc_depth_get(priv, 1, 0x3f800000, 0x3f800000);
+	}
+
+	for (index = ltc->zbc_min; index <= ltc->zbc_max; index++)
+		nvc0_graph_zbc_clear_color(priv, index);
+	for (index = ltc->zbc_min; index <= ltc->zbc_max; index++)
+		nvc0_graph_zbc_clear_depth(priv, index);
+}
 
 void
 nvc0_graph_mmio(struct nvc0_graph_priv *priv, const struct nvc0_graph_pack *p)
@@ -1223,6 +1437,9 @@ nvc0_graph_init(struct nouveau_object *object)
 	nv_wr32(priv, 0x400134, 0xffffffff);
 
 	nv_wr32(priv, 0x400054, 0x34ce3464);
+
+	nvc0_graph_zbc_init(priv);
+
 	return nvc0_graph_init_ctxctl(priv);
 }
 

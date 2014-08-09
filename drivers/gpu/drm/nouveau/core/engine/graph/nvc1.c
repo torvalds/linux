@@ -33,9 +33,9 @@ static struct nouveau_oclass
 nvc1_graph_sclass[] = {
 	{ 0x902d, &nouveau_object_ofuncs },
 	{ 0x9039, &nouveau_object_ofuncs },
-	{ 0x9097, &nouveau_object_ofuncs },
+	{ FERMI_A, &nvc0_fermi_ofuncs },
+	{ FERMI_B, &nvc0_fermi_ofuncs },
 	{ 0x90c0, &nouveau_object_ofuncs },
-	{ 0x9197, &nouveau_object_ofuncs },
 	{}
 };
 

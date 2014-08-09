@@ -27,7 +27,7 @@ static struct nouveau_oclass
 gk20a_graph_sclass[] = {
 	{ 0x902d, &nouveau_object_ofuncs },
 	{ 0xa040, &nouveau_object_ofuncs },
-	{ 0xa297, &nouveau_object_ofuncs },
+	{ KEPLER_C, &nvc0_fermi_ofuncs },
 	{ 0xa0c0, &nouveau_object_ofuncs },
 	{}
 };
