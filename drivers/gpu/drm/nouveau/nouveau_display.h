@@ -36,8 +36,12 @@ struct nouveau_display {
 	int  (*init)(struct drm_device *);
 	void (*fini)(struct drm_device *);
 
+	int  (*fb_ctor)(struct drm_framebuffer *);
+	void (*fb_dtor)(struct drm_framebuffer *);
+
 	struct nouveau_object *core;
 	struct nouveau_eventh **vblank;
+
 
 	struct drm_property *dithering_mode;
 	struct drm_property *dithering_depth;

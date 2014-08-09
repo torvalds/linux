@@ -200,6 +200,10 @@ static void
 nouveau_user_framebuffer_destroy(struct drm_framebuffer *drm_fb)
 {
 	struct nouveau_framebuffer *fb = nouveau_framebuffer(drm_fb);
+	struct nouveau_display *disp = nouveau_display(drm_fb->dev);
+
+	if (disp->fb_dtor)
+		disp->fb_dtor(drm_fb);
 
 	if (fb->nvbo)
 		drm_gem_object_unreference_unlocked(&fb->nvbo->gem);
@@ -229,63 +233,24 @@ nouveau_framebuffer_init(struct drm_device *dev,
 			 struct drm_mode_fb_cmd2 *mode_cmd,
 			 struct nouveau_bo *nvbo)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nouveau_display *disp = nouveau_display(dev);
 	struct drm_framebuffer *fb = &nv_fb->base;
 	int ret;
 
 	drm_helper_mode_fill_fb_struct(fb, mode_cmd);
 	nv_fb->nvbo = nvbo;
 
-	if (nv_device(drm->device)->card_type >= NV_50) {
-		u32 tile_flags = nouveau_bo_tile_layout(nvbo);
-		if (tile_flags == 0x7a00 ||
-		    tile_flags == 0xfe00)
-			nv_fb->r_dma = NvEvoFB32;
-		else
-		if (tile_flags == 0x7000)
-			nv_fb->r_dma = NvEvoFB16;
-		else
-			nv_fb->r_dma = NvEvoVRAM_LP;
-
-		switch (fb->depth) {
-		case  8: nv_fb->r_format = 0x1e00; break;
-		case 15: nv_fb->r_format = 0xe900; break;
-		case 16: nv_fb->r_format = 0xe800; break;
-		case 24:
-		case 32: nv_fb->r_format = 0xcf00; break;
-		case 30: nv_fb->r_format = 0xd100; break;
-		default:
-			 NV_ERROR(drm, "unknown depth %d\n", fb->depth);
-			 return -EINVAL;
-		}
-
-		if (nvbo->tile_flags & NOUVEAU_GEM_TILE_NONCONTIG) {
-			NV_ERROR(drm, "framebuffer requires contiguous bo\n");
-			return -EINVAL;
-		}
-
-		if (nv_device(drm->device)->chipset == 0x50)
-			nv_fb->r_format |= (tile_flags << 8);
-
-		if (!tile_flags) {
-			if (nv_device(drm->device)->card_type < NV_D0)
-				nv_fb->r_pitch = 0x00100000 | fb->pitches[0];
-			else
-				nv_fb->r_pitch = 0x01000000 | fb->pitches[0];
-		} else {
-			u32 mode = nvbo->tile_mode;
-			if (nv_device(drm->device)->card_type >= NV_C0)
-				mode >>= 4;
-			nv_fb->r_pitch = ((fb->pitches[0] / 4) << 4) | mode;
-		}
-	}
-
 	ret = drm_framebuffer_init(dev, fb, &nouveau_framebuffer_funcs);
-	if (ret) {
+	if (ret)
 		return ret;
+
+	if (disp->fb_ctor) {
+		ret = disp->fb_ctor(fb);
+		if (ret)
+			disp->fb_dtor(fb);
 	}
 
-	return 0;
+	return ret;
 }
 
 static struct drm_framebuffer *

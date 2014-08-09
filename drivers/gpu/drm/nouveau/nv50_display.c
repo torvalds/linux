@@ -2169,8 +2169,71 @@ nv50_pior_create(struct drm_connector *connector, struct dcb_output *dcbe)
 }
 
 /******************************************************************************
+ * Framebuffer
+ *****************************************************************************/
+
+static void
+nv50_fb_dtor(struct drm_framebuffer *fb)
+{
+}
+
+static int
+nv50_fb_ctor(struct drm_framebuffer *fb)
+{
+	struct nouveau_framebuffer *nv_fb = nouveau_framebuffer(fb);
+	struct nouveau_drm *drm = nouveau_drm(fb->dev);
+	struct nouveau_bo *nvbo = nv_fb->nvbo;
+	u32 tile_flags;
+
+	tile_flags = nouveau_bo_tile_layout(nvbo);
+	if (tile_flags == 0x7a00 ||
+	    tile_flags == 0xfe00)
+		nv_fb->r_dma = NvEvoFB32;
+	else
+	if (tile_flags == 0x7000)
+		nv_fb->r_dma = NvEvoFB16;
+	else
+		nv_fb->r_dma = NvEvoVRAM_LP;
+
+	if (nvbo->tile_flags & NOUVEAU_GEM_TILE_NONCONTIG) {
+		NV_ERROR(drm, "framebuffer requires contiguous bo\n");
+		return -EINVAL;
+	}
+
+	switch (fb->depth) {
+	case  8: nv_fb->r_format = 0x1e00; break;
+	case 15: nv_fb->r_format = 0xe900; break;
+	case 16: nv_fb->r_format = 0xe800; break;
+	case 24:
+	case 32: nv_fb->r_format = 0xcf00; break;
+	case 30: nv_fb->r_format = 0xd100; break;
+	default:
+		 NV_ERROR(drm, "unknown depth %d\n", fb->depth);
+		 return -EINVAL;
+	}
+
+	if (nv_device(drm->device)->chipset == 0x50)
+		nv_fb->r_format |= (tile_flags << 8);
+
+	if (!tile_flags) {
+		if (nv_device(drm->device)->card_type < NV_D0)
+			nv_fb->r_pitch = 0x00100000 | fb->pitches[0];
+		else
+			nv_fb->r_pitch = 0x01000000 | fb->pitches[0];
+	} else {
+		u32 mode = nvbo->tile_mode;
+		if (nv_device(drm->device)->card_type >= NV_C0)
+			mode >>= 4;
+		nv_fb->r_pitch = ((fb->pitches[0] / 4) << 4) | mode;
+	}
+
+	return 0;
+}
+
+/******************************************************************************
  * Init
  *****************************************************************************/
+
 void
 nv50_display_fini(struct drm_device *dev)
 {
@@ -2233,6 +2296,8 @@ nv50_display_create(struct drm_device *dev)
 	nouveau_display(dev)->dtor = nv50_display_destroy;
 	nouveau_display(dev)->init = nv50_display_init;
 	nouveau_display(dev)->fini = nv50_display_fini;
+	nouveau_display(dev)->fb_ctor = nv50_fb_ctor;
+	nouveau_display(dev)->fb_dtor = nv50_fb_dtor;
 	disp->core = nouveau_display(dev)->core;
 
 	/* small shared memory area we use for notifiers and semaphores */
