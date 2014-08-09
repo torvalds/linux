@@ -2161,8 +2161,6 @@ static void
 i915_gem_object_move_to_active(struct drm_i915_gem_object *obj,
 			       struct intel_engine_cs *ring)
 {
-	struct drm_device *dev = obj->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 seqno = intel_ring_get_seqno(ring);
 
 	BUG_ON(ring == NULL);
@@ -2181,19 +2179,6 @@ i915_gem_object_move_to_active(struct drm_i915_gem_object *obj,
 	list_move_tail(&obj->ring_list, &ring->active_list);
 
 	obj->last_read_seqno = seqno;
-
-	if (obj->fenced_gpu_access) {
-		obj->last_fenced_seqno = seqno;
-
-		/* Bump MRU to take account of the delayed flush */
-		if (obj->fence_reg != I915_FENCE_REG_NONE) {
-			struct drm_i915_fence_reg *reg;
-
-			reg = &dev_priv->fence_regs[obj->fence_reg];
-			list_move_tail(&reg->lru_list,
-				       &dev_priv->mm.fence_list);
-		}
-	}
 }
 
 void i915_vma_move_to_active(struct i915_vma *vma,
@@ -2229,7 +2214,6 @@ i915_gem_object_move_to_inactive(struct drm_i915_gem_object *obj)
 	obj->base.write_domain = 0;
 
 	obj->last_fenced_seqno = 0;
-	obj->fenced_gpu_access = false;
 
 	obj->active = 0;
 	drm_gem_object_unreference(&obj->base);
@@ -3174,7 +3158,6 @@ i915_gem_object_wait_fence(struct drm_i915_gem_object *obj)
 		obj->last_fenced_seqno = 0;
 	}
 
-	obj->fenced_gpu_access = false;
 	return 0;
 }
 

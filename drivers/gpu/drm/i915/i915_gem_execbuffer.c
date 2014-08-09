@@ -542,7 +542,6 @@ i915_gem_execbuffer_reserve_vma(struct i915_vma *vma,
 {
 	struct drm_i915_gem_object *obj = vma->obj;
 	struct drm_i915_gem_exec_object2 *entry = vma->exec_entry;
-	bool has_fenced_gpu_access = INTEL_INFO(ring->dev)->gen < 4;
 	uint64_t flags;
 	int ret;
 
@@ -560,17 +559,13 @@ i915_gem_execbuffer_reserve_vma(struct i915_vma *vma,
 
 	entry->flags |= __EXEC_OBJECT_HAS_PIN;
 
-	if (has_fenced_gpu_access) {
-		if (entry->flags & EXEC_OBJECT_NEEDS_FENCE) {
-			ret = i915_gem_object_get_fence(obj);
-			if (ret)
-				return ret;
+	if (entry->flags & EXEC_OBJECT_NEEDS_FENCE) {
+		ret = i915_gem_object_get_fence(obj);
+		if (ret)
+			return ret;
 
-			if (i915_gem_object_pin_fence(obj))
-				entry->flags |= __EXEC_OBJECT_HAS_FENCE;
-
-			obj->pending_fenced_gpu_access = true;
-		}
+		if (i915_gem_object_pin_fence(obj))
+			entry->flags |= __EXEC_OBJECT_HAS_FENCE;
 	}
 
 	if (entry->offset != vma->node.start) {
@@ -658,8 +653,9 @@ i915_gem_execbuffer_reserve(struct intel_engine_cs *ring,
 		obj = vma->obj;
 		entry = vma->exec_entry;
 
+		if (!has_fenced_gpu_access)
+			entry->flags &= ~EXEC_OBJECT_NEEDS_FENCE;
 		need_fence =
-			has_fenced_gpu_access &&
 			entry->flags & EXEC_OBJECT_NEEDS_FENCE &&
 			obj->tiling_mode != I915_TILING_NONE;
 		need_mappable = need_fence || need_reloc_mappable(vma);
@@ -672,7 +668,6 @@ i915_gem_execbuffer_reserve(struct intel_engine_cs *ring,
 
 		obj->base.pending_read_domains = I915_GEM_GPU_DOMAINS & ~I915_GEM_DOMAIN_COMMAND;
 		obj->base.pending_write_domain = 0;
-		obj->pending_fenced_gpu_access = false;
 	}
 	list_splice(&ordered_vmas, vmas);
 
@@ -959,9 +954,11 @@ static void
 i915_gem_execbuffer_move_to_active(struct list_head *vmas,
 				   struct intel_engine_cs *ring)
 {
+	u32 seqno = intel_ring_get_seqno(ring);
 	struct i915_vma *vma;
 
 	list_for_each_entry(vma, vmas, exec_list) {
+		struct drm_i915_gem_exec_object2 *entry = vma->exec_entry;
 		struct drm_i915_gem_object *obj = vma->obj;
 		u32 old_read = obj->base.read_domains;
 		u32 old_write = obj->base.write_domain;
@@ -970,17 +967,24 @@ i915_gem_execbuffer_move_to_active(struct list_head *vmas,
 		if (obj->base.write_domain == 0)
 			obj->base.pending_read_domains |= obj->base.read_domains;
 		obj->base.read_domains = obj->base.pending_read_domains;
-		obj->fenced_gpu_access = obj->pending_fenced_gpu_access;
 
 		i915_vma_move_to_active(vma, ring);
 		if (obj->base.write_domain) {
 			obj->dirty = 1;
-			obj->last_write_seqno = intel_ring_get_seqno(ring);
+			obj->last_write_seqno = seqno;
 
 			intel_fb_obj_invalidate(obj, ring);
 
 			/* update for the implicit flush after a batch */
 			obj->base.write_domain &= ~I915_GEM_GPU_DOMAINS;
+		}
+		if (entry->flags & EXEC_OBJECT_NEEDS_FENCE) {
+			obj->last_fenced_seqno = seqno;
+			if (entry->flags & __EXEC_OBJECT_HAS_FENCE) {
+				struct drm_i915_private *dev_priv = to_i915(ring->dev);
+				list_move_tail(&dev_priv->fence_regs[obj->fence_reg].lru_list,
+					       &dev_priv->mm.fence_list);
+			}
 		}
 
 		trace_i915_gem_object_change_domain(obj, old_read, old_write);

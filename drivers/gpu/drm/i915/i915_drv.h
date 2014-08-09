@@ -1777,13 +1777,6 @@ struct drm_i915_gem_object {
 	 * Only honoured if hardware has relevant pte bit
 	 */
 	unsigned long gt_ro:1;
-
-	/*
-	 * Is the GPU currently using a fence to access this buffer,
-	 */
-	unsigned int pending_fenced_gpu_access:1;
-	unsigned int fenced_gpu_access:1;
-
 	unsigned int cache_level:3;
 
 	unsigned int has_aliasing_ppgtt_mapping:1;
