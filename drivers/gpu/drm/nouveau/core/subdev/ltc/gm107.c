@@ -46,6 +46,23 @@ gm107_ltc_cbc_wait(struct nvkm_ltc_priv *priv)
 }
 
 static void
+gm107_ltc_zbc_clear_color(struct nvkm_ltc_priv *priv, int i, const u32 color[4])
+{
+	nv_mask(priv, 0x17e338, 0x0000000f, i);
+	nv_wr32(priv, 0x17e33c, color[0]);
+	nv_wr32(priv, 0x17e340, color[1]);
+	nv_wr32(priv, 0x17e344, color[2]);
+	nv_wr32(priv, 0x17e348, color[3]);
+}
+
+static void
+gm107_ltc_zbc_clear_depth(struct nvkm_ltc_priv *priv, int i, const u32 depth)
+{
+	nv_mask(priv, 0x17e338, 0x0000000f, i);
+	nv_wr32(priv, 0x17e34c, depth);
+}
+
+static void
 gm107_ltc_lts_isr(struct nvkm_ltc_priv *priv, int ltc, int lts)
 {
 	u32 base = 0x140000 + (ltc * 0x2000) + (lts * 0x400);
@@ -134,4 +151,7 @@ gm107_ltc_oclass = &(struct nvkm_ltc_impl) {
 	.intr = gm107_ltc_intr,
 	.cbc_clear = gm107_ltc_cbc_clear,
 	.cbc_wait = gm107_ltc_cbc_wait,
+	.zbc = 16,
+	.zbc_clear_color = gm107_ltc_zbc_clear_color,
+	.zbc_clear_depth = gm107_ltc_zbc_clear_depth,
 }.base;

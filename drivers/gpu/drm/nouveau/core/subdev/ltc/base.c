@@ -58,6 +58,45 @@ nvkm_ltc_tags_clear(struct nouveau_ltc *ltc, u32 first, u32 count)
 	impl->cbc_wait(priv);
 }
 
+static int
+nvkm_ltc_zbc_color_get(struct nouveau_ltc *ltc, int index, const u32 color[4])
+{
+	const struct nvkm_ltc_impl *impl = (void *)nv_oclass(ltc);
+	struct nvkm_ltc_priv *priv = (void *)ltc;
+	memcpy(priv->zbc_color[index], color, sizeof(priv->zbc_color[index]));
+	impl->zbc_clear_color(priv, index, color);
+	return index;
+}
+
+static int
+nvkm_ltc_zbc_depth_get(struct nouveau_ltc *ltc, int index, const u32 depth)
+{
+	const struct nvkm_ltc_impl *impl = (void *)nv_oclass(ltc);
+	struct nvkm_ltc_priv *priv = (void *)ltc;
+	priv->zbc_depth[index] = depth;
+	impl->zbc_clear_depth(priv, index, depth);
+	return index;
+}
+
+int
+_nvkm_ltc_init(struct nouveau_object *object)
+{
+	const struct nvkm_ltc_impl *impl = (void *)nv_oclass(object);
+	struct nvkm_ltc_priv *priv = (void *)object;
+	int ret, i;
+
+	ret = nouveau_subdev_init(&priv->base.base);
+	if (ret)
+		return ret;
+
+	for (i = priv->base.zbc_min; i <= priv->base.zbc_max; i++) {
+		impl->zbc_clear_color(priv, i, priv->zbc_color[i]);
+		impl->zbc_clear_depth(priv, i, priv->zbc_depth[i]);
+	}
+
+	return 0;
+}
+
 int
 nvkm_ltc_create_(struct nouveau_object *parent, struct nouveau_object *engine,
 		 struct nouveau_oclass *oclass, int length, void **pobject)
@@ -72,9 +111,16 @@ nvkm_ltc_create_(struct nouveau_object *parent, struct nouveau_object *engine,
 	if (ret)
 		return ret;
 
+	memset(priv->zbc_color, 0x00, sizeof(priv->zbc_color));
+	memset(priv->zbc_depth, 0x00, sizeof(priv->zbc_depth));
+
 	priv->base.base.intr = impl->intr;
 	priv->base.tags_alloc = nvkm_ltc_tags_alloc;
 	priv->base.tags_free = nvkm_ltc_tags_free;
 	priv->base.tags_clear = nvkm_ltc_tags_clear;
+	priv->base.zbc_min = 1; /* reserve 0 for disabled */
+	priv->base.zbc_max = min(impl->zbc, NOUVEAU_LTC_MAX_ZBC_CNT) - 1;
+	priv->base.zbc_color_get = nvkm_ltc_zbc_color_get;
+	priv->base.zbc_depth_get = nvkm_ltc_zbc_depth_get;
 	return 0;
 }

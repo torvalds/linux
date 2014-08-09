@@ -52,4 +52,7 @@ gk104_ltc_oclass = &(struct nvkm_ltc_impl) {
 	.intr = gf100_ltc_intr,
 	.cbc_clear = gf100_ltc_cbc_clear,
 	.cbc_wait = gf100_ltc_cbc_wait,
+	.zbc = 16,
+	.zbc_clear_color = gf100_ltc_zbc_clear_color,
+	.zbc_clear_depth = gf100_ltc_zbc_clear_depth,
 }.base;

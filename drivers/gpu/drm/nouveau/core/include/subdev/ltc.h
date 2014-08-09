@@ -4,6 +4,8 @@
 #include <core/subdev.h>
 #include <core/device.h>
 
+#define NOUVEAU_LTC_MAX_ZBC_CNT 16
+
 struct nouveau_mm_node;
 
 struct nouveau_ltc {
@@ -13,6 +15,11 @@ struct nouveau_ltc {
 	                   struct nouveau_mm_node **);
 	void (*tags_free)(struct nouveau_ltc *, struct nouveau_mm_node **);
 	void (*tags_clear)(struct nouveau_ltc *, u32 first, u32 count);
+
+	int zbc_min;
+	int zbc_max;
+	int (*zbc_color_get)(struct nouveau_ltc *, int index, const u32[4]);
+	int (*zbc_depth_get)(struct nouveau_ltc *, int index, const u32);
 };
 
 static inline struct nouveau_ltc *
