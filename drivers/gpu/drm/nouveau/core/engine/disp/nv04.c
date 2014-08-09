@@ -26,7 +26,6 @@
 
 #include <core/client.h>
 #include <core/event.h>
-#include <core/class.h>
 #include <nvif/unpack.h>
 #include <nvif/class.h>
 
@@ -117,7 +116,7 @@ nv04_disp_ofuncs = {
 
 static struct nouveau_oclass
 nv04_disp_sclass[] = {
-	{ NV04_DISP_CLASS, &nv04_disp_ofuncs },
+	{ NV04_DISP, &nv04_disp_ofuncs },
 	{},
 };
 

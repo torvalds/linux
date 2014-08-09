@@ -404,10 +404,10 @@ nouveau_display_create_properties(struct drm_device *dev)
 	struct nouveau_display *disp = nouveau_display(dev);
 	int gen;
 
-	if (disp->disp.oclass < NV50_DISP_CLASS)
+	if (disp->disp.oclass < NV50_DISP)
 		gen = 0;
 	else
-	if (disp->disp.oclass < NVD0_DISP_CLASS)
+	if (disp->disp.oclass < GF110_DISP)
 		gen = 1;
 	else
 		gen = 2;
@@ -479,16 +479,16 @@ nouveau_display_create(struct drm_device *dev)
 
 	if (drm->vbios.dcb.entries) {
 		static const u16 oclass[] = {
-			GM107_DISP_CLASS,
-			NVF0_DISP_CLASS,
-			NVE0_DISP_CLASS,
-			NVD0_DISP_CLASS,
-			NVA3_DISP_CLASS,
-			NV94_DISP_CLASS,
-			NVA0_DISP_CLASS,
-			NV84_DISP_CLASS,
-			NV50_DISP_CLASS,
-			NV04_DISP_CLASS,
+			GM107_DISP,
+			GK110_DISP,
+			GK104_DISP,
+			GF110_DISP,
+			GT214_DISP,
+			GT206_DISP,
+			GT200_DISP,
+			G82_DISP,
+			NV50_DISP,
+			NV04_DISP,
 		};
 		int i;
 
@@ -500,7 +500,7 @@ nouveau_display_create(struct drm_device *dev)
 
 		if (ret == 0) {
 			nouveau_display_create_properties(dev);
-			if (disp->disp.oclass < NV50_DISP_CLASS)
+			if (disp->disp.oclass < NV50_DISP)
 				ret = nv04_display_create(dev);
 			else
 				ret = nv50_display_create(dev);

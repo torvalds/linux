@@ -28,8 +28,6 @@
 #include <nvif/client.h>
 #include <nvif/device.h>
 
-#include <core/class.h>
-
 #include <drmP.h>
 
 #include <drm/ttm/ttm_bo_api.h>

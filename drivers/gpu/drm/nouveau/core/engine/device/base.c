@@ -28,7 +28,6 @@
 #include <core/option.h>
 #include <nvif/unpack.h>
 #include <nvif/class.h>
-#include <core/class.h>
 
 #include <subdev/fb.h>
 #include <subdev/instmem.h>

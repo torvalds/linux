@@ -25,7 +25,7 @@
 #include <engine/software.h>
 #include <engine/disp.h>
 
-#include <core/class.h>
+#include <nvif/class.h>
 
 #include "nv50.h"
 
@@ -35,17 +35,17 @@
 
 static struct nouveau_oclass
 nvf0_disp_sclass[] = {
-	{ NVF0_DISP_MAST_CLASS, &nvd0_disp_mast_ofuncs.base },
-	{ NVF0_DISP_SYNC_CLASS, &nvd0_disp_sync_ofuncs.base },
-	{ NVF0_DISP_OVLY_CLASS, &nvd0_disp_ovly_ofuncs.base },
-	{ NVF0_DISP_OIMM_CLASS, &nvd0_disp_oimm_ofuncs.base },
-	{ NVF0_DISP_CURS_CLASS, &nvd0_disp_curs_ofuncs.base },
+	{ GK110_DISP_CORE_CHANNEL_DMA, &nvd0_disp_mast_ofuncs.base },
+	{ GK110_DISP_BASE_CHANNEL_DMA, &nvd0_disp_sync_ofuncs.base },
+	{ GK104_DISP_OVERLAY_CONTROL_DMA, &nvd0_disp_ovly_ofuncs.base },
+	{ GK104_DISP_OVERLAY, &nvd0_disp_oimm_ofuncs.base },
+	{ GK104_DISP_CURSOR, &nvd0_disp_curs_ofuncs.base },
 	{}
 };
 
 static struct nouveau_oclass
 nvf0_disp_base_oclass[] = {
-	{ NVF0_DISP_CLASS, &nvd0_disp_base_ofuncs },
+	{ GK110_DISP, &nvd0_disp_base_ofuncs },
 	{}
 };
 

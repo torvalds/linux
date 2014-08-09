@@ -25,7 +25,6 @@
 #include <core/client.h>
 #include <core/device.h>
 #include <core/gpuobj.h>
-#include <core/class.h>
 #include <nvif/unpack.h>
 #include <nvif/class.h>
 
@@ -49,9 +48,9 @@ nvc0_dmaobj_bind(struct nouveau_dmaobj *dmaobj,
 
 	if (!nv_iclass(parent, NV_ENGCTX_CLASS)) {
 		switch (nv_mclass(parent->parent)) {
-		case NVA3_DISP_MAST_CLASS:
-		case NVA3_DISP_SYNC_CLASS:
-		case NVA3_DISP_OVLY_CLASS:
+		case GT214_DISP_CORE_CHANNEL_DMA:
+		case GT214_DISP_BASE_CHANNEL_DMA:
+		case GT214_DISP_OVERLAY_CHANNEL_DMA:
 			break;
 		default:
 			return -EINVAL;

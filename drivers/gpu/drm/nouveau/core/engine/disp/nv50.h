@@ -188,6 +188,7 @@ int  nv50_disp_base_ctor(struct nouveau_object *, struct nouveau_object *,
 			 struct nouveau_oclass *, void *, u32,
 			 struct nouveau_object **);
 void nv50_disp_base_dtor(struct nouveau_object *);
+extern struct nouveau_omthds nv50_disp_base_omthds[];
 extern struct nouveau_oclass nv50_disp_cclass;
 void nv50_disp_mthd_chan(struct nv50_disp_priv *, int debug, int head,
 			 const struct nv50_disp_mthd_chan *);

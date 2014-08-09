@@ -23,7 +23,6 @@
  */
 
 #include <core/gpuobj.h>
-#include <core/class.h>
 #include <nvif/class.h>
 
 #include <subdev/fb.h>

@@ -26,7 +26,6 @@
 #include <core/client.h>
 #include <core/parent.h>
 #include <core/handle.h>
-#include <core/class.h>
 #include <nvif/unpack.h>
 #include <nvif/class.h>
 
@@ -716,17 +715,17 @@ nvd0_disp_base_ofuncs = {
 
 static struct nouveau_oclass
 nvd0_disp_base_oclass[] = {
-	{ NVD0_DISP_CLASS, &nvd0_disp_base_ofuncs },
+	{ GF110_DISP, &nvd0_disp_base_ofuncs },
 	{}
 };
 
 static struct nouveau_oclass
 nvd0_disp_sclass[] = {
-	{ NVD0_DISP_MAST_CLASS, &nvd0_disp_mast_ofuncs.base },
-	{ NVD0_DISP_SYNC_CLASS, &nvd0_disp_sync_ofuncs.base },
-	{ NVD0_DISP_OVLY_CLASS, &nvd0_disp_ovly_ofuncs.base },
-	{ NVD0_DISP_OIMM_CLASS, &nvd0_disp_oimm_ofuncs.base },
-	{ NVD0_DISP_CURS_CLASS, &nvd0_disp_curs_ofuncs.base },
+	{ GF110_DISP_CORE_CHANNEL_DMA, &nvd0_disp_mast_ofuncs.base },
+	{ GF110_DISP_BASE_CHANNEL_DMA, &nvd0_disp_sync_ofuncs.base },
+	{ GF110_DISP_OVERLAY_CONTROL_DMA, &nvd0_disp_ovly_ofuncs.base },
+	{ GF110_DISP_OVERLAY, &nvd0_disp_oimm_ofuncs.base },
+	{ GF110_DISP_CURSOR, &nvd0_disp_curs_ofuncs.base },
 	{}
 };
 

@@ -25,7 +25,7 @@
 #include <engine/software.h>
 #include <engine/disp.h>
 
-#include <core/class.h>
+#include <nvif/class.h>
 
 #include "nv50.h"
 
@@ -80,17 +80,17 @@ nva0_disp_ovly_mthd_chan = {
 
 static struct nouveau_oclass
 nva0_disp_sclass[] = {
-	{ NVA0_DISP_MAST_CLASS, &nv50_disp_mast_ofuncs.base },
-	{ NVA0_DISP_SYNC_CLASS, &nv50_disp_sync_ofuncs.base },
-	{ NVA0_DISP_OVLY_CLASS, &nv50_disp_ovly_ofuncs.base },
-	{ NVA0_DISP_OIMM_CLASS, &nv50_disp_oimm_ofuncs.base },
-	{ NVA0_DISP_CURS_CLASS, &nv50_disp_curs_ofuncs.base },
+	{ GT200_DISP_CORE_CHANNEL_DMA, &nv50_disp_mast_ofuncs.base },
+	{ GT200_DISP_BASE_CHANNEL_DMA, &nv50_disp_sync_ofuncs.base },
+	{ GT200_DISP_OVERLAY_CHANNEL_DMA, &nv50_disp_ovly_ofuncs.base },
+	{ G82_DISP_OVERLAY, &nv50_disp_oimm_ofuncs.base },
+	{ G82_DISP_CURSOR, &nv50_disp_curs_ofuncs.base },
 	{}
 };
 
 static struct nouveau_oclass
 nva0_disp_base_oclass[] = {
-	{ NVA0_DISP_CLASS, &nv50_disp_base_ofuncs },
+	{ GT200_DISP, &nv50_disp_base_ofuncs },
 	{}
 };
 

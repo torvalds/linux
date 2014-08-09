@@ -33,7 +33,6 @@
 
 #include <core/device.h>
 #include <core/gpuobj.h>
-#include <core/class.h>
 #include <core/option.h>
 
 #include "nouveau_drm.h"

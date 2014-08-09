@@ -12,6 +12,8 @@
 #define NV_DMA_TO_MEMORY                                             0x00000003
 #define NV_DMA_IN_MEMORY                                             0x0000003d
 
+#define NV04_DISP                                                    0x00000046
+
 #define NV03_CHANNEL_DMA                                             0x0000006b
 #define NV10_CHANNEL_DMA                                             0x0000006e
 #define NV17_CHANNEL_DMA                                             0x0000176e
@@ -23,6 +25,53 @@
 #define G82_CHANNEL_GPFIFO                                           0x0000826f
 #define FERMI_CHANNEL_GPFIFO                                         0x0000906f
 #define KEPLER_CHANNEL_GPFIFO_A                                      0x0000a06f
+
+#define NV50_DISP                                                    0x00005070
+#define G82_DISP                                                     0x00008270
+#define GT200_DISP                                                   0x00008370
+#define GT214_DISP                                                   0x00008570
+#define GT206_DISP                                                   0x00008870
+#define GF110_DISP                                                   0x00009070
+#define GK104_DISP                                                   0x00009170
+#define GK110_DISP                                                   0x00009270
+#define GM107_DISP                                                   0x00009470
+
+#define NV50_DISP_CURSOR                                             0x0000507a
+#define G82_DISP_CURSOR                                              0x0000827a
+#define GT214_DISP_CURSOR                                            0x0000857a
+#define GF110_DISP_CURSOR                                            0x0000907a
+#define GK104_DISP_CURSOR                                            0x0000917a
+
+#define NV50_DISP_OVERLAY                                            0x0000507b
+#define G82_DISP_OVERLAY                                             0x0000827b
+#define GT214_DISP_OVERLAY                                           0x0000857b
+#define GF110_DISP_OVERLAY                                           0x0000907b
+#define GK104_DISP_OVERLAY                                           0x0000917b
+
+#define NV50_DISP_BASE_CHANNEL_DMA                                   0x0000507c
+#define G82_DISP_BASE_CHANNEL_DMA                                    0x0000827c
+#define GT200_DISP_BASE_CHANNEL_DMA                                  0x0000837c
+#define GT214_DISP_BASE_CHANNEL_DMA                                  0x0000857c
+#define GF110_DISP_BASE_CHANNEL_DMA                                  0x0000907c
+#define GK104_DISP_BASE_CHANNEL_DMA                                  0x0000917c
+#define GK110_DISP_BASE_CHANNEL_DMA                                  0x0000927c
+
+#define NV50_DISP_CORE_CHANNEL_DMA                                   0x0000507d
+#define G82_DISP_CORE_CHANNEL_DMA                                    0x0000827d
+#define GT200_DISP_CORE_CHANNEL_DMA                                  0x0000837d
+#define GT214_DISP_CORE_CHANNEL_DMA                                  0x0000857d
+#define GT206_DISP_CORE_CHANNEL_DMA                                  0x0000887d
+#define GF110_DISP_CORE_CHANNEL_DMA                                  0x0000907d
+#define GK104_DISP_CORE_CHANNEL_DMA                                  0x0000917d
+#define GK110_DISP_CORE_CHANNEL_DMA                                  0x0000927d
+#define GM107_DISP_CORE_CHANNEL_DMA                                  0x0000947d
+
+#define NV50_DISP_OVERLAY_CHANNEL_DMA                                0x0000507e
+#define G82_DISP_OVERLAY_CHANNEL_DMA                                 0x0000827e
+#define GT200_DISP_OVERLAY_CHANNEL_DMA                               0x0000837e
+#define GT214_DISP_OVERLAY_CHANNEL_DMA                               0x0000857e
+#define GF110_DISP_OVERLAY_CONTROL_DMA                               0x0000907e
+#define GK104_DISP_OVERLAY_CONTROL_DMA                               0x0000917e
 
 
 /*******************************************************************************
@@ -401,6 +450,43 @@ struct nv50_disp_pior_pwr_v0 {
 	__u8  state;
 	__u8  type;
 	__u8  pad03[5];
+};
+
+/* core */
+struct nv50_disp_core_channel_dma_v0 {
+	__u8  version;
+	__u8  pad01[3];
+	__u32 pushbuf;
+};
+
+/* cursor immediate */
+struct nv50_disp_cursor_v0 {
+	__u8  version;
+	__u8  head;
+	__u8  pad02[6];
+};
+
+/* base */
+struct nv50_disp_base_channel_dma_v0 {
+	__u8  version;
+	__u8  pad01[2];
+	__u8  head;
+	__u32 pushbuf;
+};
+
+/* overlay */
+struct nv50_disp_overlay_channel_dma_v0 {
+	__u8  version;
+	__u8  pad01[2];
+	__u8  head;
+	__u32 pushbuf;
+};
+
+/* overlay immediate */
+struct nv50_disp_overlay_v0 {
+	__u8  version;
+	__u8  head;
+	__u8  pad02[6];
 };
 
 #endif

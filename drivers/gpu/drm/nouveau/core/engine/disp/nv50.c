@@ -27,7 +27,6 @@
 #include <core/parent.h>
 #include <core/handle.h>
 #include <core/enum.h>
-#include <core/class.h>
 #include <nvif/unpack.h>
 #include <nvif/class.h>
 
@@ -410,14 +409,21 @@ nv50_disp_mast_ctor(struct nouveau_object *parent,
 		    struct nouveau_oclass *oclass, void *data, u32 size,
 		    struct nouveau_object **pobject)
 {
-	struct nv50_display_mast_class *args = data;
+	union {
+		struct nv50_disp_core_channel_dma_v0 v0;
+	} *args = data;
 	struct nv50_disp_dmac *mast;
 	int ret;
 
-	if (size < sizeof(*args))
-		return -EINVAL;
+	nv_ioctl(parent, "create disp core channel dma size %d\n", size);
+	if (nvif_unpack(args->v0, 0, 0, false)) {
+		nv_ioctl(parent, "create disp core channel dma vers %d "
+				 "pushbuf %08x\n",
+			 args->v0.version, args->v0.pushbuf);
+	} else
+		return ret;
 
-	ret = nv50_disp_dmac_create_(parent, engine, oclass, args->pushbuf,
+	ret = nv50_disp_dmac_create_(parent, engine, oclass, args->v0.pushbuf,
 				     0, sizeof(*mast), (void **)&mast);
 	*pobject = nv_object(mast);
 	if (ret)
@@ -557,16 +563,26 @@ nv50_disp_sync_ctor(struct nouveau_object *parent,
 		    struct nouveau_oclass *oclass, void *data, u32 size,
 		    struct nouveau_object **pobject)
 {
-	struct nv50_display_sync_class *args = data;
+	union {
+		struct nv50_disp_base_channel_dma_v0 v0;
+	} *args = data;
 	struct nv50_disp_priv *priv = (void *)engine;
 	struct nv50_disp_dmac *dmac;
 	int ret;
 
-	if (size < sizeof(*args) || args->head >= priv->head.nr)
-		return -EINVAL;
+	nv_ioctl(parent, "create disp base channel dma size %d\n", size);
+	if (nvif_unpack(args->v0, 0, 0, false)) {
+		nv_ioctl(parent, "create disp base channel dma vers %d "
+				 "pushbuf %08x head %d\n",
+			 args->v0.version, args->v0.pushbuf, args->v0.head);
+		if (args->v0.head > priv->head.nr)
+			return -EINVAL;
+	} else
+		return ret;
 
-	ret = nv50_disp_dmac_create_(parent, engine, oclass, args->pushbuf,
-				     args->head, sizeof(*dmac), (void **)&dmac);
+	ret = nv50_disp_dmac_create_(parent, engine, oclass, args->v0.pushbuf,
+				     args->v0.head, sizeof(*dmac),
+				     (void **)&dmac);
 	*pobject = nv_object(dmac);
 	if (ret)
 		return ret;
@@ -635,16 +651,26 @@ nv50_disp_ovly_ctor(struct nouveau_object *parent,
 		    struct nouveau_oclass *oclass, void *data, u32 size,
 		    struct nouveau_object **pobject)
 {
-	struct nv50_display_ovly_class *args = data;
+	union {
+		struct nv50_disp_overlay_channel_dma_v0 v0;
+	} *args = data;
 	struct nv50_disp_priv *priv = (void *)engine;
 	struct nv50_disp_dmac *dmac;
 	int ret;
 
-	if (size < sizeof(*args) || args->head >= priv->head.nr)
-		return -EINVAL;
+	nv_ioctl(parent, "create disp overlay channel dma size %d\n", size);
+	if (nvif_unpack(args->v0, 0, 0, false)) {
+		nv_ioctl(parent, "create disp overlay channel dma vers %d "
+				 "pushbuf %08x head %d\n",
+			 args->v0.version, args->v0.pushbuf, args->v0.head);
+		if (args->v0.head > priv->head.nr)
+			return -EINVAL;
+	} else
+		return ret;
 
-	ret = nv50_disp_dmac_create_(parent, engine, oclass, args->pushbuf,
-				     args->head, sizeof(*dmac), (void **)&dmac);
+	ret = nv50_disp_dmac_create_(parent, engine, oclass, args->v0.pushbuf,
+				     args->v0.head, sizeof(*dmac),
+				     (void **)&dmac);
 	*pobject = nv_object(dmac);
 	if (ret)
 		return ret;
@@ -743,15 +769,23 @@ nv50_disp_oimm_ctor(struct nouveau_object *parent,
 		    struct nouveau_oclass *oclass, void *data, u32 size,
 		    struct nouveau_object **pobject)
 {
-	struct nv50_display_oimm_class *args = data;
+	union {
+		struct nv50_disp_overlay_v0 v0;
+	} *args = data;
 	struct nv50_disp_priv *priv = (void *)engine;
 	struct nv50_disp_pioc *pioc;
 	int ret;
 
-	if (size < sizeof(*args) || args->head >= priv->head.nr)
-		return -EINVAL;
+	nv_ioctl(parent, "create disp overlay size %d\n", size);
+	if (nvif_unpack(args->v0, 0, 0, false)) {
+		nv_ioctl(parent, "create disp overlay vers %d head %d\n",
+			 args->v0.version, args->v0.head);
+		if (args->v0.head > priv->head.nr)
+			return -EINVAL;
+	} else
+		return ret;
 
-	ret = nv50_disp_pioc_create_(parent, engine, oclass, args->head,
+	ret = nv50_disp_pioc_create_(parent, engine, oclass, args->v0.head,
 				     sizeof(*pioc), (void **)&pioc);
 	*pobject = nv_object(pioc);
 	if (ret)
@@ -781,15 +815,23 @@ nv50_disp_curs_ctor(struct nouveau_object *parent,
 		    struct nouveau_oclass *oclass, void *data, u32 size,
 		    struct nouveau_object **pobject)
 {
-	struct nv50_display_curs_class *args = data;
+	union {
+		struct nv50_disp_cursor_v0 v0;
+	} *args = data;
 	struct nv50_disp_priv *priv = (void *)engine;
 	struct nv50_disp_pioc *pioc;
 	int ret;
 
-	if (size < sizeof(*args) || args->head >= priv->head.nr)
-		return -EINVAL;
+	nv_ioctl(parent, "create disp cursor size %d\n", size);
+	if (nvif_unpack(args->v0, 0, 0, false)) {
+		nv_ioctl(parent, "create disp cursor vers %d head %d\n",
+			 args->v0.version, args->v0.head);
+		if (args->v0.head > priv->head.nr)
+			return -EINVAL;
+	} else
+		return ret;
 
-	ret = nv50_disp_pioc_create_(parent, engine, oclass, args->head,
+	ret = nv50_disp_pioc_create_(parent, engine, oclass, args->v0.head,
 				     sizeof(*pioc), (void **)&pioc);
 	*pobject = nv_object(pioc);
 	if (ret)
@@ -1089,17 +1131,17 @@ nv50_disp_base_ofuncs = {
 
 static struct nouveau_oclass
 nv50_disp_base_oclass[] = {
-	{ NV50_DISP_CLASS, &nv50_disp_base_ofuncs },
+	{ NV50_DISP, &nv50_disp_base_ofuncs },
 	{}
 };
 
 static struct nouveau_oclass
 nv50_disp_sclass[] = {
-	{ NV50_DISP_MAST_CLASS, &nv50_disp_mast_ofuncs.base },
-	{ NV50_DISP_SYNC_CLASS, &nv50_disp_sync_ofuncs.base },
-	{ NV50_DISP_OVLY_CLASS, &nv50_disp_ovly_ofuncs.base },
-	{ NV50_DISP_OIMM_CLASS, &nv50_disp_oimm_ofuncs.base },
-	{ NV50_DISP_CURS_CLASS, &nv50_disp_curs_ofuncs.base },
+	{ NV50_DISP_CORE_CHANNEL_DMA, &nv50_disp_mast_ofuncs.base },
+	{ NV50_DISP_BASE_CHANNEL_DMA, &nv50_disp_sync_ofuncs.base },
+	{ NV50_DISP_OVERLAY_CHANNEL_DMA, &nv50_disp_ovly_ofuncs.base },
+	{ NV50_DISP_OVERLAY, &nv50_disp_oimm_ofuncs.base },
+	{ NV50_DISP_CURSOR, &nv50_disp_curs_ofuncs.base },
 	{}
 };
 

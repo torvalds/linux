@@ -24,7 +24,6 @@
 
 #include <core/client.h>
 #include <core/gpuobj.h>
-#include <core/class.h>
 #include <nvif/unpack.h>
 #include <nvif/class.h>
 
@@ -51,21 +50,19 @@ nv50_dmaobj_bind(struct nouveau_dmaobj *dmaobj,
 		case NV40_CHANNEL_DMA:
 		case NV50_CHANNEL_GPFIFO:
 		case G82_CHANNEL_GPFIFO:
-		case NV50_DISP_MAST_CLASS:
-		case NV84_DISP_MAST_CLASS:
-		case NV94_DISP_MAST_CLASS:
-		case NVA0_DISP_MAST_CLASS:
-		case NVA3_DISP_MAST_CLASS:
-		case NV50_DISP_SYNC_CLASS:
-		case NV84_DISP_SYNC_CLASS:
-		case NV94_DISP_SYNC_CLASS:
-		case NVA0_DISP_SYNC_CLASS:
-		case NVA3_DISP_SYNC_CLASS:
-		case NV50_DISP_OVLY_CLASS:
-		case NV84_DISP_OVLY_CLASS:
-		case NV94_DISP_OVLY_CLASS:
-		case NVA0_DISP_OVLY_CLASS:
-		case NVA3_DISP_OVLY_CLASS:
+		case NV50_DISP_CORE_CHANNEL_DMA:
+		case G82_DISP_CORE_CHANNEL_DMA:
+		case GT206_DISP_CORE_CHANNEL_DMA:
+		case GT200_DISP_CORE_CHANNEL_DMA:
+		case GT214_DISP_CORE_CHANNEL_DMA:
+		case NV50_DISP_BASE_CHANNEL_DMA:
+		case G82_DISP_BASE_CHANNEL_DMA:
+		case GT200_DISP_BASE_CHANNEL_DMA:
+		case GT214_DISP_BASE_CHANNEL_DMA:
+		case NV50_DISP_OVERLAY_CHANNEL_DMA:
+		case G82_DISP_OVERLAY_CHANNEL_DMA:
+		case GT200_DISP_OVERLAY_CHANNEL_DMA:
+		case GT214_DISP_OVERLAY_CHANNEL_DMA:
 			break;
 		default:
 			return -EINVAL;
