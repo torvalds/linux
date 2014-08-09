@@ -82,6 +82,16 @@ nv50_disp_chan_destroy(struct nv50_disp_chan *chan)
 	nouveau_namedb_destroy(&chan->base);
 }
 
+int
+nv50_disp_chan_map(struct nouveau_object *object, u64 *addr, u32 *size)
+{
+	struct nv50_disp_chan *chan = (void *)object;
+	*addr = nv_device_resource_start(nv_device(object), 0) +
+		0x640000 + (chan->chid * 0x1000);
+	*size = 0x001000;
+	return 0;
+}
+
 u32
 nv50_disp_chan_rd32(struct nouveau_object *object, u64 addr)
 {
@@ -496,6 +506,7 @@ nv50_disp_mast_ofuncs = {
 	.base.dtor = nv50_disp_dmac_dtor,
 	.base.init = nv50_disp_mast_init,
 	.base.fini = nv50_disp_mast_fini,
+	.base.map  = nv50_disp_chan_map,
 	.base.rd32 = nv50_disp_chan_rd32,
 	.base.wr32 = nv50_disp_chan_wr32,
 	.chid = 0,
@@ -596,6 +607,7 @@ nv50_disp_sync_ofuncs = {
 	.base.dtor = nv50_disp_dmac_dtor,
 	.base.init = nv50_disp_dmac_init,
 	.base.fini = nv50_disp_dmac_fini,
+	.base.map  = nv50_disp_chan_map,
 	.base.rd32 = nv50_disp_chan_rd32,
 	.base.wr32 = nv50_disp_chan_wr32,
 	.chid = 1,
@@ -684,6 +696,7 @@ nv50_disp_ovly_ofuncs = {
 	.base.dtor = nv50_disp_dmac_dtor,
 	.base.init = nv50_disp_dmac_init,
 	.base.fini = nv50_disp_dmac_fini,
+	.base.map  = nv50_disp_chan_map,
 	.base.rd32 = nv50_disp_chan_rd32,
 	.base.wr32 = nv50_disp_chan_wr32,
 	.chid = 3,
@@ -800,6 +813,7 @@ nv50_disp_oimm_ofuncs = {
 	.base.dtor = nv50_disp_pioc_dtor,
 	.base.init = nv50_disp_pioc_init,
 	.base.fini = nv50_disp_pioc_fini,
+	.base.map  = nv50_disp_chan_map,
 	.base.rd32 = nv50_disp_chan_rd32,
 	.base.wr32 = nv50_disp_chan_wr32,
 	.chid = 5,
@@ -846,6 +860,7 @@ nv50_disp_curs_ofuncs = {
 	.base.dtor = nv50_disp_pioc_dtor,
 	.base.init = nv50_disp_pioc_init,
 	.base.fini = nv50_disp_pioc_fini,
+	.base.map  = nv50_disp_chan_map,
 	.base.rd32 = nv50_disp_chan_rd32,
 	.base.wr32 = nv50_disp_chan_wr32,
 	.chid = 7,

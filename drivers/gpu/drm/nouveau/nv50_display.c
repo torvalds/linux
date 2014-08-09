@@ -69,8 +69,10 @@ nv50_chan_create(struct nvif_object *disp, const u32 *oclass, u8 head,
 		int ret = nvif_object_init(disp, NULL, (oclass[0] << 16) | head,
 					   oclass[0], data, size,
 					  &chan->user);
-		if (oclass++, ret == 0)
+		if (oclass++, ret == 0) {
+			nvif_object_map(&chan->user);
 			return ret;
+		}
 	}
 	return -ENOSYS;
 }

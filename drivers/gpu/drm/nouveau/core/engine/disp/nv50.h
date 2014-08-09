@@ -116,6 +116,7 @@ struct nv50_disp_chan {
 	int chid;
 };
 
+int  nv50_disp_chan_map(struct nouveau_object *, u64 *, u32 *);
 u32  nv50_disp_chan_rd32(struct nouveau_object *, u64);
 void nv50_disp_chan_wr32(struct nouveau_object *, u64, u32);
 
