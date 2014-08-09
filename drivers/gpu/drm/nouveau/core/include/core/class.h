@@ -1,6 +1,8 @@
 #ifndef __NOUVEAU_CLASS_H__
 #define __NOUVEAU_CLASS_H__
 
+#include <nvif/class.h>
+
 /* Device class
  *
  * 0080: NV_DEVICE

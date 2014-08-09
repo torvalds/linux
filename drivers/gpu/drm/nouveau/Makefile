@@ -327,6 +327,12 @@ nouveau-y += core/engine/vp/nv98.o
 nouveau-y += core/engine/vp/nvc0.o
 nouveau-y += core/engine/vp/nve0.o
 
+# nvif
+nouveau-y += nvif/object.o
+nouveau-y += nvif/client.o
+nouveau-y += nvif/device.o
+nouveau-y += nvif/notify.o
+
 # drm/core
 nouveau-y += nouveau_drm.o nouveau_chan.o nouveau_dma.o nouveau_fence.o
 nouveau-y += nouveau_vga.o nouveau_agp.o

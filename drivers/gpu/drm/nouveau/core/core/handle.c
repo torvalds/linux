@@ -146,9 +146,7 @@ nouveau_handle_create(struct nouveau_object *parent, u32 _parent, u32 _handle,
 	}
 
 	hprintk(handle, TRACE, "created\n");
-
 	*phandle = handle;
-
 	return 0;
 }
 
