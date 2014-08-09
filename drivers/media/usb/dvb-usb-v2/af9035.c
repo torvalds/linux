@@ -536,6 +536,7 @@ static int af9035_download_firmware(struct dvb_usb_device *d,
 	u8 tmp;
 	struct usb_req req = { 0, 0, 0, NULL, 0, NULL };
 	struct usb_req req_fw_ver = { CMD_FW_QUERYINFO, 0, 1, wbuf, 4, rbuf };
+
 	dev_dbg(&d->udev->dev, "%s:\n", __func__);
 
 	/*
@@ -974,6 +975,7 @@ static int af9035_frontend_callback(void *adapter_priv, int component,
 static int af9035_get_adapter_count(struct dvb_usb_device *d)
 {
 	struct state *state = d_to_priv(d);
+
 	return state->dual_mode + 1;
 }
 
@@ -982,6 +984,7 @@ static int af9035_frontend_attach(struct dvb_usb_adapter *adap)
 	struct state *state = adap_to_priv(adap);
 	struct dvb_usb_device *d = adap_to_d(adap);
 	int ret;
+
 	dev_dbg(&d->udev->dev, "%s:\n", __func__);
 
 	if (!state->af9033_config[adap->id].tuner) {
@@ -1068,6 +1071,7 @@ static int af9035_tuner_attach(struct dvb_usb_adapter *adap)
 	struct dvb_frontend *fe;
 	struct i2c_msg msg[1];
 	u8 tuner_addr;
+
 	dev_dbg(&d->udev->dev, "%s:\n", __func__);
 
 	/*
@@ -1393,6 +1397,7 @@ static int af9035_get_stream_config(struct dvb_frontend *fe, u8 *ts_type,
 		struct usb_data_stream_properties *stream)
 {
 	struct dvb_usb_device *d = fe_to_d(fe);
+
 	dev_dbg(&d->udev->dev, "%s: adap=%d\n", __func__, fe_to_adap(fe)->id);
 
 	if (d->udev->speed == USB_SPEED_FULL)
@@ -1554,7 +1559,8 @@ static const struct usb_device_id af9035_id_table[] = {
 							RC_MAP_IT913X_V1) },
 	/* XXX: that same ID [0ccd:0099] is used by af9015 driver too */
 	{ DVB_USB_DEVICE(USB_VID_TERRATEC, 0x0099,
-		&af9035_props, "TerraTec Cinergy T Stick Dual RC (rev. 2)", NULL) },
+		&af9035_props, "TerraTec Cinergy T Stick Dual RC (rev. 2)",
+		NULL) },
 	{ DVB_USB_DEVICE(USB_VID_LEADTEK, 0x6a05,
 		&af9035_props, "Leadtek WinFast DTV Dongle Dual", NULL) },
 	{ DVB_USB_DEVICE(USB_VID_HAUPPAUGE, 0xf900,
