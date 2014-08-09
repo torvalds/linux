@@ -812,8 +812,9 @@ static int cifs_setlease(struct file *file, long arg, struct file_lock **lease)
 	if (!(S_ISREG(inode->i_mode)))
 		return -EINVAL;
 
-	/* check if file is oplocked */
-	if (((arg == F_RDLCK) && CIFS_CACHE_READ(CIFS_I(inode))) ||
+	/* Check if file is oplocked if this is request for new lease */
+	if (arg == F_UNLCK ||
+	    ((arg == F_RDLCK) && CIFS_CACHE_READ(CIFS_I(inode))) ||
 	    ((arg == F_WRLCK) && CIFS_CACHE_WRITE(CIFS_I(inode))))
 		return generic_setlease(file, arg, lease);
 	else if (tlink_tcon(cfile->tlink)->local_lease &&
