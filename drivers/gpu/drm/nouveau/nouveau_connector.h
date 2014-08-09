@@ -27,6 +27,8 @@
 #ifndef __NOUVEAU_CONNECTOR_H__
 #define __NOUVEAU_CONNECTOR_H__
 
+#include <nvif/notify.h>
+
 #include <drm/drm_edid.h>
 #include <drm/drm_dp_helper.h>
 #include "nouveau_crtc.h"
@@ -63,7 +65,7 @@ struct nouveau_connector {
 	u8 index;
 	u8 *dcb;
 
-	struct nvkm_notify hpd;
+	struct nvif_notify hpd;
 
 	struct drm_dp_aux aux;
 

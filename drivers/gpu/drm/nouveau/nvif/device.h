@@ -54,13 +54,11 @@ void nvif_device_ref(struct nvif_device *, struct nvif_device **);
 
 #include <engine/device.h>
 #include <engine/fifo.h>
-#include <engine/disp.h>
 #include <engine/graph.h>
 #include <engine/software.h>
 
 #define nvkm_fifo(a) nouveau_fifo(nvkm_device(a))
 #define nvkm_fifo_chan(a) ((struct nouveau_fifo_chan *)nvkm_object(a))
-#define nvkm_disp(a) nouveau_disp(nvkm_device(a))
 #define nvkm_gr(a) ((struct nouveau_graph *)nouveau_engine(nvkm_object(a), NVDEV_ENGINE_GR))
 
 #endif

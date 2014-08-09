@@ -343,6 +343,9 @@ struct kepler_channel_gpfifo_a_v0 {
  * legacy display
  ******************************************************************************/
 
+#define NV04_DISP_NTFY_VBLANK                                              0x00
+#define NV04_DISP_NTFY_CONN                                                0x01
+
 struct nv04_disp_mthd_v0 {
 	__u8  version;
 #define NV04_DISP_SCANOUTPOS                                               0x00
@@ -364,7 +367,6 @@ struct nv04_disp_scanoutpos_v0 {
 	__u16 htotal;
 	__u16 hline;
 };
-
 
 /*******************************************************************************
  * display

@@ -716,6 +716,7 @@ nvd0_disp_base_ofuncs = {
 	.init = nvd0_disp_base_init,
 	.fini = nvd0_disp_base_fini,
 	.mthd = nv50_disp_base_mthd,
+	.ntfy = nouveau_disp_ntfy,
 };
 
 static struct nouveau_oclass

@@ -24,6 +24,7 @@
 
 #include <core/os.h>
 #include <nvif/unpack.h>
+#include <nvif/class.h>
 #include <nvif/event.h>
 
 #include "priv.h"
@@ -91,6 +92,24 @@ static const struct nvkm_event_func
 nouveau_disp_hpd_func = {
 	.ctor = nouveau_disp_hpd_ctor
 };
+
+int
+nouveau_disp_ntfy(struct nouveau_object *object, u32 type,
+		  struct nvkm_event **event)
+{
+	struct nouveau_disp *disp = (void *)object->engine;
+	switch (type) {
+	case NV04_DISP_NTFY_VBLANK:
+		*event = &disp->vblank;
+		return 0;
+	case NV04_DISP_NTFY_CONN:
+		*event = &disp->hpd;
+		return 0;
+	default:
+		break;
+	}
+	return -EINVAL;
+}
 
 int
 _nouveau_disp_fini(struct nouveau_object *object, bool suspend)

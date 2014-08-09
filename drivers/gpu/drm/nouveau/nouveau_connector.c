@@ -100,7 +100,7 @@ static void
 nouveau_connector_destroy(struct drm_connector *connector)
 {
 	struct nouveau_connector *nv_connector = nouveau_connector(connector);
-	nvkm_notify_fini(&nv_connector->hpd);
+	nvif_notify_fini(&nv_connector->hpd);
 	kfree(nv_connector->edid);
 	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
@@ -937,7 +937,7 @@ nouveau_connector_funcs_dp = {
 };
 
 static int
-nouveau_connector_hotplug(struct nvkm_notify *notify)
+nouveau_connector_hotplug(struct nvif_notify *notify)
 {
 	struct nouveau_connector *nv_connector =
 		container_of(notify, typeof(*nv_connector), hpd);
@@ -959,7 +959,7 @@ nouveau_connector_hotplug(struct nvkm_notify *notify)
 		drm_helper_hpd_irq_event(connector->dev);
 	}
 
-	return NVKM_NOTIFY_KEEP;
+	return NVIF_NOTIFY_KEEP;
 }
 
 static ssize_t
@@ -1029,7 +1029,6 @@ nouveau_connector_create(struct drm_device *dev, int index)
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_display *disp = nouveau_display(dev);
 	struct nouveau_connector *nv_connector = NULL;
-	struct nouveau_disp *pdisp = nvkm_disp(&drm->device);
 	struct drm_connector *connector;
 	int type, ret = 0;
 	bool dummy;
@@ -1215,7 +1214,8 @@ nouveau_connector_create(struct drm_device *dev, int index)
 		break;
 	}
 
-	ret = nvkm_notify_init(&pdisp->hpd, nouveau_connector_hotplug, true,
+	ret = nvif_notify_init(&disp->disp, NULL, nouveau_connector_hotplug,
+				true, NV04_DISP_NTFY_CONN,
 			       &(struct nvif_notify_conn_req_v0) {
 				.mask = NVIF_NOTIFY_CONN_V0_ANY,
 				.conn = index,

@@ -1142,6 +1142,7 @@ nv50_disp_base_ofuncs = {
 	.init = nv50_disp_base_init,
 	.fini = nv50_disp_base_fini,
 	.mthd = nv50_disp_base_mthd,
+	.ntfy = nouveau_disp_ntfy,
 };
 
 static struct nouveau_oclass

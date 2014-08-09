@@ -112,6 +112,7 @@ nv04_disp_ofuncs = {
 	.init = nouveau_object_init,
 	.fini = nouveau_object_fini,
 	.mthd = nv04_disp_mthd,
+	.ntfy = nouveau_disp_ntfy,
 };
 
 static struct nouveau_oclass

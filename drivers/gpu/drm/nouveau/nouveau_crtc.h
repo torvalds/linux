@@ -27,11 +27,13 @@
 #ifndef __NOUVEAU_CRTC_H__
 #define __NOUVEAU_CRTC_H__
 
+#include <nvif/notify.h>
+
 struct nouveau_crtc {
 	struct drm_crtc base;
 
 	int index;
-	struct nvkm_notify vblank;
+	struct nvif_notify vblank;
 
 	uint32_t dpms_saved_fp_control;
 	uint32_t fp_users;
