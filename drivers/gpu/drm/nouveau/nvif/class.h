@@ -352,4 +352,12 @@ struct nv50_disp_sor_hda_eld_v0 {
 	__u8  data[];
 };
 
+struct nv50_disp_sor_hdmi_pwr_v0 {
+	__u8  version;
+	__u8  state;
+	__u8  max_ac_packet;
+	__u8  rekey;
+	__u8  pad04[4];
+};
+
 #endif

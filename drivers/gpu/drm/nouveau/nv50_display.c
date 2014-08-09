@@ -1717,25 +1717,32 @@ nv50_hdmi_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(encoder->crtc);
-	struct nouveau_connector *nv_connector;
 	struct nv50_disp *disp = nv50_disp(encoder->dev);
-	const u32 moff = (nv_crtc->index << 3) | nv_encoder->or;
-	u32 rekey = 56; /* binary driver, and tegra constant */
+	struct {
+		struct nv50_disp_mthd_v1 base;
+		struct nv50_disp_sor_hdmi_pwr_v0 pwr;
+	} args = {
+		.base.version = 1,
+		.base.method = NV50_DISP_MTHD_V1_SOR_HDMI_PWR,
+		.base.hasht  = nv_encoder->dcb->hasht,
+		.base.hashm  = (0xf0ff & nv_encoder->dcb->hashm) |
+			       (0x0100 << nv_crtc->index),
+		.pwr.state = 1,
+		.pwr.rekey = 56, /* binary driver, and tegra, constant */
+	};
+	struct nouveau_connector *nv_connector;
 	u32 max_ac_packet;
-	u32 data;
 
 	nv_connector = nouveau_encoder_connector_get(nv_encoder);
 	if (!drm_detect_hdmi_monitor(nv_connector->edid))
 		return;
 
 	max_ac_packet  = mode->htotal - mode->hdisplay;
-	max_ac_packet -= rekey;
+	max_ac_packet -= args.pwr.rekey;
 	max_ac_packet -= 18; /* constant from tegra */
-	max_ac_packet /= 32;
+	args.pwr.max_ac_packet = max_ac_packet / 32;
 
-	data = NV84_DISP_SOR_HDMI_PWR_STATE_ON | (max_ac_packet << 16) | rekey;
-	nvif_exec(disp->disp, NV84_DISP_SOR_HDMI_PWR + moff, &data, sizeof(data));
-
+	nvif_mthd(disp->disp, 0, &args, sizeof(args));
 	nv50_audio_mode_set(encoder, mode);
 }
 
@@ -1744,12 +1751,20 @@ nv50_hdmi_disconnect(struct drm_encoder *encoder, struct nouveau_crtc *nv_crtc)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct nv50_disp *disp = nv50_disp(encoder->dev);
-	const u32 moff = (nv_crtc->index << 3) | nv_encoder->or;
-	u32 data = 0;
+	struct {
+		struct nv50_disp_mthd_v1 base;
+		struct nv50_disp_sor_hdmi_pwr_v0 pwr;
+	} args = {
+		.base.version = 1,
+		.base.method = NV50_DISP_MTHD_V1_SOR_HDMI_PWR,
+		.base.hasht  = nv_encoder->dcb->hasht,
+		.base.hashm  = (0xf0ff & nv_encoder->dcb->hashm) |
+			       (0x0100 << nv_crtc->index),
+	};
 
 	nv50_audio_disconnect(encoder);
 
-	nvif_exec(disp->disp, NV84_DISP_SOR_HDMI_PWR + moff, &data, sizeof(data));
+	nvif_mthd(disp->disp, 0, &args, sizeof(args));
 }
 
 /******************************************************************************
