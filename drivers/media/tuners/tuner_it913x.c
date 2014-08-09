@@ -154,6 +154,9 @@ static int it913x_init(struct dvb_frontend *fe)
 		val = 16;
 		break;
 	case -ENODEV:
+		/* FIXME: these are just avoid divide by 0 */
+		state->tun_xtal = 2000;
+		state->tun_fdiv = 3;
 		return -ENODEV;
 	case 1:
 	default:
