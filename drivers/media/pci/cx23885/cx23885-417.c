@@ -1235,9 +1235,7 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id id)
 	dev->encodernorm = cx23885_tvnorms[i];
 
 	/* Have the drier core notify the subdevices */
-	mutex_lock(&dev->lock);
 	cx23885_set_tvnorm(dev, id);
-	mutex_unlock(&dev->lock);
 
 	return 0;
 }
@@ -1661,7 +1659,7 @@ static struct v4l2_file_operations mpeg_fops = {
 	.read	       = mpeg_read,
 	.poll          = mpeg_poll,
 	.mmap	       = mpeg_mmap,
-	.ioctl	       = video_ioctl2,
+	.unlocked_ioctl = video_ioctl2,
 };
 
 static const struct v4l2_ioctl_ops mpeg_ioctl_ops = {
@@ -1770,6 +1768,7 @@ int cx23885_417_register(struct cx23885_dev *dev)
 	dev->v4l_device = cx23885_video_dev_alloc(tsport,
 		dev->pci, &cx23885_mpeg_template, "mpeg");
 	video_set_drvdata(dev->v4l_device, dev);
+	dev->v4l_device->lock = &dev->lock;
 	err = video_register_device(dev->v4l_device,
 		VFL_TYPE_GRABBER, -1);
 	if (err < 0) {

@@ -345,6 +345,7 @@ static struct video_device *cx23885_vdev_init(struct cx23885_dev *dev,
 	*vfd = *template;
 	vfd->v4l2_dev = &dev->v4l2_dev;
 	vfd->release = video_device_release;
+	vfd->lock = &dev->lock;
 	snprintf(vfd->name, sizeof(vfd->name), "%s (%s)",
 		 cx23885_boards[dev->board].name, type);
 	video_set_drvdata(vfd, dev);
@@ -381,17 +382,14 @@ static int res_get(struct cx23885_dev *dev, struct cx23885_fh *fh,
 		return 1;
 
 	/* is it free? */
-	mutex_lock(&dev->lock);
 	if (dev->resources & bit) {
 		/* no, someone else uses it */
-		mutex_unlock(&dev->lock);
 		return 0;
 	}
 	/* it's free, grab it */
 	fh->resources  |= bit;
 	dev->resources |= bit;
 	dprintk(1, "res: get %d\n", bit);
-	mutex_unlock(&dev->lock);
 	return 1;
 }
 
@@ -411,11 +409,9 @@ static void res_free(struct cx23885_dev *dev, struct cx23885_fh *fh,
 	BUG_ON((fh->resources & bits) != bits);
 	dprintk(1, "%s()\n", __func__);
 
-	mutex_lock(&dev->lock);
 	fh->resources  &= ~bits;
 	dev->resources &= ~bits;
 	dprintk(1, "res: put %d\n", bits);
-	mutex_unlock(&dev->lock);
 }
 
 int cx23885_flatiron_write(struct cx23885_dev *dev, u8 reg, u8 data)
@@ -1272,9 +1268,7 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id tvnorms)
 	struct cx23885_dev *dev = ((struct cx23885_fh *)priv)->dev;
 	dprintk(1, "%s()\n", __func__);
 
-	mutex_lock(&dev->lock);
 	cx23885_set_tvnorm(dev, tvnorms);
-	mutex_unlock(&dev->lock);
 
 	return 0;
 }
@@ -1364,13 +1358,11 @@ int cx23885_set_input(struct file *file, void *priv, unsigned int i)
 	if (INPUT(i)->type == 0)
 		return -EINVAL;
 
-	mutex_lock(&dev->lock);
 	cx23885_video_mux(dev, i);
 
 	/* By default establish the default audio input for the card also */
 	/* Caller is free to use VIDIOC_S_AUDIO to override afterwards */
 	cx23885_audio_mux(dev, i);
-	mutex_unlock(&dev->lock);
 	return 0;
 }
 
@@ -1544,7 +1536,6 @@ static int cx23885_set_freq(struct cx23885_dev *dev, const struct v4l2_frequency
 	if (unlikely(f->tuner != 0))
 		return -EINVAL;
 
-	mutex_lock(&dev->lock);
 	dev->freq = f->frequency;
 
 	/* I need to mute audio here */
@@ -1560,8 +1551,6 @@ static int cx23885_set_freq(struct cx23885_dev *dev, const struct v4l2_frequency
 	/* I need to unmute audio here */
 	ctrl.value = 0;
 	cx23885_set_control(dev, &ctrl);
-
-	mutex_unlock(&dev->lock);
 
 	return 0;
 }
@@ -1580,7 +1569,6 @@ static int cx23885_set_freq_via_ops(struct cx23885_dev *dev,
 		.frequency = f->frequency
 	};
 
-	mutex_lock(&dev->lock);
 	dev->freq = f->frequency;
 
 	/* I need to mute audio here */
@@ -1594,7 +1582,6 @@ static int cx23885_set_freq_via_ops(struct cx23885_dev *dev,
 
 	vfe = videobuf_dvb_get_frontend(&dev->ts2.frontends, 1);
 	if (!vfe) {
-		mutex_unlock(&dev->lock);
 		return -EINVAL;
 	}
 
@@ -1618,8 +1605,6 @@ static int cx23885_set_freq_via_ops(struct cx23885_dev *dev,
 	/* I need to unmute audio here */
 	ctrl.value = 0;
 	cx23885_set_control(dev, &ctrl);
-
-	mutex_unlock(&dev->lock);
 
 	return 0;
 }
@@ -1742,7 +1727,7 @@ static const struct v4l2_file_operations video_fops = {
 	.read	       = video_read,
 	.poll          = video_poll,
 	.mmap	       = video_mmap,
-	.ioctl	       = video_ioctl2,
+	.unlocked_ioctl = video_ioctl2,
 };
 
 static const struct v4l2_ioctl_ops video_ioctl_ops = {
@@ -1790,14 +1775,6 @@ static struct video_device cx23885_video_template = {
 	.ioctl_ops 	      = &video_ioctl_ops,
 	.tvnorms              = CX23885_NORMS,
 };
-
-static const struct v4l2_file_operations radio_fops = {
-	.owner         = THIS_MODULE,
-	.open          = video_open,
-	.release       = video_release,
-	.ioctl         = video_ioctl2,
-};
-
 
 void cx23885_video_unregister(struct cx23885_dev *dev)
 {
@@ -1909,6 +1886,14 @@ int cx23885_video_register(struct cx23885_dev *dev)
 		}
 	}
 
+	/* initial device configuration */
+	mutex_lock(&dev->lock);
+	cx23885_set_tvnorm(dev, dev->tvnorm);
+	init_controls(dev);
+	cx23885_video_mux(dev, 0);
+	cx23885_audio_mux(dev, 0);
+	mutex_unlock(&dev->lock);
+
 	/* register Video device */
 	dev->video_dev = cx23885_vdev_init(dev, dev->pci,
 		&cx23885_video_template, "video");
@@ -1937,14 +1922,6 @@ int cx23885_video_register(struct cx23885_dev *dev)
 
 	/* Register ALSA audio device */
 	dev->audio_dev = cx23885_audio_register(dev);
-
-	/* initial device configuration */
-	mutex_lock(&dev->lock);
-	cx23885_set_tvnorm(dev, dev->tvnorm);
-	init_controls(dev);
-	cx23885_video_mux(dev, 0);
-	cx23885_audio_mux(dev, 0);
-	mutex_unlock(&dev->lock);
 
 	return 0;
 
