@@ -2601,7 +2601,7 @@ int open_ctree(struct super_block *sb,
 	      fs_info->endio_freespace_worker && fs_info->rmw_workers &&
 	      fs_info->caching_workers && fs_info->readahead_workers &&
 	      fs_info->fixup_workers && fs_info->delayed_workers &&
-	      fs_info->fixup_workers && fs_info->extent_workers &&
+	      fs_info->extent_workers &&
 	      fs_info->qgroup_rescan_workers)) {
 		err = -ENOMEM;
 		goto fail_sb_buffer;
