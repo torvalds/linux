@@ -56,4 +56,9 @@ gk20a_grctx_oclass = &(struct nvc0_grctx_oclass) {
 	.bundle_token_limit = 0x100,
 	.pagepool = nve4_grctx_generate_pagepool,
 	.pagepool_size = 0x8000,
+	.attrib = nvd7_grctx_generate_attrib,
+	.attrib_nr_max = 0x240,
+	.attrib_nr = 0x240,
+	.alpha_nr_max = 0x648 + (0x648 / 2),
+	.alpha_nr = 0x648,
 }.base;

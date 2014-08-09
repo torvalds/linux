@@ -355,4 +355,7 @@ nvc8_grctx_oclass = &(struct nvc0_grctx_oclass) {
 	.bundle_size = 0x1800,
 	.pagepool = nvc0_grctx_generate_pagepool,
 	.pagepool_size = 0x8000,
+	.attrib = nvc0_grctx_generate_attrib,
+	.attrib_nr_max = 0x324,
+	.attrib_nr = 0x218,
 }.base;

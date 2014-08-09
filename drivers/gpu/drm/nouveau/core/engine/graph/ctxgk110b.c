@@ -82,7 +82,7 @@ gk110b_grctx_oclass = &(struct nvc0_grctx_oclass) {
 		.wr32 = _nouveau_graph_context_wr32,
 	},
 	.main  = nve4_grctx_generate_main,
-	.mods  = nvf0_grctx_generate_mods,
+	.mods  = nve4_grctx_generate_mods,
 	.unkn  = nve4_grctx_generate_unkn,
 	.hub   = nvf0_grctx_pack_hub,
 	.gpc   = nvf0_grctx_pack_gpc,
@@ -97,4 +97,9 @@ gk110b_grctx_oclass = &(struct nvc0_grctx_oclass) {
 	.bundle_token_limit = 0x600,
 	.pagepool = nve4_grctx_generate_pagepool,
 	.pagepool_size = 0x8000,
+	.attrib = nvd7_grctx_generate_attrib,
+	.attrib_nr_max = 0x324,
+	.attrib_nr = 0x218,
+	.alpha_nr_max = 0x7ff,
+	.alpha_nr = 0x648,
 }.base;

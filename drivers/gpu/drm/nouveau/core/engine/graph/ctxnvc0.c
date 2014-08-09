@@ -1047,25 +1047,35 @@ nvc0_grctx_generate_pagepool(struct nvc0_grctx *info)
 }
 
 void
-nvc0_grctx_generate_mods(struct nvc0_graph_priv *priv, struct nvc0_grctx *info)
+nvc0_grctx_generate_attrib(struct nvc0_grctx *info)
 {
+	struct nvc0_graph_priv *priv = info->priv;
+	const struct nvc0_grctx_oclass *impl = nvc0_grctx_impl(priv);
+	const u32 attrib = impl->attrib_nr;
+	const u32   size = 0x20 * (impl->attrib_nr_max + impl->alpha_nr_max);
+	const u32 access = NV_MEM_ACCESS_RW;
+	const int s = 12;
+	const int b = mmio_vram(info, size * priv->tpc_total, (1 << s), access);
 	int gpc, tpc;
-	u32 offset;
+	u32 bo = 0;
 
-	mmio_data(0x060000, 0x1000, NV_MEM_ACCESS_RW);
+	mmio_refn(info, 0x418810, 0x80000000, s, b);
+	mmio_refn(info, 0x419848, 0x10000000, s, b);
+	mmio_wr32(info, 0x405830, (attrib << 16));
 
-	mmio_list(0x418810, 0x80000000, 12, 2);
-	mmio_list(0x419848, 0x10000000, 12, 2);
-
-	mmio_list(0x405830, 0x02180000, 0, 0);
-
-	for (gpc = 0, offset = 0; gpc < priv->gpc_nr; gpc++) {
+	for (gpc = 0; gpc < priv->gpc_nr; gpc++) {
 		for (tpc = 0; tpc < priv->tpc_nr[gpc]; tpc++) {
-			u32 addr = TPC_UNIT(gpc, tpc, 0x0520);
-			mmio_list(addr, 0x02180000 | offset, 0, 0);
-			offset += 0x0324;
+			const u32 o = TPC_UNIT(gpc, tpc, 0x0520);
+			mmio_skip(info, o, (attrib << 16) | ++bo);
+			mmio_wr32(info, o, (attrib << 16) | --bo);
+			bo += impl->attrib_nr_max;
 		}
 	}
+}
+
+void
+nvc0_grctx_generate_mods(struct nvc0_graph_priv *priv, struct nvc0_grctx *info)
+{
 }
 
 void
@@ -1236,6 +1246,7 @@ nvc0_grctx_generate_main(struct nvc0_graph_priv *priv, struct nvc0_grctx *info)
 
 	oclass->bundle(info);
 	oclass->pagepool(info);
+	oclass->attrib(info);
 	oclass->mods(priv, info);
 	oclass->unkn(priv);
 
@@ -1376,4 +1387,7 @@ nvc0_grctx_oclass = &(struct nvc0_grctx_oclass) {
 	.bundle_size = 0x1800,
 	.pagepool = nvc0_grctx_generate_pagepool,
 	.pagepool_size = 0x8000,
+	.attrib = nvc0_grctx_generate_attrib,
+	.attrib_nr_max = 0x324,
+	.attrib_nr = 0x218,
 }.base;

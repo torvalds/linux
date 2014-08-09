@@ -47,6 +47,12 @@ struct nvc0_grctx_oclass {
 	/* pagepool */
 	void (*pagepool)(struct nvc0_grctx *);
 	u32 pagepool_size;
+	/* attribute(/alpha) circular buffer */
+	void (*attrib)(struct nvc0_grctx *);
+	u32 attrib_nr_max;
+	u32 attrib_nr;
+	u32 alpha_nr_max;
+	u32 alpha_nr;
 };
 
 static inline const struct nvc0_grctx_oclass *
@@ -60,6 +66,7 @@ int  nvc0_grctx_generate(struct nvc0_graph_priv *);
 void nvc0_grctx_generate_main(struct nvc0_graph_priv *, struct nvc0_grctx *);
 void nvc0_grctx_generate_bundle(struct nvc0_grctx *);
 void nvc0_grctx_generate_pagepool(struct nvc0_grctx *);
+void nvc0_grctx_generate_attrib(struct nvc0_grctx *);
 void nvc0_grctx_generate_mods(struct nvc0_graph_priv *, struct nvc0_grctx *);
 void nvc0_grctx_generate_unkn(struct nvc0_graph_priv *);
 void nvc0_grctx_generate_tpcid(struct nvc0_graph_priv *);
@@ -69,12 +76,16 @@ void nvc0_grctx_generate_r418bb8(struct nvc0_graph_priv *);
 void nvc0_grctx_generate_r406800(struct nvc0_graph_priv *);
 
 extern struct nouveau_oclass *nvc1_grctx_oclass;
+void nvc1_grctx_generate_attrib(struct nvc0_grctx *);
 void nvc1_grctx_generate_mods(struct nvc0_graph_priv *, struct nvc0_grctx *);
 void nvc1_grctx_generate_unkn(struct nvc0_graph_priv *);
 
 extern struct nouveau_oclass *nvc4_grctx_oclass;
 extern struct nouveau_oclass *nvc8_grctx_oclass;
+
 extern struct nouveau_oclass *nvd7_grctx_oclass;
+void nvd7_grctx_generate_attrib(struct nvc0_grctx *);
+
 extern struct nouveau_oclass *nvd9_grctx_oclass;
 
 extern struct nouveau_oclass *nve4_grctx_oclass;
@@ -85,8 +96,6 @@ void nve4_grctx_generate_pagepool(struct nvc0_grctx *);
 void nve4_grctx_generate_mods(struct nvc0_graph_priv *, struct nvc0_grctx *);
 void nve4_grctx_generate_unkn(struct nvc0_graph_priv *);
 void nve4_grctx_generate_r418bb8(struct nvc0_graph_priv *);
-
-void nvf0_grctx_generate_mods(struct nvc0_graph_priv *, struct nvc0_grctx *);
 
 extern struct nouveau_oclass *nvf0_grctx_oclass;
 extern struct nouveau_oclass *gk110b_grctx_oclass;
