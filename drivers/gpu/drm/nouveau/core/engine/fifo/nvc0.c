@@ -28,7 +28,8 @@
 #include <core/gpuobj.h>
 #include <core/engctx.h>
 #include <core/event.h>
-#include <core/class.h>
+#include <nvif/unpack.h>
+#include <nvif/class.h>
 #include <core/enum.h>
 
 #include <subdev/timer.h>
@@ -187,20 +188,28 @@ nvc0_fifo_chan_ctor(struct nouveau_object *parent,
 		    struct nouveau_oclass *oclass, void *data, u32 size,
 		    struct nouveau_object **pobject)
 {
+	union {
+		struct nv50_channel_gpfifo_v0 v0;
+	} *args = data;
 	struct nouveau_bar *bar = nouveau_bar(parent);
 	struct nvc0_fifo_priv *priv = (void *)engine;
 	struct nvc0_fifo_base *base = (void *)parent;
 	struct nvc0_fifo_chan *chan;
-	struct nv50_channel_ind_class *args = data;
 	u64 usermem, ioffset, ilength;
 	int ret, i;
 
-	if (size < sizeof(*args))
-		return -EINVAL;
+	nv_ioctl(parent, "create channel gpfifo size %d\n", size);
+	if (nvif_unpack(args->v0, 0, 0, false)) {
+		nv_ioctl(parent, "create channel gpfifo vers %d pushbuf %08x "
+				 "ioffset %016llx ilength %08x\n",
+			 args->v0.version, args->v0.pushbuf, args->v0.ioffset,
+			 args->v0.ilength);
+	} else
+		return ret;
 
 	ret = nouveau_fifo_channel_create(parent, engine, oclass, 1,
 					  priv->user.bar.offset, 0x1000,
-					  args->pushbuf,
+					  args->v0.pushbuf,
 					  (1ULL << NVDEV_ENGINE_SW) |
 					  (1ULL << NVDEV_ENGINE_GR) |
 					  (1ULL << NVDEV_ENGINE_COPY0) |
@@ -212,12 +221,14 @@ nvc0_fifo_chan_ctor(struct nouveau_object *parent,
 	if (ret)
 		return ret;
 
+	args->v0.chid = chan->base.chid;
+
 	nv_parent(chan)->context_attach = nvc0_fifo_context_attach;
 	nv_parent(chan)->context_detach = nvc0_fifo_context_detach;
 
 	usermem = chan->base.chid * 0x1000;
-	ioffset = args->ioffset;
-	ilength = order_base_2(args->ilength / 8);
+	ioffset = args->v0.ioffset;
+	ilength = order_base_2(args->v0.ilength / 8);
 
 	for (i = 0; i < 0x1000; i += 4)
 		nv_wo32(priv->user.mem, usermem + i, 0x00000000);
@@ -297,7 +308,7 @@ nvc0_fifo_ofuncs = {
 
 static struct nouveau_oclass
 nvc0_fifo_sclass[] = {
-	{ NVC0_CHANNEL_IND_CLASS, &nvc0_fifo_ofuncs },
+	{ FERMI_CHANNEL_GPFIFO, &nvc0_fifo_ofuncs },
 	{}
 };
 
@@ -654,7 +665,7 @@ nvc0_fifo_intr_fault(struct nvc0_fifo_priv *priv, int unit)
 	object = engctx;
 	while (object) {
 		switch (nv_mclass(object)) {
-		case NVC0_CHANNEL_IND_CLASS:
+		case FERMI_CHANNEL_GPFIFO:
 			nvc0_fifo_recover(priv, engine, (void *)object);
 			break;
 		}

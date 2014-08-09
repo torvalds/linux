@@ -52,10 +52,10 @@ nv04_dmaobj_bind(struct nouveau_dmaobj *dmaobj,
 
 	if (!nv_iclass(parent, NV_ENGCTX_CLASS)) {
 		switch (nv_mclass(parent->parent)) {
-		case NV03_CHANNEL_DMA_CLASS:
-		case NV10_CHANNEL_DMA_CLASS:
-		case NV17_CHANNEL_DMA_CLASS:
-		case NV40_CHANNEL_DMA_CLASS:
+		case NV03_CHANNEL_DMA:
+		case NV10_CHANNEL_DMA:
+		case NV17_CHANNEL_DMA:
+		case NV40_CHANNEL_DMA:
 			break;
 		default:
 			return -EINVAL;

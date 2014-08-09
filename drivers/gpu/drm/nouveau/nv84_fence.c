@@ -75,8 +75,7 @@ nv84_fence_emit(struct nouveau_fence *fence)
 {
 	struct nouveau_channel *chan = fence->channel;
 	struct nv84_fence_chan *fctx = chan->fence;
-	struct nouveau_fifo_chan *fifo = nvkm_fifo_chan(chan);
-	u64 addr = fifo->chid * 16;
+	u64 addr = chan->chid * 16;
 
 	if (fence->sysmem)
 		addr += fctx->vma_gart.offset;
@@ -91,8 +90,7 @@ nv84_fence_sync(struct nouveau_fence *fence,
 		struct nouveau_channel *prev, struct nouveau_channel *chan)
 {
 	struct nv84_fence_chan *fctx = chan->fence;
-	struct nouveau_fifo_chan *fifo = nvkm_fifo_chan(prev);
-	u64 addr = fifo->chid * 16;
+	u64 addr = prev->chid * 16;
 
 	if (fence->sysmem)
 		addr += fctx->vma_gart.offset;
@@ -105,9 +103,8 @@ nv84_fence_sync(struct nouveau_fence *fence,
 static u32
 nv84_fence_read(struct nouveau_channel *chan)
 {
-	struct nouveau_fifo_chan *fifo = nvkm_fifo_chan(chan);
 	struct nv84_fence_priv *priv = chan->drm->fence;
-	return nouveau_bo_rd32(priv->bo, fifo->chid * 16/4);
+	return nouveau_bo_rd32(priv->bo, chan->chid * 16/4);
 }
 
 static void
@@ -133,7 +130,6 @@ nv84_fence_context_del(struct nouveau_channel *chan)
 int
 nv84_fence_context_new(struct nouveau_channel *chan)
 {
-	struct nouveau_fifo_chan *fifo = nvkm_fifo_chan(chan);
 	struct nouveau_cli *cli = (void *)nvif_client(&chan->device->base);
 	struct nv84_fence_priv *priv = chan->drm->fence;
 	struct nv84_fence_chan *fctx;
@@ -162,7 +158,7 @@ nv84_fence_context_new(struct nouveau_channel *chan)
 		ret = nouveau_bo_vma_add(bo, cli->vm, &fctx->dispc_vma[i]);
 	}
 
-	nouveau_bo_wr32(priv->bo, fifo->chid * 16/4, 0x00000000);
+	nouveau_bo_wr32(priv->bo, chan->chid * 16/4, 0x00000000);
 
 	if (ret)
 		nv84_fence_context_del(chan);

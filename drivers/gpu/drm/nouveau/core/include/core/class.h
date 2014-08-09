@@ -3,62 +3,6 @@
 
 #include <nvif/class.h>
 
-/* DMA FIFO channel classes
- *
- * 006b: NV03_CHANNEL_DMA
- * 006e: NV10_CHANNEL_DMA
- * 176e: NV17_CHANNEL_DMA
- * 406e: NV40_CHANNEL_DMA
- * 506e: NV50_CHANNEL_DMA
- * 826e: NV84_CHANNEL_DMA
- */
-#define NV03_CHANNEL_DMA_CLASS                                       0x0000006b
-#define NV10_CHANNEL_DMA_CLASS                                       0x0000006e
-#define NV17_CHANNEL_DMA_CLASS                                       0x0000176e
-#define NV40_CHANNEL_DMA_CLASS                                       0x0000406e
-#define NV50_CHANNEL_DMA_CLASS                                       0x0000506e
-#define NV84_CHANNEL_DMA_CLASS                                       0x0000826e
-
-struct nv03_channel_dma_class {
-	u32 pushbuf;
-	u32 pad0;
-	u64 offset;
-};
-
-/* Indirect FIFO channel classes
- *
- * 506f: NV50_CHANNEL_IND
- * 826f: NV84_CHANNEL_IND
- * 906f: NVC0_CHANNEL_IND
- * a06f: NVE0_CHANNEL_IND
- */
-
-#define NV50_CHANNEL_IND_CLASS                                       0x0000506f
-#define NV84_CHANNEL_IND_CLASS                                       0x0000826f
-#define NVC0_CHANNEL_IND_CLASS                                       0x0000906f
-#define NVE0_CHANNEL_IND_CLASS                                       0x0000a06f
-
-struct nv50_channel_ind_class {
-	u32 pushbuf;
-	u32 ilength;
-	u64 ioffset;
-};
-
-#define NVE0_CHANNEL_IND_ENGINE_GR                                   0x00000001
-#define NVE0_CHANNEL_IND_ENGINE_VP                                   0x00000002
-#define NVE0_CHANNEL_IND_ENGINE_PPP                                  0x00000004
-#define NVE0_CHANNEL_IND_ENGINE_BSP                                  0x00000008
-#define NVE0_CHANNEL_IND_ENGINE_CE0                                  0x00000010
-#define NVE0_CHANNEL_IND_ENGINE_CE1                                  0x00000020
-#define NVE0_CHANNEL_IND_ENGINE_ENC                                  0x00000040
-
-struct nve0_channel_ind_class {
-	u32 pushbuf;
-	u32 ilength;
-	u64 ioffset;
-	u32 engine;
-};
-
 /* 0046: NV04_DISP
  */
 

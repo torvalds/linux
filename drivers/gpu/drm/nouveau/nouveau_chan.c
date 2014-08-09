@@ -187,14 +187,18 @@ static int
 nouveau_channel_ind(struct nouveau_drm *drm, struct nvif_device *device,
 		    u32 handle, u32 engine, struct nouveau_channel **pchan)
 {
-	static const u16 oclasses[] = { NVE0_CHANNEL_IND_CLASS,
-					NVC0_CHANNEL_IND_CLASS,
-					NV84_CHANNEL_IND_CLASS,
-					NV50_CHANNEL_IND_CLASS,
+	static const u16 oclasses[] = { KEPLER_CHANNEL_GPFIFO_A,
+					FERMI_CHANNEL_GPFIFO,
+					G82_CHANNEL_GPFIFO,
+					NV50_CHANNEL_GPFIFO,
 					0 };
 	const u16 *oclass = oclasses;
-	struct nve0_channel_ind_class args;
+	union {
+		struct nv50_channel_gpfifo_v0 nv50;
+		struct kepler_channel_gpfifo_a_v0 kepler;
+	} args, *retn;
 	struct nouveau_channel *chan;
+	u32 size;
 	int ret;
 
 	/* allocate dma push buffer */
@@ -204,16 +208,32 @@ nouveau_channel_ind(struct nouveau_drm *drm, struct nvif_device *device,
 		return ret;
 
 	/* create channel object */
-	args.pushbuf = chan->push.ctxdma.handle;
-	args.ioffset = 0x10000 + chan->push.vma.offset;
-	args.ilength = 0x02000;
-	args.engine  = engine;
-
 	do {
+		if (oclass[0] >= KEPLER_CHANNEL_GPFIFO_A) {
+			args.kepler.version = 0;
+			args.kepler.engine  = engine;
+			args.kepler.pushbuf = chan->push.ctxdma.handle;
+			args.kepler.ilength = 0x02000;
+			args.kepler.ioffset = 0x10000 + chan->push.vma.offset;
+			size = sizeof(args.kepler);
+		} else {
+			args.nv50.version = 0;
+			args.nv50.pushbuf = chan->push.ctxdma.handle;
+			args.nv50.ilength = 0x02000;
+			args.nv50.ioffset = 0x10000 + chan->push.vma.offset;
+			size = sizeof(args.nv50);
+		}
+
 		ret = nvif_object_new(nvif_object(device), handle, *oclass++,
-				     &args, sizeof(args), &chan->object);
-		if (ret == 0)
+				      &args, size, &chan->object);
+		if (ret == 0) {
+			retn = chan->object->data;
+			if (chan->object->oclass >= KEPLER_CHANNEL_GPFIFO_A)
+				chan->chid = retn->kepler.chid;
+			else
+				chan->chid = retn->nv50.chid;
 			return ret;
+		}
 	} while (*oclass);
 
 	nouveau_channel_del(pchan);
@@ -224,13 +244,13 @@ static int
 nouveau_channel_dma(struct nouveau_drm *drm, struct nvif_device *device,
 		    u32 handle, struct nouveau_channel **pchan)
 {
-	static const u16 oclasses[] = { NV40_CHANNEL_DMA_CLASS,
-					NV17_CHANNEL_DMA_CLASS,
-					NV10_CHANNEL_DMA_CLASS,
-					NV03_CHANNEL_DMA_CLASS,
+	static const u16 oclasses[] = { NV40_CHANNEL_DMA,
+					NV17_CHANNEL_DMA,
+					NV10_CHANNEL_DMA,
+					NV03_CHANNEL_DMA,
 					0 };
 	const u16 *oclass = oclasses;
-	struct nv03_channel_dma_class args;
+	struct nv03_channel_dma_v0 args, *retn;
 	struct nouveau_channel *chan;
 	int ret;
 
@@ -241,14 +261,18 @@ nouveau_channel_dma(struct nouveau_drm *drm, struct nvif_device *device,
 		return ret;
 
 	/* create channel object */
+	args.version = 0;
 	args.pushbuf = chan->push.ctxdma.handle;
 	args.offset = chan->push.vma.offset;
 
 	do {
 		ret = nvif_object_new(nvif_object(device), handle, *oclass++,
-				     &args, sizeof(args), &chan->object);
-		if (ret == 0)
+				      &args, sizeof(args), &chan->object);
+		if (ret == 0) {
+			retn = chan->object->data;
+			chan->chid = retn->chid;
 			return ret;
+		}
 	} while (ret && *oclass);
 
 	nouveau_channel_del(pchan);

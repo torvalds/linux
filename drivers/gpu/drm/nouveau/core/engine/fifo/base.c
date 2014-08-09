@@ -26,7 +26,8 @@
 #include <core/object.h>
 #include <core/handle.h>
 #include <core/event.h>
-#include <core/class.h>
+#include <nvif/unpack.h>
+#include <nvif/class.h>
 
 #include <engine/dmaobj.h>
 #include <engine/fifo.h>

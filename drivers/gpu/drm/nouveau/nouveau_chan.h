@@ -8,6 +8,8 @@ struct nouveau_channel {
 	struct nvif_device *device;
 	struct nouveau_drm *drm;
 
+	int chid;
+
 	struct nvif_object vram;
 	struct nvif_object gart;
 	struct nvif_object nvsw;

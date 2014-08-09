@@ -12,6 +12,18 @@
 #define NV_DMA_TO_MEMORY                                             0x00000003
 #define NV_DMA_IN_MEMORY                                             0x0000003d
 
+#define NV03_CHANNEL_DMA                                             0x0000006b
+#define NV10_CHANNEL_DMA                                             0x0000006e
+#define NV17_CHANNEL_DMA                                             0x0000176e
+#define NV40_CHANNEL_DMA                                             0x0000406e
+#define NV50_CHANNEL_DMA                                             0x0000506e
+#define G82_CHANNEL_DMA                                              0x0000826e
+
+#define NV50_CHANNEL_GPFIFO                                          0x0000506f
+#define G82_CHANNEL_GPFIFO                                           0x0000826f
+#define FERMI_CHANNEL_GPFIFO                                         0x0000906f
+#define KEPLER_CHANNEL_GPFIFO_A                                      0x0000a06f
+
 
 /*******************************************************************************
  * client
@@ -231,6 +243,50 @@ struct nvif_control_pstate_user_v0 {
 	__s8  ustate; /*  in: pstate identifier */
 	__s8  pwrsrc; /*  in: target power source */
 	__u8  pad03[5];
+};
+
+
+/*******************************************************************************
+ * DMA FIFO channels
+ ******************************************************************************/
+
+struct nv03_channel_dma_v0 {
+	__u8  version;
+	__u8  chid;
+	__u8  pad02[2];
+	__u32 pushbuf;
+	__u64 offset;
+};
+
+
+/*******************************************************************************
+ * GPFIFO channels
+ ******************************************************************************/
+
+struct nv50_channel_gpfifo_v0 {
+	__u8  version;
+	__u8  chid;
+	__u8  pad01[6];
+	__u32 pushbuf;
+	__u32 ilength;
+	__u64 ioffset;
+};
+
+struct kepler_channel_gpfifo_a_v0 {
+	__u8  version;
+#define KEPLER_CHANNEL_GPFIFO_A_V0_ENGINE_GR                               0x01
+#define KEPLER_CHANNEL_GPFIFO_A_V0_ENGINE_VP                               0x02
+#define KEPLER_CHANNEL_GPFIFO_A_V0_ENGINE_PPP                              0x04
+#define KEPLER_CHANNEL_GPFIFO_A_V0_ENGINE_BSP                              0x08
+#define KEPLER_CHANNEL_GPFIFO_A_V0_ENGINE_CE0                              0x10
+#define KEPLER_CHANNEL_GPFIFO_A_V0_ENGINE_CE1                              0x20
+#define KEPLER_CHANNEL_GPFIFO_A_V0_ENGINE_ENC                              0x40
+	__u8  engine;
+	__u16 chid;
+	__u8  pad04[4];
+	__u32 pushbuf;
+	__u32 ilength;
+	__u64 ioffset;
 };
 
 #endif

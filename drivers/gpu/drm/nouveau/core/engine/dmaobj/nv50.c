@@ -48,10 +48,9 @@ nv50_dmaobj_bind(struct nouveau_dmaobj *dmaobj,
 
 	if (!nv_iclass(parent, NV_ENGCTX_CLASS)) {
 		switch (nv_mclass(parent->parent)) {
-		case NV50_CHANNEL_DMA_CLASS:
-		case NV84_CHANNEL_DMA_CLASS:
-		case NV50_CHANNEL_IND_CLASS:
-		case NV84_CHANNEL_IND_CLASS:
+		case NV40_CHANNEL_DMA:
+		case NV50_CHANNEL_GPFIFO:
+		case G82_CHANNEL_GPFIFO:
 		case NV50_DISP_MAST_CLASS:
 		case NV84_DISP_MAST_CLASS:
 		case NV94_DISP_MAST_CLASS:

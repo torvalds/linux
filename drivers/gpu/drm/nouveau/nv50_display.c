@@ -410,7 +410,7 @@ nv50_display_flip_next(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	if (unlikely(push == NULL))
 		return -EBUSY;
 
-	if (chan && chan->object->oclass < NV84_CHANNEL_IND_CLASS) {
+	if (chan && chan->object->oclass < G82_CHANNEL_GPFIFO) {
 		ret = RING_SPACE(chan, 8);
 		if (ret)
 			return ret;
@@ -424,7 +424,7 @@ nv50_display_flip_next(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 		OUT_RING  (chan, sync->addr);
 		OUT_RING  (chan, sync->data);
 	} else
-	if (chan && chan->object->oclass < NVC0_CHANNEL_IND_CLASS) {
+	if (chan && chan->object->oclass < FERMI_CHANNEL_GPFIFO) {
 		u64 addr = nv84_fence_crtc(chan, nv_crtc->index) + sync->addr;
 		ret = RING_SPACE(chan, 12);
 		if (ret)

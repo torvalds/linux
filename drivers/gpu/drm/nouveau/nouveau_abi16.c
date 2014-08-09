@@ -257,13 +257,13 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 	/* hack to allow channel engine type specification on kepler */
 	if (device->info.family >= NV_DEVICE_INFO_V0_KEPLER) {
 		if (init->fb_ctxdma_handle != ~0)
-			init->fb_ctxdma_handle = NVE0_CHANNEL_IND_ENGINE_GR;
+			init->fb_ctxdma_handle = KEPLER_CHANNEL_GPFIFO_A_V0_ENGINE_GR;
 		else
 			init->fb_ctxdma_handle = init->tt_ctxdma_handle;
 
 		/* allow flips to be executed if this is a graphics channel */
 		init->tt_ctxdma_handle = 0;
-		if (init->fb_ctxdma_handle == NVE0_CHANNEL_IND_ENGINE_GR)
+		if (init->fb_ctxdma_handle == KEPLER_CHANNEL_GPFIFO_A_V0_ENGINE_GR)
 			init->tt_ctxdma_handle = 1;
 	}
 

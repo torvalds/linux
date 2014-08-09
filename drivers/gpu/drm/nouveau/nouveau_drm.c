@@ -156,24 +156,24 @@ nouveau_accel_init(struct nouveau_drm *drm)
 
 	for (ret = -ENOSYS, i = 0; ret && i < ARRAY_SIZE(sclass); i++) {
 		switch (sclass[i]) {
-		case NV03_CHANNEL_DMA_CLASS:
+		case NV03_CHANNEL_DMA:
 			ret = nv04_fence_create(drm);
 			break;
-		case NV10_CHANNEL_DMA_CLASS:
+		case NV10_CHANNEL_DMA:
 			ret = nv10_fence_create(drm);
 			break;
-		case NV17_CHANNEL_DMA_CLASS:
-		case NV40_CHANNEL_DMA_CLASS:
+		case NV17_CHANNEL_DMA:
+		case NV40_CHANNEL_DMA:
 			ret = nv17_fence_create(drm);
 			break;
-		case NV50_CHANNEL_IND_CLASS:
+		case NV50_CHANNEL_GPFIFO:
 			ret = nv50_fence_create(drm);
 			break;
-		case NV84_CHANNEL_IND_CLASS:
+		case G82_CHANNEL_GPFIFO:
 			ret = nv84_fence_create(drm);
 			break;
-		case NVC0_CHANNEL_IND_CLASS:
-		case NVE0_CHANNEL_IND_CLASS:
+		case FERMI_CHANNEL_GPFIFO:
+		case KEPLER_CHANNEL_GPFIFO_A:
 			ret = nvc0_fence_create(drm);
 			break;
 		default:
@@ -189,13 +189,13 @@ nouveau_accel_init(struct nouveau_drm *drm)
 
 	if (device->info.family >= NV_DEVICE_INFO_V0_KEPLER) {
 		ret = nouveau_channel_new(drm, &drm->device, NVDRM_CHAN + 1,
-					  NVE0_CHANNEL_IND_ENGINE_CE0 |
-					  NVE0_CHANNEL_IND_ENGINE_CE1, 0,
-					  &drm->cechan);
+					  KEPLER_CHANNEL_GPFIFO_A_V0_ENGINE_CE0|
+					  KEPLER_CHANNEL_GPFIFO_A_V0_ENGINE_CE1,
+					  0, &drm->cechan);
 		if (ret)
 			NV_ERROR(drm, "failed to create ce channel, %d\n", ret);
 
-		arg0 = NVE0_CHANNEL_IND_ENGINE_GR;
+		arg0 = KEPLER_CHANNEL_GPFIFO_A_V0_ENGINE_GR;
 		arg1 = 1;
 	} else
 	if (device->info.chipset >= 0xa3 &&
