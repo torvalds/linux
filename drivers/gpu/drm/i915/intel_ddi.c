@@ -169,14 +169,14 @@ static void intel_prepare_ddi_buffers(struct drm_device *dev, enum port port)
 		ddi_translations_dp = bdw_ddi_translations_dp;
 		ddi_translations_edp = bdw_ddi_translations_edp;
 		ddi_translations_hdmi = bdw_ddi_translations_hdmi;
-		n_hdmi_entries = ARRAY_SIZE(bdw_ddi_translations_hdmi);
+		n_hdmi_entries = ARRAY_SIZE(bdw_ddi_translations_hdmi) / 2;
 		hdmi_800mV_0dB = 7;
 	} else if (IS_HASWELL(dev)) {
 		ddi_translations_fdi = hsw_ddi_translations_fdi;
 		ddi_translations_dp = hsw_ddi_translations_dp;
 		ddi_translations_edp = hsw_ddi_translations_dp;
 		ddi_translations_hdmi = hsw_ddi_translations_hdmi;
-		n_hdmi_entries = ARRAY_SIZE(hsw_ddi_translations_hdmi);
+		n_hdmi_entries = ARRAY_SIZE(hsw_ddi_translations_hdmi) / 2;
 		hdmi_800mV_0dB = 6;
 	} else {
 		WARN(1, "ddi translation table missing\n");
@@ -184,7 +184,7 @@ static void intel_prepare_ddi_buffers(struct drm_device *dev, enum port port)
 		ddi_translations_fdi = bdw_ddi_translations_fdi;
 		ddi_translations_dp = bdw_ddi_translations_dp;
 		ddi_translations_hdmi = bdw_ddi_translations_hdmi;
-		n_hdmi_entries = ARRAY_SIZE(bdw_ddi_translations_hdmi);
+		n_hdmi_entries = ARRAY_SIZE(bdw_ddi_translations_hdmi) / 2;
 		hdmi_800mV_0dB = 7;
 	}
 
