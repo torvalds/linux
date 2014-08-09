@@ -180,7 +180,7 @@ void flush_tlb_current_task(void)
  *
  * This is in units of pages.
  */
-unsigned long tlb_single_page_flush_ceiling = 33;
+static unsigned long tlb_single_page_flush_ceiling __read_mostly = 33;
 
 void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
 				unsigned long end, unsigned long vmflag)
