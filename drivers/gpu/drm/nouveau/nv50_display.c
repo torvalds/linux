@@ -1590,14 +1590,25 @@ nv50_dac_disconnect(struct drm_encoder *encoder)
 static enum drm_connector_status
 nv50_dac_detect(struct drm_encoder *encoder, struct drm_connector *connector)
 {
+	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct nv50_disp *disp = nv50_disp(encoder->dev);
-	int ret, or = nouveau_encoder(encoder)->or;
-	u32 load = nouveau_drm(encoder->dev)->vbios.dactestval;
-	if (load == 0)
-		load = 340;
+	struct {
+		struct nv50_disp_mthd_v1 base;
+		struct nv50_disp_dac_load_v0 load;
+	} args = {
+		.base.version = 1,
+		.base.method = NV50_DISP_MTHD_V1_DAC_LOAD,
+		.base.hasht  = nv_encoder->dcb->hasht,
+		.base.hashm  = nv_encoder->dcb->hashm,
+	};
+	int ret;
 
-	ret = nvif_exec(disp->disp, NV50_DISP_DAC_LOAD + or, &load, sizeof(load));
-	if (ret || !load)
+	args.load.data = nouveau_drm(encoder->dev)->vbios.dactestval;
+	if (args.load.data == 0)
+		args.load.data = 340;
+
+	ret = nvif_mthd(disp->disp, 0, &args, sizeof(args));
+	if (ret || !args.load.load)
 		return connector_status_disconnected;
 
 	return connector_status_connected;

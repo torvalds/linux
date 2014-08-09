@@ -901,6 +901,8 @@ nv50_disp_base_mthd(struct nouveau_object *object, u32 mthd,
 	switch (mthd * !!outp) {
 	case NV50_DISP_MTHD_V1_DAC_PWR:
 		return priv->dac.power(object, priv, data, size, head, outp);
+	case NV50_DISP_MTHD_V1_DAC_LOAD:
+		return priv->dac.sense(object, priv, data, size, head, outp);
 	default:
 		break;
 	}
@@ -1031,7 +1033,6 @@ nv50_disp_base_omthds[] = {
 	{ HEAD_MTHD(NV50_DISP_SCANOUTPOS)     , nv50_disp_base_scanoutpos },
 	{ SOR_MTHD(NV50_DISP_SOR_PWR)         , nv50_sor_mthd },
 	{ SOR_MTHD(NV50_DISP_SOR_LVDS_SCRIPT) , nv50_sor_mthd },
-	{ DAC_MTHD(NV50_DISP_DAC_LOAD)        , nv50_dac_mthd },
 	{ PIOR_MTHD(NV50_DISP_PIOR_PWR)       , nv50_pior_mthd },
 	{ PIOR_MTHD(NV50_DISP_PIOR_TMDS_PWR)  , nv50_pior_mthd },
 	{ PIOR_MTHD(NV50_DISP_PIOR_DP_PWR)    , nv50_pior_mthd },
