@@ -1482,7 +1482,6 @@ nv50_dac_dpms(struct drm_encoder *encoder, int mode)
 			      mode != DRM_MODE_DPMS_OFF),
 	};
 
-
 	nvif_mthd(disp->disp, 0, &args, sizeof(args));
 }
 
@@ -1742,8 +1741,18 @@ static void
 nv50_sor_dpms(struct drm_encoder *encoder, int mode)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+	struct nv50_disp *disp = nv50_disp(encoder->dev);
+	struct {
+		struct nv50_disp_mthd_v1 base;
+		struct nv50_disp_sor_pwr_v0 pwr;
+	} args = {
+		.base.version = 1,
+		.base.method = NV50_DISP_MTHD_V1_SOR_PWR,
+		.base.hasht  = nv_encoder->dcb->hasht,
+		.base.hashm  = nv_encoder->dcb->hashm,
+		.pwr.state = mode == DRM_MODE_DPMS_ON,
+	};
 	struct drm_device *dev = encoder->dev;
-	struct nv50_disp *disp = nv50_disp(dev);
 	struct drm_encoder *partner;
 	u32 mthd, data;
 
@@ -1768,15 +1777,14 @@ nv50_sor_dpms(struct drm_encoder *encoder, int mode)
 	mthd |= nv_encoder->or;
 
 	if (nv_encoder->dcb->type == DCB_OUTPUT_DP) {
-		data = 1;
-		nvif_exec(disp->disp, NV50_DISP_SOR_PWR | mthd, &data, sizeof(data));
+		args.pwr.state = 1;
+		nvif_mthd(disp->disp, 0, &args, sizeof(args));
+		data  = (mode == DRM_MODE_DPMS_ON);
 		mthd |= NV94_DISP_SOR_DP_PWR;
+		nvif_exec(disp->disp, mthd, &data, sizeof(data));
 	} else {
-		mthd |= NV50_DISP_SOR_PWR;
+		nvif_mthd(disp->disp, 0, &args, sizeof(args));
 	}
-
-	data = (mode == DRM_MODE_DPMS_ON);
-	nvif_exec(disp->disp, mthd, &data, sizeof(data));
 }
 
 static bool
