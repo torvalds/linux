@@ -305,6 +305,7 @@ nvc0_fifo_ofuncs = {
 	.map  = _nouveau_fifo_channel_map,
 	.rd32 = _nouveau_fifo_channel_rd32,
 	.wr32 = _nouveau_fifo_channel_wr32,
+	.ntfy = _nouveau_fifo_channel_ntfy
 };
 
 static struct nouveau_oclass
@@ -742,7 +743,7 @@ nvc0_fifo_intr_engine_unit(struct nvc0_fifo_priv *priv, int engn)
 	for (unkn = 0; unkn < 8; unkn++) {
 		u32 ints = (intr >> (unkn * 0x04)) & inte;
 		if (ints & 0x1) {
-			nvkm_event_send(&priv->base.uevent, 1, 0, NULL, 0);
+			nouveau_fifo_uevent(&priv->base);
 			ints &= ~1;
 		}
 		if (ints) {
@@ -852,21 +853,9 @@ nvc0_fifo_uevent_fini(struct nvkm_event *event, int type, int index)
 	nv_mask(fifo, 0x002140, 0x80000000, 0x00000000);
 }
 
-static int
-nvc0_fifo_uevent_ctor(void *data, u32 size, struct nvkm_notify *notify)
-{
-	if (size == 0) {
-		notify->size  = 0;
-		notify->types = 1;
-		notify->index = 0;
-		return 0;
-	}
-	return -ENOSYS;
-}
-
 static const struct nvkm_event_func
 nvc0_fifo_uevent_func = {
-	.ctor = nvc0_fifo_uevent_ctor,
+	.ctor = nouveau_fifo_uevent_ctor,
 	.init = nvc0_fifo_uevent_init,
 	.fini = nvc0_fifo_uevent_fini,
 };

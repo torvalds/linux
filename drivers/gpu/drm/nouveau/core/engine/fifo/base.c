@@ -28,6 +28,7 @@
 #include <core/event.h>
 #include <nvif/unpack.h>
 #include <nvif/class.h>
+#include <nvif/event.h>
 
 #include <engine/dmaobj.h>
 #include <engine/fifo.h>
@@ -166,6 +167,49 @@ _nouveau_fifo_channel_wr32(struct nouveau_object *object, u64 addr, u32 data)
 			return;
 	}
 	iowrite32_native(data, chan->user + addr);
+}
+
+int
+nouveau_fifo_uevent_ctor(void *data, u32 size, struct nvkm_notify *notify)
+{
+	union {
+		struct nvif_notify_uevent_req none;
+	} *req = data;
+	int ret;
+
+	if (nvif_unvers(req->none)) {
+		notify->size  = sizeof(struct nvif_notify_uevent_rep);
+		notify->types = 1;
+		notify->index = 0;
+	}
+
+	return ret;
+}
+
+void
+nouveau_fifo_uevent(struct nouveau_fifo *fifo)
+{
+	struct nvif_notify_uevent_rep rep = {
+	};
+	nvkm_event_send(&fifo->uevent, 1, 0, &rep, sizeof(rep));
+}
+
+int
+_nouveau_fifo_channel_ntfy(struct nouveau_object *object, u32 type,
+			   struct nvkm_event **event)
+{
+	struct nouveau_fifo *fifo = (void *)object->engine;
+	switch (type) {
+	case G82_CHANNEL_DMA_V0_NTFY_UEVENT:
+		if (nv_mclass(object) >= G82_CHANNEL_DMA) {
+			*event = &fifo->uevent;
+			return 0;
+		}
+		break;
+	default:
+		break;
+	}
+	return -EINVAL;
 }
 
 static int

@@ -255,6 +255,7 @@ nv04_fifo_ofuncs = {
 	.map  = _nouveau_fifo_channel_map,
 	.rd32 = _nouveau_fifo_channel_rd32,
 	.wr32 = _nouveau_fifo_channel_wr32,
+	.ntfy = _nouveau_fifo_channel_ntfy
 };
 
 static struct nouveau_oclass
@@ -550,7 +551,7 @@ nv04_fifo_intr(struct nouveau_subdev *subdev)
 			}
 
 			if (status & 0x40000000) {
-				nvkm_event_send(&priv->base.uevent, 1, 0, NULL, 0);
+				nouveau_fifo_uevent(&priv->base);
 				nv_wr32(priv, 0x002100, 0x40000000);
 				status &= ~0x40000000;
 			}

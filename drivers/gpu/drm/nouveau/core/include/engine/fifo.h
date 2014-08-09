@@ -4,6 +4,7 @@
 #include <core/namedb.h>
 #include <core/gpuobj.h>
 #include <core/engine.h>
+#include <core/event.h>
 
 struct nouveau_fifo_chan {
 	struct nouveau_namedb base;
@@ -44,6 +45,7 @@ void _nouveau_fifo_channel_dtor(struct nouveau_object *);
 int  _nouveau_fifo_channel_map(struct nouveau_object *, u64 *, u32 *);
 u32  _nouveau_fifo_channel_rd32(struct nouveau_object *, u64);
 void _nouveau_fifo_channel_wr32(struct nouveau_object *, u64, u32);
+int  _nouveau_fifo_channel_ntfy(struct nouveau_object *, u32, struct nvkm_event **);
 
 struct nouveau_fifo_base {
 	struct nouveau_gpuobj base;
@@ -113,6 +115,9 @@ extern struct nouveau_oclass *nvc0_fifo_oclass;
 extern struct nouveau_oclass *nve0_fifo_oclass;
 extern struct nouveau_oclass *gk20a_fifo_oclass;
 extern struct nouveau_oclass *nv108_fifo_oclass;
+
+int  nouveau_fifo_uevent_ctor(void *, u32, struct nvkm_notify *);
+void nouveau_fifo_uevent(struct nouveau_fifo *);
 
 void nv04_fifo_intr(struct nouveau_subdev *);
 int  nv04_fifo_context_attach(struct nouveau_object *, struct nouveau_object *);

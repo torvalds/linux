@@ -258,6 +258,7 @@ struct nv03_channel_dma_v0 {
 	__u64 offset;
 };
 
+#define G82_CHANNEL_DMA_V0_NTFY_UEVENT                                     0x00
 
 /*******************************************************************************
  * GPFIFO channels

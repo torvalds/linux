@@ -51,4 +51,12 @@ struct nvif_notify_conn_rep_v0 {
 	__u8  pad02[6];
 };
 
+struct nvif_notify_uevent_req {
+	/* nvif_notify_req ... */
+};
+
+struct nvif_notify_uevent_rep {
+	/* nvif_notify_rep ... */
+};
+
 #endif

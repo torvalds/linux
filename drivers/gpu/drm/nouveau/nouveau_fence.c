@@ -29,6 +29,9 @@
 #include <linux/ktime.h>
 #include <linux/hrtimer.h>
 
+#include <nvif/notify.h>
+#include <nvif/event.h>
+
 #include "nouveau_drm.h"
 #include "nouveau_dma.h"
 #include "nouveau_fence.h"
@@ -165,16 +168,16 @@ nouveau_fence_done(struct nouveau_fence *fence)
 
 struct nouveau_fence_wait {
 	struct nouveau_fence_priv *priv;
-	struct nvkm_notify notify;
+	struct nvif_notify notify;
 };
 
 static int
-nouveau_fence_wait_uevent_handler(struct nvkm_notify *notify)
+nouveau_fence_wait_uevent_handler(struct nvif_notify *notify)
 {
 	struct nouveau_fence_wait *wait =
 		container_of(notify, typeof(*wait), notify);
 	wake_up_all(&wait->priv->waiting);
-	return NVKM_NOTIFY_KEEP;
+	return NVIF_NOTIFY_KEEP;
 }
 
 static int
@@ -182,18 +185,22 @@ nouveau_fence_wait_uevent(struct nouveau_fence *fence, bool intr)
 
 {
 	struct nouveau_channel *chan = fence->channel;
-	struct nouveau_fifo *pfifo = nvkm_fifo(chan->device);
 	struct nouveau_fence_priv *priv = chan->drm->fence;
 	struct nouveau_fence_wait wait = { .priv = priv };
 	int ret = 0;
 
-	ret = nvkm_notify_init(&pfifo->uevent,
+	ret = nvif_notify_init(chan->object, NULL,
 			       nouveau_fence_wait_uevent_handler, false,
-			       NULL, 0, 0, &wait.notify);
+			       G82_CHANNEL_DMA_V0_NTFY_UEVENT,
+			       &(struct nvif_notify_uevent_req) {
+			       },
+			       sizeof(struct nvif_notify_uevent_req),
+			       sizeof(struct nvif_notify_uevent_rep),
+			       &wait.notify);
 	if (ret)
 		return ret;
 
-	nvkm_notify_get(&wait.notify);
+	nvif_notify_get(&wait.notify);
 
 	if (fence->timeout) {
 		unsigned long timeout = fence->timeout - jiffies;
@@ -225,7 +232,7 @@ nouveau_fence_wait_uevent(struct nouveau_fence *fence, bool intr)
 		}
 	}
 
-	nvkm_notify_fini(&wait.notify);
+	nvif_notify_fini(&wait.notify);
 	if (unlikely(ret < 0))
 		return ret;
 
