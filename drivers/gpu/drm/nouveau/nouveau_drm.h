@@ -9,8 +9,8 @@
 #define DRIVER_DATE		"20120801"
 
 #define DRIVER_MAJOR		1
-#define DRIVER_MINOR		1
-#define DRIVER_PATCHLEVEL	2
+#define DRIVER_MINOR		2
+#define DRIVER_PATCHLEVEL	0
 
 /*
  * 1.1.1:
@@ -23,6 +23,9 @@
  *        bounds access to local memory to be silently ignored / return 0).
  * 1.1.2:
  *      - fixes multiple bugs in flip completion events and timestamping
+ * 1.2.0:
+ * 	- object api exposed to userspace
+ * 	- fermi,kepler,maxwell zbc
  */
 
 #include <nvif/client.h>
@@ -79,6 +82,8 @@ struct nouveau_cli {
 	struct list_head head;
 	struct mutex mutex;
 	void *abi16;
+	struct list_head objects;
+	struct list_head notifys;
 };
 
 static inline struct nouveau_cli *

@@ -37,6 +37,7 @@
 #include <nvif/ioctl.h>
 
 #include "nouveau_drm.h"
+#include "nouveau_usif.h"
 
 static void
 nvkm_client_unmap(void *priv, void *ptr, u32 size)
@@ -95,6 +96,8 @@ nvkm_client_ntfy(const void *header, u32 length, const void *data, u32 size)
 	switch (route) {
 	case NVDRM_NOTIFY_NVIF:
 		return nvif_notify(header, length, data, size);
+	case NVDRM_NOTIFY_USIF:
+		return usif_notify(header, length, data, size);
 	default:
 		WARN_ON(1);
 		break;

@@ -15,6 +15,7 @@ struct nvif_driver {
 };
 
 extern const struct nvif_driver nvif_driver_nvkm;
+extern const struct nvif_driver nvif_driver_drm;
 extern const struct nvif_driver nvif_driver_lib;
 
 #endif

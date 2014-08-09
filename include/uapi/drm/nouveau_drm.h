@@ -25,6 +25,8 @@
 #ifndef __NOUVEAU_DRM_H__
 #define __NOUVEAU_DRM_H__
 
+#define DRM_NOUVEAU_EVENT_NVIF                                       0x80000000
+
 /* reserved object handles when using deprecated object APIs - these
  * are here so that libdrm can allow interoperability with the new
  * object APIs
@@ -131,6 +133,7 @@ struct drm_nouveau_gem_cpu_fini {
 #define DRM_NOUVEAU_GROBJ_ALLOC        0x04 /* deprecated */
 #define DRM_NOUVEAU_NOTIFIEROBJ_ALLOC  0x05 /* deprecated */
 #define DRM_NOUVEAU_GPUOBJ_FREE        0x06 /* deprecated */
+#define DRM_NOUVEAU_NVIF               0x07
 #define DRM_NOUVEAU_GEM_NEW            0x40
 #define DRM_NOUVEAU_GEM_PUSHBUF        0x41
 #define DRM_NOUVEAU_GEM_CPU_PREP       0x42

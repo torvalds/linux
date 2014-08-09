@@ -50,6 +50,7 @@
 #include "nouveau_fbcon.h"
 #include "nouveau_fence.h"
 #include "nouveau_debugfs.h"
+#include "nouveau_usif.h"
 
 MODULE_PARM_DESC(config, "option string to pass to driver core");
 static char *nouveau_config;
@@ -107,8 +108,10 @@ nouveau_cli_create(u64 name, const char *sname,
 		int ret = nvif_client_init(NULL, NULL, sname, name,
 					   nouveau_config, nouveau_debug,
 					  &cli->base);
-		if (ret == 0)
+		if (ret == 0) {
 			mutex_init(&cli->mutex);
+			usif_client_init(cli);
+		}
 		return ret;
 	}
 	return -ENOMEM;
@@ -119,6 +122,7 @@ nouveau_cli_destroy(struct nouveau_cli *cli)
 {
 	nouveau_vm_ref(NULL, &nvkm_client(&cli->base)->vm, NULL);
 	nvif_client_fini(&cli->base);
+	usif_client_fini(cli);
 }
 
 static void
@@ -810,24 +814,31 @@ nouveau_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(NOUVEAU_GEM_INFO, nouveau_gem_ioctl_info, DRM_UNLOCKED|DRM_AUTH|DRM_RENDER_ALLOW),
 };
 
-long nouveau_drm_ioctl(struct file *filp,
-		       unsigned int cmd, unsigned long arg)
+long
+nouveau_drm_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
-	struct drm_file *file_priv = filp->private_data;
-	struct drm_device *dev;
+	struct drm_file *filp = file->private_data;
+	struct drm_device *dev = filp->minor->dev;
 	long ret;
-	dev = file_priv->minor->dev;
 
 	ret = pm_runtime_get_sync(dev->dev);
 	if (ret < 0 && ret != -EACCES)
 		return ret;
 
-	ret = drm_ioctl(filp, cmd, arg);
+	switch (_IOC_NR(cmd) - DRM_COMMAND_BASE) {
+	case DRM_NOUVEAU_NVIF:
+		ret = usif_ioctl(filp, (void __user *)arg, _IOC_SIZE(cmd));
+		break;
+	default:
+		ret = drm_ioctl(file, cmd, arg);
+		break;
+	}
 
 	pm_runtime_mark_last_busy(dev->dev);
 	pm_runtime_put_autosuspend(dev->dev);
 	return ret;
 }
+
 static const struct file_operations
 nouveau_driver_fops = {
 	.owner = THIS_MODULE,
