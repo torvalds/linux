@@ -8,24 +8,7 @@
 
 #define NV04_DISP_CLASS                                              0x00000046
 
-#define NV04_DISP_MTHD                                               0x00000000
-#define NV04_DISP_MTHD_HEAD                                          0x00000001
-
-#define NV04_DISP_SCANOUTPOS                                         0x00000000
-
 struct nv04_display_class {
-};
-
-struct nv04_display_scanoutpos {
-	s64 time[2];
-	u32 vblanks;
-	u32 vblanke;
-	u32 vtotal;
-	u32 vline;
-	u32 hblanks;
-	u32 hblanke;
-	u32 htotal;
-	u32 hline;
 };
 
 /* 5070: NV50_DISP
@@ -48,10 +31,6 @@ struct nv04_display_scanoutpos {
 #define NVE0_DISP_CLASS                                              0x00009170
 #define NVF0_DISP_CLASS                                              0x00009270
 #define GM107_DISP_CLASS                                             0x00009470
-
-#define NV50_DISP_MTHD_HEAD                                          0x00000003
-
-#define NV50_DISP_SCANOUTPOS                                         0x00000000
 
 struct nv50_display_class {
 };

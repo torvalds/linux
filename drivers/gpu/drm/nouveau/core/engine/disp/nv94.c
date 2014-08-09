@@ -71,15 +71,9 @@ nv94_disp_sclass[] = {
 	{}
 };
 
-static struct nouveau_omthds
-nv94_disp_base_omthds[] = {
-	{ HEAD_MTHD(NV50_DISP_SCANOUTPOS)     , nv50_disp_base_scanoutpos },
-	{},
-};
-
 static struct nouveau_oclass
 nv94_disp_base_oclass[] = {
-	{ NV94_DISP_CLASS, &nv50_disp_base_ofuncs, nv94_disp_base_omthds },
+	{ NV94_DISP_CLASS, &nv50_disp_base_ofuncs },
 	{}
 };
 
@@ -140,4 +134,5 @@ nv94_disp_oclass = &(struct nv50_disp_impl) {
 	.mthd.base = &nv84_disp_sync_mthd_chan,
 	.mthd.ovly = &nv84_disp_ovly_mthd_chan,
 	.mthd.prev = 0x000004,
+	.head.scanoutpos = nv50_disp_base_scanoutpos,
 }.base.base;

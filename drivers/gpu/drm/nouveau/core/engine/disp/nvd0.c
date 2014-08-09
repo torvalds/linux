@@ -23,9 +23,12 @@
  */
 
 #include <core/object.h>
+#include <core/client.h>
 #include <core/parent.h>
 #include <core/handle.h>
 #include <core/class.h>
+#include <nvif/unpack.h>
+#include <nvif/class.h>
 
 #include <engine/disp.h>
 
@@ -589,33 +592,35 @@ nvd0_disp_curs_ofuncs = {
  * Base display object
  ******************************************************************************/
 
-static int
-nvd0_disp_base_scanoutpos(struct nouveau_object *object, u32 mthd,
-			  void *data, u32 size)
+int
+nvd0_disp_base_scanoutpos(NV50_DISP_MTHD_V0)
 {
-	struct nv50_disp_priv *priv = (void *)object->engine;
-	struct nv04_display_scanoutpos *args = data;
-	const int head = (mthd & NV50_DISP_MTHD_HEAD);
-	u32 blanke, blanks, total;
+	const u32 total  = nv_rd32(priv, 0x640414 + (head * 0x300));
+	const u32 blanke = nv_rd32(priv, 0x64041c + (head * 0x300));
+	const u32 blanks = nv_rd32(priv, 0x640420 + (head * 0x300));
+	union {
+		struct nv04_disp_scanoutpos_v0 v0;
+	} *args = data;
+	int ret;
 
-	if (size < sizeof(*args) || head >= priv->head.nr)
-		return -EINVAL;
+	nv_ioctl(object, "disp scanoutpos size %d\n", size);
+	if (nvif_unpack(args->v0, 0, 0, false)) {
+		nv_ioctl(object, "disp scanoutpos vers %d\n", args->v0.version);
+		args->v0.vblanke = (blanke & 0xffff0000) >> 16;
+		args->v0.hblanke = (blanke & 0x0000ffff);
+		args->v0.vblanks = (blanks & 0xffff0000) >> 16;
+		args->v0.hblanks = (blanks & 0x0000ffff);
+		args->v0.vtotal  = ( total & 0xffff0000) >> 16;
+		args->v0.htotal  = ( total & 0x0000ffff);
+		args->v0.time[0] = ktime_to_ns(ktime_get());
+		args->v0.vline = /* vline read locks hline */
+			nv_rd32(priv, 0x616340 + (head * 0x800)) & 0xffff;
+		args->v0.time[1] = ktime_to_ns(ktime_get());
+		args->v0.hline =
+			nv_rd32(priv, 0x616344 + (head * 0x800)) & 0xffff;
+	} else
+		return ret;
 
-	total  = nv_rd32(priv, 0x640414 + (head * 0x300));
-	blanke = nv_rd32(priv, 0x64041c + (head * 0x300));
-	blanks = nv_rd32(priv, 0x640420 + (head * 0x300));
-
-	args->vblanke = (blanke & 0xffff0000) >> 16;
-	args->hblanke = (blanke & 0x0000ffff);
-	args->vblanks = (blanks & 0xffff0000) >> 16;
-	args->hblanks = (blanks & 0x0000ffff);
-	args->vtotal  = ( total & 0xffff0000) >> 16;
-	args->htotal  = ( total & 0x0000ffff);
-
-	args->time[0] = ktime_to_ns(ktime_get());
-	args->vline   = nv_rd32(priv, 0x616340 + (head * 0x800)) & 0xffff;
-	args->time[1] = ktime_to_ns(ktime_get()); /* vline read locks hline */
-	args->hline   = nv_rd32(priv, 0x616344 + (head * 0x800)) & 0xffff;
 	return 0;
 }
 
@@ -709,15 +714,9 @@ nvd0_disp_base_ofuncs = {
 	.mthd = nv50_disp_base_mthd,
 };
 
-struct nouveau_omthds
-nvd0_disp_base_omthds[] = {
-	{ HEAD_MTHD(NV50_DISP_SCANOUTPOS)     , nvd0_disp_base_scanoutpos },
-	{},
-};
-
 static struct nouveau_oclass
 nvd0_disp_base_oclass[] = {
-	{ NVD0_DISP_CLASS, &nvd0_disp_base_ofuncs, nvd0_disp_base_omthds },
+	{ NVD0_DISP_CLASS, &nvd0_disp_base_ofuncs },
 	{}
 };
 
@@ -1242,4 +1241,5 @@ nvd0_disp_oclass = &(struct nv50_disp_impl) {
 	.mthd.base = &nvd0_disp_sync_mthd_chan,
 	.mthd.ovly = &nvd0_disp_ovly_mthd_chan,
 	.mthd.prev = -0x020000,
+	.head.scanoutpos = nvd0_disp_base_scanoutpos,
 }.base.base;

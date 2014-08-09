@@ -71,6 +71,5 @@ void nvif_object_unmap(struct nvif_object *);
 /*XXX*/
 #include <core/object.h>
 #define nvkm_object(a) ((struct nouveau_object *)nvif_object(a)->priv)
-#define nvif_exec(a,b,c,d) nv_exec(nvkm_object(a), (b), (c), (d))
 
 #endif

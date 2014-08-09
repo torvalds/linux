@@ -95,17 +95,22 @@ int
 nouveau_display_scanoutpos_head(struct drm_crtc *crtc, int *vpos, int *hpos,
 				ktime_t *stime, ktime_t *etime)
 {
-	const u32 mthd = NV04_DISP_SCANOUTPOS + nouveau_crtc(crtc)->index;
+	struct {
+		struct nv04_disp_mthd_v0 base;
+		struct nv04_disp_scanoutpos_v0 scan;
+	} args = {
+		.base.method = NV04_DISP_SCANOUTPOS,
+		.base.head = nouveau_crtc(crtc)->index,
+	};
 	struct nouveau_display *disp = nouveau_display(crtc->dev);
-	struct nv04_display_scanoutpos args;
 	int ret, retry = 1;
 
 	do {
-		ret = nvif_exec(&disp->disp, mthd, &args, sizeof(args));
+		ret = nvif_mthd(&disp->disp, 0, &args, sizeof(args));
 		if (ret != 0)
 			return 0;
 
-		if (args.vline) {
+		if (args.scan.vline) {
 			ret |= DRM_SCANOUTPOS_ACCURATE;
 			ret |= DRM_SCANOUTPOS_VALID;
 			break;
@@ -114,10 +119,11 @@ nouveau_display_scanoutpos_head(struct drm_crtc *crtc, int *vpos, int *hpos,
 		if (retry) ndelay(crtc->linedur_ns);
 	} while (retry--);
 
-	*hpos = args.hline;
-	*vpos = calc(args.vblanks, args.vblanke, args.vtotal, args.vline);
-	if (stime) *stime = ns_to_ktime(args.time[0]);
-	if (etime) *etime = ns_to_ktime(args.time[1]);
+	*hpos = args.scan.hline;
+	*vpos = calc(args.scan.vblanks, args.scan.vblanke,
+		     args.scan.vtotal, args.scan.vline);
+	if (stime) *stime = ns_to_ktime(args.scan.time[0]);
+	if (etime) *etime = ns_to_ktime(args.scan.time[1]);
 
 	if (*vpos < 0)
 		ret |= DRM_SCANOUTPOS_INVBL;

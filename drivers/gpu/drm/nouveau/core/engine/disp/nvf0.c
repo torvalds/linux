@@ -45,7 +45,7 @@ nvf0_disp_sclass[] = {
 
 static struct nouveau_oclass
 nvf0_disp_base_oclass[] = {
-	{ NVF0_DISP_CLASS, &nvd0_disp_base_ofuncs, nvd0_disp_base_omthds },
+	{ NVF0_DISP_CLASS, &nvd0_disp_base_ofuncs },
 	{}
 };
 
@@ -99,4 +99,5 @@ nvf0_disp_oclass = &(struct nv50_disp_impl) {
 	.mthd.base = &nvd0_disp_sync_mthd_chan,
 	.mthd.ovly = &nve0_disp_ovly_mthd_chan,
 	.mthd.prev = -0x020000,
+	.head.scanoutpos = nvd0_disp_base_scanoutpos,
 }.base.base;
