@@ -216,7 +216,7 @@
 };
 
 &tve {
-	status = "disabled";
+	status = "okay";
 };
 
 &hdmi {
