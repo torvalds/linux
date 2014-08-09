@@ -28,6 +28,10 @@
 
 #include "nouveau_sysfs.h"
 
+MODULE_PARM_DESC(pstate, "enable sysfs pstate file, which will be moved in the future");
+static int nouveau_pstate;
+module_param_named(pstate, nouveau_pstate, int, 0400);
+
 static inline struct drm_device *
 drm_device(struct device *d)
 {
@@ -160,7 +164,7 @@ nouveau_sysfs_fini(struct drm_device *dev)
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nvif_device *device = &drm->device;
 
-	if (sysfs->ctrl.priv) {
+	if (sysfs && sysfs->ctrl.priv) {
 		device_remove_file(nv_device_base(nvkm_device(device)), &dev_attr_pstate);
 		nvif_object_fini(&sysfs->ctrl);
 	}
@@ -176,6 +180,9 @@ nouveau_sysfs_init(struct drm_device *dev)
 	struct nvif_device *device = &drm->device;
 	struct nouveau_sysfs *sysfs;
 	int ret;
+
+	if (!nouveau_pstate)
+		return 0;
 
 	sysfs = drm->sysfs = kzalloc(sizeof(*sysfs), GFP_KERNEL);
 	if (!sysfs)
