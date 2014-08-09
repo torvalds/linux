@@ -31,7 +31,6 @@
 #include <core/class.h>
 
 #include <drmP.h>
-#include <drm/nouveau_drm.h>
 
 #include <drm/ttm/ttm_bo_api.h>
 #include <drm/ttm/ttm_bo_driver.h>
@@ -39,6 +38,8 @@
 #include <drm/ttm/ttm_memory.h>
 #include <drm/ttm/ttm_module.h>
 #include <drm/ttm/ttm_page_alloc.h>
+
+#include "uapi/drm/nouveau_drm.h"
 
 struct nouveau_channel;
 struct platform_device;
