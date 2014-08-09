@@ -26,7 +26,8 @@
 #include <core/class.h>
 
 #include <subdev/fb.h>
-#include <engine/dmaobj.h>
+
+#include "priv.h"
 
 static int
 nouveau_dmaobj_ctor(struct nouveau_object *parent,
@@ -111,10 +112,30 @@ nouveau_dmaobj_ofuncs = {
 	.fini = nouveau_object_fini,
 };
 
-struct nouveau_oclass
+static struct nouveau_oclass
 nouveau_dmaobj_sclass[] = {
 	{ NV_DMA_FROM_MEMORY_CLASS, &nouveau_dmaobj_ofuncs },
 	{ NV_DMA_TO_MEMORY_CLASS, &nouveau_dmaobj_ofuncs },
 	{ NV_DMA_IN_MEMORY_CLASS, &nouveau_dmaobj_ofuncs },
 	{}
 };
+
+int
+_nvkm_dmaeng_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
+		  struct nouveau_oclass *oclass, void *data, u32 size,
+		  struct nouveau_object **pobject)
+{
+	const struct nvkm_dmaeng_impl *impl = (void *)oclass;
+	struct nouveau_dmaeng *dmaeng;
+	int ret;
+
+	ret = nouveau_engine_create(parent, engine, oclass, true, "DMAOBJ",
+				    "dmaobj", &dmaeng);
+	*pobject = nv_object(dmaeng);
+	if (ret)
+		return ret;
+
+	nv_engine(dmaeng)->sclass = nouveau_dmaobj_sclass;
+	dmaeng->bind = impl->bind;
+	return 0;
+}

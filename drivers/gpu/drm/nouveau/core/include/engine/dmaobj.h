@@ -25,24 +25,9 @@ struct nouveau_dmaeng {
 		    struct nouveau_gpuobj **);
 };
 
-#define nouveau_dmaeng_create(p,e,c,d)                                         \
-	nouveau_engine_create((p), (e), (c), true, "DMAOBJ", "dmaobj", (d))
-#define nouveau_dmaeng_destroy(p)                                              \
-	nouveau_engine_destroy(&(p)->base)
-#define nouveau_dmaeng_init(p)                                                 \
-	nouveau_engine_init(&(p)->base)
-#define nouveau_dmaeng_fini(p,s)                                               \
-	nouveau_engine_fini(&(p)->base, (s))
-
-#define _nouveau_dmaeng_dtor _nouveau_engine_dtor
-#define _nouveau_dmaeng_init _nouveau_engine_init
-#define _nouveau_dmaeng_fini _nouveau_engine_fini
-
-extern struct nouveau_oclass nv04_dmaeng_oclass;
-extern struct nouveau_oclass nv50_dmaeng_oclass;
-extern struct nouveau_oclass nvc0_dmaeng_oclass;
-extern struct nouveau_oclass nvd0_dmaeng_oclass;
-
-extern struct nouveau_oclass nouveau_dmaobj_sclass[];
+extern struct nouveau_oclass *nv04_dmaeng_oclass;
+extern struct nouveau_oclass *nv50_dmaeng_oclass;
+extern struct nouveau_oclass *nvc0_dmaeng_oclass;
+extern struct nouveau_oclass *nvd0_dmaeng_oclass;
 
 #endif

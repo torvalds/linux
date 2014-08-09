@@ -27,7 +27,8 @@
 #include <core/class.h>
 
 #include <subdev/fb.h>
-#include <engine/dmaobj.h>
+
+#include "priv.h"
 
 struct nvd0_dmaeng_priv {
 	struct nouveau_dmaeng base;
@@ -98,31 +99,14 @@ nvd0_dmaobj_bind(struct nouveau_dmaeng *dmaeng,
 	return ret;
 }
 
-static int
-nvd0_dmaeng_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-		 struct nouveau_oclass *oclass, void *data, u32 size,
-		 struct nouveau_object **pobject)
-{
-	struct nvd0_dmaeng_priv *priv;
-	int ret;
-
-	ret = nouveau_dmaeng_create(parent, engine, oclass, &priv);
-	*pobject = nv_object(priv);
-	if (ret)
-		return ret;
-
-	nv_engine(priv)->sclass = nouveau_dmaobj_sclass;
-	priv->base.bind = nvd0_dmaobj_bind;
-	return 0;
-}
-
-struct nouveau_oclass
-nvd0_dmaeng_oclass = {
-	.handle = NV_ENGINE(DMAOBJ, 0xd0),
-	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nvd0_dmaeng_ctor,
-		.dtor = _nouveau_dmaeng_dtor,
-		.init = _nouveau_dmaeng_init,
-		.fini = _nouveau_dmaeng_fini,
+struct nouveau_oclass *
+nvd0_dmaeng_oclass = &(struct nvkm_dmaeng_impl) {
+	.base.handle = NV_ENGINE(DMAOBJ, 0xd0),
+	.base.ofuncs = &(struct nouveau_ofuncs) {
+		.ctor = _nvkm_dmaeng_ctor,
+		.dtor = _nvkm_dmaeng_dtor,
+		.init = _nvkm_dmaeng_init,
+		.fini = _nvkm_dmaeng_fini,
 	},
-};
+	.bind = nvd0_dmaobj_bind,
+}.base;
