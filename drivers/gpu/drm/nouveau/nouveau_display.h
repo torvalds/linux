@@ -40,8 +40,6 @@ struct nouveau_display {
 	void (*fb_dtor)(struct drm_framebuffer *);
 
 	struct nouveau_object *core;
-	struct nouveau_eventh **vblank;
-
 
 	struct drm_property *dithering_mode;
 	struct drm_property *dithering_depth;

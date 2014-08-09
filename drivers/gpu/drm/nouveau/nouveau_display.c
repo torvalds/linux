@@ -44,28 +44,36 @@
 static int
 nouveau_display_vblank_handler(void *data, u32 type, int head)
 {
-	struct nouveau_drm *drm = data;
-	drm_handle_vblank(drm->dev, head);
+	struct nouveau_crtc *nv_crtc = data;
+	drm_handle_vblank(nv_crtc->base.dev, nv_crtc->index);
 	return NVKM_EVENT_KEEP;
 }
 
 int
 nouveau_display_vblank_enable(struct drm_device *dev, int head)
 {
-	struct nouveau_display *disp = nouveau_display(dev);
-	if (disp) {
-		nouveau_event_get(disp->vblank[head]);
-		return 0;
+	struct drm_crtc *crtc;
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+		struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
+		if (nv_crtc->index == head) {
+			nouveau_event_get(nv_crtc->vblank);
+			return 0;
+		}
 	}
-	return -EIO;
+	return -EINVAL;
 }
 
 void
 nouveau_display_vblank_disable(struct drm_device *dev, int head)
 {
-	struct nouveau_display *disp = nouveau_display(dev);
-	if (disp)
-		nouveau_event_put(disp->vblank[head]);
+	struct drm_crtc *crtc;
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+		struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
+		if (nv_crtc->index == head) {
+			nouveau_event_put(nv_crtc->vblank);
+			return;
+		}
+	}
 }
 
 static inline int
@@ -151,36 +159,29 @@ nouveau_display_vblstamp(struct drm_device *dev, int head, int *max_error,
 static void
 nouveau_display_vblank_fini(struct drm_device *dev)
 {
-	struct nouveau_display *disp = nouveau_display(dev);
-	int i;
+	struct drm_crtc *crtc;
 
 	drm_vblank_cleanup(dev);
 
-	if (disp->vblank) {
-		for (i = 0; i < dev->mode_config.num_crtc; i++)
-			nouveau_event_ref(NULL, &disp->vblank[i]);
-		kfree(disp->vblank);
-		disp->vblank = NULL;
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+		struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
+		nouveau_event_ref(NULL, &nv_crtc->vblank);
 	}
 }
 
 static int
 nouveau_display_vblank_init(struct drm_device *dev)
 {
-	struct nouveau_display *disp = nouveau_display(dev);
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_disp *pdisp = nouveau_disp(drm->device);
-	int ret, i;
+	struct drm_crtc *crtc;
+	int ret;
 
-	disp->vblank = kzalloc(dev->mode_config.num_crtc *
-			       sizeof(*disp->vblank), GFP_KERNEL);
-	if (!disp->vblank)
-		return -ENOMEM;
-
-	for (i = 0; i < dev->mode_config.num_crtc; i++) {
-		ret = nouveau_event_new(pdisp->vblank, 1, i,
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+		struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
+		ret = nouveau_event_new(pdisp->vblank, 1, nv_crtc->index,
 					nouveau_display_vblank_handler,
-					drm, &disp->vblank[i]);
+					nv_crtc, &nv_crtc->vblank);
 		if (ret) {
 			nouveau_display_vblank_fini(dev);
 			return ret;

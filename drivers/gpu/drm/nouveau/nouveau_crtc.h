@@ -31,6 +31,7 @@ struct nouveau_crtc {
 	struct drm_crtc base;
 
 	int index;
+	struct nouveau_eventh *vblank;
 
 	uint32_t dpms_saved_fp_control;
 	uint32_t fp_users;
