@@ -46,6 +46,7 @@ static int it913x_rd_regs(struct it913x_state *state,
 		{ .addr = state->i2c_addr, .flags = I2C_M_RD,
 			.buf = data, .len = count }
 	};
+
 	b[0] = (u8)(reg >> 16) & 0xff;
 	b[1] = (u8)(reg >> 8) & 0xff;
 	b[2] = (u8) reg & 0xff;
@@ -61,6 +62,7 @@ static int it913x_rd_reg(struct it913x_state *state, u32 reg)
 {
 	int ret;
 	u8 b[1];
+
 	ret = it913x_rd_regs(state, reg, &b[0], sizeof(b));
 	return (ret < 0) ? -ENODEV : b[0];
 }
@@ -75,6 +77,7 @@ static int it913x_wr_regs(struct it913x_state *state,
 		  .buf = b, .len = 3 + count }
 	};
 	int ret;
+
 	b[0] = (u8)(reg >> 16) & 0xff;
 	b[1] = (u8)(reg >> 8) & 0xff;
 	b[2] = (u8) reg & 0xff;
@@ -122,6 +125,7 @@ static int it913x_script_loader(struct it913x_state *state,
 		struct it913xset *loadscript)
 {
 	int ret, i;
+
 	if (loadscript == NULL)
 		return -EINVAL;
 
