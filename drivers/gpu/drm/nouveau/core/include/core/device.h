@@ -62,11 +62,6 @@ enum nv_subdev_type {
 	NVDEV_SUBDEV_NR,
 };
 
-enum nvkm_device_ntfy {
-	NVKM_DEVICE_NTFY_POWER = 0,
-	NVKM_DEVICE_NTFY
-};
-
 struct nouveau_device {
 	struct nouveau_engine base;
 	struct list_head head;
@@ -75,7 +70,7 @@ struct nouveau_device {
 	struct platform_device *platformdev;
 	u64 handle;
 
-	struct nouveau_event *ntfy;
+	struct nvkm_event event;
 
 	const char *cfgopt;
 	const char *dbgopt;

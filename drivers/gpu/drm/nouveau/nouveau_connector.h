@@ -67,9 +67,7 @@ struct nouveau_connector {
 	u8 index;
 	u8 *dcb;
 
-	struct nouveau_eventh *hpd;
-	u32 status;
-	struct work_struct work;
+	struct nvkm_notify hpd;
 
 	struct drm_dp_aux aux;
 

@@ -364,10 +364,28 @@ nouveau_devobj_ofuncs = {
 /******************************************************************************
  * nouveau_device: engine functions
  *****************************************************************************/
+
 static struct nouveau_oclass
 nouveau_device_sclass[] = {
 	{ 0x0080, &nouveau_devobj_ofuncs },
 	{}
+};
+
+static int
+nouveau_device_event_ctor(void *data, u32 size, struct nvkm_notify *notify)
+{
+	if (!WARN_ON(size != 0)) {
+		notify->size  = 0;
+		notify->types = 1;
+		notify->index = 0;
+		return 0;
+	}
+	return -EINVAL;
+}
+
+static const struct nvkm_event_func
+nouveau_device_event_func = {
+	.ctor = nouveau_device_event_ctor,
 };
 
 static int
@@ -445,7 +463,7 @@ nouveau_device_dtor(struct nouveau_object *object)
 {
 	struct nouveau_device *device = (void *)object;
 
-	nouveau_event_destroy(&device->ntfy);
+	nvkm_event_fini(&device->event);
 
 	mutex_lock(&nv_devices_mutex);
 	list_del(&device->head);
@@ -545,7 +563,8 @@ nouveau_device_create_(void *dev, enum nv_bus_type type, u64 name,
 	nv_engine(device)->sclass = nouveau_device_sclass;
 	list_add(&device->head, &nv_devices);
 
-	ret = nouveau_event_create(1, NVKM_DEVICE_NTFY, &device->ntfy);
+	ret = nvkm_event_init(&nouveau_device_event_func, 1, 1,
+			      &device->event);
 done:
 	mutex_unlock(&nv_devices_mutex);
 	return ret;

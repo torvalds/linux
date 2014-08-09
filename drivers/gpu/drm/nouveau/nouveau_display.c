@@ -40,13 +40,15 @@
 #include <engine/disp.h>
 
 #include <core/class.h>
+#include <nvif/event.h>
 
 static int
-nouveau_display_vblank_handler(void *data, u32 type, int head)
+nouveau_display_vblank_handler(struct nvkm_notify *notify)
 {
-	struct nouveau_crtc *nv_crtc = data;
+	struct nouveau_crtc *nv_crtc =
+		container_of(notify, typeof(*nv_crtc), vblank);
 	drm_handle_vblank(nv_crtc->base.dev, nv_crtc->index);
-	return NVKM_EVENT_KEEP;
+	return NVKM_NOTIFY_KEEP;
 }
 
 int
@@ -56,7 +58,7 @@ nouveau_display_vblank_enable(struct drm_device *dev, int head)
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 		if (nv_crtc->index == head) {
-			nouveau_event_get(nv_crtc->vblank);
+			nvkm_notify_get(&nv_crtc->vblank);
 			return 0;
 		}
 	}
@@ -70,7 +72,7 @@ nouveau_display_vblank_disable(struct drm_device *dev, int head)
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 		if (nv_crtc->index == head) {
-			nouveau_event_put(nv_crtc->vblank);
+			nvkm_notify_put(&nv_crtc->vblank);
 			return;
 		}
 	}
@@ -165,7 +167,7 @@ nouveau_display_vblank_fini(struct drm_device *dev)
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
-		nouveau_event_ref(NULL, &nv_crtc->vblank);
+		nvkm_notify_fini(&nv_crtc->vblank);
 	}
 }
 
@@ -179,9 +181,14 @@ nouveau_display_vblank_init(struct drm_device *dev)
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
-		ret = nouveau_event_new(pdisp->vblank, 1, nv_crtc->index,
-					nouveau_display_vblank_handler,
-					nv_crtc, &nv_crtc->vblank);
+		ret = nvkm_notify_init(&pdisp->vblank,
+				       nouveau_display_vblank_handler, false,
+				       &(struct nvif_notify_head_req_v0) {
+					.head = nv_crtc->index,
+				       },
+				       sizeof(struct nvif_notify_head_req_v0),
+				       sizeof(struct nvif_notify_head_rep_v0),
+				       &nv_crtc->vblank);
 		if (ret) {
 			nouveau_display_vblank_fini(dev);
 			return ret;
@@ -359,7 +366,7 @@ nouveau_display_init(struct drm_device *dev)
 	/* enable hotplug interrupts */
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		struct nouveau_connector *conn = nouveau_connector(connector);
-		if (conn->hpd) nouveau_event_get(conn->hpd);
+		nvkm_notify_get(&conn->hpd);
 	}
 
 	return ret;
@@ -379,7 +386,7 @@ nouveau_display_fini(struct drm_device *dev)
 	/* disable hotplug interrupts */
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		struct nouveau_connector *conn = nouveau_connector(connector);
-		if (conn->hpd) nouveau_event_put(conn->hpd);
+		nvkm_notify_put(&conn->hpd);
 	}
 
 	drm_kms_helper_poll_disable(dev);

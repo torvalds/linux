@@ -75,7 +75,7 @@ struct nouveau_clock {
 	wait_queue_head_t wait;
 	atomic_t waiting;
 
-	struct nouveau_eventh *pwrsrc_ntfy;
+	struct nvkm_notify pwrsrc_ntfy;
 	int pwrsrc;
 	int pstate; /* current */
 	int ustate_ac; /* user-requested (-1 disabled, -2 perfmon) */

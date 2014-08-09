@@ -31,6 +31,23 @@
 #include <engine/dmaobj.h>
 #include <engine/fifo.h>
 
+static int
+nouveau_fifo_event_ctor(void *data, u32 size, struct nvkm_notify *notify)
+{
+	if (size == 0) {
+		notify->size  = 0;
+		notify->types = 1;
+		notify->index = 0;
+		return 0;
+	}
+	return -ENOSYS;
+}
+
+static const struct nvkm_event_func
+nouveau_fifo_event_func = {
+	.ctor = nouveau_fifo_event_ctor,
+};
+
 int
 nouveau_fifo_channel_create_(struct nouveau_object *parent,
 			     struct nouveau_object *engine,
@@ -91,7 +108,7 @@ nouveau_fifo_channel_create_(struct nouveau_object *parent,
 	if (!chan->user)
 		return -EFAULT;
 
-	nouveau_event_trigger(priv->cevent, 1, 0);
+	nvkm_event_send(&priv->cevent, 1, 0, NULL, 0);
 
 	chan->size = size;
 	return 0;
@@ -168,8 +185,8 @@ void
 nouveau_fifo_destroy(struct nouveau_fifo *priv)
 {
 	kfree(priv->channel);
-	nouveau_event_destroy(&priv->uevent);
-	nouveau_event_destroy(&priv->cevent);
+	nvkm_event_fini(&priv->uevent);
+	nvkm_event_fini(&priv->cevent);
 	nouveau_engine_destroy(&priv->base);
 }
 
@@ -194,11 +211,7 @@ nouveau_fifo_create_(struct nouveau_object *parent,
 	if (!priv->channel)
 		return -ENOMEM;
 
-	ret = nouveau_event_create(1, 1, &priv->cevent);
-	if (ret)
-		return ret;
-
-	ret = nouveau_event_create(1, 1, &priv->uevent);
+	ret = nvkm_event_init(&nouveau_fifo_event_func, 1, 1, &priv->cevent);
 	if (ret)
 		return ret;
 

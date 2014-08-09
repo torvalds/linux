@@ -389,18 +389,37 @@ nv84_fifo_cclass = {
  ******************************************************************************/
 
 static void
-nv84_fifo_uevent_enable(struct nouveau_event *event, int type, int index)
+nv84_fifo_uevent_init(struct nvkm_event *event, int type, int index)
 {
-	struct nv84_fifo_priv *priv = event->priv;
-	nv_mask(priv, 0x002140, 0x40000000, 0x40000000);
+	struct nouveau_fifo *fifo = container_of(event, typeof(*fifo), uevent);
+	nv_mask(fifo, 0x002140, 0x40000000, 0x40000000);
 }
 
 static void
-nv84_fifo_uevent_disable(struct nouveau_event *event, int type, int index)
+nv84_fifo_uevent_fini(struct nvkm_event *event, int type, int index)
 {
-	struct nv84_fifo_priv *priv = event->priv;
-	nv_mask(priv, 0x002140, 0x40000000, 0x00000000);
+	struct nouveau_fifo *fifo = container_of(event, typeof(*fifo), uevent);
+	nv_mask(fifo, 0x002140, 0x40000000, 0x00000000);
 }
+
+static int
+nv84_fifo_uevent_ctor(void *data, u32 size, struct nvkm_notify *notify)
+{
+	if (size == 0) {
+		notify->size  = 0;
+		notify->types = 1;
+		notify->index = 0;
+		return 0;
+	}
+	return -ENOSYS;
+}
+
+static const struct nvkm_event_func
+nv84_fifo_uevent_func = {
+	.ctor = nv84_fifo_uevent_ctor,
+	.init = nv84_fifo_uevent_init,
+	.fini = nv84_fifo_uevent_fini,
+};
 
 static int
 nv84_fifo_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
@@ -425,9 +444,9 @@ nv84_fifo_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	if (ret)
 		return ret;
 
-	priv->base.uevent->enable = nv84_fifo_uevent_enable;
-	priv->base.uevent->disable = nv84_fifo_uevent_disable;
-	priv->base.uevent->priv = priv;
+	ret = nvkm_event_init(&nv84_fifo_uevent_func, 1, 1, &priv->base.uevent);
+	if (ret)
+		return ret;
 
 	nv_subdev(priv)->unit = 0x00000100;
 	nv_subdev(priv)->intr = nv04_fifo_intr;

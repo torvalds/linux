@@ -354,7 +354,7 @@ nouveau_dp_train(struct work_struct *w)
 	cfg--;
 
 	/* disable link interrupt handling during link training */
-	nouveau_event_put(outp->irq);
+	nvkm_notify_put(&outp->irq);
 
 	/* enable down-spreading and execute pre-train script from vbios */
 	dp_link_train_init(dp, outp->dpcd[3] & 0x01);
@@ -395,5 +395,5 @@ nouveau_dp_train(struct work_struct *w)
 	DBG("training complete\n");
 	atomic_set(&outp->lt.done, 1);
 	wake_up(&outp->lt.wait);
-	nouveau_event_get(outp->irq);
+	nvkm_notify_get(&outp->irq);
 }

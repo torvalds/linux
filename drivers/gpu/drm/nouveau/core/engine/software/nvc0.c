@@ -104,9 +104,10 @@ nvc0_software_sclass[] = {
  ******************************************************************************/
 
 static int
-nvc0_software_vblsem_release(void *data, u32 type, int head)
+nvc0_software_vblsem_release(struct nvkm_notify *notify)
 {
-	struct nv50_software_chan *chan = data;
+	struct nv50_software_chan *chan =
+		container_of(notify, typeof(*chan), vblank.notify[notify->index]);
 	struct nv50_software_priv *priv = (void *)nv_object(chan)->engine;
 	struct nouveau_bar *bar = nouveau_bar(priv);
 
@@ -116,7 +117,7 @@ nvc0_software_vblsem_release(void *data, u32 type, int head)
 	nv_wr32(priv, 0x060010, lower_32_bits(chan->vblank.offset));
 	nv_wr32(priv, 0x060014, chan->vblank.value);
 
-	return NVKM_EVENT_DROP;
+	return NVKM_NOTIFY_DROP;
 }
 
 static struct nv50_software_cclass

@@ -730,7 +730,7 @@ nvc0_fifo_intr_engine_unit(struct nvc0_fifo_priv *priv, int engn)
 	for (unkn = 0; unkn < 8; unkn++) {
 		u32 ints = (intr >> (unkn * 0x04)) & inte;
 		if (ints & 0x1) {
-			nouveau_event_trigger(priv->base.uevent, 1, 0);
+			nvkm_event_send(&priv->base.uevent, 1, 0, NULL, 0);
 			ints &= ~1;
 		}
 		if (ints) {
@@ -827,18 +827,37 @@ nvc0_fifo_intr(struct nouveau_subdev *subdev)
 }
 
 static void
-nvc0_fifo_uevent_enable(struct nouveau_event *event, int type, int index)
+nvc0_fifo_uevent_init(struct nvkm_event *event, int type, int index)
 {
-	struct nvc0_fifo_priv *priv = event->priv;
-	nv_mask(priv, 0x002140, 0x80000000, 0x80000000);
+	struct nouveau_fifo *fifo = container_of(event, typeof(*fifo), uevent);
+	nv_mask(fifo, 0x002140, 0x80000000, 0x80000000);
 }
 
 static void
-nvc0_fifo_uevent_disable(struct nouveau_event *event, int type, int index)
+nvc0_fifo_uevent_fini(struct nvkm_event *event, int type, int index)
 {
-	struct nvc0_fifo_priv *priv = event->priv;
-	nv_mask(priv, 0x002140, 0x80000000, 0x00000000);
+	struct nouveau_fifo *fifo = container_of(event, typeof(*fifo), uevent);
+	nv_mask(fifo, 0x002140, 0x80000000, 0x00000000);
 }
+
+static int
+nvc0_fifo_uevent_ctor(void *data, u32 size, struct nvkm_notify *notify)
+{
+	if (size == 0) {
+		notify->size  = 0;
+		notify->types = 1;
+		notify->index = 0;
+		return 0;
+	}
+	return -ENOSYS;
+}
+
+static const struct nvkm_event_func
+nvc0_fifo_uevent_func = {
+	.ctor = nvc0_fifo_uevent_ctor,
+	.init = nvc0_fifo_uevent_init,
+	.fini = nvc0_fifo_uevent_fini,
+};
 
 static int
 nvc0_fifo_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
@@ -877,9 +896,9 @@ nvc0_fifo_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	if (ret)
 		return ret;
 
-	priv->base.uevent->enable = nvc0_fifo_uevent_enable;
-	priv->base.uevent->disable = nvc0_fifo_uevent_disable;
-	priv->base.uevent->priv = priv;
+	ret = nvkm_event_init(&nvc0_fifo_uevent_func, 1, 1, &priv->base.uevent);
+	if (ret)
+		return ret;
 
 	nv_subdev(priv)->unit = 0x00000100;
 	nv_subdev(priv)->intr = nvc0_fifo_intr;

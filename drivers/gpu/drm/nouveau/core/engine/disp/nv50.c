@@ -828,19 +828,7 @@ nv50_disp_base_scanoutpos(struct nouveau_object *object, u32 mthd,
 	return 0;
 }
 
-static void
-nv50_disp_base_vblank_enable(struct nouveau_event *event, int type, int head)
-{
-	nv_mask(event->priv, 0x61002c, (4 << head), (4 << head));
-}
-
-static void
-nv50_disp_base_vblank_disable(struct nouveau_event *event, int type, int head)
-{
-	nv_mask(event->priv, 0x61002c, (4 << head), 0);
-}
-
-static int
+int
 nv50_disp_base_ctor(struct nouveau_object *parent,
 		    struct nouveau_object *engine,
 		    struct nouveau_oclass *oclass, void *data, u32 size,
@@ -856,14 +844,11 @@ nv50_disp_base_ctor(struct nouveau_object *parent,
 	if (ret)
 		return ret;
 
-	priv->base.vblank->priv = priv;
-	priv->base.vblank->enable = nv50_disp_base_vblank_enable;
-	priv->base.vblank->disable = nv50_disp_base_vblank_disable;
 	return nouveau_ramht_new(nv_object(base), nv_object(base), 0x1000, 0,
 				&base->ramht);
 }
 
-static void
+void
 nv50_disp_base_dtor(struct nouveau_object *object)
 {
 	struct nv50_disp_base *base = (void *)object;
@@ -1039,6 +1024,27 @@ nv50_disp_cclass = {
 /*******************************************************************************
  * Display engine implementation
  ******************************************************************************/
+
+static void
+nv50_disp_vblank_fini(struct nvkm_event *event, int type, int head)
+{
+	struct nouveau_disp *disp = container_of(event, typeof(*disp), vblank);
+	nv_mask(disp, 0x61002c, (4 << head), 0);
+}
+
+static void
+nv50_disp_vblank_init(struct nvkm_event *event, int type, int head)
+{
+	struct nouveau_disp *disp = container_of(event, typeof(*disp), vblank);
+	nv_mask(disp, 0x61002c, (4 << head), (4 << head));
+}
+
+const struct nvkm_event_func
+nv50_disp_vblank_func = {
+	.ctor = nouveau_disp_vblank_ctor,
+	.init = nv50_disp_vblank_init,
+	.fini = nv50_disp_vblank_fini,
+};
 
 static const struct nouveau_enum
 nv50_disp_intr_error_type[] = {
@@ -1654,13 +1660,13 @@ nv50_disp_intr(struct nouveau_subdev *subdev)
 	}
 
 	if (intr1 & 0x00000004) {
-		nouveau_event_trigger(priv->base.vblank, 1, 0);
+		nouveau_disp_vblank(&priv->base, 0);
 		nv_wr32(priv, 0x610024, 0x00000004);
 		intr1 &= ~0x00000004;
 	}
 
 	if (intr1 & 0x00000008) {
-		nouveau_event_trigger(priv->base.vblank, 1, 1);
+		nouveau_disp_vblank(&priv->base, 1);
 		nv_wr32(priv, 0x610024, 0x00000008);
 		intr1 &= ~0x00000008;
 	}
@@ -1718,6 +1724,7 @@ nv50_disp_oclass = &(struct nv50_disp_impl) {
 		.init = _nouveau_disp_init,
 		.fini = _nouveau_disp_fini,
 	},
+	.base.vblank = &nv50_disp_vblank_func,
 	.base.outp =  nv50_disp_outp_sclass,
 	.mthd.core = &nv50_disp_mast_mthd_chan,
 	.mthd.base = &nv50_disp_sync_mthd_chan,

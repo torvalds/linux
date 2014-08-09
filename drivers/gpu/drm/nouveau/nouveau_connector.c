@@ -46,6 +46,8 @@
 #include <subdev/gpio.h>
 #include <engine/disp.h>
 
+#include <nvif/event.h>
+
 MODULE_PARM_DESC(tv_disable, "Disable TV-out detection");
 static int nouveau_tv_disable = 0;
 module_param_named(tv_disable, nouveau_tv_disable, int, 0400);
@@ -102,7 +104,7 @@ static void
 nouveau_connector_destroy(struct drm_connector *connector)
 {
 	struct nouveau_connector *nv_connector = nouveau_connector(connector);
-	nouveau_event_ref(NULL, &nv_connector->hpd);
+	nvkm_notify_fini(&nv_connector->hpd);
 	kfree(nv_connector->edid);
 	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
@@ -939,18 +941,19 @@ nouveau_connector_funcs_dp = {
 	.force = nouveau_connector_force
 };
 
-static void
-nouveau_connector_hotplug_work(struct work_struct *work)
+static int
+nouveau_connector_hotplug(struct nvkm_notify *notify)
 {
 	struct nouveau_connector *nv_connector =
-		container_of(work, typeof(*nv_connector), work);
+		container_of(notify, typeof(*nv_connector), hpd);
 	struct drm_connector *connector = &nv_connector->base;
 	struct nouveau_drm *drm = nouveau_drm(connector->dev);
+	const struct nvif_notify_conn_rep_v0 *rep = notify->data;
 	const char *name = connector->name;
 
-	if (nv_connector->status & NVKM_HPD_IRQ) {
+	if (rep->mask & NVIF_NOTIFY_CONN_V0_IRQ) {
 	} else {
-		bool plugged = (nv_connector->status != NVKM_HPD_UNPLUG);
+		bool plugged = (rep->mask != NVIF_NOTIFY_CONN_V0_UNPLUG);
 
 		NV_DEBUG(drm, "%splugged %s\n", plugged ? "" : "un", name);
 
@@ -961,16 +964,7 @@ nouveau_connector_hotplug_work(struct work_struct *work)
 		drm_helper_hpd_irq_event(connector->dev);
 	}
 
-	nouveau_event_get(nv_connector->hpd);
-}
-
-static int
-nouveau_connector_hotplug(void *data, u32 type, int index)
-{
-	struct nouveau_connector *nv_connector = data;
-	nv_connector->status = type;
-	schedule_work(&nv_connector->work);
-	return NVKM_EVENT_DROP;
+	return NVKM_NOTIFY_KEEP;
 }
 
 static ssize_t
@@ -1226,15 +1220,18 @@ nouveau_connector_create(struct drm_device *dev, int index)
 		break;
 	}
 
-	ret = nouveau_event_new(pdisp->hpd, NVKM_HPD, index,
-				nouveau_connector_hotplug,
-				nv_connector, &nv_connector->hpd);
+	ret = nvkm_notify_init(&pdisp->hpd, nouveau_connector_hotplug, true,
+			       &(struct nvif_notify_conn_req_v0) {
+				.mask = NVIF_NOTIFY_CONN_V0_ANY,
+				.conn = index,
+			       },
+			       sizeof(struct nvif_notify_conn_req_v0),
+			       sizeof(struct nvif_notify_conn_rep_v0),
+			       &nv_connector->hpd);
 	if (ret)
 		connector->polled = DRM_CONNECTOR_POLL_CONNECT;
 	else
 		connector->polled = DRM_CONNECTOR_POLL_HPD;
-
-	INIT_WORK(&nv_connector->work, nouveau_connector_hotplug_work);
 
 	drm_connector_register(connector);
 	return connector;

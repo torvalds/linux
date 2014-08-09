@@ -165,12 +165,18 @@ nouveau_fence_done(struct nouveau_fence *fence)
 	return !fence->channel;
 }
 
+struct nouveau_fence_wait {
+	struct nouveau_fence_priv *priv;
+	struct nvkm_notify notify;
+};
+
 static int
-nouveau_fence_wait_uevent_handler(void *data, u32 type, int index)
+nouveau_fence_wait_uevent_handler(struct nvkm_notify *notify)
 {
-	struct nouveau_fence_priv *priv = data;
-	wake_up_all(&priv->waiting);
-	return NVKM_EVENT_KEEP;
+	struct nouveau_fence_wait *wait =
+		container_of(notify, typeof(*wait), notify);
+	wake_up_all(&wait->priv->waiting);
+	return NVKM_NOTIFY_KEEP;
 }
 
 static int
@@ -180,16 +186,16 @@ nouveau_fence_wait_uevent(struct nouveau_fence *fence, bool intr)
 	struct nouveau_channel *chan = fence->channel;
 	struct nouveau_fifo *pfifo = nouveau_fifo(chan->drm->device);
 	struct nouveau_fence_priv *priv = chan->drm->fence;
-	struct nouveau_eventh *handler;
+	struct nouveau_fence_wait wait = { .priv = priv };
 	int ret = 0;
 
-	ret = nouveau_event_new(pfifo->uevent, 1, 0,
-				nouveau_fence_wait_uevent_handler,
-				priv, &handler);
+	ret = nvkm_notify_init(&pfifo->uevent,
+			       nouveau_fence_wait_uevent_handler, false,
+			       NULL, 0, 0, &wait.notify);
 	if (ret)
 		return ret;
 
-	nouveau_event_get(handler);
+	nvkm_notify_get(&wait.notify);
 
 	if (fence->timeout) {
 		unsigned long timeout = fence->timeout - jiffies;
@@ -221,7 +227,7 @@ nouveau_fence_wait_uevent(struct nouveau_fence *fence, bool intr)
 		}
 	}
 
-	nouveau_event_ref(NULL, &handler);
+	nvkm_notify_fini(&wait.notify);
 	if (unlikely(ret < 0))
 		return ret;
 
