@@ -435,7 +435,10 @@ static inline void finish_buffer(struct em28xx *dev,
 	em28xx_isocdbg("[%p/%d] wakeup\n", buf, buf->top_field);
 
 	buf->vb.v4l2_buf.sequence = dev->v4l2->field_count++;
-	buf->vb.v4l2_buf.field = V4L2_FIELD_INTERLACED;
+	if (dev->v4l2->progressive)
+		buf->vb.v4l2_buf.field = V4L2_FIELD_NONE;
+	else
+		buf->vb.v4l2_buf.field = V4L2_FIELD_INTERLACED;
 	v4l2_get_timestamp(&buf->vb.v4l2_buf.timestamp);
 
 	vb2_buffer_done(&buf->vb, VB2_BUF_STATE_DONE);
