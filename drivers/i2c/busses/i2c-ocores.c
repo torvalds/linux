@@ -239,15 +239,15 @@ static u32 ocores_func(struct i2c_adapter *adap)
 }
 
 static const struct i2c_algorithm ocores_algorithm = {
-	.master_xfer	= ocores_xfer,
-	.functionality	= ocores_func,
+	.master_xfer = ocores_xfer,
+	.functionality = ocores_func,
 };
 
 static struct i2c_adapter ocores_adapter = {
-	.owner		= THIS_MODULE,
-	.name		= "i2c-ocores",
-	.class		= I2C_CLASS_HWMON | I2C_CLASS_SPD | I2C_CLASS_DEPRECATED,
-	.algo		= &ocores_algorithm,
+	.owner = THIS_MODULE,
+	.name = "i2c-ocores",
+	.class = I2C_CLASS_DEPRECATED,
+	.algo = &ocores_algorithm,
 };
 
 static const struct of_device_id ocores_i2c_match[] = {

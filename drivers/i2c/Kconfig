@@ -2,7 +2,9 @@
 # I2C subsystem configuration
 #
 
-menuconfig I2C
+menu "I2C support"
+
+config I2C
 	tristate "I2C support"
 	select RT_MUTEXES
 	---help---
@@ -20,6 +22,18 @@ menuconfig I2C
 
 	  This I2C support can also be built as a module.  If so, the module
 	  will be called i2c-core.
+
+config I2C_ACPI
+	bool "I2C ACPI support"
+	select I2C
+	depends on ACPI
+	default y
+	help
+	  Say Y here if you want to enable ACPI I2C support. This includes support
+	  for automatic enumeration of I2C slave devices and support for ACPI I2C
+	  Operation Regions. Operation Regions allow firmware (BIOS) code to
+	  access I2C slave devices, such as smart batteries through an I2C host
+	  controller driver.
 
 if I2C
 
@@ -124,3 +138,5 @@ config I2C_DEBUG_BUS
 	  on.
 
 endif # I2C
+
+endmenu
