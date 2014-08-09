@@ -21,13 +21,6 @@
 #include <linux/rockchip/iomap.h>
 #include "rk3036_tve.h"
 
-#ifdef DEBUG
-#define TVEDBG(format, ...) \
-		printk(KERN_INFO "RK3036 TVE: " format "\n", ## __VA_ARGS__)
-#else
-#define TVEDBG(format, ...)
-#endif
-
 static const struct fb_videomode rk3036_cvbs_mode[] = {
 	/*name		refresh	xres	yres	pixclock	h_bp	h_fp	v_bp	v_fp	h_pw	v_pw			polariry				PorI		flag*/
 	{"NTSC",	60,	720,	480,	27000000,	57,	19,	19,	0,	62,	3,	FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,	FB_VMODE_INTERLACED,	0},
@@ -39,6 +32,13 @@ static struct rk3036_tve *rk3036_tve;
 #define tve_writel(offset, v)	writel_relaxed(v, rk3036_tve->regbase + offset)
 #define tve_readl(offset)	readl_relaxed(rk3036_tve->regbase + offset)
 
+#ifdef DEBUG
+#define TVEDBG(format, ...) \
+		dev_info(rk3036_tve->dev, "RK3036 TVE: " format "\n", ## __VA_ARGS__)
+#else
+#define TVEDBG(format, ...)
+#endif
+
 static void dac_enable(bool enable)
 {
 	u32 mask, val;
@@ -46,14 +46,13 @@ static void dac_enable(bool enable)
 	TVEDBG("%s enable %d\n", __func__, enable);
 
 	if (enable) {
-		mask = m_VBG_EN | m_DAC_EN;
-		val = mask;
+		mask = m_VBG_EN | m_DAC_EN | m_DAC_GAIN;
+		val = m_VBG_EN | m_DAC_EN | v_DAC_GAIN(0x3b);
 	} else {
 		mask = m_VBG_EN | m_DAC_EN;
 		val = 0;
 	}
 	grf_writel(rk3036_tve->grfreg, (mask << 16) | val);
-	grf_writel(RK312X_GRF_TVE_CON, (mask << 16) | val);
 }
 
 static void tve_set_mode(int mode)
@@ -63,10 +62,15 @@ static void tve_set_mode(int mode)
 	tve_writel(TV_RESET, v_RESET(1));
 	udelay(100);
 	tve_writel(TV_RESET, v_RESET(0));
+	if (rk3036_tve->inputformat == INPUT_FORMAT_RGB)
+		tve_writel(TV_CTRL, v_CVBS_MODE(mode) | v_CLK_UPSTREAM_EN(2) |
+			   v_TIMING_EN(2) | v_LUMA_FILTER_GAIN(0) |
+			   v_LUMA_FILTER_UPSAMPLE(1) | v_CSC_PATH(0));
+	else
+		tve_writel(TV_CTRL, v_CVBS_MODE(mode) | v_CLK_UPSTREAM_EN(2) |
+			   v_TIMING_EN(2) | v_LUMA_FILTER_GAIN(0) |
+			   v_LUMA_FILTER_UPSAMPLE(1) | v_CSC_PATH(3));
 
-	tve_writel(TV_CTRL, v_CVBS_MODE(mode) | v_CLK_UPSTREAM_EN(2) |
-			v_TIMING_EN(2) | v_LUMA_FILTER_GAIN(0) |
-			v_LUMA_FILTER_UPSAMPLE(1) | v_CSC_PATH(0));
 	tve_writel(TV_LUMA_FILTER0, 0x02ff0000);
 	tve_writel(TV_LUMA_FILTER1, 0xF40202fd);
 	tve_writel(TV_LUMA_FILTER2, 0xF332d919);
@@ -92,7 +96,7 @@ static void tve_set_mode(int mode)
 			v_YPP_MODE(1) | v_Y_SYNC_ON(1) | v_PIC_MODE(mode));
 		tve_writel(TV_BW_CTRL, v_CHROMA_BW(BP_FILTER_PAL) |
 			v_COLOR_DIFF_BW(COLOR_DIFF_FILTER_BW_1_3));
-		tve_writel(TV_SATURATION, 0x00325c40);
+		tve_writel(TV_SATURATION, /*0x00325c40*/ 0x00326346);
 		tve_writel(TV_BRIGHTNESS_CONTRAST, 0x00008b00);
 
 		tve_writel(TV_FREQ_SC,	0x2A098ACB);
@@ -106,12 +110,9 @@ static void tve_set_mode(int mode)
 
 static int tve_switch_fb(const struct fb_videomode *modedb, int enable)
 {
-	struct rk_screen *screen;
+	struct rk_screen *screen = &rk3036_tve->screen;
 
 	if (modedb == NULL)
-		return -1;
-	screen =  kzalloc(sizeof(screen), GFP_KERNEL);
-	if (screen == NULL)
 		return -1;
 
 	memset(screen, 0, sizeof(struct rk_screen));
@@ -148,7 +149,6 @@ static int tve_switch_fb(const struct fb_videomode *modedb, int enable)
 
 	rk_fb_switch_screen(screen, enable, 0);
 
-	kfree(screen);
 	if (enable) {
 		if (screen->mode.yres == 480)
 			tve_set_mode(TVOUT_CVBS_NTSC);
@@ -208,7 +208,6 @@ cvbs_set_mode(struct rk_display_device *device, struct fb_videomode *mode)
 				if (rk3036_tve->enable && !rk3036_tve->suspend)
 					dac_enable(false);
 					tve_switch_fb(rk3036_tve->mode, 1);
-					msleep(500);
 					dac_enable(true);
 			}
 			return 0;
@@ -237,7 +236,7 @@ tve_fb_event_notify(struct notifier_block *self,
 		case FB_BLANK_UNBLANK:
 			break;
 		default:
-			TVEDBG("suspend hdmi\n");
+			TVEDBG("suspend tve\n");
 			if (!rk3036_tve->suspend) {
 				rk3036_tve->suspend = 1;
 				if (rk3036_tve->enable) {
@@ -250,7 +249,7 @@ tve_fb_event_notify(struct notifier_block *self,
 	} else if (action == FB_EVENT_BLANK) {
 		switch (blank_mode) {
 		case FB_BLANK_UNBLANK:
-			TVEDBG("resume hdmi\n");
+			TVEDBG("resume tve\n");
 			if (rk3036_tve->suspend) {
 				rk3036_tve->suspend = 0;
 				if (rk3036_tve->enable) {
@@ -323,8 +322,10 @@ static int rk3036_tve_probe(struct platform_device *pdev)
 
 	if (!strcmp(match->compatible, "rockchip,rk3036-tve")) {
 		rk3036_tve->grfreg = RK3036_GRF_SOC_CON3;
+		rk3036_tve->inputformat = INPUT_FORMAT_RGB;
 	} else if (!strcmp(match->compatible, "rockchip,rk312x-tve")) {
 		rk3036_tve->grfreg = RK312X_GRF_TVE_CON;
+		rk3036_tve->inputformat = INPUT_FORMAT_YUV;
 	} else {
 		dev_err(&pdev->dev, "It is not a valid tv encoder!");
 		kfree(rk3036_tve);
@@ -352,7 +353,7 @@ static int rk3036_tve_probe(struct platform_device *pdev)
 	rk_display_device_enable(rk3036_tve->ddev);
 
 	fb_register_client(&tve_fb_notifier);
-	dev_info(&pdev->dev, "rk3036 tv encoder probe ok\n");
+	dev_info(&pdev->dev, "%s tv encoder probe ok\n", match->compatible);
 	return 0;
 }
 

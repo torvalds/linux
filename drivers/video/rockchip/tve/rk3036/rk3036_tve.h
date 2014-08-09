@@ -83,6 +83,11 @@ enum {
 	TVOUT_CVBS_PAL,
 };
 
+enum {
+	INPUT_FORMAT_RGB = 0,
+	INPUT_FORMAT_YUV
+};
+
 #define TVOUT_DEAULT TVOUT_CVBS_PAL
 
 #define grf_writel(offset, v)	do { \
@@ -96,12 +101,13 @@ struct rk3036_tve {
 	u32				reg_phy_base;
 	u32				len;
 	int				grfreg;
-
+	int				inputformat;
 	struct rk_display_device	*ddev;
 	unsigned int			enable;
 	unsigned int			suspend;
 	struct fb_videomode		*mode;
 	struct list_head		modelist;
+	struct rk_screen		screen;
 };
 
 #endif
