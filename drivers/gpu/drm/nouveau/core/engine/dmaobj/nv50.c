@@ -22,8 +22,11 @@
  * Authors: Ben Skeggs
  */
 
+#include <core/client.h>
 #include <core/gpuobj.h>
 #include <core/class.h>
+#include <nvif/unpack.h>
+#include <nvif/class.h>
 
 #include <subdev/fb.h>
 
@@ -90,10 +93,11 @@ nv50_dmaobj_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		 struct nouveau_object **pobject)
 {
 	struct nouveau_dmaeng *dmaeng = (void *)engine;
-	struct nv50_dmaobj_priv *priv;
 	union {
-		u32 conf0;
+		struct nv50_dma_v0 v0;
 	} *args;
+	struct nv50_dmaobj_priv *priv;
+	u32 user, part, comp, kind;
 	int ret;
 
 	ret = nvkm_dmaobj_create(parent, engine, oclass, &data, &size, &priv);
@@ -102,24 +106,36 @@ nv50_dmaobj_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		return ret;
 	args = data;
 
-	if (!(args->conf0 & NV50_DMA_CONF0_ENABLE)) {
-		if (priv->base.target == NV_MEM_TARGET_VM) {
-			args->conf0  = NV50_DMA_CONF0_PRIV_VM;
-			args->conf0 |= NV50_DMA_CONF0_PART_VM;
-			args->conf0 |= NV50_DMA_CONF0_COMP_VM;
-			args->conf0 |= NV50_DMA_CONF0_TYPE_VM;
+	nv_ioctl(parent, "create nv50 dma size %d\n", size);
+	if (nvif_unpack(args->v0, 0, 0, false)) {
+		nv_ioctl(parent, "create nv50 dma vers %d priv %d part %d "
+				 "comp %d kind %02x\n", args->v0.version,
+			 args->v0.priv, args->v0.part, args->v0.comp,
+			 args->v0.kind);
+		user = args->v0.priv;
+		part = args->v0.part;
+		comp = args->v0.comp;
+		kind = args->v0.kind;
+	} else
+	if (size == 0) {
+		if (priv->base.target != NV_MEM_TARGET_VM) {
+			user = NV50_DMA_V0_PRIV_US;
+			part = NV50_DMA_V0_PART_256;
+			comp = NV50_DMA_V0_COMP_NONE;
+			kind = NV50_DMA_V0_KIND_PITCH;
 		} else {
-			args->conf0  = NV50_DMA_CONF0_PRIV_US;
-			args->conf0 |= NV50_DMA_CONF0_PART_256;
-			args->conf0 |= NV50_DMA_CONF0_COMP_NONE;
-			args->conf0 |= NV50_DMA_CONF0_TYPE_LINEAR;
+			user = NV50_DMA_V0_PRIV_VM;
+			part = NV50_DMA_V0_PART_VM;
+			comp = NV50_DMA_V0_COMP_VM;
+			kind = NV50_DMA_V0_KIND_VM;
 		}
-	}
+	} else
+		return ret;
 
-	priv->flags0 |= (args->conf0 & NV50_DMA_CONF0_COMP) << 22;
-	priv->flags0 |= (args->conf0 & NV50_DMA_CONF0_TYPE) << 22;
-	priv->flags0 |= (args->conf0 & NV50_DMA_CONF0_PRIV);
-	priv->flags5 |= (args->conf0 & NV50_DMA_CONF0_PART);
+	if (user > 2 || part > 2 || comp > 3 || kind > 0x7f)
+		return -EINVAL;
+	priv->flags0 = (comp << 29) | (kind << 22) | (user << 20);
+	priv->flags5 = (part << 16);
 
 	switch (priv->base.target) {
 	case NV_MEM_TARGET_VM:
@@ -165,9 +181,9 @@ nv50_dmaobj_ofuncs = {
 
 static struct nouveau_oclass
 nv50_dmaeng_sclass[] = {
-	{ NV_DMA_FROM_MEMORY_CLASS, &nv50_dmaobj_ofuncs },
-	{ NV_DMA_TO_MEMORY_CLASS, &nv50_dmaobj_ofuncs },
-	{ NV_DMA_IN_MEMORY_CLASS, &nv50_dmaobj_ofuncs },
+	{ NV_DMA_FROM_MEMORY, &nv50_dmaobj_ofuncs },
+	{ NV_DMA_TO_MEMORY, &nv50_dmaobj_ofuncs },
+	{ NV_DMA_IN_MEMORY, &nv50_dmaobj_ofuncs },
 	{}
 };
 

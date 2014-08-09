@@ -160,13 +160,13 @@ nv50_dmac_create(struct nvif_object *disp, u32 bclass, u8 head,
 		return -ENOMEM;
 
 	ret = nvif_object_init(nvif_object(nvif_device(disp)), NULL, handle,
-			       NV_DMA_FROM_MEMORY_CLASS,
-			       &(struct nv_dma_class) {
-					.flags = NV_DMA_TARGET_PCI_US |
-						 NV_DMA_ACCESS_RD,
+			       NV_DMA_FROM_MEMORY,
+			       &(struct nv_dma_v0) {
+					.target = NV_DMA_V0_TARGET_PCI_US,
+					.access = NV_DMA_V0_ACCESS_RD,
 					.start = dmac->handle + 0x0000,
 					.limit = dmac->handle + 0x0fff,
-			       }, sizeof(struct nv_dma_class), &pushbuf);
+			       }, sizeof(struct nv_dma_v0), &pushbuf);
 	if (ret)
 		return ret;
 
@@ -176,25 +176,25 @@ nv50_dmac_create(struct nvif_object *disp, u32 bclass, u8 head,
 		return ret;
 
 	ret = nvif_object_init(&dmac->base.user, NULL, 0xf0000000,
-			       NV_DMA_IN_MEMORY_CLASS,
-			       &(struct nv_dma_class) {
-					.flags = NV_DMA_TARGET_VRAM |
-						 NV_DMA_ACCESS_RDWR,
+			       NV_DMA_IN_MEMORY,
+			       &(struct nv_dma_v0) {
+					.target = NV_DMA_V0_TARGET_VRAM,
+					.access = NV_DMA_V0_ACCESS_RDWR,
 					.start = syncbuf + 0x0000,
 					.limit = syncbuf + 0x0fff,
-			       }, sizeof(struct nv_dma_class),
+			       }, sizeof(struct nv_dma_v0),
 			       &dmac->sync);
 	if (ret)
 		return ret;
 
 	ret = nvif_object_init(&dmac->base.user, NULL, 0xf0000001,
-			       NV_DMA_IN_MEMORY_CLASS,
-			       &(struct nv_dma_class) {
-					.flags = NV_DMA_TARGET_VRAM |
-						 NV_DMA_ACCESS_RDWR,
+			       NV_DMA_IN_MEMORY,
+			       &(struct nv_dma_v0) {
+					.target = NV_DMA_V0_TARGET_VRAM,
+					.access = NV_DMA_V0_ACCESS_RDWR,
 					.start = 0,
 					.limit = pfb->ram->size - 1,
-			       }, sizeof(struct nv_dma_class),
+			       }, sizeof(struct nv_dma_v0),
 			       &dmac->vram);
 	if (ret)
 		return ret;
@@ -2073,9 +2073,17 @@ nv50_fbdma_init(struct drm_device *dev, u32 name, u64 offset, u64 length, u8 kin
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nv50_disp *disp = nv50_disp(dev);
 	struct nv50_mast *mast = nv50_mast(dev);
-	struct nv_dma_class args;
+	struct __attribute__ ((packed)) {
+		struct nv_dma_v0 base;
+		union {
+			struct nv50_dma_v0 nv50;
+			struct gf100_dma_v0 gf100;
+			struct gf110_dma_v0 gf110;
+		};
+	} args = {};
 	struct nv50_fbdma *fbdma;
 	struct drm_crtc *crtc;
+	u32 size = sizeof(args.base);
 	int ret;
 
 	list_for_each_entry(fbdma, &disp->fbdma, head) {
@@ -2088,31 +2096,33 @@ nv50_fbdma_init(struct drm_device *dev, u32 name, u64 offset, u64 length, u8 kin
 		return -ENOMEM;
 	list_add(&fbdma->head, &disp->fbdma);
 
-	args.flags = NV_DMA_TARGET_VRAM | NV_DMA_ACCESS_RDWR;
-	args.start = offset;
-	args.limit = offset + length - 1;
-	args.conf0 = kind;
+	args.base.target = NV_DMA_V0_TARGET_VRAM;
+	args.base.access = NV_DMA_V0_ACCESS_RDWR;
+	args.base.start = offset;
+	args.base.limit = offset + length - 1;
 
 	if (drm->device.info.chipset < 0x80) {
-		args.conf0  = NV50_DMA_CONF0_ENABLE;
-		args.conf0 |= NV50_DMA_CONF0_PART_256;
+		args.nv50.part = NV50_DMA_V0_PART_256;
+		size += sizeof(args.nv50);
 	} else
 	if (drm->device.info.chipset < 0xc0) {
-		args.conf0 |= NV50_DMA_CONF0_ENABLE;
-		args.conf0 |= NV50_DMA_CONF0_PART_256;
+		args.nv50.part = NV50_DMA_V0_PART_256;
+		args.nv50.kind = kind;
+		size += sizeof(args.nv50);
 	} else
 	if (drm->device.info.chipset < 0xd0) {
-		args.conf0 |= NVC0_DMA_CONF0_ENABLE;
+		args.gf100.kind = kind;
+		size += sizeof(args.gf100);
 	} else {
-		args.conf0 |= NVD0_DMA_CONF0_ENABLE;
-		args.conf0 |= NVD0_DMA_CONF0_PAGE_LP;
+		args.gf110.page = GF110_DMA_V0_PAGE_LP;
+		args.gf110.kind = kind;
+		size += sizeof(args.gf110);
 	}
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		struct nv50_head *head = nv50_head(crtc);
 		int ret = nvif_object_init(&head->sync.base.base.user, NULL,
-					    name, NV_DMA_IN_MEMORY_CLASS,
-					   &args, sizeof(args),
+					    name, NV_DMA_IN_MEMORY, &args, size,
 					   &fbdma->base[head->base.index]);
 		if (ret) {
 			nv50_fbdma_fini(fbdma);
@@ -2121,7 +2131,7 @@ nv50_fbdma_init(struct drm_device *dev, u32 name, u64 offset, u64 length, u8 kin
 	}
 
 	ret = nvif_object_init(&mast->base.base.user, NULL, name,
-				NV_DMA_IN_MEMORY_CLASS, &args, sizeof(args),
+				NV_DMA_IN_MEMORY, &args, size,
 			       &fbdma->core);
 	if (ret) {
 		nv50_fbdma_fini(fbdma);

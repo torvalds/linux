@@ -91,7 +91,7 @@ nouveau_channel_prep(struct nouveau_drm *drm, struct nvif_device *device,
 	struct nouveau_instmem *imem = nvkm_instmem(device);
 	struct nouveau_vmmgr *vmm = nvkm_vmmgr(device);
 	struct nouveau_fb *pfb = nvkm_fb(device);
-	struct nv_dma_class args = {};
+	struct nv_dma_v0 args = {};
 	struct nouveau_channel *chan;
 	u32 target;
 	int ret;
@@ -135,7 +135,8 @@ nouveau_channel_prep(struct nouveau_drm *drm, struct nvif_device *device,
 			return ret;
 		}
 
-		args.flags = NV_DMA_TARGET_VM | NV_DMA_ACCESS_VM;
+		args.target = NV_DMA_V0_TARGET_VM;
+		args.access = NV_DMA_V0_ACCESS_VM;
 		args.start = 0;
 		args.limit = cli->vm->vmm->limit - 1;
 	} else
@@ -146,29 +147,33 @@ nouveau_channel_prep(struct nouveau_drm *drm, struct nvif_device *device,
 			 * the framebuffer bar rather than direct vram access..
 			 * nfi why this exists, it came from the -nv ddx.
 			 */
-			args.flags = NV_DMA_TARGET_PCI | NV_DMA_ACCESS_RDWR;
+			args.target = NV_DMA_V0_TARGET_PCI;
+			args.access = NV_DMA_V0_ACCESS_RDWR;
 			args.start = nv_device_resource_start(nvkm_device(device), 1);
 			args.limit = args.start + limit;
 		} else {
-			args.flags = NV_DMA_TARGET_VRAM | NV_DMA_ACCESS_RDWR;
+			args.target = NV_DMA_V0_TARGET_VRAM;
+			args.access = NV_DMA_V0_ACCESS_RDWR;
 			args.start = 0;
 			args.limit = limit;
 		}
 	} else {
 		if (chan->drm->agp.stat == ENABLED) {
-			args.flags = NV_DMA_TARGET_AGP | NV_DMA_ACCESS_RDWR;
+			args.target = NV_DMA_V0_TARGET_AGP;
+			args.access = NV_DMA_V0_ACCESS_RDWR;
 			args.start = chan->drm->agp.base;
 			args.limit = chan->drm->agp.base +
 				     chan->drm->agp.size - 1;
 		} else {
-			args.flags = NV_DMA_TARGET_VM | NV_DMA_ACCESS_RDWR;
+			args.target = NV_DMA_V0_TARGET_VM;
+			args.access = NV_DMA_V0_ACCESS_RDWR;
 			args.start = 0;
 			args.limit = vmm->limit - 1;
 		}
 	}
 
 	ret = nvif_object_init(nvif_object(device), NULL, NVDRM_PUSH |
-			       (handle & 0xffff), NV_DMA_FROM_MEMORY_CLASS,
+			       (handle & 0xffff), NV_DMA_FROM_MEMORY,
 			       &args, sizeof(args), &chan->push.ctxdma);
 	if (ret) {
 		nouveau_channel_del(pchan);
@@ -259,45 +264,50 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 	struct nouveau_vmmgr *vmm = nvkm_vmmgr(device);
 	struct nouveau_fb *pfb = nvkm_fb(device);
 	struct nouveau_software_chan *swch;
-	struct nv_dma_class args = {};
+	struct nv_dma_v0 args = {};
 	int ret, i;
 
 	/* allocate dma objects to cover all allowed vram, and gart */
 	if (device->info.family < NV_DEVICE_INFO_V0_FERMI) {
 		if (device->info.family >= NV_DEVICE_INFO_V0_TESLA) {
-			args.flags = NV_DMA_TARGET_VM | NV_DMA_ACCESS_VM;
+			args.target = NV_DMA_V0_TARGET_VM;
+			args.access = NV_DMA_V0_ACCESS_VM;
 			args.start = 0;
 			args.limit = cli->vm->vmm->limit - 1;
 		} else {
-			args.flags = NV_DMA_TARGET_VRAM | NV_DMA_ACCESS_RDWR;
+			args.target = NV_DMA_V0_TARGET_VRAM;
+			args.access = NV_DMA_V0_ACCESS_RDWR;
 			args.start = 0;
 			args.limit = pfb->ram->size - imem->reserved - 1;
 		}
 
 		ret = nvif_object_init(chan->object, NULL, vram,
-				       NV_DMA_IN_MEMORY_CLASS, &args,
+				       NV_DMA_IN_MEMORY, &args,
 				       sizeof(args), &chan->vram);
 		if (ret)
 			return ret;
 
 		if (device->info.family >= NV_DEVICE_INFO_V0_TESLA) {
-			args.flags = NV_DMA_TARGET_VM | NV_DMA_ACCESS_VM;
+			args.target = NV_DMA_V0_TARGET_VM;
+			args.access = NV_DMA_V0_ACCESS_VM;
 			args.start = 0;
 			args.limit = cli->vm->vmm->limit - 1;
 		} else
 		if (chan->drm->agp.stat == ENABLED) {
-			args.flags = NV_DMA_TARGET_AGP | NV_DMA_ACCESS_RDWR;
+			args.target = NV_DMA_V0_TARGET_AGP;
+			args.access = NV_DMA_V0_ACCESS_RDWR;
 			args.start = chan->drm->agp.base;
 			args.limit = chan->drm->agp.base +
 				     chan->drm->agp.size - 1;
 		} else {
-			args.flags = NV_DMA_TARGET_VM | NV_DMA_ACCESS_RDWR;
+			args.target = NV_DMA_V0_TARGET_VM;
+			args.access = NV_DMA_V0_ACCESS_RDWR;
 			args.start = 0;
 			args.limit = vmm->limit - 1;
 		}
 
 		ret = nvif_object_init(chan->object, NULL, gart,
-				       NV_DMA_IN_MEMORY_CLASS, &args,
+				       NV_DMA_IN_MEMORY, &args,
 				       sizeof(args), &chan->gart);
 		if (ret)
 			return ret;

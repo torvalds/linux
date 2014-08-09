@@ -12,7 +12,6 @@ struct nouveau_dmaobj {
 	u32 access;
 	u64 start;
 	u64 limit;
-	u32 conf0;
 };
 
 struct nouveau_dmaeng {

@@ -413,7 +413,7 @@ nouveau_abi16_ioctl_notifierobj_alloc(ABI16_IOCTL_ARGS)
 	struct {
 		struct nvif_ioctl_v0 ioctl;
 		struct nvif_ioctl_new_v0 new;
-		struct nv_dma_class ctxdma;
+		struct nv_dma_v0 ctxdma;
 	} args = {
 		.ioctl.owner = NVIF_IOCTL_V0_OWNER_ANY,
 		.ioctl.type = NVIF_IOCTL_V0_NEW,
@@ -423,7 +423,7 @@ nouveau_abi16_ioctl_notifierobj_alloc(ABI16_IOCTL_ARGS)
 		.ioctl.path[0] = NOUVEAU_ABI16_CHAN(info->channel),
 		.new.route = NVDRM_OBJECT_ABI16,
 		.new.handle = info->handle,
-		.new.oclass = NV_DMA_IN_MEMORY_CLASS,
+		.new.oclass = NV_DMA_IN_MEMORY,
 	};
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_abi16 *abi16 = nouveau_abi16_get(file_priv, dev);
@@ -460,17 +460,20 @@ nouveau_abi16_ioctl_notifierobj_alloc(ABI16_IOCTL_ARGS)
 	args.ctxdma.start = ntfy->node->offset;
 	args.ctxdma.limit = ntfy->node->offset + ntfy->node->length - 1;
 	if (device->info.family >= NV_DEVICE_INFO_V0_TESLA) {
-		args.ctxdma.flags  = NV_DMA_TARGET_VM | NV_DMA_ACCESS_VM;
+		args.ctxdma.target = NV_DMA_V0_TARGET_VM;
+		args.ctxdma.access = NV_DMA_V0_ACCESS_VM;
 		args.ctxdma.start += chan->ntfy_vma.offset;
 		args.ctxdma.limit += chan->ntfy_vma.offset;
 	} else
 	if (drm->agp.stat == ENABLED) {
-		args.ctxdma.flags  = NV_DMA_TARGET_AGP | NV_DMA_ACCESS_RDWR;
+		args.ctxdma.target = NV_DMA_V0_TARGET_AGP;
+		args.ctxdma.access = NV_DMA_V0_ACCESS_RDWR;
 		args.ctxdma.start += drm->agp.base + chan->ntfy->bo.offset;
 		args.ctxdma.limit += drm->agp.base + chan->ntfy->bo.offset;
 		client->super = true;
 	} else {
-		args.ctxdma.flags  = NV_DMA_TARGET_VM | NV_DMA_ACCESS_RDWR;
+		args.ctxdma.target = NV_DMA_V0_TARGET_VM;
+		args.ctxdma.access = NV_DMA_V0_ACCESS_RDWR;
 		args.ctxdma.start += chan->ntfy->bo.offset;
 		args.ctxdma.limit += chan->ntfy->bo.offset;
 	}

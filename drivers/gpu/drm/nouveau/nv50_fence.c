@@ -51,14 +51,13 @@ nv50_fence_context_new(struct nouveau_channel *chan)
 	fctx->base.read = nv10_fence_read;
 	fctx->base.sync = nv17_fence_sync;
 
-	ret = nvif_object_init(chan->object, NULL, NvSema,
-				NV_DMA_IN_MEMORY_CLASS,
-			       &(struct nv_dma_class) {
-					.flags = NV_DMA_TARGET_VRAM |
-						 NV_DMA_ACCESS_RDWR,
+	ret = nvif_object_init(chan->object, NULL, NvSema, NV_DMA_IN_MEMORY,
+			       &(struct nv_dma_v0) {
+					.target = NV_DMA_V0_TARGET_VRAM,
+					.access = NV_DMA_V0_ACCESS_RDWR,
 					.start = start,
 					.limit = limit,
-			       }, sizeof(struct nv_dma_class),
+			       }, sizeof(struct nv_dma_v0),
 			       &fctx->sema);
 
 	/* dma objects for display sync channel semaphore blocks */
@@ -68,13 +67,12 @@ nv50_fence_context_new(struct nouveau_channel *chan)
 		u32 limit = start + bo->bo.mem.size - 1;
 
 		ret = nvif_object_init(chan->object, NULL, NvEvoSema0 + i,
-					NV_DMA_IN_MEMORY_CLASS,
-				       &(struct nv_dma_class) {
-						.flags = NV_DMA_TARGET_VRAM |
-							 NV_DMA_ACCESS_RDWR,
+				       NV_DMA_IN_MEMORY, &(struct nv_dma_v0) {
+						.target = NV_DMA_V0_TARGET_VRAM,
+						.access = NV_DMA_V0_ACCESS_RDWR,
 						.start = start,
 						.limit = limit,
-				       }, sizeof(struct nv_dma_class),
+				       }, sizeof(struct nv_dma_v0),
 				       &fctx->head[i]);
 	}
 

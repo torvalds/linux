@@ -24,6 +24,7 @@
 
 #include <core/gpuobj.h>
 #include <core/class.h>
+#include <nvif/class.h>
 
 #include <subdev/fb.h>
 #include <subdev/vm/nv04.h>
@@ -94,7 +95,7 @@ nv04_dmaobj_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 
 	ret = nvkm_dmaobj_create(parent, engine, oclass, &data, &size, &priv);
 	*pobject = nv_object(priv);
-	if (ret)
+	if (ret || (ret = -ENOSYS, size))
 		return ret;
 
 	if (priv->base.target == NV_MEM_TARGET_VM) {
@@ -145,9 +146,9 @@ nv04_dmaobj_ofuncs = {
 
 static struct nouveau_oclass
 nv04_dmaeng_sclass[] = {
-	{ NV_DMA_FROM_MEMORY_CLASS, &nv04_dmaobj_ofuncs },
-	{ NV_DMA_TO_MEMORY_CLASS, &nv04_dmaobj_ofuncs },
-	{ NV_DMA_IN_MEMORY_CLASS, &nv04_dmaobj_ofuncs },
+	{ NV_DMA_FROM_MEMORY, &nv04_dmaobj_ofuncs },
+	{ NV_DMA_TO_MEMORY, &nv04_dmaobj_ofuncs },
+	{ NV_DMA_IN_MEMORY, &nv04_dmaobj_ofuncs },
 	{}
 };
 

@@ -22,9 +22,12 @@
  * Authors: Ben Skeggs
  */
 
+#include <core/client.h>
 #include <core/device.h>
 #include <core/gpuobj.h>
 #include <core/class.h>
+#include <nvif/unpack.h>
+#include <nvif/class.h>
 
 #include <subdev/fb.h>
 
@@ -83,10 +86,11 @@ nvd0_dmaobj_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		 struct nouveau_object **pobject)
 {
 	struct nouveau_dmaeng *dmaeng = (void *)engine;
-	struct nvd0_dmaobj_priv *priv;
 	union {
-		u32 conf0;
+		struct gf110_dma_v0 v0;
 	} *args;
+	struct nvd0_dmaobj_priv *priv;
+	u32 kind, page;
 	int ret;
 
 	ret = nvkm_dmaobj_create(parent, engine, oclass, &data, &size, &priv);
@@ -95,18 +99,27 @@ nvd0_dmaobj_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		return ret;
 	args = data;
 
-	if (!(args->conf0 & NVD0_DMA_CONF0_ENABLE)) {
-		if (priv->base.target == NV_MEM_TARGET_VM) {
-			args->conf0 |= NVD0_DMA_CONF0_TYPE_VM;
-			args->conf0 |= NVD0_DMA_CONF0_PAGE_LP;
+	nv_ioctl(parent, "create gf110 dma size %d\n", size);
+	if (nvif_unpack(args->v0, 0, 0, false)) {
+		nv_ioctl(parent, "create gf100 dma vers %d page %d kind %02x\n",
+			 args->v0.version, args->v0.page, args->v0.kind);
+		kind = args->v0.kind;
+		page = args->v0.page;
+	} else
+	if (size == 0) {
+		if (priv->base.target != NV_MEM_TARGET_VM) {
+			kind = GF110_DMA_V0_KIND_PITCH;
+			page = GF110_DMA_V0_PAGE_SP;
 		} else {
-			args->conf0 |= NVD0_DMA_CONF0_TYPE_LINEAR;
-			args->conf0 |= NVD0_DMA_CONF0_PAGE_SP;
+			kind = GF110_DMA_V0_KIND_VM;
+			page = GF110_DMA_V0_PAGE_LP;
 		}
-	}
+	} else
+		return ret;
 
-	priv->flags0 |= (args->conf0 & NVD0_DMA_CONF0_TYPE) << 20;
-	priv->flags0 |= (args->conf0 & NVD0_DMA_CONF0_PAGE) >> 4;
+	if (page > 1)
+		return -EINVAL;
+	priv->flags0 = (kind << 20) | (page << 6);
 
 	switch (priv->base.target) {
 	case NV_MEM_TARGET_VRAM:
@@ -138,9 +151,9 @@ nvd0_dmaobj_ofuncs = {
 
 static struct nouveau_oclass
 nvd0_dmaeng_sclass[] = {
-	{ NV_DMA_FROM_MEMORY_CLASS, &nvd0_dmaobj_ofuncs },
-	{ NV_DMA_TO_MEMORY_CLASS, &nvd0_dmaobj_ofuncs },
-	{ NV_DMA_IN_MEMORY_CLASS, &nvd0_dmaobj_ofuncs },
+	{ NV_DMA_FROM_MEMORY, &nvd0_dmaobj_ofuncs },
+	{ NV_DMA_TO_MEMORY, &nvd0_dmaobj_ofuncs },
+	{ NV_DMA_IN_MEMORY, &nvd0_dmaobj_ofuncs },
 	{}
 };
 

@@ -257,13 +257,13 @@ nouveau_accel_init(struct nouveau_drm *drm)
 		}
 
 		ret = nvif_object_init(drm->channel->object, NULL, NvNotify0,
-				       NV_DMA_IN_MEMORY_CLASS,
-				       &(struct nv_dma_class) {
-						.flags = NV_DMA_TARGET_VRAM |
-							 NV_DMA_ACCESS_RDWR,
+				       NV_DMA_IN_MEMORY,
+				       &(struct nv_dma_v0) {
+						.target = NV_DMA_V0_TARGET_VRAM,
+						.access = NV_DMA_V0_ACCESS_RDWR,
 						.start = drm->notify->addr,
 						.limit = drm->notify->addr + 31
-				       }, sizeof(struct nv_dma_class),
+				       }, sizeof(struct nv_dma_v0),
 				       &drm->ntfy);
 		if (ret) {
 			nouveau_accel_fini(drm);

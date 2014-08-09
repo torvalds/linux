@@ -22,9 +22,12 @@
  * Authors: Ben Skeggs
  */
 
+#include <core/client.h>
 #include <core/device.h>
 #include <core/gpuobj.h>
 #include <core/class.h>
+#include <nvif/unpack.h>
+#include <nvif/class.h>
 
 #include <subdev/fb.h>
 
@@ -76,10 +79,11 @@ nvc0_dmaobj_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		 struct nouveau_object **pobject)
 {
 	struct nouveau_dmaeng *dmaeng = (void *)engine;
-	struct nvc0_dmaobj_priv *priv;
 	union {
-		u32 conf0;
+		struct gf100_dma_v0 v0;
 	} *args;
+	struct nvc0_dmaobj_priv *priv;
+	u32 kind, user, unkn;
 	int ret;
 
 	ret = nvkm_dmaobj_create(parent, engine, oclass, &data, &size, &priv);
@@ -88,20 +92,31 @@ nvc0_dmaobj_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		return ret;
 	args = data;
 
-	if (!(args->conf0 & NVC0_DMA_CONF0_ENABLE)) {
-		if (priv->base.target == NV_MEM_TARGET_VM) {
-			args->conf0  = NVC0_DMA_CONF0_PRIV_VM;
-			args->conf0 |= NVC0_DMA_CONF0_TYPE_VM;
+	nv_ioctl(parent, "create gf100 dma size %d\n", size);
+	if (nvif_unpack(args->v0, 0, 0, false)) {
+		nv_ioctl(parent, "create gf100 dma vers %d priv %d kind %02x\n",
+			 args->v0.version, args->v0.priv, args->v0.kind);
+		kind = args->v0.kind;
+		user = args->v0.priv;
+		unkn = 0;
+	} else
+	if (size == 0) {
+		if (priv->base.target != NV_MEM_TARGET_VM) {
+			kind = GF100_DMA_V0_KIND_PITCH;
+			user = GF100_DMA_V0_PRIV_US;
+			unkn = 2;
 		} else {
-			args->conf0  = NVC0_DMA_CONF0_PRIV_US;
-			args->conf0 |= NVC0_DMA_CONF0_TYPE_LINEAR;
-			args->conf0 |= 0x00020000;
+			kind = GF100_DMA_V0_KIND_VM;
+			user = GF100_DMA_V0_PRIV_VM;
+			unkn = 0;
 		}
-	}
+	} else
+		return ret;
 
-	priv->flags0 |= (args->conf0 & NVC0_DMA_CONF0_TYPE) << 22;
-	priv->flags0 |= (args->conf0 & NVC0_DMA_CONF0_PRIV);
-	priv->flags5 |= (args->conf0 & NVC0_DMA_CONF0_UNKN);
+	if (user > 2)
+		return -EINVAL;
+	priv->flags0 |= (kind << 22) | (user << 20);
+	priv->flags5 |= (unkn << 16);
 
 	switch (priv->base.target) {
 	case NV_MEM_TARGET_VM:
@@ -145,9 +160,9 @@ nvc0_dmaobj_ofuncs = {
 
 static struct nouveau_oclass
 nvc0_dmaeng_sclass[] = {
-	{ NV_DMA_FROM_MEMORY_CLASS, &nvc0_dmaobj_ofuncs },
-	{ NV_DMA_TO_MEMORY_CLASS, &nvc0_dmaobj_ofuncs },
-	{ NV_DMA_IN_MEMORY_CLASS, &nvc0_dmaobj_ofuncs },
+	{ NV_DMA_FROM_MEMORY, &nvc0_dmaobj_ofuncs },
+	{ NV_DMA_TO_MEMORY, &nvc0_dmaobj_ofuncs },
+	{ NV_DMA_IN_MEMORY, &nvc0_dmaobj_ofuncs },
 	{}
 };
 

@@ -76,8 +76,8 @@ nouveau_fifo_channel_create_(struct nouveau_object *parent,
 
 	dmaeng = (void *)chan->pushdma->base.engine;
 	switch (chan->pushdma->base.oclass->handle) {
-	case NV_DMA_FROM_MEMORY_CLASS:
-	case NV_DMA_IN_MEMORY_CLASS:
+	case NV_DMA_FROM_MEMORY:
+	case NV_DMA_IN_MEMORY:
 		break;
 	default:
 		return -EINVAL;
