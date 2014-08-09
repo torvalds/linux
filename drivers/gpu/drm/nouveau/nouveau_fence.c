@@ -33,8 +33,6 @@
 #include "nouveau_dma.h"
 #include "nouveau_fence.h"
 
-#include <engine/fifo.h>
-
 struct fence_work {
 	struct work_struct base;
 	struct list_head head;
@@ -184,7 +182,7 @@ nouveau_fence_wait_uevent(struct nouveau_fence *fence, bool intr)
 
 {
 	struct nouveau_channel *chan = fence->channel;
-	struct nouveau_fifo *pfifo = nvkm_fifo(&chan->drm->device);
+	struct nouveau_fifo *pfifo = nvkm_fifo(chan->device);
 	struct nouveau_fence_priv *priv = chan->drm->fence;
 	struct nouveau_fence_wait wait = { .priv = priv };
 	int ret = 0;

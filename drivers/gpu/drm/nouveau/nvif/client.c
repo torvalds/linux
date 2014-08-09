@@ -58,9 +58,7 @@ nvif_client_fini(struct nvif_client *client)
 const struct nvif_driver *
 nvif_drivers[] = {
 #ifdef __KERNEL__
-#if 0
 	&nvif_driver_nvkm,
-#endif
 #else
 	&nvif_driver_lib,
 #endif

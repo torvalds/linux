@@ -33,11 +33,12 @@ int
 nv17_fence_sync(struct nouveau_fence *fence,
 		struct nouveau_channel *prev, struct nouveau_channel *chan)
 {
+	struct nouveau_cli *cli = (void *)nvif_client(&prev->device->base);
 	struct nv10_fence_priv *priv = chan->drm->fence;
 	u32 value;
 	int ret;
 
-	if (!mutex_trylock(&prev->cli->mutex))
+	if (!mutex_trylock(&cli->mutex))
 		return -EBUSY;
 
 	spin_lock(&priv->lock);
@@ -64,7 +65,7 @@ nv17_fence_sync(struct nouveau_fence *fence,
 		FIRE_RING (chan);
 	}
 
-	mutex_unlock(&prev->cli->mutex);
+	mutex_unlock(&cli->mutex);
 	return 0;
 }
 
@@ -74,7 +75,6 @@ nv17_fence_context_new(struct nouveau_channel *chan)
 	struct nv10_fence_priv *priv = chan->drm->fence;
 	struct nv10_fence_chan *fctx;
 	struct ttm_mem_reg *mem = &priv->bo->bo.mem;
-	struct nouveau_object *object;
 	u32 start = mem->start * PAGE_SIZE;
 	u32 limit = start + mem->size - 1;
 	int ret = 0;
@@ -88,15 +88,15 @@ nv17_fence_context_new(struct nouveau_channel *chan)
 	fctx->base.read = nv10_fence_read;
 	fctx->base.sync = nv17_fence_sync;
 
-	ret = nouveau_object_new(nv_object(chan->cli), chan->handle,
-				 NvSema, 0x0002,
-				 &(struct nv_dma_class) {
+	ret = nvif_object_init(chan->object, NULL, NvSema,
+				NV_DMA_FROM_MEMORY_CLASS,
+			       &(struct nv_dma_class) {
 					.flags = NV_DMA_TARGET_VRAM |
 						 NV_DMA_ACCESS_RDWR,
 					.start = start,
 					.limit = limit,
-				 }, sizeof(struct nv_dma_class),
-				 &object);
+			       }, sizeof(struct nv_dma_class),
+			       &fctx->sema);
 	if (ret)
 		nv10_fence_context_del(chan);
 	return ret;

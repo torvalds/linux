@@ -154,11 +154,10 @@ nvc0_fbcon_accel_init(struct fb_info *info)
 	struct nouveau_framebuffer *fb = &nfbdev->nouveau_fb;
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_channel *chan = drm->channel;
-	struct nouveau_object *object;
 	int ret, format;
 
-	ret = nouveau_object_new(nv_object(chan->cli), NVDRM_CHAN, Nv2D,
-				 0x902d, NULL, 0, &object);
+	ret = nvif_object_init(chan->object, NULL, Nv2D, 0x902d, NULL, 0,
+			       &nfbdev->twod);
 	if (ret)
 		return ret;
 

@@ -32,9 +32,6 @@
 
 #include <core/class.h>
 
-#include <subdev/gpio.h>
-#include <subdev/i2c.h>
-
 static void
 nouveau_dp_probe_oui(struct drm_device *dev, struct nouveau_i2c_port *auxch,
 		     u8 *dpcd)

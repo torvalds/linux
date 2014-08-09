@@ -37,7 +37,6 @@
 #include <core/device.h>
 
 #include <subdev/bios/gpio.h>
-#include <subdev/gpio.h>
 
 MODULE_PARM_DESC(tv_norm, "Default TV norm.\n"
 		 "\t\tSupported: PAL, PAL-M, PAL-N, PAL-Nc, NTSC-M, NTSC-J,\n"

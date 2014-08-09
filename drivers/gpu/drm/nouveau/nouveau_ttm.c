@@ -24,10 +24,6 @@
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <subdev/fb.h>
-#include <subdev/vm.h>
-#include <subdev/instmem.h>
-
 #include "nouveau_drm.h"
 #include "nouveau_ttm.h"
 #include "nouveau_gem.h"

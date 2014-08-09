@@ -27,9 +27,6 @@
 #include "hw.h"
 
 #include <subdev/bios/pll.h>
-#include <subdev/fb.h>
-#include <subdev/clock.h>
-#include <subdev/timer.h>
 
 #define CHIPSET_NFORCE 0x01a0
 #define CHIPSET_NFORCE2 0x01f0

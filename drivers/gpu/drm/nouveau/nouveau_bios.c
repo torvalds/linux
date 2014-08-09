@@ -22,8 +22,6 @@
  * SOFTWARE.
  */
 
-#include <subdev/bios.h>
-
 #include <drm/drmP.h>
 
 #include "nouveau_drm.h"

@@ -37,6 +37,13 @@ struct nouveau_fbdev {
 	struct list_head fbdev_list;
 	struct drm_device *dev;
 	unsigned int saved_flags;
+	struct nvif_object surf2d;
+	struct nvif_object clip;
+	struct nvif_object rop;
+	struct nvif_object patt;
+	struct nvif_object gdi;
+	struct nvif_object blit;
+	struct nvif_object twod;
 };
 
 void nouveau_fbcon_restore(void);

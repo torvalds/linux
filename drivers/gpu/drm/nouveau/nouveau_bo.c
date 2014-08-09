@@ -30,10 +30,6 @@
 #include <core/engine.h>
 #include <linux/swiotlb.h>
 
-#include <subdev/fb.h>
-#include <subdev/vm.h>
-#include <subdev/bar.h>
-
 #include "nouveau_drm.h"
 #include "nouveau_dma.h"
 #include "nouveau_fence.h"
@@ -951,6 +947,7 @@ nouveau_bo_move_m2mf(struct ttm_buffer_object *bo, int evict, bool intr,
 {
 	struct nouveau_drm *drm = nouveau_bdev(bo->bdev);
 	struct nouveau_channel *chan = drm->ttm.chan;
+	struct nouveau_cli *cli = (void *)nvif_client(&chan->device->base);
 	struct nouveau_fence *fence;
 	int ret;
 
@@ -964,7 +961,7 @@ nouveau_bo_move_m2mf(struct ttm_buffer_object *bo, int evict, bool intr,
 			return ret;
 	}
 
-	mutex_lock_nested(&chan->cli->mutex, SINGLE_DEPTH_NESTING);
+	mutex_lock_nested(&cli->mutex, SINGLE_DEPTH_NESTING);
 	ret = nouveau_fence_sync(bo->sync_obj, chan);
 	if (ret == 0) {
 		ret = drm->ttm.move(chan, bo, &bo->mem, new_mem);
@@ -979,7 +976,7 @@ nouveau_bo_move_m2mf(struct ttm_buffer_object *bo, int evict, bool intr,
 			}
 		}
 	}
-	mutex_unlock(&chan->cli->mutex);
+	mutex_unlock(&cli->mutex);
 	return ret;
 }
 
@@ -1011,9 +1008,7 @@ nouveau_bo_move_init(struct nouveau_drm *drm)
 	int ret;
 
 	do {
-		struct nouveau_object *object;
 		struct nouveau_channel *chan;
-		u32 handle = (mthd->engine << 16) | mthd->oclass;
 
 		if (mthd->engine)
 			chan = drm->cechan;
@@ -1022,13 +1017,14 @@ nouveau_bo_move_init(struct nouveau_drm *drm)
 		if (chan == NULL)
 			continue;
 
-		ret = nouveau_object_new(nv_object(drm), chan->handle, handle,
-					 mthd->oclass, NULL, 0, &object);
+		ret = nvif_object_init(chan->object, NULL,
+				       mthd->oclass | (mthd->engine << 16),
+				       mthd->oclass, NULL, 0,
+				       &drm->ttm.copy);
 		if (ret == 0) {
-			ret = mthd->init(chan, handle);
+			ret = mthd->init(chan, drm->ttm.copy.handle);
 			if (ret) {
-				nouveau_object_del(nv_object(drm),
-						   chan->handle, handle);
+				nvif_object_fini(&drm->ttm.copy);
 				continue;
 			}
 

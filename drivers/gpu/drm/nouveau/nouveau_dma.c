@@ -84,12 +84,13 @@ void
 nv50_dma_push(struct nouveau_channel *chan, struct nouveau_bo *bo,
 	      int delta, int length)
 {
+	struct nouveau_cli *cli = (void *)nvif_client(&chan->device->base);
 	struct nouveau_bo *pb = chan->push.buffer;
 	struct nouveau_vma *vma;
 	int ip = (chan->dma.ib_put * 2) + chan->dma.ib_base;
 	u64 offset;
 
-	vma = nouveau_bo_vma_find(bo, nv_client(chan->cli)->vm);
+	vma = nouveau_bo_vma_find(bo, cli->vm);
 	BUG_ON(!vma);
 	offset = vma->offset + delta;
 

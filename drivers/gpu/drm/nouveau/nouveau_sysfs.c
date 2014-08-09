@@ -48,7 +48,8 @@ nouveau_sysfs_pstate_get(struct device *d, struct device_attribute *a, char *b)
 	char *buf = b;
 	int ret, i;
 
-	ret = nv_exec(sysfs->ctrl, NV_CONTROL_PSTATE_INFO, &info, sizeof(info));
+	ret = nvif_exec(&sysfs->ctrl, NV_CONTROL_PSTATE_INFO,
+			&info, sizeof(info));
 	if (ret)
 		return ret;
 
@@ -60,8 +61,8 @@ nouveau_sysfs_pstate_get(struct device *d, struct device_attribute *a, char *b)
 			.index = 0,
 		};
 
-		ret = nv_exec(sysfs->ctrl, NV_CONTROL_PSTATE_ATTR,
-			     &attr, sizeof(attr));
+		ret = nvif_exec(&sysfs->ctrl, NV_CONTROL_PSTATE_ATTR,
+				&attr, sizeof(attr));
 		if (ret)
 			return ret;
 
@@ -75,8 +76,8 @@ nouveau_sysfs_pstate_get(struct device *d, struct device_attribute *a, char *b)
 		attr.index = 0;
 		do {
 			attr.state = state;
-			ret = nv_exec(sysfs->ctrl, NV_CONTROL_PSTATE_ATTR,
-				     &attr, sizeof(attr));
+			ret = nvif_exec(&sysfs->ctrl, NV_CONTROL_PSTATE_ATTR,
+					&attr, sizeof(attr));
 			if (ret)
 				return ret;
 
@@ -139,7 +140,8 @@ nouveau_sysfs_pstate_set(struct device *d, struct device_attribute *a,
 		args.ustate = value;
 	}
 
-	ret = nv_exec(sysfs->ctrl, NV_CONTROL_PSTATE_USER, &args, sizeof(args));
+	ret = nvif_exec(&sysfs->ctrl, NV_CONTROL_PSTATE_USER,
+			&args, sizeof(args));
 	if (ret < 0)
 		return ret;
 
@@ -156,9 +158,9 @@ nouveau_sysfs_fini(struct drm_device *dev)
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nvif_device *device = &drm->device;
 
-	if (sysfs->ctrl) {
+	if (sysfs->ctrl.priv) {
 		device_remove_file(nv_device_base(nvkm_device(device)), &dev_attr_pstate);
-		nouveau_object_del(nv_object(drm), NVDRM_DEVICE, NVDRM_CONTROL);
+		nvif_object_fini(&sysfs->ctrl);
 	}
 
 	drm->sysfs = NULL;
@@ -177,8 +179,8 @@ nouveau_sysfs_init(struct drm_device *dev)
 	if (!sysfs)
 		return -ENOMEM;
 
-	ret = nouveau_object_new(nv_object(drm), NVDRM_DEVICE, NVDRM_CONTROL,
-				 NV_CONTROL_CLASS, NULL, 0, &sysfs->ctrl);
+	ret = nvif_object_init(nvif_object(&drm->device), NULL, NVDRM_CONTROL,
+			       NV_CONTROL_CLASS, NULL, 0, &sysfs->ctrl);
 	if (ret == 0)
 		device_create_file(nv_device_base(nvkm_device(device)), &dev_attr_pstate);
 

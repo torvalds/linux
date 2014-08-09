@@ -37,8 +37,6 @@
 
 #include "nouveau_fence.h"
 
-#include <engine/disp.h>
-
 #include <core/class.h>
 #include <nvif/event.h>
 
@@ -102,7 +100,7 @@ nouveau_display_scanoutpos_head(struct drm_crtc *crtc, int *vpos, int *hpos,
 	int ret, retry = 1;
 
 	do {
-		ret = nv_exec(disp->core, mthd, &args, sizeof(args));
+		ret = nvif_exec(&disp->disp, mthd, &args, sizeof(args));
 		if (ret != 0)
 			return 0;
 
@@ -399,10 +397,10 @@ nouveau_display_create_properties(struct drm_device *dev)
 	struct nouveau_display *disp = nouveau_display(dev);
 	int gen;
 
-	if (nv_mclass(disp->core) < NV50_DISP_CLASS)
+	if (disp->disp.oclass < NV50_DISP_CLASS)
 		gen = 0;
 	else
-	if (nv_mclass(disp->core) < NVD0_DISP_CLASS)
+	if (disp->disp.oclass < NVD0_DISP_CLASS)
 		gen = 1;
 	else
 		gen = 2;
@@ -488,14 +486,14 @@ nouveau_display_create(struct drm_device *dev)
 		int i;
 
 		for (i = 0, ret = -ENODEV; ret && i < ARRAY_SIZE(oclass); i++) {
-			ret = nouveau_object_new(nv_object(drm), NVDRM_DEVICE,
-						 NVDRM_DISPLAY, oclass[i],
-						 NULL, 0, &disp->core);
+			ret = nvif_object_init(nvif_object(&drm->device), NULL,
+					       NVDRM_DISPLAY, oclass[i],
+					       NULL, 0, &disp->disp);
 		}
 
 		if (ret == 0) {
 			nouveau_display_create_properties(dev);
-			if (nv_mclass(disp->core) < NV50_DISP_CLASS)
+			if (disp->disp.oclass < NV50_DISP_CLASS)
 				ret = nv04_display_create(dev);
 			else
 				ret = nv50_display_create(dev);
@@ -528,7 +526,6 @@ void
 nouveau_display_destroy(struct drm_device *dev)
 {
 	struct nouveau_display *disp = nouveau_display(dev);
-	struct nouveau_drm *drm = nouveau_drm(dev);
 
 	nouveau_backlight_exit(dev);
 	nouveau_display_vblank_fini(dev);
@@ -539,7 +536,7 @@ nouveau_display_destroy(struct drm_device *dev)
 	if (disp->dtor)
 		disp->dtor(dev);
 
-	nouveau_object_del(nv_object(drm), NVDRM_DEVICE, NVDRM_DISPLAY);
+	nvif_object_fini(&disp->disp);
 
 	nouveau_drm(dev)->display = NULL;
 	kfree(disp);
@@ -690,12 +687,15 @@ nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	struct nouveau_bo *old_bo = nouveau_framebuffer(crtc->primary->fb)->nvbo;
 	struct nouveau_bo *new_bo = nouveau_framebuffer(fb)->nvbo;
 	struct nouveau_page_flip_state *s;
-	struct nouveau_channel *chan = drm->channel;
+	struct nouveau_channel *chan;
+	struct nouveau_cli *cli;
 	struct nouveau_fence *fence;
 	int ret;
 
-	if (!drm->channel)
+	chan = drm->channel;
+	if (!chan)
 		return -ENODEV;
+	cli = (void *)nvif_client(&chan->device->base);
 
 	s = kzalloc(sizeof(*s), GFP_KERNEL);
 	if (!s)
@@ -707,7 +707,7 @@ nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 			goto fail_free;
 	}
 
-	mutex_lock(&chan->cli->mutex);
+	mutex_lock(&cli->mutex);
 
 	/* synchronise rendering channel with the kernel's channel */
 	spin_lock(&new_bo->bo.bdev->fence_lock);
@@ -761,7 +761,7 @@ nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	ret = nouveau_page_flip_emit(chan, old_bo, new_bo, s, &fence);
 	if (ret)
 		goto fail_unreserve;
-	mutex_unlock(&chan->cli->mutex);
+	mutex_unlock(&cli->mutex);
 
 	/* Update the crtc struct and cleanup */
 	crtc->primary->fb = fb;
@@ -777,7 +777,7 @@ fail_unreserve:
 	drm_vblank_put(dev, nouveau_crtc(crtc)->index);
 	ttm_bo_unreserve(&old_bo->bo);
 fail_unpin:
-	mutex_unlock(&chan->cli->mutex);
+	mutex_unlock(&cli->mutex);
 	if (old_bo != new_bo)
 		nouveau_bo_unpin(new_bo);
 fail_free:

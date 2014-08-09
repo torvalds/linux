@@ -70,6 +70,8 @@ nv04_display_create(struct drm_device *dev)
 	if (!disp)
 		return -ENOMEM;
 
+	nvif_object_map(nvif_object(&drm->device));
+
 	nouveau_display(dev)->priv = disp;
 	nouveau_display(dev)->dtor = nv04_display_destroy;
 	nouveau_display(dev)->init = nv04_display_init;
@@ -144,6 +146,7 @@ void
 nv04_display_destroy(struct drm_device *dev)
 {
 	struct nv04_display *disp = nv04_display(dev);
+	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct drm_encoder *encoder;
 	struct drm_crtc *crtc;
 
@@ -170,6 +173,8 @@ nv04_display_destroy(struct drm_device *dev)
 
 	nouveau_display(dev)->priv = NULL;
 	kfree(disp);
+
+	nvif_object_unmap(nvif_object(&drm->device));
 }
 
 int

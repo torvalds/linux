@@ -1,8 +1,6 @@
 #include <linux/pagemap.h>
 #include <linux/slab.h>
 
-#include <subdev/fb.h>
-
 #include "nouveau_drm.h"
 #include "nouveau_ttm.h"
 

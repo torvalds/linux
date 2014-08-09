@@ -26,8 +26,6 @@
 #include <core/client.h>
 #include <core/class.h>
 
-#include <engine/fifo.h>
-
 #include "nouveau_drm.h"
 #include "nouveau_dma.h"
 #include "nouveau_fence.h"
@@ -47,7 +45,7 @@ nv84_fence_emit32(struct nouveau_channel *chan, u64 virtual, u32 sequence)
 	int ret = RING_SPACE(chan, 8);
 	if (ret == 0) {
 		BEGIN_NV04(chan, 0, NV11_SUBCHAN_DMA_SEMAPHORE, 1);
-		OUT_RING  (chan, chan->vram);
+		OUT_RING  (chan, chan->vram.handle);
 		BEGIN_NV04(chan, 0, NV84_SUBCHAN_SEMAPHORE_ADDRESS_HIGH, 5);
 		OUT_RING  (chan, upper_32_bits(virtual));
 		OUT_RING  (chan, lower_32_bits(virtual));
@@ -65,7 +63,7 @@ nv84_fence_sync32(struct nouveau_channel *chan, u64 virtual, u32 sequence)
 	int ret = RING_SPACE(chan, 7);
 	if (ret == 0) {
 		BEGIN_NV04(chan, 0, NV11_SUBCHAN_DMA_SEMAPHORE, 1);
-		OUT_RING  (chan, chan->vram);
+		OUT_RING  (chan, chan->vram.handle);
 		BEGIN_NV04(chan, 0, NV84_SUBCHAN_SEMAPHORE_ADDRESS_HIGH, 4);
 		OUT_RING  (chan, upper_32_bits(virtual));
 		OUT_RING  (chan, lower_32_bits(virtual));
@@ -140,7 +138,7 @@ int
 nv84_fence_context_new(struct nouveau_channel *chan)
 {
 	struct nouveau_fifo_chan *fifo = nvkm_fifo_chan(chan);
-	struct nouveau_cli *cli = chan->cli;
+	struct nouveau_cli *cli = (void *)nvif_client(&chan->device->base);
 	struct nv84_fence_priv *priv = chan->drm->fence;
 	struct nv84_fence_chan *fctx;
 	int ret, i;

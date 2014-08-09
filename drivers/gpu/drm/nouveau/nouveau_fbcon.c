@@ -54,8 +54,6 @@
 #include <core/client.h>
 #include <core/device.h>
 
-#include <subdev/fb.h>
-
 MODULE_PARM_DESC(nofbaccel, "Disable fbcon acceleration");
 static int nouveau_nofbaccel = 0;
 module_param_named(nofbaccel, nouveau_nofbaccel, int, 0400);
@@ -241,6 +239,13 @@ nouveau_fbcon_accel_fini(struct drm_device *dev)
 		fbcon->helper.fbdev->flags |= FBINFO_HWACCEL_DISABLED;
 		console_unlock();
 		nouveau_channel_idle(drm->channel);
+		nvif_object_fini(&fbcon->twod);
+		nvif_object_fini(&fbcon->blit);
+		nvif_object_fini(&fbcon->gdi);
+		nvif_object_fini(&fbcon->patt);
+		nvif_object_fini(&fbcon->rop);
+		nvif_object_fini(&fbcon->clip);
+		nvif_object_fini(&fbcon->surf2d);
 	}
 }
 
@@ -352,7 +357,7 @@ nouveau_fbcon_create(struct drm_fb_helper *helper,
 
 	chan = nouveau_nofbaccel ? NULL : drm->channel;
 	if (chan && device->info.family >= NV_DEVICE_INFO_V0_TESLA) {
-		ret = nouveau_bo_vma_add(nvbo, nv_client(chan->cli)->vm,
+		ret = nouveau_bo_vma_add(nvbo, drm->client.vm,
 					&fbcon->nouveau_fb.vma);
 		if (ret) {
 			NV_ERROR(drm, "failed to map fb into chan: %d\n", ret);

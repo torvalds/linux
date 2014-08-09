@@ -28,6 +28,9 @@
 #include <core/client.h>
 #include <core/event.h>
 
+#include <nvif/client.h>
+#include <nvif/device.h>
+
 #include <subdev/vm.h>
 
 #include <drmP.h>
@@ -53,6 +56,17 @@ struct nouveau_drm_tile {
 	bool used;
 };
 
+enum nouveau_drm_object_route {
+	NVDRM_OBJECT_NVIF = 0,
+	NVDRM_OBJECT_USIF,
+	NVDRM_OBJECT_ABI16,
+};
+
+enum nouveau_drm_notify_route {
+	NVDRM_NOTIFY_NVIF = 0,
+	NVDRM_NOTIFY_USIF
+};
+
 enum nouveau_drm_handle {
 	NVDRM_CLIENT  = 0xffffffff,
 	NVDRM_DEVICE  = 0xdddddddd,
@@ -64,7 +78,7 @@ enum nouveau_drm_handle {
 };
 
 struct nouveau_cli {
-	struct nouveau_client base;
+	struct nvif_client base;
 	struct nouveau_vm *vm; /*XXX*/
 	struct list_head head;
 	struct mutex mutex;
@@ -78,31 +92,6 @@ nouveau_cli(struct drm_file *fpriv)
 }
 
 #include <nvif/object.h>
-#undef nvif_object
-#undef nvif_rd08
-#undef nvif_rd16
-#undef nvif_rd32
-#undef nvif_wr08
-#undef nvif_wr16
-#undef nvif_wr32
-#undef nvif_mask
-#undef nvkm_object
-#undef nvif_exec
-
-#define nvif_object(a) ({ \
-	struct nvif_object *_object = (a)->object; \
-	(struct nouveau_object *)_object; \
-})
-#define nvif_rd08(a,b) nv_ro08(nvif_object(a), (b))
-#define nvif_rd16(a,b) nv_ro16(nvif_object(a), (b))
-#define nvif_rd32(a,b) nv_ro32(nvif_object(a), (b))
-#define nvif_wr08(a,b,c) nv_wo08(nvif_object(a), (b), (c))
-#define nvif_wr16(a,b,c) nv_wo16(nvif_object(a), (b), (c))
-#define nvif_wr32(a,b,c) nv_wo32(nvif_object(a), (b), (c))
-#define nvif_mask(a,b,c,d) nv_mo32(nvif_object(a), (b), (c), (d))
-#define nvkm_object(a) nvif_object(a)
-#define nvif_exec(a,b,c,d) nv_exec(nvkm_object(a), (b), (c), (d))
-
 #include <nvif/device.h>
 
 extern int nouveau_runtime_pm;
@@ -134,6 +123,7 @@ struct nouveau_drm {
 			    struct ttm_buffer_object *,
 			    struct ttm_mem_reg *, struct ttm_mem_reg *);
 		struct nouveau_channel *chan;
+		struct nvif_object copy;
 		int mtrr;
 	} ttm;
 
@@ -151,6 +141,8 @@ struct nouveau_drm {
 	struct nouveau_channel *channel;
 	struct nouveau_gpuobj *notify;
 	struct nouveau_fbdev *fbcon;
+	struct nvif_object nvsw;
+	struct nvif_object ntfy;
 
 	/* nv10-nv40 tiling regions */
 	struct {
@@ -192,7 +184,7 @@ void nouveau_drm_device_remove(struct drm_device *dev);
 
 #define NV_PRINTK(l,c,f,a...) do {                                             \
 	struct nouveau_cli *_cli = (c);                                        \
-	nv_##l(_cli, f, ##a);                                                  \
+	nv_##l(_cli->base.base.priv, f, ##a);                                  \
 } while(0)
 #define NV_FATAL(drm,f,a...) NV_PRINTK(fatal, &(drm)->client, f, ##a)
 #define NV_ERROR(drm,f,a...) NV_PRINTK(error, &(drm)->client, f, ##a)

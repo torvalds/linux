@@ -35,8 +35,6 @@
 
 #include <drm/i2c/ch7006.h>
 
-#include <subdev/i2c.h>
-
 static struct nouveau_i2c_board_info nv04_tv_encoder_info[] = {
 	{
 		{

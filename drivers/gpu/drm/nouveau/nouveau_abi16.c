@@ -27,47 +27,34 @@
 #include <core/class.h>
 #include <core/mm.h>
 
-#include <subdev/fb.h>
-#include <subdev/timer.h>
-#include <subdev/instmem.h>
-#include <engine/graph.h>
-
 #include "nouveau_drm.h"
 #include "nouveau_dma.h"
 #include "nouveau_gem.h"
 #include "nouveau_chan.h"
 #include "nouveau_abi16.h"
 
-void nouveau_drm_hack_device(struct nouveau_drm *, struct nvif_device *);
-
 struct nouveau_abi16 *
 nouveau_abi16_get(struct drm_file *file_priv, struct drm_device *dev)
 {
 	struct nouveau_cli *cli = nouveau_cli(file_priv);
-	struct nouveau_drm *drm = nouveau_drm(dev);
 	mutex_lock(&cli->mutex);
 	if (!cli->abi16) {
 		struct nouveau_abi16 *abi16;
 		cli->abi16 = abi16 = kzalloc(sizeof(*abi16), GFP_KERNEL);
 		if (cli->abi16) {
 			INIT_LIST_HEAD(&abi16->channels);
-			abi16->client = nv_object(cli);
 
 			/* allocate device object targeting client's default
 			 * device (ie. the one that belongs to the fd it
 			 * opened)
 			 */
-			if (nouveau_object_new(abi16->client, NVDRM_CLIENT,
-					       NVDRM_DEVICE, 0x0080,
-					       &(struct nv_device_class) {
+			if (nvif_device_init(&cli->base.base, NULL,
+					     NVDRM_DEVICE, NV_DEVICE_CLASS,
+					     &(struct nv_device_class) {
 						.device = ~0ULL,
-					       },
-					       sizeof(struct nv_device_class),
-					       (struct nouveau_object **)
-					       &abi16->device.object) == 0) {
-				nouveau_drm_hack_device(drm, &abi16->device);
+					     }, sizeof(struct nv_device_class),
+					     &abi16->device) == 0)
 				return cli->abi16;
-			}
 
 			kfree(cli->abi16);
 			cli->abi16 = NULL;
@@ -81,7 +68,7 @@ nouveau_abi16_get(struct drm_file *file_priv, struct drm_device *dev)
 int
 nouveau_abi16_put(struct nouveau_abi16 *abi16, int ret)
 {
-	struct nouveau_cli *cli = (void *)abi16->client;
+	struct nouveau_cli *cli = (void *)nvif_client(&abi16->device.base);
 	mutex_unlock(&cli->mutex);
 	return ret;
 }
@@ -144,7 +131,7 @@ nouveau_abi16_chan_fini(struct nouveau_abi16 *abi16,
 
 	/* destroy channel object, all children will be killed too */
 	if (chan->chan) {
-		abi16->handles &= ~(1ULL << (chan->chan->handle & 0xffff));
+		abi16->handles &= ~(1ULL << (chan->chan->object->handle & 0xffff));
 		nouveau_channel_del(&chan->chan);
 	}
 
@@ -155,7 +142,7 @@ nouveau_abi16_chan_fini(struct nouveau_abi16 *abi16,
 void
 nouveau_abi16_fini(struct nouveau_abi16 *abi16)
 {
-	struct nouveau_cli *cli = (void *)abi16->client;
+	struct nouveau_cli *cli = (void *)nvif_client(&abi16->device.base);
 	struct nouveau_abi16_chan *chan, *temp;
 
 	/* cleanup channels */
@@ -164,7 +151,7 @@ nouveau_abi16_fini(struct nouveau_abi16 *abi16)
 	}
 
 	/* destroy the device object */
-	nouveau_object_del(abi16->client, NVDRM_CLIENT, NVDRM_DEVICE);
+	nvif_device_fini(&abi16->device);
 
 	kfree(cli->abi16);
 	cli->abi16 = NULL;
@@ -251,7 +238,6 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_abi16 *abi16 = nouveau_abi16_get(file_priv, dev);
 	struct nouveau_abi16_chan *chan;
-	struct nouveau_client *client;
 	struct nvif_device *device;
 	struct nouveau_instmem *imem;
 	struct nouveau_fb *pfb;
@@ -263,7 +249,6 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 	if (!drm->channel)
 		return nouveau_abi16_put(abi16, -ENODEV);
 
-	client = nv_client(abi16->client);
 	device = &abi16->device;
 	imem   = nvkm_instmem(device);
 	pfb    = nvkm_fb(device);
@@ -298,8 +283,8 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 	abi16->handles |= (1ULL << init->channel);
 
 	/* create channel object and initialise dma and fence management */
-	ret = nouveau_channel_new(drm, cli, NVDRM_DEVICE, NVDRM_CHAN |
-				  init->channel, init->fb_ctxdma_handle,
+	ret = nouveau_channel_new(drm, device, NVDRM_CHAN | init->channel,
+				  init->fb_ctxdma_handle,
 				  init->tt_ctxdma_handle, &chan->chan);
 	if (ret)
 		goto done;
@@ -330,7 +315,7 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 		goto done;
 
 	if (device->info.family >= NV_DEVICE_INFO_V0_TESLA) {
-		ret = nouveau_bo_vma_add(chan->ntfy, client->vm,
+		ret = nouveau_bo_vma_add(chan->ntfy, cli->vm,
 					&chan->ntfy_vma);
 		if (ret)
 			goto done;
@@ -361,7 +346,7 @@ nouveau_abi16_ioctl_channel_free(ABI16_IOCTL_ARGS)
 		return -ENOMEM;
 
 	list_for_each_entry(chan, &abi16->channels, head) {
-		if (chan->chan->handle == (NVDRM_CHAN | req->channel)) {
+		if (chan->chan->object->handle == (NVDRM_CHAN | req->channel)) {
 			nouveau_abi16_chan_fini(abi16, chan);
 			return nouveau_abi16_put(abi16, 0);
 		}
@@ -392,8 +377,10 @@ nouveau_abi16_ioctl_grobj_alloc(ABI16_IOCTL_ARGS)
 			return nouveau_abi16_put(abi16, 0);
 	}
 
-	ret = nouveau_object_new(abi16->client, NVDRM_CHAN | init->channel,
-				  init->handle, init->class, NULL, 0, &object);
+	/*XXX*/
+	ret = nouveau_object_new(nv_object(nvkm_client(&abi16->device.base)),
+				 NVDRM_CHAN | init->channel, init->handle,
+				 init->class, NULL, 0, &object);
 	return nouveau_abi16_put(abi16, ret);
 }
 
@@ -418,7 +405,7 @@ nouveau_abi16_ioctl_notifierobj_alloc(ABI16_IOCTL_ARGS)
 		return nouveau_abi16_put(abi16, -EINVAL);
 
 	list_for_each_entry(temp, &abi16->channels, head) {
-		if (temp->chan->handle == (NVDRM_CHAN | info->channel)) {
+		if (temp->chan->object->handle == (NVDRM_CHAN | info->channel)) {
 			chan = temp;
 			break;
 		}
@@ -456,9 +443,11 @@ nouveau_abi16_ioctl_notifierobj_alloc(ABI16_IOCTL_ARGS)
 		args.limit += chan->ntfy->bo.offset;
 	}
 
-	ret = nouveau_object_new(abi16->client, chan->chan->handle,
-				 ntfy->handle, 0x003d, &args,
-				 sizeof(args), &object);
+	/*XXX*/
+	ret = nouveau_object_new(nv_object(nvkm_client(&abi16->device.base)),
+				 NVDRM_CHAN | info->channel, ntfy->handle,
+				 NV_DMA_IN_MEMORY_CLASS, &args, sizeof(args),
+				&object);
 	if (ret)
 		goto done;
 
@@ -483,7 +472,7 @@ nouveau_abi16_ioctl_gpuobj_free(ABI16_IOCTL_ARGS)
 		return -ENOMEM;
 
 	list_for_each_entry(temp, &abi16->channels, head) {
-		if (temp->chan->handle == (NVDRM_CHAN | fini->channel)) {
+		if (temp->chan->object->handle == (NVDRM_CHAN | fini->channel)) {
 			chan = temp;
 			break;
 		}
@@ -495,7 +484,9 @@ nouveau_abi16_ioctl_gpuobj_free(ABI16_IOCTL_ARGS)
 	/* synchronize with the user channel and destroy the gpu object */
 	nouveau_channel_idle(chan->chan);
 
-	ret = nouveau_object_del(abi16->client, chan->chan->handle, fini->handle);
+	/*XXX*/
+	ret = nouveau_object_del(nv_object(nvkm_client(&abi16->device.base)),
+				 chan->chan->object->handle, fini->handle);
 	if (ret)
 		return nouveau_abi16_put(abi16, ret);
 

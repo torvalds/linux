@@ -12,6 +12,8 @@ struct nouveau_framebuffer {
 	u32 r_handle;
 	u32 r_format;
 	u32 r_pitch;
+	struct nvif_object h_base[4];
+	struct nvif_object h_core;
 };
 
 static inline struct nouveau_framebuffer *
@@ -39,7 +41,7 @@ struct nouveau_display {
 	int  (*fb_ctor)(struct drm_framebuffer *);
 	void (*fb_dtor)(struct drm_framebuffer *);
 
-	struct nouveau_object *core;
+	struct nvif_object disp;
 
 	struct drm_property *dithering_mode;
 	struct drm_property *dithering_depth;

@@ -28,7 +28,6 @@ struct nouveau_abi16_chan {
 };
 
 struct nouveau_abi16 {
-	struct nouveau_object *client;
 	struct nvif_device device;
 	struct list_head channels;
 	u64 handles;

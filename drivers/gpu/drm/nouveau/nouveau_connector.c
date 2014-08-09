@@ -42,10 +42,6 @@
 #include "nouveau_encoder.h"
 #include "nouveau_crtc.h"
 
-#include <subdev/i2c.h>
-#include <subdev/gpio.h>
-#include <engine/disp.h>
-
 #include <nvif/event.h>
 
 MODULE_PARM_DESC(tv_disable, "Disable TV-out detection");

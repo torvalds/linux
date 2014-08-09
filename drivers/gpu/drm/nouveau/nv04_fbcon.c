@@ -142,7 +142,6 @@ nv04_fbcon_accel_init(struct fb_info *info)
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_channel *chan = drm->channel;
 	struct nvif_device *device = &drm->device;
-	struct nouveau_object *object;
 	int surface_fmt, pattern_fmt, rect_fmt;
 	int ret;
 
@@ -174,35 +173,35 @@ nv04_fbcon_accel_init(struct fb_info *info)
 		return -EINVAL;
 	}
 
-	ret = nouveau_object_new(nv_object(chan->cli), NVDRM_CHAN, NvCtxSurf2D,
-				 device->info.family >= NV_DEVICE_INFO_V0_CELSIUS ? 0x0062 : 0x0042,
-				 NULL, 0, &object);
+	ret = nvif_object_init(chan->object, NULL, NvCtxSurf2D,
+			       device->info.family >= NV_DEVICE_INFO_V0_CELSIUS ?
+			       0x0062 : 0x0042, NULL, 0, &nfbdev->surf2d);
 	if (ret)
 		return ret;
 
-	ret = nouveau_object_new(nv_object(chan->cli), NVDRM_CHAN, NvClipRect,
-				 0x0019, NULL, 0, &object);
+	ret = nvif_object_init(chan->object, NULL, NvClipRect, 0x0019, NULL, 0,
+			       &nfbdev->clip);
 	if (ret)
 		return ret;
 
-	ret = nouveau_object_new(nv_object(chan->cli), NVDRM_CHAN, NvRop,
-				 0x0043, NULL, 0, &object);
+	ret = nvif_object_init(chan->object, NULL, NvRop, 0x0043, NULL, 0,
+			       &nfbdev->rop);
 	if (ret)
 		return ret;
 
-	ret = nouveau_object_new(nv_object(chan->cli), NVDRM_CHAN, NvImagePatt,
-				 0x0044, NULL, 0, &object);
+	ret = nvif_object_init(chan->object, NULL, NvImagePatt, 0x0044, NULL, 0,
+			       &nfbdev->patt);
 	if (ret)
 		return ret;
 
-	ret = nouveau_object_new(nv_object(chan->cli), NVDRM_CHAN, NvGdiRect,
-				 0x004a, NULL, 0, &object);
+	ret = nvif_object_init(chan->object, NULL, NvGdiRect, 0x004a, NULL, 0,
+			       &nfbdev->gdi);
 	if (ret)
 		return ret;
 
-	ret = nouveau_object_new(nv_object(chan->cli), NVDRM_CHAN, NvImageBlit,
-				 device->info.chipset >= 0x11 ? 0x009f : 0x005f,
-				 NULL, 0, &object);
+	ret = nvif_object_init(chan->object, NULL, NvImageBlit,
+			       device->info.chipset >= 0x11 ? 0x009f : 0x005f,
+			       NULL, 0, &nfbdev->blit);
 	if (ret)
 		return ret;
 

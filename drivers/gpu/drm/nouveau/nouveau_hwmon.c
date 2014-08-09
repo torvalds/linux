@@ -34,10 +34,6 @@
 #include "nouveau_drm.h"
 #include "nouveau_hwmon.h"
 
-#include <subdev/gpio.h>
-#include <subdev/timer.h>
-#include <subdev/therm.h>
-
 #if defined(CONFIG_HWMON) || (defined(MODULE) && defined(CONFIG_HWMON_MODULE))
 static ssize_t
 nouveau_hwmon_show_temp(struct device *d, struct device_attribute *a, char *buf)

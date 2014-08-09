@@ -30,17 +30,9 @@
 #include "drmP.h"
 #include "drm_crtc_helper.h"
 #include <core/device.h>
-#include <core/client.h>
 #include <core/gpuobj.h>
 #include <core/class.h>
 #include <core/option.h>
-
-#include <engine/device.h>
-#include <engine/disp.h>
-#include <engine/fifo.h>
-#include <engine/software.h>
-
-#include <subdev/vm.h>
 
 #include "nouveau_drm.h"
 #include "nouveau_dma.h"
@@ -109,40 +101,34 @@ static int
 nouveau_cli_create(u64 name, const char *sname,
 		   int size, void **pcli)
 {
-	struct nouveau_cli *cli;
-	int ret;
-
-	*pcli = NULL;
-	ret = nouveau_client_create_(sname, name, nouveau_config,
-				     nouveau_debug, size, pcli);
-	cli = *pcli;
-	if (ret) {
-		if (cli)
-			nouveau_client_destroy(&cli->base);
-		*pcli = NULL;
+	struct nouveau_cli *cli = *pcli = kzalloc(size, GFP_KERNEL);
+	if (cli) {
+		int ret = nvif_client_init(NULL, NULL, sname, name,
+					   nouveau_config, nouveau_debug,
+					  &cli->base);
+		if (ret == 0)
+			mutex_init(&cli->mutex);
 		return ret;
 	}
-
-	mutex_init(&cli->mutex);
-	return 0;
+	return -ENOMEM;
 }
 
 static void
 nouveau_cli_destroy(struct nouveau_cli *cli)
 {
-	struct nouveau_object *client = nv_object(cli);
-	nouveau_vm_ref(NULL, &cli->base.vm, NULL);
-	nouveau_client_fini(&cli->base, false);
-	atomic_set(&client->refcount, 1);
-	nouveau_object_ref(NULL, &client);
+	nouveau_vm_ref(NULL, &nvkm_client(&cli->base)->vm, NULL);
+	nvif_client_fini(&cli->base);
 }
 
 static void
 nouveau_accel_fini(struct nouveau_drm *drm)
 {
-	nouveau_gpuobj_ref(NULL, &drm->notify);
 	nouveau_channel_del(&drm->channel);
+	nvif_object_fini(&drm->ntfy);
+	nouveau_gpuobj_ref(NULL, &drm->notify);
+	nvif_object_fini(&drm->nvsw);
 	nouveau_channel_del(&drm->cechan);
+	nvif_object_fini(&drm->ttm.copy);
 	if (drm->fence)
 		nouveau_fence(drm)->dtor(drm);
 }
@@ -151,7 +137,6 @@ static void
 nouveau_accel_init(struct nouveau_drm *drm)
 {
 	struct nvif_device *device = &drm->device;
-	struct nouveau_object *object;
 	u32 arg0, arg1;
 	u32 sclass[16];
 	int ret, i;
@@ -163,8 +148,7 @@ nouveau_accel_init(struct nouveau_drm *drm)
 	/*XXX: this is crap, but the fence/channel stuff is a little
 	 *     backwards in some places.  this will be fixed.
 	 */
-	ret = nouveau_parent_lclass(nvkm_object(device), sclass,
-				    ARRAY_SIZE(sclass));
+	ret = nvif_object_sclass(&device->base, sclass, ARRAY_SIZE(sclass));
 	if (ret < 0)
 		return;
 
@@ -202,8 +186,7 @@ nouveau_accel_init(struct nouveau_drm *drm)
 	}
 
 	if (device->info.family >= NV_DEVICE_INFO_V0_KEPLER) {
-		ret = nouveau_channel_new(drm, &drm->client, NVDRM_DEVICE,
-					  NVDRM_CHAN + 1,
+		ret = nouveau_channel_new(drm, &drm->device, NVDRM_CHAN + 1,
 					  NVE0_CHANNEL_IND_ENGINE_CE0 |
 					  NVE0_CHANNEL_IND_ENGINE_CE1, 0,
 					  &drm->cechan);
@@ -216,9 +199,8 @@ nouveau_accel_init(struct nouveau_drm *drm)
 	if (device->info.chipset >= 0xa3 &&
 	    device->info.chipset != 0xaa &&
 	    device->info.chipset != 0xac) {
-		ret = nouveau_channel_new(drm, &drm->client, NVDRM_DEVICE,
-					  NVDRM_CHAN + 1, NvDmaFB, NvDmaTT,
-					  &drm->cechan);
+		ret = nouveau_channel_new(drm, &drm->device, NVDRM_CHAN + 1,
+					  NvDmaFB, NvDmaTT, &drm->cechan);
 		if (ret)
 			NV_ERROR(drm, "failed to create ce channel, %d\n", ret);
 
@@ -229,18 +211,18 @@ nouveau_accel_init(struct nouveau_drm *drm)
 		arg1 = NvDmaTT;
 	}
 
-	ret = nouveau_channel_new(drm, &drm->client, NVDRM_DEVICE, NVDRM_CHAN,
-				  arg0, arg1, &drm->channel);
+	ret = nouveau_channel_new(drm, &drm->device, NVDRM_CHAN, arg0, arg1,
+				 &drm->channel);
 	if (ret) {
 		NV_ERROR(drm, "failed to create kernel channel, %d\n", ret);
 		nouveau_accel_fini(drm);
 		return;
 	}
 
-	ret = nouveau_object_new(nv_object(drm), NVDRM_CHAN, NVDRM_NVSW,
-				 nouveau_abi16_swclass(drm), NULL, 0, &object);
+	ret = nvif_object_init(drm->channel->object, NULL, NVDRM_NVSW,
+			       nouveau_abi16_swclass(drm), NULL, 0, &drm->nvsw);
 	if (ret == 0) {
-		struct nouveau_software_chan *swch = (void *)object->parent;
+		struct nouveau_software_chan *swch;
 		ret = RING_SPACE(drm->channel, 2);
 		if (ret == 0) {
 			if (device->info.family < NV_DEVICE_INFO_V0_FERMI) {
@@ -252,7 +234,7 @@ nouveau_accel_init(struct nouveau_drm *drm)
 				OUT_RING  (drm->channel, 0x001f0000);
 			}
 		}
-		swch = (void *)object->parent;
+		swch = (void *)nvkm_object(&drm->nvsw)->parent;
 		swch->flip = nouveau_flip_complete;
 		swch->flip_data = drm->channel;
 	}
@@ -272,15 +254,15 @@ nouveau_accel_init(struct nouveau_drm *drm)
 			return;
 		}
 
-		ret = nouveau_object_new(nv_object(drm),
-					 drm->channel->handle, NvNotify0,
-					 0x003d, &(struct nv_dma_class) {
+		ret = nvif_object_init(drm->channel->object, NULL, NvNotify0,
+				       NV_DMA_IN_MEMORY_CLASS,
+				       &(struct nv_dma_class) {
 						.flags = NV_DMA_TARGET_VRAM |
 							 NV_DMA_ACCESS_RDWR,
 						.start = drm->notify->addr,
 						.limit = drm->notify->addr + 31
-						}, sizeof(struct nv_dma_class),
-					 &object);
+				       }, sizeof(struct nv_dma_class),
+				       &drm->ntfy);
 		if (ret) {
 			nouveau_accel_fini(drm);
 			return;
@@ -373,27 +355,6 @@ nouveau_get_hdmi_dev(struct nouveau_drm *drm)
 	}
 }
 
-void
-nouveau_drm_hack_device(struct nouveau_drm *drm, struct nvif_device *device)
-{
-	drm->device.info.chipset = nvkm_device(&drm->device)->chipset;
-	switch (nvkm_device(&drm->device)->card_type) {
-	case NV_04: device->info.family = NV_DEVICE_INFO_V0_TNT; break;
-	case NV_10: device->info.family = NV_DEVICE_INFO_V0_CELSIUS; break;
-	case NV_11: device->info.family = NV_DEVICE_INFO_V0_CELSIUS; break;
-	case NV_20: device->info.family = NV_DEVICE_INFO_V0_KELVIN; break;
-	case NV_30: device->info.family = NV_DEVICE_INFO_V0_RANKINE; break;
-	case NV_40: device->info.family = NV_DEVICE_INFO_V0_CURIE; break;
-	case NV_50: device->info.family = NV_DEVICE_INFO_V0_TESLA; break;
-	case NV_C0: device->info.family = NV_DEVICE_INFO_V0_FERMI; break;
-	case NV_E0: device->info.family = NV_DEVICE_INFO_V0_KEPLER; break;
-	case GM100: device->info.family = NV_DEVICE_INFO_V0_MAXWELL; break;
-	default:
-		BUG_ON(1);
-		break;
-	}
-}
-
 static int
 nouveau_drm_load(struct drm_device *dev, unsigned long flags)
 {
@@ -408,7 +369,8 @@ nouveau_drm_load(struct drm_device *dev, unsigned long flags)
 
 	dev->dev_private = drm;
 	drm->dev = dev;
-	nouveau_client(drm)->debug = nouveau_dbgopt(nouveau_debug, "DRM");
+	nvkm_client(&drm->client.base)->debug =
+		nouveau_dbgopt(nouveau_debug, "DRM");
 
 	INIT_LIST_HEAD(&drm->clients);
 	spin_lock_init(&drm->tile.lock);
@@ -422,38 +384,33 @@ nouveau_drm_load(struct drm_device *dev, unsigned long flags)
 		/* dummy device object, doesn't init anything, but allows
 		 * agp code access to registers
 		 */
-		ret = nouveau_object_new(nv_object(drm), NVDRM_CLIENT,
-					 NVDRM_DEVICE, 0x0080,
-					 &(struct nv_device_class) {
+		ret = nvif_device_init(&drm->client.base.base, NULL,
+				       NVDRM_DEVICE, NV_DEVICE_CLASS,
+				       &(struct nv_device_class) {
 						.device = ~0,
 						.disable =
 						 ~(NV_DEVICE_DISABLE_MMIO |
 						   NV_DEVICE_DISABLE_IDENTIFY),
 						.debug0 = ~0,
-					 }, sizeof(struct nv_device_class),
-					 (struct nouveau_object **)
-					 &drm->device.object);
+				       }, sizeof(struct nv_device_class),
+				       &drm->device);
 		if (ret)
 			goto fail_device;
 
-		nouveau_drm_hack_device(drm, &drm->device);
-
 		nouveau_agp_reset(drm);
-		nouveau_object_del(nv_object(drm), NVDRM_CLIENT, NVDRM_DEVICE);
+		nvif_device_fini(&drm->device);
 	}
 
-	ret = nouveau_object_new(nv_object(drm), NVDRM_CLIENT, NVDRM_DEVICE,
-				 0x0080, &(struct nv_device_class) {
+	ret = nvif_device_init(&drm->client.base.base, NULL, NVDRM_DEVICE,
+			       NV_DEVICE_CLASS,
+			       &(struct nv_device_class) {
 					.device = ~0,
 					.disable = 0,
 					.debug0 = 0,
-				 }, sizeof(struct nv_device_class),
-				 (struct nouveau_object **)
-				 &drm->device.object);
+			       }, sizeof(struct nv_device_class),
+			       &drm->device);
 	if (ret)
 		goto fail_device;
-
-	nouveau_drm_hack_device(drm, &drm->device);
 
 	dev->irq_enabled = true;
 
@@ -473,7 +430,7 @@ nouveau_drm_load(struct drm_device *dev, unsigned long flags)
 		if (ret)
 			goto fail_device;
 
-		drm->client.base.vm = drm->client.vm;
+		nvkm_client(&drm->client.base)->vm = drm->client.vm;
 	}
 
 	ret = nouveau_ttm_init(drm);
@@ -519,6 +476,7 @@ fail_ttm:
 	nouveau_agp_fini(drm);
 	nouveau_vga_fini(drm);
 fail_device:
+	nvif_device_fini(&drm->device);
 	nouveau_cli_destroy(&drm->client);
 	return ret;
 }
@@ -544,6 +502,7 @@ nouveau_drm_unload(struct drm_device *dev)
 	nouveau_agp_fini(drm);
 	nouveau_vga_fini(drm);
 
+	nvif_device_fini(&drm->device);
 	if (drm->hdmi_device)
 		pci_dev_put(drm->hdmi_device);
 	nouveau_cli_destroy(&drm->client);
@@ -554,10 +513,12 @@ void
 nouveau_drm_device_remove(struct drm_device *dev)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nouveau_client *client;
 	struct nouveau_object *device;
 
 	dev->irq_enabled = false;
-	device = drm->client.base.device;
+	client = nvkm_client(&drm->client.base);
+	device = client->device;
 	drm_put_dev(dev);
 
 	nouveau_object_ref(NULL, &device);
@@ -612,13 +573,13 @@ nouveau_do_suspend(struct drm_device *dev, bool runtime)
 	}
 
 	list_for_each_entry(cli, &drm->clients, head) {
-		ret = nouveau_client_fini(&cli->base, true);
+		ret = nvif_client_suspend(&cli->base);
 		if (ret)
 			goto fail_client;
 	}
 
 	NV_INFO(drm, "suspending kernel object tree...\n");
-	ret = nouveau_client_fini(&drm->client.base, true);
+	ret = nvif_client_suspend(&drm->client.base);
 	if (ret)
 		goto fail_client;
 
@@ -627,7 +588,7 @@ nouveau_do_suspend(struct drm_device *dev, bool runtime)
 
 fail_client:
 	list_for_each_entry_continue_reverse(cli, &drm->clients, head) {
-		nouveau_client_init(&cli->base);
+		nvif_client_resume(&cli->base);
 	}
 
 	if (drm->fence && nouveau_fence(drm)->resume)
@@ -675,7 +636,7 @@ nouveau_do_resume(struct drm_device *dev)
 	nouveau_agp_reset(drm);
 
 	NV_INFO(drm, "resuming kernel object tree...\n");
-	nouveau_client_init(&drm->client.base);
+	nvif_client_resume(&drm->client.base);
 	nouveau_agp_init(drm);
 
 	NV_INFO(drm, "resuming client object trees...\n");
@@ -683,7 +644,7 @@ nouveau_do_resume(struct drm_device *dev)
 		nouveau_fence(drm)->resume(drm);
 
 	list_for_each_entry(cli, &drm->clients, head) {
-		nouveau_client_init(&cli->base);
+		nvif_client_resume(&cli->base);
 	}
 
 	nouveau_run_vbios_init(dev);
@@ -779,6 +740,8 @@ nouveau_drm_open(struct drm_device *dev, struct drm_file *fpriv)
 	if (ret)
 		goto out_suspend;
 
+	cli->base.super = false;
+
 	if (drm->device.info.family >= NV_DEVICE_INFO_V0_TESLA) {
 		ret = nouveau_vm_new(nvkm_device(&drm->device), 0, (1ULL << 40),
 				     0x1000, &cli->vm);
@@ -787,7 +750,7 @@ nouveau_drm_open(struct drm_device *dev, struct drm_file *fpriv)
 			goto out_suspend;
 		}
 
-		cli->base.vm = cli->vm;
+		nvkm_client(&cli->base)->vm = cli->vm;
 	}
 
 	fpriv->driver_priv = cli;
