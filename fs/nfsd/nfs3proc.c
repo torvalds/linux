@@ -223,11 +223,6 @@ nfsd3_proc_create(struct svc_rqst *rqstp, struct nfsd3_createargs *argp,
 	newfhp = fh_init(&resp->fh, NFS3_FHSIZE);
 	attr   = &argp->attrs;
 
-	/* Get the directory inode */
-	nfserr = fh_verify(rqstp, dirfhp, S_IFDIR, NFSD_MAY_CREATE);
-	if (nfserr)
-		RETURN_STATUS(nfserr);
-
 	/* Unfudge the mode bits */
 	attr->ia_mode &= ~S_IFMT;
 	if (!(attr->ia_valid & ATTR_MODE)) { 
