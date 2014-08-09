@@ -140,7 +140,7 @@ int
 nv84_fence_context_new(struct nouveau_channel *chan)
 {
 	struct nouveau_fifo_chan *fifo = (void *)chan->object;
-	struct nouveau_client *client = nouveau_client(fifo);
+	struct nouveau_cli *cli = chan->cli;
 	struct nv84_fence_priv *priv = chan->drm->fence;
 	struct nv84_fence_chan *fctx;
 	int ret, i;
@@ -156,16 +156,16 @@ nv84_fence_context_new(struct nouveau_channel *chan)
 	fctx->base.emit32 = nv84_fence_emit32;
 	fctx->base.sync32 = nv84_fence_sync32;
 
-	ret = nouveau_bo_vma_add(priv->bo, client->vm, &fctx->vma);
+	ret = nouveau_bo_vma_add(priv->bo, cli->vm, &fctx->vma);
 	if (ret == 0) {
-		ret = nouveau_bo_vma_add(priv->bo_gart, client->vm,
+		ret = nouveau_bo_vma_add(priv->bo_gart, cli->vm,
 					&fctx->vma_gart);
 	}
 
 	/* map display semaphore buffers into channel's vm */
 	for (i = 0; !ret && i < chan->drm->dev->mode_config.num_crtc; i++) {
 		struct nouveau_bo *bo = nv50_display_crtc_sema(chan->drm->dev, i);
-		ret = nouveau_bo_vma_add(bo, client->vm, &fctx->dispc_vma[i]);
+		ret = nouveau_bo_vma_add(bo, cli->vm, &fctx->dispc_vma[i]);
 	}
 
 	nouveau_bo_wr32(priv->bo, fifo->chid * 16/4, 0x00000000);

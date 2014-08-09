@@ -58,14 +58,14 @@ nouveau_gem_object_open(struct drm_gem_object *gem, struct drm_file *file_priv)
 	struct nouveau_vma *vma;
 	int ret;
 
-	if (!cli->base.vm)
+	if (!cli->vm)
 		return 0;
 
 	ret = ttm_bo_reserve(&nvbo->bo, false, false, false, NULL);
 	if (ret)
 		return ret;
 
-	vma = nouveau_bo_vma_find(nvbo, cli->base.vm);
+	vma = nouveau_bo_vma_find(nvbo, cli->vm);
 	if (!vma) {
 		vma = kzalloc(sizeof(*vma), GFP_KERNEL);
 		if (!vma) {
@@ -73,7 +73,7 @@ nouveau_gem_object_open(struct drm_gem_object *gem, struct drm_file *file_priv)
 			goto out;
 		}
 
-		ret = nouveau_bo_vma_add(nvbo, cli->base.vm, vma);
+		ret = nouveau_bo_vma_add(nvbo, cli->vm, vma);
 		if (ret) {
 			kfree(vma);
 			goto out;
@@ -129,14 +129,14 @@ nouveau_gem_object_close(struct drm_gem_object *gem, struct drm_file *file_priv)
 	struct nouveau_vma *vma;
 	int ret;
 
-	if (!cli->base.vm)
+	if (!cli->vm)
 		return;
 
 	ret = ttm_bo_reserve(&nvbo->bo, false, false, false, NULL);
 	if (ret)
 		return;
 
-	vma = nouveau_bo_vma_find(nvbo, cli->base.vm);
+	vma = nouveau_bo_vma_find(nvbo, cli->vm);
 	if (vma) {
 		if (--vma->refcount == 0)
 			nouveau_gem_object_unmap(nvbo, vma);
@@ -202,8 +202,8 @@ nouveau_gem_info(struct drm_file *file_priv, struct drm_gem_object *gem,
 		rep->domain = NOUVEAU_GEM_DOMAIN_VRAM;
 
 	rep->offset = nvbo->bo.offset;
-	if (cli->base.vm) {
-		vma = nouveau_bo_vma_find(nvbo, cli->base.vm);
+	if (cli->vm) {
+		vma = nouveau_bo_vma_find(nvbo, cli->vm);
 		if (!vma)
 			return -EINVAL;
 

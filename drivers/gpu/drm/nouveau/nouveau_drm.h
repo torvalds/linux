@@ -65,6 +65,7 @@ enum nouveau_drm_handle {
 
 struct nouveau_cli {
 	struct nouveau_client base;
+	struct nouveau_vm *vm; /*XXX*/
 	struct list_head head;
 	struct mutex mutex;
 	void *abi16;

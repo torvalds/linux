@@ -415,9 +415,11 @@ nouveau_drm_load(struct drm_device *dev, unsigned long flags)
 
 	if (device->card_type >= NV_50) {
 		ret = nouveau_vm_new(nv_device(drm->device), 0, (1ULL << 40),
-				     0x1000, &drm->client.base.vm);
+				     0x1000, &drm->client.vm);
 		if (ret)
 			goto fail_device;
+
+		drm->client.base.vm = drm->client.vm;
 	}
 
 	ret = nouveau_ttm_init(drm);
@@ -725,11 +727,13 @@ nouveau_drm_open(struct drm_device *dev, struct drm_file *fpriv)
 
 	if (nv_device(drm->device)->card_type >= NV_50) {
 		ret = nouveau_vm_new(nv_device(drm->device), 0, (1ULL << 40),
-				     0x1000, &cli->base.vm);
+				     0x1000, &cli->vm);
 		if (ret) {
 			nouveau_cli_destroy(cli);
 			goto out_suspend;
 		}
+
+		cli->base.vm = cli->vm;
 	}
 
 	fpriv->driver_priv = cli;

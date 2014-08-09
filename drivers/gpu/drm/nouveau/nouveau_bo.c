@@ -196,8 +196,8 @@ nouveau_bo_new(struct drm_device *dev, int size, int align,
 	int lpg_shift = 12;
 	int max_size;
 
-	if (drm->client.base.vm)
-		lpg_shift = drm->client.base.vm->vmm->lpg_shift;
+	if (drm->client.vm)
+		lpg_shift = drm->client.vm->vmm->lpg_shift;
 	max_size = INT_MAX & ~((1 << lpg_shift) - 1);
 
 	if (size <= 0 || size > max_size) {
@@ -219,9 +219,9 @@ nouveau_bo_new(struct drm_device *dev, int size, int align,
 	nvbo->bo.bdev = &drm->ttm.bdev;
 
 	nvbo->page_shift = 12;
-	if (drm->client.base.vm) {
+	if (drm->client.vm) {
 		if (!(flags & TTM_PL_FLAG_TT) && size > 256 * 1024)
-			nvbo->page_shift = drm->client.base.vm->vmm->lpg_shift;
+			nvbo->page_shift = drm->client.vm->vmm->lpg_shift;
 	}
 
 	nouveau_bo_fixup_align(nvbo, flags, &align, &size);
@@ -929,12 +929,12 @@ nouveau_bo_move_prep(struct nouveau_drm *drm, struct ttm_buffer_object *bo,
 	u64 size = (u64)mem->num_pages << PAGE_SHIFT;
 	int ret;
 
-	ret = nouveau_vm_get(nv_client(drm)->vm, size, old_node->page_shift,
+	ret = nouveau_vm_get(drm->client.vm, size, old_node->page_shift,
 			     NV_MEM_ACCESS_RW, &old_node->vma[0]);
 	if (ret)
 		return ret;
 
-	ret = nouveau_vm_get(nv_client(drm)->vm, size, new_node->page_shift,
+	ret = nouveau_vm_get(drm->client.vm, size, new_node->page_shift,
 			     NV_MEM_ACCESS_RW, &old_node->vma[1]);
 	if (ret) {
 		nouveau_vm_put(&old_node->vma[0]);
