@@ -106,10 +106,6 @@ void nouveau_object_ref(struct nouveau_object *, struct nouveau_object **);
 int nouveau_object_inc(struct nouveau_object *);
 int nouveau_object_dec(struct nouveau_object *, bool suspend);
 
-int nouveau_object_new(struct nouveau_object *, u32 parent, u32 handle,
-		       u16 oclass, void *data, u32 size,
-		       struct nouveau_object **);
-int nouveau_object_del(struct nouveau_object *, u32 parent, u32 handle);
 void nouveau_object_debug(void);
 
 static inline int
@@ -197,6 +193,23 @@ nv_memcmp(void *obj, u32 addr, const char *str, u32 len)
 			return c1 - c2;
 	}
 	return 0;
+}
+
+#include <core/handle.h>
+
+static inline int
+nouveau_object_new(struct nouveau_object *client, u32 parent, u32 handle,
+		   u16 oclass, void *data, u32 size,
+		   struct nouveau_object **pobject)
+{
+	return nouveau_handle_new(client, parent, handle, oclass,
+				  data, size, pobject);
+}
+
+static inline int
+nouveau_object_del(struct nouveau_object *client, u32 parent, u32 handle)
+{
+	return nouveau_handle_del(client, parent, handle);
 }
 
 #endif
