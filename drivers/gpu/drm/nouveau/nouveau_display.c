@@ -393,26 +393,16 @@ nouveau_display_fini(struct drm_device *dev)
 	disp->fini(dev);
 }
 
-int
-nouveau_display_create(struct drm_device *dev)
+static void
+nouveau_display_create_properties(struct drm_device *dev)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_device *device = nouveau_dev(dev);
-	struct nouveau_display *disp;
-	int ret, gen;
+	struct nouveau_display *disp = nouveau_display(dev);
+	int gen;
 
-	disp = drm->display = kzalloc(sizeof(*disp), GFP_KERNEL);
-	if (!disp)
-		return -ENOMEM;
-
-	drm_mode_config_init(dev);
-	drm_mode_create_scaling_mode_property(dev);
-	drm_mode_create_dvi_i_properties(dev);
-
-	if (nv_device(drm->device)->card_type < NV_50)
+	if (nv_mclass(disp->core) < NV50_DISP_CLASS)
 		gen = 0;
 	else
-	if (nv_device(drm->device)->card_type < NV_D0)
+	if (nv_mclass(disp->core) < NVD0_DISP_CLASS)
 		gen = 1;
 	else
 		gen = 2;
@@ -427,15 +417,33 @@ nouveau_display_create(struct drm_device *dev)
 	disp->underscan_vborder_property =
 		drm_property_create_range(dev, 0, "underscan vborder", 0, 128);
 
-	if (gen >= 1) {
-		/* -90..+90 */
-		disp->vibrant_hue_property =
-			drm_property_create_range(dev, 0, "vibrant hue", 0, 180);
+	if (gen < 1)
+		return;
 
-		/* -100..+100 */
-		disp->color_vibrance_property =
-			drm_property_create_range(dev, 0, "color vibrance", 0, 200);
-	}
+	/* -90..+90 */
+	disp->vibrant_hue_property =
+		drm_property_create_range(dev, 0, "vibrant hue", 0, 180);
+
+	/* -100..+100 */
+	disp->color_vibrance_property =
+		drm_property_create_range(dev, 0, "color vibrance", 0, 200);
+}
+
+int
+nouveau_display_create(struct drm_device *dev)
+{
+	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nouveau_device *device = nouveau_dev(dev);
+	struct nouveau_display *disp;
+	int ret;
+
+	disp = drm->display = kzalloc(sizeof(*disp), GFP_KERNEL);
+	if (!disp)
+		return -ENOMEM;
+
+	drm_mode_config_init(dev);
+	drm_mode_create_scaling_mode_property(dev);
+	drm_mode_create_dvi_i_properties(dev);
 
 	dev->mode_config.funcs = &nouveau_mode_config_funcs;
 	dev->mode_config.fb_base = nv_device_resource_start(device, 1);
@@ -487,6 +495,7 @@ nouveau_display_create(struct drm_device *dev)
 		}
 
 		if (ret == 0) {
+			nouveau_display_create_properties(dev);
 			if (nv_mclass(disp->core) < NV50_DISP_CLASS)
 				ret = nv04_display_create(dev);
 			else

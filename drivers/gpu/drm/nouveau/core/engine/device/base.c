@@ -116,8 +116,7 @@ nouveau_devobj_info(struct nouveau_object *object, void *data, u32 size)
 	case NV_30: args->v0.family = NV_DEVICE_INFO_V0_RANKINE; break;
 	case NV_40: args->v0.family = NV_DEVICE_INFO_V0_CURIE; break;
 	case NV_50: args->v0.family = NV_DEVICE_INFO_V0_TESLA; break;
-	case NV_C0:
-	case NV_D0: args->v0.family = NV_DEVICE_INFO_V0_FERMI; break;
+	case NV_C0: args->v0.family = NV_DEVICE_INFO_V0_FERMI; break;
 	case NV_E0: args->v0.family = NV_DEVICE_INFO_V0_KEPLER; break;
 	case GM100: args->v0.family = NV_DEVICE_INFO_V0_MAXWELL; break;
 	default:
@@ -305,8 +304,8 @@ nouveau_devobj_ctor(struct nouveau_object *parent,
 			case 0x080:
 			case 0x090:
 			case 0x0a0: device->card_type = NV_50; break;
-			case 0x0c0: device->card_type = NV_C0; break;
-			case 0x0d0: device->card_type = NV_D0; break;
+			case 0x0c0:
+			case 0x0d0: device->card_type = NV_C0; break;
 			case 0x0e0:
 			case 0x0f0:
 			case 0x100: device->card_type = NV_E0; break;
@@ -331,8 +330,7 @@ nouveau_devobj_ctor(struct nouveau_object *parent,
 		case NV_30: ret = nv30_identify(device); break;
 		case NV_40: ret = nv40_identify(device); break;
 		case NV_50: ret = nv50_identify(device); break;
-		case NV_C0:
-		case NV_D0: ret = nvc0_identify(device); break;
+		case NV_C0: ret = nvc0_identify(device); break;
 		case NV_E0: ret = nve0_identify(device); break;
 		case GM100: ret = gm100_identify(device); break;
 		default:

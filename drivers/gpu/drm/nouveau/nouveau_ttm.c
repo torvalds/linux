@@ -182,7 +182,6 @@ nouveau_gart_manager_new(struct ttm_mem_type_manager *man,
 			node->memtype = (nvbo->tile_flags & 0x7f00) >> 8;
 		break;
 	case NV_C0:
-	case NV_D0:
 	case NV_E0:
 		node->memtype = (nvbo->tile_flags & 0xff00) >> 8;
 		break;
