@@ -1981,7 +1981,10 @@ struct drm_i915_cmd_table {
 	int count;
 };
 
-#define INTEL_INFO(p) 	(&to_i915(p)->info)
+/* Note that the (struct drm_i915_private *) cast is just to shut up gcc. */
+#define __I915__(p)	((sizeof(*(p)) == sizeof(struct drm_i915_private)) ? \
+			 (struct drm_i915_private *)(p) : to_i915(p))
+#define INTEL_INFO(p) 	(&__I915__(p)->info)
 #define INTEL_DEVID(p)	(INTEL_INFO(p)->device_id)
 
 #define IS_I830(dev)		(INTEL_DEVID(dev) == 0x3577)
