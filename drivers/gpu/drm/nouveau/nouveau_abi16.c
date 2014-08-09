@@ -408,13 +408,27 @@ int
 nouveau_abi16_ioctl_notifierobj_alloc(ABI16_IOCTL_ARGS)
 {
 	struct drm_nouveau_notifierobj_alloc *info = data;
+	struct {
+		struct nvif_ioctl_v0 ioctl;
+		struct nvif_ioctl_new_v0 new;
+		struct nv_dma_class ctxdma;
+	} args = {
+		.ioctl.owner = NVIF_IOCTL_V0_OWNER_ANY,
+		.ioctl.type = NVIF_IOCTL_V0_NEW,
+		.ioctl.path_nr = 3,
+		.ioctl.path[2] = NOUVEAU_ABI16_CLIENT,
+		.ioctl.path[1] = NOUVEAU_ABI16_DEVICE,
+		.ioctl.path[0] = NOUVEAU_ABI16_CHAN(info->channel),
+		.new.route = NVDRM_OBJECT_ABI16,
+		.new.handle = info->handle,
+		.new.oclass = NV_DMA_IN_MEMORY_CLASS,
+	};
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_abi16 *abi16 = nouveau_abi16_get(file_priv, dev);
 	struct nouveau_abi16_chan *chan;
 	struct nouveau_abi16_ntfy *ntfy;
 	struct nvif_device *device = &abi16->device;
-	struct nouveau_object *object;
-	struct nv_dma_class args = {};
+	struct nvif_client *client;
 	int ret;
 
 	if (unlikely(!abi16))
@@ -423,6 +437,7 @@ nouveau_abi16_ioctl_notifierobj_alloc(ABI16_IOCTL_ARGS)
 	/* completely unnecessary for these chipsets... */
 	if (unlikely(device->info.family >= NV_DEVICE_INFO_V0_FERMI))
 		return nouveau_abi16_put(abi16, -EINVAL);
+	client = nvif_client(nvif_object(&abi16->device));
 
 	chan = nouveau_abi16_chan(abi16, info->channel);
 	if (!chan)
@@ -440,28 +455,26 @@ nouveau_abi16_ioctl_notifierobj_alloc(ABI16_IOCTL_ARGS)
 	if (ret)
 		goto done;
 
-	args.start = ntfy->node->offset;
-	args.limit = ntfy->node->offset + ntfy->node->length - 1;
+	args.ctxdma.start = ntfy->node->offset;
+	args.ctxdma.limit = ntfy->node->offset + ntfy->node->length - 1;
 	if (device->info.family >= NV_DEVICE_INFO_V0_TESLA) {
-		args.flags  = NV_DMA_TARGET_VM | NV_DMA_ACCESS_VM;
-		args.start += chan->ntfy_vma.offset;
-		args.limit += chan->ntfy_vma.offset;
+		args.ctxdma.flags  = NV_DMA_TARGET_VM | NV_DMA_ACCESS_VM;
+		args.ctxdma.start += chan->ntfy_vma.offset;
+		args.ctxdma.limit += chan->ntfy_vma.offset;
 	} else
 	if (drm->agp.stat == ENABLED) {
-		args.flags  = NV_DMA_TARGET_AGP | NV_DMA_ACCESS_RDWR;
-		args.start += drm->agp.base + chan->ntfy->bo.offset;
-		args.limit += drm->agp.base + chan->ntfy->bo.offset;
+		args.ctxdma.flags  = NV_DMA_TARGET_AGP | NV_DMA_ACCESS_RDWR;
+		args.ctxdma.start += drm->agp.base + chan->ntfy->bo.offset;
+		args.ctxdma.limit += drm->agp.base + chan->ntfy->bo.offset;
+		client->super = true;
 	} else {
-		args.flags  = NV_DMA_TARGET_VM | NV_DMA_ACCESS_RDWR;
-		args.start += chan->ntfy->bo.offset;
-		args.limit += chan->ntfy->bo.offset;
+		args.ctxdma.flags  = NV_DMA_TARGET_VM | NV_DMA_ACCESS_RDWR;
+		args.ctxdma.start += chan->ntfy->bo.offset;
+		args.ctxdma.limit += chan->ntfy->bo.offset;
 	}
 
-	/*XXX*/
-	ret = nouveau_object_new(nv_object(nvkm_client(&abi16->device.base)),
-				 NVDRM_CHAN | info->channel, ntfy->handle,
-				 NV_DMA_IN_MEMORY_CLASS, &args, sizeof(args),
-				&object);
+	ret = nvif_client_ioctl(client, &args, sizeof(args));
+	client->super = false;
 	if (ret)
 		goto done;
 
