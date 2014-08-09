@@ -3719,7 +3719,6 @@ static void gen6_enable_rps(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_engine_cs *ring;
 	u32 rp_state_cap;
-	u32 gt_perf_status;
 	u32 rc6vids, pcu_mbox = 0, rc6_mask = 0;
 	u32 gtfifodbg;
 	int rc6_mode;
@@ -3744,7 +3743,6 @@ static void gen6_enable_rps(struct drm_device *dev)
 	gen6_gt_force_wake_get(dev_priv, FORCEWAKE_ALL);
 
 	rp_state_cap = I915_READ(GEN6_RP_STATE_CAP);
-	gt_perf_status = I915_READ(GEN6_GT_PERF_STATUS);
 
 	parse_rp_state_cap(dev_priv, rp_state_cap);
 
