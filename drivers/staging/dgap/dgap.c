@@ -1374,19 +1374,14 @@ static int dgap_tty_init(struct board_t *brd)
 		brd->nasync = brd->maxports;
 
 	if (true_count != brd->nasync) {
-		if ((brd->type == PPCM) && (true_count == 64)) {
-			pr_warn("dgap: %s configured for %d ports, has %d ports.\n",
-				brd->name, brd->nasync, true_count);
+		pr_warn("dgap: %s configured for %d ports, has %d ports.\n",
+			brd->name, brd->nasync, true_count);
+
+		if ((brd->type == PPCM) &&
+		    (true_count == 64 || true_count == 0)) {
 			pr_warn("dgap: Please make SURE the EBI cable running from the card\n");
 			pr_warn("dgap: to each EM module is plugged into EBI IN!\n");
-		} else if ((brd->type == PPCM) && (true_count == 0)) {
-			pr_warn("dgap: %s configured for %d ports, has %d ports.\n",
-				brd->name, brd->nasync, true_count);
-			pr_warn("dgap: Please make SURE the EBI cable running from the card\n");
-			pr_warn("dgap: to each EM module is plugged into EBI IN!\n");
-		} else
-			pr_warn("dgap: %s configured for %d ports, has %d ports.\n",
-				brd->name, brd->nasync, true_count);
+		}
 
 		brd->nasync = true_count;
 
