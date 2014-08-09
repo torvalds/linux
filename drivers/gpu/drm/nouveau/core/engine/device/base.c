@@ -54,6 +54,20 @@ nouveau_device_find(u64 name)
 	return match;
 }
 
+int
+nouveau_device_list(u64 *name, int size)
+{
+	struct nouveau_device *device;
+	int nr = 0;
+	mutex_lock(&nv_devices_mutex);
+	list_for_each_entry(device, &nv_devices, head) {
+		if (nr++ < size)
+			name[nr - 1] = device->handle;
+	}
+	mutex_unlock(&nv_devices_mutex);
+	return nr;
+}
+
 /******************************************************************************
  * nouveau_devobj (0x0080): class implementation
  *****************************************************************************/

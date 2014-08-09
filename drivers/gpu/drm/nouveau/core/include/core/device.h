@@ -101,6 +101,8 @@ struct nouveau_device {
 	} acpi;
 };
 
+int nouveau_device_list(u64 *name, int size);
+
 static inline struct nouveau_device *
 nv_device(void *obj)
 {

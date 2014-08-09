@@ -26,6 +26,7 @@
 #include <core/client.h>
 #include <core/handle.h>
 #include <core/option.h>
+#include <nvif/unpack.h>
 #include <nvif/class.h>
 
 #include <nvif/unpack.h>
@@ -139,6 +140,46 @@ nvkm_client_notify_new(struct nouveau_client *client,
 	return 0;
 }
 
+static int
+nouveau_client_devlist(struct nouveau_object *object, void *data, u32 size)
+{
+	union {
+		struct nv_client_devlist_v0 v0;
+	} *args = data;
+	int ret;
+
+	nv_ioctl(object, "client devlist size %d\n", size);
+	if (nvif_unpack(args->v0, 0, 0, true)) {
+		nv_ioctl(object, "client devlist vers %d count %d\n",
+			 args->v0.version, args->v0.count);
+		if (size == sizeof(args->v0.device[0]) * args->v0.count) {
+			ret = nouveau_device_list(args->v0.device,
+						  args->v0.count);
+			if (ret >= 0) {
+				args->v0.count = ret;
+				ret = 0;
+			}
+		} else {
+			ret = -EINVAL;
+		}
+	}
+
+	return ret;
+}
+
+static int
+nouveau_client_mthd(struct nouveau_object *object, u32 mthd,
+		    void *data, u32 size)
+{
+	switch (mthd) {
+	case NV_CLIENT_DEVLIST:
+		return nouveau_client_devlist(object, data, size);
+	default:
+		break;
+	}
+	return -EINVAL;
+}
+
 static void
 nouveau_client_dtor(struct nouveau_object *object)
 {
@@ -155,6 +196,7 @@ static struct nouveau_oclass
 nouveau_client_oclass = {
 	.ofuncs = &(struct nouveau_ofuncs) {
 		.dtor = nouveau_client_dtor,
+		.mthd = nouveau_client_mthd,
 	},
 };
 
