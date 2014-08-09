@@ -149,6 +149,8 @@ struct opal_sg_list {
 #define OPAL_DUMP_INFO2				94
 #define OPAL_PCI_EEH_FREEZE_SET			97
 #define OPAL_HANDLE_HMI				98
+#define OPAL_REGISTER_DUMP_REGION		101
+#define OPAL_UNREGISTER_DUMP_REGION		102
 
 #ifndef __ASSEMBLY__
 
@@ -920,6 +922,8 @@ int64_t opal_set_param(uint64_t token, uint32_t param_id, uint64_t buffer,
 		uint64_t length);
 int64_t opal_sensor_read(uint32_t sensor_hndl, int token, __be32 *sensor_data);
 int64_t opal_handle_hmi(void);
+int64_t opal_register_dump_region(uint32_t id, uint64_t start, uint64_t end);
+int64_t opal_unregister_dump_region(uint32_t id);
 
 /* Internal functions */
 extern int early_init_dt_scan_opal(unsigned long node, const char *uname,
@@ -973,6 +977,13 @@ extern void opal_lpc_init(void);
 struct opal_sg_list *opal_vmalloc_to_sg_list(void *vmalloc_addr,
 					     unsigned long vmalloc_size);
 void opal_free_sg_list(struct opal_sg_list *sg);
+
+/*
+ * Dump region ID range usable by the OS
+ */
+#define OPAL_DUMP_REGION_HOST_START		0x80
+#define OPAL_DUMP_REGION_LOG_BUF		0x80
+#define OPAL_DUMP_REGION_HOST_END		0xFF
 
 #endif /* __ASSEMBLY__ */
 
