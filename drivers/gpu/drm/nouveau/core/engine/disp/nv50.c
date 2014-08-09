@@ -990,7 +990,7 @@ nv50_disp_data_ctor(struct nouveau_object *parent,
 	int ret = -EBUSY;
 
 	/* no context needed for channel objects... */
-	if (nv_mclass(parent) != NV_DEVICE_CLASS) {
+	if (nv_mclass(parent) != NV_DEVICE) {
 		atomic_inc(&parent->refcount);
 		*pobject = parent;
 		return 1;

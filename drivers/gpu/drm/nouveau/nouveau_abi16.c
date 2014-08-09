@@ -41,6 +41,10 @@ nouveau_abi16_get(struct drm_file *file_priv, struct drm_device *dev)
 		struct nouveau_abi16 *abi16;
 		cli->abi16 = abi16 = kzalloc(sizeof(*abi16), GFP_KERNEL);
 		if (cli->abi16) {
+			struct nv_device_v0 args = {
+				.device = ~0ULL,
+			};
+
 			INIT_LIST_HEAD(&abi16->channels);
 
 			/* allocate device object targeting client's default
@@ -49,9 +53,7 @@ nouveau_abi16_get(struct drm_file *file_priv, struct drm_device *dev)
 			 */
 			if (nvif_device_init(&cli->base.base, NULL,
 					     NOUVEAU_ABI16_DEVICE, NV_DEVICE,
-					     &(struct nv_device_class) {
-						.device = ~0ULL,
-					     }, sizeof(struct nv_device_class),
+					     &args, sizeof(args),
 					     &abi16->device) == 0)
 				return cli->abi16;
 

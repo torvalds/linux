@@ -195,42 +195,81 @@ nouveau_devobj_wr32(struct nouveau_object *object, u64 addr, u32 data)
 	nv_wr32(object->engine, addr, data);
 }
 
+static int
+nouveau_devobj_map(struct nouveau_object *object, u64 *addr, u32 *size)
+{
+	struct nouveau_device *device = nv_device(object);
+	*addr = nv_device_resource_start(device, 0);
+	*size = nv_device_resource_len(device, 0);
+	return 0;
+}
+
 static const u64 disable_map[] = {
-	[NVDEV_SUBDEV_VBIOS]	= NV_DEVICE_DISABLE_VBIOS,
-	[NVDEV_SUBDEV_DEVINIT]	= NV_DEVICE_DISABLE_CORE,
-	[NVDEV_SUBDEV_GPIO]	= NV_DEVICE_DISABLE_CORE,
-	[NVDEV_SUBDEV_I2C]	= NV_DEVICE_DISABLE_CORE,
-	[NVDEV_SUBDEV_CLOCK]	= NV_DEVICE_DISABLE_CORE,
-	[NVDEV_SUBDEV_MXM]	= NV_DEVICE_DISABLE_CORE,
-	[NVDEV_SUBDEV_MC]	= NV_DEVICE_DISABLE_CORE,
-	[NVDEV_SUBDEV_BUS]	= NV_DEVICE_DISABLE_CORE,
-	[NVDEV_SUBDEV_TIMER]	= NV_DEVICE_DISABLE_CORE,
-	[NVDEV_SUBDEV_FB]	= NV_DEVICE_DISABLE_CORE,
-	[NVDEV_SUBDEV_LTCG]	= NV_DEVICE_DISABLE_CORE,
-	[NVDEV_SUBDEV_IBUS]	= NV_DEVICE_DISABLE_CORE,
-	[NVDEV_SUBDEV_INSTMEM]	= NV_DEVICE_DISABLE_CORE,
-	[NVDEV_SUBDEV_VM]	= NV_DEVICE_DISABLE_CORE,
-	[NVDEV_SUBDEV_BAR]	= NV_DEVICE_DISABLE_CORE,
-	[NVDEV_SUBDEV_VOLT]	= NV_DEVICE_DISABLE_CORE,
-	[NVDEV_SUBDEV_THERM]	= NV_DEVICE_DISABLE_CORE,
-	[NVDEV_SUBDEV_PWR]	= NV_DEVICE_DISABLE_CORE,
-	[NVDEV_ENGINE_DMAOBJ]	= NV_DEVICE_DISABLE_CORE,
-	[NVDEV_ENGINE_PERFMON]  = NV_DEVICE_DISABLE_CORE,
-	[NVDEV_ENGINE_FIFO]	= NV_DEVICE_DISABLE_FIFO,
-	[NVDEV_ENGINE_SW]	= NV_DEVICE_DISABLE_FIFO,
-	[NVDEV_ENGINE_GR]	= NV_DEVICE_DISABLE_GRAPH,
-	[NVDEV_ENGINE_MPEG]	= NV_DEVICE_DISABLE_MPEG,
-	[NVDEV_ENGINE_ME]	= NV_DEVICE_DISABLE_ME,
-	[NVDEV_ENGINE_VP]	= NV_DEVICE_DISABLE_VP,
-	[NVDEV_ENGINE_CRYPT]	= NV_DEVICE_DISABLE_CRYPT,
-	[NVDEV_ENGINE_BSP]	= NV_DEVICE_DISABLE_BSP,
-	[NVDEV_ENGINE_PPP]	= NV_DEVICE_DISABLE_PPP,
-	[NVDEV_ENGINE_COPY0]	= NV_DEVICE_DISABLE_COPY0,
-	[NVDEV_ENGINE_COPY1]	= NV_DEVICE_DISABLE_COPY1,
-	[NVDEV_ENGINE_VIC]	= NV_DEVICE_DISABLE_VIC,
-	[NVDEV_ENGINE_VENC]	= NV_DEVICE_DISABLE_VENC,
-	[NVDEV_ENGINE_DISP]	= NV_DEVICE_DISABLE_DISP,
+	[NVDEV_SUBDEV_VBIOS]	= NV_DEVICE_V0_DISABLE_VBIOS,
+	[NVDEV_SUBDEV_DEVINIT]	= NV_DEVICE_V0_DISABLE_CORE,
+	[NVDEV_SUBDEV_GPIO]	= NV_DEVICE_V0_DISABLE_CORE,
+	[NVDEV_SUBDEV_I2C]	= NV_DEVICE_V0_DISABLE_CORE,
+	[NVDEV_SUBDEV_CLOCK]	= NV_DEVICE_V0_DISABLE_CORE,
+	[NVDEV_SUBDEV_MXM]	= NV_DEVICE_V0_DISABLE_CORE,
+	[NVDEV_SUBDEV_MC]	= NV_DEVICE_V0_DISABLE_CORE,
+	[NVDEV_SUBDEV_BUS]	= NV_DEVICE_V0_DISABLE_CORE,
+	[NVDEV_SUBDEV_TIMER]	= NV_DEVICE_V0_DISABLE_CORE,
+	[NVDEV_SUBDEV_FB]	= NV_DEVICE_V0_DISABLE_CORE,
+	[NVDEV_SUBDEV_LTCG]	= NV_DEVICE_V0_DISABLE_CORE,
+	[NVDEV_SUBDEV_IBUS]	= NV_DEVICE_V0_DISABLE_CORE,
+	[NVDEV_SUBDEV_INSTMEM]	= NV_DEVICE_V0_DISABLE_CORE,
+	[NVDEV_SUBDEV_VM]	= NV_DEVICE_V0_DISABLE_CORE,
+	[NVDEV_SUBDEV_BAR]	= NV_DEVICE_V0_DISABLE_CORE,
+	[NVDEV_SUBDEV_VOLT]	= NV_DEVICE_V0_DISABLE_CORE,
+	[NVDEV_SUBDEV_THERM]	= NV_DEVICE_V0_DISABLE_CORE,
+	[NVDEV_SUBDEV_PWR]	= NV_DEVICE_V0_DISABLE_CORE,
+	[NVDEV_ENGINE_DMAOBJ]	= NV_DEVICE_V0_DISABLE_CORE,
+	[NVDEV_ENGINE_PERFMON]  = NV_DEVICE_V0_DISABLE_CORE,
+	[NVDEV_ENGINE_FIFO]	= NV_DEVICE_V0_DISABLE_FIFO,
+	[NVDEV_ENGINE_SW]	= NV_DEVICE_V0_DISABLE_FIFO,
+	[NVDEV_ENGINE_GR]	= NV_DEVICE_V0_DISABLE_GRAPH,
+	[NVDEV_ENGINE_MPEG]	= NV_DEVICE_V0_DISABLE_MPEG,
+	[NVDEV_ENGINE_ME]	= NV_DEVICE_V0_DISABLE_ME,
+	[NVDEV_ENGINE_VP]	= NV_DEVICE_V0_DISABLE_VP,
+	[NVDEV_ENGINE_CRYPT]	= NV_DEVICE_V0_DISABLE_CRYPT,
+	[NVDEV_ENGINE_BSP]	= NV_DEVICE_V0_DISABLE_BSP,
+	[NVDEV_ENGINE_PPP]	= NV_DEVICE_V0_DISABLE_PPP,
+	[NVDEV_ENGINE_COPY0]	= NV_DEVICE_V0_DISABLE_COPY0,
+	[NVDEV_ENGINE_COPY1]	= NV_DEVICE_V0_DISABLE_COPY1,
+	[NVDEV_ENGINE_VIC]	= NV_DEVICE_V0_DISABLE_VIC,
+	[NVDEV_ENGINE_VENC]	= NV_DEVICE_V0_DISABLE_VENC,
+	[NVDEV_ENGINE_DISP]	= NV_DEVICE_V0_DISABLE_DISP,
 	[NVDEV_SUBDEV_NR]	= 0,
+};
+
+static void
+nouveau_devobj_dtor(struct nouveau_object *object)
+{
+	struct nouveau_devobj *devobj = (void *)object;
+	int i;
+
+	for (i = NVDEV_SUBDEV_NR - 1; i >= 0; i--)
+		nouveau_object_ref(NULL, &devobj->subdev[i]);
+
+	nouveau_parent_destroy(&devobj->base);
+}
+
+static struct nouveau_oclass
+nouveau_devobj_oclass_super = {
+	.handle = NV_DEVICE,
+	.ofuncs = &(struct nouveau_ofuncs) {
+		.dtor = nouveau_devobj_dtor,
+		.init = _nouveau_parent_init,
+		.fini = _nouveau_parent_fini,
+		.mthd = nouveau_devobj_mthd,
+		.map  = nouveau_devobj_map,
+		.rd08 = nouveau_devobj_rd08,
+		.rd16 = nouveau_devobj_rd16,
+		.rd32 = nouveau_devobj_rd32,
+		.wr08 = nouveau_devobj_wr08,
+		.wr16 = nouveau_devobj_wr16,
+		.wr32 = nouveau_devobj_wr32,
+	}
 };
 
 static int
@@ -239,22 +278,34 @@ nouveau_devobj_ctor(struct nouveau_object *parent,
 		    struct nouveau_oclass *oclass, void *data, u32 size,
 		    struct nouveau_object **pobject)
 {
+	union {
+		struct nv_device_v0 v0;
+	} *args = data;
 	struct nouveau_client *client = nv_client(parent);
 	struct nouveau_device *device;
 	struct nouveau_devobj *devobj;
-	struct nv_device_class *args = data;
 	u32 boot0, strap;
 	u64 disable, mmio_base, mmio_size;
 	void __iomem *map;
 	int ret, i, c;
 
-	if (size < sizeof(struct nv_device_class))
-		return -EINVAL;
+	nv_ioctl(parent, "create device size %d\n", size);
+	if (nvif_unpack(args->v0, 0, 0, false)) {
+		nv_ioctl(parent, "create device v%d device %016llx "
+				 "disable %016llx debug0 %016llx\n",
+			 args->v0.version, args->v0.device,
+			 args->v0.disable, args->v0.debug0);
+	} else
+		return ret;
+
+	/* give priviledged clients register access */
+	if (client->super)
+		oclass = &nouveau_devobj_oclass_super;
 
 	/* find the device subdev that matches what the client requested */
 	device = nv_device(client->device);
-	if (args->device != ~0) {
-		device = nouveau_device_find(args->device);
+	if (args->v0.device != ~0) {
+		device = nouveau_device_find(args->v0.device);
 		if (!device)
 			return -ENODEV;
 	}
@@ -273,14 +324,14 @@ nouveau_devobj_ctor(struct nouveau_object *parent,
 	mmio_size = nv_device_resource_len(device, 0);
 
 	/* translate api disable mask into internal mapping */
-	disable = args->debug0;
+	disable = args->v0.debug0;
 	for (i = 0; i < NVDEV_SUBDEV_NR; i++) {
-		if (args->disable & disable_map[i])
+		if (args->v0.disable & disable_map[i])
 			disable |= (1ULL << i);
 	}
 
 	/* identify the chipset, and determine classes of subdev/engines */
-	if (!(args->disable & NV_DEVICE_DISABLE_IDENTIFY) &&
+	if (!(args->v0.disable & NV_DEVICE_V0_DISABLE_IDENTIFY) &&
 	    !device->card_type) {
 		map = ioremap(mmio_base, 0x102000);
 		if (map == NULL)
@@ -379,7 +430,7 @@ nouveau_devobj_ctor(struct nouveau_object *parent,
 		nv_debug(device, "crystal freq: %dKHz\n", device->crystal);
 	}
 
-	if (!(args->disable & NV_DEVICE_DISABLE_MMIO) &&
+	if (!(args->v0.disable & NV_DEVICE_V0_DISABLE_MMIO) &&
 	    !nv_subdev(device)->mmio) {
 		nv_subdev(device)->mmio  = ioremap(mmio_base, mmio_size);
 		if (!nv_subdev(device)->mmio) {
@@ -435,18 +486,6 @@ nouveau_devobj_ctor(struct nouveau_object *parent,
 	return 0;
 }
 
-static void
-nouveau_devobj_dtor(struct nouveau_object *object)
-{
-	struct nouveau_devobj *devobj = (void *)object;
-	int i;
-
-	for (i = NVDEV_SUBDEV_NR - 1; i >= 0; i--)
-		nouveau_object_ref(NULL, &devobj->subdev[i]);
-
-	nouveau_parent_destroy(&devobj->base);
-}
-
 static struct nouveau_ofuncs
 nouveau_devobj_ofuncs = {
 	.ctor = nouveau_devobj_ctor,
@@ -454,12 +493,6 @@ nouveau_devobj_ofuncs = {
 	.init = _nouveau_parent_init,
 	.fini = _nouveau_parent_fini,
 	.mthd = nouveau_devobj_mthd,
-	.rd08 = nouveau_devobj_rd08,
-	.rd16 = nouveau_devobj_rd16,
-	.rd32 = nouveau_devobj_rd32,
-	.wr08 = nouveau_devobj_wr08,
-	.wr16 = nouveau_devobj_wr16,
-	.wr32 = nouveau_devobj_wr32,
 };
 
 /******************************************************************************

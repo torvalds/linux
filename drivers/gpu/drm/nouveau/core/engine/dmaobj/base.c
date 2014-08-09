@@ -88,7 +88,7 @@ nouveau_dmaobj_ctor(struct nouveau_object *parent,
 	dmaobj->conf0 = args->conf0;
 
 	switch (nv_mclass(parent)) {
-	case NV_DEVICE_CLASS:
+	case NV_DEVICE:
 		/* delayed, or no, binding */
 		break;
 	default:

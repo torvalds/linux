@@ -383,18 +383,18 @@ nouveau_drm_load(struct drm_device *dev, unsigned long flags)
 	 * (possibly) execute vbios init tables (see nouveau_agp.h)
 	 */
 	if (pdev && drm_pci_device_is_agp(dev) && dev->agp) {
+		const u64 enables = NV_DEVICE_V0_DISABLE_IDENTIFY |
+				    NV_DEVICE_V0_DISABLE_MMIO;
 		/* dummy device object, doesn't init anything, but allows
 		 * agp code access to registers
 		 */
 		ret = nvif_device_init(&drm->client.base.base, NULL,
-				       NVDRM_DEVICE, NV_DEVICE_CLASS,
-				       &(struct nv_device_class) {
+				       NVDRM_DEVICE, NV_DEVICE,
+				       &(struct nv_device_v0) {
 						.device = ~0,
-						.disable =
-						 ~(NV_DEVICE_DISABLE_MMIO |
-						   NV_DEVICE_DISABLE_IDENTIFY),
+						.disable = ~enables,
 						.debug0 = ~0,
-				       }, sizeof(struct nv_device_class),
+				       }, sizeof(struct nv_device_v0),
 				       &drm->device);
 		if (ret)
 			goto fail_device;
@@ -404,12 +404,12 @@ nouveau_drm_load(struct drm_device *dev, unsigned long flags)
 	}
 
 	ret = nvif_device_init(&drm->client.base.base, NULL, NVDRM_DEVICE,
-			       NV_DEVICE_CLASS,
-			       &(struct nv_device_class) {
+			       NV_DEVICE,
+			       &(struct nv_device_v0) {
 					.device = ~0,
 					.disable = 0,
 					.debug0 = 0,
-			       }, sizeof(struct nv_device_class),
+			       }, sizeof(struct nv_device_v0),
 			       &drm->device);
 	if (ret)
 		goto fail_device;

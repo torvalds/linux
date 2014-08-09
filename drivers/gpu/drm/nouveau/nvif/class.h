@@ -27,6 +27,31 @@ struct nv_client_devlist_v0 {
  * device
  ******************************************************************************/
 
+struct nv_device_v0 {
+	__u8  version;
+	__u8  pad01[7];
+	__u64 device;	/* device identifier, ~0 for client default */
+#define NV_DEVICE_V0_DISABLE_IDENTIFY                     0x0000000000000001ULL
+#define NV_DEVICE_V0_DISABLE_MMIO                         0x0000000000000002ULL
+#define NV_DEVICE_V0_DISABLE_VBIOS                        0x0000000000000004ULL
+#define NV_DEVICE_V0_DISABLE_CORE                         0x0000000000000008ULL
+#define NV_DEVICE_V0_DISABLE_DISP                         0x0000000000010000ULL
+#define NV_DEVICE_V0_DISABLE_FIFO                         0x0000000000020000ULL
+#define NV_DEVICE_V0_DISABLE_GRAPH                        0x0000000100000000ULL
+#define NV_DEVICE_V0_DISABLE_MPEG                         0x0000000200000000ULL
+#define NV_DEVICE_V0_DISABLE_ME                           0x0000000400000000ULL
+#define NV_DEVICE_V0_DISABLE_VP                           0x0000000800000000ULL
+#define NV_DEVICE_V0_DISABLE_CRYPT                        0x0000001000000000ULL
+#define NV_DEVICE_V0_DISABLE_BSP                          0x0000002000000000ULL
+#define NV_DEVICE_V0_DISABLE_PPP                          0x0000004000000000ULL
+#define NV_DEVICE_V0_DISABLE_COPY0                        0x0000008000000000ULL
+#define NV_DEVICE_V0_DISABLE_COPY1                        0x0000010000000000ULL
+#define NV_DEVICE_V0_DISABLE_VIC                          0x0000020000000000ULL
+#define NV_DEVICE_V0_DISABLE_VENC                         0x0000040000000000ULL
+	__u64 disable;	/* disable particular subsystems */
+	__u64 debug0;	/* as above, but *internal* ids, and *NOT* ABI */
+};
+
 #define NV_DEVICE_V0_INFO                                                  0x00
 
 struct nv_device_info_v0 {
