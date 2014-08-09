@@ -84,9 +84,6 @@ nv50_sor_mthd(struct nouveau_object *object, u32 mthd, void *args, u32 size)
 	}
 
 	switch (mthd & ~0x3f) {
-	case NVA3_DISP_SOR_HDA_ELD:
-		ret = priv->sor.hda_eld(priv, or, args, size);
-		break;
 	case NV84_DISP_SOR_HDMI_PWR:
 		ret = priv->sor.hdmi(priv, head, or, data);
 		break;

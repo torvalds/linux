@@ -346,4 +346,10 @@ struct nv50_disp_sor_pwr_v0 {
 	__u8  pad02[6];
 };
 
+struct nv50_disp_sor_hda_eld_v0 {
+	__u8  version;
+	__u8  pad01[7];
+	__u8  data[];
+};
+
 #endif

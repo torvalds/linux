@@ -47,7 +47,7 @@ struct nv50_disp_priv {
 	struct {
 		int nr;
 		int (*power)(NV50_DISP_MTHD_V1);
-		int (*hda_eld)(struct nv50_disp_priv *, int sor, u8 *, u32);
+		int (*hda_eld)(NV50_DISP_MTHD_V1);
 		int (*hdmi)(struct nv50_disp_priv *, int head, int sor, u32);
 		u32 lvdsconf;
 	} sor;
@@ -70,8 +70,8 @@ int nv50_dac_sense(NV50_DISP_MTHD_V1);
 
 #define SOR_MTHD(n) (n), (n) + 0x3f
 
-int nva3_hda_eld(struct nv50_disp_priv *, int, u8 *, u32);
-int nvd0_hda_eld(struct nv50_disp_priv *, int, u8 *, u32);
+int nva3_hda_eld(NV50_DISP_MTHD_V1);
+int nvd0_hda_eld(NV50_DISP_MTHD_V1);
 
 int nv84_hdmi_ctrl(struct nv50_disp_priv *, int, int, u32);
 int nva3_hdmi_ctrl(struct nv50_disp_priv *, int, int, u32);

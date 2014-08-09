@@ -1670,16 +1670,25 @@ nv50_audio_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode)
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct nouveau_connector *nv_connector;
 	struct nv50_disp *disp = nv50_disp(encoder->dev);
+	struct {
+		struct nv50_disp_mthd_v1 base;
+		struct nv50_disp_sor_hda_eld_v0 eld;
+		u8 data[sizeof(nv_connector->base.eld)];
+	} args = {
+		.base.version = 1,
+		.base.method  = NV50_DISP_MTHD_V1_SOR_HDA_ELD,
+		.base.hasht   = nv_encoder->dcb->hasht,
+		.base.hashm   = nv_encoder->dcb->hashm,
+	};
 
 	nv_connector = nouveau_encoder_connector_get(nv_encoder);
 	if (!drm_detect_monitor_audio(nv_connector->edid))
 		return;
 
 	drm_edid_to_eld(&nv_connector->base, nv_connector->edid);
+	memcpy(args.data, nv_connector->base.eld, sizeof(args.data));
 
-	nvif_exec(disp->disp, NVA3_DISP_SOR_HDA_ELD + nv_encoder->or,
-			      nv_connector->base.eld,
-			      nv_connector->base.eld[2] * 4);
+	nvif_mthd(disp->disp, 0, &args, sizeof(args));
 }
 
 static void
@@ -1687,8 +1696,17 @@ nv50_audio_disconnect(struct drm_encoder *encoder)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct nv50_disp *disp = nv50_disp(encoder->dev);
+	struct {
+		struct nv50_disp_mthd_v1 base;
+		struct nv50_disp_sor_hda_eld_v0 eld;
+	} args = {
+		.base.version = 1,
+		.base.method  = NV50_DISP_MTHD_V1_SOR_HDA_ELD,
+		.base.hasht   = nv_encoder->dcb->hasht,
+		.base.hashm   = nv_encoder->dcb->hashm,
+	};
 
-	nvif_exec(disp->disp, NVA3_DISP_SOR_HDA_ELD + nv_encoder->or, NULL, 0);
+	nvif_mthd(disp->disp, 0, &args, sizeof(args));
 }
 
 /******************************************************************************

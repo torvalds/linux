@@ -905,6 +905,10 @@ nv50_disp_base_mthd(struct nouveau_object *object, u32 mthd,
 		return priv->dac.sense(object, priv, data, size, head, outp);
 	case NV50_DISP_MTHD_V1_SOR_PWR:
 		return priv->sor.power(object, priv, data, size, head, outp);
+	case NV50_DISP_MTHD_V1_SOR_HDA_ELD:
+		if (!priv->sor.hda_eld)
+			return -ENODEV;
+		return priv->sor.hda_eld(object, priv, data, size, head, outp);
 	default:
 		break;
 	}

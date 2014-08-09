@@ -59,7 +59,6 @@ struct nv04_display_scanoutpos {
 #define NV50_DISP_SOR_MTHD_LINK                                      0x00000004
 #define NV50_DISP_SOR_MTHD_OR                                        0x00000003
 
-#define NVA3_DISP_SOR_HDA_ELD                                        0x00010100
 #define NV84_DISP_SOR_HDMI_PWR                                       0x00012000
 #define NV84_DISP_SOR_HDMI_PWR_STATE                                 0x40000000
 #define NV84_DISP_SOR_HDMI_PWR_STATE_OFF                             0x00000000
