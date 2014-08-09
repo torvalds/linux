@@ -48,6 +48,10 @@ void nouveau_object_destroy(struct nouveau_object *);
 int  nouveau_object_init(struct nouveau_object *);
 int  nouveau_object_fini(struct nouveau_object *, bool suspend);
 
+int _nouveau_object_ctor(struct nouveau_object *, struct nouveau_object *,
+			 struct nouveau_oclass *, void *, u32,
+			 struct nouveau_object **);
+
 extern struct nouveau_ofuncs nouveau_object_ofuncs;
 
 /* Don't allocate dynamically, because lockdep needs lock_class_keys to be in

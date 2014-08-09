@@ -24,6 +24,7 @@
 
 #include <nvif/os.h>
 #include <nvif/class.h>
+#include <nvif/ioctl.h>
 
 #include "nouveau_sysfs.h"
 
@@ -43,25 +44,25 @@ static ssize_t
 nouveau_sysfs_pstate_get(struct device *d, struct device_attribute *a, char *b)
 {
 	struct nouveau_sysfs *sysfs = nouveau_sysfs(drm_device(d));
-	struct nv_control_pstate_info info;
+	struct nvif_control_pstate_info_v0 info = {};
 	size_t cnt = PAGE_SIZE;
 	char *buf = b;
 	int ret, i;
 
-	ret = nvif_exec(&sysfs->ctrl, NV_CONTROL_PSTATE_INFO,
+	ret = nvif_mthd(&sysfs->ctrl, NVIF_CONTROL_PSTATE_INFO,
 			&info, sizeof(info));
 	if (ret)
 		return ret;
 
 	for (i = 0; i < info.count + 1; i++) {
 		const s32 state = i < info.count ? i :
-			NV_CONTROL_PSTATE_ATTR_STATE_CURRENT;
-		struct nv_control_pstate_attr attr = {
+			NVIF_CONTROL_PSTATE_ATTR_V0_STATE_CURRENT;
+		struct nvif_control_pstate_attr_v0 attr = {
 			.state = state,
 			.index = 0,
 		};
 
-		ret = nvif_exec(&sysfs->ctrl, NV_CONTROL_PSTATE_ATTR,
+		ret = nvif_mthd(&sysfs->ctrl, NVIF_CONTROL_PSTATE_ATTR,
 				&attr, sizeof(attr));
 		if (ret)
 			return ret;
@@ -76,7 +77,8 @@ nouveau_sysfs_pstate_get(struct device *d, struct device_attribute *a, char *b)
 		attr.index = 0;
 		do {
 			attr.state = state;
-			ret = nvif_exec(&sysfs->ctrl, NV_CONTROL_PSTATE_ATTR,
+			ret = nvif_mthd(&sysfs->ctrl,
+					NVIF_CONTROL_PSTATE_ATTR,
 					&attr, sizeof(attr));
 			if (ret)
 				return ret;
@@ -112,7 +114,7 @@ nouveau_sysfs_pstate_set(struct device *d, struct device_attribute *a,
 			 const char *buf, size_t count)
 {
 	struct nouveau_sysfs *sysfs = nouveau_sysfs(drm_device(d));
-	struct nv_control_pstate_user args = { .pwrsrc = -EINVAL };
+	struct nvif_control_pstate_user_v0 args = { .pwrsrc = -EINVAL };
 	long value, ret;
 	char *tmp;
 
@@ -129,10 +131,10 @@ nouveau_sysfs_pstate_set(struct device *d, struct device_attribute *a,
 	}
 
 	if (!strcasecmp(buf, "none"))
-		args.ustate = NV_CONTROL_PSTATE_USER_STATE_UNKNOWN;
+		args.ustate = NVIF_CONTROL_PSTATE_USER_V0_STATE_UNKNOWN;
 	else
 	if (!strcasecmp(buf, "auto"))
-		args.ustate = NV_CONTROL_PSTATE_USER_STATE_PERFMON;
+		args.ustate = NVIF_CONTROL_PSTATE_USER_V0_STATE_PERFMON;
 	else {
 		ret = kstrtol(buf, 16, &value);
 		if (ret)
@@ -140,7 +142,7 @@ nouveau_sysfs_pstate_set(struct device *d, struct device_attribute *a,
 		args.ustate = value;
 	}
 
-	ret = nvif_exec(&sysfs->ctrl, NV_CONTROL_PSTATE_USER,
+	ret = nvif_mthd(&sysfs->ctrl, NVIF_CONTROL_PSTATE_USER,
 			&args, sizeof(args));
 	if (ret < 0)
 		return ret;
@@ -179,8 +181,9 @@ nouveau_sysfs_init(struct drm_device *dev)
 	if (!sysfs)
 		return -ENOMEM;
 
-	ret = nvif_object_init(nvif_object(&drm->device), NULL, NVDRM_CONTROL,
-			       NV_CONTROL_CLASS, NULL, 0, &sysfs->ctrl);
+	ret = nvif_object_init(nvif_object(device), NULL, NVDRM_CONTROL,
+			       NVIF_IOCTL_NEW_V0_CONTROL, NULL, 0,
+			      &sysfs->ctrl);
 	if (ret == 0)
 		device_create_file(nv_device_base(nvkm_device(device)), &dev_attr_pstate);
 

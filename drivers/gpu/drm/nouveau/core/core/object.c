@@ -58,7 +58,7 @@ nouveau_object_create_(struct nouveau_object *parent,
 	return 0;
 }
 
-static int
+int
 _nouveau_object_ctor(struct nouveau_object *parent,
 		     struct nouveau_object *engine,
 		     struct nouveau_oclass *oclass, void *data, u32 size,

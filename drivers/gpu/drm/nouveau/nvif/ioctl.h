@@ -50,6 +50,7 @@ struct nvif_ioctl_new_v0 {
 	__u32 handle;
 /* these class numbers are made up by us, and not nvidia-assigned */
 #define NVIF_IOCTL_NEW_V0_PERFCTR                                    0x0000ffff
+#define NVIF_IOCTL_NEW_V0_CONTROL                                    0x0000fffe
 	__u32 oclass;
 	__u8  data[];		/* class data (class.h) */
 };
