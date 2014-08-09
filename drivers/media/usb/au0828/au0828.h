@@ -326,7 +326,14 @@ extern struct videobuf_queue_ops au0828_vbi_qops;
 	} while (0)
 
 /* au0828-input.c */
-int au0828_rc_register(struct au0828_dev *dev);
-void au0828_rc_unregister(struct au0828_dev *dev);
-int au0828_rc_suspend(struct au0828_dev *dev);
-int au0828_rc_resume(struct au0828_dev *dev);
+#ifdef CONFIG_VIDEO_AU0828_RC
+extern int au0828_rc_register(struct au0828_dev *dev);
+extern void au0828_rc_unregister(struct au0828_dev *dev);
+extern int au0828_rc_suspend(struct au0828_dev *dev);
+extern int au0828_rc_resume(struct au0828_dev *dev);
+#else
+static inline int au0828_rc_register(struct au0828_dev *dev) { return 0; }
+static inline void au0828_rc_unregister(struct au0828_dev *dev) { }
+static inline int au0828_rc_suspend(struct au0828_dev *dev) { return 0; }
+static inline int au0828_rc_resume(struct au0828_dev *dev) { return 0; }
+#endif
