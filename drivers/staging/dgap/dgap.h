@@ -1172,7 +1172,6 @@ struct cnode {
 			char  *id;	/* tty id		*/
 			long  start;	/* start of tty counting */
 			char  *method;  /* Install method       */
-			char  v_type;
 			char  v_port;
 			char  v_addr;
 			char  v_pcibus;

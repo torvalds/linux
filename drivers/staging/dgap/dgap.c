@@ -399,10 +399,7 @@ struct toklist {
 	char *string;
 };
 
-static struct toklist dgap_tlist[] = {
-	{ BEGIN,	"config_begin" },
-	{ END,		"config_end" },
-	{ BOARD,	"board"	},
+static struct toklist dgap_brdtype[] = {
 	{ PCX,		"Digi_AccelePort_C/X_PCI" },
 	{ PEPC,		"Digi_AccelePort_EPC/X_PCI" },
 	{ PPCM,		"Digi_AccelePort_Xem_PCI" },
@@ -411,6 +408,13 @@ static struct toklist dgap_tlist[] = {
 	{ APORT8_920P,	"Digi_AccelePort_8r_920_PCI" },
 	{ PAPORT4,	"Digi_AccelePort_4r_PCI(EIA-232/RS-422)" },
 	{ PAPORT8,	"Digi_AccelePort_8r_PCI(EIA-232/RS-422)" },
+	{ 0, NULL }
+};
+
+static struct toklist dgap_tlist[] = {
+	{ BEGIN,	"config_begin" },
+	{ END,		"config_end" },
+	{ BOARD,	"board"	},
 	{ IO,		"io" },
 	{ PCIINFO,	"pciinfo" },
 	{ LINE,		"line" },
@@ -6382,6 +6386,8 @@ static int dgap_parsefile(char **in)
 	}
 
 	for (; ;) {
+		int board_type = 0;
+
 		rc = dgap_gettok(in);
 		if (rc == 0) {
 			dgap_err("unexpected EOF");
@@ -6412,88 +6418,13 @@ static int dgap_parsefile(char **in)
 			line = conc = NULL;
 			brd = p;
 			linecnt = -1;
-			break;
 
-		case APORT2_920P:	/* AccelePort_4 */
-			if (p->type != BNODE) {
-				dgap_err("unexpected Digi_2r_920 string");
+			board_type = dgap_gettok(in);
+			if (board_type == 0)
 				return -1;
-			}
-			p->u.board.type = APORT2_920P;
-			p->u.board.v_type = 1;
-			break;
 
-		case APORT4_920P:	/* AccelePort_4 */
-			if (p->type != BNODE) {
-				dgap_err("unexpected Digi_4r_920 string");
-				return -1;
-			}
-			p->u.board.type = APORT4_920P;
-			p->u.board.v_type = 1;
-			break;
+			p->u.board.type = board_type;
 
-		case APORT8_920P:	/* AccelePort_8 */
-			if (p->type != BNODE) {
-				dgap_err("unexpected Digi_8r_920 string");
-				return -1;
-			}
-			p->u.board.type = APORT8_920P;
-			p->u.board.v_type = 1;
-			break;
-
-		case PAPORT4:	/* AccelePort_4 PCI */
-			if (p->type != BNODE) {
-				dgap_err("unexpected Digi_4r(PCI) string");
-				return -1;
-			}
-			p->u.board.type = PAPORT4;
-			p->u.board.v_type = 1;
-			break;
-
-		case PAPORT8:	/* AccelePort_8 PCI */
-			if (p->type != BNODE) {
-				dgap_err("unexpected Digi_8r string");
-				return -1;
-			}
-			p->u.board.type = PAPORT8;
-			p->u.board.v_type = 1;
-			break;
-
-		case PCX:	/* PCI C/X */
-			if (p->type != BNODE) {
-				dgap_err("unexpected Digi_C/X_(PCI) string");
-				return -1;
-			}
-			p->u.board.type = PCX;
-			p->u.board.v_type = 1;
-			p->u.board.conc1 = 0;
-			p->u.board.conc2 = 0;
-			p->u.board.module1 = 0;
-			p->u.board.module2 = 0;
-			break;
-
-		case PEPC:	/* PCI EPC/X */
-			if (p->type != BNODE) {
-				dgap_err("unexpected \"Digi_EPC/X_(PCI)\" string");
-				return -1;
-			}
-			p->u.board.type = PEPC;
-			p->u.board.v_type = 1;
-			p->u.board.conc1 = 0;
-			p->u.board.conc2 = 0;
-			p->u.board.module1 = 0;
-			p->u.board.module2 = 0;
-			break;
-
-		case PPCM:	/* PCI/Xem */
-			if (p->type != BNODE) {
-				dgap_err("unexpected PCI/Xem string");
-				return -1;
-			}
-			p->u.board.type = PPCM;
-			p->u.board.v_type = 1;
-			p->u.board.conc1 = 0;
-			p->u.board.conc2 = 0;
 			break;
 
 		case IO:	/* i/o port */
@@ -7198,12 +7129,11 @@ static int dgap_gettok(char **in)
 	if (strstr(dgap_cword, "board")) {
 		w = dgap_getword(in);
 		snprintf(dgap_cword, MAXCWORD, "%s", w);
-		for (t = dgap_tlist; t->token != 0; t++) {
+		for (t = dgap_brdtype; t->token != 0; t++) {
 			if (!strcmp(w, t->string))
 				return t->token;
 		}
 		dgap_err("board !!type not specified");
-		return 1;
 	} else {
 		while ((w = dgap_getword(in))) {
 			snprintf(dgap_cword, MAXCWORD, "%s", w);
@@ -7212,8 +7142,9 @@ static int dgap_gettok(char **in)
 					return t->token;
 			}
 		}
-		return 0;
 	}
+
+	return 0;
 }
 
 /*
@@ -7261,14 +7192,6 @@ static void dgap_err(char *s)
 static int dgap_checknode(struct cnode *p)
 {
 	switch (p->type) {
-	case BNODE:
-		if (p->u.board.v_type == 0) {
-			dgap_err("board type !not specified");
-			return 1;
-		}
-
-		return 0;
-
 	case LNODE:
 		if (p->u.line.v_speed == 0) {
 			dgap_err("line speed not specified");
