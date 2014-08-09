@@ -272,6 +272,18 @@ static char __log_buf[__LOG_BUF_LEN] __aligned(LOG_ALIGN);
 static char *log_buf = __log_buf;
 static u32 log_buf_len = __LOG_BUF_LEN;
 
+/* Return log buffer address */
+char *log_buf_addr_get(void)
+{
+	return log_buf;
+}
+
+/* Return log buffer size */
+u32 log_buf_len_get(void)
+{
+	return log_buf_len;
+}
+
 /* human readable text of the record */
 static char *log_text(const struct printk_log *msg)
 {
