@@ -3,37 +3,6 @@
 
 #include <nvif/class.h>
 
-/* Perfmon counter class
- *
- * XXXX: NV_PERFCTR
- */
-#define NV_PERFCTR_CLASS                                             0x0000ffff
-#define NV_PERFCTR_QUERY                                             0x00000000
-#define NV_PERFCTR_SAMPLE                                            0x00000001
-#define NV_PERFCTR_READ                                              0x00000002
-
-struct nv_perfctr_class {
-	u16 logic_op;
-	struct {
-		char __user *name; /*XXX: use cfu when exposed to userspace */
-		u32 size;
-	} signal[4];
-};
-
-struct nv_perfctr_query {
-	u32 iter;
-	u32 size;
-	char __user *name; /*XXX: use ctu when exposed to userspace */
-};
-
-struct nv_perfctr_sample {
-};
-
-struct nv_perfctr_read {
-	u32 ctr;
-	u32 clk;
-};
-
 /* Device control class
  *
  * XXXX: NV_CONTROL

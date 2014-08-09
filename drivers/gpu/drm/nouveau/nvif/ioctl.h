@@ -48,6 +48,8 @@ struct nvif_ioctl_new_v0 {
 	__u8  route;
 	__u64 token;
 	__u32 handle;
+/* these class numbers are made up by us, and not nvidia-assigned */
+#define NVIF_IOCTL_NEW_V0_PERFCTR                                    0x0000ffff
 	__u32 oclass;
 	__u8  data[];		/* class data (class.h) */
 };
