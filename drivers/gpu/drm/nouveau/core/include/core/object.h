@@ -78,6 +78,7 @@ struct nouveau_omthds {
 	int (*call)(struct nouveau_object *, u32, void *, u32);
 };
 
+struct nvkm_event;
 struct nouveau_ofuncs {
 	int  (*ctor)(struct nouveau_object *, struct nouveau_object *,
 		     struct nouveau_oclass *, void *data, u32 size,
@@ -85,6 +86,9 @@ struct nouveau_ofuncs {
 	void (*dtor)(struct nouveau_object *);
 	int  (*init)(struct nouveau_object *);
 	int  (*fini)(struct nouveau_object *, bool suspend);
+	int  (*mthd)(struct nouveau_object *, u32, void *, u32);
+	int  (*ntfy)(struct nouveau_object *, u32, struct nvkm_event **);
+	int  (* map)(struct nouveau_object *, u64 *, u32 *);
 	u8   (*rd08)(struct nouveau_object *, u64 offset);
 	u16  (*rd16)(struct nouveau_object *, u64 offset);
 	u32  (*rd32)(struct nouveau_object *, u64 offset);

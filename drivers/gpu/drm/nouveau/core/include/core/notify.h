@@ -15,7 +15,7 @@ struct nvkm_notify {
 	/* set by nvkm_event ctor */
 	u32 types;
 	int index;
-	u8  size;
+	u32 size;
 
 	struct work_struct work;
 	/* this is const for a *very* good reason - the data might be on the

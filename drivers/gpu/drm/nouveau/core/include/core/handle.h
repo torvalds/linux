@@ -10,6 +10,9 @@ struct nouveau_handle {
 	u32 name;
 	u32 priv;
 
+	u8  route;
+	u64 token;
+
 	struct nouveau_handle *parent;
 	struct nouveau_object *object;
 };

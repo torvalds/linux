@@ -14,6 +14,7 @@ nouveau-y += core/core/enum.o
 nouveau-y += core/core/event.o
 nouveau-y += core/core/gpuobj.o
 nouveau-y += core/core/handle.o
+nouveau-y += core/core/ioctl.o
 nouveau-y += core/core/mm.o
 nouveau-y += core/core/namedb.o
 nouveau-y += core/core/notify.o

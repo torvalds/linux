@@ -22,9 +22,12 @@
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
 
-#include <core/os.h>
+#include <core/client.h>
 #include <core/event.h>
 #include <core/notify.h>
+
+#include <nvif/unpack.h>
+#include <nvif/event.h>
 
 static inline void
 nvkm_notify_put_locked(struct nvkm_notify *notify)
