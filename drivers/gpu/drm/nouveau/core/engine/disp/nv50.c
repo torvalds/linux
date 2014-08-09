@@ -1574,7 +1574,7 @@ nv50_disp_intr_unk20_2_dp(struct nv50_disp_priv *priv,
 	int TU, VTUi, VTUf, VTUa;
 	u64 link_data_rate, link_ratio, unk;
 	u32 best_diff = 64 * symbol;
-	u32 link_nr, link_bw, bits, r;
+	u32 link_nr, link_bw, bits;
 
 	/* calculate packed data rate for each lane */
 	if      (dpctrl > 0x00030000) link_nr = 4;
@@ -1594,7 +1594,7 @@ nv50_disp_intr_unk20_2_dp(struct nv50_disp_priv *priv,
 
 	/* calculate ratio of packed data rate to link symbol rate */
 	link_ratio = link_data_rate * symbol;
-	r = do_div(link_ratio, link_bw);
+	do_div(link_ratio, link_bw);
 
 	for (TU = 64; TU >= 32; TU--) {
 		/* calculate average number of valid symbols in each TU */
@@ -1655,8 +1655,8 @@ nv50_disp_intr_unk20_2_dp(struct nv50_disp_priv *priv,
 	/* XXX close to vbios numbers, but not right */
 	unk  = (symbol - link_ratio) * bestTU;
 	unk *= link_ratio;
-	r = do_div(unk, symbol);
-	r = do_div(unk, symbol);
+	do_div(unk, symbol);
+	do_div(unk, symbol);
 	unk += 6;
 
 	nv_mask(priv, 0x61c10c + loff, 0x000001fc, bestTU << 2);
