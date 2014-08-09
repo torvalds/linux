@@ -202,7 +202,6 @@ static int it913x_init(struct dvb_frontend *fe)
 
 	/* Power Up Tuner - common all versions */
 	ret = it913x_wr_reg(state, PRO_DMOD, 0xec40, 0x1);
-	ret |= it913x_wr_reg(state, PRO_DMOD, 0xfba8, 0x0);
 	ret |= it913x_wr_reg(state, PRO_DMOD, 0xec57, 0x0);
 	ret |= it913x_wr_reg(state, PRO_DMOD, 0xec58, 0x0);
 
