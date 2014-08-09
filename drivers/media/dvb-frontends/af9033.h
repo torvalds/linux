@@ -75,6 +75,11 @@ struct af9033_config {
 	 * input spectrum inversion
 	 */
 	bool spec_inv;
+
+	/*
+	 *
+	 */
+	bool dyn0_clk;
 };
 
 
