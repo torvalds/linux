@@ -351,4 +351,6 @@ nvc8_grctx_oclass = &(struct nvc0_grctx_oclass) {
 	.tpc   = nvc0_grctx_pack_tpc,
 	.icmd  = nvc8_grctx_pack_icmd,
 	.mthd  = nvc8_grctx_pack_mthd,
+	.bundle = nvc0_grctx_generate_bundle,
+	.bundle_size = 0x1800,
 }.base;

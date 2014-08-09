@@ -50,4 +50,8 @@ gk20a_grctx_oclass = &(struct nvc0_grctx_oclass) {
 	.ppc   = nve4_grctx_pack_ppc,
 	.icmd  = nve4_grctx_pack_icmd,
 	.mthd  = gk20a_grctx_pack_mthd,
+	.bundle = nve4_grctx_generate_bundle,
+	.bundle_size = 0x1800,
+	.bundle_min_gpm_fifo_depth = 0x62,
+	.bundle_token_limit = 0x100,
 }.base;

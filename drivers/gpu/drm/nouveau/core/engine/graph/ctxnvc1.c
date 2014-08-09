@@ -732,19 +732,14 @@ nvc1_grctx_generate_mods(struct nvc0_graph_priv *priv, struct nvc0_grctx *info)
 	int gpc, tpc;
 	u32 offset;
 
-	mmio_data(0x002000, 0x0100, NV_MEM_ACCESS_RW | NV_MEM_ACCESS_SYS);
 	mmio_data(0x008000, 0x0100, NV_MEM_ACCESS_RW | NV_MEM_ACCESS_SYS);
 	mmio_data(0x060000, 0x1000, NV_MEM_ACCESS_RW);
-	mmio_list(0x408004, 0x00000000,  8, 0);
-	mmio_list(0x408008, 0x80000018,  0, 0);
 	mmio_list(0x40800c, 0x00000000,  8, 1);
 	mmio_list(0x408010, 0x80000000,  0, 0);
 	mmio_list(0x418810, 0x80000000, 12, 2);
 	mmio_list(0x419848, 0x10000000, 12, 2);
 	mmio_list(0x419004, 0x00000000,  8, 1);
 	mmio_list(0x419008, 0x00000000,  0, 0);
-	mmio_list(0x418808, 0x00000000,  8, 0);
-	mmio_list(0x41880c, 0x80000018,  0, 0);
 
 	mmio_list(0x405830, 0x02180218, 0, 0);
 	mmio_list(0x4064c4, 0x0086ffff, 0, 0);
@@ -794,4 +789,6 @@ nvc1_grctx_oclass = &(struct nvc0_grctx_oclass) {
 	.tpc   = nvc1_grctx_pack_tpc,
 	.icmd  = nvc1_grctx_pack_icmd,
 	.mthd  = nvc1_grctx_pack_mthd,
+	.bundle = nvc0_grctx_generate_bundle,
+	.bundle_size = 0x1800,
 }.base;

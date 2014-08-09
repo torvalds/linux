@@ -91,4 +91,8 @@ gk110b_grctx_oclass = &(struct nvc0_grctx_oclass) {
 	.ppc   = nvf0_grctx_pack_ppc,
 	.icmd  = nvf0_grctx_pack_icmd,
 	.mthd  = nvf0_grctx_pack_mthd,
+	.bundle = nve4_grctx_generate_bundle,
+	.bundle_size = 0x3000,
+	.bundle_min_gpm_fifo_depth = 0x180,
+	.bundle_token_limit = 0x600,
 }.base;
