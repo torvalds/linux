@@ -65,7 +65,7 @@ struct nvc0_graph_mmio {
 	u32 addr;
 	u32 data;
 	u32 shift;
-	u32 buffer;
+	int buffer;
 };
 
 struct nvc0_graph_fuc {

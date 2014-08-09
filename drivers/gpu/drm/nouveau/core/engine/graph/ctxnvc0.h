@@ -12,6 +12,17 @@ struct nvc0_grctx {
 	u64 addr;
 };
 
+int  nvc0_grctx_mmio_data(struct nvc0_grctx *, u32 size, u32 align, u32 access);
+void nvc0_grctx_mmio_item(struct nvc0_grctx *, u32 addr, u32 data, int s, int);
+
+#define mmio_data(a,b,c) nvc0_grctx_mmio_data(info, (a), (b), (c))
+#define mmio_list(a,b,c,d) nvc0_grctx_mmio_item(info, (a), (b), (c), (d))
+
+#define mmio_vram(a,b,c,d) nvc0_grctx_mmio_data((a), (b), (c), (d))
+#define mmio_refn(a,b,c,d,e) nvc0_grctx_mmio_item((a), (b), (c), (d), (e))
+#define mmio_skip(a,b,c) mmio_refn((a), (b), (c), -1, -1)
+#define mmio_wr32(a,b,c) mmio_refn((a), (b), (c),  0, -1)
+
 struct nvc0_grctx_oclass {
 	struct nouveau_oclass base;
 	/* main context generation function */
@@ -29,24 +40,6 @@ struct nvc0_grctx_oclass {
 	const struct nvc0_graph_pack *icmd;
 	const struct nvc0_graph_pack *mthd;
 };
-
-#define mmio_data(s,a,p) do {                                                  \
-	info->buffer[info->buffer_nr] = round_up(info->addr, (a));             \
-	info->addr = info->buffer[info->buffer_nr++] + (s);                    \
-	info->data->size = (s);                                                \
-	info->data->align = (a);                                               \
-	info->data->access = (p);                                              \
-	info->data++;                                                          \
-} while(0)
-
-#define mmio_list(r,d,s,b) do {                                                \
-	info->mmio->addr = (r);                                                \
-	info->mmio->data = (d);                                                \
-	info->mmio->shift = (s);                                               \
-	info->mmio->buffer = (b);                                              \
-	info->mmio++;                                                          \
-	nv_wr32(priv, (r), (d) | ((s) ? (info->buffer[(b)] >> (s)) : 0));      \
-} while(0)
 
 extern struct nouveau_oclass *nvc0_grctx_oclass;
 int  nvc0_grctx_generate(struct nvc0_graph_priv *);

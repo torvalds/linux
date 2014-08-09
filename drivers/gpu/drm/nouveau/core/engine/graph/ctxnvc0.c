@@ -982,6 +982,44 @@ nvc0_grctx_pack_tpc[] = {
  * PGRAPH context implementation
  ******************************************************************************/
 
+int
+nvc0_grctx_mmio_data(struct nvc0_grctx *info, u32 size, u32 align, u32 access)
+{
+	if (info->data) {
+		info->buffer[info->buffer_nr] = round_up(info->addr, align);
+		info->addr = info->buffer[info->buffer_nr] + size;
+		info->data->size = size;
+		info->data->align = align;
+		info->data->access = access;
+		info->data++;
+		return info->buffer_nr++;
+	}
+	return -1;
+}
+
+void
+nvc0_grctx_mmio_item(struct nvc0_grctx *info, u32 addr, u32 data,
+		     int shift, int buffer)
+{
+	if (info->data) {
+		if (shift >= 0) {
+			info->mmio->addr = addr;
+			info->mmio->data = data;
+			info->mmio->shift = shift;
+			info->mmio->buffer = buffer;
+			if (buffer >= 0)
+				data |= info->buffer[buffer] >> shift;
+			info->mmio++;
+		} else
+			return;
+	} else {
+		if (buffer >= 0)
+			return;
+	}
+
+	nv_wr32(info->priv, addr, data);
+}
+
 void
 nvc0_grctx_generate_mods(struct nvc0_graph_priv *priv, struct nvc0_grctx *info)
 {

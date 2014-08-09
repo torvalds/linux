@@ -283,7 +283,7 @@ nvc0_graph_context_ctor(struct nouveau_object *parent,
 		u32 addr = mmio->addr;
 		u32 data = mmio->data;
 
-		if (mmio->shift) {
+		if (mmio->buffer >= 0) {
 			u64 info = chan->data[mmio->buffer].vma.offset;
 			data |= info >> mmio->shift;
 		}
