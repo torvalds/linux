@@ -77,6 +77,22 @@ nouveau_cli(struct drm_file *fpriv)
 	return fpriv ? fpriv->driver_priv : NULL;
 }
 
+#define nvif_object(a) ({ \
+	struct nouveau_object *_object = (a); \
+	_object; \
+})
+#define nvif_rd08(a,b) nv_ro08(nvif_object(a), (b))
+#define nvif_rd16(a,b) nv_ro16(nvif_object(a), (b))
+#define nvif_rd32(a,b) nv_ro32(nvif_object(a), (b))
+#define nvif_wr08(a,b,c) nv_wo08(nvif_object(a), (b), (c))
+#define nvif_wr16(a,b,c) nv_wo16(nvif_object(a), (b), (c))
+#define nvif_wr32(a,b,c) nv_wo32(nvif_object(a), (b), (c))
+#define nvif_mask(a,b,c,d) nv_mo32(nvif_object(a), (b), (c), (d))
+
+/*XXX*/
+#include <core/object.h>
+#define nvkm_object(a) nvif_object(a)
+
 extern int nouveau_runtime_pm;
 
 struct nouveau_drm {
@@ -150,12 +166,6 @@ static inline struct nouveau_drm *
 nouveau_drm(struct drm_device *dev)
 {
 	return dev->dev_private;
-}
-
-static inline struct nouveau_device *
-nouveau_dev(struct drm_device *dev)
-{
-	return nv_device(nouveau_drm(dev)->device);
 }
 
 int nouveau_pmops_suspend(struct device *);

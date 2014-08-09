@@ -104,7 +104,7 @@ void
 nouveau_agp_reset(struct nouveau_drm *drm)
 {
 #if __OS_HAS_AGP
-	struct nouveau_device *device = nv_device(drm->device);
+	struct nouveau_object *device = drm->device;
 	struct drm_device *dev = drm->dev;
 	u32 save[2];
 	int ret;
@@ -115,7 +115,7 @@ nouveau_agp_reset(struct nouveau_drm *drm)
 	/* First of all, disable fast writes, otherwise if it's
 	 * already enabled in the AGP bridge and we disable the card's
 	 * AGP controller we might be locking ourselves out of it. */
-	if ((nv_rd32(device, NV04_PBUS_PCI_NV_19) |
+	if ((nvif_rd32(device, NV04_PBUS_PCI_NV_19) |
 	     dev->agp->mode) & PCI_AGP_COMMAND_FW) {
 		struct drm_agp_info info;
 		struct drm_agp_mode mode;
@@ -134,15 +134,15 @@ nouveau_agp_reset(struct nouveau_drm *drm)
 
 
 	/* clear busmaster bit, and disable AGP */
-	save[0] = nv_mask(device, NV04_PBUS_PCI_NV_1, 0x00000004, 0x00000000);
-	nv_wr32(device, NV04_PBUS_PCI_NV_19, 0);
+	save[0] = nvif_mask(device, NV04_PBUS_PCI_NV_1, 0x00000004, 0x00000000);
+	nvif_wr32(device, NV04_PBUS_PCI_NV_19, 0);
 
 	/* reset PGRAPH, PFIFO and PTIMER */
-	save[1] = nv_mask(device, 0x000200, 0x00011100, 0x00000000);
-	nv_mask(device, 0x000200, 0x00011100, save[1]);
+	save[1] = nvif_mask(device, 0x000200, 0x00011100, 0x00000000);
+	nvif_mask(device, 0x000200, 0x00011100, save[1]);
 
 	/* and restore bustmaster bit (gives effect of resetting AGP) */
-	nv_wr32(device, NV04_PBUS_PCI_NV_1, save[0]);
+	nvif_wr32(device, NV04_PBUS_PCI_NV_1, save[0]);
 #endif
 }
 

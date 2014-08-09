@@ -348,7 +348,6 @@ static int
 nouveau_drm_load(struct drm_device *dev, unsigned long flags)
 {
 	struct pci_dev *pdev = dev->pdev;
-	struct nouveau_device *device;
 	struct nouveau_drm *drm;
 	int ret;
 
@@ -406,14 +405,13 @@ nouveau_drm_load(struct drm_device *dev, unsigned long flags)
 	 * nosnoop capability.  hopefully won't cause issues until a
 	 * better fix is found - assuming there is one...
 	 */
-	device = nv_device(drm->device);
 	if (nv_device(drm->device)->chipset == 0xc1)
-		nv_mask(device, 0x00088080, 0x00000800, 0x00000000);
+		nvif_mask(drm->device, 0x00088080, 0x00000800, 0x00000000);
 
 	nouveau_vga_init(drm);
 	nouveau_agp_init(drm);
 
-	if (device->card_type >= NV_50) {
+	if (nv_device(drm->device)->card_type >= NV_50) {
 		ret = nouveau_vm_new(nv_device(drm->device), 0, (1ULL << 40),
 				     0x1000, &drm->client.vm);
 		if (ret)
@@ -932,7 +930,7 @@ static int nouveau_pmops_runtime_resume(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct drm_device *drm_dev = pci_get_drvdata(pdev);
-	struct nouveau_device *device = nouveau_dev(drm_dev);
+	struct nouveau_object *device = nouveau_drm(drm_dev)->device;
 	int ret;
 
 	if (nouveau_runtime_pm == 0)
@@ -948,7 +946,7 @@ static int nouveau_pmops_runtime_resume(struct device *dev)
 	ret = nouveau_do_resume(drm_dev);
 	drm_kms_helper_poll_enable(drm_dev);
 	/* do magic */
-	nv_mask(device, 0x88488, (1 << 25), (1 << 25));
+	nvif_mask(device, 0x88488, (1 << 25), (1 << 25));
 	vga_switcheroo_set_dynamic_switch(pdev, VGA_SWITCHEROO_ON);
 	drm_dev->switch_power_state = DRM_SWITCH_POWER_ON;
 	nv_debug_level(NORMAL);

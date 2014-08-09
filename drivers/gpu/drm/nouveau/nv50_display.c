@@ -317,7 +317,7 @@ evo_sync_wait(void *data)
 static int
 evo_sync(struct drm_device *dev)
 {
-	struct nouveau_device *device = nouveau_dev(dev);
+	struct nouveau_object *device = nouveau_drm(dev)->device;
 	struct nv50_disp *disp = nv50_disp(dev);
 	struct nv50_mast *mast = nv50_mast(dev);
 	u32 *push = evo_wait(mast, 8);
@@ -329,7 +329,7 @@ evo_sync(struct drm_device *dev)
 		evo_data(push, 0x00000000);
 		evo_data(push, 0x00000000);
 		evo_kick(push, mast);
-		if (nv_wait_cb(device, evo_sync_wait, disp->sync))
+		if (nv_wait_cb(nv_device(device), evo_sync_wait, disp->sync))
 			return 0;
 	}
 
@@ -364,7 +364,7 @@ nv50_display_flip_wait(void *data)
 void
 nv50_display_flip_stop(struct drm_crtc *crtc)
 {
-	struct nouveau_device *device = nouveau_dev(crtc->dev);
+	struct nouveau_object *device = nouveau_drm(crtc->dev)->device;
 	struct nv50_display_flip flip = {
 		.disp = nv50_disp(crtc->dev),
 		.chan = nv50_sync(crtc),
@@ -384,7 +384,7 @@ nv50_display_flip_stop(struct drm_crtc *crtc)
 		evo_kick(push, flip.chan);
 	}
 
-	nv_wait_cb(device, nv50_display_flip_wait, &flip);
+	nv_wait_cb(nv_device(device), nv50_display_flip_wait, &flip);
 }
 
 int
@@ -2245,7 +2245,7 @@ nv50_display_destroy(struct drm_device *dev)
 int
 nv50_display_create(struct drm_device *dev)
 {
-	struct nouveau_device *device = nouveau_dev(dev);
+	struct nouveau_object *device = nouveau_drm(dev)->device;
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct dcb_table *dcb = &drm->vbios.dcb;
 	struct drm_connector *connector, *tmp;
@@ -2294,7 +2294,7 @@ nv50_display_create(struct drm_device *dev)
 
 	/* create crtc objects to represent the hw heads */
 	if (nv_mclass(disp->core) >= NVD0_DISP_CLASS)
-		crtcs = nv_rd32(device, 0x022448);
+		crtcs = nvif_rd32(device, 0x022448);
 	else
 		crtcs = 2;
 

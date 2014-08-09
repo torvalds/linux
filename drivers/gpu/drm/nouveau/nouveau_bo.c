@@ -1262,7 +1262,7 @@ nouveau_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
 		/* fallthrough, tiled memory */
 	case TTM_PL_VRAM:
 		mem->bus.offset = mem->start << PAGE_SHIFT;
-		mem->bus.base = nv_device_resource_start(nouveau_dev(dev), 1);
+		mem->bus.base = nv_device_resource_start(nv_device(drm->device), 1);
 		mem->bus.is_iomem = true;
 		if (nv_device(drm->device)->card_type >= NV_50) {
 			struct nouveau_bar *bar = nouveau_bar(drm->device);

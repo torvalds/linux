@@ -168,7 +168,7 @@ nouveau_hw_get_pllvals(struct drm_device *dev, enum nvbios_pll_type plltype,
 		       struct nouveau_pll_vals *pllvals)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_device *device = nv_device(drm->device);
+	struct nouveau_object *device = drm->device;
 	struct nouveau_bios *bios = nouveau_bios(device);
 	uint32_t reg1, pll1, pll2 = 0;
 	struct nvbios_pll pll_lim;
@@ -178,13 +178,13 @@ nouveau_hw_get_pllvals(struct drm_device *dev, enum nvbios_pll_type plltype,
 	if (ret || !(reg1 = pll_lim.reg))
 		return -ENOENT;
 
-	pll1 = nv_rd32(device, reg1);
+	pll1 = nvif_rd32(device, reg1);
 	if (reg1 <= 0x405c)
-		pll2 = nv_rd32(device, reg1 + 4);
+		pll2 = nvif_rd32(device, reg1 + 4);
 	else if (nv_two_reg_pll(dev)) {
 		uint32_t reg2 = reg1 + (reg1 == NV_RAMDAC_VPLL2 ? 0x5c : 0x70);
 
-		pll2 = nv_rd32(device, reg2);
+		pll2 = nvif_rd32(device, reg2);
 	}
 
 	if (nv_device(drm->device)->card_type == 0x40 && reg1 >= NV_PRAMDAC_VPLL_COEFF) {
@@ -255,7 +255,7 @@ nouveau_hw_fix_bad_vpll(struct drm_device *dev, int head)
 	 */
 
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_device *device = nv_device(drm->device);
+	struct nouveau_object *device = drm->device;
 	struct nouveau_clock *clk = nouveau_clock(device);
 	struct nouveau_bios *bios = nouveau_bios(device);
 	struct nvbios_pll pll_lim;
@@ -663,7 +663,7 @@ nv_load_state_ext(struct drm_device *dev, int head,
 		  struct nv04_mode_state *state)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_device *device = nv_device(drm->device);
+	struct nouveau_object *device = drm->device;
 	struct nouveau_timer *ptimer = nouveau_timer(device);
 	struct nouveau_fb *pfb = nouveau_fb(device);
 	struct nv04_crtc_reg *regp = &state->crtc_reg[head];
@@ -678,15 +678,15 @@ nv_load_state_ext(struct drm_device *dev, int head,
 			 */
 			NVWriteCRTC(dev, head, NV_PCRTC_ENGINE_CTRL, regp->crtc_eng_ctrl);
 
-		nv_wr32(device, NV_PVIDEO_STOP, 1);
-		nv_wr32(device, NV_PVIDEO_INTR_EN, 0);
-		nv_wr32(device, NV_PVIDEO_OFFSET_BUFF(0), 0);
-		nv_wr32(device, NV_PVIDEO_OFFSET_BUFF(1), 0);
-		nv_wr32(device, NV_PVIDEO_LIMIT(0), pfb->ram->size - 1);
-		nv_wr32(device, NV_PVIDEO_LIMIT(1), pfb->ram->size - 1);
-		nv_wr32(device, NV_PVIDEO_UVPLANE_LIMIT(0), pfb->ram->size - 1);
-		nv_wr32(device, NV_PVIDEO_UVPLANE_LIMIT(1), pfb->ram->size - 1);
-		nv_wr32(device, NV_PBUS_POWERCTRL_2, 0);
+		nvif_wr32(device, NV_PVIDEO_STOP, 1);
+		nvif_wr32(device, NV_PVIDEO_INTR_EN, 0);
+		nvif_wr32(device, NV_PVIDEO_OFFSET_BUFF(0), 0);
+		nvif_wr32(device, NV_PVIDEO_OFFSET_BUFF(1), 0);
+		nvif_wr32(device, NV_PVIDEO_LIMIT(0), pfb->ram->size - 1);
+		nvif_wr32(device, NV_PVIDEO_LIMIT(1), pfb->ram->size - 1);
+		nvif_wr32(device, NV_PVIDEO_UVPLANE_LIMIT(0), pfb->ram->size - 1);
+		nvif_wr32(device, NV_PVIDEO_UVPLANE_LIMIT(1), pfb->ram->size - 1);
+		nvif_wr32(device, NV_PBUS_POWERCTRL_2, 0);
 
 		NVWriteCRTC(dev, head, NV_PCRTC_CURSOR_CONFIG, regp->cursor_cfg);
 		NVWriteCRTC(dev, head, NV_PCRTC_830, regp->crtc_830);
@@ -769,15 +769,15 @@ static void
 nv_save_state_palette(struct drm_device *dev, int head,
 		      struct nv04_mode_state *state)
 {
-	struct nouveau_device *device = nouveau_dev(dev);
+	struct nouveau_object *device = nouveau_drm(dev)->device;
 	int head_offset = head * NV_PRMDIO_SIZE, i;
 
-	nv_wr08(device, NV_PRMDIO_PIXEL_MASK + head_offset,
+	nvif_wr08(device, NV_PRMDIO_PIXEL_MASK + head_offset,
 				NV_PRMDIO_PIXEL_MASK_MASK);
-	nv_wr08(device, NV_PRMDIO_READ_MODE_ADDRESS + head_offset, 0x0);
+	nvif_wr08(device, NV_PRMDIO_READ_MODE_ADDRESS + head_offset, 0x0);
 
 	for (i = 0; i < 768; i++) {
-		state->crtc_reg[head].DAC[i] = nv_rd08(device,
+		state->crtc_reg[head].DAC[i] = nvif_rd08(device,
 				NV_PRMDIO_PALETTE_DATA + head_offset);
 	}
 
@@ -788,15 +788,15 @@ void
 nouveau_hw_load_state_palette(struct drm_device *dev, int head,
 			      struct nv04_mode_state *state)
 {
-	struct nouveau_device *device = nouveau_dev(dev);
+	struct nouveau_object *device = nouveau_drm(dev)->device;
 	int head_offset = head * NV_PRMDIO_SIZE, i;
 
-	nv_wr08(device, NV_PRMDIO_PIXEL_MASK + head_offset,
+	nvif_wr08(device, NV_PRMDIO_PIXEL_MASK + head_offset,
 				NV_PRMDIO_PIXEL_MASK_MASK);
-	nv_wr08(device, NV_PRMDIO_WRITE_MODE_ADDRESS + head_offset, 0x0);
+	nvif_wr08(device, NV_PRMDIO_WRITE_MODE_ADDRESS + head_offset, 0x0);
 
 	for (i = 0; i < 768; i++) {
-		nv_wr08(device, NV_PRMDIO_PALETTE_DATA + head_offset,
+		nvif_wr08(device, NV_PRMDIO_PALETTE_DATA + head_offset,
 				state->crtc_reg[head].DAC[i]);
 	}
 

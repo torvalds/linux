@@ -171,8 +171,8 @@ static inline void
 nouveau_bios_run_init_table(struct drm_device *dev, u16 table,
 			    struct dcb_output *outp, int crtc)
 {
-	struct nouveau_device *device = nouveau_dev(dev);
-	struct nouveau_bios *bios = nouveau_bios(device);
+	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nouveau_bios *bios = nouveau_bios(drm->device);
 	struct nvbios_init init = {
 		.subdev = nv_subdev(bios),
 		.bios = bios,
