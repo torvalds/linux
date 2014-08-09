@@ -214,12 +214,38 @@ nvc0_fermi_ofuncs = {
 	.mthd = nvc0_fermi_mthd,
 };
 
+static int
+nvc0_graph_set_shader_exceptions(struct nouveau_object *object, u32 mthd,
+				 void *pdata, u32 size)
+{
+	struct nvc0_graph_priv *priv = (void *)nv_engine(object);
+	if (size >= sizeof(u32)) {
+		u32 data = *(u32 *)pdata ? 0xffffffff : 0x00000000;
+		nv_wr32(priv, 0x419e44, data);
+		nv_wr32(priv, 0x419e4c, data);
+		return 0;
+	}
+	return -EINVAL;
+}
+
+struct nouveau_omthds
+nvc0_graph_9097_omthds[] = {
+	{ 0x1528, 0x1528, nvc0_graph_set_shader_exceptions },
+	{}
+};
+
+struct nouveau_omthds
+nvc0_graph_90c0_omthds[] = {
+	{ 0x1528, 0x1528, nvc0_graph_set_shader_exceptions },
+	{}
+};
+
 struct nouveau_oclass
 nvc0_graph_sclass[] = {
 	{ 0x902d, &nouveau_object_ofuncs },
 	{ 0x9039, &nouveau_object_ofuncs },
-	{ FERMI_A, &nvc0_fermi_ofuncs },
-	{ 0x90c0, &nouveau_object_ofuncs },
+	{ FERMI_A, &nvc0_fermi_ofuncs, nvc0_graph_9097_omthds },
+	{ FERMI_COMPUTE_A, &nouveau_object_ofuncs, nvc0_graph_90c0_omthds },
 	{}
 };
 

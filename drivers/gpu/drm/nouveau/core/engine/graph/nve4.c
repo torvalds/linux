@@ -35,8 +35,8 @@ static struct nouveau_oclass
 nve4_graph_sclass[] = {
 	{ 0x902d, &nouveau_object_ofuncs },
 	{ 0xa040, &nouveau_object_ofuncs },
-	{ KEPLER_A, &nvc0_fermi_ofuncs },
-	{ 0xa0c0, &nouveau_object_ofuncs },
+	{ KEPLER_A, &nvc0_fermi_ofuncs, nvc0_graph_9097_omthds },
+	{ KEPLER_COMPUTE_A, &nouveau_object_ofuncs, nvc0_graph_90c0_omthds },
 	{}
 };
 

@@ -83,6 +83,14 @@
 
 #define MAXWELL_A                                                    0x0000b097
 
+#define FERMI_COMPUTE_A                                              0x000090c0
+#define FERMI_COMPUTE_B                                              0x000091c0
+
+#define KEPLER_COMPUTE_A                                             0x0000a0c0
+#define KEPLER_COMPUTE_B                                             0x0000a1c0
+
+#define MAXWELL_COMPUTE_A                                            0x0000b0c0
+
 
 /*******************************************************************************
  * client

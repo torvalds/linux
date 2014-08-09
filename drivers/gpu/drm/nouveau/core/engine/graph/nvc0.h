@@ -150,6 +150,8 @@ int  nvf0_graph_fini(struct nouveau_object *, bool);
 extern struct nouveau_ofuncs nvc0_fermi_ofuncs;
 
 extern struct nouveau_oclass nvc0_graph_sclass[];
+extern struct nouveau_omthds nvc0_graph_9097_omthds[];
+extern struct nouveau_omthds nvc0_graph_90c0_omthds[];
 extern struct nouveau_oclass nvc8_graph_sclass[];
 extern struct nouveau_oclass nvf0_graph_sclass[];
 

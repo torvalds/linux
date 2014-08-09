@@ -36,8 +36,8 @@ static struct nouveau_oclass
 gm107_graph_sclass[] = {
 	{ 0x902d, &nouveau_object_ofuncs },
 	{ 0xa140, &nouveau_object_ofuncs },
-	{ MAXWELL_A, &nvc0_fermi_ofuncs },
-	{ 0xb0c0, &nouveau_object_ofuncs },
+	{ MAXWELL_A, &nvc0_fermi_ofuncs, nvc0_graph_9097_omthds },
+	{ MAXWELL_COMPUTE_A, &nouveau_object_ofuncs, nvc0_graph_90c0_omthds },
 	{}
 };
 
