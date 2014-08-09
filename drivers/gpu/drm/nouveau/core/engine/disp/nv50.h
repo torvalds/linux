@@ -77,7 +77,6 @@ int nv84_hdmi_ctrl(NV50_DISP_MTHD_V1);
 int nva3_hdmi_ctrl(NV50_DISP_MTHD_V1);
 int nvd0_hdmi_ctrl(NV50_DISP_MTHD_V1);
 
-int nv50_sor_mthd(struct nouveau_object *, u32, void *, u32);
 int nv50_sor_power(NV50_DISP_MTHD_V1);
 
 int nv94_sor_dp_train_init(struct nv50_disp_priv *, int, int, int, u16, u16,

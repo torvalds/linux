@@ -367,4 +367,10 @@ struct nv50_disp_sor_lvds_script_v0 {
 	__u8  pad04[4];
 };
 
+struct nv50_disp_sor_dp_pwr_v0 {
+	__u8  version;
+	__u8  state;
+	__u8  pad02[6];
+};
+
 #endif

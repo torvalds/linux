@@ -928,6 +928,30 @@ nv50_disp_base_mthd(struct nouveau_object *object, u32 mthd,
 			return ret;
 	}
 		break;
+	case NV50_DISP_MTHD_V1_SOR_DP_PWR: {
+		struct nvkm_output_dp *outpdp = (void *)outp;
+		union {
+			struct nv50_disp_sor_dp_pwr_v0 v0;
+		} *args = data;
+		nv_ioctl(object, "disp sor dp pwr size %d\n", size);
+		if (nvif_unpack(args->v0, 0, 0, false)) {
+			nv_ioctl(object, "disp sor dp pwr vers %d state %d\n",
+				 args->v0.version, args->v0.state);
+			if (args->v0.state == 0) {
+				nvkm_notify_put(&outpdp->irq);
+				((struct nvkm_output_dp_impl *)nv_oclass(outp))
+					->lnk_pwr(outpdp, 0);
+				atomic_set(&outpdp->lt.done, 0);
+				return 0;
+			} else
+			if (args->v0.state != 0) {
+				nvkm_output_dp_train(&outpdp->base, 0, true);
+				return 0;
+			}
+		} else
+			return ret;
+	}
+		break;
 	default:
 		break;
 	}

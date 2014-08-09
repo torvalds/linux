@@ -53,17 +53,6 @@ struct nv04_display_scanoutpos {
 
 #define NV50_DISP_SCANOUTPOS                                         0x00000000
 
-#define NV50_DISP_SOR_MTHD                                           0x00010000
-#define NV50_DISP_SOR_MTHD_TYPE                                      0x0000f000
-#define NV50_DISP_SOR_MTHD_HEAD                                      0x00000018
-#define NV50_DISP_SOR_MTHD_LINK                                      0x00000004
-#define NV50_DISP_SOR_MTHD_OR                                        0x00000003
-
-#define NV94_DISP_SOR_DP_PWR                                         0x00016000
-#define NV94_DISP_SOR_DP_PWR_STATE                                   0x00000001
-#define NV94_DISP_SOR_DP_PWR_STATE_OFF                               0x00000000
-#define NV94_DISP_SOR_DP_PWR_STATE_ON                                0x00000001
-
 #define NV50_DISP_PIOR_MTHD                                          0x00030000
 #define NV50_DISP_PIOR_MTHD_TYPE                                     0x0000f000
 #define NV50_DISP_PIOR_MTHD_OR                                       0x00000003

@@ -1785,9 +1785,18 @@ nv50_sor_dpms(struct drm_encoder *encoder, int mode)
 		.base.hashm  = nv_encoder->dcb->hashm,
 		.pwr.state = mode == DRM_MODE_DPMS_ON,
 	};
+	struct {
+		struct nv50_disp_mthd_v1 base;
+		struct nv50_disp_sor_dp_pwr_v0 pwr;
+	} link = {
+		.base.version = 1,
+		.base.method = NV50_DISP_MTHD_V1_SOR_DP_PWR,
+		.base.hasht  = nv_encoder->dcb->hasht,
+		.base.hashm  = nv_encoder->dcb->hashm,
+		.pwr.state = mode == DRM_MODE_DPMS_ON,
+	};
 	struct drm_device *dev = encoder->dev;
 	struct drm_encoder *partner;
-	u32 mthd, data;
 
 	nv_encoder->last_dpms = mode;
 
@@ -1805,16 +1814,10 @@ nv50_sor_dpms(struct drm_encoder *encoder, int mode)
 		}
 	}
 
-	mthd  = (ffs(nv_encoder->dcb->heads) - 1) << 3;
-	mthd |= (ffs(nv_encoder->dcb->sorconf.link) - 1) << 2;
-	mthd |= nv_encoder->or;
-
 	if (nv_encoder->dcb->type == DCB_OUTPUT_DP) {
 		args.pwr.state = 1;
 		nvif_mthd(disp->disp, 0, &args, sizeof(args));
-		data  = (mode == DRM_MODE_DPMS_ON);
-		mthd |= NV94_DISP_SOR_DP_PWR;
-		nvif_exec(disp->disp, mthd, &data, sizeof(data));
+		nvif_mthd(disp->disp, 0, &link, sizeof(link));
 	} else {
 		nvif_mthd(disp->disp, 0, &args, sizeof(args));
 	}
