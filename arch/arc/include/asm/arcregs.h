@@ -296,7 +296,7 @@ struct cpuinfo_arc_mmu {
 };
 
 struct cpuinfo_arc_cache {
-	unsigned int sz, line_len, assoc, ver;
+	unsigned int sz_k:8, line_len:8, assoc:4, ver:4, alias:1, vipt:1, pad:6;
 };
 
 struct cpuinfo_arc_ccm {
