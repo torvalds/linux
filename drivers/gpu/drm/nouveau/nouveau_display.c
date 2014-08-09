@@ -477,7 +477,7 @@ nouveau_display_create(struct drm_device *dev)
 	drm_kms_helper_poll_init(dev);
 	drm_kms_helper_poll_disable(dev);
 
-	if (drm->vbios.dcb.entries) {
+	if (nouveau_modeset != 2 && drm->vbios.dcb.entries) {
 		static const u16 oclass[] = {
 			GM107_DISP,
 			GK110_DISP,

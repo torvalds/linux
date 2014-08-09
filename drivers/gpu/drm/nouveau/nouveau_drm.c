@@ -306,7 +306,8 @@ static int nouveau_drm_probe(struct pci_dev *pdev,
 #ifdef CONFIG_X86
 	boot = pdev->resource[PCI_ROM_RESOURCE].flags & IORESOURCE_ROM_SHADOW;
 #endif
-	remove_conflicting_framebuffers(aper, "nouveaufb", boot);
+	if (nouveau_modeset != 2)
+		remove_conflicting_framebuffers(aper, "nouveaufb", boot);
 	kfree(aper);
 
 	ret = nouveau_device_create(pdev, NOUVEAU_BUS_PCI,
