@@ -952,6 +952,10 @@ nv50_disp_base_mthd(struct nouveau_object *object, u32 mthd,
 			return ret;
 	}
 		break;
+	case NV50_DISP_MTHD_V1_PIOR_PWR:
+		if (!priv->pior.power)
+			return -ENODEV;
+		return priv->pior.power(object, priv, data, size, head, outp);
 	default:
 		break;
 	}
@@ -1080,9 +1084,6 @@ nv50_disp_base_ofuncs = {
 static struct nouveau_omthds
 nv50_disp_base_omthds[] = {
 	{ HEAD_MTHD(NV50_DISP_SCANOUTPOS)     , nv50_disp_base_scanoutpos },
-	{ PIOR_MTHD(NV50_DISP_PIOR_PWR)       , nv50_pior_mthd },
-	{ PIOR_MTHD(NV50_DISP_PIOR_TMDS_PWR)  , nv50_pior_mthd },
-	{ PIOR_MTHD(NV50_DISP_PIOR_DP_PWR)    , nv50_pior_mthd },
 	{},
 };
 

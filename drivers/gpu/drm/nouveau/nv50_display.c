@@ -2079,9 +2079,19 @@ nv50_pior_dpms(struct drm_encoder *encoder, int mode)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct nv50_disp *disp = nv50_disp(encoder->dev);
-	u32 mthd = (nv_encoder->dcb->type << 12) | nv_encoder->or;
-	u32 ctrl = (mode == DRM_MODE_DPMS_ON);
-	nvif_exec(disp->disp, NV50_DISP_PIOR_PWR + mthd, &ctrl, sizeof(ctrl));
+	struct {
+		struct nv50_disp_mthd_v1 base;
+		struct nv50_disp_pior_pwr_v0 pwr;
+	} args = {
+		.base.version = 1,
+		.base.method = NV50_DISP_MTHD_V1_PIOR_PWR,
+		.base.hasht  = nv_encoder->dcb->hasht,
+		.base.hashm  = nv_encoder->dcb->hashm,
+		.pwr.state = mode == DRM_MODE_DPMS_ON,
+		.pwr.type = nv_encoder->dcb->type,
+	};
+
+	nvif_mthd(disp->disp, 0, &args, sizeof(args));
 }
 
 static bool

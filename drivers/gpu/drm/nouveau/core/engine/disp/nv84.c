@@ -215,9 +215,6 @@ nv84_disp_sclass[] = {
 struct nouveau_omthds
 nv84_disp_base_omthds[] = {
 	{ HEAD_MTHD(NV50_DISP_SCANOUTPOS)     , nv50_disp_base_scanoutpos },
-	{ PIOR_MTHD(NV50_DISP_PIOR_PWR)       , nv50_pior_mthd },
-	{ PIOR_MTHD(NV50_DISP_PIOR_TMDS_PWR)  , nv50_pior_mthd },
-	{ PIOR_MTHD(NV50_DISP_PIOR_DP_PWR)    , nv50_pior_mthd },
 	{},
 };
 

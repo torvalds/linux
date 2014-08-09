@@ -53,7 +53,7 @@ struct nv50_disp_priv {
 	} sor;
 	struct {
 		int nr;
-		int (*power)(struct nv50_disp_priv *, int ext, u32 data);
+		int (*power)(NV50_DISP_MTHD_V1);
 		u8 type[3];
 	} pior;
 };
@@ -99,8 +99,7 @@ int nvd0_sor_dp_drvctl(struct nv50_disp_priv *, int, int, int, u16, u16, u32,
 
 #define PIOR_MTHD(n) (n), (n) + 0x03
 
-int nv50_pior_mthd(struct nouveau_object *, u32, void *, u32);
-int nv50_pior_power(struct nv50_disp_priv *, int, u32);
+int nv50_pior_power(NV50_DISP_MTHD_V1);
 
 struct nv50_disp_base {
 	struct nouveau_parent base;
