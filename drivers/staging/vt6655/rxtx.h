@@ -39,6 +39,23 @@
 
 /*---------------------  Export Functions  --------------------------*/
 
+/* MIC HDR data header */
+struct vnt_mic_hdr {
+	u8 id;
+	u8 tx_priority;
+	u8 mic_addr2[ETH_ALEN];
+	u8 ccmp_pn[6];
+	__be16 payload_len;
+	__be16 hlen;
+	__le16 frame_control;
+	u8 addr1[ETH_ALEN];
+	u8 addr2[ETH_ALEN];
+	u8 addr3[ETH_ALEN];
+	__le16 seq_ctrl;
+	u8 addr4[ETH_ALEN];
+	u16 packing; /* packing to 48 bytes */
+} __packed;
+
 void
 vGenerateMACHeader(
 	PSDevice         pDevice,

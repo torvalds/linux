@@ -550,17 +550,6 @@ typedef struct tagSTxDataHead_a_FB {
 STxDataHead_a_FB, *PSTxDataHead_a_FB;
 typedef const STxDataHead_a_FB *PCSTxDataHead_a_FB;
 
-//
-// MICHDR data header
-//
-typedef struct tagSMICHDRHead {
-	u32 adwHDR0[4];
-	u32 adwHDR1[4];
-	u32 adwHDR2[4];
-} __attribute__ ((__packed__))
-SMICHDRHead, *PSMICHDRHead;
-typedef const SMICHDRHead *PCSMICHDRHead;
-
 typedef struct tagSBEACONCtl {
 	u32 BufReady:1;
 	u32 TSF:15;
