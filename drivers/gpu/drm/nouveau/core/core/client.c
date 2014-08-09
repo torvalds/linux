@@ -26,6 +26,7 @@
 #include <core/client.h>
 #include <core/handle.h>
 #include <core/option.h>
+#include <nvif/class.h>
 
 #include <nvif/unpack.h>
 #include <nvif/event.h>

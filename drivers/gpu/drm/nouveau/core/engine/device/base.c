@@ -26,8 +26,12 @@
 #include <core/device.h>
 #include <core/client.h>
 #include <core/option.h>
-
+#include <nvif/unpack.h>
+#include <nvif/class.h>
 #include <core/class.h>
+
+#include <subdev/fb.h>
+#include <subdev/instmem.h>
 
 #include "priv.h"
 #include "acpi.h"
@@ -53,10 +57,130 @@ nouveau_device_find(u64 name)
 /******************************************************************************
  * nouveau_devobj (0x0080): class implementation
  *****************************************************************************/
+
 struct nouveau_devobj {
 	struct nouveau_parent base;
 	struct nouveau_object *subdev[NVDEV_SUBDEV_NR];
 };
+
+static int
+nouveau_devobj_info(struct nouveau_object *object, void *data, u32 size)
+{
+	struct nouveau_device *device = nv_device(object);
+	struct nouveau_fb *pfb = nouveau_fb(device);
+	struct nouveau_instmem *imem = nouveau_instmem(device);
+	union {
+		struct nv_device_info_v0 v0;
+	} *args = data;
+	int ret;
+
+	nv_ioctl(object, "device info size %d\n", size);
+	if (nvif_unpack(args->v0, 0, 0, false)) {
+		nv_ioctl(object, "device info vers %d\n", args->v0.version);
+	} else
+		return ret;
+
+	switch (device->chipset) {
+	case 0x01a:
+	case 0x01f:
+	case 0x04c:
+	case 0x04e:
+	case 0x063:
+	case 0x067:
+	case 0x068:
+	case 0x0aa:
+	case 0x0ac:
+	case 0x0af:
+		args->v0.platform = NV_DEVICE_INFO_V0_IGP;
+		break;
+	default:
+		if (device->pdev) {
+			if (pci_find_capability(device->pdev, PCI_CAP_ID_AGP))
+				args->v0.platform = NV_DEVICE_INFO_V0_AGP;
+			else
+			if (pci_is_pcie(device->pdev))
+				args->v0.platform = NV_DEVICE_INFO_V0_PCIE;
+			else
+				args->v0.platform = NV_DEVICE_INFO_V0_PCI;
+		} else {
+			args->v0.platform = NV_DEVICE_INFO_V0_SOC;
+		}
+		break;
+	}
+
+	switch (device->card_type) {
+	case NV_04: args->v0.family = NV_DEVICE_INFO_V0_TNT; break;
+	case NV_10:
+	case NV_11: args->v0.family = NV_DEVICE_INFO_V0_CELSIUS; break;
+	case NV_20: args->v0.family = NV_DEVICE_INFO_V0_KELVIN; break;
+	case NV_30: args->v0.family = NV_DEVICE_INFO_V0_RANKINE; break;
+	case NV_40: args->v0.family = NV_DEVICE_INFO_V0_CURIE; break;
+	case NV_50: args->v0.family = NV_DEVICE_INFO_V0_TESLA; break;
+	case NV_C0:
+	case NV_D0: args->v0.family = NV_DEVICE_INFO_V0_FERMI; break;
+	case NV_E0: args->v0.family = NV_DEVICE_INFO_V0_KEPLER; break;
+	case GM100: args->v0.family = NV_DEVICE_INFO_V0_MAXWELL; break;
+	default:
+		args->v0.family = 0;
+		break;
+	}
+
+	args->v0.chipset  = device->chipset;
+	args->v0.revision = device->chipset >= 0x10 ? nv_rd32(device, 0) : 0x00;
+	if (pfb)  args->v0.ram_size = args->v0.ram_user = pfb->ram->size;
+	else      args->v0.ram_size = args->v0.ram_user = 0;
+	if (imem) args->v0.ram_user = args->v0.ram_user - imem->reserved;
+	return 0;
+}
+
+static int
+nouveau_devobj_mthd(struct nouveau_object *object, u32 mthd,
+		    void *data, u32 size)
+{
+	switch (mthd) {
+	case NV_DEVICE_V0_INFO:
+		return nouveau_devobj_info(object, data, size);
+	default:
+		break;
+	}
+	return -EINVAL;
+}
+
+static u8
+nouveau_devobj_rd08(struct nouveau_object *object, u64 addr)
+{
+	return nv_rd08(object->engine, addr);
+}
+
+static u16
+nouveau_devobj_rd16(struct nouveau_object *object, u64 addr)
+{
+	return nv_rd16(object->engine, addr);
+}
+
+static u32
+nouveau_devobj_rd32(struct nouveau_object *object, u64 addr)
+{
+	return nv_rd32(object->engine, addr);
+}
+
+static void
+nouveau_devobj_wr08(struct nouveau_object *object, u64 addr, u8 data)
+{
+	nv_wr08(object->engine, addr, data);
+}
+
+static void
+nouveau_devobj_wr16(struct nouveau_object *object, u64 addr, u16 data)
+{
+	nv_wr16(object->engine, addr, data);
+}
+
+static void
+nouveau_devobj_wr32(struct nouveau_object *object, u64 addr, u32 data)
+{
+	nv_wr32(object->engine, addr, data);
+}
 
 static const u64 disable_map[] = {
 	[NVDEV_SUBDEV_VBIOS]	= NV_DEVICE_DISABLE_VBIOS,
@@ -311,48 +435,13 @@ nouveau_devobj_dtor(struct nouveau_object *object)
 	nouveau_parent_destroy(&devobj->base);
 }
 
-static u8
-nouveau_devobj_rd08(struct nouveau_object *object, u64 addr)
-{
-	return nv_rd08(object->engine, addr);
-}
-
-static u16
-nouveau_devobj_rd16(struct nouveau_object *object, u64 addr)
-{
-	return nv_rd16(object->engine, addr);
-}
-
-static u32
-nouveau_devobj_rd32(struct nouveau_object *object, u64 addr)
-{
-	return nv_rd32(object->engine, addr);
-}
-
-static void
-nouveau_devobj_wr08(struct nouveau_object *object, u64 addr, u8 data)
-{
-	nv_wr08(object->engine, addr, data);
-}
-
-static void
-nouveau_devobj_wr16(struct nouveau_object *object, u64 addr, u16 data)
-{
-	nv_wr16(object->engine, addr, data);
-}
-
-static void
-nouveau_devobj_wr32(struct nouveau_object *object, u64 addr, u32 data)
-{
-	nv_wr32(object->engine, addr, data);
-}
-
 static struct nouveau_ofuncs
 nouveau_devobj_ofuncs = {
 	.ctor = nouveau_devobj_ctor,
 	.dtor = nouveau_devobj_dtor,
 	.init = _nouveau_parent_init,
 	.fini = _nouveau_parent_fini,
+	.mthd = nouveau_devobj_mthd,
 	.rd08 = nouveau_devobj_rd08,
 	.rd16 = nouveau_devobj_rd16,
 	.rd32 = nouveau_devobj_rd32,
