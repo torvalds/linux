@@ -733,8 +733,7 @@ edt_ft5x06_ts_prepare_debugfs(struct edt_ft5x06_ts_data *tsdata,
 static void
 edt_ft5x06_ts_teardown_debugfs(struct edt_ft5x06_ts_data *tsdata)
 {
-	if (tsdata->debug_dir)
-		debugfs_remove_recursive(tsdata->debug_dir);
+	debugfs_remove_recursive(tsdata->debug_dir);
 	kfree(tsdata->raw_buffer);
 }
 

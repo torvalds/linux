@@ -99,6 +99,8 @@ static const struct alps_nibble_commands alps_v6_nibble_commands[] = {
 #define ALPS_FOUR_BUTTONS	0x40	/* 4 direction button present */
 #define ALPS_PS2_INTERLEAVED	0x80	/* 3-byte PS/2 packet interleaved with
 					   6-byte ALPS packet */
+#define ALPS_IS_RUSHMORE	0x100	/* device is a rushmore */
+#define ALPS_BUTTONPAD		0x200	/* device is a clickpad */
 
 static const struct alps_model_info alps_model_data[] = {
 	{ { 0x32, 0x02, 0x14 },	0x00, ALPS_PROTO_V2, 0xf8, 0xf8, ALPS_PASS | ALPS_DUALPOINT },	/* Toshiba Salellite Pro M10 */
@@ -281,11 +283,10 @@ static void alps_process_packet_v1_v2(struct psmouse *psmouse)
  *
  * The bitmaps don't have enough data to track fingers, so this function
  * only generates points representing a bounding box of at most two contacts.
- * These two points are returned in x1, y1, x2, and y2.
+ * These two points are returned in fields->mt.
  */
 static void alps_process_bitmap_dolphin(struct alps_data *priv,
-					struct alps_fields *fields,
-					int *x1, int *y1, int *x2, int *y2)
+					struct alps_fields *fields)
 {
 	int box_middle_x, box_middle_y;
 	unsigned int x_map, y_map;
@@ -308,8 +309,6 @@ static void alps_process_bitmap_dolphin(struct alps_data *priv,
 	if (x_msb > priv->x_bits || y_msb > priv->y_bits)
 		return;
 
-	*x1 = *y1 = *x2 = *y2 = 0;
-
 	if (fields->fingers > 1) {
 		start_bit = priv->x_bits - x_msb;
 		end_bit = priv->x_bits - x_lsb;
@@ -320,10 +319,35 @@ static void alps_process_bitmap_dolphin(struct alps_data *priv,
 		end_bit = y_msb - 1;
 		box_middle_y = (priv->y_max * (start_bit + end_bit)) /
 				(2 * (priv->y_bits - 1));
-		*x1 = fields->x;
-		*y1 = fields->y;
-		*x2 = 2 * box_middle_x - *x1;
-		*y2 = 2 * box_middle_y - *y1;
+		fields->mt[0] = fields->st;
+		fields->mt[1].x = 2 * box_middle_x - fields->mt[0].x;
+		fields->mt[1].y = 2 * box_middle_y - fields->mt[0].y;
+	}
+}
+
+static void alps_get_bitmap_points(unsigned int map,
+				   struct alps_bitmap_point *low,
+				   struct alps_bitmap_point *high,
+				   int *fingers)
+{
+	struct alps_bitmap_point *point;
+	int i, bit, prev_bit = 0;
+
+	point = low;
+	for (i = 0; map != 0; i++, map >>= 1) {
+		bit = map & 1;
+		if (bit) {
+			if (!prev_bit) {
+				point->start_bit = i;
+				point->num_bits = 0;
+				(*fingers)++;
+			}
+			point->num_bits++;
+		} else {
+			if (prev_bit)
+				point = high;
+		}
+		prev_bit = bit;
 	}
 }
 
@@ -334,71 +358,21 @@ static void alps_process_bitmap_dolphin(struct alps_data *priv,
  *
  * The bitmaps don't have enough data to track fingers, so this function
  * only generates points representing a bounding box of all contacts.
- * These points are returned in x1, y1, x2, and y2 when the return value
+ * These points are returned in fields->mt when the return value
  * is greater than 0.
  */
 static int alps_process_bitmap(struct alps_data *priv,
-			       unsigned int x_map, unsigned int y_map,
-			       int *x1, int *y1, int *x2, int *y2)
+			       struct alps_fields *fields)
 {
-	struct alps_bitmap_point {
-		int start_bit;
-		int num_bits;
-	};
-
-	int fingers_x = 0, fingers_y = 0, fingers;
-	int i, bit, prev_bit;
+	int i, fingers_x = 0, fingers_y = 0, fingers;
 	struct alps_bitmap_point x_low = {0,}, x_high = {0,};
 	struct alps_bitmap_point y_low = {0,}, y_high = {0,};
-	struct alps_bitmap_point *point;
 
-	if (!x_map || !y_map)
+	if (!fields->x_map || !fields->y_map)
 		return 0;
 
-	*x1 = *y1 = *x2 = *y2 = 0;
-
-	prev_bit = 0;
-	point = &x_low;
-	for (i = 0; x_map != 0; i++, x_map >>= 1) {
-		bit = x_map & 1;
-		if (bit) {
-			if (!prev_bit) {
-				point->start_bit = i;
-				fingers_x++;
-			}
-			point->num_bits++;
-		} else {
-			if (prev_bit)
-				point = &x_high;
-			else
-				point->num_bits = 0;
-		}
-		prev_bit = bit;
-	}
-
-	/*
-	 * y bitmap is reversed for what we need (lower positions are in
-	 * higher bits), so we process from the top end.
-	 */
-	y_map = y_map << (sizeof(y_map) * BITS_PER_BYTE - priv->y_bits);
-	prev_bit = 0;
-	point = &y_low;
-	for (i = 0; y_map != 0; i++, y_map <<= 1) {
-		bit = y_map & (1 << (sizeof(y_map) * BITS_PER_BYTE - 1));
-		if (bit) {
-			if (!prev_bit) {
-				point->start_bit = i;
-				fingers_y++;
-			}
-			point->num_bits++;
-		} else {
-			if (prev_bit)
-				point = &y_high;
-			else
-				point->num_bits = 0;
-		}
-		prev_bit = bit;
-	}
+	alps_get_bitmap_points(fields->x_map, &x_low, &x_high, &fingers_x);
+	alps_get_bitmap_points(fields->y_map, &y_low, &y_high, &fingers_y);
 
 	/*
 	 * Fingers can overlap, so we use the maximum count of fingers
@@ -407,58 +381,91 @@ static int alps_process_bitmap(struct alps_data *priv,
 	fingers = max(fingers_x, fingers_y);
 
 	/*
-	 * If total fingers is > 1 but either axis reports only a single
-	 * contact, we have overlapping or adjacent fingers. For the
-	 * purposes of creating a bounding box, divide the single contact
-	 * (roughly) equally between the two points.
+	 * If an axis reports only a single contact, we have overlapping or
+	 * adjacent fingers. Divide the single contact between the two points.
 	 */
-	if (fingers > 1) {
-		if (fingers_x == 1) {
-			i = x_low.num_bits / 2;
-			x_low.num_bits = x_low.num_bits - i;
-			x_high.start_bit = x_low.start_bit + i;
-			x_high.num_bits = max(i, 1);
-		} else if (fingers_y == 1) {
-			i = y_low.num_bits / 2;
-			y_low.num_bits = y_low.num_bits - i;
-			y_high.start_bit = y_low.start_bit + i;
-			y_high.num_bits = max(i, 1);
-		}
+	if (fingers_x == 1) {
+		i = (x_low.num_bits - 1) / 2;
+		x_low.num_bits = x_low.num_bits - i;
+		x_high.start_bit = x_low.start_bit + i;
+		x_high.num_bits = max(i, 1);
+	}
+	if (fingers_y == 1) {
+		i = (y_low.num_bits - 1) / 2;
+		y_low.num_bits = y_low.num_bits - i;
+		y_high.start_bit = y_low.start_bit + i;
+		y_high.num_bits = max(i, 1);
 	}
 
-	*x1 = (priv->x_max * (2 * x_low.start_bit + x_low.num_bits - 1)) /
-	      (2 * (priv->x_bits - 1));
-	*y1 = (priv->y_max * (2 * y_low.start_bit + y_low.num_bits - 1)) /
-	      (2 * (priv->y_bits - 1));
+	fields->mt[0].x =
+		(priv->x_max * (2 * x_low.start_bit + x_low.num_bits - 1)) /
+		(2 * (priv->x_bits - 1));
+	fields->mt[0].y =
+		(priv->y_max * (2 * y_low.start_bit + y_low.num_bits - 1)) /
+		(2 * (priv->y_bits - 1));
 
-	if (fingers > 1) {
-		*x2 = (priv->x_max *
-		       (2 * x_high.start_bit + x_high.num_bits - 1)) /
-		      (2 * (priv->x_bits - 1));
-		*y2 = (priv->y_max *
-		       (2 * y_high.start_bit + y_high.num_bits - 1)) /
-		      (2 * (priv->y_bits - 1));
+	fields->mt[1].x =
+		(priv->x_max * (2 * x_high.start_bit + x_high.num_bits - 1)) /
+		(2 * (priv->x_bits - 1));
+	fields->mt[1].y =
+		(priv->y_max * (2 * y_high.start_bit + y_high.num_bits - 1)) /
+		(2 * (priv->y_bits - 1));
+
+	/* y-bitmap order is reversed, except on rushmore */
+	if (!(priv->flags & ALPS_IS_RUSHMORE)) {
+		fields->mt[0].y = priv->y_max - fields->mt[0].y;
+		fields->mt[1].y = priv->y_max - fields->mt[1].y;
 	}
 
 	return fingers;
 }
 
-static void alps_set_slot(struct input_dev *dev, int slot, bool active,
-			  int x, int y)
+static void alps_set_slot(struct input_dev *dev, int slot, int x, int y)
 {
 	input_mt_slot(dev, slot);
-	input_mt_report_slot_state(dev, MT_TOOL_FINGER, active);
-	if (active) {
-		input_report_abs(dev, ABS_MT_POSITION_X, x);
-		input_report_abs(dev, ABS_MT_POSITION_Y, y);
-	}
+	input_mt_report_slot_state(dev, MT_TOOL_FINGER, true);
+	input_report_abs(dev, ABS_MT_POSITION_X, x);
+	input_report_abs(dev, ABS_MT_POSITION_Y, y);
 }
 
-static void alps_report_semi_mt_data(struct input_dev *dev, int num_fingers,
-				     int x1, int y1, int x2, int y2)
+static void alps_report_mt_data(struct psmouse *psmouse, int n)
 {
-	alps_set_slot(dev, 0, num_fingers != 0, x1, y1);
-	alps_set_slot(dev, 1, num_fingers == 2, x2, y2);
+	struct alps_data *priv = psmouse->private;
+	struct input_dev *dev = psmouse->dev;
+	struct alps_fields *f = &priv->f;
+	int i, slot[MAX_TOUCHES];
+
+	input_mt_assign_slots(dev, slot, f->mt, n);
+	for (i = 0; i < n; i++)
+		alps_set_slot(dev, slot[i], f->mt[i].x, f->mt[i].y);
+
+	input_mt_sync_frame(dev);
+}
+
+static void alps_report_semi_mt_data(struct psmouse *psmouse, int fingers)
+{
+	struct alps_data *priv = psmouse->private;
+	struct input_dev *dev = psmouse->dev;
+	struct alps_fields *f = &priv->f;
+
+	/* Use st data when we don't have mt data */
+	if (fingers < 2) {
+		f->mt[0].x = f->st.x;
+		f->mt[0].y = f->st.y;
+		fingers = f->pressure > 0 ? 1 : 0;
+	}
+
+	alps_report_mt_data(psmouse, (fingers <= 2) ? fingers : 2);
+
+	input_mt_report_finger_count(dev, fingers);
+
+	input_report_key(dev, BTN_LEFT, f->left);
+	input_report_key(dev, BTN_RIGHT, f->right);
+	input_report_key(dev, BTN_MIDDLE, f->middle);
+
+	input_report_abs(dev, ABS_PRESSURE, f->pressure);
+
+	input_sync(dev);
 }
 
 static void alps_process_trackstick_packet_v3(struct psmouse *psmouse)
@@ -532,7 +539,7 @@ static void alps_decode_buttons_v3(struct alps_fields *f, unsigned char *p)
 	f->ts_middle = !!(p[3] & 0x40);
 }
 
-static void alps_decode_pinnacle(struct alps_fields *f, unsigned char *p,
+static int alps_decode_pinnacle(struct alps_fields *f, unsigned char *p,
 				 struct psmouse *psmouse)
 {
 	f->first_mp = !!(p[4] & 0x40);
@@ -546,24 +553,31 @@ static void alps_decode_pinnacle(struct alps_fields *f, unsigned char *p,
 		   ((p[2] & 0x7f) << 1) |
 		   (p[4] & 0x01);
 
-	f->x = ((p[1] & 0x7f) << 4) | ((p[4] & 0x30) >> 2) |
+	f->st.x = ((p[1] & 0x7f) << 4) | ((p[4] & 0x30) >> 2) |
 	       ((p[0] & 0x30) >> 4);
-	f->y = ((p[2] & 0x7f) << 4) | (p[4] & 0x0f);
-	f->z = p[5] & 0x7f;
+	f->st.y = ((p[2] & 0x7f) << 4) | (p[4] & 0x0f);
+	f->pressure = p[5] & 0x7f;
 
 	alps_decode_buttons_v3(f, p);
+
+	return 0;
 }
 
-static void alps_decode_rushmore(struct alps_fields *f, unsigned char *p,
+static int alps_decode_rushmore(struct alps_fields *f, unsigned char *p,
 				 struct psmouse *psmouse)
 {
 	alps_decode_pinnacle(f, p, psmouse);
 
+	/* Rushmore's packet decode has a bit difference with Pinnacle's */
+	f->is_mp = !!(p[5] & 0x40);
+	f->fingers = max((p[5] & 0x3), ((p[5] >> 2) & 0x3)) + 1;
 	f->x_map |= (p[5] & 0x10) << 11;
 	f->y_map |= (p[5] & 0x20) << 6;
+
+	return 0;
 }
 
-static void alps_decode_dolphin(struct alps_fields *f, unsigned char *p,
+static int alps_decode_dolphin(struct alps_fields *f, unsigned char *p,
 				struct psmouse *psmouse)
 {
 	u64 palm_data = 0;
@@ -573,9 +587,9 @@ static void alps_decode_dolphin(struct alps_fields *f, unsigned char *p,
 	f->is_mp = !!(p[0] & 0x20);
 
 	if (!f->is_mp) {
-		f->x = ((p[1] & 0x7f) | ((p[4] & 0x0f) << 7));
-		f->y = ((p[2] & 0x7f) | ((p[4] & 0xf0) << 3));
-		f->z = (p[0] & 4) ? 0 : p[5] & 0x7f;
+		f->st.x = ((p[1] & 0x7f) | ((p[4] & 0x0f) << 7));
+		f->st.y = ((p[2] & 0x7f) | ((p[4] & 0xf0) << 3));
+		f->pressure = (p[0] & 4) ? 0 : p[5] & 0x7f;
 		alps_decode_buttons_v3(f, p);
 	} else {
 		f->fingers = ((p[0] & 0x6) >> 1 |
@@ -596,19 +610,21 @@ static void alps_decode_dolphin(struct alps_fields *f, unsigned char *p,
 		f->x_map = (palm_data >> priv->y_bits) &
 			   (BIT(priv->x_bits) - 1);
 	}
+
+	return 0;
 }
 
 static void alps_process_touchpad_packet_v3_v5(struct psmouse *psmouse)
 {
 	struct alps_data *priv = psmouse->private;
 	unsigned char *packet = psmouse->packet;
-	struct input_dev *dev = psmouse->dev;
 	struct input_dev *dev2 = priv->dev2;
-	int x1 = 0, y1 = 0, x2 = 0, y2 = 0;
-	int fingers = 0, bmap_fn;
-	struct alps_fields f = {0};
+	struct alps_fields *f = &priv->f;
+	int fingers = 0;
 
-	priv->decode_fields(&f, packet, psmouse);
+	memset(f, 0, sizeof(*f));
+
+	priv->decode_fields(f, packet, psmouse);
 
 	/*
 	 * There's no single feature of touchpad position and bitmap packets
@@ -623,22 +639,14 @@ static void alps_process_touchpad_packet_v3_v5(struct psmouse *psmouse)
 		 * packet. Check for this, and when it happens process the
 		 * position packet as usual.
 		 */
-		if (f.is_mp) {
-			fingers = f.fingers;
+		if (f->is_mp) {
+			fingers = f->fingers;
 			if (priv->proto_version == ALPS_PROTO_V3) {
-				bmap_fn = alps_process_bitmap(priv, f.x_map,
-							      f.y_map, &x1, &y1,
-							      &x2, &y2);
-
-				/*
-				 * We shouldn't report more than one finger if
-				 * we don't have two coordinates.
-				 */
-				if (fingers > 1 && bmap_fn < 2)
-					fingers = bmap_fn;
+				if (alps_process_bitmap(priv, f) == 0)
+					fingers = 0; /* Use st data */
 
 				/* Now process position packet */
-				priv->decode_fields(&f, priv->multi_data,
+				priv->decode_fields(f, priv->multi_data,
 						    psmouse);
 			} else {
 				/*
@@ -647,15 +655,14 @@ static void alps_process_touchpad_packet_v3_v5(struct psmouse *psmouse)
 				 * calculate Pt2, so we need to do position
 				 * packet decode first.
 				 */
-				priv->decode_fields(&f, priv->multi_data,
+				priv->decode_fields(f, priv->multi_data,
 						    psmouse);
 
 				/*
 				 * Since Dolphin's finger number is reliable,
 				 * there is no need to compare with bmap_fn.
 				 */
-				alps_process_bitmap_dolphin(priv, &f, &x1, &y1,
-							    &x2, &y2);
+				alps_process_bitmap_dolphin(priv, f);
 			}
 		} else {
 			priv->multi_packet = 0;
@@ -670,10 +677,10 @@ static void alps_process_touchpad_packet_v3_v5(struct psmouse *psmouse)
 	 * out misidentified bitmap packets, we reject anything with this
 	 * bit set.
 	 */
-	if (f.is_mp)
+	if (f->is_mp)
 		return;
 
-	if (!priv->multi_packet && f.first_mp) {
+	if (!priv->multi_packet && f->first_mp) {
 		priv->multi_packet = 1;
 		memcpy(priv->multi_data, packet, sizeof(priv->multi_data));
 		return;
@@ -687,44 +694,15 @@ static void alps_process_touchpad_packet_v3_v5(struct psmouse *psmouse)
 	 * with x, y, and z all zero, so these seem to be flukes.
 	 * Ignore them.
 	 */
-	if (f.x && f.y && !f.z)
+	if (f->st.x && f->st.y && !f->pressure)
 		return;
 
-	/*
-	 * If we don't have MT data or the bitmaps were empty, we have
-	 * to rely on ST data.
-	 */
-	if (!fingers) {
-		x1 = f.x;
-		y1 = f.y;
-		fingers = f.z > 0 ? 1 : 0;
-	}
-
-	if (f.z >= 64)
-		input_report_key(dev, BTN_TOUCH, 1);
-	else
-		input_report_key(dev, BTN_TOUCH, 0);
-
-	alps_report_semi_mt_data(dev, fingers, x1, y1, x2, y2);
-
-	input_mt_report_finger_count(dev, fingers);
-
-	input_report_key(dev, BTN_LEFT, f.left);
-	input_report_key(dev, BTN_RIGHT, f.right);
-	input_report_key(dev, BTN_MIDDLE, f.middle);
-
-	if (f.z > 0) {
-		input_report_abs(dev, ABS_X, f.x);
-		input_report_abs(dev, ABS_Y, f.y);
-	}
-	input_report_abs(dev, ABS_PRESSURE, f.z);
-
-	input_sync(dev);
+	alps_report_semi_mt_data(psmouse, fingers);
 
 	if (!(priv->quirks & ALPS_QUIRK_TRACKSTICK_BUTTONS)) {
-		input_report_key(dev2, BTN_LEFT, f.ts_left);
-		input_report_key(dev2, BTN_RIGHT, f.ts_right);
-		input_report_key(dev2, BTN_MIDDLE, f.ts_middle);
+		input_report_key(dev2, BTN_LEFT, f->ts_left);
+		input_report_key(dev2, BTN_RIGHT, f->ts_right);
+		input_report_key(dev2, BTN_MIDDLE, f->ts_middle);
 		input_sync(dev2);
 	}
 }
@@ -823,13 +801,8 @@ static void alps_process_packet_v4(struct psmouse *psmouse)
 {
 	struct alps_data *priv = psmouse->private;
 	unsigned char *packet = psmouse->packet;
-	struct input_dev *dev = psmouse->dev;
+	struct alps_fields *f = &priv->f;
 	int offset;
-	int x, y, z;
-	int left, right;
-	int x1, y1, x2, y2;
-	int fingers = 0;
-	unsigned int x_bitmap, y_bitmap;
 
 	/*
 	 * v4 has a 6-byte encoding for bitmap data, but this data is
@@ -851,69 +824,205 @@ static void alps_process_packet_v4(struct psmouse *psmouse)
 	if (++priv->multi_packet > 2) {
 		priv->multi_packet = 0;
 
-		x_bitmap = ((priv->multi_data[2] & 0x1f) << 10) |
+		f->x_map = ((priv->multi_data[2] & 0x1f) << 10) |
 			   ((priv->multi_data[3] & 0x60) << 3) |
 			   ((priv->multi_data[0] & 0x3f) << 2) |
 			   ((priv->multi_data[1] & 0x60) >> 5);
-		y_bitmap = ((priv->multi_data[5] & 0x01) << 10) |
+		f->y_map = ((priv->multi_data[5] & 0x01) << 10) |
 			   ((priv->multi_data[3] & 0x1f) << 5) |
 			    (priv->multi_data[1] & 0x1f);
 
-		fingers = alps_process_bitmap(priv, x_bitmap, y_bitmap,
-					      &x1, &y1, &x2, &y2);
-
-		/* Store MT data.*/
-		priv->fingers = fingers;
-		priv->x1 = x1;
-		priv->x2 = x2;
-		priv->y1 = y1;
-		priv->y2 = y2;
+		f->fingers = alps_process_bitmap(priv, f);
 	}
 
-	left = packet[4] & 0x01;
-	right = packet[4] & 0x02;
+	f->left = packet[4] & 0x01;
+	f->right = packet[4] & 0x02;
 
-	x = ((packet[1] & 0x7f) << 4) | ((packet[3] & 0x30) >> 2) |
-	    ((packet[0] & 0x30) >> 4);
-	y = ((packet[2] & 0x7f) << 4) | (packet[3] & 0x0f);
-	z = packet[5] & 0x7f;
+	f->st.x = ((packet[1] & 0x7f) << 4) | ((packet[3] & 0x30) >> 2) |
+		  ((packet[0] & 0x30) >> 4);
+	f->st.y = ((packet[2] & 0x7f) << 4) | (packet[3] & 0x0f);
+	f->pressure = packet[5] & 0x7f;
+
+	alps_report_semi_mt_data(psmouse, f->fingers);
+}
+
+static bool alps_is_valid_package_v7(struct psmouse *psmouse)
+{
+	switch (psmouse->pktcnt) {
+	case 3:
+		return (psmouse->packet[2] & 0x40) == 0x40;
+	case 4:
+		return (psmouse->packet[3] & 0x48) == 0x48;
+	case 6:
+		return (psmouse->packet[5] & 0x40) == 0x00;
+	}
+	return true;
+}
+
+static unsigned char alps_get_packet_id_v7(char *byte)
+{
+	unsigned char packet_id;
+
+	if (byte[4] & 0x40)
+		packet_id = V7_PACKET_ID_TWO;
+	else if (byte[4] & 0x01)
+		packet_id = V7_PACKET_ID_MULTI;
+	else if ((byte[0] & 0x10) && !(byte[4] & 0x43))
+		packet_id = V7_PACKET_ID_NEW;
+	else if (byte[1] == 0x00 && byte[4] == 0x00)
+		packet_id = V7_PACKET_ID_IDLE;
+	else
+		packet_id = V7_PACKET_ID_UNKNOWN;
+
+	return packet_id;
+}
+
+static void alps_get_finger_coordinate_v7(struct input_mt_pos *mt,
+					  unsigned char *pkt,
+					  unsigned char pkt_id)
+{
+	mt[0].x = ((pkt[2] & 0x80) << 4);
+	mt[0].x |= ((pkt[2] & 0x3F) << 5);
+	mt[0].x |= ((pkt[3] & 0x30) >> 1);
+	mt[0].x |= (pkt[3] & 0x07);
+	mt[0].y = (pkt[1] << 3) | (pkt[0] & 0x07);
+
+	mt[1].x = ((pkt[3] & 0x80) << 4);
+	mt[1].x |= ((pkt[4] & 0x80) << 3);
+	mt[1].x |= ((pkt[4] & 0x3F) << 4);
+	mt[1].y = ((pkt[5] & 0x80) << 3);
+	mt[1].y |= ((pkt[5] & 0x3F) << 4);
+
+	switch (pkt_id) {
+	case V7_PACKET_ID_TWO:
+		mt[1].x &= ~0x000F;
+		mt[1].y |= 0x000F;
+		break;
+
+	case V7_PACKET_ID_MULTI:
+		mt[1].x &= ~0x003F;
+		mt[1].y &= ~0x0020;
+		mt[1].y |= ((pkt[4] & 0x02) << 4);
+		mt[1].y |= 0x001F;
+		break;
+
+	case V7_PACKET_ID_NEW:
+		mt[1].x &= ~0x003F;
+		mt[1].x |= (pkt[0] & 0x20);
+		mt[1].y |= 0x000F;
+		break;
+	}
+
+	mt[0].y = 0x7FF - mt[0].y;
+	mt[1].y = 0x7FF - mt[1].y;
+}
+
+static int alps_get_mt_count(struct input_mt_pos *mt)
+{
+	int i;
+
+	for (i = 0; i < MAX_TOUCHES && mt[i].x != 0 && mt[i].y != 0; i++)
+		/* empty */;
+
+	return i;
+}
+
+static int alps_decode_packet_v7(struct alps_fields *f,
+				  unsigned char *p,
+				  struct psmouse *psmouse)
+{
+	unsigned char pkt_id;
+
+	pkt_id = alps_get_packet_id_v7(p);
+	if (pkt_id == V7_PACKET_ID_IDLE)
+		return 0;
+	if (pkt_id == V7_PACKET_ID_UNKNOWN)
+		return -1;
+
+	alps_get_finger_coordinate_v7(f->mt, p, pkt_id);
+
+	if (pkt_id == V7_PACKET_ID_TWO || pkt_id == V7_PACKET_ID_MULTI) {
+		f->left = (p[0] & 0x80) >> 7;
+		f->right = (p[0] & 0x20) >> 5;
+		f->middle = (p[0] & 0x10) >> 4;
+	}
+
+	if (pkt_id == V7_PACKET_ID_TWO)
+		f->fingers = alps_get_mt_count(f->mt);
+	else if (pkt_id == V7_PACKET_ID_MULTI)
+		f->fingers = 3 + (p[5] & 0x03);
+
+	return 0;
+}
+
+static void alps_process_trackstick_packet_v7(struct psmouse *psmouse)
+{
+	struct alps_data *priv = psmouse->private;
+	unsigned char *packet = psmouse->packet;
+	struct input_dev *dev2 = priv->dev2;
+	int x, y, z, left, right, middle;
 
 	/*
-	 * If there were no contacts in the bitmap, use ST
-	 * points in MT reports.
-	 * If there were two contacts or more, report MT data.
+	 *        b7 b6 b5 b4 b3 b2 b1 b0
+	 * Byte0   0  1  0  0  1  0  0  0
+	 * Byte1   1  1  *  *  1  M  R  L
+	 * Byte2  X7  1 X5 X4 X3 X2 X1 X0
+	 * Byte3  Z6  1 Y6 X6  1 Y2 Y1 Y0
+	 * Byte4  Y7  0 Y5 Y4 Y3  1  1  0
+	 * Byte5 T&P  0 Z5 Z4 Z3 Z2 Z1 Z0
+	 * M / R / L: Middle / Right / Left button
 	 */
-	if (priv->fingers < 2) {
-		x1 = x;
-		y1 = y;
-		fingers = z > 0 ? 1 : 0;
-	} else {
-		fingers = priv->fingers;
-		x1 = priv->x1;
-		x2 = priv->x2;
-		y1 = priv->y1;
-		y2 = priv->y2;
-	}
 
-	if (z >= 64)
-		input_report_key(dev, BTN_TOUCH, 1);
-	else
-		input_report_key(dev, BTN_TOUCH, 0);
+	x = ((packet[2] & 0xbf)) | ((packet[3] & 0x10) << 2);
+	y = (packet[3] & 0x07) | (packet[4] & 0xb8) |
+	    ((packet[3] & 0x20) << 1);
+	z = (packet[5] & 0x3f) | ((packet[3] & 0x80) >> 1);
 
-	alps_report_semi_mt_data(dev, fingers, x1, y1, x2, y2);
+	left = (packet[1] & 0x01);
+	right = (packet[1] & 0x02) >> 1;
+	middle = (packet[1] & 0x04) >> 2;
 
-	input_mt_report_finger_count(dev, fingers);
+	/* Divide 2 since trackpoint's speed is too fast */
+	input_report_rel(dev2, REL_X, (char)x / 2);
+	input_report_rel(dev2, REL_Y, -((char)y / 2));
 
-	input_report_key(dev, BTN_LEFT, left);
-	input_report_key(dev, BTN_RIGHT, right);
+	input_report_key(dev2, BTN_LEFT, left);
+	input_report_key(dev2, BTN_RIGHT, right);
+	input_report_key(dev2, BTN_MIDDLE, middle);
 
-	if (z > 0) {
-		input_report_abs(dev, ABS_X, x);
-		input_report_abs(dev, ABS_Y, y);
-	}
-	input_report_abs(dev, ABS_PRESSURE, z);
+	input_sync(dev2);
+}
+
+static void alps_process_touchpad_packet_v7(struct psmouse *psmouse)
+{
+	struct alps_data *priv = psmouse->private;
+	struct input_dev *dev = psmouse->dev;
+	struct alps_fields *f = &priv->f;
+
+	memset(f, 0, sizeof(*f));
+
+	if (priv->decode_fields(f, psmouse->packet, psmouse))
+		return;
+
+	alps_report_mt_data(psmouse, alps_get_mt_count(f->mt));
+
+	input_mt_report_finger_count(dev, f->fingers);
+
+	input_report_key(dev, BTN_LEFT, f->left);
+	input_report_key(dev, BTN_RIGHT, f->right);
+	input_report_key(dev, BTN_MIDDLE, f->middle);
 
 	input_sync(dev);
+}
+
+static void alps_process_packet_v7(struct psmouse *psmouse)
+{
+	unsigned char *packet = psmouse->packet;
+
+	if (packet[0] == 0x48 && (packet[4] & 0x47) == 0x06)
+		alps_process_trackstick_packet_v7(psmouse);
+	else
+		alps_process_touchpad_packet_v7(psmouse);
 }
 
 static void alps_report_bare_ps2_packet(struct psmouse *psmouse,
@@ -1080,6 +1189,14 @@ static psmouse_ret_t alps_process_byte(struct psmouse *psmouse)
 		return PSMOUSE_BAD_DATA;
 	}
 
+	if (priv->proto_version == ALPS_PROTO_V7 &&
+	    !alps_is_valid_package_v7(psmouse)) {
+		psmouse_dbg(psmouse, "refusing packet[%i] = %x\n",
+			    psmouse->pktcnt - 1,
+			    psmouse->packet[psmouse->pktcnt - 1]);
+		return PSMOUSE_BAD_DATA;
+	}
+
 	if (psmouse->pktcnt == psmouse->pktsize) {
 		priv->process_packet(psmouse);
 		return PSMOUSE_FULL_PACKET;
@@ -1192,6 +1309,22 @@ static int alps_rpt_cmd(struct psmouse *psmouse, int init_command,
 	return 0;
 }
 
+static bool alps_check_valid_firmware_id(unsigned char id[])
+{
+	if (id[0] == 0x73)
+		return true;
+
+	if (id[0] == 0x88 &&
+	    (id[1] == 0x07 ||
+	     id[1] == 0x08 ||
+	     (id[1] & 0xf0) == 0xb0 ||
+	     (id[1] & 0xf0) == 0xc0)) {
+		return true;
+	}
+
+	return false;
+}
+
 static int alps_enter_command_mode(struct psmouse *psmouse)
 {
 	unsigned char param[4];
@@ -1201,8 +1334,7 @@ static int alps_enter_command_mode(struct psmouse *psmouse)
 		return -1;
 	}
 
-	if ((param[0] != 0x88 || (param[1] != 0x07 && param[1] != 0x08)) &&
-	    param[0] != 0x73) {
+	if (!alps_check_valid_firmware_id(param)) {
 		psmouse_dbg(psmouse,
 			    "unknown response while entering command mode\n");
 		return -1;
@@ -1660,6 +1792,45 @@ error:
 	return -1;
 }
 
+static int alps_get_v3_v7_resolution(struct psmouse *psmouse, int reg_pitch)
+{
+	int reg, x_pitch, y_pitch, x_electrode, y_electrode, x_phys, y_phys;
+	struct alps_data *priv = psmouse->private;
+
+	reg = alps_command_mode_read_reg(psmouse, reg_pitch);
+	if (reg < 0)
+		return reg;
+
+	x_pitch = (char)(reg << 4) >> 4; /* sign extend lower 4 bits */
+	x_pitch = 50 + 2 * x_pitch; /* In 0.1 mm units */
+
+	y_pitch = (char)reg >> 4; /* sign extend upper 4 bits */
+	y_pitch = 36 + 2 * y_pitch; /* In 0.1 mm units */
+
+	reg = alps_command_mode_read_reg(psmouse, reg_pitch + 1);
+	if (reg < 0)
+		return reg;
+
+	x_electrode = (char)(reg << 4) >> 4; /* sign extend lower 4 bits */
+	x_electrode = 17 + x_electrode;
+
+	y_electrode = (char)reg >> 4; /* sign extend upper 4 bits */
+	y_electrode = 13 + y_electrode;
+
+	x_phys = x_pitch * (x_electrode - 1); /* In 0.1 mm units */
+	y_phys = y_pitch * (y_electrode - 1); /* In 0.1 mm units */
+
+	priv->x_res = priv->x_max * 10 / x_phys; /* units / mm */
+	priv->y_res = priv->y_max * 10 / y_phys; /* units / mm */
+
+	psmouse_dbg(psmouse,
+		    "pitch %dx%d num-electrodes %dx%d physical size %dx%d mm res %dx%d\n",
+		    x_pitch, y_pitch, x_electrode, y_electrode,
+		    x_phys / 10, y_phys / 10, priv->x_res, priv->y_res);
+
+	return 0;
+}
+
 static int alps_hw_init_rushmore_v3(struct psmouse *psmouse)
 {
 	struct alps_data *priv = psmouse->private;
@@ -1678,6 +1849,9 @@ static int alps_hw_init_rushmore_v3(struct psmouse *psmouse)
 	if (alps_enter_command_mode(psmouse) ||
 	    alps_command_mode_read_reg(psmouse, 0xc2d9) == -1 ||
 	    alps_command_mode_write_reg(psmouse, 0xc2cb, 0x00))
+		goto error;
+
+	if (alps_get_v3_v7_resolution(psmouse, 0xc2da))
 		goto error;
 
 	reg_val = alps_command_mode_read_reg(psmouse, 0xc2c6);
@@ -1856,6 +2030,35 @@ static int alps_hw_init_dolphin_v1(struct psmouse *psmouse)
 	return 0;
 }
 
+static int alps_hw_init_v7(struct psmouse *psmouse)
+{
+	struct ps2dev *ps2dev = &psmouse->ps2dev;
+	int reg_val, ret = -1;
+
+	if (alps_enter_command_mode(psmouse) ||
+	    alps_command_mode_read_reg(psmouse, 0xc2d9) == -1)
+		goto error;
+
+	if (alps_get_v3_v7_resolution(psmouse, 0xc397))
+		goto error;
+
+	if (alps_command_mode_write_reg(psmouse, 0xc2c9, 0x64))
+		goto error;
+
+	reg_val = alps_command_mode_read_reg(psmouse, 0xc2c4);
+	if (reg_val == -1)
+		goto error;
+	if (__alps_command_mode_write_reg(psmouse, reg_val | 0x02))
+		goto error;
+
+	alps_exit_command_mode(psmouse);
+	return ps2_command(ps2dev, NULL, PSMOUSE_CMD_ENABLE);
+
+error:
+	alps_exit_command_mode(psmouse);
+	return ret;
+}
+
 static void alps_set_defaults(struct alps_data *priv)
 {
 	priv->byte0 = 0x8f;
@@ -1913,6 +2116,21 @@ static void alps_set_defaults(struct alps_data *priv)
 		priv->nibble_commands = alps_v6_nibble_commands;
 		priv->x_max = 2047;
 		priv->y_max = 1535;
+		break;
+	case ALPS_PROTO_V7:
+		priv->hw_init = alps_hw_init_v7;
+		priv->process_packet = alps_process_packet_v7;
+		priv->decode_fields = alps_decode_packet_v7;
+		priv->set_abs_params = alps_set_abs_params_mt;
+		priv->nibble_commands = alps_v3_nibble_commands;
+		priv->addr_command = PSMOUSE_CMD_RESET_WRAP;
+		priv->x_max = 0xfff;
+		priv->y_max = 0x7ff;
+		priv->byte0 = 0x48;
+		priv->mask0 = 0x48;
+
+		if (priv->fw_ver[1] != 0xba)
+			priv->flags |= ALPS_BUTTONPAD;
 		break;
 	}
 }
@@ -1972,6 +2190,9 @@ static int alps_identify(struct psmouse *psmouse, struct alps_data *priv)
 	    alps_exit_command_mode(psmouse))
 		return -EIO;
 
+	/* Save the Firmware version */
+	memcpy(priv->fw_ver, ec, 3);
+
 	if (alps_match_table(psmouse, priv, e7, ec) == 0) {
 		return 0;
 	} else if (e7[0] == 0x73 && e7[1] == 0x03 && e7[2] == 0x50 &&
@@ -1982,6 +2203,12 @@ static int alps_identify(struct psmouse *psmouse, struct alps_data *priv)
 			return -EIO;
 		else
 			return 0;
+	} else if (ec[0] == 0x88 &&
+		   ((ec[1] & 0xf0) == 0xb0 || (ec[1] & 0xf0) == 0xc0)) {
+		priv->proto_version = ALPS_PROTO_V7;
+		alps_set_defaults(priv);
+
+		return 0;
 	} else if (ec[0] == 0x88 && ec[1] == 0x08) {
 		priv->proto_version = ALPS_PROTO_V3;
 		alps_set_defaults(priv);
@@ -1990,6 +2217,7 @@ static int alps_identify(struct psmouse *psmouse, struct alps_data *priv)
 		priv->decode_fields = alps_decode_rushmore;
 		priv->x_bits = 16;
 		priv->y_bits = 12;
+		priv->flags |= ALPS_IS_RUSHMORE;
 
 		/* hack to make addr_command, nibble_command available */
 		psmouse->private = priv;
@@ -2044,17 +2272,21 @@ static void alps_set_abs_params_st(struct alps_data *priv,
 static void alps_set_abs_params_mt(struct alps_data *priv,
 				   struct input_dev *dev1)
 {
-	set_bit(INPUT_PROP_SEMI_MT, dev1->propbit);
-	input_mt_init_slots(dev1, 2, 0);
 	input_set_abs_params(dev1, ABS_MT_POSITION_X, 0, priv->x_max, 0, 0);
 	input_set_abs_params(dev1, ABS_MT_POSITION_Y, 0, priv->y_max, 0, 0);
 
-	set_bit(BTN_TOOL_DOUBLETAP, dev1->keybit);
+	input_abs_set_res(dev1, ABS_MT_POSITION_X, priv->x_res);
+	input_abs_set_res(dev1, ABS_MT_POSITION_Y, priv->y_res);
+
+	input_mt_init_slots(dev1, MAX_TOUCHES, INPUT_MT_POINTER |
+		INPUT_MT_DROP_UNUSED | INPUT_MT_TRACK | INPUT_MT_SEMI_MT);
+
 	set_bit(BTN_TOOL_TRIPLETAP, dev1->keybit);
 	set_bit(BTN_TOOL_QUADTAP, dev1->keybit);
 
-	input_set_abs_params(dev1, ABS_X, 0, priv->x_max, 0, 0);
-	input_set_abs_params(dev1, ABS_Y, 0, priv->y_max, 0, 0);
+	/* V7 is real multi-touch */
+	if (priv->proto_version == ALPS_PROTO_V7)
+		clear_bit(INPUT_PROP_SEMI_MT, dev1->propbit);
 }
 
 int alps_init(struct psmouse *psmouse)
@@ -2100,7 +2332,9 @@ int alps_init(struct psmouse *psmouse)
 	dev1->evbit[BIT_WORD(EV_ABS)] |= BIT_MASK(EV_ABS);
 
 	priv->set_abs_params(priv, dev1);
-	input_set_abs_params(dev1, ABS_PRESSURE, 0, 127, 0, 0);
+	/* No pressure on V7 */
+	if (priv->proto_version != ALPS_PROTO_V7)
+		input_set_abs_params(dev1, ABS_PRESSURE, 0, 127, 0, 0);
 
 	if (priv->flags & ALPS_WHEEL) {
 		dev1->evbit[BIT_WORD(EV_REL)] |= BIT_MASK(EV_REL);
@@ -2117,6 +2351,9 @@ int alps_init(struct psmouse *psmouse)
 		dev1->keybit[BIT_WORD(BTN_1)] |= BIT_MASK(BTN_1);
 		dev1->keybit[BIT_WORD(BTN_2)] |= BIT_MASK(BTN_2);
 		dev1->keybit[BIT_WORD(BTN_3)] |= BIT_MASK(BTN_3);
+	} else if (priv->flags & ALPS_BUTTONPAD) {
+		set_bit(INPUT_PROP_BUTTONPAD, dev1->propbit);
+		clear_bit(BTN_RIGHT, dev1->keybit);
 	} else {
 		dev1->keybit[BIT_WORD(BTN_MIDDLE)] |= BIT_MASK(BTN_MIDDLE);
 	}

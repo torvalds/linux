@@ -43,10 +43,22 @@ enum pixcir_int_mode {
 #define PIXCIR_INT_ENABLE	(1UL << 3)
 #define PIXCIR_INT_POL_HIGH	(1UL << 2)
 
+/**
+ * struct pixcir_irc_chip_data - chip related data
+ * @max_fingers:	Max number of fingers reported simultaneously by h/w
+ * @has_hw_ids:		Hardware supports finger tracking IDs
+ *
+ */
+struct pixcir_i2c_chip_data {
+	u8 max_fingers;
+	bool has_hw_ids;
+};
+
 struct pixcir_ts_platform_data {
 	int x_max;
 	int y_max;
 	int gpio_attb;		/* GPIO connected to ATTB line */
+	struct pixcir_i2c_chip_data chip;
 };
 
 #endif

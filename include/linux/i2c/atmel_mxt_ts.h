@@ -17,9 +17,6 @@
 
 /* The platform data for the Atmel maXTouch touchscreen driver */
 struct mxt_platform_data {
-	const u8 *config;
-	size_t config_length;
-	u32 config_crc;
 	unsigned long irqflags;
 	u8 t19_num_keys;
 	const unsigned int *t19_keymap;
