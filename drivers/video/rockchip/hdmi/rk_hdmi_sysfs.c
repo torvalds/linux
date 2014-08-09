@@ -50,6 +50,7 @@ static int hdmi_set_enable(struct rk_display_device *device, int enable)
 static int hdmi_get_status(struct rk_display_device *device)
 {
 	struct hdmi *hdmi = device->priv_data;
+
 	if (hdmi->hotplug == HDMI_HPD_ACTIVED)
 		return 1;
 	else
@@ -60,6 +61,7 @@ static int hdmi_get_modelist(struct rk_display_device *device,
 			     struct list_head **modelist)
 {
 	struct hdmi *hdmi = device->priv_data;
+
 	if (!hdmi->hotplug)
 		return -1;
 	*modelist = &hdmi->edid.modelist;
@@ -171,7 +173,6 @@ static struct rk_display_driver display_hdmi = {
 	.probe = hdmi_display_probe,
 };
 
-static struct rk_display_device *display_device_hdmi;
 #ifdef CONFIG_DRM_ROCKCHIP
 extern void rk_drm_display_register(struct rk_display_ops *extend_ops,
 				    void *displaydata, int type);
@@ -179,7 +180,7 @@ extern void rk_drm_display_register(struct rk_display_ops *extend_ops,
 
 void hdmi_register_display_sysfs(struct hdmi *hdmi, struct device *parent)
 {
-	display_device_hdmi =
+	hdmi->ddev =
 	    rk_display_device_register(&display_hdmi, parent, hdmi);
 #ifdef CONFIG_DRM_ROCKCHIP
 	rk_drm_display_register(&hdmi_display_ops, hdmi, SCREEN_HDMI);
@@ -188,7 +189,7 @@ void hdmi_register_display_sysfs(struct hdmi *hdmi, struct device *parent)
 
 void hdmi_unregister_display_sysfs(struct hdmi *hdmi)
 {
-	if (display_device_hdmi)
-		rk_display_device_unregister(display_device_hdmi);
+	if (hdmi->ddev)
+		rk_display_device_unregister(hdmi->ddev);
 }
 #endif
