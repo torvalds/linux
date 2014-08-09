@@ -96,7 +96,7 @@ nv10_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 		  uint32_t src_x, uint32_t src_y,
 		  uint32_t src_w, uint32_t src_h)
 {
-	struct nouveau_object *dev = nouveau_drm(plane->dev)->device;
+	struct nvif_device *dev = &nouveau_drm(plane->dev)->device;
 	struct nouveau_plane *nv_plane = (struct nouveau_plane *)plane;
 	struct nouveau_framebuffer *nv_fb = nouveau_framebuffer(fb);
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
@@ -117,7 +117,7 @@ nv10_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	if (format > 0xffff)
 		return -ERANGE;
 
-	if (nv_device(dev)->chipset >= 0x30) {
+	if (dev->info.chipset >= 0x30) {
 		if (crtc_w < (src_w >> 1) || crtc_h < (src_h >> 1))
 			return -ERANGE;
 	} else {
@@ -172,7 +172,7 @@ nv10_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 static int
 nv10_disable_plane(struct drm_plane *plane)
 {
-	struct nouveau_object *dev = nouveau_drm(plane->dev)->device;
+	struct nvif_device *dev = &nouveau_drm(plane->dev)->device;
 	struct nouveau_plane *nv_plane = (struct nouveau_plane *)plane;
 
 	nvif_wr32(dev, NV_PVIDEO_STOP, 1);
@@ -195,7 +195,7 @@ nv_destroy_plane(struct drm_plane *plane)
 static void
 nv10_set_params(struct nouveau_plane *plane)
 {
-	struct nouveau_object *dev = nouveau_drm(plane->base.dev)->device;
+	struct nvif_device *dev = &nouveau_drm(plane->base.dev)->device;
 	u32 luma = (plane->brightness - 512) << 16 | plane->contrast;
 	u32 chroma = ((sin_mul(plane->hue, plane->saturation) & 0xffff) << 16) |
 		(cos_mul(plane->hue, plane->saturation) & 0xffff);
@@ -264,7 +264,7 @@ nv10_overlay_init(struct drm_device *device)
 	if (!plane)
 		return;
 
-	switch (nv_device(drm->device)->chipset) {
+	switch (drm->device.info.chipset) {
 	case 0x10:
 	case 0x11:
 	case 0x15:
@@ -343,7 +343,7 @@ nv04_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 		  uint32_t src_x, uint32_t src_y,
 		  uint32_t src_w, uint32_t src_h)
 {
-	struct nouveau_object *dev = nouveau_drm(plane->dev)->device;
+	struct nvif_device *dev = &nouveau_drm(plane->dev)->device;
 	struct nouveau_plane *nv_plane = (struct nouveau_plane *)plane;
 	struct nouveau_framebuffer *nv_fb = nouveau_framebuffer(fb);
 	struct nouveau_bo *cur = nv_plane->cur;
@@ -422,7 +422,7 @@ nv04_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 static int
 nv04_disable_plane(struct drm_plane *plane)
 {
-	struct nouveau_object *dev = nouveau_drm(plane->dev)->device;
+	struct nvif_device *dev = &nouveau_drm(plane->dev)->device;
 	struct nouveau_plane *nv_plane = (struct nouveau_plane *)plane;
 
 	nvif_mask(dev, NV_PVIDEO_OVERLAY, 1, 0);
@@ -489,9 +489,9 @@ err:
 void
 nouveau_overlay_init(struct drm_device *device)
 {
-	struct nouveau_object *dev = nouveau_drm(device)->device;
-	if (nv_device(dev)->chipset < 0x10)
+	struct nvif_device *dev = &nouveau_drm(device)->device;
+	if (dev->info.chipset < 0x10)
 		nv04_overlay_init(device);
-	else if (nv_device(dev)->chipset <= 0x40)
+	else if (dev->info.chipset <= 0x40)
 		nv10_overlay_init(device);
 }

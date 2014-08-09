@@ -54,7 +54,6 @@ void nvif_object_unmap(struct nvif_object *);
 	else                                                                   \
 		nvif_object_wr(_object, (b) / 8, (c), (d));                    \
 })
-
 #define nvif_rd08(a,b) ({ u8  _v = nvif_rd((a), 8, (b)); _v; })
 #define nvif_rd16(a,b) ({ u16 _v = nvif_rd((a), 16, (b)); _v; })
 #define nvif_rd32(a,b) ({ u32 _v = nvif_rd((a), 32, (b)); _v; })

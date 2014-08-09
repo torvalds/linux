@@ -173,7 +173,7 @@ nouveau_gem_new(struct drm_device *dev, int size, int align, uint32_t domain,
 	 */
 	nvbo->valid_domains = NOUVEAU_GEM_DOMAIN_VRAM |
 			      NOUVEAU_GEM_DOMAIN_GART;
-	if (nv_device(drm->device)->card_type >= NV_50)
+	if (drm->device.info.family >= NV_DEVICE_INFO_V0_TESLA)
 		nvbo->valid_domains &= domain;
 
 	/* Initialize the embedded gem-object. We return a single gem-reference
@@ -223,7 +223,7 @@ nouveau_gem_ioctl_new(struct drm_device *dev, void *data,
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_cli *cli = nouveau_cli(file_priv);
-	struct nouveau_fb *pfb = nouveau_fb(drm->device);
+	struct nouveau_fb *pfb = nvkm_fb(&drm->device);
 	struct drm_nouveau_gem_new *req = data;
 	struct nouveau_bo *nvbo = NULL;
 	int ret = 0;
@@ -482,7 +482,7 @@ validate_list(struct nouveau_channel *chan, struct nouveau_cli *cli,
 			return ret;
 		}
 
-		if (nv_device(drm->device)->card_type < NV_50) {
+		if (drm->device.info.family < NV_DEVICE_INFO_V0_TESLA) {
 			if (nvbo->bo.offset == b->presumed.offset &&
 			    ((nvbo->bo.mem.mem_type == TTM_PL_VRAM &&
 			      b->presumed.domain & NOUVEAU_GEM_DOMAIN_VRAM) ||
@@ -780,7 +780,7 @@ nouveau_gem_ioctl_pushbuf(struct drm_device *dev, void *data,
 				      push[i].length);
 		}
 	} else
-	if (nv_device(drm->device)->chipset >= 0x25) {
+	if (drm->device.info.chipset >= 0x25) {
 		ret = RING_SPACE(chan, req->nr_push * 2);
 		if (ret) {
 			NV_PRINTK(error, cli, "cal_space: %d\n", ret);
@@ -853,7 +853,7 @@ out_next:
 		req->suffix0 = 0x00000000;
 		req->suffix1 = 0x00000000;
 	} else
-	if (nv_device(drm->device)->chipset >= 0x25) {
+	if (drm->device.info.chipset >= 0x25) {
 		req->suffix0 = 0x00020000;
 		req->suffix1 = 0x00000000;
 	} else {

@@ -65,8 +65,8 @@ int nv04_dac_output_offset(struct drm_encoder *encoder)
 
 static int sample_load_twice(struct drm_device *dev, bool sense[2])
 {
-	struct nouveau_object *device = nouveau_drm(dev)->device;
-	struct nouveau_timer *ptimer = nouveau_timer(device);
+	struct nvif_device *device = &nouveau_drm(dev)->device;
+	struct nouveau_timer *ptimer = nvkm_timer(device);
 	int i;
 
 	for (i = 0; i < 2; i++) {
@@ -128,7 +128,7 @@ static enum drm_connector_status nv04_dac_detect(struct drm_encoder *encoder,
 						 struct drm_connector *connector)
 {
 	struct drm_device *dev = encoder->dev;
-	struct nouveau_object *device = nouveau_drm(dev)->device;
+	struct nvif_device *device = &nouveau_drm(dev)->device;
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	uint8_t saved_seq1, saved_pi, saved_rpc1, saved_cr_mode;
 	uint8_t saved_palette0[3], saved_palette_mask;
@@ -231,8 +231,8 @@ uint32_t nv17_dac_sample_load(struct drm_encoder *encoder)
 {
 	struct drm_device *dev = encoder->dev;
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_object *device = nouveau_drm(dev)->device;
-	struct nouveau_gpio *gpio = nouveau_gpio(device);
+	struct nvif_device *device = &nouveau_drm(dev)->device;
+	struct nouveau_gpio *gpio = nvkm_gpio(device);
 	struct dcb_output *dcb = nouveau_encoder(encoder)->dcb;
 	uint32_t sample, testval, regoffset = nv04_dac_output_offset(encoder);
 	uint32_t saved_powerctrl_2 = 0, saved_powerctrl_4 = 0, saved_routput,
@@ -283,7 +283,7 @@ uint32_t nv17_dac_sample_load(struct drm_encoder *encoder)
 	/* nv driver and nv31 use 0xfffffeee, nv34 and 6600 use 0xfffffece */
 	routput = (saved_routput & 0xfffffece) | head << 8;
 
-	if (nv_device(drm->device)->card_type >= NV_40) {
+	if (drm->device.info.family >= NV_DEVICE_INFO_V0_CURIE) {
 		if (dcb->type == DCB_OUTPUT_TV)
 			routput |= 0x1a << 16;
 		else
@@ -398,7 +398,7 @@ static void nv04_dac_mode_set(struct drm_encoder *encoder,
 	}
 
 	/* This could use refinement for flatpanels, but it should work this way */
-	if (nv_device(drm->device)->chipset < 0x44)
+	if (drm->device.info.chipset < 0x44)
 		NVWriteRAMDAC(dev, 0, NV_PRAMDAC_TEST_CONTROL + nv04_dac_output_offset(encoder), 0xf0000000);
 	else
 		NVWriteRAMDAC(dev, 0, NV_PRAMDAC_TEST_CONTROL + nv04_dac_output_offset(encoder), 0x00100000);

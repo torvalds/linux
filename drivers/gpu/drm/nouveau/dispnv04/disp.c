@@ -58,7 +58,7 @@ int
 nv04_display_create(struct drm_device *dev)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_i2c *i2c = nouveau_i2c(drm->device);
+	struct nouveau_i2c *i2c = nvkm_i2c(&drm->device);
 	struct dcb_table *dcb = &drm->vbios.dcb;
 	struct drm_connector *connector, *ct;
 	struct drm_encoder *encoder;

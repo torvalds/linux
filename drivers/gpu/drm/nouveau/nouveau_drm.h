@@ -77,9 +77,21 @@ nouveau_cli(struct drm_file *fpriv)
 	return fpriv ? fpriv->driver_priv : NULL;
 }
 
+#include <nvif/object.h>
+#undef nvif_object
+#undef nvif_rd08
+#undef nvif_rd16
+#undef nvif_rd32
+#undef nvif_wr08
+#undef nvif_wr16
+#undef nvif_wr32
+#undef nvif_mask
+#undef nvkm_object
+#undef nvif_exec
+
 #define nvif_object(a) ({ \
-	struct nouveau_object *_object = (a); \
-	_object; \
+	struct nvif_object *_object = (a)->object; \
+	(struct nouveau_object *)_object; \
 })
 #define nvif_rd08(a,b) nv_ro08(nvif_object(a), (b))
 #define nvif_rd16(a,b) nv_ro16(nvif_object(a), (b))
@@ -88,10 +100,10 @@ nouveau_cli(struct drm_file *fpriv)
 #define nvif_wr16(a,b,c) nv_wo16(nvif_object(a), (b), (c))
 #define nvif_wr32(a,b,c) nv_wo32(nvif_object(a), (b), (c))
 #define nvif_mask(a,b,c,d) nv_mo32(nvif_object(a), (b), (c), (d))
-
-/*XXX*/
-#include <core/object.h>
 #define nvkm_object(a) nvif_object(a)
+#define nvif_exec(a,b,c,d) nv_exec(nvkm_object(a), (b), (c), (d))
+
+#include <nvif/device.h>
 
 extern int nouveau_runtime_pm;
 
@@ -99,7 +111,7 @@ struct nouveau_drm {
 	struct nouveau_cli client;
 	struct drm_device *dev;
 
-	struct nouveau_object *device;
+	struct nvif_device device;
 	struct list_head clients;
 
 	struct {

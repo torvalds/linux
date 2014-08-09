@@ -38,10 +38,13 @@
 #include "nouveau_chan.h"
 #include "nouveau_abi16.h"
 
+void nouveau_drm_hack_device(struct nouveau_drm *, struct nvif_device *);
+
 struct nouveau_abi16 *
 nouveau_abi16_get(struct drm_file *file_priv, struct drm_device *dev)
 {
 	struct nouveau_cli *cli = nouveau_cli(file_priv);
+	struct nouveau_drm *drm = nouveau_drm(dev);
 	mutex_lock(&cli->mutex);
 	if (!cli->abi16) {
 		struct nouveau_abi16 *abi16;
@@ -60,8 +63,11 @@ nouveau_abi16_get(struct drm_file *file_priv, struct drm_device *dev)
 						.device = ~0ULL,
 					       },
 					       sizeof(struct nv_device_class),
-					       &abi16->device) == 0)
+					       (struct nouveau_object **)
+					       &abi16->device.object) == 0) {
+				nouveau_drm_hack_device(drm, &abi16->device);
 				return cli->abi16;
+			}
 
 			kfree(cli->abi16);
 			cli->abi16 = NULL;
@@ -83,20 +89,19 @@ nouveau_abi16_put(struct nouveau_abi16 *abi16, int ret)
 u16
 nouveau_abi16_swclass(struct nouveau_drm *drm)
 {
-	switch (nv_device(drm->device)->card_type) {
-	case NV_04:
+	switch (drm->device.info.family) {
+	case NV_DEVICE_INFO_V0_TNT:
 		return 0x006e;
-	case NV_10:
-	case NV_11:
-	case NV_20:
-	case NV_30:
-	case NV_40:
+	case NV_DEVICE_INFO_V0_CELSIUS:
+	case NV_DEVICE_INFO_V0_KELVIN:
+	case NV_DEVICE_INFO_V0_RANKINE:
+	case NV_DEVICE_INFO_V0_CURIE:
 		return 0x016e;
-	case NV_50:
+	case NV_DEVICE_INFO_V0_TESLA:
 		return 0x506e;
-	case NV_C0:
-	case NV_E0:
-	case GM100:
+	case NV_DEVICE_INFO_V0_FERMI:
+	case NV_DEVICE_INFO_V0_KEPLER:
+	case NV_DEVICE_INFO_V0_MAXWELL:
 		return 0x906e;
 	}
 
@@ -170,29 +175,29 @@ nouveau_abi16_ioctl_getparam(ABI16_IOCTL_ARGS)
 {
 	struct nouveau_cli *cli = nouveau_cli(file_priv);
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_device *device = nv_device(drm->device);
-	struct nouveau_timer *ptimer = nouveau_timer(device);
-	struct nouveau_graph *graph = (void *)nouveau_engine(device, NVDEV_ENGINE_GR);
+	struct nvif_device *device = &drm->device;
+	struct nouveau_timer *ptimer = nvkm_timer(device);
+	struct nouveau_graph *graph = nvkm_gr(device);
 	struct drm_nouveau_getparam *getparam = data;
 
 	switch (getparam->param) {
 	case NOUVEAU_GETPARAM_CHIPSET_ID:
-		getparam->value = device->chipset;
+		getparam->value = device->info.chipset;
 		break;
 	case NOUVEAU_GETPARAM_PCI_VENDOR:
-		if (nv_device_is_pci(device))
+		if (nv_device_is_pci(nvkm_device(device)))
 			getparam->value = dev->pdev->vendor;
 		else
 			getparam->value = 0;
 		break;
 	case NOUVEAU_GETPARAM_PCI_DEVICE:
-		if (nv_device_is_pci(device))
+		if (nv_device_is_pci(nvkm_device(device)))
 			getparam->value = dev->pdev->device;
 		else
 			getparam->value = 0;
 		break;
 	case NOUVEAU_GETPARAM_BUS_TYPE:
-		if (!nv_device_is_pci(device))
+		if (!nv_device_is_pci(nvkm_device(device)))
 			getparam->value = 3;
 		else
 		if (drm_pci_device_is_agp(dev))
@@ -247,7 +252,7 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 	struct nouveau_abi16 *abi16 = nouveau_abi16_get(file_priv, dev);
 	struct nouveau_abi16_chan *chan;
 	struct nouveau_client *client;
-	struct nouveau_device *device;
+	struct nvif_device *device;
 	struct nouveau_instmem *imem;
 	struct nouveau_fb *pfb;
 	int ret;
@@ -259,12 +264,12 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 		return nouveau_abi16_put(abi16, -ENODEV);
 
 	client = nv_client(abi16->client);
-	device = nv_device(abi16->device);
-	imem   = nouveau_instmem(device);
-	pfb    = nouveau_fb(device);
+	device = &abi16->device;
+	imem   = nvkm_instmem(device);
+	pfb    = nvkm_fb(device);
 
 	/* hack to allow channel engine type specification on kepler */
-	if (device->card_type >= NV_E0) {
+	if (device->info.family >= NV_DEVICE_INFO_V0_KEPLER) {
 		if (init->fb_ctxdma_handle != ~0)
 			init->fb_ctxdma_handle = NVE0_CHANNEL_IND_ENGINE_GR;
 		else
@@ -299,7 +304,7 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 	if (ret)
 		goto done;
 
-	if (device->card_type >= NV_50)
+	if (device->info.family >= NV_DEVICE_INFO_V0_TESLA)
 		init->pushbuf_domains = NOUVEAU_GEM_DOMAIN_VRAM |
 					NOUVEAU_GEM_DOMAIN_GART;
 	else
@@ -308,7 +313,7 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 	else
 		init->pushbuf_domains = NOUVEAU_GEM_DOMAIN_GART;
 
-	if (device->card_type < NV_10) {
+	if (device->info.family < NV_DEVICE_INFO_V0_CELSIUS) {
 		init->subchan[0].handle = 0x00000000;
 		init->subchan[0].grclass = 0x0000;
 		init->subchan[1].handle = NvSw;
@@ -324,7 +329,7 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 	if (ret)
 		goto done;
 
-	if (device->card_type >= NV_50) {
+	if (device->info.family >= NV_DEVICE_INFO_V0_TESLA) {
 		ret = nouveau_bo_vma_add(chan->ntfy, client->vm,
 					&chan->ntfy_vma);
 		if (ret)
@@ -397,10 +402,10 @@ nouveau_abi16_ioctl_notifierobj_alloc(ABI16_IOCTL_ARGS)
 {
 	struct drm_nouveau_notifierobj_alloc *info = data;
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_device *device = nv_device(drm->device);
 	struct nouveau_abi16 *abi16 = nouveau_abi16_get(file_priv, dev);
 	struct nouveau_abi16_chan *chan = NULL, *temp;
 	struct nouveau_abi16_ntfy *ntfy;
+	struct nvif_device *device = &abi16->device;
 	struct nouveau_object *object;
 	struct nv_dma_class args = {};
 	int ret;
@@ -409,7 +414,7 @@ nouveau_abi16_ioctl_notifierobj_alloc(ABI16_IOCTL_ARGS)
 		return -ENOMEM;
 
 	/* completely unnecessary for these chipsets... */
-	if (unlikely(nv_device(abi16->device)->card_type >= NV_C0))
+	if (unlikely(device->info.family >= NV_DEVICE_INFO_V0_FERMI))
 		return nouveau_abi16_put(abi16, -EINVAL);
 
 	list_for_each_entry(temp, &abi16->channels, head) {
@@ -436,7 +441,7 @@ nouveau_abi16_ioctl_notifierobj_alloc(ABI16_IOCTL_ARGS)
 
 	args.start = ntfy->node->offset;
 	args.limit = ntfy->node->offset + ntfy->node->length - 1;
-	if (device->card_type >= NV_50) {
+	if (device->info.family >= NV_DEVICE_INFO_V0_TESLA) {
 		args.flags  = NV_DMA_TARGET_VM | NV_DMA_ACCESS_VM;
 		args.start += chan->ntfy_vma.offset;
 		args.limit += chan->ntfy_vma.offset;

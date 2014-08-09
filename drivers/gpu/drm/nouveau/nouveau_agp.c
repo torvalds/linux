@@ -29,7 +29,7 @@ static struct nouveau_agpmode_quirk nouveau_agpmode_quirk_list[] = {
 static unsigned long
 get_agp_mode(struct nouveau_drm *drm, const struct drm_agp_info *info)
 {
-	struct nouveau_device *device = nv_device(drm->device);
+	struct nvif_device *device = &drm->device;
 	struct nouveau_agpmode_quirk *quirk = nouveau_agpmode_quirk_list;
 	int agpmode = nouveau_agpmode;
 	unsigned long mode = info->mode;
@@ -38,7 +38,7 @@ get_agp_mode(struct nouveau_drm *drm, const struct drm_agp_info *info)
 	 * FW seems to be broken on nv18, it makes the card lock up
 	 * randomly.
 	 */
-	if (device->chipset == 0x18)
+	if (device->info.chipset == 0x18)
 		mode &= ~PCI_AGP_COMMAND_FW;
 
 	/*
@@ -47,8 +47,8 @@ get_agp_mode(struct nouveau_drm *drm, const struct drm_agp_info *info)
 	while (agpmode == -1 && quirk->hostbridge_vendor) {
 		if (info->id_vendor == quirk->hostbridge_vendor &&
 		    info->id_device == quirk->hostbridge_device &&
-		    device->pdev->vendor == quirk->chip_vendor &&
-		    device->pdev->device == quirk->chip_device) {
+		    nvkm_device(device)->pdev->vendor == quirk->chip_vendor &&
+		    nvkm_device(device)->pdev->device == quirk->chip_device) {
 			agpmode = quirk->mode;
 			NV_INFO(drm, "Forcing agp mode to %dX. Use agpmode to override.\n",
 				agpmode);
@@ -104,7 +104,7 @@ void
 nouveau_agp_reset(struct nouveau_drm *drm)
 {
 #if __OS_HAS_AGP
-	struct nouveau_object *device = drm->device;
+	struct nvif_device *device = &drm->device;
 	struct drm_device *dev = drm->dev;
 	u32 save[2];
 	int ret;

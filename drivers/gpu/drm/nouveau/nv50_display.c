@@ -317,7 +317,7 @@ evo_sync_wait(void *data)
 static int
 evo_sync(struct drm_device *dev)
 {
-	struct nouveau_object *device = nouveau_drm(dev)->device;
+	struct nvif_device *device = &nouveau_drm(dev)->device;
 	struct nv50_disp *disp = nv50_disp(dev);
 	struct nv50_mast *mast = nv50_mast(dev);
 	u32 *push = evo_wait(mast, 8);
@@ -329,7 +329,7 @@ evo_sync(struct drm_device *dev)
 		evo_data(push, 0x00000000);
 		evo_data(push, 0x00000000);
 		evo_kick(push, mast);
-		if (nv_wait_cb(nv_device(device), evo_sync_wait, disp->sync))
+		if (nv_wait_cb(nvkm_device(device), evo_sync_wait, disp->sync))
 			return 0;
 	}
 
@@ -364,7 +364,7 @@ nv50_display_flip_wait(void *data)
 void
 nv50_display_flip_stop(struct drm_crtc *crtc)
 {
-	struct nouveau_object *device = nouveau_drm(crtc->dev)->device;
+	struct nvif_device *device = &nouveau_drm(crtc->dev)->device;
 	struct nv50_display_flip flip = {
 		.disp = nv50_disp(crtc->dev),
 		.chan = nv50_sync(crtc),
@@ -384,7 +384,7 @@ nv50_display_flip_stop(struct drm_crtc *crtc)
 		evo_kick(push, flip.chan);
 	}
 
-	nv_wait_cb(nv_device(device), nv50_display_flip_wait, &flip);
+	nv_wait_cb(nvkm_device(device), nv50_display_flip_wait, &flip);
 }
 
 int
@@ -1493,7 +1493,7 @@ static int
 nv50_dac_create(struct drm_connector *connector, struct dcb_output *dcbe)
 {
 	struct nouveau_drm *drm = nouveau_drm(connector->dev);
-	struct nouveau_i2c *i2c = nouveau_i2c(drm->device);
+	struct nouveau_i2c *i2c = nvkm_i2c(&drm->device);
 	struct nouveau_encoder *nv_encoder;
 	struct drm_encoder *encoder;
 	int type = DRM_MODE_ENCODER_DAC;
@@ -1835,7 +1835,7 @@ static int
 nv50_sor_create(struct drm_connector *connector, struct dcb_output *dcbe)
 {
 	struct nouveau_drm *drm = nouveau_drm(connector->dev);
-	struct nouveau_i2c *i2c = nouveau_i2c(drm->device);
+	struct nouveau_i2c *i2c = nvkm_i2c(&drm->device);
 	struct nouveau_encoder *nv_encoder;
 	struct drm_encoder *encoder;
 	int type;
@@ -2006,7 +2006,7 @@ static int
 nv50_pior_create(struct drm_connector *connector, struct dcb_output *dcbe)
 {
 	struct nouveau_drm *drm = nouveau_drm(connector->dev);
-	struct nouveau_i2c *i2c = nouveau_i2c(drm->device);
+	struct nouveau_i2c *i2c = nvkm_i2c(&drm->device);
 	struct nouveau_i2c_port *ddc = NULL;
 	struct nouveau_encoder *nv_encoder;
 	struct drm_encoder *encoder;
@@ -2098,15 +2098,15 @@ nv50_fbdma_init(struct drm_device *dev, u32 name, u64 offset, u64 length, u8 kin
 	args.limit = offset + length - 1;
 	args.conf0 = kind;
 
-	if (nv_device(drm->device)->chipset < 0x80) {
+	if (drm->device.info.chipset < 0x80) {
 		args.conf0  = NV50_DMA_CONF0_ENABLE;
 		args.conf0 |= NV50_DMA_CONF0_PART_256;
 	} else
-	if (nv_device(drm->device)->chipset < 0xc0) {
+	if (drm->device.info.chipset < 0xc0) {
 		args.conf0 |= NV50_DMA_CONF0_ENABLE;
 		args.conf0 |= NV50_DMA_CONF0_PART_256;
 	} else
-	if (nv_device(drm->device)->chipset < 0xd0) {
+	if (drm->device.info.chipset < 0xd0) {
 		args.conf0 |= NVC0_DMA_CONF0_ENABLE;
 	} else {
 		args.conf0 |= NVD0_DMA_CONF0_ENABLE;
@@ -2149,7 +2149,7 @@ nv50_fb_ctor(struct drm_framebuffer *fb)
 	struct nouveau_drm *drm = nouveau_drm(fb->dev);
 	struct nouveau_bo *nvbo = nv_fb->nvbo;
 	struct nv50_disp *disp = nv50_disp(fb->dev);
-	struct nouveau_fb *pfb = nouveau_fb(drm->device);
+	struct nouveau_fb *pfb = nvkm_fb(&drm->device);
 	u8 kind = nouveau_bo_tile_layout(nvbo) >> 8;
 	u8 tile = nvbo->tile_mode;
 
@@ -2158,7 +2158,7 @@ nv50_fb_ctor(struct drm_framebuffer *fb)
 		return -EINVAL;
 	}
 
-	if (nv_device(drm->device)->chipset >= 0xc0)
+	if (drm->device.info.chipset >= 0xc0)
 		tile >>= 4; /* yep.. */
 
 	switch (fb->depth) {
@@ -2245,7 +2245,7 @@ nv50_display_destroy(struct drm_device *dev)
 int
 nv50_display_create(struct drm_device *dev)
 {
-	struct nouveau_object *device = nouveau_drm(dev)->device;
+	struct nvif_device *device = &nouveau_drm(dev)->device;
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct dcb_table *dcb = &drm->vbios.dcb;
 	struct drm_connector *connector, *tmp;

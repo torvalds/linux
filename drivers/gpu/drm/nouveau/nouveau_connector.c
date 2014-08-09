@@ -119,7 +119,7 @@ nouveau_connector_ddc_detect(struct drm_connector *connector)
 	struct drm_device *dev = connector->dev;
 	struct nouveau_connector *nv_connector = nouveau_connector(connector);
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_gpio *gpio = nouveau_gpio(drm->device);
+	struct nouveau_gpio *gpio = nvkm_gpio(&drm->device);
 	struct nouveau_encoder *nv_encoder;
 	struct drm_encoder *encoder;
 	int i, panel = -ENODEV;
@@ -208,7 +208,7 @@ nouveau_connector_set_encoder(struct drm_connector *connector,
 		return;
 	nv_connector->detected_encoder = nv_encoder;
 
-	if (nv_device(drm->device)->card_type >= NV_50) {
+	if (drm->device.info.family >= NV_DEVICE_INFO_V0_TESLA) {
 		connector->interlace_allowed = true;
 		connector->doublescan_allowed = true;
 	} else
@@ -218,9 +218,8 @@ nouveau_connector_set_encoder(struct drm_connector *connector,
 		connector->interlace_allowed = false;
 	} else {
 		connector->doublescan_allowed = true;
-		if (nv_device(drm->device)->card_type == NV_20 ||
-		    ((nv_device(drm->device)->card_type == NV_10 ||
-		      nv_device(drm->device)->card_type == NV_11) &&
+		if (drm->device.info.family == NV_DEVICE_INFO_V0_KELVIN ||
+		    (drm->device.info.family == NV_DEVICE_INFO_V0_CELSIUS &&
 		     (dev->pdev->device & 0x0ff0) != 0x0100 &&
 		     (dev->pdev->device & 0x0ff0) != 0x0150))
 			/* HW is broken */
@@ -804,11 +803,11 @@ get_tmds_link_bandwidth(struct drm_connector *connector)
 	struct dcb_output *dcb = nv_connector->detected_encoder->dcb;
 
 	if (dcb->location != DCB_LOC_ON_CHIP ||
-	    nv_device(drm->device)->chipset >= 0x46)
+	    drm->device.info.chipset >= 0x46)
 		return 165000;
-	else if (nv_device(drm->device)->chipset >= 0x40)
+	else if (drm->device.info.chipset >= 0x40)
 		return 155000;
-	else if (nv_device(drm->device)->chipset >= 0x18)
+	else if (drm->device.info.chipset >= 0x18)
 		return 135000;
 	else
 		return 112000;
@@ -1034,7 +1033,7 @@ nouveau_connector_create(struct drm_device *dev, int index)
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_display *disp = nouveau_display(dev);
 	struct nouveau_connector *nv_connector = NULL;
-	struct nouveau_disp *pdisp = nouveau_disp(drm->device);
+	struct nouveau_disp *pdisp = nvkm_disp(&drm->device);
 	struct drm_connector *connector;
 	int type, ret = 0;
 	bool dummy;
@@ -1188,7 +1187,7 @@ nouveau_connector_create(struct drm_device *dev, int index)
 
 	switch (nv_connector->type) {
 	case DCB_CONNECTOR_VGA:
-		if (nv_device(drm->device)->card_type >= NV_50) {
+		if (drm->device.info.family >= NV_DEVICE_INFO_V0_TESLA) {
 			drm_object_attach_property(&connector->base,
 					dev->mode_config.scaling_mode_property,
 					nv_connector->scaling_mode);

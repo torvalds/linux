@@ -52,7 +52,7 @@ nv10_bo_update_tile_region(struct drm_device *dev, struct nouveau_drm_tile *reg,
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	int i = reg - drm->tile.reg;
-	struct nouveau_fb *pfb = nouveau_fb(drm->device);
+	struct nouveau_fb *pfb = nvkm_fb(&drm->device);
 	struct nouveau_fb_tile *tile = &pfb->tile.region[i];
 	struct nouveau_engine *engine;
 
@@ -109,7 +109,7 @@ nv10_bo_set_tiling(struct drm_device *dev, u32 addr,
 		   u32 size, u32 pitch, u32 flags)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_fb *pfb = nouveau_fb(drm->device);
+	struct nouveau_fb *pfb = nvkm_fb(&drm->device);
 	struct nouveau_drm_tile *tile, *found = NULL;
 	int i;
 
@@ -153,23 +153,23 @@ nouveau_bo_fixup_align(struct nouveau_bo *nvbo, u32 flags,
 		       int *align, int *size)
 {
 	struct nouveau_drm *drm = nouveau_bdev(nvbo->bo.bdev);
-	struct nouveau_device *device = nv_device(drm->device);
+	struct nvif_device *device = &drm->device;
 
-	if (device->card_type < NV_50) {
+	if (device->info.family < NV_DEVICE_INFO_V0_TESLA) {
 		if (nvbo->tile_mode) {
-			if (device->chipset >= 0x40) {
+			if (device->info.chipset >= 0x40) {
 				*align = 65536;
 				*size = roundup(*size, 64 * nvbo->tile_mode);
 
-			} else if (device->chipset >= 0x30) {
+			} else if (device->info.chipset >= 0x30) {
 				*align = 32768;
 				*size = roundup(*size, 64 * nvbo->tile_mode);
 
-			} else if (device->chipset >= 0x20) {
+			} else if (device->info.chipset >= 0x20) {
 				*align = 16384;
 				*size = roundup(*size, 64 * nvbo->tile_mode);
 
-			} else if (device->chipset >= 0x10) {
+			} else if (device->info.chipset >= 0x10) {
 				*align = 16384;
 				*size = roundup(*size, 32 * nvbo->tile_mode);
 			}
@@ -261,11 +261,10 @@ static void
 set_placement_range(struct nouveau_bo *nvbo, uint32_t type)
 {
 	struct nouveau_drm *drm = nouveau_bdev(nvbo->bo.bdev);
-	struct nouveau_fb *pfb = nouveau_fb(drm->device);
+	struct nouveau_fb *pfb = nvkm_fb(&drm->device);
 	u32 vram_pages = pfb->ram->size >> PAGE_SHIFT;
 
-	if ((nv_device(drm->device)->card_type == NV_10 ||
-	     nv_device(drm->device)->card_type == NV_11) &&
+	if (drm->device.info.family == NV_DEVICE_INFO_V0_CELSIUS &&
 	    nvbo->tile_mode && (type & TTM_PL_FLAG_VRAM) &&
 	    nvbo->bo.mem.num_pages < vram_pages / 4) {
 		/*
@@ -506,9 +505,9 @@ nouveau_bo_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 					 TTM_PL_FLAG_WC;
 		man->default_caching = TTM_PL_FLAG_WC;
 
-		if (nv_device(drm->device)->card_type >= NV_50) {
+		if (drm->device.info.family >= NV_DEVICE_INFO_V0_TESLA) {
 			/* Some BARs do not support being ioremapped WC */
-			if (nouveau_bar(drm->device)->iomap_uncached) {
+			if (nvkm_bar(&drm->device)->iomap_uncached) {
 				man->available_caching = TTM_PL_FLAG_UNCACHED;
 				man->default_caching = TTM_PL_FLAG_UNCACHED;
 			}
@@ -521,7 +520,7 @@ nouveau_bo_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 		}
 		break;
 	case TTM_PL_TT:
-		if (nv_device(drm->device)->card_type >= NV_50)
+		if (drm->device.info.family >= NV_DEVICE_INFO_V0_TESLA)
 			man->func = &nouveau_gart_manager;
 		else
 		if (drm->agp.stat != ENABLED)
@@ -959,7 +958,7 @@ nouveau_bo_move_m2mf(struct ttm_buffer_object *bo, int evict, bool intr,
 	 * old nouveau_mem node, these will get cleaned up after ttm has
 	 * destroyed the ttm_mem_reg
 	 */
-	if (nv_device(drm->device)->card_type >= NV_50) {
+	if (drm->device.info.family >= NV_DEVICE_INFO_V0_TESLA) {
 		ret = nouveau_bo_move_prep(drm, bo, new_mem);
 		if (ret)
 			return ret;
@@ -1142,7 +1141,7 @@ nouveau_bo_vm_bind(struct ttm_buffer_object *bo, struct ttm_mem_reg *new_mem,
 	if (new_mem->mem_type != TTM_PL_VRAM)
 		return 0;
 
-	if (nv_device(drm->device)->card_type >= NV_10) {
+	if (drm->device.info.family >= NV_DEVICE_INFO_V0_CELSIUS) {
 		*new_tile = nv10_bo_set_tiling(dev, offset, new_mem->size,
 						nvbo->tile_mode,
 						nvbo->tile_flags);
@@ -1173,7 +1172,7 @@ nouveau_bo_move(struct ttm_buffer_object *bo, bool evict, bool intr,
 	struct nouveau_drm_tile *new_tile = NULL;
 	int ret = 0;
 
-	if (nv_device(drm->device)->card_type < NV_50) {
+	if (drm->device.info.family < NV_DEVICE_INFO_V0_TESLA) {
 		ret = nouveau_bo_vm_bind(bo, new_mem, &new_tile);
 		if (ret)
 			return ret;
@@ -1210,7 +1209,7 @@ nouveau_bo_move(struct ttm_buffer_object *bo, bool evict, bool intr,
 		ret = ttm_bo_move_memcpy(bo, evict, no_wait_gpu, new_mem);
 
 out:
-	if (nv_device(drm->device)->card_type < NV_50) {
+	if (drm->device.info.family < NV_DEVICE_INFO_V0_TESLA) {
 		if (ret)
 			nouveau_bo_vm_cleanup(bo, NULL, &new_tile);
 		else
@@ -1256,16 +1255,16 @@ nouveau_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
 			mem->bus.is_iomem = !dev->agp->cant_use_aperture;
 		}
 #endif
-		if (nv_device(drm->device)->card_type < NV_50 || !node->memtype)
+		if (drm->device.info.family < NV_DEVICE_INFO_V0_TESLA || !node->memtype)
 			/* untiled */
 			break;
 		/* fallthrough, tiled memory */
 	case TTM_PL_VRAM:
 		mem->bus.offset = mem->start << PAGE_SHIFT;
-		mem->bus.base = nv_device_resource_start(nv_device(drm->device), 1);
+		mem->bus.base = nv_device_resource_start(nvkm_device(&drm->device), 1);
 		mem->bus.is_iomem = true;
-		if (nv_device(drm->device)->card_type >= NV_50) {
-			struct nouveau_bar *bar = nouveau_bar(drm->device);
+		if (drm->device.info.family >= NV_DEVICE_INFO_V0_TESLA) {
+			struct nouveau_bar *bar = nvkm_bar(&drm->device);
 
 			ret = bar->umap(bar, node, NV_MEM_ACCESS_RW,
 					&node->bar_vma);
@@ -1285,7 +1284,7 @@ static void
 nouveau_ttm_io_mem_free(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
 {
 	struct nouveau_drm *drm = nouveau_bdev(bdev);
-	struct nouveau_bar *bar = nouveau_bar(drm->device);
+	struct nouveau_bar *bar = nvkm_bar(&drm->device);
 	struct nouveau_mem *node = mem->mm_node;
 
 	if (!node->bar_vma.node)
@@ -1299,15 +1298,15 @@ nouveau_ttm_fault_reserve_notify(struct ttm_buffer_object *bo)
 {
 	struct nouveau_drm *drm = nouveau_bdev(bo->bdev);
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
-	struct nouveau_device *device = nv_device(drm->device);
-	u32 mappable = nv_device_resource_len(device, 1) >> PAGE_SHIFT;
+	struct nvif_device *device = &drm->device;
+	u32 mappable = nv_device_resource_len(nvkm_device(device), 1) >> PAGE_SHIFT;
 	int ret;
 
 	/* as long as the bo isn't in vram, and isn't tiled, we've got
 	 * nothing to do here.
 	 */
 	if (bo->mem.mem_type != TTM_PL_VRAM) {
-		if (nv_device(drm->device)->card_type < NV_50 ||
+		if (drm->device.info.family < NV_DEVICE_INFO_V0_TESLA ||
 		    !nouveau_bo_tile_layout(nvbo))
 			return 0;
 
@@ -1322,7 +1321,7 @@ nouveau_ttm_fault_reserve_notify(struct ttm_buffer_object *bo)
 	}
 
 	/* make sure bo is in mappable vram */
-	if (nv_device(drm->device)->card_type >= NV_50 ||
+	if (drm->device.info.family >= NV_DEVICE_INFO_V0_TESLA ||
 	    bo->mem.start + bo->mem.num_pages < mappable)
 		return 0;
 
@@ -1357,7 +1356,7 @@ nouveau_ttm_tt_populate(struct ttm_tt *ttm)
 	}
 
 	drm = nouveau_bdev(ttm->bdev);
-	device = nv_device(drm->device);
+	device = nvkm_device(&drm->device);
 	dev = drm->dev;
 	pdev = nv_device_base(device);
 
@@ -1414,7 +1413,7 @@ nouveau_ttm_tt_unpopulate(struct ttm_tt *ttm)
 		return;
 
 	drm = nouveau_bdev(ttm->bdev);
-	device = nv_device(drm->device);
+	device = nvkm_device(&drm->device);
 	dev = drm->dev;
 	pdev = nv_device_base(device);
 

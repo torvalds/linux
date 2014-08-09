@@ -175,7 +175,7 @@ static int
 nouveau_display_vblank_init(struct drm_device *dev)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_disp *pdisp = nouveau_disp(drm->device);
+	struct nouveau_disp *pdisp = nvkm_disp(&drm->device);
 	struct drm_crtc *crtc;
 	int ret;
 
@@ -445,15 +445,15 @@ nouveau_display_create(struct drm_device *dev)
 	drm_mode_create_dvi_i_properties(dev);
 
 	dev->mode_config.funcs = &nouveau_mode_config_funcs;
-	dev->mode_config.fb_base = nv_device_resource_start(nv_device(drm->device), 1);
+	dev->mode_config.fb_base = nv_device_resource_start(nvkm_device(&drm->device), 1);
 
 	dev->mode_config.min_width = 0;
 	dev->mode_config.min_height = 0;
-	if (nv_device(drm->device)->card_type < NV_10) {
+	if (drm->device.info.family < NV_DEVICE_INFO_V0_CELSIUS) {
 		dev->mode_config.max_width = 2048;
 		dev->mode_config.max_height = 2048;
 	} else
-	if (nv_device(drm->device)->card_type < NV_50) {
+	if (drm->device.info.family < NV_DEVICE_INFO_V0_TESLA) {
 		dev->mode_config.max_width = 4096;
 		dev->mode_config.max_height = 4096;
 	} else {
@@ -464,7 +464,7 @@ nouveau_display_create(struct drm_device *dev)
 	dev->mode_config.preferred_depth = 24;
 	dev->mode_config.prefer_shadow = 1;
 
-	if (nv_device(drm->device)->chipset < 0x11)
+	if (drm->device.info.chipset < 0x11)
 		dev->mode_config.async_page_flip = false;
 	else
 		dev->mode_config.async_page_flip = true;
@@ -661,7 +661,7 @@ nouveau_page_flip_emit(struct nouveau_channel *chan,
 	if (ret)
 		goto fail;
 
-	if (nv_device(drm->device)->card_type < NV_C0)
+	if (drm->device.info.family < NV_DEVICE_INFO_V0_FERMI)
 		BEGIN_NV04(chan, NvSubSw, NV_SW_PAGE_FLIP, 1);
 	else
 		BEGIN_NVC0(chan, FermiSw, NV_SW_PAGE_FLIP, 1);
@@ -732,7 +732,7 @@ nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	drm_vblank_get(dev, nouveau_crtc(crtc)->index);
 
 	/* Emit a page flip */
-	if (nv_device(drm->device)->card_type >= NV_50) {
+	if (drm->device.info.family >= NV_DEVICE_INFO_V0_TESLA) {
 		ret = nv50_display_flip_next(crtc, fb, chan, swap_interval);
 		if (ret)
 			goto fail_unreserve;
@@ -807,7 +807,7 @@ nouveau_finish_page_flip(struct nouveau_channel *chan,
 	s = list_first_entry(&fctx->flip, struct nouveau_page_flip_state, head);
 	if (s->event) {
 		/* Vblank timestamps/counts are only correct on >= NV-50 */
-		if (nv_device(drm->device)->card_type >= NV_50)
+		if (drm->device.info.family >= NV_DEVICE_INFO_V0_TESLA)
 			crtcid = s->crtc;
 
 		drm_send_vblank_event(dev, crtcid, s->event);
@@ -833,7 +833,7 @@ nouveau_flip_complete(void *data)
 	struct nouveau_page_flip_state state;
 
 	if (!nouveau_finish_page_flip(chan, &state)) {
-		if (nv_device(drm->device)->card_type < NV_50) {
+		if (drm->device.info.family < NV_DEVICE_INFO_V0_TESLA) {
 			nv_set_crtc_base(drm->dev, state.crtc, state.offset +
 					 state.y * state.pitch +
 					 state.x * state.bpp / 8);

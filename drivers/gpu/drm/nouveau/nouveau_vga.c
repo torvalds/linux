@@ -12,13 +12,13 @@
 static unsigned int
 nouveau_vga_set_decode(void *priv, bool state)
 {
-	struct nouveau_object *device = nouveau_drm(priv)->device;
+	struct nvif_device *device = &nouveau_drm(priv)->device;
 
-	if (nv_device(device)->card_type == NV_40 &&
-	    nv_device(device)->chipset >= 0x4c)
+	if (device->info.family == NV_DEVICE_INFO_V0_CURIE &&
+	    device->info.chipset >= 0x4c)
 		nvif_wr32(device, 0x088060, state);
 	else
-	if (nv_device(device)->chipset >= 0x40)
+	if (device->info.chipset >= 0x40)
 		nvif_wr32(device, 0x088054, state);
 	else
 		nvif_wr32(device, 0x001854, state);

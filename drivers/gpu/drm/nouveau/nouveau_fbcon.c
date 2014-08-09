@@ -65,7 +65,7 @@ nouveau_fbcon_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 {
 	struct nouveau_fbdev *fbcon = info->par;
 	struct nouveau_drm *drm = nouveau_drm(fbcon->dev);
-	struct nouveau_device *device = nv_device(drm->device);
+	struct nvif_device *device = &drm->device;
 	int ret;
 
 	if (info->state != FBINFO_STATE_RUNNING)
@@ -74,10 +74,10 @@ nouveau_fbcon_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 	ret = -ENODEV;
 	if (!in_interrupt() && !(info->flags & FBINFO_HWACCEL_DISABLED) &&
 	    mutex_trylock(&drm->client.mutex)) {
-		if (device->card_type < NV_50)
+		if (device->info.family < NV_DEVICE_INFO_V0_TESLA)
 			ret = nv04_fbcon_fillrect(info, rect);
 		else
-		if (device->card_type < NV_C0)
+		if (device->info.family < NV_DEVICE_INFO_V0_FERMI)
 			ret = nv50_fbcon_fillrect(info, rect);
 		else
 			ret = nvc0_fbcon_fillrect(info, rect);
@@ -97,7 +97,7 @@ nouveau_fbcon_copyarea(struct fb_info *info, const struct fb_copyarea *image)
 {
 	struct nouveau_fbdev *fbcon = info->par;
 	struct nouveau_drm *drm = nouveau_drm(fbcon->dev);
-	struct nouveau_device *device = nv_device(drm->device);
+	struct nvif_device *device = &drm->device;
 	int ret;
 
 	if (info->state != FBINFO_STATE_RUNNING)
@@ -106,10 +106,10 @@ nouveau_fbcon_copyarea(struct fb_info *info, const struct fb_copyarea *image)
 	ret = -ENODEV;
 	if (!in_interrupt() && !(info->flags & FBINFO_HWACCEL_DISABLED) &&
 	    mutex_trylock(&drm->client.mutex)) {
-		if (device->card_type < NV_50)
+		if (device->info.family < NV_DEVICE_INFO_V0_TESLA)
 			ret = nv04_fbcon_copyarea(info, image);
 		else
-		if (device->card_type < NV_C0)
+		if (device->info.family < NV_DEVICE_INFO_V0_FERMI)
 			ret = nv50_fbcon_copyarea(info, image);
 		else
 			ret = nvc0_fbcon_copyarea(info, image);
@@ -129,7 +129,7 @@ nouveau_fbcon_imageblit(struct fb_info *info, const struct fb_image *image)
 {
 	struct nouveau_fbdev *fbcon = info->par;
 	struct nouveau_drm *drm = nouveau_drm(fbcon->dev);
-	struct nouveau_device *device = nv_device(drm->device);
+	struct nvif_device *device = &drm->device;
 	int ret;
 
 	if (info->state != FBINFO_STATE_RUNNING)
@@ -138,10 +138,10 @@ nouveau_fbcon_imageblit(struct fb_info *info, const struct fb_image *image)
 	ret = -ENODEV;
 	if (!in_interrupt() && !(info->flags & FBINFO_HWACCEL_DISABLED) &&
 	    mutex_trylock(&drm->client.mutex)) {
-		if (device->card_type < NV_50)
+		if (device->info.family < NV_DEVICE_INFO_V0_TESLA)
 			ret = nv04_fbcon_imageblit(info, image);
 		else
-		if (device->card_type < NV_C0)
+		if (device->info.family < NV_DEVICE_INFO_V0_FERMI)
 			ret = nv50_fbcon_imageblit(info, image);
 		else
 			ret = nvc0_fbcon_imageblit(info, image);
@@ -252,10 +252,10 @@ nouveau_fbcon_accel_init(struct drm_device *dev)
 	struct fb_info *info = fbcon->helper.fbdev;
 	int ret;
 
-	if (nv_device(drm->device)->card_type < NV_50)
+	if (drm->device.info.family < NV_DEVICE_INFO_V0_TESLA)
 		ret = nv04_fbcon_accel_init(info);
 	else
-	if (nv_device(drm->device)->card_type < NV_C0)
+	if (drm->device.info.family < NV_DEVICE_INFO_V0_FERMI)
 		ret = nv50_fbcon_accel_init(info);
 	else
 		ret = nvc0_fbcon_accel_init(info);
@@ -309,7 +309,7 @@ nouveau_fbcon_create(struct drm_fb_helper *helper,
 	struct nouveau_fbdev *fbcon = (struct nouveau_fbdev *)helper;
 	struct drm_device *dev = fbcon->dev;
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_device *device = nv_device(drm->device);
+	struct nvif_device *device = &drm->device;
 	struct fb_info *info;
 	struct drm_framebuffer *fb;
 	struct nouveau_framebuffer *nouveau_fb;
@@ -351,7 +351,7 @@ nouveau_fbcon_create(struct drm_fb_helper *helper,
 	}
 
 	chan = nouveau_nofbaccel ? NULL : drm->channel;
-	if (chan && device->card_type >= NV_50) {
+	if (chan && device->info.family >= NV_DEVICE_INFO_V0_TESLA) {
 		ret = nouveau_bo_vma_add(nvbo, nv_client(chan->cli)->vm,
 					&fbcon->nouveau_fb.vma);
 		if (ret) {
@@ -489,7 +489,7 @@ int
 nouveau_fbcon_init(struct drm_device *dev)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_fb *pfb = nouveau_fb(drm->device);
+	struct nouveau_fb *pfb = nvkm_fb(&drm->device);
 	struct nouveau_fbdev *fbcon;
 	int preferred_bpp;
 	int ret;

@@ -81,7 +81,7 @@ nv84_fence_emit(struct nouveau_fence *fence)
 {
 	struct nouveau_channel *chan = fence->channel;
 	struct nv84_fence_chan *fctx = chan->fence;
-	struct nouveau_fifo_chan *fifo = (void *)chan->object;
+	struct nouveau_fifo_chan *fifo = nvkm_fifo_chan(chan);
 	u64 addr = fifo->chid * 16;
 
 	if (fence->sysmem)
@@ -97,7 +97,7 @@ nv84_fence_sync(struct nouveau_fence *fence,
 		struct nouveau_channel *prev, struct nouveau_channel *chan)
 {
 	struct nv84_fence_chan *fctx = chan->fence;
-	struct nouveau_fifo_chan *fifo = (void *)prev->object;
+	struct nouveau_fifo_chan *fifo = nvkm_fifo_chan(prev);
 	u64 addr = fifo->chid * 16;
 
 	if (fence->sysmem)
@@ -111,7 +111,7 @@ nv84_fence_sync(struct nouveau_fence *fence,
 static u32
 nv84_fence_read(struct nouveau_channel *chan)
 {
-	struct nouveau_fifo_chan *fifo = (void *)chan->object;
+	struct nouveau_fifo_chan *fifo = nvkm_fifo_chan(chan);
 	struct nv84_fence_priv *priv = chan->drm->fence;
 	return nouveau_bo_rd32(priv->bo, fifo->chid * 16/4);
 }
@@ -139,7 +139,7 @@ nv84_fence_context_del(struct nouveau_channel *chan)
 int
 nv84_fence_context_new(struct nouveau_channel *chan)
 {
-	struct nouveau_fifo_chan *fifo = (void *)chan->object;
+	struct nouveau_fifo_chan *fifo = nvkm_fifo_chan(chan);
 	struct nouveau_cli *cli = chan->cli;
 	struct nv84_fence_priv *priv = chan->drm->fence;
 	struct nv84_fence_chan *fctx;
@@ -178,7 +178,7 @@ nv84_fence_context_new(struct nouveau_channel *chan)
 static bool
 nv84_fence_suspend(struct nouveau_drm *drm)
 {
-	struct nouveau_fifo *pfifo = nouveau_fifo(drm->device);
+	struct nouveau_fifo *pfifo = nvkm_fifo(&drm->device);
 	struct nv84_fence_priv *priv = drm->fence;
 	int i;
 
@@ -194,7 +194,7 @@ nv84_fence_suspend(struct nouveau_drm *drm)
 static void
 nv84_fence_resume(struct nouveau_drm *drm)
 {
-	struct nouveau_fifo *pfifo = nouveau_fifo(drm->device);
+	struct nouveau_fifo *pfifo = nvkm_fifo(&drm->device);
 	struct nv84_fence_priv *priv = drm->fence;
 	int i;
 
@@ -225,7 +225,7 @@ nv84_fence_destroy(struct nouveau_drm *drm)
 int
 nv84_fence_create(struct nouveau_drm *drm)
 {
-	struct nouveau_fifo *pfifo = nouveau_fifo(drm->device);
+	struct nouveau_fifo *pfifo = nvkm_fifo(&drm->device);
 	struct nv84_fence_priv *priv;
 	int ret;
 

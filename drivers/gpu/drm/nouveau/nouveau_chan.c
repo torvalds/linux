@@ -90,10 +90,10 @@ nouveau_channel_prep(struct nouveau_drm *drm, struct nouveau_cli *cli,
 		     u32 parent, u32 handle, u32 size,
 		     struct nouveau_channel **pchan)
 {
-	struct nouveau_device *device = nv_device(drm->device);
-	struct nouveau_instmem *imem = nouveau_instmem(device);
-	struct nouveau_vmmgr *vmm = nouveau_vmmgr(device);
-	struct nouveau_fb *pfb = nouveau_fb(device);
+	struct nvif_device *device = &drm->device;
+	struct nouveau_instmem *imem = nvkm_instmem(device);
+	struct nouveau_vmmgr *vmm = nvkm_vmmgr(device);
+	struct nouveau_fb *pfb = nvkm_fb(device);
 	struct nouveau_client *client = &cli->base;
 	struct nv_dma_class args = {};
 	struct nouveau_channel *chan;
@@ -134,7 +134,7 @@ nouveau_channel_prep(struct nouveau_drm *drm, struct nouveau_cli *cli,
 	chan->push.vma.offset = chan->push.buffer->bo.offset;
 	chan->push.handle = NVDRM_PUSH | (handle & 0xffff);
 
-	if (device->card_type >= NV_50) {
+	if (device->info.family >= NV_DEVICE_INFO_V0_TESLA) {
 		ret = nouveau_bo_vma_add(chan->push.buffer, client->vm,
 					&chan->push.vma);
 		if (ret) {
@@ -148,13 +148,13 @@ nouveau_channel_prep(struct nouveau_drm *drm, struct nouveau_cli *cli,
 	} else
 	if (chan->push.buffer->bo.mem.mem_type == TTM_PL_VRAM) {
 		u64 limit = pfb->ram->size - imem->reserved - 1;
-		if (device->card_type == NV_04) {
+		if (device->info.family == NV_DEVICE_INFO_V0_TNT) {
 			/* nv04 vram pushbuf hack, retarget to its location in
 			 * the framebuffer bar rather than direct vram access..
 			 * nfi why this exists, it came from the -nv ddx.
 			 */
 			args.flags = NV_DMA_TARGET_PCI | NV_DMA_ACCESS_RDWR;
-			args.start = nv_device_resource_start(device, 1);
+			args.start = nv_device_resource_start(nvkm_device(device), 1);
 			args.limit = args.start + limit;
 		} else {
 			args.flags = NV_DMA_TARGET_VRAM | NV_DMA_ACCESS_RDWR;
@@ -215,6 +215,7 @@ nouveau_channel_ind(struct nouveau_drm *drm, struct nouveau_cli *cli,
 	do {
 		ret = nouveau_object_new(nv_object(cli), parent, handle,
 					 *oclass++, &args, sizeof(args),
+					 (struct nouveau_object **)
 					 &chan->object);
 		if (ret == 0)
 			return ret;
@@ -251,6 +252,7 @@ nouveau_channel_dma(struct nouveau_drm *drm, struct nouveau_cli *cli,
 	do {
 		ret = nouveau_object_new(nv_object(cli), parent, handle,
 					 *oclass++, &args, sizeof(args),
+					 (struct nouveau_object **)
 					 &chan->object);
 		if (ret == 0)
 			return ret;
@@ -264,18 +266,18 @@ static int
 nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 {
 	struct nouveau_client *client = nv_client(chan->cli);
-	struct nouveau_device *device = nv_device(chan->drm->device);
-	struct nouveau_instmem *imem = nouveau_instmem(device);
-	struct nouveau_vmmgr *vmm = nouveau_vmmgr(device);
-	struct nouveau_fb *pfb = nouveau_fb(device);
+	struct nvif_device *device = &chan->drm->device;
+	struct nouveau_instmem *imem = nvkm_instmem(device);
+	struct nouveau_vmmgr *vmm = nvkm_vmmgr(device);
+	struct nouveau_fb *pfb = nvkm_fb(device);
 	struct nouveau_software_chan *swch;
 	struct nouveau_object *object;
 	struct nv_dma_class args = {};
 	int ret, i;
 
 	/* allocate dma objects to cover all allowed vram, and gart */
-	if (device->card_type < NV_C0) {
-		if (device->card_type >= NV_50) {
+	if (device->info.family < NV_DEVICE_INFO_V0_FERMI) {
+		if (device->info.family >= NV_DEVICE_INFO_V0_TESLA) {
 			args.flags = NV_DMA_TARGET_VM | NV_DMA_ACCESS_VM;
 			args.start = 0;
 			args.limit = client->vm->vmm->limit - 1;
@@ -290,7 +292,7 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 		if (ret)
 			return ret;
 
-		if (device->card_type >= NV_50) {
+		if (device->info.family >= NV_DEVICE_INFO_V0_TESLA) {
 			args.flags = NV_DMA_TARGET_VM | NV_DMA_ACCESS_VM;
 			args.start = 0;
 			args.limit = client->vm->vmm->limit - 1;
@@ -347,7 +349,7 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 		OUT_RING(chan, 0x00000000);
 
 	/* allocate software object class (used for fences on <= nv05) */
-	if (device->card_type < NV_10) {
+	if (device->info.family < NV_DEVICE_INFO_V0_CELSIUS) {
 		ret = nouveau_object_new(nv_object(client), chan->handle,
 					 NvSw, 0x006e, NULL, 0, &object);
 		if (ret)

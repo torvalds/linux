@@ -154,10 +154,10 @@ nouveau_sysfs_fini(struct drm_device *dev)
 {
 	struct nouveau_sysfs *sysfs = nouveau_sysfs(dev);
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_device *device = nv_device(drm->device);
+	struct nvif_device *device = &drm->device;
 
 	if (sysfs->ctrl) {
-		device_remove_file(nv_device_base(device), &dev_attr_pstate);
+		device_remove_file(nv_device_base(nvkm_device(device)), &dev_attr_pstate);
 		nouveau_object_del(nv_object(drm), NVDRM_DEVICE, NVDRM_CONTROL);
 	}
 
@@ -169,7 +169,7 @@ int
 nouveau_sysfs_init(struct drm_device *dev)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_device *device = nv_device(drm->device);
+	struct nvif_device *device = &drm->device;
 	struct nouveau_sysfs *sysfs;
 	int ret;
 
@@ -180,7 +180,7 @@ nouveau_sysfs_init(struct drm_device *dev)
 	ret = nouveau_object_new(nv_object(drm), NVDRM_DEVICE, NVDRM_CONTROL,
 				 NV_CONTROL_CLASS, NULL, 0, &sysfs->ctrl);
 	if (ret == 0)
-		device_create_file(nv_device_base(device), &dev_attr_pstate);
+		device_create_file(nv_device_base(nvkm_device(device)), &dev_attr_pstate);
 
 	return 0;
 }

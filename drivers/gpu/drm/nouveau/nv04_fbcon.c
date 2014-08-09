@@ -141,7 +141,7 @@ nv04_fbcon_accel_init(struct fb_info *info)
 	struct drm_device *dev = nfbdev->dev;
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_channel *chan = drm->channel;
-	struct nouveau_device *device = nv_device(drm->device);
+	struct nvif_device *device = &drm->device;
 	struct nouveau_object *object;
 	int surface_fmt, pattern_fmt, rect_fmt;
 	int ret;
@@ -175,7 +175,7 @@ nv04_fbcon_accel_init(struct fb_info *info)
 	}
 
 	ret = nouveau_object_new(nv_object(chan->cli), NVDRM_CHAN, NvCtxSurf2D,
-				 device->card_type >= NV_10 ? 0x0062 : 0x0042,
+				 device->info.family >= NV_DEVICE_INFO_V0_CELSIUS ? 0x0062 : 0x0042,
 				 NULL, 0, &object);
 	if (ret)
 		return ret;
@@ -201,7 +201,7 @@ nv04_fbcon_accel_init(struct fb_info *info)
 		return ret;
 
 	ret = nouveau_object_new(nv_object(chan->cli), NVDRM_CHAN, NvImageBlit,
-				 device->chipset >= 0x11 ? 0x009f : 0x005f,
+				 device->info.chipset >= 0x11 ? 0x009f : 0x005f,
 				 NULL, 0, &object);
 	if (ret)
 		return ret;
@@ -255,7 +255,7 @@ nv04_fbcon_accel_init(struct fb_info *info)
 	OUT_RING(chan, NvCtxSurf2D);
 	BEGIN_NV04(chan, NvSubImageBlit, 0x02fc, 1);
 	OUT_RING(chan, 3);
-	if (device->chipset >= 0x11 /*XXX: oclass == 0x009f*/) {
+	if (device->info.chipset >= 0x11 /*XXX: oclass == 0x009f*/) {
 		BEGIN_NV04(chan, NvSubImageBlit, 0x0120, 3);
 		OUT_RING(chan, 0);
 		OUT_RING(chan, 1);
