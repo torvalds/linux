@@ -335,7 +335,7 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 
 	/* allocate software object class (used for fences on <= nv05) */
 	if (device->info.family < NV_DEVICE_INFO_V0_CELSIUS) {
-		ret = nvif_object_init(chan->object, NULL, NvSw, 0x006e,
+		ret = nvif_object_init(chan->object, NULL, 0x006e, 0x006e,
 				       NULL, 0, &chan->nvsw);
 		if (ret)
 			return ret;
@@ -349,7 +349,7 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 			return ret;
 
 		BEGIN_NV04(chan, NvSubSw, 0x0000, 1);
-		OUT_RING  (chan, NvSw);
+		OUT_RING  (chan, chan->nvsw.handle);
 		FIRE_RING (chan);
 	}
 

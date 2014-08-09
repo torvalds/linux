@@ -765,9 +765,9 @@ nv50_bo_move_init(struct nouveau_channel *chan, u32 handle)
 		BEGIN_NV04(chan, NvSubCopy, 0x0000, 1);
 		OUT_RING  (chan, handle);
 		BEGIN_NV04(chan, NvSubCopy, 0x0180, 3);
-		OUT_RING  (chan, NvNotify0);
-		OUT_RING  (chan, NvDmaFB);
-		OUT_RING  (chan, NvDmaFB);
+		OUT_RING  (chan, chan->drm->ntfy.handle);
+		OUT_RING  (chan, chan->vram.handle);
+		OUT_RING  (chan, chan->vram.handle);
 	}
 
 	return ret;
@@ -854,7 +854,7 @@ nv04_bo_move_init(struct nouveau_channel *chan, u32 handle)
 		BEGIN_NV04(chan, NvSubCopy, 0x0000, 1);
 		OUT_RING  (chan, handle);
 		BEGIN_NV04(chan, NvSubCopy, 0x0180, 1);
-		OUT_RING  (chan, NvNotify0);
+		OUT_RING  (chan, chan->drm->ntfy.handle);
 	}
 
 	return ret;
@@ -866,7 +866,7 @@ nouveau_bo_mem_ctxdma(struct ttm_buffer_object *bo,
 {
 	if (mem->mem_type == TTM_PL_TT)
 		return NvDmaTT;
-	return NvDmaFB;
+	return chan->vram.handle;
 }
 
 static int

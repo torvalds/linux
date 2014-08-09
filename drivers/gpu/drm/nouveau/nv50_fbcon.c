@@ -183,7 +183,7 @@ nv50_fbcon_accel_init(struct fb_info *info)
 		return -EINVAL;
 	}
 
-	ret = nvif_object_init(chan->object, NULL, Nv2D, 0x502d, NULL, 0,
+	ret = nvif_object_init(chan->object, NULL, 0x502d, 0x502d, NULL, 0,
 			       &nfbdev->twod);
 	if (ret)
 		return ret;
@@ -195,11 +195,11 @@ nv50_fbcon_accel_init(struct fb_info *info)
 	}
 
 	BEGIN_NV04(chan, NvSub2D, 0x0000, 1);
-	OUT_RING(chan, Nv2D);
+	OUT_RING(chan, nfbdev->twod.handle);
 	BEGIN_NV04(chan, NvSub2D, 0x0184, 3);
-	OUT_RING(chan, NvDmaFB);
-	OUT_RING(chan, NvDmaFB);
-	OUT_RING(chan, NvDmaFB);
+	OUT_RING(chan, chan->vram.handle);
+	OUT_RING(chan, chan->vram.handle);
+	OUT_RING(chan, chan->vram.handle);
 	BEGIN_NV04(chan, NvSub2D, 0x0290, 1);
 	OUT_RING(chan, 0);
 	BEGIN_NV04(chan, NvSub2D, 0x0888, 1);

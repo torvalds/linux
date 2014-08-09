@@ -156,7 +156,7 @@ nvc0_fbcon_accel_init(struct fb_info *info)
 	struct nouveau_channel *chan = drm->channel;
 	int ret, format;
 
-	ret = nvif_object_init(chan->object, NULL, Nv2D, 0x902d, NULL, 0,
+	ret = nvif_object_init(chan->object, NULL, 0x902d, 0x902d, NULL, 0,
 			       &nfbdev->twod);
 	if (ret)
 		return ret;
@@ -196,7 +196,7 @@ nvc0_fbcon_accel_init(struct fb_info *info)
 	}
 
 	BEGIN_NVC0(chan, NvSub2D, 0x0000, 1);
-	OUT_RING  (chan, 0x0000902d);
+	OUT_RING  (chan, nfbdev->twod.handle);
 	BEGIN_NVC0(chan, NvSub2D, 0x0290, 1);
 	OUT_RING  (chan, 0);
 	BEGIN_NVC0(chan, NvSub2D, 0x0888, 1);

@@ -175,7 +175,7 @@ nv50_dmac_create(struct nvif_object *disp, u32 bclass, u8 head,
 	if (ret)
 		return ret;
 
-	ret = nvif_object_init(&dmac->base.user, NULL, NvEvoSync,
+	ret = nvif_object_init(&dmac->base.user, NULL, 0xf0000000,
 			       NV_DMA_IN_MEMORY_CLASS,
 			       &(struct nv_dma_class) {
 					.flags = NV_DMA_TARGET_VRAM |
@@ -187,7 +187,7 @@ nv50_dmac_create(struct nvif_object *disp, u32 bclass, u8 head,
 	if (ret)
 		return ret;
 
-	ret = nvif_object_init(&dmac->base.user, NULL, NvEvoVRAM,
+	ret = nvif_object_init(&dmac->base.user, NULL, 0xf0000001,
 			       NV_DMA_IN_MEMORY_CLASS,
 			       &(struct nv_dma_class) {
 					.flags = NV_DMA_TARGET_VRAM |
@@ -482,7 +482,7 @@ nv50_display_flip_next(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	evo_data(push, sync->addr);
 	evo_data(push, sync->data++);
 	evo_data(push, sync->data);
-	evo_data(push, NvEvoSync);
+	evo_data(push, sync->base.sync.handle);
 	evo_mthd(push, 0x00a0, 2);
 	evo_data(push, 0x00000000);
 	evo_data(push, 0x00000000);
@@ -763,13 +763,13 @@ nv50_crtc_cursor_show(struct nouveau_crtc *nv_crtc)
 			evo_data(push, 0x85000000);
 			evo_data(push, nv_crtc->cursor.nvbo->bo.offset >> 8);
 			evo_mthd(push, 0x089c + (nv_crtc->index * 0x400), 1);
-			evo_data(push, NvEvoVRAM);
+			evo_data(push, mast->base.vram.handle);
 		} else {
 			evo_mthd(push, 0x0480 + (nv_crtc->index * 0x300), 2);
 			evo_data(push, 0x85000000);
 			evo_data(push, nv_crtc->cursor.nvbo->bo.offset >> 8);
 			evo_mthd(push, 0x048c + (nv_crtc->index * 0x300), 1);
-			evo_data(push, NvEvoVRAM);
+			evo_data(push, mast->base.vram.handle);
 		}
 		evo_kick(push, mast);
 	}
@@ -887,7 +887,7 @@ nv50_crtc_commit(struct drm_crtc *crtc)
 			evo_data(push, 0xc0000000);
 			evo_data(push, nv_crtc->lut.nvbo->bo.offset >> 8);
 			evo_mthd(push, 0x085c + (nv_crtc->index * 0x400), 1);
-			evo_data(push, NvEvoVRAM);
+			evo_data(push, mast->base.vram.handle);
 		} else {
 			evo_mthd(push, 0x0474 + (nv_crtc->index * 0x300), 1);
 			evo_data(push, nv_crtc->fb.handle);
@@ -897,7 +897,7 @@ nv50_crtc_commit(struct drm_crtc *crtc)
 			evo_data(push, 0x00000000);
 			evo_data(push, 0x00000000);
 			evo_mthd(push, 0x045c + (nv_crtc->index * 0x300), 1);
-			evo_data(push, NvEvoVRAM);
+			evo_data(push, mast->base.vram.handle);
 			evo_mthd(push, 0x0430 + (nv_crtc->index * 0x300), 1);
 			evo_data(push, 0xffffff00);
 		}
@@ -2210,7 +2210,7 @@ nv50_display_init(struct drm_device *dev)
 	}
 
 	evo_mthd(push, 0x0088, 1);
-	evo_data(push, NvEvoSync);
+	evo_data(push, nv50_mast(dev)->base.sync.handle);
 	evo_kick(push, nv50_mast(dev));
 	return 0;
 }

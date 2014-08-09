@@ -301,7 +301,7 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 	if (device->info.family < NV_DEVICE_INFO_V0_CELSIUS) {
 		init->subchan[0].handle = 0x00000000;
 		init->subchan[0].grclass = 0x0000;
-		init->subchan[1].handle = NvSw;
+		init->subchan[1].handle = chan->chan->nvsw.handle;
 		init->subchan[1].grclass = 0x506e;
 		init->nr_subchan = 2;
 	}
