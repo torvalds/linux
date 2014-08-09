@@ -6388,6 +6388,7 @@ static int dgap_parsefile(char **in)
 	for (; ;) {
 		int board_type = 0;
 		int conc_type = 0;
+		int module_type = 0;
 
 		rc = dgap_gettok(in);
 		if (rc == 0) {
@@ -6762,24 +6763,15 @@ static int dgap_parsefile(char **in)
 			else
 				brd->u.board.module1++;
 
-			break;
-
-		case PORTS:	/* ports type EBI module */
-			if (p->type != MNODE) {
-				dgap_err("ports only valid for EBI modules");
+			module_type = dgap_gettok(in);
+			if (module_type == 0 || module_type != PORTS ||
+			    module_type != MODEM) {
+				dgap_err("failed to set a type of module");
 				return -1;
 			}
-			p->u.module.type = PORTS;
-			p->u.module.v_type = 1;
-			break;
 
-		case MODEM:	/* ports type EBI module */
-			if (p->type != MNODE) {
-				dgap_err("modem only valid for modem modules");
-				return -1;
-			}
-			p->u.module.type = MODEM;
-			p->u.module.v_type = 1;
+			p->u.module.type = module_type;
+
 			break;
 
 		case CABLE:
@@ -7207,10 +7199,6 @@ static int dgap_checknode(struct cnode *p)
 		return 0;
 
 	case MNODE:
-		if (p->u.module.v_type == 0) {
-			dgap_err("EBI module type not specified");
-			return 1;
-		}
 		if (p->u.module.v_nport == 0) {
 			dgap_err("number of ports on EBI module not specified");
 			return 1;
