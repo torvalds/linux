@@ -67,15 +67,9 @@ _nouveau_object_ctor(struct nouveau_object *parent,
 		     struct nouveau_oclass *oclass, void *data, u32 size,
 		     struct nouveau_object **pobject)
 {
-	struct nouveau_object *object;
-	int ret;
-
-	ret = nouveau_object_create(parent, engine, oclass, 0, &object);
-	*pobject = nv_object(object);
-	if (ret)
-		return ret;
-
-	return 0;
+	if (size != 0)
+		return -ENOSYS;
+	return nouveau_object_create(parent, engine, oclass, 0, pobject);
 }
 
 void
@@ -91,22 +85,10 @@ nouveau_object_destroy(struct nouveau_object *object)
 	kfree(object);
 }
 
-static void
-_nouveau_object_dtor(struct nouveau_object *object)
-{
-	nouveau_object_destroy(object);
-}
-
 int
 nouveau_object_init(struct nouveau_object *object)
 {
 	return 0;
-}
-
-static int
-_nouveau_object_init(struct nouveau_object *object)
-{
-	return nouveau_object_init(object);
 }
 
 int
@@ -115,18 +97,12 @@ nouveau_object_fini(struct nouveau_object *object, bool suspend)
 	return 0;
 }
 
-static int
-_nouveau_object_fini(struct nouveau_object *object, bool suspend)
-{
-	return nouveau_object_fini(object, suspend);
-}
-
 struct nouveau_ofuncs
 nouveau_object_ofuncs = {
 	.ctor = _nouveau_object_ctor,
-	.dtor = _nouveau_object_dtor,
-	.init = _nouveau_object_init,
-	.fini = _nouveau_object_fini,
+	.dtor = nouveau_object_destroy,
+	.init = nouveau_object_init,
+	.fini = nouveau_object_fini,
 };
 
 int
