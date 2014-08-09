@@ -371,7 +371,11 @@ static int it9137_set_params(struct dvb_frontend *fe)
 static int it913x_sleep(struct dvb_frontend *fe)
 {
 	struct it913x_state *state = fe->tuner_priv;
-	return it913x_script_loader(state, it9137_tuner_off);
+
+	if (state->chip_ver == 0x01)
+		return it913x_script_loader(state, it9135ax_tuner_off);
+	else
+		return it913x_script_loader(state, it9137_tuner_off);
 }
 
 static int it913x_release(struct dvb_frontend *fe)

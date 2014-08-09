@@ -36,6 +36,17 @@ struct it913xset {	u32 pro;
 			u8 count;
 };
 
+/* Tuner setting scripts for IT9135 AX */
+static struct it913xset it9135ax_tuner_off[] = {
+	{PRO_DMOD, 0xec40, {0x00}, 0x01}, /* Power Down Tuner */
+	{PRO_DMOD, 0xec02, {0x3f}, 0x01},
+	{PRO_DMOD, 0xec03, {0x1f}, 0x01},
+	{PRO_DMOD, 0xec04, {0x3f}, 0x01},
+	{PRO_DMOD, 0xec05, {0x3f}, 0x01},
+	{PRO_DMOD, 0xec3f, {0x01}, 0x01},
+	{0xff, 0x0000, {0x00}, 0x00}, /* Terminating Entry */
+};
+
 /* Tuner setting scripts (still keeping it9137) */
 static struct it913xset it9137_tuner_off[] = {
 	{PRO_DMOD, 0xec40, {0x00}, 0x01}, /* Power Down Tuner */
