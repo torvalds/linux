@@ -586,9 +586,6 @@ struct board_t {
 	struct tty_port *printer_ports;
 	char		print_name[200];
 
-	u32		dgap_major_serial_registered;
-	u32		dgap_major_transparent_print_registered;
-
 	u32		dgap_serial_major;
 	u32		dgap_transparent_print_major;
 

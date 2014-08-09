@@ -1320,11 +1320,9 @@ static int dgap_tty_register(struct board_t *brd)
 	if (rc < 0)
 		goto unregister_serial_drv;
 
-	brd->dgap_major_serial_registered = TRUE;
 	dgap_boards_by_major[brd->serial_driver->major] = brd;
 	brd->dgap_serial_major = brd->serial_driver->major;
 
-	brd->dgap_major_transparent_print_registered = TRUE;
 	dgap_boards_by_major[brd->print_driver->major] = brd;
 	brd->dgap_transparent_print_major = brd->print_driver->major;
 
@@ -1544,35 +1542,29 @@ static void dgap_cleanup_tty(struct board_t *brd)
 	struct device *dev;
 	int i;
 
-	if (brd->dgap_major_serial_registered) {
-		dgap_boards_by_major[brd->serial_driver->major] = NULL;
-		brd->dgap_serial_major = 0;
-		for (i = 0; i < brd->nasync; i++) {
-			tty_port_destroy(&brd->serial_ports[i]);
-			dev = brd->channels[i]->ch_tun.un_sysfs;
-			dgap_remove_tty_sysfs(dev);
-			tty_unregister_device(brd->serial_driver, i);
-		}
-		tty_unregister_driver(brd->serial_driver);
-		put_tty_driver(brd->serial_driver);
-		kfree(brd->serial_ports);
-		brd->dgap_major_serial_registered = FALSE;
+	dgap_boards_by_major[brd->serial_driver->major] = NULL;
+	brd->dgap_serial_major = 0;
+	for (i = 0; i < brd->nasync; i++) {
+		tty_port_destroy(&brd->serial_ports[i]);
+		dev = brd->channels[i]->ch_tun.un_sysfs;
+		dgap_remove_tty_sysfs(dev);
+		tty_unregister_device(brd->serial_driver, i);
 	}
+	tty_unregister_driver(brd->serial_driver);
+	put_tty_driver(brd->serial_driver);
+	kfree(brd->serial_ports);
 
-	if (brd->dgap_major_transparent_print_registered) {
-		dgap_boards_by_major[brd->print_driver->major] = NULL;
-		brd->dgap_transparent_print_major = 0;
-		for (i = 0; i < brd->nasync; i++) {
-			tty_port_destroy(&brd->printer_ports[i]);
-			dev = brd->channels[i]->ch_pun.un_sysfs;
-			dgap_remove_tty_sysfs(dev);
-			tty_unregister_device(brd->print_driver, i);
-		}
-		tty_unregister_driver(brd->print_driver);
-		put_tty_driver(brd->print_driver);
-		kfree(brd->printer_ports);
-		brd->dgap_major_transparent_print_registered = FALSE;
+	dgap_boards_by_major[brd->print_driver->major] = NULL;
+	brd->dgap_transparent_print_major = 0;
+	for (i = 0; i < brd->nasync; i++) {
+		tty_port_destroy(&brd->printer_ports[i]);
+		dev = brd->channels[i]->ch_pun.un_sysfs;
+		dgap_remove_tty_sysfs(dev);
+		tty_unregister_device(brd->print_driver, i);
 	}
+	tty_unregister_driver(brd->print_driver);
+	put_tty_driver(brd->print_driver);
+	kfree(brd->printer_ports);
 }
 
 /*=======================================================================
