@@ -18,6 +18,7 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-ctrls.h>
+#include <media/v4l2-image-sizes.h>
 #include <media/ov7670.h>
 #include <media/videobuf-dma-sg.h>
 #include <linux/delay.h>
@@ -47,14 +48,6 @@ MODULE_PARM_DESC(override_serial,
 		"The camera driver will normally refuse to load if "
 		"the XO 1.5 serial port is enabled.  Set this option "
 		"to force-enable the camera.");
-
-/*
- * Basic window sizes.
- */
-#define VGA_WIDTH	640
-#define VGA_HEIGHT	480
-#define QCIF_WIDTH	176
-#define	QCIF_HEIGHT	144
 
 /*
  * The structure describing our camera.
