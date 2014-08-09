@@ -200,11 +200,11 @@ nve0_disp_ovly_mthd_chan = {
 
 static struct nouveau_oclass
 nve0_disp_sclass[] = {
-	{ NVE0_DISP_MAST_CLASS, &nvd0_disp_mast_ofuncs },
-	{ NVE0_DISP_SYNC_CLASS, &nvd0_disp_sync_ofuncs },
-	{ NVE0_DISP_OVLY_CLASS, &nvd0_disp_ovly_ofuncs },
-	{ NVE0_DISP_OIMM_CLASS, &nvd0_disp_oimm_ofuncs },
-	{ NVE0_DISP_CURS_CLASS, &nvd0_disp_curs_ofuncs },
+	{ NVE0_DISP_MAST_CLASS, &nvd0_disp_mast_ofuncs.base },
+	{ NVE0_DISP_SYNC_CLASS, &nvd0_disp_sync_ofuncs.base },
+	{ NVE0_DISP_OVLY_CLASS, &nvd0_disp_ovly_ofuncs.base },
+	{ NVE0_DISP_OIMM_CLASS, &nvd0_disp_oimm_ofuncs.base },
+	{ NVE0_DISP_CURS_CLASS, &nvd0_disp_curs_ofuncs.base },
 	{}
 };
 

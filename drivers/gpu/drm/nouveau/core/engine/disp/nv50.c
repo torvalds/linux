@@ -43,14 +43,16 @@
  * EVO channel base class
  ******************************************************************************/
 
-int
+static int
 nv50_disp_chan_create_(struct nouveau_object *parent,
 		       struct nouveau_object *engine,
-		       struct nouveau_oclass *oclass, int chid,
+		       struct nouveau_oclass *oclass, int head,
 		       int length, void **pobject)
 {
+	const struct nv50_disp_chan_impl *impl = (void *)oclass->ofuncs;
 	struct nv50_disp_base *base = (void *)parent;
 	struct nv50_disp_chan *chan;
+	int chid = impl->chid + head;
 	int ret;
 
 	if (base->chan & (1 << chid))
@@ -63,12 +65,14 @@ nv50_disp_chan_create_(struct nouveau_object *parent,
 	chan = *pobject;
 	if (ret)
 		return ret;
-
 	chan->chid = chid;
+
+	nv_parent(chan)->object_attach = impl->attach;
+	nv_parent(chan)->object_detach = impl->detach;
 	return 0;
 }
 
-void
+static void
 nv50_disp_chan_destroy(struct nv50_disp_chan *chan)
 {
 	struct nv50_disp_base *base = (void *)nv_object(chan)->parent;
@@ -115,16 +119,16 @@ nv50_disp_dmac_object_detach(struct nouveau_object *parent, int cookie)
 	nouveau_ramht_remove(base->ramht, cookie);
 }
 
-int
+static int
 nv50_disp_dmac_create_(struct nouveau_object *parent,
 		       struct nouveau_object *engine,
-		       struct nouveau_oclass *oclass, u32 pushbuf, int chid,
+		       struct nouveau_oclass *oclass, u32 pushbuf, int head,
 		       int length, void **pobject)
 {
 	struct nv50_disp_dmac *dmac;
 	int ret;
 
-	ret = nv50_disp_chan_create_(parent, engine, oclass, chid,
+	ret = nv50_disp_chan_create_(parent, engine, oclass, head,
 				     length, pobject);
 	dmac = *pobject;
 	if (ret)
@@ -397,7 +401,7 @@ nv50_disp_mast_mthd_chan = {
 	}
 };
 
-static int
+int
 nv50_disp_mast_ctor(struct nouveau_object *parent,
 		    struct nouveau_object *engine,
 		    struct nouveau_oclass *oclass, void *data, u32 size,
@@ -416,8 +420,6 @@ nv50_disp_mast_ctor(struct nouveau_object *parent,
 	if (ret)
 		return ret;
 
-	nv_parent(mast)->object_attach = nv50_disp_dmac_object_attach;
-	nv_parent(mast)->object_detach = nv50_disp_dmac_object_detach;
 	return 0;
 }
 
@@ -479,14 +481,17 @@ nv50_disp_mast_fini(struct nouveau_object *object, bool suspend)
 	return nv50_disp_chan_fini(&mast->base, suspend);
 }
 
-struct nouveau_ofuncs
+struct nv50_disp_chan_impl
 nv50_disp_mast_ofuncs = {
-	.ctor = nv50_disp_mast_ctor,
-	.dtor = nv50_disp_dmac_dtor,
-	.init = nv50_disp_mast_init,
-	.fini = nv50_disp_mast_fini,
-	.rd32 = nv50_disp_chan_rd32,
-	.wr32 = nv50_disp_chan_wr32,
+	.base.ctor = nv50_disp_mast_ctor,
+	.base.dtor = nv50_disp_dmac_dtor,
+	.base.init = nv50_disp_mast_init,
+	.base.fini = nv50_disp_mast_fini,
+	.base.rd32 = nv50_disp_chan_rd32,
+	.base.wr32 = nv50_disp_chan_wr32,
+	.chid = 0,
+	.attach = nv50_disp_dmac_object_attach,
+	.detach = nv50_disp_dmac_object_detach,
 };
 
 /*******************************************************************************
@@ -543,39 +548,40 @@ nv50_disp_sync_mthd_chan = {
 	}
 };
 
-static int
+int
 nv50_disp_sync_ctor(struct nouveau_object *parent,
 		    struct nouveau_object *engine,
 		    struct nouveau_oclass *oclass, void *data, u32 size,
 		    struct nouveau_object **pobject)
 {
 	struct nv50_display_sync_class *args = data;
+	struct nv50_disp_priv *priv = (void *)engine;
 	struct nv50_disp_dmac *dmac;
 	int ret;
 
-	if (size < sizeof(*args) || args->head > 1)
+	if (size < sizeof(*args) || args->head >= priv->head.nr)
 		return -EINVAL;
 
 	ret = nv50_disp_dmac_create_(parent, engine, oclass, args->pushbuf,
-				     1 + args->head, sizeof(*dmac),
-				     (void **)&dmac);
+				     args->head, sizeof(*dmac), (void **)&dmac);
 	*pobject = nv_object(dmac);
 	if (ret)
 		return ret;
 
-	nv_parent(dmac)->object_attach = nv50_disp_dmac_object_attach;
-	nv_parent(dmac)->object_detach = nv50_disp_dmac_object_detach;
 	return 0;
 }
 
-struct nouveau_ofuncs
+struct nv50_disp_chan_impl
 nv50_disp_sync_ofuncs = {
-	.ctor = nv50_disp_sync_ctor,
-	.dtor = nv50_disp_dmac_dtor,
-	.init = nv50_disp_dmac_init,
-	.fini = nv50_disp_dmac_fini,
-	.rd32 = nv50_disp_chan_rd32,
-	.wr32 = nv50_disp_chan_wr32,
+	.base.ctor = nv50_disp_sync_ctor,
+	.base.dtor = nv50_disp_dmac_dtor,
+	.base.init = nv50_disp_dmac_init,
+	.base.fini = nv50_disp_dmac_fini,
+	.base.rd32 = nv50_disp_chan_rd32,
+	.base.wr32 = nv50_disp_chan_wr32,
+	.chid = 1,
+	.attach = nv50_disp_dmac_object_attach,
+	.detach = nv50_disp_dmac_object_detach,
 };
 
 /*******************************************************************************
@@ -620,39 +626,40 @@ nv50_disp_ovly_mthd_chan = {
 	}
 };
 
-static int
+int
 nv50_disp_ovly_ctor(struct nouveau_object *parent,
 		    struct nouveau_object *engine,
 		    struct nouveau_oclass *oclass, void *data, u32 size,
 		    struct nouveau_object **pobject)
 {
 	struct nv50_display_ovly_class *args = data;
+	struct nv50_disp_priv *priv = (void *)engine;
 	struct nv50_disp_dmac *dmac;
 	int ret;
 
-	if (size < sizeof(*args) || args->head > 1)
+	if (size < sizeof(*args) || args->head >= priv->head.nr)
 		return -EINVAL;
 
 	ret = nv50_disp_dmac_create_(parent, engine, oclass, args->pushbuf,
-				     3 + args->head, sizeof(*dmac),
-				     (void **)&dmac);
+				     args->head, sizeof(*dmac), (void **)&dmac);
 	*pobject = nv_object(dmac);
 	if (ret)
 		return ret;
 
-	nv_parent(dmac)->object_attach = nv50_disp_dmac_object_attach;
-	nv_parent(dmac)->object_detach = nv50_disp_dmac_object_detach;
 	return 0;
 }
 
-struct nouveau_ofuncs
+struct nv50_disp_chan_impl
 nv50_disp_ovly_ofuncs = {
-	.ctor = nv50_disp_ovly_ctor,
-	.dtor = nv50_disp_dmac_dtor,
-	.init = nv50_disp_dmac_init,
-	.fini = nv50_disp_dmac_fini,
-	.rd32 = nv50_disp_chan_rd32,
-	.wr32 = nv50_disp_chan_wr32,
+	.base.ctor = nv50_disp_ovly_ctor,
+	.base.dtor = nv50_disp_dmac_dtor,
+	.base.init = nv50_disp_dmac_init,
+	.base.fini = nv50_disp_dmac_fini,
+	.base.rd32 = nv50_disp_chan_rd32,
+	.base.wr32 = nv50_disp_chan_wr32,
+	.chid = 3,
+	.attach = nv50_disp_dmac_object_attach,
+	.detach = nv50_disp_dmac_object_detach,
 };
 
 /*******************************************************************************
@@ -662,14 +669,14 @@ nv50_disp_ovly_ofuncs = {
 static int
 nv50_disp_pioc_create_(struct nouveau_object *parent,
 		       struct nouveau_object *engine,
-		       struct nouveau_oclass *oclass, int chid,
+		       struct nouveau_oclass *oclass, int head,
 		       int length, void **pobject)
 {
-	return nv50_disp_chan_create_(parent, engine, oclass, chid,
+	return nv50_disp_chan_create_(parent, engine, oclass, head,
 				      length, pobject);
 }
 
-static void
+void
 nv50_disp_pioc_dtor(struct nouveau_object *object)
 {
 	struct nv50_disp_pioc *pioc = (void *)object;
@@ -727,20 +734,21 @@ nv50_disp_pioc_fini(struct nouveau_object *object, bool suspend)
  * EVO immediate overlay channel objects
  ******************************************************************************/
 
-static int
+int
 nv50_disp_oimm_ctor(struct nouveau_object *parent,
 		    struct nouveau_object *engine,
 		    struct nouveau_oclass *oclass, void *data, u32 size,
 		    struct nouveau_object **pobject)
 {
 	struct nv50_display_oimm_class *args = data;
+	struct nv50_disp_priv *priv = (void *)engine;
 	struct nv50_disp_pioc *pioc;
 	int ret;
 
-	if (size < sizeof(*args) || args->head > 1)
+	if (size < sizeof(*args) || args->head >= priv->head.nr)
 		return -EINVAL;
 
-	ret = nv50_disp_pioc_create_(parent, engine, oclass, 5 + args->head,
+	ret = nv50_disp_pioc_create_(parent, engine, oclass, args->head,
 				     sizeof(*pioc), (void **)&pioc);
 	*pobject = nv_object(pioc);
 	if (ret)
@@ -749,34 +757,36 @@ nv50_disp_oimm_ctor(struct nouveau_object *parent,
 	return 0;
 }
 
-struct nouveau_ofuncs
+struct nv50_disp_chan_impl
 nv50_disp_oimm_ofuncs = {
-	.ctor = nv50_disp_oimm_ctor,
-	.dtor = nv50_disp_pioc_dtor,
-	.init = nv50_disp_pioc_init,
-	.fini = nv50_disp_pioc_fini,
-	.rd32 = nv50_disp_chan_rd32,
-	.wr32 = nv50_disp_chan_wr32,
+	.base.ctor = nv50_disp_oimm_ctor,
+	.base.dtor = nv50_disp_pioc_dtor,
+	.base.init = nv50_disp_pioc_init,
+	.base.fini = nv50_disp_pioc_fini,
+	.base.rd32 = nv50_disp_chan_rd32,
+	.base.wr32 = nv50_disp_chan_wr32,
+	.chid = 5,
 };
 
 /*******************************************************************************
  * EVO cursor channel objects
  ******************************************************************************/
 
-static int
+int
 nv50_disp_curs_ctor(struct nouveau_object *parent,
 		    struct nouveau_object *engine,
 		    struct nouveau_oclass *oclass, void *data, u32 size,
 		    struct nouveau_object **pobject)
 {
 	struct nv50_display_curs_class *args = data;
+	struct nv50_disp_priv *priv = (void *)engine;
 	struct nv50_disp_pioc *pioc;
 	int ret;
 
-	if (size < sizeof(*args) || args->head > 1)
+	if (size < sizeof(*args) || args->head >= priv->head.nr)
 		return -EINVAL;
 
-	ret = nv50_disp_pioc_create_(parent, engine, oclass, 7 + args->head,
+	ret = nv50_disp_pioc_create_(parent, engine, oclass, args->head,
 				     sizeof(*pioc), (void **)&pioc);
 	*pobject = nv_object(pioc);
 	if (ret)
@@ -785,14 +795,15 @@ nv50_disp_curs_ctor(struct nouveau_object *parent,
 	return 0;
 }
 
-struct nouveau_ofuncs
+struct nv50_disp_chan_impl
 nv50_disp_curs_ofuncs = {
-	.ctor = nv50_disp_curs_ctor,
-	.dtor = nv50_disp_pioc_dtor,
-	.init = nv50_disp_pioc_init,
-	.fini = nv50_disp_pioc_fini,
-	.rd32 = nv50_disp_chan_rd32,
-	.wr32 = nv50_disp_chan_wr32,
+	.base.ctor = nv50_disp_curs_ctor,
+	.base.dtor = nv50_disp_pioc_dtor,
+	.base.init = nv50_disp_pioc_init,
+	.base.fini = nv50_disp_pioc_fini,
+	.base.rd32 = nv50_disp_chan_rd32,
+	.base.wr32 = nv50_disp_chan_wr32,
+	.chid = 7,
 };
 
 /*******************************************************************************
@@ -966,11 +977,11 @@ nv50_disp_base_oclass[] = {
 
 static struct nouveau_oclass
 nv50_disp_sclass[] = {
-	{ NV50_DISP_MAST_CLASS, &nv50_disp_mast_ofuncs },
-	{ NV50_DISP_SYNC_CLASS, &nv50_disp_sync_ofuncs },
-	{ NV50_DISP_OVLY_CLASS, &nv50_disp_ovly_ofuncs },
-	{ NV50_DISP_OIMM_CLASS, &nv50_disp_oimm_ofuncs },
-	{ NV50_DISP_CURS_CLASS, &nv50_disp_curs_ofuncs },
+	{ NV50_DISP_MAST_CLASS, &nv50_disp_mast_ofuncs.base },
+	{ NV50_DISP_SYNC_CLASS, &nv50_disp_sync_ofuncs.base },
+	{ NV50_DISP_OVLY_CLASS, &nv50_disp_ovly_ofuncs.base },
+	{ NV50_DISP_OIMM_CLASS, &nv50_disp_oimm_ofuncs.base },
+	{ NV50_DISP_CURS_CLASS, &nv50_disp_curs_ofuncs.base },
 	{}
 };
 

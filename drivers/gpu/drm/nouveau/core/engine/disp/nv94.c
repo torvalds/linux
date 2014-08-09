@@ -63,11 +63,11 @@ nv94_disp_mast_mthd_chan = {
 
 static struct nouveau_oclass
 nv94_disp_sclass[] = {
-	{ NV94_DISP_MAST_CLASS, &nv50_disp_mast_ofuncs },
-	{ NV94_DISP_SYNC_CLASS, &nv50_disp_sync_ofuncs },
-	{ NV94_DISP_OVLY_CLASS, &nv50_disp_ovly_ofuncs },
-	{ NV94_DISP_OIMM_CLASS, &nv50_disp_oimm_ofuncs },
-	{ NV94_DISP_CURS_CLASS, &nv50_disp_curs_ofuncs },
+	{ NV94_DISP_MAST_CLASS, &nv50_disp_mast_ofuncs.base },
+	{ NV94_DISP_SYNC_CLASS, &nv50_disp_sync_ofuncs.base },
+	{ NV94_DISP_OVLY_CLASS, &nv50_disp_ovly_ofuncs.base },
+	{ NV94_DISP_OIMM_CLASS, &nv50_disp_oimm_ofuncs.base },
+	{ NV94_DISP_CURS_CLASS, &nv50_disp_curs_ofuncs.base },
 	{}
 };
 

@@ -35,11 +35,11 @@
 
 static struct nouveau_oclass
 nva3_disp_sclass[] = {
-	{ NVA3_DISP_MAST_CLASS, &nv50_disp_mast_ofuncs },
-	{ NVA3_DISP_SYNC_CLASS, &nv50_disp_sync_ofuncs },
-	{ NVA3_DISP_OVLY_CLASS, &nv50_disp_ovly_ofuncs },
-	{ NVA3_DISP_OIMM_CLASS, &nv50_disp_oimm_ofuncs },
-	{ NVA3_DISP_CURS_CLASS, &nv50_disp_curs_ofuncs },
+	{ NVA3_DISP_MAST_CLASS, &nv50_disp_mast_ofuncs.base },
+	{ NVA3_DISP_SYNC_CLASS, &nv50_disp_sync_ofuncs.base },
+	{ NVA3_DISP_OVLY_CLASS, &nv50_disp_ovly_ofuncs.base },
+	{ NVA3_DISP_OIMM_CLASS, &nv50_disp_oimm_ofuncs.base },
+	{ NVA3_DISP_CURS_CLASS, &nv50_disp_curs_ofuncs.base },
 	{}
 };
 

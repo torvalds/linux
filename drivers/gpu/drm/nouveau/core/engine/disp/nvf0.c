@@ -35,11 +35,11 @@
 
 static struct nouveau_oclass
 nvf0_disp_sclass[] = {
-	{ NVF0_DISP_MAST_CLASS, &nvd0_disp_mast_ofuncs },
-	{ NVF0_DISP_SYNC_CLASS, &nvd0_disp_sync_ofuncs },
-	{ NVF0_DISP_OVLY_CLASS, &nvd0_disp_ovly_ofuncs },
-	{ NVF0_DISP_OIMM_CLASS, &nvd0_disp_oimm_ofuncs },
-	{ NVF0_DISP_CURS_CLASS, &nvd0_disp_curs_ofuncs },
+	{ NVF0_DISP_MAST_CLASS, &nvd0_disp_mast_ofuncs.base },
+	{ NVF0_DISP_SYNC_CLASS, &nvd0_disp_sync_ofuncs.base },
+	{ NVF0_DISP_OVLY_CLASS, &nvd0_disp_ovly_ofuncs.base },
+	{ NVF0_DISP_OIMM_CLASS, &nvd0_disp_oimm_ofuncs.base },
+	{ NVF0_DISP_CURS_CLASS, &nvd0_disp_curs_ofuncs.base },
 	{}
 };
 

@@ -80,11 +80,11 @@ nva0_disp_ovly_mthd_chan = {
 
 static struct nouveau_oclass
 nva0_disp_sclass[] = {
-	{ NVA0_DISP_MAST_CLASS, &nv50_disp_mast_ofuncs },
-	{ NVA0_DISP_SYNC_CLASS, &nv50_disp_sync_ofuncs },
-	{ NVA0_DISP_OVLY_CLASS, &nv50_disp_ovly_ofuncs },
-	{ NVA0_DISP_OIMM_CLASS, &nv50_disp_oimm_ofuncs },
-	{ NVA0_DISP_CURS_CLASS, &nv50_disp_curs_ofuncs },
+	{ NVA0_DISP_MAST_CLASS, &nv50_disp_mast_ofuncs.base },
+	{ NVA0_DISP_SYNC_CLASS, &nv50_disp_sync_ofuncs.base },
+	{ NVA0_DISP_OVLY_CLASS, &nv50_disp_ovly_ofuncs.base },
+	{ NVA0_DISP_OIMM_CLASS, &nv50_disp_oimm_ofuncs.base },
+	{ NVA0_DISP_CURS_CLASS, &nv50_disp_curs_ofuncs.base },
 	{}
 };
 
