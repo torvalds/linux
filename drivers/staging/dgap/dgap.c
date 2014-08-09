@@ -158,12 +158,6 @@ static void dgap_err(char *s);
 /*
  * Function prototypes from dgap_sysfs.h
  */
-struct board_t;
-struct channel_t;
-struct un_t;
-struct pci_driver;
-struct class_device;
-
 static void dgap_create_ports_sysfiles(struct board_t *bd);
 static void dgap_remove_ports_sysfiles(struct board_t *bd);
 
