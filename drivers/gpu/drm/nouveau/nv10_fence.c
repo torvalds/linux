@@ -22,9 +22,6 @@
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
 
-#include <core/object.h>
-#include <core/class.h>
-
 #include "nouveau_drm.h"
 #include "nouveau_dma.h"
 #include "nv10_fence.h"

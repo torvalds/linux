@@ -27,6 +27,8 @@
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
 
+#include <nvif/class.h>
+
 #include "nouveau_fbcon.h"
 #include "dispnv04/hw.h"
 #include "nouveau_crtc.h"
@@ -37,7 +39,6 @@
 
 #include "nouveau_fence.h"
 
-#include <core/class.h>
 #include <nvif/event.h>
 
 static int

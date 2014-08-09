@@ -27,8 +27,10 @@
 #include <linux/pci.h>
 #include <linux/pm_runtime.h>
 #include <linux/vga_switcheroo.h>
+
 #include "drmP.h"
 #include "drm_crtc_helper.h"
+
 #include <core/device.h>
 #include <core/gpuobj.h>
 #include <core/class.h>

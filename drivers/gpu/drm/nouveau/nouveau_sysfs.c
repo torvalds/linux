@@ -22,10 +22,10 @@
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
 
-#include "nouveau_sysfs.h"
+#include <nvif/os.h>
+#include <nvif/class.h>
 
-#include <core/object.h>
-#include <core/class.h>
+#include "nouveau_sysfs.h"
 
 static inline struct drm_device *
 drm_device(struct device *d)

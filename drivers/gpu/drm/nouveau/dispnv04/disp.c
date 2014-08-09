@@ -22,9 +22,6 @@
  * Author: Ben Skeggs
  */
 
-#include <core/object.h>
-#include <core/class.h>
-
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
 
@@ -33,8 +30,6 @@
 #include "hw.h"
 #include "nouveau_encoder.h"
 #include "nouveau_connector.h"
-
-#include <subdev/i2c.h>
 
 int
 nv04_display_early_init(struct drm_device *dev)

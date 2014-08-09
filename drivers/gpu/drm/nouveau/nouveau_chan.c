@@ -22,10 +22,11 @@
  * Authors: Ben Skeggs
  */
 
-#include <core/object.h>
+#include <nvif/os.h>
+#include <nvif/class.h>
+
+/*XXX*/
 #include <core/client.h>
-#include <core/device.h>
-#include <core/class.h>
 
 #include "nouveau_drm.h"
 #include "nouveau_dma.h"

@@ -22,8 +22,8 @@
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
 
-#include <core/object.h>
-#include <core/class.h>
+#include <nvif/os.h>
+#include <nvif/class.h>
 
 #include "nouveau_drm.h"
 #include "nouveau_dma.h"

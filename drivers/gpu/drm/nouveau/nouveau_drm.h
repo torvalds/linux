@@ -25,13 +25,10 @@
  *      - fixes multiple bugs in flip completion events and timestamping
  */
 
-#include <core/client.h>
-#include <core/event.h>
-
 #include <nvif/client.h>
 #include <nvif/device.h>
 
-#include <subdev/vm.h>
+#include <core/class.h>
 
 #include <drmP.h>
 #include <drm/nouveau_drm.h>

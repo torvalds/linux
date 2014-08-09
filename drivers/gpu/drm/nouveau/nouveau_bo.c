@@ -27,7 +27,7 @@
  *	    Jeremy Kolb  <jkolb@brandeis.edu>
  */
 
-#include <core/engine.h>
+#include <linux/dma-mapping.h>
 #include <linux/swiotlb.h>
 
 #include "nouveau_drm.h"

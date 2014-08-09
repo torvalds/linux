@@ -1,7 +1,6 @@
 #ifndef __NV10_FENCE_H_
 #define __NV10_FENCE_H_
 
-#include <core/os.h>
 #include "nouveau_fence.h"
 #include "nouveau_bo.h"
 

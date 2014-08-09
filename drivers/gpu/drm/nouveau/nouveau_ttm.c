@@ -203,6 +203,7 @@ const struct ttm_mem_type_manager_func nouveau_gart_manager = {
 	nouveau_gart_manager_debug
 };
 
+/*XXX*/
 #include <core/subdev/vm/nv04.h>
 static int
 nv04_gart_manager_init(struct ttm_mem_type_manager *man, unsigned long psize)

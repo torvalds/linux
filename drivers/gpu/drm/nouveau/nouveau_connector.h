@@ -31,10 +31,6 @@
 #include <drm/drm_dp_helper.h>
 #include "nouveau_crtc.h"
 
-#include <core/event.h>
-
-#include <subdev/bios.h>
-
 struct nouveau_i2c_port;
 
 enum nouveau_underscan_type {

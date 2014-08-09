@@ -28,6 +28,8 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_dp_helper.h>
 
+#include <nvif/class.h>
+
 #include "nouveau_drm.h"
 #include "nouveau_dma.h"
 #include "nouveau_gem.h"
@@ -36,8 +38,6 @@
 #include "nouveau_crtc.h"
 #include "nouveau_fence.h"
 #include "nv50_display.h"
-
-#include <core/class.h>
 
 #define EVO_DMA_NR 9
 

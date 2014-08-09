@@ -22,8 +22,6 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#include <core/object.h>
-
 #include "nouveau_drm.h"
 #include "nouveau_dma.h"
 #include "nouveau_fbcon.h"

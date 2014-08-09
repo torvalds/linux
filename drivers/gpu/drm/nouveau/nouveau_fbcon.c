@@ -51,9 +51,6 @@
 
 #include "nouveau_crtc.h"
 
-#include <core/client.h>
-#include <core/device.h>
-
 MODULE_PARM_DESC(nofbaccel, "Disable fbcon acceleration");
 static int nouveau_nofbaccel = 0;
 module_param_named(nofbaccel, nouveau_nofbaccel, int, 0400);

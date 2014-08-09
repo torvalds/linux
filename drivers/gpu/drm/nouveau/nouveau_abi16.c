@@ -21,11 +21,8 @@
  *
  */
 
-#include <core/object.h>
-#include <core/client.h>
-#include <core/device.h>
-#include <core/class.h>
-#include <core/mm.h>
+#include <nvif/os.h>
+#include <nvif/class.h>
 
 #include "nouveau_drm.h"
 #include "nouveau_dma.h"

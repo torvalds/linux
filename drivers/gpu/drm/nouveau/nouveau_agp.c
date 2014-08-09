@@ -1,7 +1,5 @@
 #include <linux/module.h>
 
-#include <core/device.h>
-
 #include "nouveau_drm.h"
 #include "nouveau_agp.h"
 #include "nouveau_reg.h"
