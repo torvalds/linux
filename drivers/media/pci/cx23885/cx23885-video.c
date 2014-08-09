@@ -352,7 +352,7 @@ static int buffer_prepare(struct vb2_buffer *vb)
 				buf->bpl, 0, dev->height);
 		break;
 	case V4L2_FIELD_INTERLACED:
-		if (dev->tvnorm & V4L2_STD_NTSC)
+		if (dev->tvnorm & V4L2_STD_525_60)
 			/* NTSC or  */
 			field_tff = 1;
 		else
@@ -559,6 +559,8 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 		maxh = maxh / 2;
 		break;
 	case V4L2_FIELD_INTERLACED:
+	case V4L2_FIELD_SEQ_TB:
+	case V4L2_FIELD_SEQ_BT:
 		break;
 	default:
 		field = V4L2_FIELD_INTERLACED;
@@ -598,6 +600,8 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	v4l2_fill_mbus_format(&mbus_fmt, &f->fmt.pix, V4L2_MBUS_FMT_FIXED);
 	call_all(dev, video, s_mbus_fmt, &mbus_fmt);
 	v4l2_fill_pix_format(&f->fmt.pix, &mbus_fmt);
+	/* s_mbus_fmt overwrites f->fmt.pix.field, restore it */
+	f->fmt.pix.field = dev->field;
 	return 0;
 }
 
@@ -1140,6 +1144,7 @@ int cx23885_video_register(struct cx23885_dev *dev)
 
 	dev->tvnorm = V4L2_STD_NTSC_M;
 	dev->fmt = format_by_fourcc(V4L2_PIX_FMT_YUYV);
+	dev->field = V4L2_FIELD_INTERLACED;
 	dev->width = norm_maxw(dev->tvnorm);
 	dev->height = norm_maxh(dev->tvnorm);
 
