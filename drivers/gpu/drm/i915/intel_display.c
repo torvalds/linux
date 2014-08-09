@@ -1797,7 +1797,7 @@ static void intel_enable_shared_dpll(struct intel_crtc *crtc)
 	pll->on = true;
 }
 
-void intel_disable_shared_dpll(struct intel_crtc *crtc)
+static void intel_disable_shared_dpll(struct intel_crtc *crtc)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
