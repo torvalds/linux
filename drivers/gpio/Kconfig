@@ -340,6 +340,13 @@ config GPIO_XILINX
 	help
 	  Say yes here to support the Xilinx FPGA GPIO device
 
+config GPIO_ZYNQ
+	tristate "Xilinx Zynq GPIO support"
+	depends on ARCH_ZYNQ
+	select GPIOLIB_IRQCHIP
+	help
+	  Say yes here to support Xilinx Zynq GPIO controller.
+
 config GPIO_XTENSA
 	bool "Xtensa GPIO32 support"
 	depends on XTENSA
@@ -423,7 +430,7 @@ config GPIO_GE_FPGA
 config GPIO_LYNXPOINT
 	tristate "Intel Lynxpoint GPIO support"
 	depends on ACPI && X86
-	select IRQ_DOMAIN
+	select GPIOLIB_IRQCHIP
 	help
 	  driver for GPIO functionality on Intel Lynxpoint PCH chipset
 	  Requires ACPI device enumeration code to set up a platform device.
@@ -586,6 +593,7 @@ config GPIO_SX150X
 config GPIO_STMPE
 	bool "STMPE GPIOs"
 	depends on MFD_STMPE
+	select GPIOLIB_IRQCHIP
 	help
 	  This enables support for the GPIOs found on the STMPE I/O
 	  Expanders.

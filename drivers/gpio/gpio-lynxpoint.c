@@ -25,9 +25,7 @@
 #include <linux/types.h>
 #include <linux/bitops.h>
 #include <linux/interrupt.h>
-#include <linux/irq.h>
 #include <linux/gpio.h>
-#include <linux/irqdomain.h>
 #include <linux/slab.h>
 #include <linux/acpi.h>
 #include <linux/platform_device.h>
@@ -62,7 +60,6 @@
 
 struct lp_gpio {
 	struct gpio_chip	chip;
-	struct irq_domain	*domain;
 	struct platform_device	*pdev;
 	spinlock_t		lock;
 	unsigned long		reg_base;
@@ -151,7 +148,8 @@ static void lp_gpio_free(struct gpio_chip *chip, unsigned offset)
 
 static int lp_irq_type(struct irq_data *d, unsigned type)
 {
-	struct lp_gpio *lg = irq_data_get_irq_chip_data(d);
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct lp_gpio *lg = container_of(gc, struct lp_gpio, chip);
 	u32 hwirq = irqd_to_hwirq(d);
 	unsigned long flags;
 	u32 value;
@@ -236,16 +234,11 @@ static int lp_gpio_direction_output(struct gpio_chip *chip,
 	return 0;
 }
 
-static int lp_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
-{
-	struct lp_gpio *lg = container_of(chip, struct lp_gpio, chip);
-	return irq_create_mapping(lg->domain, offset);
-}
-
 static void lp_gpio_irq_handler(unsigned hwirq, struct irq_desc *desc)
 {
 	struct irq_data *data = irq_desc_get_irq_data(desc);
-	struct lp_gpio *lg = irq_data_get_irq_handler_data(data);
+	struct gpio_chip *gc = irq_desc_get_handler_data(desc);
+	struct lp_gpio *lg = container_of(gc, struct lp_gpio, chip);
 	struct irq_chip *chip = irq_data_get_irq_chip(data);
 	u32 base, pin, mask;
 	unsigned long reg, ena, pending;
@@ -262,7 +255,7 @@ static void lp_gpio_irq_handler(unsigned hwirq, struct irq_desc *desc)
 			mask = BIT(pin);
 			/* Clear before handling so we don't lose an edge */
 			outl(mask, reg);
-			irq = irq_find_mapping(lg->domain, base + pin);
+			irq = irq_find_mapping(lg->chip.irqdomain, base + pin);
 			generic_handle_irq(irq);
 		}
 	}
@@ -279,7 +272,8 @@ static void lp_irq_mask(struct irq_data *d)
 
 static void lp_irq_enable(struct irq_data *d)
 {
-	struct lp_gpio *lg = irq_data_get_irq_chip_data(d);
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct lp_gpio *lg = container_of(gc, struct lp_gpio, chip);
 	u32 hwirq = irqd_to_hwirq(d);
 	unsigned long reg = lp_gpio_reg(&lg->chip, hwirq, LP_INT_ENABLE);
 	unsigned long flags;
@@ -291,7 +285,8 @@ static void lp_irq_enable(struct irq_data *d)
 
 static void lp_irq_disable(struct irq_data *d)
 {
-	struct lp_gpio *lg = irq_data_get_irq_chip_data(d);
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct lp_gpio *lg = container_of(gc, struct lp_gpio, chip);
 	u32 hwirq = irqd_to_hwirq(d);
 	unsigned long reg = lp_gpio_reg(&lg->chip, hwirq, LP_INT_ENABLE);
 	unsigned long flags;
@@ -301,26 +296,6 @@ static void lp_irq_disable(struct irq_data *d)
 	spin_unlock_irqrestore(&lg->lock, flags);
 }
 
-static int lp_irq_reqres(struct irq_data *d)
-{
-	struct lp_gpio *lg = irq_data_get_irq_chip_data(d);
-
-	if (gpio_lock_as_irq(&lg->chip, irqd_to_hwirq(d))) {
-		dev_err(lg->chip.dev,
-			"unable to lock HW IRQ %lu for IRQ\n",
-			irqd_to_hwirq(d));
-		return -EINVAL;
-	}
-	return 0;
-}
-
-static void lp_irq_relres(struct irq_data *d)
-{
-	struct lp_gpio *lg = irq_data_get_irq_chip_data(d);
-
-	gpio_unlock_as_irq(&lg->chip, irqd_to_hwirq(d));
-}
-
 static struct irq_chip lp_irqchip = {
 	.name = "LP-GPIO",
 	.irq_mask = lp_irq_mask,
@@ -328,8 +303,6 @@ static struct irq_chip lp_irqchip = {
 	.irq_enable = lp_irq_enable,
 	.irq_disable = lp_irq_disable,
 	.irq_set_type = lp_irq_type,
-	.irq_request_resources = lp_irq_reqres,
-	.irq_release_resources = lp_irq_relres,
 	.flags = IRQCHIP_SKIP_SET_WAKE,
 };
 
@@ -348,22 +321,6 @@ static void lp_gpio_irq_init_hw(struct lp_gpio *lg)
 	}
 }
 
-static int lp_gpio_irq_map(struct irq_domain *d, unsigned int irq,
-			    irq_hw_number_t hwirq)
-{
-	struct lp_gpio *lg = d->host_data;
-
-	irq_set_chip_and_handler(irq, &lp_irqchip, handle_simple_irq);
-	irq_set_chip_data(irq, lg);
-	irq_set_irq_type(irq, IRQ_TYPE_NONE);
-
-	return 0;
-}
-
-static const struct irq_domain_ops lp_gpio_irq_ops = {
-	.map = lp_gpio_irq_map,
-};
-
 static int lp_gpio_probe(struct platform_device *pdev)
 {
 	struct lp_gpio *lg;
@@ -371,7 +328,6 @@ static int lp_gpio_probe(struct platform_device *pdev)
 	struct resource *io_rc, *irq_rc;
 	struct device *dev = &pdev->dev;
 	unsigned long reg_len;
-	unsigned hwirq;
 	int ret = -ENODEV;
 
 	lg = devm_kzalloc(dev, sizeof(struct lp_gpio), GFP_KERNEL);
@@ -414,27 +370,28 @@ static int lp_gpio_probe(struct platform_device *pdev)
 	gc->can_sleep = false;
 	gc->dev = dev;
 
-	/* set up interrupts  */
-	if (irq_rc && irq_rc->start) {
-		hwirq = irq_rc->start;
-		gc->to_irq = lp_gpio_to_irq;
-
-		lg->domain = irq_domain_add_linear(NULL, LP_NUM_GPIO,
-						   &lp_gpio_irq_ops, lg);
-		if (!lg->domain)
-			return -ENXIO;
-
-		lp_gpio_irq_init_hw(lg);
-
-		irq_set_handler_data(hwirq, lg);
-		irq_set_chained_handler(hwirq, lp_gpio_irq_handler);
-	}
-
 	ret = gpiochip_add(gc);
 	if (ret) {
 		dev_err(dev, "failed adding lp-gpio chip\n");
 		return ret;
 	}
+
+	/* set up interrupts  */
+	if (irq_rc && irq_rc->start) {
+		lp_gpio_irq_init_hw(lg);
+		ret = gpiochip_irqchip_add(gc, &lp_irqchip, 0,
+					   handle_simple_irq, IRQ_TYPE_NONE);
+		if (ret) {
+			dev_err(dev, "failed to add irqchip\n");
+			gpiochip_remove(gc);
+			return ret;
+		}
+
+		gpiochip_set_chained_irqchip(gc, &lp_irqchip,
+					     (unsigned)irq_rc->start,
+					     lp_gpio_irq_handler);
+	}
+
 	pm_runtime_enable(dev);
 
 	return 0;
@@ -465,11 +422,8 @@ MODULE_DEVICE_TABLE(acpi, lynxpoint_gpio_acpi_match);
 static int lp_gpio_remove(struct platform_device *pdev)
 {
 	struct lp_gpio *lg = platform_get_drvdata(pdev);
-	int err;
 	pm_runtime_disable(&pdev->dev);
-	err = gpiochip_remove(&lg->chip);
-	if (err)
-		dev_warn(&pdev->dev, "failed to remove gpio_chip.\n");
+	gpiochip_remove(&lg->chip);
 	return 0;
 }
 

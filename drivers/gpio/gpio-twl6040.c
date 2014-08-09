@@ -111,7 +111,8 @@ static int gpo_twl6040_probe(struct platform_device *pdev)
 
 static int gpo_twl6040_remove(struct platform_device *pdev)
 {
-	return gpiochip_remove(&twl6040gpo_chip);
+	gpiochip_remove(&twl6040gpo_chip);
+	return 0;
 }
 
 /* Note:  this hardware lives inside an I2C-based multi-function device. */
