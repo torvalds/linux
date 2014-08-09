@@ -291,6 +291,8 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 	struct nv_dma_v0 args = {};
 	int ret, i;
 
+	nvif_object_map(chan->object);
+
 	/* allocate dma objects to cover all allowed vram, and gart */
 	if (device->info.family < NV_DEVICE_INFO_V0_FERMI) {
 		if (device->info.family >= NV_DEVICE_INFO_V0_TESLA) {

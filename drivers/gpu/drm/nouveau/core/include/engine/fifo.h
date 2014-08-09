@@ -10,6 +10,7 @@ struct nouveau_fifo_chan {
 	struct nouveau_dmaobj *pushdma;
 	struct nouveau_gpuobj *pushgpu;
 	void __iomem *user;
+	u64 addr;
 	u32 size;
 	u16 chid;
 	atomic_t refcnt; /* NV04_NVSW_SET_REF */
@@ -40,6 +41,7 @@ void nouveau_fifo_channel_destroy(struct nouveau_fifo_chan *);
 #define _nouveau_fifo_channel_fini _nouveau_namedb_fini
 
 void _nouveau_fifo_channel_dtor(struct nouveau_object *);
+int  _nouveau_fifo_channel_map(struct nouveau_object *, u64 *, u32 *);
 u32  _nouveau_fifo_channel_rd32(struct nouveau_object *, u64);
 void _nouveau_fifo_channel_wr32(struct nouveau_object *, u64, u32);
 

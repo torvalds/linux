@@ -302,6 +302,7 @@ nvc0_fifo_ofuncs = {
 	.dtor = _nouveau_fifo_channel_dtor,
 	.init = nvc0_fifo_chan_init,
 	.fini = nvc0_fifo_chan_fini,
+	.map  = _nouveau_fifo_channel_map,
 	.rd32 = _nouveau_fifo_channel_rd32,
 	.wr32 = _nouveau_fifo_channel_wr32,
 };

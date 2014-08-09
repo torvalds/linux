@@ -363,6 +363,7 @@ nv50_fifo_ofuncs_dma = {
 	.dtor = nv50_fifo_chan_dtor,
 	.init = nv50_fifo_chan_init,
 	.fini = nv50_fifo_chan_fini,
+	.map  = _nouveau_fifo_channel_map,
 	.rd32 = _nouveau_fifo_channel_rd32,
 	.wr32 = _nouveau_fifo_channel_wr32,
 };
@@ -373,6 +374,7 @@ nv50_fifo_ofuncs_ind = {
 	.dtor = nv50_fifo_chan_dtor,
 	.init = nv50_fifo_chan_init,
 	.fini = nv50_fifo_chan_fini,
+	.map  = _nouveau_fifo_channel_map,
 	.rd32 = _nouveau_fifo_channel_rd32,
 	.wr32 = _nouveau_fifo_channel_wr32,
 };

@@ -103,15 +103,10 @@ nouveau_fifo_channel_create_(struct nouveau_object *parent,
 		return -ENOSPC;
 	}
 
-	/* map fifo control registers */
-	chan->user = ioremap(nv_device_resource_start(device, bar) + addr +
-			     (chan->chid * size), size);
-	if (!chan->user)
-		return -EFAULT;
-
-	nvkm_event_send(&priv->cevent, 1, 0, NULL, 0);
-
+	chan->addr = nv_device_resource_start(device, bar) +
+		     addr + size * chan->chid;
 	chan->size = size;
+	nvkm_event_send(&priv->cevent, 1, 0, NULL, 0);
 	return 0;
 }
 
@@ -121,7 +116,8 @@ nouveau_fifo_channel_destroy(struct nouveau_fifo_chan *chan)
 	struct nouveau_fifo *priv = (void *)nv_object(chan)->engine;
 	unsigned long flags;
 
-	iounmap(chan->user);
+	if (chan->user)
+		iounmap(chan->user);
 
 	spin_lock_irqsave(&priv->lock, flags);
 	priv->channel[chan->chid] = NULL;
@@ -139,10 +135,24 @@ _nouveau_fifo_channel_dtor(struct nouveau_object *object)
 	nouveau_fifo_channel_destroy(chan);
 }
 
+int
+_nouveau_fifo_channel_map(struct nouveau_object *object, u64 *addr, u32 *size)
+{
+	struct nouveau_fifo_chan *chan = (void *)object;
+	*addr = chan->addr;
+	*size = chan->size;
+	return 0;
+}
+
 u32
 _nouveau_fifo_channel_rd32(struct nouveau_object *object, u64 addr)
 {
 	struct nouveau_fifo_chan *chan = (void *)object;
+	if (unlikely(!chan->user)) {
+		chan->user = ioremap(chan->addr, chan->size);
+		if (WARN_ON_ONCE(chan->user == NULL))
+			return 0;
+	}
 	return ioread32_native(chan->user + addr);
 }
 
@@ -150,6 +160,11 @@ void
 _nouveau_fifo_channel_wr32(struct nouveau_object *object, u64 addr, u32 data)
 {
 	struct nouveau_fifo_chan *chan = (void *)object;
+	if (unlikely(!chan->user)) {
+		chan->user = ioremap(chan->addr, chan->size);
+		if (WARN_ON_ONCE(chan->user == NULL))
+			return;
+	}
 	iowrite32_native(data, chan->user + addr);
 }
 
