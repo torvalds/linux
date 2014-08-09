@@ -465,4 +465,5 @@ gm107_graph_oclass = &(struct nvc0_graph_oclass) {
 	.mmio = gm107_graph_pack_mmio,
 	.fecs.ucode = 0 ? &gm107_graph_fecs_ucode : NULL,
 	.gpccs.ucode = &gm107_graph_gpccs_ucode,
+	.ppc_nr = 2,
 }.base;

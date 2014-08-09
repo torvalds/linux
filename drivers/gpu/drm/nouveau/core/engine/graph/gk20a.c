@@ -44,4 +44,5 @@ gk20a_graph_oclass = &(struct nvc0_graph_oclass) {
 	.cclass = &gk20a_grctx_oclass,
 	.sclass = gk20a_graph_sclass,
 	.mmio = nve4_graph_pack_mmio,
+	.ppc_nr = 1,
 }.base;

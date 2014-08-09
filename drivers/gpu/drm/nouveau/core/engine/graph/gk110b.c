@@ -113,4 +113,5 @@ gk110b_graph_oclass = &(struct nvc0_graph_oclass) {
 	.mmio = gk110b_graph_pack_mmio,
 	.fecs.ucode = &nvf0_graph_fecs_ucode,
 	.gpccs.ucode = &nvf0_graph_gpccs_ucode,
+	.ppc_nr = 2,
 }.base;

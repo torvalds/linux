@@ -1503,7 +1503,7 @@ nvc0_graph_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	struct nouveau_device *device = nv_device(parent);
 	struct nvc0_graph_priv *priv;
 	bool use_ext_fw, enable;
-	int ret, i;
+	int ret, i, j;
 
 	use_ext_fw = nouveau_boolopt(device->cfgopt, "NvGrUseFW",
 				     oclass->fecs.ucode == NULL);
@@ -1549,6 +1549,11 @@ nvc0_graph_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	for (i = 0; i < priv->gpc_nr; i++) {
 		priv->tpc_nr[i]  = nv_rd32(priv, GPC_UNIT(i, 0x2608));
 		priv->tpc_total += priv->tpc_nr[i];
+		priv->ppc_nr[i]  = oclass->ppc_nr;
+		for (j = 0; j < priv->ppc_nr[i]; j++) {
+			u8 mask = nv_rd32(priv, GPC_UNIT(i, 0x0c30 + (j * 4)));
+			priv->ppc_tpc_nr[i][j] = hweight8(mask);
+		}
 	}
 
 	/*XXX: these need figuring out... though it might not even matter */

@@ -220,4 +220,5 @@ nv108_graph_oclass = &(struct nvc0_graph_oclass) {
 	.mmio = nv108_graph_pack_mmio,
 	.fecs.ucode = &nv108_graph_fecs_ucode,
 	.gpccs.ucode = &nv108_graph_gpccs_ucode,
+	.ppc_nr = 1,
 }.base;

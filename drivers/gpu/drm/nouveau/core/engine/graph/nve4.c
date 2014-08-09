@@ -343,4 +343,5 @@ nve4_graph_oclass = &(struct nvc0_graph_oclass) {
 	.mmio = nve4_graph_pack_mmio,
 	.fecs.ucode = &nve4_graph_fecs_ucode,
 	.gpccs.ucode = &nve4_graph_gpccs_ucode,
+	.ppc_nr = 1,
 }.base;

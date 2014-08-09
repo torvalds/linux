@@ -101,6 +101,8 @@ struct nvc0_graph_priv {
 	u8 gpc_nr;
 	u8 tpc_nr[GPC_MAX];
 	u8 tpc_total;
+	u8 ppc_nr[GPC_MAX];
+	u8 ppc_tpc_nr[GPC_MAX][4];
 
 	struct nouveau_gpuobj *unk4188b4;
 	struct nouveau_gpuobj *unk4188b8;
@@ -189,6 +191,7 @@ struct nvc0_graph_oclass {
 	struct {
 		struct nvc0_graph_ucode *ucode;
 	} gpccs;
+	int ppc_nr;
 };
 
 void nvc0_graph_mmio(struct nvc0_graph_priv *, const struct nvc0_graph_pack *);
