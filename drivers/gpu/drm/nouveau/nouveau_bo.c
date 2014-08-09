@@ -257,8 +257,7 @@ static void
 set_placement_range(struct nouveau_bo *nvbo, uint32_t type)
 {
 	struct nouveau_drm *drm = nouveau_bdev(nvbo->bo.bdev);
-	struct nouveau_fb *pfb = nvkm_fb(&drm->device);
-	u32 vram_pages = pfb->ram->size >> PAGE_SHIFT;
+	u32 vram_pages = drm->device.info.ram_size >> PAGE_SHIFT;
 
 	if (drm->device.info.family == NV_DEVICE_INFO_V0_CELSIUS &&
 	    nvbo->tile_mode && (type & TTM_PL_FLAG_VRAM) &&

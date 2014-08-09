@@ -491,7 +491,6 @@ int
 nouveau_fbcon_init(struct drm_device *dev)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_fb *pfb = nvkm_fb(&drm->device);
 	struct nouveau_fbdev *fbcon;
 	int preferred_bpp;
 	int ret;
@@ -518,10 +517,10 @@ nouveau_fbcon_init(struct drm_device *dev)
 
 	drm_fb_helper_single_add_all_connectors(&fbcon->helper);
 
-	if (pfb->ram->size <= 32 * 1024 * 1024)
+	if (drm->device.info.ram_size <= 32 * 1024 * 1024)
 		preferred_bpp = 8;
 	else
-	if (pfb->ram->size <= 64 * 1024 * 1024)
+	if (drm->device.info.ram_size <= 64 * 1024 * 1024)
 		preferred_bpp = 16;
 	else
 		preferred_bpp = 32;

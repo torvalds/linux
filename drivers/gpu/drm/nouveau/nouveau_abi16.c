@@ -240,8 +240,6 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 	struct nouveau_abi16 *abi16 = nouveau_abi16_get(file_priv, dev);
 	struct nouveau_abi16_chan *chan;
 	struct nvif_device *device;
-	struct nouveau_instmem *imem;
-	struct nouveau_fb *pfb;
 	int ret;
 
 	if (unlikely(!abi16))
@@ -251,8 +249,6 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 		return nouveau_abi16_put(abi16, -ENODEV);
 
 	device = &abi16->device;
-	imem   = nvkm_instmem(device);
-	pfb    = nvkm_fb(device);
 
 	/* hack to allow channel engine type specification on kepler */
 	if (device->info.family >= NV_DEVICE_INFO_V0_KEPLER) {

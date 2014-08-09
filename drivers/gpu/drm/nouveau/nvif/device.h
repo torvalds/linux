@@ -29,7 +29,6 @@ void nvif_device_ref(struct nvif_device *, struct nvif_device **);
 /*XXX*/
 #include <subdev/bios.h>
 #include <subdev/fb.h>
-#include <subdev/instmem.h>
 #include <subdev/vm.h>
 #include <subdev/bar.h>
 #include <subdev/gpio.h>
@@ -41,7 +40,6 @@ void nvif_device_ref(struct nvif_device *, struct nvif_device **);
 #define nvkm_device(a) nv_device(nvkm_object((a)))
 #define nvkm_bios(a) nouveau_bios(nvkm_device(a))
 #define nvkm_fb(a) nouveau_fb(nvkm_device(a))
-#define nvkm_instmem(a) nouveau_instmem(nvkm_device(a))
 #define nvkm_vmmgr(a) nouveau_vmmgr(nvkm_device(a))
 #define nvkm_bar(a) nouveau_bar(nvkm_device(a))
 #define nvkm_gpio(a) nouveau_gpio(nvkm_device(a))

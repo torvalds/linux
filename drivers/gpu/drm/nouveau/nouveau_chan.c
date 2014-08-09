@@ -88,9 +88,7 @@ nouveau_channel_prep(struct nouveau_drm *drm, struct nvif_device *device,
 		     u32 handle, u32 size, struct nouveau_channel **pchan)
 {
 	struct nouveau_cli *cli = (void *)nvif_client(&device->base);
-	struct nouveau_instmem *imem = nvkm_instmem(device);
 	struct nouveau_vmmgr *vmm = nvkm_vmmgr(device);
-	struct nouveau_fb *pfb = nvkm_fb(device);
 	struct nv_dma_v0 args = {};
 	struct nouveau_channel *chan;
 	u32 target;
@@ -141,7 +139,6 @@ nouveau_channel_prep(struct nouveau_drm *drm, struct nvif_device *device,
 		args.limit = cli->vm->vmm->limit - 1;
 	} else
 	if (chan->push.buffer->bo.mem.mem_type == TTM_PL_VRAM) {
-		u64 limit = pfb->ram->size - imem->reserved - 1;
 		if (device->info.family == NV_DEVICE_INFO_V0_TNT) {
 			/* nv04 vram pushbuf hack, retarget to its location in
 			 * the framebuffer bar rather than direct vram access..
@@ -150,12 +147,12 @@ nouveau_channel_prep(struct nouveau_drm *drm, struct nvif_device *device,
 			args.target = NV_DMA_V0_TARGET_PCI;
 			args.access = NV_DMA_V0_ACCESS_RDWR;
 			args.start = nv_device_resource_start(nvkm_device(device), 1);
-			args.limit = args.start + limit;
+			args.limit = args.start + device->info.ram_user - 1;
 		} else {
 			args.target = NV_DMA_V0_TARGET_VRAM;
 			args.access = NV_DMA_V0_ACCESS_RDWR;
 			args.start = 0;
-			args.limit = limit;
+			args.limit = device->info.ram_user - 1;
 		}
 	} else {
 		if (chan->drm->agp.stat == ENABLED) {
@@ -284,9 +281,7 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 {
 	struct nvif_device *device = chan->device;
 	struct nouveau_cli *cli = (void *)nvif_client(&device->base);
-	struct nouveau_instmem *imem = nvkm_instmem(device);
 	struct nouveau_vmmgr *vmm = nvkm_vmmgr(device);
-	struct nouveau_fb *pfb = nvkm_fb(device);
 	struct nouveau_software_chan *swch;
 	struct nv_dma_v0 args = {};
 	int ret, i;
@@ -304,7 +299,7 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 			args.target = NV_DMA_V0_TARGET_VRAM;
 			args.access = NV_DMA_V0_ACCESS_RDWR;
 			args.start = 0;
-			args.limit = pfb->ram->size - imem->reserved - 1;
+			args.limit = device->info.ram_user - 1;
 		}
 
 		ret = nvif_object_init(chan->object, NULL, vram,

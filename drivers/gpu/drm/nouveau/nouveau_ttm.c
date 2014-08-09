@@ -389,8 +389,7 @@ nouveau_ttm_init(struct nouveau_drm *drm)
 	}
 
 	/* VRAM init */
-	drm->gem.vram_available  = nvkm_fb(&drm->device)->ram->size;
-	drm->gem.vram_available -= nvkm_instmem(&drm->device)->reserved;
+	drm->gem.vram_available = drm->device.info.ram_user;
 
 	ret = ttm_bo_init_mm(&drm->ttm.bdev, TTM_PL_VRAM,
 			      drm->gem.vram_available >> PAGE_SHIFT);

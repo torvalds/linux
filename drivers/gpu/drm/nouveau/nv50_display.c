@@ -195,19 +195,19 @@ nv50_dmac_create(struct nvif_object *disp, const u32 *oclass, u8 head,
 		 void *data, u32 size, u64 syncbuf,
 		 struct nv50_dmac *dmac)
 {
-	struct nouveau_fb *pfb = nvkm_fb(nvif_device(disp));
+	struct nvif_device *device = nvif_device(disp);
 	struct nv50_disp_core_channel_dma_v0 *args = data;
 	struct nvif_object pushbuf;
 	int ret;
 
 	mutex_init(&dmac->lock);
 
-	dmac->ptr = pci_alloc_consistent(nvkm_device(nvif_device(disp))->pdev,
+	dmac->ptr = pci_alloc_consistent(nvkm_device(device)->pdev,
 					 PAGE_SIZE, &dmac->handle);
 	if (!dmac->ptr)
 		return -ENOMEM;
 
-	ret = nvif_object_init(nvif_object(nvif_device(disp)), NULL,
+	ret = nvif_object_init(nvif_object(device), NULL,
 			       args->pushbuf, NV_DMA_FROM_MEMORY,
 			       &(struct nv_dma_v0) {
 					.target = NV_DMA_V0_TARGET_PCI_US,
@@ -241,7 +241,7 @@ nv50_dmac_create(struct nvif_object *disp, const u32 *oclass, u8 head,
 					.target = NV_DMA_V0_TARGET_VRAM,
 					.access = NV_DMA_V0_ACCESS_RDWR,
 					.start = 0,
-					.limit = pfb->ram->size - 1,
+					.limit = device->info.ram_user - 1,
 			       }, sizeof(struct nv_dma_v0),
 			       &dmac->vram);
 	if (ret)
@@ -2339,7 +2339,6 @@ nv50_fb_ctor(struct drm_framebuffer *fb)
 	struct nouveau_drm *drm = nouveau_drm(fb->dev);
 	struct nouveau_bo *nvbo = nv_fb->nvbo;
 	struct nv50_disp *disp = nv50_disp(fb->dev);
-	struct nouveau_fb *pfb = nvkm_fb(&drm->device);
 	u8 kind = nouveau_bo_tile_layout(nvbo) >> 8;
 	u8 tile = nvbo->tile_mode;
 
@@ -2377,7 +2376,8 @@ nv50_fb_ctor(struct drm_framebuffer *fb)
 	}
 	nv_fb->r_handle = 0xffff0000 | kind;
 
-	return nv50_fbdma_init(fb->dev, nv_fb->r_handle, 0, pfb->ram->size, kind);
+	return nv50_fbdma_init(fb->dev, nv_fb->r_handle, 0,
+			       drm->device.info.ram_user, kind);
 }
 
 /******************************************************************************
