@@ -83,7 +83,7 @@ nouveau_fifo_channel_create_(struct nouveau_object *parent,
 		return -EINVAL;
 	}
 
-	ret = dmaeng->bind(dmaeng, parent, chan->pushdma, &chan->pushgpu);
+	ret = dmaeng->bind(chan->pushdma, parent, &chan->pushgpu);
 	if (ret)
 		return ret;
 

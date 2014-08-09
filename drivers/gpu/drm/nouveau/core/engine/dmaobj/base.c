@@ -30,22 +30,43 @@
 #include "priv.h"
 
 static int
-nouveau_dmaobj_ctor(struct nouveau_object *parent,
-		    struct nouveau_object *engine,
-		    struct nouveau_oclass *oclass, void *data, u32 size,
-		    struct nouveau_object **pobject)
+nvkm_dmaobj_bind(struct nouveau_dmaobj *dmaobj, struct nouveau_object *parent,
+		 struct nouveau_gpuobj **pgpuobj)
 {
-	struct nouveau_dmaeng *dmaeng = (void *)engine;
+	const struct nvkm_dmaeng_impl *impl = (void *)
+		nv_oclass(nv_object(dmaobj)->engine);
+	int ret = 0;
+
+	if (nv_object(dmaobj) == parent) { /* ctor bind */
+		if (nv_mclass(parent->parent) == NV_DEVICE) {
+			/* delayed, or no, binding */
+			return 0;
+		}
+		ret = impl->bind(dmaobj, parent, pgpuobj);
+		if (ret == 0)
+			nouveau_object_ref(NULL, &parent);
+		return ret;
+	}
+
+	return impl->bind(dmaobj, parent, pgpuobj);
+}
+
+int
+nvkm_dmaobj_create_(struct nouveau_object *parent,
+		    struct nouveau_object *engine,
+		    struct nouveau_oclass *oclass, void **pdata, u32 *psize,
+		    int length, void **pobject)
+{
+	struct nv_dma_class *args = *pdata;
 	struct nouveau_dmaobj *dmaobj;
-	struct nouveau_gpuobj *gpuobj;
-	struct nv_dma_class *args = data;
 	int ret;
 
-	if (size < sizeof(*args))
+	if (*psize < sizeof(*args))
 		return -EINVAL;
+	*pdata = &args->conf0;
 
-	ret = nouveau_object_create(parent, engine, oclass, 0, &dmaobj);
-	*pobject = nv_object(dmaobj);
+	ret = nouveau_object_create_(parent, engine, oclass, 0, length, pobject);
+	dmaobj = *pobject;
 	if (ret)
 		return ret;
 
@@ -87,38 +108,8 @@ nouveau_dmaobj_ctor(struct nouveau_object *parent,
 	dmaobj->start = args->start;
 	dmaobj->limit = args->limit;
 	dmaobj->conf0 = args->conf0;
-
-	switch (nv_mclass(parent)) {
-	case NV_DEVICE:
-		/* delayed, or no, binding */
-		break;
-	default:
-		ret = dmaeng->bind(dmaeng, *pobject, dmaobj, &gpuobj);
-		if (ret == 0) {
-			nouveau_object_ref(NULL, pobject);
-			*pobject = nv_object(gpuobj);
-		}
-		break;
-	}
-
 	return ret;
 }
-
-static struct nouveau_ofuncs
-nouveau_dmaobj_ofuncs = {
-	.ctor = nouveau_dmaobj_ctor,
-	.dtor = nouveau_object_destroy,
-	.init = nouveau_object_init,
-	.fini = nouveau_object_fini,
-};
-
-static struct nouveau_oclass
-nouveau_dmaobj_sclass[] = {
-	{ NV_DMA_FROM_MEMORY_CLASS, &nouveau_dmaobj_ofuncs },
-	{ NV_DMA_TO_MEMORY_CLASS, &nouveau_dmaobj_ofuncs },
-	{ NV_DMA_IN_MEMORY_CLASS, &nouveau_dmaobj_ofuncs },
-	{}
-};
 
 int
 _nvkm_dmaeng_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
@@ -135,7 +126,7 @@ _nvkm_dmaeng_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	if (ret)
 		return ret;
 
-	nv_engine(dmaeng)->sclass = nouveau_dmaobj_sclass;
-	dmaeng->bind = impl->bind;
+	nv_engine(dmaeng)->sclass = impl->sclass;
+	dmaeng->bind = nvkm_dmaobj_bind;
 	return 0;
 }

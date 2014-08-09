@@ -3,6 +3,16 @@
 
 #include <engine/dmaobj.h>
 
+#define nvkm_dmaobj_create(p,e,c,pa,sa,d)                                      \
+	nvkm_dmaobj_create_((p), (e), (c), (pa), (sa), sizeof(**d), (void **)d)
+
+int nvkm_dmaobj_create_(struct nouveau_object *, struct nouveau_object *,
+			struct nouveau_oclass *, void **, u32 *,
+			int, void **);
+#define _nvkm_dmaobj_dtor nouveau_object_destroy
+#define _nvkm_dmaobj_init nouveau_object_init
+#define _nvkm_dmaobj_fini nouveau_object_fini
+
 int _nvkm_dmaeng_ctor(struct nouveau_object *, struct nouveau_object *,
 		      struct nouveau_oclass *, void *, u32,
 		      struct nouveau_object **);
@@ -12,8 +22,9 @@ int _nvkm_dmaeng_ctor(struct nouveau_object *, struct nouveau_object *,
 
 struct nvkm_dmaeng_impl {
 	struct nouveau_oclass base;
-	int (*bind)(struct nouveau_dmaeng *, struct nouveau_object *,
-		    struct nouveau_dmaobj *, struct nouveau_gpuobj **);
+	struct nouveau_oclass *sclass;
+	int (*bind)(struct nouveau_dmaobj *, struct nouveau_object *,
+		    struct nouveau_gpuobj **);
 };
 
 #endif

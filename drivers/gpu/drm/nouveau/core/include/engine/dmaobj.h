@@ -19,9 +19,8 @@ struct nouveau_dmaeng {
 	struct nouveau_engine base;
 
 	/* creates a "physical" dma object from a struct nouveau_dmaobj */
-	int (*bind)(struct nouveau_dmaeng *dmaeng,
+	int (*bind)(struct nouveau_dmaobj *dmaobj,
 		    struct nouveau_object *parent,
-		    struct nouveau_dmaobj *dmaobj,
 		    struct nouveau_gpuobj **);
 };
 
