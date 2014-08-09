@@ -1466,16 +1466,24 @@ nv50_dac_dpms(struct drm_encoder *encoder, int mode)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct nv50_disp *disp = nv50_disp(encoder->dev);
-	int or = nv_encoder->or;
-	u32 dpms_ctrl;
+	struct {
+		struct nv50_disp_mthd_v1 base;
+		struct nv50_disp_dac_pwr_v0 pwr;
+	} args = {
+		.base.version = 1,
+		.base.method = NV50_DISP_MTHD_V1_DAC_PWR,
+		.base.hasht  = nv_encoder->dcb->hasht,
+		.base.hashm  = nv_encoder->dcb->hashm,
+		.pwr.state = 1,
+		.pwr.data  = 1,
+		.pwr.vsync = (mode != DRM_MODE_DPMS_SUSPEND &&
+			      mode != DRM_MODE_DPMS_OFF),
+		.pwr.hsync = (mode != DRM_MODE_DPMS_STANDBY &&
+			      mode != DRM_MODE_DPMS_OFF),
+	};
 
-	dpms_ctrl = 0x00000000;
-	if (mode == DRM_MODE_DPMS_STANDBY || mode == DRM_MODE_DPMS_OFF)
-		dpms_ctrl |= 0x00000001;
-	if (mode == DRM_MODE_DPMS_SUSPEND || mode == DRM_MODE_DPMS_OFF)
-		dpms_ctrl |= 0x00000004;
 
-	nvif_exec(disp->disp, NV50_DISP_DAC_PWR + or, &dpms_ctrl, sizeof(dpms_ctrl));
+	nvif_mthd(disp->disp, 0, &args, sizeof(args));
 }
 
 static bool

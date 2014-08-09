@@ -23,10 +23,13 @@
  */
 
 #include <core/object.h>
+#include <core/client.h>
 #include <core/parent.h>
 #include <core/handle.h>
-#include <core/class.h>
 #include <core/enum.h>
+#include <core/class.h>
+#include <nvif/unpack.h>
+#include <nvif/class.h>
 
 #include <subdev/bios.h>
 #include <subdev/bios/dcb.h>
@@ -840,6 +843,72 @@ nv50_disp_base_scanoutpos(struct nouveau_object *object, u32 mthd,
 }
 
 int
+nv50_disp_base_mthd(struct nouveau_object *object, u32 mthd,
+		    void *data, u32 size)
+{
+	union {
+		struct nv50_disp_mthd_v0 v0;
+		struct nv50_disp_mthd_v1 v1;
+	} *args = data;
+	struct nv50_disp_priv *priv = (void *)object->engine;
+	struct nvkm_output *outp = NULL;
+	struct nvkm_output *temp;
+	u16 type, mask = 0;
+	int head, ret;
+
+	if (mthd != NV50_DISP_MTHD)
+		return -EINVAL;
+
+	nv_ioctl(object, "disp mthd size %d\n", size);
+	if (nvif_unpack(args->v0, 0, 0, true)) {
+		nv_ioctl(object, "disp mthd vers %d mthd %02x head %d\n",
+			 args->v0.version, args->v0.method, args->v0.head);
+		mthd = args->v0.method;
+		head = args->v0.head;
+	} else
+	if (nvif_unpack(args->v1, 1, 1, true)) {
+		nv_ioctl(object, "disp mthd vers %d mthd %02x "
+				 "type %04x mask %04x\n",
+			 args->v1.version, args->v1.method,
+			 args->v1.hasht, args->v1.hashm);
+		mthd = args->v1.method;
+		type = args->v1.hasht;
+		mask = args->v1.hashm;
+		head = ffs((mask >> 8) & 0x0f) - 1;
+	} else
+		return ret;
+
+	if (head < 0 || head >= priv->head.nr)
+		return -ENXIO;
+
+	if (mask) {
+		list_for_each_entry(temp, &priv->base.outp, head) {
+			if ((temp->info.hasht         == type) &&
+			    (temp->info.hashm & mask) == mask) {
+				outp = temp;
+				break;
+			}
+		}
+		if (outp == NULL)
+			return -ENXIO;
+	}
+
+	switch (mthd) {
+	default:
+		break;
+	}
+
+	switch (mthd * !!outp) {
+	case NV50_DISP_MTHD_V1_DAC_PWR:
+		return priv->dac.power(object, priv, data, size, head, outp);
+	default:
+		break;
+	}
+
+	return -EINVAL;
+}
+
+int
 nv50_disp_base_ctor(struct nouveau_object *parent,
 		    struct nouveau_object *engine,
 		    struct nouveau_oclass *oclass, void *data, u32 size,
@@ -954,6 +1023,7 @@ nv50_disp_base_ofuncs = {
 	.dtor = nv50_disp_base_dtor,
 	.init = nv50_disp_base_init,
 	.fini = nv50_disp_base_fini,
+	.mthd = nv50_disp_base_mthd,
 };
 
 static struct nouveau_omthds
@@ -961,7 +1031,6 @@ nv50_disp_base_omthds[] = {
 	{ HEAD_MTHD(NV50_DISP_SCANOUTPOS)     , nv50_disp_base_scanoutpos },
 	{ SOR_MTHD(NV50_DISP_SOR_PWR)         , nv50_sor_mthd },
 	{ SOR_MTHD(NV50_DISP_SOR_LVDS_SCRIPT) , nv50_sor_mthd },
-	{ DAC_MTHD(NV50_DISP_DAC_PWR)         , nv50_dac_mthd },
 	{ DAC_MTHD(NV50_DISP_DAC_LOAD)        , nv50_dac_mthd },
 	{ PIOR_MTHD(NV50_DISP_PIOR_PWR)       , nv50_pior_mthd },
 	{ PIOR_MTHD(NV50_DISP_PIOR_TMDS_PWR)  , nv50_pior_mthd },

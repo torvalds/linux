@@ -1397,6 +1397,7 @@ parse_dcb20_entry(struct drm_device *dev, struct dcb_table *dcb,
 		  uint32_t conn, uint32_t conf, struct dcb_output *entry)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
+	int link = 0;
 
 	entry->type = conn & 0xf;
 	entry->i2c_index = (conn >> 4) & 0xf;
@@ -1442,6 +1443,7 @@ parse_dcb20_entry(struct drm_device *dev, struct dcb_table *dcb,
 			if (conf & 0x4)
 				entry->lvdsconf.use_power_scripts = true;
 			entry->lvdsconf.sor.link = (conf & 0x00000030) >> 4;
+			link = entry->lvdsconf.sor.link;
 		}
 		if (conf & mask) {
 			/*
@@ -1490,17 +1492,18 @@ parse_dcb20_entry(struct drm_device *dev, struct dcb_table *dcb,
 			entry->dpconf.link_nr = 1;
 			break;
 		}
+		link = entry->dpconf.sor.link;
 		break;
 	case DCB_OUTPUT_TMDS:
 		if (dcb->version >= 0x40) {
 			entry->tmdsconf.sor.link = (conf & 0x00000030) >> 4;
 			entry->extdev = (conf & 0x0000ff00) >> 8;
+			link = entry->tmdsconf.sor.link;
 		}
 		else if (dcb->version >= 0x30)
 			entry->tmdsconf.slave_addr = (conf & 0x00000700) >> 8;
 		else if (dcb->version >= 0x22)
 			entry->tmdsconf.slave_addr = (conf & 0x00000070) >> 4;
-
 		break;
 	case DCB_OUTPUT_EOL:
 		/* weird g80 mobile type that "nv" treats as a terminator */
@@ -1524,6 +1527,8 @@ parse_dcb20_entry(struct drm_device *dev, struct dcb_table *dcb,
 	if (conf & 0x100000)
 		entry->i2c_upper_default = true;
 
+	entry->hasht = (entry->location << 4) | entry->type;
+	entry->hashm = (entry->heads << 8) | (link << 6) | entry->or;
 	return true;
 }
 

@@ -290,4 +290,47 @@ struct kepler_channel_gpfifo_a_v0 {
 	__u64 ioffset;
 };
 
+/*******************************************************************************
+ * legacy display
+ ******************************************************************************/
+
+
+/*******************************************************************************
+ * display
+ ******************************************************************************/
+
+#define NV50_DISP_MTHD                                                     0x00
+
+struct nv50_disp_mthd_v0 {
+	__u8  version;
+	__u8  method;
+	__u8  head;
+	__u8  pad03[5];
+};
+
+struct nv50_disp_mthd_v1 {
+	__u8  version;
+#define NV50_DISP_MTHD_V1_DAC_PWR                                          0x10
+#define NV50_DISP_MTHD_V1_DAC_LOAD                                         0x11
+#define NV50_DISP_MTHD_V1_SOR_PWR                                          0x20
+#define NV50_DISP_MTHD_V1_SOR_HDA_ELD                                      0x21
+#define NV50_DISP_MTHD_V1_SOR_HDMI_PWR                                     0x22
+#define NV50_DISP_MTHD_V1_SOR_LVDS_SCRIPT                                  0x23
+#define NV50_DISP_MTHD_V1_SOR_DP_PWR                                       0x24
+#define NV50_DISP_MTHD_V1_PIOR_PWR                                         0x30
+	__u8  method;
+	__u16 hasht;
+	__u16 hashm;
+	__u8  pad06[2];
+};
+
+struct nv50_disp_dac_pwr_v0 {
+	__u8  version;
+	__u8  state;
+	__u8  data;
+	__u8  vsync;
+	__u8  hsync;
+	__u8  pad05[3];
+};
+
 #endif

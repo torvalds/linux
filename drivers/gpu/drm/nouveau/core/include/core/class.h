@@ -49,7 +49,6 @@ struct nv04_display_scanoutpos {
 #define NVF0_DISP_CLASS                                              0x00009270
 #define GM107_DISP_CLASS                                             0x00009470
 
-#define NV50_DISP_MTHD                                               0x00000000
 #define NV50_DISP_MTHD_HEAD                                          0x00000003
 
 #define NV50_DISP_SCANOUTPOS                                         0x00000000
@@ -82,19 +81,6 @@ struct nv04_display_scanoutpos {
 #define NV50_DISP_DAC_MTHD_TYPE                                      0x0000f000
 #define NV50_DISP_DAC_MTHD_OR                                        0x00000003
 
-#define NV50_DISP_DAC_PWR                                            0x00020000
-#define NV50_DISP_DAC_PWR_HSYNC                                      0x00000001
-#define NV50_DISP_DAC_PWR_HSYNC_ON                                   0x00000000
-#define NV50_DISP_DAC_PWR_HSYNC_LO                                   0x00000001
-#define NV50_DISP_DAC_PWR_VSYNC                                      0x00000004
-#define NV50_DISP_DAC_PWR_VSYNC_ON                                   0x00000000
-#define NV50_DISP_DAC_PWR_VSYNC_LO                                   0x00000004
-#define NV50_DISP_DAC_PWR_DATA                                       0x00000010
-#define NV50_DISP_DAC_PWR_DATA_ON                                    0x00000000
-#define NV50_DISP_DAC_PWR_DATA_LO                                    0x00000010
-#define NV50_DISP_DAC_PWR_STATE                                      0x00000040
-#define NV50_DISP_DAC_PWR_STATE_ON                                   0x00000000
-#define NV50_DISP_DAC_PWR_STATE_OFF                                  0x00000040
 #define NV50_DISP_DAC_LOAD                                           0x00020100
 #define NV50_DISP_DAC_LOAD_VALUE                                     0x00000007
 

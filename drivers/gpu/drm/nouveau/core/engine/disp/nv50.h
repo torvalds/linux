@@ -24,6 +24,11 @@ struct nv50_disp_impl {
 	} mthd;
 };
 
+#define NV50_DISP_MTHD_ struct nouveau_object *object,                         \
+	struct nv50_disp_priv *priv, void *data, u32 size
+#define NV50_DISP_MTHD_V0 NV50_DISP_MTHD_, int head
+#define NV50_DISP_MTHD_V1 NV50_DISP_MTHD_, int head, struct nvkm_output *outp
+
 struct nv50_disp_priv {
 	struct nouveau_disp base;
 	struct nouveau_oclass *sclass;
@@ -36,7 +41,7 @@ struct nv50_disp_priv {
 	} head;
 	struct {
 		int nr;
-		int (*power)(struct nv50_disp_priv *, int dac, u32 data);
+		int (*power)(NV50_DISP_MTHD_V1);
 		int (*sense)(struct nv50_disp_priv *, int dac, u32 load);
 	} dac;
 	struct {
@@ -56,11 +61,12 @@ struct nv50_disp_priv {
 #define HEAD_MTHD(n) (n), (n) + 0x03
 
 int nv50_disp_base_scanoutpos(struct nouveau_object *, u32, void *, u32);
+int nv50_disp_base_mthd(struct nouveau_object *, u32, void *, u32);
 
 #define DAC_MTHD(n) (n), (n) + 0x03
 
 int nv50_dac_mthd(struct nouveau_object *, u32, void *, u32);
-int nv50_dac_power(struct nv50_disp_priv *, int, u32);
+int nv50_dac_power(NV50_DISP_MTHD_V1);
 int nv50_dac_sense(struct nv50_disp_priv *, int, u32);
 
 #define SOR_MTHD(n) (n), (n) + 0x3f

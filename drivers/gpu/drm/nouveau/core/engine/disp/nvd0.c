@@ -706,6 +706,7 @@ nvd0_disp_base_ofuncs = {
 	.dtor = nv50_disp_base_dtor,
 	.init = nvd0_disp_base_init,
 	.fini = nvd0_disp_base_fini,
+	.mthd = nv50_disp_base_mthd,
 };
 
 struct nouveau_omthds
@@ -716,7 +717,6 @@ nvd0_disp_base_omthds[] = {
 	{ SOR_MTHD(NV84_DISP_SOR_HDMI_PWR)    , nv50_sor_mthd },
 	{ SOR_MTHD(NV50_DISP_SOR_LVDS_SCRIPT) , nv50_sor_mthd },
 	{ SOR_MTHD(NV94_DISP_SOR_DP_PWR)      , nv50_sor_mthd },
-	{ DAC_MTHD(NV50_DISP_DAC_PWR)         , nv50_dac_mthd },
 	{ DAC_MTHD(NV50_DISP_DAC_LOAD)        , nv50_dac_mthd },
 	{ PIOR_MTHD(NV50_DISP_PIOR_PWR)       , nv50_pior_mthd },
 	{ PIOR_MTHD(NV50_DISP_PIOR_TMDS_PWR)  , nv50_pior_mthd },

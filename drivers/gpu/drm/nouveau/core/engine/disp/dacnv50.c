@@ -22,8 +22,10 @@
  * Authors: Ben Skeggs
  */
 
-#include <core/os.h>
+#include <core/client.h>
 #include <core/class.h>
+#include <nvif/unpack.h>
+#include <nvif/class.h>
 
 #include <subdev/bios.h>
 #include <subdev/bios/dcb.h>
@@ -32,13 +34,28 @@
 #include "nv50.h"
 
 int
-nv50_dac_power(struct nv50_disp_priv *priv, int or, u32 data)
+nv50_dac_power(NV50_DISP_MTHD_V1)
 {
-	const u32 stat = (data & NV50_DISP_DAC_PWR_HSYNC) |
-		         (data & NV50_DISP_DAC_PWR_VSYNC) |
-		         (data & NV50_DISP_DAC_PWR_DATA) |
-		         (data & NV50_DISP_DAC_PWR_STATE);
-	const u32 doff = (or * 0x800);
+	const u32 doff = outp->or * 0x800;
+	union {
+		struct nv50_disp_dac_pwr_v0 v0;
+	} *args = data;
+	u32 stat;
+	int ret;
+
+	nv_ioctl(object, "disp dac pwr size %d\n", size);
+	if (nvif_unpack(args->v0, 0, 0, false)) {
+		nv_ioctl(object, "disp dac pwr vers %d state %d data %d "
+				 "vsync %d hsync %d\n",
+			 args->v0.version, args->v0.state, args->v0.data,
+			 args->v0.vsync, args->v0.hsync);
+		stat  = 0x00000040 * !args->v0.state;
+		stat |= 0x00000010 * !args->v0.data;
+		stat |= 0x00000004 * !args->v0.vsync;
+		stat |= 0x00000001 * !args->v0.hsync;
+	} else
+		return ret;
+
 	nv_wait(priv, 0x61a004 + doff, 0x80000000, 0x00000000);
 	nv_mask(priv, 0x61a004 + doff, 0xc000007f, 0x80000000 | stat);
 	nv_wait(priv, 0x61a004 + doff, 0x80000000, 0x00000000);
@@ -80,9 +97,6 @@ nv50_dac_mthd(struct nouveau_object *object, u32 mthd, void *args, u32 size)
 		return -EINVAL;
 
 	switch (mthd & ~0x3f) {
-	case NV50_DISP_DAC_PWR:
-		ret = priv->dac.power(priv, or, data[0]);
-		break;
 	case NV50_DISP_DAC_LOAD:
 		ret = priv->dac.sense(priv, or, data[0]);
 		if (ret >= 0) {
