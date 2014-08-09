@@ -6387,6 +6387,7 @@ static int dgap_parsefile(char **in)
 
 	for (; ;) {
 		int board_type = 0;
+		int conc_type = 0;
 
 		rc = dgap_gettok(in);
 		if (rc == 0) {
@@ -6719,24 +6720,15 @@ static int dgap_parsefile(char **in)
 			else
 				brd->u.board.conc1++;
 
-			break;
-
-		case CX:	/* c/x type concentrator */
-			if (p->type != CNODE) {
-				dgap_err("cx only valid for concentrators");
+			conc_type = dgap_gettok(in);
+			if (conc_type == 0 || conc_type != CX ||
+			    conc_type != EPC) {
+				dgap_err("failed to set a type of concentratros");
 				return -1;
 			}
-			p->u.conc.type = CX;
-			p->u.conc.v_type = 1;
-			break;
 
-		case EPC:	/* epc type concentrator */
-			if (p->type != CNODE) {
-				dgap_err("cx only valid for concentrators");
-				return -1;
-			}
-			p->u.conc.type = EPC;
-			p->u.conc.v_type = 1;
+			p->u.conc.type = conc_type;
+
 			break;
 
 		case MOD:	/* EBI module */
@@ -7200,10 +7192,6 @@ static int dgap_checknode(struct cnode *p)
 		return 0;
 
 	case CNODE:
-		if (p->u.conc.v_type == 0) {
-			dgap_err("concentrator type not specified");
-			return 1;
-		}
 		if (p->u.conc.v_speed == 0) {
 			dgap_err("concentrator line speed not specified");
 			return 1;

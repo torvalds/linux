@@ -1206,7 +1206,6 @@ struct cnode {
 			char  *id;
 			char  *idstr;
 			long  start;
-			char  v_type;
 			char  v_connect;
 			char  v_speed;
 			char  v_nport;
