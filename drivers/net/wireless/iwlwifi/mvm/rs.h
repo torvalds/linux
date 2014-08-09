@@ -207,6 +207,7 @@ struct rs_rate {
 	u8 ant;
 	u32 bw;
 	bool sgi;
+	bool ldpc;
 };
 
 
@@ -329,6 +330,7 @@ struct iwl_lq_sta {
 				 */
 	u64 last_tx;
 	bool is_vht;
+	bool ldpc;              /* LDPC Rx is supported by the STA */
 	enum ieee80211_band band;
 
 	struct rs_rate_stats tx_stats[RS_COLUMN_COUNT][IWL_RATE_COUNT];
