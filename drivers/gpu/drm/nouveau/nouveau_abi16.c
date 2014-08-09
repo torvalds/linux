@@ -490,9 +490,22 @@ int
 nouveau_abi16_ioctl_gpuobj_free(ABI16_IOCTL_ARGS)
 {
 	struct drm_nouveau_gpuobj_free *fini = data;
+	struct {
+		struct nvif_ioctl_v0 ioctl;
+		struct nvif_ioctl_del del;
+	} args = {
+		.ioctl.owner = NVDRM_OBJECT_ABI16,
+		.ioctl.type = NVIF_IOCTL_V0_DEL,
+		.ioctl.path_nr = 4,
+		.ioctl.path[3] = NOUVEAU_ABI16_CLIENT,
+		.ioctl.path[2] = NOUVEAU_ABI16_DEVICE,
+		.ioctl.path[1] = NOUVEAU_ABI16_CHAN(fini->channel),
+		.ioctl.path[0] = fini->handle,
+	};
 	struct nouveau_abi16 *abi16 = nouveau_abi16_get(file_priv, dev);
 	struct nouveau_abi16_chan *chan;
 	struct nouveau_abi16_ntfy *ntfy;
+	struct nvif_client *client;
 	int ret;
 
 	if (unlikely(!abi16))
@@ -501,13 +514,12 @@ nouveau_abi16_ioctl_gpuobj_free(ABI16_IOCTL_ARGS)
 	chan = nouveau_abi16_chan(abi16, fini->channel);
 	if (!chan)
 		return nouveau_abi16_put(abi16, -ENOENT);
+	client = nvif_client(nvif_object(&abi16->device));
 
 	/* synchronize with the user channel and destroy the gpu object */
 	nouveau_channel_idle(chan->chan);
 
-	/*XXX*/
-	ret = nouveau_object_del(nv_object(nvkm_client(&abi16->device.base)),
-				 chan->chan->object->handle, fini->handle);
+	ret = nvif_client_ioctl(client, &args, sizeof(args));
 	if (ret)
 		return nouveau_abi16_put(abi16, ret);
 
