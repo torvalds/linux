@@ -3592,11 +3592,12 @@ int
 i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj, bool write)
 {
 	struct drm_i915_private *dev_priv = obj->base.dev->dev_private;
+	struct i915_vma *vma = i915_gem_obj_to_ggtt(obj);
 	uint32_t old_write_domain, old_read_domains;
 	int ret;
 
 	/* Not valid to be called on unbound objects. */
-	if (!i915_gem_obj_bound_any(obj))
+	if (vma == NULL)
 		return -EINVAL;
 
 	if (obj->base.write_domain == I915_GEM_DOMAIN_GTT)
@@ -3638,13 +3639,9 @@ i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj, bool write)
 					    old_write_domain);
 
 	/* And bump the LRU for this access */
-	if (i915_gem_object_is_inactive(obj)) {
-		struct i915_vma *vma = i915_gem_obj_to_ggtt(obj);
-		if (vma)
-			list_move_tail(&vma->mm_list,
-				       &dev_priv->gtt.base.inactive_list);
-
-	}
+	if (i915_gem_object_is_inactive(obj))
+		list_move_tail(&vma->mm_list,
+			       &dev_priv->gtt.base.inactive_list);
 
 	return 0;
 }
@@ -3807,9 +3804,6 @@ unlock:
 static bool is_pin_display(struct drm_i915_gem_object *obj)
 {
 	struct i915_vma *vma;
-
-	if (list_empty(&obj->vma_list))
-		return false;
 
 	vma = i915_gem_obj_to_ggtt(obj);
 	if (!vma)
@@ -5252,12 +5246,6 @@ i915_gem_shrinker_oom(struct notifier_block *nb, unsigned long event, void *ptr)
 struct i915_vma *i915_gem_obj_to_ggtt(struct drm_i915_gem_object *obj)
 {
 	struct i915_vma *vma;
-
-	/* This WARN has probably outlived its usefulness (callers already
-	 * WARN if they don't find the GGTT vma they expect). When removing,
-	 * remember to remove the pre-check in is_pin_display() as well */
-	if (WARN_ON(list_empty(&obj->vma_list)))
-		return NULL;
 
 	vma = list_first_entry(&obj->vma_list, typeof(*vma), vma_link);
 	if (vma->vm != obj_to_ggtt(obj))
