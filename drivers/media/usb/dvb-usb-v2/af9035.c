@@ -647,16 +647,19 @@ static int af9035_read_config(struct dvb_usb_device *d)
 	state->af9033_config[0].ts_mode = AF9033_TS_MODE_USB;
 	state->af9033_config[1].ts_mode = AF9033_TS_MODE_SERIAL;
 
-	/* eeprom memory mapped location */
 	if (state->chip_type == 0x9135) {
+		/* feed clock for integrated RF tuner */
+		state->af9033_config[0].dyn0_clk = true;
+		state->af9033_config[1].dyn0_clk = true;
+
 		if (state->chip_version == 0x02) {
 			state->af9033_config[0].tuner = AF9033_TUNER_IT9135_60;
 			state->af9033_config[1].tuner = AF9033_TUNER_IT9135_60;
-			tmp16 = 0x00461d;
+			tmp16 = 0x00461d; /* eeprom memory mapped location */
 		} else {
 			state->af9033_config[0].tuner = AF9033_TUNER_IT9135_38;
 			state->af9033_config[1].tuner = AF9033_TUNER_IT9135_38;
-			tmp16 = 0x00461b;
+			tmp16 = 0x00461b; /* eeprom memory mapped location */
 		}
 
 		/* check if eeprom exists */
