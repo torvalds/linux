@@ -42,18 +42,15 @@ int	rtl8188eu_init_recv_priv(struct adapter *padapter)
 	_rtw_init_queue(&precvpriv->free_recv_buf_queue);
 
 	precvpriv->pallocated_recv_buf =
-		kzalloc(NR_RECVBUFF * sizeof(struct recv_buf) + 4, GFP_KERNEL);
+		kzalloc(NR_RECVBUFF * sizeof(struct recv_buf), GFP_KERNEL);
 	if (precvpriv->pallocated_recv_buf == NULL) {
 		res = _FAIL;
 		RT_TRACE(_module_rtl871x_recv_c_, _drv_err_,
 				("alloc recv_buf fail!\n"));
 		goto exit;
 	}
-	memset(precvpriv->pallocated_recv_buf, 0,
-			NR_RECVBUFF * sizeof(struct recv_buf) + 4);
 
-	precvpriv->precv_buf = (u8 *)N_BYTE_ALIGMENT((size_t)
-			(precvpriv->pallocated_recv_buf), 4);
+	precvpriv->precv_buf = precvpriv->pallocated_recv_buf;
 
 
 	precvbuf = (struct recv_buf *)precvpriv->precv_buf;
