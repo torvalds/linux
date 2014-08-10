@@ -3,7 +3,7 @@
 #include "headers.h"
 
 static int bcm_handle_nvm_read_cmd(struct bcm_mini_adapter *ad,
-				   PUCHAR pReadData,
+				   PUCHAR read_data,
 				   struct bcm_nvm_readwrite *stNVMReadWrite)
 {
 	INT Status = STATUS_FAILURE;
@@ -17,23 +17,23 @@ static int bcm_handle_nvm_read_cmd(struct bcm_mini_adapter *ad,
 			DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
 			"Device is in Idle/Shutdown Mode\n");
 		up(&ad->NVMRdmWrmLock);
-		kfree(pReadData);
+		kfree(read_data);
 		return -EACCES;
 	}
 
-	Status = BeceemNVMRead(ad, (PUINT)pReadData,
+	Status = BeceemNVMRead(ad, (PUINT)read_data,
 			       stNVMReadWrite->uiOffset,
 			       stNVMReadWrite->uiNumBytes);
 	up(&ad->NVMRdmWrmLock);
 
 	if (Status != STATUS_SUCCESS) {
-		kfree(pReadData);
+		kfree(read_data);
 		return Status;
 	}
 
-	if (copy_to_user(stNVMReadWrite->pBuffer, pReadData,
+	if (copy_to_user(stNVMReadWrite->pBuffer, read_data,
 			stNVMReadWrite->uiNumBytes)) {
-		kfree(pReadData);
+		kfree(read_data);
 		return -EFAULT;
 	}
 
@@ -41,7 +41,7 @@ static int bcm_handle_nvm_read_cmd(struct bcm_mini_adapter *ad,
 }
 
 static int handle_flash2x_adapter(struct bcm_mini_adapter *ad,
-				  PUCHAR pReadData,
+				  PUCHAR read_data,
 				  struct bcm_nvm_readwrite *stNVMReadWrite)
 {
 	/*
@@ -73,18 +73,18 @@ static int handle_flash2x_adapter(struct bcm_mini_adapter *ad,
 		BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
 				"DSD Sig is present neither in Flash nor User provided Input..");
 		up(&ad->NVMRdmWrmLock);
-		kfree(pReadData);
+		kfree(read_data);
 		return Status;
 	}
 
 	ulDSDMagicNumInUsrBuff =
-		ntohl(*(PUINT)(pReadData + stNVMReadWrite->uiNumBytes -
+		ntohl(*(PUINT)(read_data + stNVMReadWrite->uiNumBytes -
 		      SIGNATURE_SIZE));
 	if (ulDSDMagicNumInUsrBuff != DSD_IMAGE_MAGIC_NUMBER) {
 		BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
 				"DSD Sig is present neither in Flash nor User provided Input..");
 		up(&ad->NVMRdmWrmLock);
-		kfree(pReadData);
+		kfree(read_data);
 		return Status;
 	}
 
