@@ -46,24 +46,6 @@ enum ioreg_cmd {
 	IOREG_CMD_END		= 0xFF,
 };
 
-int rtw_IOL_append_cmds(struct xmit_frame *xmit_frame, u8 *IOL_cmds,
-			u32 cmd_len);
-int rtw_IOL_append_LLT_cmd(struct xmit_frame *xmit_frame, u8 page_boundary);
 bool rtw_IOL_applied(struct adapter  *adapter);
-int rtw_IOL_append_END_cmd(struct xmit_frame *xmit_frame);
-
-void read_efuse_from_txpktbuf(struct adapter *adapter, int bcnhead,
-			      u8 *content, u16 *size);
-
-int _rtw_IOL_append_WB_cmd(struct xmit_frame *xmit_frame, u16 addr,
-			   u8 value, u8 mask);
-int _rtw_IOL_append_WRF_cmd(struct xmit_frame *xmit_frame, u8 rf_path,
-			    u16 addr, u32 value, u32 mask);
-#define rtw_IOL_append_WB_cmd(xmit_frame, addr, value, mask)		\
-	_rtw_IOL_append_WB_cmd((xmit_frame), (addr), (value) , (mask))
-#define rtw_IOL_append_WW_cmd(xmit_frame, addr, value, mask)		\
-	_rtw_IOL_append_WW_cmd((xmit_frame), (addr), (value), (mask))
-#define rtw_IOL_append_WRF_cmd(xmit_frame, rf_path, addr, value, mask)	\
-	_rtw_IOL_append_WRF_cmd((xmit_frame), (rf_path), (addr), (value), (mask))
 
 #endif /* __RTW_IOL_H_ */
