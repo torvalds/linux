@@ -46,7 +46,6 @@
 
 #include "odm_reg.h"
 
-#include "HalHWImg8188E_MAC.h"
 #include "HalHWImg8188E_RF.h"
 #include "HalHWImg8188E_BB.h"
 

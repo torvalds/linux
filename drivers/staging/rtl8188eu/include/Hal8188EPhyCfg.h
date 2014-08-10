@@ -208,7 +208,6 @@ void rtl8188e_PHY_SetRFReg(struct adapter *adapter, enum rf_radio_path rfpath,
 
 /*  Initialization related function */
 /* MAC/BB/RF HAL config */
-int PHY_MACConfig8188E(struct adapter *adapter);
 int PHY_BBConfig8188E(struct adapter *adapter);
 int PHY_RFConfig8188E(struct adapter *adapter);
 

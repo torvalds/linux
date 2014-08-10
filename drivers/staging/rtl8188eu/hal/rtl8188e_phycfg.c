@@ -354,43 +354,6 @@ rtl8188e_PHY_SetRFReg(
 	phy_RFSerialWrite(Adapter, eRFPath, RegAddr, Data);
 }
 
-/*  */
-/*  3. Initial MAC/BB/RF config by reading MAC/BB/RF txt. */
-/*  */
-
-/*-----------------------------------------------------------------------------
- * Function:    PHY_MACConfig8192C
- *
- * Overview:	Condig MAC by header file or parameter file.
- *
- * Input:       NONE
- *
- * Output:      NONE
- *
- * Return:      NONE
- *
- * Revised History:
- *  When		Who		Remark
- *  08/12/2008	MHC		Create Version 0.
- *
- *---------------------------------------------------------------------------*/
-s32 PHY_MACConfig8188E(struct adapter *Adapter)
-{
-	struct hal_data_8188e	*pHalData = GET_HAL_DATA(Adapter);
-	int rtStatus = _SUCCESS;
-
-	/*  */
-	/*  Config MAC */
-	/*  */
-	if (HAL_STATUS_FAILURE == ODM_ConfigMACWithHeaderFile(&pHalData->odmpriv))
-		rtStatus = _FAIL;
-
-	/*  2010.07.13 AMPDU aggregation number B */
-	usb_write16(Adapter, REG_MAX_AGGR_NUM, MAX_AGGR_NUM);
-
-	return rtStatus;
-}
-
 /**
 * Function:	phy_InitBBRFRegisterDefinition
 *

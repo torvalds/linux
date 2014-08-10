@@ -27,8 +27,8 @@
 #include <rtl8188e_led.h>
 #include <rtw_iol.h>
 #include <usb_hal.h>
+#include <phy.h>
 
-#define		HAL_MAC_ENABLE	1
 #define		HAL_BB_ENABLE		1
 #define		HAL_RF_ENABLE		1
 
@@ -759,18 +759,9 @@ static u32 rtl8188eu_hal_init(struct adapter *Adapter)
 	}
 	rtl8188e_InitializeFirmwareVars(Adapter);
 
-	HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_MAC);
-#if (HAL_MAC_ENABLE == 1)
-	status = PHY_MACConfig8188E(Adapter);
-	if (status == _FAIL) {
-		DBG_88E(" ### Failed to init MAC ......\n ");
-		goto exit;
-	}
-#endif
+	rtl88e_phy_mac_config(Adapter);
 
-	/*  */
-	/* d. Initialize BB related configurations. */
-	/*  */
+/* d. Initialize BB related configurations. */
 	HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_BB);
 #if (HAL_BB_ENABLE == 1)
 	status = PHY_BBConfig8188E(Adapter);
