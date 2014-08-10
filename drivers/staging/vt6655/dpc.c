@@ -79,18 +79,18 @@ s_vGetDASA(unsigned char *pbyRxBufferAddr, unsigned int *pcbHeaderSize,
 	   PSEthernetHeader psEthHeader);
 
 static void
-s_vProcessRxMACHeader(PSDevice pDevice, unsigned char *pbyRxBufferAddr,
+s_vProcessRxMACHeader(struct vnt_private *pDevice, unsigned char *pbyRxBufferAddr,
 		      unsigned int cbPacketSize, bool bIsWEP, bool bExtIV,
 		      unsigned int *pcbHeadSize);
 
 static bool s_bAPModeRxCtl(
-	PSDevice pDevice,
+	struct vnt_private *pDevice,
 	unsigned char *pbyFrame,
 	int      iSANodeIndex
 );
 
 static bool s_bAPModeRxData(
-	PSDevice pDevice,
+	struct vnt_private *pDevice,
 	struct sk_buff *skb,
 	unsigned int FrameSize,
 	unsigned int cbHeaderOffset,
@@ -99,7 +99,7 @@ static bool s_bAPModeRxData(
 );
 
 static bool s_bHandleRxEncryption(
-	PSDevice     pDevice,
+	struct vnt_private *pDevice,
 	unsigned char *pbyFrame,
 	unsigned int FrameSize,
 	unsigned char *pbyRsr,
@@ -112,7 +112,7 @@ static bool s_bHandleRxEncryption(
 
 static bool s_bHostWepRxEncryption(
 
-	PSDevice     pDevice,
+	struct vnt_private *pDevice,
 	unsigned char *pbyFrame,
 	unsigned int FrameSize,
 	unsigned char *pbyRsr,
@@ -145,7 +145,8 @@ static bool s_bHostWepRxEncryption(
  *
  -*/
 static void
-s_vProcessRxMACHeader(PSDevice pDevice, unsigned char *pbyRxBufferAddr,
+s_vProcessRxMACHeader(struct vnt_private *pDevice,
+		      unsigned char *pbyRxBufferAddr,
 		      unsigned int cbPacketSize, bool bIsWEP, bool bExtIV,
 		      unsigned int *pcbHeadSize)
 {
@@ -270,7 +271,7 @@ s_vGetDASA(unsigned char *pbyRxBufferAddr, unsigned int *pcbHeaderSize,
 
 bool
 device_receive_frame(
-	PSDevice pDevice,
+	struct vnt_private *pDevice,
 	PSRxDesc pCurrRD
 )
 {
@@ -871,7 +872,7 @@ device_receive_frame(
 }
 
 static bool s_bAPModeRxCtl(
-	PSDevice pDevice,
+	struct vnt_private *pDevice,
 	unsigned char *pbyFrame,
 	int      iSANodeIndex
 )
@@ -969,7 +970,7 @@ static bool s_bAPModeRxCtl(
 }
 
 static bool s_bHandleRxEncryption(
-	PSDevice     pDevice,
+	struct vnt_private *pDevice,
 	unsigned char *pbyFrame,
 	unsigned int FrameSize,
 	unsigned char *pbyRsr,
@@ -1106,7 +1107,7 @@ static bool s_bHandleRxEncryption(
 }
 
 static bool s_bHostWepRxEncryption(
-	PSDevice     pDevice,
+	struct vnt_private *pDevice,
 	unsigned char *pbyFrame,
 	unsigned int FrameSize,
 	unsigned char *pbyRsr,
@@ -1226,7 +1227,7 @@ static bool s_bHostWepRxEncryption(
 }
 
 static bool s_bAPModeRxData(
-	PSDevice pDevice,
+	struct vnt_private *pDevice,
 	struct sk_buff *skb,
 	unsigned int FrameSize,
 	unsigned int cbHeaderOffset,

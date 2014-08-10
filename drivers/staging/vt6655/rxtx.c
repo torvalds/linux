@@ -112,7 +112,7 @@ static const unsigned short wFB_Opt1[2][5] = {
 static
 void
 s_vFillTxKey(
-	PSDevice   pDevice,
+	struct vnt_private *pDevice,
 	unsigned char *pbyBuf,
 	unsigned char *pbyIVHead,
 	PSKeyItem  pTransmitKey,
@@ -124,7 +124,7 @@ s_vFillTxKey(
 static
 void
 s_vFillRTSHead(
-	PSDevice         pDevice,
+	struct vnt_private *pDevice,
 	unsigned char byPktType,
 	void *pvRTS,
 	unsigned int	cbFrameLength,
@@ -138,7 +138,7 @@ s_vFillRTSHead(
 static
 void
 s_vGenerateTxParameter(
-	PSDevice         pDevice,
+	struct vnt_private *pDevice,
 	unsigned char byPktType,
 	void *pTxBufHead,
 	void *pvRrvTime,
@@ -152,7 +152,7 @@ s_vGenerateTxParameter(
 );
 
 static void s_vFillFragParameter(
-	PSDevice pDevice,
+	struct vnt_private *pDevice,
 	unsigned char *pbyBuffer,
 	unsigned int	uTxType,
 	void *pvtdCurr,
@@ -161,15 +161,17 @@ static void s_vFillFragParameter(
 );
 
 static unsigned int
-s_cbFillTxBufHead(PSDevice pDevice, unsigned char byPktType, unsigned char *pbyTxBufferAddr,
-		  unsigned int cbFrameBodySize, unsigned int uDMAIdx, PSTxDesc pHeadTD,
-		  PSEthernetHeader psEthHeader, unsigned char *pPacket, bool bNeedEncrypt,
-		  PSKeyItem pTransmitKey, unsigned int uNodeIndex, unsigned int *puMACfragNum);
+s_cbFillTxBufHead(struct vnt_private *pDevice, unsigned char byPktType,
+		  unsigned char *pbyTxBufferAddr, unsigned int cbFrameBodySize,
+		  unsigned int uDMAIdx, PSTxDesc pHeadTD,
+		  PSEthernetHeader psEthHeader, unsigned char *pPacket,
+		  bool bNeedEncrypt, PSKeyItem pTransmitKey,
+		  unsigned int uNodeIndex, unsigned int *puMACfragNum);
 
 static
 unsigned int
 s_uFillDataHead(
-	PSDevice pDevice,
+	struct vnt_private *pDevice,
 	unsigned char byPktType,
 	void *pTxDataHead,
 	unsigned int cbFrameLength,
@@ -187,7 +189,7 @@ s_uFillDataHead(
 static
 void
 s_vFillTxKey(
-	PSDevice   pDevice,
+	struct vnt_private *pDevice,
 	unsigned char *pbyBuf,
 	unsigned char *pbyIVHead,
 	PSKeyItem  pTransmitKey,
@@ -300,7 +302,7 @@ s_vFillTxKey(
 static
 void
 s_vSWencryption(
-	PSDevice            pDevice,
+	struct vnt_private *pDevice,
 	PSKeyItem           pTransmitKey,
 	unsigned char *pbyPayloadHead,
 	unsigned short wPayloadSize
@@ -346,7 +348,7 @@ s_vSWencryption(
 static
 unsigned int
 s_uGetTxRsvTime(
-	PSDevice pDevice,
+	struct vnt_private *pDevice,
 	unsigned char byPktType,
 	unsigned int cbFrameLength,
 	unsigned short wRate,
@@ -371,7 +373,7 @@ s_uGetTxRsvTime(
 static
 unsigned int
 s_uGetRTSCTSRsvTime(
-	PSDevice pDevice,
+	struct vnt_private *pDevice,
 	unsigned char byRTSRsvType,
 	unsigned char byPktType,
 	unsigned int cbFrameLength,
@@ -409,7 +411,7 @@ s_uGetRTSCTSRsvTime(
 static
 unsigned int
 s_uGetDataDuration(
-	PSDevice pDevice,
+	struct vnt_private *pDevice,
 	unsigned char byDurType,
 	unsigned int cbFrameLength,
 	unsigned char byPktType,
@@ -568,7 +570,7 @@ s_uGetDataDuration(
 static
 unsigned int
 s_uGetRTSCTSDuration(
-	PSDevice pDevice,
+	struct vnt_private *pDevice,
 	unsigned char byDurType,
 	unsigned int cbFrameLength,
 	unsigned char byPktType,
@@ -661,7 +663,7 @@ s_uGetRTSCTSDuration(
 static
 unsigned int
 s_uFillDataHead(
-	PSDevice pDevice,
+	struct vnt_private *pDevice,
 	unsigned char byPktType,
 	void *pTxDataHead,
 	unsigned int cbFrameLength,
@@ -790,7 +792,7 @@ s_uFillDataHead(
 static
 void
 s_vFillRTSHead(
-	PSDevice         pDevice,
+	struct vnt_private *pDevice,
 	unsigned char byPktType,
 	void *pvRTS,
 	unsigned int cbFrameLength,
@@ -965,7 +967,7 @@ s_vFillRTSHead(
 static
 void
 s_vFillCTSHead(
-	PSDevice pDevice,
+	struct vnt_private *pDevice,
 	unsigned int uDMAIdx,
 	unsigned char byPktType,
 	void *pvCTS,
@@ -1063,7 +1065,7 @@ s_vFillCTSHead(
 static
 void
 s_vGenerateTxParameter(
-	PSDevice         pDevice,
+	struct vnt_private *pDevice,
 	unsigned char byPktType,
 	void *pTxBufHead,
 	void *pvRrvTime,
@@ -1169,7 +1171,7 @@ s_vGenerateTxParameter(
 static
 void
 s_vFillFragParameter(
-	PSDevice pDevice,
+	struct vnt_private *pDevice,
 	unsigned char *pbyBuffer,
 	unsigned int uTxType,
 	void *pvtdCurr,
@@ -1205,10 +1207,12 @@ s_vFillFragParameter(
 }
 
 static unsigned int
-s_cbFillTxBufHead(PSDevice pDevice, unsigned char byPktType, unsigned char *pbyTxBufferAddr,
-		  unsigned int cbFrameBodySize, unsigned int uDMAIdx, PSTxDesc pHeadTD,
-		  PSEthernetHeader psEthHeader, unsigned char *pPacket, bool bNeedEncrypt,
-		  PSKeyItem pTransmitKey, unsigned int uNodeIndex, unsigned int *puMACfragNum)
+s_cbFillTxBufHead(struct vnt_private *pDevice, unsigned char byPktType,
+		  unsigned char *pbyTxBufferAddr, unsigned int cbFrameBodySize,
+		  unsigned int uDMAIdx, PSTxDesc pHeadTD,
+		  PSEthernetHeader psEthHeader, unsigned char *pPacket,
+		  bool bNeedEncrypt, PSKeyItem pTransmitKey,
+		  unsigned int uNodeIndex, unsigned int *puMACfragNum)
 {
 	unsigned int cbMACHdLen;
 	unsigned int cbFrameSize;
@@ -1859,8 +1863,9 @@ s_cbFillTxBufHead(PSDevice pDevice, unsigned char byPktType, unsigned char *pbyT
 }
 
 void
-vGenerateFIFOHeader(PSDevice pDevice, unsigned char byPktType, unsigned char *pbyTxBufferAddr,
-		    bool bNeedEncrypt, unsigned int cbPayloadSize, unsigned int uDMAIdx,
+vGenerateFIFOHeader(struct vnt_private *pDevice, unsigned char byPktType,
+		    unsigned char *pbyTxBufferAddr, bool bNeedEncrypt,
+		    unsigned int cbPayloadSize, unsigned int uDMAIdx,
 		    PSTxDesc pHeadTD, PSEthernetHeader psEthHeader, unsigned char *pPacket,
 		    PSKeyItem pTransmitKey, unsigned int uNodeIndex, unsigned int *puMACfragNum,
 		    unsigned int *pcbHeaderSize)
@@ -1986,7 +1991,7 @@ vGenerateFIFOHeader(PSDevice pDevice, unsigned char byPktType, unsigned char *pb
 
 void
 vGenerateMACHeader(
-	PSDevice         pDevice,
+	struct vnt_private *pDevice,
 	unsigned char *pbyBufferAddr,
 	unsigned short wDuration,
 	PSEthernetHeader psEthHeader,
@@ -2049,7 +2054,7 @@ vGenerateMACHeader(
 		pMACHeader->wFrameCtl |= FC_MOREFRAG;
 }
 
-CMD_STATUS csMgmt_xmit(PSDevice pDevice, PSTxMgmtPacket pPacket)
+CMD_STATUS csMgmt_xmit(struct vnt_private *pDevice, PSTxMgmtPacket pPacket)
 {
 	PSTxDesc        pFrstTD;
 	unsigned char byPktType;
@@ -2334,7 +2339,7 @@ CMD_STATUS csMgmt_xmit(PSDevice pDevice, PSTxMgmtPacket pPacket)
 	return CMD_STATUS_PENDING;
 }
 
-CMD_STATUS csBeacon_xmit(PSDevice pDevice, PSTxMgmtPacket pPacket)
+CMD_STATUS csBeacon_xmit(struct vnt_private *pDevice, PSTxMgmtPacket pPacket)
 {
 	unsigned char byPktType;
 	unsigned char *pbyBuffer = (unsigned char *)pDevice->tx_beacon_bufs;
@@ -2408,7 +2413,7 @@ CMD_STATUS csBeacon_xmit(PSDevice pDevice, PSTxMgmtPacket pPacket)
 
 unsigned int
 cbGetFragCount(
-	PSDevice         pDevice,
+	struct vnt_private *pDevice,
 	PSKeyItem        pTransmitKey,
 	unsigned int cbFrameBodySize,
 	PSEthernetHeader psEthHeader
@@ -2485,8 +2490,9 @@ cbGetFragCount(
 	return uMACfragNum;
 }
 
-void
-vDMA0_tx_80211(PSDevice  pDevice, struct sk_buff *skb, unsigned char *pbMPDU, unsigned int cbMPDULen) {
+void vDMA0_tx_80211(struct vnt_private *pDevice, struct sk_buff *skb,
+		    unsigned char *pbMPDU, unsigned int cbMPDULen)
+{
 	PSTxDesc        pFrstTD;
 	unsigned char byPktType;
 	unsigned char *pbyTxBufferAddr;

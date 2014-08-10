@@ -35,7 +35,7 @@
 
 bool
 device_receive_frame(
-	PSDevice pDevice,
+	struct vnt_private *,
 	PSRxDesc pCurrRD
 );
 

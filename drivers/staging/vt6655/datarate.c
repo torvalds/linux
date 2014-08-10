@@ -195,7 +195,7 @@ RATEvParseMaxRate(
 	unsigned char *pbyTopOFDMRate
 )
 {
-	PSDevice  pDevice = (PSDevice) pDeviceHandler;
+	struct vnt_private *pDevice = pDeviceHandler;
 	unsigned int ii;
 	unsigned char byHighSuppRate = 0;
 	unsigned char byRate = 0;
@@ -295,7 +295,7 @@ RATEvTxRateFallBack(
 	PKnownNodeDB psNodeDBTable
 )
 {
-	PSDevice        pDevice = (PSDevice) pDeviceHandler;
+	struct vnt_private *pDevice = pDeviceHandler;
 	unsigned short wIdxDownRate = 0;
 	unsigned int ii;
 	bool bAutoRate[MAX_RATE]    = {true, true, true, true, false, false, true, true, true, true, true, true};

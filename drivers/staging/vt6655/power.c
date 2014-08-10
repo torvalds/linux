@@ -74,7 +74,7 @@ PSvEnablePowerSaving(
 	unsigned short wListenInterval
 )
 {
-	PSDevice        pDevice = (PSDevice)hDeviceContext;
+	struct vnt_private *pDevice = hDeviceContext;
 	PSMgmtObject    pMgmt = pDevice->pMgmt;
 	unsigned short wAID = pMgmt->wCurrAID | BIT14 | BIT15;
 
@@ -131,7 +131,7 @@ PSvDisablePowerSaving(
 	void *hDeviceContext
 )
 {
-	PSDevice        pDevice = (PSDevice)hDeviceContext;
+	struct vnt_private *pDevice = hDeviceContext;
 
 	// disable power saving hw function
 	MACbPSWakeup(pDevice->PortOffset);
@@ -167,7 +167,7 @@ PSbConsiderPowerDown(
 	bool bCheckCountToWakeUp
 )
 {
-	PSDevice        pDevice = (PSDevice)hDeviceContext;
+	struct vnt_private *pDevice = hDeviceContext;
 	PSMgmtObject    pMgmt = pDevice->pMgmt;
 	unsigned int uIdx;
 
@@ -229,7 +229,7 @@ PSvSendPSPOLL(
 	void *hDeviceContext
 )
 {
-	PSDevice            pDevice = (PSDevice)hDeviceContext;
+	struct vnt_private *pDevice = hDeviceContext;
 	PSMgmtObject        pMgmt = pDevice->pMgmt;
 	PSTxMgmtPacket      pTxPacket = NULL;
 
@@ -266,7 +266,7 @@ PSbSendNullPacket(
 	void *hDeviceContext
 )
 {
-	PSDevice            pDevice = (PSDevice)hDeviceContext;
+	struct vnt_private *pDevice = hDeviceContext;
 	PSTxMgmtPacket      pTxPacket = NULL;
 	PSMgmtObject        pMgmt = pDevice->pMgmt;
 	unsigned int uIdx;
@@ -336,7 +336,7 @@ PSbIsNextTBTTWakeUp(
 	void *hDeviceContext
 )
 {
-	PSDevice         pDevice = (PSDevice)hDeviceContext;
+	struct vnt_private *pDevice = hDeviceContext;
 	PSMgmtObject        pMgmt = pDevice->pMgmt;
 	bool bWakeUp = false;
 

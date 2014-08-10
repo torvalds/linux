@@ -117,7 +117,7 @@ BSSpSearchBSSList(
 	CARD_PHY_TYPE  ePhyType
 )
 {
-	PSDevice        pDevice = (PSDevice)hDeviceContext;
+	struct vnt_private *pDevice = hDeviceContext;
 	PSMgmtObject    pMgmt = pDevice->pMgmt;
 	unsigned char *pbyBSSID = NULL;
 	PWLAN_IE_SSID   pSSID = NULL;
@@ -240,7 +240,7 @@ BSSvClearBSSList(
 	bool bKeepCurrBSSID
 )
 {
-	PSDevice     pDevice = (PSDevice)hDeviceContext;
+	struct vnt_private *pDevice = hDeviceContext;
 	PSMgmtObject    pMgmt = pDevice->pMgmt;
 	unsigned int ii;
 
@@ -280,7 +280,7 @@ BSSpAddrIsInBSSList(
 	PWLAN_IE_SSID pSSID
 )
 {
-	PSDevice     pDevice = (PSDevice)hDeviceContext;
+	struct vnt_private *pDevice = hDeviceContext;
 	PSMgmtObject    pMgmt = pDevice->pMgmt;
 	PKnownBSS       pBSSList = NULL;
 	unsigned int ii;
@@ -333,7 +333,7 @@ BSSbInsertToBSSList(
 	void *pRxPacketContext
 )
 {
-	PSDevice     pDevice = (PSDevice)hDeviceContext;
+	struct vnt_private *pDevice = hDeviceContext;
 	PSMgmtObject    pMgmt = pDevice->pMgmt;
 	PSRxMgmtPacket  pRxPacket = (PSRxMgmtPacket)pRxPacketContext;
 	PKnownBSS       pBSSList = NULL;
@@ -540,7 +540,7 @@ BSSbUpdateToBSSList(
 )
 {
 	int             ii;
-	PSDevice        pDevice = (PSDevice)hDeviceContext;
+	struct vnt_private *pDevice = hDeviceContext;
 	PSMgmtObject    pMgmt = pDevice->pMgmt;
 	PSRxMgmtPacket  pRxPacket = (PSRxMgmtPacket)pRxPacketContext;
 	long            ldBm;
@@ -715,7 +715,7 @@ BSSDBbIsSTAInNodeDB(void *pMgmtObject, unsigned char *abyDstAddr,
 void
 BSSvCreateOneNode(void *hDeviceContext, unsigned int *puNodeIndex)
 {
-	PSDevice     pDevice = (PSDevice)hDeviceContext;
+	struct vnt_private *pDevice = hDeviceContext;
 	PSMgmtObject    pMgmt = pDevice->pMgmt;
 	unsigned int ii;
 	unsigned int BigestCount = 0;
@@ -777,7 +777,7 @@ BSSvRemoveOneNode(
 	unsigned int uNodeIndex
 )
 {
-	PSDevice        pDevice = (PSDevice)hDeviceContext;
+	struct vnt_private *pDevice = hDeviceContext;
 	PSMgmtObject    pMgmt = pDevice->pMgmt;
 	unsigned char byMask[8] = {1, 2, 4, 8, 0x10, 0x20, 0x40, 0x80};
 	struct sk_buff  *skb;
@@ -810,7 +810,7 @@ BSSvUpdateAPNode(
 	PWLAN_IE_SUPP_RATES pExtSuppRates
 )
 {
-	PSDevice     pDevice = (PSDevice)hDeviceContext;
+	struct vnt_private *pDevice = hDeviceContext;
 	PSMgmtObject    pMgmt = pDevice->pMgmt;
 	unsigned int uRateLen = WLAN_RATES_MAXLEN;
 
@@ -861,7 +861,7 @@ BSSvAddMulticastNode(
 	void *hDeviceContext
 )
 {
-	PSDevice     pDevice = (PSDevice)hDeviceContext;
+	struct vnt_private *pDevice = hDeviceContext;
 	PSMgmtObject    pMgmt = pDevice->pMgmt;
 
 	if (!pDevice->bEnableHostWEP)
@@ -904,7 +904,7 @@ BSSvSecondCallBack(
 	void *hDeviceContext
 )
 {
-	PSDevice        pDevice = (PSDevice)hDeviceContext;
+	struct vnt_private *pDevice = hDeviceContext;
 	PSMgmtObject    pMgmt = pDevice->pMgmt;
 	unsigned int ii;
 	PWLAN_IE_SSID   pItemSSID, pCurrSSID;
@@ -1207,7 +1207,7 @@ BSSvUpdateNodeTxCounter(
 	unsigned int uFIFOHeaderSize
 )
 {
-	PSDevice        pDevice = (PSDevice)hDeviceContext;
+	struct vnt_private *pDevice = hDeviceContext;
 	PSMgmtObject    pMgmt = pDevice->pMgmt;
 	unsigned int uNodeIndex = 0;
 	unsigned char byTxRetry = (byTsr0 & TSR0_NCR);
@@ -1360,7 +1360,7 @@ BSSvClearNodeDBTable(
 )
 
 {
-	PSDevice     pDevice = (PSDevice)hDeviceContext;
+	struct vnt_private *pDevice = hDeviceContext;
 	PSMgmtObject    pMgmt = pDevice->pMgmt;
 	struct sk_buff  *skb;
 	unsigned int ii;
@@ -1385,7 +1385,7 @@ void s_vCheckSensitivity(
 	void *hDeviceContext
 )
 {
-	PSDevice        pDevice = (PSDevice)hDeviceContext;
+	struct vnt_private *pDevice = hDeviceContext;
 	PKnownBSS       pBSSList = NULL;
 	PSMgmtObject    pMgmt = pDevice->pMgmt;
 	int             ii;
@@ -1435,7 +1435,7 @@ BSSvClearAnyBSSJoinRecord(
 	void *hDeviceContext
 )
 {
-	PSDevice        pDevice = (PSDevice)hDeviceContext;
+	struct vnt_private *pDevice = hDeviceContext;
 	PSMgmtObject    pMgmt = pDevice->pMgmt;
 	unsigned int ii;
 
@@ -1448,7 +1448,7 @@ void s_uCalculateLinkQual(
 	void *hDeviceContext
 )
 {
-	PSDevice        pDevice = (PSDevice)hDeviceContext;
+	struct vnt_private *pDevice = hDeviceContext;
 	unsigned long TxOkRatio, TxCnt;
 	unsigned long RxOkRatio, RxCnt;
 	unsigned long RssiRatio;
@@ -1488,7 +1488,7 @@ void s_vCheckPreEDThreshold(
 	void *hDeviceContext
 )
 {
-	PSDevice        pDevice = (PSDevice)hDeviceContext;
+	struct vnt_private *pDevice = hDeviceContext;
 	PKnownBSS       pBSSList = NULL;
 	PSMgmtObject    pMgmt = &(pDevice->sMgmtObj);
 

@@ -58,7 +58,7 @@ struct vnt_mic_hdr {
 
 void
 vGenerateMACHeader(
-	PSDevice         pDevice,
+	struct vnt_private *,
 	unsigned char *pbyBufferAddr,
 	unsigned short wDuration,
 	PSEthernetHeader psEthHeader,
@@ -70,20 +70,24 @@ vGenerateMACHeader(
 
 unsigned int
 cbGetFragCount(
-	PSDevice         pDevice,
+	struct vnt_private *,
 	PSKeyItem        pTransmitKey,
 	unsigned int	cbFrameBodySize,
 	PSEthernetHeader psEthHeader
 );
 
 void
-vGenerateFIFOHeader(PSDevice pDevice, unsigned char byPktTyp, unsigned char *pbyTxBufferAddr,
-		    bool bNeedEncrypt, unsigned int	cbPayloadSize, unsigned int uDMAIdx, PSTxDesc pHeadTD,
-		    PSEthernetHeader psEthHeader, unsigned char *pPacket, PSKeyItem pTransmitKey,
-		    unsigned int uNodeIndex, unsigned int *puMACfragNum, unsigned int *pcbHeaderSize);
+vGenerateFIFOHeader(struct vnt_private *, unsigned char byPktTyp,
+		    unsigned char *pbyTxBufferAddr, bool bNeedEncrypt,
+		    unsigned int cbPayloadSize, unsigned int uDMAIdx,
+		    PSTxDesc pHeadTD, PSEthernetHeader psEthHeader,
+		    unsigned char *pPacket, PSKeyItem pTransmitKey,
+		    unsigned int uNodeIndex, unsigned int *puMACfragNum,
+		    unsigned int *pcbHeaderSize);
 
-void vDMA0_tx_80211(PSDevice  pDevice, struct sk_buff *skb, unsigned char *pbMPDU, unsigned int cbMPDULen);
-CMD_STATUS csMgmt_xmit(PSDevice pDevice, PSTxMgmtPacket pPacket);
-CMD_STATUS csBeacon_xmit(PSDevice pDevice, PSTxMgmtPacket pPacket);
+void vDMA0_tx_80211(struct vnt_private *, struct sk_buff *skb,
+		    unsigned char *pbMPDU, unsigned int cbMPDULen);
+CMD_STATUS csMgmt_xmit(struct vnt_private *, PSTxMgmtPacket pPacket);
+CMD_STATUS csBeacon_xmit(struct vnt_private *, PSTxMgmtPacket pPacket);
 
 #endif // __RXTX_H__
