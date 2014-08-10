@@ -68,33 +68,6 @@ do {									\
 	writel((unsigned long)dwData, dwIOAddress);			\
 } while (0)
 
-//
-// ALWAYS IO-Mapped IO when in 16-bit/32-bit environment
-//
-#define PCBvInPortB(dwIOAddress, pbyData)	\
-do {						\
-	*(pbyData) = inb(dwIOAddress);		\
-} while (0)
-
-#define PCBvInPortW(dwIOAddress, pwData)	\
-do {						\
-	*(pwData) = inw(dwIOAddress);		\
-} while (0)
-
-#define PCBvInPortD(dwIOAddress, pdwData)	\
-do {						\
-	*(pdwData) = inl(dwIOAddress);		\
-} while (0)
-
-#define PCBvOutPortB(dwIOAddress, byData)	\
-	outb(byData, dwIOAddress)
-
-#define PCBvOutPortW(dwIOAddress, wData)	\
-	outw(wData, dwIOAddress)
-
-#define PCBvOutPortD(dwIOAddress, dwData)	\
-	outl(dwData, dwIOAddress)
-
 #define PCAvDelayByIO(uDelayUnit)				\
 do {								\
 	unsigned char byData;					\
