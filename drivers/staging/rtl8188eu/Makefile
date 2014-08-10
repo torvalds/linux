@@ -17,6 +17,7 @@ r8188eu-y :=				\
 		core/rtw_sta_mgt.o	\
 		core/rtw_wlan_util.o	\
 		core/rtw_xmit.o		\
+		hal/fw.o	\
 		hal/HalHWImg8188E_MAC.o	\
 		hal/HalHWImg8188E_BB.o	\
 		hal/HalHWImg8188E_RF.o	\

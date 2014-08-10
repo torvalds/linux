@@ -22,7 +22,7 @@
 #include <osdep_service.h>
 #include <drv_types.h>
 #include <rtw_efuse.h>
-
+#include <fw.h>
 #include <rtl8188e_hal.h>
 #include <rtl8188e_led.h>
 #include <rtw_iol.h>
@@ -744,9 +744,9 @@ static u32 rtl8188eu_hal_init(struct adapter *Adapter)
 		Adapter->bFWReady = false;
 		haldata->fw_ractrl = false;
 	} else {
-		status = rtl8188e_FirmwareDownload(Adapter);
+		status = rtl88e_download_fw(Adapter);
 
-		if (status != _SUCCESS) {
+		if (status) {
 			DBG_88E("%s: Download Firmware failed!!\n", __func__);
 			Adapter->bFWReady = false;
 			haldata->fw_ractrl = false;
