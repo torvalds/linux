@@ -23,7 +23,6 @@
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/device.h>
-#include <linux/suspend.h>
 #include <media/v4l2-common.h>
 #include <media/tuner.h>
 
@@ -617,4 +616,34 @@ int au0828_dvb_register(struct au0828_dev *dev)
 	}
 
 	return 0;
+}
+
+void au0828_dvb_suspend(struct au0828_dev *dev)
+{
+	struct au0828_dvb *dvb = &dev->dvb;
+
+	if (dvb && dev->urb_streaming) {
+		cancel_work_sync(&dev->restart_streaming);
+
+		/* Stop transport */
+		mutex_lock(&dvb->lock);
+		stop_urb_transfer(dev);
+		au0828_stop_transport(dev, 1);
+		mutex_unlock(&dvb->lock);
+	}
+}
+
+void au0828_dvb_resume(struct au0828_dev *dev)
+{
+	struct au0828_dvb *dvb = &dev->dvb;
+
+	if (dvb && dev->urb_streaming) {
+		au0828_set_frontend(dvb->frontend);
+
+		/* Start transport */
+		mutex_lock(&dvb->lock);
+		au0828_start_transport(dev);
+		start_urb_transfer(dev);
+		mutex_unlock(&dvb->lock);
+	}
 }

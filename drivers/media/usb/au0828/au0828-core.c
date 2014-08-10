@@ -290,6 +290,7 @@ static int au0828_suspend(struct usb_interface *interface,
 		return 0;
 
 	au0828_rc_suspend(dev);
+	au0828_dvb_suspend(dev);
 
 	/* FIXME: should suspend also ATV/DTV */
 
@@ -309,6 +310,7 @@ static int au0828_resume(struct usb_interface *interface)
 	au0828_gpio_setup(dev);
 
 	au0828_rc_resume(dev);
+	au0828_dvb_resume(dev);
 
 	/* FIXME: should resume also ATV/DTV */
 

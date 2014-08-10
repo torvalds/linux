@@ -316,6 +316,8 @@ void au0828_analog_unregister(struct au0828_dev *dev);
 /* au0828-dvb.c */
 extern int au0828_dvb_register(struct au0828_dev *dev);
 extern void au0828_dvb_unregister(struct au0828_dev *dev);
+void au0828_dvb_suspend(struct au0828_dev *dev);
+void au0828_dvb_resume(struct au0828_dev *dev);
 
 /* au0828-vbi.c */
 extern struct videobuf_queue_ops au0828_vbi_qops;
