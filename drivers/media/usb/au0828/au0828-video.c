@@ -32,7 +32,6 @@
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/device.h>
-#include <linux/suspend.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-event.h>
@@ -1869,6 +1868,64 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *b)
 		rc = videobuf_dqbuf(&fh->vb_vbiq, b, file->f_flags & O_NONBLOCK);
 
 	return rc;
+}
+
+void au0828_v4l2_suspend(struct au0828_dev *dev)
+{
+	struct urb *urb;
+	int i;
+
+	if (dev->stream_state == STREAM_ON) {
+		au0828_analog_stream_disable(dev);
+		/* stop urbs */
+		for (i = 0; i < dev->isoc_ctl.num_bufs; i++) {
+			urb = dev->isoc_ctl.urb[i];
+			if (urb) {
+				if (!irqs_disabled())
+					usb_kill_urb(urb);
+				else
+					usb_unlink_urb(urb);
+			}
+		}
+	}
+
+	if (dev->vid_timeout_running)
+		del_timer_sync(&dev->vid_timeout);
+	if (dev->vbi_timeout_running)
+		del_timer_sync(&dev->vbi_timeout);
+}
+
+void au0828_v4l2_resume(struct au0828_dev *dev)
+{
+	int i, rc;
+
+	if (dev->stream_state == STREAM_ON) {
+		au0828_stream_interrupt(dev);
+		au0828_init_tuner(dev);
+	}
+
+	if (dev->vid_timeout_running)
+		mod_timer(&dev->vid_timeout, jiffies + (HZ / 10));
+	if (dev->vbi_timeout_running)
+		mod_timer(&dev->vbi_timeout, jiffies + (HZ / 10));
+
+	/* If we were doing ac97 instead of i2s, it would go here...*/
+	au0828_i2s_init(dev);
+
+	au0828_analog_stream_enable(dev);
+
+	if (!(dev->stream_state == STREAM_ON)) {
+		au0828_analog_stream_reset(dev);
+		/* submit urbs */
+		for (i = 0; i < dev->isoc_ctl.num_bufs; i++) {
+			rc = usb_submit_urb(dev->isoc_ctl.urb[i], GFP_ATOMIC);
+			if (rc) {
+				au0828_isocdbg("submit of urb %i failed (error=%i)\n",
+					       i, rc);
+				au0828_uninit_isoc(dev);
+			}
+		}
+	}
 }
 
 static struct v4l2_file_operations au0828_v4l_fops = {

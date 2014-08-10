@@ -311,6 +311,13 @@ int au0828_analog_register(struct au0828_dev *dev,
 			   struct usb_interface *interface);
 int au0828_analog_stream_disable(struct au0828_dev *d);
 void au0828_analog_unregister(struct au0828_dev *dev);
+#ifdef CONFIG_VIDEO_AU0828_V4L2
+void au0828_v4l2_suspend(struct au0828_dev *dev);
+void au0828_v4l2_resume(struct au0828_dev *dev);
+#else
+static inline void au0828_v4l2_suspend(struct au0828_dev *dev) { };
+static inline void au0828_v4l2_resume(struct au0828_dev *dev) { };
+#endif
 
 /* ----------------------------------------------------------- */
 /* au0828-dvb.c */
