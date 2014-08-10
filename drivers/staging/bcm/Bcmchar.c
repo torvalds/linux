@@ -105,23 +105,23 @@ static int handle_flash2x_adapter(struct bcm_mini_adapter *ad,
 static int bcm_char_open(struct inode *inode, struct file *filp)
 {
 	struct bcm_mini_adapter *ad = NULL;
-	struct bcm_tarang_data *pTarang = NULL;
+	struct bcm_tarang_data *tarang = NULL;
 
 	ad = GET_BCM_ADAPTER(gblpnetdev);
-	pTarang = kzalloc(sizeof(struct bcm_tarang_data), GFP_KERNEL);
-	if (!pTarang)
+	tarang = kzalloc(sizeof(struct bcm_tarang_data), GFP_KERNEL);
+	if (!tarang)
 		return -ENOMEM;
 
-	pTarang->Adapter = ad;
-	pTarang->RxCntrlMsgBitMask = 0xFFFFFFFF & ~(1 << 0xB);
+	tarang->Adapter = ad;
+	tarang->RxCntrlMsgBitMask = 0xFFFFFFFF & ~(1 << 0xB);
 
 	down(&ad->RxAppControlQueuelock);
-	pTarang->next = ad->pTarangs;
-	ad->pTarangs = pTarang;
+	tarang->next = ad->pTarangs;
+	ad->pTarangs = tarang;
 	up(&ad->RxAppControlQueuelock);
 
 	/* Store the Adapter structure */
-	filp->private_data = pTarang;
+	filp->private_data = tarang;
 
 	/* Start Queuing the control response Packets */
 	atomic_inc(&ad->ApplicationRunning);
@@ -132,22 +132,22 @@ static int bcm_char_open(struct inode *inode, struct file *filp)
 
 static int bcm_char_release(struct inode *inode, struct file *filp)
 {
-	struct bcm_tarang_data *pTarang, *tmp, *ptmp;
+	struct bcm_tarang_data *tarang, *tmp, *ptmp;
 	struct bcm_mini_adapter *ad = NULL;
 	struct sk_buff *pkt, *npkt;
 
-	pTarang = (struct bcm_tarang_data *)filp->private_data;
+	tarang = (struct bcm_tarang_data *)filp->private_data;
 
-	if (pTarang == NULL)
+	if (tarang == NULL)
 		return 0;
 
-	ad = pTarang->Adapter;
+	ad = tarang->Adapter;
 
 	down(&ad->RxAppControlQueuelock);
 
 	tmp = ad->pTarangs;
 	for (ptmp = NULL; tmp; ptmp = tmp, tmp = tmp->next) {
-		if (tmp == pTarang)
+		if (tmp == tarang)
 			break;
 	}
 
@@ -161,7 +161,7 @@ static int bcm_char_release(struct inode *inode, struct file *filp)
 		return 0;
 	}
 
-	pkt = pTarang->RxAppControlHead;
+	pkt = tarang->RxAppControlHead;
 	while (pkt) {
 		npkt = pkt->next;
 		kfree_skb(pkt);
@@ -173,7 +173,7 @@ static int bcm_char_release(struct inode *inode, struct file *filp)
 	/* Stop Queuing the control response Packets */
 	atomic_dec(&ad->ApplicationRunning);
 
-	kfree(pTarang);
+	kfree(tarang);
 
 	/* remove this filp from the asynchronously notified filp's */
 	filp->private_data = NULL;
@@ -185,8 +185,8 @@ static ssize_t bcm_char_read(struct file *filp,
 			     size_t size,
 			     loff_t *f_pos)
 {
-	struct bcm_tarang_data *pTarang = filp->private_data;
-	struct bcm_mini_adapter *ad = pTarang->Adapter;
+	struct bcm_tarang_data *tarang = filp->private_data;
+	struct bcm_mini_adapter *ad = tarang->Adapter;
 	struct sk_buff *Packet = NULL;
 	ssize_t PktLen = 0;
 	int wait_ret_val = 0;
@@ -194,7 +194,7 @@ static ssize_t bcm_char_read(struct file *filp,
 
 	wait_ret_val = wait_event_interruptible(
 				ad->process_read_wait_queue,
-				(pTarang->RxAppControlHead ||
+				(tarang->RxAppControlHead ||
 				ad->device_removed));
 
 	if ((wait_ret_val == -ERESTARTSYS)) {
@@ -214,11 +214,11 @@ static ssize_t bcm_char_read(struct file *filp,
 
 	down(&ad->RxAppControlQueuelock);
 
-	if (pTarang->RxAppControlHead) {
-		Packet = pTarang->RxAppControlHead;
-		DEQUEUEPACKET(pTarang->RxAppControlHead,
-			      pTarang->RxAppControlTail);
-		pTarang->AppCtrlQueueLen--;
+	if (tarang->RxAppControlHead) {
+		Packet = tarang->RxAppControlHead;
+		DEQUEUEPACKET(tarang->RxAppControlHead,
+			      tarang->RxAppControlTail);
+		tarang->AppCtrlQueueLen--;
 	}
 
 	up(&ad->RxAppControlQueuelock);
