@@ -337,9 +337,10 @@ typedef struct __device_opt {
 	u32         flags;
 } OPTIONS, *POPTIONS;
 
-typedef struct __device_info {
-	struct __device_info *next;
-	struct __device_info *prev;
+/* TODO Convert all functions to struct vnt_private and remove typedef */
+typedef struct vnt_private {
+	struct vnt_private *next;
+	struct vnt_private *prev;
 
 	struct pci_dev *pcid;
 
@@ -744,7 +745,8 @@ typedef struct __device_info {
 	bool bCommit;
 } DEVICE_INFO, *PSDevice;
 
-static inline bool device_get_ip(PSDevice pInfo) {
+static inline bool device_get_ip(struct vnt_private *pInfo)
+{
 	struct in_device *in_dev = (struct in_device *)pInfo->dev->ip_ptr;
 	struct in_ifaddr *ifa;
 
@@ -770,7 +772,10 @@ static inline PDEVICE_TD_INFO alloc_td_info(void)
 
 /*---------------------  Export Functions  --------------------------*/
 
-bool device_dma0_xmit(PSDevice pDevice, struct sk_buff *skb, unsigned int uNodeIndex);
-bool device_alloc_frag_buf(PSDevice pDevice, PSDeFragControlBlock pDeF);
-int Config_FileOperation(PSDevice pDevice, bool fwrite, unsigned char *Parameter);
+bool device_dma0_xmit(struct vnt_private *pDevice,
+		      struct sk_buff *skb, unsigned int uNodeIndex);
+bool device_alloc_frag_buf(struct vnt_private *pDevice,
+			   PSDeFragControlBlock pDeF);
+int Config_FileOperation(struct vnt_private *pDevice,
+			 bool fwrite, unsigned char *Parameter);
 #endif
