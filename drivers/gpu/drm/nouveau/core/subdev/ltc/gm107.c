@@ -25,10 +25,45 @@
 #include <subdev/fb.h>
 #include <subdev/timer.h>
 
-#include "gf100.h"
+#include "priv.h"
 
 static void
-gm107_ltcg_lts_isr(struct gf100_ltcg_priv *priv, int ltc, int lts)
+gm107_ltc_cbc_clear(struct nvkm_ltc_priv *priv, u32 start, u32 limit)
+{
+	nv_wr32(priv, 0x17e270, start);
+	nv_wr32(priv, 0x17e274, limit);
+	nv_wr32(priv, 0x17e26c, 0x00000004);
+}
+
+static void
+gm107_ltc_cbc_wait(struct nvkm_ltc_priv *priv)
+{
+	int c, s;
+	for (c = 0; c < priv->ltc_nr; c++) {
+		for (s = 0; s < priv->lts_nr; s++)
+			nv_wait(priv, 0x14046c + c * 0x2000 + s * 0x200, ~0, 0);
+	}
+}
+
+static void
+gm107_ltc_zbc_clear_color(struct nvkm_ltc_priv *priv, int i, const u32 color[4])
+{
+	nv_mask(priv, 0x17e338, 0x0000000f, i);
+	nv_wr32(priv, 0x17e33c, color[0]);
+	nv_wr32(priv, 0x17e340, color[1]);
+	nv_wr32(priv, 0x17e344, color[2]);
+	nv_wr32(priv, 0x17e348, color[3]);
+}
+
+static void
+gm107_ltc_zbc_clear_depth(struct nvkm_ltc_priv *priv, int i, const u32 depth)
+{
+	nv_mask(priv, 0x17e338, 0x0000000f, i);
+	nv_wr32(priv, 0x17e34c, depth);
+}
+
+static void
+gm107_ltc_lts_isr(struct nvkm_ltc_priv *priv, int ltc, int lts)
 {
 	u32 base = 0x140000 + (ltc * 0x2000) + (lts * 0x400);
 	u32 stat = nv_rd32(priv, base + 0x00c);
@@ -40,16 +75,16 @@ gm107_ltcg_lts_isr(struct gf100_ltcg_priv *priv, int ltc, int lts)
 }
 
 static void
-gm107_ltcg_intr(struct nouveau_subdev *subdev)
+gm107_ltc_intr(struct nouveau_subdev *subdev)
 {
-	struct gf100_ltcg_priv *priv = (void *)subdev;
+	struct nvkm_ltc_priv *priv = (void *)subdev;
 	u32 mask;
 
 	mask = nv_rd32(priv, 0x00017c);
 	while (mask) {
 		u32 lts, ltc = __ffs(mask);
 		for (lts = 0; lts < priv->lts_nr; lts++)
-			gm107_ltcg_lts_isr(priv, ltc, lts);
+			gm107_ltc_lts_isr(priv, ltc, lts);
 		mask &= ~(1 << ltc);
 	}
 
@@ -59,37 +94,32 @@ gm107_ltcg_intr(struct nouveau_subdev *subdev)
 	nv_mask(priv, 0x000640, 0x02000000, 0x00000000);
 }
 
-static void
-gm107_ltcg_tags_clear(struct nouveau_ltcg *ltcg, u32 first, u32 count)
+static int
+gm107_ltc_init(struct nouveau_object *object)
 {
-	struct gf100_ltcg_priv *priv = (struct gf100_ltcg_priv *)ltcg;
-	u32 last = first + count - 1;
-	int p, i;
+	struct nvkm_ltc_priv *priv = (void *)object;
+	int ret;
 
-	BUG_ON((first > last) || (last >= priv->num_tags));
+	ret = nvkm_ltc_init(priv);
+	if (ret)
+		return ret;
 
-	nv_wr32(priv, 0x17e270, first);
-	nv_wr32(priv, 0x17e274, last);
-	nv_wr32(priv, 0x17e26c, 0x4); /* trigger clear */
-
-	/* wait until it's finished with clearing */
-	for (p = 0; p < priv->ltc_nr; ++p) {
-		for (i = 0; i < priv->lts_nr; ++i)
-			nv_wait(priv, 0x14046c + p * 0x2000 + i * 0x200, ~0, 0);
-	}
+	nv_wr32(priv, 0x17e27c, priv->ltc_nr);
+	nv_wr32(priv, 0x17e278, priv->tag_base);
+	return 0;
 }
 
 static int
-gm107_ltcg_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
+gm107_ltc_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	       struct nouveau_oclass *oclass, void *data, u32 size,
 	       struct nouveau_object **pobject)
 {
-	struct gf100_ltcg_priv *priv;
 	struct nouveau_fb *pfb = nouveau_fb(parent);
+	struct nvkm_ltc_priv *priv;
 	u32 parts, mask;
 	int ret, i;
 
-	ret = nouveau_ltcg_create(parent, engine, oclass, &priv);
+	ret = nvkm_ltc_create(parent, engine, oclass, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
@@ -102,41 +132,26 @@ gm107_ltcg_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	}
 	priv->lts_nr = nv_rd32(priv, 0x17e280) >> 28;
 
-	ret = gf100_ltcg_init_tag_ram(pfb, priv);
+	ret = gf100_ltc_init_tag_ram(pfb, priv);
 	if (ret)
 		return ret;
 
-	priv->base.tags_alloc = gf100_ltcg_tags_alloc;
-	priv->base.tags_free  = gf100_ltcg_tags_free;
-	priv->base.tags_clear = gm107_ltcg_tags_clear;
-
-	nv_subdev(priv)->intr = gm107_ltcg_intr;
-	return 0;
-}
-
-static int
-gm107_ltcg_init(struct nouveau_object *object)
-{
-	struct nouveau_ltcg *ltcg = (struct nouveau_ltcg *)object;
-	struct gf100_ltcg_priv *priv = (struct gf100_ltcg_priv *)ltcg;
-	int ret;
-
-	ret = nouveau_ltcg_init(ltcg);
-	if (ret)
-		return ret;
-
-	nv_wr32(priv, 0x17e27c, priv->ltc_nr);
-	nv_wr32(priv, 0x17e278, priv->tag_base);
 	return 0;
 }
 
 struct nouveau_oclass *
-gm107_ltcg_oclass = &(struct nouveau_oclass) {
-	.handle = NV_SUBDEV(LTCG, 0xff),
-	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = gm107_ltcg_ctor,
-		.dtor = gf100_ltcg_dtor,
-		.init = gm107_ltcg_init,
-		.fini = _nouveau_ltcg_fini,
+gm107_ltc_oclass = &(struct nvkm_ltc_impl) {
+	.base.handle = NV_SUBDEV(LTC, 0xff),
+	.base.ofuncs = &(struct nouveau_ofuncs) {
+		.ctor = gm107_ltc_ctor,
+		.dtor = gf100_ltc_dtor,
+		.init = gm107_ltc_init,
+		.fini = _nvkm_ltc_fini,
 	},
-};
+	.intr = gm107_ltc_intr,
+	.cbc_clear = gm107_ltc_cbc_clear,
+	.cbc_wait = gm107_ltc_cbc_wait,
+	.zbc = 16,
+	.zbc_clear_color = gm107_ltc_zbc_clear_color,
+	.zbc_clear_depth = gm107_ltc_zbc_clear_depth,
+}.base;
