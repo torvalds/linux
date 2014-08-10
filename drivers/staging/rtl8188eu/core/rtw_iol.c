@@ -20,42 +20,6 @@
 
 #include<rtw_iol.h>
 
-struct xmit_frame	*rtw_IOL_accquire_xmit_frame(struct adapter  *adapter)
-{
-	struct xmit_frame	*xmit_frame;
-	struct xmit_buf	*xmitbuf;
-	struct pkt_attrib	*pattrib;
-	struct xmit_priv	*pxmitpriv = &(adapter->xmitpriv);
-
-	xmit_frame = rtw_alloc_xmitframe(pxmitpriv);
-	if (xmit_frame == NULL) {
-		DBG_88E("%s rtw_alloc_xmitframe return null\n", __func__);
-		goto exit;
-	}
-
-	xmitbuf = rtw_alloc_xmitbuf(pxmitpriv);
-	if (xmitbuf == NULL) {
-		DBG_88E("%s rtw_alloc_xmitbuf return null\n", __func__);
-		rtw_free_xmitframe(pxmitpriv, xmit_frame);
-		xmit_frame = NULL;
-		goto exit;
-	}
-
-	xmit_frame->frame_tag = MGNT_FRAMETAG;
-	xmit_frame->pxmitbuf = xmitbuf;
-	xmit_frame->buf_addr = xmitbuf->pbuf;
-	xmitbuf->priv_data = xmit_frame;
-
-	pattrib = &xmit_frame->attrib;
-	update_mgntframe_attrib(adapter, pattrib);
-	pattrib->qsel = 0x10;/* Beacon */
-	pattrib->subtype = WIFI_BEACON;
-	pattrib->pktlen = 0;
-	pattrib->last_txcmdsz = 0;
-exit:
-	return xmit_frame;
-}
-
 int rtw_IOL_append_cmds(struct xmit_frame *xmit_frame, u8 *IOL_cmds, u32 cmd_len)
 {
 	struct pkt_attrib	*pattrib = &xmit_frame->attrib;
