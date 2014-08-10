@@ -99,15 +99,6 @@ s32 rtl8188e_iol_efuse_patch(struct adapter *padapter)
 	return result;
 }
 
-static s32 iol_ioconfig(struct adapter *padapter, u8 iocfg_bndy)
-{
-	s32 rst = _SUCCESS;
-
-	usb_write8(padapter, REG_TDECTRL+1, iocfg_bndy);
-	rst = iol_execute(padapter, CMD_IOCONFIG);
-	return rst;
-}
-
 #define MAX_REG_BOLCK_SIZE	196
 
 void _8051Reset88E(struct adapter *padapter)
