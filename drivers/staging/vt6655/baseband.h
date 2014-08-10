@@ -78,7 +78,7 @@ BBuGetFrameTime(
 
 void
 BBvCalculateParameter(
-	PSDevice pDevice,
+	struct vnt_private *pDevice,
 	unsigned int cbFrameLength,
 	unsigned short wRate,
 	unsigned char byPacketType,
@@ -91,15 +91,15 @@ bool BBbReadEmbedded(void __iomem *dwIoBase, unsigned char byBBAddr, unsigned ch
 bool BBbWriteEmbedded(void __iomem *dwIoBase, unsigned char byBBAddr, unsigned char byData);
 
 void BBvReadAllRegs(void __iomem *dwIoBase, unsigned char *pbyBBRegs);
-void BBvLoopbackOn(PSDevice pDevice);
-void BBvLoopbackOff(PSDevice pDevice);
-void BBvSetShortSlotTime(PSDevice pDevice);
+void BBvLoopbackOn(struct vnt_private *pDevice);
+void BBvLoopbackOff(struct vnt_private *pDevice);
+void BBvSetShortSlotTime(struct vnt_private *pDevice);
 bool BBbIsRegBitsOn(void __iomem *dwIoBase, unsigned char byBBAddr, unsigned char byTestBits);
 bool BBbIsRegBitsOff(void __iomem *dwIoBase, unsigned char byBBAddr, unsigned char byTestBits);
-void BBvSetVGAGainOffset(PSDevice pDevice, unsigned char byData);
+void BBvSetVGAGainOffset(struct vnt_private *pDevice, unsigned char byData);
 
 // VT3253 Baseband
-bool BBbVT3253Init(PSDevice pDevice);
+bool BBbVT3253Init(struct vnt_private *pDevice);
 void BBvSoftwareReset(void __iomem *dwIoBase);
 void BBvPowerSaveModeON(void __iomem *dwIoBase);
 void BBvPowerSaveModeOFF(void __iomem *dwIoBase);
@@ -120,8 +120,9 @@ TimerState1CallBack(
 	void *hDeviceContext
 );
 
-void BBvAntennaDiversity(PSDevice pDevice, unsigned char byRxRate, unsigned char bySQ3);
+void BBvAntennaDiversity(struct vnt_private *pDevice,
+			 unsigned char byRxRate, unsigned char bySQ3);
 void
-BBvClearAntDivSQ3Value(PSDevice pDevice);
+BBvClearAntDivSQ3Value(struct vnt_private *pDevice);
 
 #endif // __BASEBAND_H__

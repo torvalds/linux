@@ -1711,18 +1711,18 @@ static const unsigned short awcFrameTime[MAX_RATE] =
 
 static
 unsigned long
-s_ulGetRatio(PSDevice pDevice);
+s_ulGetRatio(struct vnt_private *pDevice);
 
 static
 void
 s_vChangeAntenna(
-	PSDevice pDevice
+	struct vnt_private *pDevice
 );
 
 static
 void
 s_vChangeAntenna(
-	PSDevice pDevice
+	struct vnt_private *pDevice
 )
 {
 	if (pDevice->dwRxAntennaSel == 0) {
@@ -1827,7 +1827,7 @@ BBuGetFrameTime(
  */
 void
 BBvCalculateParameter(
-	PSDevice pDevice,
+	struct vnt_private *pDevice,
 	unsigned int cbFrameLength,
 	unsigned short wRate,
 	unsigned char byPacketType,
@@ -2115,7 +2115,7 @@ bool BBbIsRegBitsOff(void __iomem *dwIoBase, unsigned char byBBAddr, unsigned ch
  *
  */
 
-bool BBbVT3253Init(PSDevice pDevice)
+bool BBbVT3253Init(struct vnt_private *pDevice)
 {
 	bool bResult = true;
 	int        ii;
@@ -2310,7 +2310,7 @@ void BBvReadAllRegs(void __iomem *dwIoBase, unsigned char *pbyBBRegs)
  *
  */
 
-void BBvLoopbackOn(PSDevice pDevice)
+void BBvLoopbackOn(struct vnt_private *pDevice)
 {
 	unsigned char byData;
 	void __iomem *dwIoBase = pDevice->PortOffset;
@@ -2363,7 +2363,7 @@ void BBvLoopbackOn(PSDevice pDevice)
  * Return Value: none
  *
  */
-void BBvLoopbackOff(PSDevice pDevice)
+void BBvLoopbackOff(struct vnt_private *pDevice)
 {
 	unsigned char byData;
 	void __iomem *dwIoBase = pDevice->PortOffset;
@@ -2398,7 +2398,7 @@ void BBvLoopbackOff(PSDevice pDevice)
  *
  */
 void
-BBvSetShortSlotTime(PSDevice pDevice)
+BBvSetShortSlotTime(struct vnt_private *pDevice)
 {
 	unsigned char byBBRxConf = 0;
 	unsigned char byBBVGA = 0;
@@ -2418,7 +2418,7 @@ BBvSetShortSlotTime(PSDevice pDevice)
 	BBbWriteEmbedded(pDevice->PortOffset, 0x0A, byBBRxConf); /* CR10 */
 }
 
-void BBvSetVGAGainOffset(PSDevice pDevice, unsigned char byData)
+void BBvSetVGAGainOffset(struct vnt_private *pDevice, unsigned char byData)
 {
 	unsigned char byBBRxConf = 0;
 
@@ -2594,7 +2594,7 @@ BBvExitDeepSleep(void __iomem *dwIoBase, unsigned char byLocalID)
 
 static
 unsigned long
-s_ulGetRatio(PSDevice pDevice)
+s_ulGetRatio(struct vnt_private *pDevice)
 {
 	unsigned long ulRatio = 0;
 	unsigned long ulMaxPacket;
@@ -2689,7 +2689,7 @@ s_ulGetRatio(PSDevice pDevice)
 }
 
 void
-BBvClearAntDivSQ3Value(PSDevice pDevice)
+BBvClearAntDivSQ3Value(struct vnt_private *pDevice)
 {
 	unsigned int ii;
 
@@ -2713,8 +2713,8 @@ BBvClearAntDivSQ3Value(PSDevice pDevice)
  *
  */
 
-void
-BBvAntennaDiversity(PSDevice pDevice, unsigned char byRxRate, unsigned char bySQ3)
+void BBvAntennaDiversity(struct vnt_private *pDevice,
+			 unsigned char byRxRate, unsigned char bySQ3)
 {
 	if ((byRxRate >= MAX_RATE) || (pDevice->wAntDiversityMaxRate >= MAX_RATE))
 		return;
@@ -2798,7 +2798,7 @@ TimerSQ3CallBack(
 	void *hDeviceContext
 )
 {
-	PSDevice        pDevice = (PSDevice)hDeviceContext;
+	struct vnt_private *pDevice = hDeviceContext;
 
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "TimerSQ3CallBack...");
 	spin_lock_irq(&pDevice->lock);
@@ -2840,7 +2840,7 @@ TimerState1CallBack(
 	void *hDeviceContext
 )
 {
-	PSDevice        pDevice = (PSDevice)hDeviceContext;
+	struct vnt_private *pDevice = hDeviceContext;
 
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "TimerState1CallBack...");
 
