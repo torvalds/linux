@@ -299,7 +299,7 @@ static int bcm_char_ioctl_reg_write_private(void __user *argp,
 {
 	struct bcm_wrm_buffer wrm_buff = {0};
 	struct bcm_ioctl_buffer io_buff;
-	UINT uiTempVar = 0;
+	UINT tmp = 0;
 	INT status;
 
 	/* Copy Ioctl Buffer structure */
@@ -315,12 +315,12 @@ static int bcm_char_ioctl_reg_write_private(void __user *argp,
 		io_buff.InputLength))
 		return -EFAULT;
 
-	uiTempVar = wrm_buff.Register & EEPROM_REJECT_MASK;
+	tmp = wrm_buff.Register & EEPROM_REJECT_MASK;
 	if (!((ad->pstargetparams->m_u32Customize) & VSG_MODE) &&
-		((uiTempVar == EEPROM_REJECT_REG_1) ||
-			(uiTempVar == EEPROM_REJECT_REG_2) ||
-			(uiTempVar == EEPROM_REJECT_REG_3) ||
-			(uiTempVar == EEPROM_REJECT_REG_4))) {
+		((tmp == EEPROM_REJECT_REG_1) ||
+			(tmp == EEPROM_REJECT_REG_2) ||
+			(tmp == EEPROM_REJECT_REG_3) ||
+			(tmp == EEPROM_REJECT_REG_4))) {
 
 		BCM_DEBUG_PRINT(ad, DBG_TYPE_PRINTK, 0, 0,
 				"EEPROM Access Denied, not in VSG Mode\n");
@@ -347,7 +347,7 @@ static int bcm_char_ioctl_eeprom_reg_read(void __user *argp,
 	struct bcm_rdm_buffer rdm_buff = {0};
 	struct bcm_ioctl_buffer io_buff;
 	PCHAR temp_buff = NULL;
-	UINT uiTempVar = 0;
+	UINT tmp = 0;
 	INT status;
 	int bytes;
 
@@ -391,7 +391,7 @@ static int bcm_char_ioctl_eeprom_reg_read(void __user *argp,
 		return -EINVAL;
 	}
 
-	uiTempVar = rdm_buff.Register & EEPROM_REJECT_MASK;
+	tmp = rdm_buff.Register & EEPROM_REJECT_MASK;
 	bytes = rdmaltWithLock(ad, (UINT)rdm_buff.Register,
 			       (PUINT)temp_buff, io_buff.OutputLength);
 
@@ -415,7 +415,7 @@ static int bcm_char_ioctl_eeprom_reg_write(void __user *argp,
 {
 	struct bcm_wrm_buffer wrm_buff = {0};
 	struct bcm_ioctl_buffer io_buff;
-	UINT uiTempVar = 0;
+	UINT tmp = 0;
 	INT status;
 
 	if ((ad->IdleMode == TRUE) ||
@@ -448,12 +448,12 @@ static int bcm_char_ioctl_eeprom_reg_write(void __user *argp,
 		return -EINVAL;
 	}
 
-	uiTempVar = wrm_buff.Register & EEPROM_REJECT_MASK;
+	tmp = wrm_buff.Register & EEPROM_REJECT_MASK;
 	if (!((ad->pstargetparams->m_u32Customize) & VSG_MODE) &&
-			((uiTempVar == EEPROM_REJECT_REG_1) ||
-			(uiTempVar == EEPROM_REJECT_REG_2) ||
-			(uiTempVar == EEPROM_REJECT_REG_3) ||
-			(uiTempVar == EEPROM_REJECT_REG_4)) &&
+			((tmp == EEPROM_REJECT_REG_1) ||
+			(tmp == EEPROM_REJECT_REG_2) ||
+			(tmp == EEPROM_REJECT_REG_3) ||
+			(tmp == EEPROM_REJECT_REG_4)) &&
 			(cmd == IOCTL_BCM_REGISTER_WRITE)) {
 
 			BCM_DEBUG_PRINT(ad, DBG_TYPE_PRINTK, 0, 0,
