@@ -337,8 +337,7 @@ typedef struct __device_opt {
 	u32         flags;
 } OPTIONS, *POPTIONS;
 
-/* TODO Convert all functions to struct vnt_private and remove typedef */
-typedef struct vnt_private {
+struct vnt_private {
 	struct vnt_private *next;
 	struct vnt_private *prev;
 
@@ -743,7 +742,7 @@ typedef struct vnt_private {
 
 	struct iw_statistics	wstats;		// wireless stats
 	bool bCommit;
-} DEVICE_INFO, *PSDevice;
+};
 
 static inline bool device_get_ip(struct vnt_private *pInfo)
 {
