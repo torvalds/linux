@@ -1229,6 +1229,24 @@ static int xc5000_sleep(struct dvb_frontend *fe)
 	return 0;
 }
 
+static int xc5000_suspend(struct dvb_frontend *fe)
+{
+	struct xc5000_priv *priv = fe->tuner_priv;
+	int ret;
+
+	dprintk(1, "%s()\n", __func__);
+
+	cancel_delayed_work(&priv->timer_sleep);
+
+	ret = xc5000_tuner_reset(fe);
+	if (ret != 0)
+		printk(KERN_ERR
+			"xc5000: %s() unable to shutdown tuner\n",
+			__func__);
+
+	return 0;
+}
+
 static int xc5000_init(struct dvb_frontend *fe)
 {
 	struct xc5000_priv *priv = fe->tuner_priv;
@@ -1293,6 +1311,7 @@ static const struct dvb_tuner_ops xc5000_tuner_ops = {
 	.release	   = xc5000_release,
 	.init		   = xc5000_init,
 	.sleep		   = xc5000_sleep,
+	.suspend	   = xc5000_suspend,
 
 	.set_config	   = xc5000_set_config,
 	.set_params	   = xc5000_set_params,
