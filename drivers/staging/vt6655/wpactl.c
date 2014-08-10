@@ -83,13 +83,13 @@ static void wpadev_setup(struct net_device *dev)
  *
  */
 
-static int wpa_init_wpadev(PSDevice pDevice)
+static int wpa_init_wpadev(struct vnt_private *pDevice)
 {
-	PSDevice wpadev_priv;
+	struct vnt_private *wpadev_priv;
 	struct net_device *dev = pDevice->dev;
 	int ret = 0;
 
-	pDevice->wpadev = alloc_netdev(sizeof(PSDevice), "vntwpa",
+	pDevice->wpadev = alloc_netdev(sizeof(*wpadev_priv), "vntwpa",
 				       NET_NAME_UNKNOWN, wpadev_setup);
 	if (pDevice->wpadev == NULL)
 		return -ENOMEM;
@@ -134,7 +134,7 @@ static int wpa_init_wpadev(PSDevice pDevice)
  *
  */
 
-static int wpa_release_wpadev(PSDevice pDevice)
+static int wpa_release_wpadev(struct vnt_private *pDevice)
 {
 	if (pDevice->skb) {
 		dev_kfree_skb(pDevice->skb);
@@ -166,7 +166,7 @@ static int wpa_release_wpadev(PSDevice pDevice)
  *
  */
 
-int wpa_set_wpadev(PSDevice pDevice, int val)
+int wpa_set_wpadev(struct vnt_private *pDevice, int val)
 {
 	if (val)
 		return wpa_init_wpadev(pDevice);
@@ -188,7 +188,7 @@ int wpa_set_wpadev(PSDevice pDevice, int val)
  *
  */
 
-int wpa_set_keys(PSDevice pDevice, void *ctx,
+int wpa_set_keys(struct vnt_private *pDevice, void *ctx,
 		 bool fcpfkernel) __must_hold(&pDevice->lock)
 {
 	struct viawget_wpa_param *param = ctx;
@@ -412,7 +412,7 @@ int wpa_set_keys(PSDevice pDevice, void *ctx,
  *
  */
 
-static int wpa_set_wpa(PSDevice pDevice,
+static int wpa_set_wpa(struct vnt_private *pDevice,
 		       struct viawget_wpa_param *param)
 {
 	PSMgmtObject    pMgmt = pDevice->pMgmt;
@@ -437,7 +437,7 @@ static int wpa_set_wpa(PSDevice pDevice,
  *
  */
 
-static int wpa_set_disassociate(PSDevice pDevice,
+static int wpa_set_disassociate(struct vnt_private *pDevice,
 				struct viawget_wpa_param *param)
 {
 	PSMgmtObject    pMgmt = pDevice->pMgmt;
@@ -466,7 +466,7 @@ static int wpa_set_disassociate(PSDevice pDevice,
  *
  */
 
-static int wpa_set_scan(PSDevice pDevice,
+static int wpa_set_scan(struct vnt_private *pDevice,
 			struct viawget_wpa_param *param)
 {
 	spin_lock_irq(&pDevice->lock);
@@ -491,7 +491,7 @@ static int wpa_set_scan(PSDevice pDevice,
  *
  */
 
-static int wpa_get_bssid(PSDevice pDevice,
+static int wpa_get_bssid(struct vnt_private *pDevice,
 			 struct viawget_wpa_param *param)
 {
 	PSMgmtObject        pMgmt = pDevice->pMgmt;
@@ -515,7 +515,7 @@ static int wpa_get_bssid(PSDevice pDevice,
  *
  */
 
-static int wpa_get_ssid(PSDevice pDevice,
+static int wpa_get_ssid(struct vnt_private *pDevice,
 			struct viawget_wpa_param *param)
 {
 	PSMgmtObject        pMgmt = pDevice->pMgmt;
@@ -543,7 +543,7 @@ static int wpa_get_ssid(PSDevice pDevice,
  *
  */
 
-static int wpa_get_scan(PSDevice pDevice,
+static int wpa_get_scan(struct vnt_private *pDevice,
 			struct viawget_wpa_param *param)
 {
 	struct viawget_scan_result *scan_buf;
@@ -660,7 +660,7 @@ static int wpa_get_scan(PSDevice pDevice,
  *
  */
 
-static int wpa_set_associate(PSDevice pDevice,
+static int wpa_set_associate(struct vnt_private *pDevice,
 			     struct viawget_wpa_param *param)
 {
 	PSMgmtObject    pMgmt = pDevice->pMgmt;
@@ -804,7 +804,7 @@ static int wpa_set_associate(PSDevice pDevice,
  *
  */
 
-int wpa_ioctl(PSDevice pDevice, struct iw_point *p)
+int wpa_ioctl(struct vnt_private *pDevice, struct iw_point *p)
 {
 	struct viawget_wpa_param *param;
 	int ret = 0;

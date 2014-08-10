@@ -62,7 +62,7 @@ static int msglevel = MSG_LEVEL_INFO;
  * Return Value: true if packet duplicate; otherwise false
  *
  */
-bool ROUTEbRelay(PSDevice pDevice, unsigned char *pbySkbData,
+bool ROUTEbRelay(struct vnt_private *pDevice, unsigned char *pbySkbData,
 		 unsigned int uDataLen, unsigned int uNodeIndex)
 {
 	PSMgmtObject    pMgmt = pDevice->pMgmt;

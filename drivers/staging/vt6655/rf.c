@@ -746,7 +746,7 @@ static bool RFbAL2230SelectChannel(void __iomem *dwIoBase, unsigned char byChann
  *
  */
 bool RFbInit(
-	PSDevice  pDevice
+	struct vnt_private *pDevice
 )
 {
 	bool bResult = true;
@@ -897,7 +897,7 @@ bool RFvWriteWakeProgSyn(void __iomem *dwIoBase, unsigned char byRFType, unsigne
  *
  */
 bool RFbSetPower(
-	PSDevice  pDevice,
+	struct vnt_private *pDevice,
 	unsigned int uRATE,
 	unsigned int uCH
 )
@@ -978,7 +978,7 @@ bool RFbSetPower(
  */
 
 bool RFbRawSetPower(
-	PSDevice  pDevice,
+	struct vnt_private *pDevice,
 	unsigned char byPwr,
 	unsigned int uRATE
 )
@@ -1042,7 +1042,7 @@ bool RFbRawSetPower(
  -*/
 void
 RFvRSSITodBm(
-	PSDevice pDevice,
+	struct vnt_private *pDevice,
 	unsigned char byCurrRSSI,
 	long *pldBm
 	)
