@@ -138,38 +138,6 @@ exit:
 	return ret;
 }
 
-void rtw_IOL_cmd_tx_pkt_buf_dump(struct adapter *Adapter, int data_len)
-{
-	u32 fifo_data, reg_140;
-	u32 addr, rstatus, loop = 0;
-	u16 data_cnts = (data_len/8)+1;
-	u8 *pbuf = vzalloc(data_len+10);
-	DBG_88E("###### %s ######\n", __func__);
-
-	usb_write8(Adapter, REG_PKT_BUFF_ACCESS_CTRL, TXPKT_BUF_SELECT);
-	if (pbuf) {
-		for (addr = 0; addr < data_cnts; addr++) {
-			usb_write32(Adapter, 0x140, addr);
-			msleep(1);
-			loop = 0;
-			do {
-				rstatus = (reg_140 = usb_read32(Adapter, REG_PKTBUF_DBG_CTRL)&BIT24);
-				if (rstatus) {
-					fifo_data = usb_read32(Adapter, REG_PKTBUF_DBG_DATA_L);
-					memcpy(pbuf+(addr*8), &fifo_data, 4);
-
-					fifo_data = usb_read32(Adapter, REG_PKTBUF_DBG_DATA_H);
-					memcpy(pbuf+(addr*8+4), &fifo_data, 4);
-				}
-				msleep(1);
-			} while (!rstatus && (loop++ < 10));
-		}
-		rtw_IOL_cmd_buf_dump(Adapter, data_len, pbuf);
-		vfree(pbuf);
-	}
-	DBG_88E("###### %s ######\n", __func__);
-}
-
 #define MAX_REG_BOLCK_SIZE	196
 
 void _8051Reset88E(struct adapter *padapter)
