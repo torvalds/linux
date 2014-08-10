@@ -247,7 +247,7 @@ static int bcm_char_ioctl_reg_read_private(void __user *argp,
 					   struct bcm_mini_adapter *ad)
 {
 	struct bcm_rdm_buffer rdm_buff = {0};
-	struct bcm_ioctl_buffer IoBuffer;
+	struct bcm_ioctl_buffer io_buff;
 	PCHAR temp_buff;
 	INT status = STATUS_FAILURE;
 	UINT Bufflen;
@@ -255,22 +255,22 @@ static int bcm_char_ioctl_reg_read_private(void __user *argp,
 	int bytes;
 
 	/* Copy Ioctl Buffer structure */
-	if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
+	if (copy_from_user(&io_buff, argp, sizeof(struct bcm_ioctl_buffer)))
 		return -EFAULT;
 
-	if (IoBuffer.InputLength > sizeof(rdm_buff))
+	if (io_buff.InputLength > sizeof(rdm_buff))
 		return -EINVAL;
 
-	if (copy_from_user(&rdm_buff, IoBuffer.InputBuffer,
-		IoBuffer.InputLength))
+	if (copy_from_user(&rdm_buff, io_buff.InputBuffer,
+		io_buff.InputLength))
 		return -EFAULT;
 
-	if (IoBuffer.OutputLength > USHRT_MAX ||
-		IoBuffer.OutputLength == 0) {
+	if (io_buff.OutputLength > USHRT_MAX ||
+		io_buff.OutputLength == 0) {
 		return -EINVAL;
 	}
 
-	Bufflen = IoBuffer.OutputLength;
+	Bufflen = io_buff.OutputLength;
 	temp_value = 4 - (Bufflen % 4);
 	Bufflen += temp_value % 4;
 
@@ -282,7 +282,7 @@ static int bcm_char_ioctl_reg_read_private(void __user *argp,
 			(PUINT)temp_buff, Bufflen);
 	if (bytes > 0) {
 		status = STATUS_SUCCESS;
-		if (copy_to_user(IoBuffer.OutputBuffer, temp_buff, bytes)) {
+		if (copy_to_user(io_buff.OutputBuffer, temp_buff, bytes)) {
 			kfree(temp_buff);
 			return -EFAULT;
 		}
@@ -298,21 +298,21 @@ static int bcm_char_ioctl_reg_write_private(void __user *argp,
 					    struct bcm_mini_adapter *ad)
 {
 	struct bcm_wrm_buffer sWrmBuffer = {0};
-	struct bcm_ioctl_buffer IoBuffer;
+	struct bcm_ioctl_buffer io_buff;
 	UINT uiTempVar = 0;
 	INT status;
 
 	/* Copy Ioctl Buffer structure */
 
-	if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
+	if (copy_from_user(&io_buff, argp, sizeof(struct bcm_ioctl_buffer)))
 		return -EFAULT;
 
-	if (IoBuffer.InputLength > sizeof(sWrmBuffer))
+	if (io_buff.InputLength > sizeof(sWrmBuffer))
 		return -EINVAL;
 
 	/* Get WrmBuffer structure */
-	if (copy_from_user(&sWrmBuffer, IoBuffer.InputBuffer,
-		IoBuffer.InputLength))
+	if (copy_from_user(&sWrmBuffer, io_buff.InputBuffer,
+		io_buff.InputLength))
 		return -EFAULT;
 
 	uiTempVar = sWrmBuffer.Register & EEPROM_REJECT_MASK;
@@ -345,7 +345,7 @@ static int bcm_char_ioctl_eeprom_reg_read(void __user *argp,
 					  struct bcm_mini_adapter *ad)
 {
 	struct bcm_rdm_buffer rdm_buff = {0};
-	struct bcm_ioctl_buffer IoBuffer;
+	struct bcm_ioctl_buffer io_buff;
 	PCHAR temp_buff = NULL;
 	UINT uiTempVar = 0;
 	INT status;
@@ -361,22 +361,22 @@ static int bcm_char_ioctl_eeprom_reg_read(void __user *argp,
 	}
 
 	/* Copy Ioctl Buffer structure */
-	if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
+	if (copy_from_user(&io_buff, argp, sizeof(struct bcm_ioctl_buffer)))
 		return -EFAULT;
 
-	if (IoBuffer.InputLength > sizeof(rdm_buff))
+	if (io_buff.InputLength > sizeof(rdm_buff))
 		return -EINVAL;
 
-	if (copy_from_user(&rdm_buff, IoBuffer.InputBuffer,
-		IoBuffer.InputLength))
+	if (copy_from_user(&rdm_buff, io_buff.InputBuffer,
+		io_buff.InputLength))
 		return -EFAULT;
 
-	if (IoBuffer.OutputLength > USHRT_MAX ||
-		IoBuffer.OutputLength == 0) {
+	if (io_buff.OutputLength > USHRT_MAX ||
+		io_buff.OutputLength == 0) {
 		return -EINVAL;
 	}
 
-	temp_buff = kmalloc(IoBuffer.OutputLength, GFP_KERNEL);
+	temp_buff = kmalloc(io_buff.OutputLength, GFP_KERNEL);
 	if (!temp_buff)
 		return STATUS_FAILURE;
 
@@ -393,11 +393,11 @@ static int bcm_char_ioctl_eeprom_reg_read(void __user *argp,
 
 	uiTempVar = rdm_buff.Register & EEPROM_REJECT_MASK;
 	bytes = rdmaltWithLock(ad, (UINT)rdm_buff.Register,
-			       (PUINT)temp_buff, IoBuffer.OutputLength);
+			       (PUINT)temp_buff, io_buff.OutputLength);
 
 	if (bytes > 0) {
 		status = STATUS_SUCCESS;
-		if (copy_to_user(IoBuffer.OutputBuffer, temp_buff, bytes)) {
+		if (copy_to_user(io_buff.OutputBuffer, temp_buff, bytes)) {
 			kfree(temp_buff);
 			return -EFAULT;
 		}
@@ -414,7 +414,7 @@ static int bcm_char_ioctl_eeprom_reg_write(void __user *argp,
 					   UINT cmd)
 {
 	struct bcm_wrm_buffer sWrmBuffer = {0};
-	struct bcm_ioctl_buffer IoBuffer;
+	struct bcm_ioctl_buffer io_buff;
 	UINT uiTempVar = 0;
 	INT status;
 
@@ -428,15 +428,15 @@ static int bcm_char_ioctl_eeprom_reg_write(void __user *argp,
 	}
 
 	/* Copy Ioctl Buffer structure */
-	if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
+	if (copy_from_user(&io_buff, argp, sizeof(struct bcm_ioctl_buffer)))
 		return -EFAULT;
 
-	if (IoBuffer.InputLength > sizeof(sWrmBuffer))
+	if (io_buff.InputLength > sizeof(sWrmBuffer))
 		return -EINVAL;
 
 	/* Get WrmBuffer structure */
-	if (copy_from_user(&sWrmBuffer, IoBuffer.InputBuffer,
-		IoBuffer.InputLength))
+	if (copy_from_user(&sWrmBuffer, io_buff.InputBuffer,
+		io_buff.InputLength))
 		return -EFAULT;
 
 	if ((((ULONG)sWrmBuffer.Register & 0x0F000000) != 0x0F000000) ||
@@ -480,7 +480,7 @@ static int bcm_char_ioctl_gpio_set_request(void __user *argp,
 					   struct bcm_mini_adapter *ad)
 {
 	struct bcm_gpio_info gpio_info = {0};
-	struct bcm_ioctl_buffer IoBuffer;
+	struct bcm_ioctl_buffer io_buff;
 	UCHAR ucResetValue[4];
 	UINT value = 0;
 	UINT uiBit = 0;
@@ -498,14 +498,14 @@ static int bcm_char_ioctl_gpio_set_request(void __user *argp,
 		return -EACCES;
 	}
 
-	if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
+	if (copy_from_user(&io_buff, argp, sizeof(struct bcm_ioctl_buffer)))
 		return -EFAULT;
 
-	if (IoBuffer.InputLength > sizeof(gpio_info))
+	if (io_buff.InputLength > sizeof(gpio_info))
 		return -EINVAL;
 
-	if (copy_from_user(&gpio_info, IoBuffer.InputBuffer,
-			   IoBuffer.InputLength))
+	if (copy_from_user(&gpio_info, io_buff.InputBuffer,
+			   io_buff.InputLength))
 		return -EFAULT;
 
 	uiBit  = gpio_info.uiGpioNumber;
