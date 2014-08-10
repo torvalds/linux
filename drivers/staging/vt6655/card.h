@@ -77,49 +77,48 @@ typedef enum _CARD_OP_MODE {
 	OP_MODE_UNKNOWN
 } CARD_OP_MODE, *PCARD_OP_MODE;
 
-void CARDvSetRSPINF(void *pDeviceHandler, CARD_PHY_TYPE ePHYType);
-void vUpdateIFS(void *pDeviceHandler);
-void CARDvUpdateBasicTopRate(void *pDeviceHandler);
-bool CARDbAddBasicRate(void *pDeviceHandler, unsigned short wRateIdx);
-bool CARDbIsOFDMinBasicRate(void *pDeviceHandler);
+struct vnt_private;
+
+void CARDvSetRSPINF(struct vnt_private *, CARD_PHY_TYPE ePHYType);
+void vUpdateIFS(struct vnt_private *);
+void CARDvUpdateBasicTopRate(struct vnt_private *);
+bool CARDbAddBasicRate(struct vnt_private *, unsigned short wRateIdx);
+bool CARDbIsOFDMinBasicRate(struct vnt_private *);
 void CARDvSetLoopbackMode(void __iomem *dwIoBase, unsigned short wLoopbackMode);
-bool CARDbSoftwareReset(void *pDeviceHandler);
+bool CARDbSoftwareReset(struct vnt_private *);
 void CARDvSetFirstNextTBTT(void __iomem *dwIoBase, unsigned short wBeaconInterval);
 void CARDvUpdateNextTBTT(void __iomem *dwIoBase, u64 qwTSF, unsigned short wBeaconInterval);
 bool CARDbGetCurrentTSF(void __iomem *dwIoBase, u64 *pqwCurrTSF);
 u64 CARDqGetNextTBTT(u64 qwTSF, unsigned short wBeaconInterval);
 u64 CARDqGetTSFOffset(unsigned char byRxRate, u64 qwTSF1, u64 qwTSF2);
-bool CARDbSetTxPower(void *pDeviceHandler, unsigned long ulTxPower);
-unsigned char CARDbyGetPktType(void *pDeviceHandler);
-void CARDvSafeResetTx(void *pDeviceHandler);
-void CARDvSafeResetRx(void *pDeviceHandler);
+bool CARDbSetTxPower(struct vnt_private *, unsigned long ulTxPower);
+unsigned char CARDbyGetPktType(struct vnt_private *);
+void CARDvSafeResetTx(struct vnt_private *);
+void CARDvSafeResetRx(struct vnt_private *);
+bool CARDbRadioPowerOff(struct vnt_private *);
+bool CARDbRadioPowerOn(struct vnt_private *);
+bool CARDbIsShortPreamble(struct vnt_private *);
+bool CARDbIsShorSlotTime(struct vnt_private *);
+bool CARDbSetPhyParameter(struct vnt_private *, CARD_PHY_TYPE ePHYType,
+			  unsigned short wCapInfo, unsigned char byERPField,
+			  void *pvSupportRateIEs, void *pvExtSupportRateIEs);
+bool CARDbUpdateTSF(struct vnt_private *, unsigned char byRxRate,
+		    u64 qwBSSTimestamp, u64 qwLocalTSF);
+bool CARDbStopTxPacket(struct vnt_private *, CARD_PKT_TYPE ePktType);
+bool CARDbStartTxPacket(struct vnt_private *, CARD_PKT_TYPE ePktType);
+bool CARDbSetBeaconPeriod(struct vnt_private *, unsigned short wBeaconInterval);
+bool CARDbSetBSSID(struct vnt_private *,
+		   unsigned char *pbyBSSID, CARD_OP_MODE eOPMode);
 
-bool CARDbRadioPowerOff(void *pDeviceHandler);
-bool CARDbRadioPowerOn(void *pDeviceHandler);
-bool CARDbIsShortPreamble(void *pDeviceHandler);
-bool CARDbIsShorSlotTime(void *pDeviceHandler);
-bool CARDbSetPhyParameter(void *pDeviceHandler, CARD_PHY_TYPE ePHYType, unsigned short wCapInfo, unsigned char byERPField, void *pvSupportRateIEs, void *pvExtSupportRateIEs);
-bool CARDbUpdateTSF(void *pDeviceHandler, unsigned char byRxRate, u64 qwBSSTimestamp, u64 qwLocalTSF);
-bool CARDbStopTxPacket(void *pDeviceHandler, CARD_PKT_TYPE ePktType);
-bool CARDbStartTxPacket(void *pDeviceHandler, CARD_PKT_TYPE ePktType);
-bool CARDbSetBeaconPeriod(void *pDeviceHandler, unsigned short wBeaconInterval);
-bool CARDbSetBSSID(void *pDeviceHandler, unsigned char *pbyBSSID, CARD_OP_MODE eOPMode);
+bool CARDbPowerDown(struct vnt_private *);
 
-bool
-CARDbPowerDown(
-	void *pDeviceHandler
-);
+bool CARDbSetTxDataRate(struct vnt_private *, unsigned short wDataRate);
 
-bool CARDbSetTxDataRate(
-	void *pDeviceHandler,
-	unsigned short wDataRate
-);
-
-bool CARDbRemoveKey(void *pDeviceHandler, unsigned char *pbyBSSID);
+bool CARDbRemoveKey(struct vnt_private *, unsigned char *pbyBSSID);
 
 bool
 CARDbAdd_PMKID_Candidate(
-	void *pDeviceHandler,
+	struct vnt_private *,
 	unsigned char *pbyBSSID,
 	bool bRSNCapExist,
 	unsigned short wRSNCap
@@ -127,19 +126,19 @@ CARDbAdd_PMKID_Candidate(
 
 void *
 CARDpGetCurrentAddress(
-	void *pDeviceHandler
+	struct vnt_private *
 );
 
 bool
 CARDbStartMeasure(
-	void *pDeviceHandler,
+	struct vnt_private *,
 	void *pvMeasureEIDs,
 	unsigned int uNumOfMeasureEIDs
 );
 
 bool
 CARDbChannelSwitch(
-	void *pDeviceHandler,
+	struct vnt_private *,
 	unsigned char byMode,
 	unsigned char byNewChannel,
 	unsigned char byCount
@@ -147,7 +146,7 @@ CARDbChannelSwitch(
 
 bool
 CARDbSetQuiet(
-	void *pDeviceHandler,
+	struct vnt_private *,
 	bool bResetQuiet,
 	unsigned char byQuietCount,
 	unsigned char byQuietPeriod,
@@ -157,26 +156,26 @@ CARDbSetQuiet(
 
 bool
 CARDbStartQuiet(
-	void *pDeviceHandler
+	struct vnt_private *
 );
 
 void
 CARDvSetPowerConstraint(
-	void *pDeviceHandler,
+	struct vnt_private *,
 	unsigned char byChannel,
 	char byPower
 );
 
 void
 CARDvGetPowerCapability(
-	void *pDeviceHandler,
+	struct vnt_private *,
 	unsigned char *pbyMinPower,
 	unsigned char *pbyMaxPower
 );
 
 char
 CARDbyGetTransmitPower(
-	void *pDeviceHandler
+	struct vnt_private *
 );
 
 #endif // __CARD_H__
