@@ -481,7 +481,7 @@ static int bcm_char_ioctl_gpio_set_request(void __user *argp,
 {
 	struct bcm_gpio_info gpio_info = {0};
 	struct bcm_ioctl_buffer io_buff;
-	UCHAR ucResetValue[4];
+	UCHAR reset_val[4];
 	UINT value = 0;
 	UINT uiBit = 0;
 	UINT uiOperation = 0;
@@ -558,7 +558,7 @@ static int bcm_char_ioctl_gpio_set_request(void __user *argp,
 	}
 
 	bytes = rdmaltWithLock(ad, (UINT)GPIO_MODE_REGISTER,
-			       (PUINT)ucResetValue, sizeof(UINT));
+			       (PUINT)reset_val, sizeof(UINT));
 	if (bytes < 0) {
 		status = bytes;
 		BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
@@ -569,9 +569,9 @@ static int bcm_char_ioctl_gpio_set_request(void __user *argp,
 	}
 
 	/* Set the gpio mode register to output */
-	*(UINT *)ucResetValue |= (1<<uiBit);
+	*(UINT *)reset_val |= (1<<uiBit);
 	status = wrmaltWithLock(ad, GPIO_MODE_REGISTER,
-				(PUINT)ucResetValue, sizeof(UINT));
+				(PUINT)reset_val, sizeof(UINT));
 
 	if (status == STATUS_SUCCESS) {
 		BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, OSAL_DBG,
