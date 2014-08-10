@@ -1001,19 +1001,17 @@ BSSvSecondTxData(
 	}
 
 	spin_lock_irq(&pDevice->lock);
-#if 1
-	if ((pDevice->bLinkPass && (pMgmt->eAuthenMode < WMAC_AUTH_WPA)) ||  //open && sharekey linking
-	    pDevice->fWPA_Authened) {   //wpa linking
-#else
-		if (pDevice->bLinkPass == true) {
-#endif
-			pDevice->fTxDataInSleep = true;
-			PSbSendNullPacket(pDevice);      //send null packet
-			pDevice->fTxDataInSleep = false;
-		}
-		spin_unlock_irq(&pDevice->lock);
 
-		pDevice->sTimerTxData.expires = RUN_AT(10*HZ);      //10s callback
-		add_timer(&pDevice->sTimerTxData);
-		return;
+	/* open && sharekey linking */
+	if ((pDevice->bLinkPass && (pMgmt->eAuthenMode < WMAC_AUTH_WPA)) ||
+	    pDevice->fWPA_Authened) {   /* wpa linking */
+		pDevice->fTxDataInSleep = true;
+		PSbSendNullPacket(pDevice);	/* send null packet */
+		pDevice->fTxDataInSleep = false;
 	}
+
+	spin_unlock_irq(&pDevice->lock);
+
+	pDevice->sTimerTxData.expires = RUN_AT(10*HZ); /* 10s callback */
+	add_timer(&pDevice->sTimerTxData);
+}
