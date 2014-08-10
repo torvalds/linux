@@ -380,6 +380,9 @@ int au0828_rc_suspend(struct au0828_dev *dev)
 
 	cancel_delayed_work_sync(&ir->work);
 
+	/* Disable IR */
+	au8522_rc_clear(ir, 0xe0, 1 << 4);
+
 	return 0;
 }
 
@@ -389,6 +392,9 @@ int au0828_rc_resume(struct au0828_dev *dev)
 
 	if (!ir)
 		return 0;
+
+	/* Enable IR */
+	au8522_rc_set(ir, 0xe0, 1 << 4);
 
 	schedule_delayed_work(&ir->work, msecs_to_jiffies(ir->polling));
 
