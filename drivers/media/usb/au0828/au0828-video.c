@@ -159,6 +159,7 @@ static void au0828_irq_callback(struct urb *urb)
 		au0828_isocdbg("urb resubmit failed (error=%i)\n",
 			       urb->status);
 	}
+	dev->stream_state = STREAM_ON;
 }
 
 /*
@@ -198,6 +199,8 @@ static void au0828_uninit_isoc(struct au0828_dev *dev)
 	dev->isoc_ctl.urb = NULL;
 	dev->isoc_ctl.transfer_buffer = NULL;
 	dev->isoc_ctl.num_bufs = 0;
+
+	dev->stream_state = STREAM_OFF;
 }
 
 /*
