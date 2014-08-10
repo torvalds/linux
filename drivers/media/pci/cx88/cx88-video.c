@@ -470,7 +470,7 @@ static int restart_video_queue(struct cx8800_dev    *dev,
 			       struct cx88_dmaqueue *q)
 {
 	struct cx88_core *core = dev->core;
-	struct cx88_buffer *buf, *prev;
+	struct cx88_buffer *buf;
 
 	if (!list_empty(&q->active)) {
 		buf = list_entry(q->active.next, struct cx88_buffer, vb.queue);
@@ -480,33 +480,8 @@ static int restart_video_queue(struct cx8800_dev    *dev,
 		list_for_each_entry(buf, &q->active, vb.queue)
 			buf->count = q->count++;
 		mod_timer(&q->timeout, jiffies+BUFFER_TIMEOUT);
-		return 0;
 	}
-
-	prev = NULL;
-	for (;;) {
-		if (list_empty(&q->queued))
-			return 0;
-		buf = list_entry(q->queued.next, struct cx88_buffer, vb.queue);
-		if (NULL == prev) {
-			list_move_tail(&buf->vb.queue, &q->active);
-			start_video_dma(dev, q, buf);
-			buf->vb.state = VIDEOBUF_ACTIVE;
-			buf->count    = q->count++;
-			mod_timer(&q->timeout, jiffies+BUFFER_TIMEOUT);
-			dprintk(2,"[%p/%d] restart_queue - first active\n",
-				buf,buf->vb.i);
-
-		} else {
-			list_move_tail(&buf->vb.queue, &q->active);
-			buf->vb.state = VIDEOBUF_ACTIVE;
-			buf->count    = q->count++;
-			prev->risc.jmp[1] = cpu_to_le32(buf->risc.dma);
-			dprintk(2,"[%p/%d] restart_queue - move to active\n",
-				buf,buf->vb.i);
-		}
-		prev = buf;
-	}
+	return 0;
 }
 
 /* ------------------------------------------------------------------ */
@@ -613,13 +588,7 @@ buffer_queue(struct videobuf_queue *vq, struct videobuf_buffer *vb)
 	buf->risc.jmp[0] = cpu_to_le32(RISC_JUMP | RISC_IRQ1 | RISC_CNT_INC);
 	buf->risc.jmp[1] = cpu_to_le32(q->stopper.dma);
 
-	if (!list_empty(&q->queued)) {
-		list_add_tail(&buf->vb.queue,&q->queued);
-		buf->vb.state = VIDEOBUF_QUEUED;
-		dprintk(2,"[%p/%d] buffer_queue - append to queued\n",
-			buf, buf->vb.i);
-
-	} else if (list_empty(&q->active)) {
+	if (list_empty(&q->active)) {
 		list_add_tail(&buf->vb.queue,&q->active);
 		start_video_dma(dev, q, buf);
 		buf->vb.state = VIDEOBUF_ACTIVE;
@@ -1691,7 +1660,6 @@ static int cx8800_initdev(struct pci_dev *pci_dev,
 
 	/* init video dma queues */
 	INIT_LIST_HEAD(&dev->vidq.active);
-	INIT_LIST_HEAD(&dev->vidq.queued);
 	dev->vidq.timeout.function = cx8800_vid_timeout;
 	dev->vidq.timeout.data     = (unsigned long)dev;
 	init_timer(&dev->vidq.timeout);
@@ -1700,7 +1668,6 @@ static int cx8800_initdev(struct pci_dev *pci_dev,
 
 	/* init vbi dma queues */
 	INIT_LIST_HEAD(&dev->vbiq.active);
-	INIT_LIST_HEAD(&dev->vbiq.queued);
 	dev->vbiq.timeout.function = cx8800_vbi_timeout;
 	dev->vbiq.timeout.data     = (unsigned long)dev;
 	init_timer(&dev->vbiq.timeout);

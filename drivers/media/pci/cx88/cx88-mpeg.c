@@ -210,37 +210,7 @@ static int cx8802_restart_queue(struct cx8802_dev    *dev,
 
 	dprintk( 1, "cx8802_restart_queue\n" );
 	if (list_empty(&q->active))
-	{
-		struct cx88_buffer *prev;
-		prev = NULL;
-
-		dprintk(1, "cx8802_restart_queue: queue is empty\n" );
-
-		for (;;) {
-			if (list_empty(&q->queued))
-				return 0;
-			buf = list_entry(q->queued.next, struct cx88_buffer, vb.queue);
-			if (NULL == prev) {
-				list_move_tail(&buf->vb.queue, &q->active);
-				cx8802_start_dma(dev, q, buf);
-				buf->vb.state = VIDEOBUF_ACTIVE;
-				buf->count    = q->count++;
-				mod_timer(&q->timeout, jiffies+BUFFER_TIMEOUT);
-				dprintk(1,"[%p/%d] restart_queue - first active\n",
-					buf,buf->vb.i);
-
-			} else {
-				list_move_tail(&buf->vb.queue, &q->active);
-				buf->vb.state = VIDEOBUF_ACTIVE;
-				buf->count    = q->count++;
-				prev->risc.jmp[1] = cpu_to_le32(buf->risc.dma);
-				dprintk(1,"[%p/%d] restart_queue - move to active\n",
-					buf,buf->vb.i);
-			}
-			prev = buf;
-		}
 		return 0;
-	}
 
 	buf = list_entry(q->active.next, struct cx88_buffer, vb.queue);
 	dprintk(2,"restart_queue [%p/%d]: restart dma\n",
@@ -486,7 +456,6 @@ static int cx8802_init_common(struct cx8802_dev *dev)
 
 	/* init dma queue */
 	INIT_LIST_HEAD(&dev->mpegq.active);
-	INIT_LIST_HEAD(&dev->mpegq.queued);
 	dev->mpegq.timeout.function = cx8802_timeout;
 	dev->mpegq.timeout.data     = (unsigned long)dev;
 	init_timer(&dev->mpegq.timeout);

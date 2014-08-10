@@ -324,7 +324,6 @@ struct cx88_buffer {
 
 struct cx88_dmaqueue {
 	struct list_head       active;
-	struct list_head       queued;
 	struct timer_list      timeout;
 	struct btcx_riscmem    stopper;
 	u32                    count;
