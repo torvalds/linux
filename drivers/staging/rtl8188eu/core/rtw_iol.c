@@ -86,22 +86,6 @@ int _rtw_IOL_append_WRF_cmd(struct xmit_frame *xmit_frame, u8 rf_path, u16 addr,
 	return rtw_IOL_append_cmds(xmit_frame, (u8 *)&cmd, cmd.length);
 }
 
-int rtw_IOL_append_DELAY_US_cmd(struct xmit_frame *xmit_frame, u16 us)
-{
-	struct ioreg_cfg cmd = {4, IOREG_CMD_DELAY_US, 0x0, 0x0, 0x0};
-	cmd.address = cpu_to_le16(us);
-
-	return rtw_IOL_append_cmds(xmit_frame, (u8 *)&cmd, 4);
-}
-
-int rtw_IOL_append_DELAY_MS_cmd(struct xmit_frame *xmit_frame, u16 ms)
-{
-	struct ioreg_cfg cmd = {4, IOREG_CMD_DELAY_US, 0x0, 0x0, 0x0};
-
-	cmd.address = cpu_to_le16(ms);
-	return rtw_IOL_append_cmds(xmit_frame, (u8 *)&cmd, 4);
-}
-
 int rtw_IOL_append_END_cmd(struct xmit_frame *xmit_frame)
 {
 	struct ioreg_cfg cmd = {4, IOREG_CMD_END, cpu_to_le16(0xFFFF), cpu_to_le32(0xFF), 0x0};

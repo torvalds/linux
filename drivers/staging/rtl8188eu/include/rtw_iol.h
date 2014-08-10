@@ -50,8 +50,6 @@ int rtw_IOL_append_cmds(struct xmit_frame *xmit_frame, u8 *IOL_cmds,
 			u32 cmd_len);
 int rtw_IOL_append_LLT_cmd(struct xmit_frame *xmit_frame, u8 page_boundary);
 bool rtw_IOL_applied(struct adapter  *adapter);
-int rtw_IOL_append_DELAY_US_cmd(struct xmit_frame *xmit_frame, u16 us);
-int rtw_IOL_append_DELAY_MS_cmd(struct xmit_frame *xmit_frame, u16 ms);
 int rtw_IOL_append_END_cmd(struct xmit_frame *xmit_frame);
 
 void read_efuse_from_txpktbuf(struct adapter *adapter, int bcnhead,
