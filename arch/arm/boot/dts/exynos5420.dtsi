@@ -525,7 +525,6 @@
 		compatible = "samsung,exynos5410-mipi-dsi";
 		reg = <0x14500000 0x10000>;
 		interrupts = <0 82 0>;
-		samsung,power-domain = <&disp_pd>;
 		phys = <&mipi_phy 1>;
 		phy-names = "dsim";
 		clocks = <&clock CLK_DSIM1>, <&clock CLK_SCLK_MIPI1>;
