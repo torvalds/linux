@@ -6,7 +6,7 @@ static int bcm_handle_nvm_read_cmd(struct bcm_mini_adapter *ad,
 				   PUCHAR read_data,
 				   struct bcm_nvm_readwrite *nvm_rw)
 {
-	INT Status = STATUS_FAILURE;
+	INT status = STATUS_FAILURE;
 
 	down(&ad->NVMRdmWrmLock);
 
@@ -21,14 +21,14 @@ static int bcm_handle_nvm_read_cmd(struct bcm_mini_adapter *ad,
 		return -EACCES;
 	}
 
-	Status = BeceemNVMRead(ad, (PUINT)read_data,
+	status = BeceemNVMRead(ad, (PUINT)read_data,
 			       nvm_rw->uiOffset,
 			       nvm_rw->uiNumBytes);
 	up(&ad->NVMRdmWrmLock);
 
-	if (Status != STATUS_SUCCESS) {
+	if (status != STATUS_SUCCESS) {
 		kfree(read_data);
-		return Status;
+		return status;
 	}
 
 	if (copy_to_user(nvm_rw->pBuffer, read_data, nvm_rw->uiNumBytes)) {
@@ -58,11 +58,11 @@ static int handle_flash2x_adapter(struct bcm_mini_adapter *ad,
 	 * if DSD sig is corrupted, DSD data won't be
 	 * considered valid.
 	 */
-	INT Status;
+	INT status;
 	ULONG ulDSDMagicNumInUsrBuff = 0;
 
-	Status = BcmFlash2xCorruptSig(ad, ad->eActiveDSD);
-	if (Status == STATUS_SUCCESS)
+	status = BcmFlash2xCorruptSig(ad, ad->eActiveDSD);
+	if (status == STATUS_SUCCESS)
 		return STATUS_SUCCESS;
 
 	if (((nvm_rw->uiOffset + nvm_rw->uiNumBytes) !=
@@ -73,7 +73,7 @@ static int handle_flash2x_adapter(struct bcm_mini_adapter *ad,
 				"DSD Sig is present neither in Flash nor User provided Input..");
 		up(&ad->NVMRdmWrmLock);
 		kfree(read_data);
-		return Status;
+		return status;
 	}
 
 	ulDSDMagicNumInUsrBuff =
@@ -84,7 +84,7 @@ static int handle_flash2x_adapter(struct bcm_mini_adapter *ad,
 				"DSD Sig is present neither in Flash nor User provided Input..");
 		up(&ad->NVMRdmWrmLock);
 		kfree(read_data);
-		return Status;
+		return status;
 	}
 
 	return STATUS_SUCCESS;
@@ -249,7 +249,7 @@ static int bcm_char_ioctl_reg_read_private(void __user *argp,
 	struct bcm_rdm_buffer sRdmBuffer = {0};
 	struct bcm_ioctl_buffer IoBuffer;
 	PCHAR temp_buff;
-	INT Status = STATUS_FAILURE;
+	INT status = STATUS_FAILURE;
 	UINT Bufflen;
 	u16 temp_value;
 	int bytes;
@@ -281,17 +281,17 @@ static int bcm_char_ioctl_reg_read_private(void __user *argp,
 	bytes = rdmalt(ad, (UINT)sRdmBuffer.Register,
 			(PUINT)temp_buff, Bufflen);
 	if (bytes > 0) {
-		Status = STATUS_SUCCESS;
+		status = STATUS_SUCCESS;
 		if (copy_to_user(IoBuffer.OutputBuffer, temp_buff, bytes)) {
 			kfree(temp_buff);
 			return -EFAULT;
 		}
 	} else {
-		Status = bytes;
+		status = bytes;
 	}
 
 	kfree(temp_buff);
-	return Status;
+	return status;
 }
 
 static int bcm_char_ioctl_reg_write_private(void __user *argp,
@@ -300,7 +300,7 @@ static int bcm_char_ioctl_reg_write_private(void __user *argp,
 	struct bcm_wrm_buffer sWrmBuffer = {0};
 	struct bcm_ioctl_buffer IoBuffer;
 	UINT uiTempVar = 0;
-	INT Status;
+	INT status;
 
 	/* Copy Ioctl Buffer structure */
 
@@ -327,18 +327,18 @@ static int bcm_char_ioctl_reg_write_private(void __user *argp,
 		return -EFAULT;
 	}
 
-	Status = wrmalt(ad, (UINT)sWrmBuffer.Register,
+	status = wrmalt(ad, (UINT)sWrmBuffer.Register,
 			(PUINT)sWrmBuffer.Data, sizeof(ULONG));
 
-	if (Status == STATUS_SUCCESS) {
+	if (status == STATUS_SUCCESS) {
 		BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, OSAL_DBG,
 				DBG_LVL_ALL, "WRM Done\n");
 	} else {
 		BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, OSAL_DBG,
 				DBG_LVL_ALL, "WRM Failed\n");
-		Status = -EFAULT;
+		status = -EFAULT;
 	}
-	return Status;
+	return status;
 }
 
 static int bcm_char_ioctl_eeprom_reg_read(void __user *argp,
@@ -348,7 +348,7 @@ static int bcm_char_ioctl_eeprom_reg_read(void __user *argp,
 	struct bcm_ioctl_buffer IoBuffer;
 	PCHAR temp_buff = NULL;
 	UINT uiTempVar = 0;
-	INT Status;
+	INT status;
 	int bytes;
 
 	if ((ad->IdleMode == TRUE) ||
@@ -396,17 +396,17 @@ static int bcm_char_ioctl_eeprom_reg_read(void __user *argp,
 			       (PUINT)temp_buff, IoBuffer.OutputLength);
 
 	if (bytes > 0) {
-		Status = STATUS_SUCCESS;
+		status = STATUS_SUCCESS;
 		if (copy_to_user(IoBuffer.OutputBuffer, temp_buff, bytes)) {
 			kfree(temp_buff);
 			return -EFAULT;
 		}
 	} else {
-		Status = bytes;
+		status = bytes;
 	}
 
 	kfree(temp_buff);
-	return Status;
+	return status;
 }
 
 static int bcm_char_ioctl_eeprom_reg_write(void __user *argp,
@@ -416,7 +416,7 @@ static int bcm_char_ioctl_eeprom_reg_write(void __user *argp,
 	struct bcm_wrm_buffer sWrmBuffer = {0};
 	struct bcm_ioctl_buffer IoBuffer;
 	UINT uiTempVar = 0;
-	INT Status;
+	INT status;
 
 	if ((ad->IdleMode == TRUE) ||
 		(ad->bShutStatus == TRUE) ||
@@ -461,19 +461,19 @@ static int bcm_char_ioctl_eeprom_reg_write(void __user *argp,
 			return -EFAULT;
 	}
 
-	Status = wrmaltWithLock(ad, (UINT)sWrmBuffer.Register,
+	status = wrmaltWithLock(ad, (UINT)sWrmBuffer.Register,
 				(PUINT)sWrmBuffer.Data,
 				sWrmBuffer.Length);
 
-	if (Status == STATUS_SUCCESS) {
+	if (status == STATUS_SUCCESS) {
 		BCM_DEBUG_PRINT(ad, DBG_TYPE_PRINTK, OSAL_DBG,
 				DBG_LVL_ALL, "WRM Done\n");
 	} else {
 		BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, OSAL_DBG,
 				DBG_LVL_ALL, "WRM Failed\n");
-		Status = -EFAULT;
+		status = -EFAULT;
 	}
-	return Status;
+	return status;
 }
 
 static int bcm_char_ioctl_gpio_set_request(void __user *argp,
@@ -485,7 +485,7 @@ static int bcm_char_ioctl_gpio_set_request(void __user *argp,
 	UINT value = 0;
 	UINT uiBit = 0;
 	UINT uiOperation = 0;
-	INT Status;
+	INT status;
 	int bytes;
 
 	if ((ad->IdleMode == TRUE) ||
@@ -523,11 +523,11 @@ static int bcm_char_ioctl_gpio_set_request(void __user *argp,
 	/* Set - setting 1 */
 	if (uiOperation) {
 		/* Set the gpio output register */
-		Status = wrmaltWithLock(ad,
+		status = wrmaltWithLock(ad,
 					BCM_GPIO_OUTPUT_SET_REG,
 					(PUINT)(&value), sizeof(UINT));
 
-		if (Status == STATUS_SUCCESS) {
+		if (status == STATUS_SUCCESS) {
 			BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS,
 					OSAL_DBG, DBG_LVL_ALL,
 					"Set the GPIO bit\n");
@@ -536,15 +536,15 @@ static int bcm_char_ioctl_gpio_set_request(void __user *argp,
 					OSAL_DBG, DBG_LVL_ALL,
 					"Failed to set the %dth GPIO\n",
 					uiBit);
-			return Status;
+			return status;
 		}
 	} else {
 		/* Set the gpio output register */
-		Status = wrmaltWithLock(ad,
+		status = wrmaltWithLock(ad,
 					BCM_GPIO_OUTPUT_CLR_REG,
 					(PUINT)(&value), sizeof(UINT));
 
-		if (Status == STATUS_SUCCESS) {
+		if (status == STATUS_SUCCESS) {
 			BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS,
 					OSAL_DBG, DBG_LVL_ALL,
 					"Set the GPIO bit\n");
@@ -553,27 +553,27 @@ static int bcm_char_ioctl_gpio_set_request(void __user *argp,
 					OSAL_DBG, DBG_LVL_ALL,
 					"Failed to clear the %dth GPIO\n",
 					uiBit);
-			return Status;
+			return status;
 		}
 	}
 
 	bytes = rdmaltWithLock(ad, (UINT)GPIO_MODE_REGISTER,
 			       (PUINT)ucResetValue, sizeof(UINT));
 	if (bytes < 0) {
-		Status = bytes;
+		status = bytes;
 		BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
 				"GPIO_MODE_REGISTER read failed");
-		return Status;
+		return status;
 	} else {
-		Status = STATUS_SUCCESS;
+		status = STATUS_SUCCESS;
 	}
 
 	/* Set the gpio mode register to output */
 	*(UINT *)ucResetValue |= (1<<uiBit);
-	Status = wrmaltWithLock(ad, GPIO_MODE_REGISTER,
+	status = wrmaltWithLock(ad, GPIO_MODE_REGISTER,
 				(PUINT)ucResetValue, sizeof(UINT));
 
-	if (Status == STATUS_SUCCESS) {
+	if (status == STATUS_SUCCESS) {
 		BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, OSAL_DBG,
 				DBG_LVL_ALL,
 				"Set the GPIO to output Mode\n");
@@ -583,7 +583,7 @@ static int bcm_char_ioctl_gpio_set_request(void __user *argp,
 				"Failed to put GPIO in Output Mode\n");
 	}
 
-	return Status;
+	return status;
 }
 
 static int bcm_char_ioctl_led_thread_state_change_req(void __user *argp,
