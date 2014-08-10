@@ -302,6 +302,12 @@ static int au0828_resume(struct usb_interface *interface)
 	if (!dev)
 		return 0;
 
+	/* Power Up the bridge */
+	au0828_write(dev, REG_600, 1 << 4);
+
+	/* Bring up the GPIO's and supporting devices */
+	au0828_gpio_setup(dev);
+
 	au0828_rc_resume(dev);
 
 	/* FIXME: should resume also ATV/DTV */
