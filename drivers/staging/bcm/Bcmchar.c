@@ -4,7 +4,7 @@
 
 static int bcm_handle_nvm_read_cmd(struct bcm_mini_adapter *ad,
 				   PUCHAR read_data,
-				   struct bcm_nvm_readwrite *stNVMReadWrite)
+				   struct bcm_nvm_readwrite *nvm_rw)
 {
 	INT Status = STATUS_FAILURE;
 
@@ -22,8 +22,8 @@ static int bcm_handle_nvm_read_cmd(struct bcm_mini_adapter *ad,
 	}
 
 	Status = BeceemNVMRead(ad, (PUINT)read_data,
-			       stNVMReadWrite->uiOffset,
-			       stNVMReadWrite->uiNumBytes);
+			       nvm_rw->uiOffset,
+			       nvm_rw->uiNumBytes);
 	up(&ad->NVMRdmWrmLock);
 
 	if (Status != STATUS_SUCCESS) {
@@ -31,8 +31,7 @@ static int bcm_handle_nvm_read_cmd(struct bcm_mini_adapter *ad,
 		return Status;
 	}
 
-	if (copy_to_user(stNVMReadWrite->pBuffer, read_data,
-			stNVMReadWrite->uiNumBytes)) {
+	if (copy_to_user(nvm_rw->pBuffer, read_data, nvm_rw->uiNumBytes)) {
 		kfree(read_data);
 		return -EFAULT;
 	}
@@ -42,7 +41,7 @@ static int bcm_handle_nvm_read_cmd(struct bcm_mini_adapter *ad,
 
 static int handle_flash2x_adapter(struct bcm_mini_adapter *ad,
 				  PUCHAR read_data,
-				  struct bcm_nvm_readwrite *stNVMReadWrite)
+				  struct bcm_nvm_readwrite *nvm_rw)
 {
 	/*
 	 * New Requirement:-
@@ -66,9 +65,9 @@ static int handle_flash2x_adapter(struct bcm_mini_adapter *ad,
 	if (Status == STATUS_SUCCESS)
 		return STATUS_SUCCESS;
 
-	if (((stNVMReadWrite->uiOffset + stNVMReadWrite->uiNumBytes) !=
+	if (((nvm_rw->uiOffset + nvm_rw->uiNumBytes) !=
 			ad->uiNVMDSDSize) ||
-			(stNVMReadWrite->uiNumBytes < SIGNATURE_SIZE)) {
+			(nvm_rw->uiNumBytes < SIGNATURE_SIZE)) {
 
 		BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
 				"DSD Sig is present neither in Flash nor User provided Input..");
@@ -78,7 +77,7 @@ static int handle_flash2x_adapter(struct bcm_mini_adapter *ad,
 	}
 
 	ulDSDMagicNumInUsrBuff =
-		ntohl(*(PUINT)(read_data + stNVMReadWrite->uiNumBytes -
+		ntohl(*(PUINT)(read_data + nvm_rw->uiNumBytes -
 		      SIGNATURE_SIZE));
 	if (ulDSDMagicNumInUsrBuff != DSD_IMAGE_MAGIC_NUMBER) {
 		BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
