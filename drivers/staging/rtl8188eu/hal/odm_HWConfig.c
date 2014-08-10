@@ -431,18 +431,3 @@ void ODM_PhyStatusQuery(struct odm_dm_struct *dm_odm,
 {
 	ODM_PhyStatusQuery_92CSeries(dm_odm, pPhyInfo, pPhyStatus, pPktinfo);
 }
-
-enum HAL_STATUS ODM_ConfigBBWithHeaderFile(struct odm_dm_struct *dm_odm,
-					   enum odm_bb_config_type config_tp)
-{
-	if (config_tp == CONFIG_BB_PHY_REG) {
-		READ_AND_CONFIG(8188E, _PHY_REG_1T_);
-	} else if (config_tp == CONFIG_BB_AGC_TAB) {
-		READ_AND_CONFIG(8188E, _AGC_TAB_1T_);
-	} else if (config_tp == CONFIG_BB_PHY_REG_PG) {
-		READ_AND_CONFIG(8188E, _PHY_REG_PG_);
-		ODM_RT_TRACE(dm_odm, ODM_COMP_INIT, ODM_DBG_LOUD,
-			     (" ===> phy_ConfigBBWithHeaderFile() agc:Rtl8188EPHY_REG_PGArray\n"));
-	}
-	return HAL_STATUS_SUCCESS;
-}

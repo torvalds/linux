@@ -760,15 +760,7 @@ static u32 rtl8188eu_hal_init(struct adapter *Adapter)
 
 	rtl88e_phy_mac_config(Adapter);
 
-/* d. Initialize BB related configurations. */
-	HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_BB);
-#if (HAL_BB_ENABLE == 1)
-	status = PHY_BBConfig8188E(Adapter);
-	if (status == _FAIL) {
-		DBG_88E(" ### Failed to init BB ......\n ");
-		goto exit;
-	}
-#endif
+	rtl88e_phy_bb_config(Adapter);
 
 	rtl88e_phy_rf_config(Adapter);
 
