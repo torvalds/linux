@@ -10,7 +10,6 @@ obj-y        +=	ttpci/		\
 		mantis/		\
 		ngene/		\
 		ddbridge/	\
-		b2c2/		\
 		saa7146/
 
 obj-$(CONFIG_VIDEO_IVTV) += ivtv/
