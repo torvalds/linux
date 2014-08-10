@@ -1354,6 +1354,7 @@ static const struct dvb_tuner_ops xc5000_tuner_ops = {
 	.init		   = xc5000_init,
 	.sleep		   = xc5000_sleep,
 	.suspend	   = xc5000_suspend,
+	.resume		   = xc5000_apply_params,
 
 	.set_config	   = xc5000_set_config,
 	.set_params	   = xc5000_set_params,
