@@ -253,10 +253,10 @@ static void au0828_rc_stop(struct rc_dev *rc)
 {
 	struct au0828_rc *ir = rc->priv;
 
+	cancel_delayed_work_sync(&ir->work);
+
 	/* Disable IR */
 	au8522_rc_clear(ir, 0xe0, 1 << 4);
-
-	cancel_delayed_work_sync(&ir->work);
 }
 
 static int au0828_probe_i2c_ir(struct au0828_dev *dev)
