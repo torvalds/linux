@@ -153,9 +153,7 @@ static void au0828_usb_disconnect(struct usb_interface *interface)
 
 	dprintk(1, "%s()\n", __func__);
 
-#ifdef CONFIG_VIDEO_AU0828_RC
 	au0828_rc_unregister(dev);
-#endif
 	/* Digital TV */
 	au0828_dvb_unregister(dev);
 
@@ -266,10 +264,8 @@ static int au0828_usb_probe(struct usb_interface *interface,
 		pr_err("%s() au0282_dev_register failed\n",
 		       __func__);
 
-#ifdef CONFIG_VIDEO_AU0828_RC
 	/* Remote controller */
 	au0828_rc_register(dev);
-#endif
 
 	/*
 	 * Store the pointer to the au0828_dev so it can be accessed in
