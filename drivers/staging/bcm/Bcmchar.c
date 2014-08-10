@@ -483,7 +483,7 @@ static int bcm_char_ioctl_gpio_set_request(void __user *argp,
 	struct bcm_ioctl_buffer io_buff;
 	UCHAR reset_val[4];
 	UINT value = 0;
-	UINT uiBit = 0;
+	UINT bit = 0;
 	UINT uiOperation = 0;
 	INT status;
 	int bytes;
@@ -508,9 +508,9 @@ static int bcm_char_ioctl_gpio_set_request(void __user *argp,
 			   io_buff.InputLength))
 		return -EFAULT;
 
-	uiBit  = gpio_info.uiGpioNumber;
+	bit  = gpio_info.uiGpioNumber;
 	uiOperation = gpio_info.uiGpioValue;
-	value = (1<<uiBit);
+	value = (1<<bit);
 
 	if (IsReqGpioIsLedInNVM(ad, value) == false) {
 		BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, OSAL_DBG,
@@ -535,7 +535,7 @@ static int bcm_char_ioctl_gpio_set_request(void __user *argp,
 			BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS,
 					OSAL_DBG, DBG_LVL_ALL,
 					"Failed to set the %dth GPIO\n",
-					uiBit);
+					bit);
 			return status;
 		}
 	} else {
@@ -552,7 +552,7 @@ static int bcm_char_ioctl_gpio_set_request(void __user *argp,
 			BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS,
 					OSAL_DBG, DBG_LVL_ALL,
 					"Failed to clear the %dth GPIO\n",
-					uiBit);
+					bit);
 			return status;
 		}
 	}
@@ -569,7 +569,7 @@ static int bcm_char_ioctl_gpio_set_request(void __user *argp,
 	}
 
 	/* Set the gpio mode register to output */
-	*(UINT *)reset_val |= (1<<uiBit);
+	*(UINT *)reset_val |= (1<<bit);
 	status = wrmaltWithLock(ad, GPIO_MODE_REGISTER,
 				(PUINT)reset_val, sizeof(UINT));
 
