@@ -839,7 +839,7 @@ vt6655_probe(struct pci_dev *pcid, const struct pci_device_id *ent)
 		return -ENODEV;
 	}
 
-	dev = alloc_etherdev(sizeof(DEVICE_INFO));
+	dev = alloc_etherdev(sizeof(*pDevice));
 
 	pDevice = netdev_priv(dev);
 
@@ -999,7 +999,7 @@ static void vt6655_init_info(struct pci_dev *pcid,
 {
 	struct vnt_private *p;
 
-	memset(*ppDevice, 0, sizeof(DEVICE_INFO));
+	memset(*ppDevice, 0, sizeof(**ppDevice));
 
 	if (pDevice_Infos == NULL) {
 		pDevice_Infos = *ppDevice;
