@@ -250,7 +250,7 @@ static int bcm_char_ioctl_reg_read_private(void __user *argp,
 	struct bcm_ioctl_buffer io_buff;
 	PCHAR temp_buff;
 	INT status = STATUS_FAILURE;
-	UINT Bufflen;
+	UINT buff_len;
 	u16 temp_value;
 	int bytes;
 
@@ -270,16 +270,16 @@ static int bcm_char_ioctl_reg_read_private(void __user *argp,
 		return -EINVAL;
 	}
 
-	Bufflen = io_buff.OutputLength;
-	temp_value = 4 - (Bufflen % 4);
-	Bufflen += temp_value % 4;
+	buff_len = io_buff.OutputLength;
+	temp_value = 4 - (buff_len % 4);
+	buff_len += temp_value % 4;
 
-	temp_buff = kmalloc(Bufflen, GFP_KERNEL);
+	temp_buff = kmalloc(buff_len, GFP_KERNEL);
 	if (!temp_buff)
 		return -ENOMEM;
 
 	bytes = rdmalt(ad, (UINT)rdm_buff.Register,
-			(PUINT)temp_buff, Bufflen);
+			(PUINT)temp_buff, buff_len);
 	if (bytes > 0) {
 		status = STATUS_SUCCESS;
 		if (copy_to_user(io_buff.OutputBuffer, temp_buff, bytes)) {
