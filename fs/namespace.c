@@ -890,8 +890,21 @@ static struct mount *clone_mnt(struct mount *old, struct dentry *root,
 
 	mnt->mnt.mnt_flags = old->mnt.mnt_flags & ~(MNT_WRITE_HOLD|MNT_MARKED);
 	/* Don't allow unprivileged users to change mount flags */
-	if ((flag & CL_UNPRIVILEGED) && (mnt->mnt.mnt_flags & MNT_READONLY))
-		mnt->mnt.mnt_flags |= MNT_LOCK_READONLY;
+	if (flag & CL_UNPRIVILEGED) {
+		mnt->mnt.mnt_flags |= MNT_LOCK_ATIME;
+
+		if (mnt->mnt.mnt_flags & MNT_READONLY)
+			mnt->mnt.mnt_flags |= MNT_LOCK_READONLY;
+
+		if (mnt->mnt.mnt_flags & MNT_NODEV)
+			mnt->mnt.mnt_flags |= MNT_LOCK_NODEV;
+
+		if (mnt->mnt.mnt_flags & MNT_NOSUID)
+			mnt->mnt.mnt_flags |= MNT_LOCK_NOSUID;
+
+		if (mnt->mnt.mnt_flags & MNT_NOEXEC)
+			mnt->mnt.mnt_flags |= MNT_LOCK_NOEXEC;
+	}
 
 	/* Don't allow unprivileged users to reveal what is under a mount */
 	if ((flag & CL_UNPRIVILEGED) && list_empty(&old->mnt_expire))
@@ -1896,9 +1909,6 @@ static int change_mount_flags(struct vfsmount *mnt, int ms_flags)
 	if (readonly_request == __mnt_is_readonly(mnt))
 		return 0;
 
-	if (mnt->mnt_flags & MNT_LOCK_READONLY)
-		return -EPERM;
-
 	if (readonly_request)
 		error = mnt_make_readonly(real_mount(mnt));
 	else
@@ -1924,6 +1934,33 @@ static int do_remount(struct path *path, int flags, int mnt_flags,
 	if (path->dentry != path->mnt->mnt_root)
 		return -EINVAL;
 
+	/* Don't allow changing of locked mnt flags.
+	 *
+	 * No locks need to be held here while testing the various
+	 * MNT_LOCK flags because those flags can never be cleared
+	 * once they are set.
+	 */
+	if ((mnt->mnt.mnt_flags & MNT_LOCK_READONLY) &&
+	    !(mnt_flags & MNT_READONLY)) {
+		return -EPERM;
+	}
+	if ((mnt->mnt.mnt_flags & MNT_LOCK_NODEV) &&
+	    !(mnt_flags & MNT_NODEV)) {
+		return -EPERM;
+	}
+	if ((mnt->mnt.mnt_flags & MNT_LOCK_NOSUID) &&
+	    !(mnt_flags & MNT_NOSUID)) {
+		return -EPERM;
+	}
+	if ((mnt->mnt.mnt_flags & MNT_LOCK_NOEXEC) &&
+	    !(mnt_flags & MNT_NOEXEC)) {
+		return -EPERM;
+	}
+	if ((mnt->mnt.mnt_flags & MNT_LOCK_ATIME) &&
+	    ((mnt->mnt.mnt_flags & MNT_ATIME_MASK) != (mnt_flags & MNT_ATIME_MASK))) {
+		return -EPERM;
+	}
+
 	err = security_sb_remount(sb, data);
 	if (err)
 		return err;
@@ -1937,7 +1974,7 @@ static int do_remount(struct path *path, int flags, int mnt_flags,
 		err = do_remount_sb(sb, flags, data, 0);
 	if (!err) {
 		lock_mount_hash();
-		mnt_flags |= mnt->mnt.mnt_flags & MNT_PROPAGATION_MASK;
+		mnt_flags |= mnt->mnt.mnt_flags & ~MNT_USER_SETTABLE_MASK;
 		mnt->mnt.mnt_flags = mnt_flags;
 		touch_mnt_namespace(mnt->mnt_ns);
 		unlock_mount_hash();
@@ -2122,7 +2159,7 @@ static int do_new_mount(struct path *path, const char *fstype, int flags,
 		 */
 		if (!(type->fs_flags & FS_USERNS_DEV_MOUNT)) {
 			flags |= MS_NODEV;
-			mnt_flags |= MNT_NODEV;
+			mnt_flags |= MNT_NODEV | MNT_LOCK_NODEV;
 		}
 	}
 
@@ -2435,6 +2472,14 @@ long do_mount(const char *dev_name, const char *dir_name,
 		mnt_flags &= ~(MNT_RELATIME | MNT_NOATIME);
 	if (flags & MS_RDONLY)
 		mnt_flags |= MNT_READONLY;
+
+	/* The default atime for remount is preservation */
+	if ((flags & MS_REMOUNT) &&
+	    ((flags & (MS_NOATIME | MS_NODIRATIME | MS_RELATIME |
+		       MS_STRICTATIME)) == 0)) {
+		mnt_flags &= ~MNT_ATIME_MASK;
+		mnt_flags |= path.mnt->mnt_flags & MNT_ATIME_MASK;
+	}
 
 	flags &= ~(MS_NOSUID | MS_NOEXEC | MS_NODEV | MS_ACTIVE | MS_BORN |
 		   MS_NOATIME | MS_NODIRATIME | MS_RELATIME| MS_KERNMOUNT |
@@ -2972,13 +3017,13 @@ static void *mntns_get(struct task_struct *task)
 	struct mnt_namespace *ns = NULL;
 	struct nsproxy *nsproxy;
 
-	rcu_read_lock();
-	nsproxy = task_nsproxy(task);
+	task_lock(task);
+	nsproxy = task->nsproxy;
 	if (nsproxy) {
 		ns = nsproxy->mnt_ns;
 		get_mnt_ns(ns);
 	}
-	rcu_read_unlock();
+	task_unlock(task);
 
 	return ns;
 }

@@ -2814,7 +2814,7 @@ retry:
 	return iter;
 }
 
-#define TGID_OFFSET (FIRST_PROCESS_ENTRY + 1)
+#define TGID_OFFSET (FIRST_PROCESS_ENTRY + 2)
 
 /* for the /proc/ directory itself, after non-process stuff has been done */
 int proc_pid_readdir(struct file *file, struct dir_context *ctx)
@@ -2826,14 +2826,19 @@ int proc_pid_readdir(struct file *file, struct dir_context *ctx)
 	if (pos >= PID_MAX_LIMIT + TGID_OFFSET)
 		return 0;
 
-	if (pos == TGID_OFFSET - 1) {
+	if (pos == TGID_OFFSET - 2) {
 		struct inode *inode = ns->proc_self->d_inode;
 		if (!dir_emit(ctx, "self", 4, inode->i_ino, DT_LNK))
 			return 0;
-		iter.tgid = 0;
-	} else {
-		iter.tgid = pos - TGID_OFFSET;
+		ctx->pos = pos = pos + 1;
 	}
+	if (pos == TGID_OFFSET - 1) {
+		struct inode *inode = ns->proc_thread_self->d_inode;
+		if (!dir_emit(ctx, "thread-self", 11, inode->i_ino, DT_LNK))
+			return 0;
+		ctx->pos = pos = pos + 1;
+	}
+	iter.tgid = pos - TGID_OFFSET;
 	iter.task = NULL;
 	for (iter = next_tgid(ns, iter);
 	     iter.task;
@@ -2862,6 +2867,9 @@ static const struct pid_entry tid_base_stuff[] = {
 	DIR("fd",        S_IRUSR|S_IXUSR, proc_fd_inode_operations, proc_fd_operations),
 	DIR("fdinfo",    S_IRUSR|S_IXUSR, proc_fdinfo_inode_operations, proc_fdinfo_operations),
 	DIR("ns",	 S_IRUSR|S_IXUGO, proc_ns_dir_inode_operations, proc_ns_dir_operations),
+#ifdef CONFIG_NET
+	DIR("net",        S_IRUGO|S_IXUGO, proc_net_inode_operations, proc_net_operations),
+#endif
 	REG("environ",   S_IRUSR, proc_environ_operations),
 	ONE("auxv",      S_IRUSR, proc_pid_auxv),
 	ONE("status",    S_IRUGO, proc_pid_status),

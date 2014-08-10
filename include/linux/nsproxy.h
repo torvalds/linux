@@ -40,31 +40,27 @@ extern struct nsproxy init_nsproxy;
  * the namespaces access rules are:
  *
  *  1. only current task is allowed to change tsk->nsproxy pointer or
- *     any pointer on the nsproxy itself
+ *     any pointer on the nsproxy itself.  Current must hold the task_lock
+ *     when changing tsk->nsproxy.
  *
  *  2. when accessing (i.e. reading) current task's namespaces - no
  *     precautions should be taken - just dereference the pointers
  *
  *  3. the access to other task namespaces is performed like this
- *     rcu_read_lock();
- *     nsproxy = task_nsproxy(tsk);
+ *     task_lock(task);
+ *     nsproxy = task->nsproxy;
  *     if (nsproxy != NULL) {
  *             / *
  *               * work with the namespaces here
  *               * e.g. get the reference on one of them
  *               * /
  *     } / *
- *         * NULL task_nsproxy() means that this task is
+ *         * NULL task->nsproxy means that this task is
  *         * almost dead (zombie)
  *         * /
- *     rcu_read_unlock();
+ *     task_unlock(task);
  *
  */
-
-static inline struct nsproxy *task_nsproxy(struct task_struct *tsk)
-{
-	return rcu_dereference(tsk->nsproxy);
-}
 
 int copy_namespaces(unsigned long flags, struct task_struct *tsk);
 void exit_task_namespaces(struct task_struct *tsk);
