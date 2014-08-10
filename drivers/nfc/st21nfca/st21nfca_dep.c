@@ -485,8 +485,7 @@ static void st21nfca_im_recv_atr_res_cb(void *context, struct sk_buff *skb,
 						ST21NFCA_PP2LRI(atr_res->ppi));
 		break;
 	default:
-		if (err == 0)
-			kfree_skb(skb);
+		kfree_skb(skb);
 		break;
 	}
 }
@@ -616,8 +615,7 @@ static void st21nfca_im_recv_dep_res_cb(void *context, struct sk_buff *skb,
 	}
 
 exit:
-	if (err == 0)
-		kfree_skb(skb);
+	kfree_skb(skb);
 }
 
 int st21nfca_im_send_dep_req(struct nfc_hci_dev *hdev, struct sk_buff *skb)
