@@ -267,7 +267,7 @@ static int au0828_dvb_start_feed(struct dvb_demux_feed *feed)
 	if (!demux->dmx.frontend)
 		return -EINVAL;
 
-	if (dvb) {
+	if (dvb->frontend) {
 		mutex_lock(&dvb->lock);
 		dvb->start_count++;
 		dprintk(1, "%s(), start_count: %d, stop_count: %d\n", __func__,
@@ -296,7 +296,7 @@ static int au0828_dvb_stop_feed(struct dvb_demux_feed *feed)
 
 	dprintk(1, "%s()\n", __func__);
 
-	if (dvb) {
+	if (dvb->frontend) {
 		cancel_work_sync(&dev->restart_streaming);
 
 		mutex_lock(&dvb->lock);
@@ -526,8 +526,7 @@ void au0828_dvb_unregister(struct au0828_dev *dev)
 		for (i = 0; i < URB_COUNT; i++)
 			kfree(dev->dig_transfer_buffer[i]);
 	}
-
-
+	dvb->frontend = NULL;
 }
 
 /* All the DVB attach calls go here, this function get's modified
@@ -608,6 +607,7 @@ int au0828_dvb_register(struct au0828_dev *dev)
 	if (ret < 0) {
 		if (dvb->frontend->ops.release)
 			dvb->frontend->ops.release(dvb->frontend);
+		dvb->frontend = NULL;
 		return ret;
 	}
 
@@ -618,7 +618,7 @@ void au0828_dvb_suspend(struct au0828_dev *dev)
 {
 	struct au0828_dvb *dvb = &dev->dvb;
 
-	if (dvb && dev->urb_streaming) {
+	if (dvb->frontend && dev->urb_streaming) {
 		pr_info("stopping DVB\n");
 
 		cancel_work_sync(&dev->restart_streaming);
@@ -635,7 +635,7 @@ void au0828_dvb_resume(struct au0828_dev *dev)
 {
 	struct au0828_dvb *dvb = &dev->dvb;
 
-	if (dvb && dev->urb_streaming) {
+	if (dvb->frontend && dev->urb_streaming) {
 		pr_info("resuming DVB\n");
 
 		au0828_set_frontend(dvb->frontend);
