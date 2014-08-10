@@ -281,13 +281,42 @@ static int au0828_usb_probe(struct usb_interface *interface,
 	return retval;
 }
 
+static int au0828_suspend(struct usb_interface *interface,
+				pm_message_t message)
+{
+	struct au0828_dev *dev = usb_get_intfdata(interface);
+
+	if (!dev)
+		return 0;
+
+	au0828_rc_suspend(dev);
+
+	/* FIXME: should suspend also ATV/DTV */
+
+	return 0;
+}
+
+static int au0828_resume(struct usb_interface *interface)
+{
+	struct au0828_dev *dev = usb_get_intfdata(interface);
+	if (!dev)
+		return 0;
+
+	au0828_rc_resume(dev);
+
+	/* FIXME: should resume also ATV/DTV */
+
+	return 0;
+}
+
 static struct usb_driver au0828_usb_driver = {
 	.name		= DRIVER_NAME,
 	.probe		= au0828_usb_probe,
 	.disconnect	= au0828_usb_disconnect,
 	.id_table	= au0828_usb_id_table,
-
-	/* FIXME: Add suspend and resume functions */
+	.suspend	= au0828_suspend,
+	.resume		= au0828_resume,
+	.reset_resume	= au0828_resume,
 };
 
 static int __init au0828_init(void)
