@@ -244,8 +244,6 @@ void PHY_EnableHostClkReq(struct adapter *adapter);
 
 bool SetAntennaConfig92C(struct adapter *adapter, u8 defaultant);
 
-void storePwrIndexDiffRateOffset(struct adapter *adapter, u32 regaddr,
-				 u32 mask, u32 data);
 /*--------------------------Exported Function prototype---------------------*/
 
 #define PHY_QueryBBReg(adapt, regaddr, mask)			\
