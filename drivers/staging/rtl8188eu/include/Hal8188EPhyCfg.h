@@ -206,17 +206,6 @@ u32 rtl8188e_PHY_QueryRFReg(struct adapter *adapter, enum rf_radio_path rfpath,
 void rtl8188e_PHY_SetRFReg(struct adapter *adapter, enum rf_radio_path rfpath,
 			   u32 regaddr, u32 mask, u32 data);
 
-/*  Initialization related function */
-/* MAC/BB/RF HAL config */
-int PHY_BBConfig8188E(struct adapter *adapter);
-int PHY_RFConfig8188E(struct adapter *adapter);
-
-/* RF config */
-int rtl8188e_PHY_ConfigRFWithParaFile(struct adapter *adapter, u8 *filename,
-				      enum rf_radio_path rfpath);
-int rtl8188e_PHY_ConfigRFWithHeaderFile(struct adapter *adapter,
-					enum rf_radio_path rfpath);
-
 /* Read initi reg value for tx power setting. */
 void rtl8192c_PHY_GetHWRegOriginalValue(struct adapter *adapter);
 
