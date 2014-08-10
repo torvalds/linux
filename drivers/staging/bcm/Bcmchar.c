@@ -188,7 +188,7 @@ static ssize_t bcm_char_read(struct file *filp,
 	struct bcm_tarang_data *tarang = filp->private_data;
 	struct bcm_mini_adapter *ad = tarang->Adapter;
 	struct sk_buff *Packet = NULL;
-	ssize_t PktLen = 0;
+	ssize_t pkt_len = 0;
 	int wait_ret_val = 0;
 	unsigned long ret = 0;
 
@@ -224,9 +224,9 @@ static ssize_t bcm_char_read(struct file *filp,
 	up(&ad->RxAppControlQueuelock);
 
 	if (Packet) {
-		PktLen = Packet->len;
+		pkt_len = Packet->len;
 		ret = copy_to_user(buf, Packet->data,
-				   min_t(size_t, PktLen, size));
+				   min_t(size_t, pkt_len, size));
 		if (ret) {
 			dev_kfree_skb(Packet);
 			BCM_DEBUG_PRINT(ad, DBG_TYPE_PRINTK, 0, 0,
@@ -235,12 +235,12 @@ static ssize_t bcm_char_read(struct file *filp,
 		}
 		BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
 				"Read %zd Bytes From Adapter packet = %p by process %d!\n",
-				PktLen, Packet, current->pid);
+				pkt_len, Packet, current->pid);
 		dev_kfree_skb(Packet);
 	}
 
 	BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "<\n");
-	return PktLen;
+	return pkt_len;
 }
 
 static int bcm_char_ioctl_reg_read_private(void __user *argp,
