@@ -622,9 +622,6 @@ i915_gem_execbuffer_reserve(struct intel_engine_cs *ring,
 	bool has_fenced_gpu_access = INTEL_INFO(ring->dev)->gen < 4;
 	int retry;
 
-	if (list_empty(vmas))
-		return 0;
-
 	i915_gem_retire_requests_ring(ring);
 
 	vm = list_first_entry(vmas, struct i915_vma, exec_list)->vm;
@@ -724,9 +721,6 @@ i915_gem_execbuffer_relocate_slow(struct drm_device *dev,
 	int *reloc_offset;
 	int i, total, ret;
 	unsigned count = args->buffer_count;
-
-	if (WARN_ON(list_empty(&eb->vmas)))
-		return 0;
 
 	vm = list_first_entry(&eb->vmas, struct i915_vma, exec_list)->vm;
 
