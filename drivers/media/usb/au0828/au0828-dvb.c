@@ -619,6 +619,8 @@ void au0828_dvb_suspend(struct au0828_dev *dev)
 	struct au0828_dvb *dvb = &dev->dvb;
 
 	if (dvb && dev->urb_streaming) {
+		pr_info("stopping DVB\n");
+
 		cancel_work_sync(&dev->restart_streaming);
 
 		/* Stop transport */
@@ -634,6 +636,8 @@ void au0828_dvb_resume(struct au0828_dev *dev)
 	struct au0828_dvb *dvb = &dev->dvb;
 
 	if (dvb && dev->urb_streaming) {
+		pr_info("resuming DVB\n");
+
 		au0828_set_frontend(dvb->frontend);
 
 		/* Start transport */

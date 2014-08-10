@@ -288,6 +288,8 @@ static int au0828_suspend(struct usb_interface *interface,
 	if (!dev)
 		return 0;
 
+	pr_info("Suspend\n");
+
 	au0828_rc_suspend(dev);
 	au0828_v4l2_suspend(dev);
 	au0828_dvb_suspend(dev);
@@ -302,6 +304,8 @@ static int au0828_resume(struct usb_interface *interface)
 	struct au0828_dev *dev = usb_get_intfdata(interface);
 	if (!dev)
 		return 0;
+
+	pr_info("Resume\n");
 
 	/* Power Up the bridge */
 	au0828_write(dev, REG_600, 1 << 4);

@@ -1876,7 +1876,10 @@ void au0828_v4l2_suspend(struct au0828_dev *dev)
 	struct urb *urb;
 	int i;
 
+	pr_info("stopping V4L2\n");
+
 	if (dev->stream_state == STREAM_ON) {
+		pr_info("stopping V4L2 active URBs\n");
 		au0828_analog_stream_disable(dev);
 		/* stop urbs */
 		for (i = 0; i < dev->isoc_ctl.num_bufs; i++) {
@@ -1899,6 +1902,8 @@ void au0828_v4l2_suspend(struct au0828_dev *dev)
 void au0828_v4l2_resume(struct au0828_dev *dev)
 {
 	int i, rc;
+
+	pr_info("restarting V4L2\n");
 
 	if (dev->stream_state == STREAM_ON) {
 		au0828_stream_interrupt(dev);
