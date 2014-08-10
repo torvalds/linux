@@ -20,31 +20,6 @@
 
 #include "odm_precomp.h"
 
-void odm_ConfigRFReg_8188E(struct odm_dm_struct *pDM_Odm, u32 Addr,
-			   u32 Data, enum rf_radio_path RF_PATH,
-			   u32 RegAddr)
-{
-	struct adapter *adapter = pDM_Odm->Adapter;
-
-	if (Addr == 0xffe) {
-		msleep(50);
-	} else if (Addr == 0xfd) {
-		mdelay(5);
-	} else if (Addr == 0xfc) {
-		mdelay(1);
-	} else if (Addr == 0xfb) {
-		udelay(50);
-	} else if (Addr == 0xfa) {
-		udelay(5);
-	} else if (Addr == 0xf9) {
-		udelay(1);
-	} else {
-		PHY_SetRFReg(adapter, RF_PATH, RegAddr, bRFRegOffsetMask, Data);
-		/*  Add 1us delay between BB/RF register setting. */
-		udelay(1);
-	}
-}
-
 void odm_ConfigMAC_8188E(struct odm_dm_struct *pDM_Odm, u32 Addr, u8 Data)
 {
 	struct adapter *adapt = pDM_Odm->Adapter;
