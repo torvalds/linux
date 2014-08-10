@@ -246,7 +246,7 @@ static ssize_t bcm_char_read(struct file *filp,
 static int bcm_char_ioctl_reg_read_private(void __user *argp,
 					   struct bcm_mini_adapter *ad)
 {
-	struct bcm_rdm_buffer sRdmBuffer = {0};
+	struct bcm_rdm_buffer rdm_buff = {0};
 	struct bcm_ioctl_buffer IoBuffer;
 	PCHAR temp_buff;
 	INT status = STATUS_FAILURE;
@@ -258,10 +258,10 @@ static int bcm_char_ioctl_reg_read_private(void __user *argp,
 	if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
 		return -EFAULT;
 
-	if (IoBuffer.InputLength > sizeof(sRdmBuffer))
+	if (IoBuffer.InputLength > sizeof(rdm_buff))
 		return -EINVAL;
 
-	if (copy_from_user(&sRdmBuffer, IoBuffer.InputBuffer,
+	if (copy_from_user(&rdm_buff, IoBuffer.InputBuffer,
 		IoBuffer.InputLength))
 		return -EFAULT;
 
@@ -278,7 +278,7 @@ static int bcm_char_ioctl_reg_read_private(void __user *argp,
 	if (!temp_buff)
 		return -ENOMEM;
 
-	bytes = rdmalt(ad, (UINT)sRdmBuffer.Register,
+	bytes = rdmalt(ad, (UINT)rdm_buff.Register,
 			(PUINT)temp_buff, Bufflen);
 	if (bytes > 0) {
 		status = STATUS_SUCCESS;
@@ -344,7 +344,7 @@ static int bcm_char_ioctl_reg_write_private(void __user *argp,
 static int bcm_char_ioctl_eeprom_reg_read(void __user *argp,
 					  struct bcm_mini_adapter *ad)
 {
-	struct bcm_rdm_buffer sRdmBuffer = {0};
+	struct bcm_rdm_buffer rdm_buff = {0};
 	struct bcm_ioctl_buffer IoBuffer;
 	PCHAR temp_buff = NULL;
 	UINT uiTempVar = 0;
@@ -364,10 +364,10 @@ static int bcm_char_ioctl_eeprom_reg_read(void __user *argp,
 	if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
 		return -EFAULT;
 
-	if (IoBuffer.InputLength > sizeof(sRdmBuffer))
+	if (IoBuffer.InputLength > sizeof(rdm_buff))
 		return -EINVAL;
 
-	if (copy_from_user(&sRdmBuffer, IoBuffer.InputBuffer,
+	if (copy_from_user(&rdm_buff, IoBuffer.InputBuffer,
 		IoBuffer.InputLength))
 		return -EFAULT;
 
@@ -380,19 +380,19 @@ static int bcm_char_ioctl_eeprom_reg_read(void __user *argp,
 	if (!temp_buff)
 		return STATUS_FAILURE;
 
-	if ((((ULONG)sRdmBuffer.Register & 0x0F000000) != 0x0F000000) ||
-		((ULONG)sRdmBuffer.Register & 0x3)) {
+	if ((((ULONG)rdm_buff.Register & 0x0F000000) != 0x0F000000) ||
+		((ULONG)rdm_buff.Register & 0x3)) {
 
 		BCM_DEBUG_PRINT(ad, DBG_TYPE_PRINTK, 0, 0,
 				"RDM Done On invalid Address : %x Access Denied.\n",
-				(int)sRdmBuffer.Register);
+				(int)rdm_buff.Register);
 
 		kfree(temp_buff);
 		return -EINVAL;
 	}
 
-	uiTempVar = sRdmBuffer.Register & EEPROM_REJECT_MASK;
-	bytes = rdmaltWithLock(ad, (UINT)sRdmBuffer.Register,
+	uiTempVar = rdm_buff.Register & EEPROM_REJECT_MASK;
+	bytes = rdmaltWithLock(ad, (UINT)rdm_buff.Register,
 			       (PUINT)temp_buff, IoBuffer.OutputLength);
 
 	if (bytes > 0) {
