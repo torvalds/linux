@@ -1040,6 +1040,11 @@ static int xc5000_set_params(struct dvb_frontend *fe)
 {
 	struct xc5000_priv *priv = fe->tuner_priv;
 
+	if (xc_load_fw_and_init_tuner(fe, 0) != 0) {
+		dprintk(1, "Unable to load firmware and init tuner\n");
+		return -EINVAL;
+	}
+
 	switch (priv->mode) {
 	case V4L2_TUNER_RADIO:
 		return xc5000_set_radio_freq(fe);
@@ -1060,11 +1065,6 @@ static int xc5000_set_analog_params(struct dvb_frontend *fe,
 
 	if (priv->i2c_props.adap == NULL)
 		return -EINVAL;
-
-	if (xc_load_fw_and_init_tuner(fe, 0) != 0) {
-		dprintk(1, "Unable to load firmware and init tuner\n");
-		return -EINVAL;
-	}
 
 	switch (params->mode) {
 	case V4L2_TUNER_RADIO:
