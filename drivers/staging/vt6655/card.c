@@ -1995,27 +1995,18 @@ bool CARDbGetCurrentTSF(void __iomem *dwIoBase, u64 *pqwCurrTSF)
  */
 u64 CARDqGetNextTBTT(u64 qwTSF, unsigned short wBeaconInterval)
 {
-	unsigned int uLowNextTBTT;
-	unsigned int uHighRemain, uLowRemain;
-	unsigned int uBeaconInterval;
+	u32 beacon_int;
 
-	uBeaconInterval = wBeaconInterval * 1024;
-	// Next TBTT = ((local_current_TSF / beacon_interval) + 1) * beacon_interval
-	uLowNextTBTT = ((qwTSF & 0xffffffffULL) >> 10) << 10;
-	// low dword (mod) bcn
-	uLowRemain = (uLowNextTBTT) % uBeaconInterval;
-	// high dword (mod) bcn
-	uHighRemain = (((0xffffffff % uBeaconInterval) + 1) * (u32)(qwTSF >> 32))
-		% uBeaconInterval;
-	uLowRemain = (uHighRemain + uLowRemain) % uBeaconInterval;
-	uLowRemain = uBeaconInterval - uLowRemain;
+	beacon_int = wBeaconInterval * 1024;
 
-	// check if carry when add one beacon interval
-	if ((~uLowNextTBTT) < uLowRemain)
-		qwTSF = ((qwTSF >> 32) + 1) << 32;
-
-	qwTSF = (qwTSF & 0xffffffff00000000ULL) |
-		(u64)(uLowNextTBTT + uLowRemain);
+	/* Next TBTT =
+	*	((local_current_TSF / beacon_interval) + 1) * beacon_interval
+	*/
+	if (beacon_int) {
+		do_div(qwTSF, beacon_int);
+		qwTSF += 1;
+		qwTSF *= beacon_int;
+	}
 
 	return qwTSF;
 }
