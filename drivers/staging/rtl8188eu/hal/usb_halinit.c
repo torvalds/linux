@@ -30,7 +30,6 @@
 #include <phy.h>
 
 #define		HAL_BB_ENABLE		1
-#define		HAL_RF_ENABLE		1
 
 static void _ConfigNormalChipOutEP_8188E(struct adapter *adapt, u8 NumOutPipe)
 {
@@ -771,14 +770,7 @@ static u32 rtl8188eu_hal_init(struct adapter *Adapter)
 	}
 #endif
 
-	HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_RF);
-#if (HAL_RF_ENABLE == 1)
-	status = PHY_RFConfig8188E(Adapter);
-	if (status == _FAIL) {
-		DBG_88E(" ### Failed to init RF ......\n ");
-		goto exit;
-	}
-#endif
+	rtl88e_phy_rf_config(Adapter);
 
 	HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_EFUSE_PATCH);
 	status = rtl8188e_iol_efuse_patch(Adapter);

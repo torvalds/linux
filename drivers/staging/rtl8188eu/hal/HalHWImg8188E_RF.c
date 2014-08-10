@@ -20,38 +20,36 @@
 
 #include "odm_precomp.h"
 
-#include <rtw_iol.h>
+#include <phy.h>
 
-static bool CheckCondition(const u32  Condition, const u32  Hex)
+static bool check_condition(struct adapter *adapt, const u32  condition)
 {
-	u32 _board     = (Hex & 0x000000FF);
-	u32 _interface = (Hex & 0x0000FF00) >> 8;
-	u32 _platform  = (Hex & 0x00FF0000) >> 16;
-	u32 cond = Condition;
+	struct odm_dm_struct *odm = &GET_HAL_DATA(adapt)->odmpriv;
+	u32 _board = odm->BoardType;
+	u32 _platform = odm->SupportPlatform;
+	u32 _interface = odm->SupportInterface;
+	u32 cond = condition;
 
-	if (Condition == 0xCDCDCDCD)
+	if (condition == 0xCDCDCDCD)
 		return true;
 
-	cond = Condition & 0x000000FF;
+	cond = condition & 0x000000FF;
 	if ((_board == cond) && cond != 0x00)
 		return false;
 
-	cond = Condition & 0x0000FF00;
+	cond = condition & 0x0000FF00;
 	cond = cond >> 8;
 	if ((_interface & cond) == 0 && cond != 0x07)
 		return false;
 
-	cond = Condition & 0x00FF0000;
+	cond = condition & 0x00FF0000;
 	cond = cond >> 16;
 	if ((_platform & cond) == 0 && cond != 0x0F)
 		return false;
 	return true;
 }
 
-
-/******************************************************************************
-*                           RadioA_1T.TXT
-******************************************************************************/
+/* RadioA_1T.TXT */
 
 static u32 Array_RadioA_1T_8188E[] = {
 		0x000, 0x00030000,
@@ -155,115 +153,166 @@ static u32 Array_RadioA_1T_8188E[] = {
 		0x000, 0x00033E60,
 };
 
-enum HAL_STATUS ODM_ReadAndConfig_RadioA_1T_8188E(struct odm_dm_struct *pDM_Odm)
+#define READ_NEXT_PAIR(v1, v2, i)	\
+do {								\
+	i += 2; v1 = array[i];			\
+	v2 = array[i+1];				\
+} while (0)
+
+#define RFREG_OFFSET_MASK 0xfffff
+#define B3WIREADDREAALENGTH 0x400
+#define B3WIREDATALENGTH 0x800
+#define BRFSI_RFENV 0x10
+
+static void rtl_rfreg_delay(struct adapter *adapt, enum rf_radio_path rfpath,u32 addr, u32 mask, u32 data)
 {
-	#define READ_NEXT_PAIR(v1, v2, i) do	\
-		 { i += 2; v1 = Array[i];	\
-		 v2 = Array[i+1]; } while (0)
-
-	u32     hex         = 0;
-	u32     i           = 0;
-	u8     platform    = pDM_Odm->SupportPlatform;
-	u8     interfaceValue   = pDM_Odm->SupportInterface;
-	u8     board       = pDM_Odm->BoardType;
-	u32     ArrayLen    = sizeof(Array_RadioA_1T_8188E)/sizeof(u32);
-	u32    *Array       = Array_RadioA_1T_8188E;
-	bool		biol = false;
-	struct adapter *Adapter =  pDM_Odm->Adapter;
-	struct xmit_frame *pxmit_frame = NULL;
-	u8 bndy_cnt = 1;
-	enum HAL_STATUS rst = HAL_STATUS_SUCCESS;
-
-	hex += board;
-	hex += interfaceValue << 8;
-	hex += platform << 16;
-	hex += 0xFF000000;
-	biol = rtw_IOL_applied(Adapter);
-
-	if (biol) {
-		pxmit_frame = rtw_IOL_accquire_xmit_frame(Adapter);
-		if (pxmit_frame == NULL) {
-			pr_info("rtw_IOL_accquire_xmit_frame failed\n");
-			return HAL_STATUS_FAILURE;
-		}
+	if (addr == 0xfe) {
+		mdelay(50);
+	} else if (addr == 0xfd) {
+		mdelay(5);
+	} else if (addr == 0xfc) {
+		mdelay(1);
+	} else if (addr == 0xfb) {
+		udelay(50);
+	} else if (addr == 0xfa) {
+		udelay(5);
+	} else if (addr == 0xf9) {
+		udelay(1);
+	} else {
+		rtl8188e_PHY_SetRFReg(adapt, rfpath, addr, mask, data);
+		udelay(1);
 	}
+}
 
-	for (i = 0; i < ArrayLen; i += 2) {
-		u32 v1 = Array[i];
-		u32 v2 = Array[i+1];
+static void rtl8188e_config_rf_reg(struct adapter *adapt,
+	u32 addr, u32 data)
+{
+	u32 content = 0x1000; /*RF Content: radio_a_txt*/
+	u32 maskforphyset = (u32)(content & 0xE000);
 
-		/*  This (offset, data) pair meets the condition. */
+	rtl_rfreg_delay(adapt, RF90_PATH_A, addr| maskforphyset,
+			RFREG_OFFSET_MASK,
+			data);
+}
+
+static bool rtl88e_phy_config_rf_with_headerfile(struct adapter *adapt)
+{
+	u32 i;
+	u32 array_len = sizeof(Array_RadioA_1T_8188E)/sizeof(u32);
+	u32 *array = Array_RadioA_1T_8188E;
+
+	for (i = 0; i < array_len; i += 2) {
+		u32 v1 = array[i];
+		u32 v2 = array[i+1];
+
 		if (v1 < 0xCDCDCDCD) {
-			if (biol) {
-				if (rtw_IOL_cmd_boundary_handle(pxmit_frame))
-					bndy_cnt++;
-
-				if (v1 == 0xffe)
-					rtw_IOL_append_DELAY_MS_cmd(pxmit_frame, 50);
-				else if (v1 == 0xfd)
-					rtw_IOL_append_DELAY_MS_cmd(pxmit_frame, 5);
-				else if (v1 == 0xfc)
-					rtw_IOL_append_DELAY_MS_cmd(pxmit_frame, 1);
-				else if (v1 == 0xfb)
-					rtw_IOL_append_DELAY_US_cmd(pxmit_frame, 50);
-				else if (v1 == 0xfa)
-					rtw_IOL_append_DELAY_US_cmd(pxmit_frame, 5);
-				else if (v1 == 0xf9)
-					rtw_IOL_append_DELAY_US_cmd(pxmit_frame, 1);
-				else
-					rtw_IOL_append_WRF_cmd(pxmit_frame, RF_PATH_A, (u16)v1, v2, bRFRegOffsetMask);
-			} else {
-				odm_ConfigRF_RadioA_8188E(pDM_Odm, v1, v2);
-			}
-		    continue;
-		} else { /*  This line is the start line of branch. */
-			if (!CheckCondition(Array[i], hex)) {
-				/*  Discard the following (offset, data) pairs. */
+			rtl8188e_config_rf_reg(adapt, v1, v2);
+			continue;
+		} else {
+			if (!check_condition(adapt, array[i])) {
 				READ_NEXT_PAIR(v1, v2, i);
-				while (v2 != 0xDEAD &&
-				       v2 != 0xCDEF &&
-				       v2 != 0xCDCD && i < ArrayLen - 2)
+				while (v2 != 0xDEAD && v2 != 0xCDEF &&
+				       v2 != 0xCDCD && i < array_len - 2)
 					READ_NEXT_PAIR(v1, v2, i);
-				i -= 2; /*  prevent from for-loop += 2 */
-			} else { /*  Configure matched pairs and skip to end of if-else. */
-			READ_NEXT_PAIR(v1, v2, i);
-				while (v2 != 0xDEAD &&
-				       v2 != 0xCDEF &&
-				       v2 != 0xCDCD && i < ArrayLen - 2) {
-					if (biol) {
-						if (rtw_IOL_cmd_boundary_handle(pxmit_frame))
-							bndy_cnt++;
-
-						if (v1 == 0xffe)
-							rtw_IOL_append_DELAY_MS_cmd(pxmit_frame, 50);
-						else if (v1 == 0xfd)
-							rtw_IOL_append_DELAY_MS_cmd(pxmit_frame, 5);
-						else if (v1 == 0xfc)
-							rtw_IOL_append_DELAY_MS_cmd(pxmit_frame, 1);
-						else if (v1 == 0xfb)
-							rtw_IOL_append_DELAY_US_cmd(pxmit_frame, 50);
-						else if (v1 == 0xfa)
-							rtw_IOL_append_DELAY_US_cmd(pxmit_frame, 5);
-						else if (v1 == 0xf9)
-							rtw_IOL_append_DELAY_US_cmd(pxmit_frame, 1);
-						else
-							rtw_IOL_append_WRF_cmd(pxmit_frame, RF_PATH_A, (u16)v1, v2, bRFRegOffsetMask);
-					} else {
-						odm_ConfigRF_RadioA_8188E(pDM_Odm, v1, v2);
-					}
-					READ_NEXT_PAIR(v1, v2, i);
+					i -= 2;
+			} else {
+				READ_NEXT_PAIR(v1, v2, i);
+				while (v2 != 0xDEAD && v2 != 0xCDEF &&
+				       v2 != 0xCDCD && i < array_len - 2) {
+						rtl8188e_config_rf_reg(adapt, v1, v2);
+						READ_NEXT_PAIR(v1, v2, i);
 				}
 
-				while (v2 != 0xDEAD && i < ArrayLen - 2)
+				while (v2 != 0xDEAD && i < array_len - 2)
 					READ_NEXT_PAIR(v1, v2, i);
 			}
 		}
 	}
-	if (biol) {
-		if (!rtw_IOL_exec_cmds_sync(pDM_Odm->Adapter, pxmit_frame, 1000, bndy_cnt)) {
-			rst = HAL_STATUS_FAILURE;
-			pr_info("~~~ IOL Config %s Failed !!!\n", __func__);
+	return true;
+}
+
+static bool rf6052_conf_para(struct adapter *adapt)
+{
+	struct hal_data_8188e *hal_data = GET_HAL_DATA(adapt);
+	u32 u4val = 0;
+	u8 rfpath;
+	bool rtstatus = true;
+	struct bb_reg_def *pphyreg;
+
+	for (rfpath = 0; rfpath < hal_data->NumTotalRFPath; rfpath++) {
+		pphyreg = &hal_data->PHYRegDef[rfpath];
+
+		switch (rfpath) {
+		case RF90_PATH_A:
+		case RF90_PATH_C:
+			u4val = PHY_QueryBBReg(adapt, pphyreg->rfintfs,
+						    BRFSI_RFENV);
+			break;
+		case RF90_PATH_B:
+		case RF90_PATH_D:
+			u4val = PHY_QueryBBReg(adapt, pphyreg->rfintfs,
+						    BRFSI_RFENV << 16);
+			break;
 		}
+
+		PHY_SetBBReg(adapt, pphyreg->rfintfe, BRFSI_RFENV << 16, 0x1);
+		udelay(1);
+
+		PHY_SetBBReg(adapt, pphyreg->rfintfo, BRFSI_RFENV, 0x1);
+		udelay(1);
+
+		PHY_SetBBReg(adapt, pphyreg->rfHSSIPara2,
+			      B3WIREADDREAALENGTH, 0x0);
+		udelay(1);
+
+		PHY_SetBBReg(adapt, pphyreg->rfHSSIPara2, B3WIREDATALENGTH, 0x0);
+		udelay(1);
+
+		switch (rfpath) {
+		case RF90_PATH_A:
+			rtstatus = rtl88e_phy_config_rf_with_headerfile(adapt);
+			break;
+		case RF90_PATH_B:
+			rtstatus = rtl88e_phy_config_rf_with_headerfile(adapt);
+			break;
+		case RF90_PATH_C:
+			break;
+		case RF90_PATH_D:
+			break;
+		}
+
+		switch (rfpath) {
+		case RF90_PATH_A:
+		case RF90_PATH_C:
+			PHY_SetBBReg(adapt, pphyreg->rfintfs, BRFSI_RFENV, u4val);
+			break;
+		case RF90_PATH_B:
+		case RF90_PATH_D:
+			PHY_SetBBReg(adapt, pphyreg->rfintfs, BRFSI_RFENV << 16,
+				      u4val);
+			break;
+		}
+
+		if (rtstatus != true)
+			return false;
 	}
-	return rst;
+
+	return rtstatus;
+}
+
+static bool rtl88e_phy_rf6052_config(struct adapter *adapt)
+{
+	struct hal_data_8188e *hal_data = GET_HAL_DATA(adapt);
+
+	if (hal_data->rf_type == RF_1T1R)
+		hal_data->NumTotalRFPath = 1;
+	else
+		hal_data->NumTotalRFPath = 2;
+
+	return rf6052_conf_para(adapt);
+}
+
+bool rtl88e_phy_rf_config(struct adapter *adapt)
+{
+	return rtl88e_phy_rf6052_config(adapt);
 }

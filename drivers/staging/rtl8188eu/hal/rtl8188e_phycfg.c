@@ -585,15 +585,6 @@ PHY_BBConfig8188E(
 	return rtStatus;
 }
 
-int PHY_RFConfig8188E(struct adapter *Adapter)
-{
-	int		rtStatus = _SUCCESS;
-
-	/*  RF config */
-	rtStatus = PHY_RF6052_Config8188E(Adapter);
-	return rtStatus;
-}
-
 static void getTxPowerIndex88E(struct adapter *Adapter, u8 channel, u8 *cckPowerLevel,
 			       u8 *ofdmPowerLevel, u8 *BW20PowerLevel,
 			       u8 *BW40PowerLevel)
