@@ -573,7 +573,7 @@ static u16 vnt_fill_cts_head(struct vnt_usb_send_context *tx_context,
 		memcpy(buf->data.ra, priv->current_net_addr, ETH_ALEN);
 
 		return vnt_rxtx_datahead_g(tx_context, &buf->data_head);
-        }
+	}
 
 	return 0;
 }
