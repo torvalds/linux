@@ -267,8 +267,8 @@ struct au0828_dev {
 	char *transfer_buffer[AU0828_MAX_ISO_BUFS];/* transfer buffers for isoc
 						   transfer */
 
-	/* USB / URB Related */
-	int		urb_streaming;
+	/* DVB USB / URB Related */
+	bool		urb_streaming, need_urb_start;
 	struct urb	*urbs[URB_COUNT];
 
 	/* Preallocated transfer digital transfer buffers */

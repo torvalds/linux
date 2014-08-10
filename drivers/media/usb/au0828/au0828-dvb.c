@@ -121,7 +121,7 @@ static void urb_completion(struct urb *purb)
 		return;
 	}
 
-	if (dev->urb_streaming == 0) {
+	if (!dev->urb_streaming) {
 		dprintk(2, "%s: not streaming!\n", __func__);
 		return;
 	}
@@ -159,7 +159,10 @@ static int stop_urb_transfer(struct au0828_dev *dev)
 
 	dprintk(2, "%s()\n", __func__);
 
-	dev->urb_streaming = 0;
+	if (!dev->urb_streaming)
+		return 0;
+
+	dev->urb_streaming = false;
 	for (i = 0; i < URB_COUNT; i++) {
 		if (dev->urbs[i]) {
 			usb_kill_urb(dev->urbs[i]);
@@ -229,7 +232,7 @@ static int start_urb_transfer(struct au0828_dev *dev)
 		}
 	}
 
-	dev->urb_streaming = 1;
+	dev->urb_streaming = true;
 	ret = 0;
 
 err:
@@ -323,7 +326,7 @@ static void au0828_restart_dvb_streaming(struct work_struct *work)
 					      restart_streaming);
 	struct au0828_dvb *dvb = &dev->dvb;
 
-	if (dev->urb_streaming == 0)
+	if (!dev->urb_streaming)
 		return;
 
 	dprintk(1, "Restarting streaming...!\n");
@@ -628,6 +631,7 @@ void au0828_dvb_suspend(struct au0828_dev *dev)
 		stop_urb_transfer(dev);
 		au0828_stop_transport(dev, 1);
 		mutex_unlock(&dvb->lock);
+		dev->need_urb_start = 1;
 	}
 }
 
@@ -635,7 +639,7 @@ void au0828_dvb_resume(struct au0828_dev *dev)
 {
 	struct au0828_dvb *dvb = &dev->dvb;
 
-	if (dvb->frontend && dev->urb_streaming) {
+	if (dvb->frontend && dev->need_urb_start) {
 		pr_info("resuming DVB\n");
 
 		au0828_set_frontend(dvb->frontend);
