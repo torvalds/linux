@@ -92,20 +92,3 @@ int rtw_IOL_append_END_cmd(struct xmit_frame *xmit_frame)
 
 	return rtw_IOL_append_cmds(xmit_frame, (u8 *)&cmd, 4);
 }
-
-void rtw_IOL_cmd_buf_dump(struct adapter  *Adapter, int buf_len, u8 *pbuf)
-{
-	int i;
-	int j = 1;
-
-	pr_info("###### %s ######\n", __func__);
-	for (i = 0; i < buf_len; i++) {
-		printk("%02x-", *(pbuf+i));
-
-		if (j%32 == 0)
-			printk("\n");
-		j++;
-	}
-	printk("\n");
-	pr_info("=============ioreg_cmd len=%d===============\n", buf_len);
-}
