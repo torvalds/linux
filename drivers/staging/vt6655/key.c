@@ -184,7 +184,7 @@ bool KeybSetKey(
 	unsigned char *pbyBSSID,
 	unsigned long dwKeyIndex,
 	unsigned long uKeyLength,
-	PQWORD          pKeyRSC,
+	u64 *pKeyRSC,
 	unsigned char *pbyKey,
 	unsigned char byKeyDecMode,
 	void __iomem *dwIoBase,
@@ -245,9 +245,9 @@ bool KeybSetKey(
 
 			if ((dwKeyIndex & USE_KEYRSC) == 0) {
 				// RSC set by NIC
-				memset(&(pKey->KeyRSC), 0, sizeof(QWORD));
+				pKey->KeyRSC = 0;
 			} else {
-				memcpy(&(pKey->KeyRSC), pKeyRSC,  sizeof(QWORD));
+				pKey->KeyRSC = *pKeyRSC;
 			}
 			pKey->dwTSC47_16 = 0;
 			pKey->wTSC15_0 = 0;
@@ -308,9 +308,9 @@ bool KeybSetKey(
 
 		if ((dwKeyIndex & USE_KEYRSC) == 0) {
 			// RSC set by NIC
-			memset(&(pKey->KeyRSC), 0, sizeof(QWORD));
+			pKey->KeyRSC = 0;
 		} else {
-			memcpy(&(pKey->KeyRSC), pKeyRSC,  sizeof(QWORD));
+			pKey->KeyRSC = *pKeyRSC;
 		}
 		pKey->dwTSC47_16 = 0;
 		pKey->wTSC15_0 = 0;
@@ -606,7 +606,7 @@ bool KeybSetDefaultKey(
 	PSKeyManagement pTable,
 	unsigned long dwKeyIndex,
 	unsigned long uKeyLength,
-	PQWORD          pKeyRSC,
+	u64 *pKeyRSC,
 	unsigned char *pbyKey,
 	unsigned char byKeyDecMode,
 	void __iomem *dwIoBase,
@@ -669,9 +669,9 @@ bool KeybSetDefaultKey(
 
 	if ((dwKeyIndex & USE_KEYRSC) == 0) {
 		// RSC set by NIC
-		memset(&(pKey->KeyRSC), 0, sizeof(QWORD));
+		pKey->KeyRSC = 0;
 	} else {
-		memcpy(&(pKey->KeyRSC), pKeyRSC,  sizeof(QWORD));
+		pKey->KeyRSC = *pKeyRSC;
 	}
 	pKey->dwTSC47_16 = 0;
 	pKey->wTSC15_0 = 0;
@@ -712,7 +712,7 @@ bool KeybSetAllGroupKey(
 	PSKeyManagement pTable,
 	unsigned long dwKeyIndex,
 	unsigned long uKeyLength,
-	PQWORD          pKeyRSC,
+	u64 *pKeyRSC,
 	unsigned char *pbyKey,
 	unsigned char byKeyDecMode,
 	void __iomem *dwIoBase,
@@ -764,9 +764,9 @@ bool KeybSetAllGroupKey(
 
 			if ((dwKeyIndex & USE_KEYRSC) == 0) {
 				// RSC set by NIC
-				memset(&(pKey->KeyRSC), 0, sizeof(QWORD));
+				pKey->KeyRSC = 0;
 			} else {
-				memcpy(&(pKey->KeyRSC), pKeyRSC,  sizeof(QWORD));
+				pKey->KeyRSC = *pKeyRSC;
 			}
 			pKey->dwTSC47_16 = 0;
 			pKey->wTSC15_0 = 0;

@@ -573,21 +573,17 @@ bool CARDbSetPhyParameter(void *pDeviceHandler, CARD_PHY_TYPE ePHYType, unsigned
  * Return Value: none
  *
  */
-bool CARDbUpdateTSF(void *pDeviceHandler, unsigned char byRxRate, QWORD qwBSSTimestamp, QWORD qwLocalTSF)
+bool CARDbUpdateTSF(void *pDeviceHandler, unsigned char byRxRate, u64 qwBSSTimestamp, u64 qwLocalTSF)
 {
 	PSDevice    pDevice = (PSDevice) pDeviceHandler;
-	QWORD       qwTSFOffset;
+	u64 qwTSFOffset = 0;
 
-	HIDWORD(qwTSFOffset) = 0;
-	LODWORD(qwTSFOffset) = 0;
-
-	if ((HIDWORD(qwBSSTimestamp) != HIDWORD(qwLocalTSF)) ||
-	    (LODWORD(qwBSSTimestamp) != LODWORD(qwLocalTSF))) {
+	if (qwBSSTimestamp != qwLocalTSF) {
 		qwTSFOffset = CARDqGetTSFOffset(byRxRate, qwBSSTimestamp, qwLocalTSF);
 		// adjust TSF
 		// HW's TSF add TSF Offset reg
-		VNSvOutPortD(pDevice->PortOffset + MAC_REG_TSFOFST, LODWORD(qwTSFOffset));
-		VNSvOutPortD(pDevice->PortOffset + MAC_REG_TSFOFST + 4, HIDWORD(qwTSFOffset));
+		VNSvOutPortD(pDevice->PortOffset + MAC_REG_TSFOFST, (u32)qwTSFOffset);
+		VNSvOutPortD(pDevice->PortOffset + MAC_REG_TSFOFST + 4, (u32)(qwTSFOffset >> 32));
 		MACvRegBitsOn(pDevice->PortOffset, MAC_REG_TFTCTL, TFTCTL_TSFSYNCEN);
 	}
 	return true;
@@ -614,33 +610,32 @@ bool CARDbSetBeaconPeriod(void *pDeviceHandler, unsigned short wBeaconInterval)
 	unsigned int uLowNextTBTT = 0;
 	unsigned int uHighRemain = 0;
 	unsigned int uLowRemain = 0;
-	QWORD       qwNextTBTT;
+	u64 qwNextTBTT = 0;
 
-	HIDWORD(qwNextTBTT) = 0;
-	LODWORD(qwNextTBTT) = 0;
 	CARDbGetCurrentTSF(pDevice->PortOffset, &qwNextTBTT); //Get Local TSF counter
 	uBeaconInterval = wBeaconInterval * 1024;
 	// Next TBTT = ((local_current_TSF / beacon_interval) + 1) * beacon_interval
-	uLowNextTBTT = (LODWORD(qwNextTBTT) >> 10) << 10;
+	uLowNextTBTT = ((qwNextTBTT & 0xffffffffULL) >> 10) << 10;
 	uLowRemain = (uLowNextTBTT) % uBeaconInterval;
 	// high dword (mod) bcn
-	uHighRemain = (((0xffffffff % uBeaconInterval) + 1) * HIDWORD(qwNextTBTT))
+	uHighRemain = (((0xffffffff % uBeaconInterval) + 1) * (u32)(qwNextTBTT >> 32))
 		% uBeaconInterval;
 	uLowRemain = (uHighRemain + uLowRemain) % uBeaconInterval;
 	uLowRemain = uBeaconInterval - uLowRemain;
 
 	// check if carry when add one beacon interval
 	if ((~uLowNextTBTT) < uLowRemain)
-		HIDWORD(qwNextTBTT)++;
+		qwNextTBTT = ((qwNextTBTT >> 32) + 1) << 32;
 
-	LODWORD(qwNextTBTT) = uLowNextTBTT + uLowRemain;
+	qwNextTBTT = (qwNextTBTT & 0xffffffff00000000ULL) |
+			(u64)(uLowNextTBTT + uLowRemain);
 
 	// set HW beacon interval
 	VNSvOutPortW(pDevice->PortOffset + MAC_REG_BI, wBeaconInterval);
 	pDevice->wBeaconInterval = wBeaconInterval;
 	// Set NextTBTT
-	VNSvOutPortD(pDevice->PortOffset + MAC_REG_NEXTTBTT, LODWORD(qwNextTBTT));
-	VNSvOutPortD(pDevice->PortOffset + MAC_REG_NEXTTBTT + 4, HIDWORD(qwNextTBTT));
+	VNSvOutPortD(pDevice->PortOffset + MAC_REG_NEXTTBTT, (u32)qwNextTBTT);
+	VNSvOutPortD(pDevice->PortOffset + MAC_REG_NEXTTBTT + 4, (u32)(qwNextTBTT >> 32));
 	MACvRegBitsOn(pDevice->PortOffset, MAC_REG_TFTCTL, TFTCTL_TBTTSYNCEN);
 
 	return true;
@@ -1077,8 +1072,8 @@ CARDbStartMeasure(
 {
 	PSDevice                pDevice = (PSDevice) pDeviceHandler;
 	PWLAN_IE_MEASURE_REQ    pEID = (PWLAN_IE_MEASURE_REQ) pvMeasureEIDs;
-	QWORD                   qwCurrTSF;
-	QWORD                   qwStartTSF;
+	u64 qwCurrTSF;
+	u64 qwStartTSF;
 	bool bExpired = true;
 	unsigned short wDuration = 0;
 
@@ -1109,32 +1104,22 @@ CARDbStartMeasure(
 		pDevice->uNumOfMeasureEIDs--;
 
 		if (pDevice->byLocalID > REV_ID_VT3253_B1) {
-			HIDWORD(qwStartTSF) = HIDWORD(*((PQWORD)(pDevice->pCurrMeasureEID->sReq.abyStartTime)));
-			LODWORD(qwStartTSF) = LODWORD(*((PQWORD)(pDevice->pCurrMeasureEID->sReq.abyStartTime)));
+			qwStartTSF = *((u64 *)(pDevice->pCurrMeasureEID->sReq.abyStartTime));
 			wDuration = *((unsigned short *)(pDevice->pCurrMeasureEID->sReq.abyDuration));
 			wDuration += 1; // 1 TU for channel switching
 
-			if ((LODWORD(qwStartTSF) == 0) && (HIDWORD(qwStartTSF) == 0)) {
+			if (qwStartTSF == 0) {
 				// start immediately by setting start TSF == current TSF + 2 TU
-				LODWORD(qwStartTSF) = LODWORD(qwCurrTSF) + 2048;
-				HIDWORD(qwStartTSF) = HIDWORD(qwCurrTSF);
-				if (LODWORD(qwCurrTSF) > LODWORD(qwStartTSF))
-					HIDWORD(qwStartTSF)++;
+				qwStartTSF = qwCurrTSF + 2048;
 
 				bExpired = false;
 				break;
 			} else {
 				// start at setting start TSF - 1TU(for channel switching)
-				if (LODWORD(qwStartTSF) < 1024)
-					HIDWORD(qwStartTSF)--;
-
-				LODWORD(qwStartTSF) -= 1024;
+				qwStartTSF -= 1024;
 			}
 
-			if ((HIDWORD(qwCurrTSF) < HIDWORD(qwStartTSF)) ||
-			    ((HIDWORD(qwCurrTSF) == HIDWORD(qwStartTSF)) &&
-			     (LODWORD(qwCurrTSF) < LODWORD(qwStartTSF)))
-) {
+			if (qwCurrTSF < qwStartTSF) {
 				bExpired = false;
 				break;
 			}
@@ -1161,8 +1146,8 @@ CARDbStartMeasure(
 
 	if (!bExpired) {
 		MACvSelectPage1(pDevice->PortOffset);
-		VNSvOutPortD(pDevice->PortOffset + MAC_REG_MSRSTART, LODWORD(qwStartTSF));
-		VNSvOutPortD(pDevice->PortOffset + MAC_REG_MSRSTART + 4, HIDWORD(qwStartTSF));
+		VNSvOutPortD(pDevice->PortOffset + MAC_REG_MSRSTART, (u32)qwStartTSF);
+		VNSvOutPortD(pDevice->PortOffset + MAC_REG_MSRSTART + 4, (u32)(qwStartTSF >> 32));
 		VNSvOutPortW(pDevice->PortOffset + MAC_REG_MSRDURATION, wDuration);
 		MACvRegBitsOn(pDevice->PortOffset, MAC_REG_MSRCTL, MSRCTL_EN);
 		MACvSelectPage0(pDevice->PortOffset);
@@ -1948,25 +1933,17 @@ bool CARDbSoftwareReset(void *pDeviceHandler)
  * Return Value: TSF Offset value
  *
  */
-QWORD CARDqGetTSFOffset(unsigned char byRxRate, QWORD qwTSF1, QWORD qwTSF2)
+u64 CARDqGetTSFOffset(unsigned char byRxRate, u64 qwTSF1, u64 qwTSF2)
 {
-	QWORD   qwTSFOffset;
+	u64 qwTSFOffset = 0;
 	unsigned short wRxBcnTSFOffst = 0;
 
-	HIDWORD(qwTSFOffset) = 0;
-	LODWORD(qwTSFOffset) = 0;
 	wRxBcnTSFOffst = cwRXBCNTSFOff[byRxRate%MAX_RATE];
-	(qwTSF2).u.dwLowDword += (unsigned long)(wRxBcnTSFOffst);
-	if ((qwTSF2).u.dwLowDword < (unsigned long)(wRxBcnTSFOffst))
-		(qwTSF2).u.dwHighDword++;
 
-	LODWORD(qwTSFOffset) = LODWORD(qwTSF1) - LODWORD(qwTSF2);
-	if (LODWORD(qwTSF1) < LODWORD(qwTSF2)) {
-		// if borrow needed
-		HIDWORD(qwTSFOffset) = HIDWORD(qwTSF1) - HIDWORD(qwTSF2) - 1;
-	} else {
-		HIDWORD(qwTSFOffset) = HIDWORD(qwTSF1) - HIDWORD(qwTSF2);
-	}
+	qwTSF2 += (u64)wRxBcnTSFOffst;
+
+	qwTSFOffset = qwTSF1 - qwTSF2;
+
 	return qwTSFOffset;
 }
 
@@ -1983,7 +1960,7 @@ QWORD CARDqGetTSFOffset(unsigned char byRxRate, QWORD qwTSF1, QWORD qwTSF2)
  * Return Value: true if success; otherwise false
  *
  */
-bool CARDbGetCurrentTSF(void __iomem *dwIoBase, PQWORD pqwCurrTSF)
+bool CARDbGetCurrentTSF(void __iomem *dwIoBase, u64 *pqwCurrTSF)
 {
 	unsigned short ww;
 	unsigned char byData;
@@ -1996,8 +1973,8 @@ bool CARDbGetCurrentTSF(void __iomem *dwIoBase, PQWORD pqwCurrTSF)
 	}
 	if (ww == W_MAX_TIMEOUT)
 		return false;
-	VNSvInPortD(dwIoBase + MAC_REG_TSFCNTR, &LODWORD(*pqwCurrTSF));
-	VNSvInPortD(dwIoBase + MAC_REG_TSFCNTR + 4, &HIDWORD(*pqwCurrTSF));
+	VNSvInPortD(dwIoBase + MAC_REG_TSFCNTR, (u32 *)pqwCurrTSF);
+	VNSvInPortD(dwIoBase + MAC_REG_TSFCNTR + 4, (u32 *)pqwCurrTSF + 1);
 
 	return true;
 }
@@ -2016,7 +1993,7 @@ bool CARDbGetCurrentTSF(void __iomem *dwIoBase, PQWORD pqwCurrTSF)
  * Return Value: TSF value of next Beacon
  *
  */
-QWORD CARDqGetNextTBTT(QWORD qwTSF, unsigned short wBeaconInterval)
+u64 CARDqGetNextTBTT(u64 qwTSF, unsigned short wBeaconInterval)
 {
 	unsigned int uLowNextTBTT;
 	unsigned int uHighRemain, uLowRemain;
@@ -2024,20 +2001,21 @@ QWORD CARDqGetNextTBTT(QWORD qwTSF, unsigned short wBeaconInterval)
 
 	uBeaconInterval = wBeaconInterval * 1024;
 	// Next TBTT = ((local_current_TSF / beacon_interval) + 1) * beacon_interval
-	uLowNextTBTT = (LODWORD(qwTSF) >> 10) << 10;
+	uLowNextTBTT = ((qwTSF & 0xffffffffULL) >> 10) << 10;
 	// low dword (mod) bcn
 	uLowRemain = (uLowNextTBTT) % uBeaconInterval;
 	// high dword (mod) bcn
-	uHighRemain = (((0xffffffff % uBeaconInterval) + 1) * HIDWORD(qwTSF))
+	uHighRemain = (((0xffffffff % uBeaconInterval) + 1) * (u32)(qwTSF >> 32))
 		% uBeaconInterval;
 	uLowRemain = (uHighRemain + uLowRemain) % uBeaconInterval;
 	uLowRemain = uBeaconInterval - uLowRemain;
 
 	// check if carry when add one beacon interval
 	if ((~uLowNextTBTT) < uLowRemain)
-		HIDWORD(qwTSF)++;
+		qwTSF = ((qwTSF >> 32) + 1) << 32;
 
-	LODWORD(qwTSF) = uLowNextTBTT + uLowRemain;
+	qwTSF = (qwTSF & 0xffffffff00000000ULL) |
+		(u64)(uLowNextTBTT + uLowRemain);
 
 	return qwTSF;
 }
@@ -2058,15 +2036,14 @@ QWORD CARDqGetNextTBTT(QWORD qwTSF, unsigned short wBeaconInterval)
  */
 void CARDvSetFirstNextTBTT(void __iomem *dwIoBase, unsigned short wBeaconInterval)
 {
-	QWORD   qwNextTBTT;
+	u64 qwNextTBTT = 0;
 
-	HIDWORD(qwNextTBTT) = 0;
-	LODWORD(qwNextTBTT) = 0;
 	CARDbGetCurrentTSF(dwIoBase, &qwNextTBTT); //Get Local TSF counter
+
 	qwNextTBTT = CARDqGetNextTBTT(qwNextTBTT, wBeaconInterval);
 	// Set NextTBTT
-	VNSvOutPortD(dwIoBase + MAC_REG_NEXTTBTT, LODWORD(qwNextTBTT));
-	VNSvOutPortD(dwIoBase + MAC_REG_NEXTTBTT + 4, HIDWORD(qwNextTBTT));
+	VNSvOutPortD(dwIoBase + MAC_REG_NEXTTBTT, (u32)qwNextTBTT);
+	VNSvOutPortD(dwIoBase + MAC_REG_NEXTTBTT + 4, (u32)(qwNextTBTT >> 32));
 	MACvRegBitsOn(dwIoBase, MAC_REG_TFTCTL, TFTCTL_TBTTSYNCEN);
 }
 
@@ -2085,13 +2062,12 @@ void CARDvSetFirstNextTBTT(void __iomem *dwIoBase, unsigned short wBeaconInterva
  * Return Value: none
  *
  */
-void CARDvUpdateNextTBTT(void __iomem *dwIoBase, QWORD qwTSF, unsigned short wBeaconInterval)
+void CARDvUpdateNextTBTT(void __iomem *dwIoBase, u64 qwTSF, unsigned short wBeaconInterval)
 {
 	qwTSF = CARDqGetNextTBTT(qwTSF, wBeaconInterval);
 	// Set NextTBTT
-	VNSvOutPortD(dwIoBase + MAC_REG_NEXTTBTT, LODWORD(qwTSF));
-	VNSvOutPortD(dwIoBase + MAC_REG_NEXTTBTT + 4, HIDWORD(qwTSF));
+	VNSvOutPortD(dwIoBase + MAC_REG_NEXTTBTT, (u32)qwTSF);
+	VNSvOutPortD(dwIoBase + MAC_REG_NEXTTBTT + 4, (u32)(qwTSF >> 32));
 	MACvRegBitsOn(dwIoBase, MAC_REG_TFTCTL, TFTCTL_TBTTSYNCEN);
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Card:Update Next TBTT[%8xh:%8xh]\n",
-		(unsigned int) HIDWORD(qwTSF), (unsigned int) LODWORD(qwTSF));
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Card:Update Next TBTT[%8llx]\n", qwTSF);
 }

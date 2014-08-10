@@ -196,7 +196,7 @@ int wpa_set_keys(PSDevice pDevice, void *ctx,
 	unsigned long dwKeyIndex = 0;
 	unsigned char abyKey[MAX_KEY_LEN];
 	unsigned char abySeq[MAX_KEY_LEN];
-	QWORD   KeyRSC;
+	u64 KeyRSC;
 	unsigned char byKeyDecMode = KEY_CTL_WEP;
 	int ret = 0;
 	int uu, ii;
@@ -276,9 +276,9 @@ int wpa_set_keys(PSDevice pDevice, void *ctx,
 	if (param->u.wpa_key.seq_len > 0) {
 		for (ii = 0; ii < param->u.wpa_key.seq_len; ii++) {
 			if (ii < 4)
-				LODWORD(KeyRSC) |= (abySeq[ii] << (ii * 8));
+				KeyRSC |= (u64)(abySeq[ii] << (ii * 8));
 			else
-				HIDWORD(KeyRSC) |= (abySeq[ii] << ((ii-4) * 8));
+				KeyRSC |= (u64)(abySeq[ii] << ((ii-4) * 8));
 		}
 		dwKeyIndex |= 1 << 29;
 	}
@@ -341,7 +341,7 @@ int wpa_set_keys(PSDevice pDevice, void *ctx,
 		if (KeybSetAllGroupKey(&(pDevice->sKey),
 					dwKeyIndex,
 					param->u.wpa_key.key_len,
-					(PQWORD) &(KeyRSC),
+					(u64 *) &KeyRSC,
 					(unsigned char *)abyKey,
 					byKeyDecMode,
 					pDevice->PortOffset,
@@ -349,7 +349,7 @@ int wpa_set_keys(PSDevice pDevice, void *ctx,
 		    KeybSetDefaultKey(&(pDevice->sKey),
 				       dwKeyIndex,
 				       param->u.wpa_key.key_len,
-				       (PQWORD) &(KeyRSC),
+				       (u64 *) &KeyRSC,
 				       (unsigned char *)abyKey,
 				       byKeyDecMode,
 				       pDevice->PortOffset,
@@ -377,7 +377,7 @@ int wpa_set_keys(PSDevice pDevice, void *ctx,
 			       &param->addr[0],
 			       dwKeyIndex,
 			       param->u.wpa_key.key_len,
-			       (PQWORD) &(KeyRSC),
+			       (u64 *) &KeyRSC,
 			       (unsigned char *)abyKey,
 			       byKeyDecMode,
 			       pDevice->PortOffset,

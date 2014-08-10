@@ -175,7 +175,7 @@ typedef struct tagSTxMgmtPacket {
 // Rx Management Packet descriptor
 typedef struct tagSRxMgmtPacket {
 	PUWLAN_80211HDR     p80211Header;
-	QWORD               qwLocalTSF;
+	u64 qwLocalTSF;
 	unsigned int cbMPDULen;
 	unsigned int cbPayloadLen;
 	unsigned int uRSSI;

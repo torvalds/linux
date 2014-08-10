@@ -1721,7 +1721,7 @@ s_vMgrRxBeacon(
 {
 	PKnownBSS           pBSSList;
 	WLAN_FR_BEACON      sFrame;
-	QWORD               qwTSFOffset;
+	u64 qwTSFOffset;
 	bool bIsBSSIDEqual = false;
 	bool bIsSSIDEqual = false;
 	bool bTSFLargeDiff = false;
@@ -1733,8 +1733,8 @@ s_vMgrRxBeacon(
 	unsigned char byTIMBitOn = 0;
 	unsigned short wAIDNumber = 0;
 	unsigned int uNodeIndex;
-	QWORD               qwTimestamp, qwLocalTSF;
-	QWORD               qwCurrTSF;
+	u64 qwTimestamp, qwLocalTSF;
+	u64 qwCurrTSF;
 	unsigned short wStartIndex = 0;
 	unsigned short wAIDIndex = 0;
 	unsigned char byCurrChannel = pRxPacket->byRxChannel;
@@ -1972,32 +1972,22 @@ s_vMgrRxBeacon(
 		}
 	}
 
-	HIDWORD(qwTimestamp) = cpu_to_le32(HIDWORD(*sFrame.pqwTimestamp));
-	LODWORD(qwTimestamp) = cpu_to_le32(LODWORD(*sFrame.pqwTimestamp));
-	HIDWORD(qwLocalTSF) = HIDWORD(pRxPacket->qwLocalTSF);
-	LODWORD(qwLocalTSF) = LODWORD(pRxPacket->qwLocalTSF);
+	qwTimestamp = le64_to_cpu(*sFrame.pqwTimestamp);
+	qwLocalTSF = pRxPacket->qwLocalTSF;
 
 	// check if beacon TSF larger or small than our local TSF
-	if (HIDWORD(qwTimestamp) == HIDWORD(qwLocalTSF)) {
-		if (LODWORD(qwTimestamp) >= LODWORD(qwLocalTSF))
-			bTSFOffsetPostive = true;
-		else
-			bTSFOffsetPostive = false;
-	} else if (HIDWORD(qwTimestamp) > HIDWORD(qwLocalTSF)) {
+	if (qwTimestamp >= qwLocalTSF)
 		bTSFOffsetPostive = true;
-	} else if (HIDWORD(qwTimestamp) < HIDWORD(qwLocalTSF)) {
+	else
 		bTSFOffsetPostive = false;
-	}
 
 	if (bTSFOffsetPostive)
 		qwTSFOffset = CARDqGetTSFOffset(pRxPacket->byRxRate, (qwTimestamp), (qwLocalTSF));
 	else
 		qwTSFOffset = CARDqGetTSFOffset(pRxPacket->byRxRate, (qwLocalTSF), (qwTimestamp));
 
-	if (HIDWORD(qwTSFOffset) != 0 ||
-	    (LODWORD(qwTSFOffset) > TRIVIAL_SYNC_DIFFERENCE)) {
+	if (qwTSFOffset > TRIVIAL_SYNC_DIFFERENCE)
 		bTSFLargeDiff = true;
-	}
 
 	// if infra mode
 	if (bIsAPBeacon) {
@@ -2194,7 +2184,7 @@ vMgrCreateOwnIBSS(
 	unsigned short wMaxSuppRate;
 	unsigned char byTopCCKBasicRate;
 	unsigned char byTopOFDMBasicRate;
-	QWORD               qwCurrTSF;
+	u64 qwCurrTSF;
 	unsigned int ii;
 	unsigned char abyRATE[] = {0x82, 0x84, 0x8B, 0x96, 0x24, 0x30, 0x48, 0x6C, 0x0C, 0x12, 0x18, 0x60};
 	unsigned char abyCCK_RATE[] = {0x82, 0x84, 0x8B, 0x96};
@@ -2316,12 +2306,12 @@ vMgrCreateOwnIBSS(
 
 	if (pMgmt->eCurrMode == WMAC_MODE_IBSS_STA) {
 		// BSSID selected must be randomized as spec 11.1.3
-		pMgmt->abyCurrBSSID[5] = (unsigned char) (LODWORD(qwCurrTSF) & 0x000000ff);
-		pMgmt->abyCurrBSSID[4] = (unsigned char)((LODWORD(qwCurrTSF) & 0x0000ff00) >> 8);
-		pMgmt->abyCurrBSSID[3] = (unsigned char)((LODWORD(qwCurrTSF) & 0x00ff0000) >> 16);
-		pMgmt->abyCurrBSSID[2] = (unsigned char)((LODWORD(qwCurrTSF) & 0x00000ff0) >> 4);
-		pMgmt->abyCurrBSSID[1] = (unsigned char)((LODWORD(qwCurrTSF) & 0x000ff000) >> 12);
-		pMgmt->abyCurrBSSID[0] = (unsigned char)((LODWORD(qwCurrTSF) & 0x0ff00000) >> 20);
+		pMgmt->abyCurrBSSID[5] = (u8) (qwCurrTSF & 0x000000ff);
+		pMgmt->abyCurrBSSID[4] = (u8) ((qwCurrTSF & 0x0000ff00) >> 8);
+		pMgmt->abyCurrBSSID[3] = (u8) ((qwCurrTSF & 0x00ff0000) >> 16);
+		pMgmt->abyCurrBSSID[2] = (u8) ((qwCurrTSF & 0x00000ff0) >> 4);
+		pMgmt->abyCurrBSSID[1] = (u8) ((qwCurrTSF & 0x000ff000) >> 12);
+		pMgmt->abyCurrBSSID[0] = (u8) ((qwCurrTSF & 0x0ff00000) >> 20);
 		pMgmt->abyCurrBSSID[5] ^= pMgmt->abyMACAddr[0];
 		pMgmt->abyCurrBSSID[4] ^= pMgmt->abyMACAddr[1];
 		pMgmt->abyCurrBSSID[3] ^= pMgmt->abyMACAddr[2];

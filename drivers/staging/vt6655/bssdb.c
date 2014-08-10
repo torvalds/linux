@@ -316,7 +316,7 @@ bool
 BSSbInsertToBSSList(
 	void *hDeviceContext,
 	unsigned char *abyBSSIDAddr,
-	QWORD qwTimestamp,
+	__le64 qwTimestamp,
 	unsigned short wBeaconInterval,
 	unsigned short wCapInfo,
 	unsigned char byCurrChannel,
@@ -356,8 +356,7 @@ BSSbInsertToBSSList(
 	/* save the BSS info */
 	pBSSList->bActive = true;
 	memcpy(pBSSList->abyBSSID, abyBSSIDAddr, WLAN_BSSID_LEN);
-	HIDWORD(pBSSList->qwBSSTimestamp) = cpu_to_le32(HIDWORD(qwTimestamp));
-	LODWORD(pBSSList->qwBSSTimestamp) = cpu_to_le32(LODWORD(qwTimestamp));
+	pBSSList->qwBSSTimestamp = le64_to_cpu(qwTimestamp);
 	pBSSList->wBeaconInterval = cpu_to_le16(wBeaconInterval);
 	pBSSList->wCapInfo = cpu_to_le16(wCapInfo);
 	pBSSList->uClearCount = 0;
@@ -521,7 +520,7 @@ BSSbInsertToBSSList(
 bool
 BSSbUpdateToBSSList(
 	void *hDeviceContext,
-	QWORD qwTimestamp,
+	__le64 qwTimestamp,
 	unsigned short wBeaconInterval,
 	unsigned short wCapInfo,
 	unsigned char byCurrChannel,
@@ -551,8 +550,7 @@ BSSbUpdateToBSSList(
 	if (pBSSList == NULL)
 		return false;
 
-	HIDWORD(pBSSList->qwBSSTimestamp) = cpu_to_le32(HIDWORD(qwTimestamp));
-	LODWORD(pBSSList->qwBSSTimestamp) = cpu_to_le32(LODWORD(qwTimestamp));
+	pBSSList->qwBSSTimestamp = le64_to_cpu(qwTimestamp);
 	pBSSList->wBeaconInterval = cpu_to_le16(wBeaconInterval);
 	pBSSList->wCapInfo = cpu_to_le16(wCapInfo);
 	pBSSList->uClearCount = 0;

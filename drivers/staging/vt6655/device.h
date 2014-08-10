@@ -566,7 +566,7 @@ typedef struct __device_info {
 	SKeyManagement          sKey;
 	unsigned long dwIVCounter;
 
-	QWORD                   qwPacketNumber; //For CCMP and TKIP as TSC(6 bytes)
+	u64 qwPacketNumber; /* For CCMP and TKIP as TSC(6 bytes) */
 	unsigned int	uCurrentWEPMode;
 
 	RC4Ext                  SBox;

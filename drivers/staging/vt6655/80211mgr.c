@@ -91,7 +91,7 @@ vMgrEncodeBeacon(
 	pFrame->pHdr = (PUWLAN_80211HDR)pFrame->pBuf;
 
 	/* Fixed Fields */
-	pFrame->pqwTimestamp = (PQWORD)
+	pFrame->pqwTimestamp = (__le64 *)
 				(WLAN_HDR_A3_DATA_PTR(&(pFrame->pHdr->sA3)) +
 				 WLAN_BEACON_OFF_TS);
 	pFrame->pwBeaconInterval = (unsigned short *)
@@ -125,7 +125,7 @@ vMgrDecodeBeacon(
 	pFrame->pHdr = (PUWLAN_80211HDR)pFrame->pBuf;
 
 	/* Fixed Fields */
-	pFrame->pqwTimestamp = (PQWORD)
+	pFrame->pqwTimestamp = (__le64 *)
 				(WLAN_HDR_A3_DATA_PTR(&(pFrame->pHdr->sA3)) +
 				 WLAN_BEACON_OFF_TS);
 	pFrame->pwBeaconInterval = (unsigned short *)
@@ -695,7 +695,7 @@ vMgrEncodeProbeResponse(
 	pFrame->pHdr = (PUWLAN_80211HDR)pFrame->pBuf;
 
 	/* Fixed Fields */
-	pFrame->pqwTimestamp = (PQWORD)
+	pFrame->pqwTimestamp = (__le64 *)
 			       (WLAN_HDR_A3_DATA_PTR(&(pFrame->pHdr->sA3)) +
 				WLAN_PROBERESP_OFF_TS);
 	pFrame->pwBeaconInterval = (unsigned short *)
@@ -730,7 +730,7 @@ vMgrDecodeProbeResponse(
 	pFrame->pHdr = (PUWLAN_80211HDR)pFrame->pBuf;
 
 	/* Fixed Fields */
-	pFrame->pqwTimestamp = (PQWORD)
+	pFrame->pqwTimestamp = (__le64 *)
 			       (WLAN_HDR_A3_DATA_PTR(&(pFrame->pHdr->sA3)) +
 				WLAN_PROBERESP_OFF_TS);
 	pFrame->pwBeaconInterval = (unsigned short *)

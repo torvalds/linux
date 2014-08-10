@@ -283,7 +283,7 @@ device_receive_frame(
 	unsigned char *pbyRsr;
 	unsigned char *pbyNewRsr;
 	unsigned char *pbyRSSI;
-	PQWORD          pqwTSFTime;
+	__le64 *pqwTSFTime;
 	unsigned short *pwFrameSize;
 	unsigned char *pbyFrame;
 	bool bDeFragRx = false;
@@ -334,7 +334,7 @@ device_receive_frame(
 	pbyRSSI = (unsigned char *)(skb->data + FrameSize - 2);
 	pbyNewRsr = (unsigned char *)(skb->data + FrameSize - 3);
 	pbySQ = (unsigned char *)(skb->data + FrameSize - 4);
-	pqwTSFTime = (PQWORD)(skb->data + FrameSize - 12);
+	pqwTSFTime = (__le64 *)(skb->data + FrameSize - 12);
 	pbyFrame = (unsigned char *)(skb->data + 4);
 
 	// get packet size
@@ -515,8 +515,7 @@ device_receive_frame(
 			pRxPacket->cbMPDULen = FrameSize;
 			pRxPacket->uRSSI = *pbyRSSI;
 			pRxPacket->bySQ = *pbySQ;
-			HIDWORD(pRxPacket->qwLocalTSF) = cpu_to_le32(HIDWORD(*pqwTSFTime));
-			LODWORD(pRxPacket->qwLocalTSF) = cpu_to_le32(LODWORD(*pqwTSFTime));
+			pRxPacket->qwLocalTSF = le64_to_cpu(*pqwTSFTime);
 			if (bIsWEP) {
 				// strip IV
 				pbyData1 = WLAN_HDR_A3_DATA_PTR(skb->data+4);
@@ -796,7 +795,7 @@ device_receive_frame(
 			RSC = dwRxTSC47_16;
 			RSC <<= 16;
 			RSC += wRxTSC15_0;
-			memcpy(&(pKey->KeyRSC), &RSC,  sizeof(QWORD));
+			pKey->KeyRSC = RSC;
 
 			if ((pDevice->sMgmtObj.eCurrMode == WMAC_MODE_ESS_STA) &&
 			    (pDevice->sMgmtObj.eCurrState == WMAC_STATE_ASSOC)) {

@@ -31,6 +31,8 @@
 #ifndef __80211MGR_H__
 #define __80211MGR_H__
 
+#include <linux/types.h>
+
 #include "ttype.h"
 #include "80211hdr.h"
 
@@ -464,7 +466,7 @@ typedef struct tagWLAN_FR_BEACON {
 	unsigned int	len;
 	unsigned char *pBuf;
 	PUWLAN_80211HDR         pHdr;
-	PQWORD                  pqwTimestamp;
+	__le64 *pqwTimestamp;
 	unsigned short *pwBeaconInterval;
 	unsigned short *pwCapInfo;
 	PWLAN_IE_SSID           pSSID;
@@ -577,7 +579,7 @@ typedef struct tagWLAN_FR_PROBERESP {
 	unsigned int	len;
 	unsigned char *pBuf;
 	PUWLAN_80211HDR         pHdr;
-	PQWORD                  pqwTimestamp;
+	__le64 *pqwTimestamp;
 	unsigned short *pwBeaconInterval;
 	unsigned short *pwCapInfo;
 	PWLAN_IE_SSID           pSSID;
