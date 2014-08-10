@@ -523,7 +523,7 @@ int st21nfca_im_send_atr_req(struct nfc_hci_dev *hdev, u8 *gb, size_t gb_len)
 	memset(atr_req->nfcid3, 0, NFC_NFCID3_MAXSIZE);
 	target = hdev->ndev->targets;
 
-	if (target->sensf_res)
+	if (target->sensf_res_len > 0)
 		memcpy(atr_req->nfcid3, target->sensf_res,
 				target->sensf_res_len);
 	else
