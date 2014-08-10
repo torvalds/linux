@@ -3,7 +3,6 @@ config VIDEO_CX23885
 	depends on DVB_CORE && VIDEO_DEV && PCI && I2C && INPUT && SND
 	select SND_PCM
 	select I2C_ALGOBIT
-	select VIDEO_BTCX
 	select VIDEO_TUNER
 	select VIDEO_TVEEPROM
 	depends on RC_CORE

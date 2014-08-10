@@ -29,7 +29,6 @@
 #include <media/videobuf2-dvb.h>
 #include <media/rc-core.h>
 
-#include "btcx-risc.h"
 #include "cx23885-reg.h"
 #include "media/cx2341x.h"
 
@@ -152,6 +151,13 @@ enum cx23885_src_sel_type {
 	CX23885_SRC_SEL_PARALLEL_MPEG_VIDEO
 };
 
+struct cx23885_riscmem {
+	unsigned int   size;
+	__le32         *cpu;
+	__le32         *jmp;
+	dma_addr_t     dma;
+};
+
 /* buffer for one video frame */
 struct cx23885_buffer {
 	/* common v4l buffer stuff -- must be first */
@@ -160,7 +166,7 @@ struct cx23885_buffer {
 
 	/* cx23885 specific */
 	unsigned int           bpl;
-	struct btcx_riscmem    risc;
+	struct cx23885_riscmem risc;
 	struct cx23885_fmt     *fmt;
 	u32                    count;
 };
@@ -300,7 +306,7 @@ struct cx23885_kernel_ir {
 
 struct cx23885_audio_buffer {
 	unsigned int		bpl;
-	struct btcx_riscmem	risc;
+	struct cx23885_riscmem	risc;
 	void			*vaddr;
 	struct scatterlist	*sglist;
 	int                     sglen;
@@ -489,13 +495,13 @@ extern int cx23885_sram_channel_setup(struct cx23885_dev *dev,
 extern void cx23885_sram_channel_dump(struct cx23885_dev *dev,
 	struct sram_channel *ch);
 
-extern int cx23885_risc_buffer(struct pci_dev *pci, struct btcx_riscmem *risc,
+extern int cx23885_risc_buffer(struct pci_dev *pci, struct cx23885_riscmem *risc,
 	struct scatterlist *sglist,
 	unsigned int top_offset, unsigned int bottom_offset,
 	unsigned int bpl, unsigned int padding, unsigned int lines);
 
 extern int cx23885_risc_vbibuffer(struct pci_dev *pci,
-	struct btcx_riscmem *risc, struct scatterlist *sglist,
+	struct cx23885_riscmem *risc, struct scatterlist *sglist,
 	unsigned int top_offset, unsigned int bottom_offset,
 	unsigned int bpl, unsigned int padding, unsigned int lines);
 
@@ -595,7 +601,7 @@ extern struct cx23885_audio_dev *cx23885_audio_register(
 extern void cx23885_audio_unregister(struct cx23885_dev *dev);
 extern int cx23885_audio_irq(struct cx23885_dev *dev, u32 status, u32 mask);
 extern int cx23885_risc_databuffer(struct pci_dev *pci,
-				   struct btcx_riscmem *risc,
+				   struct cx23885_riscmem *risc,
 				   struct scatterlist *sglist,
 				   unsigned int bpl,
 				   unsigned int lines,

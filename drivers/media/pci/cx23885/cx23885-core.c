@@ -570,7 +570,7 @@ void cx23885_sram_channel_dump(struct cx23885_dev *dev,
 }
 
 static void cx23885_risc_disasm(struct cx23885_tsport *port,
-				struct btcx_riscmem *risc)
+				struct cx23885_riscmem *risc)
 {
 	struct cx23885_dev *dev = port->dev;
 	unsigned int i, j, n;
@@ -1121,14 +1121,13 @@ static __le32 *cx23885_risc_field(__le32 *rp, struct scatterlist *sglist,
 	return rp;
 }
 
-int cx23885_risc_buffer(struct pci_dev *pci, struct btcx_riscmem *risc,
+int cx23885_risc_buffer(struct pci_dev *pci, struct cx23885_riscmem *risc,
 			struct scatterlist *sglist, unsigned int top_offset,
 			unsigned int bottom_offset, unsigned int bpl,
 			unsigned int padding, unsigned int lines)
 {
 	u32 instructions, fields;
 	__le32 *rp;
-	int rc;
 
 	fields = 0;
 	if (UNSET != top_offset)
@@ -1144,9 +1143,10 @@ int cx23885_risc_buffer(struct pci_dev *pci, struct btcx_riscmem *risc,
 	instructions  = fields * (1 + ((bpl + padding) * lines)
 		/ PAGE_SIZE + lines);
 	instructions += 5;
-	rc = btcx_riscmem_alloc(pci, risc, instructions*12);
-	if (rc < 0)
-		return rc;
+	risc->size = instructions * 12;
+	risc->cpu = pci_alloc_consistent(pci, risc->size, &risc->dma);
+	if (risc->cpu == NULL)
+		return -ENOMEM;
 
 	/* write risc instructions */
 	rp = risc->cpu;
@@ -1164,14 +1164,13 @@ int cx23885_risc_buffer(struct pci_dev *pci, struct btcx_riscmem *risc,
 }
 
 int cx23885_risc_databuffer(struct pci_dev *pci,
-				   struct btcx_riscmem *risc,
+				   struct cx23885_riscmem *risc,
 				   struct scatterlist *sglist,
 				   unsigned int bpl,
 				   unsigned int lines, unsigned int lpi)
 {
 	u32 instructions;
 	__le32 *rp;
-	int rc;
 
 	/* estimate risc mem: worst case is one write per page border +
 	   one write per scan line + syncs + jump (all 2 dwords).  Here
@@ -1181,9 +1180,10 @@ int cx23885_risc_databuffer(struct pci_dev *pci,
 	instructions  = 1 + (bpl * lines) / PAGE_SIZE + lines;
 	instructions += 4;
 
-	rc = btcx_riscmem_alloc(pci, risc, instructions*12);
-	if (rc < 0)
-		return rc;
+	risc->size = instructions * 12;
+	risc->cpu = pci_alloc_consistent(pci, risc->size, &risc->dma);
+	if (risc->cpu == NULL)
+		return -ENOMEM;
 
 	/* write risc instructions */
 	rp = risc->cpu;
@@ -1196,14 +1196,13 @@ int cx23885_risc_databuffer(struct pci_dev *pci,
 	return 0;
 }
 
-int cx23885_risc_vbibuffer(struct pci_dev *pci, struct btcx_riscmem *risc,
+int cx23885_risc_vbibuffer(struct pci_dev *pci, struct cx23885_riscmem *risc,
 			struct scatterlist *sglist, unsigned int top_offset,
 			unsigned int bottom_offset, unsigned int bpl,
 			unsigned int padding, unsigned int lines)
 {
 	u32 instructions, fields;
 	__le32 *rp;
-	int rc;
 
 	fields = 0;
 	if (UNSET != top_offset)
@@ -1219,9 +1218,10 @@ int cx23885_risc_vbibuffer(struct pci_dev *pci, struct btcx_riscmem *risc,
 	instructions  = fields * (1 + ((bpl + padding) * lines)
 		/ PAGE_SIZE + lines);
 	instructions += 5;
-	rc = btcx_riscmem_alloc(pci, risc, instructions*12);
-	if (rc < 0)
-		return rc;
+	risc->size = instructions * 12;
+	risc->cpu = pci_alloc_consistent(pci, risc->size, &risc->dma);
+	if (risc->cpu == NULL)
+		return -ENOMEM;
 	/* write risc instructions */
 	rp = risc->cpu;
 
@@ -1246,8 +1246,10 @@ int cx23885_risc_vbibuffer(struct pci_dev *pci, struct btcx_riscmem *risc,
 
 void cx23885_free_buffer(struct cx23885_dev *dev, struct cx23885_buffer *buf)
 {
+	struct cx23885_riscmem *risc = &buf->risc;
+
 	BUG_ON(in_interrupt());
-	btcx_riscmem_free(dev->pci, &buf->risc);
+	pci_free_consistent(dev->pci, risc->size, risc->cpu, risc->dma);
 }
 
 static void cx23885_tsport_reg_dump(struct cx23885_tsport *port)

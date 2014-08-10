@@ -270,12 +270,15 @@ int cx23885_audio_irq(struct cx23885_dev *dev, u32 status, u32 mask)
 
 static int dsp_buffer_free(struct cx23885_audio_dev *chip)
 {
+	struct cx23885_riscmem *risc;
+
 	BUG_ON(!chip->dma_size);
 
 	dprintk(2, "Freeing buffer\n");
 	cx23885_alsa_dma_unmap(chip);
 	cx23885_alsa_dma_free(chip->buf);
-	btcx_riscmem_free(chip->pci, &chip->buf->risc);
+	risc = &chip->buf->risc;
+	pci_free_consistent(chip->pci, risc->size, risc->cpu, risc->dma);
 	kfree(chip->buf);
 
 	chip->buf = NULL;
