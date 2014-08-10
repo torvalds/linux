@@ -77,20 +77,6 @@ int _rtw_IOL_append_WB_cmd(struct xmit_frame *xmit_frame, u16 addr, u8 value, u8
 	return rtw_IOL_append_cmds(xmit_frame, (u8 *)&cmd, cmd.length);
 }
 
-int _rtw_IOL_append_WD_cmd(struct xmit_frame *xmit_frame, u16 addr, u32 value, u32 mask)
-{
-	struct ioreg_cfg cmd = {8, IOREG_CMD_WD_REG, 0x0, 0x0, 0x0};
-
-	cmd.address = cpu_to_le16(addr);
-	cmd.data = cpu_to_le32(value);
-
-	if (mask != 0xFFFFFFFF) {
-		cmd.length = 12;
-		cmd.mask =  cpu_to_le32(mask);
-	}
-	return rtw_IOL_append_cmds(xmit_frame, (u8 *)&cmd, cmd.length);
-}
-
 int _rtw_IOL_append_WRF_cmd(struct xmit_frame *xmit_frame, u8 rf_path, u16 addr, u32 value, u32 mask)
 {
 	struct ioreg_cfg cmd = {8, IOREG_CMD_W_RF, 0x0, 0x0, 0x0};
