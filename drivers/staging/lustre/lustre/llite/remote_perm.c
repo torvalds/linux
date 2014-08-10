@@ -100,7 +100,7 @@ void free_rmtperm_hash(struct hlist_head *hash)
 	struct ll_remote_perm *lrp;
 	struct hlist_node *next;
 
-	if(!hash)
+	if (!hash)
 		return;
 
 	for (i = 0; i < REMOTE_PERM_HASHSIZE; i++)
