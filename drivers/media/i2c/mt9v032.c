@@ -952,13 +952,6 @@ static int mt9v032_probe(struct i2c_client *client,
 	unsigned int i;
 	int ret;
 
-	if (!i2c_check_functionality(client->adapter,
-				     I2C_FUNC_SMBUS_WORD_DATA)) {
-		dev_warn(&client->adapter->dev,
-			 "I2C-Adapter doesn't support I2C_FUNC_SMBUS_WORD\n");
-		return -EIO;
-	}
-
 	mt9v032 = devm_kzalloc(&client->dev, sizeof(*mt9v032), GFP_KERNEL);
 	if (!mt9v032)
 		return -ENOMEM;
