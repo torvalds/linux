@@ -606,29 +606,11 @@ bool CARDbUpdateTSF(void *pDeviceHandler, unsigned char byRxRate, u64 qwBSSTimes
 bool CARDbSetBeaconPeriod(void *pDeviceHandler, unsigned short wBeaconInterval)
 {
 	PSDevice    pDevice = (PSDevice) pDeviceHandler;
-	unsigned int uBeaconInterval = 0;
-	unsigned int uLowNextTBTT = 0;
-	unsigned int uHighRemain = 0;
-	unsigned int uLowRemain = 0;
 	u64 qwNextTBTT = 0;
 
 	CARDbGetCurrentTSF(pDevice->PortOffset, &qwNextTBTT); //Get Local TSF counter
-	uBeaconInterval = wBeaconInterval * 1024;
-	// Next TBTT = ((local_current_TSF / beacon_interval) + 1) * beacon_interval
-	uLowNextTBTT = ((qwNextTBTT & 0xffffffffULL) >> 10) << 10;
-	uLowRemain = (uLowNextTBTT) % uBeaconInterval;
-	// high dword (mod) bcn
-	uHighRemain = (((0xffffffff % uBeaconInterval) + 1) * (u32)(qwNextTBTT >> 32))
-		% uBeaconInterval;
-	uLowRemain = (uHighRemain + uLowRemain) % uBeaconInterval;
-	uLowRemain = uBeaconInterval - uLowRemain;
 
-	// check if carry when add one beacon interval
-	if ((~uLowNextTBTT) < uLowRemain)
-		qwNextTBTT = ((qwNextTBTT >> 32) + 1) << 32;
-
-	qwNextTBTT = (qwNextTBTT & 0xffffffff00000000ULL) |
-			(u64)(uLowNextTBTT + uLowRemain);
+	qwNextTBTT = CARDqGetNextTBTT(qwNextTBTT, wBeaconInterval);
 
 	// set HW beacon interval
 	VNSvOutPortW(pDevice->PortOffset + MAC_REG_BI, wBeaconInterval);
