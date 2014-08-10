@@ -484,7 +484,7 @@ static int bcm_char_ioctl_gpio_set_request(void __user *argp,
 	UCHAR reset_val[4];
 	UINT value = 0;
 	UINT bit = 0;
-	UINT uiOperation = 0;
+	UINT operation = 0;
 	INT status;
 	int bytes;
 
@@ -509,7 +509,7 @@ static int bcm_char_ioctl_gpio_set_request(void __user *argp,
 		return -EFAULT;
 
 	bit  = gpio_info.uiGpioNumber;
-	uiOperation = gpio_info.uiGpioValue;
+	operation = gpio_info.uiGpioValue;
 	value = (1<<bit);
 
 	if (IsReqGpioIsLedInNVM(ad, value) == false) {
@@ -521,7 +521,7 @@ static int bcm_char_ioctl_gpio_set_request(void __user *argp,
 	}
 
 	/* Set - setting 1 */
-	if (uiOperation) {
+	if (operation) {
 		/* Set the gpio output register */
 		status = wrmaltWithLock(ad,
 					BCM_GPIO_OUTPUT_SET_REG,
