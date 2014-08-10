@@ -59,7 +59,7 @@ static int handle_flash2x_adapter(struct bcm_mini_adapter *ad,
 	 * considered valid.
 	 */
 	INT status;
-	ULONG ulDSDMagicNumInUsrBuff = 0;
+	ULONG dsd_magic_num_in_usr_buff = 0;
 
 	status = BcmFlash2xCorruptSig(ad, ad->eActiveDSD);
 	if (status == STATUS_SUCCESS)
@@ -76,10 +76,10 @@ static int handle_flash2x_adapter(struct bcm_mini_adapter *ad,
 		return status;
 	}
 
-	ulDSDMagicNumInUsrBuff =
+	dsd_magic_num_in_usr_buff =
 		ntohl(*(PUINT)(read_data + nvm_rw->uiNumBytes -
 		      SIGNATURE_SIZE));
-	if (ulDSDMagicNumInUsrBuff != DSD_IMAGE_MAGIC_NUMBER) {
+	if (dsd_magic_num_in_usr_buff != DSD_IMAGE_MAGIC_NUMBER) {
 		BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
 				"DSD Sig is present neither in Flash nor User provided Input..");
 		up(&ad->NVMRdmWrmLock);
