@@ -108,36 +108,6 @@ static s32 iol_ioconfig(struct adapter *padapter, u8 iocfg_bndy)
 	return rst;
 }
 
-static int rtl8188e_IOL_exec_cmds_sync(struct adapter *adapter, struct xmit_frame *xmit_frame, u32 max_wating_ms, u32 bndy_cnt)
-{
-	struct pkt_attrib *pattrib = &xmit_frame->attrib;
-	u8 i;
-	int ret = _FAIL;
-
-	if (rtw_IOL_append_END_cmd(xmit_frame) != _SUCCESS)
-		goto exit;
-	if (rtw_usb_bulk_size_boundary(adapter, TXDESC_SIZE+pattrib->last_txcmdsz)) {
-		if (rtw_IOL_append_END_cmd(xmit_frame) != _SUCCESS)
-			goto exit;
-	}
-
-	dump_mgntframe_and_wait(adapter, xmit_frame, max_wating_ms);
-
-	iol_mode_enable(adapter, 1);
-	for (i = 0; i < bndy_cnt; i++) {
-		u8 page_no = 0;
-		page_no = i*2;
-		ret = iol_ioconfig(adapter, page_no);
-		if (ret != _SUCCESS)
-			break;
-	}
-	iol_mode_enable(adapter, 0);
-exit:
-	/* restore BCN_HEAD */
-	usb_write8(adapter, REG_TDECTRL+1, 0);
-	return ret;
-}
-
 #define MAX_REG_BOLCK_SIZE	196
 
 void _8051Reset88E(struct adapter *padapter)
@@ -278,8 +248,6 @@ void rtl8188e_set_hal_ops(struct hal_ops *pHalFunc)
 	pHalFunc->sreset_get_wifi_status  = &sreset_get_wifi_status;
 
 	pHalFunc->SetHalODMVarHandler = &rtl8188e_SetHalODMVar;
-
-	pHalFunc->IOL_exec_cmds_sync = &rtl8188e_IOL_exec_cmds_sync;
 
 	pHalFunc->hal_notch_filter = &hal_notch_filter_8188e;
 }
