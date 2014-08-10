@@ -19,13 +19,13 @@
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include "au0828.h"
+
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>
 #include <linux/mutex.h>
-
-#include "au0828.h"
 
 /*
  * 1 = General debug messages
@@ -90,7 +90,7 @@ static int send_control_msg(struct au0828_dev *dev, u16 request, u32 value,
 		status = min(status, 0);
 
 		if (status < 0) {
-			printk(KERN_ERR "%s() Failed sending control message, error %d.\n",
+			pr_err("%s() Failed sending control message, error %d.\n",
 				__func__, status);
 		}
 
@@ -115,7 +115,7 @@ static int recv_control_msg(struct au0828_dev *dev, u16 request, u32 value,
 		status = min(status, 0);
 
 		if (status < 0) {
-			printk(KERN_ERR "%s() Failed receiving control message, error %d.\n",
+			pr_err("%s() Failed receiving control message, error %d.\n",
 				__func__, status);
 		}
 
@@ -197,15 +197,14 @@ static int au0828_usb_probe(struct usb_interface *interface,
 	 * not enough even for most Digital TV streams.
 	 */
 	if (usbdev->speed != USB_SPEED_HIGH && disable_usb_speed_check == 0) {
-		printk(KERN_ERR "au0828: Device initialization failed.\n");
-		printk(KERN_ERR "au0828: Device must be connected to a "
-		       "high-speed USB 2.0 port.\n");
+		pr_err("au0828: Device initialization failed.\n");
+		pr_err("au0828: Device must be connected to a high-speed USB 2.0 port.\n");
 		return -ENODEV;
 	}
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (dev == NULL) {
-		printk(KERN_ERR "%s() Unable to allocate memory\n", __func__);
+		pr_err("%s() Unable to allocate memory\n", __func__);
 		return -ENOMEM;
 	}
 
@@ -273,7 +272,7 @@ static int au0828_usb_probe(struct usb_interface *interface,
 	 */
 	usb_set_intfdata(interface, dev);
 
-	printk(KERN_INFO "Registered device AU0828 [%s]\n",
+	pr_info("Registered device AU0828 [%s]\n",
 		dev->board.name == NULL ? "Unset" : dev->board.name);
 
 	mutex_unlock(&dev->lock);
@@ -320,7 +319,7 @@ static int au0828_resume(struct usb_interface *interface)
 }
 
 static struct usb_driver au0828_usb_driver = {
-	.name		= DRIVER_NAME,
+	.name		= KBUILD_MODNAME,
 	.probe		= au0828_usb_probe,
 	.disconnect	= au0828_usb_disconnect,
 	.id_table	= au0828_usb_id_table,
@@ -334,27 +333,27 @@ static int __init au0828_init(void)
 	int ret;
 
 	if (au0828_debug & 1)
-		printk(KERN_INFO "%s() Debugging is enabled\n", __func__);
+		pr_info("%s() Debugging is enabled\n", __func__);
 
 	if (au0828_debug & 2)
-		printk(KERN_INFO "%s() USB Debugging is enabled\n", __func__);
+		pr_info("%s() USB Debugging is enabled\n", __func__);
 
 	if (au0828_debug & 4)
-		printk(KERN_INFO "%s() I2C Debugging is enabled\n", __func__);
+		pr_info("%s() I2C Debugging is enabled\n", __func__);
 
 	if (au0828_debug & 8)
-		printk(KERN_INFO "%s() Bridge Debugging is enabled\n",
+		pr_info("%s() Bridge Debugging is enabled\n",
 		       __func__);
 
 	if (au0828_debug & 16)
-		printk(KERN_INFO "%s() IR Debugging is enabled\n",
+		pr_info("%s() IR Debugging is enabled\n",
 		       __func__);
 
-	printk(KERN_INFO "au0828 driver loaded\n");
+	pr_info("au0828 driver loaded\n");
 
 	ret = usb_register(&au0828_usb_driver);
 	if (ret)
-		printk(KERN_ERR "usb_register failed, error = %d\n", ret);
+		pr_err("usb_register failed, error = %d\n", ret);
 
 	return ret;
 }

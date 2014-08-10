@@ -143,8 +143,7 @@ int au0828_tuner_callback(void *priv, int component, int command, int arg)
 			mdelay(10);
 			return 0;
 		} else {
-			printk(KERN_ERR
-				"%s(): Unknown command.\n", __func__);
+			pr_err("%s(): Unknown command.\n", __func__);
 			return -EINVAL;
 		}
 		break;
@@ -178,12 +177,12 @@ static void hauppauge_eeprom(struct au0828_dev *dev, u8 *eeprom_data)
 	case 72500: /* WinTV-HVR950q (OEM, No IR, ATSC/QAM */
 		break;
 	default:
-		printk(KERN_WARNING "%s: warning: "
-		       "unknown hauppauge model #%d\n", __func__, tv.model);
+		pr_warn("%s: warning: unknown hauppauge model #%d\n",
+			__func__, tv.model);
 		break;
 	}
 
-	printk(KERN_INFO "%s: hauppauge eeprom: model=%d\n",
+	pr_info("%s: hauppauge eeprom: model=%d\n",
 	       __func__, tv.model);
 }
 
@@ -229,7 +228,7 @@ void au0828_card_analog_fe_setup(struct au0828_dev *dev)
 		sd = v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap,
 				"au8522", 0x8e >> 1, NULL);
 		if (sd == NULL)
-			printk(KERN_ERR "analog subdev registration failed\n");
+			pr_err("analog subdev registration failed\n");
 	}
 
 	/* Setup tuners */
@@ -238,7 +237,7 @@ void au0828_card_analog_fe_setup(struct au0828_dev *dev)
 		sd = v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap,
 				"tuner", dev->board.tuner_addr, NULL);
 		if (sd == NULL)
-			printk(KERN_ERR "tuner subdev registration fail\n");
+			pr_err("tuner subdev registration fail\n");
 
 		tun_setup.mode_mask      = mode_mask;
 		tun_setup.type           = dev->board.tuner_type;

@@ -19,6 +19,8 @@
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/usb.h>
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
@@ -42,7 +44,6 @@
 #include "au0828-reg.h"
 #include "au0828-cards.h"
 
-#define DRIVER_NAME "au0828"
 #define URB_COUNT   16
 #define URB_BUFSIZE (0xe522)
 
@@ -331,7 +332,7 @@ extern struct videobuf_queue_ops au0828_vbi_qops;
 
 #define dprintk(level, fmt, arg...)\
 	do { if (au0828_debug & level)\
-		printk(KERN_DEBUG DRIVER_NAME "/0: " fmt, ## arg);\
+		printk(KERN_DEBUG pr_fmt(fmt), ## arg);\
 	} while (0)
 
 /* au0828-input.c */

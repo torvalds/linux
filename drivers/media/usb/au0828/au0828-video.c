@@ -28,6 +28,8 @@
  *
  */
 
+#include "au0828.h"
+
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/init.h>
@@ -36,7 +38,6 @@
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-event.h>
 #include <media/tuner.h>
-#include "au0828.h"
 #include "au0828-reg.h"
 
 static DEFINE_MUTEX(au0828_sysfs_lock);
@@ -52,7 +53,7 @@ MODULE_PARM_DESC(isoc_debug, "enable debug messages [isoc transfers]");
 #define au0828_isocdbg(fmt, arg...) \
 do {\
 	if (isoc_debug) { \
-		printk(KERN_INFO "au0828 %s :"fmt, \
+		pr_info("au0828 %s :"fmt, \
 		       __func__ , ##arg);	   \
 	} \
   } while (0)
@@ -105,12 +106,12 @@ static inline void print_err_status(struct au0828_dev *dev,
 static int check_dev(struct au0828_dev *dev)
 {
 	if (dev->dev_state & DEV_DISCONNECTED) {
-		printk(KERN_INFO "v4l2 ioctl: device not present\n");
+		pr_info("v4l2 ioctl: device not present\n");
 		return -ENODEV;
 	}
 
 	if (dev->dev_state & DEV_MISCONFIGURED) {
-		printk(KERN_INFO "v4l2 ioctl: device is misconfigured; "
+		pr_info("v4l2 ioctl: device is misconfigured; "
 		       "close and open it again\n");
 		return -EIO;
 	}
@@ -719,7 +720,7 @@ buffer_prepare(struct videobuf_queue *vq, struct videobuf_buffer *vb,
 	if (VIDEOBUF_NEEDS_INIT == buf->vb.state) {
 		rc = videobuf_iolock(vq, &buf->vb, NULL);
 		if (rc < 0) {
-			printk(KERN_INFO "videobuf_iolock failed\n");
+			pr_info("videobuf_iolock failed\n");
 			goto fail;
 		}
 	}
@@ -732,7 +733,7 @@ buffer_prepare(struct videobuf_queue *vq, struct videobuf_buffer *vb,
 				      AU0828_MAX_ISO_BUFS, dev->max_pkt_size,
 				      au0828_isoc_copy);
 		if (rc < 0) {
-			printk(KERN_INFO "au0828_init_isoc failed\n");
+			pr_info("au0828_init_isoc failed\n");
 			goto fail;
 		}
 	}
@@ -803,7 +804,7 @@ static int au0828_analog_stream_enable(struct au0828_dev *d)
 		/* set au0828 interface0 to AS5 here again */
 		ret = usb_set_interface(d->usbdev, 0, 5);
 		if (ret < 0) {
-			printk(KERN_INFO "Au0828 can't set alt setting to 5!\n");
+			pr_info("Au0828 can't set alt setting to 5!\n");
 			return -EBUSY;
 		}
 	}
@@ -1092,7 +1093,7 @@ static int au0828_v4l2_close(struct file *filp)
 		   USB bandwidth */
 		ret = usb_set_interface(dev->usbdev, 0, 0);
 		if (ret < 0)
-			printk(KERN_INFO "Au0828 can't set alternate to 0!\n");
+			pr_info("Au0828 can't set alternate to 0!\n");
 	}
 	mutex_unlock(&dev->lock);
 
@@ -1346,7 +1347,7 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 		return rc;
 
 	if (videobuf_queue_is_busy(&fh->vb_vidq)) {
-		printk(KERN_INFO "%s queue busy\n", __func__);
+		pr_info("%s queue busy\n", __func__);
 		rc = -EBUSY;
 		goto out;
 	}
@@ -1999,7 +2000,7 @@ int au0828_analog_register(struct au0828_dev *dev,
 	retval = usb_set_interface(dev->usbdev,
 			interface->cur_altsetting->desc.bInterfaceNumber, 5);
 	if (retval != 0) {
-		printk(KERN_INFO "Failure setting usb interface0 to as5\n");
+		pr_info("Failure setting usb interface0 to as5\n");
 		return retval;
 	}
 
@@ -2023,7 +2024,7 @@ int au0828_analog_register(struct au0828_dev *dev,
 		}
 	}
 	if (!(dev->isoc_in_endpointaddr)) {
-		printk(KERN_INFO "Could not locate isoc endpoint\n");
+		pr_info("Could not locate isoc endpoint\n");
 		kfree(dev);
 		return -ENODEV;
 	}

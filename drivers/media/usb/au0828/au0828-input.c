@@ -17,6 +17,8 @@
   GNU General Public License for more details.
  */
 
+#include "au0828.h"
+
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/delay.h>
@@ -28,8 +30,6 @@
 static int disable_ir;
 module_param(disable_ir,        int, 0444);
 MODULE_PARM_DESC(disable_ir, "disable infrared remote support");
-
-#include "au0828.h"
 
 struct au0828_rc {
 	struct au0828_dev *dev;
