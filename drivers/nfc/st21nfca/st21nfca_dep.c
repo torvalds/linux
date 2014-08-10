@@ -198,10 +198,6 @@ static int st21nfca_tm_recv_atr_req(struct nfc_hci_dev *hdev,
 	int r;
 
 	skb_trim(skb, skb->len - 1);
-	if (IS_ERR(skb)) {
-		r = PTR_ERR(skb);
-		goto exit;
-	}
 
 	if (!skb->len) {
 		r = -EIO;
@@ -281,11 +277,6 @@ static int st21nfca_tm_recv_psl_req(struct nfc_hci_dev *hdev,
 	int r;
 
 	skb_trim(skb, skb->len - 1);
-	if (IS_ERR(skb)) {
-		r = PTR_ERR(skb);
-		skb = NULL;
-		goto exit;
-	}
 
 	if (!skb->len) {
 		r = -EIO;
@@ -331,11 +322,6 @@ static int st21nfca_tm_recv_dep_req(struct nfc_hci_dev *hdev,
 	struct st21nfca_hci_info *info = nfc_hci_get_clientdata(hdev);
 
 	skb_trim(skb, skb->len - 1);
-	if (IS_ERR(skb)) {
-		r = PTR_ERR(skb);
-		skb = NULL;
-		goto exit;
-	}
 
 	size = 4;
 
@@ -367,12 +353,6 @@ static int st21nfca_tm_recv_dep_req(struct nfc_hci_dev *hdev,
 	case ST21NFCA_NFC_DEP_PFB_SUPERVISOR_PDU:
 		pr_err("Received a SUPERVISOR PDU\n");
 		break;
-	}
-
-	if (IS_ERR(skb)) {
-		r = PTR_ERR(skb);
-		skb = NULL;
-		goto exit;
 	}
 
 	skb_pull(skb, size);
