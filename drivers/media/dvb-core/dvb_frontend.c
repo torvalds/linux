@@ -2550,7 +2550,9 @@ int dvb_frontend_suspend(struct dvb_frontend *fe)
 	dev_dbg(fe->dvb->device, "%s: adap=%d fe=%d\n", __func__, fe->dvb->num,
 			fe->id);
 
-	if (fe->ops.tuner_ops.sleep)
+	if (fe->ops.tuner_ops.suspend)
+		ret = fe->ops.tuner_ops.suspend(fe);
+	else if (fe->ops.tuner_ops.sleep)
 		ret = fe->ops.tuner_ops.sleep(fe);
 
 	if (fe->ops.sleep)
@@ -2572,7 +2574,9 @@ int dvb_frontend_resume(struct dvb_frontend *fe)
 	if (fe->ops.init)
 		ret = fe->ops.init(fe);
 
-	if (fe->ops.tuner_ops.init)
+	if (fe->ops.tuner_ops.resume)
+		ret = fe->ops.tuner_ops.resume(fe);
+	else if (fe->ops.tuner_ops.init)
 		ret = fe->ops.tuner_ops.init(fe);
 
 	fe->exit = DVB_FE_NO_EXIT;

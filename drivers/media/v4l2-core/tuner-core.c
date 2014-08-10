@@ -1260,7 +1260,9 @@ static int tuner_suspend(struct device *dev)
 
 	tuner_dbg("suspend\n");
 
-	if (!t->standby && analog_ops->standby)
+	if (t->fe.ops.tuner_ops.suspend)
+		t->fe.ops.tuner_ops.suspend(&t->fe);
+	else if (!t->standby && analog_ops->standby)
 		analog_ops->standby(&t->fe);
 
 	return 0;
@@ -1273,7 +1275,9 @@ static int tuner_resume(struct device *dev)
 
 	tuner_dbg("resume\n");
 
-	if (!t->standby)
+	if (t->fe.ops.tuner_ops.resume)
+		t->fe.ops.tuner_ops.resume(&t->fe);
+	else if (!t->standby)
 		if (set_mode(t, t->mode) == 0)
 			set_freq(t, 0);
 
