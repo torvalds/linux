@@ -92,7 +92,7 @@ static int msglevel = MSG_LEVEL_INFO;
 /*---------------------  Static Functions  --------------------------*/
 //2008-8-4 <add> by chester
 static bool ChannelExceedZoneType(
-	PSDevice pDevice,
+	struct vnt_private *pDevice,
 	unsigned char byCurrChannel
 );
 
@@ -100,7 +100,7 @@ static bool ChannelExceedZoneType(
 static
 PSTxMgmtPacket
 s_MgrMakeAssocRequest(
-	PSDevice pDevice,
+	struct vnt_private *pDevice,
 	PSMgmtObject pMgmt,
 	unsigned char *pDAddr,
 	unsigned short wCurrCapInfo,
@@ -113,7 +113,7 @@ s_MgrMakeAssocRequest(
 static
 void
 s_vMgrRxAssocRequest(
-	PSDevice pDevice,
+	struct vnt_private *pDevice,
 	PSMgmtObject pMgmt,
 	PSRxMgmtPacket pRxPacket,
 	unsigned int uNodeIndex
@@ -122,7 +122,7 @@ s_vMgrRxAssocRequest(
 static
 PSTxMgmtPacket
 s_MgrMakeReAssocRequest(
-	PSDevice pDevice,
+	struct vnt_private *pDevice,
 	PSMgmtObject pMgmt,
 	unsigned char *pDAddr,
 	unsigned short wCurrCapInfo,
@@ -135,7 +135,7 @@ s_MgrMakeReAssocRequest(
 static
 void
 s_vMgrRxAssocResponse(
-	PSDevice pDevice,
+	struct vnt_private *pDevice,
 	PSMgmtObject pMgmt,
 	PSRxMgmtPacket pRxPacket,
 	bool bReAssocType
@@ -144,7 +144,7 @@ s_vMgrRxAssocResponse(
 static
 void
 s_vMgrRxDisassociation(
-	PSDevice pDevice,
+	struct vnt_private *pDevice,
 	PSMgmtObject pMgmt,
 	PSRxMgmtPacket pRxPacket
 );
@@ -153,7 +153,7 @@ s_vMgrRxDisassociation(
 static
 void
 s_vMgrRxAuthenSequence_1(
-	PSDevice pDevice,
+	struct vnt_private *pDevice,
 	PSMgmtObject pMgmt,
 	PWLAN_FR_AUTHEN pFrame
 );
@@ -161,7 +161,7 @@ s_vMgrRxAuthenSequence_1(
 static
 void
 s_vMgrRxAuthenSequence_2(
-	PSDevice pDevice,
+	struct vnt_private *pDevice,
 	PSMgmtObject pMgmt,
 	PWLAN_FR_AUTHEN pFrame
 );
@@ -169,7 +169,7 @@ s_vMgrRxAuthenSequence_2(
 static
 void
 s_vMgrRxAuthenSequence_3(
-	PSDevice pDevice,
+	struct vnt_private *pDevice,
 	PSMgmtObject pMgmt,
 	PWLAN_FR_AUTHEN pFrame
 );
@@ -177,7 +177,7 @@ s_vMgrRxAuthenSequence_3(
 static
 void
 s_vMgrRxAuthenSequence_4(
-	PSDevice pDevice,
+	struct vnt_private *pDevice,
 	PSMgmtObject pMgmt,
 	PWLAN_FR_AUTHEN pFrame
 );
@@ -185,7 +185,7 @@ s_vMgrRxAuthenSequence_4(
 static
 void
 s_vMgrRxAuthentication(
-	PSDevice pDevice,
+	struct vnt_private *pDevice,
 	PSMgmtObject pMgmt,
 	PSRxMgmtPacket pRxPacket
 );
@@ -193,7 +193,7 @@ s_vMgrRxAuthentication(
 static
 void
 s_vMgrRxDeauthentication(
-	PSDevice pDevice,
+	struct vnt_private *pDevice,
 	PSMgmtObject pMgmt,
 	PSRxMgmtPacket pRxPacket
 );
@@ -203,7 +203,7 @@ s_vMgrRxDeauthentication(
 static
 void
 s_vMgrRxProbeRequest(
-	PSDevice pDevice,
+	struct vnt_private *pDevice,
 	PSMgmtObject pMgmt,
 	PSRxMgmtPacket pRxPacket
 );
@@ -211,7 +211,7 @@ s_vMgrRxProbeRequest(
 static
 void
 s_vMgrRxProbeResponse(
-	PSDevice pDevice,
+	struct vnt_private *pDevice,
 	PSMgmtObject pMgmt,
 	PSRxMgmtPacket pRxPacket
 );
@@ -220,7 +220,7 @@ s_vMgrRxProbeResponse(
 static
 void
 s_vMgrRxBeacon(
-	PSDevice pDevice,
+	struct vnt_private *pDevice,
 	PSMgmtObject pMgmt,
 	PSRxMgmtPacket pRxPacket,
 	bool bInScan
@@ -236,7 +236,7 @@ s_vMgrFormatTIM(
 static
 PSTxMgmtPacket
 s_MgrMakeBeacon(
-	PSDevice pDevice,
+	struct vnt_private *pDevice,
 	PSMgmtObject pMgmt,
 	unsigned short wCurrCapInfo,
 	unsigned short wCurrBeaconPeriod,
@@ -252,7 +252,7 @@ s_MgrMakeBeacon(
 static
 PSTxMgmtPacket
 s_MgrMakeAssocResponse(
-	PSDevice pDevice,
+	struct vnt_private *pDevice,
 	PSMgmtObject pMgmt,
 	unsigned short wCurrCapInfo,
 	unsigned short wAssocStatus,
@@ -266,7 +266,7 @@ s_MgrMakeAssocResponse(
 static
 PSTxMgmtPacket
 s_MgrMakeReAssocResponse(
-	PSDevice pDevice,
+	struct vnt_private *pDevice,
 	PSMgmtObject pMgmt,
 	unsigned short wCurrCapInfo,
 	unsigned short wAssocStatus,
@@ -280,7 +280,7 @@ s_MgrMakeReAssocResponse(
 static
 PSTxMgmtPacket
 s_MgrMakeProbeResponse(
-	PSDevice pDevice,
+	struct vnt_private *pDevice,
 	PSMgmtObject pMgmt,
 	unsigned short wCurrCapInfo,
 	unsigned short wCurrBeaconPeriod,
@@ -305,7 +305,7 @@ s_vMgrLogStatus(
 static
 void
 s_vMgrSynchBSS(
-	PSDevice      pDevice,
+	struct vnt_private *pDevice,
 	unsigned int uBSSMode,
 	PKnownBSS     pCurr,
 	PCMD_STATUS  pStatus
@@ -320,7 +320,7 @@ s_bCipherMatch(
 );
 
 static void  Encyption_Rebuild(
-	PSDevice pDevice,
+	struct vnt_private *pDevice,
 	PKnownBSS pCurr
 );
 
@@ -343,7 +343,7 @@ vMgrObjectInit(
 	void *hDeviceContext
 )
 {
-	PSDevice     pDevice = (PSDevice)hDeviceContext;
+	struct vnt_private *pDevice = hDeviceContext;
 	PSMgmtObject    pMgmt = pDevice->pMgmt;
 	int ii;
 
@@ -375,7 +375,7 @@ vMgrTimerInit(
 	void *hDeviceContext
 )
 {
-	PSDevice     pDevice = (PSDevice)hDeviceContext;
+	struct vnt_private *pDevice = hDeviceContext;
 	PSMgmtObject    pMgmt = pDevice->pMgmt;
 
 	init_timer(&pMgmt->sTimerSecondCallback);
@@ -416,7 +416,7 @@ vMgrObjectReset(
 	void *hDeviceContext
 )
 {
-	PSDevice         pDevice = (PSDevice)hDeviceContext;
+	struct vnt_private *pDevice = hDeviceContext;
 	PSMgmtObject        pMgmt = pDevice->pMgmt;
 
 	pMgmt->eCurrMode = WMAC_MODE_STANDBY;
@@ -443,7 +443,7 @@ vMgrAssocBeginSta(
 	PCMD_STATUS pStatus
 )
 {
-	PSDevice             pDevice = (PSDevice)hDeviceContext;
+	struct vnt_private *pDevice = hDeviceContext;
 	PSTxMgmtPacket          pTxPacket;
 
 	pMgmt->wCurrCapInfo = 0;
@@ -509,7 +509,7 @@ vMgrReAssocBeginSta(
 	PCMD_STATUS pStatus
 )
 {
-	PSDevice             pDevice = (PSDevice)hDeviceContext;
+	struct vnt_private *pDevice = hDeviceContext;
 	PSTxMgmtPacket          pTxPacket;
 
 	pMgmt->wCurrCapInfo = 0;
@@ -576,7 +576,7 @@ vMgrDisassocBeginSta(
 	PCMD_STATUS pStatus
 )
 {
-	PSDevice            pDevice = (PSDevice)hDeviceContext;
+	struct vnt_private *pDevice = hDeviceContext;
 	PSTxMgmtPacket      pTxPacket = NULL;
 	WLAN_FR_DISASSOC    sFrame;
 
@@ -628,7 +628,7 @@ vMgrDisassocBeginSta(
 static
 void
 s_vMgrRxAssocRequest(
-	PSDevice pDevice,
+	struct vnt_private *pDevice,
 	PSMgmtObject pMgmt,
 	PSRxMgmtPacket pRxPacket,
 	unsigned int uNodeIndex
@@ -778,7 +778,7 @@ s_vMgrRxAssocRequest(
 static
 void
 s_vMgrRxReAssocRequest(
-	PSDevice pDevice,
+	struct vnt_private *pDevice,
 	PSMgmtObject pMgmt,
 	PSRxMgmtPacket pRxPacket,
 	unsigned int uNodeIndex
@@ -920,7 +920,7 @@ s_vMgrRxReAssocRequest(
 static
 void
 s_vMgrRxAssocResponse(
-	PSDevice pDevice,
+	struct vnt_private *pDevice,
 	PSMgmtObject pMgmt,
 	PSRxMgmtPacket pRxPacket,
 	bool bReAssocType
@@ -1073,7 +1073,7 @@ vMgrAuthenBeginSta(
 	PCMD_STATUS pStatus
 )
 {
-	PSDevice     pDevice = (PSDevice)hDeviceContext;
+	struct vnt_private *pDevice = hDeviceContext;
 	WLAN_FR_AUTHEN  sFrame;
 	PSTxMgmtPacket  pTxPacket = NULL;
 
@@ -1129,7 +1129,7 @@ vMgrDeAuthenBeginSta(
 	PCMD_STATUS pStatus
 )
 {
-	PSDevice            pDevice = (PSDevice)hDeviceContext;
+	struct vnt_private *pDevice = hDeviceContext;
 	WLAN_FR_DEAUTHEN    sFrame;
 	PSTxMgmtPacket      pTxPacket = NULL;
 
@@ -1173,7 +1173,7 @@ vMgrDeAuthenBeginSta(
 static
 void
 s_vMgrRxAuthentication(
-	PSDevice pDevice,
+	struct vnt_private *pDevice,
 	PSMgmtObject pMgmt,
 	PSRxMgmtPacket pRxPacket
 )
@@ -1227,7 +1227,7 @@ s_vMgrRxAuthentication(
 static
 void
 s_vMgrRxAuthenSequence_1(
-	PSDevice pDevice,
+	struct vnt_private *pDevice,
 	PSMgmtObject pMgmt,
 	PWLAN_FR_AUTHEN pFrame
 )
@@ -1239,7 +1239,7 @@ s_vMgrRxAuthenSequence_1(
 
 	// Insert a Node entry
 	if (!BSSDBbIsSTAInNodeDB(pMgmt, pFrame->pHdr->sA3.abyAddr2, &uNodeIndex)) {
-		BSSvCreateOneNode((PSDevice)pDevice, &uNodeIndex);
+		BSSvCreateOneNode(pDevice, &uNodeIndex);
 		memcpy(pMgmt->sNodeDBTable[uNodeIndex].abyMACAddr, pFrame->pHdr->sA3.abyAddr2,
 		       WLAN_ADDR_LEN);
 	}
@@ -1326,7 +1326,7 @@ s_vMgrRxAuthenSequence_1(
 static
 void
 s_vMgrRxAuthenSequence_2(
-	PSDevice pDevice,
+	struct vnt_private *pDevice,
 	PSMgmtObject pMgmt,
 	PWLAN_FR_AUTHEN pFrame
 )
@@ -1411,7 +1411,7 @@ s_vMgrRxAuthenSequence_2(
 static
 void
 s_vMgrRxAuthenSequence_3(
-	PSDevice pDevice,
+	struct vnt_private *pDevice,
 	PSMgmtObject pMgmt,
 	PWLAN_FR_AUTHEN pFrame
 )
@@ -1493,7 +1493,7 @@ reply:
 static
 void
 s_vMgrRxAuthenSequence_4(
-	PSDevice pDevice,
+	struct vnt_private *pDevice,
 	PSMgmtObject pMgmt,
 	PWLAN_FR_AUTHEN pFrame
 )
@@ -1523,7 +1523,7 @@ s_vMgrRxAuthenSequence_4(
 static
 void
 s_vMgrRxDisassociation(
-	PSDevice pDevice,
+	struct vnt_private *pDevice,
 	PSMgmtObject pMgmt,
 	PSRxMgmtPacket pRxPacket
 )
@@ -1593,7 +1593,7 @@ s_vMgrRxDisassociation(
 static
 void
 s_vMgrRxDeauthentication(
-	PSDevice pDevice,
+	struct vnt_private *pDevice,
 	PSMgmtObject pMgmt,
 	PSRxMgmtPacket pRxPacket
 )
@@ -1676,7 +1676,7 @@ s_vMgrRxDeauthentication(
  -*/
 static bool
 ChannelExceedZoneType(
-	PSDevice pDevice,
+	struct vnt_private *pDevice,
 	unsigned char byCurrChannel
 )
 {
@@ -1713,7 +1713,7 @@ ChannelExceedZoneType(
 static
 void
 s_vMgrRxBeacon(
-	PSDevice pDevice,
+	struct vnt_private *pDevice,
 	PSMgmtObject pMgmt,
 	PSRxMgmtPacket pRxPacket,
 	bool bInScan
@@ -2026,7 +2026,7 @@ s_vMgrRxBeacon(
 				// send out ps-poll packet
 
 				if (pMgmt->bInTIM)
-					PSvSendPSPOLL((PSDevice)pDevice);
+					PSvSendPSPOLL(pDevice);
 
 			} else {
 				pMgmt->bInTIMWake = false;
@@ -2077,7 +2077,7 @@ s_vMgrRxBeacon(
 				pMgmt->sNodeDBTable[uNodeIndex].uInActiveCount = 0;
 			} else {
 				// Todo, initial Node content
-				BSSvCreateOneNode((PSDevice)pDevice, &uNodeIndex);
+				BSSvCreateOneNode(pDevice, &uNodeIndex);
 
 				pMgmt->abyCurrSuppRates[1] = RATEuSetIE((PWLAN_IE_SUPP_RATES)sFrame.pSuppRates,
 									(PWLAN_IE_SUPP_RATES)pMgmt->abyCurrSuppRates,
@@ -2178,7 +2178,7 @@ vMgrCreateOwnIBSS(
 	PCMD_STATUS pStatus
 )
 {
-	PSDevice            pDevice = (PSDevice)hDeviceContext;
+	struct vnt_private *pDevice = hDeviceContext;
 	PSMgmtObject        pMgmt = pDevice->pMgmt;
 	unsigned short wMaxBasicRate;
 	unsigned short wMaxSuppRate;
@@ -2414,7 +2414,7 @@ vMgrJoinBSSBegin(
 	PCMD_STATUS pStatus
 )
 {
-	PSDevice     pDevice = (PSDevice)hDeviceContext;
+	struct vnt_private *pDevice = hDeviceContext;
 	PSMgmtObject    pMgmt = pDevice->pMgmt;
 	PKnownBSS       pCurr = NULL;
 	unsigned int ii, uu;
@@ -2629,7 +2629,7 @@ vMgrJoinBSSBegin(
 static
 void
 s_vMgrSynchBSS(
-	PSDevice      pDevice,
+	struct vnt_private *pDevice,
 	unsigned int uBSSMode,
 	PKnownBSS     pCurr,
 	PCMD_STATUS  pStatus
@@ -2767,7 +2767,7 @@ s_vMgrSynchBSS(
 //mike add: fix NetworkManager 0.7.0 hidden ssid mode in WPA encryption
 //                   ,need reset eAuthenMode and eEncryptionStatus
 static void  Encyption_Rebuild(
-	PSDevice pDevice,
+	struct vnt_private *pDevice,
 	PKnownBSS pCurr
 )
 {
@@ -2882,7 +2882,7 @@ s_vMgrFormatTIM(
 static
 PSTxMgmtPacket
 s_MgrMakeBeacon(
-	PSDevice pDevice,
+	struct vnt_private *pDevice,
 	PSMgmtObject pMgmt,
 	unsigned short wCurrCapInfo,
 	unsigned short wCurrBeaconPeriod,
@@ -3101,7 +3101,7 @@ s_MgrMakeBeacon(
 
 static PSTxMgmtPacket
 s_MgrMakeProbeResponse(
-	PSDevice pDevice,
+	struct vnt_private *pDevice,
 	PSMgmtObject pMgmt,
 	unsigned short wCurrCapInfo,
 	unsigned short wCurrBeaconPeriod,
@@ -3283,7 +3283,7 @@ s_MgrMakeProbeResponse(
 
 static PSTxMgmtPacket
 s_MgrMakeAssocRequest(
-	PSDevice pDevice,
+	struct vnt_private *pDevice,
 	PSMgmtObject pMgmt,
 	unsigned char *pDAddr,
 	unsigned short wCurrCapInfo,
@@ -3543,7 +3543,7 @@ s_MgrMakeAssocRequest(
 
 static PSTxMgmtPacket
 s_MgrMakeReAssocRequest(
-	PSDevice pDevice,
+	struct vnt_private *pDevice,
 	PSMgmtObject pMgmt,
 	unsigned char *pDAddr,
 	unsigned short wCurrCapInfo,
@@ -3788,7 +3788,7 @@ s_MgrMakeReAssocRequest(
 
 static PSTxMgmtPacket
 s_MgrMakeAssocResponse(
-	PSDevice pDevice,
+	struct vnt_private *pDevice,
 	PSMgmtObject pMgmt,
 	unsigned short wCurrCapInfo,
 	unsigned short wAssocStatus,
@@ -3859,7 +3859,7 @@ s_MgrMakeAssocResponse(
 
 static PSTxMgmtPacket
 s_MgrMakeReAssocResponse(
-	PSDevice pDevice,
+	struct vnt_private *pDevice,
 	PSMgmtObject pMgmt,
 	unsigned short wCurrCapInfo,
 	unsigned short wAssocStatus,
@@ -3931,7 +3931,7 @@ s_MgrMakeReAssocResponse(
 static
 void
 s_vMgrRxProbeResponse(
-	PSDevice pDevice,
+	struct vnt_private *pDevice,
 	PSMgmtObject pMgmt,
 	PSRxMgmtPacket pRxPacket
 )
@@ -4050,7 +4050,7 @@ s_vMgrRxProbeResponse(
 static
 void
 s_vMgrRxProbeRequest(
-	PSDevice pDevice,
+	struct vnt_private *pDevice,
 	PSMgmtObject pMgmt,
 	PSRxMgmtPacket pRxPacket
 )
@@ -4129,7 +4129,7 @@ vMgrRxManagePacket(
 	PSRxMgmtPacket pRxPacket
 )
 {
-	PSDevice    pDevice = (PSDevice)hDeviceContext;
+	struct vnt_private *pDevice = hDeviceContext;
 	bool bInScan = false;
 	unsigned int uNodeIndex = 0;
 	NODE_STATE  eNodeState = 0;
@@ -4267,7 +4267,7 @@ bMgrPrepareBeaconToSend(
 	PSMgmtObject pMgmt
 )
 {
-	PSDevice            pDevice = (PSDevice)hDeviceContext;
+	struct vnt_private *pDevice = hDeviceContext;
 	PSTxMgmtPacket      pTxPacket;
 
 	if (pDevice->bEncryptionEnable || pDevice->bEnable8021x)
@@ -4386,7 +4386,7 @@ bAdd_PMKID_Candidate(
 	PSRSNCapObject psRSNCapObj
 )
 {
-	PSDevice         pDevice = (PSDevice)hDeviceContext;
+	struct vnt_private *pDevice = hDeviceContext;
 	struct pmkid_candidate *pCandidateList;
 	unsigned int ii = 0;
 
@@ -4443,7 +4443,7 @@ vFlush_PMKID_Candidate(
 	void *hDeviceContext
 )
 {
-	PSDevice        pDevice = (PSDevice)hDeviceContext;
+	struct vnt_private *pDevice = hDeviceContext;
 
 	if (pDevice == NULL)
 		return;

@@ -65,13 +65,13 @@ static int msglevel = MSG_LEVEL_INFO;
 static
 void
 s_vProbeChannel(
-	PSDevice pDevice
+	struct vnt_private *pDevice
 );
 
 static
 PSTxMgmtPacket
 s_MgrMakeProbeRequest(
-	PSDevice pDevice,
+	struct vnt_private *pDevice,
 	PSMgmtObject pMgmt,
 	unsigned char *pScanBSSID,
 	PWLAN_IE_SSID pSSID,
@@ -82,7 +82,7 @@ s_MgrMakeProbeRequest(
 static
 bool
 s_bCommandComplete(
-	PSDevice pDevice
+	struct vnt_private *pDevice
 );
 
 /*---------------------  Export Variables  --------------------------*/
@@ -104,7 +104,7 @@ s_bCommandComplete(
  */
 static
 void
-vAdHocBeaconStop(PSDevice  pDevice)
+vAdHocBeaconStop(struct vnt_private *pDevice)
 {
 	PSMgmtObject    pMgmt = &(pDevice->sMgmtObj);
 	bool bStop;
@@ -151,7 +151,7 @@ vAdHocBeaconStop(PSDevice  pDevice)
  */
 static
 void
-vAdHocBeaconRestart(PSDevice pDevice)
+vAdHocBeaconRestart(struct vnt_private *pDevice)
 {
 	PSMgmtObject    pMgmt = &(pDevice->sMgmtObj);
 
@@ -181,7 +181,7 @@ vAdHocBeaconRestart(PSDevice pDevice)
 static
 void
 s_vProbeChannel(
-	PSDevice pDevice
+	struct vnt_private *pDevice
 )
 {
 	//1M,   2M,   5M,   11M,  18M,  24M,  36M,  54M
@@ -236,7 +236,7 @@ s_vProbeChannel(
 
 static PSTxMgmtPacket
 s_MgrMakeProbeRequest(
-	PSDevice pDevice,
+	struct vnt_private *pDevice,
 	PSMgmtObject pMgmt,
 	unsigned char *pScanBSSID,
 	PWLAN_IE_SSID pSSID,
@@ -287,7 +287,7 @@ vCommandTimerWait(
 	unsigned int MSecond
 )
 {
-	PSDevice        pDevice = (PSDevice)hDeviceContext;
+	struct vnt_private *pDevice = hDeviceContext;
 
 	init_timer(&pDevice->sTimerCommand);
 	pDevice->sTimerCommand.data = (unsigned long) pDevice;
@@ -302,7 +302,7 @@ vCommandTimer(
 	void *hDeviceContext
 )
 {
-	PSDevice        pDevice = (PSDevice)hDeviceContext;
+	struct vnt_private *pDevice = hDeviceContext;
 	PSMgmtObject    pMgmt = pDevice->pMgmt;
 	PWLAN_IE_SSID   pItemSSID;
 	PWLAN_IE_SSID   pItemSSIDCurr;
@@ -801,7 +801,7 @@ vCommandTimer(
 static
 bool
 s_bCommandComplete(
-	PSDevice pDevice
+	struct vnt_private *pDevice
 )
 {
 	PWLAN_IE_SSID pSSID;
@@ -875,7 +875,7 @@ bool bScheduleCommand(
 	unsigned char *pbyItem0
 )
 {
-	PSDevice        pDevice = (PSDevice)hDeviceContext;
+	struct vnt_private *pDevice = hDeviceContext;
 
 	if (pDevice->cbFreeCmdQueue == 0)
 		return false;
@@ -944,7 +944,7 @@ bool bClearBSSID_SCAN(
 	void *hDeviceContext
 )
 {
-	PSDevice        pDevice = (PSDevice)hDeviceContext;
+	struct vnt_private *pDevice = hDeviceContext;
 	unsigned int uCmdDequeueIdx = pDevice->uCmdDequeueIdx;
 	unsigned int ii;
 
@@ -966,7 +966,7 @@ vResetCommandTimer(
 	void *hDeviceContext
 )
 {
-	PSDevice        pDevice = (PSDevice)hDeviceContext;
+	struct vnt_private *pDevice = hDeviceContext;
 
 	//delete timer
 	del_timer(&pDevice->sTimerCommand);
@@ -988,7 +988,7 @@ BSSvSecondTxData(
 	void *hDeviceContext
 )
 {
-	PSDevice        pDevice = (PSDevice)hDeviceContext;
+	struct vnt_private *pDevice = hDeviceContext;
 	PSMgmtObject  pMgmt = &(pDevice->sMgmtObj);
 
 	pDevice->nTxDataTimeCout++;

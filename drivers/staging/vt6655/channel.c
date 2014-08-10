@@ -416,7 +416,7 @@ bool channel_get_list(unsigned int uCountryCodeIdx, unsigned char *pbyChannelTab
 
 void init_channel_table(void *pDeviceHandler)
 {
-	PSDevice    pDevice = (PSDevice) pDeviceHandler;
+	struct vnt_private *pDevice = pDeviceHandler;
 	bool bMultiBand = false;
 	unsigned int ii;
 
@@ -521,7 +521,7 @@ unsigned char get_channel_number(void *pDeviceHandler, unsigned char byChannelIn
  */
 bool set_channel(void *pDeviceHandler, unsigned int uConnectionChannel)
 {
-	PSDevice pDevice = (PSDevice) pDeviceHandler;
+	struct vnt_private *pDevice = pDeviceHandler;
 	bool bResult = true;
 
 	if (pDevice->byCurrentCh == uConnectionChannel)
@@ -583,7 +583,7 @@ bool set_channel(void *pDeviceHandler, unsigned int uConnectionChannel)
 
 void set_country_info(void *pDeviceHandler, CARD_PHY_TYPE ePHYType, void *pIE)
 {
-	PSDevice pDevice = (PSDevice) pDeviceHandler;
+	struct vnt_private *pDevice = pDeviceHandler;
 	unsigned int ii = 0;
 	unsigned int uu = 0;
 	unsigned int step = 0;
@@ -632,7 +632,7 @@ void set_country_info(void *pDeviceHandler, CARD_PHY_TYPE ePHYType, void *pIE)
 
 unsigned char set_support_channels(void *pDeviceHandler, unsigned char *pbyIEs)
 {
-	PSDevice pDevice = (PSDevice) pDeviceHandler;
+	struct vnt_private *pDevice = pDeviceHandler;
 	unsigned int ii;
 	unsigned char byCount;
 	PWLAN_IE_SUPP_CH pIE = (PWLAN_IE_SUPP_CH) pbyIEs;
@@ -703,7 +703,7 @@ unsigned char set_support_channels(void *pDeviceHandler, unsigned char *pbyIEs)
 
 void set_country_IE(void *pDeviceHandler, void *pIE)
 {
-	PSDevice pDevice = (PSDevice) pDeviceHandler;
+	struct vnt_private *pDevice = pDeviceHandler;
 	unsigned int ii;
 	PWLAN_IE_COUNTRY pIECountry = (PWLAN_IE_COUNTRY) pIE;
 
