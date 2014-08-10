@@ -68,9 +68,9 @@ static int msglevel = MSG_LEVEL_INFO;
  *
  */
 
-static int hostap_enable_hostapd(PSDevice pDevice, int rtnl_locked)
+static int hostap_enable_hostapd(struct vnt_private *pDevice, int rtnl_locked)
 {
-	PSDevice apdev_priv;
+	struct vnt_private *apdev_priv;
 	struct net_device *dev = pDevice->dev;
 	int ret;
 	const struct net_device_ops apdev_netdev_ops = {
@@ -130,7 +130,7 @@ static int hostap_enable_hostapd(PSDevice pDevice, int rtnl_locked)
  *
  */
 
-static int hostap_disable_hostapd(PSDevice pDevice, int rtnl_locked)
+static int hostap_disable_hostapd(struct vnt_private *pDevice, int rtnl_locked)
 {
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "%s: disabling hostapd mode\n", pDevice->dev->name);
 
@@ -172,7 +172,8 @@ static int hostap_disable_hostapd(PSDevice pDevice, int rtnl_locked)
  *
  */
 
-int vt6655_hostap_set_hostapd(PSDevice pDevice, int val, int rtnl_locked)
+int vt6655_hostap_set_hostapd(struct vnt_private *pDevice,
+			      int val, int rtnl_locked)
 {
 	if (val < 0 || val > 1)
 		return -EINVAL;
@@ -201,7 +202,7 @@ int vt6655_hostap_set_hostapd(PSDevice pDevice, int val, int rtnl_locked)
  * Return Value:
  *
  */
-static int hostap_remove_sta(PSDevice pDevice,
+static int hostap_remove_sta(struct vnt_private *pDevice,
 			     struct viawget_hostapd_param *param)
 {
 	unsigned int uNodeIndex;
@@ -227,14 +228,14 @@ static int hostap_remove_sta(PSDevice pDevice,
  * Return Value:
  *
  */
-static int hostap_add_sta(PSDevice pDevice,
+static int hostap_add_sta(struct vnt_private *pDevice,
 			  struct viawget_hostapd_param *param)
 {
 	PSMgmtObject    pMgmt = pDevice->pMgmt;
 	unsigned int uNodeIndex;
 
 	if (!BSSDBbIsSTAInNodeDB(pMgmt, param->sta_addr, &uNodeIndex))
-		BSSvCreateOneNode((PSDevice)pDevice, &uNodeIndex);
+		BSSvCreateOneNode(pDevice, &uNodeIndex);
 
 	memcpy(pMgmt->sNodeDBTable[uNodeIndex].abyMACAddr, param->sta_addr, WLAN_ADDR_LEN);
 	pMgmt->sNodeDBTable[uNodeIndex].eNodeState = NODE_ASSOC;
@@ -285,7 +286,7 @@ static int hostap_add_sta(PSDevice pDevice,
  *
  */
 
-static int hostap_get_info_sta(PSDevice pDevice,
+static int hostap_get_info_sta(struct vnt_private *pDevice,
 			       struct viawget_hostapd_param *param)
 {
 	PSMgmtObject    pMgmt = pDevice->pMgmt;
@@ -314,7 +315,7 @@ static int hostap_get_info_sta(PSDevice pDevice,
  * Return Value:
  *
  */
-static int hostap_set_flags_sta(PSDevice pDevice,
+static int hostap_set_flags_sta(struct vnt_private *pDevice,
 				struct viawget_hostapd_param *param)
 {
 	PSMgmtObject    pMgmt = pDevice->pMgmt;
@@ -345,7 +346,7 @@ static int hostap_set_flags_sta(PSDevice pDevice,
  * Return Value:
  *
  */
-static int hostap_set_generic_element(PSDevice pDevice,
+static int hostap_set_generic_element(struct vnt_private *pDevice,
 				      struct viawget_hostapd_param *param)
 {
 	PSMgmtObject    pMgmt = pDevice->pMgmt;
@@ -389,7 +390,7 @@ static int hostap_set_generic_element(PSDevice pDevice,
  *
  */
 
-static void hostap_flush_sta(PSDevice pDevice)
+static void hostap_flush_sta(struct vnt_private *pDevice)
 {
 	// reserved node index =0 for multicast node.
 	BSSvClearNodeDBTable(pDevice, 1);
@@ -409,7 +410,7 @@ static void hostap_flush_sta(PSDevice pDevice)
  * Return Value:
  *
  */
-static int hostap_set_encryption(PSDevice pDevice,
+static int hostap_set_encryption(struct vnt_private *pDevice,
 				 struct viawget_hostapd_param *param,
 				 int param_len)
 {
@@ -635,7 +636,7 @@ static int hostap_set_encryption(PSDevice pDevice,
  * Return Value:
  *
  */
-static int hostap_get_encryption(PSDevice pDevice,
+static int hostap_get_encryption(struct vnt_private *pDevice,
 				 struct viawget_hostapd_param *param,
 				 int param_len)
 {
@@ -675,7 +676,7 @@ static int hostap_get_encryption(PSDevice pDevice,
  * Return Value:
  *
  */
-int vt6655_hostap_ioctl(PSDevice pDevice, struct iw_point *p)
+int vt6655_hostap_ioctl(struct vnt_private *pDevice, struct iw_point *p)
 {
 	struct viawget_hostapd_param *param;
 	int ret = 0;

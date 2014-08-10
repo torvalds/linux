@@ -44,7 +44,7 @@ static int msglevel = MSG_LEVEL_INFO;
 SWPAResult wpa_Result;
 #endif
 
-int private_ioctl(PSDevice pDevice, struct ifreq *rq)
+int private_ioctl(struct vnt_private *pDevice, struct ifreq *rq)
 {
 	PSCmdRequest	pReq = (PSCmdRequest)rq;
 	PSMgmtObject	pMgmt = pDevice->pMgmt;
