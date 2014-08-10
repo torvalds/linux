@@ -178,6 +178,7 @@ static DEVICE_ATTR(kernel_max, 0444, print_cpus_kernel_max, NULL);
 
 /* arch-optional setting to enable display of offline cpus >= nr_cpu_ids */
 unsigned int total_cpus;
+EXPORT_SYMBOL_GPL(total_cpus);
 
 static ssize_t print_cpus_offline(struct device *dev,
 				  struct device_attribute *attr, char *buf)
