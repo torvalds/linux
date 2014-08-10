@@ -297,7 +297,7 @@ static int bcm_char_ioctl_reg_read_private(void __user *argp,
 static int bcm_char_ioctl_reg_write_private(void __user *argp,
 					    struct bcm_mini_adapter *ad)
 {
-	struct bcm_wrm_buffer sWrmBuffer = {0};
+	struct bcm_wrm_buffer wrm_buff = {0};
 	struct bcm_ioctl_buffer io_buff;
 	UINT uiTempVar = 0;
 	INT status;
@@ -307,15 +307,15 @@ static int bcm_char_ioctl_reg_write_private(void __user *argp,
 	if (copy_from_user(&io_buff, argp, sizeof(struct bcm_ioctl_buffer)))
 		return -EFAULT;
 
-	if (io_buff.InputLength > sizeof(sWrmBuffer))
+	if (io_buff.InputLength > sizeof(wrm_buff))
 		return -EINVAL;
 
 	/* Get WrmBuffer structure */
-	if (copy_from_user(&sWrmBuffer, io_buff.InputBuffer,
+	if (copy_from_user(&wrm_buff, io_buff.InputBuffer,
 		io_buff.InputLength))
 		return -EFAULT;
 
-	uiTempVar = sWrmBuffer.Register & EEPROM_REJECT_MASK;
+	uiTempVar = wrm_buff.Register & EEPROM_REJECT_MASK;
 	if (!((ad->pstargetparams->m_u32Customize) & VSG_MODE) &&
 		((uiTempVar == EEPROM_REJECT_REG_1) ||
 			(uiTempVar == EEPROM_REJECT_REG_2) ||
@@ -327,8 +327,8 @@ static int bcm_char_ioctl_reg_write_private(void __user *argp,
 		return -EFAULT;
 	}
 
-	status = wrmalt(ad, (UINT)sWrmBuffer.Register,
-			(PUINT)sWrmBuffer.Data, sizeof(ULONG));
+	status = wrmalt(ad, (UINT)wrm_buff.Register,
+			(PUINT)wrm_buff.Data, sizeof(ULONG));
 
 	if (status == STATUS_SUCCESS) {
 		BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, OSAL_DBG,
@@ -413,7 +413,7 @@ static int bcm_char_ioctl_eeprom_reg_write(void __user *argp,
 					   struct bcm_mini_adapter *ad,
 					   UINT cmd)
 {
-	struct bcm_wrm_buffer sWrmBuffer = {0};
+	struct bcm_wrm_buffer wrm_buff = {0};
 	struct bcm_ioctl_buffer io_buff;
 	UINT uiTempVar = 0;
 	INT status;
@@ -431,24 +431,24 @@ static int bcm_char_ioctl_eeprom_reg_write(void __user *argp,
 	if (copy_from_user(&io_buff, argp, sizeof(struct bcm_ioctl_buffer)))
 		return -EFAULT;
 
-	if (io_buff.InputLength > sizeof(sWrmBuffer))
+	if (io_buff.InputLength > sizeof(wrm_buff))
 		return -EINVAL;
 
 	/* Get WrmBuffer structure */
-	if (copy_from_user(&sWrmBuffer, io_buff.InputBuffer,
+	if (copy_from_user(&wrm_buff, io_buff.InputBuffer,
 		io_buff.InputLength))
 		return -EFAULT;
 
-	if ((((ULONG)sWrmBuffer.Register & 0x0F000000) != 0x0F000000) ||
-		((ULONG)sWrmBuffer.Register & 0x3)) {
+	if ((((ULONG)wrm_buff.Register & 0x0F000000) != 0x0F000000) ||
+		((ULONG)wrm_buff.Register & 0x3)) {
 
 		BCM_DEBUG_PRINT(ad, DBG_TYPE_PRINTK, 0, 0,
 				"WRM Done On invalid Address : %x Access Denied.\n",
-				(int)sWrmBuffer.Register);
+				(int)wrm_buff.Register);
 		return -EINVAL;
 	}
 
-	uiTempVar = sWrmBuffer.Register & EEPROM_REJECT_MASK;
+	uiTempVar = wrm_buff.Register & EEPROM_REJECT_MASK;
 	if (!((ad->pstargetparams->m_u32Customize) & VSG_MODE) &&
 			((uiTempVar == EEPROM_REJECT_REG_1) ||
 			(uiTempVar == EEPROM_REJECT_REG_2) ||
@@ -461,9 +461,9 @@ static int bcm_char_ioctl_eeprom_reg_write(void __user *argp,
 			return -EFAULT;
 	}
 
-	status = wrmaltWithLock(ad, (UINT)sWrmBuffer.Register,
-				(PUINT)sWrmBuffer.Data,
-				sWrmBuffer.Length);
+	status = wrmaltWithLock(ad, (UINT)wrm_buff.Register,
+				(PUINT)wrm_buff.Data,
+				wrm_buff.Length);
 
 	if (status == STATUS_SUCCESS) {
 		BCM_DEBUG_PRINT(ad, DBG_TYPE_PRINTK, OSAL_DBG,
