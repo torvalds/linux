@@ -863,12 +863,10 @@ static int xc5000_is_firmware_loaded(struct dvb_frontend *fe)
 	return ret;
 }
 
-static int xc5000_set_tv_freq(struct dvb_frontend *fe,
-	struct analog_parameters *params)
+static void xc5000_config_tv(struct dvb_frontend *fe,
+			     struct analog_parameters *params)
 {
 	struct xc5000_priv *priv = fe->tuner_priv;
-	u16 pll_lock_status;
-	int ret;
 
 	dprintk(1, "%s() frequency=%d (in units of 62.5khz)\n",
 		__func__, params->frequency);
@@ -887,42 +885,49 @@ static int xc5000_set_tv_freq(struct dvb_frontend *fe,
 	if (params->std & V4L2_STD_MN) {
 		/* default to BTSC audio standard */
 		priv->video_standard = MN_NTSC_PAL_BTSC;
-		goto tune_channel;
+		return;
 	}
 
 	if (params->std & V4L2_STD_PAL_BG) {
 		/* default to NICAM audio standard */
 		priv->video_standard = BG_PAL_NICAM;
-		goto tune_channel;
+		return;
 	}
 
 	if (params->std & V4L2_STD_PAL_I) {
 		/* default to NICAM audio standard */
 		priv->video_standard = I_PAL_NICAM;
-		goto tune_channel;
+		return;
 	}
 
 	if (params->std & V4L2_STD_PAL_DK) {
 		/* default to NICAM audio standard */
 		priv->video_standard = DK_PAL_NICAM;
-		goto tune_channel;
+		return;
 	}
 
 	if (params->std & V4L2_STD_SECAM_DK) {
 		/* default to A2 DK1 audio standard */
 		priv->video_standard = DK_SECAM_A2DK1;
-		goto tune_channel;
+		return;
 	}
 
 	if (params->std & V4L2_STD_SECAM_L) {
 		priv->video_standard = L_SECAM_NICAM;
-		goto tune_channel;
+		return;
 	}
 
 	if (params->std & V4L2_STD_SECAM_LC) {
 		priv->video_standard = LC_SECAM_NICAM;
-		goto tune_channel;
+		return;
 	}
+}
+
+static int xc5000_set_tv_freq(struct dvb_frontend *fe)
+{
+	struct xc5000_priv *priv = fe->tuner_priv;
+	u16 pll_lock_status;
+	int ret;
 
 tune_channel:
 	ret = xc_set_signal_source(priv, priv->rf_mode);
@@ -966,12 +971,11 @@ tune_channel:
 	return 0;
 }
 
-static int xc5000_set_radio_freq(struct dvb_frontend *fe,
-	struct analog_parameters *params)
+static int xc5000_config_radio(struct dvb_frontend *fe,
+			       struct analog_parameters *params)
+
 {
 	struct xc5000_priv *priv = fe->tuner_priv;
-	int ret = -EINVAL;
-	u8 radio_input;
 
 	dprintk(1, "%s() frequency=%d (in units of khz)\n",
 		__func__, params->frequency);
@@ -980,6 +984,18 @@ static int xc5000_set_radio_freq(struct dvb_frontend *fe,
 		dprintk(1, "%s() radio input not configured\n", __func__);
 		return -EINVAL;
 	}
+
+	priv->freq_hz = params->frequency * 125 / 2;
+	priv->rf_mode = XC_RF_MODE_AIR;
+
+	return 0;
+}
+
+static int xc5000_set_radio_freq(struct dvb_frontend *fe)
+{
+	struct xc5000_priv *priv = fe->tuner_priv;
+	int ret;
+	u8 radio_input;
 
 	if (priv->radio_input == XC5000_RADIO_FM1)
 		radio_input = FM_RADIO_INPUT1;
@@ -992,10 +1008,6 @@ static int xc5000_set_radio_freq(struct dvb_frontend *fe,
 			priv->radio_input);
 		return -EINVAL;
 	}
-
-	priv->freq_hz = params->frequency * 125 / 2;
-
-	priv->rf_mode = XC_RF_MODE_AIR;
 
 	ret = xc_set_tv_standard(priv, xc5000_standard[radio_input].video_mode,
 			       xc5000_standard[radio_input].audio_mode, radio_input);
@@ -1024,11 +1036,27 @@ static int xc5000_set_radio_freq(struct dvb_frontend *fe,
 	return 0;
 }
 
+static int xc5000_apply_params(struct dvb_frontend *fe)
+{
+	struct xc5000_priv *priv = fe->tuner_priv;
+
+	switch (priv->mode) {
+	case V4L2_TUNER_RADIO:
+		return xc5000_set_radio_freq(fe);
+	case V4L2_TUNER_ANALOG_TV:
+		return xc5000_set_tv_freq(fe);
+	case V4L2_TUNER_DIGITAL_TV:
+		return xc5000_tune_digital(fe);
+	}
+
+	return 0;
+}
+
 static int xc5000_set_analog_params(struct dvb_frontend *fe,
 			     struct analog_parameters *params)
 {
 	struct xc5000_priv *priv = fe->tuner_priv;
-	int ret = -EINVAL;
+	int ret;
 
 	if (priv->i2c_props.adap == NULL)
 		return -EINVAL;
@@ -1040,17 +1068,20 @@ static int xc5000_set_analog_params(struct dvb_frontend *fe,
 
 	switch (params->mode) {
 	case V4L2_TUNER_RADIO:
-		ret = xc5000_set_radio_freq(fe, params);
+		ret = xc5000_config_radio(fe, params);
+		if (ret)
+			return ret;
 		break;
 	case V4L2_TUNER_ANALOG_TV:
-	case V4L2_TUNER_DIGITAL_TV:
-		ret = xc5000_set_tv_freq(fe, params);
+		xc5000_config_tv(fe, params);
+		break;
+	default:
 		break;
 	}
+	priv->mode = params->mode;
 
-	return ret;
+	return xc5000_apply_params(fe);
 }
-
 
 static int xc5000_get_frequency(struct dvb_frontend *fe, u32 *freq)
 {
