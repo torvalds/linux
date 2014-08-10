@@ -647,7 +647,6 @@ vCommandTimer(
 			if (netif_queue_stopped(pDevice->dev))
 				netif_wake_queue(pDevice->dev);
 
-#ifdef TxInSleep
 			if (pDevice->IsTxDataTrigger) {    //TxDataTimer is not triggered at the first time
 				del_timer(&pDevice->sTimerTxData);
 				init_timer(&pDevice->sTimerTxData);
@@ -660,7 +659,7 @@ vCommandTimer(
 
 			pDevice->IsTxDataTrigger = true;
 			add_timer(&pDevice->sTimerTxData);
-#endif
+
 		} else if (pMgmt->eCurrState < WMAC_STATE_ASSOCPENDING) {
 			printk("WLAN_ASSOCIATE_WAIT:Association Fail???\n");
 		} else if (pDevice->byLinkWaitCount <= 4) {    //mike add:wait another 2 sec if associated_frame delay!
@@ -984,7 +983,6 @@ vResetCommandTimer(
 	pDevice->bCmdClear = false;
 }
 
-#ifdef TxInSleep
 void
 BSSvSecondTxData(
 	void *hDeviceContext
@@ -1019,4 +1017,3 @@ BSSvSecondTxData(
 		add_timer(&pDevice->sTimerTxData);
 		return;
 	}
-#endif

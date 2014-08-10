@@ -274,13 +274,9 @@ PSbSendNullPacket(
 	if (!pDevice->bLinkPass)
 		return false;
 
-#ifdef TxInSleep
 	if (!pDevice->bEnablePSMode && !pDevice->fTxDataInSleep)
 		return false;
-#else
-	if (!pDevice->bEnablePSMode)
-		return false;
-#endif
+
 	if (pDevice->bEnablePSMode) {
 		for (uIdx = 0; uIdx < TYPE_MAXTD; uIdx++) {
 			if (pDevice->iTDUsed[uIdx] != 0)

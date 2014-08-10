@@ -1720,9 +1720,8 @@ static int  device_close(struct net_device *dev)
 		bScheduleCommand((void *)pDevice, WLAN_CMD_DISASSOCIATE, NULL);
 		mdelay(30);
 	}
-#ifdef TxInSleep
+
 	del_timer(&pDevice->sTimerTxData);
-#endif
 	del_timer(&pDevice->sTimerCommand);
 	del_timer(&pMgmt->sTimerSecondCallback);
 	if (pDevice->bDiversityRegCtlON) {
@@ -2232,9 +2231,8 @@ static int  device_xmit(struct sk_buff *skb, struct net_device *dev)
 	pLastTD->pTDInfo->skb = skb;
 	pLastTD->pTDInfo->byFlags = 0;
 	pLastTD->pTDInfo->byFlags |= TD_FLAGS_NETIF_SKB;
-#ifdef TxInSleep
 	pDevice->nTxDataTimeCout = 0; //2008-8-21 chester <add> for send null packet
-#endif
+
 	if (AVAIL_TD(pDevice, TYPE_AC0DMA) <= 1)
 		netif_stop_queue(dev);
 

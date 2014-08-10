@@ -388,7 +388,6 @@ vMgrTimerInit(
 	pDevice->sTimerCommand.function = (TimerFunction)vCommandTimer;
 	pDevice->sTimerCommand.expires = RUN_AT(HZ);
 
-#ifdef TxInSleep
 	init_timer(&pDevice->sTimerTxData);
 	pDevice->sTimerTxData.data = (unsigned long) pDevice;
 	pDevice->sTimerTxData.function = (TimerFunction)BSSvSecondTxData;
@@ -396,7 +395,6 @@ vMgrTimerInit(
 	pDevice->fTxDataInSleep = false;
 	pDevice->IsTxDataTrigger = false;
 	pDevice->nTxDataTimeCout = 0;
-#endif
 
 	pDevice->cbFreeCmdQueue = CMD_Q_SIZE;
 	pDevice->uCmdDequeueIdx = 0;

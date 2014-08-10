@@ -31,10 +31,6 @@
 
 /******* Common definitions and typedefs ***********************************/
 
-#ifndef TxInSleep
-#define TxInSleep
-#endif
-
 #ifndef WPA_SM_Transtatus
 #define WPA_SM_Transtatus
 #endif
