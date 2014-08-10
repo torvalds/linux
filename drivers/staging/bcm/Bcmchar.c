@@ -3,7 +3,8 @@
 #include "headers.h"
 
 static int bcm_handle_nvm_read_cmd(struct bcm_mini_adapter *Adapter,
-	PUCHAR pReadData, struct bcm_nvm_readwrite *stNVMReadWrite)
+				   PUCHAR pReadData,
+				   struct bcm_nvm_readwrite *stNVMReadWrite)
 {
 	INT Status = STATUS_FAILURE;
 
@@ -40,7 +41,8 @@ static int bcm_handle_nvm_read_cmd(struct bcm_mini_adapter *Adapter,
 }
 
 static int handle_flash2x_adapter(struct bcm_mini_adapter *Adapter,
-	PUCHAR pReadData, struct bcm_nvm_readwrite *stNVMReadWrite)
+				  PUCHAR pReadData,
+				  struct bcm_nvm_readwrite *stNVMReadWrite)
 {
 	/*
 	 * New Requirement:-
@@ -179,7 +181,9 @@ static int bcm_char_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static ssize_t bcm_char_read(struct file *filp, char __user *buf, size_t size,
+static ssize_t bcm_char_read(struct file *filp,
+			     char __user *buf,
+			     size_t size,
 			     loff_t *f_pos)
 {
 	struct bcm_tarang_data *pTarang = filp->private_data;
@@ -635,7 +639,7 @@ static int bcm_char_ioctl_led_thread_state_change_req(void __user *argp,
 }
 
 static int bcm_char_ioctl_gpio_status_request(void __user *argp,
-		struct bcm_mini_adapter *Adapter)
+					      struct bcm_mini_adapter *Adapter)
 {
 	struct bcm_gpio_info gpio_info = {0};
 	struct bcm_ioctl_buffer IoBuffer;
@@ -677,7 +681,7 @@ static int bcm_char_ioctl_gpio_status_request(void __user *argp,
 }
 
 static int bcm_char_ioctl_gpio_multi_request(void __user *argp,
-		struct bcm_mini_adapter *Adapter)
+					     struct bcm_mini_adapter *Adapter)
 {
 	struct bcm_gpio_multi_info gpio_multi_info[MAX_IDX];
 	struct bcm_gpio_multi_info *pgpio_multi_info =
@@ -784,7 +788,7 @@ static int bcm_char_ioctl_gpio_multi_request(void __user *argp,
 }
 
 static int bcm_char_ioctl_gpio_mode_request(void __user *argp,
-		struct bcm_mini_adapter *Adapter)
+					    struct bcm_mini_adapter *Adapter)
 {
 	struct bcm_gpio_multi_mode gpio_multi_mode[MAX_IDX];
 	struct bcm_gpio_multi_mode *pgpio_multi_mode =
@@ -877,7 +881,7 @@ static int bcm_char_ioctl_gpio_mode_request(void __user *argp,
 }
 
 static int bcm_char_ioctl_misc_request(void __user *argp,
-		struct bcm_mini_adapter *Adapter)
+				       struct bcm_mini_adapter *Adapter)
 {
 	struct bcm_ioctl_buffer IoBuffer;
 	PVOID pvBuffer = NULL;
@@ -959,7 +963,7 @@ static int bcm_char_ioctl_buffer_download_start(
 }
 
 static int bcm_char_ioctl_buffer_download(void __user *argp,
-		struct bcm_mini_adapter *Adapter)
+					  struct bcm_mini_adapter *Adapter)
 {
 	struct bcm_firmware_info *psFwInfo = NULL;
 	struct bcm_ioctl_buffer IoBuffer;
@@ -1044,7 +1048,7 @@ static int bcm_char_ioctl_buffer_download(void __user *argp,
 }
 
 static int bcm_char_ioctl_buffer_download_stop(void __user *argp,
-		struct bcm_mini_adapter *Adapter)
+					       struct bcm_mini_adapter *Adapter)
 {
 	INT Status;
 	int timeout = 0;
@@ -1151,7 +1155,7 @@ static int bcm_char_ioctl_qos_threshold(ULONG arg,
 }
 
 static int bcm_char_ioctl_switch_transfer_mode(void __user *argp,
-	struct bcm_mini_adapter *Adapter)
+					       struct bcm_mini_adapter *Adapter)
 {
 	UINT uiData = 0;
 
@@ -1190,7 +1194,7 @@ static int bcm_char_ioctl_get_driver_version(void __user *argp)
 }
 
 static int bcm_char_ioctl_get_current_status(void __user *argp,
-	struct bcm_mini_adapter *Adapter)
+					     struct bcm_mini_adapter *Adapter)
 {
 	struct bcm_link_state link_state;
 	struct bcm_ioctl_buffer IoBuffer;
@@ -1221,7 +1225,7 @@ static int bcm_char_ioctl_get_current_status(void __user *argp,
 
 
 static int bcm_char_ioctl_set_mac_tracing(void __user *argp,
-	struct bcm_mini_adapter *Adapter)
+					  struct bcm_mini_adapter *Adapter)
 {
 	struct bcm_ioctl_buffer IoBuffer;
 	UINT tracing_flag;
@@ -1242,7 +1246,7 @@ static int bcm_char_ioctl_set_mac_tracing(void __user *argp,
 }
 
 static int bcm_char_ioctl_get_dsx_indication(void __user *argp,
-	struct bcm_mini_adapter *Adapter)
+					     struct bcm_mini_adapter *Adapter)
 {
 	struct bcm_ioctl_buffer IoBuffer;
 	ULONG ulSFId = 0;
@@ -1268,7 +1272,8 @@ static int bcm_char_ioctl_get_dsx_indication(void __user *argp,
 }
 
 static int bcm_char_ioctl_get_host_mibs(void __user *argp,
-	struct bcm_mini_adapter *Adapter, struct bcm_tarang_data *pTarang)
+					struct bcm_mini_adapter *Adapter,
+					struct bcm_tarang_data *pTarang)
 {
 	struct bcm_ioctl_buffer IoBuffer;
 	INT Status = STATUS_FAILURE;
@@ -1305,7 +1310,7 @@ static int bcm_char_ioctl_get_host_mibs(void __user *argp,
 }
 
 static int bcm_char_ioctl_bulk_wrm(void __user *argp,
-	struct bcm_mini_adapter *Adapter, UINT cmd)
+				   struct bcm_mini_adapter *Adapter, UINT cmd)
 {
 	struct bcm_bulk_wrm_buffer *pBulkBuffer;
 	struct bcm_ioctl_buffer IoBuffer;
@@ -1376,7 +1381,7 @@ static int bcm_char_ioctl_bulk_wrm(void __user *argp,
 }
 
 static int bcm_char_ioctl_get_nvm_size(void __user *argp,
-	struct bcm_mini_adapter *Adapter)
+				       struct bcm_mini_adapter *Adapter)
 {
 	struct bcm_ioctl_buffer IoBuffer;
 
@@ -1393,7 +1398,7 @@ static int bcm_char_ioctl_get_nvm_size(void __user *argp,
 }
 
 static int bcm_char_ioctl_cal_init(void __user *argp,
-	struct bcm_mini_adapter *Adapter)
+				   struct bcm_mini_adapter *Adapter)
 {
 	struct bcm_ioctl_buffer IoBuffer;
 	UINT uiSectorSize = 0;
@@ -1440,7 +1445,7 @@ static int bcm_char_ioctl_cal_init(void __user *argp,
 }
 
 static int bcm_char_ioctl_set_debug(void __user *argp,
-	struct bcm_mini_adapter *Adapter)
+				    struct bcm_mini_adapter *Adapter)
 {
 #ifdef DEBUG
 	struct bcm_ioctl_buffer IoBuffer;
@@ -1483,7 +1488,7 @@ static int bcm_char_ioctl_set_debug(void __user *argp,
 }
 
 static int bcm_char_ioctl_nvm_rw(void __user *argp,
-	struct bcm_mini_adapter *Adapter, UINT cmd)
+				 struct bcm_mini_adapter *Adapter, UINT cmd)
 {
 	struct bcm_nvm_readwrite stNVMReadWrite;
 	struct timeval tv0, tv1;
@@ -1895,7 +1900,7 @@ BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
 }
 
 static int bcm_char_ioctl_set_active_section(void __user *argp,
-	struct bcm_mini_adapter *Adapter)
+					     struct bcm_mini_adapter *Adapter)
 {
 	enum bcm_flash2x_section_val eFlash2xSectionVal = 0;
 	INT Status = STATUS_FAILURE;
@@ -1950,7 +1955,7 @@ static int bcm_char_ioctl_set_active_section(void __user *argp,
 }
 
 static int bcm_char_ioctl_copy_section(void __user *argp,
-	struct bcm_mini_adapter *Adapter)
+				       struct bcm_mini_adapter *Adapter)
 {
 	struct bcm_flash2x_copy_section sCopySectStrut = {0};
 	struct bcm_ioctl_buffer IoBuffer;
@@ -2051,7 +2056,7 @@ static int bcm_char_ioctl_copy_section(void __user *argp,
 }
 
 static int bcm_char_ioctl_get_flash_cs_info(void __user *argp,
-	struct bcm_mini_adapter *Adapter)
+					    struct bcm_mini_adapter *Adapter)
 {
 	struct bcm_ioctl_buffer IoBuffer;
 	INT Status = STATUS_SUCCESS;
@@ -2093,7 +2098,7 @@ static int bcm_char_ioctl_get_flash_cs_info(void __user *argp,
 }
 
 static int bcm_char_ioctl_select_dsd(void __user *argp,
-	struct bcm_mini_adapter *Adapter)
+				     struct bcm_mini_adapter *Adapter)
 {
 	struct bcm_ioctl_buffer IoBuffer;
 	INT Status = STATUS_FAILURE;
@@ -2153,7 +2158,7 @@ static int bcm_char_ioctl_select_dsd(void __user *argp,
 }
 
 static int bcm_char_ioctl_nvm_raw_read(void __user *argp,
-	struct bcm_mini_adapter *Adapter)
+				       struct bcm_mini_adapter *Adapter)
 {
 	struct bcm_nvm_readwrite stNVMRead;
 	struct bcm_ioctl_buffer IoBuffer;
@@ -2255,7 +2260,8 @@ static int bcm_char_ioctl_nvm_raw_read(void __user *argp,
 }
 
 static int bcm_char_ioctl_cntrlmsg_mask(void __user *argp,
-	struct bcm_mini_adapter *Adapter, struct bcm_tarang_data *pTarang)
+					struct bcm_mini_adapter *Adapter,
+					struct bcm_tarang_data *pTarang)
 {
 	struct bcm_ioctl_buffer IoBuffer;
 	INT Status = STATUS_FAILURE;
