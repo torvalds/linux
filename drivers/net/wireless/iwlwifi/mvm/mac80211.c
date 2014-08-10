@@ -803,6 +803,9 @@ static void iwl_mvm_restart_cleanup(struct iwl_mvm *mvm)
 	 * ucode_down ref until reconfig is complete */
 	iwl_mvm_unref_all_except(mvm, IWL_MVM_REF_UCODE_DOWN);
 
+	/* clear any stale d0i3 state */
+	clear_bit(IWL_MVM_STATUS_IN_D0I3, &mvm->status);
+
 	mvm->vif_count = 0;
 	mvm->rx_ba_sessions = 0;
 }
