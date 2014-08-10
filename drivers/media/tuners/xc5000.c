@@ -754,7 +754,7 @@ static int xc5000_tune_digital(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int xc5000_set_params(struct dvb_frontend *fe)
+static int xc5000_set_digital_params(struct dvb_frontend *fe)
 {
 	int b;
 	struct xc5000_priv *priv = fe->tuner_priv;
@@ -1036,7 +1036,7 @@ static int xc5000_set_radio_freq(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int xc5000_apply_params(struct dvb_frontend *fe)
+static int xc5000_set_params(struct dvb_frontend *fe)
 {
 	struct xc5000_priv *priv = fe->tuner_priv;
 
@@ -1080,7 +1080,7 @@ static int xc5000_set_analog_params(struct dvb_frontend *fe,
 	}
 	priv->mode = params->mode;
 
-	return xc5000_apply_params(fe);
+	return xc5000_set_params(fe);
 }
 
 static int xc5000_get_frequency(struct dvb_frontend *fe, u32 *freq)
@@ -1354,10 +1354,10 @@ static const struct dvb_tuner_ops xc5000_tuner_ops = {
 	.init		   = xc5000_init,
 	.sleep		   = xc5000_sleep,
 	.suspend	   = xc5000_suspend,
-	.resume		   = xc5000_apply_params,
+	.resume		   = xc5000_set_params,
 
 	.set_config	   = xc5000_set_config,
-	.set_params	   = xc5000_set_params,
+	.set_params	   = xc5000_set_digital_params,
 	.set_analog_params = xc5000_set_analog_params,
 	.get_frequency	   = xc5000_get_frequency,
 	.get_if_frequency  = xc5000_get_if_frequency,
