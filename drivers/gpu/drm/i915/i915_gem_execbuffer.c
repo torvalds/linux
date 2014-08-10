@@ -130,12 +130,6 @@ eb_lookup_vmas(struct eb_vmas *eb,
 	while (!list_empty(&objects)) {
 		struct i915_vma *vma;
 
-		if (exec[i].flags & EXEC_OBJECT_NEEDS_GTT &&
-		    USES_FULL_PPGTT(vm->dev)) {
-			ret = -EINVAL;
-			goto err;
-		}
-
 		obj = list_first_entry(&objects,
 				       struct drm_i915_gem_object,
 				       obj_exec_link);
@@ -877,18 +871,24 @@ i915_gem_check_execbuffer(struct drm_i915_gem_execbuffer2 *exec)
 }
 
 static int
-validate_exec_list(struct drm_i915_gem_exec_object2 *exec,
+validate_exec_list(struct drm_device *dev,
+		   struct drm_i915_gem_exec_object2 *exec,
 		   int count)
 {
-	int i;
 	unsigned relocs_total = 0;
 	unsigned relocs_max = UINT_MAX / sizeof(struct drm_i915_gem_relocation_entry);
+	unsigned invalid_flags;
+	int i;
+
+	invalid_flags = __EXEC_OBJECT_UNKNOWN_FLAGS;
+	if (USES_FULL_PPGTT(dev))
+		invalid_flags |= EXEC_OBJECT_NEEDS_GTT;
 
 	for (i = 0; i < count; i++) {
 		char __user *ptr = to_user_ptr(exec[i].relocs_ptr);
 		int length; /* limited by fault_in_pages_readable() */
 
-		if (exec[i].flags & __EXEC_OBJECT_UNKNOWN_FLAGS)
+		if (exec[i].flags & invalid_flags)
 			return -EINVAL;
 
 		/* First check for malicious input causing overflow in
@@ -1250,7 +1250,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	if (!i915_gem_check_execbuffer(args))
 		return -EINVAL;
 
-	ret = validate_exec_list(exec, args->buffer_count);
+	ret = validate_exec_list(dev, exec, args->buffer_count);
 	if (ret)
 		return ret;
 
