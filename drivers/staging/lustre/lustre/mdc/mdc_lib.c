@@ -416,9 +416,9 @@ void mdc_link_pack(struct ptlrpc_request *req, struct md_op_data *op_data)
 	LASSERT(rec != NULL);
 
 	rec->lk_opcode   = REINT_LINK;
-	rec->lk_fsuid    = op_data->op_fsuid;//current->fsuid;
-	rec->lk_fsgid    = op_data->op_fsgid;//current->fsgid;
-	rec->lk_cap      = op_data->op_cap;//current->cap_effective;
+	rec->lk_fsuid    = op_data->op_fsuid; /* current->fsuid; */
+	rec->lk_fsgid    = op_data->op_fsgid; /* current->fsgid; */
+	rec->lk_cap      = op_data->op_cap;   /* current->cap_effective; */
 	rec->lk_suppgid1 = op_data->op_suppgids[0];
 	rec->lk_suppgid2 = op_data->op_suppgids[1];
 	rec->lk_fid1     = op_data->op_fid1;
