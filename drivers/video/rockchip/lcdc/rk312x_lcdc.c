@@ -512,6 +512,7 @@ static int rk312x_lcdc_pre_init(struct rk_lcdc_driver *dev_drv)
 	lcdc_dev->hclk = devm_clk_get(lcdc_dev->dev, "hclk_lcdc");
 	lcdc_dev->aclk = devm_clk_get(lcdc_dev->dev, "aclk_lcdc");
 	lcdc_dev->dclk = devm_clk_get(lcdc_dev->dev, "dclk_lcdc");
+	lcdc_dev->sclk = devm_clk_get(lcdc_dev->dev, "sclk_lcdc");
 //      lcdc_dev->pd   = devm_clk_get(lcdc_dev->dev, "pd_lcdc");
 
 	if ( /*IS_ERR(lcdc_dev->pd) || */ (IS_ERR(lcdc_dev->aclk)) ||
@@ -672,6 +673,7 @@ static int rk312x_lcdc_set_scaler(struct rk_lcdc_driver *dev_drv,
                 return 0;
 
 	if(!enable) {
+		clk_disable_unprepare(lcdc_dev->sclk);
                 dev_info(lcdc_dev->dev, "%s: disable\n", __func__);
 		return 0;
 	}
@@ -688,6 +690,7 @@ static int rk312x_lcdc_set_scaler(struct rk_lcdc_driver *dev_drv,
 
 	src = dst_screen->ext_screen;
 
+	clk_prepare_enable(lcdc_dev->sclk);
 	lcdc_dev->s_pixclock = calc_sclk(src, dst);
 	clk_set_rate(lcdc_dev->sclk, lcdc_dev->s_pixclock);
 

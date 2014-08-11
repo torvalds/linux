@@ -650,7 +650,7 @@
 		reg = <0x1010e000 0x2000>;
 		interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clk_gates6 0>, <&dclk_lcdc0>, <&clk_gates6 1>, <&sclk_lcdc0>;
-		clock-names = "aclk_lcdc", "dclk_lcdc", "hclk_lcdc", "sclk";
+		clock-names = "aclk_lcdc", "dclk_lcdc", "hclk_lcdc", "sclk_lcdc";
 		rockchip,iommu-enabled = <1>;
 		status = "disabled";
 	};
