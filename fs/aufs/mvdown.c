@@ -273,8 +273,6 @@ out:
 
 /*
  * unlink the topmost h_dentry
- * Note: the target file MAY be modified by UDBA between this mutex_unlock() and
- *	mutex_lock() in vfs_unlink(). in this case, such changes may be lost.
  */
 static int au_do_unlink(const unsigned char dmsg, struct au_mvd_args *a)
 {
