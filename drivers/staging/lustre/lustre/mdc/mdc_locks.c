@@ -218,7 +218,7 @@ int mdc_find_cbdata(struct obd_export *exp,
 	struct ldlm_res_id res_id;
 	int rc = 0;
 
-	fid_build_reg_res_name((struct lu_fid*)fid, &res_id);
+	fid_build_reg_res_name((struct lu_fid *)fid, &res_id);
 	rc = ldlm_resource_iterate(class_exp2obd(exp)->obd_namespace, &res_id,
 				   it, data);
 	if (rc == LDLM_ITER_STOP)
