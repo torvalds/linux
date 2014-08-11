@@ -31,13 +31,6 @@
  *  LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
  *  NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * TODO: Neil Brown made the following observation:  We currently
- * initially reserve NFSD_BUFSIZE space on the transmit queue and
- * never release any of that until the request is complete.
- * It would be good to calculate a new maximum response size while
- * decoding the COMPOUND, and call svc_reserve with this number
- * at the end of nfs4svc_decode_compoundargs.
  */
 
 #include <linux/slab.h>
