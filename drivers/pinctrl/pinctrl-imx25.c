@@ -315,7 +315,7 @@ static struct imx_pinctrl_soc_info imx25_pinctrl_info = {
 	.npins = ARRAY_SIZE(imx25_pinctrl_pads),
 };
 
-static struct of_device_id imx25_pinctrl_of_match[] = {
+static const struct of_device_id imx25_pinctrl_of_match[] = {
 	{ .compatible = "fsl,imx25-iomuxc", },
 	{ /* sentinel */ }
 };

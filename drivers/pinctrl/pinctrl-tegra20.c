@@ -2228,7 +2228,7 @@ static int tegra20_pinctrl_probe(struct platform_device *pdev)
 	return tegra_pinctrl_probe(pdev, &tegra20_pinctrl);
 }
 
-static struct of_device_id tegra20_pinctrl_of_match[] = {
+static const struct of_device_id tegra20_pinctrl_of_match[] = {
 	{ .compatible = "nvidia,tegra20-pinmux", },
 	{ },
 };
