@@ -35,6 +35,7 @@
 
 #define  __EXEC_OBJECT_HAS_PIN (1<<31)
 #define  __EXEC_OBJECT_HAS_FENCE (1<<30)
+#define  __EXEC_OBJECT_NEEDS_MAP (1<<29)
 #define  __EXEC_OBJECT_NEEDS_BIAS (1<<28)
 
 #define BATCH_OFFSET_BIAS (256*1024)
@@ -535,14 +536,6 @@ i915_gem_execbuffer_relocate(struct eb_vmas *eb)
 }
 
 static int
-need_reloc_mappable(struct i915_vma *vma)
-{
-	struct drm_i915_gem_exec_object2 *entry = vma->exec_entry;
-	return entry->relocation_count && !use_cpu_reloc(vma->obj) &&
-		i915_is_ggtt(vma->vm);
-}
-
-static int
 i915_gem_execbuffer_reserve_vma(struct i915_vma *vma,
 				struct intel_engine_cs *ring,
 				bool *need_reloc)
@@ -550,19 +543,12 @@ i915_gem_execbuffer_reserve_vma(struct i915_vma *vma,
 	struct drm_i915_gem_object *obj = vma->obj;
 	struct drm_i915_gem_exec_object2 *entry = vma->exec_entry;
 	bool has_fenced_gpu_access = INTEL_INFO(ring->dev)->gen < 4;
-	bool need_fence;
 	uint64_t flags;
 	int ret;
 
 	flags = 0;
-
-	need_fence =
-		has_fenced_gpu_access &&
-		entry->flags & EXEC_OBJECT_NEEDS_FENCE &&
-		obj->tiling_mode != I915_TILING_NONE;
-	if (need_fence || need_reloc_mappable(vma))
+	if (entry->flags & __EXEC_OBJECT_NEEDS_MAP)
 		flags |= PIN_MAPPABLE;
-
 	if (entry->flags & EXEC_OBJECT_NEEDS_GTT)
 		flags |= PIN_GLOBAL;
 	if (entry->flags & __EXEC_OBJECT_NEEDS_BIAS)
@@ -601,26 +587,40 @@ i915_gem_execbuffer_reserve_vma(struct i915_vma *vma,
 }
 
 static bool
-eb_vma_misplaced(struct i915_vma *vma, bool has_fenced_gpu_access)
+need_reloc_mappable(struct i915_vma *vma)
+{
+	struct drm_i915_gem_exec_object2 *entry = vma->exec_entry;
+
+	if (entry->relocation_count == 0)
+		return false;
+
+	if (!i915_is_ggtt(vma->vm))
+		return false;
+
+	/* See also use_cpu_reloc() */
+	if (HAS_LLC(vma->obj->base.dev))
+		return false;
+
+	if (vma->obj->base.write_domain == I915_GEM_DOMAIN_CPU)
+		return false;
+
+	return true;
+}
+
+static bool
+eb_vma_misplaced(struct i915_vma *vma)
 {
 	struct drm_i915_gem_exec_object2 *entry = vma->exec_entry;
 	struct drm_i915_gem_object *obj = vma->obj;
-	bool need_fence, need_mappable;
 
-	need_fence =
-		has_fenced_gpu_access &&
-		entry->flags & EXEC_OBJECT_NEEDS_FENCE &&
-		obj->tiling_mode != I915_TILING_NONE;
-	need_mappable = need_fence || need_reloc_mappable(vma);
-
-	WARN_ON((need_mappable || need_fence) &&
+	WARN_ON(entry->flags & __EXEC_OBJECT_NEEDS_MAP &&
 	       !i915_is_ggtt(vma->vm));
 
 	if (entry->alignment &&
 	    vma->node.start & (entry->alignment - 1))
 		return true;
 
-	if (need_mappable && !obj->map_and_fenceable)
+	if (entry->flags & __EXEC_OBJECT_NEEDS_MAP && !obj->map_and_fenceable)
 		return true;
 
 	if (entry->flags & __EXEC_OBJECT_NEEDS_BIAS &&
@@ -664,9 +664,10 @@ i915_gem_execbuffer_reserve(struct intel_engine_cs *ring,
 			obj->tiling_mode != I915_TILING_NONE;
 		need_mappable = need_fence || need_reloc_mappable(vma);
 
-		if (need_mappable)
+		if (need_mappable) {
+			entry->flags |= __EXEC_OBJECT_NEEDS_MAP;
 			list_move(&vma->exec_list, &ordered_vmas);
-		else
+		} else
 			list_move_tail(&vma->exec_list, &ordered_vmas);
 
 		obj->base.pending_read_domains = I915_GEM_GPU_DOMAINS & ~I915_GEM_DOMAIN_COMMAND;
@@ -696,7 +697,7 @@ i915_gem_execbuffer_reserve(struct intel_engine_cs *ring,
 			if (!drm_mm_node_allocated(&vma->node))
 				continue;
 
-			if (eb_vma_misplaced(vma, has_fenced_gpu_access))
+			if (eb_vma_misplaced(vma))
 				ret = i915_vma_unbind(vma);
 			else
 				ret = i915_gem_execbuffer_reserve_vma(vma, ring, need_relocs);
