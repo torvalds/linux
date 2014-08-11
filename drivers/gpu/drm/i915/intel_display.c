@@ -8500,10 +8500,14 @@ retry:
 		i++;
 		if (!(encoder->possible_crtcs & (1 << i)))
 			continue;
-		if (!possible_crtc->enabled) {
-			crtc = possible_crtc;
-			break;
-		}
+		if (possible_crtc->enabled)
+			continue;
+		/* This can occur when applying the pipe A quirk on resume. */
+		if (to_intel_crtc(possible_crtc)->new_enabled)
+			continue;
+
+		crtc = possible_crtc;
+		break;
 	}
 
 	/*
