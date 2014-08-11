@@ -52,6 +52,7 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
+#include <linux/of_mdio.h>
 #include <linux/of_net.h>
 #include <linux/regulator/consumer.h>
 #include <linux/if_vlan.h>
@@ -1648,29 +1649,37 @@ static int fec_enet_mii_probe(struct net_device *ndev)
 
 	fep->phy_dev = NULL;
 
-	/* check for attached phy */
-	for (phy_id = 0; (phy_id < PHY_MAX_ADDR); phy_id++) {
-		if ((fep->mii_bus->phy_mask & (1 << phy_id)))
-			continue;
-		if (fep->mii_bus->phy_map[phy_id] == NULL)
-			continue;
-		if (fep->mii_bus->phy_map[phy_id]->phy_id == 0)
-			continue;
-		if (dev_id--)
-			continue;
-		strncpy(mdio_bus_id, fep->mii_bus->id, MII_BUS_ID_SIZE);
-		break;
+	if (fep->phy_node) {
+		phy_dev = of_phy_connect(ndev, fep->phy_node,
+					 &fec_enet_adjust_link, 0,
+					 fep->phy_interface);
+	} else {
+		/* check for attached phy */
+		for (phy_id = 0; (phy_id < PHY_MAX_ADDR); phy_id++) {
+			if ((fep->mii_bus->phy_mask & (1 << phy_id)))
+				continue;
+			if (fep->mii_bus->phy_map[phy_id] == NULL)
+				continue;
+			if (fep->mii_bus->phy_map[phy_id]->phy_id == 0)
+				continue;
+			if (dev_id--)
+				continue;
+			strncpy(mdio_bus_id, fep->mii_bus->id, MII_BUS_ID_SIZE);
+			break;
+		}
+
+		if (phy_id >= PHY_MAX_ADDR) {
+			netdev_info(ndev, "no PHY, assuming direct connection to switch\n");
+			strncpy(mdio_bus_id, "fixed-0", MII_BUS_ID_SIZE);
+			phy_id = 0;
+		}
+
+		snprintf(phy_name, sizeof(phy_name),
+			 PHY_ID_FMT, mdio_bus_id, phy_id);
+		phy_dev = phy_connect(ndev, phy_name, &fec_enet_adjust_link,
+				      fep->phy_interface);
 	}
 
-	if (phy_id >= PHY_MAX_ADDR) {
-		netdev_info(ndev, "no PHY, assuming direct connection to switch\n");
-		strncpy(mdio_bus_id, "fixed-0", MII_BUS_ID_SIZE);
-		phy_id = 0;
-	}
-
-	snprintf(phy_name, sizeof(phy_name), PHY_ID_FMT, mdio_bus_id, phy_id);
-	phy_dev = phy_connect(ndev, phy_name, &fec_enet_adjust_link,
-			      fep->phy_interface);
 	if (IS_ERR(phy_dev)) {
 		netdev_err(ndev, "could not attach to PHY\n");
 		return PTR_ERR(phy_dev);
@@ -1707,6 +1716,7 @@ static int fec_enet_mii_init(struct platform_device *pdev)
 	struct fec_enet_private *fep = netdev_priv(ndev);
 	const struct platform_device_id *id_entry =
 				platform_get_device_id(fep->pdev);
+	struct device_node *node;
 	int err = -ENXIO, i;
 
 	/*
@@ -1774,7 +1784,15 @@ static int fec_enet_mii_init(struct platform_device *pdev)
 	for (i = 0; i < PHY_MAX_ADDR; i++)
 		fep->mii_bus->irq[i] = PHY_POLL;
 
-	if (mdiobus_register(fep->mii_bus))
+	node = of_get_child_by_name(pdev->dev.of_node, "mdio");
+	if (node) {
+		err = of_mdiobus_register(fep->mii_bus, node);
+		of_node_put(node);
+	} else {
+		err = mdiobus_register(fep->mii_bus);
+	}
+
+	if (err)
 		goto err_out_free_mdio_irq;
 
 	mii_cnt++;
@@ -2527,6 +2545,7 @@ fec_probe(struct platform_device *pdev)
 	struct resource *r;
 	const struct of_device_id *of_id;
 	static int dev_id;
+	struct device_node *np = pdev->dev.of_node, *phy_node;
 
 	of_id = of_match_device(fec_dt_ids, &pdev->dev);
 	if (of_id)
@@ -2565,6 +2584,18 @@ fec_probe(struct platform_device *pdev)
 	fep->bufdesc_ex = 0;
 
 	platform_set_drvdata(pdev, ndev);
+
+	phy_node = of_parse_phandle(np, "phy-handle", 0);
+	if (!phy_node && of_phy_is_fixed_link(np)) {
+		ret = of_phy_register_fixed_link(np);
+		if (ret < 0) {
+			dev_err(&pdev->dev,
+				"broken fixed-link specification\n");
+			goto failed_phy;
+		}
+		phy_node = of_node_get(np);
+	}
+	fep->phy_node = phy_node;
 
 	ret = of_get_phy_mode(pdev->dev.of_node);
 	if (ret < 0) {
@@ -2670,6 +2701,8 @@ failed_init:
 failed_regulator:
 	fec_enet_clk_enable(ndev, false);
 failed_clk:
+failed_phy:
+	of_node_put(phy_node);
 failed_ioremap:
 	free_netdev(ndev);
 
@@ -2691,6 +2724,7 @@ fec_drv_remove(struct platform_device *pdev)
 	if (fep->ptp_clock)
 		ptp_clock_unregister(fep->ptp_clock);
 	fec_enet_clk_enable(ndev, false);
+	of_node_put(fep->phy_node);
 	free_netdev(ndev);
 
 	return 0;

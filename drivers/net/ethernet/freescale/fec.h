@@ -310,6 +310,7 @@ struct fec_enet_private {
 	int	mii_timeout;
 	uint	phy_speed;
 	phy_interface_t	phy_interface;
+	struct device_node *phy_node;
 	int	link;
 	int	full_duplex;
 	int	speed;
