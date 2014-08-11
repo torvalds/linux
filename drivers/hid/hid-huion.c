@@ -116,6 +116,10 @@ static int huion_tablet_enable(struct hid_device *hdev)
 	struct usb_device *usb_dev = hid_to_usb_dev(hdev);
 	struct huion_drvdata *drvdata = hid_get_drvdata(hdev);
 	__le16 buf[6];
+	s32 params[HUION_PH_ID_NUM];
+	s32 resolution;
+	__u8 *p;
+	s32 v;
 
 	/*
 	 * Read string descriptor containing tablet parameters. The specific
@@ -128,56 +132,54 @@ static int huion_tablet_enable(struct hid_device *hdev)
 				(USB_DT_STRING << 8) + 0x64,
 				0x0409, buf, sizeof(buf),
 				USB_CTRL_GET_TIMEOUT);
-	if (rc == -EPIPE)
-		hid_warn(hdev, "device parameters not found\n");
-	else if (rc < 0)
-		hid_warn(hdev, "failed to get device parameters: %d\n", rc);
-	else if (rc != sizeof(buf))
-		hid_warn(hdev, "invalid device parameters\n");
-	else {
-		s32 params[HUION_PH_ID_NUM];
-		s32 resolution;
-		__u8 *p;
-		s32 v;
+	if (rc == -EPIPE) {
+		hid_err(hdev, "device parameters not found\n");
+		return -ENODEV;
+	} else if (rc < 0) {
+		hid_err(hdev, "failed to get device parameters: %d\n", rc);
+		return -ENODEV;
+	} else if (rc != sizeof(buf)) {
+		hid_err(hdev, "invalid device parameters\n");
+		return -ENODEV;
+	}
 
-		/* Extract device parameters */
-		params[HUION_PH_ID_X_LM] = le16_to_cpu(buf[1]);
-		params[HUION_PH_ID_Y_LM] = le16_to_cpu(buf[2]);
-		params[HUION_PH_ID_PRESSURE_LM] = le16_to_cpu(buf[4]);
-		resolution = le16_to_cpu(buf[5]);
-		if (resolution == 0) {
-			params[HUION_PH_ID_X_PM] = 0;
-			params[HUION_PH_ID_Y_PM] = 0;
+	/* Extract device parameters */
+	params[HUION_PH_ID_X_LM] = le16_to_cpu(buf[1]);
+	params[HUION_PH_ID_Y_LM] = le16_to_cpu(buf[2]);
+	params[HUION_PH_ID_PRESSURE_LM] = le16_to_cpu(buf[4]);
+	resolution = le16_to_cpu(buf[5]);
+	if (resolution == 0) {
+		params[HUION_PH_ID_X_PM] = 0;
+		params[HUION_PH_ID_Y_PM] = 0;
+	} else {
+		params[HUION_PH_ID_X_PM] = params[HUION_PH_ID_X_LM] *
+						1000 / resolution;
+		params[HUION_PH_ID_Y_PM] = params[HUION_PH_ID_Y_LM] *
+						1000 / resolution;
+	}
+
+	/* Allocate fixed report descriptor */
+	drvdata->rdesc = devm_kmalloc(&hdev->dev,
+				sizeof(huion_tablet_rdesc_template),
+				GFP_KERNEL);
+	if (drvdata->rdesc == NULL) {
+		hid_err(hdev, "failed to allocate fixed rdesc\n");
+		return -ENOMEM;
+	}
+	drvdata->rsize = sizeof(huion_tablet_rdesc_template);
+
+	/* Format fixed report descriptor */
+	memcpy(drvdata->rdesc, huion_tablet_rdesc_template,
+		drvdata->rsize);
+	for (p = drvdata->rdesc;
+	     p <= drvdata->rdesc + drvdata->rsize - 4;) {
+		if (p[0] == 0xFE && p[1] == 0xED && p[2] == 0x1D &&
+		    p[3] < sizeof(params)) {
+			v = params[p[3]];
+			put_unaligned(cpu_to_le32(v), (s32 *)p);
+			p += 4;
 		} else {
-			params[HUION_PH_ID_X_PM] = params[HUION_PH_ID_X_LM] *
-							1000 / resolution;
-			params[HUION_PH_ID_Y_PM] = params[HUION_PH_ID_Y_LM] *
-							1000 / resolution;
-		}
-
-		/* Allocate fixed report descriptor */
-		drvdata->rdesc = devm_kmalloc(&hdev->dev,
-					sizeof(huion_tablet_rdesc_template),
-					GFP_KERNEL);
-		if (drvdata->rdesc == NULL) {
-			hid_err(hdev, "failed to allocate fixed rdesc\n");
-			return -ENOMEM;
-		}
-		drvdata->rsize = sizeof(huion_tablet_rdesc_template);
-
-		/* Format fixed report descriptor */
-		memcpy(drvdata->rdesc, huion_tablet_rdesc_template,
-			drvdata->rsize);
-		for (p = drvdata->rdesc;
-		     p <= drvdata->rdesc + drvdata->rsize - 4;) {
-			if (p[0] == 0xFE && p[1] == 0xED && p[2] == 0x1D &&
-			    p[3] < sizeof(params)) {
-				v = params[p[3]];
-				put_unaligned(cpu_to_le32(v), (s32 *)p);
-				p += 4;
-			} else {
-				p++;
-			}
+			p++;
 		}
 	}
 
