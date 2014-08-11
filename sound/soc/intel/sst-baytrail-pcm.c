@@ -423,18 +423,14 @@ static int sst_byt_pcm_dev_suspend_late(struct device *dev)
 static int sst_byt_pcm_dev_resume_early(struct device *dev)
 {
 	struct sst_pdata *sst_pdata = dev_get_platdata(dev);
+	int ret;
 
 	dev_dbg(dev, "resume early\n");
 
 	/* load fw and boot DSP */
-	return sst_byt_dsp_boot(dev, sst_pdata);
-}
-
-static int sst_byt_pcm_dev_resume(struct device *dev)
-{
-	struct sst_pdata *sst_pdata = dev_get_platdata(dev);
-
-	dev_dbg(dev, "resume\n");
+	ret = sst_byt_dsp_boot(dev, sst_pdata);
+	if (ret)
+		return ret;
 
 	/* wait for FW to finish booting */
 	return sst_byt_dsp_wait_for_ready(dev, sst_pdata);
@@ -443,7 +439,6 @@ static int sst_byt_pcm_dev_resume(struct device *dev)
 static const struct dev_pm_ops sst_byt_pm_ops = {
 	.suspend_late = sst_byt_pcm_dev_suspend_late,
 	.resume_early = sst_byt_pcm_dev_resume_early,
-	.resume = sst_byt_pcm_dev_resume,
 };
 
 #define SST_BYT_PM_OPS	(&sst_byt_pm_ops)
