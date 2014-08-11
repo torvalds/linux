@@ -1962,7 +1962,8 @@ static void bcmgenet_set_hw_addr(struct bcmgenet_priv *priv,
 static int bcmgenet_wol_resume(struct bcmgenet_priv *priv)
 {
 	/* From WOL-enabled suspend, switch to regular clock */
-	clk_disable_unprepare(priv->clk_wol);
+	if (priv->wolopts)
+		clk_disable_unprepare(priv->clk_wol);
 
 	phy_init_hw(priv->phydev);
 	/* Speed settings must be restored */
@@ -2668,9 +2669,7 @@ static int bcmgenet_resume(struct device *d)
 	if (ret)
 		goto out_clk_disable;
 
-	if (priv->wolopts)
-		ret = bcmgenet_wol_resume(priv);
-
+	ret = bcmgenet_wol_resume(priv);
 	if (ret)
 		goto out_clk_disable;
 
@@ -2684,6 +2683,9 @@ static int bcmgenet_resume(struct device *d)
 		reg |= EXT_ENERGY_DET_MASK;
 		bcmgenet_ext_writel(priv, reg, EXT_EXT_PWR_MGMT);
 	}
+
+	if (priv->wolopts)
+		bcmgenet_power_up(priv, GENET_POWER_WOL_MAGIC);
 
 	/* Disable RX/TX DMA and flush TX queues */
 	dma_ctrl = bcmgenet_dma_disable(priv);
