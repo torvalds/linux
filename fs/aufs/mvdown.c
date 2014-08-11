@@ -338,6 +338,8 @@ static int au_do_mvdown(const unsigned char dmsg, struct au_mvd_args *a)
 	if (unlikely(err))
 		goto out_unlock;
 
+	AuDbg("%pd2, 0x%x, %d --> %d\n",
+	      a->dentry, a->mvdown.flags, a->mvd_bsrc, a->mvd_bdst);
 	if (find_lower_writable(a) < 0)
 		a->mvdown.flags |= AUFS_MVDOWN_BOTTOM;
 
@@ -651,13 +653,9 @@ int au_mvdown(struct dentry *dentry, struct aufs_mvdown __user *uarg)
 	if (unlikely(err))
 		goto out_parent;
 
-	AuDbgDentry(dentry);
-	AuDbgInode(args->inode);
 	err = au_do_mvdown(dmsg, args);
 	if (unlikely(err))
 		goto out_parent;
-	AuDbgDentry(dentry);
-	AuDbgInode(args->inode);
 
 	au_cpup_attr_timesizes(args->dir);
 	au_cpup_attr_timesizes(args->inode);
