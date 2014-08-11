@@ -151,7 +151,7 @@ config KIRKWOOD_THERMAL
 
 config DOVE_THERMAL
 	tristate "Temperature sensor on Marvell Dove SoCs"
-	depends on ARCH_DOVE
+	depends on ARCH_DOVE || MACH_DOVE
 	depends on OF
 	help
 	  Support for the Dove thermal sensor driver in the Linux thermal
@@ -241,6 +241,11 @@ endmenu
 menu "Samsung thermal drivers"
 depends on ARCH_EXYNOS
 source "drivers/thermal/samsung/Kconfig"
+endmenu
+
+menu "STMicroelectronics thermal drivers"
+depends on ARCH_STI && OF
+source "drivers/thermal/st/Kconfig"
 endmenu
 
 endif
