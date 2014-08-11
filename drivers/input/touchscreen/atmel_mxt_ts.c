@@ -1098,8 +1098,12 @@ static int mxt_prepare_cfg_mem(struct mxt_data *data,
 			/* Skip object */
 			for (i = 0; i < size; i++) {
 				ret = sscanf(cfg->data + data_pos, "%hhx%n",
-					     &val,
-					     &offset);
+					     &val, &offset);
+				if (ret != 1) {
+					dev_err(dev, "Bad format in T%d at %d\n",
+						type, i);
+					return -EINVAL;
+				}
 				data_pos += offset;
 			}
 			continue;
@@ -1139,7 +1143,8 @@ static int mxt_prepare_cfg_mem(struct mxt_data *data,
 				     &val,
 				     &offset);
 			if (ret != 1) {
-				dev_err(dev, "Bad format in T%d\n", type);
+				dev_err(dev, "Bad format in T%d at %d\n",
+					type, i);
 				return -EINVAL;
 			}
 			data_pos += offset;
@@ -1149,8 +1154,7 @@ static int mxt_prepare_cfg_mem(struct mxt_data *data,
 
 			byte_offset = reg + i - cfg_start_ofs;
 
-			if (byte_offset >= 0 &&
-			    byte_offset <= config_mem_size) {
+			if (byte_offset >= 0 && byte_offset < config_mem_size) {
 				*(config_mem + byte_offset) = val;
 			} else {
 				dev_err(dev, "Bad object: reg:%d, T%d, ofs=%d\n",
@@ -1454,6 +1458,7 @@ static int mxt_get_object_table(struct mxt_data *data)
 				data->T5_msg_size = mxt_obj_size(object) - 1;
 			}
 			data->T5_address = object->start_address;
+			break;
 		case MXT_GEN_COMMAND_T6:
 			data->T6_reportid = min_id;
 			data->T6_address = object->start_address;
@@ -1707,7 +1712,7 @@ static int mxt_initialize(struct mxt_data *data)
 		return error;
 	}
 
-	mxt_acquire_irq(data);
+	error = mxt_acquire_irq(data);
 	if (error)
 		goto err_free_object_table;
 
