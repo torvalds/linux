@@ -23,6 +23,7 @@
  */
 
 #include <core/option.h>
+#include <core/object.h>
 #include <core/event.h>
 
 #include <subdev/bios.h>
@@ -346,7 +347,8 @@ nouveau_i2c_intr_init(struct nvkm_event *event, int type, int index)
 }
 
 static int
-nouveau_i2c_intr_ctor(void *data, u32 size, struct nvkm_notify *notify)
+nouveau_i2c_intr_ctor(struct nouveau_object *object, void *data, u32 size,
+		      struct nvkm_notify *notify)
 {
 	struct nvkm_i2c_ntfy_req *req = data;
 	if (!WARN_ON(size != sizeof(*req))) {
