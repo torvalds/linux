@@ -739,7 +739,6 @@ static void bcmgenet_power_down(struct bcmgenet_priv *priv,
 
 	case GENET_POWER_PASSIVE:
 		/* Power down LED */
-		bcmgenet_mii_reset(priv->dev);
 		if (priv->hw_params->flags & GENET_HAS_EXT) {
 			reg = bcmgenet_ext_readl(priv, EXT_EXT_PWR_MGMT);
 			reg |= (EXT_PWR_DOWN_PHY |
@@ -779,7 +778,9 @@ static void bcmgenet_power_up(struct bcmgenet_priv *priv,
 	}
 
 	bcmgenet_ext_writel(priv, reg, EXT_EXT_PWR_MGMT);
-	bcmgenet_mii_reset(priv->dev);
+
+	if (mode == GENET_POWER_PASSIVE)
+		bcmgenet_mii_reset(priv->dev);
 }
 
 /* ioctl handle special commands that are not present in ethtool. */
@@ -1961,7 +1962,8 @@ static void bcmgenet_set_hw_addr(struct bcmgenet_priv *priv,
 static int bcmgenet_wol_resume(struct bcmgenet_priv *priv)
 {
 	/* From WOL-enabled suspend, switch to regular clock */
-	clk_disable_unprepare(priv->clk_wol);
+	if (priv->wolopts)
+		clk_disable_unprepare(priv->clk_wol);
 
 	phy_init_hw(priv->phydev);
 	/* Speed settings must be restored */
@@ -2164,6 +2166,10 @@ static void bcmgenet_netif_stop(struct net_device *dev)
 	 * disabled no new work will be scheduled.
 	 */
 	cancel_work_sync(&priv->bcmgenet_irq_work);
+
+	priv->old_pause = -1;
+	priv->old_link = -1;
+	priv->old_duplex = -1;
 }
 
 static int bcmgenet_close(struct net_device *dev)
@@ -2533,6 +2539,13 @@ static int bcmgenet_probe(struct platform_device *pdev)
 	priv->pdev = pdev;
 	priv->version = (enum bcmgenet_version)of_id->data;
 
+	priv->clk = devm_clk_get(&priv->pdev->dev, "enet");
+	if (IS_ERR(priv->clk))
+		dev_warn(&priv->pdev->dev, "failed to get enet clock\n");
+
+	if (!IS_ERR(priv->clk))
+		clk_prepare_enable(priv->clk);
+
 	bcmgenet_set_hw_params(priv);
 
 	/* Mii wait queue */
@@ -2541,16 +2554,9 @@ static int bcmgenet_probe(struct platform_device *pdev)
 	priv->rx_buf_len = RX_BUF_LENGTH;
 	INIT_WORK(&priv->bcmgenet_irq_work, bcmgenet_irq_task);
 
-	priv->clk = devm_clk_get(&priv->pdev->dev, "enet");
-	if (IS_ERR(priv->clk))
-		dev_warn(&priv->pdev->dev, "failed to get enet clock\n");
-
 	priv->clk_wol = devm_clk_get(&priv->pdev->dev, "enet-wol");
 	if (IS_ERR(priv->clk_wol))
 		dev_warn(&priv->pdev->dev, "failed to get enet-wol clock\n");
-
-	if (!IS_ERR(priv->clk))
-		clk_prepare_enable(priv->clk);
 
 	err = reset_umac(priv);
 	if (err)
@@ -2611,6 +2617,8 @@ static int bcmgenet_suspend(struct device *d)
 
 	bcmgenet_netif_stop(dev);
 
+	phy_suspend(priv->phydev);
+
 	netif_device_detach(dev);
 
 	/* Disable MAC receive */
@@ -2661,9 +2669,7 @@ static int bcmgenet_resume(struct device *d)
 	if (ret)
 		goto out_clk_disable;
 
-	if (priv->wolopts)
-		ret = bcmgenet_wol_resume(priv);
-
+	ret = bcmgenet_wol_resume(priv);
 	if (ret)
 		goto out_clk_disable;
 
@@ -2677,6 +2683,9 @@ static int bcmgenet_resume(struct device *d)
 		reg |= EXT_ENERGY_DET_MASK;
 		bcmgenet_ext_writel(priv, reg, EXT_EXT_PWR_MGMT);
 	}
+
+	if (priv->wolopts)
+		bcmgenet_power_up(priv, GENET_POWER_WOL_MAGIC);
 
 	/* Disable RX/TX DMA and flush TX queues */
 	dma_ctrl = bcmgenet_dma_disable(priv);
@@ -2692,6 +2701,8 @@ static int bcmgenet_resume(struct device *d)
 	bcmgenet_enable_dma(priv, dma_ctrl);
 
 	netif_device_attach(dev);
+
+	phy_resume(priv->phydev);
 
 	bcmgenet_netif_start(dev);
 
