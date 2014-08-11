@@ -29,6 +29,7 @@
 #include <core/enum.h>
 #include <nvif/unpack.h>
 #include <nvif/class.h>
+#include <nvif/event.h>
 
 #include <subdev/bios.h>
 #include <subdev/bios/dcb.h>
@@ -80,6 +81,71 @@ nv50_disp_chan_destroy(struct nv50_disp_chan *chan)
 	struct nv50_disp_base *base = (void *)nv_object(chan)->parent;
 	base->chan &= ~(1 << chan->chid);
 	nouveau_namedb_destroy(&chan->base);
+}
+
+static void
+nv50_disp_chan_uevent_fini(struct nvkm_event *event, int type, int index)
+{
+	struct nv50_disp_priv *priv = container_of(event, typeof(*priv), uevent);
+	nv_mask(priv, 0x610028, 0x00000001 << index, 0x00000000 << index);
+}
+
+static void
+nv50_disp_chan_uevent_init(struct nvkm_event *event, int types, int index)
+{
+	struct nv50_disp_priv *priv = container_of(event, typeof(*priv), uevent);
+	nv_mask(priv, 0x610028, 0x00000001 << index, 0x00000001 << index);
+}
+
+void
+nv50_disp_chan_uevent_send(struct nv50_disp_priv *priv, int chid)
+{
+	struct nvif_notify_uevent_rep {
+	} rep;
+
+	nvkm_event_send(&priv->uevent, 1, chid, &rep, sizeof(rep));
+}
+
+int
+nv50_disp_chan_uevent_ctor(struct nouveau_object *object, void *data, u32 size,
+			   struct nvkm_notify *notify)
+{
+	struct nv50_disp_dmac *dmac = (void *)object;
+	union {
+		struct nvif_notify_uevent_req none;
+	} *args = data;
+	int ret;
+
+	if (nvif_unvers(args->none)) {
+		notify->size  = sizeof(struct nvif_notify_uevent_rep);
+		notify->types = 1;
+		notify->index = dmac->base.chid;
+		return 0;
+	}
+
+	return ret;
+}
+
+const struct nvkm_event_func
+nv50_disp_chan_uevent = {
+	.ctor = nv50_disp_chan_uevent_ctor,
+	.init = nv50_disp_chan_uevent_init,
+	.fini = nv50_disp_chan_uevent_fini,
+};
+
+int
+nv50_disp_chan_ntfy(struct nouveau_object *object, u32 type,
+		    struct nvkm_event **pevent)
+{
+	struct nv50_disp_priv *priv = (void *)object->engine;
+	switch (type) {
+	case NV50_DISP_CORE_CHANNEL_DMA_V0_NTFY_UEVENT:
+		*pevent = &priv->uevent;
+		return 0;
+	default:
+		break;
+	}
+	return -EINVAL;
 }
 
 int
@@ -195,7 +261,7 @@ nv50_disp_dmac_init(struct nouveau_object *object)
 		return ret;
 
 	/* enable error reporting */
-	nv_mask(priv, 0x610028, 0x00010001 << chid, 0x00010001 << chid);
+	nv_mask(priv, 0x610028, 0x00010000 << chid, 0x00010000 << chid);
 
 	/* initialise channel for dma command submission */
 	nv_wr32(priv, 0x610204 + (chid * 0x0010), dmac->push);
@@ -232,7 +298,7 @@ nv50_disp_dmac_fini(struct nouveau_object *object, bool suspend)
 			return -EBUSY;
 	}
 
-	/* disable error reporting */
+	/* disable error reporting and completion notifications */
 	nv_mask(priv, 0x610028, 0x00010001 << chid, 0x00000000 << chid);
 
 	return nv50_disp_chan_fini(&dmac->base, suspend);
@@ -454,7 +520,7 @@ nv50_disp_mast_init(struct nouveau_object *object)
 		return ret;
 
 	/* enable error reporting */
-	nv_mask(priv, 0x610028, 0x00010001, 0x00010001);
+	nv_mask(priv, 0x610028, 0x00010000, 0x00010000);
 
 	/* attempt to unstick channel from some unknown state */
 	if ((nv_rd32(priv, 0x610200) & 0x009f0000) == 0x00020000)
@@ -494,7 +560,7 @@ nv50_disp_mast_fini(struct nouveau_object *object, bool suspend)
 			return -EBUSY;
 	}
 
-	/* disable error reporting */
+	/* disable error reporting and completion notifications */
 	nv_mask(priv, 0x610028, 0x00010001, 0x00000000);
 
 	return nv50_disp_chan_fini(&mast->base, suspend);
@@ -507,6 +573,7 @@ nv50_disp_mast_ofuncs = {
 	.base.init = nv50_disp_mast_init,
 	.base.fini = nv50_disp_mast_fini,
 	.base.map  = nv50_disp_chan_map,
+	.base.ntfy = nv50_disp_chan_ntfy,
 	.base.rd32 = nv50_disp_chan_rd32,
 	.base.wr32 = nv50_disp_chan_wr32,
 	.chid = 0,
@@ -607,6 +674,7 @@ nv50_disp_sync_ofuncs = {
 	.base.dtor = nv50_disp_dmac_dtor,
 	.base.init = nv50_disp_dmac_init,
 	.base.fini = nv50_disp_dmac_fini,
+	.base.ntfy = nv50_disp_chan_ntfy,
 	.base.map  = nv50_disp_chan_map,
 	.base.rd32 = nv50_disp_chan_rd32,
 	.base.wr32 = nv50_disp_chan_wr32,
@@ -696,6 +764,7 @@ nv50_disp_ovly_ofuncs = {
 	.base.dtor = nv50_disp_dmac_dtor,
 	.base.init = nv50_disp_dmac_init,
 	.base.fini = nv50_disp_dmac_fini,
+	.base.ntfy = nv50_disp_chan_ntfy,
 	.base.map  = nv50_disp_chan_map,
 	.base.rd32 = nv50_disp_chan_rd32,
 	.base.wr32 = nv50_disp_chan_wr32,
@@ -813,6 +882,7 @@ nv50_disp_oimm_ofuncs = {
 	.base.dtor = nv50_disp_pioc_dtor,
 	.base.init = nv50_disp_pioc_init,
 	.base.fini = nv50_disp_pioc_fini,
+	.base.ntfy = nv50_disp_chan_ntfy,
 	.base.map  = nv50_disp_chan_map,
 	.base.rd32 = nv50_disp_chan_rd32,
 	.base.wr32 = nv50_disp_chan_wr32,
@@ -860,6 +930,7 @@ nv50_disp_curs_ofuncs = {
 	.base.dtor = nv50_disp_pioc_dtor,
 	.base.init = nv50_disp_pioc_init,
 	.base.fini = nv50_disp_pioc_fini,
+	.base.ntfy = nv50_disp_chan_ntfy,
 	.base.map  = nv50_disp_chan_map,
 	.base.rd32 = nv50_disp_chan_rd32,
 	.base.wr32 = nv50_disp_chan_wr32,
@@ -1846,6 +1917,12 @@ nv50_disp_intr(struct nouveau_subdev *subdev)
 		intr0 &= ~(0x00010000 << chid);
 	}
 
+	while (intr0 & 0x0000001f) {
+		u32 chid = __ffs(intr0 & 0x0000001f);
+		nv50_disp_chan_uevent_send(priv, chid);
+		intr0 &= ~(0x00000001 << chid);
+	}
+
 	if (intr1 & 0x00000004) {
 		nouveau_disp_vblank(&priv->base, 0);
 		nv_wr32(priv, 0x610024, 0x00000004);
@@ -1877,6 +1954,10 @@ nv50_disp_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	ret = nouveau_disp_create(parent, engine, oclass, 2, "PDISP",
 				  "display", &priv);
 	*pobject = nv_object(priv);
+	if (ret)
+		return ret;
+
+	ret = nvkm_event_init(&nv50_disp_chan_uevent, 1, 9, &priv->uevent);
 	if (ret)
 		return ret;
 

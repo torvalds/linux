@@ -479,12 +479,16 @@ struct nv50_disp_core_channel_dma_v0 {
 	__u32 pushbuf;
 };
 
+#define NV50_DISP_CORE_CHANNEL_DMA_V0_NTFY_UEVENT                          0x00
+
 /* cursor immediate */
 struct nv50_disp_cursor_v0 {
 	__u8  version;
 	__u8  head;
 	__u8  pad02[6];
 };
+
+#define NV50_DISP_CURSOR_V0_NTFY_UEVENT                                    0x00
 
 /* base */
 struct nv50_disp_base_channel_dma_v0 {
@@ -494,6 +498,8 @@ struct nv50_disp_base_channel_dma_v0 {
 	__u32 pushbuf;
 };
 
+#define NV50_DISP_BASE_CHANNEL_DMA_V0_NTFY_UEVENT                          0x00
+
 /* overlay */
 struct nv50_disp_overlay_channel_dma_v0 {
 	__u8  version;
@@ -502,6 +508,8 @@ struct nv50_disp_overlay_channel_dma_v0 {
 	__u32 pushbuf;
 };
 
+#define NV50_DISP_OVERLAY_CHANNEL_DMA_V0_NTFY_UEVENT                       0x00
+
 /* overlay immediate */
 struct nv50_disp_overlay_v0 {
 	__u8  version;
@@ -509,6 +517,7 @@ struct nv50_disp_overlay_v0 {
 	__u8  pad02[6];
 };
 
+#define NV50_DISP_OVERLAY_V0_NTFY_UEVENT                                   0x00
 
 /*******************************************************************************
  * fermi
