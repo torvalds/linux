@@ -1777,7 +1777,9 @@ static inline void intel_hpd_irq_handler(struct drm_device *dev,
 				long_hpd = (dig_hotplug_reg >> dig_shift) & PORTB_HOTPLUG_LONG_DETECT;
 			}
 
-			DRM_DEBUG_DRIVER("digital hpd port %d %d\n", port, long_hpd);
+			DRM_DEBUG_DRIVER("digital hpd port %c - %s\n",
+					 port_name(port),
+					 long_hpd ? "long" : "short");
 			/* for long HPD pulses we want to have the digital queue happen,
 			   but we still want HPD storm detection to function. */
 			if (long_hpd) {

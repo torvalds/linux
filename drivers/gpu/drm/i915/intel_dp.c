@@ -4041,7 +4041,8 @@ intel_dp_hpd_pulse(struct intel_digital_port *intel_dig_port, bool long_hpd)
 	if (intel_dig_port->base.type != INTEL_OUTPUT_EDP)
 		intel_dig_port->base.type = INTEL_OUTPUT_DISPLAYPORT;
 
-	DRM_DEBUG_KMS("got hpd irq on port %d - %s\n", intel_dig_port->port,
+	DRM_DEBUG_KMS("got hpd irq on port %c - %s\n",
+		      port_name(intel_dig_port->port),
 		      long_hpd ? "long" : "short");
 
 	if (long_hpd) {
