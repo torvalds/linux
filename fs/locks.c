@@ -247,6 +247,18 @@ void locks_free_lock(struct file_lock *fl)
 }
 EXPORT_SYMBOL(locks_free_lock);
 
+static void
+locks_dispose_list(struct list_head *dispose)
+{
+	struct file_lock *fl;
+
+	while (!list_empty(dispose)) {
+		fl = list_first_entry(dispose, struct file_lock, fl_block);
+		list_del_init(&fl->fl_block);
+		locks_free_lock(fl);
+	}
+}
+
 void locks_init_lock(struct file_lock *fl)
 {
 	memset(fl, 0, sizeof(struct file_lock));
@@ -651,12 +663,16 @@ static void locks_unlink_lock(struct file_lock **thisfl_p)
  *
  * Must be called with i_lock held!
  */
-static void locks_delete_lock(struct file_lock **thisfl_p)
+static void locks_delete_lock(struct file_lock **thisfl_p,
+			      struct list_head *dispose)
 {
 	struct file_lock *fl = *thisfl_p;
 
 	locks_unlink_lock(thisfl_p);
-	locks_free_lock(fl);
+	if (dispose)
+		list_add(&fl->fl_block, dispose);
+	else
+		locks_free_lock(fl);
 }
 
 /* Determine if lock sys_fl blocks lock caller_fl. Common functionality
@@ -812,6 +828,7 @@ static int flock_lock_file(struct file *filp, struct file_lock *request)
 	struct inode * inode = file_inode(filp);
 	int error = 0;
 	int found = 0;
+	LIST_HEAD(dispose);
 
 	if (!(request->fl_flags & FL_ACCESS) && (request->fl_type != F_UNLCK)) {
 		new_fl = locks_alloc_lock();
@@ -834,7 +851,7 @@ static int flock_lock_file(struct file *filp, struct file_lock *request)
 		if (request->fl_type == fl->fl_type)
 			goto out;
 		found = 1;
-		locks_delete_lock(before);
+		locks_delete_lock(before, &dispose);
 		break;
 	}
 
@@ -881,6 +898,7 @@ out:
 	spin_unlock(&inode->i_lock);
 	if (new_fl)
 		locks_free_lock(new_fl);
+	locks_dispose_list(&dispose);
 	return error;
 }
 
@@ -894,6 +912,7 @@ static int __posix_lock_file(struct inode *inode, struct file_lock *request, str
 	struct file_lock **before;
 	int error;
 	bool added = false;
+	LIST_HEAD(dispose);
 
 	/*
 	 * We may need two file_lock structures for this operation,
@@ -989,7 +1008,7 @@ static int __posix_lock_file(struct inode *inode, struct file_lock *request, str
 			else
 				request->fl_end = fl->fl_end;
 			if (added) {
-				locks_delete_lock(before);
+				locks_delete_lock(before, &dispose);
 				continue;
 			}
 			request = fl;
@@ -1019,7 +1038,7 @@ static int __posix_lock_file(struct inode *inode, struct file_lock *request, str
 				 * one (This may happen several times).
 				 */
 				if (added) {
-					locks_delete_lock(before);
+					locks_delete_lock(before, &dispose);
 					continue;
 				}
 				/*
@@ -1035,7 +1054,7 @@ static int __posix_lock_file(struct inode *inode, struct file_lock *request, str
 				locks_copy_lock(new_fl, request);
 				request = new_fl;
 				new_fl = NULL;
-				locks_delete_lock(before);
+				locks_delete_lock(before, &dispose);
 				locks_insert_lock(before, request);
 				added = true;
 			}
@@ -1097,6 +1116,7 @@ static int __posix_lock_file(struct inode *inode, struct file_lock *request, str
 		locks_free_lock(new_fl);
 	if (new_fl2)
 		locks_free_lock(new_fl2);
+	locks_dispose_list(&dispose);
 	return error;
 }
 
@@ -1272,7 +1292,7 @@ int lease_modify(struct file_lock **before, int arg)
 			printk(KERN_ERR "locks_delete_lock: fasync == %p\n", fl->fl_fasync);
 			fl->fl_fasync = NULL;
 		}
-		locks_delete_lock(before);
+		locks_delete_lock(before, NULL);
 	}
 	return 0;
 }
@@ -2324,6 +2344,7 @@ void locks_remove_file(struct file *filp)
 	struct inode * inode = file_inode(filp);
 	struct file_lock *fl;
 	struct file_lock **before;
+	LIST_HEAD(dispose);
 
 	if (!inode->i_flock)
 		return;
@@ -2369,12 +2390,13 @@ void locks_remove_file(struct file *filp)
 				fl->fl_type, fl->fl_flags,
 				fl->fl_start, fl->fl_end);
 
-			locks_delete_lock(before);
+			locks_delete_lock(before, &dispose);
 			continue;
  		}
 		before = &fl->fl_next;
 	}
 	spin_unlock(&inode->i_lock);
+	locks_dispose_list(&dispose);
 }
 
 /**
