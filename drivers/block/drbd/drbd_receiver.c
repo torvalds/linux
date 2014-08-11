@@ -1380,7 +1380,7 @@ int drbd_submit_peer_request(struct drbd_device *device,
 	if (peer_req->flags & EE_IS_TRIM_USE_ZEROOUT) {
 		/* wait for all pending IO completions, before we start
 		 * zeroing things out. */
-		conn_wait_active_ee_empty(first_peer_device(device)->connection);
+		conn_wait_active_ee_empty(peer_req->peer_device->connection);
 		/* add it to the active list now,
 		 * so we can find it to present it in debugfs */
 		peer_req->submit_jif = jiffies;
@@ -1966,7 +1966,7 @@ static int e_end_block(struct drbd_work *w, int cancel)
 	} else
 		D_ASSERT(device, drbd_interval_empty(&peer_req->i));
 
-	drbd_may_finish_epoch(first_peer_device(device)->connection, peer_req->epoch, EV_PUT + (cancel ? EV_CLEANUP : 0));
+	drbd_may_finish_epoch(peer_device->connection, peer_req->epoch, EV_PUT + (cancel ? EV_CLEANUP : 0));
 
 	return err;
 }
@@ -2098,7 +2098,7 @@ static int wait_for_and_update_peer_seq(struct drbd_peer_device *peer_device, co
 		}
 
 		rcu_read_lock();
-		tp = rcu_dereference(first_peer_device(device)->connection->net_conf)->two_primaries;
+		tp = rcu_dereference(peer_device->connection->net_conf)->two_primaries;
 		rcu_read_unlock();
 
 		if (!tp)
@@ -2364,7 +2364,7 @@ static int receive_Data(struct drbd_connection *connection, struct packet_info *
 	if (dp_flags & DP_SEND_RECEIVE_ACK) {
 		/* I really don't like it that the receiver thread
 		 * sends on the msock, but anyways */
-		drbd_send_ack(first_peer_device(device), P_RECV_ACK, peer_req);
+		drbd_send_ack(peer_device, P_RECV_ACK, peer_req);
 	}
 
 	if (tp) {
