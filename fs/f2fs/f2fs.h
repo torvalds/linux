@@ -1096,6 +1096,11 @@ static inline int f2fs_readonly(struct super_block *sb)
 	return sb->s_flags & MS_RDONLY;
 }
 
+static inline bool f2fs_cp_error(struct f2fs_sb_info *sbi)
+{
+	return is_set_ckpt_flags(sbi->ckpt, CP_ERROR_FLAG);
+}
+
 static inline void f2fs_stop_checkpoint(struct f2fs_sb_info *sbi)
 {
 	set_ckpt_flags(sbi->ckpt, CP_ERROR_FLAG);
