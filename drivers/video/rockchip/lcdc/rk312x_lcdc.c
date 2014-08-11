@@ -526,6 +526,15 @@ static int rk312x_lcdc_pre_init(struct rk_lcdc_driver *dev_drv)
 
 	/* backup reg config at uboot */
 	rk_lcdc_read_reg_defalut_cfg(lcdc_dev);
+
+        /* config for the FRC mode of dither down */
+        lcdc_writel(lcdc_dev, FRC_LOWER01_0, 0x12844821);
+        lcdc_writel(lcdc_dev, FRC_LOWER01_1, 0x21488412);
+        lcdc_writel(lcdc_dev, FRC_LOWER10_0, 0x55aaaa55);
+        lcdc_writel(lcdc_dev, FRC_LOWER10_1, 0x55aaaa55);
+        lcdc_writel(lcdc_dev, FRC_LOWER11_0, 0xdeb77deb);
+        lcdc_writel(lcdc_dev, FRC_LOWER11_1, 0xed7bb7de);
+
 	lcdc_msk_reg(lcdc_dev, SYS_CTRL, m_AUTO_GATING_EN, v_AUTO_GATING_EN(0));
 	lcdc_cfg_done(lcdc_dev);
 	if (dev_drv->iommu_enabled)	/* disable win0 to workaround iommu pagefault */
