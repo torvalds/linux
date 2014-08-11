@@ -1659,19 +1659,6 @@ static void l2cap_conn_del(struct hci_conn *hcon, int err)
 	l2cap_conn_put(conn);
 }
 
-static void security_timeout(struct work_struct *work)
-{
-	struct l2cap_conn *conn = container_of(work, struct l2cap_conn,
-					       security_timer.work);
-
-	BT_DBG("conn %p", conn);
-
-	if (test_and_clear_bit(HCI_CONN_LE_SMP_PEND, &conn->hcon->flags)) {
-		smp_chan_destroy(conn);
-		l2cap_conn_del(conn->hcon, ETIMEDOUT);
-	}
-}
-
 static void disconn_work(struct work_struct *work)
 {
 	struct l2cap_conn *conn = container_of(work, struct l2cap_conn,
@@ -6948,10 +6935,7 @@ static struct l2cap_conn *l2cap_conn_add(struct hci_conn *hcon)
 	INIT_LIST_HEAD(&conn->chan_l);
 	INIT_LIST_HEAD(&conn->users);
 
-	if (hcon->type == LE_LINK)
-		INIT_DELAYED_WORK(&conn->security_timer, security_timeout);
-	else
-		INIT_DELAYED_WORK(&conn->info_timer, l2cap_info_timeout);
+	INIT_DELAYED_WORK(&conn->info_timer, l2cap_info_timeout);
 
 	INIT_WORK(&conn->disconn_work, disconn_work);
 
