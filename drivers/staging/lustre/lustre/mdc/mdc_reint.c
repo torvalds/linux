@@ -152,8 +152,7 @@ int mdc_setattr(struct obd_export *exp, struct md_op_data *op_data,
 
 	ptlrpc_request_set_replen(req);
 	if (mod && (op_data->op_flags & MF_EPOCH_OPEN) &&
-	    req->rq_import->imp_replayable)
-	{
+	    req->rq_import->imp_replayable) {
 		LASSERT(*mod == NULL);
 
 		*mod = obd_mod_alloc();

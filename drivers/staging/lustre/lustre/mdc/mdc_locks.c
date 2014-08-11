@@ -785,14 +785,18 @@ int mdc_enqueue(struct obd_export *exp, struct ldlm_enqueue_info *einfo,
 	__u64		  flags, saved_flags = extra_lock_flags;
 	int		    rc;
 	struct ldlm_res_id res_id;
-	static const ldlm_policy_data_t lookup_policy =
-			    { .l_inodebits = { MDS_INODELOCK_LOOKUP } };
-	static const ldlm_policy_data_t update_policy =
-			    { .l_inodebits = { MDS_INODELOCK_UPDATE } };
-	static const ldlm_policy_data_t layout_policy =
-			    { .l_inodebits = { MDS_INODELOCK_LAYOUT } };
+	static const ldlm_policy_data_t lookup_policy = {
+		.l_inodebits = { MDS_INODELOCK_LOOKUP }
+	};
+	static const ldlm_policy_data_t update_policy = {
+		.l_inodebits = { MDS_INODELOCK_UPDATE }
+	};
+	static const ldlm_policy_data_t layout_policy = {
+		.l_inodebits = { MDS_INODELOCK_LAYOUT }
+	};
 	static const ldlm_policy_data_t getxattr_policy = {
-			      .l_inodebits = { MDS_INODELOCK_XATTR } };
+		.l_inodebits = { MDS_INODELOCK_XATTR }
+	};
 	ldlm_policy_data_t const *policy = &lookup_policy;
 	int		    generation, resends = 0;
 	struct ldlm_reply     *lockrep;
