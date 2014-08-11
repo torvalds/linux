@@ -285,7 +285,8 @@ EXPORT_SYMBOL(__locks_copy_lock);
 
 void locks_copy_lock(struct file_lock *new, struct file_lock *fl)
 {
-	locks_release_private(new);
+	/* "new" must be a freshly-initialized lock */
+	WARN_ON_ONCE(new->fl_ops);
 
 	__locks_copy_lock(new, fl);
 	new->fl_file = fl->fl_file;
