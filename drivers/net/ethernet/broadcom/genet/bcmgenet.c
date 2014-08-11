@@ -2533,6 +2533,13 @@ static int bcmgenet_probe(struct platform_device *pdev)
 	priv->pdev = pdev;
 	priv->version = (enum bcmgenet_version)of_id->data;
 
+	priv->clk = devm_clk_get(&priv->pdev->dev, "enet");
+	if (IS_ERR(priv->clk))
+		dev_warn(&priv->pdev->dev, "failed to get enet clock\n");
+
+	if (!IS_ERR(priv->clk))
+		clk_prepare_enable(priv->clk);
+
 	bcmgenet_set_hw_params(priv);
 
 	/* Mii wait queue */
@@ -2541,16 +2548,9 @@ static int bcmgenet_probe(struct platform_device *pdev)
 	priv->rx_buf_len = RX_BUF_LENGTH;
 	INIT_WORK(&priv->bcmgenet_irq_work, bcmgenet_irq_task);
 
-	priv->clk = devm_clk_get(&priv->pdev->dev, "enet");
-	if (IS_ERR(priv->clk))
-		dev_warn(&priv->pdev->dev, "failed to get enet clock\n");
-
 	priv->clk_wol = devm_clk_get(&priv->pdev->dev, "enet-wol");
 	if (IS_ERR(priv->clk_wol))
 		dev_warn(&priv->pdev->dev, "failed to get enet-wol clock\n");
-
-	if (!IS_ERR(priv->clk))
-		clk_prepare_enable(priv->clk);
 
 	err = reset_umac(priv);
 	if (err)
