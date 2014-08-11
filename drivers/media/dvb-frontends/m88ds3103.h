@@ -47,12 +47,21 @@ struct m88ds3103_config {
 	 */
 #define M88DS3103_TS_SERIAL             0 /* TS output pin D0, normal */
 #define M88DS3103_TS_SERIAL_D7          1 /* TS output pin D7 */
-#define M88DS3103_TS_PARALLEL           2 /* 24 MHz, normal */
-#define M88DS3103_TS_PARALLEL_12        3 /* 12 MHz */
-#define M88DS3103_TS_PARALLEL_16        4 /* 16 MHz */
-#define M88DS3103_TS_PARALLEL_19_2      5 /* 19.2 MHz */
-#define M88DS3103_TS_CI                 6 /* 6 MHz */
+#define M88DS3103_TS_PARALLEL           2 /* TS Parallel mode */
+#define M88DS3103_TS_CI                 3 /* TS CI Mode */
 	u8 ts_mode;
+
+	/*
+	 * TS clk in KHz
+	 * Default: 0.
+	 */
+	u32 ts_clk;
+
+	/*
+	 * TS clk polarity.
+	 * Default: 0. 1-active at falling edge; 0-active at rising edge.
+	 */
+	u8 ts_clk_pol:1;
 
 	/*
 	 * spectrum inversion
@@ -86,6 +95,22 @@ struct m88ds3103_config {
 	 * Default: none, must set
 	 */
 	u8 agc;
+
+	/*
+	 * LNB H/V pin polarity
+	 * Default: 0.
+	 * 1: pin high set to VOLTAGE_13, pin low to set VOLTAGE_18.
+	 * 0: pin high set to VOLTAGE_18, pin low to set VOLTAGE_13.
+	 */
+	u8 lnb_hv_pol:1;
+
+	/*
+	 * LNB enable pin polarity
+	 * Default: 0.
+	 * 1: pin high to enable, pin low to disable.
+	 * 0: pin high to disable, pin low to enable.
+	 */
+	u8 lnb_en_pol:1;
 };
 
 /*

@@ -856,7 +856,9 @@ static const struct m88ds3103_config pctv_461e_m88ds3103_config = {
 	.clock = 27000000,
 	.i2c_wr_max = 33,
 	.clock_out = 0,
-	.ts_mode = M88DS3103_TS_PARALLEL_16,
+	.ts_mode = M88DS3103_TS_PARALLEL,
+	.ts_clk = 16000,
+	.ts_clk_pol = 1,
 	.agc = 0x99,
 };
 
