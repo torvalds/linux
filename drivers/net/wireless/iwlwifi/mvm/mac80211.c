@@ -1451,9 +1451,22 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 	if (changes & BSS_CHANGED_ASSOC && bss_conf->assoc)
 		iwl_mvm_mac_ctxt_recalc_tsf_id(mvm, vif);
 
-	ret = iwl_mvm_mac_ctxt_changed(mvm, vif, false);
+	/*
+	 * If we're not associated yet, take the (new) BSSID before associating
+	 * so the firmware knows. If we're already associated, then use the old
+	 * BSSID here, and we'll send a cleared one later in the CHANGED_ASSOC
+	 * branch for disassociation below.
+	 */
+	if (changes & BSS_CHANGED_BSSID && !mvmvif->associated)
+		memcpy(mvmvif->bssid, bss_conf->bssid, ETH_ALEN);
+
+	ret = iwl_mvm_mac_ctxt_changed(mvm, vif, false, mvmvif->bssid);
 	if (ret)
 		IWL_ERR(mvm, "failed to update MAC %pM\n", vif->addr);
+
+	/* after sending it once, adopt mac80211 data */
+	memcpy(mvmvif->bssid, bss_conf->bssid, ETH_ALEN);
+	mvmvif->associated = bss_conf->assoc;
 
 	if (changes & BSS_CHANGED_ASSOC) {
 		if (bss_conf->assoc) {
@@ -1516,6 +1529,13 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 
 			if (vif->p2p)
 				iwl_mvm_unref(mvm, IWL_MVM_REF_P2P_CLIENT);
+
+			/* this will take the cleared BSSID from bss_conf */
+			ret = iwl_mvm_mac_ctxt_changed(mvm, vif, false, NULL);
+			if (ret)
+				IWL_ERR(mvm,
+					"failed to update MAC %pM (clear after unassoc)\n",
+					vif->addr);
 		}
 
 		iwl_mvm_recalc_multicast(mvm);
@@ -1627,7 +1647,7 @@ static int iwl_mvm_start_ap_ibss(struct ieee80211_hw *hw,
 
 	/* Need to update the P2P Device MAC (only GO, IBSS is single vif) */
 	if (vif->p2p && mvm->p2p_device_vif)
-		iwl_mvm_mac_ctxt_changed(mvm, mvm->p2p_device_vif, false);
+		iwl_mvm_mac_ctxt_changed(mvm, mvm->p2p_device_vif, false, NULL);
 
 	iwl_mvm_ref(mvm, IWL_MVM_REF_AP_IBSS);
 
@@ -1685,7 +1705,7 @@ static void iwl_mvm_stop_ap_ibss(struct ieee80211_hw *hw,
 
 	/* Need to update the P2P Device MAC (only GO, IBSS is single vif) */
 	if (vif->p2p && mvm->p2p_device_vif)
-		iwl_mvm_mac_ctxt_changed(mvm, mvm->p2p_device_vif, false);
+		iwl_mvm_mac_ctxt_changed(mvm, mvm->p2p_device_vif, false, NULL);
 
 	iwl_mvm_update_quotas(mvm, NULL);
 	iwl_mvm_send_rm_bcast_sta(mvm, &mvmvif->bcast_sta);
@@ -1712,7 +1732,7 @@ iwl_mvm_bss_info_changed_ap_ibss(struct iwl_mvm *mvm,
 
 	if (changes & (BSS_CHANGED_ERP_CTS_PROT | BSS_CHANGED_HT |
 		       BSS_CHANGED_BANDWIDTH) &&
-	    iwl_mvm_mac_ctxt_changed(mvm, vif, false))
+	    iwl_mvm_mac_ctxt_changed(mvm, vif, false, NULL))
 		IWL_ERR(mvm, "failed to update MAC %pM\n", vif->addr);
 
 	/* Need to send a new beacon template to the FW */
@@ -2123,7 +2143,7 @@ static int iwl_mvm_mac_conf_tx(struct ieee80211_hw *hw,
 		int ret;
 
 		mutex_lock(&mvm->mutex);
-		ret = iwl_mvm_mac_ctxt_changed(mvm, vif, false);
+		ret = iwl_mvm_mac_ctxt_changed(mvm, vif, false, NULL);
 		mutex_unlock(&mvm->mutex);
 		return ret;
 	}
@@ -2745,7 +2765,7 @@ static int __iwl_mvm_assign_vif_chanctx(struct iwl_mvm *mvm,
 	if ((vif->type == NL80211_IFTYPE_AP) ||
 	    (switching_chanctx && (vif->type == NL80211_IFTYPE_STATION))) {
 		iwl_mvm_update_quotas(mvm, NULL);
-		iwl_mvm_mac_ctxt_changed(mvm, vif, false);
+		iwl_mvm_mac_ctxt_changed(mvm, vif, false, NULL);
 	}
 
 	if (vif->csa_active && vif->type == NL80211_IFTYPE_STATION) {
@@ -2830,7 +2850,7 @@ static void __iwl_mvm_unassign_vif_chanctx(struct iwl_mvm *mvm,
 		if (!WARN_ON(!mvmsta))
 			iwl_mvm_sta_modify_disable_tx(mvm, mvmsta, true);
 
-		iwl_mvm_mac_ctxt_changed(mvm, vif, true);
+		iwl_mvm_mac_ctxt_changed(mvm, vif, true, NULL);
 		break;
 	default:
 		break;

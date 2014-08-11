@@ -320,6 +320,9 @@ struct iwl_mvm_vif_bf_data {
  * @id: between 0 and 3
  * @color: to solve races upon MAC addition and removal
  * @ap_sta_id: the sta_id of the AP - valid only if VIF type is STA
+ * @bssid: BSSID for this (client) interface
+ * @associated: indicates that we're currently associated, used only for
+ *	managing the firmware state in iwl_mvm_bss_info_changed_station()
  * @uploaded: indicates the MAC context has been added to the device
  * @ap_ibss_active: indicates that AP/IBSS is configured and that the interface
  *	should get quota etc.
@@ -340,6 +343,9 @@ struct iwl_mvm_vif {
 	u16 id;
 	u16 color;
 	u8 ap_sta_id;
+
+	u8 bssid[ETH_ALEN];
+	bool associated;
 
 	bool uploaded;
 	bool ap_ibss_active;
@@ -897,7 +903,7 @@ int iwl_mvm_mac_ctxt_init(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 void iwl_mvm_mac_ctxt_release(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 int iwl_mvm_mac_ctxt_add(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 int iwl_mvm_mac_ctxt_changed(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
-			     bool force_assoc_off);
+			     bool force_assoc_off, const u8 *bssid_override);
 int iwl_mvm_mac_ctxt_remove(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 u32 iwl_mvm_mac_get_queues_mask(struct iwl_mvm *mvm,
 				struct ieee80211_vif *vif);
