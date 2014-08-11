@@ -755,7 +755,7 @@ static struct dentry *open_root_dentry(struct ceph_fs_client *fsc,
 				goto out;
 			}
 		} else {
-			root = d_obtain_alias(inode);
+			root = d_obtain_root(inode);
 		}
 		ceph_init_dentry(root);
 		dout("open_root_inode success, root dentry is %p\n", root);
