@@ -384,8 +384,6 @@ static void smp_failure(struct l2cap_conn *conn, u8 reason)
 
 	smp = chan->data;
 
-	cancel_delayed_work_sync(&smp->security_timer);
-
 	if (test_and_clear_bit(HCI_CONN_LE_SMP_PEND, &hcon->flags))
 		smp_chan_destroy(conn);
 }
@@ -765,7 +763,6 @@ static int smp_distribute_keys(struct l2cap_conn *conn)
 		return 0;
 
 	clear_bit(HCI_CONN_LE_SMP_PEND, &hcon->flags);
-	cancel_delayed_work_sync(&smp->security_timer);
 	set_bit(SMP_FLAG_COMPLETE, &smp->flags);
 	smp_notify_keys(conn);
 
@@ -821,6 +818,11 @@ void smp_chan_destroy(struct l2cap_conn *conn)
 	bool complete;
 
 	BUG_ON(!smp);
+
+	cancel_delayed_work_sync(&smp->security_timer);
+	/* In case the timeout freed the SMP context */
+	if (!chan->data)
+		return;
 
 	complete = test_bit(SMP_FLAG_COMPLETE, &smp->flags);
 	mgmt_smp_complete(conn->hcon, complete);
@@ -1512,10 +1514,8 @@ static void smp_teardown_cb(struct l2cap_chan *chan, int err)
 
 	BT_DBG("chan %p", chan);
 
-	if (test_and_clear_bit(HCI_CONN_LE_SMP_PEND, &conn->hcon->flags)) {
-		cancel_delayed_work_sync(&smp->security_timer);
+	if (test_and_clear_bit(HCI_CONN_LE_SMP_PEND, &conn->hcon->flags))
 		smp_chan_destroy(conn);
-	}
 
 	conn->smp = NULL;
 	l2cap_chan_put(chan);
