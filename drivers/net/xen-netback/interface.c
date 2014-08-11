@@ -78,12 +78,8 @@ int xenvif_poll(struct napi_struct *napi, int budget)
 	/* This vif is rogue, we pretend we've there is nothing to do
 	 * for this vif to deschedule it from NAPI. But this interface
 	 * will be turned off in thread context later.
-	 * Also, if a guest doesn't post enough slots to receive data on one of
-	 * its queues, the carrier goes down and NAPI is descheduled here so
-	 * the guest can't send more packets until it's ready to receive.
 	 */
-	if (unlikely(queue->vif->disabled ||
-		     !netif_carrier_ok(queue->vif->dev))) {
+	if (unlikely(queue->vif->disabled)) {
 		napi_complete(napi);
 		return 0;
 	}
