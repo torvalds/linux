@@ -7281,12 +7281,6 @@ int l2cap_security_cfm(struct hci_conn *hcon, u8 status, u8 encrypt)
 
 	BT_DBG("conn %p status 0x%2.2x encrypt %u", conn, status, encrypt);
 
-	if (hcon->type == LE_LINK) {
-		if (!status && encrypt)
-			smp_distribute_keys(conn);
-		cancel_delayed_work(&conn->security_timer);
-	}
-
 	mutex_lock(&conn->chan_lock);
 
 	list_for_each_entry(chan, &conn->chan_l, list) {
