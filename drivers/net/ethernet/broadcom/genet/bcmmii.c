@@ -129,7 +129,10 @@ static void bcmgenet_mii_setup(struct net_device *dev)
 			cmd_bits |= CMD_RX_PAUSE_IGNORE | CMD_TX_PAUSE_IGNORE;
 	}
 
-	if (status_changed) {
+	if (!status_changed)
+		return;
+
+	if (phydev->link) {
 		reg = bcmgenet_umac_readl(priv, UMAC_CMD);
 		reg &= ~((CMD_SPEED_MASK << CMD_SPEED_SHIFT) |
 			       CMD_HD_EN |
@@ -137,8 +140,9 @@ static void bcmgenet_mii_setup(struct net_device *dev)
 		reg |= cmd_bits;
 		bcmgenet_umac_writel(priv, reg, UMAC_CMD);
 
-		phy_print_status(phydev);
 	}
+
+	phy_print_status(phydev);
 }
 
 void bcmgenet_mii_reset(struct net_device *dev)
