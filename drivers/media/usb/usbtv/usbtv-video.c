@@ -1,5 +1,5 @@
 /*
- * Fushicai USBTV007 Video Grabber Driver
+ * Fushicai USBTV007 Audio-Video Grabber Driver
  *
  * Product web site:
  * http://www.fushicai.com/products_detail/&productId=d05449ee-b690-42f9-a661-aa7353894bed.html
@@ -79,7 +79,6 @@ static int usbtv_select_input(struct usbtv *usbtv, int input)
 		{ USBTV_BASE + 0x011f, 0x00f2 },
 		{ USBTV_BASE + 0x0127, 0x0060 },
 		{ USBTV_BASE + 0x00ae, 0x0010 },
-		{ USBTV_BASE + 0x0284, 0x00aa },
 		{ USBTV_BASE + 0x0239, 0x0060 },
 	};
 
@@ -88,7 +87,6 @@ static int usbtv_select_input(struct usbtv *usbtv, int input)
 		{ USBTV_BASE + 0x011f, 0x00ff },
 		{ USBTV_BASE + 0x0127, 0x0060 },
 		{ USBTV_BASE + 0x00ae, 0x0030 },
-		{ USBTV_BASE + 0x0284, 0x0088 },
 		{ USBTV_BASE + 0x0239, 0x0060 },
 	};
 
@@ -225,7 +223,6 @@ static int usbtv_setup_capture(struct usbtv *usbtv)
 		{ USBTV_BASE + 0x0159, 0x0006 },
 		{ USBTV_BASE + 0x015d, 0x0000 },
 
-		{ USBTV_BASE + 0x0284, 0x0088 },
 		{ USBTV_BASE + 0x0003, 0x0004 },
 		{ USBTV_BASE + 0x0100, 0x00d3 },
 		{ USBTV_BASE + 0x0115, 0x0015 },
@@ -434,6 +431,8 @@ static int usbtv_start(struct usbtv *usbtv)
 	int i;
 	int ret;
 
+	usbtv_audio_suspend(usbtv);
+
 	ret = usb_set_interface(usbtv->udev, 0, 0);
 	if (ret < 0)
 		return ret;
@@ -445,6 +444,8 @@ static int usbtv_start(struct usbtv *usbtv)
 	ret = usb_set_interface(usbtv->udev, 0, 1);
 	if (ret < 0)
 		return ret;
+
+	usbtv_audio_resume(usbtv);
 
 	for (i = 0; i < USBTV_ISOC_TRANSFERS; i++) {
 		struct urb *ip;
