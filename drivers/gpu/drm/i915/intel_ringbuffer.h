@@ -90,6 +90,8 @@ struct intel_ringbuffer {
 	struct drm_i915_gem_object *obj;
 	void __iomem *virtual_start;
 
+	struct intel_engine_cs *ring;
+
 	u32 head;
 	u32 tail;
 	int space;

@@ -1594,6 +1594,7 @@ static int intel_init_ring_buffer(struct drm_device *dev,
 	INIT_LIST_HEAD(&ring->active_list);
 	INIT_LIST_HEAD(&ring->request_list);
 	ringbuf->size = 32 * PAGE_SIZE;
+	ringbuf->ring = ring;
 	memset(ring->semaphore.sync_seqno, 0, sizeof(ring->semaphore.sync_seqno));
 
 	init_waitqueue_head(&ring->irq_queue);

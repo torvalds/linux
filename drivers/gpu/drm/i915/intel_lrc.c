@@ -134,6 +134,7 @@ int intel_lr_context_deferred_create(struct intel_context *ctx,
 		return ret;
 	}
 
+	ringbuf->ring = ring;
 	ringbuf->size = 32 * PAGE_SIZE;
 	ringbuf->effective_size = ringbuf->size;
 	ringbuf->head = 0;
