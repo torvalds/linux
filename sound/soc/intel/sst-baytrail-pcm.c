@@ -404,23 +404,6 @@ static const struct snd_soc_component_driver byt_dai_component = {
 };
 
 #ifdef CONFIG_PM
-static int sst_byt_pcm_dev_suspend_noirq(struct device *dev)
-{
-	struct sst_pdata *sst_pdata = dev_get_platdata(dev);
-	int ret;
-
-	dev_dbg(dev, "suspending noirq\n");
-
-	/* at this point all streams will be stopped and context saved */
-	ret = sst_byt_dsp_suspend_noirq(dev, sst_pdata);
-	if (ret < 0) {
-		dev_err(dev, "failed to suspend %d\n", ret);
-		return ret;
-	}
-
-	return ret;
-}
-
 static int sst_byt_pcm_dev_suspend_late(struct device *dev)
 {
 	struct sst_pdata *sst_pdata = dev_get_platdata(dev);
@@ -458,7 +441,6 @@ static int sst_byt_pcm_dev_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops sst_byt_pm_ops = {
-	.suspend_noirq = sst_byt_pcm_dev_suspend_noirq,
 	.suspend_late = sst_byt_pcm_dev_suspend_late,
 	.resume_early = sst_byt_pcm_dev_resume_early,
 	.resume = sst_byt_pcm_dev_resume,
