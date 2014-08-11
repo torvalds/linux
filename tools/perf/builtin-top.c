@@ -577,6 +577,20 @@ static void *display_thread_tui(void *arg)
 	return NULL;
 }
 
+static void display_sig(int sig __maybe_unused)
+{
+	done = 1;
+}
+
+static void display_setup_sig(void)
+{
+	signal(SIGSEGV, display_sig);
+	signal(SIGFPE,  display_sig);
+	signal(SIGINT,  display_sig);
+	signal(SIGQUIT, display_sig);
+	signal(SIGTERM, display_sig);
+}
+
 static void *display_thread(void *arg)
 {
 	struct pollfd stdin_poll = { .fd = 0, .events = POLLIN };
@@ -584,6 +598,7 @@ static void *display_thread(void *arg)
 	struct perf_top *top = arg;
 	int delay_msecs, c;
 
+	display_setup_sig();
 	pthread__unblock_sigwinch();
 repeat:
 	delay_msecs = top->delay_secs * 1000;
@@ -614,6 +629,7 @@ repeat:
 		}
 	}
 
+	tcsetattr(0, TCSAFLUSH, &save);
 	return NULL;
 }
 
