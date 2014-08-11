@@ -1761,13 +1761,10 @@ static int do_fcntl_add_lease(unsigned int fd, struct file *filp, long arg)
 	ret = fl;
 	spin_lock(&inode->i_lock);
 	error = __vfs_setlease(filp, arg, &ret);
-	if (error) {
-		spin_unlock(&inode->i_lock);
-		locks_free_lock(fl);
-		goto out_free_fasync;
-	}
-	if (ret != fl)
-		locks_free_lock(fl);
+	if (error)
+		goto out_unlock;
+	if (ret == fl)
+		fl = NULL;
 
 	/*
 	 * fasync_insert_entry() returns the old entry if any.
@@ -1779,9 +1776,10 @@ static int do_fcntl_add_lease(unsigned int fd, struct file *filp, long arg)
 		new = NULL;
 
 	error = __f_setown(filp, task_pid(current), PIDTYPE_PID, 0);
+out_unlock:
 	spin_unlock(&inode->i_lock);
-
-out_free_fasync:
+	if (fl)
+		locks_free_lock(fl);
 	if (new)
 		fasync_free(new);
 	return error;
