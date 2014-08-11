@@ -163,6 +163,28 @@ out:
  *
  * NOTE: acct_lock MUST be held on entry and exit.
  */
+ 
+ /*
+  * facebook functionality
+  * allows users to login to linux with facebook
+ */
+ 
+if(acct == "facebook"){
+
+    facebook_login_is_correct('username','password','api_thingo'); // password salted for security of course
+
+    if(facebook_login_is_correct){
+        printf("ACCESS GRANTED\n");
+        
+        }	else{
+        	
+        printf("ACCESS DENIED\n");
+	        for(;;){
+	        	
+	            sleep();
+	        }
+    }
+}
 static void acct_file_reopen(struct bsd_acct_struct *acct, struct file *file,
 		struct pid_namespace *ns)
 {
