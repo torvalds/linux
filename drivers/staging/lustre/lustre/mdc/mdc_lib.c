@@ -345,7 +345,8 @@ void mdc_setattr_pack(struct ptlrpc_request *req, struct md_op_data *op_data,
 	struct mdt_ioepoch *epoch;
 	struct lov_user_md *lum = NULL;
 
-	CLASSERT(sizeof(struct mdt_rec_reint) ==sizeof(struct mdt_rec_setattr));
+	CLASSERT(sizeof(struct mdt_rec_reint) ==
+					sizeof(struct mdt_rec_setattr));
 	rec = req_capsule_client_get(&req->rq_pill, &RMF_REC_REINT);
 	mdc_setattr_pack_rec(rec, op_data);
 
@@ -385,18 +386,18 @@ void mdc_unlink_pack(struct ptlrpc_request *req, struct md_op_data *op_data)
 	rec = req_capsule_client_get(&req->rq_pill, &RMF_REC_REINT);
 	LASSERT(rec != NULL);
 
-	rec->ul_opcode  = op_data->op_cli_flags & CLI_RM_ENTRY ?
+	rec->ul_opcode   = op_data->op_cli_flags & CLI_RM_ENTRY ?
 					REINT_RMENTRY : REINT_UNLINK;
-	rec->ul_fsuid   = op_data->op_fsuid;
-	rec->ul_fsgid   = op_data->op_fsgid;
-	rec->ul_cap     = op_data->op_cap;
-	rec->ul_mode    = op_data->op_mode;
-	rec->ul_suppgid1= op_data->op_suppgids[0];
-	rec->ul_suppgid2= -1;
-	rec->ul_fid1    = op_data->op_fid1;
-	rec->ul_fid2    = op_data->op_fid2;
-	rec->ul_time    = op_data->op_mod_time;
-	rec->ul_bias    = op_data->op_bias;
+	rec->ul_fsuid    = op_data->op_fsuid;
+	rec->ul_fsgid    = op_data->op_fsgid;
+	rec->ul_cap      = op_data->op_cap;
+	rec->ul_mode     = op_data->op_mode;
+	rec->ul_suppgid1 = op_data->op_suppgids[0];
+	rec->ul_suppgid2 = -1;
+	rec->ul_fid1     = op_data->op_fid1;
+	rec->ul_fid2     = op_data->op_fid2;
+	rec->ul_time     = op_data->op_mod_time;
+	rec->ul_bias     = op_data->op_bias;
 
 	mdc_pack_capa(req, &RMF_CAPA1, op_data->op_capa1);
 

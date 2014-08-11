@@ -621,7 +621,7 @@ static int mdc_finish_enqueue(struct obd_export *exp,
 	 * function without doing so, and try to replay a failed create
 	 * (bug 3440) */
 	if (it->it_op & IT_OPEN && req->rq_replay &&
-	    (!it_disposition(it, DISP_OPEN_OPEN) ||intent->it_status != 0))
+	    (!it_disposition(it, DISP_OPEN_OPEN) || intent->it_status != 0))
 		mdc_clear_replay_flag(req, intent->it_status);
 
 	DEBUG_REQ(D_RPCTRACE, req, "op: %d disposition: %x, status: %d",
@@ -1047,7 +1047,8 @@ static int mdc_finish_intent_lock(struct obd_export *exp,
 			it->d.lustre.it_lock_handle = lockh->cookie;
 		}
 	}
-	CDEBUG(D_DENTRY,"D_IT dentry %.*s intent: %s status %d disp %x rc %d\n",
+	CDEBUG(D_DENTRY,
+	       "D_IT dentry %.*s intent: %s status %d disp %x rc %d\n",
 	       op_data->op_namelen, op_data->op_name, ldlm_it2str(it->it_op),
 	       it->d.lustre.it_status, it->d.lustre.it_disposition, rc);
 	return rc;

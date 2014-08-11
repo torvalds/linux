@@ -326,7 +326,8 @@ static int mdc_is_subdir(struct obd_export *exp,
 	return rc;
 }
 
-static int mdc_xattr_common(struct obd_export *exp,const struct req_format *fmt,
+static int mdc_xattr_common(struct obd_export *exp,
+			    const struct req_format *fmt,
 			    const struct lu_fid *fid,
 			    struct obd_capa *oc, int opcode, obd_valid valid,
 			    const char *xattr_name, const char *input,
@@ -544,7 +545,7 @@ int mdc_get_lustre_md(struct obd_export *exp, struct ptlrpc_request *req,
 		int lmvsize;
 		struct lov_mds_md *lmv;
 
-		if(!S_ISDIR(md->body->mode)) {
+		if (!S_ISDIR(md->body->mode)) {
 			CDEBUG(D_INFO, "OBD_MD_FLDIREA set, should be a "
 			       "directory, but is not\n");
 			GOTO(out, rc = -EPROTO);
@@ -1536,7 +1537,7 @@ static int changelog_kkuc_cb(const struct lu_env *env, struct llog_handle *llh,
 	memcpy(lh + 1, &rec->cr, len - sizeof(*lh));
 
 	rc = libcfs_kkuc_msg_put(cs->cs_fp, lh);
-	CDEBUG(D_CHANGELOG, "kucmsg fp %p len %d rc %d\n", cs->cs_fp, len,rc);
+	CDEBUG(D_CHANGELOG, "kucmsg fp %p len %d rc %d\n", cs->cs_fp, len, rc);
 
 	return rc;
 }
