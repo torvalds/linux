@@ -95,7 +95,6 @@ eb_lookup_vmas(struct eb_vmas *eb,
 	       struct i915_address_space *vm,
 	       struct drm_file *file)
 {
-	struct drm_i915_private *dev_priv = vm->dev->dev_private;
 	struct drm_i915_gem_object *obj;
 	struct list_head objects;
 	int i, ret;
@@ -130,20 +129,12 @@ eb_lookup_vmas(struct eb_vmas *eb,
 	i = 0;
 	while (!list_empty(&objects)) {
 		struct i915_vma *vma;
-		struct i915_address_space *bind_vm = vm;
 
 		if (exec[i].flags & EXEC_OBJECT_NEEDS_GTT &&
 		    USES_FULL_PPGTT(vm->dev)) {
 			ret = -EINVAL;
 			goto err;
 		}
-
-		/* If we have secure dispatch, or the userspace assures us that
-		 * they know what they're doing, use the GGTT VM.
-		 */
-		if (((args->flags & I915_EXEC_SECURE) &&
-		    (i == (args->buffer_count - 1))))
-			bind_vm = &dev_priv->gtt.base;
 
 		obj = list_first_entry(&objects,
 				       struct drm_i915_gem_object,
@@ -157,7 +148,7 @@ eb_lookup_vmas(struct eb_vmas *eb,
 		 * from the (obj, vm) we don't run the risk of creating
 		 * duplicated vmas for the same vm.
 		 */
-		vma = i915_gem_obj_lookup_or_create_vma(obj, bind_vm);
+		vma = i915_gem_obj_lookup_or_create_vma(obj, vm);
 		if (IS_ERR(vma)) {
 			DRM_DEBUG("Failed to lookup VMA\n");
 			ret = PTR_ERR(vma);
@@ -1391,25 +1382,36 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	/* snb/ivb/vlv conflate the "batch in ppgtt" bit with the "non-secure
 	 * batch" bit. Hence we need to pin secure batches into the global gtt.
 	 * hsw should have this fixed, but bdw mucks it up again. */
-	if (flags & I915_DISPATCH_SECURE &&
-	    !batch_obj->has_global_gtt_mapping) {
-		/* When we have multiple VMs, we'll need to make sure that we
-		 * allocate space first */
-		struct i915_vma *vma = i915_gem_obj_to_ggtt(batch_obj);
-		BUG_ON(!vma);
-		vma->bind_vma(vma, batch_obj->cache_level, GLOBAL_BIND);
-	}
+	if (flags & I915_DISPATCH_SECURE) {
+		/*
+		 * So on first glance it looks freaky that we pin the batch here
+		 * outside of the reservation loop. But:
+		 * - The batch is already pinned into the relevant ppgtt, so we
+		 *   already have the backing storage fully allocated.
+		 * - No other BO uses the global gtt (well contexts, but meh),
+		 *   so we don't really have issues with mutliple objects not
+		 *   fitting due to fragmentation.
+		 * So this is actually safe.
+		 */
+		ret = i915_gem_obj_ggtt_pin(batch_obj, 0, 0);
+		if (ret)
+			goto err;
 
-	if (flags & I915_DISPATCH_SECURE)
 		exec_start += i915_gem_obj_ggtt_offset(batch_obj);
-	else
+	} else
 		exec_start += i915_gem_obj_offset(batch_obj, vm);
 
 	ret = legacy_ringbuffer_submission(dev, file, ring, ctx,
-			args, &eb->vmas, batch_obj, exec_start, flags);
-	if (ret)
-		goto err;
+					   args, &eb->vmas, batch_obj, exec_start, flags);
 
+	/*
+	 * FIXME: We crucially rely upon the active tracking for the (ppgtt)
+	 * batch vma for correctness. For less ugly and less fragility this
+	 * needs to be adjusted to also track the ggtt batch vma properly as
+	 * active.
+	 */
+	if (flags & I915_DISPATCH_SECURE)
+		i915_gem_object_ggtt_unpin(batch_obj);
 err:
 	/* the request owns the ref now */
 	i915_gem_context_unreference(ctx);
