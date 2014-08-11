@@ -778,13 +778,8 @@ static int mdc_finish_enqueue(struct obd_export *exp,
 int mdc_enqueue(struct obd_export *exp, struct ldlm_enqueue_info *einfo,
 		struct lookup_intent *it, struct md_op_data *op_data,
 		struct lustre_handle *lockh, void *lmm, int lmmsize,
-		struct ptlrpc_request **reqp, __u64 extra_lock_flags)
+		struct ptlrpc_request **reqp, u64 extra_lock_flags)
 {
-	struct obd_device     *obddev = class_exp2obd(exp);
-	struct ptlrpc_request *req = NULL;
-	__u64		  flags, saved_flags = extra_lock_flags;
-	int		    rc;
-	struct ldlm_res_id res_id;
 	static const ldlm_policy_data_t lookup_policy = {
 		.l_inodebits = { MDS_INODELOCK_LOOKUP }
 	};
@@ -798,9 +793,14 @@ int mdc_enqueue(struct obd_export *exp, struct ldlm_enqueue_info *einfo,
 		.l_inodebits = { MDS_INODELOCK_XATTR }
 	};
 	ldlm_policy_data_t const *policy = &lookup_policy;
-	int		    generation, resends = 0;
-	struct ldlm_reply     *lockrep;
-	enum lvb_type	       lvb_type = 0;
+	struct obd_device *obddev = class_exp2obd(exp);
+	struct ptlrpc_request *req;
+	u64 flags, saved_flags = extra_lock_flags;
+	struct ldlm_res_id res_id;
+	int generation, resends = 0;
+	struct ldlm_reply *lockrep;
+	enum lvb_type lvb_type = LVB_T_NONE;
+	int rc;
 
 	LASSERTF(!it || einfo->ei_type == LDLM_IBITS, "lock type %d\n",
 		 einfo->ei_type);
