@@ -269,6 +269,16 @@ struct rngtst {
 /* RNG4 TRNG test registers */
 struct rng4tst {
 #define RTMCTL_PRGM	0x00010000	/* 1 -> program mode, 0 -> run mode */
+#define RTMCTL_SAMP_MODE_VON_NEUMANN_ES_SC	0 /* use von Neumann data in
+						     both entropy shifter and
+						     statistical checker */
+#define RTMCTL_SAMP_MODE_RAW_ES_SC		1 /* use raw data in both
+						     entropy shifter and
+						     statistical checker */
+#define RTMCTL_SAMP_MODE_VON_NEUMANN_ES_RAW_SC	2 /* use von Neumann data in
+						     entropy shifter, raw data
+						     in statistical checker */
+#define RTMCTL_SAMP_MODE_INVALID		3 /* invalid combination */
 	u32 rtmctl;		/* misc. control register */
 	u32 rtscmisc;		/* statistical check misc. register */
 	u32 rtpkrrng;		/* poker range register */

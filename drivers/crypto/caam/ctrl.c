@@ -357,8 +357,17 @@ static void kick_trng(struct platform_device *pdev, int ent_delay)
 	wr_reg32(&r4tst->rtfrqmin, ent_delay >> 2);
 	/* disable maximum frequency count */
 	wr_reg32(&r4tst->rtfrqmax, RTFRQMAX_DISABLE);
+	/* read the control register */
+	val = rd_reg32(&r4tst->rtmctl);
+	/*
+	 * select raw sampling in both entropy shifter
+	 * and statistical checker
+	 */
+	setbits32(&val, RTMCTL_SAMP_MODE_RAW_ES_SC);
 	/* put RNG4 into run mode */
-	clrbits32(&r4tst->rtmctl, RTMCTL_PRGM);
+	clrbits32(&val, RTMCTL_PRGM);
+	/* write back the control register */
+	wr_reg32(&r4tst->rtmctl, val);
 }
 
 /**
