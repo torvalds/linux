@@ -1,4 +1,4 @@
-greybus-y := core.o
+greybus-y := core.o gbuf.o
 
 obj-m += greybus.o
 obj-m += i2c-gb.o

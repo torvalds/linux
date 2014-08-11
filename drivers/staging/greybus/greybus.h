@@ -29,18 +29,67 @@
 	.match_flags	= GREYBUS_DEVICE_ID_MATCH_SERIAL,	\
 	.lSerial	= (serial),
 
-
 struct greybus_descriptor {
 	__u16	wVendor;
 	__u16	wProduct;
 	__u64	lSerialNumber;
 };
 
+
+struct gbuf;
+
+struct cport {
+	u16	number;
+	// FIXME, what else?
+};
+
+typedef void (*gbuf_complete_t)(struct gbuf *gbuf);
+
+struct gbuf {
+	struct kref kref;
+	void *hcpriv;
+
+	struct list_head anchor_list;
+	struct gbuf_anchor *anchor;	// FIXME do we need?
+
+	struct greybus_device *gdev;
+	struct cport *cport;
+	int status;
+	void *transfer_buffer;
+	u32 transfer_flags;		/* flags for the transfer buffer */
+	u32 transfer_buffer_length;
+	u32 actual_length;
+
+	struct scatterlist *sg;		// FIXME do we need?
+	int num_sgs;
+
+	void *context;
+	gbuf_complete_t complete;
+};
+
+/*
+ * gbuf->transfer_flags
+ */
+#define GBUF_FREE_BUFFER	BIT(0)	/* Free the transfer buffer with the gbuf */
+
+
 struct greybus_device {
 	struct device dev;
 	struct greybus_descriptor descriptor;
+	int num_cport;
+	struct cport cport[0];
 };
 #define to_greybus_device(d) container_of(d, struct greybus_device, dev)
+
+
+struct gbuf *greybus_alloc_gbuf(struct greybus_device *gdev,
+				struct cport *cport,
+				gfp_t mem_flags);
+void greybus_free_gbuf(struct gbuf *gbuf);
+
+int greybus_submit_gbuf(struct gbuf *gbuf, gfp_t mem_flags);
+int greybus_kill_gbuf(struct gbuf *gbuf);
+
 
 struct greybus_driver {
 	const char *name;
