@@ -372,4 +372,5 @@ ENTRY(sys_call_table)
 	.long sys_sched_setattr
 	.long sys_sched_getattr		/* 350 */
 	.long sys_renameat2
+	.long sys_getrandom
 
