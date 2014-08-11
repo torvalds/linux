@@ -1627,6 +1627,9 @@ static void l2cap_conn_del(struct hci_conn *hcon, int err)
 	if (work_pending(&conn->pending_rx_work))
 		cancel_work_sync(&conn->pending_rx_work);
 
+	if (work_pending(&conn->disconn_work))
+		cancel_work_sync(&conn->disconn_work);
+
 	l2cap_unregister_all_users(conn);
 
 	mutex_lock(&conn->chan_lock);
@@ -1667,6 +1670,26 @@ static void security_timeout(struct work_struct *work)
 		smp_chan_destroy(conn);
 		l2cap_conn_del(conn->hcon, ETIMEDOUT);
 	}
+}
+
+static void disconn_work(struct work_struct *work)
+{
+	struct l2cap_conn *conn = container_of(work, struct l2cap_conn,
+					       disconn_work);
+
+	BT_DBG("conn %p", conn);
+
+	l2cap_conn_del(conn->hcon, conn->disconn_err);
+}
+
+void l2cap_conn_shutdown(struct l2cap_conn *conn, int err)
+{
+	struct hci_dev *hdev = conn->hcon->hdev;
+
+	BT_DBG("conn %p err %d", conn, err);
+
+	conn->disconn_err = err;
+	queue_work(hdev->workqueue, &conn->disconn_work);
 }
 
 static void l2cap_conn_free(struct kref *ref)
@@ -6929,6 +6952,8 @@ static struct l2cap_conn *l2cap_conn_add(struct hci_conn *hcon)
 		INIT_DELAYED_WORK(&conn->security_timer, security_timeout);
 	else
 		INIT_DELAYED_WORK(&conn->info_timer, l2cap_info_timeout);
+
+	INIT_WORK(&conn->disconn_work, disconn_work);
 
 	skb_queue_head_init(&conn->pending_rx);
 	INIT_WORK(&conn->pending_rx_work, process_pending_rx);
