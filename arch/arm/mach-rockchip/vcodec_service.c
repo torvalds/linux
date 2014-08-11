@@ -102,6 +102,19 @@ typedef struct {
 	unsigned long		dec_io_size;
 } VPU_HW_INFO_E;
 
+struct extra_info_elem {
+	u32 index;
+	u32 offset;
+};
+
+#define EXTRA_INFO_MAGIC	0x4C4A46
+
+struct extra_info_for_iommu {
+	u32 magic;
+	u32 cnt;
+	struct extra_info_elem elem[20];
+};
+
 #define VPU_SERVICE_SHOW_TIME			0
 
 #if VPU_SERVICE_SHOW_TIME
@@ -655,13 +668,15 @@ static inline enum VPU_DEC_FMT reg_check_fmt(vpu_reg *reg)
 
 static inline int reg_probe_width(vpu_reg *reg)
 {
-    int width_in_mb = reg->reg[4] >> 23;
-    
-    return width_in_mb * 16;
+	int width_in_mb = reg->reg[4] >> 23;
+
+	return width_in_mb * 16;
 }
 
 #if defined(CONFIG_VCODEC_MMU)
-static int vcodec_bufid_to_iova(struct vpu_service_info *pservice, u8 *tbl, int size, vpu_reg *reg)
+static int vcodec_bufid_to_iova(struct vpu_service_info *pservice, u8 *tbl,
+								int size, vpu_reg *reg,
+								struct extra_info_for_iommu *ext_inf)
 {
 	int i;
 	int usr_fd = 0;
@@ -717,10 +732,20 @@ static int vcodec_bufid_to_iova(struct vpu_service_info *pservice, u8 *tbl, int 
 			list_add_tail(&mem_region->reg_lnk, &reg->mem_region_list);
 		}
 	}
+
+	if (ext_inf != NULL && ext_inf->magic == EXTRA_INFO_MAGIC) {
+		for (i=0; i<ext_inf->cnt; i++) {
+			pr_info("reg[%d] + offset %d\n", ext_inf->elem[i].index, ext_inf->elem[i].offset);
+			reg->reg[ext_inf->elem[i].index] += ext_inf->elem[i].offset;
+		}
+	}
+
 	return 0;
 }
 
-static int vcodec_reg_address_translate(struct vpu_service_info *pservice, vpu_reg *reg)
+static int vcodec_reg_address_translate(struct vpu_service_info *pservice,
+										vpu_reg *reg,
+										struct extra_info_for_iommu *ext_inf)
 {
 	VPU_HW_ID hw_id;
 	u8 *tbl;
@@ -779,7 +804,7 @@ static int vcodec_reg_address_translate(struct vpu_service_info *pservice, vpu_r
 	}
 
 	if (size != 0) {
-		return vcodec_bufid_to_iova(pservice, tbl, size, reg);
+		return vcodec_bufid_to_iova(pservice, tbl, size, reg, ext_inf);
 	} else {
 		return -1;
 	}
@@ -788,6 +813,8 @@ static int vcodec_reg_address_translate(struct vpu_service_info *pservice, vpu_r
 
 static vpu_reg *reg_init(struct vpu_service_info *pservice, vpu_session *session, void __user *src, unsigned long size)
 {
+	int extra_size = 0;
+	struct extra_info_for_iommu extra_info;
 	vpu_reg *reg = kmalloc(sizeof(vpu_reg)+pservice->reg_size, GFP_KERNEL);
 	if (NULL == reg) {
 		pr_err("error: kmalloc fail in reg_init\n");
@@ -795,7 +822,9 @@ static vpu_reg *reg_init(struct vpu_service_info *pservice, vpu_session *session
 	}
 
 	if (size > pservice->reg_size) {
-		printk("warning: vpu reg size %lu is larger than hw reg size %lu\n", size, pservice->reg_size);
+		/*printk("warning: vpu reg size %lu is larger than hw reg size %lu\n", size, pservice->reg_size);
+		size = pservice->reg_size;*/
+		extra_size = size - pservice->reg_size;
 		size = pservice->reg_size;
 	}
 	reg->session = session;
@@ -807,9 +836,9 @@ static vpu_reg *reg_init(struct vpu_service_info *pservice, vpu_session *session
 	INIT_LIST_HEAD(&reg->status_link);
 
 #if defined(CONFIG_VCODEC_MMU)  
-        if (pservice->mmu_dev) {
-            INIT_LIST_HEAD(&reg->mem_region_list);
-        }
+	if (pservice->mmu_dev) {
+		INIT_LIST_HEAD(&reg->mem_region_list);
+	}
 #endif
 
 	if (copy_from_user(&reg->reg[0], (void __user *)src, size)) {
@@ -818,8 +847,14 @@ static vpu_reg *reg_init(struct vpu_service_info *pservice, vpu_session *session
 		return NULL;
 	}
 
+	if (copy_from_user(&extra_info, (u8 *)src + size, extra_size)) {
+		pr_err("error: copy_from_user failed in reg_init\n");
+		kfree(reg);
+		return NULL;
+	}
+
 #if defined(CONFIG_VCODEC_MMU)
-	if (pservice->mmu_dev && 0 > vcodec_reg_address_translate(pservice, reg)) {
+	if (pservice->mmu_dev && 0 > vcodec_reg_address_translate(pservice, reg, &extra_info)) {
 		pr_err("error: translate reg address failed\n");
 		kfree(reg);
 		return NULL;
