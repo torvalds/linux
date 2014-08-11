@@ -478,7 +478,12 @@ static bool stop_ring(struct intel_engine_cs *ring)
 		I915_WRITE_MODE(ring, _MASKED_BIT_ENABLE(STOP_RING));
 		if (wait_for((I915_READ_MODE(ring) & MODE_IDLE) != 0, 1000)) {
 			DRM_ERROR("%s : timed out trying to stop ring\n", ring->name);
-			return false;
+			/* Sometimes we observe that the idle flag is not
+			 * set even though the ring is empty. So double
+			 * check before giving up.
+			 */
+			if (I915_READ_HEAD(ring) != I915_READ_TAIL(ring))
+				return false;
 		}
 	}
 
