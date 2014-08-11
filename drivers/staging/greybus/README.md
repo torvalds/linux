@@ -1,4 +1,0 @@
-greybus
-=======
-
-greybus kernel code
