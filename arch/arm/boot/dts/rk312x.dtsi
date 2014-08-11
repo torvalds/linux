@@ -505,7 +505,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		pinctrl-names = "default","idle";
-		pinctrl-0 = <&sdio0_pwren &sdio0_cmd>;
+		pinctrl-0 = <&sdio0_pwren &sdio0_cmd &sdio0_clk &sdio0_bus4>;
 		pinctrl-1 = <&sdio0_gpio>;
 		clocks = <&clk_sdio>, <&clk_gates5 11>;
 		clock-names = "clk_mmc", "hclk_mmc";
