@@ -587,8 +587,7 @@ int mdc_get_lustre_md(struct obd_export *exp, struct ptlrpc_request *req,
 						lustre_swab_mdt_remote_perm);
 		if (!md->remote_perm)
 			GOTO(out, rc = -EPROTO);
-	}
-	else if (md->body->valid & OBD_MD_FLACL) {
+	} else if (md->body->valid & OBD_MD_FLACL) {
 		/* for ACL, it's possible that FLACL is set but aclsize is zero.
 		 * only when aclsize != 0 there's an actual segment for ACL
 		 * in reply buffer.
