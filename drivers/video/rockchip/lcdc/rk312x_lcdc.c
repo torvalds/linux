@@ -790,7 +790,7 @@ static int rk312x_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
                 case SCREEN_LVDS:
                         if (lcdc_dev->soc_type == VOP_RK312X) {
                                 mask = m_LVDS_DCLK_EN | m_LVDS_DCLK_INVERT;
-			        val = v_LVDS_DCLK_EN(1) | v_LVDS_DCLK_INVERT(0);
+			        val = v_LVDS_DCLK_EN(1) | v_LVDS_DCLK_INVERT(1);
                                 lcdc_msk_reg(lcdc_dev, AXI_BUS_CTRL, mask, val);
 				lcdc_dev->overlay_mode = VOP_RGB_DOMAIN;
                         }
