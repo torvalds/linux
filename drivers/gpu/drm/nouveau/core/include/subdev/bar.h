@@ -12,7 +12,6 @@ struct nouveau_bar {
 
 	int (*alloc)(struct nouveau_bar *, struct nouveau_object *,
 		     struct nouveau_mem *, struct nouveau_object **);
-	void __iomem *iomem;
 
 	int (*kmap)(struct nouveau_bar *, struct nouveau_mem *,
 		    u32 flags, struct nouveau_vma *);
