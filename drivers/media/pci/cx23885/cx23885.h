@@ -293,6 +293,9 @@ struct cx23885_tsport {
 	/* Workaround for a temp dvb_frontend that the tuner can attached to */
 	struct dvb_frontend analog_fe;
 
+	struct i2c_client *i2c_client_demod;
+	struct i2c_client *i2c_client_tuner;
+
 	int (*set_frontend)(struct dvb_frontend *fe);
 };
 

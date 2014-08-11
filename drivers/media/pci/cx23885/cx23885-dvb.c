@@ -1688,15 +1688,24 @@ int cx23885_dvb_register(struct cx23885_tsport *port)
 int cx23885_dvb_unregister(struct cx23885_tsport *port)
 {
 	struct vb2_dvb_frontend *fe0;
+	struct i2c_client *client;
 
-	/* FIXME: in an error condition where the we have
-	 * an expected number of frontends (attach problem)
-	 * then this might not clean up correctly, if 1
-	 * is invalid.
-	 * This comment only applies to future boards IF they
-	 * implement MFE support.
-	 */
+	/* remove I2C client for tuner */
+	client = port->i2c_client_tuner;
+	if (client) {
+		module_put(client->dev.driver->owner);
+		i2c_unregister_device(client);
+	}
+
+	/* remove I2C client for demodulator */
+	client = port->i2c_client_demod;
+	if (client) {
+		module_put(client->dev.driver->owner);
+		i2c_unregister_device(client);
+	}
+
 	fe0 = vb2_dvb_get_frontend(&port->frontends, 1);
+
 	if (fe0 && fe0->dvb.frontend)
 		vb2_dvb_unregister_bus(&port->frontends);
 
