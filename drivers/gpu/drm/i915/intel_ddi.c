@@ -241,18 +241,6 @@ void intel_prepare_ddi(struct drm_device *dev)
 		intel_prepare_ddi_buffers(dev, port);
 }
 
-static const long hsw_ddi_buf_ctl_values[] = {
-	DDI_BUF_EMP_400MV_0DB_HSW,
-	DDI_BUF_EMP_400MV_3_5DB_HSW,
-	DDI_BUF_EMP_400MV_6DB_HSW,
-	DDI_BUF_EMP_400MV_9_5DB_HSW,
-	DDI_BUF_EMP_600MV_0DB_HSW,
-	DDI_BUF_EMP_600MV_3_5DB_HSW,
-	DDI_BUF_EMP_600MV_6DB_HSW,
-	DDI_BUF_EMP_800MV_0DB_HSW,
-	DDI_BUF_EMP_800MV_3_5DB_HSW
-};
-
 static void intel_wait_ddi_buf_idle(struct drm_i915_private *dev_priv,
 				    enum port port)
 {
@@ -275,6 +263,8 @@ static void intel_wait_ddi_buf_idle(struct drm_i915_private *dev_priv,
  * please note that when FDI mode is active on DDI E, it shares 2 lines with
  * DDI A (which is used for eDP)
  */
+
+#define NUM_FDI_TRANSLATION_ENTRIES (ARRAY_SIZE(hsw_ddi_translations_fdi) / 2)
 
 void hsw_fdi_link_train(struct drm_crtc *crtc)
 {
@@ -312,7 +302,7 @@ void hsw_fdi_link_train(struct drm_crtc *crtc)
 
 	/* Start the training iterating through available voltages and emphasis,
 	 * testing each value twice. */
-	for (i = 0; i < ARRAY_SIZE(hsw_ddi_buf_ctl_values) * 2; i++) {
+	for (i = 0; i < NUM_FDI_TRANSLATION_ENTRIES * 2; i++) {
 		/* Configure DP_TP_CTL with auto-training */
 		I915_WRITE(DP_TP_CTL(PORT_E),
 					DP_TP_CTL_FDI_AUTOTRAIN |
@@ -327,7 +317,7 @@ void hsw_fdi_link_train(struct drm_crtc *crtc)
 		I915_WRITE(DDI_BUF_CTL(PORT_E),
 			   DDI_BUF_CTL_ENABLE |
 			   ((intel_crtc->config.fdi_lanes - 1) << 1) |
-			   hsw_ddi_buf_ctl_values[i / 2]);
+			   DDI_BUF_TRANS_SELECT(i / 2));
 		POSTING_READ(DDI_BUF_CTL(PORT_E));
 
 		udelay(600);
@@ -402,7 +392,7 @@ void intel_ddi_init_dp_buf_reg(struct intel_encoder *encoder)
 		enc_to_dig_port(&encoder->base);
 
 	intel_dp->DP = intel_dig_port->saved_port_bits |
-		DDI_BUF_CTL_ENABLE | DDI_BUF_EMP_400MV_0DB_HSW;
+		DDI_BUF_CTL_ENABLE | DDI_BUF_TRANS_SELECT(0);
 	intel_dp->DP |= DDI_PORT_WIDTH(intel_dp->lane_count);
 
 }
