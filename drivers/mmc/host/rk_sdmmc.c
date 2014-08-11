@@ -3151,26 +3151,28 @@ static irqreturn_t dw_mci_gpio_cd_irqt(int irq, void *dev_id)
 static void dw_mci_of_set_cd_gpio_irq(struct device *dev, u32 gpio,
                                         struct mmc_host *mmc)
 {
-        struct dw_mci_slot *slot = mmc_priv(mmc);
-        struct dw_mci *host = slot->host;
-        int irq;
-        int ret;
+	struct dw_mci_slot *slot = mmc_priv(mmc);
+	struct dw_mci *host = slot->host;
+	int irq;
+	int ret;
 
-        /* Having a missing entry is valid; return silently */
-        if (!gpio_is_valid(gpio))
-                return;
+	/* Having a missing entry is valid; return silently */
+	if (!gpio_is_valid(gpio))
+		return;
 
-        irq = gpio_to_irq(gpio);
-        if (irq >= 0) {
-                ret = devm_request_threaded_irq(&mmc->class_dev, irq,
-                        NULL, dw_mci_gpio_cd_irqt,
-                        IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
-                        "dw_mci_cd", mmc);
-                if (ret < 0)
-                        irq = ret;
-        } else {
-                dev_err(host->dev, "Request cd-gpio interrupt error!\n");
-        }
+	irq = gpio_to_irq(gpio);
+	if (irq >= 0) {
+		ret = devm_request_threaded_irq(&mmc->class_dev, irq,
+						NULL, dw_mci_gpio_cd_irqt,
+						IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
+						"dw_mci_cd", mmc);
+		if (ret < 0) {
+			irq = ret;
+			dev_err(host->dev, "Request cd-gpio %d interrupt error!\n", gpio);
+		}
+	} else {
+		dev_err(host->dev, "Cannot convert gpio %d to irq!\n", gpio);
+	}
 }
 #else /* CONFIG_OF */
 static int dw_mci_of_get_slot_quirks(struct device *dev, u8 slot)
