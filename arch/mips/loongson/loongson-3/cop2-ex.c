@@ -22,13 +22,13 @@
 static int loongson_cu2_call(struct notifier_block *nfb, unsigned long action,
 	void *data)
 {
-	int fpu_enabled;
+	int fpu_owned;
 	int fr = !test_thread_flag(TIF_32BIT_FPREGS);
 
 	switch (action) {
 	case CU2_EXCEPTION:
 		preempt_disable();
-		fpu_enabled = read_c0_status() & ST0_CU1;
+		fpu_owned = __is_fpu_owner();
 		if (!fr)
 			set_c0_status(ST0_CU1 | ST0_CU2);
 		else
@@ -39,8 +39,8 @@ static int loongson_cu2_call(struct notifier_block *nfb, unsigned long action,
 			KSTK_STATUS(current) |= ST0_FR;
 		else
 			KSTK_STATUS(current) &= ~ST0_FR;
-		/* If FPU is enabled, we needn't init or restore fp */
-		if(!fpu_enabled) {
+		/* If FPU is owned, we needn't init or restore fp */
+		if (!fpu_owned) {
 			set_thread_flag(TIF_USEDFPU);
 			if (!used_math()) {
 				_init_fpu();
