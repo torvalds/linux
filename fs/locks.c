@@ -2452,7 +2452,11 @@ static void lock_get_status(struct seq_file *f, struct file_lock *fl,
 			seq_puts(f, "FLOCK  ADVISORY  ");
 		}
 	} else if (IS_LEASE(fl)) {
-		seq_puts(f, "LEASE  ");
+		if (fl->fl_flags & FL_DELEG)
+			seq_puts(f, "DELEG  ");
+		else
+			seq_puts(f, "LEASE  ");
+
 		if (lease_breaking(fl))
 			seq_puts(f, "BREAKING  ");
 		else if (fl->fl_file)
