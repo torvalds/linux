@@ -739,7 +739,6 @@ static void bcmgenet_power_down(struct bcmgenet_priv *priv,
 
 	case GENET_POWER_PASSIVE:
 		/* Power down LED */
-		bcmgenet_mii_reset(priv->dev);
 		if (priv->hw_params->flags & GENET_HAS_EXT) {
 			reg = bcmgenet_ext_readl(priv, EXT_EXT_PWR_MGMT);
 			reg |= (EXT_PWR_DOWN_PHY |
@@ -779,7 +778,9 @@ static void bcmgenet_power_up(struct bcmgenet_priv *priv,
 	}
 
 	bcmgenet_ext_writel(priv, reg, EXT_EXT_PWR_MGMT);
-	bcmgenet_mii_reset(priv->dev);
+
+	if (mode == GENET_POWER_PASSIVE)
+		bcmgenet_mii_reset(priv->dev);
 }
 
 /* ioctl handle special commands that are not present in ethtool. */
@@ -2164,6 +2165,10 @@ static void bcmgenet_netif_stop(struct net_device *dev)
 	 * disabled no new work will be scheduled.
 	 */
 	cancel_work_sync(&priv->bcmgenet_irq_work);
+
+	priv->old_pause = -1;
+	priv->old_link = -1;
+	priv->old_duplex = -1;
 }
 
 static int bcmgenet_close(struct net_device *dev)
@@ -2611,6 +2616,8 @@ static int bcmgenet_suspend(struct device *d)
 
 	bcmgenet_netif_stop(dev);
 
+	phy_suspend(priv->phydev);
+
 	netif_device_detach(dev);
 
 	/* Disable MAC receive */
@@ -2692,6 +2699,8 @@ static int bcmgenet_resume(struct device *d)
 	bcmgenet_enable_dma(priv, dma_ctrl);
 
 	netif_device_attach(dev);
+
+	phy_resume(priv->phydev);
 
 	bcmgenet_netif_start(dev);
 
