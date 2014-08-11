@@ -74,7 +74,7 @@ int
 attribute_container_register(struct attribute_container *cont)
 {
 	INIT_LIST_HEAD(&cont->node);
-	klist_init(&cont->containers,internal_container_klist_get,
+	klist_init(&cont->containers, internal_container_klist_get,
 		   internal_container_klist_put);
 
 	mutex_lock(&attribute_container_mutex);
@@ -184,7 +184,7 @@ attribute_container_add_device(struct device *dev,
 		struct klist_node *n = klist_next(iter); \
 		n ? container_of(n, typeof(*pos), member) : \
 			({ klist_iter_exit(iter) ; NULL; }); \
-	}) ) != NULL; )
+	})) != NULL;)
 
 
 /**
