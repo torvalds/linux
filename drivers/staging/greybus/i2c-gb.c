@@ -79,6 +79,7 @@ static int i2c_gb_probe(struct greybus_device *gdev, const struct greybus_device
 {
 	struct i2c_gb_data *i2c_gb_data;
 	struct i2c_adapter *adapter;
+	int retval;
 
 	i2c_gb_data = kzalloc(sizeof(*i2c_gb_data), GFP_KERNEL);
 	if (!i2c_gb_data)
@@ -93,12 +94,24 @@ static int i2c_gb_probe(struct greybus_device *gdev, const struct greybus_device
 	adapter->owner = THIS_MODULE;
 	adapter->class = I2C_CLASS_HWMON | I2C_CLASS_SPD;
 	adapter->algo = &smbus_algorithm;
+	adapter->dev.parent = &gdev->dev;
+	adapter->retries = 3;	/* we have to pick something... */
+	snprintf(adapter->name, sizeof(adapter->name), "Greybus i2c adapter");
+	retval = i2c_add_adapter(adapter);
+	if (retval) {
+		dev_err(&gdev->dev, "Can not add SMBus adapter\n");
+		goto error;
+	}
 
 	i2c_gb_data->gdev = gdev;
 	i2c_gb_data->adapter = adapter;
 
 	greybus_set_drvdata(gdev, i2c_gb_data);
 	return 0;
+error:
+	kfree(adapter);
+	kfree(i2c_gb_data);
+	return retval;
 }
 
 static void i2c_gb_disconnect(struct greybus_device *gdev)
