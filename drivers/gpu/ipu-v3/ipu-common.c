@@ -429,6 +429,7 @@ struct ipu_devtype {
 	unsigned long tpm_ofs;
 	unsigned long csi0_ofs;
 	unsigned long csi1_ofs;
+	unsigned long ic_ofs;
 	unsigned long disp0_ofs;
 	unsigned long disp1_ofs;
 	unsigned long dc_tmpl_ofs;
@@ -444,6 +445,7 @@ static struct ipu_devtype ipu_type_imx51 = {
 	.tpm_ofs = 0x1f060000,
 	.csi0_ofs = 0x1f030000,
 	.csi1_ofs = 0x1f038000,
+	.ic_ofs = 0x1f020000,
 	.disp0_ofs = 0x1e040000,
 	.disp1_ofs = 0x1e048000,
 	.dc_tmpl_ofs = 0x1f080000,
@@ -459,6 +461,7 @@ static struct ipu_devtype ipu_type_imx53 = {
 	.tpm_ofs = 0x07060000,
 	.csi0_ofs = 0x07030000,
 	.csi1_ofs = 0x07038000,
+	.ic_ofs = 0x07020000,
 	.disp0_ofs = 0x06040000,
 	.disp1_ofs = 0x06048000,
 	.dc_tmpl_ofs = 0x07080000,
@@ -474,6 +477,7 @@ static struct ipu_devtype ipu_type_imx6q = {
 	.tpm_ofs = 0x00360000,
 	.csi0_ofs = 0x00230000,
 	.csi1_ofs = 0x00238000,
+	.ic_ofs = 0x00220000,
 	.disp0_ofs = 0x00240000,
 	.disp1_ofs = 0x00248000,
 	.dc_tmpl_ofs = 0x00380000,
@@ -518,8 +522,16 @@ static int ipu_submodules_init(struct ipu_soc *ipu,
 		goto err_csi_1;
 	}
 
+	ret = ipu_ic_init(ipu, dev,
+			  ipu_base + devtype->ic_ofs,
+			  ipu_base + devtype->tpm_ofs);
+	if (ret) {
+		unit = "ic";
+		goto err_ic;
+	}
+
 	ret = ipu_di_init(ipu, dev, 0, ipu_base + devtype->disp0_ofs,
-			IPU_CONF_DI0_EN, ipu_clk);
+			  IPU_CONF_DI0_EN, ipu_clk);
 	if (ret) {
 		unit = "di0";
 		goto err_di_0;
@@ -572,6 +584,8 @@ err_dc:
 err_di_1:
 	ipu_di_exit(ipu, 0);
 err_di_0:
+	ipu_ic_exit(ipu);
+err_ic:
 	ipu_csi_exit(ipu, 1);
 err_csi_1:
 	ipu_csi_exit(ipu, 0);
@@ -654,6 +668,7 @@ static void ipu_submodules_exit(struct ipu_soc *ipu)
 	ipu_dc_exit(ipu);
 	ipu_di_exit(ipu, 1);
 	ipu_di_exit(ipu, 0);
+	ipu_ic_exit(ipu);
 	ipu_csi_exit(ipu, 1);
 	ipu_csi_exit(ipu, 0);
 	ipu_cpmem_exit(ipu);
@@ -879,6 +894,8 @@ static int ipu_probe(struct platform_device *pdev)
 			ipu_base + devtype->csi0_ofs);
 	dev_dbg(&pdev->dev, "csi1:    0x%08lx\n",
 			ipu_base + devtype->csi1_ofs);
+	dev_dbg(&pdev->dev, "ic:      0x%08lx\n",
+			ipu_base + devtype->ic_ofs);
 	dev_dbg(&pdev->dev, "disp0:    0x%08lx\n",
 			ipu_base + devtype->disp0_ofs);
 	dev_dbg(&pdev->dev, "disp1:    0x%08lx\n",

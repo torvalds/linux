@@ -71,6 +71,20 @@ enum ipu_csi_dest {
 	IPU_CSI_DEST_VDIC,  /* to VDIC */
 };
 
+/*
+ * Enumeration of IPU rotation modes
+ */
+enum ipu_rotate_mode {
+	IPU_ROTATE_NONE = 0,
+	IPU_ROTATE_VERT_FLIP,
+	IPU_ROTATE_HORIZ_FLIP,
+	IPU_ROTATE_180,
+	IPU_ROTATE_90_RIGHT,
+	IPU_ROTATE_90_RIGHT_VFLIP,
+	IPU_ROTATE_90_RIGHT_HFLIP,
+	IPU_ROTATE_90_LEFT,
+};
+
 enum ipu_color_space {
 	IPUV3_COLORSPACE_RGB,
 	IPUV3_COLORSPACE_YUV,
@@ -241,6 +255,37 @@ int ipu_csi_disable(struct ipu_csi *csi);
 struct ipu_csi *ipu_csi_get(struct ipu_soc *ipu, int id);
 void ipu_csi_put(struct ipu_csi *csi);
 void ipu_csi_dump(struct ipu_csi *csi);
+
+/*
+ * IPU Image Converter (ic) functions
+ */
+enum ipu_ic_task {
+	IC_TASK_ENCODER,
+	IC_TASK_VIEWFINDER,
+	IC_TASK_POST_PROCESSOR,
+	IC_NUM_TASKS,
+};
+
+struct ipu_ic;
+int ipu_ic_task_init(struct ipu_ic *ic,
+		     int in_width, int in_height,
+		     int out_width, int out_height,
+		     enum ipu_color_space in_cs,
+		     enum ipu_color_space out_cs);
+int ipu_ic_task_graphics_init(struct ipu_ic *ic,
+			      enum ipu_color_space in_g_cs,
+			      bool galpha_en, u32 galpha,
+			      bool colorkey_en, u32 colorkey);
+void ipu_ic_task_enable(struct ipu_ic *ic);
+void ipu_ic_task_disable(struct ipu_ic *ic);
+int ipu_ic_task_idma_init(struct ipu_ic *ic, struct ipuv3_channel *channel,
+			  u32 width, u32 height, int burst_size,
+			  enum ipu_rotate_mode rot);
+int ipu_ic_enable(struct ipu_ic *ic);
+int ipu_ic_disable(struct ipu_ic *ic);
+struct ipu_ic *ipu_ic_get(struct ipu_soc *ipu, enum ipu_ic_task task);
+void ipu_ic_put(struct ipu_ic *ic);
+void ipu_ic_dump(struct ipu_ic *ic);
 
 /*
  * IPU Sensor Multiple FIFO Controller (SMFC) functions
