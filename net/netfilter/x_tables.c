@@ -71,18 +71,14 @@ static const char *const xt_prefix[NFPROTO_NUMPROTO] = {
 static const unsigned int xt_jumpstack_multiplier = 2;
 
 /* Registration hooks for targets. */
-int
-xt_register_target(struct xt_target *target)
+int xt_register_target(struct xt_target *target)
 {
 	u_int8_t af = target->family;
-	int ret;
 
-	ret = mutex_lock_interruptible(&xt[af].mutex);
-	if (ret != 0)
-		return ret;
+	mutex_lock(&xt[af].mutex);
 	list_add(&target->list, &xt[af].target);
 	mutex_unlock(&xt[af].mutex);
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL(xt_register_target);
 
@@ -125,20 +121,14 @@ xt_unregister_targets(struct xt_target *target, unsigned int n)
 }
 EXPORT_SYMBOL(xt_unregister_targets);
 
-int
-xt_register_match(struct xt_match *match)
+int xt_register_match(struct xt_match *match)
 {
 	u_int8_t af = match->family;
-	int ret;
 
-	ret = mutex_lock_interruptible(&xt[af].mutex);
-	if (ret != 0)
-		return ret;
-
+	mutex_lock(&xt[af].mutex);
 	list_add(&match->list, &xt[af].match);
 	mutex_unlock(&xt[af].mutex);
-
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL(xt_register_match);
 
@@ -194,9 +184,7 @@ struct xt_match *xt_find_match(u8 af, const char *name, u8 revision)
 	struct xt_match *m;
 	int err = -ENOENT;
 
-	if (mutex_lock_interruptible(&xt[af].mutex) != 0)
-		return ERR_PTR(-EINTR);
-
+	mutex_lock(&xt[af].mutex);
 	list_for_each_entry(m, &xt[af].match, list) {
 		if (strcmp(m->name, name) == 0) {
 			if (m->revision == revision) {
@@ -239,9 +227,7 @@ struct xt_target *xt_find_target(u8 af, const char *name, u8 revision)
 	struct xt_target *t;
 	int err = -ENOENT;
 
-	if (mutex_lock_interruptible(&xt[af].mutex) != 0)
-		return ERR_PTR(-EINTR);
-
+	mutex_lock(&xt[af].mutex);
 	list_for_each_entry(t, &xt[af].target, list) {
 		if (strcmp(t->name, name) == 0) {
 			if (t->revision == revision) {
@@ -323,10 +309,7 @@ int xt_find_revision(u8 af, const char *name, u8 revision, int target,
 {
 	int have_rev, best = -1;
 
-	if (mutex_lock_interruptible(&xt[af].mutex) != 0) {
-		*err = -EINTR;
-		return 1;
-	}
+	mutex_lock(&xt[af].mutex);
 	if (target == 1)
 		have_rev = target_revfn(af, name, revision, &best);
 	else
@@ -732,9 +715,7 @@ struct xt_table *xt_find_table_lock(struct net *net, u_int8_t af,
 {
 	struct xt_table *t;
 
-	if (mutex_lock_interruptible(&xt[af].mutex) != 0)
-		return ERR_PTR(-EINTR);
-
+	mutex_lock(&xt[af].mutex);
 	list_for_each_entry(t, &net->xt.tables[af], list)
 		if (strcmp(t->name, name) == 0 && try_module_get(t->me))
 			return t;
@@ -883,10 +864,7 @@ struct xt_table *xt_register_table(struct net *net,
 		goto out;
 	}
 
-	ret = mutex_lock_interruptible(&xt[table->af].mutex);
-	if (ret != 0)
-		goto out_free;
-
+	mutex_lock(&xt[table->af].mutex);
 	/* Don't autoload: we'd eat our tail... */
 	list_for_each_entry(t, &net->xt.tables[table->af], list) {
 		if (strcmp(t->name, table->name) == 0) {
@@ -911,9 +889,8 @@ struct xt_table *xt_register_table(struct net *net,
 	mutex_unlock(&xt[table->af].mutex);
 	return table;
 
- unlock:
+unlock:
 	mutex_unlock(&xt[table->af].mutex);
-out_free:
 	kfree(table);
 out:
 	return ERR_PTR(ret);
