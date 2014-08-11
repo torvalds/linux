@@ -450,8 +450,8 @@ static struct ptlrpc_request *mdc_intent_unlink_pack(struct obd_export *exp,
 }
 
 static struct ptlrpc_request *mdc_intent_getattr_pack(struct obd_export *exp,
-						      struct lookup_intent *it,
-						      struct md_op_data *op_data)
+						    struct lookup_intent *it,
+						    struct md_op_data *op_data)
 {
 	struct ptlrpc_request *req;
 	struct obd_device     *obddev = class_exp2obd(exp);
@@ -1039,7 +1039,8 @@ static int mdc_finish_intent_lock(struct obd_export *exp,
 
 		memcpy(&old_lock, lockh, sizeof(*lockh));
 		if (ldlm_lock_match(NULL, LDLM_FL_BLOCK_GRANTED, NULL,
-				    LDLM_IBITS, &policy, LCK_NL, &old_lock, 0)) {
+				    LDLM_IBITS, &policy, LCK_NL,
+				    &old_lock, 0)) {
 			ldlm_lock_decref_and_cancel(lockh,
 						    it->d.lustre.it_lock_mode);
 			memcpy(lockh, &old_lock, sizeof(old_lock));

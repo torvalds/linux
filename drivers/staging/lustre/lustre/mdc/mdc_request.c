@@ -897,7 +897,8 @@ int mdc_close(struct obd_export *exp, struct md_op_data *op_data,
 		mod->mod_open_req->rq_replay = 0;
 		spin_unlock(&mod->mod_open_req->rq_lock);
 	} else {
-		 CDEBUG(D_HA, "couldn't find open req; expecting close error\n");
+		 CDEBUG(D_HA,
+			"couldn't find open req; expecting close error\n");
 	}
 
 	mdc_close_pack(req, op_data);
@@ -1084,7 +1085,8 @@ restart_bulk:
 			CERROR("too many resend retries, returning error\n");
 			return -EIO;
 		}
-		lwi = LWI_TIMEOUT_INTR(cfs_time_seconds(resends), NULL, NULL, NULL);
+		lwi = LWI_TIMEOUT_INTR(cfs_time_seconds(resends),
+				       NULL, NULL, NULL);
 		l_wait_event(waitq, 0, &lwi);
 
 		goto restart_bulk;

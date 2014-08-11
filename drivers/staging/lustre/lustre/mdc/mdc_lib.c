@@ -52,7 +52,8 @@ static void __mdc_pack_body(struct mdt_body *b, __u32 suppgid)
 	b->capability = cfs_curproc_cap_pack();
 }
 
-void mdc_pack_capa(struct ptlrpc_request *req, const struct req_msg_field *field,
+void mdc_pack_capa(struct ptlrpc_request *req,
+		   const struct req_msg_field *field,
 		   struct obd_capa *oc)
 {
 	struct req_capsule *pill = &req->rq_pill;
@@ -317,7 +318,8 @@ static void mdc_setattr_pack_rec(struct mdt_rec_setattr *rec,
 	rec->sa_atime  = LTIME_S(op_data->op_attr.ia_atime);
 	rec->sa_mtime  = LTIME_S(op_data->op_attr.ia_mtime);
 	rec->sa_ctime  = LTIME_S(op_data->op_attr.ia_ctime);
-	rec->sa_attr_flags = ((struct ll_iattr *)&op_data->op_attr)->ia_attr_flags;
+	rec->sa_attr_flags =
+			((struct ll_iattr *)&op_data->op_attr)->ia_attr_flags;
 	if ((op_data->op_attr.ia_valid & ATTR_GID) &&
 	    in_group_p(op_data->op_attr.ia_gid))
 		rec->sa_suppgid =
@@ -552,7 +554,8 @@ int mdc_enter_request(struct client_obd *cli)
 		list_add_tail(&mcw.mcw_entry, &cli->cl_cache_waiters);
 		init_waitqueue_head(&mcw.mcw_waitq);
 		client_obd_list_unlock(&cli->cl_loi_list_lock);
-		rc = l_wait_event(mcw.mcw_waitq, mdc_req_avail(cli, &mcw), &lwi);
+		rc = l_wait_event(mcw.mcw_waitq, mdc_req_avail(cli, &mcw),
+				  &lwi);
 		if (rc) {
 			client_obd_list_lock(&cli->cl_loi_list_lock);
 			if (list_empty(&mcw.mcw_entry))
