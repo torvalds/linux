@@ -383,8 +383,6 @@ typedef struct rga_service_info {
     uint32_t            *pre_scale_buf;
     atomic_t            int_disable;     /* 0 int enable 1 int disable  */
     atomic_t            cmd_num;
-    atomic_t            src_format_swt;
-    int                 last_prc_src_format;
     atomic_t            rga_working;
     bool                enable;
 

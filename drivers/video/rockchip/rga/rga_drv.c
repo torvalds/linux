@@ -151,6 +151,8 @@ static void print_info(struct rga_req *req)
     printk("clip.xmin = %d, clip.xmax = %d. clip.ymin = %d, clip.ymax = %d\n",
         req->clip.xmin, req->clip.xmax, req->clip.ymin, req->clip.ymax);
 
+    printk("mmu_flag = %.8x\n", req->mmu_info.mmu_flag);
+
     //printk("alpha_rop_flag = %.8x\n", req->alpha_rop_flag);
     //printk("alpha_rop_mode = %.8x\n", req->alpha_rop_mode);
     //printk("PD_mode = %.8x\n", req->PD_mode);
@@ -1198,7 +1200,7 @@ static struct miscdevice rga_dev ={
 
 #if defined(CONFIG_OF)
 static const struct of_device_id rockchip_rga_dt_ids[] = {
-	{ .compatible = "rockchip,rga_drv", },
+	{ .compatible = "rockchip,rk312x-rga", },
 	{},
 };
 #endif
@@ -1213,8 +1215,6 @@ static int rga_drv_probe(struct platform_device *pdev)
 	mutex_init(&rga_service.lock);
 	mutex_init(&rga_service.mutex);
 	atomic_set(&rga_service.total_running, 0);
-	atomic_set(&rga_service.src_format_swt, 0);
-	rga_service.last_prc_src_format = 1; /* default is yuv first*/
 	rga_service.enable = false;
 
     rga_ioctl_kernel_p = rga_ioctl_kernel_imp;

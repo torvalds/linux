@@ -1111,7 +1111,7 @@ static struct miscdevice rga2_dev ={
 };
 
 static const struct of_device_id rockchip_rga_dt_ids[] = {
-	{ .compatible = "rockchip,rga2_drv", },
+	{ .compatible = "rockchip,rk3288-rga2", },
 	{},
 };
 
