@@ -407,7 +407,7 @@ re_phase:
                 
         }
         
-        MMC_DBG_INFO_FUNC(host->mmc,"\n execute tuning: candidates_degree = %s \t%s \t%s \t%s[%s]",
+        MMC_DBG_BOOT_FUNC(host->mmc,"\n execute tuning: candidates_degree = %s \t%s \t%s \t%s[%s]",
                 phase_desc[candidates_degree[0]], phase_desc[candidates_degree[1]],
                 phase_desc[candidates_degree[2]], phase_desc[candidates_degree[3]],
                 mmc_hostname(host->mmc));
