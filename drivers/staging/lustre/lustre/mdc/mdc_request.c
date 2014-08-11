@@ -2588,7 +2588,7 @@ static int mdc_process_config(struct obd_device *obd, obd_count len, void *buf)
 			rc = 0;
 		break;
 	}
-	return(rc);
+	return rc;
 }
 
 
