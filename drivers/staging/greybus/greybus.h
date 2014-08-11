@@ -45,12 +45,12 @@ struct greybus_device {
 struct greybus_driver {
 	const char *name;
 
-	int (*probe) (struct greybus_device *gdev,
-		      const struct greybus_device_id *id);
-	void (*disconnect) (struct greybus_device *gdev);
+	int (*probe)(struct greybus_device *gdev,
+		     const struct greybus_device_id *id);
+	void (*disconnect)(struct greybus_device *gdev);
 
-	int (*suspend) (struct greybus_device *gdev, pm_message_t message);
-	int (*resume) (struct greybus_device *gdev);
+	int (*suspend)(struct greybus_device *gdev, pm_message_t message);
+	int (*resume)(struct greybus_device *gdev);
 
 	const struct greybus_device_id *id_table;
 
@@ -60,12 +60,12 @@ struct greybus_driver {
 
 static inline void greybus_set_drvdata(struct greybus_device *gdev, void *data)
 {
-        dev_set_drvdata(&gdev->dev, data);
+	dev_set_drvdata(&gdev->dev, data);
 }
 
 static inline void *greybus_get_drvdata(struct greybus_device *gdev)
 {
-        return dev_get_drvdata(&gdev->dev);
+	return dev_get_drvdata(&gdev->dev);
 }
 
 /* Don't call these directly, use the module_greybus_driver() macro instead */
