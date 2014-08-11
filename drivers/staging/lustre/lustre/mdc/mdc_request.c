@@ -203,6 +203,7 @@ static int mdc_getattr_common(struct obd_export *exp,
 
 	if (body->valid & OBD_MD_FLMDSCAPA) {
 		struct lustre_capa *capa;
+
 		capa = req_capsule_server_get(pill, &RMF_CAPA1);
 		if (capa == NULL)
 			return -EPROTO;
@@ -283,6 +284,7 @@ int mdc_getattr_name(struct obd_export *exp, struct md_op_data *op_data,
 
 	if (op_data->op_name) {
 		char *name = req_capsule_client_get(&req->rq_pill, &RMF_NAME);
+
 		LASSERT(strnlen(op_data->op_name, op_data->op_namelen) ==
 				op_data->op_namelen);
 		memcpy(name, op_data->op_name, op_data->op_namelen);
@@ -696,6 +698,7 @@ void mdc_replay_open(struct ptlrpc_request *req)
 void mdc_commit_open(struct ptlrpc_request *req)
 {
 	struct md_open_data *mod = req->rq_cb_data;
+
 	if (mod == NULL)
 		return;
 
@@ -2390,6 +2393,7 @@ int mdc_fid_alloc(struct obd_export *exp, struct lu_fid *fid,
 struct obd_uuid *mdc_get_uuid(struct obd_export *exp)
 {
 	struct client_obd *cli = &exp->exp_obd->u.cli;
+
 	return &cli->cl_target_uuid;
 }
 
@@ -2742,6 +2746,7 @@ int __init mdc_init(void)
 {
 	int rc;
 	struct lprocfs_static_vars lvars = { NULL };
+
 	lprocfs_mdc_init_vars(&lvars);
 
 	rc = class_register_type(&mdc_obd_ops, &mdc_md_ops, lvars.module_vars,

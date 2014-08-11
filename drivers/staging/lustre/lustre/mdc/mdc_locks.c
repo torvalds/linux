@@ -134,6 +134,7 @@ int mdc_set_lock_data(struct obd_export *exp, __u64 *lockh, void *data,
 	if (lock->l_resource->lr_lvb_inode &&
 	    lock->l_resource->lr_lvb_inode != data) {
 		struct inode *old_inode = lock->l_resource->lr_lvb_inode;
+
 		LASSERTF(old_inode->i_state & I_FREEING,
 			 "Found existing inode %p/%lu/%u state %lu in lock: "
 			 "setting data to %p/%lu/%u\n", old_inode,
@@ -678,6 +679,7 @@ static int mdc_finish_enqueue(struct obd_export *exp,
 			 */
 			if ((it->it_op & IT_OPEN) && req->rq_replay) {
 				void *lmm;
+
 				if (req_capsule_get_size(pill, &RMF_EADATA,
 							 RCL_CLIENT) <
 				    body->eadatasize)
@@ -1029,6 +1031,7 @@ static int mdc_finish_intent_lock(struct obd_export *exp,
 	lock = ldlm_handle2lock(lockh);
 	if (lock) {
 		ldlm_policy_data_t policy = lock->l_policy_data;
+
 		LDLM_DEBUG(lock, "matching against this");
 
 		LASSERTF(fid_res_name_eq(&mdt_body->fid1,
