@@ -633,7 +633,7 @@ static int mdc_finish_enqueue(struct obd_export *exp,
 
 		body = req_capsule_server_get(pill, &RMF_MDT_BODY);
 		if (body == NULL) {
-			CERROR ("Can't swab mdt_body\n");
+			CERROR("Can't swab mdt_body\n");
 			return -EPROTO;
 		}
 

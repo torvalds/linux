@@ -42,7 +42,7 @@
 
 static void __mdc_pack_body(struct mdt_body *b, __u32 suppgid)
 {
-	LASSERT (b != NULL);
+	LASSERT(b != NULL);
 
 	b->suppgid = suppgid;
 	b->uid = from_kuid(&init_user_ns, current_uid());
@@ -409,7 +409,7 @@ void mdc_link_pack(struct ptlrpc_request *req, struct md_op_data *op_data)
 
 	CLASSERT(sizeof(struct mdt_rec_reint) == sizeof(struct mdt_rec_link));
 	rec = req_capsule_client_get(&req->rq_pill, &RMF_REC_REINT);
-	LASSERT (rec != NULL);
+	LASSERT(rec != NULL);
 
 	rec->lk_opcode   = REINT_LINK;
 	rec->lk_fsuid    = op_data->op_fsuid;//current->fsuid;

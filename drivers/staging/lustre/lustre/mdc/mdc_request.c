@@ -1702,7 +1702,7 @@ static int mdc_quotactl(struct obd_device *unused, struct obd_export *exp,
 		if (oqc) {
 			*oqctl = *oqc;
 		} else if (!rc) {
-			CERROR ("Can't unpack obd_quotactl\n");
+			CERROR("Can't unpack obd_quotactl\n");
 			rc = -EPROTO;
 		}
 	} else if (!rc) {
@@ -2426,14 +2426,14 @@ static int mdc_setup(struct obd_device *obd, struct lustre_cfg *cfg)
 	struct lprocfs_static_vars lvars = { NULL };
 	int rc;
 
-	OBD_ALLOC(cli->cl_rpc_lock, sizeof (*cli->cl_rpc_lock));
+	OBD_ALLOC(cli->cl_rpc_lock, sizeof(*cli->cl_rpc_lock));
 	if (!cli->cl_rpc_lock)
 		return -ENOMEM;
 	mdc_init_rpc_lock(cli->cl_rpc_lock);
 
 	ptlrpcd_addref();
 
-	OBD_ALLOC(cli->cl_close_lock, sizeof (*cli->cl_close_lock));
+	OBD_ALLOC(cli->cl_close_lock, sizeof(*cli->cl_close_lock));
 	if (!cli->cl_close_lock)
 		GOTO(err_rpc_lock, rc = -ENOMEM);
 	mdc_init_rpc_lock(cli->cl_close_lock);
@@ -2459,9 +2459,9 @@ static int mdc_setup(struct obd_device *obd, struct lustre_cfg *cfg)
 	return rc;
 
 err_close_lock:
-	OBD_FREE(cli->cl_close_lock, sizeof (*cli->cl_close_lock));
+	OBD_FREE(cli->cl_close_lock, sizeof(*cli->cl_close_lock));
 err_rpc_lock:
-	OBD_FREE(cli->cl_rpc_lock, sizeof (*cli->cl_rpc_lock));
+	OBD_FREE(cli->cl_rpc_lock, sizeof(*cli->cl_rpc_lock));
 	ptlrpcd_decref();
 	return rc;
 }
@@ -2523,8 +2523,8 @@ static int mdc_cleanup(struct obd_device *obd)
 {
 	struct client_obd *cli = &obd->u.cli;
 
-	OBD_FREE(cli->cl_rpc_lock, sizeof (*cli->cl_rpc_lock));
-	OBD_FREE(cli->cl_close_lock, sizeof (*cli->cl_close_lock));
+	OBD_FREE(cli->cl_rpc_lock, sizeof(*cli->cl_rpc_lock));
+	OBD_FREE(cli->cl_close_lock, sizeof(*cli->cl_close_lock));
 
 	ptlrpcd_decref();
 
