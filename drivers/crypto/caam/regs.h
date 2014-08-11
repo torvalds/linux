@@ -278,7 +278,7 @@ struct rng4tst {
 	};
 #define RTSDCTL_ENT_DLY_SHIFT 16
 #define RTSDCTL_ENT_DLY_MASK (0xffff << RTSDCTL_ENT_DLY_SHIFT)
-#define RTSDCTL_ENT_DLY_MIN 1200
+#define RTSDCTL_ENT_DLY_MIN 3200
 #define RTSDCTL_ENT_DLY_MAX 12800
 	u32 rtsdctl;		/* seed control register */
 	union {
