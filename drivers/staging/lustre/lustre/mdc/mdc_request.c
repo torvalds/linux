@@ -2384,7 +2384,8 @@ int mdc_fid_alloc(struct obd_export *exp, struct lu_fid *fid,
 	return seq_client_alloc_fid(NULL, seq, fid);
 }
 
-struct obd_uuid *mdc_get_uuid(struct obd_export *exp) {
+struct obd_uuid *mdc_get_uuid(struct obd_export *exp)
+{
 	struct client_obd *cli = &exp->exp_obd->u.cli;
 	return &cli->cl_target_uuid;
 }

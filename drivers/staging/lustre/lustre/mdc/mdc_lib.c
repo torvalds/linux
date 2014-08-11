@@ -256,7 +256,8 @@ void mdc_open_pack(struct ptlrpc_request *req, struct md_op_data *op_data,
 	set_mrc_cr_flags(rec, cr_flags);
 }
 
-static inline __u64 attr_pack(unsigned int ia_valid) {
+static inline __u64 attr_pack(unsigned int ia_valid)
+{
 	__u64 sa_valid = 0;
 
 	if (ia_valid & ATTR_MODE)
