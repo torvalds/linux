@@ -1375,7 +1375,7 @@ static int smp_cmd_sign_info(struct l2cap_conn *conn, struct sk_buff *skb)
 	return 0;
 }
 
-static int smp_recv_cb(struct l2cap_chan *chan, struct sk_buff *skb)
+static int smp_sig_channel(struct l2cap_chan *chan, struct sk_buff *skb)
 {
 	struct l2cap_conn *conn = chan->conn;
 	struct hci_conn *hcon = conn->hcon;
@@ -1512,6 +1512,24 @@ static void smp_ready_cb(struct l2cap_chan *chan)
 
 	conn->smp = chan;
 	l2cap_chan_hold(chan);
+}
+
+static int smp_recv_cb(struct l2cap_chan *chan, struct sk_buff *skb)
+{
+	int err;
+
+	BT_DBG("chan %p", chan);
+
+	err = smp_sig_channel(chan, skb);
+	if (err) {
+		struct l2cap_conn *conn = chan->conn;
+
+		cancel_delayed_work_sync(&conn->security_timer);
+
+		l2cap_conn_shutdown(chan->conn, -err);
+	}
+
+	return err;
 }
 
 static struct sk_buff *smp_alloc_skb_cb(struct l2cap_chan *chan,
