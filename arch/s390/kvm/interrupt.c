@@ -991,7 +991,6 @@ int kvm_s390_inject_vcpu(struct kvm_vcpu *vcpu,
 	trace_kvm_s390_inject_vcpu(vcpu->vcpu_id, s390int->type, s390int->parm,
 				   s390int->parm64, 2);
 
-	mutex_lock(&vcpu->kvm->lock);
 	li = &vcpu->arch.local_int;
 	spin_lock(&li->lock);
 	if (inti->type == KVM_S390_PROGRAM_INT)
@@ -1003,7 +1002,6 @@ int kvm_s390_inject_vcpu(struct kvm_vcpu *vcpu,
 		li->action_bits |= ACTION_STOP_ON_STOP;
 	atomic_set_mask(CPUSTAT_EXT_INT, li->cpuflags);
 	spin_unlock(&li->lock);
-	mutex_unlock(&vcpu->kvm->lock);
 	kvm_s390_vcpu_wakeup(vcpu);
 	return 0;
 }
