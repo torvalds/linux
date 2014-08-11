@@ -296,13 +296,6 @@ static int si2168_set_frontend(struct dvb_frontend *fe)
 	if (ret)
 		goto err;
 
-	memcpy(cmd.args, "\x14\x00\x01\x10\x16\x00", 6);
-	cmd.wlen = 6;
-	cmd.rlen = 4;
-	ret = si2168_cmd_execute(s, &cmd);
-	if (ret)
-		goto err;
-
 	memcpy(cmd.args, "\x14\x00\x09\x10\xe3\x18", 6);
 	cmd.wlen = 6;
 	cmd.rlen = 4;
@@ -463,6 +456,15 @@ static int si2168_init(struct dvb_frontend *fe)
 
 	dev_info(&s->client->dev, "found a '%s' in warm state\n",
 			si2168_ops.info.name);
+
+	/* set ts mode */
+	memcpy(cmd.args, "\x14\x00\x01\x10\x10\x00", 6);
+	cmd.args[4] |= s->ts_mode;
+	cmd.wlen = 6;
+	cmd.rlen = 4;
+	ret = si2168_cmd_execute(s, &cmd);
+	if (ret)
+		goto err;
 
 	s->active = true;
 
@@ -630,6 +632,7 @@ static int si2168_probe(struct i2c_client *client,
 
 	*config->i2c_adapter = s->adapter;
 	*config->fe = &s->fe;
+	s->ts_mode = config->ts_mode;
 
 	i2c_set_clientdata(client, s);
 
