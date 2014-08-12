@@ -266,19 +266,14 @@ static bool mei_me_hw_is_ready(struct mei_device *dev)
 
 static int mei_me_hw_ready_wait(struct mei_device *dev)
 {
-	int err;
-
 	mutex_unlock(&dev->device_lock);
-	err = wait_event_interruptible_timeout(dev->wait_hw_ready,
+	wait_event_timeout(dev->wait_hw_ready,
 			dev->recvd_hw_ready,
 			mei_secs_to_jiffies(MEI_HW_READY_TIMEOUT));
 	mutex_lock(&dev->device_lock);
-	if (!err && !dev->recvd_hw_ready) {
-		if (!err)
-			err = -ETIME;
-		dev_err(&dev->pdev->dev,
-			"wait hw ready failed. status = %d\n", err);
-		return err;
+	if (!dev->recvd_hw_ready) {
+		dev_err(&dev->pdev->dev, "wait hw ready failed\n");
+		return -ETIME;
 	}
 
 	dev->recvd_hw_ready = false;
@@ -664,7 +659,7 @@ irqreturn_t mei_me_irq_thread_handler(int irq, void *dev_id)
 			dev_dbg(&dev->pdev->dev, "we need to start the dev.\n");
 
 			dev->recvd_hw_ready = true;
-			wake_up_interruptible(&dev->wait_hw_ready);
+			wake_up(&dev->wait_hw_ready);
 		} else {
 			dev_dbg(&dev->pdev->dev, "Spurious Interrupt\n");
 		}
