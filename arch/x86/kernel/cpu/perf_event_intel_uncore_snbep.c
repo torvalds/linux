@@ -1422,6 +1422,7 @@ static struct intel_uncore_type ivt_uncore_imc = {
 	.fixed_ctr_bits	= 48,
 	.fixed_ctr	= SNBEP_MC_CHy_PCI_PMON_FIXED_CTR,
 	.fixed_ctl	= SNBEP_MC_CHy_PCI_PMON_FIXED_CTL,
+	.event_descs	= snbep_uncore_imc_events,
 	IVT_UNCORE_PCI_COMMON_INIT(),
 };
 
