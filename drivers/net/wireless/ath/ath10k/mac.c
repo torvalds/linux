@@ -2003,7 +2003,7 @@ static void ath10k_tx_htt(struct ath10k *ar, struct sk_buff *skb)
 			     ar->fw_features)) {
 			if (skb_queue_len(&ar->wmi_mgmt_tx_queue) >=
 			    ATH10K_MAX_NUM_MGMT_PENDING) {
-				ath10k_warn("reached WMI management tranmist queue limit\n");
+				ath10k_warn("reached WMI management transmit queue limit\n");
 				ret = -EBUSY;
 				goto exit;
 			}
