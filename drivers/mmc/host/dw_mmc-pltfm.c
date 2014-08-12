@@ -134,9 +134,6 @@ static int dw_mci_pltfm_resume(struct device *dev)
 
 	return dw_mci_resume(host);
 }
-#else
-#define dw_mci_pltfm_suspend	NULL
-#define dw_mci_pltfm_resume	NULL
 #endif /* CONFIG_PM_SLEEP */
 
 SIMPLE_DEV_PM_OPS(dw_mci_pltfm_pmops, dw_mci_pltfm_suspend, dw_mci_pltfm_resume);
