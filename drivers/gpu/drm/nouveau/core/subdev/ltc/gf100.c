@@ -62,16 +62,38 @@ gf100_ltc_zbc_clear_depth(struct nvkm_ltc_priv *priv, int i, const u32 depth)
 	nv_wr32(priv, 0x17ea58, depth);
 }
 
+static const struct nouveau_bitfield
+gf100_ltc_lts_intr_name[] = {
+	{ 0x00000001, "IDLE_ERROR_IQ" },
+	{ 0x00000002, "IDLE_ERROR_CBC" },
+	{ 0x00000004, "IDLE_ERROR_TSTG" },
+	{ 0x00000008, "IDLE_ERROR_DSTG" },
+	{ 0x00000010, "EVICTED_CB" },
+	{ 0x00000020, "ILLEGAL_COMPSTAT" },
+	{ 0x00000040, "BLOCKLINEAR_CB" },
+	{ 0x00000100, "ECC_SEC_ERROR" },
+	{ 0x00000200, "ECC_DED_ERROR" },
+	{ 0x00000400, "DEBUG" },
+	{ 0x00000800, "ATOMIC_TO_Z" },
+	{ 0x00001000, "ILLEGAL_ATOMIC" },
+	{ 0x00002000, "BLKACTIVITY_ERR" },
+	{}
+};
+
 static void
-gf100_ltc_lts_isr(struct nvkm_ltc_priv *priv, int ltc, int lts)
+gf100_ltc_lts_intr(struct nvkm_ltc_priv *priv, int ltc, int lts)
 {
 	u32 base = 0x141000 + (ltc * 0x2000) + (lts * 0x400);
-	u32 stat = nv_rd32(priv, base + 0x020);
+	u32 intr = nv_rd32(priv, base + 0x020);
+	u32 stat = intr & 0x0000ffff;
 
 	if (stat) {
-		nv_info(priv, "LTC%d_LTS%d: 0x%08x\n", ltc, lts, stat);
-		nv_wr32(priv, base + 0x020, stat);
+		nv_info(priv, "LTC%d_LTS%d:", ltc, lts);
+		nouveau_bitfield_print(gf100_ltc_lts_intr_name, stat);
+		pr_cont("\n");
 	}
+
+	nv_wr32(priv, base + 0x020, intr);
 }
 
 void
@@ -84,7 +106,7 @@ gf100_ltc_intr(struct nouveau_subdev *subdev)
 	while (mask) {
 		u32 lts, ltc = __ffs(mask);
 		for (lts = 0; lts < priv->lts_nr; lts++)
-			gf100_ltc_lts_isr(priv, ltc, lts);
+			gf100_ltc_lts_intr(priv, ltc, lts);
 		mask &= ~(1 << ltc);
 	}
 }
