@@ -256,7 +256,7 @@ config SND_RK_SOC_RK312X
         select SND_SOC_RK312X
         help
           Say Y if you want to add support for SoC audio on rockchip
-          with the RK3036 s40.
+          with the rk3128 && rk3126 internal codec.
 
 config SND_RK_SOC_RK610
 	tristate "SoC I2S Audio support for rockchip - RK610"

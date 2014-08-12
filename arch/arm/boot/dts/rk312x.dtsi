@@ -914,30 +914,4 @@
 			};
 		};
 	};
-
-	rockchip-audio {
-		compatible = "audio-rk312x";
-		dais {
-			dai0 {
-				audio-codec = <&codec>;
-				i2s-controller = <&i2s1>;
-				format = "i2s";
-				//continuous-clock;
-				//bitclock-inversion;
-				//frame-inversion;
-				//bitclock-master;
-				//frame-master;
-			};
-			dai1 {
-				audio-codec = <&codec>;
-				i2s-controller = <&i2s1>;
-				format = "i2s";
-				//continuous-clock;
-				//bitclock-inversion;
-				//frame-inversion;
-				//bitclock-master;
-				//frame-master;
-			};
-		};
-	};
 };
