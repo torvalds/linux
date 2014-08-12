@@ -402,9 +402,6 @@ static int xencons_connect_backend(struct xenbus_device *dev,
 			    evtchn);
 	if (ret)
 		goto error_xenbus;
-	ret = xenbus_printf(xbt, dev->nodename, "type", "ioemu");
-	if (ret)
-		goto error_xenbus;
 	ret = xenbus_transaction_end(xbt, 0);
 	if (ret) {
 		if (ret == -EAGAIN)
