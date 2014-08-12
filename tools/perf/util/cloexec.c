@@ -1,3 +1,4 @@
+#include <sched.h>
 #include "util.h"
 #include "../perf.h"
 #include "cloexec.h"
@@ -15,10 +16,23 @@ static int perf_flag_probe(void)
 	};
 	int fd;
 	int err;
+	int cpu;
+	pid_t pid = -1;
 
-	/* check cloexec flag */
-	fd = sys_perf_event_open(&attr, 0, -1, -1,
-				 PERF_FLAG_FD_CLOEXEC);
+	cpu = sched_getcpu();
+	if (cpu < 0)
+		cpu = 0;
+
+	while (1) {
+		/* check cloexec flag */
+		fd = sys_perf_event_open(&attr, pid, cpu, -1,
+					 PERF_FLAG_FD_CLOEXEC);
+		if (fd < 0 && pid == -1 && errno == EACCES) {
+			pid = 0;
+			continue;
+		}
+		break;
+	}
 	err = errno;
 
 	if (fd >= 0) {
@@ -31,7 +45,7 @@ static int perf_flag_probe(void)
 		  err, strerror(err));
 
 	/* not supported, confirm error related to PERF_FLAG_FD_CLOEXEC */
-	fd = sys_perf_event_open(&attr, 0, -1, -1, 0);
+	fd = sys_perf_event_open(&attr, pid, cpu, -1, 0);
 	err = errno;
 
 	if (WARN_ONCE(fd < 0 && err != EBUSY,
