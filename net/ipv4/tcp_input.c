@@ -3050,9 +3050,14 @@ static int tcp_clean_rtx_queue(struct sock *sk, int prior_fackets,
 	first_ackt.v64 = 0;
 
 	while ((skb = tcp_write_queue_head(sk)) && skb != tcp_send_head(sk)) {
+		struct skb_shared_info *shinfo = skb_shinfo(skb);
 		struct tcp_skb_cb *scb = TCP_SKB_CB(skb);
 		u8 sacked = scb->sacked;
 		u32 acked_pcount;
+
+		if (unlikely(shinfo->tx_flags & SKBTX_ACK_TSTAMP) &&
+		    between(shinfo->tskey, prior_snd_una, tp->snd_una - 1))
+			__skb_tstamp_tx(skb, NULL, sk, SCM_TSTAMP_ACK);
 
 		/* Determine how many packets and what bytes were acked, tso and else */
 		if (after(scb->end_seq, tp->snd_una)) {
@@ -3106,11 +3111,6 @@ static int tcp_clean_rtx_queue(struct sock *sk, int prior_fackets,
 			flag |= FLAG_SYN_ACKED;
 			tp->retrans_stamp = 0;
 		}
-
-		if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_ACK_TSTAMP) &&
-		    between(skb_shinfo(skb)->tskey, prior_snd_una,
-			    tp->snd_una + 1))
-			__skb_tstamp_tx(skb, NULL, sk, SCM_TSTAMP_ACK);
 
 		if (!fully_acked)
 			break;
