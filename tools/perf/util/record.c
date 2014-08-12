@@ -47,7 +47,7 @@ out_delete:
 
 static bool perf_probe_api(setup_probe_fn_t fn)
 {
-	const char *try[] = {"cycles:u", "instructions:u", "cpu-clock", NULL};
+	const char *try[] = {"cycles:u", "instructions:u", "cpu-clock:u", NULL};
 	struct cpu_map *cpus;
 	int cpu, ret, i = 0;
 
