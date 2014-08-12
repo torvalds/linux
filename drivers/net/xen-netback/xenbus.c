@@ -174,10 +174,9 @@ static const struct file_operations xenvif_dbg_io_ring_ops_fops = {
 	.write = xenvif_write_io_ring,
 };
 
-static void xenvif_debugfs_addif(struct xenvif_queue *queue)
+static void xenvif_debugfs_addif(struct xenvif *vif)
 {
 	struct dentry *pfile;
-	struct xenvif *vif = queue->vif;
 	int i;
 
 	if (IS_ERR_OR_NULL(xen_netback_dbg_root))
@@ -736,10 +735,11 @@ static void connect(struct backend_info *be)
 			be->vif->num_queues = queue_index;
 			goto err;
 		}
-#ifdef CONFIG_DEBUG_FS
-		xenvif_debugfs_addif(queue);
-#endif /* CONFIG_DEBUG_FS */
 	}
+
+#ifdef CONFIG_DEBUG_FS
+	xenvif_debugfs_addif(be->vif);
+#endif /* CONFIG_DEBUG_FS */
 
 	/* Initialisation completed, tell core driver the number of
 	 * active queues.
