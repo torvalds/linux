@@ -10,6 +10,7 @@
 #include "../../util/pstack.h"
 #include "../../util/sort.h"
 #include "../../util/util.h"
+#include "../../util/top.h"
 #include "../../arch/common.h"
 
 #include "../browser.h"
@@ -1532,6 +1533,7 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 	"P             Print histograms to perf.hist.N\n"
 	"t             Zoom into current Thread\n"
 	"V             Verbose (DSO names in callchains, etc)\n"
+	"z             Toggle zeroing of samples\n"
 	"/             Filter symbol by name";
 
 	if (browser == NULL)
@@ -1631,6 +1633,13 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 			continue;
 		case 'F':
 			symbol_conf.filter_relative ^= 1;
+			continue;
+		case 'z':
+			if (!is_report_browser(hbt)) {
+				struct perf_top *top = hbt->arg;
+
+				top->zero = !top->zero;
+			}
 			continue;
 		case K_F1:
 		case 'h':
