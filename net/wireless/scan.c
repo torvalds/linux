@@ -884,6 +884,7 @@ struct cfg80211_bss*
 cfg80211_inform_bss_width(struct wiphy *wiphy,
 			  struct ieee80211_channel *rx_channel,
 			  enum nl80211_bss_scan_width scan_width,
+			  enum cfg80211_bss_frame_type ftype,
 			  const u8 *bssid, u64 tsf, u16 capability,
 			  u16 beacon_interval, const u8 *ie, size_t ielen,
 			  s32 signal, gfp_t gfp)
@@ -911,7 +912,7 @@ cfg80211_inform_bss_width(struct wiphy *wiphy,
 	tmp.pub.beacon_interval = beacon_interval;
 	tmp.pub.capability = capability;
 	/*
-	 * Since we do not know here whether the IEs are from a Beacon or Probe
+	 * If we do not know here whether the IEs are from a Beacon or Probe
 	 * Response frame, we need to pick one of the options and only use it
 	 * with the driver that does not provide the full Beacon/Probe Response
 	 * frame. Use Beacon frame pointer to avoid indicating that this should
@@ -926,7 +927,17 @@ cfg80211_inform_bss_width(struct wiphy *wiphy,
 	ies->from_beacon = false;
 	memcpy(ies->data, ie, ielen);
 
-	rcu_assign_pointer(tmp.pub.beacon_ies, ies);
+	switch (ftype) {
+	case CFG80211_BSS_FTYPE_BEACON:
+		ies->from_beacon = true;
+		/* fall through to assign */
+	case CFG80211_BSS_FTYPE_UNKNOWN:
+		rcu_assign_pointer(tmp.pub.beacon_ies, ies);
+		break;
+	case CFG80211_BSS_FTYPE_PRESP:
+		rcu_assign_pointer(tmp.pub.proberesp_ies, ies);
+		break;
+	}
 	rcu_assign_pointer(tmp.pub.ies, ies);
 
 	signal_valid = abs(rx_channel->center_freq - channel->center_freq) <=

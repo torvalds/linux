@@ -1557,6 +1557,7 @@ static int mwifiex_cfg80211_inform_ibss_bss(struct mwifiex_private *priv)
 						       band));
 
 	bss = cfg80211_inform_bss(priv->wdev->wiphy, chan,
+				  CFG80211_BSS_FTYPE_UNKNOWN,
 				  bss_info.bssid, 0, WLAN_CAPABILITY_IBSS,
 				  0, ie_buf, ie_len, 0, GFP_KERNEL);
 	cfg80211_put_bss(priv->wdev->wiphy, bss);

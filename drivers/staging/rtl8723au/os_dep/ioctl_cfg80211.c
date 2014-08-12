@@ -279,6 +279,7 @@ static int rtw_cfg80211_inform_bss(struct rtw_adapter *padapter,
 	}
 
 	bss = cfg80211_inform_bss(wiphy, notify_channel,
+				  CFG80211_BSS_FTYPE_UNKNOWN,
 				  pnetwork->network.MacAddress,
 				  pnetwork->network.tsf,
 				  pnetwork->network.capability,

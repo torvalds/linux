@@ -346,7 +346,7 @@ static void wmi_evt_rx_mgmt(struct wil6210_priv *wil, int id, void *d, int len)
 				    rx_mgmt_frame->bssid);
 			cfg80211_put_bss(wiphy, bss);
 		} else {
-			wil_err(wil, "cfg80211_inform_bss() failed\n");
+			wil_err(wil, "cfg80211_inform_bss_frame() failed\n");
 		}
 	} else {
 		cfg80211_rx_mgmt(wil->wdev, freq, signal,
