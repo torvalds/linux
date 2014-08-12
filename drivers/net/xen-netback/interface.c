@@ -43,6 +43,23 @@
 #define XENVIF_QUEUE_LENGTH 32
 #define XENVIF_NAPI_WEIGHT  64
 
+/* This function is used to set SKBTX_DEV_ZEROCOPY as well as
+ * increasing the inflight counter. We need to increase the inflight
+ * counter because core driver calls into xenvif_zerocopy_callback
+ * which calls xenvif_skb_zerocopy_complete.
+ */
+void xenvif_skb_zerocopy_prepare(struct xenvif_queue *queue,
+				 struct sk_buff *skb)
+{
+	skb_shinfo(skb)->tx_flags |= SKBTX_DEV_ZEROCOPY;
+	atomic_inc(&queue->inflight_packets);
+}
+
+void xenvif_skb_zerocopy_complete(struct xenvif_queue *queue)
+{
+	atomic_dec(&queue->inflight_packets);
+}
+
 static inline void xenvif_stop_queue(struct xenvif_queue *queue)
 {
 	struct net_device *dev = queue->vif->dev;
@@ -557,6 +574,7 @@ int xenvif_connect(struct xenvif_queue *queue, unsigned long tx_ring_ref,
 
 	init_waitqueue_head(&queue->wq);
 	init_waitqueue_head(&queue->dealloc_wq);
+	atomic_set(&queue->inflight_packets, 0);
 
 	if (tx_evtchn == rx_evtchn) {
 		/* feature-split-event-channels == 0 */
