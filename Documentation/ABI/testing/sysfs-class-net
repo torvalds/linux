@@ -159,7 +159,7 @@ Description:
 		lower-level interface protocol used. Ethernet devices will show
 		a 'mtu' attribute value of 1500 unless changed.
 
-What:		/sys/calss/net/<iface>/netdev_group
+What:		/sys/class/net/<iface>/netdev_group
 Date:		January 2011
 KernelVersion:	2.6.39
 Contact:	netdev@vger.kernel.org
