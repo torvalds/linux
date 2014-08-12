@@ -88,40 +88,6 @@
 #define APCI1564_TCW_WARN_TIMEBASE_REG(x)		(0x1c + ((x) * 0x20))
 
 /*
- * Configures The Digital Output Subdevice.
- *
- * data[1] 0 = Disable VCC Interrupt, 1 = Enable VCC Interrupt
- * data[2] 0 = Disable CC Interrupt, 1 = Enable CC Interrupt
- */
-static int apci1564_do_config(struct comedi_device *dev,
-			      struct comedi_subdevice *s,
-			      struct comedi_insn *insn,
-			      unsigned int *data)
-{
-	struct apci1564_private *devpriv = dev->private;
-	unsigned int ul_Command = 0;
-
-	if ((data[0] != 0) && (data[0] != 1)) {
-		dev_err(dev->class_dev, "Data should be 1 or 0\n");
-		return -EINVAL;
-	}
-
-	if (data[1] == 1)
-		ul_Command = ul_Command | 0x1;
-	else
-		ul_Command = ul_Command & 0xFFFFFFFE;
-
-	if (data[2] == 1)
-		ul_Command = ul_Command | 0x2;
-	else
-		ul_Command = ul_Command & 0xFFFFFFFD;
-
-	outl(ul_Command, devpriv->amcc_iobase + APCI1564_DO_INT_CTRL_REG);
-	devpriv->tsk_current = current;
-	return insn->n;
-}
-
-/*
  * Configures The Timer, Counter or Watchdog
  *
  * data[0] Configure as: 0 = Timer, 1 = Counter, 2 = Watchdog

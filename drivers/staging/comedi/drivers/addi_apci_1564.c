@@ -388,7 +388,6 @@ static int apci1564_auto_attach(struct comedi_device *dev,
 	s->n_chan = 32;
 	s->maxdata = 1;
 	s->range_table = &range_digital;
-	s->insn_config = apci1564_do_config;
 	s->insn_bits = apci1564_do_insn_bits;
 
 	/* Change-Of-State (COS) interrupt subdevice */
