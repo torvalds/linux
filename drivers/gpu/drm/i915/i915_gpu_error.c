@@ -577,7 +577,10 @@ i915_error_object_create(struct drm_i915_private *dev_priv,
 	if (dst == NULL)
 		return NULL;
 
-	dst->gtt_offset = i915_gem_obj_offset(src, vm);
+	if (i915_gem_obj_bound(src, vm))
+		dst->gtt_offset = i915_gem_obj_offset(src, vm);
+	else
+		dst->gtt_offset = -1;
 
 	reloc_offset = dst->gtt_offset;
 	use_ggtt = (src->cache_level == I915_CACHE_NONE &&
