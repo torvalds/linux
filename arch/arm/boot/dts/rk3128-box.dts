@@ -130,7 +130,7 @@
 };
 
 &tve {
-	status = "okay";
+	status = "disabled";
 };
 
 &i2c2 {
