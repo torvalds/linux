@@ -3,6 +3,7 @@ greybus-y := core.o gbuf.o
 obj-m += greybus.o
 obj-m += i2c-gb.o
 obj-m += sdio-gb.o
+obj-m += gpio-gb.o
 
 KERNELVER		?= $(shell uname -r)
 KERNELDIR 		?= /lib/modules/$(KERNELVER)/build
