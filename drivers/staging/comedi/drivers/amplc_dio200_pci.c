@@ -400,10 +400,10 @@ static void dio200_pci_detach(struct comedi_device *dev)
 }
 
 static struct comedi_driver dio200_pci_comedi_driver = {
-	.driver_name = "amplc_dio200_pci",
-	.module = THIS_MODULE,
-	.auto_attach = dio200_pci_auto_attach,
-	.detach = dio200_pci_detach,
+	.driver_name	= "amplc_dio200_pci",
+	.module		= THIS_MODULE,
+	.auto_attach	= dio200_pci_auto_attach,
+	.detach		= dio200_pci_detach,
 };
 
 static const struct pci_device_id dio200_pci_table[] = {
@@ -424,10 +424,10 @@ static int dio200_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 }
 
 static struct pci_driver dio200_pci_pci_driver = {
-	.name = "amplc_dio200_pci",
-	.id_table = dio200_pci_table,
-	.probe = dio200_pci_probe,
-	.remove	= comedi_pci_auto_unconfig,
+	.name		= "amplc_dio200_pci",
+	.id_table	= dio200_pci_table,
+	.probe		= dio200_pci_probe,
+	.remove		= comedi_pci_auto_unconfig,
 };
 module_comedi_pci_driver(dio200_pci_comedi_driver, dio200_pci_pci_driver);
 
