@@ -512,6 +512,7 @@ int mei_cl_connect(struct mei_cl *cl, struct file *file)
 		cl->timer_count = MEI_CONNECT_TIMEOUT;
 		list_add_tail(&cb->list, &dev->ctrl_rd_list.list);
 	} else {
+		cl->state = MEI_FILE_INITIALIZING;
 		list_add_tail(&cb->list, &dev->ctrl_wr_list.list);
 	}
 
