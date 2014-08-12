@@ -32,8 +32,6 @@
 
 #include "8255.h"
 
-#define SIZE_8255	4
-
 struct pcl724_board {
 	const char *name;
 	unsigned int io_range;
@@ -85,7 +83,7 @@ static int pcl724_8255mapped_io(struct comedi_device *dev,
 				int dir, int port, int data,
 				unsigned long iobase)
 {
-	int movport = SIZE_8255 * (iobase >> 12);
+	int movport = I8255_SIZE * (iobase >> 12);
 
 	iobase &= 0x0fff;
 
@@ -133,7 +131,7 @@ static int pcl724_attach(struct comedi_device *dev,
 			ret = subdev_8255_init(dev, s, pcl724_8255mapped_io,
 					       iobase);
 		} else {
-			ret = subdev_8255_init(dev, s, NULL, i * SIZE_8255);
+			ret = subdev_8255_init(dev, s, NULL, i * I8255_SIZE);
 		}
 		if (ret)
 			return ret;

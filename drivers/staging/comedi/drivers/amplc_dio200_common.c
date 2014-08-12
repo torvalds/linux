@@ -27,15 +27,7 @@
 #include "amplc_dio200.h"
 #include "comedi_fc.h"
 #include "8253.h"
-
-/* 8255 control register bits */
-#define CR_C_LO_IO	0x01
-#define CR_B_IO		0x02
-#define CR_B_MODE	0x04
-#define CR_C_HI_IO	0x08
-#define CR_A_IO		0x10
-#define CR_A_MODE(a)	((a)<<5)
-#define CR_CW		0x80
+#include "8255.h"		/* only for register defines */
 
 /* 200 series registers */
 #define DIO200_IO_SIZE		0x20
@@ -815,17 +807,17 @@ static void dio200_subdev_8255_set_dir(struct comedi_device *dev,
 	struct dio200_subdev_8255 *subpriv = s->private;
 	int config;
 
-	config = CR_CW;
+	config = I8255_CTRL_CW;
 	/* 1 in io_bits indicates output, 1 in config indicates input */
 	if (!(s->io_bits & 0x0000ff))
-		config |= CR_A_IO;
+		config |= I8255_CTRL_A_IO;
 	if (!(s->io_bits & 0x00ff00))
-		config |= CR_B_IO;
+		config |= I8255_CTRL_B_IO;
 	if (!(s->io_bits & 0x0f0000))
-		config |= CR_C_LO_IO;
+		config |= I8255_CTRL_C_LO_IO;
 	if (!(s->io_bits & 0xf00000))
-		config |= CR_C_HI_IO;
-	dio200_write8(dev, subpriv->ofs + 3, config);
+		config |= I8255_CTRL_C_HI_IO;
+	dio200_write8(dev, subpriv->ofs + I8255_CTRL_REG, config);
 }
 
 static int dio200_subdev_8255_bits(struct comedi_device *dev,
@@ -840,18 +832,19 @@ static int dio200_subdev_8255_bits(struct comedi_device *dev,
 	mask = comedi_dio_update_state(s, data);
 	if (mask) {
 		if (mask & 0xff)
-			dio200_write8(dev, subpriv->ofs, s->state & 0xff);
+			dio200_write8(dev, subpriv->ofs + I8255_DATA_A_REG,
+				      s->state & 0xff);
 		if (mask & 0xff00)
-			dio200_write8(dev, subpriv->ofs + 1,
+			dio200_write8(dev, subpriv->ofs + I8255_DATA_B_REG,
 				      (s->state >> 8) & 0xff);
 		if (mask & 0xff0000)
-			dio200_write8(dev, subpriv->ofs + 2,
+			dio200_write8(dev, subpriv->ofs + I8255_DATA_C_REG,
 				      (s->state >> 16) & 0xff);
 	}
 
-	val = dio200_read8(dev, subpriv->ofs);
-	val |= dio200_read8(dev, subpriv->ofs + 1) << 8;
-	val |= dio200_read8(dev, subpriv->ofs + 2) << 16;
+	val = dio200_read8(dev, subpriv->ofs + I8255_DATA_A_REG);
+	val |= dio200_read8(dev, subpriv->ofs + I8255_DATA_B_REG) << 8;
+	val |= dio200_read8(dev, subpriv->ofs + I8255_DATA_C_REG) << 16;
 
 	data[1] = val;
 

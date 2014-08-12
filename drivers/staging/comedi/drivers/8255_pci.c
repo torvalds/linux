@@ -236,9 +236,9 @@ static int pci_8255_auto_attach(struct comedi_device *dev,
 	for (i = 0; i < board->n_8255; i++) {
 		s = &dev->subdevices[i];
 		if (dev->mmio)
-			ret = subdev_8255_mm_init(dev, s, NULL, i * 4);
+			ret = subdev_8255_mm_init(dev, s, NULL, i * I8255_SIZE);
 		else
-			ret = subdev_8255_init(dev, s, NULL, i * 4);
+			ret = subdev_8255_init(dev, s, NULL, i * I8255_SIZE);
 		if (ret)
 			return ret;
 	}

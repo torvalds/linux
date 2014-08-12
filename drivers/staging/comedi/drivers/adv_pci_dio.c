@@ -66,7 +66,6 @@ enum hw_io_access {
 				 * subdevice) */
 
 #define SIZE_8254	   4	/* 8254 IO space length */
-#define SIZE_8255	   4	/* 8255 IO space length */
 
 #define PCIDIO_MAINREG	   2	/* main I/O region for all Advantech cards? */
 
@@ -1133,7 +1132,7 @@ static int pci_dio_auto_attach(struct comedi_device *dev,
 			s = &dev->subdevices[subdev];
 			ret = subdev_8255_init(dev, s, NULL,
 					       this_board->sdio[i].addr +
-					       SIZE_8255 * j);
+					       j * I8255_SIZE);
 			if (ret)
 				return ret;
 			subdev++;
