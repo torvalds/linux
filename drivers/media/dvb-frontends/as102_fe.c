@@ -325,11 +325,12 @@ static int as102_fe_read_status(struct dvb_frontend *fe, fe_status_t *status)
 		*status = FE_HAS_SIGNAL | FE_HAS_CARRIER;
 		break;
 	case TUNE_STATUS_STREAM_DETECTED:
-		*status = FE_HAS_SIGNAL | FE_HAS_CARRIER | FE_HAS_SYNC;
+		*status = FE_HAS_SIGNAL | FE_HAS_CARRIER | FE_HAS_SYNC |
+			  FE_HAS_VITERBI;
 		break;
 	case TUNE_STATUS_STREAM_TUNED:
 		*status = FE_HAS_SIGNAL | FE_HAS_CARRIER | FE_HAS_SYNC |
-			FE_HAS_LOCK;
+			  FE_HAS_LOCK | FE_HAS_VITERBI;
 		break;
 	default:
 		*status = TUNE_STATUS_NOT_TUNED;
