@@ -32,6 +32,11 @@ MODULE_DESCRIPTION("Sun LDOM virtual network driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_MODULE_VERSION);
 
+/* Heuristic for the number of times to exponentially backoff and
+ * retry sending an LDC trigger when EAGAIN is encountered
+ */
+#define	VNET_MAX_RETRIES	10
+
 /* Ordered from largest major to lowest */
 static struct vio_version vnet_versions[] = {
 	{ .major = 1, .minor = 0 },
@@ -260,6 +265,7 @@ static int vnet_send_ack(struct vnet_port *port, struct vio_dring_state *dr,
 		.state			= vio_dring_state,
 	};
 	int err, delay;
+	int retries = 0;
 
 	hdr.seq = dr->snd_nxt;
 	delay = 1;
@@ -272,6 +278,13 @@ static int vnet_send_ack(struct vnet_port *port, struct vio_dring_state *dr,
 		udelay(delay);
 		if ((delay <<= 1) > 128)
 			delay = 128;
+		if (retries++ > VNET_MAX_RETRIES) {
+			pr_info("ECONNRESET %x:%x:%x:%x:%x:%x\n",
+				port->raddr[0], port->raddr[1],
+				port->raddr[2], port->raddr[3],
+				port->raddr[4], port->raddr[5]);
+			err = -ECONNRESET;
+		}
 	} while (err == -EAGAIN);
 
 	return err;
@@ -593,6 +606,7 @@ static int __vnet_tx_trigger(struct vnet_port *port)
 		.end_idx		= (u32) -1,
 	};
 	int err, delay;
+	int retries = 0;
 
 	hdr.seq = dr->snd_nxt;
 	delay = 1;
@@ -605,6 +619,8 @@ static int __vnet_tx_trigger(struct vnet_port *port)
 		udelay(delay);
 		if ((delay <<= 1) > 128)
 			delay = 128;
+		if (retries++ > VNET_MAX_RETRIES)
+			break;
 	} while (err == -EAGAIN);
 
 	return err;
