@@ -31,24 +31,16 @@ enum dio200_sdtype { sd_none, sd_intr, sd_8255, sd_8254, sd_timer };
 #define DIO200_MAX_SUBDEVS	8
 #define DIO200_MAX_ISNS		6
 
-/*
- * Board descriptions.
- */
-
-struct dio200_layout {
+struct dio200_board {
+	const char *name;
+	unsigned char mainbar;
+	unsigned char mainshift;
 	unsigned short n_subdevs;	/* number of subdevices */
 	unsigned char sdtype[DIO200_MAX_SUBDEVS];	/* enum dio200_sdtype */
 	unsigned char sdinfo[DIO200_MAX_SUBDEVS];	/* depends on sdtype */
 	bool has_int_sce:1;		/* has interrupt enable/status reg */
 	bool has_clk_gat_sce:1;		/* has clock/gate selection registers */
 	bool has_enhancements:1;	/* has enhanced features */
-};
-
-struct dio200_board {
-	const char *name;
-	struct dio200_layout layout;
-	unsigned char mainbar;
-	unsigned char mainshift;
 };
 
 int amplc_dio200_common_attach(struct comedi_device *dev, unsigned int irq,

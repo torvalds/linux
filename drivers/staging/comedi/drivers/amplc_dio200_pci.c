@@ -242,70 +242,73 @@ enum dio200_pci_model {
 
 static const struct dio200_board dio200_pci_boards[] = {
 	[pci215_model] = {
-		.name = "pci215",
-		.mainbar = 2,
-		.layout = {
-			.n_subdevs = 5,
-			.sdtype = {sd_8255, sd_8255, sd_8254, sd_8254, sd_intr},
-			.sdinfo = {0x00, 0x08, 0x10, 0x14, 0x3F},
-			.has_int_sce = true,
-			.has_clk_gat_sce = true,
+		.name		= "pci215",
+		.mainbar	= 2,
+		.n_subdevs	= 5,
+		.sdtype		= {
+			sd_8255, sd_8255, sd_8254, sd_8254, sd_intr
 		},
+		.sdinfo		= { 0x00, 0x08, 0x10, 0x14, 0x3f },
+		.has_int_sce	= true,
+		.has_clk_gat_sce = true,
 	},
 	[pci272_model] = {
-		.name = "pci272",
-		.mainbar = 2,
-		.layout = {
-			.n_subdevs = 4,
-			.sdtype = {sd_8255, sd_8255, sd_8255, sd_intr},
-			.sdinfo = {0x00, 0x08, 0x10, 0x3F},
-			.has_int_sce = true,
+		.name		= "pci272",
+		.mainbar	= 2,
+		.n_subdevs	= 4,
+		.sdtype		= {
+			sd_8255, sd_8255, sd_8255, sd_intr
 		},
+		.sdinfo		= { 0x00, 0x08, 0x10, 0x3f },
+		.has_int_sce	= true,
 	},
 	[pcie215_model] = {
-		.name = "pcie215",
-		.mainbar = 1,
-		.mainshift = 3,
-		.layout = {
-			.n_subdevs = 8,
-			.sdtype = {sd_8255, sd_none, sd_8255, sd_none,
-				   sd_8254, sd_8254, sd_timer, sd_intr},
-			.sdinfo = {0x00, 0x00, 0x08, 0x00,
-				   0x10, 0x14, 0x00, 0x3F},
-			.has_int_sce = true,
-			.has_clk_gat_sce = true,
-			.has_enhancements = true,
+		.name		= "pcie215",
+		.mainbar	= 1,
+		.mainshift	= 3,
+		.n_subdevs	= 8,
+		.sdtype		= {
+			sd_8255, sd_none, sd_8255, sd_none,
+			sd_8254, sd_8254, sd_timer, sd_intr
 		},
+		.sdinfo		= {
+			0x00, 0x00, 0x08, 0x00, 0x10, 0x14, 0x00, 0x3f
+		},
+		.has_int_sce	= true,
+		.has_clk_gat_sce = true,
+		.has_enhancements = true,
 	},
 	[pcie236_model] = {
-		.name = "pcie236",
-		.mainbar = 1,
-		.mainshift = 3,
-		.layout = {
-			.n_subdevs = 8,
-			.sdtype = {sd_8255, sd_none, sd_none, sd_none,
-				   sd_8254, sd_8254, sd_timer, sd_intr},
-			.sdinfo = {0x00, 0x00, 0x00, 0x00,
-				   0x10, 0x14, 0x00, 0x3F},
-			.has_int_sce = true,
-			.has_clk_gat_sce = true,
-			.has_enhancements = true,
+		.name		= "pcie236",
+		.mainbar	= 1,
+		.mainshift	= 3,
+		.n_subdevs	= 8,
+		.sdtype		= {
+			sd_8255, sd_none, sd_none, sd_none,
+			sd_8254, sd_8254, sd_timer, sd_intr
 		},
+		.sdinfo		= {
+			0x00, 0x00, 0x00, 0x00, 0x10, 0x14, 0x00, 0x3f
+		},
+		.has_int_sce	= true,
+		.has_clk_gat_sce = true,
+		.has_enhancements = true,
 	},
 	[pcie296_model] = {
-		.name = "pcie296",
-		.mainbar = 1,
-		.mainshift = 3,
-		.layout = {
-			.n_subdevs = 8,
-			.sdtype = {sd_8255, sd_8255, sd_8255, sd_8255,
-				   sd_8254, sd_8254, sd_timer, sd_intr},
-			.sdinfo = {0x00, 0x04, 0x08, 0x0C,
-				   0x10, 0x14, 0x00, 0x3F},
-			.has_int_sce = true,
-			.has_clk_gat_sce = true,
-			.has_enhancements = true,
+		.name		= "pcie296",
+		.mainbar	= 1,
+		.mainshift	= 3,
+		.n_subdevs	= 8,
+		.sdtype		= {
+			sd_8255, sd_8255, sd_8255, sd_8255,
+			sd_8254, sd_8254, sd_timer, sd_intr
 		},
+		.sdinfo		= {
+			0x00, 0x04, 0x08, 0x0c, 0x10, 0x14, 0x00, 0x3f
+		},
+		.has_int_sce	= true,
+		.has_clk_gat_sce = true,
+		.has_enhancements = true,
 	},
 };
 
