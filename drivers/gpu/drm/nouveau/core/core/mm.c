@@ -28,6 +28,24 @@
 #define node(root, dir) ((root)->nl_entry.dir == &mm->nodes) ? NULL : \
 	list_entry((root)->nl_entry.dir, struct nouveau_mm_node, nl_entry)
 
+static void
+nouveau_mm_dump(struct nouveau_mm *mm, const char *header)
+{
+	struct nouveau_mm_node *node;
+
+	printk(KERN_ERR "nouveau: %s\n", header);
+	printk(KERN_ERR "nouveau: node list:\n");
+	list_for_each_entry(node, &mm->nodes, nl_entry) {
+		printk(KERN_ERR "nouveau: \t%08x %08x %d\n",
+		       node->offset, node->length, node->type);
+	}
+	printk(KERN_ERR "nouveau: free list:\n");
+	list_for_each_entry(node, &mm->free, fl_entry) {
+		printk(KERN_ERR "nouveau: \t%08x %08x %d\n",
+		       node->offset, node->length, node->type);
+	}
+}
+
 void
 nouveau_mm_free(struct nouveau_mm *mm, struct nouveau_mm_node **pthis)
 {
@@ -239,18 +257,23 @@ nouveau_mm_init(struct nouveau_mm *mm, u32 offset, u32 length, u32 block)
 int
 nouveau_mm_fini(struct nouveau_mm *mm)
 {
-	if (nouveau_mm_initialised(mm)) {
-		struct nouveau_mm_node *node, *heap =
-			list_first_entry(&mm->nodes, typeof(*heap), nl_entry);
-		int nodes = 0;
+	struct nouveau_mm_node *node, *temp;
+	int nodes = 0;
 
-		list_for_each_entry(node, &mm->nodes, nl_entry) {
-			if (WARN_ON(nodes++ == mm->heap_nodes))
-				return -EBUSY;
+	if (!nouveau_mm_initialised(mm))
+		return 0;
+
+	list_for_each_entry(node, &mm->nodes, nl_entry) {
+		if (++nodes > mm->heap_nodes) {
+			nouveau_mm_dump(mm, "mm not clean!");
+			return -EBUSY;
 		}
-
-		kfree(heap);
 	}
 
+	list_for_each_entry_safe(node, temp, &mm->nodes, nl_entry) {
+		list_del(&node->nl_entry);
+		kfree(node);
+	}
+	mm->heap_nodes = 0;
 	return 0;
 }
