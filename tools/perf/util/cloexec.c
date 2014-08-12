@@ -11,6 +11,7 @@ static int perf_flag_probe(void)
 	struct perf_event_attr attr = {
 		.type = PERF_TYPE_SOFTWARE,
 		.config = PERF_COUNT_SW_CPU_CLOCK,
+		.exclude_kernel = 1,
 	};
 	int fd;
 	int err;
