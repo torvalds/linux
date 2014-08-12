@@ -1172,7 +1172,7 @@ lnet_ipaddr_enumerate(__u32 **ipaddrsp)
 int
 lnet_parse_ip2nets(char **networksp, char *ip2nets)
 {
-	__u32     *ipaddrs;
+	__u32     *ipaddrs = NULL;
 	int	nip = lnet_ipaddr_enumerate(&ipaddrs);
 	int	rc;
 
