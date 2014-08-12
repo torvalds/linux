@@ -2241,12 +2241,12 @@ static int trace__replay(struct trace *trace)
 	/* add tid to output */
 	trace->multiple_threads = true;
 
-	if (symbol__init() < 0)
-		return -1;
-
 	session = perf_session__new(&file, false, &trace->tool);
 	if (session == NULL)
 		return -ENOMEM;
+
+	if (symbol__init() < 0)
+		goto out;
 
 	trace->host = &session->machines.host;
 
