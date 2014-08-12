@@ -192,10 +192,10 @@ static void print_error_buffers(struct drm_i915_error_state_buf *m,
 				struct drm_i915_error_buffer *err,
 				int count)
 {
-	err_printf(m, "%s [%d]:\n", name, count);
+	err_printf(m, "  %s [%d]:\n", name, count);
 
 	while (count--) {
-		err_printf(m, "  %08x %8u %02x %02x %x %x",
+		err_printf(m, "    %08x %8u %02x %02x %x %x",
 			   err->gtt_offset,
 			   err->size,
 			   err->read_domains,
@@ -393,15 +393,17 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 		i915_ring_error_state(m, dev, &error->ring[i]);
 	}
 
-	if (error->active_bo)
-		print_error_buffers(m, "Active",
-				    error->active_bo[0],
-				    error->active_bo_count[0]);
+	for (i = 0; i < error->vm_count; i++) {
+		err_printf(m, "vm[%d]\n", i);
 
-	if (error->pinned_bo)
+		print_error_buffers(m, "Active",
+				    error->active_bo[i],
+				    error->active_bo_count[i]);
+
 		print_error_buffers(m, "Pinned",
-				    error->pinned_bo[0],
-				    error->pinned_bo_count[0]);
+				    error->pinned_bo[i],
+				    error->pinned_bo_count[i]);
+	}
 
 	for (i = 0; i < ARRAY_SIZE(error->ring); i++) {
 		obj = error->ring[i].batchbuffer;
@@ -644,13 +646,15 @@ unwind:
 				       (src)->base.size>>PAGE_SHIFT)
 
 static void capture_bo(struct drm_i915_error_buffer *err,
-		       struct drm_i915_gem_object *obj)
+		       struct i915_vma *vma)
 {
+	struct drm_i915_gem_object *obj = vma->obj;
+
 	err->size = obj->base.size;
 	err->name = obj->base.name;
 	err->rseqno = obj->last_read_seqno;
 	err->wseqno = obj->last_write_seqno;
-	err->gtt_offset = i915_gem_obj_ggtt_offset(obj);
+	err->gtt_offset = vma->node.start;
 	err->read_domains = obj->base.read_domains;
 	err->write_domain = obj->base.write_domain;
 	err->fence_reg = obj->fence_reg;
@@ -674,7 +678,7 @@ static u32 capture_active_bo(struct drm_i915_error_buffer *err,
 	int i = 0;
 
 	list_for_each_entry(vma, head, mm_list) {
-		capture_bo(err++, vma->obj);
+		capture_bo(err++, vma);
 		if (++i == count)
 			break;
 	}
@@ -683,21 +687,27 @@ static u32 capture_active_bo(struct drm_i915_error_buffer *err,
 }
 
 static u32 capture_pinned_bo(struct drm_i915_error_buffer *err,
-			     int count, struct list_head *head)
+			     int count, struct list_head *head,
+			     struct i915_address_space *vm)
 {
 	struct drm_i915_gem_object *obj;
-	int i = 0;
+	struct drm_i915_error_buffer * const first = err;
+	struct drm_i915_error_buffer * const last = err + count;
 
 	list_for_each_entry(obj, head, global_list) {
-		if (!i915_gem_obj_is_pinned(obj))
-			continue;
+		struct i915_vma *vma;
 
-		capture_bo(err++, obj);
-		if (++i == count)
+		if (err == last)
 			break;
+
+		list_for_each_entry(vma, &obj->vma_list, vma_link)
+			if (vma->vm == vm && vma->pin_count > 0) {
+				capture_bo(err++, vma);
+				break;
+			}
 	}
 
-	return i;
+	return err - first;
 }
 
 /* Generate a semi-unique error code. The code is not meant to have meaning, The
@@ -1053,9 +1063,14 @@ static void i915_gem_capture_vm(struct drm_i915_private *dev_priv,
 	list_for_each_entry(vma, &vm->active_list, mm_list)
 		i++;
 	error->active_bo_count[ndx] = i;
-	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list)
-		if (i915_gem_obj_is_pinned(obj))
-			i++;
+
+	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list) {
+		list_for_each_entry(vma, &obj->vma_list, vma_link)
+			if (vma->vm == vm && vma->pin_count > 0) {
+				i++;
+				break;
+			}
+	}
 	error->pinned_bo_count[ndx] = i - error->active_bo_count[ndx];
 
 	if (i) {
@@ -1074,7 +1089,7 @@ static void i915_gem_capture_vm(struct drm_i915_private *dev_priv,
 		error->pinned_bo_count[ndx] =
 			capture_pinned_bo(pinned_bo,
 					  error->pinned_bo_count[ndx],
-					  &dev_priv->mm.bound_list);
+					  &dev_priv->mm.bound_list, vm);
 	error->active_bo[ndx] = active_bo;
 	error->pinned_bo[ndx] = pinned_bo;
 }
@@ -1095,8 +1110,25 @@ static void i915_gem_capture_buffers(struct drm_i915_private *dev_priv,
 	error->pinned_bo_count = kcalloc(cnt, sizeof(*error->pinned_bo_count),
 					 GFP_ATOMIC);
 
-	list_for_each_entry(vm, &dev_priv->vm_list, global_link)
-		i915_gem_capture_vm(dev_priv, error, vm, i++);
+	if (error->active_bo == NULL ||
+	    error->pinned_bo == NULL ||
+	    error->active_bo_count == NULL ||
+	    error->pinned_bo_count == NULL) {
+		kfree(error->active_bo);
+		kfree(error->active_bo_count);
+		kfree(error->pinned_bo);
+		kfree(error->pinned_bo_count);
+
+		error->active_bo = NULL;
+		error->active_bo_count = NULL;
+		error->pinned_bo = NULL;
+		error->pinned_bo_count = NULL;
+	} else {
+		list_for_each_entry(vm, &dev_priv->vm_list, global_link)
+			i915_gem_capture_vm(dev_priv, error, vm, i++);
+
+		error->vm_count = cnt;
+	}
 }
 
 /* Capture all registers which don't fit into another category. */

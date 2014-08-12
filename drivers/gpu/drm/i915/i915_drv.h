@@ -396,6 +396,7 @@ struct drm_i915_error_state {
 		pid_t pid;
 		char comm[TASK_COMM_LEN];
 	} ring[I915_NUM_RINGS];
+
 	struct drm_i915_error_buffer {
 		u32 size;
 		u32 name;
@@ -414,6 +415,7 @@ struct drm_i915_error_state {
 	} **active_bo, **pinned_bo;
 
 	u32 *active_bo_count, *pinned_bo_count;
+	u32 vm_count;
 };
 
 struct intel_connector;
