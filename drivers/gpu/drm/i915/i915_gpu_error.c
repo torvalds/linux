@@ -561,10 +561,11 @@ static struct drm_i915_error_object *
 i915_error_object_create_sized(struct drm_i915_private *dev_priv,
 			       struct drm_i915_gem_object *src,
 			       struct i915_address_space *vm,
-			       const int num_pages)
+			       int num_pages)
 {
 	struct drm_i915_error_object *dst;
-	int i;
+	bool use_ggtt;
+	int i = 0;
 	u32 reloc_offset;
 
 	if (src == NULL || src->pages == NULL)
@@ -574,8 +575,32 @@ i915_error_object_create_sized(struct drm_i915_private *dev_priv,
 	if (dst == NULL)
 		return NULL;
 
-	reloc_offset = dst->gtt_offset = i915_gem_obj_offset(src, vm);
-	for (i = 0; i < num_pages; i++) {
+	dst->gtt_offset = i915_gem_obj_offset(src, vm);
+
+	reloc_offset = dst->gtt_offset;
+	use_ggtt = (src->cache_level == I915_CACHE_NONE &&
+		    i915_is_ggtt(vm) &&
+		    src->has_global_gtt_mapping &&
+		    reloc_offset + num_pages * PAGE_SIZE <= dev_priv->gtt.mappable_end);
+
+	/* Cannot access stolen address directly, try to use the aperture */
+	if (src->stolen) {
+		use_ggtt = true;
+
+		if (!src->has_global_gtt_mapping)
+			goto unwind;
+
+		reloc_offset = i915_gem_obj_ggtt_offset(src);
+		if (reloc_offset + num_pages * PAGE_SIZE > dev_priv->gtt.mappable_end)
+			goto unwind;
+	}
+
+	/* Cannot access snooped pages through the aperture */
+	if (use_ggtt && src->cache_level != I915_CACHE_NONE && !HAS_LLC(dev_priv->dev))
+		goto unwind;
+
+	dst->page_count = num_pages;
+	while (num_pages--) {
 		unsigned long flags;
 		void *d;
 
@@ -584,10 +609,7 @@ i915_error_object_create_sized(struct drm_i915_private *dev_priv,
 			goto unwind;
 
 		local_irq_save(flags);
-		if (src->cache_level == I915_CACHE_NONE &&
-		    reloc_offset < dev_priv->gtt.mappable_end &&
-		    src->has_global_gtt_mapping &&
-		    i915_is_ggtt(vm)) {
+		if (use_ggtt) {
 			void __iomem *s;
 
 			/* Simply ignore tiling or any overlapping fence.
@@ -599,14 +621,6 @@ i915_error_object_create_sized(struct drm_i915_private *dev_priv,
 						     reloc_offset);
 			memcpy_fromio(d, s, PAGE_SIZE);
 			io_mapping_unmap_atomic(s);
-		} else if (src->stolen) {
-			unsigned long offset;
-
-			offset = dev_priv->mm.stolen_base;
-			offset += src->stolen->start;
-			offset += i << PAGE_SHIFT;
-
-			memcpy_fromio(d, (void __iomem *) offset, PAGE_SIZE);
 		} else {
 			struct page *page;
 			void *s;
@@ -623,11 +637,9 @@ i915_error_object_create_sized(struct drm_i915_private *dev_priv,
 		}
 		local_irq_restore(flags);
 
-		dst->pages[i] = d;
-
+		dst->pages[i++] = d;
 		reloc_offset += PAGE_SIZE;
 	}
-	dst->page_count = num_pages;
 
 	return dst;
 
