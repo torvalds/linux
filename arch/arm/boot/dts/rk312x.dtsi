@@ -914,4 +914,39 @@
 			};
 		};
 	};
+	codec: codec@20030000 {
+		compatible = "rk312x-codec";
+		reg = <0x20030000 0x4000>;
+		//pinctrl-names = "default";
+		//pinctrl-0 = <&i2s_gpio>;
+		boot_depop = <1>;
+		pa_enable_time = <1000>;
+		clocks = <&clk_gates5 14>;
+		clock-names = "g_pclk_acodec";
+	};
+	rockchip-audio {
+		compatible = "audio-rk312x";
+		dais {
+			dai0 {
+				audio-codec = <&codec>;
+				i2s-controller = <&i2s1>;
+				format = "i2s";
+				//continuous-clock;
+				//bitclock-inversion;
+				//frame-inversion;
+				//bitclock-master;
+				//frame-master;
+			};
+			dai1 {
+				audio-codec = <&codec>;
+				i2s-controller = <&i2s1>;
+				format = "i2s";
+				//continuous-clock;
+				//bitclock-inversion;
+				//frame-inversion;
+				//bitclock-master;
+				//frame-master;
+			};
+		};
+	};
 };

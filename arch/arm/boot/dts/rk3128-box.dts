@@ -50,46 +50,6 @@
 		rockchip,remote_wakeup;
 		rockchip,usb_irq_wakeup;
 	};
-
-	codec: codec@20030000 {
-		compatible = "rk312x-codec";
-		reg = <0x20030000 0x1000>;
-		spk_ctl_io = <&gpio1 GPIO_A3 0>;
-		//pinctrl-names = "default";
-		//pinctrl-0 = <&i2s_gpio>;
-
-		boot_depop = <1>;
-		pa_enable_time = <1000>;
-		clocks = <&clk_gates5 14>;
-		clock-names = "g_pclk_acodec";
-	};
-
-	rockchip-audio {
-                compatible = "audio-rk312x";
-                dais {
-                        dai0 {
-                                audio-codec = <&codec>;
-                                i2s-controller = <&i2s1>;
-                                format = "i2s";
-                                //continuous-clock;
-                                //bitclock-inversion;
-                                //frame-inversion;
-                                //bitclock-master;
-                                //frame-master;
-                        };
-                        dai1 {
-                                audio-codec = <&codec>;
-                                i2s-controller = <&i2s1>;
-                                format = "i2s";
-                                //continuous-clock;
-                                //bitclock-inversion;
-                                //frame-inversion;
-                                //bitclock-master;
-                                //frame-master;
-                        };
-                };
-        };
-
 };
 
 
@@ -182,4 +142,8 @@
 	//pmu_enable_level = <1>; //1->HIGH, 0->LOW
 	//power-gpio = <&gpio0 GPIO_A6 GPIO_ACTIVE_HIGH>;
 	reset-gpio = <&gpio2 GPIO_D0 GPIO_ACTIVE_LOW>;
+};
+
+&codec {
+	spk_ctl_io = <&gpio1 GPIO_A3 0>;
 };
