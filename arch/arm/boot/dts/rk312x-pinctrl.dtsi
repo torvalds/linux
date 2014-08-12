@@ -662,24 +662,22 @@
 
 			sdio0_cmd: sdio0_cmd {
 				rockchip,pins = <MMC1_CMD>;
-				rockchip,pull = <VALUE_PULL_UP>;
-				
-
+				rockchip,pull = <VALUE_PULL_DISABLE>;
 			};
 			sdio0_clk: sdio0_clk {
 				rockchip,pins = <SDMMC_CLKOUT>;
-				rockchip,pull = <VALUE_PULL_UP>;
+				rockchip,pull = <VALUE_PULL_DISABLE>;
 			};
 			sdio0_bus1: sdio0-bus-width1 {
 				rockchip,pins = <SDMMC_DATA0>;
-				rockchip,pull = <VALUE_PULL_UP>;
+				rockchip,pull = <VALUE_PULL_DISABLE>;
 			};
 			sdio0_bus4: sdio0-bus-width4 {
 				rockchip,pins = <SDMMC_DATA0>,
 						<SDMMC_DATA1>,
 						<SDMMC_DATA2>,
 						<SDMMC_DATA3>;
-				rockchip,pull = <VALUE_PULL_UP>;
+				rockchip,pull = <VALUE_PULL_DISABLE>;
 			};
 
 			sdio0_gpio: sdio0_gpio{
@@ -690,7 +688,7 @@
 						<GPIO1_A2>, //data1
 						<GPIO1_A4>, //data2
 						<GPIO1_A5>; //data3
-				rockchip,pull = <VALUE_PULL_UP>;
+				rockchip,pull = <VALUE_PULL_DISABLE>;
 			};
 
 		};
