@@ -7,6 +7,7 @@ struct nouveau_mm_node {
 	struct list_head rl_entry;
 
 #define NVKM_MM_TYPE_NONE 0x00
+#define NVKM_MM_TYPE_HOLE 0xff
 	u8  type;
 	u32 offset;
 	u32 length;

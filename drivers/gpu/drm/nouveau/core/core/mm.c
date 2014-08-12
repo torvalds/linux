@@ -116,7 +116,7 @@ nouveau_mm_head(struct nouveau_mm *mm, u8 type, u32 size_max, u32 size_min,
 	u32 splitoff;
 	u32 s, e;
 
-	BUG_ON(type == NVKM_MM_TYPE_NONE);
+	BUG_ON(type == NVKM_MM_TYPE_NONE || type == NVKM_MM_TYPE_HOLE);
 
 	list_for_each_entry(this, &mm->free, fl_entry) {
 		e = this->offset + this->length;
@@ -182,7 +182,7 @@ nouveau_mm_tail(struct nouveau_mm *mm, u8 type, u32 size_max, u32 size_min,
 	struct nouveau_mm_node *prev, *this, *next;
 	u32 mask = align - 1;
 
-	BUG_ON(type == NVKM_MM_TYPE_NONE);
+	BUG_ON(type == NVKM_MM_TYPE_NONE || type == NVKM_MM_TYPE_HOLE);
 
 	list_for_each_entry_reverse(this, &mm->free, fl_entry) {
 		u32 e = this->offset + this->length;
@@ -227,9 +227,21 @@ nouveau_mm_tail(struct nouveau_mm *mm, u8 type, u32 size_max, u32 size_min,
 int
 nouveau_mm_init(struct nouveau_mm *mm, u32 offset, u32 length, u32 block)
 {
-	struct nouveau_mm_node *node;
+	struct nouveau_mm_node *node, *prev;
+	u32 next;
 
 	if (nouveau_mm_initialised(mm)) {
+		prev = list_last_entry(&mm->nodes, typeof(*node), nl_entry);
+		next = prev->offset + prev->length;
+		if (next != offset) {
+			BUG_ON(next > offset);
+			if (!(node = kzalloc(sizeof(*node), GFP_KERNEL)))
+				return -ENOMEM;
+			node->type   = NVKM_MM_TYPE_HOLE;
+			node->offset = next;
+			node->length = offset - next;
+			list_add_tail(&node->nl_entry, &mm->nodes);
+		}
 		BUG_ON(block != mm->block_size);
 	} else {
 		INIT_LIST_HEAD(&mm->nodes);
@@ -264,9 +276,11 @@ nouveau_mm_fini(struct nouveau_mm *mm)
 		return 0;
 
 	list_for_each_entry(node, &mm->nodes, nl_entry) {
-		if (++nodes > mm->heap_nodes) {
-			nouveau_mm_dump(mm, "mm not clean!");
-			return -EBUSY;
+		if (node->type != NVKM_MM_TYPE_HOLE) {
+			if (++nodes > mm->heap_nodes) {
+				nouveau_mm_dump(mm, "mm not clean!");
+				return -EBUSY;
+			}
 		}
 	}
 
