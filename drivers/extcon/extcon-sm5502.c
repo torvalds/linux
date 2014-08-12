@@ -391,7 +391,7 @@ static int sm5502_muic_cable_handler(struct sm5502_muic_info *info,
 	/* Get the type of attached or detached cable */
 	if (attached)
 		cable_type = sm5502_muic_get_cable_type(info);
-	else if (!attached)
+	else
 		cable_type = prev_cable_type;
 	prev_cable_type = cable_type;
 
@@ -453,8 +453,6 @@ static void sm5502_muic_irq_work(struct work_struct *work)
 		dev_err(info->dev, "failed to handle MUIC interrupt\n");
 
 	mutex_unlock(&info->mutex);
-
-	return;
 }
 
 /*
@@ -613,8 +611,9 @@ static int sm5022_muic_i2c_probe(struct i2c_client *i2c,
 						IRQF_NO_SUSPEND,
 						muic_irq->name, info);
 		if (ret) {
-			dev_err(info->dev, "failed: irq request (IRQ: %d,"
-				" error :%d)\n", muic_irq->irq, ret);
+			dev_err(info->dev,
+				"failed: irq request (IRQ: %d, error :%d)\n",
+				muic_irq->irq, ret);
 			return ret;
 		}
 	}
