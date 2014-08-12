@@ -37,29 +37,29 @@ nouveau_mm_free(struct nouveau_mm *mm, struct nouveau_mm_node **pthis)
 		struct nouveau_mm_node *prev = node(this, prev);
 		struct nouveau_mm_node *next = node(this, next);
 
-		if (prev && prev->type == 0) {
+		if (prev && prev->type == NVKM_MM_TYPE_NONE) {
 			prev->length += this->length;
 			list_del(&this->nl_entry);
 			kfree(this); this = prev;
 		}
 
-		if (next && next->type == 0) {
+		if (next && next->type == NVKM_MM_TYPE_NONE) {
 			next->offset  = this->offset;
 			next->length += this->length;
-			if (this->type == 0)
+			if (this->type == NVKM_MM_TYPE_NONE)
 				list_del(&this->fl_entry);
 			list_del(&this->nl_entry);
 			kfree(this); this = NULL;
 		}
 
-		if (this && this->type != 0) {
+		if (this && this->type != NVKM_MM_TYPE_NONE) {
 			list_for_each_entry(prev, &mm->free, fl_entry) {
 				if (this->offset < prev->offset)
 					break;
 			}
 
 			list_add_tail(&this->fl_entry, &prev->fl_entry);
-			this->type = 0;
+			this->type = NVKM_MM_TYPE_NONE;
 		}
 	}
 
@@ -84,7 +84,7 @@ region_head(struct nouveau_mm *mm, struct nouveau_mm_node *a, u32 size)
 	a->offset += size;
 	a->length -= size;
 	list_add_tail(&b->nl_entry, &a->nl_entry);
-	if (b->type == 0)
+	if (b->type == NVKM_MM_TYPE_NONE)
 		list_add_tail(&b->fl_entry, &a->fl_entry);
 	return b;
 }
@@ -98,7 +98,7 @@ nouveau_mm_head(struct nouveau_mm *mm, u8 type, u32 size_max, u32 size_min,
 	u32 splitoff;
 	u32 s, e;
 
-	BUG_ON(!type);
+	BUG_ON(type == NVKM_MM_TYPE_NONE);
 
 	list_for_each_entry(this, &mm->free, fl_entry) {
 		e = this->offset + this->length;
@@ -152,7 +152,7 @@ region_tail(struct nouveau_mm *mm, struct nouveau_mm_node *a, u32 size)
 	b->type    = a->type;
 
 	list_add(&b->nl_entry, &a->nl_entry);
-	if (b->type == 0)
+	if (b->type == NVKM_MM_TYPE_NONE)
 		list_add(&b->fl_entry, &a->fl_entry);
 	return b;
 }
@@ -164,7 +164,7 @@ nouveau_mm_tail(struct nouveau_mm *mm, u8 type, u32 size_max, u32 size_min,
 	struct nouveau_mm_node *prev, *this, *next;
 	u32 mask = align - 1;
 
-	BUG_ON(!type);
+	BUG_ON(type == NVKM_MM_TYPE_NONE);
 
 	list_for_each_entry_reverse(this, &mm->free, fl_entry) {
 		u32 e = this->offset + this->length;
