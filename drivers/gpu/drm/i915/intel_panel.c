@@ -986,7 +986,8 @@ static int intel_backlight_device_update_status(struct backlight_device *bd)
 	 */
 	if (panel->backlight.enabled) {
 		if (panel->backlight_power) {
-			bool enable = bd->props.power == FB_BLANK_UNBLANK;
+			bool enable = bd->props.power == FB_BLANK_UNBLANK &&
+				bd->props.brightness != 0;
 			panel->backlight_power(connector, enable);
 		}
 	} else {
