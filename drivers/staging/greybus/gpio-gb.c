@@ -10,11 +10,13 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include "greybus.h"
 
 struct gb_gpio {
 	struct gpio_chip chip;
 	struct greybus_device *gdev;
+	struct gpio_chip *gpio;
 	// FIXME - some lock?
 };
 
@@ -25,7 +27,7 @@ static const struct greybus_device_id id_table[] = {
 
 static int direction_input(struct gpio_chip *gpio, unsigned nr)
 {
-	struct gp_gpio *gp_gpio = container_of(gpio, struct gp_gpio, chip);
+//	struct gb_gpio *gb_gpio = container_of(gpio, struct gb_gpio, chip);
 
 	// FIXME - do something there
 	return 0;
@@ -43,24 +45,25 @@ static int gpio_get(struct gpio_chip *gpio, unsigned nr)
 	return 0;
 }
 
-static int gpio_set(struct gpio_chip *gpio, unsigned nr, int val)
+static void gpio_set(struct gpio_chip *gpio, unsigned nr, int val)
 {
 	// FIXME - do something there
-	return 0;
+	return;
 }
 
 static int gpio_gb_probe(struct greybus_device *gdev, const struct greybus_device_id *id)
 {
-	struct gp_gpio *gp_gpio;
+	struct gb_gpio *gb_gpio;
 	struct gpio_chip *gpio;
 	struct device *dev = &gdev->dev;
+	int retval;
 
-	gp_gpio = devm_kzalloc(dev, sizeof(*gp_gpio), GFP_KERNEL);
-	if (!gp_gpio)
+	gb_gpio = devm_kzalloc(dev, sizeof(*gb_gpio), GFP_KERNEL);
+	if (!gb_gpio)
 		return -ENOMEM;
-	gp_gpio->gdev = gdev;
+	gb_gpio->gdev = gdev;
 
-	gpio = &gp_gpio->gpio;
+	gpio = &gb_gpio->chip;
 
 	gpio->label = "greybus_gpio";
 	gpio->owner = THIS_MODULE;
@@ -73,9 +76,9 @@ static int gpio_gb_probe(struct greybus_device *gdev, const struct greybus_devic
 	gpio->ngpio = 42;		// FIXME!!!
 	gpio->can_sleep = false;	// FIXME!!!
 
-	greybus_set_drvdata(gdev, gp_gpio);
+	greybus_set_drvdata(gdev, gb_gpio);
 
-	retval = gpio_chip_add(gpio);
+	retval = gpiochip_add(gpio);
 	if (retval) {
 		dev_err(dev, "Failed to register GPIO\n");
 		return retval;
@@ -86,14 +89,11 @@ static int gpio_gb_probe(struct greybus_device *gdev, const struct greybus_devic
 
 static void gpio_gb_disconnect(struct greybus_device *gdev)
 {
-	struct mmc_host *mmc;
-	struct sd_gb_host *host;
+	struct gb_gpio *gb_gpio;
 
-	host = greybus_get_drvdata(gdev);
-	mmc = host->mmc;
+	gb_gpio = greybus_get_drvdata(gdev);
 
-	mmc_remove_host(mmc);
-	mmc_free_host(mmc);
+	gpiochip_remove(&gb_gpio->chip);
 }
 
 static struct greybus_driver gpio_gb_driver = {
