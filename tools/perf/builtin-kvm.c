@@ -1064,6 +1064,8 @@ static int read_events(struct perf_kvm_stat *kvm)
 		return -EINVAL;
 	}
 
+	symbol__init();
+
 	if (!perf_session__has_traces(kvm->session, "kvm record"))
 		return -EINVAL;
 
@@ -1192,8 +1194,6 @@ kvm_events_report(struct perf_kvm_stat *kvm, int argc, const char **argv)
 		"perf kvm stat report [<options>]",
 		NULL
 	};
-
-	symbol__init();
 
 	if (argc) {
 		argc = parse_options(argc, argv,
