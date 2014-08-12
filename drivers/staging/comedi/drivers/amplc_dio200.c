@@ -270,13 +270,13 @@ static void dio200_detach(struct comedi_device *dev)
 }
 
 static struct comedi_driver amplc_dio200_driver = {
-	.driver_name = "amplc_dio200",
-	.module = THIS_MODULE,
-	.attach = dio200_attach,
-	.detach = dio200_detach,
-	.board_name = &dio200_isa_boards[0].name,
-	.offset = sizeof(struct dio200_board),
-	.num_names = ARRAY_SIZE(dio200_isa_boards),
+	.driver_name	= "amplc_dio200",
+	.module		= THIS_MODULE,
+	.attach		= dio200_attach,
+	.detach		= dio200_detach,
+	.board_name	= &dio200_isa_boards[0].name,
+	.offset		= sizeof(struct dio200_board),
+	.num_names	= ARRAY_SIZE(dio200_isa_boards),
 };
 module_comedi_driver(amplc_dio200_driver);
 
