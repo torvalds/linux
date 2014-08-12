@@ -997,6 +997,7 @@ DECLARE_EVENT_CLASS(btrfs__work,
 		__field(	void *,	func			)
 		__field(	void *,	ordered_func		)
 		__field(	void *,	ordered_free		)
+		__field(	void *,	normal_work		)
 	),
 
 	TP_fast_assign(
@@ -1005,11 +1006,13 @@ DECLARE_EVENT_CLASS(btrfs__work,
 		__entry->func		= work->func;
 		__entry->ordered_func	= work->ordered_func;
 		__entry->ordered_free	= work->ordered_free;
+		__entry->normal_work	= &work->normal_work;
 	),
 
-	TP_printk("work=%p, wq=%p, func=%p, ordered_func=%p, ordered_free=%p",
-		  __entry->work, __entry->wq, __entry->func,
-		  __entry->ordered_func, __entry->ordered_free)
+	TP_printk("work=%p (normal_work=%p), wq=%p, func=%p, ordered_func=%p,"
+		  " ordered_free=%p",
+		  __entry->work, __entry->normal_work, __entry->wq,
+		   __entry->func, __entry->ordered_func, __entry->ordered_free)
 );
 
 /* For situiations that the work is freed */
