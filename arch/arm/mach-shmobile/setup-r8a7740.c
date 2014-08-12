@@ -781,11 +781,6 @@ void __init r8a7740_add_early_devices(void)
 
 #ifdef CONFIG_USE_OF
 
-void __init r8a7740_add_standard_devices_dt(void)
-{
-	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
-}
-
 void __init r8a7740_init_irq_of(void)
 {
 	void __iomem *intc_prio_base = ioremap_nocache(0xe6900010, 0x10);
@@ -819,7 +814,7 @@ void __init r8a7740_init_irq_of(void)
 static void __init r8a7740_generic_init(void)
 {
 	r8a7740_clock_init(0);
-	r8a7740_add_standard_devices_dt();
+	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 }
 
 static const char *r8a7740_boards_compat_dt[] __initdata = {
