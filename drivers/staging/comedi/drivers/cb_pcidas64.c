@@ -3369,7 +3369,8 @@ static int ao_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 	return 0;
 }
 
-static int dio_callback(int dir, int port, int data, unsigned long arg)
+static int dio_callback(struct comedi_device *dev,
+			int dir, int port, int data, unsigned long arg)
 {
 	void __iomem *iobase = (void __iomem *)arg;
 
@@ -3380,7 +3381,8 @@ static int dio_callback(int dir, int port, int data, unsigned long arg)
 	return readb(iobase + port);
 }
 
-static int dio_callback_4020(int dir, int port, int data, unsigned long arg)
+static int dio_callback_4020(struct comedi_device *dev,
+			     int dir, int port, int data, unsigned long arg)
 {
 	void __iomem *iobase = (void __iomem *)arg;
 

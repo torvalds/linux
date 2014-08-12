@@ -94,10 +94,11 @@ I/O port base address can be found in the output of 'lspci -v'.
 
 struct subdev_8255_private {
 	unsigned long iobase;
-	int (*io)(int, int, int, unsigned long);
+	int (*io)(struct comedi_device *, int, int, int, unsigned long);
 };
 
-static int subdev_8255_io(int dir, int port, int data, unsigned long iobase)
+static int subdev_8255_io(struct comedi_device *dev,
+			  int dir, int port, int data, unsigned long iobase)
 {
 	if (dir) {
 		outb(data, iobase + port);
@@ -113,8 +114,8 @@ void subdev_8255_interrupt(struct comedi_device *dev,
 	unsigned long iobase = spriv->iobase;
 	unsigned short d;
 
-	d = spriv->io(0, _8255_DATA, 0, iobase);
-	d |= (spriv->io(0, _8255_DATA + 1, 0, iobase) << 8);
+	d = spriv->io(dev, 0, _8255_DATA, 0, iobase);
+	d |= (spriv->io(dev, 0, _8255_DATA + 1, 0, iobase) << 8);
 
 	comedi_buf_put(s, d);
 	s->async->events |= COMEDI_CB_EOS;
@@ -136,18 +137,18 @@ static int subdev_8255_insn(struct comedi_device *dev,
 	mask = comedi_dio_update_state(s, data);
 	if (mask) {
 		if (mask & 0xff)
-			spriv->io(1, _8255_DATA, s->state & 0xff, iobase);
+			spriv->io(dev, 1, _8255_DATA, s->state & 0xff, iobase);
 		if (mask & 0xff00)
-			spriv->io(1, _8255_DATA + 1, (s->state >> 8) & 0xff,
-				  iobase);
+			spriv->io(dev, 1, _8255_DATA + 1,
+				  (s->state >> 8) & 0xff, iobase);
 		if (mask & 0xff0000)
-			spriv->io(1, _8255_DATA + 2, (s->state >> 16) & 0xff,
-				  iobase);
+			spriv->io(dev, 1, _8255_DATA + 2,
+				  (s->state >> 16) & 0xff, iobase);
 	}
 
-	v = spriv->io(0, _8255_DATA, 0, iobase);
-	v |= (spriv->io(0, _8255_DATA + 1, 0, iobase) << 8);
-	v |= (spriv->io(0, _8255_DATA + 2, 0, iobase) << 16);
+	v = spriv->io(dev, 0, _8255_DATA, 0, iobase);
+	v |= (spriv->io(dev, 0, _8255_DATA + 1, 0, iobase) << 8);
+	v |= (spriv->io(dev, 0, _8255_DATA + 2, 0, iobase) << 16);
 
 	data[1] = v;
 
@@ -172,7 +173,7 @@ static void subdev_8255_do_config(struct comedi_device *dev,
 	if (!(s->io_bits & 0xf00000))
 		config |= CR_C_HI_IO;
 
-	spriv->io(1, _8255_CR, config, iobase);
+	spriv->io(dev, 1, _8255_CR, config, iobase);
 }
 
 static int subdev_8255_insn_config(struct comedi_device *dev,
@@ -261,7 +262,8 @@ static int subdev_8255_cancel(struct comedi_device *dev,
 }
 
 int subdev_8255_init(struct comedi_device *dev, struct comedi_subdevice *s,
-		     int (*io)(int, int, int, unsigned long),
+		     int (*io)(struct comedi_device *,
+			       int, int, int, unsigned long),
 		     unsigned long iobase)
 {
 	struct subdev_8255_private *spriv;
@@ -288,7 +290,8 @@ int subdev_8255_init(struct comedi_device *dev, struct comedi_subdevice *s,
 EXPORT_SYMBOL_GPL(subdev_8255_init);
 
 int subdev_8255_init_irq(struct comedi_device *dev, struct comedi_subdevice *s,
-			 int (*io)(int, int, int, unsigned long),
+			 int (*io)(struct comedi_device *,
+				   int, int, int, unsigned long),
 			 unsigned long iobase)
 {
 	int ret;

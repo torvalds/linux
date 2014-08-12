@@ -4176,7 +4176,8 @@ static int ni_freq_out_insn_config(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int ni_8255_callback(int dir, int port, int data, unsigned long arg)
+static int ni_8255_callback(struct comedi_device *cdev,
+			    int dir, int port, int data, unsigned long arg)
 {
 	struct comedi_device *dev = (struct comedi_device *)arg;
 

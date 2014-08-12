@@ -1035,7 +1035,8 @@ static int labpc_ao_insn_read(struct comedi_device *dev,
 	return 1;
 }
 
-static int labpc_8255_mmio(int dir, int port, int data, unsigned long arg)
+static int labpc_8255_mmio(struct comedi_device *cdev,
+			   int dir, int port, int data, unsigned long arg)
 {
 	struct comedi_device *dev = (struct comedi_device *)arg;
 

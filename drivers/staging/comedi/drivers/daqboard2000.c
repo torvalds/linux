@@ -651,7 +651,8 @@ static void daqboard2000_initializeDac(struct comedi_device *dev)
 	daqboard2000_dacDisarm(dev);
 }
 
-static int daqboard2000_8255_cb(int dir, int port, int data,
+static int daqboard2000_8255_cb(struct comedi_device *dev,
+				int dir, int port, int data,
 				unsigned long ioaddr)
 {
 	void __iomem *mmio_base = (void __iomem *)ioaddr;

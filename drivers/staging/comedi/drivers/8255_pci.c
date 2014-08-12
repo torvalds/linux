@@ -190,7 +190,8 @@ static int pci_8255_mite_init(struct pci_dev *pcidev)
 	return 0;
 }
 
-static int pci_8255_mmio(int dir, int port, int data, unsigned long iobase)
+static int pci_8255_mmio(struct comedi_device *dev,
+			 int dir, int port, int data, unsigned long iobase)
 {
 	void __iomem *mmio_base = (void __iomem *)iobase;
 

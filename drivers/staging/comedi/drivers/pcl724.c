@@ -81,7 +81,8 @@ static const struct pcl724_board boardtypes[] = {
 	},
 };
 
-static int pcl724_8255mapped_io(int dir, int port, int data,
+static int pcl724_8255mapped_io(struct comedi_device *dev,
+				int dir, int port, int data,
 				unsigned long iobase)
 {
 	int movport = SIZE_8255 * (iobase >> 12);
