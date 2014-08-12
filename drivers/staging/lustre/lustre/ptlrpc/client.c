@@ -267,7 +267,7 @@ static void ptlrpc_at_adj_service(struct ptlrpc_request *req,
 	if (oldse != 0)
 		CDEBUG(D_ADAPTTO, "The RPC service estimate for %s ptl %d "
 		       "has changed from %d to %d\n",
-		       req->rq_import->imp_obd->obd_name,req->rq_request_portal,
+		       req->rq_import->imp_obd->obd_name, req->rq_request_portal,
 		       oldse, at_get(&at->iat_service_estimate[idx]));
 }
 
@@ -2132,7 +2132,7 @@ int ptlrpc_set_wait(struct ptlrpc_request_set *set)
 			 * interrupts are allowed. Wait until all
 			 * complete, or an in-flight req times out.
 			 */
-			lwi = LWI_TIMEOUT(cfs_time_seconds(timeout? timeout : 1),
+			lwi = LWI_TIMEOUT(cfs_time_seconds(timeout ? timeout : 1),
 					  ptlrpc_expired_set, set);
 
 		rc = l_wait_event(set->set_waitq, ptlrpc_check_set(NULL, set), &lwi);
@@ -2186,7 +2186,7 @@ int ptlrpc_set_wait(struct ptlrpc_request_set *set)
 	}
 
 	if (set->set_interpret != NULL) {
-		int (*interpreter)(struct ptlrpc_request_set *set,void *,int) =
+		int (*interpreter)(struct ptlrpc_request_set *set, void *, int) =
 			set->set_interpret;
 		rc = interpreter (set, set->set_arg, rc);
 	} else {
@@ -2222,7 +2222,7 @@ static void __ptlrpc_free_req(struct ptlrpc_request *request, int locked)
 	}
 
 	LASSERTF(!request->rq_receiving_reply, "req %p\n", request);
-	LASSERTF(request->rq_rqbd == NULL, "req %p\n",request);/* client-side */
+	LASSERTF(request->rq_rqbd == NULL, "req %p\n", request);/* client-side */
 	LASSERTF(list_empty(&request->rq_list), "req %p\n", request);
 	LASSERTF(list_empty(&request->rq_set_chain), "req %p\n", request);
 	LASSERTF(list_empty(&request->rq_exp_list), "req %p\n", request);
