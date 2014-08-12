@@ -1607,7 +1607,7 @@ static int __cmd_timechart(struct timechart *tchart, const char *output_name)
 	if (session == NULL)
 		return -ENOMEM;
 
-	symbol__init();
+	symbol__init(&session->header.env);
 
 	(void)perf_header__process_sections(&session->header,
 					    perf_data_file__fd(session->file),

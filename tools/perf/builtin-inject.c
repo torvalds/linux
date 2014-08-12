@@ -462,7 +462,7 @@ int cmd_inject(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (inject.session == NULL)
 		return -ENOMEM;
 
-	if (symbol__init() < 0)
+	if (symbol__init(&inject.session->header.env) < 0)
 		return -1;
 
 	ret = __cmd_inject(&inject);

@@ -345,7 +345,7 @@ int cmd_annotate(int argc, const char **argv, const char *prefix __maybe_unused)
 	symbol_conf.priv_size = sizeof(struct annotation);
 	symbol_conf.try_vmlinux_path = true;
 
-	ret = symbol__init();
+	ret = symbol__init(&annotate.session->header.env);
 	if (ret < 0)
 		goto out_delete;
 

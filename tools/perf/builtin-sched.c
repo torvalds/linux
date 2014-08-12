@@ -1462,7 +1462,7 @@ static int perf_sched__read_events(struct perf_sched *sched,
 		return -1;
 	}
 
-	symbol__init();
+	symbol__init(&session->header.env);
 
 	if (perf_session__set_tracepoints_handlers(session, handlers))
 		goto out_delete;

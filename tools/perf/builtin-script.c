@@ -1732,7 +1732,7 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 			goto out_delete;
 	}
 
-	if (symbol__init() < 0)
+	if (symbol__init(&session->header.env) < 0)
 		goto out_delete;
 
 	script.session = session;

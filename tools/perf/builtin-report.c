@@ -798,7 +798,7 @@ repeat:
 		}
 	}
 
-	if (symbol__init() < 0)
+	if (symbol__init(&session->header.env) < 0)
 		goto error;
 
 	if (argc) {

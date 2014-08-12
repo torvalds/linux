@@ -79,7 +79,7 @@ static int init_symbol_maps(bool user_only)
 	int ret;
 
 	symbol_conf.sort_by_name = true;
-	ret = symbol__init();
+	ret = symbol__init(NULL);
 	if (ret < 0) {
 		pr_debug("Failed to init symbol map.\n");
 		goto out;

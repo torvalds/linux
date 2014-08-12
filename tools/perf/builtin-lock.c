@@ -865,7 +865,7 @@ static int __cmd_report(bool display_info)
 		return -ENOMEM;
 	}
 
-	symbol__init();
+	symbol__init(&session->header.env);
 
 	if (!perf_session__has_traces(session, "lock record"))
 		goto out_delete;

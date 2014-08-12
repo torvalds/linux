@@ -329,7 +329,7 @@ int cmd_buildid_cache(int argc, const char **argv,
 			return -1;
 	}
 
-	if (symbol__init() < 0)
+	if (symbol__init(session ? &session->header.env : NULL) < 0)
 		goto out;
 
 	setup_pager();

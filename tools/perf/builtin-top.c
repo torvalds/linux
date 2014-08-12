@@ -1234,7 +1234,7 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 	symbol_conf.priv_size = sizeof(struct annotation);
 
 	symbol_conf.try_vmlinux_path = (symbol_conf.vmlinux_name == NULL);
-	if (symbol__init() < 0)
+	if (symbol__init(NULL) < 0)
 		return -1;
 
 	sort__setup_elide(stdout);

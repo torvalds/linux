@@ -692,7 +692,7 @@ int cmd_kmem(int argc, const char **argv, const char *prefix __maybe_unused)
 		usage_with_options(kmem_usage, kmem_options);
 
 	if (!strncmp(argv[0], "rec", 3)) {
-		symbol__init();
+		symbol__init(NULL);
 		return __cmd_record(argc, argv);
 	}
 
@@ -700,7 +700,7 @@ int cmd_kmem(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (session == NULL)
 		return -ENOMEM;
 
-	symbol__init();
+	symbol__init(&session->header.env);
 
 	if (!strcmp(argv[0], "stat")) {
 		if (cpu__setup_cpunode_map())
