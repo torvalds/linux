@@ -137,8 +137,7 @@ static int as102_fe_read_status(struct dvb_frontend *fe, fe_status_t *status)
 				"as10x_cmd_get_demod_stats failed (probably not tuned)\n");
 		} else {
 			dev_dbg(&dev->bus_adap.usb_dev->dev,
-				"demod status: fc: 0x%08x, bad fc: 0x%08x, "
-				"bytes corrected: 0x%08x , MER: 0x%04x\n",
+				"demod status: fc: 0x%08x, bad fc: 0x%08x, bytes corrected: 0x%08x , MER: 0x%04x\n",
 				dev->demod_stats.frame_count,
 				dev->demod_stats.bad_frame_count,
 				dev->demod_stats.bytes_fixed_by_rs,
