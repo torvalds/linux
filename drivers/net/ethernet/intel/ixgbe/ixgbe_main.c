@@ -6319,25 +6319,55 @@ static void ixgbe_watchdog_link_is_down(struct ixgbe_adapter *adapter)
 	ixgbe_ping_all_vfs(adapter);
 }
 
+static bool ixgbe_ring_tx_pending(struct ixgbe_adapter *adapter)
+{
+	int i;
+
+	for (i = 0; i < adapter->num_tx_queues; i++) {
+		struct ixgbe_ring *tx_ring = adapter->tx_ring[i];
+
+		if (tx_ring->next_to_use != tx_ring->next_to_clean)
+			return true;
+	}
+
+	return false;
+}
+
+static bool ixgbe_vf_tx_pending(struct ixgbe_adapter *adapter)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+	struct ixgbe_ring_feature *vmdq = &adapter->ring_feature[RING_F_VMDQ];
+	u32 q_per_pool = __ALIGN_MASK(1, ~vmdq->mask);
+
+	int i, j;
+
+	if (!adapter->num_vfs)
+		return false;
+
+	for (i = 0; i < adapter->num_vfs; i++) {
+		for (j = 0; j < q_per_pool; j++) {
+			u32 h, t;
+
+			h = IXGBE_READ_REG(hw, IXGBE_PVFTDHN(q_per_pool, i, j));
+			t = IXGBE_READ_REG(hw, IXGBE_PVFTDTN(q_per_pool, i, j));
+
+			if (h != t)
+				return true;
+		}
+	}
+
+	return false;
+}
+
 /**
  * ixgbe_watchdog_flush_tx - flush queues on link down
  * @adapter: pointer to the device adapter structure
  **/
 static void ixgbe_watchdog_flush_tx(struct ixgbe_adapter *adapter)
 {
-	int i;
-	int some_tx_pending = 0;
-
 	if (!netif_carrier_ok(adapter->netdev)) {
-		for (i = 0; i < adapter->num_tx_queues; i++) {
-			struct ixgbe_ring *tx_ring = adapter->tx_ring[i];
-			if (tx_ring->next_to_use != tx_ring->next_to_clean) {
-				some_tx_pending = 1;
-				break;
-			}
-		}
-
-		if (some_tx_pending) {
+		if (ixgbe_ring_tx_pending(adapter) ||
+		    ixgbe_vf_tx_pending(adapter)) {
 			/* We've lost link, so the controller stops DMA,
 			 * but we've got queued Tx work that's never going
 			 * to get done, so reset controller to flush Tx.

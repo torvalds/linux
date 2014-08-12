@@ -2194,6 +2194,8 @@ enum {
 #define IXGBE_VFLRE(_i)		((((_i) & 1) ? 0x001C0 : 0x00600))
 #define IXGBE_VFLREC(_i)		(0x00700 + ((_i) * 4))
 /* Translated register #defines */
+#define IXGBE_PVFTDH(P)		(0x06010 + (0x40 * (P)))
+#define IXGBE_PVFTDT(P)		(0x06018 + (0x40 * (P)))
 #define IXGBE_PVFTDWBAL(P)	(0x06038 + (0x40 * (P)))
 #define IXGBE_PVFTDWBAH(P)	(0x0603C + (0x40 * (P)))
 
@@ -2201,6 +2203,11 @@ enum {
 		(IXGBE_PVFTDWBAL((q_per_pool)*(vf_number) + (vf_q_index)))
 #define IXGBE_PVFTDWBAHn(q_per_pool, vf_number, vf_q_index) \
 		(IXGBE_PVFTDWBAH((q_per_pool)*(vf_number) + (vf_q_index)))
+
+#define IXGBE_PVFTDHN(q_per_pool, vf_number, vf_q_index) \
+		(IXGBE_PVFTDH((q_per_pool)*(vf_number) + (vf_q_index)))
+#define IXGBE_PVFTDTN(q_per_pool, vf_number, vf_q_index) \
+		(IXGBE_PVFTDT((q_per_pool)*(vf_number) + (vf_q_index)))
 
 enum ixgbe_fdir_pballoc_type {
 	IXGBE_FDIR_PBALLOC_NONE = 0,
