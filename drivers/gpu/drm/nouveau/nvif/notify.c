@@ -237,8 +237,10 @@ nvif_notify_new(struct nvif_object *object, int (*func)(struct nvif_notify *),
 	if (notify) {
 		int ret = nvif_notify_init(object, nvif_notify_del, func, work,
 					   type, data, size, reply, notify);
-		if (ret)
+		if (ret) {
 			kfree(notify);
+			notify = NULL;
+		}
 		*pnotify = notify;
 		return ret;
 	}
