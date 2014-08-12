@@ -371,12 +371,6 @@ void snd_print_pcm_bits(int pcm, char *buf, int buflen);
 /*
  * Misc
  */
-int snd_hda_check_board_config(struct hda_codec *codec, int num_configs,
-			       const char * const *modelnames,
-			       const struct snd_pci_quirk *pci_list);
-int snd_hda_check_board_codec_sid_config(struct hda_codec *codec,
-                               int num_configs, const char * const *models,
-                               const struct snd_pci_quirk *tbl);
 int snd_hda_add_new_ctls(struct hda_codec *codec,
 			 const struct snd_kcontrol_new *knew);
 
