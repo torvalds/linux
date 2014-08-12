@@ -385,20 +385,13 @@ static int sdhci_acpi_runtime_idle(struct device *dev)
 	return 0;
 }
 
-#else
-
-#define sdhci_acpi_runtime_suspend	NULL
-#define sdhci_acpi_runtime_resume	NULL
-#define sdhci_acpi_runtime_idle		NULL
-
 #endif
 
 static const struct dev_pm_ops sdhci_acpi_pm_ops = {
 	.suspend		= sdhci_acpi_suspend,
 	.resume			= sdhci_acpi_resume,
-	.runtime_suspend	= sdhci_acpi_runtime_suspend,
-	.runtime_resume		= sdhci_acpi_runtime_resume,
-	.runtime_idle		= sdhci_acpi_runtime_idle,
+	SET_RUNTIME_PM_OPS(sdhci_acpi_runtime_suspend,
+			sdhci_acpi_runtime_resume, sdhci_acpi_runtime_idle)
 };
 
 static struct platform_driver sdhci_acpi_driver = {
