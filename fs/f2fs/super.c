@@ -460,9 +460,6 @@ int f2fs_sync_fs(struct super_block *sb, int sync)
 
 	trace_f2fs_sync_fs(sb, sync);
 
-	if (!sbi->s_dirty && !get_pages(sbi, F2FS_DIRTY_NODES))
-		return 0;
-
 	if (sync) {
 		mutex_lock(&sbi->gc_mutex);
 		write_checkpoint(sbi, false);
