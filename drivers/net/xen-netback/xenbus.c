@@ -116,6 +116,7 @@ static int xenvif_read_io_ring(struct seq_file *m, void *v)
 }
 
 #define XENVIF_KICK_STR "kick"
+#define BUFFER_SIZE     32
 
 static ssize_t
 xenvif_write_io_ring(struct file *filp, const char __user *buf, size_t count,
@@ -124,21 +125,23 @@ xenvif_write_io_ring(struct file *filp, const char __user *buf, size_t count,
 	struct xenvif_queue *queue =
 		((struct seq_file *)filp->private_data)->private;
 	int len;
-	char write[sizeof(XENVIF_KICK_STR)];
+	char write[BUFFER_SIZE];
 
 	/* don't allow partial writes and check the length */
 	if (*ppos != 0)
 		return 0;
-	if (count < sizeof(XENVIF_KICK_STR) - 1)
+	if (count >= sizeof(write))
 		return -ENOSPC;
 
 	len = simple_write_to_buffer(write,
-				     sizeof(write),
+				     sizeof(write) - 1,
 				     ppos,
 				     buf,
 				     count);
 	if (len < 0)
 		return len;
+
+	write[len] = '\0';
 
 	if (!strncmp(write, XENVIF_KICK_STR, sizeof(XENVIF_KICK_STR) - 1))
 		xenvif_interrupt(0, (void *)queue);
