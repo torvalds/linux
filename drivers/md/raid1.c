@@ -539,7 +539,13 @@ static int read_balance(struct r1conf *conf, struct r1bio *r1_bio, int *max_sect
 	has_nonrot_disk = 0;
 	choose_next_idle = 0;
 
-	choose_first = (conf->mddev->recovery_cp < this_sector + sectors);
+	if ((conf->mddev->recovery_cp < this_sector + sectors) ||
+	    (mddev_is_clustered(conf->mddev) &&
+	    md_cluster_ops->area_resyncing(conf->mddev, this_sector,
+		    this_sector + sectors)))
+		choose_first = 1;
+	else
+		choose_first = 0;
 
 	for (disk = 0 ; disk < conf->raid_disks * 2 ; disk++) {
 		sector_t dist;
