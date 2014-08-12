@@ -691,7 +691,15 @@ static int vnet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		memset(tx_buf+VNET_PACKET_SKIP+skb->len, 0, len - skb->len);
 	}
 
-	d->hdr.ack = VIO_ACK_ENABLE;
+	/* We don't rely on the ACKs to free the skb in vnet_start_xmit(),
+	 * thus it is safe to not set VIO_ACK_ENABLE for each transmission:
+	 * the protocol itself does not require it as long as the peer
+	 * sends a VIO_SUBTYPE_ACK for VIO_DRING_STOPPED.
+	 *
+	 * An ACK for every packet in the ring is expensive as the
+	 * sending of LDC messages is slow and affects performance.
+	 */
+	d->hdr.ack = VIO_ACK_DISABLE;
 	d->size = len;
 	d->ncookies = port->tx_bufs[dr->prod].ncookies;
 	for (i = 0; i < d->ncookies; i++)
