@@ -4805,8 +4805,6 @@ static void rtl8192_usb_disconnect(struct usb_interface *intf)
 }
 
 /* fun with the built-in ieee80211 stack... */
-extern int ieee80211_debug_init(void);
-extern void ieee80211_debug_exit(void);
 extern int ieee80211_crypto_init(void);
 extern void ieee80211_crypto_deinit(void);
 extern int ieee80211_crypto_tkip_init(void);
