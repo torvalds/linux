@@ -276,11 +276,17 @@ static void perf_top__print_sym_table(struct perf_top *top)
 		return;
 	}
 
+	if (top->zero) {
+		hists__delete_entries(&top->sym_evsel->hists);
+	} else {
+		hists__decay_entries(&top->sym_evsel->hists,
+				     top->hide_user_symbols,
+				     top->hide_kernel_symbols);
+	}
+
 	hists__collapse_resort(&top->sym_evsel->hists, NULL);
 	hists__output_resort(&top->sym_evsel->hists);
-	hists__decay_entries(&top->sym_evsel->hists,
-			     top->hide_user_symbols,
-			     top->hide_kernel_symbols);
+
 	hists__output_recalc_col_len(&top->sym_evsel->hists,
 				     top->print_entries - printed);
 	putchar('\n');
@@ -542,11 +548,16 @@ static void perf_top__sort_new_samples(void *arg)
 	if (t->evlist->selected != NULL)
 		t->sym_evsel = t->evlist->selected;
 
+	if (t->zero) {
+		hists__delete_entries(&t->sym_evsel->hists);
+	} else {
+		hists__decay_entries(&t->sym_evsel->hists,
+				     t->hide_user_symbols,
+				     t->hide_kernel_symbols);
+	}
+
 	hists__collapse_resort(&t->sym_evsel->hists, NULL);
 	hists__output_resort(&t->sym_evsel->hists);
-	hists__decay_entries(&t->sym_evsel->hists,
-			     t->hide_user_symbols,
-			     t->hide_kernel_symbols);
 }
 
 static void *display_thread_tui(void *arg)
