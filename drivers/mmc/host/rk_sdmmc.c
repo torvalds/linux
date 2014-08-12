@@ -3174,6 +3174,18 @@ static void dw_mci_of_set_cd_gpio_irq(struct device *dev, u32 gpio,
 		dev_err(host->dev, "Cannot convert gpio %d to irq!\n", gpio);
 	}
 }
+
+static void dw_mci_of_free_cd_gpio_irq(struct device *dev, u32 gpio,
+                                        struct mmc_host *mmc)
+{
+        if (!gpio_is_valid(gpio))
+                return;
+
+        if (gpio_to_irq(gpio) >= 0) {
+                devm_free_irq(&mmc->class_dev, gpio_to_irq(gpio), mmc);
+                devm_gpio_free(&mmc->class_dev, gpio);
+        }
+}
 #else /* CONFIG_OF */
 static int dw_mci_of_get_slot_quirks(struct device *dev, u8 slot)
 {
@@ -3444,6 +3456,8 @@ static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
 	return 0;
 
 err_setup_bus:
+        if (gpio_is_valid(slot->cd_gpio))
+                dw_mci_of_free_cd_gpio_irq(host->dev, slot->cd_gpio,host->mmc);
 	mmc_free_host(mmc);
 	return -EINVAL;
 }
@@ -3954,7 +3968,10 @@ EXPORT_SYMBOL(dw_mci_probe);
 
 void dw_mci_remove(struct dw_mci *host)
 {
+        struct mmc_host *mmc = host->mmc;
+        struct dw_mci_slot *slot = mmc_priv(mmc);
 	int i;
+
 	del_timer_sync(&host->dto_timer);
 
         mci_writel(host, RINTSTS, 0xFFFFFFFF);
@@ -3974,6 +3991,9 @@ void dw_mci_remove(struct dw_mci *host)
 
         if(host->use_dma && host->dma_ops->exit)
                 host->dma_ops->exit(host);
+
+        if (gpio_is_valid(slot->cd_gpio))
+                dw_mci_of_free_cd_gpio_irq(host->dev, slot->cd_gpio, host->mmc);
 
         if(host->vmmc){
                 regulator_disable(host->vmmc);
