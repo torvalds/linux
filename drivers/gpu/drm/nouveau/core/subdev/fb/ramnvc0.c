@@ -562,7 +562,7 @@ nvc0_ram_create_(struct nouveau_object *parent, struct nouveau_object *engine,
 		offset = (0x0200000000ULL >> 12) + (bsize << 8);
 		length = (ram->size >> 12) - ((bsize * parts) << 8) - rsvd_tail;
 
-		ret = nouveau_mm_init(&pfb->vram, offset, length, 0);
+		ret = nouveau_mm_init(&pfb->vram, offset, length, 1);
 		if (ret)
 			nouveau_mm_fini(&pfb->vram);
 	}
