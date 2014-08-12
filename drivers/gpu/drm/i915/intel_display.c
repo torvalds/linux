@@ -11743,8 +11743,8 @@ intel_cursor_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 	};
 	const struct drm_rect clip = {
 		/* integer pixels */
-		.x2 = intel_crtc->config.pipe_src_w,
-		.y2 = intel_crtc->config.pipe_src_h,
+		.x2 = intel_crtc->active ? intel_crtc->config.pipe_src_w : 0,
+		.y2 = intel_crtc->active ? intel_crtc->config.pipe_src_h : 0,
 	};
 	bool visible;
 	int ret;
