@@ -12,7 +12,8 @@
 #define CPU_AXI_QOS_MODE_LIMITER        2
 #define CPU_AXI_QOS_MODE_REGULATOR      3
 
-#define CPU_AXI_QOS_PRIORITY_LEVEL(h, l)        ((((h) & 3) << 2) | ((l) & 3))
+#define CPU_AXI_QOS_PRIORITY_LEVEL(h, l) \
+	((((h) & 3) << 8) | (((h) & 3) << 2) | ((l) & 3))
 #define CPU_AXI_SET_QOS_PRIORITY(h, l, base) \
 	writel_relaxed(CPU_AXI_QOS_PRIORITY_LEVEL(h, l), base + CPU_AXI_QOS_PRIORITY)
 

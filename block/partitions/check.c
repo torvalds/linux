@@ -19,8 +19,6 @@
 #include <linux/genhd.h>
 
 #include "check.h"
-#include "mtdpart.h"
-
 #include "acorn.h"
 #include "amiga.h"
 #include "atari.h"
@@ -35,6 +33,7 @@
 #include "efi.h"
 #include "karma.h"
 #include "sysv68.h"
+#include "rk.h"
 
 int warn_no_part = 1; /*This is ugly: should make genhd removable media aware*/
 
@@ -105,9 +104,8 @@ static int (*check_part[])(struct parsed_partitions *) = {
 #ifdef CONFIG_SYSV68_PARTITION
 	sysv68_partition,
 #endif
-
-#if CONFIG_MMC_DW_ROCKCHIP
-    mtdpart_partition,
+#ifdef CONFIG_RK_PARTITION
+	rkpart_partition,
 #endif
 
 	NULL
@@ -163,10 +161,12 @@ check_partition(struct gendisk *hd, struct block_device *bdev)
 		sprintf(state->name, "p");
 
 	i = res = err = 0;
-	
-	//if the disk is eMMC,then skip directly the check_part to mtdpart_partition; added by xbw, at 2014-03-24	
- 	if((179 == MAJOR(bdev->bd_dev)&& (1 == hd->emmc_disk)))
-    		i=sizeof(check_part)/sizeof(struct parsed_partitions *)-2;
+
+	/* Rockchip partition table ONLY used by eMMC disk */
+	#ifdef CONFIG_RK_PARTITION
+	if ((179 == MAJOR(bdev->bd_dev) && (1 == hd->emmc_disk)))
+		i = sizeof(check_part) / sizeof(struct parsed_partitions *) - 2;
+	#endif
 
 	while (!res && check_part[i]) {
 		memset(state->parts, 0, state->limit * sizeof(state->parts[0]));

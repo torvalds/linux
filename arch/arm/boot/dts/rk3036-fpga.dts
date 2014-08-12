@@ -1,0 +1,23 @@
+/dts-v1/;
+#include <dt-bindings/rkfb/rk_fb.h>
+#include "rk3036.dtsi"
+#include "lcd-box.dtsi"
+
+/ {
+	compatible = "rockchip,rk3036";
+
+	memory {
+		device_type = "memory";
+		reg = <0x60000000 0x10000000>;
+	};
+
+	chosen {
+		bootargs = "androidboot.console=ttyFIQ0 initrd=0x62000000,0x00800000";
+	};
+
+	fiq-debugger {
+		status = "okay";
+	};
+
+
+};

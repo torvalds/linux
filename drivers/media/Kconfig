@@ -199,5 +199,6 @@ source "drivers/media/i2c/Kconfig"
 source "drivers/media/tuners/Kconfig"
 source "drivers/media/dvb-frontends/Kconfig"
 source "drivers/media/video/rk_camsys/Kconfig"
+source "drivers/media/video/Kconfig"
 
 endif # MEDIA_SUPPORT

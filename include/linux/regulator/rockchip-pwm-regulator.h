@@ -17,7 +17,7 @@
 #define __LINUX_REGULATOR_PWM_H
 
 #include <linux/regulator/machine.h>
-//#include <plat/pwm.h>
+/*#include <plat/pwm.h>*/
 
 #define PWM_DIV              PWM_DIV2
 
@@ -41,6 +41,7 @@ struct pwm_platform_data {
 	int num_regulators;
 	struct regulator_dev **rdev;
 	int pwm_vol_map_count;
+	struct mutex mutex_pwm;
 };
 
 struct pwm_regulator_board {
@@ -49,7 +50,7 @@ struct pwm_regulator_board {
 	struct regulator_init_data *pwm_init_data[4];
 	struct device_node *of_node[4];
 	int	pwm_id;
-	unsigned int *pwm_voltage_map; 
+	unsigned int *pwm_voltage_map;
 	unsigned int pwm_init_vol;
 	unsigned int pwm_max_vol;
 	unsigned int pwm_min_vol;

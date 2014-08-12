@@ -148,61 +148,6 @@ static void stmmac_exit_fs(void);
 
 #define STMMAC_COAL_TIMER(x) (jiffies + usecs_to_jiffies(x))
 
-static int gmac_clk_enable(struct stmmac_priv *priv) {
-	int phy_iface = -1;
-
-	if ((priv->plat) && (priv->plat->bsp_priv)) {
-		struct bsp_priv * bsp_priv = priv->plat->bsp_priv;
-		phy_iface = bsp_priv->phy_iface;
-	} else {
-		pr_err("%s:get PHY interface type failed!", __func__);
-	}
-
-	if (!priv->clk_enable) {
-		if (phy_iface == PHY_INTERFACE_MODE_RMII) {
-			clk_set_rate(priv->stmmac_clk, 50000000);
-			clk_prepare_enable(priv->mac_clk_rx);
-			clk_prepare_enable(priv->clk_mac_ref);
-			clk_prepare_enable(priv->clk_mac_refout);
-		}
-
-		clk_prepare_enable(priv->aclk_mac);
-		clk_prepare_enable(priv->pclk_mac);
-		clk_prepare_enable(priv->mac_clk_tx);
-
-		priv->clk_enable = true;
-	}
-	
-	return 0;
-}
-
-static int gmac_clk_disable(struct stmmac_priv *priv) {
-	int phy_iface = -1;
-
-	if ((priv->plat) && (priv->plat->bsp_priv)) {
-		struct bsp_priv * bsp_priv = priv->plat->bsp_priv;
-		phy_iface = bsp_priv->phy_iface;
-	} else {
-		pr_err("%s:get PHY interface type failed!", __func__);
-	}
-
-	if (priv->clk_enable) {
-		if (phy_iface == PHY_INTERFACE_MODE_RMII) {
-			clk_disable_unprepare(priv->mac_clk_rx);
-			clk_disable_unprepare(priv->clk_mac_ref);
-			clk_disable_unprepare(priv->clk_mac_refout);
-		}
-
-		clk_disable_unprepare(priv->aclk_mac);
-		clk_disable_unprepare(priv->pclk_mac);
-		clk_disable_unprepare(priv->mac_clk_tx);
-
-		priv->clk_enable = false;
-	}
-	
-	return 0;
-}
-
 /**
  * stmmac_verify_args - verify the driver parameters.
  * Description: it verifies if some wrong parameter is passed to the driver.
@@ -858,6 +803,79 @@ static void stmmac_check_pcs_mode(struct stmmac_priv *priv)
 	}
 }
 
+static int gPhyReg;
+
+static ssize_t show_phy_reg(struct device *dev,
+				struct device_attribute *attr, char *buf) {
+	int ret = snprintf(buf, PAGE_SIZE, "current phy reg = 0x%x\n", gPhyReg);
+	return ret;
+}
+
+static ssize_t set_phy_reg(struct device *dev,struct device_attribute *attr,
+				const char *buf, size_t count) {
+	int ovl;
+	int r = kstrtoint(buf, 0, &ovl);
+	if (r) printk("kstrtoint failed\n");
+	gPhyReg = ovl;
+	printk("%s----ovl=0x%x\n", __FUNCTION__, ovl);
+	return count;
+}
+
+static ssize_t show_phy_regValue(struct device *dev,
+					struct device_attribute *attr, char *buf) {
+	struct phy_device *phy_dev = dev_get_drvdata(dev);
+	int ret = 0;
+	int val;
+#if 0
+	val = phy_read(phy_dev, gPhyReg);
+	ret = snprintf(buf, PAGE_SIZE, "phy reg 0x%x = 0x%x\n", gPhyReg, val);
+#else
+	int i=0;
+
+	for (i=0; i<32; i++) {
+		printk("%d: 0x%x\n", i, phy_read(phy_dev, i));
+	}
+
+	val = phy_read(phy_dev, gPhyReg);
+	ret = snprintf(buf, PAGE_SIZE, "phy reg 0x%x = 0x%x\n", gPhyReg, val);
+#endif
+	return ret;
+}
+
+static ssize_t set_phy_regValue(struct device *dev,
+					struct device_attribute *attr,
+					const char *buf, size_t count) {
+	int ovl;
+	int ret;
+
+	struct phy_device *phy_dev = dev_get_drvdata(dev);
+	ret = kstrtoint(buf, 0, &ovl);
+	printk("%s----reg 0x%x: ovl=0x%x\n", __FUNCTION__, gPhyReg, ovl);
+	phy_write(phy_dev, gPhyReg, ovl);
+	return count;
+}
+
+static struct device_attribute phy_reg_attrs[] = {
+	__ATTR(phy_reg, S_IRUGO | S_IWUSR, show_phy_reg, set_phy_reg),
+	__ATTR(phy_regValue, S_IRUGO | S_IWUSR, show_phy_regValue, set_phy_regValue)
+};
+
+int gmac_create_sysfs(struct phy_device * phy_dev) {
+	int r;
+	int t;
+
+	dev_set_drvdata(&phy_dev->dev, phy_dev);
+	for (t = 0; t < ARRAY_SIZE(phy_reg_attrs); t++) {
+		r = device_create_file(&phy_dev->dev,&phy_reg_attrs[t]);
+		if (r) {
+			dev_err(&phy_dev->dev, "failed to create sysfs file\n");
+			return r;
+		}
+	}
+
+	return 0;
+}
+
 /**
  * stmmac_init_phy - PHY initialization
  * @dev: net device structure
@@ -916,6 +934,8 @@ static int stmmac_init_phy(struct net_device *dev)
 		 " Link = %d\n", dev->name, phydev->phy_id, phydev->link);
 
 	priv->phydev = phydev;
+
+	gmac_create_sysfs(phydev);
 
 	return 0;
 }
@@ -1625,32 +1645,33 @@ static int stmmac_open(struct net_device *dev)
 	struct stmmac_priv *priv = netdev_priv(dev);
 	int ret;
 
-	clk_prepare_enable(priv->stmmac_clk);
-	gmac_clk_enable(priv);
-
 	if ((priv->plat) && (priv->plat->bsp_priv)) {
 		struct bsp_priv * bsp_priv = priv->plat->bsp_priv;
-		if ((bsp_priv) && (bsp_priv->phy_power_on)) {
-			bsp_priv->phy_power_on(priv->plat, 1);
+		if (bsp_priv) { 
+			if (bsp_priv->phy_power_on) {
+				bsp_priv->phy_power_on(true);
+			}
+			if (bsp_priv->gmac_clk_enable) {
+				bsp_priv->gmac_clk_enable(true);
+			}
 		}
 	}
 
 	stmmac_check_ether_addr(priv);
 
-	if (priv->pcs != STMMAC_PCS_SGMII && priv->pcs != STMMAC_PCS_TBI &&
-	    priv->pcs != STMMAC_PCS_RTBI && !priv->mdio_registered) {
-		/* MDIO bus Registration */
-		ret = stmmac_mdio_register(priv->dev);
-		if (ret < 0) {
-			pr_debug("%s: MDIO bus (id: %d) registration failed",
-				 __func__, priv->plat->bus_id);
-			goto open_error;
-		}
-		priv->mdio_registered = true;
-	}	
 
 	if (priv->pcs != STMMAC_PCS_SGMII && priv->pcs != STMMAC_PCS_TBI &&
 	    priv->pcs != STMMAC_PCS_RTBI) {
+		if(!priv->mdio_registered) {
+			/* MDIO bus Registration */
+			ret = stmmac_mdio_register(priv->dev);
+			if (ret < 0) {
+				pr_debug("%s: MDIO bus (id: %d) registration failed",
+				 	__func__, priv->plat->bus_id);
+				goto open_error;
+			}
+			priv->mdio_registered = true;
+		}
 		ret = stmmac_init_phy(dev);
 		if (ret) {
 			pr_err("%s: Cannot attach to PHY (error: %d)\n",
@@ -1778,8 +1799,12 @@ open_error:
 	if (priv->phydev)
 		phy_disconnect(priv->phydev);
 
-	clk_disable_unprepare(priv->stmmac_clk);
-	gmac_clk_disable(priv);
+	if ((priv->plat) && (priv->plat->bsp_priv)) {
+		struct bsp_priv * bsp_priv = priv->plat->bsp_priv;
+		if ((bsp_priv) && (bsp_priv->gmac_clk_enable)) {
+			bsp_priv->gmac_clk_enable(false);
+		}
+	}
 
 	return ret;
 }
@@ -1832,15 +1857,18 @@ static int stmmac_release(struct net_device *dev)
 #ifdef CONFIG_GMAC_DEBUG_FS
 	stmmac_exit_fs();
 #endif
-	clk_disable_unprepare(priv->stmmac_clk);
-	gmac_clk_disable(priv);
 
 	stmmac_release_ptp(priv);
 
 	if ((priv->plat) && (priv->plat->bsp_priv)) {
 		struct bsp_priv * bsp_priv = priv->plat->bsp_priv;
-		if ((bsp_priv) && (bsp_priv->phy_power_on)) {
-			bsp_priv->phy_power_on(priv->plat, 0);
+		if (bsp_priv) { 
+			if (bsp_priv->phy_power_on) {
+				bsp_priv->phy_power_on(false);
+			}
+			if (bsp_priv->gmac_clk_enable) {
+				bsp_priv->gmac_clk_enable(false);
+			}
 		}
 	}
 
@@ -2789,68 +2817,12 @@ struct stmmac_priv *stmmac_dvr_probe(struct device *device,
 	}
 
 	priv->mdio_registered = false;
-	priv->clk_enable = false;
 
-	priv->mac_clk_rx = clk_get(priv->device,"mac_clk_rx");
-	if (IS_ERR(priv->mac_clk_rx)) {
-		pr_warn("%s: warning: cannot get mac_clk_rx clock\n", __func__);
-		goto error_clk_get;
-	}
-
-	priv->mac_clk_tx = clk_get(priv->device,"mac_clk_tx");
-	if (IS_ERR(priv->mac_clk_tx)) {
-		pr_warn("%s: warning: cannot get mac_clk_tx clock\n", __func__);
-		goto error_clk_get;
-	}
-
-	priv->clk_mac_ref = clk_get(priv->device,"clk_mac_ref");
-	if (IS_ERR(priv->clk_mac_ref)) {
-		pr_warn("%s: warning: cannot get clk_mac_ref clock\n", __func__);
-		goto error_clk_get;
-	}
-
-	priv->clk_mac_refout = clk_get(priv->device,"clk_mac_refout");
-	if (IS_ERR(priv->clk_mac_refout)) {
-		pr_warn("%s: warning: cannot get clk_mac_refout clock\n", __func__);
-		goto error_clk_get;
-	}
-
-	priv->aclk_mac = clk_get(priv->device,"aclk_mac");
-	if (IS_ERR(priv->aclk_mac)) {
-		pr_warn("%s: warning: cannot get aclk_mac clock\n", __func__);
-		goto error_clk_get;
-	}
-
-	priv->pclk_mac = clk_get(priv->device,"pclk_mac");
-	if (IS_ERR(priv->pclk_mac)) {
-		pr_warn("%s: warning: cannot get pclk_mac clock\n", __func__);
-		goto error_clk_get;
-	}
-
-	priv->clk_mac_pll = clk_get(priv->device,"clk_mac_pll");
-	if (IS_ERR(priv->clk_mac_pll)) {
-		pr_warn("%s: warning: cannot get clk_mac_pll clock\n", __func__);
-		goto error_clk_get;
-	}
-
-	priv->gmac_clkin = clk_get(priv->device,"gmac_clkin");
-	if (IS_ERR(priv->gmac_clkin)) {
-		pr_warn("%s: warning: cannot get gmac_clkin clock\n", __func__);
-		goto error_clk_get;
-	}
-
-	priv->stmmac_clk = clk_get(priv->device, "clk_mac");
-
+	priv->stmmac_clk = ((struct bsp_priv *)(priv->plat->bsp_priv))->clk_mac;
 	if (IS_ERR(priv->stmmac_clk)) {
 		pr_warn("%s: warning: cannot get CSR clock\n", __func__);
 		goto error_clk_get;
 	}
-
-#ifdef CONFIG_GMAC_CLK_IN
-	clk_set_parent(priv->stmmac_clk, priv->gmac_clkin);
-#else
-	clk_set_parent(priv->stmmac_clk, priv->clk_mac_pll);
-#endif
 
 	/* If a specific clk_csr value is passed from the platform
 	 * this means that the CSR Clock Range selection cannot be
@@ -2864,18 +2836,23 @@ struct stmmac_priv *stmmac_dvr_probe(struct device *device,
 		priv->clk_csr = priv->plat->clk_csr;
 
 	stmmac_check_pcs_mode(priv);
-
+#if 0
+	if (priv->pcs != STMMAC_PCS_RGMII && priv->pcs != STMMAC_PCS_TBI &&
+	    priv->pcs != STMMAC_PCS_RTBI) {
+		/* MDIO bus Registration */
+		ret = stmmac_mdio_register(ndev);
+		if (ret < 0) {
+			pr_debug("%s: MDIO bus (id: %d) registration failed",
+				 __func__, priv->plat->bus_id);
+			goto error_mdio_register;
+		}
+	}
+#endif
 	return priv;
-
-/*error_mdio_register:
+#if 0
+error_mdio_register:
 	clk_put(priv->stmmac_clk);
-	clk_put(priv->clk_mac);
-	clk_put(priv->mac_clk_rx);
-	clk_put(priv->mac_clk_tx);
-	clk_put(priv->clk_mac_ref);
-	clk_put(priv->clk_mac_refout);
-	clk_put(priv->aclk_mac);
-	clk_put(priv->pclk_mac);*/
+#endif
 error_clk_get:
 	unregister_netdev(ndev);
 error_netdev_register:
@@ -2943,8 +2920,13 @@ int stmmac_suspend(struct net_device *ndev)
 	else {
 		stmmac_set_mac(priv->ioaddr, false);
 		/* Disable clock in case of PWM is off */
-		clk_disable_unprepare(priv->stmmac_clk);
-		gmac_clk_disable(priv);
+	if ((priv->plat) && (priv->plat->bsp_priv)) {
+		struct bsp_priv * bsp_priv = priv->plat->bsp_priv;
+		if ((bsp_priv) && (bsp_priv->gmac_clk_enable)) {
+			bsp_priv->gmac_clk_enable(false);
+		}
+	}
+
 	}
 	spin_unlock_irqrestore(&priv->lock, flags);
 	return 0;
@@ -2970,8 +2952,12 @@ int stmmac_resume(struct net_device *ndev)
 		priv->hw->mac->pmt(priv->ioaddr, 0);
 	else {
 		/* enable the clk prevously disabled */
-		clk_prepare_enable(priv->stmmac_clk);
-		gmac_clk_enable(priv);
+		if ((priv->plat) && (priv->plat->bsp_priv)) {
+			struct bsp_priv * bsp_priv = priv->plat->bsp_priv;
+			if ((bsp_priv) && (bsp_priv->gmac_clk_enable)) {
+				bsp_priv->gmac_clk_enable(true);
+			}
+		}
 	}
 
 	netif_device_attach(ndev);

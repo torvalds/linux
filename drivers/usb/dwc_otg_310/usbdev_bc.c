@@ -143,8 +143,7 @@ int usb_battery_charger_detect_rk(bool wait)
 
 int usb_battery_charger_detect_inno(bool wait)
 {
-
-	return -1;
+	return readl(RK_GRF_VIRT + RK312X_GRF_SOC_STATUS0) & (1 << 8);
 }
 
 /* When do BC detect PCD pull-up register should be disabled  */

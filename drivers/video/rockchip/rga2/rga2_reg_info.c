@@ -30,9 +30,11 @@
 #include <linux/wakelock.h>
 
 #include "rga2_reg_info.h"
-#include "rga2_rop.h"
+#include "../rga/rga_type.h"
+//#include "../rga/rga_rop.h"
 #include "rga2.h"
 
+extern unsigned int ROP3_code[256];
 
 void
 RGA2_reg_get_param(unsigned char *base, struct rga2_req *msg)

@@ -183,6 +183,8 @@ static int rk_key_adc_iio_read(struct rk_keys_drvdata *data)
         struct iio_channel *channel = data->chan;
         int val, ret;
 
+	if (!channel)
+		return INVALID_ADVALUE;
         ret = iio_read_channel_raw(channel, &val);
         if (ret < 0) {
                 pr_err("read channel() error: %d\n", ret);
@@ -244,8 +246,10 @@ static int rk_keys_parse_dt(struct rk_keys_drvdata *pdata,
 	u32 code, adc_value, flags;;
 	
 	chan = iio_channel_get(&pdev->dev, NULL);
-    if (IS_ERR(chan))
-        goto error_ret;
+	if (IS_ERR(chan)) {
+		dev_info(&pdev->dev, "no io-channels defined\n");
+		chan = NULL;
+	}
     pdata->chan = chan;
 	
 	for_each_child_of_node(node, child_node) {
@@ -308,10 +312,8 @@ static int  keys_probe(struct platform_device *pdev)
 	int wakeup, key_num = 0;
 
 	key_num = of_get_child_count(np);
-	if (key_num == 0) {
-		error = -ENODEV;
-		return error;
-	}
+	if (key_num == 0)
+		dev_info(&pdev->dev, "no key defined\n");
 
     ddata = devm_kzalloc(dev, sizeof(struct rk_keys_drvdata) +
 	    key_num * sizeof(struct rk_keys_button),
@@ -413,9 +415,11 @@ static int  keys_probe(struct platform_device *pdev)
 	}
 
         //adc polling work
-	INIT_DELAYED_WORK(&ddata->adc_poll_work, adc_key_poll);
-	schedule_delayed_work(&ddata->adc_poll_work,
-					msecs_to_jiffies(ADC_SAMPLE_TIME));
+	if (ddata->chan) {
+		INIT_DELAYED_WORK(&ddata->adc_poll_work, adc_key_poll);
+		schedule_delayed_work(&ddata->adc_poll_work,
+				      msecs_to_jiffies(ADC_SAMPLE_TIME));
+	}
 
     spdata = ddata;
 	sinput_dev = input;
@@ -444,7 +448,8 @@ static int keys_remove(struct platform_device *pdev)
 	for (i = 0; i < ddata->nbuttons; i++) {
 		del_timer_sync(&ddata->button[i].timer);
 	}
-	cancel_delayed_work_sync(&ddata->adc_poll_work);
+	if (ddata->chan)
+		cancel_delayed_work_sync(&ddata->adc_poll_work);
 	input_unregister_device(input);
 	
 	sinput_dev = NULL;

@@ -23,6 +23,16 @@
 #include <sound/pcm.h>
 #include <sound/initval.h>
 
+#undef  DEBUG_HDMI_SPDIF
+#define DEBUG_HDMI_SPDIF 0
+
+#if DEBUG_HDMI_SPDIF
+#define RK_HDMISPDIF_DBG(x...) pr_info("hdmi_spdif:"x)
+#else
+#define RK_HDMISPDIF_DBG(x...) do { } while (0)
+#endif
+
+
 #define DRV_NAME "spdif-dit"
 
 #define STUB_RATES	SNDRV_PCM_RATE_8000_96000
@@ -33,7 +43,7 @@ static struct snd_soc_codec_driver soc_codec_spdif_dit;
 
 static struct snd_soc_dai_driver dit_stub_dai = {
 	.name		= "rk-hdmi-spdif-hifi",
-	.playback 	= {
+	.playback	= {
 		.stream_name	= "Playback",
 		.channels_min	= 1,
 		.channels_max	= 384,
@@ -42,23 +52,24 @@ static struct snd_soc_dai_driver dit_stub_dai = {
 	},
 };
 
-static int rockchip_hdmi_spdif_audio_probe(struct platform_device *pdev)
+static int hdmi_spdif_audio_probe(struct platform_device *pdev)
 {
 	int ret;
 
-	//set dev name to driver->name for sound card register
+	/* set dev name to driver->name for sound card register. */
 	dev_set_name(&pdev->dev, "%s", pdev->dev.driver->name);
 
-	ret = snd_soc_register_codec(&pdev->dev, &soc_codec_spdif_dit,
-			&dit_stub_dai, 1);
+	ret = snd_soc_register_codec(&pdev->
+		dev, &soc_codec_spdif_dit, &dit_stub_dai, 1);
 
 	if (ret)
-		printk("%s() register codec failed:%d\n", __FUNCTION__, ret);
+		RK_HDMISPDIF_DBG("%s register codec failed:%d\n"
+		, __func__, ret);
 
 	return ret;
 }
 
-static int rockchip_hdmi_spdif_audio_remove(struct platform_device *pdev)
+static int hdmi_spdif_audio_remove(struct platform_device *pdev)
 {
 	snd_soc_unregister_codec(&pdev->dev);
 
@@ -66,24 +77,24 @@ static int rockchip_hdmi_spdif_audio_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_OF
-static const struct of_device_id rockchip_hdmi_spdif_of_match[] = {
-        { .compatible = "hdmi-spdif", },
-        {},
+static const struct of_device_id hdmi_spdif_of_match[] = {
+	{ .compatible = "hdmi-spdif", },
+	{},
 };
-MODULE_DEVICE_TABLE(of, rockchip_hdmi_spdif_of_match);
+MODULE_DEVICE_TABLE(of, hdmi_spdif_of_match);
 #endif /* CONFIG_OF */
 
-static struct platform_driver rockchip_hdmi_spdif_audio_driver = {
-        .driver         = {
-                .name   = "hdmi-spdif",
-                .owner  = THIS_MODULE,
-                .of_match_table = of_match_ptr(rockchip_hdmi_spdif_of_match),
-        },
-        .probe          = rockchip_hdmi_spdif_audio_probe,
-        .remove         = rockchip_hdmi_spdif_audio_remove,
+static struct platform_driver hdmi_spdif_audio_driver = {
+	.driver	   = {
+		.name           = "hdmi-spdif",
+		.owner          = THIS_MODULE,
+		.of_match_table = of_match_ptr(hdmi_spdif_of_match),
+	},
+	.probe     = hdmi_spdif_audio_probe,
+	.remove    = hdmi_spdif_audio_remove,
 };
 
-module_platform_driver(rockchip_hdmi_spdif_audio_driver);
+module_platform_driver(hdmi_spdif_audio_driver);
 
 MODULE_AUTHOR("Steve Chen <schen@mvista.com>");
 MODULE_DESCRIPTION("SPDIF dummy codec driver");

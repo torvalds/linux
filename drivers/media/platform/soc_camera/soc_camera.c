@@ -502,7 +502,7 @@ static int soc_camera_set_fmt(struct soc_camera_device *icd,
 		icd->user_width, icd->user_height);
 
 	/* set physical bus parameters */
-	return ici->ops->set_bus_param(icd);
+	return ici->ops->set_bus_param(icd, pix->pixelformat);//yzm
 }
 
 static int soc_camera_open(struct file *file)
@@ -1165,7 +1165,11 @@ static int soc_camera_probe(struct soc_camera_device *icd)
 	/* The camera could have been already on, try to reset */
 	if (ssdd->reset)
 		ssdd->reset(icd->pdev);
-
+	/*********yzm**********/	
+	ret = soc_camera_power_on(icd->pdev,ssdd);
+	if (ret < 0)
+		goto eadd;
+	/*********yzm*********/
 	mutex_lock(&ici->host_lock);
 	ret = ici->ops->add(icd);
 	mutex_unlock(&ici->host_lock);
@@ -1176,7 +1180,7 @@ static int soc_camera_probe(struct soc_camera_device *icd)
 	ret = video_dev_create(icd);
 	if (ret < 0)
 		goto evdc;
-
+	ssdd->socdev = icd;//yzm
 	/* Non-i2c cameras, e.g., soc_camera_platform, have no board_info */
 	if (shd->board_info) {
 		ret = soc_camera_init_i2c(icd, sdesc);
@@ -1264,6 +1268,7 @@ eadddev:
 evdc:
 	mutex_lock(&ici->host_lock);
 	ici->ops->remove(icd);
+	soc_camera_power_off(icd->pdev,ssdd);//yzm
 	mutex_unlock(&ici->host_lock);
 eadd:
 	v4l2_ctrl_handler_free(&icd->ctrl_handler);

@@ -293,7 +293,8 @@ struct dw_mci_slot {
 
 	int			quirks;
 	int			wp_gpio;
-    int         pwr_en_gpio;
+	int                     cd_gpio;
+        int                     pwr_en_gpio;
 	u32			ctype;
 	u32         pre_ctype;
 

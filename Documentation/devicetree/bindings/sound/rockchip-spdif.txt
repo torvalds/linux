@@ -1,0 +1,32 @@
+* Rockchip SPDIF controller
+
+Required SoC Specific Properties:
+
+- compatible : "rockchip-spdif"
+- reg: physical base address of the controller and length of memory mapped
+  region.
+- clocks: must include clock specifiers corresponding to entries in the
+  clock-names property.
+- clocks-names: list of clock names sorted in the same order as the clocks
+  property. Must contain "spdif_mclk" and "spdif_hclk".
+- interrupts: interrupt number to the cpu.
+- dmas: list of DMA controller phandle and DMA request line ordered pairs.
+- dma-names: identifier string for each DMA request line in the dmas property.
+  These strings correspond 1:1 with the ordered pairs in dmas.
+- pinctrl-names: must contain a "default" entry.
+- pinctrl-0: pin control group to be used for this controller.
+- pinctrl-1: pin control group to be used for gpio.
+
+Example:
+
+spdif: spdif@10204000 {
+	compatible = "rockchip-spdif";
+	reg = <0x10204000 0x1000>;
+	clocks = <&clk_spdif>, <&clk_gates10 8>;
+	clock-names = "spdif_mclk", "spdif_hclk";
+	interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
+	dmas = <&pdma 13>;
+	dma-names = "tx";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spdif_tx>;
+};

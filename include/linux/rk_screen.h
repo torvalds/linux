@@ -74,12 +74,13 @@ struct rk_screen {
 	u16 x_mirror;
 	u16 y_mirror;
 	int interlace;
+	int pixelrepeat; //For 480i/576i format, pixel is repeated twice.
 	u16 width;
 	u16 height;
 	u8  ft;
 	int *dsp_lut; 
 
-#if defined(CONFIG_MFD_RK616)
+#if defined(CONFIG_MFD_RK616) || defined(CONFIG_LCDC_RK312X)
 	u32 pll_cfg_val;  //bellow are for jettaB
 	u32 frac;
 	u16 scl_vst;

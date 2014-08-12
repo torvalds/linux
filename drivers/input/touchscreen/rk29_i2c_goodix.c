@@ -801,7 +801,7 @@ static int rk_ts_probe(struct i2c_client *client, const struct i2c_device_id *id
 			printk(KERN_ALERT "Cannot allocate ts INT!ERRNO:%d\n", ret);
 			goto err;
 		}
-		disable_irq(ts->irq);
+		//disable_irq(ts->irq);
 	}
 	printk("goodix_ts_init: probe successfully!\n");
 	return 0;

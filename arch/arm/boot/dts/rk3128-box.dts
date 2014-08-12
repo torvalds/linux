@@ -1,0 +1,158 @@
+#include "rk312x-sdk.dtsi"
+#include "lcd-box.dtsi"
+
+/ {
+	 compatible = "rockchip,rk3128";
+	wireless-wlan {
+		compatible = "wlan-platdata";
+
+		wifi_chip_type = "";
+		sdio_vref = <0>; //1800mv or 3300mv
+
+		//power_ctrl_by_pmu;
+		//power_pmu_regulator = "act_ldo3";
+		//power_pmu_enable_level = <1>; //1->HIGH, 0->LOW
+
+		//vref_ctrl_enable;
+		//vref_ctrl_gpio = <&gpio0 GPIO_A2 GPIO_ACTIVE_HIGH>;
+		//vref_pmu_regulator = "act_ldo3";
+		//vref_pmu_enable_level = <1>; //1->HIGH, 0->LOW
+
+		WIFI,poweren_gpio = <&gpio0 GPIO_D6 GPIO_ACTIVE_HIGH>;
+		WIFI,host_wake_irq = <&gpio0 GPIO_A2 GPIO_ACTIVE_HIGH>;
+		//WIFI,reset_gpio = <&gpio0 GPIO_A2 GPIO_ACTIVE_LOW>;
+
+		status = "okay";
+    };
+
+    wireless-bluetooth {
+        compatible = "bluetooth-platdata";
+
+        //wifi-bt-power-toggle;
+
+     	uart_rts_gpios = <&gpio0 GPIO_C2 GPIO_ACTIVE_LOW>;
+        pinctrl-names = "default","rts_gpio";
+        pinctrl-0 = <&uart0_rts>;
+        pinctrl-1 = <&uart0_rts_gpio>;
+
+        //BT,power_gpio = <&gpio4 GPIO_D3 GPIO_ACTIVE_HIGH>;
+	BT,reset_gpio = <&gpio3 GPIO_C5 GPIO_ACTIVE_HIGH>;
+	BT,wake_gpio = <&gpio1 GPIO_B4 GPIO_ACTIVE_HIGH>;
+	BT,wake_host_irq = <&gpio0 GPIO_A2 GPIO_ACTIVE_LOW>;
+
+        status = "disabled";
+    };
+	usb_control {
+		compatible = "rockchip,rk3126-usb-control";
+		host_drv_gpio = <&gpio3 GPIO_C4 GPIO_ACTIVE_LOW>;
+		otg_drv_gpio = <&gpio3 GPIO_C1 GPIO_ACTIVE_LOW>;
+
+		rockchip,remote_wakeup;
+		rockchip,usb_irq_wakeup;
+	};
+
+	codec: codec@20030000 {
+		compatible = "rk312x-codec";
+		reg = <0x20030000 0x1000>;
+		spk_ctl_io = <&gpio1 GPIO_A3 0>;
+		//pinctrl-names = "default";
+		//pinctrl-0 = <&i2s_gpio>;
+
+		boot_depop = <1>;
+		pa_enable_time = <1000>;
+		clocks = <&clk_gates5 14>;
+		clock-names = "g_pclk_acodec";
+	};
+};
+
+
+&clk_core_dvfs_table {
+	operating-points = <
+		/* KHz    uV */
+		/*408000 1250000
+		600000 1250000
+		696000 1250000
+		*/
+		816000 1250000
+		1008000 1250000
+		>;
+	status="okay";
+};
+
+&clk_gpu_dvfs_table {
+	operating-points = <
+		/* KHz    uV */
+		200000 1250000
+		300000 1250000
+		>;
+	status="okay";
+};
+
+&clk_ddr_dvfs_table {
+	operating-points = <
+		/* KHz    uV */
+		200000 950000
+		300000 950000
+		400000 1000000
+		533000 1050000
+		>;
+
+	freq-table = <
+		/*status		freq(KHz)*/
+		SYS_STATUS_NORMAL	400000
+		SYS_STATUS_SUSPEND	200000
+		SYS_STATUS_VIDEO_1080P  240000
+		SYS_STATUS_VIDEO_4K     400000
+		SYS_STATUS_PERFORMANCE  528000
+		SYS_STATUS_DUALVIEW	400000
+		SYS_STATUS_BOOST	324000
+		SYS_STATUS_ISP		533000
+		>;
+	auto-freq-table = <
+		240000
+		324000
+		396000
+		528000
+		>;
+	auto-freq=<0>;
+	status="disable";
+};
+
+&pwm_regulator1 {
+	status = "okay";
+};
+
+&pwm_regulator2 {
+	status = "okay";
+};
+
+&pwm1 {
+	status = "okay";
+};
+
+&pwm2 {
+	status = "okay";
+};
+
+&rk_screen {
+	display-timings = <&disp_timings>;
+};
+
+&lcdc {
+	status = "okay";
+};
+
+&tve {
+	status = "disabled";
+};
+
+&i2c2 {
+	status = "disabled";
+};
+
+&gmac {
+	//pmu_regulator = "act_ldo5";
+	//pmu_enable_level = <1>; //1->HIGH, 0->LOW
+	//power-gpio = <&gpio0 GPIO_A6 GPIO_ACTIVE_HIGH>;
+	reset-gpio = <&gpio2 GPIO_D0 GPIO_ACTIVE_LOW>;
+};

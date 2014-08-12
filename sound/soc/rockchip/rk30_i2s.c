@@ -143,7 +143,7 @@ static void rockchip_snd_txctrl(struct rk30_i2s_info *i2s, int on)
 			udelay(1);
 			clr_error_count --;
 			if(clr_error_count == 0)
-				printk("%s: i2s clr reg warning =%d",__FUNCTION__,readl(&(pheadi2s->I2S_CLR)));
+				printk("%s: i2s clr reg warning =%d\n",__FUNCTION__,readl(&(pheadi2s->I2S_CLR)));
 		}
 	}	
 }
@@ -204,7 +204,7 @@ static void rockchip_snd_rxctrl(struct rk30_i2s_info *i2s, int on)
 			udelay(1);
 			clr_error_count --;
 			if(clr_error_count == 0)
-				printk("%s: i2s clr reg warning =%d",__FUNCTION__,readl(&(pheadi2s->I2S_CLR)));
+				printk("%s: i2s clr reg warning =%d\n",__FUNCTION__,readl(&(pheadi2s->I2S_CLR)));
 		}
 	}
 }
@@ -494,14 +494,14 @@ static int rockchip_i2s_suspend_noirq(struct device *dev)
 {
 	I2S_DBG("Enter %s, %d\n", __func__, __LINE__);
 
-	return pinctrl_select_state(dev->pins->p, dev->pins->sleep_state);
+	return pinctrl_pm_select_sleep_state(dev);
 }
 
 static int rockchip_i2s_resume_noirq(struct device *dev)
 {
 	I2S_DBG("Enter %s, %d\n", __func__, __LINE__);
 
-	return pinctrl_select_state(dev->pins->p, dev->pins->default_state);
+	return pinctrl_pm_select_default_state(dev);
 }
 #else
 #define rockchip_i2s_suspend_noirq NULL

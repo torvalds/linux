@@ -932,7 +932,7 @@ static int ion_debug_client_show_buffer_map(struct seq_file *s, struct ion_buffe
 int ion_map_iommu(struct device *iommu_dev, struct ion_client *client,
                 struct ion_handle *handle, unsigned long *iova, unsigned long *size)
 {
-       return 0;
+	return 0;
 }
 void ion_unmap_iommu(struct device *iommu_dev, struct ion_client *client,
                         struct ion_handle *handle)

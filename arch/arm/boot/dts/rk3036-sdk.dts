@@ -1,0 +1,232 @@
+/dts-v1/;
+#include <dt-bindings/rkfb/rk_fb.h>
+#include "rk3036.dtsi"
+#include "rk3036-pinctrl.dtsi"
+#include "lcd-box.dtsi"
+/ {
+
+	fiq-debugger {
+		status = "okay";
+	};
+
+	pwm_regulator {
+		compatible = "rockchip_pwm_regulator";
+		pwms = <&pwm2 0 25000>;
+		rockchip,pwm_id= <2>;
+		rockchip,pwm_voltage_map= <950000 975000 1000000 1025000 1050000 1075000 1100000 1125000 1150000 1175000 1200000 1225000 1250000 1275000 1300000 1325000 1350000 1375000 1400000 1425000 1450000>;
+		rockchip,pwm_voltage= <1250000>;
+		rockchip,pwm_min_voltage= <950000>;
+		rockchip,pwm_max_voltage= <1450000>;
+		rockchip,pwm_suspend_voltage= <1250000>;
+		rockchip,pwm_coefficient= <500>;
+		status = "disabled";
+		regulators {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			pwm_reg0: regulator@0 {
+				regulator-compatible = "pwm_dcdc1";
+				regulator-name= "vdd_arm";
+				regulator-min-microvolt = <950000>;
+				regulator-max-microvolt = <1450000>;
+				regulator-always-on;
+				regulator-boot-on;
+			};
+		};
+	};
+
+	wireless-wlan {
+		compatible = "wlan-platdata";
+
+		wifi_chip_type = "";
+		sdio_vref = <0>; //1800mv or 3300mv
+
+		//power_ctrl_by_pmu;
+		//power_pmu_regulator = "act_ldo3";
+		//power_pmu_enable_level = <1>; //1->HIGH, 0->LOW
+
+		//vref_ctrl_enable;
+		//vref_ctrl_gpio = <&gpio0 GPIO_A2 GPIO_ACTIVE_HIGH>;
+		//vref_pmu_regulator = "act_ldo3";
+		//vref_pmu_enable_level = <1>; //1->HIGH, 0->LOW
+
+		WIFI,poweren_gpio = <&gpio2 GPIO_D6 GPIO_ACTIVE_HIGH>;
+		WIFI,host_wake_irq = <&gpio2 GPIO_C4 GPIO_ACTIVE_HIGH>;
+		//WIFI,reset_gpio = <&gpio0 GPIO_A2 GPIO_ACTIVE_LOW>;
+
+		status = "okay";
+    };
+
+    wireless-bluetooth {
+        compatible = "bluetooth-platdata";
+
+        //wifi-bt-power-toggle;
+
+     	uart_rts_gpios = <&gpio0 GPIO_C2 GPIO_ACTIVE_LOW>;
+        pinctrl-names = "default","rts_gpio";
+        pinctrl-0 = <&uart0_rts>;
+        pinctrl-1 = <&uart0_rts_gpio>;
+
+        //BT,power_gpio = <&gpio4 GPIO_D3 GPIO_ACTIVE_HIGH>;
+        BT,reset_gpio = <&gpio2 GPIO_D5 GPIO_ACTIVE_HIGH>;
+        BT,wake_gpio = <&gpio2 GPIO_C5 GPIO_ACTIVE_HIGH>;
+        BT,wake_host_irq = <&gpio0 GPIO_A0 GPIO_ACTIVE_LOW>;
+
+        status = "okay";
+    };
+
+	usb_control {
+		compatible = "rockchip,rk3036-usb-control";
+		host_drv_gpio = <&gpio2 GPIO_C7 GPIO_ACTIVE_LOW>;
+		otg_drv_gpio = <&gpio0 GPIO_D2 GPIO_ACTIVE_LOW>;
+
+		rockchip,remote_wakeup;
+		rockchip,usb_irq_wakeup;
+	};
+
+	key {
+		compatible = "rockchip,key";
+	};
+
+	codec_hdmi_i2s: codec-hdmi-i2s {
+		compatible = "hdmi-i2s";
+	};
+
+	rockchip-hdmi-i2s {
+		compatible = "rockchip-hdmi-i2s";
+		dais {
+			dai0 {
+				audio-codec = <&codec_hdmi_i2s>;
+				i2s-controller = <&i2s>;
+				format = "i2s";
+				//continuous-clock;
+				//bitclock-inversion;
+				//frame-inversion;
+				//bitclock-master;
+				//frame-master;
+			};
+		};
+	};
+
+	codec_hdmi_spdif: codec-hdmi-spdif {
+		compatible = "hdmi-spdif";
+	};
+
+	rockchip-hdmi-spdif {
+		compatible = "rockchip-hdmi-spdif";
+		dais {
+			dai0 {
+				audio-codec = <&codec_hdmi_spdif>;
+				i2s-controller = <&spdif>;
+			};
+		};
+	};
+
+	rockchip-audio {
+		compatible = "rk3036-audio";
+		dais {
+			dai0 {
+				audio-codec = <&codec>;
+				i2s-controller = <&i2s>;
+				format = "i2s";
+				//continuous-clock;
+				//bitclock-inversion;
+				//frame-inversion;
+				//bitclock-master;
+				//frame-master;
+			};
+		};
+	};
+};
+
+&uart0{
+	status = "okay";
+	dma-names = "!tx", "!rx";
+	pinctrl-0 = <&uart0_xfer &uart0_cts>;
+};
+
+&nandc {
+	status = "okay"; // used nand set "okay" ,used emmc set "disabled"
+};
+
+&nandc0reg {
+	status = "disabled"; // used nand set "disabled" ,used emmc set "okay"
+};
+
+&emmc {
+	clock-frequency = <100000000>;
+	clock-freq-min-max = <400000 100000000>;
+
+        supports-highspeed;
+	supports-emmc;
+        bootpart-no-access;
+
+	supports-DDR_MODE;
+	//caps2-mmc-hs200;
+
+        ignore-pm-notify;
+	keep-power-in-suspend;
+
+	//poll-hw-reset
+	status = "disabled";
+};
+
+&sdmmc {
+		clock-frequency = <50000000>;
+		clock-freq-min-max = <400000 50000000>;
+		supports-highspeed;
+		supports-sd;
+		broken-cd;
+		card-detect-delay = <200>;
+
+		ignore-pm-notify;
+        	keep-power-in-suspend;
+
+        	//vmmc-supply = <&rk808_ldo5_reg>;
+		status = "disabled";
+};
+
+&sdio {
+		clock-frequency = <50000000>;
+		clock-freq-min-max = <200000 50000000>;
+		supports-highspeed;
+		supports-sdio;
+		ignore-pm-notify;
+		keep-power-in-suspend;
+		//cap-sdio-irq;
+		status = "okay";
+};
+
+
+&i2c1 {
+	status = "okay";
+        rtc@51 {
+                compatible = "rtc,hym8563";
+                reg = <0x51>;
+                //irq_gpio = <&gpio0 GPIO_A4 IRQ_TYPE_EDGE_FALLING>;
+        };
+};
+
+
+&rk_screen {
+	 display-timings = <&disp_timings>;
+};
+
+&lcdc {
+	status = "okay";
+};
+
+&tve {
+	status = "okay";
+};
+
+&hdmi {
+	status = "okay";
+	//rockchips,hdmi_audio_source = <0>;
+};
+
+&vmac {
+//	pmu_regulator = "act_ldo5";
+//	pmu_enable_level = <1>; //1->HIGH, 0->LOW
+//      power-gpio = <&gpio0 GPIO_A6 GPIO_ACTIVE_HIGH>;
+        reset-gpio = <&gpio2 GPIO_C6 GPIO_ACTIVE_LOW>;
+};

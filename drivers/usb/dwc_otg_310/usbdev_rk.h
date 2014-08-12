@@ -22,6 +22,7 @@
 #include <linux/rockchip/cru.h>
 #include <linux/rockchip/grf.h>
 #include <linux/rockchip/cpu.h>
+#include <linux/rockchip/iomap.h>
 
 #include "usbdev_grf_regs.h"
 #include "usbdev_bc.h"
@@ -40,6 +41,9 @@
 #define USB_CHIP_ID           (5)
 #define USB_REMOTE_WAKEUP     (6)
 #define USB_IRQ_WAKEUP        (7)
+
+#define UOC_HIWORD_UPDATE(val, mask, shift) \
+		((val) << (shift) | (mask) << ((shift) + 16))
 
 enum rkusb_rst_flag {
 	RST_POR = 0, /* Reset power-on */
@@ -60,6 +64,13 @@ extern struct dwc_otg_platform_data usb20host_pdata_rk3288;
 extern struct rkehci_platform_data rkhsic_pdata_rk3288;
 extern struct rkehci_platform_data rkehci_pdata_rk3288;
 extern struct rkehci_platform_data rkohci_pdata_rk3288;
+/* rk3036 platform data */
+extern struct dwc_otg_platform_data usb20otg_pdata_rk3036;
+extern struct dwc_otg_platform_data usb20host_pdata_rk3036;
+/* rk3126 platform data */
+extern struct dwc_otg_platform_data usb20otg_pdata_rk3126;
+extern struct dwc_otg_platform_data usb20host_pdata_rk3126;
+
 
 struct dwc_otg_platform_data {
 	void *privdata;
@@ -108,6 +119,7 @@ struct dwc_otg_control_usb {
 	pGRF_SOC_STATUS2_RK3288 grf_soc_status2_rk3288;
 	pGRF_SOC_STATUS19_RK3288 grf_soc_status19_rk3288;
 	pGRF_SOC_STATUS21_RK3288 grf_soc_status21_rk3288;
+
 	struct gpio *host_gpios;
 	struct gpio *otg_gpios;
 	struct clk *hclk_usb_peri;
@@ -122,6 +134,8 @@ struct dwc_otg_control_usb {
 enum {
 	RK3188_USB_CTLR = 0,	/* rk3188 chip usb */
 	RK3288_USB_CTLR,	/* rk3288 chip usb */
+	RK3036_USB_CTLR,	/* rk3036 chip usb */
+	RK3126_USB_CTLR,
 };
 
 struct usb20otg_pdata_id {

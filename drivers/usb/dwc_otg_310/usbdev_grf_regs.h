@@ -8,6 +8,7 @@ typedef volatile struct tag_grf_uoc0_reg {
 	u32 CON2;
 	u32 CON3;
 	u32 CON4;
+	u32 CON5;
 } GRF_UOC0_REG, *pGRF_UOC0_REG;
 
 typedef volatile struct tag_grf_uoc1_reg {
@@ -20,6 +21,7 @@ typedef volatile struct tag_grf_uoc1_reg {
 	u32 CON2;
 	u32 CON3;
 	u32 CON4;
+	u32 CON5;
 } GRF_UOC1_REG, *pGRF_UOC1_REG;
 
 typedef volatile struct tag_grf_uoc2_reg {

@@ -12,8 +12,9 @@
 #include <media/v4l2-chip-ident.h>
 #include <media/soc_camera.h>
 #include <linux/vmalloc.h>
-#include <plat/rk_camera.h>
-
+#include <linux/module.h>
+#include "../../../arch/arm/mach-rockchip/rk30_camera.h"//yzm
+#include <linux/kernel.h>
 /* Camera Sensor driver */
 
 #define MIN(x,y)   ((x<y) ? x: y)
@@ -296,6 +297,7 @@ extern int generic_sensor_s_ext_control(struct soc_camera_device *icd, struct v4
 extern int generic_sensor_g_ext_controls(struct v4l2_subdev *sd, struct v4l2_ext_controls *ext_ctrl);
 extern int generic_sensor_s_ext_controls(struct v4l2_subdev *sd, struct v4l2_ext_controls *ext_ctrl);
 extern long generic_sensor_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg);
+extern int generic_sensor_s_power(struct v4l2_subdev *sd, int on);//yzm
 extern int generic_sensor_enum_fmt(struct v4l2_subdev *sd, unsigned int index,enum v4l2_mbus_pixelcode *code);
 extern int generic_sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf);
 extern int generic_sensor_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ident *id);
@@ -374,16 +376,17 @@ static inline int sensor_video_probe(struct soc_camera_device *icd,
 				   struct i2c_client *client)
 {
 	int ret;
+	
 	struct generic_sensor *sensor = to_generic_sensor(client);
 
 	/* We must have a parent by now. And it cannot be a wrong one.
 	 * So this entire test is completely redundant. */
-	if (!icd->dev.parent ||
-		to_soc_camera_host(icd->dev.parent)->nr != icd->iface) {
+	if (!icd->parent ||
+		to_soc_camera_host(icd->parent)->nr != icd->iface) {
 		ret = -ENODEV;
 		goto sensor_video_probe_end;
 	}
-
+	
 	generic_sensor_softreset(client,sensor->info_priv.sensor_SfRstSeqe);
     ret = generic_sensor_check_id(client,sensor->info_priv.sensor_CkIdSeqe);
 
@@ -420,7 +423,6 @@ static inline void sensor_v4l2ctrl_info_init (struct sensor_v4l2ctrl_info_s *ptr
 {
     ptr->qctrl->id = id;
 	ptr->qctrl->type = type;
-	strcat(ptr->qctrl->name,name);
 	ptr->qctrl->minimum = min;
 	ptr->qctrl->maximum = max;
     ptr->qctrl->step = step;
@@ -469,7 +471,7 @@ static inline int sensor_v4l2ctrl_replace_cb(struct generic_sensor *sensor, int 
             ctrls->cb = cb;
             break;
         }
-    }
+    } 
 
     if (i>=num) {
         printk(KERN_ERR "%s(%d): v4l2_control id(0x%x) isn't exist\n",__FUNCTION__,__LINE__,id);
@@ -618,6 +620,7 @@ static inline int sensor_focus_default_cb(struct soc_camera_device *icd, struct 
 			}
 		case V4L2_CID_FOCUS_AUTO:
 			{
+				/****************yzm**************
                 mutex_lock(&sensor->sensor_focus.focus_lock);
                 //get focuszone
                 sensor->sensor_focus.focus_zone.lx = ext_ctrl->rect[0];
@@ -641,6 +644,7 @@ static inline int sensor_focus_default_cb(struct soc_camera_device *icd, struct 
 					ret = -EINVAL;
 					printk(KERN_ERR"\n %s valure = %d is invalidate..	\n",__FUNCTION__,value);
 				}
+				*///*******************yzm*************end
 				break;
 				
 			}
@@ -735,8 +739,8 @@ static inline int sensor_v4l2ctrl_flip_default_cb(struct soc_camera_device *icd,
     struct v4l2_queryctrl *controls, *control; \
     struct sensor_v4l2ctrl_info_s *ctrls; \
     struct v4l2_querymenu *menus,*menu; \
-    struct soc_camera_link *icl = to_soc_camera_link(icd); \
-    struct rk29camera_platform_data *pdata = icl->priv_usr; \
+	struct soc_camera_desc *desc = to_soc_camera_desc(icd);\
+    struct rk29camera_platform_data *pdata = desc->subdev_desc.drv_priv; \
     struct rkcamera_platform_data *sensor_device=NULL,*new_camera; \
     struct rk_sensor_reg *reg_data; \
     int config_flash = 0;\
@@ -750,12 +754,12 @@ static inline int sensor_v4l2ctrl_flip_default_cb(struct soc_camera_device *icd,
     }\
     sensor_config = SensorConfiguration;\
     new_camera = pdata->register_dev_new; \
-    while (strstr(new_camera->dev_name,"end")==NULL) { \
-        if (strcmp(dev_name(icd->pdev), new_camera->dev_name) == 0) { \
+	while(new_camera != NULL){\
+		if (strcmp(dev_name(icd->pdev), new_camera->dev_name) == 0) { \
             sensor_device = new_camera; \
             break; \
         } \
-        new_camera++; \
+        new_camera = new_camera->next_camera; \
     } \
  \
     if(sensor_device && sensor_device->flash)\
@@ -1218,6 +1222,7 @@ static inline int sensor_v4l2ctrl_flip_default_cb(struct soc_camera_device *icd,
 	.s_ext_ctrls		  = generic_sensor_s_ext_controls,\
 	.g_chip_ident	= generic_sensor_g_chip_ident,\
 	.ioctl = generic_sensor_ioctl,\
+	.s_power = generic_sensor_s_power,\
 };\
 \
 static struct v4l2_subdev_video_ops sensor_subdev_video_ops = {\
@@ -1247,9 +1252,11 @@ MODULE_DEVICE_TABLE(i2c, sensor_id);
 			 const struct i2c_device_id *did)\
 {\
 	struct specific_sensor *spsensor=NULL;\
-	struct soc_camera_device *icd = client->dev.platform_data;\
+	struct soc_camera_subdev_desc *ssdd = client->dev.platform_data;\
+	struct soc_camera_desc *desc = container_of(ssdd,struct soc_camera_desc,subdev_desc);\
+	struct soc_camera_device *icd = ssdd->socdev;\
 	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);\
-	struct soc_camera_link *icl;\
+\
 	int ret=0;\
 \
 	if (!icd) {\
@@ -1258,8 +1265,8 @@ MODULE_DEVICE_TABLE(i2c, sensor_id);
         goto sensor_probe_end;\
 	}\
 \
-	icl = to_soc_camera_link(icd);\
-	if (!icl) {\
+	desc = to_soc_camera_desc(icd);\
+	if (!desc) {\
 		SENSOR_TR("driver needs platform data! But it is failed\n");\
 		ret = -EINVAL;\
         goto sensor_probe_end;\
@@ -1310,7 +1317,8 @@ sensor_probe_end:\
 #define sensor_remove_default_code() static int sensor_remove(struct i2c_client *client)\
 {\
 	struct generic_sensor*sensor = to_generic_sensor(client);\
-	struct soc_camera_device *icd = client->dev.platform_data;\
+	struct soc_camera_subdev_desc *ssdd = client->dev.platform_data;\
+	struct soc_camera_device *icd = ssdd->socdev;\
 	struct specific_sensor *spsensor = to_specific_sensor(sensor);\
 	int sensor_config;\
 \
@@ -1364,8 +1372,8 @@ static void __exit sensor_mod_exit(void)\
 \
 device_initcall_sync(sensor_mod_init);\
 module_exit(sensor_mod_exit);\
-\
-MODULE_DESCRIPTION(SENSOR_NAME_STRING(sensor driver));\
+MODULE_DESCRIPTION(SENSOR_NAME_STRING(sensor driver)); \
 MODULE_AUTHOR("<ddl@rock-chips.com,zyc@rock-chips.com>");\
+\
 MODULE_LICENSE("GPL");
 #endif

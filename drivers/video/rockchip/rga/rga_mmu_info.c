@@ -397,6 +397,37 @@ static int rga_MapUserMemory(struct page **pages,
     return status;
 }
 
+static int rga_MapION(struct sg_table *sg,
+                               uint32_t *Memory,
+                               int32_t  pageCount)
+{
+    uint32_t i;
+    uint32_t status;
+    uint32_t Address;
+    uint32_t mapped_size = 0;
+    uint32_t len;
+    struct scatterlist *sgl = sg->sgl;
+    uint32_t sg_num = 0;
+
+    status = 0;
+    Address = 0;
+    do {
+        len = sg_dma_len(sgl) >> PAGE_SHIFT;
+        Address = sg_phys(sgl);
+
+        for(i=0; i<len; i++) {
+            Memory[mapped_size + i] = Address + (i << PAGE_SHIFT);
+        }
+
+        mapped_size += len;
+        sg_num += 1;
+    }
+    while((sgl = sg_next(sgl)) && (mapped_size < pageCount) && (sg_num < sg->nents));
+
+    return 0;
+}
+
+
 static int rga_mmu_info_BitBlt_mode(struct rga_reg *reg, struct rga_req *req)
 {
     int SrcMemSize, DstMemSize;
@@ -412,9 +443,13 @@ static int rga_mmu_info_BitBlt_mode(struct rga_reg *reg, struct rga_req *req)
 
     MMU_Base = NULL;
 
+    SrcMemSize = 0;
+    DstMemSize = 0;
+
     do
     {
         /* cal src buf mmu info */
+
         SrcMemSize = rga_buf_size_cal(req->src.yrgb_addr, req->src.uv_addr, req->src.v_addr,
                                         req->src.format, req->src.vir_w, req->src.act_h + req->src.y_offset,
                                         &SrcStart);
@@ -422,7 +457,9 @@ static int rga_mmu_info_BitBlt_mode(struct rga_reg *reg, struct rga_req *req)
             return -EINVAL;
         }
 
+
         /* cal dst buf mmu info */
+
         DstMemSize = rga_buf_size_cal(req->dst.yrgb_addr, req->dst.uv_addr, req->dst.v_addr,
                                         req->dst.format, req->dst.vir_w, req->dst.vir_h,
                                         &DstStart);
@@ -447,65 +484,49 @@ static int rga_mmu_info_BitBlt_mode(struct rga_reg *reg, struct rga_req *req)
             break;
         }
 
-        if(req->src.yrgb_addr < KERNEL_SPACE_VALID)
-        {
-            ret = rga_MapUserMemory(&pages[0], &MMU_Base[0], SrcStart, SrcMemSize);
-            if (ret < 0) {
-                pr_err("rga map src memory failed\n");
-                status = ret;
-                break;
+        if((req->mmu_info.mmu_flag >> 8) & 1) {
+            if (req->sg_src) {
+                ret = rga_MapION(req->sg_src, &MMU_Base[0], SrcMemSize);
+            }
+            else {
+                ret = rga_MapUserMemory(&pages[0], &MMU_Base[0], SrcStart, SrcMemSize);
+                if (ret < 0) {
+                    pr_err("rga map src memory failed\n");
+                    status = ret;
+                    break;
+                }
             }
         }
-        else
-        {
+        else {
             MMU_p = MMU_Base;
 
-            if(req->src.yrgb_addr == (uint32_t)rga_service.pre_scale_buf)
-            {
-                /* Down scale ratio over 2, Last prc    */
-                /* MMU table copy from pre scale table  */
-
+            if(req->src.yrgb_addr == (uint32_t)rga_service.pre_scale_buf) {
                 for(i=0; i<SrcMemSize; i++)
-                {
                     MMU_p[i] = rga_service.pre_scale_buf[i];
-                }
             }
-            else
-            {
+            else {
                 for(i=0; i<SrcMemSize; i++)
-                {
-                    MMU_p[i] = (uint32_t)virt_to_phys((uint32_t *)((SrcStart + i) << PAGE_SHIFT));
+                    MMU_p[i] = (uint32_t)((SrcStart + i) << PAGE_SHIFT);
+            }
+        }
+
+        if ((req->mmu_info.mmu_flag >> 10) & 1) {
+            if (req->sg_dst) {
+                ret = rga_MapION(req->sg_dst, &MMU_Base[SrcMemSize], DstMemSize);
+            }
+            else {
+                ret = rga_MapUserMemory(&pages[SrcMemSize], &MMU_Base[SrcMemSize], DstStart, DstMemSize);
+                if (ret < 0) {
+                    pr_err("rga map dst memory failed\n");
+                    status = ret;
+                    break;
                 }
             }
         }
-
-        if (req->dst.yrgb_addr < KERNEL_SPACE_VALID)
-        {
-            #if 0
-            ktime_t start, end;
-            start = ktime_get();
-            #endif
-            ret = rga_MapUserMemory(&pages[SrcMemSize], &MMU_Base[SrcMemSize], DstStart, DstMemSize);
-            if (ret < 0) {
-                pr_err("rga map dst memory failed\n");
-                status = ret;
-                break;
-            }
-
-            #if 0
-            end = ktime_get();
-            end = ktime_sub(end, start);
-            printk("dst mmu map time = %d\n", (int)ktime_to_us(end));
-            #endif
-        }
-        else
-        {
+        else {
             MMU_p = MMU_Base + SrcMemSize;
-
             for(i=0; i<DstMemSize; i++)
-            {
-                MMU_p[i] = (uint32_t)virt_to_phys((uint32_t *)((DstStart + i) << PAGE_SHIFT));
-            }
+                MMU_p[i] = (uint32_t)((DstStart + i) << PAGE_SHIFT);
         }
 
         MMU_Base[AllSize] = MMU_Base[AllSize - 1];
@@ -523,7 +544,10 @@ static int rga_mmu_info_BitBlt_mode(struct rga_reg *reg, struct rga_req *req)
         req->src.uv_addr = (req->src.uv_addr & (~PAGE_MASK)) | (uv_size << PAGE_SHIFT);
         req->src.v_addr = (req->src.v_addr & (~PAGE_MASK)) | (v_size << PAGE_SHIFT);
 
+        uv_size = (req->dst.uv_addr - (DstStart << PAGE_SHIFT)) >> PAGE_SHIFT;
+
         req->dst.yrgb_addr = (req->dst.yrgb_addr & (~PAGE_MASK)) | (SrcMemSize << PAGE_SHIFT);
+        req->dst.uv_addr = (req->dst.uv_addr & (~PAGE_MASK)) | ((SrcMemSize + uv_size) << PAGE_SHIFT);
 
         /*record the malloc buf for the cmd end to release*/
         reg->MMU_base = MMU_Base;
@@ -737,23 +761,23 @@ static int rga_mmu_info_color_fill_mode(struct rga_reg *reg, struct rga_req *req
             break;
         }
 
-        if (req->dst.yrgb_addr < KERNEL_SPACE_VALID)
-        {
-            ret = rga_MapUserMemory(&pages[0], &MMU_Base[0], DstStart, DstMemSize);
-            if (ret < 0) {
-                pr_err("rga map dst memory failed\n");
-                status = ret;
-                break;
+        if (req->dst.yrgb_addr < KERNEL_SPACE_VALID) {
+            if (req->sg_dst) {
+                ret = rga_MapION(req->sg_dst, &MMU_Base[0], DstMemSize);
+            }
+            else {
+                ret = rga_MapUserMemory(&pages[0], &MMU_Base[0], DstStart, DstMemSize);
+                if (ret < 0) {
+                    pr_err("rga map dst memory failed\n");
+                    status = ret;
+                    break;
+                }
             }
         }
-        else
-        {
+        else {
             MMU_p = MMU_Base;
-
             for(i=0; i<DstMemSize; i++)
-            {
-                MMU_p[i] = (uint32_t)virt_to_phys((uint32_t *)((DstStart + i) << PAGE_SHIFT));
-            }
+                MMU_p[i] = (uint32_t)((DstStart + i) << PAGE_SHIFT);
         }
 
         MMU_Base[AllSize] = MMU_Base[AllSize - 1];
@@ -1033,8 +1057,7 @@ static int rga_mmu_info_pre_scale_mode(struct rga_reg *reg, struct rga_req *req)
 
     MMU_Base = NULL;
 
-    do
-    {
+    do {
         /* cal src buf mmu info */
         SrcMemSize = rga_buf_size_cal(req->src.yrgb_addr, req->src.uv_addr, req->src.v_addr,
                                         req->src.format, req->src.vir_w, req->src.vir_h,
@@ -1054,8 +1077,7 @@ static int rga_mmu_info_pre_scale_mode(struct rga_reg *reg, struct rga_req *req)
         AllSize = SrcMemSize + DstMemSize;
 
         pages = kzalloc((AllSize)* sizeof(struct page *), GFP_KERNEL);
-        if(pages == NULL)
-        {
+        if(pages == NULL) {
             pr_err("RGA MMU malloc pages mem failed\n");
             status = RGA_MALLOC_ERROR;
             break;
@@ -1073,55 +1095,51 @@ static int rga_mmu_info_pre_scale_mode(struct rga_reg *reg, struct rga_req *req)
         }
 
         /* map src pages */
-        if (req->src.yrgb_addr < KERNEL_SPACE_VALID)
-        {
-            ret = rga_MapUserMemory(&pages[0], &MMU_Base[0], SrcStart, SrcMemSize);
-            if (ret < 0) {
-                pr_err("rga map src memory failed\n");
-                status = ret;
-                break;
+        if ((req->mmu_info.mmu_flag >> 8) & 1) {
+            if (req->sg_src) {
+                ret = rga_MapION(req->sg_src, &MMU_Base[0], SrcMemSize);
+            }
+            else {
+                ret = rga_MapUserMemory(&pages[0], &MMU_Base[0], SrcStart, SrcMemSize);
+                if (ret < 0) {
+                    pr_err("rga map src memory failed\n");
+                    status = ret;
+                    break;
+                }
             }
         }
-        else
-        {
+        else {
             MMU_p = MMU_Base;
 
             for(i=0; i<SrcMemSize; i++)
-            {
-                MMU_p[i] = (uint32_t)virt_to_phys((uint32_t *)((SrcStart + i) << PAGE_SHIFT));
-            }
+                MMU_p[i] = (uint32_t)((SrcStart + i) << PAGE_SHIFT);
         }
 
-
-        if(req->dst.yrgb_addr >= KERNEL_SPACE_VALID)
+        if((req->mmu_info.mmu_flag >> 10) & 1) {
+            if (req->sg_dst) {
+                ret = rga_MapION(req->sg_dst, &MMU_Base[SrcMemSize], DstMemSize);
+            }
+            else {
+                ret = rga_MapUserMemory(&pages[SrcMemSize], &MMU_Base[SrcMemSize], DstStart, DstMemSize);
+                if (ret < 0) {
+                    pr_err("rga map dst memory failed\n");
+                    status = ret;
+                    break;
+                }
+            }
+        }
+        else
         {
             /* kernel space */
             MMU_p = MMU_Base + SrcMemSize;
 
-            if(req->dst.yrgb_addr == (uint32_t)rga_service.pre_scale_buf)
-            {
+            if(req->dst.yrgb_addr == (uint32_t)rga_service.pre_scale_buf) {
                 for(i=0; i<DstMemSize; i++)
-                {
                     MMU_p[i] = rga_service.pre_scale_buf[i];
-                }
             }
-            else
-            {
+            else {
                 for(i=0; i<DstMemSize; i++)
-                {
-                    MMU_p[i] = virt_to_phys((uint32_t *)((DstStart + i) << PAGE_SHIFT));
-                }
-            }
-        }
-        else
-        {
-            /* user space */
-            ret = rga_MapUserMemory(&pages[SrcMemSize], &MMU_Base[SrcMemSize], DstStart, DstMemSize);
-            if (ret < 0)
-            {
-                pr_err("rga map dst memory failed\n");
-                status = ret;
-                break;
+                    MMU_p[i] = (uint32_t)((DstStart + i) << PAGE_SHIFT);
             }
         }
 

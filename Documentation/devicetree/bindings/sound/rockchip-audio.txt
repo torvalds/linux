@@ -1,0 +1,133 @@
+* Rockchip Audio controller
+
+Required SoC Specific Properties:
+
+- compatible : "rk3036-audio"
+- reg: physical base address of the controller and length of memory mapped
+  region.
+- clocks: must include clock specifiers corresponding to entries in the
+  clock-names property.
+- clocks-names: list of clock names sorted in the same order as the clocks
+  property. Must contain "rockchip-i2s" and "rk3036-codec".
+- interrupts: interrupt number to the cpu.
+- dmas: list of DMA controller phandle and DMA request line ordered pairs.
+- dma-names: identifier string for each DMA request line in the dmas property.
+  These strings correspond 1:1 with the ordered pairs in dmas.
+- pinctrl-names: must contain a "default" entry.
+- pinctrl-0: pin control group to be used for this controller.
+- pinctrl-1: pin control group to be used for gpio.
+
+Example:
+
+rockchip-audio {
+	compatible = "rk3036-audio";
+	dais {
+		dai0 {
+			audio-codec = <&codec>;
+			i2s-controller = <&i2s>;
+			format = "i2s";
+			//continuous-clock;
+			//bitclock-inversion;
+			//frame-inversion;
+			//bitclock-master;
+			//frame-master;
+		};
+	};
+};
+
+
+- compatible : "audio-rk312x"
+- reg: physical base address of the controller and length of memory mapped
+  region.
+- clocks: must include clock specifiers corresponding to entries in the
+  clock-names property.
+- clocks-names: list of clock names sorted in the same order as the clocks
+  property. Must contain "rockchip-i2s" and "rk3036-codec".
+- interrupts: interrupt number to the cpu.
+- dmas: list of DMA controller phandle and DMA request line ordered pairs.
+- dma-names: identifier string for each DMA request line in the dmas property.
+  These strings correspond 1:1 with the ordered pairs in dmas.
+- pinctrl-names: must contain a "default" entry.
+- pinctrl-0: pin control group to be used for this controller.
+- pinctrl-1: pin control group to be used for gpio.
+
+Example:
+
+rockchip-audio {
+        compatible = "audio-rk312x";
+        dais {
+                dai0 {
+                        audio-codec = <&codec>;
+                        i2s-controller = <&i2s1>;
+                        format = "i2s";
+                        //continuous-clock;
+                        //bitclock-inversion;
+                        //frame-inversion;
+                        //bitclock-master;
+                        //frame-master;
+                };
+        };
+};
+
+
+- compatible : "rk312x-spdif"
+- reg: physical base address of the controller and length of memory mapped
+  region.
+- clocks: must include clock specifiers corresponding to entries in the
+  clock-names property.
+- clocks-names: list of clock names sorted in the same order as the clocks
+  property. Must contain "rockchip-i2s" and "rk3036-codec".
+- interrupts: interrupt number to the cpu.
+- dmas: list of DMA controller phandle and DMA request line ordered pairs.
+- dma-names: identifier string for each DMA request line in the dmas property.
+  These strings correspond 1:1 with the ordered pairs in dmas.
+- pinctrl-names: must contain a "default" entry.
+- pinctrl-0: pin control group to be used for this controller.
+- pinctrl-1: pin control group to be used for gpio.
+
+Example:
+
+spdif: spdif@10204000 {
+	compatible = "rk312x-spdif";
+	reg = <0x10204000 0x1000>;
+	clocks = <&clk_spdif>, <&clk_gates10 9>;
+	clock-names = "spdif_8ch_mclk", "spdif_hclk";
+	interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
+	dmas = <&pdma 13>;
+	//#dma-cells = <1>;
+	dma-names = "tx";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spdif_tx>;
+};
+
+
+
+- compatible : "rk312x-codec"
+- reg: physical base address of the controller and length of memory mapped
+  region.
+- clocks: must include clock specifiers corresponding to entries in the
+  clock-names property.
+- clocks-names: list of clock names sorted in the same order as the clocks
+  property. Must contain "rockchip-i2s" and "rk3036-codec".
+- interrupts: interrupt number to the cpu.
+- dmas: list of DMA controller phandle and DMA request line ordered pairs.
+- dma-names: identifier string for each DMA request line in the dmas property.
+  These strings correspond 1:1 with the ordered pairs in dmas.
+- pinctrl-names: must contain a "default" entry.
+- pinctrl-0: pin control group to be used for this controller.
+- pinctrl-1: pin control group to be used for gpio.
+
+Example:
+
+codec: codec@20030000 {
+	compatible = "rk312x-codec";
+	reg = <0x20030000 0x1000>;
+	spk_ctl_io = <&gpio1 GPIO_A3 0>;
+	//pinctrl-names = "default";
+	//pinctrl-0 = <&i2s_gpio>;
+
+	boot_depop = <1>;
+	pa_enable_time = <1000>;
+	clocks = <&clk_gates5 14>;
+	clock-names = "g_pclk_acodec";
+};

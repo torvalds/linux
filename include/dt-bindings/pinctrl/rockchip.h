@@ -77,6 +77,14 @@
 #define RK3188_PULL_PINS_PER_REG	8
 #define RK3188_PULL_BANK_STRIDE		16
 
+#define RK3036_PULL_BITS_PER_PIN	1
+#define RK3036_PULL_PINS_PER_REG	16
+#define RK3036_PULL_BANK_STRIDE		8
+
+#define RK312X_PULL_BITS_PER_PIN	1
+#define RK312X_PULL_PINS_PER_REG	16
+#define RK312X_PULL_BANK_STRIDE		8
+
 
 /*warning:don not chang the following value*/
 #define VALUE_PULL_NORMAL	0
@@ -84,6 +92,12 @@
 #define VALUE_PULL_DOWN		2
 #define VALUE_PULL_KEEP		3
 #define VALUE_PULL_DISABLE	4 //don't set and keep pull default
+#define VALUE_PULL_DEFAULT	4 //don't set and keep pull default
+
+
+//for rk2928,rk3036
+#define VALUE_PULL_UPDOWN_DISABLE		0
+#define VALUE_PULL_UPDOWN_ENABLE		1
 
 #define VALUE_VOL_DEFAULT	0
 #define VALUE_VOL_3V3		0

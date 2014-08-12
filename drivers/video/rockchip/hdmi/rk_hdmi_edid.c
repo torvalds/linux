@@ -223,6 +223,10 @@ static int hdmi_edid_parse_cea_sdb(unsigned char *buf, struct hdmi_edid *pedid)
 	if (IEEEOUI == 0x0c03)
 		pedid->sink_hdmi = 1;
 
+	pedid->cecaddress = buf[cur_offset + 5];
+	pedid->cecaddress |= buf[cur_offset + 4] << 8;
+	hdmi_edid_debug("[EDID-CEA] CEC Physical addres is 0x%08x.\n", pedid->cecaddress);
+
 	if (count > 5) {
 		pedid->deepcolor = (buf[6] >> 3) & 0x0F;
 		supports_ai = buf[6] >> 7;

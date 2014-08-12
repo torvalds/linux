@@ -789,31 +789,6 @@ static int _autosleep_disable(struct battery_info *di)
 }
 
 #endif
-static void  _set_relax_thres(struct battery_info *di)
-{
-	u8 buf;
-	int enter_thres,exit_thres;
-	struct cell_state *cell = &di->cell;
-
-	enter_thres = (cell->config->ocv->sleep_enter_current)*1000/1506;
-	exit_thres = (cell->config->ocv->sleep_exit_current)*1000/1506;
-
-	buf  =  enter_thres&0xff;
-	battery_write(di->rk818, RELAX_ENTRY_THRES_REGL, &buf,1);
-	buf =	(enter_thres>>8)&0xff;
-	battery_write(di->rk818, RELAX_ENTRY_THRES_REGH, &buf,1);
-
-	buf  =  exit_thres&0xff;
-	battery_write(di->rk818, RELAX_EXIT_THRES_REGL, &buf,1);
-	buf  =	(exit_thres>>8)&0xff;
-	battery_write(di->rk818, RELAX_EXIT_THRES_REGH, &buf,1);
-
-	//set sample time
-	 battery_read(di->rk818,GGCON, &buf, 1);
-	buf &= ~(3<<2);
-	battery_write(di->rk818, GGCON, &buf,1);
- }
-
 static int rk818_battery_voltage(struct battery_info *di)
 {
 	int ret;
@@ -1011,77 +986,6 @@ static int _get_realtime_capacity(struct battery_info *di)
 	return capacity;
 	
 
-}
-
-static int _get_relax_vol1(struct battery_info *di)
-{
-	int ret;
-	int temp = 0,voltage_now;
-	u8 buf;
-
-	ret = battery_read(di->rk818,RELAX_VOL1_REGL, &buf, 1);
-	temp = buf;
-	ret = battery_read(di->rk818,RELAX_VOL1_REGH, &buf, 1);
-	temp |= buf<<8;
-//	ret = battery_read(di->rk818,RELAX_VOL1_REGH, &buf, 2);
-//	temp  = (buf[0]<<8)|buf[1];
-	voltage_now = di ->voltage_k*temp + di->voltage_b;
-
-	return voltage_now;
-}
-
-static int _get_relax_vol2(struct battery_info *di)
-{
-	int ret;
-	int temp = 0,voltage_now;
-	u8 buf;
-
-	ret = battery_read(di->rk818,RELAX_VOL2_REGL, &buf, 1);
-	temp = buf;
-	ret = battery_read(di->rk818,RELAX_VOL2_REGH, &buf, 1);
-	temp |= buf<<8;
-//	ret = battery_read(di->rk818,RELAX_VOL2_REGH, &buf, 2);
-//	temp  = (buf[0]<<8)|buf[1];
-	voltage_now = di ->voltage_k*temp + di->voltage_b;
-
-	return temp;
-}
-
-static bool  _is_relax_mode(struct battery_info *di)
-{
-	int ret;
-	u8 status;
-	int relax_vol1,relax_vol2;
-
-	struct cell_state *cell = &di->cell;
-	
-	ret = battery_read(di->rk818,GGSTS, &status, 1);
-	DBG(" GGSTS the value is %2x the realsoc = %d \n", status, di->real_soc);
-	
-	if(!(status&RELAX_STS))
-		return false;
-	if((!(status&RELAX_VOL1_UPD))||(!(status&RELAX_VOL2_UPD)))
-		return false;
-	else{
-		if ((di->real_soc>= cell->config->ocv->flat_zone_low)
-			&& (di->real_soc <= cell->config->ocv->flat_zone_high))
-			return false;				
-		relax_vol1 = _get_relax_vol1(di);
-		relax_vol2 = _get_relax_vol2(di);
-		DBG("relax_vol1 = %d relax_vol2 =%d \n", relax_vol1,relax_vol2);
-		if((abs_int((relax_vol2 - relax_vol1)))/8/60 > 4 )
-			return false;
-	}
-
-	return true;
-}
-
-
-static int relax_soc(struct battery_info *di)
-{
-	//int relax_soc;
-	_voltage_to_capacity( di, di->voltage);
-	return di->temp_soc;
 }
 
 static int _get_vcalib0(struct battery_info *di)
@@ -1333,15 +1237,6 @@ static int _copy_soc(struct  battery_info * di, u8 save_soc)
 	DBG(" the save soc-reg = %d \n", soc);
 	
 	return 0;
-}
-static void  _save_rsoc_nac(struct  battery_info * di)
-{
-	u8 buf;
-
-	buf = di->real_soc;
-	
-	battery_write(di->rk818, SOC_REG, &buf, 1);
-	
 }
 
 static int _rsoc_init(struct  battery_info * di)
@@ -1922,7 +1817,6 @@ static int rk818_battery_parse_dt(struct rk818 *rk818)
 
 	return 0;
 }
-
 static struct of_device_id rk818_battery_of_match[] = {
 	{ .compatible = "rk818_battery" },
 	{ }
@@ -1939,7 +1833,6 @@ static int rk818_battery_parse_dt(struct device *dev)
 static int  battery_probe(struct platform_device *pdev)
 {
 	struct rk818 *chip = dev_get_drvdata(pdev->dev.parent);
-	struct rk818_platform_data *rk818_platform_data = chip->dev->platform_data;
 //	struct battery_platform_data *pdata ;//= rk818_platform_data->battery_data;
 //	struct battery_platform_data defdata ;//= rk818_platform_data->battery_data;
 	struct battery_info *di;
@@ -2035,7 +1928,6 @@ static int  battery_remove(struct platform_device *dev)
 #if 1
 static int battery_suspend(struct platform_device *dev,pm_message_t state)
 {
-	int irq;
 	struct battery_info *di = platform_get_drvdata(dev);
 	DBG("%s--------------------\n",__FUNCTION__);
 	if(di == NULL)
@@ -2048,7 +1940,6 @@ static int battery_suspend(struct platform_device *dev,pm_message_t state)
 
 static int battery_resume(struct platform_device *dev)
 {
-	int irq;
 	
 	u8 buf;
 	int ret;
@@ -2074,7 +1965,7 @@ static struct platform_driver battery_driver = {
 	.driver		= {
 		.name	= "rk818-battery",
 		//.pm	= &pm_ops,
-	//	.of_match_table	= of_match_ptr(rk818_battery_parse_dt),
+		.of_match_table	= of_match_ptr(rk818_battery_of_match),
 	},
 };
 

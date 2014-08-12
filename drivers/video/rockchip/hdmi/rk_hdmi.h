@@ -21,12 +21,38 @@
 /* default HDMI output video mode */
 #define HDMI_VIDEO_DEFAULT_MODE			HDMI_1280x720p_60Hz
 
+#define HDMI_720X480P_60HZ_VIC		2
+#define HDMI_720X480I_60HZ_VIC		6
+#define HDMI_720X576P_50HZ_VIC		17
+#define HDMI_720X576I_50HZ_VIC		21
+#define HDMI_1280X720P_50HZ_VIC		19
+#define HDMI_1280X720P_60HZ_VIC		4
+#define HDMI_1920X1080P_50HZ_VIC	31
+#define HDMI_1920X1080I_50HZ_VIC	20
+#define HDMI_1920X1080P_60HZ_VIC	16
+#define HDMI_1920X1080I_60HZ_VIC	5
+#define HDMI_3840X2160P_24HZ_VIC	93
+#define HDMI_3840X2160P_25HZ_VIC	94
+#define HDMI_3840X2160P_30HZ_VIC	95
+#define HDMI_3840X2160P_50HZ_VIC	96
+#define HDMI_3840X2160P_60HZ_VIC	97
+#define HDMI_4096X2160P_24HZ_VIC	98
+#define HDMI_4096X2160P_25HZ_VIC	99
+#define HDMI_4096X2160P_30HZ_VIC	100
+#define HDMI_4096X2160P_50HZ_VIC	101
+#define HDMI_4096X2160P_60HZ_VIC	102
+
 /* HDMI video source */
 enum {
 	HDMI_SOURCE_LCDC0 = 0,
 	HDMI_SOURCE_LCDC1 = 1
 };
 
+enum {
+	HDMI_SOC_RK3036,
+	HDMI_SOC_RK312X,
+	HDMI_SOC_RK3288
+};
 /*
  * If HDMI_ENABLE, system will auto configure output mode according to EDID
  * If HDMI_DISABLE, system will output mode according to
@@ -62,9 +88,7 @@ enum {
 	VIDEO_INPUT_COLOR_YCBCR422,
 	VIDEO_INPUT_COLOR_YCBCR420
 };
-/********************************************************************
-**                          结构定义                                *
-********************************************************************/
+
 /* HDMI video mode code according CEA-861-E */
 enum hdmi_video_mode {
 	HDMI_640x480p_60Hz = 1,
@@ -263,6 +287,7 @@ struct hdmi_edid {
 	struct hdmi_audio *audio;	/* Device supported audio info */
 	int audio_num;			/* Device supported audio type number */
 	int base_audio_support;		/* Device supported base audio */
+	unsigned int  cecaddress;	/* CEC physical address */
 };
 
 /* RK HDMI Video Configure Parameters */
@@ -284,12 +309,18 @@ struct hdmi_video_para {
 						 */
 };
 
+struct rk_hdmi_drvdata  {
+	u8 soc_type;
+	u32 reversed;
+};
+
 struct hdmi {
 	struct device *dev;
 	int id;
 	int irq;
 	struct rk_lcdc_driver *lcdc;
-
+	struct rk_hdmi_drvdata *data;
+	struct rk_display_device *ddev;
 #ifdef CONFIG_SWITCH
 	struct switch_dev switch_hdmi;
 #endif
@@ -328,23 +359,28 @@ struct hdmi {
 
 	struct list_head pwrlist_head;
 
-	int (*insert) (struct hdmi *hdmi);
-	int (*remove) (struct hdmi *hdmi);
-	void (*control_output) (struct hdmi *hdmi, int enable);
-	int (*config_video) (struct hdmi *hdmi,
+	int (*insert)(struct hdmi *hdmi);
+	int (*remove)(struct hdmi *hdmi);
+	void (*control_output)(struct hdmi *hdmi, int enable);
+	int (*config_video)(struct hdmi *hdmi,
 			     struct hdmi_video_para *vpara);
-	int (*config_audio) (struct hdmi *hdmi, struct hdmi_audio *audio);
-	int (*detect_hotplug) (struct hdmi *hdmi);
+	int (*config_audio)(struct hdmi *hdmi, struct hdmi_audio *audio);
+	int (*detect_hotplug)(struct hdmi *hdmi);
 	/* call back for edid */
-	int (*read_edid) (struct hdmi *hdmi, int block, unsigned char *buff);
-	int (*set_vif) (struct hdmi *hdmi, struct rk_screen *screen,
+	int (*read_edid)(struct hdmi *hdmi, int block, unsigned char *buff);
+	int (*set_vif)(struct hdmi *hdmi, struct rk_screen *screen,
 			bool connect);
 
-	/* call back for hdcp operatoion */
-	void (*hdcp_cb) (void);
-	void (*hdcp_irq_cb) (int);
-	int (*hdcp_power_on_cb) (void);
-	void (*hdcp_power_off_cb) (void);
+	/* call back for hdcp operation */
+	void (*hdcp_cb)(void);
+	void (*hdcp_irq_cb)(int);
+	int (*hdcp_power_on_cb)(void);
+	void (*hdcp_power_off_cb)(void);
+
+	/*call back for cec operation*/
+	void (*cec_irq)(void);
+	void (*cec_set_device_pa)(int);
+	int (*cec_enumerate)(void);
 };
 
 #define hdmi_err(dev, format, arg...)		\
@@ -357,28 +393,28 @@ struct hdmi {
 #define hdmi_dbg(dev, format, arg...)
 #endif
 
-extern int hdmi_drv_register(struct hdmi *hdmi_drv);
-extern int hdmi_get_hotplug(void);
-extern int hdmi_set_info(struct rk_screen *screen, unsigned int vic);
-extern void hdmi_init_lcdc(struct rk_screen *screen,
+int hdmi_drv_register(struct hdmi *hdmi_drv);
+int hdmi_get_hotplug(void);
+int hdmi_set_info(struct rk_screen *screen, unsigned int vic);
+void hdmi_init_lcdc(struct rk_screen *screen,
 			   struct rk29lcd_info *lcd_info);
-extern int hdmi_sys_init(struct hdmi *hdmi_drv);
-extern int hdmi_sys_parse_edid(struct hdmi *hdmi_drv);
-extern const char *hdmi_get_video_mode_name(unsigned char vic);
-extern int hdmi_videomode_to_vic(struct fb_videomode *vmode);
-extern const struct fb_videomode *hdmi_vic_to_videomode(int vic);
-extern int hdmi_add_videomode(const struct fb_videomode *mode,
+int hdmi_sys_init(struct hdmi *hdmi_drv);
+int hdmi_sys_parse_edid(struct hdmi *hdmi_drv);
+const char *hdmi_get_video_mode_name(unsigned char vic);
+int hdmi_videomode_to_vic(struct fb_videomode *vmode);
+const struct fb_videomode *hdmi_vic_to_videomode(int vic);
+int hdmi_add_videomode(const struct fb_videomode *mode,
 			      struct list_head *head);
-extern struct hdmi_video_timing *hdmi_find_mode(int vic);
-extern int hdmi_find_best_mode(struct hdmi *hdmi_drv, int vic);
-extern int hdmi_ouputmode_select(struct hdmi *hdmi_drv, int edid_ok);
-extern int hdmi_switch_fb(struct hdmi *hdmi_drv, int vic);
-extern int hdmi_init_video_para(struct hdmi *hdmi_drv,
+struct hdmi_video_timing *hdmi_find_mode(int vic);
+int hdmi_find_best_mode(struct hdmi *hdmi_drv, int vic);
+int hdmi_ouputmode_select(struct hdmi *hdmi_drv, int edid_ok);
+int hdmi_switch_fb(struct hdmi *hdmi_drv, int vic);
+int hdmi_init_video_para(struct hdmi *hdmi_drv,
 				struct hdmi_video_para *video);
-extern void hdmi_work(struct work_struct *work);
-extern void hdmi_register_display_sysfs(struct hdmi *hdmi_drv,
+void hdmi_work(struct work_struct *work);
+void hdmi_register_display_sysfs(struct hdmi *hdmi_drv,
 					struct device *parent);
-extern void hdmi_unregister_display_sysfs(struct hdmi *hdmi_drv);
+void hdmi_unregister_display_sysfs(struct hdmi *hdmi_drv);
 
 int rk_hdmi_parse_dt(struct hdmi *hdmi_drv);
 int rk_hdmi_pwr_enable(struct hdmi *dev_drv);

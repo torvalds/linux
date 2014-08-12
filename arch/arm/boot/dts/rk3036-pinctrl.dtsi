@@ -1,0 +1,582 @@
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/rockchip.h>
+#include <dt-bindings/pinctrl/rockchip-rk3036.h>
+
+/ {
+	pinctrl: pinctrl@20008000 {
+		compatible = "rockchip,rk3036-pinctrl";
+		reg = <0x20008000 0xA8>,
+		      <0x200080A8 0x30>,
+		      <0x20008118 0x18>,
+		      <0x20008100 0x04>;
+		reg-names = "base", "mux", "pull", "drv";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		gpio0: gpio0@2007c000 {
+			compatible = "rockchip,gpio-bank";
+			reg = <0x2007c000 0x100>;
+			interrupts = <GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clk_gates8 9>;
+
+			gpio-controller;
+			#gpio-cells = <2>;
+
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		gpio1: gpio1@20080000 {
+			compatible = "rockchip,gpio-bank";
+			reg = <0x20080000 0x100>;
+			interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clk_gates8 10>;
+
+			gpio-controller;
+			#gpio-cells = <2>;
+
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		gpio2: gpio2@20084000 {
+			compatible = "rockchip,gpio-bank";
+			reg = <0x20084000 0x100>;
+			interrupts = <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clk_gates8 11>;
+
+			gpio-controller;
+			#gpio-cells = <2>;
+
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		gpio15: gpio15@20086000 {
+			compatible = "rockchip,gpio-bank";
+			reg = <0x20086000 0x100>;
+			interrupts = <GIC_SPI 127 IRQ_TYPE_LEVEL_HIGH>;//127 = 160-32-1
+			clocks = <&clk_gates8 12>;
+
+			gpio-controller;
+			#gpio-cells = <2>;
+
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		pcfg_pull_up: pcfg_pull_up {
+			bias-pull-up;
+		};
+
+		pcfg_pull_down: pcfg_pull_down {
+			bias-pull-down;
+		};
+
+		pcfg_pull_none: pcfg_pull_none {
+			bias-disable;
+		};
+
+		gpio0_uart0 {
+			uart0_xfer: uart0-xfer {
+				rockchip,pins = <UART0_SIN>,
+						<UART0_SOUT>;
+				rockchip,pull = <VALUE_PULL_DEFAULT>;
+
+
+			};
+
+			uart0_cts: uart0-cts {
+				rockchip,pins = <UART0_CTSN>;
+				rockchip,pull = <VALUE_PULL_DEFAULT>;
+
+
+			};
+
+			uart0_rts: uart0-rts {
+				rockchip,pins = <UART0_RTSN>;
+				rockchip,pull = <VALUE_PULL_DEFAULT>;
+
+
+			};
+
+			uart0_rts_gpio: uart0-rts-gpio {
+				rockchip,pins = <FUNC_TO_GPIO(UART0_RTSN)>;
+				rockchip,pull = <VALUE_PULL_DEFAULT>;
+
+			};
+		};
+
+		gpio1_uart1 {
+			uart1_xfer: uart1-xfer {
+				rockchip,pins = <UART1_SIN>,
+						<UART1_SOUT>;
+				rockchip,pull = <VALUE_PULL_DEFAULT>;
+
+
+			};
+
+		};
+
+		gpio1_uart2 {
+			uart2_xfer: uart2-xfer {
+				rockchip,pins = <UART2_SIN>,
+						<UART2_SOUT>;
+				rockchip,pull = <VALUE_PULL_DEFAULT>;
+
+
+			};
+			/* no rts / cts for uart2 */
+		};
+
+
+		gpio0_i2c0 {
+			i2c0_sda:i2c0-sda {
+				rockchip,pins = <I2C0_SDA>;
+				rockchip,pull = <VALUE_PULL_DEFAULT>;
+
+
+			};
+
+			i2c0_scl:i2c0-scl {
+				rockchip,pins = <I2C0_SCL>;
+				rockchip,pull = <VALUE_PULL_DEFAULT>;
+
+
+			};
+
+			i2c0_gpio: i2c0-gpio {
+				rockchip,pins = <FUNC_TO_GPIO(I2C0_SDA)>, <FUNC_TO_GPIO(I2C0_SCL)>;
+				rockchip,pull = <VALUE_PULL_DEFAULT>;
+
+			};
+		};
+
+		gpio0_i2c1 {
+			i2c1_sda:i2c1-sda {
+				rockchip,pins = <I2C1_SDA>;
+				rockchip,pull = <VALUE_PULL_DEFAULT>;
+
+
+			};
+
+			i2c1_scl:i2c1-scl {
+				rockchip,pins = <I2C1_SCL>;
+				rockchip,pull = <VALUE_PULL_DEFAULT>;
+
+
+			};
+
+			i2c1_gpio: i2c1-gpio {
+				rockchip,pins = <FUNC_TO_GPIO(I2C1_SDA)>, <FUNC_TO_GPIO(I2C1_SCL)>;
+                                rockchip,pull = <VALUE_PULL_DEFAULT>;
+
+			};
+		};
+
+		gpio2_i2c2 {
+			i2c2_sda:i2c2-sda {
+				rockchip,pins = <I2C2_SDA>;
+				rockchip,pull = <VALUE_PULL_DEFAULT>;
+
+
+			};
+
+			i2c2_scl:i2c2-scl {
+				rockchip,pins = <I2C2_SCL>;
+				rockchip,pull = <VALUE_PULL_DEFAULT>;
+
+
+			};
+
+			i2c2_gpio: i2c2-gpio {
+				rockchip,pins = <FUNC_TO_GPIO(I2C2_SDA)>, <FUNC_TO_GPIO(I2C2_SCL)>;
+				rockchip,pull = <VALUE_PULL_DEFAULT>;
+
+			};
+		};
+
+		gpio1_spi0 {
+			spi0_txd:spi0-txd {
+				rockchip,pins = <SPI0_TXD>;
+				rockchip,pull = <VALUE_PULL_DEFAULT>;
+
+
+			};
+
+			spi0_rxd:spi0-rxd {
+				rockchip,pins = <SPI0_RXD>;
+				rockchip,pull = <VALUE_PULL_DEFAULT>;
+
+
+			};
+
+			spi0_clk:spi0-clk {
+				rockchip,pins = <SPI0_CLK>;
+				rockchip,pull = <VALUE_PULL_DEFAULT>;
+
+
+			};
+
+			spi0_cs0:spi0-cs0 {
+				rockchip,pins = <SPI0_CS0>;
+				rockchip,pull = <VALUE_PULL_DEFAULT>;
+
+
+			};
+
+			spi0_cs1:spi0-cs1 {
+				rockchip,pins = <SPI0_CS1>;
+				rockchip,pull = <VALUE_PULL_DEFAULT>;
+
+
+			};
+
+		};
+
+		gpio1_hdmi {
+			hdmi_cec:hdmi-cec {
+				rockchip,pins = <HDMI_CEC>;
+				rockchip,pull = <VALUE_PULL_DEFAULT>;
+				//rockchip,drive = <VALUE_DRV_DEFAULT>;
+			};
+
+			hdmi_sda:hdmi-sda {
+				rockchip,pins = <HDMI_SDA>;
+				rockchip,pull = <VALUE_PULL_DEFAULT>;
+				//rockchip,drive = <VALUE_DRV_DEFAULT>;
+			};
+
+			hdmi_scl:hdmi-scl {
+				rockchip,pins = <HDMI_SCL>;
+				rockchip,pull = <VALUE_PULL_DEFAULT>;
+				//rockchip,drive = <VALUE_DRV_DEFAULT>;
+			};
+
+			hdmi_hpd:hdmi-hpd {
+				rockchip,pins = <HDMI_HPD>;
+				rockchip,pull = <VALUE_PULL_DEFAULT>;
+				//rockchip,drive = <VALUE_DRV_DEFAULT>;
+
+			};
+
+			hdmi_gpio: hdmi-gpio {
+				rockchip,pins = <FUNC_TO_GPIO(HDMI_CEC)>, <FUNC_TO_GPIO(HDMI_SDA)>, <FUNC_TO_GPIO(HDMI_SCL)>, <FUNC_TO_GPIO(HDMI_HPD)>;
+				rockchip,pull = <VALUE_PULL_DEFAULT>;
+				//rockchip,drive = <VALUE_DRV_DEFAULT>;
+			};
+		};
+
+		gpio1_i2s0 {
+			i2s0_mclk:i2s0-mclk {
+				rockchip,pins = <I2S0_MCLK>;
+				rockchip,pull = <VALUE_PULL_DEFAULT>;
+
+			};
+
+			i2s0_sclk:i2s0-sclk {
+				rockchip,pins = <I2S0_SCLK>;
+				rockchip,pull = <VALUE_PULL_DEFAULT>;
+
+			};
+
+			i2s0_lrckrx:i2s0-lrckrx {
+				rockchip,pins = <I2S0_LRCKRX>;
+				rockchip,pull = <VALUE_PULL_DEFAULT>;
+
+			};
+
+			i2s0_lrcktx:i2s0-lrcktx {
+				rockchip,pins = <I2S0_LRCKTX>;
+				rockchip,pull = <VALUE_PULL_DEFAULT>;
+
+			};
+
+			i2s0_sdo:i2s0-sdo {
+				rockchip,pins = <I2S0_SDO>;
+				rockchip,pull = <VALUE_PULL_DEFAULT>;
+
+			};
+
+			i2s0_sdi:i2s0-sdi {
+				rockchip,pins = <I2S0_SDI>;
+				rockchip,pull = <VALUE_PULL_DEFAULT>;
+
+			};
+
+			i2s0_gpio: i2s0-gpio {
+				rockchip,pins = <FUNC_TO_GPIO(I2S0_MCLK)>,
+						<FUNC_TO_GPIO(I2S0_SCLK)>,
+						<FUNC_TO_GPIO(I2S0_LRCKRX)>,
+						<FUNC_TO_GPIO(I2S0_LRCKTX)>,
+						<FUNC_TO_GPIO(I2S0_SDO)>,
+						<FUNC_TO_GPIO(I2S0_SDI)>;
+				rockchip,pull = <VALUE_PULL_DEFAULT>;
+
+			};
+		};
+
+		gpio0_spdif {
+			spdif_tx: spdif-tx {
+				rockchip,pins = <SPDIF_TX>;
+				rockchip,pull = <VALUE_PULL_DEFAULT>;
+
+			};
+		};
+
+		gpio1_emmc0 {
+			emmc0_clk: emmc0-clk {
+				rockchip,pins = <EMMC_CLKOUT>;
+				rockchip,pull = <VALUE_PULL_DEFAULT>;
+
+
+			};
+
+			emmc0_cmd: emmc0-cmd {
+				rockchip,pins = <EMMC_CMD>;
+				rockchip,pull = <VALUE_PULL_UP>;
+
+
+			};
+
+
+			emmc0_bus1: emmc0-bus-width1 {
+				rockchip,pins = <EMMC_D0>;
+				rockchip,pull = <VALUE_PULL_UP>;
+
+
+			};
+
+			emmc0_bus4: emmc0-bus-width4 {
+				rockchip,pins = <EMMC_D0>,
+					        <EMMC_D1>,
+					        <EMMC_D2 >,
+					        <EMMC_D3>;
+				rockchip,pull = <VALUE_PULL_UP>;
+
+
+			};
+		};
+
+		gpio1_sdmmc0 {
+			sdmmc0_clk: sdmmc0-clk {
+				rockchip,pins = <MMC0_CLKOUT>;
+				rockchip,pull = <VALUE_PULL_DEFAULT>;
+
+
+			};
+
+			sdmmc0_cmd: sdmmc0-cmd {
+				rockchip,pins = <MMC0_CMD>;
+				rockchip,pull = <VALUE_PULL_UP>;
+
+			};
+
+			sdmmc0_dectn: sdmmc0-dectn{
+				rockchip,pins = <MMC0_DETN>;
+				rockchip,pull = <VALUE_PULL_UP>;
+
+
+			};
+
+
+			sdmmc0_bus1: sdmmc0-bus-width1 {
+				rockchip,pins = <MMC0_D0>;
+				rockchip,pull = <VALUE_PULL_UP>;
+
+
+			};
+
+			sdmmc0_bus4: sdmmc0-bus-width4 {
+				rockchip,pins = <MMC0_D0>,
+						<MMC0_D1>,
+						<MMC0_D2>,
+						<MMC0_D3>;
+				rockchip,pull = <VALUE_PULL_UP>;
+
+
+			};
+
+			sdmmc0_gpio: sdmmc0_gpio{
+				rockchip,pins =
+					<GPIO1_B7>,  //CMD
+					<GPIO1_C0>,  //CLK
+					<GPIO1_C1>,  //DET
+					<GPIO1_C2>,  //D0
+					<GPIO1_C3>,  //D1
+					<GPIO1_C4>,  //D2
+					<GPIO1_C5>;  //D3
+				rockchip,pull = <VALUE_PULL_UP>;
+
+
+			};
+
+		};
+
+		gpio1_nandc {
+			nandc_ale:nandc-ale {
+				rockchip,pins = <NAND_ALE>;
+				rockchip,pull = <VALUE_PULL_DEFAULT>;
+			};
+
+			nandc_cle:nandc-cle {
+				rockchip,pins = <NAND_CLE>;
+				rockchip,pull = <VALUE_PULL_DEFAULT>;
+			};
+
+			nandc_wrn:nandc-wrn {
+				rockchip,pins = <NAND_WRN>;
+				rockchip,pull = <VALUE_PULL_DEFAULT>;
+			};
+
+			nandc_rdn:nandc-rdn {
+				rockchip,pins = <NAND_RDN>;
+				rockchip,pull = <VALUE_PULL_DEFAULT>;
+			};
+
+			nandc_rdy:nandc-rdy {
+				rockchip,pins = <NAND_RDY>;
+				rockchip,pull = <VALUE_PULL_DEFAULT>;
+			};
+
+			nandc_cs0:nandc-cs0 {
+				rockchip,pins = <NAND_CS0>;
+				rockchip,pull = <VALUE_PULL_DEFAULT>;
+			};
+
+
+			nandc_data: nandc-data {
+				rockchip,pins = <NAND_D0>,
+						<NAND_D1>,
+						<NAND_D2>,
+						<NAND_D3>,
+						<NAND_D4>,
+						<NAND_D5>,
+						<NAND_D6>,
+						<NAND_D7>;
+				rockchip,pull = <VALUE_PULL_DEFAULT>;
+
+			};
+
+		};
+
+		gpio0_sdio0 {
+			sdio0_clk: sdio0_clk {
+				rockchip,pins = <MMC1_CLKOUT>;
+				rockchip,pull = <VALUE_PULL_DEFAULT>;
+
+
+			};
+
+			sdio0_cmd: sdio0_cmd {
+				rockchip,pins = <MMC1_CMD>;
+				rockchip,pull = <VALUE_PULL_UP>;
+
+
+			};
+
+			sdio0_bus1: sdio0-bus-width1 {
+				rockchip,pins = <MMC1_D0>;
+				rockchip,pull = <VALUE_PULL_UP>;
+
+
+			};
+
+			sdio0_bus4: sdio0-bus-width4 {
+				rockchip,pins = <MMC1_D0>,
+						<MMC1_D1>,
+						<MMC1_D2>,
+						<MMC1_D3>;
+				rockchip,pull = <VALUE_PULL_UP>;
+
+
+			};
+
+			sdio0_gpio: sdio0-all-gpio{
+				rockchip,pins =
+				        <GPIO0_B1>,   //CLK
+				        <GPIO0_B0>,   //CMD
+				        <GPIO0_B3>,   //DO
+				        <GPIO0_B4>,   //D1
+				        <GPIO0_B5>,   //D2
+				        <GPIO0_B6>;   //D3
+				rockchip,pull = <VALUE_PULL_UP>;
+
+
+			};
+		};
+
+		gpio0_pwm{
+			pwm0_pin:pwm0 {
+				rockchip,pins = <PWM0>;
+				rockchip,pull = <VALUE_PULL_DEFAULT>;
+
+
+			};
+
+			pwm1_pin:pwm1 {
+				rockchip,pins = <PWM1>;
+				rockchip,pull = <VALUE_PULL_DEFAULT>;
+
+
+			};
+
+			pwm2_pin:pwm2 {
+				rockchip,pins = <PWM2>;
+				rockchip,pull = <VALUE_PULL_DEFAULT>;
+
+
+			};
+
+			pwm3_pin:pwm3 {
+				rockchip,pins = <PWM3(IR)>;
+				rockchip,pull = <VALUE_PULL_DEFAULT>;
+
+
+			};
+		};
+
+		gpio2_gmac {
+			mac_clk: mac-clk {
+				rockchip,pins = <MAC_CLKOUT>;
+				rockchip,pull = <VALUE_PULL_DEFAULT>;
+			};
+
+			mac_txpins: mac-txpins {
+				rockchip,pins = <MAC_TXD0>, <MAC_TXD1>,  <MAC_TXEN>;
+				rockchip,pull = <VALUE_PULL_DEFAULT>;
+
+
+			};
+
+			mac_rxpins: mac-rxpins {
+				rockchip,pins = <MAC_RXD0>, <MAC_RXD1>,<MAC_RXER>;
+				rockchip,pull = <VALUE_PULL_DEFAULT>;
+
+
+			};
+
+			mac_crs: mac-crs {
+				rockchip,pins = <MAC_CRS>;
+				rockchip,pull = <VALUE_PULL_DEFAULT>;
+
+
+			};
+
+			mac_mdpins: mac-mdpins {
+				rockchip,pins = <MAC_MDIO>, <MAC_MDC>;
+				rockchip,pull = <VALUE_PULL_DEFAULT>;
+
+
+			};
+		};
+
+
+		//to add
+
+
+	};
+
+};
