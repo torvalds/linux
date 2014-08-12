@@ -665,8 +665,7 @@ static void ath10k_core_restart(struct work_struct *work)
 	switch (ar->state) {
 	case ATH10K_STATE_ON:
 		ar->state = ATH10K_STATE_RESTARTING;
-		del_timer_sync(&ar->scan.timeout);
-		ath10k_reset_scan((unsigned long)ar);
+		ath10k_scan_finish(ar);
 		ieee80211_restart_hw(ar->hw);
 		break;
 	case ATH10K_STATE_OFF:
@@ -780,7 +779,7 @@ int ath10k_core_start(struct ath10k *ar)
 	if (status <= 0) {
 		ath10k_warn("wmi service ready event not received");
 		status = -ETIMEDOUT;
-		goto err_htc_stop;
+		goto err_hif_stop;
 	}
 
 	ath10k_dbg(ATH10K_DBG_BOOT, "firmware %s booted\n",
@@ -789,25 +788,25 @@ int ath10k_core_start(struct ath10k *ar)
 	status = ath10k_wmi_cmd_init(ar);
 	if (status) {
 		ath10k_err("could not send WMI init command (%d)\n", status);
-		goto err_htc_stop;
+		goto err_hif_stop;
 	}
 
 	status = ath10k_wmi_wait_for_unified_ready(ar);
 	if (status <= 0) {
 		ath10k_err("wmi unified ready event not received\n");
 		status = -ETIMEDOUT;
-		goto err_htc_stop;
+		goto err_hif_stop;
 	}
 
 	status = ath10k_htt_setup(&ar->htt);
 	if (status) {
 		ath10k_err("failed to setup htt: %d\n", status);
-		goto err_htc_stop;
+		goto err_hif_stop;
 	}
 
 	status = ath10k_debug_start(ar);
 	if (status)
-		goto err_htc_stop;
+		goto err_hif_stop;
 
 	if (test_bit(ATH10K_FW_FEATURE_WMI_10X, ar->fw_features))
 		ar->free_vdev_map = (1 << TARGET_10X_NUM_VDEVS) - 1;
@@ -836,8 +835,6 @@ int ath10k_core_start(struct ath10k *ar)
 
 	return 0;
 
-err_htc_stop:
-	ath10k_htc_stop(&ar->htc);
 err_hif_stop:
 	ath10k_hif_stop(ar);
 err_htt_rx_detach:
@@ -882,7 +879,6 @@ void ath10k_core_stop(struct ath10k *ar)
 		ath10k_wait_for_suspend(ar, WMI_PDEV_SUSPEND_AND_DISABLE_INTR);
 
 	ath10k_debug_stop(ar);
-	ath10k_htc_stop(&ar->htc);
 	ath10k_hif_stop(ar);
 	ath10k_htt_tx_free(&ar->htt);
 	ath10k_htt_rx_free(&ar->htt);
@@ -1060,12 +1056,12 @@ void ath10k_core_unregister(struct ath10k *ar)
 }
 EXPORT_SYMBOL(ath10k_core_unregister);
 
-struct ath10k *ath10k_core_create(void *hif_priv, struct device *dev,
+struct ath10k *ath10k_core_create(size_t priv_size, struct device *dev,
 				  const struct ath10k_hif_ops *hif_ops)
 {
 	struct ath10k *ar;
 
-	ar = ath10k_mac_create();
+	ar = ath10k_mac_create(priv_size);
 	if (!ar)
 		return NULL;
 
@@ -1075,7 +1071,6 @@ struct ath10k *ath10k_core_create(void *hif_priv, struct device *dev,
 	ar->p2p = !!ath10k_p2p;
 	ar->dev = dev;
 
-	ar->hif.priv = hif_priv;
 	ar->hif.ops = hif_ops;
 
 	init_completion(&ar->scan.started);
@@ -1086,7 +1081,7 @@ struct ath10k *ath10k_core_create(void *hif_priv, struct device *dev,
 	init_completion(&ar->install_key_done);
 	init_completion(&ar->vdev_setup_done);
 
-	setup_timer(&ar->scan.timeout, ath10k_reset_scan, (unsigned long)ar);
+	INIT_DELAYED_WORK(&ar->scan.timeout, ath10k_scan_timeout_work);
 
 	ar->workqueue = create_singlethread_workqueue("ath10k_wq");
 	if (!ar->workqueue)

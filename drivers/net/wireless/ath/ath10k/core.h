@@ -282,7 +282,7 @@ struct ath10k_debug {
 	struct dentry *debugfs_phy;
 
 	struct ath10k_target_stats target_stats;
-	u32 wmi_service_bitmap[WMI_SERVICE_BM_SIZE];
+	DECLARE_BITMAP(wmi_service_bitmap, WMI_SERVICE_BM_SIZE);
 
 	struct completion event_stats_compl;
 
@@ -348,6 +348,29 @@ enum ath10k_dev_flags {
 	ATH10K_FLAG_CORE_REGISTERED,
 };
 
+enum ath10k_scan_state {
+	ATH10K_SCAN_IDLE,
+	ATH10K_SCAN_STARTING,
+	ATH10K_SCAN_RUNNING,
+	ATH10K_SCAN_ABORTING,
+};
+
+static inline const char *ath10k_scan_state_str(enum ath10k_scan_state state)
+{
+	switch (state) {
+	case ATH10K_SCAN_IDLE:
+		return "idle";
+	case ATH10K_SCAN_STARTING:
+		return "starting";
+	case ATH10K_SCAN_RUNNING:
+		return "running";
+	case ATH10K_SCAN_ABORTING:
+		return "aborting";
+	}
+
+	return "unknown";
+}
+
 struct ath10k {
 	struct ath_common ath_common;
 	struct ieee80211_hw *hw;
@@ -375,7 +398,6 @@ struct ath10k {
 	bool p2p;
 
 	struct {
-		void *priv;
 		const struct ath10k_hif_ops *ops;
 	} hif;
 
@@ -417,10 +439,9 @@ struct ath10k {
 		struct completion started;
 		struct completion completed;
 		struct completion on_channel;
-		struct timer_list timeout;
+		struct delayed_work timeout;
+		enum ath10k_scan_state state;
 		bool is_roc;
-		bool in_progress;
-		bool aborting;
 		int vdev_id;
 		int roc_freq;
 	} scan;
@@ -510,9 +531,12 @@ struct ath10k {
 		enum ath10k_spectral_mode mode;
 		struct ath10k_spec_scan config;
 	} spectral;
+
+	/* must be last */
+	u8 drv_priv[0] __aligned(sizeof(void *));
 };
 
-struct ath10k *ath10k_core_create(void *hif_priv, struct device *dev,
+struct ath10k *ath10k_core_create(size_t priv_size, struct device *dev,
 				  const struct ath10k_hif_ops *hif_ops);
 void ath10k_core_destroy(struct ath10k *ar);
 

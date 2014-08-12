@@ -811,6 +811,130 @@ int ath10k_wmi_mgmt_tx(struct ath10k *ar, struct sk_buff *skb)
 	return ret;
 }
 
+static void ath10k_wmi_event_scan_started(struct ath10k *ar)
+{
+	lockdep_assert_held(&ar->data_lock);
+
+	switch (ar->scan.state) {
+	case ATH10K_SCAN_IDLE:
+	case ATH10K_SCAN_RUNNING:
+	case ATH10K_SCAN_ABORTING:
+		ath10k_warn("received scan started event in an invalid scan state: %s (%d)\n",
+			    ath10k_scan_state_str(ar->scan.state),
+			    ar->scan.state);
+		break;
+	case ATH10K_SCAN_STARTING:
+		ar->scan.state = ATH10K_SCAN_RUNNING;
+
+		if (ar->scan.is_roc)
+			ieee80211_ready_on_channel(ar->hw);
+
+		complete(&ar->scan.started);
+		break;
+	}
+}
+
+static void ath10k_wmi_event_scan_completed(struct ath10k *ar)
+{
+	lockdep_assert_held(&ar->data_lock);
+
+	switch (ar->scan.state) {
+	case ATH10K_SCAN_IDLE:
+	case ATH10K_SCAN_STARTING:
+		/* One suspected reason scan can be completed while starting is
+		 * if firmware fails to deliver all scan events to the host,
+		 * e.g. when transport pipe is full. This has been observed
+		 * with spectral scan phyerr events starving wmi transport
+		 * pipe. In such case the "scan completed" event should be (and
+		 * is) ignored by the host as it may be just firmware's scan
+		 * state machine recovering.
+		 */
+		ath10k_warn("received scan completed event in an invalid scan state: %s (%d)\n",
+			    ath10k_scan_state_str(ar->scan.state),
+			    ar->scan.state);
+		break;
+	case ATH10K_SCAN_RUNNING:
+	case ATH10K_SCAN_ABORTING:
+		__ath10k_scan_finish(ar);
+		break;
+	}
+}
+
+static void ath10k_wmi_event_scan_bss_chan(struct ath10k *ar)
+{
+	lockdep_assert_held(&ar->data_lock);
+
+	switch (ar->scan.state) {
+	case ATH10K_SCAN_IDLE:
+	case ATH10K_SCAN_STARTING:
+		ath10k_warn("received scan bss chan event in an invalid scan state: %s (%d)\n",
+			    ath10k_scan_state_str(ar->scan.state),
+			    ar->scan.state);
+		break;
+	case ATH10K_SCAN_RUNNING:
+	case ATH10K_SCAN_ABORTING:
+		ar->scan_channel = NULL;
+		break;
+	}
+}
+
+static void ath10k_wmi_event_scan_foreign_chan(struct ath10k *ar, u32 freq)
+{
+	lockdep_assert_held(&ar->data_lock);
+
+	switch (ar->scan.state) {
+	case ATH10K_SCAN_IDLE:
+	case ATH10K_SCAN_STARTING:
+		ath10k_warn("received scan foreign chan event in an invalid scan state: %s (%d)\n",
+			    ath10k_scan_state_str(ar->scan.state),
+			    ar->scan.state);
+		break;
+	case ATH10K_SCAN_RUNNING:
+	case ATH10K_SCAN_ABORTING:
+		ar->scan_channel = ieee80211_get_channel(ar->hw->wiphy, freq);
+
+		if (ar->scan.is_roc && ar->scan.roc_freq == freq)
+			complete(&ar->scan.on_channel);
+		break;
+	}
+}
+
+static const char *
+ath10k_wmi_event_scan_type_str(enum wmi_scan_event_type type,
+			       enum wmi_scan_completion_reason reason)
+{
+	switch (type) {
+	case WMI_SCAN_EVENT_STARTED:
+		return "started";
+	case WMI_SCAN_EVENT_COMPLETED:
+		switch (reason) {
+		case WMI_SCAN_REASON_COMPLETED:
+			return "completed";
+		case WMI_SCAN_REASON_CANCELLED:
+			return "completed [cancelled]";
+		case WMI_SCAN_REASON_PREEMPTED:
+			return "completed [preempted]";
+		case WMI_SCAN_REASON_TIMEDOUT:
+			return "completed [timedout]";
+		case WMI_SCAN_REASON_MAX:
+			break;
+		}
+		return "completed [unknown]";
+	case WMI_SCAN_EVENT_BSS_CHANNEL:
+		return "bss channel";
+	case WMI_SCAN_EVENT_FOREIGN_CHANNEL:
+		return "foreign channel";
+	case WMI_SCAN_EVENT_DEQUEUED:
+		return "dequeued";
+	case WMI_SCAN_EVENT_PREEMPTED:
+		return "preempted";
+	case WMI_SCAN_EVENT_START_FAILED:
+		return "start failed";
+	default:
+		return "unknown";
+	}
+}
+
 static int ath10k_wmi_event_scan(struct ath10k *ar, struct sk_buff *skb)
 {
 	struct wmi_scan_event *event = (struct wmi_scan_event *)skb->data;
@@ -828,81 +952,32 @@ static int ath10k_wmi_event_scan(struct ath10k *ar, struct sk_buff *skb)
 	scan_id    = __le32_to_cpu(event->scan_id);
 	vdev_id    = __le32_to_cpu(event->vdev_id);
 
-	ath10k_dbg(ATH10K_DBG_WMI, "WMI_SCAN_EVENTID\n");
-	ath10k_dbg(ATH10K_DBG_WMI,
-		   "scan event type %d reason %d freq %d req_id %d "
-		   "scan_id %d vdev_id %d\n",
-		   event_type, reason, freq, req_id, scan_id, vdev_id);
-
 	spin_lock_bh(&ar->data_lock);
+
+	ath10k_dbg(ATH10K_DBG_WMI,
+		   "scan event %s type %d reason %d freq %d req_id %d scan_id %d vdev_id %d state %s (%d)\n",
+		   ath10k_wmi_event_scan_type_str(event_type, reason),
+		   event_type, reason, freq, req_id, scan_id, vdev_id,
+		   ath10k_scan_state_str(ar->scan.state), ar->scan.state);
 
 	switch (event_type) {
 	case WMI_SCAN_EVENT_STARTED:
-		ath10k_dbg(ATH10K_DBG_WMI, "SCAN_EVENT_STARTED\n");
-		if (ar->scan.in_progress && ar->scan.is_roc)
-			ieee80211_ready_on_channel(ar->hw);
-
-		complete(&ar->scan.started);
+		ath10k_wmi_event_scan_started(ar);
 		break;
 	case WMI_SCAN_EVENT_COMPLETED:
-		ath10k_dbg(ATH10K_DBG_WMI, "SCAN_EVENT_COMPLETED\n");
-		switch (reason) {
-		case WMI_SCAN_REASON_COMPLETED:
-			ath10k_dbg(ATH10K_DBG_WMI, "SCAN_REASON_COMPLETED\n");
-			break;
-		case WMI_SCAN_REASON_CANCELLED:
-			ath10k_dbg(ATH10K_DBG_WMI, "SCAN_REASON_CANCELED\n");
-			break;
-		case WMI_SCAN_REASON_PREEMPTED:
-			ath10k_dbg(ATH10K_DBG_WMI, "SCAN_REASON_PREEMPTED\n");
-			break;
-		case WMI_SCAN_REASON_TIMEDOUT:
-			ath10k_dbg(ATH10K_DBG_WMI, "SCAN_REASON_TIMEDOUT\n");
-			break;
-		default:
-			break;
-		}
-
-		ar->scan_channel = NULL;
-		if (!ar->scan.in_progress) {
-			ath10k_warn("no scan requested, ignoring\n");
-			break;
-		}
-
-		if (ar->scan.is_roc) {
-			ath10k_offchan_tx_purge(ar);
-
-			if (!ar->scan.aborting)
-				ieee80211_remain_on_channel_expired(ar->hw);
-		} else {
-			ieee80211_scan_completed(ar->hw, ar->scan.aborting);
-		}
-
-		del_timer(&ar->scan.timeout);
-		complete_all(&ar->scan.completed);
-		ar->scan.in_progress = false;
+		ath10k_wmi_event_scan_completed(ar);
 		break;
 	case WMI_SCAN_EVENT_BSS_CHANNEL:
-		ath10k_dbg(ATH10K_DBG_WMI, "SCAN_EVENT_BSS_CHANNEL\n");
-		ar->scan_channel = NULL;
+		ath10k_wmi_event_scan_bss_chan(ar);
 		break;
 	case WMI_SCAN_EVENT_FOREIGN_CHANNEL:
-		ath10k_dbg(ATH10K_DBG_WMI, "SCAN_EVENT_FOREIGN_CHANNEL\n");
-		ar->scan_channel = ieee80211_get_channel(ar->hw->wiphy, freq);
-		if (ar->scan.in_progress && ar->scan.is_roc &&
-		    ar->scan.roc_freq == freq) {
-			complete(&ar->scan.on_channel);
-		}
-		break;
-	case WMI_SCAN_EVENT_DEQUEUED:
-		ath10k_dbg(ATH10K_DBG_WMI, "SCAN_EVENT_DEQUEUED\n");
-		break;
-	case WMI_SCAN_EVENT_PREEMPTED:
-		ath10k_dbg(ATH10K_DBG_WMI, "WMI_SCAN_EVENT_PREEMPTED\n");
+		ath10k_wmi_event_scan_foreign_chan(ar, freq);
 		break;
 	case WMI_SCAN_EVENT_START_FAILED:
-		ath10k_dbg(ATH10K_DBG_WMI, "WMI_SCAN_EVENT_START_FAILED\n");
+		ath10k_warn("received scan start failure event\n");
 		break;
+	case WMI_SCAN_EVENT_DEQUEUED:
+	case WMI_SCAN_EVENT_PREEMPTED:
 	default:
 		break;
 	}
@@ -1162,9 +1237,14 @@ static void ath10k_wmi_event_chan_info(struct ath10k *ar, struct sk_buff *skb)
 
 	spin_lock_bh(&ar->data_lock);
 
-	if (!ar->scan.in_progress) {
-		ath10k_warn("chan info event without a scan request?\n");
+	switch (ar->scan.state) {
+	case ATH10K_SCAN_IDLE:
+	case ATH10K_SCAN_STARTING:
+		ath10k_warn("received chan info event without a scan request, ignoring\n");
 		goto exit;
+	case ATH10K_SCAN_RUNNING:
+	case ATH10K_SCAN_ABORTING:
+		break;
 	}
 
 	idx = freq_to_idx(ar, freq);
@@ -2080,6 +2160,7 @@ static void ath10k_wmi_service_ready_event_rx(struct ath10k *ar,
 					      struct sk_buff *skb)
 {
 	struct wmi_service_ready_event *ev = (void *)skb->data;
+	DECLARE_BITMAP(svc_bmap, WMI_SERVICE_BM_SIZE) = {};
 
 	if (skb->len < sizeof(*ev)) {
 		ath10k_warn("Service ready event was %d B but expected %zu B. Wrong firmware version?\n",
@@ -2113,8 +2194,10 @@ static void ath10k_wmi_service_ready_event_rx(struct ath10k *ar,
 	ar->ath_common.regulatory.current_rd =
 		__le32_to_cpu(ev->hal_reg_capabilities.eeprom_rd);
 
-	ath10k_debug_read_service_map(ar, ev->wmi_service_bitmap,
-				      sizeof(ev->wmi_service_bitmap));
+	wmi_10x_svc_map(ev->wmi_service_bitmap, svc_bmap);
+	ath10k_debug_read_service_map(ar, svc_bmap, sizeof(svc_bmap));
+	ath10k_dbg_dump(ATH10K_DBG_WMI, NULL, "ath10k: wmi svc: ",
+			ev->wmi_service_bitmap, sizeof(ev->wmi_service_bitmap));
 
 	if (strlen(ar->hw->wiphy->fw_version) == 0) {
 		snprintf(ar->hw->wiphy->fw_version,
@@ -2154,6 +2237,7 @@ static void ath10k_wmi_10x_service_ready_event_rx(struct ath10k *ar,
 	u32 num_units, req_id, unit_size, num_mem_reqs, num_unit_info, i;
 	int ret;
 	struct wmi_service_ready_event_10x *ev = (void *)skb->data;
+	DECLARE_BITMAP(svc_bmap, WMI_SERVICE_BM_SIZE) = {};
 
 	if (skb->len < sizeof(*ev)) {
 		ath10k_warn("Service ready event was %d B but expected %zu B. Wrong firmware version?\n",
@@ -2180,8 +2264,10 @@ static void ath10k_wmi_10x_service_ready_event_rx(struct ath10k *ar,
 	ar->ath_common.regulatory.current_rd =
 		__le32_to_cpu(ev->hal_reg_capabilities.eeprom_rd);
 
-	ath10k_debug_read_service_map(ar, ev->wmi_service_bitmap,
-				      sizeof(ev->wmi_service_bitmap));
+	wmi_main_svc_map(ev->wmi_service_bitmap, svc_bmap);
+	ath10k_debug_read_service_map(ar, svc_bmap, sizeof(svc_bmap));
+	ath10k_dbg_dump(ATH10K_DBG_WMI, NULL, "ath10k: wmi svc: ",
+			ev->wmi_service_bitmap, sizeof(ev->wmi_service_bitmap));
 
 	if (strlen(ar->hw->wiphy->fw_version) == 0) {
 		snprintf(ar->hw->wiphy->fw_version,

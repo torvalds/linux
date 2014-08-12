@@ -332,7 +332,7 @@ struct ath10k_htc {
 	struct ath10k *ar;
 	struct ath10k_htc_ep endpoint[ATH10K_HTC_EP_COUNT];
 
-	/* protects endpoint and stopped fields */
+	/* protects endpoints */
 	spinlock_t tx_lock;
 
 	struct ath10k_htc_ops htc_ops;
@@ -345,8 +345,6 @@ struct ath10k_htc {
 	int total_transmit_credits;
 	struct ath10k_htc_svc_tx_credits service_tx_alloc[ATH10K_HTC_EP_COUNT];
 	int target_credit_size;
-
-	bool stopped;
 };
 
 int ath10k_htc_init(struct ath10k *ar);
@@ -357,7 +355,6 @@ int ath10k_htc_connect_service(struct ath10k_htc *htc,
 			       struct ath10k_htc_svc_conn_resp *conn_resp);
 int ath10k_htc_send(struct ath10k_htc *htc, enum ath10k_htc_ep_id eid,
 		    struct sk_buff *packet);
-void ath10k_htc_stop(struct ath10k_htc *htc);
 struct sk_buff *ath10k_htc_alloc_skb(int size);
 
 #endif
