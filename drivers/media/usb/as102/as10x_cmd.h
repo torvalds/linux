@@ -17,7 +17,7 @@
 
 #include <linux/kernel.h>
 
-#include "as10x_types.h"
+#include "as102_fe_types.h"
 
 /*********************************/
 /*       MACRO DEFINITIONS       */

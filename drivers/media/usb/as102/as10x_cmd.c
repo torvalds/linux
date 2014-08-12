@@ -16,7 +16,6 @@
 
 #include <linux/kernel.h>
 #include "as102_drv.h"
-#include "as10x_types.h"
 #include "as10x_cmd.h"
 
 /**

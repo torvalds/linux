@@ -471,6 +471,11 @@ config DVB_SI2168
 	help
 	  Say Y when you want to support this frontend.
 
+config DVB_AS102_FE
+	tristate
+	depends on DVB_CORE
+	default DVB_AS102
+
 comment "DVB-C (cable) frontends"
 	depends on DVB_CORE
 

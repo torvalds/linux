@@ -13,7 +13,7 @@
  * GNU General Public License for more details.
  */
 
-#include "as10x_types.h"
+#include "as102_fe_types.h"
 
 struct as102_fe_ops {
 	int (*set_tune)(void *priv, struct as10x_tune_args *tune_args);
