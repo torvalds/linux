@@ -1047,13 +1047,6 @@ DEFINE_EVENT(btrfs__work, btrfs_work_sched,
 	TP_ARGS(work)
 );
 
-DEFINE_EVENT(btrfs__work, btrfs_normal_work_done,
-
-	TP_PROTO(struct btrfs_work *work),
-
-	TP_ARGS(work)
-);
-
 DEFINE_EVENT(btrfs__work__done, btrfs_all_work_done,
 
 	TP_PROTO(struct btrfs_work *work),
