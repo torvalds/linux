@@ -8070,6 +8070,7 @@ static void i845_update_cursor(struct drm_crtc *crtc, u32 base)
 			CURSOR_GAMMA_ENABLE |
 			CURSOR_FORMAT_ARGB);
 	if (intel_crtc->cursor_cntl != cntl) {
+		I915_WRITE(CURSIZE, (64 << 12) | 64);
 		I915_WRITE(_CURACNTR, cntl);
 		POSTING_READ(_CURACNTR);
 		intel_crtc->cursor_cntl = cntl;
@@ -8219,7 +8220,6 @@ static int intel_crtc_cursor_set_obj(struct drm_crtc *crtc,
 				     uint32_t width, uint32_t height)
 {
 	struct drm_device *dev = crtc->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	enum pipe pipe = intel_crtc->pipe;
 	unsigned old_width;
@@ -8291,9 +8291,6 @@ static int intel_crtc_cursor_set_obj(struct drm_crtc *crtc,
 		}
 		addr = obj->phys_handle->busaddr;
 	}
-
-	if (IS_GEN2(dev))
-		I915_WRITE(CURSIZE, (height << 12) | width);
 
  finish:
 	if (intel_crtc->cursor_bo) {
