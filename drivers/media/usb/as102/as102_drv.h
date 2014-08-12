@@ -60,16 +60,9 @@ struct as102_dev_t {
 	uint8_t elna_cfg;
 
 	struct dvb_adapter dvb_adap;
-	struct dvb_frontend dvb_fe;
+	struct dvb_frontend *dvb_fe;
 	struct dvb_demux dvb_dmx;
 	struct dmxdev dvb_dmxdev;
-
-	/* demodulator stats */
-	struct as10x_demod_stats demod_stats;
-	/* signal strength */
-	uint16_t signal_strength;
-	/* bit error rate */
-	uint32_t ber;
 
 	/* timer handle to trig ts stream download */
 	struct timer_list timer_handle;
@@ -84,5 +77,7 @@ struct as102_dev_t {
 int as102_dvb_register(struct as102_dev_t *dev);
 void as102_dvb_unregister(struct as102_dev_t *dev);
 
-int as102_dvb_register_fe(struct as102_dev_t *dev, struct dvb_frontend *fe);
-int as102_dvb_unregister_fe(struct dvb_frontend *dev);
+/* FIXME: move it to a separate header */
+struct dvb_frontend *as102_attach(const char *name,
+				  struct as10x_bus_adapter_t *bus_adap,
+				  uint8_t elna_cfg);

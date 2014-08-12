@@ -216,7 +216,17 @@ int as102_dvb_register(struct as102_dev_t *as102_dev)
 		goto edmxdinit;
 	}
 
-	ret = as102_dvb_register_fe(as102_dev, &as102_dev->dvb_fe);
+	/* Attach the frontend */
+	as102_dev->dvb_fe = dvb_attach(as102_attach, as102_dev->name,
+				       &as102_dev->bus_adap,
+				       as102_dev->elna_cfg);
+	if (!as102_dev->dvb_fe) {
+		dev_err(dev, "%s: as102_attach() failed: %d",
+		    __func__, ret);
+		goto efereg;
+	}
+
+	ret =  dvb_register_frontend(&as102_dev->dvb_adap, as102_dev->dvb_fe);
 	if (ret < 0) {
 		dev_err(dev, "%s: as102_dvb_register_frontend() failed: %d",
 		    __func__, ret);
@@ -252,7 +262,10 @@ edmxinit:
 void as102_dvb_unregister(struct as102_dev_t *as102_dev)
 {
 	/* unregister as102 frontend */
-	as102_dvb_unregister_fe(&as102_dev->dvb_fe);
+	dvb_unregister_frontend(as102_dev->dvb_fe);
+
+	/* detach frontend */
+	dvb_frontend_detach(as102_dev->dvb_fe);
 
 	/* unregister demux device */
 	dvb_dmxdev_release(&as102_dev->dvb_dmxdev);
