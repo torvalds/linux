@@ -193,13 +193,11 @@ static int pci_8255_mite_init(struct pci_dev *pcidev)
 static int pci_8255_mmio(struct comedi_device *dev,
 			 int dir, int port, int data, unsigned long iobase)
 {
-	void __iomem *mmio_base = (void __iomem *)iobase;
-
 	if (dir) {
-		writeb(data, mmio_base + port);
+		writeb(data, dev->mmio + iobase + port);
 		return 0;
 	}
-	return readb(mmio_base  + port);
+	return readb(dev->mmio + iobase  + port);
 }
 
 static int pci_8255_auto_attach(struct comedi_device *dev,
@@ -253,8 +251,7 @@ static int pci_8255_auto_attach(struct comedi_device *dev,
 
 		s = &dev->subdevices[i];
 		if (is_mmio) {
-			iobase = (unsigned long)(dev->mmio + (i * 4));
-			ret = subdev_8255_init(dev, s, pci_8255_mmio, iobase);
+			ret = subdev_8255_init(dev, s, pci_8255_mmio, i * 4);
 		} else {
 			iobase = dev->iobase + (i * 4);
 			ret = subdev_8255_init(dev, s, NULL, iobase);
