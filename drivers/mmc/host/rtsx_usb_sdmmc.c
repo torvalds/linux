@@ -1452,7 +1452,6 @@ static struct platform_driver rtsx_usb_sdmmc_driver = {
 	.remove		= rtsx_usb_sdmmc_drv_remove,
 	.id_table       = rtsx_usb_sdmmc_ids,
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= "rtsx_usb_sdmmc",
 	},
 };

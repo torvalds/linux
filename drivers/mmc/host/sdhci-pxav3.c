@@ -492,7 +492,6 @@ static struct platform_driver sdhci_pxav3_driver = {
 #ifdef CONFIG_OF
 		.of_match_table = sdhci_pxav3_of_match,
 #endif
-		.owner	= THIS_MODULE,
 		.pm	= SDHCI_PXAV3_PMOPS,
 	},
 	.probe		= sdhci_pxav3_probe,

@@ -341,7 +341,6 @@ static const struct dev_pm_ops tmio_mmc_dev_pm_ops = {
 static struct platform_driver sh_mobile_sdhi_driver = {
 	.driver		= {
 		.name	= "sh_mobile_sdhi",
-		.owner	= THIS_MODULE,
 		.pm	= &tmio_mmc_dev_pm_ops,
 		.of_match_table = sh_mobile_sdhi_of_match,
 	},

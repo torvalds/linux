@@ -1035,7 +1035,6 @@ static int sunxi_mmc_remove(struct platform_device *pdev)
 static struct platform_driver sunxi_mmc_driver = {
 	.driver = {
 		.name	= "sunxi-mmc",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(sunxi_mmc_of_match),
 	},
 	.probe		= sunxi_mmc_probe,

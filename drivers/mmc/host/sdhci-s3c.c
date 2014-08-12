@@ -747,7 +747,6 @@ static struct platform_driver sdhci_s3c_driver = {
 	.remove		= sdhci_s3c_remove,
 	.id_table	= sdhci_s3c_driver_ids,
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= "s3c-sdhci",
 		.of_match_table = of_match_ptr(sdhci_s3c_dt_match),
 		.pm	= SDHCI_S3C_PMOPS,

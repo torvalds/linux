@@ -89,7 +89,6 @@ MODULE_DEVICE_TABLE(of, sdhci_hlwd_of_match);
 static struct platform_driver sdhci_hlwd_driver = {
 	.driver = {
 		.name = "sdhci-hlwd",
-		.owner = THIS_MODULE,
 		.of_match_table = sdhci_hlwd_of_match,
 		.pm = SDHCI_PLTFM_PMOPS,
 	},

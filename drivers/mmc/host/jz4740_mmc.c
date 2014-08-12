@@ -1161,7 +1161,6 @@ static struct platform_driver jz4740_mmc_driver = {
 	.remove = jz4740_mmc_remove,
 	.driver = {
 		.name = "jz4740-mmc",
-		.owner = THIS_MODULE,
 		.pm = JZ4740_MMC_PM_OPS,
 	},
 };

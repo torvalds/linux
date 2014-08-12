@@ -1423,7 +1423,6 @@ static struct platform_driver rtsx_pci_sdmmc_driver = {
 	.remove		= rtsx_pci_sdmmc_drv_remove,
 	.id_table       = rtsx_pci_sdmmc_ids,
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= DRV_NAME_RTSX_PCI_SDMMC,
 	},
 };

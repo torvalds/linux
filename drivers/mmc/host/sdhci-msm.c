@@ -610,7 +610,6 @@ static struct platform_driver sdhci_msm_driver = {
 	.remove = sdhci_msm_remove,
 	.driver = {
 		   .name = "sdhci_msm",
-		   .owner = THIS_MODULE,
 		   .of_match_table = sdhci_msm_dt_match,
 	},
 };

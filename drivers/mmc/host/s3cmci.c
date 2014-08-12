@@ -1874,7 +1874,6 @@ MODULE_DEVICE_TABLE(platform, s3cmci_driver_ids);
 static struct platform_driver s3cmci_driver = {
 	.driver	= {
 		.name	= "s3c-sdi",
-		.owner	= THIS_MODULE,
 	},
 	.id_table	= s3cmci_driver_ids,
 	.probe		= s3cmci_probe,

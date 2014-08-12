@@ -1553,7 +1553,6 @@ static struct platform_driver sh_mmcif_driver = {
 	.driver		= {
 		.name	= DRIVER_NAME,
 		.pm	= &sh_mmcif_dev_pm_ops,
-		.owner	= THIS_MODULE,
 		.of_match_table = mmcif_of_match,
 	},
 };
