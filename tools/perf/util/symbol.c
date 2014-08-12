@@ -1772,7 +1772,7 @@ static int vmlinux_path__init(void)
 		return 0;
 
 	if (uname(&uts) < 0)
-		return -1;
+		goto out_fail;
 
 	snprintf(bf, sizeof(bf), "/boot/vmlinux-%s", uts.release);
 	vmlinux_path[vmlinux_path__nr_entries] = strdup(bf);
