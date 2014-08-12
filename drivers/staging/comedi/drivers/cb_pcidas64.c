@@ -3369,16 +3369,6 @@ static int ao_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 	return 0;
 }
 
-static int dio_callback(struct comedi_device *dev,
-			int dir, int port, int data, unsigned long iobase)
-{
-	if (dir) {
-		writeb(data, dev->mmio + iobase + port);
-		return 0;
-	}
-	return readb(dev->mmio + iobase + port);
-}
-
 static int dio_callback_4020(struct comedi_device *dev,
 			     int dir, int port, int data, unsigned long iobase)
 {
@@ -3842,8 +3832,8 @@ static int setup_subdevices(struct comedi_device *dev)
 			ret = subdev_8255_init(dev, s, dio_callback_4020,
 					       I8255_4020_REG);
 		} else {
-			ret = subdev_8255_init(dev, s, dio_callback,
-					       DIO_8255_OFFSET);
+			ret = subdev_8255_mm_init(dev, s, NULL,
+						  DIO_8255_OFFSET);
 		}
 		if (ret)
 			return ret;

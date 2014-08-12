@@ -107,6 +107,16 @@ static int subdev_8255_io(struct comedi_device *dev,
 	return inb(dev->iobase + regbase + port);
 }
 
+static int subdev_8255_mmio(struct comedi_device *dev,
+			    int dir, int port, int data, unsigned long regbase)
+{
+	if (dir) {
+		writeb(data, dev->mmio + regbase + port);
+		return 0;
+	}
+	return readb(dev->mmio + regbase + port);
+}
+
 static int subdev_8255_insn(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn,
@@ -186,10 +196,12 @@ static int subdev_8255_insn_config(struct comedi_device *dev,
 	return insn->n;
 }
 
-int subdev_8255_init(struct comedi_device *dev, struct comedi_subdevice *s,
-		     int (*io)(struct comedi_device *,
-			       int, int, int, unsigned long),
-		     unsigned long regbase)
+static int __subdev_8255_init(struct comedi_device *dev,
+			      struct comedi_subdevice *s,
+			      int (*io)(struct comedi_device *,
+					int, int, int, unsigned long),
+			      unsigned long regbase,
+			      bool is_mmio)
 {
 	struct subdev_8255_private *spriv;
 
@@ -197,8 +209,13 @@ int subdev_8255_init(struct comedi_device *dev, struct comedi_subdevice *s,
 	if (!spriv)
 		return -ENOMEM;
 
+	if (io)
+		spriv->io = io;
+	else if (is_mmio)
+		spriv->io = subdev_8255_mmio;
+	else
+		spriv->io = subdev_8255_io;
 	spriv->regbase	= regbase;
-	spriv->io	= io ? io : subdev_8255_io;
 
 	s->type		= COMEDI_SUBD_DIO;
 	s->subdev_flags	= SDF_READABLE | SDF_WRITABLE;
@@ -212,8 +229,24 @@ int subdev_8255_init(struct comedi_device *dev, struct comedi_subdevice *s,
 
 	return 0;
 }
+
+int subdev_8255_init(struct comedi_device *dev, struct comedi_subdevice *s,
+		     int (*io)(struct comedi_device *,
+			       int, int, int, unsigned long),
+		     unsigned long regbase)
+{
+	return __subdev_8255_init(dev, s, io, regbase, false);
+}
 EXPORT_SYMBOL_GPL(subdev_8255_init);
 
+int subdev_8255_mm_init(struct comedi_device *dev, struct comedi_subdevice *s,
+			int (*io)(struct comedi_device *,
+				  int, int, int, unsigned long),
+			unsigned long regbase)
+{
+	return __subdev_8255_init(dev, s, io, regbase, true);
+}
+EXPORT_SYMBOL_GPL(subdev_8255_mm_init);
 /*
 
    Start of the 8255 standalone device

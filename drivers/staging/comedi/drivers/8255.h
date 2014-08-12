@@ -21,9 +21,14 @@
 
 #include "../comedidev.h"
 
-int subdev_8255_init(struct comedi_device *dev, struct comedi_subdevice *s,
+int subdev_8255_init(struct comedi_device *, struct comedi_subdevice *,
 		     int (*io)(struct comedi_device *,
 			       int, int, int, unsigned long),
 		     unsigned long regbase);
+
+int subdev_8255_mm_init(struct comedi_device *, struct comedi_subdevice *,
+			int (*io)(struct comedi_device *,
+				  int, int, int, unsigned long),
+			unsigned long regbase);
 
 #endif

@@ -190,23 +190,12 @@ static int pci_8255_mite_init(struct pci_dev *pcidev)
 	return 0;
 }
 
-static int pci_8255_mmio(struct comedi_device *dev,
-			 int dir, int port, int data, unsigned long iobase)
-{
-	if (dir) {
-		writeb(data, dev->mmio + iobase + port);
-		return 0;
-	}
-	return readb(dev->mmio + iobase  + port);
-}
-
 static int pci_8255_auto_attach(struct comedi_device *dev,
 				unsigned long context)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	const struct pci_8255_boardinfo *board = NULL;
 	struct comedi_subdevice *s;
-	bool is_mmio;
 	int ret;
 	int i;
 
@@ -227,9 +216,7 @@ static int pci_8255_auto_attach(struct comedi_device *dev,
 			return ret;
 	}
 
-	is_mmio = (pci_resource_flags(pcidev, board->dio_badr) &
-		   IORESOURCE_MEM) != 0;
-	if (is_mmio) {
+	if ((pci_resource_flags(pcidev, board->dio_badr) & IORESOURCE_MEM)) {
 		dev->mmio = pci_ioremap_bar(pcidev, board->dio_badr);
 		if (!dev->mmio)
 			return -ENOMEM;
@@ -248,8 +235,8 @@ static int pci_8255_auto_attach(struct comedi_device *dev,
 
 	for (i = 0; i < board->n_8255; i++) {
 		s = &dev->subdevices[i];
-		if (is_mmio)
-			ret = subdev_8255_init(dev, s, pci_8255_mmio, i * 4);
+		if (dev->mmio)
+			ret = subdev_8255_mm_init(dev, s, NULL, i * 4);
 		else
 			ret = subdev_8255_init(dev, s, NULL, i * 4);
 		if (ret)
