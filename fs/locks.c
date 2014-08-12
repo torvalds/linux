@@ -1022,18 +1022,21 @@ static int __posix_lock_file(struct inode *inode, struct file_lock *request, str
 					locks_delete_lock(before);
 					continue;
 				}
-				/* Replace the old lock with the new one.
-				 * Wake up anybody waiting for the old one,
-				 * as the change in lock type might satisfy
-				 * their needs.
+				/*
+				 * Replace the old lock with new_fl, and
+				 * remove the old one. It's safe to do the
+				 * insert here since we know that we won't be
+				 * using new_fl later, and that the lock is
+				 * just replacing an existing lock.
 				 */
-				locks_wake_up_blocks(fl);
-				fl->fl_start = request->fl_start;
-				fl->fl_end = request->fl_end;
-				fl->fl_type = request->fl_type;
-				locks_release_private(fl);
-				locks_copy_private(fl, request);
-				request = fl;
+				error = -ENOLCK;
+				if (!new_fl)
+					goto out;
+				locks_copy_lock(new_fl, request);
+				request = new_fl;
+				new_fl = NULL;
+				locks_delete_lock(before);
+				locks_insert_lock(before, request);
 				added = true;
 			}
 		}
