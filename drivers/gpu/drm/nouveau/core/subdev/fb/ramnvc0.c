@@ -483,9 +483,9 @@ nvc0_ram_get(struct nouveau_fb *pfb, u64 size, u32 align, u32 ncmin,
 
 	do {
 		if (back)
-			ret = nouveau_mm_tail(mm, 1, size, ncmin, align, &r);
+			ret = nouveau_mm_tail(mm, 0, 1, size, ncmin, align, &r);
 		else
-			ret = nouveau_mm_head(mm, 1, size, ncmin, align, &r);
+			ret = nouveau_mm_head(mm, 0, 1, size, ncmin, align, &r);
 		if (ret) {
 			mutex_unlock(&pfb->base.mutex);
 			pfb->ram->put(pfb, &mem);

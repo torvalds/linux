@@ -168,7 +168,7 @@ gf100_ltc_init_tag_ram(struct nouveau_fb *pfb, struct nvkm_ltc_priv *priv)
 	tag_size += tag_align;
 	tag_size  = (tag_size + 0xfff) >> 12; /* round up */
 
-	ret = nouveau_mm_tail(&pfb->vram, 1, tag_size, tag_size, 1,
+	ret = nouveau_mm_tail(&pfb->vram, 0, 1, tag_size, tag_size, 1,
 	                      &priv->tag_ram);
 	if (ret) {
 		priv->num_tags = 0;

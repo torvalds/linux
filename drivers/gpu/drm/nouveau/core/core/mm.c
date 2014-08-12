@@ -98,6 +98,7 @@ region_head(struct nouveau_mm *mm, struct nouveau_mm_node *a, u32 size)
 
 	b->offset = a->offset;
 	b->length = size;
+	b->heap   = a->heap;
 	b->type   = a->type;
 	a->offset += size;
 	a->length -= size;
@@ -108,8 +109,8 @@ region_head(struct nouveau_mm *mm, struct nouveau_mm_node *a, u32 size)
 }
 
 int
-nouveau_mm_head(struct nouveau_mm *mm, u8 type, u32 size_max, u32 size_min,
-		u32 align, struct nouveau_mm_node **pnode)
+nouveau_mm_head(struct nouveau_mm *mm, u8 heap, u8 type, u32 size_max,
+		u32 size_min, u32 align, struct nouveau_mm_node **pnode)
 {
 	struct nouveau_mm_node *prev, *this, *next;
 	u32 mask = align - 1;
@@ -119,6 +120,10 @@ nouveau_mm_head(struct nouveau_mm *mm, u8 type, u32 size_max, u32 size_min,
 	BUG_ON(type == NVKM_MM_TYPE_NONE || type == NVKM_MM_TYPE_HOLE);
 
 	list_for_each_entry(this, &mm->free, fl_entry) {
+		if (unlikely(heap != NVKM_MM_HEAP_ANY)) {
+			if (this->heap != heap)
+				continue;
+		}
 		e = this->offset + this->length;
 		s = this->offset;
 
@@ -167,6 +172,7 @@ region_tail(struct nouveau_mm *mm, struct nouveau_mm_node *a, u32 size)
 	a->length -= size;
 	b->offset  = a->offset + a->length;
 	b->length  = size;
+	b->heap    = a->heap;
 	b->type    = a->type;
 
 	list_add(&b->nl_entry, &a->nl_entry);
@@ -176,8 +182,8 @@ region_tail(struct nouveau_mm *mm, struct nouveau_mm_node *a, u32 size)
 }
 
 int
-nouveau_mm_tail(struct nouveau_mm *mm, u8 type, u32 size_max, u32 size_min,
-		u32 align, struct nouveau_mm_node **pnode)
+nouveau_mm_tail(struct nouveau_mm *mm, u8 heap, u8 type, u32 size_max,
+		u32 size_min, u32 align, struct nouveau_mm_node **pnode)
 {
 	struct nouveau_mm_node *prev, *this, *next;
 	u32 mask = align - 1;
@@ -188,6 +194,10 @@ nouveau_mm_tail(struct nouveau_mm *mm, u8 type, u32 size_max, u32 size_min,
 		u32 e = this->offset + this->length;
 		u32 s = this->offset;
 		u32 c = 0, a;
+		if (unlikely(heap != NVKM_MM_HEAP_ANY)) {
+			if (this->heap != heap)
+				continue;
+		}
 
 		prev = node(this, prev);
 		if (prev && prev->type != type)
@@ -262,7 +272,7 @@ nouveau_mm_init(struct nouveau_mm *mm, u32 offset, u32 length, u32 block)
 
 	list_add_tail(&node->nl_entry, &mm->nodes);
 	list_add_tail(&node->fl_entry, &mm->free);
-	mm->heap_nodes++;
+	node->heap = ++mm->heap_nodes;
 	return 0;
 }
 

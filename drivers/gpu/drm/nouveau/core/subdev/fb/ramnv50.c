@@ -280,7 +280,7 @@ nv50_ram_get(struct nouveau_fb *pfb, u64 size, u32 align, u32 ncmin,
 		if (align == 16) {
 			int n = (max >> 4) * comp;
 
-			ret = nouveau_mm_head(tags, 1, n, n, 1, &mem->tag);
+			ret = nouveau_mm_head(tags, 0, 1, n, n, 1, &mem->tag);
 			if (ret)
 				mem->tag = NULL;
 		}
@@ -296,9 +296,9 @@ nv50_ram_get(struct nouveau_fb *pfb, u64 size, u32 align, u32 ncmin,
 	type = nv50_fb_memtype[type];
 	do {
 		if (back)
-			ret = nouveau_mm_tail(heap, type, max, min, align, &r);
+			ret = nouveau_mm_tail(heap, 0, type, max, min, align, &r);
 		else
-			ret = nouveau_mm_head(heap, type, max, min, align, &r);
+			ret = nouveau_mm_head(heap, 0, type, max, min, align, &r);
 		if (ret) {
 			mutex_unlock(&pfb->base.mutex);
 			pfb->ram->put(pfb, &mem);
