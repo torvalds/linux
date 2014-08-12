@@ -883,6 +883,7 @@ struct cifs_tcon {
 				for this mount even if server would support */
 	bool local_lease:1; /* check leases (only) on local system not remote */
 	bool broken_posix_open; /* e.g. Samba server versions < 3.3.2, 3.2.9 */
+	bool broken_sparse_sup; /* if server or share does not support sparse */
 	bool need_reconnect:1; /* connection reset, tid now invalid */
 #ifdef CONFIG_CIFS_SMB2
 	bool print:1;		/* set if connection to printer share */

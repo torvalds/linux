@@ -1224,7 +1224,9 @@ SMB2_ioctl(const unsigned int xid, struct cifs_tcon *tcon, u64 persistent_fid,
 
 	cifs_dbg(FYI, "SMB2 IOCTL\n");
 
-	*out_data = NULL;
+	if (out_data != NULL)
+		*out_data = NULL;
+
 	/* zero out returned data len, in case of error */
 	if (plen)
 		*plen = 0;

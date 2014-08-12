@@ -736,6 +736,49 @@ smb2_set_file_size(const unsigned int xid, struct cifs_tcon *tcon,
 		   struct cifsFileInfo *cfile, __u64 size, bool set_alloc)
 {
 	__le64 eof = cpu_to_le64(size);
+	struct inode *inode;
+
+	/*
+	 * If extending file more than one page make sparse. Many Linux fs
+	 * make files sparse by default when extending via ftruncate
+	 */
+	inode = cfile->dentry->d_inode;
+
+	if (!set_alloc && (size > inode->i_size + 8192)) {
+		struct cifsInodeInfo *cifsi;
+		__u8 set_sparse = 1;
+		int rc;
+
+		cifsi = CIFS_I(inode);
+
+		/* if file already sparse or no server support don't bother */
+		if (cifsi->cifsAttrs & FILE_ATTRIBUTE_SPARSE_FILE)
+			goto smb2_set_eof;
+
+		/*
+		 * Can't check for sparse support on share the usual way via the
+		 * FS attribute info (FILE_SUPPORTS_SPARSE_FILES) on the share
+		 * since Samba server doesn't set the flag on the share, yet
+		 * supports the set sparse FSCTL and returns sparse correctly
+		 * in the file attributes. If we fail setting sparse though we
+		 * mark that server does not support sparse files for this share
+		 * to avoid repeatedly sending the unsupported fsctl to server
+		 * if the file is repeatedly extended.
+		 */
+		if (tcon->broken_sparse_sup)
+			goto smb2_set_eof;
+
+		rc = SMB2_ioctl(xid, tcon, cfile->fid.persistent_fid,
+				cfile->fid.volatile_fid, FSCTL_SET_SPARSE,
+				true /* is_fctl */, &set_sparse, 1, NULL, NULL);
+		if (rc) {
+			tcon->broken_sparse_sup = true;
+			cifs_dbg(FYI, "set sparse rc = %d\n", rc);
+		} else
+			cifsi->cifsAttrs |= FILE_ATTRIBUTE_SPARSE_FILE;
+	}
+
+smb2_set_eof:
 	return SMB2_set_eof(xid, tcon, cfile->fid.persistent_fid,
 			    cfile->fid.volatile_fid, cfile->pid, &eof, false);
 }
