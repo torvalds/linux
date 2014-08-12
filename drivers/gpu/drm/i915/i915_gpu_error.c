@@ -558,18 +558,20 @@ static void i915_error_state_free(struct kref *error_ref)
 }
 
 static struct drm_i915_error_object *
-i915_error_object_create_sized(struct drm_i915_private *dev_priv,
-			       struct drm_i915_gem_object *src,
-			       struct i915_address_space *vm,
-			       int num_pages)
+i915_error_object_create(struct drm_i915_private *dev_priv,
+			 struct drm_i915_gem_object *src,
+			 struct i915_address_space *vm)
 {
 	struct drm_i915_error_object *dst;
+	int num_pages;
 	bool use_ggtt;
 	int i = 0;
 	u32 reloc_offset;
 
 	if (src == NULL || src->pages == NULL)
 		return NULL;
+
+	num_pages = src->base.size >> PAGE_SHIFT;
 
 	dst = kmalloc(sizeof(*dst) + num_pages * sizeof(u32 *), GFP_ATOMIC);
 	if (dst == NULL)
@@ -649,13 +651,8 @@ unwind:
 	kfree(dst);
 	return NULL;
 }
-#define i915_error_object_create(dev_priv, src, vm) \
-	i915_error_object_create_sized((dev_priv), (src), (vm), \
-				       (src)->base.size>>PAGE_SHIFT)
-
 #define i915_error_ggtt_object_create(dev_priv, src) \
-	i915_error_object_create_sized((dev_priv), (src), &(dev_priv)->gtt.base, \
-				       (src)->base.size>>PAGE_SHIFT)
+	i915_error_object_create((dev_priv), (src), &(dev_priv)->gtt.base)
 
 static void capture_bo(struct drm_i915_error_buffer *err,
 		       struct i915_vma *vma)
@@ -1004,8 +1001,7 @@ static void i915_gem_record_rings(struct drm_device *dev,
 							 request->batch_obj,
 							 vm);
 
-			if (HAS_BROKEN_CS_TLB(dev_priv->dev) &&
-			    ring->scratch.obj)
+			if (HAS_BROKEN_CS_TLB(dev_priv->dev))
 				error->ring[i].wa_batchbuffer =
 					i915_error_ggtt_object_create(dev_priv,
 							     ring->scratch.obj);
@@ -1027,9 +1023,8 @@ static void i915_gem_record_rings(struct drm_device *dev,
 		error->ring[i].ringbuffer =
 			i915_error_ggtt_object_create(dev_priv, ring->buffer->obj);
 
-		if (ring->status_page.obj)
-			error->ring[i].hws_page =
-				i915_error_ggtt_object_create(dev_priv, ring->status_page.obj);
+		error->ring[i].hws_page =
+			i915_error_ggtt_object_create(dev_priv, ring->status_page.obj);
 
 		i915_gem_record_active_context(ring, error, &error->ring[i]);
 
