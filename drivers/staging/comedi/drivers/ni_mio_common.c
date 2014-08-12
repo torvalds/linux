@@ -4176,17 +4176,15 @@ static int ni_freq_out_insn_config(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int ni_8255_callback(struct comedi_device *cdev,
-			    int dir, int port, int data, unsigned long arg)
+static int ni_8255_callback(struct comedi_device *dev,
+			    int dir, int port, int data, unsigned long iobase)
 {
-	struct comedi_device *dev = (struct comedi_device *)arg;
-
 	if (dir) {
-		ni_writeb(dev, data, Port_A + 2 * port);
+		ni_writeb(dev, data, iobase + 2 * port);
 		return 0;
 	}
 
-	return ni_readb(dev, Port_A + 2 * port);
+	return ni_readb(dev, iobase + 2 * port);
 }
 
 static int ni_get_pwm_config(struct comedi_device *dev, unsigned int *data)
@@ -5561,8 +5559,7 @@ static int ni_E_init(struct comedi_device *dev,
 	/* 8255 device */
 	s = &dev->subdevices[NI_8255_DIO_SUBDEV];
 	if (board->has_8255) {
-		ret = subdev_8255_init(dev, s, ni_8255_callback,
-				       (unsigned long)dev);
+		ret = subdev_8255_init(dev, s, ni_8255_callback, Port_A);
 		if (ret)
 			return ret;
 	} else {
