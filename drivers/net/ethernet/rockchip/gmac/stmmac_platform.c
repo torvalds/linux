@@ -162,9 +162,6 @@ int stmmc_pltfr_init(struct platform_device *pdev) {
 		grf_writel(GMAC_TXCLK_DLY_ENABLE, RK3288_GRF_SOC_CON3);
 		grf_writel(GMAC_CLK_RX_DL_CFG(0x10), RK3288_GRF_SOC_CON3);
 		grf_writel(GMAC_CLK_TX_DL_CFG(0x30), RK3288_GRF_SOC_CON3);
-		grf_writel(0xffffffff,RK3288_GRF_GPIO3D_E);
-		grf_writel(grf_readl(RK3288_GRF_GPIO4B_E) | 0x3<<2<<16 | 0x3<<2, RK3288_GRF_GPIO4B_E);
-		grf_writel(0xffffffff,RK3288_GRF_GPIO4A_E);
 
 	} else if (phy_iface == PHY_INTERFACE_MODE_RMII) {
 		pr_info("%s: init for RMII\n", __func__);

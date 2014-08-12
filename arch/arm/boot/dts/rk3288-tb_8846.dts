@@ -220,6 +220,28 @@
 		
 	//could add other pinctrl definition such as gpio
 
+	// gmac drive strength
+	gpio4_gmac {
+		mac_clk: mac-clk {
+			rockchip,drive = <VALUE_DRV_12MA>;
+		};
+
+		mac_txpins: mac-txpins {
+			rockchip,drive = <VALUE_DRV_12MA>;
+		};
+
+		mac_rxpins: mac-rxpins {
+			rockchip,drive = <VALUE_DRV_12MA>;
+		};
+
+		mac_crs: mac-crs {
+			rockchip,drive = <VALUE_DRV_12MA>;
+		};
+
+		mac_mdpins: mac-mdpins {
+			rockchip,drive = <VALUE_DRV_12MA>;
+		};
+	};
 };
 
 &nandc0 {
