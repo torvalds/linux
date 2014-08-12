@@ -8104,43 +8104,6 @@ static void i9xx_update_cursor(struct drm_crtc *crtc, u32 base)
 		}
 		cntl |= pipe << 28; /* Connect to correct pipe */
 	}
-	if (intel_crtc->cursor_cntl != cntl) {
-		I915_WRITE(CURCNTR(pipe), cntl);
-		POSTING_READ(CURCNTR(pipe));
-		intel_crtc->cursor_cntl = cntl;
-	}
-
-	/* and commit changes on next vblank */
-	I915_WRITE(CURBASE(pipe), base);
-	POSTING_READ(CURBASE(pipe));
-}
-
-static void ivb_update_cursor(struct drm_crtc *crtc, u32 base)
-{
-	struct drm_device *dev = crtc->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	int pipe = intel_crtc->pipe;
-	uint32_t cntl;
-
-	cntl = 0;
-	if (base) {
-		cntl = MCURSOR_GAMMA_ENABLE;
-		switch (intel_crtc->cursor_width) {
-			case 64:
-				cntl |= CURSOR_MODE_64_ARGB_AX;
-				break;
-			case 128:
-				cntl |= CURSOR_MODE_128_ARGB_AX;
-				break;
-			case 256:
-				cntl |= CURSOR_MODE_256_ARGB_AX;
-				break;
-			default:
-				WARN_ON(1);
-				return;
-		}
-	}
 	if (IS_HASWELL(dev) || IS_BROADWELL(dev))
 		cntl |= CURSOR_PIPE_CSC_ENABLE;
 
@@ -8199,9 +8162,7 @@ static void intel_crtc_update_cursor(struct drm_crtc *crtc,
 
 	I915_WRITE(CURPOS(pipe), pos);
 
-	if (IS_IVYBRIDGE(dev) || IS_HASWELL(dev) || IS_BROADWELL(dev))
-		ivb_update_cursor(crtc, base);
-	else if (IS_845G(dev) || IS_I865G(dev))
+	if (IS_845G(dev) || IS_I865G(dev))
 		i845_update_cursor(crtc, base);
 	else
 		i9xx_update_cursor(crtc, base);
