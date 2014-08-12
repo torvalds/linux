@@ -592,7 +592,9 @@ nouveau_display_repin(struct drm_device *dev)
 		if (!nouveau_fb || !nouveau_fb->nvbo)
 			continue;
 
-		nouveau_bo_pin(nouveau_fb->nvbo, TTM_PL_FLAG_VRAM);
+		ret = nouveau_bo_pin(nouveau_fb->nvbo, TTM_PL_FLAG_VRAM);
+		if (ret)
+			NV_ERROR(drm, "Could not pin framebuffer\n");
 	}
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
