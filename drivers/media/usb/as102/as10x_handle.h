@@ -12,7 +12,8 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
-#ifdef __KERNEL__
+#ifndef _AS10X_HANDLE_H
+#define _AS10X_HANDLE_H
 struct as10x_bus_adapter_t;
 struct as102_dev_t;
 

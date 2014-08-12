@@ -15,9 +15,7 @@
 #ifndef _AS10X_CMD_H_
 #define _AS10X_CMD_H_
 
-#ifdef __KERNEL__
 #include <linux/kernel.h>
-#endif
 
 #include "as10x_types.h"
 

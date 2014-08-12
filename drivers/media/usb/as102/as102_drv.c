@@ -24,6 +24,8 @@
 
 /* header file for usb device driver*/
 #include "as102_drv.h"
+#include "as10x_cmd.h"
+#include "as102_fe.h"
 #include "as102_fw.h"
 #include "dvbdev.h"
 
@@ -176,6 +178,119 @@ static int as102_dvb_dmx_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 	return 0;
 }
 
+static int as102_set_tune(void *priv, struct as10x_tune_args *tune_args)
+{
+	struct as10x_bus_adapter_t *bus_adap = priv;
+	int ret;
+
+	/* Set frontend arguments */
+	if (mutex_lock_interruptible(&bus_adap->lock))
+		return -EBUSY;
+
+	ret =  as10x_cmd_set_tune(bus_adap, tune_args);
+	if (ret != 0)
+		dev_dbg(&bus_adap->usb_dev->dev,
+			"as10x_cmd_set_tune failed. (err = %d)\n", ret);
+
+	mutex_unlock(&bus_adap->lock);
+
+	return ret;
+}
+
+static int as102_get_tps(void *priv, struct as10x_tps *tps)
+{
+	struct as10x_bus_adapter_t *bus_adap = priv;
+	int ret;
+
+	if (mutex_lock_interruptible(&bus_adap->lock))
+		return -EBUSY;
+
+	/* send abilis command: GET_TPS */
+	ret = as10x_cmd_get_tps(bus_adap, tps);
+
+	mutex_unlock(&bus_adap->lock);
+
+	return ret;
+}
+
+static int as102_get_status(void *priv, struct as10x_tune_status *tstate)
+{
+	struct as10x_bus_adapter_t *bus_adap = priv;
+	int ret;
+
+	if (mutex_lock_interruptible(&bus_adap->lock))
+		return -EBUSY;
+
+	/* send abilis command: GET_TUNE_STATUS */
+	ret = as10x_cmd_get_tune_status(bus_adap, tstate);
+	if (ret < 0) {
+		dev_dbg(&bus_adap->usb_dev->dev,
+			"as10x_cmd_get_tune_status failed (err = %d)\n",
+			ret);
+	}
+
+	mutex_unlock(&bus_adap->lock);
+
+	return ret;
+}
+
+static int as102_get_stats(void *priv, struct as10x_demod_stats *demod_stats)
+{
+	struct as10x_bus_adapter_t *bus_adap = priv;
+	int ret;
+
+	if (mutex_lock_interruptible(&bus_adap->lock))
+		return -EBUSY;
+
+	/* send abilis command: GET_TUNE_STATUS */
+	ret = as10x_cmd_get_demod_stats(bus_adap, demod_stats);
+	if (ret < 0) {
+		dev_dbg(&bus_adap->usb_dev->dev,
+			"as10x_cmd_get_demod_stats failed (probably not tuned)\n");
+	} else {
+		dev_dbg(&bus_adap->usb_dev->dev,
+			"demod status: fc: 0x%08x, bad fc: 0x%08x, bytes corrected: 0x%08x , MER: 0x%04x\n",
+			demod_stats->frame_count,
+			demod_stats->bad_frame_count,
+			demod_stats->bytes_fixed_by_rs,
+			demod_stats->mer);
+	}
+	mutex_unlock(&bus_adap->lock);
+
+	return ret;
+}
+
+static int as102_stream_ctrl(void *priv, int acquire, uint32_t elna_cfg)
+{
+	struct as10x_bus_adapter_t *bus_adap = priv;
+	int ret;
+
+	if (mutex_lock_interruptible(&bus_adap->lock))
+		return -EBUSY;
+
+	if (acquire) {
+		if (elna_enable)
+			as10x_cmd_set_context(bus_adap,
+					      CONTEXT_LNA, elna_cfg);
+
+		ret = as10x_cmd_turn_on(bus_adap);
+	} else {
+		ret = as10x_cmd_turn_off(bus_adap);
+	}
+
+	mutex_unlock(&bus_adap->lock);
+
+	return ret;
+}
+
+static const struct as102_fe_ops as102_fe_ops = {
+	.set_tune = as102_set_tune,
+	.get_tps  = as102_get_tps,
+	.get_status = as102_get_status,
+	.get_stats = as102_get_stats,
+	.stream_ctrl = as102_stream_ctrl,
+};
+
 int as102_dvb_register(struct as102_dev_t *as102_dev)
 {
 	struct device *dev = &as102_dev->bus_adap.usb_dev->dev;
@@ -218,6 +333,7 @@ int as102_dvb_register(struct as102_dev_t *as102_dev)
 
 	/* Attach the frontend */
 	as102_dev->dvb_fe = dvb_attach(as102_attach, as102_dev->name,
+				       &as102_fe_ops,
 				       &as102_dev->bus_adap,
 				       as102_dev->elna_cfg);
 	if (!as102_dev->dvb_fe) {

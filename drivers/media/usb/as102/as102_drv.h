@@ -13,10 +13,13 @@
  * GNU General Public License for more details.
  */
 
+#ifndef _AS102_DRV_H
+#define _AS102_DRV_H
 #include <linux/usb.h>
 #include <dvb_demux.h>
 #include <dvb_frontend.h>
 #include <dmxdev.h>
+#include "as10x_handle.h"
 #include "as10x_cmd.h"
 #include "as102_usb_drv.h"
 
@@ -77,7 +80,4 @@ struct as102_dev_t {
 int as102_dvb_register(struct as102_dev_t *dev);
 void as102_dvb_unregister(struct as102_dev_t *dev);
 
-/* FIXME: move it to a separate header */
-struct dvb_frontend *as102_attach(const char *name,
-				  struct as10x_bus_adapter_t *bus_adap,
-				  uint8_t elna_cfg);
+#endif

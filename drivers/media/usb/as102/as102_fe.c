@@ -13,15 +13,17 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
-#include "as102_drv.h"
-#include "as10x_types.h"
-#include "as10x_cmd.h"
+
+#include <dvb_frontend.h>
+
+#include "as102_fe.h"
 
 struct as102_state {
 	struct dvb_frontend frontend;
 	struct as10x_demod_stats demod_stats;
-	struct as10x_bus_adapter_t *bus_adap;
 
+	const struct as102_fe_ops *ops;
+	void *priv;
 	uint8_t elna_cfg;
 
 	/* signal strength */
@@ -62,7 +64,6 @@ static int as102_fe_set_frontend(struct dvb_frontend *fe)
 {
 	struct as102_state *state = fe->demodulator_priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
-	int ret = 0;
 	struct as10x_tune_args tune_args = { 0 };
 
 	/* set frequency */
@@ -186,17 +187,7 @@ static int as102_fe_set_frontend(struct dvb_frontend *fe)
 	}
 
 	/* Set frontend arguments */
-	if (mutex_lock_interruptible(&state->bus_adap->lock))
-		return -EBUSY;
-
-	ret =  as10x_cmd_set_tune(state->bus_adap, &tune_args);
-	if (ret != 0)
-		dev_dbg(&state->bus_adap->usb_dev->dev,
-			"as10x_cmd_set_tune failed. (err = %d)\n", ret);
-
-	mutex_unlock(&state->bus_adap->lock);
-
-	return (ret < 0) ? -EINVAL : 0;
+	return state->ops->set_tune(state->priv, &tune_args);
 }
 
 static int as102_fe_get_frontend(struct dvb_frontend *fe)
@@ -206,14 +197,8 @@ static int as102_fe_get_frontend(struct dvb_frontend *fe)
 	int ret = 0;
 	struct as10x_tps tps = { 0 };
 
-	if (mutex_lock_interruptible(&state->bus_adap->lock))
-		return -EBUSY;
-
 	/* send abilis command: GET_TPS */
-	ret = as10x_cmd_get_tps(state->bus_adap, &tps);
-
-	mutex_unlock(&state->bus_adap->lock);
-
+	ret = state->ops->get_tps(state->priv, &tps);
 	if (ret < 0)
 		return ret;
 
@@ -321,24 +306,16 @@ static int as102_fe_get_tune_settings(struct dvb_frontend *fe,
 	return 0;
 }
 
-
 static int as102_fe_read_status(struct dvb_frontend *fe, fe_status_t *status)
 {
 	int ret = 0;
 	struct as102_state *state = fe->demodulator_priv;
 	struct as10x_tune_status tstate = { 0 };
 
-	if (mutex_lock_interruptible(&state->bus_adap->lock))
-		return -EBUSY;
-
 	/* send abilis command: GET_TUNE_STATUS */
-	ret = as10x_cmd_get_tune_status(state->bus_adap, &tstate);
-	if (ret < 0) {
-		dev_dbg(&state->bus_adap->usb_dev->dev,
-			"as10x_cmd_get_tune_status failed (err = %d)\n",
-			ret);
-		goto out;
-	}
+	ret = state->ops->get_status(state->priv, &tstate);
+	if (ret < 0)
+		return ret;
 
 	state->signal_strength  = tstate.signal_strength;
 	state->ber  = tstate.BER;
@@ -358,31 +335,19 @@ static int as102_fe_read_status(struct dvb_frontend *fe, fe_status_t *status)
 		*status = TUNE_STATUS_NOT_TUNED;
 	}
 
-	dev_dbg(&state->bus_adap->usb_dev->dev,
-			"tuner status: 0x%02x, strength %d, per: %d, ber: %d\n",
-			tstate.tune_state, tstate.signal_strength,
-			tstate.PER, tstate.BER);
+	pr_debug("as102: tuner status: 0x%02x, strength %d, per: %d, ber: %d\n",
+		 tstate.tune_state, tstate.signal_strength,
+		 tstate.PER, tstate.BER);
 
-	if (*status & FE_HAS_LOCK) {
-		if (as10x_cmd_get_demod_stats(state->bus_adap,
-			(struct as10x_demod_stats *) &state->demod_stats) < 0) {
-			memset(&state->demod_stats, 0, sizeof(state->demod_stats));
-			dev_dbg(&state->bus_adap->usb_dev->dev,
-				"as10x_cmd_get_demod_stats failed (probably not tuned)\n");
-		} else {
-			dev_dbg(&state->bus_adap->usb_dev->dev,
-				"demod status: fc: 0x%08x, bad fc: 0x%08x, bytes corrected: 0x%08x , MER: 0x%04x\n",
-				state->demod_stats.frame_count,
-				state->demod_stats.bad_frame_count,
-				state->demod_stats.bytes_fixed_by_rs,
-				state->demod_stats.mer);
-		}
-	} else {
+	if (!(*status & FE_HAS_LOCK)) {
 		memset(&state->demod_stats, 0, sizeof(state->demod_stats));
+		return 0;
 	}
 
-out:
-	mutex_unlock(&state->bus_adap->lock);
+	ret = state->ops->get_stats(state->priv, &state->demod_stats);
+	if (ret < 0)
+		memset(&state->demod_stats, 0, sizeof(state->demod_stats));
+
 	return ret;
 }
 
@@ -436,24 +401,9 @@ static int as102_fe_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 static int as102_fe_ts_bus_ctrl(struct dvb_frontend *fe, int acquire)
 {
 	struct as102_state *state = fe->demodulator_priv;
-	int ret;
 
-	if (mutex_lock_interruptible(&state->bus_adap->lock))
-		return -EBUSY;
-
-	if (acquire) {
-		if (elna_enable)
-			as10x_cmd_set_context(state->bus_adap,
-					      CONTEXT_LNA, state->elna_cfg);
-
-		ret = as10x_cmd_turn_on(state->bus_adap);
-	} else {
-		ret = as10x_cmd_turn_off(state->bus_adap);
-	}
-
-	mutex_unlock(&state->bus_adap->lock);
-
-	return ret;
+	return state->ops->stream_ctrl(state->priv, acquire,
+				      state->elna_cfg);
 }
 
 static struct dvb_frontend_ops as102_fe_ops = {
@@ -488,7 +438,8 @@ static struct dvb_frontend_ops as102_fe_ops = {
 };
 
 struct dvb_frontend *as102_attach(const char *name,
-				  struct as10x_bus_adapter_t *bus_adap,
+				  const struct as102_fe_ops *ops,
+				  void *priv,
 				  uint8_t elna_cfg)
 {
 	struct as102_state *state;
@@ -496,13 +447,13 @@ struct dvb_frontend *as102_attach(const char *name,
 
 	state = kzalloc(sizeof(struct as102_state), GFP_KERNEL);
 	if (state == NULL) {
-		dev_err(&bus_adap->usb_dev->dev,
-			"%s: unable to allocate memory for state\n", __func__);
+		pr_err("%s: unable to allocate memory for state\n", __func__);
 		return NULL;
 	}
 	fe = &state->frontend;
 	fe->demodulator_priv = state;
-	state->bus_adap = bus_adap;
+	state->ops = ops;
+	state->priv = priv;
 	state->elna_cfg = elna_cfg;
 
 	/* init frontend callback ops */

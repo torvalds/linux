@@ -15,8 +15,6 @@
 #ifndef _AS10X_TYPES_H_
 #define _AS10X_TYPES_H_
 
-#include "as10x_handle.h"
-
 /*********************************/
 /*       MACRO DEFINITIONS       */
 /*********************************/
