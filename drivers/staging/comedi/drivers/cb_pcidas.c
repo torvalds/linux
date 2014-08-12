@@ -342,7 +342,6 @@ struct cb_pcidas_private {
 	unsigned long s5933_config;
 	unsigned long control_status;
 	unsigned long adc_fifo;
-	unsigned long pacer_counter_dio;
 	unsigned long ao_registers;
 	/* divisors of master clock for analog input pacing */
 	unsigned int divisor1;
@@ -942,7 +941,7 @@ static int cb_pcidas_ai_cmdtest(struct comedi_device *dev,
 static void cb_pcidas_ai_load_counters(struct comedi_device *dev)
 {
 	struct cb_pcidas_private *devpriv = dev->private;
-	unsigned long timer_base = devpriv->pacer_counter_dio + ADC8254;
+	unsigned long timer_base = dev->iobase + ADC8254;
 
 	i8254_set_mode(timer_base, 0, 1, I8254_MODE2 | I8254_BINARY);
 	i8254_set_mode(timer_base, 0, 2, I8254_MODE2 | I8254_BINARY);
@@ -1194,7 +1193,7 @@ static int cb_pcidas_ao_inttrig(struct comedi_device *dev,
 static void cb_pcidas_ao_load_counters(struct comedi_device *dev)
 {
 	struct cb_pcidas_private *devpriv = dev->private;
-	unsigned long timer_base = devpriv->pacer_counter_dio + DAC8254;
+	unsigned long timer_base = dev->iobase + DAC8254;
 
 	i8254_set_mode(timer_base, 0, 1, I8254_MODE2 | I8254_BINARY);
 	i8254_set_mode(timer_base, 0, 2, I8254_MODE2 | I8254_BINARY);
@@ -1463,7 +1462,7 @@ static int cb_pcidas_auto_attach(struct comedi_device *dev,
 	devpriv->s5933_config = pci_resource_start(pcidev, 0);
 	devpriv->control_status = pci_resource_start(pcidev, 1);
 	devpriv->adc_fifo = pci_resource_start(pcidev, 2);
-	devpriv->pacer_counter_dio = pci_resource_start(pcidev, 3);
+	dev->iobase = pci_resource_start(pcidev, 3);
 	if (thisboard->ao_nchan)
 		devpriv->ao_registers = pci_resource_start(pcidev, 4);
 
@@ -1529,8 +1528,7 @@ static int cb_pcidas_auto_attach(struct comedi_device *dev,
 
 	/* 8255 */
 	s = &dev->subdevices[2];
-	ret = subdev_8255_init(dev, s, NULL,
-			       devpriv->pacer_counter_dio + DIO_8255);
+	ret = subdev_8255_init(dev, s, NULL, dev->iobase + DIO_8255);
 	if (ret)
 		return ret;
 
