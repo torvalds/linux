@@ -132,9 +132,6 @@ struct dio200_subdev_intr {
 	bool active:1;
 };
 
-/*
- * Read 8-bit register.
- */
 static unsigned char dio200_read8(struct comedi_device *dev,
 				  unsigned int offset)
 {
@@ -147,11 +144,8 @@ static unsigned char dio200_read8(struct comedi_device *dev,
 	return inb(dev->iobase + offset);
 }
 
-/*
- * Write 8-bit register.
- */
-static void dio200_write8(struct comedi_device *dev, unsigned int offset,
-			  unsigned char val)
+static void dio200_write8(struct comedi_device *dev,
+			  unsigned int offset, unsigned char val)
 {
 	const struct dio200_board *board = comedi_board(dev);
 
@@ -163,9 +157,6 @@ static void dio200_write8(struct comedi_device *dev, unsigned int offset,
 		outb(val, dev->iobase + offset);
 }
 
-/*
- * Read 32-bit register.
- */
 static unsigned int dio200_read32(struct comedi_device *dev,
 				  unsigned int offset)
 {
@@ -178,11 +169,8 @@ static unsigned int dio200_read32(struct comedi_device *dev,
 	return inl(dev->iobase + offset);
 }
 
-/*
- * Write 32-bit register.
- */
-static void dio200_write32(struct comedi_device *dev, unsigned int offset,
-			   unsigned int val)
+static void dio200_write32(struct comedi_device *dev,
+			   unsigned int offset, unsigned int val)
 {
 	const struct dio200_board *board = comedi_board(dev);
 
@@ -194,13 +182,10 @@ static void dio200_write32(struct comedi_device *dev, unsigned int offset,
 		outl(val, dev->iobase + offset);
 }
 
-/*
- * 'insn_bits' function for an 'INTERRUPT' subdevice.
- */
-static int
-dio200_subdev_intr_insn_bits(struct comedi_device *dev,
-			     struct comedi_subdevice *s,
-			     struct comedi_insn *insn, unsigned int *data)
+static int dio200_subdev_intr_insn_bits(struct comedi_device *dev,
+					struct comedi_subdevice *s,
+					struct comedi_insn *insn,
+					unsigned int *data)
 {
 	const struct dio200_board *board = comedi_board(dev);
 	struct dio200_subdev_intr *subpriv = s->private;
@@ -216,9 +201,6 @@ dio200_subdev_intr_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
-/*
- * Called to stop acquisition for an 'INTERRUPT' subdevice.
- */
 static void dio200_stop_intr(struct comedi_device *dev,
 			     struct comedi_subdevice *s)
 {
@@ -231,9 +213,6 @@ static void dio200_stop_intr(struct comedi_device *dev,
 		dio200_write8(dev, subpriv->ofs, 0);
 }
 
-/*
- * Called to start acquisition for an 'INTERRUPT' subdevice.
- */
 static int dio200_start_intr(struct comedi_device *dev,
 			     struct comedi_subdevice *s)
 {
@@ -328,10 +307,6 @@ static void dio200_read_scan_intr(struct comedi_device *dev,
 	}
 }
 
-/*
- * This is called from the interrupt service routine to handle a read
- * scan on an 'INTERRUPT' subdevice.
- */
 static int dio200_handle_read_intr(struct comedi_device *dev,
 				   struct comedi_subdevice *s)
 {
@@ -405,9 +380,6 @@ static int dio200_handle_read_intr(struct comedi_device *dev,
 	return (triggered != 0);
 }
 
-/*
- * 'cancel' function for an 'INTERRUPT' subdevice.
- */
 static int dio200_subdev_intr_cancel(struct comedi_device *dev,
 				     struct comedi_subdevice *s)
 {
@@ -423,12 +395,9 @@ static int dio200_subdev_intr_cancel(struct comedi_device *dev,
 	return 0;
 }
 
-/*
- * 'do_cmdtest' function for an 'INTERRUPT' subdevice.
- */
-static int
-dio200_subdev_intr_cmdtest(struct comedi_device *dev,
-			   struct comedi_subdevice *s, struct comedi_cmd *cmd)
+static int dio200_subdev_intr_cmdtest(struct comedi_device *dev,
+				      struct comedi_subdevice *s,
+				      struct comedi_cmd *cmd)
 {
 	int err = 0;
 
@@ -481,9 +450,6 @@ dio200_subdev_intr_cmdtest(struct comedi_device *dev,
 	return 0;
 }
 
-/*
- * 'do_cmd' function for an 'INTERRUPT' subdevice.
- */
 static int dio200_subdev_intr_cmd(struct comedi_device *dev,
 				  struct comedi_subdevice *s)
 {
@@ -514,12 +480,10 @@ static int dio200_subdev_intr_cmd(struct comedi_device *dev,
 	return 0;
 }
 
-/*
- * This function initializes an 'INTERRUPT' subdevice.
- */
-static int
-dio200_subdev_intr_init(struct comedi_device *dev, struct comedi_subdevice *s,
-			unsigned int offset, unsigned valid_isns)
+static int dio200_subdev_intr_init(struct comedi_device *dev,
+				   struct comedi_subdevice *s,
+				   unsigned int offset,
+				   unsigned valid_isns)
 {
 	const struct dio200_board *board = comedi_board(dev);
 	struct dio200_subdev_intr *subpriv;
@@ -556,9 +520,6 @@ dio200_subdev_intr_init(struct comedi_device *dev, struct comedi_subdevice *s,
 	return 0;
 }
 
-/*
- * Interrupt service routine.
- */
 static irqreturn_t dio200_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
@@ -573,12 +534,9 @@ static irqreturn_t dio200_interrupt(int irq, void *d)
 	return IRQ_RETVAL(handled);
 }
 
-/*
- * Read an '8254' counter subdevice channel.
- */
-static unsigned int
-dio200_subdev_8254_read_chan(struct comedi_device *dev,
-			     struct comedi_subdevice *s, unsigned int chan)
+static unsigned int dio200_subdev_8254_read_chan(struct comedi_device *dev,
+						 struct comedi_subdevice *s,
+						 unsigned int chan)
 {
 	struct dio200_subdev_8254 *subpriv = s->private;
 	unsigned int val;
@@ -592,13 +550,10 @@ dio200_subdev_8254_read_chan(struct comedi_device *dev,
 	return val;
 }
 
-/*
- * Write an '8254' subdevice channel.
- */
-static void
-dio200_subdev_8254_write_chan(struct comedi_device *dev,
-			      struct comedi_subdevice *s, unsigned int chan,
-			      unsigned int count)
+static void dio200_subdev_8254_write_chan(struct comedi_device *dev,
+					  struct comedi_subdevice *s,
+					  unsigned int chan,
+					  unsigned int count)
 {
 	struct dio200_subdev_8254 *subpriv = s->private;
 
@@ -607,13 +562,10 @@ dio200_subdev_8254_write_chan(struct comedi_device *dev,
 	dio200_write8(dev, subpriv->ofs + chan, (count >> 8) & 0xff);
 }
 
-/*
- * Set mode of an '8254' subdevice channel.
- */
-static void
-dio200_subdev_8254_set_mode(struct comedi_device *dev,
-			    struct comedi_subdevice *s, unsigned int chan,
-			    unsigned int mode)
+static void dio200_subdev_8254_set_mode(struct comedi_device *dev,
+					struct comedi_subdevice *s,
+					unsigned int chan,
+					unsigned int mode)
 {
 	struct dio200_subdev_8254 *subpriv = s->private;
 	unsigned int byte;
@@ -624,12 +576,9 @@ dio200_subdev_8254_set_mode(struct comedi_device *dev,
 	dio200_write8(dev, subpriv->ofs + i8254_control_reg, byte);
 }
 
-/*
- * Read status byte of an '8254' counter subdevice channel.
- */
-static unsigned int
-dio200_subdev_8254_status(struct comedi_device *dev,
-			  struct comedi_subdevice *s, unsigned int chan)
+static unsigned int dio200_subdev_8254_status(struct comedi_device *dev,
+					      struct comedi_subdevice *s,
+					      unsigned int chan)
 {
 	struct dio200_subdev_8254 *subpriv = s->private;
 
@@ -640,12 +589,10 @@ dio200_subdev_8254_status(struct comedi_device *dev,
 	return dio200_read8(dev, subpriv->ofs + chan);
 }
 
-/*
- * Handle 'insn_read' for an '8254' counter subdevice.
- */
-static int
-dio200_subdev_8254_read(struct comedi_device *dev, struct comedi_subdevice *s,
-			struct comedi_insn *insn, unsigned int *data)
+static int dio200_subdev_8254_read(struct comedi_device *dev,
+				   struct comedi_subdevice *s,
+				   struct comedi_insn *insn,
+				   unsigned int *data)
 {
 	struct dio200_subdev_8254 *subpriv = s->private;
 	int chan = CR_CHAN(insn->chanspec);
@@ -660,12 +607,10 @@ dio200_subdev_8254_read(struct comedi_device *dev, struct comedi_subdevice *s,
 	return insn->n;
 }
 
-/*
- * Handle 'insn_write' for an '8254' counter subdevice.
- */
-static int
-dio200_subdev_8254_write(struct comedi_device *dev, struct comedi_subdevice *s,
-			 struct comedi_insn *insn, unsigned int *data)
+static int dio200_subdev_8254_write(struct comedi_device *dev,
+				    struct comedi_subdevice *s,
+				    struct comedi_insn *insn,
+				    unsigned int *data)
 {
 	struct dio200_subdev_8254 *subpriv = s->private;
 	int chan = CR_CHAN(insn->chanspec);
@@ -680,14 +625,10 @@ dio200_subdev_8254_write(struct comedi_device *dev, struct comedi_subdevice *s,
 	return insn->n;
 }
 
-/*
- * Set gate source for an '8254' counter subdevice channel.
- */
-static int
-dio200_subdev_8254_set_gate_src(struct comedi_device *dev,
-				struct comedi_subdevice *s,
-				unsigned int counter_number,
-				unsigned int gate_src)
+static int dio200_subdev_8254_set_gate_src(struct comedi_device *dev,
+					   struct comedi_subdevice *s,
+					   unsigned int counter_number,
+					   unsigned int gate_src)
 {
 	const struct dio200_board *board = comedi_board(dev);
 	struct dio200_subdev_8254 *subpriv = s->private;
@@ -707,13 +648,9 @@ dio200_subdev_8254_set_gate_src(struct comedi_device *dev,
 	return 0;
 }
 
-/*
- * Get gate source for an '8254' counter subdevice channel.
- */
-static int
-dio200_subdev_8254_get_gate_src(struct comedi_device *dev,
-				struct comedi_subdevice *s,
-				unsigned int counter_number)
+static int dio200_subdev_8254_get_gate_src(struct comedi_device *dev,
+					   struct comedi_subdevice *s,
+					   unsigned int counter_number)
 {
 	const struct dio200_board *board = comedi_board(dev);
 	struct dio200_subdev_8254 *subpriv = s->private;
@@ -726,14 +663,10 @@ dio200_subdev_8254_get_gate_src(struct comedi_device *dev,
 	return subpriv->gate_src[counter_number];
 }
 
-/*
- * Set clock source for an '8254' counter subdevice channel.
- */
-static int
-dio200_subdev_8254_set_clock_src(struct comedi_device *dev,
-				 struct comedi_subdevice *s,
-				 unsigned int counter_number,
-				 unsigned int clock_src)
+static int dio200_subdev_8254_set_clock_src(struct comedi_device *dev,
+					    struct comedi_subdevice *s,
+					    unsigned int counter_number,
+					    unsigned int clock_src)
 {
 	const struct dio200_board *board = comedi_board(dev);
 	struct dio200_subdev_8254 *subpriv = s->private;
@@ -753,14 +686,10 @@ dio200_subdev_8254_set_clock_src(struct comedi_device *dev,
 	return 0;
 }
 
-/*
- * Get clock source for an '8254' counter subdevice channel.
- */
-static int
-dio200_subdev_8254_get_clock_src(struct comedi_device *dev,
-				 struct comedi_subdevice *s,
-				 unsigned int counter_number,
-				 unsigned int *period_ns)
+static int dio200_subdev_8254_get_clock_src(struct comedi_device *dev,
+					    struct comedi_subdevice *s,
+					    unsigned int counter_number,
+					    unsigned int *period_ns)
 {
 	const struct dio200_board *board = comedi_board(dev);
 	struct dio200_subdev_8254 *subpriv = s->private;
@@ -776,12 +705,10 @@ dio200_subdev_8254_get_clock_src(struct comedi_device *dev,
 	return clock_src;
 }
 
-/*
- * Handle 'insn_config' for an '8254' counter subdevice.
- */
-static int
-dio200_subdev_8254_config(struct comedi_device *dev, struct comedi_subdevice *s,
-			  struct comedi_insn *insn, unsigned int *data)
+static int dio200_subdev_8254_config(struct comedi_device *dev,
+				     struct comedi_subdevice *s,
+				     struct comedi_insn *insn,
+				     unsigned int *data)
 {
 	struct dio200_subdev_8254 *subpriv = s->private;
 	int ret = 0;
@@ -833,12 +760,9 @@ dio200_subdev_8254_config(struct comedi_device *dev, struct comedi_subdevice *s,
 	return ret < 0 ? ret : insn->n;
 }
 
-/*
- * This function initializes an '8254' counter subdevice.
- */
-static int
-dio200_subdev_8254_init(struct comedi_device *dev, struct comedi_subdevice *s,
-			unsigned int offset)
+static int dio200_subdev_8254_init(struct comedi_device *dev,
+				   struct comedi_subdevice *s,
+				   unsigned int offset)
 {
 	const struct dio200_board *board = comedi_board(dev);
 	struct dio200_subdev_8254 *subpriv;
@@ -881,9 +805,6 @@ dio200_subdev_8254_init(struct comedi_device *dev, struct comedi_subdevice *s,
 	return 0;
 }
 
-/*
- * This function sets I/O directions for an '8255' DIO subdevice.
- */
 static void dio200_subdev_8255_set_dir(struct comedi_device *dev,
 				       struct comedi_subdevice *s)
 {
@@ -933,9 +854,6 @@ static int dio200_subdev_8255_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
-/*
- * Handle 'insn_config' for an '8255' DIO subdevice.
- */
 static int dio200_subdev_8255_config(struct comedi_device *dev,
 				     struct comedi_subdevice *s,
 				     struct comedi_insn *insn,
@@ -963,11 +881,6 @@ static int dio200_subdev_8255_config(struct comedi_device *dev,
 	return insn->n;
 }
 
-/*
- * This function initializes an '8255' DIO subdevice.
- *
- * offset is the offset to the 8255 chip.
- */
 static int dio200_subdev_8255_init(struct comedi_device *dev,
 				   struct comedi_subdevice *s,
 				   unsigned int offset)
@@ -991,9 +904,6 @@ static int dio200_subdev_8255_init(struct comedi_device *dev,
 	return 0;
 }
 
-/*
- * Handle 'insn_read' for a timer subdevice.
- */
 static int dio200_subdev_timer_read(struct comedi_device *dev,
 				    struct comedi_subdevice *s,
 				    struct comedi_insn *insn,
@@ -1006,9 +916,6 @@ static int dio200_subdev_timer_read(struct comedi_device *dev,
 	return n;
 }
 
-/*
- * Reset timer subdevice.
- */
 static void dio200_subdev_timer_reset(struct comedi_device *dev,
 				      struct comedi_subdevice *s)
 {
@@ -1019,9 +926,6 @@ static void dio200_subdev_timer_reset(struct comedi_device *dev,
 	dio200_write32(dev, DIO200_TS_CONFIG, clock);
 }
 
-/*
- * Get timer subdevice clock source and period.
- */
 static void dio200_subdev_timer_get_clock_src(struct comedi_device *dev,
 					      struct comedi_subdevice *s,
 					      unsigned int *src,
@@ -1035,9 +939,6 @@ static void dio200_subdev_timer_get_clock_src(struct comedi_device *dev,
 		  ts_clock_period[clk] : 0;
 }
 
-/*
- * Set timer subdevice clock source.
- */
 static int dio200_subdev_timer_set_clock_src(struct comedi_device *dev,
 					     struct comedi_subdevice *s,
 					     unsigned int src)
@@ -1048,9 +949,6 @@ static int dio200_subdev_timer_set_clock_src(struct comedi_device *dev,
 	return 0;
 }
 
-/*
- * Handle 'insn_config' for a timer subdevice.
- */
 static int dio200_subdev_timer_config(struct comedi_device *dev,
 				      struct comedi_subdevice *s,
 				      struct comedi_insn *insn,
@@ -1077,11 +975,6 @@ static int dio200_subdev_timer_config(struct comedi_device *dev,
 	return ret < 0 ? ret : insn->n;
 }
 
-/*
- * This function initializes a timer subdevice.
- *
- * Uses the timestamp timer registers.  There is only one timestamp timer.
- */
 static int dio200_subdev_timer_init(struct comedi_device *dev,
 				    struct comedi_subdevice *s)
 {
