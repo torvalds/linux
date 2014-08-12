@@ -1146,6 +1146,16 @@ static int rk818_pre_init(struct rk818 *rk818)
 	/**********************************/
 	ret = rk818_clear_bits(rk818, RK818_INT_STS_MSK_REG1,(0x3<<5)); //open rtc int when power on
  	ret = rk818_set_bits(rk818, RK818_RTC_INT_REG,(0x1<<3),(0x1<<3)); //open rtc int when power on
+
+	/*****disable otg and boost when in sleep mode****/
+	val = rk818_reg_read(rk818, RK818_SLEEP_SET_OFF_REG1);
+	val |= ((0x1 << 7) | (0x1 << 4));
+	ret =  rk818_reg_write(rk818, RK818_SLEEP_SET_OFF_REG1, val);
+	if (ret < 0) {
+		pr_err("Unable to write RK818_SLEEP_SET_OFF_REG1 reg\n");
+		return ret;
+	}
+
 	return 0;
 }
  
