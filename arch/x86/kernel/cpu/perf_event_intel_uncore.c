@@ -880,8 +880,8 @@ static int __init uncore_pci_init(void)
 	case 45: /* Sandy Bridge-EP */
 		ret = snbep_uncore_pci_init();
 		break;
-	case 62: /* IvyTown */
-		ret = ivt_uncore_pci_init();
+	case 62: /* Ivy Bridge-EP */
+		ret = ivbep_uncore_pci_init();
 		break;
 	case 42: /* Sandy Bridge */
 		ret = snb_uncore_pci_init();
@@ -1187,8 +1187,8 @@ static int __init uncore_cpu_init(void)
 	case 47: /* Westmere-EX aka. Xeon E7 */
 		nhmex_uncore_cpu_init();
 		break;
-	case 62: /* IvyTown */
-		ivt_uncore_cpu_init();
+	case 62: /* Ivy Bridge-EP */
+		ivbep_uncore_cpu_init();
 		break;
 
 	default:

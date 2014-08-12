@@ -330,8 +330,8 @@ void nhm_uncore_cpu_init(void);
 /* perf_event_intel_uncore_snbep.c */
 int snbep_uncore_pci_init(void);
 void snbep_uncore_cpu_init(void);
-int ivt_uncore_pci_init(void);
-void ivt_uncore_cpu_init(void);
+int ivbep_uncore_pci_init(void);
+void ivbep_uncore_cpu_init(void);
 
 /* perf_event_intel_uncore_nhmex.c */
 void nhmex_uncore_cpu_init(void);
