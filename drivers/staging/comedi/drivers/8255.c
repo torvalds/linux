@@ -107,23 +107,6 @@ static int subdev_8255_io(struct comedi_device *dev,
 	return inb(dev->iobase + regbase + port);
 }
 
-void subdev_8255_interrupt(struct comedi_device *dev,
-			   struct comedi_subdevice *s)
-{
-	struct subdev_8255_private *spriv = s->private;
-	unsigned long regbase = spriv->regbase;
-	unsigned short d;
-
-	d = spriv->io(dev, 0, _8255_DATA, 0, regbase);
-	d |= (spriv->io(dev, 0, _8255_DATA + 1, 0, regbase) << 8);
-
-	comedi_buf_put(s, d);
-	s->async->events |= COMEDI_CB_EOS;
-
-	comedi_event(dev, s);
-}
-EXPORT_SYMBOL_GPL(subdev_8255_interrupt);
-
 static int subdev_8255_insn(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn,
@@ -203,64 +186,6 @@ static int subdev_8255_insn_config(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int subdev_8255_cmdtest(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_cmd *cmd)
-{
-	int err = 0;
-
-	/* Step 1 : check if triggers are trivially valid */
-
-	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW);
-	err |= cfc_check_trigger_src(&cmd->scan_begin_src, TRIG_EXT);
-	err |= cfc_check_trigger_src(&cmd->convert_src, TRIG_FOLLOW);
-	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_NONE);
-
-	if (err)
-		return 1;
-
-	/* Step 2a : make sure trigger sources are unique */
-	/* Step 2b : and mutually compatible */
-
-	if (err)
-		return 2;
-
-	/* Step 3: check if arguments are trivially valid */
-
-	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
-	err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
-	err |= cfc_check_trigger_arg_is(&cmd->convert_arg, 0);
-	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
-	err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
-
-	if (err)
-		return 3;
-
-	/* step 4 */
-
-	if (err)
-		return 4;
-
-	return 0;
-}
-
-static int subdev_8255_cmd(struct comedi_device *dev,
-			   struct comedi_subdevice *s)
-{
-	/* FIXME */
-
-	return 0;
-}
-
-static int subdev_8255_cancel(struct comedi_device *dev,
-			      struct comedi_subdevice *s)
-{
-	/* FIXME */
-
-	return 0;
-}
-
 int subdev_8255_init(struct comedi_device *dev, struct comedi_subdevice *s,
 		     int (*io)(struct comedi_device *,
 			       int, int, int, unsigned long),
@@ -288,26 +213,6 @@ int subdev_8255_init(struct comedi_device *dev, struct comedi_subdevice *s,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(subdev_8255_init);
-
-int subdev_8255_init_irq(struct comedi_device *dev, struct comedi_subdevice *s,
-			 int (*io)(struct comedi_device *,
-				   int, int, int, unsigned long),
-			 unsigned long regbase)
-{
-	int ret;
-
-	ret = subdev_8255_init(dev, s, io, regbase);
-	if (ret)
-		return ret;
-
-	s->len_chanlist	= 1;
-	s->do_cmdtest	= subdev_8255_cmdtest;
-	s->do_cmd	= subdev_8255_cmd;
-	s->cancel	= subdev_8255_cancel;
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(subdev_8255_init_irq);
 
 /*
 
