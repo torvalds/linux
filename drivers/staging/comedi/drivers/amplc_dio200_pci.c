@@ -276,7 +276,7 @@ static const struct dio200_board dio200_pci_boards[] = {
 		},
 		.has_int_sce	= true,
 		.has_clk_gat_sce = true,
-		.has_enhancements = true,
+		.is_pcie	= true,
 	},
 	[pcie236_model] = {
 		.name		= "pcie236",
@@ -292,7 +292,7 @@ static const struct dio200_board dio200_pci_boards[] = {
 		},
 		.has_int_sce	= true,
 		.has_clk_gat_sce = true,
-		.has_enhancements = true,
+		.is_pcie	= true,
 	},
 	[pcie296_model] = {
 		.name		= "pcie296",
@@ -308,7 +308,7 @@ static const struct dio200_board dio200_pci_boards[] = {
 		},
 		.has_int_sce	= true,
 		.has_clk_gat_sce = true,
-		.has_enhancements = true,
+		.is_pcie	= true,
 	},
 };
 
@@ -351,16 +351,16 @@ static int dio200_pci_auto_attach(struct comedi_device *dev,
 				  unsigned long context_model)
 {
 	struct pci_dev *pci_dev = comedi_to_pci_dev(dev);
-	const struct dio200_board *thisboard = NULL;
+	const struct dio200_board *board = NULL;
 	unsigned int bar;
 	int ret;
 
 	if (context_model < ARRAY_SIZE(dio200_pci_boards))
-		thisboard = &dio200_pci_boards[context_model];
-	if (!thisboard)
+		board = &dio200_pci_boards[context_model];
+	if (!board)
 		return -EINVAL;
-	dev->board_ptr = thisboard;
-	dev->board_name = thisboard->name;
+	dev->board_ptr = board;
+	dev->board_name = board->name;
 
 	dev_info(dev->class_dev, "%s: attach pci %s (%s)\n",
 		 dev->driver->driver_name, pci_name(pci_dev), dev->board_name);
@@ -369,7 +369,7 @@ static int dio200_pci_auto_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	bar = thisboard->mainbar;
+	bar = board->mainbar;
 	if (pci_resource_flags(pci_dev, bar) & IORESOURCE_MEM) {
 		dev->mmio = pci_ioremap_bar(pci_dev, bar);
 		if (!dev->mmio) {
@@ -380,17 +380,13 @@ static int dio200_pci_auto_attach(struct comedi_device *dev,
 	} else {
 		dev->iobase = pci_resource_start(pci_dev, bar);
 	}
-	switch (context_model) {
-	case pcie215_model:
-	case pcie236_model:
-	case pcie296_model:
+
+	if (board->is_pcie) {
 		ret = dio200_pcie_board_setup(dev);
 		if (ret < 0)
 			return ret;
-		break;
-	default:
-		break;
 	}
+
 	return amplc_dio200_common_attach(dev, pci_dev->irq, IRQF_SHARED);
 }
 

@@ -638,7 +638,7 @@ static int dio200_subdev_8254_set_gate_src(struct comedi_device *dev,
 		return -1;
 	if (counter_number > 2)
 		return -1;
-	if (gate_src > (board->has_enhancements ? 31 : 7))
+	if (gate_src > (board->is_pcie ? 31 : 7))
 		return -1;
 
 	subpriv->gate_src[counter_number] = gate_src;
@@ -676,7 +676,7 @@ static int dio200_subdev_8254_set_clock_src(struct comedi_device *dev,
 		return -1;
 	if (counter_number > 2)
 		return -1;
-	if (clock_src > (board->has_enhancements ? 31 : 7))
+	if (clock_src > (board->is_pcie ? 31 : 7))
 		return -1;
 
 	subpriv->clock_src[counter_number] = clock_src;
