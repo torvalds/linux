@@ -653,15 +653,13 @@ static void daqboard2000_initializeDac(struct comedi_device *dev)
 
 static int daqboard2000_8255_cb(struct comedi_device *dev,
 				int dir, int port, int data,
-				unsigned long ioaddr)
+				unsigned long iobase)
 {
-	void __iomem *mmio_base = (void __iomem *)ioaddr;
-
 	if (dir) {
-		writew(data, mmio_base + port * 2);
+		writew(data, dev->mmio + iobase + port * 2);
 		return 0;
 	}
-	return readw(mmio_base + port * 2);
+	return readw(dev->mmio + iobase + port * 2);
 }
 
 static const void *daqboard2000_find_boardinfo(struct comedi_device *dev,
@@ -745,7 +743,7 @@ static int daqboard2000_auto_attach(struct comedi_device *dev,
 
 	s = &dev->subdevices[2];
 	result = subdev_8255_init(dev, s, daqboard2000_8255_cb,
-			(unsigned long)(dev->mmio + dioP2ExpansionIO8Bit));
+				  dioP2ExpansionIO8Bit);
 	if (result)
 		return result;
 
