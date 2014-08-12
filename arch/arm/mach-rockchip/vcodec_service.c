@@ -33,6 +33,7 @@
 #include <linux/wakelock.h>
 #include <linux/cdev.h>
 #include <linux/of.h>
+#include <linux/of_platform.h>
 #include <linux/rockchip/cpu.h>
 #include <linux/rockchip/cru.h>
 
@@ -49,8 +50,7 @@
 #endif
 
 #ifdef CONFIG_VCODEC_MMU
-#include <linux/rockchip/iovmm.h>
-#include <linux/rockchip/sysmmu.h>
+#include <linux/rockchip-iovmm.h>
 #include <linux/dma-buf.h>
 #endif
 
@@ -102,6 +102,19 @@ typedef struct {
 	unsigned long		dec_reg_num;
 	unsigned long		dec_io_size;
 } VPU_HW_INFO_E;
+
+struct extra_info_elem {
+	u32 index;
+	u32 offset;
+};
+
+#define EXTRA_INFO_MAGIC	0x4C4A46
+
+struct extra_info_for_iommu {
+	u32 magic;
+	u32 cnt;
+	struct extra_info_elem elem[20];
+};
 
 #define VPU_SERVICE_SHOW_TIME			0
 
@@ -718,8 +731,8 @@ static void vpu_service_power_on(struct vpu_service_info *pservice)
 
 #if defined(CONFIG_VCODEC_MMU)
 	if (pservice->mmu_dev)
-		iovmm_activate(pservice->dev);
-#endif
+		rockchip_iovmm_activate(pservice->dev);
+#endif    
 }
 
 static inline bool reg_check_rmvb_wmv(vpu_reg *reg)
@@ -747,7 +760,9 @@ static inline int reg_probe_width(vpu_reg *reg)
 }
 
 #if defined(CONFIG_VCODEC_MMU)
-static int vcodec_bufid_to_iova(struct vpu_service_info *pservice, u8 *tbl, int size, vpu_reg *reg)
+static int vcodec_bufid_to_iova(struct vpu_service_info *pservice, u8 *tbl,
+				int size, vpu_reg *reg,
+				struct extra_info_for_iommu *ext_inf)
 {
 	int i;
 	int usr_fd = 0;
@@ -805,10 +820,20 @@ static int vcodec_bufid_to_iova(struct vpu_service_info *pservice, u8 *tbl, int 
 			list_add_tail(&mem_region->reg_lnk, &reg->mem_region_list);
 		}
 	}
+
+	if (ext_inf != NULL && ext_inf->magic == EXTRA_INFO_MAGIC) {
+		for (i=0; i<ext_inf->cnt; i++) {
+			pr_info("reg[%d] + offset %d\n", ext_inf->elem[i].index, ext_inf->elem[i].offset);
+			reg->reg[ext_inf->elem[i].index] += ext_inf->elem[i].offset;
+		}
+	}
+
 	return 0;
 }
 
-static int vcodec_reg_address_translate(struct vpu_service_info *pservice, vpu_reg *reg)
+static int vcodec_reg_address_translate(struct vpu_service_info *pservice,
+					vpu_reg *reg,
+					struct extra_info_for_iommu *ext_inf)
 {
 	VPU_HW_ID hw_id;
 	u8 *tbl;
@@ -867,7 +892,7 @@ static int vcodec_reg_address_translate(struct vpu_service_info *pservice, vpu_r
 	}
 
 	if (size != 0) {
-		return vcodec_bufid_to_iova(pservice, tbl, size, reg);
+		return vcodec_bufid_to_iova(pservice, tbl, size, reg, ext_inf);
 	} else {
 		return -1;
 	}
@@ -876,6 +901,8 @@ static int vcodec_reg_address_translate(struct vpu_service_info *pservice, vpu_r
 
 static vpu_reg *reg_init(struct vpu_service_info *pservice, vpu_session *session, void __user *src, unsigned long size)
 {
+	int extra_size = 0;
+	struct extra_info_for_iommu extra_info;
 	vpu_reg *reg = kmalloc(sizeof(vpu_reg)+pservice->reg_size, GFP_KERNEL);
 	if (NULL == reg) {
 		pr_err("error: kmalloc fail in reg_init\n");
@@ -883,7 +910,9 @@ static vpu_reg *reg_init(struct vpu_service_info *pservice, vpu_session *session
 	}
 
 	if (size > pservice->reg_size) {
-		printk("warning: vpu reg size %lu is larger than hw reg size %lu\n", size, pservice->reg_size);
+		/*printk("warning: vpu reg size %lu is larger than hw reg size %lu\n", size, pservice->reg_size);
+		size = pservice->reg_size;*/
+		extra_size = size - pservice->reg_size;
 		size = pservice->reg_size;
 	}
 	reg->session = session;
@@ -905,8 +934,14 @@ static vpu_reg *reg_init(struct vpu_service_info *pservice, vpu_session *session
 		return NULL;
 	}
 
+	if (copy_from_user(&extra_info, (u8 *)src + size, extra_size)) {
+		pr_err("error: copy_from_user failed in reg_init\n");
+		kfree(reg);
+		return NULL;
+	}
+
 #if defined(CONFIG_VCODEC_MMU)
-	if (pservice->mmu_dev && 0 > vcodec_reg_address_translate(pservice, reg)) {
+	if (pservice->mmu_dev && 0 > vcodec_reg_address_translate(pservice, reg, &extra_info)) {
 		pr_err("error: translate reg address failed\n");
 		kfree(reg);
 		return NULL;
@@ -986,7 +1021,7 @@ static void reg_from_wait_to_run(struct vpu_service_info *pservice, vpu_reg *reg
 	list_add_tail(&reg->session_link, &reg->session->running);
 }
 
-static void reg_copy_from_hw(struct vpu_service_info *pservice, vpu_reg *reg, volatile u32 *src, u32 count)
+static void reg_copy_from_hw(vpu_reg *reg, volatile u32 *src, u32 count)
 {
 	int i;
 	u32 *dst = (u32 *)&reg->reg[0];
@@ -1008,27 +1043,27 @@ static void reg_from_run_to_done(struct vpu_service_info *pservice, vpu_reg *reg
 	switch (reg->type) {
 	case VPU_ENC : {
 		pservice->reg_codec = NULL;
-		reg_copy_from_hw(pservice, reg, pservice->enc_dev.hwregs, pservice->hw_info->enc_reg_num);
+		reg_copy_from_hw(reg, pservice->enc_dev.hwregs, pservice->hw_info->enc_reg_num);
 		irq_reg = ENC_INTERRUPT_REGISTER;
 		break;
 	}
 	case VPU_DEC : {
 		int reg_len = pservice->hw_info->hw_id == HEVC_ID ? REG_NUM_HEVC_DEC : REG_NUM_9190_DEC;
 		pservice->reg_codec = NULL;
-		reg_copy_from_hw(pservice, reg, pservice->dec_dev.hwregs, reg_len);
+		reg_copy_from_hw(reg, pservice->dec_dev.hwregs, reg_len);
 		irq_reg = DEC_INTERRUPT_REGISTER;
 		break;
 	}
 	case VPU_PP : {
 		pservice->reg_pproc = NULL;
-		reg_copy_from_hw(pservice, reg, pservice->dec_dev.hwregs + PP_INTERRUPT_REGISTER, REG_NUM_9190_PP);
+		reg_copy_from_hw(reg, pservice->dec_dev.hwregs + PP_INTERRUPT_REGISTER, REG_NUM_9190_PP);
 		pservice->dec_dev.hwregs[PP_INTERRUPT_REGISTER] = 0;
 		break;
 	}
 	case VPU_DEC_PP : {
 		pservice->reg_codec = NULL;
 		pservice->reg_pproc = NULL;
-		reg_copy_from_hw(pservice, reg, pservice->dec_dev.hwregs, REG_NUM_9190_DEC_PP);
+		reg_copy_from_hw(reg, pservice->dec_dev.hwregs, REG_NUM_9190_DEC_PP);
 		pservice->dec_dev.hwregs[PP_INTERRUPT_REGISTER] = 0;
 		break;
 	}
@@ -1537,6 +1572,41 @@ static void simulate_start(struct vpu_service_info *pservice)
 }
 #endif
 
+#ifdef CONFIG_VCODEC_MMU
+static struct device *rockchip_get_sysmmu_device_by_compatible(const char *compt)
+{
+	struct device_node *dn = NULL;
+	struct platform_device *pd = NULL;
+	struct device *ret = NULL ;
+
+	dn = of_find_compatible_node(NULL,NULL,compt);
+	if(!dn) {
+		printk("can't find device node %s \r\n",compt);
+		return NULL;
+	}
+	
+	pd = of_find_device_by_node(dn);
+	if(!pd) {	
+		printk("can't find platform device in device node %s \r\n",compt);
+		return  NULL;
+	}
+	ret = &pd->dev;
+	
+	return ret;
+
+}
+#ifdef CONFIG_IOMMU_API
+static inline void platform_set_sysmmu(struct device *iommu, struct device *dev)
+{
+	dev->archdata.iommu = iommu;
+}
+#else
+static inline void platform_set_sysmmu(struct device *iommu, struct device *dev)
+{
+}
+#endif
+#endif
+
 #if HEVC_TEST_ENABLE
 static int hevc_test_case0(vpu_service_info *pservice);
 #endif
@@ -1727,15 +1797,15 @@ static int vcodec_probe(struct platform_device *pdev)
 		}
 
 		if (pservice->hw_info->hw_id == HEVC_ID)
-			sprintf(mmu_dev_dts_name, "iommu,hevc_mmu");
+			sprintf(mmu_dev_dts_name, HEVC_IOMMU_COMPATIBLE_NAME);
 		else
-			sprintf(mmu_dev_dts_name, "iommu,vpu_mmu");
+			sprintf(mmu_dev_dts_name, VPU_IOMMU_COMPATIBLE_NAME);
 
 		pservice->mmu_dev = rockchip_get_sysmmu_device_by_compatible(mmu_dev_dts_name);
 
 		if (pservice->mmu_dev) {
 			platform_set_sysmmu(pservice->mmu_dev, pservice->dev);
-			iovmm_activate(pservice->dev);
+			rockchip_iovmm_activate(pservice->dev);
 		}
 	}
 #endif
