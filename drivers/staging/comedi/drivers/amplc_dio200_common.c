@@ -979,18 +979,6 @@ static int dio200_subdev_timer_config(struct comedi_device *dev,
 	return ret < 0 ? ret : insn->n;
 }
 
-static int dio200_subdev_timer_init(struct comedi_device *dev,
-				    struct comedi_subdevice *s)
-{
-	s->type = COMEDI_SUBD_TIMER;
-	s->subdev_flags = SDF_READABLE | SDF_LSAMPL;
-	s->n_chan = 1;
-	s->maxdata = 0xFFFFFFFF;
-	s->insn_read = dio200_subdev_timer_read;
-	s->insn_config = dio200_subdev_timer_config;
-	return 0;
-}
-
 void amplc_dio200_set_enhance(struct comedi_device *dev, unsigned char val)
 {
 	dio200_write8(dev, DIO200_ENHANCE, val);
@@ -1040,9 +1028,12 @@ int amplc_dio200_common_attach(struct comedi_device *dev, unsigned int irq,
 			}
 			break;
 		case sd_timer:
-			ret = dio200_subdev_timer_init(dev, s);
-			if (ret < 0)
-				return ret;
+			s->type		= COMEDI_SUBD_TIMER;
+			s->subdev_flags	= SDF_READABLE | SDF_LSAMPL;
+			s->n_chan	= 1;
+			s->maxdata	= 0xffffffff;
+			s->insn_read	= dio200_subdev_timer_read;
+			s->insn_config	= dio200_subdev_timer_config;
 			break;
 		default:
 			s->type = COMEDI_SUBD_UNUSED;
