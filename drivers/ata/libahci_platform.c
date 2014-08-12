@@ -502,12 +502,7 @@ EXPORT_SYMBOL_GPL(ahci_platform_init_host);
 
 static void ahci_host_stop(struct ata_host *host)
 {
-	struct device *dev = host->dev;
-	struct ahci_platform_data *pdata = dev_get_platdata(dev);
 	struct ahci_host_priv *hpriv = host->private_data;
-
-	if (pdata && pdata->exit)
-		pdata->exit(dev);
 
 	ahci_platform_disable_resources(hpriv);
 }
@@ -592,7 +587,6 @@ EXPORT_SYMBOL_GPL(ahci_platform_resume_host);
  */
 int ahci_platform_suspend(struct device *dev)
 {
-	struct ahci_platform_data *pdata = dev_get_platdata(dev);
 	struct ata_host *host = dev_get_drvdata(dev);
 	struct ahci_host_priv *hpriv = host->private_data;
 	int rc;
@@ -601,19 +595,9 @@ int ahci_platform_suspend(struct device *dev)
 	if (rc)
 		return rc;
 
-	if (pdata && pdata->suspend) {
-		rc = pdata->suspend(dev);
-		if (rc)
-			goto resume_host;
-	}
-
 	ahci_platform_disable_resources(hpriv);
 
 	return 0;
-
-resume_host:
-	ahci_platform_resume_host(dev);
-	return rc;
 }
 EXPORT_SYMBOL_GPL(ahci_platform_suspend);
 
@@ -629,7 +613,6 @@ EXPORT_SYMBOL_GPL(ahci_platform_suspend);
  */
 int ahci_platform_resume(struct device *dev)
 {
-	struct ahci_platform_data *pdata = dev_get_platdata(dev);
 	struct ata_host *host = dev_get_drvdata(dev);
 	struct ahci_host_priv *hpriv = host->private_data;
 	int rc;
@@ -637,12 +620,6 @@ int ahci_platform_resume(struct device *dev)
 	rc = ahci_platform_enable_resources(hpriv);
 	if (rc)
 		return rc;
-
-	if (pdata && pdata->resume) {
-		rc = pdata->resume(dev);
-		if (rc)
-			goto disable_resources;
-	}
 
 	rc = ahci_platform_resume_host(dev);
 	if (rc)
