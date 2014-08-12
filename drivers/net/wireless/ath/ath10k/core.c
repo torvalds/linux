@@ -1043,14 +1043,18 @@ void ath10k_core_unregister(struct ath10k *ar)
 	if (!test_bit(ATH10K_FLAG_CORE_REGISTERED, &ar->dev_flags))
 		return;
 
+	/* Stop spectral before unregistering from mac80211 to remove the
+	 * relayfs debugfs file cleanly. Otherwise the parent debugfs tree
+	 * would be already be free'd recursively, leading to a double free.
+	 */
+	ath10k_spectral_destroy(ar);
+
 	/* We must unregister from mac80211 before we stop HTC and HIF.
 	 * Otherwise we will fail to submit commands to FW and mac80211 will be
 	 * unhappy about callback failures. */
 	ath10k_mac_unregister(ar);
 
 	ath10k_core_free_firmware_files(ar);
-
-	ath10k_spectral_destroy(ar);
 
 	ath10k_debug_destroy(ar);
 }
