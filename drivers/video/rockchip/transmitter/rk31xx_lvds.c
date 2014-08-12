@@ -117,9 +117,18 @@ static int rk31xx_lvds_disable(void)
 
         rk31xx_lvds_pwr_off();
 	rk31xx_lvds_clk_disable(lvds);
-        /*if (lvds->screen.type == SCREEN_RGB)
-                pinctrl_select_state(lvds->dev->pins->p,
-                                     lvds->dev->pins->sleep_state);*/
+
+#if !defined(CONFIG_RK_FPGA)
+        if (lvds->screen.type == SCREEN_RGB) {
+                if (lvds->dev->pins) {
+                        pinctrl_select_state(lvds->dev->pins->p,
+                                             lvds->dev->pins->sleep_state);
+                } else if (lvds->pins && !IS_ERR(lvds->pins->sleep_state)) {
+                        pinctrl_select_state(lvds->pins->p,
+                                             lvds->pins->sleep_state);
+                }
+        }
+#endif
         lvds->sys_state = false;
 	return 0;
 }
@@ -171,17 +180,16 @@ static void rk31xx_output_lvttl(struct rk_lvds_device *lvds,
                                 struct rk_screen *screen)
 {
         u32 val = 0;
-        //struct pinctrl_state *lcdc_state;
 
         /* iomux to lcdc */
-#if 1 /* defined(CONFIG_RK_FPGA) */
+#if defined(CONFIG_RK_FPGA)
         grf_writel(0xffff5555, RK312X_GRF_GPIO2B_IOMUX);
         grf_writel(0x00ff0055, RK312X_GRF_GPIO2C_IOMUX);
         grf_writel(0x77771111, 0x00e8); /* RK312X_GRF_GPIO2C_IOMUX2 */
         grf_writel(0x700c1004, RK312X_GRF_GPIO2D_IOMUX);
 #else
-        lcdc_state = pinctrl_lookup_state(lvds->dev->pins->p, "lcdc");
-        pinctrl_select_state(lvds->dev->pins->p, lcdc_state);
+        if (lvds->pins && !IS_ERR(lvds->pins->default_state))
+                pinctrl_select_state(lvds->pins->p, lvds->pins->default_state);
 #endif
 
 	val |= v_LVDSMODE_EN(0) | v_MIPIPHY_TTL_EN(1);  /* enable lvds mode */
@@ -274,6 +282,32 @@ static int rk31xx_lvds_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, lvds);
 	dev_set_name(lvds->dev, "rk31xx-lvds");
+
+        if (lvds->dev->pins == NULL && lvds->screen.type == SCREEN_RGB) {
+                lvds->pins = devm_kzalloc(lvds->dev, sizeof(*(lvds->pins)),
+                                          GFP_KERNEL);
+                if (!lvds->pins) {
+                        dev_err(lvds->dev, "kzalloc lvds pins failed\n");
+                        return -ENOMEM;
+                }
+
+                lvds->pins->p = devm_pinctrl_get(lvds->dev);
+                if (IS_ERR(lvds->pins->p)) {
+                        dev_info(lvds->dev, "no pinctrl handle\n");
+                        devm_kfree(lvds->dev, lvds->pins);
+                        lvds->pins = NULL;
+                } else {
+                        lvds->pins->default_state =
+                                pinctrl_lookup_state(lvds->pins->p, "lcdc");
+                        lvds->pins->sleep_state =
+                                pinctrl_lookup_state(lvds->pins->p, "sleep");
+                        if (IS_ERR(lvds->pins->default_state)) {
+                                dev_info(lvds->dev, "no default pinctrl state\n");
+                                devm_kfree(lvds->dev, lvds->pins);
+                                lvds->pins = NULL;
+                        }
+                }
+        }
 
         /* lvds regs on MIPIPHY_REG */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);

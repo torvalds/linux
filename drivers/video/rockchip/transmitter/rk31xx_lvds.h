@@ -106,6 +106,9 @@ struct rk_lvds_device {
 	struct rk_screen	screen;
 	bool			clk_on;
         bool                    sys_state;
+#ifdef CONFIG_PINCTRL
+	struct dev_pin_info	*pins;
+#endif
 };
 
 static inline int lvds_writel(struct rk_lvds_device *lvds, u32 offset, u32 val)
