@@ -311,10 +311,6 @@ static struct platform_device ipmmu_device = {
 	.num_resources  = ARRAY_SIZE(ipmmu_resources),
 };
 
-static struct platform_device *r8a7740_devices_dt[] __initdata = {
-	&cmt1_device,
-};
-
 static struct platform_device *r8a7740_early_devices[] __initdata = {
 	&scif0_device,
 	&scif1_device,
@@ -331,6 +327,7 @@ static struct platform_device *r8a7740_early_devices[] __initdata = {
 	&irqpin3_device,
 	&tmu0_device,
 	&ipmmu_device,
+	&cmt1_device,
 };
 
 /* DMA */
@@ -756,8 +753,6 @@ void __init r8a7740_add_standard_devices(void)
 	/* add devices */
 	platform_add_devices(r8a7740_early_devices,
 			    ARRAY_SIZE(r8a7740_early_devices));
-	platform_add_devices(r8a7740_devices_dt,
-			    ARRAY_SIZE(r8a7740_devices_dt));
 	platform_add_devices(r8a7740_late_devices,
 			     ARRAY_SIZE(r8a7740_late_devices));
 
@@ -779,8 +774,6 @@ void __init r8a7740_add_early_devices(void)
 {
 	early_platform_add_devices(r8a7740_early_devices,
 				   ARRAY_SIZE(r8a7740_early_devices));
-	early_platform_add_devices(r8a7740_devices_dt,
-				   ARRAY_SIZE(r8a7740_devices_dt));
 
 	/* setup early console here as well */
 	shmobile_setup_console();
@@ -790,8 +783,6 @@ void __init r8a7740_add_early_devices(void)
 
 void __init r8a7740_add_standard_devices_dt(void)
 {
-	platform_add_devices(r8a7740_devices_dt,
-			    ARRAY_SIZE(r8a7740_devices_dt));
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 }
 

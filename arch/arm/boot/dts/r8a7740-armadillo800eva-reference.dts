@@ -191,6 +191,10 @@
 	renesas,mode = <0x05>; /* MD_CK0 | MD_CK2 */
 };
 
+&cmt1 {
+	status = "ok";
+};
+
 &i2c0 {
 	status = "okay";
 	touchscreen@55 {
