@@ -246,6 +246,7 @@ int iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_rx_phy_info *phy_info;
 	struct iwl_rx_mpdu_res_start *rx_res;
+	struct ieee80211_sta *sta;
 	u32 len;
 	u32 ampdu_status;
 	u32 rate_n_flags;
@@ -259,23 +260,6 @@ int iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 		(pkt->data + sizeof(*rx_res) + len));
 
 	memset(&rx_status, 0, sizeof(rx_status));
-
-	/*
-	 * We have tx blocked stations (with CS bit). If we heard frames from
-	 * a blocked station on a new channel we can TX to it again.
-	 */
-	if (unlikely(mvm->csa_tx_block_bcn_timeout)) {
-		struct ieee80211_sta *sta;
-
-		rcu_read_lock();
-
-		sta = ieee80211_find_sta(
-			rcu_dereference(mvm->csa_tx_blocked_vif), hdr->addr2);
-		if (sta)
-			iwl_mvm_sta_modify_disable_tx_ap(mvm, sta, false);
-
-		rcu_read_unlock();
-	}
 
 	/*
 	 * drop the packet if it has failed being decrypted by HW
@@ -324,6 +308,29 @@ int iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 
 	IWL_DEBUG_STATS_LIMIT(mvm, "Rssi %d, TSF %llu\n", rx_status.signal,
 			      (unsigned long long)rx_status.mactime);
+
+	rcu_read_lock();
+	/*
+	 * We have tx blocked stations (with CS bit). If we heard frames from
+	 * a blocked station on a new channel we can TX to it again.
+	 */
+	if (unlikely(mvm->csa_tx_block_bcn_timeout)) {
+		sta = ieee80211_find_sta(
+			rcu_dereference(mvm->csa_tx_blocked_vif), hdr->addr2);
+		if (sta)
+			iwl_mvm_sta_modify_disable_tx_ap(mvm, sta, false);
+	}
+
+	/* This is fine since we don't support multiple AP interfaces */
+	sta = ieee80211_find_sta_by_ifaddr(mvm->hw, hdr->addr2, NULL);
+	if (sta) {
+		struct iwl_mvm_sta *mvmsta;
+		mvmsta = iwl_mvm_sta_from_mac80211(sta);
+		rs_update_last_rssi(mvm, &mvmsta->lq_sta,
+				    &rx_status);
+	}
+
+	rcu_read_unlock();
 
 	/* set the preamble flag if appropriate */
 	if (phy_info->phy_flags & cpu_to_le16(RX_RES_PHY_FLAGS_SHORT_PREAMBLE))

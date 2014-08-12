@@ -989,6 +989,9 @@ void iwl_mvm_update_frame_stats(struct iwl_mvm *mvm,
 				struct iwl_mvm_frame_stats *stats,
 				u32 rate, bool agg);
 int rs_pretty_print_rate(char *buf, const u32 rate);
+void rs_update_last_rssi(struct iwl_mvm *mvm,
+			 struct iwl_lq_sta *lq_sta,
+			 struct ieee80211_rx_status *rx_status);
 
 /* power management */
 int iwl_mvm_power_update_device(struct iwl_mvm *mvm);
