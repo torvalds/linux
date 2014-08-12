@@ -76,12 +76,6 @@ static void		dgnc_remove_one(struct pci_dev *dev);
 static int		dgnc_probe1(struct pci_dev *pdev, int card_type);
 static void		dgnc_do_remap(struct dgnc_board *brd);
 
-/* Driver load/unload functions */
-int		dgnc_init_module(void);
-void		dgnc_cleanup_module(void);
-
-module_init(dgnc_init_module);
-module_exit(dgnc_cleanup_module);
 
 
 /*
@@ -199,13 +193,49 @@ char *dgnc_driver_state_text[] = {
  *
  ************************************************************************/
 
+/*
+ * dgnc_cleanup_module()
+ *
+ * Module unload.  This is where it all ends.
+ */
+static void dgnc_cleanup_module(void)
+{
+	int i;
+	ulong lock_flags;
+
+	DGNC_LOCK(dgnc_poll_lock, lock_flags);
+	dgnc_poll_stop = 1;
+	DGNC_UNLOCK(dgnc_poll_lock, lock_flags);
+
+	/* Turn off poller right away. */
+	del_timer_sync(&dgnc_poll_timer);
+
+	dgnc_remove_driver_sysfiles(&dgnc_driver);
+
+	if (dgnc_Major_Control_Registered) {
+		device_destroy(dgnc_class, MKDEV(dgnc_Major, 0));
+		class_destroy(dgnc_class);
+		unregister_chrdev(dgnc_Major, "dgnc");
+	}
+
+	for (i = 0; i < dgnc_NumBoards; ++i) {
+		dgnc_remove_ports_sysfiles(dgnc_Board[i]);
+		dgnc_tty_uninit(dgnc_Board[i]);
+		dgnc_cleanup_board(dgnc_Board[i]);
+	}
+
+	dgnc_tty_post_uninit();
+
+	if (dgnc_NumBoards)
+		pci_unregister_driver(&dgnc_driver);
+}
 
 /*
  * init_module()
  *
  * Module load.  This is where it all starts.
  */
-int dgnc_init_module(void)
+static int __init dgnc_init_module(void)
 {
 	int rc = 0;
 
@@ -243,6 +273,8 @@ int dgnc_init_module(void)
 	return rc;
 }
 
+module_init(dgnc_init_module);
+module_exit(dgnc_cleanup_module);
 
 /*
  * Start of driver.
@@ -353,44 +385,6 @@ static void dgnc_remove_one(struct pci_dev *dev)
 {
 	/* Do Nothing */
 }
-
-/*
- * dgnc_cleanup_module()
- *
- * Module unload.  This is where it all ends.
- */
-void dgnc_cleanup_module(void)
-{
-	int i;
-	ulong lock_flags;
-
-	DGNC_LOCK(dgnc_poll_lock, lock_flags);
-	dgnc_poll_stop = 1;
-	DGNC_UNLOCK(dgnc_poll_lock, lock_flags);
-
-	/* Turn off poller right away. */
-	del_timer_sync(&dgnc_poll_timer);
-
-	dgnc_remove_driver_sysfiles(&dgnc_driver);
-
-	if (dgnc_Major_Control_Registered) {
-		device_destroy(dgnc_class, MKDEV(dgnc_Major, 0));
-		class_destroy(dgnc_class);
-		unregister_chrdev(dgnc_Major, "dgnc");
-	}
-
-	for (i = 0; i < dgnc_NumBoards; ++i) {
-		dgnc_remove_ports_sysfiles(dgnc_Board[i]);
-		dgnc_tty_uninit(dgnc_Board[i]);
-		dgnc_cleanup_board(dgnc_Board[i]);
-	}
-
-	dgnc_tty_post_uninit();
-
-	if (dgnc_NumBoards)
-		pci_unregister_driver(&dgnc_driver);
-}
-
 
 /*
  * dgnc_cleanup_board()
