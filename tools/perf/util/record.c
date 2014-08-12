@@ -14,6 +14,7 @@ static int perf_do_probe_api(setup_probe_fn_t fn, int cpu, const char *str)
 	struct perf_evsel *evsel;
 	unsigned long flags = perf_event_open_cloexec_flag();
 	int err = -EAGAIN, fd;
+	static pid_t pid = -1;
 
 	evlist = perf_evlist__new();
 	if (!evlist)
@@ -24,14 +25,22 @@ static int perf_do_probe_api(setup_probe_fn_t fn, int cpu, const char *str)
 
 	evsel = perf_evlist__first(evlist);
 
-	fd = sys_perf_event_open(&evsel->attr, -1, cpu, -1, flags);
-	if (fd < 0)
-		goto out_delete;
+	while (1) {
+		fd = sys_perf_event_open(&evsel->attr, pid, cpu, -1, flags);
+		if (fd < 0) {
+			if (pid == -1 && errno == EACCES) {
+				pid = 0;
+				continue;
+			}
+			goto out_delete;
+		}
+		break;
+	}
 	close(fd);
 
 	fn(evsel);
 
-	fd = sys_perf_event_open(&evsel->attr, -1, cpu, -1, flags);
+	fd = sys_perf_event_open(&evsel->attr, pid, cpu, -1, flags);
 	if (fd < 0) {
 		if (errno == EINVAL)
 			err = -EINVAL;
@@ -201,6 +210,7 @@ bool perf_evlist__can_select_event(struct perf_evlist *evlist, const char *str)
 	struct perf_evsel *evsel;
 	int err, fd, cpu;
 	bool ret = false;
+	pid_t pid = -1;
 
 	temp_evlist = perf_evlist__new();
 	if (!temp_evlist)
@@ -221,12 +231,20 @@ bool perf_evlist__can_select_event(struct perf_evlist *evlist, const char *str)
 		cpu = evlist->cpus->map[0];
 	}
 
-	fd = sys_perf_event_open(&evsel->attr, -1, cpu, -1,
-				 perf_event_open_cloexec_flag());
-	if (fd >= 0) {
-		close(fd);
-		ret = true;
+	while (1) {
+		fd = sys_perf_event_open(&evsel->attr, pid, cpu, -1,
+					 perf_event_open_cloexec_flag());
+		if (fd < 0) {
+			if (pid == -1 && errno == EACCES) {
+				pid = 0;
+				continue;
+			}
+			goto out_delete;
+		}
+		break;
 	}
+	close(fd);
+	ret = true;
 
 out_delete:
 	perf_evlist__delete(temp_evlist);
