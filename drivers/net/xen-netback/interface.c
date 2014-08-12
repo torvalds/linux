@@ -660,25 +660,6 @@ void xenvif_carrier_off(struct xenvif *vif)
 	rtnl_unlock();
 }
 
-static void xenvif_wait_unmap_timeout(struct xenvif_queue *queue,
-				      unsigned int worst_case_skb_lifetime)
-{
-	int i, unmap_timeout = 0;
-
-	for (i = 0; i < MAX_PENDING_REQS; ++i) {
-		if (queue->grant_tx_handle[i] != NETBACK_INVALID_HANDLE) {
-			unmap_timeout++;
-			schedule_timeout(msecs_to_jiffies(1000));
-			if (unmap_timeout > worst_case_skb_lifetime &&
-			    net_ratelimit())
-				netdev_err(queue->vif->dev,
-					   "Page still granted! Index: %x\n",
-					   i);
-			i = -1;
-		}
-	}
-}
-
 void xenvif_disconnect(struct xenvif *vif)
 {
 	struct xenvif_queue *queue = NULL;
@@ -731,21 +712,11 @@ void xenvif_free(struct xenvif *vif)
 	struct xenvif_queue *queue = NULL;
 	unsigned int num_queues = vif->num_queues;
 	unsigned int queue_index;
-	/* Here we want to avoid timeout messages if an skb can be legitimately
-	 * stuck somewhere else. Realistically this could be an another vif's
-	 * internal or QDisc queue. That another vif also has this
-	 * rx_drain_timeout_msecs timeout, so give it time to drain out.
-	 * Although if that other guest wakes up just before its timeout happens
-	 * and takes only one skb from QDisc, it can hold onto other skbs for a
-	 * longer period.
-	 */
-	unsigned int worst_case_skb_lifetime = (rx_drain_timeout_msecs/1000);
 
 	unregister_netdev(vif->dev);
 
 	for (queue_index = 0; queue_index < num_queues; ++queue_index) {
 		queue = &vif->queues[queue_index];
-		xenvif_wait_unmap_timeout(queue, worst_case_skb_lifetime);
 		xenvif_deinit_queue(queue);
 	}
 
