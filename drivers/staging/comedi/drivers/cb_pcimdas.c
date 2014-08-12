@@ -77,6 +77,7 @@ See http://www.mccdaq.com/PDFs/Manuals/pcim-das1602-16.pdf for more details.
  */
 struct cb_pcimdas_private {
 	/* base addresses */
+	unsigned long daqio;
 	unsigned long BADR3;
 
 	/* Used for AO readback */
@@ -143,7 +144,7 @@ static int cb_pcimdas_ai_rinsn(struct comedi_device *dev,
 	/* convert n samples */
 	for (n = 0; n < insn->n; n++) {
 		/* trigger conversion */
-		outw(0, dev->iobase + 0);
+		outw(0, devpriv->daqio + 0);
 
 		/* wait for conversion to end */
 		ret = comedi_timeout(dev, s, insn, cb_pcimdas_ai_eoc, 0);
@@ -151,7 +152,7 @@ static int cb_pcimdas_ai_rinsn(struct comedi_device *dev,
 			return ret;
 
 		/* read data */
-		data[n] = inw(dev->iobase + 0);
+		data[n] = inw(devpriv->daqio + 0);
 	}
 
 	/* return the number of samples read/written */
@@ -171,10 +172,10 @@ static int cb_pcimdas_ao_winsn(struct comedi_device *dev,
 	for (i = 0; i < insn->n; i++) {
 		switch (chan) {
 		case 0:
-			outw(data[i] & 0x0FFF, dev->iobase + DAC0_OFFSET);
+			outw(data[i] & 0x0FFF, devpriv->daqio + DAC0_OFFSET);
 			break;
 		case 1:
-			outw(data[i] & 0x0FFF, dev->iobase + DAC1_OFFSET);
+			outw(data[i] & 0x0FFF, devpriv->daqio + DAC1_OFFSET);
 			break;
 		default:
 			return -1;
@@ -208,7 +209,6 @@ static int cb_pcimdas_auto_attach(struct comedi_device *dev,
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	struct cb_pcimdas_private *devpriv;
 	struct comedi_subdevice *s;
-	unsigned long iobase_8255;
 	int ret;
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
@@ -219,9 +219,9 @@ static int cb_pcimdas_auto_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	dev->iobase = pci_resource_start(pcidev, 2);
+	devpriv->daqio = pci_resource_start(pcidev, 2);
 	devpriv->BADR3 = pci_resource_start(pcidev, 3);
-	iobase_8255 = pci_resource_start(pcidev, 4);
+	dev->iobase = pci_resource_start(pcidev, 4);
 
 	ret = comedi_alloc_subdevices(dev, 3);
 	if (ret)
@@ -252,7 +252,7 @@ static int cb_pcimdas_auto_attach(struct comedi_device *dev,
 
 	s = &dev->subdevices[2];
 	/* digital i/o subdevice */
-	ret = subdev_8255_init(dev, s, NULL, iobase_8255);
+	ret = subdev_8255_init(dev, s, NULL, dev->iobase);
 	if (ret)
 		return ret;
 
