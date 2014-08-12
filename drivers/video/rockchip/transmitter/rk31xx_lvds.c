@@ -117,9 +117,9 @@ static int rk31xx_lvds_disable(void)
 
         rk31xx_lvds_pwr_off();
 	rk31xx_lvds_clk_disable(lvds);
-        if (lvds->screen.type == SCREEN_RGB)
+        /*if (lvds->screen.type == SCREEN_RGB)
                 pinctrl_select_state(lvds->dev->pins->p,
-                                     lvds->dev->pins->sleep_state);
+                                     lvds->dev->pins->sleep_state);*/
         lvds->sys_state = false;
 	return 0;
 }
