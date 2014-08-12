@@ -21,8 +21,6 @@
  *
  */
 
-#define APCI1564_ADDRESS_RANGE				128
-
 /* Digital Input IRQ Function Selection */
 #define APCI1564_DI_INT_OR				(0 << 1)
 #define APCI1564_DI_INT_AND				(1 << 1)
@@ -32,10 +30,10 @@
 #define APCI1564_DI_INT_DISABLE				0xfffffffb
 
 /* Digital Output Interrupt Enable Disable. */
-#define APCI1564_DIGITAL_OP_VCC_INTERRUPT_ENABLE	0x1
-#define APCI1564_DIGITAL_OP_VCC_INTERRUPT_DISABLE	0xfffffffe
-#define APCI1564_DIGITAL_OP_CC_INTERRUPT_ENABLE		0x2
-#define APCI1564_DIGITAL_OP_CC_INTERRUPT_DISABLE	0xfffffffd
+#define APCI1564_DO_VCC_INT_ENABLE			0x1
+#define APCI1564_DO_VCC_INT_DISABLE			0xfffffffe
+#define APCI1564_DO_CC_INT_ENABLE			0x2
+#define APCI1564_DO_CC_IN_DISABLE			0xfffffffd
 
 /* TIMER COUNTER WATCHDOG DEFINES */
 #define ADDIDATA_TIMER					0
@@ -76,16 +74,16 @@
 #define APCI1564_TIMER_WARN_TIMEBASE_REG		0x64
 
 /*
- * dev>iobase Register Map
+ * dev->iobase Register Map
  */
-#define APCI1564_TCW_REG(x)				(0x00 + ((x) * 0x20))
-#define APCI1564_TCW_RELOAD_REG(x)			(0x04 + ((x) * 0x20))
-#define APCI1564_TCW_TIMEBASE_REG(x)			(0x08 + ((x) * 0x20))
-#define APCI1564_TCW_CTRL_REG(x)			(0x0c + ((x) * 0x20))
-#define APCI1564_TCW_STATUS_REG(x)			(0x10 + ((x) * 0x20))
-#define APCI1564_TCW_IRQ_REG(x)				(0x14 + ((x) * 0x20))
-#define APCI1564_TCW_WARN_TIMEVAL_REG(x)		(0x18 + ((x) * 0x20))
-#define APCI1564_TCW_WARN_TIMEBASE_REG(x)		(0x1c + ((x) * 0x20))
+#define APCI1564_COUNTER_REG(x)				(0x00 + ((x) * 0x20))
+#define APCI1564_COUNTER_RELOAD_REG(x)			(0x04 + ((x) * 0x20))
+#define APCI1564_COUNTER_TIMEBASE_REG(x)		(0x08 + ((x) * 0x20))
+#define APCI1564_COUNTER_CTRL_REG(x)			(0x0c + ((x) * 0x20))
+#define APCI1564_COUNTER_STATUS_REG(x)			(0x10 + ((x) * 0x20))
+#define APCI1564_COUNTER_IRQ_REG(x)			(0x14 + ((x) * 0x20))
+#define APCI1564_COUNTER_WARN_TIMEVAL_REG(x)		(0x18 + ((x) * 0x20))
+#define APCI1564_COUNTER_WARN_TIMEBASE_REG(x)		(0x1c + ((x) * 0x20))
 
 /*
  * Configures The Timer or Counter
@@ -121,14 +119,14 @@ static int apci1564_timer_config(struct comedi_device *dev,
 			outl(0x0, devpriv->amcc_iobase + APCI1564_DI_IRQ_REG);
 			outl(0x0, devpriv->amcc_iobase + APCI1564_DO_IRQ_REG);
 			outl(0x0, devpriv->amcc_iobase + APCI1564_WDOG_IRQ_REG);
-			outl(0x0,
-			     dev->iobase + APCI1564_TCW_IRQ_REG(APCI1564_COUNTER1));
-			outl(0x0,
-			     dev->iobase + APCI1564_TCW_IRQ_REG(APCI1564_COUNTER2));
-			outl(0x0,
-			     dev->iobase + APCI1564_TCW_IRQ_REG(APCI1564_COUNTER3));
-			outl(0x0,
-			     dev->iobase + APCI1564_TCW_IRQ_REG(APCI1564_COUNTER4));
+			outl(0x0, dev->iobase +
+			    APCI1564_COUNTER_IRQ_REG(APCI1564_COUNTER1));
+			outl(0x0, dev->iobase +
+			    APCI1564_COUNTER_IRQ_REG(APCI1564_COUNTER2));
+			outl(0x0, dev->iobase +
+			    APCI1564_COUNTER_IRQ_REG(APCI1564_COUNTER3));
+			outl(0x0, dev->iobase +
+			    APCI1564_COUNTER_IRQ_REG(APCI1564_COUNTER4));
 		} else {
 			/* disable Timer interrupt */
 			outl(0x0, devpriv->amcc_iobase + APCI1564_TIMER_CTRL_REG);
@@ -149,13 +147,16 @@ static int apci1564_timer_config(struct comedi_device *dev,
 		devpriv->mode_select_register = data[5];
 
 		/* First Stop The Counter */
-		ul_Command1 = inl(dev->iobase + APCI1564_TCW_CTRL_REG(data[5] - 1));
+		ul_Command1 = inl(dev->iobase +
+				 APCI1564_COUNTER_CTRL_REG(data[5] - 1));
 		ul_Command1 = ul_Command1 & 0xFFFFF9FEUL;
 		/* Stop The Timer */
-		outl(ul_Command1, dev->iobase + APCI1564_TCW_CTRL_REG(data[5] - 1));
+		outl(ul_Command1, dev->iobase +
+					APCI1564_COUNTER_CTRL_REG(data[5] - 1));
 
 		/* Set the reload value */
-		outl(data[3], dev->iobase + APCI1564_TCW_RELOAD_REG(data[5] - 1));
+		outl(data[3], dev->iobase +
+					APCI1564_COUNTER_RELOAD_REG(data[5] - 1));
 
 		/* Set the mode :             */
 		/* - Disable the hardware     */
@@ -168,15 +169,18 @@ static int apci1564_timer_config(struct comedi_device *dev,
 		ul_Command1 =
 			(ul_Command1 & 0xFFFC19E2UL) | 0x80000UL |
 			(unsigned int) ((unsigned int) data[4] << 16UL);
-		outl(ul_Command1, dev->iobase + APCI1564_TCW_CTRL_REG(data[5] - 1));
+		outl(ul_Command1, dev->iobase +
+					APCI1564_COUNTER_CTRL_REG(data[5] - 1));
 
 		/*  Enable or Disable Interrupt */
 		ul_Command1 = (ul_Command1 & 0xFFFFF9FD) | (data[1] << 1);
-		outl(ul_Command1, dev->iobase + APCI1564_TCW_CTRL_REG(data[5] - 1));
+		outl(ul_Command1, dev->iobase +
+					APCI1564_COUNTER_CTRL_REG(data[5] - 1));
 
 		/* Set the Up/Down selection */
 		ul_Command1 = (ul_Command1 & 0xFFFBF9FFUL) | (data[6] << 18);
-		outl(ul_Command1, dev->iobase + APCI1564_TCW_CTRL_REG(data[5] - 1));
+		outl(ul_Command1, dev->iobase +
+					APCI1564_COUNTER_CTRL_REG(data[5] - 1));
 	} else {
 		dev_err(dev->class_dev, "Invalid subdevice.\n");
 	}
@@ -214,7 +218,7 @@ static int apci1564_timer_write(struct comedi_device *dev,
 	} else if (devpriv->timer_select_mode == ADDIDATA_COUNTER) {
 		ul_Command1 =
 			inl(dev->iobase +
-			    APCI1564_TCW_CTRL_REG(devpriv->mode_select_register - 1));
+			   APCI1564_COUNTER_CTRL_REG(devpriv->mode_select_register - 1));
 		if (data[1] == 1) {
 			/* Start the Counter subdevice */
 			ul_Command1 = (ul_Command1 & 0xFFFFF9FFUL) | 0x1UL;
@@ -227,7 +231,7 @@ static int apci1564_timer_write(struct comedi_device *dev,
 			ul_Command1 = (ul_Command1 & 0xFFFFF9FFUL) | 0x400;
 		}
 		outl(ul_Command1, dev->iobase +
-		     APCI1564_TCW_CTRL_REG(devpriv->mode_select_register - 1));
+		     APCI1564_COUNTER_CTRL_REG(devpriv->mode_select_register - 1));
 	} else {
 		dev_err(dev->class_dev, "Invalid subdevice.\n");
 	}
@@ -255,10 +259,10 @@ static int apci1564_timer_read(struct comedi_device *dev,
 		/*  Read the Counter Actual Value. */
 		data[0] =
 			inl(dev->iobase +
-			    APCI1564_TCW_REG(devpriv->mode_select_register - 1));
+			    APCI1564_COUNTER_REG(devpriv->mode_select_register - 1));
 		ul_Command1 =
 			inl(dev->iobase +
-			    APCI1564_TCW_STATUS_REG(devpriv->mode_select_register - 1));
+			    APCI1564_COUNTER_STATUS_REG(devpriv->mode_select_register - 1));
 
 		/* Get the software trigger status */
 		data[1] = (unsigned char) ((ul_Command1 >> 1) & 1);
