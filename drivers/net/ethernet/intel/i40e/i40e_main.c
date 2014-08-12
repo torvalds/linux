@@ -5289,7 +5289,7 @@ static void i40e_fdir_reinit_subtask(struct i40e_pf *pf)
  **/
 static void i40e_vsi_link_event(struct i40e_vsi *vsi, bool link_up)
 {
-	if (!vsi)
+	if (!vsi || test_bit(__I40E_DOWN, &vsi->state))
 		return;
 
 	switch (vsi->type) {
