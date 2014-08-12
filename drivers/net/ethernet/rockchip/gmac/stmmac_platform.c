@@ -138,18 +138,18 @@ int stmmc_pltfr_init(struct platform_device *pdev) {
 	} else {
 		err = gpio_request(bsp_priv->power_io, "gmac_phy_power");
 		if (err) {
-			pr_err("%s: ERROR: Request gmac phy power pin failed.\n", __func__);
+			//pr_err("%s: ERROR: Request gmac phy power pin failed.\n", __func__);
 			//return -EINVAL;
 		}
 	}
 
 	if (!gpio_is_valid(bsp_priv->reset_io)) {
-		pr_err("%s: ERROR: Get reset-gpio failed.\n", __func__);
+		//pr_err("%s: ERROR: Get reset-gpio failed.\n", __func__);
 		//return -EINVAL;
 	} else {
 		err = gpio_request(bsp_priv->reset_io, "gmac_phy_reset");
 		if (err) {
-			pr_err("%s: ERROR: Request gmac phy reset pin failed.\n", __func__);
+			//pr_err("%s: ERROR: Request gmac phy reset pin failed.\n", __func__);
 			//return -EINVAL;
 		}
 	}
@@ -310,6 +310,21 @@ static int stmmac_probe_config_dt(struct platform_device *pdev,
 }
 #endif /* CONFIG_OF */
 
+static struct class *vmac_class = NULL;
+static CLASS_ATTR(exist, 0664, NULL, NULL);
+int rockchip_gmac_sysif_init(void)
+{
+       int ret;
+
+       vmac_class = class_create(THIS_MODULE, "vmac");
+       ret = class_create_file(vmac_class, &class_attr_exist);
+       if(ret) {
+           printk("%s: Fail to creat class\n",__func__);
+           return ret;
+       }
+       return 0;
+}
+
 /**
  * stmmac_pltfr_probe
  * @pdev: platform device pointer
@@ -393,6 +408,8 @@ static int stmmac_pltfr_probe(struct platform_device *pdev)
 	priv->lpi_irq = platform_get_irq_byname(pdev, "eth_lpi");
 
 	platform_set_drvdata(pdev, priv->dev);
+
+	rockchip_gmac_sysif_init();
 
 	pr_debug("STMMAC platform driver registration completed");
 
