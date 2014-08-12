@@ -389,7 +389,8 @@ static int dio200_pci_auto_attach(struct comedi_device *dev,
 
 static void dio200_pci_detach(struct comedi_device *dev)
 {
-	amplc_dio200_common_detach(dev);
+	if (dev->irq)
+		free_irq(dev->irq, dev);
 	if (dev->mmio)
 		iounmap(dev->mmio);
 	comedi_pci_disable(dev);

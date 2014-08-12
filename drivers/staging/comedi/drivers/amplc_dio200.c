@@ -257,17 +257,11 @@ static int dio200_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return amplc_dio200_common_attach(dev, it->options[1], 0);
 }
 
-static void dio200_detach(struct comedi_device *dev)
-{
-	amplc_dio200_common_detach(dev);
-	comedi_legacy_detach(dev);
-}
-
 static struct comedi_driver amplc_dio200_driver = {
 	.driver_name	= "amplc_dio200",
 	.module		= THIS_MODULE,
 	.attach		= dio200_attach,
-	.detach		= dio200_detach,
+	.detach		= comedi_legacy_detach,
 	.board_name	= &dio200_isa_boards[0].name,
 	.offset		= sizeof(struct dio200_board),
 	.num_names	= ARRAY_SIZE(dio200_isa_boards),

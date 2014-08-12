@@ -45,8 +45,6 @@ struct dio200_board {
 int amplc_dio200_common_attach(struct comedi_device *dev, unsigned int irq,
 			       unsigned long req_irq_flags);
 
-void amplc_dio200_common_detach(struct comedi_device *dev);
-
 /* Used by initialization of PCIe boards. */
 void amplc_dio200_set_enhance(struct comedi_device *dev, unsigned char val);
 

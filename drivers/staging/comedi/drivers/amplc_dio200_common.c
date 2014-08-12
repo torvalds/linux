@@ -1055,15 +1055,6 @@ int amplc_dio200_common_attach(struct comedi_device *dev, unsigned int irq,
 }
 EXPORT_SYMBOL_GPL(amplc_dio200_common_attach);
 
-void amplc_dio200_common_detach(struct comedi_device *dev)
-{
-	if (dev->irq) {
-		free_irq(dev->irq, dev);
-		dev->irq = 0;
-	}
-}
-EXPORT_SYMBOL_GPL(amplc_dio200_common_detach);
-
 static int __init amplc_dio200_common_init(void)
 {
 	return 0;
