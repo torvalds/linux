@@ -1405,8 +1405,7 @@ int labpc_common_attach(struct comedi_device *dev,
 		ret = subdev_8255_init(dev, s, labpc_8255_mmio,
 				       DIO_BASE_REG);
 	} else {
-		ret = subdev_8255_init(dev, s, NULL,
-				       dev->iobase + DIO_BASE_REG);
+		ret = subdev_8255_init(dev, s, NULL, DIO_BASE_REG);
 	}
 	if (ret)
 		return ret;

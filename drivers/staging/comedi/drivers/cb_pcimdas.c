@@ -252,7 +252,7 @@ static int cb_pcimdas_auto_attach(struct comedi_device *dev,
 
 	s = &dev->subdevices[2];
 	/* digital i/o subdevice */
-	ret = subdev_8255_init(dev, s, NULL, dev->iobase);
+	ret = subdev_8255_init(dev, s, NULL, 0x00);
 	if (ret)
 		return ret;
 

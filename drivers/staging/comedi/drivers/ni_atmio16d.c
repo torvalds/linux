@@ -722,7 +722,7 @@ static int atmio16d_attach(struct comedi_device *dev,
 	/* 8255 subdevice */
 	s = &dev->subdevices[3];
 	if (board->has_8255) {
-		ret = subdev_8255_init(dev, s, NULL, dev->iobase);
+		ret = subdev_8255_init(dev, s, NULL, 0x00);
 		if (ret)
 			return ret;
 	} else {

@@ -1528,7 +1528,7 @@ static int cb_pcidas_auto_attach(struct comedi_device *dev,
 
 	/* 8255 */
 	s = &dev->subdevices[2];
-	ret = subdev_8255_init(dev, s, NULL, dev->iobase + DIO_8255);
+	ret = subdev_8255_init(dev, s, NULL, DIO_8255);
 	if (ret)
 		return ret;
 

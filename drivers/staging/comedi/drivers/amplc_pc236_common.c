@@ -160,7 +160,7 @@ int amplc_pc236_common_attach(struct comedi_device *dev, unsigned long iobase,
 
 	s = &dev->subdevices[0];
 	/* digital i/o subdevice (8255) */
-	ret = subdev_8255_init(dev, s, NULL, iobase);
+	ret = subdev_8255_init(dev, s, NULL, 0x00);
 	if (ret)
 		return ret;
 

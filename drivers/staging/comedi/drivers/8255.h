@@ -24,11 +24,11 @@
 int subdev_8255_init(struct comedi_device *dev, struct comedi_subdevice *s,
 		     int (*io)(struct comedi_device *,
 			       int, int, int, unsigned long),
-		     unsigned long iobase);
+		     unsigned long regbase);
 int subdev_8255_init_irq(struct comedi_device *dev, struct comedi_subdevice *s,
 			 int (*io)(struct comedi_device *,
 				   int, int, int, unsigned long),
-			 unsigned long iobase);
+			 unsigned long regbase);
 void subdev_8255_interrupt(struct comedi_device *dev,
 			   struct comedi_subdevice *s);
 

@@ -247,15 +247,11 @@ static int pci_8255_auto_attach(struct comedi_device *dev,
 		return ret;
 
 	for (i = 0; i < board->n_8255; i++) {
-		unsigned long iobase;
-
 		s = &dev->subdevices[i];
-		if (is_mmio) {
+		if (is_mmio)
 			ret = subdev_8255_init(dev, s, pci_8255_mmio, i * 4);
-		} else {
-			iobase = dev->iobase + (i * 4);
-			ret = subdev_8255_init(dev, s, NULL, iobase);
-		}
+		else
+			ret = subdev_8255_init(dev, s, NULL, i * 4);
 		if (ret)
 			return ret;
 	}
