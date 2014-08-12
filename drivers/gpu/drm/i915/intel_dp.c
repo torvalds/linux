@@ -1453,6 +1453,27 @@ void intel_edp_backlight_off(struct intel_dp *intel_dp)
 	intel_panel_disable_backlight(intel_dp->attached_connector);
 }
 
+/*
+ * Hook for controlling the panel power control backlight through the bl_power
+ * sysfs attribute. Take care to handle multiple calls.
+ */
+static void intel_edp_backlight_power(struct intel_connector *connector,
+				      bool enable)
+{
+	struct intel_dp *intel_dp = intel_attached_dp(&connector->base);
+	bool is_enabled = ironlake_get_pp_control(intel_dp) & EDP_BLC_ENABLE;
+
+	if (is_enabled == enable)
+		return;
+
+	DRM_DEBUG_KMS("\n");
+
+	if (enable)
+		_intel_edp_backlight_on(intel_dp);
+	else
+		_intel_edp_backlight_off(intel_dp);
+}
+
 static void ironlake_edp_pll_on(struct intel_dp *intel_dp)
 {
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
@@ -4601,6 +4622,7 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 	}
 
 	intel_panel_init(&intel_connector->panel, fixed_mode, downclock_mode);
+	intel_connector->panel.backlight_power = intel_edp_backlight_power;
 	intel_panel_setup_backlight(connector);
 
 	return true;
