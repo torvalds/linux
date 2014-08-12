@@ -137,7 +137,8 @@ static unsigned char dio200_read8(struct comedi_device *dev,
 {
 	const struct dio200_board *board = comedi_board(dev);
 
-	offset <<= board->mainshift;
+	if (board->is_pcie)
+		offset <<= 3;
 
 	if (dev->mmio)
 		return readb(dev->mmio + offset);
@@ -149,7 +150,8 @@ static void dio200_write8(struct comedi_device *dev,
 {
 	const struct dio200_board *board = comedi_board(dev);
 
-	offset <<= board->mainshift;
+	if (board->is_pcie)
+		offset <<= 3;
 
 	if (dev->mmio)
 		writeb(val, dev->mmio + offset);
@@ -162,7 +164,8 @@ static unsigned int dio200_read32(struct comedi_device *dev,
 {
 	const struct dio200_board *board = comedi_board(dev);
 
-	offset <<= board->mainshift;
+	if (board->is_pcie)
+		offset <<= 3;
 
 	if (dev->mmio)
 		return readl(dev->mmio + offset);
@@ -174,7 +177,8 @@ static void dio200_write32(struct comedi_device *dev,
 {
 	const struct dio200_board *board = comedi_board(dev);
 
-	offset <<= board->mainshift;
+	if (board->is_pcie)
+		offset <<= 3;
 
 	if (dev->mmio)
 		writel(val, dev->mmio + offset);

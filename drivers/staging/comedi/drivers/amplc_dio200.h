@@ -34,7 +34,6 @@ enum dio200_sdtype { sd_none, sd_intr, sd_8255, sd_8254, sd_timer };
 struct dio200_board {
 	const char *name;
 	unsigned char mainbar;
-	unsigned char mainshift;
 	unsigned short n_subdevs;	/* number of subdevices */
 	unsigned char sdtype[DIO200_MAX_SUBDEVS];	/* enum dio200_sdtype */
 	unsigned char sdinfo[DIO200_MAX_SUBDEVS];	/* depends on sdtype */

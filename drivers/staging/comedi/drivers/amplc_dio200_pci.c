@@ -265,7 +265,6 @@ static const struct dio200_board dio200_pci_boards[] = {
 	[pcie215_model] = {
 		.name		= "pcie215",
 		.mainbar	= 1,
-		.mainshift	= 3,
 		.n_subdevs	= 8,
 		.sdtype		= {
 			sd_8255, sd_none, sd_8255, sd_none,
@@ -281,7 +280,6 @@ static const struct dio200_board dio200_pci_boards[] = {
 	[pcie236_model] = {
 		.name		= "pcie236",
 		.mainbar	= 1,
-		.mainshift	= 3,
 		.n_subdevs	= 8,
 		.sdtype		= {
 			sd_8255, sd_none, sd_none, sd_none,
@@ -297,7 +295,6 @@ static const struct dio200_board dio200_pci_boards[] = {
 	[pcie296_model] = {
 		.name		= "pcie296",
 		.mainbar	= 1,
-		.mainshift	= 3,
 		.n_subdevs	= 8,
 		.sdtype		= {
 			sd_8255, sd_8255, sd_8255, sd_8255,
