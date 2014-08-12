@@ -53,7 +53,7 @@ static void f2fs_write_end_io(struct bio *bio, int err)
 		struct page *page = bvec->bv_page;
 
 		if (unlikely(err)) {
-			SetPageError(page);
+			set_page_dirty(page);
 			set_bit(AS_EIO, &page->mapping->flags);
 			f2fs_stop_checkpoint(sbi);
 		}
@@ -836,8 +836,17 @@ write:
 
 	/* Dentry blocks are controlled by checkpoint */
 	if (S_ISDIR(inode->i_mode)) {
+		if (unlikely(f2fs_cp_error(sbi)))
+			goto redirty_out;
 		err = do_write_data_page(page, &fio);
 		goto done;
+	}
+
+	/* we should bypass data pages to proceed the kworkder jobs */
+	if (unlikely(f2fs_cp_error(sbi))) {
+		SetPageError(page);
+		unlock_page(page);
+		return 0;
 	}
 
 	if (!wbc->for_reclaim)

@@ -1215,6 +1215,8 @@ static int f2fs_write_node_page(struct page *page,
 
 	if (unlikely(sbi->por_doing))
 		goto redirty_out;
+	if (unlikely(f2fs_cp_error(sbi)))
+		goto redirty_out;
 
 	f2fs_wait_on_page_writeback(page, NODE);
 
