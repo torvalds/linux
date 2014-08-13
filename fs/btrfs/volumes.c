@@ -1868,6 +1868,8 @@ void btrfs_rm_dev_replace_srcdev(struct btrfs_fs_info *fs_info,
 			tmp_fs_devices = tmp_fs_devices->seed;
 		}
 		fs_devices->seed = NULL;
+		__btrfs_close_devices(fs_devices);
+		free_fs_devices(fs_devices);
 	}
 }
 
