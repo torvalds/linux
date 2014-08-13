@@ -1428,7 +1428,6 @@ static struct platform_driver cdns_uart_platform_driver = {
 	.probe   = cdns_uart_probe,
 	.remove  = cdns_uart_remove,
 	.driver  = {
-		.owner = THIS_MODULE,
 		.name = CDNS_UART_NAME,
 		.of_match_table = cdns_uart_of_match,
 		.pm = &cdns_uart_dev_pm_ops,
