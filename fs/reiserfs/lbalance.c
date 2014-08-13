@@ -899,8 +899,9 @@ void leaf_delete_items(struct buffer_info *cur_bi, int last_first,
 
 /* insert item into the leaf node in position before */
 void leaf_insert_into_buf(struct buffer_info *bi, int before,
-			  struct item_head *inserted_item_ih,
-			  const char *inserted_item_body, int zeros_number)
+			  struct item_head * const inserted_item_ih,
+			  const char * const inserted_item_body,
+			  int zeros_number)
 {
 	struct buffer_head *bh = bi->bi_bh;
 	int nr, free_space;
