@@ -21,18 +21,6 @@
 #include <linux/types.h>
 
 /*
- * XFS_BIG_BLKNOS needs block layer disk addresses to be 64 bits.
- * XFS_BIG_INUMS requires XFS_BIG_BLKNOS to be set.
- */
-#if defined(CONFIG_LBDAF) || (BITS_PER_LONG == 64)
-# define XFS_BIG_BLKNOS	1
-# define XFS_BIG_INUMS	1
-#else
-# define XFS_BIG_BLKNOS	0
-# define XFS_BIG_INUMS	0
-#endif
-
-/*
  * Kernel specific type declarations for XFS
  */
 typedef signed char		__int8_t;
@@ -113,7 +101,7 @@ typedef __uint64_t __psunsigned_t;
 #include <asm/byteorder.h>
 #include <asm/unaligned.h>
 
-#include "xfs_vnode.h"
+#include "xfs_fs.h"
 #include "xfs_stats.h"
 #include "xfs_sysctl.h"
 #include "xfs_iops.h"
@@ -190,6 +178,17 @@ typedef __uint64_t __psunsigned_t;
 #define MIN(a,b)	(min(a,b))
 #define MAX(a,b)	(max(a,b))
 #define howmany(x, y)	(((x)+((y)-1))/(y))
+
+/*
+ * XFS wrapper structure for sysfs support. It depends on external data
+ * structures and is embedded in various internal data structures to implement
+ * the XFS sysfs object heirarchy. Define it here for broad access throughout
+ * the codebase.
+ */
+struct xfs_kobj {
+	struct kobject		kobject;
+	struct completion	complete;
+};
 
 /* Kernel uid/gid conversion. These are used to convert to/from the on disk
  * uid_t/gid_t types to the kuid_t/kgid_t types that the kernel uses internally.
@@ -331,7 +330,7 @@ static inline __uint64_t roundup_64(__uint64_t x, __uint32_t y)
 {
 	x += y - 1;
 	do_div(x, y);
-	return(x * y);
+	return x * y;
 }
 
 static inline __uint64_t howmany_64(__uint64_t x, __uint32_t y)

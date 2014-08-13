@@ -722,8 +722,8 @@ xfs_trans_dqresv(
 error_return:
 	xfs_dqunlock(dqp);
 	if (flags & XFS_QMOPT_ENOSPC)
-		return ENOSPC;
-	return EDQUOT;
+		return -ENOSPC;
+	return -EDQUOT;
 }
 
 

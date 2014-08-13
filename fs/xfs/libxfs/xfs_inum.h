@@ -54,11 +54,7 @@ struct xfs_mount;
 #define	XFS_OFFBNO_TO_AGINO(mp,b,o)	\
 	((xfs_agino_t)(((b) << XFS_INO_OFFSET_BITS(mp)) | (o)))
 
-#if XFS_BIG_INUMS
 #define	XFS_MAXINUMBER		((xfs_ino_t)((1ULL << 56) - 1ULL))
-#else
-#define	XFS_MAXINUMBER		((xfs_ino_t)((1ULL << 32) - 1ULL))
-#endif
 #define	XFS_MAXINUMBER_32	((xfs_ino_t)((1ULL << 32) - 1ULL))
 
 #endif	/* __XFS_INUM_H__ */

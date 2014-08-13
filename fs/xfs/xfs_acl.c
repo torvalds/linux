@@ -152,7 +152,7 @@ xfs_get_acl(struct inode *inode, int type)
 	if (!xfs_acl)
 		return ERR_PTR(-ENOMEM);
 
-	error = -xfs_attr_get(ip, ea_name, (unsigned char *)xfs_acl,
+	error = xfs_attr_get(ip, ea_name, (unsigned char *)xfs_acl,
 							&len, ATTR_ROOT);
 	if (error) {
 		/*
@@ -210,7 +210,7 @@ __xfs_set_acl(struct inode *inode, int type, struct posix_acl *acl)
 		len -= sizeof(struct xfs_acl_entry) *
 			 (XFS_ACL_MAX_ENTRIES(ip->i_mount) - acl->a_count);
 
-		error = -xfs_attr_set(ip, ea_name, (unsigned char *)xfs_acl,
+		error = xfs_attr_set(ip, ea_name, (unsigned char *)xfs_acl,
 				len, ATTR_ROOT);
 
 		kmem_free(xfs_acl);
@@ -218,7 +218,7 @@ __xfs_set_acl(struct inode *inode, int type, struct posix_acl *acl)
 		/*
 		 * A NULL ACL argument means we want to remove the ACL.
 		 */
-		error = -xfs_attr_remove(ip, ea_name, ATTR_ROOT);
+		error = xfs_attr_remove(ip, ea_name, ATTR_ROOT);
 
 		/*
 		 * If the attribute didn't exist to start with that's fine.
@@ -244,7 +244,7 @@ xfs_set_mode(struct inode *inode, umode_t mode)
 		iattr.ia_mode = mode;
 		iattr.ia_ctime = current_fs_time(inode->i_sb);
 
-		error = -xfs_setattr_nonsize(XFS_I(inode), &iattr, XFS_ATTR_NOACL);
+		error = xfs_setattr_nonsize(XFS_I(inode), &iattr, XFS_ATTR_NOACL);
 	}
 
 	return error;

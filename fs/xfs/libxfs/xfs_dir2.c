@@ -108,7 +108,7 @@ xfs_da_mount(
 	if (!mp->m_dir_geo || !mp->m_attr_geo) {
 		kmem_free(mp->m_dir_geo);
 		kmem_free(mp->m_attr_geo);
-		return ENOMEM;
+		return -ENOMEM;
 	}
 
 	/* set up directory geometry */
@@ -202,7 +202,7 @@ xfs_dir_ino_validate(
 		xfs_warn(mp, "Invalid inode number 0x%Lx",
 				(unsigned long long) ino);
 		XFS_ERROR_REPORT("xfs_dir_ino_validate", XFS_ERRLEVEL_LOW, mp);
-		return XFS_ERROR(EFSCORRUPTED);
+		return -EFSCORRUPTED;
 	}
 	return 0;
 }
@@ -226,7 +226,7 @@ xfs_dir_init(
 
 	args = kmem_zalloc(sizeof(*args), KM_SLEEP | KM_NOFS);
 	if (!args)
-		return ENOMEM;
+		return -ENOMEM;
 
 	args->geo = dp->i_mount->m_dir_geo;
 	args->dp = dp;
@@ -261,7 +261,7 @@ xfs_dir_createname(
 
 	args = kmem_zalloc(sizeof(*args), KM_SLEEP | KM_NOFS);
 	if (!args)
-		return ENOMEM;
+		return -ENOMEM;
 
 	args->geo = dp->i_mount->m_dir_geo;
 	args->name = name->name;
@@ -314,18 +314,18 @@ xfs_dir_cilookup_result(
 	int		len)
 {
 	if (args->cmpresult == XFS_CMP_DIFFERENT)
-		return ENOENT;
+		return -ENOENT;
 	if (args->cmpresult != XFS_CMP_CASE ||
 					!(args->op_flags & XFS_DA_OP_CILOOKUP))
-		return EEXIST;
+		return -EEXIST;
 
 	args->value = kmem_alloc(len, KM_NOFS | KM_MAYFAIL);
 	if (!args->value)
-		return ENOMEM;
+		return -ENOMEM;
 
 	memcpy(args->value, name, len);
 	args->valuelen = len;
-	return EEXIST;
+	return -EEXIST;
 }
 
 /*
@@ -392,7 +392,7 @@ xfs_dir_lookup(
 		rval = xfs_dir2_node_lookup(args);
 
 out_check_rval:
-	if (rval == EEXIST)
+	if (rval == -EEXIST)
 		rval = 0;
 	if (!rval) {
 		*inum = args->inumber;
@@ -428,7 +428,7 @@ xfs_dir_removename(
 
 	args = kmem_zalloc(sizeof(*args), KM_SLEEP | KM_NOFS);
 	if (!args)
-		return ENOMEM;
+		return -ENOMEM;
 
 	args->geo = dp->i_mount->m_dir_geo;
 	args->name = name->name;
@@ -493,7 +493,7 @@ xfs_dir_replace(
 
 	args = kmem_zalloc(sizeof(*args), KM_SLEEP | KM_NOFS);
 	if (!args)
-		return ENOMEM;
+		return -ENOMEM;
 
 	args->geo = dp->i_mount->m_dir_geo;
 	args->name = name->name;
@@ -555,7 +555,7 @@ xfs_dir_canenter(
 
 	args = kmem_zalloc(sizeof(*args), KM_SLEEP | KM_NOFS);
 	if (!args)
-		return ENOMEM;
+		return -ENOMEM;
 
 	args->geo = dp->i_mount->m_dir_geo;
 	args->name = name->name;

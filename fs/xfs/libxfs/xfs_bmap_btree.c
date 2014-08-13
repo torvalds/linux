@@ -111,23 +111,8 @@ __xfs_bmbt_get_all(
 	ext_flag = (int)(l0 >> (64 - BMBT_EXNTFLAG_BITLEN));
 	s->br_startoff = ((xfs_fileoff_t)l0 &
 			   xfs_mask64lo(64 - BMBT_EXNTFLAG_BITLEN)) >> 9;
-#if XFS_BIG_BLKNOS
 	s->br_startblock = (((xfs_fsblock_t)l0 & xfs_mask64lo(9)) << 43) |
 			   (((xfs_fsblock_t)l1) >> 21);
-#else
-#ifdef DEBUG
-	{
-		xfs_dfsbno_t	b;
-
-		b = (((xfs_dfsbno_t)l0 & xfs_mask64lo(9)) << 43) |
-		    (((xfs_dfsbno_t)l1) >> 21);
-		ASSERT((b >> 32) == 0 || isnulldstartblock(b));
-		s->br_startblock = (xfs_fsblock_t)b;
-	}
-#else	/* !DEBUG */
-	s->br_startblock = (xfs_fsblock_t)(((xfs_dfsbno_t)l1) >> 21);
-#endif	/* DEBUG */
-#endif	/* XFS_BIG_BLKNOS */
 	s->br_blockcount = (xfs_filblks_t)(l1 & xfs_mask64lo(21));
 	/* This is xfs_extent_state() in-line */
 	if (ext_flag) {
@@ -163,21 +148,8 @@ xfs_fsblock_t
 xfs_bmbt_get_startblock(
 	xfs_bmbt_rec_host_t	*r)
 {
-#if XFS_BIG_BLKNOS
 	return (((xfs_fsblock_t)r->l0 & xfs_mask64lo(9)) << 43) |
 	       (((xfs_fsblock_t)r->l1) >> 21);
-#else
-#ifdef DEBUG
-	xfs_dfsbno_t	b;
-
-	b = (((xfs_dfsbno_t)r->l0 & xfs_mask64lo(9)) << 43) |
-	    (((xfs_dfsbno_t)r->l1) >> 21);
-	ASSERT((b >> 32) == 0 || isnulldstartblock(b));
-	return (xfs_fsblock_t)b;
-#else	/* !DEBUG */
-	return (xfs_fsblock_t)(((xfs_dfsbno_t)r->l1) >> 21);
-#endif	/* DEBUG */
-#endif	/* XFS_BIG_BLKNOS */
 }
 
 /*
@@ -241,7 +213,6 @@ xfs_bmbt_set_allf(
 	ASSERT((startoff & xfs_mask64hi(64-BMBT_STARTOFF_BITLEN)) == 0);
 	ASSERT((blockcount & xfs_mask64hi(64-BMBT_BLOCKCOUNT_BITLEN)) == 0);
 
-#if XFS_BIG_BLKNOS
 	ASSERT((startblock & xfs_mask64hi(64-BMBT_STARTBLOCK_BITLEN)) == 0);
 
 	r->l0 = ((xfs_bmbt_rec_base_t)extent_flag << 63) |
@@ -250,23 +221,6 @@ xfs_bmbt_set_allf(
 	r->l1 = ((xfs_bmbt_rec_base_t)startblock << 21) |
 		((xfs_bmbt_rec_base_t)blockcount &
 		(xfs_bmbt_rec_base_t)xfs_mask64lo(21));
-#else	/* !XFS_BIG_BLKNOS */
-	if (isnullstartblock(startblock)) {
-		r->l0 = ((xfs_bmbt_rec_base_t)extent_flag << 63) |
-			((xfs_bmbt_rec_base_t)startoff << 9) |
-			 (xfs_bmbt_rec_base_t)xfs_mask64lo(9);
-		r->l1 = xfs_mask64hi(11) |
-			  ((xfs_bmbt_rec_base_t)startblock << 21) |
-			  ((xfs_bmbt_rec_base_t)blockcount &
-			   (xfs_bmbt_rec_base_t)xfs_mask64lo(21));
-	} else {
-		r->l0 = ((xfs_bmbt_rec_base_t)extent_flag << 63) |
-			((xfs_bmbt_rec_base_t)startoff << 9);
-		r->l1 = ((xfs_bmbt_rec_base_t)startblock << 21) |
-			 ((xfs_bmbt_rec_base_t)blockcount &
-			 (xfs_bmbt_rec_base_t)xfs_mask64lo(21));
-	}
-#endif	/* XFS_BIG_BLKNOS */
 }
 
 /*
@@ -298,8 +252,6 @@ xfs_bmbt_disk_set_allf(
 	ASSERT(state == XFS_EXT_NORM || state == XFS_EXT_UNWRITTEN);
 	ASSERT((startoff & xfs_mask64hi(64-BMBT_STARTOFF_BITLEN)) == 0);
 	ASSERT((blockcount & xfs_mask64hi(64-BMBT_BLOCKCOUNT_BITLEN)) == 0);
-
-#if XFS_BIG_BLKNOS
 	ASSERT((startblock & xfs_mask64hi(64-BMBT_STARTBLOCK_BITLEN)) == 0);
 
 	r->l0 = cpu_to_be64(
@@ -310,26 +262,6 @@ xfs_bmbt_disk_set_allf(
 		((xfs_bmbt_rec_base_t)startblock << 21) |
 		 ((xfs_bmbt_rec_base_t)blockcount &
 		  (xfs_bmbt_rec_base_t)xfs_mask64lo(21)));
-#else	/* !XFS_BIG_BLKNOS */
-	if (isnullstartblock(startblock)) {
-		r->l0 = cpu_to_be64(
-			((xfs_bmbt_rec_base_t)extent_flag << 63) |
-			 ((xfs_bmbt_rec_base_t)startoff << 9) |
-			  (xfs_bmbt_rec_base_t)xfs_mask64lo(9));
-		r->l1 = cpu_to_be64(xfs_mask64hi(11) |
-			  ((xfs_bmbt_rec_base_t)startblock << 21) |
-			  ((xfs_bmbt_rec_base_t)blockcount &
-			   (xfs_bmbt_rec_base_t)xfs_mask64lo(21)));
-	} else {
-		r->l0 = cpu_to_be64(
-			((xfs_bmbt_rec_base_t)extent_flag << 63) |
-			 ((xfs_bmbt_rec_base_t)startoff << 9));
-		r->l1 = cpu_to_be64(
-			((xfs_bmbt_rec_base_t)startblock << 21) |
-			 ((xfs_bmbt_rec_base_t)blockcount &
-			  (xfs_bmbt_rec_base_t)xfs_mask64lo(21)));
-	}
-#endif	/* XFS_BIG_BLKNOS */
 }
 
 /*
@@ -365,24 +297,11 @@ xfs_bmbt_set_startblock(
 	xfs_bmbt_rec_host_t *r,
 	xfs_fsblock_t	v)
 {
-#if XFS_BIG_BLKNOS
 	ASSERT((v & xfs_mask64hi(12)) == 0);
 	r->l0 = (r->l0 & (xfs_bmbt_rec_base_t)xfs_mask64hi(55)) |
 		  (xfs_bmbt_rec_base_t)(v >> 43);
 	r->l1 = (r->l1 & (xfs_bmbt_rec_base_t)xfs_mask64lo(21)) |
 		  (xfs_bmbt_rec_base_t)(v << 21);
-#else	/* !XFS_BIG_BLKNOS */
-	if (isnullstartblock(v)) {
-		r->l0 |= (xfs_bmbt_rec_base_t)xfs_mask64lo(9);
-		r->l1 = (xfs_bmbt_rec_base_t)xfs_mask64hi(11) |
-			  ((xfs_bmbt_rec_base_t)v << 21) |
-			  (r->l1 & (xfs_bmbt_rec_base_t)xfs_mask64lo(21));
-	} else {
-		r->l0 &= ~(xfs_bmbt_rec_base_t)xfs_mask64lo(9);
-		r->l1 = ((xfs_bmbt_rec_base_t)v << 21) |
-			  (r->l1 & (xfs_bmbt_rec_base_t)xfs_mask64lo(21));
-	}
-#endif	/* XFS_BIG_BLKNOS */
 }
 
 /*
@@ -438,8 +357,8 @@ xfs_bmbt_to_bmdr(
 		       cpu_to_be64(XFS_BUF_DADDR_NULL));
 	} else
 		ASSERT(rblock->bb_magic == cpu_to_be32(XFS_BMAP_MAGIC));
-	ASSERT(rblock->bb_u.l.bb_leftsib == cpu_to_be64(NULLDFSBNO));
-	ASSERT(rblock->bb_u.l.bb_rightsib == cpu_to_be64(NULLDFSBNO));
+	ASSERT(rblock->bb_u.l.bb_leftsib == cpu_to_be64(NULLFSBLOCK));
+	ASSERT(rblock->bb_u.l.bb_rightsib == cpu_to_be64(NULLFSBLOCK));
 	ASSERT(rblock->bb_level != 0);
 	dblock->bb_level = rblock->bb_level;
 	dblock->bb_numrecs = rblock->bb_numrecs;
@@ -554,7 +473,7 @@ xfs_bmbt_alloc_block(
 	args.minlen = args.maxlen = args.prod = 1;
 	args.wasdel = cur->bc_private.b.flags & XFS_BTCUR_BPRV_WASDEL;
 	if (!args.wasdel && xfs_trans_get_block_res(args.tp) == 0) {
-		error = XFS_ERROR(ENOSPC);
+		error = -ENOSPC;
 		goto error0;
 	}
 	error = xfs_alloc_vextent(&args);
@@ -763,11 +682,11 @@ xfs_bmbt_verify(
 
 	/* sibling pointer verification */
 	if (!block->bb_u.l.bb_leftsib ||
-	    (block->bb_u.l.bb_leftsib != cpu_to_be64(NULLDFSBNO) &&
+	    (block->bb_u.l.bb_leftsib != cpu_to_be64(NULLFSBLOCK) &&
 	     !XFS_FSB_SANITY_CHECK(mp, be64_to_cpu(block->bb_u.l.bb_leftsib))))
 		return false;
 	if (!block->bb_u.l.bb_rightsib ||
-	    (block->bb_u.l.bb_rightsib != cpu_to_be64(NULLDFSBNO) &&
+	    (block->bb_u.l.bb_rightsib != cpu_to_be64(NULLFSBLOCK) &&
 	     !XFS_FSB_SANITY_CHECK(mp, be64_to_cpu(block->bb_u.l.bb_rightsib))))
 		return false;
 
@@ -779,9 +698,9 @@ xfs_bmbt_read_verify(
 	struct xfs_buf	*bp)
 {
 	if (!xfs_btree_lblock_verify_crc(bp))
-		xfs_buf_ioerror(bp, EFSBADCRC);
+		xfs_buf_ioerror(bp, -EFSBADCRC);
 	else if (!xfs_bmbt_verify(bp))
-		xfs_buf_ioerror(bp, EFSCORRUPTED);
+		xfs_buf_ioerror(bp, -EFSCORRUPTED);
 
 	if (bp->b_error) {
 		trace_xfs_btree_corrupt(bp, _RET_IP_);
@@ -795,7 +714,7 @@ xfs_bmbt_write_verify(
 {
 	if (!xfs_bmbt_verify(bp)) {
 		trace_xfs_btree_corrupt(bp, _RET_IP_);
-		xfs_buf_ioerror(bp, EFSCORRUPTED);
+		xfs_buf_ioerror(bp, -EFSCORRUPTED);
 		xfs_verifier_error(bp);
 		return;
 	}
@@ -959,7 +878,7 @@ xfs_bmbt_change_owner(
 
 	cur = xfs_bmbt_init_cursor(ip->i_mount, tp, ip, whichfork);
 	if (!cur)
-		return ENOMEM;
+		return -ENOMEM;
 
 	error = xfs_btree_change_owner(cur, new_owner, buffer_list);
 	xfs_btree_del_cursor(cur, error ? XFS_BTREE_ERROR : XFS_BTREE_NOERROR);

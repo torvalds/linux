@@ -78,11 +78,11 @@ xfs_btree_check_lblock(
 		be16_to_cpu(block->bb_numrecs) <=
 			cur->bc_ops->get_maxrecs(cur, level) &&
 		block->bb_u.l.bb_leftsib &&
-		(block->bb_u.l.bb_leftsib == cpu_to_be64(NULLDFSBNO) ||
+		(block->bb_u.l.bb_leftsib == cpu_to_be64(NULLFSBLOCK) ||
 		 XFS_FSB_SANITY_CHECK(mp,
 			be64_to_cpu(block->bb_u.l.bb_leftsib))) &&
 		block->bb_u.l.bb_rightsib &&
-		(block->bb_u.l.bb_rightsib == cpu_to_be64(NULLDFSBNO) ||
+		(block->bb_u.l.bb_rightsib == cpu_to_be64(NULLFSBLOCK) ||
 		 XFS_FSB_SANITY_CHECK(mp,
 			be64_to_cpu(block->bb_u.l.bb_rightsib)));
 
@@ -92,7 +92,7 @@ xfs_btree_check_lblock(
 		if (bp)
 			trace_xfs_btree_corrupt(bp, _RET_IP_);
 		XFS_ERROR_REPORT(__func__, XFS_ERRLEVEL_LOW, mp);
-		return XFS_ERROR(EFSCORRUPTED);
+		return -EFSCORRUPTED;
 	}
 	return 0;
 }
@@ -140,7 +140,7 @@ xfs_btree_check_sblock(
 		if (bp)
 			trace_xfs_btree_corrupt(bp, _RET_IP_);
 		XFS_ERROR_REPORT(__func__, XFS_ERRLEVEL_LOW, mp);
-		return XFS_ERROR(EFSCORRUPTED);
+		return -EFSCORRUPTED;
 	}
 	return 0;
 }
@@ -167,12 +167,12 @@ xfs_btree_check_block(
 int					/* error (0 or EFSCORRUPTED) */
 xfs_btree_check_lptr(
 	struct xfs_btree_cur	*cur,	/* btree cursor */
-	xfs_dfsbno_t		bno,	/* btree block disk address */
+	xfs_fsblock_t		bno,	/* btree block disk address */
 	int			level)	/* btree block level */
 {
 	XFS_WANT_CORRUPTED_RETURN(
 		level > 0 &&
-		bno != NULLDFSBNO &&
+		bno != NULLFSBLOCK &&
 		XFS_FSB_SANITY_CHECK(cur->bc_mp, bno));
 	return 0;
 }
@@ -595,7 +595,7 @@ xfs_btree_islastblock(
 	block = xfs_btree_get_block(cur, level, &bp);
 	xfs_btree_check_block(cur, block, level, bp);
 	if (cur->bc_flags & XFS_BTREE_LONG_PTRS)
-		return block->bb_u.l.bb_rightsib == cpu_to_be64(NULLDFSBNO);
+		return block->bb_u.l.bb_rightsib == cpu_to_be64(NULLFSBLOCK);
 	else
 		return block->bb_u.s.bb_rightsib == cpu_to_be32(NULLAGBLOCK);
 }
@@ -771,16 +771,16 @@ xfs_btree_readahead_lblock(
 	struct xfs_btree_block	*block)
 {
 	int			rval = 0;
-	xfs_dfsbno_t		left = be64_to_cpu(block->bb_u.l.bb_leftsib);
-	xfs_dfsbno_t		right = be64_to_cpu(block->bb_u.l.bb_rightsib);
+	xfs_fsblock_t		left = be64_to_cpu(block->bb_u.l.bb_leftsib);
+	xfs_fsblock_t		right = be64_to_cpu(block->bb_u.l.bb_rightsib);
 
-	if ((lr & XFS_BTCUR_LEFTRA) && left != NULLDFSBNO) {
+	if ((lr & XFS_BTCUR_LEFTRA) && left != NULLFSBLOCK) {
 		xfs_btree_reada_bufl(cur->bc_mp, left, 1,
 				     cur->bc_ops->buf_ops);
 		rval++;
 	}
 
-	if ((lr & XFS_BTCUR_RIGHTRA) && right != NULLDFSBNO) {
+	if ((lr & XFS_BTCUR_RIGHTRA) && right != NULLFSBLOCK) {
 		xfs_btree_reada_bufl(cur->bc_mp, right, 1,
 				     cur->bc_ops->buf_ops);
 		rval++;
@@ -852,7 +852,7 @@ xfs_btree_ptr_to_daddr(
 	union xfs_btree_ptr	*ptr)
 {
 	if (cur->bc_flags & XFS_BTREE_LONG_PTRS) {
-		ASSERT(ptr->l != cpu_to_be64(NULLDFSBNO));
+		ASSERT(ptr->l != cpu_to_be64(NULLFSBLOCK));
 
 		return XFS_FSB_TO_DADDR(cur->bc_mp, be64_to_cpu(ptr->l));
 	} else {
@@ -900,9 +900,9 @@ xfs_btree_setbuf(
 
 	b = XFS_BUF_TO_BLOCK(bp);
 	if (cur->bc_flags & XFS_BTREE_LONG_PTRS) {
-		if (b->bb_u.l.bb_leftsib == cpu_to_be64(NULLDFSBNO))
+		if (b->bb_u.l.bb_leftsib == cpu_to_be64(NULLFSBLOCK))
 			cur->bc_ra[lev] |= XFS_BTCUR_LEFTRA;
-		if (b->bb_u.l.bb_rightsib == cpu_to_be64(NULLDFSBNO))
+		if (b->bb_u.l.bb_rightsib == cpu_to_be64(NULLFSBLOCK))
 			cur->bc_ra[lev] |= XFS_BTCUR_RIGHTRA;
 	} else {
 		if (b->bb_u.s.bb_leftsib == cpu_to_be32(NULLAGBLOCK))
@@ -918,7 +918,7 @@ xfs_btree_ptr_is_null(
 	union xfs_btree_ptr	*ptr)
 {
 	if (cur->bc_flags & XFS_BTREE_LONG_PTRS)
-		return ptr->l == cpu_to_be64(NULLDFSBNO);
+		return ptr->l == cpu_to_be64(NULLFSBLOCK);
 	else
 		return ptr->s == cpu_to_be32(NULLAGBLOCK);
 }
@@ -929,7 +929,7 @@ xfs_btree_set_ptr_null(
 	union xfs_btree_ptr	*ptr)
 {
 	if (cur->bc_flags & XFS_BTREE_LONG_PTRS)
-		ptr->l = cpu_to_be64(NULLDFSBNO);
+		ptr->l = cpu_to_be64(NULLFSBLOCK);
 	else
 		ptr->s = cpu_to_be32(NULLAGBLOCK);
 }
@@ -997,8 +997,8 @@ xfs_btree_init_block_int(
 	buf->bb_numrecs = cpu_to_be16(numrecs);
 
 	if (flags & XFS_BTREE_LONG_PTRS) {
-		buf->bb_u.l.bb_leftsib = cpu_to_be64(NULLDFSBNO);
-		buf->bb_u.l.bb_rightsib = cpu_to_be64(NULLDFSBNO);
+		buf->bb_u.l.bb_leftsib = cpu_to_be64(NULLFSBLOCK);
+		buf->bb_u.l.bb_rightsib = cpu_to_be64(NULLFSBLOCK);
 		if (flags & XFS_BTREE_CRC_BLOCKS) {
 			buf->bb_u.l.bb_blkno = cpu_to_be64(blkno);
 			buf->bb_u.l.bb_owner = cpu_to_be64(owner);
@@ -1140,7 +1140,7 @@ xfs_btree_get_buf_block(
 				 mp->m_bsize, flags);
 
 	if (!*bpp)
-		return ENOMEM;
+		return -ENOMEM;
 
 	(*bpp)->b_ops = cur->bc_ops->buf_ops;
 	*block = XFS_BUF_TO_BLOCK(*bpp);
@@ -1498,7 +1498,7 @@ xfs_btree_increment(
 		if (cur->bc_flags & XFS_BTREE_ROOT_IN_INODE)
 			goto out0;
 		ASSERT(0);
-		error = EFSCORRUPTED;
+		error = -EFSCORRUPTED;
 		goto error0;
 	}
 	ASSERT(lev < cur->bc_nlevels);
@@ -1597,7 +1597,7 @@ xfs_btree_decrement(
 		if (cur->bc_flags & XFS_BTREE_ROOT_IN_INODE)
 			goto out0;
 		ASSERT(0);
-		error = EFSCORRUPTED;
+		error = -EFSCORRUPTED;
 		goto error0;
 	}
 	ASSERT(lev < cur->bc_nlevels);
@@ -4018,7 +4018,7 @@ xfs_btree_block_change_owner(
 	/* now read rh sibling block for next iteration */
 	xfs_btree_get_sibling(cur, block, &rptr, XFS_BB_RIGHTSIB);
 	if (xfs_btree_ptr_is_null(cur, &rptr))
-		return ENOENT;
+		return -ENOENT;
 
 	return xfs_btree_lookup_get_block(cur, level, &rptr, &block);
 }
@@ -4061,7 +4061,7 @@ xfs_btree_change_owner(
 							     buffer_list);
 		} while (!error);
 
-		if (error != ENOENT)
+		if (error != -ENOENT)
 			return error;
 	}
 
