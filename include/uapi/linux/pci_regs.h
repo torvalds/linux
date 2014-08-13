@@ -630,7 +630,7 @@
 
 /* Advanced Error Reporting */
 #define PCI_ERR_UNCOR_STATUS	4	/* Uncorrectable Error Status */
-#define  PCI_ERR_UNC_TRAIN	0x00000001	/* Training */
+#define  PCI_ERR_UNC_UND	0x00000001	/* Undefined */
 #define  PCI_ERR_UNC_DLP	0x00000010	/* Data Link Protocol */
 #define  PCI_ERR_UNC_SURPDN	0x00000020	/* Surprise Down */
 #define  PCI_ERR_UNC_POISON_TLP	0x00001000	/* Poisoned TLP */

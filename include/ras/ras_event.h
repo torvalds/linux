@@ -185,7 +185,7 @@ TRACE_EVENT(mc_event,
 	{PCI_ERR_COR_LOG_OVER,	"Header Log Overflow"}
 
 #define aer_uncorrectable_errors				\
-	{PCI_ERR_UNC_TRAIN,	"Undefined"},			\
+	{PCI_ERR_UNC_UND,	"Undefined"},			\
 	{PCI_ERR_UNC_DLP,	"Data Link Protocol Error"},	\
 	{PCI_ERR_UNC_SURPDN,	"Surprise Down Error"},		\
 	{PCI_ERR_UNC_POISON_TLP,"Poisoned TLP"},		\
