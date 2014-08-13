@@ -517,14 +517,14 @@ int mdc_get_lustre_md(struct obd_export *exp, struct ptlrpc_request *req,
 		struct lov_mds_md *lmm;
 
 		if (!S_ISREG(md->body->mode)) {
-			CDEBUG(D_INFO, "OBD_MD_FLEASIZE set, should be a "
-			       "regular file, but is not\n");
+			CDEBUG(D_INFO,
+			       "OBD_MD_FLEASIZE set, should be a regular file, but is not\n");
 			GOTO(out, rc = -EPROTO);
 		}
 
 		if (md->body->eadatasize == 0) {
-			CDEBUG(D_INFO, "OBD_MD_FLEASIZE set, "
-			       "but eadatasize 0\n");
+			CDEBUG(D_INFO,
+			       "OBD_MD_FLEASIZE set, but eadatasize 0\n");
 			GOTO(out, rc = -EPROTO);
 		}
 		lmmsize = md->body->eadatasize;
@@ -537,8 +537,8 @@ int mdc_get_lustre_md(struct obd_export *exp, struct ptlrpc_request *req,
 			GOTO(out, rc);
 
 		if (rc < sizeof(*md->lsm)) {
-			CDEBUG(D_INFO, "lsm size too small: "
-			       "rc < sizeof (*md->lsm) (%d < %d)\n",
+			CDEBUG(D_INFO,
+			       "lsm size too small: rc < sizeof (*md->lsm) (%d < %d)\n",
 			       rc, (int)sizeof(*md->lsm));
 			GOTO(out, rc = -EPROTO);
 		}
@@ -548,14 +548,14 @@ int mdc_get_lustre_md(struct obd_export *exp, struct ptlrpc_request *req,
 		struct lov_mds_md *lmv;
 
 		if (!S_ISDIR(md->body->mode)) {
-			CDEBUG(D_INFO, "OBD_MD_FLDIREA set, should be a "
-			       "directory, but is not\n");
+			CDEBUG(D_INFO,
+			       "OBD_MD_FLDIREA set, should be a directory, but is not\n");
 			GOTO(out, rc = -EPROTO);
 		}
 
 		if (md->body->eadatasize == 0) {
-			CDEBUG(D_INFO, "OBD_MD_FLDIREA is set, "
-			       "but eadatasize 0\n");
+			CDEBUG(D_INFO,
+			       "OBD_MD_FLDIREA is set, but eadatasize 0\n");
 			return -EPROTO;
 		}
 		if (md->body->valid & OBD_MD_MEA) {
@@ -571,8 +571,8 @@ int mdc_get_lustre_md(struct obd_export *exp, struct ptlrpc_request *req,
 				GOTO(out, rc);
 
 			if (rc < sizeof(*md->mea)) {
-				CDEBUG(D_INFO, "size too small:  "
-				       "rc < sizeof(*md->mea) (%d < %d)\n",
+				CDEBUG(D_INFO,
+				       "size too small: rc < sizeof(*md->mea) (%d < %d)\n",
 					rc, (int)sizeof(*md->mea));
 				GOTO(out, rc = -EPROTO);
 			}
@@ -778,8 +778,8 @@ int mdc_set_open_replay_data(struct obd_export *exp,
 	rec->cr_old_handle.cookie = body->handle.cookie;
 	open_req->rq_replay_cb = mdc_replay_open;
 	if (!fid_is_sane(&body->fid1)) {
-		DEBUG_REQ(D_ERROR, open_req, "Saving replay request with "
-			  "insane fid");
+		DEBUG_REQ(D_ERROR, open_req,
+			  "Saving replay request with insane fid");
 		LBUG();
 	}
 
@@ -928,8 +928,8 @@ int mdc_close(struct obd_export *exp, struct md_op_data *op_data,
 
 		rc = lustre_msg_get_status(req->rq_repmsg);
 		if (lustre_msg_get_type(req->rq_repmsg) == PTL_RPC_MSG_ERR) {
-			DEBUG_REQ(D_ERROR, req, "type == PTL_RPC_MSG_ERR, err "
-				  "= %d", rc);
+			DEBUG_REQ(D_ERROR, req,
+				  "type == PTL_RPC_MSG_ERR, err = %d", rc);
 			if (rc > 0)
 				rc = -rc;
 		}
@@ -2055,8 +2055,8 @@ static int mdc_hsm_copytool_send(int len, void *val)
 		return -EPROTO;
 	}
 
-	CDEBUG(D_HSM, " Received message mg=%x t=%d m=%d l=%d actions=%d "
-	       "on %s\n",
+	CDEBUG(D_HSM,
+	       "Received message mg=%x t=%d m=%d l=%d actions=%d on %s\n",
 	       lh->kuc_magic, lh->kuc_transport, lh->kuc_msgtype,
 	       lh->kuc_msglen, hal->hal_count, hal->hal_fsname);
 

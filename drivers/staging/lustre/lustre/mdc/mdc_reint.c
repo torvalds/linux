@@ -158,8 +158,7 @@ int mdc_setattr(struct obd_export *exp, struct md_op_data *op_data,
 
 		*mod = obd_mod_alloc();
 		if (*mod == NULL) {
-			DEBUG_REQ(D_ERROR, req, "Can't allocate "
-				  "md_open_data");
+			DEBUG_REQ(D_ERROR, req, "Can't allocate md_open_data");
 		} else {
 			req->rq_replay = 1;
 			req->rq_cb_data = *mod;
