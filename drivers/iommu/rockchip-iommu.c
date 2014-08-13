@@ -23,6 +23,9 @@
 #include <asm/pgtable.h>
 #include <linux/of.h>
 #include <linux/rockchip-iovmm.h>
+#include <linux/rockchip/grf.h>
+#include <linux/rockchip/cpu.h>
+#include <linux/rockchip/iomap.h>
 
 #include "rockchip-iommu.h"
 
