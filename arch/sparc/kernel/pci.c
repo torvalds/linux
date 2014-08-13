@@ -432,6 +432,11 @@ static void of_scan_pci_bridge(struct pci_pbm_info *pbm,
 		       node->full_name);
 		return;
 	}
+
+	if (ofpci_verbose)
+		printk("    Bridge bus range [%u --> %u]\n",
+		       busrange[0], busrange[1]);
+
 	ranges = of_get_property(node, "ranges", &len);
 	simba = 0;
 	if (ranges == NULL) {
@@ -451,6 +456,10 @@ static void of_scan_pci_bridge(struct pci_pbm_info *pbm,
 	pci_bus_insert_busn_res(bus, busrange[0], busrange[1]);
 	bus->bridge_ctl = 0;
 
+	if (ofpci_verbose)
+		printk("    Bridge ranges[%p] simba[%d]\n",
+		       ranges, simba);
+
 	/* parse ranges property, or cook one up by hand for Simba */
 	/* PCI #address-cells == 3 and #size-cells == 2 always */
 	res = &dev->resource[PCI_BRIDGE_RESOURCES];
@@ -468,6 +477,14 @@ static void of_scan_pci_bridge(struct pci_pbm_info *pbm,
 	}
 	i = 1;
 	for (; len >= 32; len -= 32, ranges += 8) {
+		u64 start;
+
+		if (ofpci_verbose)
+			printk("    RAW Range[%08x:%08x:%08x:%08x:%08x:%08x:"
+			       "%08x:%08x]\n",
+			       ranges[0], ranges[1], ranges[2], ranges[3],
+			       ranges[4], ranges[5], ranges[6], ranges[7]);
+
 		flags = pci_parse_of_flags(ranges[0]);
 		size = GET_64BIT(ranges, 6);
 		if (flags == 0 || size == 0)
@@ -490,8 +507,13 @@ static void of_scan_pci_bridge(struct pci_pbm_info *pbm,
 		}
 
 		res->flags = flags;
-		region.start = GET_64BIT(ranges, 1);
+		region.start = start = GET_64BIT(ranges, 1);
 		region.end = region.start + size - 1;
+
+		if (ofpci_verbose)
+			printk("      Using flags[%08x] start[%016llx] size[%016llx]\n",
+			       flags, start, size);
+
 		pcibios_bus_to_resource(dev->bus, res, &region);
 	}
 after_ranges:
