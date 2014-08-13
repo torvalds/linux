@@ -489,6 +489,17 @@ static void of_scan_pci_bridge(struct pci_pbm_info *pbm,
 		size = GET_64BIT(ranges, 6);
 		if (flags == 0 || size == 0)
 			continue;
+
+		/* On PCI-Express systems, PCI bridges that have no devices downstream
+		 * have a bogus size value where the first 32-bit cell is 0xffffffff.
+		 * This results in a bogus range where start + size overflows.
+		 *
+		 * Just skip these otherwise the kernel will complain when the resource
+		 * tries to be claimed.
+		 */
+		if (size >> 32 == 0xffffffff)
+			continue;
+
 		if (flags & IORESOURCE_IO) {
 			res = bus->resource[0];
 			if (res->flags) {
