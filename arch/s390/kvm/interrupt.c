@@ -1063,11 +1063,19 @@ static int __inject_mchk(struct kvm_vcpu *vcpu, struct kvm_s390_irq *irq)
 				   mchk->mcic, 2);
 
 	/*
-	 * Combine mcic with previously injected machine checks and
-	 * indicate them all together as described in the Principles
-	 * of Operation, Chapter 11, Interruption action
+	 * Because repressible machine checks can be indicated along with
+	 * exigent machine checks (PoP, Chapter 11, Interruption action)
+	 * we need to combine cr14, mcic and external damage code.
+	 * Failing storage address and the logout area should not be or'ed
+	 * together, we just indicate the last occurrence of the corresponding
+	 * machine check
 	 */
+	mchk->cr14 |= irq->u.mchk.cr14;
 	mchk->mcic |= irq->u.mchk.mcic;
+	mchk->ext_damage_code |= irq->u.mchk.ext_damage_code;
+	mchk->failing_storage_address = irq->u.mchk.failing_storage_address;
+	memcpy(&mchk->fixed_logout, &irq->u.mchk.fixed_logout,
+	       sizeof(mchk->fixed_logout));
 	if (mchk->mcic & MCHK_EX_MASK)
 		set_bit(IRQ_PEND_MCHK_EX, &li->pending_irqs);
 	else if (mchk->mcic & MCHK_REP_MASK)
