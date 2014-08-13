@@ -1134,7 +1134,7 @@
 	};
 
 	gmac: eth@ff290000 {
-		compatible = "rockchip,gmac";
+		compatible = "rockchip,rk3288-gmac";
 		reg = <0xff290000 0x10000>;
 		interrupts = <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>;  /*irq=59*/
 		interrupt-names = "macirq";

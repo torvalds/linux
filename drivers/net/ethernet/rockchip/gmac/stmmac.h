@@ -110,6 +110,11 @@ struct stmmac_priv {
 	bool mdio_registered;
 };
 
+enum {
+    RK3288_GMAC,
+    RK312X_GMAC
+};
+
 struct bsp_priv {
 	bool power_ctrl_by_pmu;
 	char pmu_regulator[32];
@@ -119,6 +124,7 @@ struct bsp_priv {
 	int reset_io;
 	int reset_io_level;
 	int phy_iface;
+	int chip;
 
 	struct clk *clk_mac;
 	struct clk *clk_mac_pll;
