@@ -27,6 +27,7 @@
 #define ARIZONA_WRITE_SEQUENCER_CTRL_0           0x16
 #define ARIZONA_WRITE_SEQUENCER_CTRL_1           0x17
 #define ARIZONA_WRITE_SEQUENCER_CTRL_2           0x18
+#define ARIZONA_WRITE_SEQUENCER_CTRL_3           0x19
 #define ARIZONA_WRITE_SEQUENCER_PROM             0x1A
 #define ARIZONA_TONE_GENERATOR_1                 0x20
 #define ARIZONA_TONE_GENERATOR_2                 0x21

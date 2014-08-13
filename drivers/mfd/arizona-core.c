@@ -784,7 +784,8 @@ int arizona_dev_init(struct arizona *arizona)
 	/* Ensure device startup is complete */
 	switch (arizona->type) {
 	case WM5102:
-		ret = regmap_read(arizona->regmap, 0x19, &val);
+		ret = regmap_read(arizona->regmap,
+				  ARIZONA_WRITE_SEQUENCER_CTRL_3, &val);
 		if (ret != 0)
 			dev_err(dev,
 				"Failed to check write sequencer state: %d\n",
