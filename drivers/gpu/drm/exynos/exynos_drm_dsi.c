@@ -114,6 +114,8 @@
 #define DSIM_SYNC_INFORM		(1 << 27)
 #define DSIM_EOT_DISABLE		(1 << 28)
 #define DSIM_MFLUSH_VS			(1 << 29)
+/* This flag is valid only for exynos3250/3472/4415/5260/5430 */
+#define DSIM_CLKLANE_STOP		(1 << 30)
 
 /* DSIM_ESCMODE */
 #define DSIM_TX_TRIGGER_RST		(1 << 4)
@@ -262,6 +264,7 @@ struct exynos_dsi_driver_data {
 	unsigned int plltmr_reg;
 
 	unsigned int has_freqband:1;
+	unsigned int has_clklane_stop:1;
 };
 
 struct exynos_dsi {
@@ -304,6 +307,7 @@ struct exynos_dsi {
 static struct exynos_dsi_driver_data exynos4_dsi_driver_data = {
 	.plltmr_reg = 0x50,
 	.has_freqband = 1,
+	.has_clklane_stop = 1,
 };
 
 static struct exynos_dsi_driver_data exynos5_dsi_driver_data = {
@@ -569,6 +573,7 @@ static void exynos_dsi_disable_clock(struct exynos_dsi *dsi)
 
 static int exynos_dsi_init_link(struct exynos_dsi *dsi)
 {
+	struct exynos_dsi_driver_data *driver_data = dsi->driver_data;
 	int timeout;
 	u32 reg;
 	u32 lanes_mask;
@@ -649,6 +654,20 @@ static int exynos_dsi_init_link(struct exynos_dsi *dsi)
 	lanes_mask = BIT(dsi->lanes) - 1;
 	reg |= DSIM_LANE_EN(lanes_mask);
 	writel(reg, dsi->reg_base + DSIM_CONFIG_REG);
+
+	/*
+	 * Use non-continuous clock mode if the periparal wants and
+	 * host controller supports
+	 *
+	 * In non-continous clock mode, host controller will turn off
+	 * the HS clock between high-speed transmissions to reduce
+	 * power consumption.
+	 */
+	if (driver_data->has_clklane_stop &&
+			dsi->mode_flags & MIPI_DSI_CLOCK_NON_CONTINUOUS) {
+		reg |= DSIM_CLKLANE_STOP;
+		writel(reg, dsi->reg_base + DSIM_CONFIG_REG);
+	}
 
 	/* Check clock and data lane state are stop state */
 	timeout = 100;
