@@ -40,6 +40,9 @@
 #define MLX5_SIG_WQE_SIZE	(MLX5_SEND_WQE_BB * 5)
 #define MLX5_DIF_SIZE		8
 #define MLX5_STRIDE_BLOCK_OP	0x400
+#define MLX5_CPY_GRD_MASK	0xc0
+#define MLX5_CPY_APP_MASK	0x30
+#define MLX5_CPY_REF_MASK	0x0f
 
 enum mlx5_qp_optpar {
 	MLX5_QP_OPTPAR_ALT_ADDR_PATH		= 1 << 0,

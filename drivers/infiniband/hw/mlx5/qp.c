@@ -2095,11 +2095,11 @@ static int mlx5_set_bsf(struct ib_mr *sig_mr,
 			/* Same block structure */
 			basic->bsf_size_sbs = 1 << 4;
 			if (mem->sig.dif.bg_type == wire->sig.dif.bg_type)
-				basic->wire.copy_byte_mask |= 0xc0;
+				basic->wire.copy_byte_mask |= MLX5_CPY_GRD_MASK;
 			if (mem->sig.dif.app_tag == wire->sig.dif.app_tag)
-				basic->wire.copy_byte_mask |= 0x30;
+				basic->wire.copy_byte_mask |= MLX5_CPY_APP_MASK;
 			if (mem->sig.dif.ref_tag == wire->sig.dif.ref_tag)
-				basic->wire.copy_byte_mask |= 0x0f;
+				basic->wire.copy_byte_mask |= MLX5_CPY_REF_MASK;
 		} else
 			basic->wire.bs_selector = bs_selector(wire->sig.dif.pi_interval);
 
