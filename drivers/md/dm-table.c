@@ -210,15 +210,16 @@ int dm_table_create(struct dm_table **result, fmode_t mode,
 	return 0;
 }
 
-static void free_devices(struct list_head *devices)
+static void free_devices(struct list_head *devices, struct mapped_device *md)
 {
 	struct list_head *tmp, *next;
 
 	list_for_each_safe(tmp, next, devices) {
 		struct dm_dev_internal *dd =
 		    list_entry(tmp, struct dm_dev_internal, list);
-		DMWARN("dm_table_destroy: dm_put_device call missing for %s",
-		       dd->dm_dev.name);
+		DMWARN("%s: dm_table_destroy: dm_put_device call missing for %s",
+		       dm_device_name(md), dd->dm_dev->name);
+		dm_put_table_device(md, dd->dm_dev);
 		kfree(dd);
 	}
 }
@@ -247,7 +248,7 @@ void dm_table_destroy(struct dm_table *t)
 	vfree(t->highs);
 
 	/* free the device list */
-	free_devices(&t->devices);
+	free_devices(&t->devices, t->md);
 
 	dm_free_md_mempools(t->mempools);
 
@@ -262,50 +263,10 @@ static struct dm_dev_internal *find_device(struct list_head *l, dev_t dev)
 	struct dm_dev_internal *dd;
 
 	list_for_each_entry (dd, l, list)
-		if (dd->dm_dev.bdev->bd_dev == dev)
+		if (dd->dm_dev->bdev->bd_dev == dev)
 			return dd;
 
 	return NULL;
-}
-
-/*
- * Open a device so we can use it as a map destination.
- */
-static int open_dev(struct dm_dev_internal *d, dev_t dev,
-		    struct mapped_device *md)
-{
-	static char *_claim_ptr = "I belong to device-mapper";
-	struct block_device *bdev;
-
-	int r;
-
-	BUG_ON(d->dm_dev.bdev);
-
-	bdev = blkdev_get_by_dev(dev, d->dm_dev.mode | FMODE_EXCL, _claim_ptr);
-	if (IS_ERR(bdev))
-		return PTR_ERR(bdev);
-
-	r = bd_link_disk_holder(bdev, dm_disk(md));
-	if (r) {
-		blkdev_put(bdev, d->dm_dev.mode | FMODE_EXCL);
-		return r;
-	}
-
-	d->dm_dev.bdev = bdev;
-	return 0;
-}
-
-/*
- * Close a device that we've been using.
- */
-static void close_dev(struct dm_dev_internal *d, struct mapped_device *md)
-{
-	if (!d->dm_dev.bdev)
-		return;
-
-	bd_unlink_disk_holder(d->dm_dev.bdev, dm_disk(md));
-	blkdev_put(d->dm_dev.bdev, d->dm_dev.mode | FMODE_EXCL);
-	d->dm_dev.bdev = NULL;
 }
 
 /*
@@ -386,19 +347,17 @@ static int upgrade_mode(struct dm_dev_internal *dd, fmode_t new_mode,
 			struct mapped_device *md)
 {
 	int r;
-	struct dm_dev_internal dd_new, dd_old;
+	struct dm_dev *old_dev, *new_dev;
 
-	dd_new = dd_old = *dd;
+	old_dev = dd->dm_dev;
 
-	dd_new.dm_dev.mode |= new_mode;
-	dd_new.dm_dev.bdev = NULL;
-
-	r = open_dev(&dd_new, dd->dm_dev.bdev->bd_dev, md);
+	r = dm_get_table_device(md, dd->dm_dev->bdev->bd_dev,
+				dd->dm_dev->mode | new_mode, &new_dev);
 	if (r)
 		return r;
 
-	dd->dm_dev.mode |= new_mode;
-	close_dev(&dd_old, md);
+	dd->dm_dev = new_dev;
+	dm_put_table_device(md, old_dev);
 
 	return 0;
 }
@@ -440,27 +399,22 @@ int dm_get_device(struct dm_target *ti, const char *path, fmode_t mode,
 		if (!dd)
 			return -ENOMEM;
 
-		dd->dm_dev.mode = mode;
-		dd->dm_dev.bdev = NULL;
-
-		if ((r = open_dev(dd, dev, t->md))) {
+		if ((r = dm_get_table_device(t->md, dev, mode, &dd->dm_dev))) {
 			kfree(dd);
 			return r;
 		}
 
-		format_dev_t(dd->dm_dev.name, dev);
-
 		atomic_set(&dd->count, 0);
 		list_add(&dd->list, &t->devices);
 
-	} else if (dd->dm_dev.mode != (mode | dd->dm_dev.mode)) {
+	} else if (dd->dm_dev->mode != (mode | dd->dm_dev->mode)) {
 		r = upgrade_mode(dd, mode, t->md);
 		if (r)
 			return r;
 	}
 	atomic_inc(&dd->count);
 
-	*result = &dd->dm_dev;
+	*result = dd->dm_dev;
 	return 0;
 }
 EXPORT_SYMBOL(dm_get_device);
@@ -505,11 +459,23 @@ static int dm_set_device_limits(struct dm_target *ti, struct dm_dev *dev,
  */
 void dm_put_device(struct dm_target *ti, struct dm_dev *d)
 {
-	struct dm_dev_internal *dd = container_of(d, struct dm_dev_internal,
-						  dm_dev);
+	int found = 0;
+	struct list_head *devices = &ti->table->devices;
+	struct dm_dev_internal *dd;
 
+	list_for_each_entry(dd, devices, list) {
+		if (dd->dm_dev == d) {
+			found = 1;
+			break;
+		}
+	}
+	if (!found) {
+		DMWARN("%s: device %s not in table devices list",
+		       dm_device_name(ti->table->md), d->name);
+		return;
+	}
 	if (atomic_dec_and_test(&dd->count)) {
-		close_dev(dd, ti->table->md);
+		dm_put_table_device(ti->table->md, d);
 		list_del(&dd->list);
 		kfree(dd);
 	}
@@ -906,7 +872,7 @@ static int dm_table_set_type(struct dm_table *t)
 	/* Non-request-stackable devices can't be used for request-based dm */
 	devices = dm_table_get_devices(t);
 	list_for_each_entry(dd, devices, list) {
-		if (!blk_queue_stackable(bdev_get_queue(dd->dm_dev.bdev))) {
+		if (!blk_queue_stackable(bdev_get_queue(dd->dm_dev->bdev))) {
 			DMWARN("table load rejected: including"
 			       " non-request-stackable devices");
 			return -EINVAL;
@@ -1043,7 +1009,7 @@ static struct gendisk * dm_table_get_integrity_disk(struct dm_table *t,
 	struct gendisk *prev_disk = NULL, *template_disk = NULL;
 
 	list_for_each_entry(dd, devices, list) {
-		template_disk = dd->dm_dev.bdev->bd_disk;
+		template_disk = dd->dm_dev->bdev->bd_disk;
 		if (!blk_get_integrity(template_disk))
 			goto no_integrity;
 		if (!match_all && !blk_integrity_is_initialized(template_disk))
@@ -1629,7 +1595,7 @@ int dm_table_any_congested(struct dm_table *t, int bdi_bits)
 	int r = 0;
 
 	list_for_each_entry(dd, devices, list) {
-		struct request_queue *q = bdev_get_queue(dd->dm_dev.bdev);
+		struct request_queue *q = bdev_get_queue(dd->dm_dev->bdev);
 		char b[BDEVNAME_SIZE];
 
 		if (likely(q))
@@ -1637,7 +1603,7 @@ int dm_table_any_congested(struct dm_table *t, int bdi_bits)
 		else
 			DMWARN_LIMIT("%s: any_congested: nonexistent device %s",
 				     dm_device_name(t->md),
-				     bdevname(dd->dm_dev.bdev, b));
+				     bdevname(dd->dm_dev->bdev, b));
 	}
 
 	list_for_each_entry(cb, &t->target_callbacks, list)
