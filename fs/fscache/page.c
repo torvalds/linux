@@ -198,7 +198,7 @@ int __fscache_attr_changed(struct fscache_cookie *cookie)
 {
 	struct fscache_operation *op;
 	struct fscache_object *object;
-	bool wake_cookie;
+	bool wake_cookie = false;
 
 	_enter("%p", cookie);
 
@@ -228,15 +228,16 @@ int __fscache_attr_changed(struct fscache_cookie *cookie)
 
 	__fscache_use_cookie(cookie);
 	if (fscache_submit_exclusive_op(object, op) < 0)
-		goto nobufs;
+		goto nobufs_dec;
 	spin_unlock(&cookie->lock);
 	fscache_stat(&fscache_n_attr_changed_ok);
 	fscache_put_operation(op);
 	_leave(" = 0");
 	return 0;
 
-nobufs:
+nobufs_dec:
 	wake_cookie = __fscache_unuse_cookie(cookie);
+nobufs:
 	spin_unlock(&cookie->lock);
 	kfree(op);
 	if (wake_cookie)
