@@ -1768,7 +1768,9 @@ struct esp_pub * esp_pub_alloc_mac80211(struct device *dev)
                 ret = -ENOMEM;
                 return ERR_PTR(ret);
         }
-
+        #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 0)) 
+	hw->wiphy->flags |= WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL;
+	#endif
         epub = hw->priv;
         memset(epub, 0, sizeof(*epub));
         epub->hw = hw;

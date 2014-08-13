@@ -1283,7 +1283,10 @@ int cfg80211_can_use_iftype_chan(struct cfg80211_registered_device *rdev,
 				continue;
 		} else if (wdev_iter->netdev) {
 			if (!netif_running(wdev_iter->netdev))
-				continue;
+			    {
+			      continue;
+			    }
+			continue;
 		} else {
 			WARN_ON(1);
 		}
