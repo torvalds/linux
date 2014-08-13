@@ -227,12 +227,9 @@ static irqreturn_t htcpld_handler(int irq, void *dev)
 static void htcpld_chip_set(struct gpio_chip *chip, unsigned offset, int val)
 {
 	struct i2c_client *client;
-	struct htcpld_chip *chip_data;
+	struct htcpld_chip *chip_data =
+		container_of(chip, struct htcpld_chip, chip_out);
 	unsigned long flags;
-
-	chip_data = container_of(chip, struct htcpld_chip, chip_out);
-	if (!chip_data)
-		return;
 
 	client = chip_data->client;
 	if (client == NULL)
