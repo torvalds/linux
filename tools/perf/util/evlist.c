@@ -424,7 +424,7 @@ void perf_evlist__add_pollfd(struct perf_evlist *evlist, int fd)
 {
 	fcntl(fd, F_SETFL, O_NONBLOCK);
 	evlist->pollfd[evlist->nr_fds].fd = fd;
-	evlist->pollfd[evlist->nr_fds].events = POLLIN;
+	evlist->pollfd[evlist->nr_fds].events = POLLIN | POLLERR | POLLHUP;
 	evlist->nr_fds++;
 }
 
