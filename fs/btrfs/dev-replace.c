@@ -542,7 +542,7 @@ static int btrfs_dev_replace_finishing(struct btrfs_fs_info *fs_info,
 	}
 
 	printk_in_rcu(KERN_INFO
-		      "BTRFS: dev_replace from %s (devid %llu) to %s) finished\n",
+		      "BTRFS: dev_replace from %s (devid %llu) to %s finished\n",
 		      src_device->missing ? "<missing disk>" :
 		        rcu_str_deref(src_device->name),
 		      src_device->devid,
