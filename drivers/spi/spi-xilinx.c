@@ -471,7 +471,6 @@ static struct platform_driver xilinx_spi_driver = {
 	.remove = xilinx_spi_remove,
 	.driver = {
 		.name = XILINX_SPI_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table = xilinx_spi_of_match,
 	},
 };
