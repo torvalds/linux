@@ -400,13 +400,14 @@ static irqreturn_t camsys_mrv_irq(int irq, void *data)
     camsys_dev_t *camsys_dev = (camsys_dev_t*)data;
     camsys_irqstas_t *irqsta;
     camsys_irqpool_t *irqpool;
-    unsigned int isp_mis,mipi_mis,mi_mis,*mis;
+    unsigned int isp_mis,mipi_mis,mi_mis,*mis,jpg_mis,jpg_err_mis;
 	
 	unsigned int mi_ris,mi_imis;
 
     isp_mis = __raw_readl((void volatile *)(camsys_dev->devmems.registermem->vir_base + MRV_ISP_MIS));
     mipi_mis = __raw_readl((void volatile *)(camsys_dev->devmems.registermem->vir_base + MRV_MIPI_MIS));
-
+    jpg_mis = __raw_readl((void volatile *)(camsys_dev->devmems.registermem->vir_base + MRV_JPG_MIS));
+    jpg_err_mis = __raw_readl((void volatile *)(camsys_dev->devmems.registermem->vir_base + MRV_JPG_ERR_MIS));
 	mi_mis = __raw_readl((void volatile *)(camsys_dev->devmems.registermem->vir_base + MRV_MI_MIS));
 #if 1	
 	mi_ris =  __raw_readl((void volatile *)(camsys_dev->devmems.registermem->vir_base + MRV_MI_RIS));
@@ -422,6 +423,8 @@ static irqreturn_t camsys_mrv_irq(int irq, void *data)
 
     __raw_writel(isp_mis, (void volatile *)(camsys_dev->devmems.registermem->vir_base + MRV_ISP_ICR)); 
     __raw_writel(mipi_mis, (void volatile *)(camsys_dev->devmems.registermem->vir_base + MRV_MIPI_ICR)); 
+    __raw_writel(jpg_mis, (void volatile *)(camsys_dev->devmems.registermem->vir_base + MRV_JPG_ICR));
+    __raw_writel(jpg_err_mis, (void volatile *)(camsys_dev->devmems.registermem->vir_base + MRV_JPG_ERR_ICR));
 	__raw_writel(mi_mis, (void volatile *)(camsys_dev->devmems.registermem->vir_base + MRV_MI_ICR)); 
 
     spin_lock(&camsys_dev->irq.lock);
@@ -444,6 +447,18 @@ static irqreturn_t camsys_mrv_irq(int irq, void *data)
                     case MRV_MI_MIS:
                     {
                         mis = &mi_mis;
+                        break;
+                    }
+
+                    case MRV_JPG_MIS:
+                    {
+                        mis = &jpg_mis;
+                        break;
+                    }
+
+                    case MRV_JPG_ERR_MIS:
+                    {
+                        mis = &jpg_err_mis;
                         break;
                     }
 

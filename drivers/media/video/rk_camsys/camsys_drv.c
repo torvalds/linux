@@ -167,7 +167,7 @@ static int camsys_extdev_register(camsys_devio_name_t *devio, camsys_dev_t *cams
 
     extdev = camsys_find_extdev(devio->dev_id, camsys_dev);
     if (extdev != NULL) {
-        err = 0;
+        err = -EINVAL;    /* ddl@rock-chips.com: v0.0x13.0 */
         camsys_warn("Extdev(dev_id: 0x%x) has been registered in %s!",
             devio->dev_id, dev_name(camsys_dev->miscdev.this_device));
         goto end;
@@ -467,7 +467,9 @@ static int camsys_irq_connect(camsys_irqcnnt_t *irqcnnt, camsys_dev_t *camsys_de
 
     if ((irqcnnt->mis != MRV_ISP_MIS) &&
         (irqcnnt->mis != MRV_MIPI_MIS) &&
-        (irqcnnt->mis != MRV_MI_MIS)) {
+        (irqcnnt->mis != MRV_MI_MIS) &&
+        (irqcnnt->mis != MRV_JPG_MIS) &&
+        (irqcnnt->mis != MRV_JPG_ERR_MIS)) {
 
         camsys_err("this thread(pid: %d) irqcnnt->mis(0x%x) is invalidate, irq connect failed!",
             irqcnnt->pid, irqcnnt->mis);

@@ -30,6 +30,14 @@
 
 #define MRV_FLASH_CONFIG                        (0x664)
 
+#define MRV_JPG_BASE                             (0x1800)
+#define MRV_JPG_ERR_RIS                          (MRV_JPG_BASE+0x6C)
+#define MRV_JPG_ERR_MIS                          (MRV_JPG_BASE+0x70)
+#define MRV_JPG_ERR_ICR                          (MRV_JPG_BASE+0x74)
+#define MRV_JPG_MIS                              (MRV_JPG_BASE+0x84)
+#define MRV_JPG_RIS                              (MRV_JPG_BASE+0x80)
+#define MRV_JPG_ICR                              (MRV_JPG_BASE+0x88)
+
 typedef enum IO_USE_TYPE_e{
     USE_AS_GPIO,
     USE_AS_ISP_INTERNAL,
