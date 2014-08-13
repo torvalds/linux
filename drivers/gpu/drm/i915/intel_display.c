@@ -8047,30 +8047,55 @@ static void i845_update_cursor(struct drm_crtc *crtc, u32 base)
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	uint32_t cntl;
+	uint32_t cntl = 0, size = 0;
 
-	if (base != intel_crtc->cursor_base) {
-		/* On these chipsets we can only modify the base whilst
-		 * the cursor is disabled.
-		 */
-		if (intel_crtc->cursor_cntl) {
-			I915_WRITE(_CURACNTR, 0);
-			POSTING_READ(_CURACNTR);
-			intel_crtc->cursor_cntl = 0;
+	if (base) {
+		unsigned int width = intel_crtc->cursor_width;
+		unsigned int height = intel_crtc->cursor_height;
+		unsigned int stride = roundup_pow_of_two(width) * 4;
+
+		switch (stride) {
+		default:
+			WARN_ONCE(1, "Invalid cursor width/stride, width=%u, stride=%u\n",
+				  width, stride);
+			stride = 256;
+			/* fallthrough */
+		case 256:
+		case 512:
+		case 1024:
+		case 2048:
+			break;
 		}
 
-		I915_WRITE(_CURABASE, base);
-		POSTING_READ(_CURABASE);
+		cntl |= CURSOR_ENABLE |
+			CURSOR_GAMMA_ENABLE |
+			CURSOR_FORMAT_ARGB |
+			CURSOR_STRIDE(stride);
+
+		size = (height << 12) | width;
 	}
 
-	/* XXX width must be 64, stride 256 => 0x00 << 28 */
-	cntl = 0;
-	if (base)
-		cntl = (CURSOR_ENABLE |
-			CURSOR_GAMMA_ENABLE |
-			CURSOR_FORMAT_ARGB);
+	if (intel_crtc->cursor_cntl != 0 &&
+	    (intel_crtc->cursor_base != base ||
+	     intel_crtc->cursor_size != size ||
+	     intel_crtc->cursor_cntl != cntl)) {
+		/* On these chipsets we can only modify the base/size/stride
+		 * whilst the cursor is disabled.
+		 */
+		I915_WRITE(_CURACNTR, 0);
+		POSTING_READ(_CURACNTR);
+		intel_crtc->cursor_cntl = 0;
+	}
+
+	if (intel_crtc->cursor_base != base)
+		I915_WRITE(_CURABASE, base);
+
+	if (intel_crtc->cursor_size != size) {
+		I915_WRITE(CURSIZE, size);
+		intel_crtc->cursor_size = size;
+	}
+
 	if (intel_crtc->cursor_cntl != cntl) {
-		I915_WRITE(CURSIZE, (64 << 12) | 64);
 		I915_WRITE(_CURACNTR, cntl);
 		POSTING_READ(_CURACNTR);
 		intel_crtc->cursor_cntl = cntl;
@@ -8169,6 +8194,43 @@ static void intel_crtc_update_cursor(struct drm_crtc *crtc,
 	intel_crtc->cursor_base = base;
 }
 
+static bool cursor_size_ok(struct drm_device *dev,
+			   uint32_t width, uint32_t height)
+{
+	if (width == 0 || height == 0)
+		return false;
+
+	/*
+	 * 845g/865g are special in that they are only limited by
+	 * the width of their cursors, the height is arbitrary up to
+	 * the precision of the register. Everything else requires
+	 * square cursors, limited to a few power-of-two sizes.
+	 */
+	if (IS_845G(dev) || IS_I865G(dev)) {
+		if ((width & 63) != 0)
+			return false;
+
+		if (width > (IS_845G(dev) ? 64 : 512))
+			return false;
+
+		if (height > 1023)
+			return false;
+	} else {
+		switch (width | height) {
+		case 256:
+		case 128:
+			if (IS_GEN2(dev))
+				return false;
+		case 64:
+			break;
+		default:
+			return false;
+		}
+	}
+
+	return true;
+}
+
 /*
  * intel_crtc_cursor_set_obj - Set cursor to specified GEM object
  *
@@ -8183,7 +8245,7 @@ static int intel_crtc_cursor_set_obj(struct drm_crtc *crtc,
 	struct drm_device *dev = crtc->dev;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	enum pipe pipe = intel_crtc->pipe;
-	unsigned old_width;
+	unsigned old_width, stride;
 	uint32_t addr;
 	int ret;
 
@@ -8197,14 +8259,13 @@ static int intel_crtc_cursor_set_obj(struct drm_crtc *crtc,
 	}
 
 	/* Check for which cursor types we support */
-	if (!((width == 64 && height == 64) ||
-			(width == 128 && height == 128 && !IS_GEN2(dev)) ||
-			(width == 256 && height == 256 && !IS_GEN2(dev)))) {
+	if (!cursor_size_ok(dev, width, height)) {
 		DRM_DEBUG("Cursor dimension not supported\n");
 		return -EINVAL;
 	}
 
-	if (obj->base.size < width * height * 4) {
+	stride = roundup_pow_of_two(width) * 4;
+	if (obj->base.size < stride * height) {
 		DRM_DEBUG_KMS("buffer is too small\n");
 		ret = -ENOMEM;
 		goto fail;
@@ -11797,6 +11858,7 @@ static void intel_crtc_init(struct drm_device *dev, int pipe)
 
 	intel_crtc->cursor_base = ~0;
 	intel_crtc->cursor_cntl = ~0;
+	intel_crtc->cursor_size = ~0;
 
 	BUG_ON(pipe >= ARRAY_SIZE(dev_priv->plane_to_crtc_mapping) ||
 	       dev_priv->plane_to_crtc_mapping[intel_crtc->plane] != NULL);
@@ -12585,7 +12647,10 @@ void intel_modeset_init(struct drm_device *dev)
 		dev->mode_config.max_height = 8192;
 	}
 
-	if (IS_GEN2(dev)) {
+	if (IS_845G(dev) || IS_I865G(dev)) {
+		dev->mode_config.cursor_width = IS_845G(dev) ? 64 : 512;
+		dev->mode_config.cursor_height = 1023;
+	} else if (IS_GEN2(dev)) {
 		dev->mode_config.cursor_width = GEN2_CURSOR_WIDTH;
 		dev->mode_config.cursor_height = GEN2_CURSOR_HEIGHT;
 	} else {

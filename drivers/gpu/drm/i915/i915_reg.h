@@ -4128,7 +4128,8 @@ enum punit_power_well {
 /* Old style CUR*CNTR flags (desktop 8xx) */
 #define   CURSOR_ENABLE		0x80000000
 #define   CURSOR_GAMMA_ENABLE	0x40000000
-#define   CURSOR_STRIDE_MASK	0x30000000
+#define   CURSOR_STRIDE_SHIFT	28
+#define   CURSOR_STRIDE(x)	((ffs(x)-9) << CURSOR_STRIDE_SHIFT) /* 256,512,1k,2k */
 #define   CURSOR_PIPE_CSC_ENABLE (1<<24)
 #define   CURSOR_FORMAT_SHIFT	24
 #define   CURSOR_FORMAT_MASK	(0x07 << CURSOR_FORMAT_SHIFT)

@@ -405,6 +405,7 @@ struct intel_crtc {
 	uint32_t cursor_addr;
 	int16_t cursor_width, cursor_height;
 	uint32_t cursor_cntl;
+	uint32_t cursor_size;
 	uint32_t cursor_base;
 
 	struct intel_plane_config plane_config;
