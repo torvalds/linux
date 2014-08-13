@@ -2504,6 +2504,9 @@ static void smp_resume_cb(struct l2cap_chan *chan)
 
 	BT_DBG("chan %p", chan);
 
+	if (hcon->type == ACL_LINK)
+		return;
+
 	if (!smp)
 		return;
 
@@ -2527,9 +2530,13 @@ static void smp_ready_cb(struct l2cap_chan *chan)
 
 static int smp_recv_cb(struct l2cap_chan *chan, struct sk_buff *skb)
 {
+	struct hci_conn *hcon = chan->conn->hcon;
 	int err;
 
 	BT_DBG("chan %p", chan);
+
+	if (hcon->type == ACL_LINK)
+		return -EOPNOTSUPP;
 
 	err = smp_sig_channel(chan, skb);
 	if (err) {
@@ -2627,34 +2634,40 @@ static const struct l2cap_ops smp_root_chan_ops = {
 	.memcpy_fromiovec	= l2cap_chan_no_memcpy_fromiovec,
 };
 
-int smp_register(struct hci_dev *hdev)
+static struct l2cap_chan *smp_add_cid(struct hci_dev *hdev, u16 cid)
 {
 	struct l2cap_chan *chan;
 	struct crypto_blkcipher	*tfm_aes;
 
-	BT_DBG("%s", hdev->name);
+	if (cid == L2CAP_CID_SMP_BREDR) {
+		tfm_aes = NULL;
+		goto create_chan;
+	}
 
 	tfm_aes = crypto_alloc_blkcipher("ecb(aes)", 0, 0);
 	if (IS_ERR(tfm_aes)) {
-		int err = PTR_ERR(tfm_aes);
 		BT_ERR("Unable to create crypto context");
-		return err;
+		return ERR_PTR(PTR_ERR(tfm_aes));
 	}
 
+create_chan:
 	chan = l2cap_chan_create();
 	if (!chan) {
 		crypto_free_blkcipher(tfm_aes);
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 	}
 
 	chan->data = tfm_aes;
 
-	l2cap_add_scid(chan, L2CAP_CID_SMP);
+	l2cap_add_scid(chan, cid);
 
 	l2cap_chan_set_defaults(chan);
 
 	bacpy(&chan->src, &hdev->bdaddr);
-	chan->src_type = BDADDR_LE_PUBLIC;
+	if (cid == L2CAP_CID_SMP)
+		chan->src_type = BDADDR_LE_PUBLIC;
+	else
+		chan->src_type = BDADDR_BREDR;
 	chan->state = BT_LISTEN;
 	chan->mode = L2CAP_MODE_BASIC;
 	chan->imtu = L2CAP_DEFAULT_MTU;
@@ -2663,20 +2676,14 @@ int smp_register(struct hci_dev *hdev)
 	/* Set correct nesting level for a parent/listening channel */
 	atomic_set(&chan->nesting, L2CAP_NESTING_PARENT);
 
-	hdev->smp_data = chan;
-
-	return 0;
+	return chan;
 }
 
-void smp_unregister(struct hci_dev *hdev)
+static void smp_del_chan(struct l2cap_chan *chan)
 {
-	struct l2cap_chan *chan = hdev->smp_data;
-	struct crypto_blkcipher *tfm_aes;
+	struct crypto_blkcipher	*tfm_aes;
 
-	if (!chan)
-		return;
-
-	BT_DBG("%s chan %p", hdev->name, chan);
+	BT_DBG("chan %p", chan);
 
 	tfm_aes = chan->data;
 	if (tfm_aes) {
@@ -2684,6 +2691,52 @@ void smp_unregister(struct hci_dev *hdev)
 		crypto_free_blkcipher(tfm_aes);
 	}
 
-	hdev->smp_data = NULL;
 	l2cap_chan_put(chan);
+}
+
+int smp_register(struct hci_dev *hdev)
+{
+	struct l2cap_chan *chan;
+
+	BT_DBG("%s", hdev->name);
+
+	chan = smp_add_cid(hdev, L2CAP_CID_SMP);
+	if (IS_ERR(chan))
+		return PTR_ERR(chan);
+
+	hdev->smp_data = chan;
+
+	if (!lmp_sc_capable(hdev) &&
+	    !test_bit(HCI_FORCE_LESC, &hdev->dbg_flags))
+		return 0;
+
+	chan = smp_add_cid(hdev, L2CAP_CID_SMP_BREDR);
+	if (IS_ERR(chan)) {
+		int err = PTR_ERR(chan);
+		chan = hdev->smp_data;
+		hdev->smp_data = NULL;
+		smp_del_chan(chan);
+		return err;
+	}
+
+	hdev->smp_bredr_data = chan;
+
+	return 0;
+}
+
+void smp_unregister(struct hci_dev *hdev)
+{
+	struct l2cap_chan *chan;
+
+	if (hdev->smp_bredr_data) {
+		chan = hdev->smp_bredr_data;
+		hdev->smp_bredr_data = NULL;
+		smp_del_chan(chan);
+	}
+
+	if (hdev->smp_data) {
+		chan = hdev->smp_data;
+		hdev->smp_data = NULL;
+		smp_del_chan(chan);
+	}
 }
