@@ -84,6 +84,8 @@ void perf_evlist__id_add(struct perf_evlist *evlist, struct perf_evsel *evsel,
 
 void perf_evlist__add_pollfd(struct perf_evlist *evlist, int fd);
 
+int perf_evlist__filter_pollfd(struct perf_evlist *evlist, short revents_and_mask);
+
 struct perf_evsel *perf_evlist__id2evsel(struct perf_evlist *evlist, u64 id);
 
 struct perf_sample_id *perf_evlist__id2sid(struct perf_evlist *evlist, u64 id);
