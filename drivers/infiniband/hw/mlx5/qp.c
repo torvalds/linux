@@ -2020,50 +2020,31 @@ static u8 bs_selector(int block_size)
 	}
 }
 
-static int mlx5_fill_inl_bsf(struct ib_sig_domain *domain,
-			     struct mlx5_bsf_inl *inl)
+static void mlx5_fill_inl_bsf(struct ib_sig_domain *domain,
+			      struct mlx5_bsf_inl *inl)
 {
 	/* Valid inline section and allow BSF refresh */
 	inl->vld_refresh = cpu_to_be16(MLX5_BSF_INL_VALID |
 				       MLX5_BSF_REFRESH_DIF);
 	inl->dif_apptag = cpu_to_be16(domain->sig.dif.app_tag);
 	inl->dif_reftag = cpu_to_be32(domain->sig.dif.ref_tag);
+	/* repeating block */
+	inl->rp_inv_seed = MLX5_BSF_REPEAT_BLOCK;
+	inl->sig_type = domain->sig.dif.bg_type == IB_T10DIF_CRC ?
+			MLX5_DIF_CRC : MLX5_DIF_IPCS;
 
-	switch (domain->sig.dif.type) {
-	case IB_T10DIF_NONE:
-		/* No DIF */
-		break;
-	case IB_T10DIF_TYPE1: /* Fall through */
-	case IB_T10DIF_TYPE2:
-		inl->sig_type = domain->sig.dif.bg_type == IB_T10DIF_CRC ?
-				MLX5_DIF_CRC : MLX5_DIF_IPCS;
-		/*
-		 * increment reftag and don't check if
-		 * apptag=0xffff and reftag=0xffffffff
-		 */
-		inl->dif_inc_ref_guard_check = MLX5_BSF_INC_REFTAG |
-					       MLX5_BSF_APPREF_ESCAPE;
-		inl->dif_app_bitmask_check = 0xffff;
-		/* repeating block */
-		inl->rp_inv_seed = MLX5_BSF_REPEAT_BLOCK;
-		break;
-	case IB_T10DIF_TYPE3:
-		inl->sig_type = domain->sig.dif.bg_type == IB_T10DIF_CRC ?
-				MLX5_DIF_CRC : MLX5_DIF_IPCS;
-		/*
-		 * Don't inc reftag and don't check if
-		 * apptag=0xffff and reftag=0xffffffff
-		 */
-		inl->dif_inc_ref_guard_check = MLX5_BSF_APPREF_ESCAPE;
-		inl->dif_app_bitmask_check = 0xffff;
-		/* Repeating block */
-		inl->rp_inv_seed = MLX5_BSF_REPEAT_BLOCK;
-		break;
-	default:
-		return -EINVAL;
+	if (domain->sig.dif.ref_remap)
+		inl->dif_inc_ref_guard_check |= MLX5_BSF_INC_REFTAG;
+
+	if (domain->sig.dif.app_escape) {
+		if (domain->sig.dif.ref_escape)
+			inl->dif_inc_ref_guard_check |= MLX5_BSF_APPREF_ESCAPE;
+		else
+			inl->dif_inc_ref_guard_check |= MLX5_BSF_APPTAG_ESCAPE;
 	}
 
-	return 0;
+	inl->dif_app_bitmask_check =
+		cpu_to_be16(domain->sig.dif.apptag_check_mask);
 }
 
 static int mlx5_set_bsf(struct ib_mr *sig_mr,
@@ -2074,20 +2055,35 @@ static int mlx5_set_bsf(struct ib_mr *sig_mr,
 	struct mlx5_bsf_basic *basic = &bsf->basic;
 	struct ib_sig_domain *mem = &sig_attrs->mem;
 	struct ib_sig_domain *wire = &sig_attrs->wire;
-	int ret;
 
 	memset(bsf, 0, sizeof(*bsf));
-	switch (sig_attrs->mem.sig_type) {
-	case IB_SIG_TYPE_T10_DIF:
-		if (sig_attrs->wire.sig_type != IB_SIG_TYPE_T10_DIF)
-			return -EINVAL;
 
-		/* Basic + Extended + Inline */
-		basic->bsf_size_sbs = 1 << 7;
-		/* Input domain check byte mask */
-		basic->check_byte_mask = sig_attrs->check_mask;
+	/* Basic + Extended + Inline */
+	basic->bsf_size_sbs = 1 << 7;
+	/* Input domain check byte mask */
+	basic->check_byte_mask = sig_attrs->check_mask;
+	basic->raw_data_size = cpu_to_be32(data_size);
+
+	/* Memory domain */
+	switch (sig_attrs->mem.sig_type) {
+	case IB_SIG_TYPE_NONE:
+		break;
+	case IB_SIG_TYPE_T10_DIF:
+		basic->mem.bs_selector = bs_selector(mem->sig.dif.pi_interval);
+		basic->m_bfs_psv = cpu_to_be32(msig->psv_memory.psv_idx);
+		mlx5_fill_inl_bsf(mem, &bsf->m_inl);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	/* Wire domain */
+	switch (sig_attrs->wire.sig_type) {
+	case IB_SIG_TYPE_NONE:
+		break;
+	case IB_SIG_TYPE_T10_DIF:
 		if (mem->sig.dif.pi_interval == wire->sig.dif.pi_interval &&
-		    mem->sig.dif.type == wire->sig.dif.type) {
+		    mem->sig_type == wire->sig_type) {
 			/* Same block structure */
 			basic->bsf_size_sbs |= 1 << 4;
 			if (mem->sig.dif.bg_type == wire->sig.dif.bg_type)
@@ -2099,20 +2095,9 @@ static int mlx5_set_bsf(struct ib_mr *sig_mr,
 		} else
 			basic->wire.bs_selector = bs_selector(wire->sig.dif.pi_interval);
 
-		basic->mem.bs_selector = bs_selector(mem->sig.dif.pi_interval);
-		basic->raw_data_size = cpu_to_be32(data_size);
-		basic->m_bfs_psv = cpu_to_be32(msig->psv_memory.psv_idx);
 		basic->w_bfs_psv = cpu_to_be32(msig->psv_wire.psv_idx);
-
-		ret = mlx5_fill_inl_bsf(wire, &bsf->w_inl);
-		if (ret)
-			return -EINVAL;
-
-		ret = mlx5_fill_inl_bsf(mem, &bsf->m_inl);
-		if (ret)
-			return -EINVAL;
+		mlx5_fill_inl_bsf(wire, &bsf->w_inl);
 		break;
-
 	default:
 		return -EINVAL;
 	}
@@ -2311,19 +2296,20 @@ static int set_psv_wr(struct ib_sig_domain *domain,
 	memset(psv_seg, 0, sizeof(*psv_seg));
 	psv_seg->psv_num = cpu_to_be32(psv_idx);
 	switch (domain->sig_type) {
+	case IB_SIG_TYPE_NONE:
+		break;
 	case IB_SIG_TYPE_T10_DIF:
 		psv_seg->transient_sig = cpu_to_be32(domain->sig.dif.bg << 16 |
 						     domain->sig.dif.app_tag);
 		psv_seg->ref_tag = cpu_to_be32(domain->sig.dif.ref_tag);
-
-		*seg += sizeof(*psv_seg);
-		*size += sizeof(*psv_seg) / 16;
 		break;
-
 	default:
 		pr_err("Bad signature type given.\n");
 		return 1;
 	}
+
+	*seg += sizeof(*psv_seg);
+	*size += sizeof(*psv_seg) / 16;
 
 	return 0;
 }

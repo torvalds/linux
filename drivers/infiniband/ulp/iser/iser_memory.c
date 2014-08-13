@@ -440,51 +440,44 @@ int iser_reg_rdma_mem_fmr(struct iscsi_iser_task *iser_task,
 	return 0;
 }
 
-static inline enum ib_t10_dif_type
-scsi2ib_prot_type(unsigned char prot_type)
-{
-	switch (prot_type) {
-	case SCSI_PROT_DIF_TYPE0:
-		return IB_T10DIF_NONE;
-	case SCSI_PROT_DIF_TYPE1:
-		return IB_T10DIF_TYPE1;
-	case SCSI_PROT_DIF_TYPE2:
-		return IB_T10DIF_TYPE2;
-	case SCSI_PROT_DIF_TYPE3:
-		return IB_T10DIF_TYPE3;
-	default:
-		return IB_T10DIF_NONE;
-	}
-}
-
 static inline void
 iser_set_dif_domain(struct scsi_cmnd *sc, struct ib_sig_attrs *sig_attrs,
 		    struct ib_sig_domain *domain)
 {
-	unsigned char scsi_ptype = scsi_get_prot_type(sc);
-
-	domain->sig.dif.type = scsi2ib_prot_type(scsi_ptype);
+	domain->sig_type = IB_SIG_TYPE_T10_DIF;
 	domain->sig.dif.pi_interval = sc->device->sector_size;
 	domain->sig.dif.ref_tag = scsi_get_lba(sc) & 0xffffffff;
+	/*
+	 * At the moment we hard code those, but in the future
+	 * we will take them from sc.
+	 */
+	domain->sig.dif.apptag_check_mask = 0xffff;
+	domain->sig.dif.app_escape = true;
+	domain->sig.dif.ref_escape = true;
+	if (scsi_get_prot_type(sc) == SCSI_PROT_DIF_TYPE1 ||
+	    scsi_get_prot_type(sc) == SCSI_PROT_DIF_TYPE2)
+		domain->sig.dif.ref_remap = true;
 };
 
 static int
 iser_set_sig_attrs(struct scsi_cmnd *sc, struct ib_sig_attrs *sig_attrs)
 {
-	sig_attrs->mem.sig_type = IB_SIG_TYPE_T10_DIF;
-	sig_attrs->wire.sig_type = IB_SIG_TYPE_T10_DIF;
-
 	switch (scsi_get_prot_op(sc)) {
 	case SCSI_PROT_WRITE_INSERT:
 	case SCSI_PROT_READ_STRIP:
-		sig_attrs->mem.sig.dif.type = IB_T10DIF_NONE;
+		sig_attrs->mem.sig_type = IB_SIG_TYPE_NONE;
 		iser_set_dif_domain(sc, sig_attrs, &sig_attrs->wire);
 		sig_attrs->wire.sig.dif.bg_type = IB_T10DIF_CRC;
 		break;
 	case SCSI_PROT_READ_INSERT:
 	case SCSI_PROT_WRITE_STRIP:
-		sig_attrs->wire.sig.dif.type = IB_T10DIF_NONE;
+		sig_attrs->wire.sig_type = IB_SIG_TYPE_NONE;
 		iser_set_dif_domain(sc, sig_attrs, &sig_attrs->mem);
+		/*
+		 * At the moment we use this modparam to tell what is
+		 * the memory bg_type, in the future we will take it
+		 * from sc.
+		 */
 		sig_attrs->mem.sig.dif.bg_type = iser_pi_guard ? IB_T10DIF_CSUM :
 						 IB_T10DIF_CRC;
 		break;
@@ -493,6 +486,11 @@ iser_set_sig_attrs(struct scsi_cmnd *sc, struct ib_sig_attrs *sig_attrs)
 		iser_set_dif_domain(sc, sig_attrs, &sig_attrs->wire);
 		sig_attrs->wire.sig.dif.bg_type = IB_T10DIF_CRC;
 		iser_set_dif_domain(sc, sig_attrs, &sig_attrs->mem);
+		/*
+		 * At the moment we use this modparam to tell what is
+		 * the memory bg_type, in the future we will take it
+		 * from sc.
+		 */
 		sig_attrs->mem.sig.dif.bg_type = iser_pi_guard ? IB_T10DIF_CSUM :
 						 IB_T10DIF_CRC;
 		break;
@@ -501,9 +499,9 @@ iser_set_sig_attrs(struct scsi_cmnd *sc, struct ib_sig_attrs *sig_attrs)
 			 scsi_get_prot_op(sc));
 		return -EINVAL;
 	}
+
 	return 0;
 }
-
 
 static int
 iser_set_prot_checks(struct scsi_cmnd *sc, u8 *mask)
