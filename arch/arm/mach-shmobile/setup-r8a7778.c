@@ -520,6 +520,7 @@ void __init r8a7778_add_standard_devices(void)
 
 void __init r8a7778_init_late(void)
 {
+	shmobile_init_late();
 	platform_device_register_full(&ehci_info);
 	platform_device_register_full(&ohci_info);
 }
