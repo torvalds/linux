@@ -54,6 +54,9 @@
 
 #include "mmu_decl.h"
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/thp.h>
+
 /* Some sanity checking */
 #if TASK_SIZE_USER64 > PGTABLE_RANGE
 #error TASK_SIZE_USER64 exceeds pagetable range
@@ -537,6 +540,7 @@ unsigned long pmd_hugepage_update(struct mm_struct *mm, unsigned long addr,
 	old = pmd_val(*pmdp);
 	*pmdp = __pmd((old & ~clr) | set);
 #endif
+	trace_hugepage_update(addr, old, clr, set);
 	if (old & _PAGE_HASHPTE)
 		hpte_do_hugepage_flush(mm, addr, pmdp, old);
 	return old;
@@ -642,6 +646,7 @@ void pmdp_splitting_flush(struct vm_area_struct *vma,
 	 * If we didn't had the splitting flag set, go and flush the
 	 * HPTE entries.
 	 */
+	trace_hugepage_splitting(address, old);
 	if (!(old & _PAGE_SPLITTING)) {
 		/* We need to flush the hpte */
 		if (old & _PAGE_HASHPTE)
@@ -709,6 +714,7 @@ void set_pmd_at(struct mm_struct *mm, unsigned long addr,
 	assert_spin_locked(&mm->page_table_lock);
 	WARN_ON(!pmd_trans_huge(pmd));
 #endif
+	trace_hugepage_set_pmd(addr, pmd);
 	return set_pte_at(mm, addr, pmdp_ptep(pmdp), pmd_pte(pmd));
 }
 
