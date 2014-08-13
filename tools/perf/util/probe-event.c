@@ -1803,6 +1803,23 @@ static void print_open_warning(int err, bool is_kprobe)
 			   strerror_r(-err, sbuf, sizeof(sbuf)));
 }
 
+static void print_both_open_warning(int kerr, int uerr)
+{
+	/* Both kprobes and uprobes are disabled, warn it. */
+	if (kerr == -ENOTSUP && uerr == -ENOTSUP)
+		pr_warning("Debugfs is not mounted.\n");
+	else if (kerr == -ENOENT && uerr == -ENOENT)
+		pr_warning("Please rebuild kernel with CONFIG_KPROBE_EVENTS "
+			   "or/and CONFIG_UPROBE_EVENTS.\n");
+	else {
+		char sbuf[128];
+		pr_warning("Failed to open kprobe events: %s.\n",
+			   strerror_r(-kerr, sbuf, sizeof(sbuf)));
+		pr_warning("Failed to open uprobe events: %s.\n",
+			   strerror_r(-uerr, sbuf, sizeof(sbuf)));
+	}
+}
+
 static int open_probe_events(const char *trace_file, bool readwrite)
 {
 	char buf[PATH_MAX];
@@ -1960,20 +1977,7 @@ int show_perf_probe_events(void)
 
 	up_fd = open_uprobe_events(false);
 	if (kp_fd < 0 && up_fd < 0) {
-		/* Both kprobes and uprobes are disabled, warn it. */
-		if (kp_fd == -ENOTSUP && up_fd == -ENOTSUP)
-			pr_warning("Debugfs is not mounted.\n");
-		else if (kp_fd == -ENOENT && up_fd == -ENOENT)
-			pr_warning("Please rebuild kernel with "
-				   "CONFIG_KPROBE_EVENTS or/and "
-				   "CONFIG_UPROBE_EVENTS.\n");
-		else {
-			char sbuf[128];
-			pr_warning("Failed to open kprobe events: %s.\n",
-				   strerror_r(-kp_fd, sbuf, sizeof(sbuf)));
-			pr_warning("Failed to open uprobe events: %s.\n",
-				   strerror_r(-up_fd, sbuf, sizeof(sbuf)));
-		}
+		print_both_open_warning(kp_fd, up_fd);
 		ret = kp_fd;
 		goto out;
 	}
@@ -2474,18 +2478,17 @@ int del_perf_probe_events(struct strlist *dellist)
 
 	/* Get current event names */
 	kfd = open_kprobe_events(true);
-	if (kfd < 0) {
-		print_open_warning(kfd, true);
-		return kfd;
-	}
+	if (kfd >= 0)
+		namelist = get_probe_trace_event_names(kfd, true);
 
-	namelist = get_probe_trace_event_names(kfd, true);
 	ufd = open_uprobe_events(true);
-
-	if (ufd < 0)
-		print_open_warning(ufd, false);
-	else
+	if (ufd >= 0)
 		unamelist = get_probe_trace_event_names(ufd, true);
+
+	if (kfd < 0 && ufd < 0) {
+		print_both_open_warning(kfd, ufd);
+		goto error;
+	}
 
 	if (namelist == NULL && unamelist == NULL)
 		goto error;
