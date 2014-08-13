@@ -59,6 +59,7 @@
 
 #define MLX4_IB_FLOW_MAX_PRIO 0xFFF
 #define MLX4_IB_FLOW_QPN_MASK 0xFFFFFF
+#define MLX4_IB_CARD_REV_A0   0xA0
 
 MODULE_AUTHOR("Roland Dreier");
 MODULE_DESCRIPTION("Mellanox ConnectX HCA InfiniBand driver");
@@ -158,7 +159,9 @@ static int mlx4_ib_query_device(struct ib_device *ibdev,
 		props->device_cap_flags |= IB_DEVICE_UD_AV_PORT_ENFORCE;
 	if (dev->dev->caps.flags & MLX4_DEV_CAP_FLAG_IPOIB_CSUM)
 		props->device_cap_flags |= IB_DEVICE_UD_IP_CSUM;
-	if (dev->dev->caps.max_gso_sz && dev->dev->caps.flags & MLX4_DEV_CAP_FLAG_BLH)
+	if (dev->dev->caps.max_gso_sz &&
+	    (dev->dev->rev_id != MLX4_IB_CARD_REV_A0) &&
+	    (dev->dev->caps.flags & MLX4_DEV_CAP_FLAG_BLH))
 		props->device_cap_flags |= IB_DEVICE_UD_TSO;
 	if (dev->dev->caps.bmme_flags & MLX4_BMME_FLAG_RESERVED_LKEY)
 		props->device_cap_flags |= IB_DEVICE_LOCAL_DMA_LKEY;
