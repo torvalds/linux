@@ -643,7 +643,7 @@ static void vpu_service_power_off(struct vpu_service_info *pservice)
 
 #if defined(CONFIG_VCODEC_MMU)
 	if (pservice->mmu_dev)
-		iovmm_deactivate(pservice->dev);
+		rockchip_iovmm_deactivate(pservice->dev);
 #endif
 
 	pr_info("%s: power off...", dev_name(pservice->dev));
