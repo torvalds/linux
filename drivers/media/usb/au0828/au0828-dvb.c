@@ -620,34 +620,39 @@ int au0828_dvb_register(struct au0828_dev *dev)
 void au0828_dvb_suspend(struct au0828_dev *dev)
 {
 	struct au0828_dvb *dvb = &dev->dvb;
+	int rc;
 
-	if (dvb->frontend && dev->urb_streaming) {
-		pr_info("stopping DVB\n");
-
-		cancel_work_sync(&dev->restart_streaming);
-
-		/* Stop transport */
-		mutex_lock(&dvb->lock);
-		stop_urb_transfer(dev);
-		au0828_stop_transport(dev, 1);
-		mutex_unlock(&dvb->lock);
-		dev->need_urb_start = 1;
+	if (dvb->frontend) {
+		if (dev->urb_streaming) {
+			cancel_work_sync(&dev->restart_streaming);
+			/* Stop transport */
+			mutex_lock(&dvb->lock);
+			stop_urb_transfer(dev);
+			au0828_stop_transport(dev, 1);
+			mutex_unlock(&dvb->lock);
+			dev->need_urb_start = 1;
+		}
+		/* suspend frontend - does tuner and fe to sleep */
+		rc = dvb_frontend_suspend(dvb->frontend);
+		pr_info("au0828_dvb_suspend(): Suspending DVB fe %d\n", rc);
 	}
 }
 
 void au0828_dvb_resume(struct au0828_dev *dev)
 {
 	struct au0828_dvb *dvb = &dev->dvb;
+	int rc;
 
-	if (dvb->frontend && dev->need_urb_start) {
-		pr_info("resuming DVB\n");
-
-		au0828_set_frontend(dvb->frontend);
-
-		/* Start transport */
-		mutex_lock(&dvb->lock);
-		au0828_start_transport(dev);
-		start_urb_transfer(dev);
-		mutex_unlock(&dvb->lock);
+	if (dvb->frontend) {
+		/* resume frontend - does fe and tuner init */
+		rc = dvb_frontend_resume(dvb->frontend);
+		pr_info("au0828_dvb_resume(): Resuming DVB fe %d\n", rc);
+		if (dev->need_urb_start) {
+			/* Start transport */
+			mutex_lock(&dvb->lock);
+			au0828_start_transport(dev);
+			start_urb_transfer(dev);
+			mutex_unlock(&dvb->lock);
+		}
 	}
 }
