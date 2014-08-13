@@ -196,8 +196,10 @@ int gmac_clk_init(struct device *device)
 	}
 
 #ifdef CONFIG_GMAC_CLK_IN
+	clk_set_rate(bsp_priv->gmac_clkin, 50000000);
 	clk_set_parent(bsp_priv->clk_mac, bsp_priv->gmac_clkin);
 #else
+	clk_set_rate(bsp_priv->clk_mac_pll, 50000000);
 	clk_set_parent(bsp_priv->clk_mac, bsp_priv->clk_mac_pll);
 #endif
 	return 0;
@@ -211,9 +213,6 @@ static int gmac_clk_enable(bool enable) {
 	if (enable) {
 		if (!bsp_priv->clk_enable) {
 			if (phy_iface == PHY_INTERFACE_MODE_RMII) {
-				if (!IS_ERR(bsp_priv->clk_mac))
-					clk_set_rate(bsp_priv->clk_mac, 50000000);
-
 				if (!IS_ERR(bsp_priv->mac_clk_rx))
 					clk_prepare_enable(bsp_priv->mac_clk_rx);
 
