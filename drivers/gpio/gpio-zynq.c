@@ -688,7 +688,6 @@ MODULE_DEVICE_TABLE(of, zynq_gpio_of_match);
 static struct platform_driver zynq_gpio_driver = {
 	.driver	= {
 		.name = DRIVER_NAME,
-		.owner = THIS_MODULE,
 		.pm = &zynq_gpio_dev_pm_ops,
 		.of_match_table = zynq_gpio_of_match,
 	},
