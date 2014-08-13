@@ -1832,7 +1832,8 @@ void btrfs_rm_dev_replace_srcdev(struct btrfs_fs_info *fs_info,
 	fs_devices->num_devices--;
 	if (srcdev->missing) {
 		fs_devices->missing_devices--;
-		fs_devices->rw_devices++;
+		if (!fs_devices->seeding)
+			fs_devices->rw_devices++;
 	}
 	if (srcdev->can_discard)
 		fs_devices->num_can_discard--;
