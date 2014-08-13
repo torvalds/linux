@@ -152,7 +152,6 @@ static int ot200_backlight_remove(struct platform_device *pdev)
 static struct platform_driver ot200_backlight_driver = {
 	.driver		= {
 		.name	= "ot200-backlight",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= ot200_backlight_probe,
 	.remove		= ot200_backlight_remove,

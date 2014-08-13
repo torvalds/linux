@@ -217,7 +217,6 @@ static int wm831x_backlight_probe(struct platform_device *pdev)
 static struct platform_driver wm831x_backlight_driver = {
 	.driver		= {
 		.name	= "wm831x-backlight",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= wm831x_backlight_probe,
 };

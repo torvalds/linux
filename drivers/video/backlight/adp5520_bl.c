@@ -374,7 +374,6 @@ static SIMPLE_DEV_PM_OPS(adp5520_bl_pm_ops, adp5520_bl_suspend,
 static struct platform_driver adp5520_bl_driver = {
 	.driver		= {
 		.name	= "adp5520-backlight",
-		.owner	= THIS_MODULE,
 		.pm	= &adp5520_bl_pm_ops,
 	},
 	.probe		= adp5520_bl_probe,

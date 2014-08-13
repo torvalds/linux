@@ -148,7 +148,6 @@ MODULE_DEVICE_TABLE(of, platform_lcd_of_match);
 static struct platform_driver platform_lcd_driver = {
 	.driver		= {
 		.name	= "platform-lcd",
-		.owner	= THIS_MODULE,
 		.pm	= &platform_lcd_pm_ops,
 		.of_match_table = of_match_ptr(platform_lcd_of_match),
 	},

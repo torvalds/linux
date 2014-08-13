@@ -142,7 +142,6 @@ static int pandora_backlight_probe(struct platform_device *pdev)
 static struct platform_driver pandora_backlight_driver = {
 	.driver		= {
 		.name	= "pandora-backlight",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= pandora_backlight_probe,
 };
