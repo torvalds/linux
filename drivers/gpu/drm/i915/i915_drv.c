@@ -494,6 +494,10 @@ bool i915_semaphore_is_enabled(struct drm_device *dev)
 	return true;
 }
 
+
+static int intel_suspend_complete(struct drm_i915_private *dev_priv);
+static int intel_resume_prepare(struct drm_i915_private *dev_priv);
+
 static int i915_drm_freeze(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -959,14 +963,14 @@ static int i915_pm_poweroff(struct device *dev)
 	return i915_drm_freeze(drm_dev);
 }
 
-static int hsw_runtime_suspend(struct drm_i915_private *dev_priv)
+static int hsw_suspend_complete(struct drm_i915_private *dev_priv)
 {
 	hsw_enable_pc8(dev_priv);
 
 	return 0;
 }
 
-static int snb_runtime_resume(struct drm_i915_private *dev_priv)
+static int snb_resume_prepare(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = dev_priv->dev;
 
@@ -975,7 +979,7 @@ static int snb_runtime_resume(struct drm_i915_private *dev_priv)
 	return 0;
 }
 
-static int hsw_runtime_resume(struct drm_i915_private *dev_priv)
+static int hsw_resume_prepare(struct drm_i915_private *dev_priv)
 {
 	hsw_disable_pc8(dev_priv);
 
@@ -1271,7 +1275,7 @@ static void vlv_check_no_gt_access(struct drm_i915_private *dev_priv)
 	I915_WRITE(VLV_GTLC_PW_STATUS, VLV_GTLC_ALLOWWAKEERR);
 }
 
-static int vlv_runtime_suspend(struct drm_i915_private *dev_priv)
+static int vlv_suspend_complete(struct drm_i915_private *dev_priv)
 {
 	u32 mask;
 	int err;
@@ -1311,7 +1315,7 @@ err1:
 	return err;
 }
 
-static int vlv_runtime_resume(struct drm_i915_private *dev_priv)
+static int vlv_resume_prepare(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = dev_priv->dev;
 	int err;
@@ -1389,17 +1393,7 @@ static int intel_runtime_suspend(struct device *device)
 	cancel_work_sync(&dev_priv->rps.work);
 	intel_runtime_pm_disable_interrupts(dev);
 
-	if (IS_GEN6(dev)) {
-		ret = 0;
-	} else if (IS_HASWELL(dev) || IS_BROADWELL(dev)) {
-		ret = hsw_runtime_suspend(dev_priv);
-	} else if (IS_VALLEYVIEW(dev)) {
-		ret = vlv_runtime_suspend(dev_priv);
-	} else {
-		ret = -ENODEV;
-		WARN_ON(1);
-	}
-
+	ret = intel_suspend_complete(dev_priv);
 	if (ret) {
 		DRM_ERROR("Runtime suspend failed, disabling it (%d)\n", ret);
 		intel_runtime_pm_restore_interrupts(dev);
@@ -1437,17 +1431,7 @@ static int intel_runtime_resume(struct device *device)
 	intel_opregion_notify_adapter(dev, PCI_D0);
 	dev_priv->pm.suspended = false;
 
-	if (IS_GEN6(dev)) {
-		ret = snb_runtime_resume(dev_priv);
-	} else if (IS_HASWELL(dev) || IS_BROADWELL(dev)) {
-		ret = hsw_runtime_resume(dev_priv);
-	} else if (IS_VALLEYVIEW(dev)) {
-		ret = vlv_runtime_resume(dev_priv);
-	} else {
-		WARN_ON(1);
-		ret = -ENODEV;
-	}
-
+	ret = intel_resume_prepare(dev_priv);
 	/*
 	 * No point of rolling back things in case of an error, as the best
 	 * we can do is to hope that things will still work (and disable RPM).
@@ -1462,6 +1446,44 @@ static int intel_runtime_resume(struct device *device)
 		DRM_ERROR("Runtime resume failed, disabling it (%d)\n", ret);
 	else
 		DRM_DEBUG_KMS("Device resumed\n");
+
+	return ret;
+}
+
+static int intel_suspend_complete(struct drm_i915_private *dev_priv)
+{
+	struct drm_device *dev = dev_priv->dev;
+	int ret;
+
+	if (IS_GEN6(dev)) {
+		ret = 0;
+	} else if (IS_HASWELL(dev) || IS_BROADWELL(dev)) {
+		ret = hsw_suspend_complete(dev_priv);
+	} else if (IS_VALLEYVIEW(dev)) {
+		ret = vlv_suspend_complete(dev_priv);
+	} else {
+		ret = -ENODEV;
+		WARN_ON(1);
+	}
+
+	return ret;
+}
+
+static int intel_resume_prepare(struct drm_i915_private *dev_priv)
+{
+	struct drm_device *dev = dev_priv->dev;
+	int ret;
+
+	if (IS_GEN6(dev)) {
+		ret = snb_resume_prepare(dev_priv);
+	} else if (IS_HASWELL(dev) || IS_BROADWELL(dev)) {
+		ret = hsw_resume_prepare(dev_priv);
+	} else if (IS_VALLEYVIEW(dev)) {
+		ret = vlv_resume_prepare(dev_priv);
+	} else {
+		WARN_ON(1);
+		ret = -ENODEV;
+	}
 
 	return ret;
 }
