@@ -294,18 +294,12 @@ void thread_group_cputime(struct task_struct *tsk, struct task_cputime *times)
 	times->sum_exec_runtime = sig->sum_sched_runtime;
 
 	rcu_read_lock();
-	/* make sure we can trust tsk->thread_group list */
-	if (!likely(pid_alive(tsk)))
-		goto out;
-
-	t = tsk;
-	do {
+	for_each_thread(tsk, t) {
 		task_cputime(t, &utime, &stime);
 		times->utime += utime;
 		times->stime += stime;
 		times->sum_exec_runtime += task_sched_runtime(t);
-	} while_each_thread(tsk, t);
-out:
+	}
 	rcu_read_unlock();
 }
 
