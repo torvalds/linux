@@ -91,6 +91,23 @@ static const char wlan_name[] =
 #endif
 ;
 
+static char wifi_chip_type_string[64];
+int get_wifi_chip_type(void)
+{
+    int type;
+    if (strcmp(wifi_chip_type_string, "rkwifi") == 0) {
+        type = WIFI_RKWIFI;
+    } else if (strcmp(wifi_chip_type_string, "rtl8188eu") == 0) {
+        type = WIFI_RTL8188EU;
+    } else if (strcmp(wifi_chip_type_string, "esp8089") == 0) {
+        type = WIFI_ESP8089;
+    } else {
+        type = WIFI_RKWIFI;
+    }
+    return type;
+}
+EXPORT_SYMBOL(get_wifi_chip_type);
+
 /***********************************************************
  * 
  * Broadcom Wifi Static Memory
@@ -599,6 +616,14 @@ static int wlan_platdata_parse_dt(struct device *dev,
         return -ENODEV;
 
     memset(data, 0, sizeof(*data));
+
+    ret = of_property_read_string(node, "wifi_chip_type", &strings);
+    if (ret) {
+        printk("%s: Can not read wifi_chip_type, set default to rkwifi.\n", __func__);
+        strcpy(wifi_chip_type_string, "rkwifi");
+    }
+    strcpy(wifi_chip_type_string, strings);
+    printk("%s: wifi_chip_type = %s\n", __func__, wifi_chip_type_string);
 
 	if(cpu_is_rk3036()){
 		/* ret = of_property_read_u32(node, "sdio_vref", &value);

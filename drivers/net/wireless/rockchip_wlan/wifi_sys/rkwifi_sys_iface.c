@@ -10,9 +10,12 @@
 #include <asm/uaccess.h>
 #include <linux/rfkill-wlan.h>
 
+extern int get_wifi_chip_type(void);
+
 static ssize_t wifi_chip_read(struct class *cls, struct class_attribute *attr, char *_buf)
 {
     int count = 0;
+    int type = get_wifi_chip_type();
 
 #ifdef CONFIG_RTL8192CU
     count = sprintf(_buf, "%s", "RTL8188CU");
@@ -24,10 +27,12 @@ static ssize_t wifi_chip_read(struct class *cls, struct class_attribute *attr, c
     printk("Current WiFi chip is RTL8192DU.\n");
 #endif
 
+if(type == WIFI_RTL8188EU) {
 #ifdef CONFIG_RTL8188EU
     count = sprintf(_buf, "%s", "RTL8188EU");
     printk("Current WiFi chip is RTL8188EU.\n");
 #endif
+}
 
 #ifdef CONFIG_RTL8723AU
     count = sprintf(_buf, "%s", "RTL8723AU");
@@ -39,6 +44,7 @@ static ssize_t wifi_chip_read(struct class *cls, struct class_attribute *attr, c
     printk("Current WiFi chip is RTL8723BS.\n");
 #endif
 
+if(type == WIFI_RKWIFI) {
 #ifdef CONFIG_BCM4330
     count = sprintf(_buf, "%s", "BCM4330");
     printk("Current WiFi chip is BCM4330.\n");
@@ -98,6 +104,7 @@ static ssize_t wifi_chip_read(struct class *cls, struct class_attribute *attr, c
     count = sprintf(_buf, "%s", "RK903");
     printk("Current WiFi chip is GB86302I.\n");
 #endif
+}
 
 #ifdef CONFIG_MTK_COMBO
 	count = sprintf(_buf, "%s", "MT6620");
@@ -124,10 +131,12 @@ static ssize_t wifi_chip_read(struct class *cls, struct class_attribute *attr, c
     printk("Current WiFi chip is MT7601.\n");
 #endif
 
+if(type == WIFI_ESP8089) {
 #ifdef CONFIG_ESP8089
     count = sprintf(_buf, "%s", "ESP8089");
     printk("Current WiFi chip is ESP8089.\n");
 #endif
+}
 
     return count;
 }
@@ -152,9 +161,59 @@ void rockchip_wifi_exit_module(void) {return;}
 #else
 extern int rockchip_wifi_init_module(void);
 extern void rockchip_wifi_exit_module(void);
+extern int rockchip_wifi_init_module_rkwifi(void);
+extern void rockchip_wifi_exit_module_rkwifi(void);
+extern int rockchip_wifi_init_module_rtl8188eu(void);
+extern void rockchip_wifi_exit_module_rtl8188eu(void);
+extern int rockchip_wifi_init_module_esp8089(void);
+extern void rockchip_wifi_exit_module_esp8089(void);
 #endif
 static struct semaphore driver_sem;
 static int wifi_driver_insmod = 0;
+
+static int wifi_init_exit_module(int enable)
+{
+    int ret = 0;
+    int type = get_wifi_chip_type();
+#ifdef CONFIG_RKWIFI
+    if (type == WIFI_RKWIFI) {
+        if (enable > 0)
+            ret = rockchip_wifi_init_module_rkwifi();
+        else
+            rockchip_wifi_exit_module_rkwifi();
+        return ret;
+    }
+#endif
+#ifdef CONFIG_RTL8188EU
+    if (type == WIFI_RTL8188EU) {
+        if (enable > 0) 
+            ret = rockchip_wifi_init_module_rtl8188eu();
+        else
+            rockchip_wifi_exit_module_rtl8188eu();
+        return ret;
+    }
+#endif
+#ifdef CONFIG_ESP8089
+    if (type == WIFI_ESP8089) {
+        if (enable > 0)  
+            ret = rockchip_wifi_init_module_esp8089();
+        else
+            rockchip_wifi_exit_module_esp8089();
+        return ret;
+    }
+#endif
+
+#if !defined(CONFIG_RKWIFI) && !defined(CONFIG_RTL8188EU) && !defined(CONFIG_ESP8089)
+    {
+        if (enable > 0)
+            ret = rockchip_wifi_init_module();
+        else
+            rockchip_wifi_exit_module();
+    }
+#endif
+
+    return ret;
+}
 
 static ssize_t wifi_driver_write(struct class *cls, struct class_attribute *attr, const char *_buf, size_t _count)
 {
@@ -169,11 +228,11 @@ static ssize_t wifi_driver_write(struct class *cls, struct class_attribute *attr
         return _count;
     }
     if(enable > 0) {
-        ret = rockchip_wifi_init_module();
+        ret = wifi_init_exit_module(enable);
         if (ret >= 0)
             wifi_driver_insmod = enable;
     } else {
-        rockchip_wifi_exit_module();
+        wifi_init_exit_module(enable);
         wifi_driver_insmod = enable;
     }   
 

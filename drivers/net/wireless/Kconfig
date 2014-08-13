@@ -17,32 +17,24 @@ menuconfig WLAN
 
 if WLAN
 
-choice
-	prompt "WiFi device driver support"
-	default WIFI_NONE
-
-	config WIFI_NONE
-	  bool "No WiFi"
-
-	config RDA5990
-	  depends on WLAN_80211 && MMC
-	  select WIRELESS_EXT
-	  select WEXT_PRIV
-	  select IEEE80211
-	  bool "rda 5990p"
-	  ---help---
-	    rda5990P fm bt wifi
+#	config RDA5990
+#	  depends on WLAN_80211 && MMC
+#	  select WIRELESS_EXT
+#	  select WEXT_PRIV
+#	  select IEEE80211
+#	  bool "rda 5990p"
+#	  ---help---
+#	    rda5990P fm bt wifi
 	    
-source "drivers/net/wireless/rockchip_wlan/mt5931/Kconfig"
-source "drivers/net/wireless/rockchip_wlan/rtl8192cu/Kconfig"
-source "drivers/net/wireless/rockchip_wlan/rtl8192du/Kconfig"
+#source "drivers/net/wireless/rockchip_wlan/mt5931/Kconfig"
+#source "drivers/net/wireless/rockchip_wlan/rtl8192cu/Kconfig"
+#source "drivers/net/wireless/rockchip_wlan/rtl8192du/Kconfig"
 source "drivers/net/wireless/rockchip_wlan/rtl8188eu/Kconfig"
-source "drivers/net/wireless/rockchip_wlan/rtl8723au/Kconfig"
-source "drivers/net/wireless/rockchip_wlan/rtl8723as/Kconfig"
-source "drivers/net/wireless/rockchip_wlan/rtl8723bs/Kconfig"
+#source "drivers/net/wireless/rockchip_wlan/rtl8723au/Kconfig"
+#source "drivers/net/wireless/rockchip_wlan/rtl8723as/Kconfig"
+#source "drivers/net/wireless/rockchip_wlan/rtl8723bs/Kconfig"
 source "drivers/net/wireless/rockchip_wlan/esp8089/Kconfig"
 source "drivers/net/wireless/rockchip_wlan/rkwifi/Kconfig"
-endchoice
 
 choice	
 	depends on RKWIFI
@@ -120,15 +112,15 @@ choice
 
 endchoice
 
-menuconfig MTK_WIRELESS_SOLUTION	
-	bool "MTK wireless chip configuration"
-	help
-	  "enable/disable and config MTK wireless solution"
+#menuconfig MTK_WIRELESS_SOLUTION	
+#	bool "MTK wireless chip configuration"
+#	help
+#	  "enable/disable and config MTK wireless solution"
 
-if MTK_WIRELESS_SOLUTION
-source "drivers/net/wireless/rockchip_wlan/combo_mt66xx/Kconfig"
-source "drivers/net/wireless/rockchip_wlan/mt5931_kk/Kconfig"
-endif # MTK_WIRELESS_SOLUTION
+#if MTK_WIRELESS_SOLUTION
+#source "drivers/net/wireless/rockchip_wlan/combo_mt66xx/Kconfig"
+#source "drivers/net/wireless/rockchip_wlan/mt5931_kk/Kconfig"
+#endif # MTK_WIRELESS_SOLUTION
 
 endif
 

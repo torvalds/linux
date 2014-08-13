@@ -5021,7 +5021,7 @@ fail_0:
 extern char WIFI_MODULE_NAME[];
 extern char RKWIFI_DRV_VERSION[];
 
-int rockchip_wifi_init_module(void)
+int rockchip_wifi_init_module_rkwifi(void)
 {
     printk("=======================================================\n");
     printk("==== Launching Wi-Fi driver! (Powered by Rockchip) ====\n");
@@ -5031,7 +5031,7 @@ int rockchip_wifi_init_module(void)
     return dhd_module_init();
 }
 
-void rockchip_wifi_exit_module(void)
+void rockchip_wifi_exit_module_rkwifi(void)
 {
     printk("=======================================================\n");
     printk("== Dis-launching Wi-Fi driver! (Powered by Rockchip) ==\n");
@@ -5039,8 +5039,8 @@ void rockchip_wifi_exit_module(void)
     dhd_module_cleanup();
 }
 
-EXPORT_SYMBOL(rockchip_wifi_init_module);
-EXPORT_SYMBOL(rockchip_wifi_exit_module);
+EXPORT_SYMBOL(rockchip_wifi_init_module_rkwifi);
+EXPORT_SYMBOL(rockchip_wifi_exit_module_rkwifi);
 //late_initcall(rockchip_wifi_init_module);
 //module_exit(rockchip_wifi_exit_module);
 /*
