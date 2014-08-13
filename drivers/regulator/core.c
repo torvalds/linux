@@ -1759,6 +1759,45 @@ static int regulator_ena_gpio_ctrl(struct regulator_dev *rdev, bool enable)
 	return 0;
 }
 
+/**
+ * _regulator_enable_delay - a delay helper function
+ * @delay: time to delay in microseconds
+ *
+ * Delay for the requested amount of time as per the guidelines in:
+ *
+ *     Documentation/timers/timers-howto.txt
+ *
+ * The assumption here is that regulators will never be enabled in
+ * atomic context and therefore sleeping functions can be used.
+ */
+static void _regulator_enable_delay(unsigned int delay)
+{
+	unsigned int ms = delay / 1000;
+	unsigned int us = delay % 1000;
+
+	if (ms > 0) {
+		/*
+		 * For small enough values, handle super-millisecond
+		 * delays in the usleep_range() call below.
+		 */
+		if (ms < 20)
+			us += ms * 1000;
+		else
+			msleep(ms);
+	}
+
+	/*
+	 * Give the scheduler some room to coalesce with any other
+	 * wakeup sources. For delays shorter than 10 us, don't even
+	 * bother setting up high-resolution timers and just busy-
+	 * loop.
+	 */
+	if (us >= 10)
+		usleep_range(us, us + 100);
+	else
+		udelay(us);
+}
+
 static int _regulator_do_enable(struct regulator_dev *rdev)
 {
 	int ret, delay;
@@ -1792,40 +1831,7 @@ static int _regulator_do_enable(struct regulator_dev *rdev)
 	 * together.  */
 	trace_regulator_enable_delay(rdev_get_name(rdev));
 
-	/*
-	 * Delay for the requested amount of time as per the guidelines in:
-	 *
-	 *     Documentation/timers/timers-howto.txt
-	 *
-	 * The assumption here is that regulators will never be enabled in
-	 * atomic context and therefore sleeping functions can be used.
-	 */
-	if (delay) {
-		unsigned int ms = delay / 1000;
-		unsigned int us = delay % 1000;
-
-		if (ms > 0) {
-			/*
-			 * For small enough values, handle super-millisecond
-			 * delays in the usleep_range() call below.
-			 */
-			if (ms < 20)
-				us += ms * 1000;
-			else
-				msleep(ms);
-		}
-
-		/*
-		 * Give the scheduler some room to coalesce with any other
-		 * wakeup sources. For delays shorter than 10 us, don't even
-		 * bother setting up high-resolution timers and just busy-
-		 * loop.
-		 */
-		if (us >= 10)
-			usleep_range(us, us + 100);
-		else
-			udelay(us);
-	}
+	_regulator_enable_delay(delay);
 
 	trace_regulator_enable_complete(rdev_get_name(rdev));
 
