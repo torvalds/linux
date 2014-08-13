@@ -721,7 +721,7 @@ struct ptlrpc_request *__ptlrpc_request_alloc(struct obd_import *imp,
  */
 static struct ptlrpc_request *
 ptlrpc_request_alloc_internal(struct obd_import *imp,
-			      struct ptlrpc_request_pool * pool,
+			      struct ptlrpc_request_pool *pool,
 			      const struct req_format *format)
 {
 	struct ptlrpc_request *request;
@@ -751,7 +751,7 @@ EXPORT_SYMBOL(ptlrpc_request_alloc);
  * initialize its buffer structure according to capsule template \a format.
  */
 struct ptlrpc_request *ptlrpc_request_alloc_pool(struct obd_import *imp,
-					    struct ptlrpc_request_pool * pool,
+					    struct ptlrpc_request_pool *pool,
 					    const struct req_format *format)
 {
 	return ptlrpc_request_alloc_internal(imp, pool, format);
@@ -2692,7 +2692,7 @@ struct ptlrpc_replay_async_args {
  */
 static int ptlrpc_replay_interpret(const struct lu_env *env,
 				   struct ptlrpc_request *req,
-				   void * data, int rc)
+				   void *data, int rc)
 {
 	struct ptlrpc_replay_async_args *aa = data;
 	struct obd_import *imp = req->rq_import;
