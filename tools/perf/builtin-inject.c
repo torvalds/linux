@@ -366,7 +366,7 @@ static int __cmd_inject(struct perf_inject *inject)
 	} else if (inject->sched_stat) {
 		struct perf_evsel *evsel;
 
-		inject->tool.ordered_samples = true;
+		inject->tool.ordered_events = true;
 
 		evlist__for_each(session->evlist, evsel) {
 			const char *name = perf_evsel__name(evsel);

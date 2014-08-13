@@ -633,9 +633,12 @@ void perf_evsel__config(struct perf_evsel *evsel, struct record_opts *opts)
 	if (opts->period)
 		perf_evsel__set_sample_bit(evsel, PERIOD);
 
-	if (!perf_missing_features.sample_id_all &&
-	    (opts->sample_time || !opts->no_inherit ||
-	     target__has_cpu(&opts->target) || per_cpu))
+	/*
+	 * When the user explicitely disabled time don't force it here.
+	 */
+	if (opts->sample_time &&
+	    (!perf_missing_features.sample_id_all &&
+	    (!opts->no_inherit || target__has_cpu(&opts->target) || per_cpu)))
 		perf_evsel__set_sample_bit(evsel, TIME);
 
 	if (opts->raw_samples && !evsel->no_aux_samples) {
@@ -2035,6 +2038,12 @@ int perf_evsel__open_strerror(struct perf_evsel *evsel, struct target *target,
 	"No hardware sampling interrupt available.\n"
 	"No APIC? If so then you can boot the kernel with the \"lapic\" boot parameter to force-enable it.");
 #endif
+		break;
+	case EBUSY:
+		if (find_process("oprofiled"))
+			return scnprintf(msg, size,
+	"The PMU counters are busy/taken by another profiler.\n"
+	"We found oprofile daemon running, please stop it and try again.");
 		break;
 	default:
 		break;

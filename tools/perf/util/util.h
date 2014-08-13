@@ -68,6 +68,7 @@
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <inttypes.h>
+#include <linux/kernel.h>
 #include <linux/magic.h>
 #include <linux/types.h>
 #include <sys/ttydefaults.h>
@@ -317,6 +318,21 @@ unsigned long parse_tag_value(const char *str, struct parse_tag *tags);
 
 #define SRCLINE_UNKNOWN  ((char *) "??:0")
 
+static inline int path__join(char *bf, size_t size,
+			     const char *path1, const char *path2)
+{
+	return scnprintf(bf, size, "%s%s%s", path1, path1[0] ? "/" : "", path2);
+}
+
+static inline int path__join3(char *bf, size_t size,
+			      const char *path1, const char *path2,
+			      const char *path3)
+{
+	return scnprintf(bf, size, "%s%s%s%s%s",
+			 path1, path1[0] ? "/" : "",
+			 path2, path2[0] ? "/" : "", path3);
+}
+
 struct dso;
 
 char *get_srcline(struct dso *dso, unsigned long addr);
@@ -330,4 +346,5 @@ void mem_bswap_64(void *src, int byte_size);
 void mem_bswap_32(void *src, int byte_size);
 
 const char *get_filename_for_perf_kvm(void);
+bool find_process(const char *name);
 #endif /* GIT_COMPAT_UTIL_H */

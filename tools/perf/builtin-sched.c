@@ -1662,7 +1662,7 @@ int cmd_sched(int argc, const char **argv, const char *prefix __maybe_unused)
 			.comm		 = perf_event__process_comm,
 			.lost		 = perf_event__process_lost,
 			.fork		 = perf_sched__process_fork_event,
-			.ordered_samples = true,
+			.ordered_events = true,
 		},
 		.cmp_pid	      = LIST_HEAD_INIT(sched.cmp_pid),
 		.sort_list	      = LIST_HEAD_INIT(sched.sort_list),

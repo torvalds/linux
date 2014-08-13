@@ -653,17 +653,18 @@ struct hpp_arg {
 static int __hpp__slsmg_color_printf(struct perf_hpp *hpp, const char *fmt, ...)
 {
 	struct hpp_arg *arg = hpp->ptr;
-	int ret;
+	int ret, len;
 	va_list args;
 	double percent;
 
 	va_start(args, fmt);
+	len = va_arg(args, int);
 	percent = va_arg(args, double);
 	va_end(args);
 
 	ui_browser__set_percent_color(arg->b, percent, arg->current_entry);
 
-	ret = scnprintf(hpp->buf, hpp->size, fmt, percent);
+	ret = scnprintf(hpp->buf, hpp->size, fmt, len, percent);
 	slsmg_printf("%s", hpp->buf);
 
 	advance_hpp(hpp, ret);
@@ -677,12 +678,12 @@ static u64 __hpp_get_##_field(struct hist_entry *he)			\
 }									\
 									\
 static int								\
-hist_browser__hpp_color_##_type(struct perf_hpp_fmt *fmt __maybe_unused,\
+hist_browser__hpp_color_##_type(struct perf_hpp_fmt *fmt,		\
 				struct perf_hpp *hpp,			\
 				struct hist_entry *he)			\
 {									\
-	return __hpp__fmt(hpp, he, __hpp_get_##_field, " %6.2f%%",	\
-			  __hpp__slsmg_color_printf, true);		\
+	return hpp__fmt(fmt, hpp, he, __hpp_get_##_field, " %*.2f%%",	\
+			__hpp__slsmg_color_printf, true);		\
 }
 
 #define __HPP_COLOR_ACC_PERCENT_FN(_type, _field)			\
@@ -692,18 +693,20 @@ static u64 __hpp_get_acc_##_field(struct hist_entry *he)		\
 }									\
 									\
 static int								\
-hist_browser__hpp_color_##_type(struct perf_hpp_fmt *fmt __maybe_unused,\
+hist_browser__hpp_color_##_type(struct perf_hpp_fmt *fmt,		\
 				struct perf_hpp *hpp,			\
 				struct hist_entry *he)			\
 {									\
 	if (!symbol_conf.cumulate_callchain) {				\
-		int ret = scnprintf(hpp->buf, hpp->size, "%8s", "N/A");	\
+		int len = fmt->user_len ?: fmt->len;			\
+		int ret = scnprintf(hpp->buf, hpp->size,		\
+				    "%*s", len, "N/A");			\
 		slsmg_printf("%s", hpp->buf);				\
 									\
 		return ret;						\
 	}								\
-	return __hpp__fmt(hpp, he, __hpp_get_acc_##_field, " %6.2f%%",	\
-			  __hpp__slsmg_color_printf, true);		\
+	return hpp__fmt(fmt, hpp, he, __hpp_get_acc_##_field,		\
+			" %*.2f%%", __hpp__slsmg_color_printf, true);	\
 }
 
 __HPP_COLOR_PERCENT_FN(overhead, period)
@@ -846,9 +849,6 @@ static int hists__scnprintf_headers(char *buf, size_t size, struct hists *hists)
 	perf_hpp__for_each_format(fmt) {
 		if (perf_hpp__should_skip(fmt))
 			continue;
-
-		/* We need to add the length of the columns header. */
-		perf_hpp__reset_width(fmt, hists);
 
 		ret = fmt->header(fmt, &dummy_hpp, hists_to_evsel(hists));
 		if (advance_hpp_check(&dummy_hpp, ret))
@@ -1498,6 +1498,7 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 	char buf[64];
 	char script_opt[64];
 	int delay_secs = hbt ? hbt->refresh : 0;
+	struct perf_hpp_fmt *fmt;
 
 #define HIST_BROWSER_HELP_COMMON					\
 	"h/?/F1        Show this window\n"				\
@@ -1546,6 +1547,12 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 	ui_helpline__push(helpline);
 
 	memset(options, 0, sizeof(options));
+
+	perf_hpp__for_each_format(fmt)
+		perf_hpp__reset_width(fmt, hists);
+
+	if (symbol_conf.col_width_list_str)
+		perf_hpp__set_user_width(symbol_conf.col_width_list_str);
 
 	while (1) {
 		const struct thread *thread = NULL;

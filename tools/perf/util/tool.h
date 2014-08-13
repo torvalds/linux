@@ -40,7 +40,7 @@ struct perf_tool {
 	event_op2	tracing_data;
 	event_op2	finished_round,
 			build_id;
-	bool		ordered_samples;
+	bool		ordered_events;
 	bool		ordering_requires_timestamps;
 };
 

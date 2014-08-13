@@ -1061,6 +1061,8 @@ int perf_evlist__prepare_workload(struct perf_evlist *evlist, struct target *tar
 	}
 
 	if (!evlist->workload.pid) {
+		int ret;
+
 		if (pipe_output)
 			dup2(2, 1);
 
@@ -1078,8 +1080,22 @@ int perf_evlist__prepare_workload(struct perf_evlist *evlist, struct target *tar
 		/*
 		 * Wait until the parent tells us to go.
 		 */
-		if (read(go_pipe[0], &bf, 1) == -1)
-			perror("unable to read pipe");
+		ret = read(go_pipe[0], &bf, 1);
+		/*
+		 * The parent will ask for the execvp() to be performed by
+		 * writing exactly one byte, in workload.cork_fd, usually via
+		 * perf_evlist__start_workload().
+		 *
+		 * For cancelling the workload without actuallin running it,
+		 * the parent will just close workload.cork_fd, without writing
+		 * anything, i.e. read will return zero and we just exit()
+		 * here.
+		 */
+		if (ret != 1) {
+			if (ret == -1)
+				perror("unable to read pipe");
+			exit(ret);
+		}
 
 		execvp(argv[0], (char **)argv);
 

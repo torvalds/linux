@@ -13,8 +13,12 @@
 #include "util.h"
 #include "target.h"
 
+#define NSECS_PER_SEC  1000000000ULL
+#define NSECS_PER_USEC 1000ULL
+
 int verbose;
 bool dump_trace = false, quiet = false;
+int debug_ordered_events;
 
 static int _eprintf(int level, int var, const char *fmt, va_list args)
 {
@@ -38,6 +42,35 @@ int eprintf(int level, int var, const char *fmt, ...)
 	va_start(args, fmt);
 	ret = _eprintf(level, var, fmt, args);
 	va_end(args);
+
+	return ret;
+}
+
+static int __eprintf_time(u64 t, const char *fmt, va_list args)
+{
+	int ret = 0;
+	u64 secs, usecs, nsecs = t;
+
+	secs   = nsecs / NSECS_PER_SEC;
+	nsecs -= secs  * NSECS_PER_SEC;
+	usecs  = nsecs / NSECS_PER_USEC;
+
+	ret = fprintf(stderr, "[%13" PRIu64 ".%06" PRIu64 "] ",
+		      secs, usecs);
+	ret += vfprintf(stderr, fmt, args);
+	return ret;
+}
+
+int eprintf_time(int level, int var, u64 t, const char *fmt, ...)
+{
+	int ret = 0;
+	va_list args;
+
+	if (var >= level) {
+		va_start(args, fmt);
+		ret = __eprintf_time(t, fmt, args);
+		va_end(args);
+	}
 
 	return ret;
 }
@@ -110,7 +143,8 @@ static struct debug_variable {
 	const char *name;
 	int *ptr;
 } debug_variables[] = {
-	{ .name = "verbose", .ptr = &verbose },
+	{ .name = "verbose",		.ptr = &verbose },
+	{ .name = "ordered-events",	.ptr = &debug_ordered_events},
 	{ .name = NULL, }
 };
 

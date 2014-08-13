@@ -2209,7 +2209,7 @@ static int trace__replay(struct trace *trace)
 	trace->tool.tracing_data = perf_event__process_tracing_data;
 	trace->tool.build_id	  = perf_event__process_build_id;
 
-	trace->tool.ordered_samples = true;
+	trace->tool.ordered_events = true;
 	trace->tool.ordering_requires_timestamps = true;
 
 	/* add tid to output */
