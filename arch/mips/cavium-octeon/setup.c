@@ -263,7 +263,6 @@ static uint64_t crashk_size, crashk_base;
 static int octeon_uart;
 
 extern asmlinkage void handle_int(void);
-extern asmlinkage void plat_irq_dispatch(void);
 
 /**
  * Return non zero if we are currently running in the Octeon simulator
