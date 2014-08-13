@@ -216,6 +216,18 @@
 			interrupts = <0 240 0>;
 		};
 
+		fimd: fimd@11c00000 {
+			compatible = "samsung,exynos3250-fimd";
+			reg = <0x11c00000 0x30000>;
+			interrupt-names = "fifo", "vsync", "lcd_sys";
+			interrupts = <0 84 0>, <0 85 0>, <0 86 0>;
+			clocks = <&cmu CLK_SCLK_FIMD0>, <&cmu CLK_FIMD0>;
+			clock-names = "sclk_fimd", "fimd";
+			samsung,power-domain = <&pd_lcd0>;
+			samsung,sysreg = <&sys_reg>;
+			status = "disabled";
+		};
+
 		mshc_0: mshc@12510000 {
 			compatible = "samsung,exynos5250-dw-mshc";
 			reg = <0x12510000 0x1000>;
