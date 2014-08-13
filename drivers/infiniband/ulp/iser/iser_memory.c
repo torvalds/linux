@@ -510,7 +510,6 @@ iser_set_prot_checks(struct scsi_cmnd *sc, u8 *mask)
 {
 	switch (scsi_get_prot_type(sc)) {
 	case SCSI_PROT_DIF_TYPE0:
-		*mask = 0x0;
 		break;
 	case SCSI_PROT_DIF_TYPE1:
 	case SCSI_PROT_DIF_TYPE2:
