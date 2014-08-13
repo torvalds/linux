@@ -1365,7 +1365,6 @@ static const struct of_device_id xilinx_vdma_of_ids[] = {
 static struct platform_driver xilinx_vdma_driver = {
 	.driver = {
 		.name = "xilinx-vdma",
-		.owner = THIS_MODULE,
 		.of_match_table = xilinx_vdma_of_ids,
 	},
 	.probe = xilinx_vdma_probe,
