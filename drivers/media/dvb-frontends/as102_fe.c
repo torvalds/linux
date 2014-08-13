@@ -407,6 +407,14 @@ static int as102_fe_ts_bus_ctrl(struct dvb_frontend *fe, int acquire)
 				      state->elna_cfg);
 }
 
+static void as102_fe_release(struct dvb_frontend *fe)
+{
+	struct as102_state *state = fe->demodulator_priv;
+
+	kfree(state);
+}
+
+
 static struct dvb_frontend_ops as102_fe_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
@@ -436,6 +444,7 @@ static struct dvb_frontend_ops as102_fe_ops = {
 	.read_signal_strength	= as102_fe_read_signal_strength,
 	.read_ucblocks		= as102_fe_read_ucblocks,
 	.ts_bus_ctrl		= as102_fe_ts_bus_ctrl,
+	.release		= as102_fe_release,
 };
 
 struct dvb_frontend *as102_attach(const char *name,
