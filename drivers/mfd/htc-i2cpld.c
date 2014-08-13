@@ -232,7 +232,7 @@ static void htcpld_chip_set(struct gpio_chip *chip, unsigned offset, int val)
 	unsigned long flags;
 
 	client = chip_data->client;
-	if (client == NULL)
+	if (!client)
 		return;
 
 	spin_lock_irqsave(&chip_data->lock, flags);
@@ -373,7 +373,7 @@ static int htcpld_register_chip_i2c(
 	plat_chip_data = &pdata->chip[chip_index];
 
 	adapter = i2c_get_adapter(pdata->i2c_adapter_id);
-	if (adapter == NULL) {
+	if (!adapter) {
 		/* Eek, no such I2C adapter!  Bail out. */
 		dev_warn(dev, "Chip at i2c address 0x%x: Invalid i2c adapter %d\n",
 			 plat_chip_data->addr, pdata->i2c_adapter_id);
