@@ -1780,10 +1780,11 @@ static void clear_probe_trace_event(struct probe_trace_event *tev)
 	memset(tev, 0, sizeof(*tev));
 }
 
-static void print_warn_msg(const char *file, bool is_kprobe)
+static void print_open_warning(int err, bool is_kprobe)
 {
+	char sbuf[128];
 
-	if (errno == ENOENT) {
+	if (err == -ENOENT) {
 		const char *config;
 
 		if (!is_kprobe)
@@ -1791,25 +1792,26 @@ static void print_warn_msg(const char *file, bool is_kprobe)
 		else
 			config = "CONFIG_KPROBE_EVENTS";
 
-		pr_warning("%s file does not exist - please rebuild kernel"
-				" with %s.\n", file, config);
-	} else
-		pr_warning("Failed to open %s file: %s\n", file,
-				strerror(errno));
+		pr_warning("%cprobe_events file does not exist"
+			   " - please rebuild kernel with %s.\n",
+			   is_kprobe ? 'k' : 'u', config);
+	} else if (err == -ENOTSUP)
+		pr_warning("Debugfs is not mounted.\n");
+	else
+		pr_warning("Failed to open %cprobe_events: %s\n",
+			   is_kprobe ? 'k' : 'u',
+			   strerror_r(-err, sbuf, sizeof(sbuf)));
 }
 
-static int open_probe_events(const char *trace_file, bool readwrite,
-				bool is_kprobe)
+static int open_probe_events(const char *trace_file, bool readwrite)
 {
 	char buf[PATH_MAX];
 	const char *__debugfs;
 	int ret;
 
 	__debugfs = debugfs_find_mountpoint();
-	if (__debugfs == NULL) {
-		pr_warning("Debugfs is not mounted.\n");
-		return -ENOENT;
-	}
+	if (__debugfs == NULL)
+		return -ENOTSUP;
 
 	ret = e_snprintf(buf, PATH_MAX, "%s/%s", __debugfs, trace_file);
 	if (ret >= 0) {
@@ -1820,19 +1822,19 @@ static int open_probe_events(const char *trace_file, bool readwrite,
 			ret = open(buf, O_RDONLY, 0);
 
 		if (ret < 0)
-			print_warn_msg(buf, is_kprobe);
+			ret = -errno;
 	}
 	return ret;
 }
 
 static int open_kprobe_events(bool readwrite)
 {
-	return open_probe_events("tracing/kprobe_events", readwrite, true);
+	return open_probe_events("tracing/kprobe_events", readwrite);
 }
 
 static int open_uprobe_events(bool readwrite)
 {
-	return open_probe_events("tracing/uprobe_events", readwrite, false);
+	return open_probe_events("tracing/uprobe_events", readwrite);
 }
 
 /* Get raw string list of current kprobe_events  or uprobe_events */
@@ -1940,27 +1942,47 @@ static int __show_perf_probe_events(int fd, bool is_kprobe)
 /* List up current perf-probe events */
 int show_perf_probe_events(void)
 {
-	int fd, ret;
+	int kp_fd, up_fd, ret;
 
 	setup_pager();
-	fd = open_kprobe_events(false);
-
-	if (fd < 0)
-		return fd;
 
 	ret = init_symbol_maps(false);
 	if (ret < 0)
 		return ret;
 
-	ret = __show_perf_probe_events(fd, true);
-	close(fd);
-
-	fd = open_uprobe_events(false);
-	if (fd >= 0) {
-		ret = __show_perf_probe_events(fd, false);
-		close(fd);
+	kp_fd = open_kprobe_events(false);
+	if (kp_fd >= 0) {
+		ret = __show_perf_probe_events(kp_fd, true);
+		close(kp_fd);
+		if (ret < 0)
+			goto out;
 	}
 
+	up_fd = open_uprobe_events(false);
+	if (kp_fd < 0 && up_fd < 0) {
+		/* Both kprobes and uprobes are disabled, warn it. */
+		if (kp_fd == -ENOTSUP && up_fd == -ENOTSUP)
+			pr_warning("Debugfs is not mounted.\n");
+		else if (kp_fd == -ENOENT && up_fd == -ENOENT)
+			pr_warning("Please rebuild kernel with "
+				   "CONFIG_KPROBE_EVENTS or/and "
+				   "CONFIG_UPROBE_EVENTS.\n");
+		else {
+			char sbuf[128];
+			pr_warning("Failed to open kprobe events: %s.\n",
+				   strerror_r(-kp_fd, sbuf, sizeof(sbuf)));
+			pr_warning("Failed to open uprobe events: %s.\n",
+				   strerror_r(-up_fd, sbuf, sizeof(sbuf)));
+		}
+		ret = kp_fd;
+		goto out;
+	}
+
+	if (up_fd >= 0) {
+		ret = __show_perf_probe_events(up_fd, false);
+		close(up_fd);
+	}
+out:
 	exit_symbol_maps();
 	return ret;
 }
@@ -2075,8 +2097,11 @@ static int __add_probe_trace_events(struct perf_probe_event *pev,
 	else
 		fd = open_kprobe_events(true);
 
-	if (fd < 0)
+	if (fd < 0) {
+		print_open_warning(fd, !pev->uprobes);
 		return fd;
+	}
+
 	/* Get current event names */
 	namelist = get_probe_trace_event_names(fd, false);
 	if (!namelist) {
@@ -2449,13 +2474,17 @@ int del_perf_probe_events(struct strlist *dellist)
 
 	/* Get current event names */
 	kfd = open_kprobe_events(true);
-	if (kfd < 0)
+	if (kfd < 0) {
+		print_open_warning(kfd, true);
 		return kfd;
+	}
 
 	namelist = get_probe_trace_event_names(kfd, true);
 	ufd = open_uprobe_events(true);
 
-	if (ufd >= 0)
+	if (ufd < 0)
+		print_open_warning(ufd, false);
+	else
 		unamelist = get_probe_trace_event_names(ufd, true);
 
 	if (namelist == NULL && unamelist == NULL)
