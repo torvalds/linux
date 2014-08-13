@@ -238,6 +238,7 @@ enum regulator_type {
  * @bypass_val_off: Disabling value for control when using regmap set_bypass
  *
  * @enable_time: Time taken for initial enable of regulator (in uS).
+ * @off_on_delay: guard time (in uS), before re-enabling a regulator
  */
 struct regulator_desc {
 	const char *name;
@@ -276,6 +277,8 @@ struct regulator_desc {
 	unsigned int bypass_val_off;
 
 	unsigned int enable_time;
+
+	unsigned int off_on_delay;
 };
 
 /**
@@ -348,6 +351,9 @@ struct regulator_dev {
 
 	struct regulator_enable_gpio *ena_pin;
 	unsigned int ena_gpio_state:1;
+
+	/* time when this regulator was disabled last time */
+	unsigned long last_off_jiffy;
 };
 
 struct regulator_dev *
