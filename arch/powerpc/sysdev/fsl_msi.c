@@ -180,7 +180,8 @@ static int fsl_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 	np = of_parse_phandle(hose->dn, "fsl,msi", 0);
 	if (np) {
 		if (of_device_is_compatible(np, "fsl,mpic-msi") ||
-		    of_device_is_compatible(np, "fsl,vmpic-msi"))
+		    of_device_is_compatible(np, "fsl,vmpic-msi") ||
+		    of_device_is_compatible(np, "fsl,vmpic-msi-v4.3"))
 			phandle = np->phandle;
 		else {
 			dev_err(&pdev->dev,
@@ -466,7 +467,8 @@ static int fsl_of_msi_probe(struct platform_device *dev)
 
 	p = of_get_property(dev->dev.of_node, "msi-available-ranges", &len);
 
-	if (of_device_is_compatible(dev->dev.of_node, "fsl,mpic-msi-v4.3")) {
+	if (of_device_is_compatible(dev->dev.of_node, "fsl,mpic-msi-v4.3") ||
+	    of_device_is_compatible(dev->dev.of_node, "fsl,vmpic-msi-v4.3")) {
 		msi->srs_shift = MSIIR1_SRS_SHIFT;
 		msi->ibs_shift = MSIIR1_IBS_SHIFT;
 		if (p)
@@ -570,6 +572,10 @@ static const struct of_device_id fsl_of_msi_ids[] = {
 #ifdef CONFIG_EPAPR_PARAVIRT
 	{
 		.compatible = "fsl,vmpic-msi",
+		.data = &vmpic_msi_feature,
+	},
+	{
+		.compatible = "fsl,vmpic-msi-v4.3",
 		.data = &vmpic_msi_feature,
 	},
 #endif
