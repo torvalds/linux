@@ -402,6 +402,31 @@ static size_t syscall_arg__scnprintf_mmap_flags(char *bf, size_t size,
 
 #define SCA_MMAP_FLAGS syscall_arg__scnprintf_mmap_flags
 
+static size_t syscall_arg__scnprintf_mremap_flags(char *bf, size_t size,
+						  struct syscall_arg *arg)
+{
+	int printed = 0, flags = arg->val;
+
+#define P_MREMAP_FLAG(n) \
+	if (flags & MREMAP_##n) { \
+		printed += scnprintf(bf + printed, size - printed, "%s%s", printed ? "|" : "", #n); \
+		flags &= ~MREMAP_##n; \
+	}
+
+	P_MREMAP_FLAG(MAYMOVE);
+#ifdef MREMAP_FIXED
+	P_MREMAP_FLAG(FIXED);
+#endif
+#undef P_MREMAP_FLAG
+
+	if (flags)
+		printed += scnprintf(bf + printed, size - printed, "%s%#x", printed ? "|" : "", flags);
+
+	return printed;
+}
+
+#define SCA_MREMAP_FLAGS syscall_arg__scnprintf_mremap_flags
+
 static size_t syscall_arg__scnprintf_madvise_behavior(char *bf, size_t size,
 						      struct syscall_arg *arg)
 {
@@ -1004,6 +1029,7 @@ static struct syscall_fmt {
 			     [2] = SCA_MMAP_PROT, /* prot */ }, },
 	{ .name	    = "mremap",	    .hexret = true,
 	  .arg_scnprintf = { [0] = SCA_HEX, /* addr */
+			     [3] = SCA_MREMAP_FLAGS, /* flags */
 			     [4] = SCA_HEX, /* new_addr */ }, },
 	{ .name	    = "munlock",    .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_HEX, /* addr */ }, },
