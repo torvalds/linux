@@ -38,16 +38,10 @@ int lockdep_rht_mutex_is_held(const struct rhashtable *ht)
 EXPORT_SYMBOL_GPL(lockdep_rht_mutex_is_held);
 #endif
 
-/**
- * rht_obj - cast hash head to outer object
- * @ht:		hash table
- * @he:		hashed node
- */
-void *rht_obj(const struct rhashtable *ht, const struct rhash_head *he)
+static void *rht_obj(const struct rhashtable *ht, const struct rhash_head *he)
 {
 	return (void *) he - ht->p.head_offset;
 }
-EXPORT_SYMBOL_GPL(rht_obj);
 
 static u32 __hashfn(const struct rhashtable *ht, const void *key,
 		      u32 len, u32 hsize)

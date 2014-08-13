@@ -117,7 +117,6 @@ void rhashtable_destroy(const struct rhashtable *ht);
 #define rht_dereference_rcu(p, ht) \
 	rcu_dereference_check(p, lockdep_rht_mutex_is_held(ht))
 
-/* Internal, use rht_obj() instead */
 #define rht_entry(ptr, type, member) container_of(ptr, type, member)
 #define rht_entry_safe(ptr, type, member) \
 ({ \
