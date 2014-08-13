@@ -335,6 +335,16 @@ static void kvmppc_core_dequeue_watchdog(struct kvm_vcpu *vcpu)
 	clear_bit(BOOKE_IRQPRIO_WATCHDOG, &vcpu->arch.pending_exceptions);
 }
 
+void kvmppc_core_queue_debug(struct kvm_vcpu *vcpu)
+{
+	kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_DEBUG);
+}
+
+void kvmppc_core_dequeue_debug(struct kvm_vcpu *vcpu)
+{
+	clear_bit(BOOKE_IRQPRIO_DEBUG, &vcpu->arch.pending_exceptions);
+}
+
 static void set_guest_srr(struct kvm_vcpu *vcpu, unsigned long srr0, u32 srr1)
 {
 	kvmppc_set_srr0(vcpu, srr0);
@@ -818,7 +828,32 @@ static int kvmppc_handle_debug(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	struct debug_reg *dbg_reg = &(vcpu->arch.dbg_reg);
 	u32 dbsr = vcpu->arch.dbsr;
 
-	/* Clear guest dbsr (vcpu->arch.dbsr) */
+	if (vcpu->guest_debug == 0) {
+		/*
+		 * Debug resources belong to Guest.
+		 * Imprecise debug event is not injected
+		 */
+		if (dbsr & DBSR_IDE) {
+			dbsr &= ~DBSR_IDE;
+			if (!dbsr)
+				return RESUME_GUEST;
+		}
+
+		if (dbsr && (vcpu->arch.shared->msr & MSR_DE) &&
+			    (vcpu->arch.dbg_reg.dbcr0 & DBCR0_IDM))
+			kvmppc_core_queue_debug(vcpu);
+
+		/* Inject a program interrupt if trap debug is not allowed */
+		if ((dbsr & DBSR_TIE) && !(vcpu->arch.shared->msr & MSR_DE))
+			kvmppc_core_queue_program(vcpu, ESR_PTR);
+
+		return RESUME_GUEST;
+	}
+
+	/*
+	 * Debug resource owned by userspace.
+	 * Clear guest dbsr (vcpu->arch.dbsr)
+	 */
 	vcpu->arch.dbsr = 0;
 	run->debug.arch.status = 0;
 	run->debug.arch.address = vcpu->arch.pc;
@@ -1350,6 +1385,11 @@ int kvmppc_subarch_vcpu_init(struct kvm_vcpu *vcpu)
 	setup_timer(&vcpu->arch.wdt_timer, kvmppc_watchdog_func,
 		    (unsigned long)vcpu);
 
+	/*
+	 * Clear DBSR.MRR to avoid guest debug interrupt as
+	 * this is of host interest
+	 */
+	mtspr(SPRN_DBSR, DBSR_MRR);
 	return 0;
 }
 

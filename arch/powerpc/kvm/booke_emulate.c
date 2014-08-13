@@ -131,6 +131,7 @@ int kvmppc_booke_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,
 int kvmppc_booke_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, ulong spr_val)
 {
 	int emulated = EMULATE_DONE;
+	bool debug_inst = false;
 
 	switch (sprn) {
 	case SPRN_DEAR:
@@ -145,14 +146,128 @@ int kvmppc_booke_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, ulong spr_val)
 	case SPRN_CSRR1:
 		vcpu->arch.csrr1 = spr_val;
 		break;
+	case SPRN_DSRR0:
+		vcpu->arch.dsrr0 = spr_val;
+		break;
+	case SPRN_DSRR1:
+		vcpu->arch.dsrr1 = spr_val;
+		break;
+	case SPRN_IAC1:
+		/*
+		 * If userspace is debugging guest then guest
+		 * can not access debug registers.
+		 */
+		if (vcpu->guest_debug)
+			break;
+
+		debug_inst = true;
+		vcpu->arch.dbg_reg.iac1 = spr_val;
+		break;
+	case SPRN_IAC2:
+		/*
+		 * If userspace is debugging guest then guest
+		 * can not access debug registers.
+		 */
+		if (vcpu->guest_debug)
+			break;
+
+		debug_inst = true;
+		vcpu->arch.dbg_reg.iac2 = spr_val;
+		break;
+#if CONFIG_PPC_ADV_DEBUG_IACS > 2
+	case SPRN_IAC3:
+		/*
+		 * If userspace is debugging guest then guest
+		 * can not access debug registers.
+		 */
+		if (vcpu->guest_debug)
+			break;
+
+		debug_inst = true;
+		vcpu->arch.dbg_reg.iac3 = spr_val;
+		break;
+	case SPRN_IAC4:
+		/*
+		 * If userspace is debugging guest then guest
+		 * can not access debug registers.
+		 */
+		if (vcpu->guest_debug)
+			break;
+
+		debug_inst = true;
+		vcpu->arch.dbg_reg.iac4 = spr_val;
+		break;
+#endif
+	case SPRN_DAC1:
+		/*
+		 * If userspace is debugging guest then guest
+		 * can not access debug registers.
+		 */
+		if (vcpu->guest_debug)
+			break;
+
+		debug_inst = true;
+		vcpu->arch.dbg_reg.dac1 = spr_val;
+		break;
+	case SPRN_DAC2:
+		/*
+		 * If userspace is debugging guest then guest
+		 * can not access debug registers.
+		 */
+		if (vcpu->guest_debug)
+			break;
+
+		debug_inst = true;
+		vcpu->arch.dbg_reg.dac2 = spr_val;
+		break;
 	case SPRN_DBCR0:
+		/*
+		 * If userspace is debugging guest then guest
+		 * can not access debug registers.
+		 */
+		if (vcpu->guest_debug)
+			break;
+
+		debug_inst = true;
+		spr_val &= (DBCR0_IDM | DBCR0_IC | DBCR0_BT | DBCR0_TIE |
+			DBCR0_IAC1 | DBCR0_IAC2 | DBCR0_IAC3 | DBCR0_IAC4  |
+			DBCR0_DAC1R | DBCR0_DAC1W | DBCR0_DAC2R | DBCR0_DAC2W);
+
 		vcpu->arch.dbg_reg.dbcr0 = spr_val;
 		break;
 	case SPRN_DBCR1:
+		/*
+		 * If userspace is debugging guest then guest
+		 * can not access debug registers.
+		 */
+		if (vcpu->guest_debug)
+			break;
+
+		debug_inst = true;
 		vcpu->arch.dbg_reg.dbcr1 = spr_val;
 		break;
+	case SPRN_DBCR2:
+		/*
+		 * If userspace is debugging guest then guest
+		 * can not access debug registers.
+		 */
+		if (vcpu->guest_debug)
+			break;
+
+		debug_inst = true;
+		vcpu->arch.dbg_reg.dbcr2 = spr_val;
+		break;
 	case SPRN_DBSR:
+		/*
+		 * If userspace is debugging guest then guest
+		 * can not access debug registers.
+		 */
+		if (vcpu->guest_debug)
+			break;
+
 		vcpu->arch.dbsr &= ~spr_val;
+		if (!(vcpu->arch.dbsr & ~DBSR_IDE))
+			kvmppc_core_dequeue_debug(vcpu);
 		break;
 	case SPRN_TSR:
 		kvmppc_clr_tsr_bits(vcpu, spr_val);
@@ -265,6 +380,10 @@ int kvmppc_booke_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, ulong spr_val)
 		emulated = EMULATE_FAIL;
 	}
 
+	if (debug_inst) {
+		current->thread.debug = vcpu->arch.dbg_reg;
+		switch_booke_debug_regs(&vcpu->arch.dbg_reg);
+	}
 	return emulated;
 }
 
@@ -291,6 +410,32 @@ int kvmppc_booke_emulate_mfspr(struct kvm_vcpu *vcpu, int sprn, ulong *spr_val)
 	case SPRN_CSRR1:
 		*spr_val = vcpu->arch.csrr1;
 		break;
+	case SPRN_DSRR0:
+		*spr_val = vcpu->arch.dsrr0;
+		break;
+	case SPRN_DSRR1:
+		*spr_val = vcpu->arch.dsrr1;
+		break;
+	case SPRN_IAC1:
+		*spr_val = vcpu->arch.dbg_reg.iac1;
+		break;
+	case SPRN_IAC2:
+		*spr_val = vcpu->arch.dbg_reg.iac2;
+		break;
+#if CONFIG_PPC_ADV_DEBUG_IACS > 2
+	case SPRN_IAC3:
+		*spr_val = vcpu->arch.dbg_reg.iac3;
+		break;
+	case SPRN_IAC4:
+		*spr_val = vcpu->arch.dbg_reg.iac4;
+		break;
+#endif
+	case SPRN_DAC1:
+		*spr_val = vcpu->arch.dbg_reg.dac1;
+		break;
+	case SPRN_DAC2:
+		*spr_val = vcpu->arch.dbg_reg.dac2;
+		break;
 	case SPRN_DBCR0:
 		*spr_val = vcpu->arch.dbg_reg.dbcr0;
 		if (vcpu->guest_debug)
@@ -298,6 +443,9 @@ int kvmppc_booke_emulate_mfspr(struct kvm_vcpu *vcpu, int sprn, ulong *spr_val)
 		break;
 	case SPRN_DBCR1:
 		*spr_val = vcpu->arch.dbg_reg.dbcr1;
+		break;
+	case SPRN_DBCR2:
+		*spr_val = vcpu->arch.dbg_reg.dbcr2;
 		break;
 	case SPRN_DBSR:
 		*spr_val = vcpu->arch.dbsr;
