@@ -123,11 +123,6 @@ void rhashtable_destroy(const struct rhashtable *ht);
 	typeof(ptr) __ptr = (ptr); \
 	   __ptr ? rht_entry(__ptr, type, member) : NULL; \
 })
-#define rht_entry_safe_rcu(ptr, type, member) \
-({ \
-	typeof(*ptr) __rcu *__ptr = (typeof(*ptr) __rcu __force *)ptr; \
-	__ptr ? container_of((typeof(ptr))rcu_dereference_raw(__ptr), type, member) : NULL; \
-})
 
 #define rht_next_entry_safe(pos, ht, member) \
 ({ \
@@ -204,9 +199,10 @@ void rhashtable_destroy(const struct rhashtable *ht);
  * traversal is guarded by rcu_read_lock().
  */
 #define rht_for_each_entry_rcu(pos, head, member) \
-	for (pos = rht_entry_safe_rcu(head, typeof(*(pos)), member); \
+	for (pos = rht_entry_safe(rcu_dereference_raw(head), \
+				  typeof(*(pos)), member); \
 	     pos; \
-	     pos = rht_entry_safe_rcu((pos)->member.next, \
-				      typeof(*(pos)), member))
+	     pos = rht_entry_safe(rcu_dereference_raw((pos)->member.next), \
+				  typeof(*(pos)), member))
 
 #endif /* _LINUX_RHASHTABLE_H */
