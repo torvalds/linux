@@ -635,6 +635,9 @@ int wiphy_register(struct wiphy *wiphy)
 	if (IS_ERR(rdev->wiphy.debugfsdir))
 		rdev->wiphy.debugfsdir = NULL;
 
+	cfg80211_debugfs_rdev_add(rdev);
+	nl80211_notify_wiphy(rdev, NL80211_CMD_NEW_WIPHY);
+
 	if (wiphy->regulatory_flags & REGULATORY_CUSTOM_REG) {
 		struct regulatory_request request;
 
@@ -646,8 +649,6 @@ int wiphy_register(struct wiphy *wiphy)
 		nl80211_send_reg_change_event(&request);
 	}
 
-	cfg80211_debugfs_rdev_add(rdev);
-
 	rdev->wiphy.registered = true;
 	rtnl_unlock();
 
@@ -658,8 +659,6 @@ int wiphy_register(struct wiphy *wiphy)
 		wiphy_unregister(&rdev->wiphy);
 		return res;
 	}
-
-	nl80211_notify_wiphy(rdev, NL80211_CMD_NEW_WIPHY);
 
 	return 0;
 }
