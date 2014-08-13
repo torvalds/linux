@@ -1071,9 +1071,47 @@ static struct resource pxa3xx_resource_ssp4[] = {
 	},
 };
 
+/*
+ * PXA3xx SSP is basically equivalent to PXA27x.
+ * However, we need to register the device by the correct name in order to
+ * make the driver set the correct internal type, hence we provide specific
+ * platform_devices for each of them.
+ */
+struct platform_device pxa3xx_device_ssp1 = {
+	.name		= "pxa3xx-ssp",
+	.id		= 0,
+	.dev		= {
+		.dma_mask = &pxa27x_ssp1_dma_mask,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
+	},
+	.resource	= pxa27x_resource_ssp1,
+	.num_resources	= ARRAY_SIZE(pxa27x_resource_ssp1),
+};
+
+struct platform_device pxa3xx_device_ssp2 = {
+	.name		= "pxa3xx-ssp",
+	.id		= 1,
+	.dev		= {
+		.dma_mask = &pxa27x_ssp2_dma_mask,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
+	},
+	.resource	= pxa27x_resource_ssp2,
+	.num_resources	= ARRAY_SIZE(pxa27x_resource_ssp2),
+};
+
+struct platform_device pxa3xx_device_ssp3 = {
+	.name		= "pxa3xx-ssp",
+	.id		= 2,
+	.dev		= {
+		.dma_mask = &pxa27x_ssp3_dma_mask,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
+	},
+	.resource	= pxa27x_resource_ssp3,
+	.num_resources	= ARRAY_SIZE(pxa27x_resource_ssp3),
+};
+
 struct platform_device pxa3xx_device_ssp4 = {
-	/* PXA3xx SSP is basically equivalent to PXA27x */
-	.name		= "pxa27x-ssp",
+	.name		= "pxa3xx-ssp",
 	.id		= 3,
 	.dev		= {
 		.dma_mask = &pxa3xx_ssp4_dma_mask,
