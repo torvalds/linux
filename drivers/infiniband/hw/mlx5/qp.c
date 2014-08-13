@@ -2020,53 +2020,47 @@ static u8 bs_selector(int block_size)
 	}
 }
 
-static int format_selector(struct ib_sig_attrs *attr,
-			   struct ib_sig_domain *domain,
-			   int *selector)
+static int mlx5_fill_inl_bsf(struct ib_sig_domain *domain,
+			     struct mlx5_bsf_inl *inl)
 {
-
-#define FORMAT_DIF_NONE		0
-#define FORMAT_DIF_CRC_INC	8
-#define FORMAT_DIF_CRC_NO_INC	12
-#define FORMAT_DIF_CSUM_INC	13
-#define FORMAT_DIF_CSUM_NO_INC	14
+	/* Valid inline section and allow BSF refresh */
+	inl->vld_refresh = cpu_to_be16(MLX5_BSF_INL_VALID |
+				       MLX5_BSF_REFRESH_DIF);
+	inl->dif_apptag = cpu_to_be16(domain->sig.dif.app_tag);
+	inl->dif_reftag = cpu_to_be32(domain->sig.dif.ref_tag);
 
 	switch (domain->sig.dif.type) {
 	case IB_T10DIF_NONE:
 		/* No DIF */
-		*selector = FORMAT_DIF_NONE;
 		break;
 	case IB_T10DIF_TYPE1: /* Fall through */
 	case IB_T10DIF_TYPE2:
-		switch (domain->sig.dif.bg_type) {
-		case IB_T10DIF_CRC:
-			*selector = FORMAT_DIF_CRC_INC;
-			break;
-		case IB_T10DIF_CSUM:
-			*selector = FORMAT_DIF_CSUM_INC;
-			break;
-		default:
-			return 1;
-		}
+		inl->sig_type = domain->sig.dif.bg_type == IB_T10DIF_CRC ?
+				MLX5_DIF_CRC : MLX5_DIF_IPCS;
+		/*
+		 * increment reftag and don't check if
+		 * apptag=0xffff and reftag=0xffffffff
+		 */
+		inl->dif_inc_ref_guard_check = MLX5_BSF_INC_REFTAG |
+					       MLX5_BSF_APPREF_ESCAPE;
+		inl->dif_app_bitmask_check = 0xffff;
+		/* repeating block */
+		inl->rp_inv_seed = MLX5_BSF_REPEAT_BLOCK;
 		break;
 	case IB_T10DIF_TYPE3:
-		switch (domain->sig.dif.bg_type) {
-		case IB_T10DIF_CRC:
-			*selector = domain->sig.dif.type3_inc_reftag ?
-					   FORMAT_DIF_CRC_INC :
-					   FORMAT_DIF_CRC_NO_INC;
-			break;
-		case IB_T10DIF_CSUM:
-			*selector = domain->sig.dif.type3_inc_reftag ?
-					   FORMAT_DIF_CSUM_INC :
-					   FORMAT_DIF_CSUM_NO_INC;
-			break;
-		default:
-			return 1;
-		}
+		inl->sig_type = domain->sig.dif.bg_type == IB_T10DIF_CRC ?
+				MLX5_DIF_CRC : MLX5_DIF_IPCS;
+		/*
+		 * Don't inc reftag and don't check if
+		 * apptag=0xffff and reftag=0xffffffff
+		 */
+		inl->dif_inc_ref_guard_check = MLX5_BSF_APPREF_ESCAPE;
+		inl->dif_app_bitmask_check = 0xffff;
+		/* Repeating block */
+		inl->rp_inv_seed = MLX5_BSF_REPEAT_BLOCK;
 		break;
 	default:
-		return 1;
+		return -EINVAL;
 	}
 
 	return 0;
@@ -2080,7 +2074,7 @@ static int mlx5_set_bsf(struct ib_mr *sig_mr,
 	struct mlx5_bsf_basic *basic = &bsf->basic;
 	struct ib_sig_domain *mem = &sig_attrs->mem;
 	struct ib_sig_domain *wire = &sig_attrs->wire;
-	int ret, selector;
+	int ret;
 
 	memset(bsf, 0, sizeof(*bsf));
 	switch (sig_attrs->mem.sig_type) {
@@ -2088,12 +2082,14 @@ static int mlx5_set_bsf(struct ib_mr *sig_mr,
 		if (sig_attrs->wire.sig_type != IB_SIG_TYPE_T10_DIF)
 			return -EINVAL;
 
+		/* Basic + Extended + Inline */
+		basic->bsf_size_sbs = 1 << 7;
 		/* Input domain check byte mask */
 		basic->check_byte_mask = sig_attrs->check_mask;
 		if (mem->sig.dif.pi_interval == wire->sig.dif.pi_interval &&
 		    mem->sig.dif.type == wire->sig.dif.type) {
 			/* Same block structure */
-			basic->bsf_size_sbs = 1 << 4;
+			basic->bsf_size_sbs |= 1 << 4;
 			if (mem->sig.dif.bg_type == wire->sig.dif.bg_type)
 				basic->wire.copy_byte_mask |= MLX5_CPY_GRD_MASK;
 			if (mem->sig.dif.app_tag == wire->sig.dif.app_tag)
@@ -2105,18 +2101,16 @@ static int mlx5_set_bsf(struct ib_mr *sig_mr,
 
 		basic->mem.bs_selector = bs_selector(mem->sig.dif.pi_interval);
 		basic->raw_data_size = cpu_to_be32(data_size);
+		basic->m_bfs_psv = cpu_to_be32(msig->psv_memory.psv_idx);
+		basic->w_bfs_psv = cpu_to_be32(msig->psv_wire.psv_idx);
 
-		ret = format_selector(sig_attrs, mem, &selector);
+		ret = mlx5_fill_inl_bsf(wire, &bsf->w_inl);
 		if (ret)
 			return -EINVAL;
-		basic->m_bfs_psv = cpu_to_be32(selector << 24 |
-					       msig->psv_memory.psv_idx);
 
-		ret = format_selector(sig_attrs, wire, &selector);
+		ret = mlx5_fill_inl_bsf(mem, &bsf->m_inl);
 		if (ret)
 			return -EINVAL;
-		basic->w_bfs_psv = cpu_to_be32(selector << 24 |
-					       msig->psv_wire.psv_idx);
 		break;
 
 	default:

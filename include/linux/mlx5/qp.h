@@ -43,6 +43,12 @@
 #define MLX5_CPY_GRD_MASK	0xc0
 #define MLX5_CPY_APP_MASK	0x30
 #define MLX5_CPY_REF_MASK	0x0f
+#define MLX5_BSF_INC_REFTAG	(1 << 6)
+#define MLX5_BSF_INL_VALID	(1 << 15)
+#define MLX5_BSF_REFRESH_DIF	(1 << 14)
+#define MLX5_BSF_REPEAT_BLOCK	(1 << 7)
+#define MLX5_BSF_APPTAG_ESCAPE	0x1
+#define MLX5_BSF_APPREF_ESCAPE	0x2
 
 enum mlx5_qp_optpar {
 	MLX5_QP_OPTPAR_ALT_ADDR_PATH		= 1 << 0,
@@ -290,6 +296,22 @@ struct mlx5_wqe_inline_seg {
 	__be32	byte_count;
 };
 
+enum mlx5_sig_type {
+	MLX5_DIF_CRC = 0x1,
+	MLX5_DIF_IPCS = 0x2,
+};
+
+struct mlx5_bsf_inl {
+	__be16		vld_refresh;
+	__be16		dif_apptag;
+	__be32		dif_reftag;
+	u8		sig_type;
+	u8		rp_inv_seed;
+	u8		rsvd[3];
+	u8		dif_inc_ref_guard_check;
+	__be16		dif_app_bitmask_check;
+};
+
 struct mlx5_bsf {
 	struct mlx5_bsf_basic {
 		u8		bsf_size_sbs;
@@ -313,14 +335,8 @@ struct mlx5_bsf {
 		__be32		w_tfs_psv;
 		__be32		m_tfs_psv;
 	} ext;
-	struct mlx5_bsf_inl {
-		__be32		w_inl_vld;
-		__be32		w_rsvd;
-		__be64		w_block_format;
-		__be32		m_inl_vld;
-		__be32		m_rsvd;
-		__be64		m_block_format;
-	} inl;
+	struct mlx5_bsf_inl	w_inl;
+	struct mlx5_bsf_inl	m_inl;
 };
 
 struct mlx5_klm {
