@@ -1586,13 +1586,8 @@ struct drm_i915_private {
 #ifdef CONFIG_DRM_I915_FBDEV
 	/* list of fbdev register on this device */
 	struct intel_fbdev *fbdev;
+	struct work_struct fbdev_suspend_work;
 #endif
-
-	/*
-	 * The console may be contended at resume, but we don't
-	 * want it to block on it.
-	 */
-	struct work_struct console_resume_work;
 
 	struct drm_property *broadcast_rgb_property;
 	struct drm_property *force_audio_property;
@@ -2224,8 +2219,6 @@ extern unsigned long i915_mch_val(struct drm_i915_private *dev_priv);
 extern unsigned long i915_gfx_val(struct drm_i915_private *dev_priv);
 extern void i915_update_gfx_val(struct drm_i915_private *dev_priv);
 int vlv_force_gfx_clock(struct drm_i915_private *dev_priv, bool on);
-
-extern void intel_console_resume(struct work_struct *work);
 
 /* i915_irq.c */
 void i915_queue_hangcheck(struct drm_device *dev);

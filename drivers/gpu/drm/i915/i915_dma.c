@@ -1350,8 +1350,6 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	if (ret)
 		goto cleanup_irq;
 
-	INIT_WORK(&dev_priv->console_resume_work, intel_console_resume);
-
 	intel_modeset_gem_init(dev);
 
 	/* Always safe in the mode setting case. */
@@ -1864,7 +1862,6 @@ int i915_driver_unload(struct drm_device *dev)
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
 		intel_fbdev_fini(dev);
 		intel_modeset_cleanup(dev);
-		cancel_work_sync(&dev_priv->console_resume_work);
 
 		/*
 		 * free the memory space allocated for the child device
