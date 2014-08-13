@@ -457,44 +457,44 @@ scsi2ib_prot_type(unsigned char prot_type)
 	}
 }
 
+static inline void
+iser_set_dif_domain(struct scsi_cmnd *sc, struct ib_sig_attrs *sig_attrs,
+		    struct ib_sig_domain *domain)
+{
+	unsigned char scsi_ptype = scsi_get_prot_type(sc);
+
+	domain->sig.dif.type = scsi2ib_prot_type(scsi_ptype);
+	domain->sig.dif.pi_interval = sc->device->sector_size;
+	domain->sig.dif.ref_tag = scsi_get_lba(sc) & 0xffffffff;
+};
 
 static int
 iser_set_sig_attrs(struct scsi_cmnd *sc, struct ib_sig_attrs *sig_attrs)
 {
-	unsigned char scsi_ptype = scsi_get_prot_type(sc);
-
 	sig_attrs->mem.sig_type = IB_SIG_TYPE_T10_DIF;
 	sig_attrs->wire.sig_type = IB_SIG_TYPE_T10_DIF;
-	sig_attrs->mem.sig.dif.pi_interval = sc->device->sector_size;
-	sig_attrs->wire.sig.dif.pi_interval = sc->device->sector_size;
 
 	switch (scsi_get_prot_op(sc)) {
 	case SCSI_PROT_WRITE_INSERT:
 	case SCSI_PROT_READ_STRIP:
 		sig_attrs->mem.sig.dif.type = IB_T10DIF_NONE;
-		sig_attrs->wire.sig.dif.type = scsi2ib_prot_type(scsi_ptype);
+		iser_set_dif_domain(sc, sig_attrs, &sig_attrs->wire);
 		sig_attrs->wire.sig.dif.bg_type = IB_T10DIF_CRC;
-		sig_attrs->wire.sig.dif.ref_tag = scsi_get_lba(sc) &
-						  0xffffffff;
 		break;
 	case SCSI_PROT_READ_INSERT:
 	case SCSI_PROT_WRITE_STRIP:
-		sig_attrs->mem.sig.dif.type = scsi2ib_prot_type(scsi_ptype);
-		sig_attrs->mem.sig.dif.bg_type = IB_T10DIF_CRC;
-		sig_attrs->mem.sig.dif.ref_tag = scsi_get_lba(sc) &
-						 0xffffffff;
 		sig_attrs->wire.sig.dif.type = IB_T10DIF_NONE;
+		iser_set_dif_domain(sc, sig_attrs, &sig_attrs->mem);
+		sig_attrs->mem.sig.dif.bg_type = iser_pi_guard ? IB_T10DIF_CSUM :
+						 IB_T10DIF_CRC;
 		break;
 	case SCSI_PROT_READ_PASS:
 	case SCSI_PROT_WRITE_PASS:
-		sig_attrs->mem.sig.dif.type = scsi2ib_prot_type(scsi_ptype);
-		sig_attrs->mem.sig.dif.bg_type = IB_T10DIF_CRC;
-		sig_attrs->mem.sig.dif.ref_tag = scsi_get_lba(sc) &
-						 0xffffffff;
-		sig_attrs->wire.sig.dif.type = scsi2ib_prot_type(scsi_ptype);
+		iser_set_dif_domain(sc, sig_attrs, &sig_attrs->wire);
 		sig_attrs->wire.sig.dif.bg_type = IB_T10DIF_CRC;
-		sig_attrs->wire.sig.dif.ref_tag = scsi_get_lba(sc) &
-						  0xffffffff;
+		iser_set_dif_domain(sc, sig_attrs, &sig_attrs->mem);
+		sig_attrs->mem.sig.dif.bg_type = iser_pi_guard ? IB_T10DIF_CSUM :
+						 IB_T10DIF_CRC;
 		break;
 	default:
 		iser_err("Unsupported PI operation %d\n",
