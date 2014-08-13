@@ -632,12 +632,6 @@ struct bm_io_work {
 	void (*done)(struct drbd_device *device, int rv);
 };
 
-enum write_ordering_e {
-	WO_none,
-	WO_drain_io,
-	WO_bdev_flush,
-};
-
 struct fifo_buffer {
 	unsigned int head_index;
 	unsigned int size;

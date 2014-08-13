@@ -1418,7 +1418,7 @@ int drbd_adm_disk_opts(struct sk_buff *skb, struct genl_info *info)
 		set_bit(MD_NO_FUA, &device->flags);
 
 	if (write_ordering_changed(old_disk_conf, new_disk_conf))
-		drbd_bump_write_ordering(device->resource, NULL, WO_bdev_flush);
+		drbd_bump_write_ordering(device->resource, NULL, WO_BDEV_FLUSH);
 
 	drbd_md_sync(device);
 
@@ -1727,7 +1727,7 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 	new_disk_conf = NULL;
 	new_plan = NULL;
 
-	drbd_bump_write_ordering(device->resource, device->ldev, WO_bdev_flush);
+	drbd_bump_write_ordering(device->resource, device->ldev, WO_BDEV_FLUSH);
 
 	if (drbd_md_test_flag(device->ldev, MDF_CRASHED_PRIMARY))
 		set_bit(CRASHED_PRIMARY, &device->flags);
