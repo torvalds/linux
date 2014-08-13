@@ -839,7 +839,7 @@ static void print_constraints(struct regulator_dev *rdev)
 static int machine_constraints_voltage(struct regulator_dev *rdev,
 	struct regulation_constraints *constraints)
 {
-	struct regulator_ops *ops = rdev->desc->ops;
+	const struct regulator_ops *ops = rdev->desc->ops;
 	int ret;
 
 	/* do we need to apply the constraint voltage */
@@ -938,7 +938,7 @@ static int machine_constraints_voltage(struct regulator_dev *rdev,
 static int machine_constraints_current(struct regulator_dev *rdev,
 	struct regulation_constraints *constraints)
 {
-	struct regulator_ops *ops = rdev->desc->ops;
+	const struct regulator_ops *ops = rdev->desc->ops;
 	int ret;
 
 	if (!constraints->min_uA && !constraints->max_uA)
@@ -982,7 +982,7 @@ static int set_machine_constraints(struct regulator_dev *rdev,
 	const struct regulation_constraints *constraints)
 {
 	int ret = 0;
-	struct regulator_ops *ops = rdev->desc->ops;
+	const struct regulator_ops *ops = rdev->desc->ops;
 
 	if (constraints)
 		rdev->constraints = kmemdup(constraints, sizeof(*constraints),
@@ -2208,9 +2208,9 @@ EXPORT_SYMBOL_GPL(regulator_count_voltages);
  */
 int regulator_list_voltage(struct regulator *regulator, unsigned selector)
 {
-	struct regulator_dev	*rdev = regulator->rdev;
-	struct regulator_ops	*ops = rdev->desc->ops;
-	int			ret;
+	struct regulator_dev *rdev = regulator->rdev;
+	const struct regulator_ops *ops = rdev->desc->ops;
+	int ret;
 
 	if (rdev->desc->fixed_uV && rdev->desc->n_voltages == 1 && !selector)
 		return rdev->desc->fixed_uV;
@@ -2572,8 +2572,8 @@ EXPORT_SYMBOL_GPL(regulator_set_voltage);
 int regulator_set_voltage_time(struct regulator *regulator,
 			       int old_uV, int new_uV)
 {
-	struct regulator_dev	*rdev = regulator->rdev;
-	struct regulator_ops	*ops = rdev->desc->ops;
+	struct regulator_dev *rdev = regulator->rdev;
+	const struct regulator_ops *ops = rdev->desc->ops;
 	int old_sel = -1;
 	int new_sel = -1;
 	int voltage;
@@ -3336,9 +3336,9 @@ EXPORT_SYMBOL_GPL(regulator_mode_to_status);
  */
 static int add_regulator_attributes(struct regulator_dev *rdev)
 {
-	struct device		*dev = &rdev->dev;
-	struct regulator_ops	*ops = rdev->desc->ops;
-	int			status = 0;
+	struct device *dev = &rdev->dev;
+	const struct regulator_ops *ops = rdev->desc->ops;
+	int status = 0;
 
 	/* some attributes need specific methods to be displayed */
 	if ((ops->get_voltage && ops->get_voltage(rdev) >= 0) ||
@@ -3905,7 +3905,7 @@ core_initcall(regulator_init);
 static int __init regulator_init_complete(void)
 {
 	struct regulator_dev *rdev;
-	struct regulator_ops *ops;
+	const struct regulator_ops *ops;
 	struct regulation_constraints *c;
 	int enabled, ret;
 
