@@ -21,7 +21,7 @@
 #include <linux/rculist.h>
 
 struct rhash_head {
-	struct rhash_head		*next;
+	struct rhash_head __rcu		*next;
 };
 
 #define INIT_HASH_HEAD(ptr) ((ptr)->next = NULL)
@@ -97,7 +97,7 @@ u32 rhashtable_obj_hashfn(const struct rhashtable *ht, void *ptr);
 void rhashtable_insert(struct rhashtable *ht, struct rhash_head *node, gfp_t);
 bool rhashtable_remove(struct rhashtable *ht, struct rhash_head *node, gfp_t);
 void rhashtable_remove_pprev(struct rhashtable *ht, struct rhash_head *obj,
-			     struct rhash_head **pprev, gfp_t flags);
+			     struct rhash_head __rcu **pprev, gfp_t flags);
 
 bool rht_grow_above_75(const struct rhashtable *ht, size_t new_size);
 bool rht_shrink_below_30(const struct rhashtable *ht, size_t new_size);

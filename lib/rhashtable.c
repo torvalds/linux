@@ -386,7 +386,7 @@ EXPORT_SYMBOL_GPL(rhashtable_insert);
  * deletion when combined with walking or lookup.
  */
 void rhashtable_remove_pprev(struct rhashtable *ht, struct rhash_head *obj,
-			     struct rhash_head **pprev, gfp_t flags)
+			     struct rhash_head __rcu **pprev, gfp_t flags)
 {
 	struct bucket_table *tbl = rht_dereference(ht->tbl, ht);
 
