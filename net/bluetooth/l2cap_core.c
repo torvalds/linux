@@ -2275,7 +2275,6 @@ static int l2cap_segment_sdu(struct l2cap_chan *chan,
 	} else {
 		sar = L2CAP_SAR_START;
 		sdu_len = len;
-		pdu_len -= L2CAP_SDULEN_SIZE;
 	}
 
 	while (len > 0) {
@@ -2290,10 +2289,8 @@ static int l2cap_segment_sdu(struct l2cap_chan *chan,
 		__skb_queue_tail(seg_queue, skb);
 
 		len -= pdu_len;
-		if (sdu_len) {
+		if (sdu_len)
 			sdu_len = 0;
-			pdu_len += L2CAP_SDULEN_SIZE;
-		}
 
 		if (len <= pdu_len) {
 			sar = L2CAP_SAR_END;
