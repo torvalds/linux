@@ -1901,6 +1901,8 @@ registers, find a list below:
   PPC   | KVM_REG_PPC_ARCH_COMPAT       | 32
   PPC   | KVM_REG_PPC_DABRX             | 32
   PPC   | KVM_REG_PPC_WORT              | 64
+  PPC	| KVM_REG_PPC_SPRG9             | 64
+  PPC	| KVM_REG_PPC_DBSR              | 32
   PPC   | KVM_REG_PPC_TM_GPR0           | 64
           ...
   PPC   | KVM_REG_PPC_TM_GPR31          | 64
