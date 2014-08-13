@@ -2004,8 +2004,16 @@ struct drm_i915_cmd_table {
 };
 
 /* Note that the (struct drm_i915_private *) cast is just to shut up gcc. */
-#define __I915__(p)	((sizeof(*(p)) == sizeof(struct drm_i915_private)) ? \
-			 (struct drm_i915_private *)(p) : to_i915(p))
+#define __I915__(p) ({ \
+	struct drm_i915_private *__p; \
+	if (__builtin_types_compatible_p(typeof(*p), struct drm_i915_private)) \
+		__p = (struct drm_i915_private *)p; \
+	else if (__builtin_types_compatible_p(typeof(*p), struct drm_device)) \
+		__p = to_i915((struct drm_device *)p); \
+	else \
+		BUILD_BUG(); \
+	__p; \
+})
 #define INTEL_INFO(p) 	(&__I915__(p)->info)
 #define INTEL_DEVID(p)	(INTEL_INFO(p)->device_id)
 
