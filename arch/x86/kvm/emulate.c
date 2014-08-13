@@ -4394,8 +4394,11 @@ done_prefixes:
 
 	ctxt->execute = opcode.u.execute;
 
+	if (unlikely(ctxt->ud) && likely(!(ctxt->d & EmulateOnUD)))
+		return EMULATION_FAILED;
+
 	if (unlikely(ctxt->d &
-		     (NotImpl|EmulateOnUD|Stack|Op3264|Sse|Mmx|Intercept|CheckPerm))) {
+		     (NotImpl|Stack|Op3264|Sse|Mmx|Intercept|CheckPerm))) {
 		/*
 		 * These are copied unconditionally here, and checked unconditionally
 		 * in x86_emulate_insn.
@@ -4404,9 +4407,6 @@ done_prefixes:
 		ctxt->intercept = opcode.intercept;
 
 		if (ctxt->d & NotImpl)
-			return EMULATION_FAILED;
-
-		if (!(ctxt->d & EmulateOnUD) && ctxt->ud)
 			return EMULATION_FAILED;
 
 		if (mode == X86EMUL_MODE_PROT64 && (ctxt->d & Stack))
