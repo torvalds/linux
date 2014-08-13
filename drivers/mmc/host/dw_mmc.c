@@ -1299,6 +1299,14 @@ static void dw_mci_tasklet_func(unsigned long priv)
 			/* fall through */
 
 		case STATE_SENDING_DATA:
+			/*
+			 * We could get a data error and never a transfer
+			 * complete so we'd better check for it here.
+			 *
+			 * Note that we don't really care if we also got a
+			 * transfer complete; stopping the DMA and sending an
+			 * abort won't hurt.
+			 */
 			if (test_and_clear_bit(EVENT_DATA_ERROR,
 					       &host->pending_events)) {
 				dw_mci_stop_dma(host);
@@ -1312,7 +1320,29 @@ static void dw_mci_tasklet_func(unsigned long priv)
 				break;
 
 			set_bit(EVENT_XFER_COMPLETE, &host->completed_events);
+
+			/*
+			 * Handle an EVENT_DATA_ERROR that might have shown up
+			 * before the transfer completed.  This might not have
+			 * been caught by the check above because the interrupt
+			 * could have gone off between the previous check and
+			 * the check for transfer complete.
+			 *
+			 * Technically this ought not be needed assuming we
+			 * get a DATA_COMPLETE eventually (we'll notice the
+			 * error and end the request), but it shouldn't hurt.
+			 *
+			 * This has the advantage of sending the stop command.
+			 */
+			if (test_and_clear_bit(EVENT_DATA_ERROR,
+					       &host->pending_events)) {
+				dw_mci_stop_dma(host);
+				send_stop_abort(host, data);
+				state = STATE_DATA_ERROR;
+				break;
+			}
 			prev_state = state = STATE_DATA_BUSY;
+
 			/* fall through */
 
 		case STATE_DATA_BUSY:
@@ -1335,6 +1365,22 @@ static void dw_mci_tasklet_func(unsigned long priv)
 				/* stop command for open-ended transfer*/
 				if (data->stop)
 					send_stop_abort(host, data);
+			} else {
+				/*
+				 * If we don't have a command complete now we'll
+				 * never get one since we just reset everything;
+				 * better end the request.
+				 *
+				 * If we do have a command complete we'll fall
+				 * through to the SENDING_STOP command and
+				 * everything will be peachy keen.
+				 */
+				if (!test_bit(EVENT_CMD_COMPLETE,
+					      &host->pending_events)) {
+					host->cmd = NULL;
+					dw_mci_request_end(host, mrq);
+					goto unlock;
+				}
 			}
 
 			/*
