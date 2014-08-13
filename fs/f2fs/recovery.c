@@ -459,6 +459,9 @@ int recover_fsync_data(struct f2fs_sb_info *sbi)
 	/* step #1: find fsynced inode numbers */
 	sbi->por_doing = true;
 
+	/* prevent checkpoint */
+	mutex_lock(&sbi->cp_mutex);
+
 	blkaddr = NEXT_FREE_BLKADDR(sbi, curseg);
 
 	err = find_fsync_dnodes(sbi, &inode_list);
@@ -490,8 +493,13 @@ out:
 		/* Flush all the NAT/SIT pages */
 		while (get_pages(sbi, F2FS_DIRTY_META))
 			sync_meta_pages(sbi, META, LONG_MAX);
+		set_ckpt_flags(sbi->ckpt, CP_ERROR_FLAG);
+		mutex_unlock(&sbi->cp_mutex);
 	} else if (need_writecp) {
+		mutex_unlock(&sbi->cp_mutex);
 		write_checkpoint(sbi, false);
+	} else {
+		mutex_unlock(&sbi->cp_mutex);
 	}
 	return err;
 }
