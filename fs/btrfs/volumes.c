@@ -1815,19 +1815,23 @@ error_undo:
 void btrfs_rm_dev_replace_srcdev(struct btrfs_fs_info *fs_info,
 				 struct btrfs_device *srcdev)
 {
+	struct btrfs_fs_devices *fs_devices;
+
 	WARN_ON(!mutex_is_locked(&fs_info->fs_devices->device_list_mutex));
+
+	fs_devices = fs_info->fs_devices;
 
 	list_del_rcu(&srcdev->dev_list);
 	list_del_rcu(&srcdev->dev_alloc_list);
-	fs_info->fs_devices->num_devices--;
+	fs_devices->num_devices--;
 	if (srcdev->missing) {
-		fs_info->fs_devices->missing_devices--;
-		fs_info->fs_devices->rw_devices++;
+		fs_devices->missing_devices--;
+		fs_devices->rw_devices++;
 	}
 	if (srcdev->can_discard)
-		fs_info->fs_devices->num_can_discard--;
+		fs_devices->num_can_discard--;
 	if (srcdev->bdev) {
-		fs_info->fs_devices->open_devices--;
+		fs_devices->open_devices--;
 
 		/*
 		 * zero out the old super if it is not writable
