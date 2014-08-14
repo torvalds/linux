@@ -428,6 +428,7 @@ static u64 get_cpu_usage_nsec_parent(void)
 static int self_open_counters(void)
 {
 	struct perf_event_attr attr;
+	char sbuf[STRERR_BUFSIZE];
 	int fd;
 
 	memset(&attr, 0, sizeof(attr));
@@ -440,7 +441,8 @@ static int self_open_counters(void)
 
 	if (fd < 0)
 		pr_err("Error: sys_perf_event_open() syscall returned "
-		       "with %d (%s)\n", fd, strerror(errno));
+		       "with %d (%s)\n", fd,
+		       strerror_r(errno, sbuf, sizeof(sbuf)));
 	return fd;
 }
 
