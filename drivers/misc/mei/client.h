@@ -45,6 +45,8 @@ static inline void mei_io_list_init(struct mei_cl_cb *list)
 {
 	INIT_LIST_HEAD(&list->list);
 }
+void mei_io_list_flush(struct mei_cl_cb *list, struct mei_cl *cl);
+
 /*
  * MEI Host Client Functions
  */

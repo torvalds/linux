@@ -117,7 +117,7 @@ static void __mei_io_list_flush(struct mei_cl_cb *list,
  * @list:  An instance of our list structure
  * @cl: host client
  */
-static inline void mei_io_list_flush(struct mei_cl_cb *list, struct mei_cl *cl)
+void mei_io_list_flush(struct mei_cl_cb *list, struct mei_cl *cl)
 {
 	__mei_io_list_flush(list, cl, false);
 }
