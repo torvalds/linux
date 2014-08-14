@@ -3249,6 +3249,8 @@ static void hci_link_key_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, &ev->bdaddr);
 	if (conn) {
+		clear_bit(HCI_CONN_NEW_LINK_KEY, &conn->flags);
+
 		if ((key->type == HCI_LK_UNAUTH_COMBINATION_P192 ||
 		     key->type == HCI_LK_UNAUTH_COMBINATION_P256) &&
 		    conn->auth_type != 0xff && (conn->auth_type & 0x01)) {
@@ -3301,6 +3303,7 @@ static void hci_link_key_notify_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	conn->disc_timeout = HCI_DISCONN_TIMEOUT;
 	hci_conn_drop(conn);
 
+	set_bit(HCI_CONN_NEW_LINK_KEY, &conn->flags);
 	conn_set_key(conn, ev->key_type, conn->pin_length);
 
 	if (!test_bit(HCI_MGMT, &hdev->dev_flags))
