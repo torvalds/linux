@@ -398,14 +398,6 @@ static unsigned int file_hashval(struct knfsd_fh *fh)
 	return nfsd_fh_hashval(fh) & (FILE_HASH_SIZE - 1);
 }
 
-static bool nfsd_fh_match(struct knfsd_fh *fh1, struct knfsd_fh *fh2)
-{
-	return fh1->fh_size == fh2->fh_size &&
-		!memcmp(fh1->fh_base.fh_pad,
-				fh2->fh_base.fh_pad,
-				fh1->fh_size);
-}
-
 static struct hlist_head file_hashtbl[FILE_HASH_SIZE];
 
 static void
@@ -3295,7 +3287,7 @@ find_file_locked(struct knfsd_fh *fh, unsigned int hashval)
 	struct nfs4_file *fp;
 
 	hlist_for_each_entry_rcu(fp, &file_hashtbl[hashval], fi_hash) {
-		if (nfsd_fh_match(&fp->fi_fhandle, fh)) {
+		if (fh_match(&fp->fi_fhandle, fh)) {
 			if (atomic_inc_not_zero(&fp->fi_ref))
 				return fp;
 		}
@@ -4290,7 +4282,7 @@ laundromat_main(struct work_struct *laundry)
 
 static inline __be32 nfs4_check_fh(struct svc_fh *fhp, struct nfs4_ol_stateid *stp)
 {
-	if (!nfsd_fh_match(&fhp->fh_handle, &stp->st_stid.sc_file->fi_fhandle))
+	if (!fh_match(&fhp->fh_handle, &stp->st_stid.sc_file->fi_fhandle))
 		return nfserr_bad_stateid;
 	return nfs_ok;
 }
