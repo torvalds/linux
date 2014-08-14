@@ -41,7 +41,7 @@
 
 #include "ptlrpc_internal.h"
 
-static struct cfs_hash *conn_hash = NULL;
+static struct cfs_hash *conn_hash;
 static cfs_hash_ops_t conn_hash_ops;
 
 struct ptlrpc_connection *
