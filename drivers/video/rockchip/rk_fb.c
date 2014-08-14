@@ -3151,11 +3151,30 @@ int rk_fb_dpi_status(void)
 	return ret;
 }
 
-#if 0
-static int set_xact_yact_for_hdmi(struct fb_var_screeninfo *pmy_var,
-				  struct fb_var_screeninfo *hdmi_var)
+/*
+ * function: this function will be called to modify hdmi info according to
+ *              pmy info for DUAL disp_mode when HDMI is used as EXTEND
+ * @pmy_info: primary screen fb_info
+ * @hdmi_info: hdmi screen fb_info
+ * @screen: the hdmi screen info
+ */
+static int rk_fb_hdmi_info_align(struct fb_info *pmy_info,
+                                 struct fb_info *hdmi_info,
+                                 struct rk_screen *screen)
 {
-	if (pmy_var->xres < pmy_var->yres) {	/* vertical  lcd screen */
+	struct rk_fb *inf =  platform_get_drvdata(fb_pdev);
+	struct fb_var_screeninfo *hdmi_var = NULL;
+	struct fb_var_screeninfo *pmy_var = NULL;
+
+	if(unlikely(!pmy_info) || unlikely(!hdmi_info))
+		return -1;
+
+	if (inf->disp_mode != DUAL || pmy_info == hdmi_info)
+		return 0;
+
+	pmy_var = &pmy_info->var;
+	hdmi_var = &hdmi_info->var;
+	if (pmy_var->xres < pmy_var->yres) {    /* vertical lcd screen */
 		hdmi_var->xres = pmy_var->yres;
 		hdmi_var->yres = pmy_var->xres;
 		hdmi_var->xres_virtual = pmy_var->yres;
@@ -3165,38 +3184,54 @@ static int set_xact_yact_for_hdmi(struct fb_var_screeninfo *pmy_var,
 		hdmi_var->xres_virtual = pmy_var->xres_virtual;
 	}
 
+	/* use the same format as primary screen */
+	hdmi_var->nonstd &= 0xffffff00;
+	hdmi_var->nonstd |= (pmy_var->nonstd & 0xff);
+
+	if (screen) {
+		hdmi_var->grayscale &= 0xff;
+		hdmi_var->grayscale |= (screen->mode.xres << 8) +
+					(screen->mode.yres << 20);
+	}
+
 	return 0;
 }
-#endif
 
 #if 1
 /*
- *function:this function will be called by display device, enable/disable lcdc
- *screen: screen timing to be set to lcdc
- *enable: 0 disable lcdc; 1 enable change lcdc timing; 2 just enable dclk
- *lcdc_id: the lcdc id the display device attached ,0 or 1
+ * function: this function will be called by display device, enable/disable lcdc
+ * @screen: screen timing to be set to lcdc
+ * @enable: 0 disable lcdc; 1 enable change lcdc timing; 2 just enable dclk
+ * @lcdc_id: the lcdc id the display device attached ,0 or 1
  */
 int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 {
 	struct rk_fb *rk_fb =  platform_get_drvdata(fb_pdev);
 	struct fb_info *info = NULL;
+	struct fb_info *pmy_info = NULL;
 	struct rk_lcdc_driver *dev_drv = NULL;
-	char name[6];
+	struct rk_lcdc_driver *pmy_dev_drv = rk_get_prmry_lcdc_drv();
+	char name[6] = {0};
 	int i, win_id, load_screen = 0;
 
-	if (screen == NULL)
+	if (unlikely(!rk_fb) || unlikely(!pmy_dev_drv) || unlikely(!screen))
 		return -ENODEV;
 
 	sprintf(name, "lcdc%d", lcdc_id);
-	for (i = 0; i < rk_fb->num_lcdc; i++) {
-		if (!strcmp(rk_fb->lcdc_dev_drv[i]->name, name)) {
-			dev_drv = rk_fb->lcdc_dev_drv[i];
-			break;
+	if (rk_fb->disp_mode != DUAL) {
+		dev_drv = rk_fb->lcdc_dev_drv[0];
+		if (dev_drv == NULL) {
+			printk(KERN_ERR "%s driver not found!", name);
+			return -ENODEV;
 		}
-	}
-	if (i == rk_fb->num_lcdc) {
-		printk(KERN_ERR "%s driver not found!", name);
-		return -ENODEV;
+		if (dev_drv->trsm_ops && dev_drv->trsm_ops->disable)
+			dev_drv->trsm_ops->disable();
+	} else {
+		dev_drv = rk_get_lcdc_drv(name);
+		if (dev_drv == NULL) {
+			printk(KERN_ERR "%s driver not found!", name);
+			return -ENODEV;
+		}
 	}
 
 	if (enable == 2 /*&& dev_drv->enable*/)
@@ -3212,10 +3247,15 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 			if (dev_drv->win[i] && dev_drv->win[i]->state)
 				dev_drv->ops->open(dev_drv, i, 0);
 		}
+
+		hdmi_switch_complete = 0;
 		return 0;
 	} else {
 		memcpy(dev_drv->cur_screen, screen, sizeof(struct rk_screen));
+		dev_drv->cur_screen->x_mirror = dev_drv->rotate_mode & X_MIRROR;
+		dev_drv->cur_screen->y_mirror = dev_drv->rotate_mode & Y_MIRROR;
 	}
+
 	for (i = 0; i < dev_drv->lcdc_win_num; i++) {
 		#ifdef DUAL_LCDC_MAP_TO_SAME_FB
 		info = rk_fb->fb[i];
@@ -3228,7 +3268,14 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 		memcpy(dev_drv->cur_screen, screen, sizeof(struct rk_screen));
 		#else
 		info = rk_fb->fb[dev_drv->fb_index_base + i];
+		if (rk_fb->disp_mode == DUAL &&
+				dev_drv != pmy_dev_drv) {
+			pmy_info = rk_fb->fb[pmy_dev_drv->fb_index_base + i];
+			rk_fb_hdmi_info_align(pmy_info, info,
+						dev_drv->cur_screen);
+		}
 		#endif
+
 		win_id = dev_drv->ops->fb_get_win_id(dev_drv, info->fix.id);
 		if (dev_drv->win[win_id]) {
 			#ifdef DUAL_LCDC_MAP_TO_SAME_FB
@@ -3237,6 +3284,13 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 				memcpy(dev_drv->win[win_id]->area, dev_drv1->win[win_id]->area, RK_WIN_MAX_AREA * sizeof(struct rk_lcdc_win_area));
 			}
 			#endif
+			if (rk_fb->disp_mode == DUAL) {
+				if (dev_drv != pmy_dev_drv &&
+						pmy_dev_drv->win[win_id]) {
+					dev_drv->win[win_id]->logicalstate =
+						pmy_dev_drv->win[win_id]->logicalstate;
+				}
+			}
 			if (dev_drv->win[win_id]->logicalstate) {
 				dev_drv->ops->open(dev_drv, win_id, 1);
 				if (!load_screen) {
@@ -3248,6 +3302,12 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 				info->fbops->fb_pan_display(&info->var, info);
 			}
 		}
+	}
+
+	hdmi_switch_complete = 1;
+	if (rk_fb->disp_mode != DUAL) {
+		if (dev_drv->trsm_ops && dev_drv->trsm_ops->disable)
+			dev_drv->trsm_ops->enable();
 	}
 	return 0;
 }
