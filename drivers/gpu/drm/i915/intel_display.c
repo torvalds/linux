@@ -1261,8 +1261,9 @@ void assert_pipe(struct drm_i915_private *dev_priv,
 	enum transcoder cpu_transcoder = intel_pipe_to_cpu_transcoder(dev_priv,
 								      pipe);
 
-	/* if we need the pipe A quirk it must be always on */
-	if (pipe == PIPE_A && dev_priv->quirks & QUIRK_PIPEA_FORCE)
+	/* if we need the pipe quirk it must be always on */
+	if ((pipe == PIPE_A && dev_priv->quirks & QUIRK_PIPEA_FORCE) ||
+	    (pipe == PIPE_B && dev_priv->quirks & QUIRK_PIPEB_FORCE))
 		state = true;
 
 	if (!intel_display_power_enabled(dev_priv,
@@ -1662,8 +1663,9 @@ static void i9xx_enable_pll(struct intel_crtc *crtc)
  */
 static void i9xx_disable_pll(struct drm_i915_private *dev_priv, enum pipe pipe)
 {
-	/* Don't disable pipe A or pipe A PLLs if needed */
-	if (pipe == PIPE_A && (dev_priv->quirks & QUIRK_PIPEA_FORCE))
+	/* Don't disable pipe or pipe PLLs if needed */
+	if ((pipe == PIPE_A && dev_priv->quirks & QUIRK_PIPEA_FORCE) ||
+	    (pipe == PIPE_B && dev_priv->quirks & QUIRK_PIPEB_FORCE))
 		return;
 
 	/* Make sure the pipe isn't still relying on us */
@@ -2031,8 +2033,8 @@ static void intel_enable_pipe(struct intel_crtc *crtc)
 	reg = PIPECONF(cpu_transcoder);
 	val = I915_READ(reg);
 	if (val & PIPECONF_ENABLE) {
-		WARN_ON(!(pipe == PIPE_A &&
-			  dev_priv->quirks & QUIRK_PIPEA_FORCE));
+		WARN_ON(!((pipe == PIPE_A && dev_priv->quirks & QUIRK_PIPEA_FORCE) ||
+			  (pipe == PIPE_B && dev_priv->quirks & QUIRK_PIPEB_FORCE)));
 		return;
 	}
 
@@ -2079,7 +2081,8 @@ static void intel_disable_pipe(struct intel_crtc *crtc)
 		val &= ~PIPECONF_DOUBLE_WIDE;
 
 	/* Don't disable pipe or pipe PLLs if needed */
-	if (!(pipe == PIPE_A && dev_priv->quirks & QUIRK_PIPEA_FORCE))
+	if (!(pipe == PIPE_A && dev_priv->quirks & QUIRK_PIPEA_FORCE) &&
+	    !(pipe == PIPE_B && dev_priv->quirks & QUIRK_PIPEB_FORCE))
 		val &= ~PIPECONF_ENABLE;
 
 	I915_WRITE(reg, val);
@@ -6039,9 +6042,9 @@ static void i9xx_set_pipeconf(struct intel_crtc *intel_crtc)
 
 	pipeconf = 0;
 
-	if (dev_priv->quirks & QUIRK_PIPEA_FORCE &&
-	    I915_READ(PIPECONF(intel_crtc->pipe)) & PIPECONF_ENABLE)
-		pipeconf |= PIPECONF_ENABLE;
+	if ((intel_crtc->pipe == PIPE_A && dev_priv->quirks & QUIRK_PIPEA_FORCE) ||
+	    (intel_crtc->pipe == PIPE_B && dev_priv->quirks & QUIRK_PIPEB_FORCE))
+		pipeconf |= I915_READ(PIPECONF(intel_crtc->pipe)) & PIPECONF_ENABLE;
 
 	if (intel_crtc->config.double_wide)
 		pipeconf |= PIPECONF_DOUBLE_WIDE;
@@ -10754,8 +10757,9 @@ check_crtc_state(struct drm_device *dev)
 		active = dev_priv->display.get_pipe_config(crtc,
 							   &pipe_config);
 
-		/* hw state is inconsistent with the pipe A quirk */
-		if (crtc->pipe == PIPE_A && dev_priv->quirks & QUIRK_PIPEA_FORCE)
+		/* hw state is inconsistent with the pipe quirk */
+		if ((crtc->pipe == PIPE_A && dev_priv->quirks & QUIRK_PIPEA_FORCE) ||
+		    (crtc->pipe == PIPE_B && dev_priv->quirks & QUIRK_PIPEB_FORCE))
 			active = crtc->active;
 
 		for_each_intel_encoder(dev, encoder) {
@@ -12565,6 +12569,14 @@ static void quirk_pipea_force(struct drm_device *dev)
 	DRM_INFO("applying pipe a force quirk\n");
 }
 
+static void quirk_pipeb_force(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	dev_priv->quirks |= QUIRK_PIPEB_FORCE;
+	DRM_INFO("applying pipe b force quirk\n");
+}
+
 /*
  * Some machines (Lenovo U160) do not work with SSC on LVDS for some reason
  */
@@ -12641,6 +12653,9 @@ static struct intel_quirk intel_quirks[] = {
 
 	/* 830 needs to leave pipe A & dpll A up */
 	{ 0x3577, PCI_ANY_ID, PCI_ANY_ID, quirk_pipea_force },
+
+	/* 830 needs to leave pipe B & dpll B up */
+	{ 0x3577, PCI_ANY_ID, PCI_ANY_ID, quirk_pipeb_force },
 
 	/* Lenovo U160 cannot use SSC on LVDS */
 	{ 0x0046, 0x17aa, 0x3920, quirk_ssc_force_disable },
