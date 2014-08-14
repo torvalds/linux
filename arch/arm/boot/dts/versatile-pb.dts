@@ -56,5 +56,3 @@
 		};
 	};
 };
-
-#include <testcases.dtsi>
