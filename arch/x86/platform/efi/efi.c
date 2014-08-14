@@ -930,11 +930,11 @@ u64 efi_mem_attributes(unsigned long phys_addr)
 	return 0;
 }
 
-static int __init parse_efi_cmdline(char *str)
+static int __init arch_parse_efi_cmdline(char *str)
 {
 	if (parse_option_str(str, "old_map"))
 		set_bit(EFI_OLD_MEMMAP, &efi.flags);
 
 	return 0;
 }
-early_param("efi", parse_efi_cmdline);
+early_param("efi", arch_parse_efi_cmdline);
