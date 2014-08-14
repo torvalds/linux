@@ -1796,7 +1796,7 @@ static int __noreturn rcu_gp_kthread(void *arg)
 			if (rcu_gp_init(rsp))
 				break;
 			cond_resched();
-			flush_signals(current);
+			WARN_ON(signal_pending(current));
 			trace_rcu_grace_period(rsp->name,
 					       ACCESS_ONCE(rsp->gpnum),
 					       TPS("reqwaitsig"));
@@ -1842,7 +1842,7 @@ static int __noreturn rcu_gp_kthread(void *arg)
 			} else {
 				/* Deal with stray signal. */
 				cond_resched();
-				flush_signals(current);
+				WARN_ON(signal_pending(current));
 				trace_rcu_grace_period(rsp->name,
 						       ACCESS_ONCE(rsp->gpnum),
 						       TPS("fqswaitsig"));
