@@ -1676,6 +1676,8 @@ struct drm_i915_private {
 	 */
 	struct workqueue_struct *dp_wq;
 
+	uint32_t bios_vgacntr;
+
 	/* Old dri1 support infrastructure, beware the dragons ya fools entering
 	 * here! */
 	struct i915_dri1_state dri1;
