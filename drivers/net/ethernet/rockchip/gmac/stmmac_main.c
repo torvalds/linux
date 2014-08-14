@@ -876,6 +876,16 @@ int gmac_create_sysfs(struct phy_device * phy_dev) {
 	return 0;
 }
 
+int gmac_remove_sysfs(struct phy_device * phy_dev) {
+	int t;
+
+	for (t = 0; t < ARRAY_SIZE(phy_reg_attrs); t++) {
+		device_remove_file(&phy_dev->dev,&phy_reg_attrs[t]);
+	}
+
+	return 0;
+}
+
 /**
  * stmmac_init_phy - PHY initialization
  * @dev: net device structure
@@ -1824,6 +1834,9 @@ static int stmmac_release(struct net_device *dev)
 
 	/* Stop and disconnect the PHY */
 	if (priv->phydev) {
+
+		gmac_remove_sysfs(priv->phydev);
+
 		phy_stop(priv->phydev);
 		phy_disconnect(priv->phydev);
 		priv->phydev = NULL;
