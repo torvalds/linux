@@ -6967,6 +6967,10 @@ static struct l2cap_conn *l2cap_conn_add(struct hci_conn *hcon)
 	    test_bit(HCI_HS_ENABLED, &hcon->hdev->dev_flags))
 		conn->local_fixed_chan |= L2CAP_FC_A2MP;
 
+	if (bredr_sc_enabled(hcon->hdev) &&
+	    test_bit(HCI_LE_ENABLED, &hcon->hdev->dev_flags))
+		conn->local_fixed_chan |= L2CAP_FC_SMP_BREDR;
+
 	mutex_init(&conn->ident_lock);
 	mutex_init(&conn->chan_lock);
 
