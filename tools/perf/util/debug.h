@@ -3,6 +3,7 @@
 #define __PERF_DEBUG_H
 
 #include <stdbool.h>
+#include <string.h>
 #include "event.h"
 #include "../ui/helpline.h"
 #include "../ui/progress.h"
@@ -35,6 +36,8 @@ extern int debug_ordered_events;
 
 #define pr_oe_time(t, fmt, ...)  pr_time_N(1, debug_ordered_events, t, pr_fmt(fmt), ##__VA_ARGS__)
 #define pr_oe_time2(t, fmt, ...) pr_time_N(2, debug_ordered_events, t, pr_fmt(fmt), ##__VA_ARGS__)
+
+#define STRERR_BUFSIZE	128	/* For the buffer size of strerror_r */
 
 int dump_printf(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
 void trace_event(union perf_event *event);
