@@ -51,11 +51,10 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 	 } while (0)
 
 #define	DBG(fmt, ...)	dbg_codec(0, fmt, ## __VA_ARGS__)
-#define RK2928_ACODEC_PHYS 0x20030000
 
-#define INVALID_GPIO -1
-#define SPK_CTRL_OPEN	0
-#define SPK_CTRL_CLOSE	1
+#define INVALID_GPIO   -1
+#define HP_CTL_OPEN	    1
+#define HP_CTL_CLOSE	0
 
 /* volume setting
  *  0: -39dB
@@ -71,7 +70,7 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
  * 31: 28.5db
  * step: 1.5db
 */
-#define CAP_VOL		31	/*0-31 */
+#define CAP_VOL		26	/*0-31 */
 /*with capacity or not*/
 #define WITH_CAP
 
@@ -1597,25 +1596,25 @@ static int rk312x_digital_mute(struct snd_soc_dai *dai, int mute)
 	is_hp_pd = (RK312x_HPOUTL_MSK | RK312x_HPOUTR_MSK)
 		    & snd_soc_read(codec, RK312x_HPOUT_CTL);
 
-/*	if (mute) {
-		if (rk312x_priv && rk312x_priv->hp_ctl_gpio !=
-			INVALID_GPIO && is_hp_pd) {
-			DBG("%s : set hp ctl gpio LOW\n", __func__);
-			pio_set_value(rk312x_priv->hp_ctl_gpio,
-				      GPIO_LOW);
-			 msleep(200);//rk312x_priv->delay_time);
-		}
+    if (mute) {
+        if (rk312x_priv && rk312x_priv->hp_ctl_gpio !=
+                INVALID_GPIO && is_hp_pd) {
+            DBG("%s : set hp ctl gpio off\n", __func__);
+            gpio_set_value(rk312x_priv->hp_ctl_gpio,
+                    HP_CTL_CLOSE);
+            msleep(200);  /* rk312x_priv->delay_time); */
+        }
 
-	} else {
-		if (rk312x_priv && rk312x_priv->hp_ctl_gpio
-		    != INVALID_GPIO &&  is_hp_pd) {
-			DBG("%s : set hp ctl gpio HIGH\n", __func__);
-			gpio_set_value(rk312x_priv->hp_ctl_gpio,
-				       GPIO_HIGH);
-			msleep(100);//rk312x_priv->delay_time);
-		 }
-	}
-*/
+    } else {
+        if (rk312x_priv && rk312x_priv->hp_ctl_gpio
+                != INVALID_GPIO &&  is_hp_pd) {
+            DBG("%s : set hp ctl gpio on\n", __func__);
+            gpio_set_value(rk312x_priv->hp_ctl_gpio,
+                    HP_CTL_OPEN);
+            msleep(100); /* rk312x_priv->delay_time); */
+        }
+    }
+
 	return 0;
 }
 
@@ -1716,13 +1715,11 @@ static int rk312x_codec_power_up(int type)
 		for (i = 0; i < RK312x_CODEC_PLAYBACK_POWER_UP_LIST_LEN; i++) {
 			snd_soc_write(codec, playback_power_up_list[i].reg,
 				      playback_power_up_list[i].value);
-			msleep(20);
 		}
 	} else if (type == RK312x_CODEC_CAPTURE) {
 		for (i = 0; i < RK312x_CODEC_CAPTURE_POWER_UP_LIST_LEN; i++) {
 			snd_soc_write(codec, capture_power_up_list[i].reg,
 				      capture_power_up_list[i].value);
-			msleep(20);
 		}
 	} else if (type == RK312x_CODEC_INCALL) {
 		snd_soc_update_bits(codec, RK312x_ALC_MUNIN_CTL,
@@ -1990,63 +1987,6 @@ static int rk312x_suspend(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static ssize_t gpio_show(struct kobject *kobj, struct kobj_attribute *attr,
-			 char *buf)
-{
-	return 0;
-}
-
-static ssize_t gpio_store(struct kobject *kobj, struct kobj_attribute *attr,
-			  const char *buf, size_t n)
-{
-	const char *buftmp = buf;
-	char cmd;
-	int ret;
-	struct rk312x_codec_priv *rk312x =
-			snd_soc_codec_get_drvdata(rk312x_priv->codec);
-
-	ret = sscanf(buftmp, "%c ", &cmd);
-	if (ret == 0)
-		return ret;
-	DBG("--luoxt--: get cmd = %c\n", cmd);
-	switch (cmd) {
-	case 'l':
-		DBG("%s :  lxt set spk ctl gpio low\n",
-		    __func__);
-		gpio_set_value(rk312x->spk_ctl_gpio, 0);
-		break;
-	case 'h':
-			DBG("%s :  lxt set spk ctl gpio high\n",
-			    __func__);
-			gpio_set_value(rk312x->spk_ctl_gpio, 1);
-		break;
-	case 'o':
-			DBG("%s: codec power up playback and capture\n",
-			    __func__);
-			rk312x_codec_power_up(RK312x_CODEC_PLAYBACK);
-			rk312x_codec_power_up(RK312x_CODEC_CAPTURE);
-		break;
-	default:
-			DBG("--luoxt-- unknown cmd\n");
-	}
-	return n;
-}
-static struct kobject *gpio_kobj;
-struct gpio_attribute {
-
-	struct attribute    attr;
-
-	ssize_t (*show)(struct kobject *kobj, struct kobj_attribute *attr,
-			char *buf);
-	ssize_t (*store)(struct kobject *kobj, struct kobj_attribute *attr,
-			 const char *buf, size_t n);
-};
-
-static struct gpio_attribute gpio_attrs[] = {
-	/*     node_name    permision       show_func   store_func */
-	__ATTR(gpio-ctl,  S_IRUGO | S_IWUSR,  gpio_show, gpio_store),
-};
-
 static int rk312x_resume(struct snd_soc_codec *codec)
 {
 	if (!rk312x_for_mid)
@@ -2060,7 +2000,6 @@ static int rk312x_probe(struct snd_soc_codec *codec)
 				snd_soc_codec_get_drvdata(codec);
 	unsigned int val;
 	int ret;
-	int i = 0;
 
 	rk312x_codec->codec = codec;
 	clk_prepare_enable(rk312x_codec->pclk);
@@ -2105,21 +2044,18 @@ static int rk312x_probe(struct snd_soc_codec *codec)
 	snd_soc_write(codec, RK312x_SELECT_CURRENT, 0x1e);
 	snd_soc_write(codec, RK312x_SELECT_CURRENT, 0x3e);
 #endif
+    if(!rk312x_for_mid)
+    {
+        codec->dapm.bias_level = SND_SOC_BIAS_OFF;
+        rk312x_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
-#if 1
-	gpio_kobj = kobject_create_and_add("gpio-ctl", NULL);
-
-	if (!gpio_kobj)
-		return -ENOMEM;
-	for (i = 0; i < ARRAY_SIZE(gpio_attrs); i++) {
-		ret = sysfs_create_file(gpio_kobj, &gpio_attrs[i].attr);
-		if (ret != 0) {
-			DBG("create gpio-ctl sysfs %d error\n", i);
-			/* return ret; */
-		}
-	}
-#endif
-
+        snd_soc_add_codec_controls(codec, rk312x_snd_controls,
+                ARRAY_SIZE(rk312x_snd_controls));
+        snd_soc_dapm_new_controls(&codec->dapm, rk312x_dapm_widgets,
+                ARRAY_SIZE(rk312x_dapm_widgets));
+        snd_soc_dapm_add_routes(&codec->dapm, rk312x_dapm_routes,
+                ARRAY_SIZE(rk312x_dapm_routes));
+    }
 	return 0;
 
 err__:
@@ -2140,8 +2076,8 @@ static int rk312x_remove(struct snd_soc_codec *codec)
 	/* if (rk312x_priv->spk_ctl_gpio != INVALID_GPIO) */
 		/* gpio_set_value(rk312x_priv->spk_ctl_gpio, GPIO_LOW); */
 
-	/* if (rk312x_priv->hp_ctl_gpio != INVALID_GPIO) */
-		/* gpio_set_value(rk312x_priv->hp_ctl_gpio, GPIO_LOW); */
+    if (rk312x_priv->hp_ctl_gpio != INVALID_GPIO)
+        gpio_set_value(rk312x_priv->hp_ctl_gpio, HP_CTL_CLOSE);
 
 	mdelay(10);
 
@@ -2162,70 +2098,6 @@ static int rk312x_remove(struct snd_soc_codec *codec)
 	return 0;
 }
 
-#if 0
-static int rk3036_suspend(struct snd_soc_codec *codec)
-{
-	rk3036_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
-static int rk3036_resume(struct snd_soc_codec *codec)
-{
-	rk3036_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-	return 0;
-}
-
-static int rk3036_set_bias_level(struct snd_soc_codec *codec, enum
-	snd_soc_bias_level level)
-{
-	switch (level) {
-	case SND_SOC_BIAS_ON:
-		break;
-
-	case SND_SOC_BIAS_PREPARE:
-		break;
-
-	case SND_SOC_BIAS_STANDBY:
-		break;
-
-	case SND_SOC_BIAS_OFF:
-		break;
-	}
-	codec->dapm.bias_level = level;
-	return 0;
-}
-
-static int rk3036_volatile_register(struct snd_soc_codec *
-				codec, unsigned int reg)
-{
-	switch (reg) {
-	case RK3036_CODEC_RESET:
-		return 1;
-	default:
-		return 0;
-	}
-}
-
-static int rk3036_codec_register(struct snd_soc_codec *codec, unsigned int reg)
-{
-	switch (reg) {
-	case RK3036_CODEC_RESET:
-	case RK3036_CODEC_REG03:
-	case RK3036_CODEC_REG04:
-	case RK3036_CODEC_REG05:
-	case RK3036_CODEC_REG22:
-	case RK3036_CODEC_REG23:
-	case RK3036_CODEC_REG24:
-	case RK3036_CODEC_REG25:
-	case RK3036_CODEC_REG26:
-	case RK3036_CODEC_REG27:
-	case RK3036_CODEC_REG28:
-		return 1;
-	default:
-		return 0;
-	}
-}
-#endif
 
 static struct snd_soc_codec_driver soc_codec_dev_rk312x = {
 	.probe = rk312x_probe,
@@ -2256,21 +2128,21 @@ static int rk312x_platform_probe(struct platform_device *pdev)
 	}
 	rk312x_priv = rk312x;
 	platform_set_drvdata(pdev, rk312x);
-	rk312x->spk_ctl_gpio = of_get_named_gpio(rk312x_np,
-						 "spk_ctl_io", 0);
-	if (!gpio_is_valid(rk312x->spk_ctl_gpio)) {
-		dbg_codec(2, "invalid reset_gpio: %d\n",
-			  rk312x->spk_ctl_gpio);
+	rk312x->hp_ctl_gpio = of_get_named_gpio(rk312x_np,
+						 "hp_ctl_io", 0);
+	if (!gpio_is_valid(rk312x->hp_ctl_gpio)) {
+		dbg_codec(2, "invalid hp_ctl_gpio: %d\n",
+			  rk312x->hp_ctl_gpio);
 		ret = -ENOENT;
 		goto err__;
 	}
 
-	ret = devm_gpio_request(&pdev->dev, rk312x->spk_ctl_gpio, "spk_ctl");
+	ret = devm_gpio_request(&pdev->dev, rk312x->hp_ctl_gpio, "hp_ctl");
 	if (ret < 0) {
-		dbg_codec(2, "rk312x_platform_probe spk_ctl_gpio fail\n");
+		dbg_codec(2, "rk312x_platform_probe hp_ctl_gpio fail\n");
 		goto err__;
 	}
-	gpio_direction_output(rk312x->spk_ctl_gpio, SPK_CTRL_CLOSE);
+	gpio_direction_output(rk312x->hp_ctl_gpio, HP_CTL_CLOSE);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	rk312x->regbase = devm_ioremap_resource(&pdev->dev, res);
@@ -2313,8 +2185,8 @@ void rk312x_platform_shutdown(struct platform_device *pdev)
 	/* if (rk312x_priv->spk_ctl_gpio != INVALID_GPIO) */
 		/* gpio_set_value(rk312x_priv->spk_ctl_gpio, GPIO_LOW); */
 
-	/* if (rk312x_priv->hp_ctl_gpio != INVALID_GPIO) */
-		/* gpio_set_value(rk312x_priv->hp_ctl_gpio, GPIO_LOW); */
+    if (rk312x_priv->hp_ctl_gpio != INVALID_GPIO)
+        gpio_set_value(rk312x_priv->hp_ctl_gpio, HP_CTL_CLOSE);
 
 	mdelay(10);
 

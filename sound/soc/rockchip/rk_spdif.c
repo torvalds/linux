@@ -516,7 +516,7 @@ static int spdif_remove(struct platform_device *pdev)
 
 #ifdef CONFIG_OF
 static const struct of_device_id exynos_spdif_match[] = {
-	{ .compatible = "rk312x-spdif"},
+	{ .compatible = "rockchip-spdif"},
 	{},
 };
 MODULE_DEVICE_TABLE(of, exynos_spdif_match);
@@ -526,7 +526,7 @@ static struct platform_driver rockchip_spdif_driver = {
 	.probe	= spdif_probe,
 	.remove	= spdif_remove,
 	.driver	= {
-		.name	= "rk312x-spdif",
+		.name	= "rockchip-spdif",
 		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(exynos_spdif_match),
 	},

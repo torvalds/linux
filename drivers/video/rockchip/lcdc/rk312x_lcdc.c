@@ -320,24 +320,34 @@ static void lcdc_layer_update_regs(struct lcdc_device *lcdc_dev,
 			lcdc_msk_reg(lcdc_dev, SYS_CTRL, mask, val);
 
                         /* rk312x unsupport win1 scale */
-                        if (lcdc_dev->soc_type == VOP_RK3036) 
+                        if (lcdc_dev->soc_type == VOP_RK3036) {
 			        lcdc_writel(lcdc_dev, WIN1_SCL_FACTOR_YRGB,
 				        v_X_SCL_FACTOR(win->scale_yrgb_x) |
 				        v_Y_SCL_FACTOR(win->scale_yrgb_y));
+				lcdc_writel(lcdc_dev, WIN1_ACT_INFO,
+					    v_ACT_WIDTH(win->area[0].xact) |
+					    v_ACT_HEIGHT(win->area[0].yact));
+				lcdc_writel(lcdc_dev, WIN1_DSP_INFO,
+					    v_DSP_WIDTH(win->area[0].xsize) |
+					    v_DSP_HEIGHT(win->area[0].ysize));
+				lcdc_writel(lcdc_dev, WIN1_DSP_ST,
+					    v_DSP_STX(win->area[0].dsp_stx) |
+					    v_DSP_STY(win->area[0].dsp_sty));
+				lcdc_writel(lcdc_dev, WIN1_MST, win->area[0].y_addr);
+			} else {
+				lcdc_writel(lcdc_dev, WIN1_DSP_INFO_RK312X,
+					    v_DSP_WIDTH(win->area[0].xsize) |
+					    v_DSP_HEIGHT(win->area[0].ysize));
+				lcdc_writel(lcdc_dev, WIN1_DSP_ST_RK312X,
+					    v_DSP_STX(win->area[0].dsp_stx) |
+					    v_DSP_STY(win->area[0].dsp_sty));
+
+				lcdc_writel(lcdc_dev, WIN1_MST_RK312X, win->area[0].y_addr);
+			}
 
 			lcdc_msk_reg(lcdc_dev, WIN1_VIR, m_YRGB_VIR,
 				     v_YRGB_VIR(win->area[0].y_vir_stride));
-			lcdc_writel(lcdc_dev, WIN1_ACT_INFO,
-				    v_ACT_WIDTH(win->area[0].xact) |
-				    v_ACT_HEIGHT(win->area[0].yact));
-			lcdc_writel(lcdc_dev, WIN1_DSP_INFO,
-				    v_DSP_WIDTH(win->area[0].xsize) |
-				    v_DSP_HEIGHT(win->area[0].ysize));
-			lcdc_writel(lcdc_dev, WIN1_DSP_ST,
-				    v_DSP_STX(win->area[0].dsp_stx) |
-				    v_DSP_STY(win->area[0].dsp_sty));
 
-			lcdc_writel(lcdc_dev, WIN1_MST, win->area[0].y_addr);
 
 		} else if (win->id == 2) {
 		}
@@ -353,6 +363,7 @@ static void lcdc_layer_update_regs(struct lcdc_device *lcdc_dev,
 		else if (win->id == 2)
 			lcdc_msk_reg(lcdc_dev, SYS_CTRL, m_HWC_EN, v_HWC_EN(0));
 	}
+	rk312x_lcdc_alpha_cfg(lcdc_dev);
 }
 
 static void lcdc_layer_enable(struct lcdc_device *lcdc_dev, unsigned int win_id,
@@ -1020,18 +1031,17 @@ static int rk312x_lcdc_open(struct rk_lcdc_driver *dev_drv, int win_id,
 		if (dev_drv->iommu_enabled) {
 			if (!dev_drv->mmu_dev) {
 				dev_drv->mmu_dev =
-				    rockchip_get_sysmmu_device_by_compatible
-				    (dev_drv->mmu_dts_name);
-				if (dev_drv->mmu_dev)
-					platform_set_sysmmu(dev_drv->mmu_dev,
-							    dev_drv->dev);
-				else {
+                                        rk_fb_get_sysmmu_device_by_compatible(dev_drv->mmu_dts_name);
+				if (dev_drv->mmu_dev) {
+					rk_fb_platform_set_sysmmu(dev_drv->mmu_dev,
+					                          dev_drv->dev);
+                                        rockchip_iovmm_activate(dev_drv->dev);
+                                } else {
 					dev_err(dev_drv->dev,
 						"failed to get rockchip iommu device\n");
 					return -1;
 				}
 			}
-			iovmm_activate(dev_drv->dev);
 		}
 #endif
 		rk312x_lcdc_reg_restore(lcdc_dev);
@@ -1061,7 +1071,7 @@ static int rk312x_lcdc_open(struct rk_lcdc_driver *dev_drv, int win_id,
 #if defined(CONFIG_ROCKCHIP_IOMMU)
 		if (dev_drv->iommu_enabled) {
 			if (dev_drv->mmu_dev)
-				iovmm_deactivate(dev_drv->dev);
+				rockchip_iovmm_deactivate(dev_drv->dev);
 		}
 #endif
 		rk312x_lcdc_clk_disable(lcdc_dev);
@@ -1330,12 +1340,12 @@ static int rk312x_lcdc_early_suspend(struct rk_lcdc_driver *dev_drv)
 		lcdc_msk_reg(lcdc_dev, SYS_CTRL, m_LCDC_STANDBY,
 			     v_LCDC_STANDBY(1));
 		lcdc_cfg_done(lcdc_dev);
-#if defined(CONFIG_ROCKCHIP_IOMMU)
+
 		if (dev_drv->iommu_enabled) {
 			if (dev_drv->mmu_dev)
-				iovmm_deactivate(dev_drv->dev);
+				rockchip_iovmm_deactivate(dev_drv->dev);
 		}
-#endif
+
 		spin_unlock(&lcdc_dev->reg_lock);
 	} else {
 		spin_unlock(&lcdc_dev->reg_lock);
@@ -1371,6 +1381,11 @@ static int rk312x_lcdc_early_resume(struct rk_lcdc_driver *dev_drv)
 			     v_LCDC_STANDBY(0));
 		lcdc_msk_reg(lcdc_dev, DSP_CTRL1, m_BLANK_EN, v_BLANK_EN(0));
 		lcdc_cfg_done(lcdc_dev);
+
+                if (dev_drv->iommu_enabled) {
+			if (dev_drv->mmu_dev)
+				rockchip_iovmm_activate(dev_drv->dev);
+		}
 
 		spin_unlock(&lcdc_dev->reg_lock);
 	}

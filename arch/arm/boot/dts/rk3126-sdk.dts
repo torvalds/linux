@@ -26,6 +26,14 @@
 	display-timings = <&disp_timings>;
 };
 
+&lvds {
+	status = "okay";
+
+	pinctrl-names = "lcdc", "sleep";
+	pinctrl-0 = <&lcdc0_lcdc_d>;
+	pinctrl-1 = <&lcdc0_lcdc_gpio>;
+};
+
 &lcdc {
 	status = "okay";
 
@@ -51,6 +59,6 @@
 };
 
 &codec {
-        spk_ctl_io = <&gpio1 GPIO_A0 0>;
+        hp_ctl_io = <&gpio1 GPIO_A0 0>;
 };
 

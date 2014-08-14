@@ -1298,6 +1298,23 @@ static int rk3288_lcdc_open(struct rk_lcdc_driver *dev_drv, int win_id,
 	if ((open) && (!lcdc_dev->atv_layer_cnt)) {
 		rockchip_set_system_status(sys_status);
 		rk3288_lcdc_pre_init(dev_drv);
+#if defined(CONFIG_ROCKCHIP_IOMMU)
+		if (dev_drv->iommu_enabled) {
+			if (!dev_drv->mmu_dev) {
+				dev_drv->mmu_dev =
+                                        rk_fb_get_sysmmu_device_by_compatible(dev_drv->mmu_dts_name);
+				if (dev_drv->mmu_dev) {
+					rk_fb_platform_set_sysmmu(dev_drv->mmu_dev,
+					                          dev_drv->dev);
+                                        rockchip_iovmm_activate(dev_drv->dev);
+                                } else {
+					dev_err(dev_drv->dev,
+						"failed to get rockchip iommu device\n");
+					return -1;
+				}
+			}
+		}
+#endif
 		rk3288_lcdc_clk_enable(lcdc_dev);
 		rk3288_lcdc_reg_restore(lcdc_dev);
 		if (dev_drv->iommu_enabled)
@@ -1325,10 +1342,16 @@ static int rk3288_lcdc_open(struct rk_lcdc_driver *dev_drv, int win_id,
 	else
 		dev_err(lcdc_dev->dev, "invalid win id:%d\n", win_id);
 
-	/*when all layer closed,disable clk */
+	/* when all layer closed,disable clk */
 	if ((!open) && (!lcdc_dev->atv_layer_cnt)) {
 		rk3288_lcdc_disable_irq(lcdc_dev);
 		rk3288_lcdc_reg_update(dev_drv);
+#if defined(CONFIG_ROCKCHIP_IOMMU)
+		if (dev_drv->iommu_enabled) {
+			if (dev_drv->mmu_dev)
+				rockchip_iovmm_deactivate(dev_drv->dev);
+		}
+#endif
 		rk3288_lcdc_clk_disable(lcdc_dev);
 		rockchip_clear_system_status(sys_status);
 	}
@@ -2281,6 +2304,12 @@ static int rk3288_lcdc_early_suspend(struct rk_lcdc_driver *dev_drv)
 		lcdc_msk_reg(lcdc_dev, SYS_CTRL, m_STANDBY_EN,
 			    		v_STANDBY_EN(1));
 		lcdc_cfg_done(lcdc_dev);
+
+                if (dev_drv->iommu_enabled) {
+			if (dev_drv->mmu_dev)
+				rockchip_iovmm_deactivate(dev_drv->dev);
+		}
+
 		spin_unlock(&lcdc_dev->reg_lock);
 	} else {
 		spin_unlock(&lcdc_dev->reg_lock);
@@ -2330,6 +2359,11 @@ static int rk3288_lcdc_early_resume(struct rk_lcdc_driver *dev_drv)
 		lcdc_msk_reg(lcdc_dev, DSP_CTRL0, m_DSP_BLANK_EN,
 					v_DSP_BLANK_EN(0));	
 		lcdc_cfg_done(lcdc_dev);
+
+                if (dev_drv->iommu_enabled) {
+			if (dev_drv->mmu_dev)
+				rockchip_iovmm_activate(dev_drv->dev);
+		}
 
 		spin_unlock(&lcdc_dev->reg_lock);
 	}

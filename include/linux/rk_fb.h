@@ -641,4 +641,7 @@ extern char *get_format_string(enum data_format, char *fmt);
 extern int support_uboot_display(void);
 extern int  rk_fb_calc_fps(struct rk_screen *screen, u32 pixclock);
 extern int rk_get_real_fps(int time);
+extern struct device *rk_fb_get_sysmmu_device_by_compatible(const char *compt);
+extern void rk_fb_platform_set_sysmmu(struct device *sysmmu,
+                                      struct device *dev);
 #endif
