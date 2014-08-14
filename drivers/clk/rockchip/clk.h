@@ -329,6 +329,7 @@ void rockchip_clk_register_branches(struct rockchip_clk_branch *clk_list,
 				    unsigned int nr_clk);
 void rockchip_clk_register_plls(struct rockchip_pll_clock *pll_list,
 				unsigned int nr_pll, int grf_lock_offset);
+void rockchip_clk_protect_critical(const char *clocks[], int nclocks);
 
 #define ROCKCHIP_SOFTRST_HIWORD_MASK	BIT(0)
 

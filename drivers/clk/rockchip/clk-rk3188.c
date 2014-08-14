@@ -599,6 +599,11 @@ static struct rockchip_clk_branch rk3188_clk_branches[] __initdata = {
 	GATE(ACLK_GPS, "aclk_gps", "aclk_peri", 0, RK2928_CLKGATE_CON(8), 13, GFLAGS),
 };
 
+static const char *rk3188_critical_clocks[] __initconst = {
+	"aclk_cpu",
+	"aclk_peri",
+};
+
 static void __init rk3188_common_clk_init(struct device_node *np)
 {
 	void __iomem *reg_base;
@@ -628,6 +633,8 @@ static void __init rk3188_common_clk_init(struct device_node *np)
 				   RK3188_GRF_SOC_STATUS);
 	rockchip_clk_register_branches(common_clk_branches,
 				  ARRAY_SIZE(common_clk_branches));
+	rockchip_clk_protect_critical(rk3188_critical_clocks,
+				      ARRAY_SIZE(rk3188_critical_clocks));
 
 	rockchip_register_softrst(np, 9, reg_base + RK2928_SOFTRST_CON(0),
 				  ROCKCHIP_SOFTRST_HIWORD_MASK);
