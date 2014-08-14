@@ -1968,10 +1968,12 @@ static void l2cap_ertm_resend(struct l2cap_chan *chan)
 					   tx_skb->data + L2CAP_HDR_SIZE);
 		}
 
+		/* Update FCS */
 		if (chan->fcs == L2CAP_FCS_CRC16) {
-			u16 fcs = crc16(0, (u8 *) tx_skb->data, tx_skb->len);
-			put_unaligned_le16(fcs, skb_put(tx_skb,
-							L2CAP_FCS_SIZE));
+			u16 fcs = crc16(0, (u8 *) tx_skb->data,
+					tx_skb->len - L2CAP_FCS_SIZE);
+			put_unaligned_le16(fcs, skb_tail_pointer(tx_skb) -
+						L2CAP_FCS_SIZE);
 		}
 
 		l2cap_do_send(chan, tx_skb);
