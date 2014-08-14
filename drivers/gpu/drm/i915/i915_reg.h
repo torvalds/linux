@@ -1026,6 +1026,13 @@ enum punit_power_well {
 #define   PGTBL_ADDRESS_LO_MASK	0xfffff000 /* bits [31:12] */
 #define   PGTBL_ADDRESS_HI_MASK	0x000000f0 /* bits [35:32] (gen4) */
 #define PGTBL_ER	0x02024
+#define PRB0_BASE (0x2030-0x30)
+#define PRB1_BASE (0x2040-0x30) /* 830,gen3 */
+#define PRB2_BASE (0x2050-0x30) /* gen3 */
+#define SRB0_BASE (0x2100-0x30) /* gen2 */
+#define SRB1_BASE (0x2110-0x30) /* gen2 */
+#define SRB2_BASE (0x2120-0x30) /* 830 */
+#define SRB3_BASE (0x2130-0x30) /* 830 */
 #define RENDER_RING_BASE	0x02000
 #define BSD_RING_BASE		0x04000
 #define GEN6_BSD_RING_BASE	0x12000

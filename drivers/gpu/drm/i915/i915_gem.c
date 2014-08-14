@@ -4663,10 +4663,45 @@ intel_enable_blt(struct drm_device *dev)
 	return true;
 }
 
+static void init_unused_ring(struct drm_device *dev, u32 base)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	I915_WRITE(RING_CTL(base), 0);
+	I915_WRITE(RING_HEAD(base), 0);
+	I915_WRITE(RING_TAIL(base), 0);
+	I915_WRITE(RING_START(base), 0);
+}
+
+static void init_unused_rings(struct drm_device *dev)
+{
+	if (IS_I830(dev)) {
+		init_unused_ring(dev, PRB1_BASE);
+		init_unused_ring(dev, SRB0_BASE);
+		init_unused_ring(dev, SRB1_BASE);
+		init_unused_ring(dev, SRB2_BASE);
+		init_unused_ring(dev, SRB3_BASE);
+	} else if (IS_GEN2(dev)) {
+		init_unused_ring(dev, SRB0_BASE);
+		init_unused_ring(dev, SRB1_BASE);
+	} else if (IS_GEN3(dev)) {
+		init_unused_ring(dev, PRB1_BASE);
+		init_unused_ring(dev, PRB2_BASE);
+	}
+}
+
 int i915_gem_init_rings(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret;
+
+	/*
+	 * At least 830 can leave some of the unused rings
+	 * "active" (ie. head != tail) after resume which
+	 * will prevent c3 entry. Makes sure all unused rings
+	 * are totally idle.
+	 */
+	init_unused_rings(dev);
 
 	ret = intel_init_render_ring_buffer(dev);
 	if (ret)
