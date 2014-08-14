@@ -953,6 +953,7 @@ static const struct x86_cpu_id rapl_ids[] = {
 	{ X86_VENDOR_INTEL, 6, 0x3a},/* Ivy Bridge */
 	{ X86_VENDOR_INTEL, 6, 0x3c},/* Haswell */
 	{ X86_VENDOR_INTEL, 6, 0x3d},/* Broadwell */
+	{ X86_VENDOR_INTEL, 6, 0x3f},/* Haswell */
 	{ X86_VENDOR_INTEL, 6, 0x45},/* Haswell ULT */
 	/* TODO: Add more CPU IDs after testing */
 	{}
