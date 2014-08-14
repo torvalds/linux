@@ -1295,7 +1295,7 @@ int perf_evlist__strerror_open(struct perf_evlist *evlist __maybe_unused,
 			       int err, char *buf, size_t size)
 {
 	int printed, value;
-	char sbuf[128], *emsg = strerror_r(err, sbuf, sizeof(sbuf));
+	char sbuf[STRERR_BUFSIZE], *emsg = strerror_r(err, sbuf, sizeof(sbuf));
 
 	switch (err) {
 	case EACCES:
