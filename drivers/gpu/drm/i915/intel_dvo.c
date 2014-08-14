@@ -85,7 +85,7 @@ static const struct intel_dvo_device intel_dvo_devices[] = {
 	{
 	        .type = INTEL_DVO_CHIP_TMDS,
 		.name = "ns2501",
-		.dvo_reg = DVOC,
+		.dvo_reg = DVOB,
 		.slave_addr = NS2501_ADDR,
 		.dev_ops = &ns2501_ops,
        }
