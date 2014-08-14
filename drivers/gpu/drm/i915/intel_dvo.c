@@ -227,10 +227,6 @@ static void intel_dvo_dpms(struct drm_connector *connector, int mode)
 
 		intel_crtc_update_dpms(crtc);
 
-		intel_dvo->dev.dev_ops->mode_set(&intel_dvo->dev,
-						 &config->requested_mode,
-						 &config->adjusted_mode);
-
 		intel_dvo->dev.dev_ops->dpms(&intel_dvo->dev, true);
 	} else {
 		intel_dvo->dev.dev_ops->dpms(&intel_dvo->dev, false);
