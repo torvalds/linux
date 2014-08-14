@@ -1638,10 +1638,19 @@ int au_opts_verify(struct super_block *sb, unsigned long sb_flags,
 		}
 	}
 
-	if (fhsm >= 2)
+	if (fhsm >= 2) {
 		au_fset_si(sbinfo, FHSM);
-	else
+		for (bindex = bend; bindex >= 0; bindex--) {
+			br = au_sbr(sb, bindex);
+			if (au_br_fhsm(br->br_perm)) {
+				au_fhsm_set_bottom(sb, bindex);
+				break;
+			}
+		}
+	} else {
 		au_fclr_si(sbinfo, FHSM);
+		au_fhsm_set_bottom(sb, -1);
+	}
 
 	return err;
 }

@@ -84,8 +84,9 @@ struct au_fhsm {
 	wait_queue_head_t	fhsm_wqh;
 	atomic_t		fhsm_readable;
 
-	/* only this is protected by si_rwsem */
+	/* these are protected by si_rwsem */
 	unsigned long		fhsm_expire;
+	aufs_bindex_t		fhsm_bottom;
 #endif
 };
 
@@ -328,6 +329,7 @@ void au_fhsm_wrote(struct super_block *sb, aufs_bindex_t bindex, int force);
 void au_fhsm_wrote_all(struct super_block *sb, int force);
 int au_fhsm_fd(struct super_block *sb, int oflags);
 int au_fhsm_br_alloc(struct au_branch *br);
+void au_fhsm_set_bottom(struct super_block *sb, aufs_bindex_t bindex);
 void au_fhsm_fin(struct super_block *sb);
 void au_fhsm_init(struct au_sbinfo *sbinfo);
 void au_fhsm_set(struct au_sbinfo *sbinfo, unsigned int sec);
@@ -337,8 +339,9 @@ AuStubVoid(au_fhsm_wrote, struct super_block *sb, aufs_bindex_t bindex,
 	   int force)
 AuStubVoid(au_fhsm_wrote_all, struct super_block *sb, int force)
 AuStub(int, au_fhsm_fd, return -EOPNOTSUPP, struct super_block *sb, int oflags)
-AuStub(pid_t, au_fhsm_pid, return 0, struct au_fhsm *fhsm);
-AuStubInt0(au_fhsm_br_alloc, struct au_branch *br);
+AuStub(pid_t, au_fhsm_pid, return 0, struct au_fhsm *fhsm)
+AuStubInt0(au_fhsm_br_alloc, struct au_branch *br)
+AuStubVoid(au_fhsm_set_bottom, struct super_block *sb, aufs_bindex_t bindex)
 AuStubVoid(au_fhsm_fin, struct super_block *sb)
 AuStubVoid(au_fhsm_init, struct au_sbinfo *sbinfo)
 AuStubVoid(au_fhsm_set, struct au_sbinfo *sbinfo, unsigned int sec)

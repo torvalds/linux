@@ -27,6 +27,7 @@ struct au_mvd_args {
 		struct dentry *h_parent;
 		struct au_hinode *hdir;
 		struct inode *h_dir, *h_inode;
+		struct au_pin pin;
 	} info[AUFS_MVDOWN_NARRAY];
 
 	struct aufs_mvdown mvdown;
@@ -35,7 +36,6 @@ struct au_mvd_args {
 	struct super_block *sb;
 	aufs_bindex_t bopq, bwh, bfound;
 	unsigned char rename_lock;
-	struct au_pin pin;
 };
 
 #define mvd_errno		mvdown.au_errno
@@ -49,12 +49,14 @@ struct au_mvd_args {
 #define mvd_hdir_src		info[AUFS_MVDOWN_UPPER].hdir
 #define mvd_h_src_dir		info[AUFS_MVDOWN_UPPER].h_dir
 #define mvd_h_src_inode		info[AUFS_MVDOWN_UPPER].h_inode
+#define mvd_pin_src		info[AUFS_MVDOWN_UPPER].pin
 
 #define mvd_h_dst_sb		info[AUFS_MVDOWN_LOWER].h_sb
 #define mvd_h_dst_parent	info[AUFS_MVDOWN_LOWER].h_parent
 #define mvd_hdir_dst		info[AUFS_MVDOWN_LOWER].hdir
 #define mvd_h_dst_dir		info[AUFS_MVDOWN_LOWER].h_dir
 #define mvd_h_dst_inode		info[AUFS_MVDOWN_LOWER].h_inode
+#define mvd_pin_dst		info[AUFS_MVDOWN_LOWER].pin
 
 #define AU_MVD_PR(flag, ...) do {			\
 		if (flag)				\
@@ -131,22 +133,44 @@ static int au_do_lock(const unsigned char dmsg, struct au_mvd_args *a)
 
 	a->mvd_h_src_sb = au_sbr_sb(a->sb, a->mvd_bsrc);
 	a->mvd_h_dst_sb = au_sbr_sb(a->sb, a->mvd_bdst);
-	if (a->mvd_h_src_sb != a->mvd_h_dst_sb) {
-		a->rename_lock = 0;
-		err = au_pin(&a->pin, a->dentry, a->mvd_bdst,
-			     au_opt_udba(a->sb),
-			     AuPin_MNT_WRITE | AuPin_DI_LOCKED);
-		if (!err) {
-			a->mvd_h_src_dir = a->mvd_h_src_parent->d_inode;
-			mutex_lock_nested(&a->mvd_h_src_dir->i_mutex,
-					  AuLsc_I_PARENT3);
-		} else
-			AU_MVD_PR(dmsg, "pin failed\n");
+	err = au_pin(&a->mvd_pin_dst, a->dentry, a->mvd_bdst,
+		     au_opt_udba(a->sb),
+		     AuPin_MNT_WRITE | AuPin_DI_LOCKED);
+	AuTraceErr(err);
+	if (unlikely(err)) {
+		AU_MVD_PR(dmsg, "pin_dst failed\n");
 		goto out;
 	}
 
-	err = 0;
+	if (a->mvd_h_src_sb != a->mvd_h_dst_sb) {
+		a->rename_lock = 0;
+		au_pin_init(&a->mvd_pin_src, a->dentry, a->mvd_bsrc,
+			    AuLsc_DI_PARENT, AuLsc_I_PARENT3,
+			    au_opt_udba(a->sb),
+			    AuPin_MNT_WRITE | AuPin_DI_LOCKED);
+		err = au_do_pin(&a->mvd_pin_src);
+		AuTraceErr(err);
+		a->mvd_h_src_dir = a->mvd_h_src_parent->d_inode;
+		if (unlikely(err)) {
+			AU_MVD_PR(dmsg, "pin_src failed\n");
+			goto out_dst;
+		}
+		goto out; /* success */
+	}
+
 	a->rename_lock = 1;
+	au_pin_hdir_unlock(&a->mvd_pin_dst);
+	err = au_pin(&a->mvd_pin_src, a->dentry, a->mvd_bsrc,
+		     au_opt_udba(a->sb),
+		     AuPin_MNT_WRITE | AuPin_DI_LOCKED);
+	AuTraceErr(err);
+	a->mvd_h_src_dir = a->mvd_h_src_parent->d_inode;
+	if (unlikely(err)) {
+		AU_MVD_PR(dmsg, "pin_src failed\n");
+		au_pin_hdir_lock(&a->mvd_pin_dst);
+		goto out_dst;
+	}
+	au_pin_hdir_unlock(&a->mvd_pin_src);
 	h_trap = vfsub_lock_rename(a->mvd_h_src_parent, a->mvd_hdir_src,
 				   a->mvd_h_dst_parent, a->mvd_hdir_dst);
 	if (h_trap) {
@@ -155,7 +179,20 @@ static int au_do_lock(const unsigned char dmsg, struct au_mvd_args *a)
 			err = (h_trap != a->mvd_h_dst_parent);
 	}
 	BUG_ON(err); /* it should never happen */
+	if (unlikely(a->mvd_h_src_dir != au_pinned_h_dir(&a->mvd_pin_src))) {
+		err = -EBUSY;
+		AuTraceErr(err);
+		vfsub_unlock_rename(a->mvd_h_src_parent, a->mvd_hdir_src,
+				    a->mvd_h_dst_parent, a->mvd_hdir_dst);
+		au_pin_hdir_lock(&a->mvd_pin_src);
+		au_unpin(&a->mvd_pin_src);
+		au_pin_hdir_lock(&a->mvd_pin_dst);
+		goto out_dst;
+	}
+	goto out; /* success */
 
+out_dst:
+	au_unpin(&a->mvd_pin_dst);
 out:
 	AuTraceErr(err);
 	return err;
@@ -163,12 +200,16 @@ out:
 
 static void au_do_unlock(const unsigned char dmsg, struct au_mvd_args *a)
 {
-	if (!a->rename_lock) {
-		mutex_unlock(&a->mvd_h_src_dir->i_mutex);
-		au_unpin(&a->pin);
-	} else
+	if (!a->rename_lock)
+		au_unpin(&a->mvd_pin_src);
+	else {
 		vfsub_unlock_rename(a->mvd_h_src_parent, a->mvd_hdir_src,
 				    a->mvd_h_dst_parent, a->mvd_hdir_dst);
+		au_pin_hdir_lock(&a->mvd_pin_src);
+		au_unpin(&a->mvd_pin_src);
+		au_pin_hdir_lock(&a->mvd_pin_dst);
+	}
+	au_unpin(&a->mvd_pin_dst);
 }
 
 /* copy-down the file */
@@ -180,7 +221,7 @@ static int au_do_cpdown(const unsigned char dmsg, struct au_mvd_args *a)
 		.bdst	= a->mvd_bdst,
 		.bsrc	= a->mvd_bsrc,
 		.len	= -1,
-		.pin	= &a->pin,
+		.pin	= &a->mvd_pin_dst,
 		.flags	= AuCpup_DTIME | AuCpup_HOPEN
 	};
 
@@ -232,8 +273,6 @@ out:
 
 /*
  * unlink the topmost h_dentry
- * Note: the target file MAY be modified by UDBA between this mutex_unlock() and
- *	mutex_lock() in vfs_unlink(). in this case, such changes may be lost.
  */
 static int au_do_unlink(const unsigned char dmsg, struct au_mvd_args *a)
 {
@@ -299,6 +338,8 @@ static int au_do_mvdown(const unsigned char dmsg, struct au_mvd_args *a)
 	if (unlikely(err))
 		goto out_unlock;
 
+	AuDbg("%pd2, 0x%x, %d --> %d\n",
+	      a->dentry, a->mvdown.flags, a->mvd_bsrc, a->mvd_bdst);
 	if (find_lower_writable(a) < 0)
 		a->mvdown.flags |= AUFS_MVDOWN_BOTTOM;
 
@@ -612,13 +653,9 @@ int au_mvdown(struct dentry *dentry, struct aufs_mvdown __user *uarg)
 	if (unlikely(err))
 		goto out_parent;
 
-	AuDbgDentry(dentry);
-	AuDbgInode(args->inode);
 	err = au_do_mvdown(dmsg, args);
 	if (unlikely(err))
 		goto out_parent;
-	AuDbgDentry(dentry);
-	AuDbgInode(args->inode);
 
 	au_cpup_attr_timesizes(args->dir);
 	au_cpup_attr_timesizes(args->inode);
