@@ -1293,6 +1293,20 @@ static int xc5000_suspend(struct dvb_frontend *fe)
 	return 0;
 }
 
+static int xc5000_resume(struct dvb_frontend *fe)
+{
+	struct xc5000_priv *priv = fe->tuner_priv;
+
+	dprintk(1, "%s()\n", __func__);
+
+	/* suspended before firmware is loaded.
+	   Avoid firmware load in resume path. */
+	if (!priv->firmware)
+		return 0;
+
+	return xc5000_set_params(fe);
+}
+
 static int xc5000_init(struct dvb_frontend *fe)
 {
 	struct xc5000_priv *priv = fe->tuner_priv;
@@ -1360,7 +1374,7 @@ static const struct dvb_tuner_ops xc5000_tuner_ops = {
 	.init		   = xc5000_init,
 	.sleep		   = xc5000_sleep,
 	.suspend	   = xc5000_suspend,
-	.resume		   = xc5000_set_params,
+	.resume		   = xc5000_resume,
 
 	.set_config	   = xc5000_set_config,
 	.set_params	   = xc5000_set_digital_params,
