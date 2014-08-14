@@ -20,6 +20,17 @@
 
 #include "cxgb4.h"
 
+/* DCBx version control
+ */
+char *dcb_ver_array[] = {
+	"Unknown",
+	"DCBx-CIN",
+	"DCBx-CEE 1.01",
+	"DCBx-IEEE",
+	"", "", "",
+	"Auto Negotiated"
+};
+
 /* Initialize a port's Data Center Bridging state.  Typically used after a
  * Link Down event.
  */
@@ -27,25 +38,45 @@ void cxgb4_dcb_state_init(struct net_device *dev)
 {
 	struct port_info *pi = netdev2pinfo(dev);
 	struct port_dcb_info *dcb = &pi->dcb;
+	int version_temp = dcb->dcb_version;
 
 	memset(dcb, 0, sizeof(struct port_dcb_info));
 	dcb->state = CXGB4_DCB_STATE_START;
+	if (version_temp)
+		dcb->dcb_version = version_temp;
+
+	netdev_dbg(dev, "%s: Initializing DCB state for port[%d]\n",
+		    __func__, pi->port_id);
+}
+
+void cxgb4_dcb_version_init(struct net_device *dev)
+{
+	struct port_info *pi = netdev2pinfo(dev);
+	struct port_dcb_info *dcb = &pi->dcb;
+
+	/* Any writes here are only done on kernels that exlicitly need
+	 * a specific version, say < 2.6.38 which only support CEE
+	 */
+	dcb->dcb_version = FW_PORT_DCB_VER_AUTO;
 }
 
 /* Finite State machine for Data Center Bridging.
  */
 void cxgb4_dcb_state_fsm(struct net_device *dev,
-			 enum cxgb4_dcb_state_input input)
+			 enum cxgb4_dcb_state_input transition_to)
 {
 	struct port_info *pi = netdev2pinfo(dev);
 	struct port_dcb_info *dcb = &pi->dcb;
 	struct adapter *adap = pi->adapter;
+	enum cxgb4_dcb_state current_state = dcb->state;
 
-	switch (input) {
-	case CXGB4_DCB_INPUT_FW_DISABLED: {
-		/* Firmware tells us it's not doing DCB */
-		switch (dcb->state) {
-		case CXGB4_DCB_STATE_START: {
+	netdev_dbg(dev, "%s: State change from %d to %d for %s\n",
+		    __func__, dcb->state, transition_to, dev->name);
+
+	switch (current_state) {
+	case CXGB4_DCB_STATE_START: {
+		switch (transition_to) {
+		case CXGB4_DCB_INPUT_FW_DISABLED: {
 			/* we're going to use Host DCB */
 			dcb->state = CXGB4_DCB_STATE_HOST;
 			dcb->supported = CXGB4_DCBX_HOST_SUPPORT;
@@ -53,48 +84,62 @@ void cxgb4_dcb_state_fsm(struct net_device *dev,
 			break;
 		}
 
-		case CXGB4_DCB_STATE_HOST: {
-			/* we're alreaady in Host DCB mode */
-			break;
-		}
-
-		default:
-			goto bad_state_transition;
-		}
-		break;
-	}
-
-	case CXGB4_DCB_INPUT_FW_ENABLED: {
-		/* Firmware tells us that it is doing DCB */
-		switch (dcb->state) {
-		case CXGB4_DCB_STATE_START: {
+		case CXGB4_DCB_INPUT_FW_ENABLED: {
 			/* we're going to use Firmware DCB */
 			dcb->state = CXGB4_DCB_STATE_FW_INCOMPLETE;
 			dcb->supported = CXGB4_DCBX_FW_SUPPORT;
 			break;
 		}
 
-		case CXGB4_DCB_STATE_FW_INCOMPLETE:
-		case CXGB4_DCB_STATE_FW_ALLSYNCED: {
-			/* we're alreaady in firmware DCB mode */
+		case CXGB4_DCB_INPUT_FW_INCOMPLETE: {
+			/* expected transition */
+			break;
+		}
+
+		case CXGB4_DCB_INPUT_FW_ALLSYNCED: {
+			dcb->state = CXGB4_DCB_STATE_FW_ALLSYNCED;
 			break;
 		}
 
 		default:
-			goto bad_state_transition;
+			goto bad_state_input;
 		}
 		break;
 	}
 
-	case CXGB4_DCB_INPUT_FW_INCOMPLETE: {
-		/* Firmware tells us that its DCB state is incomplete */
-		switch (dcb->state) {
-		case CXGB4_DCB_STATE_FW_INCOMPLETE: {
+	case CXGB4_DCB_STATE_FW_INCOMPLETE: {
+		switch (transition_to) {
+		case CXGB4_DCB_INPUT_FW_ENABLED: {
+			/* we're alreaady in firmware DCB mode */
+			break;
+		}
+
+		case CXGB4_DCB_INPUT_FW_INCOMPLETE: {
 			/* we're already incomplete */
 			break;
 		}
 
-		case CXGB4_DCB_STATE_FW_ALLSYNCED: {
+		case CXGB4_DCB_INPUT_FW_ALLSYNCED: {
+			dcb->state = CXGB4_DCB_STATE_FW_ALLSYNCED;
+			dcb->enabled = 1;
+			linkwatch_fire_event(dev);
+			break;
+		}
+
+		default:
+			goto bad_state_input;
+		}
+		break;
+	}
+
+	case CXGB4_DCB_STATE_FW_ALLSYNCED: {
+		switch (transition_to) {
+		case CXGB4_DCB_INPUT_FW_ENABLED: {
+			/* we're alreaady in firmware DCB mode */
+			break;
+		}
+
+		case CXGB4_DCB_INPUT_FW_INCOMPLETE: {
 			/* We were successfully running with firmware DCB but
 			 * now it's telling us that it's in an "incomplete
 			 * state.  We need to reset back to a ground state
@@ -107,46 +152,48 @@ void cxgb4_dcb_state_fsm(struct net_device *dev,
 			break;
 		}
 
-		default:
-			goto bad_state_transition;
-		}
-		break;
-	}
-
-	case CXGB4_DCB_INPUT_FW_ALLSYNCED: {
-		/* Firmware tells us that its DCB state is complete */
-		switch (dcb->state) {
-		case CXGB4_DCB_STATE_FW_INCOMPLETE: {
-			dcb->state = CXGB4_DCB_STATE_FW_ALLSYNCED;
+		case CXGB4_DCB_INPUT_FW_ALLSYNCED: {
+			/* we're already all sync'ed
+			 * this is only applicable for IEEE or
+			 * when another VI already completed negotiaton
+			 */
 			dcb->enabled = 1;
 			linkwatch_fire_event(dev);
 			break;
 		}
 
-		case CXGB4_DCB_STATE_FW_ALLSYNCED: {
-			/* we're already all sync'ed */
+		default:
+			goto bad_state_input;
+		}
+		break;
+	}
+
+	case CXGB4_DCB_STATE_HOST: {
+		switch (transition_to) {
+		case CXGB4_DCB_INPUT_FW_DISABLED: {
+			/* we're alreaady in Host DCB mode */
 			break;
 		}
 
 		default:
-			goto bad_state_transition;
+			goto bad_state_input;
 		}
 		break;
 	}
 
 	default:
-		goto  bad_state_input;
+		goto bad_state_transition;
 	}
 	return;
 
 bad_state_input:
 	dev_err(adap->pdev_dev, "cxgb4_dcb_state_fsm: illegal input symbol %d\n",
-		input);
+		transition_to);
 	return;
 
 bad_state_transition:
 	dev_err(adap->pdev_dev, "cxgb4_dcb_state_fsm: bad state transition, state = %d, input = %d\n",
-		dcb->state, input);
+		current_state, transition_to);
 }
 
 /* Handle a DCB/DCBX update message from the firmware.
@@ -160,6 +207,7 @@ void cxgb4_dcb_handle_fw_update(struct adapter *adap,
 	struct port_info *pi = netdev_priv(dev);
 	struct port_dcb_info *dcb = &pi->dcb;
 	int dcb_type = pcmd->u.dcb.pgid.type;
+	int dcb_running_version;
 
 	/* Handle Firmware DCB Control messages separately since they drive
 	 * our state machine.
@@ -170,6 +218,25 @@ void cxgb4_dcb_handle_fw_update(struct adapter *adap,
 			  FW_PORT_CMD_ALL_SYNCD)
 			 ? CXGB4_DCB_STATE_FW_ALLSYNCED
 			 : CXGB4_DCB_STATE_FW_INCOMPLETE);
+
+		if (dcb->dcb_version != FW_PORT_DCB_VER_UNKNOWN) {
+			dcb_running_version = FW_PORT_CMD_DCB_VERSION_GET(
+				be16_to_cpu(
+				pcmd->u.dcb.control.dcb_version_to_app_state));
+			if (dcb_running_version == FW_PORT_DCB_VER_CEE1D01 ||
+			    dcb_running_version == FW_PORT_DCB_VER_IEEE) {
+				dcb->dcb_version = dcb_running_version;
+				dev_warn(adap->pdev_dev, "Interface %s is running %s\n",
+					 dev->name,
+					 dcb_ver_array[dcb->dcb_version]);
+			} else {
+				dev_warn(adap->pdev_dev,
+					 "Something screwed up, requested firmware for %s, but firmware returned %s instead\n",
+					 dcb_ver_array[dcb->dcb_version],
+					 dcb_ver_array[dcb_running_version]);
+				dcb->dcb_version = FW_PORT_DCB_VER_UNKNOWN;
+			}
+		}
 
 		cxgb4_dcb_state_fsm(dev, input);
 		return;
@@ -199,7 +266,11 @@ void cxgb4_dcb_handle_fw_update(struct adapter *adap,
 		dcb->pg_num_tcs_supported = fwdcb->pgrate.num_tcs_supported;
 		memcpy(dcb->pgrate, &fwdcb->pgrate.pgrate,
 		       sizeof(dcb->pgrate));
+		memcpy(dcb->tsa, &fwdcb->pgrate.tsa,
+		       sizeof(dcb->tsa));
 		dcb->msgs |= CXGB4_DCB_FW_PGRATE;
+		if (dcb->msgs & CXGB4_DCB_FW_PGID)
+			IEEE_FAUX_SYNC(dev, dcb);
 		break;
 
 	case FW_PORT_DCB_TYPE_PRIORATE:
@@ -212,6 +283,7 @@ void cxgb4_dcb_handle_fw_update(struct adapter *adap,
 		dcb->pfcen = fwdcb->pfc.pfcen;
 		dcb->pfc_num_tcs_supported = fwdcb->pfc.max_pfc_tcs;
 		dcb->msgs |= CXGB4_DCB_FW_PFC;
+		IEEE_FAUX_SYNC(dev, dcb);
 		break;
 
 	case FW_PORT_DCB_TYPE_APP_ID: {
@@ -220,13 +292,25 @@ void cxgb4_dcb_handle_fw_update(struct adapter *adap,
 		struct app_priority *ap = &dcb->app_priority[idx];
 
 		struct dcb_app app = {
-			.selector = fwap->sel_field,
 			.protocol = be16_to_cpu(fwap->protocolid),
-			.priority = fwap->user_prio_map,
 		};
 		int err;
 
-		err = dcb_setapp(dev, &app);
+		/* Convert from firmware format to relevant format
+		 * when using app selector
+		 */
+		if (dcb->dcb_version == FW_PORT_DCB_VER_IEEE) {
+			app.selector = (fwap->sel_field + 1);
+			app.priority = ffs(fwap->user_prio_map) - 1;
+			err = dcb_ieee_setapp(dev, &app);
+			IEEE_FAUX_SYNC(dev, dcb);
+		} else {
+			/* Default is CEE */
+			app.selector = !!(fwap->sel_field);
+			app.priority = fwap->user_prio_map;
+			err = dcb_setapp(dev, &app);
+		}
+
 		if (err)
 			dev_err(adap->pdev_dev,
 				"Failed DCB Set Application Priority: sel=%d, prot=%d, prio=%d, err=%d\n",
@@ -408,9 +492,10 @@ static void cxgb4_getpgbwgcfg(struct net_device *dev, int pgid, u8 *bw_per,
 	if (err != FW_PORT_DCB_CFG_SUCCESS) {
 		dev_err(adap->pdev_dev, "DCB read PGRATE failed with %d\n",
 			-err);
-	} else {
-		*bw_per = pcmd.u.dcb.pgrate.pgrate[pgid];
+		return;
 	}
+
+	*bw_per = pcmd.u.dcb.pgrate.pgrate[pgid];
 }
 
 static void cxgb4_getpgbwgcfg_tx(struct net_device *dev, int pgid, u8 *bw_per)
@@ -637,7 +722,8 @@ static int __cxgb4_getapp(struct net_device *dev, u8 app_idtype, u16 app_id,
 			return err;
 		}
 		if (be16_to_cpu(pcmd.u.dcb.app_priority.protocolid) == app_id)
-			return pcmd.u.dcb.app_priority.user_prio_map;
+			if (pcmd.u.dcb.app_priority.sel_field == app_idtype)
+				return pcmd.u.dcb.app_priority.user_prio_map;
 
 		/* exhausted app list */
 		if (!pcmd.u.dcb.app_priority.protocolid)
@@ -657,8 +743,8 @@ static int cxgb4_getapp(struct net_device *dev, u8 app_idtype, u16 app_id)
 
 /* Write a new Application User Priority Map for the specified Application ID
  */
-static int cxgb4_setapp(struct net_device *dev, u8 app_idtype, u16 app_id,
-			u8 app_prio)
+static int __cxgb4_setapp(struct net_device *dev, u8 app_idtype, u16 app_id,
+			  u8 app_prio)
 {
 	struct fw_port_cmd pcmd;
 	struct port_info *pi = netdev2pinfo(dev);
@@ -672,10 +758,6 @@ static int cxgb4_setapp(struct net_device *dev, u8 app_idtype, u16 app_id,
 	/* DCB info gets thrown away on link up */
 	if (!netif_carrier_ok(dev))
 		return -ENOLINK;
-
-	if (app_idtype != DCB_APP_IDTYPE_ETHTYPE &&
-	    app_idtype != DCB_APP_IDTYPE_PORTNUM)
-		return -EINVAL;
 
 	for (i = 0; i < CXGB4_MAX_DCBX_APP_SUPPORTED; i++) {
 		INIT_PORT_DCB_READ_LOCAL_CMD(pcmd, pi->port_id);
@@ -725,6 +807,30 @@ static int cxgb4_setapp(struct net_device *dev, u8 app_idtype, u16 app_id,
 	return 0;
 }
 
+/* Priority for CEE inside dcb_app is bitmask, with 0 being an invalid value */
+static int cxgb4_setapp(struct net_device *dev, u8 app_idtype, u16 app_id,
+			u8 app_prio)
+{
+	int ret;
+	struct dcb_app app = {
+		.selector = app_idtype,
+		.protocol = app_id,
+		.priority = app_prio,
+	};
+
+	if (app_idtype != DCB_APP_IDTYPE_ETHTYPE &&
+	    app_idtype != DCB_APP_IDTYPE_PORTNUM)
+		return -EINVAL;
+
+	/* Convert app_idtype to a format that firmware understands */
+	ret = __cxgb4_setapp(dev, app_idtype == DCB_APP_IDTYPE_ETHTYPE ?
+			      app_idtype : 3, app_id, app_prio);
+	if (ret)
+		return ret;
+
+	return dcb_setapp(dev, &app);
+}
+
 /* Return whether IEEE Data Center Bridging has been negotiated.
  */
 static inline int cxgb4_ieee_negotiation_complete(struct net_device *dev)
@@ -738,6 +844,7 @@ static inline int cxgb4_ieee_negotiation_complete(struct net_device *dev)
 
 /* Fill in the Application User Priority Map associated with the
  * specified Application.
+ * Priority for IEEE dcb_app is an integer, with 0 being a valid value
  */
 static int cxgb4_ieee_getapp(struct net_device *dev, struct dcb_app *app)
 {
@@ -748,28 +855,39 @@ static int cxgb4_ieee_getapp(struct net_device *dev, struct dcb_app *app)
 	if (!(app->selector && app->protocol))
 		return -EINVAL;
 
-	prio = dcb_getapp(dev, app);
-	if (prio == 0) {
-		/* If app doesn't exist in dcb_app table, try firmware
-		 * directly.
-		 */
-		prio = __cxgb4_getapp(dev, app->selector, app->protocol, 0);
-	}
+	/* Try querying firmware first, use firmware format */
+	prio = __cxgb4_getapp(dev, app->selector - 1, app->protocol, 0);
 
-	app->priority = prio;
+	if (prio < 0)
+		prio = dcb_ieee_getapp_mask(dev, app);
+
+	app->priority = ffs(prio) - 1;
 	return 0;
 }
 
-/* Write a new Application User Priority Map for the specified App id. */
+/* Write a new Application User Priority Map for the specified Application ID.
+ * Priority for IEEE dcb_app is an integer, with 0 being a valid value
+ */
 static int cxgb4_ieee_setapp(struct net_device *dev, struct dcb_app *app)
 {
+	int ret;
+
 	if (!cxgb4_ieee_negotiation_complete(dev))
 		return -EINVAL;
-	if (!(app->selector && app->protocol && app->priority))
+	if (!(app->selector && app->protocol))
 		return -EINVAL;
 
-	cxgb4_setapp(dev, app->selector, app->protocol, app->priority);
-	return dcb_setapp(dev, app);
+	if (!(app->selector > IEEE_8021QAZ_APP_SEL_ETHERTYPE  &&
+	      app->selector < IEEE_8021QAZ_APP_SEL_ANY))
+		return -EINVAL;
+
+	/* change selector to a format that firmware understands */
+	ret = __cxgb4_setapp(dev, app->selector - 1, app->protocol,
+			     (1 << app->priority));
+	if (ret)
+		return ret;
+
+	return dcb_ieee_setapp(dev, app);
 }
 
 /* Return our DCBX parameters.
@@ -794,8 +912,9 @@ static u8 cxgb4_setdcbx(struct net_device *dev, u8 dcb_request)
 	    != dcb_request)
 		return 1;
 
-	/* Can't set DCBX capabilities if DCBX isn't enabled. */
-	if (!pi->dcb.state)
+	/* Can't enable DCB if we haven't successfully negotiated it.
+	 */
+	if (pi->dcb.state != CXGB4_DCB_STATE_FW_ALLSYNCED)
 		return 1;
 
 	/* There's currently no mechanism to allow for the firmware DCBX
@@ -874,7 +993,8 @@ static int cxgb4_getpeerapp_tbl(struct net_device *dev, struct dcb_app *table)
 		table[i].selector = pcmd.u.dcb.app_priority.sel_field;
 		table[i].protocol =
 			be16_to_cpu(pcmd.u.dcb.app_priority.protocolid);
-		table[i].priority = pcmd.u.dcb.app_priority.user_prio_map;
+		table[i].priority =
+			ffs(pcmd.u.dcb.app_priority.user_prio_map) - 1;
 	}
 	return err;
 }
