@@ -379,7 +379,7 @@ void au_pin_hdir_unlock(struct au_pin *p)
 		au_hn_imtx_unlock(p->hdir);
 }
 
-static int au_pin_hdir_lock(struct au_pin *p)
+int au_pin_hdir_lock(struct au_pin *p)
 {
 	int err;
 
