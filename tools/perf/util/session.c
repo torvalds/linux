@@ -67,6 +67,25 @@ static void perf_session__destroy_kernel_maps(struct perf_session *session)
 	machines__destroy_kernel_maps(&session->machines);
 }
 
+static bool perf_session__has_comm_exec(struct perf_session *session)
+{
+	struct perf_evsel *evsel;
+
+	evlist__for_each(session->evlist, evsel) {
+		if (evsel->attr.comm_exec)
+			return true;
+	}
+
+	return false;
+}
+
+static void perf_session__set_comm_exec(struct perf_session *session)
+{
+	bool comm_exec = perf_session__has_comm_exec(session);
+
+	machines__set_comm_exec(&session->machines, comm_exec);
+}
+
 struct perf_session *perf_session__new(struct perf_data_file *file,
 				       bool repipe, struct perf_tool *tool)
 {
@@ -90,6 +109,7 @@ struct perf_session *perf_session__new(struct perf_data_file *file,
 				goto out_close;
 
 			perf_session__set_id_hdr_size(session);
+			perf_session__set_comm_exec(session);
 		}
 	}
 
@@ -866,8 +886,10 @@ static s64 perf_session__process_user_event(struct perf_session *session,
 	switch (event->header.type) {
 	case PERF_RECORD_HEADER_ATTR:
 		err = tool->attr(tool, event, &session->evlist);
-		if (err == 0)
+		if (err == 0) {
 			perf_session__set_id_hdr_size(session);
+			perf_session__set_comm_exec(session);
+		}
 		return err;
 	case PERF_RECORD_HEADER_EVENT_TYPE:
 		/*
@@ -895,6 +917,61 @@ static void event_swap(union perf_event *event, bool sample_id_all)
 	swap = perf_event__swap_ops[event->header.type];
 	if (swap)
 		swap(event, sample_id_all);
+}
+
+int perf_session__peek_event(struct perf_session *session, off_t file_offset,
+			     void *buf, size_t buf_sz,
+			     union perf_event **event_ptr,
+			     struct perf_sample *sample)
+{
+	union perf_event *event;
+	size_t hdr_sz, rest;
+	int fd;
+
+	if (session->one_mmap && !session->header.needs_swap) {
+		event = file_offset - session->one_mmap_offset +
+			session->one_mmap_addr;
+		goto out_parse_sample;
+	}
+
+	if (perf_data_file__is_pipe(session->file))
+		return -1;
+
+	fd = perf_data_file__fd(session->file);
+	hdr_sz = sizeof(struct perf_event_header);
+
+	if (buf_sz < hdr_sz)
+		return -1;
+
+	if (lseek(fd, file_offset, SEEK_SET) == (off_t)-1 ||
+	    readn(fd, &buf, hdr_sz) != (ssize_t)hdr_sz)
+		return -1;
+
+	event = (union perf_event *)buf;
+
+	if (session->header.needs_swap)
+		perf_event_header__bswap(&event->header);
+
+	if (event->header.size < hdr_sz)
+		return -1;
+
+	rest = event->header.size - hdr_sz;
+
+	if (readn(fd, &buf, rest) != (ssize_t)rest)
+		return -1;
+
+	if (session->header.needs_swap)
+		event_swap(event, perf_evlist__sample_id_all(session->evlist));
+
+out_parse_sample:
+
+	if (sample && event->header.type < PERF_RECORD_USER_TYPE_START &&
+	    perf_evlist__parse_sample(session->evlist, event, sample))
+		return -1;
+
+	*event_ptr = event;
+
+	return 0;
 }
 
 static s64 perf_session__process_event(struct perf_session *session,

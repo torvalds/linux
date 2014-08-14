@@ -865,6 +865,8 @@ static int __cmd_report(bool display_info)
 		return -ENOMEM;
 	}
 
+	symbol__init(&session->header.env);
+
 	if (!perf_session__has_traces(session, "lock record"))
 		goto out_delete;
 
@@ -974,7 +976,6 @@ int cmd_lock(int argc, const char **argv, const char *prefix __maybe_unused)
 	unsigned int i;
 	int rc = 0;
 
-	symbol__init();
 	for (i = 0; i < LOCKHASH_SIZE; i++)
 		INIT_LIST_HEAD(lockhash_table + i);
 

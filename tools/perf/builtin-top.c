@@ -276,11 +276,17 @@ static void perf_top__print_sym_table(struct perf_top *top)
 		return;
 	}
 
+	if (top->zero) {
+		hists__delete_entries(&top->sym_evsel->hists);
+	} else {
+		hists__decay_entries(&top->sym_evsel->hists,
+				     top->hide_user_symbols,
+				     top->hide_kernel_symbols);
+	}
+
 	hists__collapse_resort(&top->sym_evsel->hists, NULL);
 	hists__output_resort(&top->sym_evsel->hists);
-	hists__decay_entries(&top->sym_evsel->hists,
-			     top->hide_user_symbols,
-			     top->hide_kernel_symbols);
+
 	hists__output_recalc_col_len(&top->sym_evsel->hists,
 				     top->print_entries - printed);
 	putchar('\n');
@@ -542,11 +548,16 @@ static void perf_top__sort_new_samples(void *arg)
 	if (t->evlist->selected != NULL)
 		t->sym_evsel = t->evlist->selected;
 
+	if (t->zero) {
+		hists__delete_entries(&t->sym_evsel->hists);
+	} else {
+		hists__decay_entries(&t->sym_evsel->hists,
+				     t->hide_user_symbols,
+				     t->hide_kernel_symbols);
+	}
+
 	hists__collapse_resort(&t->sym_evsel->hists, NULL);
 	hists__output_resort(&t->sym_evsel->hists);
-	hists__decay_entries(&t->sym_evsel->hists,
-			     t->hide_user_symbols,
-			     t->hide_kernel_symbols);
 }
 
 static void *display_thread_tui(void *arg)
@@ -577,23 +588,32 @@ static void *display_thread_tui(void *arg)
 	return NULL;
 }
 
+static void display_sig(int sig __maybe_unused)
+{
+	done = 1;
+}
+
+static void display_setup_sig(void)
+{
+	signal(SIGSEGV, display_sig);
+	signal(SIGFPE,  display_sig);
+	signal(SIGINT,  display_sig);
+	signal(SIGQUIT, display_sig);
+	signal(SIGTERM, display_sig);
+}
+
 static void *display_thread(void *arg)
 {
 	struct pollfd stdin_poll = { .fd = 0, .events = POLLIN };
-	struct termios tc, save;
+	struct termios save;
 	struct perf_top *top = arg;
 	int delay_msecs, c;
 
-	tcgetattr(0, &save);
-	tc = save;
-	tc.c_lflag &= ~(ICANON | ECHO);
-	tc.c_cc[VMIN] = 0;
-	tc.c_cc[VTIME] = 0;
-
+	display_setup_sig();
 	pthread__unblock_sigwinch();
 repeat:
 	delay_msecs = top->delay_secs * 1000;
-	tcsetattr(0, TCSANOW, &tc);
+	set_term_quiet_input(&save);
 	/* trash return*/
 	getc(stdin);
 
@@ -620,13 +640,16 @@ repeat:
 		}
 	}
 
+	tcsetattr(0, TCSAFLUSH, &save);
 	return NULL;
 }
 
-static int symbol_filter(struct map *map __maybe_unused, struct symbol *sym)
+static int symbol_filter(struct map *map, struct symbol *sym)
 {
 	const char *name = sym->name;
 
+	if (!map->dso->kernel)
+		return 0;
 	/*
 	 * ppc64 uses function descriptors and appends a '.' to the
 	 * start of every instruction address. Remove it.
@@ -963,7 +986,7 @@ static int __cmd_top(struct perf_top *top)
 		param.sched_priority = top->realtime_prio;
 		if (sched_setscheduler(0, SCHED_FIFO, &param)) {
 			ui__error("Could not set realtime priority.\n");
-			goto out_delete;
+			goto out_join;
 		}
 	}
 
@@ -977,6 +1000,8 @@ static int __cmd_top(struct perf_top *top)
 	}
 
 	ret = 0;
+out_join:
+	pthread_join(thread, NULL);
 out_delete:
 	perf_session__delete(top->session);
 	top->session = NULL;
@@ -1220,7 +1245,7 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 	symbol_conf.priv_size = sizeof(struct annotation);
 
 	symbol_conf.try_vmlinux_path = (symbol_conf.vmlinux_name == NULL);
-	if (symbol__init() < 0)
+	if (symbol__init(NULL) < 0)
 		return -1;
 
 	sort__setup_elide(stdout);

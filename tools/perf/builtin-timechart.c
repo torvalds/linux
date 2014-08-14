@@ -1607,6 +1607,8 @@ static int __cmd_timechart(struct timechart *tchart, const char *output_name)
 	if (session == NULL)
 		return -ENOMEM;
 
+	symbol__init(&session->header.env);
+
 	(void)perf_header__process_sections(&session->header,
 					    perf_data_file__fd(session->file),
 					    tchart,
@@ -1981,8 +1983,6 @@ int cmd_timechart(int argc, const char **argv,
 		pr_err("-P and -T options cannot be used at the same time.\n");
 		return -1;
 	}
-
-	symbol__init();
 
 	if (argc && !strncmp(argv[0], "rec", 3)) {
 		argc = parse_options(argc, argv, record_options, record_usage,

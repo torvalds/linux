@@ -885,15 +885,11 @@ static int fd_set_nonblock(int fd)
 	return 0;
 }
 
-static
-int perf_kvm__handle_stdin(struct termios *tc_now, struct termios *tc_save)
+static int perf_kvm__handle_stdin(void)
 {
 	int c;
 
-	tcsetattr(0, TCSANOW, tc_now);
 	c = getc(stdin);
-	tcsetattr(0, TCSAFLUSH, tc_save);
-
 	if (c == 'q')
 		return 1;
 
@@ -904,7 +900,7 @@ static int kvm_events_live_report(struct perf_kvm_stat *kvm)
 {
 	struct pollfd *pollfds = NULL;
 	int nr_fds, nr_stdin, ret, err = -EINVAL;
-	struct termios tc, save;
+	struct termios save;
 
 	/* live flag must be set first */
 	kvm->live = true;
@@ -919,13 +915,8 @@ static int kvm_events_live_report(struct perf_kvm_stat *kvm)
 		goto out;
 	}
 
+	set_term_quiet_input(&save);
 	init_kvm_event_record(kvm);
-
-	tcgetattr(0, &save);
-	tc = save;
-	tc.c_lflag &= ~(ICANON | ECHO);
-	tc.c_cc[VMIN] = 0;
-	tc.c_cc[VTIME] = 0;
 
 	signal(SIGINT, sig_handler);
 	signal(SIGTERM, sig_handler);
@@ -972,7 +963,7 @@ static int kvm_events_live_report(struct perf_kvm_stat *kvm)
 			goto out;
 
 		if (pollfds[nr_stdin].revents & POLLIN)
-			done = perf_kvm__handle_stdin(&tc, &save);
+			done = perf_kvm__handle_stdin();
 
 		if (!rc && !done)
 			err = poll(pollfds, nr_fds, 100);
@@ -989,6 +980,7 @@ out:
 	if (kvm->timerfd >= 0)
 		close(kvm->timerfd);
 
+	tcsetattr(0, TCSAFLUSH, &save);
 	free(pollfds);
 	return err;
 }
@@ -1071,6 +1063,8 @@ static int read_events(struct perf_kvm_stat *kvm)
 		pr_err("Initializing perf session failed\n");
 		return -EINVAL;
 	}
+
+	symbol__init(&kvm->session->header.env);
 
 	if (!perf_session__has_traces(kvm->session, "kvm record"))
 		return -EINVAL;
@@ -1201,8 +1195,6 @@ kvm_events_report(struct perf_kvm_stat *kvm, int argc, const char **argv)
 		NULL
 	};
 
-	symbol__init();
-
 	if (argc) {
 		argc = parse_options(argc, argv,
 				     kvm_events_report_options,
@@ -1322,7 +1314,7 @@ static int kvm_events_live(struct perf_kvm_stat *kvm,
 	kvm->opts.target.uid_str = NULL;
 	kvm->opts.target.uid = UINT_MAX;
 
-	symbol__init();
+	symbol__init(NULL);
 	disable_buildid_cache();
 
 	use_browser = 0;
