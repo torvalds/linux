@@ -112,7 +112,7 @@ static ssize_t init_dump_show(struct dump_obj *dump_obj,
 			      struct dump_attribute *attr,
 			      char *buf)
 {
-	return sprintf(buf, "1 - initiate dump\n");
+	return sprintf(buf, "1 - initiate Service Processor(FSP) dump\n");
 }
 
 static int64_t dump_fips_init(uint8_t type)
@@ -121,7 +121,7 @@ static int64_t dump_fips_init(uint8_t type)
 
 	rc = opal_dump_init(type);
 	if (rc)
-		pr_warn("%s: Failed to initiate FipS dump (%d)\n",
+		pr_warn("%s: Failed to initiate FSP dump (%d)\n",
 			__func__, rc);
 	return rc;
 }
@@ -131,8 +131,12 @@ static ssize_t init_dump_store(struct dump_obj *dump_obj,
 			       const char *buf,
 			       size_t count)
 {
-	dump_fips_init(DUMP_TYPE_FSP);
-	pr_info("%s: Initiated FSP dump\n", __func__);
+	int rc;
+
+	rc = dump_fips_init(DUMP_TYPE_FSP);
+	if (rc == OPAL_SUCCESS)
+		pr_info("%s: Initiated FSP dump\n", __func__);
+
 	return count;
 }
 
@@ -297,7 +301,7 @@ static ssize_t dump_attr_read(struct file *filep, struct kobject *kobj,
 			 * and rely on userspace to ask us to try
 			 * again.
 			 */
-			pr_info("%s: Platform dump partially read.ID = 0x%x\n",
+			pr_info("%s: Platform dump partially read. ID = 0x%x\n",
 				__func__, dump->id);
 			return -EIO;
 		}
