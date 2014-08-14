@@ -35,13 +35,16 @@ endif
 
 export LD_BFD
 
-cflags-$(CONFIG_MARCH_G5)     += -march=g5
-cflags-$(CONFIG_MARCH_Z900)   += -march=z900
-cflags-$(CONFIG_MARCH_Z990)   += -march=z990
-cflags-$(CONFIG_MARCH_Z9_109) += -march=z9-109
-cflags-$(CONFIG_MARCH_Z10)    += -march=z10
-cflags-$(CONFIG_MARCH_Z196)   += -march=z196
-cflags-$(CONFIG_MARCH_ZEC12)  += -march=zEC12
+mflags-$(CONFIG_MARCH_G5)     := -march=g5
+mflags-$(CONFIG_MARCH_Z900)   := -march=z900
+mflags-$(CONFIG_MARCH_Z990)   := -march=z990
+mflags-$(CONFIG_MARCH_Z9_109) := -march=z9-109
+mflags-$(CONFIG_MARCH_Z10)    := -march=z10
+mflags-$(CONFIG_MARCH_Z196)   := -march=z196
+mflags-$(CONFIG_MARCH_ZEC12)  := -march=zEC12
+
+aflags-y += $(mflags-y)
+cflags-y += $(mflags-y)
 
 cflags-$(CONFIG_MARCH_G5_TUNE)		+= -mtune=g5
 cflags-$(CONFIG_MARCH_Z900_TUNE)	+= -mtune=z900
