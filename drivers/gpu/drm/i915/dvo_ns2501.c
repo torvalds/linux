@@ -479,22 +479,6 @@ static void ns2501_dpms(struct intel_dvo_device *dvo, bool enable)
 	}
 }
 
-static void ns2501_dump_regs(struct intel_dvo_device *dvo)
-{
-	uint8_t val;
-
-	ns2501_readb(dvo, NS2501_FREQ_LO, &val);
-	DRM_DEBUG_KMS("NS2501_FREQ_LO: 0x%02x\n", val);
-	ns2501_readb(dvo, NS2501_FREQ_HI, &val);
-	DRM_DEBUG_KMS("NS2501_FREQ_HI: 0x%02x\n", val);
-	ns2501_readb(dvo, NS2501_REG8, &val);
-	DRM_DEBUG_KMS("NS2501_REG8: 0x%02x\n", val);
-	ns2501_readb(dvo, NS2501_REG9, &val);
-	DRM_DEBUG_KMS("NS2501_REG9: 0x%02x\n", val);
-	ns2501_readb(dvo, NS2501_REGC, &val);
-	DRM_DEBUG_KMS("NS2501_REGC: 0x%02x\n", val);
-}
-
 static void ns2501_destroy(struct intel_dvo_device *dvo)
 {
 	struct ns2501_priv *ns = dvo->dev_priv;
@@ -512,6 +496,5 @@ struct intel_dvo_dev_ops ns2501_ops = {
 	.mode_set = ns2501_mode_set,
 	.dpms = ns2501_dpms,
 	.get_hw_state = ns2501_get_hw_state,
-	.dump_regs = ns2501_dump_regs,
 	.destroy = ns2501_destroy,
 };
