@@ -724,10 +724,11 @@ int nfs_generic_pgio(struct nfs_pageio_descriptor *desc,
 		     struct nfs_pgio_header *hdr)
 {
 	struct nfs_page		*req;
-	struct page		**pages;
+	struct page		**pages,
+				*last_page;
 	struct list_head *head = &desc->pg_list;
 	struct nfs_commit_info cinfo;
-	unsigned int pagecount;
+	unsigned int pagecount, pageused;
 
 	pagecount = nfs_page_array_len(desc->pg_base, desc->pg_count);
 	if (!nfs_pgarray_set(&hdr->page_array, pagecount))
@@ -735,12 +736,23 @@ int nfs_generic_pgio(struct nfs_pageio_descriptor *desc,
 
 	nfs_init_cinfo(&cinfo, desc->pg_inode, desc->pg_dreq);
 	pages = hdr->page_array.pagevec;
+	last_page = NULL;
+	pageused = 0;
 	while (!list_empty(head)) {
 		req = nfs_list_entry(head->next);
 		nfs_list_remove_request(req);
 		nfs_list_add_request(req, &hdr->pages);
-		*pages++ = req->wb_page;
+
+		if (WARN_ON_ONCE(pageused >= pagecount))
+			return nfs_pgio_error(desc, hdr);
+
+		if (!last_page || last_page != req->wb_page) {
+			*pages++ = last_page = req->wb_page;
+			pageused++;
+		}
 	}
+	if (WARN_ON_ONCE(pageused != pagecount))
+		return nfs_pgio_error(desc, hdr);
 
 	if ((desc->pg_ioflags & FLUSH_COND_STABLE) &&
 	    (desc->pg_moreio || nfs_reqs_to_commit(&cinfo)))
