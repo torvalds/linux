@@ -185,11 +185,12 @@ static void intel_enable_dvo(struct intel_encoder *encoder)
 	u32 dvo_reg = intel_dvo->dev.dvo_reg;
 	u32 temp = I915_READ(dvo_reg);
 
-	I915_WRITE(dvo_reg, temp | DVO_ENABLE);
-	I915_READ(dvo_reg);
 	intel_dvo->dev.dev_ops->mode_set(&intel_dvo->dev,
 					 &crtc->config.requested_mode,
 					 &crtc->config.adjusted_mode);
+
+	I915_WRITE(dvo_reg, temp | DVO_ENABLE);
+	I915_READ(dvo_reg);
 
 	intel_dvo->dev.dev_ops->dpms(&intel_dvo->dev, true);
 }
