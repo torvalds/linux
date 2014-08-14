@@ -946,6 +946,14 @@ struct sched_avg {
 	u32 usage_avg_sum;
 };
 
+#ifdef CONFIG_SCHED_HMP
+/*
+ * We want to avoid boosting any processes forked from init (PID 1)
+ * and kthreadd (assumed to be PID 2).
+ */
+#define hmp_task_should_forkboost(task) ((task->parent && task->parent->pid > 2))
+#endif
+
 #ifdef CONFIG_SCHEDSTATS
 struct sched_statistics {
 	u64			wait_start;
