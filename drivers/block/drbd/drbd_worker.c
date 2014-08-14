@@ -55,13 +55,6 @@ static int make_resync_request(struct drbd_device *, int);
  *
  */
 
-
-/* About the global_state_lock
-   Each state transition on an device holds a read lock. In case we have
-   to evaluate the resync after dependencies, we grab a write lock, because
-   we need stable states on all devices for that.  */
-rwlock_t global_state_lock;
-
 /* used for synchronous meta data and bitmap IO
  * submitted by drbd_md_sync_page_io()
  */
@@ -1456,70 +1449,73 @@ static int _drbd_may_sync_now(struct drbd_device *device)
 }
 
 /**
- * _drbd_pause_after() - Pause resync on all devices that may not resync now
+ * drbd_pause_after() - Pause resync on all devices that may not resync now
  * @device:	DRBD device.
  *
  * Called from process context only (admin command and after_state_ch).
  */
-static int _drbd_pause_after(struct drbd_device *device)
+static bool drbd_pause_after(struct drbd_device *device)
 {
+	bool changed = false;
 	struct drbd_device *odev;
-	int i, rv = 0;
+	int i;
 
 	rcu_read_lock();
 	idr_for_each_entry(&drbd_devices, odev, i) {
 		if (odev->state.conn == C_STANDALONE && odev->state.disk == D_DISKLESS)
 			continue;
-		if (!_drbd_may_sync_now(odev))
-			rv |= (__drbd_set_state(_NS(odev, aftr_isp, 1), CS_HARD, NULL)
-			       != SS_NOTHING_TO_DO);
+		if (!_drbd_may_sync_now(odev) &&
+		    _drbd_set_state(_NS(odev, aftr_isp, 1),
+				    CS_HARD, NULL) != SS_NOTHING_TO_DO)
+			changed = true;
 	}
 	rcu_read_unlock();
 
-	return rv;
+	return changed;
 }
 
 /**
- * _drbd_resume_next() - Resume resync on all devices that may resync now
+ * drbd_resume_next() - Resume resync on all devices that may resync now
  * @device:	DRBD device.
  *
  * Called from process context only (admin command and worker).
  */
-static int _drbd_resume_next(struct drbd_device *device)
+static bool drbd_resume_next(struct drbd_device *device)
 {
+	bool changed = false;
 	struct drbd_device *odev;
-	int i, rv = 0;
+	int i;
 
 	rcu_read_lock();
 	idr_for_each_entry(&drbd_devices, odev, i) {
 		if (odev->state.conn == C_STANDALONE && odev->state.disk == D_DISKLESS)
 			continue;
 		if (odev->state.aftr_isp) {
-			if (_drbd_may_sync_now(odev))
-				rv |= (__drbd_set_state(_NS(odev, aftr_isp, 0),
-							CS_HARD, NULL)
-				       != SS_NOTHING_TO_DO) ;
+			if (_drbd_may_sync_now(odev) &&
+			    _drbd_set_state(_NS(odev, aftr_isp, 0),
+					    CS_HARD, NULL) != SS_NOTHING_TO_DO)
+				changed = true;
 		}
 	}
 	rcu_read_unlock();
-	return rv;
+	return changed;
 }
 
 void resume_next_sg(struct drbd_device *device)
 {
-	write_lock_irq(&global_state_lock);
-	_drbd_resume_next(device);
-	write_unlock_irq(&global_state_lock);
+	lock_all_resources();
+	drbd_resume_next(device);
+	unlock_all_resources();
 }
 
 void suspend_other_sg(struct drbd_device *device)
 {
-	write_lock_irq(&global_state_lock);
-	_drbd_pause_after(device);
-	write_unlock_irq(&global_state_lock);
+	lock_all_resources();
+	drbd_pause_after(device);
+	unlock_all_resources();
 }
 
-/* caller must hold global_state_lock */
+/* caller must lock_all_resources() */
 enum drbd_ret_code drbd_resync_after_valid(struct drbd_device *device, int o_minor)
 {
 	struct drbd_device *odev;
@@ -1557,15 +1553,15 @@ enum drbd_ret_code drbd_resync_after_valid(struct drbd_device *device, int o_min
 	}
 }
 
-/* caller must hold global_state_lock */
+/* caller must lock_all_resources() */
 void drbd_resync_after_changed(struct drbd_device *device)
 {
-	int changes;
+	int changed;
 
 	do {
-		changes  = _drbd_pause_after(device);
-		changes |= _drbd_resume_next(device);
-	} while (changes);
+		changed  = drbd_pause_after(device);
+		changed |= drbd_resume_next(device);
+	} while (changed);
 }
 
 void drbd_rs_controller_reset(struct drbd_device *device)
@@ -1685,19 +1681,14 @@ void drbd_start_resync(struct drbd_device *device, enum drbd_conns side)
 	} else {
 		mutex_lock(device->state_mutex);
 	}
-	clear_bit(B_RS_H_DONE, &device->flags);
 
-	/* req_lock: serialize with drbd_send_and_submit() and others
-	 * global_state_lock: for stable sync-after dependencies */
-	spin_lock_irq(&device->resource->req_lock);
-	write_lock(&global_state_lock);
+	lock_all_resources();
+	clear_bit(B_RS_H_DONE, &device->flags);
 	/* Did some connection breakage or IO error race with us? */
 	if (device->state.conn < C_CONNECTED
 	|| !get_ldev_if_state(device, D_NEGOTIATING)) {
-		write_unlock(&global_state_lock);
-		spin_unlock_irq(&device->resource->req_lock);
-		mutex_unlock(device->state_mutex);
-		return;
+		unlock_all_resources();
+		goto out;
 	}
 
 	ns = drbd_read_state(device);
@@ -1711,7 +1702,7 @@ void drbd_start_resync(struct drbd_device *device, enum drbd_conns side)
 	else /* side == C_SYNC_SOURCE */
 		ns.pdsk = D_INCONSISTENT;
 
-	r = __drbd_set_state(device, ns, CS_VERBOSE, NULL);
+	r = _drbd_set_state(device, ns, CS_VERBOSE, NULL);
 	ns = drbd_read_state(device);
 
 	if (ns.conn < C_CONNECTED)
@@ -1732,7 +1723,7 @@ void drbd_start_resync(struct drbd_device *device, enum drbd_conns side)
 			device->rs_mark_left[i] = tw;
 			device->rs_mark_time[i] = now;
 		}
-		_drbd_pause_after(device);
+		drbd_pause_after(device);
 		/* Forget potentially stale cached per resync extent bit-counts.
 		 * Open coded drbd_rs_cancel_all(device), we already have IRQs
 		 * disabled, and know the disk state is ok. */
@@ -1742,8 +1733,7 @@ void drbd_start_resync(struct drbd_device *device, enum drbd_conns side)
 		device->resync_wenr = LC_FREE;
 		spin_unlock(&device->al_lock);
 	}
-	write_unlock(&global_state_lock);
-	spin_unlock_irq(&device->resource->req_lock);
+	unlock_all_resources();
 
 	if (r == SS_SUCCESS) {
 		wake_up(&device->al_wait); /* for lc_reset() above */
@@ -1807,6 +1797,7 @@ void drbd_start_resync(struct drbd_device *device, enum drbd_conns side)
 		drbd_md_sync(device);
 	}
 	put_ldev(device);
+out:
 	mutex_unlock(device->state_mutex);
 }
 

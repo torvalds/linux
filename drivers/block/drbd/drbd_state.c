@@ -937,7 +937,7 @@ void drbd_resume_al(struct drbd_device *device)
 		drbd_info(device, "Resumed AL updates\n");
 }
 
-/* helper for __drbd_set_state */
+/* helper for _drbd_set_state */
 static void set_ov_position(struct drbd_device *device, enum drbd_conns cs)
 {
 	if (first_peer_device(device)->connection->agreed_pro_version < 90)
@@ -965,17 +965,17 @@ static void set_ov_position(struct drbd_device *device, enum drbd_conns cs)
 }
 
 /**
- * __drbd_set_state() - Set a new DRBD state
+ * _drbd_set_state() - Set a new DRBD state
  * @device:	DRBD device.
  * @ns:		new state.
  * @flags:	Flags
  * @done:	Optional completion, that will get completed after the after_state_ch() finished
  *
- * Caller needs to hold req_lock, and global_state_lock. Do not call directly.
+ * Caller needs to hold req_lock. Do not call directly.
  */
 enum drbd_state_rv
-__drbd_set_state(struct drbd_device *device, union drbd_state ns,
-	         enum chg_state_flags flags, struct completion *done)
+_drbd_set_state(struct drbd_device *device, union drbd_state ns,
+	        enum chg_state_flags flags, struct completion *done)
 {
 	struct drbd_peer_device *peer_device = first_peer_device(device);
 	struct drbd_connection *connection = peer_device ? peer_device->connection : NULL;
@@ -1444,7 +1444,7 @@ static void after_state_ch(struct drbd_device *device, union drbd_state os,
 	if (os.disk != D_FAILED && ns.disk == D_FAILED) {
 		enum drbd_io_error_p eh = EP_PASS_ON;
 		int was_io_error = 0;
-		/* corresponding get_ldev was in __drbd_set_state, to serialize
+		/* corresponding get_ldev was in _drbd_set_state, to serialize
 		 * our cleanup here with the transition to D_DISKLESS.
 		 * But is is still not save to dreference ldev here, since
 		 * we might come from an failed Attach before ldev was set. */
@@ -1759,7 +1759,7 @@ conn_set_state(struct drbd_connection *connection, union drbd_state mask, union 
 		if (flags & CS_IGN_OUTD_FAIL && ns.disk == D_OUTDATED && os.disk < D_OUTDATED)
 			ns.disk = os.disk;
 
-		rv = __drbd_set_state(device, ns, flags, NULL);
+		rv = _drbd_set_state(device, ns, flags, NULL);
 		if (rv < SS_SUCCESS)
 			BUG();
 

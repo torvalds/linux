@@ -292,6 +292,9 @@ struct drbd_device_work {
 
 extern int drbd_wait_misc(struct drbd_device *, struct drbd_interval *);
 
+extern void lock_all_resources(void);
+extern void unlock_all_resources(void);
+
 struct drbd_request {
 	struct drbd_work w;
 	struct drbd_device *device;
@@ -1418,7 +1421,7 @@ extern struct bio_set *drbd_md_io_bio_set;
 /* to allocate from that set */
 extern struct bio *bio_alloc_drbd(gfp_t gfp_mask);
 
-extern rwlock_t global_state_lock;
+extern struct mutex resources_mutex;
 
 extern int conn_lowest_minor(struct drbd_connection *connection);
 extern enum drbd_ret_code drbd_create_device(struct drbd_config_context *adm_ctx, unsigned int minor);
@@ -1686,19 +1689,6 @@ static inline int drbd_peer_req_has_active_page(struct drbd_peer_request *peer_r
 			return 1;
 	}
 	return 0;
-}
-
-static inline enum drbd_state_rv
-_drbd_set_state(struct drbd_device *device, union drbd_state ns,
-		enum chg_state_flags flags, struct completion *done)
-{
-	enum drbd_state_rv rv;
-
-	read_lock(&global_state_lock);
-	rv = __drbd_set_state(device, ns, flags, done);
-	read_unlock(&global_state_lock);
-
-	return rv;
 }
 
 static inline union drbd_state drbd_read_state(struct drbd_device *device)

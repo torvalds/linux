@@ -1389,13 +1389,13 @@ int drbd_adm_disk_opts(struct sk_buff *skb, struct genl_info *info)
 		goto fail_unlock;
 	}
 
-	write_lock_irq(&global_state_lock);
+	lock_all_resources();
 	retcode = drbd_resync_after_valid(device, new_disk_conf->resync_after);
 	if (retcode == NO_ERROR) {
 		rcu_assign_pointer(device->ldev->disk_conf, new_disk_conf);
 		drbd_resync_after_changed(device);
 	}
-	write_unlock_irq(&global_state_lock);
+	unlock_all_resources();
 
 	if (retcode != NO_ERROR)
 		goto fail_unlock;
@@ -1539,18 +1539,13 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 		goto fail;
 	}
 
-	write_lock_irq(&global_state_lock);
-	retcode = drbd_resync_after_valid(device, new_disk_conf->resync_after);
-	if (retcode != NO_ERROR)
-		goto fail_unlock;
-
 	rcu_read_lock();
 	nc = rcu_dereference(connection->net_conf);
 	if (nc) {
 		if (new_disk_conf->fencing == FP_STONITH && nc->wire_protocol == DRBD_PROT_A) {
 			rcu_read_unlock();
 			retcode = ERR_STONITH_AND_PROT_A;
-			goto fail_unlock;
+			goto fail;
 		}
 	}
 	rcu_read_unlock();
@@ -1561,7 +1556,7 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 		drbd_err(device, "open(\"%s\") failed with %ld\n", new_disk_conf->backing_dev,
 			PTR_ERR(bdev));
 		retcode = ERR_OPEN_DISK;
-		goto fail_unlock;
+		goto fail;
 	}
 	nbc->backing_bdev = bdev;
 
@@ -1581,7 +1576,7 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 		drbd_err(device, "open(\"%s\") failed with %ld\n", new_disk_conf->meta_dev,
 			PTR_ERR(bdev));
 		retcode = ERR_OPEN_MD_DISK;
-		goto fail_unlock;
+		goto fail;
 	}
 	nbc->md_bdev = bdev;
 
@@ -1589,7 +1584,7 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 	    (new_disk_conf->meta_dev_idx == DRBD_MD_INDEX_INTERNAL ||
 	     new_disk_conf->meta_dev_idx == DRBD_MD_INDEX_FLEX_INT)) {
 		retcode = ERR_MD_IDX_INVALID;
-		goto fail_unlock;
+		goto fail;
 	}
 
 	resync_lru = lc_create("resync", drbd_bm_ext_cache,
@@ -1597,14 +1592,14 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 			offsetof(struct bm_extent, lce));
 	if (!resync_lru) {
 		retcode = ERR_NOMEM;
-		goto fail_unlock;
+		goto fail;
 	}
 
 	/* Read our meta data super block early.
 	 * This also sets other on-disk offsets. */
 	retcode = drbd_md_read(device, nbc);
 	if (retcode != NO_ERROR)
-		goto fail_unlock;
+		goto fail;
 
 	if (new_disk_conf->al_extents < DRBD_AL_EXTENTS_MIN)
 		new_disk_conf->al_extents = DRBD_AL_EXTENTS_MIN;
@@ -1616,7 +1611,7 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 			(unsigned long long) drbd_get_max_capacity(nbc),
 			(unsigned long long) new_disk_conf->disk_size);
 		retcode = ERR_DISK_TOO_SMALL;
-		goto fail_unlock;
+		goto fail;
 	}
 
 	if (new_disk_conf->meta_dev_idx < 0) {
@@ -1633,7 +1628,7 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 		drbd_warn(device, "refusing attach: md-device too small, "
 		     "at least %llu sectors needed for this meta-disk type\n",
 		     (unsigned long long) min_md_device_sectors);
-		goto fail_unlock;
+		goto fail;
 	}
 
 	/* Make sure the new disk is big enough
@@ -1641,7 +1636,7 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 	if (drbd_get_max_capacity(nbc) <
 	    drbd_get_capacity(device->this_bdev)) {
 		retcode = ERR_DISK_TOO_SMALL;
-		goto fail_unlock;
+		goto fail;
 	}
 
 	nbc->known_size = drbd_get_capacity(nbc->backing_bdev);
@@ -1671,7 +1666,7 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 	retcode = rv;  /* FIXME: Type mismatch. */
 	drbd_resume_io(device);
 	if (rv < SS_SUCCESS)
-		goto fail_unlock;
+		goto fail;
 
 	if (!get_ldev_if_state(device, D_ATTACHING))
 		goto force_diskless;
@@ -1706,6 +1701,13 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 		goto force_diskless_dec;
 	}
 
+	lock_all_resources();
+	retcode = drbd_resync_after_valid(device, new_disk_conf->resync_after);
+	if (retcode != NO_ERROR) {
+		unlock_all_resources();
+		goto force_diskless_dec;
+	}
+
 	/* Reset the "barriers don't work" bits here, then force meta data to
 	 * be written, to ensure we determine if barriers are supported. */
 	if (new_disk_conf->md_flushes)
@@ -1728,6 +1730,7 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 
 	drbd_resync_after_changed(device);
 	drbd_bump_write_ordering(device->resource, device->ldev, WO_BDEV_FLUSH);
+	unlock_all_resources();
 
 	if (drbd_md_test_flag(device->ldev, MDF_CRASHED_PRIMARY))
 		set_bit(CRASHED_PRIMARY, &device->flags);
@@ -1850,8 +1853,6 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 	if (rv < SS_SUCCESS)
 		goto force_diskless_dec;
 
-	write_unlock(&global_state_lock);
-
 	mod_timer(&device->request_timer, jiffies + HZ);
 
 	if (device->state.role == R_PRIMARY)
@@ -1874,8 +1875,6 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
  force_diskless:
 	drbd_force_state(device, NS(disk, D_DISKLESS));
 	drbd_md_sync(device);
- fail_unlock:
-	write_unlock_irq(&global_state_lock);
  fail:
 	conn_reconfig_done(connection);
 	if (nbc) {
@@ -3453,8 +3452,10 @@ int drbd_adm_new_resource(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	/* not yet safe for genl_family.parallel_ops */
+	mutex_lock(&resources_mutex);
 	if (!conn_create(adm_ctx.resource_name, &res_opts))
 		retcode = ERR_NOMEM;
+	mutex_unlock(&resources_mutex);
 out:
 	drbd_adm_finish(&adm_ctx, info, retcode);
 	return 0;
@@ -3545,7 +3546,9 @@ static int adm_del_resource(struct drbd_resource *resource)
 	if (!idr_is_empty(&resource->devices))
 		return ERR_RES_IN_USE;
 
+	mutex_lock(&resources_mutex);
 	list_del_rcu(&resource->resources);
+	mutex_unlock(&resources_mutex);
 	/* Make sure all threads have actually stopped: state handling only
 	 * does drbd_thread_stop_nowait(). */
 	list_for_each_entry(connection, &resource->connections, connections)

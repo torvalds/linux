@@ -117,6 +117,7 @@ module_param_string(usermode_helper, usermode_helper, sizeof(usermode_helper), 0
  */
 struct idr drbd_devices;
 struct list_head drbd_resources;
+struct mutex resources_mutex;
 
 struct kmem_cache *drbd_request_cache;
 struct kmem_cache *drbd_ee_cache;	/* peer requests */
@@ -2923,7 +2924,7 @@ static int __init drbd_init(void)
 	drbd_proc = NULL; /* play safe for drbd_cleanup */
 	idr_init(&drbd_devices);
 
-	rwlock_init(&global_state_lock);
+	mutex_init(&resources_mutex);
 	INIT_LIST_HEAD(&drbd_resources);
 
 	err = drbd_genl_register();
@@ -3744,6 +3745,27 @@ int drbd_wait_misc(struct drbd_device *device, struct drbd_interval *i)
 	if (signal_pending(current))
 		return -ERESTARTSYS;
 	return 0;
+}
+
+void lock_all_resources(void)
+{
+	struct drbd_resource *resource;
+	int __maybe_unused i = 0;
+
+	mutex_lock(&resources_mutex);
+	local_irq_disable();
+	for_each_resource(resource, &drbd_resources)
+		spin_lock_nested(&resource->req_lock, i++);
+}
+
+void unlock_all_resources(void)
+{
+	struct drbd_resource *resource;
+
+	for_each_resource(resource, &drbd_resources)
+		spin_unlock(&resource->req_lock);
+	local_irq_enable();
+	mutex_unlock(&resources_mutex);
 }
 
 #ifdef CONFIG_DRBD_FAULT_INJECTION
