@@ -593,7 +593,7 @@ static int __run_perf_stat(int argc, const char **argv)
 
 	if (perf_evlist__apply_filters(evsel_list)) {
 		error("failed to set filter with %d (%s)\n", errno,
-			strerror(errno));
+			strerror_r(errno, msg, sizeof(msg)));
 		return -1;
 	}
 
