@@ -1248,18 +1248,18 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id id)
 {
 	struct cx23885_dev *dev = video_drvdata(file);
 	unsigned int i;
+	int ret;
 
 	for (i = 0; i < ARRAY_SIZE(cx23885_tvnorms); i++)
 		if (id & cx23885_tvnorms[i].id)
 			break;
 	if (i == ARRAY_SIZE(cx23885_tvnorms))
 		return -EINVAL;
-	dev->encodernorm = cx23885_tvnorms[i];
 
-	/* Have the drier core notify the subdevices */
-	cx23885_set_tvnorm(dev, id);
-
-	return 0;
+	ret = cx23885_set_tvnorm(dev, id);
+	if (!ret)
+		dev->encodernorm = cx23885_tvnorms[i];
+	return ret;
 }
 
 static int vidioc_enum_input(struct file *file, void *priv,

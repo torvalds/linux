@@ -119,6 +119,12 @@ int cx23885_set_tvnorm(struct cx23885_dev *dev, v4l2_std_id norm)
 		(unsigned int)norm,
 		v4l2_norm_to_name(norm));
 
+	if (dev->tvnorm != norm) {
+		if (vb2_is_busy(&dev->vb2_vidq) || vb2_is_busy(&dev->vb2_vbiq) ||
+		    vb2_is_busy(&dev->vb2_mpegq))
+			return -EBUSY;
+	}
+
 	dev->tvnorm = norm;
 
 	call_all(dev, video, s_std, norm);
@@ -591,6 +597,11 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 
 	if (0 != err)
 		return err;
+
+	if (vb2_is_busy(&dev->vb2_vidq) || vb2_is_busy(&dev->vb2_vbiq) ||
+	    vb2_is_busy(&dev->vb2_mpegq))
+		return -EBUSY;
+
 	dev->fmt        = format_by_fourcc(f->fmt.pix.pixelformat);
 	dev->width      = f->fmt.pix.width;
 	dev->height     = f->fmt.pix.height;
@@ -654,9 +665,7 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id tvnorms)
 	struct cx23885_dev *dev = video_drvdata(file);
 	dprintk(1, "%s()\n", __func__);
 
-	cx23885_set_tvnorm(dev, tvnorms);
-
-	return 0;
+	return cx23885_set_tvnorm(dev, tvnorms);
 }
 
 int cx23885_enum_input(struct cx23885_dev *dev, struct v4l2_input *i)
