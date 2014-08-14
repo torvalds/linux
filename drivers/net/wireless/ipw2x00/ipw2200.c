@@ -9853,6 +9853,7 @@ static int ipw_wx_get_wireless_mode(struct net_device *dev,
 		strncpy(extra, "unknown", MAX_WX_STRING);
 		break;
 	}
+	extra[MAX_WX_STRING - 1] = '\0';
 
 	IPW_DEBUG_WX("PRIV GET MODE: %s\n", extra);
 
