@@ -3320,8 +3320,8 @@ static int __init srp_init_module(void)
 	}
 
 	srp_remove_wq = create_workqueue("srp_remove");
-	if (IS_ERR(srp_remove_wq)) {
-		ret = PTR_ERR(srp_remove_wq);
+	if (!srp_remove_wq) {
+		ret = -ENOMEM;
 		goto out;
 	}
 
