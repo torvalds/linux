@@ -290,8 +290,11 @@ static void cleanup_params(void)
 
 static void pr_err_with_code(const char *msg, int err)
 {
+	char sbuf[STRERR_BUFSIZE];
+
 	pr_err("%s", msg);
-	pr_debug(" Reason: %s (Code: %d)", strerror(-err), err);
+	pr_debug(" Reason: %s (Code: %d)",
+		 strerror_r(-err, sbuf, sizeof(sbuf)), err);
 	pr_err("\n");
 }
 

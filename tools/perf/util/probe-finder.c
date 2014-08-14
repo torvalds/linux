@@ -281,6 +281,7 @@ static int convert_variable_type(Dwarf_Die *vr_die,
 	struct probe_trace_arg_ref **ref_ptr = &tvar->ref;
 	Dwarf_Die type;
 	char buf[16];
+	char sbuf[STRERR_BUFSIZE];
 	int bsize, boffs, total;
 	int ret;
 
@@ -367,7 +368,7 @@ formatted:
 		if (ret >= 16)
 			ret = -E2BIG;
 		pr_warning("Failed to convert variable type: %s\n",
-			   strerror(-ret));
+			   strerror_r(-ret, sbuf, sizeof(sbuf)));
 		return ret;
 	}
 	tvar->type = strdup(buf);
@@ -779,10 +780,12 @@ static int find_lazy_match_lines(struct intlist *list,
 	size_t line_len;
 	ssize_t len;
 	int count = 0, linenum = 1;
+	char sbuf[STRERR_BUFSIZE];
 
 	fp = fopen(fname, "r");
 	if (!fp) {
-		pr_warning("Failed to open %s: %s\n", fname, strerror(errno));
+		pr_warning("Failed to open %s: %s\n", fname,
+			   strerror_r(errno, sbuf, sizeof(sbuf)));
 		return -errno;
 	}
 

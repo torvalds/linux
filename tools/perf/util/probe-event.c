@@ -573,7 +573,7 @@ static int get_real_path(const char *raw_path, const char *comp_dir,
 
 static int __show_one_line(FILE *fp, int l, bool skip, bool show_num)
 {
-	char buf[LINEBUF_SIZE];
+	char buf[LINEBUF_SIZE], sbuf[STRERR_BUFSIZE];
 	const char *color = show_num ? "" : PERF_COLOR_BLUE;
 	const char *prefix = NULL;
 
@@ -593,7 +593,8 @@ static int __show_one_line(FILE *fp, int l, bool skip, bool show_num)
 	return 1;
 error:
 	if (ferror(fp)) {
-		pr_warning("File read error: %s\n", strerror(errno));
+		pr_warning("File read error: %s\n",
+			   strerror_r(errno, sbuf, sizeof(sbuf)));
 		return -1;
 	}
 	return 0;
@@ -626,6 +627,7 @@ static int __show_line_range(struct line_range *lr, const char *module)
 	FILE *fp;
 	int ret;
 	char *tmp;
+	char sbuf[STRERR_BUFSIZE];
 
 	/* Search a line range */
 	dinfo = open_debuginfo(module, false);
@@ -662,7 +664,7 @@ static int __show_line_range(struct line_range *lr, const char *module)
 	fp = fopen(lr->path, "r");
 	if (fp == NULL) {
 		pr_warning("Failed to open %s: %s\n", lr->path,
-			   strerror(errno));
+			   strerror_r(errno, sbuf, sizeof(sbuf)));
 		return -errno;
 	}
 	/* Skip to starting line number */
@@ -1410,8 +1412,7 @@ int synthesize_perf_probe_arg(struct perf_probe_arg *pa, char *buf, size_t len)
 
 	return tmp - buf;
 error:
-	pr_debug("Failed to synthesize perf probe argument: %s\n",
-		 strerror(-ret));
+	pr_debug("Failed to synthesize perf probe argument: %d\n", ret);
 	return ret;
 }
 
@@ -1460,8 +1461,7 @@ static char *synthesize_perf_probe_point(struct perf_probe_point *pp)
 
 	return buf;
 error:
-	pr_debug("Failed to synthesize perf probe point: %s\n",
-		 strerror(-ret));
+	pr_debug("Failed to synthesize perf probe point: %d\n", ret);
 	free(buf);
 	return NULL;
 }
@@ -1787,7 +1787,7 @@ static void clear_probe_trace_event(struct probe_trace_event *tev)
 
 static void print_open_warning(int err, bool is_kprobe)
 {
-	char sbuf[128];
+	char sbuf[STRERR_BUFSIZE];
 
 	if (err == -ENOENT) {
 		const char *config;
@@ -1817,7 +1817,7 @@ static void print_both_open_warning(int kerr, int uerr)
 		pr_warning("Please rebuild kernel with CONFIG_KPROBE_EVENTS "
 			   "or/and CONFIG_UPROBE_EVENTS.\n");
 	else {
-		char sbuf[128];
+		char sbuf[STRERR_BUFSIZE];
 		pr_warning("Failed to open kprobe events: %s.\n",
 			   strerror_r(-kerr, sbuf, sizeof(sbuf)));
 		pr_warning("Failed to open uprobe events: %s.\n",
@@ -2038,6 +2038,7 @@ static int write_probe_trace_event(int fd, struct probe_trace_event *tev)
 {
 	int ret = 0;
 	char *buf = synthesize_probe_trace_command(tev);
+	char sbuf[STRERR_BUFSIZE];
 
 	if (!buf) {
 		pr_debug("Failed to synthesize probe trace event.\n");
@@ -2049,7 +2050,7 @@ static int write_probe_trace_event(int fd, struct probe_trace_event *tev)
 		ret = write(fd, buf, strlen(buf));
 		if (ret <= 0)
 			pr_warning("Failed to write event: %s\n",
-				   strerror(errno));
+				   strerror_r(errno, sbuf, sizeof(sbuf)));
 	}
 	free(buf);
 	return ret;
@@ -2063,7 +2064,7 @@ static int get_new_event_name(char *buf, size_t len, const char *base,
 	/* Try no suffix */
 	ret = e_snprintf(buf, len, "%s", base);
 	if (ret < 0) {
-		pr_debug("snprintf() failed: %s\n", strerror(-ret));
+		pr_debug("snprintf() failed: %d\n", ret);
 		return ret;
 	}
 	if (!strlist__has_entry(namelist, buf))
@@ -2079,7 +2080,7 @@ static int get_new_event_name(char *buf, size_t len, const char *base,
 	for (i = 1; i < MAX_EVENT_INDEX; i++) {
 		ret = e_snprintf(buf, len, "%s_%d", base, i);
 		if (ret < 0) {
-			pr_debug("snprintf() failed: %s\n", strerror(-ret));
+			pr_debug("snprintf() failed: %d\n", ret);
 			return ret;
 		}
 		if (!strlist__has_entry(namelist, buf))
@@ -2444,7 +2445,8 @@ static int __del_trace_probe_event(int fd, struct str_node *ent)
 	printf("Removed event: %s\n", ent->s);
 	return 0;
 error:
-	pr_warning("Failed to delete event: %s\n", strerror(-ret));
+	pr_warning("Failed to delete event: %s\n",
+		   strerror_r(-ret, buf, sizeof(buf)));
 	return ret;
 }
 
