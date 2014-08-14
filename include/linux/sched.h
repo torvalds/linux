@@ -1212,6 +1212,13 @@ struct sched_dl_entity {
 	struct hrtimer dl_timer;
 };
 
+union rcu_special {
+	struct {
+		bool blocked;
+		bool need_qs;
+	} b;
+	short s;
+};
 struct rcu_node;
 
 enum perf_event_task_context {
@@ -1264,7 +1271,7 @@ struct task_struct {
 
 #ifdef CONFIG_PREEMPT_RCU
 	int rcu_read_lock_nesting;
-	char rcu_read_unlock_special;
+	union rcu_special rcu_read_unlock_special;
 	struct list_head rcu_node_entry;
 #endif /* #ifdef CONFIG_PREEMPT_RCU */
 #ifdef CONFIG_TREE_PREEMPT_RCU
@@ -2005,16 +2012,11 @@ extern void task_clear_jobctl_trapping(struct task_struct *task);
 extern void task_clear_jobctl_pending(struct task_struct *task,
 				      unsigned int mask);
 
-#ifdef CONFIG_PREEMPT_RCU
-#define RCU_READ_UNLOCK_BLOCKED (1 << 0) /* blocked while in RCU read-side. */
-#define RCU_READ_UNLOCK_NEED_QS (1 << 1) /* RCU core needs CPU response. */
-#endif /* #ifdef CONFIG_PREEMPT_RCU */
-
 static inline void rcu_copy_process(struct task_struct *p)
 {
 #ifdef CONFIG_PREEMPT_RCU
 	p->rcu_read_lock_nesting = 0;
-	p->rcu_read_unlock_special = 0;
+	p->rcu_read_unlock_special.s = 0;
 	p->rcu_blocked_node = NULL;
 	INIT_LIST_HEAD(&p->rcu_node_entry);
 #endif /* #ifdef CONFIG_PREEMPT_RCU */
