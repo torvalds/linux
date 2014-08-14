@@ -291,6 +291,9 @@ typedef struct _mali_osk_mutex_rw_s _mali_osk_mutex_rw_t;
  * _mali_osk_mem_iowrite32() functions.
  */
 typedef struct _mali_io_address * mali_io_address;
+#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
+#error Mali is incompatible with 64-bit dma_addr_t
+#endif
 
 /** @defgroup _MALI_OSK_CPU_PAGE CPU Physical page size macros.
  *
