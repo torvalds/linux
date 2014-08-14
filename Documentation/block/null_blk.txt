@@ -42,7 +42,7 @@ nr_devices=[Number of devices]: Default: 2
   Number of block devices instantiated. They are instantiated as /dev/nullb0,
   etc.
 
-irq_mode=[0-2]: Default: 1-Soft-irq
+irqmode=[0-2]: Default: 1-Soft-irq
   The completion mode used for completing IOs to the block-layer.
 
   0: None.
@@ -53,7 +53,7 @@ irq_mode=[0-2]: Default: 1-Soft-irq
      completion.
 
 completion_nsec=[ns]: Default: 10.000ns
-  Combined with irq_mode=2 (timer). The time each completion event must wait.
+  Combined with irqmode=2 (timer). The time each completion event must wait.
 
 submit_queues=[0..nr_cpus]:
   The number of submission queues attached to the device driver. If unset, it
