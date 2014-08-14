@@ -159,7 +159,6 @@ struct cbq_sched_data {
 	struct cbq_class	*tx_borrowed;
 	int			tx_len;
 	psched_time_t		now;		/* Cached timestamp */
-	psched_time_t		now_rt;		/* Cached real time */
 	unsigned int		pmask;
 
 	struct hrtimer		delay_timer;
@@ -353,12 +352,7 @@ cbq_mark_toplevel(struct cbq_sched_data *q, struct cbq_class *cl)
 	int toplevel = q->toplevel;
 
 	if (toplevel > cl->level && !(qdisc_is_throttled(cl->q))) {
-		psched_time_t now;
-		psched_tdiff_t incr;
-
-		now = psched_get_time();
-		incr = now - q->now_rt;
-		now = q->now + incr;
+		psched_time_t now = psched_get_time();
 
 		do {
 			if (cl->undertime < now) {
@@ -956,7 +950,6 @@ cbq_dequeue(struct Qdisc *sch)
 		cbq_update(q);
 
 	q->now = now;
-	q->now_rt = now;
 
 	for (;;) {
 		q->wd_expires = 0;
@@ -1212,7 +1205,6 @@ cbq_reset(struct Qdisc *sch)
 	hrtimer_cancel(&q->delay_timer);
 	q->toplevel = TC_CBQ_MAXLEVEL;
 	q->now = psched_get_time();
-	q->now_rt = q->now;
 
 	for (prio = 0; prio <= TC_CBQ_MAXPRIO; prio++)
 		q->active[prio] = NULL;
@@ -1396,7 +1388,6 @@ static int cbq_init(struct Qdisc *sch, struct nlattr *opt)
 	q->delay_timer.function = cbq_undelay;
 	q->toplevel = TC_CBQ_MAXLEVEL;
 	q->now = psched_get_time();
-	q->now_rt = q->now;
 
 	cbq_link_class(&q->link);
 
