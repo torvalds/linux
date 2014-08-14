@@ -237,7 +237,7 @@ noted. This means that most methods can block safely. All methods are
 only called from a process context (i.e. not from an interrupt handler
 or bottom half).
 
-  alloc_inode: this method is called by inode_alloc() to allocate memory
+  alloc_inode: this method is called by alloc_inode() to allocate memory
  	for struct inode and initialize it.  If this function is not
  	defined, a simple 'struct inode' is allocated.  Normally
  	alloc_inode will be used to allocate a larger structure which
