@@ -33,6 +33,9 @@ static bool force;
 module_param(force, bool, 0444);
 MODULE_PARM_DESC(force, "force loading on processors with erratum 319");
 
+/* Provide lock for writing to NB_SMU_IND_ADDR */
+static DEFINE_MUTEX(nb_smu_ind_mutex);
+
 /* CPUID function 0x80000001, ebx */
 #define CPUID_PKGTYPE_MASK	0xf0000000
 #define CPUID_PKGTYPE_F		0x00000000
@@ -51,13 +54,38 @@ MODULE_PARM_DESC(force, "force loading on processors with erratum 319");
 #define REG_NORTHBRIDGE_CAPABILITIES	0xe8
 #define  NB_CAP_HTC			0x00000400
 
+/*
+ * For F15h M60h, functionality of REG_REPORTED_TEMPERATURE
+ * has been moved to D0F0xBC_xD820_0CA4 [Reported Temperature
+ * Control]
+ */
+#define F15H_M60H_REPORTED_TEMP_CTRL_OFFSET	0xd8200ca4
+#define PCI_DEVICE_ID_AMD_15H_M60H_NB_F3	0x1573
+
+static void amd_nb_smu_index_read(struct pci_dev *pdev, unsigned int devfn,
+				  int offset, u32 *val)
+{
+	mutex_lock(&nb_smu_ind_mutex);
+	pci_bus_write_config_dword(pdev->bus, devfn,
+				   0xb8, offset);
+	pci_bus_read_config_dword(pdev->bus, devfn,
+				  0xbc, val);
+	mutex_unlock(&nb_smu_ind_mutex);
+}
+
 static ssize_t show_temp(struct device *dev,
 			 struct device_attribute *attr, char *buf)
 {
 	u32 regval;
+	struct pci_dev *pdev = to_pci_dev(dev);
 
-	pci_read_config_dword(to_pci_dev(dev),
-			      REG_REPORTED_TEMPERATURE, &regval);
+	if (boot_cpu_data.x86 == 0x15 && boot_cpu_data.x86_model == 0x60) {
+		amd_nb_smu_index_read(pdev, PCI_DEVFN(0, 0),
+				      F15H_M60H_REPORTED_TEMP_CTRL_OFFSET,
+				      &regval);
+	} else {
+		pci_read_config_dword(pdev, REG_REPORTED_TEMPERATURE, &regval);
+	}
 	return sprintf(buf, "%u\n", (regval >> 21) * 125);
 }
 
@@ -211,6 +239,7 @@ static const struct pci_device_id k10temp_id_table[] = {
 	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_15H_NB_F3) },
 	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_15H_M10H_F3) },
 	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_15H_M30H_NB_F3) },
+	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_15H_M60H_NB_F3) },
 	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_16H_NB_F3) },
 	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_16H_M30H_NB_F3) },
 	{}
