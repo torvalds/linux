@@ -26,7 +26,7 @@ enum {
 	PG_MAPPED,		/* page private set for buffered io */
 	PG_CLEAN,		/* write succeeded */
 	PG_COMMIT_TO_DS,	/* used by pnfs layouts */
-	PG_INODE_REF,		/* extra ref held by inode (head req only) */
+	PG_INODE_REF,		/* extra ref held by inode when in writeback */
 	PG_HEADLOCK,		/* page group lock of wb_head */
 	PG_TEARDOWN,		/* page group sync for destroy */
 	PG_UNLOCKPAGE,		/* page group sync bit in read path */
@@ -62,12 +62,13 @@ struct nfs_pageio_ops {
 
 struct nfs_rw_ops {
 	const fmode_t rw_mode;
-	struct nfs_rw_header *(*rw_alloc_header)(void);
-	void (*rw_free_header)(struct nfs_rw_header *);
-	void (*rw_release)(struct nfs_pgio_data *);
-	int  (*rw_done)(struct rpc_task *, struct nfs_pgio_data *, struct inode *);
-	void (*rw_result)(struct rpc_task *, struct nfs_pgio_data *);
-	void (*rw_initiate)(struct nfs_pgio_data *, struct rpc_message *,
+	struct nfs_pgio_header *(*rw_alloc_header)(void);
+	void (*rw_free_header)(struct nfs_pgio_header *);
+	void (*rw_release)(struct nfs_pgio_header *);
+	int  (*rw_done)(struct rpc_task *, struct nfs_pgio_header *,
+			struct inode *);
+	void (*rw_result)(struct rpc_task *, struct nfs_pgio_header *);
+	void (*rw_initiate)(struct nfs_pgio_header *, struct rpc_message *,
 			    struct rpc_task_setup *, int);
 };
 
@@ -111,6 +112,8 @@ extern	void nfs_pageio_init(struct nfs_pageio_descriptor *desc,
 			     int how);
 extern	int nfs_pageio_add_request(struct nfs_pageio_descriptor *,
 				   struct nfs_page *);
+extern  int nfs_pageio_resend(struct nfs_pageio_descriptor *,
+			      struct nfs_pgio_header *);
 extern	void nfs_pageio_complete(struct nfs_pageio_descriptor *desc);
 extern	void nfs_pageio_cond_complete(struct nfs_pageio_descriptor *, pgoff_t);
 extern size_t nfs_generic_pg_test(struct nfs_pageio_descriptor *desc,
@@ -119,7 +122,7 @@ extern size_t nfs_generic_pg_test(struct nfs_pageio_descriptor *desc,
 extern  int nfs_wait_on_request(struct nfs_page *);
 extern	void nfs_unlock_request(struct nfs_page *req);
 extern	void nfs_unlock_and_release_request(struct nfs_page *);
-extern void nfs_page_group_lock(struct nfs_page *);
+extern int nfs_page_group_lock(struct nfs_page *, bool);
 extern void nfs_page_group_unlock(struct nfs_page *);
 extern bool nfs_page_group_sync_on_bit(struct nfs_page *, unsigned int);
 
