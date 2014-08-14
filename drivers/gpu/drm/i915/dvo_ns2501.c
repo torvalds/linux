@@ -342,6 +342,12 @@ static const struct ns2501_reg regs_1024x768[][86] = {
 	},
 };
 
+static const struct ns2501_reg regs_init[] = {
+	[0] = { .offset = 0x35, .value = 0xff, },
+	[1] = { .offset = 0x34, .value = 0x00, },
+	[2] = { .offset = 0x08, .value = 0x30, },
+};
+
 struct ns2501_priv {
 	bool quiet;
 	const struct ns2501_reg *regs;
@@ -543,6 +549,10 @@ static void ns2501_mode_set(struct intel_dvo_device *dvo,
 		mode_idx = MODE_1024x768;
 	else
 		return;
+
+	/* Hopefully doing it every time won't hurt... */
+	for (i = 0; i < ARRAY_SIZE(regs_init); i++)
+		ns2501_writeb(dvo, regs_init[i].offset, regs_init[i].value);
 
 	ns->regs = regs_1024x768[mode_idx];
 
