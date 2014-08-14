@@ -1229,4 +1229,5 @@ efi_status_t handle_cmdline_files(efi_system_table_t *sys_table_arg,
 
 efi_status_t efi_parse_options(char *cmdline);
 
+bool efi_runtime_disabled(void);
 #endif /* _LINUX_EFI_H */
