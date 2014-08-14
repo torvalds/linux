@@ -476,7 +476,7 @@ static void nfs4_file_put_access(struct nfs4_file *fp, u32 access)
 		__nfs4_file_put_access(fp, O_RDONLY);
 }
 
-static struct nfs4_stid *nfs4_alloc_stid(struct nfs4_client *cl,
+struct nfs4_stid *nfs4_alloc_stid(struct nfs4_client *cl,
 					 struct kmem_cache *slab)
 {
 	struct nfs4_stid *stid;
@@ -680,7 +680,7 @@ static void nfs4_put_deleg_lease(struct nfs4_file *fp)
 	}
 }
 
-static void unhash_stid(struct nfs4_stid *s)
+void nfs4_unhash_stid(struct nfs4_stid *s)
 {
 	s->sc_type = 0;
 }
@@ -988,7 +988,7 @@ static void unhash_lock_stateid(struct nfs4_ol_stateid *stp)
 
 	list_del_init(&stp->st_locks);
 	unhash_ol_stateid(stp);
-	unhash_stid(&stp->st_stid);
+	nfs4_unhash_stid(&stp->st_stid);
 }
 
 static void release_lock_stateid(struct nfs4_ol_stateid *stp)
@@ -4433,7 +4433,7 @@ out_unlock:
 	return status;
 }
 
-static __be32
+__be32
 nfsd4_lookup_stateid(struct nfsd4_compound_state *cstate,
 		     stateid_t *stateid, unsigned char typemask,
 		     struct nfs4_stid **s, struct nfsd_net *nn)

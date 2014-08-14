@@ -545,6 +545,12 @@ struct nfsd_net;
 extern __be32 nfs4_preprocess_stateid_op(struct net *net,
 		struct nfsd4_compound_state *cstate,
 		stateid_t *stateid, int flags, struct file **filp);
+__be32 nfsd4_lookup_stateid(struct nfsd4_compound_state *cstate,
+		     stateid_t *stateid, unsigned char typemask,
+		     struct nfs4_stid **s, struct nfsd_net *nn);
+struct nfs4_stid *nfs4_alloc_stid(struct nfs4_client *cl,
+		struct kmem_cache *slab);
+void nfs4_unhash_stid(struct nfs4_stid *s);
 void nfs4_put_stid(struct nfs4_stid *s);
 void nfs4_remove_reclaim_record(struct nfs4_client_reclaim *, struct nfsd_net *);
 extern void nfs4_release_reclaim(struct nfsd_net *);
