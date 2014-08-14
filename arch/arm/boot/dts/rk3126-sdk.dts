@@ -59,6 +59,6 @@
 };
 
 &codec {
-        spk_ctl_io = <&gpio1 GPIO_A0 0>;
+        hp_ctl_io = <&gpio1 GPIO_A0 0>;
 };
 
