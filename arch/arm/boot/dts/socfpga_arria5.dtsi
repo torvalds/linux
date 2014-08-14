@@ -15,6 +15,8 @@
  */
 
 /dts-v1/;
+/* First 4KB has trampoline code for secondary cores. */
+/memreserve/ 0x00000000 0x0001000;
 #include "socfpga.dtsi"
 
 / {
