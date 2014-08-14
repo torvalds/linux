@@ -157,6 +157,23 @@ static int bcm7xxx_28nm_config_init(struct phy_device *phydev)
 	return bcm7xxx_28nm_afe_config_init(phydev);
 }
 
+static int bcm7xxx_28nm_resume(struct phy_device *phydev)
+{
+	int ret;
+
+	/* Re-apply workarounds coming out suspend/resume */
+	ret = bcm7xxx_28nm_config_init(phydev);
+	if (ret)
+		return ret;
+
+	/* 28nm Gigabit PHYs come out of reset without any half-duplex
+	 * or "hub" compliant advertised mode, fix that. This does not
+	 * cause any problems with the PHY library since genphy_config_aneg()
+	 * gracefully handles auto-negotiated and forced modes.
+	 */
+	return genphy_config_aneg(phydev);
+}
+
 static int phy_set_clr_bits(struct phy_device *dev, int location,
 					int set_mask, int clr_mask)
 {
@@ -258,7 +275,7 @@ static struct phy_driver bcm7xxx_driver[] = {
 	.config_aneg	= genphy_config_aneg,
 	.read_status	= genphy_read_status,
 	.suspend	= bcm7xxx_suspend,
-	.resume		= bcm7xxx_28nm_afe_config_init,
+	.resume		= bcm7xxx_28nm_resume,
 	.driver		= { .owner = THIS_MODULE },
 }, {
 	.phy_id		= PHY_ID_BCM7439,
@@ -271,7 +288,7 @@ static struct phy_driver bcm7xxx_driver[] = {
 	.config_aneg	= genphy_config_aneg,
 	.read_status	= genphy_read_status,
 	.suspend	= bcm7xxx_suspend,
-	.resume		= bcm7xxx_28nm_afe_config_init,
+	.resume		= bcm7xxx_28nm_resume,
 	.driver		= { .owner = THIS_MODULE },
 }, {
 	.phy_id		= PHY_ID_BCM7445,
@@ -284,7 +301,7 @@ static struct phy_driver bcm7xxx_driver[] = {
 	.config_aneg	= genphy_config_aneg,
 	.read_status	= genphy_read_status,
 	.suspend	= bcm7xxx_suspend,
-	.resume		= bcm7xxx_28nm_config_init,
+	.resume		= bcm7xxx_28nm_afe_config_init,
 	.driver		= { .owner = THIS_MODULE },
 }, {
 	.phy_id		= PHY_BCM_OUI_4,
