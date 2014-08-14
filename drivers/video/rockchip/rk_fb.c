@@ -464,14 +464,23 @@ char *get_format_string(enum data_format format, char *fmt)
  */
 struct rk_lcdc_driver *rk_get_lcdc_drv(char *name)
 {
-	struct rk_fb *inf = platform_get_drvdata(fb_pdev);
+	struct rk_fb *inf = NULL;
+	struct rk_lcdc_driver *dev_drv = NULL;
 	int i = 0;
-	for (i = 0; i < inf->num_lcdc; i++) {
-		if (!strcmp(inf->lcdc_dev_drv[i]->name, name))
-			break;
-	}
-	return inf->lcdc_dev_drv[i];
 
+        if (likely(fb_pdev))
+                inf = platform_get_drvdata(fb_pdev);
+        else
+                return NULL;
+
+	for (i = 0; i < inf->num_lcdc; i++) {
+		if (!strcmp(inf->lcdc_dev_drv[i]->name, name)) {
+			dev_drv = inf->lcdc_dev_drv[i];
+			break;
+		}
+	}
+
+	return dev_drv;
 }
 
 static struct rk_lcdc_driver *rk_get_prmry_lcdc_drv(void)
@@ -1435,10 +1444,21 @@ void rk_fb_free_dma_buf(struct rk_lcdc_driver *dev_drv,
 	memset(reg_win_data, 0, sizeof(struct rk_fb_reg_win_data));
 }
 
-static void rk_fb_update_driver(struct rk_lcdc_win *win,
+static void rk_fb_update_driver(struct rk_lcdc_driver *dev_drv,
+                                struct rk_lcdc_win *win,
 				struct rk_fb_reg_win_data *reg_win_data)
 {
 	int i = 0;
+        struct rk_fb *inf = platform_get_drvdata(fb_pdev);
+        struct rk_screen *cur_screen;
+        struct rk_screen primary_screen;
+
+        if (unlikely(!inf) || unlikely(!dev_drv) ||
+            unlikely(!win) || unlikely(!reg_win_data))
+                return;
+
+        cur_screen = dev_drv->cur_screen;
+        rk_fb_get_prmry_screen(&primary_screen);
 
 	win->area_num = reg_win_data->area_num;
 	win->format = reg_win_data->data_format;
@@ -1463,14 +1483,33 @@ static void rk_fb_update_driver(struct rk_lcdc_win *win,
 			if (reg_win_data->reg_area_data[i].smem_start > 0) {
 				win->area[i].smem_start =
 				    reg_win_data->reg_area_data[i].smem_start;
-				win->area[i].xpos =
-				    reg_win_data->reg_area_data[i].xpos;
-				win->area[i].ypos =
-				    reg_win_data->reg_area_data[i].ypos;
-				win->area[i].xsize =
-				    reg_win_data->reg_area_data[i].xsize;
-				win->area[i].ysize =
-				    reg_win_data->reg_area_data[i].ysize;
+                                if (inf->disp_mode == DUAL) {
+				        win->area[i].xpos =
+				                reg_win_data->reg_area_data[i].xpos;
+				        win->area[i].ypos =
+				                reg_win_data->reg_area_data[i].ypos;
+				        win->area[i].xsize =
+				                reg_win_data->reg_area_data[i].xsize;
+				        win->area[i].ysize =
+				                reg_win_data->reg_area_data[i].ysize;
+                                } else {
+                                        win->area[i].xpos =
+                                                reg_win_data->reg_area_data[i].xpos *
+                                                cur_screen->mode.xres /
+                                                primary_screen.mode.xres;
+	                                win->area[i].ypos =
+                                                reg_win_data->reg_area_data[i].ypos *
+                                                cur_screen->mode.yres /
+                                                primary_screen.mode.yres;
+	                                win->area[i].xsize =
+                                                reg_win_data->reg_area_data[i].xsize *
+                                                cur_screen->mode.xres /
+                                                primary_screen.mode.xres;
+	                                win->area[i].ysize =
+                                                reg_win_data->reg_area_data[i].ysize *
+                                                cur_screen->mode.yres /
+                                                primary_screen.mode.yres;
+                                }
 				win->area[i].xact =
 				    reg_win_data->reg_area_data[i].xact;
 				win->area[i].yact =
@@ -1724,7 +1763,7 @@ static void rk_fb_update_reg(struct rk_lcdc_driver *dev_drv,
 		win = dev_drv->win[i];
 		win_data = rk_fb_get_win_data(regs, i);
 		if (win_data) {
-			rk_fb_update_driver(win, win_data);
+			rk_fb_update_driver(dev_drv, win, win_data);
 			win->state = 1;
 			dev_drv->ops->set_par(dev_drv, i);
 			dev_drv->ops->pan_display(dev_drv, i);
@@ -1881,6 +1920,7 @@ static int rk_fb_set_win_buffer(struct fb_info *info,
 	struct fb_fix_screeninfo *fix = &info->fix;
 	struct rk_lcdc_driver *dev_drv = (struct rk_lcdc_driver *)info->par;
 	struct rk_screen *screen = dev_drv->cur_screen;
+        struct rk_screen primary_screen;
 	struct fb_info *fbi = rk_fb->fb[0];
 	int i, ion_fd, acq_fence_fd;
 	u32 xvir, yvir;
@@ -1975,8 +2015,10 @@ static int rk_fb_set_win_buffer(struct fb_info *info,
 		reg_win_data->z_order = -1;
 		reg_win_data->win_id = -1;
 	}
+
+        rk_fb_get_prmry_screen(&primary_screen);
 	for (i = 0; i < reg_win_data->area_num; i++) {
-		rk_fb_check_config_var(&win_par->area_par[i], screen);
+		rk_fb_check_config_var(&win_par->area_par[i], &primary_screen);
 		/* visiable pos in panel */
 		reg_win_data->reg_area_data[i].xpos = win_par->area_par[i].xpos;
 		reg_win_data->reg_area_data[i].ypos = win_par->area_par[i].ypos;
@@ -2739,8 +2781,10 @@ static int rk_fb_set_par(struct fb_info *info)
 		ysize = screen->mode.yres;
 	}
 
-/*this is for device like rk2928 ,whic have one lcdc but two display outputs*/
-/*save winameter set by android*/
+	/* this is for device like rk2928/rk312x,
+	 * which have one lcdc but two display outputs
+	 * save win parameter set by android
+	 */
 	if (rk_fb->disp_mode != DUAL) {
 		if (screen->screen_id == 0) {
 			dev_drv->screen0->xsize = xsize;
@@ -3076,23 +3120,7 @@ void rk_direct_fb_show(struct fb_info *fbi)
 	rk_fb_pan_display(&fbi->var, fbi);
 }
 EXPORT_SYMBOL(rk_direct_fb_show);
-#if 0
-static int set_xact_yact_for_hdmi(struct fb_var_screeninfo *pmy_var,
-				  struct fb_var_screeninfo *hdmi_var)
-{
-	if (pmy_var->xres < pmy_var->yres) {	/* vertical  lcd screen */
-		hdmi_var->xres = pmy_var->yres;
-		hdmi_var->yres = pmy_var->xres;
-		hdmi_var->xres_virtual = pmy_var->yres;
-	} else {
-		hdmi_var->xres = pmy_var->xres;
-		hdmi_var->yres = pmy_var->yres;
-		hdmi_var->xres_virtual = pmy_var->xres_virtual;
-	}
 
-	return 0;
-}
-#endif
 int rk_fb_dpi_open(bool open)
 {
 	struct rk_lcdc_driver *dev_drv = NULL;
@@ -3124,6 +3152,25 @@ int rk_fb_dpi_status(void)
 
 	return ret;
 }
+
+#if 0
+static int set_xact_yact_for_hdmi(struct fb_var_screeninfo *pmy_var,
+				  struct fb_var_screeninfo *hdmi_var)
+{
+	if (pmy_var->xres < pmy_var->yres) {	/* vertical  lcd screen */
+		hdmi_var->xres = pmy_var->yres;
+		hdmi_var->yres = pmy_var->xres;
+		hdmi_var->xres_virtual = pmy_var->yres;
+	} else {
+		hdmi_var->xres = pmy_var->xres;
+		hdmi_var->yres = pmy_var->yres;
+		hdmi_var->xres_virtual = pmy_var->xres_virtual;
+	}
+
+	return 0;
+}
+#endif
+
 #if 1
 /*
  *function:this function will be called by display device, enable/disable lcdc
@@ -3221,7 +3268,6 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 	struct rk_lcdc_driver *dev_drv = NULL;
 	struct fb_var_screeninfo *hdmi_var = NULL;
 	struct fb_var_screeninfo *pmy_var = NULL;	/* var for primary screen */
-	int i;
 	struct fb_fix_screeninfo *hdmi_fix = NULL;
 	char name[6];
 	int ret;
@@ -3236,16 +3282,9 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 		dev_drv = rk_fb->lcdc_dev_drv[0];
                 if (dev_drv->trsm_ops && dev_drv->trsm_ops->disable)
                         dev_drv->trsm_ops->disable();
-                rk_disp_pwr_disable(dev_drv);
 	} else {
-		for (i = 0; i < rk_fb->num_lcdc; i++) {
-			if (rk_fb->lcdc_dev_drv[i]->prop == EXTEND) {
-				dev_drv = rk_fb->lcdc_dev_drv[i];
-				break;
-			}
-		}
-
-		if (i == rk_fb->num_lcdc) {
+		dev_drv = rk_get_lcdc_drv(name);
+		if (dev_drv == NULL) {
 			printk(KERN_ERR "%s driver not found!", name);
 			return -ENODEV;
 		}
@@ -3253,10 +3292,8 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 	printk("hdmi %s lcdc%d\n", enable ? "connect to" : "remove from",
 	       dev_drv->id);
 
-	if (rk_fb->num_lcdc == 1)
-		info = rk_fb->fb[0];
-	else if (rk_fb->num_lcdc == 2)
-		info = rk_fb->fb[dev_drv->lcdc_win_num];	/* the main fb of lcdc1 */
+	/* the main fb of lcdc drv */
+	info = rk_fb->fb[dev_drv->fb_index_base];
 
 	if (dev_drv->screen1) {	/* device like rk2928 ,have only one lcdc but two outputs */
 		if (enable) {
@@ -3267,16 +3304,17 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 			dev_drv->screen0->lcdc_id = 1;	/* connect screen0 to output interface 1 */
 			dev_drv->cur_screen = dev_drv->screen1;
 			dev_drv->screen0->ext_screen = dev_drv->screen1;
-			if (dev_drv->screen0->sscreen_get) {
+			if (dev_drv->screen0->sscreen_get)
 				dev_drv->screen0->sscreen_get(dev_drv->screen0,
 							      dev_drv->cur_screen->hdmi_resolution);
-			}
 
 		} else {
 			dev_drv->screen1->lcdc_id = 1;	/* connect screen1 to output interface 1 */
 			dev_drv->screen0->lcdc_id = 0;	/* connect screen0 to output interface 0 */
 			dev_drv->cur_screen = dev_drv->screen0;
-			dev_drv->screen_ctr_info->set_screen_info(dev_drv->cur_screen,
+                        if (dev_drv->screen_ctr_info &&
+                            dev_drv->screen_ctr_info->set_screen_info)
+			        dev_drv->screen_ctr_info->set_screen_info(dev_drv->cur_screen,
 								  dev_drv->screen_ctr_info->lcd_info);
 		}
 	} else {
@@ -3349,11 +3387,10 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 		}
 	}
 
-        info->fbops->fb_ioctl(info, RK_FBIOSET_CONFIG_DONE, 0);
+        /* info->fbops->fb_ioctl(info, RK_FBIOSET_CONFIG_DONE, 0); */
 
 	if (rk_fb->disp_mode != DUAL) {
 		/* rk29_backlight_set(1); */
-                rk_disp_pwr_enable(dev_drv);
                 if (dev_drv->trsm_ops && dev_drv->trsm_ops->enable)
                         dev_drv->trsm_ops->enable();
 	}
@@ -3376,24 +3413,19 @@ int rk_fb_disp_scale(u8 scale_x, u8 scale_y, u8 lcdc_id)
 	u16 screen_x, screen_y;
 	u16 xpos, ypos;
 	char name[6];
-	int i = 0;
 
 	sprintf(name, "lcdc%d", lcdc_id);
-#if defined(CONFIG_ONE_LCDC_DUAL_OUTPUT_INF)
-	dev_drv = inf->lcdc_dev_drv[0];
-#else
-	for (i = 0; i < inf->num_lcdc; i++) {
-		if (inf->lcdc_dev_drv[i]->prop == EXTEND) {
-			dev_drv = inf->lcdc_dev_drv[i];
-			break;
+
+	if (inf->disp_mode == DUAL) {
+		dev_drv = rk_get_lcdc_drv(name);
+		if (dev_drv == NULL) {
+			printk(KERN_ERR "%s driver not found!", name);
+			return -ENODEV;
 		}
+	} else {
+		dev_drv = inf->lcdc_dev_drv[0];
 	}
 
-	if (i == inf->num_lcdc) {
-		printk(KERN_ERR "%s driver not found!", name);
-		return -ENODEV;
-	}
-#endif
 	if (inf->num_lcdc == 1)
 		info = inf->fb[0];
 	else if (inf->num_lcdc == 2)
@@ -3403,17 +3435,15 @@ int rk_fb_disp_scale(u8 scale_x, u8 scale_y, u8 lcdc_id)
 	screen_x = dev_drv->cur_screen->mode.xres;
 	screen_y = dev_drv->cur_screen->mode.yres;
 
-#if defined(CONFIG_ONE_LCDC_DUAL_OUTPUT_INF) || defined(CONFIG_NO_DUAL_DISP)
-	if (dev_drv->cur_screen->screen_id == 1) {
+	if (inf->disp_mode != DUAL &&
+			dev_drv->cur_screen->screen_id == 1) {
 		dev_drv->cur_screen->xpos =
 		    (screen_x - screen_x * scale_x / 100) >> 1;
 		dev_drv->cur_screen->ypos =
 		    (screen_y - screen_y * scale_y / 100) >> 1;
 		dev_drv->cur_screen->xsize = screen_x * scale_x / 100;
 		dev_drv->cur_screen->ysize = screen_y * scale_y / 100;
-	} else
-#endif
-	{
+	} else {
 		xpos = (screen_x - screen_x * scale_x / 100) >> 1;
 		ypos = (screen_y - screen_y * scale_y / 100) >> 1;
 		dev_drv->cur_screen->xsize = screen_x * scale_x / 100;
